@@ -80,6 +80,15 @@ echo "Building the ROS2 package..."
 colcon build --symlink-install
 echo "✓ Package built successfully"
 
+# Configure map path in sim.yaml
+echo ""
+echo "Configuring map path..."
+SIM_YAML="$SCRIPT_DIR/config/sim.yaml"
+DEFAULT_MAP="$SCRIPT_DIR/maps/Spielberg_map"
+# Update map_path to use the current directory
+sed -i "s|map_path:.*|map_path: '$DEFAULT_MAP'|" "$SIM_YAML"
+echo "✓ Map path set to: $DEFAULT_MAP"
+
 echo ""
 echo "================================================"
 echo "  Setup Complete!"
@@ -87,11 +96,10 @@ echo "================================================"
 echo ""
 echo "To run the simulation:"
 echo ""
-echo "  1. Source the environment:"
-echo "     source $SCRIPT_DIR/run.sh"
+echo "  ./run.sh"
 echo ""
-echo "  2. Or use the run script directly:"
-echo "     $SCRIPT_DIR/run.sh"
+echo "Available maps in $SCRIPT_DIR/maps:"
+ls -1 "$SCRIPT_DIR/maps/"*.yaml 2>/dev/null | xargs -I{} basename {} .yaml | sed 's/^/  - /'
 echo ""
-echo "Don't forget to update the map_path in config/sim.yaml!"
+echo "To change the map, edit config/sim.yaml and update 'map_path'"
 echo ""
