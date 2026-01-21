@@ -234,45 +234,59 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   // Propagate odometry using selected integration method
   if (integration_method_ == "trapezoidal") {
     // Trapezoidal integration: average velocity at start and end of dt
-    double x_dot_start = current_speed * cos(yaw_start);
-    double y_dot_start = current_speed * sin(yaw_start);
-    double x_dot_end = current_speed * cos(yaw_end);
-    double y_dot_end = current_speed * sin(yaw_end);
+    const double cos_start = cos(yaw_start);
+    const double sin_start = sin(yaw_start);
+    const double cos_end = cos(yaw_end);
+    const double sin_end = sin(yaw_end);
+
+    const double x_dot_start = current_speed * cos_start;
+    const double y_dot_start = current_speed * sin_start;
+    const double x_dot_end = current_speed * cos_end;
+    const double y_dot_end = current_speed * sin_end;
 
     // Use average of start and end velocities
-    x_ += 0.5 * (x_dot_start + x_dot_end) * dt.seconds();
-    y_ += 0.5 * (y_dot_start + y_dot_end) * dt.seconds();
+    const double dt_sec = dt.seconds();
+    x_ += 0.5 * (x_dot_start + x_dot_end) * dt_sec;
+    y_ += 0.5 * (y_dot_start + y_dot_end) * dt_sec;
 
   } else if (integration_method_ == "analytical") {
     // Analytical solution for Ackermann kinematics (circular arc)
-    double delta_yaw = yaw_end - yaw_start;
+    const double delta_yaw = yaw_end - yaw_start;
+
+    const double cos_start = cos(yaw_start);
+    const double sin_start = sin(yaw_start);
 
     if (std::fabs(delta_yaw) < 1e-6) {
       // Nearly straight motion: use simple forward integration
-      x_ += current_speed * cos(yaw_start) * dt.seconds();
-      y_ += current_speed * sin(yaw_start) * dt.seconds();
+      const double dt_sec = dt.seconds();
+      x_ += current_speed * cos_start * dt_sec;
+      y_ += current_speed * sin_start * dt_sec;
     } else {
       // Circular arc motion: exact solution for constant curvature
       // Use actual delta_yaw to calculate turning radius (more accurate
       // than using angular velocity)
-      double actual_angular_velocity = delta_yaw / dt.seconds();
-      double turning_radius = current_speed / actual_angular_velocity;
+      const double actual_angular_velocity = delta_yaw / dt.seconds();
+      const double turning_radius = current_speed / actual_angular_velocity;
+
+      const double sin_delta = sin(delta_yaw);
+      const double cos_delta = cos(delta_yaw);
 
       // Calculate displacement in vehicle frame (arc geometry)
-      double dx_vehicle = turning_radius * sin(delta_yaw);
-      double dy_vehicle = turning_radius * (1.0 - cos(delta_yaw));
+      const double dx_vehicle = turning_radius * sin_delta;
+      const double dy_vehicle = turning_radius * (1.0 - cos_delta);
 
-      // Transform to global frame using start yaw
-      x_ += dx_vehicle * cos(yaw_start) - dy_vehicle * sin(yaw_start);
-      y_ += dx_vehicle * sin(yaw_start) + dy_vehicle * cos(yaw_start);
+      // Transform to global frame
+      x_ += dx_vehicle * cos_start - dy_vehicle * sin_start;
+      y_ += dx_vehicle * sin_start + dy_vehicle * cos_start;
     }
 
   } else {
     // Default: Euler integration (first-order)
-    double x_dot = current_speed * cos(yaw_start);
-    double y_dot = current_speed * sin(yaw_start);
-    x_ += x_dot * dt.seconds();
-    y_ += y_dot * dt.seconds();
+    const double cos_start = cos(yaw_start);
+    const double sin_start = sin(yaw_start);
+    const double dt_sec = dt.seconds();
+    x_ += current_speed * cos_start * dt_sec;
+    y_ += current_speed * sin_start * dt_sec;
   }
 
   // save state for next time

@@ -431,14 +431,18 @@ def main(args=None):
     rclpy.init(args=args)
     node = JoyTeleop()
 
-    try:
-        while (True):
-            rclpy.spin_once(node, timeout_sec=0.1)
-            duration = node.get_clock().now() - node.last_message_timestamp
-            duration_sec = duration.to_msg().sec + duration.to_msg().nanosec / 1e9
-            if (duration_sec > 0.5):
-                node.send_brake_command()
+    # Timer-based timeout check
+    def check_timeout():
+        duration = node.get_clock().now() - node.last_message_timestamp
+        duration_sec = duration.nanoseconds / 1e9
+        if duration_sec > 0.5:
+            node.send_brake_command()
 
+    # Create timer at 10Hz (100ms) to check for timeout
+    _timer = node.create_timer(0.1, check_timeout)  # noqa: F841
+
+    try:
+        rclpy.spin(node)
     except JoyTeleopException as e:
         node.get_logger().error(e.message)
     except KeyboardInterrupt:
