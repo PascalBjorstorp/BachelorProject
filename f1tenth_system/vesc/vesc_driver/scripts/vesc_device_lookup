@@ -1,0 +1,5 @@
+#!/bin/bash
+
+export LD_LIBRARY_PATH=${ROS_DISTRO:+/opt/ros/${ROS_DISTRO}/lib}${ROS_DISTRO:+:}$LD_LIBRARY_PATH
+
+vesc_device_namer $1 1000

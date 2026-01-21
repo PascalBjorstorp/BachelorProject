@@ -1,0 +1,29 @@
+/**:
+  ros__parameters:
+    # Serial port configuration
+    port: "/dev/ttyACM0"
+    
+    # IMU configuration
+    imu_frame: "imu_link"
+    
+    # IMU covariance values (for sensor fusion / EKF)
+    # Set to -1 to use default hardcoded values
+    imu_orientation_covariance: 0.0001
+    imu_angular_velocity_covariance: 0.00002
+    imu_linear_acceleration_covariance: 0.0004
+    
+    # Motor command limits
+    brake_max: 200000.0
+    brake_min: -20000.0
+    current_max: 100.0
+    current_min: 0.0
+    duty_cycle_max: 0.0
+    duty_cycle_min: 0.0
+    position_max: 0.0
+    position_min: 0.0
+    speed_max: 23250.0
+    speed_min: -23250.0
+    
+    # Servo limits (0.0 to 1.0)
+    servo_max: 0.85
+    servo_min: 0.15
