@@ -1,0 +1,148 @@
+# DualShock 4 (DS4) Controller Configuration for F1TENTH
+# ======================================================
+# 
+# DS4 Controller Mapping:
+# -----------------------
+# Axes:
+#   0: Left Stick X (left/right)
+#   1: Left Stick Y (up/down, inverted: up=-1, down=+1)
+#   2: Right Stick X (left/right)
+#   3: Right Stick Y (up/down)
+#   4: L2 Trigger (-1 released, +1 pressed)
+#   5: R2 Trigger (-1 released, +1 pressed)
+#
+# Buttons:
+#   0: Cross (X)
+#   1: Circle
+#   2: Square
+#   3: Triangle
+#   4: Share
+#   5: PS Button
+#   6: Options
+#   7: L3 (Left Stick Click)
+#   8: R3 (Right Stick Click)
+#   9: L1 (Left Bumper)
+#   10: R1 (Right Bumper)
+#   11: D-pad Up
+#   12: D-pad Down
+#   13: D-pad Left
+#   14: D-pad Right
+#   15: Touchpad Click
+
+joy:
+  ros__parameters:
+    device_id: 0
+    deadzone: 0.05
+    autorepeat_rate: 20.0
+    coalesce_interval: 0.01
+    sticky_buttons: false
+
+joy_teleop:
+  ros__parameters:
+    # ===========================
+    # Default mode (no buttons)
+    # ===========================
+    # Publishes zero commands when no deadman is held
+    default:
+      type: topic
+      interface_type: ackermann_msgs/msg/AckermannDriveStamped
+      topic_name: teleop
+      axis_mappings:
+        drive-speed:
+          axis: 1
+          scale: 0.0
+          offset: 0.0
+        drive-steering_angle:
+          axis: 2
+          scale: 0.0
+          offset: 0.0
+
+    # ===========================
+    # Manual Teleop Mode
+    # ===========================
+    # L1 (Button 9) = Dead man's switch for manual driving
+    # Left Stick Y = Speed (forward/backward)
+    # Right Stick X = Steering
+    human_control:
+      type: topic
+      interface_type: ackermann_msgs/msg/AckermannDriveStamped
+      topic_name: teleop
+      deadman_buttons: [9]  # L1 button
+      axis_mappings:
+        drive-speed:
+          axis: 1           # Left stick Y
+          scale: -3.0       # Negative because stick up = negative value, max 3 m/s
+          offset: 0.0
+        drive-steering_angle:
+          axis: 2           # Right stick X
+          scale: 0.42       # Max steering angle in radians (~24 degrees)
+          offset: 0.0
+
+    # ===========================
+    # Autonomous Enable Mode
+    # ===========================
+    # R1 (Button 10) = Dead man's switch for autonomous
+    # When held, allows /drive topic to pass through mux
+    # (This publishes to a dummy topic, the real magic is that
+    # releasing L1 allows the lower-priority /drive to come through)
+    autonomous_control:
+      type: topic
+      interface_type: std_msgs/msg/Int8
+      topic_name: /autonomous_enabled
+      deadman_buttons: [10]  # R1 button
+      message_value:
+        data:
+          value: 1
+
+    # ===========================
+    # Emergency Stop
+    # ===========================
+    # Circle (Button 1) = Emergency Stop
+    # Publishes zero speed immediately
+    emergency_stop:
+      type: topic
+      interface_type: ackermann_msgs/msg/AckermannDriveStamped
+      topic_name: teleop
+      buttons: [1]  # Circle button (single press, not deadman)
+      axis_mappings:
+        drive-speed:
+          axis: 1
+          scale: 0.0
+          offset: 0.0
+        drive-steering_angle:
+          axis: 2
+          scale: 0.0
+          offset: 0.0
+
+    # ===========================
+    # Slow Mode (Optional)
+    # ===========================
+    # Square (Button 2) + L1 = Slow manual mode for precision
+    slow_control:
+      type: topic
+      interface_type: ackermann_msgs/msg/AckermannDriveStamped
+      topic_name: teleop
+      deadman_buttons: [9, 2]  # L1 + Square together
+      axis_mappings:
+        drive-speed:
+          axis: 1
+          scale: -1.0       # Max 1 m/s
+          offset: 0.0
+        drive-steering_angle:
+          axis: 2
+          scale: 0.42
+          offset: 0.0
+
+# ===========================
+# Button Quick Reference
+# ===========================
+# L1 (9)      - Hold for manual teleop
+# R1 (10)     - Hold to enable autonomous (/drive passes through mux)
+# Circle (1)  - Emergency stop (single press)
+# L1+Square   - Slow mode for precision maneuvers
+#
+# Autonomous operation:
+# 1. Launch your AI node publishing to /drive
+# 2. Hold R1 to allow autonomous commands
+# 3. Release R1 or press Circle to stop
+# 4. Press L1 anytime to take manual control (overrides AI)

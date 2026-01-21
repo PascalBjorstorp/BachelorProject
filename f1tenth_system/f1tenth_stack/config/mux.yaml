@@ -1,0 +1,37 @@
+# Ackermann Mux Configuration
+# ===========================
+# Priority-based command multiplexer
+# Higher priority = takes precedence when active
+# Commands time out if not received within timeout period
+
+ackermann_mux:
+  ros__parameters:
+    topics:
+      # Navigation/autonomous commands (lowest priority)
+      # Your AI publishes to /drive
+      navigation:
+        topic: drive
+        timeout: 0.2
+        priority: 10
+      
+      # Joystick teleop commands (highest priority)
+      # Holding deadman switch activates this
+      joystick:
+        topic: teleop
+        timeout: 0.5
+        priority: 100
+      
+      # Safety override (can be used for emergency maneuvers)
+      # Even higher priority than joystick
+      # safety:
+      #   topic: safety_cmd
+      #   timeout: 0.1
+      #   priority: 200
+    
+    # Lock topics can disable lower-priority inputs
+    # Useful for implementing emergency stops
+    # locks:
+    #   lock_nav:
+    #     topic: lock_nav
+    #     timeout: 0.0
+    #     priority: 10
