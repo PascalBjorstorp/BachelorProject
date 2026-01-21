@@ -1,52 +1,49 @@
-# MIT License
-
-# Copyright (c) 2020 Hongrui Zheng
-
+# Copyright 2020 Hongrui Zheng
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
 
-from typing import List, Dict, Any, Tuple
-import time
 import pathlib
+import time
+from typing import Any, Dict, List, Tuple
 
-import rclpy
-from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
-from rosgraph_msgs.msg import Clock
-from std_msgs.msg import Bool
-
-from sensor_msgs.msg import LaserScan
-from nav_msgs.msg import Odometry
-from geometry_msgs.msg import PoseStamped
-from geometry_msgs.msg import PoseWithCovarianceStamped
-from geometry_msgs.msg import Twist
-from geometry_msgs.msg import TransformStamped
-from geometry_msgs.msg import Transform
 from ackermann_msgs.msg import AckermannDriveStamped
-from tf2_ros import TransformBroadcaster, StaticTransformBroadcaster
-
-import gymnasium as gym
-import numpy as np
-from transforms3d import euler
-
-import f1tenth_gym  # Import to register the environment
+import f1tenth_gym  # noqa: F401 - Register environment
 from f1tenth_gym.envs.f110_env import F110Env
 from f1tenth_gym.envs.track import Track
+from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped
+from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import Twist
+import gymnasium as gym
+from nav_msgs.msg import Odometry
+import numpy as np
+import rclpy
+from rclpy.node import Node
+from rclpy.qos import HistoryPolicy
+from rclpy.qos import QoSProfile
+from rclpy.qos import ReliabilityPolicy
+from rosgraph_msgs.msg import Clock
+from sensor_msgs.msg import LaserScan
+from std_msgs.msg import Bool
+from tf2_ros import StaticTransformBroadcaster
+from tf2_ros import TransformBroadcaster
+from transforms3d import euler
 
 # Constants for timer periods (in seconds)
 PUBLISH_TIMER_PERIOD: float = 0.004  # 250 Hz for sensor data publishing
@@ -55,24 +52,16 @@ SYNC_MODE_TIMER_PERIOD: float = 1.0  # 1 Hz heartbeat in sync mode
 # Identity quaternion (w, x, y, z) for no rotation
 IDENTITY_QUAT: Tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.0)
 
+
 class GymBridge(Node):
-    """ROS2 bridge node for F1Tenth gym environment.
-    
+    """
+    ROS2 bridge node for F1Tenth gym environment.
+
     This node bridges the F1Tenth gym simulation environment with ROS2,
     publishing sensor data (laser scans, odometry) and subscribing to
-    drive commands.
-    
-    Performance optimizations:
-    - Pre-allocated messages to reduce memory allocation in hot paths
-    - Batched transform publishing
-    - Static transforms for fixed frames (laser)
-    - NumPy array operations where possible
-    
-    Attributes:
-        env: The F1Tenth gym environment instance
-        ego_pose: Current [x, y, theta] pose of ego vehicle
-        ego_speed: Current [vx, vy, omega] velocity of ego vehicle
-        has_opp: Whether opponent vehicle is enabled
+    drive commands. Includes performance optimizations such as pre-allocated
+    messages, batched transform publishing, and static transforms for fixed
+    frames.
     """
 
     def __init__(self) -> None:
@@ -80,37 +69,37 @@ class GymBridge(Node):
 
         # Declare all parameters
         self._declare_parameters()
-        
+
         # Validate and get parameters
         num_agents = self._validate_num_agents()
         self.vehicle_params = self._get_vehicle_params()
         scale = self.get_parameter('scale').value
-        
+
         # Load map and create environment
         self.env = self._create_environment(num_agents, scale)
-        
+
         # Initialize agent state
         self._init_ego_state()
         if num_agents == 2:
             self._init_opponent_state()
-        
+
         # Reset environment with initial poses
         self._reset_environment(num_agents)
-        
+
         # Pre-allocate messages for hot path
         self._preallocate_messages(num_agents)
-        
+
         # Setup timers based on mode
         self._setup_timers(num_agents)
-        
+
         # Setup publishers and subscribers
         self._setup_publishers(num_agents)
         self._setup_subscribers(num_agents)
-        
+
         # Performance metrics
         self._enable_perf_metrics = False
         self._loop_times: List[float] = []
-        
+
         # QoS profile for reliable communication
         self.reliable_qos = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
@@ -169,7 +158,10 @@ class GymBridge(Node):
             'f1fifth': F110Env.f1fifth_vehicle_params,
         }
         if vehicle_type not in params_map:
-            raise ValueError(f'vehicle_params should be one of: {list(params_map.keys())}')
+            raise ValueError(
+                f'vehicle_params should be one of: {
+                    list(
+                        params_map.keys())}')
         return params_map[vehicle_type]()
 
     def _create_environment(self, num_agents: int, scale: float) -> gym.Env:
@@ -191,21 +183,21 @@ class GymBridge(Node):
         sim_timestep = self.get_parameter('sim_timestep').value
         try:
             env = gym.make(
-                "f1tenth-v0",
+                'f1tenth-v0',
                 config={
-                    "map": loaded_map,
-                    "num_agents": num_agents,
-                    "timestep": sim_timestep,
-                    "integrator": "rk4",
-                    "control_input": ["speed", "steering_angle"],
-                    "model": "st",
-                    "observation_config": {"type": "original"},
-                    "params": self.vehicle_params,
-                    "reset_config": {"type": "map_random_static"},
-                    "scale": scale,
-                    "lidar_dist": self.get_parameter("scan_distance_to_base_link").value
+                    'map': loaded_map,
+                    'num_agents': num_agents,
+                    'timestep': sim_timestep,
+                    'integrator': 'rk4',
+                    'control_input': ['speed', 'steering_angle'],
+                    'model': 'st',
+                    'observation_config': {'type': 'original'},
+                    'params': self.vehicle_params,
+                    'reset_config': {'type': 'map_random_static'},
+                    'scale': scale,
+                    'lidar_dist': self.get_parameter('scan_distance_to_base_link').value
                 },
-                render_mode="rgb_array",
+                render_mode='rgb_array',
             )
         except Exception as e:
             self.get_logger().error(f'Failed to create gym environment: {e}')
@@ -217,14 +209,14 @@ class GymBridge(Node):
         sx = self.get_parameter('sx').value
         sy = self.get_parameter('sy').value
         stheta = self.get_parameter('stheta').value
-        
+
         self.ego_pose: List[float] = [sx, sy, stheta]
         self.ego_speed: List[float] = [0.0, 0.0, 0.0]
         self.ego_requested_speed: float = 0.0
         self.ego_steer: float = 0.0
         self.ego_collision: bool = False
         self.ego_scan: List[float] = []
-        
+
         # Scan parameters
         scan_fov = self.get_parameter('scan_fov').value
         scan_beams = self.get_parameter('scan_beams').value
@@ -232,19 +224,20 @@ class GymBridge(Node):
         self.angle_max = scan_fov / 2.0
         self.angle_inc = scan_fov / scan_beams
         self.scan_range_max = self.get_parameter('scan_range_max').value
-        
+
         self.ego_namespace = self.get_parameter('ego_namespace').value
-        self.scan_distance_to_base_link = self.get_parameter('scan_distance_to_base_link').value
+        self.scan_distance_to_base_link = self.get_parameter(
+            'scan_distance_to_base_link').value
 
     def _init_opponent_state(self) -> None:
         """Initialize opponent agent state variables."""
         self.has_opp = True
         self.opp_namespace = self.get_parameter('opp_namespace').value
-        
+
         sx1 = self.get_parameter('sx1').value
         sy1 = self.get_parameter('sy1').value
         stheta1 = self.get_parameter('stheta1').value
-        
+
         self.opp_pose: List[float] = [sx1, sy1, stheta1]
         self.opp_speed: List[float] = [0.0, 0.0, 0.0]
         self.opp_requested_speed: float = 0.0
@@ -258,13 +251,13 @@ class GymBridge(Node):
             if num_agents == 2:
                 self.has_opp = True
                 poses = np.array([self.ego_pose, self.opp_pose])
-                self.obs, _ = self.env.reset(options={"poses": poses})
+                self.obs, _ = self.env.reset(options={'poses': poses})
                 self.ego_scan = self.obs['scans'][0].tolist()
                 self.opp_scan = self.obs['scans'][1].tolist()
             else:
                 self.has_opp = False
                 poses = np.array([self.ego_pose])
-                self.obs, _ = self.env.reset(options={"poses": poses})
+                self.obs, _ = self.env.reset(options={'poses': poses})
                 self.ego_scan = self.obs['scans'][0].tolist()
         except Exception as e:
             self.get_logger().error(f'Failed to reset environment: {e}')
@@ -280,29 +273,33 @@ class GymBridge(Node):
         self._ego_scan_msg.range_min = 0.0
         self._ego_scan_msg.range_max = self.scan_range_max
         self._ego_scan_msg.header.frame_id = f'{self.ego_namespace}/laser'
-        
+
         # Pre-allocate odometry messages
         self._ego_odom_msg = Odometry()
         self._ego_odom_msg.header.frame_id = 'map'
         self._ego_odom_msg.child_frame_id = f'{self.ego_namespace}/base_link'
-        
+
         # Pre-allocate transform messages
         self._ego_tf_msg = TransformStamped()
         self._ego_tf_msg.header.frame_id = 'map'
         self._ego_tf_msg.child_frame_id = f'{self.ego_namespace}/base_link'
-        
+
         # Pre-allocate wheel transforms
         self._ego_left_wheel_tf = TransformStamped()
-        self._ego_left_wheel_tf.header.frame_id = f'{self.ego_namespace}/front_left_hinge'
-        self._ego_left_wheel_tf.child_frame_id = f'{self.ego_namespace}/front_left_wheel'
-        
+        self._ego_left_wheel_tf.header.frame_id = f'{
+            self.ego_namespace}/front_left_hinge'
+        self._ego_left_wheel_tf.child_frame_id = f'{
+            self.ego_namespace}/front_left_wheel'
+
         self._ego_right_wheel_tf = TransformStamped()
-        self._ego_right_wheel_tf.header.frame_id = f'{self.ego_namespace}/front_right_hinge'
-        self._ego_right_wheel_tf.child_frame_id = f'{self.ego_namespace}/front_right_wheel'
-        
+        self._ego_right_wheel_tf.header.frame_id = f'{
+            self.ego_namespace}/front_right_hinge'
+        self._ego_right_wheel_tf.child_frame_id = f'{
+            self.ego_namespace}/front_right_wheel'
+
         # Pre-allocate clock message
         self._clock_msg = Clock()
-        
+
         if num_agents == 2:
             self._opp_scan_msg = LaserScan()
             self._opp_scan_msg.angle_min = self.angle_min
@@ -311,47 +308,55 @@ class GymBridge(Node):
             self._opp_scan_msg.range_min = 0.0
             self._opp_scan_msg.range_max = self.scan_range_max
             self._opp_scan_msg.header.frame_id = f'{self.opp_namespace}/laser'
-            
+
             self._opp_odom_msg = Odometry()
             self._opp_odom_msg.header.frame_id = 'map'
-            self._opp_odom_msg.child_frame_id = f'{self.opp_namespace}/base_link'
-            
+            self._opp_odom_msg.child_frame_id = f'{
+                self.opp_namespace}/base_link'
+
             self._opp_tf_msg = TransformStamped()
             self._opp_tf_msg.header.frame_id = 'map'
             self._opp_tf_msg.child_frame_id = f'{self.opp_namespace}/base_link'
-            
+
             self._opp_left_wheel_tf = TransformStamped()
-            self._opp_left_wheel_tf.header.frame_id = f'{self.opp_namespace}/front_left_hinge'
-            self._opp_left_wheel_tf.child_frame_id = f'{self.opp_namespace}/front_left_wheel'
-            
+            self._opp_left_wheel_tf.header.frame_id = f'{
+                self.opp_namespace}/front_left_hinge'
+            self._opp_left_wheel_tf.child_frame_id = f'{
+                self.opp_namespace}/front_left_wheel'
+
             self._opp_right_wheel_tf = TransformStamped()
-            self._opp_right_wheel_tf.header.frame_id = f'{self.opp_namespace}/front_right_hinge'
-            self._opp_right_wheel_tf.child_frame_id = f'{self.opp_namespace}/front_right_wheel'
+            self._opp_right_wheel_tf.header.frame_id = f'{
+                self.opp_namespace}/front_right_hinge'
+            self._opp_right_wheel_tf.child_frame_id = f'{
+                self.opp_namespace}/front_right_wheel'
 
     def _setup_timers(self, num_agents: int) -> None:
-        """Setup simulation timers based on async/sync mode."""
+        """Set up simulation timers based on async/sync mode."""
         if not self.get_parameter('async_mode').value:
             self.get_logger().info(
                 'Running in synchronous mode. '
                 'Simulation will step only on new /drive messages.'
             )
-            self.timer = self.create_timer(SYNC_MODE_TIMER_PERIOD, self.timer_callback)
+            self.timer = self.create_timer(
+                SYNC_MODE_TIMER_PERIOD, self.timer_callback)
         else:
             self.get_logger().info(
                 'Running in asynchronous mode. '
                 'Simulation will step using a timer callback.'
             )
             sim_timestep = self.get_parameter('sim_timestep').value
-            self.drive_timer = self.create_timer(sim_timestep, self.drive_timer_callback)
-            self.timer = self.create_timer(PUBLISH_TIMER_PERIOD, self.timer_callback)
+            self.drive_timer = self.create_timer(
+                sim_timestep, self.drive_timer_callback)
+            self.timer = self.create_timer(
+                PUBLISH_TIMER_PERIOD, self.timer_callback)
 
         # Transform broadcasters
         self.br = TransformBroadcaster(self)
         self.static_br = StaticTransformBroadcaster(self)
-        
+
         # Publish static laser transforms (these never change)
         self._publish_static_laser_transforms(num_agents)
-        
+
         # Simulation state
         self.sim_paused = False
         self.done = False
@@ -359,7 +364,7 @@ class GymBridge(Node):
     def _publish_static_laser_transforms(self, num_agents: int) -> None:
         """Publish static transforms for laser frames (relative to base_link)."""
         static_transforms = []
-        
+
         # Ego laser transform
         ego_laser_tf = TransformStamped()
         ego_laser_tf.header.stamp = self.get_clock().now().to_msg()
@@ -373,7 +378,7 @@ class GymBridge(Node):
         ego_laser_tf.transform.rotation.y = IDENTITY_QUAT[2]
         ego_laser_tf.transform.rotation.z = IDENTITY_QUAT[3]
         static_transforms.append(ego_laser_tf)
-        
+
         if num_agents == 2:
             opp_laser_tf = TransformStamped()
             opp_laser_tf.header.stamp = self.get_clock().now().to_msg()
@@ -387,18 +392,20 @@ class GymBridge(Node):
             opp_laser_tf.transform.rotation.y = IDENTITY_QUAT[2]
             opp_laser_tf.transform.rotation.z = IDENTITY_QUAT[3]
             static_transforms.append(opp_laser_tf)
-        
+
         self.static_br.sendTransform(static_transforms)
 
     def _setup_publishers(self, num_agents: int) -> None:
-        """Setup all publishers."""
+        """Set up all publishers."""
         ego_scan_topic = self.get_parameter('ego_scan_topic').value
-        ego_odom_topic = f"{self.ego_namespace}/{self.get_parameter('ego_odom_topic').value}"
-        
-        self.ego_scan_pub = self.create_publisher(LaserScan, ego_scan_topic, 10)
+        ego_odom_param = self.get_parameter('ego_odom_topic').value
+        ego_odom_topic = f'{self.ego_namespace}/{ego_odom_param}'
+
+        self.ego_scan_pub = self.create_publisher(
+            LaserScan, ego_scan_topic, 10)
         self.ego_odom_pub = self.create_publisher(Odometry, ego_odom_topic, 10)
         self.ego_drive_published = False
-        
+
         # Collision publishers for downstream nodes
         self.ego_collision_pub = self.create_publisher(
             Bool, f'{self.ego_namespace}/collision', 10
@@ -406,16 +413,23 @@ class GymBridge(Node):
 
         if num_agents == 2:
             opp_scan_topic = self.get_parameter('opp_scan_topic').value
-            opp_odom_topic = f"{self.opp_namespace}/{self.get_parameter('opp_odom_topic').value}"
-            ego_opp_odom_topic = f"{self.ego_namespace}/{self.get_parameter('ego_opp_odom_topic').value}"
-            opp_ego_odom_topic = f"{self.opp_namespace}/{self.get_parameter('opp_ego_odom_topic').value}"
+            opp_odom_param = self.get_parameter('opp_odom_topic').value
+            opp_odom_topic = f'{self.opp_namespace}/{opp_odom_param}'
+            ego_opp_param = self.get_parameter('ego_opp_odom_topic').value
+            ego_opp_odom_topic = f'{self.ego_namespace}/{ego_opp_param}'
+            opp_ego_param = self.get_parameter('opp_ego_odom_topic').value
+            opp_ego_odom_topic = f'{self.opp_namespace}/{opp_ego_param}'
 
-            self.opp_scan_pub = self.create_publisher(LaserScan, opp_scan_topic, 10)
-            self.opp_odom_pub = self.create_publisher(Odometry, opp_odom_topic, 10)
-            self.ego_opp_odom_pub = self.create_publisher(Odometry, ego_opp_odom_topic, 10)
-            self.opp_ego_odom_pub = self.create_publisher(Odometry, opp_ego_odom_topic, 10)
+            self.opp_scan_pub = self.create_publisher(
+                LaserScan, opp_scan_topic, 10)
+            self.opp_odom_pub = self.create_publisher(
+                Odometry, opp_odom_topic, 10)
+            self.ego_opp_odom_pub = self.create_publisher(
+                Odometry, ego_opp_odom_topic, 10)
+            self.opp_ego_odom_pub = self.create_publisher(
+                Odometry, opp_ego_odom_topic, 10)
             self.opp_drive_published = False
-            
+
             self.opp_collision_pub = self.create_publisher(
                 Bool, f'{self.opp_namespace}/collision', 10
             )
@@ -428,9 +442,9 @@ class GymBridge(Node):
                 self.timer.timer_period_ns = 0
 
     def _setup_subscribers(self, num_agents: int) -> None:
-        """Setup all subscribers."""
+        """Set up all subscribers."""
         ego_drive_topic = self.get_parameter('ego_drive_topic').value
-        
+
         self.ego_drive_sub = self.create_subscription(
             AckermannDriveStamped,
             ego_drive_topic,
@@ -473,7 +487,8 @@ class GymBridge(Node):
     def pause_callback(self, msg: Bool) -> None:
         """Handle pause/resume simulation messages."""
         self.sim_paused = msg.data
-        self.get_logger().info(f"Simulation {'paused' if self.sim_paused else 'resumed'}")
+        status = 'paused' if self.sim_paused else 'resumed'
+        self.get_logger().info(f'Simulation {status}')
 
     def drive_callback(self, drive_msg: AckermannDriveStamped) -> None:
         """Handle ego drive commands."""
@@ -516,7 +531,7 @@ class GymBridge(Node):
             pose_msg.pose.pose.position,
             pose_msg.pose.pose.orientation
         )
-        
+
         try:
             if self.has_opp:
                 opp_pose = [
@@ -524,9 +539,11 @@ class GymBridge(Node):
                     self.obs['poses_y'][1],
                     self.obs['poses_theta'][1]
                 ]
-                self.obs, _ = self.env.reset(options={"poses": np.array([[rx, ry, rtheta], opp_pose])})
+                self.obs, _ = self.env.reset(
+                    options={'poses': np.array([[rx, ry, rtheta], opp_pose])})
             else:
-                self.obs, _ = self.env.reset(options={"poses": np.array([[rx, ry, rtheta]])})
+                self.obs, _ = self.env.reset(
+                    options={'poses': np.array([[rx, ry, rtheta]])})
         except Exception as e:
             self.get_logger().error(f'Failed to reset ego pose: {e}')
 
@@ -539,9 +556,10 @@ class GymBridge(Node):
             pose_msg.pose.position,
             pose_msg.pose.orientation
         )
-        
+
         try:
-            self.obs, _ = self.env.reset(options={"poses": np.array([self.ego_pose, [rx, ry, rtheta]])})
+            self.obs, _ = self.env.reset(
+                options={'poses': np.array([self.ego_pose, [rx, ry, rtheta]])})
         except Exception as e:
             self.get_logger().error(f'Failed to reset opponent pose: {e}')
 
@@ -582,10 +600,10 @@ class GymBridge(Node):
 
         self._update_sim_state()
         self._publish_collisions()
-        
+
         if self.get_parameter('use_sim_time_bridge').value:
             self._publish_clock()
-            
+
         if self._enable_perf_metrics and start_time is not None:
             elapsed = (time.perf_counter() - start_time) * 1000  # ms
             self._loop_times.append(elapsed)
@@ -607,7 +625,8 @@ class GymBridge(Node):
 
     # === Helper Methods ===
 
-    def _extract_pose_2d(self, position, orientation) -> Tuple[float, float, float]:
+    def _extract_pose_2d(
+            self, position, orientation) -> Tuple[float, float, float]:
         """Extract 2D pose (x, y, theta) from position and orientation."""
         x = position.x
         y = position.y
@@ -628,7 +647,8 @@ class GymBridge(Node):
     def _publish_clock(self) -> None:
         """Publish simulation clock using pre-allocated message."""
         self._clock_msg.clock.sec = int(self.env.unwrapped.current_time // 1.0)
-        self._clock_msg.clock.nanosec = int((self.env.unwrapped.current_time % 1.0) * 1e9)
+        self._clock_msg.clock.nanosec = int(
+            (self.env.unwrapped.current_time % 1.0) * 1e9)
         self.clock_pub.publish(self._clock_msg)
 
     def _update_sim_state(self) -> None:
@@ -641,7 +661,7 @@ class GymBridge(Node):
         self.ego_speed[0] = float(self.obs['linear_vels_x'][0])
         self.ego_speed[1] = float(self.obs['linear_vels_y'][0])
         self.ego_speed[2] = float(self.obs['ang_vels_z'][0])
-        
+
         # Update collision state
         new_ego_collision = bool(self.obs.get('collisions', [False])[0])
         self._ego_collision_changed = (new_ego_collision != self.ego_collision)
@@ -655,21 +675,28 @@ class GymBridge(Node):
             self.opp_speed[0] = float(self.obs['linear_vels_x'][1])
             self.opp_speed[1] = float(self.obs['linear_vels_y'][1])
             self.opp_speed[2] = float(self.obs['ang_vels_z'][1])
-            
-            new_opp_collision = bool(self.obs.get('collisions', [False, False])[1])
-            self._opp_collision_changed = (new_opp_collision != self.opp_collision)
+
+            new_opp_collision = bool(
+                self.obs.get(
+                    'collisions', [
+                        False, False])[1])
+            self._opp_collision_changed = (
+                new_opp_collision != self.opp_collision)
             self.opp_collision = new_opp_collision
 
     def _publish_collisions(self) -> None:
         """Publish collision events when state changes."""
-        if hasattr(self, '_ego_collision_changed') and self._ego_collision_changed:
+        if hasattr(
+                self,
+                '_ego_collision_changed') and self._ego_collision_changed:
             collision_msg = Bool()
             collision_msg.data = self.ego_collision
             self.ego_collision_pub.publish(collision_msg)
             if self.ego_collision:
                 self.get_logger().warn('Ego vehicle collision detected!')
-        
-        if self.has_opp and hasattr(self, '_opp_collision_changed') and self._opp_collision_changed:
+
+        if self.has_opp and hasattr(
+                self, '_opp_collision_changed') and self._opp_collision_changed:
             collision_msg = Bool()
             collision_msg.data = self.opp_collision
             self.opp_collision_pub.publish(collision_msg)
@@ -692,29 +719,37 @@ class GymBridge(Node):
     def _publish_odom(self, ts) -> None:
         """Publish odometry messages using pre-allocated messages."""
         # Ego odom
-        self._update_odom_msg(self._ego_odom_msg, ts, self.ego_pose, self.ego_speed)
+        self._update_odom_msg(
+            self._ego_odom_msg,
+            ts,
+            self.ego_pose,
+            self.ego_speed)
         self.ego_odom_pub.publish(self._ego_odom_msg)
 
         # Opponent odom
         if self.has_opp:
-            self._update_odom_msg(self._opp_odom_msg, ts, self.opp_pose, self.opp_speed)
+            self._update_odom_msg(
+                self._opp_odom_msg,
+                ts,
+                self.opp_pose,
+                self.opp_speed)
             self.opp_odom_pub.publish(self._opp_odom_msg)
             self.opp_ego_odom_pub.publish(self._ego_odom_msg)
             self.ego_opp_odom_pub.publish(self._opp_odom_msg)
 
-    def _update_odom_msg(self, odom: Odometry, ts, pose: List[float], 
+    def _update_odom_msg(self, odom: Odometry, ts, pose: List[float],
                          speed: List[float]) -> None:
         """Update an Odometry message in-place."""
         odom.header.stamp = ts
         odom.pose.pose.position.x = pose[0]
         odom.pose.pose.position.y = pose[1]
-        
+
         quat = euler.euler2quat(0.0, 0.0, pose[2], axes='sxyz')
         odom.pose.pose.orientation.w = quat[0]
         odom.pose.pose.orientation.x = quat[1]
         odom.pose.pose.orientation.y = quat[2]
         odom.pose.pose.orientation.z = quat[3]
-        
+
         odom.twist.twist.linear.x = speed[0]
         odom.twist.twist.linear.y = speed[1]
         odom.twist.twist.angular.z = speed[2]
@@ -722,51 +757,53 @@ class GymBridge(Node):
     def _publish_transforms(self, ts) -> None:
         """Publish base_link and wheel transforms in a single batched call."""
         transforms = []
-        
+
         # Ego base_link transform
         self._update_transform_msg(self._ego_tf_msg, ts, self.ego_pose)
         transforms.append(self._ego_tf_msg)
-        
+
         # Ego wheel transforms
-        ego_wheel_quat = euler.euler2quat(0.0, 0.0, self.ego_steer, axes='sxyz')
+        ego_wheel_quat = euler.euler2quat(
+            0.0, 0.0, self.ego_steer, axes='sxyz')
         self._update_wheel_tf(self._ego_left_wheel_tf, ts, ego_wheel_quat)
         self._update_wheel_tf(self._ego_right_wheel_tf, ts, ego_wheel_quat)
         transforms.append(self._ego_left_wheel_tf)
         transforms.append(self._ego_right_wheel_tf)
-        
+
         # Opponent transforms
         if self.has_opp:
             self._update_transform_msg(self._opp_tf_msg, ts, self.opp_pose)
             transforms.append(self._opp_tf_msg)
-            
-            opp_wheel_quat = euler.euler2quat(0.0, 0.0, self.opp_steer, axes='sxyz')
+
+            opp_wheel_quat = euler.euler2quat(
+                0.0, 0.0, self.opp_steer, axes='sxyz')
             self._update_wheel_tf(self._opp_left_wheel_tf, ts, opp_wheel_quat)
             self._update_wheel_tf(self._opp_right_wheel_tf, ts, opp_wheel_quat)
             transforms.append(self._opp_left_wheel_tf)
             transforms.append(self._opp_right_wheel_tf)
-        
+
         # Batch publish all transforms
         try:
             self.br.sendTransform(transforms)
         except Exception as e:
             self.get_logger().error(f'Failed to publish transforms: {e}')
 
-    def _update_transform_msg(self, tf_msg: TransformStamped, ts, 
-                               pose: List[float]) -> None:
+    def _update_transform_msg(self, tf_msg: TransformStamped, ts,
+                              pose: List[float]) -> None:
         """Update a TransformStamped message in-place."""
         tf_msg.header.stamp = ts
         tf_msg.transform.translation.x = pose[0]
         tf_msg.transform.translation.y = pose[1]
         tf_msg.transform.translation.z = 0.0
-        
+
         quat = euler.euler2quat(0.0, 0.0, pose[2], axes='sxyz')
         tf_msg.transform.rotation.w = quat[0]
         tf_msg.transform.rotation.x = quat[1]
         tf_msg.transform.rotation.y = quat[2]
         tf_msg.transform.rotation.z = quat[3]
 
-    def _update_wheel_tf(self, tf_msg: TransformStamped, ts, 
-                          quat: Tuple[float, float, float, float]) -> None:
+    def _update_wheel_tf(self, tf_msg: TransformStamped, ts,
+                         quat: Tuple[float, float, float, float]) -> None:
         """Update a wheel transform message in-place."""
         tf_msg.header.stamp = ts
         tf_msg.transform.rotation.w = quat[0]
@@ -780,10 +817,10 @@ class GymBridge(Node):
 
 
 def main(args=None) -> None:
-    """Main entry point for the gym bridge node."""
+    """Run the gym bridge node for the gym bridge node."""
     rclpy.init(args=args)
     gym_bridge = None
-    
+
     try:
         gym_bridge = GymBridge()
         rclpy.spin(gym_bridge)
