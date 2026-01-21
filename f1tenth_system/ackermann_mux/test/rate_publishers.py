@@ -17,13 +17,13 @@
 # Authors:
 #   * Siegfried-A. Gevatter
 
-import sys
 import _thread
+import sys
 from time import sleep
 
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, QoSDurabilityPolicy
+from rclpy.qos import QoSDurabilityPolicy, QoSProfile
 
 
 class _RatePublisher(Node):
@@ -153,7 +153,7 @@ class TimeoutManager(object):
                 raise e
 
     def spin_thread(self):
-        print("Spawning thread for TopicTestManager...")
+        print('Spawning thread for TopicTestManager...')
         _thread.start_new_thread(self.spin, ())
 
     def shutdown(self):

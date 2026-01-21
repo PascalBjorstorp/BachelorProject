@@ -24,10 +24,9 @@
 #   * Jeremie Deray
 
 
-import rclpy
-import numpy as np
-
 from geometry_msgs.msg import Twist
+import numpy as np
+import rclpy
 from rclpy.action import ActionServer
 from rclpy.node import Node
 from std_msgs.msg import Bool
@@ -128,7 +127,7 @@ class VelocityControl:
             return False
         if abs(cmd.linear.x) > 1.0 or abs(cmd.linear.y) > 1.0 or abs(cmd.angular.z) > 1.0:
             self._node.get_logger().error(
-                "Joystick provided invalid values (%d, %d, %d), not in [-1, 1] range."
+                'Joystick provided invalid values (%d, %d, %d), not in [-1, 1] range.'
                 % (cmd.linear.x, cmd.linear.y, cmd.angular.z))
             return False
         return True
@@ -185,7 +184,7 @@ class TextMarker(object):
         self._marker.id = 0
         self._marker.type = Marker.TEXT_VIEW_FACING
 
-        self._marker.header.frame_id = "base_footprint"
+        self._marker.header.frame_id = 'base_footprint'
 
         self._marker.pose.position.z = self._z
 
@@ -202,7 +201,7 @@ class TextMarker(object):
         if add:
             self._marker.action = Marker.ADD
 
-            self._marker.text = "Manual" if joystick_priority else "Autonomous"
+            self._marker.text = 'Manual' if joystick_priority else 'Autonomous'
         else:
             self._marker.action = Marker.DELETE
 
@@ -262,7 +261,7 @@ class JoystickRelay(Node):
 
     def _toggle_priority(self):
         self._current_priority = not self._current_priority
-        self.get_logger().info("Toggled joy_priority, current status is: %s",
+        self.get_logger().info('Toggled joy_priority, current status is: %s',
                                self._current_priority)
         self._pub_priority.publish(self._current_priority)
         self._marker.update(self._current_priority)

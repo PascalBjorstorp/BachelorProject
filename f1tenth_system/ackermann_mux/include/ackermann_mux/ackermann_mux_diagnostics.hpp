@@ -36,11 +36,10 @@
 #ifndef ACKERMANN_MUX__ACKERMANN_MUX_DIAGNOSTICS_HPP_
 #define ACKERMANN_MUX__ACKERMANN_MUX_DIAGNOSTICS_HPP_
 
-#include <ackermann_mux/ackermann_mux_diagnostics_status.hpp>
-
-#include <diagnostic_updater/diagnostic_updater.hpp>
-
 #include <memory>
+
+#include <ackermann_mux/ackermann_mux_diagnostics_status.hpp>
+#include <diagnostic_updater/diagnostic_updater.hpp>
 
 namespace ackermann_mux
 {

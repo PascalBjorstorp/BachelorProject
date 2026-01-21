@@ -1,19 +1,26 @@
+# Copyright 2025 F1TENTH Foundation
+#
+# Use of this source code is governed by an MIT-style
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
+#
 # F1TENTH Teleop-only Launch File
 # ================================
 # Launch joystick teleop with VESC
 # Useful for initial car testing and manual driving
 
-from launch import LaunchDescription
-from launch_ros.actions import Node
-from launch.substitutions import LaunchConfiguration
-from launch.actions import DeclareLaunchArgument
-from ament_index_python.packages import get_package_share_directory
 import os
+
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
 
 
 def generate_launch_description():
     pkg_share = get_package_share_directory('f1tenth_stack')
-    
+
     joy_teleop_config = os.path.join(pkg_share, 'config', 'joy_teleop.yaml')
     vesc_config = os.path.join(pkg_share, 'config', 'vesc.yaml')
     mux_config = os.path.join(pkg_share, 'config', 'mux.yaml')
@@ -44,7 +51,7 @@ def generate_launch_description():
         parameters=[LaunchConfiguration('joy_config')],
         output='screen'
     )
-    
+
     # Joystick to ackermann converter
     joy_teleop_node = Node(
         package='joy_teleop',
@@ -72,7 +79,7 @@ def generate_launch_description():
         parameters=[LaunchConfiguration('vesc_config')],
         output='screen'
     )
-    
+
     vesc_to_odom_node = Node(
         package='vesc_ackermann',
         executable='vesc_to_odom_node',
@@ -80,7 +87,7 @@ def generate_launch_description():
         parameters=[LaunchConfiguration('vesc_config')],
         output='screen'
     )
-    
+
     vesc_driver_node = Node(
         package='vesc_driver',
         executable='vesc_driver_node',

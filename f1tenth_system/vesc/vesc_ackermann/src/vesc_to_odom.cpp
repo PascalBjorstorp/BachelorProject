@@ -30,13 +30,14 @@
 
 #include "vesc_ackermann/vesc_to_odom.hpp"
 
-#include <geometry_msgs/msg/transform_stamped.hpp>
-#include <vesc_msgs/msg/vesc_state_stamped.hpp>
-#include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Quaternion.h>
 
 #include <cmath>
 #include <string>
+
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <vesc_msgs/msg/vesc_state_stamped.hpp>
 
 namespace vesc_ackermann
 {
@@ -70,8 +71,9 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   use_servo_cmd_ = declare_parameter("use_servo_cmd_to_calc_angular_velocity", use_servo_cmd_);
   use_imu_ = declare_parameter("use_imu", use_imu_);
   integration_method_ = declare_parameter("integration_method", integration_method_);
-  imu_angular_velocity_alpha_ = declare_parameter("imu_angular_velocity_alpha", imu_angular_velocity_alpha_);
-  
+  imu_angular_velocity_alpha_ = declare_parameter("imu_angular_velocity_alpha",
+      imu_angular_velocity_alpha_);
+
   // Odometry covariance parameters
   odom_x_covariance_ = declare_parameter("odom_x_covariance", 0.2);
   odom_y_covariance_ = declare_parameter("odom_y_covariance", 0.2);
@@ -103,7 +105,8 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
 
   // Validate integration method
   if (integration_method_ != "euler" && integration_method_ != "trapezoidal" &&
-      integration_method_ != "analytical") {
+    integration_method_ != "analytical")
+  {
     RCLCPP_WARN(get_logger(),
       "Invalid integration_method '%s'. Using 'euler' as default. "
       "Valid options: 'euler', 'trapezoidal', 'analytical'",
@@ -250,7 +253,8 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
       y_ += current_speed * sin(yaw_start) * dt.seconds();
     } else {
       // Circular arc motion: exact solution for constant curvature
-      // Use actual delta_yaw to calculate turning radius (more accurate than using angular velocity)
+      // Use actual delta_yaw to calculate turning radius (more accurate
+      // than using angular velocity)
       double actual_angular_velocity = delta_yaw / dt.seconds();
       double turning_radius = current_speed / actual_angular_velocity;
 
@@ -289,9 +293,9 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   odom.pose.pose.orientation.w = cos(yaw_ / 2.0);
 
   // Position uncertainty - configurable via parameters
-  odom.pose.covariance[0] = odom_x_covariance_;    ///< x
-  odom.pose.covariance[7] = odom_y_covariance_;    ///< y
-  odom.pose.covariance[35] = odom_yaw_covariance_; ///< yaw
+  odom.pose.covariance[0] = odom_x_covariance_;     // x
+  odom.pose.covariance[7] = odom_y_covariance_;     // y
+  odom.pose.covariance[35] = odom_yaw_covariance_;  // yaw
 
   // Velocity ("in the coordinate frame given by the child_frame_id")
   odom.twist.twist.linear.x = current_speed;
@@ -341,7 +345,7 @@ void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
     // Apply exponential moving average (low-pass filter)
     // filtered = alpha * new + (1 - alpha) * old
     filtered_angular_velocity_ = imu_angular_velocity_alpha_ * raw_angular_velocity +
-                                  (1.0 - imu_angular_velocity_alpha_) * filtered_angular_velocity_;
+      (1.0 - imu_angular_velocity_alpha_) * filtered_angular_velocity_;
   }
 
   // Publish filtered angular velocity

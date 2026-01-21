@@ -31,16 +31,17 @@
 #ifndef VESC_DRIVER__VESC_DRIVER_HPP_
 #define VESC_DRIVER__VESC_DRIVER_HPP_
 
-#include <rclcpp/rclcpp.hpp>
-#include <sensor_msgs/msg/imu.hpp>
-#include <std_msgs/msg/float64.hpp>
-#include <vesc_msgs/msg/vesc_state.hpp>
-#include <vesc_msgs/msg/vesc_state_stamped.hpp>
-#include <vesc_msgs/msg/vesc_imu.hpp>
-#include <vesc_msgs/msg/vesc_imu_stamped.hpp>
 #include <experimental/optional>
 #include <memory>
 #include <string>
+
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/imu.hpp>
+#include <std_msgs/msg/float64.hpp>
+#include <vesc_msgs/msg/vesc_imu.hpp>
+#include <vesc_msgs/msg/vesc_imu_stamped.hpp>
+#include <vesc_msgs/msg/vesc_state.hpp>
+#include <vesc_msgs/msg/vesc_state_stamped.hpp>
 
 #include "vesc_driver/vesc_interface.hpp"
 #include "vesc_driver/vesc_packet.hpp"
@@ -117,11 +118,11 @@ private:
   int fw_version_major_;                ///< firmware major version reported by vesc
   int fw_version_minor_;                ///< firmware minor version reported by vesc
   std::string imu_frame_;               ///< frame_id for IMU messages
-  
+
   // IMU covariance parameters
-  double imu_orientation_covariance_;         ///< orientation covariance for sensor fusion
-  double imu_angular_velocity_covariance_;    ///< angular velocity covariance
-  double imu_linear_acceleration_covariance_; ///< linear acceleration covariance
+  double imu_orientation_covariance_;          ///< orientation covariance
+  double imu_angular_velocity_covariance_;     ///< angular velocity covariance
+  double imu_linear_acceleration_covariance_;  ///< linear acceleration covariance
 
   // ROS callbacks
   void brakeCallback(const Float64::SharedPtr brake);

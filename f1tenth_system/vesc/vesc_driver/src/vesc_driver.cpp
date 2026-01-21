@@ -68,11 +68,13 @@ VescDriver::VescDriver(const rclcpp::NodeOptions & options)
   // get vesc serial port address
   std::string port = declare_parameter<std::string>("port", "");
   imu_frame_ = declare_parameter<std::string>("imu_frame", "imu");
-  
+
   // IMU covariance parameters (for EKF/sensor fusion)
   imu_orientation_covariance_ = declare_parameter<double>("imu_orientation_covariance", 0.0001);
-  imu_angular_velocity_covariance_ = declare_parameter<double>("imu_angular_velocity_covariance", 0.00002);
-  imu_linear_acceleration_covariance_ = declare_parameter<double>("imu_linear_acceleration_covariance", 0.0004);
+  imu_angular_velocity_covariance_ = declare_parameter<double>("imu_angular_velocity_covariance",
+      0.00002);
+  imu_linear_acceleration_covariance_ =
+    declare_parameter<double>("imu_linear_acceleration_covariance", 0.0004);
 
   // attempt to connect to the serial port
   try {

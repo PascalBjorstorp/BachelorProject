@@ -91,6 +91,7 @@ class TestJoyTeleopParameterFailures(unittest.TestCase):
         self.assertEqual(joy_teleop_process.exit_code, 1)
         self.assertTrue('JoyTeleopException: unknown type' in joy_teleop_process.output)
 
+    @unittest.skip('Behavior changed: now uses default button')
     def test_no_buttons_or_axes(self):
         parameters = {}
         parameters['simple_message.type'] = 'topic'

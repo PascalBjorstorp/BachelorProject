@@ -1,23 +1,26 @@
-# MIT License
 # Copyright (c) 2020 Hongrui Zheng
+#
+# Use of this source code is governed by an MIT-style
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
 
+from geometry_msgs.msg import TransformStamped
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import TransformStamped
 from tf2_ros import TransformBroadcaster
 
 
 class FramePublisher(Node):
     """
     Publishes static transforms for the F1TENTH car.
-    
+
     This node broadcasts transforms from base_link to sensor frames
     like laser and IMU.
     """
-    
+
     def __init__(self):
         super().__init__('f1tenth_tf_publisher')
-        
+
         # Declare parameters for transform positions
         self.declare_parameter('laser_x', 0.27)
         self.declare_parameter('laser_y', 0.0)
@@ -26,7 +29,7 @@ class FramePublisher(Node):
         self.declare_parameter('imu_y', 0.0)
         self.declare_parameter('imu_z', 0.0)
         self.declare_parameter('publish_rate', 100.0)  # Hz
-        
+
         # Get parameters
         self.laser_x = self.get_parameter('laser_x').value
         self.laser_y = self.get_parameter('laser_y').value
@@ -38,10 +41,10 @@ class FramePublisher(Node):
 
         # Transform broadcaster
         self.br = TransformBroadcaster(self)
-        
+
         # Timer for publishing transforms
         self.timer = self.create_timer(1.0 / publish_rate, self.timer_callback)
-        
+
         self.get_logger().info(
             f'TF publisher started. Laser at ({self.laser_x}, {self.laser_y}, {self.laser_z})'
         )
@@ -49,7 +52,7 @@ class FramePublisher(Node):
     def timer_callback(self):
         """Publish all transforms."""
         now = self.get_clock().now().to_msg()
-        
+
         # base_link -> laser transform
         t_laser = TransformStamped()
         t_laser.header.stamp = now
@@ -63,7 +66,7 @@ class FramePublisher(Node):
         t_laser.transform.rotation.z = 0.0
         t_laser.transform.rotation.w = 1.0
         self.br.sendTransform(t_laser)
-        
+
         # base_link -> imu transform
         t_imu = TransformStamped()
         t_imu.header.stamp = now

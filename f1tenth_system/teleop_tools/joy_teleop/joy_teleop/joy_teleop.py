@@ -85,7 +85,8 @@ class JoyTeleopCommand:
 
         if len(self.buttons) == 0 and len(self.axes) == 0:
             self.buttons = ['default']
-            # raise JoyTeleopException("No buttons or axes configured for command '{}'".format(name))
+            # raise JoyTeleopException(
+            #     "No buttons or axes configured for command '{}'".format(name))
 
         # Used to short-circuit the run command if there aren't enough buttons in the message.
         self.min_button = 0
@@ -117,8 +118,9 @@ class JoyTeleopCommand:
                 try:
                     self.active |= joy_state.buttons[button] == 1
                 except IndexError:
-                    # An index error can occur if this command is configured for multiple buttons
-                    # like (0, 10), but the length of the joystick buttons is only 1.  Ignore these.
+                    # An index error can occur if this command is configured for
+                    # multiple buttons like (0, 10), but the length of the
+                    # joystick buttons is only 1.  Ignore these.
                     pass
 
         for axis in self.axes:
@@ -412,25 +414,25 @@ class JoyTeleop(Node):
 
     def send_brake_command(self):
         for command in self.commands:
-            if(command.name == "default"):
-                #self.get_logger().info("SENDING DEFAULT COMMAND")
-                #command.run(self, sensor_msgs.msg.Joy())
+            if (command.name == 'default'):
+                # self.get_logger().info('SENDING DEFAULT COMMAND')
+                # command.run(self, sensor_msgs.msg.Joy())
                 msg = command.topic_type()
                 msg.header.stamp = self.get_clock().now().to_msg()
                 command.pub.publish(msg)
 
-    
     def joy_callback(self, msg: sensor_msgs.msg.Joy) -> None:
         self.last_message_timestamp = self.get_clock().now()
         for command in self.commands:
             command.run(self, msg)
+
 
 def main(args=None):
     rclpy.init(args=args)
     node = JoyTeleop()
 
     try:
-        while(True):
+        while (True):
             rclpy.spin_once(node, timeout_sec=0.1)
             duration = node.get_clock().now() - node.last_message_timestamp
             duration_sec = duration.to_msg().sec + duration.to_msg().nanosec / 1e9

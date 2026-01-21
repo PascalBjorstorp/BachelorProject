@@ -37,16 +37,15 @@
 #ifndef ACKERMANN_MUX__TOPIC_HANDLE_HPP_
 #define ACKERMANN_MUX__TOPIC_HANDLE_HPP_
 
-#include <rclcpp/rclcpp.hpp>
-#include <std_msgs/msg/bool.hpp>
-#include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
-
-#include <ackermann_mux/utils.hpp>
-#include <ackermann_mux/ackermann_mux.hpp>
-
 #include <memory>
 #include <string>
 #include <vector>
+
+#include <ackermann_mux/ackermann_mux.hpp>
+#include <ackermann_mux/utils.hpp>
+#include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/bool.hpp>
 
 namespace ackermann_mux
 {

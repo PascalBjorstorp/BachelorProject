@@ -30,13 +30,13 @@
 
 #include "vesc_ackermann/ackermann_to_vesc.hpp"
 
-#include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
-#include <nav_msgs/msg/odometry.hpp>
-#include <std_msgs/msg/float64.hpp>
-
 #include <cmath>
 #include <sstream>
 #include <string>
+
+#include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
+#include <nav_msgs/msg/odometry.hpp>
+#include <std_msgs/msg/float64.hpp>
 
 namespace vesc_ackermann
 {
@@ -145,9 +145,8 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
         publish_brake = true;
       }
     }
-  }
-  // Case 2: Velocity-to-ERPM mode (default, when accel gains are 0)
-  else {
+  } else {
+    // Case 2: Velocity-to-ERPM mode (default, when accel gains are 0)
     operation_mode_ = VEL_TO_ERPM;
     double commanded_vel = cmd->drive.speed;
 
@@ -159,7 +158,7 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
           // Currently moving backward, apply brake
           brake_msg.data = speed_to_braking_max_ /
             (1.0 + std::exp(-speed_to_braking_gain_ *
-              (std::abs(current_vel_ - commanded_vel) - speed_to_braking_center_)));
+            (std::abs(current_vel_ - commanded_vel) - speed_to_braking_center_)));
           publish_brake = true;
         } else if (current_vel_ < 1.0 && commanded_vel > 1.0) {
           // Slow start to get rotor position
@@ -174,18 +173,17 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
         // Decelerating, apply brake
         brake_msg.data = speed_to_braking_max_ /
           (1.0 + std::exp(-speed_to_braking_gain_ *
-            (std::abs(current_vel_ - commanded_vel) - speed_to_braking_center_)));
+          (std::abs(current_vel_ - commanded_vel) - speed_to_braking_center_)));
         publish_brake = true;
       }
-    }
-    // Negative commanded velocity (reverse)
-    else {
+    } else {
+      // Negative commanded velocity (reverse)
       if (commanded_vel <= current_vel_) {
         if (current_vel_ > 0) {
           // Currently moving forward, apply brake
           brake_msg.data = speed_to_braking_max_ /
             (1.0 + std::exp(-speed_to_braking_gain_ *
-              (std::abs(current_vel_ - commanded_vel) - speed_to_braking_center_)));
+            (std::abs(current_vel_ - commanded_vel) - speed_to_braking_center_)));
           publish_brake = true;
         } else if (current_vel_ == 0 && commanded_vel < -0.5) {
           // Slow start for reverse
@@ -200,7 +198,7 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
         // Decelerating in reverse, apply brake
         brake_msg.data = speed_to_braking_max_ /
           (1.0 + std::exp(-speed_to_braking_gain_ *
-            (std::abs(current_vel_ - commanded_vel) - speed_to_braking_center_)));
+          (std::abs(current_vel_ - commanded_vel) - speed_to_braking_center_)));
         publish_brake = true;
       }
     }

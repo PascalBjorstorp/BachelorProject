@@ -21,15 +21,13 @@
 # Authors:
 #   * Siegfried-A. Gevatter
 
+import time
 import unittest
 
-import rospy
-import time
-
-from std_msgs.msg import Bool
 from geometry_msgs.msg import Twist
-
 from rate_publishers import RatePublishers, TimeoutManager
+import rospy
+from std_msgs.msg import Bool
 
 
 def twist(x=0.0, r=0.0):

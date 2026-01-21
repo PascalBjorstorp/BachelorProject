@@ -1,14 +1,21 @@
+# Copyright 2025 F1TENTH Foundation
+#
+# Use of this source code is governed by an MIT-style
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
+#
 # F1TENTH VESC-only Launch File
 # ==============================
 # Minimal launch for testing VESC communication only
 # Does not launch LiDAR or joystick
 
-from launch import LaunchDescription
-from launch_ros.actions import Node
-from launch.substitutions import LaunchConfiguration
-from launch.actions import DeclareLaunchArgument
-from ament_index_python.packages import get_package_share_directory
 import os
+
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
 
 
 def generate_launch_description():
@@ -31,7 +38,7 @@ def generate_launch_description():
         parameters=[LaunchConfiguration('vesc_config')],
         output='screen'
     )
-    
+
     # VESC to Odom - computes odometry from VESC telemetry
     vesc_to_odom_node = Node(
         package='vesc_ackermann',
@@ -40,7 +47,7 @@ def generate_launch_description():
         parameters=[LaunchConfiguration('vesc_config')],
         output='screen'
     )
-    
+
     # Ackermann to VESC - converts ackermann commands to VESC commands
     ackermann_to_vesc_node = Node(
         package='vesc_ackermann',

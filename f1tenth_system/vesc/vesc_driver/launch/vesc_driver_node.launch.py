@@ -44,15 +44,15 @@ def generate_launch_description():
         )
     return LaunchDescription([
         DeclareLaunchArgument(
-            name="config",
+            name='config',
             default_value=vesc_config,
-            description="VESC yaml configuration file.",
+            description='VESC yaml configuration file.',
             ),
         Node(
             package='vesc_driver',
             executable='vesc_driver_node',
             name='vesc_driver_node',
-            parameters=[LaunchConfiguration("config")]
+            parameters=[LaunchConfiguration('config')]
         ),
 
     ])

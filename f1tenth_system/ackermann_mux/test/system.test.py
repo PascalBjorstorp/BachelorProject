@@ -12,26 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from rate_publishers import RatePublishers, TimeoutManager
 import os
-import unittest
 import sys
+import threading
+import time
+import unittest
 
+from geometry_msgs.msg import Twist
 import launch
 from launch.actions.execute_process import ExecuteProcess
-
 import launch_ros.actions
-
 import launch_testing
-
-import time
-import threading
-from rclpy.executors import MultiThreadedExecutor
-
+from rate_publishers import RatePublishers, TimeoutManager
 import rclpy
-
+from rclpy.executors import MultiThreadedExecutor
 from std_msgs.msg import Bool
-from geometry_msgs.msg import Twist
 
 sys.path.append(os.path.abspath(os.path.dirname(os.path.realpath(__file__))))
 

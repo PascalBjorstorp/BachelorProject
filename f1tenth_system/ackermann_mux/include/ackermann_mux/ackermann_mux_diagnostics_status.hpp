@@ -36,12 +36,11 @@
 #ifndef ACKERMANN_MUX__ACKERMANN_MUX_DIAGNOSTICS_STATUS_HPP_
 #define ACKERMANN_MUX__ACKERMANN_MUX_DIAGNOSTICS_STATUS_HPP_
 
+#include <memory>
+
 #include <ackermann_mux/ackermann_mux.hpp>
 #include <ackermann_mux/topic_handle.hpp>
-
 #include <rclcpp/rclcpp.hpp>
-
-#include <memory>
 
 namespace ackermann_mux
 {

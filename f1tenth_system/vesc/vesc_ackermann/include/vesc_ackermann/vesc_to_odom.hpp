@@ -67,7 +67,7 @@ private:
   double wheelbase_;
   bool publish_tf_;
   std::string integration_method_;  ///< Integration method: "euler", "trapezoidal", "analytical"
-  
+
   // Odometry covariance parameters
   double odom_x_covariance_;    ///< x position covariance
   double odom_y_covariance_;    ///< y position covariance

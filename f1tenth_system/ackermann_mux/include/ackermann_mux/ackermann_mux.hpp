@@ -36,13 +36,13 @@
 #ifndef ACKERMANN_MUX__ACKERMANN_MUX_HPP_
 #define ACKERMANN_MUX__ACKERMANN_MUX_HPP_
 
-#include <rclcpp/rclcpp.hpp>
-#include <std_msgs/msg/bool.hpp>
-#include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
-
 #include <list>
 #include <memory>
 #include <string>
+
+#include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/bool.hpp>
 
 using std::chrono_literals::operator""s;
 
@@ -67,7 +67,7 @@ public:
   using velocity_topic_container = handle_container<VelocityTopicHandle>;
   using lock_topic_container = handle_container<LockTopicHandle>;
 
-  explicit AckermannMux();
+  AckermannMux();
   ~AckermannMux() = default;
 
   void init();

@@ -1,6 +1,9 @@
-# MIT License
-# Copyright (c) 2025
-
+# Copyright 2025 F1TENTH Foundation
+#
+# Use of this source code is governed by an MIT-style
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
+#
 # F1TENTH Driver Stack Launch File
 # ================================
 # Launches all nodes needed to operate the F1TENTH car:
@@ -11,18 +14,19 @@
 # - Ackermann command multiplexer
 # - Static transforms
 
-from launch import LaunchDescription
-from launch_ros.actions import Node
-from launch.substitutions import LaunchConfiguration
-from launch.actions import DeclareLaunchArgument
-from ament_index_python.packages import get_package_share_directory
 import os
+
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
 
 
 def generate_launch_description():
     # Get config file paths
     pkg_share = get_package_share_directory('f1tenth_stack')
-    
+
     joy_teleop_config = os.path.join(pkg_share, 'config', 'joy_teleop.yaml')
     vesc_config = os.path.join(pkg_share, 'config', 'vesc.yaml')
     sensors_config = os.path.join(pkg_share, 'config', 'sensors.yaml')
@@ -61,7 +65,7 @@ def generate_launch_description():
         name='joy',
         parameters=[LaunchConfiguration('joy_config')]
     )
-    
+
     joy_teleop_node = Node(
         package='joy_teleop',
         executable='joy_teleop',
@@ -78,14 +82,14 @@ def generate_launch_description():
         name='ackermann_to_vesc_node',
         parameters=[LaunchConfiguration('vesc_config')]
     )
-    
+
     vesc_to_odom_node = Node(
         package='vesc_ackermann',
         executable='vesc_to_odom_node',
         name='vesc_to_odom_node',
         parameters=[LaunchConfiguration('vesc_config')]
     )
-    
+
     vesc_driver_node = Node(
         package='vesc_driver',
         executable='vesc_driver_node',
@@ -129,7 +133,7 @@ def generate_launch_description():
             'base_link', 'laser'     # parent_frame, child_frame
         ]
     )
-    
+
     # Transform from base_link to IMU (if needed)
     static_tf_base_to_imu = Node(
         package='tf2_ros',

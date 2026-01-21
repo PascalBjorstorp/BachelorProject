@@ -34,15 +34,16 @@
  */
 
 #include <ackermann_mux/ackermann_mux.hpp>
-#include <ackermann_mux/topic_handle.hpp>
-#include <ackermann_mux/ackermann_mux_diagnostics.hpp>
-#include <ackermann_mux/ackermann_mux_diagnostics_status.hpp>
-#include <ackermann_mux/utils.hpp>
-#include <ackermann_mux/params_helpers.hpp>
 
 #include <list>
 #include <memory>
 #include <string>
+
+#include <ackermann_mux/ackermann_mux_diagnostics.hpp>
+#include <ackermann_mux/ackermann_mux_diagnostics_status.hpp>
+#include <ackermann_mux/params_helpers.hpp>
+#include <ackermann_mux/topic_handle.hpp>
+#include <ackermann_mux/utils.hpp>
 
 /**
  * @brief hasIncreasedAbsVelocity Check if the absolute velocity has increased
@@ -62,7 +63,7 @@ bool hasIncreasedAbsVelocity(
   // const auto new_angular_z = std::abs(new_drive.drive.angular.z);
 
   // return (old_linear_x < new_linear_x) || (old_angular_z < new_angular_z);
-  return (old_linear_x < new_linear_x);
+  return old_linear_x < new_linear_x;
 }
 
 namespace ackermann_mux
@@ -109,7 +110,8 @@ void AckermannMux::updateDiagnostics()
   diagnostics_->updateStatus(status_);
 }
 
-void AckermannMux::publishAckermann(const ackermann_msgs::msg::AckermannDriveStamped::ConstSharedPtr & msg)
+void AckermannMux::publishAckermann(
+  const ackermann_msgs::msg::AckermannDriveStamped::ConstSharedPtr & msg)
 {
   cmd_pub_->publish(*msg);
 }
