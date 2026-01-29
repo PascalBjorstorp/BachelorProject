@@ -141,6 +141,7 @@ class GymBridge(Node):
         self.declare_parameter('vehicle_params', 'f1tenth')
         self.declare_parameter('async_mode', True)
         self.declare_parameter('use_sim_time_bridge', False)
+        self.declare_parameter('scan_noise_std', 0.0)
 
     def _validate_num_agents(self) -> int:
         """Validate and return number of agents."""
@@ -709,15 +710,29 @@ class GymBridge(Node):
 
     def _publish_scans(self, ts) -> None:
         """Publish laser scan messages using pre-allocated messages."""
+        # Get noise stddev from parameter (default to 0.0 if not set)
+        scan_noise_std = self.get_parameter('scan_noise_std').value if self.has_parameter('scan_noise_std') else 0.0
+
         # Ego scan
+        ego_scan = np.array(self.ego_scan)
+        if scan_noise_std > 0.0:
+            noise = np.random.normal(0, scan_noise_std, ego_scan.shape)
+            ego_scan = ego_scan + noise
+            # Clamp to valid range
+            ego_scan = np.clip(ego_scan, 0.0, self.scan_range_max)
         self._ego_scan_msg.header.stamp = ts
-        self._ego_scan_msg.ranges = self.ego_scan
+        self._ego_scan_msg.ranges = ego_scan.tolist()
         self.ego_scan_pub.publish(self._ego_scan_msg)
 
         # Opponent scan
         if self.has_opp:
+            opp_scan = np.array(self.opp_scan)
+            if scan_noise_std > 0.0:
+                noise = np.random.normal(0, scan_noise_std, opp_scan.shape)
+                opp_scan = opp_scan + noise
+                opp_scan = np.clip(opp_scan, 0.0, self.scan_range_max)
             self._opp_scan_msg.header.stamp = ts
-            self._opp_scan_msg.ranges = self.opp_scan
+            self._opp_scan_msg.ranges = opp_scan.tolist()
             self.opp_scan_pub.publish(self._opp_scan_msg)
 
     def _publish_odom(self, ts) -> None:
