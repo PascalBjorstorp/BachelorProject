@@ -44,6 +44,8 @@ from std_msgs.msg import Bool
 from tf2_ros import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
 from transforms3d import euler
+from ament_index_python.packages import get_package_share_directory
+import os
 
 # Constants for timer periods (in seconds)
 PUBLISH_TIMER_PERIOD: float = 0.004  # 250 Hz for sensor data publishing
@@ -159,22 +161,24 @@ class GymBridge(Node):
         }
         if vehicle_type not in params_map:
             raise ValueError(
-                f'vehicle_params should be one of: {
-                    list(
-                        params_map.keys())}')
+                f"vehicle_params should be one of: {list(self.vehicle_params_dict.keys())}"
+            )
         return params_map[vehicle_type]()
 
     def _create_environment(self, num_agents: int, scale: float) -> gym.Env:
         """Create and configure the F1Tenth gym environment."""
         # Parse map path
-        path = self.get_parameter('map_path').value
-        name = path.split('/')[-1].split('.')[0]
-        path = path + '.yaml'
-        self.get_logger().info(f'Loading map: {name} from path: {path}')
+        map_name = self.get_parameter('map_path').value
+        map_yaml_path = os.path.join(
+            get_package_share_directory('f1tenth_gym_ros'),
+            'maps',
+            map_name + '.yaml'
+        )
+        self.get_logger().info(f'Loading map: {map_name} from path: {map_yaml_path}')
 
         # Load the track
         try:
-            loaded_map = Track.from_track_path(pathlib.Path(path), scale)
+            loaded_map = Track.from_track_path(pathlib.Path(map_yaml_path), scale)
         except Exception as e:
             self.get_logger().error(f'Failed to load map: {e}')
             raise

@@ -14,6 +14,7 @@ find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 
 find_package(Threads)
+find_package(serial_driver REQUIRED)
 
 ###########
 ## Build ##
@@ -25,6 +26,11 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
   src/vesc_interface.cpp
   src/vesc_packet.cpp
   src/vesc_packet_factory.cpp
+)
+target_include_directories(${PROJECT_NAME} PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  /opt/ros/jazzy/include
 )
 target_link_libraries(${PROJECT_NAME}
   ${CMAKE_THREAD_LIBS_INIT}

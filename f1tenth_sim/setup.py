@@ -9,6 +9,12 @@ setup(
     name=package_name,
     version='1.0.0',
     packages=[package_name],
+    package_data={
+        package_name: [
+            '../maps/*.yaml',
+            '../maps/*.png',
+        ],
+    },
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
@@ -17,6 +23,11 @@ setup(
         (os.path.join('share', package_name, 'launch'), glob('launch/*.xacro')),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.rviz')),
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
+        (f'share/{package_name}/maps', [
+            os.path.join('maps', f)
+            for f in os.listdir('maps')
+            if f.endswith('.yaml') or f.endswith('.png')
+        ]),
     ],
     install_requires=[
         'setuptools',

@@ -1,0 +1,23 @@
+# Ignore ROS 2 and colcon build artifacts
+build/
+install/
+log/
+
+# Ignore these folders anywhere in the repo
+**/build/
+**/install/
+**/log/
+
+# Do not ignore .gitignore itself
+!.gitignore
+
+# Python cache
+__pycache__/
+*.pyc
+
+# VS Code settings (optional)
+.vscode/
+
+# MacOS and Linux system files (optional)
+.DS_Store
+*.swp

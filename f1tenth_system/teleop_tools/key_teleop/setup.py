@@ -41,6 +41,7 @@ setup(
     entry_points={
         'console_scripts': [
             'key_teleop = key_teleop.key_teleop:main',
+            'pygame_teleop = key_teleop.pygame_teleop:main',
         ],
     },
 )
