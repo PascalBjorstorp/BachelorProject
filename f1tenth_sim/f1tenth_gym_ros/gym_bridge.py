@@ -152,6 +152,8 @@ class GymBridge(Node):
         self.declare_parameter('vehicle_params', 'f1tenth')
         self.declare_parameter('async_mode', True)
         self.declare_parameter('use_sim_time_bridge', False)
+        self.declare_parameter('scan_noise_std', 0.0)
+
         
         # Sensor noise parameters for realistic simulation
         self.declare_parameter('odom_noise_enabled', False)  # Enable odometry noise
