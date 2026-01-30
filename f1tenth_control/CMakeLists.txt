@@ -63,6 +63,22 @@ target_link_libraries(ftg_algorithm f1tenth_common)
 ament_target_dependencies(ftg_algorithm ${DEPENDENCIES})
 
 # ===================
+# Pure Pursuit Algorithm Library
+# ===================
+add_library(pure_pursuit_algorithm SHARED
+  src/algorithms/pure_pursuit.cpp
+)
+ament_target_dependencies(pure_pursuit_algorithm ${DEPENDENCIES})
+
+# ===================
+# Stanley Algorithm Library
+# ===================
+add_library(stanley_algorithm SHARED
+  src/algorithms/stanley.cpp
+)
+ament_target_dependencies(stanley_algorithm ${DEPENDENCIES})
+
+# ===================
 # FTG Node Executable
 # ===================
 add_executable(ftg_node
@@ -72,17 +88,51 @@ target_link_libraries(ftg_node ftg_algorithm f1tenth_common)
 ament_target_dependencies(ftg_node ${DEPENDENCIES})
 
 # ===================
+# Pure Pursuit Node Component
+# ===================
+add_library(pure_pursuit_node SHARED
+  src/nodes/pure_pursuit_node.cpp
+)
+target_link_libraries(pure_pursuit_node pure_pursuit_algorithm)
+ament_target_dependencies(pure_pursuit_node ${DEPENDENCIES})
+rclcpp_components_register_nodes(pure_pursuit_node "f1tenth_control::PurePursuitNode")
+
+# Pure Pursuit Node Executable (standalone)
+add_executable(pure_pursuit_node_exe
+  src/nodes/pure_pursuit_node.cpp
+)
+target_link_libraries(pure_pursuit_node_exe pure_pursuit_algorithm)
+ament_target_dependencies(pure_pursuit_node_exe ${DEPENDENCIES})
+
+# ===================
+# Stanley Node Component
+# ===================
+add_library(stanley_node SHARED
+  src/nodes/stanley_node.cpp
+)
+target_link_libraries(stanley_node stanley_algorithm)
+ament_target_dependencies(stanley_node ${DEPENDENCIES})
+rclcpp_components_register_nodes(stanley_node "f1tenth_control::StanleyNode")
+
+# Stanley Node Executable (standalone)
+add_executable(stanley_node_exe
+  src/nodes/stanley_node.cpp
+)
+target_link_libraries(stanley_node_exe stanley_algorithm)
+ament_target_dependencies(stanley_node_exe ${DEPENDENCIES})
+
+# ===================
 # Install targets
 # ===================
 install(
-  TARGETS f1tenth_common ftg_algorithm
+  TARGETS f1tenth_common ftg_algorithm pure_pursuit_algorithm stanley_algorithm pure_pursuit_node stanley_node
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
 
 install(
-  TARGETS ftg_node
+  TARGETS ftg_node pure_pursuit_node_exe stanley_node_exe
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -131,7 +181,7 @@ endif()
 
 # Export
 ament_export_include_directories(include)
-ament_export_libraries(f1tenth_common ftg_algorithm)
+ament_export_libraries(f1tenth_common ftg_algorithm pure_pursuit_algorithm pure_pursuit_node)
 ament_export_dependencies(${DEPENDENCIES})
 
 ament_package()
