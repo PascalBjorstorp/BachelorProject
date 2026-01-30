@@ -1,0 +1,174 @@
+#ifndef F1TENTH_CONTROL_PURE_PURSUIT_HPP_
+#define F1TENTH_CONTROL_PURE_PURSUIT_HPP_
+
+#include "f1tenth_control/common/types.hpp"
+#include <vector>
+#include <string>
+#include <cmath>
+
+namespace f1tenth_control {
+
+/**
+ * @brief Configuration for Pure Pursuit controller
+ */
+struct PurePursuitConfig {
+    // Lookahead parameters
+    double min_lookahead{0.5};      // [m] Minimum lookahead distance
+    double max_lookahead{2.5};      // [m] Maximum lookahead distance (reduced to avoid early turn-in)
+    double lookahead_gain{0.15};    // Velocity-proportional gain: L = min_L + k*v (reduced)
+    
+    // Speed control
+    double max_speed{8.0};          // [m/s] Maximum speed
+    double min_speed{1.0};          // [m/s] Minimum speed
+    double speed_gain{1.0};         // Multiplier for trajectory target speed
+    
+    // Steering limits
+    double max_steering{0.4189};    // [rad] Maximum steering angle (~24°)
+    double max_steering_rate{3.0};  // [rad/s] Max steering change rate for stability
+    
+    // Vehicle parameters
+    double wheelbase{0.3302};       // [m] Distance between axles
+    
+    // Path tracking
+    double position_tolerance{0.5}; // [m] Max deviation before re-finding closest point
+    
+    // Stability
+    double curvature_speed_factor{1.0}; // Speed reduction factor based on path curvature (increased)
+};
+
+/**
+ * @brief Trajectory waypoint for path following
+ */
+struct TrajectoryPoint {
+    double x{0.0};           // [m] X position
+    double y{0.0};           // [m] Y position
+    double heading{0.0};     // [rad] Heading angle
+    double velocity{0.0};    // [m/s] Target velocity
+    double curvature{0.0};   // [1/m] Path curvature
+    double arc_length{0.0};  // [m] Distance along path
+    
+    TrajectoryPoint() = default;
+    TrajectoryPoint(double x_, double y_, double h, double v, double k, double s)
+        : x(x_), y(y_), heading(h), velocity(v), curvature(k), arc_length(s) {}
+};
+
+/**
+ * @brief Output from Pure Pursuit controller
+ */
+struct PurePursuitOutput {
+    double steering_angle{0.0};  // [rad] Commanded steering angle
+    double target_speed{0.0};    // [m/s] Commanded speed
+    
+    // Debug info
+    size_t closest_idx{0};       // Index of closest waypoint
+    size_t target_idx{0};        // Index of lookahead target
+    Point2D target_point;        // Lookahead point in world frame
+    double lookahead_distance{0.0};
+    double cross_track_error{0.0};  // Lateral error from path
+    bool valid{false};           // Whether output is valid
+};
+
+/**
+ * @brief Pure Pursuit path-following controller
+ * 
+ * Pure Pursuit finds a target point at a lookahead distance on the path
+ * and computes the steering angle to arc towards it.
+ * 
+ * The steering angle is computed as:
+ *   delta = atan2(2 * L * sin(alpha) / lookahead_dist, 1)
+ * 
+ * Where:
+ *   L = wheelbase
+ *   alpha = angle to target point from vehicle heading
+ *   lookahead_dist = distance to target point
+ */
+class PurePursuit {
+public:
+    PurePursuit();
+    explicit PurePursuit(const PurePursuitConfig& config);
+    
+    /**
+     * @brief Load trajectory from file
+     * @param csv_path Path to CSV file (TUM format)
+     * @return true if loaded successfully
+     */
+    bool loadTrajectory(const std::string& csv_path);
+    
+    /**
+     * @brief Set trajectory directly
+     * @param trajectory Vector of waypoints
+     */
+    void setTrajectory(const std::vector<TrajectoryPoint>& trajectory);
+    
+    /**
+     * @brief Compute steering and speed commands
+     * @param state Current vehicle state
+     * @return Control output (steering, speed, debug info)
+     */
+    PurePursuitOutput compute(const VehicleState& state);
+    
+    /**
+     * @brief Update configuration
+     */
+    void setConfig(const PurePursuitConfig& config) { config_ = config; }
+    const PurePursuitConfig& getConfig() const { return config_; }
+    
+    /**
+     * @brief Get loaded trajectory
+     */
+    const std::vector<TrajectoryPoint>& getTrajectory() const { return trajectory_; }
+    
+    /**
+     * @brief Check if trajectory is loaded
+     */
+    bool hasTrajectory() const { return !trajectory_.empty(); }
+    
+    /**
+     * @brief Get total trajectory length
+     */
+    double getTrajectoryLength() const;
+    
+    /**
+     * @brief Set previous steering for rate limiting
+     */
+    void setPreviousSteering(double steering) { prev_steering_ = steering; }
+    
+private:
+    PurePursuitConfig config_;
+    std::vector<TrajectoryPoint> trajectory_;
+    size_t last_closest_idx_{0};  // For efficient search
+    double prev_steering_{0.0};   // For steering rate limiting
+    
+    /**
+     * @brief Find closest point on trajectory to position
+     * @param position Current position
+     */
+    size_t findClosestPoint(const Point2D& position);
+    
+    /**
+     * @brief Find lookahead target point
+     * @param closest_idx Index of closest waypoint
+     * @param lookahead_dist Desired lookahead distance
+     * @return Index of target waypoint
+     */
+    size_t findLookaheadTarget(size_t closest_idx, double lookahead_dist);
+    
+    /**
+     * @brief Interpolate between two trajectory points
+     */
+    TrajectoryPoint interpolate(size_t idx1, size_t idx2, double t) const;
+    
+    /**
+     * @brief Compute distance between two points
+     */
+    static double distance(const Point2D& a, const Point2D& b) {
+        return std::hypot(a.x - b.x, a.y - b.y);
+    }
+    static double distance(double x1, double y1, double x2, double y2) {
+        return std::hypot(x2 - x1, y2 - y1);
+    }
+};
+
+}  // namespace f1tenth_control
+
+#endif  // F1TENTH_CONTROL_PURE_PURSUIT_HPP_
