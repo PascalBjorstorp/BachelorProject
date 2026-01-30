@@ -44,6 +44,8 @@ from std_msgs.msg import Bool
 from tf2_ros import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
 from transforms3d import euler
+from ament_index_python.packages import get_package_share_directory
+import os
 
 # Constants for timer periods (in seconds)
 PUBLISH_TIMER_PERIOD: float = 0.004  # 250 Hz for sensor data publishing
@@ -176,22 +178,24 @@ class GymBridge(Node):
         }
         if vehicle_type not in params_map:
             raise ValueError(
-                f'vehicle_params should be one of: {
-                    list(
-                        params_map.keys())}')
+                f"vehicle_params should be one of: {list(self.vehicle_params_dict.keys())}"
+            )
         return params_map[vehicle_type]()
 
     def _create_environment(self, num_agents: int, scale: float) -> gym.Env:
         """Create and configure the F1Tenth gym environment."""
         # Parse map path
-        path = self.get_parameter('map_path').value
-        name = path.split('/')[-1].split('.')[0]
-        path = path + '.yaml'
-        self.get_logger().info(f'Loading map: {name} from path: {path}')
+        map_name = self.get_parameter('map_path').value
+        map_yaml_path = os.path.join(
+            get_package_share_directory('f1tenth_gym_ros'),
+            'maps',
+            map_name + '.yaml'
+        )
+        self.get_logger().info(f'Loading map: {map_name} from path: {map_yaml_path}')
 
         # Load the track
         try:
-            loaded_map = Track.from_track_path(pathlib.Path(path), scale)
+            loaded_map = Track.from_track_path(pathlib.Path(map_yaml_path), scale)
         except Exception as e:
             self.get_logger().error(f'Failed to load map: {e}')
             raise
@@ -722,15 +726,29 @@ class GymBridge(Node):
 
     def _publish_scans(self, ts) -> None:
         """Publish laser scan messages using pre-allocated messages."""
+        # Get noise stddev from parameter (default to 0.0 if not set)
+        scan_noise_std = self.get_parameter('scan_noise_std').value if self.has_parameter('scan_noise_std') else 0.0
+
         # Ego scan
+        ego_scan = np.array(self.ego_scan)
+        if scan_noise_std > 0.0:
+            noise = np.random.normal(0, scan_noise_std, ego_scan.shape)
+            ego_scan = ego_scan + noise
+            # Clamp to valid range
+            ego_scan = np.clip(ego_scan, 0.0, self.scan_range_max)
         self._ego_scan_msg.header.stamp = ts
-        self._ego_scan_msg.ranges = self.ego_scan
+        self._ego_scan_msg.ranges = ego_scan.tolist()
         self.ego_scan_pub.publish(self._ego_scan_msg)
 
         # Opponent scan
         if self.has_opp:
+            opp_scan = np.array(self.opp_scan)
+            if scan_noise_std > 0.0:
+                noise = np.random.normal(0, scan_noise_std, opp_scan.shape)
+                opp_scan = opp_scan + noise
+                opp_scan = np.clip(opp_scan, 0.0, self.scan_range_max)
             self._opp_scan_msg.header.stamp = ts
-            self._opp_scan_msg.ranges = self.opp_scan
+            self._opp_scan_msg.ranges = opp_scan.tolist()
             self.opp_scan_pub.publish(self._opp_scan_msg)
 
     def _publish_odom(self, ts) -> None:
