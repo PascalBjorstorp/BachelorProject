@@ -72,18 +72,20 @@ void FTGNode::declareParameters() {
     // Safety
     this->declare_parameter("emergency_brake_distance", 0.3);
     
-    // LiDAR processing
+    // FTG-specific LiDAR processing parameters
+    this->declare_parameter("disparity_threshold", 0.5);
+    this->declare_parameter("gap_threshold", 0.8);
+    this->declare_parameter("min_gap_width", 0.15);
+    this->declare_parameter("bubble_radius", 0.25);
+    this->declare_parameter("apply_bubble", true);
+    
+    // Generic LiDAR preprocessing parameters
     this->declare_parameter("lidar.range_min", 0.1);
     this->declare_parameter("lidar.range_max", 12.0);
     this->declare_parameter("lidar.angle_min", -1.57);  // -90 degrees
     this->declare_parameter("lidar.angle_max", 1.57);   // +90 degrees
     this->declare_parameter("lidar.apply_median_filter", true);
     this->declare_parameter("lidar.median_window_size", 3);
-    this->declare_parameter("lidar.disparity_threshold", 0.5);
-    this->declare_parameter("lidar.gap_threshold", 0.8);
-    this->declare_parameter("lidar.min_gap_width", 0.15);
-    this->declare_parameter("lidar.bubble_radius", 0.25);
-    this->declare_parameter("lidar.apply_bubble", true);
     
     // Mapping mode
     this->declare_parameter("mapping_mode", false);
@@ -110,18 +112,20 @@ void FTGNode::loadParameters() {
     // Safety
     config_.emergency_brake_distance = this->get_parameter("emergency_brake_distance").as_double();
     
-    // LiDAR processing
+    // FTG-specific LiDAR processing parameters (now in FTGConfig)
+    config_.disparity_threshold = this->get_parameter("disparity_threshold").as_double();
+    config_.gap_threshold = this->get_parameter("gap_threshold").as_double();
+    config_.min_gap_width = this->get_parameter("min_gap_width").as_double();
+    config_.bubble_radius = this->get_parameter("bubble_radius").as_double();
+    config_.apply_bubble = this->get_parameter("apply_bubble").as_bool();
+    
+    // Generic LiDAR preprocessing config
     config_.lidar_config.range_min = this->get_parameter("lidar.range_min").as_double();
     config_.lidar_config.range_max = this->get_parameter("lidar.range_max").as_double();
     config_.lidar_config.angle_min = this->get_parameter("lidar.angle_min").as_double();
     config_.lidar_config.angle_max = this->get_parameter("lidar.angle_max").as_double();
     config_.lidar_config.apply_median_filter = this->get_parameter("lidar.apply_median_filter").as_bool();
     config_.lidar_config.median_window_size = this->get_parameter("lidar.median_window_size").as_int();
-    config_.lidar_config.disparity_threshold = this->get_parameter("lidar.disparity_threshold").as_double();
-    config_.lidar_config.gap_threshold = this->get_parameter("lidar.gap_threshold").as_double();
-    config_.lidar_config.min_gap_width = this->get_parameter("lidar.min_gap_width").as_double();
-    config_.lidar_config.bubble_radius = this->get_parameter("lidar.bubble_radius").as_double();
-    config_.lidar_config.apply_bubble = this->get_parameter("lidar.apply_bubble").as_bool();
     
     // Mapping mode
     config_.mapping_mode = this->get_parameter("mapping_mode").as_bool();

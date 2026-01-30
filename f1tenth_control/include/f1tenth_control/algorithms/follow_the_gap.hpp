@@ -4,11 +4,14 @@
 #include "f1tenth_control/common/types.hpp"
 #include "f1tenth_control/common/lidar_processor.hpp"
 #include <memory>
+#include <functional>
 
 namespace f1tenth_control {
 
 /**
  * @brief Configuration for Follow The Gap algorithm
+ * 
+ * Contains both generic LiDAR processing config and FTG-specific parameters.
  */
 struct FTGConfig {
     // Vehicle parameters
@@ -30,7 +33,14 @@ struct FTGConfig {
     // Safety
     double emergency_brake_distance{0.3};  // Brake if obstacle closer than this (m)
     
-    // LiDAR processing config
+    // FTG-specific LiDAR processing parameters
+    double disparity_threshold{0.3}; // Threshold for disparity extension (m)
+    double gap_threshold{3.0};       // Minimum range to consider as gap (m)
+    double min_gap_width{0.3};       // Minimum angular width of gap (rad)
+    double bubble_radius{0.2};       // Safety bubble radius around closest point (m)
+    bool apply_bubble{true};         // Whether to apply safety bubble
+    
+    // Generic LiDAR processing config (for preprocessing only)
     LidarProcessorConfig lidar_config;
     
     // Mapping mode
@@ -111,6 +121,48 @@ private:
     LidarProcessor lidar_processor_;
     double last_steering_{0.0};  // For steering rate limiting
     double last_target_angle_{0.0};  // For target angle smoothing (reduces oscillation)
+    
+    // ============================================
+    // FTG-Specific LiDAR Processing (moved from LidarProcessor)
+    // ============================================
+    
+    /**
+     * @brief Apply disparity extension to ranges
+     * 
+     * Extends obstacles at disparity points (sudden range changes) to prevent
+     * the robot from driving into narrow gaps that it cannot fit through.
+     * 
+     * @param scan Processed scan to modify (in-place)
+     */
+    void applyDisparityExtension(ProcessedScan& scan);
+    
+    /**
+     * @brief Apply safety bubble around closest point
+     * 
+     * Zeros out ranges within bubble_radius of the closest point to ensure
+     * the robot doesn't drive toward the nearest obstacle.
+     * 
+     * @param scan Processed scan to modify (in-place)
+     */
+    void applySafetyBubble(ProcessedScan& scan);
+    
+    /**
+     * @brief Find all gaps in the processed scan
+     * @param scan Processed scan
+     * @return Vector of detected gaps
+     */
+    std::vector<Gap> findGaps(const ProcessedScan& scan);
+    
+    /**
+     * @brief Find the best gap based on scoring function
+     * @param gaps Vector of gaps to search
+     * @return Best gap, or invalid gap if none found
+     */
+    Gap findBestGap(const std::vector<Gap>& gaps);
+    
+    // ============================================
+    // Control Calculations
+    // ============================================
     
     /**
      * @brief Calculate target angle toward gap (deepest point)

@@ -23,17 +23,19 @@ protected:
         config_.emergency_brake_distance = 0.3;
         config_.mapping_mode = false;
         
-        // LiDAR config
+        // FTG-specific processing parameters (now in FTGConfig)
+        config_.disparity_threshold = 0.5;
+        config_.gap_threshold = 0.8;
+        config_.min_gap_width = 0.15;
+        config_.bubble_radius = 0.25;
+        config_.apply_bubble = true;
+        
+        // Generic LiDAR preprocessing config
         config_.lidar_config.range_min = 0.1;
         config_.lidar_config.range_max = 12.0;
         config_.lidar_config.angle_min = -constants::PI / 2;
         config_.lidar_config.angle_max = constants::PI / 2;
         config_.lidar_config.apply_median_filter = false;  // Deterministic tests
-        config_.lidar_config.disparity_threshold = 0.5;
-        config_.lidar_config.gap_threshold = 0.8;
-        config_.lidar_config.min_gap_width = 0.15;
-        config_.lidar_config.bubble_radius = 0.25;
-        config_.lidar_config.apply_bubble = true;
         
         ftg_ = std::make_unique<FollowTheGap>(config_);
     }
@@ -106,8 +108,8 @@ TEST_F(FollowTheGapTest, ComputeReturnsValidOutput) {
 
 TEST_F(FollowTheGapTest, OpenPathDrivesStraight) {
     // Disable bubble and disparity extension for this test
-    config_.lidar_config.apply_bubble = false;
-    config_.lidar_config.disparity_threshold = 10.0;
+    config_.apply_bubble = false;
+    config_.disparity_threshold = 10.0;
     ftg_->setConfig(config_);
 
     // Create scan with slightly deeper range in center to simulate open path ahead
@@ -131,8 +133,8 @@ TEST_F(FollowTheGapTest, OpenPathDrivesStraight) {
 
 TEST_F(FollowTheGapTest, CorridorDrivesStraight) {
     // Disable bubble and disparity extension for clean corridor test
-    config_.lidar_config.apply_bubble = false;
-    config_.lidar_config.disparity_threshold = 10.0;  // Effectively disable disparity extension
+    config_.apply_bubble = false;
+    config_.disparity_threshold = 10.0;  // Effectively disable disparity extension
     ftg_->setConfig(config_);
 
     // Create corridor with walls on sides and open in front
@@ -208,8 +210,8 @@ TEST_F(FollowTheGapTest, NoEmergencyStopWhenFarEnough) {
 
 TEST_F(FollowTheGapTest, DetectsGaps) {
     // Disable bubble and disparity extension for clean gap detection test
-    config_.lidar_config.apply_bubble = false;
-    config_.lidar_config.disparity_threshold = 10.0;  // Effectively disable
+    config_.apply_bubble = false;
+    config_.disparity_threshold = 10.0;  // Effectively disable
     ftg_->setConfig(config_);
 
     auto ranges = createCorridorScan(100);
@@ -239,8 +241,8 @@ TEST_F(FollowTheGapTest, NoGapsTriggersEmergencyStop) {
 
 TEST_F(FollowTheGapTest, SelectsBestGap) {
     // Disable bubble and disparity extension for this test
-    config_.lidar_config.apply_bubble = false;
-    config_.lidar_config.disparity_threshold = 10.0;
+    config_.apply_bubble = false;
+    config_.disparity_threshold = 10.0;
     ftg_->setConfig(config_);
 
     // Background at 0.5m (below gap threshold 0.8m)
@@ -266,8 +268,8 @@ TEST_F(FollowTheGapTest, SelectsBestGap) {
 
 TEST_F(FollowTheGapTest, SteersTowardGap) {
     // Disable bubble and disparity extension for steering test
-    config_.lidar_config.apply_bubble = false;
-    config_.lidar_config.disparity_threshold = 10.0;
+    config_.apply_bubble = false;
+    config_.disparity_threshold = 10.0;
     ftg_->setConfig(config_);
 
     // Create scan with gap only on the right
@@ -288,8 +290,8 @@ TEST_F(FollowTheGapTest, SteersTowardGap) {
 
 TEST_F(FollowTheGapTest, SteersLeftWhenGapOnLeft) {
     // Disable bubble and disparity extension for steering test
-    config_.lidar_config.apply_bubble = false;
-    config_.lidar_config.disparity_threshold = 10.0;
+    config_.apply_bubble = false;
+    config_.disparity_threshold = 10.0;
     ftg_->setConfig(config_);
 
     // Create scan with gap only on the left (low indices = negative angles = right side)
@@ -307,8 +309,8 @@ TEST_F(FollowTheGapTest, SteersLeftWhenGapOnLeft) {
 
 TEST_F(FollowTheGapTest, SteeringAngleClamped) {
     // Disable bubble and disparity extension for steering test
-    config_.lidar_config.apply_bubble = false;
-    config_.lidar_config.disparity_threshold = 10.0;
+    config_.apply_bubble = false;
+    config_.disparity_threshold = 10.0;
     ftg_->setConfig(config_);
 
     // Create scenario with a clear gap only on the far left side (high indices)
@@ -332,8 +334,8 @@ TEST_F(FollowTheGapTest, SteeringAngleClamped) {
 
 TEST_F(FollowTheGapTest, SteeringAngleClampedRight) {
     // Disable bubble and disparity extension for steering test
-    config_.lidar_config.apply_bubble = false;
-    config_.lidar_config.disparity_threshold = 10.0;
+    config_.apply_bubble = false;
+    config_.disparity_threshold = 10.0;
     ftg_->setConfig(config_);
 
     // Create scenario with a clear gap only on the far right side (low indices)
@@ -418,8 +420,8 @@ TEST_F(FollowTheGapTest, ConfigurationCanBeUpdated) {
 
 TEST_F(FollowTheGapTest, PureFTGSelectsDeepestPoint) {
     // Pure FTG should always target the deepest point in the gap
-    config_.lidar_config.apply_bubble = false;
-    config_.lidar_config.disparity_threshold = 10.0;  // Disable disparity extension
+    config_.apply_bubble = false;
+    config_.disparity_threshold = 10.0;  // Disable disparity extension
     ftg_->setConfig(config_);
 
     // Create scan with two equal gaps - one straight, one right
@@ -486,8 +488,8 @@ TEST_F(FollowTheGapTest, OutputIncludesClosestPointInfo) {
 
 TEST_F(FollowTheGapTest, OutputIncludesAllGaps) {
     // Disable bubble and disparity extension to get deterministic gap detection
-    config_.lidar_config.apply_bubble = false;
-    config_.lidar_config.disparity_threshold = 10.0;
+    config_.apply_bubble = false;
+    config_.disparity_threshold = 10.0;
     ftg_->setConfig(config_);
 
     // Background below gap threshold

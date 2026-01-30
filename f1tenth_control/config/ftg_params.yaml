@@ -34,32 +34,26 @@ ftg_node:
     emergency_brake_distance: 0.2 # Emergency stop if obstacle closer (m) - reduced for tight spaces
 
     # ===================
-    # LiDAR Processing
+    # FTG-Specific Processing
     # ===================
+    # These parameters are specific to the Follow The Gap algorithm
+    disparity_threshold: 0.5   # Threshold for detecting disparities (m)
+    gap_threshold: 0.5         # Minimum range to consider as "gap" (m)
+    min_gap_width: 0.1         # Minimum angular width of valid gap (rad)
+    bubble_radius: 0.15        # Safety bubble radius around closest point (m)
+    apply_bubble: true         # Enable safety bubble
+
+    # ===================
+    # Generic LiDAR Preprocessing
+    # ===================
+    # These parameters are generic and can be reused by other algorithms
     lidar:
-      # Range limits
       range_min: 0.1        # Ignore readings closer than this (m)
       range_max: 12.0       # Maximum range to consider (m)
-
-      # Angular limits - only process this range
-      # Default: -90 to +90 degrees (front half)
-      angle_min: -1.57      # Minimum angle to process (rad)
-      angle_max: 1.57       # Maximum angle to process (rad)
-
-      # Noise filtering
+      angle_min: -1.57      # Minimum angle to process (rad) - -90 degrees
+      angle_max: 1.57       # Maximum angle to process (rad) - +90 degrees
       apply_median_filter: true  # Apply median filter for noise reduction
       median_window_size: 3      # Window size (should be odd)
-
-      # Disparity extension
-      disparity_threshold: 0.5   # Threshold for detecting disparities (m)
-
-      # Gap detection - CRITICAL for not getting stuck
-      gap_threshold: 0.5    # Minimum range to consider as "gap" (m) - reduced
-      min_gap_width: 0.1    # Minimum angular width of valid gap (rad) - reduced
-
-      # Safety bubble
-      apply_bubble: true    # Enable safety bubble
-      bubble_radius: 0.15   # Radius of the bubble (m) - reduced
 
     # ===================
     # Mapping Mode
