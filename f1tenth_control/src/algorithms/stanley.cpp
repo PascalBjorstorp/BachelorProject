@@ -72,55 +72,40 @@ size_t Stanley::findClosestPoint(const Point2D& front_axle_pos, double vehicle_h
     
     const size_t n = trajectory_.size();
     double min_cost = std::numeric_limits<double>::max();
-    size_t closest_idx = 0;
+    size_t closest_idx = last_closest_idx_;
     
     // Heading weight: penalize points with wrong heading direction
-    // This prevents matching wrong track segment when track passes near itself
-    const double heading_weight = 2.0;  // Weight for heading mismatch in cost function
+    constexpr double heading_weight = 2.0;
     
-    // On first call or if far from path, do full search
-    bool full_search = (last_closest_idx_ == 0) || 
-                       (distance(front_axle_pos.x, front_axle_pos.y,
-                                trajectory_[last_closest_idx_].x,
-                                trajectory_[last_closest_idx_].y) > config_.position_tolerance * 2);
+    // Check if we need full search (first call or far from path)
+    const double dist_to_last = distance(front_axle_pos.x, front_axle_pos.y,
+                                         trajectory_[last_closest_idx_].x,
+                                         trajectory_[last_closest_idx_].y);
+    // Use last_steering_ == 0 as indicator of first call (not perfect but simple)
+    const bool first_call = (last_closest_idx_ == 0 && last_steering_ == 0.0);
+    const bool full_search = first_call || (dist_to_last > config_.position_tolerance * 2);
     
-    auto compute_cost = [&](size_t i) -> double {
-        double d = distance(front_axle_pos.x, front_axle_pos.y, 
-                           trajectory_[i].x, trajectory_[i].y);
-        
-        // Heading difference (normalized to [-pi, pi])
-        double heading_diff = normalizeAngle(trajectory_[i].heading - vehicle_heading);
-        
-        // Cost = distance + weighted heading penalty
-        // If heading differs by more than 90 degrees, heavily penalize
-        double heading_penalty = heading_weight * std::abs(heading_diff);
-        
-        return d + heading_penalty;
-    };
+    // Determine search range
+    size_t start_idx = 0;
+    size_t end_idx = n - 1;
     
-    if (full_search) {
-        // Full trajectory search with heading-aware cost
-        for (size_t i = 0; i < n; ++i) {
-            double cost = compute_cost(i);
-            if (cost < min_cost) {
-                min_cost = cost;
-                closest_idx = i;
-            }
-        }
-    } else {
-        // Local search around last known position
-        const size_t search_radius = std::min(n / 2, size_t(100));
-        size_t start_idx = (last_closest_idx_ > search_radius) 
-                           ? last_closest_idx_ - search_radius : 0;
-        size_t end_idx = std::min(last_closest_idx_ + search_radius, n - 1);
+    if (!full_search) {
+        // Local search: ±100 points around last position
+        constexpr size_t search_radius = 100;
+        start_idx = (last_closest_idx_ > search_radius) ? last_closest_idx_ - search_radius : 0;
+        end_idx = std::min(last_closest_idx_ + search_radius, n - 1);
+    }
+    
+    // Search for closest point with heading-aware cost
+    for (size_t i = start_idx; i <= end_idx; ++i) {
+        const auto& pt = trajectory_[i];
+        const double d = distance(front_axle_pos.x, front_axle_pos.y, pt.x, pt.y);
+        const double heading_diff = normalizeAngle(pt.heading - vehicle_heading);
+        const double cost = d + heading_weight * std::abs(heading_diff);
         
-        closest_idx = last_closest_idx_;
-        for (size_t i = start_idx; i <= end_idx; ++i) {
-            double cost = compute_cost(i);
-            if (cost < min_cost) {
-                min_cost = cost;
-                closest_idx = i;
-            }
+        if (cost < min_cost) {
+            min_cost = cost;
+            closest_idx = i;
         }
     }
     
@@ -217,8 +202,8 @@ StanleyOutput Stanley::compute(const VehicleState& state) {
     double steering_angle = heading_term + cte_term + feedforward_term + damping_term;
     
     // Apply steering rate limiting to prevent sudden changes that cause loss of traction
-    // Assume 50 Hz control rate (dt = 0.02s)
-    const double dt = 0.02;
+    // Use configured control rate (default 200 Hz → dt = 0.005s)
+    const double dt = 1.0 / config_.control_rate;
     double max_delta = config_.max_steering_rate * dt;
     double steering_delta = steering_angle - last_steering_;
     steering_delta = std::clamp(steering_delta, -max_delta, max_delta);

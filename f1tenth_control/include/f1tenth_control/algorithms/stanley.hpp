@@ -39,6 +39,9 @@ struct StanleyConfig {
     
     // Speed adaptation
     double curvature_speed_factor{0.8}; // Speed reduction based on path curvature
+    
+    // Control rate (for steering rate limiting)
+    double control_rate{200.0};         // [Hz] Control loop frequency
 };
 
 /**
@@ -141,7 +144,6 @@ private:
     std::vector<StanleyTrajectoryPoint> trajectory_;
     size_t last_closest_idx_{0};
     double last_steering_{0.0};     // For steering rate limiting
-    double last_time_{-1.0};        // Last compute time
     
     /**
      * @brief Find closest point to front axle position (heading-aware)
