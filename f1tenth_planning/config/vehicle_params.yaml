@@ -1,0 +1,44 @@
+# Vehicle Parameters for F1Tenth Racing Line Optimization
+# These values are from the f1tenth_gym simulation environment
+# Source: F110Env.f1tenth_vehicle_params()
+
+vehicle:
+  # Physical dimensions
+  wheelbase: 0.3302          # [m] Distance between front and rear axles
+  width: 0.31                # [m] Total car width (for safety margin)
+  
+  # Tire/friction properties
+  friction_coeff: 1.0489     # [-] Tire-road friction coefficient (μ)
+  
+  # Acceleration limits
+  max_acceleration: 9.51     # [m/s²] Maximum longitudinal acceleration
+  max_deceleration: 10.0     # [m/s²] Maximum braking deceleration
+  
+  # Speed limits
+  max_speed: 20.0            # [m/s] Maximum vehicle speed
+
+optimization:
+  # Track boundary safety margin (half car width + buffer)
+  safety_margin: 0.155       # [m] Distance to keep from track edges
+
+# Additional vehicle properties (for reference, not currently used in optimization)
+# These are kept for documentation and future advanced features
+advanced:
+  # Detailed dimensions
+  lf: 0.15875                # [m] CG to front axle
+  lr: 0.17145                # [m] CG to rear axle
+  length: 0.58               # [m] Total car length
+  
+  # Mass properties
+  mass: 3.74                 # [kg] Total vehicle mass
+  inertia: 0.04712           # [kg·m²] Yaw moment of inertia (I_z)
+  cg_height: 0.074           # [m] Center of gravity height
+  
+  # Tire cornering stiffness (for dynamic models)
+  C_Sf: 4.718                # [1/rad] Front cornering stiffness
+  C_Sr: 5.4562               # [1/rad] Rear cornering stiffness
+  # Note: C_Sr > C_Sf → slight understeer tendency
+  
+  # Steering constraints  
+  max_steering_angle: 0.4189 # [rad] Maximum steering angle (~24°)
+  max_steering_rate: 3.2     # [rad/s] Maximum steering rate
