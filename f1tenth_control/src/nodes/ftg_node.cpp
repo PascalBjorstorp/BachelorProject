@@ -1,6 +1,5 @@
 #include "f1tenth_control/nodes/ftg_node.hpp"
 #include <tf2/utils.h>
-#include <chrono>
 
 namespace f1tenth_control {
 
@@ -56,37 +55,34 @@ FTGNode::FTGNode(const rclcpp::NodeOptions& options)
 void FTGNode::declareParameters() {
     // Vehicle parameters
     this->declare_parameter("wheelbase", 0.324);
-    this->declare_parameter("car_width", 0.30);
+    this->declare_parameter("car_width", 0.50);
     
-    // Speed control
-    this->declare_parameter("max_speed", 4.0);
-    this->declare_parameter("min_speed", 1.0);
-    this->declare_parameter("speed_range_factor", 0.5);
-    this->declare_parameter("nominal_gap_width", 1.0);
+    // Speed control (reference FTG formula)
+    this->declare_parameter("max_speed", 6.0);
+    this->declare_parameter("min_speed", 2.0);
+    this->declare_parameter("speed_full_range", 9.0);
+    this->declare_parameter("steer_slowdown_gain", 0.7);
     
     // Steering control
     this->declare_parameter("max_steering_angle", 0.4);
-    this->declare_parameter("steering_gain", 1.0);
-    
-    // Gap selection
-    this->declare_parameter("prefer_straight", true);
-    this->declare_parameter("straight_weight", 0.3);
+    this->declare_parameter("steering_gain", 0.8);  // Reduced for stability
+    this->declare_parameter("max_steering_delta", 0.05);  // Reduced for smoother steering
+    this->declare_parameter("target_angle_smoothing", 0.3);  // EMA smoothing factor
     
     // Safety
     this->declare_parameter("emergency_brake_distance", 0.3);
-    this->declare_parameter("slowdown_distance", 1.5);
     
     // LiDAR processing
     this->declare_parameter("lidar.range_min", 0.1);
-    this->declare_parameter("lidar.range_max", 10.0);
+    this->declare_parameter("lidar.range_max", 12.0);
     this->declare_parameter("lidar.angle_min", -1.57);  // -90 degrees
     this->declare_parameter("lidar.angle_max", 1.57);   // +90 degrees
     this->declare_parameter("lidar.apply_median_filter", true);
     this->declare_parameter("lidar.median_window_size", 3);
-    this->declare_parameter("lidar.disparity_threshold", 0.3);
-    this->declare_parameter("lidar.gap_threshold", 3.0);
-    this->declare_parameter("lidar.min_gap_width", 0.3);
-    this->declare_parameter("lidar.bubble_radius", 0.2);
+    this->declare_parameter("lidar.disparity_threshold", 0.5);
+    this->declare_parameter("lidar.gap_threshold", 0.8);
+    this->declare_parameter("lidar.min_gap_width", 0.15);
+    this->declare_parameter("lidar.bubble_radius", 0.25);
     this->declare_parameter("lidar.apply_bubble", true);
     
     // Mapping mode
@@ -99,23 +95,20 @@ void FTGNode::loadParameters() {
     config_.wheelbase = this->get_parameter("wheelbase").as_double();
     config_.car_width = this->get_parameter("car_width").as_double();
     
-    // Speed control
+    // Speed control (reference FTG formula)
     config_.max_speed = this->get_parameter("max_speed").as_double();
     config_.min_speed = this->get_parameter("min_speed").as_double();
-    config_.speed_range_factor = this->get_parameter("speed_range_factor").as_double();
-    config_.nominal_gap_width = this->get_parameter("nominal_gap_width").as_double();
+    config_.speed_full_range = this->get_parameter("speed_full_range").as_double();
+    config_.steer_slowdown_gain = this->get_parameter("steer_slowdown_gain").as_double();
     
     // Steering control
     config_.max_steering_angle = this->get_parameter("max_steering_angle").as_double();
     config_.steering_gain = this->get_parameter("steering_gain").as_double();
-    
-    // Gap selection
-    config_.prefer_straight = this->get_parameter("prefer_straight").as_bool();
-    config_.straight_weight = this->get_parameter("straight_weight").as_double();
+    config_.max_steering_delta = this->get_parameter("max_steering_delta").as_double();
+    config_.target_angle_smoothing = this->get_parameter("target_angle_smoothing").as_double();
     
     // Safety
     config_.emergency_brake_distance = this->get_parameter("emergency_brake_distance").as_double();
-    config_.slowdown_distance = this->get_parameter("slowdown_distance").as_double();
     
     // LiDAR processing
     config_.lidar_config.range_min = this->get_parameter("lidar.range_min").as_double();
@@ -178,8 +171,77 @@ void FTGNode::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
         timestamp
     );
     
-    // Publish drive command
-    publishDriveCommand(output.command);
+    // Steering smoothing is now handled internally by the FTG algorithm
+    // via rate limiting (max_steering_delta)
+    DriveCommand smoothed_cmd = output.command;
+    prev_steering_ = output.command.steering_angle;
+    
+    // Recovery mode logic: detect stuck state and try to escape
+    DriveCommand final_cmd = smoothed_cmd;
+    
+    if (output.emergency_stop && output.all_gaps.empty()) {
+        // We're stuck with no gaps - increment stuck counter
+        stuck_counter_++;
+        
+        if (stuck_counter_ >= STUCK_THRESHOLD && !in_recovery_mode_) {
+            // Enter recovery mode
+            in_recovery_mode_ = true;
+            recovery_counter_ = 0;
+            metrics_.recovery_events++;  // Track recovery event
+            // Choose turn direction based on which side has more space
+            // Use the deepest_idx angle to determine direction
+            ProcessedScan scan = ftg_->getLidarProcessor().processScan(
+                msg->ranges, msg->angle_min, msg->angle_max, msg->angle_increment
+            );
+            if (!scan.angles.empty() && output.closest_point_idx < scan.angles.size()) {
+                // Turn away from the closest obstacle
+                double closest_angle = scan.angles[output.closest_point_idx];
+                recovery_steer_direction_ = (closest_angle > 0) ? -1.0 : 1.0;
+            }
+            RCLCPP_WARN(this->get_logger(), 
+                "RECOVERY MODE: Stuck for %d cycles, backing up and turning %s",
+                stuck_counter_, recovery_steer_direction_ > 0 ? "RIGHT" : "LEFT");
+        }
+    } else if (!output.emergency_stop && !output.all_gaps.empty()) {
+        // Normal driving - reset stuck counter
+        stuck_counter_ = 0;
+        // Only exit recovery after minimum backup duration (40 cycles ~= 0.8s of backing)
+        constexpr int MIN_RECOVERY_BACKUP = 40;
+        if (in_recovery_mode_ && recovery_counter_ >= MIN_RECOVERY_BACKUP) {
+            RCLCPP_INFO(this->get_logger(), "RECOVERY MODE: Exited after %d cycles - found gaps!", recovery_counter_);
+            in_recovery_mode_ = false;
+            recovery_counter_ = 0;
+        }
+    }
+    
+    // Apply recovery behavior
+    if (in_recovery_mode_) {
+        recovery_counter_++;
+        
+        // Recovery: reverse slowly with steering to turn away from obstacle
+        double reverse_speed = -0.5;  // Slow reverse
+        double recovery_steer = recovery_steer_direction_ * config_.max_steering_angle;
+        
+        final_cmd = DriveCommand(reverse_speed, recovery_steer);
+        
+        RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 500,
+            "RECOVERY: counter=%d/%d, cmd=(speed=%.2f, steer=%.2f)",
+            recovery_counter_, RECOVERY_DURATION, reverse_speed, recovery_steer);
+        
+        // Exit recovery after duration (even if still stuck, will re-enter if needed)
+        if (recovery_counter_ >= RECOVERY_DURATION) {
+            RCLCPP_WARN(this->get_logger(), "RECOVERY MODE: Timeout - trying normal mode");
+            in_recovery_mode_ = false;
+            stuck_counter_ = 0;
+            recovery_counter_ = 0;
+        }
+    }
+    
+    // Publish drive command (either normal or recovery)
+    publishDriveCommand(final_cmd);
+    
+    // Update performance metrics
+    updatePerformanceMetrics(output, final_cmd);
     
     // Publish visualization if anyone is listening
     if (viz_pub_->get_subscription_count() > 0) {
@@ -189,10 +251,22 @@ void FTGNode::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
         publishVisualization(output, scan);
     }
     
-    // Log if emergency stop
-    if (output.emergency_stop) {
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
-            "Emergency stop! Closest obstacle at %.2f m", output.closest_point_dist);
+    // Performance logging (throttled to reduce overhead)
+    RCLCPP_DEBUG_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
+        "FTG: gaps=%zu, cmd=(%.2f, %.2f), closest=%.2fm",
+        output.all_gaps.size(), final_cmd.speed, final_cmd.steering_angle,
+        output.closest_point_dist);
+    
+    // Periodic performance report (every 30 seconds)
+    RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 30000,
+        "PERF: dist=%.1fm, avg_spd=%.2fm/s, laps=%d",
+        metrics_.total_distance, metrics_.average_speed, metrics_.lap_count);
+    
+    // Log if emergency stop (and not in recovery)
+    if (output.emergency_stop && !in_recovery_mode_) {
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
+            "Emergency stop! Closest: %.2fm, stuck_count=%d", 
+            output.closest_point_dist, stuck_counter_);
     }
 }
 
@@ -341,6 +415,139 @@ visualization_msgs::msg::Marker FTGNode::createClosestPointMarker(
     return marker;
 }
 
+void FTGNode::updatePerformanceMetrics(const FTGOutput& output, const DriveCommand& cmd) {
+    if (!metrics_initialized_) {
+        metrics_start_time_ = this->now();
+        metrics_.start_x = current_state_.pose.x;
+        metrics_.start_y = current_state_.pose.y;
+        metrics_.last_x = current_state_.pose.x;
+        metrics_.last_y = current_state_.pose.y;
+        metrics_initialized_ = true;
+        return;
+    }
+    
+    // Calculate distance traveled
+    double dx = current_state_.pose.x - metrics_.last_x;
+    double dy = current_state_.pose.y - metrics_.last_y;
+    double dist = std::sqrt(dx * dx + dy * dy);
+    metrics_.total_distance += dist;
+    metrics_.last_x = current_state_.pose.x;
+    metrics_.last_y = current_state_.pose.y;
+    
+    // Update time
+    metrics_.total_time = (this->now() - metrics_start_time_).seconds();
+    
+    // Calculate average speed
+    if (metrics_.total_time > 0.0) {
+        metrics_.average_speed = metrics_.total_distance / metrics_.total_time;
+    }
+    
+    // Track steering history for variance calculation
+    metrics_.steering_history.push_back(cmd.steering_angle);
+    if (metrics_.steering_history.size() > METRIC_HISTORY_SIZE) {
+        metrics_.steering_history.pop_front();
+    }
+    
+    // Track speed history
+    metrics_.speed_history.push_back(cmd.speed);
+    if (metrics_.speed_history.size() > METRIC_HISTORY_SIZE) {
+        metrics_.speed_history.pop_front();
+    }
+    
+    // Update min obstacle distance
+    if (output.closest_point_dist < metrics_.min_obstacle_dist) {
+        metrics_.min_obstacle_dist = output.closest_point_dist;
+    }
+    
+    // Check for crash
+    if (output.closest_point_dist < CRASH_THRESHOLD) {
+        metrics_.crashed = true;
+    }
+    
+    // Count emergency stops
+    if (output.emergency_stop) {
+        metrics_.emergency_stops++;
+    }
+    
+    // Calculate steering variance
+    metrics_.steering_variance = calculateSteeringVariance();
+    
+    // Check for lap completion using a state machine approach:
+    // 1. Must leave the start zone first (was_near_start becomes false)
+    // 2. Then re-enter it to count a lap
+    // 3. Must have traveled at least 50m since last lap
+    double dist_to_start = std::sqrt(
+        std::pow(current_state_.pose.x - metrics_.start_x, 2) +
+        std::pow(current_state_.pose.y - metrics_.start_y, 2)
+    );
+    
+    constexpr double START_ZONE_RADIUS = 3.0;  // meters
+    constexpr double MIN_LAP_DISTANCE = 50.0;  // minimum distance for a valid lap
+    
+    bool is_near_start = dist_to_start < START_ZONE_RADIUS;
+    double distance_since_last_lap = metrics_.total_distance - metrics_.last_lap_distance;
+    
+    if (is_near_start && !metrics_.was_near_start && distance_since_last_lap > MIN_LAP_DISTANCE) {
+        // Transitioning INTO start zone after being away, and traveled enough distance
+        metrics_.lap_count++;
+        metrics_.lap_time = metrics_.total_time;
+        metrics_.last_lap_distance = metrics_.total_distance;
+        RCLCPP_INFO(this->get_logger(), 
+            "=== LAP %d COMPLETED === Time: %.1fs, Lap Distance: %.1fm, Avg Speed: %.2f m/s",
+            metrics_.lap_count, metrics_.lap_time, distance_since_last_lap, metrics_.average_speed);
+    }
+    
+    // Update start zone state
+    metrics_.was_near_start = is_near_start;
+}
+
+double FTGNode::calculateSteeringVariance() const {
+    if (metrics_.steering_history.size() < 2) {
+        return 0.0;
+    }
+    
+    // Calculate mean
+    double sum = 0.0;
+    for (double s : metrics_.steering_history) {
+        sum += s;
+    }
+    double mean = sum / metrics_.steering_history.size();
+    
+    // Calculate variance
+    double variance = 0.0;
+    for (double s : metrics_.steering_history) {
+        variance += (s - mean) * (s - mean);
+    }
+    variance /= metrics_.steering_history.size();
+    
+    return variance;
+}
+
+void FTGNode::printPerformanceSummary() {
+    RCLCPP_INFO(this->get_logger(),
+        "\n========== PERFORMANCE SUMMARY ==========\n"
+        "Total Time: %.1f seconds\n"
+        "Total Distance: %.1f meters\n"
+        "Average Speed: %.2f m/s\n"
+        "Steering Variance: %.4f (lower is smoother)\n"
+        "Min Obstacle Distance: %.2f m\n"
+        "Emergency Stops: %d\n"
+        "Recovery Events: %d\n"
+        "Laps Completed: %d\n"
+        "Crashed: %s\n"
+        "=========================================",
+        metrics_.total_time,
+        metrics_.total_distance,
+        metrics_.average_speed,
+        metrics_.steering_variance,
+        metrics_.min_obstacle_dist,
+        metrics_.emergency_stops,
+        metrics_.recovery_events,
+        metrics_.lap_count,
+        metrics_.crashed ? "YES" : "NO"
+    );
+}
+
 }  // namespace f1tenth_control
 
 // Main function
@@ -350,6 +557,7 @@ int main(int argc, char** argv) {
     auto node = std::make_shared<f1tenth_control::FTGNode>();
     
     rclcpp::spin(node);
+    
     rclcpp::shutdown();
     
     return 0;

@@ -11,6 +11,8 @@
 #include "f1tenth_control/algorithms/follow_the_gap.hpp"
 #include <memory>
 #include <mutex>
+#include <deque>
+#include <cmath>
 
 namespace f1tenth_control {
 
@@ -36,6 +38,44 @@ private:
     VehicleState current_state_;
     std::mutex state_mutex_;
     bool enabled_{true};
+    
+    // Steering smoothing
+    double prev_steering_{0.0};
+    
+    // Recovery state
+    int stuck_counter_{0};
+    int recovery_counter_{0};
+    bool in_recovery_mode_{false};
+    double recovery_steer_direction_{1.0};  // 1.0 = right, -1.0 = left
+    static constexpr int STUCK_THRESHOLD = 100;  // ~5 seconds at 20Hz LiDAR
+    static constexpr int RECOVERY_DURATION = 80;  // ~4 seconds of recovery
+    
+    // Performance metrics
+    struct PerformanceMetrics {
+        double total_distance{0.0};
+        double total_time{0.0};
+        double average_speed{0.0};
+        double steering_variance{0.0};
+        int emergency_stops{0};
+        int recovery_events{0};
+        double min_obstacle_dist{100.0};
+        bool crashed{false};
+        double start_x{0.0};
+        double start_y{0.0};
+        double last_x{0.0};
+        double last_y{0.0};
+        int lap_count{0};
+        double lap_time{0.0};
+        double last_lap_distance{0.0};  // Distance when last lap was counted (debounce)
+        bool was_near_start{true};      // Flag to track leaving/entering start zone
+        std::deque<double> steering_history;
+        std::deque<double> speed_history;
+    };
+    PerformanceMetrics metrics_;
+    rclcpp::Time metrics_start_time_;
+    bool metrics_initialized_{false};
+    static constexpr double CRASH_THRESHOLD = 0.15;  // If obstacle closer than this, consider it crash
+    static constexpr int METRIC_HISTORY_SIZE = 100;
     
     // ROS2 Communication
     rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
@@ -74,6 +114,11 @@ private:
         size_t idx,
         int marker_id
     );
+    
+    // Performance tracking
+    void updatePerformanceMetrics(const FTGOutput& output, const DriveCommand& cmd);
+    void printPerformanceSummary();
+    double calculateSteeringVariance() const;
 };
 
 }  // namespace f1tenth_control

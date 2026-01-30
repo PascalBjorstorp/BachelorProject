@@ -74,6 +74,17 @@ class GymBridge(Node):
         num_agents = self._validate_num_agents()
         self.vehicle_params = self._get_vehicle_params()
         scale = self.get_parameter('scale').value
+        
+        # Get noise parameters for realistic simulation
+        self._odom_noise_enabled = self.get_parameter('odom_noise_enabled').value
+        self._odom_pos_noise_std = self.get_parameter('odom_pos_noise_std').value
+        self._odom_vel_noise_std = self.get_parameter('odom_vel_noise_std').value
+        self._odom_yaw_noise_std = self.get_parameter('odom_yaw_noise_std').value
+        
+        if self._odom_noise_enabled:
+            self.get_logger().info(
+                f'Odometry noise ENABLED: pos_std={self._odom_pos_noise_std:.3f}m, '
+                f'vel_std={self._odom_vel_noise_std:.3f}m/s, yaw_std={self._odom_yaw_noise_std:.4f}rad')
 
         # Load map and create environment
         self.env = self._create_environment(num_agents, scale)
@@ -139,6 +150,12 @@ class GymBridge(Node):
         self.declare_parameter('vehicle_params', 'f1tenth')
         self.declare_parameter('async_mode', True)
         self.declare_parameter('use_sim_time_bridge', False)
+        
+        # Sensor noise parameters for realistic simulation
+        self.declare_parameter('odom_noise_enabled', False)  # Enable odometry noise
+        self.declare_parameter('odom_pos_noise_std', 0.01)   # Position noise std dev (m)
+        self.declare_parameter('odom_vel_noise_std', 0.05)   # Velocity noise std dev (m/s)
+        self.declare_parameter('odom_yaw_noise_std', 0.005)  # Yaw noise std dev (rad)
 
     def _validate_num_agents(self) -> int:
         """Validate and return number of agents."""
@@ -739,20 +756,33 @@ class GymBridge(Node):
 
     def _update_odom_msg(self, odom: Odometry, ts, pose: List[float],
                          speed: List[float]) -> None:
-        """Update an Odometry message in-place."""
+        """Update an Odometry message in-place with optional noise injection."""
         odom.header.stamp = ts
-        odom.pose.pose.position.x = pose[0]
-        odom.pose.pose.position.y = pose[1]
+        
+        # Apply position noise if enabled
+        if self._odom_noise_enabled:
+            noisy_x = pose[0] + np.random.normal(0, self._odom_pos_noise_std)
+            noisy_y = pose[1] + np.random.normal(0, self._odom_pos_noise_std)
+            noisy_yaw = pose[2] + np.random.normal(0, self._odom_yaw_noise_std)
+            noisy_vx = speed[0] + np.random.normal(0, self._odom_vel_noise_std)
+            noisy_vy = speed[1] + np.random.normal(0, self._odom_vel_noise_std)
+            noisy_wz = speed[2] + np.random.normal(0, self._odom_yaw_noise_std * 10)
+        else:
+            noisy_x, noisy_y, noisy_yaw = pose[0], pose[1], pose[2]
+            noisy_vx, noisy_vy, noisy_wz = speed[0], speed[1], speed[2]
+        
+        odom.pose.pose.position.x = noisy_x
+        odom.pose.pose.position.y = noisy_y
 
-        quat = euler.euler2quat(0.0, 0.0, pose[2], axes='sxyz')
+        quat = euler.euler2quat(0.0, 0.0, noisy_yaw, axes='sxyz')
         odom.pose.pose.orientation.w = quat[0]
         odom.pose.pose.orientation.x = quat[1]
         odom.pose.pose.orientation.y = quat[2]
         odom.pose.pose.orientation.z = quat[3]
 
-        odom.twist.twist.linear.x = speed[0]
-        odom.twist.twist.linear.y = speed[1]
-        odom.twist.twist.angular.z = speed[2]
+        odom.twist.twist.linear.x = noisy_vx
+        odom.twist.twist.linear.y = noisy_vy
+        odom.twist.twist.angular.z = noisy_wz
 
     def _publish_transforms(self, ts) -> None:
         """Publish base_link and wheel transforms in a single batched call."""

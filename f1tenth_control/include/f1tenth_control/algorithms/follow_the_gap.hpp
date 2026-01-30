@@ -15,23 +15,20 @@ struct FTGConfig {
     double wheelbase{0.324};         // Vehicle wheelbase (m) - from vesc.yaml
     double car_width{0.30};          // Vehicle width (m) for disparity extension
     
-    // Speed control
-    double max_speed{4.0};           // Maximum speed (m/s)
-    double min_speed{1.0};           // Minimum speed (m/s)
-    double speed_range_factor{0.5};  // Speed = factor * gap_distance (capped)
-    double nominal_gap_width{1.0};   // Nominal gap width for speed scaling (rad, ~57 deg)
+    // Speed control (reference FTG formula)
+    double max_speed{6.0};           // Maximum speed (m/s)
+    double min_speed{2.0};           // Minimum speed (m/s)
+    double speed_full_range{9.0};    // Range at which full speed is allowed (m)
+    double steer_slowdown_gain{0.7}; // How much steering reduces speed (0-1)
     
     // Steering control
     double max_steering_angle{0.4};  // Maximum steering angle (rad) ~23 degrees
-    double steering_gain{1.0};       // Gain for steering toward gap center
-    
-    // Gap selection
-    bool prefer_straight{true};      // Prefer gaps closer to straight ahead
-    double straight_weight{0.3};     // Weight for straight-ahead preference (0-1)
+    double steering_gain{0.8};       // Gain for steering toward gap (reduced for stability)
+    double max_steering_delta{0.05}; // Maximum steering change per update (rad) for smoothing
+    double target_angle_smoothing{0.3}; // Smoothing factor for target angle (0=no smoothing, 1=full smoothing)
     
     // Safety
     double emergency_brake_distance{0.3};  // Brake if obstacle closer than this (m)
-    double slowdown_distance{1.5};         // Start slowing down at this distance (m)
     
     // LiDAR processing config
     LidarProcessorConfig lidar_config;
@@ -112,22 +109,29 @@ public:
 private:
     FTGConfig config_;
     LidarProcessor lidar_processor_;
+    double last_steering_{0.0};  // For steering rate limiting
+    double last_target_angle_{0.0};  // For target angle smoothing (reduces oscillation)
     
     /**
-     * @brief Calculate target angle toward gap
+     * @brief Calculate target angle toward gap (deepest point)
      */
     double calculateTargetAngle(const Gap& gap, const ProcessedScan& scan);
     
     /**
-     * @brief Calculate speed based on gap and obstacles
+     * @brief Calculate speed based on range and steering
      */
-    double calculateSpeed(const Gap& gap, double closest_distance);
+    double calculateSpeed(const Gap& gap, double steering_angle);
     
     /**
      * @brief Score a gap for selection
-     * Higher score = better gap
+     * Higher score = better gap (depth × width)
      */
     double scoreGap(const Gap& gap);
+    
+    /**
+     * @brief Smooth steering with rate limiting
+     */
+    double smoothSteering(double target_steering, double last_steering);
 };
 
 }  // namespace f1tenth_control

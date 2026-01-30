@@ -1,7 +1,7 @@
 # Follow The Gap (FTG) Algorithm Configuration
 # =============================================
-# This file contains all tunable parameters for the FTG algorithm.
-# Adjust these values based on your track and car setup.
+# Pure FTG implementation based on reference that achieves 8 m/s
+# This is designed for real-world use without a map.
 
 ftg_node:
   ros__parameters:
@@ -9,35 +9,29 @@ ftg_node:
     # Vehicle Parameters
     # ===================
     wheelbase: 0.324        # Distance between front and rear axles (m)
-    car_width: 0.30         # Width of the car for disparity extension (m)
+    car_width: 1.0          # Width for disparity extension (m) - larger for more safety margin
 
     # ===================
-    # Speed Control
+    # Speed Control (Reference FTG Formula)
     # ===================
-    # Speed is dynamically calculated based on gap distance and obstacles
-    max_speed: 4.0          # Maximum allowed speed (m/s)
-    min_speed: 1.0          # Minimum speed (m/s) - never go slower than this
-    speed_range_factor: 0.5 # speed = factor * gap_distance (then capped)
-    nominal_gap_width: 1.0  # Gap width (~57 deg) for speed scaling normalization (rad)
+    # Speed = min_speed + (max_speed - min_speed) * range_factor * steer_factor
+    max_speed: 6.0          # Maximum allowed speed (m/s)
+    min_speed: 2.0          # Minimum speed (m/s)
+    speed_full_range: 9.0   # Distance (m) at which full speed is allowed
+    steer_slowdown_gain: 0.7 # How much steering reduces speed (0=none, 1=max)
 
     # ===================
     # Steering Control
     # ===================
-    max_steering_angle: 0.4 # Maximum steering angle (~23 degrees) (rad)
-    steering_gain: 1.0      # Multiplier for steering toward gap center
-
-    # ===================
-    # Gap Selection Strategy
-    # ===================
-    prefer_straight: true   # Prefer gaps that are more straight ahead
-    straight_weight: 0.3    # Weight for straight-ahead preference (0.0-1.0)
-                            # 0.0 = pure deepest gap, 1.0 = heavily prefer straight
+    max_steering_angle: 0.4  # Maximum steering angle (~23 degrees) (rad)
+    steering_gain: 0.8       # Gain for steering toward gap (reduced from 1.0 for stability)
+    max_steering_delta: 0.05 # Maximum steering change per update (rad) - reduced for smoothness
+    target_angle_smoothing: 0.3  # Target angle EMA smoothing (0=none, higher=more smooth)
 
     # ===================
     # Safety Parameters
     # ===================
-    emergency_brake_distance: 0.3  # Emergency stop if obstacle closer (m)
-    slowdown_distance: 1.5         # Start reducing speed at this distance (m)
+    emergency_brake_distance: 0.2 # Emergency stop if obstacle closer (m) - reduced for tight spaces
 
     # ===================
     # LiDAR Processing
@@ -45,7 +39,7 @@ ftg_node:
     lidar:
       # Range limits
       range_min: 0.1        # Ignore readings closer than this (m)
-      range_max: 10.0       # Maximum range to consider (m)
+      range_max: 12.0       # Maximum range to consider (m)
 
       # Angular limits - only process this range
       # Default: -90 to +90 degrees (front half)
@@ -57,22 +51,18 @@ ftg_node:
       median_window_size: 3      # Window size (should be odd)
 
       # Disparity extension
-      # When there's a sudden range change (e.g., corner), extend the closer
-      # reading to prevent driving into narrow gaps
-      disparity_threshold: 0.3   # Threshold for detecting disparities (m)
+      disparity_threshold: 0.5   # Threshold for detecting disparities (m)
 
-      # Gap detection
-      gap_threshold: 3.0    # Minimum range to consider as "gap" (m)
-      min_gap_width: 0.3    # Minimum angular width of valid gap (rad) ~17 degrees
+      # Gap detection - CRITICAL for not getting stuck
+      gap_threshold: 0.5    # Minimum range to consider as "gap" (m) - reduced
+      min_gap_width: 0.1    # Minimum angular width of valid gap (rad) - reduced
 
       # Safety bubble
-      # Creates a "bubble" around the closest point where we won't drive
       apply_bubble: true    # Enable safety bubble
-      bubble_radius: 0.2    # Radius of the bubble (m)
+      bubble_radius: 0.15   # Radius of the bubble (m) - reduced
 
     # ===================
     # Mapping Mode
     # ===================
-    # Enable this to extract track boundary points while driving
-    mapping_mode: false           # Set to true when mapping the track
-    mapping_sample_rate: 20.0     # Hz for boundary point sampling
+    mapping_mode: false
+    mapping_sample_rate: 20.0

@@ -283,53 +283,6 @@ size_t LidarProcessor::findClosestPoint(const ProcessedScan& scan) {
     return closest_idx;
 }
 
-size_t LidarProcessor::findFurthestPoint(const ProcessedScan& scan) {
-    if (scan.filtered_ranges.empty()) return 0;
-    
-    size_t furthest_idx = 0;
-    double max_range = 0.0;
-    
-    for (size_t i = 0; i < scan.filtered_ranges.size(); ++i) {
-        double angle = scan.angles[i];
-        if (angle < config_.angle_min || angle > config_.angle_max) {
-            continue;
-        }
-        
-        if (scan.valid[i] && scan.filtered_ranges[i] > max_range) {
-            max_range = scan.filtered_ranges[i];
-            furthest_idx = i;
-        }
-    }
-    
-    return furthest_idx;
-}
-
-double LidarProcessor::getRangeAtAngle(const ProcessedScan& scan, double angle) {
-    if (scan.angles.empty()) return 0.0;
-    
-    // Find the two nearest angle indices and interpolate
-    double angle_normalized = math::normalizeAngle(angle);
-    
-    // Binary search for closest angle
-    auto it = std::lower_bound(scan.angles.begin(), scan.angles.end(), angle_normalized);
-    
-    if (it == scan.angles.end()) {
-        return scan.filtered_ranges.back();
-    }
-    if (it == scan.angles.begin()) {
-        return scan.filtered_ranges.front();
-    }
-    
-    size_t idx_high = std::distance(scan.angles.begin(), it);
-    size_t idx_low = idx_high - 1;
-    
-    // Linear interpolation
-    double t = (angle_normalized - scan.angles[idx_low]) / 
-               (scan.angles[idx_high] - scan.angles[idx_low]);
-    
-    return math::lerp(scan.filtered_ranges[idx_low], scan.filtered_ranges[idx_high], t);
-}
-
 Point2D LidarProcessor::scanPointToCartesian(const ProcessedScan& scan, size_t index) {
     if (index >= scan.filtered_ranges.size()) {
         return Point2D();
@@ -339,19 +292,6 @@ Point2D LidarProcessor::scanPointToCartesian(const ProcessedScan& scan, size_t i
     double angle = scan.angles[index];
     
     return Point2D(range * std::cos(angle), range * std::sin(angle));
-}
-
-std::vector<Point2D> LidarProcessor::scanToCartesian(const ProcessedScan& scan) {
-    std::vector<Point2D> points;
-    points.reserve(scan.filtered_ranges.size());
-    
-    for (size_t i = 0; i < scan.filtered_ranges.size(); ++i) {
-        if (scan.valid[i]) {
-            points.push_back(scanPointToCartesian(scan, i));
-        }
-    }
-    
-    return points;
 }
 
 std::vector<BoundaryPoint> LidarProcessor::extractBoundaryPoints(

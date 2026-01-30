@@ -1,0 +1,161 @@
+# =============================================
+# F1Tenth BachelorProject .gitignore
+# =============================================
+# This file ensures only source code is committed,
+# not build artifacts or generated files.
+
+# =============================================
+# ROS2 / Colcon Build Artifacts
+# =============================================
+# Top-level build directories (from colcon build)
+/build/
+/install/
+/log/
+
+# Package-level build directories
+**/build/
+**/install/
+**/log/
+
+# Colcon markers
+COLCON_IGNORE
+AMENT_IGNORE
+
+# =============================================
+# Python
+# =============================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+.eggs/
+dist/
+develop-eggs/
+.installed.cfg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# =============================================
+# C++ Build Artifacts
+# =============================================
+# Compiled object files
+*.o
+*.obj
+
+# Precompiled headers
+*.gch
+*.pch
+
+# Compiled libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# =============================================
+# IDE / Editor
+# =============================================
+# VSCode
+.vscode/
+*.code-workspace
+
+# JetBrains (CLion, PyCharm)
+.idea/
+*.iml
+
+# Eclipse
+.project
+.cproject
+.pydevproject
+.settings/
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+auto-save-list
+tramp
+
+# =============================================
+# OS Generated
+# =============================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# =============================================
+# ROS2 Specific
+# =============================================
+# Test results
+*.xml
+test_results/
+test-results/
+
+# Rosbag recordings (can be large)
+*.bag
+*.db3
+*.db3-shm
+*.db3-wal
+
+# URDF compiled from xacro
+*.urdf
+
+# Map files (keep source .yaml, ignore generated)
+*.pgm
+
+# =============================================
+# Documentation Build
+# =============================================
+docs/_build/
+docs/api/
+
+# =============================================
+# Temporary / Misc
+# =============================================
+*.tmp
+*.temp
+*.bak
+*.backup
+*.log
+*.pid
+core
+core.*
+
+# Coverage reports
+.coverage
+htmlcov/

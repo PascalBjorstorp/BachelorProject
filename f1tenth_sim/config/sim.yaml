@@ -75,3 +75,12 @@ bridge:
 
     # if false, only steps sim on new /drive messages
     async_mode: True
+
+    # ====================
+    # Sensor Noise (for realistic sim-to-real transfer)
+    # ====================
+    # Enable to add Gaussian noise to odometry for more realistic simulation
+    odom_noise_enabled: True     # Set to true for realistic testing
+    odom_pos_noise_std: 0.01      # Position noise std dev (m) - typical VIO/wheel encoder drift
+    odom_vel_noise_std: 0.05      # Velocity noise std dev (m/s)  
+    odom_yaw_noise_std: 0.005     # Yaw noise std dev (rad) - ~0.3 degrees

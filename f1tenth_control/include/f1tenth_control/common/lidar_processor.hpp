@@ -111,34 +111,12 @@ public:
     size_t findClosestPoint(const ProcessedScan& scan);
     
     /**
-     * @brief Find furthest point in scan
-     * @param scan Processed scan
-     * @return Index of furthest point
-     */
-    size_t findFurthestPoint(const ProcessedScan& scan);
-    
-    /**
-     * @brief Get range at specific angle
-     * @param scan Processed scan
-     * @param angle Target angle in radians
-     * @return Interpolated range at angle
-     */
-    double getRangeAtAngle(const ProcessedScan& scan, double angle);
-    
-    /**
-     * @brief Convert scan point to Cartesian coordinates
+     * @brief Convert scan point to Cartesian coordinates (used internally)
      * @param scan Processed scan
      * @param index Index of point
      * @return Point in Cartesian coordinates (robot frame)
      */
     Point2D scanPointToCartesian(const ProcessedScan& scan, size_t index);
-    
-    /**
-     * @brief Get all valid points as Cartesian coordinates
-     * @param scan Processed scan
-     * @return Vector of Cartesian points
-     */
-    std::vector<Point2D> scanToCartesian(const ProcessedScan& scan);
     
     /**
      * @brief Extract boundary points from scan for mapping

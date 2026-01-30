@@ -6,7 +6,7 @@
 namespace f1tenth_control {
 
 FollowTheGap::FollowTheGap(const FTGConfig& config)
-    : config_(config), lidar_processor_(config.lidar_config) {}
+     : config_(config), lidar_processor_(config.lidar_config), last_steering_(0.0) {}
 
 void FollowTheGap::setConfig(const FTGConfig& config) {
     config_ = config;
@@ -14,8 +14,9 @@ void FollowTheGap::setConfig(const FTGConfig& config) {
 }
 
 void FollowTheGap::reset() {
-    // Reset any internal state if needed
-    // Currently stateless, but useful for future extensions
+    // Reset internal state
+    last_steering_ = 0.0;
+    last_target_angle_ = 0.0;
 }
 
 FTGOutput FollowTheGap::compute(
@@ -27,23 +28,37 @@ FTGOutput FollowTheGap::compute(
     double timestamp
 ) {
     FTGOutput output;
-    
+
+    // Handle empty scan
+    if (ranges.empty()) {
+        output.emergency_stop = true;
+        output.command = DriveCommand(0.0, 0.0);
+        return output;
+    }
+
     // Step 1: Process the LiDAR scan
     ProcessedScan scan = lidar_processor_.processScan(
         ranges, angle_min, angle_max, angle_increment
     );
-    
+
+    // Handle empty processed scan
+    if (scan.filtered_ranges.empty()) {
+        output.emergency_stop = true;
+        output.command = DriveCommand(0.0, 0.0);
+        return output;
+    }
+
     // Step 2: Find closest point (before any modifications)
     output.closest_point_idx = lidar_processor_.findClosestPoint(scan);
     output.closest_point_dist = scan.filtered_ranges[output.closest_point_idx];
-    
+
     // Step 3: Check for emergency stop
     if (output.closest_point_dist < config_.emergency_brake_distance) {
         output.emergency_stop = true;
         output.command = DriveCommand(0.0, 0.0);
         return output;
     }
-    
+
     // Step 4: Apply disparity extension for safety
     lidar_processor_.applyDisparityExtension(scan, config_.car_width);
     
@@ -68,16 +83,27 @@ FTGOutput FollowTheGap::compute(
     
     output.selected_gap = lidar_processor_.findBestGap(output.all_gaps, scorer);
     
-    // Step 8: Calculate steering toward the gap
-    double target_angle = calculateTargetAngle(output.selected_gap, scan);
-    double steering = math::clamp(
+    // Step 8: Calculate steering toward the gap (using deepest point)
+    double raw_target_angle = calculateTargetAngle(output.selected_gap, scan);
+    
+    // Apply target angle smoothing (exponential moving average)
+    // This reduces oscillation caused by the deepest point jumping around
+    double target_angle = last_target_angle_ + 
+        (1.0 - config_.target_angle_smoothing) * (raw_target_angle - last_target_angle_);
+    last_target_angle_ = target_angle;
+    
+    double raw_steering = math::clamp(
         config_.steering_gain * target_angle,
         -config_.max_steering_angle,
         config_.max_steering_angle
     );
     
-    // Step 9: Calculate speed based on gap and obstacles
-    double speed = calculateSpeed(output.selected_gap, output.closest_point_dist);
+    // Apply steering rate limiting for smooth control
+    double steering = smoothSteering(raw_steering, last_steering_);
+    last_steering_ = steering;
+    
+    // Step 9: Calculate speed based on range and steering (reference formula)
+    double speed = calculateSpeed(output.selected_gap, steering);
     
     output.command = DriveCommand(speed, steering);
     
@@ -92,39 +118,25 @@ FTGOutput FollowTheGap::compute(
 }
 
 double FollowTheGap::calculateTargetAngle(const Gap& gap, const ProcessedScan& scan) {
-    // Option 1: Aim for the deepest point in the gap
-    // This is generally safer as it aims for the most open space
+    // Pure FTG: Aim for the DEEPEST point in the gap (furthest range)
+    // This is the core principle - drive toward where we can see the furthest
     double deepest_angle = scan.angles[gap.deepest_idx];
     
-    // Option 2: Aim for the center of the gap
-    double center_angle = gap.centerAngle();
-    
-    // Blend based on configuration
-    // Using deepest point is more reactive, center is smoother
-    double target = deepest_angle;  // Default to deepest
-    
-    return target;
+    return deepest_angle;
 }
 
-double FollowTheGap::calculateSpeed(const Gap& gap, double closest_distance) {
-    double speed = config_.max_speed;
+double FollowTheGap::calculateSpeed(const Gap& gap, double steering_angle) {
+    // Reference FTG speed formula:
+    // 1. Range factor: scale speed based on how far we can see
+    double range_factor = std::min(1.0, gap.deepest_range / config_.speed_full_range);
     
-    // Method 1: Speed based on gap distance (how far we can see)
-    double gap_based_speed = config_.speed_range_factor * gap.deepest_range;
-    speed = std::min(speed, gap_based_speed);
+    // 2. Steering factor: slow down when turning sharply
+    double abs_steer = std::abs(steering_angle);
+    double steer_factor = 1.0 - config_.steer_slowdown_gain * (abs_steer / config_.max_steering_angle);
+    steer_factor = math::clamp(steer_factor, 0.3, 1.0);  // Never reduce below 30%
     
-    // Method 2: Slow down if close to obstacles
-    if (closest_distance < config_.slowdown_distance) {
-        double slowdown_factor = closest_distance / config_.slowdown_distance;
-        slowdown_factor = math::clamp(slowdown_factor, 0.2, 1.0);
-        speed *= slowdown_factor;
-    }
-    
-    // Method 3: Reduce speed in narrow gaps (higher steering required)
-    // Smaller gaps = slower speed for safety
-    // nominal_gap_width: configurable value (~1.0 rad ≈ 57 deg) considered a "normal" gap
-    double width_factor = std::min(1.0, gap.angular_width / config_.nominal_gap_width);
-    speed *= (0.5 + 0.5 * width_factor);
+    // Combined speed calculation
+    double speed = config_.min_speed + (config_.max_speed - config_.min_speed) * range_factor * steer_factor;
     
     // Clamp to configured limits
     speed = math::clamp(speed, config_.min_speed, config_.max_speed);
@@ -133,21 +145,26 @@ double FollowTheGap::calculateSpeed(const Gap& gap, double closest_distance) {
 }
 
 double FollowTheGap::scoreGap(const Gap& gap) {
-    // Base score from gap quality
+    // Pure FTG scoring: prefer gaps that are wide and deep
     double depth_score = gap.deepest_range;
     double width_score = gap.angular_width;
     
-    // Combined base score
-    double score = depth_score * width_score;
+    // Combined score: depth × width gives us the "best" gap
+    return depth_score * width_score;
+}
+
+double FollowTheGap::smoothSteering(double target_steering, double last_steering) {
+    // Rate-limit steering changes for smooth control
+    // This prevents jerky movements and improves stability
+    double delta = target_steering - last_steering;
     
-    // Bonus for being close to straight ahead if configured
-    if (config_.prefer_straight) {
-        double center_angle = gap.centerAngle();
-        double straight_bonus = 1.0 - (std::abs(center_angle) / constants::PI);
-        score *= (1.0 + config_.straight_weight * straight_bonus);
+    if (std::abs(delta) > config_.max_steering_delta) {
+        // Limit the change rate
+        double sign = (delta > 0) ? 1.0 : -1.0;
+        return last_steering + sign * config_.max_steering_delta;
     }
     
-    return score;
+    return target_steering;
 }
 
 }  // namespace f1tenth_control
