@@ -31,7 +31,7 @@ class PerformanceMonitor(Node):
         
         # Parameters
         self.declare_parameter('output_dir', '/tmp/f1tenth_performance')
-        self.declare_parameter('sample_rate_hz', 10.0)
+        self.declare_parameter('sample_rate_hz', 100.0)  # Higher rate to catch spikes
         self.declare_parameter('scan_topic', '/scan')
         self.declare_parameter('amcl_pose_topic', '/amcl_pose')
         self.declare_parameter('odom_topic', '/odom')
@@ -95,6 +95,11 @@ class PerformanceMonitor(Node):
         self.amcl_process = None
         self.amcl_cpu_percent = 0.0
         self.amcl_memory_mb = 0.0
+        
+        # Peak tracking for spikes
+        self.amcl_cpu_peak = 0.0
+        self.amcl_cpu_samples = []  # Recent samples for running average
+        self.peak_reset_counter = 0
         
         # Try to import psutil
         try:
@@ -255,6 +260,20 @@ class PerformanceMonitor(Node):
             
             # Get AMCL-specific usage
             self.amcl_cpu_percent, self.amcl_memory_mb = self._get_amcl_cpu_usage()
+            
+            # Track peaks and running average
+            self.amcl_cpu_samples.append(self.amcl_cpu_percent)
+            if len(self.amcl_cpu_samples) > 50:  # ~1 sec window at 50 Hz
+                self.amcl_cpu_samples.pop(0)
+            
+            if self.amcl_cpu_percent > self.amcl_cpu_peak:
+                self.amcl_cpu_peak = self.amcl_cpu_percent
+            
+            # Reset peak every 10 seconds
+            self.peak_reset_counter += 1
+            if self.peak_reset_counter >= int(self.sample_rate * 10):
+                self.amcl_cpu_peak = max(self.amcl_cpu_samples) if self.amcl_cpu_samples else 0.0
+                self.peak_reset_counter = 0
         
         # Calculate rates
         scan_rate = self._calculate_rate(self.scan_timestamps)
@@ -291,14 +310,22 @@ class PerformanceMonitor(Node):
         self.csv_writer.writerow(data)
         self.csv_file.flush()  # Ensure data is written
         
-        # Log periodically (every 5 seconds) - show AMCL CPU prominently
-        if int(now.nanoseconds / 1e9) % 5 == 0:
-            msg = f'AMCL CPU: {self.amcl_cpu_percent:.1f}% (of 1 core), '
-            msg += f'System CPU: {self.cpu_percent:.1f}% ({self.num_cores} cores), '
-            msg += f'Pose rate: {pose_rate:.1f} Hz, Latency: {avg_latency:.1f} ms'
-            if self.is_jetson:
-                msg += f', GPU: {data.get("gpu_percent", 0):.1f}%'
-            self.get_logger().info(msg)
+        # Calculate running average
+        avg_amcl_cpu = sum(self.amcl_cpu_samples) / len(self.amcl_cpu_samples) if self.amcl_cpu_samples else 0.0
+        
+        # Log every 1 second (more frequent for spike visibility)
+        if int(now.nanoseconds / 1e9) % 1 == 0 and hasattr(self, '_last_log_sec'):
+            current_sec = int(now.nanoseconds / 1e9)
+            if current_sec != self._last_log_sec:
+                self._last_log_sec = current_sec
+                msg = f'AMCL CPU: {self.amcl_cpu_percent:.1f}% now, {avg_amcl_cpu:.1f}% avg, {self.amcl_cpu_peak:.1f}% peak | '
+                msg += f'System: {self.cpu_percent:.1f}% ({self.num_cores} cores) | '
+                msg += f'Pose: {pose_rate:.1f} Hz | Latency: {avg_latency:.1f} ms'
+                if self.is_jetson:
+                    msg += f' | GPU: {data.get("gpu_percent", 0):.1f}%'
+                self.get_logger().info(msg)
+        elif not hasattr(self, '_last_log_sec'):
+            self._last_log_sec = int(now.nanoseconds / 1e9)
     
     def destroy_node(self):
         """Clean up on shutdown"""

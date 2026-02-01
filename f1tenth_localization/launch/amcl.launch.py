@@ -12,11 +12,14 @@ In f1tenth_sim/config/sim.yaml, set:
 Usage:
   ros2 launch f1tenth_localization amcl.launch.py
   ros2 launch f1tenth_localization amcl.launch.py min_particles:=200 max_particles:=1000
+  ros2 launch f1tenth_localization amcl.launch.py update_min_d:=0.01 update_min_a:=0.02
 
 Parameters:
   min_particles:  AMCL minimum particles (default: 500)
   max_particles:  AMCL maximum particles (default: 2000)
   max_beams:      AMCL max laser beams (default: 60)
+  update_min_d:   Min translation (m) before filter update (default: 0.01, low=more updates)
+  update_min_a:   Min rotation (rad) before filter update (default: 0.02, low=more updates)
 """
 
 from launch import LaunchDescription
@@ -51,6 +54,18 @@ def generate_launch_description():
         description='Use simulation time'
     )
     
+    declare_update_min_d = DeclareLaunchArgument(
+        'update_min_d',
+        default_value='0.01',
+        description='Min translation (m) before filter update. Lower = more updates.'
+    )
+    
+    declare_update_min_a = DeclareLaunchArgument(
+        'update_min_a',
+        default_value='0.02',
+        description='Min rotation (rad) before filter update. Lower = more updates.'
+    )
+    
     use_sim_time = LaunchConfiguration('use_sim_time')
     
     # Info message
@@ -73,9 +88,9 @@ def generate_launch_description():
             'global_frame_id': 'map',
             # Topics
             'scan_topic': 'scan',
-            # Update thresholds
-            'update_min_d': 0.1,
-            'update_min_a': 0.2,
+            # Update thresholds (lower = update more frequently)
+            'update_min_d': LaunchConfiguration('update_min_d'),
+            'update_min_a': LaunchConfiguration('update_min_a'),
             'transform_tolerance': 1.0,
             # Particles
             'min_particles': LaunchConfiguration('min_particles'),
@@ -121,6 +136,8 @@ def generate_launch_description():
         declare_max_particles,
         declare_max_beams,
         declare_use_sim_time,
+        declare_update_min_d,
+        declare_update_min_a,
         
         # Info
         info_msg,
