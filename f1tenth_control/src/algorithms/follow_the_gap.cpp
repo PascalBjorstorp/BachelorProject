@@ -295,9 +295,18 @@ Gap FollowTheGap::findBestGap(const std::vector<Gap>& gaps) {
 // ============================================
 
 double FollowTheGap::calculateTargetAngle(const Gap& gap, const ProcessedScan& scan) {
-    // Pure FTG: Aim for the DEEPEST point in the gap (furthest range)
+    // Get the deepest point angle and the gap center angle
     double deepest_angle = scan.angles[gap.deepest_idx];
-    return deepest_angle;
+    double center_angle = (gap.start_angle + gap.end_angle) / 2.0;
+    
+    // Blend between deepest point and center based on config
+    // gap_center_weight = 0.0 -> pure deepest point (original behavior)
+    // gap_center_weight = 1.0 -> pure center of gap
+    // gap_center_weight = 0.3 -> 70% deepest, 30% center (safer in corners)
+    double target_angle = deepest_angle * (1.0 - config_.gap_center_weight) + 
+                          center_angle * config_.gap_center_weight;
+    
+    return target_angle;
 }
 
 double FollowTheGap::calculateSpeed(const Gap& gap, double steering_angle) {

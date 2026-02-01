@@ -29,6 +29,7 @@ struct FTGConfig {
     double steering_gain{0.8};       // Gain for steering toward gap (reduced for stability)
     double max_steering_delta{0.05}; // Maximum steering change per update (rad) for smoothing
     double target_angle_smoothing{0.3}; // Smoothing factor for target angle (0=no smoothing, 1=full smoothing)
+    double gap_center_weight{0.3};   // Blend between deepest (0) and center (1) of gap
     
     // Safety
     double emergency_brake_distance{0.3};  // Brake if obstacle closer than this (m)

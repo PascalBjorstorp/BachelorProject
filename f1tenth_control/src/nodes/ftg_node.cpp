@@ -68,6 +68,7 @@ void FTGNode::declareParameters() {
     this->declare_parameter("steering_gain", 0.8);  // Reduced for stability
     this->declare_parameter("max_steering_delta", 0.05);  // Reduced for smoother steering
     this->declare_parameter("target_angle_smoothing", 0.3);  // EMA smoothing factor
+    this->declare_parameter("gap_center_weight", 0.3);  // Blend between deepest (0) and center (1)
     
     // Safety
     this->declare_parameter("emergency_brake_distance", 0.3);
@@ -108,6 +109,7 @@ void FTGNode::loadParameters() {
     config_.steering_gain = this->get_parameter("steering_gain").as_double();
     config_.max_steering_delta = this->get_parameter("max_steering_delta").as_double();
     config_.target_angle_smoothing = this->get_parameter("target_angle_smoothing").as_double();
+    config_.gap_center_weight = this->get_parameter("gap_center_weight").as_double();
     
     // Safety
     config_.emergency_brake_distance = this->get_parameter("emergency_brake_distance").as_double();

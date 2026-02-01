@@ -38,10 +38,9 @@ ProcessedScan LidarProcessor::processScan(
         // Check if within angular range we care about
         bool in_range = (angle >= config_.angle_min && angle <= config_.angle_max);
         
-        // Check if range is valid
-        bool valid_range = std::isfinite(range) && 
-                          range >= config_.range_min && 
-                          range <= config_.range_max;
+        // Check if range is valid (finite and not too close)
+        // Note: range > range_max is valid (it's just far away) - we'll clip it later
+        bool valid_range = std::isfinite(range) && range >= config_.range_min;
         
         scan.ranges.push_back(range);
         scan.angles.push_back(angle);
