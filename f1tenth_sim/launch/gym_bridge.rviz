@@ -164,6 +164,41 @@ Visualization Manager:
       Update Interval: 0
       Value: true
       Visual Enabled: true
+    - Alpha: 1
+      Axes Length: 1
+      Axes Radius: 0.10000000149011612
+      Class: rviz_default_plugins/PoseWithCovariance
+      Color: 255; 25; 0
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: true
+      Enabled: true
+      Head Length: 0.30000001192092896
+      Head Radius: 0.10000000149011612
+      Name: PoseWithCovariance
+      Shaft Length: 1
+      Shaft Radius: 0.05000000074505806
+      Shape: Arrow
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /amcl_pose
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -220,9 +255,9 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 0.5353981256484985
       Position:
-        X: -20.428129196166992
-        Y: -0.22948512434959412
-        Z: 9.621408462524414
+        X: -4.128284454345703
+        Y: -0.015711069107055664
+        Z: 2.448880910873413
       Target Frame: ego_racecar/back_left_wheel
       Value: FPS (rviz_default_plugins)
       Yaw: 0.0038057088386267424

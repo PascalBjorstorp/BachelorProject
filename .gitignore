@@ -83,6 +83,7 @@ Makefile
 # VSCode
 .vscode/
 *.code-workspace
+*.md
 
 # JetBrains (CLion, PyCharm)
 .idea/
