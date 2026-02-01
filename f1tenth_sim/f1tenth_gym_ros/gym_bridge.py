@@ -83,10 +83,18 @@ class GymBridge(Node):
         self._odom_vel_noise_std = self.get_parameter('odom_vel_noise_std').value
         self._odom_yaw_noise_std = self.get_parameter('odom_yaw_noise_std').value
         
+        # Get TF frame configuration
+        self._tf_frame_id = self.get_parameter('tf_frame_id').value
+        self._odom_frame_id = self.get_parameter('odom_frame_id').value
+        
         if self._odom_noise_enabled:
             self.get_logger().info(
                 f'Odometry noise ENABLED: pos_std={self._odom_pos_noise_std:.3f}m, '
                 f'vel_std={self._odom_vel_noise_std:.3f}m/s, yaw_std={self._odom_yaw_noise_std:.4f}rad')
+        
+        if self._tf_frame_id != 'map' or self._odom_frame_id != 'map':
+            self.get_logger().info(
+                f'TF frames configured: tf_frame={self._tf_frame_id}, odom_frame={self._odom_frame_id}')
 
         # Load map and create environment
         self.env = self._create_environment(num_agents, scale)
@@ -160,6 +168,10 @@ class GymBridge(Node):
         self.declare_parameter('odom_pos_noise_std', 0.01)   # Position noise std dev (m)
         self.declare_parameter('odom_vel_noise_std', 0.05)   # Velocity noise std dev (m/s)
         self.declare_parameter('odom_yaw_noise_std', 0.005)  # Yaw noise std dev (rad)
+        
+        # TF frame configuration
+        self.declare_parameter('tf_frame_id', 'map')         # Parent frame for TF (map or odom)
+        self.declare_parameter('odom_frame_id', 'map')       # Parent frame for odom topic
 
     def _validate_num_agents(self) -> int:
         """Validate and return number of agents."""
@@ -299,12 +311,12 @@ class GymBridge(Node):
 
         # Pre-allocate odometry messages
         self._ego_odom_msg = Odometry()
-        self._ego_odom_msg.header.frame_id = 'map'
+        self._ego_odom_msg.header.frame_id = self._odom_frame_id
         self._ego_odom_msg.child_frame_id = f'{self.ego_namespace}/base_link'
 
         # Pre-allocate transform messages
         self._ego_tf_msg = TransformStamped()
-        self._ego_tf_msg.header.frame_id = 'map'
+        self._ego_tf_msg.header.frame_id = self._tf_frame_id
         self._ego_tf_msg.child_frame_id = f'{self.ego_namespace}/base_link'
 
         # Pre-allocate wheel transforms
@@ -333,12 +345,12 @@ class GymBridge(Node):
             self._opp_scan_msg.header.frame_id = f'{self.opp_namespace}/laser'
 
             self._opp_odom_msg = Odometry()
-            self._opp_odom_msg.header.frame_id = 'map'
+            self._opp_odom_msg.header.frame_id = self._odom_frame_id
             self._opp_odom_msg.child_frame_id = f'{
                 self.opp_namespace}/base_link'
 
             self._opp_tf_msg = TransformStamped()
-            self._opp_tf_msg.header.frame_id = 'map'
+            self._opp_tf_msg.header.frame_id = self._tf_frame_id
             self._opp_tf_msg.child_frame_id = f'{self.opp_namespace}/base_link'
 
             self._opp_left_wheel_tf = TransformStamped()

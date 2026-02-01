@@ -85,3 +85,13 @@ bridge:
     odom_pos_noise_std: 0.01      # Position noise std dev (m) - typical VIO/wheel encoder drift
     odom_vel_noise_std: 0.05      # Velocity noise std dev (m/s)  
     odom_yaw_noise_std: 0.005     # Yaw noise std dev (rad) - ~0.3 degrees
+    
+    # ====================
+    # TF Frame Configuration
+    # ====================
+    # For standard ROS TF tree: map -> odom -> base_link
+    # - tf_frame_id: 'odom' - Simulation TF publishes odom -> base_link (requires AMCL for map -> odom)
+    # - tf_frame_id: 'map'  - Simulation TF publishes map -> base_link (ground truth, no AMCL needed)
+    # Use 'odom' when running with AMCL/localization, 'map' for ground truth testing
+    tf_frame_id: 'odom'          # Parent frame for TF: 'map' or 'odom'
+    odom_frame_id: 'odom'        # Parent frame for odom topic: 'map' or 'odom'
