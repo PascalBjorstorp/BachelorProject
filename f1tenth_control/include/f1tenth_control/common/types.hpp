@@ -106,6 +106,8 @@ struct ProcessedScan {
     std::vector<double> filtered_ranges;  // After filtering
     std::vector<double> angles;           // Corresponding angles
     std::vector<bool> valid;              // Validity mask
+    std::vector<bool> disparity_blocked;  // Points blocked by disparity extension
+    std::vector<bool> bubble_blocked;     // Points blocked by safety bubble
     double angle_min{0.0};
     double angle_max{0.0};
     double angle_increment{0.0};

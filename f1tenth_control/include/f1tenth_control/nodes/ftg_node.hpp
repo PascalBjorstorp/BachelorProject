@@ -38,6 +38,7 @@ private:
     VehicleState current_state_;
     std::mutex state_mutex_;
     bool enabled_{true};
+    std::string laser_frame_id_{"laser"};  // Frame ID for visualization markers
     
     // Steering smoothing
     double prev_steering_{0.0};
@@ -112,6 +113,28 @@ private:
     visualization_msgs::msg::Marker createClosestPointMarker(
         const ProcessedScan& scan,
         size_t idx,
+        int marker_id
+    );
+    visualization_msgs::msg::Marker createValidScanMarker(
+        const ProcessedScan& scan,
+        int marker_id
+    );
+    visualization_msgs::msg::Marker createDisparityBlockedMarker(
+        const ProcessedScan& scan,
+        int marker_id
+    );
+    visualization_msgs::msg::Marker createBubbleBlockedMarker(
+        const ProcessedScan& scan,
+        int marker_id
+    );
+    visualization_msgs::msg::Marker createDeepestPointMarker(
+        const Gap& gap,
+        const ProcessedScan& scan,
+        int marker_id
+    );
+    visualization_msgs::msg::Marker createTargetPointMarker(
+        const Gap& gap,
+        const ProcessedScan& scan,
         int marker_id
     );
     
