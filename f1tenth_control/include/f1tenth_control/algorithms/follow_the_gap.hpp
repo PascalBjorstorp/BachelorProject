@@ -28,8 +28,6 @@ struct FTGConfig {
     double max_steering_angle{0.4};  // Maximum steering angle (rad) ~23 degrees
     double steering_gain{0.8};       // Gain for steering toward gap (reduced for stability)
     double max_steering_delta{0.05}; // Maximum steering change per update (rad) for smoothing
-    double target_angle_smoothing{0.3}; // Smoothing factor for target angle (0=no smoothing, 1=full smoothing)
-    double gap_center_weight{0.3};   // Blend between deepest (0) and center (1) of gap
     
     // Safety
     double emergency_brake_distance{0.3};  // Brake if obstacle closer than this (m)
@@ -40,6 +38,7 @@ struct FTGConfig {
     double min_gap_width{0.3};       // Minimum angular width of gap (rad)
     double bubble_radius{0.2};       // Safety bubble radius around closest point (m)
     bool apply_bubble{true};         // Whether to apply safety bubble
+    double wall_margin{0.35};        // Shrink all readings by this amount (m)
     
     // Generic LiDAR processing config (for preprocessing only)
     LidarProcessorConfig lidar_config;
@@ -60,6 +59,7 @@ struct FTGOutput {
     bool emergency_stop{false};      // Whether emergency stop is active
     std::vector<Gap> all_gaps;       // All detected gaps (for visualization)
     std::vector<BoundaryPoint> boundary_points; // For mapping mode
+    ProcessedScan processed_scan;    // The processed scan (for visualization)
 };
 
 /**
@@ -121,7 +121,6 @@ private:
     FTGConfig config_;
     LidarProcessor lidar_processor_;
     double last_steering_{0.0};  // For steering rate limiting
-    double last_target_angle_{0.0};  // For target angle smoothing (reduces oscillation)
     
     // ============================================
     // FTG-Specific LiDAR Processing (moved from LidarProcessor)
@@ -136,6 +135,16 @@ private:
      * @param scan Processed scan to modify (in-place)
      */
     void applyDisparityExtension(ProcessedScan& scan);
+    
+    /**
+     * @brief Apply wall margin to all readings
+     * 
+     * Shrinks all range readings by wall_margin to create artificial clearance
+     * from walls when driving parallel to them (where disparity won't help).
+     * 
+     * @param scan Processed scan to modify (in-place)
+     */
+    void applyWallMargin(ProcessedScan& scan);
     
     /**
      * @brief Apply safety bubble around closest point

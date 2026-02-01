@@ -1,5 +1,6 @@
 #include "f1tenth_control/nodes/ftg_node.hpp"
 #include <tf2/utils.h>
+#include <algorithm>
 
 namespace f1tenth_control {
 
@@ -67,8 +68,6 @@ void FTGNode::declareParameters() {
     this->declare_parameter("max_steering_angle", 0.4);
     this->declare_parameter("steering_gain", 0.8);  // Reduced for stability
     this->declare_parameter("max_steering_delta", 0.05);  // Reduced for smoother steering
-    this->declare_parameter("target_angle_smoothing", 0.3);  // EMA smoothing factor
-    this->declare_parameter("gap_center_weight", 0.3);  // Blend between deepest (0) and center (1)
     
     // Safety
     this->declare_parameter("emergency_brake_distance", 0.3);
@@ -79,6 +78,7 @@ void FTGNode::declareParameters() {
     this->declare_parameter("min_gap_width", 0.15);
     this->declare_parameter("bubble_radius", 0.25);
     this->declare_parameter("apply_bubble", true);
+    this->declare_parameter("wall_margin", 0.35);
     
     // Generic LiDAR preprocessing parameters
     this->declare_parameter("lidar.range_min", 0.1);
@@ -108,8 +108,6 @@ void FTGNode::loadParameters() {
     config_.max_steering_angle = this->get_parameter("max_steering_angle").as_double();
     config_.steering_gain = this->get_parameter("steering_gain").as_double();
     config_.max_steering_delta = this->get_parameter("max_steering_delta").as_double();
-    config_.target_angle_smoothing = this->get_parameter("target_angle_smoothing").as_double();
-    config_.gap_center_weight = this->get_parameter("gap_center_weight").as_double();
     
     // Safety
     config_.emergency_brake_distance = this->get_parameter("emergency_brake_distance").as_double();
@@ -120,6 +118,7 @@ void FTGNode::loadParameters() {
     config_.min_gap_width = this->get_parameter("min_gap_width").as_double();
     config_.bubble_radius = this->get_parameter("bubble_radius").as_double();
     config_.apply_bubble = this->get_parameter("apply_bubble").as_bool();
+    config_.wall_margin = this->get_parameter("wall_margin").as_double();
     
     // Generic LiDAR preprocessing config
     config_.lidar_config.range_min = this->get_parameter("lidar.range_min").as_double();
@@ -157,6 +156,9 @@ void FTGNode::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     if (!enabled_) {
         return;
     }
+    
+    // Store laser frame ID for visualization
+    laser_frame_id_ = msg->header.frame_id;
     
     // Get current pose from odometry
     Pose2D current_pose;
@@ -251,10 +253,7 @@ void FTGNode::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     
     // Publish visualization if anyone is listening
     if (viz_pub_->get_subscription_count() > 0) {
-        ProcessedScan scan = ftg_->getLidarProcessor().processScan(
-            msg->ranges, msg->angle_min, msg->angle_max, msg->angle_increment
-        );
-        publishVisualization(output, scan);
+        publishVisualization(output, output.processed_scan);
     }
     
     // Performance logging (throttled to reduce overhead)
@@ -322,7 +321,16 @@ void FTGNode::publishVisualization(const FTGOutput& output, const ProcessedScan&
     
     int id = 0;
     
-    // Visualize all gaps
+    // 1. Visualize ALL valid scan points as point cloud
+    marker_array.markers.push_back(createValidScanMarker(scan, id++));
+    
+    // 2. Visualize disparity-blocked points (purple)
+    marker_array.markers.push_back(createDisparityBlockedMarker(scan, id++));
+    
+    // 3. Visualize bubble-blocked points (orange)
+    marker_array.markers.push_back(createBubbleBlockedMarker(scan, id++));
+    
+    // 4. Visualize all gaps
     for (size_t i = 0; i < output.all_gaps.size(); ++i) {
         // A gap is selected if its indices match the selected gap
         bool is_selected =
@@ -333,10 +341,24 @@ void FTGNode::publishVisualization(const FTGOutput& output, const ProcessedScan&
         );
     }
     
-    // Visualize closest point (use next available ID to avoid conflict)
+    // 5. Visualize closest point
     marker_array.markers.push_back(
         createClosestPointMarker(scan, output.closest_point_idx, id++)
     );
+    
+    // 6. Visualize deepest point in selected gap (yellow sphere)
+    if (!output.emergency_stop) {
+        marker_array.markers.push_back(
+            createDeepestPointMarker(output.selected_gap, scan, id++)
+        );
+    }
+    
+    // 7. Visualize target point (where we're steering toward)
+    if (!output.emergency_stop) {
+        marker_array.markers.push_back(
+            createTargetPointMarker(output.selected_gap, scan, id++)
+        );
+    }
     
     viz_pub_->publish(marker_array);
 }
@@ -349,7 +371,7 @@ visualization_msgs::msg::Marker FTGNode::createGapMarker(
 ) {
     visualization_msgs::msg::Marker marker;
     marker.header.stamp = this->now();
-    marker.header.frame_id = "laser";
+    marker.header.frame_id = laser_frame_id_;
     marker.ns = "gaps";
     marker.id = id;
     marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
@@ -393,7 +415,7 @@ visualization_msgs::msg::Marker FTGNode::createClosestPointMarker(
 ) {
     visualization_msgs::msg::Marker marker;
     marker.header.stamp = this->now();
-    marker.header.frame_id = "laser";
+    marker.header.frame_id = laser_frame_id_;
     marker.ns = "closest_point";
     marker.id = marker_id;
     marker.type = visualization_msgs::msg::Marker::SPHERE;
@@ -418,6 +440,203 @@ visualization_msgs::msg::Marker FTGNode::createClosestPointMarker(
     
     marker.lifetime = rclcpp::Duration::from_seconds(0.1);
     
+    return marker;
+}
+
+visualization_msgs::msg::Marker FTGNode::createValidScanMarker(
+    const ProcessedScan& scan,
+    int marker_id
+) {
+    visualization_msgs::msg::Marker marker;
+    marker.header.stamp = this->now();
+    marker.header.frame_id = laser_frame_id_;
+    marker.ns = "valid_scan";
+    marker.id = marker_id;
+    marker.type = visualization_msgs::msg::Marker::POINTS;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    
+    marker.scale.x = 0.05;  // Point size
+    marker.scale.y = 0.05;
+    
+    // Green points for valid readings
+    marker.color.r = 0.0;
+    marker.color.g = 1.0;
+    marker.color.b = 0.0;
+    marker.color.a = 0.8;
+    
+    for (size_t i = 0; i < scan.filtered_ranges.size(); ++i) {
+        if (scan.valid[i] && scan.filtered_ranges[i] > config_.gap_threshold) {
+            geometry_msgs::msg::Point p;
+            double range = scan.filtered_ranges[i];
+            double angle = scan.angles[i];
+            p.x = range * std::cos(angle);
+            p.y = range * std::sin(angle);
+            p.z = 0.0;
+            marker.points.push_back(p);
+        }
+    }
+    
+    marker.lifetime = rclcpp::Duration::from_seconds(0.1);
+    return marker;
+}
+
+visualization_msgs::msg::Marker FTGNode::createDisparityBlockedMarker(
+    const ProcessedScan& scan,
+    int marker_id
+) {
+    visualization_msgs::msg::Marker marker;
+    marker.header.stamp = this->now();
+    marker.header.frame_id = laser_frame_id_;
+    marker.ns = "disparity_blocked";
+    marker.id = marker_id;
+    marker.type = visualization_msgs::msg::Marker::POINTS;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    
+    marker.scale.x = 0.06;
+    marker.scale.y = 0.06;
+    
+    // Purple points for disparity-blocked readings
+    marker.color.r = 0.8;
+    marker.color.g = 0.0;
+    marker.color.b = 1.0;
+    marker.color.a = 0.8;
+    
+    // Safety check: ensure arrays have matching sizes
+    size_t count = std::min({scan.disparity_blocked.size(), scan.ranges.size(), scan.angles.size()});
+    for (size_t i = 0; i < count; ++i) {
+        if (scan.disparity_blocked[i]) {
+            geometry_msgs::msg::Point p;
+            // Use original range to show where the point actually was
+            double range = scan.ranges[i];
+            double angle = scan.angles[i];
+            p.x = range * std::cos(angle);
+            p.y = range * std::sin(angle);
+            p.z = 0.0;
+            marker.points.push_back(p);
+        }
+    }
+    
+    marker.lifetime = rclcpp::Duration::from_seconds(0.1);
+    return marker;
+}
+
+visualization_msgs::msg::Marker FTGNode::createBubbleBlockedMarker(
+    const ProcessedScan& scan,
+    int marker_id
+) {
+    visualization_msgs::msg::Marker marker;
+    marker.header.stamp = this->now();
+    marker.header.frame_id = laser_frame_id_;
+    marker.ns = "bubble_blocked";
+    marker.id = marker_id;
+    marker.type = visualization_msgs::msg::Marker::POINTS;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    
+    marker.scale.x = 0.08;
+    marker.scale.y = 0.08;
+    
+    // Orange points for bubble-blocked readings
+    marker.color.r = 1.0;
+    marker.color.g = 0.5;
+    marker.color.b = 0.0;
+    marker.color.a = 0.9;
+    
+    // Safety check: ensure arrays have matching sizes
+    size_t count = std::min({scan.bubble_blocked.size(), scan.ranges.size(), scan.angles.size()});
+    for (size_t i = 0; i < count; ++i) {
+        if (scan.bubble_blocked[i]) {
+            geometry_msgs::msg::Point p;
+            // Use original range to show where the point actually was
+            double range = scan.ranges[i];
+            double angle = scan.angles[i];
+            p.x = range * std::cos(angle);
+            p.y = range * std::sin(angle);
+            p.z = 0.0;
+            marker.points.push_back(p);
+        }
+    }
+    
+    marker.lifetime = rclcpp::Duration::from_seconds(0.1);
+    return marker;
+}
+
+visualization_msgs::msg::Marker FTGNode::createDeepestPointMarker(
+    const Gap& gap,
+    const ProcessedScan& scan,
+    int marker_id
+) {
+    visualization_msgs::msg::Marker marker;
+    marker.header.stamp = this->now();
+    marker.header.frame_id = laser_frame_id_;
+    marker.ns = "deepest_point";
+    marker.id = marker_id;
+    marker.type = visualization_msgs::msg::Marker::SPHERE;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    
+    // Position at the deepest point in the gap
+    double range = gap.deepest_range;
+    double angle = scan.angles[gap.deepest_idx];
+    
+    marker.pose.position.x = range * std::cos(angle);
+    marker.pose.position.y = range * std::sin(angle);
+    marker.pose.position.z = 0.0;
+    marker.pose.orientation.w = 1.0;
+    
+    marker.scale.x = 0.25;  // Larger sphere
+    marker.scale.y = 0.25;
+    marker.scale.z = 0.25;
+    
+    // Yellow for deepest point
+    marker.color.r = 1.0;
+    marker.color.g = 1.0;
+    marker.color.b = 0.0;
+    marker.color.a = 1.0;
+    
+    marker.lifetime = rclcpp::Duration::from_seconds(0.1);
+    return marker;
+}
+
+visualization_msgs::msg::Marker FTGNode::createTargetPointMarker(
+    const Gap& gap,
+    const ProcessedScan& scan,
+    int marker_id
+) {
+    visualization_msgs::msg::Marker marker;
+    marker.header.stamp = this->now();
+    marker.header.frame_id = laser_frame_id_;
+    marker.ns = "target_point";
+    marker.id = marker_id;
+    marker.type = visualization_msgs::msg::Marker::ARROW;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    
+    // Target is the deepest point in the gap
+    double target_angle = scan.angles[gap.deepest_idx];
+    
+    // Arrow from origin to target
+    geometry_msgs::msg::Point start, end;
+    start.x = 0.0;
+    start.y = 0.0;
+    start.z = 0.0;
+    
+    double target_range = scan.filtered_ranges[gap.deepest_idx];
+    end.x = target_range * std::cos(target_angle);
+    end.y = target_range * std::sin(target_angle);
+    end.z = 0.0;
+    
+    marker.points.push_back(start);
+    marker.points.push_back(end);
+    
+    marker.scale.x = 0.08;  // Arrow shaft diameter
+    marker.scale.y = 0.15;  // Arrow head diameter
+    marker.scale.z = 0.1;   // Arrow head length
+    
+    // Bright cyan for target
+    marker.color.r = 0.0;
+    marker.color.g = 1.0;
+    marker.color.b = 1.0;
+    marker.color.a = 1.0;
+    
+    marker.lifetime = rclcpp::Duration::from_seconds(0.1);
     return marker;
 }
 

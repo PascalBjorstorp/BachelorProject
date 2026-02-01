@@ -9,16 +9,16 @@ ftg_node:
     # Vehicle Parameters
     # ===================
     wheelbase: 0.324        # Distance between front and rear axles (m)
-    car_width: 0.50         # Width for disparity extension (m) - actual car width
+    car_width: 0.30         # Width for disparity extension (m) - actual car width
 
     # ===================
     # Speed Control (Reference FTG Formula)
     # ===================
     # Speed = min_speed + (max_speed - min_speed) * range_factor * steer_factor
-    max_speed: 8.0          # Maximum allowed speed (m/s) - reduced for tight corners
+    max_speed: 12.0          # Maximum allowed speed (m/s) - reduced for tight corners
     min_speed: 1.0          # Minimum speed (m/s)
     speed_full_range: 3.0   # Distance (m) at which full speed is allowed
-    steer_slowdown_gain: 0.6 # How much steering reduces speed (0=none, 1=max) - slow down more on turns
+    steer_slowdown_gain: 0.2 # How much steering reduces speed (0=none, 1=max) - slow down more on turns
 
     # ===================
     # Steering Control
@@ -26,11 +26,6 @@ ftg_node:
     max_steering_angle: 0.4  # Maximum steering angle (~23 degrees) (rad)
     steering_gain: 1.0       # Gain for steering toward gap
     max_steering_delta: 0.12 # Maximum steering change per update (rad)
-    target_angle_smoothing: 0.2  # Target angle EMA smoothing (0=none, lower=more responsive)
-    gap_center_weight: 0.4   # Blend between deepest point (0.0) and gap center (1.0)
-                             # 0.0 = pure deepest point (aggressive, close to walls)
-                             # 0.5 = 50% deepest, 50% center (balanced)
-                             # 1.0 = pure gap center (most conservative)
 
     # ===================
     # Safety Parameters
@@ -41,11 +36,13 @@ ftg_node:
     # FTG-Specific Processing
     # ===================
     # These parameters are specific to the Follow The Gap algorithm
-    disparity_threshold: 0.25  # Threshold for detecting disparities (m) - lower = more sensitive
+    disparity_threshold: 0.6  # Threshold for detecting disparities (m) - lower = more sensitive
     gap_threshold: 0.8         # Minimum range to consider as "gap" (m) - readings > this are "open"
-    min_gap_width: 0.15        # Minimum angular width of valid gap (rad) ~8 degrees
-    bubble_radius: 0.5         # Safety bubble radius around closest point (m) - larger for more safety
+    min_gap_width: 0.3        # Minimum angular width of valid gap (rad) ~8 degrees
+    bubble_radius: 1.0         # Safety bubble radius around closest point (m) - larger for more safety
     apply_bubble: true         # Enable safety bubble
+    wall_margin: 0.15          # Shrink all readings by this amount (m) - creates clearance from parallel walls
+                               # Set to 0.0 to disable. Typical value: half of car width
 
     # ===================
     # Generic LiDAR Preprocessing

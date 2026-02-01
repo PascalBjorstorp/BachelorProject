@@ -17,7 +17,6 @@ void FollowTheGap::setConfig(const FTGConfig& config) {
 void FollowTheGap::reset() {
     // Reset internal state
     last_steering_ = 0.0;
-    last_target_angle_ = 0.0;
 }
 
 FTGOutput FollowTheGap::compute(
@@ -49,44 +48,47 @@ FTGOutput FollowTheGap::compute(
         return output;
     }
 
-    // Step 2: Find closest point (before any FTG modifications)
+    // Initialize blocking flags early (needed for visualization even on emergency stop)
+    scan.disparity_blocked.assign(scan.filtered_ranges.size(), false);
+    scan.bubble_blocked.assign(scan.filtered_ranges.size(), false);
+
+    // Step 2: Apply wall margin (shrink all readings for safety along parallel walls)
+    applyWallMargin(scan);
+
+    // Step 3: Find closest point (before any FTG modifications)
     output.closest_point_idx = lidar_processor_.findClosestPoint(scan);
     output.closest_point_dist = scan.filtered_ranges[output.closest_point_idx];
 
-    // Step 3: Check for emergency stop
+    // Step 4: Check for emergency stop
     if (output.closest_point_dist < config_.emergency_brake_distance) {
         output.emergency_stop = true;
         output.command = DriveCommand(0.0, 0.0);
+        output.processed_scan = scan;  // Store scan for visualization
         return output;
     }
 
-    // Step 4: Apply disparity extension for safety (FTG-specific)
+    // Step 5: Apply disparity extension for safety (FTG-specific)
     applyDisparityExtension(scan);
     
-    // Step 5: Apply safety bubble around closest point (FTG-specific)
+    // Step 6: Apply safety bubble around closest point (FTG-specific)
     applySafetyBubble(scan);
     
-    // Step 6: Find all gaps (FTG-specific)
+    // Step 7: Find all gaps (FTG-specific)
     output.all_gaps = findGaps(scan);
     
-    // Step 7: Find best gap using our scoring function
+    // Step 8: Find best gap using our scoring function
     if (output.all_gaps.empty()) {
         // No gaps found - emergency stop or reverse
         output.emergency_stop = true;
         output.command = DriveCommand(0.0, 0.0);
+        output.processed_scan = scan;  // Store scan for visualization
         return output;
     }
     
     output.selected_gap = findBestGap(output.all_gaps);
     
-    // Step 8: Calculate steering toward the gap (using deepest point)
-    double raw_target_angle = calculateTargetAngle(output.selected_gap, scan);
-    
-    // Apply target angle smoothing (exponential moving average)
-    // This reduces oscillation caused by the deepest point jumping around
-    double target_angle = last_target_angle_ + 
-        (1.0 - config_.target_angle_smoothing) * (raw_target_angle - last_target_angle_);
-    last_target_angle_ = target_angle;
+    // Step 9: Calculate steering toward the gap (using deepest point)
+    double target_angle = calculateTargetAngle(output.selected_gap, scan);
     
     double raw_steering = math::clamp(
         config_.steering_gain * target_angle,
@@ -98,12 +100,15 @@ FTGOutput FollowTheGap::compute(
     double steering = smoothSteering(raw_steering, last_steering_);
     last_steering_ = steering;
     
-    // Step 9: Calculate speed based on range and steering (reference formula)
+    // Step 10: Calculate speed based on range and steering (reference formula)
     double speed = calculateSpeed(output.selected_gap, steering);
     
     output.command = DriveCommand(speed, steering);
     
-    // Step 10: Extract boundary points if in mapping mode
+    // Step 11: Store processed scan for visualization
+    output.processed_scan = scan;
+    
+    // Step 12: Extract boundary points if in mapping mode
     if (config_.mapping_mode) {
         output.boundary_points = lidar_processor_.extractBoundaryPoints(
             scan, current_pose, timestamp
@@ -116,6 +121,20 @@ FTGOutput FollowTheGap::compute(
 // ============================================
 // FTG-Specific LiDAR Processing
 // ============================================
+
+void FollowTheGap::applyWallMargin(ProcessedScan& scan) {
+    if (config_.wall_margin <= 0.0) return;  // Disabled
+    
+    for (size_t i = 0; i < scan.filtered_ranges.size(); ++i) {
+        if (scan.valid[i] && scan.filtered_ranges[i] > config_.wall_margin) {
+            scan.filtered_ranges[i] -= config_.wall_margin;
+        } else if (scan.valid[i]) {
+            // Range would go negative/zero - mark as invalid
+            scan.filtered_ranges[i] = 0.0;
+            scan.valid[i] = false;
+        }
+    }
+}
 
 void FollowTheGap::applyDisparityExtension(ProcessedScan& scan) {
     if (scan.filtered_ranges.size() < 2) return;
@@ -143,6 +162,7 @@ void FollowTheGap::applyDisparityExtension(ProcessedScan& scan) {
                 for (int j = 0; j < indices_to_extend && static_cast<int>(i) - j >= 0; ++j) {
                     size_t idx = i - j;
                     if (ranges[idx] > closer_range) {
+                        scan.disparity_blocked[idx] = true;  // Mark as blocked
                         ranges[idx] = closer_range;
                     }
                 }
@@ -152,6 +172,7 @@ void FollowTheGap::applyDisparityExtension(ProcessedScan& scan) {
                 for (int j = 0; j < indices_to_extend && closer_point_idx + j < ranges.size(); ++j) {
                     size_t idx = closer_point_idx + j;
                     if (ranges[idx] > closer_range) {
+                        scan.disparity_blocked[idx] = true;  // Mark as blocked
                         ranges[idx] = closer_range;
                     }
                 }
@@ -179,6 +200,7 @@ void FollowTheGap::applySafetyBubble(ProcessedScan& scan) {
     for (int i = -indices_to_zero; i <= indices_to_zero; ++i) {
         int idx = static_cast<int>(closest_idx) + i;
         if (idx >= 0 && idx < static_cast<int>(scan.filtered_ranges.size())) {
+            scan.bubble_blocked[idx] = true;  // Mark as blocked by bubble
             scan.filtered_ranges[idx] = 0.0;
             scan.valid[idx] = false;
         }
@@ -295,18 +317,8 @@ Gap FollowTheGap::findBestGap(const std::vector<Gap>& gaps) {
 // ============================================
 
 double FollowTheGap::calculateTargetAngle(const Gap& gap, const ProcessedScan& scan) {
-    // Get the deepest point angle and the gap center angle
-    double deepest_angle = scan.angles[gap.deepest_idx];
-    double center_angle = (gap.start_angle + gap.end_angle) / 2.0;
-    
-    // Blend between deepest point and center based on config
-    // gap_center_weight = 0.0 -> pure deepest point (original behavior)
-    // gap_center_weight = 1.0 -> pure center of gap
-    // gap_center_weight = 0.3 -> 70% deepest, 30% center (safer in corners)
-    double target_angle = deepest_angle * (1.0 - config_.gap_center_weight) + 
-                          center_angle * config_.gap_center_weight;
-    
-    return target_angle;
+    // Target the deepest point in the gap (standard FTG behavior)
+    return scan.angles[gap.deepest_idx];
 }
 
 double FollowTheGap::calculateSpeed(const Gap& gap, double steering_angle) {

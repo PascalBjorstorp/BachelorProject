@@ -19,7 +19,6 @@ protected:
         config_.max_steering_angle = 0.4;
         config_.steering_gain = 0.8;
         config_.max_steering_delta = 0.05;
-        config_.target_angle_smoothing = 0.0;  // Disable smoothing for deterministic tests
         config_.emergency_brake_distance = 0.3;
         config_.mapping_mode = false;
         
@@ -29,6 +28,7 @@ protected:
         config_.min_gap_width = 0.15;
         config_.bubble_radius = 0.25;
         config_.apply_bubble = true;
+        config_.wall_margin = 0.0;  // Disable wall margin for tests
         
         // Generic LiDAR preprocessing config
         config_.lidar_config.range_min = 0.1;
