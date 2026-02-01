@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>f1tenth_localization</name>
+  <version>1.0.0</version>
+  <description>F1Tenth localization test and benchmarking package</description>
+  <maintainer email="pabjo23@student.sdu.dk">Aksel</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>nav2_amcl</exec_depend>
+  <exec_depend>nav2_map_server</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
