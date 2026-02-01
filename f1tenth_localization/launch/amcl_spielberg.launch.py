@@ -26,13 +26,13 @@ def generate_launch_description():
     # Declare arguments
     declare_min_particles = DeclareLaunchArgument(
         'min_particles',
-        default_value='500',
+        default_value='1000',
         description='Minimum number of particles'
     )
     
     declare_max_particles = DeclareLaunchArgument(
         'max_particles',
-        default_value='2000',
+        default_value='5000',
         description='Maximum number of particles'
     )
 
@@ -52,8 +52,8 @@ def generate_launch_description():
                 # Topics
                 'scan_topic': 'scan',
                 # Update thresholds
-                'update_min_d': 0.1,
-                'update_min_a': 0.2,
+                'update_min_d': 0.03,
+                'update_min_a': 0.1,
                 'transform_tolerance': 1.0,
                 # Particles
                 'min_particles': LaunchConfiguration('min_particles'),
@@ -63,7 +63,7 @@ def generate_launch_description():
                 'laser_likelihood_max_dist': 2.0,
                 'laser_max_range': 10.0,
                 'laser_min_range': 0.1,
-                'max_beams': 60,
+                'max_beams': 1080,
                 # Motion model
                 'robot_model_type': 'nav2_amcl::DifferentialMotionModel',
                 'alpha1': 0.2,
