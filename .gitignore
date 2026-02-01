@@ -83,6 +83,7 @@ Makefile
 # VSCode
 .vscode/
 *.code-workspace
+*.md
 
 # JetBrains (CLion, PyCharm)
 .idea/
@@ -122,7 +123,6 @@ Thumbs.db
 # ROS2 Specific
 # =============================================
 # Test results
-*.xml
 test_results/
 test-results/
 

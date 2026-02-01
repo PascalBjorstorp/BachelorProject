@@ -22,8 +22,6 @@ ament_python_install_package(${PROJECT_NAME})
 # Install Python scripts
 install(PROGRAMS
   scripts/generate_raceline.py
-  scripts/extract_track.py
-  scripts/visualize_raceline.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
