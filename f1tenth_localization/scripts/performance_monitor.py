@@ -3,6 +3,7 @@
 Performance Monitor for F1TENTH Localization
 
 Monitors CPU, GPU (Jetson), memory usage, and localization latency.
+Tracks AMCL process CPU usage specifically for accurate benchmarking.
 Outputs data to CSV for analysis.
 
 Usage:
@@ -54,11 +55,13 @@ class PerformanceMonitor(Node):
         self.csv_filename = os.path.join(self.output_dir, f'performance_{timestamp}.csv')
         self.csv_file = open(self.csv_filename, 'w', newline='')
         
-        # CSV headers
+        # CSV headers - include both system and AMCL-specific metrics
         headers = [
             'timestamp_sec', 'timestamp_nsec',
-            'cpu_percent', 'memory_percent', 'memory_used_mb',
+            'system_cpu_percent', 'amcl_cpu_percent', 'amcl_memory_mb',
+            'memory_percent', 'memory_used_mb',
             'scan_to_pose_latency_ms', 'scan_rate_hz', 'pose_rate_hz',
+            'num_cores',
         ]
         if self.is_jetson:
             headers.extend(['gpu_percent', 'gpu_freq_mhz', 'emc_percent'])
@@ -85,18 +88,23 @@ class PerformanceMonitor(Node):
         period = 1.0 / self.sample_rate
         self.timer = self.create_timer(period, self.sample_callback)
         
-        # CPU tracking (requires psutil)
+        # CPU tracking
         self.cpu_percent = 0.0
         self.memory_percent = 0.0
         self.memory_used_mb = 0.0
+        self.amcl_process = None
+        self.amcl_cpu_percent = 0.0
+        self.amcl_memory_mb = 0.0
         
         # Try to import psutil
         try:
             import psutil
             self.psutil = psutil
-            self.get_logger().info('psutil available for CPU/memory monitoring')
+            self.num_cores = psutil.cpu_count()
+            self.get_logger().info(f'psutil available - {self.num_cores} CPU cores detected')
         except ImportError:
             self.psutil = None
+            self.num_cores = 1
             self.get_logger().warn('psutil not available - install with: pip install psutil')
         
         self.get_logger().info(f'Performance Monitor started')
@@ -107,6 +115,56 @@ class PerformanceMonitor(Node):
         """Detect if running on Jetson by checking for tegra files"""
         return os.path.exists('/sys/devices/gpu.0') or \
                os.path.exists('/sys/class/thermal/thermal_zone0/type')
+    
+    def _find_amcl_process(self):
+        """Find the AMCL process by name"""
+        if self.psutil is None:
+            return None
+        
+        if self.amcl_process is not None:
+            try:
+                # Check if process still exists
+                if self.amcl_process.is_running():
+                    return self.amcl_process
+            except:
+                pass
+        
+        # Search for AMCL process
+        for proc in self.psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                cmdline = proc.info.get('cmdline', [])
+                if cmdline:
+                    cmdline_str = ' '.join(cmdline)
+                    if 'amcl' in cmdline_str.lower():
+                        self.amcl_process = proc
+                        self.get_logger().info(f'Found AMCL process: PID {proc.pid}')
+                        # Initialize CPU measurement (first call returns 0)
+                        proc.cpu_percent(interval=None)
+                        return proc
+            except (self.psutil.NoSuchProcess, self.psutil.AccessDenied):
+                continue
+        
+        return None
+    
+    def _get_amcl_cpu_usage(self):
+        """Get AMCL process CPU and memory usage"""
+        amcl_cpu = 0.0
+        amcl_mem = 0.0
+        
+        proc = self._find_amcl_process()
+        if proc is not None:
+            try:
+                # CPU percent relative to total system (not per-core)
+                # This returns percentage of single core, multiply by num_cores for system %
+                amcl_cpu = proc.cpu_percent(interval=None)
+                
+                # Memory in MB
+                mem_info = proc.memory_info()
+                amcl_mem = mem_info.rss / (1024 * 1024)
+            except (self.psutil.NoSuchProcess, self.psutil.AccessDenied):
+                self.amcl_process = None
+        
+        return amcl_cpu, amcl_mem
     
     def _get_jetson_gpu_usage(self):
         """Read GPU usage from Jetson tegrastats or sysfs"""
@@ -188,12 +246,15 @@ class PerformanceMonitor(Node):
         """Periodic sampling of performance metrics"""
         now = self.get_clock().now()
         
-        # Get CPU and memory usage
+        # Get system-wide CPU and memory usage
         if self.psutil:
             self.cpu_percent = self.psutil.cpu_percent(interval=None)
             mem = self.psutil.virtual_memory()
             self.memory_percent = mem.percent
             self.memory_used_mb = mem.used / (1024 * 1024)
+            
+            # Get AMCL-specific usage
+            self.amcl_cpu_percent, self.amcl_memory_mb = self._get_amcl_cpu_usage()
         
         # Calculate rates
         scan_rate = self._calculate_rate(self.scan_timestamps)
@@ -208,12 +269,15 @@ class PerformanceMonitor(Node):
         data = {
             'timestamp_sec': now.seconds_nanoseconds()[0],
             'timestamp_nsec': now.seconds_nanoseconds()[1],
-            'cpu_percent': round(self.cpu_percent, 1),
+            'system_cpu_percent': round(self.cpu_percent, 1),
+            'amcl_cpu_percent': round(self.amcl_cpu_percent, 1),
+            'amcl_memory_mb': round(self.amcl_memory_mb, 1),
             'memory_percent': round(self.memory_percent, 1),
             'memory_used_mb': round(self.memory_used_mb, 1),
             'scan_to_pose_latency_ms': round(avg_latency, 2),
             'scan_rate_hz': round(scan_rate, 1),
             'pose_rate_hz': round(pose_rate, 1),
+            'num_cores': self.num_cores,
         }
         
         # Add Jetson-specific metrics
@@ -227,10 +291,11 @@ class PerformanceMonitor(Node):
         self.csv_writer.writerow(data)
         self.csv_file.flush()  # Ensure data is written
         
-        # Log periodically (every 5 seconds)
+        # Log periodically (every 5 seconds) - show AMCL CPU prominently
         if int(now.nanoseconds / 1e9) % 5 == 0:
-            msg = f'CPU: {data["cpu_percent"]:.1f}%, Mem: {data["memory_percent"]:.1f}%, '
-            msg += f'Scan rate: {scan_rate:.1f} Hz, Latency: {avg_latency:.1f} ms'
+            msg = f'AMCL CPU: {self.amcl_cpu_percent:.1f}% (of 1 core), '
+            msg += f'System CPU: {self.cpu_percent:.1f}% ({self.num_cores} cores), '
+            msg += f'Pose rate: {pose_rate:.1f} Hz, Latency: {avg_latency:.1f} ms'
             if self.is_jetson:
                 msg += f', GPU: {data.get("gpu_percent", 0):.1f}%'
             self.get_logger().info(msg)
