@@ -29,19 +29,19 @@ def generate_launch_description():
     # Arguments
     declare_min_particles = DeclareLaunchArgument(
         'min_particles',
-        default_value='1000',
+        default_value='500',
         description='AMCL minimum particles'
     )
     
     declare_max_particles = DeclareLaunchArgument(
         'max_particles',
-        default_value='5000',
+        default_value='2000',
         description='AMCL maximum particles'
     )
     
     declare_max_beams = DeclareLaunchArgument(
         'max_beams',
-        default_value='600',
+        default_value='120',
         description='AMCL max laser beams to use'
     )
     
