@@ -23,6 +23,7 @@ find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(ackermann_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(Eigen3 REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
@@ -79,6 +80,15 @@ add_library(stanley_algorithm SHARED
 ament_target_dependencies(stanley_algorithm ${DEPENDENCIES})
 
 # ===================
+# EKF State Estimation Library
+# ===================
+add_library(ekf_algorithm SHARED
+  src/state_estimation/ekf.cpp
+)
+target_include_directories(ekf_algorithm PUBLIC ${EIGEN3_INCLUDE_DIR})
+ament_target_dependencies(ekf_algorithm ${DEPENDENCIES})
+
+# ===================
 # FTG Node Executable
 # ===================
 add_executable(ftg_node
@@ -122,17 +132,36 @@ target_link_libraries(stanley_node_exe stanley_algorithm)
 ament_target_dependencies(stanley_node_exe ${DEPENDENCIES})
 
 # ===================
+# EKF Node Component
+# ===================
+add_library(ekf_node SHARED
+  src/nodes/ekf_node.cpp
+)
+target_link_libraries(ekf_node ekf_algorithm)
+target_include_directories(ekf_node PUBLIC ${EIGEN3_INCLUDE_DIR})
+ament_target_dependencies(ekf_node ${DEPENDENCIES})
+rclcpp_components_register_nodes(ekf_node "f1tenth_control::EKFNode")
+
+# EKF Node Executable (standalone)
+add_executable(ekf_node_exe
+  src/nodes/ekf_node.cpp
+)
+target_link_libraries(ekf_node_exe ekf_algorithm)
+target_include_directories(ekf_node_exe PUBLIC ${EIGEN3_INCLUDE_DIR})
+ament_target_dependencies(ekf_node_exe ${DEPENDENCIES})
+
+# ===================
 # Install targets
 # ===================
 install(
-  TARGETS f1tenth_common ftg_algorithm pure_pursuit_algorithm stanley_algorithm pure_pursuit_node stanley_node
+  TARGETS f1tenth_common ftg_algorithm pure_pursuit_algorithm stanley_algorithm ekf_algorithm pure_pursuit_node stanley_node ekf_node
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
 
 install(
-  TARGETS ftg_node pure_pursuit_node_exe stanley_node_exe
+  TARGETS ftg_node pure_pursuit_node_exe stanley_node_exe ekf_node_exe
   DESTINATION lib/${PROJECT_NAME}
 )
 
