@@ -87,6 +87,15 @@ class GymBridge(Node):
         self._tf_frame_id = self.get_parameter('tf_frame_id').value
         self._odom_frame_id = self.get_parameter('odom_frame_id').value
         
+        # Get scan rate limiting configuration
+        self._scan_publish_rate = self.get_parameter('scan_publish_rate').value
+        self._last_scan_time = 0.0
+        if self._scan_publish_rate > 0:
+            self._scan_period = 1.0 / self._scan_publish_rate
+            self.get_logger().info(f'Scan publish rate limited to {self._scan_publish_rate:.1f} Hz')
+        else:
+            self._scan_period = 0.0
+        
         if self._odom_noise_enabled:
             self.get_logger().info(
                 f'Odometry noise ENABLED: pos_std={self._odom_pos_noise_std:.3f}m, '
@@ -172,6 +181,9 @@ class GymBridge(Node):
         # TF frame configuration
         self.declare_parameter('tf_frame_id', 'map')         # Parent frame for TF (map or odom)
         self.declare_parameter('odom_frame_id', 'map')       # Parent frame for odom topic
+        
+        # Scan publish rate limiting (for realistic 40Hz LiDAR simulation)
+        self.declare_parameter('scan_publish_rate', 0.0)     # 0 = no limit, >0 = Hz limit
 
     def _validate_num_agents(self) -> int:
         """Validate and return number of agents."""
@@ -740,6 +752,19 @@ class GymBridge(Node):
 
     def _publish_scans(self, ts) -> None:
         """Publish laser scan messages using pre-allocated messages."""
+        # Check rate limiting with accumulated time for more accurate rate
+        if self._scan_period > 0:
+            current_time = time.time()
+            elapsed = current_time - self._last_scan_time
+            if elapsed < self._scan_period:
+                return  # Skip this publish to maintain target rate
+            # Advance by period (not current time) to maintain steady rate
+            # This compensates for jitter by catching up
+            self._last_scan_time += self._scan_period
+            # But don't let it drift too far behind (max 2 periods behind)
+            if current_time - self._last_scan_time > self._scan_period * 2:
+                self._last_scan_time = current_time
+        
         # Get noise stddev from parameter (default to 0.0 if not set)
         scan_noise_std = self.get_parameter('scan_noise_std').value if self.has_parameter('scan_noise_std') else 0.0
 

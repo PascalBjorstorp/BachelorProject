@@ -71,7 +71,7 @@ bridge:
     teleop_steering_angle: 0.3
 
     # simulation timing
-    sim_timestep: 0.01
+    sim_timestep: 0.01 # 100Hz
     use_sim_time: False
 
     # if false, only steps sim on new /drive messages
@@ -95,3 +95,10 @@ bridge:
     # Use 'odom' when running with AMCL/localization, 'map' for ground truth testing
     tf_frame_id: 'odom'          # Parent frame for TF: 'map' or 'odom'
     odom_frame_id: 'odom'        # Parent frame for odom topic: 'map' or 'odom'
+    
+    # ====================
+    # Scan Rate Limiting (for realistic LiDAR simulation)
+    # ====================
+    # Real LiDARs have specific rates: Hokuyo UTM-30LX = 40Hz, RPLidar A1 = 5.5Hz
+    # Set to 0 for no rate limiting (full 250Hz), or target Hz for realistic simulation
+    scan_publish_rate: 40.0      # 40 Hz (realistic Hokuyo rate), 0 = no limit
