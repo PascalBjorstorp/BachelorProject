@@ -56,13 +56,13 @@ def generate_launch_description():
     
     declare_update_min_d = DeclareLaunchArgument(
         'update_min_d',
-        default_value='0.01',
+        default_value='0.001',
         description='Min translation (m) before filter update. Lower = more updates.'
     )
     
     declare_update_min_a = DeclareLaunchArgument(
         'update_min_a',
-        default_value='0.02',
+        default_value='0.001',
         description='Min rotation (rad) before filter update. Lower = more updates.'
     )
     

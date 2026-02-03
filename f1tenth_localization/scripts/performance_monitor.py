@@ -133,20 +133,30 @@ class PerformanceMonitor(Node):
                     return self.amcl_process
             except:
                 pass
+            self.amcl_process = None
         
-        # Search for AMCL process
-        for proc in self.psutil.process_iter(['pid', 'name', 'cmdline']):
+        # Search for AMCL process - look for the nav2_amcl executable specifically
+        for proc in self.psutil.process_iter(['pid', 'name', 'cmdline', 'exe']):
             try:
-                cmdline = proc.info.get('cmdline', [])
-                if cmdline:
-                    cmdline_str = ' '.join(cmdline)
-                    if 'amcl' in cmdline_str.lower():
-                        self.amcl_process = proc
-                        self.get_logger().info(f'Found AMCL process: PID {proc.pid}')
-                        # Initialize CPU measurement (first call returns 0)
-                        proc.cpu_percent(interval=None)
-                        return proc
-            except (self.psutil.NoSuchProcess, self.psutil.AccessDenied):
+                # Check executable name first (most reliable)
+                exe = proc.info.get('exe', '') or ''
+                name = proc.info.get('name', '') or ''
+                cmdline = proc.info.get('cmdline', []) or []
+                
+                # Match AMCL executable (could be named 'amcl' or path ending in /amcl)
+                is_amcl = (
+                    name == 'amcl' or
+                    exe.endswith('/amcl') or
+                    (cmdline and any('nav2_amcl' in str(c) or c.endswith('/amcl') for c in cmdline))
+                )
+                
+                if is_amcl:
+                    self.amcl_process = proc
+                    self.get_logger().info(f'Found AMCL process: PID {proc.pid}, name={name}, exe={exe}')
+                    # Initialize CPU measurement (first call returns 0, subsequent calls track delta)
+                    proc.cpu_percent(interval=None)
+                    return proc
+            except (self.psutil.NoSuchProcess, self.psutil.AccessDenied, self.psutil.ZombieProcess):
                 continue
         
         return None
@@ -159,14 +169,21 @@ class PerformanceMonitor(Node):
         proc = self._find_amcl_process()
         if proc is not None:
             try:
-                # CPU percent relative to total system (not per-core)
-                # This returns percentage of single core, multiply by num_cores for system %
+                # CPU percent - this returns the CPU usage since last call
+                # Returns single-core equivalent (100% = 1 full core)
                 amcl_cpu = proc.cpu_percent(interval=None)
                 
                 # Memory in MB
                 mem_info = proc.memory_info()
                 amcl_mem = mem_info.rss / (1024 * 1024)
-            except (self.psutil.NoSuchProcess, self.psutil.AccessDenied):
+                
+                # Track peak CPU for this session
+                if amcl_cpu > self.amcl_cpu_peak:
+                    self.amcl_cpu_peak = amcl_cpu
+                    self.get_logger().debug(f'New AMCL CPU peak: {amcl_cpu:.1f}%')
+                    
+            except (self.psutil.NoSuchProcess, self.psutil.AccessDenied, self.psutil.ZombieProcess) as e:
+                self.get_logger().debug(f'AMCL process access error: {e}')
                 self.amcl_process = None
         
         return amcl_cpu, amcl_mem

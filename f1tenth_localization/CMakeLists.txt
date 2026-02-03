@@ -6,11 +6,11 @@ find_package(ament_cmake REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(nav2_amcl REQUIRED)
 
-# Install Python scripts (if any)
-install(
-  DIRECTORY scripts/
+# Install Python scripts as executables
+install(PROGRAMS
+  scripts/performance_monitor.py
+  scripts/odom_tf_publisher.py
   DESTINATION lib/${PROJECT_NAME}
-  USE_SOURCE_PERMISSIONS
 )
 
 # Install launch files

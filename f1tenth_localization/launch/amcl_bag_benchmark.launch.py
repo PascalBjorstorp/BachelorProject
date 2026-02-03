@@ -112,6 +112,22 @@ def launch_setup(context, *args, **kwargs):
         }]
     )
     
+    # ==================== Odom TF Publisher ====================
+    # Publishes odom -> base_link TF from odometry messages
+    # This allows AMCL to work with bags recorded in ground truth mode
+    odom_tf_publisher = Node(
+        package='f1tenth_localization',
+        executable='odom_tf_publisher.py',
+        name='odom_tf_publisher',
+        output='screen',
+        parameters=[{
+            'use_sim_time': True,
+            'odom_topic': '/ego_racecar/odom',
+            'odom_frame': 'odom',
+            'base_frame': 'ego_racecar/base_link',
+        }],
+    )
+    
     # ==================== Performance Monitor ====================
     performance_monitor = Node(
         package='f1tenth_localization',
@@ -131,7 +147,12 @@ def launch_setup(context, *args, **kwargs):
     return [
         # Start bag playback first
         bag_play_cmd,
-        # Start AMCL after bag has time to start
+        # Start odom TF publisher immediately after bag
+        TimerAction(
+            period=1.0,
+            actions=[odom_tf_publisher]
+        ),
+        # Start AMCL after TF is available
         TimerAction(
             period=3.0,
             actions=[amcl_node, amcl_lifecycle]

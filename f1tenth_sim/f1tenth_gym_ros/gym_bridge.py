@@ -170,6 +170,7 @@ class GymBridge(Node):
         self.declare_parameter('async_mode', True)
         self.declare_parameter('use_sim_time_bridge', False)
         self.declare_parameter('scan_noise_std', 0.0)
+        self.declare_parameter('headless', False)  # Disable rendering for headless systems
 
         
         # Sensor noise parameters for realistic simulation
@@ -226,6 +227,12 @@ class GymBridge(Node):
             self.get_logger().error(f'Failed to load map: {e}')
             raise
 
+        # Check if headless mode (no rendering)
+        headless = self.get_parameter('headless').value
+        render_mode = None if headless else 'rgb_array'
+        if headless:
+            self.get_logger().info('Running in HEADLESS mode (no rendering)')
+        
         # Create environment
         sim_timestep = self.get_parameter('sim_timestep').value
         try:
@@ -244,7 +251,7 @@ class GymBridge(Node):
                     'scale': scale,
                     'lidar_dist': self.get_parameter('scan_distance_to_base_link').value
                 },
-                render_mode='rgb_array',
+                render_mode=render_mode,
             )
         except Exception as e:
             self.get_logger().error(f'Failed to create gym environment: {e}')
@@ -333,16 +340,12 @@ class GymBridge(Node):
 
         # Pre-allocate wheel transforms
         self._ego_left_wheel_tf = TransformStamped()
-        self._ego_left_wheel_tf.header.frame_id = f'{
-            self.ego_namespace}/front_left_hinge'
-        self._ego_left_wheel_tf.child_frame_id = f'{
-            self.ego_namespace}/front_left_wheel'
+        self._ego_left_wheel_tf.header.frame_id = f'{self.ego_namespace}/front_left_hinge'
+        self._ego_left_wheel_tf.child_frame_id = f'{self.ego_namespace}/front_left_wheel'
 
         self._ego_right_wheel_tf = TransformStamped()
-        self._ego_right_wheel_tf.header.frame_id = f'{
-            self.ego_namespace}/front_right_hinge'
-        self._ego_right_wheel_tf.child_frame_id = f'{
-            self.ego_namespace}/front_right_wheel'
+        self._ego_right_wheel_tf.header.frame_id = f'{self.ego_namespace}/front_right_hinge'
+        self._ego_right_wheel_tf.child_frame_id = f'{self.ego_namespace}/front_right_wheel'
 
         # Pre-allocate clock message
         self._clock_msg = Clock()
@@ -358,24 +361,19 @@ class GymBridge(Node):
 
             self._opp_odom_msg = Odometry()
             self._opp_odom_msg.header.frame_id = self._odom_frame_id
-            self._opp_odom_msg.child_frame_id = f'{
-                self.opp_namespace}/base_link'
+            self._opp_odom_msg.child_frame_id = f'{self.opp_namespace}/base_link'
 
             self._opp_tf_msg = TransformStamped()
             self._opp_tf_msg.header.frame_id = self._tf_frame_id
             self._opp_tf_msg.child_frame_id = f'{self.opp_namespace}/base_link'
 
             self._opp_left_wheel_tf = TransformStamped()
-            self._opp_left_wheel_tf.header.frame_id = f'{
-                self.opp_namespace}/front_left_hinge'
-            self._opp_left_wheel_tf.child_frame_id = f'{
-                self.opp_namespace}/front_left_wheel'
+            self._opp_left_wheel_tf.header.frame_id = f'{self.opp_namespace}/front_left_hinge'
+            self._opp_left_wheel_tf.child_frame_id = f'{self.opp_namespace}/front_left_wheel'
 
             self._opp_right_wheel_tf = TransformStamped()
-            self._opp_right_wheel_tf.header.frame_id = f'{
-                self.opp_namespace}/front_right_hinge'
-            self._opp_right_wheel_tf.child_frame_id = f'{
-                self.opp_namespace}/front_right_wheel'
+            self._opp_right_wheel_tf.header.frame_id = f'{self.opp_namespace}/front_right_hinge'
+            self._opp_right_wheel_tf.child_frame_id = f'{self.opp_namespace}/front_right_wheel'
 
     def _setup_timers(self, num_agents: int) -> None:
         """Set up simulation timers based on async/sync mode."""

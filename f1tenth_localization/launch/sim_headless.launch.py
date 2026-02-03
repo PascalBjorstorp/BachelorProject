@@ -58,7 +58,7 @@ def launch_setup(context, *args, **kwargs):
     # Info
     info_msg = LogInfo(msg=f'Starting F1TENTH simulation (headless) - {mode_msg}')
     
-    # Simulation bridge node with 40Hz scan rate and ground truth TF
+    # Simulation bridge node with 40Hz scan rate, ground truth TF, and headless mode
     bridge_node = Node(
         package='f1tenth_gym_ros',
         executable='gym_bridge',
@@ -72,6 +72,7 @@ def launch_setup(context, *args, **kwargs):
                 'tf_frame_id': tf_frame_id,
                 'odom_frame_id': odom_frame_id,
                 'scan_publish_rate': 40.0,  # Match real hardware (40Hz LiDAR)
+                'headless': True,  # Disable rendering (no PyQt6 needed)
             }
         ]
     )
