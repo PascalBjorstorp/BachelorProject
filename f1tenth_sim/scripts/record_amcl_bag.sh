@@ -88,7 +88,8 @@ timeout 3 ros2 topic hz /scan --window 10 2>/dev/null || echo "  (Could not meas
 echo ""
 
 # Build ros2 bag record command
-RECORD_CMD="ros2 bag record -o ${BAG_PATH} --topics"
+# Use sqlite3 storage for compatibility with ROS 2 Humble on Jetson
+RECORD_CMD="ros2 bag record -o ${BAG_PATH} -s sqlite3 --topics"
 for topic in "${TOPICS[@]}"; do
     RECORD_CMD="${RECORD_CMD} ${topic}"
 done

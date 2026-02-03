@@ -4,20 +4,33 @@ F1TENTH Simulation Headless Launch (for Jetson)
 Runs the F1TENTH gym simulation without RViz.
 Use this on headless systems like Jetson.
 
+Features:
+- Ground truth mode: map -> base_link (no AMCL needed)
+- 40Hz scan rate to match real hardware
+- No RViz (headless)
+
 Usage:
     ros2 launch f1tenth_localization sim_headless.launch.py
+    
+    # With AMCL mode (requires AMCL to be running):
+    ros2 launch f1tenth_localization sim_headless.launch.py ground_truth:=false
 """
 
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import LogInfo
-from launch.substitutions import PathJoinSubstitution
+from launch.actions import DeclareLaunchArgument, LogInfo, OpaqueFunction
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 import yaml
 
 
-def generate_launch_description():
+def launch_setup(context, *args, **kwargs):
+    """Setup function called at launch time with resolved arguments."""
+    # Get resolved ground_truth argument
+    ground_truth_str = LaunchConfiguration('ground_truth').perform(context)
+    ground_truth = ground_truth_str.lower() in ('true', '1', 'yes')
+    
     # Get package directories
     sim_pkg = get_package_share_directory('f1tenth_gym_ros')
     
@@ -32,10 +45,20 @@ def generate_launch_description():
     map_base = os.path.basename(config_dict['bridge']['ros__parameters']['map_path'])
     map_yaml_path = os.path.join(sim_pkg, 'maps', map_base + '.yaml')
     
-    # Info
-    info_msg = LogInfo(msg='Starting F1TENTH simulation (headless - no RViz)')
+    # Determine TF frames based on ground_truth setting
+    if ground_truth:
+        tf_frame_id = 'map'
+        odom_frame_id = 'map'
+        mode_msg = 'GROUND TRUTH mode: map -> base_link (no AMCL needed)'
+    else:
+        tf_frame_id = 'odom'
+        odom_frame_id = 'odom'
+        mode_msg = 'AMCL mode: odom -> base_link (requires AMCL for map -> odom)'
     
-    # Simulation bridge node
+    # Info
+    info_msg = LogInfo(msg=f'Starting F1TENTH simulation (headless) - {mode_msg}')
+    
+    # Simulation bridge node with 40Hz scan rate and ground truth TF
     bridge_node = Node(
         package='f1tenth_gym_ros',
         executable='gym_bridge',
@@ -46,6 +69,9 @@ def generate_launch_description():
             {
                 'use_sim_time': False,
                 'use_sim_time_bridge': use_sim_time,
+                'tf_frame_id': tf_frame_id,
+                'odom_frame_id': odom_frame_id,
+                'scan_publish_rate': 40.0,  # Match real hardware (40Hz LiDAR)
             }
         ]
     )
@@ -93,10 +119,21 @@ def generate_launch_description():
         remappings=[('/robot_description', 'ego_robot_description')]
     )
     
-    return LaunchDescription([
+    return [
         info_msg,
         bridge_node,
         map_server_node,
         map_lifecycle,
         # robot_state_pub,  # Enable if you have the URDF
+    ]
+
+
+def generate_launch_description():
+    return LaunchDescription([
+        DeclareLaunchArgument(
+            'ground_truth',
+            default_value='true',
+            description='Use ground truth pose (map->base_link) instead of odom frame'
+        ),
+        OpaqueFunction(function=launch_setup)
     ])
