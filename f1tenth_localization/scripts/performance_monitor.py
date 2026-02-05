@@ -81,10 +81,11 @@ class PerformanceMonitor(Node):
         
         # State for latency calculation
         self.last_scan_time = None
+        self.last_scan_header_time = None  # Timestamp from scan message header
         self.last_pose_time = None
         self.scan_timestamps = []  # Last N scan timestamps for rate calculation
         self.pose_timestamps = []  # Last N pose timestamps for rate calculation
-        self.scan_pose_latencies = []  # Last N latencies
+        self.scan_pose_latencies = []  # Last N latencies (using header timestamps)
         
         # Subscribers
         self.scan_sub = self.create_subscription(
@@ -305,23 +306,30 @@ class PerformanceMonitor(Node):
         now = self.get_clock().now()
         self.last_scan_time = now
         
+        # Store the header timestamp (when the scan was actually taken)
+        self.last_scan_header_time = Time.from_msg(msg.header.stamp)
+        
         # Track scan rate
         self.scan_timestamps.append(now.nanoseconds)
         if len(self.scan_timestamps) > 100:
             self.scan_timestamps.pop(0)
     
     def pose_callback(self, msg: PoseWithCovarianceStamped):
-        """Record pose timestamp and calculate latency"""
+        """Record pose timestamp and calculate latency using header timestamps"""
         now = self.get_clock().now()
         self.last_pose_time = now
         
-        # Calculate scan-to-pose latency
-        if self.last_scan_time is not None:
-            latency_ns = now.nanoseconds - self.last_scan_time.nanoseconds
+        # Get pose header timestamp (this is the time AMCL stamped the pose)
+        pose_header_time = Time.from_msg(msg.header.stamp)
+        
+        # Calculate true processing latency: pose timestamp - scan timestamp
+        # This measures how long AMCL took to process, regardless of when we received it
+        if self.last_scan_header_time is not None:
+            latency_ns = pose_header_time.nanoseconds - self.last_scan_header_time.nanoseconds
             latency_ms = latency_ns / 1e6
             
-            # Only record reasonable latencies (< 1 second)
-            if 0 < latency_ms < 1000:
+            # Only record reasonable latencies (0 to 5 seconds - could be delayed due to bag playback)
+            if -1000 < latency_ms < 5000:
                 self.scan_pose_latencies.append(latency_ms)
                 if len(self.scan_pose_latencies) > 100:
                     self.scan_pose_latencies.pop(0)
