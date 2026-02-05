@@ -21,7 +21,7 @@ import os
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument, ExecuteProcess, TimerAction, LogInfo, 
-    OpaqueFunction, RegisterEventHandler, EmitEvent, Shutdown
+    OpaqueFunction, RegisterEventHandler, Shutdown
 )
 from launch.event_handlers import OnProcessStart, OnProcessExit
 from launch.substitutions import LaunchConfiguration
@@ -202,7 +202,7 @@ def launch_setup(context, *args, **kwargs):
             target_action=bag_play_cmd,
             on_exit=[
                 LogInfo(msg='Bag playback finished, shutting down...'),
-                EmitEvent(event=Shutdown(reason='Bag playback completed')),
+                Shutdown(reason='Bag playback completed'),
             ]
         )
     )
