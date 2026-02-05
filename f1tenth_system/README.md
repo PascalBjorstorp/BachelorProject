@@ -16,8 +16,7 @@ git submodule update --init --recursive
 This is an **enhanced version** of the F1TENTH VESC stack with:
 
 ### VESC Driver Enhancements
-- ✅ **Proper IMU unit conversions** (g → m/s², deg/s → rad/s)
-- ✅ **200Hz IMU update rate** (was 50Hz)
+- ✅ **200Hz IMU update rate**
 - ✅ **Configurable covariances** for sensor fusion (EKF)
 - ✅ **Proper IMU frame_id** support
 
