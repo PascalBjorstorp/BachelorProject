@@ -81,11 +81,12 @@ class PerformanceMonitor(Node):
         
         # State for latency calculation
         self.last_scan_time = None
-        self.last_scan_header_time = None  # Timestamp from scan message header
+        self.last_scan_header_time = None  # Timestamp from scan message header  
+        self.last_scan_wall_time = None    # Wall clock time when scan was received
         self.last_pose_time = None
         self.scan_timestamps = []  # Last N scan timestamps for rate calculation
         self.pose_timestamps = []  # Last N pose timestamps for rate calculation
-        self.scan_pose_latencies = []  # Last N latencies (using header timestamps)
+        self.scan_pose_latencies = []  # Last N latencies (wall clock: scan rx → pose rx)
         
         # Subscribers
         self.scan_sub = self.create_subscription(
@@ -306,8 +307,11 @@ class PerformanceMonitor(Node):
         now = self.get_clock().now()
         self.last_scan_time = now
         
-        # Store the header timestamp (when the scan was actually taken)
-        self.last_scan_header_time = Time.from_msg(msg.header.stamp)
+        # Store scan header timestamp (when the scan was taken by sensor)
+        # We'll use this to correlate with pose output
+        scan_header_stamp = Time.from_msg(msg.header.stamp)
+        self.last_scan_header_time = scan_header_stamp
+        self.last_scan_wall_time = now  # Wall clock when we received this scan
         
         # Track scan rate
         self.scan_timestamps.append(now.nanoseconds)
@@ -315,17 +319,14 @@ class PerformanceMonitor(Node):
             self.scan_timestamps.pop(0)
     
     def pose_callback(self, msg: PoseWithCovarianceStamped):
-        """Record pose timestamp and calculate latency using header timestamps"""
+        """Record pose timestamp and calculate latency using wall clock"""
         now = self.get_clock().now()
         self.last_pose_time = now
         
-        # Get pose header timestamp (this is the time AMCL stamped the pose)
-        pose_header_time = Time.from_msg(msg.header.stamp)
-        
-        # Calculate true processing latency: pose timestamp - scan timestamp
-        # This measures how long AMCL took to process, regardless of when we received it
-        if self.last_scan_header_time is not None:
-            latency_ns = pose_header_time.nanoseconds - self.last_scan_header_time.nanoseconds
+        # Calculate latency: wall time from scan receipt → pose receipt
+        # This measures end-to-end processing delay including queue time
+        if self.last_scan_wall_time is not None:
+            latency_ns = now.nanoseconds - self.last_scan_wall_time.nanoseconds
             latency_ms = latency_ns / 1e6
             
             # Only record reasonable latencies (0 to 5 seconds - could be delayed due to bag playback)
