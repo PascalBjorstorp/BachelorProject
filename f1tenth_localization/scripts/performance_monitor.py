@@ -63,6 +63,16 @@ class PerformanceMonitor(Node):
             'scan_to_pose_latency_ms', 'scan_rate_hz', 'pose_rate_hz',
             'num_cores',
         ]
+        
+        # Add per-core CPU headers
+        try:
+            import psutil
+            self._temp_num_cores = psutil.cpu_count()
+            for i in range(self._temp_num_cores):
+                headers.append(f'cpu_core_{i}_percent')
+        except ImportError:
+            self._temp_num_cores = 0
+            
         if self.is_jetson:
             headers.extend(['gpu_percent', 'gpu_freq_mhz', 'emc_percent'])
         
@@ -90,6 +100,7 @@ class PerformanceMonitor(Node):
         
         # CPU tracking
         self.cpu_percent = 0.0
+        self.per_core_cpu = []  # Per-core CPU percentages
         self.memory_percent = 0.0
         self.memory_used_mb = 0.0
         self.amcl_process = None
@@ -194,27 +205,95 @@ class PerformanceMonitor(Node):
         gpu_freq = 0.0
         emc_percent = 0.0
         
+        # Use cached tegrastats result if available and recent
+        if hasattr(self, '_tegrastats_cache'):
+            cache_time, cached_result = self._tegrastats_cache
+            if time.time() - cache_time < 0.5:  # Use cache if less than 0.5s old
+                return cached_result
+        
+        try:
+            # Method 1: Try tegrastats (most reliable across all Jetson models)
+            # Run with timeout and capture first line
+            result = subprocess.run(
+                ['timeout', '0.5', 'tegrastats', '--interval', '100'],
+                capture_output=True, text=True, timeout=1
+            )
+            output = result.stdout + result.stderr
+            if output:
+                # Parse GPU usage: GR3D_FREQ 0%@76 or GR3D 45%@921
+                import re
+                gpu_match = re.search(r'GR3D[_FREQ]*\s+(\d+)%', output)
+                if gpu_match:
+                    gpu_percent = float(gpu_match.group(1))
+                
+                # Parse GPU frequency
+                freq_match = re.search(r'GR3D[_FREQ]*\s+\d+%@(\d+)', output)
+                if freq_match:
+                    gpu_freq = float(freq_match.group(1))
+                
+                # Parse EMC usage
+                emc_match = re.search(r'EMC_FREQ\s+(\d+)%', output)
+                if emc_match:
+                    emc_percent = float(emc_match.group(1))
+                
+                result = (gpu_percent, gpu_freq, emc_percent)
+                self._tegrastats_cache = (time.time(), result)
+                return result
+                
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+        except Exception as e:
+            self.get_logger().debug(f'tegrastats failed: {e}')
+        
+        # Method 2: Fallback to sysfs paths
         try:
             # Try reading GPU load from sysfs (Jetson)
-            gpu_load_path = '/sys/devices/gpu.0/load'
-            if os.path.exists(gpu_load_path):
-                with open(gpu_load_path, 'r') as f:
-                    gpu_percent = float(f.read().strip()) / 10.0  # Value is in 0.1%
+            # Check multiple possible paths for different Jetson models
+            gpu_load_paths = [
+                '/sys/devices/gpu.0/load',
+                '/sys/devices/platform/gpu.0/load',
+                '/sys/devices/17000000.ga10b/load',
+                '/sys/devices/17000000.gv11b/load',
+                '/sys/devices/platform/17000000.ga10b/load',
+                '/sys/devices/platform/17000000.gv11b/load',
+            ]
             
-            # Try reading GPU frequency
-            gpu_freq_path = '/sys/devices/gpu.0/devfreq/17000000.gv11b/cur_freq'
-            if os.path.exists(gpu_freq_path):
-                with open(gpu_freq_path, 'r') as f:
-                    gpu_freq = float(f.read().strip()) / 1e6  # Convert to MHz
+            for gpu_load_path in gpu_load_paths:
+                if os.path.exists(gpu_load_path):
+                    with open(gpu_load_path, 'r') as f:
+                        gpu_percent = float(f.read().strip()) / 10.0  # Value is in 0.1%
+                    break
+            
+            # Try reading GPU frequency from multiple possible paths
+            import glob
+            gpu_freq_patterns = [
+                '/sys/devices/gpu.0/devfreq/*/cur_freq',
+                '/sys/devices/platform/gpu.0/devfreq/*/cur_freq',
+                '/sys/devices/17000000.ga10b/devfreq/*/cur_freq',
+                '/sys/devices/17000000.gv11b/devfreq/*/cur_freq',
+                '/sys/devices/platform/*/devfreq/*/cur_freq',
+            ]
+            
+            for pattern in gpu_freq_patterns:
+                matches = glob.glob(pattern)
+                if matches:
+                    with open(matches[0], 'r') as f:
+                        gpu_freq = float(f.read().strip()) / 1e6  # Convert to MHz
+                    break
             
             # EMC (memory controller) usage - indicates memory bandwidth
-            emc_path = '/sys/kernel/debug/clk/emc/clk_rate'
-            if os.path.exists(emc_path):
-                try:
-                    with open(emc_path, 'r') as f:
-                        emc_percent = float(f.read().strip()) / 1e6
-                except:
-                    pass
+            emc_paths = [
+                '/sys/kernel/debug/clk/emc/clk_rate',
+                '/sys/kernel/debug/bpmp/debug/clk/emc/rate',
+            ]
+            for emc_path in emc_paths:
+                if os.path.exists(emc_path):
+                    try:
+                        with open(emc_path, 'r') as f:
+                            emc_percent = float(f.read().strip()) / 1e6
+                    except:
+                        pass
+                    break
                     
         except Exception as e:
             self.get_logger().debug(f'Could not read Jetson GPU stats: {e}')
@@ -271,6 +350,7 @@ class PerformanceMonitor(Node):
         # Get system-wide CPU and memory usage
         if self.psutil:
             self.cpu_percent = self.psutil.cpu_percent(interval=None)
+            self.per_core_cpu = self.psutil.cpu_percent(interval=None, percpu=True)
             mem = self.psutil.virtual_memory()
             self.memory_percent = mem.percent
             self.memory_used_mb = mem.used / (1024 * 1024)
@@ -316,6 +396,10 @@ class PerformanceMonitor(Node):
             'num_cores': self.num_cores,
         }
         
+        # Add per-core CPU percentages
+        for i, core_pct in enumerate(self.per_core_cpu):
+            data[f'cpu_core_{i}_percent'] = round(core_pct, 1)
+        
         # Add Jetson-specific metrics
         if self.is_jetson:
             gpu_percent, gpu_freq, emc_percent = self._get_jetson_gpu_usage()
@@ -335,12 +419,28 @@ class PerformanceMonitor(Node):
             current_sec = int(now.nanoseconds / 1e9)
             if current_sec != self._last_log_sec:
                 self._last_log_sec = current_sec
-                msg = f'AMCL CPU: {self.amcl_cpu_percent:.1f}% now, {avg_amcl_cpu:.1f}% avg, {self.amcl_cpu_peak:.1f}% peak | '
-                msg += f'System: {self.cpu_percent:.1f}% ({self.num_cores} cores) | '
-                msg += f'Pose: {pose_rate:.1f} Hz | Latency: {avg_latency:.1f} ms'
+                
+                # Main stats line
+                msg = f'AMCL CPU: {self.amcl_cpu_percent:.1f}% now, {avg_amcl_cpu:.1f}% avg, {self.amcl_cpu_peak:.1f}% peak'
+                self.get_logger().info(msg)
+                
+                # System stats line
+                msg = f'System: {self.cpu_percent:.1f}% total ({self.num_cores} cores) | Mem: {self.memory_percent:.1f}%'
                 if self.is_jetson:
                     msg += f' | GPU: {data.get("gpu_percent", 0):.1f}%'
                 self.get_logger().info(msg)
+                
+                # Per-core CPU usage - each core on its own line
+                if self.per_core_cpu:
+                    for i, core_pct in enumerate(self.per_core_cpu):
+                        bar_len = int(core_pct / 5)  # Scale to 20 chars max
+                        bar = '█' * bar_len + '░' * (20 - bar_len)
+                        self.get_logger().info(f'  Core {i}: [{bar}] {core_pct:5.1f}%')
+                
+                # Latency/rate line
+                msg = f'Pose: {pose_rate:.1f} Hz | Scan: {scan_rate:.1f} Hz | Latency: {avg_latency:.1f} ms'
+                self.get_logger().info(msg)
+                self.get_logger().info('---')
         elif not hasattr(self, '_last_log_sec'):
             self._last_log_sec = int(now.nanoseconds / 1e9)
     

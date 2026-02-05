@@ -19,9 +19,29 @@ Requirements:
 
 import os
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction, LogInfo, OpaqueFunction
+from launch.actions import (
+    DeclareLaunchArgument, ExecuteProcess, TimerAction, LogInfo, 
+    OpaqueFunction, RegisterEventHandler, EmitEvent, Shutdown
+)
+from launch.event_handlers import OnProcessStart, OnProcessExit
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, LifecycleNode
+
+# ==================== Default Configuration ====================
+# Particle filter settings
+DEFAULT_MIN_PARTICLES = 500
+DEFAULT_MAX_PARTICLES = 2000
+DEFAULT_MAX_BEAMS = 120
+
+# Frame IDs
+BASE_FRAME_ID = 'ego_racecar/base_link'
+ODOM_FRAME_ID = 'odom'
+GLOBAL_FRAME_ID = 'map'
+
+# Topics
+SCAN_TOPIC = '/scan'
+ODOM_TOPIC = '/ego_racecar/odom'
+AMCL_POSE_TOPIC = '/amcl_pose'
 
 
 def launch_setup(context, *args, **kwargs):
@@ -40,20 +60,32 @@ def launch_setup(context, *args, **kwargs):
     bag_path = os.path.expanduser(bag_path)
     output_dir = os.path.expanduser(output_dir)
     
-    nodes = []
-    
     # ==================== Bag Playback ====================
     bag_play_cmd = ExecuteProcess(
         cmd=[
             'ros2', 'bag', 'play', bag_path,
             '--clock',
             '--rate', playback_rate,
-            '--loop',
         ],
         output='screen',
         name='bag_player'
     )
-    nodes.append(bag_play_cmd)
+    
+    # ==================== Odom TF Publisher ====================
+    # Publishes odom -> base_link TF from odometry messages
+    # This allows AMCL to work with bags recorded in ground truth mode
+    odom_tf_publisher = Node(
+        package='f1tenth_localization',
+        executable='odom_tf_publisher.py',
+        name='odom_tf_publisher',
+        output='screen',
+        parameters=[{
+            'use_sim_time': True,
+            'odom_topic': ODOM_TOPIC,
+            'odom_frame': ODOM_FRAME_ID,
+            'base_frame': BASE_FRAME_ID,
+        }],
+    )
     
     # ==================== AMCL Node ====================
     amcl_node = LifecycleNode(
@@ -65,11 +97,11 @@ def launch_setup(context, *args, **kwargs):
         parameters=[{
             'use_sim_time': True,
             # Frame IDs
-            'base_frame_id': 'ego_racecar/base_link',
-            'odom_frame_id': 'odom',
-            'global_frame_id': 'map',
+            'base_frame_id': BASE_FRAME_ID,
+            'odom_frame_id': ODOM_FRAME_ID,
+            'global_frame_id': GLOBAL_FRAME_ID,
             # Topics
-            'scan_topic': '/scan',
+            'scan_topic': SCAN_TOPIC,
             # Update thresholds
             'update_min_d': float(update_min_d),
             'update_min_a': float(update_min_a),
@@ -83,13 +115,12 @@ def launch_setup(context, *args, **kwargs):
             'laser_max_range': 10.0,
             'laser_min_range': 0.1,
             'max_beams': int(max_beams),
-            # Motion model
+            # Motion model (Differential - closest to Ackermann steering)
             'robot_model_type': 'nav2_amcl::DifferentialMotionModel',
-            'alpha1': 0.2,
-            'alpha2': 0.2,
-            'alpha3': 0.2,
-            'alpha4': 0.2,
-            'alpha5': 0.1,
+            'alpha1': 0.1,  # rotation from rotation
+            'alpha2': 0.1,  # rotation from translation
+            'alpha3': 0.2,  # translation from translation
+            'alpha4': 0.2,  # translation from rotation
             # Initial pose
             'set_initial_pose': True,
             'initial_pose_x': 0.0,
@@ -112,22 +143,6 @@ def launch_setup(context, *args, **kwargs):
         }]
     )
     
-    # ==================== Odom TF Publisher ====================
-    # Publishes odom -> base_link TF from odometry messages
-    # This allows AMCL to work with bags recorded in ground truth mode
-    odom_tf_publisher = Node(
-        package='f1tenth_localization',
-        executable='odom_tf_publisher.py',
-        name='odom_tf_publisher',
-        output='screen',
-        parameters=[{
-            'use_sim_time': True,
-            'odom_topic': '/ego_racecar/odom',
-            'odom_frame': 'odom',
-            'base_frame': 'ego_racecar/base_link',
-        }],
-    )
-    
     # ==================== Performance Monitor ====================
     performance_monitor = Node(
         package='f1tenth_localization',
@@ -138,30 +153,69 @@ def launch_setup(context, *args, **kwargs):
             'use_sim_time': True,
             'output_dir': output_dir,
             'sample_rate_hz': 100.0,
-            'scan_topic': '/scan',
-            'amcl_pose_topic': '/amcl_pose',
+            'scan_topic': SCAN_TOPIC,
+            'amcl_pose_topic': AMCL_POSE_TOPIC,
         }],
     )
     
-    # Use TimerAction to sequence startup
+    # ==================== Event-Based Startup Sequence ====================
+    # Order: performance_monitor -> odom_tf_publisher -> AMCL -> bag playback
+    # This ensures everything is ready BEFORE data starts flowing
+    
+    # Start odom_tf_publisher when performance monitor starts
+    start_odom_tf_on_monitor = RegisterEventHandler(
+        OnProcessStart(
+            target_action=performance_monitor,
+            on_start=[
+                LogInfo(msg='Performance monitor started, launching odom TF publisher...'),
+                odom_tf_publisher,
+            ]
+        )
+    )
+    
+    # Start AMCL and lifecycle manager when odom_tf_publisher starts
+    start_amcl_on_odom_tf = RegisterEventHandler(
+        OnProcessStart(
+            target_action=odom_tf_publisher,
+            on_start=[
+                LogInfo(msg='Odom TF publisher started, launching AMCL...'),
+                amcl_node,
+                amcl_lifecycle,
+            ]
+        )
+    )
+    
+    # Start bag playback LAST when AMCL starts (all nodes ready before data flows)
+    start_bag_on_amcl = RegisterEventHandler(
+        OnProcessStart(
+            target_action=amcl_node,
+            on_start=[
+                LogInfo(msg='AMCL started, beginning bag playback...'),
+                bag_play_cmd,
+            ]
+        )
+    )
+    
+    # Shutdown everything when bag playback finishes
+    shutdown_on_bag_end = RegisterEventHandler(
+        OnProcessExit(
+            target_action=bag_play_cmd,
+            on_exit=[
+                LogInfo(msg='Bag playback finished, shutting down...'),
+                EmitEvent(event=Shutdown(reason='Bag playback completed')),
+            ]
+        )
+    )
+    
     return [
-        # Start bag playback first
-        bag_play_cmd,
-        # Start odom TF publisher immediately after bag
-        TimerAction(
-            period=1.0,
-            actions=[odom_tf_publisher]
-        ),
-        # Start AMCL after TF is available
-        TimerAction(
-            period=3.0,
-            actions=[amcl_node, amcl_lifecycle]
-        ),
-        # Start performance monitor after AMCL
-        TimerAction(
-            period=5.0,
-            actions=[performance_monitor]
-        ),
+        # Start performance monitor FIRST
+        performance_monitor,
+        # Event handlers for sequenced startup
+        start_odom_tf_on_monitor,
+        start_amcl_on_odom_tf,
+        start_bag_on_amcl,
+        # Shutdown handler
+        shutdown_on_bag_end,
     ]
 
 
@@ -180,17 +234,17 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'min_particles',
-            default_value='500',
+            default_value=str(DEFAULT_MIN_PARTICLES),
             description='AMCL minimum particles'
         ),
         DeclareLaunchArgument(
             'max_particles',
-            default_value='2000',
+            default_value=str(DEFAULT_MAX_PARTICLES),
             description='AMCL maximum particles'
         ),
         DeclareLaunchArgument(
             'max_beams',
-            default_value='120',
+            default_value=str(DEFAULT_MAX_BEAMS),
             description='AMCL max laser beams to use'
         ),
         DeclareLaunchArgument(
