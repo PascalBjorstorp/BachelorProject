@@ -34,23 +34,12 @@ struct PurePursuitConfig {
     
     // Stability
     double curvature_speed_factor{1.0}; // Speed reduction factor based on path curvature (increased)
+    
+    // Control rate (for steering rate limiting)
+    double control_rate{50.0};          // [Hz] Control loop frequency
 };
 
-/**
- * @brief Trajectory waypoint for path following
- */
-struct TrajectoryPoint {
-    double x{0.0};           // [m] X position
-    double y{0.0};           // [m] Y position
-    double heading{0.0};     // [rad] Heading angle
-    double velocity{0.0};    // [m/s] Target velocity
-    double curvature{0.0};   // [1/m] Path curvature
-    double arc_length{0.0};  // [m] Distance along path
-    
-    TrajectoryPoint() = default;
-    TrajectoryPoint(double x_, double y_, double h, double v, double k, double s)
-        : x(x_), y(y_), heading(h), velocity(v), curvature(k), arc_length(s) {}
-};
+// TrajectoryPoint is defined in common/types.hpp
 
 /**
  * @brief Output from Pure Pursuit controller

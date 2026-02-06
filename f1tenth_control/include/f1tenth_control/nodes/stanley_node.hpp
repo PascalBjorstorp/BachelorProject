@@ -9,6 +9,7 @@
 #include <std_msgs/msg/bool.hpp>
 
 #include "f1tenth_control/algorithms/stanley.hpp"
+#include <mutex>
 
 namespace f1tenth_control {
 
@@ -56,6 +57,7 @@ private:
     
     // State
     VehicleState current_state_;
+    std::mutex state_mutex_;
     bool state_received_{false};
     bool enabled_{true};
     

@@ -118,6 +118,7 @@ void PurePursuitNode::loadParameters() {
     
     publish_visualization_ = get_parameter("publish_visualization").as_bool();
     control_rate_ = get_parameter("control_rate").as_double();
+    config_.control_rate = control_rate_;  // Pass control rate to algorithm for rate limiting
 }
 
 rcl_interfaces::msg::SetParametersResult PurePursuitNode::parametersCallback(

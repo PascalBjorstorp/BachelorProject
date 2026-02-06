@@ -4,6 +4,7 @@
 #include <Eigen/Dense>
 #include <array>
 #include <cmath>
+#include "f1tenth_control/common/math_utils.hpp"
 
 namespace f1tenth_control {
 

@@ -210,7 +210,7 @@ endif()
 
 # Export
 ament_export_include_directories(include)
-ament_export_libraries(f1tenth_common ftg_algorithm pure_pursuit_algorithm pure_pursuit_node)
+ament_export_libraries(f1tenth_common ftg_algorithm pure_pursuit_algorithm stanley_algorithm ekf_algorithm pure_pursuit_node stanley_node ekf_node)
 ament_export_dependencies(${DEPENDENCIES})
 
 ament_package()

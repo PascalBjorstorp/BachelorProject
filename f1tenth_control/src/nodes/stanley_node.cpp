@@ -173,6 +173,7 @@ rcl_interfaces::msg::SetParametersResult StanleyNode::parametersCallback(
 }
 
 void StanleyNode::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     current_state_.pose.x = msg->pose.pose.position.x;
     current_state_.pose.y = msg->pose.pose.position.y;
     
@@ -201,8 +202,15 @@ void StanleyNode::controlLoop() {
         return;
     }
     
+    // Copy state under lock
+    VehicleState state;
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        state = current_state_;
+    }
+    
     // Compute control
-    auto output = controller_->compute(current_state_);
+    auto output = controller_->compute(state);
     
     if (!output.valid) {
         RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "Invalid controller output");

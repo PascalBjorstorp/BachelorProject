@@ -12,18 +12,30 @@ This package provides reusable components and algorithms for F1Tenth autonomous 
 f1tenth_control/
 ├── include/f1tenth_control/
 │   ├── common/              # Reusable components
-│   │   ├── types.hpp        # Common data types (Point2D, Pose2D, Gap, etc.)
+│   │   ├── types.hpp        # Common data types (Point2D, Pose2D, TrajectoryPoint, Gap, etc.)
 │   │   ├── math_utils.hpp   # Math utilities (angle normalization, transforms, filters)
-│   │   └── lidar_processor.hpp  # LiDAR processing (gap finding, disparity extension)
+│   │   └── lidar_processor.hpp  # LiDAR preprocessing (filtering, validation)
 │   ├── algorithms/          # Racing algorithms
-│   │   └── follow_the_gap.hpp   # Follow The Gap algorithm
+│   │   ├── follow_the_gap.hpp   # Follow The Gap (reactive)
+│   │   ├── pure_pursuit.hpp     # Pure Pursuit (path following)
+│   │   └── stanley.hpp          # Stanley controller (path following)
+│   ├── state_estimation/    # State estimation
+│   │   └── ekf.hpp              # Extended Kalman Filter
 │   └── nodes/               # ROS2 node wrappers
-│       └── ftg_node.hpp     # FTG ROS2 node
+│       ├── ftg_node.hpp
+│       ├── pure_pursuit_node.hpp
+│       ├── stanley_node.hpp
+│       └── ekf_node.hpp
 ├── src/                     # Implementation files
 ├── config/                  # Configuration files
 │   └── ftg_params.yaml      # FTG parameters
-└── launch/                  # Launch files
-    └── ftg_launch.py        # FTG launch file
+├── launch/                  # Launch files
+│   ├── ftg_launch.py
+│   ├── ftg_hardware_launch.py
+│   ├── pure_pursuit_launch.py
+│   ├── stanley_launch.py
+│   └── ekf_launch.py
+└── test/                    # Unit tests
 ```
 
 ## Algorithms
@@ -104,23 +116,27 @@ ros2 param set /ftg_node lidar.gap_threshold 2.5
 
 ### LidarProcessor
 
-The `LidarProcessor` class provides reusable LiDAR processing:
+The `LidarProcessor` class provides reusable LiDAR preprocessing:
 
 ```cpp
 #include "f1tenth_control/common/lidar_processor.hpp"
 
 f1tenth_control::LidarProcessor processor(config);
 
-// Process scan
+// Process scan (range filtering, median filter, angle computation)
 auto processed = processor.processScan(ranges, angle_min, angle_max, angle_increment);
 
-// Find gaps
-auto gaps = processor.findGaps(processed);
+// Find closest point
+size_t closest = processor.findClosestPoint(processed);
 
-// Apply safety measures
-processor.applyDisparityExtension(processed, car_width);
-processor.applySafetyBubble(processed);
+// Convert to Cartesian
+Point2D point = processor.scanPointToCartesian(processed, index);
+
+// Extract boundary points for mapping
+auto boundaries = processor.extractBoundaryPoints(processed, robot_pose, timestamp);
 ```
+
+Algorithm-specific processing (gap finding, disparity extension, safety bubbles) is in `FollowTheGap`.
 
 ### Math Utilities
 
@@ -136,8 +152,12 @@ double normalized = f1tenth_control::math::normalizeAngle(angle);
 Point2D global = f1tenth_control::math::localToGlobal(local_point, robot_pose);
 
 // Filtering
-f1tenth_control::math::movingAverageFilter(data, window_size);
 auto filtered = f1tenth_control::math::medianFilter(data, window_size);
+
+// Basic math
+double d = f1tenth_control::math::distance(point_a, point_b);
+double v = f1tenth_control::math::clamp(value, min_val, max_val);
+double i = f1tenth_control::math::lerp(a, b, t);
 ```
 
 ## Adding New Algorithms
@@ -148,10 +168,10 @@ auto filtered = f1tenth_control::math::medianFilter(data, window_size);
 4. Add to CMakeLists.txt
 5. Create config file and launch file
 
-The `LidarProcessor` and math utilities can be reused. For example, Pure Pursuit could use:
-- `LidarProcessor::scanToCartesian()` for obstacle visualization
+The `LidarProcessor` and math utilities can be reused. For example:
+- `LidarProcessor::scanPointToCartesian()` for obstacle visualization
 - `math::localToGlobal()` for waypoint transforms
-- `math::purePursuitSteering()` for steering calculation
+- `math::normalizeAngle()` for angle wrapping
 
 ## Hardware
 

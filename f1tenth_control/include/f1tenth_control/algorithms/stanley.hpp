@@ -2,6 +2,7 @@
 #define F1TENTH_CONTROL_STANLEY_HPP_
 
 #include "f1tenth_control/common/types.hpp"
+#include "f1tenth_control/common/math_utils.hpp"
 #include <vector>
 #include <string>
 #include <cmath>
@@ -44,17 +45,8 @@ struct StanleyConfig {
     double control_rate{200.0};         // [Hz] Control loop frequency
 };
 
-/**
- * @brief Trajectory waypoint for path following
- */
-struct StanleyTrajectoryPoint {
-    double x{0.0};           // [m] X position
-    double y{0.0};           // [m] Y position
-    double heading{0.0};     // [rad] Heading angle (tangent to path)
-    double velocity{0.0};    // [m/s] Target velocity
-    double curvature{0.0};   // [1/m] Path curvature
-    double arc_length{0.0};  // [m] Distance along path
-};
+// TrajectoryPoint is defined in common/types.hpp
+using StanleyTrajectoryPoint = TrajectoryPoint;
 
 /**
  * @brief Output from Stanley controller
@@ -159,12 +151,10 @@ private:
     double computeCrossTrackError(const Point2D& front_axle_pos, size_t closest_idx);
     
     /**
-     * @brief Normalize angle to [-pi, pi]
+     * @brief Normalize angle to [-pi, pi] (delegates to shared math utility)
      */
     static double normalizeAngle(double angle) {
-        while (angle > M_PI) angle -= 2.0 * M_PI;
-        while (angle < -M_PI) angle += 2.0 * M_PI;
-        return angle;
+        return math::normalizeAngle(angle);
     }
     
     /**

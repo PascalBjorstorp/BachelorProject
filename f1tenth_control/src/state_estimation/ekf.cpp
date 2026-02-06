@@ -1,4 +1,5 @@
 #include "f1tenth_control/state_estimation/ekf.hpp"
+#include "f1tenth_control/common/math_utils.hpp"
 #include <cmath>
 
 namespace f1tenth_control {
@@ -321,9 +322,7 @@ void ExtendedKalmanFilter::getVelocityWithCovariance(double& vx, double& vy, dou
 }
 
 double ExtendedKalmanFilter::normalizeAngle(double angle) {
-    while (angle > M_PI) angle -= 2.0 * M_PI;
-    while (angle < -M_PI) angle += 2.0 * M_PI;
-    return angle;
+    return math::normalizeAngle(angle);
 }
 
 }  // namespace f1tenth_control

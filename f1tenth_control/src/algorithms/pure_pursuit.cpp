@@ -205,7 +205,7 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     
     // Apply steering rate limiting for stability at high speeds
     // This prevents sudden steering changes that cause oscillation
-    double dt = 0.02;  // Assume ~50 Hz control rate
+    double dt = 1.0 / config_.control_rate;
     double max_delta = config_.max_steering_rate * dt;
     double delta_steering = steering_angle - prev_steering_;
     if (std::abs(delta_steering) > max_delta) {
