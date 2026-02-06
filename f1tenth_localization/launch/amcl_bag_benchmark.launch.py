@@ -29,9 +29,12 @@ from launch_ros.actions import Node, LifecycleNode
 
 # ==================== Default Configuration ====================
 # Particle filter settings
-DEFAULT_MIN_PARTICLES = 500
-DEFAULT_MAX_PARTICLES = 2000
-DEFAULT_MAX_BEAMS = 120
+DEFAULT_MIN_PARTICLES = 300
+DEFAULT_MAX_PARTICLES = 1000
+DEFAULT_MAX_BEAMS = 60
+
+# Performance monitor
+SAMPLE_RATE_HZ = 20.0  # How often to sample CPU/memory/GPU metrics
 
 # Frame IDs
 BASE_FRAME_ID = 'ego_racecar/base_link'
@@ -152,7 +155,7 @@ def launch_setup(context, *args, **kwargs):
         parameters=[{
             'use_sim_time': True,
             'output_dir': output_dir,
-            'sample_rate_hz': 100.0,
+            'sample_rate_hz': SAMPLE_RATE_HZ,
             'scan_topic': SCAN_TOPIC,
             'amcl_pose_topic': AMCL_POSE_TOPIC,
         }],
