@@ -77,6 +77,9 @@ class PerformanceMonitor(Node):
             'memory_percent', 'memory_used_mb',
             'scan_to_pose_latency_ms', 'scan_rate_hz', 'pose_rate_hz',
             'num_cores',
+            # Accuracy metrics (ground truth comparison)
+            'position_error_m', 'orientation_error_rad',
+            'position_error_mean_m', 'orientation_error_mean_rad',
         ]
         
         # Add per-core CPU headers
@@ -104,12 +107,21 @@ class PerformanceMonitor(Node):
         self.scan_pose_latencies = []  # Last N latencies (wall clock: scan rx → pose rx)
         self.scan_receipt_times = {}  # Map: scan_header_stamp_ns -> wall_time_ns when received
         
+        # Ground truth tracking for accuracy measurement
+        self.ground_truth_pose = None  # Latest ground truth from simulator odom
+        self.position_errors = []  # Recent position errors (meters)
+        self.orientation_errors = []  # Recent orientation errors (radians)
+        
         # Subscribers
         self.scan_sub = self.create_subscription(
             LaserScan, scan_topic, self.scan_callback, 10
         )
         self.amcl_sub = self.create_subscription(
             PoseWithCovarianceStamped, amcl_topic, self.pose_callback, 10
+        )
+        # Ground truth subscription (simulator provides true pose via odom)
+        self.ground_truth_sub = self.create_subscription(
+            Odometry, '/ego_racecar/odom', self.ground_truth_callback, 10
         )
         
         # Timer for periodic sampling
@@ -344,8 +356,31 @@ class PerformanceMonitor(Node):
         if len(self.scan_timestamps) > 100:
             self.scan_timestamps.pop(0)
     
+    def ground_truth_callback(self, msg: Odometry):
+        """Store ground truth pose from simulator"""
+        self.ground_truth_pose = msg.pose.pose
+    
+    def _quaternion_to_yaw(self, q):
+        """Convert quaternion to yaw angle"""
+        import math
+        # yaw (z-axis rotation)
+        siny_cosp = 2 * (q.w * q.z + q.x * q.y)
+        cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)
+        return math.atan2(siny_cosp, cosy_cosp)
+    
+    def _angle_diff(self, a, b):
+        """Calculate smallest difference between two angles (handles wraparound)"""
+        import math
+        diff = a - b
+        while diff > math.pi:
+            diff -= 2 * math.pi
+        while diff < -math.pi:
+            diff += 2 * math.pi
+        return abs(diff)
+    
     def pose_callback(self, msg: PoseWithCovarianceStamped):
         """Record pose timestamp and calculate latency by correlating with the scan that produced it"""
+        import math
         now = self.get_clock().now()
         self.last_pose_time = now
         
@@ -365,6 +400,29 @@ class PerformanceMonitor(Node):
                 self.scan_pose_latencies.append(latency_ms)
                 if len(self.scan_pose_latencies) > 100:
                     self.scan_pose_latencies.pop(0)
+        
+        # Calculate accuracy compared to ground truth
+        if self.ground_truth_pose is not None:
+            amcl_pose = msg.pose.pose
+            gt_pose = self.ground_truth_pose
+            
+            # Position error (Euclidean distance in x-y plane)
+            dx = amcl_pose.position.x - gt_pose.position.x
+            dy = amcl_pose.position.y - gt_pose.position.y
+            position_error = math.sqrt(dx * dx + dy * dy)
+            
+            # Orientation error (yaw difference)
+            amcl_yaw = self._quaternion_to_yaw(amcl_pose.orientation)
+            gt_yaw = self._quaternion_to_yaw(gt_pose.orientation)
+            orientation_error = self._angle_diff(amcl_yaw, gt_yaw)
+            
+            # Store errors
+            self.position_errors.append(position_error)
+            self.orientation_errors.append(orientation_error)
+            if len(self.position_errors) > 100:
+                self.position_errors.pop(0)
+            if len(self.orientation_errors) > 100:
+                self.orientation_errors.pop(0)
         
         # Track pose rate
         self.pose_timestamps.append(now.nanoseconds)
@@ -421,6 +479,18 @@ class PerformanceMonitor(Node):
         if self.scan_pose_latencies:
             avg_latency = sum(self.scan_pose_latencies) / len(self.scan_pose_latencies)
         
+        # Calculate accuracy metrics
+        latest_position_error = 0.0
+        latest_orientation_error = 0.0
+        mean_position_error = 0.0
+        mean_orientation_error = 0.0
+        if self.position_errors:
+            latest_position_error = self.position_errors[-1]
+            mean_position_error = sum(self.position_errors) / len(self.position_errors)
+        if self.orientation_errors:
+            latest_orientation_error = self.orientation_errors[-1]
+            mean_orientation_error = sum(self.orientation_errors) / len(self.orientation_errors)
+        
         # Prepare data row
         data = {
             'timestamp_sec': now.seconds_nanoseconds()[0],
@@ -438,6 +508,10 @@ class PerformanceMonitor(Node):
             'scan_rate_hz': round(scan_rate, 1),
             'pose_rate_hz': round(pose_rate, 1),
             'num_cores': self.num_cores,
+            'position_error_m': round(latest_position_error, 4),
+            'orientation_error_rad': round(latest_orientation_error, 4),
+            'position_error_mean_m': round(mean_position_error, 4),
+            'orientation_error_mean_rad': round(mean_orientation_error, 4),
         }
         
         # Add per-core CPU percentages
@@ -484,6 +558,13 @@ class PerformanceMonitor(Node):
                 # Latency/rate line
                 msg = f'Pose: {pose_rate:.1f} Hz | Scan: {scan_rate:.1f} Hz | Latency: {avg_latency:.1f} ms'
                 self.get_logger().info(msg)
+                
+                # Accuracy line (if ground truth available)
+                if self.position_errors:
+                    import math
+                    msg = f'Accuracy: pos_err={mean_position_error*100:.1f}cm | orient_err={math.degrees(mean_orientation_error):.1f}°'
+                    self.get_logger().info(msg)
+                
                 self.get_logger().info('---')
         elif not hasattr(self, '_last_log_sec'):
             self._last_log_sec = int(now.nanoseconds / 1e9)
