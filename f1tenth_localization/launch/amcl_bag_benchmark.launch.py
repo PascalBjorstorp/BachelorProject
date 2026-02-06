@@ -29,8 +29,8 @@ from launch_ros.actions import Node, LifecycleNode
 
 # ==================== Default Configuration ====================
 # Particle filter settings
-DEFAULT_MIN_PARTICLES = 500
-DEFAULT_MAX_PARTICLES = 2000
+DEFAULT_MIN_PARTICLES = 200
+DEFAULT_MAX_PARTICLES = 1000
 DEFAULT_MAX_BEAMS = 120
 
 # AMCL type identifier (for comparison in plots)
