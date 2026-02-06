@@ -245,7 +245,74 @@ if ismember('gpu_percent', all_data.Properties.VariableNames)
     saveas(gcf, fullfile(output_dir, 'gpu_comparison.png'));
 end
 
-%% Figure 5: Per-Core CPU Heatmap (for all configs)
+%% Figure 5: Accuracy Comparison (if ground truth available)
+if ismember('position_error_m', all_data.Properties.VariableNames)
+    figure('Name', 'Accuracy Comparison', 'Position', [100, 100, 1200, 800]);
+    
+    subplot(2,2,1);
+    hold on;
+    for i = 1:num_configs
+        idx = all_data.config_id == i;
+        t = all_data.time_sec(idx);
+        pos_err = all_data.position_error_m(idx) * 100;  % Convert to cm
+        plot(t, pos_err, 'Color', colors(i,:), 'DisplayName', config_labels{i});
+    end
+    xlabel('Time (s)');
+    ylabel('Position Error (cm)');
+    title('Position Error Over Time');
+    legend('Location', 'best');
+    grid on;
+    
+    subplot(2,2,2);
+    hold on;
+    for i = 1:num_configs
+        idx = all_data.config_id == i;
+        t = all_data.time_sec(idx);
+        orient_err = rad2deg(all_data.orientation_error_rad(idx));
+        plot(t, orient_err, 'Color', colors(i,:), 'DisplayName', config_labels{i});
+    end
+    xlabel('Time (s)');
+    ylabel('Orientation Error (deg)');
+    title('Orientation Error Over Time');
+    legend('Location', 'best');
+    grid on;
+    
+    subplot(2,2,3);
+    pos_err_means = zeros(1, num_configs);
+    pos_err_stds = zeros(1, num_configs);
+    for i = 1:num_configs
+        idx = all_data.config_id == i;
+        pos_err_means(i) = mean(all_data.position_error_m(idx), 'omitnan') * 100;  % cm
+        pos_err_stds(i) = std(all_data.position_error_m(idx), 'omitnan') * 100;
+    end
+    bar(pos_err_means);
+    hold on;
+    errorbar(1:num_configs, pos_err_means, pos_err_stds, 'k.', 'LineWidth', 1.5);
+    set(gca, 'XTick', 1:num_configs, 'XTickLabel', config_labels, 'XTickLabelRotation', 45);
+    ylabel('Position Error (cm)');
+    title('Average Position Error');
+    grid on;
+    
+    subplot(2,2,4);
+    orient_err_means = zeros(1, num_configs);
+    orient_err_stds = zeros(1, num_configs);
+    for i = 1:num_configs
+        idx = all_data.config_id == i;
+        orient_err_means(i) = rad2deg(mean(all_data.orientation_error_rad(idx), 'omitnan'));
+        orient_err_stds(i) = rad2deg(std(all_data.orientation_error_rad(idx), 'omitnan'));
+    end
+    bar(orient_err_means);
+    hold on;
+    errorbar(1:num_configs, orient_err_means, orient_err_stds, 'k.', 'LineWidth', 1.5);
+    set(gca, 'XTick', 1:num_configs, 'XTickLabel', config_labels, 'XTickLabelRotation', 45);
+    ylabel('Orientation Error (deg)');
+    title('Average Orientation Error');
+    grid on;
+    
+    saveas(gcf, fullfile(output_dir, 'accuracy_comparison.png'));
+end
+
+%% Figure 6: Per-Core CPU Heatmap (for all configs)
 if ismember('cpu_core_0_percent', all_data.Properties.VariableNames)
     % Get number of cores from column names
     core_cols = startsWith(all_data.Properties.VariableNames, 'cpu_core_');
@@ -281,25 +348,38 @@ if ismember('cpu_core_0_percent', all_data.Properties.VariableNames)
     saveas(gcf, fullfile(output_dir, 'per_core_heatmap.png'));
 end
 
-%% Figure 6: Summary Table
-figure('Name', 'Summary Table', 'Position', [100, 100, 900, 400]);
+%% Figure 7: Summary Table
+figure('Name', 'Summary Table', 'Position', [100, 100, 1200, 400]);
 
-% Build summary data
-summary_headers = {'Config', 'Avg CPU (%)', 'Peak CPU (%)', 'Avg Latency (ms)', 'Avg Pose Rate (Hz)', 'Avg GPU (%)'};
-summary_values = cell(num_configs, 6);
+% Build summary data with accuracy columns
+has_accuracy = ismember('position_error_m', all_data.Properties.VariableNames);
+if has_accuracy
+    summary_headers = {'Config', 'CPU (%)', 'Latency (ms)', 'Rate (Hz)', 'Pos Err (cm)', 'Orient Err (°)'};
+    num_cols = 6;
+else
+    summary_headers = {'Config', 'Avg CPU (%)', 'Peak CPU (%)', 'Avg Latency (ms)', 'Avg Pose Rate (Hz)', 'Avg GPU (%)'};
+    num_cols = 6;
+end
+summary_values = cell(num_configs, num_cols);
 
 for i = 1:num_configs
     idx = all_data.config_id == i;
     summary_values{i, 1} = strrep(config_labels{i}, newline, ' ');  % Remove newlines
     summary_values{i, 2} = sprintf('%.1f', mean(all_data.amcl_cpu_percent(idx), 'omitnan'));
-    summary_values{i, 3} = sprintf('%.1f', max(all_data.amcl_cpu_percent(idx)));
-    summary_values{i, 4} = sprintf('%.1f', mean(all_data.scan_to_pose_latency_ms(idx), 'omitnan'));
-    summary_values{i, 5} = sprintf('%.1f', mean(all_data.pose_rate_hz(idx), 'omitnan'));
+    summary_values{i, 3} = sprintf('%.1f', mean(all_data.scan_to_pose_latency_ms(idx), 'omitnan'));
+    summary_values{i, 4} = sprintf('%.1f', mean(all_data.pose_rate_hz(idx), 'omitnan'));
     
-    if ismember('gpu_percent', all_data.Properties.VariableNames)
-        summary_values{i, 6} = sprintf('%.1f', mean(all_data.gpu_percent(idx), 'omitnan'));
+    if has_accuracy
+        summary_values{i, 5} = sprintf('%.2f', mean(all_data.position_error_m(idx), 'omitnan') * 100);  % cm
+        summary_values{i, 6} = sprintf('%.1f', rad2deg(mean(all_data.orientation_error_rad(idx), 'omitnan')));
     else
-        summary_values{i, 6} = 'N/A';
+        if ismember('gpu_percent', all_data.Properties.VariableNames)
+            summary_values{i, 5} = sprintf('%.1f', max(all_data.amcl_cpu_percent(idx)));
+            summary_values{i, 6} = sprintf('%.1f', mean(all_data.gpu_percent(idx), 'omitnan'));
+        else
+            summary_values{i, 5} = sprintf('%.1f', max(all_data.amcl_cpu_percent(idx)));
+            summary_values{i, 6} = 'N/A';
+        end
     end
 end
 
@@ -311,10 +391,10 @@ text(0.5, 0.95, 'Benchmark Summary', 'FontSize', 16, 'FontWeight', 'bold', ...
 % Create table as text
 y_start = 0.85;
 y_step = 0.12;
-x_positions = linspace(0.02, 0.98, 6);
+x_positions = linspace(0.02, 0.98, num_cols);
 
 % Headers
-for j = 1:6
+for j = 1:num_cols
     text(x_positions(j), y_start, summary_headers{j}, 'FontSize', 10, 'FontWeight', 'bold', ...
          'HorizontalAlignment', 'center', 'Units', 'normalized');
 end
@@ -322,7 +402,7 @@ end
 % Data rows
 for i = 1:num_configs
     y_pos = y_start - i * y_step;
-    for j = 1:6
+    for j = 1:num_cols
         text(x_positions(j), y_pos, summary_values{i, j}, 'FontSize', 9, ...
              'HorizontalAlignment', 'center', 'Units', 'normalized');
     end
