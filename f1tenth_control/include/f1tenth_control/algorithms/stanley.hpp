@@ -46,7 +46,6 @@ struct StanleyConfig {
 };
 
 // TrajectoryPoint is defined in common/types.hpp
-using StanleyTrajectoryPoint = TrajectoryPoint;
 
 /**
  * @brief Output from Stanley controller
@@ -101,7 +100,7 @@ public:
     /**
      * @brief Set trajectory directly
      */
-    void setTrajectory(const std::vector<StanleyTrajectoryPoint>& trajectory);
+    void setTrajectory(const std::vector<TrajectoryPoint>& trajectory);
     
     /**
      * @brief Compute steering and speed commands
@@ -119,7 +118,7 @@ public:
     /**
      * @brief Get loaded trajectory
      */
-    const std::vector<StanleyTrajectoryPoint>& getTrajectory() const { return trajectory_; }
+    const std::vector<TrajectoryPoint>& getTrajectory() const { return trajectory_; }
     
     /**
      * @brief Check if trajectory is loaded
@@ -133,7 +132,7 @@ public:
     
 private:
     StanleyConfig config_;
-    std::vector<StanleyTrajectoryPoint> trajectory_;
+    std::vector<TrajectoryPoint> trajectory_;
     size_t last_closest_idx_{0};
     double last_steering_{0.0};     // For steering rate limiting
     
@@ -155,13 +154,6 @@ private:
      */
     static double normalizeAngle(double angle) {
         return math::normalizeAngle(angle);
-    }
-    
-    /**
-     * @brief Distance helper
-     */
-    static double distance(double x1, double y1, double x2, double y2) {
-        return std::hypot(x2 - x1, y2 - y1);
     }
 };
 

@@ -98,7 +98,7 @@ All parameters are configurable via `config/ftg_params.yaml` or launch arguments
 |-----------|---------|-------------|
 | `max_speed` | 8.0 | Maximum speed (m/s) |
 | `min_speed` | 1.0 | Minimum speed (m/s) |
-| `max_steering_angle` | 0.4 | Max steering angle (rad) |
+| `max_steering` | 0.4 | Max steering angle (rad) |
 | `emergency_brake_distance` | 0.3 | Emergency stop distance (m) |
 | `lidar.gap_threshold` | 3.0 | Minimum range for gap detection (m) |
 | `mapping_mode` | false | Enable boundary point extraction |

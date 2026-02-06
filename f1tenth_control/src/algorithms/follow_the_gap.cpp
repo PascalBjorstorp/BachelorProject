@@ -92,8 +92,8 @@ FTGOutput FollowTheGap::compute(
     
     double raw_steering = math::clamp(
         config_.steering_gain * target_angle,
-        -config_.max_steering_angle,
-        config_.max_steering_angle
+        -config_.max_steering,
+        config_.max_steering
     );
     
     // Apply steering rate limiting for smooth control
@@ -327,7 +327,7 @@ double FollowTheGap::calculateSpeed(const Gap& gap, double steering_angle) {
     
     // Steering factor: slow down when turning sharply
     double abs_steer = std::abs(steering_angle);
-    double steer_factor = 1.0 - config_.steer_slowdown_gain * (abs_steer / config_.max_steering_angle);
+    double steer_factor = 1.0 - config_.steer_slowdown_gain * (abs_steer / config_.max_steering);
     steer_factor = math::clamp(steer_factor, 0.3, 1.0);
     
     // Combined speed calculation
@@ -344,9 +344,9 @@ double FollowTheGap::scoreGap(const Gap& gap) {
 double FollowTheGap::smoothSteering(double target_steering, double last_steering) {
     double delta = target_steering - last_steering;
     
-    if (std::abs(delta) > config_.max_steering_delta) {
+    if (std::abs(delta) > config_.max_steering_rate) {
         double sign = (delta > 0) ? 1.0 : -1.0;
-        return last_steering + sign * config_.max_steering_delta;
+        return last_steering + sign * config_.max_steering_rate;
     }
     
     return target_steering;

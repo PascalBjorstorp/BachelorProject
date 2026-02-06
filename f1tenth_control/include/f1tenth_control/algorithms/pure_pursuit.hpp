@@ -2,6 +2,7 @@
 #define F1TENTH_CONTROL_PURE_PURSUIT_HPP_
 
 #include "f1tenth_control/common/types.hpp"
+#include "f1tenth_control/common/math_utils.hpp"
 #include <vector>
 #include <string>
 #include <cmath>
@@ -120,13 +121,13 @@ public:
     /**
      * @brief Set previous steering for rate limiting
      */
-    void setPreviousSteering(double steering) { prev_steering_ = steering; }
+    void setLastSteering(double steering) { last_steering_ = steering; }
     
 private:
     PurePursuitConfig config_;
     std::vector<TrajectoryPoint> trajectory_;
     size_t last_closest_idx_{0};  // For efficient search
-    double prev_steering_{0.0};   // For steering rate limiting
+    double last_steering_{0.0};   // For steering rate limiting
     
     /**
      * @brief Find closest point on trajectory to position
@@ -146,16 +147,6 @@ private:
      * @brief Interpolate between two trajectory points
      */
     TrajectoryPoint interpolate(size_t idx1, size_t idx2, double t) const;
-    
-    /**
-     * @brief Compute distance between two points
-     */
-    static double distance(const Point2D& a, const Point2D& b) {
-        return std::hypot(a.x - b.x, a.y - b.y);
-    }
-    static double distance(double x1, double y1, double x2, double y2) {
-        return std::hypot(x2 - x1, y2 - y1);
-    }
 };
 
 }  // namespace f1tenth_control

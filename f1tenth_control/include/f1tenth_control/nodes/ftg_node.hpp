@@ -41,7 +41,7 @@ private:
     std::string laser_frame_id_{"laser"};  // Frame ID for visualization markers
     
     // Steering smoothing
-    double prev_steering_{0.0};
+    double last_steering_{0.0};
     
     // Recovery state
     int stuck_counter_{0};

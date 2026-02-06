@@ -40,7 +40,7 @@ bool Stanley::loadTrajectory(const std::string& csv_path) {
         }
         
         if (values.size() >= 6) {
-            StanleyTrajectoryPoint pt;
+            TrajectoryPoint pt;
             pt.arc_length = values[0];
             pt.x = values[1];
             pt.y = values[2];
@@ -57,7 +57,7 @@ bool Stanley::loadTrajectory(const std::string& csv_path) {
     return !trajectory_.empty();
 }
 
-void Stanley::setTrajectory(const std::vector<StanleyTrajectoryPoint>& trajectory) {
+void Stanley::setTrajectory(const std::vector<TrajectoryPoint>& trajectory) {
     trajectory_ = trajectory;
     last_closest_idx_ = 0;
 }
@@ -78,7 +78,7 @@ size_t Stanley::findClosestPoint(const Point2D& front_axle_pos, double vehicle_h
     constexpr double heading_weight = 2.0;
     
     // Check if we need full search (first call or far from path)
-    const double dist_to_last = distance(front_axle_pos.x, front_axle_pos.y,
+    const double dist_to_last = math::distance(front_axle_pos.x, front_axle_pos.y,
                                          trajectory_[last_closest_idx_].x,
                                          trajectory_[last_closest_idx_].y);
     // Use last_steering_ == 0 as indicator of first call (not perfect but simple)
@@ -99,7 +99,7 @@ size_t Stanley::findClosestPoint(const Point2D& front_axle_pos, double vehicle_h
     // Search for closest point with heading-aware cost
     for (size_t i = start_idx; i <= end_idx; ++i) {
         const auto& pt = trajectory_[i];
-        const double d = distance(front_axle_pos.x, front_axle_pos.y, pt.x, pt.y);
+        const double d = math::distance(front_axle_pos.x, front_axle_pos.y, pt.x, pt.y);
         const double heading_diff = normalizeAngle(pt.heading - vehicle_heading);
         const double cost = d + heading_weight * std::abs(heading_diff);
         

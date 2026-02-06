@@ -25,9 +25,9 @@ struct FTGConfig {
     double steer_slowdown_gain{0.7}; // How much steering reduces speed (0-1)
     
     // Steering control
-    double max_steering_angle{0.4};  // Maximum steering angle (rad) ~23 degrees
+    double max_steering{0.4};        // [rad] Maximum steering angle (~23°)
     double steering_gain{0.8};       // Gain for steering toward gap (reduced for stability)
-    double max_steering_delta{0.05}; // Maximum steering change per update (rad) for smoothing
+    double max_steering_rate{0.05};  // [rad] Maximum steering change per update for smoothing
     
     // Safety
     double emergency_brake_distance{0.3};  // Brake if obstacle closer than this (m)

@@ -83,7 +83,7 @@ size_t PurePursuit::findClosestPoint(const Point2D& position) {
     
     // Search local region
     for (size_t i = start_idx; i <= end_idx; ++i) {
-        double d = distance(position.x, position.y, trajectory_[i].x, trajectory_[i].y);
+        double d = math::distance(position.x, position.y, trajectory_[i].x, trajectory_[i].y);
         if (d < min_dist) {
             min_dist = d;
             closest_idx = i;
@@ -93,7 +93,7 @@ size_t PurePursuit::findClosestPoint(const Point2D& position) {
     // If we're too far from path, do a full search
     if (min_dist > config_.position_tolerance * 2) {
         for (size_t i = 0; i < n; ++i) {
-            double d = distance(position.x, position.y, trajectory_[i].x, trajectory_[i].y);
+            double d = math::distance(position.x, position.y, trajectory_[i].x, trajectory_[i].y);
             if (d < min_dist) {
                 min_dist = d;
                 closest_idx = i;
@@ -117,7 +117,7 @@ size_t PurePursuit::findLookaheadTarget(size_t closest_idx, double lookahead_dis
         size_t curr_idx = i % n;
         size_t next_idx = (i + 1) % n;
         
-        double segment_dist = distance(
+        double segment_dist = math::distance(
             trajectory_[curr_idx].x, trajectory_[curr_idx].y,
             trajectory_[next_idx].x, trajectory_[next_idx].y
         );
@@ -207,11 +207,11 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     // This prevents sudden steering changes that cause oscillation
     double dt = 1.0 / config_.control_rate;
     double max_delta = config_.max_steering_rate * dt;
-    double delta_steering = steering_angle - prev_steering_;
+    double delta_steering = steering_angle - last_steering_;
     if (std::abs(delta_steering) > max_delta) {
-        steering_angle = prev_steering_ + std::copysign(max_delta, delta_steering);
+        steering_angle = last_steering_ + std::copysign(max_delta, delta_steering);
     }
-    prev_steering_ = steering_angle;
+    last_steering_ = steering_angle;
     
     // Clamp steering
     steering_angle = std::clamp(steering_angle, -config_.max_steering, config_.max_steering);

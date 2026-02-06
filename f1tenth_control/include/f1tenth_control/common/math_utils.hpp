@@ -48,6 +48,13 @@ inline double distance(const Point2D& a, const Point2D& b) {
 }
 
 /**
+ * @brief Euclidean distance between two points given coordinates
+ */
+inline double distance(double x1, double y1, double x2, double y2) {
+    return std::hypot(x2 - x1, y2 - y1);
+}
+
+/**
  * @brief Transform point from local (robot) frame to global frame
  * Used for mapping mode boundary point extraction
  */

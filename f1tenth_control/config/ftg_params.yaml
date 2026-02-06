@@ -23,9 +23,9 @@ ftg_node:
     # ===================
     # Steering Control
     # ===================
-    max_steering_angle: 0.4  # Maximum steering angle (~23 degrees) (rad)
-    steering_gain: 1.0       # Gain for steering toward gap
-    max_steering_delta: 0.12 # Maximum steering change per update (rad)
+    max_steering: 0.4          # [rad] Maximum steering angle (~23°)
+    steering_gain: 1.0           # Gain for steering toward gap
+    max_steering_rate: 0.12      # [rad] Maximum steering change per update
 
     # ===================
     # Safety Parameters

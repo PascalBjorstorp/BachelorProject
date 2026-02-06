@@ -53,16 +53,18 @@ TEST_F(LidarProcessorTest, ProcessScanBasic) {
 }
 
 TEST_F(LidarProcessorTest, ProcessScanInvalidRanges) {
-    std::vector<float> ranges = {1.0f, 0.0f, 5.0f, 100.0f, 5.0f};  // 0 and 100 are invalid
+    std::vector<float> ranges = {1.0f, 0.0f, 5.0f, 100.0f, 5.0f};  // 0.0 is below range_min
     double angle_inc = constants::PI / 4;
     double angle_min = -constants::PI / 2;
     double angle_max = constants::PI / 2;
 
     auto scan = processor_->processScan(ranges, angle_min, angle_max, angle_inc);
 
-    // Invalid ranges should be clipped and marked invalid
+    // Below range_min: marked invalid and set to range_min
     EXPECT_FALSE(scan.valid[1]);  // 0.0 is below range_min
-    EXPECT_FALSE(scan.valid[3]);  // 100.0 is above range_max (but range is clipped)
+    // Above range_max: still valid (far away is safe), just clipped to range_max
+    EXPECT_TRUE(scan.valid[3]);
+    EXPECT_DOUBLE_EQ(scan.filtered_ranges[3], config_.range_max);
 }
 
 TEST_F(LidarProcessorTest, ProcessScanNaNHandling) {

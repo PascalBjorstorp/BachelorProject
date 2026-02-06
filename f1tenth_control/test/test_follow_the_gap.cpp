@@ -16,9 +16,9 @@ protected:
         config_.min_speed = 2.0;
         config_.speed_full_range = 9.0;
         config_.steer_slowdown_gain = 0.7;
-        config_.max_steering_angle = 0.4;
+        config_.max_steering = 0.4;
         config_.steering_gain = 0.8;
-        config_.max_steering_delta = 0.05;
+        config_.max_steering_rate = 0.05;
         config_.emergency_brake_distance = 0.3;
         config_.mapping_mode = false;
         
@@ -102,8 +102,8 @@ TEST_F(FollowTheGapTest, ComputeReturnsValidOutput) {
     EXPECT_FALSE(output.emergency_stop);
     EXPECT_GE(output.command.speed, config_.min_speed);
     EXPECT_LE(output.command.speed, config_.max_speed);
-    EXPECT_GE(output.command.steering_angle, -config_.max_steering_angle);
-    EXPECT_LE(output.command.steering_angle, config_.max_steering_angle);
+    EXPECT_GE(output.command.steering_angle, -config_.max_steering);
+    EXPECT_LE(output.command.steering_angle, config_.max_steering);
 }
 
 TEST_F(FollowTheGapTest, OpenPathDrivesStraight) {
@@ -327,7 +327,7 @@ TEST_F(FollowTheGapTest, SteeringAngleClamped) {
     auto output = ftg_->compute(ranges, angle_min, angle_max, angle_inc);
 
     // Steering should be clamped to max (steering left = positive)
-    EXPECT_LE(std::abs(output.command.steering_angle), config_.max_steering_angle + 0.01);
+    EXPECT_LE(std::abs(output.command.steering_angle), config_.max_steering + 0.01);
     // And it should be steering left (positive) toward the gap
     EXPECT_GT(output.command.steering_angle, 0.0);
 }
@@ -352,7 +352,7 @@ TEST_F(FollowTheGapTest, SteeringAngleClampedRight) {
     auto output = ftg_->compute(ranges, angle_min, angle_max, angle_inc);
 
     // Steering should be clamped to max (steering right = negative)
-    EXPECT_LE(std::abs(output.command.steering_angle), config_.max_steering_angle + 0.01);
+    EXPECT_LE(std::abs(output.command.steering_angle), config_.max_steering + 0.01);
     // And it should be steering right (negative) toward the gap
     EXPECT_LT(output.command.steering_angle, 0.0);
 }
