@@ -36,11 +36,23 @@ class PerformanceMonitor(Node):
         self.declare_parameter('amcl_pose_topic', '/amcl_pose')
         self.declare_parameter('odom_topic', '/odom')
         
+        # Benchmark configuration parameters (for CSV metadata)
+        self.declare_parameter('amcl_type', 'nav2_amcl')  # e.g., 'nav2_amcl', 'gpu_amcl'
+        self.declare_parameter('min_particles', 500)
+        self.declare_parameter('max_particles', 2000)
+        self.declare_parameter('max_beams', 60)
+        
         self.output_dir = self.get_parameter('output_dir').value
         self.sample_rate = self.get_parameter('sample_rate_hz').value
         scan_topic = self.get_parameter('scan_topic').value
         amcl_topic = self.get_parameter('amcl_pose_topic').value
         odom_topic = self.get_parameter('odom_topic').value
+        
+        # Store benchmark config
+        self.amcl_type = self.get_parameter('amcl_type').value
+        self.min_particles = self.get_parameter('min_particles').value
+        self.max_particles = self.get_parameter('max_particles').value
+        self.max_beams = self.get_parameter('max_beams').value
         
         # Create output directory
         os.makedirs(self.output_dir, exist_ok=True)
@@ -49,15 +61,18 @@ class PerformanceMonitor(Node):
         self.is_jetson = self._detect_jetson()
         platform = "Jetson" if self.is_jetson else "PC"
         self.get_logger().info(f'Detected platform: {platform}')
+        self.get_logger().info(f'Benchmark config: {self.amcl_type}, particles={self.min_particles}-{self.max_particles}, beams={self.max_beams}')
         
-        # CSV file for logging
+        # CSV file for logging - include config in filename
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        self.csv_filename = os.path.join(self.output_dir, f'performance_{timestamp}.csv')
+        config_str = f'{self.amcl_type}_p{self.min_particles}-{self.max_particles}_b{self.max_beams}'
+        self.csv_filename = os.path.join(self.output_dir, f'performance_{config_str}_{timestamp}.csv')
         self.csv_file = open(self.csv_filename, 'w', newline='')
         
-        # CSV headers - include both system and AMCL-specific metrics
+        # CSV headers - include benchmark config and metrics
         headers = [
             'timestamp_sec', 'timestamp_nsec',
+            'amcl_type', 'min_particles', 'max_particles', 'max_beams',
             'system_cpu_percent', 'amcl_cpu_percent', 'amcl_memory_mb',
             'memory_percent', 'memory_used_mb',
             'scan_to_pose_latency_ms', 'scan_rate_hz', 'pose_rate_hz',
@@ -394,6 +409,10 @@ class PerformanceMonitor(Node):
         data = {
             'timestamp_sec': now.seconds_nanoseconds()[0],
             'timestamp_nsec': now.seconds_nanoseconds()[1],
+            'amcl_type': self.amcl_type,
+            'min_particles': self.min_particles,
+            'max_particles': self.max_particles,
+            'max_beams': self.max_beams,
             'system_cpu_percent': round(self.cpu_percent, 1),
             'amcl_cpu_percent': round(self.amcl_cpu_percent, 1),
             'amcl_memory_mb': round(self.amcl_memory_mb, 1),

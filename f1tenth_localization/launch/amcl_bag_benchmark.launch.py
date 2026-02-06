@@ -33,6 +33,9 @@ DEFAULT_MIN_PARTICLES = 300
 DEFAULT_MAX_PARTICLES = 1000
 DEFAULT_MAX_BEAMS = 60
 
+# AMCL type identifier (for comparison in plots)
+AMCL_TYPE = 'nav2_amcl'  # e.g., 'nav2_amcl', 'gpu_amcl', 'custom_amcl'
+
 # Performance monitor
 SAMPLE_RATE_HZ = 20.0  # How often to sample CPU/memory/GPU metrics
 
@@ -158,6 +161,11 @@ def launch_setup(context, *args, **kwargs):
             'sample_rate_hz': SAMPLE_RATE_HZ,
             'scan_topic': SCAN_TOPIC,
             'amcl_pose_topic': AMCL_POSE_TOPIC,
+            # Benchmark config for CSV metadata
+            'amcl_type': AMCL_TYPE,
+            'min_particles': int(min_particles),
+            'max_particles': int(max_particles),
+            'max_beams': int(max_beams),
         }],
     )
     
