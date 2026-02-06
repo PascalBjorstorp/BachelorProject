@@ -40,28 +40,28 @@
  *===========================================================================*/
 
 /** Number of MPC prediction steps */
-#define MPC_PREDICTION_HORIZON_STEPS 10
+#define MPC_PREDICTION_HORIZON_STEPS 20
 
 /** Time step between predictions (seconds) */
-#define MPC_TIME_STEP_SECONDS 0.05f
+#define MPC_TIME_STEP_SECONDS 0.005f
 
 /** Maximum allowed steering angle (radians, ~23 degrees) */
 #define MAXIMUM_STEERING_ANGLE_RADIANS 0.4189f
 
 /** Maximum allowed velocity (m/s) */
-#define MAXIMUM_VELOCITY_METERS_PER_SECOND 6.0f
+#define MAXIMUM_VELOCITY_METERS_PER_SECOND 20.0f
 
 /** Odometry callback divider (run MPC every N callbacks) */
-#define ODOMETRY_CALLBACK_DIVIDER 10
+#define ODOMETRY_CALLBACK_DIVIDER 1
 
 /** Maximum number of waypoints in loaded trajectory */
 #define TRAJECTORY_MAXIMUM_WAYPOINTS 2000
 
 /** Maximum reference velocity [m/s] (clamp trajectory velocities) */
-#define TRAJECTORY_MAXIMUM_VELOCITY 6.0
+#define TRAJECTORY_MAXIMUM_VELOCITY 20.0
 
 /** Speed gain applied to trajectory velocities (like PP/Stanley) */
-#define TRAJECTORY_SPEED_GAIN 0.3
+#define TRAJECTORY_SPEED_GAIN 0.8
 
 /*===========================================================================
  * Trajectory Waypoint (loaded from CSV, stored as double)
@@ -479,6 +479,12 @@ void odometry_subscription_callback(const void *message_in)
             int closest_index = find_closest_waypoint(position_x_meters, position_y_meters);
             int lookahead_offset = 3; /* Skip a few waypoints ahead for lookahead */
             build_reference_from_trajectory(closest_index, lookahead_offset);
+
+            /* Debug: print reference heading */
+            printf("[MPC] Ref[0]: heading=%.2f rad, vel=%.2f m/s (closest=%d)\n",
+                   FP_TO_DOUBLE(global_reference_trajectory[0].heading),
+                   FP_TO_DOUBLE(global_reference_trajectory[0].vel),
+                   closest_index);
 
             /* Publish reference path for visualization */
             global_reference_path_message.header.stamp = odometry_message->header.stamp;

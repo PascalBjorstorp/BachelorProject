@@ -52,10 +52,19 @@ typedef struct
 
 typedef struct
 {
+    /* Geometry */
     fixed_point_t wheelbase;     /**< Wheelbase [m] */
+    
+    /* Steering constraints */
     fixed_point_t max_steer;     /**< Max steering angle [rad] */
+    fixed_point_t max_steer_vel; /**< Max steering velocity [rad/s] */
+    
+    /* Velocity constraints */
     fixed_point_t max_vel;       /**< Max velocity [m/s] */
     fixed_point_t min_vel;       /**< Min velocity [m/s] */
+    
+    /* Acceleration constraints */
+    fixed_point_t max_accel;     /**< Max acceleration [m/s²] */
 } VehicleParams_t;
 
 /*===========================================================================
@@ -114,8 +123,8 @@ typedef struct
  * Default MPC Configuration Constants
  *===========================================================================*/
 
-#define MPC_DEFAULT_HORIZON     10
-#define MPC_DEFAULT_DT          FP_CONST(0.05)
+#define MPC_DEFAULT_HORIZON     20
+#define MPC_DEFAULT_DT          FP_CONST(0.005)
 #define MPC_DEFAULT_MAX_ITER    1000
 #define MPC_DEFAULT_TOLERANCE   FP_CONST(0.001)
 

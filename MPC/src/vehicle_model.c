@@ -34,8 +34,10 @@ void vehicle_model_init(void)
 {
     g_params.wheelbase = F110_WHEELBASE;
     g_params.max_steer = F110_MAX_STEER;
+    g_params.max_steer_vel = F110_MAX_STEER_VEL;
     g_params.max_vel = F110_MAX_VEL;
     g_params.min_vel = F110_MIN_VEL;
+    g_params.max_accel = F110_MAX_ACCEL;
     g_initialized = 1;
 }
 

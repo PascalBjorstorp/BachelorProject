@@ -18,13 +18,39 @@
 #include "fp_math.h"
 
 /*===========================================================================
- * F1/10th Default Vehicle Parameters
+ * F1/10th Default Vehicle Parameters (from f1tenth_gym)
  *===========================================================================*/
 
-#define F110_WHEELBASE      FP_CONST(0.33)      /**< Wheelbase [m] */
-#define F110_MAX_STEER      FP_CONST(0.4189)    /**< Max steering [rad] (~24°) */
-#define F110_MAX_VEL        FP_CONST(6.0)       /**< Max velocity [m/s] */
-#define F110_MIN_VEL        FP_CONST(0.0)       /**< Min velocity [m/s] */
+/* Geometry */
+#define F110_WHEELBASE      FP_CONST(0.3302)    /**< lf + lr = 0.15875 + 0.17145 [m] */
+#define F110_LF             FP_CONST(0.15875)   /**< CG to front axle [m] */
+#define F110_LR             FP_CONST(0.17145)   /**< CG to rear axle [m] */
+#define F110_WIDTH          FP_CONST(0.31)      /**< Vehicle width [m] */
+#define F110_LENGTH         FP_CONST(0.58)      /**< Vehicle length [m] */
+
+/* Steering constraints */
+#define F110_MAX_STEER      FP_CONST(0.4189)    /**< s_max [rad] (~24°) */
+#define F110_MIN_STEER      FP_CONST(-0.4189)   /**< s_min [rad] (~-24°) */
+#define F110_MAX_STEER_VEL  FP_CONST(3.2)       /**< sv_max [rad/s] */
+#define F110_MIN_STEER_VEL  FP_CONST(-3.2)      /**< sv_min [rad/s] */
+
+/* Velocity constraints */
+#define F110_MAX_VEL        FP_CONST(20.0)      /**< v_max [m/s] */
+#define F110_MIN_VEL        FP_CONST(-5.0)      /**< v_min [m/s] */
+#define F110_V_SWITCH       FP_CONST(7.319)     /**< Velocity for accel limit change [m/s] */
+
+/* Acceleration constraints */
+#define F110_MAX_ACCEL      FP_CONST(9.51)      /**< a_max [m/s²] */
+
+/* Mass/Inertia (for dynamic model) */
+#define F110_MASS           FP_CONST(3.74)      /**< m [kg] */
+#define F110_INERTIA        FP_CONST(0.04712)   /**< I_z [kg·m²] */
+#define F110_CG_HEIGHT      FP_CONST(0.074)     /**< h [m] */
+
+/* Tire parameters (for dynamic model) */
+#define F110_MU             FP_CONST(1.0489)    /**< Friction coefficient */
+#define F110_C_SF           FP_CONST(4.718)     /**< Front cornering stiffness */
+#define F110_C_SR           FP_CONST(5.4562)    /**< Rear cornering stiffness */
 
 /*===========================================================================
  * Model Initialization
