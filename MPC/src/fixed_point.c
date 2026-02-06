@@ -43,10 +43,10 @@
 static inline fixed_point_t normalize_angle(fixed_point_t angle){
 
     while (angle > FIXED_POINT_PI){
-        angle = FIXED_POINT_SUB(angle, FIXED_POINT_TWO_PI);
+        angle = fixed_point_sub(angle, FIXED_POINT_TWO_PI);
     }
     while (angle < -FIXED_POINT_PI){
-        angle = FIXED_POINT_ADD(angle, FIXED_POINT_TWO_PI);
+        angle = fixed_point_add(angle, FIXED_POINT_TWO_PI);
     }
     return angle;
 }
@@ -212,7 +212,7 @@ fixed_point_t fixed_point_tan(fixed_point_t angle) {
 
     /* Check for angles near pi/2 or -pi/2 to prevent overflow */
     if (fixed_point_abs(fixed_point_sub(angle, FIXED_POINT_PI_OVER_2)) < TAN_THRESHOLD) {
-        return (anngle > 0) ? TAN_MAXIMUM : fixed_point_neg(TAN_MAXIMUM);
+        return (angle > 0) ? TAN_MAXIMUM : fixed_point_neg(TAN_MAXIMUM);
     } 
     if(fixed_point_abs(fixed_point_add(angle, FIXED_POINT_PI_OVER_2)) < TAN_THRESHOLD) {
         return (angle > 0) ? TAN_MAXIMUM : fixed_point_neg(TAN_MAXIMUM);

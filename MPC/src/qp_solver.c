@@ -74,7 +74,7 @@ static void project_onto_feasible_region(
             {
                 /* Compute scale factor: scale = b / (A×u) */
                 fixed_point_t denominator = constraint_values[constraint_index] + PROJECTION_EPSILON;
-                fixed_point_t scale_factor = fixed_point_divide(
+                fixed_point_t scale_factor = fixed_point_div(
                     constraint_bounds[constraint_index],
                     denominator);
 
@@ -151,7 +151,7 @@ QuadraticProgramStatus_t qp_solver_solve(
         /*
          * Step 2: Gradient descent step: u_new = u - step_size × gradient
          */
-        fixed_point_t negative_step_size = fixed_point_negate(config->gradient_step_size);
+        fixed_point_t negative_step_size = fixed_point_neg(config->gradient_step_size);
 
         linear_algebra_vector_add_scaled(
             solution->optimal_variables,
@@ -177,15 +177,15 @@ QuadraticProgramStatus_t qp_solver_solve(
 
         for (uint16_t index = 0; index < variable_count; index++)
         {
-            fixed_point_t difference = fixed_point_subtract(
+            fixed_point_t difference = fixed_point_sub(
                 next_variables[index],
                 solution->optimal_variables[index]);
 
-            fixed_point_t difference_squared = fixed_point_multiply(difference, difference);
+            fixed_point_t difference_squared = fixed_point_mul(difference, difference);
             step_norm_squared = fixed_point_add(step_norm_squared, difference_squared);
         }
 
-        fixed_point_t step_norm = fixed_point_square_root(step_norm_squared);
+        fixed_point_t step_norm = fixed_point_sqrt(step_norm_squared);
 
         /* Update solution with new variables */
         memcpy(solution->optimal_variables, next_variables,
@@ -256,10 +256,10 @@ void qp_solver_initialize_problem(QuadraticProgramProblem_t *problem)
 void qp_solver_initialize_config(QuadraticProgramConfig_t *config)
 {
     /* Step size of 0.5 provides good balance of speed and stability */
-    config->gradient_step_size = fixed_point_from_float(0.5f);
+    config->gradient_step_size = FIXED_POINT_HALF;  /* 0.5 in Q16.16 = 32768 */
 
     /* Convergence tolerance of 0.001 (about 65 in fixed-point) */
-    config->convergence_tolerance = fixed_point_from_float(0.001f);
+    config->convergence_tolerance = (fixed_point_t)65;  /* 0.001 in Q16.16 ≈ 65 */
 
     /* Maximum iterations */
     config->maximum_iterations = QP_MAXIMUM_ITERATIONS;
