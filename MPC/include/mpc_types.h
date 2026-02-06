@@ -242,10 +242,28 @@ typedef struct
  * Pre-computed fixed-point constants for typical F1/10th configuration.
  */
 
+ 
 /**
  * Compile-time float-to-Q16.16 conversion macro.
  */
 #define FP_CONST(x) ((fixed_point_t)((double)(x) * (1 << FIXED_POINT_FRACTIONAL_BITS)))
+
+/**
+ * Runtime double-to-Q16.16 conversion.
+ */
+#define DOUBLE_TO_FP(x) ((fixed_point_t)((x) * (1 << FIXED_POINT_FRACTIONAL_BITS)))
+
+/**
+ * Runtime Q16.16-to-double conversion.
+ */
+#define FP_TO_DOUBLE(x) ((double)(x) / (double)(1 << FIXED_POINT_FRACTIONAL_BITS))
+
+/**
+ * Runtime Q16.16-to-float conversion.
+ */
+#define FP_TO_FLOAT(x) ((float)(x) / (float)(1 << FIXED_POINT_FRACTIONAL_BITS))
+
+
 
 /** F1/10th wheelbase: 0.32 meters (32 cm) */
 #define F110_DEFAULT_WHEELBASE_METERS \
