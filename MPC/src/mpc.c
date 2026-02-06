@@ -61,18 +61,18 @@ static MpcConfiguration_t get_default_configuration(void)
     config.time_step_seconds = MPC_DEFAULT_TIME_STEP_SECONDS;
 
     /* State tracking weights */
-    config.weight_position_x = (10.0f);
-    config.weight_position_y = (10.0f);
-    config.weight_heading = (5.0f);
-    config.weight_velocity = (2.0f);
+    config.weight_position_x = FP_CONST(10.0);
+    config.weight_position_y = FP_CONST(10.0);
+    config.weight_heading = FP_CONST(5.0);
+    config.weight_velocity = FP_CONST(2.0);
 
     /* Control effort weights */
-    config.weight_steering_effort = (1.0f);
-    config.weight_acceleration_effort = (0.5f);
+    config.weight_steering_effort = FP_CONST(1.0);
+    config.weight_acceleration_effort = FP_CONST(0.5);
 
     /* Control rate weights (smooth control) */
-    config.weight_steering_rate = (10.0f);
-    config.weight_acceleration_rate = (5.0f);
+    config.weight_steering_rate = FP_CONST(10.0);
+    config.weight_acceleration_rate = FP_CONST(5.0);
 
     /* Solver parameters */
     config.maximum_solver_iterations = MPC_DEFAULT_MAXIMUM_ITERATIONS;
@@ -203,7 +203,7 @@ static void build_qp_linear_cost_vector(
         /* Feedforward steering: proportional to heading error */
         fixed_point_t feedforward_steering = fixed_point_mul(
             heading_error,
-            (0.5f)); /* Gain */
+            FIXED_POINT_HALF); /* Gain = 0.5 */
 
         /* Velocity error for feedforward acceleration */
         fixed_point_t velocity_error = fixed_point_sub(
@@ -212,20 +212,20 @@ static void build_qp_linear_cost_vector(
 
         fixed_point_t feedforward_acceleration = fixed_point_mul(
             velocity_error,
-            (1.0f)); /* Gain */
+            FIXED_POINT_ONE); /* Gain = 1.0 */
 
         /* Linear cost encourages these feedforward values */
         /* f = -2 * w * u_desired */
         linear_cost_vector[base_index] = fixed_point_neg(
             fixed_point_mul(
-                (2.0f),
+                FP_CONST(2.0),
                 fixed_point_mul(
                     current_configuration.weight_steering_effort,
                     feedforward_steering)));
 
         linear_cost_vector[base_index + 1] = fixed_point_neg(
             fixed_point_mul(
-                (2.0f),
+                FP_CONST(2.0),
                 fixed_point_mul(
                     current_configuration.weight_acceleration_effort,
                     feedforward_acceleration)));
@@ -235,7 +235,7 @@ static void build_qp_linear_cost_vector(
     linear_cost_vector[0] = fixed_point_add(
         linear_cost_vector[0],
         fixed_point_mul(
-            (2.0f),
+            FP_CONST(2.0),
             fixed_point_mul(
                 current_configuration.weight_steering_rate,
                 previous_control_input.steering_angle_radians)));
@@ -243,7 +243,7 @@ static void build_qp_linear_cost_vector(
     linear_cost_vector[1] = fixed_point_add(
         linear_cost_vector[1],
         fixed_point_mul(
-            (2.0f),
+            FP_CONST(2.0),
             fixed_point_mul(
                 current_configuration.weight_acceleration_rate,
                 previous_control_input.acceleration_meters_per_second_squared)));
