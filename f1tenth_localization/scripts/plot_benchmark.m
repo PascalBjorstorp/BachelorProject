@@ -13,7 +13,7 @@
 clear; clc; close all;
 
 %% Configuration
-data_dir = '/tmp/f1tenth_benchmark';  % Change to your benchmark folder
+data_dir = '/home/pascal/Documents/BachelorProject/benchmark_results';  % Change to your benchmark folder
 output_dir = fullfile(data_dir, 'plots');
 
 % Create output directory
@@ -52,10 +52,12 @@ for i = 1:length(csv_files)
         min_p = data.min_particles(1);
         max_p = data.max_particles(1);
         beams = data.max_beams(1);
-        config_label = sprintf('%s\np:%d-%d b:%d', amcl_type, min_p, max_p, beams);
+        config_label = sprintf('%s p:%d-%d b:%d', amcl_type, min_p, max_p, beams);
+        config_label_multiline = sprintf('%s\np:%d-%d b:%d', amcl_type, min_p, max_p, beams);
     else
         % Fallback: extract from filename
         config_label = csv_files(i).name;
+        config_label_multiline = config_label;
         amcl_type = "unknown";
         min_p = 0; max_p = 0; beams = 0;
     end
@@ -105,7 +107,7 @@ end
 bar(cpu_means);
 hold on;
 errorbar(1:num_configs, cpu_means, cpu_stds, 'k.', 'LineWidth', 1.5);
-set(gca, 'XTickLabel', config_labels, 'XTickLabelRotation', 45);
+set(gca, 'XTick', 1:num_configs, 'XTickLabel', config_labels, 'XTickLabelRotation', 45);
 ylabel('AMCL CPU (%)');
 title('Average AMCL CPU Usage');
 grid on;
@@ -170,7 +172,7 @@ end
 bar(lat_means);
 hold on;
 errorbar(1:num_configs, lat_means, lat_stds, 'k.', 'LineWidth', 1.5);
-set(gca, 'XTickLabel', config_labels, 'XTickLabelRotation', 45);
+set(gca, 'XTick', 1:num_configs, 'XTickLabel', config_labels, 'XTickLabelRotation', 45);
 ylabel('Latency (ms)');
 title('Average Latency');
 grid on;
@@ -202,7 +204,7 @@ for i = 1:num_configs
     rate_means(i) = mean(all_data.pose_rate_hz(idx), 'omitnan');
 end
 bar(rate_means);
-set(gca, 'XTickLabel', config_labels, 'XTickLabelRotation', 45);
+set(gca, 'XTick', 1:num_configs, 'XTickLabel', config_labels, 'XTickLabelRotation', 45);
 ylabel('Pose Rate (Hz)');
 title('Average Pose Output Rate');
 ylim([0, 50]);
@@ -235,7 +237,7 @@ if ismember('gpu_percent', all_data.Properties.VariableNames)
         gpu_means(i) = mean(all_data.gpu_percent(idx), 'omitnan');
     end
     bar(gpu_means);
-    set(gca, 'XTickLabel', config_labels, 'XTickLabelRotation', 45);
+    set(gca, 'XTick', 1:num_configs, 'XTickLabel', config_labels, 'XTickLabelRotation', 45);
     ylabel('GPU (%)');
     title('Average GPU Usage');
     grid on;
@@ -243,65 +245,88 @@ if ismember('gpu_percent', all_data.Properties.VariableNames)
     saveas(gcf, fullfile(output_dir, 'gpu_comparison.png'));
 end
 
-%% Figure 5: Per-Core CPU Heatmap (for first config)
+%% Figure 5: Per-Core CPU Heatmap (for all configs)
 if ismember('cpu_core_0_percent', all_data.Properties.VariableNames)
-    figure('Name', 'Per-Core CPU Heatmap', 'Position', [100, 100, 1200, 400]);
-    
     % Get number of cores from column names
     core_cols = startsWith(all_data.Properties.VariableNames, 'cpu_core_');
     num_cores = sum(core_cols);
     
-    % Use first config
-    idx = all_data.config_id == 1;
-    t = all_data.time_sec(idx);
+    figure('Name', 'Per-Core CPU Heatmap', 'Position', [100, 100, 1200, 300 * num_configs]);
     
-    core_data = zeros(num_cores, sum(idx));
-    for c = 0:num_cores-1
-        col_name = sprintf('cpu_core_%d_percent', c);
-        if ismember(col_name, all_data.Properties.VariableNames)
-            core_data(c+1, :) = all_data.(col_name)(idx)';
+    for cfg = 1:num_configs
+        subplot(num_configs, 1, cfg);
+        
+        idx = all_data.config_id == cfg;
+        t = all_data.time_sec(idx);
+        
+        core_data = zeros(num_cores, sum(idx));
+        for c = 0:num_cores-1
+            col_name = sprintf('cpu_core_%d_percent', c);
+            if ismember(col_name, all_data.Properties.VariableNames)
+                core_data(c+1, :) = all_data.(col_name)(idx)';
+            end
         end
+        
+        imagesc(t, 1:num_cores, core_data);
+        colormap(hot);
+        cb = colorbar;
+        ylabel(cb, 'CPU %');
+        caxis([0 100]);
+        xlabel('Time (s)');
+        ylabel('CPU Core');
+        title(sprintf('Per-Core CPU: %s', strrep(config_labels{cfg}, newline, ' ')));
+        set(gca, 'YDir', 'normal');
     end
-    
-    imagesc(t, 1:num_cores, core_data);
-    colormap(hot);
-    colorbar;
-    xlabel('Time (s)');
-    ylabel('CPU Core');
-    title(sprintf('Per-Core CPU Usage: %s', config_labels{1}));
-    set(gca, 'YDir', 'normal');
     
     saveas(gcf, fullfile(output_dir, 'per_core_heatmap.png'));
 end
 
 %% Figure 6: Summary Table
-figure('Name', 'Summary Table', 'Position', [100, 100, 800, 400]);
-axis off;
+figure('Name', 'Summary Table', 'Position', [100, 100, 900, 400]);
 
-summary_data = cell(num_configs + 1, 6);
-summary_data(1, :) = {'Config', 'Avg CPU (%)', 'Peak CPU (%)', 'Avg Latency (ms)', 'Avg Pose Rate (Hz)', 'Avg GPU (%)'};
+% Build summary data
+summary_headers = {'Config', 'Avg CPU (%)', 'Peak CPU (%)', 'Avg Latency (ms)', 'Avg Pose Rate (Hz)', 'Avg GPU (%)'};
+summary_values = cell(num_configs, 6);
 
 for i = 1:num_configs
     idx = all_data.config_id == i;
-    summary_data{i+1, 1} = config_labels{i};
-    summary_data{i+1, 2} = sprintf('%.1f', mean(all_data.amcl_cpu_percent(idx), 'omitnan'));
-    summary_data{i+1, 3} = sprintf('%.1f', max(all_data.amcl_cpu_percent(idx)));
-    summary_data{i+1, 4} = sprintf('%.1f', mean(all_data.scan_to_pose_latency_ms(idx), 'omitnan'));
-    summary_data{i+1, 5} = sprintf('%.1f', mean(all_data.pose_rate_hz(idx), 'omitnan'));
+    summary_values{i, 1} = strrep(config_labels{i}, newline, ' ');  % Remove newlines
+    summary_values{i, 2} = sprintf('%.1f', mean(all_data.amcl_cpu_percent(idx), 'omitnan'));
+    summary_values{i, 3} = sprintf('%.1f', max(all_data.amcl_cpu_percent(idx)));
+    summary_values{i, 4} = sprintf('%.1f', mean(all_data.scan_to_pose_latency_ms(idx), 'omitnan'));
+    summary_values{i, 5} = sprintf('%.1f', mean(all_data.pose_rate_hz(idx), 'omitnan'));
     
     if ismember('gpu_percent', all_data.Properties.VariableNames)
-        summary_data{i+1, 6} = sprintf('%.1f', mean(all_data.gpu_percent(idx), 'omitnan'));
+        summary_values{i, 6} = sprintf('%.1f', mean(all_data.gpu_percent(idx), 'omitnan'));
     else
-        summary_data{i+1, 6} = 'N/A';
+        summary_values{i, 6} = 'N/A';
     end
 end
 
-% Create table
-uitable('Data', summary_data(2:end, :), ...
-        'ColumnName', summary_data(1, :), ...
-        'Units', 'Normalized', ...
-        'Position', [0.05, 0.1, 0.9, 0.8], ...
-        'FontSize', 12);
+% Display as text instead of uitable (compatible with saveas)
+axis off;
+text(0.5, 0.95, 'Benchmark Summary', 'FontSize', 16, 'FontWeight', 'bold', ...
+     'HorizontalAlignment', 'center', 'Units', 'normalized');
+
+% Create table as text
+y_start = 0.85;
+y_step = 0.12;
+x_positions = linspace(0.02, 0.98, 6);
+
+% Headers
+for j = 1:6
+    text(x_positions(j), y_start, summary_headers{j}, 'FontSize', 10, 'FontWeight', 'bold', ...
+         'HorizontalAlignment', 'center', 'Units', 'normalized');
+end
+
+% Data rows
+for i = 1:num_configs
+    y_pos = y_start - i * y_step;
+    for j = 1:6
+        text(x_positions(j), y_pos, summary_values{i, j}, 'FontSize', 9, ...
+             'HorizontalAlignment', 'center', 'Units', 'normalized');
+    end
+end
 
 saveas(gcf, fullfile(output_dir, 'summary_table.png'));
 

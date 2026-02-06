@@ -102,6 +102,7 @@ class PerformanceMonitor(Node):
         self.scan_timestamps = []  # Last N scan timestamps for rate calculation
         self.pose_timestamps = []  # Last N pose timestamps for rate calculation
         self.scan_pose_latencies = []  # Last N latencies (wall clock: scan rx → pose rx)
+        self.scan_receipt_times = {}  # Map: scan_header_stamp_ns -> wall_time_ns when received
         
         # Subscribers
         self.scan_sub = self.create_subscription(
@@ -328,24 +329,39 @@ class PerformanceMonitor(Node):
         self.last_scan_header_time = scan_header_stamp
         self.last_scan_wall_time = now  # Wall clock when we received this scan
         
+        # Store scan reception time indexed by header timestamp for proper correlation
+        # This allows us to find when we received a specific scan that AMCL processed
+        scan_stamp_key = msg.header.stamp.sec * 1000000000 + msg.header.stamp.nanosec
+        self.scan_receipt_times[scan_stamp_key] = now.nanoseconds
+        
+        # Cleanup old entries (keep last 200 scans)
+        if len(self.scan_receipt_times) > 200:
+            oldest_key = min(self.scan_receipt_times.keys())
+            del self.scan_receipt_times[oldest_key]
+        
         # Track scan rate
         self.scan_timestamps.append(now.nanoseconds)
         if len(self.scan_timestamps) > 100:
             self.scan_timestamps.pop(0)
     
     def pose_callback(self, msg: PoseWithCovarianceStamped):
-        """Record pose timestamp and calculate latency using wall clock"""
+        """Record pose timestamp and calculate latency by correlating with the scan that produced it"""
         now = self.get_clock().now()
         self.last_pose_time = now
         
-        # Calculate latency: wall time from scan receipt → pose receipt
-        # This measures end-to-end processing delay including queue time
-        if self.last_scan_wall_time is not None:
-            latency_ns = now.nanoseconds - self.last_scan_wall_time.nanoseconds
+        # AMCL stamps its pose with the same timestamp as the scan it processed
+        # Use this to look up when we actually received that specific scan
+        pose_stamp = msg.header.stamp
+        pose_stamp_key = pose_stamp.sec * 1000000000 + pose_stamp.nanosec
+        
+        if pose_stamp_key in self.scan_receipt_times:
+            # Found the matching scan - calculate true processing latency
+            scan_receipt_ns = self.scan_receipt_times[pose_stamp_key]
+            latency_ns = now.nanoseconds - scan_receipt_ns
             latency_ms = latency_ns / 1e6
             
-            # Only record reasonable latencies (0 to 5 seconds - could be delayed due to bag playback)
-            if -1000 < latency_ms < 5000:
+            # Record latency if reasonable (0 to 5 seconds)
+            if 0 < latency_ms < 5000:
                 self.scan_pose_latencies.append(latency_ms)
                 if len(self.scan_pose_latencies) > 100:
                     self.scan_pose_latencies.pop(0)
