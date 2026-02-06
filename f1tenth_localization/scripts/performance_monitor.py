@@ -112,6 +112,11 @@ class PerformanceMonitor(Node):
         self.position_errors = []  # Recent position errors (meters)
         self.orientation_errors = []  # Recent orientation errors (radians)
         
+        # Frame alignment: capture initial offset between map frame (AMCL) and odom frame (ground truth)
+        self.frame_alignment_offset = None  # (dx, dy, dyaw) to align odom frame to map frame
+        self.first_amcl_pose = None
+        self.first_gt_pose = None
+        
         # Subscribers
         self.scan_sub = self.create_subscription(
             LaserScan, scan_topic, self.scan_callback, 10
@@ -359,6 +364,33 @@ class PerformanceMonitor(Node):
     def ground_truth_callback(self, msg: Odometry):
         """Store ground truth pose from simulator"""
         self.ground_truth_pose = msg.pose.pose
+        
+        # Capture first ground truth pose for alignment
+        if self.first_gt_pose is None:
+            self.first_gt_pose = msg.pose.pose
+            self._try_compute_alignment()
+    
+    def _try_compute_alignment(self):
+        """Compute frame alignment offset when both first poses are available"""
+        import math
+        if self.first_amcl_pose is not None and self.first_gt_pose is not None and self.frame_alignment_offset is None:
+            # Calculate offset: how much to add to GT pose to get AMCL pose
+            amcl_yaw = self._quaternion_to_yaw(self.first_amcl_pose.orientation)
+            gt_yaw = self._quaternion_to_yaw(self.first_gt_pose.orientation)
+            
+            # Offset = AMCL - GT (we'll add this to GT to align with AMCL)
+            dx = self.first_amcl_pose.position.x - self.first_gt_pose.position.x
+            dy = self.first_amcl_pose.position.y - self.first_gt_pose.position.y
+            dyaw = amcl_yaw - gt_yaw
+            
+            # Normalize dyaw
+            while dyaw > math.pi:
+                dyaw -= 2 * math.pi
+            while dyaw < -math.pi:
+                dyaw += 2 * math.pi
+            
+            self.frame_alignment_offset = (dx, dy, dyaw)
+            self.get_logger().info(f'Frame alignment computed: dx={dx:.3f}m, dy={dy:.3f}m, dyaw={math.degrees(dyaw):.1f}°')
     
     def _quaternion_to_yaw(self, q):
         """Convert quaternion to yaw angle"""
@@ -384,6 +416,13 @@ class PerformanceMonitor(Node):
         now = self.get_clock().now()
         self.last_pose_time = now
         
+        amcl_pose = msg.pose.pose
+        
+        # Capture first AMCL pose for alignment
+        if self.first_amcl_pose is None:
+            self.first_amcl_pose = amcl_pose
+            self._try_compute_alignment()
+        
         # AMCL stamps its pose with the same timestamp as the scan it processed
         # Use this to look up when we actually received that specific scan
         pose_stamp = msg.header.stamp
@@ -401,20 +440,25 @@ class PerformanceMonitor(Node):
                 if len(self.scan_pose_latencies) > 100:
                     self.scan_pose_latencies.pop(0)
         
-        # Calculate accuracy compared to ground truth
-        if self.ground_truth_pose is not None:
-            amcl_pose = msg.pose.pose
+        # Calculate accuracy compared to ground truth (with frame alignment)
+        if self.ground_truth_pose is not None and self.frame_alignment_offset is not None:
             gt_pose = self.ground_truth_pose
+            dx_offset, dy_offset, dyaw_offset = self.frame_alignment_offset
+            
+            # Aligned ground truth position (in map frame)
+            gt_x_aligned = gt_pose.position.x + dx_offset
+            gt_y_aligned = gt_pose.position.y + dy_offset
+            gt_yaw = self._quaternion_to_yaw(gt_pose.orientation)
+            gt_yaw_aligned = gt_yaw + dyaw_offset
             
             # Position error (Euclidean distance in x-y plane)
-            dx = amcl_pose.position.x - gt_pose.position.x
-            dy = amcl_pose.position.y - gt_pose.position.y
+            dx = amcl_pose.position.x - gt_x_aligned
+            dy = amcl_pose.position.y - gt_y_aligned
             position_error = math.sqrt(dx * dx + dy * dy)
             
             # Orientation error (yaw difference)
             amcl_yaw = self._quaternion_to_yaw(amcl_pose.orientation)
-            gt_yaw = self._quaternion_to_yaw(gt_pose.orientation)
-            orientation_error = self._angle_diff(amcl_yaw, gt_yaw)
+            orientation_error = self._angle_diff(amcl_yaw, gt_yaw_aligned)
             
             # Store errors
             self.position_errors.append(position_error)
