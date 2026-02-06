@@ -6,20 +6,19 @@
  * Uses the kinematic bicycle model which is appropriate for low-speed
  * autonomous vehicles like F1/10th cars.
  *
- * Model Equations (continuous time):
+ * Model Equations (continuous time, velocity is a direct input):
  *
- *   dx/dt     = velocity × cos(heading)
- *   dy/dt     = velocity × sin(heading)
- *   dheading/dt = (velocity / wheelbase) × tan(steering)
- *   dvelocity/dt = acceleration
+ *   dx/dt       = v_cmd × cos(heading)
+ *   dy/dt       = v_cmd × sin(heading)
+ *   dheading/dt = (v_cmd / wheelbase) × tan(steering)
+ *   v           = v_cmd
  *
  * Where:
- *   (x, y)      = position in world frame [meters]
- *   heading     = yaw angle [radians]
- *   velocity    = longitudinal velocity [m/s]
- *   steering    = front wheel steering angle [radians]
- *   acceleration = longitudinal acceleration [m/s²]
- *   wheelbase   = distance between front and rear axles [meters]
+ *   (x, y)    = position in world frame [meters]
+ *   heading   = yaw angle [radians]
+ *   v_cmd     = commanded velocity [m/s]
+ *   steering  = front wheel steering angle [radians]
+ *   wheelbase = distance between front and rear axles [meters]
  *
  * Discretization: Forward Euler method
  *   state[k+1] = state[k] + dt × derivative[k]
@@ -43,8 +42,8 @@
  * Default values:
  * - Wheelbase: 0.32 m
  * - Max steering: 0.42 rad (24°)
- * - Max velocity: 20.0 m/s
- * - Max acceleration: ±9.51 m/s²
+ * - Max velocity: 6.0 m/s
+ * - Min velocity: 0.0 m/s (no reverse)
  */
 void vehicle_model_initialize(void);
 
@@ -72,7 +71,7 @@ VehicleParameters_t vehicle_model_get_parameters(void);
  *
  * Ensures:
  * - Steering angle within [-max_steering, +max_steering]
- * - Acceleration within [min_accel, max_accel]
+ * - Velocity within [min_velocity, max_velocity]
  *
  * @param raw_control  Unconstrained control input
  * @return Constrained control input within physical limits
@@ -93,7 +92,7 @@ ControlInput_t vehicle_model_saturate_control(
  * The control input is automatically saturated to physical limits.
  *
  * @param current_state   Current vehicle state
- * @param control_input   Control input (steering, acceleration)
+ * @param control_input   Control input (steering, velocity)
  * @param time_step       Time step duration [seconds] in fixed-point
  * @return Predicted state after time_step seconds
  */
@@ -143,7 +142,7 @@ void vehicle_model_predict_trajectory(
  *   B = dt × (∂f/∂control)      [4×2 discrete input matrix]
  *
  * State ordering: [x, y, heading, velocity]
- * Control ordering: [steering, acceleration]
+ * Control ordering: [steering, velocity]
  *
  * @param operating_state    State to linearize around
  * @param operating_control  Control to linearize around

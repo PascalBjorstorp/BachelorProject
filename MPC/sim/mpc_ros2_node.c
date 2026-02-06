@@ -48,8 +48,8 @@
 /** Maximum allowed steering angle (radians, ~23 degrees) */
 #define MAXIMUM_STEERING_ANGLE_RADIANS 0.4189f
 
-/** Maximum allowed acceleration (m/s²) */
-#define MAXIMUM_ACCELERATION_METERS_PER_SECOND_SQUARED 9.51f
+/** Maximum allowed velocity (m/s) */
+#define MAXIMUM_VELOCITY_METERS_PER_SECOND 6.0f
 
 /** Odometry callback divider (run MPC every N callbacks) */
 #define ODOMETRY_CALLBACK_DIVIDER 10
@@ -124,12 +124,6 @@ static nav_msgs__msg__Path global_reference_path_message;
 
 /** Buffer for full trajectory path message */
 static nav_msgs__msg__Path global_trajectory_path_message;
-
-/**
- * Integrated speed command [m/s].
- * TODO: Remove when MPC outputs velocity directly instead of acceleration.
- */
-static double global_integrated_speed = 0.0;
 
 /** Reference trajectory for MPC */
 static TrajectoryReferencePoint_t global_reference_trajectory[MPC_PREDICTION_HORIZON_STEPS];
@@ -347,10 +341,10 @@ static void yaw_to_quaternion(double yaw_radians, geometry_msgs__msg__Quaternion
  * @brief Saturate control commands to safe limits
  *
  * @param steering_angle_radians Steering angle to saturate (modified in-place)
- * @param acceleration Acceleration to saturate (modified in-place)
+ * @param velocity_mps Velocity to saturate (modified in-place)
  */
 static void saturate_control_commands(double *steering_angle_radians,
-                                      double *acceleration_meters_per_second_squared)
+                                      double *velocity_mps)
 {
     if (*steering_angle_radians > MAXIMUM_STEERING_ANGLE_RADIANS)
     {
@@ -360,13 +354,13 @@ static void saturate_control_commands(double *steering_angle_radians,
     {
         *steering_angle_radians = -MAXIMUM_STEERING_ANGLE_RADIANS;
     }
-    if (*acceleration_meters_per_second_squared > MAXIMUM_ACCELERATION_METERS_PER_SECOND_SQUARED)
+    if (*velocity_mps > MAXIMUM_VELOCITY_METERS_PER_SECOND)
     {
-        *acceleration_meters_per_second_squared = MAXIMUM_ACCELERATION_METERS_PER_SECOND_SQUARED;
+        *velocity_mps = MAXIMUM_VELOCITY_METERS_PER_SECOND;
     }
-    if (*acceleration_meters_per_second_squared < -MAXIMUM_ACCELERATION_METERS_PER_SECOND_SQUARED)
+    if (*velocity_mps < 0.0)
     {
-        *acceleration_meters_per_second_squared = -MAXIMUM_ACCELERATION_METERS_PER_SECOND_SQUARED;
+        *velocity_mps = 0.0;
     }
 }
 
@@ -572,31 +566,23 @@ void odometry_subscription_callback(const void *message_in)
         if (mpc_status == MPC_STATUS_SUCCESS ||
             mpc_status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED)
         {
-            /* Extract control from MPC result */
+            /* Extract control from MPC result — now velocity directly, no integration */
             double steering_command_radians = FP_TO_DOUBLE(
                 mpc_result.optimal_control.steering_angle_radians);
-            double acceleration_command = FP_TO_DOUBLE(
-                mpc_result.optimal_control.acceleration_meters_per_second_squared);
+            double velocity_command_mps = FP_TO_DOUBLE(
+                mpc_result.optimal_control.velocity_meters_per_second);
 
             /* Apply safety saturation */
-            saturate_control_commands(&steering_command_radians, &acceleration_command);
+            saturate_control_commands(&steering_command_radians, &velocity_command_mps);
 
             /* Store in global control command (convert to fixed-point) */
             global_control_command.steering_angle_radians =
                 DOUBLE_TO_FP(steering_command_radians);
-            global_control_command.acceleration_meters_per_second_squared =
-                DOUBLE_TO_FP(acceleration_command);
+            global_control_command.velocity_meters_per_second =
+                DOUBLE_TO_FP(velocity_command_mps);
 
-            /*
-             * TODO: Remove this integration when MPC outputs velocity directly.
-             * For now, integrate acceleration to produce a speed command.
-             */
-            global_integrated_speed += acceleration_command * MPC_TIME_STEP_SECONDS;
-            if (global_integrated_speed < 0.0) global_integrated_speed = 0.0;
-            if (global_integrated_speed > TRAJECTORY_MAXIMUM_VELOCITY) global_integrated_speed = TRAJECTORY_MAXIMUM_VELOCITY;
-
-            printf("[MPC] Control: steering=%.4f rad, speed=%.2f m/s (accel=%.4f, status=%d, iter=%d)\n",
-                   steering_command_radians, global_integrated_speed, acceleration_command,
+            printf("[MPC] Control: steering=%.4f rad, speed=%.2f m/s (status=%d, iter=%d)\n",
+                   steering_command_radians, velocity_command_mps,
                    mpc_status, mpc_result.iterations_used);
             fflush(stdout);
         }
@@ -611,8 +597,8 @@ void odometry_subscription_callback(const void *message_in)
     {
         global_drive_message_buffer.drive.steering_angle = FP_TO_FLOAT(
             global_control_command.steering_angle_radians);
-        /* TODO: Remove speed integration when MPC outputs velocity directly */
-        global_drive_message_buffer.drive.speed = (float)global_integrated_speed;
+        global_drive_message_buffer.drive.speed = FP_TO_FLOAT(
+            global_control_command.velocity_meters_per_second);
 
         rcl_ret_t publish_result = rcl_publish(
             &global_control_publisher,
@@ -643,8 +629,8 @@ int main(int argc, char *argv[])
     printf("  Max steering: %.2f rad (%.1f°)\n",
            MAXIMUM_STEERING_ANGLE_RADIANS,
            MAXIMUM_STEERING_ANGLE_RADIANS * 180.0f / 3.14159f);
-    printf("  Max acceleration: %.1f m/s²\n",
-           MAXIMUM_ACCELERATION_METERS_PER_SECOND_SQUARED);
+    printf("  Max velocity: %.1f m/s\n",
+           MAXIMUM_VELOCITY_METERS_PER_SECOND);
     printf("  Trajectory speed gain: %.2f, max velocity: %.1f m/s\n",
            TRAJECTORY_SPEED_GAIN, TRAJECTORY_MAXIMUM_VELOCITY);
     printf("------------------------------------------------------------\n");

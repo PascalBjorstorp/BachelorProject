@@ -5,15 +5,15 @@
  * Implements the kinematic bicycle model for F1/10th vehicle dynamics.
  * All calculations use fixed-point arithmetic for FPGA compatibility.
  *
- * Model Equations:
- *   dx/dt = v × cos(ψ)
- *   dy/dt = v × sin(ψ)
- *   dψ/dt = (v / L) × tan(δ)
- *   dv/dt = a
+ * Model Equations (velocity is a direct control input):
+ *   dx/dt = v_cmd × cos(ψ)
+ *   dy/dt = v_cmd × sin(ψ)
+ *   dψ/dt = (v_cmd / L) × tan(δ)
+ *   v     = v_cmd
  *
  * Where:
- *   (x, y) = position, ψ = heading, v = velocity
- *   δ = steering angle, a = acceleration, L = wheelbase
+ *   (x, y) = position, ψ = heading
+ *   δ = steering angle, v_cmd = commanded velocity, L = wheelbase
  */
 
 #include "vehicle_model.h"
@@ -44,11 +44,8 @@ void vehicle_model_initialize(void)
     stored_vehicle_parameters.maximum_velocity_meters_per_second =
         F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND;
 
-    stored_vehicle_parameters.maximum_acceleration_meters_per_second_squared =
-        F110_DEFAULT_MAXIMUM_ACCELERATION;
-
-    stored_vehicle_parameters.minimum_acceleration_meters_per_second_squared =
-        F110_DEFAULT_MINIMUM_ACCELERATION;
+    stored_vehicle_parameters.minimum_velocity_meters_per_second =
+        F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND;
 
     model_is_initialized = 1;
 }
@@ -80,11 +77,11 @@ ControlInput_t vehicle_model_saturate_control(
         fixed_point_neg(stored_vehicle_parameters.maximum_steering_angle_radians),
         stored_vehicle_parameters.maximum_steering_angle_radians);
 
-    /* Clamp acceleration to physical limits */
-    saturated_control.acceleration_meters_per_second_squared = fixed_point_clamp(
-        raw_control->acceleration_meters_per_second_squared,
-        stored_vehicle_parameters.minimum_acceleration_meters_per_second_squared,
-        stored_vehicle_parameters.maximum_acceleration_meters_per_second_squared);
+    /* Clamp velocity to [min, max] */
+    saturated_control.velocity_meters_per_second = fixed_point_clamp(
+        raw_control->velocity_meters_per_second,
+        stored_vehicle_parameters.minimum_velocity_meters_per_second,
+        stored_vehicle_parameters.maximum_velocity_meters_per_second);
 
     return saturated_control;
 }
@@ -116,34 +113,33 @@ VehicleState_t vehicle_model_predict_next_state(
         saturated_control.steering_angle_radians);
 
     /*
-     * Compute state derivatives
+     * Compute state derivatives using commanded velocity
      */
+    fixed_point_t commanded_velocity = saturated_control.velocity_meters_per_second;
 
-    /* dx/dt = velocity × cos(heading) */
+    /* dx/dt = v_cmd × cos(heading) */
     fixed_point_t position_x_derivative = fixed_point_mul(
-        current_state->velocity_meters_per_second,
+        commanded_velocity,
         cosine_of_heading);
 
-    /* dy/dt = velocity × sin(heading) */
+    /* dy/dt = v_cmd × sin(heading) */
     fixed_point_t position_y_derivative = fixed_point_mul(
-        current_state->velocity_meters_per_second,
+        commanded_velocity,
         sine_of_heading);
 
-    /* dheading/dt = (velocity / wheelbase) × tan(steering) */
+    /* dheading/dt = (v_cmd / wheelbase) × tan(steering) */
     fixed_point_t velocity_over_wheelbase = fixed_point_div(
-        current_state->velocity_meters_per_second,
+        commanded_velocity,
         stored_vehicle_parameters.wheelbase_meters);
 
     fixed_point_t heading_derivative = fixed_point_mul(
         velocity_over_wheelbase,
         tangent_of_steering);
 
-    /* dvelocity/dt = acceleration */
-    fixed_point_t velocity_derivative =
-        saturated_control.acceleration_meters_per_second_squared;
-
+        
     /*
-     * Forward Euler integration: state[k+1] = state[k] + dt × derivative
+     * Forward Euler integration for position and heading.
+     * Velocity is directly set to commanded velocity (no integration).
      */
 
     /* x[k+1] = x[k] + dt × dx/dt */
@@ -161,10 +157,8 @@ VehicleState_t vehicle_model_predict_next_state(
         current_state->heading_angle_radians,
         fixed_point_mul(time_step, heading_derivative));
 
-    /* velocity[k+1] = velocity[k] + dt × dvelocity/dt */
-    next_state.velocity_meters_per_second = fixed_point_add(
-        current_state->velocity_meters_per_second,
-        fixed_point_mul(time_step, velocity_derivative));
+    /* velocity = commanded velocity (direct input, not integrated) */
+    next_state.velocity_meters_per_second = commanded_velocity;
 
     /*
      * Apply state constraints
@@ -263,50 +257,46 @@ void vehicle_model_compute_linearization(
     /*
      * Add continuous-time Jacobian terms multiplied by dt
      *
+     * With velocity as a direct control input (not state), the A matrix
+     * has no velocity column (column 3 stays zero/identity only):
+     *
      * Continuous A matrix (∂f/∂state):
-     *   | 0  0  -v×sin(ψ)  cos(ψ)    |
-     *   | 0  0   v×cos(ψ)  sin(ψ)    |
-     *   | 0  0   0         tan(δ)/L  |
-     *   | 0  0   0         0         |
+     *   | 0  0  -v_cmd×sin(ψ)  0 |
+     *   | 0  0   v_cmd×cos(ψ)  0 |
+     *   | 0  0   0              0 |
+     *   | 0  0   0              0 |
+     *
+     * Note: velocity is no longer a dynamic state; it's set directly.
+     * A[*][3] = 0 because state velocity is overwritten by control.
      */
 
-    /* A[0][2] = dt × (-v × sin(heading)) */
+    /* A[0][2] = dt × (-v_cmd × sin(heading)) */
     fixed_point_t velocity_times_sine = fixed_point_mul(
-        operating_state->velocity_meters_per_second,
+        operating_control->velocity_meters_per_second,
         sine_heading);
 
     state_matrix_A[0][2] = fixed_point_mul(
         time_step,
         fixed_point_neg(velocity_times_sine));
 
-    /* A[0][3] = dt × cos(heading) */
-    state_matrix_A[0][3] = fixed_point_mul(time_step, cosine_heading);
-
-    /* A[1][2] = dt × (v × cos(heading)) */
+    /* A[1][2] = dt × (v_cmd × cos(heading)) */
     fixed_point_t velocity_times_cosine = fixed_point_mul(
-        operating_state->velocity_meters_per_second,
+        operating_control->velocity_meters_per_second,
         cosine_heading);
 
     state_matrix_A[1][2] = fixed_point_mul(time_step, velocity_times_cosine);
 
-    /* A[1][3] = dt × sin(heading) */
-    state_matrix_A[1][3] = fixed_point_mul(time_step, sine_heading);
-
-    /* A[2][3] = dt × (tan(steering) / wheelbase) */
-    fixed_point_t tangent_over_wheelbase = fixed_point_div(
-        tangent_steering,
-        stored_vehicle_parameters.wheelbase_meters);
-
-    state_matrix_A[2][3] = fixed_point_mul(time_step, tangent_over_wheelbase);
+    /* A[0][3], A[1][3], A[2][3] = 0  (velocity is a control input, not a state) */
+    /* Already zero from identity matrix initialization */
 
     /*
      * Initialize B matrix as zeros and add continuous terms × dt
      *
      * Continuous B matrix (∂f/∂control):
-     *   | 0                       0 |
-     *   | 0                       0 |
-     *   | v / (L × cos²(δ))       0 |
-     *   | 0                       1 |
+     *   | 0                        cos(ψ)     |
+     *   | 0                        sin(ψ)     |
+     *   | v_cmd / (L × cos²(δ))    tan(δ)/L  |
+     *   | 0                        1           |
      */
     for (int row = 0; row < 4; row++)
     {
@@ -316,17 +306,30 @@ void vehicle_model_compute_linearization(
         }
     }
 
-    /* B[2][0] = dt × (v / (L × cos²(steering))) */
+    /* B[2][0] = dt × (v_cmd / (L × cos²(steering))) */
     fixed_point_t wheelbase_times_cos_squared = fixed_point_mul(
         stored_vehicle_parameters.wheelbase_meters,
         cosine_steering_squared);
 
     fixed_point_t velocity_over_denominator = fixed_point_div(
-        operating_state->velocity_meters_per_second,
+        operating_control->velocity_meters_per_second,
         wheelbase_times_cos_squared);
 
     input_matrix_B[2][0] = fixed_point_mul(time_step, velocity_over_denominator);
 
-    /* B[3][1] = dt × 1 = dt */
-    input_matrix_B[3][1] = time_step;
+    /* B[0][1] = dt × cos(heading) */
+    input_matrix_B[0][1] = fixed_point_mul(time_step, cosine_heading);
+
+    /* B[1][1] = dt × sin(heading) */
+    input_matrix_B[1][1] = fixed_point_mul(time_step, sine_heading);
+
+    /* B[2][1] = dt × (tan(steering) / wheelbase) */
+    fixed_point_t tangent_over_wheelbase = fixed_point_div(
+        tangent_steering,
+        stored_vehicle_parameters.wheelbase_meters);
+
+    input_matrix_B[2][1] = fixed_point_mul(time_step, tangent_over_wheelbase);
+
+    /* B[3][1] = 1  (velocity is directly set by the control input, no dt) */
+    input_matrix_B[3][1] = FIXED_POINT_ONE;
 }
