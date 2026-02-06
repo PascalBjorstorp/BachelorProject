@@ -36,6 +36,13 @@
 #include "vehicle_model.h"
 
 /*===========================================================================
+ * Fixed-Point Conversion Helpers (ROS node only)
+ *===========================================================================*/
+
+static inline fixed_point_t fp_from_float(float value);
+static inline float fp_to_float(fixed_point_t value);
+
+/*===========================================================================
  * Configuration Constants
  *===========================================================================*/
 
@@ -420,6 +427,20 @@ static void set_rosidl_string(rosidl_runtime_c__String *str, const char *value)
     memcpy(str->data, value, length);
     str->data[length] = '\0';
     str->size = length;
+}
+
+/*===========================================================================
+ * Fixed-Point Conversion Helpers (ROS node only)
+ *===========================================================================*/
+
+static inline fixed_point_t fp_from_float(float value)
+{
+    return (fixed_point_t)(value * (float)FIXED_POINT_ONE);
+}
+
+static inline float fp_to_float(fixed_point_t value)
+{
+    return (float)value / (float)FIXED_POINT_ONE;
 }
 
 /*===========================================================================
