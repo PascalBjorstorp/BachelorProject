@@ -29,9 +29,9 @@ from launch_ros.actions import Node, LifecycleNode
 
 # ==================== Default Configuration ====================
 # Particle filter settings
-DEFAULT_MIN_PARTICLES = 200
-DEFAULT_MAX_PARTICLES = 1000
-DEFAULT_MAX_BEAMS = 120
+DEFAULT_MIN_PARTICLES = 100
+DEFAULT_MAX_PARTICLES = 400
+DEFAULT_MAX_BEAMS = 270
 
 # AMCL type identifier (for comparison in plots)
 AMCL_TYPE = 'nav2_amcl'  # e.g., 'nav2_amcl', 'gpu_amcl', 'custom_amcl'
