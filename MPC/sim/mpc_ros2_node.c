@@ -32,7 +32,7 @@
 /* MPC Core Library Headers (Platform-Independent) */
 #include "mpc.h"
 #include "mpc_types.h"
-#include "fixed_point.h"
+#include "fp_math.h"
 #include "vehicle_model.h"
 
 /*===========================================================================
@@ -126,7 +126,7 @@ static nav_msgs__msg__Path global_reference_path_message;
 static nav_msgs__msg__Path global_trajectory_path_message;
 
 /** Reference trajectory for MPC */
-static TrajectoryReferencePoint_t global_reference_trajectory[MPC_PREDICTION_HORIZON_STEPS];
+static TrajectoryPoint_t global_reference_trajectory[MPC_PREDICTION_HORIZON_STEPS];
 
 /*===========================================================================
  * Trajectory Loading (CSV from f1tenth_planning)
@@ -278,14 +278,10 @@ static void build_reference_from_trajectory(int closest_index, int lookahead_off
 
         TrajectoryWaypoint_t *wp = &global_trajectory[waypoint_index];
 
-        global_reference_trajectory[step].reference_position_x_meters =
-            DOUBLE_TO_FP(wp->x_meters);
-        global_reference_trajectory[step].reference_position_y_meters =
-            DOUBLE_TO_FP(wp->y_meters);
-        global_reference_trajectory[step].reference_heading_radians =
-            DOUBLE_TO_FP(wp->heading_radians);
-        global_reference_trajectory[step].reference_velocity_meters_per_second =
-            DOUBLE_TO_FP(wp->velocity_meters_per_second);
+        global_reference_trajectory[step].x = DOUBLE_TO_FP(wp->x_meters);
+        global_reference_trajectory[step].y = DOUBLE_TO_FP(wp->y_meters);
+        global_reference_trajectory[step].heading = DOUBLE_TO_FP(wp->heading_radians);
+        global_reference_trajectory[step].vel = DOUBLE_TO_FP(wp->velocity_meters_per_second);
     }
 }
 
@@ -461,10 +457,10 @@ void odometry_subscription_callback(const void *message_in)
                                      velocity_y_meters_per_second * velocity_y_meters_per_second);
 
     /* Update global vehicle state (convert to fixed-point) */
-    global_vehicle_state.position_x_meters = DOUBLE_TO_FP(position_x_meters);
-    global_vehicle_state.position_y_meters = DOUBLE_TO_FP(position_y_meters);
-    global_vehicle_state.heading_angle_radians = DOUBLE_TO_FP(heading_angle_radians);
-    global_vehicle_state.velocity_meters_per_second = DOUBLE_TO_FP(velocity_magnitude);
+    global_vehicle_state.x = DOUBLE_TO_FP(position_x_meters);
+    global_vehicle_state.y = DOUBLE_TO_FP(position_y_meters);
+    global_vehicle_state.heading = DOUBLE_TO_FP(heading_angle_radians);
+    global_vehicle_state.vel = DOUBLE_TO_FP(velocity_magnitude);
 
     global_odometry_received_flag = 1;
 
@@ -493,14 +489,11 @@ void odometry_subscription_callback(const void *message_in)
                 geometry_msgs__msg__PoseStamped *pose =
                     &global_reference_path_message.poses.data[step];
 
-                pose->pose.position.x = FP_TO_DOUBLE(
-                    global_reference_trajectory[step].reference_position_x_meters);
-                pose->pose.position.y = FP_TO_DOUBLE(
-                    global_reference_trajectory[step].reference_position_y_meters);
+                pose->pose.position.x = FP_TO_DOUBLE(global_reference_trajectory[step].x);
+                pose->pose.position.y = FP_TO_DOUBLE(global_reference_trajectory[step].y);
                 pose->pose.position.z = 0.0;
 
-                double ref_yaw = FP_TO_DOUBLE(
-                    global_reference_trajectory[step].reference_heading_radians);
+                double ref_yaw = FP_TO_DOUBLE(global_reference_trajectory[step].heading);
                 yaw_to_quaternion(ref_yaw, &pose->pose.orientation);
             }
 
@@ -537,53 +530,46 @@ void odometry_subscription_callback(const void *message_in)
 
             for (int step = 0; step < MPC_PREDICTION_HORIZON_STEPS; step++)
             {
-                fixed_point_t time_ahead = fixed_point_mul(
+                fixed_point_t time_ahead = fp_mul(
                     time_step_fp,
                     DOUBLE_TO_FP((double)(step + 1)));
-                fixed_point_t distance_ahead = fixed_point_mul(target_velocity, time_ahead);
+                fixed_point_t distance_ahead = fp_mul(target_velocity, time_ahead);
 
-                global_reference_trajectory[step].reference_position_x_meters = fixed_point_add(
-                    global_vehicle_state.position_x_meters,
-                    fixed_point_mul(distance_ahead,
-                                         fixed_point_cos(global_vehicle_state.heading_angle_radians)));
-                global_reference_trajectory[step].reference_position_y_meters = fixed_point_add(
-                    global_vehicle_state.position_y_meters,
-                    fixed_point_mul(distance_ahead,
-                                         fixed_point_sin(global_vehicle_state.heading_angle_radians)));
-                global_reference_trajectory[step].reference_heading_radians =
-                    global_vehicle_state.heading_angle_radians;
-                global_reference_trajectory[step].reference_velocity_meters_per_second = target_velocity;
+                global_reference_trajectory[step].x = fp_add(
+                    global_vehicle_state.x,
+                    fp_mul(distance_ahead, fp_cos(global_vehicle_state.heading)));
+                global_reference_trajectory[step].y = fp_add(
+                    global_vehicle_state.y,
+                    fp_mul(distance_ahead, fp_sin(global_vehicle_state.heading)));
+                global_reference_trajectory[step].heading = global_vehicle_state.heading;
+                global_reference_trajectory[step].vel = target_velocity;
             }
         }
 
         /* Run MPC to compute optimal control */
-        MpcSolverResult_t mpc_result;
-        MpcSolverStatus_t mpc_status = mpc_compute_optimal_control(
+        MpcResult_t mpc_result;
+        SolverStatus_t mpc_status = mpc_compute(
             &global_vehicle_state,
             global_reference_trajectory,
             &mpc_result);
 
-        if (mpc_status == MPC_STATUS_SUCCESS ||
-            mpc_status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED)
+        if (mpc_status == SOLVER_SUCCESS ||
+            mpc_status == SOLVER_MAX_ITER)
         {
             /* Extract control from MPC result — now velocity directly, no integration */
-            double steering_command_radians = FP_TO_DOUBLE(
-                mpc_result.optimal_control.steering_angle_radians);
-            double velocity_command_mps = FP_TO_DOUBLE(
-                mpc_result.optimal_control.velocity_meters_per_second);
+            double steering_command_radians = FP_TO_DOUBLE(mpc_result.control.steer);
+            double velocity_command_mps = FP_TO_DOUBLE(mpc_result.control.vel);
 
             /* Apply safety saturation */
             saturate_control_commands(&steering_command_radians, &velocity_command_mps);
 
             /* Store in global control command (convert to fixed-point) */
-            global_control_command.steering_angle_radians =
-                DOUBLE_TO_FP(steering_command_radians);
-            global_control_command.velocity_meters_per_second =
-                DOUBLE_TO_FP(velocity_command_mps);
+            global_control_command.steer = DOUBLE_TO_FP(steering_command_radians);
+            global_control_command.vel = DOUBLE_TO_FP(velocity_command_mps);
 
             printf("[MPC] Control: steering=%.4f rad, speed=%.2f m/s (status=%d, iter=%d)\n",
                    steering_command_radians, velocity_command_mps,
-                   mpc_status, mpc_result.iterations_used);
+                   mpc_status, mpc_result.iterations);
             fflush(stdout);
         }
         else
@@ -595,10 +581,8 @@ void odometry_subscription_callback(const void *message_in)
     /* Publish drive command every callback (not just when MPC runs) */
     if (global_odometry_received_flag)
     {
-        global_drive_message_buffer.drive.steering_angle = FP_TO_FLOAT(
-            global_control_command.steering_angle_radians);
-        global_drive_message_buffer.drive.speed = FP_TO_FLOAT(
-            global_control_command.velocity_meters_per_second);
+        global_drive_message_buffer.drive.steering_angle = FP_TO_FLOAT(global_control_command.steer);
+        global_drive_message_buffer.drive.speed = FP_TO_FLOAT(global_control_command.vel);
 
         rcl_ret_t publish_result = rcl_publish(
             &global_control_publisher,
@@ -641,14 +625,13 @@ int main(int argc, char *argv[])
     rcl_ret_t return_code;
 
     /* Initialize MPC controller (includes vehicle model initialization) */
-    mpc_initialize();
+    mpc_init();
     printf("[MPC] MPC controller initialized (horizon=%d steps, dt=%.0f ms)\n",
            MPC_PREDICTION_HORIZON_STEPS, MPC_TIME_STEP_SECONDS * 1000.0f);
 
-        MpcConfiguration_t mpc_config = mpc_get_configuration();
-        printf("[MPC] Solver max iterations: %u, tolerance (raw): %d\n",
-            mpc_config.maximum_solver_iterations,
-            (int)mpc_config.solver_convergence_tolerance);
+    MpcConfig_t mpc_config = mpc_get_config();
+    printf("[MPC] Solver max iterations: %u, tolerance (raw): %d\n",
+           mpc_config.max_iter, (int)mpc_config.tolerance);
 
     /* Load trajectory from CSV file */
     const char *trajectory_file = NULL;
