@@ -125,12 +125,6 @@ static nav_msgs__msg__Path global_reference_path_message;
 /** Buffer for full trajectory path message */
 static nav_msgs__msg__Path global_trajectory_path_message;
 
-/**
- * Integrated speed command [m/s].
- * TODO: Remove when MPC outputs velocity directly instead of acceleration.
- */
-static double global_integrated_speed = 0.0;
-
 /** Reference trajectory for MPC */
 static TrajectoryReferencePoint_t global_reference_trajectory[MPC_PREDICTION_HORIZON_STEPS];
 

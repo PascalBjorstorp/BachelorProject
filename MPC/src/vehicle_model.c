@@ -138,10 +138,6 @@ VehicleState_t vehicle_model_predict_next_state(
         velocity_over_wheelbase,
         tangent_of_steering);
 
-    /* dvelocity/dt = acceleration */
-    fixed_point_t velocity_derivative =
-        saturated_control.acceleration_meters_per_second_squared;
-
     /*
      * Forward Euler integration: state[k+1] = state[k] + dt × derivative
      */
