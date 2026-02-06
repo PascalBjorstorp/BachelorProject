@@ -46,10 +46,10 @@
 #define MPC_TIME_STEP_SECONDS 0.05f
 
 /** Maximum allowed steering angle (radians, ~23 degrees) */
-#define MAXIMUM_STEERING_ANGLE_RADIANS 0.4f
+#define MAXIMUM_STEERING_ANGLE_RADIANS 0.4189f
 
 /** Maximum allowed acceleration (m/s²) */
-#define MAXIMUM_ACCELERATION_METERS_PER_SECOND_SQUARED 5.0f
+#define MAXIMUM_ACCELERATION_METERS_PER_SECOND_SQUARED 9.51f
 
 /** Odometry callback divider (run MPC every N callbacks) */
 #define ODOMETRY_CALLBACK_DIVIDER 10

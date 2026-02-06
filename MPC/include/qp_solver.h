@@ -46,7 +46,7 @@
  * Maximum solver iterations before termination.
  * Ensures bounded execution time for real-time systems.
  */
-#define QP_MAXIMUM_ITERATIONS       200
+#define QP_MAXIMUM_ITERATIONS       1000
 
 /*===========================================================================
  * Solver Status Codes

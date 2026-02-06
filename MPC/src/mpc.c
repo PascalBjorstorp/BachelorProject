@@ -203,7 +203,7 @@ static void build_qp_linear_cost_vector(
         /* Feedforward steering: proportional to heading error */
         fixed_point_t feedforward_steering = fixed_point_mul(
             heading_error,
-            FIXED_POINT_HALF); /* Gain = 0.5 */
+            FP_CONST(10.0)); /* Gain = 0.5 */
 
         /* Velocity error for feedforward acceleration */
         fixed_point_t velocity_error = fixed_point_sub(

@@ -43,8 +43,8 @@
  * Default values:
  * - Wheelbase: 0.32 m
  * - Max steering: 0.42 rad (24°)
- * - Max velocity: 6.0 m/s
- * - Max acceleration: ±4.0 m/s²
+ * - Max velocity: 20.0 m/s
+ * - Max acceleration: ±9.51 m/s²
  */
 void vehicle_model_initialize(void);
 

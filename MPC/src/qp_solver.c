@@ -23,7 +23,7 @@
  *===========================================================================*/
 
 /** Number of projection iterations for constraint enforcement */
-#define PROJECTION_ITERATIONS 5
+#define PROJECTION_ITERATIONS 20
 
 /** Small epsilon to avoid division by zero in projection */
 #define PROJECTION_EPSILON 100
