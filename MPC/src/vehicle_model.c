@@ -77,7 +77,7 @@ ControlInput_t vehicle_model_saturate_control(
     /* Clamp steering angle to physical limits */
     saturated_control.steering_angle_radians = fixed_point_clamp(
         raw_control->steering_angle_radians,
-        fixed_point_negate(stored_vehicle_parameters.maximum_steering_angle_radians),
+        fixed_point_neg(stored_vehicle_parameters.maximum_steering_angle_radians),
         stored_vehicle_parameters.maximum_steering_angle_radians);
 
     /* Clamp acceleration to physical limits */
@@ -106,13 +106,13 @@ VehicleState_t vehicle_model_predict_next_state(
     /*
      * Compute trigonometric values
      */
-    fixed_point_t cosine_of_heading = fixed_point_cosine(
+    fixed_point_t cosine_of_heading = fixed_point_cos(
         current_state->heading_angle_radians);
 
-    fixed_point_t sine_of_heading = fixed_point_sine(
+    fixed_point_t sine_of_heading = fixed_point_sin(
         current_state->heading_angle_radians);
 
-    fixed_point_t tangent_of_steering = fixed_point_tangent(
+    fixed_point_t tangent_of_steering = fixed_point_tan(
         saturated_control.steering_angle_radians);
 
     /*
@@ -120,21 +120,21 @@ VehicleState_t vehicle_model_predict_next_state(
      */
 
     /* dx/dt = velocity × cos(heading) */
-    fixed_point_t position_x_derivative = fixed_point_multiply(
+    fixed_point_t position_x_derivative = fixed_point_mul(
         current_state->velocity_meters_per_second,
         cosine_of_heading);
 
     /* dy/dt = velocity × sin(heading) */
-    fixed_point_t position_y_derivative = fixed_point_multiply(
+    fixed_point_t position_y_derivative = fixed_point_mul(
         current_state->velocity_meters_per_second,
         sine_of_heading);
 
     /* dheading/dt = (velocity / wheelbase) × tan(steering) */
-    fixed_point_t velocity_over_wheelbase = fixed_point_divide(
+    fixed_point_t velocity_over_wheelbase = fixed_point_div(
         current_state->velocity_meters_per_second,
         stored_vehicle_parameters.wheelbase_meters);
 
-    fixed_point_t heading_derivative = fixed_point_multiply(
+    fixed_point_t heading_derivative = fixed_point_mul(
         velocity_over_wheelbase,
         tangent_of_steering);
 
@@ -149,22 +149,22 @@ VehicleState_t vehicle_model_predict_next_state(
     /* x[k+1] = x[k] + dt × dx/dt */
     next_state.position_x_meters = fixed_point_add(
         current_state->position_x_meters,
-        fixed_point_multiply(time_step, position_x_derivative));
+        fixed_point_mul(time_step, position_x_derivative));
 
     /* y[k+1] = y[k] + dt × dy/dt */
     next_state.position_y_meters = fixed_point_add(
         current_state->position_y_meters,
-        fixed_point_multiply(time_step, position_y_derivative));
+        fixed_point_mul(time_step, position_y_derivative));
 
     /* heading[k+1] = heading[k] + dt × dheading/dt */
     next_state.heading_angle_radians = fixed_point_add(
         current_state->heading_angle_radians,
-        fixed_point_multiply(time_step, heading_derivative));
+        fixed_point_mul(time_step, heading_derivative));
 
     /* velocity[k+1] = velocity[k] + dt × dvelocity/dt */
     next_state.velocity_meters_per_second = fixed_point_add(
         current_state->velocity_meters_per_second,
-        fixed_point_multiply(time_step, velocity_derivative));
+        fixed_point_mul(time_step, velocity_derivative));
 
     /*
      * Apply state constraints
@@ -179,7 +179,7 @@ VehicleState_t vehicle_model_predict_next_state(
     /* Normalize heading angle to [-π, +π] */
     while (next_state.heading_angle_radians > FIXED_POINT_PI)
     {
-        next_state.heading_angle_radians = fixed_point_subtract(
+        next_state.heading_angle_radians = fixed_point_sub(
             next_state.heading_angle_radians,
             FIXED_POINT_TWO_PI);
     }
@@ -231,20 +231,20 @@ void vehicle_model_compute_linearization(
     /*
      * Compute trigonometric values at operating point
      */
-    fixed_point_t cosine_heading = fixed_point_cosine(
+    fixed_point_t cosine_heading = fixed_point_cos(
         operating_state->heading_angle_radians);
 
-    fixed_point_t sine_heading = fixed_point_sine(
+    fixed_point_t sine_heading = fixed_point_sin(
         operating_state->heading_angle_radians);
 
-    fixed_point_t tangent_steering = fixed_point_tangent(
+    fixed_point_t tangent_steering = fixed_point_tan(
         operating_control->steering_angle_radians);
 
-    fixed_point_t cosine_steering = fixed_point_cosine(
+    fixed_point_t cosine_steering = fixed_point_cos(
         operating_control->steering_angle_radians);
 
     /* cos²(steering) for derivative calculation */
-    fixed_point_t cosine_steering_squared = fixed_point_multiply(
+    fixed_point_t cosine_steering_squared = fixed_point_mul(
         cosine_steering,
         cosine_steering);
 
@@ -271,33 +271,33 @@ void vehicle_model_compute_linearization(
      */
 
     /* A[0][2] = dt × (-v × sin(heading)) */
-    fixed_point_t velocity_times_sine = fixed_point_multiply(
+    fixed_point_t velocity_times_sine = fixed_point_mul(
         operating_state->velocity_meters_per_second,
         sine_heading);
 
-    state_matrix_A[0][2] = fixed_point_multiply(
+    state_matrix_A[0][2] = fixed_point_mul(
         time_step,
-        fixed_point_negate(velocity_times_sine));
+        fixed_point_neg(velocity_times_sine));
 
     /* A[0][3] = dt × cos(heading) */
-    state_matrix_A[0][3] = fixed_point_multiply(time_step, cosine_heading);
+    state_matrix_A[0][3] = fixed_point_mul(time_step, cosine_heading);
 
     /* A[1][2] = dt × (v × cos(heading)) */
-    fixed_point_t velocity_times_cosine = fixed_point_multiply(
+    fixed_point_t velocity_times_cosine = fixed_point_mul(
         operating_state->velocity_meters_per_second,
         cosine_heading);
 
-    state_matrix_A[1][2] = fixed_point_multiply(time_step, velocity_times_cosine);
+    state_matrix_A[1][2] = fixed_point_mul(time_step, velocity_times_cosine);
 
     /* A[1][3] = dt × sin(heading) */
-    state_matrix_A[1][3] = fixed_point_multiply(time_step, sine_heading);
+    state_matrix_A[1][3] = fixed_point_mul(time_step, sine_heading);
 
     /* A[2][3] = dt × (tan(steering) / wheelbase) */
-    fixed_point_t tangent_over_wheelbase = fixed_point_divide(
+    fixed_point_t tangent_over_wheelbase = fixed_point_div(
         tangent_steering,
         stored_vehicle_parameters.wheelbase_meters);
 
-    state_matrix_A[2][3] = fixed_point_multiply(time_step, tangent_over_wheelbase);
+    state_matrix_A[2][3] = fixed_point_mul(time_step, tangent_over_wheelbase);
 
     /*
      * Initialize B matrix as zeros and add continuous terms × dt
@@ -317,15 +317,15 @@ void vehicle_model_compute_linearization(
     }
 
     /* B[2][0] = dt × (v / (L × cos²(steering))) */
-    fixed_point_t wheelbase_times_cos_squared = fixed_point_multiply(
+    fixed_point_t wheelbase_times_cos_squared = fixed_point_mul(
         stored_vehicle_parameters.wheelbase_meters,
         cosine_steering_squared);
 
-    fixed_point_t velocity_over_denominator = fixed_point_divide(
+    fixed_point_t velocity_over_denominator = fixed_point_div(
         operating_state->velocity_meters_per_second,
         wheelbase_times_cos_squared);
 
-    input_matrix_B[2][0] = fixed_point_multiply(time_step, velocity_over_denominator);
+    input_matrix_B[2][0] = fixed_point_mul(time_step, velocity_over_denominator);
 
     /* B[3][1] = dt × 1 = dt */
     input_matrix_B[3][1] = time_step;

@@ -93,23 +93,23 @@ void test_unconstrained_quadratic(void)
     problem.constraint_count = 0;
 
     /* H = [1] (so 0.5 * x^T * H * x = 0.5 * x^2) */
-    problem.hessian_matrix[0] = fixed_point_from_float(1.0f);
+    problem.hessian_matrix[0] = (1.0f);
 
     /* f = [-2] (so f^T * x = -2*x) */
-    problem.linear_cost_vector[0] = fixed_point_from_float(-2.0f);
+    problem.linear_cost_vector[0] = (-2.0f);
 
     /* Solve */
     QuadraticProgramStatus_t status = qp_solver_solve(&problem, &config, &solution);
 
     printf("  Solver status: %d\n", status);
     printf("  Iterations: %d\n", solution.iteration_count);
-    printf("  Solution x = %.4f\n", fixed_point_to_float(solution.optimal_variables[0]));
+    printf("  Solution x = %.4f\n", (solution.optimal_variables[0]));
 
     /* With no constraints, solution should approach x* = 2 */
     TEST_ASSERT(status == QP_STATUS_OPTIMAL || status == QP_STATUS_MAXIMUM_ITERATIONS_REACHED,
                 "Solver completed successfully");
     TEST_ASSERT(values_are_approximately_equal(
-                    fixed_point_to_float(solution.optimal_variables[0]), 2.0f, 0.5f),
+                    (solution.optimal_variables[0]), 2.0f, 0.5f),
                 "Solution x ≈ 2.0");
 }
 
@@ -139,28 +139,28 @@ void test_box_constrained_problem(void)
     problem.constraint_count = 1;
 
     /* H = [1] */
-    problem.hessian_matrix[0] = fixed_point_from_float(1.0f);
+    problem.hessian_matrix[0] = (1.0f);
 
     /* f = [-10] */
-    problem.linear_cost_vector[0] = fixed_point_from_float(-10.0f);
+    problem.linear_cost_vector[0] = (-10.0f);
 
     /* Constraint: x ≤ 3 (A = [1], b = [3]) */
-    problem.constraint_matrix[0] = fixed_point_from_float(1.0f);
-    problem.constraint_bounds[0] = fixed_point_from_float(3.0f);
+    problem.constraint_matrix[0] = (1.0f);
+    problem.constraint_bounds[0] = (3.0f);
 
     /* Solve */
     QuadraticProgramStatus_t status = qp_solver_solve(&problem, &config, &solution);
 
     printf("  Solver status: %d\n", status);
     printf("  Iterations: %d\n", solution.iteration_count);
-    printf("  Solution x = %.4f\n", fixed_point_to_float(solution.optimal_variables[0]));
-    printf("  Constraint residual: %.4f\n", fixed_point_to_float(solution.constraint_residual));
+    printf("  Solution x = %.4f\n", (solution.optimal_variables[0]));
+    printf("  Constraint residual: %.4f\n", (solution.constraint_residual));
 
     /* Solution should be at the constraint boundary */
     TEST_ASSERT(status == QP_STATUS_OPTIMAL || status == QP_STATUS_MAXIMUM_ITERATIONS_REACHED,
                 "Solver completed");
 
-    float solution_x = fixed_point_to_float(solution.optimal_variables[0]);
+    float solution_x = (solution.optimal_variables[0]);
     TEST_ASSERT(solution_x <= 3.1f, "Solution respects constraint x ≤ 3");
 }
 
@@ -190,25 +190,25 @@ void test_two_variable_problem(void)
     problem.constraint_count = 1;
 
     /* H = [[1, 0], [0, 1]] (identity) */
-    problem.hessian_matrix[0] = fixed_point_from_float(1.0f); /* H[0,0] */
-    problem.hessian_matrix[1] = fixed_point_from_float(0.0f); /* H[0,1] */
-    problem.hessian_matrix[2] = fixed_point_from_float(0.0f); /* H[1,0] */
-    problem.hessian_matrix[3] = fixed_point_from_float(1.0f); /* H[1,1] */
+    problem.hessian_matrix[0] = (1.0f); /* H[0,0] */
+    problem.hessian_matrix[1] = (0.0f); /* H[0,1] */
+    problem.hessian_matrix[2] = (0.0f); /* H[1,0] */
+    problem.hessian_matrix[3] = (1.0f); /* H[1,1] */
 
     /* f = [-1, -1] */
-    problem.linear_cost_vector[0] = fixed_point_from_float(-1.0f);
-    problem.linear_cost_vector[1] = fixed_point_from_float(-1.0f);
+    problem.linear_cost_vector[0] = (-1.0f);
+    problem.linear_cost_vector[1] = (-1.0f);
 
     /* Constraint: x1 + x2 ≤ 1 */
-    problem.constraint_matrix[0] = fixed_point_from_float(1.0f); /* A[0,0] */
-    problem.constraint_matrix[1] = fixed_point_from_float(1.0f); /* A[0,1] */
-    problem.constraint_bounds[0] = fixed_point_from_float(1.0f);
+    problem.constraint_matrix[0] = (1.0f); /* A[0,0] */
+    problem.constraint_matrix[1] = (1.0f); /* A[0,1] */
+    problem.constraint_bounds[0] = (1.0f);
 
     /* Solve */
     QuadraticProgramStatus_t status = qp_solver_solve(&problem, &config, &solution);
 
-    float x1 = fixed_point_to_float(solution.optimal_variables[0]);
-    float x2 = fixed_point_to_float(solution.optimal_variables[1]);
+    float x1 = (solution.optimal_variables[0]);
+    float x2 = (solution.optimal_variables[1]);
 
     printf("  Solver status: %d\n", status);
     printf("  Iterations: %d\n", solution.iteration_count);
@@ -242,7 +242,7 @@ void test_trivial_problem(void)
     problem.constraint_count = 0;
 
     /* H = [1] */
-    problem.hessian_matrix[0] = fixed_point_from_float(1.0f);
+    problem.hessian_matrix[0] = (1.0f);
 
     /* f = [0] (no linear term) */
     problem.linear_cost_vector[0] = 0;
@@ -250,11 +250,11 @@ void test_trivial_problem(void)
     QuadraticProgramStatus_t status = qp_solver_solve(&problem, &config, &solution);
 
     printf("  Solver status: %d\n", status);
-    printf("  Solution x = %.4f\n", fixed_point_to_float(solution.optimal_variables[0]));
+    printf("  Solution x = %.4f\n", (solution.optimal_variables[0]));
 
     TEST_ASSERT(status == QP_STATUS_OPTIMAL, "Trivial problem solved optimally");
     TEST_ASSERT(values_are_approximately_equal(
-                    fixed_point_to_float(solution.optimal_variables[0]), 0.0f, 0.01f),
+                    (solution.optimal_variables[0]), 0.0f, 0.01f),
                 "Solution x = 0 (minimum of x^2)");
 }
 

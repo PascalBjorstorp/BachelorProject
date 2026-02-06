@@ -95,15 +95,15 @@ void test_compute_control_stationary(void)
 
     printf("  Solver status: %d\n", status);
     printf("  Iterations: %d\n", result.iterations_used);
-    printf("  Steering: %.4f rad\n", fixed_point_to_float(result.optimal_control.steering_angle_radians));
+    printf("  Steering: %.4f rad\n", (result.optimal_control.steering_angle_radians));
     printf("  Acceleration: %.4f m/s²\n",
-           fixed_point_to_float(result.optimal_control.acceleration_meters_per_second_squared));
+           (result.optimal_control.acceleration_meters_per_second_squared));
 
     TEST_ASSERT(status == MPC_STATUS_SUCCESS || status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED,
                 "Solver completed");
 
     /* For stationary target, expect minimal control effort */
-    float steering = fixed_point_to_float(result.optimal_control.steering_angle_radians);
+    float steering = (result.optimal_control.steering_angle_radians);
     TEST_ASSERT(fabsf(steering) < 0.5f, "Steering is small for stationary target");
 }
 
@@ -122,32 +122,32 @@ void test_compute_control_forward(void)
         .position_x_meters = 0,
         .position_y_meters = 0,
         .heading_angle_radians = 0,
-        .velocity_meters_per_second = fixed_point_from_float(1.0f)};
+        .velocity_meters_per_second = (1.0f)};
 
     /* Reference: go forward at 2 m/s */
     TrajectoryReferencePoint_t reference[MPC_DEFAULT_PREDICTION_HORIZON];
     for (int i = 0; i < MPC_DEFAULT_PREDICTION_HORIZON; i++)
     {
         float time_ahead = (i + 1) * 0.1f;
-        reference[i].reference_position_x_meters = fixed_point_from_float(2.0f * time_ahead);
+        reference[i].reference_position_x_meters = (2.0f * time_ahead);
         reference[i].reference_position_y_meters = 0;
         reference[i].reference_heading_radians = 0;
-        reference[i].reference_velocity_meters_per_second = fixed_point_from_float(2.0f);
+        reference[i].reference_velocity_meters_per_second = (2.0f);
     }
 
     MpcSolverResult_t result;
     MpcSolverStatus_t status = mpc_compute_optimal_control(&current_state, reference, &result);
 
     printf("  Solver status: %d\n", status);
-    printf("  Steering: %.4f rad\n", fixed_point_to_float(result.optimal_control.steering_angle_radians));
+    printf("  Steering: %.4f rad\n", (result.optimal_control.steering_angle_radians));
     printf("  Acceleration: %.4f m/s²\n",
-           fixed_point_to_float(result.optimal_control.acceleration_meters_per_second_squared));
+           (result.optimal_control.acceleration_meters_per_second_squared));
 
     TEST_ASSERT(status == MPC_STATUS_SUCCESS || status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED,
                 "Solver completed");
 
     /* The solver produces some control output (sign may vary based on cost weights) */
-    float accel = fixed_point_to_float(result.optimal_control.acceleration_meters_per_second_squared);
+    float accel = (result.optimal_control.acceleration_meters_per_second_squared);
     TEST_ASSERT(fabsf(accel) < 5.0f, "Acceleration is within reasonable bounds");
 }
 
@@ -166,22 +166,22 @@ void test_control_saturation(void)
         .position_x_meters = 0,
         .position_y_meters = 0,
         .heading_angle_radians = 0,
-        .velocity_meters_per_second = fixed_point_from_float(2.0f)};
+        .velocity_meters_per_second = (2.0f)};
 
     /* Reference: hard left turn (Y = +10) */
     TrajectoryReferencePoint_t reference[MPC_DEFAULT_PREDICTION_HORIZON];
     for (int i = 0; i < MPC_DEFAULT_PREDICTION_HORIZON; i++)
     {
         reference[i].reference_position_x_meters = 0;
-        reference[i].reference_position_y_meters = fixed_point_from_float(10.0f);
-        reference[i].reference_heading_radians = fixed_point_from_float(1.57f); /* π/2 */
-        reference[i].reference_velocity_meters_per_second = fixed_point_from_float(2.0f);
+        reference[i].reference_position_y_meters = (10.0f);
+        reference[i].reference_heading_radians = (1.57f); /* π/2 */
+        reference[i].reference_velocity_meters_per_second = (2.0f);
     }
 
     MpcSolverResult_t result;
     MpcSolverStatus_t status = mpc_compute_optimal_control(&current_state, reference, &result);
 
-    float steering = fixed_point_to_float(result.optimal_control.steering_angle_radians);
+    float steering = (result.optimal_control.steering_angle_radians);
     float max_steering = 0.42f; /* F1/10th max steering */
 
     printf("  Steering: %.4f rad (max: %.2f)\n", steering, max_steering);
@@ -207,15 +207,15 @@ void test_mpc_reset(void)
         .position_x_meters = 0,
         .position_y_meters = 0,
         .heading_angle_radians = 0,
-        .velocity_meters_per_second = fixed_point_from_float(1.0f)};
+        .velocity_meters_per_second = (1.0f)};
 
     TrajectoryReferencePoint_t reference[MPC_DEFAULT_PREDICTION_HORIZON];
     for (int i = 0; i < MPC_DEFAULT_PREDICTION_HORIZON; i++)
     {
-        reference[i].reference_position_x_meters = fixed_point_from_float((float)(i + 1));
+        reference[i].reference_position_x_meters = ((float)(i + 1));
         reference[i].reference_position_y_meters = 0;
         reference[i].reference_heading_radians = 0;
-        reference[i].reference_velocity_meters_per_second = fixed_point_from_float(2.0f);
+        reference[i].reference_velocity_meters_per_second = (2.0f);
     }
 
     MpcSolverResult_t result1;
@@ -244,14 +244,14 @@ void test_configuration_update(void)
 
     MpcConfiguration_t new_config = mpc_get_configuration();
     new_config.prediction_horizon_steps = 5;
-    new_config.weight_position_x = fixed_point_from_float(20.0f);
+    new_config.weight_position_x = (20.0f);
 
     mpc_set_configuration(&new_config);
 
     MpcConfiguration_t retrieved = mpc_get_configuration();
 
     TEST_ASSERT(retrieved.prediction_horizon_steps == 5, "Horizon updated to 5");
-    TEST_ASSERT(fixed_point_to_float(retrieved.weight_position_x) > 15.0f,
+    TEST_ASSERT((retrieved.weight_position_x) > 15.0f,
                 "Position weight updated");
 }
 

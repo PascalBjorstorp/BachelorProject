@@ -54,9 +54,9 @@ void test_model_initialization(void)
     vehicle_model_initialize();
     VehicleParameters_t parameters = vehicle_model_get_parameters();
 
-    float wheelbase = fixed_point_to_float(parameters.wheelbase_meters);
-    float max_steering = fixed_point_to_float(parameters.maximum_steering_angle_radians);
-    float max_velocity = fixed_point_to_float(parameters.maximum_velocity_meters_per_second);
+    float wheelbase = (parameters.wheelbase_meters);
+    float max_steering = (parameters.maximum_steering_angle_radians);
+    float max_velocity = (parameters.maximum_velocity_meters_per_second);
 
     printf("  Wheelbase: %.3f m\n", wheelbase);
     printf("  Max steering: %.3f rad (%.1f°)\n", max_steering, max_steering * 180.0f / 3.14159f);
@@ -85,7 +85,7 @@ void test_straight_line_motion(void)
         .position_x_meters = 0,
         .position_y_meters = 0,
         .heading_angle_radians = 0,
-        .velocity_meters_per_second = fixed_point_from_float(1.0f)};
+        .velocity_meters_per_second = (1.0f)};
 
     /* Control: no steering, no acceleration */
     ControlInput_t control_input = {
@@ -93,16 +93,16 @@ void test_straight_line_motion(void)
         .acceleration_meters_per_second_squared = 0};
 
     /* Simulate 1 second with 0.1s time steps (10 steps) */
-    fixed_point_t time_step = fixed_point_from_float(0.1f);
+    fixed_point_t time_step = (0.1f);
 
     for (int step = 0; step < 10; step++)
     {
         current_state = vehicle_model_predict_next_state(&current_state, &control_input, time_step);
     }
 
-    float final_x = fixed_point_to_float(current_state.position_x_meters);
-    float final_y = fixed_point_to_float(current_state.position_y_meters);
-    float final_heading = fixed_point_to_float(current_state.heading_angle_radians);
+    float final_x = (current_state.position_x_meters);
+    float final_y = (current_state.position_y_meters);
+    float final_heading = (current_state.heading_angle_radians);
 
     printf("  After 1s at 1 m/s:\n");
     printf("    Position: (%.3f, %.3f) m\n", final_x, final_y);
@@ -130,22 +130,22 @@ void test_turning_left(void)
         .position_x_meters = 0,
         .position_y_meters = 0,
         .heading_angle_radians = 0,
-        .velocity_meters_per_second = fixed_point_from_float(2.0f)};
+        .velocity_meters_per_second = (2.0f)};
 
     /* Positive steering angle = turn left (counterclockwise) */
     ControlInput_t control_input = {
-        .steering_angle_radians = fixed_point_from_float(0.3f), /* ~17° */
+        .steering_angle_radians = (0.3f), /* ~17° */
         .acceleration_meters_per_second_squared = 0};
 
-    fixed_point_t time_step = fixed_point_from_float(0.1f);
+    fixed_point_t time_step = (0.1f);
 
     for (int step = 0; step < 10; step++)
     {
         current_state = vehicle_model_predict_next_state(&current_state, &control_input, time_step);
     }
 
-    float final_heading = fixed_point_to_float(current_state.heading_angle_radians);
-    float final_y = fixed_point_to_float(current_state.position_y_meters);
+    float final_heading = (current_state.heading_angle_radians);
+    float final_y = (current_state.position_y_meters);
 
     printf("  After 1s turning left:\n");
     printf("    Heading: %.3f rad (%.1f°)\n", final_heading, final_heading * 180.0f / 3.14159f);
@@ -169,15 +169,15 @@ void test_acceleration(void)
         .position_x_meters = 0,
         .position_y_meters = 0,
         .heading_angle_radians = 0,
-        .velocity_meters_per_second = fixed_point_from_float(1.0f) /* Start at 1 m/s */
+        .velocity_meters_per_second = (1.0f) /* Start at 1 m/s */
     };
 
     /* Accelerate at 2 m/s² */
     ControlInput_t control_input = {
         .steering_angle_radians = 0,
-        .acceleration_meters_per_second_squared = fixed_point_from_float(2.0f)};
+        .acceleration_meters_per_second_squared = (2.0f)};
 
-    fixed_point_t time_step = fixed_point_from_float(0.1f);
+    fixed_point_t time_step = (0.1f);
 
     /* After 1 second: v = v0 + a×t = 1 + 2×1 = 3 m/s */
     for (int step = 0; step < 10; step++)
@@ -185,7 +185,7 @@ void test_acceleration(void)
         current_state = vehicle_model_predict_next_state(&current_state, &control_input, time_step);
     }
 
-    float final_velocity = fixed_point_to_float(current_state.velocity_meters_per_second);
+    float final_velocity = (current_state.velocity_meters_per_second);
 
     printf("  After 1s accelerating at 2 m/s²:\n");
     printf("    Velocity: %.3f m/s (expected 3.0)\n", final_velocity);
@@ -205,19 +205,19 @@ void test_control_saturation(void)
     vehicle_model_initialize();
     VehicleParameters_t parameters = vehicle_model_get_parameters();
 
-    float max_steering = fixed_point_to_float(parameters.maximum_steering_angle_radians);
-    float max_accel = fixed_point_to_float(parameters.maximum_acceleration_meters_per_second_squared);
+    float max_steering = (parameters.maximum_steering_angle_radians);
+    float max_accel = (parameters.maximum_acceleration_meters_per_second_squared);
 
     /* Try to exceed limits */
     ControlInput_t excessive_control = {
-        .steering_angle_radians = fixed_point_from_float(1.0f),                 /* Way over limit */
-        .acceleration_meters_per_second_squared = fixed_point_from_float(10.0f) /* Way over limit */
+        .steering_angle_radians = (1.0f),                 /* Way over limit */
+        .acceleration_meters_per_second_squared = (10.0f) /* Way over limit */
     };
 
     ControlInput_t saturated = vehicle_model_saturate_control(&excessive_control);
 
-    float saturated_steering = fixed_point_to_float(saturated.steering_angle_radians);
-    float saturated_accel = fixed_point_to_float(saturated.acceleration_meters_per_second_squared);
+    float saturated_steering = (saturated.steering_angle_radians);
+    float saturated_accel = (saturated.acceleration_meters_per_second_squared);
 
     printf("  Input: steering=1.0 rad, accel=10.0 m/s²\n");
     printf("  Saturated: steering=%.3f rad, accel=%.1f m/s²\n",
@@ -243,7 +243,7 @@ void test_trajectory_prediction(void)
         .position_x_meters = 0,
         .position_y_meters = 0,
         .heading_angle_radians = 0,
-        .velocity_meters_per_second = fixed_point_from_float(1.0f)};
+        .velocity_meters_per_second = (1.0f)};
 
     /* Constant control for 5 steps */
     ControlInput_t control_sequence[5];
@@ -254,14 +254,14 @@ void test_trajectory_prediction(void)
     }
 
     VehicleState_t predicted_trajectory[6]; /* 5 steps + initial */
-    fixed_point_t time_step = fixed_point_from_float(0.1f);
+    fixed_point_t time_step = (0.1f);
 
     vehicle_model_predict_trajectory(&initial_state, control_sequence, time_step, 5, predicted_trajectory);
 
     printf("  Trajectory X positions: ");
     for (int i = 0; i <= 5; i++)
     {
-        printf("%.2f ", fixed_point_to_float(predicted_trajectory[i].position_x_meters));
+        printf("%.2f ", (predicted_trajectory[i].position_x_meters));
     }
     printf("\n");
 
@@ -296,22 +296,22 @@ void test_heading_normalization(void)
     VehicleState_t current_state = {
         .position_x_meters = 0,
         .position_y_meters = 0,
-        .heading_angle_radians = fixed_point_from_float(3.0f), /* Close to π */
-        .velocity_meters_per_second = fixed_point_from_float(1.0f)};
+        .heading_angle_radians = (3.0f), /* Close to π */
+        .velocity_meters_per_second = (1.0f)};
 
     /* Turn more to exceed π */
     ControlInput_t control_input = {
-        .steering_angle_radians = fixed_point_from_float(0.4f), /* Strong left turn */
+        .steering_angle_radians = (0.4f), /* Strong left turn */
         .acceleration_meters_per_second_squared = 0};
 
-    fixed_point_t time_step = fixed_point_from_float(0.1f);
+    fixed_point_t time_step = (0.1f);
 
     for (int step = 0; step < 20; step++)
     {
         current_state = vehicle_model_predict_next_state(&current_state, &control_input, time_step);
     }
 
-    float final_heading = fixed_point_to_float(current_state.heading_angle_radians);
+    float final_heading = (current_state.heading_angle_radians);
 
     printf("  Final heading: %.3f rad\n", final_heading);
 

@@ -43,10 +43,10 @@
 static inline fixed_point_t normalize_angle(fixed_point_t angle){
 
     while (angle > FIXED_POINT_PI){
-        angle = FIXED_POINT_SUB(angle, FIXED_POINT_TWO_PI);
+        angle = fixed_point_sub(angle, FIXED_POINT_TWO_PI);
     }
     while (angle < -FIXED_POINT_PI){
-        angle = FIXED_POINT_ADD(angle, FIXED_POINT_TWO_PI);
+        angle = fixed_point_add(angle, FIXED_POINT_TWO_PI);
     }
     return angle;
 }

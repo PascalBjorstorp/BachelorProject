@@ -56,20 +56,20 @@ void test_matrix_vector_multiply(void)
      *               | 3 |
      */
     fixed_point_t matrix[6] = {
-        fixed_point_from_float(1.0f), fixed_point_from_float(2.0f), fixed_point_from_float(3.0f),
-        fixed_point_from_float(4.0f), fixed_point_from_float(5.0f), fixed_point_from_float(6.0f)};
+        (1.0f), (2.0f), (3.0f),
+        (4.0f), (5.0f), (6.0f)};
 
     fixed_point_t input_vector[3] = {
-        fixed_point_from_float(1.0f),
-        fixed_point_from_float(2.0f),
-        fixed_point_from_float(3.0f)};
+        (1.0f),
+        (2.0f),
+        (3.0f)};
 
     fixed_point_t result_vector[2];
 
     linear_algebra_matrix_vector_multiply(matrix, input_vector, result_vector, 2, 3);
 
-    float result_0 = fixed_point_to_float(result_vector[0]);
-    float result_1 = fixed_point_to_float(result_vector[1]);
+    float result_0 = (result_vector[0]);
+    float result_1 = (result_vector[1]);
 
     TEST_ASSERT(values_are_approximately_equal(result_0, 14.0f, 0.1f),
                 "Matrix-vector product element [0] = 14");
@@ -87,17 +87,17 @@ void test_dot_product(void)
 
     /* [1, 2, 3] · [4, 5, 6] = 4 + 10 + 18 = 32 */
     fixed_point_t vector_a[3] = {
-        fixed_point_from_float(1.0f),
-        fixed_point_from_float(2.0f),
-        fixed_point_from_float(3.0f)};
+        (1.0f),
+        (2.0f),
+        (3.0f)};
 
     fixed_point_t vector_b[3] = {
-        fixed_point_from_float(4.0f),
-        fixed_point_from_float(5.0f),
-        fixed_point_from_float(6.0f)};
+        (4.0f),
+        (5.0f),
+        (6.0f)};
 
     fixed_point_t dot_result = linear_algebra_dot_product(vector_a, vector_b, 3);
-    float dot_float = fixed_point_to_float(dot_result);
+    float dot_float = (dot_result);
 
     TEST_ASSERT(values_are_approximately_equal(dot_float, 32.0f, 0.1f),
                 "Dot product [1,2,3]·[4,5,6] = 32");
@@ -113,23 +113,23 @@ void test_vector_norm(void)
 
     /* ||[3, 4]|| = √(9 + 16) = √25 = 5 */
     fixed_point_t vector[2] = {
-        fixed_point_from_float(3.0f),
-        fixed_point_from_float(4.0f)};
+        (3.0f),
+        (4.0f)};
 
     fixed_point_t norm = linear_algebra_vector_norm(vector, 2);
-    float norm_float = fixed_point_to_float(norm);
+    float norm_float = (norm);
 
     TEST_ASSERT(values_are_approximately_equal(norm_float, 5.0f, 0.1f),
                 "Norm of [3,4] = 5");
 
     /* ||[1, 1, 1]|| = √3 ≈ 1.732 */
     fixed_point_t unit_vector[3] = {
-        fixed_point_from_float(1.0f),
-        fixed_point_from_float(1.0f),
-        fixed_point_from_float(1.0f)};
+        (1.0f),
+        (1.0f),
+        (1.0f)};
 
     fixed_point_t unit_norm = linear_algebra_vector_norm(unit_vector, 3);
-    float unit_norm_float = fixed_point_to_float(unit_norm);
+    float unit_norm_float = (unit_norm);
 
     TEST_ASSERT(values_are_approximately_equal(unit_norm_float, 1.732f, 0.05f),
                 "Norm of [1,1,1] ≈ 1.732");
@@ -144,20 +144,20 @@ void test_vector_scale(void)
     printf("\n--- Test: Vector Scaling ---\n");
 
     fixed_point_t input_vector[3] = {
-        fixed_point_from_float(1.0f),
-        fixed_point_from_float(2.0f),
-        fixed_point_from_float(3.0f)};
+        (1.0f),
+        (2.0f),
+        (3.0f)};
 
-    fixed_point_t scalar = fixed_point_from_float(2.5f);
+    fixed_point_t scalar = (2.5f);
     fixed_point_t result_vector[3];
 
     linear_algebra_vector_scale(input_vector, scalar, result_vector, 3);
 
-    TEST_ASSERT(values_are_approximately_equal(fixed_point_to_float(result_vector[0]), 2.5f, 0.01f),
+    TEST_ASSERT(values_are_approximately_equal((result_vector[0]), 2.5f, 0.01f),
                 "Scale [1,2,3] by 2.5: element [0] = 2.5");
-    TEST_ASSERT(values_are_approximately_equal(fixed_point_to_float(result_vector[1]), 5.0f, 0.01f),
+    TEST_ASSERT(values_are_approximately_equal((result_vector[1]), 5.0f, 0.01f),
                 "Scale [1,2,3] by 2.5: element [1] = 5.0");
-    TEST_ASSERT(values_are_approximately_equal(fixed_point_to_float(result_vector[2]), 7.5f, 0.01f),
+    TEST_ASSERT(values_are_approximately_equal((result_vector[2]), 7.5f, 0.01f),
                 "Scale [1,2,3] by 2.5: element [2] = 7.5");
 }
 
@@ -171,25 +171,25 @@ void test_vector_add_scaled(void)
 
     /* result = a + 2 × b = [1,2,3] + 2×[1,1,1] = [3,4,5] */
     fixed_point_t vector_a[3] = {
-        fixed_point_from_float(1.0f),
-        fixed_point_from_float(2.0f),
-        fixed_point_from_float(3.0f)};
+        (1.0f),
+        (2.0f),
+        (3.0f)};
 
     fixed_point_t vector_b[3] = {
-        fixed_point_from_float(1.0f),
-        fixed_point_from_float(1.0f),
-        fixed_point_from_float(1.0f)};
+        (1.0f),
+        (1.0f),
+        (1.0f)};
 
-    fixed_point_t scalar = fixed_point_from_float(2.0f);
+    fixed_point_t scalar = (2.0f);
     fixed_point_t result_vector[3];
 
     linear_algebra_vector_add_scaled(vector_a, vector_b, scalar, result_vector, 3);
 
-    TEST_ASSERT(values_are_approximately_equal(fixed_point_to_float(result_vector[0]), 3.0f, 0.01f),
+    TEST_ASSERT(values_are_approximately_equal((result_vector[0]), 3.0f, 0.01f),
                 "AXPY result [0] = 3.0");
-    TEST_ASSERT(values_are_approximately_equal(fixed_point_to_float(result_vector[1]), 4.0f, 0.01f),
+    TEST_ASSERT(values_are_approximately_equal((result_vector[1]), 4.0f, 0.01f),
                 "AXPY result [1] = 4.0");
-    TEST_ASSERT(values_are_approximately_equal(fixed_point_to_float(result_vector[2]), 5.0f, 0.01f),
+    TEST_ASSERT(values_are_approximately_equal((result_vector[2]), 5.0f, 0.01f),
                 "AXPY result [2] = 5.0");
 }
 
@@ -206,31 +206,31 @@ void test_constraint_violation(void)
      * Test with x = [2, 2] → 4 ≤ 3 (violated by 1)
      */
     fixed_point_t constraint_matrix[2] = {
-        fixed_point_from_float(1.0f),
-        fixed_point_from_float(1.0f)};
+        (1.0f),
+        (1.0f)};
 
-    fixed_point_t bound = fixed_point_from_float(3.0f);
+    fixed_point_t bound = (3.0f);
 
     /* Feasible case */
     fixed_point_t feasible_x[2] = {
-        fixed_point_from_float(1.0f),
-        fixed_point_from_float(1.0f)};
+        (1.0f),
+        (1.0f)};
 
     fixed_point_t violation_feasible = linear_algebra_max_constraint_violation(
         constraint_matrix, feasible_x, &bound, 1, 2);
 
-    TEST_ASSERT(fixed_point_to_float(violation_feasible) < 0.01f,
+    TEST_ASSERT((violation_feasible) < 0.01f,
                 "Feasible point has zero violation");
 
     /* Infeasible case */
     fixed_point_t infeasible_x[2] = {
-        fixed_point_from_float(2.0f),
-        fixed_point_from_float(2.0f)};
+        (2.0f),
+        (2.0f)};
 
     fixed_point_t violation_infeasible = linear_algebra_max_constraint_violation(
         constraint_matrix, infeasible_x, &bound, 1, 2);
 
-    TEST_ASSERT(values_are_approximately_equal(fixed_point_to_float(violation_infeasible), 1.0f, 0.1f),
+    TEST_ASSERT(values_are_approximately_equal((violation_infeasible), 1.0f, 0.1f),
                 "Infeasible point has violation ≈ 1.0");
 }
 
@@ -243,25 +243,25 @@ void test_vector_clamping(void)
     printf("\n--- Test: Vector Clamping ---\n");
 
     fixed_point_t input_vector[4] = {
-        fixed_point_from_float(-5.0f), /* Below lower bound */
-        fixed_point_from_float(2.5f),  /* Within bounds */
-        fixed_point_from_float(10.0f), /* Above upper bound */
-        fixed_point_from_float(0.0f)   /* At lower bound */
+        (-5.0f), /* Below lower bound */
+        (2.5f),  /* Within bounds */
+        (10.0f), /* Above upper bound */
+        (0.0f)   /* At lower bound */
     };
 
-    fixed_point_t lower = fixed_point_from_float(0.0f);
-    fixed_point_t upper = fixed_point_from_float(5.0f);
+    fixed_point_t lower = (0.0f);
+    fixed_point_t upper = (5.0f);
     fixed_point_t result_vector[4];
 
     linear_algebra_clamp_vector_scalar(input_vector, lower, upper, result_vector, 4);
 
-    TEST_ASSERT(values_are_approximately_equal(fixed_point_to_float(result_vector[0]), 0.0f, 0.01f),
+    TEST_ASSERT(values_are_approximately_equal((result_vector[0]), 0.0f, 0.01f),
                 "Clamp -5 to [0,5] = 0");
-    TEST_ASSERT(values_are_approximately_equal(fixed_point_to_float(result_vector[1]), 2.5f, 0.01f),
+    TEST_ASSERT(values_are_approximately_equal((result_vector[1]), 2.5f, 0.01f),
                 "Clamp 2.5 to [0,5] = 2.5 (unchanged)");
-    TEST_ASSERT(values_are_approximately_equal(fixed_point_to_float(result_vector[2]), 5.0f, 0.01f),
+    TEST_ASSERT(values_are_approximately_equal((result_vector[2]), 5.0f, 0.01f),
                 "Clamp 10 to [0,5] = 5");
-    TEST_ASSERT(values_are_approximately_equal(fixed_point_to_float(result_vector[3]), 0.0f, 0.01f),
+    TEST_ASSERT(values_are_approximately_equal((result_vector[3]), 0.0f, 0.01f),
                 "Clamp 0 to [0,5] = 0 (at bound)");
 }
 
