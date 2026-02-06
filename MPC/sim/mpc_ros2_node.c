@@ -36,6 +36,13 @@
 #include "vehicle_model.h"
 
 /*===========================================================================
+ * Fixed-Point Conversion Helpers (ROS node only)
+ *===========================================================================*/
+
+static inline fixed_point_t fp_from_float(float value);
+static inline float fp_to_float(fixed_point_t value);
+
+/*===========================================================================
  * Configuration Constants
  *===========================================================================*/
 
@@ -284,14 +291,14 @@ static void build_reference_from_trajectory(int closest_index, int lookahead_off
 
         TrajectoryWaypoint_t *wp = &global_trajectory[waypoint_index];
 
-        global_reference_trajectory[step].reference_position_x_meters =
-            ((float)wp->x_meters);
+          global_reference_trajectory[step].reference_position_x_meters =
+             fp_from_float((float)wp->x_meters);
         global_reference_trajectory[step].reference_position_y_meters =
-            ((float)wp->y_meters);
+             fp_from_float((float)wp->y_meters);
         global_reference_trajectory[step].reference_heading_radians =
-            ((float)wp->heading_radians);
+             fp_from_float((float)wp->heading_radians);
         global_reference_trajectory[step].reference_velocity_meters_per_second =
-            ((float)wp->velocity_meters_per_second);
+             fp_from_float((float)wp->velocity_meters_per_second);
     }
 }
 
@@ -423,6 +430,20 @@ static void set_rosidl_string(rosidl_runtime_c__String *str, const char *value)
 }
 
 /*===========================================================================
+ * Fixed-Point Conversion Helpers (ROS node only)
+ *===========================================================================*/
+
+static inline fixed_point_t fp_from_float(float value)
+{
+    return (fixed_point_t)(value * (float)FIXED_POINT_ONE);
+}
+
+static inline float fp_to_float(fixed_point_t value)
+{
+    return (float)value / (float)FIXED_POINT_ONE;
+}
+
+/*===========================================================================
  * ROS2 Callback: Odometry Subscription
  *===========================================================================*/
 
@@ -467,10 +488,10 @@ void odometry_subscription_callback(const void *message_in)
                                      velocity_y_meters_per_second * velocity_y_meters_per_second);
 
     /* Update global vehicle state (convert to fixed-point) */
-    global_vehicle_state.position_x_meters = ((float)position_x_meters);
-    global_vehicle_state.position_y_meters = ((float)position_y_meters);
-    global_vehicle_state.heading_angle_radians = ((float)heading_angle_radians);
-    global_vehicle_state.velocity_meters_per_second = ((float)velocity_magnitude);
+    global_vehicle_state.position_x_meters = fp_from_float((float)position_x_meters);
+    global_vehicle_state.position_y_meters = fp_from_float((float)position_y_meters);
+    global_vehicle_state.heading_angle_radians = fp_from_float((float)heading_angle_radians);
+    global_vehicle_state.velocity_meters_per_second = fp_from_float((float)velocity_magnitude);
 
     global_odometry_received_flag = 1;
 
@@ -499,13 +520,13 @@ void odometry_subscription_callback(const void *message_in)
                 geometry_msgs__msg__PoseStamped *pose =
                     &global_reference_path_message.poses.data[step];
 
-                pose->pose.position.x = (
+                pose->pose.position.x = fp_to_float(
                     global_reference_trajectory[step].reference_position_x_meters);
-                pose->pose.position.y = (
+                pose->pose.position.y = fp_to_float(
                     global_reference_trajectory[step].reference_position_y_meters);
                 pose->pose.position.z = 0.0;
 
-                double ref_yaw = (
+                double ref_yaw = fp_to_float(
                     global_reference_trajectory[step].reference_heading_radians);
                 yaw_to_quaternion(ref_yaw, &pose->pose.orientation);
             }
@@ -538,14 +559,14 @@ void odometry_subscription_callback(const void *message_in)
         else
         {
             /* Fallback: drive straight at low speed if no trajectory loaded */
-            fixed_point_t target_velocity = (1.0f);
-            fixed_point_t time_step_fp = (MPC_TIME_STEP_SECONDS);
+            fixed_point_t target_velocity = fp_from_float(1.0f);
+            fixed_point_t time_step_fp = fp_from_float(MPC_TIME_STEP_SECONDS);
 
             for (int step = 0; step < MPC_PREDICTION_HORIZON_STEPS; step++)
             {
                 fixed_point_t time_ahead = fixed_point_mul(
                     time_step_fp,
-                    ((float)(step + 1)));
+                    fp_from_float((float)(step + 1)));
                 fixed_point_t distance_ahead = fixed_point_mul(target_velocity, time_ahead);
 
                 global_reference_trajectory[step].reference_position_x_meters = fixed_point_add(
@@ -573,9 +594,9 @@ void odometry_subscription_callback(const void *message_in)
             mpc_status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED)
         {
             /* Extract control from MPC result */
-            double steering_command_radians = (
+            double steering_command_radians = fp_to_float(
                 mpc_result.optimal_control.steering_angle_radians);
-            double acceleration_command = (
+            double acceleration_command = fp_to_float(
                 mpc_result.optimal_control.acceleration_meters_per_second_squared);
 
             /* Apply safety saturation */
@@ -583,9 +604,9 @@ void odometry_subscription_callback(const void *message_in)
 
             /* Store in global control command (convert to fixed-point) */
             global_control_command.steering_angle_radians =
-                ((float)steering_command_radians);
+                fp_from_float((float)steering_command_radians);
             global_control_command.acceleration_meters_per_second_squared =
-                ((float)acceleration_command);
+                fp_from_float((float)acceleration_command);
 
             /*
              * TODO: Remove this integration when MPC outputs velocity directly.
@@ -609,7 +630,7 @@ void odometry_subscription_callback(const void *message_in)
     /* Publish drive command every callback (not just when MPC runs) */
     if (global_odometry_received_flag)
     {
-        global_drive_message_buffer.drive.steering_angle = (float)(
+        global_drive_message_buffer.drive.steering_angle = (float)fp_to_float(
             global_control_command.steering_angle_radians);
         /* TODO: Remove speed integration when MPC outputs velocity directly */
         global_drive_message_buffer.drive.speed = (float)global_integrated_speed;
@@ -659,10 +680,10 @@ int main(int argc, char *argv[])
     printf("[MPC] MPC controller initialized (horizon=%d steps, dt=%.0f ms)\n",
            MPC_PREDICTION_HORIZON_STEPS, MPC_TIME_STEP_SECONDS * 1000.0f);
 
-        MpcConfiguration_t mpc_config = mpc_get_configuration();
-        printf("[MPC] Solver max iterations: %u, tolerance: %.6f\n",
-            mpc_config.maximum_solver_iterations,
-            (mpc_config.solver_convergence_tolerance));
+    MpcConfiguration_t mpc_config = mpc_get_configuration();
+    printf("[MPC] Solver max iterations: %u, tolerance: %.6f\n",
+           mpc_config.maximum_solver_iterations,
+           fp_to_float(mpc_config.solver_convergence_tolerance));
 
     /* Load trajectory from CSV file */
     const char *trajectory_file = NULL;
