@@ -71,7 +71,7 @@ bridge:
     teleop_steering_angle: 0.3
 
     # simulation timing
-    sim_timestep: 0.01
+    sim_timestep: 0.005
     use_sim_time: False
 
     # if false, only steps sim on new /drive messages

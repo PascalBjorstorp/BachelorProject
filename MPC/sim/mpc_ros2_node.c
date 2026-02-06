@@ -46,7 +46,7 @@
 #define MPC_TIME_STEP_SECONDS 0.05f
 
 /** Maximum allowed steering angle (radians, ~23 degrees) */
-#define MAXIMUM_STEERING_ANGLE_RADIANS 0.4f
+#define MAXIMUM_STEERING_ANGLE_RADIANS 0.4189f
 
 /** Maximum allowed velocity (m/s) */
 #define MAXIMUM_VELOCITY_METERS_PER_SECOND 6.0f

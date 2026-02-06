@@ -259,7 +259,7 @@ typedef struct
 
 /** F1/10th wheelbase: 0.32 meters (32 cm) — Q16.16 = 20972 */
 #define F110_DEFAULT_WHEELBASE_METERS \
-    ((fixed_point_t)20972)
+    FP_CONST(0.32)
 
 /** F1/10th max steering: 0.4189 radians (~24 degrees) — Q16.16 = 27452 */
 #define F110_DEFAULT_MAXIMUM_STEERING_RADIANS \
@@ -267,11 +267,15 @@ typedef struct
 
 /** F1/10th max velocity: 6.0 meters per second — Q16.16 = 393216 */
 #define F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND \
-    ((fixed_point_t)393216)
+    FP_CONST(6.0)
 
-/** F1/10th min velocity: 0.0 meters per second (no reverse) */
-#define F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND \
-    ((fixed_point_t)0)
+/** F1/10th max acceleration: 4.0 meters per second squared — Q16.16 = 262144 */
+#define F110_DEFAULT_MAXIMUM_ACCELERATION \
+    FP_CONST(4.0)
+
+/** F1/10th max braking: -4.0 meters per second squared — Q16.16 = -262144 */
+#define F110_DEFAULT_MINIMUM_ACCELERATION \
+    FP_CONST(-4.0)
 
 /*===========================================================================
  * Default MPC Configuration

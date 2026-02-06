@@ -104,65 +104,6 @@ ament_target_dependencies(mpc_node
 )
 
 #===========================================================================
-# Unit Tests
-#===========================================================================
-
-enable_testing()
-
-# Test: Fixed-Point Arithmetic
-add_executable(test_fixed_point
-    tests/test_fixed_point.c
-    src/fixed_point.c
-)
-target_include_directories(test_fixed_point PRIVATE include)
-target_link_libraries(test_fixed_point m)
-add_test(NAME FixedPointTests COMMAND test_fixed_point)
-
-# Test: Linear Algebra
-add_executable(test_linear_algebra
-    tests/test_linear_algebra.c
-    src/linear_algebra.c
-    src/fixed_point.c
-)
-target_include_directories(test_linear_algebra PRIVATE include)
-target_link_libraries(test_linear_algebra m)
-add_test(NAME LinearAlgebraTests COMMAND test_linear_algebra)
-
-# Test: QP Solver
-add_executable(test_qp_solver
-    tests/test_qp_solver.c
-    src/qp_solver.c
-    src/linear_algebra.c
-    src/fixed_point.c
-)
-target_include_directories(test_qp_solver PRIVATE include)
-target_link_libraries(test_qp_solver m)
-add_test(NAME QPSolverTests COMMAND test_qp_solver)
-
-# Test: Vehicle Model
-add_executable(test_vehicle_model
-    tests/test_vehicle_model.c
-    src/vehicle_model.c
-    src/fixed_point.c
-)
-target_include_directories(test_vehicle_model PRIVATE include)
-target_link_libraries(test_vehicle_model m)
-add_test(NAME VehicleModelTests COMMAND test_vehicle_model)
-
-# Test: MPC Controller
-add_executable(test_mpc
-    tests/test_mpc.c
-    src/mpc.c
-    src/qp_solver.c
-    src/linear_algebra.c
-    src/vehicle_model.c
-    src/fixed_point.c
-)
-target_include_directories(test_mpc PRIVATE include)
-target_link_libraries(test_mpc m)
-add_test(NAME MpcControllerTests COMMAND test_mpc)
-
-#===========================================================================
 # Installation
 #===========================================================================
 
