@@ -138,6 +138,10 @@ def launch_setup(context, *args, **kwargs):
             'pf_err': 0.02,             # Tighter KLD sampling
             'pf_z': 0.999,              # Tighter KLD (99.9% confidence)
             'first_map_only': True,     # Don't reload map
+            # Global localization recovery ("kidnapped robot" detection)
+            'recovery_alpha_slow': 0.001,   # Long-term average decay (slow)
+            'recovery_alpha_fast': 0.1,     # Short-term average decay (fast)
+            # ^ When fast drops below slow, particles are randomly injected
         }]
     )
     
