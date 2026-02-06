@@ -132,9 +132,12 @@ def launch_setup(context, *args, **kwargs):
             'initial_pose_x': 0.0,
             'initial_pose_y': 0.0,
             'initial_pose_a': 0.0,
-            # Stability improvements
-            'force_update_after_initialpose': True,  # Force update after initial pose
-            'spatial_hash_bucket_size': 0.5,  # Alternative clustering (may help with KD-tree crash)
+            # Stability improvements (reduce KD-tree crash on convergence)
+            'force_update_after_initialpose': True,
+            'resample_interval': 2,     # Resample every 2nd update (reduces clustering)
+            'pf_err': 0.02,             # Tighter KLD sampling
+            'pf_z': 0.999,              # Tighter KLD (99.9% confidence)
+            'first_map_only': True,     # Don't reload map
         }]
     )
     
