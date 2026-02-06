@@ -508,8 +508,9 @@ void pf_cluster_stats(pf_t * pf, pf_sample_set_t * set)
 
     // Get the cluster label for this sample
     cidx = pf_kdtree_get_cluster(set->kdtree, sample->pose);
-    assert(cidx >= 0);
-    if (cidx >= set->cluster_max_count) {
+    // Note: cidx can be -1 if sample's key maps to an orphaned tree node
+    // (happens during particle convergence). Skip such samples.
+    if (cidx < 0 || cidx >= set->cluster_max_count) {
       continue;
     }
     if (cidx + 1 > set->cluster_count) {

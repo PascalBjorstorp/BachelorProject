@@ -292,6 +292,11 @@ pf_kdtree_node_t * pf_kdtree_insert_node(
 // Recursive node search
 pf_kdtree_node_t * pf_kdtree_find_node(pf_kdtree_t * self, pf_kdtree_node_t * node, int key[])
 {
+  // Safety check for NULL node
+  if (node == NULL) {
+    return NULL;
+  }
+
   if (node->leaf) {
     // printf("find  : leaf %p %d %d %d\n", node, node->key[0], node->key[1], node->key[2]);
 
@@ -304,8 +309,10 @@ pf_kdtree_node_t * pf_kdtree_find_node(pf_kdtree_t * self, pf_kdtree_node_t * no
   } else {
     // printf("find  : brch %p %d %f\n", node, node->pivot_dim, node->pivot_value);
 
-    assert(node->children[0] != NULL);
-    assert(node->children[1] != NULL);
+    // Safety checks for children
+    if (node->children[0] == NULL || node->children[1] == NULL) {
+      return NULL;
+    }
 
     // If the keys are different...
     if (key[node->pivot_dim] < node->pivot_value) {
