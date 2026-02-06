@@ -355,13 +355,17 @@ void pf_kdtree_cluster(pf_kdtree_t * self)
   for (i = 0; i < self->node_count; i++) {
     node = self->nodes + i;
     if (node->leaf) {
+      // Fix for particle convergence crash: Only add nodes that are reachable from root
+      // When particles converge, some leaf nodes become unreachable due to tree restructuring
+      pf_kdtree_node_t * found = pf_kdtree_find_node(self, self->root, node->key);
+      if (found != node) {
+        // Node is not reachable from root (orphaned after tree split) - skip it
+        continue;
+      }
+      
       node->cluster = -1;
       assert(queue_count < self->node_count);
       queue[queue_count++] = node;
-
-      // TESTING; remove - Commented out to fix crash on particle convergence
-      // See: nav2 issue with KD-tree key collisions when particles converge
-      // assert(node == pf_kdtree_find_node(self, self->root, node->key));
     }
   }
 
