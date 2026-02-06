@@ -55,8 +55,8 @@ typedef struct
     /** Front wheel steering angle [radians] */
     fixed_point_t steering_angle_radians;
 
-    /** Longitudinal acceleration command [meters per second squared] */
-    fixed_point_t acceleration_meters_per_second_squared;
+    /** Commanded longitudinal velocity [meters per second] */
+    fixed_point_t velocity_meters_per_second;
 
 } ControlInput_t;
 
@@ -90,18 +90,10 @@ typedef struct
     fixed_point_t maximum_velocity_meters_per_second;
 
     /**
-     * Maximum acceleration (throttle) [meters per second squared]
-     * Motor/traction limit for acceleration.
-     * Typical F1/10th value: ~4.0 m/s²
+     * Minimum velocity [meters per second]
+     * Typically 0 (no reverse).
      */
-    fixed_point_t maximum_acceleration_meters_per_second_squared;
-
-    /**
-     * Maximum deceleration (braking) [meters per second squared]
-     * Motor/friction limit for braking (stored as negative value).
-     * Typical F1/10th value: ~-4.0 m/s²
-     */
-    fixed_point_t minimum_acceleration_meters_per_second_squared;
+    fixed_point_t minimum_velocity_meters_per_second;
 
 } VehicleParameters_t;
 
@@ -147,14 +139,14 @@ typedef struct
     /** Weight for steering angle magnitude (penalizes large steering) */
     fixed_point_t weight_steering_effort;
 
-    /** Weight for acceleration magnitude (penalizes aggressive acceleration) */
-    fixed_point_t weight_acceleration_effort;
+    /** Weight for velocity magnitude (penalizes large speed commands) */
+    fixed_point_t weight_velocity_effort;
 
     /** Weight for steering rate (penalizes jerky steering changes) */
     fixed_point_t weight_steering_rate;
 
-    /** Weight for acceleration rate (penalizes jerky speed changes) */
-    fixed_point_t weight_acceleration_rate;
+    /** Weight for velocity rate (penalizes jerky speed changes) */
+    fixed_point_t weight_velocity_rate;
 
     /*
      * Solver convergence parameters
@@ -265,25 +257,21 @@ typedef struct
 
 
 
-/** F1/10th wheelbase: 0.32 meters (32 cm) */
+/** F1/10th wheelbase: 0.32 meters (32 cm) — Q16.16 = 20972 */
 #define F110_DEFAULT_WHEELBASE_METERS \
-    FP_CONST(0.32)
+    ((fixed_point_t)20972)
 
 /** F1/10th max steering: 0.4189 radians (~24 degrees) — Q16.16 = 27452 */
 #define F110_DEFAULT_MAXIMUM_STEERING_RADIANS \
-    FP_CONST(0.4189)
+    ((fixed_point_t)27452)
 
 /** F1/10th max velocity: 6.0 meters per second — Q16.16 = 393216 */
 #define F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND \
-    FP_CONST(6.0)
+    ((fixed_point_t)393216)
 
-/** F1/10th max acceleration: 4.0 meters per second squared — Q16.16 = 262144 */
-#define F110_DEFAULT_MAXIMUM_ACCELERATION \
-    FP_CONST(4.0)
-
-/** F1/10th max braking: -4.0 meters per second squared — Q16.16 = -262144 */
-#define F110_DEFAULT_MINIMUM_ACCELERATION \
-    FP_CONST(-4.0)
+/** F1/10th min velocity: 0.0 meters per second (no reverse) */
+#define F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND \
+    ((fixed_point_t)0)
 
 /*===========================================================================
  * Default MPC Configuration
@@ -294,13 +282,13 @@ typedef struct
 
 /** Default time step: 0.1 seconds (100 ms) — Q16.16 = 6554 */
 #define MPC_DEFAULT_TIME_STEP_SECONDS \
-    FP_CONST(0.1)
+    ((fixed_point_t)6554)
 
 /** Default maximum solver iterations */
 #define MPC_DEFAULT_MAXIMUM_ITERATIONS 1000
 
-/** Default convergence tolerance: 0.001 — Q16.16 ~ 65 */
+/** Default convergence tolerance: 0.001 — Q16.16 ~ 66 */
 #define MPC_DEFAULT_CONVERGENCE_TOLERANCE \
-    FP_CONST(0.001)
+    ((fixed_point_t)66)
 
 #endif /* MPC_TYPES_H */

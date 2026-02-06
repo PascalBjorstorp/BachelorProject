@@ -22,21 +22,19 @@
  * Internal Constants
  *===========================================================================*/
 
-/** Number of projection iterations for constraint enforcement */
-#define PROJECTION_ITERATIONS 5
-
-/** Small epsilon to avoid division by zero in projection */
-#define PROJECTION_EPSILON 100
-
 /*===========================================================================
  * Internal Helper: Project onto Feasible Region
  *===========================================================================*/
 
 /**
  * Project the solution onto the feasible region defined by A×u ≤ b.
+
+ * Since our MPC uses box constraints (each row of A has a single ±1),
+ * the correct projection is simple per-variable clamping:
+ *   If A[i,:] * u > b[i], clamp the offending variable.
  *
- * Uses iterative scaling: if any constraint is violated,
- * scale down the solution to satisfy it.
+ * For a row with A[i,j] = +1: u[j] = min(u[j], b[i])
+ * For a row with A[i,j] = -1: u[j] = max(u[j], -b[i])
  *
  * @param variable_vector     Solution vector to project (modified in place)
  * @param constraint_matrix   Matrix A (constraint_count × variable_count)
@@ -51,53 +49,37 @@ static void project_onto_feasible_region(
     uint16_t variable_count,
     uint16_t constraint_count)
 {
-    /* Temporary storage for constraint evaluation */
-    fixed_point_t constraint_values[QP_MAXIMUM_CONSTRAINTS];
-
-    for (int projection_iteration = 0; projection_iteration < PROJECTION_ITERATIONS; projection_iteration++)
+    /*
+     * For each constraint row, find the non-zero column and clamp.
+     * Box constraints have exactly one non-zero entry per row.
+     */
+    for (uint16_t constraint_index = 0; constraint_index < constraint_count; constraint_index++)
     {
-        /* Compute A×u for all constraints */
-        linear_algebra_matrix_vector_multiply(
-            constraint_matrix,
-            variable_vector,
-            constraint_values,
-            constraint_count,
-            variable_count);
+        const fixed_point_t *row = &constraint_matrix[constraint_index * variable_count];
+        fixed_point_t bound = constraint_bounds[constraint_index];
 
-        /* Find maximum scaling factor needed to satisfy all constraints */
-        fixed_point_t minimum_scale_factor = FIXED_POINT_ONE;
-
-        for (uint16_t constraint_index = 0; constraint_index < constraint_count; constraint_index++)
+        /* Find the non-zero entry in this constraint row */
+        for (uint16_t var_index = 0; var_index < variable_count; var_index++)
         {
-            /* If A×u > b, constraint is violated */
-            if (constraint_values[constraint_index] > constraint_bounds[constraint_index])
+            if (row[var_index] > 0)
             {
-                /* Compute scale factor: scale = b / (A×u) */
-                fixed_point_t denominator = constraint_values[constraint_index] + PROJECTION_EPSILON;
-                fixed_point_t scale_factor = fixed_point_div(
-                    constraint_bounds[constraint_index],
-                    denominator);
-
-                if (scale_factor < minimum_scale_factor)
+                /* Constraint: +1 * u[j] <= b  →  u[j] = min(u[j], b) */
+                if (variable_vector[var_index] > bound)
                 {
-                    minimum_scale_factor = scale_factor;
+                    variable_vector[var_index] = bound;
                 }
+                break;  /* Only one non-zero per row in box constraints */
             }
-        }
-
-        /* Apply scaling if any constraint was violated */
-        if (minimum_scale_factor < FIXED_POINT_ONE)
-        {
-            linear_algebra_vector_scale(
-                variable_vector,
-                minimum_scale_factor,
-                variable_vector,
-                variable_count);
-        }
-        else
-        {
-            /* All constraints satisfied, projection complete */
-            break;
+            else if (row[var_index] < 0)
+            {
+                /* Constraint: -1 * u[j] <= b  →  u[j] >= -b  →  u[j] = max(u[j], -b) */
+                fixed_point_t lower = fixed_point_neg(bound);
+                if (variable_vector[var_index] < lower)
+                {
+                    variable_vector[var_index] = lower;
+                }
+                break;
+            }
         }
     }
 }
@@ -255,8 +237,17 @@ void qp_solver_initialize_problem(QuadraticProgramProblem_t *problem)
 
 void qp_solver_initialize_config(QuadraticProgramConfig_t *config)
 {
-    /* Step size of 0.5 provides good balance of speed and stability */
-    config->gradient_step_size = FIXED_POINT_HALF;  /* 0.5 in Q16.16 = 32768 */
+    /*
+     * Step size (learning rate) for gradient descent.
+     *
+     * Must satisfy: alpha < 2 / lambda_max(H)
+     * With default MPC weights (w_effort=1, w_rate=10, horizon=10):
+     *   Hessian diagonal ~ 42, off-diagonal ~ -20
+     *   lambda_max ~ 80, so need alpha < 0.025
+     *
+     * 0.01 provides good stability margin.
+     */
+    config->gradient_step_size = (fixed_point_t)655;  /* 0.01 in Q16.16 = 0.01 × 65536 ≈ 655 */
 
     /* Convergence tolerance of 0.001 (about 65 in fixed-point) */
     config->convergence_tolerance = (fixed_point_t)65;  /* 0.001 in Q16.16 ≈ 65 */
