@@ -132,6 +132,9 @@ def launch_setup(context, *args, **kwargs):
             'initial_pose_x': 0.0,
             'initial_pose_y': 0.0,
             'initial_pose_a': 0.0,
+            # Stability improvements
+            'force_update_after_initialpose': True,  # Force update after initial pose
+            'spatial_hash_bucket_size': 0.5,  # Alternative clustering (may help with KD-tree crash)
         }]
     )
     
