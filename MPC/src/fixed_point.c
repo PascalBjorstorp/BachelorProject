@@ -17,17 +17,17 @@
 /* 1/3! = 1/6 in fixed-point*/
 #define FACTORIAL_3_INV (10923) // Approximation of 1/6 in Q16.16 format (1/6 * 65536)
 
-/* 1/5! = 1/120 in fixed-point*/
-#define FACTORIAL_5_INV (546) // Approximation of 1/120
-
-/* 1/7! = 1/5040 in fixed-point*/
-#define FACTORIAL_7_INV (8) // Approximation of 1/5040 (Real value is 0.000122 (might loose precision))
-
 /* 1/4! = 1/24 in fixed-point*/
 #define FACTORIAL_4_INV (2731) // Approximation of 1/24
 
+/* 1/5! = 1/120 in fixed-point*/
+#define FACTORIAL_5_INV (546) // Approximation of 1/120
+
 /* 1/6! = 1/720 in fixed-point*/
 #define FACTORIAL_6_INV (91) // Approximation of 1/720
+
+/* 1/7! = 1/5040 in fixed-point*/
+#define FACTORIAL_7_INV (8) // Approximation of 1/5040 (Real value is 0.000122 (might loose precision))
 
 /* Threshold for tangent overflow protection */
 #define TAN_THRESHOLD (FIXED_POINT_PI_OVER_2 - (FIXED_POINT_ONE >> 4)) // Slightly less than pi/2 to avoid overflow
@@ -71,7 +71,6 @@ fixed_point_t fixed_point_reciprocal(fixed_point_t a){
         lead_zeros++;
     }
 
-
     /* estimate ≈ 2^(lead_zeros) shifted into Q16.16 range */
     fixed_point_t estimate = (fixed_point_t)(1 << lead_zeros);
 
@@ -88,7 +87,6 @@ fixed_point_t fixed_point_reciprocal(fixed_point_t a){
     }
 
     return (sign < 0) ? fixed_point_neg(estimate) : estimate;
-
 }
 
 /*=================================================
@@ -96,7 +94,6 @@ fixed_point_t fixed_point_reciprocal(fixed_point_t a){
 ===================================================*/
 
 fixed_point_t fixed_point_sqrt(fixed_point_t a){
-    
     /*Zero and negative input handling*/
     if(a <= 0){
         return 0;
@@ -143,7 +140,6 @@ fixed_point_t fixed_point_sqrt(fixed_point_t a){
 ===================================================*/
 
 fixed_point_t fixed_point_sin(fixed_point_t angle) {
-    
     /* Normalize angle to range [-pi, pi] */
     angle = normalize_angle(angle);
 
@@ -175,7 +171,6 @@ fixed_point_t fixed_point_sin(fixed_point_t angle) {
 ===================================================*/
 
 fixed_point_t fixed_point_cos(fixed_point_t angle) {
-
     /* Normalize angle to range [-pi, pi] */
     angle = normalize_angle(angle);
 
@@ -206,7 +201,6 @@ fixed_point_t fixed_point_cos(fixed_point_t angle) {
 ===================================================*/
 
 fixed_point_t fixed_point_tan(fixed_point_t angle) {
-
     /* Normalize angle to range [-pi, pi] */
     angle = normalize_angle(angle);
 

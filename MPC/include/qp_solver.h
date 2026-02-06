@@ -23,6 +23,7 @@
 #define QP_SOLVER_H
 
 #include "fixed_point.h"
+#include "mpc_types.h"
 #include <stdint.h>
 
 /*===========================================================================
@@ -34,13 +35,13 @@
  * For MPC: horizon_steps × controls_per_step
  * Example: 15 steps × 2 controls = 30 variables
  */
-#define QP_MAXIMUM_VARIABLES        30
+#define QP_MAXIMUM_VARIABLES        60
 
 /**
  * Maximum number of inequality constraints.
  * For MPC: typically 2× variables (upper and lower bounds)
  */
-#define QP_MAXIMUM_CONSTRAINTS      60
+#define QP_MAXIMUM_CONSTRAINTS      120
 
 /**
  * Maximum solver iterations before termination.

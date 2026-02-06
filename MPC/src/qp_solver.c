@@ -256,7 +256,7 @@ void qp_solver_initialize_problem(QuadraticProgramProblem_t *problem)
 void qp_solver_initialize_config(QuadraticProgramConfig_t *config)
 {
     /* Step size of 0.5 provides good balance of speed and stability */
-    config->gradient_step_size = FIXED_POINT_HALF;  /* 0.5 in Q16.16 = 32768 */
+    config->gradient_step_size = FP_CONST(0.05);  /* 0.5 in Q16.16 = 32768 */
 
     /* Convergence tolerance of 0.001 (about 65 in fixed-point) */
     config->convergence_tolerance = (fixed_point_t)65;  /* 0.001 in Q16.16 ≈ 65 */
