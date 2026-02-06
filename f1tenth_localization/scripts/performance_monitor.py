@@ -460,6 +460,12 @@ class PerformanceMonitor(Node):
             amcl_yaw = self._quaternion_to_yaw(amcl_pose.orientation)
             orientation_error = self._angle_diff(amcl_yaw, gt_yaw_aligned)
             
+            # Sanity check: cap position error at reasonable max (e.g., 100m = map size)
+            # Errors larger than this indicate AMCL is completely lost (kidnapped)
+            MAX_REASONABLE_ERROR = 100.0  # meters
+            if position_error > MAX_REASONABLE_ERROR:
+                position_error = MAX_REASONABLE_ERROR  # Cap for stats, but record as "lost"
+            
             # Store errors
             self.position_errors.append(position_error)
             self.orientation_errors.append(orientation_error)
