@@ -61,18 +61,18 @@ static MpcConfiguration_t get_default_configuration(void)
     config.time_step_seconds = MPC_DEFAULT_TIME_STEP_SECONDS;
 
     /* State tracking weights */
-    config.weight_position_x = fixed_point_from_float(10.0f);
-    config.weight_position_y = fixed_point_from_float(10.0f);
-    config.weight_heading = fixed_point_from_float(5.0f);
-    config.weight_velocity = fixed_point_from_float(2.0f);
+    config.weight_position_x = (10.0f);
+    config.weight_position_y = (10.0f);
+    config.weight_heading = (5.0f);
+    config.weight_velocity = (2.0f);
 
     /* Control effort weights */
-    config.weight_steering_effort = fixed_point_from_float(1.0f);
-    config.weight_acceleration_effort = fixed_point_from_float(0.5f);
+    config.weight_steering_effort = (1.0f);
+    config.weight_acceleration_effort = (0.5f);
 
     /* Control rate weights (smooth control) */
-    config.weight_steering_rate = fixed_point_from_float(10.0f);
-    config.weight_acceleration_rate = fixed_point_from_float(5.0f);
+    config.weight_steering_rate = (10.0f);
+    config.weight_acceleration_rate = (5.0f);
 
     /* Solver parameters */
     config.maximum_solver_iterations = MPC_DEFAULT_MAXIMUM_ITERATIONS;
@@ -148,14 +148,14 @@ static void build_qp_hessian_matrix(
             /* H[prev_steering, current_steering] and symmetric */
             int cross_steer = prev_base * total_control_variables + base_index;
             int cross_steer_sym = base_index * total_control_variables + prev_base;
-            hessian_matrix[cross_steer] = fixed_point_negate(rate_weight_steering);
-            hessian_matrix[cross_steer_sym] = fixed_point_negate(rate_weight_steering);
+            hessian_matrix[cross_steer] = fixed_point_neg(rate_weight_steering);
+            hessian_matrix[cross_steer_sym] = fixed_point_neg(rate_weight_steering);
 
             /* H[prev_accel, current_accel] and symmetric */
             int cross_accel = (prev_base + 1) * total_control_variables + (base_index + 1);
             int cross_accel_sym = (base_index + 1) * total_control_variables + (prev_base + 1);
-            hessian_matrix[cross_accel] = fixed_point_negate(rate_weight_accel);
-            hessian_matrix[cross_accel_sym] = fixed_point_negate(rate_weight_accel);
+            hessian_matrix[cross_accel] = fixed_point_neg(rate_weight_accel);
+            hessian_matrix[cross_accel_sym] = fixed_point_neg(rate_weight_accel);
         }
     }
 }
@@ -196,37 +196,37 @@ static void build_qp_linear_cost_vector(
         int base_index = step * CONTROL_DIMENSION;
 
         /* Desired heading change */
-        fixed_point_t heading_error = fixed_point_subtract(
+        fixed_point_t heading_error = fixed_point_sub(
             reference_trajectory[step].reference_heading_radians,
             current_state->heading_angle_radians);
 
         /* Feedforward steering: proportional to heading error */
-        fixed_point_t feedforward_steering = fixed_point_multiply(
+        fixed_point_t feedforward_steering = fixed_point_mul(
             heading_error,
-            fixed_point_from_float(0.5f)); /* Gain */
+            (0.5f)); /* Gain */
 
         /* Velocity error for feedforward acceleration */
-        fixed_point_t velocity_error = fixed_point_subtract(
+        fixed_point_t velocity_error = fixed_point_sub(
             reference_trajectory[step].reference_velocity_meters_per_second,
             current_state->velocity_meters_per_second);
 
-        fixed_point_t feedforward_acceleration = fixed_point_multiply(
+        fixed_point_t feedforward_acceleration = fixed_point_mul(
             velocity_error,
-            fixed_point_from_float(1.0f)); /* Gain */
+            (1.0f)); /* Gain */
 
         /* Linear cost encourages these feedforward values */
         /* f = -2 * w * u_desired */
-        linear_cost_vector[base_index] = fixed_point_negate(
-            fixed_point_multiply(
-                fixed_point_from_float(2.0f),
-                fixed_point_multiply(
+        linear_cost_vector[base_index] = fixed_point_neg(
+            fixed_point_mul(
+                (2.0f),
+                fixed_point_mul(
                     current_configuration.weight_steering_effort,
                     feedforward_steering)));
 
-        linear_cost_vector[base_index + 1] = fixed_point_negate(
-            fixed_point_multiply(
-                fixed_point_from_float(2.0f),
-                fixed_point_multiply(
+        linear_cost_vector[base_index + 1] = fixed_point_neg(
+            fixed_point_mul(
+                (2.0f),
+                fixed_point_mul(
                     current_configuration.weight_acceleration_effort,
                     feedforward_acceleration)));
     }
@@ -234,17 +234,17 @@ static void build_qp_linear_cost_vector(
     /* Add rate penalty for first control (relative to previous) */
     linear_cost_vector[0] = fixed_point_add(
         linear_cost_vector[0],
-        fixed_point_multiply(
-            fixed_point_from_float(2.0f),
-            fixed_point_multiply(
+        fixed_point_mul(
+            (2.0f),
+            fixed_point_mul(
                 current_configuration.weight_steering_rate,
                 previous_control_input.steering_angle_radians)));
 
     linear_cost_vector[1] = fixed_point_add(
         linear_cost_vector[1],
-        fixed_point_multiply(
-            fixed_point_from_float(2.0f),
-            fixed_point_multiply(
+        fixed_point_mul(
+            (2.0f),
+            fixed_point_mul(
                 current_configuration.weight_acceleration_rate,
                 previous_control_input.acceleration_meters_per_second_squared)));
 }
@@ -295,7 +295,7 @@ static void build_qp_constraints(
 
         /* Constraint 1: -steering <= max_steering (i.e., steering >= -max) */
         constraint_matrix[(constraint_base + 1) * total_controls + control_base] =
-            fixed_point_negate(FIXED_POINT_ONE);
+            fixed_point_neg(FIXED_POINT_ONE);
         constraint_bounds[constraint_base + 1] =
             vehicle_params.maximum_steering_angle_radians;
 
@@ -307,9 +307,9 @@ static void build_qp_constraints(
 
         /* Constraint 3: -acceleration <= -min_accel (i.e., accel >= min_accel) */
         constraint_matrix[(constraint_base + 3) * total_controls + (control_base + 1)] =
-            fixed_point_negate(FIXED_POINT_ONE);
+            fixed_point_neg(FIXED_POINT_ONE);
         constraint_bounds[constraint_base + 3] =
-            fixed_point_negate(vehicle_params.minimum_acceleration_meters_per_second_squared);
+            fixed_point_neg(vehicle_params.minimum_acceleration_meters_per_second_squared);
     }
 }
 

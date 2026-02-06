@@ -28,7 +28,7 @@ void linear_algebra_matrix_vector_multiply(
         {
             /* Access element (row_index, column_index) in row-major matrix */
             uint16_t matrix_index = row_index * column_count + column_index;
-            fixed_point_t product = fixed_point_multiply(
+            fixed_point_t product = fixed_point_mul(
                 matrix[matrix_index],
                 input_vector[column_index]);
             row_sum = fixed_point_add(row_sum, product);
@@ -58,7 +58,7 @@ void linear_algebra_matrix_matrix_multiply(
                 uint16_t index_a = row_index * cols_a_rows_b + inner_index;
                 uint16_t index_b = inner_index * cols_b + col_index;
 
-                fixed_point_t product = fixed_point_multiply(
+                fixed_point_t product = fixed_point_mul(
                     matrix_a[index_a],
                     matrix_b[index_b]);
                 element_sum = fixed_point_add(element_sum, product);
@@ -84,7 +84,7 @@ fixed_point_t linear_algebra_dot_product(
 
     for (uint16_t index = 0; index < length; index++)
     {
-        fixed_point_t product = fixed_point_multiply(vector_a[index], vector_b[index]);
+        fixed_point_t product = fixed_point_mul(vector_a[index], vector_b[index]);
         sum = fixed_point_add(sum, product);
     }
 
@@ -99,11 +99,11 @@ fixed_point_t linear_algebra_vector_norm(
 
     for (uint16_t index = 0; index < length; index++)
     {
-        fixed_point_t square = fixed_point_multiply(vector[index], vector[index]);
+        fixed_point_t square = fixed_point_mul(vector[index], vector[index]);
         sum_of_squares = fixed_point_add(sum_of_squares, square);
     }
 
-    return fixed_point_square_root(sum_of_squares);
+    return fixed_point_sqrt(sum_of_squares);
 }
 
 void linear_algebra_vector_add_scaled(
@@ -116,7 +116,7 @@ void linear_algebra_vector_add_scaled(
     for (uint16_t index = 0; index < length; index++)
     {
         /* result[i] = a[i] + scalar × b[i] */
-        fixed_point_t scaled_b = fixed_point_multiply(scalar, vector_b[index]);
+        fixed_point_t scaled_b = fixed_point_mul(scalar, vector_b[index]);
         result_vector[index] = fixed_point_add(vector_a[index], scaled_b);
     }
 }
@@ -129,7 +129,7 @@ void linear_algebra_vector_scale(
 {
     for (uint16_t index = 0; index < length; index++)
     {
-        result_vector[index] = fixed_point_multiply(scalar, input_vector[index]);
+        result_vector[index] = fixed_point_mul(scalar, input_vector[index]);
     }
 }
 
@@ -154,14 +154,14 @@ fixed_point_t linear_algebra_max_constraint_violation(
         for (uint16_t variable_index = 0; variable_index < variable_count; variable_index++)
         {
             uint16_t matrix_index = constraint_index * variable_count + variable_index;
-            fixed_point_t product = fixed_point_multiply(
+            fixed_point_t product = fixed_point_mul(
                 constraint_matrix[matrix_index],
                 variable_vector[variable_index]);
             constraint_value = fixed_point_add(constraint_value, product);
         }
 
         /* Compute violation: A×x - b (positive means violated) */
-        fixed_point_t violation = fixed_point_subtract(
+        fixed_point_t violation = fixed_point_sub(
             constraint_value,
             bound_vector[constraint_index]);
 

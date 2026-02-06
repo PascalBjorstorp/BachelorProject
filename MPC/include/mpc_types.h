@@ -244,23 +244,23 @@ typedef struct
 
 /** F1/10th wheelbase: 0.32 meters (32 cm) */
 #define F110_DEFAULT_WHEELBASE_METERS \
-    fixed_point_from_float(0.32f)
+    (0.32f)
 
 /** F1/10th max steering: 0.4189 radians (~24 degrees) */
 #define F110_DEFAULT_MAXIMUM_STEERING_RADIANS \
-    fixed_point_from_float(0.4189f)
+    (0.4189f)
 
 /** F1/10th max velocity: 6.0 meters per second */
 #define F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND \
-    fixed_point_from_float(6.0f)
+    (6.0f)
 
 /** F1/10th max acceleration: 4.0 meters per second squared */
 #define F110_DEFAULT_MAXIMUM_ACCELERATION \
-    fixed_point_from_float(4.0f)
+    (4.0f)
 
 /** F1/10th max braking: -4.0 meters per second squared */
 #define F110_DEFAULT_MINIMUM_ACCELERATION \
-    fixed_point_from_float(-4.0f)
+    (-4.0f)
 
 /*===========================================================================
  * Default MPC Configuration
@@ -271,13 +271,13 @@ typedef struct
 
 /** Default time step: 0.1 seconds (100 ms) */
 #define MPC_DEFAULT_TIME_STEP_SECONDS \
-    fixed_point_from_float(0.1f)
+    (0.1f)
 
 /** Default maximum solver iterations: 100 */
 #define MPC_DEFAULT_MAXIMUM_ITERATIONS 1000
 
 /** Default convergence tolerance: 0.001 */
 #define MPC_DEFAULT_CONVERGENCE_TOLERANCE \
-    fixed_point_from_float(0.001f)
+    (0.001f)
 
 #endif /* MPC_TYPES_H */
