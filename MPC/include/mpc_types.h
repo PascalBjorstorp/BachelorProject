@@ -105,6 +105,8 @@ typedef struct
     fixed_point_t y;             /**< Reference Y [m] */
     fixed_point_t heading;       /**< Reference heading [rad] */
     fixed_point_t vel;           /**< Reference velocity [m/s] */
+    fixed_point_t left_bound;    /**< Max distance to left (outer) wall [m] */
+    fixed_point_t right_bound;   /**< Max distance to right (inner) wall [m] */
 } TrajectoryPoint_t;
 
 /*===========================================================================

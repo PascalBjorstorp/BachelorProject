@@ -333,8 +333,71 @@ def optimize_racing_line(centerline: np.ndarray, normals: np.ndarray,
 
 
 # ============================================================================
-# Velocity Profiling
+# Wall Bounds Computation for MPC
 # ============================================================================
+
+def compute_track_bounds(raceline: np.ndarray, normals: np.ndarray,
+                         inner_tree: cKDTree, outer_tree: cKDTree,
+                         params: VehicleParams, verbose: bool = True):
+    """
+    Compute distance to left/right walls for each raceline point.
+    
+    This is used by the MPC controller to enforce track boundary constraints.
+    The bounds represent the maximum lateral deviation allowed from the raceline
+    to avoid hitting walls, accounting for vehicle width.
+    
+    Args:
+        raceline: Racing line coordinates (N x 2)
+        normals: Normal vectors at each point (N x 2)
+        inner_tree: KD-tree of inner boundary
+        outer_tree: KD-tree of outer boundary
+        params: Vehicle parameters
+        verbose: Print statistics
+        
+    Returns:
+        left_bound: Distance to outer wall (negative normal direction) [m]
+        right_bound: Distance to inner wall (positive normal direction) [m]
+    """
+    n = len(raceline)
+    half_width = params.track_width / 2.0
+    
+    left_bound = np.zeros(n)
+    right_bound = np.zeros(n)
+    
+    for i in range(n):
+        # Get distances to both walls
+        d_outer, _ = outer_tree.query(raceline[i])
+        d_inner, _ = inner_tree.query(raceline[i])
+        
+        # Subtract vehicle half-width and safety margin to get available space
+        # Left bound = distance to outer wall (can deviate left by this amount)
+        left_bound[i] = max(d_outer - params.track_width / 2.0, 0.01)
+        
+        # Right bound = distance to inner wall (can deviate right by this amount)  
+        right_bound[i] = max(d_inner - params.track_width / 2.0, 0.01)
+    
+    if verbose:
+        print(f"  Track bounds analysis:")
+        print(f"    Left bound (outer): {left_bound.min():.3f} - {left_bound.max():.3f} m")
+        print(f"    Right bound (inner): {right_bound.min():.3f} - {right_bound.max():.3f} m")
+        
+        # Find tightest constraint points
+        min_left_idx = np.argmin(left_bound)
+        min_right_idx = np.argmin(right_bound)
+        print(f"    Tightest left: {left_bound.min():.3f} m at waypoint {min_left_idx}")
+        print(f"    Tightest right: {right_bound.min():.3f} m at waypoint {min_right_idx}")
+        
+        # Check if any constraint is too tight
+        if np.any(left_bound < 0.05):
+            print(f"    WARNING: Left bound < 5cm at {np.sum(left_bound < 0.05)} points")
+        if np.any(right_bound < 0.05):
+            print(f"    WARNING: Right bound < 5cm at {np.sum(right_bound < 0.05)} points")
+    
+    return left_bound, right_bound
+
+
+# ============================================================================
+
 def compute_velocity_profile(raceline: np.ndarray, params: VehicleParams,
                              verbose: bool = True, use_friction_circle: bool = True):
     """
@@ -570,8 +633,14 @@ def save_trajectory(output_path: str, raceline: np.ndarray,
                     arc_length: np.ndarray, heading: np.ndarray,
                     curvature: np.ndarray, velocities: np.ndarray,
                     accelerations: np.ndarray, params: VehicleParams,
-                    track_name: str):
-    """Save trajectory in CSV (TUM format) and NPZ formats."""
+                    track_name: str, left_bound: np.ndarray = None,
+                    right_bound: np.ndarray = None):
+    """Save trajectory in CSV (TUM format) and NPZ formats.
+    
+    Args:
+        left_bound: Distance to left/outer wall at each point [m]
+        right_bound: Distance to right/inner wall at each point [m]
+    """
     
     # Ensure output directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -580,31 +649,55 @@ def save_trajectory(output_path: str, raceline: np.ndarray,
     csv_path = output_path.replace('.npz', '.csv')
     with open(csv_path, 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['# s_m', 'x_m', 'y_m', 'psi_rad', 'kappa_radpm', 'vx_mps', 'ax_mps2'])
-        for i in range(len(raceline)):
-            writer.writerow([
-                f"{arc_length[i]:.6f}",
-                f"{raceline[i, 0]:.6f}",
-                f"{raceline[i, 1]:.6f}",
-                f"{heading[i]:.6f}",
-                f"{curvature[i]:.6f}",
-                f"{velocities[i]:.6f}",
-                f"{accelerations[i]:.6f}"
-            ])
+        if left_bound is not None and right_bound is not None:
+            writer.writerow(['# s_m', 'x_m', 'y_m', 'psi_rad', 'kappa_radpm', 'vx_mps', 'ax_mps2', 'left_bound_m', 'right_bound_m'])
+            for i in range(len(raceline)):
+                writer.writerow([
+                    f"{arc_length[i]:.6f}",
+                    f"{raceline[i, 0]:.6f}",
+                    f"{raceline[i, 1]:.6f}",
+                    f"{heading[i]:.6f}",
+                    f"{curvature[i]:.6f}",
+                    f"{velocities[i]:.6f}",
+                    f"{accelerations[i]:.6f}",
+                    f"{left_bound[i]:.6f}",
+                    f"{right_bound[i]:.6f}"
+                ])
+        else:
+            writer.writerow(['# s_m', 'x_m', 'y_m', 'psi_rad', 'kappa_radpm', 'vx_mps', 'ax_mps2'])
+            for i in range(len(raceline)):
+                writer.writerow([
+                    f"{arc_length[i]:.6f}",
+                    f"{raceline[i, 0]:.6f}",
+                    f"{raceline[i, 1]:.6f}",
+                    f"{heading[i]:.6f}",
+                    f"{curvature[i]:.6f}",
+                    f"{velocities[i]:.6f}",
+                    f"{accelerations[i]:.6f}"
+                ])
     
     # Save NPZ
-    np.savez(output_path,
-             positions=raceline,
-             arc_length=arc_length,
-             heading=heading,
-             curvature=curvature,
-             velocities=velocities,
-             accelerations=accelerations,
-             track_name=track_name,
-             friction_coeff=params.friction_coeff,
-             max_accel=params.max_accel,
-             max_decel=params.max_decel,
-             max_speed=params.max_speed)
+    save_dict = dict(
+        positions=raceline,
+        arc_length=arc_length,
+        heading=heading,
+        curvature=curvature,
+        velocities=velocities,
+        accelerations=accelerations,
+        track_name=track_name,
+        friction_coeff=params.friction_coeff,
+        max_accel=params.max_accel,
+        max_decel=params.max_decel,
+        max_speed=params.max_speed
+    )
+    
+    # Add bounds if available
+    if left_bound is not None:
+        save_dict['left_bound'] = left_bound
+    if right_bound is not None:
+        save_dict['right_bound'] = right_bound
+    
+    np.savez(output_path, **save_dict)
     
     print(f"  Saved CSV: {csv_path}")
     print(f"  Saved NPZ: {output_path}")
@@ -832,9 +925,17 @@ def main():
         raceline, params, verbose=True, use_friction_circle=use_friction_circle
     )
     
-    # Step 5: Save output
+    # Step 5: Compute track bounds (for MPC constraints)
     print("\n" + "=" * 60)
-    print("Step 5: Saving trajectory")
+    print("Step 5: Computing track bounds for MPC")
+    print("=" * 60)
+    left_bound, right_bound = compute_track_bounds(
+        raceline, normals, inner_tree, outer_tree, params, verbose=True
+    )
+    
+    # Step 6: Save output
+    print("\n" + "=" * 60)
+    print("Step 6: Saving trajectory")
     print("=" * 60)
     
     # Ensure output is a file path
@@ -848,7 +949,8 @@ def main():
     
     save_trajectory(
         output_path, raceline, arc_length, heading, curvature,
-        velocities, accelerations, params, track_name
+        velocities, accelerations, params, track_name,
+        left_bound, right_bound
     )
     
     # Optional visualization

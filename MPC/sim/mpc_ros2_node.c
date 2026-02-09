@@ -77,6 +77,8 @@ typedef struct
     double y_meters;
     double heading_radians;
     double velocity_meters_per_second;
+    double left_bound_meters;  /**< Distance to left/outer wall [m] - NEW */
+    double right_bound_meters; /**< Distance to right/inner wall [m] - NEW */
 } TrajectoryWaypoint_t;
 
 /*===========================================================================
@@ -171,11 +173,14 @@ static int load_trajectory_from_csv(const char *file_path)
             break;
         }
 
-        /* Parse: s_m, x_m, y_m, psi_rad, kappa_radpm, vx_mps, ax_mps2 */
+        /* Parse: s_m, x_m, y_m, psi_rad, kappa_radpm, vx_mps, ax_mps2, left_bound_m, right_bound_m */
         double s_m, x_m, y_m, psi_rad, kappa_radpm, vx_mps, ax_mps2;
-        int fields_read = sscanf(line_buffer, "%lf,%lf,%lf,%lf,%lf,%lf,%lf",
+        double left_bound_m = 0.5, right_bound_m = 0.5;  /* Defaults if bounds missing */
+        
+        int fields_read = sscanf(line_buffer, "%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf",
                                  &s_m, &x_m, &y_m, &psi_rad,
-                                 &kappa_radpm, &vx_mps, &ax_mps2);
+                                 &kappa_radpm, &vx_mps, &ax_mps2,
+                                 &left_bound_m, &right_bound_m);
 
         if (fields_read >= 6)
         {
@@ -195,6 +200,10 @@ static int load_trajectory_from_csv(const char *file_path)
                 scaled_velocity = 0.0;
             }
             wp->velocity_meters_per_second = scaled_velocity;
+            
+            /* Store bounds for constraint propagation (NEW) */
+            wp->left_bound_meters = left_bound_m > 0 ? left_bound_m : 0.5;
+            wp->right_bound_meters = right_bound_m > 0 ? right_bound_m : 0.5;
 
             global_trajectory_count++;
         }
@@ -282,6 +291,10 @@ static void build_reference_from_trajectory(int closest_index, int lookahead_off
         global_reference_trajectory[step].y = DOUBLE_TO_FP(wp->y_meters);
         global_reference_trajectory[step].heading = DOUBLE_TO_FP(wp->heading_radians);
         global_reference_trajectory[step].vel = DOUBLE_TO_FP(wp->velocity_meters_per_second);
+        
+        /* NEW: Copy wall bound constraints from trajectory waypoints */
+        global_reference_trajectory[step].left_bound = DOUBLE_TO_FP(wp->left_bound_meters);
+        global_reference_trajectory[step].right_bound = DOUBLE_TO_FP(wp->right_bound_meters);
     }
 }
 
@@ -549,6 +562,10 @@ void odometry_subscription_callback(const void *message_in)
                     fp_mul(distance_ahead, fp_sin(global_vehicle_state.heading)));
                 global_reference_trajectory[step].heading = global_vehicle_state.heading;
                 global_reference_trajectory[step].vel = target_velocity;
+                
+                /* Initialize bounds with safe defaults (NEW) */
+                global_reference_trajectory[step].left_bound = DOUBLE_TO_FP(0.5);
+                global_reference_trajectory[step].right_bound = DOUBLE_TO_FP(0.5);
             }
         }
 

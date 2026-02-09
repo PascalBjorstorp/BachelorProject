@@ -19,7 +19,7 @@
  *===========================================================================*/
 
 #define QP_MAX_VARS         60      /**< Max optimization variables */
-#define QP_MAX_CONSTRAINTS  160     /**< Max inequality constraints (box + rate) */
+#define QP_MAX_CONSTRAINTS  240     /**< Max inequality constraints (box + rate + path bounds) */
 #define QP_MAX_ITER         1000    /**< Max solver iterations */
 
 /*===========================================================================
