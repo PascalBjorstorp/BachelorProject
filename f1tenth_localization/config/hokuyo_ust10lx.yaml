@@ -1,0 +1,95 @@
+# Hokuyo UST-10LX Ethernet LiDAR Configuration
+# 
+# Hardware Specs:
+#   - Range: 0.06m to 10m (typical), 0.06m to 30m (max reflective)
+#   - Angular range: 270 degrees (-135° to +135°)
+#   - Angular resolution: 0.25° (1080 steps)
+#   - Scan frequency: 40 Hz
+#   - Connection: Ethernet (default IP: 192.168.0.10)
+#
+# Network Setup:
+#   1. Connect LiDAR to Jetson via Ethernet
+#   2. Configure Jetson's Ethernet interface:
+#      sudo ip addr add 192.168.0.15/24 dev eth0
+#   3. Test connectivity:
+#      ping 192.168.0.10
+#
+# Usage:
+#   ros2 launch f1tenth_localization hokuyo_lidar.launch.py
+
+urg_node:
+  ros__parameters:
+    # =========================================================================
+    # Connection Settings
+    # =========================================================================
+    # IP address of the UST-10LX (factory default: 192.168.0.10)
+    ip_address: "192.168.0.10"
+    ip_port: 10940
+    
+    # Serial connection (only if using USB adapter, not typical for UST-10LX)
+    # serial_port: ""
+    # serial_baud: 115200
+    
+    # =========================================================================
+    # Frame and Topic Configuration
+    # =========================================================================
+    # TF frame for the laser data - should match your URDF
+    laser_frame_id: "laser"
+    
+    # Publish to /scan topic (standard for AMCL/navigation)
+    # The node publishes to ~/scan by default, we'll remap in launch
+    
+    # =========================================================================
+    # Scan Parameters
+    # =========================================================================
+    # Angular limits (radians) - UST-10LX supports -135° to +135° (270° total)
+    # Can narrow the FOV to reduce data if needed
+    angle_min: -2.356194  # -135 degrees in radians
+    angle_max: 2.356194   # +135 degrees in radians
+    
+    # Skip factor - publish every Nth scan (1 = all scans, 2 = half rate, etc.)
+    # UST-10LX runs at 40Hz, use skip=1 for full rate
+    skip: 1
+    
+    # Cluster count - number of neighboring scans to merge (1 = no clustering)
+    cluster: 1
+    
+    # =========================================================================
+    # Range Filtering
+    # =========================================================================
+    # Minimum range (meters) - readings below this are invalid
+    # UST-10LX minimum is 0.06m, use slightly higher for safety
+    range_min: 0.1
+    
+    # Maximum range (meters) - readings above this are invalid  
+    # UST-10LX typical max is 10m, use conservative value
+    range_max: 10.0
+    
+    # =========================================================================
+    # Quality Settings
+    # =========================================================================
+    # Publish intensity values (UST-10LX supports this)
+    publish_intensity: false
+    
+    # Publish multiecho data (UST-10LX supports dual-return)
+    publish_multiecho: false
+    
+    # =========================================================================
+    # Diagnostics
+    # =========================================================================
+    # Enable status/diagnostics publishing
+    error_limit: 4
+    diagnostics_tolerance: 0.05
+    diagnostics_window_time: 5.0
+    
+    # Time offset for synchronization (seconds)
+    time_offset: 0.0
+    
+    # =========================================================================
+    # Advanced Settings
+    # =========================================================================
+    # Allow unsafe settings that may damage the sensor
+    allow_unsafe_settings: false
+    
+    # Calibration (use defaults unless you have calibration data)
+    calibrate_time: false

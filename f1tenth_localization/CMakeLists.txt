@@ -10,6 +10,8 @@ find_package(nav2_amcl REQUIRED)
 install(PROGRAMS
   scripts/performance_monitor.py
   scripts/odom_tf_publisher.py
+  scripts/hokuyo_lidar_diagnostic.py
+  scripts/scan_filter.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
