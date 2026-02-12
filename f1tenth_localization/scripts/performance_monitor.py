@@ -184,21 +184,26 @@ class PerformanceMonitor(Node):
             self.amcl_process = None
         
         # Search for AMCL process - look for the nav2_amcl executable or gpu_amcl Python node
+        # IMPORTANT: Skip 'ros2 launch' processes - they also contain 'gpu_amcl' in their args
         for proc in self.psutil.process_iter(['pid', 'name', 'cmdline', 'exe']):
             try:
-                # Check executable name first (most reliable)
                 exe = proc.info.get('exe', '') or ''
                 name = proc.info.get('name', '') or ''
                 cmdline = proc.info.get('cmdline', []) or []
                 cmdline_str = ' '.join(str(c) for c in cmdline if c is not None)
                 
+                # Skip ros2 launch processes - they contain amcl in args but aren't the node
+                if 'ros2' in cmdline_str and 'launch' in cmdline_str:
+                    continue
+                
                 # Match AMCL executable (nav2_amcl binary or gpu_amcl Python script)
                 is_amcl = (
                     name == 'amcl' or
-                    name == 'gpu_amcl' or
                     exe.endswith('/amcl') or
                     'nav2_amcl' in cmdline_str or
-                    'gpu_amcl' in cmdline_str or
+                    'gpu_amcl_node' in cmdline_str or
+                    '__node:=gpu_amcl' in cmdline_str or
+                    '__node:=amcl' in cmdline_str or
                     any(str(c).endswith('/amcl') for c in cmdline if c is not None)
                 )
                 
@@ -209,24 +214,6 @@ class PerformanceMonitor(Node):
                         f'exe={exe}, cmdline={cmdline_str[:120]}'
                     )
                     # Initialize CPU measurement (first call returns 0, subsequent calls track delta)
-                    proc.cpu_percent(interval=None)
-                    return proc
-            except (self.psutil.NoSuchProcess, self.psutil.AccessDenied,
-                    self.psutil.ZombieProcess, AttributeError, TypeError):
-                continue
-        
-        # If still not found, try matching by ROS node name via /proc/{pid}/cmdline
-        # GPU AMCL Python nodes may have '__node:=gpu_amcl' in their cmdline
-        for proc in self.psutil.process_iter(['pid', 'name', 'cmdline']):
-            try:
-                cmdline = proc.info.get('cmdline', []) or []
-                cmdline_str = ' '.join(str(c) for c in cmdline if c is not None)
-                if '__node:=gpu_amcl' in cmdline_str or '__node:=amcl' in cmdline_str:
-                    self.amcl_process = proc
-                    self.get_logger().info(
-                        f'Found AMCL process via ROS args: PID {proc.pid}, '
-                        f'cmdline={cmdline_str[:120]}'
-                    )
                     proc.cpu_percent(interval=None)
                     return proc
             except (self.psutil.NoSuchProcess, self.psutil.AccessDenied,

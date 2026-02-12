@@ -149,6 +149,13 @@ class GPUAMCLNode(Node):
         # Track last scan timestamp for proper pose stamping
         self._last_scan_stamp = None
         
+        # Cached estimate for lock-free publishing
+        self._cached_estimate = None
+        self._cached_scan_stamp = None
+        
+        # Scan dropping: skip scans that arrive while processing
+        self._processing_scan = False
+        
         self.get_logger().info(f'GPU AMCL Node started')
         self.get_logger().info(f'  Particles: {self.num_particles}')
         self.get_logger().info(f'  GPU: {"enabled" if self.use_gpu else "disabled"}')
@@ -393,6 +400,11 @@ class GPUAMCLNode(Node):
         if not self.initialized:
             return
         
+        # Drop scans that arrive while we're still processing the previous one
+        if self._processing_scan:
+            return
+        self._processing_scan = True
+        
         # Track scan timestamp for pose stamping
         self._last_scan_stamp = msg.header.stamp
         
@@ -419,6 +431,7 @@ class GPUAMCLNode(Node):
             # Check if moved enough to update
             dist = np.sqrt(dx_robot**2 + dy_robot**2)
             if dist < self.update_min_d and abs(dtheta) < self.update_min_a:
+                self._processing_scan = False
                 return  # Haven't moved enough
             
             # Slip detection (if enabled)
@@ -476,10 +489,17 @@ class GPUAMCLNode(Node):
         with self._pf_lock:
             self.pf.update(ranges, msg.angle_min, msg.angle_increment)
         
+            # Cache the estimate so publish_callback can use it without locking
+            self._cached_estimate = self.pf.get_estimate()
+            self._cached_scan_stamp = self._last_scan_stamp
+        
         # Timing
         t_elapsed = time.perf_counter() - t_start
         self.update_count += 1
         self.total_update_time += t_elapsed
+        
+        # Ready for next scan
+        self._processing_scan = False
         
         # Log performance periodically
         if self.update_count % 100 == 0:
@@ -497,17 +517,16 @@ class GPUAMCLNode(Node):
         if not self.initialized or self.pf is None:
             return
         
+        # Use cached estimate - no lock needed, avoids blocking on scan processing
+        estimate = self._cached_estimate
+        if estimate is None:
+            return
+        
         now = self.get_clock().now()
         
-        # Get pose estimate (thread-safe)
-        with self._pf_lock:
-            estimate = self.pf.get_estimate()
-        
         # Use the scan timestamp that produced this estimate for proper latency tracking
-        # This matches nav2_amcl behavior where poses are stamped with source scan time
-        if self._last_scan_stamp is not None:
-            pose_stamp = self._last_scan_stamp
-        else:
+        pose_stamp = self._cached_scan_stamp
+        if pose_stamp is None:
             pose_stamp = now.to_msg()
         
         # Publish PoseWithCovarianceStamped
@@ -600,8 +619,11 @@ class GPUAMCLNode(Node):
     
     def _publish_particles(self, stamp):
         """Publish particle cloud for visualization."""
-        with self._pf_lock:
-            particles, weights = self.pf.get_particles_numpy()
+        try:
+            with self._pf_lock:
+                particles, weights = self.pf.get_particles_numpy()
+        except Exception:
+            return
         
         msg = PoseArray()
         msg.header.stamp = stamp.to_msg()
