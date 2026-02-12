@@ -1,0 +1,78 @@
+Lav 4 over mapper i localization
+	- General
+		- Config
+	- Real robot
+		- Config
+			- hokuyo_ust10lx.yaml
+		- JetsonFiles
+			- hokuyo_lidar.launch
+			- jetson_localization.launch // Find på nyt navn men ha en til real car
+			- hokuyo_lidar_diagnostic.py	
+		- PCFiles
+	- Simulation
+		- Config
+		- JetsonFiles
+			- jetson_localization.launch // Find på nyt navn men ha en til sim car
+
+			
+		- PCFiles
+			- nav2_amcl.launch.py
+	- Benchmark
+		- Config
+		- bags
+			- lapBags
+			- BenchmarkResults
+		- JetsonFiles
+			- performance_monitor
+		- PCFiles
+			- amcl_bag_benchmark.launch.py
+			- amcl_bag_visualization.launch.py
+			- plot_benchmark.m
+
+
+	
+	
+
+	
+
+	- Change to Ackermann model
+	
+	
+jetson_localization.launch
+	- Få den til at hente lidar confiq fra yaml
+	- Lav en AMCL yaml måske
+	- Mangler map server
+	
+performance_monitor_launch
+	- Make a hardcoded path dont have a argument
+	- Make all the arguments be hardcoded or those that are used in multiple files a config
+	- Ikke hav en standalone launch file. Og ikke brug den i jetson_localization.launch
+	
+sim_headless.launch
+	- Why do we not use ego_robot_state_publisher	robot_state_publisher	Commented out — would publish URDF/TF, disabled
+	- Remove argument it should always run ground true. The headless simulation will never run anything else that ground truth for recording
+	
+hokuyo_lidar_diagnostic.py	
+	- 
+	
+odom_tf_publisher
+	- Could it not just be a part of the amcl_bag_benchmark.launch.py if it is the only one using it cause it is only a bag scenario
+	
+performance_monitor
+	
+	
+plot_benchmark
+
+scan_filter
+	- You can remove the Also downsamples intensity data if present part cause i will never use intensity
+
+	- Why do we have this logging
+		Logging
+		Every 100 scans (~2.5s at 40Hz), logs:
+
+		Total scans processed
+		Average clipped points per scan
+		Average shadow-filtered points per scan
+		Output point count
+	- Please Optimize this and maybe just use the jetsons GPU power to paralize this
+	Shadow filter is not vectorized — the for i in range(1, n) loop runs in pure Python per scan. At 1080 points × 40Hz, this is ~43,200 iterations/second. On a Jetson this could be noticeable. A numpy-vectorized version using np.diff and np.where would be faster.

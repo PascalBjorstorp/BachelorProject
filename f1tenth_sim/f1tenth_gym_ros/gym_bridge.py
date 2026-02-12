@@ -130,6 +130,18 @@ class GymBridge(Node):
         self._enable_perf_metrics = False
         self._loop_times: List[float] = []
 
+        # Real-time throttle: 0 = run as fast as possible, 1.0 = real-time
+        self._real_time_factor = self.get_parameter('real_time_factor').value
+        self._rt_wall_start = time.perf_counter()
+        self._rt_sim_start = 0.0
+        self._rt_initialized = False
+        if self._real_time_factor > 0:
+            self.get_logger().info(
+                f'Real-time factor: {self._real_time_factor}x '
+                f'(sim will run at {self._real_time_factor}x wall-clock speed)')
+        else:
+            self.get_logger().info('Real-time factor: unlimited (run as fast as possible)')
+
         # QoS profile for reliable communication
         self.reliable_qos = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
@@ -171,6 +183,7 @@ class GymBridge(Node):
         self.declare_parameter('use_sim_time_bridge', False)
         self.declare_parameter('scan_noise_std', 0.0)
         self.declare_parameter('headless', False)  # Disable rendering for headless systems
+        self.declare_parameter('real_time_factor', 0.0)  # 0 = unlimited, 1.0 = real-time, 0.5 = half speed
 
         
         # Sensor noise parameters for realistic simulation
@@ -656,6 +669,20 @@ class GymBridge(Node):
                 avg = sum(self._loop_times) / len(self._loop_times)
                 self.get_logger().info(f'Avg sim step time: {avg:.2f}ms')
                 self._loop_times.clear()
+
+        # Real-time throttle: sleep if sim is running ahead of wall clock
+        if self._real_time_factor > 0:
+            sim_time = self.env.unwrapped.current_time
+            if not self._rt_initialized:
+                self._rt_sim_start = sim_time
+                self._rt_wall_start = time.perf_counter()
+                self._rt_initialized = True
+            else:
+                sim_elapsed = (sim_time - self._rt_sim_start) / self._real_time_factor
+                wall_elapsed = time.perf_counter() - self._rt_wall_start
+                sleep_time = sim_elapsed - wall_elapsed
+                if sleep_time > 0.0001:  # Only sleep if > 0.1ms ahead
+                    time.sleep(sleep_time)
 
     def timer_callback(self) -> None:
         """Publish sensor data and transforms."""

@@ -102,3 +102,13 @@ bridge:
     # Real LiDARs have specific rates: Hokuyo UTM-30LX = 40Hz, RPLidar A1 = 5.5Hz
     # Set to 0 for no rate limiting (full 250Hz), or target Hz for realistic simulation
     scan_publish_rate: 40.0      # 40 Hz (realistic Hokuyo rate), 0 = no limit
+
+    # ====================
+    # Real-Time Factor
+    # ====================
+    # Controls sim speed relative to wall clock:
+    #   0.0 = unlimited (run as fast as possible) - default
+    #   1.0 = real-time (sim time == wall time)
+    #   0.5 = half speed, 2.0 = double speed
+    # Set to 1.0 when recording bags for benchmarking to avoid sim/wall time mismatch
+    real_time_factor: 0.0

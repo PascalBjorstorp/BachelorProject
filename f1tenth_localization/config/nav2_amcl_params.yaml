@@ -1,0 +1,54 @@
+# AMCL parameters for F1TENTH localization
+# Shared between real robot and simulation launches.
+# Launch arguments override min_particles, max_particles, max_beams, and use_sim_time.
+
+amcl:
+  ros__parameters:
+    # Frame IDs
+    base_frame_id: "ego_racecar/base_link"
+    odom_frame_id: "odom"
+    global_frame_id: "map"
+
+    # Topics
+    scan_topic: "scan"
+
+    # Update thresholds (lower = more frequent updates)
+    update_min_d: 0.001
+    update_min_a: 0.001
+    transform_tolerance: 1.0
+
+    # Particles (defaults, override via launch args)
+    min_particles: 500
+    max_particles: 2000
+
+    # Laser model
+    laser_model_type: "likelihood_field"
+    laser_likelihood_max_dist: 2.0
+    laser_max_range: 10.0
+    laser_min_range: 0.1
+    max_beams: 120
+
+    # Motion model
+    robot_model_type: "nav2_amcl::AckermannMotionModel"
+    alpha1: 0.1   # rotation from rotation
+    alpha2: 0.1   # rotation from translation
+    alpha3: 0.2   # translation from translation
+    alpha4: 0.2   # translation from rotation
+    alpha5: 0.1   # translation (strafe component)
+
+    # Initial pose
+    set_initial_pose: true
+    initial_pose_x: 0.0
+    initial_pose_y: 0.0
+    initial_pose_a: 0.0
+
+    # Stability (reduce KD-tree crash on convergence)
+    force_update_after_initialpose: true
+    resample_interval: 2       # resample every 2nd update
+    pf_err: 0.02               # tighter KLD sampling
+    pf_z: 0.999                # 99.9% confidence
+    first_map_only: true       # don't reload map
+
+    # Recovery (kidnapped robot detection)
+    recovery_alpha_slow: 0.001   # long-term average decay
+    recovery_alpha_fast: 0.1     # short-term average decay
