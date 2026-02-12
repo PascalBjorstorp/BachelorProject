@@ -14,7 +14,7 @@ Usage:
 import rclpy
 from rclpy.node import Node
 from rclpy.time import Time
-from rclpy.executors import MultiThreadedExecutor
+
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry
@@ -686,13 +686,8 @@ def main(args=None):
     rclpy.init(args=args)
     node = PerformanceMonitor()
     
-    # Use MultiThreadedExecutor to handle high-frequency scan/odom/pose callbacks
-    # without blocking on the sample_callback's psutil work
-    executor = MultiThreadedExecutor(num_threads=4)
-    executor.add_node(node)
-    
     try:
-        executor.spin()
+        rclpy.spin(node)
     except KeyboardInterrupt:
         pass
     except Exception:
