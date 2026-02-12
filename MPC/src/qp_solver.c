@@ -242,17 +242,17 @@ void qp_solver_initialize_config(QuadraticProgramConfig_t *config)
      *
      * Must satisfy: alpha < 2 / lambda_max(H)
      * With condensed MPC formulation, the Hessian is dominated by
-     * position tracking (weights ~2) and rate penalty (weights ~5).
-     * Typical lambda_max ~ 10-50, so alpha=0.05 provides stability margin.
+     * tracking weights (~1-2) and rate penalty (~0.1).
      *
      * If the solver hits max iterations without converging, try:
-     * - Reducing step size if oscillating
-     * - Increasing step size if converging too slowly
+     * - Reducing step size if oscillating around optimal
+     * - Increasing step size if converging too slowly (large residual)
      *
-     * UPDATE: With horizon N=10 and 2 controls per step, the condensed
-     * Hessian has λ_max >> 100 due to compound dynamics. Use smaller step.
+     * UPDATE: Increased from 0.005 to 0.03 to improve convergence speed.
+     * With position weights disabled and only heading/velocity tracking,
+     * the Hessian diagonals are ~2.3, so step < 2/2.3 ≈ 0.87 is safe.
      */
-    config->gradient_step_size = (fixed_point_t)328;  /* 0.005 in Q16.16 = 0.005 × 65536 ≈ 328 */
+    config->gradient_step_size = (fixed_point_t)1966;  /* 0.03 in Q16.16 = 0.03 × 65536 ≈ 1966 */
 
     /* Convergence tolerance of 0.001 (about 65 in fixed-point) */
     config->convergence_tolerance = (fixed_point_t)65;  /* 0.001 in Q16.16 ≈ 65 */
