@@ -40,7 +40,7 @@ from launch_ros.actions import Node, LifecycleNode
 # ==================== Default Configuration ====================
 # Particle filter settings
 DEFAULT_MIN_PARTICLES = 100
-DEFAULT_MAX_PARTICLES = 400
+DEFAULT_MAX_PARTICLES = 3000
 DEFAULT_MAX_BEAMS = 270
 
 # AMCL type: 'nav2_amcl' or 'gpu_amcl'
@@ -165,6 +165,10 @@ def launch_setup(context, *args, **kwargs):
                 'initial_pose_a': 0.0,
                 # Publishing (40Hz for racing)
                 'publish_rate': 40.0,
+                # KLD Sampling (Adaptive Particle Count)
+                'use_kld_sampling': LaunchConfiguration('use_kld').perform(context).lower() == 'true',
+                'kld_epsilon': 0.05,
+                'kld_z': 2.33,
                 # IMU fusion (disabled for bag playback without IMU)
                 'use_imu_rotation': False,
             }],
@@ -394,6 +398,11 @@ def generate_launch_description():
             default_value='false',
             description='Record output bag with AMCL data for Foxglove visualization'
         ),
+        DeclareLaunchArgument(
+            'use_kld',
+            default_value='false',
+            description='Enable KLD sampling for adaptive particle count (GPU AMCL only)'
+        ),
         
         # ==================== Info Messages ====================
         LogInfo(msg=['Starting AMCL Bag Benchmark with bag: ', LaunchConfiguration('bag_path')]),
@@ -402,6 +411,7 @@ def generate_launch_description():
                      ' - ', LaunchConfiguration('max_particles'),
                      ', Beams: ', LaunchConfiguration('max_beams')]),
         LogInfo(msg=['Record output: ', LaunchConfiguration('record_output')]),
+        LogInfo(msg=['KLD sampling: ', LaunchConfiguration('use_kld')]),
         
         # ==================== Launch Setup ====================
         OpaqueFunction(function=launch_setup),

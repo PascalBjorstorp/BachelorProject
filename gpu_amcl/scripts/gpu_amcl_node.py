@@ -11,6 +11,7 @@ Usage:
 """
 
 import rclpy
+from rclpy.executors import MultiThreadedExecutor
 from gpu_amcl.ros import GPUAMCLNode
 
 
@@ -19,8 +20,13 @@ def main(args=None):
     
     node = GPUAMCLNode()
     
+    # Use MultiThreadedExecutor so the publish timer can fire at full rate
+    # even while scan_callback is doing heavy GPU processing
+    executor = MultiThreadedExecutor(num_threads=4)
+    executor.add_node(node)
+    
     try:
-        rclpy.spin(node)
+        executor.spin()
     except KeyboardInterrupt:
         pass
     except Exception as e:

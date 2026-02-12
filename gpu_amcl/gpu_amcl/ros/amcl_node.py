@@ -9,6 +9,7 @@ This node follows the same interface as nav2_amcl for drop-in replacement.
 
 import numpy as np
 import time
+import threading
 from typing import Optional
 
 import rclpy
@@ -142,6 +143,12 @@ class GPUAMCLNode(Node):
         self.update_count = 0
         self.total_update_time = 0.0
         
+        # Thread safety for MultiThreadedExecutor
+        self._pf_lock = threading.Lock()
+        
+        # Track last scan timestamp for proper pose stamping
+        self._last_scan_stamp = None
+        
         self.get_logger().info(f'GPU AMCL Node started')
         self.get_logger().info(f'  Particles: {self.num_particles}')
         self.get_logger().info(f'  GPU: {"enabled" if self.use_gpu else "disabled"}')
@@ -154,6 +161,11 @@ class GPUAMCLNode(Node):
         self.declare_parameter('num_particles', 2000)
         self.declare_parameter('min_particles', 100)
         self.declare_parameter('max_particles', 5000)
+        
+        # KLD Sampling (Adaptive Particle Count)
+        self.declare_parameter('use_kld_sampling', False)
+        self.declare_parameter('kld_epsilon', 0.05)
+        self.declare_parameter('kld_z', 2.33)  # 99% confidence
         
         # Topics and frames
         self.declare_parameter('scan_topic', '/scan')
@@ -260,7 +272,14 @@ class GPUAMCLNode(Node):
                 self.get_parameter('initial_cov_yy').value,
                 self.get_parameter('initial_cov_aa').value,
             ),
+            # KLD Sampling
+            use_kld_sampling=self.get_parameter('use_kld_sampling').value,
+            kld_epsilon=self.get_parameter('kld_epsilon').value,
+            kld_z=self.get_parameter('kld_z').value,
         )
+        
+        kld_status = "enabled" if pf_config.use_kld_sampling else "disabled"
+        self.get_logger().info(f'KLD sampling: {kld_status}')
         
         # Create particle filter
         self.pf = ParticleFilter(pf_config)
@@ -374,6 +393,9 @@ class GPUAMCLNode(Node):
         if not self.initialized:
             return
         
+        # Track scan timestamp for pose stamping
+        self._last_scan_stamp = msg.header.stamp
+        
         t_start = time.perf_counter()
         
         # Compute odometry delta
@@ -435,7 +457,8 @@ class GPUAMCLNode(Node):
                     self.alpha4_base * noise_multiplier
                 )
             
-            self.pf.predict((dx_robot, dy_robot, dtheta), imu_dtheta=imu_dtheta)
+            with self._pf_lock:
+                self.pf.predict((dx_robot, dy_robot, dtheta), imu_dtheta=imu_dtheta)
             
             # Restore normal noise after prediction
             if noise_multiplier > 1.0:
@@ -448,9 +471,10 @@ class GPUAMCLNode(Node):
         if hasattr(self, 'current_odom_pose'):
             self.last_odom_pose = self.current_odom_pose.copy()
         
-        # Measurement update
+        # Measurement update (thread-safe)
         ranges = np.array(msg.ranges, dtype=np.float32)
-        self.pf.update(ranges, msg.angle_min, msg.angle_increment)
+        with self._pf_lock:
+            self.pf.update(ranges, msg.angle_min, msg.angle_increment)
         
         # Timing
         t_elapsed = time.perf_counter() - t_start
@@ -475,12 +499,20 @@ class GPUAMCLNode(Node):
         
         now = self.get_clock().now()
         
-        # Get pose estimate
-        estimate = self.pf.get_estimate()
+        # Get pose estimate (thread-safe)
+        with self._pf_lock:
+            estimate = self.pf.get_estimate()
+        
+        # Use the scan timestamp that produced this estimate for proper latency tracking
+        # This matches nav2_amcl behavior where poses are stamped with source scan time
+        if self._last_scan_stamp is not None:
+            pose_stamp = self._last_scan_stamp
+        else:
+            pose_stamp = now.to_msg()
         
         # Publish PoseWithCovarianceStamped
         pose_msg = PoseWithCovarianceStamped()
-        pose_msg.header.stamp = now.to_msg()
+        pose_msg.header.stamp = pose_stamp
         pose_msg.header.frame_id = self.global_frame_id
         
         pose_msg.pose.pose.position.x = estimate.x
@@ -568,7 +600,8 @@ class GPUAMCLNode(Node):
     
     def _publish_particles(self, stamp):
         """Publish particle cloud for visualization."""
-        particles, weights = self.pf.get_particles_numpy()
+        with self._pf_lock:
+            particles, weights = self.pf.get_particles_numpy()
         
         msg = PoseArray()
         msg.header.stamp = stamp.to_msg()

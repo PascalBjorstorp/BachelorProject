@@ -109,6 +109,8 @@ class PerformanceMonitor(Node):
         
         # Ground truth tracking for accuracy measurement
         self.ground_truth_pose = None  # Latest ground truth from simulator odom
+        self.ground_truth_history = []  # List of (timestamp_ns, pose) for temporal matching
+        self.GT_HISTORY_SIZE = 200  # Keep last N ground truth poses
         self.position_errors = []  # Recent position errors (meters)
         self.orientation_errors = []  # Recent orientation errors (radians)
         
@@ -181,28 +183,54 @@ class PerformanceMonitor(Node):
                 pass
             self.amcl_process = None
         
-        # Search for AMCL process - look for the nav2_amcl executable specifically
+        # Search for AMCL process - look for the nav2_amcl executable or gpu_amcl Python node
         for proc in self.psutil.process_iter(['pid', 'name', 'cmdline', 'exe']):
             try:
                 # Check executable name first (most reliable)
                 exe = proc.info.get('exe', '') or ''
                 name = proc.info.get('name', '') or ''
                 cmdline = proc.info.get('cmdline', []) or []
+                cmdline_str = ' '.join(str(c) for c in cmdline if c is not None)
                 
-                # Match AMCL executable (could be named 'amcl' or path ending in /amcl)
+                # Match AMCL executable (nav2_amcl binary or gpu_amcl Python script)
                 is_amcl = (
                     name == 'amcl' or
+                    name == 'gpu_amcl' or
                     exe.endswith('/amcl') or
-                    (cmdline and any('nav2_amcl' in str(c) or c.endswith('/amcl') for c in cmdline))
+                    'nav2_amcl' in cmdline_str or
+                    'gpu_amcl' in cmdline_str or
+                    any(str(c).endswith('/amcl') for c in cmdline if c is not None)
                 )
                 
                 if is_amcl:
                     self.amcl_process = proc
-                    self.get_logger().info(f'Found AMCL process: PID {proc.pid}, name={name}, exe={exe}')
+                    self.get_logger().info(
+                        f'Found AMCL process: PID {proc.pid}, name={name}, '
+                        f'exe={exe}, cmdline={cmdline_str[:120]}'
+                    )
                     # Initialize CPU measurement (first call returns 0, subsequent calls track delta)
                     proc.cpu_percent(interval=None)
                     return proc
-            except (self.psutil.NoSuchProcess, self.psutil.AccessDenied, self.psutil.ZombieProcess):
+            except (self.psutil.NoSuchProcess, self.psutil.AccessDenied,
+                    self.psutil.ZombieProcess, AttributeError, TypeError):
+                continue
+        
+        # If still not found, try matching by ROS node name via /proc/{pid}/cmdline
+        # GPU AMCL Python nodes may have '__node:=gpu_amcl' in their cmdline
+        for proc in self.psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                cmdline = proc.info.get('cmdline', []) or []
+                cmdline_str = ' '.join(str(c) for c in cmdline if c is not None)
+                if '__node:=gpu_amcl' in cmdline_str or '__node:=amcl' in cmdline_str:
+                    self.amcl_process = proc
+                    self.get_logger().info(
+                        f'Found AMCL process via ROS args: PID {proc.pid}, '
+                        f'cmdline={cmdline_str[:120]}'
+                    )
+                    proc.cpu_percent(interval=None)
+                    return proc
+            except (self.psutil.NoSuchProcess, self.psutil.AccessDenied,
+                    self.psutil.ZombieProcess, AttributeError, TypeError):
                 continue
         
         return None
@@ -362,13 +390,34 @@ class PerformanceMonitor(Node):
             self.scan_timestamps.pop(0)
     
     def ground_truth_callback(self, msg: Odometry):
-        """Store ground truth pose from simulator"""
+        """Store ground truth pose from simulator with timestamp for temporal matching"""
         self.ground_truth_pose = msg.pose.pose
+        
+        # Store in history with timestamp for temporal matching against AMCL poses
+        gt_stamp_ns = msg.header.stamp.sec * 1000000000 + msg.header.stamp.nanosec
+        self.ground_truth_history.append((gt_stamp_ns, msg.pose.pose))
+        if len(self.ground_truth_history) > self.GT_HISTORY_SIZE:
+            self.ground_truth_history.pop(0)
         
         # Capture first ground truth pose for alignment
         if self.first_gt_pose is None:
             self.first_gt_pose = msg.pose.pose
             self._try_compute_alignment()
+    
+    def _find_closest_gt_pose(self, target_stamp_ns):
+        """Find the ground truth pose closest in time to the given timestamp."""
+        if not self.ground_truth_history:
+            return self.ground_truth_pose
+        
+        best_pose = None
+        best_diff = float('inf')
+        for ts_ns, pose in self.ground_truth_history:
+            diff = abs(ts_ns - target_stamp_ns)
+            if diff < best_diff:
+                best_diff = diff
+                best_pose = pose
+        
+        return best_pose
     
     def _try_compute_alignment(self):
         """Compute frame alignment offset when both first poses are available"""
@@ -435,14 +484,30 @@ class PerformanceMonitor(Node):
             latency_ms = latency_ns / 1e6
             
             # Record latency if reasonable (0 to 5 seconds)
-            if 0 < latency_ms < 5000:
+            # Use >= 0 to include near-zero latencies
+            if 0 <= latency_ms < 5000:
                 self.scan_pose_latencies.append(latency_ms)
                 if len(self.scan_pose_latencies) > 100:
                     self.scan_pose_latencies.pop(0)
+        else:
+            # Fallback: use wall-clock difference between last scan receipt and pose receipt
+            # This is less accurate but better than reporting 0
+            if self.last_scan_wall_time is not None:
+                fallback_latency_ns = now.nanoseconds - self.last_scan_wall_time.nanoseconds
+                fallback_latency_ms = fallback_latency_ns / 1e6
+                if 0 <= fallback_latency_ms < 5000:
+                    self.scan_pose_latencies.append(fallback_latency_ms)
+                    if len(self.scan_pose_latencies) > 100:
+                        self.scan_pose_latencies.pop(0)
         
         # Calculate accuracy compared to ground truth (with frame alignment)
-        if self.ground_truth_pose is not None and self.frame_alignment_offset is not None:
-            gt_pose = self.ground_truth_pose
+        # Use temporally matched ground truth - find GT pose closest to the AMCL pose timestamp
+        # This prevents errors from temporal misalignment (AMCL pose may be based on an older scan)
+        if self.ground_truth_history and self.frame_alignment_offset is not None:
+            gt_pose = self._find_closest_gt_pose(pose_stamp_key)
+            if gt_pose is None:
+                gt_pose = self.ground_truth_pose
+            
             dx_offset, dy_offset, dyaw_offset = self.frame_alignment_offset
             
             # Aligned ground truth position (in map frame)
