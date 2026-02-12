@@ -2,8 +2,19 @@
  * @file mpc.h
  * @brief Model Predictive Control Public API
  *
+ * Main interface for the F1/10th MPC system.
+ * This header provides everything needed to use the MPC controller.
+ *
+ * Usage:
+ *   1. Initialize: mpc_initialize() or mpc_initialize_with_config()
+ *   2. Each control cycle:
+ *      - Get current state from localization
+ *      - Build reference trajectory
+ *      - Call mpc_compute_optimal_control()
+ *      - Apply returned control to vehicle
+ *
  * Platform-independent (no ROS dependencies).
- * All arithmetic uses Q16.16 fixed-point for FPGA compatibility.
+ * All arithmetic uses fixed-point for FPGA compatibility.
  */
 
 #ifndef MPC_H
@@ -11,46 +22,76 @@
 
 #include "mpc_types.h"
 #include "vehicle_model.h"
-#include "fp_math.h"
+#include "fixed_point.h"
 
 /*===========================================================================
  * MPC Initialization
  *===========================================================================*/
 
-/** Initialize MPC with default configuration */
-void mpc_init(void);
+/**
+ * Initialize MPC with default configuration.
+ *
+ * Default configuration:
+ * - Prediction horizon: 10 steps
+ * - Time step: 0.1 seconds
+ * - Balanced cost weights
+ * - 100 solver iterations max
+ */
+void mpc_initialize(void);
 
-/** Initialize MPC with custom configuration */
-void mpc_init_config(const MpcConfig_t *config);
+/**
+ * Initialize MPC with custom configuration.
+ *
+ * @param configuration  Pointer to custom MPC configuration
+ */
+void mpc_initialize_with_configuration(
+    const MpcConfiguration_t *configuration);
 
 /*===========================================================================
  * Control Computation
  *===========================================================================*/
 
 /**
- * Compute optimal control for current state.
+ * Compute optimal control for current vehicle state.
  *
- * @param state      Current vehicle state
- * @param trajectory Reference trajectory (length = horizon)
- * @param result     Output: optimal control and solver status
- * @return Solver status
+ * This is the main MPC function called each control cycle.
+ *
+ * @param current_vehicle_state  Current state from localization
+ * @param reference_trajectory   Array of reference points (length = horizon)
+ * @param result                 Output: optimal control and solver status
+ * @return Solver status code
  */
-SolverStatus_t mpc_compute(
-    const VehicleState_t *state,
-    const TrajectoryPoint_t *trajectory,
-    MpcResult_t *result);
+MpcSolverStatus_t mpc_compute_optimal_control(
+    const VehicleState_t *current_vehicle_state,
+    const TrajectoryReferencePoint_t *reference_trajectory,
+    MpcSolverResult_t *result);
 
 /*===========================================================================
  * Configuration Access
  *===========================================================================*/
 
-/** Get current configuration */
-MpcConfig_t mpc_get_config(void);
+/**
+ * Get current MPC configuration.
+ *
+ * @return Copy of current configuration structure
+ */
+MpcConfiguration_t mpc_get_configuration(void);
 
-/** Update configuration */
-void mpc_set_config(const MpcConfig_t *config);
+/**
+ * Update MPC configuration.
+ *
+ * @param configuration  New configuration to apply
+ */
+void mpc_set_configuration(const MpcConfiguration_t *configuration);
 
-/** Reset solver state (call after trajectory changes) */
+/**
+ * Reset MPC solver state.
+ *
+ * Clears any warm-start data. Call after:
+ * - Significant trajectory changes
+ * - Recovery from errors
+ * - Mode transitions
+ */
 void mpc_reset(void);
 
 #endif /* MPC_H */

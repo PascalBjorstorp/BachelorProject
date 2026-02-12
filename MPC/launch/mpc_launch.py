@@ -16,16 +16,21 @@ from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 import os
-from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
     """Generate launch description for MPC node with F1/10th simulator."""
 
-    # Resolve default trajectory path from f1tenth_planning package
-    planning_pkg_dir = get_package_share_directory('f1tenth_planning')
-    default_trajectory = os.path.join(
-        planning_pkg_dir, 'trajectories', 'Spielberg_raceline.csv')
+    # Try to resolve default trajectory path from f1tenth_planning package
+    # Fall back to a local path if the package is not found
+    try:
+        from ament_index_python.packages import get_package_share_directory
+        planning_pkg_dir = get_package_share_directory('f1tenth_planning')
+        default_trajectory = os.path.join(
+            planning_pkg_dir, 'trajectories', 'Spielberg_raceline.csv')
+    except Exception:
+        # Fallback: use path relative to workspace
+        default_trajectory = '/home/jonathan/Documents/GitHub/BachelorProject/f1tenth_planning/trajectories/Spielberg_raceline.csv'
 
     # Launch argument for trajectory file override
     trajectory_arg = DeclareLaunchArgument(
@@ -47,3 +52,4 @@ def generate_launch_description():
         trajectory_arg,
         mpc_node,
     ])
+

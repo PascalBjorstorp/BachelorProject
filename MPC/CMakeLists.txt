@@ -52,14 +52,15 @@ find_package(ackermann_msgs REQUIRED)
 #
 # Modules:
 #   fixed_point.c      - Q16.16 fixed-point arithmetic
-#   fp_math.c          - Fixed-point arithmetic and math
+#   linear_algebra.c   - Matrix/vector operations
 #   qp_solver.c        - Quadratic programming solver
 #   vehicle_model.c    - Kinematic bicycle model
 #   mpc.c              - Main MPC controller
 #
 
 set(MPC_CORE_SOURCES
-    src/fp_math.c
+    src/fixed_point.c
+    src/linear_algebra.c
     src/qp_solver.c
     src/vehicle_model.c
     src/mpc.c

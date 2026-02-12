@@ -2,104 +2,159 @@
  * @file vehicle_model.h
  * @brief Kinematic Bicycle Model for F1/10th Vehicle
  *
- * Model Equations (velocity is a direct control input):
+ * Provides vehicle dynamics prediction for Model Predictive Control.
+ * Uses the kinematic bicycle model which is appropriate for low-speed
+ * autonomous vehicles like F1/10th cars.
+ *
+ * Model Equations (continuous time, velocity is a direct input):
+ *
  *   dx/dt       = v_cmd × cos(heading)
  *   dy/dt       = v_cmd × sin(heading)
- *   dheading/dt = (v_cmd / wheelbase) × tan(steer)
+ *   dheading/dt = (v_cmd / wheelbase) × tan(steering)
  *   v           = v_cmd
  *
- * All calculations use Q16.16 fixed-point for FPGA compatibility.
+ * Where:
+ *   (x, y)    = position in world frame [meters]
+ *   heading   = yaw angle [radians]
+ *   v_cmd     = commanded velocity [m/s]
+ *   steering  = front wheel steering angle [radians]
+ *   wheelbase = distance between front and rear axles [meters]
+ *
+ * Discretization: Forward Euler method
+ *   state[k+1] = state[k] + dt × derivative[k]
+ *
+ * All calculations use fixed-point arithmetic for FPGA compatibility.
  */
 
 #ifndef VEHICLE_MODEL_H
 #define VEHICLE_MODEL_H
 
 #include "mpc_types.h"
-#include "fp_math.h"
-
-/*===========================================================================
- * F1/10th Default Vehicle Parameters (from f1tenth_gym)
- *===========================================================================*/
-
-/* Geometry */
-#define F110_WHEELBASE      FP_CONST(0.3302)    /**< lf + lr = 0.15875 + 0.17145 [m] */
-#define F110_LF             FP_CONST(0.15875)   /**< CG to front axle [m] */
-#define F110_LR             FP_CONST(0.17145)   /**< CG to rear axle [m] */
-#define F110_WIDTH          FP_CONST(0.31)      /**< Vehicle width [m] */
-#define F110_LENGTH         FP_CONST(0.58)      /**< Vehicle length [m] */
-
-/* Steering constraints */
-#define F110_MAX_STEER      FP_CONST(0.4189)    /**< s_max [rad] (~24°) */
-#define F110_MIN_STEER      FP_CONST(-0.4189)   /**< s_min [rad] (~-24°) */
-#define F110_MAX_STEER_VEL  FP_CONST(3.2)       /**< sv_max [rad/s] */
-#define F110_MIN_STEER_VEL  FP_CONST(-3.2)      /**< sv_min [rad/s] */
-
-/* Velocity constraints */
-#define F110_MAX_VEL        FP_CONST(20.0)      /**< v_max [m/s] */
-#define F110_MIN_VEL        FP_CONST(-5.0)      /**< v_min [m/s] */
-#define F110_V_SWITCH       FP_CONST(7.319)     /**< Velocity for accel limit change [m/s] */
-
-/* Acceleration constraints */
-#define F110_MAX_ACCEL      FP_CONST(9.51)      /**< a_max [m/s²] */
-
-/* Mass/Inertia (for dynamic model) */
-#define F110_MASS           FP_CONST(3.74)      /**< m [kg] */
-#define F110_INERTIA        FP_CONST(0.04712)   /**< I_z [kg·m²] */
-#define F110_CG_HEIGHT      FP_CONST(0.074)     /**< h [m] */
-
-/* Tire parameters (for dynamic model) */
-#define F110_MU             FP_CONST(1.0489)    /**< Friction coefficient */
-#define F110_C_SF           FP_CONST(4.718)     /**< Front cornering stiffness */
-#define F110_C_SR           FP_CONST(5.4562)    /**< Rear cornering stiffness */
+#include "fixed_point.h"
 
 /*===========================================================================
  * Model Initialization
  *===========================================================================*/
 
-/** Initialize with default F1/10th parameters */
-void vehicle_model_init(void);
+/**
+ * Initialize vehicle model with default F1/10th parameters.
+ *
+ * Default values:
+ * - Wheelbase: 0.32 m
+ * - Max steering: 0.42 rad (24°)
+ * - Max velocity: 6.0 m/s
+ * - Min velocity: 0.0 m/s (no reverse)
+ */
+void vehicle_model_initialize(void);
 
-/** Initialize with custom parameters */
-void vehicle_model_init_params(const VehicleParams_t *params);
+/**
+ * Initialize vehicle model with custom parameters.
+ *
+ * @param parameters  Pointer to custom vehicle parameter structure
+ */
+void vehicle_model_initialize_with_parameters(
+    const VehicleParameters_t *parameters);
 
-/** Get current parameters */
-VehicleParams_t vehicle_model_get_params(void);
-
-/*===========================================================================
- * Control Saturation
- *===========================================================================*/
-
-/** Clamp control to physical limits */
-ControlInput_t vehicle_model_saturate(const ControlInput_t *raw);
-
-/*===========================================================================
- * State Prediction
- *===========================================================================*/
-
-/** Predict next state (single step) */
-VehicleState_t vehicle_model_predict(
-    const VehicleState_t *state,
-    const ControlInput_t *control,
-    fixed_point_t dt);
-
-/** Predict trajectory (multiple steps) */
-void vehicle_model_predict_traj(
-    const VehicleState_t *initial,
-    const ControlInput_t *controls,
-    fixed_point_t dt,
-    uint16_t steps,
-    VehicleState_t *trajectory);
+/**
+ * Get current vehicle parameters.
+ *
+ * @return Copy of current vehicle parameter structure
+ */
+VehicleParameters_t vehicle_model_get_parameters(void);
 
 /*===========================================================================
- * Model Linearization
+ * Control Input Saturation
  *===========================================================================*/
 
-/** Compute A (4x4) and B (4x2) matrices at operating point */
-void vehicle_model_linearize(
-    const VehicleState_t *state,
-    const ControlInput_t *control,
-    fixed_point_t dt,
-    fixed_point_t A[4][4],
-    fixed_point_t B[4][2]);
+/**
+ * Clamp control inputs to physical vehicle limits.
+ *
+ * Ensures:
+ * - Steering angle within [-max_steering, +max_steering]
+ * - Velocity within [min_velocity, max_velocity]
+ *
+ * @param raw_control  Unconstrained control input
+ * @return Constrained control input within physical limits
+ */
+ControlInput_t vehicle_model_saturate_control(
+    const ControlInput_t *raw_control);
+
+/*===========================================================================
+ * State Prediction (Single Step)
+ *===========================================================================*/
+
+/**
+ * Predict the next vehicle state using the kinematic bicycle model.
+ *
+ * Uses Forward Euler integration:
+ *   state[k+1] = state[k] + dt × f(state[k], control[k])
+ *
+ * The control input is automatically saturated to physical limits.
+ *
+ * @param current_state   Current vehicle state
+ * @param control_input   Control input (steering, velocity)
+ * @param time_step       Time step duration [seconds] in fixed-point
+ * @return Predicted state after time_step seconds
+ */
+VehicleState_t vehicle_model_predict_next_state(
+    const VehicleState_t *current_state,
+    const ControlInput_t *control_input,
+    fixed_point_t time_step);
+
+/*===========================================================================
+ * Trajectory Prediction (Multiple Steps)
+ *===========================================================================*/
+
+/**
+ * Predict vehicle trajectory over multiple time steps.
+ *
+ * Useful for MPC prediction horizon computation.
+ *
+ * @param initial_state      Starting vehicle state
+ * @param control_sequence   Array of control inputs (length = step_count)
+ * @param time_step          Time between steps [seconds] in fixed-point
+ * @param step_count         Number of prediction steps
+ * @param predicted_trajectory  Output array (length = step_count + 1)
+ *                              First element is initial_state
+ *
+ * @note predicted_trajectory must have space for (step_count + 1) states
+ */
+void vehicle_model_predict_trajectory(
+    const VehicleState_t *initial_state,
+    const ControlInput_t *control_sequence,
+    fixed_point_t time_step,
+    uint16_t step_count,
+    VehicleState_t *predicted_trajectory);
+
+/*===========================================================================
+ * Model Linearization (for Linear MPC)
+ *===========================================================================*/
+
+/**
+ * Compute linearized state-space matrices at an operating point.
+ *
+ * Linearizes the nonlinear bicycle model around (state, control):
+ *
+ *   state[k+1] ≈ A × state[k] + B × control[k]
+ *
+ * Where:
+ *   A = I + dt × (∂f/∂state)    [4×4 discrete state matrix]
+ *   B = dt × (∂f/∂control)      [4×2 discrete input matrix]
+ *
+ * State ordering: [x, y, heading, velocity]
+ * Control ordering: [steering, velocity]
+ *
+ * @param operating_state    State to linearize around
+ * @param operating_control  Control to linearize around
+ * @param time_step          Discretization time step [seconds]
+ * @param state_matrix_A     Output: 4×4 state transition matrix
+ * @param input_matrix_B     Output: 4×2 input matrix
+ */
+void vehicle_model_compute_linearization(
+    const VehicleState_t *operating_state,
+    const ControlInput_t *operating_control,
+    fixed_point_t time_step,
+    fixed_point_t state_matrix_A[4][4],
+    fixed_point_t input_matrix_B[4][2]);
 
 #endif /* VEHICLE_MODEL_H */
