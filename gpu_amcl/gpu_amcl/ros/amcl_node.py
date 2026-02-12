@@ -16,6 +16,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.time import Time
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy, QoSReliabilityPolicy
+from rclpy.callback_groups import ReentrantCallbackGroup
 
 from std_msgs.msg import Header
 from sensor_msgs.msg import LaserScan, Imu
@@ -105,24 +106,33 @@ class GPUAMCLNode(Node):
             reliability=QoSReliabilityPolicy.RELIABLE
         )
         
+        # Use ReentrantCallbackGroup so MultiThreadedExecutor can run
+        # scan_callback and publish_callback truly in parallel
+        self._cb_group = ReentrantCallbackGroup()
+        
         # Subscribers
         self.scan_sub = self.create_subscription(
-            LaserScan, self.scan_topic, self.scan_callback, sensor_qos
+            LaserScan, self.scan_topic, self.scan_callback, sensor_qos,
+            callback_group=self._cb_group
         )
         self.odom_sub = self.create_subscription(
-            Odometry, self.odom_topic, self.odom_callback, sensor_qos
+            Odometry, self.odom_topic, self.odom_callback, sensor_qos,
+            callback_group=self._cb_group
         )
         self.map_sub = self.create_subscription(
-            OccupancyGrid, '/map', self.map_callback, map_qos
+            OccupancyGrid, '/map', self.map_callback, map_qos,
+            callback_group=self._cb_group
         )
         self.initial_pose_sub = self.create_subscription(
-            PoseWithCovarianceStamped, '/initialpose', self.initial_pose_callback, 10
+            PoseWithCovarianceStamped, '/initialpose', self.initial_pose_callback, 10,
+            callback_group=self._cb_group
         )
         
         # IMU subscription for gyro-based rotation (optional)
         if self.use_imu_rotation:
             self.imu_sub = self.create_subscription(
-                Imu, self.imu_topic, self.imu_callback, sensor_qos
+                Imu, self.imu_topic, self.imu_callback, sensor_qos,
+                callback_group=self._cb_group
             )
             self.get_logger().info(f'IMU fusion enabled: {self.imu_topic}')
         
@@ -134,9 +144,10 @@ class GPUAMCLNode(Node):
             PoseArray, '/particlecloud', 10
         )
         
-        # Timers
+        # Timers - same reentrant group allows parallel execution with scan_callback
         self.publish_timer = self.create_timer(
-            1.0 / self.publish_rate, self.publish_callback
+            1.0 / self.publish_rate, self.publish_callback,
+            callback_group=self._cb_group
         )
         
         # Performance tracking
@@ -619,11 +630,15 @@ class GPUAMCLNode(Node):
     
     def _publish_particles(self, stamp):
         """Publish particle cloud for visualization."""
+        # Non-blocking: skip if scan processing holds the lock
+        if not self._pf_lock.acquire(blocking=False):
+            return
         try:
-            with self._pf_lock:
-                particles, weights = self.pf.get_particles_numpy()
+            particles, weights = self.pf.get_particles_numpy()
         except Exception:
             return
+        finally:
+            self._pf_lock.release()
         
         msg = PoseArray()
         msg.header.stamp = stamp.to_msg()
