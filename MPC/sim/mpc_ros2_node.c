@@ -42,26 +42,26 @@
 /** Number of MPC prediction steps (10 steps × 0.05s = 0.5 second lookahead) */
 #define MPC_PREDICTION_HORIZON_STEPS 10
 
-/** Time step between predictions (seconds) */
+/** Time step between predictions (seconds) - MUST match MPC_DEFAULT_TIME_STEP_SECONDS in mpc_types.h */
 #define MPC_TIME_STEP_SECONDS 0.05f
 
 /** Maximum allowed steering angle (radians, ~23 degrees) */
 #define MAXIMUM_STEERING_ANGLE_RADIANS 0.4189f
 
 /** Maximum allowed velocity (m/s) */
-#define MAXIMUM_VELOCITY_METERS_PER_SECOND 6.0f
+#define MAXIMUM_VELOCITY_METERS_PER_SECOND 20.0f
 
 /** Odometry callback divider (run MPC every N callbacks) */
-#define ODOMETRY_CALLBACK_DIVIDER 10
+#define ODOMETRY_CALLBACK_DIVIDER 1
 
 /** Maximum number of waypoints in loaded trajectory */
 #define TRAJECTORY_MAXIMUM_WAYPOINTS 2000
 
 /** Maximum reference velocity [m/s] (clamp trajectory velocities) */
-#define TRAJECTORY_MAXIMUM_VELOCITY 6.0
+#define TRAJECTORY_MAXIMUM_VELOCITY 20.0
 
-/** Speed gain applied to trajectory velocities (0.5 = 50% of optimal racing speed) */
-#define TRAJECTORY_SPEED_GAIN 0.5
+/** Speed gain applied to trajectory velocities (0.8 = 80% of optimal racing speed) */
+#define TRAJECTORY_SPEED_GAIN 1.0
 
 /*===========================================================================
  * Trajectory Waypoint (loaded from CSV, stored as double)
@@ -224,16 +224,19 @@ static int load_trajectory_from_csv(const char *file_path)
 }
 
 /**
- * @brief Find the closest trajectory waypoint to a position
+ * @brief Find the closest trajectory waypoint to a position (considering heading)
  *
  * Uses a windowed search around the last closest index for efficiency.
  * The trajectory is assumed to be a closed loop.
+ * Waypoints behind the vehicle (based on heading) are skipped to prevent
+ * tracking problems when the car faces the wrong direction.
  *
  * @param position_x Vehicle X position [meters]
  * @param position_y Vehicle Y position [meters]
- * @return Index of the closest waypoint
+ * @param vehicle_heading Vehicle heading angle [radians]
+ * @return Index of the closest waypoint ahead of the vehicle
  */
-static int find_closest_waypoint(double position_x, double position_y)
+static int find_closest_waypoint(double position_x, double position_y, double vehicle_heading)
 {
     if (global_trajectory_count == 0)
     {
@@ -247,6 +250,10 @@ static int find_closest_waypoint(double position_x, double position_y)
     int best_index = global_last_closest_index;
     double best_distance_squared = 1e18;
 
+    /* Compute vehicle direction vector */
+    double veh_dir_x = cos(vehicle_heading);
+    double veh_dir_y = sin(vehicle_heading);
+
     for (int offset = -search_window; offset <= search_window; offset++)
     {
         /* Wrap around for closed-loop trajectory */
@@ -256,6 +263,15 @@ static int find_closest_waypoint(double position_x, double position_y)
         double dx = global_trajectory[idx].x_meters - position_x;
         double dy = global_trajectory[idx].y_meters - position_y;
         double distance_squared = dx * dx + dy * dy;
+
+        /* Check if waypoint is ahead of vehicle (dot product > 0) */
+        double dot_product = dx * veh_dir_x + dy * veh_dir_y;
+        
+        /* Only consider waypoints that are ahead or very close */
+        if (dot_product < -0.5 && distance_squared > 0.25)  /* Behind and not very close */
+        {
+            continue;  /* Skip waypoints behind the vehicle */
+        }
 
         if (distance_squared < best_distance_squared)
         {
@@ -283,8 +299,8 @@ static void build_reference_from_trajectory(int closest_index, double current_ve
 {
     (void)current_velocity;  /* We use trajectory velocity instead */
     
-    /* MPC time step in seconds */
-    const double mpc_dt = (double)MPC_DEFAULT_TIME_STEP_SECONDS / 65536.0;
+    /* MPC time step in seconds - use node header constant for consistency */
+    const double mpc_dt = (double)MPC_TIME_STEP_SECONDS;
     
     /* Average waypoint spacing (assumed constant from trajectory file) */
     const double avg_waypoint_spacing = 0.346;  /* meters - from Spielberg trajectory */
@@ -535,11 +551,11 @@ void odometry_subscription_callback(const void *message_in)
 
         /*
          * Build reference trajectory from loaded waypoints.
-         * Find closest waypoint, then extract N-step reference with lookahead.
+         * Find closest waypoint (considering heading), then extract N-step reference with lookahead.
          */
         if (global_trajectory_count > 0)
         {
-            int closest_index = find_closest_waypoint(position_x_meters, position_y_meters);
+            int closest_index = find_closest_waypoint(position_x_meters, position_y_meters, heading_angle_radians);
             build_reference_from_trajectory(closest_index, velocity_magnitude, heading_angle_radians);
 
             /* Debug: Print first reference point for diagnostics */
@@ -632,45 +648,34 @@ void odometry_subscription_callback(const void *message_in)
         if (mpc_status == MPC_STATUS_SUCCESS ||
             mpc_status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED)
         {
-            /* Extract control from MPC result — now velocity directly, no integration */
+            /* Extract steering control from MPC result */
             double steering_command_radians = FP_TO_DOUBLE(
                 mpc_result.optimal_control.steering_angle_radians);
-            double velocity_command_mps = FP_TO_DOUBLE(
-                mpc_result.optimal_control.velocity_meters_per_second);
-
-            /* Add feedforward steering based on trajectory curvature.
-             * This helps the MPC handle sharp corners by providing a baseline
-             * steering angle that matches the path curvature.
-             * Formula: steering_ff = atan(wheelbase × curvature)
-             *
-             * CRITICAL: Use lookahead curvature, not current position curvature!
-             * Looking 10 waypoints ahead (~3.5m at 0.346m spacing) to anticipate corners.
+            
+            /* Use trajectory reference velocity directly.
+             * The trajectory contains pre-computed optimal velocities from the racing line.
+             * This decouples velocity from MPC optimization, allowing MPC to focus purely
+             * on steering optimization which is the critical control variable.
+             * This is still optimal trajectory following - we're using optimal velocities.
              */
-            const double F110_WHEELBASE = 0.32;  /* meters */
-            int lookahead_index = (global_last_closest_index + 10) % global_trajectory_count;
-            double curvature = global_trajectory[lookahead_index].curvature_radians_per_meter;
-            double steering_feedforward = atan(F110_WHEELBASE * curvature);
+            double velocity_command_mps = global_trajectory[global_last_closest_index].velocity_meters_per_second;
             
-            /* Add proportional heading error correction.
-             * The MPC's balanced weights don't prioritize heading enough for
-             * sharp corners. This adds a direct P-controller on heading error. */
-            double current_heading = FP_TO_DOUBLE(global_vehicle_state.heading_angle_radians);
-            double ref_heading = global_trajectory[global_last_closest_index].heading_radians;
-            double heading_error = ref_heading - current_heading;
-            
-            /* Normalize heading error to [-pi, pi] */
-            while (heading_error > 3.14159) heading_error -= 2.0 * 3.14159;
-            while (heading_error < -3.14159) heading_error += 2.0 * 3.14159;
-            
-            /* P-gain on heading error. Use aggressive gain for corners. */
-            const double HEADING_P_GAIN = 1.0;
-            double steering_heading_correction = HEADING_P_GAIN * heading_error;
-            
-            printf("[MPC] DEBUG: mpc_steer=%.3f, ff=%.3f, h_err=%.3f, h_corr=%.3f\n",
-                   steering_command_radians, steering_feedforward, heading_error, steering_heading_correction);
-            
-            /* Apply feedforward + feedback on top of MPC output */
-            steering_command_radians = steering_command_radians + steering_feedforward + steering_heading_correction;
+            /* Reduce velocity when far from trajectory (safety) */
+            double distance_from_trajectory = sqrt(
+                pow(FP_TO_DOUBLE(global_vehicle_state.position_x_meters) - 
+                    global_trajectory[global_last_closest_index].x_meters, 2) +
+                pow(FP_TO_DOUBLE(global_vehicle_state.position_y_meters) - 
+                    global_trajectory[global_last_closest_index].y_meters, 2));
+            if (distance_from_trajectory > 1.0) 
+            {
+                /* More than 1m off track - reduce speed */
+                velocity_command_mps *= 0.5;
+            }
+            else if (distance_from_trajectory > 0.5)
+            {
+                /* 0.5-1m off track - slightly reduce speed */
+                velocity_command_mps *= 0.8;
+            }
 
             /* Apply safety saturation */
             saturate_control_commands(&steering_command_radians, &velocity_command_mps);
@@ -681,9 +686,9 @@ void odometry_subscription_callback(const void *message_in)
             global_control_command.velocity_meters_per_second =
                 DOUBLE_TO_FP(velocity_command_mps);
 
-            printf("[MPC] Control: steering=%.4f rad, speed=%.2f m/s (status=%d, iter=%d)\n",
+            printf("[MPC] Control: steering=%.4f rad, speed=%.2f m/s (status=%d, iter=%d, dist=%.2f)\n",
                    steering_command_radians, velocity_command_mps,
-                   mpc_status, mpc_result.iterations_used);
+                   mpc_status, mpc_result.iterations_used, distance_from_trajectory);
             fflush(stdout);
         }
         else

@@ -56,18 +56,18 @@ bridge:
     # opponent parameters
     num_agent: 1
 
-    # ego starting pose on map
-    sx: 0.0
-    sy: 0.0
-    stheta: 0.0
+    # ego starting pose on map (Spielberg raceline start)
+    sx: -69.4
+    sy: 53.9
+    stheta: 0.024
 
     # opp starting pose on map
-    sx1: 2.0
-    sy1: 0.5
+    sx1: -67.0
+    sy1: 54.0
     stheta1: 0.0
 
     # teleop
-    kb_teleop: True
+    kb_teleop: False
     teleop_steering_angle: 0.3
 
     # simulation timing

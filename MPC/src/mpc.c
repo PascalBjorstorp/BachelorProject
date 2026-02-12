@@ -17,8 +17,8 @@
  */
 
 #include "mpc.h"
-#include "qp_solver.h"
 #include "fp_math.h"
+#include "qp_solver.h"
 #include "vehicle_model.h"
 #include <string.h>
 #include <stdio.h>
@@ -100,8 +100,8 @@ static MpcConfiguration_t get_default_configuration(void)
      * Future improvement: Use Frenet (path-relative) coordinates instead of
      * global XY to properly decouple lateral and heading tracking.
      */
-    config.weight_position_x = FP_ONE;                                      /* 0.0 - disabled */
-    config.weight_position_y = FP_ONE;                                      /* 0.0 - disabled */
+    config.weight_position_x = 0;                                      /* 0.0 - disabled */
+    config.weight_position_y = 0;                                      /* 0.0 - disabled */
     config.weight_heading    = FP_ONE;                        /* 1.0 */
     config.weight_velocity   = FP_ONE;                        /* 1.0 */
 
@@ -427,9 +427,9 @@ static void build_qp_from_prediction(
         else
         {
             hessian_matrix[idx_s] = fp_add(hessian_matrix[idx_s],
-                fp_mul(FP_TWO, w_sr));
+                fp_mul(FP_ONE, w_sr));
             hessian_matrix[idx_v] = fp_add(hessian_matrix[idx_v],
-                fp_mul(FP_TWO, w_vr));
+                fp_mul(FP_ONE, w_vr));
         }
 
         /* Off-diagonal rate: H[k-1,k] = H[k,k-1] = -2*w_rate */
@@ -440,8 +440,8 @@ static void build_qp_from_prediction(
             int sym_s  = (ci * 2) * n_vars + ((ci - 1) * 2);
             int sym_v  = (ci * 2 + 1) * n_vars + ((ci - 1) * 2 + 1);
 
-            fixed_point_t neg_2_sr = fp_neg(fp_mul(FP_TWO, w_sr));
-            fixed_point_t neg_2_vr = fp_neg(fp_mul(FP_TWO, w_vr));
+            fixed_point_t neg_2_sr = fp_neg(fp_mul(FP_ONE, w_sr));
+            fixed_point_t neg_2_vr = fp_neg(fp_mul(FP_ONE, w_vr));
 
             hessian_matrix[prev_s] = fp_add(hessian_matrix[prev_s], neg_2_sr);
             hessian_matrix[sym_s]  = fp_add(hessian_matrix[sym_s],  neg_2_sr);
