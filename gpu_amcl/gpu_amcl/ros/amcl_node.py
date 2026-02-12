@@ -416,6 +416,18 @@ class GPUAMCLNode(Node):
             return
         self._processing_scan = True
         
+        # Skip stale scans (e.g., from QoS buffer during initialization)
+        # This prevents high initial latency from processing old buffered scans
+        try:
+            scan_time = Time.from_msg(msg.header.stamp)
+            now = self.get_clock().now()
+            age_ns = now.nanoseconds - scan_time.nanoseconds
+            if age_ns > 200_000_000:  # Skip scans older than 200ms
+                self._processing_scan = False
+                return
+        except Exception:
+            pass  # If time comparison fails, process the scan anyway
+        
         # Track scan timestamp for pose stamping
         self._last_scan_stamp = msg.header.stamp
         

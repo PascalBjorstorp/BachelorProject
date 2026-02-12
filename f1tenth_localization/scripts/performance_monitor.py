@@ -14,6 +14,8 @@ Usage:
 import rclpy
 from rclpy.node import Node
 from rclpy.time import Time
+from rclpy.qos import qos_profile_sensor_data
+from rclpy.executors import MultiThreadedExecutor
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry
@@ -121,14 +123,14 @@ class PerformanceMonitor(Node):
         
         # Subscribers
         self.scan_sub = self.create_subscription(
-            LaserScan, scan_topic, self.scan_callback, 10
+            LaserScan, scan_topic, self.scan_callback, qos_profile_sensor_data
         )
         self.amcl_sub = self.create_subscription(
             PoseWithCovarianceStamped, amcl_topic, self.pose_callback, 10
         )
         # Ground truth subscription (simulator provides true pose via odom)
         self.ground_truth_sub = self.create_subscription(
-            Odometry, '/ego_racecar/odom', self.ground_truth_callback, 10
+            Odometry, '/ego_racecar/odom', self.ground_truth_callback, qos_profile_sensor_data
         )
         
         # Timer for periodic sampling
@@ -353,26 +355,28 @@ class PerformanceMonitor(Node):
     def scan_callback(self, msg: LaserScan):
         """Record scan timestamp for latency calculation"""
         now = self.get_clock().now()
+        wall_now_ns = time.monotonic_ns()  # Wall clock for rate/latency
         self.last_scan_time = now
         
         # Store scan header timestamp (when the scan was taken by sensor)
         # We'll use this to correlate with pose output
         scan_header_stamp = Time.from_msg(msg.header.stamp)
         self.last_scan_header_time = scan_header_stamp
-        self.last_scan_wall_time = now  # Wall clock when we received this scan
+        self.last_scan_wall_time = wall_now_ns  # Wall clock when we received this scan
         
         # Store scan reception time indexed by header timestamp for proper correlation
         # This allows us to find when we received a specific scan that AMCL processed
+        # Use wall clock so latency reflects real processing time, not sim time
         scan_stamp_key = msg.header.stamp.sec * 1000000000 + msg.header.stamp.nanosec
-        self.scan_receipt_times[scan_stamp_key] = now.nanoseconds
+        self.scan_receipt_times[scan_stamp_key] = wall_now_ns
         
         # Cleanup old entries (keep last 200 scans)
         if len(self.scan_receipt_times) > 200:
             oldest_key = min(self.scan_receipt_times.keys())
             del self.scan_receipt_times[oldest_key]
         
-        # Track scan rate
-        self.scan_timestamps.append(now.nanoseconds)
+        # Track scan rate using wall clock (sim time distorts rate when sim != real-time)
+        self.scan_timestamps.append(wall_now_ns)
         if len(self.scan_timestamps) > 100:
             self.scan_timestamps.pop(0)
     
@@ -450,6 +454,7 @@ class PerformanceMonitor(Node):
         """Record pose timestamp and calculate latency by correlating with the scan that produced it"""
         import math
         now = self.get_clock().now()
+        wall_now_ns = time.monotonic_ns()  # Wall clock for rate/latency
         self.last_pose_time = now
         
         amcl_pose = msg.pose.pose
@@ -465,9 +470,9 @@ class PerformanceMonitor(Node):
         pose_stamp_key = pose_stamp.sec * 1000000000 + pose_stamp.nanosec
         
         if pose_stamp_key in self.scan_receipt_times:
-            # Found the matching scan - calculate true processing latency
+            # Found the matching scan - calculate true processing latency (wall clock)
             scan_receipt_ns = self.scan_receipt_times[pose_stamp_key]
-            latency_ns = now.nanoseconds - scan_receipt_ns
+            latency_ns = wall_now_ns - scan_receipt_ns
             latency_ms = latency_ns / 1e6
             
             # Record latency if reasonable (0 to 5 seconds)
@@ -480,7 +485,7 @@ class PerformanceMonitor(Node):
             # Fallback: use wall-clock difference between last scan receipt and pose receipt
             # This is less accurate but better than reporting 0
             if self.last_scan_wall_time is not None:
-                fallback_latency_ns = now.nanoseconds - self.last_scan_wall_time.nanoseconds
+                fallback_latency_ns = wall_now_ns - self.last_scan_wall_time
                 fallback_latency_ms = fallback_latency_ns / 1e6
                 if 0 <= fallback_latency_ms < 5000:
                     self.scan_pose_latencies.append(fallback_latency_ms)
@@ -526,8 +531,8 @@ class PerformanceMonitor(Node):
             if len(self.orientation_errors) > 100:
                 self.orientation_errors.pop(0)
         
-        # Track pose rate
-        self.pose_timestamps.append(now.nanoseconds)
+        # Track pose rate using wall clock
+        self.pose_timestamps.append(wall_now_ns)
         if len(self.pose_timestamps) > 100:
             self.pose_timestamps.pop(0)
     
@@ -682,8 +687,13 @@ def main(args=None):
     rclpy.init(args=args)
     node = PerformanceMonitor()
     
+    # Use MultiThreadedExecutor to handle high-frequency scan/odom/pose callbacks
+    # without blocking on the sample_callback's psutil work
+    executor = MultiThreadedExecutor(num_threads=4)
+    executor.add_node(node)
+    
     try:
-        rclpy.spin(node)
+        executor.spin()
     except KeyboardInterrupt:
         pass
     except Exception:
