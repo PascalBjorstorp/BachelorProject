@@ -30,7 +30,7 @@
 #define VEHICLE_MODEL_H
 
 #include "mpc_types.h"
-#include "fixed_point.h"
+#include "fp_math.h"
 
 /*===========================================================================
  * Model Initialization

@@ -18,7 +18,7 @@
 
 #include "mpc.h"
 #include "qp_solver.h"
-#include "linear_algebra.h"
+#include "fp_math.h"
 #include "vehicle_model.h"
 #include <string.h>
 #include <stdio.h>
@@ -59,13 +59,13 @@ static ControlInput_t previous_control_input;
  */
 static fixed_point_t normalize_angle(fixed_point_t angle)
 {
-    while (angle > FIXED_POINT_PI)
+    while (angle > FP_PI)
     {
-        angle = fixed_point_sub(angle, FIXED_POINT_TWO_PI);
+        angle = fp_sub(angle, FP_TWO_PI);
     }
-    while (angle < -FIXED_POINT_PI)
+    while (angle < -FP_PI)
     {
-        angle = fixed_point_add(angle, FIXED_POINT_TWO_PI);
+        angle = fp_add(angle, FP_TWO_PI);
     }
     return angle;
 }
@@ -100,10 +100,10 @@ static MpcConfiguration_t get_default_configuration(void)
      * Future improvement: Use Frenet (path-relative) coordinates instead of
      * global XY to properly decouple lateral and heading tracking.
      */
-    config.weight_position_x = FIXED_POINT_ONE;                                      /* 0.0 - disabled */
-    config.weight_position_y = FIXED_POINT_ONE;                                      /* 0.0 - disabled */
-    config.weight_heading    = FIXED_POINT_ONE;                        /* 1.0 */
-    config.weight_velocity   = FIXED_POINT_ONE;                        /* 1.0 */
+    config.weight_position_x = FP_ONE;                                      /* 0.0 - disabled */
+    config.weight_position_y = FP_ONE;                                      /* 0.0 - disabled */
+    config.weight_heading    = FP_ONE;                        /* 1.0 */
+    config.weight_velocity   = FP_ONE;                        /* 1.0 */
 
     /* Control effort weights
      *
@@ -120,7 +120,7 @@ static MpcConfiguration_t get_default_configuration(void)
      * Too low → oscillation, jerky steering.
      * 1.0 is a good starting point for F1/10th.
      */
-    config.weight_steering_rate  = FIXED_POINT_ONE;                    /* 1.0 */
+    config.weight_steering_rate  = FP_ONE;                    /* 1.0 */
     config.weight_velocity_rate  = (fixed_point_t)6554;                /* 0.1 */
 
     /* Solver parameters */
@@ -240,8 +240,8 @@ static void build_qp_from_prediction(
                 fixed_point_t sum = 0;
                 for (int k = 0; k < STATE_DIMENSION; k++)
                 {
-                    sum = fixed_point_add(sum,
-                        fixed_point_mul(A[r][k], Phi[m - 1][k][c]));
+                    sum = fp_add(sum,
+                        fp_mul(A[r][k], Phi[m - 1][k][c]));
                 }
                 Phi[m][r][c] = sum;
             }
@@ -282,20 +282,20 @@ static void build_qp_from_prediction(
             fixed_point_t sum = 0;
             for (int j = 0; j < STATE_DIMENSION; j++)
             {
-                sum = fixed_point_add(sum,
-                    fixed_point_mul(A[r][j], x_prev[j]));
+                sum = fp_add(sum,
+                    fp_mul(A[r][j], x_prev[j]));
             }
             x_free[r] = sum;
         }
 
         /* Tracking error: d = x_free - reference */
-        d[k][0] = fixed_point_sub(x_free[0],
+        d[k][0] = fp_sub(x_free[0],
             reference_trajectory[k].reference_position_x_meters);
-        d[k][1] = fixed_point_sub(x_free[1],
+        d[k][1] = fp_sub(x_free[1],
             reference_trajectory[k].reference_position_y_meters);
-        d[k][2] = normalize_angle(fixed_point_sub(x_free[2],
+        d[k][2] = normalize_angle(fp_sub(x_free[2],
             reference_trajectory[k].reference_heading_radians));
-        d[k][3] = fixed_point_sub(x_free[3],
+        d[k][3] = fp_sub(x_free[3],
             reference_trajectory[k].reference_velocity_meters_per_second);
 
         /* Advance for next iteration, normalizing heading to [-pi, pi] */
@@ -358,12 +358,12 @@ static void build_qp_from_prediction(
                         for (int s = 0; s < STATE_DIMENSION; s++)
                         {
                             /* Phi[mi][s][a] * Q[s] * Phi[mj][s][b] */
-                            fixed_point_t phi_q = fixed_point_mul(
+                            fixed_point_t phi_q = fp_mul(
                                 Phi[mi][s][a], Q[s]);
-                            term = fixed_point_add(term,
-                                fixed_point_mul(phi_q, Phi[mj][s][b]));
+                            term = fp_add(term,
+                                fp_mul(phi_q, Phi[mj][s][b]));
                         }
-                        block[a][b] = fixed_point_add(block[a][b], term);
+                        block[a][b] = fp_add(block[a][b], term);
                     }
                 }
             }
@@ -376,7 +376,7 @@ static void build_qp_from_prediction(
             {
                 for (int b = 0; b < CONTROL_DIMENSION; b++)
                 {
-                    fixed_point_t val = fixed_point_mul(FIXED_POINT_TWO, block[a][b]);
+                    fixed_point_t val = fp_mul(FP_TWO, block[a][b]);
                     hessian_matrix[(row + a) * n_vars + (col + b)] = val;
 
                     /* Symmetric entry */
@@ -390,17 +390,17 @@ static void build_qp_from_prediction(
     }
 
     /* Control effort contribution: 2*R on diagonal */
-    fixed_point_t two_w_steer = fixed_point_mul(FIXED_POINT_TWO,
+    fixed_point_t two_w_steer = fp_mul(FP_TWO,
         current_configuration.weight_steering_effort);
-    fixed_point_t two_w_vel = fixed_point_mul(FIXED_POINT_TWO,
+    fixed_point_t two_w_vel = fp_mul(FP_TWO,
         current_configuration.weight_velocity_effort);
 
     for (int ci = 0; ci < horizon_steps; ci++)
     {
         int idx_s = (ci * 2) * n_vars + (ci * 2);
         int idx_v = (ci * 2 + 1) * n_vars + (ci * 2 + 1);
-        hessian_matrix[idx_s] = fixed_point_add(hessian_matrix[idx_s], two_w_steer);
-        hessian_matrix[idx_v] = fixed_point_add(hessian_matrix[idx_v], two_w_vel);
+        hessian_matrix[idx_s] = fp_add(hessian_matrix[idx_s], two_w_steer);
+        hessian_matrix[idx_v] = fp_add(hessian_matrix[idx_v], two_w_vel);
     }
 
     /* Rate penalty contribution */
@@ -419,17 +419,17 @@ static void build_qp_from_prediction(
          */
         if (ci < horizon_steps - 1)
         {
-            hessian_matrix[idx_s] = fixed_point_add(hessian_matrix[idx_s],
-                fixed_point_mul((fixed_point_t)(4 * FIXED_POINT_ONE), w_sr));
-            hessian_matrix[idx_v] = fixed_point_add(hessian_matrix[idx_v],
-                fixed_point_mul((fixed_point_t)(4 * FIXED_POINT_ONE), w_vr));
+            hessian_matrix[idx_s] = fp_add(hessian_matrix[idx_s],
+                fp_mul((fixed_point_t)(4 * FP_ONE), w_sr));
+            hessian_matrix[idx_v] = fp_add(hessian_matrix[idx_v],
+                fp_mul((fixed_point_t)(4 * FP_ONE), w_vr));
         }
         else
         {
-            hessian_matrix[idx_s] = fixed_point_add(hessian_matrix[idx_s],
-                fixed_point_mul(FIXED_POINT_TWO, w_sr));
-            hessian_matrix[idx_v] = fixed_point_add(hessian_matrix[idx_v],
-                fixed_point_mul(FIXED_POINT_TWO, w_vr));
+            hessian_matrix[idx_s] = fp_add(hessian_matrix[idx_s],
+                fp_mul(FP_TWO, w_sr));
+            hessian_matrix[idx_v] = fp_add(hessian_matrix[idx_v],
+                fp_mul(FP_TWO, w_vr));
         }
 
         /* Off-diagonal rate: H[k-1,k] = H[k,k-1] = -2*w_rate */
@@ -440,13 +440,13 @@ static void build_qp_from_prediction(
             int sym_s  = (ci * 2) * n_vars + ((ci - 1) * 2);
             int sym_v  = (ci * 2 + 1) * n_vars + ((ci - 1) * 2 + 1);
 
-            fixed_point_t neg_2_sr = fixed_point_neg(fixed_point_mul(FIXED_POINT_TWO, w_sr));
-            fixed_point_t neg_2_vr = fixed_point_neg(fixed_point_mul(FIXED_POINT_TWO, w_vr));
+            fixed_point_t neg_2_sr = fp_neg(fp_mul(FP_TWO, w_sr));
+            fixed_point_t neg_2_vr = fp_neg(fp_mul(FP_TWO, w_vr));
 
-            hessian_matrix[prev_s] = fixed_point_add(hessian_matrix[prev_s], neg_2_sr);
-            hessian_matrix[sym_s]  = fixed_point_add(hessian_matrix[sym_s],  neg_2_sr);
-            hessian_matrix[prev_v] = fixed_point_add(hessian_matrix[prev_v], neg_2_vr);
-            hessian_matrix[sym_v]  = fixed_point_add(hessian_matrix[sym_v],  neg_2_vr);
+            hessian_matrix[prev_s] = fp_add(hessian_matrix[prev_s], neg_2_sr);
+            hessian_matrix[sym_s]  = fp_add(hessian_matrix[sym_s],  neg_2_sr);
+            hessian_matrix[prev_v] = fp_add(hessian_matrix[prev_v], neg_2_vr);
+            hessian_matrix[sym_v]  = fp_add(hessian_matrix[sym_v],  neg_2_vr);
         }
     }
 
@@ -474,14 +474,14 @@ static void build_qp_from_prediction(
                 for (int s = 0; s < STATE_DIMENSION; s++)
                 {
                     /* Phi[m][s][a] * Q[s] * d[k][s] */
-                    fixed_point_t phi_q = fixed_point_mul(Phi[m][s][a], Q[s]);
-                    sum = fixed_point_add(sum,
-                        fixed_point_mul(phi_q, d[k][s]));
+                    fixed_point_t phi_q = fp_mul(Phi[m][s][a], Q[s]);
+                    sum = fp_add(sum,
+                        fp_mul(phi_q, d[k][s]));
                 }
             }
 
             linear_cost_vector[ci * CONTROL_DIMENSION + a] =
-                fixed_point_mul(FIXED_POINT_TWO, sum);
+                fp_mul(FP_TWO, sum);
         }
     }
 
@@ -491,18 +491,18 @@ static void build_qp_from_prediction(
      */
     fixed_point_t f0_before_rate = linear_cost_vector[0];
     
-    linear_cost_vector[0] = fixed_point_sub(
+    linear_cost_vector[0] = fp_sub(
         linear_cost_vector[0],
-        fixed_point_mul(
-            FIXED_POINT_TWO,
-            fixed_point_mul(w_sr,
+        fp_mul(
+            FP_TWO,
+            fp_mul(w_sr,
                 previous_control_input.steering_angle_radians)));
 
-    linear_cost_vector[1] = fixed_point_sub(
+    linear_cost_vector[1] = fp_sub(
         linear_cost_vector[1],
-        fixed_point_mul(
-            FIXED_POINT_TWO,
-            fixed_point_mul(w_vr,
+        fp_mul(
+            FP_TWO,
+            fp_mul(w_vr,
                 previous_control_input.velocity_meters_per_second)));
     
     /* Debug: print first element of linear cost and Phi[0][2][0] (steering->heading) */
@@ -554,27 +554,27 @@ static void build_qp_constraints(
 
         /* Constraint 0: steering <= max_steering */
         constraint_matrix[(constraint_base + 0) * total_controls + control_base] =
-            FIXED_POINT_ONE;
+            FP_ONE;
         constraint_bounds[constraint_base + 0] =
             vehicle_params.maximum_steering_angle_radians;
 
         /* Constraint 1: -steering <= max_steering (i.e., steering >= -max) */
         constraint_matrix[(constraint_base + 1) * total_controls + control_base] =
-            fixed_point_neg(FIXED_POINT_ONE);
+            fp_neg(FP_ONE);
         constraint_bounds[constraint_base + 1] =
             vehicle_params.maximum_steering_angle_radians;
 
         /* Constraint 2: velocity <= max_velocity */
         constraint_matrix[(constraint_base + 2) * total_controls + (control_base + 1)] =
-            FIXED_POINT_ONE;
+            FP_ONE;
         constraint_bounds[constraint_base + 2] =
             vehicle_params.maximum_velocity_meters_per_second;
 
         /* Constraint 3: -velocity <= -min_velocity (i.e., v >= min_velocity) */
         constraint_matrix[(constraint_base + 3) * total_controls + (control_base + 1)] =
-            fixed_point_neg(FIXED_POINT_ONE);
+            fp_neg(FP_ONE);
         constraint_bounds[constraint_base + 3] =
-            fixed_point_neg(vehicle_params.minimum_velocity_meters_per_second);
+            fp_neg(vehicle_params.minimum_velocity_meters_per_second);
     }
 }
 

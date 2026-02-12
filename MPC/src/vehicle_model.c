@@ -17,7 +17,7 @@
  */
 
 #include "vehicle_model.h"
-#include "fixed_point.h"
+#include "fp_math.h"
 #include <stdio.h>
 
 /*===========================================================================
@@ -73,13 +73,13 @@ ControlInput_t vehicle_model_saturate_control(
     ControlInput_t saturated_control;
 
     /* Clamp steering angle to physical limits */
-    saturated_control.steering_angle_radians = fixed_point_clamp(
+    saturated_control.steering_angle_radians = fp_clamp(
         raw_control->steering_angle_radians,
-        fixed_point_neg(stored_vehicle_parameters.maximum_steering_angle_radians),
+        fp_neg(stored_vehicle_parameters.maximum_steering_angle_radians),
         stored_vehicle_parameters.maximum_steering_angle_radians);
 
     /* Clamp velocity to [min, max] */
-    saturated_control.velocity_meters_per_second = fixed_point_clamp(
+    saturated_control.velocity_meters_per_second = fp_clamp(
         raw_control->velocity_meters_per_second,
         stored_vehicle_parameters.minimum_velocity_meters_per_second,
         stored_vehicle_parameters.maximum_velocity_meters_per_second);
@@ -104,13 +104,13 @@ VehicleState_t vehicle_model_predict_next_state(
     /*
      * Compute trigonometric values
      */
-    fixed_point_t cosine_of_heading = fixed_point_cos(
+    fixed_point_t cosine_of_heading = fp_cos(
         current_state->heading_angle_radians);
 
-    fixed_point_t sine_of_heading = fixed_point_sin(
+    fixed_point_t sine_of_heading = fp_sin(
         current_state->heading_angle_radians);
 
-    fixed_point_t tangent_of_steering = fixed_point_tan(
+    fixed_point_t tangent_of_steering = fp_tan(
         saturated_control.steering_angle_radians);
 
     /*
@@ -119,21 +119,21 @@ VehicleState_t vehicle_model_predict_next_state(
     fixed_point_t commanded_velocity = saturated_control.velocity_meters_per_second;
 
     /* dx/dt = v_cmd × cos(heading) */
-    fixed_point_t position_x_derivative = fixed_point_mul(
+    fixed_point_t position_x_derivative = fp_mul(
         commanded_velocity,
         cosine_of_heading);
 
     /* dy/dt = v_cmd × sin(heading) */
-    fixed_point_t position_y_derivative = fixed_point_mul(
+    fixed_point_t position_y_derivative = fp_mul(
         commanded_velocity,
         sine_of_heading);
 
     /* dheading/dt = (v_cmd / wheelbase) × tan(steering) */
-    fixed_point_t velocity_over_wheelbase = fixed_point_div(
+    fixed_point_t velocity_over_wheelbase = fp_div(
         commanded_velocity,
         stored_vehicle_parameters.wheelbase_meters);
 
-    fixed_point_t heading_derivative = fixed_point_mul(
+    fixed_point_t heading_derivative = fp_mul(
         velocity_over_wheelbase,
         tangent_of_steering);
 
@@ -144,19 +144,19 @@ VehicleState_t vehicle_model_predict_next_state(
      */
 
     /* x[k+1] = x[k] + dt × dx/dt */
-    next_state.position_x_meters = fixed_point_add(
+    next_state.position_x_meters = fp_add(
         current_state->position_x_meters,
-        fixed_point_mul(time_step, position_x_derivative));
+        fp_mul(time_step, position_x_derivative));
 
     /* y[k+1] = y[k] + dt × dy/dt */
-    next_state.position_y_meters = fixed_point_add(
+    next_state.position_y_meters = fp_add(
         current_state->position_y_meters,
-        fixed_point_mul(time_step, position_y_derivative));
+        fp_mul(time_step, position_y_derivative));
 
     /* heading[k+1] = heading[k] + dt × dheading/dt */
-    next_state.heading_angle_radians = fixed_point_add(
+    next_state.heading_angle_radians = fp_add(
         current_state->heading_angle_radians,
-        fixed_point_mul(time_step, heading_derivative));
+        fp_mul(time_step, heading_derivative));
 
     /* velocity = commanded velocity (direct input, not integrated) */
     next_state.velocity_meters_per_second = commanded_velocity;
@@ -166,23 +166,23 @@ VehicleState_t vehicle_model_predict_next_state(
      */
 
     /* Clamp velocity to [0, max_velocity] (no reverse) */
-    next_state.velocity_meters_per_second = fixed_point_clamp(
+    next_state.velocity_meters_per_second = fp_clamp(
         next_state.velocity_meters_per_second,
         0,
         stored_vehicle_parameters.maximum_velocity_meters_per_second);
 
-    /* Normalize heading angle to [-π, +π] */
-    while (next_state.heading_angle_radians > FIXED_POINT_PI)
+    /* Normalize heading angle to [−π, +π] */
+    while (next_state.heading_angle_radians > FP_PI)
     {
-        next_state.heading_angle_radians = fixed_point_sub(
+        next_state.heading_angle_radians = fp_sub(
             next_state.heading_angle_radians,
-            FIXED_POINT_TWO_PI);
+            FP_TWO_PI);
     }
-    while (next_state.heading_angle_radians < -FIXED_POINT_PI)
+    while (next_state.heading_angle_radians < -FP_PI)
     {
-        next_state.heading_angle_radians = fixed_point_add(
+        next_state.heading_angle_radians = fp_add(
             next_state.heading_angle_radians,
-            FIXED_POINT_TWO_PI);
+            FP_TWO_PI);
     }
 
     return next_state;
@@ -226,20 +226,20 @@ void vehicle_model_compute_linearization(
     /*
      * Compute trigonometric values at operating point
      */
-    fixed_point_t cosine_heading = fixed_point_cos(
+    fixed_point_t cosine_heading = fp_cos(
         operating_state->heading_angle_radians);
 
-    fixed_point_t sine_heading = fixed_point_sin(
+    fixed_point_t sine_heading = fp_sin(
         operating_state->heading_angle_radians);
 
-    fixed_point_t tangent_steering = fixed_point_tan(
+    fixed_point_t tangent_steering = fp_tan(
         operating_control->steering_angle_radians);
 
-    fixed_point_t cosine_steering = fixed_point_cos(
+    fixed_point_t cosine_steering = fp_cos(
         operating_control->steering_angle_radians);
 
     /* cos²(steering) for derivative calculation */
-    fixed_point_t cosine_steering_squared = fixed_point_mul(
+    fixed_point_t cosine_steering_squared = fp_mul(
         cosine_steering,
         cosine_steering);
 
@@ -251,7 +251,7 @@ void vehicle_model_compute_linearization(
     {
         for (int col = 0; col < 4; col++)
         {
-            state_matrix_A[row][col] = (row == col) ? FIXED_POINT_ONE : 0;
+            state_matrix_A[row][col] = (row == col) ? FP_ONE : 0;
         }
     }
 
@@ -272,20 +272,20 @@ void vehicle_model_compute_linearization(
      */
 
     /* A[0][2] = dt × (-v_cmd × sin(heading)) */
-    fixed_point_t velocity_times_sine = fixed_point_mul(
+    fixed_point_t velocity_times_sine = fp_mul(
         operating_control->velocity_meters_per_second,
         sine_heading);
 
-    state_matrix_A[0][2] = fixed_point_mul(
+    state_matrix_A[0][2] = fp_mul(
         time_step,
-        fixed_point_neg(velocity_times_sine));
+        fp_neg(velocity_times_sine));
 
     /* A[1][2] = dt × (v_cmd × cos(heading)) */
-    fixed_point_t velocity_times_cosine = fixed_point_mul(
+    fixed_point_t velocity_times_cosine = fp_mul(
         operating_control->velocity_meters_per_second,
         cosine_heading);
 
-    state_matrix_A[1][2] = fixed_point_mul(time_step, velocity_times_cosine);
+    state_matrix_A[1][2] = fp_mul(time_step, velocity_times_cosine);
 
     /* A[0][3], A[1][3], A[2][3] = 0  (velocity is a control input, not a state) */
     /* Already zero from identity matrix initialization */
@@ -308,29 +308,29 @@ void vehicle_model_compute_linearization(
     }
 
     /* B[2][0] = dt × (v_cmd / (L × cos²(steering))) */
-    fixed_point_t wheelbase_times_cos_squared = fixed_point_mul(
+    fixed_point_t wheelbase_times_cos_squared = fp_mul(
         stored_vehicle_parameters.wheelbase_meters,
         cosine_steering_squared);
 
-    fixed_point_t velocity_over_denominator = fixed_point_div(
+    fixed_point_t velocity_over_denominator = fp_div(
         operating_control->velocity_meters_per_second,
         wheelbase_times_cos_squared);
 
-    input_matrix_B[2][0] = fixed_point_mul(time_step, velocity_over_denominator);
+    input_matrix_B[2][0] = fp_mul(time_step, velocity_over_denominator);
 
     /* B[0][1] = dt × cos(heading) */
-    input_matrix_B[0][1] = fixed_point_mul(time_step, cosine_heading);
+    input_matrix_B[0][1] = fp_mul(time_step, cosine_heading);
 
     /* B[1][1] = dt × sin(heading) */
-    input_matrix_B[1][1] = fixed_point_mul(time_step, sine_heading);
+    input_matrix_B[1][1] = fp_mul(time_step, sine_heading);
 
     /* B[2][1] = dt × (tan(steering) / wheelbase) */
-    fixed_point_t tangent_over_wheelbase = fixed_point_div(
+    fixed_point_t tangent_over_wheelbase = fp_div(
         tangent_steering,
         stored_vehicle_parameters.wheelbase_meters);
 
-    input_matrix_B[2][1] = fixed_point_mul(time_step, tangent_over_wheelbase);
+    input_matrix_B[2][1] = fp_mul(time_step, tangent_over_wheelbase);
 
     /* B[3][1] = 1  (velocity is directly set by the control input, no dt) */
-    input_matrix_B[3][1] = FIXED_POINT_ONE;
+    input_matrix_B[3][1] = FP_ONE;
 }

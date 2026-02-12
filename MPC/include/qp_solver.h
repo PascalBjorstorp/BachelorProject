@@ -22,7 +22,7 @@
 #ifndef QP_SOLVER_H
 #define QP_SOLVER_H
 
-#include "fixed_point.h"
+#include "fp_math.h"
 #include <stdint.h>
 
 /*===========================================================================

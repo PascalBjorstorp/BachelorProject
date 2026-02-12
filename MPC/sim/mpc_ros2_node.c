@@ -32,7 +32,7 @@
 /* MPC Core Library Headers (Platform-Independent) */
 #include "mpc.h"
 #include "mpc_types.h"
-#include "fixed_point.h"
+#include "fp_math.h"
 #include "vehicle_model.h"
 
 /*===========================================================================
@@ -603,19 +603,19 @@ void odometry_subscription_callback(const void *message_in)
 
             for (int step = 0; step < MPC_PREDICTION_HORIZON_STEPS; step++)
             {
-                fixed_point_t time_ahead = fixed_point_mul(
+                fixed_point_t time_ahead = fp_mul(
                     time_step_fp,
                     DOUBLE_TO_FP((double)(step + 1)));
-                fixed_point_t distance_ahead = fixed_point_mul(target_velocity, time_ahead);
+                fixed_point_t distance_ahead = fp_mul(target_velocity, time_ahead);
 
-                global_reference_trajectory[step].reference_position_x_meters = fixed_point_add(
+                global_reference_trajectory[step].reference_position_x_meters = fp_add(
                     global_vehicle_state.position_x_meters,
-                    fixed_point_mul(distance_ahead,
-                                         fixed_point_cos(global_vehicle_state.heading_angle_radians)));
-                global_reference_trajectory[step].reference_position_y_meters = fixed_point_add(
+                    fp_mul(distance_ahead,
+                                         fp_cos(global_vehicle_state.heading_angle_radians)));
+                global_reference_trajectory[step].reference_position_y_meters = fp_add(
                     global_vehicle_state.position_y_meters,
-                    fixed_point_mul(distance_ahead,
-                                         fixed_point_sin(global_vehicle_state.heading_angle_radians)));
+                    fp_mul(distance_ahead,
+                                         fp_sin(global_vehicle_state.heading_angle_radians)));
                 global_reference_trajectory[step].reference_heading_radians =
                     global_vehicle_state.heading_angle_radians;
                 global_reference_trajectory[step].reference_velocity_meters_per_second = target_velocity;

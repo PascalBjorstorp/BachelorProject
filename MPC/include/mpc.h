@@ -22,7 +22,7 @@
 
 #include "mpc_types.h"
 #include "vehicle_model.h"
-#include "fixed_point.h"
+#include "fp_math.h"
 
 /*===========================================================================
  * MPC Initialization

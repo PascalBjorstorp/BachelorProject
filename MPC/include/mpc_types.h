@@ -17,7 +17,7 @@
 #ifndef MPC_TYPES_H
 #define MPC_TYPES_H
 
-#include "fixed_point.h"
+#include "fp_math.h"
 #include <stdint.h>
 
 /*===========================================================================
@@ -231,47 +231,85 @@ typedef struct
 /*===========================================================================
  * Default Parameters for F1/10th Vehicle
  *===========================================================================
- * Pre-computed fixed-point constants for typical F1/10th configuration.
+ * Pre-computed fixed-point constants for F1/10th configuration.
+ * Source: f1tenth_gym simulation (F110Env.f1tenth_vehicle_params)
  */
 
- 
-/**
- * Compile-time float-to-Q16.16 conversion macro.
- */
-#define FP_CONST(x) ((fixed_point_t)((double)(x) * (1 << FIXED_POINT_FRACTIONAL_BITS)))
+/*---------------------------------------------------------------------------
+ * Core Kinematic Parameters (used by MPC)
+ *---------------------------------------------------------------------------*/
 
-/**
- * Runtime double-to-Q16.16 conversion.
- */
-#define DOUBLE_TO_FP(x) ((fixed_point_t)((x) * (1 << FIXED_POINT_FRACTIONAL_BITS)))
-
-/**
- * Runtime Q16.16-to-double conversion.
- */
-#define FP_TO_DOUBLE(x) ((double)(x) / (double)(1 << FIXED_POINT_FRACTIONAL_BITS))
-
-/**
- * Runtime Q16.16-to-float conversion.
- */
-#define FP_TO_FLOAT(x) ((float)(x) / (float)(1 << FIXED_POINT_FRACTIONAL_BITS))
-
-
-
-/** F1/10th wheelbase: 0.32 meters (32 cm) — Q16.16 = 20972 */
+/** F1/10th wheelbase: 0.3302 meters — distance between front and rear axles */
 #define F110_DEFAULT_WHEELBASE_METERS \
-    FP_CONST(0.32)
+    FP_CONST(0.3302)
 
-/** F1/10th max steering: 0.4189 radians (~24 degrees) — Q16.16 = 27452 */
+/** F1/10th max steering: 0.4189 radians (~24 degrees) */
 #define F110_DEFAULT_MAXIMUM_STEERING_RADIANS \
-    ((fixed_point_t)27452)
+    FP_CONST(0.4189)
 
-/** F1/10th max velocity: 6.0 meters per second — Q16.16 = 393216 */
+/** F1/10th max velocity: 20.0 meters per second (simulation limit) */
 #define F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND \
-    FP_CONST(6.0)
+    FP_CONST(20.0)
 
-/** F1/10th minimum velocity: 0 m/s (no reverse) — Q16.16 = 0 */
+/** F1/10th minimum velocity: 0 m/s (no reverse) */
 #define F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND \
     ((fixed_point_t)0)
+
+/** Vehicle width: 0.31 meters (for safety margin calculations) */
+#define F110_VEHICLE_WIDTH_METERS \
+    FP_CONST(0.31)
+
+/** Vehicle length: 0.58 meters */
+#define F110_VEHICLE_LENGTH_METERS \
+    FP_CONST(0.58)
+
+/** Distance from CG to front axle: 0.15875 meters */
+#define F110_DIST_CG_TO_FRONT_AXLE_METERS \
+    FP_CONST(0.15875)
+
+/** Distance from CG to rear axle: 0.17145 meters */
+#define F110_DIST_CG_TO_REAR_AXLE_METERS \
+    FP_CONST(0.17145)
+
+/** Vehicle mass: 3.74 kg */
+#define F110_VEHICLE_MASS_KG \
+    FP_CONST(3.74)
+
+/** Yaw moment of inertia: 0.04712 kg·m² */
+#define F110_YAW_INERTIA_KGM2 \
+    FP_CONST(0.04712)
+
+/** Center of gravity height: 0.074 meters */
+#define F110_CG_HEIGHT_METERS \
+    FP_CONST(0.074)
+
+/** Wheel radius: 0.0508 meters */
+#define F110_WHEEL_RADIUS_METERS \
+    FP_CONST(0.0508)
+
+/** Tire-road friction coefficient */
+#define F110_FRICTION_COEFFICIENT \
+    FP_CONST(1.0489)
+
+/** Front cornering stiffness: 4.718 [1/rad] */
+#define F110_FRONT_CORNERING_STIFFNESS \
+    FP_CONST(4.718)
+
+/** Rear cornering stiffness: 5.4562 [1/rad] (> front → slight understeer) */
+#define F110_REAR_CORNERING_STIFFNESS \
+    FP_CONST(5.4562)
+
+/** Maximum longitudinal acceleration: 9.51 m/s² */
+#define F110_MAX_ACCELERATION_MS2 \
+    FP_CONST(9.51)
+
+/** Maximum braking deceleration: 10.0 m/s² */
+#define F110_MAX_DECELERATION_MS2 \
+    FP_CONST(10.0)
+
+/** Maximum steering rate: 3.2 rad/s */
+#define F110_MAX_STEERING_RATE_RADS \
+    FP_CONST(3.2)
 
 /*===========================================================================
  * Default MPC Configuration

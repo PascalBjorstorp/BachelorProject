@@ -15,7 +15,7 @@
  */
 
 #include "qp_solver.h"
-#include "linear_algebra.h"
+#include "fp_math.h"
 #include <string.h>
 
 /*===========================================================================
@@ -73,7 +73,7 @@ static void project_onto_feasible_region(
             else if (row[var_index] < 0)
             {
                 /* Constraint: -1 * u[j] <= b  →  u[j] >= -b  →  u[j] = max(u[j], -b) */
-                fixed_point_t lower = fixed_point_neg(bound);
+                fixed_point_t lower = fp_neg(bound);
                 if (variable_vector[var_index] < lower)
                 {
                     variable_vector[var_index] = lower;
@@ -116,7 +116,7 @@ QuadraticProgramStatus_t qp_solver_solve(
         /*
          * Step 1: Compute gradient = H×u + f
          */
-        linear_algebra_matrix_vector_multiply(
+        fp_mat_vec_mul(
             problem->hessian_matrix,
             solution->optimal_variables,
             hessian_times_variables,
@@ -125,7 +125,7 @@ QuadraticProgramStatus_t qp_solver_solve(
 
         for (uint16_t index = 0; index < variable_count; index++)
         {
-            gradient[index] = fixed_point_add(
+            gradient[index] = fp_add(
                 hessian_times_variables[index],
                 problem->linear_cost_vector[index]);
         }
@@ -133,9 +133,9 @@ QuadraticProgramStatus_t qp_solver_solve(
         /*
          * Step 2: Gradient descent step: u_new = u - step_size × gradient
          */
-        fixed_point_t negative_step_size = fixed_point_neg(config->gradient_step_size);
+        fixed_point_t negative_step_size = fp_neg(config->gradient_step_size);
 
-        linear_algebra_vector_add_scaled(
+        fp_vec_add_scaled(
             solution->optimal_variables,
             gradient,
             negative_step_size,
@@ -159,15 +159,15 @@ QuadraticProgramStatus_t qp_solver_solve(
 
         for (uint16_t index = 0; index < variable_count; index++)
         {
-            fixed_point_t difference = fixed_point_sub(
+            fixed_point_t difference = fp_sub(
                 next_variables[index],
                 solution->optimal_variables[index]);
 
-            fixed_point_t difference_squared = fixed_point_mul(difference, difference);
-            step_norm_squared = fixed_point_add(step_norm_squared, difference_squared);
+            fixed_point_t difference_squared = fp_mul(difference, difference);
+            step_norm_squared = fp_add(step_norm_squared, difference_squared);
         }
 
-        fixed_point_t step_norm = fixed_point_sqrt(step_norm_squared);
+        fixed_point_t step_norm = fp_sqrt(step_norm_squared);
 
         /* Update solution with new variables */
         memcpy(solution->optimal_variables, next_variables,
@@ -176,7 +176,7 @@ QuadraticProgramStatus_t qp_solver_solve(
         /*
          * Step 5: Compute constraint residual
          */
-        solution->constraint_residual = linear_algebra_max_constraint_violation(
+        solution->constraint_residual = fp_max_violation(
             problem->constraint_matrix,
             solution->optimal_variables,
             problem->constraint_bounds,
@@ -197,7 +197,7 @@ QuadraticProgramStatus_t qp_solver_solve(
     /*
      * Maximum iterations reached - check if solution is at least feasible
      */
-    solution->constraint_residual = linear_algebra_max_constraint_violation(
+    solution->constraint_residual = fp_max_violation(
         problem->constraint_matrix,
         solution->optimal_variables,
         problem->constraint_bounds,
