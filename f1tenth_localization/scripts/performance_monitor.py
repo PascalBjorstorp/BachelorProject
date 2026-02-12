@@ -107,6 +107,7 @@ class PerformanceMonitor(Node):
         self.pose_timestamps = []  # Last N pose timestamps for rate calculation
         self.scan_pose_latencies = []  # Last N latencies (wall clock: scan rx → pose rx)
         self.scan_receipt_times = {}  # Map: scan_header_stamp_ns -> wall_time_ns when received
+        self._last_latency_scan_stamp = None  # Deduplicate: only measure latency once per scan update
         
         # Ground truth tracking for accuracy measurement
         self.ground_truth_pose = None  # Latest ground truth from simulator odom
@@ -456,6 +457,11 @@ class PerformanceMonitor(Node):
         wall_now_ns = time.monotonic_ns()  # Wall clock for rate/latency
         self.last_pose_time = now
         
+        # Always track pose rate (lightweight, must count every pose)
+        self.pose_timestamps.append(wall_now_ns)
+        if len(self.pose_timestamps) > 100:
+            self.pose_timestamps.pop(0)
+        
         amcl_pose = msg.pose.pose
         
         # Capture first AMCL pose for alignment
@@ -463,10 +469,16 @@ class PerformanceMonitor(Node):
             self.first_amcl_pose = amcl_pose
             self._try_compute_alignment()
         
-        # AMCL stamps its pose with the same timestamp as the scan it processed
-        # Use this to look up when we actually received that specific scan
+        # AMCL stamps its pose with the same timestamp as the scan it processed.
+        # The publish timer (40 Hz sim) republishes the SAME cached estimate with the
+        # SAME scan stamp until a new scan is processed (~3.8 Hz). Only compute
+        # latency/accuracy once per unique scan stamp to avoid inflating measurements.
         pose_stamp = msg.header.stamp
         pose_stamp_key = pose_stamp.sec * 1000000000 + pose_stamp.nanosec
+        
+        if pose_stamp_key == self._last_latency_scan_stamp:
+            return  # Already measured this scan update, skip heavy processing
+        self._last_latency_scan_stamp = pose_stamp_key
         
         if pose_stamp_key in self.scan_receipt_times:
             # Found the matching scan - calculate true processing latency (wall clock)
@@ -529,11 +541,6 @@ class PerformanceMonitor(Node):
                 self.position_errors.pop(0)
             if len(self.orientation_errors) > 100:
                 self.orientation_errors.pop(0)
-        
-        # Track pose rate using wall clock
-        self.pose_timestamps.append(wall_now_ns)
-        if len(self.pose_timestamps) > 100:
-            self.pose_timestamps.pop(0)
     
     def _calculate_rate(self, timestamps):
         """Calculate rate from list of timestamps (in nanoseconds)"""
