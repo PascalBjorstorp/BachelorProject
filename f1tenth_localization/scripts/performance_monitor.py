@@ -14,7 +14,6 @@ Usage:
 import rclpy
 from rclpy.node import Node
 from rclpy.time import Time
-from rclpy.qos import qos_profile_sensor_data
 from rclpy.executors import MultiThreadedExecutor
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import PoseWithCovarianceStamped
@@ -123,14 +122,14 @@ class PerformanceMonitor(Node):
         
         # Subscribers
         self.scan_sub = self.create_subscription(
-            LaserScan, scan_topic, self.scan_callback, qos_profile_sensor_data
+            LaserScan, scan_topic, self.scan_callback, 50
         )
         self.amcl_sub = self.create_subscription(
             PoseWithCovarianceStamped, amcl_topic, self.pose_callback, 10
         )
         # Ground truth subscription (simulator provides true pose via odom)
         self.ground_truth_sub = self.create_subscription(
-            Odometry, '/ego_racecar/odom', self.ground_truth_callback, qos_profile_sensor_data
+            Odometry, '/ego_racecar/odom', self.ground_truth_callback, 50
         )
         
         # Timer for periodic sampling
