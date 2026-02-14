@@ -124,7 +124,7 @@ public:
             wp.kappa_fp = float_to_fp(waypoints[i].kappa);
             wp.reserved[0] = wp.reserved[1] = wp.reserved[2] = 0;
             
-            traj_bram[i] = wp;
+            memcpy(const_cast<FpgaWaypoint_t*>(&traj_bram[i]), &wp, sizeof(FpgaWaypoint_t));
         }
         
         __sync_synchronize();

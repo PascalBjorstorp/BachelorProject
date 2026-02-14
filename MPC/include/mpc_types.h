@@ -148,6 +148,20 @@ typedef struct
     /** Weight for velocity rate (penalizes jerky speed changes) */
     fixed_point_t weight_velocity_rate;
 
+    /** Cross-call rate penalty scale factor.
+     *
+     * Scales the rate penalty between the current first control u[0]
+     * and the previous MPC output u_prev. This accounts for the MPC
+     * being called at a different rate than the prediction time step dt.
+     *
+     * Set to FP_ONE (1.0) when MPC call interval ≈ dt (e.g., offline test).
+     * Set to dt_actual/dt_step (e.g., 0.1 for 5ms calls with 50ms dt).
+     *
+     * Without proper scaling, the cross-call rate penalty is too strong
+     * at high call frequencies, causing ping-pong oscillation.
+     */
+    fixed_point_t cross_call_rate_scale;
+
     /*
      * Solver convergence parameters
      */
@@ -319,7 +333,10 @@ typedef struct
 #define MPC_DEFAULT_PREDICTION_HORIZON 10
 
 /** Default time step: 0.05 seconds (50 ms) — Q16.16 = 3277
- *  Total lookahead = 10 × 0.05s = 0.5 seconds */
+ *  Total lookahead = 10 × 0.05s = 0.5 seconds
+ *  The prediction dt is independent of the MPC call rate (200 Hz).
+ *  Use cross_call_rate_scale to handle the frequency mismatch.
+ */
 #define MPC_DEFAULT_TIME_STEP_SECONDS \
     ((fixed_point_t)3277)
 

@@ -42,7 +42,9 @@
 /** Number of MPC prediction steps (10 steps × 0.05s = 0.5 second lookahead) */
 #define MPC_PREDICTION_HORIZON_STEPS 10
 
-/** Time step between predictions (seconds) - MUST match MPC_DEFAULT_TIME_STEP_SECONDS in mpc_types.h */
+/** Time step between predictions (seconds) - MUST match MPC_DEFAULT_TIME_STEP_SECONDS in mpc_types.h
+ *  50 ms for prediction lookahead. MPC is called at ~200 Hz (divider=1) but
+ *  predicts 0.5s ahead with 10 steps. cross_call_rate_scale handles the mismatch. */
 #define MPC_TIME_STEP_SECONDS 0.05f
 
 /** Maximum allowed steering angle (radians, ~23 degrees) */
@@ -51,7 +53,14 @@
 /** Maximum allowed velocity (m/s) */
 #define MAXIMUM_VELOCITY_METERS_PER_SECOND 20.0f
 
-/** Odometry callback divider (run MPC every N callbacks) */
+/** Odometry callback divider (run MPC every N callbacks)
+ *
+ * Set to 1 to run MPC at every odometry callback (~150-200 Hz).
+ * The within-horizon rate penalty (between steps k and k+1) provides
+ * smoothing regardless of call frequency. The cross-call rate penalty
+ * (u[0] vs u_prev) is proportionally weaker at higher frequencies
+ * since each call has smaller u differences, which is acceptable.
+ */
 #define ODOMETRY_CALLBACK_DIVIDER 1
 
 /** Maximum number of waypoints in loaded trajectory */
@@ -660,22 +669,11 @@ void odometry_subscription_callback(const void *message_in)
              */
             double velocity_command_mps = global_trajectory[global_last_closest_index].velocity_meters_per_second;
             
-            /* Reduce velocity when far from trajectory (safety) */
             double distance_from_trajectory = sqrt(
                 pow(FP_TO_DOUBLE(global_vehicle_state.position_x_meters) - 
                     global_trajectory[global_last_closest_index].x_meters, 2) +
                 pow(FP_TO_DOUBLE(global_vehicle_state.position_y_meters) - 
                     global_trajectory[global_last_closest_index].y_meters, 2));
-            if (distance_from_trajectory > 1.0) 
-            {
-                /* More than 1m off track - reduce speed */
-                velocity_command_mps *= 0.5;
-            }
-            else if (distance_from_trajectory > 0.5)
-            {
-                /* 0.5-1m off track - slightly reduce speed */
-                velocity_command_mps *= 0.8;
-            }
 
             /* Apply safety saturation */
             saturate_control_commands(&steering_command_radians, &velocity_command_mps);
@@ -747,6 +745,16 @@ int main(int argc, char *argv[])
 
     /* Initialize MPC controller (includes vehicle model initialization) */
     mpc_initialize();
+
+    /* The MPC predicts at dt=50ms but is called at ~200 Hz (~5ms intervals).
+     * Scale the cross-call rate penalty by 0.1 so it penalizes as if called at 20 Hz.
+     * Without this, the cross-call penalty would be 10× too aggressive. */
+    {
+        MpcConfiguration_t cfg = mpc_get_configuration();
+        cfg.cross_call_rate_scale = FP_CONST(0.1);    /* 5ms / 50ms = 0.1 */
+        mpc_set_configuration(&cfg);
+    }
+
     printf("[MPC] MPC controller initialized (horizon=%d steps, dt=%.0f ms)\n",
            MPC_PREDICTION_HORIZON_STEPS, MPC_TIME_STEP_SECONDS * 1000.0f);
 
@@ -754,6 +762,15 @@ int main(int argc, char *argv[])
         printf("[MPC] Solver max iterations: %u, tolerance (raw): %d\n",
             mpc_config.maximum_solver_iterations,
             (int)mpc_config.solver_convergence_tolerance);
+        printf("[MPC] Weights: heading=%.2f, velocity=%.2f, steer_rate=%.2f, steer_effort=%.4f\n",
+            FP_TO_DOUBLE(mpc_config.weight_heading),
+            FP_TO_DOUBLE(mpc_config.weight_velocity),
+            FP_TO_DOUBLE(mpc_config.weight_steering_rate),
+            FP_TO_DOUBLE(mpc_config.weight_steering_effort));
+        printf("[MPC] Weights: pos_x=%.2f, pos_y=%.2f, cross_call_scale=%.2f\n",
+            FP_TO_DOUBLE(mpc_config.weight_position_x),
+            FP_TO_DOUBLE(mpc_config.weight_position_y),
+            FP_TO_DOUBLE(mpc_config.cross_call_rate_scale));
 
     /* Load trajectory from CSV file */
     const char *trajectory_file = NULL;

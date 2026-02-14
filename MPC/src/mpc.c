@@ -100,35 +100,40 @@ static MpcConfiguration_t get_default_configuration(void)
      * Future improvement: Use Frenet (path-relative) coordinates instead of
      * global XY to properly decouple lateral and heading tracking.
      */
-    config.weight_position_x = 0;                                      /* 0.0 - disabled */
-    config.weight_position_y = 0;                                      /* 0.0 - disabled */
-    config.weight_heading    = FP_ONE;                        /* 1.0 */
-    config.weight_velocity   = FP_ONE;                        /* 1.0 */
+    config.weight_position_x = 0.001;                                 /* 0.0 - disabled */
+    config.weight_position_y = 0.001;                                 /* 0.0 - disabled */
+    config.weight_heading    = (fixed_point_t)(20 * FP_ONE);      /* 20.0 */
+    config.weight_velocity   = FP_ONE;                            /* 1.0 */
 
     /* Control effort weights
      *
      * Keep small — we don't want to penalize steering/speed magnitude,
      * only their changes (rate). These act as regularization.
      */
-    config.weight_steering_effort  = (fixed_point_t)655;    /* 0.01 */
+    config.weight_steering_effort  = FP_CONST(0.01);    /* 0.01 */
     config.weight_velocity_effort  = (fixed_point_t)655;    /* 0.01 */
 
     /* Control rate weights (smooth control)
      *
-     * The steering rate weight is the most important tuning parameter.
-     * Too high → sluggish, can't follow curves.
-     * Too low → oscillation, jerky steering.
+     * The steering rate weight penalizes consecutive control differences
+     * (u[k+1] - u[k])^2 within the horizon, and scaled (u[0] - u_prev)^2
+     * for cross-call smoothness.
      *
-     * Tuned via offline Spielberg raceline simulation (1500 steps):
-     *   w_sr=1.0 → 223 steering reversals, 91 saturations
-     *   w_sr=3.0 → 0 reversals, 0 saturations, smooth 5.8°/step max
-     *   w_sr=5.0 → too sluggish, can't track tight curves
+     * With dt=50ms and actual velocity linearization, B = dt*v/L varies with speed.
+     * At v=10 m/s: B ≈ 1.52, tracking diagonal ≈ 2*10*2.3*20 = 920.
+     * Rate diagonal = 4*w_sr. With w_sr=3: rate diag = 12. Ratio ≈ 77:1 (tracking dominant).
+     * This gives responsive steering while the rate penalty prevents large jumps.
      *
-     * 3.0 gives smooth, non-oscillatory steering while still tracking
-     * heading effectively for F1/10th racing.
+     * The cross_call_rate_scale adjusts for the MPC being called faster (200 Hz)
+     * than the prediction dt (50ms = 20 Hz). Default is 1.0 for offline.
      */
-    config.weight_steering_rate  = (fixed_point_t)(3 * FP_ONE);        /* 3.0 */
-    config.weight_velocity_rate  = (fixed_point_t)6554;                /* 0.1 */
+    config.weight_steering_rate  = (fixed_point_t)(3 * FP_ONE);     /* 3.0 */
+    config.weight_velocity_rate  = FP_CONST(0.1);                    /* 0.1 */
+
+    /* Cross-call rate scale: 1.0 = call interval matches dt (default for offline use).
+     * Set to smaller value (e.g., 0.1) when MPC is called 10× faster than dt.
+     */
+    config.cross_call_rate_scale = FP_ONE;                            /* 1.0 */
 
     /* Solver parameters */
     config.maximum_solver_iterations = MPC_DEFAULT_MAXIMUM_ITERATIONS;
@@ -184,32 +189,33 @@ static void build_qp_from_prediction(
     /* ---------------------------------------------------------------
      * Step 1: Linearize vehicle model at current operating point
      *
-     * CRITICAL: Use a minimum nominal velocity for linearization.
-     * When velocity is near zero, B[2][0] ≈ 0, meaning steering has
-     * no effect on heading in the linearized model. This causes the
-     * MPC to ignore steering commands when starting from rest.
-     *
-     * Fix: Use the reference velocity (or a minimum of 1.0 m/s) to
-     * ensure meaningful steering-to-heading coupling in the B matrix.
+     * Uses the ACTUAL vehicle velocity for linearization, with a
+     * minimum floor of 2.0 m/s. This is critical because:
+     *   - At reference velocity (e.g. 20 m/s), B[2][0] is 4× larger
+     *     than at actual velocity (5 m/s), making the MPC think small
+     *     steering will produce large heading changes.
+     *   - Result: MPC commands ~4× too little steering when slow.
+     *   - Using actual velocity ensures the MPC commands the right
+     *     steering angle for the real dynamics.
+     *   - The 2.0 m/s floor prevents singularity near standstill.
+     *   - Steering is linearized at δ=0 (NOT previous control) to
+     *     prevent velocity-steering cross-coupling oscillation.
+     *     Using previous δ=±0.42 causes B[2][1]=±0.067, creating
+     *     Hessian coupling H[steer][vel]≈50 that, with velocity at 20,
+     *     overwhelms tracking (gradient 1014 vs tracking 45).
      * --------------------------------------------------------------- */
     fixed_point_t A[4][4];
     fixed_point_t B[4][2];
 
-    /* Create operating control with nominal velocity for linearization */
-    ControlInput_t linearization_control = previous_control_input;
-    
-    /* Use reference velocity or minimum 1.0 m/s for linearization */
-    fixed_point_t min_linearization_velocity = DOUBLE_TO_FP(1.0);
-    fixed_point_t reference_velocity = reference_trajectory[0].reference_velocity_meters_per_second;
-    
-    if (reference_velocity > min_linearization_velocity)
-    {
-        linearization_control.velocity_meters_per_second = reference_velocity;
-    }
-    else if (linearization_control.velocity_meters_per_second < min_linearization_velocity)
-    {
-        linearization_control.velocity_meters_per_second = min_linearization_velocity;
-    }
+    /* Use actual vehicle velocity for linearization, with minimum floor.
+     * Linearize steering at δ=0 to eliminate velocity→heading coupling. */
+    ControlInput_t linearization_control;
+    linearization_control.steering_angle_radians = 0;  /* Always linearize at δ=0 */
+    fixed_point_t actual_velocity = current_state->velocity_meters_per_second;
+    fixed_point_t min_linearization_velocity = FP_CONST(2.0);
+    if (actual_velocity < min_linearization_velocity)
+        actual_velocity = min_linearization_velocity;
+    linearization_control.velocity_meters_per_second = actual_velocity;
 
     vehicle_model_compute_linearization(
         current_state,
@@ -316,6 +322,11 @@ static void build_qp_from_prediction(
 
     /* ---------------------------------------------------------------
      * Step 4: State cost weight vector (diagonal Q matrix)
+     *
+     * Only states with non-zero weights need to be processed in the
+     * Hessian and gradient loops. Track which states are active to
+     * skip unnecessary fixed-point multiplications (saves ~50% when
+     * position weights are zero).
      * --------------------------------------------------------------- */
     fixed_point_t Q[STATE_DIMENSION] = {
         current_configuration.weight_position_x,
@@ -323,6 +334,17 @@ static void build_qp_from_prediction(
         current_configuration.weight_heading,
         current_configuration.weight_velocity
     };
+
+    /* Build list of active (non-zero weight) state indices */
+    int active_states[STATE_DIMENSION];
+    int num_active_states = 0;
+    for (int s = 0; s < STATE_DIMENSION; s++)
+    {
+        if (Q[s] != 0)
+        {
+            active_states[num_active_states++] = s;
+        }
+    }
 
     /* ---------------------------------------------------------------
      * Step 5: Build Hessian matrix
@@ -356,14 +378,15 @@ static void build_qp_from_prediction(
                 int mi = k - ci;  /* Phi index for control ci */
                 int mj = k - cj;  /* Phi index for control cj */
 
-                /* block += Phi[mi]^T * diag(Q) * Phi[mj] */
+                /* block += Phi[mi]^T * diag(Q) * Phi[mj], active states only */
                 for (int a = 0; a < CONTROL_DIMENSION; a++)
                 {
                     for (int b = 0; b < CONTROL_DIMENSION; b++)
                     {
                         fixed_point_t term = 0;
-                        for (int s = 0; s < STATE_DIMENSION; s++)
+                        for (int si = 0; si < num_active_states; si++)
                         {
+                            int s = active_states[si];
                             /* Phi[mi][s][a] * Q[s] * Phi[mj][s][b] */
                             fixed_point_t phi_q = fp_mul(
                                 Phi[mi][s][a], Q[s]);
@@ -410,9 +433,24 @@ static void build_qp_from_prediction(
         hessian_matrix[idx_v] = fp_add(hessian_matrix[idx_v], two_w_vel);
     }
 
-    /* Rate penalty contribution */
+    /* Rate penalty contribution
+     *
+     * Penalizes consecutive control differences: (u[k+1] - u[k])^2
+     * INCLUDING the cross-call term (u[0] - u_prev)^2 for smooth
+     * continuation from the previous MPC solution.
+     *
+     * Diagonal contributions:
+     *   step 0:     u[0] in (u[0]-u_prev)^2 AND (u[1]-u[0])^2 → +4*w_rate
+     *   steps 1..N-2: u[k] in (u[k]-u[k-1])^2 AND (u[k+1]-u[k])^2 → +4*w_rate
+     *   step N-1:   u[k] in (u[k]-u[k-1])^2 only → +2*w_rate
+     *
+     * The cross-call rate penalty (step 0) is scaled by cross_call_rate_scale
+     * to account for the MPC being called faster than the prediction dt.
+     */
     fixed_point_t w_sr = current_configuration.weight_steering_rate;
     fixed_point_t w_vr = current_configuration.weight_velocity_rate;
+    fixed_point_t w_sr_cross = fp_mul(w_sr, current_configuration.cross_call_rate_scale);
+    fixed_point_t w_vr_cross = fp_mul(w_vr, current_configuration.cross_call_rate_scale);
 
     for (int ci = 0; ci < horizon_steps; ci++)
     {
@@ -421,10 +459,28 @@ static void build_qp_from_prediction(
 
         /**
          * Diagonal rate contribution:
-         *   steps 0..N-2: u[k] appears in TWO rate terms → +4*w_rate each
-         *   step  N-1:    u[k] appears in ONE rate term  → +2*w_rate
+         *   step 0:     (u[0]-u_prev)^2 [cross] + (u[1]-u[0])^2 [horizon]
+         *               → +2*w_sr_cross + 2*w_sr
+         *   steps 1..N-2: two horizon terms → +4*w_sr
+         *   step N-1:   one horizon term → +2*w_sr
          */
-        if (ci < horizon_steps - 1)
+        if (ci == 0)
+        {
+            /* Cross-call contribution: +2*w_cross */
+            hessian_matrix[idx_s] = fp_add(hessian_matrix[idx_s],
+                fp_mul(FP_TWO, w_sr_cross));
+            hessian_matrix[idx_v] = fp_add(hessian_matrix[idx_v],
+                fp_mul(FP_TWO, w_vr_cross));
+            /* Within-horizon contribution (from (u[1]-u[0])²): +2*w_sr */
+            if (horizon_steps > 1)
+            {
+                hessian_matrix[idx_s] = fp_add(hessian_matrix[idx_s],
+                    fp_mul(FP_TWO, w_sr));
+                hessian_matrix[idx_v] = fp_add(hessian_matrix[idx_v],
+                    fp_mul(FP_TWO, w_vr));
+            }
+        }
+        else if (ci < horizon_steps - 1)
         {
             hessian_matrix[idx_s] = fp_add(hessian_matrix[idx_s],
                 fp_mul((fixed_point_t)(4 * FP_ONE), w_sr));
@@ -434,9 +490,9 @@ static void build_qp_from_prediction(
         else
         {
             hessian_matrix[idx_s] = fp_add(hessian_matrix[idx_s],
-                fp_mul(FP_ONE, w_sr));
+                fp_mul(FP_TWO, w_sr));
             hessian_matrix[idx_v] = fp_add(hessian_matrix[idx_v],
-                fp_mul(FP_ONE, w_vr));
+                fp_mul(FP_TWO, w_vr));
         }
 
         /* Off-diagonal rate: H[k-1,k] = H[k,k-1] = -2*w_rate */
@@ -447,8 +503,8 @@ static void build_qp_from_prediction(
             int sym_s  = (ci * 2) * n_vars + ((ci - 1) * 2);
             int sym_v  = (ci * 2 + 1) * n_vars + ((ci - 1) * 2 + 1);
 
-            fixed_point_t neg_2_sr = fp_neg(fp_mul(FP_ONE, w_sr));
-            fixed_point_t neg_2_vr = fp_neg(fp_mul(FP_ONE, w_vr));
+            fixed_point_t neg_2_sr = fp_neg(fp_mul(FP_TWO, w_sr));
+            fixed_point_t neg_2_vr = fp_neg(fp_mul(FP_TWO, w_vr));
 
             hessian_matrix[prev_s] = fp_add(hessian_matrix[prev_s], neg_2_sr);
             hessian_matrix[sym_s]  = fp_add(hessian_matrix[sym_s],  neg_2_sr);
@@ -478,8 +534,9 @@ static void build_qp_from_prediction(
             {
                 int m = k - ci;
 
-                for (int s = 0; s < STATE_DIMENSION; s++)
+                for (int si = 0; si < num_active_states; si++)
                 {
+                    int s = active_states[si];
                     /* Phi[m][s][a] * Q[s] * d[k][s] */
                     fixed_point_t phi_q = fp_mul(Phi[m][s][a], Q[s]);
                     sum = fp_add(sum,
@@ -492,31 +549,32 @@ static void build_qp_from_prediction(
         }
     }
 
-    /* Rate penalty linear cost: from (u[0] - u_prev)^2 expansion
-     * f_rate[0] = -2 * w_steer_rate * u_prev.steering
-     * f_rate[1] = -2 * w_vel_rate   * u_prev.velocity
+    /* Cross-call rate penalty linear cost: from (u[0] - u_prev)^2 expansion
+     * f_rate[0] = -2 * w_sr_cross * u_prev.steering
+     * f_rate[1] = -2 * w_vr_cross * u_prev.velocity
+     *
+     * Uses the SCALED weights (w_sr_cross, w_vr_cross) to match the
+     * scaled diagonal in the Hessian for step 0.
      */
-    fixed_point_t f0_before_rate = linear_cost_vector[0];
-    
     linear_cost_vector[0] = fp_sub(
         linear_cost_vector[0],
         fp_mul(
             FP_TWO,
-            fp_mul(w_sr,
+            fp_mul(w_sr_cross,
                 previous_control_input.steering_angle_radians)));
 
     linear_cost_vector[1] = fp_sub(
         linear_cost_vector[1],
         fp_mul(
             FP_TWO,
-            fp_mul(w_vr,
+            fp_mul(w_vr_cross,
                 previous_control_input.velocity_meters_per_second)));
     
     /* Debug: print first element of linear cost and Phi[0][2][0] (steering->heading) */
 #ifdef MPC_DEBUG_PRINT
-    printf("[MPC-DBG] d[0][2]=%.4f, Phi[0][2][0]=%.4f, f[0]_track=%.4f, f[0]_final=%.4f\n",
+    printf("[MPC-DBG] d[0][2]=%.4f, Phi[0][2][0]=%.4f, f[0]=%.4f\n",
            FP_TO_DOUBLE(d[0][2]), FP_TO_DOUBLE(Phi[0][2][0]),
-           FP_TO_DOUBLE(f0_before_rate), FP_TO_DOUBLE(linear_cost_vector[0]));
+           FP_TO_DOUBLE(linear_cost_vector[0]));
     printf("[MPC-DBG] d[0][0]=%.4f, d[0][1]=%.4f, Phi[0][0][0]=%.4f, Phi[0][1][0]=%.4f\n",
            FP_TO_DOUBLE(d[0][0]), FP_TO_DOUBLE(d[0][1]),
            FP_TO_DOUBLE(Phi[0][0][0]), FP_TO_DOUBLE(Phi[0][1][0]));
