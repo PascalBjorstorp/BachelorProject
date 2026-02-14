@@ -59,6 +59,7 @@ private:
   double steering_to_servo_gain_, steering_to_servo_offset_;
   double current_vel_, brake_deadzone_;
   double accel_to_current_gain_, accel_to_brake_gain_;
+  double slow_start_threshold_, slow_start_increment_;
 
   // Operation modes enum
   enum OperationMode

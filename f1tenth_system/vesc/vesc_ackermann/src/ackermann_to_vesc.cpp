@@ -66,6 +66,11 @@ AckermannToVesc::AckermannToVesc(const rclcpp::NodeOptions & options)
   declare_parameter("accel_to_current_gain", 0.0);
   declare_parameter("accel_to_brake_gain", 0.0);
 
+  // Slow-start parameters (for sensorless motors that need low-speed
+  // rotation to detect rotor position before full ERPM can be commanded)
+  declare_parameter("slow_start_threshold", 1.0);  // m/s
+  declare_parameter("slow_start_increment", 0.4);   // m/s
+
   // Get conversion parameters
   speed_to_erpm_gain_ = get_parameter("speed_to_erpm_gain").get_value<double>();
   speed_to_erpm_offset_ = get_parameter("speed_to_erpm_offset").get_value<double>();
@@ -82,6 +87,10 @@ AckermannToVesc::AckermannToVesc(const rclcpp::NodeOptions & options)
   // Acceleration parameters
   accel_to_current_gain_ = get_parameter("accel_to_current_gain").get_value<double>();
   accel_to_brake_gain_ = get_parameter("accel_to_brake_gain").get_value<double>();
+
+  // Slow-start parameters
+  slow_start_threshold_ = get_parameter("slow_start_threshold").get_value<double>();
+  slow_start_increment_ = get_parameter("slow_start_increment").get_value<double>();
 
   // Initialize state
   current_vel_ = 0.0;
@@ -147,60 +156,40 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
     }
   } else {
     // Case 2: Velocity-to-ERPM mode (default, when accel gains are 0)
+    // Always command ERPM and let the VESC internal PID handle both
+    // acceleration and deceleration. Only use explicit braking for
+    // direction changes (forward<->reverse).
     operation_mode_ = VEL_TO_ERPM;
     double commanded_vel = cmd->drive.speed;
 
-    // Positive commanded velocity
-    if (commanded_vel >= 0) {
-      if (commanded_vel >= current_vel_) {
-        // Accelerating or maintaining speed
-        if (current_vel_ < 0) {
-          // Currently moving backward, apply brake
-          brake_msg.data = speed_to_braking_max_ /
-            (1.0 + std::exp(-speed_to_braking_gain_ *
-            (std::abs(current_vel_ - commanded_vel) - speed_to_braking_center_)));
-          publish_brake = true;
-        } else if (current_vel_ < 1.0 && commanded_vel > 1.0) {
-          // Slow start to get rotor position
-          erpm_msg.data = speed_to_erpm_gain_ * (current_vel_ + 0.4) + speed_to_erpm_offset_;
-          publish_erpm = true;
-        } else {
-          // Normal acceleration
-          erpm_msg.data = speed_to_erpm_gain_ * commanded_vel + speed_to_erpm_offset_;
-          publish_erpm = true;
-        }
+    // Check for direction change (forward vs reverse)
+    bool direction_change = (current_vel_ > 0.1 && commanded_vel < -0.1) ||
+                            (current_vel_ < -0.1 && commanded_vel > 0.1);
+
+    if (direction_change) {
+      // Direction reversal: brake to stop first
+      brake_msg.data = speed_to_braking_max_;
+      publish_brake = true;
+    } else if (commanded_vel >= 0) {
+      // Forward direction
+      if (current_vel_ < slow_start_threshold_ && commanded_vel > slow_start_threshold_) {
+        // Slow start to get rotor position (sensorless motor)
+        erpm_msg.data = speed_to_erpm_gain_ * (current_vel_ + slow_start_increment_) + speed_to_erpm_offset_;
       } else {
-        // Decelerating, apply brake
-        brake_msg.data = speed_to_braking_max_ /
-          (1.0 + std::exp(-speed_to_braking_gain_ *
-          (std::abs(current_vel_ - commanded_vel) - speed_to_braking_center_)));
-        publish_brake = true;
+        // Direct ERPM command — VESC PID handles accel and decel
+        erpm_msg.data = speed_to_erpm_gain_ * commanded_vel + speed_to_erpm_offset_;
       }
+      publish_erpm = true;
     } else {
-      // Negative commanded velocity (reverse)
-      if (commanded_vel <= current_vel_) {
-        if (current_vel_ > 0) {
-          // Currently moving forward, apply brake
-          brake_msg.data = speed_to_braking_max_ /
-            (1.0 + std::exp(-speed_to_braking_gain_ *
-            (std::abs(current_vel_ - commanded_vel) - speed_to_braking_center_)));
-          publish_brake = true;
-        } else if (current_vel_ == 0 && commanded_vel < -0.5) {
-          // Slow start for reverse
-          erpm_msg.data = speed_to_erpm_gain_ * -0.5 + speed_to_erpm_offset_;
-          publish_erpm = true;
-        } else {
-          // Normal reverse
-          erpm_msg.data = speed_to_erpm_gain_ * commanded_vel + speed_to_erpm_offset_;
-          publish_erpm = true;
-        }
+      // Reverse direction
+      if (current_vel_ == 0 && commanded_vel < -slow_start_increment_) {
+        // Slow start for reverse (sensorless motor)
+        erpm_msg.data = speed_to_erpm_gain_ * -slow_start_increment_ + speed_to_erpm_offset_;
       } else {
-        // Decelerating in reverse, apply brake
-        brake_msg.data = speed_to_braking_max_ /
-          (1.0 + std::exp(-speed_to_braking_gain_ *
-          (std::abs(current_vel_ - commanded_vel) - speed_to_braking_center_)));
-        publish_brake = true;
+        // Direct ERPM command — VESC PID handles accel and decel
+        erpm_msg.data = speed_to_erpm_gain_ * commanded_vel + speed_to_erpm_offset_;
       }
+      publish_erpm = true;
     }
   }
 
