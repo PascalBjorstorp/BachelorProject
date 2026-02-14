@@ -53,21 +53,29 @@ void ExtendedKalmanFilter::predict(double dt) {
     double v = state_(IDX_V);
     double omega = state_(IDX_OMEGA);
     
-    // === Motion model (bicycle model / constant velocity) ===
-    // For small dt, we use simple Euler integration
-    // x' = x + v * cos(theta) * dt
-    // y' = y + v * sin(theta) * dt
-    // theta' = theta + omega * dt
-    // v' = v (constant velocity assumption - updated by measurements)
-    // omega' = omega (constant turn rate - updated by measurements)
+    // === Motion model: analytical (circular arc) integration ===
+    // Matches VESC odom driver integration_method: "analytical"
+    // For |ω| > threshold, vehicle follows a circular arc:
+    //   x' = x + v/ω * (sin(θ + ω·dt) - sin(θ))
+    //   y' = y + v/ω * (cos(θ) - cos(θ + ω·dt))
+    // For |ω| ≈ 0, falls back to straight-line (Euler):
+    //   x' = x + v·cos(θ)·dt
+    //   y' = y + v·sin(θ)·dt
     
-    double cos_theta = std::cos(theta);
-    double sin_theta = std::sin(theta);
+    double new_theta = normalizeAngle(theta + omega * dt);
     
-    // State prediction
-    state_(IDX_X) = x + v * cos_theta * dt;
-    state_(IDX_Y) = y + v * sin_theta * dt;
-    state_(IDX_THETA) = normalizeAngle(theta + omega * dt);
+    constexpr double OMEGA_THRESHOLD = 1e-6;
+    if (std::abs(omega) > OMEGA_THRESHOLD) {
+        double v_over_omega = v / omega;
+        state_(IDX_X) = x + v_over_omega * (std::sin(new_theta) - std::sin(theta));
+        state_(IDX_Y) = y + v_over_omega * (std::cos(theta) - std::cos(new_theta));
+    } else {
+        double cos_theta = std::cos(theta);
+        double sin_theta = std::sin(theta);
+        state_(IDX_X) = x + v * cos_theta * dt;
+        state_(IDX_Y) = y + v * sin_theta * dt;
+    }
+    state_(IDX_THETA) = new_theta;
     // v and omega remain unchanged in prediction (constant velocity model)
     
     // === Covariance prediction ===
@@ -82,32 +90,57 @@ void ExtendedKalmanFilter::predict(double dt) {
 }
 
 ExtendedKalmanFilter::StateCovariance ExtendedKalmanFilter::computeStateJacobian(double dt) const {
-    // Jacobian of motion model with respect to state
-    // f(x, y, theta, v, omega) = [x + v*cos(theta)*dt, 
-    //                             y + v*sin(theta)*dt, 
-    //                             theta + omega*dt,
-    //                             v,
-    //                             omega]
+    // Jacobian of analytical (circular arc) motion model
+    // For |ω| > threshold:
+    //   x' = x + v/ω * (sin(θ+ω·dt) - sin(θ))
+    //   y' = y + v/ω * (cos(θ) - cos(θ+ω·dt))
+    //   θ' = θ + ω·dt
     
     double theta = state_(IDX_THETA);
     double v = state_(IDX_V);
-    double cos_theta = std::cos(theta);
-    double sin_theta = std::sin(theta);
+    double omega = state_(IDX_OMEGA);
     
     StateCovariance F;
     F.setIdentity();
     
-    // ∂x'/∂theta = -v * sin(theta) * dt
-    F(IDX_X, IDX_THETA) = -v * sin_theta * dt;
-    // ∂x'/∂v = cos(theta) * dt
-    F(IDX_X, IDX_V) = cos_theta * dt;
+    constexpr double OMEGA_THRESHOLD = 1e-6;
+    double new_theta = theta + omega * dt;
     
-    // ∂y'/∂theta = v * cos(theta) * dt
-    F(IDX_Y, IDX_THETA) = v * cos_theta * dt;
-    // ∂y'/∂v = sin(theta) * dt
-    F(IDX_Y, IDX_V) = sin_theta * dt;
+    if (std::abs(omega) > OMEGA_THRESHOLD) {
+        double v_over_omega = v / omega;
+        double cos_theta = std::cos(theta);
+        double sin_theta = std::sin(theta);
+        double cos_new_theta = std::cos(new_theta);
+        double sin_new_theta = std::sin(new_theta);
+        
+        // ∂x'/∂θ = v/ω * (cos(θ+ω·dt) - cos(θ))
+        F(IDX_X, IDX_THETA) = v_over_omega * (cos_new_theta - cos_theta);
+        // ∂x'/∂v = (sin(θ+ω·dt) - sin(θ)) / ω
+        F(IDX_X, IDX_V) = (sin_new_theta - sin_theta) / omega;
+        // ∂x'/∂ω = v/ω * cos(θ+ω·dt)·dt - v/ω² * (sin(θ+ω·dt) - sin(θ))
+        F(IDX_X, IDX_OMEGA) = v_over_omega * cos_new_theta * dt - 
+                               (v / (omega * omega)) * (sin_new_theta - sin_theta);
+        
+        // ∂y'/∂θ = v/ω * (sin(θ+ω·dt) - sin(θ))
+        F(IDX_Y, IDX_THETA) = v_over_omega * (sin_new_theta - sin_theta);
+        // ∂y'/∂v = (cos(θ) - cos(θ+ω·dt)) / ω
+        F(IDX_Y, IDX_V) = (cos_theta - cos_new_theta) / omega;
+        // ∂y'/∂ω = v/ω * sin(θ+ω·dt)·dt - v/ω² * (cos(θ) - cos(θ+ω·dt))
+        F(IDX_Y, IDX_OMEGA) = v_over_omega * sin_new_theta * dt -
+                               (v / (omega * omega)) * (cos_theta - cos_new_theta);
+    } else {
+        // Euler (straight-line) Jacobian for small ω
+        double cos_theta = std::cos(theta);
+        double sin_theta = std::sin(theta);
+        
+        F(IDX_X, IDX_THETA) = -v * sin_theta * dt;
+        F(IDX_X, IDX_V) = cos_theta * dt;
+        
+        F(IDX_Y, IDX_THETA) = v * cos_theta * dt;
+        F(IDX_Y, IDX_V) = sin_theta * dt;
+    }
     
-    // ∂theta'/∂omega = dt
+    // ∂θ'/∂ω = dt (same for both branches)
     F(IDX_THETA, IDX_OMEGA) = dt;
     
     return F;

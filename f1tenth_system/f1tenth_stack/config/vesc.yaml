@@ -78,8 +78,8 @@ vesc_to_odom_node:
     # Integration method for odometry:
     # "euler": Simple first-order (fastest, least accurate)
     # "trapezoidal": Second-order, good for varying speed
-    # "analytical": Exact for constant velocity circular arc (best for F1TENTH)
-    integration_method: "euler"
+    # "analytical": Exact for constant velocity circular arc
+    integration_method: "analytical"
     
     # IMU angular velocity low-pass filter coefficient (0.0 to 1.0)
     # Lower = more filtering (smoother but slower)
@@ -115,6 +115,13 @@ ackermann_to_vesc_node:
     use_braking: true
     braking_decel_threshold: -0.5
     max_brake_current: 10.0
+
+    # Slow-start parameters (for sensorless brushless motors)
+    # When current speed < threshold and commanded > threshold, the driver
+    # gradually ramps up speed by increment to allow rotor position detection.
+    # Set threshold to 0.0 to disable slow-start entirely.
+    slow_start_threshold: 1.0    # m/s (disable with 0.0)
+    slow_start_increment: 0.4    # m/s per command step
 
 # ===================
 # Throttle Interpolator (Optional)

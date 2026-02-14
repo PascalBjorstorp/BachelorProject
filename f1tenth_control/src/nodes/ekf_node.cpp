@@ -77,7 +77,7 @@ void EKFNode::declareParameters() {
     declare_parameter("mcl_theta_variance", 0.01);
     
     // Vehicle
-    declare_parameter("wheelbase", 0.3302);
+    declare_parameter("wheelbase", 0.324);
 }
 
 void EKFNode::loadParameters() {

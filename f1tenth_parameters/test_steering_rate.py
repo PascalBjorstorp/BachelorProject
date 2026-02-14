@@ -73,6 +73,8 @@ class SteeringRateNode(TestNode):
         self.send_command(self.test_speed, steer_target)
         
         # Record for 3 seconds (should be well past settling)
+        # Use self.imu_gz (from /sensors/imu/raw) NOT self.odom_omega
+        # because odom angular velocity is low-pass filtered (EMA alpha=0.3)
         while time.monotonic() - step_time < 3.0:
             rclpy.spin_once(self, timeout_sec=0.005)
             

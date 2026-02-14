@@ -81,9 +81,7 @@ size_t Stanley::findClosestPoint(const Point2D& front_axle_pos, double vehicle_h
     const double dist_to_last = math::distance(front_axle_pos.x, front_axle_pos.y,
                                          trajectory_[last_closest_idx_].x,
                                          trajectory_[last_closest_idx_].y);
-    // Use last_steering_ == 0 as indicator of first call (not perfect but simple)
-    const bool first_call = (last_closest_idx_ == 0 && last_steering_ == 0.0);
-    const bool full_search = first_call || (dist_to_last > config_.position_tolerance * 2);
+    const bool full_search = !search_initialized_ || (dist_to_last > config_.position_tolerance * 2);
     
     // Determine search range
     size_t start_idx = 0;
@@ -110,6 +108,7 @@ size_t Stanley::findClosestPoint(const Point2D& front_axle_pos, double vehicle_h
     }
     
     last_closest_idx_ = closest_idx;
+    search_initialized_ = true;
     return closest_idx;
 }
 

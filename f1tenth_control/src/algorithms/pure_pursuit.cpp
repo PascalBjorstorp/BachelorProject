@@ -141,7 +141,10 @@ TrajectoryPoint PurePursuit::interpolate(size_t idx1, size_t idx2, double t) con
     TrajectoryPoint result;
     result.x = p1.x + t * (p2.x - p1.x);
     result.y = p1.y + t * (p2.y - p1.y);
-    result.heading = p1.heading + t * (p2.heading - p1.heading);
+    // Wrap heading difference to [-π, π] to avoid interpolating the long way
+    double heading_diff = p2.heading - p1.heading;
+    heading_diff = std::atan2(std::sin(heading_diff), std::cos(heading_diff));
+    result.heading = p1.heading + t * heading_diff;
     result.velocity = p1.velocity + t * (p2.velocity - p1.velocity);
     result.curvature = p1.curvature + t * (p2.curvature - p1.curvature);
     result.arc_length = p1.arc_length + t * (p2.arc_length - p1.arc_length);

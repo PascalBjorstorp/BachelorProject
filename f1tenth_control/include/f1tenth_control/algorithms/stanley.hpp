@@ -135,6 +135,7 @@ private:
     std::vector<TrajectoryPoint> trajectory_;
     size_t last_closest_idx_{0};
     double last_steering_{0.0};     // For steering rate limiting
+    bool search_initialized_{false}; // True after first findClosestPoint call
     
     /**
      * @brief Find closest point to front axle position (heading-aware)

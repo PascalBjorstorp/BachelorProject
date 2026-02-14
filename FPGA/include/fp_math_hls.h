@@ -38,11 +38,15 @@ typedef int32_t fixed_point_t;
  * Conversion Macros
  *===========================================================================*/
 
-/** Compile-time float → Q16.16 */
-#define FP_CONST(x)     ((fixed_point_t)((double)(x) * FP_ONE))
+/** Compile-time float → Q16.16 (rounded to nearest) */
+#define FP_CONST(x)     ((fixed_point_t)(((double)(x) >= 0) ? \
+                        ((double)(x) * FP_ONE + 0.5) : \
+                        ((double)(x) * FP_ONE - 0.5)))
 
-/** Runtime double → Q16.16 */
-#define DOUBLE_TO_FP(x) ((fixed_point_t)((x) * FP_ONE))
+/** Runtime double → Q16.16 (rounded to nearest) */
+#define DOUBLE_TO_FP(x) ((fixed_point_t)(((x) >= 0) ? \
+                        ((x) * FP_ONE + 0.5) : \
+                        ((x) * FP_ONE - 0.5)))
 
 /** Runtime Q16.16 → double */
 #define FP_TO_DOUBLE(x) ((double)(x) / (double)FP_ONE)

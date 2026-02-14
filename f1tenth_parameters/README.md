@@ -95,6 +95,52 @@ python3 analyze_results.py
 This prints identified parameters and generates a YAML snippet for `vesc.yaml` and
 a C header snippet for `mpc_types.h`.
 
+## Data Pipeline Notes
+
+Understanding what processing happens to sensor data and commands is critical for
+accurate parameter identification.
+
+### Command Path (no smoothing by default)
+```
+/drive (test scripts)
+  → ackermann_mux (priority selection, joystick overrides)
+  → /ackermann_cmd
+  → ackermann_to_vesc (angle→servo, speed→ERPM conversion)
+  → /commands/motor/speed + /commands/servo/position
+  → vesc_driver → VESC hardware
+```
+
+**No throttle interpolator** in the default `bringup_launch.py`. Commands go directly
+to the VESC without rate limiting or smoothing.
+
+**Quirks in ackermann_to_vesc (VEL_TO_ERPM mode):**
+- **Slow-start**: When `current_vel < 1.0` m/s and `commanded > 1.0` m/s, the driver
+  commands `(current_vel + 0.4)` instead of the full speed. This limits initial
+  acceleration from standstill.
+- **Constant braking**: With default `speed_to_braking_gain=0.0`, deceleration uses
+  a constant brake force (`max/2`), not proportional to speed error.
+
+### Sensor Path
+```
+VESC hardware (polled at 200Hz)
+  → /sensors/core       (RPM, voltage, current — raw)
+  → /sensors/imu/raw    (accel in m/s², gyro in rad/s — NO filtering)
+  → /sensors/servo_position_command (last commanded servo value)
+
+/sensors/core + /sensors/imu/raw → vesc_to_odom → /odom
+```
+
+**What's filtered/modified in `/odom`:**
+| Field | Source | Filtering |
+|-------|--------|-----------|
+| `pose.position.x/y` | Integrated from velocity+heading | Drifts over time |
+| `pose.orientation` | IMU quaternion | **None** (raw from IMU) |
+| `twist.linear.x` | ERPM conversion | **0.05 m/s deadzone** (below → 0) |
+| `twist.angular.z` | IMU gyroscope | **LOW-PASS EMA (α=0.3)** ⚠️ |
+
+**For accurate yaw rate measurements** (steering rate test, friction test), the scripts
+use `/sensors/imu/raw` (angular_velocity.z) directly, NOT the filtered `odom.twist.angular.z`.
+
 ## File Structure
 
 ```

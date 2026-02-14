@@ -244,13 +244,18 @@ private:
         // Q16.16: multiply by 65536 (2^16) to convert float to fixed-point
         constexpr double FP_SCALE = 65536.0;
         
+        // Round to nearest (avoid truncation bias in Q16.16 conversion)
+        auto to_fp = [](double v) -> int32_t {
+            return static_cast<int32_t>(v >= 0.0 ? v * FP_SCALE + 0.5 : v * FP_SCALE - 0.5);
+        };
+        
         auto mpc_state = f1tenth_msgs::msg::MpcState();
         mpc_state.header.stamp = msg->header.stamp;
         mpc_state.header.frame_id = "map";
-        mpc_state.x_fp = static_cast<int32_t>(x * FP_SCALE);
-        mpc_state.y_fp = static_cast<int32_t>(y * FP_SCALE);
-        mpc_state.theta_fp = static_cast<int32_t>(theta * FP_SCALE);
-        mpc_state.velocity_fp = static_cast<int32_t>(velocity * FP_SCALE);
+        mpc_state.x_fp = to_fp(x);
+        mpc_state.y_fp = to_fp(y);
+        mpc_state.theta_fp = to_fp(theta);
+        mpc_state.velocity_fp = to_fp(velocity);
         mpc_state.waypoint_index = static_cast<uint32_t>(waypoint_idx);
         mpc_state.timestamp_ms = static_cast<uint32_t>(
             std::chrono::duration_cast<std::chrono::milliseconds>(
