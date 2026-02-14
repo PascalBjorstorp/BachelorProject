@@ -37,11 +37,15 @@ typedef int32_t fixed_point_t;
  * Conversion Macros
  *===========================================================================*/
 
-/** Compile-time float → Q16.16 */
-#define FP_CONST(x)     ((fixed_point_t)((double)(x) * FP_ONE))
+/** Compile-time float → Q16.16 (rounded to nearest) */
+#define FP_CONST(x)     ((fixed_point_t)(((double)(x) >= 0) ? \
+                        ((double)(x) * FP_ONE + 0.5) : \
+                        ((double)(x) * FP_ONE - 0.5)))
 
-/** Runtime double → Q16.16 */
-#define DOUBLE_TO_FP(x) ((fixed_point_t)((x) * FP_ONE))
+/** Runtime double → Q16.16 (rounded to nearest) */
+#define DOUBLE_TO_FP(x) ((fixed_point_t)(((x) >= 0) ? \
+                        ((x) * FP_ONE + 0.5) : \
+                        ((x) * FP_ONE - 0.5)))
 
 /** Runtime Q16.16 → double */
 #define FP_TO_DOUBLE(x) ((double)(x) / (double)FP_ONE)
@@ -77,7 +81,7 @@ static inline fixed_point_t fp_mul(fixed_point_t a, fixed_point_t b)
 
 static inline fixed_point_t fp_div(fixed_point_t a, fixed_point_t b)
 {
-    if (a == 0) return 0;
+    if (a == 0 || b == 0) return 0;
     return (fixed_point_t)(((int64_t)a << FP_FRAC_BITS) / b);
 }
 
@@ -120,6 +124,9 @@ static inline fixed_point_t fp_clamp(fixed_point_t val, fixed_point_t lo, fixed_
  * Advanced Math Functions (implemented in fp_math.c)
  *===========================================================================*/
 
+/** Normalize angle to [-π, π] */
+fixed_point_t fp_normalize_angle(fixed_point_t angle);
+
 /** Reciprocal: 1/x using Newton-Raphson */
 fixed_point_t fp_recip(fixed_point_t x);
 
@@ -134,6 +141,12 @@ fixed_point_t fp_cos(fixed_point_t angle);
 
 /** Tangent: sin/cos with overflow protection */
 fixed_point_t fp_tan(fixed_point_t angle);
+
+/** Arctangent using Taylor series + range reduction */
+fixed_point_t fp_atan(fixed_point_t x);
+
+/** Two-argument arctangent with quadrant handling */
+fixed_point_t fp_atan2(fixed_point_t y, fixed_point_t x);
 
 /** Integer power: base^exponent */
 fixed_point_t fp_pow(fixed_point_t base, int exp);

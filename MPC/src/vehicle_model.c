@@ -287,8 +287,14 @@ void vehicle_model_compute_linearization(
 
     state_matrix_A[1][2] = fp_mul(time_step, velocity_times_cosine);
 
-    /* A[0][3], A[1][3], A[2][3] = 0  (velocity is a control input, not a state) */
-    /* Already zero from identity matrix initialization */
+    /* A[0][3], A[1][3], A[2][3], A[3][3] = 0  (velocity is a control input, not a state)
+     * The velocity state is directly overwritten by the control input (B[3][1] = 1),
+     * so the previous velocity state has NO effect on the next state.
+     * A[3][3] MUST be 0, not 1! */
+    state_matrix_A[0][3] = 0;
+    state_matrix_A[1][3] = 0;
+    state_matrix_A[2][3] = 0;
+    state_matrix_A[3][3] = 0;  /* Critical fix: velocity state is replaced, not accumulated */
 
     /*
      * Initialize B matrix as zeros and add continuous terms × dt

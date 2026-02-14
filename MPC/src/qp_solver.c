@@ -108,6 +108,55 @@ QuadraticProgramStatus_t qp_solver_solve(
     solution->iteration_count = 0;
     solution->status = QP_STATUS_ERROR;
 
+    /*
+     * Compute per-variable step sizes using Gershgorin row sums.
+     *
+     * For projected gradient descent, convergence requires:
+     *   step_size < 2 / lambda_max(H)
+     *
+     * Using a GLOBAL step size is problematic because different variables
+     * (steering vs velocity) have very different Hessian eigenvalues.
+     * At high velocity, steering Hessian diagonal ≈ 184, while
+     * velocity diagonal ≈ 2.4, requiring step < 0.001 globally — far
+     * too slow for velocity convergence.
+     *
+     * Solution: Use per-variable step sizes based on Gershgorin row sums.
+     * For each variable i, the step size is:
+     *
+     *   step[i] = 1 / gershgorin_radius[i]
+     *   gershgorin_radius[i] = |H[i][i]| + Σ_{j≠i} |H[i][j]|
+     *
+     * This guarantees convergence for all variables simultaneously while
+     * allowing each to converge at its own natural rate.
+     *
+     * CRITICAL FIX: The previous fixed step_size of 0.03 caused divergence
+     * at high velocities where the steering Hessian eigenvalue >> 2/0.03.
+     * This was the root cause of the "car randomly turning" bug.
+     */
+    fixed_point_t inv_row_sum[QP_MAXIMUM_VARIABLES];
+
+    for (uint16_t i = 0; i < variable_count; i++)
+    {
+        /* Compute Gershgorin row sum: |H[i][i]| + sum_{j!=i} |H[i][j]| */
+        fixed_point_t row_sum = 0;
+        for (uint16_t j = 0; j < variable_count; j++)
+        {
+            fixed_point_t hij = problem->hessian_matrix[i * variable_count + j];
+            if (hij < 0) hij = fp_neg(hij);
+            row_sum = fp_add(row_sum, hij);
+        }
+
+        /* step[i] = 1 / row_sum, with minimum to avoid division by zero */
+        if (row_sum > FP_ONE)
+        {
+            inv_row_sum[i] = fp_div(FP_ONE, row_sum);
+        }
+        else
+        {
+            inv_row_sum[i] = config->gradient_step_size;
+        }
+    }
+
     /* Main optimization loop */
     for (int iteration = 0; iteration < config->maximum_iterations; iteration++)
     {
@@ -131,16 +180,19 @@ QuadraticProgramStatus_t qp_solver_solve(
         }
 
         /*
-         * Step 2: Gradient descent step: u_new = u - step_size × gradient
+         * Step 2: Gradient descent step with per-variable Gershgorin steps.
+         *
+         * u_new[i] = u[i] - step[i] × gradient[i]
+         *
+         * Each variable uses its own step size based on the Gershgorin
+         * row sum, ensuring convergence regardless of conditioning.
          */
-        fixed_point_t negative_step_size = fp_neg(config->gradient_step_size);
-
-        fp_vec_add_scaled(
-            solution->optimal_variables,
-            gradient,
-            negative_step_size,
-            next_variables,
-            variable_count);
+        for (uint16_t index = 0; index < variable_count; index++)
+        {
+            next_variables[index] = fp_sub(
+                solution->optimal_variables[index],
+                fp_mul(inv_row_sum[index], gradient[index]));
+        }
 
         /*
          * Step 3: Project onto feasible region (enforce A×u ≤ b)
@@ -238,19 +290,19 @@ void qp_solver_initialize_problem(QuadraticProgramProblem_t *problem)
 void qp_solver_initialize_config(QuadraticProgramConfig_t *config)
 {
     /*
-     * Step size (learning rate) for gradient descent.
+     * Step size (legacy parameter, kept for API compatibility).
      *
-     * Must satisfy: alpha < 2 / lambda_max(H)
-     * With condensed MPC formulation, the Hessian is dominated by
-     * tracking weights (~1-2) and rate penalty (~0.1).
+     * The solver now uses per-variable adaptive step sizes based on
+     * Gershgorin row sums (computed at the start of each solve call).
+     * This field serves as a fallback when the Gershgorin row sum is
+     * too small (< 1.0) but is otherwise unused.
      *
-     * If the solver hits max iterations without converging, try:
-     * - Reducing step size if oscillating around optimal
-     * - Increasing step size if converging too slowly (large residual)
-     *
-     * UPDATE: Increased from 0.005 to 0.03 to improve convergence speed.
-     * With position weights disabled and only heading/velocity tracking,
-     * the Hessian diagonals are ~2.3, so step < 2/2.3 ≈ 0.87 is safe.
+     * Historical note: A fixed step of 0.03 caused gradient descent to
+     * DIVERGE at high velocities where the Hessian eigenvalue >> 2/0.03.
+     * At v=20 m/s, the steering Hessian row sum reaches ~1000, requiring
+     * step < 0.002. The fixed step of 0.03 made steering oscillate
+     * between ±max every iteration — the root cause of the "car randomly
+     * turning" bug. The Gershgorin adaptive step fix eliminates this.
      */
     config->gradient_step_size = (fixed_point_t)1966;  /* 0.03 in Q16.16 = 0.03 × 65536 ≈ 1966 */
 

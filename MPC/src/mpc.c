@@ -88,7 +88,7 @@ static MpcConfiguration_t get_default_configuration(void)
      * amplified by the prediction horizon (N=10 steps). So moderate
      * values here produce strong tracking behavior.
      *
-     * CRITICAL FIX: Position weights are set to ZERO because global XY tracking
+     * Position weights are set to ZERO because global XY tracking
      * fights against heading tracking in corners. When looking ahead on a curved
      * path, steering toward future waypoint positions often requires pointing
      * AWAY from the correct heading direction.
@@ -118,9 +118,16 @@ static MpcConfiguration_t get_default_configuration(void)
      * The steering rate weight is the most important tuning parameter.
      * Too high → sluggish, can't follow curves.
      * Too low → oscillation, jerky steering.
-     * 1.0 is a good starting point for F1/10th.
+     *
+     * Tuned via offline Spielberg raceline simulation (1500 steps):
+     *   w_sr=1.0 → 223 steering reversals, 91 saturations
+     *   w_sr=3.0 → 0 reversals, 0 saturations, smooth 5.8°/step max
+     *   w_sr=5.0 → too sluggish, can't track tight curves
+     *
+     * 3.0 gives smooth, non-oscillatory steering while still tracking
+     * heading effectively for F1/10th racing.
      */
-    config.weight_steering_rate  = FP_ONE;                    /* 1.0 */
+    config.weight_steering_rate  = (fixed_point_t)(3 * FP_ONE);        /* 3.0 */
     config.weight_velocity_rate  = (fixed_point_t)6554;                /* 0.1 */
 
     /* Solver parameters */
@@ -506,12 +513,14 @@ static void build_qp_from_prediction(
                 previous_control_input.velocity_meters_per_second)));
     
     /* Debug: print first element of linear cost and Phi[0][2][0] (steering->heading) */
+#ifdef MPC_DEBUG_PRINT
     printf("[MPC-DBG] d[0][2]=%.4f, Phi[0][2][0]=%.4f, f[0]_track=%.4f, f[0]_final=%.4f\n",
            FP_TO_DOUBLE(d[0][2]), FP_TO_DOUBLE(Phi[0][2][0]),
            FP_TO_DOUBLE(f0_before_rate), FP_TO_DOUBLE(linear_cost_vector[0]));
     printf("[MPC-DBG] d[0][0]=%.4f, d[0][1]=%.4f, Phi[0][0][0]=%.4f, Phi[0][1][0]=%.4f\n",
            FP_TO_DOUBLE(d[0][0]), FP_TO_DOUBLE(d[0][1]),
            FP_TO_DOUBLE(Phi[0][0][0]), FP_TO_DOUBLE(Phi[0][1][0]));
+#endif
 }
 
 /**

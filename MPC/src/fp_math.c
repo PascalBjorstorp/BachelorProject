@@ -17,20 +17,21 @@
  * Trigonometric Constants (Taylor series coefficients)
  *===========================================================================*/
 
-#define INV_FACT_3  10923   /* 1/3! = 1/6 in Q16.16 */
-#define INV_FACT_4  2731    /* 1/4! = 1/24 */
+#define INV_FACT_2  32768   /* 1/2! = 1/2  = 0.5 in Q16.16 */
+#define INV_FACT_3  10923   /* 1/3! = 1/6  ≈ 0.1667 in Q16.16 */
+#define INV_FACT_4  2731    /* 1/4! = 1/24 ≈ 0.0417 in Q16.16 */
 #define INV_FACT_5  546     /* 1/5! = 1/120 */
 #define INV_FACT_6  91      /* 1/6! = 1/720 */
-#define INV_FACT_7  8       /* 1/7! = 1/5040 */
+#define INV_FACT_7  13      /* 1/7! = 1/5040 ≈ 0.000198 in Q16.16 */
 
-#define TAN_THRESHOLD (FP_PI_HALF - (FP_ONE >> 4))
+#define TAN_THRESHOLD 4096  /* ~0.0625 rad = 3.6° from ±π/2 */
 #define TAN_MAX       ((fixed_point_t)(1 << 30))
 
 /*===========================================================================
  * Helper: Normalize angle to [-π, π]
  *===========================================================================*/
 
-static inline fixed_point_t normalize_angle(fixed_point_t angle)
+fixed_point_t fp_normalize_angle(fixed_point_t angle)
 {
     while (angle > FP_PI)
         angle = fp_sub(angle, FP_TWO_PI);
@@ -114,12 +115,28 @@ fixed_point_t fp_sqrt(fixed_point_t x)
 }
 
 /*===========================================================================
- * Sine: Taylor series sin(x) = x - x³/3! + x⁵/5! - x⁷/7!
+ * Sine: Taylor series with range reduction to [-π/2, π/2]
+ * sin(x) = x - x³/3! + x⁵/5! - x⁷/7!
  *===========================================================================*/
 
 fixed_point_t fp_sin(fixed_point_t angle)
 {
-    angle = normalize_angle(angle);
+    /* Normalize to [-π, π] */
+    angle = fp_normalize_angle(angle);
+    
+    /* Range reduction: reduce to [-π/2, π/2] where Taylor is accurate */
+    int negate = 0;
+    
+    if (angle > FP_PI_HALF) {
+        /* sin(x) = sin(π - x) for x in (π/2, π] */
+        angle = fp_sub(FP_PI, angle);
+    } else if (angle < -FP_PI_HALF) {
+        /* sin(x) = -sin(-π - x) = sin(-(π + x)) for x in [-π, -π/2) */
+        angle = fp_add(FP_PI, angle);
+        negate = 1;
+    }
+    
+    /* Taylor series: x - x³/3! + x⁵/5! - x⁷/7! */
     fixed_point_t x2 = fp_mul(angle, angle);
 
     fixed_point_t result = angle;
@@ -134,47 +151,72 @@ fixed_point_t fp_sin(fixed_point_t angle)
     term = fp_mul(term, x2);  /* x⁷ */
     result = fp_sub(result, fp_mul(term, INV_FACT_7));
 
-    return result;
+    return negate ? fp_neg(result) : result;
 }
 
 /*===========================================================================
- * Cosine: Taylor series cos(x) = 1 - x²/2! + x⁴/4! - x⁶/6!
+ * Cosine: Taylor series with range reduction to [-π/2, π/2]
+ * cos(x) = 1 - x²/2! + x⁴/4! - x⁶/6!
  *===========================================================================*/
 
 fixed_point_t fp_cos(fixed_point_t angle)
 {
-    angle = normalize_angle(angle);
+    /* Normalize to [-π, π] */
+    angle = fp_normalize_angle(angle);
+    
+    /* cos(-x) = cos(x), so work with absolute value */
+    angle = fp_abs(angle);
+    
+    /* Range reduction: reduce to [0, π/2] where Taylor is accurate */
+    int negate = 0;
+    
+    if (angle > FP_PI_HALF) {
+        /* cos(x) = -cos(π - x) for x in (π/2, π] */
+        angle = fp_sub(FP_PI, angle);
+        negate = 1;
+    }
+    
+    /* Taylor series: 1 - x²/2! + x⁴/4! - x⁶/6! */
     fixed_point_t x2 = fp_mul(angle, angle);
 
     fixed_point_t result = FP_ONE;
     fixed_point_t term = x2;  /* x² */
 
-    result = fp_sub(result, fp_mul(term, INV_FACT_4));  /* Note: 1/2! used as INV_FACT_4 approx */
+    result = fp_sub(result, fp_mul(term, INV_FACT_2));  /* -x²/2! */
 
     term = fp_mul(term, x2);  /* x⁴ */
-    result = fp_add(result, fp_mul(term, INV_FACT_4));
+    result = fp_add(result, fp_mul(term, INV_FACT_4));  /* +x⁴/4! */
 
     term = fp_mul(term, x2);  /* x⁶ */
-    result = fp_sub(result, fp_mul(term, INV_FACT_6));
+    result = fp_sub(result, fp_mul(term, INV_FACT_6));  /* -x⁶/6! */
 
-    return result;
+    return negate ? fp_neg(result) : result;
 }
 
 /*===========================================================================
- * Tangent: sin/cos with overflow protection
+ * Tangent: sin/cos with overflow protection near ±π/2
  *===========================================================================*/
 
 fixed_point_t fp_tan(fixed_point_t angle)
 {
-    angle = normalize_angle(angle);
+    angle = fp_normalize_angle(angle);
 
     /* Protect against overflow near ±π/2 */
-    if (fp_abs(fp_sub(angle, FP_PI_HALF)) < TAN_THRESHOLD)
+    fixed_point_t dist_to_pi_half = fp_abs(fp_sub(fp_abs(angle), FP_PI_HALF));
+    
+    if (dist_to_pi_half < TAN_THRESHOLD) {
+        /* Very close to ±π/2, return large value with correct sign */
         return (angle > 0) ? TAN_MAX : fp_neg(TAN_MAX);
-    if (fp_abs(fp_add(angle, FP_PI_HALF)) < TAN_THRESHOLD)
-        return (angle > 0) ? TAN_MAX : fp_neg(TAN_MAX);
+    }
 
-    return fp_div(fp_sin(angle), fp_cos(angle));
+    fixed_point_t cos_val = fp_cos(angle);
+    
+    /* Additional safety: if cos is very small, clamp */
+    if (fp_abs(cos_val) < 256) {  /* ~0.004 */
+        return (angle > 0) ? TAN_MAX : fp_neg(TAN_MAX);
+    }
+
+    return fp_div(fp_sin(angle), cos_val);
 }
 
 /*===========================================================================
@@ -204,6 +246,159 @@ fixed_point_t fp_pow(fixed_point_t base, int exp)
         result = fp_recip(result);
 
     return result;
+}
+
+/*===========================================================================
+ * Arctangent: Taylor series with range reduction (matches FPGA)
+ * 
+ * Strategy:
+ *   |x| <= 0.5:     Use Taylor series (converges fast)
+ *   0.5 < |x| <= 1: Use atan(x) = atan(0.5) + atan((x-0.5)/(1+0.5*x))
+ *   |x| > 1:        Use atan(x) = π/2 - atan(1/x)
+ * 
+ * This avoids the slow convergence at x=1.
+ *===========================================================================*/
+
+/* Taylor series coefficients for atan(x): atan(x) = x - x³/3 + x⁵/5 - ... */
+#define ATAN_COEF_3  21845    /* 1/3 in Q16.16 */
+#define ATAN_COEF_5  13107    /* 1/5 in Q16.16 */
+#define ATAN_COEF_7  9362     /* 1/7 in Q16.16 */
+#define ATAN_COEF_9  7282     /* 1/9 in Q16.16 */
+#define ATAN_COEF_11 5958     /* 1/11 in Q16.16 */
+#define ATAN_COEF_13 5041     /* 1/13 in Q16.16 */
+
+/* Precomputed constants */
+#define FP_HALF_CONST   32768  /* 0.5 in Q16.16 */
+#define FP_ATAN_HALF    30386  /* atan(0.5) ≈ 0.4636 in Q16.16 */
+
+/* Internal helper: atan for |x| <= 0.5 using Taylor series */
+static fixed_point_t fp_atan_small(fixed_point_t x)
+{
+    fixed_point_t x2 = fp_mul(x, x);
+    fixed_point_t term = x;
+    fixed_point_t result = x;
+    
+    term = fp_mul(term, x2);  /* x³ */
+    result = fp_sub(result, fp_mul(term, ATAN_COEF_3));
+    
+    term = fp_mul(term, x2);  /* x⁵ */
+    result = fp_add(result, fp_mul(term, ATAN_COEF_5));
+    
+    term = fp_mul(term, x2);  /* x⁷ */
+    result = fp_sub(result, fp_mul(term, ATAN_COEF_7));
+    
+    term = fp_mul(term, x2);  /* x⁹ */
+    result = fp_add(result, fp_mul(term, ATAN_COEF_9));
+    
+    term = fp_mul(term, x2);  /* x¹¹ */
+    result = fp_sub(result, fp_mul(term, ATAN_COEF_11));
+    
+    term = fp_mul(term, x2);  /* x¹³ */
+    result = fp_add(result, fp_mul(term, ATAN_COEF_13));
+    
+    return result;
+}
+
+fixed_point_t fp_atan(fixed_point_t x)
+{
+    if (x == 0) return 0;
+    
+    int32_t sign = (x < 0) ? -1 : 1;
+    fixed_point_t abs_x = fp_abs(x);
+    fixed_point_t result;
+    
+    if (abs_x <= FP_HALF_CONST)
+    {
+        /* |x| <= 0.5: Direct Taylor series (fast convergence) */
+        result = fp_atan_small(abs_x);
+    }
+    else if (abs_x <= FP_ONE)
+    {
+        /* 0.5 < |x| <= 1: Range reduction */
+        /* atan(x) = atan(0.5) + atan((x - 0.5) / (1 + 0.5*x)) */
+        fixed_point_t numerator = fp_sub(abs_x, FP_HALF_CONST);
+        fixed_point_t denominator = fp_add(FP_ONE, fp_mul(FP_HALF_CONST, abs_x));
+        fixed_point_t reduced = fp_div(numerator, denominator);
+        result = fp_add(FP_ATAN_HALF, fp_atan_small(reduced));
+    }
+    else
+    {
+        /* |x| > 1: Use atan(x) = π/2 - atan(1/x) */
+        fixed_point_t inv_x = fp_div(FP_ONE, abs_x);
+        
+        if (inv_x <= FP_HALF_CONST)
+        {
+            result = fp_sub(FP_PI_HALF, fp_atan_small(inv_x));
+        }
+        else
+        {
+            /* 0.5 < 1/x <= 1: Range reduction on inverse */
+            fixed_point_t numerator = fp_sub(inv_x, FP_HALF_CONST);
+            fixed_point_t denominator = fp_add(FP_ONE, fp_mul(FP_HALF_CONST, inv_x));
+            fixed_point_t reduced = fp_div(numerator, denominator);
+            fixed_point_t atan_inv = fp_add(FP_ATAN_HALF, fp_atan_small(reduced));
+            result = fp_sub(FP_PI_HALF, atan_inv);
+        }
+    }
+    
+    return (sign < 0) ? fp_neg(result) : result;
+}
+
+/*===========================================================================
+ * Two-argument Arctangent: atan2(y, x)
+ * 
+ * Returns angle in [-π, π] with correct quadrant handling.
+ * Essential for steering calculations.
+ *===========================================================================*/
+
+fixed_point_t fp_atan2(fixed_point_t y, fixed_point_t x)
+{
+    /* Handle special cases */
+    if (x == 0)
+    {
+        if (y > 0) return FP_PI_HALF;
+        if (y < 0) return fp_neg(FP_PI_HALF);
+        return 0;  /* x=0, y=0: undefined, return 0 */
+    }
+    
+    if (y == 0)
+    {
+        return (x > 0) ? 0 : FP_PI;
+    }
+    
+    fixed_point_t angle;
+    fixed_point_t abs_y = fp_abs(y);
+    fixed_point_t abs_x = fp_abs(x);
+    
+    if (abs_x >= abs_y)
+    {
+        /* |x| >= |y|: safe to compute y/x (|ratio| <= 1, no overflow) */
+        fixed_point_t ratio = fp_div(y, x);
+        angle = fp_atan(ratio);
+        
+        /* Adjust for quadrant when x < 0 */
+        if (x < 0)
+        {
+            if (y >= 0)
+                angle = fp_add(angle, FP_PI);   /* Quadrant II */
+            else
+                angle = fp_sub(angle, FP_PI);   /* Quadrant III */
+        }
+    }
+    else
+    {
+        /* |y| > |x|: compute x/y instead to avoid overflow in division.
+         * Use identity: atan2(y,x) = sign(y)*π/2 - atan(x/y) */
+        fixed_point_t ratio = fp_div(x, y);
+        fixed_point_t atan_val = fp_atan(ratio);
+        
+        if (y > 0)
+            angle = fp_sub(FP_PI_HALF, atan_val);
+        else
+            angle = fp_sub(fp_neg(FP_PI_HALF), atan_val);
+    }
+    
+    return angle;
 }
 
 /*===========================================================================
