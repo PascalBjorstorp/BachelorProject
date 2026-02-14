@@ -674,9 +674,15 @@ static void test_mpc_init(void)
     
     printf("  Prediction horizon: %d steps\n", config.prediction_horizon_steps);
     printf("  Time step: %.4f s\n", FP_TO_DOUBLE(config.time_step_seconds));
+    printf("  Weight position X:  %.4f\n", FP_TO_DOUBLE(config.weight_position_x));
+    printf("  Weight position Y:  %.4f\n", FP_TO_DOUBLE(config.weight_position_y));
     printf("  Weight heading: %.4f\n", FP_TO_DOUBLE(config.weight_heading));
     printf("  Weight velocity: %.4f\n", FP_TO_DOUBLE(config.weight_velocity));
     printf("  Weight steering rate: %.4f\n", FP_TO_DOUBLE(config.weight_steering_rate));
+    printf("  Weight steering effort: %.4f\n", FP_TO_DOUBLE(config.weight_steering_effort));
+    printf("  Position tracking: %s\n",
+           (config.weight_position_x == 0 && config.weight_position_y == 0) ?
+           "DISABLED" : "ENABLED");
     
     /* Reset and verify */
     mpc_reset();
@@ -1042,6 +1048,175 @@ static void test_integration_circle(void)
     double avg_error = total_error / 20.0;
     printf("  Average radius error over 20 steps: %.3f m\n", avg_error);
     check_condition("Circle tracking error < 0.5m", avg_error < 0.5);
+}
+
+/*===========================================================================
+ * Test 21: Sim-Matched Velocity Handling
+ *===========================================================================
+ *
+ * In the ROS2 simulation, the velocity command sent to the car comes from
+ * the trajectory reference (not from MPC velocity output). The MPC only
+ * controls steering. This test verifies the MPC produces correct steering
+ * when velocity is externally controlled (as in the real sim).
+ *===========================================================================*/
+
+static void test_sim_velocity_handling(void)
+{
+    printf("\n========== Test Sim-Matched: External Velocity Control ==========\n");
+
+    mpc_initialize();
+    mpc_reset();
+
+    /* Scenario: Car at origin heading +X, reference curves left.
+     * Velocity set externally (trajectory reference), MPC only steers. */
+    VehicleState_t state;
+    state.position_x_meters = 0;
+    state.position_y_meters = 0;
+    state.heading_angle_radians = 0;
+    state.velocity_meters_per_second = FP_CONST(5.0);
+
+    /* Curved reference (left turn) */
+    int horizon = 10;
+    TrajectoryReferencePoint_t ref[10];
+    double trajectory_velocity = 5.0;  /* Fixed, from trajectory */
+
+    for (int i = 0; i < horizon; i++) {
+        double angle = (i + 1) * 0.05;
+        ref[i].reference_position_x_meters = FP_CONST(trajectory_velocity * 0.05 * (i+1) * cos(angle / 2.0));
+        ref[i].reference_position_y_meters = FP_CONST(trajectory_velocity * 0.05 * (i+1) * sin(angle / 2.0));
+        ref[i].reference_heading_radians = FP_CONST(angle);
+        ref[i].reference_velocity_meters_per_second = FP_CONST(trajectory_velocity);
+    }
+
+    /* Run 20 steps, using trajectory velocity for propagation (not MPC output) */
+    double max_lateral_error = 0;
+    int solver_ok = 0;
+
+    for (int step = 0; step < 20; step++) {
+        MpcSolverResult_t result;
+        MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+
+        if (status == MPC_STATUS_SUCCESS || status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED)
+            solver_ok++;
+
+        /* Use MPC steering but trajectory velocity (like the real sim) */
+        ControlInput_t sim_control;
+        sim_control.steering_angle_radians = result.optimal_control.steering_angle_radians;
+        sim_control.velocity_meters_per_second = FP_CONST(trajectory_velocity);
+
+        state = vehicle_model_predict_next_state(&state, &sim_control, FP_CONST(0.05));
+
+        /* Compute lateral error from reference path */
+        double x = FP_TO_DOUBLE(state.position_x_meters);
+        double y = FP_TO_DOUBLE(state.position_y_meters);
+        /* Expected position on the curve */
+        double t = (step + 1) * 0.05 * trajectory_velocity;
+        double exp_angle = (step + 1) * 0.05;
+        double exp_x = t * cos(exp_angle / 2.0);
+        double exp_y = t * sin(exp_angle / 2.0);
+        double lat_err = sqrt((x - exp_x) * (x - exp_x) + (y - exp_y) * (y - exp_y));
+        if (lat_err > max_lateral_error) max_lateral_error = lat_err;
+
+        /* Update reference for next step */
+        double psi = FP_TO_DOUBLE(state.heading_angle_radians);
+        for (int i = 0; i < horizon; i++) {
+            double angle = psi + (i + 1) * 0.05;
+            ref[i].reference_position_x_meters = FP_CONST(x + trajectory_velocity * 0.05 * (i+1) * cos(angle));
+            ref[i].reference_position_y_meters = FP_CONST(y + trajectory_velocity * 0.05 * (i+1) * sin(angle));
+            ref[i].reference_heading_radians = FP_CONST(angle);
+            ref[i].reference_velocity_meters_per_second = FP_CONST(trajectory_velocity);
+        }
+    }
+
+    printf("  Solver success: %d/20\n", solver_ok);
+    printf("  Max lateral error: %.4f m\n", max_lateral_error);
+    printf("  (Velocity from trajectory, NOT MPC — mirrors ROS2 sim behavior)\n");
+
+    check_condition("Sim-matched: solver success >= 18/20", solver_ok >= 18);
+    check_condition("Sim-matched: lateral error < 1.5m", max_lateral_error < 1.5);
+}
+
+/*===========================================================================
+ * Test 22: Distance-Based Speed Reduction
+ *===========================================================================
+ *
+ * The ROS2 node reduces velocity when the car drifts off-track:
+ *   >1.0m off: velocity *= 0.5
+ *   >0.5m off: velocity *= 0.8
+ * This test verifies MPC behaves correctly at reduced velocities.
+ *===========================================================================*/
+
+static void test_distance_speed_reduction(void)
+{
+    printf("\n========== Test Distance-Based Speed Reduction ==========\n");
+
+    mpc_initialize();
+    mpc_reset();
+
+    /* Start 1.5m off-track laterally (heading correct) */
+    VehicleState_t state;
+    state.position_x_meters = 0;
+    state.position_y_meters = FP_CONST(1.5);  /* 1.5m off from y=0 path */
+    state.heading_angle_radians = 0;
+    state.velocity_meters_per_second = FP_CONST(10.0);
+
+    /* Reference: straight along X at y=0 */
+    int horizon = 10;
+    TrajectoryReferencePoint_t ref[10];
+    double trajectory_vel = 10.0;
+
+    for (int i = 0; i < horizon; i++) {
+        ref[i].reference_position_x_meters = FP_CONST((i + 1) * 0.5);
+        ref[i].reference_position_y_meters = 0;
+        ref[i].reference_heading_radians = 0;
+        ref[i].reference_velocity_meters_per_second = FP_CONST(trajectory_vel);
+    }
+
+    MpcSolverResult_t result;
+    MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+
+    /* Apply distance-based speed reduction (mirrors ROS2 node) */
+    double distance_off = 1.5;  /* We know it's 1.5m off */
+    double reduced_vel = trajectory_vel;
+    if (distance_off > 1.0) reduced_vel *= 0.5;
+    else if (distance_off > 0.5) reduced_vel *= 0.8;
+
+    printf("  Distance from trajectory: %.1f m\n", distance_off);
+    printf("  Base velocity: %.1f m/s → Reduced velocity: %.1f m/s\n",
+           trajectory_vel, reduced_vel);
+    printf("  MPC steering: %.4f rad (%.1f°)\n",
+           FP_TO_DOUBLE(result.optimal_control.steering_angle_radians),
+           FP_TO_DOUBLE(result.optimal_control.steering_angle_radians) * 57.3);
+    printf("  MPC status: %d\n", status);
+
+    check_condition("Speed reduction: solver OK",
+                    status == MPC_STATUS_SUCCESS ||
+                    status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED);
+
+    /* Run a few steps with reduced velocity to verify stability */
+    int ok_count = 0;
+    for (int step = 0; step < 10; step++) {
+        status = mpc_compute_optimal_control(&state, ref, &result);
+        if (status == MPC_STATUS_SUCCESS || status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED)
+            ok_count++;
+
+        ControlInput_t ctrl;
+        ctrl.steering_angle_radians = result.optimal_control.steering_angle_radians;
+        ctrl.velocity_meters_per_second = FP_CONST(reduced_vel);
+        state = vehicle_model_predict_next_state(&state, &ctrl, FP_CONST(0.05));
+
+        /* Update reference */
+        double x = FP_TO_DOUBLE(state.position_x_meters);
+        for (int i = 0; i < horizon; i++) {
+            ref[i].reference_position_x_meters = FP_CONST(x + (i + 1) * reduced_vel * 0.05);
+            ref[i].reference_position_y_meters = 0;
+            ref[i].reference_heading_radians = 0;
+            ref[i].reference_velocity_meters_per_second = FP_CONST(reduced_vel);
+        }
+    }
+
+    printf("  10 steps at reduced speed: %d/10 solver OK\n", ok_count);
+    check_condition("Speed reduction: stable at reduced velocity", ok_count >= 9);
 }
 
 /*===========================================================================
@@ -1586,6 +1761,14 @@ static void stress_mpc_chicane(void)
 
     mpc_initialize();
 
+    /* Configure MPC dt to match this test's reference spacing */
+    MpcConfiguration_t config = mpc_get_configuration();
+    config.time_step_seconds = FP_CONST(0.05);
+    config.weight_heading = (fixed_point_t)(10 * FP_ONE);     /* Original weight for dt=50ms */
+    config.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
+    config.weight_velocity_rate = FP_CONST(0.1);
+    mpc_set_configuration(&config);
+
     VehicleState_t state;
     state.position_x_meters = 0;
     state.position_y_meters = 0;
@@ -1723,6 +1906,14 @@ static void stress_mpc_repeated_calls(void)
 
     mpc_initialize();
 
+    /* Configure dt to match reference spacing */
+    MpcConfiguration_t rconfig = mpc_get_configuration();
+    rconfig.time_step_seconds = FP_CONST(0.05);
+    rconfig.weight_heading = (fixed_point_t)(10 * FP_ONE);
+    rconfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
+    rconfig.weight_velocity_rate = FP_CONST(0.1);
+    mpc_set_configuration(&rconfig);
+
     VehicleState_t state;
     state.position_x_meters = 0;
     state.position_y_meters = 0;
@@ -1784,6 +1975,14 @@ static void stress_mpc_high_speed_turn(void)
     printf("\n========== STRESS: MPC High-Speed Sharp Turn ==========\n");
 
     mpc_initialize();
+
+    /* Configure dt to match reference spacing */
+    MpcConfiguration_t tconfig = mpc_get_configuration();
+    tconfig.time_step_seconds = FP_CONST(0.05);
+    tconfig.weight_heading = (fixed_point_t)(10 * FP_ONE);
+    tconfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
+    tconfig.weight_velocity_rate = FP_CONST(0.1);
+    mpc_set_configuration(&tconfig);
 
     /* Start at high speed, need to take a sharp 90° turn */
     VehicleState_t state;
@@ -1853,6 +2052,14 @@ static void stress_mpc_simultaneous_changes(void)
     printf("\n========== STRESS: MPC Simultaneous Changes ==========\n");
 
     mpc_initialize();
+
+    /* Configure dt to match reference spacing */
+    MpcConfiguration_t sconfig = mpc_get_configuration();
+    sconfig.time_step_seconds = FP_CONST(0.05);
+    sconfig.weight_heading = (fixed_point_t)(10 * FP_ONE);
+    sconfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
+    sconfig.weight_velocity_rate = FP_CONST(0.1);
+    mpc_set_configuration(&sconfig);
 
     VehicleState_t state;
     state.position_x_meters = 0;
@@ -1954,6 +2161,7 @@ static void stress_mpc_config_changes(void)
     /* Test with aggressive weights (high heading weight) */
     mpc_initialize();
     MpcConfiguration_t config = mpc_get_configuration();
+    config.time_step_seconds = FP_CONST(0.1);  /* Match reference spacing: v*dt = 3*0.1 = 0.3m */
     config.weight_heading = FP_CONST(10.0);
     config.weight_velocity = FP_CONST(10.0);
     config.weight_steering_rate = FP_CONST(0.01);
@@ -1967,6 +2175,7 @@ static void stress_mpc_config_changes(void)
     /* Test with conservative weights (high rate penalty) */
     mpc_initialize();
     config = mpc_get_configuration();
+    config.time_step_seconds = FP_CONST(0.1);
     config.weight_heading = FP_CONST(0.1);
     config.weight_velocity = FP_CONST(0.1);
     config.weight_steering_rate = FP_CONST(10.0);
@@ -2093,6 +2302,13 @@ static void stress_mpc_s_curve(void)
     printf("\n========== STRESS: MPC S-Curve Tracking ==========\n");
 
     mpc_initialize();
+
+    MpcConfiguration_t scconfig = mpc_get_configuration();
+    scconfig.time_step_seconds = FP_CONST(0.05);
+    scconfig.weight_heading = (fixed_point_t)(10 * FP_ONE);
+    scconfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
+    scconfig.weight_velocity_rate = FP_CONST(0.1);
+    mpc_set_configuration(&scconfig);
 
     VehicleState_t state;
     state.position_x_meters = 0;
@@ -2330,6 +2546,13 @@ static void stress_mpc_velocity_ramps(void)
 
     mpc_initialize();
 
+    MpcConfiguration_t vrconfig = mpc_get_configuration();
+    vrconfig.time_step_seconds = FP_CONST(0.05);
+    vrconfig.weight_heading = (fixed_point_t)(10 * FP_ONE);
+    vrconfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
+    vrconfig.weight_velocity_rate = FP_CONST(0.1);
+    mpc_set_configuration(&vrconfig);
+
     int horizon = 10;
     double dt = 0.05;
 
@@ -2422,6 +2645,13 @@ static void stress_mpc_endurance(void)
     printf("\n========== STRESS: MPC Endurance (500 calls) ==========\n");
 
     mpc_initialize();
+
+    MpcConfiguration_t econfig = mpc_get_configuration();
+    econfig.time_step_seconds = FP_CONST(0.05);
+    econfig.weight_heading = (fixed_point_t)(10 * FP_ONE);
+    econfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
+    econfig.weight_velocity_rate = FP_CONST(0.1);
+    mpc_set_configuration(&econfig);
 
     VehicleState_t state;
     state.position_x_meters = 0;
@@ -2615,6 +2845,13 @@ static void stress_mpc_disturbance(void)
 
     mpc_initialize();
 
+    MpcConfiguration_t dconfig = mpc_get_configuration();
+    dconfig.time_step_seconds = FP_CONST(0.05);
+    dconfig.weight_heading = (fixed_point_t)(10 * FP_ONE);
+    dconfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
+    dconfig.weight_velocity_rate = FP_CONST(0.1);
+    mpc_set_configuration(&dconfig);
+
     VehicleState_t state;
     state.position_x_meters = 0;
     state.position_y_meters = 0;
@@ -2710,6 +2947,10 @@ int main(void)
 
     /* Integration tests */
     test_integration_circle();
+
+    /* Simulation-matched tests */
+    test_sim_velocity_handling();
+    test_distance_speed_reduction();
 
     /* ---- Stress Tests ---- */
     printf("\n\n--- STRESS TESTS ---\n");
