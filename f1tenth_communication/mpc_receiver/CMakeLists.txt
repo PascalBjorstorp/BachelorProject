@@ -16,7 +16,7 @@ find_package(rclcpp REQUIRED)
 find_package(f1tenth_msgs REQUIRED)
 find_package(ackermann_msgs REQUIRED)
 
-# Executable
+# Executable - Original MPC Receiver (software-only)
 add_executable(mpc_receiver_node src/mpc_receiver.cpp)
 ament_target_dependencies(mpc_receiver_node
   rclcpp
@@ -24,8 +24,21 @@ ament_target_dependencies(mpc_receiver_node
   ackermann_msgs
 )
 
+# Executable - FPGA-integrated version (trajectory in BRAM)
+add_executable(mpc_receiver_fpga_node src/mpc_receiver_fpga.cpp)
+target_include_directories(mpc_receiver_fpga_node PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../FPGA/include
+)
+ament_target_dependencies(mpc_receiver_fpga_node
+  rclcpp
+  f1tenth_msgs
+  ackermann_msgs
+)
+
 # Install
-install(TARGETS mpc_receiver_node
+install(TARGETS 
+  mpc_receiver_node
+  mpc_receiver_fpga_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

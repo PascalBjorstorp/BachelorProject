@@ -179,7 +179,7 @@ private:
         
         // === ALL DATA STAYS IN FIXED-POINT (Q16.16) ===
         
-        // Store current state directly (no conversion!)
+        // Store current state in fixed-point
         current_ref_.x_fp = msg->x_fp;
         current_ref_.y_fp = msg->y_fp;
         current_ref_.theta_fp = msg->theta_fp;
