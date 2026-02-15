@@ -2,12 +2,13 @@
  * @file mpc_receiver_fpga.cpp
  * @brief MPC Receiver with FPGA Integration - Trajectory Stored in FPGA BRAM
  *
- * Loads trajectory to FPGA BRAM once at startup for minimal per-cycle overhead.
- * Each cycle only sends vehicle state (32 bytes) instead of full waypoint block.
+ * Loads trajectory to FPGA BRAM at startup via AXI-Lite register writes.
+ * Each waypoint is loaded one at a time (mode=1), then finalized (mode=2).
+ * Runtime: Only writes vehicle state registers (mode=0), gets steering output.
  *
  * Flow:
- *   Startup: Load trajectory CSV → DMA to FPGA BRAM (once)
- *   Runtime: Receive MpcState → Send state to FPGA → Get steering → Publish /drive
+ *   Startup: Load trajectory CSV → Per-register writes to FPGA BRAM (once)
+ *   Runtime: Receive MpcState → Write state regs → Start FPGA → Read output → Publish /drive
  */
 
 #include <rclcpp/rclcpp.hpp>
@@ -58,7 +59,14 @@ struct WaypointCSV {
 };
 
 /*===========================================================================
- * FPGA Interface - Trajectory in BRAM
+ * AP_CTRL bits (standard Vitis HLS AXI-Lite control)
+ *===========================================================================*/
+#define AP_START  0x01
+#define AP_DONE   0x02
+#define AP_IDLE   0x04
+
+/*===========================================================================
+ * FPGA Interface - AXI-Lite Register Access
  *===========================================================================*/
 
 class FpgaInterface {
@@ -103,95 +111,140 @@ public:
     bool is_ready() const { return initialized_; }
     
     /**
-     * @brief Load trajectory to FPGA BRAM (called once at startup)
+     * @brief Load trajectory to FPGA BRAM via AXI-Lite registers
+     * 
+     * Each waypoint is loaded individually (mode=1), then finalized (mode=2).
+     * This is done once at startup.
      */
     bool load_trajectory(const std::vector<WaypointCSV>& waypoints) {
         if (!initialized_) return false;
         
-        volatile uint8_t* base = static_cast<volatile uint8_t*>(fpga_base_);
-        volatile FpgaWaypoint_t* traj_bram = 
-            reinterpret_cast<volatile FpgaWaypoint_t*>(base + FPGA_TRAJ_OFFSET);
-        
         size_t count = std::min(waypoints.size(), static_cast<size_t>(MAX_TRAJECTORY_SIZE));
         
-        // Copy waypoints to FPGA BRAM
+        // Load each waypoint one at a time (mode=1)
         for (size_t i = 0; i < count; i++) {
-            FpgaWaypoint_t wp;
-            wp.x_fp = float_to_fp(waypoints[i].x);
-            wp.y_fp = float_to_fp(waypoints[i].y);
-            wp.theta_fp = float_to_fp(waypoints[i].psi);
-            wp.velocity_fp = float_to_fp(waypoints[i].vx);
-            wp.kappa_fp = float_to_fp(waypoints[i].kappa);
-            wp.reserved[0] = wp.reserved[1] = wp.reserved[2] = 0;
+            // Wait for idle
+            if (!wait_idle(1000)) return false;
             
-            memcpy(const_cast<FpgaWaypoint_t*>(&traj_bram[i]), &wp, sizeof(FpgaWaypoint_t));
+            // Write waypoint registers
+            write_reg(REG_MODE,     1);  // mode = LOAD_WAYPOINT
+            write_reg(REG_WP_INDEX, static_cast<uint32_t>(i));
+            write_reg(REG_WP_X,     static_cast<uint32_t>(float_to_fp(waypoints[i].x)));
+            write_reg(REG_WP_Y,     static_cast<uint32_t>(float_to_fp(waypoints[i].y)));
+            write_reg(REG_WP_THETA, static_cast<uint32_t>(float_to_fp(waypoints[i].psi)));
+            write_reg(REG_WP_VEL,   static_cast<uint32_t>(float_to_fp(waypoints[i].vx)));
+            write_reg(REG_WP_KAPPA, static_cast<uint32_t>(float_to_fp(waypoints[i].kappa)));
+            write_reg(REG_WP_TOTAL, static_cast<uint32_t>(count));
+            __sync_synchronize();
+            
+            // Start
+            write_reg(REG_AP_CTRL, AP_START);
+            
+            // Wait for done
+            if (!wait_done(10000)) return false;
         }
         
+        // Finalize trajectory (mode=2)
+        if (!wait_idle(1000)) return false;
+        write_reg(REG_MODE,     2);
+        write_reg(REG_WP_TOTAL, static_cast<uint32_t>(count));
         __sync_synchronize();
+        write_reg(REG_AP_CTRL, AP_START);
+        if (!wait_done(10000)) return false;
         
-        trajectory_size_ = count;
-        trajectory_loaded_ = true;
+        // Check that trajectory was loaded
+        uint32_t loaded = read_reg(REG_OUT_TRAJ_LOADED);
+        uint32_t size   = read_reg(REG_OUT_TRAJ_SIZE);
         
-        return true;
+        trajectory_size_ = size;
+        trajectory_loaded_ = (loaded == 1);
+        
+        return trajectory_loaded_;
     }
     
     /**
-     * @brief Configure control parameters
+     * @brief Write control parameters to FPGA registers (call once at startup,
+     *        or when tuning changes). AXI-Lite registers retain their values
+     *        between transactions, so these don't need to be re-sent each cycle.
      */
     void set_parameters(const FpgaParams_t& params) {
+        params_ = params;
+        params_.trajectory_size = trajectory_size_;
+        
         if (!initialized_) return;
         
-        volatile uint8_t* base = static_cast<volatile uint8_t*>(fpga_base_);
-        volatile FpgaParams_t* fpga_params = 
-            reinterpret_cast<volatile FpgaParams_t*>(base + FPGA_PARAMS_OFFSET);
+        // Wait for idle before writing
+        wait_idle(1000);
         
-        FpgaParams_t p = params;
-        p.trajectory_size = trajectory_size_;
+        // Write parameter registers (persist until overwritten)
+        write_reg(REG_P_MIN_LA,    static_cast<uint32_t>(params_.min_lookahead_fp));
+        write_reg(REG_P_MAX_LA,    static_cast<uint32_t>(params_.max_lookahead_fp));
+        write_reg(REG_P_LA_GAIN,   static_cast<uint32_t>(params_.lookahead_gain_fp));
+        write_reg(REG_P_WHEELBASE, static_cast<uint32_t>(params_.wheelbase_fp));
+        write_reg(REG_P_MAX_STEER, static_cast<uint32_t>(params_.max_steering_fp));
+        write_reg(REG_P_MAX_VEL,   static_cast<uint32_t>(params_.max_velocity_fp));
+        write_reg(REG_P_LA_POINTS, params_.lookahead_points);
         
-        std::memcpy(const_cast<FpgaParams_t*>(fpga_params), &p, sizeof(FpgaParams_t));
+        // Pre-set mode=0 for compute (persists for all subsequent calls)
+        write_reg(REG_MODE, 0);
         __sync_synchronize();
     }
     
     /**
-     * @brief Compute control output (called every cycle)
+     * @brief Compute control output via FPGA (called every cycle)
      * 
-     * Only sends 32 bytes of state data!
+     * Only writes the 5 vehicle state registers that change each cycle.
+     * Mode and parameter registers persist from set_parameters().
+     * 
+     * Optionally measures FPGA-only compute time (AP_START → AP_DONE).
      */
     bool compute(const FpgaStateInput_t& state, FpgaOutput_t& output) {
         if (!initialized_ || !trajectory_loaded_) return false;
         
-        volatile uint8_t* base = static_cast<volatile uint8_t*>(fpga_base_);
-        volatile uint32_t* ctrl = reinterpret_cast<volatile uint32_t*>(base + FPGA_CTRL_OFFSET);
-        volatile FpgaStateInput_t* fpga_state = 
-            reinterpret_cast<volatile FpgaStateInput_t*>(base + FPGA_STATE_OFFSET);
-        volatile FpgaOutput_t* fpga_output = 
-            reinterpret_cast<volatile FpgaOutput_t*>(base + FPGA_OUTPUT_OFFSET);
-        
         // Wait for idle
-        int timeout = 1000;
-        while ((ctrl[REG_IDLE/4] == 0) && (timeout-- > 0));
-        if (timeout <= 0) return false;
+        if (!wait_idle(1000)) return false;
         
-        // Write state (only 32 bytes!)
-        std::memcpy(const_cast<FpgaStateInput_t*>(fpga_state), &state, sizeof(FpgaStateInput_t));
+        // Only write vehicle state registers (5 writes per cycle)
+        write_reg(REG_ST_X,      static_cast<uint32_t>(state.x_fp));
+        write_reg(REG_ST_Y,      static_cast<uint32_t>(state.y_fp));
+        write_reg(REG_ST_THETA,  static_cast<uint32_t>(state.theta_fp));
+        write_reg(REG_ST_VEL,    static_cast<uint32_t>(state.velocity_fp));
+        write_reg(REG_ST_WP_IDX, state.waypoint_index);
         __sync_synchronize();
         
+        // Measure FPGA compute time (AP_START → AP_DONE)
+        struct timespec t_start, t_done;
+        clock_gettime(CLOCK_MONOTONIC_RAW, &t_start);
+        
         // Start computation
-        ctrl[REG_START/4] = 1;
+        write_reg(REG_AP_CTRL, AP_START);
         
         // Wait for done
-        timeout = 10000;
-        while ((ctrl[REG_DONE/4] == 0) && (timeout-- > 0));
-        if (timeout <= 0) return false;
+        if (!wait_done(10000)) return false;
         
-        // Read output
-        std::memcpy(&output, const_cast<FpgaOutput_t*>(fpga_output), sizeof(FpgaOutput_t));
+        clock_gettime(CLOCK_MONOTONIC_RAW, &t_done);
+        last_fpga_compute_ns_ = (t_done.tv_sec - t_start.tv_sec) * 1000000000LL
+                              + (t_done.tv_nsec - t_start.tv_nsec);
+        
+        // Read output registers
+        output.steering_angle_fp    = static_cast<int32_t>(read_reg(REG_OUT_STEERING));
+        output.velocity_fp          = static_cast<int32_t>(read_reg(REG_OUT_VELOCITY));
+        output.cross_track_error_fp = static_cast<int32_t>(read_reg(REG_OUT_CTE));
+        output.heading_error_fp     = static_cast<int32_t>(read_reg(REG_OUT_HEADING_ERR));
+        output.lookahead_dist_fp    = static_cast<int32_t>(read_reg(REG_OUT_LOOKAHEAD));
+        output.target_waypoint_idx  = read_reg(REG_OUT_TARGET_WP);
+        output.status               = read_reg(REG_OUT_STATUS);
+        output.sequence_number      = state.sequence_number;
+        output.timestamp_ms         = state.timestamp_ms;
         
         return true;
     }
     
     size_t get_trajectory_size() const { return trajectory_size_; }
     bool is_trajectory_loaded() const { return trajectory_loaded_; }
+    
+    /** Get last FPGA compute time (AP_START → AP_DONE) in nanoseconds */
+    int64_t get_last_compute_ns() const { return last_fpga_compute_ns_; }
     
 private:
     int mem_fd_;
@@ -201,6 +254,38 @@ private:
     bool initialized_;
     size_t trajectory_size_ = 0;
     bool trajectory_loaded_ = false;
+    FpgaParams_t params_;
+    int64_t last_fpga_compute_ns_ = 0;
+    
+    /** Write a 32-bit value to an AXI-Lite register */
+    void write_reg(uint32_t offset, uint32_t value) {
+        volatile uint32_t* reg = reinterpret_cast<volatile uint32_t*>(
+            static_cast<volatile uint8_t*>(fpga_base_) + offset);
+        *reg = value;
+    }
+    
+    /** Read a 32-bit value from an AXI-Lite register */
+    uint32_t read_reg(uint32_t offset) {
+        volatile uint32_t* reg = reinterpret_cast<volatile uint32_t*>(
+            static_cast<volatile uint8_t*>(fpga_base_) + offset);
+        return *reg;
+    }
+    
+    /** Wait for AP_CTRL idle bit */
+    bool wait_idle(int timeout) {
+        while (timeout-- > 0) {
+            if (read_reg(REG_AP_CTRL) & AP_IDLE) return true;
+        }
+        return false;
+    }
+    
+    /** Wait for AP_CTRL done bit */
+    bool wait_done(int timeout) {
+        while (timeout-- > 0) {
+            if (read_reg(REG_AP_CTRL) & AP_DONE) return true;
+        }
+        return false;
+    }
 };
 
 /*===========================================================================
@@ -487,16 +572,17 @@ private:
         
         if (msg_count_ % 100 == 0) {
             double avg_latency = total_latency_ms_ / msg_count_;
+            int64_t fpga_ns = use_fpga_ ? fpga_.get_last_compute_ns() : 0;
             RCLCPP_INFO(get_logger(),
                 "[%s] Pos=(%.2f,%.2f) Vel=%.1f | Steer=%.1f° Speed=%.1f | "
-                "CTE=%.3fm | %ldμs | Lat=%.1fms (avg=%.1f)",
+                "CTE=%.3fm | Total=%ldμs FPGA=%ldns | Lat=%.1fms (avg=%.1f)",
                 use_fpga_ ? "FPGA" : "SW",
                 fp_to_float(msg->x_fp), fp_to_float(msg->y_fp),
                 fp_to_float(msg->velocity_fp),
                 fp_to_float(output.steering_angle_fp) * 57.3f,
                 fp_to_float(output.velocity_fp),
                 fp_to_float(output.cross_track_error_fp),
-                compute_us, latency_ms, avg_latency);
+                compute_us, fpga_ns, latency_ms, avg_latency);
         }
     }
 };
