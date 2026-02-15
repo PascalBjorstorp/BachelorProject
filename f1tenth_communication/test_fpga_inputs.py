@@ -2,26 +2,33 @@
 """
 FPGA Pure Pursuit Test Script
 =============================
-Publishes simulated MpcState messages to test the FPGA pure pursuit
-controller running on the Ultra96.
+Publishes simulated MpcState messages that follow the actual loaded
+raceline trajectory to test the FPGA pure pursuit controller.
+
+The script reads the same trajectory CSV that was loaded into the FPGA
+and simulates driving along it, sending correct positions and waypoint indices.
 
 Usage:
-  1. On Ultra96: Load bitstream & start mpc_receiver_fpga node
-  2. Run this script (on Ultra96 or any networked machine with ROS2):
+  Terminal 1 (receiver):
+    sudo bash
+    export ROS_DOMAIN_ID=42
+    source /home/xilinx/ros2_humble/install/setup.bash
+    source /home/xilinx/ros2_ws/install/setup.bash
+    ros2 run mpc_receiver mpc_receiver_fpga_node \
+        --ros-args -p trajectory_file:=/home/xilinx/trajectories/Spielberg_raceline.csv
 
-     ros2 run f1tenth_msgs test_fpga_inputs.py
-     # or just:
-     python3 test_fpga_inputs.py
+  Terminal 2 (test):
+    sudo bash
+    export ROS_DOMAIN_ID=42
+    source /home/xilinx/ros2_humble/install/setup.bash
+    source /home/xilinx/ros2_ws/install/setup.bash
+    python3 /home/xilinx/test_fpga_inputs.py /home/xilinx/trajectories/Spielberg_raceline.csv
 
-  3. Monitor output:
-     ros2 topic echo /drive
-
-Scenarios:
-  1. Static position test - same state repeatedly
-  2. Straight line drive - moving along X axis
-  3. Circular track - following a circle
-  4. Step input - sudden position change
-  5. Varying speed - different velocities
+  Terminal 3 (monitor):
+    sudo bash
+    export ROS_DOMAIN_ID=42
+    source /home/xilinx/ros2_humble/install/setup.bash
+    ros2 topic echo /drive
 """
 
 import rclpy
@@ -29,43 +36,88 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 import math
 import time
-import struct
+import sys
+import csv
+
 
 # Q16.16 conversion
+FP_SCALE = 65536
+
 def float_to_fp(val: float) -> int:
     """Convert float to Q16.16 fixed-point (signed int32)."""
-    raw = int(val * 65536.0)
-    # Clamp to int32 range
-    raw = max(-2147483648, min(2147483647, raw))
-    return raw
+    raw = int(val * FP_SCALE)
+    return max(-2147483648, min(2147483647, raw))
 
-def fp_to_float(val: int) -> float:
-    """Convert Q16.16 fixed-point to float."""
-    # Handle signed int32
-    if val > 0x7FFFFFFF:
-        val -= 0x100000000
-    return val / 65536.0
+
+class Waypoint:
+    """A single trajectory waypoint."""
+    def __init__(self, s, x, y, psi, kappa, vx, ax):
+        self.s = s          # arc length [m]
+        self.x = x          # position x [m]
+        self.y = y          # position y [m]
+        self.psi = psi      # heading [rad]
+        self.kappa = kappa  # curvature [1/m]
+        self.vx = vx        # velocity [m/s]
+        self.ax = ax        # acceleration [m/s2]
+
+
+def load_raceline(filepath: str) -> list:
+    """Load raceline from CSV file (same format as FPGA uses).
+    Format: s_m,x_m,y_m,psi_rad,kappa_radpm,vx_mps,ax_mps2
+    """
+    waypoints = []
+    with open(filepath, 'r') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if row[0].startswith('#') or row[0].startswith('s_m'):
+                continue  # skip header/comments
+            wp = Waypoint(
+                s=float(row[0]),
+                x=float(row[1]),
+                y=float(row[2]),
+                psi=float(row[3]),
+                kappa=float(row[4]),
+                vx=float(row[5]),
+                ax=float(row[6])
+            )
+            waypoints.append(wp)
+    return waypoints
 
 
 class FpgaTestPublisher(Node):
-    def __init__(self):
+    def __init__(self, raceline_path: str):
         super().__init__('fpga_test_publisher')
-        
-        # Import after rclpy.init
+
         from f1tenth_msgs.msg import MpcState
+        from ackermann_msgs.msg import AckermannDriveStamped
         self.MpcState = MpcState
-        
+
+        # Load the same raceline the FPGA has
+        self.raceline = load_raceline(raceline_path)
+        self.get_logger().info(f'Loaded {len(self.raceline)} waypoints from {raceline_path}')
+
         # QoS matching mpc_receiver_fpga (Best Effort)
         qos = QoSProfile(
             depth=1,
             reliability=ReliabilityPolicy.BEST_EFFORT,
             durability=DurabilityPolicy.VOLATILE,
         )
-        
         self.pub = self.create_publisher(MpcState, '/mpc_state', qos)
-        self.get_logger().info('FPGA Test Publisher started. Publishing to /mpc_state')
-        self.get_logger().info('Monitor output with: ros2 topic echo /drive')
-        
+
+        # Subscribe to /drive to verify output
+        self.drive_sub = self.create_subscription(
+            AckermannDriveStamped, '/drive',
+            self.drive_callback, 10
+        )
+        self.last_drive = None
+        self.drive_count = 0
+
+        self.get_logger().info('Publishing to /mpc_state, monitoring /drive')
+
+    def drive_callback(self, msg):
+        self.last_drive = msg
+        self.drive_count += 1
+
     def publish_state(self, x, y, theta, vel, wp_idx):
         """Publish a single MpcState message."""
         msg = self.MpcState()
@@ -77,128 +129,171 @@ class FpgaTestPublisher(Node):
         msg.waypoint_index = wp_idx
         msg.timestamp_ms = int(time.time() * 1000) & 0xFFFFFFFF
         self.pub.publish(msg)
-        
+
+    def wait_and_report(self, dt=0.1):
+        """Spin briefly and report any drive output."""
+        rclpy.spin_once(self, timeout_sec=dt)
+        if self.last_drive:
+            d = self.last_drive.drive
+            self.get_logger().info(
+                f'  -> /drive: steer={d.steering_angle:.4f} rad '
+                f'({math.degrees(d.steering_angle):.1f} deg) '
+                f'speed={d.speed:.2f} m/s'
+            )
+            self.last_drive = None
+
     def run_test_suite(self):
         """Run all test scenarios."""
-        self.get_logger().info('='*50)
+        self.get_logger().info('=' * 60)
         self.get_logger().info('FPGA PURE PURSUIT TEST SUITE')
-        self.get_logger().info('='*50)
-        
+        self.get_logger().info(f'Raceline: {len(self.raceline)} waypoints')
+        first = self.raceline[0]
+        self.get_logger().info(f'First waypoint: ({first.x:.2f}, {first.y:.2f}), heading={first.psi:.3f}')
+        self.get_logger().info('=' * 60)
+
         tests = [
-            ('Static Position', self.test_static),
-            ('Straight Line', self.test_straight_line),
-            ('Circular Track', self.test_circular),
-            ('Step Input', self.test_step_input),
-            ('Varying Speed', self.test_varying_speed),
-            ('Stress Test (100Hz)', self.test_stress),
+            ('1. On-track at waypoint 0', self.test_on_track_start),
+            ('2. Drive along raceline (10 Hz)', self.test_follow_raceline_10hz),
+            ('3. Offset from raceline (CTE test)', self.test_offset),
+            ('4. Wrong heading (heading error test)', self.test_wrong_heading),
+            ('5. Different velocities', self.test_velocities),
+            ('6. Full lap at 200 Hz', self.test_full_lap_200hz),
         ]
-        
+
         for name, test_fn in tests:
-            self.get_logger().info(f'\n--- Test: {name} ---')
-            input(f'Press Enter to start "{name}" test...')
+            self.get_logger().info(f'\n--- {name} ---')
+            input(f'Press Enter to start "{name}"...')
+            self.drive_count = 0
             test_fn()
-            self.get_logger().info(f'--- {name} complete ---\n')
+            self.get_logger().info(f'--- Done ({self.drive_count} drive messages received) ---\n')
             time.sleep(0.5)
-        
-        self.get_logger().info('='*50)
+
+        self.get_logger().info('=' * 60)
         self.get_logger().info('ALL TESTS COMPLETE')
-        self.get_logger().info('='*50)
-    
-    def test_static(self):
-        """Send the same position 10 times at 10 Hz."""
-        self.get_logger().info('Sending static position (0, 0, 0) at 10 Hz for 1 second')
-        for i in range(10):
-            self.publish_state(x=0.0, y=0.0, theta=0.0, vel=2.0, wp_idx=0)
-            rclpy.spin_once(self, timeout_sec=0.1)
-            time.sleep(0.1)
-        self.get_logger().info('Static test done - steering should converge to a consistent value')
-    
-    def test_straight_line(self):
-        """Move along X axis, should produce minimal steering."""
-        self.get_logger().info('Moving along X axis at 3 m/s, 20 steps')
+        self.get_logger().info('=' * 60)
+
+    def test_on_track_start(self):
+        """Send the car's position exactly on waypoint 0.
+        Expect: small CTE, small steering, velocity = raceline speed.
+        """
+        wp = self.raceline[0]
+        self.get_logger().info(f'Position: ({wp.x:.2f}, {wp.y:.2f})')
+        self.get_logger().info(f'Heading:  {wp.psi:.3f} rad ({math.degrees(wp.psi):.1f} deg)')
+        self.get_logger().info(f'Velocity: {wp.vx:.1f} m/s')
+        self.get_logger().info('Expected: small steering, CTE near zero')
         for i in range(20):
-            x = i * 0.3  # 3 m/s * 0.1s = 0.3m per step
-            self.publish_state(x=x, y=0.0, theta=0.0, vel=3.0, wp_idx=i % 100)
-            rclpy.spin_once(self, timeout_sec=0.05)
-            time.sleep(0.1)
-        self.get_logger().info('Straight line done - steering should be near zero (if trajectory is straight)')
-    
-    def test_circular(self):
-        """Follow a circular path, should produce consistent steering."""
-        R = 10.0  # 10m radius circle
-        N = 50    # 50 steps = ~half circle
-        self.get_logger().info(f'Circular path: R={R}m, {N} steps at 10 Hz')
-        for i in range(N):
-            angle = (i / N) * math.pi  # half circle
-            x = R * math.cos(angle)
-            y = R * math.sin(angle)
-            theta = angle + math.pi / 2.0  # tangent direction
-            self.publish_state(x=x, y=y, theta=theta, vel=2.0, wp_idx=i % 100)
-            rclpy.spin_once(self, timeout_sec=0.05)
-            time.sleep(0.1)
-        self.get_logger().info(f'Circular done - steering should be ~{math.atan(0.324/R):.4f} rad')
-    
-    def test_step_input(self):
-        """Sudden position changes to test response."""
-        self.get_logger().info('Step input: alternating positions')
-        positions = [
-            (0.0, 0.0, 0.0),
-            (5.0, 0.0, 0.0),
-            (5.0, 5.0, math.pi/2),
-            (0.0, 5.0, math.pi),
-            (0.0, 0.0, -math.pi/2),
-        ]
-        for x, y, theta in positions:
-            self.get_logger().info(f'  Position: ({x:.1f}, {y:.1f}, {theta:.2f})')
-            for _ in range(5):  # 5 messages per position
-                self.publish_state(x=x, y=y, theta=theta, vel=2.0, wp_idx=0)
-                rclpy.spin_once(self, timeout_sec=0.05)
-                time.sleep(0.1)
-        self.get_logger().info('Step input done')
-    
-    def test_varying_speed(self):
-        """Different velocities affect lookahead distance."""
-        self.get_logger().info('Varying speed: 0.5 to 6.0 m/s')
+            self.publish_state(wp.x, wp.y, wp.psi, wp.vx, 0)
+            self.wait_and_report(0.1)
+
+    def test_follow_raceline_10hz(self):
+        """Simulate driving along the raceline at 10 Hz for 5 seconds.
+        The waypoint_index tells the FPGA where the car is on the track,
+        and the position matches that waypoint.
+        Expect: consistent small steering following the track curvature.
+        """
+        n = len(self.raceline)
+        steps = 50
+        stride = max(1, n // steps)
+        self.get_logger().info(f'Following raceline at 10 Hz, {steps} steps, stride={stride}')
+
+        for i in range(steps):
+            idx = (i * stride) % n
+            wp = self.raceline[idx]
+            self.publish_state(wp.x, wp.y, wp.psi, wp.vx, idx)
+            self.wait_and_report(0.1)
+            if (i + 1) % 10 == 0:
+                self.get_logger().info(
+                    f'  Step {i+1}/{steps}: wp_idx={idx}, '
+                    f'pos=({wp.x:.1f}, {wp.y:.1f}), '
+                    f'heading={math.degrees(wp.psi):.0f} deg'
+                )
+
+    def test_offset(self):
+        """Send positions offset 1m perpendicular from the raceline.
+        Expect: CTE ≈ 1m, steering correcting toward the track.
+        """
+        offset_m = 1.0
+        self.get_logger().info(f'Sending positions {offset_m}m offset perpendicular to raceline')
+        self.get_logger().info(f'Expected CTE near {offset_m}m, steering corrects toward track')
+
+        for i in range(20):
+            idx = (i * 50) % len(self.raceline)
+            wp = self.raceline[idx]
+            # Offset 1m perpendicular (left of heading)
+            x_off = wp.x + offset_m * math.cos(wp.psi + math.pi / 2)
+            y_off = wp.y + offset_m * math.sin(wp.psi + math.pi / 2)
+            self.publish_state(x_off, y_off, wp.psi, wp.vx, idx)
+            self.wait_and_report(0.1)
+
+    def test_wrong_heading(self):
+        """Send positions on track but with heading 45 degrees off.
+        Expect: CTE near zero, but large heading error -> large steering correction.
+        """
+        heading_offset = math.pi / 4  # 45 degrees
+        self.get_logger().info(f'On track but heading {math.degrees(heading_offset):.0f} deg off')
+        self.get_logger().info('Expected: CTE near zero, large steering correction')
+
+        for i in range(20):
+            idx = (i * 50) % len(self.raceline)
+            wp = self.raceline[idx]
+            self.publish_state(wp.x, wp.y, wp.psi + heading_offset, wp.vx, idx)
+            self.wait_and_report(0.1)
+
+    def test_velocities(self):
+        """Test at different velocities. Higher velocity -> longer lookahead distance.
+        Expect: higher speed produces gentler steering (larger look-ahead).
+        """
+        wp = self.raceline[100]  # pick a waypoint with some curvature
         speeds = [0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
-        for vel in speeds:
-            self.get_logger().info(f'  Velocity: {vel:.1f} m/s')
+        self.get_logger().info(f'Testing speeds at waypoint 100: ({wp.x:.1f}, {wp.y:.1f})')
+        self.get_logger().info('Higher speed -> longer lookahead -> gentler steering')
+
+        for speed in speeds:
+            self.get_logger().info(f'  Speed: {speed:.1f} m/s')
             for _ in range(5):
-                self.publish_state(x=0.0, y=0.0, theta=0.0, vel=vel, wp_idx=0)
-                rclpy.spin_once(self, timeout_sec=0.05)
-                time.sleep(0.1)
-        self.get_logger().info('Varying speed done - higher speed = longer lookahead = gentler steering')
-    
-    def test_stress(self):
-        """100 Hz for 5 seconds = 500 messages."""
-        N = 500
-        self.get_logger().info(f'Stress test: {N} messages at 100 Hz')
+                self.publish_state(wp.x, wp.y, wp.psi, speed, 100)
+                self.wait_and_report(0.1)
+
+    def test_full_lap_200hz(self):
+        """Simulate a full lap at 200 Hz, following every waypoint.
+        This is the closest to real operation.
+        """
+        n = len(self.raceline)
+        rate_hz = 200
+        steps = min(n, 1000)
+        self.get_logger().info(f'Full speed lap: {steps} waypoints at {rate_hz} Hz')
+
         t_start = time.monotonic()
-        sent = 0
-        for i in range(N):
-            angle = (i / 100.0) * 2.0 * math.pi  # full circle every 100 steps
-            x = 10.0 * math.cos(angle)
-            y = 10.0 * math.sin(angle)
-            theta = angle + math.pi / 2.0
-            self.publish_state(x=x, y=y, theta=theta, vel=3.0, wp_idx=i % 100)
-            sent += 1
-            
+        for i in range(steps):
+            wp = self.raceline[i % n]
+            self.publish_state(wp.x, wp.y, wp.psi, wp.vx, i % n)
+
             # Process callbacks
-            rclpy.spin_once(self, timeout_sec=0.001)
-            
-            # Rate limit to ~100 Hz
+            rclpy.spin_once(self, timeout_sec=0.0005)
+
+            # Rate limit to 200 Hz
             elapsed = time.monotonic() - t_start
-            expected = (i + 1) / 100.0
+            expected = (i + 1) / rate_hz
             if elapsed < expected:
                 time.sleep(expected - elapsed)
-        
+
         elapsed = time.monotonic() - t_start
-        self.get_logger().info(f'Stress test done: {sent} msgs in {elapsed:.2f}s = {sent/elapsed:.0f} Hz')
+        actual_hz = steps / elapsed
+        self.get_logger().info(f'Done: {steps} msgs in {elapsed:.2f}s = {actual_hz:.0f} Hz')
+        self.get_logger().info(f'Received {self.drive_count} drive responses')
 
 
 def main():
+    if len(sys.argv) < 2:
+        print("Usage: python3 test_fpga_inputs.py <raceline.csv>")
+        print("Example: python3 test_fpga_inputs.py /home/xilinx/trajectories/Spielberg_raceline.csv")
+        sys.exit(1)
+
+    raceline_path = sys.argv[1]
+
     rclpy.init()
-    node = FpgaTestPublisher()
-    
+    node = FpgaTestPublisher(raceline_path)
+
     try:
         node.run_test_suite()
     except KeyboardInterrupt:

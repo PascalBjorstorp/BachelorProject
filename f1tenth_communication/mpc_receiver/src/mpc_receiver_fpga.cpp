@@ -22,6 +22,7 @@
 #include <chrono>
 #include <cstring>
 #include <cmath>
+#include <cerrno>
 
 // Linux memory-mapped I/O
 #include <sys/mman.h>
@@ -81,16 +82,23 @@ public:
         
         mem_fd_ = open("/dev/mem", O_RDWR | O_SYNC);
         if (mem_fd_ < 0) {
+            fprintf(stderr, "FPGA: Failed to open /dev/mem: %s\n", strerror(errno));
             return false;
         }
         
         fpga_base_ = mmap(nullptr, map_size_, PROT_READ | PROT_WRITE,
                           MAP_SHARED, mem_fd_, base_addr_);
         if (fpga_base_ == MAP_FAILED) {
+            fprintf(stderr, "FPGA: mmap failed at 0x%08X (size 0x%lX): %s\n",
+                    base_addr_, (unsigned long)map_size_, strerror(errno));
             close(mem_fd_);
             mem_fd_ = -1;
             return false;
         }
+        
+        // Quick sanity check: read AP_CTRL register
+        uint32_t ctrl = read_reg(0x000);
+        fprintf(stderr, "FPGA: mmap OK at 0x%08X, AP_CTRL=0x%08X\n", base_addr_, ctrl);
         
         initialized_ = true;
         return true;

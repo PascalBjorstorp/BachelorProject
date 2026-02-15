@@ -27,6 +27,7 @@ ament_target_dependencies(mpc_receiver_node
 # Executable - FPGA-integrated version (trajectory in BRAM)
 add_executable(mpc_receiver_fpga_node src/mpc_receiver_fpga.cpp)
 target_include_directories(mpc_receiver_fpga_node PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/../../FPGA/include
 )
 ament_target_dependencies(mpc_receiver_fpga_node
