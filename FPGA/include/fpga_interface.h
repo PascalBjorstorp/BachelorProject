@@ -109,24 +109,73 @@ typedef struct __attribute__((packed, aligned(64))) {
 } FpgaOutput_t;
 
 /*===========================================================================
- * Memory Map for Ultra96 PL
+ * Memory Map for Ultra96 PL (v2 - scalar interface)
+ *===========================================================================
+ * All registers are on a single AXI-Lite CTRL bundle.
+ * From HLS-generated xpure_pursuit_fpga_hw.h:
+ *
+ * Modes:
+ *   0 = Compute steering from vehicle state
+ *   1 = Load one waypoint into BRAM
+ *   2 = Finalize trajectory (set total count, mark loaded)
  *===========================================================================*/
 
 // Base address (set in Vivado Address Editor)
 #define FPGA_BASE_ADDR          0xA0000000
 
-// Memory regions
-#define FPGA_CTRL_OFFSET        0x0000      // Control registers (start/done/idle)
-#define FPGA_PARAMS_OFFSET      0x0100      // Parameters (64 bytes)
-#define FPGA_STATE_OFFSET       0x0200      // State input (32 bytes)
-#define FPGA_OUTPUT_OFFSET      0x0300      // Control output (64 bytes)
-#define FPGA_TRAJ_OFFSET        0x1000      // Trajectory BRAM start
+// --- AXI-Lite Control Registers ---
+#define REG_AP_CTRL             0x000  // bit0=start, bit1=done, bit2=idle
+#define REG_GIE                 0x004  // Global Interrupt Enable
+#define REG_IER                 0x008  // IP Interrupt Enable
+#define REG_ISR                 0x00C  // IP Interrupt Status
 
-// Control registers
-#define REG_START               0x00        // Write 1 to start
-#define REG_DONE                0x04        // Read: 1 when complete
-#define REG_IDLE                0x08        // Read: 1 when idle
-#define REG_TRAJ_LOADED         0x0C        // Read: 1 when trajectory is loaded
+// --- Mode Selection (R/W) ---
+#define REG_MODE                0x010  // 0=compute, 1=load_wp, 2=finalize
+
+// --- Waypoint Loading Registers (mode=1) ---
+#define REG_WP_INDEX            0x018  // Waypoint index
+#define REG_WP_X                0x020  // X position Q16.16
+#define REG_WP_Y                0x028  // Y position Q16.16
+#define REG_WP_THETA            0x030  // Heading Q16.16
+#define REG_WP_VEL              0x038  // Velocity Q16.16
+#define REG_WP_KAPPA            0x040  // Curvature Q16.16
+#define REG_WP_TOTAL            0x048  // Total waypoints (mode=2)
+
+// --- Vehicle State Registers (mode=0, R/W) ---
+#define REG_ST_X                0x050  // Position X Q16.16
+#define REG_ST_Y                0x058  // Position Y Q16.16
+#define REG_ST_THETA            0x060  // Heading Q16.16
+#define REG_ST_VEL              0x068  // Velocity Q16.16
+#define REG_ST_WP_IDX           0x070  // Closest waypoint index
+
+// --- Parameter Registers (mode=0, R/W) ---
+#define REG_P_MIN_LA            0x078  // Min lookahead Q16.16
+#define REG_P_MAX_LA            0x080  // Max lookahead Q16.16
+#define REG_P_LA_GAIN           0x088  // Lookahead gain Q16.16
+#define REG_P_WHEELBASE         0x090  // Wheelbase Q16.16
+#define REG_P_MAX_STEER         0x098  // Max steering Q16.16
+#define REG_P_MAX_VEL           0x0A0  // Max velocity Q16.16
+#define REG_P_LA_POINTS         0x0A8  // Lookahead search points
+
+// --- Output Registers (Read-Only) ---
+#define REG_OUT_STEERING        0x0B0  // Steering angle Q16.16
+#define REG_OUT_STEERING_VLD    0x0B4  // Steering valid flag
+#define REG_OUT_VELOCITY        0x0C0  // Velocity Q16.16
+#define REG_OUT_VELOCITY_VLD    0x0C4  // Velocity valid flag
+#define REG_OUT_CTE             0x0D0  // Cross-track error Q16.16
+#define REG_OUT_CTE_VLD         0x0D4  // CTE valid flag
+#define REG_OUT_HEADING_ERR     0x0E0  // Heading error Q16.16
+#define REG_OUT_HEADING_ERR_VLD 0x0E4  // Heading error valid flag
+#define REG_OUT_LOOKAHEAD       0x0F0  // Actual lookahead Q16.16
+#define REG_OUT_LOOKAHEAD_VLD   0x0F4  // Lookahead valid flag
+#define REG_OUT_TARGET_WP       0x100  // Target waypoint index
+#define REG_OUT_TARGET_WP_VLD   0x104  // Target WP valid flag
+#define REG_OUT_STATUS          0x110  // Status code
+#define REG_OUT_STATUS_VLD      0x114  // Status valid flag
+#define REG_OUT_TRAJ_LOADED     0x120  // Trajectory loaded flag
+#define REG_OUT_TRAJ_LOADED_VLD 0x124  // Traj loaded valid flag
+#define REG_OUT_TRAJ_SIZE       0x130  // Trajectory size
+#define REG_OUT_TRAJ_SIZE_VLD   0x134  // Traj size valid flag
 
 /*===========================================================================
  * Status Codes
