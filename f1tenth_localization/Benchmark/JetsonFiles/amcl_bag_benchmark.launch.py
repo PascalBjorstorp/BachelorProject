@@ -47,7 +47,7 @@ DEFAULT_MAX_PARTICLES = 3000
 DEFAULT_MAX_BEAMS = 270
 
 # AMCL type: 'nav2_amcl' or 'gpu_amcl'
-DEFAULT_AMCL_TYPE = 'nav2_amcl'
+DEFAULT_AMCL_TYPE = 'gpu_amcl'
 
 # Performance monitor
 SAMPLE_RATE_HZ = 5.0  # How often to sample CPU/memory/GPU metrics (sim Hz; ~7.5 Hz wall at 1.5x sim speed)
@@ -83,19 +83,26 @@ def launch_setup(context, *args, **kwargs):
     max_beams = LaunchConfiguration('max_beams').perform(context)
     update_min_d = LaunchConfiguration('update_min_d').perform(context)
     update_min_a = LaunchConfiguration('update_min_a').perform(context)
-    output_dir = LaunchConfiguration('output_dir').perform(context)
+    csv_output_dir = LaunchConfiguration('csv_output_dir').perform(context)
+    bag_output_dir = LaunchConfiguration('bag_output_dir').perform(context)
     amcl_type = LaunchConfiguration('amcl_type').perform(context)
     record_output = LaunchConfiguration('record_output').perform(context).lower() == 'true'
     
-    # Expand ~ in bag path
+    # Expand ~ in paths
     bag_path = os.path.expanduser(bag_path)
-    output_dir = os.path.expanduser(output_dir)
+    csv_output_dir = os.path.expanduser(csv_output_dir)
+    bag_output_dir = os.path.expanduser(bag_output_dir)
+    
+    # AMCL params YAML
+    pkg_dir = get_package_share_directory('f1tenth_localization')
+    amcl_params_file = os.path.join(pkg_dir, 'config', 'nav2_amcl_params.yaml')
+    gpu_amcl_params_file = os.path.join(pkg_dir, 'config', 'gpu_amcl_params.yaml')
     
     # Generate output bag path with timestamp
     from datetime import datetime
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     output_bag_path = os.path.join(
-        output_dir, 
+        bag_output_dir, 
         f'amcl_output_{amcl_type}_p{min_particles}-{max_particles}_b{max_beams}_{timestamp}'
     )
     
@@ -127,106 +134,48 @@ def launch_setup(context, *args, **kwargs):
     
     # ==================== AMCL Node (nav2_amcl or gpu_amcl) ====================
     if amcl_type == 'gpu_amcl':
-        # GPU AMCL - Custom implementation with CuPy acceleration
+        # GPU AMCL - params from YAML, overrides from launch args
         amcl_node = Node(
-            package='gpu_amcl',
+            package='f1tenth_localization',
             executable='gpu_amcl_node.py',
             name='gpu_amcl',
             output='screen',
-            parameters=[{
-                'use_sim_time': True,
-                # GPU settings
-                'use_gpu': True,
-                'num_particles': int(max_particles),
-                # Frame IDs
-                'base_frame_id': BASE_FRAME_ID,
-                'odom_frame_id': ODOM_FRAME_ID,
-                'global_frame_id': GLOBAL_FRAME_ID,
-                # Topics
-                'scan_topic': SCAN_TOPIC,
-                'odom_topic': ODOM_TOPIC,
-                # Update thresholds
-                'update_min_d': float(update_min_d),
-                'update_min_a': float(update_min_a),
-                'transform_tolerance': 1.0,
-                # Sensor model
-                'max_beams': int(max_beams),
-                'laser_max_range': 10.0,
-                'z_hit': 0.95,
-                'z_rand': 0.05,
-                'sigma_hit': 0.2,
-                # Motion model
-                'alpha1': 0.1,
-                'alpha2': 0.1,
-                'alpha3': 0.2,
-                'alpha4': 0.2,
-                # Initial pose
-                'initial_pose_x': 0.0,
-                'initial_pose_y': 0.0,
-                'initial_pose_a': 0.0,
-                # Publishing (40Hz for racing)
-                'publish_rate': 40.0,
-                # KLD Sampling (Adaptive Particle Count)
-                'use_kld_sampling': LaunchConfiguration('use_kld').perform(context).lower() == 'true',
-                'kld_epsilon': 0.05,
-                'kld_z': 2.33,
-                # IMU fusion (disabled for bag playback without IMU)
-                'use_imu_rotation': False,
-            }],
+            parameters=[
+                gpu_amcl_params_file,
+                {
+                    'use_sim_time': True,
+                    'num_particles': int(max_particles),
+                    'max_beams': int(max_beams),
+                    'update_min_d': float(update_min_d),
+                    'update_min_a': float(update_min_a),
+                    'use_kld_sampling': LaunchConfiguration('use_kld').perform(context).lower() == 'true',
+                    # Disable IMU for bag playback (no IMU data in bags)
+                    'use_imu_rotation': False,
+                },
+            ],
         )
         # GPU AMCL doesn't need lifecycle manager
         amcl_lifecycle = None
     else:
-        # nav2_amcl - Standard ROS2 AMCL
+        # nav2_amcl - Standard ROS2 AMCL (params from YAML, overrides from launch args)
         amcl_node = LifecycleNode(
             package='nav2_amcl',
             executable='amcl',
             name='amcl',
             namespace='/',
             output='screen',
-            parameters=[{
-                'use_sim_time': True,
-                # Frame IDs
-                'base_frame_id': BASE_FRAME_ID,
-                'odom_frame_id': ODOM_FRAME_ID,
-                'global_frame_id': GLOBAL_FRAME_ID,
-                # Topics
-                'scan_topic': SCAN_TOPIC,
-                # Update thresholds
-                'update_min_d': float(update_min_d),
-                'update_min_a': float(update_min_a),
-                'transform_tolerance': 1.0,
-                # Particles
-                'min_particles': int(min_particles),
-                'max_particles': int(max_particles),
-                # Laser model
-                'laser_model_type': 'likelihood_field',
-                'laser_likelihood_max_dist': 2.0,
-                'laser_max_range': 10.0,
-                'laser_min_range': 0.1,
-                'max_beams': int(max_beams),
-                # Motion model (Differential - closest to Ackermann steering)
-                'robot_model_type': 'nav2_amcl::AckermannMotionModel',
-                'alpha1': 0.1,  # rotation from rotation
-                'alpha2': 0.1,  # rotation from translation
-                'alpha3': 0.2,  # translation from translation
-                'alpha4': 0.2,  # translation from rotation
-                # Initial pose
-                'set_initial_pose': True,
-                'initial_pose_x': 0.0,
-                'initial_pose_y': 0.0,
-                'initial_pose_a': 0.0,
-                # Stability improvements (reduce KD-tree crash on convergence)
-                'force_update_after_initialpose': True,
-                'resample_interval': 2,     # Resample every 2nd update (reduces clustering)
-                'pf_err': 0.02,             # Tighter KLD sampling
-                'pf_z': 0.999,              # Tighter KLD (99.9% confidence)
-                'first_map_only': True,     # Don't reload map
-                # Global localization recovery ("kidnapped robot" detection)
-                'recovery_alpha_slow': 0.001,   # Long-term average decay (slow)
-                'recovery_alpha_fast': 0.1,     # Short-term average decay (fast)
-                # ^ When fast drops below slow, particles are randomly injected
-            }]
+            parameters=[
+                amcl_params_file,
+                {
+                    'use_sim_time': True,
+                    # Override from launch args
+                    'min_particles': int(min_particles),
+                    'max_particles': int(max_particles),
+                    'max_beams': int(max_beams),
+                    'update_min_d': float(update_min_d),
+                    'update_min_a': float(update_min_a),
+                },
+            ]
         )
         # nav2_amcl needs lifecycle manager
         amcl_lifecycle = Node(
@@ -250,12 +199,12 @@ def launch_setup(context, *args, **kwargs):
         output='screen',
         parameters=[{
             'use_sim_time': True,
-            'output_dir': output_dir,
+            'output_dir': csv_output_dir,
             'sample_rate_hz': SAMPLE_RATE_HZ,
             'scan_topic': SCAN_TOPIC,
             'amcl_pose_topic': AMCL_POSE_TOPIC,
             # Benchmark config for CSV metadata
-            'amcl_type': amcl_type,  # Use the selected AMCL type
+            'amcl_type': amcl_type,
             'min_particles': int(min_particles),
             'max_particles': int(max_particles),
             'max_beams': int(max_beams),
@@ -381,9 +330,14 @@ def generate_launch_description():
             description='Min rotation (rad) before filter update'
         ),
         DeclareLaunchArgument(
-            'output_dir',
+            'csv_output_dir',
+            default_value=os.path.join(_workspace_root, 'f1tenth_localization', 'Benchmark', 'Matlab', 'csv'),
+            description='Output directory for performance CSV logs'
+        ),
+        DeclareLaunchArgument(
+            'bag_output_dir',
             default_value=os.path.join(_workspace_root, 'f1tenth_localization', 'Benchmark', 'bags', 'benchmarkBags'),
-            description='Output directory for performance logs and recorded bags'
+            description='Output directory for recorded output bags'
         ),
         DeclareLaunchArgument(
             'amcl_type',

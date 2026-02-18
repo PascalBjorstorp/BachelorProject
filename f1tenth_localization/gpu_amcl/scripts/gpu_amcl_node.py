@@ -6,8 +6,8 @@ This script is the main executable for the GPU AMCL ROS2 node.
 It can be run directly or through the launch file.
 
 Usage:
-    ros2 run gpu_amcl gpu_amcl_node.py
-    ros2 run gpu_amcl gpu_amcl_node.py --ros-args -p num_particles:=1000
+    ros2 run f1tenth_localization gpu_amcl_node.py
+    ros2 run f1tenth_localization gpu_amcl_node.py --ros-args -p num_particles:=1000
 """
 
 import rclpy

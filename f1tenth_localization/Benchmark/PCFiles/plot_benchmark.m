@@ -13,8 +13,11 @@
 clear; clc; close all;
 
 %% Configuration
-data_dir = '/home/pascal/Documents/BachelorProject/benchmark_results';  % Change to your benchmark folder
-output_dir = fullfile(data_dir, 'plots');
+% Derive paths relative to this script's location
+script_dir = fileparts(mfilename('fullpath'));
+benchmark_dir = fileparts(script_dir);  % Benchmark/
+data_dir = fullfile(benchmark_dir, 'Matlab', 'csv');
+output_dir = fullfile(benchmark_dir, 'Matlab', 'plots');
 
 % Create output directory
 if ~exist(output_dir, 'dir')

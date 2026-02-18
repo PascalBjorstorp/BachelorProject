@@ -58,10 +58,8 @@ class PerformanceMonitor(Node):
         # Create output directory
         os.makedirs(self.output_dir, exist_ok=True)
         
-        # Detect platform (Jetson vs regular PC)
-        self.is_jetson = self._detect_jetson()
-        platform = "Jetson" if self.is_jetson else "PC"
-        self.get_logger().info(f'Detected platform: {platform}')
+        # Always running on Jetson
+        self.is_jetson = True
         self.get_logger().info(f'Benchmark config: {self.amcl_type}, particles={self.min_particles}-{self.max_particles}, beams={self.max_beams}')
         
         # CSV file for logging - include config in filename
@@ -169,10 +167,6 @@ class PerformanceMonitor(Node):
         self.get_logger().info(f'  Output: {self.csv_filename}')
         self.get_logger().info(f'  Sample rate: {self.sample_rate} Hz')
         
-    def _detect_jetson(self):
-        """Detect if running on Jetson by checking for tegra files"""
-        return os.path.exists('/sys/devices/gpu.0') or \
-               os.path.exists('/sys/class/thermal/thermal_zone0/type')
     
     def _find_amcl_process(self):
         """Find the AMCL process by name"""

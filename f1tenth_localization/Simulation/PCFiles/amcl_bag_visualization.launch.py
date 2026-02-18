@@ -19,7 +19,7 @@ Usage:
 
 Example:
   ros2 launch f1tenth_localization amcl_bag_visualization.launch.py \
-    bag_path:=/home/pascal/Documents/BachelorProject/benchmark_results/amcl_output_gpu_amcl_p500-3000_b270_20260211_221758
+    bag_path:=<workspace>/f1tenth_localization/Benchmark/bags/benchmarkBags/amcl_output_gpu_amcl_p500-3000_b270_20260211_221758
 """
 
 import os
