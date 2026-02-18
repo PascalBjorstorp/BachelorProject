@@ -1,11 +1,12 @@
 """
 Hokuyo UST-10LX Ethernet LiDAR Launch File
 
-Launches the urg_node2 driver for the UST-10LX.
+Uses a custom SCIP 2.0 driver for continuous streaming at the full 40 Hz
+sensor rate (urg_node is limited to ~20 Hz due to synchronous protocol).
+
 All hardware defaults are in config/hokuyo_ust10lx.yaml.
 
 Requirements:
-  - urg_node2 package: sudo apt install ros-jazzy-urg-node
   - Network configured: Jetson must be on same subnet as LiDAR
   
 Network Setup (run once):
@@ -15,13 +16,15 @@ Network Setup (run once):
 Usage:
   ros2 launch f1tenth_localization hokuyo_lidar.launch.py
   ros2 launch f1tenth_localization hokuyo_lidar.launch.py ip_address:=192.168.1.10
+  ros2 launch f1tenth_localization hokuyo_lidar.launch.py driver:=urg_node  # fallback to urg_node
 """
 
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, LogInfo
-from launch.substitutions import LaunchConfiguration
+from launch.conditions import IfCondition, UnlessCondition
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 
 
@@ -29,7 +32,6 @@ def generate_launch_description():
     pkg_dir = get_package_share_directory('f1tenth_localization')
     config_path = os.path.join(pkg_dir, 'config', 'hokuyo_ust10lx.yaml')
     
-    # Only expose arguments that change between deployments
     declare_ip_address = DeclareLaunchArgument(
         'ip_address',
         default_value='192.168.0.10',
@@ -41,12 +43,35 @@ def generate_launch_description():
         default_value='/scan',
         description='Topic to publish laser scans'
     )
+
+    declare_driver = DeclareLaunchArgument(
+        'driver',
+        default_value='scip',
+        description='Driver to use: "scip" for 40 Hz SCIP 2.0 driver, "urg_node" for standard driver (~20 Hz)'
+    )
+
+    use_scip = PythonExpression(["'", LaunchConfiguration('driver'), "' == 'scip'"])
     
     info_msg = LogInfo(
-        msg=['Starting Hokuyo UST-10LX driver at IP: ', LaunchConfiguration('ip_address')]
+        msg=['Starting Hokuyo UST-10LX driver at IP: ', LaunchConfiguration('ip_address'),
+             ' (driver: ', LaunchConfiguration('driver'), ')']
     )
     
-    # URG Node — loads defaults from YAML, overrides IP from launch arg
+    # Custom SCIP 2.0 driver — full 40 Hz continuous streaming
+    scip_driver = Node(
+        package='f1tenth_localization',
+        executable='hokuyo_scip_driver.py',
+        name='hokuyo_scip_driver',
+        output='screen',
+        parameters=[
+            config_path,
+            {'ip_address': LaunchConfiguration('ip_address'),
+             'scan_topic': LaunchConfiguration('scan_topic')},
+        ],
+        condition=IfCondition(use_scip),
+    )
+
+    # Fallback: standard urg_node driver (~20 Hz)
     urg_node = Node(
         package='urg_node',
         executable='urg_node_driver',
@@ -59,10 +84,10 @@ def generate_launch_description():
         remappings=[
             ('scan', LaunchConfiguration('scan_topic')),
         ],
+        condition=UnlessCondition(use_scip),
     )
     
     # Static TF: base_link → laser (physical mounting position)
-    # laser_frame_id comes from the YAML (ego_racecar/laser)
     laser_tf = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
@@ -82,7 +107,9 @@ def generate_launch_description():
     return LaunchDescription([
         declare_ip_address,
         declare_scan_topic,
+        declare_driver,
         info_msg,
+        scip_driver,
         urg_node,
         laser_tf,
     ])
