@@ -257,7 +257,7 @@ class GymBridge(Node):
                     'timestep': sim_timestep,
                     'integrator': 'rk4',
                     'control_input': ['speed', 'steering_angle'],
-                    'model': 'ks',
+                    'model': 'st',
                     'observation_config': {'type': 'original'},
                     'params': self.vehicle_params,
                     'reset_config': {'type': 'map_random_static'},

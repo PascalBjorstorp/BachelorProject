@@ -442,16 +442,18 @@ private:
     void state_callback(const f1tenth_msgs::msg::MpcState::SharedPtr msg) {
         auto start_time = std::chrono::high_resolution_clock::now();
         
-        // Prepare minimal state input (only 32 bytes!)
+        // Prepare state input for FPGA (6-state dynamic model)
         FpgaStateInput_t state;
         state.x_fp = msg->x_fp;
         state.y_fp = msg->y_fp;
         state.theta_fp = msg->theta_fp;
         state.velocity_fp = msg->velocity_fp;
+        state.vy_fp = msg->vy_fp;
+        state.omega_fp = msg->omega_fp;
         state.waypoint_index = msg->waypoint_index;
         state.timestamp_ms = msg->timestamp_ms;
         state.sequence_number = static_cast<uint32_t>(msg_count_);
-        state.reserved = 0;
+        state.reserved[0] = state.reserved[1] = state.reserved[2] = 0;
         
         // Compute control
         FpgaOutput_t output;

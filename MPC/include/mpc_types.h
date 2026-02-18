@@ -3,15 +3,18 @@
  * @brief Type Definitions for Model Predictive Control System
  *
  * Defines all data structures used in the MPC system:
- * - Vehicle state representation
- * - Control inputs
- * - Vehicle physical parameters
+ * - Vehicle state representation (dynamic bicycle model)
+ * - Control inputs (steering + longitudinal force)
+ * - Vehicle physical parameters (including tire dynamics)
  * - MPC configuration
  * - Trajectory references
  * - Solver results
  *
+ * Dynamic Bicycle Model States: [x, y, psi, v_x, v_y, omega]
+ * Control Inputs: [delta, F_x]
+ *
  * All numerical values use Q16.16 fixed-point for FPGA compatibility.
- * Units: SI (meters, radians, seconds)
+ * Units: SI (meters, radians, seconds, Newtons)
  */
 
 #ifndef MPC_TYPES_H
@@ -21,10 +24,13 @@
 #include <stdint.h>
 
 /*===========================================================================
- * Vehicle State
+ * Vehicle State (Dynamic Bicycle Model)
  *===========================================================================
  * Represents the current state of the vehicle in the world frame.
+ * Uses the 6-state dynamic bicycle model with tire dynamics.
  * This is the INPUT to the MPC solver (from localization or simulator).
+ *
+ * State vector ordering: [x, y, psi, v_x, v_y, omega]
  */
 
 typedef struct
@@ -38,16 +44,25 @@ typedef struct
     /** Yaw angle (heading) relative to world X-axis [radians] */
     fixed_point_t heading_angle_radians;
 
-    /** Longitudinal velocity [meters per second] */
-    fixed_point_t velocity_meters_per_second;
+    /** Longitudinal velocity in body frame [meters per second] */
+    fixed_point_t longitudinal_velocity_meters_per_second;
+
+    /** Lateral velocity in body frame [meters per second] */
+    fixed_point_t lateral_velocity_meters_per_second;
+
+    /** Yaw rate [radians per second] */
+    fixed_point_t yaw_rate_radians_per_second;
 
 } VehicleState_t;
 
 /*===========================================================================
  * Control Input
  *===========================================================================
- * The control signals sent to the vehicle actuators (VESC).
- * This is the OUTPUT of the MPC solver.
+ * The control signals computed by the MPC solver.
+ * Steering angle is sent to the servo; longitudinal force is converted
+ * to a motor command (velocity/duty) by the low-level controller.
+ *
+ * Control vector ordering: [delta, F_x]
  */
 
 typedef struct
@@ -55,25 +70,63 @@ typedef struct
     /** Front wheel steering angle [radians] */
     fixed_point_t steering_angle_radians;
 
-    /** Commanded longitudinal velocity [meters per second] */
-    fixed_point_t velocity_meters_per_second;
+    /** Longitudinal force applied at the rear axle [Newtons] */
+    fixed_point_t longitudinal_force_newtons;
 
 } ControlInput_t;
 
 /*===========================================================================
  * Vehicle Physical Parameters
  *===========================================================================
- * Constants describing the physical properties of the F1/10th car.
+ * Constants describing the physical properties of the F1/10th car,
+ * including dynamic model parameters for tire force computation.
  */
 
 typedef struct
 {
     /**
      * Wheelbase: distance between front and rear axles [meters]
-     * Determines the turning radius for a given steering angle.
-     * Typical F1/10th value: ~0.32 m
+     * Equal to l_f + l_r. Typical F1/10th value: ~0.33 m
      */
     fixed_point_t wheelbase_meters;
+
+    /**
+     * Distance from center of gravity to front axle [meters]
+     * Typical F1/10th value: 0.15875 m
+     */
+    fixed_point_t distance_cg_to_front_axle_meters;
+
+    /**
+     * Distance from center of gravity to rear axle [meters]
+     * Typical F1/10th value: 0.17145 m
+     */
+    fixed_point_t distance_cg_to_rear_axle_meters;
+
+    /**
+     * Vehicle mass [kg]
+     * Typical F1/10th value: 3.74 kg
+     */
+    fixed_point_t vehicle_mass_kg;
+
+    /**
+     * Yaw moment of inertia [kg*m^2]
+     * Typical F1/10th value: 0.04712 kg*m^2
+     */
+    fixed_point_t yaw_moment_of_inertia_kgm2;
+
+    /**
+     * Front tire cornering stiffness [N/rad]
+     * Linear tire model: F_yf = -C_Sf * alpha_f
+     * Typical F1/10th value: 4.718
+     */
+    fixed_point_t front_cornering_stiffness;
+
+    /**
+     * Rear tire cornering stiffness [N/rad]
+     * Linear tire model: F_yr = -C_Sr * alpha_r
+     * Typical F1/10th value: 5.4562
+     */
+    fixed_point_t rear_cornering_stiffness;
 
     /**
      * Maximum steering angle magnitude [radians]
@@ -84,16 +137,28 @@ typedef struct
 
     /**
      * Maximum forward velocity [meters per second]
-     * Safe operating speed limit.
-     * Typical F1/10th value: ~6.0 m/s
+     * Safe operating speed limit for state clamping.
+     * Typical F1/10th value: ~20.0 m/s
      */
     fixed_point_t maximum_velocity_meters_per_second;
 
     /**
      * Minimum velocity [meters per second]
-     * Typically 0 (no reverse).
+     * Typically 0 (no reverse). Used for state clamping.
      */
     fixed_point_t minimum_velocity_meters_per_second;
+
+    /**
+     * Maximum longitudinal force [Newtons]
+     * F_x_max = m * a_max. Typical: 3.74 * 9.51 = 35.6 N
+     */
+    fixed_point_t maximum_longitudinal_force_newtons;
+
+    /**
+     * Minimum longitudinal force (braking) [Newtons]
+     * Negative value. F_x_min = -m * a_brake. Typical: -37.4 N
+     */
+    fixed_point_t minimum_longitudinal_force_newtons;
 
 } VehicleParameters_t;
 
@@ -133,20 +198,26 @@ typedef struct
     /** Weight for heading angle tracking error */
     fixed_point_t weight_heading;
 
-    /** Weight for velocity tracking error */
+    /** Weight for longitudinal velocity tracking error */
     fixed_point_t weight_velocity;
+
+    /** Weight for lateral velocity tracking error */
+    fixed_point_t weight_lateral_velocity;
+
+    /** Weight for yaw rate tracking error */
+    fixed_point_t weight_yaw_rate;
 
     /** Weight for steering angle magnitude (penalizes large steering) */
     fixed_point_t weight_steering_effort;
 
-    /** Weight for velocity magnitude (penalizes large speed commands) */
-    fixed_point_t weight_velocity_effort;
+    /** Weight for longitudinal force magnitude (penalizes large force) */
+    fixed_point_t weight_force_effort;
 
     /** Weight for steering rate (penalizes jerky steering changes) */
     fixed_point_t weight_steering_rate;
 
-    /** Weight for velocity rate (penalizes jerky speed changes) */
-    fixed_point_t weight_velocity_rate;
+    /** Weight for force rate (penalizes jerky force changes) */
+    fixed_point_t weight_force_rate;
 
     /** Cross-call rate penalty scale factor.
      *
@@ -195,8 +266,14 @@ typedef struct
     /** Target heading angle [radians] */
     fixed_point_t reference_heading_radians;
 
-    /** Target velocity [meters per second] */
+    /** Target longitudinal velocity [meters per second] */
     fixed_point_t reference_velocity_meters_per_second;
+
+    /** Target lateral velocity [meters per second] (typically 0) */
+    fixed_point_t reference_lateral_velocity_meters_per_second;
+
+    /** Target yaw rate [radians per second] */
+    fixed_point_t reference_yaw_rate_radians_per_second;
 
 } TrajectoryReferencePoint_t;
 
@@ -321,6 +398,14 @@ typedef struct
 #define F110_MAX_DECELERATION_MS2 \
     FP_CONST(10.0)
 
+/** Maximum longitudinal force: m * a_max = 3.74 * 9.51 ≈ 35.57 N */
+#define F110_DEFAULT_MAX_LONGITUDINAL_FORCE_NEWTONS \
+    FP_CONST(35.57)
+
+/** Minimum longitudinal force (braking): -m * a_brake = -3.74 * 10.0 = -37.4 N */
+#define F110_DEFAULT_MIN_LONGITUDINAL_FORCE_NEWTONS \
+    FP_CONST(-37.4)
+
 /** Maximum steering rate: 3.2 rad/s */
 #define F110_MAX_STEERING_RATE_RADS \
     FP_CONST(3.2)
@@ -341,7 +426,7 @@ typedef struct
     ((fixed_point_t)3277)
 
 /** Default maximum solver iterations */
-#define MPC_DEFAULT_MAXIMUM_ITERATIONS 500
+#define MPC_DEFAULT_MAXIMUM_ITERATIONS 2000
 
 /** Default convergence tolerance: 0.001 — Q16.16 ~ 66 */
 #define MPC_DEFAULT_CONVERGENCE_TOLERANCE \

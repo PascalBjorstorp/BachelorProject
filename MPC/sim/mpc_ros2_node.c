@@ -370,6 +370,12 @@ static void build_reference_from_trajectory(int closest_index, double current_ve
         /* Use the stored (already scaled) velocity - NOT double scaled */
         global_reference_trajectory[step].reference_velocity_meters_per_second =
             DOUBLE_TO_FP(global_trajectory[base_waypoint_index].velocity_meters_per_second);
+
+        /* Lateral velocity reference: 0 (no sideslip desired) */
+        global_reference_trajectory[step].reference_lateral_velocity_meters_per_second = 0;
+
+        /* Yaw rate reference: 0 (let the MPC determine the appropriate yaw rate) */
+        global_reference_trajectory[step].reference_yaw_rate_radians_per_second = 0;
     }
 }
 
@@ -538,25 +544,25 @@ void odometry_subscription_callback(const void *message_in)
     double velocity_x_meters_per_second = odometry_message->twist.twist.linear.x;
     double velocity_y_meters_per_second = odometry_message->twist.twist.linear.y;
     double yaw_rate_radians_per_second = odometry_message->twist.twist.angular.z;
-    (void)yaw_rate_radians_per_second; /* Unused for now */
 
-    /* Compute total velocity magnitude */
-    double velocity_magnitude = sqrt(velocity_x_meters_per_second * velocity_x_meters_per_second +
-                                     velocity_y_meters_per_second * velocity_y_meters_per_second);
-
-    /* Update global vehicle state (convert to fixed-point) */
+    /* Update global vehicle state (convert to fixed-point)
+     * For dynamic model: v_x and v_y are body-frame velocities.
+     * The odometry twist is already in body frame. */
     global_vehicle_state.position_x_meters = DOUBLE_TO_FP(position_x_meters);
     global_vehicle_state.position_y_meters = DOUBLE_TO_FP(position_y_meters);
     global_vehicle_state.heading_angle_radians = DOUBLE_TO_FP(heading_angle_radians);
-    global_vehicle_state.velocity_meters_per_second = DOUBLE_TO_FP(velocity_magnitude);
+    global_vehicle_state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(velocity_x_meters_per_second);
+    global_vehicle_state.lateral_velocity_meters_per_second = DOUBLE_TO_FP(velocity_y_meters_per_second);
+    global_vehicle_state.yaw_rate_radians_per_second = DOUBLE_TO_FP(yaw_rate_radians_per_second);
 
     global_odometry_received_flag = 1;
 
     /* Run MPC solver at reduced rate */
     if ((global_odometry_callback_counter % ODOMETRY_CALLBACK_DIVIDER) == 0)
     {
-        printf("[MPC] State: x=%.2f m, y=%.2f m, θ=%.2f rad, v=%.2f m/s\n",
-               position_x_meters, position_y_meters, heading_angle_radians, velocity_magnitude);
+        printf("[MPC] State: x=%.2f m, y=%.2f m, θ=%.2f rad, vx=%.2f m/s, vy=%.2f m/s, ω=%.2f rad/s\n",
+               position_x_meters, position_y_meters, heading_angle_radians,
+               velocity_x_meters_per_second, velocity_y_meters_per_second, yaw_rate_radians_per_second);
 
         /*
          * Build reference trajectory from loaded waypoints.
@@ -565,6 +571,9 @@ void odometry_subscription_callback(const void *message_in)
         if (global_trajectory_count > 0)
         {
             int closest_index = find_closest_waypoint(position_x_meters, position_y_meters, heading_angle_radians);
+            /* Compute velocity magnitude for waypoint lookup and reference building */
+            double velocity_magnitude = sqrt(velocity_x_meters_per_second * velocity_x_meters_per_second +
+                                             velocity_y_meters_per_second * velocity_y_meters_per_second);
             build_reference_from_trajectory(closest_index, velocity_magnitude, heading_angle_radians);
 
             /* Debug: Print first reference point for diagnostics */
@@ -644,6 +653,8 @@ void odometry_subscription_callback(const void *message_in)
                 global_reference_trajectory[step].reference_heading_radians =
                     global_vehicle_state.heading_angle_radians;
                 global_reference_trajectory[step].reference_velocity_meters_per_second = target_velocity;
+                global_reference_trajectory[step].reference_lateral_velocity_meters_per_second = 0;
+                global_reference_trajectory[step].reference_yaw_rate_radians_per_second = 0;
             }
         }
 
@@ -661,13 +672,22 @@ void odometry_subscription_callback(const void *message_in)
             double steering_command_radians = FP_TO_DOUBLE(
                 mpc_result.optimal_control.steering_angle_radians);
             
-            /* Use trajectory reference velocity directly.
-             * The trajectory contains pre-computed optimal velocities from the racing line.
-             * This decouples velocity from MPC optimization, allowing MPC to focus purely
-             * on steering optimization which is the critical control variable.
-             * This is still optimal trajectory following - we're using optimal velocities.
+            /* Extract longitudinal force from MPC result.
+             * The dynamic model MPC optimizes both steering and force.
              */
-            double velocity_command_mps = global_trajectory[global_last_closest_index].velocity_meters_per_second;
+            double force_command_newtons = FP_TO_DOUBLE(
+                mpc_result.optimal_control.longitudinal_force_newtons);
+            
+            /* Convert force to velocity command for the simulator:
+             * The sim tracks target velocity, so integrate force over the full
+             * MPC horizon duration to get a meaningful velocity target.
+             * v_cmd = v_current + (F_x / m) * T_horizon
+             */
+            double current_vx = FP_TO_DOUBLE(
+                global_vehicle_state.longitudinal_velocity_meters_per_second);
+            double mass = 3.74;  /* F110 mass in kg */
+            double T_horizon = MPC_TIME_STEP_SECONDS * MPC_PREDICTION_HORIZON_STEPS;
+            double velocity_command_mps = current_vx + (force_command_newtons / mass) * T_horizon;
             
             double distance_from_trajectory = sqrt(
                 pow(FP_TO_DOUBLE(global_vehicle_state.position_x_meters) - 
@@ -678,14 +698,18 @@ void odometry_subscription_callback(const void *message_in)
             /* Apply safety saturation */
             saturate_control_commands(&steering_command_radians, &velocity_command_mps);
 
-            /* Store in global control command (convert to fixed-point) */
+            /* Store in global control command (convert to fixed-point)
+             * MPC outputs [steering, force]. Convert force to velocity for VESC:
+             * Simple integration: v_cmd = v_current + (F_x / m) * dt
+             * This approximates the velocity the force would produce over one step.
+             */
             global_control_command.steering_angle_radians =
                 DOUBLE_TO_FP(steering_command_radians);
-            global_control_command.velocity_meters_per_second =
+            global_control_command.longitudinal_force_newtons =
                 DOUBLE_TO_FP(velocity_command_mps);
 
-            printf("[MPC] Control: steering=%.4f rad, speed=%.2f m/s (status=%d, iter=%d, dist=%.2f)\n",
-                   steering_command_radians, velocity_command_mps,
+            printf("[MPC] Control: steering=%.4f rad, force=%.2f N, v_cmd=%.2f m/s (status=%d, iter=%d, dist=%.2f)\n",
+                   steering_command_radians, force_command_newtons, velocity_command_mps,
                    mpc_status, mpc_result.iterations_used, distance_from_trajectory);
             fflush(stdout);
         }
@@ -700,8 +724,13 @@ void odometry_subscription_callback(const void *message_in)
     {
         global_drive_message_buffer.drive.steering_angle = FP_TO_FLOAT(
             global_control_command.steering_angle_radians);
-        global_drive_message_buffer.drive.speed = FP_TO_FLOAT(
-            global_control_command.velocity_meters_per_second);
+
+        /* The MPC solve block already converted force→velocity and stored
+         * the velocity command in longitudinal_force_newtons. Use directly. */
+        float speed_cmd = FP_TO_FLOAT(
+            global_control_command.longitudinal_force_newtons);
+        if (speed_cmd < 0.0f) speed_cmd = 0.0f;
+        global_drive_message_buffer.drive.speed = speed_cmd;
 
         rcl_ret_t publish_result = rcl_publish(
             &global_control_publisher,
