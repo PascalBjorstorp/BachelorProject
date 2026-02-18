@@ -27,7 +27,7 @@ gpu_amcl:
 
     # ---- Frame IDs ----
     base_frame_id: "ego_racecar/base_link"
-    odom_frame_id: "odom"
+    odom_frame_id: "ego_racecar/odom"
     global_frame_id: "map"
 
     # ---- Topics ----

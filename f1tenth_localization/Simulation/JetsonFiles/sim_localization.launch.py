@@ -2,13 +2,13 @@
 F1TENTH Simulation Localization Launch File
 
 Launches AMCL localization for use with the F1Tenth simulator.
-The simulator provides /scan, /map, and odom->base_link TF.
+The simulator provides /scan, /map, and ego_racecar/odom->base_link TF.
 Supports both nav2_amcl and gpu_amcl (default: gpu_amcl).
 
-IMPORTANT: The simulation must be configured to publish odom->base_link!
+IMPORTANT: The simulation must be configured to publish ego_racecar/odom->base_link!
 In f1tenth_sim/config/sim.yaml, set:
-  tf_frame_id: 'odom'
-  odom_frame_id: 'odom'
+  tf_frame_id: 'ego_racecar/odom'
+  odom_frame_id: 'ego_racecar/odom'
 
 Usage:
   ros2 launch f1tenth_localization sim_localization.launch.py
@@ -40,7 +40,7 @@ def launch_setup(context, *args, **kwargs):
 
     info_msg = LogInfo(
         msg=f'Starting F1Tenth Simulation Localization ({amcl_type}). '
-            'Ensure simulator is running with tf_frame_id=odom!'
+            'Ensure simulator is running with tf_frame_id=ego_racecar/odom!'
     )
     nodes.append(info_msg)
 

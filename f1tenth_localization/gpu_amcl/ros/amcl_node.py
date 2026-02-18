@@ -49,7 +49,7 @@ class GPUAMCLNode(Node):
     
     Subscriptions:
         /scan (sensor_msgs/LaserScan): Laser scan data
-        /odom (nav_msgs/Odometry): Odometry data
+        /ego_racecar/odom (nav_msgs/Odometry): Odometry data
         /map (nav_msgs/OccupancyGrid): Occupancy grid map
         /initialpose (geometry_msgs/PoseWithCovarianceStamped): Initial pose
     
@@ -187,9 +187,9 @@ class GPUAMCLNode(Node):
         
         # Topics and frames
         self.declare_parameter('scan_topic', '/scan')
-        self.declare_parameter('odom_topic', '/odom')
+        self.declare_parameter('odom_topic', '/ego_racecar/odom')
         self.declare_parameter('base_frame_id', 'ego_racecar/base_link')
-        self.declare_parameter('odom_frame_id', 'odom')
+        self.declare_parameter('odom_frame_id', 'ego_racecar/odom')
         self.declare_parameter('global_frame_id', 'map')
         
         # Update thresholds

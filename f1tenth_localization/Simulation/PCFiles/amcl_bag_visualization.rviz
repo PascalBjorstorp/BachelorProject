@@ -217,7 +217,7 @@ Visualization Manager:
         All Enabled: false
         map:
           Value: true
-        odom:
+        ego_racecar/odom:
           Value: true
         ego_racecar/base_link:
           Value: true
@@ -230,7 +230,7 @@ Visualization Manager:
       Show Names: true
       Tree:
         map:
-          odom:
+          ego_racecar/odom:
             ego_racecar/base_link:
               ego_racecar/laser:
                 {}

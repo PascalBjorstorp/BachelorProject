@@ -140,7 +140,7 @@ public:
     StatePublisherNode() : Node("state_publisher") {
         // Parameters
         this->declare_parameter("trajectory_file", "");
-        this->declare_parameter("odom_topic", "/odom");
+        this->declare_parameter("odom_topic", "/ego_racecar/odom");
         this->declare_parameter("output_topic", "/mpc_state");
         this->declare_parameter("publish_rate_hz", 50.0);
         

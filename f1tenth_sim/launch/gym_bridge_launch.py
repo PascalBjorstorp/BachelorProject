@@ -64,9 +64,9 @@ def launch_setup(context, *args, **kwargs):
         odom_frame_id = 'map'
         print('[gym_bridge] Running in GROUND TRUTH mode: map -> base_link (no AMCL needed)')
     else:
-        tf_frame_id = 'odom'
-        odom_frame_id = 'odom'
-        print('[gym_bridge] Running in AMCL mode: odom -> base_link (requires AMCL for map -> odom)')
+        tf_frame_id = 'ego_racecar/odom'
+        odom_frame_id = 'ego_racecar/odom'
+        print('[gym_bridge] Running in AMCL mode: ego_racecar/odom -> base_link (requires AMCL for map -> ego_racecar/odom)')
 
     bridge_node = Node(
         package='f1tenth_gym_ros',

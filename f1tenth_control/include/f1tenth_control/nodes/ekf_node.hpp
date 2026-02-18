@@ -57,7 +57,7 @@ private:
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
     
     // Configuration
-    std::string odom_frame_{"odom"};
+    std::string odom_frame_{"ego_racecar/odom"};
     std::string base_frame_{"base_link"};
     bool publish_tf_{true};
     double predict_rate_{200.0};  // Hz

@@ -108,7 +108,7 @@ AckermannToVesc::AckermannToVesc(const rclcpp::NodeOptions & options)
 
   // Subscribe to odometry for velocity feedback
   odom_sub_ = create_subscription<Odometry>(
-    "odom", 10, std::bind(&AckermannToVesc::odomCallback, this, _1));
+    "ego_racecar/odom", 10, std::bind(&AckermannToVesc::odomCallback, this, _1));
 }
 
 void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPtr cmd)
