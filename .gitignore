@@ -119,7 +119,6 @@ test_results/
 test-results/
 
 # Rosbag recordings (can be large)
-*.bag
 *.db3
 *.db3-shm
 *.db3-wal
