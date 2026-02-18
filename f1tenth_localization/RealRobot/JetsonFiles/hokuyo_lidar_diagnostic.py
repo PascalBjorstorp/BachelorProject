@@ -145,7 +145,7 @@ def run_ros_diagnostic():
             # Parameters
             self.declare_parameter('ip_address', DEFAULT_IP)
             self.declare_parameter('scan_topic', '/scan')
-            self.declare_parameter('expected_rate_hz', 20.0)
+            self.declare_parameter('expected_rate_hz', 40.0)
             
             self.ip_address = self.get_parameter('ip_address').value
             scan_topic = self.get_parameter('scan_topic').value

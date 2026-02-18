@@ -95,4 +95,4 @@ urg_node:
     
     # Calibration — also enables continuous streaming mode which can
     # improve throughput from ~20 Hz to ~40 Hz on UST-10LX
-    calibrate_time: true
+    calibrate_time: false
