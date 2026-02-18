@@ -56,13 +56,14 @@ struct WaypointFP {
  *===========================================================================*/
 
 struct MpcReferenceFP {
-    // Current state (from message, Q16.16) — 6-state dynamic bicycle model
+    // Current state (from message, Q16.16) — 7-state dynamic bicycle model with wheel dynamics
     int32_t x_fp;
     int32_t y_fp;
     int32_t theta_fp;
     int32_t velocity_fp;    // Longitudinal velocity v_x
     int32_t vy_fp;          // Lateral velocity v_y
     int32_t omega_fp;       // Yaw rate ω
+    int32_t wheel_speed_fp; // Wheel rotational speed ω_w
     
     // Reference trajectory (next N waypoints, Q16.16)
     static constexpr size_t HORIZON = 10;
@@ -70,7 +71,8 @@ struct MpcReferenceFP {
     int32_t ref_y_fp[HORIZON];
     int32_t ref_theta_fp[HORIZON];
     int32_t ref_v_fp[HORIZON];
-    int32_t ref_kappa_fp[HORIZON];   // Curvature for feedforward
+    int32_t ref_kappa_fp[HORIZON];       // Curvature for feedforward
+    int32_t ref_wheel_speed_fp[HORIZON]; // Matching wheel speed for zero slip
     
     // Start index in trajectory
     uint32_t start_index;
@@ -181,13 +183,14 @@ private:
         
         // === ALL DATA STAYS IN FIXED-POINT (Q16.16) ===
         
-        // Store current state in fixed-point (6-state model)
+        // Store current state in fixed-point (7-state model)
         current_ref_.x_fp = msg->x_fp;
         current_ref_.y_fp = msg->y_fp;
         current_ref_.theta_fp = msg->theta_fp;
         current_ref_.velocity_fp = msg->velocity_fp;
         current_ref_.vy_fp = msg->vy_fp;
         current_ref_.omega_fp = msg->omega_fp;
+        current_ref_.wheel_speed_fp = msg->wheel_speed_fp;
         current_ref_.start_index = msg->waypoint_index;
         
         // Extract reference trajectory (next N waypoints in fixed-point)
@@ -203,6 +206,13 @@ private:
             current_ref_.ref_theta_fp[i] = trajectory_fp_[idx].psi_fp;
             current_ref_.ref_v_fp[i] = trajectory_fp_[idx].vx_fp;
             current_ref_.ref_kappa_fp[i] = trajectory_fp_[idx].kappa_fp;
+            // Compute matching wheel speed for zero slip ratio: ω_w = v_x / R_w
+            // R_w = 0.0545m → 1/R_w ≈ 18.3486, in Q16.16: float_to_fp(18.3486) = 1202076
+            // ref_wheel_speed = ref_v * 18.3486 (but keep in Q16.16 math)
+            constexpr float INV_WHEEL_RADIUS = 1.0f / 0.0545f;  // ≈ 18.3486
+            int64_t ww_fp = (static_cast<int64_t>(trajectory_fp_[idx].vx_fp) * 
+                            float_to_fp(INV_WHEEL_RADIUS)) >> 16;
+            current_ref_.ref_wheel_speed_fp[i] = static_cast<int32_t>(ww_fp);
         }
         
         // === YOUR MPC CALL GOES HERE (ALL FIXED-POINT) ===

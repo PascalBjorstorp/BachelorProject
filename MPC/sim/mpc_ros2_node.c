@@ -53,6 +53,12 @@
 /** Maximum allowed velocity (m/s) */
 #define MAXIMUM_VELOCITY_METERS_PER_SECOND 20.0f
 
+/** Wheel radius [m] — Traxxas Slash 4x4 VXL */
+#define WHEEL_RADIUS_METERS 0.0545
+
+/** Convert vehicle velocity to matching wheel speed (zero slip ratio) */
+#define VX_TO_WHEEL_SPEED(vx) ((vx) / WHEEL_RADIUS_METERS)
+
 /** Odometry callback divider (run MPC every N callbacks)
  *
  * Set to 1 to run MPC at every odometry callback (~150-200 Hz).
@@ -376,6 +382,11 @@ static void build_reference_from_trajectory(int closest_index, double current_ve
 
         /* Yaw rate reference: 0 (let the MPC determine the appropriate yaw rate) */
         global_reference_trajectory[step].reference_yaw_rate_radians_per_second = 0;
+
+        /* Wheel speed reference: match velocity for zero slip ratio */
+        double ref_ww = (ref_velocity > 0.01) ? VX_TO_WHEEL_SPEED(ref_velocity) : 0.0;
+        global_reference_trajectory[step].reference_wheel_speed_radians_per_second =
+            DOUBLE_TO_FP(ref_ww);
     }
 }
 
@@ -555,14 +566,22 @@ void odometry_subscription_callback(const void *message_in)
     global_vehicle_state.lateral_velocity_meters_per_second = DOUBLE_TO_FP(velocity_y_meters_per_second);
     global_vehicle_state.yaw_rate_radians_per_second = DOUBLE_TO_FP(yaw_rate_radians_per_second);
 
+    /* Wheel speed: compute from longitudinal velocity assuming zero slip ratio.
+     * In practice, the VESC maintains wheel speed close to commanded speed,
+     * so ωw ≈ vx / Rw is a reasonable estimate when no direct wheel speed sensor is available. */
+    double wheel_speed_estimate = (velocity_x_meters_per_second > 0.01)
+        ? VX_TO_WHEEL_SPEED(velocity_x_meters_per_second) : 0.0;
+    global_vehicle_state.wheel_speed_radians_per_second = DOUBLE_TO_FP(wheel_speed_estimate);
+
     global_odometry_received_flag = 1;
 
     /* Run MPC solver at reduced rate */
     if ((global_odometry_callback_counter % ODOMETRY_CALLBACK_DIVIDER) == 0)
     {
-        printf("[MPC] State: x=%.2f m, y=%.2f m, θ=%.2f rad, vx=%.2f m/s, vy=%.2f m/s, ω=%.2f rad/s\n",
+        printf("[MPC] State: x=%.2f m, y=%.2f m, θ=%.2f rad, vx=%.2f m/s, vy=%.2f m/s, ω=%.2f rad/s, ωw=%.1f rad/s\n",
                position_x_meters, position_y_meters, heading_angle_radians,
-               velocity_x_meters_per_second, velocity_y_meters_per_second, yaw_rate_radians_per_second);
+               velocity_x_meters_per_second, velocity_y_meters_per_second, yaw_rate_radians_per_second,
+               wheel_speed_estimate);
 
         /*
          * Build reference trajectory from loaded waypoints.
@@ -655,6 +674,8 @@ void odometry_subscription_callback(const void *message_in)
                 global_reference_trajectory[step].reference_velocity_meters_per_second = target_velocity;
                 global_reference_trajectory[step].reference_lateral_velocity_meters_per_second = 0;
                 global_reference_trajectory[step].reference_yaw_rate_radians_per_second = 0;
+                global_reference_trajectory[step].reference_wheel_speed_radians_per_second =
+                    DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(1.0));
             }
         }
 
@@ -672,22 +693,31 @@ void odometry_subscription_callback(const void *message_in)
             double steering_command_radians = FP_TO_DOUBLE(
                 mpc_result.optimal_control.steering_angle_radians);
             
-            /* Extract longitudinal force from MPC result.
-             * The dynamic model MPC optimizes both steering and force.
+            /* Extract motor torque from MPC result.
+             * The 7-state model MPC optimizes [steering, motor_torque].
+             * Motor torque drives wheel dynamics: ω̇w = (T/G - Fx*Rw) / Iw
              */
-            double force_command_newtons = FP_TO_DOUBLE(
-                mpc_result.optimal_control.longitudinal_force_newtons);
+            double torque_command_nm = FP_TO_DOUBLE(
+                mpc_result.optimal_control.motor_torque_newton_meters);
             
-            /* Convert force to velocity command for the simulator:
-             * The sim tracks target velocity, so integrate force over the full
-             * MPC horizon duration to get a meaningful velocity target.
-             * v_cmd = v_current + (F_x / m) * T_horizon
+            /* Convert motor torque to velocity command for the simulator:
+             * The sim/VESC tracks target velocity. We estimate what velocity
+             * the torque would produce using the wheel dynamics relationship:
+             *   T_motor → ω̇w = T/(Iw*G) → Δωw → Δvx ≈ Rw * Δωw
+             * Integrate over one MPC step for the velocity delta.
              */
             double current_vx = FP_TO_DOUBLE(
                 global_vehicle_state.longitudinal_velocity_meters_per_second);
-            double mass = 3.74;  /* F110 mass in kg */
-            double T_horizon = MPC_TIME_STEP_SECONDS * MPC_PREDICTION_HORIZON_STEPS;
-            double velocity_command_mps = current_vx + (force_command_newtons / mass) * T_horizon;
+            double Iw = 0.002;   /* Drivetrain inertia [kg·m²] */
+            double G = 11.82;    /* Gear ratio */
+            double Rw = WHEEL_RADIUS_METERS;
+            double dt_step = MPC_TIME_STEP_SECONDS;
+            
+            /* Wheel acceleration from torque: α_w = T / (Iw * G) */
+            double wheel_accel = torque_command_nm / (Iw * G);
+            /* Velocity change: Δvx ≈ Rw * α_w * dt */
+            double delta_vx = Rw * wheel_accel * dt_step;
+            double velocity_command_mps = current_vx + delta_vx;
             
             double distance_from_trajectory = sqrt(
                 pow(FP_TO_DOUBLE(global_vehicle_state.position_x_meters) - 
@@ -698,18 +728,16 @@ void odometry_subscription_callback(const void *message_in)
             /* Apply safety saturation */
             saturate_control_commands(&steering_command_radians, &velocity_command_mps);
 
-            /* Store in global control command (convert to fixed-point)
-             * MPC outputs [steering, force]. Convert force to velocity for VESC:
-             * Simple integration: v_cmd = v_current + (F_x / m) * dt
-             * This approximates the velocity the force would produce over one step.
-             */
+            /* Store control command:
+             * steering_angle_radians: direct MPC output
+             * motor_torque_newton_meters: stores velocity command for sim/VESC */
             global_control_command.steering_angle_radians =
                 DOUBLE_TO_FP(steering_command_radians);
-            global_control_command.longitudinal_force_newtons =
+            global_control_command.motor_torque_newton_meters =
                 DOUBLE_TO_FP(velocity_command_mps);
 
-            printf("[MPC] Control: steering=%.4f rad, force=%.2f N, v_cmd=%.2f m/s (status=%d, iter=%d, dist=%.2f)\n",
-                   steering_command_radians, force_command_newtons, velocity_command_mps,
+            printf("[MPC] Control: steer=%.4f rad, torque=%.2f Nm, v_cmd=%.2f m/s (status=%d, iter=%d, dist=%.2f)\n",
+                   steering_command_radians, torque_command_nm, velocity_command_mps,
                    mpc_status, mpc_result.iterations_used, distance_from_trajectory);
             fflush(stdout);
         }
@@ -725,10 +753,10 @@ void odometry_subscription_callback(const void *message_in)
         global_drive_message_buffer.drive.steering_angle = FP_TO_FLOAT(
             global_control_command.steering_angle_radians);
 
-        /* The MPC solve block already converted force→velocity and stored
-         * the velocity command in longitudinal_force_newtons. Use directly. */
+        /* The MPC solve block converted torque→velocity and stored
+         * the velocity command in motor_torque_newton_meters field. */
         float speed_cmd = FP_TO_FLOAT(
-            global_control_command.longitudinal_force_newtons);
+            global_control_command.motor_torque_newton_meters);
         if (speed_cmd < 0.0f) speed_cmd = 0.0f;
         global_drive_message_buffer.drive.speed = speed_cmd;
 
@@ -754,6 +782,8 @@ int main(int argc, char *argv[])
 {
     printf("============================================================\n");
     printf("  MPC ROS2 Node for F1/10th Simulator (Jazzy)\n");
+    printf("  7-state model [x, y, ψ, vx, vy, ω, ωw]\n");
+    printf("  Controls: [δ, T_motor]\n");
     printf("============================================================\n");
     printf("  Prediction horizon: %d steps (%.1f ms each)\n",
            MPC_PREDICTION_HORIZON_STEPS,

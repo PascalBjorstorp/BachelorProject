@@ -237,6 +237,11 @@ private:
         double vy = msg->twist.twist.linear.y;          // Lateral v_y
         double omega = msg->twist.twist.angular.z;       // Yaw rate ω
         
+        // Compute wheel speed from longitudinal velocity (zero-slip assumption)
+        // ω_w = v_x / R_w where R_w = 0.0545m (Traxxas Slash 4x4 VXL)
+        constexpr double WHEEL_RADIUS = 0.0545;
+        double wheel_speed = (velocity > 0.01) ? (velocity / WHEEL_RADIUS) : 0.0;
+        
         // KD-tree lookup
         auto start_time = std::chrono::high_resolution_clock::now();
         size_t waypoint_idx = kdtree_.find_nearest(x, y);
@@ -260,6 +265,7 @@ private:
         mpc_state.velocity_fp = to_fp(velocity);
         mpc_state.vy_fp = to_fp(vy);
         mpc_state.omega_fp = to_fp(omega);
+        mpc_state.wheel_speed_fp = to_fp(wheel_speed);
         mpc_state.waypoint_index = static_cast<uint32_t>(waypoint_idx);
         mpc_state.timestamp_ms = static_cast<uint32_t>(
             std::chrono::duration_cast<std::chrono::milliseconds>(

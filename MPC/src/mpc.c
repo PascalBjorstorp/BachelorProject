@@ -27,10 +27,10 @@
  * Internal Constants
  *===========================================================================*/
 
-/** Number of states in vehicle model: [x, y, heading, v_x, v_y, omega] */
-#define STATE_DIMENSION 6
+/** Number of states in vehicle model: [x, y, heading, v_x, v_y, omega, omega_w] */
+#define STATE_DIMENSION 7
 
-/** Number of control inputs: [steering, longitudinal_force] */
+/** Number of control inputs: [steering, motor_torque] */
 #define CONTROL_DIMENSION 2
 
 /** Maximum prediction horizon supported */
@@ -100,12 +100,13 @@ static MpcConfiguration_t get_default_configuration(void)
      * Future improvement: Use Frenet (path-relative) coordinates instead of
      * global XY to properly decouple lateral and heading tracking.
      */
-    config.weight_position_x = FP_CONST(0.01);                             /* 1.0 - track waypoint x */
-    config.weight_position_y = FP_CONST(0.01);                             /* 1.0 - track waypoint y */
+    config.weight_position_x = FP_CONST(0.01);                    /* 0.01 - track waypoint x */
+    config.weight_position_y = FP_CONST(0.01);                    /* 0.01 - track waypoint y */
     config.weight_heading    = (fixed_point_t)(5 * FP_ONE);       /* 5.0 - moderate heading tracking */
     config.weight_velocity   = FP_ONE;                            /* 1.0 */
     config.weight_lateral_velocity = (fixed_point_t)(5 * FP_ONE); /* 5.0 - penalize sideslip */
     config.weight_yaw_rate   = (fixed_point_t)(2 * FP_ONE);       /* 2.0 - dampen yaw oscillation */
+    config.weight_wheel_speed = FP_CONST(0.1);                    /* 0.1 - light penalty on wheel speed */
 
     /* Control effort weights
      *
@@ -113,7 +114,7 @@ static MpcConfiguration_t get_default_configuration(void)
      * only their changes (rate). These act as regularization.
      */
     config.weight_steering_effort  = FP_CONST(0.01);    /* 0.01 */
-    config.weight_force_effort      = (fixed_point_t)655;    /* 0.01 */
+    config.weight_torque_effort     = (fixed_point_t)655;    /* 0.01 */
 
     /* Control rate weights (smooth control)
      *
@@ -130,7 +131,7 @@ static MpcConfiguration_t get_default_configuration(void)
      * than the prediction dt (50ms = 20 Hz). Default is 1.0 for offline.
      */
     config.weight_steering_rate  = (fixed_point_t)(10 * FP_ONE);    /* 10.0 - smoother steering */
-    config.weight_force_rate     = FP_CONST(0.1);                    /* 0.1 */
+    config.weight_torque_rate     = FP_CONST(0.1);                    /* 0.1 */
 
     /* Cross-call rate scale: 1.0 = call interval matches dt (default for offline use).
      * Set to smaller value (e.g., 0.1) when MPC is called 10× faster than dt.
@@ -206,20 +207,30 @@ static void build_qp_from_prediction(
      *     Hessian coupling H[steer][vel]≈50 that, with velocity at 20,
      *     overwhelms tracking (gradient 1014 vs tracking 45).
      * --------------------------------------------------------------- */
-    fixed_point_t A[6][6];
-    fixed_point_t B[6][2];
+    fixed_point_t A[7][7];
+    fixed_point_t B[7][2];
 
     /* Use actual vehicle state for linearization, with minimum velocity floor.
      * Linearize steering at delta=0 to eliminate velocity-steering cross-coupling. */
     ControlInput_t linearization_control;
     linearization_control.steering_angle_radians = 0;  /* Always linearize at delta=0 */
-    linearization_control.longitudinal_force_newtons = 0;  /* Linearize at zero force */
+    linearization_control.motor_torque_newton_meters = 0;  /* Linearize at zero torque */
 
     /* Create a copy of current state with velocity floor for linearization */
     VehicleState_t linearization_state = *current_state;
     fixed_point_t min_linearization_velocity = FP_CONST(2.0);
     if (linearization_state.longitudinal_velocity_meters_per_second < min_linearization_velocity)
         linearization_state.longitudinal_velocity_meters_per_second = min_linearization_velocity;
+
+    /* Ensure wheel speed is consistent with velocity floor for linearization */
+    VehicleParameters_t vp = vehicle_model_get_parameters();
+    if (linearization_state.wheel_speed_radians_per_second == 0 &&
+        linearization_state.longitudinal_velocity_meters_per_second > 0)
+    {
+        linearization_state.wheel_speed_radians_per_second =
+            fp_div(linearization_state.longitudinal_velocity_meters_per_second,
+                   vp.wheel_radius_meters);
+    }
 
     vehicle_model_compute_linearization(
         &linearization_state,
@@ -281,7 +292,8 @@ static void build_qp_from_prediction(
         current_state->heading_angle_radians,
         current_state->longitudinal_velocity_meters_per_second,
         current_state->lateral_velocity_meters_per_second,
-        current_state->yaw_rate_radians_per_second
+        current_state->yaw_rate_radians_per_second,
+        current_state->wheel_speed_radians_per_second
     };
 
     /* Propagate free response incrementally: x_next = A * x_prev */
@@ -320,6 +332,8 @@ static void build_qp_from_prediction(
             reference_trajectory[k].reference_lateral_velocity_meters_per_second);
         d[k][5] = fp_sub(x_free[5],
             reference_trajectory[k].reference_yaw_rate_radians_per_second);
+        d[k][6] = fp_sub(x_free[6],
+            reference_trajectory[k].reference_wheel_speed_radians_per_second);
 
         /* Advance for next iteration, normalizing heading to [-pi, pi] */
         for (int s = 0; s < STATE_DIMENSION; s++)
@@ -344,7 +358,8 @@ static void build_qp_from_prediction(
         current_configuration.weight_heading,
         current_configuration.weight_velocity,
         current_configuration.weight_lateral_velocity,
-        current_configuration.weight_yaw_rate
+        current_configuration.weight_yaw_rate,
+        current_configuration.weight_wheel_speed
     };
 
     /* Build list of active (non-zero weight) state indices */
@@ -434,15 +449,15 @@ static void build_qp_from_prediction(
     /* Control effort contribution: 2*R on diagonal */
     fixed_point_t two_w_steer = fp_mul(FP_TWO,
         current_configuration.weight_steering_effort);
-    fixed_point_t two_w_force = fp_mul(FP_TWO,
-        current_configuration.weight_force_effort);
+    fixed_point_t two_w_torque = fp_mul(FP_TWO,
+        current_configuration.weight_torque_effort);
 
     for (int ci = 0; ci < horizon_steps; ci++)
     {
         int idx_s = (ci * 2) * n_vars + (ci * 2);
         int idx_v = (ci * 2 + 1) * n_vars + (ci * 2 + 1);
         hessian_matrix[idx_s] = fp_add(hessian_matrix[idx_s], two_w_steer);
-        hessian_matrix[idx_v] = fp_add(hessian_matrix[idx_v], two_w_force);
+        hessian_matrix[idx_v] = fp_add(hessian_matrix[idx_v], two_w_torque);
     }
 
     /* Rate penalty contribution
@@ -460,7 +475,7 @@ static void build_qp_from_prediction(
      * to account for the MPC being called faster than the prediction dt.
      */
     fixed_point_t w_sr = current_configuration.weight_steering_rate;
-    fixed_point_t w_vr = current_configuration.weight_force_rate;
+    fixed_point_t w_vr = current_configuration.weight_torque_rate;
     fixed_point_t w_sr_cross = fp_mul(w_sr, current_configuration.cross_call_rate_scale);
     fixed_point_t w_vr_cross = fp_mul(w_vr, current_configuration.cross_call_rate_scale);
 
@@ -580,7 +595,7 @@ static void build_qp_from_prediction(
         fp_mul(
             FP_TWO,
             fp_mul(w_vr_cross,
-                previous_control_input.longitudinal_force_newtons)));
+                previous_control_input.motor_torque_newton_meters)));
     
     /* Debug: print first element of linear cost and Phi[0][2][0] (steering->heading) */
 #ifdef MPC_DEBUG_PRINT
@@ -643,17 +658,17 @@ static void build_qp_constraints(
         constraint_bounds[constraint_base + 1] =
             vehicle_params.maximum_steering_angle_radians;
 
-        /* Constraint 2: force <= max_force */
+        /* Constraint 2: torque <= max_torque */
         constraint_matrix[(constraint_base + 2) * total_controls + (control_base + 1)] =
             FP_ONE;
         constraint_bounds[constraint_base + 2] =
-            vehicle_params.maximum_longitudinal_force_newtons;
+            vehicle_params.maximum_motor_torque_newton_meters;
 
-        /* Constraint 3: -force <= -min_force (i.e., force >= min_force) */
+        /* Constraint 3: -torque <= -min_torque (i.e., torque >= min_torque) */
         constraint_matrix[(constraint_base + 3) * total_controls + (control_base + 1)] =
             fp_neg(FP_ONE);
         constraint_bounds[constraint_base + 3] =
-            fp_neg(vehicle_params.minimum_longitudinal_force_newtons);
+            fp_neg(vehicle_params.minimum_motor_torque_newton_meters);
     }
 }
 
@@ -670,7 +685,7 @@ void mpc_initialize(void)
 
     /* Clear previous control */
     previous_control_input.steering_angle_radians = 0;
-    previous_control_input.longitudinal_force_newtons = 0;
+    previous_control_input.motor_torque_newton_meters = 0;
 
     mpc_initialized_flag = 1;
 }
@@ -691,7 +706,7 @@ void mpc_initialize_with_configuration(const MpcConfiguration_t *configuration)
 
     /* Clear previous control */
     previous_control_input.steering_angle_radians = 0;
-    previous_control_input.longitudinal_force_newtons = 0;
+    previous_control_input.motor_torque_newton_meters = 0;
 
     mpc_initialized_flag = 1;
 }
@@ -763,12 +778,12 @@ MpcSolverStatus_t mpc_compute_optimal_control(
 
     /* Extract first control from solution */
     fixed_point_t optimal_steering = qp_solution.optimal_variables[0];
-    fixed_point_t optimal_force    = qp_solution.optimal_variables[1];
+    fixed_point_t optimal_torque   = qp_solution.optimal_variables[1];
 
     /* Saturate control to vehicle limits */
     ControlInput_t raw_control;
     raw_control.steering_angle_radians = optimal_steering;
-    raw_control.longitudinal_force_newtons = optimal_force;
+    raw_control.motor_torque_newton_meters = optimal_torque;
 
     ControlInput_t saturated_control = vehicle_model_saturate_control(&raw_control);
 
@@ -817,5 +832,5 @@ void mpc_reset(void)
 {
     /* Clear previous control (no rate penalty on first control after reset) */
     previous_control_input.steering_angle_radians = 0;
-    previous_control_input.longitudinal_force_newtons = 0;
+    previous_control_input.motor_torque_newton_meters = 0;
 }
