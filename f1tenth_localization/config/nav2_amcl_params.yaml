@@ -1,0 +1,62 @@
+# ============================================================
+# Nav2 AMCL Parameters for F1Tenth
+# ============================================================
+# Standard ROS2 AMCL configuration.
+# Loaded by real_localization.launch.py, sim_localization.launch.py,
+# and amcl_bag_benchmark.launch.py when amcl_type:=nav2_amcl.
+# ============================================================
+
+amcl:
+  ros__parameters:
+    # ---- Frame IDs ----
+    base_frame_id: "ego_racecar/base_link"
+    odom_frame_id: "odom"
+    global_frame_id: "map"
+
+    # ---- Topics ----
+    scan_topic: "/scan"
+
+    # ---- Motion model ----
+    robot_model_type: "nav2_amcl::AckermannMotionModel"
+    alpha1: 0.1
+    alpha2: 0.1
+    alpha3: 0.2
+    alpha4: 0.2
+    alpha5: 0.1
+
+    # ---- Sensor model ----
+    laser_model_type: "likelihood_field"
+    max_beams: 120
+    laser_likelihood_max_dist: 2.0
+    z_hit: 0.95
+    z_rand: 0.05
+    sigma_hit: 0.2
+
+    # ---- Particle filter ----
+    min_particles: 500
+    max_particles: 2000
+
+    # ---- Update thresholds ----
+    update_min_d: 0.001
+    update_min_a: 0.001
+
+    # ---- Stability parameters ----
+    pf_err: 0.01
+    pf_z: 3.0
+    resample_interval: 1
+
+    # ---- Recovery (re-globalisation) ----
+    recovery_alpha_slow: 0.001
+    recovery_alpha_fast: 0.1
+
+    # ---- Transform ----
+    transform_tolerance: 1.0
+    tf_broadcast: true
+
+    # ---- Initial pose ----
+    set_initial_pose: true
+    initial_pose:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+      yaw: 0.0

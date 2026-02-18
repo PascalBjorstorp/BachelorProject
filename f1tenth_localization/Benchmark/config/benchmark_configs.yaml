@@ -1,0 +1,70 @@
+# ============================================================
+# Benchmark Sweep Configurations
+# ============================================================
+# Each entry under 'configs' defines one benchmark run.
+# Parameters not specified use the defaults from
+# amcl_bag_benchmark.launch.py.
+#
+# Available parameters per run:
+#   amcl_type      : 'nav2_amcl' or 'gpu_amcl'
+#   min_particles  : int
+#   max_particles  : int
+#   max_beams      : int
+#   update_min_d   : float  (metres)
+#   update_min_a   : float  (radians)
+#   use_kld        : 'true' or 'false' (GPU AMCL only)
+#   record_output  : 'true' or 'false'
+# ============================================================
+
+# Number of times to repeat each configuration
+repeats: 3
+
+configs:
+  # ---------- nav2_amcl: particle count sweep ----------
+  - amcl_type: nav2_amcl
+    min_particles: 500
+    max_particles: 500
+    max_beams: 270
+
+  - amcl_type: nav2_amcl
+    min_particles: 1000
+    max_particles: 1000
+    max_beams: 270
+
+  - amcl_type: nav2_amcl
+    min_particles: 2000
+    max_particles: 2000
+    max_beams: 270
+
+  - amcl_type: nav2_amcl
+    min_particles: 3000
+    max_particles: 3000
+    max_beams: 270
+
+  # ---------- gpu_amcl: particle count sweep ----------
+  - amcl_type: gpu_amcl
+    min_particles: 500
+    max_particles: 500
+    max_beams: 270
+
+  - amcl_type: gpu_amcl
+    min_particles: 1000
+    max_particles: 1000
+    max_beams: 270
+
+  - amcl_type: gpu_amcl
+    min_particles: 2000
+    max_particles: 2000
+    max_beams: 270
+
+  - amcl_type: gpu_amcl
+    min_particles: 3000
+    max_particles: 3000
+    max_beams: 270
+
+  # ---------- gpu_amcl with KLD sampling ----------
+  - amcl_type: gpu_amcl
+    min_particles: 500
+    max_particles: 3000
+    max_beams: 270
+    use_kld: 'true'

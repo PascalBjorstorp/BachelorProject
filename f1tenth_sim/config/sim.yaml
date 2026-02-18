@@ -71,7 +71,8 @@ bridge:
     teleop_steering_angle: 0.3
 
     # simulation timing
-    sim_timestep: 0.005
+    sim_timestep: 0.005 #200Hz
+    
     use_sim_time: False
 
     # if false, only steps sim on new /drive messages
@@ -85,3 +86,30 @@ bridge:
     odom_pos_noise_std: 0.01      # Position noise std dev (m) - typical VIO/wheel encoder drift
     odom_vel_noise_std: 0.05      # Velocity noise std dev (m/s)  
     odom_yaw_noise_std: 0.005     # Yaw noise std dev (rad) - ~0.3 degrees
+    
+    # ====================
+    # TF Frame Configuration
+    # ====================
+    # For standard ROS TF tree: map -> odom -> base_link
+    # - tf_frame_id: 'odom' - Simulation TF publishes odom -> base_link (requires AMCL for map -> odom)
+    # - tf_frame_id: 'map'  - Simulation TF publishes map -> base_link (ground truth, no AMCL needed)
+    # Use 'odom' when running with AMCL/localization, 'map' for ground truth testing
+    tf_frame_id: 'odom'          # Parent frame for TF: 'map' or 'odom'
+    odom_frame_id: 'odom'        # Parent frame for odom topic: 'map' or 'odom'
+    
+    # ====================
+    # Scan Rate Limiting (for realistic LiDAR simulation)
+    # ====================
+    # Real LiDARs have specific rates: Hokuyo UTM-30LX = 40Hz, RPLidar A1 = 5.5Hz
+    # Set to 0 for no rate limiting (full 250Hz), or target Hz for realistic simulation
+    scan_publish_rate: 40.0      # 40 Hz (realistic Hokuyo rate), 0 = no limit
+
+    # ====================
+    # Real-Time Factor
+    # ====================
+    # Controls sim speed relative to wall clock:
+    #   0.0 = unlimited (run as fast as possible) - default
+    #   1.0 = real-time (sim time == wall time)
+    #   0.5 = half speed, 2.0 = double speed
+    # Set to 1.0 when recording bags for benchmarking to avoid sim/wall time mismatch
+    real_time_factor: 0.0
