@@ -52,8 +52,9 @@ urg_node:
     skip: 1
     
     # Cluster count - number of neighboring scans to merge
-    # 4 = merge 4 readings → 1080/4 = 270 points (matches sim resolution)
-    cluster: 4
+    # 1 = no merging (1080 points, full 40 Hz rate)
+    # 4 = merge 4 readings → 270 points (may reduce rate to ~20 Hz)
+    cluster: 1
     
     # =========================================================================
     # Range Filtering
@@ -92,5 +93,6 @@ urg_node:
     # Allow unsafe settings that may damage the sensor
     allow_unsafe_settings: false
     
-    # Calibration (use defaults unless you have calibration data)
-    calibrate_time: false
+    # Calibration — also enables continuous streaming mode which can
+    # improve throughput from ~20 Hz to ~40 Hz on UST-10LX
+    calibrate_time: true
