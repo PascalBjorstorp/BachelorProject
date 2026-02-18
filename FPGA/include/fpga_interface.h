@@ -46,18 +46,21 @@ typedef struct __attribute__((packed, aligned(32))) {
 
 /*===========================================================================
  * Vehicle State Input (CPU -> FPGA, every cycle)
- * MINIMAL DATA - only 32 bytes per cycle!
+ * 6-state dynamic bicycle model: [x, y, ψ, v_x, v_y, ω]
+ * 48 bytes per cycle
  *===========================================================================*/
 
-typedef struct __attribute__((packed, aligned(32))) {
+typedef struct __attribute__((packed, aligned(16))) {
     int32_t x_fp;               // Position X [m], Q16.16
     int32_t y_fp;               // Position Y [m], Q16.16
-    int32_t theta_fp;           // Heading [rad], Q16.16
-    int32_t velocity_fp;        // Current velocity [m/s], Q16.16
+    int32_t theta_fp;           // Heading ψ [rad], Q16.16
+    int32_t velocity_fp;        // Longitudinal velocity v_x [m/s], Q16.16
+    int32_t vy_fp;              // Lateral velocity v_y [m/s], Q16.16
+    int32_t omega_fp;           // Yaw rate ω [rad/s], Q16.16
     uint32_t waypoint_index;    // Closest waypoint (from Jetson)
     uint32_t timestamp_ms;      // For latency tracking
     uint32_t sequence_number;   // Frame counter
-    uint32_t reserved;          // Padding
+    uint32_t reserved[3];       // Padding to 48 bytes
 } FpgaStateInput_t;
 
 /*===========================================================================

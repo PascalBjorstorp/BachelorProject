@@ -264,6 +264,8 @@ static void build_reference(int closest_idx, double vehicle_heading,
         ref[step].reference_heading_radians = DOUBLE_TO_FP(ref_heading);
         ref[step].reference_velocity_meters_per_second =
             DOUBLE_TO_FP(raceline[base_idx].vx);
+        ref[step].reference_lateral_velocity_meters_per_second = 0;
+        ref[step].reference_yaw_rate_radians_per_second = 0;
     }
 }
 
@@ -329,8 +331,8 @@ static void print_mpc_configuration(void)
     printf("  Weight velocity:    %.4f\n", FP_TO_DOUBLE(config.weight_velocity));
     printf("  Weight steer effort:%.4f\n", FP_TO_DOUBLE(config.weight_steering_effort));
     printf("  Weight steer rate:  %.4f\n", FP_TO_DOUBLE(config.weight_steering_rate));
-    printf("  Weight vel effort:  %.4f\n", FP_TO_DOUBLE(config.weight_velocity_effort));
-    printf("  Weight vel rate:    %.4f\n", FP_TO_DOUBLE(config.weight_velocity_rate));
+    printf("  Weight vel effort:  %.4f\n", FP_TO_DOUBLE(config.weight_force_effort));
+    printf("  Weight vel rate:    %.4f\n", FP_TO_DOUBLE(config.weight_force_rate));
     printf("  Max solver iters:   %d\n", config.maximum_solver_iterations);
     printf("  Position tracking:  %s\n",
            (config.weight_position_x == 0 && config.weight_position_y == 0) ?
@@ -369,7 +371,9 @@ static void test_full_raceline_simulation(void)
     state.position_x_meters = DOUBLE_TO_FP(raceline[0].x);
     state.position_y_meters = DOUBLE_TO_FP(raceline[0].y);
     state.heading_angle_radians = DOUBLE_TO_FP(raceline[0].psi);
-    state.velocity_meters_per_second = DOUBLE_TO_FP(raceline[0].vx);
+    state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(raceline[0].vx);
+    state.lateral_velocity_meters_per_second = 0;
+    state.yaw_rate_radians_per_second = 0;
 
     double prev_steering = 0.0;
     int success_count = 0;
@@ -389,7 +393,7 @@ static void test_full_raceline_simulation(void)
         double px = FP_TO_DOUBLE(state.position_x_meters);
         double py = FP_TO_DOUBLE(state.position_y_meters);
         double psi = FP_TO_DOUBLE(state.heading_angle_radians);
-        double vel = FP_TO_DOUBLE(state.velocity_meters_per_second);
+        double vel = FP_TO_DOUBLE(state.longitudinal_velocity_meters_per_second);
 
         /* Find closest waypoint */
         int closest = find_closest_waypoint(px, py, psi);
@@ -488,7 +492,7 @@ static void test_full_raceline_simulation(void)
         double sim_vel = get_sim_velocity(closest, px, py);
         ControlInput_t sim_control;
         sim_control.steering_angle_radians = result.optimal_control.steering_angle_radians;
-        sim_control.velocity_meters_per_second = DOUBLE_TO_FP(sim_vel);
+        sim_control.longitudinal_force_newtons = DOUBLE_TO_FP(sim_vel);
         state = vehicle_model_predict_next_state(&state, &sim_control, DOUBLE_TO_FP(DT));
 
         /* Progress report every 300 steps */
@@ -608,7 +612,9 @@ static void test_heading_wrap_crossings(void)
         state.position_x_meters = DOUBLE_TO_FP(raceline[start_idx].x);
         state.position_y_meters = DOUBLE_TO_FP(raceline[start_idx].y);
         state.heading_angle_radians = DOUBLE_TO_FP(raceline[start_idx].psi);
-        state.velocity_meters_per_second = DOUBLE_TO_FP(raceline[start_idx].vx);
+        state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(raceline[start_idx].vx);
+    state.lateral_velocity_meters_per_second = 0;
+    state.yaw_rate_radians_per_second = 0;
 
         double max_steer = 0.0;
         double max_steer_change = 0.0;
@@ -661,7 +667,7 @@ static void test_heading_wrap_crossings(void)
                 FP_TO_DOUBLE(state.position_y_meters));
             ControlInput_t sim_ctrl;
             sim_ctrl.steering_angle_radians = result.optimal_control.steering_angle_radians;
-            sim_ctrl.velocity_meters_per_second = DOUBLE_TO_FP(sim_vel);
+            sim_ctrl.longitudinal_force_newtons = DOUBLE_TO_FP(sim_vel);
             state = vehicle_model_predict_next_state(&state, &sim_ctrl, DOUBLE_TO_FP(DT));
         }
 
@@ -706,7 +712,9 @@ static void test_fp_position_overflow(void)
     state.position_x_meters = DOUBLE_TO_FP(-73.6);
     state.position_y_meters = DOUBLE_TO_FP(53.5);
     state.heading_angle_radians = DOUBLE_TO_FP(0.02);
-    state.velocity_meters_per_second = DOUBLE_TO_FP(20.0);
+    state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(20.0);
+    state.lateral_velocity_meters_per_second = 0;
+    state.yaw_rate_radians_per_second = 0;
 
     /* Build reference near that position */
     TrajectoryReferencePoint_t ref[HORIZON];
@@ -715,13 +723,14 @@ static void test_fp_position_overflow(void)
         ref[i].reference_position_y_meters = DOUBLE_TO_FP(53.5);
         ref[i].reference_heading_radians = DOUBLE_TO_FP(0.02);
         ref[i].reference_velocity_meters_per_second = DOUBLE_TO_FP(20.0);
+        ref[i].reference_lateral_velocity_meters_per_second = 0;
+        ref[i].reference_yaw_rate_radians_per_second = 0;
     }
-
     MpcSolverResult_t result;
     MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
 
     double steer = FP_TO_DOUBLE(result.optimal_control.steering_angle_radians);
-    double vel = FP_TO_DOUBLE(result.optimal_control.velocity_meters_per_second);
+    double vel = FP_TO_DOUBLE(result.optimal_control.longitudinal_force_newtons);
 
     printf("  State: x=-73.6, y=53.5, hdg=0.02, v=20.0\n");
     printf("  Result: steer=%.4f, vel=%.2f, status=%d, iter=%d\n",
@@ -788,7 +797,9 @@ static void test_heading_near_pi_boundary(void)
         state.position_x_meters = DOUBLE_TO_FP(0.0);
         state.position_y_meters = DOUBLE_TO_FP(0.0);
         state.heading_angle_radians = DOUBLE_TO_FP(h);
-        state.velocity_meters_per_second = DOUBLE_TO_FP(5.0);
+        state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(5.0);
+    state.lateral_velocity_meters_per_second = 0;
+    state.yaw_rate_radians_per_second = 0;
 
         /* Reference: same heading but slightly different (simulating continuous driving) */
         TrajectoryReferencePoint_t ref[HORIZON];
@@ -798,6 +809,8 @@ static void test_heading_near_pi_boundary(void)
             ref[i].reference_position_y_meters = DOUBLE_TO_FP(sin(h) * 0.25 * (i+1));
             ref[i].reference_heading_radians = DOUBLE_TO_FP(ref_h);
             ref[i].reference_velocity_meters_per_second = DOUBLE_TO_FP(5.0);
+            ref[i].reference_lateral_velocity_meters_per_second = 0;
+            ref[i].reference_yaw_rate_radians_per_second = 0;
         }
 
         MpcSolverResult_t result;
@@ -857,7 +870,9 @@ static void test_heading_cross_pi(void)
         state.position_x_meters = DOUBLE_TO_FP(0.0);
         state.position_y_meters = DOUBLE_TO_FP(0.0);
         state.heading_angle_radians = DOUBLE_TO_FP(vh);
-        state.velocity_meters_per_second = DOUBLE_TO_FP(5.0);
+        state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(5.0);
+    state.lateral_velocity_meters_per_second = 0;
+    state.yaw_rate_radians_per_second = 0;
 
         TrajectoryReferencePoint_t ref[HORIZON];
         for (int i = 0; i < HORIZON; i++) {
@@ -865,6 +880,8 @@ static void test_heading_cross_pi(void)
             ref[i].reference_position_y_meters = DOUBLE_TO_FP(0.0);
             ref[i].reference_heading_radians = DOUBLE_TO_FP(rh);
             ref[i].reference_velocity_meters_per_second = DOUBLE_TO_FP(5.0);
+            ref[i].reference_lateral_velocity_meters_per_second = 0;
+            ref[i].reference_yaw_rate_radians_per_second = 0;
         }
 
         MpcSolverResult_t result;
@@ -960,18 +977,20 @@ static void test_linearization_overflow(void)
     state.position_x_meters = DOUBLE_TO_FP(0.0);
     state.position_y_meters = DOUBLE_TO_FP(0.0);
     state.heading_angle_radians = DOUBLE_TO_FP(0.0);
-    state.velocity_meters_per_second = DOUBLE_TO_FP(20.0);
+    state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(20.0);
+    state.lateral_velocity_meters_per_second = 0;
+    state.yaw_rate_radians_per_second = 0;
 
     ControlInput_t ctrl;
     ctrl.steering_angle_radians = DOUBLE_TO_FP(0.4189);  /* Max steering */
-    ctrl.velocity_meters_per_second = DOUBLE_TO_FP(20.0);
+    ctrl.longitudinal_force_newtons = DOUBLE_TO_FP(20.0);
 
-    fixed_point_t A[4][4], B[4][2];
+    fixed_point_t A[6][6], B[6][2];
     vehicle_model_compute_linearization(
         &state, &ctrl, DOUBLE_TO_FP(DT), A, B);
 
     printf("  B matrix at v=20, δ=0.42:\n");
-    for (int r = 0; r < 4; r++) {
+    for (int r = 0; r < 6; r++) {
         printf("    B[%d] = [%.4f, %.4f]\n", r,
                FP_TO_DOUBLE(B[r][0]), FP_TO_DOUBLE(B[r][1]));
     }
@@ -981,16 +1000,16 @@ static void test_linearization_overflow(void)
            FP_TO_DOUBLE(A[3][3]));
 
     /* Now compute Phi up to horizon 10 manually */
-    fixed_point_t Phi[10][4][2];
-    for (int r = 0; r < 4; r++)
+    fixed_point_t Phi[10][6][2];
+    for (int r = 0; r < 6; r++)
         for (int c = 0; c < 2; c++)
             Phi[0][r][c] = B[r][c];
 
     for (int m = 1; m < 10; m++) {
-        for (int r = 0; r < 4; r++) {
+        for (int r = 0; r < 6; r++) {
             for (int c = 0; c < 2; c++) {
                 fixed_point_t sum = 0;
-                for (int k = 0; k < 4; k++) {
+                for (int k = 0; k < 6; k++) {
                     sum = fp_add(sum, fp_mul(A[r][k], Phi[m-1][k][c]));
                 }
                 Phi[m][r][c] = sum;
@@ -1062,7 +1081,9 @@ static void test_sequential_pi_crossing(void)
     state.position_x_meters = DOUBLE_TO_FP(raceline[start].x);
     state.position_y_meters = DOUBLE_TO_FP(raceline[start].y);
     state.heading_angle_radians = DOUBLE_TO_FP(raceline[start].psi);
-    state.velocity_meters_per_second = DOUBLE_TO_FP(raceline[start].vx);
+    state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(raceline[start].vx);
+    state.lateral_velocity_meters_per_second = 0;
+    state.yaw_rate_radians_per_second = 0;
 
     double max_steer = 0;
     double max_err = 0;
@@ -1100,7 +1121,7 @@ static void test_sequential_pi_crossing(void)
         double sim_vel = get_sim_velocity(closest, px, py);
         ControlInput_t sim_ctrl;
         sim_ctrl.steering_angle_radians = result.optimal_control.steering_angle_radians;
-        sim_ctrl.velocity_meters_per_second = DOUBLE_TO_FP(sim_vel);
+        sim_ctrl.longitudinal_force_newtons = DOUBLE_TO_FP(sim_vel);
         state = vehicle_model_predict_next_state(&state, &sim_ctrl, DOUBLE_TO_FP(DT));
     }
 
@@ -1154,7 +1175,9 @@ static void test_high_curvature_sections(void)
     state.position_x_meters = DOUBLE_TO_FP(raceline[start].x);
     state.position_y_meters = DOUBLE_TO_FP(raceline[start].y);
     state.heading_angle_radians = DOUBLE_TO_FP(raceline[start].psi);
-    state.velocity_meters_per_second = DOUBLE_TO_FP(raceline[start].vx);
+    state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(raceline[start].vx);
+    state.lateral_velocity_meters_per_second = 0;
+    state.yaw_rate_radians_per_second = 0;
 
     int solver_ok = 0;
     double max_lat_error = 0;
@@ -1196,7 +1219,7 @@ static void test_high_curvature_sections(void)
             FP_TO_DOUBLE(state.position_y_meters));
         ControlInput_t sim_ctrl;
         sim_ctrl.steering_angle_radians = result.optimal_control.steering_angle_radians;
-        sim_ctrl.velocity_meters_per_second = DOUBLE_TO_FP(sim_vel);
+        sim_ctrl.longitudinal_force_newtons = DOUBLE_TO_FP(sim_vel);
         state = vehicle_model_predict_next_state(&state, &sim_ctrl, DOUBLE_TO_FP(DT));
     }
 
@@ -1252,7 +1275,9 @@ static void test_velocity_transitions(void)
     state.position_x_meters = DOUBLE_TO_FP(raceline[start].x);
     state.position_y_meters = DOUBLE_TO_FP(raceline[start].y);
     state.heading_angle_radians = DOUBLE_TO_FP(raceline[start].psi);
-    state.velocity_meters_per_second = DOUBLE_TO_FP(raceline[start].vx);
+    state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(raceline[start].vx);
+    state.lateral_velocity_meters_per_second = 0;
+    state.yaw_rate_radians_per_second = 0;
 
     double max_steer_change = 0;
     double prev_steer = 0;
@@ -1297,7 +1322,7 @@ static void test_velocity_transitions(void)
             FP_TO_DOUBLE(state.position_y_meters));
         ControlInput_t sim_ctrl;
         sim_ctrl.steering_angle_radians = result.optimal_control.steering_angle_radians;
-        sim_ctrl.velocity_meters_per_second = DOUBLE_TO_FP(sim_vel);
+        sim_ctrl.longitudinal_force_newtons = DOUBLE_TO_FP(sim_vel);
         state = vehicle_model_predict_next_state(&state, &sim_ctrl, DOUBLE_TO_FP(DT));
     }
 
@@ -1439,11 +1464,13 @@ static void test_free_response_heading(void)
     state.position_x_meters = DOUBLE_TO_FP(0.0);
     state.position_y_meters = DOUBLE_TO_FP(0.0);
     state.heading_angle_radians = DOUBLE_TO_FP(3.13);  /* Near +π */
-    state.velocity_meters_per_second = DOUBLE_TO_FP(15.0);
+    state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(15.0);
+    state.lateral_velocity_meters_per_second = 0;
+    state.yaw_rate_radians_per_second = 0;
 
     ControlInput_t ctrl;
     ctrl.steering_angle_radians = DOUBLE_TO_FP(0.1);  /* Slight turn */
-    ctrl.velocity_meters_per_second = DOUBLE_TO_FP(15.0);
+    ctrl.longitudinal_force_newtons = DOUBLE_TO_FP(15.0);
 
     /* Propagate using the vehicle model (which normalizes heading) */
     printf("  Starting heading: 3.13 (near +π)\n");
@@ -1489,7 +1516,9 @@ static void test_rate_penalty_after_wrap(void)
     state.position_x_meters = DOUBLE_TO_FP(0.0);
     state.position_y_meters = DOUBLE_TO_FP(0.0);
     state.heading_angle_radians = DOUBLE_TO_FP(3.10);
-    state.velocity_meters_per_second = DOUBLE_TO_FP(10.0);
+    state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(10.0);
+    state.lateral_velocity_meters_per_second = 0;
+    state.yaw_rate_radians_per_second = 0;
 
     /* Reference makes small heading changes crossing π */
     double ref_headings[] = {3.11, 3.12, 3.13, 3.14, -3.13, -3.12, -3.11, -3.10, -3.09, -3.08};
@@ -1505,6 +1534,8 @@ static void test_rate_penalty_after_wrap(void)
             ref[i].reference_position_y_meters = DOUBLE_TO_FP(0.0);
             ref[i].reference_heading_radians = DOUBLE_TO_FP(ref_headings[h_idx < 10 ? h_idx : 9]);
             ref[i].reference_velocity_meters_per_second = DOUBLE_TO_FP(10.0);
+            ref[i].reference_lateral_velocity_meters_per_second = 0;
+            ref[i].reference_yaw_rate_radians_per_second = 0;
         }
 
         MpcSolverResult_t result;
