@@ -222,11 +222,14 @@ class MapProcessor:
         if self.map_data is None:
             return np.array([])
         
+        # free_coords is (M, 2) with columns [row, col]
         free_coords = np.argwhere(self.map_data == 0)
-        world_coords = np.zeros((len(free_coords), 2), dtype=np.float32)
+        if len(free_coords) == 0:
+            return np.zeros((0, 2), dtype=np.float32)
         
-        for i, (my, mx) in enumerate(free_coords):
-            wx, wy = self.map_to_world(mx, my)
-            world_coords[i] = [wx, wy]
+        ox, oy, _ = self.origin
+        # Vectorized pixel → world conversion (center-of-cell)
+        world_x = ox + (free_coords[:, 1].astype(np.float32) + 0.5) * self.resolution
+        world_y = oy + (free_coords[:, 0].astype(np.float32) + 0.5) * self.resolution
         
-        return world_coords
+        return np.stack([world_x, world_y], axis=1)

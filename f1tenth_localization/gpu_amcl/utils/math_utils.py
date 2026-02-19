@@ -187,10 +187,54 @@ def compute_pose_covariance(particles: np.ndarray, weights: np.ndarray) -> np.nd
     centered[:, 1] -= mean_y
     centered[:, 2] = normalize_angle(particles[:, 2] - mean_theta)
     
-    # Weighted covariance
-    cov = np.zeros((3, 3), dtype=np.float32)
-    for i in range(3):
-        for j in range(3):
-            cov[i, j] = np.sum(weights * centered[:, i] * centered[:, j])
+    # Weighted covariance: (centered.T * weights) @ centered
+    weighted = centered * weights[:, None]
+    cov = np.asarray(weighted.T @ centered, dtype=np.float32)
     
     return cov
+
+
+# ── SE(2) rigid-body helpers ──────────────────────────────────
+
+def se2_compose(a: Tuple[float, float, float],
+                b: Tuple[float, float, float]) -> Tuple[float, float, float]:
+    """
+    Compose two SE(2) transforms:  T_a ∘ T_b.
+    
+    Each transform is (x, y, theta).
+    Result is the pose obtained by first applying b, then a.
+    
+    Args:
+        a: (x, y, theta) first transform
+        b: (x, y, theta) second transform
+    
+    Returns:
+        Composed (x, y, theta)
+    """
+    ax, ay, atheta = a
+    bx, by, btheta = b
+    cos_a = np.cos(atheta)
+    sin_a = np.sin(atheta)
+    x = ax + bx * cos_a - by * sin_a
+    y = ay + bx * sin_a + by * cos_a
+    theta = normalize_angle(atheta + btheta)
+    return (float(x), float(y), float(theta))
+
+
+def se2_inverse(t: Tuple[float, float, float]) -> Tuple[float, float, float]:
+    """
+    Compute the inverse of an SE(2) transform.
+    
+    Args:
+        t: (x, y, theta) transform
+    
+    Returns:
+        Inverse (x, y, theta) such that compose(t, inverse(t)) ≈ identity
+    """
+    tx, ty, ttheta = t
+    cos_t = np.cos(ttheta)
+    sin_t = np.sin(ttheta)
+    inv_x = -(tx * cos_t + ty * sin_t)
+    inv_y = -(-tx * sin_t + ty * cos_t)
+    inv_theta = -ttheta
+    return (float(inv_x), float(inv_y), float(normalize_angle(inv_theta)))

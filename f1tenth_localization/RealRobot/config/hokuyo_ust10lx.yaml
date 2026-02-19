@@ -17,82 +17,77 @@
 # Usage:
 #   ros2 launch f1tenth_localization hokuyo_lidar.launch.py
 
-urg_node:
+# =============================================================================
+# Shared Hokuyo UST-10LX parameters
+# =============================================================================
+# These are loaded by BOTH drivers. The urg_node and hokuyo_scip_driver
+# sections reference the same physical sensor, so connection, frame, angle,
+# range, and clustering settings are kept in sync.
+#
+# Cluster = 4 → every 4th step → 1080/4 = 270 beams at 1° resolution
+# Skip    = 0 (SCIP) / 1 (urg_node) → publish every scan at full 40 Hz
+
+# ─── Custom SCIP 2.0 driver (recommended, full 40 Hz) ───────────────────────
+hokuyo_scip_driver:
   ros__parameters:
-    # =========================================================================
-    # Connection Settings
-    # =========================================================================
-    # IP address of the UST-10LX (factory default: 192.168.0.10)
+    # Connection
     ip_address: "192.168.0.10"
     ip_port: 10940
-    
-    # Serial connection (only if using USB adapter, not typical for UST-10LX)
-    # serial_port: ""
-    # serial_baud: 115200
-    
-    # =========================================================================
-    # Frame and Topic Configuration
-    # =========================================================================
-    # TF frame for the laser data - should match your URDF
+
+    # Frame and topic
     laser_frame_id: "ego_racecar/laser"
-    
-    # Publish to /scan topic (standard for AMCL/navigation)
-    # The node publishes to ~/scan by default, we'll remap in launch
-    
-    # =========================================================================
-    # Scan Parameters
-    # =========================================================================
-    # Angular limits (radians) - UST-10LX supports -135° to +135° (270° total)
-    # Can narrow the FOV to reduce data if needed
-    angle_min: -2.356194  # -135 degrees in radians
-    angle_max: 2.356194   # +135 degrees in radians
-    
-    # Skip factor - publish every Nth scan (1 = all scans, 2 = half rate, etc.)
-    # UST-10LX runs at 40Hz, use skip=1 for full rate
-    skip: 1
-    
-    # Cluster count - number of neighboring scans to merge
-    # 1 = no merging (1080 points, full 40 Hz rate)
-    # 4 = merge 4 readings → 270 points (may reduce rate to ~20 Hz)
-    cluster: 1
-    
-    # =========================================================================
-    # Range Filtering
-    # =========================================================================
-    # Minimum range (meters) - readings below this are invalid
-    # UST-10LX minimum is 0.06m, use slightly higher for safety
+    scan_topic: "/scan"
+
+    # Angular limits (radians) — UST-10LX: −135° to +135° (270° FOV)
+    angle_min: -2.356194   # -135 deg
+    angle_max:  2.356194   # +135 deg
+
+    # Clustering: merge N adjacent steps into one beam
+    # 1 = 1080 beams at 0.25°   (full resolution)
+    # 4 = 270  beams at 1.00°   (recommended for AMCL)
+    cluster: 4
+
+    # SCIP scan interval: 0 = every scan (full 40 Hz), 1 = every other, …
+    skip: 0
+
+    # Range filtering (meters)
     range_min: 0.1
-    
-    # Maximum range (meters) - readings above this are invalid  
-    # UST-10LX typical max is 10m, use conservative value
     range_max: 10.0
-    
-    # =========================================================================
-    # Quality Settings
-    # =========================================================================
-    # Publish intensity values (UST-10LX supports this)
+
+# ─── Fallback urg_node driver (~20 Hz) ──────────────────────────────────────
+urg_node:
+  ros__parameters:
+    # Connection
+    ip_address: "192.168.0.10"
+    ip_port: 10940
+
+    # Frame
+    laser_frame_id: "ego_racecar/laser"
+
+    # Angular limits (radians)
+    angle_min: -2.356194   # -135 deg
+    angle_max:  2.356194   # +135 deg
+
+    # urg_node skip: 1 = publish every scan, 2 = every 2nd, …
+    skip: 1
+
+    # Cluster
+    cluster: 4
+
+    # Range filtering (meters)
+    range_min: 0.1
+    range_max: 10.0
+
+    # Quality
     publish_intensity: false
-    
-    # Publish multiecho data (UST-10LX supports dual-return)
     publish_multiecho: false
-    
-    # =========================================================================
+
     # Diagnostics
-    # =========================================================================
-    # Enable status/diagnostics publishing
     error_limit: 4
     diagnostics_tolerance: 0.05
     diagnostics_window_time: 5.0
-    
-    # Time offset for synchronization (seconds)
     time_offset: 0.0
-    
-    # =========================================================================
-    # Advanced Settings
-    # =========================================================================
-    # Allow unsafe settings that may damage the sensor
+
+    # Advanced
     allow_unsafe_settings: false
-    
-    # Calibration — also enables continuous streaming mode which can
-    # improve throughput from ~20 Hz to ~40 Hz on UST-10LX
     calibrate_time: false

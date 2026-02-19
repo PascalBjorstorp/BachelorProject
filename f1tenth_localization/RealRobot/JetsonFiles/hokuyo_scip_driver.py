@@ -51,17 +51,18 @@ class HokuyoScipDriver(Node):
     def __init__(self):
         super().__init__("hokuyo_scip_driver")
 
-        # Parameters
+        # All parameters are loaded from config/hokuyo_ust10lx.yaml via the
+        # launch file.  Defaults here are a safety-net mirror of the YAML.
         self.declare_parameter("ip_address", "192.168.0.10")
         self.declare_parameter("ip_port", 10940)
         self.declare_parameter("laser_frame_id", "ego_racecar/laser")
         self.declare_parameter("angle_min", -2.356194)  # -135 deg
-        self.declare_parameter("angle_max", 2.356194)  # +135 deg
-        self.declare_parameter("range_min", 0.06)
+        self.declare_parameter("angle_max", 2.356194)   # +135 deg
+        self.declare_parameter("range_min", 0.1)
         self.declare_parameter("range_max", 10.0)
         self.declare_parameter("scan_topic", "/scan")
-        self.declare_parameter("cluster", 1)
-        self.declare_parameter("skip", 0)
+        self.declare_parameter("cluster", 4)   # 4 → 270 beams at 1° resolution
+        self.declare_parameter("skip", 0)      # 0 → every scan (full 40 Hz)
 
         self.ip_address = self.get_parameter("ip_address").value
         self.ip_port = self.get_parameter("ip_port").value
