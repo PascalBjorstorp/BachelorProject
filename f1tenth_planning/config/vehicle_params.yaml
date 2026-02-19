@@ -26,7 +26,7 @@ optimization:
 advanced:
   # Detailed dimensions
   lf: 0.15875                # [m] CG to front axle
-  lr: 0.17145                # [m] CG to rear axle
+  lr: 0.17125                # [m] CG to rear axle
   length: 0.58               # [m] Total car length
   
   # Mass properties

@@ -6,7 +6,7 @@
  * for FPGA synthesis.
  */
 
-#include "fp_math_hls.h"
+#include "../include/fp_math_hls.h"
 
 /*===========================================================================
  * Newton-Raphson Constants
@@ -44,7 +44,6 @@
 fixed_point_t fp_normalize_angle(fixed_point_t angle)
 {
 #pragma HLS INLINE
-#pragma HLS PIPELINE II=1
     
     // Handle positive angles > π
     NORM_POS: for (int i = 0; i < NORMALIZE_MAX_ITERS; i++) {
@@ -179,7 +178,6 @@ static fixed_point_t fp_sin_taylor(fixed_point_t x)
 fixed_point_t fp_sin(fixed_point_t angle)
 {
 #pragma HLS INLINE
-#pragma HLS PIPELINE II=1
     angle = fp_normalize_angle(angle);
     
     /* Reduce to first quadrant: |angle| <= π/2 */
@@ -209,7 +207,6 @@ fixed_point_t fp_sin(fixed_point_t angle)
 fixed_point_t fp_cos(fixed_point_t angle)
 {
 #pragma HLS INLINE
-#pragma HLS PIPELINE II=1
     angle = fp_normalize_angle(angle);
     
     /* cos is even: cos(-x) = cos(x) */

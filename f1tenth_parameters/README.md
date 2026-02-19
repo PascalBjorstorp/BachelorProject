@@ -141,6 +141,26 @@ VESC hardware (polled at 200Hz)
 **For accurate yaw rate measurements** (steering rate test, friction test), the scripts
 use `/sensors/imu/raw` (angular_velocity.z) directly, NOT the filtered `odom.twist.angular.z`.
 
+### IMU Axis Convention
+
+The VESC 6 MkV IMU is physically mounted **z-down** (board upside down on car).
+
+**Required VESC Tool setting:** Set `Imu Rotation Roll` to **180°** in
+App Settings → IMU → Rotation. This makes the firmware compensate for the
+z-down mounting, so raw messages on `/sensors/imu/raw` are in the standard
+vehicle frame:
+- **x** = forward (longitudinal acceleration)
+- **y** = left (lateral acceleration, positive during left turns)
+- **z** = up (gravity reads as ~-9.8 m/s²)
+- **gz** = yaw rate (positive = counter-clockwise)
+
+All test scripts also use `abs()` for magnitude-based measurements as a safety net.
+
+### Steering Rate Limit
+
+The measured steering rate is the **physical servo speed** — there is no throttle
+interpolator rate-limiting the servo commands in the default `bringup_launch.py`.
+
 ## File Structure
 
 ```

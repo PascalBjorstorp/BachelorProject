@@ -15,8 +15,10 @@
 # Project settings
 set PROJECT_NAME "pure_pursuit_fpga"
 set TOP_FUNCTION "pure_pursuit_fpga"
-set PART_NUMBER "xczu3eg-sbva484-1-e"  # Ultra96-V2
-set CLOCK_PERIOD 10  # 100 MHz (10ns period)
+# Ultra96-V2
+set PART_NUMBER "xczu3eg-sbva484-1-i"
+# 100 MHz (10ns period)
+set CLOCK_PERIOD 10
 
 # Create project
 open_project ${PROJECT_NAME}_hls
@@ -24,12 +26,12 @@ open_project ${PROJECT_NAME}_hls
 # Set top function
 set_top ${TOP_FUNCTION}
 
-# Add source files (uses local fp_math_hls.c with HLS pragmas)
+# Add source files
 add_files src/pure_pursuit_fpga.c -cflags "-I./include"
 add_files src/fp_math_hls.c -cflags "-I./include"
 
 # Add testbench
-add_files -tb test/test_pure_pursuit.c -cflags "-I./include"
+add_files -tb test/test_cosim.c -cflags "-I./include"
 
 # Create solution
 open_solution "solution1"
@@ -60,7 +62,7 @@ csynth_design
 # ============================================================================
 # RTL Co-Simulation (optional, takes longer)
 # ============================================================================
-# Uncomment to verify RTL matches C behavior
+# To verify RTL matches C, use run_cosim.tcl instead
 # cosim_design -trace_level all
 
 # ============================================================================
