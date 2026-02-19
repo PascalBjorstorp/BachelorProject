@@ -270,15 +270,11 @@ def main():
     print("MPC_TYPES.H SNIPPET (update in MPC/include/mpc_types.h)")
     print("-" * 70)
     
-    wb_q16 = int(wheelbase * 65536)
-    ms_q16 = int(max_steer * 65536)
-    mv_q16 = int(max_velocity * 65536)
-    
     print(f"""
     // Vehicle parameters (from parameter identification)
-    #define WHEELBASE       {wb_q16}   // {wheelbase:.4f}m in Q16.16
-    #define MAX_STEER       {ms_q16}   // {max_steer:.4f} rad ({np.degrees(max_steer):.1f}°) in Q16.16
-    #define MAX_VELOCITY    {mv_q16}   // {max_velocity:.2f} m/s in Q16.16
+    #define F110_DEFAULT_WHEELBASE_METERS           FP_CONST({wheelbase:.4f})
+    #define F110_DEFAULT_MAXIMUM_STEERING_RADIANS   FP_CONST({max_steer:.4f})  // {np.degrees(max_steer):.1f}°
+    #define F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND  FP_CONST({max_velocity:.2f})
     // Friction coefficient μ = {mu:.3f}
     // Max lateral accel = {mu * GRAVITY:.2f} m/s²
 """)

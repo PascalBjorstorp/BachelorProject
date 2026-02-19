@@ -360,7 +360,7 @@ typedef struct
 
 /** Distance from CG to rear axle: 0.17145 meters */
 #define F110_DIST_CG_TO_REAR_AXLE_METERS \
-    FP_CONST(0.17145)
+    FP_CONST(0.17125)
 
 /** Vehicle mass: 3.74 kg */
 #define F110_VEHICLE_MASS_KG \

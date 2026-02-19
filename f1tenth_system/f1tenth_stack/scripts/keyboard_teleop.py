@@ -27,7 +27,7 @@ SPEED_STEP = 0.5      # m/s per keypress
 STEER_STEP = 0.05     # rad per keypress
 MAX_SPEED = 4.0       # m/s
 MAX_STEER = 0.40      # rad (~23 deg)
-PUBLISH_RATE = 20.0   # Hz
+PUBLISH_RATE = 200.0   # Hz
 
 HELP_TEXT = """
 ╔══════════════════════════════════════════╗

@@ -22,7 +22,7 @@ Procedure:
 4. From understeer gradient + known mass/geometry → cornering stiffness ratio
 
 Usage:
-    python3 test_circle.py [--steering 0.3] [--speeds 1.0,2.0,3.0] [--laps 2]
+    python3 test_circle.py [--steering 0.3] [--speeds 1.5,2.0,3.0] [--laps 2]
 """
 
 import argparse
