@@ -83,10 +83,27 @@ class GymBridge(Node):
         self._odom_vel_noise_std = self.get_parameter('odom_vel_noise_std').value
         self._odom_yaw_noise_std = self.get_parameter('odom_yaw_noise_std').value
         
+        # Get TF frame configuration
+        self._tf_frame_id = self.get_parameter('tf_frame_id').value
+        self._odom_frame_id = self.get_parameter('odom_frame_id').value
+        
+        # Get scan rate limiting configuration
+        self._scan_publish_rate = self.get_parameter('scan_publish_rate').value
+        self._last_scan_time = 0.0
+        if self._scan_publish_rate > 0:
+            self._scan_period = 1.0 / self._scan_publish_rate
+            self.get_logger().info(f'Scan publish rate limited to {self._scan_publish_rate:.1f} Hz')
+        else:
+            self._scan_period = 0.0
+        
         if self._odom_noise_enabled:
             self.get_logger().info(
                 f'Odometry noise ENABLED: pos_std={self._odom_pos_noise_std:.3f}m, '
                 f'vel_std={self._odom_vel_noise_std:.3f}m/s, yaw_std={self._odom_yaw_noise_std:.4f}rad')
+        
+        if self._tf_frame_id != 'map' or self._odom_frame_id != 'map':
+            self.get_logger().info(
+                f'TF frames configured: tf_frame={self._tf_frame_id}, odom_frame={self._odom_frame_id}')
 
         # Load map and create environment
         self.env = self._create_environment(num_agents, scale)
@@ -112,6 +129,18 @@ class GymBridge(Node):
         # Performance metrics
         self._enable_perf_metrics = False
         self._loop_times: List[float] = []
+
+        # Real-time throttle: 0 = run as fast as possible, 1.0 = real-time
+        self._real_time_factor = self.get_parameter('real_time_factor').value
+        self._rt_wall_start = time.perf_counter()
+        self._rt_sim_start = 0.0
+        self._rt_initialized = False
+        if self._real_time_factor > 0:
+            self.get_logger().info(
+                f'Real-time factor: {self._real_time_factor}x '
+                f'(sim will run at {self._real_time_factor}x wall-clock speed)')
+        else:
+            self.get_logger().info('Real-time factor: unlimited (run as fast as possible)')
 
         # QoS profile for reliable communication
         self.reliable_qos = QoSProfile(
@@ -153,6 +182,8 @@ class GymBridge(Node):
         self.declare_parameter('async_mode', True)
         self.declare_parameter('use_sim_time_bridge', False)
         self.declare_parameter('scan_noise_std', 0.0)
+        self.declare_parameter('headless', False)  # Disable rendering for headless systems
+        self.declare_parameter('real_time_factor', 0.0)  # 0 = unlimited, 1.0 = real-time, 0.5 = half speed
 
         
         # Sensor noise parameters for realistic simulation
@@ -160,6 +191,13 @@ class GymBridge(Node):
         self.declare_parameter('odom_pos_noise_std', 0.01)   # Position noise std dev (m)
         self.declare_parameter('odom_vel_noise_std', 0.05)   # Velocity noise std dev (m/s)
         self.declare_parameter('odom_yaw_noise_std', 0.005)  # Yaw noise std dev (rad)
+        
+        # TF frame configuration
+        self.declare_parameter('tf_frame_id', 'map')         # Parent frame for TF (map or odom)
+        self.declare_parameter('odom_frame_id', 'map')       # Parent frame for odom topic
+        
+        # Scan publish rate limiting (for realistic 40Hz LiDAR simulation)
+        self.declare_parameter('scan_publish_rate', 0.0)     # 0 = no limit, >0 = Hz limit
 
     def _validate_num_agents(self) -> int:
         """Validate and return number of agents."""
@@ -202,6 +240,12 @@ class GymBridge(Node):
             self.get_logger().error(f'Failed to load map: {e}')
             raise
 
+        # Check if headless mode (no rendering)
+        headless = self.get_parameter('headless').value
+        render_mode = None if headless else 'rgb_array'
+        if headless:
+            self.get_logger().info('Running in HEADLESS mode (no rendering)')
+        
         # Create environment
         sim_timestep = self.get_parameter('sim_timestep').value
         try:
@@ -213,14 +257,14 @@ class GymBridge(Node):
                     'timestep': sim_timestep,
                     'integrator': 'rk4',
                     'control_input': ['speed', 'steering_angle'],
-                    'model': 'ks',
+                    'model': 'st',
                     'observation_config': {'type': 'original'},
                     'params': self.vehicle_params,
                     'reset_config': {'type': 'map_random_static'},
                     'scale': scale,
                     'lidar_dist': self.get_parameter('scan_distance_to_base_link').value
                 },
-                render_mode='rgb_array',
+                render_mode=render_mode,
             )
         except Exception as e:
             self.get_logger().error(f'Failed to create gym environment: {e}')
@@ -299,26 +343,22 @@ class GymBridge(Node):
 
         # Pre-allocate odometry messages
         self._ego_odom_msg = Odometry()
-        self._ego_odom_msg.header.frame_id = 'map'
+        self._ego_odom_msg.header.frame_id = self._odom_frame_id
         self._ego_odom_msg.child_frame_id = f'{self.ego_namespace}/base_link'
 
         # Pre-allocate transform messages
         self._ego_tf_msg = TransformStamped()
-        self._ego_tf_msg.header.frame_id = 'map'
+        self._ego_tf_msg.header.frame_id = self._tf_frame_id
         self._ego_tf_msg.child_frame_id = f'{self.ego_namespace}/base_link'
 
         # Pre-allocate wheel transforms
         self._ego_left_wheel_tf = TransformStamped()
-        self._ego_left_wheel_tf.header.frame_id = f'{
-            self.ego_namespace}/front_left_hinge'
-        self._ego_left_wheel_tf.child_frame_id = f'{
-            self.ego_namespace}/front_left_wheel'
+        self._ego_left_wheel_tf.header.frame_id = f'{self.ego_namespace}/front_left_hinge'
+        self._ego_left_wheel_tf.child_frame_id = f'{self.ego_namespace}/front_left_wheel'
 
         self._ego_right_wheel_tf = TransformStamped()
-        self._ego_right_wheel_tf.header.frame_id = f'{
-            self.ego_namespace}/front_right_hinge'
-        self._ego_right_wheel_tf.child_frame_id = f'{
-            self.ego_namespace}/front_right_wheel'
+        self._ego_right_wheel_tf.header.frame_id = f'{self.ego_namespace}/front_right_hinge'
+        self._ego_right_wheel_tf.child_frame_id = f'{self.ego_namespace}/front_right_wheel'
 
         # Pre-allocate clock message
         self._clock_msg = Clock()
@@ -333,25 +373,20 @@ class GymBridge(Node):
             self._opp_scan_msg.header.frame_id = f'{self.opp_namespace}/laser'
 
             self._opp_odom_msg = Odometry()
-            self._opp_odom_msg.header.frame_id = 'map'
-            self._opp_odom_msg.child_frame_id = f'{
-                self.opp_namespace}/base_link'
+            self._opp_odom_msg.header.frame_id = self._odom_frame_id
+            self._opp_odom_msg.child_frame_id = f'{self.opp_namespace}/base_link'
 
             self._opp_tf_msg = TransformStamped()
-            self._opp_tf_msg.header.frame_id = 'map'
+            self._opp_tf_msg.header.frame_id = self._tf_frame_id
             self._opp_tf_msg.child_frame_id = f'{self.opp_namespace}/base_link'
 
             self._opp_left_wheel_tf = TransformStamped()
-            self._opp_left_wheel_tf.header.frame_id = f'{
-                self.opp_namespace}/front_left_hinge'
-            self._opp_left_wheel_tf.child_frame_id = f'{
-                self.opp_namespace}/front_left_wheel'
+            self._opp_left_wheel_tf.header.frame_id = f'{self.opp_namespace}/front_left_hinge'
+            self._opp_left_wheel_tf.child_frame_id = f'{self.opp_namespace}/front_left_wheel'
 
             self._opp_right_wheel_tf = TransformStamped()
-            self._opp_right_wheel_tf.header.frame_id = f'{
-                self.opp_namespace}/front_right_hinge'
-            self._opp_right_wheel_tf.child_frame_id = f'{
-                self.opp_namespace}/front_right_wheel'
+            self._opp_right_wheel_tf.header.frame_id = f'{self.opp_namespace}/front_right_hinge'
+            self._opp_right_wheel_tf.child_frame_id = f'{self.opp_namespace}/front_right_wheel'
 
     def _setup_timers(self, num_agents: int) -> None:
         """Set up simulation timers based on async/sync mode."""
@@ -635,6 +670,20 @@ class GymBridge(Node):
                 self.get_logger().info(f'Avg sim step time: {avg:.2f}ms')
                 self._loop_times.clear()
 
+        # Real-time throttle: sleep if sim is running ahead of wall clock
+        if self._real_time_factor > 0:
+            sim_time = self.env.unwrapped.current_time
+            if not self._rt_initialized:
+                self._rt_sim_start = sim_time
+                self._rt_wall_start = time.perf_counter()
+                self._rt_initialized = True
+            else:
+                sim_elapsed = (sim_time - self._rt_sim_start) / self._real_time_factor
+                wall_elapsed = time.perf_counter() - self._rt_wall_start
+                sleep_time = sim_elapsed - wall_elapsed
+                if sleep_time > 0.0001:  # Only sleep if > 0.1ms ahead
+                    time.sleep(sleep_time)
+
     def timer_callback(self) -> None:
         """Publish sensor data and transforms."""
         if self.sim_paused:
@@ -728,6 +777,19 @@ class GymBridge(Node):
 
     def _publish_scans(self, ts) -> None:
         """Publish laser scan messages using pre-allocated messages."""
+        # Check rate limiting with accumulated time for more accurate rate
+        if self._scan_period > 0:
+            current_time = time.time()
+            elapsed = current_time - self._last_scan_time
+            if elapsed < self._scan_period:
+                return  # Skip this publish to maintain target rate
+            # Advance by period (not current time) to maintain steady rate
+            # This compensates for jitter by catching up
+            self._last_scan_time += self._scan_period
+            # But don't let it drift too far behind (max 2 periods behind)
+            if current_time - self._last_scan_time > self._scan_period * 2:
+                self._last_scan_time = current_time
+        
         # Get noise stddev from parameter (default to 0.0 if not set)
         scan_noise_std = self.get_parameter('scan_noise_std').value if self.has_parameter('scan_noise_std') else 0.0
 

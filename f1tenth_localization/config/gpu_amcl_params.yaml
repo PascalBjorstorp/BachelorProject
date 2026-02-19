@@ -1,0 +1,80 @@
+# ============================================================
+# GPU AMCL Parameters for F1Tenth
+# ============================================================
+# CuPy-accelerated AMCL for NVIDIA Jetson.
+# Loaded by real_localization.launch.py and amcl_bag_benchmark.launch.py
+# when amcl_type:=gpu_amcl.
+#
+# Note: gpu_amcl uses 'num_particles' (fixed count) rather than
+# nav2_amcl's min/max range. When KLD sampling is enabled,
+# min_particles/max_particles define the adaptive range.
+# ============================================================
+
+gpu_amcl:
+  ros__parameters:
+    # ---- General ----
+    use_gpu: true
+
+    # ---- Particles ----
+    num_particles: 2000
+    min_particles: 100
+    max_particles: 5000
+
+    # ---- KLD Sampling (adaptive particle count) ----
+    use_kld_sampling: false
+    kld_epsilon: 0.05
+    kld_z: 2.33
+
+    # ---- Frame IDs ----
+    base_frame_id: "ego_racecar/base_link"
+    odom_frame_id: "ego_racecar/odom"
+    global_frame_id: "map"
+
+    # ---- Topics ----
+    scan_topic: "/scan"
+    odom_topic: "/ego_racecar/odom"
+
+    # ---- Update thresholds ----
+    update_min_d: 0.001
+    update_min_a: 0.001
+
+    # ---- Motion model (differential) ----
+    alpha1: 0.1
+    alpha2: 0.1
+    alpha3: 0.2
+    alpha4: 0.2
+
+    # ---- Sensor model (beam) ----
+    max_beams: 120
+    z_hit: 0.95
+    z_rand: 0.05
+    sigma_hit: 0.2
+    laser_max_range: 10.0
+    laser_offset_x: 0.275
+    laser_offset_y: 0.0
+
+    # ---- Resampling ----
+    resample_threshold: 0.5
+
+    # ---- Initial pose ----
+    initial_pose_x: 0.0
+    initial_pose_y: 0.0
+    initial_pose_a: 0.0
+    initial_cov_xx: 0.5
+    initial_cov_yy: 0.5
+    initial_cov_aa: 0.2
+
+    # ---- Publishing ----
+    publish_rate: 40.0
+    transform_tolerance: 1.0
+
+    # ---- IMU fusion ----
+    use_imu_rotation: false
+    imu_topic: "/sensors/imu/raw"
+    imu_gyro_weight: 0.8
+
+    # ---- Slip detection ----
+    use_slip_detection: false
+    slip_threshold: 0.5
+    slip_lateral_threshold: 0.3
+    slip_noise_multiplier: 2.0

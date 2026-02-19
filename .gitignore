@@ -69,13 +69,6 @@ env/
 *.out
 *.app
 
-# CMake
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-Makefile
-*.cmake
-!CMakeLists.txt
 
 # =============================================
 # IDE / Editor
@@ -124,12 +117,6 @@ Thumbs.db
 # Test results
 test_results/
 test-results/
-
-# Rosbag recordings (can be large)
-*.bag
-*.db3
-*.db3-shm
-*.db3-wal
 
 # URDF compiled from xacro
 *.urdf

@@ -140,7 +140,7 @@ public:
     StatePublisherNode() : Node("state_publisher") {
         // Parameters
         this->declare_parameter("trajectory_file", "");
-        this->declare_parameter("odom_topic", "/odom");
+        this->declare_parameter("odom_topic", "/ego_racecar/odom");
         this->declare_parameter("output_topic", "/mpc_state");
         this->declare_parameter("publish_rate_hz", 50.0);
         
@@ -232,8 +232,10 @@ private:
         double theta = std::atan2(2.0 * (qw * qz + qx * qy), 
                                   1.0 - 2.0 * (qy * qy + qz * qz));
         
-        // Extract velocity
-        double velocity = msg->twist.twist.linear.x;
+        // Extract velocity (body-frame twist from EKF / odometry)
+        double velocity = msg->twist.twist.linear.x;   // Longitudinal v_x
+        double vy = msg->twist.twist.linear.y;          // Lateral v_y
+        double omega = msg->twist.twist.angular.z;       // Yaw rate ω
         
         // KD-tree lookup
         auto start_time = std::chrono::high_resolution_clock::now();
@@ -256,6 +258,8 @@ private:
         mpc_state.y_fp = to_fp(y);
         mpc_state.theta_fp = to_fp(theta);
         mpc_state.velocity_fp = to_fp(velocity);
+        mpc_state.vy_fp = to_fp(vy);
+        mpc_state.omega_fp = to_fp(omega);
         mpc_state.waypoint_index = static_cast<uint32_t>(waypoint_idx);
         mpc_state.timestamp_ms = static_cast<uint32_t>(
             std::chrono::duration_cast<std::chrono::milliseconds>(

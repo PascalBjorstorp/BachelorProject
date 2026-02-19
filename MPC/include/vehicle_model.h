@@ -1,27 +1,38 @@
 /**
  * @file vehicle_model.h
- * @brief Kinematic Bicycle Model for F1/10th Vehicle
+ * @brief Dynamic Nonlinear Bicycle Model for F1/10th Vehicle
  *
  * Provides vehicle dynamics prediction for Model Predictive Control.
- * Uses the kinematic bicycle model which is appropriate for low-speed
- * autonomous vehicles like F1/10th cars.
+ * Uses the dynamic bicycle model with linear tire forces, appropriate
+ * for high-speed autonomous vehicles like F1/10th cars.
  *
- * Model Equations (continuous time, velocity is a direct input):
+ * State vector (6 states): [x, y, psi, v_x, v_y, omega]
+ *   x, y     = position in world frame [meters]
+ *   psi      = yaw angle (heading) [radians]
+ *   v_x      = longitudinal velocity in body frame [m/s]
+ *   v_y      = lateral velocity in body frame [m/s]
+ *   omega    = yaw rate [rad/s]
  *
- *   dx/dt       = v_cmd × cos(heading)
- *   dy/dt       = v_cmd × sin(heading)
- *   dheading/dt = (v_cmd / wheelbase) × tan(steering)
- *   v           = v_cmd
+ * Control vector (2 inputs): [delta, F_x]
+ *   delta    = front wheel steering angle [radians]
+ *   F_x      = longitudinal force at rear axle [Newtons]
  *
- * Where:
- *   (x, y)    = position in world frame [meters]
- *   heading   = yaw angle [radians]
- *   v_cmd     = commanded velocity [m/s]
- *   steering  = front wheel steering angle [radians]
- *   wheelbase = distance between front and rear axles [meters]
+ * Model Equations (continuous time):
+ *   dx/dt      = v_x * cos(psi) - v_y * sin(psi)
+ *   dy/dt      = v_x * sin(psi) + v_y * cos(psi)
+ *   dpsi/dt    = omega
+ *   dv_x/dt    = (F_x - F_yf * sin(delta) + m * v_y * omega) / m
+ *   dv_y/dt    = (F_yf * cos(delta) + F_yr - m * v_x * omega) / m
+ *   domega/dt  = (l_f * F_yf * cos(delta) - l_r * F_yr) / I_z
+ *
+ * Tire model (linear):
+ *   alpha_f = delta - atan((v_y + l_f * omega) / v_x)
+ *   alpha_r = -atan((v_y - l_r * omega) / v_x)
+ *   F_yf = -C_Sf * alpha_f
+ *   F_yr = -C_Sr * alpha_r
  *
  * Discretization: Forward Euler method
- *   state[k+1] = state[k] + dt × derivative[k]
+ *   state[k+1] = state[k] + dt * derivative[k]
  *
  * All calculations use fixed-point arithmetic for FPGA compatibility.
  */
@@ -40,10 +51,14 @@
  * Initialize vehicle model with default F1/10th parameters.
  *
  * Default values:
- * - Wheelbase: 0.32 m
- * - Max steering: 0.42 rad (24°)
- * - Max velocity: 6.0 m/s
- * - Min velocity: 0.0 m/s (no reverse)
+ * - Wheelbase: 0.3302 m (l_f=0.15875, l_r=0.17145)
+ * - Mass: 3.74 kg
+ * - Yaw inertia: 0.04712 kg*m^2
+ * - Front cornering stiffness: 4.718 N/rad
+ * - Rear cornering stiffness: 5.4562 N/rad
+ * - Max steering: 0.4189 rad (24 deg)
+ * - Max velocity: 20.0 m/s
+ * - Max force: 35.57 N, Min force: -37.4 N
  */
 void vehicle_model_initialize(void);
 
@@ -71,7 +86,7 @@ VehicleParameters_t vehicle_model_get_parameters(void);
  *
  * Ensures:
  * - Steering angle within [-max_steering, +max_steering]
- * - Velocity within [min_velocity, max_velocity]
+ * - Longitudinal force within [min_force, max_force]
  *
  * @param raw_control  Unconstrained control input
  * @return Constrained control input within physical limits
@@ -84,15 +99,16 @@ ControlInput_t vehicle_model_saturate_control(
  *===========================================================================*/
 
 /**
- * Predict the next vehicle state using the kinematic bicycle model.
+ * Predict the next vehicle state using the dynamic bicycle model.
  *
  * Uses Forward Euler integration:
- *   state[k+1] = state[k] + dt × f(state[k], control[k])
+ *   state[k+1] = state[k] + dt * f(state[k], control[k])
  *
+ * Includes tire force computation using linear tire model.
  * The control input is automatically saturated to physical limits.
  *
- * @param current_state   Current vehicle state
- * @param control_input   Control input (steering, velocity)
+ * @param current_state   Current vehicle state (6 states)
+ * @param control_input   Control input (steering, force)
  * @param time_step       Time step duration [seconds] in fixed-point
  * @return Predicted state after time_step seconds
  */
@@ -133,28 +149,28 @@ void vehicle_model_predict_trajectory(
 /**
  * Compute linearized state-space matrices at an operating point.
  *
- * Linearizes the nonlinear bicycle model around (state, control):
+ * Linearizes the nonlinear dynamic bicycle model around (state, control):
  *
  *   state[k+1] ≈ A × state[k] + B × control[k]
  *
  * Where:
- *   A = I + dt × (∂f/∂state)    [4×4 discrete state matrix]
- *   B = dt × (∂f/∂control)      [4×2 discrete input matrix]
+ *   A = I + dt × (∂f/∂state)    [6×6 discrete state matrix]
+ *   B = dt × (∂f/∂control)      [6×2 discrete input matrix]
  *
- * State ordering: [x, y, heading, velocity]
- * Control ordering: [steering, velocity]
+ * State ordering: [x, y, heading, v_x, v_y, omega]
+ * Control ordering: [steering, longitudinal_force]
  *
  * @param operating_state    State to linearize around
  * @param operating_control  Control to linearize around
  * @param time_step          Discretization time step [seconds]
- * @param state_matrix_A     Output: 4×4 state transition matrix
- * @param input_matrix_B     Output: 4×2 input matrix
+ * @param state_matrix_A     Output: 6×6 state transition matrix
+ * @param input_matrix_B     Output: 6×2 input matrix
  */
 void vehicle_model_compute_linearization(
     const VehicleState_t *operating_state,
     const ControlInput_t *operating_control,
     fixed_point_t time_step,
-    fixed_point_t state_matrix_A[4][4],
-    fixed_point_t input_matrix_B[4][2]);
+    fixed_point_t state_matrix_A[6][6],
+    fixed_point_t input_matrix_B[6][2]);
 
 #endif /* VEHICLE_MODEL_H */

@@ -6,7 +6,7 @@
 
   <!-- VESC to Odom node -->
   <node pkg="vesc_ackermann" exec="vesc_to_odom_node" name="vesc_to_odom_node" output="screen">
-    <param name="odom_frame" value="odom" />
+    <param name="odom_frame" value="ego_racecar/odom" />
     <param name="base_frame" value="base_link" />
     <param name="speed_to_erpm_gain" value="1.0" />
     <param name="speed_to_erpm_offset" value="0.0" />

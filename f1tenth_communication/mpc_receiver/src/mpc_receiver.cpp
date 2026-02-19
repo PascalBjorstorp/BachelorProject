@@ -56,11 +56,13 @@ struct WaypointFP {
  *===========================================================================*/
 
 struct MpcReferenceFP {
-    // Current state (from message, Q16.16)
+    // Current state (from message, Q16.16) — 6-state dynamic bicycle model
     int32_t x_fp;
     int32_t y_fp;
     int32_t theta_fp;
-    int32_t velocity_fp;
+    int32_t velocity_fp;    // Longitudinal velocity v_x
+    int32_t vy_fp;          // Lateral velocity v_y
+    int32_t omega_fp;       // Yaw rate ω
     
     // Reference trajectory (next N waypoints, Q16.16)
     static constexpr size_t HORIZON = 10;
@@ -179,11 +181,13 @@ private:
         
         // === ALL DATA STAYS IN FIXED-POINT (Q16.16) ===
         
-        // Store current state in fixed-point
+        // Store current state in fixed-point (6-state model)
         current_ref_.x_fp = msg->x_fp;
         current_ref_.y_fp = msg->y_fp;
         current_ref_.theta_fp = msg->theta_fp;
         current_ref_.velocity_fp = msg->velocity_fp;
+        current_ref_.vy_fp = msg->vy_fp;
+        current_ref_.omega_fp = msg->omega_fp;
         current_ref_.start_index = msg->waypoint_index;
         
         // Extract reference trajectory (next N waypoints in fixed-point)
