@@ -83,7 +83,7 @@ DEFAULT_SERVO_GAIN = -0.915
 DEFAULT_SERVO_OFFSET = 0.468
 DEFAULT_SERVO_MIN = 0.0
 DEFAULT_SERVO_MAX = 0.82
-DEFAULT_WHEELBASE = 0.324
+DEFAULT_WHEELBASE = 0.3302
 
 # Compute max steering angle from servo limits
 # servo = gain * angle + offset
