@@ -35,7 +35,7 @@ _workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirnam
 
 # Frame / topic constants (must match real robot URDF and drivers)
 BASE_FRAME_ID = 'ego_racecar/base_link'
-ODOM_FRAME_ID = 'odom'
+ODOM_FRAME_ID = 'ego_racecar/odom'
 GLOBAL_FRAME_ID = 'map'
 SCAN_TOPIC = '/scan'
 ODOM_TOPIC = '/ego_racecar/odom'

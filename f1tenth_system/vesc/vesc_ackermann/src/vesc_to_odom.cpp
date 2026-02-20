@@ -50,7 +50,7 @@ using vesc_msgs::msg::VescStateStamped;
 
 VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
 : Node("vesc_to_odom_node", options),
-  odom_frame_("odom"),
+  odom_frame_("ego_racecar/odom"),
   base_frame_("base_link"),
   use_servo_cmd_(true),
   use_imu_(false),
@@ -118,7 +118,7 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
               integration_method_.c_str());
 
   // create odom publisher
-  odom_pub_ = create_publisher<Odometry>("odom", 10);
+  odom_pub_ = create_publisher<Odometry>("ego_racecar/odom", 10);
 
   // create filtered angular velocity publisher
   if (use_imu_) {

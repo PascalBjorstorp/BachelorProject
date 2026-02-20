@@ -211,13 +211,9 @@ class SteeringRateNode(TestNode):
             avg_rise = np.mean(rise_times)
             avg_rate = np.mean(effective_rates)
             
-            # Compare with expected from throttle interpolator
-            # Servo rate = 3.2 rad/s → steering rate = 3.2 / |gain|
-            expected_rate = 3.2 / abs(DEFAULT_SERVO_GAIN)
-            
             self.get_logger().info(f"\n  Average rise time (10-90%): {avg_rise*1000:.1f}ms")
             self.get_logger().info(f"  Average effective steering rate: {np.degrees(avg_rate):.1f}°/s ({avg_rate:.2f} rad/s)")
-            self.get_logger().info(f"  Expected rate (from throttle_interpolator): {np.degrees(expected_rate):.1f}°/s ({expected_rate:.2f} rad/s)")
+            self.get_logger().info(f"  Note: This is the physical servo rate limit (no throttle_interpolator active).")
             
             self.get_logger().info(f"\n--- Parameters for MPC ---")
             self.get_logger().info(f"  Max steering rate: {avg_rate:.2f} rad/s")

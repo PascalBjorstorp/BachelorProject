@@ -21,7 +21,7 @@ Usage:
 
 Requirements:
   - ROS 2 bag recorded with: /scan, /map, /tf, /tf_static, /ego_racecar/odom
-  - Bag must be recorded with sim.yaml tf_frame_id='odom'
+  - Bag must be recorded with sim.yaml tf_frame_id='ego_racecar/odom'
 """
 
 import os
@@ -54,7 +54,7 @@ SAMPLE_RATE_HZ = 5.0  # How often to sample CPU/memory/GPU metrics (sim Hz; ~7.5
 
 # Frame IDs
 BASE_FRAME_ID = 'ego_racecar/base_link'
-ODOM_FRAME_ID = 'odom'
+ODOM_FRAME_ID = 'ego_racecar/odom'
 GLOBAL_FRAME_ID = 'map'
 
 # Topics

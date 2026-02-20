@@ -16,6 +16,7 @@ install(PROGRAMS
   Benchmark/JetsonFiles/odom_tf_publisher.py
   gpu_amcl/scripts/gpu_amcl_node.py
   RealRobot/JetsonFiles/hokuyo_lidar_diagnostic.py
+  RealRobot/JetsonFiles/hokuyo_scip_driver.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

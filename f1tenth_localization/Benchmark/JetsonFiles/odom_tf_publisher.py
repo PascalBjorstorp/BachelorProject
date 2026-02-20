@@ -23,7 +23,7 @@ class OdomTfPublisher(Node):
         
         # Parameters
         self.declare_parameter('odom_topic', '/ego_racecar/odom')
-        self.declare_parameter('odom_frame', 'odom')
+        self.declare_parameter('odom_frame', 'ego_racecar/odom')
         self.declare_parameter('base_frame', 'ego_racecar/base_link')
         
         odom_topic = self.get_parameter('odom_topic').value

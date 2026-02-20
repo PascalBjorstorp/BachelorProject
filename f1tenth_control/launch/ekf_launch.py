@@ -23,7 +23,7 @@ def generate_launch_description():
     # Declare arguments
     odom_frame_arg = DeclareLaunchArgument(
         'odom_frame',
-        default_value='odom',
+        default_value='ego_racecar/odom',
         description='Odometry frame ID'
     )
     

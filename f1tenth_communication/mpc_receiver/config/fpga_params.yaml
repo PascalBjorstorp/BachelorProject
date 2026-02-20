@@ -23,6 +23,6 @@ mpc_receiver_fpga_node:
     lookahead_gain: 0.3   # [1/s] Lookahead = min + gain * velocity
     
     # Vehicle parameters
-    wheelbase: 0.324      # [m] Distance between front and rear axles
-    max_steering: 0.42    # [rad] Maximum steering angle (~24 degrees)
+    wheelbase: 0.3302      # [m] Distance between front and rear axles
+    max_steering: 0.4189    # [rad] Maximum steering angle (~24 degrees)
     max_velocity: 6.0     # [m/s] Maximum velocity command

@@ -108,7 +108,7 @@ AckermannToVesc::AckermannToVesc(const rclcpp::NodeOptions & options)
 
   // Subscribe to odometry for velocity feedback
   odom_sub_ = create_subscription<Odometry>(
-    "odom", 10, std::bind(&AckermannToVesc::odomCallback, this, _1));
+    "ego_racecar/odom", 10, std::bind(&AckermannToVesc::odomCallback, this, _1));
 }
 
 void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPtr cmd)
@@ -166,8 +166,14 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
     bool direction_change = (current_vel_ > 0.1 && commanded_vel < -0.1) ||
                             (current_vel_ < -0.1 && commanded_vel > 0.1);
 
-    if (direction_change) {
-      // Direction reversal: brake to stop first
+    // Check for stop command: near-zero commanded speed while car is moving.
+    // Use brake command instead of ERPM 0 to prevent the speed PID from
+    // overshooting through zero and driving the motor in reverse.
+    bool stop_command = (std::abs(commanded_vel) < brake_deadzone_ &&
+                         std::abs(current_vel_) > brake_deadzone_);
+
+    if (direction_change || stop_command) {
+      // Brake to stop (direction reversal or coming to a stop)
       brake_msg.data = speed_to_braking_max_;
       publish_brake = true;
     } else if (commanded_vel >= 0) {

@@ -421,7 +421,7 @@ typedef struct
 
 /** Vehicle length: 0.58 meters */
 #define F110_VEHICLE_LENGTH_METERS \
-    FP_CONST(0.58)
+    FP_CONST(0.53)
 
 /** Distance from CG to front axle: 0.15875 meters */
 #define F110_DIST_CG_TO_FRONT_AXLE_METERS \
@@ -433,7 +433,7 @@ typedef struct
 
 /** Vehicle mass: 3.74 kg */
 #define F110_VEHICLE_MASS_KG \
-    FP_CONST(3.74)
+    FP_CONST(3.314)
 
 /** Yaw moment of inertia: 0.04712 kg·m² */
 #define F110_YAW_INERTIA_KGM2 \

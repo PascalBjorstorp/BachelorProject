@@ -158,12 +158,18 @@ def run_ros_diagnostic():
             self.range_stats = {'min': float('inf'), 'max': 0, 'valid_count': 0, 'invalid_count': 0}
             self.start_time = time.time()
             
-            # Subscriber
+            # Subscriber — use SensorDataQoS to match urg_node's publisher
+            from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+            sensor_qos = QoSProfile(
+                reliability=ReliabilityPolicy.BEST_EFFORT,
+                history=HistoryPolicy.KEEP_LAST,
+                depth=10
+            )
             self.subscription = self.create_subscription(
                 LaserScan,
                 scan_topic,
                 self.scan_callback,
-                10
+                sensor_qos
             )
             
             # Status timer (every 2 seconds)

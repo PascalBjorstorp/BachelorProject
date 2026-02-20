@@ -83,13 +83,16 @@ DEFAULT_SERVO_GAIN = -0.915
 DEFAULT_SERVO_OFFSET = 0.468
 DEFAULT_SERVO_MIN = 0.0
 DEFAULT_SERVO_MAX = 0.82
-DEFAULT_WHEELBASE = 0.324
+DEFAULT_WHEELBASE = 0.3302
 
 # Compute max steering angle from servo limits
 # servo = gain * angle + offset
 # angle = (servo - offset) / gain
 # For gain < 0: max angle at servo_min, min angle at servo_max
-DEFAULT_MAX_STEER = abs((DEFAULT_SERVO_MIN - DEFAULT_SERVO_OFFSET) / DEFAULT_SERVO_GAIN)
+# Use the minimum of both sides for a safe symmetric limit
+_steer_at_servo_min = abs((DEFAULT_SERVO_MIN - DEFAULT_SERVO_OFFSET) / DEFAULT_SERVO_GAIN)
+_steer_at_servo_max = abs((DEFAULT_SERVO_MAX - DEFAULT_SERVO_OFFSET) / DEFAULT_SERVO_GAIN)
+DEFAULT_MAX_STEER = min(_steer_at_servo_min, _steer_at_servo_max)
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 
@@ -301,6 +304,12 @@ class TestNode(Node):
         self.odom_received = True
     
     def _imu_callback(self, msg: Imu):
+        # VESC IMU (MkV, mounted z-down on car).
+        # IMPORTANT: Set "Imu Rotation Roll" to 180° in VESC Tool so the
+        # firmware compensates for z-down mounting. With that setting, raw
+        # messages are in standard vehicle frame:
+        #   x = forward, y = left, z = up, gz = yaw rate (CCW positive)
+        # All tests also use abs() for magnitudes as a safety net.
         self.imu_ax = msg.linear_acceleration.x
         self.imu_ay = msg.linear_acceleration.y
         self.imu_az = msg.linear_acceleration.z

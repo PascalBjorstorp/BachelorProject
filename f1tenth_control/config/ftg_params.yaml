@@ -8,8 +8,8 @@ ftg_node:
     # ===================
     # Vehicle Parameters
     # ===================
-    wheelbase: 0.324        # Distance between front and rear axles (m)
-    car_width: 0.30         # Width for disparity extension (m) - actual car width
+    wheelbase: 0.3302        # Distance between front and rear axles (m)
+    car_width: 0.31         # Width for disparity extension (m) - actual car width
 
     # ===================
     # Speed Control (Reference FTG Formula)

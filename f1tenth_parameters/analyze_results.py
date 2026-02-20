@@ -63,7 +63,7 @@ def analyze_speed_calibration(filepath: str) -> dict:
     return {'speed_calibration_file': filepath}
 
 
-def analyze_circle_test(filepath: str) -> dict:
+def analyze_circle_test(filepath: str, steering_angle: float = 0.3) -> dict:
     """Analyze circle test data for wheelbase and cornering stiffness."""
     data = load_csv(filepath)
     if not data:
@@ -72,6 +72,7 @@ def analyze_circle_test(filepath: str) -> dict:
     print(f"\n  Circle test: {os.path.basename(filepath)}")
     
     results = {}
+    circle_data = []  # (speed, radius) pairs
     
     # Group data by phase
     phases = np.unique(data.get('phase', []))
@@ -87,7 +88,19 @@ def analyze_circle_test(filepath: str) -> dict:
         if len(x) > 20:
             cx, cy, r, res = fit_circle(x, y)
             speed = np.mean(data['odom_vx'][mask])
+            circle_data.append((speed, r))
             print(f"    Phase {phase}: R={r:.3f}m, v={speed:.2f} m/s, residual={res:.4f}m")
+    
+    if circle_data:
+        # Extract wheelbase from lowest-speed circle: L ≈ R * tan(δ)
+        lowest = min(circle_data, key=lambda x: x[0])
+        measured_wheelbase = lowest[1] * np.tan(steering_angle)
+        results['wheelbase'] = float(measured_wheelbase)
+        print(f"    Measured wheelbase: {measured_wheelbase:.4f}m (from v={lowest[0]:.2f} m/s)")
+        
+        # Max steer from steering calibration or use default
+        results['max_steer'] = float(steering_angle_from_radius(
+            min(r for _, r in circle_data), DEFAULT_WHEELBASE))
     
     return results
 
@@ -257,15 +270,11 @@ def main():
     print("MPC_TYPES.H SNIPPET (update in MPC/include/mpc_types.h)")
     print("-" * 70)
     
-    wb_q16 = int(wheelbase * 65536)
-    ms_q16 = int(max_steer * 65536)
-    mv_q16 = int(max_velocity * 65536)
-    
     print(f"""
     // Vehicle parameters (from parameter identification)
-    #define WHEELBASE       {wb_q16}   // {wheelbase:.4f}m in Q16.16
-    #define MAX_STEER       {ms_q16}   // {max_steer:.4f} rad ({np.degrees(max_steer):.1f}°) in Q16.16
-    #define MAX_VELOCITY    {mv_q16}   // {max_velocity:.2f} m/s in Q16.16
+    #define F110_DEFAULT_WHEELBASE_METERS           FP_CONST({wheelbase:.4f})
+    #define F110_DEFAULT_MAXIMUM_STEERING_RADIANS   FP_CONST({max_steer:.4f})  // {np.degrees(max_steer):.1f}°
+    #define F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND  FP_CONST({max_velocity:.2f})
     // Friction coefficient μ = {mu:.3f}
     // Max lateral accel = {mu * GRAVITY:.2f} m/s²
 """)

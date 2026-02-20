@@ -35,7 +35,7 @@ from ..core.particle_filter import ParticleFilterConfig
 from ..core.motion_model import MotionModelConfig
 from ..core.sensor_model import SensorModelConfig
 from ..core.slip_detector import SlipDetectorConfig
-from ..utils.math_utils import pose_to_array, quaternion_to_yaw, yaw_to_quaternion
+from ..utils.math_utils import pose_to_array, quaternion_to_yaw, yaw_to_quaternion, se2_compose, se2_inverse
 from ..utils.map_utils import MapProcessor
 
 
@@ -49,7 +49,7 @@ class GPUAMCLNode(Node):
     
     Subscriptions:
         /scan (sensor_msgs/LaserScan): Laser scan data
-        /odom (nav_msgs/Odometry): Odometry data
+        /ego_racecar/odom (nav_msgs/Odometry): Odometry data
         /map (nav_msgs/OccupancyGrid): Occupancy grid map
         /initialpose (geometry_msgs/PoseWithCovarianceStamped): Initial pose
     
@@ -187,9 +187,9 @@ class GPUAMCLNode(Node):
         
         # Topics and frames
         self.declare_parameter('scan_topic', '/scan')
-        self.declare_parameter('odom_topic', '/odom')
+        self.declare_parameter('odom_topic', '/ego_racecar/odom')
         self.declare_parameter('base_frame_id', 'ego_racecar/base_link')
-        self.declare_parameter('odom_frame_id', 'odom')
+        self.declare_parameter('odom_frame_id', 'ego_racecar/odom')
         self.declare_parameter('global_frame_id', 'map')
         
         # Update thresholds
@@ -597,30 +597,13 @@ class GPUAMCLNode(Node):
             return
         
         # AMCL estimate is map->base_link
-        map_x, map_y, map_theta = estimate.x, estimate.y, estimate.theta
+        map_T_base = (estimate.x, estimate.y, estimate.theta)
         
         # Current odom is odom->base_link
-        odom_x, odom_y, odom_theta = self.current_odom_pose
+        odom_T_base = tuple(self.current_odom_pose)
         
-        # Compute map->odom: first translate by -(odom->base), then rotate
-        cos_odom = np.cos(-odom_theta)
-        sin_odom = np.sin(-odom_theta)
-        
-        # Inverse of odom->base in odom frame
-        inv_odom_x = -(odom_x * cos_odom - odom_y * sin_odom)
-        inv_odom_y = -(odom_x * sin_odom + odom_y * cos_odom)
-        inv_odom_theta = -odom_theta
-        
-        # Compose: map->base + inv(odom->base)
-        cos_map = np.cos(map_theta)
-        sin_map = np.sin(map_theta)
-        
-        tf_x = map_x + inv_odom_x * cos_map - inv_odom_y * sin_map
-        tf_y = map_y + inv_odom_x * sin_map + inv_odom_y * cos_map
-        tf_theta = map_theta + inv_odom_theta
-        
-        # Normalize angle
-        tf_theta = np.arctan2(np.sin(tf_theta), np.cos(tf_theta))
+        # Compute map->odom = map_T_base ∘ inv(odom_T_base)
+        tf_x, tf_y, tf_theta = se2_compose(map_T_base, se2_inverse(odom_T_base))
         
         # Create transform message
         t = TransformStamped()
