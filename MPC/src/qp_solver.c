@@ -17,6 +17,7 @@
 #include "qp_solver.h"
 #include "fp_math.h"
 #include <string.h>
+#include <stdio.h>
 
 /*===========================================================================
  * Internal Constants
@@ -101,8 +102,16 @@ QuadraticProgramStatus_t qp_solver_solve(
     fixed_point_t next_variables[QP_MAXIMUM_VARIABLES];
     fixed_point_t hessian_times_variables[QP_MAXIMUM_VARIABLES];
 
-    /* Initialize solution to zero */
-    memset(solution->optimal_variables, 0, variable_count * sizeof(fixed_point_t));
+    /* Initialize solution: use warm-start if provided, otherwise zero */
+    if (problem->use_warm_start)
+    {
+        memcpy(solution->optimal_variables, problem->initial_point,
+               variable_count * sizeof(fixed_point_t));
+    }
+    else
+    {
+        memset(solution->optimal_variables, 0, variable_count * sizeof(fixed_point_t));
+    }
     memset(solution->dual_variables, 0, constraint_count * sizeof(fixed_point_t));
 
     solution->iteration_count = 0;
@@ -137,14 +146,21 @@ QuadraticProgramStatus_t qp_solver_solve(
 
     for (uint16_t i = 0; i < variable_count; i++)
     {
-        /* Compute Gershgorin row sum: |H[i][i]| + sum_{j!=i} |H[i][j]| */
-        fixed_point_t row_sum = 0;
+        /* Compute Gershgorin row sum using int64_t to avoid overflow */
+        int64_t row_sum_64 = 0;
         for (uint16_t j = 0; j < variable_count; j++)
         {
-            fixed_point_t hij = problem->hessian_matrix[i * variable_count + j];
-            if (hij < 0) hij = fp_neg(hij);
-            row_sum = fp_add(row_sum, hij);
+            int64_t hij = (int64_t)problem->hessian_matrix[i * variable_count + j];
+            if (hij < 0) hij = -hij;
+            row_sum_64 += hij;
         }
+
+        /* Clamp to Q16.16 range before division */
+        fixed_point_t row_sum;
+        if (row_sum_64 > INT32_MAX)
+            row_sum = INT32_MAX;
+        else
+            row_sum = (fixed_point_t)row_sum_64;
 
         /* step[i] = 1 / row_sum, with minimum to avoid division by zero */
         if (row_sum > FP_ONE)
@@ -154,6 +170,14 @@ QuadraticProgramStatus_t qp_solver_solve(
         else
         {
             inv_row_sum[i] = config->gradient_step_size;
+        }
+
+        /* Debug: print first call's Hessian diagnostics */
+        if (config->enable_verbose_output && i < 4)
+        {
+            printf("[QP] H_diag[%d]=%d row_sum_64=%lld step=%d\n",
+                   i, (int)problem->hessian_matrix[i * variable_count + i],
+                   (long long)row_sum_64, (int)inv_row_sum[i]);
         }
     }
 
@@ -174,7 +198,7 @@ QuadraticProgramStatus_t qp_solver_solve(
 
         for (uint16_t index = 0; index < variable_count; index++)
         {
-            gradient[index] = fp_add(
+            gradient[index] = fp_add_sat(
                 hessian_times_variables[index],
                 problem->linear_cost_vector[index]);
         }
@@ -244,6 +268,14 @@ QuadraticProgramStatus_t qp_solver_solve(
             solution->status = QP_STATUS_OPTIMAL;
             return QP_STATUS_OPTIMAL;
         }
+
+        /* Debug: print progress every 500 iterations */
+        if (config->enable_verbose_output && (iteration % 500 == 0 || iteration == config->maximum_iterations - 1))
+        {
+            printf("[QP] iter=%d step_norm=%d tol=%d residual=%d\n",
+                   iteration, (int)step_norm, (int)config->convergence_tolerance,
+                   (int)solution->constraint_residual);
+        }
     }
 
     /*
@@ -285,6 +317,7 @@ void qp_solver_initialize_problem(QuadraticProgramProblem_t *problem)
 
     problem->variable_count = 0;
     problem->constraint_count = 0;
+    problem->use_warm_start = 0;
 }
 
 void qp_solver_initialize_config(QuadraticProgramConfig_t *config)

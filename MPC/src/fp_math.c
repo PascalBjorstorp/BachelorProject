@@ -414,12 +414,18 @@ void fp_mat_vec_mul(
 {
     for (uint16_t r = 0; r < rows; r++)
     {
-        fixed_point_t sum = 0;
+        /* Use int64_t accumulator to prevent overflow with large matrices.
+         * Critical for the QP Hessian-vector product where 20+ terms are
+         * summed, each potentially large in Q16.16 fixed-point. */
+        int64_t sum64 = 0;
         for (uint16_t c = 0; c < cols; c++)
         {
-            sum = fp_add(sum, fp_mul(matrix[r * cols + c], vec[c]));
+            sum64 += (int64_t)matrix[r * cols + c] * vec[c] >> FP_FRAC_BITS;
         }
-        result[r] = sum;
+        /* Clamp to int32_t range */
+        if (sum64 > INT32_MAX) sum64 = INT32_MAX;
+        else if (sum64 < INT32_MIN) sum64 = INT32_MIN;
+        result[r] = (fixed_point_t)sum64;
     }
 }
 

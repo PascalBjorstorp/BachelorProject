@@ -69,6 +69,18 @@ static inline fixed_point_t fp_add(fixed_point_t a, fixed_point_t b)
     return a + b;
 }
 
+/**
+ * Saturating addition: clamps result to [INT32_MIN, INT32_MAX] on overflow.
+ * Use for accumulations that can exceed int32_t range (e.g., Hessian construction).
+ */
+static inline fixed_point_t fp_add_sat(fixed_point_t a, fixed_point_t b)
+{
+    int64_t sum = (int64_t)a + (int64_t)b;
+    if (sum > INT32_MAX) return INT32_MAX;
+    if (sum < INT32_MIN) return INT32_MIN;
+    return (fixed_point_t)sum;
+}
+
 static inline fixed_point_t fp_sub(fixed_point_t a, fixed_point_t b)
 {
     return a - b;

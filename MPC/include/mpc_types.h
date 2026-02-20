@@ -10,8 +10,8 @@
  * - Trajectory references
  * - Solver results
  *
- * Dynamic Bicycle Model States: [x, y, psi, v_x, v_y, omega]
- * Control Inputs: [delta, F_x]
+ * Dynamic Bicycle Model States: [x, y, psi, v_x, v_y, omega, omega_w]
+ * Control Inputs: [delta, T_motor]
  *
  * All numerical values use Q16.16 fixed-point for FPGA compatibility.
  * Units: SI (meters, radians, seconds, Newtons)
@@ -27,10 +27,10 @@
  * Vehicle State (Dynamic Bicycle Model)
  *===========================================================================
  * Represents the current state of the vehicle in the world frame.
- * Uses the 6-state dynamic bicycle model with tire dynamics.
+ * Uses the 7-state dynamic bicycle model with tire and wheel dynamics.
  * This is the INPUT to the MPC solver (from localization or simulator).
  *
- * State vector ordering: [x, y, psi, v_x, v_y, omega]
+ * State vector ordering: [x, y, psi, v_x, v_y, omega, omega_w]
  */
 
 typedef struct
@@ -53,16 +53,22 @@ typedef struct
     /** Yaw rate [radians per second] */
     fixed_point_t yaw_rate_radians_per_second;
 
+    /** Wheel angular velocity [radians per second]
+     *  Single equivalent wheel speed for the 4WD drivetrain.
+     *  At steady state with zero slip: omega_w = v_x / R_w
+     */
+    fixed_point_t wheel_speed_radians_per_second;
+
 } VehicleState_t;
 
 /*===========================================================================
  * Control Input
  *===========================================================================
  * The control signals computed by the MPC solver.
- * Steering angle is sent to the servo; longitudinal force is converted
- * to a motor command (velocity/duty) by the low-level controller.
+ * Steering angle is sent to the servo; motor torque is converted
+ * to a motor command (current/duty) by the VESC controller.
  *
- * Control vector ordering: [delta, F_x]
+ * Control vector ordering: [delta, T_motor]
  */
 
 typedef struct
@@ -70,8 +76,11 @@ typedef struct
     /** Front wheel steering angle [radians] */
     fixed_point_t steering_angle_radians;
 
-    /** Longitudinal force applied at the rear axle [Newtons] */
-    fixed_point_t longitudinal_force_newtons;
+    /** Motor torque [Newton-meters]
+     *  Converted to wheel torque: T_wheel = T_motor / G_ratio
+     *  Longitudinal force computed from wheel slip ratio.
+     */
+    fixed_point_t motor_torque_newton_meters;
 
 } ControlInput_t;
 
@@ -101,6 +110,16 @@ typedef struct
      * Typical F1/10th value: 0.17145 m
      */
     fixed_point_t distance_cg_to_rear_axle_meters;
+
+    /**
+     * Height from center of gravity to ground [meters]
+     */
+    fixed_point_t height_cg_to_ground_meters;
+
+    /**
+     * Gravity acceleration [m/s²]
+     */
+    fixed_point_t gravity_acceleration_meters_per_second_squared;
 
     /**
      * Vehicle mass [kg]
@@ -149,16 +168,58 @@ typedef struct
     fixed_point_t minimum_velocity_meters_per_second;
 
     /**
-     * Maximum longitudinal force [Newtons]
-     * F_x_max = m * a_max. Typical: 3.74 * 9.51 = 35.6 N
+     * Maximum motor torque [Newton-meters]
+     * T_max = F_x_max * R_w * G_ratio. Typical: 35.57 * 0.0545 * 11.82 ≈ 22.9 N·m
      */
-    fixed_point_t maximum_longitudinal_force_newtons;
+    fixed_point_t maximum_motor_torque_newton_meters;
 
     /**
-     * Minimum longitudinal force (braking) [Newtons]
-     * Negative value. F_x_min = -m * a_brake. Typical: -37.4 N
+     * Minimum motor torque (braking) [Newton-meters]
+     * Negative value. T_min = F_x_min * R_w * G_ratio. Typical: -24.1 N·m
      */
-    fixed_point_t minimum_longitudinal_force_newtons;
+    fixed_point_t minimum_motor_torque_newton_meters;
+
+    /** 
+     * Longitudinal acceleration [m/s²]
+     */
+    fixed_point_t longitudinal_acceleration_meters_per_second_squared;
+
+    /**
+     * Yaw heading rate [rad/s]
+     */
+    fixed_point_t omega;
+
+    /*
+     * Wheel / Drivetrain Parameters (7-state model)
+     */
+
+    /**
+     * Wheel radius [meters]
+     * Diameter 10.9 cm → R_w = 0.0545 m
+     */
+    fixed_point_t wheel_radius_meters;
+
+    /**
+     * Drivetrain inertia [kg·m²]
+     * Combined inertia of wheels + drivetrain (4WD, single equivalent).
+     * Estimated: 0.002 kg·m² for F1/10th.
+     */
+    fixed_point_t drivetrain_inertia_kgm2;
+
+    /**
+     * Longitudinal tire stiffness [Newtons]
+     * In the linear slip model: F_x = C_x * κ
+     * where κ = (R_w * ω_w - v_x) / max(|v_x|, ε)
+     * Typical F1/10th estimate: 300 N
+     */
+    fixed_point_t longitudinal_tire_stiffness;
+
+    /**
+     * Gear ratio (motor_speed / wheel_speed) [-]
+     * T_wheel = T_motor / G_ratio (speed reduction, torque multiplication).
+     * F1/10th Velineon 3500kV + spur/pinion: 11.82
+     */
+    fixed_point_t gear_ratio;
 
 } VehicleParameters_t;
 
@@ -207,17 +268,20 @@ typedef struct
     /** Weight for yaw rate tracking error */
     fixed_point_t weight_yaw_rate;
 
+    /** Weight for wheel speed tracking error */
+    fixed_point_t weight_wheel_speed;
+
     /** Weight for steering angle magnitude (penalizes large steering) */
     fixed_point_t weight_steering_effort;
 
-    /** Weight for longitudinal force magnitude (penalizes large force) */
-    fixed_point_t weight_force_effort;
+    /** Weight for motor torque magnitude (penalizes large torque) */
+    fixed_point_t weight_torque_effort;
 
     /** Weight for steering rate (penalizes jerky steering changes) */
     fixed_point_t weight_steering_rate;
 
-    /** Weight for force rate (penalizes jerky force changes) */
-    fixed_point_t weight_force_rate;
+    /** Weight for torque rate (penalizes jerky torque changes) */
+    fixed_point_t weight_torque_rate;
 
     /** Cross-call rate penalty scale factor.
      *
@@ -274,6 +338,11 @@ typedef struct
 
     /** Target yaw rate [radians per second] */
     fixed_point_t reference_yaw_rate_radians_per_second;
+
+    /** Target wheel speed [radians per second]
+     *  Typically v_ref / R_w (zero-slip equilibrium)
+     */
+    fixed_point_t reference_wheel_speed_radians_per_second;
 
 } TrajectoryReferencePoint_t;
 
@@ -352,7 +421,7 @@ typedef struct
 
 /** Vehicle length: 0.58 meters */
 #define F110_VEHICLE_LENGTH_METERS \
-    FP_CONST(0.58)
+    FP_CONST(0.53)
 
 /** Distance from CG to front axle: 0.15875 meters */
 #define F110_DIST_CG_TO_FRONT_AXLE_METERS \
@@ -360,11 +429,11 @@ typedef struct
 
 /** Distance from CG to rear axle: 0.17145 meters */
 #define F110_DIST_CG_TO_REAR_AXLE_METERS \
-    FP_CONST(0.17125)
+    FP_CONST(0.17145)
 
 /** Vehicle mass: 3.74 kg */
 #define F110_VEHICLE_MASS_KG \
-    FP_CONST(3.74)
+    FP_CONST(3.314)
 
 /** Yaw moment of inertia: 0.04712 kg·m² */
 #define F110_YAW_INERTIA_KGM2 \
@@ -373,10 +442,6 @@ typedef struct
 /** Center of gravity height: 0.074 meters */
 #define F110_CG_HEIGHT_METERS \
     FP_CONST(0.074)
-
-/** Wheel radius: 0.0508 meters */
-#define F110_WHEEL_RADIUS_METERS \
-    FP_CONST(0.0508)
 
 /** Tire-road friction coefficient */
 #define F110_FRICTION_COEFFICIENT \
@@ -398,17 +463,49 @@ typedef struct
 #define F110_MAX_DECELERATION_MS2 \
     FP_CONST(10.0)
 
-/** Maximum longitudinal force: m * a_max = 3.74 * 9.51 ≈ 35.57 N */
-#define F110_DEFAULT_MAX_LONGITUDINAL_FORCE_NEWTONS \
-    FP_CONST(35.57)
+/** Maximum motor torque: F_x_max * R_w * G_ratio = 35.57 * 0.0545 * 11.82 ≈ 22.9 N·m */
+#define F110_DEFAULT_MAX_MOTOR_TORQUE_NM \
+    FP_CONST(22.9)
 
-/** Minimum longitudinal force (braking): -m * a_brake = -3.74 * 10.0 = -37.4 N */
-#define F110_DEFAULT_MIN_LONGITUDINAL_FORCE_NEWTONS \
-    FP_CONST(-37.4)
+/** Minimum motor torque (braking): F_x_min * R_w * G_ratio = -37.4 * 0.0545 * 11.82 ≈ -24.1 N·m */
+#define F110_DEFAULT_MIN_MOTOR_TORQUE_NM \
+    FP_CONST(-24.1)
+
+/** Wheel radius: 0.0545 meters (diameter 10.9 cm) */
+#define F110_WHEEL_RADIUS_METERS \
+    FP_CONST(0.0545)
+
+/** Drivetrain inertia: 2.223 kg·m² (motor + gearbox + wheels reflected to wheel side) */
+#define F110_DRIVETRAIN_INERTIA_KGM2 \
+    FP_CONST(2.223)
+
+/** Longitudinal tire stiffness: F_x = C_x * κ, estimated C_x ≈ 300 N */
+#define F110_LONGITUDINAL_TIRE_STIFFNESS \
+    FP_CONST(300.0)
 
 /** Maximum steering rate: 3.2 rad/s */
 #define F110_MAX_STEERING_RATE_RADS \
     FP_CONST(3.2)
+
+/** Yaw rate */
+#define F110_DEFAULT_YAW_RATE \
+    FP_CONST(0.0)
+
+/** Gravity acceleration: 9.81 m/s² */
+#define F110_GRAVITY_ACCELERATION_MS2 \
+    FP_CONST(9.81)
+
+/** Height from CG of car */
+#define F110_HEIGHT_METERS \
+    FP_CONST(0.074) // vildt gæt
+
+/** Longitudinal acceleration */
+#define F110_LONGITUDINAL_ACCELERATION \
+    FP_CONST(0)
+
+/** Gear ratio */
+#define F110_GEAR_RATIO \
+    FP_CONST(11.82)    
 
 /*===========================================================================
  * Default MPC Configuration
@@ -428,8 +525,8 @@ typedef struct
 /** Default maximum solver iterations */
 #define MPC_DEFAULT_MAXIMUM_ITERATIONS 2000
 
-/** Default convergence tolerance: 0.001 — Q16.16 ~ 66 */
+/** Default convergence tolerance: 0.02 — Q16.16 ~ 1310 */
 #define MPC_DEFAULT_CONVERGENCE_TOLERANCE \
-    ((fixed_point_t)66)
+    ((fixed_point_t)1310)
 
 #endif /* MPC_TYPES_H */

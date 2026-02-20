@@ -3,19 +3,20 @@
  * @brief Dynamic Nonlinear Bicycle Model for F1/10th Vehicle
  *
  * Provides vehicle dynamics prediction for Model Predictive Control.
- * Uses the dynamic bicycle model with linear tire forces, appropriate
- * for high-speed autonomous vehicles like F1/10th cars.
+ * Uses the dynamic bicycle model with linear tire forces and wheel
+ * dynamics, appropriate for high-speed autonomous vehicles like F1/10th.
  *
- * State vector (6 states): [x, y, psi, v_x, v_y, omega]
- *   x, y     = position in world frame [meters]
- *   psi      = yaw angle (heading) [radians]
- *   v_x      = longitudinal velocity in body frame [m/s]
- *   v_y      = lateral velocity in body frame [m/s]
- *   omega    = yaw rate [rad/s]
+ * State vector (7 states): [x, y, psi, v_x, v_y, omega, omega_w]
+ *   x, y       = position in world frame [meters]
+ *   psi        = yaw angle (heading) [radians]
+ *   v_x        = longitudinal velocity in body frame [m/s]
+ *   v_y        = lateral velocity in body frame [m/s]
+ *   omega      = yaw rate [rad/s]
+ *   omega_w    = wheel angular velocity [rad/s]
  *
- * Control vector (2 inputs): [delta, F_x]
- *   delta    = front wheel steering angle [radians]
- *   F_x      = longitudinal force at rear axle [Newtons]
+ * Control vector (2 inputs): [delta, T_motor]
+ *   delta      = front wheel steering angle [radians]
+ *   T_motor    = motor torque [N·m]
  *
  * Model Equations (continuous time):
  *   dx/dt      = v_x * cos(psi) - v_y * sin(psi)
@@ -24,12 +25,17 @@
  *   dv_x/dt    = (F_x - F_yf * sin(delta) + m * v_y * omega) / m
  *   dv_y/dt    = (F_yf * cos(delta) + F_yr - m * v_x * omega) / m
  *   domega/dt  = (l_f * F_yf * cos(delta) - l_r * F_yr) / I_z
+ *   domega_w/dt = (T_motor / G_ratio - F_x * R_w) / I_w
+ *
+ * Longitudinal force via slip ratio:
+ *   κ = (R_w * ω_w - v_x) / max(|v_x|, ε)
+ *   F_x = C_x * κ
  *
  * Tire model (linear):
  *   alpha_f = delta - atan((v_y + l_f * omega) / v_x)
  *   alpha_r = -atan((v_y - l_r * omega) / v_x)
- *   F_yf = -C_Sf * alpha_f
- *   F_yr = -C_Sr * alpha_r
+ *   F_yf = C_Sf * alpha_f * F_zf
+ *   F_yr = C_Sr * alpha_r * F_zr
  *
  * Discretization: Forward Euler method
  *   state[k+1] = state[k] + dt * derivative[k]
@@ -42,6 +48,23 @@
 
 #include "mpc_types.h"
 #include "fp_math.h"
+
+
+/*===========================================================================
+ * Initialization Opcomming
+ *===========================================================================*/
+
+/* - Slip angle for braking
+   - Slip angle for steering
+   - Wheel radius                                            - Measured 
+   - Braking torques for front and rear wheels               - From VESC
+   - Applied acceleration for throttle                       - From VESC
+   - Angular velocity for wheels 
+   - Front and rear normal loads
+   - Yaw rate                                                - From (IMU)
+   - Lateral velocity                                        - From (IMU) / måske observer
+   */
+
 
 /*===========================================================================
  * Model Initialization
@@ -58,7 +81,9 @@
  * - Rear cornering stiffness: 5.4562 N/rad
  * - Max steering: 0.4189 rad (24 deg)
  * - Max velocity: 20.0 m/s
- * - Max force: 35.57 N, Min force: -37.4 N
+ * - Max motor torque: 22.9 N·m, Min: -24.1 N·m
+ * - Wheel radius: 0.0545 m, Gear ratio: 11.82
+ * - Drivetrain inertia: 0.002 kg·m², C_x: 300 N
  */
 void vehicle_model_initialize(void);
 
@@ -86,7 +111,7 @@ VehicleParameters_t vehicle_model_get_parameters(void);
  *
  * Ensures:
  * - Steering angle within [-max_steering, +max_steering]
- * - Longitudinal force within [min_force, max_force]
+ * - Motor torque within [min_torque, max_torque]
  *
  * @param raw_control  Unconstrained control input
  * @return Constrained control input within physical limits
@@ -107,8 +132,8 @@ ControlInput_t vehicle_model_saturate_control(
  * Includes tire force computation using linear tire model.
  * The control input is automatically saturated to physical limits.
  *
- * @param current_state   Current vehicle state (6 states)
- * @param control_input   Control input (steering, force)
+ * @param current_state   Current vehicle state (7 states)
+ * @param control_input   Control input (steering, motor torque)
  * @param time_step       Time step duration [seconds] in fixed-point
  * @return Predicted state after time_step seconds
  */
@@ -154,23 +179,23 @@ void vehicle_model_predict_trajectory(
  *   state[k+1] ≈ A × state[k] + B × control[k]
  *
  * Where:
- *   A = I + dt × (∂f/∂state)    [6×6 discrete state matrix]
- *   B = dt × (∂f/∂control)      [6×2 discrete input matrix]
+ *   A = I + dt × (∂f/∂state)    [7×7 discrete state matrix]
+ *   B = dt × (∂f/∂control)      [7×2 discrete input matrix]
  *
- * State ordering: [x, y, heading, v_x, v_y, omega]
- * Control ordering: [steering, longitudinal_force]
+ * State ordering: [x, y, heading, v_x, v_y, omega, omega_w]
+ * Control ordering: [steering, motor_torque]
  *
  * @param operating_state    State to linearize around
  * @param operating_control  Control to linearize around
  * @param time_step          Discretization time step [seconds]
- * @param state_matrix_A     Output: 6×6 state transition matrix
- * @param input_matrix_B     Output: 6×2 input matrix
+ * @param state_matrix_A     Output: 7×7 state transition matrix
+ * @param input_matrix_B     Output: 7×2 input matrix
  */
 void vehicle_model_compute_linearization(
     const VehicleState_t *operating_state,
     const ControlInput_t *operating_control,
     fixed_point_t time_step,
-    fixed_point_t state_matrix_A[6][6],
-    fixed_point_t input_matrix_B[6][2]);
+    fixed_point_t state_matrix_A[7][7],
+    fixed_point_t input_matrix_B[7][2]);
 
 #endif /* VEHICLE_MODEL_H */

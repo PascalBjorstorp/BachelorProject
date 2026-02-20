@@ -22,15 +22,16 @@
 #include "vehicle_model.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /*===========================================================================
  * Internal Constants
  *===========================================================================*/
 
-/** Number of states in vehicle model: [x, y, heading, v_x, v_y, omega] */
-#define STATE_DIMENSION 6
+/** Number of states in vehicle model: [x, y, heading, v_x, v_y, omega, omega_w] */
+#define STATE_DIMENSION 7
 
-/** Number of control inputs: [steering, longitudinal_force] */
+/** Number of control inputs: [steering, motor_torque] */
 #define CONTROL_DIMENSION 2
 
 /** Maximum prediction horizon supported */
@@ -48,6 +49,10 @@ static int mpc_initialized_flag = 0;
 
 /** Previous control input (for rate limiting) */
 static ControlInput_t previous_control_input;
+
+/** Previous QP solution for warm-starting (shifted by one step) */
+static fixed_point_t warm_start_variables[QP_MAXIMUM_VARIABLES];
+static int warm_start_available = 0;
 
 /*===========================================================================
  * Heading Angle Normalization
@@ -99,38 +104,31 @@ static MpcConfiguration_t get_default_configuration(void)
      *
      * Future improvement: Use Frenet (path-relative) coordinates instead of
      * global XY to properly decouple lateral and heading tracking.
+     *
+     * NOTE: All weights scaled by 0.1 to prevent Q16.16 overflow in
+     * condensed Hessian construction (Phi^T Q Phi accumulates large
+     * products over 10-step horizon). Relative ratios preserved.
      */
-    config.weight_position_x = FP_CONST(0.01);                             /* 1.0 - track waypoint x */
-    config.weight_position_y = FP_CONST(0.01);                             /* 1.0 - track waypoint y */
-    config.weight_heading    = (fixed_point_t)(5 * FP_ONE);       /* 5.0 - moderate heading tracking */
-    config.weight_velocity   = FP_ONE;                            /* 1.0 */
-    config.weight_lateral_velocity = (fixed_point_t)(5 * FP_ONE); /* 5.0 - penalize sideslip */
-    config.weight_yaw_rate   = (fixed_point_t)(2 * FP_ONE);       /* 2.0 - dampen yaw oscillation */
+    config.weight_position_x = FP_CONST(0.0);                      /* 0.0 - position tracked via cross-track heading correction */
+    config.weight_position_y = FP_CONST(0.0);                      /* 0.0 - position tracked via cross-track heading correction */
+    config.weight_heading    = FP_CONST(5);                     /* 5.0 - primary tracking objective (dominant) */
+    config.weight_velocity   = FP_CONST(0.05);                    /* 0.05 - deprioritize speed vs heading */
+    config.weight_lateral_velocity = FP_CONST(0.05);              /* 0.05 - light sideslip penalty */
+    config.weight_yaw_rate   = FP_CONST(0.01);                     /* 0.01 - light yaw damping (use MPC_W_YAW_RATE to tune) */
+    config.weight_wheel_speed = FP_CONST(0.01);                   /* 0.01 - light penalty on wheel speed */
 
-    /* Control effort weights
-     *
-     * Keep small — we don't want to penalize steering/speed magnitude,
-     * only their changes (rate). These act as regularization.
-     */
-    config.weight_steering_effort  = FP_CONST(0.01);    /* 0.01 */
-    config.weight_force_effort      = (fixed_point_t)655;    /* 0.01 */
+    /* Control effort weights */
+    config.weight_steering_effort  = FP_CONST(0.001);    /* 0.001 */
+    config.weight_torque_effort     = FP_CONST(0.01);    /* 0.01 - regularize torque magnitude */
 
-    /* Control rate weights (smooth control)
-     *
-     * The steering rate weight penalizes consecutive control differences
-     * (u[k+1] - u[k])^2 within the horizon, and scaled (u[0] - u_prev)^2
-     * for cross-call smoothness.
-     *
-     * With dt=50ms and actual velocity linearization, B = dt*v/L varies with speed.
-     * At v=10 m/s: B ≈ 1.52, tracking diagonal ≈ 2*10*2.3*20 = 920.
-     * Rate diagonal = 4*w_sr. With w_sr=3: rate diag = 12. Ratio ≈ 77:1 (tracking dominant).
-     * This gives responsive steering while the rate penalty prevents large jumps.
-     *
-     * The cross_call_rate_scale adjusts for the MPC being called faster (200 Hz)
-     * than the prediction dt (50ms = 20 Hz). Default is 1.0 for offline.
-     */
-    config.weight_steering_rate  = (fixed_point_t)(10 * FP_ONE);    /* 10.0 - smoother steering */
-    config.weight_force_rate     = FP_CONST(0.1);                    /* 0.1 */
+    /* Control rate weights — tuned so MPC naturally limits steering rate
+     * without relying on the external rate clamp.  A high steering-rate
+     * penalty makes large step-to-step changes expensive, preventing the
+     * bang-bang oscillation that occurs when the external clamp truncates
+     * a multi-step plan.  The external clamp (±0.15 rad/step) remains as
+     * a safety net. */
+    config.weight_steering_rate  = FP_CONST(0.5);                    /* 0.5 - prevent oscillation (was 0.05) */
+    config.weight_torque_rate     = FP_CONST(0.1);                    /* 0.1 - prevent torque chattering */
 
     /* Cross-call rate scale: 1.0 = call interval matches dt (default for offline use).
      * Set to smaller value (e.g., 0.1) when MPC is called 10× faster than dt.
@@ -140,6 +138,33 @@ static MpcConfiguration_t get_default_configuration(void)
     /* Solver parameters */
     config.maximum_solver_iterations = MPC_DEFAULT_MAXIMUM_ITERATIONS;
     config.solver_convergence_tolerance = MPC_DEFAULT_CONVERGENCE_TOLERANCE;
+
+    /* Environment variable overrides for runtime tuning.
+     * Example: MPC_W_HEADING=2.0 MPC_W_STEER_RATE=0.01 ros2 launch ...
+     * Avoids rebuild for quick parameter exploration. */
+    {
+        const char *env_val;
+        if ((env_val = getenv("MPC_W_POS_X")) != NULL)
+            config.weight_position_x = DOUBLE_TO_FP(atof(env_val));
+        if ((env_val = getenv("MPC_W_POS_Y")) != NULL)
+            config.weight_position_y = DOUBLE_TO_FP(atof(env_val));
+        if ((env_val = getenv("MPC_W_HEADING")) != NULL)
+            config.weight_heading = DOUBLE_TO_FP(atof(env_val));
+        if ((env_val = getenv("MPC_W_VELOCITY")) != NULL)
+            config.weight_velocity = DOUBLE_TO_FP(atof(env_val));
+        if ((env_val = getenv("MPC_W_LAT_VEL")) != NULL)
+            config.weight_lateral_velocity = DOUBLE_TO_FP(atof(env_val));
+        if ((env_val = getenv("MPC_W_YAW_RATE")) != NULL)
+            config.weight_yaw_rate = DOUBLE_TO_FP(atof(env_val));
+        if ((env_val = getenv("MPC_W_STEER_RATE")) != NULL)
+            config.weight_steering_rate = DOUBLE_TO_FP(atof(env_val));
+        if ((env_val = getenv("MPC_W_STEER_EFFORT")) != NULL)
+            config.weight_steering_effort = DOUBLE_TO_FP(atof(env_val));
+        if ((env_val = getenv("MPC_W_TORQUE_RATE")) != NULL)
+            config.weight_torque_rate = DOUBLE_TO_FP(atof(env_val));
+        if ((env_val = getenv("MPC_CROSS_CALL_SCALE")) != NULL)
+            config.cross_call_rate_scale = DOUBLE_TO_FP(atof(env_val));
+    }
 
     return config;
 }
@@ -206,14 +231,14 @@ static void build_qp_from_prediction(
      *     Hessian coupling H[steer][vel]≈50 that, with velocity at 20,
      *     overwhelms tracking (gradient 1014 vs tracking 45).
      * --------------------------------------------------------------- */
-    fixed_point_t A[6][6];
-    fixed_point_t B[6][2];
+    fixed_point_t A[7][7];
+    fixed_point_t B[7][2];
 
     /* Use actual vehicle state for linearization, with minimum velocity floor.
      * Linearize steering at delta=0 to eliminate velocity-steering cross-coupling. */
     ControlInput_t linearization_control;
     linearization_control.steering_angle_radians = 0;  /* Always linearize at delta=0 */
-    linearization_control.longitudinal_force_newtons = 0;  /* Linearize at zero force */
+    linearization_control.motor_torque_newton_meters = 0;  /* Linearize at zero torque */
 
     /* Create a copy of current state with velocity floor for linearization */
     VehicleState_t linearization_state = *current_state;
@@ -221,11 +246,67 @@ static void build_qp_from_prediction(
     if (linearization_state.longitudinal_velocity_meters_per_second < min_linearization_velocity)
         linearization_state.longitudinal_velocity_meters_per_second = min_linearization_velocity;
 
+    /* Ensure wheel speed is consistent with velocity floor for linearization */
+    VehicleParameters_t vp = vehicle_model_get_parameters();
+    if (linearization_state.wheel_speed_radians_per_second == 0 &&
+        linearization_state.longitudinal_velocity_meters_per_second > 0)
+    {
+        linearization_state.wheel_speed_radians_per_second =
+            fp_div(linearization_state.longitudinal_velocity_meters_per_second,
+                   vp.wheel_radius_meters);
+    }
+
     vehicle_model_compute_linearization(
         &linearization_state,
         &linearization_control,
         current_configuration.time_step_seconds,
         A, B);
+
+    /* ---------------------------------------------------------------
+     * Stabilize wheel dynamics (row 6 of A matrix).
+     *
+     * With small wheel inertia, the wheel dynamics
+     * time constant τ = Iw·vx/(Cx·Rw²) ≈ 0.022s at vx=1 m/s,
+     * much smaller than dt=50ms. Forward Euler is unstable when
+     * dt >> τ, producing |A[6][6]| >> 1 (e.g., -43 at low speed).
+     *
+     * Fix: rescale row 6 of A so A[6][6] is clamped to [-0.95, 0.95].
+     * The scale factor preserves relative coupling magnitudes,
+     * effectively approximating implicit Euler for the stiff wheel
+     * subsystem. The control effect (B[6][1]) is preserved.
+     * --------------------------------------------------------------- */
+    {
+        fixed_point_t abs_a66 = fp_abs(A[6][6]);
+        const fixed_point_t stability_limit = FP_CONST(0.95);
+
+        if (abs_a66 > stability_limit)
+        {
+            /* Scale factor = (target - 1) / (A[6][6] - 1)
+             * Maps the continuous eigenvalue contribution to the clamped range
+             * while preserving relative off-diagonal magnitudes. */
+            fixed_point_t target = (A[6][6] < 0) ? fp_neg(stability_limit) : stability_limit;
+            fixed_point_t num = fp_sub(target, FP_ONE);
+            fixed_point_t den = fp_sub(A[6][6], FP_ONE);
+
+            /* Avoid division by zero (shouldn't happen as |a66| > 0.95
+             * implies a66 != 1, so den != 0) */
+            if (den != 0)
+            {
+                fixed_point_t scale = fp_div(num, den);
+
+                /* Scale off-diagonal entries in row 6 */
+                for (int j = 0; j < STATE_DIMENSION; j++)
+                {
+                    if (j != 6)
+                    {
+                        A[6][j] = fp_mul(A[6][j], scale);
+                    }
+                }
+            }
+
+            A[6][6] = target;
+        }
+    }
 
     /* ---------------------------------------------------------------
      * Step 2: Compute Phi[m] = A^m * B for m = 0 .. N-1
@@ -281,7 +362,8 @@ static void build_qp_from_prediction(
         current_state->heading_angle_radians,
         current_state->longitudinal_velocity_meters_per_second,
         current_state->lateral_velocity_meters_per_second,
-        current_state->yaw_rate_radians_per_second
+        current_state->yaw_rate_radians_per_second,
+        current_state->wheel_speed_radians_per_second
     };
 
     /* Propagate free response incrementally: x_next = A * x_prev */
@@ -320,6 +402,8 @@ static void build_qp_from_prediction(
             reference_trajectory[k].reference_lateral_velocity_meters_per_second);
         d[k][5] = fp_sub(x_free[5],
             reference_trajectory[k].reference_yaw_rate_radians_per_second);
+        d[k][6] = fp_sub(x_free[6],
+            reference_trajectory[k].reference_wheel_speed_radians_per_second);
 
         /* Advance for next iteration, normalizing heading to [-pi, pi] */
         for (int s = 0; s < STATE_DIMENSION; s++)
@@ -344,7 +428,8 @@ static void build_qp_from_prediction(
         current_configuration.weight_heading,
         current_configuration.weight_velocity,
         current_configuration.weight_lateral_velocity,
-        current_configuration.weight_yaw_rate
+        current_configuration.weight_yaw_rate,
+        current_configuration.weight_wheel_speed
     };
 
     /* Build list of active (non-zero weight) state indices */
@@ -378,11 +463,13 @@ static void build_qp_from_prediction(
     {
         for (int cj = ci; cj < horizon_steps; cj++)
         {
-            /* Accumulate 2×2 block for (ci, cj) */
-            fixed_point_t block[CONTROL_DIMENSION][CONTROL_DIMENSION];
+            /* Accumulate 2×2 block for (ci, cj) using int64_t to avoid overflow.
+             * The inner loop sums up to num_active_states × (cj..horizon) products,
+             * which can exceed int32_t range in Q16.16. */
+            int64_t block64[CONTROL_DIMENSION][CONTROL_DIMENSION];
             for (int a = 0; a < CONTROL_DIMENSION; a++)
                 for (int b = 0; b < CONTROL_DIMENSION; b++)
-                    block[a][b] = 0;
+                    block64[a][b] = 0;
 
             /* Sum over all prediction steps where both controls matter */
             for (int k = cj; k < horizon_steps; k++)
@@ -395,17 +482,15 @@ static void build_qp_from_prediction(
                 {
                     for (int b = 0; b < CONTROL_DIMENSION; b++)
                     {
-                        fixed_point_t term = 0;
+                        int64_t term64 = 0;
                         for (int si = 0; si < num_active_states; si++)
                         {
                             int s = active_states[si];
-                            /* Phi[mi][s][a] * Q[s] * Phi[mj][s][b] */
-                            fixed_point_t phi_q = fp_mul(
-                                Phi[mi][s][a], Q[s]);
-                            term = fp_add(term,
-                                fp_mul(phi_q, Phi[mj][s][b]));
+                            /* Phi[mi][s][a] * Q[s] * Phi[mj][s][b] — use int64_t */
+                            int64_t phi_q = ((int64_t)Phi[mi][s][a] * Q[s]) >> FP_FRAC_BITS;
+                            term64 += (phi_q * Phi[mj][s][b]) >> FP_FRAC_BITS;
                         }
-                        block[a][b] = fp_add(block[a][b], term);
+                        block64[a][b] += term64;
                     }
                 }
             }
@@ -418,7 +503,13 @@ static void build_qp_from_prediction(
             {
                 for (int b = 0; b < CONTROL_DIMENSION; b++)
                 {
-                    fixed_point_t val = fp_mul(FP_TWO, block[a][b]);
+                    int64_t val64 = block64[a][b] * 2;
+                    /* Clamp to int32_t */
+                    fixed_point_t val;
+                    if (val64 > INT32_MAX) val = INT32_MAX;
+                    else if (val64 < INT32_MIN) val = INT32_MIN;
+                    else val = (fixed_point_t)val64;
+
                     hessian_matrix[(row + a) * n_vars + (col + b)] = val;
 
                     /* Symmetric entry */
@@ -431,36 +522,23 @@ static void build_qp_from_prediction(
         }
     }
 
-    /* Control effort contribution: 2*R on diagonal */
+    /* Control effort contribution: 2*R on diagonal (saturating add) */
     fixed_point_t two_w_steer = fp_mul(FP_TWO,
         current_configuration.weight_steering_effort);
-    fixed_point_t two_w_force = fp_mul(FP_TWO,
-        current_configuration.weight_force_effort);
+    fixed_point_t two_w_torque = fp_mul(FP_TWO,
+        current_configuration.weight_torque_effort);
 
     for (int ci = 0; ci < horizon_steps; ci++)
     {
         int idx_s = (ci * 2) * n_vars + (ci * 2);
         int idx_v = (ci * 2 + 1) * n_vars + (ci * 2 + 1);
-        hessian_matrix[idx_s] = fp_add(hessian_matrix[idx_s], two_w_steer);
-        hessian_matrix[idx_v] = fp_add(hessian_matrix[idx_v], two_w_force);
+        hessian_matrix[idx_s] = fp_add_sat(hessian_matrix[idx_s], two_w_steer);
+        hessian_matrix[idx_v] = fp_add_sat(hessian_matrix[idx_v], two_w_torque);
     }
 
-    /* Rate penalty contribution
-     *
-     * Penalizes consecutive control differences: (u[k+1] - u[k])^2
-     * INCLUDING the cross-call term (u[0] - u_prev)^2 for smooth
-     * continuation from the previous MPC solution.
-     *
-     * Diagonal contributions:
-     *   step 0:     u[0] in (u[0]-u_prev)^2 AND (u[1]-u[0])^2 → +4*w_rate
-     *   steps 1..N-2: u[k] in (u[k]-u[k-1])^2 AND (u[k+1]-u[k])^2 → +4*w_rate
-     *   step N-1:   u[k] in (u[k]-u[k-1])^2 only → +2*w_rate
-     *
-     * The cross-call rate penalty (step 0) is scaled by cross_call_rate_scale
-     * to account for the MPC being called faster than the prediction dt.
-     */
+    /* Rate penalty contribution (all additions use saturating arithmetic) */
     fixed_point_t w_sr = current_configuration.weight_steering_rate;
-    fixed_point_t w_vr = current_configuration.weight_force_rate;
+    fixed_point_t w_vr = current_configuration.weight_torque_rate;
     fixed_point_t w_sr_cross = fp_mul(w_sr, current_configuration.cross_call_rate_scale);
     fixed_point_t w_vr_cross = fp_mul(w_vr, current_configuration.cross_call_rate_scale);
 
@@ -469,41 +547,32 @@ static void build_qp_from_prediction(
         int idx_s = (ci * 2) * n_vars + (ci * 2);
         int idx_v = (ci * 2 + 1) * n_vars + (ci * 2 + 1);
 
-        /**
-         * Diagonal rate contribution:
-         *   step 0:     (u[0]-u_prev)^2 [cross] + (u[1]-u[0])^2 [horizon]
-         *               → +2*w_sr_cross + 2*w_sr
-         *   steps 1..N-2: two horizon terms → +4*w_sr
-         *   step N-1:   one horizon term → +2*w_sr
-         */
         if (ci == 0)
         {
-            /* Cross-call contribution: +2*w_cross */
-            hessian_matrix[idx_s] = fp_add(hessian_matrix[idx_s],
+            hessian_matrix[idx_s] = fp_add_sat(hessian_matrix[idx_s],
                 fp_mul(FP_TWO, w_sr_cross));
-            hessian_matrix[idx_v] = fp_add(hessian_matrix[idx_v],
+            hessian_matrix[idx_v] = fp_add_sat(hessian_matrix[idx_v],
                 fp_mul(FP_TWO, w_vr_cross));
-            /* Within-horizon contribution (from (u[1]-u[0])²): +2*w_sr */
             if (horizon_steps > 1)
             {
-                hessian_matrix[idx_s] = fp_add(hessian_matrix[idx_s],
+                hessian_matrix[idx_s] = fp_add_sat(hessian_matrix[idx_s],
                     fp_mul(FP_TWO, w_sr));
-                hessian_matrix[idx_v] = fp_add(hessian_matrix[idx_v],
+                hessian_matrix[idx_v] = fp_add_sat(hessian_matrix[idx_v],
                     fp_mul(FP_TWO, w_vr));
             }
         }
         else if (ci < horizon_steps - 1)
         {
-            hessian_matrix[idx_s] = fp_add(hessian_matrix[idx_s],
+            hessian_matrix[idx_s] = fp_add_sat(hessian_matrix[idx_s],
                 fp_mul((fixed_point_t)(4 * FP_ONE), w_sr));
-            hessian_matrix[idx_v] = fp_add(hessian_matrix[idx_v],
+            hessian_matrix[idx_v] = fp_add_sat(hessian_matrix[idx_v],
                 fp_mul((fixed_point_t)(4 * FP_ONE), w_vr));
         }
         else
         {
-            hessian_matrix[idx_s] = fp_add(hessian_matrix[idx_s],
+            hessian_matrix[idx_s] = fp_add_sat(hessian_matrix[idx_s],
                 fp_mul(FP_TWO, w_sr));
-            hessian_matrix[idx_v] = fp_add(hessian_matrix[idx_v],
+            hessian_matrix[idx_v] = fp_add_sat(hessian_matrix[idx_v],
                 fp_mul(FP_TWO, w_vr));
         }
 
@@ -518,10 +587,10 @@ static void build_qp_from_prediction(
             fixed_point_t neg_2_sr = fp_neg(fp_mul(FP_TWO, w_sr));
             fixed_point_t neg_2_vr = fp_neg(fp_mul(FP_TWO, w_vr));
 
-            hessian_matrix[prev_s] = fp_add(hessian_matrix[prev_s], neg_2_sr);
-            hessian_matrix[sym_s]  = fp_add(hessian_matrix[sym_s],  neg_2_sr);
-            hessian_matrix[prev_v] = fp_add(hessian_matrix[prev_v], neg_2_vr);
-            hessian_matrix[sym_v]  = fp_add(hessian_matrix[sym_v],  neg_2_vr);
+            hessian_matrix[prev_s] = fp_add_sat(hessian_matrix[prev_s], neg_2_sr);
+            hessian_matrix[sym_s]  = fp_add_sat(hessian_matrix[sym_s],  neg_2_sr);
+            hessian_matrix[prev_v] = fp_add_sat(hessian_matrix[prev_v], neg_2_vr);
+            hessian_matrix[sym_v]  = fp_add_sat(hessian_matrix[sym_v],  neg_2_vr);
         }
     }
 
@@ -535,12 +604,12 @@ static void build_qp_from_prediction(
      * --------------------------------------------------------------- */
     memset(linear_cost_vector, 0, (size_t)n_vars * sizeof(fixed_point_t));
 
-    /* Tracking contribution: 2 * Su^T Q d */
+    /* Tracking contribution: 2 * Su^T Q d — using int64_t accumulator */
     for (int ci = 0; ci < horizon_steps; ci++)
     {
         for (int a = 0; a < CONTROL_DIMENSION; a++)
         {
-            fixed_point_t sum = 0;
+            int64_t sum64 = 0;
 
             for (int k = ci; k < horizon_steps; k++)
             {
@@ -549,15 +618,20 @@ static void build_qp_from_prediction(
                 for (int si = 0; si < num_active_states; si++)
                 {
                     int s = active_states[si];
-                    /* Phi[m][s][a] * Q[s] * d[k][s] */
-                    fixed_point_t phi_q = fp_mul(Phi[m][s][a], Q[s]);
-                    sum = fp_add(sum,
-                        fp_mul(phi_q, d[k][s]));
+                    /* Phi[m][s][a] * Q[s] * d[k][s] — int64_t intermediates */
+                    int64_t phi_q = ((int64_t)Phi[m][s][a] * Q[s]) >> FP_FRAC_BITS;
+                    sum64 += (phi_q * d[k][s]) >> FP_FRAC_BITS;
                 }
             }
 
-            linear_cost_vector[ci * CONTROL_DIMENSION + a] =
-                fp_mul(FP_TWO, sum);
+            /* Multiply by 2 and clamp */
+            int64_t val64 = sum64 * 2;
+            fixed_point_t val;
+            if (val64 > INT32_MAX) val = INT32_MAX;
+            else if (val64 < INT32_MIN) val = INT32_MIN;
+            else val = (fixed_point_t)val64;
+
+            linear_cost_vector[ci * CONTROL_DIMENSION + a] = val;
         }
     }
 
@@ -580,7 +654,7 @@ static void build_qp_from_prediction(
         fp_mul(
             FP_TWO,
             fp_mul(w_vr_cross,
-                previous_control_input.longitudinal_force_newtons)));
+                previous_control_input.motor_torque_newton_meters)));
     
     /* Debug: print first element of linear cost and Phi[0][2][0] (steering->heading) */
 #ifdef MPC_DEBUG_PRINT
@@ -643,17 +717,17 @@ static void build_qp_constraints(
         constraint_bounds[constraint_base + 1] =
             vehicle_params.maximum_steering_angle_radians;
 
-        /* Constraint 2: force <= max_force */
+        /* Constraint 2: torque <= max_torque */
         constraint_matrix[(constraint_base + 2) * total_controls + (control_base + 1)] =
             FP_ONE;
         constraint_bounds[constraint_base + 2] =
-            vehicle_params.maximum_longitudinal_force_newtons;
+            vehicle_params.maximum_motor_torque_newton_meters;
 
-        /* Constraint 3: -force <= -min_force (i.e., force >= min_force) */
+        /* Constraint 3: -torque <= -min_torque (i.e., torque >= min_torque) */
         constraint_matrix[(constraint_base + 3) * total_controls + (control_base + 1)] =
             fp_neg(FP_ONE);
         constraint_bounds[constraint_base + 3] =
-            fp_neg(vehicle_params.minimum_longitudinal_force_newtons);
+            fp_neg(vehicle_params.minimum_motor_torque_newton_meters);
     }
 }
 
@@ -670,7 +744,11 @@ void mpc_initialize(void)
 
     /* Clear previous control */
     previous_control_input.steering_angle_radians = 0;
-    previous_control_input.longitudinal_force_newtons = 0;
+    previous_control_input.motor_torque_newton_meters = 0;
+
+    /* Clear warm-start */
+    memset(warm_start_variables, 0, sizeof(warm_start_variables));
+    warm_start_available = 0;
 
     mpc_initialized_flag = 1;
 }
@@ -691,7 +769,11 @@ void mpc_initialize_with_configuration(const MpcConfiguration_t *configuration)
 
     /* Clear previous control */
     previous_control_input.steering_angle_radians = 0;
-    previous_control_input.longitudinal_force_newtons = 0;
+    previous_control_input.motor_torque_newton_meters = 0;
+
+    /* Clear warm-start */
+    memset(warm_start_variables, 0, sizeof(warm_start_variables));
+    warm_start_available = 0;
 
     mpc_initialized_flag = 1;
 }
@@ -746,6 +828,52 @@ MpcSolverStatus_t mpc_compute_optimal_control(
         qp_problem.hessian_matrix,
         qp_problem.linear_cost_vector);
 
+    /* Auto-scale Hessian and gradient to fit Q16.16 range.
+     *
+     * The condensed MPC Hessian (Phi^T Q Phi) can exceed INT32_MAX
+     * due to large B matrix entries (especially torque→wheel_speed: B[6][1]≈2.12).
+     * Since scaling H and f by the same factor doesn't change the QP solution
+     * (argmin is invariant), we find the maximum |entry| and right-shift
+     * both H and f to bring everything into representable range.
+     */
+    {
+        /* Find maximum absolute Hessian entry */
+        int64_t max_abs = 0;
+        for (int i = 0; i < total_controls * total_controls; i++)
+        {
+            int64_t v = (int64_t)qp_problem.hessian_matrix[i];
+            if (v < 0) v = -v;
+            if (v > max_abs) max_abs = v;
+        }
+        for (int i = 0; i < total_controls; i++)
+        {
+            int64_t v = (int64_t)qp_problem.linear_cost_vector[i];
+            if (v < 0) v = -v;
+            if (v > max_abs) max_abs = v;
+        }
+
+        /* Compute shift: bring max_abs below INT32_MAX/4 for safety margin */
+        int shift_bits = 0;
+        int64_t target = (int64_t)INT32_MAX / 4;  /* ~536 million */
+        while (max_abs > target && shift_bits < 20)
+        {
+            max_abs >>= 1;
+            shift_bits++;
+        }
+
+        if (shift_bits > 0)
+        {
+            for (int i = 0; i < total_controls * total_controls; i++)
+            {
+                qp_problem.hessian_matrix[i] >>= shift_bits;
+            }
+            for (int i = 0; i < total_controls; i++)
+            {
+                qp_problem.linear_cost_vector[i] >>= shift_bits;
+            }
+        }
+    }
+
     /* Build constraints */
     build_qp_constraints(
         horizon,
@@ -756,19 +884,44 @@ MpcSolverStatus_t mpc_compute_optimal_control(
     /* Configure solver */
     qp_config.maximum_iterations = current_configuration.maximum_solver_iterations;
     qp_config.convergence_tolerance = current_configuration.solver_convergence_tolerance;
+    qp_config.enable_verbose_output = 0;
+
+    /* Warm-start: initialize QP solution from shifted previous solution.
+     * Shift control sequence by one step: u[0]=u_prev[1], u[1]=u_prev[2], ...
+     * Last step repeats the last known value. */
+    if (warm_start_available && total_controls >= CONTROL_DIMENSION)
+    {
+        for (int i = 0; i < total_controls - CONTROL_DIMENSION; i++)
+        {
+            qp_problem.initial_point[i] =
+                warm_start_variables[i + CONTROL_DIMENSION];
+        }
+        /* Repeat last control for the final step */
+        for (int i = 0; i < CONTROL_DIMENSION; i++)
+        {
+            qp_problem.initial_point[total_controls - CONTROL_DIMENSION + i] =
+                warm_start_variables[total_controls - CONTROL_DIMENSION + i];
+        }
+        qp_problem.use_warm_start = 1;
+    }
 
     /* Solve QP */
     QuadraticProgramStatus_t qp_status = qp_solver_solve(
         &qp_problem, &qp_config, &qp_solution);
 
+    /* Save solution for next warm-start */
+    memcpy(warm_start_variables, qp_solution.optimal_variables,
+           total_controls * sizeof(fixed_point_t));
+    warm_start_available = 1;
+
     /* Extract first control from solution */
     fixed_point_t optimal_steering = qp_solution.optimal_variables[0];
-    fixed_point_t optimal_force    = qp_solution.optimal_variables[1];
+    fixed_point_t optimal_torque   = qp_solution.optimal_variables[1];
 
     /* Saturate control to vehicle limits */
     ControlInput_t raw_control;
     raw_control.steering_angle_radians = optimal_steering;
-    raw_control.longitudinal_force_newtons = optimal_force;
+    raw_control.motor_torque_newton_meters = optimal_torque;
 
     ControlInput_t saturated_control = vehicle_model_saturate_control(&raw_control);
 
@@ -817,5 +970,9 @@ void mpc_reset(void)
 {
     /* Clear previous control (no rate penalty on first control after reset) */
     previous_control_input.steering_angle_radians = 0;
-    previous_control_input.longitudinal_force_newtons = 0;
+    previous_control_input.motor_torque_newton_meters = 0;
+
+    /* Clear warm-start */
+    memset(warm_start_variables, 0, sizeof(warm_start_variables));
+    warm_start_available = 0;
 }
