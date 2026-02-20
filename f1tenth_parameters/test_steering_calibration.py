@@ -63,18 +63,23 @@ class SteeringCalibrationNode(TestNode):
         # and from center toward servo_max
         servo_center = DEFAULT_SERVO_OFFSET
         servo_range_left = np.linspace(
-            servo_center, DEFAULT_SERVO_MIN + 0.02, args.steps + 1)
+            servo_center,  DEFAULT_SERVO_MAX - 0.02, args.steps + 1)
         servo_range_right = np.linspace(
-            servo_center, DEFAULT_SERVO_MAX - 0.02, args.steps + 1)
+            servo_center, DEFAULT_SERVO_MIN + 0.02, args.steps + 1)
         
-        # Combine: center, left sweep, back to center, right sweep
-        self.servo_positions = np.concatenate([
-            [servo_center],           # start at center (straight)
-            servo_range_left[1:],     # sweep left
-            [servo_center],           # back to center
-            servo_range_right[1:],    # sweep right
-            [servo_center],           # end at center
-        ])
+        # Split into two phases with a pause in between for repositioning
+        self.phase_positions = [
+            ("RIGHT turn (servo toward min)", np.concatenate([
+                [servo_center],           # start at center (straight)
+                servo_range_left[1:],     # sweep toward servo_min
+                [servo_center],           # back to center
+            ])),
+            ("LEFT turn (servo toward max)", np.concatenate([
+                [servo_center],           # start at center (straight)
+                servo_range_right[1:],    # sweep toward servo_max
+                [servo_center],           # back to center
+            ])),
+        ]
         
         self.segment_data = []  # List of (servo_pos, x_array, y_array)
     
@@ -83,77 +88,99 @@ class SteeringCalibrationNode(TestNode):
         if not self.wait_for_sensors():
             return False
         
+        total_positions = sum(len(p) for _, p in self.phase_positions)
+        
         self.get_logger().info("=" * 60)
         self.get_logger().info("STEERING CALIBRATION TEST")
         self.get_logger().info(f"Speed: {self.test_speed:.1f} m/s")
         self.get_logger().info(f"Hold time per position: {self.hold_time:.1f}s")
-        self.get_logger().info(f"Number of positions: {len(self.servo_positions)}")
-        self.get_logger().info(f"Estimated duration: {len(self.servo_positions) * (self.hold_time + 1.0):.0f}s")
+        self.get_logger().info(f"Number of positions: {total_positions}")
+        self.get_logger().info(f"Test has {len(self.phase_positions)} phases with pauses for repositioning")
         self.get_logger().info("Ensure ~3m of open space around the car.")
         self.get_logger().info("=" * 60)
         
-        self.countdown(5)
         self.recorder.start()
         self.safety.start()
         self.test_running = True
+        global_pos = 0
         
-        for i, servo_pos in enumerate(self.servo_positions):
+        for phase_idx, (phase_name, servo_positions) in enumerate(self.phase_positions):
             if not self.test_running:
                 break
             
-            # Compute expected steering angle from current calibration
-            expected_angle = (servo_pos - DEFAULT_SERVO_OFFSET) / DEFAULT_SERVO_GAIN
+            self.get_logger().info("")
+            self.get_logger().info(f"=== Phase {phase_idx+1}/{len(self.phase_positions)}: {phase_name} ===")
+            self.get_logger().info(f"Position the car with space in the {phase_name.split('(')[0].strip()} direction.")
+            self.get_logger().info("Press Enter when ready...")
+            input()
             
-            self.get_logger().info(
-                f"Position {i+1}/{len(self.servo_positions)}: "
-                f"servo={servo_pos:.3f}, expected_angle={np.degrees(expected_angle):.1f}°")
+            self.countdown(3)
             
-            # Command the steering position
-            self.send_command(self.test_speed, expected_angle)
-            
-            # Allow 1 second for servo to reach position
-            if not self.spin_for(1.0):
-                break
-            
-            # Record data for hold_time seconds
-            segment_x = []
-            segment_y = []
-            phase = f"servo_{servo_pos:.3f}"
-            
-            start_hold = time.monotonic()
-            while time.monotonic() - start_hold < self.hold_time:
-                rclpy.spin_once(self, timeout_sec=0.02)
-                
-                if not self.safety.check():
-                    self.get_logger().error(f"Safety abort: {self.safety.abort_reason}")
-                    self.stop_car()
-                    self.test_running = False
+            for i, servo_pos in enumerate(servo_positions):
+                if not self.test_running:
                     break
                 
-                self.recorder.record(
-                    cmd_servo=servo_pos,
-                    cmd_speed=self.test_speed,
-                    cmd_steering_angle=expected_angle,
-                    odom_x=self.odom_x,
-                    odom_y=self.odom_y,
-                    odom_yaw=self.odom_yaw,
-                    odom_vx=self.odom_vx,
-                    odom_omega=self.odom_omega,
-                    imu_gz=self.imu_gz,
-                    phase=phase
-                )
+                global_pos += 1
+                # Compute expected steering angle from current calibration
+                expected_angle = (servo_pos - DEFAULT_SERVO_OFFSET) / DEFAULT_SERVO_GAIN
                 
-                segment_x.append(self.odom_x)
-                segment_y.append(self.odom_y)
+                self.get_logger().info(
+                    f"Position {global_pos}/{total_positions}: "
+                    f"servo={servo_pos:.3f}, expected_angle={np.degrees(expected_angle):.1f}°")
+                
+                # Command the steering position
+                self.send_command(self.test_speed, expected_angle)
+                
+                # Allow 1 second for servo to reach position
+                if not self.spin_for(1.0):
+                    break
+                
+                # Record data for hold_time seconds
+                segment_x = []
+                segment_y = []
+                phase = f"servo_{servo_pos:.3f}"
+                
+                start_hold = time.monotonic()
+                while time.monotonic() - start_hold < self.hold_time:
+                    # Re-publish command continuously
+                    self.send_command(self.test_speed, expected_angle)
+                    rclpy.spin_once(self, timeout_sec=0.02)
+                    
+                    if not self.safety.check():
+                        self.get_logger().error(f"Safety abort: {self.safety.abort_reason}")
+                        self.stop_car()
+                        self.test_running = False
+                        break
+                    
+                    self.recorder.record(
+                        cmd_servo=servo_pos,
+                        cmd_speed=self.test_speed,
+                        cmd_steering_angle=expected_angle,
+                        odom_x=self.odom_x,
+                        odom_y=self.odom_y,
+                        odom_yaw=self.odom_yaw,
+                        odom_vx=self.odom_vx,
+                        odom_omega=self.odom_omega,
+                        imu_gz=self.imu_gz,
+                        phase=phase
+                    )
+                    
+                    segment_x.append(self.odom_x)
+                    segment_y.append(self.odom_y)
+                
+                if len(segment_x) > 10:
+                    self.segment_data.append((
+                        servo_pos, 
+                        np.array(segment_x), 
+                        np.array(segment_y)
+                    ))
             
-            if len(segment_x) > 10:
-                self.segment_data.append((
-                    servo_pos, 
-                    np.array(segment_x), 
-                    np.array(segment_y)
-                ))
+            # Stop between phases
+            self.stop_car()
+            time.sleep(0.5)
+            self.stop_car()
         
-        # Stop the car
+        # Final stop
         self.stop_car()
         time.sleep(0.5)
         self.stop_car()

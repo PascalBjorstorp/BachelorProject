@@ -71,6 +71,11 @@ class SpeedCalibrationNode(TestNode):
         # Accelerate and drive
         phase_start = time.monotonic()
         odom_distance = 0.0
+        
+        # Flush any stale odom messages before taking the position reference
+        for _ in range(10):
+            rclpy.spin_once(self, timeout_sec=0.01)
+        
         prev_x = self.odom_x
         prev_y = self.odom_y
         speed_samples = []
@@ -115,11 +120,28 @@ class SpeedCalibrationNode(TestNode):
             if odom_distance >= self.target_distance:
                 break
         
-        # Stop
+        # Stop commanding speed
         elapsed_time = time.monotonic() - phase_start
         self.stop_car()
-        time.sleep(1.0)
-        self.stop_car()
+        
+        # Keep accumulating odom distance while braking (car coasts to a stop)
+        self.get_logger().info("  Braking... accumulating coast distance")
+        brake_start = time.monotonic()
+        while time.monotonic() - brake_start < 3.0:  # max 3s braking window
+            rclpy.spin_once(self, timeout_sec=0.02)
+            dx = self.odom_x - prev_x
+            dy = self.odom_y - prev_y
+            step = np.sqrt(dx**2 + dy**2)
+            odom_distance += step
+            prev_x = self.odom_x
+            prev_y = self.odom_y
+            self.stop_car()  # keep commanding zero
+            
+            # Stop once the car has essentially halted
+            if abs(self.odom_vx) < 0.05 and (time.monotonic() - brake_start) > 0.5:
+                break
+        
+        total_time = time.monotonic() - phase_start
         
         # Compute odom-reported distance
         total_dx = self.odom_x - start_x
@@ -130,16 +152,17 @@ class SpeedCalibrationNode(TestNode):
         avg_rpm = np.mean(rpm_samples) if rpm_samples else 0.0
         
         self.get_logger().info(f"Run complete!")
-        self.get_logger().info(f"  Elapsed time: {elapsed_time:.2f}s")
-        self.get_logger().info(f"  Odom accumulated distance: {odom_distance:.3f}m")
+        self.get_logger().info(f"  Drive time: {elapsed_time:.2f}s, total (inc. braking): {total_time:.2f}s")
+        self.get_logger().info(f"  Odom accumulated distance (inc. braking): {odom_distance:.3f}m")
         self.get_logger().info(f"  Odom straight-line distance: {odom_straight_dist:.3f}m")
-        self.get_logger().info(f"  Average reported speed: {avg_reported_speed:.3f} m/s")
+        self.get_logger().info(f"  Average reported speed (driving only): {avg_reported_speed:.3f} m/s")
         self.get_logger().info(f"  Average motor RPM: {avg_rpm:.1f}")
         
         # Ask for actual measured distance
         self.get_logger().info("")
         actual_dist_str = input(
-            f"  Enter actual distance traveled (meters), or press Enter for {self.target_distance}m: ")
+            f"  Enter actual distance traveled (start to stop, meters), "
+            f"or press Enter for {self.target_distance}m: ")
         
         if actual_dist_str.strip():
             actual_distance = float(actual_dist_str)
@@ -148,11 +171,12 @@ class SpeedCalibrationNode(TestNode):
         
         return {
             'elapsed_time': elapsed_time,
+            'total_time': total_time,
             'odom_distance': odom_distance,
             'actual_distance': actual_distance,
             'avg_reported_speed': avg_reported_speed,
             'avg_rpm': avg_rpm,
-            'actual_avg_speed': actual_distance / elapsed_time,
+            'actual_avg_speed': actual_distance / total_time,
         }
     
     def run_test(self):

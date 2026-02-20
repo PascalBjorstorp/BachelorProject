@@ -52,6 +52,7 @@ AckermannToVesc::AckermannToVesc(const rclcpp::NodeOptions & options)
   // Declare parameters with defaults
   declare_parameter("speed_to_erpm_gain", 0.0);
   declare_parameter("speed_to_erpm_offset", 0.0);
+  declare_parameter("speed_to_erpm_quadratic", 0.0);  // v² coefficient for nonlinear model
   declare_parameter("steering_angle_to_servo_gain", 0.0);
   declare_parameter("steering_angle_to_servo_offset", 0.0);
 
@@ -74,6 +75,7 @@ AckermannToVesc::AckermannToVesc(const rclcpp::NodeOptions & options)
   // Get conversion parameters
   speed_to_erpm_gain_ = get_parameter("speed_to_erpm_gain").get_value<double>();
   speed_to_erpm_offset_ = get_parameter("speed_to_erpm_offset").get_value<double>();
+  speed_to_erpm_quadratic_ = get_parameter("speed_to_erpm_quadratic").get_value<double>();
   steering_to_servo_gain_ = get_parameter("steering_angle_to_servo_gain").get_value<double>();
   steering_to_servo_offset_ = get_parameter("steering_angle_to_servo_offset").get_value<double>();
 
@@ -178,23 +180,35 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
       publish_brake = true;
     } else if (commanded_vel >= 0) {
       // Forward direction
+      double vel;
       if (current_vel_ < slow_start_threshold_ && commanded_vel > slow_start_threshold_) {
         // Slow start to get rotor position (sensorless motor)
-        erpm_msg.data = speed_to_erpm_gain_ * (current_vel_ + slow_start_increment_) + speed_to_erpm_offset_;
+        vel = current_vel_ + slow_start_increment_;
       } else {
         // Direct ERPM command — VESC PID handles accel and decel
-        erpm_msg.data = speed_to_erpm_gain_ * commanded_vel + speed_to_erpm_offset_;
+        vel = commanded_vel;
       }
+      // Quadratic model: ERPM = quad*v² + gain*v + offset
+      // When quad=0, reduces to the original linear model.
+      erpm_msg.data = speed_to_erpm_quadratic_ * vel * std::abs(vel)
+                    + speed_to_erpm_gain_ * vel
+                    + speed_to_erpm_offset_;
       publish_erpm = true;
     } else {
       // Reverse direction
+      double vel;
       if (current_vel_ == 0 && commanded_vel < -slow_start_increment_) {
         // Slow start for reverse (sensorless motor)
-        erpm_msg.data = speed_to_erpm_gain_ * -slow_start_increment_ + speed_to_erpm_offset_;
+        vel = -slow_start_increment_;
       } else {
         // Direct ERPM command — VESC PID handles accel and decel
-        erpm_msg.data = speed_to_erpm_gain_ * commanded_vel + speed_to_erpm_offset_;
+        vel = commanded_vel;
       }
+      // Quadratic model: ERPM = quad*v*|v| + gain*v + offset
+      // Using v*|v| preserves sign for reverse.
+      erpm_msg.data = speed_to_erpm_quadratic_ * vel * std::abs(vel)
+                    + speed_to_erpm_gain_ * vel
+                    + speed_to_erpm_offset_;
       publish_erpm = true;
     }
   }

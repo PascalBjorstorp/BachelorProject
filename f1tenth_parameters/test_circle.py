@@ -33,7 +33,7 @@ import rclpy
 
 from common import (
     TestNode, fit_circle, steering_angle_from_radius,
-    radius_from_steering_angle, DEFAULT_WHEELBASE
+    radius_from_steering_angle, DEFAULT_WHEELBASE, DEFAULT_SERVO_GAIN
 )
 
 
@@ -64,13 +64,19 @@ class CircleTestNode(TestNode):
         self.num_laps = args.laps
         self.wheelbase = args.wheelbase
         self.direction = args.direction
+
+        # Direction sign: with negative gain, negative angle = left
+        if DEFAULT_SERVO_GAIN < 0:
+            self.dir_sign = -1.0 if args.direction == 'left' else 1.0
+        else:
+            self.dir_sign = 1.0 if args.direction == 'left' else -1.0
         
         # Results: list of (speed, radius, residual, avg_ay, avg_omega)
         self.circle_results = []
     
     def run_circle_at_speed(self, target_speed: float):
         """Drive circles at a given speed and measure the radius."""
-        steer = self.steering_angle if self.direction == 'left' else -self.steering_angle
+        steer = self.dir_sign * self.steering_angle
         
         # Predict kinematic radius for lap estimation
         predicted_radius = radius_from_steering_angle(self.steering_angle, self.wheelbase)
@@ -219,8 +225,10 @@ class CircleTestNode(TestNode):
         # ---- 1. Wheelbase from lowest-speed circle ----
         lowest = min(self.circle_results, key=lambda r: r['speed_actual'])
         
-        # At low speed, R ≈ L / tan(δ), so L ≈ R * tan(δ)
-        measured_wheelbase = lowest['radius'] * np.tan(self.steering_angle)
+        # At low speed, Ackermann: R = L / (2*sin(arctan(0.5*tan(δ))))
+        # So: L = R * 2*sin(arctan(0.5*tan(δ)))
+        beta = np.arctan(0.5 * np.tan(self.steering_angle))
+        measured_wheelbase = lowest['radius'] * 2.0 * np.sin(beta)
         measured_angle = steering_angle_from_radius(
             lowest['radius'], self.wheelbase)
         

@@ -72,17 +72,18 @@ from std_msgs.msg import Float64
 # ============================================================================
 
 # Default safety limits
-DEFAULT_MAX_SPEED = 3.0        # m/s
+DEFAULT_MAX_SPEED = 12.0        # m/s
 DEFAULT_MAX_TEST_TIME = 60.0   # seconds
 DEFAULT_MIN_BATTERY_V = 10.5   # volts (3S LiPo cutoff ~3.5V/cell)
 
 # VESC conversion defaults (from vesc.yaml)
-DEFAULT_ERPM_GAIN = 4450.0
+DEFAULT_ERPM_GAIN = 4600.0
 DEFAULT_ERPM_OFFSET = 0.0
-DEFAULT_SERVO_GAIN = -0.915
-DEFAULT_SERVO_OFFSET = 0.468
-DEFAULT_SERVO_MIN = 0.0
-DEFAULT_SERVO_MAX = 0.82
+DEFAULT_ERPM_QUADRATIC = 0.0
+DEFAULT_SERVO_GAIN = -0.6960
+DEFAULT_SERVO_OFFSET = 0.5460
+DEFAULT_SERVO_MIN = 0.106
+DEFAULT_SERVO_MAX = 1.0
 DEFAULT_WHEELBASE = 0.324
 
 # Compute max steering angle from servo limits
@@ -112,7 +113,8 @@ class DataRecorder:
         """
         os.makedirs(DATA_DIR, exist_ok=True)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        self.filename = os.path.join(DATA_DIR, f'{test_name}_{timestamp}.csv')
+        self.test_name = f'{test_name}_{timestamp}'
+        self.filename = os.path.join(DATA_DIR, f'{self.test_name}.csv')
         self.columns = ['timestamp_s'] + columns
         self.rows = []
         self.start_time = None
@@ -252,12 +254,16 @@ class TestNode(Node):
         self.cmd_steering = 0.0
         
         # Publishers
+        # Publish to /drive (mux navigation input). The mux forwards the
+        # highest-priority active topic to /ackermann_cmd.
+        # No joystick needed — when /teleop is inactive the mux passes /drive through.
         self.drive_pub = self.create_publisher(
             AckermannDriveStamped, 'drive', 10)
         
         # Subscribers
+        # NOTE: vesc_to_odom publishes on 'ego_racecar/odom' (hardcoded in vesc_ackermann)
         self.odom_sub = self.create_subscription(
-            Odometry, 'odom', self._odom_callback, 10)
+            Odometry, 'ego_racecar/odom', self._odom_callback, 10)
         self.imu_sub = self.create_subscription(
             Imu, 'sensors/imu/raw', self._imu_callback, 10)
         
@@ -400,10 +406,16 @@ class TestNode(Node):
         return True
     
     def spin_for(self, duration: float, rate_hz: float = 50.0):
-        """Spin the node for a given duration while processing callbacks."""
+        """Spin the node for a given duration while processing callbacks.
+        
+        Re-publishes the current command at ~rate_hz to keep the ackermann_mux
+        alive (mux timeout is typically 0.2s).
+        """
         dt = 1.0 / rate_hz
         start = time.monotonic()
         while time.monotonic() - start < duration:
+            # Re-publish current command to prevent mux timeout
+            self.send_command(self.cmd_speed, self.cmd_steering)
             rclpy.spin_once(self, timeout_sec=dt)
             if not self.safety.check():
                 self.get_logger().error(
@@ -413,10 +425,16 @@ class TestNode(Node):
         return True
     
     def countdown(self, seconds: int = 3):
-        """Print a countdown before starting a test."""
+        """Print a countdown before starting a test.
+        
+        Keeps spinning during the countdown so odom/IMU callbacks stay fresh.
+        """
         for i in range(seconds, 0, -1):
             self.get_logger().info(f"Starting in {i}...")
-            time.sleep(1.0)
+            # Spin at ~50Hz during the 1-second wait
+            end = time.monotonic() + 1.0
+            while time.monotonic() < end:
+                rclpy.spin_once(self, timeout_sec=0.02)
         self.get_logger().info("GO!")
 
 
@@ -451,22 +469,32 @@ def fit_circle(x: np.ndarray, y: np.ndarray):
 
 def steering_angle_from_radius(radius: float, wheelbase: float) -> float:
     """
-    Compute steering angle from turning radius using kinematic bicycle model.
-    
-    δ = atan(L / R)
+    Compute steering angle from turning radius using the Ackermann kinematic
+    bicycle model (consistent with compute_half_circle_diameter).
+
+    Forward model:  beta = arctan(0.5 * tan(delta))
+                    R = L / (2 * sin(beta))
+
+    Inverse:  delta = arctan(2 * tan(arcsin(L / (2*R))))
     """
-    return np.arctan(wheelbase / radius)
+    sin_beta = wheelbase / (2.0 * radius)
+    sin_beta = np.clip(sin_beta, -1.0, 1.0)  # numerical safety
+    beta = np.arcsin(sin_beta)
+    return np.arctan(2.0 * np.tan(beta))
 
 
 def radius_from_steering_angle(angle: float, wheelbase: float) -> float:
     """
-    Compute turning radius from steering angle using kinematic bicycle model.
-    
-    R = L / tan(δ)
+    Compute turning radius from steering angle using the Ackermann kinematic
+    bicycle model.
+
+    beta = arctan(0.5 * tan(delta))
+    R = L / (2 * sin(beta))
     """
     if abs(angle) < 1e-6:
         return float('inf')
-    return wheelbase / np.tan(angle)
+    beta = np.arctan(0.5 * np.tan(angle))
+    return wheelbase / (2.0 * np.sin(beta))
 
 
 def servo_to_angle(servo_value: float, 
