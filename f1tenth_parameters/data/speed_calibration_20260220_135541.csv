@@ -1,0 +1,2 @@
+timestamp_s,odom_x,odom_y,odom_vx,motor_rpm,cmd_speed,phase
+5.479476905999945,-11.755342369294482,-0.06331850614380001,-1.0160427807486632,0.0,5.0,run_0

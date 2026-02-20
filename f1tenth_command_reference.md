@@ -15,7 +15,7 @@ Drive the car around the track using Follow The Gap while simultaneously buildin
 source ~/f1tenth_ws/install/setup.bash
 ros2 launch f1tenth_stack bringup_launch.py
 ```
-> This starts: VESC driver, IMU, joystick teleop, ackermann mux, LiDAR.  
+> This starts: VESC driver, IMU, joystick teleop, ackermann mux, and the custom **Hokuyo SCIP 2.0 LiDAR** at full **40 Hz**.  
 > **Hold L1** on the DS4 controller = manual driving (safety override).  
 > **Hold R1** = enable autonomous commands from `/drive`.
 
@@ -23,28 +23,12 @@ ros2 launch f1tenth_stack bringup_launch.py
 ```bash
 source ~/f1tenth_ws/install/setup.bash
 ros2 launch slam_toolbox online_async_launch.py \
-  slam_params_file:=/path/to/your/slam_params.yaml \
+  slam_params_file:=/home/f1tenth/BachelorProject/f1tenth_system/f1tenth_stack/config/slam_params.yaml \
   use_sim_time:=false
 ```
-
-If you don't have a custom SLAM params file, use the default:
-```bash
-ros2 launch slam_toolbox online_async_launch.py use_sim_time:=false
-```
-
-**Important SLAM params to check** (create `slam_params.yaml` if needed):
-```yaml
-slam_toolbox:
-  ros__parameters:
-    odom_frame: ego_racecar/odom
-    base_frame: ego_racecar/base_link
-    map_frame: map
-    scan_topic: /scan
-    use_sim_time: false
-    mode: mapping
-    resolution: 0.05
-    max_laser_range: 10.0
-```
+> Uses SLAM Toolbox in async mode for real-time 2D mapping.  
+> Config: `f1tenth_system/f1tenth_stack/config/slam_params.yaml`  
+> Frames: `ego_racecar/odom`, `ego_racecar/base_link`, scan topic `/scan`.
 
 ### Terminal 3 — FTG Autonomous Driving (on Jetson)
 ```bash
@@ -66,9 +50,20 @@ rviz2
 ### Save the Map (after driving the full track)
 ```bash
 # On Jetson or PC (wherever map_server/slam is running)
-ros2 run nav2_map_server map_saver_cli -f ~/maps/my_track_map --ros-args -p save_map_timeout:=10000
+# NOTE: map_subscribe_transient_local:=true is REQUIRED — SLAM Toolbox publishes
+# /map with TRANSIENT_LOCAL QoS; without this flag map_saver hangs forever.
+ros2 run nav2_map_server map_saver_cli \
+  -f ~/BachelorProject/f1tenth_sim/maps/my_track_map \
+  --ros-args -p save_map_timeout:=10000.0 -p map_subscribe_transient_local:=true
 ```
-> This saves `my_track_map.yaml` + `my_track_map.pgm`.  
+
+**Alternative** (if map_saver_cli still hangs): use the custom save script:
+```bash
+python3 ~/BachelorProject/save_map.py \
+  /home/f1tenth/BachelorProject/f1tenth_sim/maps/my_track_map
+```
+
+> This saves `my_track_map.yaml` + `my_track_map.pgm` into `f1tenth_sim/maps/`.  
 > **Keep these files** — you need them for localization and planning.
 
 ### Optional: Record a Bag of the Mapping Session
@@ -316,8 +311,9 @@ ros2 topic list     # should show topics from both machines
 
 ### SLAM map looks bad
 - Drive **slowly** (1-2 m/s) during mapping
-- Make sure odom TF frames match SLAM config (`ego_racecar/odom`, `ego_racecar/base_link`)
-- Try `slam_toolbox` instead of `cartographer` if you have issues
+- Make sure odom TF frames match Cartographer Lua config (`ego_racecar/odom`, `ego_racecar/base_link`)
+- Tune `real_time_correlative_scan_matcher.linear_search_window` in the Lua config if the car drives fast
+- Check the Cartographer Lua file: `f1tenth_system/f1tenth_stack/config/cartographer_f1tenth.lua`
 
 ### AMCL won't localize / particles diverge
 - Set the initial pose first (RViz "2D Pose Estimate")

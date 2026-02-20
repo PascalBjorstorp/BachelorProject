@@ -61,10 +61,10 @@
 # ===================
 vesc_to_odom_node:
   ros__parameters:
-    odom_frame: odom
-    base_frame: base_link
+    odom_frame: ego_racecar/odom
+    base_frame: ego_racecar/base_link
     
-    # Publish odom -> base_link TF
+    # Publish ego_racecar/odom -> ego_racecar/base_link TF
     publish_tf: true
     
     # Use IMU for yaw estimation (recommended)

@@ -105,7 +105,7 @@ def generate_launch_description():
         remappings=[
             # Hardware topic names (no namespace prefix)
             ('scan', '/scan'),
-            ('odom', '/odom'),
+            ('odom', '/ego_racecar/odom'),
             ('drive', '/drive'),
         ]
     )

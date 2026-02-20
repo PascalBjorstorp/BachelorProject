@@ -80,7 +80,7 @@ class HokuyoScipDriver(Node):
         self.step_min = 0
         self.step_max = 1080
         self.angular_resolution = math.radians(0.25)  # 0.25 degrees per step
-        self.scan_time = 0.025  # 25ms = 40 Hz
+        self.scan_time = 0.050  # 25ms = 40 Hz
 
         # Publisher with SensorDataQoS (best-effort for real-time sensor data)
         sensor_qos = QoSProfile(
