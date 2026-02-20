@@ -107,6 +107,14 @@ typedef struct
     /** Actual number of inequality constraints in this problem */
     uint16_t constraint_count;
 
+    /**
+     * Optional warm-start initial point.
+     * If use_warm_start is non-zero, the solver initializes from this
+     * instead of zero. Set use_warm_start=0 for cold start.
+     */
+    fixed_point_t initial_point[QP_MAXIMUM_VARIABLES];
+    uint8_t use_warm_start;
+
 } QuadraticProgramProblem_t;
 
 /*===========================================================================

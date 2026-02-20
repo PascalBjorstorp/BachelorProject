@@ -346,9 +346,11 @@ VehicleState_t vehicle_model_predict_next_state(
             fp_mul(lr, F_yr)),
         Iz);
 
-    /* domega_w/dt = (T_motor / G_ratio - F_x * R_w) / I_w
-     * Wheel dynamics: motor torque drives wheel, tire force resists */
-    fixed_point_t T_wheel = fp_div(T_motor, G_ratio);
+    /* domega_w/dt = (T_motor * G_ratio - F_x * R_w) / I_w
+     * Wheel dynamics: motor torque amplified by gear ratio drives wheel,
+     * tire longitudinal force resists. G > 1 means the gearbox trades
+     * motor speed for wheel torque: T_wheel = T_motor × G. */
+    fixed_point_t T_wheel = fp_mul(T_motor, G_ratio);
     fixed_point_t domega_w_dt = fp_div(
         fp_sub(T_wheel, fp_mul(Fx, Rw)),
         Iw);
@@ -713,6 +715,18 @@ void vehicle_model_compute_linearization(
     input_matrix_B[5][0] = fp_mul(time_step,
         fp_mul(fp_mul(lf, fp_sub(dFyf_dd_cos, Fyf_sin)), inv_Iz));
 
-    /* B[6][1]: d(domega_w/dt)/d(T_motor) × dt = dt / (Iw * G_ratio) */
-    input_matrix_B[6][1] = fp_mul(time_step, fp_div(inv_Iw, G_ratio));
+    /* B[6][1]: d(domega_w/dt)/d(T_motor) × dt = G_ratio × dt / Iw
+     * Gearbox amplifies motor torque by G at the wheel. */
+    input_matrix_B[6][1] = fp_mul(time_step, fp_mul(G_ratio, inv_Iw));
+
+    /* B[3][1]: Approximate direct torque→velocity coupling.
+     * Physically, T_motor affects vx through: T → ωw (B[6][1]) → κ → Fx → vx (A[3][6]).
+     * This 2-step propagation is captured by A^k·B in the condensed QP, but the
+     * gradient is weak and causes poor QP conditioning / chattering.
+     *
+     * Adding B[3][1] ≈ A[3][6] × B[6][1] gives the QP a direct gradient from
+     * torque to velocity, dramatically improving convergence.
+     * Equivalent to: dt² × (dFx/dωw) / (m × Iw × G)
+     */
+    input_matrix_B[3][1] = fp_mul(state_matrix_A[3][6], input_matrix_B[6][1]);
 }

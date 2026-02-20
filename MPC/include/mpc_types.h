@@ -475,9 +475,9 @@ typedef struct
 #define F110_WHEEL_RADIUS_METERS \
     FP_CONST(0.0545)
 
-/** Drivetrain inertia: ~0.002 kg·m² (combined wheels + drivetrain, 4WD equivalent) */
+/** Drivetrain inertia: 2.223 kg·m² (motor + gearbox + wheels reflected to wheel side) */
 #define F110_DRIVETRAIN_INERTIA_KGM2 \
-    FP_CONST(0.002)
+    FP_CONST(2.223)
 
 /** Longitudinal tire stiffness: F_x = C_x * κ, estimated C_x ≈ 300 N */
 #define F110_LONGITUDINAL_TIRE_STIFFNESS \
@@ -525,8 +525,8 @@ typedef struct
 /** Default maximum solver iterations */
 #define MPC_DEFAULT_MAXIMUM_ITERATIONS 2000
 
-/** Default convergence tolerance: 0.001 — Q16.16 ~ 66 */
+/** Default convergence tolerance: 0.02 — Q16.16 ~ 1310 */
 #define MPC_DEFAULT_CONVERGENCE_TOLERANCE \
-    ((fixed_point_t)66)
+    ((fixed_point_t)1310)
 
 #endif /* MPC_TYPES_H */
