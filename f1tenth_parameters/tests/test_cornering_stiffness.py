@@ -74,7 +74,8 @@ class CorneringStiffnessNode(TestNode):
             'cornering_stiffness',
             columns,
             max_speed=args.max_speed * 1.3,
-            max_time=args.settle_time * 20 + 60.0
+            max_time=args.settle_time * 20 + 60.0,
+            max_distance=args.geofence
         )
 
         self.steering_angle = args.steering
@@ -116,6 +117,7 @@ class CorneringStiffnessNode(TestNode):
 
         self.countdown(5)
         self.recorder.start()
+        self.safety.set_origin(self.odom_x, self.odom_y)
         self.safety.start()
         self.test_running = True
 
@@ -449,6 +451,8 @@ def main():
                         help='Rear axle to CG distance in m (default: 0.158)')
     parser.add_argument('--runs', type=int, default=5,
                         help='Number of complete test runs (default: 5)')
+    parser.add_argument('--geofence', type=float, default=2.0,
+                        help='Max distance from start before abort in m (default: 2.0, 0=off)')
     args = parser.parse_args()
 
     rclpy.init()

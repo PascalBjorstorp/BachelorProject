@@ -68,7 +68,8 @@ class FrictionTestNode(TestNode):
             'friction_test',
             columns,
             max_speed=args.max_speed * 1.3,
-            max_time=max_time
+            max_time=max_time,
+            max_distance=args.geofence
         )
         
         self.steering_angle = args.steering
@@ -214,6 +215,7 @@ class FrictionTestNode(TestNode):
         self.countdown(5)
         self.recorder.start()
         self.safety.start()
+        self.safety.set_origin(self.odom_x, self.odom_y)
         self.test_running = True
         
         for speed in speeds:
@@ -353,6 +355,8 @@ def main():
                         help='Recording time per speed point (s, default: 8.0)')
     parser.add_argument('--wheelbase', type=float, default=DEFAULT_WHEELBASE,
                         help=f'Wheelbase in meters (default: {DEFAULT_WHEELBASE})')
+    parser.add_argument('--geofence', type=float, default=2.0,
+                        help='Max distance from start before abort (m, default: 2.0, 0=off)')
     parser.add_argument('--runs', type=int, default=5,
                         help='Number of complete test runs (default: 5)')
     args = parser.parse_args()

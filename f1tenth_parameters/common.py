@@ -161,20 +161,40 @@ class SafetyMonitor:
     
     def __init__(self, max_speed: float = DEFAULT_MAX_SPEED,
                  max_time: float = DEFAULT_MAX_TEST_TIME,
-                 min_battery_v: float = DEFAULT_MIN_BATTERY_V):
+                 min_battery_v: float = DEFAULT_MIN_BATTERY_V,
+                 max_distance: float = 0.0):
+        """
+        Args:
+            max_distance: Maximum distance from origin before abort.
+                          0 = disabled (default). Set > 0 to enable geofence.
+        """
         self.max_speed = max_speed
         self.max_time = max_time
         self.min_battery_v = min_battery_v
+        self.max_distance = max_distance
         self.start_time = None
         self.current_speed = 0.0
         self.battery_voltage = 12.0
+        self.origin_x = None
+        self.origin_y = None
+        self.current_x = 0.0
+        self.current_y = 0.0
         self.abort_reason = None
     
     def start(self):
         self.start_time = time.monotonic()
     
+    def set_origin(self, x: float, y: float):
+        """Set the geofence origin (call once at test start)."""
+        self.origin_x = x
+        self.origin_y = y
+    
     def update_speed(self, speed: float):
         self.current_speed = abs(speed)
+    
+    def update_position(self, x: float, y: float):
+        self.current_x = x
+        self.current_y = y
     
     def update_battery(self, voltage: float):
         self.battery_voltage = voltage
@@ -198,6 +218,16 @@ class SafetyMonitor:
             self.abort_reason = f"Low battery ({self.battery_voltage:.2f}V < {self.min_battery_v:.2f}V)"
             return False
         
+        # Geofence: check distance from origin
+        if self.max_distance > 0 and self.origin_x is not None:
+            dx = self.current_x - self.origin_x
+            dy = self.current_y - self.origin_y
+            dist = (dx * dx + dy * dy) ** 0.5
+            if dist > self.max_distance:
+                self.abort_reason = (
+                    f"Geofence exceeded ({dist:.2f}m > {self.max_distance:.1f}m from origin)")
+                return False
+        
         return True
 
 
@@ -220,14 +250,17 @@ class TestNode(Node):
     def __init__(self, node_name: str, test_name: str, 
                  data_columns: list,
                  max_speed: float = DEFAULT_MAX_SPEED,
-                 max_time: float = DEFAULT_MAX_TEST_TIME):
+                 max_time: float = DEFAULT_MAX_TEST_TIME,
+                 max_distance: float = 0.0):
         super().__init__(node_name)
         
         # Data recording
         self.recorder = DataRecorder(test_name, data_columns)
         
         # Safety
-        self.safety = SafetyMonitor(max_speed=max_speed, max_time=max_time)
+        self.safety = SafetyMonitor(
+            max_speed=max_speed, max_time=max_time,
+            max_distance=max_distance)
         
         # State
         self.odom_x = 0.0
@@ -309,6 +342,7 @@ class TestNode(Node):
         self.odom_omega = msg.twist.twist.angular.z
         
         self.safety.update_speed(self.odom_vx)
+        self.safety.update_position(self.odom_x, self.odom_y)
         self.odom_received = True
     
     def _imu_callback(self, msg: Imu):
