@@ -164,7 +164,7 @@ class CurrentLimitNode(TestNode):
 
             phase_start = time.monotonic()
             while time.monotonic() - phase_start < self.run_time:
-                rclpy.spin_once(self, timeout_sec=0.01)
+                rclpy.spin_once(self, timeout_sec=0.005)
                 if not self.safety.check():
                     self.get_logger().error(
                         f"Safety abort: {self.safety.abort_reason}")
@@ -233,7 +233,7 @@ class CurrentLimitNode(TestNode):
                 # Active braking for 2s
                 brake_start = time.monotonic()
                 while time.monotonic() - brake_start < 2.0:
-                    rclpy.spin_once(self, timeout_sec=0.01)
+                    rclpy.spin_once(self, timeout_sec=0.005)
                     self.send_command(0.0, 0.0)
                     self.recorder.record(
                         odom_vx=self.odom_vx, imu_ax=self.imu_ax,
@@ -268,7 +268,7 @@ class CurrentLimitNode(TestNode):
                     input("  >>> Press ENTER when ready for the next run...")
                     # Keep subscriptions alive after user input
                     for _ in range(20):
-                        rclpy.spin_once(self, timeout_sec=0.01)
+                        rclpy.spin_once(self, timeout_sec=0.005)
 
         self.stop_car()
         time.sleep(0.5)

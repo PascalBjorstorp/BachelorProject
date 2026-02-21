@@ -111,7 +111,7 @@ class LongitudinalStiffnessNode(TestNode):
         last_t = phase_start
 
         while time.monotonic() - phase_start < self.accel_time:
-            rclpy.spin_once(self, timeout_sec=0.01)
+            rclpy.spin_once(self, timeout_sec=0.005)
             if not self.safety.check():
                 self.get_logger().error(f"Safety abort: {self.safety.abort_reason}")
                 self.stop_car()
@@ -165,7 +165,7 @@ class LongitudinalStiffnessNode(TestNode):
 
         while (abs(self.odom_vx) > 0.1 or self.imu_vel.velocity > 0.1) and \
               time.monotonic() - phase_start < 10.0:
-            rclpy.spin_once(self, timeout_sec=0.01)
+            rclpy.spin_once(self, timeout_sec=0.005)
 
             now = time.monotonic()
             dt = now - last_t

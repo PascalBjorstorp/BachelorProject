@@ -95,7 +95,7 @@ class MotorTorqueNode(TestNode):
         bias_samples = []
         cal_start = time.monotonic()
         while time.monotonic() - cal_start < 2.0:
-            rclpy.spin_once(self, timeout_sec=0.01)
+            rclpy.spin_once(self, timeout_sec=0.005)
             bias_samples.append(self.imu_ax)
 
         imu_bias = self.imu_vel.calibrate_bias(bias_samples)
@@ -121,7 +121,7 @@ class MotorTorqueNode(TestNode):
 
             phase_start = time.monotonic()
             while time.monotonic() - phase_start < self.accel_time:
-                rclpy.spin_once(self, timeout_sec=0.01)
+                rclpy.spin_once(self, timeout_sec=0.005)
                 if not self.safety.check():
                     self.get_logger().error(f"Safety abort: {self.safety.abort_reason}")
                     self.stop_car()
@@ -200,7 +200,7 @@ class MotorTorqueNode(TestNode):
             brake_start = time.monotonic()
 
             while abs(self.odom_vx) > 0.1 and time.monotonic() - brake_start < 5.0:
-                rclpy.spin_once(self, timeout_sec=0.01)
+                rclpy.spin_once(self, timeout_sec=0.005)
                 self.send_command(0.0, 0.0)
 
                 ax = self.imu_ax - imu_bias

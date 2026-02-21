@@ -73,7 +73,7 @@ class SpeedSweepNode(TestNode):
 
         # Flush odom and take position reference
         for _ in range(10):
-            rclpy.spin_once(self, timeout_sec=0.01)
+            rclpy.spin_once(self, timeout_sec=0.005)
 
         phase_start = time.monotonic()
         odom_distance = 0.0
