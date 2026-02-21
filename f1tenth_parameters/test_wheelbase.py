@@ -1,28 +1,35 @@
 #!/usr/bin/env python3
 """
-Circle Test for F1/10th Car
+Wheelbase Verification Test for F1/10th Car
 
-Drives circles at fixed steering angle and constant speed to extract:
-- Effective wheelbase (from turning radius at low speed)
-- Validation of steering calibration
-- Understeer gradient (from radius change with speed)
-- Cornering stiffness ratio C_f/C_r (from understeer gradient)
+Drives circles at fixed steering angle and constant speed to extract the
+effective wheelbase from the turning radius at low speed.
 
-At low speeds, the kinematic model applies:
+At low speeds the kinematic (Ackermann) model applies well:
     R_kinematic = L / tan(δ)
+So measuring R and knowing δ gives L.
 
-At higher speeds, the actual radius increases due to tire slip:
-    R_actual = R_kinematic + K_us * v²
-    where K_us = understeer gradient = m/(2*L) * (l_r/C_f - l_f/C_r)
+At higher speeds tire slip makes the odom-based radius unreliable.
+The ERPM-based odometry does not account for lateral tire slip or wheel
+lock-up, so the trajectory integrated from odom drifts.  As a cross-check
+the script also computes a slip-independent radius from the IMU yaw rate:
+    R_imu = v / |ω_imu|
+Large discrepancies between R_odom and R_imu indicate significant tire slip.
+
+NOTE ON ODOMETRY LIMITATIONS:
+    The VESC derives speed from motor back-EMF (ERPM). During braking the
+    wheels may lock / slip → ERPM drops faster than actual vehicle speed.
+    During high-speed cornering the driven wheels may spin faster than
+    ground speed. Both effects corrupt the odom-based position and speed.
+    The wheelbase estimate is most reliable at LOW speed (≤ 2 m/s) where
+    tire slip is minimal.
 
 Procedure:
 1. Drive circles at low speed (1-2 m/s) → extract R_kinematic → verify wheelbase
-2. Drive circles at increasing speeds → measure R_actual(v)
-3. Fit R_actual vs v² → extract understeer gradient
-4. From understeer gradient + known mass/geometry → cornering stiffness ratio
+2. Optionally drive at higher speeds → compare R_odom vs R_imu for slip detection
 
 Usage:
-    python3 test_circle.py [--steering 0.3] [--speeds 1.5,2.0,3.0] [--laps 2]
+    python3 test_wheelbase.py [--steering 0.3] [--speeds 1.0,1.5,2.0] [--laps 2]
 """
 
 import argparse
@@ -33,11 +40,13 @@ import rclpy
 
 from common import (
     TestNode, fit_circle, steering_angle_from_radius,
-    radius_from_steering_angle, DEFAULT_WHEELBASE, DEFAULT_SERVO_GAIN
+    radius_from_steering_angle, radius_from_imu,
+    update_vehicle_params,
+    DEFAULT_WHEELBASE, DEFAULT_SERVO_GAIN
 )
 
 
-class CircleTestNode(TestNode):
+class WheelbaseTestNode(TestNode):
     
     def __init__(self, args):
         columns = [
@@ -52,8 +61,8 @@ class CircleTestNode(TestNode):
         max_time = len(args.speeds) * args.laps * 20.0 + 60.0  # rough estimate
         
         super().__init__(
-            'circle_test',
-            'circle_test',
+            'wheelbase_test',
+            'wheelbase_test',
             columns,
             max_speed=max_speed,
             max_time=max_time
@@ -152,19 +161,32 @@ class CircleTestNode(TestNode):
         avg_omega = np.mean(np.abs(omega_samples))
         avg_speed = np.mean(speed_samples)
         
+        # IMU-based radius (slip-independent cross-check)
+        r_imu = radius_from_imu(avg_speed, avg_omega)
+        slip_pct = 0.0
+        if r_imu != float('inf') and radius > 0:
+            slip_pct = abs(radius - r_imu) / radius * 100.0
+        
         self.get_logger().info(
-            f"  Result: R={radius:.3f}m (residual={residual:.4f}m), "
-            f"avg_speed={avg_speed:.2f} m/s, "
-            f"avg_ay={avg_ay:.3f} m/s², "
-            f"avg_omega={np.degrees(avg_omega):.2f} °/s")
+            f"  Result: R_odom={radius:.3f}m (residual={residual:.4f}m), "
+            f"R_imu={r_imu:.3f}m, "
+            f"slip={slip_pct:.1f}%, "
+            f"avg_speed={avg_speed:.2f} m/s")
+        
+        if slip_pct > 10:
+            self.get_logger().warn(
+                f"  ⚠ Large odom/IMU radius discrepancy ({slip_pct:.0f}%) — "
+                f"tire slip likely. Wheelbase estimate unreliable at this speed.")
         
         return {
             'speed_cmd': target_speed,
             'speed_actual': avg_speed,
             'radius': radius,
+            'radius_imu': r_imu,
             'residual': residual,
             'avg_ay': avg_ay,
             'avg_omega': avg_omega,
+            'slip_pct': slip_pct,
         }
     
     def run_test(self):
@@ -175,7 +197,7 @@ class CircleTestNode(TestNode):
         predicted_r = radius_from_steering_angle(self.steering_angle, self.wheelbase)
         
         self.get_logger().info("=" * 60)
-        self.get_logger().info("CIRCLE TEST")
+        self.get_logger().info("WHEELBASE VERIFICATION TEST")
         self.get_logger().info(f"Steering angle: {np.degrees(self.steering_angle):.1f}°")
         self.get_logger().info(f"Direction: {self.direction}")
         self.get_logger().info(f"Speeds: {[f'{s:.1f}' for s in self.speeds]} m/s")
@@ -232,46 +254,39 @@ class CircleTestNode(TestNode):
         measured_angle = steering_angle_from_radius(
             lowest['radius'], self.wheelbase)
         
-        self.get_logger().info(f"\n1. Wheelbase Estimate (from v={lowest['speed_actual']:.2f} m/s):")
-        self.get_logger().info(f"   Measured radius: {lowest['radius']:.3f}m")
-        self.get_logger().info(f"   Commanded steering: {np.degrees(self.steering_angle):.2f}°")
-        self.get_logger().info(f"   Current wheelbase: {self.wheelbase:.4f}m")
-        self.get_logger().info(f"   Measured wheelbase: {measured_wheelbase:.4f}m")
-        self.get_logger().info(f"   (Or: current L implies actual δ = {np.degrees(measured_angle):.2f}°)")
+        # Also compute from IMU-based radius
+        r_imu = lowest.get('radius_imu', lowest['radius'])
+        wheelbase_imu = r_imu * 2.0 * np.sin(beta)
         
-        # ---- 2. Understeer gradient (if multiple speeds) ----
-        if len(self.circle_results) >= 3:
-            speeds = np.array([r['speed_actual'] for r in self.circle_results])
-            radii = np.array([r['radius'] for r in self.circle_results])
-            
-            # R_actual = R_kinematic + K_us * v²
-            # Fit: R = a + b * v²
-            v_sq = speeds**2
-            A = np.column_stack([np.ones_like(v_sq), v_sq])
-            result = np.linalg.lstsq(A, radii, rcond=None)
-            R_kinematic_fit = result[0][0]
-            K_us = result[0][1]
-            
-            self.get_logger().info(f"\n2. Understeer Gradient (from {len(self.circle_results)} speeds):")
-            self.get_logger().info(f"   R_kinematic (fit): {R_kinematic_fit:.3f}m")
-            self.get_logger().info(f"   Understeer gradient K_us: {K_us:.6f} m/(m/s)²")
-            
-            if K_us > 0:
-                self.get_logger().info(f"   Car is UNDERSTEERING (typical for 4WD)")
-            elif K_us < 0:
-                self.get_logger().info(f"   Car is OVERSTEERING (rare, be careful at high speed!)")
-            else:
-                self.get_logger().info(f"   Car is NEUTRAL (unlikely)")
-            
-            # Cornering stiffness info
-            # K_us = m/(2L) * (l_r/C_f - l_f/C_r)
-            # We can't separate C_f and C_r from K_us alone, but we can give the ratio
-            # if we assume l_f and l_r (50/50 split: l_f = l_r = L/2)
-            self.get_logger().info(f"\n   Assuming 50/50 weight distribution (l_f = l_r = L/2):")
-            self.get_logger().info(f"   K_us = m/(2L) * (L/2) * (1/C_f - 1/C_r)")
-            self.get_logger().info(f"   Note: Need data at higher speeds for reliable cornering stiffness")
-        else:
-            self.get_logger().info(f"\n2. Need >= 3 speed points for understeer gradient analysis")
+        self.get_logger().info(f"\n1. Wheelbase Estimate (from v={lowest['speed_actual']:.2f} m/s):")
+        self.get_logger().info(f"   R_odom (circle fit): {lowest['radius']:.3f}m")
+        self.get_logger().info(f"   R_imu  (v/ω):       {r_imu:.3f}m")
+        self.get_logger().info(f"   Commanded steering: {np.degrees(self.steering_angle):.2f}°")
+        self.get_logger().info(f"   Current wheelbase:  {self.wheelbase:.4f}m")
+        self.get_logger().info(f"   Wheelbase (odom):   {measured_wheelbase:.4f}m")
+        self.get_logger().info(f"   Wheelbase (IMU):    {wheelbase_imu:.4f}m")
+        self.get_logger().info(f"   (current L implies actual δ = {np.degrees(measured_angle):.2f}°)")
+        
+        if lowest.get('slip_pct', 0) > 10:
+            self.get_logger().warn(
+                f"   ⚠ Odom/IMU radius mismatch > 10% even at lowest speed. "
+                f"Check servo offset and steering calibration.")
+        
+        # ---- 2. Odom vs IMU radius comparison across speeds ----
+        if len(self.circle_results) >= 2:
+            self.get_logger().info(f"\n2. Radius Comparison (odom vs IMU):")
+            self.get_logger().info(f"   {'v (m/s)':>8} {'R_odom':>8} {'R_imu':>8} {'slip%':>7}")
+            for r in self.circle_results:
+                ri = r.get('radius_imu', r['radius'])
+                sp = r.get('slip_pct', 0)
+                self.get_logger().info(
+                    f"   {r['speed_actual']:8.2f} {r['radius']:8.3f} {ri:8.3f} {sp:7.1f}")
+            self.get_logger().info(
+                f"   NOTE: Large slip% at higher speeds is expected (tire slip).")
+            self.get_logger().info(
+                f"   The odom radius grows because ERPM-based position integration ")
+            self.get_logger().info(
+                f"   does not account for lateral tire slip during cornering.")
         
         # ---- 3. Friction estimate from lateral acceleration ----
         fastest = max(self.circle_results, key=lambda r: r['speed_actual'])
@@ -283,16 +298,23 @@ class CircleTestNode(TestNode):
         self.get_logger().info(f"   v²/R = {fastest['speed_actual']**2/fastest['radius']:.3f} m/s² (kinematic)")
         
         # ---- Summary for MPC ----
+        # Prefer the IMU-based wheelbase at the lowest speed
+        best_wheelbase = wheelbase_imu if lowest.get('slip_pct', 0) < 15 else measured_wheelbase
         self.get_logger().info(f"\n--- Parameters for MPC ---")
-        self.get_logger().info(f"  Wheelbase: {measured_wheelbase:.4f}m")
+        self.get_logger().info(f"  Wheelbase: {best_wheelbase:.4f}m")
         self.get_logger().info(f"  Max steer: {np.degrees(self.steering_angle):.2f}° (commanded)")
         self.get_logger().info(f"  Update mpc_types.h:")
-        self.get_logger().info(f"    #define WHEELBASE  FP_FROM_FLOAT({measured_wheelbase:.4f}f)")
+        self.get_logger().info(f"    #define WHEELBASE  FP_FROM_FLOAT({best_wheelbase:.4f}f)")
+
+        # Auto-save to vehicle_params.yaml
+        update_vehicle_params({
+            'wheelbase': best_wheelbase,
+        }, status='TESTED', logger=self.get_logger())
         self.get_logger().info("=" * 60)
 
 
 def main():
-    parser = argparse.ArgumentParser(description='F1/10th Circle Test')
+    parser = argparse.ArgumentParser(description='F1/10th Wheelbase Verification Test')
     parser.add_argument('--steering', type=float, default=0.3,
                         help='Steering angle in radians (default: 0.3 ≈ 17°)')
     parser.add_argument('--speeds', type=str, default='1.0,1.5,2.0,2.5,3.0',
@@ -309,7 +331,7 @@ def main():
     args.speeds = [float(s) for s in args.speeds.split(',')]
     
     rclpy.init()
-    node = CircleTestNode(args)
+    node = WheelbaseTestNode(args)
     
     try:
         node.run_test()

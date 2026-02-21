@@ -244,6 +244,8 @@ class TestNode(Node):
         self.imu_gz = 0.0
         self.battery_voltage = 12.0
         self.motor_rpm = 0.0
+        self.motor_current = 0.0
+        self.input_current = 0.0
         self.odom_received = False
         self.imu_received = False
         self.test_running = False
@@ -327,6 +329,8 @@ class TestNode(Node):
     def _vesc_callback(self, msg):
         self.battery_voltage = msg.state.voltage_input
         self.motor_rpm = msg.state.speed
+        self.motor_current = msg.state.current_motor
+        self.input_current = msg.state.current_input
         self.safety.update_battery(self.battery_voltage)
     
     def _sigint_handler(self, sig, frame):
@@ -405,7 +409,7 @@ class TestNode(Node):
         self.get_logger().info("All sensors active.")
         return True
     
-    def spin_for(self, duration: float, rate_hz: float = 50.0):
+    def spin_for(self, duration: float, rate_hz: float = 200.0):
         """Spin the node for a given duration while processing callbacks.
         
         Re-publishes the current command at ~rate_hz to keep the ackermann_mux
@@ -436,6 +440,82 @@ class TestNode(Node):
             while time.monotonic() < end:
                 rclpy.spin_once(self, timeout_sec=0.02)
         self.get_logger().info("GO!")
+
+
+# ============================================================================
+# IMU-Based Velocity and Radius Estimation
+# ============================================================================
+
+class ImuVelocityEstimator:
+    """
+    Integrates IMU longitudinal acceleration to estimate velocity independently
+    of wheel (ERPM-based) odometry.
+
+    The VESC odometry derives speed from motor ERPM (back-EMF). During
+    braking the wheels can lock or slip, causing ERPM to drop faster than
+    the actual vehicle speed. During aggressive cornering the driven wheels
+    may spin faster than the ground speed. In both cases the ERPM-based
+    velocity is wrong.
+
+    The IMU accelerometer measures actual body acceleration regardless of
+    wheel state, so integrating it gives a slip-independent velocity
+    estimate for short durations. Over longer periods the integrated
+    velocity drifts due to bias, so it should be periodically re-anchored
+    to odom when the car is in a known-good regime (e.g. steady straight
+    driving).
+
+    Usage:
+        estimator = ImuVelocityEstimator()
+        # While stationary, collect imu_ax samples:
+        estimator.calibrate_bias(stationary_ax_samples)
+        # Start from known velocity
+        estimator.reset(initial_velocity=odom_vx)
+        # In the control / recording loop:
+        estimator.update(imu_ax, dt)
+        v = estimator.velocity
+    """
+
+    def __init__(self, bias: float = 0.0):
+        self.velocity = 0.0
+        self.bias = bias
+
+    def reset(self, initial_velocity: float = 0.0, bias: float = None):
+        """Reset velocity; optionally update bias."""
+        self.velocity = initial_velocity
+        if bias is not None:
+            self.bias = bias
+
+    def calibrate_bias(self, samples) -> float:
+        """Compute accelerometer bias from stationary samples (list or array)."""
+        self.bias = float(np.mean(samples)) if len(samples) > 0 else 0.0
+        return self.bias
+
+    def update(self, imu_ax: float, dt: float) -> float:
+        """Integrate corrected acceleration; returns updated velocity."""
+        self.velocity += (imu_ax - self.bias) * dt
+        self.velocity = max(self.velocity, 0.0)  # forward-only assumption
+        return self.velocity
+
+
+def radius_from_imu(speed: float, yaw_rate: float) -> float:
+    """
+    Compute turning radius from speed and IMU yaw rate.
+
+        R = |v| / |ω|
+
+    This is independent of wheel odometry position integration and
+    therefore unaffected by tire slip or ERPM estimation errors.
+
+    Args:
+        speed: Forward speed in m/s (can be from odom or IMU-integrated).
+        yaw_rate: Yaw rate in rad/s (from /sensors/imu/raw angular_velocity.z).
+
+    Returns:
+        Turning radius in meters, or float('inf') if yaw rate ≈ 0.
+    """
+    if abs(yaw_rate) < 0.01:
+        return float('inf')
+    return abs(speed) / abs(yaw_rate)
 
 
 # ============================================================================
@@ -528,3 +608,132 @@ def load_csv(filepath: str) -> dict:
             data[key] = np.array([row[key] for row in rows])
     
     return data
+
+
+# ============================================================================
+# Vehicle Parameter Auto-Update
+# ============================================================================
+
+VEHICLE_PARAMS_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), 'vehicle_params.yaml')
+
+# Dependency map: which tests need re-running when a parameter changes
+PARAM_DEPENDENCIES = {
+    'mass': ['test_cornering_stiffness.py', 'test_longitudinal_stiffness.py',
+             'test_motor_torque.py'],
+    'l_f': ['test_cornering_stiffness.py'],
+    'l_r': ['test_cornering_stiffness.py'],
+    'r_eff': ['test_longitudinal_stiffness.py', 'test_motor_torque.py'],
+    'gear_ratio': ['test_motor_torque.py'],
+    'wheelbase': ['test_cornering_stiffness.py', 'test_steering_rate.py'],
+}
+
+
+def update_vehicle_param(key: str, value, status: str = 'TESTED',
+                         logger=None):
+    """
+    Update a single parameter in vehicle_params.yaml.
+    
+    Replaces the value on a line like:
+        key: <old_value>    # ...
+    with:
+        key: <new_value>    # [STATUS] ...
+    
+    Args:
+        key:    YAML key name (e.g., 'mu', 'max_velocity', 'C_alpha_f')
+        value:  New value (float, int, or str)
+        status: Tag like 'TESTED', 'CALC', 'MEASURED'
+        logger: Optional ROS2 logger for output
+    """
+    if not os.path.isfile(VEHICLE_PARAMS_FILE):
+        if logger:
+            logger.warn(f'vehicle_params.yaml not found, skipping auto-update')
+        return False
+
+    with open(VEHICLE_PARAMS_FILE, 'r') as f:
+        lines = f.readlines()
+
+    # Format the value
+    if isinstance(value, float):
+        if abs(value) < 0.001 and value != 0:
+            val_str = f'{value:.6f}'
+        elif abs(value) < 1:
+            val_str = f'{value:.4f}'
+        else:
+            val_str = f'{value:.4f}'
+        # Strip trailing zeros but keep at least one decimal
+        val_str = val_str.rstrip('0').rstrip('.')
+        if '.' not in val_str:
+            val_str += '.0'
+    else:
+        val_str = str(value)
+
+    # Find the line with this key
+    import re as _re
+    pattern = _re.compile(
+        r'^(\s*)' + _re.escape(key) + r':\s*'
+        r'([^#\n]*?)'          # current value (group 2)
+        r'(\s*#\s*)'           # comment start (group 3)
+        r'(\[.*?\]\s*)?'       # optional [TAG] (group 4)
+        r'(.*?)$'              # rest of comment (group 5)
+    )
+
+    updated = False
+    for i, line in enumerate(lines):
+        m = pattern.match(line)
+        if m:
+            indent = m.group(1)
+            comment_sep = m.group(3)
+            rest_comment = m.group(5) or ''
+            # Reconstruct line with new value and status tag
+            new_line = (f'{indent}{key}: {val_str}'
+                        f'{comment_sep}[{status}] {rest_comment}\n')
+            lines[i] = new_line
+            updated = True
+            break
+
+    if not updated:
+        # Try simpler pattern (key with ~ or no comment)
+        simple = _re.compile(
+            r'^(\s*)' + _re.escape(key) + r':\s*~?\s*(#.*)?$')
+        for i, line in enumerate(lines):
+            m = simple.match(line)
+            if m:
+                indent = m.group(1)
+                comment = m.group(2) or ''
+                # Insert [STATUS] into comment if present
+                if comment:
+                    comment = _re.sub(r'\[.*?\]\s*', '', comment)
+                    comment = comment.replace('# ', f'# [{status}] ', 1)
+                else:
+                    comment = f'# [{status}]'
+                lines[i] = f'{indent}{key}: {val_str}  {comment}\n'
+                updated = True
+                break
+
+    if updated:
+        with open(VEHICLE_PARAMS_FILE, 'w') as f:
+            f.writelines(lines)
+        if logger:
+            logger.info(f'  Updated vehicle_params.yaml: {key} = {val_str}')
+    else:
+        if logger:
+            logger.warn(f'  Could not find "{key}" in vehicle_params.yaml')
+
+    return updated
+
+
+def update_vehicle_params(params: dict, status: str = 'TESTED',
+                          logger=None):
+    """
+    Update multiple parameters in vehicle_params.yaml at once.
+    
+    Args:
+        params: Dict of {key: value} pairs
+        status: Tag like 'TESTED', 'CALC'
+        logger: Optional ROS2 logger
+    """
+    for key, value in params.items():
+        if value is not None:
+            update_vehicle_param(key, value, status=status, logger=logger)
+

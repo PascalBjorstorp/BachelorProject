@@ -139,6 +139,8 @@ docs/api/
 *.pid
 core
 core.*
+*.cmake
+*.bin
 
 # Coverage reports
 .coverage
@@ -183,3 +185,13 @@ _ide/
 FPGA/Bitstream/*.bit
 FPGA/Bitstream/*.bin
 FPGA/Bitstream/*.ltx
+FPGA/docs/*
+
+# =============================================
+# Parameter csv files 
+# =============================================
+f1tenth_parameters/data/*.csv
+
+# CMake generated files
+*CMakeConfigureLog.yaml
+*CMakeCCompilerId.c

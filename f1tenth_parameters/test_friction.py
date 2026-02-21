@@ -16,6 +16,16 @@ Detection methods:
 2. Actual yaw rate diverges from kinematic prediction
 3. Odom-reported radius increases significantly from kinematic radius
 
+NOTE ON ODOMETRY LIMITATIONS:
+    The VESC derives speed from motor ERPM (back-EMF).  During high-speed
+    cornering the driven wheels may spin faster or differently from the true
+    ground speed (lateral slip).  The odom-based trajectory (x, y) is
+    integrated from that ERPM velocity and will diverge from reality.
+    The friction coefficient μ itself comes from the IMU lateral acceleration
+    which is a direct physical measurement and is NOT affected by this.
+    However, the odom-based radius (circle fit) and speed should be
+    cross-checked against the IMU-based radius R = v/|ω_imu|.
+
 CAUTION: This test intentionally approaches the limits of grip!
 Start at low speed and increase gradually. Keep the joystick ready.
 
@@ -30,7 +40,8 @@ import numpy as np
 import rclpy
 
 from common import (
-    TestNode, fit_circle, radius_from_steering_angle, DEFAULT_WHEELBASE
+    TestNode, fit_circle, radius_from_steering_angle, radius_from_imu,
+    DEFAULT_WHEELBASE
 )
 
 GRAVITY = 9.81  # m/s²
@@ -89,7 +100,7 @@ class FrictionTestNode(TestNode):
         
         start = time.monotonic()
         while time.monotonic() - start < self.circle_time:
-            rclpy.spin_once(self, timeout_sec=0.02)
+            rclpy.spin_once(self, timeout_sec=0.005)
             
             if not self.safety.check():
                 self.get_logger().error(f"Safety abort: {self.safety.abort_reason}")
@@ -124,8 +135,12 @@ class FrictionTestNode(TestNode):
             return None
         
         avg_ay = np.mean(np.abs(ay_samples))
+        std_ay = np.std(np.abs(ay_samples))
         avg_speed = np.mean(speed_samples)
+        std_speed = np.std(speed_samples)
         avg_omega = np.mean(np.abs(omega_samples))
+        std_omega = np.std(np.abs(omega_samples))
+        n_samples = len(ay_samples)
         
         # Kinematic prediction
         r_kinematic = radius_from_steering_angle(self.steering_angle, self.wheelbase)
@@ -143,17 +158,25 @@ class FrictionTestNode(TestNode):
         # Slip indicator: ratio of actual to kinematic yaw rate
         slip_ratio = avg_omega / omega_kinematic if omega_kinematic > 0.01 else 1.0
         
+        # IMU-based radius (slip-independent)
+        r_imu = radius_from_imu(avg_speed, avg_omega)
+        
         result = {
             'speed_cmd': target_speed,
             'speed_actual': avg_speed,
+            'speed_std': std_speed,
             'ay_imu': avg_ay,
+            'ay_std': std_ay,
             'ay_kinematic': ay_kinematic,
             'omega_actual': avg_omega,
+            'omega_std': std_omega,
             'omega_kinematic': omega_kinematic,
             'r_actual': r_actual,
+            'r_imu': r_imu,
             'r_kinematic': r_kinematic,
             'slip_ratio': slip_ratio,
             'mu_estimate': avg_ay / GRAVITY,
+            'n_samples': n_samples,
         }
         
         self.get_logger().info(
@@ -248,10 +271,16 @@ class FrictionTestNode(TestNode):
         
         # Print table
         self.get_logger().info(f"\n2. SPEED vs LATERAL ACCELERATION:")
-        self.get_logger().info(f"   {'v (m/s)':>8} {'a_y (m/s²)':>12} {'a_y (g)':>10} {'slip_ratio':>12}")
+        self.get_logger().info(f"   {'v (m/s)':>8} {'a_y (m/s²)':>12} {'a_y (g)':>10} {'slip_ratio':>12} {'R_odom':>8} {'R_imu':>8}")
         for r in self.speed_results:
+            ri = r.get('r_imu', r['r_actual'])
             self.get_logger().info(
-                f"   {r['speed_actual']:8.2f} {r['ay_imu']:12.3f} {r['ay_imu']/GRAVITY:10.3f} {r['slip_ratio']:12.3f}")
+                f"   {r['speed_actual']:8.2f} {r['ay_imu']:12.3f} {r['ay_imu']/GRAVITY:10.3f} "
+                f"{r['slip_ratio']:12.3f} {r['r_actual']:8.3f} {ri:8.3f}")
+        
+        self.get_logger().info(f"\n   NOTE: The friction coefficient μ is from the IMU (direct measurement)")
+        self.get_logger().info(f"   and is NOT affected by odometry errors. R_odom vs R_imu shows")
+        self.get_logger().info(f"   how much the ERPM-based odom diverges from reality at each speed.")
         
         # ---- Summary for MPC ----
         self.get_logger().info(f"\n--- Parameters for MPC ---")
@@ -263,6 +292,47 @@ class FrictionTestNode(TestNode):
         r_kin = radius_from_steering_angle(self.steering_angle, self.wheelbase)
         v_max_corner = np.sqrt(mu * GRAVITY * r_kin)
         self.get_logger().info(f"  At δ={np.degrees(self.steering_angle):.0f}° (R={r_kin:.2f}m): v_max = {v_max_corner:.2f} m/s")
+
+        # Save summary CSV with per-speed-point results
+        import csv as csv_mod
+        summary_path = self.recorder.filename.replace('.csv', '_summary.csv')
+        with open(summary_path, 'w', newline='') as f:
+            writer = csv_mod.DictWriter(f, fieldnames=[
+                'speed_cmd', 'speed_actual', 'speed_std',
+                'ay_imu', 'ay_std', 'ay_kinematic',
+                'omega_actual', 'omega_std', 'omega_kinematic',
+                'r_actual', 'r_imu', 'r_kinematic',
+                'slip_ratio', 'mu', 'mu_uncertainty', 'n_samples'])
+            writer.writeheader()
+            for r in self.speed_results:
+                mu_val = r['ay_imu'] / GRAVITY
+                mu_unc = r['ay_std'] / GRAVITY  # propagated from ay_std
+                writer.writerow({
+                    'speed_cmd': r['speed_cmd'],
+                    'speed_actual': r['speed_actual'],
+                    'speed_std': r['speed_std'],
+                    'ay_imu': r['ay_imu'],
+                    'ay_std': r['ay_std'],
+                    'ay_kinematic': r['ay_kinematic'],
+                    'omega_actual': r['omega_actual'],
+                    'omega_std': r['omega_std'],
+                    'omega_kinematic': r['omega_kinematic'],
+                    'r_actual': r['r_actual'],
+                    'r_imu': r['r_imu'],
+                    'r_kinematic': r['r_kinematic'],
+                    'slip_ratio': r['slip_ratio'],
+                    'mu': mu_val,
+                    'mu_uncertainty': mu_unc,
+                    'n_samples': r['n_samples'],
+                })
+        self.get_logger().info(f"Summary saved to {summary_path}")
+
+        # Auto-save to vehicle_params.yaml
+        from common import update_vehicle_params
+        update_vehicle_params({
+            'mu': float(mu),
+            'max_lateral_accel': float(max_ay),
+        }, status='TESTED', logger=self.get_logger())
         self.get_logger().info("=" * 60)
 
 
@@ -281,17 +351,26 @@ def main():
                         help='Recording time per speed point (s, default: 8.0)')
     parser.add_argument('--wheelbase', type=float, default=DEFAULT_WHEELBASE,
                         help=f'Wheelbase in meters (default: {DEFAULT_WHEELBASE})')
+    parser.add_argument('--runs', type=int, default=1,
+                        help='Number of complete test runs (default: 1)')
     args = parser.parse_args()
     
     rclpy.init()
-    node = FrictionTestNode(args)
-    
-    try:
-        node.run_test()
-    finally:
-        node.stop_car()
-        node.destroy_node()
-        rclpy.shutdown()
+    for run_idx in range(args.runs):
+        if args.runs > 1:
+            print(f"\n{'='*60}")
+            print(f"RUN {run_idx + 1}/{args.runs}")
+            print(f"{'='*60}\n")
+        node = FrictionTestNode(args)
+        try:
+            node.run_test()
+        finally:
+            node.stop_car()
+            node.destroy_node()
+        if run_idx < args.runs - 1:
+            print("\nCooling down for 5s before next run...")
+            time.sleep(5)
+    rclpy.shutdown()
 
 
 if __name__ == '__main__':

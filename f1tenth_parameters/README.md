@@ -24,76 +24,154 @@ All tests have built-in safety features:
 **Always keep the joystick in hand during tests.** If anything goes wrong, press the joystick
 deadman switch and steer away, or simply let go (commands timeout in 0.5s).
 
+## Odometry Limitations & IMU Corrections
+
+The VESC derives speed from motor ERPM (back-EMF). This is accurate during
+steady-state driving but becomes unreliable in two key situations:
+
+1. **Braking / deceleration**: Wheels may lock or slip, causing ERPM to drop
+   faster than the actual vehicle speed. The odom reports the car has stopped
+   before it physically has.
+2. **High-speed cornering**: Lateral tire slip means the wheels rotate at a
+   different rate than the ground speed. The odom trajectory drifts.
+
+The VESC IMU (`/sensors/imu/raw`) provides direct body-frame measurements
+that are **unaffected by wheel slip**:
+- **Accelerometer (ax)**: Integrate for velocity during braking
+- **Gyroscope (gz)**: Yaw rate → `R_imu = v / |ω|` for slip-independent turning radius
+- **Lateral accel (ay)**: Direct friction coefficient measurement
+
+All test scripts use IMU-based crosschecks where relevant and flag
+discrepancies between odom and IMU values.
+
 ## Test Sequence
 
-Run the tests in this order:
+### 1. VESC PID Tuning (`vesc_pid_test.py`)
+Test and analyse the VESC speed PID controller.
+```bash
+# Mode 1: Direct serial test (VESC Tool must be closed)
+python3 vesc_pid_test.py --target-rpm 5000
 
-### 1. Steering Calibration (`test_steering_calibration.py`)
-Verifies/calibrates the servo-to-steering-angle mapping.
+# Mode 2: Analyse a VESC Tool CSV log
+python3 vesc_pid_test.py --analyze /path/to/vesc_tool_log.csv
+```
+
+### 2. Find Servo Offset (`find_servo_offset.py`)
+Interactive tool to find the servo center (straight-driving) offset.
+```bash
+python3 find_servo_offset.py --speed 1.0
+```
+
+### 2b. Find Servo Limits (`find_servo_limits.py`)
+Interactive tool to find `servo_min` and `servo_max` (physical lock-to-lock range).
+Put the car on a stand with wheels off the ground, then sweep the servo outward
+from center and mark where the steering hits its mechanical stops.
+```bash
+python3 find_servo_limits.py
+```
+
+### 3. Steering Gain (`test_steering_gain.py`) ✓ validated at 1 m/s
+Calibrates `steering_angle_to_servo_gain` by driving a half-circle at max steering.
+```bash
+python3 test_steering_gain.py --speed 1.0 --runs 3
+```
+
+### 4. Steering Calibration (`test_steering_calibration.py`)
+Sweeps servo positions to build a full servo → steering angle map.
 ```bash
 python3 test_steering_calibration.py --speed 1.0 --hold-time 3.0
 ```
-- Drives slowly forward while sweeping servo positions
-- Records turning radius at each servo position
-- Outputs corrected `steering_angle_to_servo_gain` and `steering_angle_to_servo_offset`
+⚠ **Run at ≤ 1 m/s only.** At higher speeds tire slip corrupts the odom-based
+radius measurement. See odometry limitations above.
 
-### 2. Speed Calibration (`test_speed_calibration.py`)
-Verifies the ERPM-to-speed conversion gain.
+### 5. Speed Calibration Sweep (`test_speed_sweep.py`)
+Drives at multiple speeds, measuring actual distance with a tape measure.
+Fits a quadratic ERPM model.  Uses IMU-assisted braking distance to handle
+tire slide during deceleration.
 ```bash
-python3 test_speed_calibration.py --distance 5.0
+python3 test_speed_sweep.py --distance 5.0 --min-speed 1 --max-speed 10
 ```
-- Drives over a known distance at constant speed
-- Times the run and compares reported vs actual velocity
-- Outputs corrected `speed_to_erpm_gain`
 
-### 3. Circle Test (`test_circle.py`)
-Extracts wheelbase, max steering angle, and (at higher speeds) cornering stiffness.
+### 6. Wheelbase Verification (`test_wheelbase.py`)
+Drives circles at low speed to extract the effective wheelbase.
 ```bash
-python3 test_circle.py --speed 1.5 --steering 0.3 --laps 2
+python3 test_wheelbase.py --steering 0.3 --speeds 1.0,1.5,2.0 --laps 2
 ```
-- Drives circles at fixed steering angle and speed
-- Fits circle to trajectory → extracts radius
-- Computes effective wheelbase and steering angle
-- At multiple speeds: extracts understeer gradient → cornering stiffness ratio
+Reports both odom-based and IMU-based (R = v/ω) radius estimates.
+The wheelbase estimate is most reliable at ≤ 2 m/s.
 
-### 4. Maximum Dynamics (`test_max_dynamics.py`)
+### 7. Maximum Dynamics (`test_max_dynamics.py`)
 Measures maximum velocity, acceleration, and deceleration.
 ```bash
 python3 test_max_dynamics.py --max-speed 3.0
 ```
-- Full throttle from standstill → max acceleration and velocity
-- Full brake → max deceleration
-- **Requires ~5m of straight, clear space**
+⚠ Uses IMU-integrated velocity for accurate deceleration measurement.
+Odom-based deceleration is unreliable due to wheel slip during braking.
 
-### 5. Steering Rate (`test_steering_rate.py`)
+### 8. Steering Rate (`test_steering_rate.py`) ⚠ not yet tested
 Measures the steering actuator speed.
 ```bash
 python3 test_steering_rate.py --speed 1.5
 ```
-- Drives straight, then commands step steering changes
-- Measures yaw rate response time from IMU
-- Extracts effective steering rate limit
+Uses IMU yaw rate (not filtered odom angular velocity) for accurate timing.
 
-### 6. Friction Limit (`test_friction.py`)
-Measures the maximum tire grip (friction coefficient).
+### 9. Friction Limit (`test_friction.py`)
+Measures maximum tire grip (friction coefficient μ = a_y_max / g).
 ```bash
 python3 test_friction.py --steering 0.3 --max-speed 4.0
 ```
-- Drives circles at increasing speed
-- Records lateral acceleration from IMU
-- When tires saturate → friction coefficient μ = a_lat_max / g
+The friction coefficient comes directly from the **IMU lateral acceleration**
+and is not affected by odometry errors. Odom-based and IMU-based radii are
+reported side-by-side for slip detection.
 
-## Output
-
-All tests save timestamped CSV files in `f1tenth_parameters/data/`. After running tests,
-view a summary and export parameters:
-
+### 10. Cornering Stiffness (`test_cornering_stiffness.py`)
+Identifies front and rear tire cornering stiffness (Cα_f, Cα_r) from steady-state
+circle driving at increasing speeds. Requires vehicle mass and CG position.
 ```bash
-python3 analyze_results.py
+python3 test_cornering_stiffness.py --steering 0.3 --max-speed 3.5 --mass 3.314 --l-f 0.1679 --l-r 0.158
 ```
+Also computes the understeer gradient.
 
-This prints identified parameters and generates a YAML snippet for `vesc.yaml` and
-a C header snippet for `mpc_types.h`.
+### 11. Longitudinal Tire Stiffness (`test_longitudinal_stiffness.py`)
+Measures longitudinal tire stiffness (C_x) by comparing wheel speed (ERPM) to
+body speed (IMU integration) during acceleration and braking.
+```bash
+python3 test_longitudinal_stiffness.py --max-speed 3.0 --mass 3.314
+```
+The slip ratio κ = (v_wheel − v_body) / max(|v_wheel|, |v_body|).
+
+### 12. Motor Torque (`test_motor_torque.py`)
+Maps motor current to wheel force at different speed levels. Measures max
+drive and braking torque.
+```bash
+python3 test_motor_torque.py --speeds 1.5,2.0,3.0,4.0 --mass 3.314 --r-tire 0.05
+```
+⚠ Update `--r-tire` with your measured effective (loaded) tire radius!
+
+### 13. Current Limit Characterization (`test_current_limits.py`)
+Helps determine safe motor current limits by driving the car while
+monitoring FET and motor temperatures. Two modes:
+- **Straight-line** (default): drives straight, pauses between runs to reposition (~10m needed)
+- **Circle mode** (`--circle`): drives in circles, stays in one area (~3×3 m needed)
+```bash
+python3 test_current_limits.py                    # straight, 4 m/s, 5 runs
+python3 test_current_limits.py --circle           # circle mode
+python3 test_current_limits.py --max-speed 3.0 --runs 7
+```
+Iterative process: set a limit in VESC Tool → run test → check temps → adjust → repeat.
+
+## Parameter Dependencies
+
+Test results are **automatically saved** to `vehicle_params.yaml` after each test.
+If you change a fundamental measurement, re-run the affected tests:
+
+| If you change... | Re-run these tests |
+|---|---|
+| `mass` | cornering stiffness, longitudinal stiffness, motor torque |
+| `l_f` or `l_r` | cornering stiffness |
+| `r_eff` | longitudinal stiffness, motor torque |
+| `gear_ratio` | motor torque |
+| `wheelbase` | cornering stiffness, steering rate |
 
 ## Data Pipeline Notes
 
@@ -161,18 +239,40 @@ All test scripts also use `abs()` for magnitude-based measurements as a safety n
 The measured steering rate is the **physical servo speed** — there is no throttle
 interpolator rate-limiting the servo commands in the default `bringup_launch.py`.
 
+## Master Test Runner
+
+Once all VESC calibration prerequisites are done, use the master test runner to
+walk through all vehicle model parameter tests interactively:
+
+```bash
+python3 run_all_tests.py
+python3 run_all_tests.py --skip-confirmed   # Skip tests that already have data
+```
+
+Each test gets a y/n prompt, lets you customize arguments, and provides a
+summary at the end with all identified parameters.
+
 ## File Structure
 
 ```
 f1tenth_parameters/
 ├── README.md                      # This file
-├── common.py                      # Shared utilities (safety, recording, commands)
-├── test_steering_calibration.py   # Steering servo calibration
-├── test_speed_calibration.py      # ERPM-to-velocity calibration
-├── test_circle.py                 # Circle test (wheelbase, cornering stiffness)
-├── test_max_dynamics.py           # Max velocity, acceleration, deceleration
-├── test_steering_rate.py          # Steering actuator bandwidth
-├── test_friction.py               # Tire friction coefficient
-├── analyze_results.py             # Combined analysis and parameter export
+├── common.py                      # Shared utilities (safety, recording, commands, IMU helpers)
+├── vehicle_params.yaml            # Vehicle parameter document (fill in with measured values)
+├── run_all_tests.py               # Master test runner for vehicle model parameters
+├── vesc_pid_test.py               # VESC PID step response test + VESC Tool CSV analyzer
+├── find_servo_offset.py           # Interactive servo center/offset finder
+├── find_servo_limits.py           # Interactive servo min/max limit finder
+├── test_steering_gain.py          # Steering gain calibration (half-circle) ✓ validated at 1 m/s
+├── test_steering_calibration.py   # Full steering servo calibration
+├── test_speed_sweep.py            # Speed calibration sweep (tape measure + IMU braking)
+├── test_wheelbase.py              # Wheelbase verification (circle test + IMU cross-check)
+├── test_max_dynamics.py           # Max velocity, acceleration, deceleration (IMU-assisted)
+├── test_steering_rate.py          # Steering actuator bandwidth + servo constant ⚠ not yet tested
+├── test_friction.py               # Tire friction coefficient (IMU-based)
+├── test_cornering_stiffness.py    # Front/rear cornering stiffness (Cα_f, Cα_r)
+├── test_longitudinal_stiffness.py # Longitudinal tire stiffness (C_x)
+├── test_motor_torque.py           # Motor current → wheel force mapping
+├── test_current_limits.py         # Thermal characterization for VESC current limits
 └── data/                          # Saved test data (CSV files)
 ```

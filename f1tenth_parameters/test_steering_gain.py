@@ -5,6 +5,11 @@ Steering Angle Gain Calibration via Half-Circle Test
 Calibrates steering_angle_to_servo_gain by driving a half-circle at max
 steering and measuring the straight-line distance from start to end.
 
+VALIDATION STATUS:
+    Tested and validated at 1 m/s.  At this speed tire slip is negligible
+    and the kinematic bicycle model matches well.  Higher speeds have not
+    been validated and may introduce slip errors.
+
 Theory (kinematic bicycle model):
     beta  = arctan(0.5 * tan(delta))
     R     = L / (2 * sin(beta))

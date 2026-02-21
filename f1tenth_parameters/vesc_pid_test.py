@@ -1,23 +1,45 @@
 #!/usr/bin/env python3
 """
-VESC PID Step Response Tester
-=============================
+VESC PID Step Response Tester & Analyzer
+========================================
 
-Connects directly to the VESC over USB serial, runs a step response test,
-logs RPM data at high rate, and analyzes PID performance.
+Two modes of operation:
 
-REQUIREMENTS:
-    pip install pyserial numpy
+**Mode 1 — Direct serial test (default):**
+    Connects directly to the VESC over USB serial, runs a step response test,
+    logs RPM data at high rate, and analyzes PID performance.
 
-USAGE:
-    1. Make sure VESC Tool is NOT connected (only one app can use the port)
-    2. Put the car on a stand so the wheels spin freely!
-    3. Run:
-       python3 vesc_pid_test.py [--port /dev/ttyACM0] [--target-rpm 5000]
+    REQUIREMENTS:
+        pip install pyserial numpy
 
-    On Linux the port is usually /dev/ttyACM0.
-    On Windows it's COMx (check Device Manager).
-    On Mac it's /dev/tty.usbmodemXXXX.
+    USAGE:
+        1. Make sure VESC Tool is NOT connected (only one app can use the port)
+        2. Put the car on a stand so the wheels spin freely!
+        3. Run:
+           python3 vesc_pid_test.py [--port /dev/ttyACM0] [--target-rpm 5000]
+
+        On Linux the port is usually /dev/ttyACM0.
+        On Windows it's COMx (check Device Manager).
+        On Mac it's /dev/tty.usbmodemXXXX.
+
+**Mode 2 — Analyze VESC Tool CSV log (--analyze):**
+    Analyzes a CSV file exported from VESC Tool's Realtime Data logging.
+
+    WORKFLOW:
+        1. Connect to your VESC via USB with VESC Tool
+        2. In VESC Tool: Realtime Data → Check "Activate Sampling" (top bar)
+        3. In VESC Tool: Data Analysis → Start logging to CSV
+           OR: Realtime Data → top-right hamburger menu → "Start CSV Logging"
+        4. In the Terminal tab, type the step response commands:
+              rpm 0
+              (wait 2 seconds)
+              rpm 5000
+              (wait 3-5 seconds until speed is stable)
+              rpm 0
+              (wait 3 seconds)
+        5. Stop CSV logging
+        6. Run:
+           python3 vesc_pid_test.py --analyze /path/to/vesc_tool_log.csv
 
 SAFETY:
     - Put the car on a STAND (wheels off the ground)!
@@ -27,10 +49,12 @@ SAFETY:
 """
 
 import argparse
+import csv
 import struct
 import sys
 import time
 import os
+from typing import Optional, Tuple
 
 import numpy as np
 
@@ -848,11 +872,258 @@ def save_csv(data: dict, filepath: str):
 
 
 # ============================================================================
+# VESC Tool CSV Analysis (Mode 2: --analyze)
+# ============================================================================
+
+def load_vesc_tool_csv(filepath: str) -> dict:
+    """
+    Load VESC Tool CSV export.
+
+    VESC Tool writes CSVs with semicolons (European locale) or commas.
+    """
+    with open(filepath, 'r') as f:
+        first_line = f.readline()
+
+    delimiter = ';' if ';' in first_line else ','
+
+    data = {}
+    with open(filepath, 'r') as f:
+        reader = csv.DictReader(f, delimiter=delimiter)
+        rows = list(reader)
+
+    if not rows:
+        print("ERROR: CSV file is empty")
+        sys.exit(1)
+
+    print(f"Loaded {len(rows)} samples from {os.path.basename(filepath)}")
+    print(f"Columns: {list(rows[0].keys())}")
+
+    for key in rows[0].keys():
+        try:
+            vals = []
+            for row in rows:
+                val_str = row[key].strip().replace(',', '.')
+                vals.append(float(val_str))
+            data[key.strip()] = np.array(vals)
+        except (ValueError, TypeError):
+            data[key.strip()] = np.array([row[key] for row in rows])
+
+    return data
+
+
+def _find_rpm_column(data: dict) -> str:
+    """Find the ERPM/RPM column in VESC Tool data."""
+    candidates = ['rpm', 'erpm', 'RPM', 'ERPM', 'rpm_filtered', 'speed_erpm']
+    for c in candidates:
+        if c in data:
+            return c
+    for key in data.keys():
+        if 'rpm' in key.lower() or 'erpm' in key.lower():
+            return key
+    print(f"ERROR: Could not find RPM column. Available: {list(data.keys())}")
+    sys.exit(1)
+
+
+def _find_time_column(data: dict) -> Tuple[str, np.ndarray]:
+    """Find and normalise the time column (return in seconds)."""
+    candidates = ['ms_today', 'time_ms', 'time', 'Time', 'timestamp', 'ms', 'time_s']
+    for c in candidates:
+        if c in data:
+            t = data[c] - data[c][0]
+            if t[-1] > 1000:
+                t = t / 1000.0
+            return c, t
+    print("WARNING: No time column found, assuming 100 Hz sample rate")
+    n = len(next(iter(data.values())))
+    return 'synthetic', np.arange(n) / 100.0
+
+
+def _detect_step_in_csv(rpm: np.ndarray, time: np.ndarray):
+    """Detect the step-up event in RPM data from a VESC Tool CSV."""
+    rpm_sorted = np.sort(rpm)
+    high_rpm = rpm_sorted[len(rpm_sorted) * 3 // 4:]
+    target_rpm = np.median(high_rpm)
+
+    if target_rpm < 100:
+        print("ERROR: Could not detect a step response. Max RPM too low.")
+        print(f"  RPM range: {rpm.min():.0f} to {rpm.max():.0f}")
+        sys.exit(1)
+
+    threshold_10 = 0.10 * target_rpm
+    threshold_90 = 0.90 * target_rpm
+
+    above_threshold = np.where(rpm > threshold_10)[0]
+    if len(above_threshold) == 0:
+        print("ERROR: RPM never exceeds 10% of detected target")
+        sys.exit(1)
+    step_start_idx = max(0, above_threshold[0] - 5)
+
+    above_90 = np.where(rpm > threshold_90)[0]
+    if len(above_90) == 0:
+        step_end_idx = len(rpm) - 1
+    else:
+        plateau_start = above_90[0]
+        post_plateau = rpm[plateau_start:]
+        below_50_post = np.where(post_plateau < 0.50 * target_rpm)[0]
+        step_end_idx = plateau_start + below_50_post[0] if len(below_50_post) > 0 else len(rpm) - 1
+
+    return step_start_idx, step_end_idx, target_rpm
+
+
+def _analyze_csv_step_response(rpm, time, step_start, step_end, target_rpm):
+    """Analyse a step response from VESC Tool CSV data (Mode 2)."""
+    t = time[step_start:step_end] - time[step_start]
+    r = rpm[step_start:step_end]
+    n = len(r)
+    steady_samples = r[int(n * 0.8):]
+    steady_state = np.mean(steady_samples)
+    steady_state_std = np.std(steady_samples)
+
+    print(f"\n{'='*60}")
+    print(f"  STEP RESPONSE ANALYSIS  (VESC Tool CSV)")
+    print(f"{'='*60}")
+    print(f"  Detected target RPM:      {target_rpm:.0f}")
+    print(f"  Steady-state RPM:         {steady_state:.0f} ± {steady_state_std:.0f}")
+    print(f"  Steady-state error:       {abs(target_rpm - steady_state):.0f} RPM "
+          f"({abs(target_rpm - steady_state)/target_rpm*100:.1f}%)")
+    print(f"  Step duration:            {t[-1]:.2f}s")
+    print(f"  Samples:                  {n}")
+
+    # Rise time
+    threshold_10 = 0.10 * steady_state
+    threshold_90 = 0.90 * steady_state
+    t_10 = t_90 = None
+    for i in range(len(r)):
+        if t_10 is None and r[i] >= threshold_10:
+            t_10 = t[i]
+        if t_90 is None and r[i] >= threshold_90:
+            t_90 = t[i]
+    rise_time = (t_90 - t_10) if (t_10 is not None and t_90 is not None) else None
+    if rise_time is not None:
+        print(f"\n  Rise time (10%→90%):      {rise_time*1000:.1f} ms")
+    else:
+        print(f"\n  Rise time:                Could not compute")
+
+    # Overshoot
+    peak_rpm = np.max(r)
+    overshoot_pct = (peak_rpm - steady_state) / steady_state * 100
+    peak_time = t[np.argmax(r)]
+    print(f"  Peak RPM:                 {peak_rpm:.0f}")
+    print(f"  Overshoot:                {overshoot_pct:.1f}%")
+    print(f"  Time to peak:             {peak_time*1000:.1f} ms")
+
+    # Settling time
+    settling_band = 0.02 * steady_state
+    settled = np.abs(r - steady_state) <= settling_band
+    settling_time = None
+    for i in range(len(settled) - 1, -1, -1):
+        if not settled[i]:
+            if i < len(t) - 1:
+                settling_time = t[i + 1]
+            break
+    if settling_time is not None:
+        print(f"  Settling time (±2%):      {settling_time*1000:.1f} ms")
+    else:
+        print(f"  Settling time:            Already within ±2%")
+
+    # Oscillation count
+    noise_band = 3 * steady_state_std
+    oscillation_count = 0
+    if t_90 is not None:
+        idx_90 = np.searchsorted(t, t_90)
+        post_rise = r[idx_90:] - steady_state
+        state = 0
+        for val in post_rise:
+            if val > noise_band:
+                if state == -1:
+                    oscillation_count += 1
+                state = 1
+            elif val < -noise_band:
+                if state == 1:
+                    oscillation_count += 1
+                state = -1
+        print(f"  Oscillations after rise:  {oscillation_count}"
+              f"  (noise band: ±{noise_band:.0f} RPM)")
+
+    # Recommendations
+    ss_error_pct = abs(target_rpm - steady_state) / target_rpm * 100
+    issues = []
+    if overshoot_pct > 25:
+        issues.append(("HIGH OVERSHOOT",
+                       f"{overshoot_pct:.0f}% → Reduce Kp or increase Kd"))
+    elif overshoot_pct > 10:
+        issues.append(("MODERATE OVERSHOOT",
+                       f"{overshoot_pct:.0f}% → Consider slightly reducing Kp"))
+    if rise_time is not None and rise_time > 0.5:
+        issues.append(("SLOW RESPONSE",
+                       f"Rise time {rise_time*1000:.0f}ms → Increase Kp"))
+    if settling_time is not None and settling_time > 1.0:
+        issues.append(("SLOW SETTLING",
+                       f"Settling time {settling_time*1000:.0f}ms → Increase Kd"))
+    if ss_error_pct > 5:
+        issues.append(("STEADY-STATE ERROR",
+                       f"{ss_error_pct:.1f}% → Increase Ki"))
+    if oscillation_count > 3:
+        issues.append(("OSCILLATORY",
+                       f"{oscillation_count} oscillations → Reduce Ki, increase Kd"))
+
+    print(f"\n{'─'*60}")
+    print(f"  TUNING RECOMMENDATIONS")
+    print(f"{'─'*60}")
+    if not issues:
+        print("  ✓ PID tuning looks GOOD")
+    else:
+        for label, suggestion in issues:
+            print(f"  ⚠ {label}: {suggestion}")
+
+    # Summary table
+    rt_str = f"{rise_time*1000:.0f} ms" if rise_time else "N/A"
+    st_str = f"{settling_time*1000:.0f} ms" if settling_time else "N/A"
+    def status_icon(ok): return "✓" if ok else "⚠"
+    rt_ok = rise_time is not None and rise_time <= 0.2
+    os_ok = overshoot_pct < 15
+    st_ok = settling_time is None or settling_time <= 0.5
+    se_ok = ss_error_pct < 3
+    oc_ok = oscillation_count <= 2
+
+    print(f"\n  {'Metric':<25} {'Your Value':<15} {'Good Range':<15} {'Status':<10}")
+    print(f"  {'─'*25} {'─'*15} {'─'*15} {'─'*10}")
+    print(f"  {'Rise time':<25} {rt_str:<15} {'50-200 ms':<15} {status_icon(rt_ok):<10}")
+    print(f"  {'Overshoot':<25} {f'{overshoot_pct:.1f}%':<15} {'< 15%':<15} {status_icon(os_ok):<10}")
+    print(f"  {'Settling time':<25} {st_str:<15} {'< 500 ms':<15} {status_icon(st_ok):<10}")
+    print(f"  {'Steady-state error':<25} {f'{ss_error_pct:.1f}%':<15} {'< 3%':<15} {status_icon(se_ok):<10}")
+    print(f"  {'Oscillations':<25} {f'{oscillation_count}':<15} {'0-2':<15} {status_icon(oc_ok):<10}")
+    print(f"{'='*60}")
+
+
+def run_csv_analysis(csv_path: str, target_rpm_override: float = None):
+    """Entry point for Mode 2: analyse a VESC Tool CSV log."""
+    if not os.path.exists(csv_path):
+        print(f"ERROR: File not found: {csv_path}")
+        sys.exit(1)
+
+    data = load_vesc_tool_csv(csv_path)
+    rpm_col = _find_rpm_column(data)
+    rpm = data[rpm_col]
+    print(f"Using RPM column: '{rpm_col}' (range: {rpm.min():.0f} to {rpm.max():.0f})")
+
+    time_col, t = _find_time_column(data)
+    print(f"Using time column: '{time_col}' (duration: {t[-1]:.2f}s)")
+
+    step_start, step_end, detected_target = _detect_step_in_csv(rpm, t)
+    target = target_rpm_override if target_rpm_override is not None else detected_target
+    print(f"\nStep detected: t={t[step_start]:.2f}s to t={t[step_end]:.2f}s")
+    print(f"Target RPM: {target:.0f}")
+
+    _analyze_csv_step_response(rpm, t, step_start, step_end, target)
+
+
+# ============================================================================
 # Main
 # ============================================================================
 def main():
     parser = argparse.ArgumentParser(
-        description='VESC PID Step Response Tester',
+        description='VESC PID Step Response Tester & Analyzer',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 EXAMPLES:
@@ -861,6 +1132,9 @@ EXAMPLES:
 
     # Multi-step: 0 → 5000 → 9000 → 5000 → 0
     python3 vesc_pid_test.py --steps 5000,9000,5000
+
+    # Analyze a VESC Tool CSV log (no serial connection needed)
+    python3 vesc_pid_test.py --analyze /path/to/vesc_tool_log.csv
 
 Make sure:
     - VESC Tool is NOT connected (close it first)
@@ -882,9 +1156,19 @@ Make sure:
                         help='Baseline/settle time before and after test (default: 2.0s)')
     parser.add_argument('--output', type=str, default=None,
                         help='Output CSV file (default: pid_step_YYYYMMDD_HHMMSS.csv)')
+    parser.add_argument('--analyze', type=str, default=None,
+                        metavar='CSV_FILE',
+                        help='Analyze a VESC Tool CSV log instead of running a serial test')
     
     args = parser.parse_args()
     
+    # ---- Mode 2: Analyze a VESC Tool CSV log ----
+    if args.analyze is not None:
+        target_override = args.target_rpm if '--target-rpm' in sys.argv else None
+        run_csv_analysis(args.analyze, target_override)
+        return
+    
+    # ---- Mode 1: Direct serial test ----
     # Default output filename
     if args.output is None:
         timestamp = time.strftime('%Y%m%d_%H%M%S')

@@ -6,6 +6,17 @@ Drives slowly forward while sweeping through servo positions to measure
 the actual turning radius at each position. This validates/calibrates the
 steering_angle_to_servo_gain and steering_angle_to_servo_offset parameters.
 
+NOTE ON ODOMETRY LIMITATIONS:
+    This test extracts the actual steering angle from the measured turning
+    radius.  The radius is computed by fitting a circle to the odom
+    trajectory (x, y) which is integrated from ERPM-based velocity.
+    At higher speeds tire slip (lateral and longitudinal) corrupts the
+    odom trajectory, making the calibration unreliable.
+    **Run this test at the LOWEST practical speed** (≤ 1 m/s) to minimise
+    slip effects.  At 1 m/s the kinematic model is a good approximation.
+    For speeds above ~2 m/s the results should be treated as approximate.
+    Cross-check with the IMU yaw rate: R_imu = v/|ω_imu|.
+
 Procedure:
 1. Car drives forward at low constant speed
 2. Servo is swept from center to max-left, then center to max-right

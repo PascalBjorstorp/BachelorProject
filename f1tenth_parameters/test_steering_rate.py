@@ -5,6 +5,11 @@ Steering Rate Test for F1/10th Car
 Measures the effective steering actuator speed (servo rate limit) by
 commanding step changes in steering angle and observing the yaw rate response.
 
+VALIDATION STATUS:
+    NOT YET TESTED on real hardware.  Parameters and procedure are based
+    on the theoretical model and simulation.  Results should be verified
+    before being used in MPC constraints.
+
 The throttle interpolator in the f1tenth stack limits servo rate to
 max_servo_speed (default: 3.2 rad/s for the servo position value, NOT the
 steering angle). The actual steering angle rate depends on the servo gain:
@@ -217,8 +222,45 @@ class SteeringRateNode(TestNode):
             
             self.get_logger().info(f"\n--- Parameters for MPC ---")
             self.get_logger().info(f"  Max steering rate: {avg_rate:.2f} rad/s")
+            
+            # Servo constant: time to move 60° (1.047 rad)
+            servo_constant_60 = np.radians(60.0) / avg_rate
+            self.get_logger().info(f"  Servo constant (time for 60°): {servo_constant_60*1000:.1f}ms ({servo_constant_60:.4f}s)")
+            
             self.get_logger().info(f"  (Current MPC does not limit steering rate directly,")
             self.get_logger().info(f"   but this affects achievable rate penalty weight)")
+
+            # Save summary CSV with per-step results
+            import csv as csv_mod
+            summary_path = self.recorder.filename.replace('.csv', '_summary.csv')
+            with open(summary_path, 'w', newline='') as f:
+                writer = csv_mod.DictWriter(f, fieldnames=[
+                    'step', 'direction', 'target_angle_rad', 'target_angle_deg',
+                    'omega_ss_rad_s', 'omega_ss_deg_s',
+                    'rise_time_s', 'rise_time_ms',
+                    'effective_rate_rad_s', 'effective_rate_deg_s'])
+                writer.writeheader()
+                for i, r in enumerate(self.step_results):
+                    writer.writerow({
+                        'step': i + 1,
+                        'direction': r['direction'],
+                        'target_angle_rad': r['target_angle'],
+                        'target_angle_deg': np.degrees(r['target_angle']),
+                        'omega_ss_rad_s': r['omega_ss'],
+                        'omega_ss_deg_s': np.degrees(r['omega_ss']),
+                        'rise_time_s': r['rise_time'],
+                        'rise_time_ms': r['rise_time'] * 1000,
+                        'effective_rate_rad_s': r['effective_rate'],
+                        'effective_rate_deg_s': np.degrees(r['effective_rate']),
+                    })
+            self.get_logger().info(f"Summary saved to {summary_path}")
+
+            # Auto-save to vehicle_params.yaml
+            from common import update_vehicle_params
+            update_vehicle_params({
+                'max_steering_rate': float(avg_rate),
+                'servo_time_constant': float(servo_constant_60),
+            }, status='TESTED', logger=self.get_logger())
         
         self.get_logger().info("=" * 60)
 
@@ -232,17 +274,26 @@ def main():
                         help='Step steering angle in radians (default: 0.3 ≈ 17°)')
     parser.add_argument('--repeats', type=int, default=6,
                         help='Number of step repeats (default: 6, alternating L/R)')
+    parser.add_argument('--runs', type=int, default=1,
+                        help='Number of complete test runs (default: 1)')
     args = parser.parse_args()
     
     rclpy.init()
-    node = SteeringRateNode(args)
-    
-    try:
-        node.run_test()
-    finally:
-        node.stop_car()
-        node.destroy_node()
-        rclpy.shutdown()
+    for run_idx in range(args.runs):
+        if args.runs > 1:
+            print(f"\n{'='*60}")
+            print(f"RUN {run_idx + 1}/{args.runs}")
+            print(f"{'='*60}\n")
+        node = SteeringRateNode(args)
+        try:
+            node.run_test()
+        finally:
+            node.stop_car()
+            node.destroy_node()
+        if run_idx < args.runs - 1:
+            print("\nCooling down for 5s before next run...")
+            time.sleep(5)
+    rclpy.shutdown()
 
 
 if __name__ == '__main__':
