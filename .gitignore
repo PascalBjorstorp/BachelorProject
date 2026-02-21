@@ -195,3 +195,4 @@ f1tenth_parameters/data/*.csv
 # CMake generated files
 *CMakeConfigureLog.yaml
 *CMakeCCompilerId.c
+*.aux

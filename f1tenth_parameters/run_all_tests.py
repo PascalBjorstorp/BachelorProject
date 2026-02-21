@@ -6,13 +6,13 @@ Walks through all vehicle model parameter tests with y/n prompts.
 These tests identify the physical car parameters needed for MPC / path planning.
 
 PREREQUISITE CALIBRATION (must be done BEFORE running these tests):
-    1. vesc_pid_test.py            — VESC speed PID tuning
-    2. find_servo_offset.py        — Servo center offset
-    3. find_servo_limits.py        — Physical servo min/max limits
-    4. test_steering_gain.py       — Steering gain calibration
-    5. test_steering_calibration.py — Full steering calibration sweep
-    6. test_speed_sweep.py         — Speed/ERPM calibration
-    7. test_current_limits.py      — Find safe motor current limits (iterative!)
+    1. prerequisites/vesc_pid_test.py            — VESC speed PID tuning
+    2. prerequisites/find_servo_offset.py        — Servo center offset
+    3. prerequisites/find_servo_limits.py        — Physical servo min/max limits
+    4. prerequisites/test_steering_gain.py       — Steering gain calibration
+    5. prerequisites/test_steering_calibration.py — Full steering calibration sweep
+    6. prerequisites/test_speed_sweep.py         — Speed/ERPM calibration
+    7. tests/test_current_limits.py              — Find safe motor current limits (iterative!)
 
 Once the VESC calibration and current limits are set, run this script
 to identify the vehicle model parameters:
@@ -47,7 +47,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 TESTS = [
     {
         'name': 'Wheelbase Verification',
-        'script': 'test_wheelbase.py',
+        'script': 'tests/test_wheelbase.py',
         'description': (
             'Drives circles at low speed to extract the effective wheelbase.\n'
             '  Requires: ~3m x 3m open space\n'
@@ -60,7 +60,7 @@ TESTS = [
     },
     {
         'name': 'Maximum Dynamics',
-        'script': 'test_max_dynamics.py',
+        'script': 'tests/test_max_dynamics.py',
         'description': (
             'Measures max velocity, acceleration, and deceleration.\n'
             '  Requires: ~5m straight clear space\n'
@@ -68,13 +68,13 @@ TESTS = [
             '  Uses: odom + IMU (IMU-based decel is more accurate)\n'
             '  CAUTION: Drives at maximum speed!'
         ),
-        'default_args': ['--max-speed', '3.0', '--accel-time', '5.0'],
+        'default_args': ['--max-speed', '2.5', '--accel-time', '5.0'],
         'data_prefix': 'max_dynamics_test',
         'parameters': ['max_velocity', 'max_acceleration', 'max_deceleration'],
     },
     {
         'name': 'Steering Rate',
-        'script': 'test_steering_rate.py',
+        'script': 'tests/test_steering_rate.py',
         'description': (
             'Measures the steering actuator speed (servo rate limit).\n'
             '  Requires: ~3m x 3m open space\n'
@@ -89,7 +89,7 @@ TESTS = [
     },
     {
         'name': 'Friction Limit',
-        'script': 'test_friction.py',
+        'script': 'tests/test_friction.py',
         'description': (
             'Measures tire grip (friction coefficient mu = a_y_max / g).\n'
             '  Requires: ~3m x 3m open space\n'
@@ -103,7 +103,7 @@ TESTS = [
     },
     {
         'name': 'Cornering Stiffness',
-        'script': 'test_cornering_stiffness.py',
+        'script': 'tests/test_cornering_stiffness.py',
         'description': (
             'Identifies front/rear cornering stiffness (C_alpha_f, C_alpha_r).\n'
             '  Requires: ~3m x 3m open space\n'
@@ -117,7 +117,7 @@ TESTS = [
     },
     {
         'name': 'Longitudinal Tire Stiffness',
-        'script': 'test_longitudinal_stiffness.py',
+        'script': 'tests/test_longitudinal_stiffness.py',
         'description': (
             'Identifies longitudinal tire stiffness (C_x) from slip ratio.\n'
             '  Requires: ~5m straight clear space\n'
@@ -125,13 +125,13 @@ TESTS = [
             '  Compares wheel speed (ERPM) vs body speed (IMU)\n'
             '  Needs: vehicle mass (--mass)'
         ),
-        'default_args': ['--max-speed', '3.0'],
+        'default_args': ['--max-speed', '2.5'],
         'data_prefix': 'longitudinal_stiffness',
         'parameters': ['C_x'],
     },
     {
         'name': 'Motor Torque',
-        'script': 'test_motor_torque.py',
+        'script': 'tests/test_motor_torque.py',
         'description': (
             'Maps motor current to wheel force (effective torque).\n'
             '  Requires: ~5m straight clear space\n'
@@ -140,7 +140,7 @@ TESTS = [
             '  Needs: vehicle mass, tire radius (--mass, --r-tire)\n'
             '  NOTE: Update --r-tire with your measured value!'
         ),
-        'default_args': ['--speeds', '1.5,2.0,3.0,4.0'],
+        'default_args': ['--speeds', '1.5,2.0,2.5,3.0'],
         'data_prefix': 'motor_torque',
         'parameters': ['max_drive_torque', 'max_brake_torque', 'Kt_effective'],
     },
@@ -214,13 +214,13 @@ def print_header():
     print('  Each test will ask for confirmation before running.')
     print()
     print('  PREREQUISITES (must be completed before these tests):')
-    print('    1. VESC PID tuned                (vesc_pid_test.py)')
-    print('    2. Servo offset calibrated       (find_servo_offset.py)')
-    print('    3. Servo limits found            (find_servo_limits.py)')
-    print('    4. Steering gain calibrated      (test_steering_gain.py)')
-    print('    5. Steering calibration done     (test_steering_calibration.py)')
-    print('    6. Speed calibration done        (test_speed_sweep.py)')
-    print('    7. VESC current limits set       (test_current_limits.py)')
+    print('    1. VESC PID tuned                (prerequisites/vesc_pid_test.py)')
+    print('    2. Servo offset calibrated       (prerequisites/find_servo_offset.py)')
+    print('    3. Servo limits found            (prerequisites/find_servo_limits.py)')
+    print('    4. Steering gain calibrated      (prerequisites/test_steering_gain.py)')
+    print('    5. Steering calibration done     (prerequisites/test_steering_calibration.py)')
+    print('    6. Speed calibration done        (prerequisites/test_speed_sweep.py)')
+    print('    7. VESC current limits set       (tests/test_current_limits.py)')
     print()
     print('  test_current_limits.py is iterative — run it separately until')
     print('  you find safe motor current limits, then run this script.')
