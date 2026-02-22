@@ -100,6 +100,7 @@ class FrictionTestNode(TestNode):
         speed_samples = []
         x_samples = []
         y_samples = []
+        consistency_samples = []
         
         start = time.monotonic()
         while time.monotonic() - start < self.circle_time:
@@ -111,13 +112,18 @@ class FrictionTestNode(TestNode):
                 return None
             
             self.send_command(target_speed, steer)
+
+            imu_ax_corr = self.imu_ax - self.imu_bias_ax
+            imu_ay_corr = self.imu_ay - self.imu_bias_ay
+            imu_gz_corr = self.imu_gz - self.imu_bias_gz
             
-            ay_samples.append(self.imu_ay)
-            ax_samples.append(self.imu_ax)
-            omega_samples.append(self.imu_gz)
+            ay_samples.append(imu_ay_corr)
+            ax_samples.append(imu_ax_corr)
+            omega_samples.append(imu_gz_corr)
             speed_samples.append(self.odom_vx)
             x_samples.append(self.odom_x)
             y_samples.append(self.odom_y)
+            consistency_samples.append(abs(abs(imu_ay_corr) - abs(self.odom_vx * imu_gz_corr)))
             
             self.recorder.record(
                 odom_x=self.odom_x,
@@ -125,9 +131,9 @@ class FrictionTestNode(TestNode):
                 odom_yaw=self.odom_yaw,
                 odom_vx=self.odom_vx,
                 odom_omega=self.odom_omega,
-                imu_ax=self.imu_ax,
-                imu_ay=self.imu_ay,
-                imu_gz=self.imu_gz,
+                imu_ax=imu_ax_corr,
+                imu_ay=imu_ay_corr,
+                imu_gz=imu_gz_corr,
                 cmd_speed=target_speed,
                 cmd_steering=steer,
                 speed_setpoint=target_speed,
@@ -137,13 +143,39 @@ class FrictionTestNode(TestNode):
         if len(ay_samples) < 10:
             return None
         
-        avg_ay = np.mean(np.abs(ay_samples))
-        std_ay = np.std(np.abs(ay_samples))
-        avg_speed = np.mean(speed_samples)
-        std_speed = np.std(speed_samples)
-        avg_omega = np.mean(np.abs(omega_samples))
-        std_omega = np.std(np.abs(omega_samples))
-        n_samples = len(ay_samples)
+        ay_arr = np.abs(np.array(ay_samples))
+        omega_arr = np.abs(np.array(omega_samples))
+        speed_arr = np.array(speed_samples)
+        x_arr = np.array(x_samples)
+        y_arr = np.array(y_samples)
+        consistency_arr = np.array(consistency_samples)
+
+        # Keep only near steady-state samples where |a_y| ≈ |v_x * ω|
+        steady_mask = consistency_arr < 0.8
+        n_total = len(ay_arr)
+        if np.sum(steady_mask) >= 20:
+            ay_used = ay_arr[steady_mask]
+            omega_used = omega_arr[steady_mask]
+            speed_used = speed_arr[steady_mask]
+            x_used = x_arr[steady_mask]
+            y_used = y_arr[steady_mask]
+            consistency_used = consistency_arr[steady_mask]
+        else:
+            ay_used = ay_arr
+            omega_used = omega_arr
+            speed_used = speed_arr
+            x_used = x_arr
+            y_used = y_arr
+            consistency_used = consistency_arr
+
+        avg_ay = np.mean(ay_used)
+        std_ay = np.std(ay_used)
+        avg_speed = np.mean(speed_used)
+        std_speed = np.std(speed_used)
+        avg_omega = np.mean(omega_used)
+        std_omega = np.std(omega_used)
+        consistency_rmse = float(np.sqrt(np.mean(consistency_used**2)))
+        n_samples = len(ay_used)
         
         # Kinematic prediction
         r_kinematic = radius_from_steering_angle(self.steering_angle, self.wheelbase)
@@ -151,8 +183,8 @@ class FrictionTestNode(TestNode):
         ay_kinematic = avg_speed**2 / r_kinematic
         
         # Fit actual radius
-        x = np.array(x_samples)
-        y = np.array(y_samples)
+        x = np.array(x_used)
+        y = np.array(y_used)
         if len(x) > 10:
             _, _, r_actual, _ = fit_circle(x, y)
         else:
@@ -160,6 +192,8 @@ class FrictionTestNode(TestNode):
         
         # Slip indicator: ratio of actual to kinematic yaw rate
         slip_ratio = avg_omega / omega_kinematic if omega_kinematic > 0.01 else 1.0
+        omega_kinematic_cmd = abs(target_speed) / r_kinematic if r_kinematic > 0.01 else 0.0
+        slip_ratio_cmd = avg_omega / omega_kinematic_cmd if omega_kinematic_cmd > 0.01 else 1.0
         
         # IMU-based radius (slip-independent)
         r_imu = radius_from_imu(avg_speed, avg_omega)
@@ -178,7 +212,10 @@ class FrictionTestNode(TestNode):
             'r_imu': r_imu,
             'r_kinematic': r_kinematic,
             'slip_ratio': slip_ratio,
+            'slip_ratio_cmd': slip_ratio_cmd,
             'mu_estimate': avg_ay / GRAVITY,
+            'consistency_rmse': consistency_rmse,
+            'n_samples_total': n_total,
             'n_samples': n_samples,
         }
         
@@ -206,11 +243,22 @@ class FrictionTestNode(TestNode):
                               f"(step {self.speed_step:.1f})")
         self.get_logger().info(f"Kinematic radius: {r_kinematic:.2f}m")
         self.get_logger().info(f"Required space: ~{2*r_kinematic + 2:.1f}m x {2*r_kinematic + 2:.1f}m")
+        if self.safety.max_distance > 0:
+            min_geofence = 2.0 * r_kinematic + 0.2
+            if self.safety.max_distance < min_geofence:
+                self.get_logger().warn(
+                    f"Geofence ({self.safety.max_distance:.2f}m) may be too tight for this circle. "
+                    f"Recommended >= {min_geofence:.2f}m (2R + margin).")
+            else:
+                self.get_logger().info(
+                    f"Geofence check: {self.safety.max_distance:.2f}m (recommended >= {min_geofence:.2f}m)")
         self.get_logger().info("")
         self.get_logger().info("CAUTION: Car will approach grip limits!")
         self.get_logger().info("Keep joystick ready. Test will auto-abort if")
         self.get_logger().info("slip ratio drops significantly (tire saturation).")
         self.get_logger().info("=" * 60)
+
+        self.calibrate_imu_bias(duration=1.5)
         
         self.countdown(5)
         self.recorder.start()
@@ -228,9 +276,9 @@ class FrictionTestNode(TestNode):
                 self.speed_results.append(result)
                 
                 # Auto-abort if significant slip detected
-                if result['slip_ratio'] < 0.7:
+                if result['slip_ratio_cmd'] < 0.7:
                     self.get_logger().warn(
-                        f"  Significant tire slip detected (ratio={result['slip_ratio']:.2f}). "
+                        f"  Significant tire slip detected (ratio={result['slip_ratio_cmd']:.2f}). "
                         f"Stopping test for safety.")
                     break
         
@@ -255,7 +303,7 @@ class FrictionTestNode(TestNode):
         
         speeds = np.array([r['speed_actual'] for r in self.speed_results])
         ay_values = np.array([r['ay_imu'] for r in self.speed_results])
-        slip_ratios = np.array([r['slip_ratio'] for r in self.speed_results])
+        slip_ratios = np.array([r['slip_ratio_cmd'] for r in self.speed_results])
         
         # Maximum lateral acceleration
         max_ay = np.max(ay_values)
@@ -275,12 +323,12 @@ class FrictionTestNode(TestNode):
         
         # Print table
         self.get_logger().info(f"\n2. SPEED vs LATERAL ACCELERATION:")
-        self.get_logger().info(f"   {'v (m/s)':>8} {'a_y (m/s²)':>12} {'a_y (g)':>10} {'slip_ratio':>12} {'R_odom':>8} {'R_imu':>8}")
+        self.get_logger().info(f"   {'v (m/s)':>8} {'a_y (m/s²)':>12} {'a_y (g)':>10} {'slip_cmd':>10} {'R_odom':>8} {'R_imu':>8} {'N_used':>8}")
         for r in self.speed_results:
             ri = r.get('r_imu', r['r_actual'])
             self.get_logger().info(
                 f"   {r['speed_actual']:8.2f} {r['ay_imu']:12.3f} {r['ay_imu']/GRAVITY:10.3f} "
-                f"{r['slip_ratio']:12.3f} {r['r_actual']:8.3f} {ri:8.3f}")
+            f"{r['slip_ratio_cmd']:10.3f} {r['r_actual']:8.3f} {ri:8.3f} {r['n_samples']:8d}")
         
         self.get_logger().info(f"\n   NOTE: The friction coefficient μ is from the IMU (direct measurement)")
         self.get_logger().info(f"   and is NOT affected by odometry errors. R_odom vs R_imu shows")
@@ -306,7 +354,9 @@ class FrictionTestNode(TestNode):
                 'ay_imu', 'ay_std', 'ay_kinematic',
                 'omega_actual', 'omega_std', 'omega_kinematic',
                 'r_actual', 'r_imu', 'r_kinematic',
-                'slip_ratio', 'mu', 'mu_uncertainty', 'n_samples'])
+                'slip_ratio', 'slip_ratio_cmd',
+                'consistency_rmse', 'mu', 'mu_uncertainty',
+                'n_samples_total', 'n_samples'])
             writer.writeheader()
             for r in self.speed_results:
                 mu_val = r['ay_imu'] / GRAVITY
@@ -325,8 +375,11 @@ class FrictionTestNode(TestNode):
                     'r_imu': r['r_imu'],
                     'r_kinematic': r['r_kinematic'],
                     'slip_ratio': r['slip_ratio'],
+                    'slip_ratio_cmd': r['slip_ratio_cmd'],
+                    'consistency_rmse': r['consistency_rmse'],
                     'mu': mu_val,
                     'mu_uncertainty': mu_unc,
+                    'n_samples_total': r['n_samples_total'],
                     'n_samples': r['n_samples'],
                 })
         self.get_logger().info(f"Summary saved to {summary_path}")
@@ -355,8 +408,8 @@ def main():
                         help='Recording time per speed point (s, default: 8.0)')
     parser.add_argument('--wheelbase', type=float, default=DEFAULT_WHEELBASE,
                         help=f'Wheelbase in meters (default: {DEFAULT_WHEELBASE})')
-    parser.add_argument('--geofence', type=float, default=2.0,
-                        help='Max distance from start before abort (m, default: 2.0, 0=off)')
+    parser.add_argument('--geofence', type=float, default=2.3,
+                        help='Max distance from start before abort (m, default: 2.3, 0=off, circle path needs ~2R)')
     parser.add_argument('--runs', type=int, default=5,
                         help='Number of complete test runs (default: 5)')
     args = parser.parse_args()

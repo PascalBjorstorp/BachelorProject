@@ -39,7 +39,7 @@ This section describes the experimental procedures used to identify
 them on the real F1/10th vehicle.
 
 All tests use a common ROS\,2 framework that records time-stamped
-sensor data at approximately \SI{100}{\hertz}:
+sensor data at approximately \SI{200}{\hertz}:
 VESC odometry (speed from ERPM), VESC IMU (3-axis accelerometer
 and gyroscope), and motor state (current, voltage, temperature).
 Each test saves raw data to CSV for post-processing and automatically
@@ -104,6 +104,8 @@ At each speed, \SI{8}{\second} of steady-state IMU data is recorded.
 \noindent CSV columns used: \texttt{imu\_ay}, \texttt{speed\_setpoint}, \texttt{phase}.
 Group by \texttt{speed\_setpoint}, compute mean and std of \texttt{imu\_ay}
 in the \texttt{recording} phase.
+Before aggregation, use bias-corrected IMU channels and keep only
+near steady-state samples where $|a_y|\approx|v_x\,\omega|$.
 
 \paragraph{Uncertainty.}
 \begin{itemize}
@@ -155,6 +157,8 @@ $C_{\alpha f}$ $\mid$ $C_{\alpha r}$.
 \texttt{imu\_ay}, \texttt{cmd\_steering}, \texttt{phase}.
 Compute $\alpha_f$, $\alpha_r$ from \eqref{eq:alpha-ss}, then
 $F_{yf}$, $F_{yr}$ from \eqref{eq:Fy-ss}.
+Bias-corrected IMU data is used, and samples with large
+$|a_y-v_x\omega|$ consistency error are filtered out.
 
 \paragraph{Uncertainty.}
 \begin{itemize}
@@ -196,6 +200,7 @@ A \SI{2}{\second} stationary bias calibration precedes the test.
 \noindent CSV columns used: \texttt{odom\_vx} ($v_\text{wheel}$),
 \texttt{v\_imu} ($v_\text{body}$), \texttt{imu\_ax},
 \texttt{slip\_ratio}, \texttt{phase}.
+Use bias-corrected $a_x$ for both force estimation and IMU velocity integration.
 
 \paragraph{Uncertainty.}
 \begin{itemize}
@@ -238,6 +243,7 @@ $F_\text{net}$ $\mid$ efficiency.
 
 \noindent CSV columns used: \texttt{motor\_current}, \texttt{imu\_ax},
 \texttt{cmd\_speed}, \texttt{phase}.
+Acceleration is computed from bias-corrected IMU $a_x$.
 
 \paragraph{Uncertainty.}
 \begin{itemize}
@@ -270,6 +276,8 @@ actually reached top speed.
 
 \noindent CSV columns used: \texttt{odom\_vx}, \texttt{imu\_ax},
 \texttt{phase}.
+Both peak acceleration/deceleration and IMU-integrated speed use
+bias-corrected IMU $a_x$.
 
 \paragraph{Uncertainty.}
 \begin{itemize}

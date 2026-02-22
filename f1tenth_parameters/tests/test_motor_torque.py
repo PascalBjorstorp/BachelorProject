@@ -93,15 +93,9 @@ class MotorTorqueNode(TestNode):
         self.get_logger().info("=" * 60)
 
         # ---- IMU Bias Calibration ----
-        self.get_logger().info("\nCalibrating IMU bias (keep car still)...")
-        bias_samples = []
-        cal_start = time.monotonic()
-        while time.monotonic() - cal_start < 2.0:
-            rclpy.spin_once(self, timeout_sec=0.005)
-            bias_samples.append(self.imu_ax)
-
-        imu_bias = self.imu_vel.calibrate_bias(bias_samples)
-        self.get_logger().info(f"IMU ax bias: {imu_bias:.4f} m/s² ({len(bias_samples)} samples)")
+        self.calibrate_imu_bias(duration=2.0)
+        imu_bias = self.imu_vel.calibrate_bias([self.imu_bias_ax])
+        self.get_logger().info(f"Using IMU ax bias: {imu_bias:.4f} m/s²")
 
         self.countdown(3)
         self.recorder.start()
@@ -139,7 +133,7 @@ class MotorTorqueNode(TestNode):
                 vx_samples.append(self.odom_vx)
 
                 self.recorder.record(
-                    odom_vx=self.odom_vx, imu_ax=self.imu_ax,
+                    odom_vx=self.odom_vx, imu_ax=ax,
                     imu_ay=self.imu_ay, motor_rpm=self.motor_rpm,
                     motor_current=self.motor_current,
                     input_current=self.input_current,
@@ -210,7 +204,7 @@ class MotorTorqueNode(TestNode):
                 brake_current.append(self.motor_current)
 
                 self.recorder.record(
-                    odom_vx=self.odom_vx, imu_ax=self.imu_ax,
+                    odom_vx=self.odom_vx, imu_ax=ax,
                     imu_ay=self.imu_ay, motor_rpm=self.motor_rpm,
                     motor_current=self.motor_current,
                     input_current=self.input_current,

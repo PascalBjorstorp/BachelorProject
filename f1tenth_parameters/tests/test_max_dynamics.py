@@ -82,19 +82,12 @@ class MaxDynamicsNode(TestNode):
         self.get_logger().info("=" * 60)
         
         # ---- IMU Bias Calibration (while stationary during countdown) ----
-        self.get_logger().info("\nCalibrating IMU bias (keep the car still)...")
-        bias_samples = []
-        cal_start = time.monotonic()
-        cal_duration = 2.0  # Collect 2 seconds of stationary IMU data
-        
-        while time.monotonic() - cal_start < cal_duration:
-            rclpy.spin_once(self, timeout_sec=0.005)
-            bias_samples.append(self.imu_ax)
-        
-        imu_bias = self.imu_vel.calibrate_bias(bias_samples)
+        self.calibrate_imu_bias(duration=2.0)
+        imu_bias = self.imu_vel.calibrate_bias([self.imu_bias_ax])
+        cal_duration = 2.0
         self.get_logger().info(
             f"IMU ax bias: {imu_bias:.4f} m/s² "
-            f"(from {len(bias_samples)} samples over {cal_duration}s)")
+            f"(from stationary calibration over {cal_duration}s)")
         
         self.countdown(3)
         self.recorder.start()
@@ -119,17 +112,18 @@ class MaxDynamicsNode(TestNode):
                 break
             
             self.send_command(self.max_speed, 0.0)
+            imu_ax_corr = self.imu_ax - imu_bias
             
             t = time.monotonic() - phase_start
             self.accel_data['time'].append(t)
             self.accel_data['speed'].append(self.odom_vx)
-            self.accel_data['imu_ax'].append(self.imu_ax)
+            self.accel_data['imu_ax'].append(imu_ax_corr)
             
             self.recorder.record(
                 odom_x=self.odom_x,
                 odom_y=self.odom_y,
                 odom_vx=self.odom_vx,
-                imu_ax=self.imu_ax,
+                imu_ax=imu_ax_corr,
                 imu_ay=self.imu_ay,
                 motor_rpm=self.motor_rpm,
                 cmd_speed=self.max_speed,
@@ -169,6 +163,7 @@ class MaxDynamicsNode(TestNode):
             last_t = now
             
             self.send_command(0.0, 0.0)
+            imu_ax_corr = self.imu_ax - imu_bias
             
             # Update IMU-based velocity
             imu_v = self.imu_vel.update(self.imu_ax, dt)
@@ -177,13 +172,13 @@ class MaxDynamicsNode(TestNode):
             self.decel_data['time'].append(t)
             self.decel_data['speed'].append(self.odom_vx)
             self.decel_data['speed_imu'].append(imu_v)
-            self.decel_data['imu_ax'].append(self.imu_ax)
+            self.decel_data['imu_ax'].append(imu_ax_corr)
             
             self.recorder.record(
                 odom_x=self.odom_x,
                 odom_y=self.odom_y,
                 odom_vx=self.odom_vx,
-                imu_ax=self.imu_ax,
+                imu_ax=imu_ax_corr,
                 imu_ay=self.imu_ay,
                 motor_rpm=self.motor_rpm,
                 cmd_speed=0.0,

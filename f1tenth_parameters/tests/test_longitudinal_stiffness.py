@@ -91,15 +91,9 @@ class LongitudinalStiffnessNode(TestNode):
         self.get_logger().info("=" * 60)
 
         # ---- IMU Bias Calibration ----
-        self.get_logger().info("\nCalibrating IMU bias (keep the car still)...")
-        bias_samples = []
-        cal_start = time.monotonic()
-        while time.monotonic() - cal_start < 2.0:
-            rclpy.spin_once(self, timeout_sec=0.005)
-            bias_samples.append(self.imu_ax)
-
-        imu_bias = self.imu_vel.calibrate_bias(bias_samples)
-        self.get_logger().info(f"IMU ax bias: {imu_bias:.4f} m/s² ({len(bias_samples)} samples)")
+        self.calibrate_imu_bias(duration=2.0)
+        imu_bias = self.imu_vel.calibrate_bias([self.imu_bias_ax])
+        self.get_logger().info(f"Using IMU ax bias: {imu_bias:.4f} m/s²")
 
         self.countdown(3)
         self.recorder.start()
@@ -128,6 +122,7 @@ class LongitudinalStiffnessNode(TestNode):
 
             v_imu = self.imu_vel.update(self.imu_ax, dt)
             v_wheel = self.odom_vx  # ERPM-based
+            ax_corr = self.imu_ax - imu_bias
 
             # Slip ratio (driving: wheel faster than body for traction)
             v_max = max(abs(v_wheel), abs(v_imu), 0.1)
@@ -137,13 +132,13 @@ class LongitudinalStiffnessNode(TestNode):
                 't': now - phase_start,
                 'v_wheel': v_wheel,
                 'v_imu': v_imu,
-                'ax': self.imu_ax - imu_bias,
+                'ax': ax_corr,
                 'kappa': kappa,
                 'current': self.motor_current,
             })
 
             self.recorder.record(
-                odom_vx=v_wheel, imu_ax=self.imu_ax, imu_ay=self.imu_ay,
+                odom_vx=v_wheel, imu_ax=ax_corr, imu_ay=self.imu_ay,
                 motor_rpm=self.motor_rpm, motor_current=self.motor_current,
                 v_imu=v_imu, slip_ratio=kappa,
                 cmd_speed=self.max_speed, phase='acceleration'
@@ -177,6 +172,7 @@ class LongitudinalStiffnessNode(TestNode):
 
             v_imu = self.imu_vel.update(self.imu_ax, dt)
             v_wheel = self.odom_vx
+            ax_corr = self.imu_ax - imu_bias
 
             v_max = max(abs(v_wheel), abs(v_imu), 0.1)
             kappa = (v_wheel - v_imu) / v_max
@@ -185,13 +181,13 @@ class LongitudinalStiffnessNode(TestNode):
                 't': now - phase_start,
                 'v_wheel': v_wheel,
                 'v_imu': v_imu,
-                'ax': self.imu_ax - imu_bias,
+                'ax': ax_corr,
                 'kappa': kappa,
                 'current': self.motor_current,
             })
 
             self.recorder.record(
-                odom_vx=v_wheel, imu_ax=self.imu_ax, imu_ay=self.imu_ay,
+                odom_vx=v_wheel, imu_ax=ax_corr, imu_ay=self.imu_ay,
                 motor_rpm=self.motor_rpm, motor_current=self.motor_current,
                 v_imu=v_imu, slip_ratio=kappa,
                 cmd_speed=0.0, phase='braking'

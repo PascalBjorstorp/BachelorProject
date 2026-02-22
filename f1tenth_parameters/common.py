@@ -162,16 +162,20 @@ class SafetyMonitor:
     def __init__(self, max_speed: float = DEFAULT_MAX_SPEED,
                  max_time: float = DEFAULT_MAX_TEST_TIME,
                  min_battery_v: float = DEFAULT_MIN_BATTERY_V,
-                 max_distance: float = 0.0):
+                 max_distance: float = 0.0,
+                 geofence_consecutive_samples: int = 20):
         """
         Args:
             max_distance: Maximum distance from origin before abort.
                           0 = disabled (default). Set > 0 to enable geofence.
+            geofence_consecutive_samples: Number of consecutive out-of-bounds
+                          samples required before geofence abort (debounce).
         """
         self.max_speed = max_speed
         self.max_time = max_time
         self.min_battery_v = min_battery_v
         self.max_distance = max_distance
+        self.geofence_consecutive_samples = max(1, int(geofence_consecutive_samples))
         self.start_time = None
         self.current_speed = 0.0
         self.battery_voltage = 12.0
@@ -179,6 +183,7 @@ class SafetyMonitor:
         self.origin_y = None
         self.current_x = 0.0
         self.current_y = 0.0
+        self._geofence_violation_count = 0
         self.abort_reason = None
     
     def start(self):
@@ -224,9 +229,14 @@ class SafetyMonitor:
             dy = self.current_y - self.origin_y
             dist = (dx * dx + dy * dy) ** 0.5
             if dist > self.max_distance:
-                self.abort_reason = (
-                    f"Geofence exceeded ({dist:.2f}m > {self.max_distance:.1f}m from origin)")
-                return False
+                self._geofence_violation_count += 1
+                if self._geofence_violation_count >= self.geofence_consecutive_samples:
+                    self.abort_reason = (
+                        f"Geofence exceeded ({dist:.2f}m > {self.max_distance:.1f}m from origin, "
+                        f"{self._geofence_violation_count} consecutive samples)")
+                    return False
+            else:
+                self._geofence_violation_count = 0
         
         return True
 
@@ -275,6 +285,9 @@ class TestNode(Node):
         self.imu_gx = 0.0
         self.imu_gy = 0.0
         self.imu_gz = 0.0
+        self.imu_bias_ax = 0.0
+        self.imu_bias_ay = 0.0
+        self.imu_bias_gz = 0.0
         self.battery_voltage = 12.0
         self.motor_rpm = 0.0
         self.motor_current = 0.0
@@ -410,6 +423,32 @@ class TestNode(Node):
     def stop_car(self):
         """Send zero command to stop the car."""
         self.send_command(0.0, 0.0)
+
+    def calibrate_imu_bias(self, duration: float = 1.5):
+        """Estimate IMU biases while the car is stationary."""
+        self.get_logger().info(f"Calibrating IMU bias for {duration:.1f}s (keep car still)...")
+        ax_samples = []
+        ay_samples = []
+        gz_samples = []
+        start = time.monotonic()
+        while time.monotonic() - start < duration:
+            self.send_command(0.0, 0.0)
+            rclpy.spin_once(self, timeout_sec=0.005)
+            if self.imu_received:
+                ax_samples.append(self.imu_ax)
+                ay_samples.append(self.imu_ay)
+                gz_samples.append(self.imu_gz)
+
+        if len(ax_samples) < 20:
+            self.get_logger().warn("IMU bias calibration had few samples; keeping previous biases")
+            return
+
+        self.imu_bias_ax = float(np.mean(ax_samples))
+        self.imu_bias_ay = float(np.mean(ay_samples))
+        self.imu_bias_gz = float(np.mean(gz_samples))
+        self.get_logger().info(
+            f"IMU bias: ax={self.imu_bias_ax:+.4f}, ay={self.imu_bias_ay:+.4f} m/s², "
+            f"gz={self.imu_bias_gz:+.4f} rad/s")
     
     # --- Utilities ---
     

@@ -110,6 +110,11 @@ def plot_friction(data_dir, prefix):
         ax.set_xlabel('Speed (m/s)')
         ax.set_ylabel(r'Lateral acceleration $a_y$ (m/s²)')
         ax.set_title('Friction Coefficient Identification')
+        if 'n_samples_total' in d and 'n_samples' in d and len(d['n_samples']) > 0:
+            retention = np.mean(d['n_samples'] / np.maximum(d['n_samples_total'], 1.0)) * 100.0
+            ax.text(0.02, 0.98, f'Steady-state sample retention: {retention:.0f}%',
+                transform=ax.transAxes, va='top', ha='left', fontsize=9,
+                bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.7, edgecolor='none'))
         ax.legend()
     else:
         # Fall back to raw CSV
@@ -133,6 +138,10 @@ def plot_cornering_Fy_alpha(data_dir, prefix):
         return
 
     d = load_csv(summary)
+    if 'consistency_rmse' in d:
+        keep = d['consistency_rmse'] < 1.0
+        if np.any(keep):
+            d = {k: v[keep] for k, v in d.items()}
     alpha_f = d['alpha_f_deg']
     alpha_r = d['alpha_r_deg']
     Fyf = d['F_yf']
@@ -178,6 +187,10 @@ def plot_cornering_alpha_speed(data_dir, prefix):
         return
 
     d = load_csv(summary)
+    if 'consistency_rmse' in d:
+        keep = d['consistency_rmse'] < 1.0
+        if np.any(keep):
+            d = {k: v[keep] for k, v in d.items()}
     speeds = d['speed']
     alpha_f = np.abs(d['alpha_f_deg'])
     alpha_r = np.abs(d['alpha_r_deg'])

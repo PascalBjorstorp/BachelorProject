@@ -111,9 +111,20 @@ class CorneringStiffnessNode(TestNode):
         self.get_logger().info(f"Speed range: {self.min_speed:.1f} - {self.max_speed:.1f} m/s "
                                f"(step {self.speed_step:.1f})")
         self.get_logger().info(f"Kinematic radius: {r_kin:.2f}m")
+        if self.safety.max_distance > 0:
+            min_geofence = 2.0 * r_kin + 0.2
+            if self.safety.max_distance < min_geofence:
+                self.get_logger().warn(
+                    f"Geofence ({self.safety.max_distance:.2f}m) may be too tight for this circle. "
+                    f"Recommended >= {min_geofence:.2f}m (2R + margin).")
+            else:
+                self.get_logger().info(
+                    f"Geofence check: {self.safety.max_distance:.2f}m (recommended >= {min_geofence:.2f}m)")
         self.get_logger().info(f"Vehicle: m={self.mass:.3f}kg, "
                                f"l_f={self.l_f:.4f}m, l_r={self.l_r:.4f}m")
         self.get_logger().info("=" * 60)
+
+        self.calibrate_imu_bias(duration=1.5)
 
         self.countdown(5)
         self.recorder.start()
@@ -138,9 +149,12 @@ class CorneringStiffnessNode(TestNode):
                     self.test_running = False
                     break
                 self.send_command(speed, effective_steer)
+                imu_ax_corr = self.imu_ax - self.imu_bias_ax
+                imu_ay_corr = self.imu_ay - self.imu_bias_ay
+                imu_gz_corr = self.imu_gz - self.imu_bias_gz
                 self.recorder.record(
-                    odom_vx=self.odom_vx, imu_ay=self.imu_ay,
-                    imu_gz=self.imu_gz, imu_ax=self.imu_ax,
+                    odom_vx=self.odom_vx, imu_ay=imu_ay_corr,
+                    imu_gz=imu_gz_corr, imu_ax=imu_ax_corr,
                     motor_current=self.motor_current,
                     cmd_speed=speed, cmd_steering=effective_steer,
                     phase='settle'
@@ -154,6 +168,7 @@ class CorneringStiffnessNode(TestNode):
             vx_samples = []
             ay_samples = []
             gz_samples = []
+            consistency_samples = []
 
             record_start = time.monotonic()
             while time.monotonic() - record_start < self.record_time:
@@ -166,13 +181,18 @@ class CorneringStiffnessNode(TestNode):
 
                 self.send_command(speed, effective_steer)
 
+                imu_ax_corr = self.imu_ax - self.imu_bias_ax
+                imu_ay_corr = self.imu_ay - self.imu_bias_ay
+                imu_gz_corr = self.imu_gz - self.imu_bias_gz
+
                 vx_samples.append(self.odom_vx)
-                ay_samples.append(self.imu_ay)
-                gz_samples.append(self.imu_gz)
+                ay_samples.append(imu_ay_corr)
+                gz_samples.append(imu_gz_corr)
+                consistency_samples.append(abs(abs(imu_ay_corr) - abs(self.odom_vx * imu_gz_corr)))
 
                 self.recorder.record(
-                    odom_vx=self.odom_vx, imu_ay=self.imu_ay,
-                    imu_gz=self.imu_gz, imu_ax=self.imu_ax,
+                    odom_vx=self.odom_vx, imu_ay=imu_ay_corr,
+                    imu_gz=imu_gz_corr, imu_ax=imu_ax_corr,
                     motor_current=self.motor_current,
                     cmd_speed=speed, cmd_steering=effective_steer,
                     phase='record'
@@ -183,14 +203,33 @@ class CorneringStiffnessNode(TestNode):
 
             # Process this speed point
             if len(vx_samples) > 10:
-                vx_avg = np.mean(vx_samples)
-                vx_std = np.std(vx_samples)
-                ay_avg = np.mean(ay_samples)
-                ay_std = np.std(ay_samples)
-                gz_avg = np.mean(gz_samples)
-                gz_std = np.std(gz_samples)
+                vx_arr = np.array(vx_samples)
+                ay_arr = np.array(ay_samples)
+                gz_arr = np.array(gz_samples)
+                consistency_arr = np.array(consistency_samples)
+
+                steady_mask = consistency_arr < 0.8
+                n_total = len(vx_arr)
+                if np.sum(steady_mask) >= 20:
+                    vx_used = vx_arr[steady_mask]
+                    ay_used = ay_arr[steady_mask]
+                    gz_used = gz_arr[steady_mask]
+                    consistency_used = consistency_arr[steady_mask]
+                else:
+                    vx_used = vx_arr
+                    ay_used = ay_arr
+                    gz_used = gz_arr
+                    consistency_used = consistency_arr
+
+                vx_avg = np.mean(vx_used)
+                vx_std = np.std(vx_used)
+                ay_avg = np.mean(ay_used)
+                ay_std = np.std(ay_used)
+                gz_avg = np.mean(gz_used)
+                gz_std = np.std(gz_used)
+                consistency_rmse = float(np.sqrt(np.mean(consistency_used**2)))
                 omega = abs(gz_avg)
-                n_samples = len(vx_samples)
+                n_samples = len(vx_used)
 
                 # Slip angles (small-angle approximation, v_y ≈ 0)
                 if vx_avg > 0.3 and omega > 0.01:
@@ -254,6 +293,8 @@ class CorneringStiffnessNode(TestNode):
                         'sigma_Caf': sigma_Caf,
                         'sigma_Car': sigma_Car,
                         'r_imu': r_imu,
+                        'consistency_rmse': consistency_rmse,
+                        'n_samples_total': n_total,
                         'n_samples': n_samples,
                     }
                     self.speed_results.append(result)
@@ -306,16 +347,30 @@ class CorneringStiffnessNode(TestNode):
         linear_points = [r for r in self.speed_results
                          if abs(r['alpha_f']) < np.radians(5)
                          and abs(r['alpha_r']) < np.radians(5)
+                         and r.get('consistency_rmse', 0.0) < 1.0
                          and not np.isnan(r['C_af'])
                          and not np.isnan(r['C_ar'])]
 
         if linear_points:
-            # Weight by inverse slip angle (low slip = more reliable)
-            C_af_values = [r['C_af'] for r in linear_points]
-            C_ar_values = [r['C_ar'] for r in linear_points]
+            C_af_values = np.array([r['C_af'] for r in linear_points], dtype=float)
+            C_ar_values = np.array([r['C_ar'] for r in linear_points], dtype=float)
+            sigma_Caf = np.array([r['sigma_Caf'] for r in linear_points], dtype=float)
+            sigma_Car = np.array([r['sigma_Car'] for r in linear_points], dtype=float)
 
-            C_af_best = np.mean(C_af_values)
-            C_ar_best = np.mean(C_ar_values)
+            valid_f = np.isfinite(C_af_values) & np.isfinite(sigma_Caf) & (sigma_Caf > 1e-9)
+            valid_r = np.isfinite(C_ar_values) & np.isfinite(sigma_Car) & (sigma_Car > 1e-9)
+
+            if np.any(valid_f):
+                w_f = 1.0 / (sigma_Caf[valid_f] ** 2)
+                C_af_best = float(np.sum(w_f * C_af_values[valid_f]) / np.sum(w_f))
+            else:
+                C_af_best = float(np.mean(C_af_values))
+
+            if np.any(valid_r):
+                w_r = 1.0 / (sigma_Car[valid_r] ** 2)
+                C_ar_best = float(np.sum(w_r * C_ar_values[valid_r]) / np.sum(w_r))
+            else:
+                C_ar_best = float(np.mean(C_ar_values))
 
             self.get_logger().info(f"\n1. CORNERING STIFFNESS (linear region, α < 5°):")
             self.get_logger().info(f"   C_alpha_f = {C_af_best:.1f} N/rad "
@@ -383,7 +438,7 @@ class CorneringStiffnessNode(TestNode):
                 'F_yf', 'F_yr', 'sigma_Fyf', 'sigma_Fyr',
                 'C_alpha_f', 'C_alpha_r',
                 'sigma_C_alpha_f', 'sigma_C_alpha_r',
-                'r_imu', 'n_samples'])
+                'r_imu', 'consistency_rmse', 'n_samples_total', 'n_samples'])
             writer.writeheader()
             for r in self.speed_results:
                 writer.writerow({
@@ -409,6 +464,8 @@ class CorneringStiffnessNode(TestNode):
                     'sigma_C_alpha_f': r['sigma_Caf'],
                     'sigma_C_alpha_r': r['sigma_Car'],
                     'r_imu': r['r_imu'],
+                    'consistency_rmse': r.get('consistency_rmse', float('nan')),
+                    'n_samples_total': r.get('n_samples_total', r['n_samples']),
                     'n_samples': r['n_samples'],
                 })
         self.get_logger().info(f"Summary saved to {summary_path}")
@@ -451,8 +508,8 @@ def main():
                         help='Rear axle to CG distance in m (default: 0.158)')
     parser.add_argument('--runs', type=int, default=5,
                         help='Number of complete test runs (default: 5)')
-    parser.add_argument('--geofence', type=float, default=2.0,
-                        help='Max distance from start before abort in m (default: 2.0, 0=off)')
+    parser.add_argument('--geofence', type=float, default=2.3,
+                        help='Max distance from start before abort in m (default: 2.3, 0=off, circle path needs ~2R)')
     args = parser.parse_args()
 
     rclpy.init()
