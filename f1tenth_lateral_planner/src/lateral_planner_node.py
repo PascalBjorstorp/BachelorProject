@@ -14,24 +14,20 @@ Publishes:
   /local_raceline     — nav_msgs/Path with modified trajectory segment
   /opponent_marker    — visualization_msgs/MarkerArray for RViz
 
-The node detects the opponent from obstacle beams, computes a smooth
-lateral shift to avoid it, and publishes the modified raceline. The
-downstream controllers (Pure Pursuit, Stanley, MPC) track the modified
-path without needing obstacle awareness.
-
 Algorithm:
   1. Cluster obstacle beams → find opponent centroid and width
   2. Project opponent onto nearest raceline waypoint
   3. Decide passing side (more clearance)
   4. Apply cosine-blend lateral offset to a speed-scaled window
   5. Publish shifted waypoints as /local_raceline
+
+Performance: All hot-path computation is vectorized with NumPy.
 """
 
 import math
 import csv
 import os
 import numpy as np
-from dataclasses import dataclass, field
 from typing import Optional
 
 import rclpy
@@ -43,31 +39,6 @@ from geometry_msgs.msg import PoseStamped
 from visualization_msgs.msg import Marker, MarkerArray
 from std_msgs.msg import Bool, ColorRGBA
 import tf2_ros
-
-
-# ════════════════════════════════════════════════════════════════════════
-#  Data types
-# ════════════════════════════════════════════════════════════════════════
-
-@dataclass
-class Waypoint:
-    """Single raceline waypoint matching the CSV columns."""
-    s: float = 0.0       # arc length [m]
-    x: float = 0.0       # [m]
-    y: float = 0.0       # [m]
-    psi: float = 0.0     # heading [rad]
-    kappa: float = 0.0   # curvature [1/m]
-    vx: float = 0.0      # velocity [m/s]
-    ax: float = 0.0      # acceleration [m/s²]
-
-
-@dataclass
-class OpponentState:
-    """Detected opponent position and geometry."""
-    x: float = 0.0       # centroid in map frame [m]
-    y: float = 0.0
-    width: float = 0.3   # estimated width [m]
-    detected: bool = False
 
 
 # ════════════════════════════════════════════════════════════════════════
@@ -88,6 +59,9 @@ class LateralPlannerNode(Node):
         self.declare_parameter("max_lateral_shift_m", 0.8)
         self.declare_parameter("min_replan_dist_m", 1.0)
         self.declare_parameter("publish_rate_hz", 40.0)
+        self.declare_parameter("stitch_points", 3)
+        self.declare_parameter("segment_behind", 0)
+        self.declare_parameter("segment_ahead", 40)
         self.declare_parameter("enabled", True)
 
         # Frame IDs
@@ -105,25 +79,48 @@ class LateralPlannerNode(Node):
         self.window_time = self.get_parameter("window_time_s").value
         self.max_lateral_shift = self.get_parameter("max_lateral_shift_m").value
         self.min_replan_dist = self.get_parameter("min_replan_dist_m").value
+        self.stitch_points = self.get_parameter("stitch_points").value
+        self.segment_behind = self.get_parameter("segment_behind").value
+        self.segment_ahead = self.get_parameter("segment_ahead").value
         self.map_frame = self.get_parameter("map_frame").value
         self.laser_frame = self.get_parameter("laser_frame").value
         self.enabled = self.get_parameter("enabled").value
 
-        # ── Load global raceline ────────────────────────────────────
+        # ── Load global raceline (precompute numpy arrays) ──────────
         traj_file = self.get_parameter("trajectory_file").value
-        self.waypoints: list[Waypoint] = []
-        self.wp_xy: Optional[np.ndarray] = None  # (N, 2) for fast lookup
+        self.n_wp = 0
+        # Columnar numpy arrays for vectorized computation
+        self.wp_s: Optional[np.ndarray] = None   # (N,)
+        self.wp_x: Optional[np.ndarray] = None   # (N,)
+        self.wp_y: Optional[np.ndarray] = None   # (N,)
+        self.wp_psi: Optional[np.ndarray] = None  # (N,)
+        self.wp_kappa: Optional[np.ndarray] = None
+        self.wp_vx: Optional[np.ndarray] = None
+        self.wp_ax: Optional[np.ndarray] = None
         if traj_file and os.path.exists(traj_file):
             self._load_trajectory(traj_file)
         else:
             self.get_logger().warn(f"No trajectory file: '{traj_file}'")
 
         # ── State ───────────────────────────────────────────────────
-        self.opponent = OpponentState()
+        self.opp_detected = False
+        self.opp_x = 0.0
+        self.opp_y = 0.0
+        self.opp_width = 0.35
         self.current_speed = 0.0
         self.robot_x = 0.0
         self.robot_y = 0.0
         self.robot_yaw = 0.0
+        # Cached indices for local search (avoids O(N) every frame)
+        self._last_robot_idx = 0
+        self._last_opp_idx = 0
+        # Avoidance state machine: lock pass direction once decided
+        self._avoidance_active = False
+        self._locked_pass_direction = 0.0  # +1 = pass left, -1 = pass right
+        self._locked_opp_s = 0.0  # arc-length position of opponent when locked
+        # Temporal smoothing: ramp d_max up/down instead of jumping
+        self._smooth_d_max = 0.0  # current (smoothed) shift magnitude
+        self._blend_rate = 0.10   # lerp factor per frame (0=frozen, 1=instant)
 
         # ── TF ──────────────────────────────────────────────────────
         self.tf_buffer = tf2_ros.Buffer()
@@ -163,17 +160,18 @@ class LateralPlannerNode(Node):
         self.timer = self.create_timer(period, self._plan_loop)
 
         self.get_logger().info("Lateral Planner Node initialized")
-        self.get_logger().info(f"  Raceline: {len(self.waypoints)} waypoints")
+        self.get_logger().info(f"  Raceline: {self.n_wp} waypoints")
         self.get_logger().info(f"  Safety margin: {self.safety_margin} m")
         self.get_logger().info(f"  Max shift: {self.max_lateral_shift} m")
+        self.get_logger().info(f"  Rate: {rate} Hz, segment: {self.segment_ahead} ahead")
 
     # ────────────────────────────────────────────────────────────────
     #  Trajectory loading
     # ────────────────────────────────────────────────────────────────
 
     def _load_trajectory(self, path: str):
-        """Load raceline CSV: s_m, x_m, y_m, psi_rad, kappa_radpm, vx_mps, ax_mps2."""
-        self.waypoints.clear()
+        """Load raceline CSV into columnar numpy arrays."""
+        rows = []
         with open(path, "r") as f:
             reader = csv.reader(f)
             for row in reader:
@@ -181,19 +179,52 @@ class LateralPlannerNode(Node):
                     continue
                 vals = [float(v) for v in row]
                 if len(vals) >= 7:
-                    self.waypoints.append(Waypoint(
-                        s=vals[0], x=vals[1], y=vals[2],
-                        psi=vals[3], kappa=vals[4],
-                        vx=vals[5], ax=vals[6],
-                    ))
-        if self.waypoints:
-            self.wp_xy = np.array(
-                [[wp.x, wp.y] for wp in self.waypoints], dtype=np.float64
-            )
-            self.get_logger().info(
-                f"Loaded {len(self.waypoints)} waypoints "
-                f"({self.waypoints[-1].s:.1f} m)"
-            )
+                    rows.append(vals[:7])
+
+        if not rows:
+            return
+
+        data = np.array(rows, dtype=np.float64)  # (N, 7)
+        self.n_wp = len(data)
+        self.wp_s = data[:, 0]
+        self.wp_x = data[:, 1]
+        self.wp_y = data[:, 2]
+        self.wp_psi = data[:, 3]
+        self.wp_kappa = data[:, 4]
+        self.wp_vx = data[:, 5]
+        self.wp_ax = data[:, 6]
+
+        self.get_logger().info(
+            f"Loaded {self.n_wp} waypoints ({self.wp_s[-1]:.1f} m)"
+        )
+
+    # ────────────────────────────────────────────────────────────────
+    #  Fast closest-waypoint (local search with fallback)
+    # ────────────────────────────────────────────────────────────────
+
+    def _closest_waypoint_local(self, x: float, y: float, hint: int) -> int:
+        """
+        Find closest waypoint starting from `hint`, searching locally first.
+        Falls back to full search if local minimum is far from actual minimum.
+        Typically O(1) if the car moves incrementally between frames.
+        """
+        n = self.n_wp
+        # Local search: check ±30 around hint
+        lo = max(0, hint - 30)
+        hi = min(n, hint + 30)
+        dx = self.wp_x[lo:hi] - x
+        dy = self.wp_y[lo:hi] - y
+        dists_local = dx * dx + dy * dy
+        local_best = lo + int(np.argmin(dists_local))
+        local_dist = dists_local[local_best - lo]
+
+        # If the local best is at the boundary, do a full search
+        if local_best == lo or local_best == hi - 1:
+            dx_all = self.wp_x - x
+            dy_all = self.wp_y - y
+            return int(np.argmin(dx_all * dx_all + dy_all * dy_all))
+
+        return local_best
 
     # ────────────────────────────────────────────────────────────────
     #  Callbacks
@@ -210,7 +241,6 @@ class LateralPlannerNode(Node):
 
     def _obstacle_callback(self, scan: LaserScan):
         """Extract opponent centroid and width from obstacle-only scan."""
-        # Get laser pose in map frame
         try:
             tf = self.tf_buffer.lookup_transform(
                 self.map_frame, self.laser_frame,
@@ -229,15 +259,14 @@ class LateralPlannerNode(Node):
             1.0 - 2.0 * (q.y * q.y + q.z * q.z),
         )
 
-        # Collect valid obstacle beam endpoints
         ranges = np.array(scan.ranges, dtype=np.float32)
-        n = len(ranges)
         valid = np.isfinite(ranges) & (ranges > scan.range_min) & (ranges < scan.range_max)
 
         if not np.any(valid):
-            self.opponent.detected = False
+            self.opp_detected = False
             return
 
+        n = len(ranges)
         angles = scan.angle_min + np.arange(n, dtype=np.float32) * scan.angle_increment
         world_angles = angles[valid] + laser_yaw
         r = ranges[valid]
@@ -245,26 +274,20 @@ class LateralPlannerNode(Node):
         xs = lx + r * np.cos(world_angles)
         ys = ly + r * np.sin(world_angles)
 
-        # Compute centroid
-        cx, cy = float(np.mean(xs)), float(np.mean(ys))
+        self.opp_x = float(np.mean(xs))
+        self.opp_y = float(np.mean(ys))
 
-        # Estimate width from angular extent × mean range
         angular_extent = float(world_angles[-1] - world_angles[0]) if len(world_angles) > 1 else 0.0
         mean_range = float(np.mean(r))
-        width = abs(angular_extent) * mean_range
-        width = max(width, 0.15)  # minimum physical width
-
-        self.opponent = OpponentState(
-            x=cx, y=cy, width=width, detected=True
-        )
+        self.opp_width = max(abs(angular_extent) * mean_range, 0.15)
+        self.opp_detected = True
 
     # ────────────────────────────────────────────────────────────────
-    #  Main planning loop
+    #  Main planning loop (vectorized)
     # ────────────────────────────────────────────────────────────────
 
     def _plan_loop(self):
-        """Compute and publish the (possibly shifted) local raceline."""
-        if not self.enabled or not self.waypoints:
+        if not self.enabled or self.n_wp == 0:
             return
 
         # Update robot pose from TF
@@ -285,158 +308,185 @@ class LateralPlannerNode(Node):
                 tf2_ros.ExtrapolationException):
             return
 
-        if not self.opponent.detected:
-            # No opponent — publish unmodified raceline segment ahead
-            self._publish_raceline_segment()
-            self._publish_opponent_marker(False)
-            return
+        # Find robot's arc-length position on raceline
+        robot_idx = self._closest_waypoint_local(
+            self.robot_x, self.robot_y, self._last_robot_idx
+        )
+        self._last_robot_idx = robot_idx
+        robot_s = self.wp_s[robot_idx]
+        total_s = self.wp_s[-1]
 
-        # ── Opponent detected: compute avoidance ────────────────────
-        opp = self.opponent
+        # ── Decide target d_max (0 when no avoidance needed) ────────
+        target_d_max = 0.0
+        opp_marker_visible = False
 
-        # Distance from robot to opponent
-        dx = opp.x - self.robot_x
-        dy = opp.y - self.robot_y
-        dist_to_opp = math.sqrt(dx * dx + dy * dy)
+        if self.opp_detected:
+            dx = self.opp_x - self.robot_x
+            dy = self.opp_y - self.robot_y
+            dist_to_opp = math.sqrt(dx * dx + dy * dy)
+            opp_marker_visible = True
 
-        # Too close for replanning — don't shift (emergency handled by controller)
-        if dist_to_opp < self.min_replan_dist:
-            self._publish_raceline_segment()
-            self._publish_opponent_marker(True)
-            return
+            if dist_to_opp >= self.min_replan_dist:
+                # Project opponent onto raceline
+                opp_idx = self._closest_waypoint_local(
+                    self.opp_x, self.opp_y, self._last_opp_idx
+                )
+                self._last_opp_idx = opp_idx
+                opp_s = self.wp_s[opp_idx]
 
-        # Project opponent onto raceline
-        opp_idx = self._closest_waypoint(opp.x, opp.y)
-        opp_wp = self.waypoints[opp_idx]
+                # Check if opponent is BEHIND the car (already passed)
+                s_diff = opp_s - robot_s
+                if s_diff < 0:
+                    s_diff += total_s
+                opp_ahead = s_diff <= total_s * 0.5
 
-        # Compute lateral offset of opponent from raceline
-        # Positive = left of heading, negative = right
-        dx_opp = opp.x - opp_wp.x
-        dy_opp = opp.y - opp_wp.y
-        normal_angle = opp_wp.psi + math.pi / 2
-        opp_lateral = dx_opp * math.cos(normal_angle) + dy_opp * math.sin(normal_angle)
+                if opp_ahead:
+                    # Compute lateral offset of opponent from raceline
+                    opp_psi = self.wp_psi[opp_idx]
+                    opp_wp_x = self.wp_x[opp_idx]
+                    opp_wp_y = self.wp_y[opp_idx]
+                    normal_angle = opp_psi + math.pi / 2.0
+                    cn = math.cos(normal_angle)
+                    sn = math.sin(normal_angle)
+                    opp_lateral = (
+                        (self.opp_x - opp_wp_x) * cn +
+                        (self.opp_y - opp_wp_y) * sn
+                    )
 
-        # Decide passing side: pass on opposite side from where opponent is
-        # (i.e., if opponent is left of raceline, pass on the right)
-        pass_direction = -1.0 if opp_lateral > 0 else 1.0
+                    # Lock pass direction on first detection
+                    if not self._avoidance_active:
+                        self._locked_pass_direction = (
+                            -1.0 if opp_lateral > 0 else 1.0
+                        )
+                        self._avoidance_active = True
+                        side = "right" if self._locked_pass_direction < 0 else "left"
+                        self.get_logger().info(
+                            f"Avoidance started: passing {side} "
+                            f"(opp lat={opp_lateral:.2f}m, "
+                            f"dist={dist_to_opp:.1f}m)"
+                        )
 
-        # Shift magnitude: clear the opponent + safety margin
-        shift_magnitude = opp.width / 2.0 + self.safety_margin + abs(opp_lateral)
-        shift_magnitude = min(shift_magnitude, self.max_lateral_shift)
-        d_max = pass_direction * shift_magnitude
+                    # Update window center to track opponent
+                    self._locked_opp_s = opp_s
 
-        # Window length: scale with speed
-        half_window = max(self.min_window, self.current_speed * self.window_time)
+                    shift_mag = min(
+                        self.opp_width / 2.0 + self.safety_margin +
+                        abs(opp_lateral),
+                        self.max_lateral_shift,
+                    )
+                    target_d_max = self._locked_pass_direction * shift_mag
+                else:
+                    # Opponent is behind us
+                    if self._avoidance_active:
+                        self.get_logger().info("Avoidance ending: opponent passed")
+                    self._avoidance_active = False
+            else:
+                # Too close — ramp down
+                self._avoidance_active = False
+        else:
+            # No opponent
+            if self._avoidance_active:
+                self.get_logger().info("Avoidance ending: opponent lost")
+            self._avoidance_active = False
 
-        # Find waypoint indices for the window
-        s_opp = opp_wp.s
-        s_start = s_opp - half_window
-        s_end = s_opp + half_window
+        # ── Temporal smoothing of d_max ─────────────────────────────
+        self._smooth_d_max += self._blend_rate * (target_d_max - self._smooth_d_max)
+        if abs(self._smooth_d_max) < 0.005:
+            self._smooth_d_max = 0.0
 
-        # Apply cosine-blend lateral offset
-        shifted_waypoints = self._apply_lateral_shift(s_start, s_end, d_max)
+        # ── Publish raceline (shifted or unmodified) ────────────────
+        if abs(self._smooth_d_max) < 0.001:
+            # No shift — publish original raceline unmodified
+            self._publish_segment_np(
+                self.wp_x, self.wp_y, self.wp_psi, self.wp_vx,
+            )
+        else:
+            # ── Avoidance offsets (asymmetric cosine blend) ─────────
+            opp_s = self._locked_opp_s
+            half_window = max(
+                self.min_window, self.current_speed * self.window_time
+            )
+            ramp_up_raw = opp_s - robot_s
+            if ramp_up_raw < 0:
+                ramp_up_raw += total_s
+            ramp_up_len = max(ramp_up_raw, self.min_window)
+            ramp_down_len = half_window
+            s_anchor = opp_s - ramp_up_len
 
-        # Publish
-        self._publish_path(shifted_waypoints)
-        self._publish_opponent_marker(True)
+            # Forward arc-length from anchor (wrapped)
+            s_rel = (self.wp_s - s_anchor) % total_s
+
+            # Ramp-up: 0 → d_max
+            in_ramp_up = s_rel <= ramp_up_len
+            up_progress = np.clip(s_rel / ramp_up_len, 0.0, 1.0)
+            blend_up = 0.5 * (1.0 - np.cos(np.pi * up_progress))
+            up_offsets = self._smooth_d_max * blend_up
+
+            # Ramp-down: d_max → 0
+            s_past_peak = s_rel - ramp_up_len
+            in_ramp_down = (s_past_peak > 0) & (s_past_peak <= ramp_down_len)
+            down_progress = np.clip(s_past_peak / ramp_down_len, 0.0, 1.0)
+            down_offsets = self._smooth_d_max * 0.5 * (1.0 + np.cos(np.pi * down_progress))
+
+            offsets = np.where(in_ramp_up, up_offsets, 0.0)
+            offsets = np.where(in_ramp_down, down_offsets, offsets)
+
+            # Reduce shift in high-curvature sections (corners)
+            curvature_scale = 1.0 / (1.0 + 5.0 * np.abs(self.wp_kappa))
+            offsets *= curvature_scale
+
+            # Apply offsets perpendicular to raceline
+            full_x = self.wp_x.copy()
+            full_y = self.wp_y.copy()
+            normal_angles = self.wp_psi + (np.pi / 2.0)
+            full_x += offsets * np.cos(normal_angles)
+            full_y += offsets * np.sin(normal_angles)
+
+            self._publish_segment_np(full_x, full_y, self.wp_psi, self.wp_vx)
+
+        self._publish_opponent_marker(opp_marker_visible)
 
     # ────────────────────────────────────────────────────────────────
-    #  Lateral shift
+    #  Publishing (vectorized)
     # ────────────────────────────────────────────────────────────────
 
-    def _apply_lateral_shift(
-        self, s_start: float, s_end: float, d_max: float
-    ) -> list[Waypoint]:
-        """
-        Shift raceline waypoints within [s_start, s_end] by a cosine-blended
-        lateral offset, returning the modified waypoints for a segment around
-        the robot.
-        """
-        n = len(self.waypoints)
-        total_s = self.waypoints[-1].s
-        window_len = s_end - s_start
-
-        # Determine segment to publish (generous range around robot)
-        robot_idx = self._closest_waypoint(self.robot_x, self.robot_y)
-        segment_behind = 5      # waypoints behind robot
-        segment_ahead = 80      # waypoints ahead
-        idx_start = max(0, robot_idx - segment_behind)
-        idx_end = min(n, robot_idx + segment_ahead)
-
-        result = []
-        for i in range(idx_start, idx_end):
-            wp = self.waypoints[i]
-            s = wp.s
-
-            # Compute offset using cosine blend
-            offset = 0.0
-            if window_len > 0:
-                # Handle wraparound for closed tracks
-                s_rel = s - s_start
-                if s_rel < 0:
-                    s_rel += total_s
-                if 0 <= s_rel <= window_len:
-                    offset = d_max * 0.5 * (1.0 - math.cos(2.0 * math.pi * s_rel / window_len))
-
-            # Shift perpendicular to heading
-            normal_angle = wp.psi + math.pi / 2
-            new_x = wp.x + offset * math.cos(normal_angle)
-            new_y = wp.y + offset * math.sin(normal_angle)
-
-            # Recompute heading from shifted positions (numerical derivative)
-            # For simplicity in the skeleton, keep original heading.
-            # TODO: Recompute heading and curvature analytically from offset profile.
-            new_psi = wp.psi
-            new_kappa = wp.kappa
-
-            # Optionally reduce velocity in shifted section
-            speed_scale = 1.0 - 0.2 * abs(offset / self.max_lateral_shift) if self.max_lateral_shift > 0 else 1.0
-            new_vx = wp.vx * speed_scale
-
-            result.append(Waypoint(
-                s=wp.s, x=new_x, y=new_y,
-                psi=new_psi, kappa=new_kappa,
-                vx=new_vx, ax=wp.ax,
-            ))
-
-        return result
-
-    # ────────────────────────────────────────────────────────────────
-    #  Publishing
-    # ────────────────────────────────────────────────────────────────
-
-    def _publish_raceline_segment(self):
-        """Publish unmodified raceline segment around the robot."""
-        if not self.waypoints:
-            return
-        n = len(self.waypoints)
-        robot_idx = self._closest_waypoint(self.robot_x, self.robot_y)
-        idx_start = max(0, robot_idx - 5)
-        idx_end = min(n, robot_idx + 80)
-        segment = self.waypoints[idx_start:idx_end]
-        self._publish_path(segment)
-
-    def _publish_path(self, waypoints: list[Waypoint]):
-        """Publish waypoints as a nav_msgs/Path."""
+    def _publish_segment_np(
+        self,
+        xs: np.ndarray,
+        ys: np.ndarray,
+        psis: np.ndarray,
+        vxs: np.ndarray,
+    ):
+        """Build and publish Path from numpy arrays."""
         path = Path()
-        path.header.stamp = self.get_clock().now().to_msg()
+        now_stamp = self.get_clock().now().to_msg()
+        path.header.stamp = now_stamp
         path.header.frame_id = self.map_frame
 
-        for wp in waypoints:
-            pose = PoseStamped()
-            pose.header = path.header
-            pose.pose.position.x = wp.x
-            pose.pose.position.y = wp.y
-            pose.pose.position.z = wp.vx  # encode velocity in z (pragmatic hack)
-            # Encode heading as quaternion
-            pose.pose.orientation.z = math.sin(wp.psi / 2.0)
-            pose.pose.orientation.w = math.cos(wp.psi / 2.0)
-            path.poses.append(pose)
+        # Pre-compute quaternion components
+        half_psi = psis * 0.5
+        qz = np.sin(half_psi)
+        qw = np.cos(half_psi)
 
+        # Build all poses
+        n = len(xs)
+        poses = []
+        for i in range(n):
+            pose = PoseStamped()
+            pose.header.stamp = now_stamp
+            pose.header.frame_id = self.map_frame
+            pose.pose.position.x = float(xs[i])
+            pose.pose.position.y = float(ys[i])
+            pose.pose.position.z = 0.0
+            pose.pose.orientation.x = float(vxs[i])  # velocity encoding
+            pose.pose.orientation.z = float(qz[i])
+            pose.pose.orientation.w = float(qw[i])
+            poses.append(pose)
+
+        path.poses = poses
         self.raceline_pub.publish(path)
 
     def _publish_opponent_marker(self, detected: bool):
-        """Publish opponent visualization marker for RViz."""
         markers = MarkerArray()
         marker = Marker()
         marker.header.stamp = self.get_clock().now().to_msg()
@@ -447,11 +497,11 @@ class LateralPlannerNode(Node):
 
         if detected:
             marker.action = Marker.ADD
-            marker.pose.position.x = self.opponent.x
-            marker.pose.position.y = self.opponent.y
+            marker.pose.position.x = self.opp_x
+            marker.pose.position.y = self.opp_y
             marker.pose.position.z = 0.1
-            marker.scale.x = self.opponent.width
-            marker.scale.y = self.opponent.width
+            marker.scale.x = self.opp_width
+            marker.scale.y = self.opp_width
             marker.scale.z = 0.2
             marker.color = ColorRGBA(r=1.0, g=0.0, b=0.0, a=0.8)
         else:
@@ -465,11 +515,12 @@ class LateralPlannerNode(Node):
     # ────────────────────────────────────────────────────────────────
 
     def _closest_waypoint(self, x: float, y: float) -> int:
-        """Find the index of the closest raceline waypoint to (x, y)."""
-        if self.wp_xy is None:
+        """Full O(N) fallback search."""
+        if self.wp_x is None:
             return 0
-        dists = (self.wp_xy[:, 0] - x) ** 2 + (self.wp_xy[:, 1] - y) ** 2
-        return int(np.argmin(dists))
+        dx = self.wp_x - x
+        dy = self.wp_y - y
+        return int(np.argmin(dx * dx + dy * dy))
 
 
 def main(args=None):

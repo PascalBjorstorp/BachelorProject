@@ -30,6 +30,7 @@ private:
     // Callbacks
     void odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg);
     void enableCallback(const std_msgs::msg::Bool::SharedPtr msg);
+    void localRacelineCallback(const nav_msgs::msg::Path::SharedPtr msg);
     void controlLoop();
     
     // Visualization
@@ -47,6 +48,7 @@ private:
     // ROS interfaces
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr enable_sub_;
+    rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr local_raceline_sub_;
     rclcpp::Publisher<ackermann_msgs::msg::AckermannDriveStamped>::SharedPtr drive_pub_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_pub_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;

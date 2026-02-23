@@ -218,8 +218,8 @@ void PurePursuitNode::localRacelineCallback(const nav_msgs::msg::Path::SharedPtr
         TrajectoryPoint tp;
         tp.x = pose.pose.position.x;
         tp.y = pose.pose.position.y;
-        // Velocity encoded in z by the lateral planner
-        tp.velocity = pose.pose.position.z;
+        // Velocity encoded in orientation.x by the lateral planner
+        tp.velocity = pose.pose.orientation.x;
         // Heading from quaternion (yaw only)
         double siny = 2.0 * (pose.pose.orientation.w * pose.pose.orientation.z +
                               pose.pose.orientation.x * pose.pose.orientation.y);

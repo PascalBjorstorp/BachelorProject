@@ -5,26 +5,33 @@ lateral_planner_node:
     trajectory_file: ""
 
     # Safety margin added to opponent width when computing shift [m]
-    safety_margin_m: 0.3
+    safety_margin_m: 0.35
 
     # Minimum avoidance window half-length [m]
     # At low speed, the window will be at least 2 × this value.
-    min_window_m: 3.0
+    min_window_m: 4.0
 
     # Window half-length = max(min_window_m, speed × window_time_s)
     # At 5 m/s with 0.8s: half_window = 4.0 m → 8 m total window
-    window_time_s: 0.8
+    window_time_s: 2.0
 
     # Maximum lateral raceline shift [m]
     # Capped to prevent the path from leaving the track.
-    max_lateral_shift_m: 0.8
+    max_lateral_shift_m: 0.9
 
     # Don't start replanning if opponent is closer than this [m]
-    min_replan_dist_m: 1.0
+    min_replan_dist_m: 0.3
 
     # Publishing rate [Hz] — matches LiDAR scan rate
     publish_rate_hz: 40.0
 
+    # Number of waypoints to stitch from car position to raceline
+    # during avoidance (higher = smoother but may affect speed)
+    stitch_points: 15
+    # Segment sizes: how many raceline points behind/ahead of car to
+    # include.  0 = use full raceline.
+    segment_behind: 0
+    segment_ahead: 50
     # Enable/disable the planner at startup
     enabled: true
 

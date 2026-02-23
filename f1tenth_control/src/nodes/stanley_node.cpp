@@ -40,6 +40,12 @@ StanleyNode::StanleyNode(const rclcpp::NodeOptions& options)
         "/stanley_enable", 10,
         std::bind(&StanleyNode::enableCallback, this, std::placeholders::_1)
     );
+
+    // Local raceline from lateral planner (overrides loaded trajectory when received)
+    local_raceline_sub_ = create_subscription<nav_msgs::msg::Path>(
+        "/local_raceline", 10,
+        std::bind(&StanleyNode::localRacelineCallback, this, std::placeholders::_1)
+    );
     
     drive_pub_ = create_publisher<ackermann_msgs::msg::AckermannDriveStamped>(
         "/drive", 10
@@ -195,6 +201,55 @@ void StanleyNode::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
 void StanleyNode::enableCallback(const std_msgs::msg::Bool::SharedPtr msg) {
     enabled_ = msg->data;
     RCLCPP_INFO(get_logger(), "Stanley controller %s", enabled_ ? "ENABLED" : "DISABLED");
+}
+
+void StanleyNode::localRacelineCallback(const nav_msgs::msg::Path::SharedPtr msg) {
+    if (msg->poses.empty()) {
+        return;
+    }
+
+    std::vector<TrajectoryPoint> new_traj;
+    new_traj.reserve(msg->poses.size());
+
+    double cumulative_s = 0.0;
+    for (size_t i = 0; i < msg->poses.size(); ++i) {
+        const auto& pose = msg->poses[i];
+        TrajectoryPoint tp;
+        tp.x = pose.pose.position.x;
+        tp.y = pose.pose.position.y;
+        // Velocity encoded in orientation.x by the lateral planner
+        tp.velocity = pose.pose.orientation.x;
+        // Heading from quaternion (yaw only)
+        double siny = 2.0 * (pose.pose.orientation.w * pose.pose.orientation.z +
+                              pose.pose.orientation.x * pose.pose.orientation.y);
+        double cosy = 1.0 - 2.0 * (pose.pose.orientation.y * pose.pose.orientation.y +
+                                     pose.pose.orientation.z * pose.pose.orientation.z);
+        tp.heading = std::atan2(siny, cosy);
+
+        // Compute arc length from consecutive points
+        if (i > 0) {
+            double dx = tp.x - new_traj.back().x;
+            double dy = tp.y - new_traj.back().y;
+            cumulative_s += std::sqrt(dx * dx + dy * dy);
+        }
+        tp.arc_length = cumulative_s;
+
+        tp.curvature = 0.0;
+        new_traj.push_back(tp);
+    }
+
+    // Compute curvature from heading differences
+    for (size_t i = 1; i + 1 < new_traj.size(); ++i) {
+        double ds = new_traj[i + 1].arc_length - new_traj[i - 1].arc_length;
+        if (ds > 1e-6) {
+            double dtheta = new_traj[i + 1].heading - new_traj[i - 1].heading;
+            while (dtheta > M_PI) dtheta -= 2.0 * M_PI;
+            while (dtheta < -M_PI) dtheta += 2.0 * M_PI;
+            new_traj[i].curvature = dtheta / ds;
+        }
+    }
+
+    controller_->setTrajectory(new_traj);
 }
 
 void StanleyNode::controlLoop() {
