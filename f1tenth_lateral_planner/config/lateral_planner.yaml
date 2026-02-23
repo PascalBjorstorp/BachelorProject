@@ -22,22 +22,20 @@ lateral_planner_node:
     # Don't start replanning if opponent is closer than this [m]
     min_replan_dist_m: 0.3
 
+    # Per-cycle first-order smoothing for the shift magnitude
+    # (0 = frozen, 1 = instant, 0.10 = gentle ramp)
+    blend_rate: 0.10
+
     # Publishing rate [Hz] — matches LiDAR scan rate
     publish_rate_hz: 40.0
 
-    # Number of waypoints to stitch from car position to raceline
-    # during avoidance (higher = smoother but may affect speed)
-    stitch_points: 15
-    # Segment sizes: how many raceline points behind/ahead of car to
-    # include.  0 = use full raceline.
-    segment_behind: 0
-    segment_ahead: 50
     # Enable/disable the planner at startup
     enabled: true
 
     # Frame IDs
     map_frame: "map"
     laser_frame: "ego_racecar/laser"
+    base_link_frame: "ego_racecar/base_link"
 
     # Topics
     obstacles_topic: "/scan_obstacles"

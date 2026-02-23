@@ -38,7 +38,7 @@ def generate_launch_description():
 
     planner_node = Node(
         package='f1tenth_lateral_planner',
-        executable='lateral_planner_node.py',
+        executable='lateral_planner_node',
         name='lateral_planner_node',
         output='screen',
         parameters=[
