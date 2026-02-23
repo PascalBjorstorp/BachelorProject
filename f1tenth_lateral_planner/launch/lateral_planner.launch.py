@@ -1,7 +1,7 @@
 """
 Lateral Planner Launch File
 
-Starts the lateral planner node for opponent avoidance.
+Starts the C++ lateral planner node for opponent avoidance.
 
 Usage:
   ros2 launch f1tenth_lateral_planner lateral_planner.launch.py
@@ -38,7 +38,7 @@ def generate_launch_description():
 
     planner_node = Node(
         package='f1tenth_lateral_planner',
-        executable='lateral_planner_node.py',
+        executable='lateral_planner_node',
         name='lateral_planner_node',
         output='screen',
         parameters=[
