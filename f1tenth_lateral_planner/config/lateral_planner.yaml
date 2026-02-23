@@ -1,0 +1,39 @@
+# Lateral Planner Configuration
+lateral_planner_node:
+  ros__parameters:
+    # Global raceline CSV path (empty = use launch arg or package share)
+    trajectory_file: ""
+
+    # Safety margin added to opponent width when computing shift [m]
+    safety_margin_m: 0.3
+
+    # Minimum avoidance window half-length [m]
+    # At low speed, the window will be at least 2 × this value.
+    min_window_m: 3.0
+
+    # Window half-length = max(min_window_m, speed × window_time_s)
+    # At 5 m/s with 0.8s: half_window = 4.0 m → 8 m total window
+    window_time_s: 0.8
+
+    # Maximum lateral raceline shift [m]
+    # Capped to prevent the path from leaving the track.
+    max_lateral_shift_m: 0.8
+
+    # Don't start replanning if opponent is closer than this [m]
+    min_replan_dist_m: 1.0
+
+    # Publishing rate [Hz] — matches LiDAR scan rate
+    publish_rate_hz: 40.0
+
+    # Enable/disable the planner at startup
+    enabled: true
+
+    # Frame IDs
+    map_frame: "map"
+    laser_frame: "ego_racecar/laser"
+
+    # Topics
+    obstacles_topic: "/scan_obstacles"
+    odom_topic: "/ego_racecar/odom"
+    raceline_topic: "/local_raceline"
+    enable_topic: "/lateral_planner_enable"

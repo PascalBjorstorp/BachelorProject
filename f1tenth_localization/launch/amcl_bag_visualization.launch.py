@@ -49,12 +49,12 @@ def launch_setup(context, *args, **kwargs):
     
     # Get RViz config path
     localization_pkg = get_package_share_directory('f1tenth_localization')
-    rviz_config = os.path.join(localization_pkg, 'launch', 'amcl_bag_visualization.rviz')
+    rviz_config = os.path.join(localization_pkg, 'config', 'amcl_bag_visualization.rviz')
     
     # Fallback to source path if installed path doesn't exist
     if not os.path.exists(rviz_config):
-        source_path = os.path.dirname(os.path.abspath(__file__))
-        rviz_config = os.path.join(source_path, 'amcl_bag_visualization.rviz')
+        source_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        rviz_config = os.path.join(source_path, 'config', 'amcl_bag_visualization.rviz')
     
     # Build bag play command
     bag_play_cmd = ['ros2', 'bag', 'play', bag_path, '--clock', '--rate', playback_rate]

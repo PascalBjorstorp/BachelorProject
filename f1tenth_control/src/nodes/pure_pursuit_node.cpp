@@ -33,6 +33,12 @@ PurePursuitNode::PurePursuitNode(const rclcpp::NodeOptions& options)
         std::bind(&PurePursuitNode::enableCallback, this, std::placeholders::_1)
     );
     
+    // Local raceline from lateral planner (overrides loaded trajectory when received)
+    local_raceline_sub_ = create_subscription<nav_msgs::msg::Path>(
+        "/local_raceline", 10,
+        std::bind(&PurePursuitNode::localRacelineCallback, this, std::placeholders::_1)
+    );
+    
     // Setup publishers
     drive_pub_ = create_publisher<ackermann_msgs::msg::AckermannDriveStamped>(
         "/drive", 10
@@ -196,6 +202,58 @@ void PurePursuitNode::enableCallback(const std_msgs::msg::Bool::SharedPtr msg) {
         // Stop the car
         publishDriveCommand(0.0, 0.0);
     }
+}
+
+void PurePursuitNode::localRacelineCallback(const nav_msgs::msg::Path::SharedPtr msg) {
+    if (msg->poses.empty()) {
+        return;
+    }
+
+    std::vector<TrajectoryPoint> new_traj;
+    new_traj.reserve(msg->poses.size());
+
+    double cumulative_s = 0.0;
+    for (size_t i = 0; i < msg->poses.size(); ++i) {
+        const auto& pose = msg->poses[i];
+        TrajectoryPoint tp;
+        tp.x = pose.pose.position.x;
+        tp.y = pose.pose.position.y;
+        // Velocity encoded in z by the lateral planner
+        tp.velocity = pose.pose.position.z;
+        // Heading from quaternion (yaw only)
+        double siny = 2.0 * (pose.pose.orientation.w * pose.pose.orientation.z +
+                              pose.pose.orientation.x * pose.pose.orientation.y);
+        double cosy = 1.0 - 2.0 * (pose.pose.orientation.y * pose.pose.orientation.y +
+                                     pose.pose.orientation.z * pose.pose.orientation.z);
+        tp.heading = std::atan2(siny, cosy);
+
+        // Compute arc length from consecutive points
+        if (i > 0) {
+            double dx = tp.x - new_traj.back().x;
+            double dy = tp.y - new_traj.back().y;
+            cumulative_s += std::sqrt(dx * dx + dy * dy);
+        }
+        tp.arc_length = cumulative_s;
+
+        // Curvature from finite differences (computed after all points added)
+        tp.curvature = 0.0;
+        new_traj.push_back(tp);
+    }
+
+    // Compute curvature from heading differences
+    for (size_t i = 1; i + 1 < new_traj.size(); ++i) {
+        double ds = new_traj[i + 1].arc_length - new_traj[i - 1].arc_length;
+        if (ds > 1e-6) {
+            double dtheta = new_traj[i + 1].heading - new_traj[i - 1].heading;
+            // Normalize to [-pi, pi]
+            while (dtheta > M_PI) dtheta -= 2.0 * M_PI;
+            while (dtheta < -M_PI) dtheta += 2.0 * M_PI;
+            new_traj[i].curvature = dtheta / ds;
+        }
+    }
+
+    controller_->setTrajectory(new_traj);
+    trajectory_loaded_ = true;
 }
 
 void PurePursuitNode::controlLoop() {

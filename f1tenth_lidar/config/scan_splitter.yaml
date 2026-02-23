@@ -1,0 +1,21 @@
+# Scan Splitter Node Configuration
+scan_splitter_node:
+  ros__parameters:
+    # Distance (meters) from a known wall beyond which a beam endpoint
+    # is considered an obstacle rather than a wall reflection.
+    # Higher = more tolerant of localization error / map inaccuracy.
+    obstacle_threshold_m: 0.3
+
+    # Minimum number of adjacent obstacle beams to count as a real obstacle.
+    # Filters out single-beam noise from localization jitter or map errors.
+    min_cluster_size: 3
+
+    # Topics
+    scan_topic: "/scan"
+    walls_topic: "/scan_walls"
+    obstacles_topic: "/scan_obstacles"
+
+    # Frame IDs
+    robot_frame: "ego_racecar/base_link"
+    laser_frame: "ego_racecar/laser"
+    map_frame: "map"
