@@ -1084,7 +1084,7 @@ int main(int argc, char *argv[])
     else
     {
         /* Default path - absolute path to trajectory file */
-        trajectory_file = "/home/jonathan/Documents/GitHub/BachelorProject/f1tenth_planning/trajectories/Spielberg_raceline.csv";
+        trajectory_file = "/ros2_ws/src/f1tenth_planning/trajectories/Spielberg_raceline.csv";
     }
 
     if (load_trajectory_from_csv(trajectory_file))

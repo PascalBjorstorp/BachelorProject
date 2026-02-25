@@ -27,7 +27,7 @@ def generate_launch_description():
     
     if not os.path.exists(default_trajectory):
         default_trajectory = os.path.expanduser(
-            '~/Documents/GitHub/BachelorProject/f1tenth_planning/trajectories/Spielberg_raceline.csv'
+            '/ros2_ws/src/f1tenth_planning/trajectories/Spielberg_raceline.csv'
         )
     
     # Launch arguments

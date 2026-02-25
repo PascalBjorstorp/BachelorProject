@@ -30,7 +30,7 @@ def generate_launch_description():
             planning_pkg_dir, 'trajectories', 'Spielberg_raceline.csv')
     except Exception:
         # Fallback: use path relative to workspace
-        default_trajectory = '/home/jonathan/Documents/GitHub/BachelorProject/f1tenth_planning/trajectories/Spielberg_raceline.csv'
+        default_trajectory = '/ros2_ws/src/f1tenth_planning/trajectories/Spielberg_raceline.csv'
 
     # Launch argument for trajectory file override
     trajectory_arg = DeclareLaunchArgument(

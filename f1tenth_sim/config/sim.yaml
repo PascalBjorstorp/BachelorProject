@@ -46,7 +46,7 @@ bridge:
     # map parameters
     # Absolute path to the map file (without extension)
     # This is automatically configured by setup.sh
-    map_path: '/home/jonathan/Documents/GitHub/BachelorProject/f1tenth_sim/maps/Spielberg_map'
+    map_path: '/ros2_ws/src/f1tenth_sim/maps/Spielberg_map'
     map_img_ext: '.png'
 
     # car parameters and scale
