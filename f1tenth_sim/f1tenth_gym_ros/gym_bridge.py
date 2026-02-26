@@ -199,6 +199,13 @@ class GymBridge(Node):
         # Scan publish rate limiting (for realistic 40Hz LiDAR simulation)
         self.declare_parameter('scan_publish_rate', 0.0)     # 0 = no limit, >0 = Hz limit
 
+        # Vehicle parameter overrides (0.0 = use default from f1tenth_gym)
+        self.declare_parameter('vehicle_mu', 0.0)
+        self.declare_parameter('vehicle_m', 0.0)
+        self.declare_parameter('vehicle_I', 0.0)
+        self.declare_parameter('vehicle_C_Sf', 0.0)
+        self.declare_parameter('vehicle_C_Sr', 0.0)
+
     def _validate_num_agents(self) -> int:
         """Validate and return number of agents."""
         num_agents = self.get_parameter('num_agent').value
@@ -209,7 +216,7 @@ class GymBridge(Node):
         return num_agents
 
     def _get_vehicle_params(self) -> Dict[str, Any]:
-        """Get vehicle parameters based on configuration."""
+        """Get vehicle parameters based on configuration, with YAML overrides."""
         vehicle_type = self.get_parameter('vehicle_params').value
         params_map = {
             'f1tenth': F110Env.f1tenth_vehicle_params,
@@ -218,9 +225,27 @@ class GymBridge(Node):
         }
         if vehicle_type not in params_map:
             raise ValueError(
-                f"vehicle_params should be one of: {list(self.vehicle_params_dict.keys())}"
+                f"vehicle_params should be one of: {list(params_map.keys())}"
             )
-        return params_map[vehicle_type]()
+        params = params_map[vehicle_type]()
+
+        # Apply YAML overrides for real car values
+        overrides = {
+            'mu': self.get_parameter('vehicle_mu').value,
+            'm': self.get_parameter('vehicle_m').value,
+            'I': self.get_parameter('vehicle_I').value,
+            'C_Sf': self.get_parameter('vehicle_C_Sf').value,
+            'C_Sr': self.get_parameter('vehicle_C_Sr').value,
+        }
+        for key, val in overrides.items():
+            if val > 0.0:
+                old_val = params[key]
+                params[key] = val
+                self.get_logger().info(
+                    f'Vehicle param override: {key} = {val} (default was {old_val})'
+                )
+
+        return params
 
     def _create_environment(self, num_agents: int, scale: float) -> gym.Env:
         """Create and configure the F1Tenth gym environment."""

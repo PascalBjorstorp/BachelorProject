@@ -198,4 +198,39 @@ void vehicle_model_compute_linearization(
     fixed_point_t state_matrix_A[7][7],
     fixed_point_t input_matrix_B[7][2]);
 
+/*===========================================================================
+ * Frenet Frame Linearization
+ *===========================================================================*/
+
+/**
+ * Compute linearized Frenet-frame state-space matrices.
+ *
+ * Frenet state: [e_y, e_psi, v_x, v_y, omega, omega_w]
+ *   e_y    = lateral error from reference path [meters]
+ *   e_psi  = heading error from path tangent [radians]
+ *   v_x, v_y, omega, omega_w = same body-frame dynamics
+ *
+ * Frenet kinematic relations:
+ *   e_y_dot   = v_x * sin(e_psi) + v_y * cos(e_psi)  ≈ v_x * e_psi + v_y
+ *   e_psi_dot = omega - kappa * v_x * cos(e_psi) / (1 - kappa * e_y)
+ *             ≈ omega - kappa * v_x
+ *
+ * The body-frame dynamics (rows 2-5) are identical to the global model.
+ * The Frenet rows (0-1) add path curvature coupling.
+ *
+ * @param frenet_state       Frenet state to linearize around
+ * @param operating_control  Control to linearize around
+ * @param time_step          Discretization time step [seconds]
+ * @param path_curvature     Path curvature kappa at current point [rad/m]
+ * @param state_matrix_A     Output: 6×6 Frenet state transition matrix
+ * @param input_matrix_B     Output: 6×2 Frenet input matrix
+ */
+void vehicle_model_compute_frenet_linearization(
+    const FrenetState_t *frenet_state,
+    const ControlInput_t *operating_control,
+    fixed_point_t time_step,
+    fixed_point_t path_curvature,
+    fixed_point_t state_matrix_A[FRENET_STATE_DIMENSION][FRENET_STATE_DIMENSION],
+    fixed_point_t input_matrix_B[FRENET_STATE_DIMENSION][2]);
+
 #endif /* VEHICLE_MODEL_H */

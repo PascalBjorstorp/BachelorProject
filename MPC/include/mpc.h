@@ -52,17 +52,18 @@ void mpc_initialize_with_configuration(
  *===========================================================================*/
 
 /**
- * Compute optimal control for current vehicle state.
+ * Compute optimal control for current vehicle state (Frenet frame).
  *
  * This is the main MPC function called each control cycle.
+ * The state is expressed in Frenet (path-relative) coordinates.
  *
- * @param current_vehicle_state  Current state from localization
+ * @param current_frenet_state   Current state in Frenet frame (from conversion)
  * @param reference_trajectory   Array of reference points (length = horizon)
  * @param result                 Output: optimal control and solver status
  * @return Solver status code
  */
 MpcSolverStatus_t mpc_compute_optimal_control(
-    const VehicleState_t *current_vehicle_state,
+    const FrenetState_t *current_frenet_state,
     const TrajectoryReferencePoint_t *reference_trajectory,
     MpcSolverResult_t *result);
 

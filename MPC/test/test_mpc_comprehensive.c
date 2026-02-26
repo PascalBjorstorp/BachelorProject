@@ -88,6 +88,43 @@ static void check_range(const char* name, double value, double min, double max)
 }
 
 /*===========================================================================
+ * Frenet MPC Test Helpers
+ *===========================================================================*/
+
+/**
+ * @brief Convert a VehicleState_t to FrenetState_t for a straight path along X axis.
+ * e_y = position_y, e_psi = heading (since path heading = 0).
+ */
+static FrenetState_t vehicle_to_frenet_straight(const VehicleState_t *state)
+{
+    FrenetState_t f;
+    f.lateral_error_meters = state->position_y_meters;
+    f.heading_error_radians = state->heading_angle_radians;
+    f.longitudinal_velocity_meters_per_second = state->longitudinal_velocity_meters_per_second;
+    f.lateral_velocity_meters_per_second = state->lateral_velocity_meters_per_second;
+    f.yaw_rate_radians_per_second = state->yaw_rate_radians_per_second;
+    f.wheel_speed_radians_per_second = state->wheel_speed_radians_per_second;
+    return f;
+}
+
+/**
+ * @brief Initialize a Frenet reference point with default values.
+ * e_y_ref = 0, e_psi_ref = 0 (path following), default 5m wall bounds.
+ */
+static void init_frenet_ref(TrajectoryReferencePoint_t *ref, double velocity, double curvature)
+{
+    ref->reference_lateral_error_meters = 0;
+    ref->reference_heading_error_radians = 0;
+    ref->reference_velocity_meters_per_second = DOUBLE_TO_FP(velocity);
+    ref->reference_lateral_velocity_meters_per_second = 0;
+    ref->reference_yaw_rate_radians_per_second = 0;
+    ref->reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(velocity));
+    ref->path_curvature_radians_per_meter = DOUBLE_TO_FP(curvature);
+    ref->left_wall_bound_meters = DOUBLE_TO_FP(5.0);
+    ref->right_wall_bound_meters = DOUBLE_TO_FP(5.0);
+}
+
+/*===========================================================================
  * Test 1: Fixed-Point Basic Operations
  *===========================================================================*/
 
@@ -707,14 +744,13 @@ static void test_mpc_init(void)
     
     printf("  Prediction horizon: %d steps\n", config.prediction_horizon_steps);
     printf("  Time step: %.4f s\n", FP_TO_DOUBLE(config.time_step_seconds));
-    printf("  Weight position X:  %.4f\n", FP_TO_DOUBLE(config.weight_position_x));
-    printf("  Weight position Y:  %.4f\n", FP_TO_DOUBLE(config.weight_position_y));
-    printf("  Weight heading: %.4f\n", FP_TO_DOUBLE(config.weight_heading));
+    printf("  Weight lateral error: %.4f\n", FP_TO_DOUBLE(config.weight_lateral_error));
+    printf("  Weight heading error: %.4f\n", FP_TO_DOUBLE(config.weight_heading_error));
     printf("  Weight velocity: %.4f\n", FP_TO_DOUBLE(config.weight_velocity));
     printf("  Weight steering rate: %.4f\n", FP_TO_DOUBLE(config.weight_steering_rate));
     printf("  Weight steering effort: %.4f\n", FP_TO_DOUBLE(config.weight_steering_effort));
-    printf("  Position tracking: %s\n",
-           (config.weight_position_x == 0 && config.weight_position_y == 0) ?
+    printf("  Lateral tracking: %s\n",
+           (config.weight_lateral_error == 0) ?
            "DISABLED" : "ENABLED");
     
     /* Reset and verify */
@@ -731,33 +767,25 @@ static void test_mpc_straight_line(void)
     
     mpc_initialize();
     
-    /* Current state: at origin, heading +X, velocity 3 m/s */
-    VehicleState_t state;
-    state.position_x_meters = 0;
-    state.position_y_meters = 0;
-    state.heading_angle_radians = 0;
-    state.longitudinal_velocity_meters_per_second = FP_CONST(3.0);
-    state.lateral_velocity_meters_per_second = 0;
-    state.yaw_rate_radians_per_second = 0;
+    /* Frenet state: on path, no errors, velocity 3 m/s */
+    FrenetState_t frenet;
+    frenet.lateral_error_meters = 0;
+    frenet.heading_error_radians = 0;
+    frenet.longitudinal_velocity_meters_per_second = FP_CONST(3.0);
+    frenet.lateral_velocity_meters_per_second = 0;
+    frenet.yaw_rate_radians_per_second = 0;
+    frenet.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
-    /* Reference: straight line along X axis at 3 m/s */
+    /* Reference: straight path at 3 m/s, zero curvature */
     int horizon = 10;
     TrajectoryReferencePoint_t ref[10];
     
     for (int i = 0; i < horizon; i++) {
-        double x = (i + 1) * 0.3;  /* 3 m/s * 0.1s per step */
-        ref[i].reference_position_x_meters = FP_CONST(x);
-        ref[i].reference_position_y_meters = 0;
-        ref[i].reference_heading_radians = 0;
-        ref[i].reference_velocity_meters_per_second = FP_CONST(3.0);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
-
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));    }
+        init_frenet_ref(&ref[i], 3.0, 0.0);
+    }
     
     MpcSolverResult_t result;
-    MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+    MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
     
     check_condition("MPC straight line success", 
                     status == MPC_STATUS_SUCCESS || 
@@ -787,33 +815,26 @@ static void test_mpc_turn_left(void)
     
     mpc_initialize();
     
-    /* Current state: at origin, heading +X */
-    VehicleState_t state;
-    state.position_x_meters = 0;
-    state.position_y_meters = 0;
-    state.heading_angle_radians = 0;
-    state.longitudinal_velocity_meters_per_second = FP_CONST(3.0);
-    state.lateral_velocity_meters_per_second = 0;
-    state.yaw_rate_radians_per_second = 0;
+    /* Frenet state: on curved path, no errors, velocity 3 m/s */
+    FrenetState_t frenet;
+    frenet.lateral_error_meters = 0;
+    frenet.heading_error_radians = 0;
+    frenet.longitudinal_velocity_meters_per_second = FP_CONST(3.0);
+    frenet.lateral_velocity_meters_per_second = 0;
+    frenet.yaw_rate_radians_per_second = 0;
+    frenet.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
-    /* Reference: path curving left (heading increases) */
+    /* Reference: left-curving path, κ = ω/v = 1.0/3.0 ≈ 0.333 rad/m */
     int horizon = 10;
     TrajectoryReferencePoint_t ref[10];
+    double curvature = 1.0 / 3.0;  /* ω=1 rad/s at v=3 m/s */
     
     for (int i = 0; i < horizon; i++) {
-        double angle = (i + 1) * 0.1;  /* Gradually increasing heading */
-        ref[i].reference_position_x_meters = FP_CONST(3.0 * cos(angle / 2.0));
-        ref[i].reference_position_y_meters = FP_CONST(3.0 * sin(angle / 2.0));
-        ref[i].reference_heading_radians = FP_CONST(angle);
-        ref[i].reference_velocity_meters_per_second = FP_CONST(3.0);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
-
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));    }
+        init_frenet_ref(&ref[i], 3.0, curvature);
+    }
     
     MpcSolverResult_t result;
-    MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+    MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
     
     double steering_rad = FP_TO_DOUBLE(result.optimal_control.steering_angle_radians);
     double steering_deg = steering_rad * 57.3;
@@ -841,33 +862,25 @@ static void test_mpc_lateral_offset(void)
     
     mpc_initialize();
     
-    /* Current state: offset to the right of the path */
-    VehicleState_t state;
-    state.position_x_meters = 0;
-    state.position_y_meters = FP_CONST(-0.5);  /* 0.5m right of path */
-    state.heading_angle_radians = 0;
-    state.longitudinal_velocity_meters_per_second = FP_CONST(3.0);
-    state.lateral_velocity_meters_per_second = 0;
-    state.yaw_rate_radians_per_second = 0;
+    /* Frenet state: 0.5m right of path, heading aligned */
+    FrenetState_t frenet;
+    frenet.lateral_error_meters = FP_CONST(-0.5);  /* 0.5m right of path */
+    frenet.heading_error_radians = 0;
+    frenet.longitudinal_velocity_meters_per_second = FP_CONST(3.0);
+    frenet.lateral_velocity_meters_per_second = 0;
+    frenet.yaw_rate_radians_per_second = 0;
+    frenet.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
-    /* Reference: straight line along X axis (y=0) */
+    /* Reference: straight path at 3 m/s, zero curvature */
     int horizon = 10;
     TrajectoryReferencePoint_t ref[10];
     
     for (int i = 0; i < horizon; i++) {
-        double x = (i + 1) * 0.3;
-        ref[i].reference_position_x_meters = FP_CONST(x);
-        ref[i].reference_position_y_meters = 0;
-        ref[i].reference_heading_radians = 0;
-        ref[i].reference_velocity_meters_per_second = FP_CONST(3.0);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
-
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));    }
+        init_frenet_ref(&ref[i], 3.0, 0.0);
+    }
     
     MpcSolverResult_t result;
-    MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+    MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
     
     double steering_deg = FP_TO_DOUBLE(result.optimal_control.steering_angle_radians) * 57.3;
     
@@ -875,11 +888,9 @@ static void test_mpc_lateral_offset(void)
                     status == MPC_STATUS_SUCCESS || 
                     status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED);
     
-    /* Currently position weights are disabled, so this may not steer left */
-    /* The test documents current behavior - may need adjustment */
-    printf("  Position: y = -0.5m (right of path)\n");
+    /* Lateral error e_y = -0.5m (right of path) → MPC should steer left */
+    printf("  Lateral error: e_y = -0.5m (right of path)\n");
     printf("  Steering: %.2f degrees\n", steering_deg);
-    printf("  (Note: Position tracking currently disabled in MPC weights)\n");
 }
 
 /*===========================================================================
@@ -892,33 +903,25 @@ static void test_mpc_zero_velocity(void)
     
     mpc_initialize();
     
-    /* Current state: stationary */
-    VehicleState_t state;
-    state.position_x_meters = 0;
-    state.position_y_meters = 0;
-    state.heading_angle_radians = 0;
-    state.longitudinal_velocity_meters_per_second = 0;  /* ZERO velocity */
-    state.lateral_velocity_meters_per_second = 0;
-    state.yaw_rate_radians_per_second = 0;
+    /* Frenet state: on path, stationary */
+    FrenetState_t frenet;
+    frenet.lateral_error_meters = 0;
+    frenet.heading_error_radians = 0;
+    frenet.longitudinal_velocity_meters_per_second = 0;  /* ZERO velocity */
+    frenet.lateral_velocity_meters_per_second = 0;
+    frenet.yaw_rate_radians_per_second = 0;
+    frenet.wheel_speed_radians_per_second = 0;
 
-    state.wheel_speed_radians_per_second = 0;    
-    /* Reference: want to go forward */
+    /* Reference: want to go forward at 3 m/s on straight path */
     int horizon = 10;
     TrajectoryReferencePoint_t ref[10];
     
     for (int i = 0; i < horizon; i++) {
-        double x = (i + 1) * 0.3;
-        ref[i].reference_position_x_meters = FP_CONST(x);
-        ref[i].reference_position_y_meters = 0;
-        ref[i].reference_heading_radians = 0;
-        ref[i].reference_velocity_meters_per_second = FP_CONST(3.0);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
-
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));    }
+        init_frenet_ref(&ref[i], 3.0, 0.0);
+    }
     
     MpcSolverResult_t result;
-    MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+    MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
     
     check_condition("MPC zero velocity handled", 
                     status == MPC_STATUS_SUCCESS || 
@@ -946,33 +949,25 @@ static void test_mpc_heading_reversal(void)
     
     mpc_initialize();
     
-    /* Current state: facing opposite to desired direction */
-    VehicleState_t state;
-    state.position_x_meters = 0;
-    state.position_y_meters = 0;
-    state.heading_angle_radians = FP_PI;  /* Facing -X */
-    state.longitudinal_velocity_meters_per_second = FP_CONST(2.0);
-    state.lateral_velocity_meters_per_second = 0;
-    state.yaw_rate_radians_per_second = 0;
+    /* Frenet state: on path but heading reversed (e_psi = π) */
+    FrenetState_t frenet;
+    frenet.lateral_error_meters = 0;
+    frenet.heading_error_radians = FP_PI;  /* Facing opposite to path */
+    frenet.longitudinal_velocity_meters_per_second = FP_CONST(2.0);
+    frenet.lateral_velocity_meters_per_second = 0;
+    frenet.yaw_rate_radians_per_second = 0;
+    frenet.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(2.0));
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(2.0));    
-    /* Reference: want to go +X */
+    /* Reference: straight path at 2 m/s */
     int horizon = 10;
     TrajectoryReferencePoint_t ref[10];
     
     for (int i = 0; i < horizon; i++) {
-        double x = (i + 1) * 0.2;
-        ref[i].reference_position_x_meters = FP_CONST(x);
-        ref[i].reference_position_y_meters = 0;
-        ref[i].reference_heading_radians = 0;  /* Want heading = 0 */
-        ref[i].reference_velocity_meters_per_second = FP_CONST(2.0);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
-
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(2.0));    }
+        init_frenet_ref(&ref[i], 2.0, 0.0);
+    }
     
     MpcSolverResult_t result;
-    MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+    MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
     
     check_condition("MPC heading reversal handled", 
                     status == MPC_STATUS_SUCCESS || 
@@ -997,40 +992,33 @@ static void test_mpc_rate_limiting(void)
     mpc_initialize();
     
     /* First call: establish baseline */
-    VehicleState_t state;
-    state.position_x_meters = 0;
-    state.position_y_meters = 0;
-    state.heading_angle_radians = 0;
-    state.longitudinal_velocity_meters_per_second = FP_CONST(3.0);
-    state.lateral_velocity_meters_per_second = 0;
-    state.yaw_rate_radians_per_second = 0;
+    FrenetState_t frenet;
+    frenet.lateral_error_meters = 0;
+    frenet.heading_error_radians = 0;
+    frenet.longitudinal_velocity_meters_per_second = FP_CONST(3.0);
+    frenet.lateral_velocity_meters_per_second = 0;
+    frenet.yaw_rate_radians_per_second = 0;
+    frenet.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
     int horizon = 10;
     TrajectoryReferencePoint_t ref[10];
     for (int i = 0; i < horizon; i++) {
-        ref[i].reference_position_x_meters = FP_CONST((i+1) * 0.3);
-        ref[i].reference_position_y_meters = 0;
-        ref[i].reference_heading_radians = 0;
-        ref[i].reference_velocity_meters_per_second = FP_CONST(3.0);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
-
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));    }
+        init_frenet_ref(&ref[i], 3.0, 0.0);  /* Straight path */
+    }
     
     MpcSolverResult_t result1;
-    mpc_compute_optimal_control(&state, ref, &result1);
+    mpc_compute_optimal_control(&frenet, ref, &result1);
     
     double steer1 = FP_TO_DOUBLE(result1.optimal_control.steering_angle_radians);
     printf("  First call steering: %.4f rad\n", steer1);
     
-    /* Second call: sudden direction change in reference */
+    /* Second call: sudden curvature change in reference */
     for (int i = 0; i < horizon; i++) {
-        ref[i].reference_heading_radians = FP_CONST(0.5);  /* Sudden left turn */
+        init_frenet_ref(&ref[i], 3.0, 0.5 / 3.0);  /* Sudden curve, κ ≈ 0.167 */
     }
     
     MpcSolverResult_t result2;
-    mpc_compute_optimal_control(&state, ref, &result2);
+    mpc_compute_optimal_control(&frenet, ref, &result2);
     
     double steer2 = FP_TO_DOUBLE(result2.optimal_control.steering_angle_radians);
     printf("  Second call steering: %.4f rad\n", steer2);
@@ -1064,27 +1052,21 @@ static void test_integration_circle(void)
     state.yaw_rate_radians_per_second = 0;
 
     state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(2.0));    
-    /* Build circular reference */
+    /* Circular reference in Frenet: constant curvature κ = 1/R */
     int horizon = 10;
     double radius = 5.0;
+    double curvature = 1.0 / radius;  /* κ = 0.2 rad/m */
     TrajectoryReferencePoint_t ref[10];
     
     double dt = 0.05;  /* 50ms time step */
-    double omega = 2.0 / radius;  /* Angular velocity */
     
     for (int i = 0; i < horizon; i++) {
-        double theta = M_PI/2.0 + omega * dt * (i + 1);  /* Start at 90°, move counter-clockwise */
-        ref[i].reference_position_x_meters = FP_CONST(radius * cos(theta));
-        ref[i].reference_position_y_meters = FP_CONST(radius * sin(theta));
-        ref[i].reference_heading_radians = FP_CONST(theta + M_PI/2.0);  /* Tangent to circle */
-        ref[i].reference_velocity_meters_per_second = FP_CONST(2.0);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
-
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(2.0));    }
+        init_frenet_ref(&ref[i], 2.0, curvature);
+    }
     
+    FrenetState_t frenet = vehicle_to_frenet_straight(&state);
     MpcSolverResult_t result;
-    MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+    MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
     
     check_condition("Circle tracking success", 
                     status == MPC_STATUS_SUCCESS || 
@@ -1102,7 +1084,8 @@ static void test_integration_circle(void)
     /* Simulate several steps and check position error */
     double total_error = 0.0;
     for (int step = 0; step < 20; step++) {
-        status = mpc_compute_optimal_control(&state, ref, &result);
+        frenet = vehicle_to_frenet_straight(&state);
+        status = mpc_compute_optimal_control(&frenet, ref, &result);
         
         /* Apply control */
         ControlInput_t ctrl = result.optimal_control;
@@ -1114,18 +1097,7 @@ static void test_integration_circle(void)
         double r_actual = sqrt(x*x + y*y);
         total_error += fabs(r_actual - radius);
         
-        /* Update reference for next step */
-        double base_theta = atan2(y, x) + M_PI/2.0;
-        for (int i = 0; i < horizon; i++) {
-            double theta = base_theta + omega * dt * (i + 1);
-            ref[i].reference_position_x_meters = FP_CONST(radius * cos(theta - M_PI/2.0));
-            ref[i].reference_position_y_meters = FP_CONST(radius * sin(theta - M_PI/2.0));
-            ref[i].reference_heading_radians = FP_CONST(theta);
-            ref[i].reference_velocity_meters_per_second = FP_CONST(2.0);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
-
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(2.0));        }
+        /* Reference stays constant for a circle (constant curvature) */
     }
     
     double avg_error = total_error / 20.0;
@@ -1164,29 +1136,24 @@ static void test_sim_velocity_handling(void)
     state.yaw_rate_radians_per_second = 0;
 
     state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(5.0));
-    /* Curved reference (left turn) */
+    /* Curved reference in Frenet: κ = ψ_dot/v = 1.0/5.0 = 0.2 */
     int horizon = 10;
     TrajectoryReferencePoint_t ref[10];
     double trajectory_velocity = 5.0;  /* Fixed, from trajectory */
+    double path_curvature = 1.0 / trajectory_velocity;  /* κ = 0.2 rad/m */
 
     for (int i = 0; i < horizon; i++) {
-        double angle = (i + 1) * 0.05;
-        ref[i].reference_position_x_meters = FP_CONST(trajectory_velocity * 0.05 * (i+1) * cos(angle / 2.0));
-        ref[i].reference_position_y_meters = FP_CONST(trajectory_velocity * 0.05 * (i+1) * sin(angle / 2.0));
-        ref[i].reference_heading_radians = FP_CONST(angle);
-        ref[i].reference_velocity_meters_per_second = FP_CONST(trajectory_velocity);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
-
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(trajectory_velocity));    }
+        init_frenet_ref(&ref[i], trajectory_velocity, path_curvature);
+    }
 
     /* Run 20 steps, using trajectory velocity for propagation (not MPC output) */
     double max_lateral_error = 0;
     int solver_ok = 0;
 
     for (int step = 0; step < 20; step++) {
+        FrenetState_t frenet = vehicle_to_frenet_straight(&state);
         MpcSolverResult_t result;
-        MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+        MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
 
         if (status == MPC_STATUS_SUCCESS || status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED)
             solver_ok++;
@@ -1218,18 +1185,7 @@ static void test_sim_velocity_handling(void)
         double lat_err = sqrt((x - exp_x) * (x - exp_x) + (y - exp_y) * (y - exp_y));
         if (lat_err > max_lateral_error) max_lateral_error = lat_err;
 
-        /* Update reference for next step */
-        double psi = FP_TO_DOUBLE(state.heading_angle_radians);
-        for (int i = 0; i < horizon; i++) {
-            double angle = psi + (i + 1) * 0.05;
-            ref[i].reference_position_x_meters = FP_CONST(x + trajectory_velocity * 0.05 * (i+1) * cos(angle));
-            ref[i].reference_position_y_meters = FP_CONST(y + trajectory_velocity * 0.05 * (i+1) * sin(angle));
-            ref[i].reference_heading_radians = FP_CONST(angle);
-            ref[i].reference_velocity_meters_per_second = FP_CONST(trajectory_velocity);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
-
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(trajectory_velocity));        }
+        /* Reference stays constant in Frenet (constant curvature + velocity) */
     }
 
     printf("  Solver success: %d/20\n", solver_ok);
@@ -1263,33 +1219,28 @@ static void test_distance_speed_reduction(void)
     /* Start 1.5m off-track laterally (heading correct) */
     VehicleState_t state;
     state.position_x_meters = 0;
-    state.position_y_meters = FP_CONST(1.5);  /* 1.5m off from y=0 path */
+    state.position_y_meters = FP_CONST(0.5);  /* 0.5m off from y=0 path */
     state.heading_angle_radians = 0;
     state.longitudinal_velocity_meters_per_second = FP_CONST(10.0);
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
 
     state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(10.0));
-    /* Reference: straight along X at y=0 */
+    /* Reference: straight path at trajectory velocity */
     int horizon = 10;
     TrajectoryReferencePoint_t ref[10];
     double trajectory_vel = 10.0;
 
     for (int i = 0; i < horizon; i++) {
-        ref[i].reference_position_x_meters = FP_CONST((i + 1) * 0.5);
-        ref[i].reference_position_y_meters = 0;
-        ref[i].reference_heading_radians = 0;
-        ref[i].reference_velocity_meters_per_second = FP_CONST(trajectory_vel);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
+        init_frenet_ref(&ref[i], trajectory_vel, 0.0);
+    }
 
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(trajectory_vel));    }
-
+    FrenetState_t frenet = vehicle_to_frenet_straight(&state);
     MpcSolverResult_t result;
-    MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+    MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
 
     /* Apply distance-based speed reduction (mirrors ROS2 node) */
-    double distance_off = 1.5;  /* We know it's 1.5m off */
+    double distance_off = 0.5;  /* We know it's 0.5m off */
     double reduced_vel = trajectory_vel;
     if (distance_off > 1.0) reduced_vel *= 0.5;
     else if (distance_off > 0.5) reduced_vel *= 0.8;
@@ -1309,7 +1260,8 @@ static void test_distance_speed_reduction(void)
     /* Run a few steps with reduced velocity to verify stability */
     int ok_count = 0;
     for (int step = 0; step < 10; step++) {
-        status = mpc_compute_optimal_control(&state, ref, &result);
+        frenet = vehicle_to_frenet_straight(&state);
+        status = mpc_compute_optimal_control(&frenet, ref, &result);
         if (status == MPC_STATUS_SUCCESS || status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED)
             ok_count++;
 
@@ -1318,17 +1270,10 @@ static void test_distance_speed_reduction(void)
         ctrl.motor_torque_newton_meters = FP_CONST(reduced_vel);
         state = vehicle_model_predict_next_state(&state, &ctrl, FP_CONST(0.05));
 
-        /* Update reference */
-        double x = FP_TO_DOUBLE(state.position_x_meters);
+        /* Update reference with reduced velocity */
         for (int i = 0; i < horizon; i++) {
-            ref[i].reference_position_x_meters = FP_CONST(x + (i + 1) * reduced_vel * 0.05);
-            ref[i].reference_position_y_meters = 0;
-            ref[i].reference_heading_radians = 0;
-            ref[i].reference_velocity_meters_per_second = FP_CONST(reduced_vel);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
-
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(reduced_vel));        }
+            init_frenet_ref(&ref[i], reduced_vel, 0.0);
+        }
     }
 
     printf("  10 steps at reduced speed: %d/10 solver OK\n", ok_count);
@@ -1346,6 +1291,7 @@ static void stress_fp_overflow_boundaries(void)
     /* Q16.16 range: -32768.0 to 32767.99998 */
     fixed_point_t max_val = (fixed_point_t)0x7FFFFFFF;  /* INT32_MAX */
     fixed_point_t min_val = (fixed_point_t)0x80000000;  /* INT32_MIN */
+    (void)max_val; (void)min_val;  /* Used for documentation/reference */
 
     /* Near-overflow addition */
     fixed_point_t big = FP_CONST(16000.0);
@@ -1444,7 +1390,7 @@ static void stress_trig_singularities(void)
     };
     for (int i = 0; i < 6; i++) {
         fixed_point_t t = fp_tan(DOUBLE_TO_FP(near_angles[i]));
-        double t_val = FP_TO_DOUBLE(t);
+        (void)t;  /* value checked via fp_abs below */
         char name[80];
         snprintf(name, sizeof(name), "tan(%.4f) doesn't crash", near_angles[i]);
         /* Just check it doesn't crash or return 0 — large value expected near ±π/2 */
@@ -1896,7 +1842,7 @@ static void stress_mpc_chicane(void)
     /* Configure MPC dt to match this test's reference spacing */
     MpcConfiguration_t config = mpc_get_configuration();
     config.time_step_seconds = FP_CONST(0.05);
-    config.weight_heading = (fixed_point_t)(10 * FP_ONE);     /* Original weight for dt=50ms */
+    config.weight_heading_error = (fixed_point_t)(10 * FP_ONE);     /* Original weight for dt=50ms */
     config.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
     config.weight_torque_rate = FP_CONST(0.1);
     mpc_set_configuration(&config);
@@ -1924,24 +1870,17 @@ static void stress_mpc_chicane(void)
 
         for (int i = 0; i < horizon; i++) {
             double future_t = (step + i + 1) * dt;
-            /* S-curve chicane: lateral offset oscillates */
-            double lateral = 2.0 * sin(2.0 * M_PI * future_t / 1.0);  /* 1s period */
-            double longitudinal = 5.0 * future_t;
-            double heading = atan2(
-                2.0 * 2.0 * M_PI * cos(2.0 * M_PI * future_t / 1.0),
-                5.0);
+            /* Chicane curvature: κ = (vx * y'' - y' * 0) / (vx² + y'²)^(3/2) */
+            double ydot = 4.0 * M_PI * cos(2.0 * M_PI * future_t);
+            double yddot = -8.0 * M_PI * M_PI * sin(2.0 * M_PI * future_t);
+            double speed_sq = 25.0 + ydot * ydot;
+            double kappa = (5.0 * yddot) / (speed_sq * sqrt(speed_sq));
+            init_frenet_ref(&ref[i], 5.0, kappa);
+        }
 
-            ref[i].reference_position_x_meters = DOUBLE_TO_FP(longitudinal);
-            ref[i].reference_position_y_meters = DOUBLE_TO_FP(lateral);
-            ref[i].reference_heading_radians = DOUBLE_TO_FP(heading);
-            ref[i].reference_velocity_meters_per_second = FP_CONST(5.0);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
-
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(5.0));        }
-
+        FrenetState_t frenet = vehicle_to_frenet_straight(&state);
         MpcSolverResult_t result;
-        MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+        MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
 
         if (status == MPC_STATUS_SUCCESS || status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED) {
             success_count++;
@@ -1994,17 +1933,12 @@ static void stress_mpc_max_horizon(void)
     state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
     TrajectoryReferencePoint_t ref[20];
     for (int i = 0; i < 20; i++) {
-        ref[i].reference_position_x_meters = DOUBLE_TO_FP((i + 1) * 0.15);
-        ref[i].reference_position_y_meters = 0;
-        ref[i].reference_heading_radians = 0;
-        ref[i].reference_velocity_meters_per_second = FP_CONST(3.0);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
+        init_frenet_ref(&ref[i], 3.0, 0.0);
+    }
 
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));    }
-
+    FrenetState_t frenet = vehicle_to_frenet_straight(&state);
     MpcSolverResult_t result;
-    MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+    MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
 
     check_condition("Horizon=20: solver completes",
                     status == MPC_STATUS_SUCCESS ||
@@ -2021,17 +1955,12 @@ static void stress_mpc_max_horizon(void)
 
     TrajectoryReferencePoint_t ref40[40];
     for (int i = 0; i < 40; i++) {
-        ref40[i].reference_position_x_meters = DOUBLE_TO_FP((i + 1) * 0.15);
-        ref40[i].reference_position_y_meters = 0;
-        ref40[i].reference_heading_radians = 0;
-        ref40[i].reference_velocity_meters_per_second = FP_CONST(3.0);
-        ref40[i].reference_lateral_velocity_meters_per_second = 0;
-        ref40[i].reference_yaw_rate_radians_per_second = 0;
-
-        ref40[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));    }
+        init_frenet_ref(&ref40[i], 3.0, 0.0);
+    }
 
     mpc_reset();
-    status = mpc_compute_optimal_control(&state, ref40, &result);
+    frenet = vehicle_to_frenet_straight(&state);
+    status = mpc_compute_optimal_control(&frenet, ref40, &result);
 
     check_condition("Horizon=40: solver completes without crash",
                     status == MPC_STATUS_SUCCESS ||
@@ -2056,7 +1985,7 @@ static void stress_mpc_repeated_calls(void)
     /* Configure dt to match reference spacing */
     MpcConfiguration_t rconfig = mpc_get_configuration();
     rconfig.time_step_seconds = FP_CONST(0.05);
-    rconfig.weight_heading = (fixed_point_t)(10 * FP_ONE);
+    rconfig.weight_heading_error = (fixed_point_t)(10 * FP_ONE);
     rconfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
     rconfig.weight_torque_rate = FP_CONST(0.1);
     mpc_set_configuration(&rconfig);
@@ -2081,18 +2010,12 @@ static void stress_mpc_repeated_calls(void)
     for (int call = 0; call < total_calls; call++) {
         TrajectoryReferencePoint_t ref[10];
         for (int i = 0; i < horizon; i++) {
-            double future_t = (call + i + 1) * dt;
-            ref[i].reference_position_x_meters = DOUBLE_TO_FP(3.0 * future_t);
-            ref[i].reference_position_y_meters = 0;
-            ref[i].reference_heading_radians = 0;
-            ref[i].reference_velocity_meters_per_second = FP_CONST(3.0);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
+            init_frenet_ref(&ref[i], 3.0, 0.0);
+        }
 
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));        }
-
+        FrenetState_t frenet = vehicle_to_frenet_straight(&state);
         MpcSolverResult_t result;
-        MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+        MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
 
         if (status == MPC_STATUS_SUCCESS || status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED) {
             success_count++;
@@ -2132,7 +2055,7 @@ static void stress_mpc_high_speed_turn(void)
     /* Configure dt to match reference spacing */
     MpcConfiguration_t tconfig = mpc_get_configuration();
     tconfig.time_step_seconds = FP_CONST(0.05);
-    tconfig.weight_heading = (fixed_point_t)(10 * FP_ONE);
+    tconfig.weight_heading_error = (fixed_point_t)(10 * FP_ONE);
     tconfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
     tconfig.weight_torque_rate = FP_CONST(0.1);
     mpc_set_configuration(&tconfig);
@@ -2160,28 +2083,23 @@ static void stress_mpc_high_speed_turn(void)
 
         for (int i = 0; i < horizon; i++) {
             double t = t0 + (i + 1) * dt;
-            double heading_ref;
+            double kappa;
 
-            /* Sharp turn: heading goes from 0 to π/2 over 1 second */
+            /* Sharp turn: curvature ramp over 1 second */
             if (t < 0.5) {
-                heading_ref = 0.0;
+                kappa = 0.0;
             } else if (t < 1.5) {
-                heading_ref = (M_PI / 2.0) * (t - 0.5);
+                kappa = (M_PI / 2.0) / 5.0;  /* κ = ψ_dot / v */
             } else {
-                heading_ref = M_PI / 2.0;
+                kappa = 0.0;
             }
 
-            ref[i].reference_position_x_meters = DOUBLE_TO_FP(10.0 * t);
-            ref[i].reference_position_y_meters = 0;
-            ref[i].reference_heading_radians = DOUBLE_TO_FP(heading_ref);
-            ref[i].reference_velocity_meters_per_second = FP_CONST(5.0);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
+            init_frenet_ref(&ref[i], 5.0, kappa);
+        }
 
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(5.0));        }
-
+        FrenetState_t frenet = vehicle_to_frenet_straight(&state);
         MpcSolverResult_t result;
-        mpc_compute_optimal_control(&state, ref, &result);
+        mpc_compute_optimal_control(&frenet, ref, &result);
 
         double steer = fabs(FP_TO_DOUBLE(result.optimal_control.steering_angle_radians));
         double vel = FP_TO_DOUBLE(result.optimal_control.motor_torque_newton_meters);
@@ -2215,38 +2133,30 @@ static void stress_mpc_simultaneous_changes(void)
     /* Configure dt to match reference spacing */
     MpcConfiguration_t sconfig = mpc_get_configuration();
     sconfig.time_step_seconds = FP_CONST(0.05);
-    sconfig.weight_heading = (fixed_point_t)(10 * FP_ONE);
+    sconfig.weight_heading_error = (fixed_point_t)(10 * FP_ONE);
     sconfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
     sconfig.weight_torque_rate = FP_CONST(0.1);
     mpc_set_configuration(&sconfig);
 
-    VehicleState_t state;
-    state.position_x_meters = 0;
-    state.position_y_meters = 0;
-    state.heading_angle_radians = 0;
-    state.longitudinal_velocity_meters_per_second = FP_CONST(2.0);
-    state.lateral_velocity_meters_per_second = 0;
-    state.yaw_rate_radians_per_second = 0;
+    /* Frenet state: on path, low velocity (2 m/s), heading misaligned */
+    FrenetState_t frenet;
+    frenet.lateral_error_meters = 0;
+    frenet.heading_error_radians = FP_CONST(-0.36);  /* Car misaligned ~20° */
+    frenet.longitudinal_velocity_meters_per_second = FP_CONST(2.0);
+    frenet.lateral_velocity_meters_per_second = 0;
+    frenet.yaw_rate_radians_per_second = 0;
+    frenet.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(2.0));
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(2.0));
     int horizon = 10;
-    double dt = 0.05;
 
     /* Reference demands both speed-up and turn simultaneously */
     TrajectoryReferencePoint_t ref[10];
     for (int i = 0; i < horizon; i++) {
-        double t = (i + 1) * dt;
-        ref[i].reference_position_x_meters = DOUBLE_TO_FP(t * 8.0);
-        ref[i].reference_position_y_meters = DOUBLE_TO_FP(t * 3.0);
-        ref[i].reference_heading_radians = DOUBLE_TO_FP(0.36);  /* ~20° */
-        ref[i].reference_velocity_meters_per_second = FP_CONST(8.0);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
-
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(8.0));    }
+        init_frenet_ref(&ref[i], 8.0, 0.0);  /* High speed target, straight path */
+    }
 
     MpcSolverResult_t result;
-    MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+    MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
 
     double steer = FP_TO_DOUBLE(result.optimal_control.steering_angle_radians);
     double vel = FP_TO_DOUBLE(result.optimal_control.motor_torque_newton_meters);
@@ -2273,7 +2183,7 @@ static void stress_mpc_null_inputs(void)
 
     mpc_initialize();
 
-    /* NULL state pointer */
+    /* NULL state pointer (FrenetState_t*) */
     MpcSolverResult_t result;
     TrajectoryReferencePoint_t ref[10];
     memset(ref, 0, sizeof(ref));
@@ -2282,17 +2192,17 @@ static void stress_mpc_null_inputs(void)
     check_condition("NULL state returns error", status == MPC_STATUS_ERROR);
 
     /* NULL trajectory pointer */
-    VehicleState_t state;
-    memset(&state, 0, sizeof(state));
-    status = mpc_compute_optimal_control(&state, NULL, &result);
+    FrenetState_t frenet;
+    memset(&frenet, 0, sizeof(frenet));
+    status = mpc_compute_optimal_control(&frenet, NULL, &result);
     check_condition("NULL ref returns error", status == MPC_STATUS_ERROR);
 
     /* NULL result pointer */
-    status = mpc_compute_optimal_control(&state, ref, NULL);
+    status = mpc_compute_optimal_control(&frenet, ref, NULL);
     check_condition("NULL result returns error", status == MPC_STATUS_ERROR);
 
     /* Zero-initialized state and reference (degenerate but valid pointers) */
-    status = mpc_compute_optimal_control(&state, ref, &result);
+    status = mpc_compute_optimal_control(&frenet, ref, &result);
     check_condition("Zero state/ref: solver handles gracefully",
                     status == MPC_STATUS_SUCCESS ||
                     status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED ||
@@ -2311,53 +2221,47 @@ static void stress_mpc_config_changes(void)
 {
     printf("\n========== STRESS: MPC Config Changes ==========\n");
 
-    VehicleState_t state;
-    state.position_x_meters = 0;
-    state.position_y_meters = 0;
-    state.heading_angle_radians = 0;
-    state.longitudinal_velocity_meters_per_second = FP_CONST(3.0);
-    state.lateral_velocity_meters_per_second = 0;
-    state.yaw_rate_radians_per_second = 0;
+    /* Frenet state: heading error of -0.3 (car needs to turn 0.3 rad) */
+    FrenetState_t frenet;
+    frenet.lateral_error_meters = 0;
+    frenet.heading_error_radians = FP_CONST(-0.3);
+    frenet.longitudinal_velocity_meters_per_second = FP_CONST(3.0);
+    frenet.lateral_velocity_meters_per_second = 0;
+    frenet.yaw_rate_radians_per_second = 0;
+    frenet.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
     int horizon = 10;
     TrajectoryReferencePoint_t ref[10];
     for (int i = 0; i < horizon; i++) {
-        ref[i].reference_position_x_meters = DOUBLE_TO_FP((i+1) * 0.3);
-        ref[i].reference_position_y_meters = 0;
-        ref[i].reference_heading_radians = FP_CONST(0.3);
-        ref[i].reference_velocity_meters_per_second = FP_CONST(3.0);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
-
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));    }
+        init_frenet_ref(&ref[i], 3.0, 0.0);
+    }
 
     /* Test with aggressive weights (high heading weight) */
     mpc_initialize();
     MpcConfiguration_t config = mpc_get_configuration();
     config.time_step_seconds = FP_CONST(0.1);  /* Match reference spacing: v*dt = 3*0.1 = 0.3m */
-    config.weight_heading = FP_CONST(10.0);
+    config.weight_heading_error = FP_CONST(10.0);
     config.weight_velocity = FP_CONST(10.0);
     config.weight_steering_rate = FP_CONST(0.01);
     config.weight_torque_rate = FP_CONST(0.01);
     mpc_set_configuration(&config);
 
     MpcSolverResult_t result_aggressive;
-    mpc_compute_optimal_control(&state, ref, &result_aggressive);
+    mpc_compute_optimal_control(&frenet, ref, &result_aggressive);
     double steer_aggressive = FP_TO_DOUBLE(result_aggressive.optimal_control.steering_angle_radians);
 
     /* Test with conservative weights (high rate penalty) */
     mpc_initialize();
     config = mpc_get_configuration();
     config.time_step_seconds = FP_CONST(0.1);
-    config.weight_heading = FP_CONST(0.1);
+    config.weight_heading_error = FP_CONST(0.1);
     config.weight_velocity = FP_CONST(0.1);
     config.weight_steering_rate = FP_CONST(10.0);
     config.weight_torque_rate = FP_CONST(10.0);
     mpc_set_configuration(&config);
 
     MpcSolverResult_t result_conservative;
-    mpc_compute_optimal_control(&state, ref, &result_conservative);
+    mpc_compute_optimal_control(&frenet, ref, &result_conservative);
     double steer_conservative = FP_TO_DOUBLE(result_conservative.optimal_control.steering_angle_radians);
 
     printf("  Aggressive (high tracking): steer=%.4f rad\n", steer_aggressive);
@@ -2371,7 +2275,7 @@ static void stress_mpc_config_changes(void)
     /* Test with zero weights (degenerate) */
     mpc_initialize();
     config = mpc_get_configuration();
-    config.weight_heading = 0;
+    config.weight_heading_error = 0;
     config.weight_velocity = 0;
     config.weight_steering_effort = FP_ONE;
     config.weight_torque_effort = FP_ONE;
@@ -2380,7 +2284,7 @@ static void stress_mpc_config_changes(void)
     mpc_set_configuration(&config);
 
     MpcSolverResult_t result_zero;
-    MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result_zero);
+    MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result_zero);
 
     check_condition("Zero tracking weights: solver handles it",
                     status == MPC_STATUS_SUCCESS ||
@@ -2396,7 +2300,7 @@ static void stress_mpc_config_changes(void)
     mpc_set_configuration(&config);
 
     mpc_reset();
-    status = mpc_compute_optimal_control(&state, ref, &result_zero);
+    status = mpc_compute_optimal_control(&frenet, ref, &result_zero);
     check_condition("Very short dt (10ms): solver completes",
                     status == MPC_STATUS_SUCCESS ||
                     status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED ||
@@ -2408,7 +2312,7 @@ static void stress_mpc_config_changes(void)
     mpc_set_configuration(&config);
 
     mpc_reset();
-    status = mpc_compute_optimal_control(&state, ref, &result_zero);
+    status = mpc_compute_optimal_control(&frenet, ref, &result_zero);
     check_condition("Very long dt (500ms): solver completes",
                     status == MPC_STATUS_SUCCESS ||
                     status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED ||
@@ -2434,31 +2338,23 @@ static void stress_mpc_all_quadrants(void)
     for (int h = 0; h < n_headings; h++) {
         mpc_initialize();
 
-        double heading_rad = headings_deg[h] * M_PI / 180.0;
+        /* In Frenet, absolute heading is irrelevant.
+         * Test verifies MPC stability across repeated init/solve cycles. */
+        FrenetState_t frenet;
+        frenet.lateral_error_meters = 0;
+        frenet.heading_error_radians = 0;  /* Aligned with path */
+        frenet.longitudinal_velocity_meters_per_second = FP_CONST(3.0);
+        frenet.lateral_velocity_meters_per_second = 0;
+        frenet.yaw_rate_radians_per_second = 0;
+        frenet.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
 
-        VehicleState_t state;
-        state.position_x_meters = 0;
-        state.position_y_meters = 0;
-        state.heading_angle_radians = DOUBLE_TO_FP(heading_rad);
-        state.longitudinal_velocity_meters_per_second = FP_CONST(3.0);
-        state.lateral_velocity_meters_per_second = 0;
-        state.yaw_rate_radians_per_second = 0;
-
-        state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
         TrajectoryReferencePoint_t ref[10];
         for (int i = 0; i < horizon; i++) {
-            double t = (i + 1) * 0.05;
-            ref[i].reference_position_x_meters = DOUBLE_TO_FP(3.0 * t * cos(heading_rad));
-            ref[i].reference_position_y_meters = DOUBLE_TO_FP(3.0 * t * sin(heading_rad));
-            ref[i].reference_heading_radians = DOUBLE_TO_FP(heading_rad);
-            ref[i].reference_velocity_meters_per_second = FP_CONST(3.0);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
-
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));        }
+            init_frenet_ref(&ref[i], 3.0, 0.0);
+        }
 
         MpcSolverResult_t result;
-        MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+        MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
 
         char name[80];
         snprintf(name, sizeof(name), "Heading %.0f°: solver OK", headings_deg[h]);
@@ -2485,7 +2381,7 @@ static void stress_mpc_s_curve(void)
 
     MpcConfiguration_t scconfig = mpc_get_configuration();
     scconfig.time_step_seconds = FP_CONST(0.05);
-    scconfig.weight_heading = (fixed_point_t)(10 * FP_ONE);
+    scconfig.weight_heading_error = (fixed_point_t)(10 * FP_ONE);
     scconfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
     scconfig.weight_torque_rate = FP_CONST(0.1);
     mpc_set_configuration(&scconfig);
@@ -2511,24 +2407,18 @@ static void stress_mpc_s_curve(void)
 
         for (int i = 0; i < horizon; i++) {
             double t = (step + i + 1) * dt;
-            /* S-curve: y = 2*sin(pi*x/10), v=4 m/s along x */
             double x_ref = 4.0 * t;
-            double y_ref = 2.0 * sin(M_PI * x_ref / 10.0);
-            double dx = 4.0;
-            double dy = 2.0 * (M_PI / 10.0) * cos(M_PI * x_ref / 10.0) * 4.0;
-            double heading_ref = atan2(dy, dx);
+            /* S-curve curvature from y = 2*sin(πx/10) */
+            double dydx = 0.2 * M_PI * cos(M_PI * x_ref / 10.0);
+            double d2ydx2 = -0.02 * M_PI * M_PI * sin(M_PI * x_ref / 10.0);
+            double denom = pow(1.0 + dydx * dydx, 1.5);
+            double kappa = d2ydx2 / denom;
+            init_frenet_ref(&ref[i], 4.0, kappa);
+        }
 
-            ref[i].reference_position_x_meters = DOUBLE_TO_FP(x_ref);
-            ref[i].reference_position_y_meters = DOUBLE_TO_FP(y_ref);
-            ref[i].reference_heading_radians = DOUBLE_TO_FP(heading_ref);
-            ref[i].reference_velocity_meters_per_second = FP_CONST(4.0);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
-
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(4.0));        }
-
+        FrenetState_t frenet = vehicle_to_frenet_straight(&state);
         MpcSolverResult_t result;
-        MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+        MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
 
         if (status == MPC_STATUS_SUCCESS || status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED) {
             success_count++;
@@ -2622,23 +2512,19 @@ static void stress_mpc_reset_behavior(void)
     state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
     TrajectoryReferencePoint_t ref[10];
     for (int i = 0; i < horizon; i++) {
-        ref[i].reference_position_x_meters = DOUBLE_TO_FP((i+1) * 0.15);
-        ref[i].reference_position_y_meters = DOUBLE_TO_FP((i+1) * 0.1);
-        ref[i].reference_heading_radians = FP_CONST(0.5);
-        ref[i].reference_velocity_meters_per_second = FP_CONST(3.0);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
+        init_frenet_ref(&ref[i], 3.0, 1.0/3.0);  /* Left curve */
+    }
 
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));    }
-
+    FrenetState_t frenet = vehicle_to_frenet_straight(&state);
     MpcSolverResult_t result1;
-    mpc_compute_optimal_control(&state, ref, &result1);
+    mpc_compute_optimal_control(&frenet, ref, &result1);
     double steer1 = FP_TO_DOUBLE(result1.optimal_control.steering_angle_radians);
 
     /* Apply 5 more steps to build up rate penalty state */
     for (int s = 0; s < 5; s++) {
         state = vehicle_model_predict_next_state(&state, &result1.optimal_control, FP_CONST(0.05));
-        mpc_compute_optimal_control(&state, ref, &result1);
+        frenet = vehicle_to_frenet_straight(&state);
+        mpc_compute_optimal_control(&frenet, ref, &result1);
     }
 
     /* Reset MPC */
@@ -2654,12 +2540,12 @@ static void stress_mpc_reset_behavior(void)
 
     state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
     for (int i = 0; i < horizon; i++) {
-        ref[i].reference_heading_radians = FP_CONST(-0.5);
-        ref[i].reference_position_y_meters = DOUBLE_TO_FP(-((i+1) * 0.1));
+        init_frenet_ref(&ref[i], 3.0, -1.0/3.0);  /* Right curve */
     }
 
+    frenet = vehicle_to_frenet_straight(&state);
     MpcSolverResult_t result2;
-    MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result2);
+    MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result2);
     double steer2 = FP_TO_DOUBLE(result2.optimal_control.steering_angle_radians);
 
     printf("  Before reset (left turn): steer=%.4f rad\n", steer1);
@@ -2744,7 +2630,7 @@ static void stress_mpc_velocity_ramps(void)
 
     MpcConfiguration_t vrconfig = mpc_get_configuration();
     vrconfig.time_step_seconds = FP_CONST(0.05);
-    vrconfig.weight_heading = (fixed_point_t)(10 * FP_ONE);
+    vrconfig.weight_heading_error = (fixed_point_t)(10 * FP_ONE);
     vrconfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
     vrconfig.weight_torque_rate = FP_CONST(0.1);
     mpc_set_configuration(&vrconfig);
@@ -2767,23 +2653,16 @@ static void stress_mpc_velocity_ramps(void)
     double prev_vel = 1.0;
 
     for (int step = 0; step < ramp_steps; step++) {
-        double target_vel = 1.0 + 9.0 * step / (double)ramp_steps;
-
         TrajectoryReferencePoint_t ref[10];
         for (int i = 0; i < horizon; i++) {
             double future_vel = 1.0 + 9.0 * (step + i + 1) / (double)ramp_steps;
             if (future_vel > 10.0) future_vel = 10.0;
-            ref[i].reference_position_x_meters = DOUBLE_TO_FP(future_vel * (i+1) * dt);
-            ref[i].reference_position_y_meters = 0;
-            ref[i].reference_heading_radians = 0;
-            ref[i].reference_velocity_meters_per_second = DOUBLE_TO_FP(future_vel);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
+            init_frenet_ref(&ref[i], future_vel, 0.0);
+        }
 
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(future_vel));        }
-
+        FrenetState_t frenet = vehicle_to_frenet_straight(&state);
         MpcSolverResult_t result;
-        mpc_compute_optimal_control(&state, ref, &result);
+        mpc_compute_optimal_control(&frenet, ref, &result);
 
         double vel = FP_TO_DOUBLE(result.optimal_control.motor_torque_newton_meters);
         double accel = fabs(vel - prev_vel) / dt;
@@ -2812,17 +2691,12 @@ static void stress_mpc_velocity_ramps(void)
         for (int i = 0; i < horizon; i++) {
             double future_vel = 10.0 - 9.0 * (step + i + 1) / (double)ramp_steps;
             if (future_vel < 0.5) future_vel = 0.5;
-            ref[i].reference_position_x_meters = DOUBLE_TO_FP(future_vel * (i+1) * dt);
-            ref[i].reference_position_y_meters = 0;
-            ref[i].reference_heading_radians = 0;
-            ref[i].reference_velocity_meters_per_second = DOUBLE_TO_FP(future_vel);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
+            init_frenet_ref(&ref[i], future_vel, 0.0);
+        }
 
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(future_vel));        }
-
+        FrenetState_t frenet = vehicle_to_frenet_straight(&state);
         MpcSolverResult_t result;
-        mpc_compute_optimal_control(&state, ref, &result);
+        mpc_compute_optimal_control(&frenet, ref, &result);
 
         double vel = FP_TO_DOUBLE(result.optimal_control.motor_torque_newton_meters);
         double decel = fabs(vel - prev_vel) / dt;
@@ -2853,7 +2727,7 @@ static void stress_mpc_endurance(void)
 
     MpcConfiguration_t econfig = mpc_get_configuration();
     econfig.time_step_seconds = FP_CONST(0.05);
-    econfig.weight_heading = (fixed_point_t)(10 * FP_ONE);
+    econfig.weight_heading_error = (fixed_point_t)(10 * FP_ONE);
     econfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
     econfig.weight_torque_rate = FP_CONST(0.1);
     mpc_set_configuration(&econfig);
@@ -2883,18 +2757,14 @@ static void stress_mpc_endurance(void)
         TrajectoryReferencePoint_t ref[10];
         for (int i = 0; i < horizon; i++) {
             double t = t0 + (i + 1) * dt;
-            double heading_ref = 0.3 * sin(0.5 * t);
-            ref[i].reference_position_x_meters = DOUBLE_TO_FP(3.0 * t);
-            ref[i].reference_position_y_meters = DOUBLE_TO_FP(0.5 * sin(0.5 * t));
-            ref[i].reference_heading_radians = DOUBLE_TO_FP(heading_ref);
-            ref[i].reference_velocity_meters_per_second = FP_CONST(3.0);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
+            /* Curvature from heading = 0.3*sin(0.5*t): κ = ψ_dot/v */
+            double kappa = 0.15 * cos(0.5 * t) / 3.0;
+            init_frenet_ref(&ref[i], 3.0, kappa);
+        }
 
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));        }
-
+        FrenetState_t frenet = vehicle_to_frenet_straight(&state);
         MpcSolverResult_t result;
-        MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+        MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
 
         if (status == MPC_STATUS_SUCCESS || status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED) {
             success_count++;
@@ -3068,7 +2938,7 @@ static void stress_mpc_disturbance(void)
 
     MpcConfiguration_t dconfig = mpc_get_configuration();
     dconfig.time_step_seconds = FP_CONST(0.05);
-    dconfig.weight_heading = (fixed_point_t)(10 * FP_ONE);
+    dconfig.weight_heading_error = (fixed_point_t)(10 * FP_ONE);
     dconfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
     dconfig.weight_torque_rate = FP_CONST(0.1);
     mpc_set_configuration(&dconfig);
@@ -3100,18 +2970,12 @@ static void stress_mpc_disturbance(void)
 
         TrajectoryReferencePoint_t ref[10];
         for (int i = 0; i < horizon; i++) {
-            double t = (step + i + 1) * dt;
-            ref[i].reference_position_x_meters = DOUBLE_TO_FP(3.0 * t);
-            ref[i].reference_position_y_meters = 0;
-            ref[i].reference_heading_radians = 0;
-            ref[i].reference_velocity_meters_per_second = FP_CONST(3.0);
-        ref[i].reference_lateral_velocity_meters_per_second = 0;
-        ref[i].reference_yaw_rate_radians_per_second = 0;
+            init_frenet_ref(&ref[i], 3.0, 0.0);
+        }
 
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));        }
-
+        FrenetState_t frenet = vehicle_to_frenet_straight(&state);
         MpcSolverResult_t result;
-        MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+        MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
 
         if (status == MPC_STATUS_SUCCESS || status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED) {
             recovery_count++;

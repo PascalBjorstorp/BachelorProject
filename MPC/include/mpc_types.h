@@ -62,8 +62,48 @@ typedef struct
 } VehicleState_t;
 
 /*===========================================================================
- * Control Input
+ * Frenet Frame State (Path-Relative Coordinates)
  *===========================================================================
+ * Represents the vehicle state relative to a reference path.
+ * Used by the MPC solver for path-following with wall constraints.
+ *
+ * State vector ordering: [e_y, e_psi, v_x, v_y, omega, omega_w]
+ *
+ * Advantages over global XY:
+ *   - Lateral error (e_y) directly maps to "distance from path"
+ *   - Wall constraints become simple bounds on e_y
+ *   - Heading and position tracking work together naturally
+ */
+
+typedef struct
+{
+    /** Lateral error: perpendicular distance from reference path [meters]
+     *  Positive = left of path, Negative = right of path */
+    fixed_point_t lateral_error_meters;
+
+    /** Heading error: vehicle heading minus path tangent heading [radians] */
+    fixed_point_t heading_error_radians;
+
+    /** Longitudinal velocity in body frame [meters per second] */
+    fixed_point_t longitudinal_velocity_meters_per_second;
+
+    /** Lateral velocity in body frame [meters per second] */
+    fixed_point_t lateral_velocity_meters_per_second;
+
+    /** Yaw rate [radians per second] */
+    fixed_point_t yaw_rate_radians_per_second;
+
+    /** Wheel angular velocity [radians per second] */
+    fixed_point_t wheel_speed_radians_per_second;
+
+} FrenetState_t;
+
+/** Number of states in the Frenet vehicle model */
+#define FRENET_STATE_DIMENSION 6
+
+/*===========================================================================
+ * Control Input
+ ===========================================================================
  * The control signals computed by the MPC solver.
  * Steering angle is sent to the servo; motor torque is converted
  * to a motor command (current/duty) by the VESC controller.
@@ -250,14 +290,11 @@ typedef struct
      * Higher weight = more penalty for deviation from reference
      */
 
-    /** Weight for X position tracking error */
-    fixed_point_t weight_position_x;
+    /** Weight for lateral error (e_y) tracking [Frenet] */
+    fixed_point_t weight_lateral_error;
 
-    /** Weight for Y position tracking error */
-    fixed_point_t weight_position_y;
-
-    /** Weight for heading angle tracking error */
-    fixed_point_t weight_heading;
+    /** Weight for heading error (e_psi) tracking [Frenet] */
+    fixed_point_t weight_heading_error;
 
     /** Weight for longitudinal velocity tracking error */
     fixed_point_t weight_velocity;
@@ -310,25 +347,20 @@ typedef struct
 } MpcConfiguration_t;
 
 /*===========================================================================
- * Reference Trajectory Point
+ * Reference Trajectory Point (Frenet Frame)
  *===========================================================================
- * A single point on the desired path the car should follow.
- * 
- * reference_position_x_meters, reference_position_y_meters: desired position
- * reference_heading_radians: desired heading angle at this point
- * reference_velocity_meters_per_second: desired speed at this point
+ * Reference point for MPC path-following in Frenet coordinates.
+ * For pure path following, lateral_error and heading_error refs are 0.
+ * Curvature and wall bounds are properties of the path at this point.
  */
 
 typedef struct
 {
-    /** Target X position [meters] */
-    fixed_point_t reference_position_x_meters;
+    /** Reference lateral error [meters] (0 for path following) */
+    fixed_point_t reference_lateral_error_meters;
 
-    /** Target Y position [meters] */
-    fixed_point_t reference_position_y_meters;
-
-    /** Target heading angle [radians] */
-    fixed_point_t reference_heading_radians;
+    /** Reference heading error [radians] (0 for path following) */
+    fixed_point_t reference_heading_error_radians;
 
     /** Target longitudinal velocity [meters per second] */
     fixed_point_t reference_velocity_meters_per_second;
@@ -343,6 +375,19 @@ typedef struct
      *  Typically v_ref / R_w (zero-slip equilibrium)
      */
     fixed_point_t reference_wheel_speed_radians_per_second;
+
+    /** Path curvature at this point [radians per meter]
+     *  Used for Frenet frame linearization: e_psi_dot = omega - kappa * v_x
+     */
+    fixed_point_t path_curvature_radians_per_meter;
+
+    /** Maximum leftward deviation from path before hitting wall [meters]
+     *  Always positive. The car must satisfy: e_y <= left_wall_bound */
+    fixed_point_t left_wall_bound_meters;
+
+    /** Maximum rightward deviation from path before hitting wall [meters]
+     *  Always positive. The car must satisfy: e_y >= -right_wall_bound */
+    fixed_point_t right_wall_bound_meters;
 
 } TrajectoryReferencePoint_t;
 
@@ -399,13 +444,13 @@ typedef struct
  * Core Kinematic Parameters (used by MPC)
  *---------------------------------------------------------------------------*/
 
-/** F1/10th wheelbase: 0.3302 meters — distance between front and rear axles */
+/** F1/10th wheelbase: lf + lr = 0.15875 + 0.17145 = 0.3302 meters */
 #define F110_DEFAULT_WHEELBASE_METERS \
     FP_CONST(0.3302)
 
 /** F1/10th max steering: 0.4189 radians (~24 degrees) */
 #define F110_DEFAULT_MAXIMUM_STEERING_RADIANS \
-    FP_CONST(0.4189)
+    FP_CONST(0.428)
 
 /** F1/10th max velocity: 20.0 meters per second (simulation limit) */
 #define F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND \
@@ -431,37 +476,39 @@ typedef struct
 #define F110_DIST_CG_TO_REAR_AXLE_METERS \
     FP_CONST(0.17145)
 
-/** Vehicle mass: 3.74 kg */
+/** Vehicle mass: 3.314 kg (measured on real car) */
 #define F110_VEHICLE_MASS_KG \
     FP_CONST(3.314)
 
-/** Yaw moment of inertia: 0.04712 kg·m² */
+/** Yaw moment of inertia: 0.035 kg·m² (measured on real car) */
 #define F110_YAW_INERTIA_KGM2 \
-    FP_CONST(0.04712)
+    FP_CONST(0.035)
 
 /** Center of gravity height: 0.074 meters */
 #define F110_CG_HEIGHT_METERS \
     FP_CONST(0.074)
 
-/** Tire-road friction coefficient */
+/** Tire-road friction coefficient (measured on real car) */
 #define F110_FRICTION_COEFFICIENT \
-    FP_CONST(1.0489)
+    FP_CONST(0.74)
 
-/** Front cornering stiffness: 4.718 [1/rad] */
+/** Front cornering stiffness: 3.053 [1/rad] pure tire property
+ *  (measured total: 38.1 N/rad = mu * C_Sf * F_zf = 0.74 * 3.053 * 16.87) */
 #define F110_FRONT_CORNERING_STIFFNESS \
-    FP_CONST(4.718)
+    FP_CONST(3.053)
 
-/** Rear cornering stiffness: 5.4562 [1/rad] (> front → slight understeer) */
+/** Rear cornering stiffness: 5.282 [1/rad] pure tire property
+ *  (measured total: 61.1 N/rad = mu * C_Sr * F_zr = 0.74 * 5.282 * 15.63) */
 #define F110_REAR_CORNERING_STIFFNESS \
-    FP_CONST(5.4562)
+    FP_CONST(5.282)
 
 /** Maximum longitudinal acceleration: 9.51 m/s² */
 #define F110_MAX_ACCELERATION_MS2 \
-    FP_CONST(9.51)
+    FP_CONST(6.0) // Maybe try 12.11
 
 /** Maximum braking deceleration: 10.0 m/s² */
 #define F110_MAX_DECELERATION_MS2 \
-    FP_CONST(10.0)
+    FP_CONST(9.5) // Maybe try 16.83
 
 /** Maximum motor torque: F_x_max * R_w * G_ratio = 35.57 * 0.0545 * 11.82 ≈ 22.9 N·m */
 #define F110_DEFAULT_MAX_MOTOR_TORQUE_NM \
@@ -479,13 +526,13 @@ typedef struct
 #define F110_DRIVETRAIN_INERTIA_KGM2 \
     FP_CONST(2.223)
 
-/** Longitudinal tire stiffness: F_x = C_x * κ, estimated C_x ≈ 300 N */
+/** Longitudinal tire stiffness: F_x = C_x * κ, measured C_x = 100 N/unit_slip */
 #define F110_LONGITUDINAL_TIRE_STIFFNESS \
-    FP_CONST(300.0)
+    FP_CONST(100.0)
 
 /** Maximum steering rate: 3.2 rad/s */
 #define F110_MAX_STEERING_RATE_RADS \
-    FP_CONST(3.2)
+    FP_CONST(1.8)
 
 /** Yaw rate */
 #define F110_DEFAULT_YAW_RATE \
@@ -502,6 +549,9 @@ typedef struct
 /** Longitudinal acceleration */
 #define F110_LONGITUDINAL_ACCELERATION \
     FP_CONST(0)
+
+/** Latteral acceleration */
+
 
 /** Gear ratio */
 #define F110_GEAR_RATIO \

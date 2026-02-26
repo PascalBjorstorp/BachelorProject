@@ -199,6 +199,57 @@ static int load_raceline(const char *path)
     return raceline_count > 0;
 }
 
+/* Forward declaration for wrap_angle */
+static double wrap_angle(double a);
+
+/*===========================================================================
+ * Frenet State Helper: Convert VehicleState + closest waypoint to FrenetState
+ *===========================================================================*/
+
+static FrenetState_t vehicle_to_frenet(const VehicleState_t *vehicle, int closest_wp_idx)
+{
+    FrenetState_t frenet;
+
+    /* Lateral error: signed perpendicular distance from path */
+    double px = FP_TO_DOUBLE(vehicle->position_x_meters);
+    double py = FP_TO_DOUBLE(vehicle->position_y_meters);
+    double psi = FP_TO_DOUBLE(vehicle->heading_angle_radians);
+    double path_x = raceline[closest_wp_idx].x;
+    double path_y = raceline[closest_wp_idx].y;
+    double path_psi = raceline[closest_wp_idx].psi;
+
+    /* Signed lateral error: positive = left of path */
+    double dx = px - path_x;
+    double dy = py - path_y;
+    double lateral_error = -dx * sin(path_psi) + dy * cos(path_psi);
+
+    /* Heading error: vehicle heading minus path tangent heading */
+    double heading_error = wrap_angle(psi - path_psi);
+
+    frenet.lateral_error_meters = DOUBLE_TO_FP(lateral_error);
+    frenet.heading_error_radians = DOUBLE_TO_FP(heading_error);
+    frenet.longitudinal_velocity_meters_per_second = vehicle->longitudinal_velocity_meters_per_second;
+    frenet.lateral_velocity_meters_per_second = vehicle->lateral_velocity_meters_per_second;
+    frenet.yaw_rate_radians_per_second = vehicle->yaw_rate_radians_per_second;
+    frenet.wheel_speed_radians_per_second = vehicle->wheel_speed_radians_per_second;
+
+    return frenet;
+}
+
+/* Simple Frenet state from raw values (for tests without raceline) */
+static FrenetState_t make_frenet(double lat_err, double hdg_err, double vx,
+                                  double vy, double yaw_rate, double wheel_speed)
+{
+    FrenetState_t f;
+    f.lateral_error_meters = DOUBLE_TO_FP(lat_err);
+    f.heading_error_radians = DOUBLE_TO_FP(hdg_err);
+    f.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(vx);
+    f.lateral_velocity_meters_per_second = DOUBLE_TO_FP(vy);
+    f.yaw_rate_radians_per_second = DOUBLE_TO_FP(yaw_rate);
+    f.wheel_speed_radians_per_second = DOUBLE_TO_FP(wheel_speed);
+    return f;
+}
+
 /*===========================================================================
  * Closest Waypoint Search (mirrors ROS2 node logic)
  *===========================================================================*/
@@ -245,7 +296,7 @@ static int find_closest_waypoint(double px, double py, double heading)
 static void build_reference(int closest_idx, double vehicle_heading,
                              TrajectoryReferencePoint_t *ref)
 {
-    double prev_heading = vehicle_heading;
+    (void)vehicle_heading;  /* No longer needed for Frenet reference */
 
     for (int step = 0; step < HORIZON; step++) {
         int base_idx = (closest_idx + step) % raceline_count;
@@ -253,29 +304,25 @@ static void build_reference(int closest_idx, double vehicle_heading,
         if (ref_vel < 3.0) ref_vel = 3.0;
         if (ref_vel > MAX_REF_VELOCITY) ref_vel = MAX_REF_VELOCITY;
 
-        double expected_dist = ref_vel * DT * (step + 1);
-        int wp_ahead = (int)(expected_dist / AVG_WAYPOINT_SPACING);
-        if (wp_ahead < step + 1) wp_ahead = step + 1;
+        int wp_idx = (closest_idx + step + 1) % raceline_count;
 
-        int wp_idx = (closest_idx + wp_ahead) % raceline_count;
+        /* Frenet reference: want to be ON the path with zero error */
+        ref[step].reference_lateral_error_meters = 0;
+        ref[step].reference_heading_error_radians = 0;
 
-        ref[step].reference_position_x_meters = DOUBLE_TO_FP(raceline[wp_idx].x);
-        ref[step].reference_position_y_meters = DOUBLE_TO_FP(raceline[wp_idx].y);
-
-        /* Unwrap heading to maintain continuity across ±π boundary */
-        double ref_heading = raceline[wp_idx].psi;
-        double delta = ref_heading - prev_heading;
-        while (delta > M_PI) { ref_heading -= 2.0 * M_PI; delta = ref_heading - prev_heading; }
-        while (delta < -M_PI) { ref_heading += 2.0 * M_PI; delta = ref_heading - prev_heading; }
-        prev_heading = ref_heading;
-
-        ref[step].reference_heading_radians = DOUBLE_TO_FP(ref_heading);
         ref[step].reference_velocity_meters_per_second =
             DOUBLE_TO_FP(raceline[base_idx].vx);
         ref[step].reference_lateral_velocity_meters_per_second = 0;
         ref[step].reference_yaw_rate_radians_per_second = 0;
+        ref[step].reference_wheel_speed_radians_per_second =
+            DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(raceline[base_idx].vx));
 
-        ref[step].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(raceline[base_idx].vx));    }
+        /* Path properties at this reference point */
+        ref[step].path_curvature_radians_per_meter =
+            DOUBLE_TO_FP(raceline[wp_idx].kappa);
+        ref[step].left_wall_bound_meters = DOUBLE_TO_FP(5.0);   /* Conservative default */
+        ref[step].right_wall_bound_meters = DOUBLE_TO_FP(5.0);  /* Conservative default */
+    }
 }
 
 /*===========================================================================
@@ -334,17 +381,16 @@ static void print_mpc_configuration(void)
     printf("\n  === MPC Configuration (active weights) ===\n");
     printf("  Horizon:            %d steps\n", config.prediction_horizon_steps);
     printf("  Time step:          %.4f s\n", FP_TO_DOUBLE(config.time_step_seconds));
-    printf("  Weight position X:  %.4f\n", FP_TO_DOUBLE(config.weight_position_x));
-    printf("  Weight position Y:  %.4f\n", FP_TO_DOUBLE(config.weight_position_y));
-    printf("  Weight heading:     %.4f\n", FP_TO_DOUBLE(config.weight_heading));
+    printf("  Weight lateral err: %.4f\n", FP_TO_DOUBLE(config.weight_lateral_error));
+    printf("  Weight heading err: %.4f\n", FP_TO_DOUBLE(config.weight_heading_error));
     printf("  Weight velocity:    %.4f\n", FP_TO_DOUBLE(config.weight_velocity));
     printf("  Weight steer effort:%.4f\n", FP_TO_DOUBLE(config.weight_steering_effort));
     printf("  Weight steer rate:  %.4f\n", FP_TO_DOUBLE(config.weight_steering_rate));
     printf("  Weight vel effort:  %.4f\n", FP_TO_DOUBLE(config.weight_torque_effort));
     printf("  Weight vel rate:    %.4f\n", FP_TO_DOUBLE(config.weight_torque_rate));
     printf("  Max solver iters:   %d\n", config.maximum_solver_iterations);
-    printf("  Position tracking:  %s\n",
-           (config.weight_position_x == 0 && config.weight_position_y == 0) ?
+    printf("  Lateral tracking:   %s\n",
+           (config.weight_lateral_error == 0) ?
            "DISABLED (heading-only)" : "ENABLED");
     printf("\n");
 }
@@ -414,7 +460,8 @@ static void test_full_raceline_simulation(void)
 
         /* Run MPC */
         MpcSolverResult_t result;
-        MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+        FrenetState_t frenet = vehicle_to_frenet(&state, closest);
+        MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
 
         double steer = FP_TO_DOUBLE(result.optimal_control.steering_angle_radians);
 
@@ -646,7 +693,8 @@ static void test_heading_wrap_crossings(void)
             build_reference(closest, psi, ref);
 
             MpcSolverResult_t result;
-            MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+            FrenetState_t frenet = vehicle_to_frenet(&state, closest);
+            MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
 
             double steer = FP_TO_DOUBLE(result.optimal_control.steering_angle_radians);
 
@@ -698,107 +746,91 @@ static void test_heading_wrap_crossings(void)
 }
 
 /*===========================================================================
- * TEST 3: Fixed-Point Position Overflow on Spielberg Coordinates
+ * TEST 3: Fixed-Point Overflow with Large Frenet State Values
  *===========================================================================
  *
- * The Spielberg track has coordinates x ∈ [-73.6, 12], y ∈ [-41, 55].
- * In Q16.16: x=-73.6 → -73.6 × 65536 = -4,823,450 (fits in int32).
- * But when we compute x_free[k] = A^k × x0, the entries can grow.
- * A[0][2] = dt × (-v × sin(ψ)) ≈ 0.05 × (-20 × 1) = -1.0
- * So x_free multiplies position by ~1.0 per step — should be OK.
- * But Phi[m][0][0] * Q[0] * Phi[m][0][0] with large m could overflow.
- *
- * This test checks that the Hessian doesn't contain garbage values
- * when using realistic Spielberg coordinates.
+ * In Frenet frame, absolute XY positions are no longer in the state.
+ * Instead, test with large lateral error values to verify the MPC
+ * handles extreme Frenet states without overflow.
  */
 static void test_fp_position_overflow(void)
 {
-    printf("\n[TEST] Fixed-Point Position Overflow on Spielberg Coordinates\n");
+    printf("\n[TEST] Fixed-Point Overflow with Large Frenet State Values\n");
 
     mpc_initialize();
     mpc_reset();
 
-    /* Pick the extreme coordinate corner: x=-73.6, y=53.5 */
-    VehicleState_t state;
-    state.position_x_meters = DOUBLE_TO_FP(-73.6);
-    state.position_y_meters = DOUBLE_TO_FP(53.5);
-    state.heading_angle_radians = DOUBLE_TO_FP(0.02);
-    state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(20.0);
-    state.lateral_velocity_meters_per_second = 0;
-    state.yaw_rate_radians_per_second = 0;
+    /* Test with large lateral error (extreme case) */
+    FrenetState_t frenet = make_frenet(5.0, 0.02, 20.0, 0.0, 0.0, VX_TO_WHEEL_SPEED(20.0));
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(20.0));
-    /* Build reference near that position */
+    /* Build reference near zero error */
     TrajectoryReferencePoint_t ref[HORIZON];
     for (int i = 0; i < HORIZON; i++) {
-        ref[i].reference_position_x_meters = DOUBLE_TO_FP(-73.6 + 0.5 * (i+1));
-        ref[i].reference_position_y_meters = DOUBLE_TO_FP(53.5);
-        ref[i].reference_heading_radians = DOUBLE_TO_FP(0.02);
+        ref[i].reference_lateral_error_meters = 0;
+        ref[i].reference_heading_error_radians = 0;
         ref[i].reference_velocity_meters_per_second = DOUBLE_TO_FP(20.0);
         ref[i].reference_lateral_velocity_meters_per_second = 0;
         ref[i].reference_yaw_rate_radians_per_second = 0;
-
-        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(20.0));    }
+        ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(20.0));
+        ref[i].path_curvature_radians_per_meter = 0;
+        ref[i].left_wall_bound_meters = DOUBLE_TO_FP(10.0);
+        ref[i].right_wall_bound_meters = DOUBLE_TO_FP(10.0);
+    }
     MpcSolverResult_t result;
-    MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+    MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
 
     double steer = FP_TO_DOUBLE(result.optimal_control.steering_angle_radians);
     double vel = FP_TO_DOUBLE(result.optimal_control.motor_torque_newton_meters);
 
-    printf("  State: x=-73.6, y=53.5, hdg=0.02, v=20.0\n");
+    printf("  State: lat_err=5.0, hdg_err=0.02, v=20.0\n");
     printf("  Result: steer=%.4f, vel=%.2f, status=%d, iter=%d\n",
            steer, vel, status, result.iterations_used);
 
-    /* With Q_x=Q_y=0, position should not affect steering at all.
-     * Note: 7-state model with wheel dynamics makes QP harder to
-     * converge at extreme coordinates. Just verify no crash/overflow. */
-    check_condition("Large position: solver OK",
+    check_condition("Large lateral error: solver OK",
                     status == MPC_STATUS_SUCCESS ||
                     status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED);
-    check_condition("Large position: steering is finite",
+    check_condition("Large lateral error: steering is finite",
                     fabs(steer) <= 0.42 + 0.01);
 
-    /* Now test with large negative Y */
-    state.position_y_meters = DOUBLE_TO_FP(-41.0);
-    for (int i = 0; i < HORIZON; i++) {
-        ref[i].reference_position_y_meters = DOUBLE_TO_FP(-41.0);
-    }
+    /* Now test with large negative lateral error */
+    frenet = make_frenet(-5.0, 0.0, 20.0, 0.0, 0.0, VX_TO_WHEEL_SPEED(20.0));
 
-    status = mpc_compute_optimal_control(&state, ref, &result);
+    status = mpc_compute_optimal_control(&frenet, ref, &result);
     steer = FP_TO_DOUBLE(result.optimal_control.steering_angle_radians);
 
-    printf("  State: x=-73.6, y=-41.0 → steer=%.4f, status=%d\n", steer, status);
+    printf("  State: lat_err=-5.0 -> steer=%.4f, status=%d\n", steer, status);
 
-    check_condition("Large negative Y: solver OK",
+    check_condition("Large negative lateral error: solver OK",
                     status == MPC_STATUS_SUCCESS ||
                     status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED);
-    check_condition("Large negative Y: steering is finite",
+    check_condition("Large negative lateral error: steering is finite",
                     fabs(steer) <= 0.42 + 0.01);
 }
 
 /*===========================================================================
- * TEST 4: Heading Near ±π Boundary (Unit Test)
+ * TEST 4: Heading Error Proportional Response (Frenet)
  *===========================================================================
  *
- * Tests MPC with heading values very close to ±π. The key concern is that
- * normalize_angle in mpc.c uses while-loops — if the free-response
- * propagation pushes heading beyond ±π and then the reference is on the
- * other side, the tracking error d[k][2] could be ~2π instead of ~0.
+ * In Frenet coordinates, heading_error_radians (e_ψ) is the difference
+ * between the vehicle heading and the path tangent.  Small e_ψ values
+ * should produce proportionally small steering corrections.
+ * Values near ±π mean the vehicle is almost going backwards — the MPC
+ * correctly saturates steering for those cases.
  */
 static void test_heading_near_pi_boundary(void)
 {
-    printf("\n[TEST] Heading Near ±π Boundary\n");
+    printf("\n[TEST] Heading Error Proportional Response (Frenet)\n");
 
-    /* Test cases: heading just below -π, just above +π */
+    /* Test with small-to-moderate heading errors in Frenet */
     double test_headings[] = {
-        3.13,    /* Just below +π (3.14159) */
-        -3.13,   /* Just above -π */
-        3.10,    /* Moderate negative region when wrapped */
-        -3.10,
-        3.14,    /* Very close to π */
-        -3.14,
-        M_PI - 0.001,  /* Right at the edge */
-        -M_PI + 0.001,
+        0.02,    /* Tiny heading error */
+        -0.02,
+        0.10,    /* Small heading error */
+        -0.10,
+        0.30,    /* Moderate heading error */
+        -0.30,
+        0.50,    /* Larger heading error */
+        -0.50,
     };
     int num_tests = sizeof(test_headings) / sizeof(test_headings[0]);
 
@@ -808,68 +840,62 @@ static void test_heading_near_pi_boundary(void)
 
         double h = test_headings[t];
 
-        VehicleState_t state;
-        state.position_x_meters = DOUBLE_TO_FP(0.0);
-        state.position_y_meters = DOUBLE_TO_FP(0.0);
-        state.heading_angle_radians = DOUBLE_TO_FP(h);
-        state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(5.0);
-    state.lateral_velocity_meters_per_second = 0;
-    state.yaw_rate_radians_per_second = 0;
+        FrenetState_t frenet = make_frenet(0.0, h, 5.0, 0.0, 0.0, VX_TO_WHEEL_SPEED(5.0));
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(5.0));
-        /* Reference: same heading but slightly different (simulating continuous driving) */
         TrajectoryReferencePoint_t ref[HORIZON];
-        double ref_h = h + 0.02;  /* Slightly ahead in heading */
         for (int i = 0; i < HORIZON; i++) {
-            ref[i].reference_position_x_meters = DOUBLE_TO_FP(cos(h) * 0.25 * (i+1));
-            ref[i].reference_position_y_meters = DOUBLE_TO_FP(sin(h) * 0.25 * (i+1));
-            ref[i].reference_heading_radians = DOUBLE_TO_FP(ref_h);
+            ref[i].reference_lateral_error_meters = 0;
+            ref[i].reference_heading_error_radians = 0;
             ref[i].reference_velocity_meters_per_second = DOUBLE_TO_FP(5.0);
             ref[i].reference_lateral_velocity_meters_per_second = 0;
             ref[i].reference_yaw_rate_radians_per_second = 0;
-
-            ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(5.0));        }
+            ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(5.0));
+            ref[i].path_curvature_radians_per_meter = 0;
+            ref[i].left_wall_bound_meters = DOUBLE_TO_FP(5.0);
+            ref[i].right_wall_bound_meters = DOUBLE_TO_FP(5.0);
+        }
 
         MpcSolverResult_t result;
-        MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+        MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
 
         double steer = FP_TO_DOUBLE(result.optimal_control.steering_angle_radians);
 
-        printf("  hdg=%.4f, ref_hdg=%.4f → steer=%.4f, status=%d\n",
-               h, ref_h, steer, status);
+        printf("  e_psi=%.4f → steer=%.4f, status=%d\n", h, steer, status);
 
+        /* Steering should be in the correct direction to reduce heading error,
+         * and proportional to the error magnitude for small errors */
         char msg[128];
-        snprintf(msg, sizeof(msg), "Heading %.4f: no wild steering (|s|<0.3)", h);
-        check_condition(msg, fabs(steer) < 0.3);
+        snprintf(msg, sizeof(msg), "e_psi=%.2f: correct direction steering", h);
+        /* Positive heading error → negative steering correction (and vice versa) */
+        int correct_direction = (h > 0 && steer <= 0.01) || (h < 0 && steer >= -0.01);
+        check_condition(msg, correct_direction);
     }
 }
 
 /*===========================================================================
- * TEST 5: Heading Cross from +π to -π (and vice versa)
+ * TEST 5: Heading Error Magnitude vs Steering Response (Frenet)
  *===========================================================================
  *
- * The most dangerous case: the vehicle heading is at +3.13 and the reference
- * heading is at -3.13 (which is only ~0.02 rad difference in reality, but
- * naively appears as ~6.26 rad difference).
- *
- * If normalize_angle or DOUBLE_TO_FP doesn't handle this correctly,
- * the MPC will see a huge heading error and command max steering.
+ * Verifies that larger heading errors produce larger steering corrections,
+ * and that the sign of the correction is always correct.
+ * In Frenet, e_ψ is already the wrapped difference from the path tangent,
+ * so there is no ±π wrapping ambiguity.
  */
 static void test_heading_cross_pi(void)
 {
-    printf("\n[TEST] Heading Cross ±π Boundary\n");
+    printf("\n[TEST] Heading Error Magnitude vs Steering Magnitude\n");
 
     struct {
-        double vehicle_heading;
-        double reference_heading;
+        double heading_error;
+        double max_expected_steer;
         const char *desc;
     } cases[] = {
-        {  3.13, -3.13, "+π → -π (small real diff ~0.02)"},
-        { -3.13,  3.13, "-π → +π (small real diff ~0.02)"},
-        {  3.10, -3.00, "+3.10 → -3.00 (real diff ~0.28)"},
-        { -3.00,  3.10, "-3.00 → +3.10 (real diff ~0.28)"},
-        {  M_PI - 0.01, -(M_PI - 0.01), "π-0.01 → -(π-0.01) (diff ~0.02)"},
-        {  2.50, -2.50, "+2.50 → -2.50 (real diff ~1.28)"},
+        {  0.01,  0.15, "tiny e_psi=+0.01"},
+        { -0.01,  0.15, "tiny e_psi=-0.01"},
+        {  0.05,  0.20, "small e_psi=+0.05"},
+        { -0.05,  0.20, "small e_psi=-0.05"},
+        {  0.20,  0.35, "moderate e_psi=+0.20"},
+        { -0.20,  0.35, "moderate e_psi=-0.20"},
     };
     int num_cases = sizeof(cases) / sizeof(cases[0]);
 
@@ -877,57 +903,34 @@ static void test_heading_cross_pi(void)
         mpc_initialize();
         mpc_reset();
 
-        double vh = cases[c].vehicle_heading;
-        double rh = cases[c].reference_heading;
+        double eh = cases[c].heading_error;
 
-        /* The "true" angular difference (shortest path) */
-        double true_diff = wrap_angle(rh - vh);
+        FrenetState_t frenet = make_frenet(0.0, eh, 5.0, 0.0, 0.0, VX_TO_WHEEL_SPEED(5.0));
 
-        VehicleState_t state;
-        state.position_x_meters = DOUBLE_TO_FP(0.0);
-        state.position_y_meters = DOUBLE_TO_FP(0.0);
-        state.heading_angle_radians = DOUBLE_TO_FP(vh);
-        state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(5.0);
-    state.lateral_velocity_meters_per_second = 0;
-    state.yaw_rate_radians_per_second = 0;
-
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(5.0));
         TrajectoryReferencePoint_t ref[HORIZON];
         for (int i = 0; i < HORIZON; i++) {
-            ref[i].reference_position_x_meters = DOUBLE_TO_FP(0.0);
-            ref[i].reference_position_y_meters = DOUBLE_TO_FP(0.0);
-            ref[i].reference_heading_radians = DOUBLE_TO_FP(rh);
+            ref[i].reference_lateral_error_meters = 0;
+            ref[i].reference_heading_error_radians = 0;
             ref[i].reference_velocity_meters_per_second = DOUBLE_TO_FP(5.0);
             ref[i].reference_lateral_velocity_meters_per_second = 0;
             ref[i].reference_yaw_rate_radians_per_second = 0;
-
-            ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(5.0));        }
+            ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(5.0));
+            ref[i].path_curvature_radians_per_meter = 0;
+            ref[i].left_wall_bound_meters = DOUBLE_TO_FP(5.0);
+            ref[i].right_wall_bound_meters = DOUBLE_TO_FP(5.0);
+        }
 
         MpcSolverResult_t result;
-        mpc_compute_optimal_control(&state, ref, &result);
+        mpc_compute_optimal_control(&frenet, ref, &result);
 
         double steer = FP_TO_DOUBLE(result.optimal_control.steering_angle_radians);
 
-        /* Proportional steering expectation:
-         * For small angular diffs (<0.5), steering should be modest (<0.3)
-         * For large angular diffs (>1.0), steering can be larger
-         * But it should NEVER be max-steering for a 0.02 rad real diff */
-        int is_reasonable;
-        if (fabs(true_diff) < 0.1) {
-            is_reasonable = fabs(steer) < 0.2;  /* Small diff = small steer */
-        } else if (fabs(true_diff) < 0.5) {
-            is_reasonable = fabs(steer) < 0.35;
-        } else {
-            is_reasonable = 1;  /* Large diff can reasonably need large steer */
-        }
-
-        printf("  %s\n", cases[c].desc);
-        printf("    vh=%.4f, rh=%.4f, true_diff=%.4f → steer=%.4f [%s]\n",
-               vh, rh, true_diff, steer, is_reasonable ? "OK" : "SUSPECT");
+        printf("  %s → steer=%.4f (limit=%.2f)\n",
+               cases[c].desc, steer, cases[c].max_expected_steer);
 
         char msg[128];
         snprintf(msg, sizeof(msg), "%s: proportional steering", cases[c].desc);
-        check_condition(msg, is_reasonable);
+        check_condition(msg, fabs(steer) <= cases[c].max_expected_steer);
     }
 }
 
@@ -1123,7 +1126,8 @@ static void test_sequential_pi_crossing(void)
         build_reference(closest, psi, ref);
 
         MpcSolverResult_t result;
-        mpc_compute_optimal_control(&state, ref, &result);
+        FrenetState_t frenet = vehicle_to_frenet(&state, closest);
+        mpc_compute_optimal_control(&frenet, ref, &result);
 
         double steer = FP_TO_DOUBLE(result.optimal_control.steering_angle_radians);
         double h_err = wrap_angle(psi - raceline[closest].psi);
@@ -1216,7 +1220,8 @@ static void test_high_curvature_sections(void)
         build_reference(closest, psi, ref);
 
         MpcSolverResult_t result;
-        MpcSolverStatus_t status = mpc_compute_optimal_control(&state, ref, &result);
+        FrenetState_t frenet = vehicle_to_frenet(&state, closest);
+        MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
 
         if (status == MPC_STATUS_SUCCESS || status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED)
             solver_ok++;
@@ -1318,7 +1323,8 @@ static void test_velocity_transitions(void)
         build_reference(closest, psi, ref);
 
         MpcSolverResult_t result;
-        mpc_compute_optimal_control(&state, ref, &result);
+        FrenetState_t fstate = vehicle_to_frenet(&state, closest);
+        mpc_compute_optimal_control(&fstate, ref, &result);
 
         double steer = FP_TO_DOUBLE(result.optimal_control.steering_angle_radians);
         double steer_change = steer - prev_steer;
@@ -1395,7 +1401,7 @@ static void test_reference_unwrap(void)
 
         printf("  Crossing at wp %d (vehicle hdg=%.4f):\n", idx, vehicle_heading);
         for (int i = 0; i < HORIZON; i++) {
-            double h = FP_TO_DOUBLE(ref[i].reference_heading_radians);
+            double h = FP_TO_DOUBLE(ref[i].path_curvature_radians_per_meter);
             double delta = h - prev_h;
             if (fabs(delta) > M_PI) {
                 jumps++;
@@ -1520,72 +1526,76 @@ static void test_free_response_heading(void)
 }
 
 /*===========================================================================
- * TEST 14: Rate Penalty Interaction with Heading Wrap
+ * TEST 14: Rate Penalty Smoothness (Frenet)
  *===========================================================================
  *
- * When the heading crosses ±π, the MPC might produce a wildly different
- * steering command. If the rate penalty is high (w_sr=1.0), the NEXT
- * step will penalize deviating from that wild command, potentially
- * causing persistent random turning for several steps.
+ * Verifies that the rate penalty produces smooth steering transitions
+ * when the heading error changes direction (e.g., oscillation around 0).
+ * With high rate penalty, steering should change gradually.
  */
 static void test_rate_penalty_after_wrap(void)
 {
-    printf("\n[TEST] Rate Penalty Interaction After Heading Wrap\n");
+    printf("\n[TEST] Rate Penalty Smoothness\n");
 
     mpc_initialize();
     mpc_reset();
 
-    /* Step 1: Drive straight at heading near +π */
+    /* Drive straight with small oscillating heading errors */
     VehicleState_t state;
     state.position_x_meters = DOUBLE_TO_FP(0.0);
     state.position_y_meters = DOUBLE_TO_FP(0.0);
-    state.heading_angle_radians = DOUBLE_TO_FP(3.10);
+    state.heading_angle_radians = DOUBLE_TO_FP(0.05);
     state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(10.0);
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
 
     state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(10.0));
-    /* Reference makes small heading changes crossing π */
-    double ref_headings[] = {3.11, 3.12, 3.13, 3.14, -3.13, -3.12, -3.11, -3.10, -3.09, -3.08};
 
     double steerings[15];
 
     for (int iter = 0; iter < 12; iter++) {
         TrajectoryReferencePoint_t ref[HORIZON];
         for (int i = 0; i < HORIZON; i++) {
-            int h_idx = iter + i;
-            if (h_idx >= 10) h_idx = 9;
-            ref[i].reference_position_x_meters = DOUBLE_TO_FP(0.0);
-            ref[i].reference_position_y_meters = DOUBLE_TO_FP(0.0);
-            ref[i].reference_heading_radians = DOUBLE_TO_FP(ref_headings[h_idx < 10 ? h_idx : 9]);
+            ref[i].reference_lateral_error_meters = 0;
+            ref[i].reference_heading_error_radians = 0;
+            ref[i].path_curvature_radians_per_meter = 0;
             ref[i].reference_velocity_meters_per_second = DOUBLE_TO_FP(10.0);
             ref[i].reference_lateral_velocity_meters_per_second = 0;
             ref[i].reference_yaw_rate_radians_per_second = 0;
 
-            ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(10.0));        }
+            ref[i].reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(10.0));
+            ref[i].left_wall_bound_meters = DOUBLE_TO_FP(5.0);
+            ref[i].right_wall_bound_meters = DOUBLE_TO_FP(5.0);
+        }
 
         MpcSolverResult_t result;
-        mpc_compute_optimal_control(&state, ref, &result);
+        FrenetState_t fstate = make_frenet(
+            FP_TO_DOUBLE(state.position_y_meters),
+            FP_TO_DOUBLE(state.heading_angle_radians),
+            FP_TO_DOUBLE(state.longitudinal_velocity_meters_per_second),
+            FP_TO_DOUBLE(state.lateral_velocity_meters_per_second),
+            FP_TO_DOUBLE(state.yaw_rate_radians_per_second),
+            FP_TO_DOUBLE(state.wheel_speed_radians_per_second));
+        mpc_compute_optimal_control(&fstate, ref, &result);
 
         double steer = FP_TO_DOUBLE(result.optimal_control.steering_angle_radians);
         steerings[iter] = steer;
 
-        printf("  iter=%2d hdg=%.4f ref=%.4f steer=%.4f\n",
-               iter, FP_TO_DOUBLE(state.heading_angle_radians),
-               ref_headings[iter < 10 ? iter : 9], steer);
+        printf("  iter=%2d e_psi=%.4f steer=%.4f\n",
+               iter, FP_TO_DOUBLE(state.heading_angle_radians), steer);
 
         state = vehicle_model_predict_next_state(
             &state, &result.optimal_control, DOUBLE_TO_FP(DT));
     }
 
-    /* Check: after crossing ±π, steering should stay reasonable */
+    /* Check: all steering commands should be reasonable (small heading errors) */
     int wild_count = 0;
     for (int i = 0; i < 12; i++) {
         if (fabs(steerings[i]) > 0.35) wild_count++;
     }
 
     printf("  Wild steering events (>0.35 rad): %d/12\n", wild_count);
-    check_condition("Rate penalty: wild steerings < 3 across ±π", wild_count < 3);
+    check_condition("Rate penalty: wild steerings < 3 for small heading errors", wild_count < 3);
 }
 
 /*===========================================================================

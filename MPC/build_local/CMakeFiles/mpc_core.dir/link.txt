@@ -1,0 +1,2 @@
+/usr/bin/ar qc libmpc_core.a CMakeFiles/mpc_core.dir/src/fp_math.c.o CMakeFiles/mpc_core.dir/src/qp_solver.c.o CMakeFiles/mpc_core.dir/src/vehicle_model.c.o CMakeFiles/mpc_core.dir/src/mpc.c.o
+/usr/bin/ranlib libmpc_core.a

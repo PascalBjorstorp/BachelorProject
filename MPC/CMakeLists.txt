@@ -82,6 +82,8 @@ target_include_directories(mpc_core
 
 add_executable(mpc_node sim/mpc_ros2_node.c)
 
+target_compile_definitions(mpc_core PRIVATE MPC_DEBUG_PRINT)
+
 target_link_libraries(mpc_node
     mpc_core
     m  # Math library for atan2 in quaternion conversion

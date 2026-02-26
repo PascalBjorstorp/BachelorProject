@@ -53,6 +53,21 @@ bridge:
     vehicle_params: 'f1tenth'
     scale: 1.0
 
+    # ====================
+    # Vehicle Parameter Overrides (real car values)
+    # ====================
+    # Set to 0.0 to use the default f1tenth_gym values.
+    # Set to a positive value to override the default.
+    # Defaults: mu=1.0489, m=3.74, I=0.04712
+    vehicle_mu: 0.74        # Surface friction coefficient (real car measured)
+    vehicle_m: 3.314        # Vehicle mass in kg (real car measured)
+    vehicle_I: 0.035        # Moment of inertia Iz in kg*m^2 (real car measured)
+    # Pure tire cornering stiffness [1/rad]. Both MPC and sim use:
+    #   F_y = mu * C_Sf * F_zf * alpha
+    # Total: 0.74 * 3.053 * 16.88 = 38.1 N/rad (front), 0.74 * 5.282 * 15.63 = 61.1 N/rad (rear)
+    vehicle_C_Sf: 3.053     # Pure front tire stiffness [1/rad]
+    vehicle_C_Sr: 5.282     # Pure rear tire stiffness [1/rad]
+
     # opponent parameters
     num_agent: 1
 

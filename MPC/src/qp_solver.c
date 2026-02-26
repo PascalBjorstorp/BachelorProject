@@ -29,13 +29,20 @@
 
 /**
  * Project the solution onto the feasible region defined by A×u ≤ b.
-
- * Since our MPC uses box constraints (each row of A has a single ±1),
- * the correct projection is simple per-variable clamping:
- *   If A[i,:] * u > b[i], clamp the offending variable.
  *
- * For a row with A[i,j] = +1: u[j] = min(u[j], b[i])
- * For a row with A[i,j] = -1: u[j] = max(u[j], -b[i])
+ * Handles two types of constraints:
+ * 1. Box constraints: single non-zero entry per row (fast clamping)
+ * 2. General linear constraints: multiple non-zero entries (projection
+ *    along constraint normal for wall boundary enforcement)
+ *
+ * For box constraints (A[i,j] = ±1, one per row):
+ *   If A[i,j] = +1: u[j] = min(u[j], b[i])
+ *   If A[i,j] = -1: u[j] = max(u[j], -b[i])
+ *
+ * For general constraints (wall boundaries, multiple non-zeros):
+ *   If A[i,:] * u > b[i]:
+ *     u -= (violation / ||A[i,:]||²) * A[i,:]
+ *   This projects u onto the constraint halfplane.
  *
  * @param variable_vector     Solution vector to project (modified in place)
  * @param constraint_matrix   Matrix A (constraint_count × variable_count)
@@ -51,35 +58,104 @@ static void project_onto_feasible_region(
     uint16_t constraint_count)
 {
     /*
-     * For each constraint row, find the non-zero column and clamp.
-     * Box constraints have exactly one non-zero entry per row.
+     * Two-phase projection to ensure actuator limits always hold:
+     *   Phase 1: General linear constraints (wall boundaries)
+     *   Phase 2: Box constraints (actuator limits) — always enforced last
+     *
+     * This ordering prevents wall constraint projections from pushing
+     * actuator variables outside their box bounds.
      */
+
+    /* Phase 1: General linear constraints (halfplane projection) */
     for (uint16_t constraint_index = 0; constraint_index < constraint_count; constraint_index++)
     {
         const fixed_point_t *row = &constraint_matrix[constraint_index * variable_count];
         fixed_point_t bound = constraint_bounds[constraint_index];
 
-        /* Find the non-zero entry in this constraint row */
+        /* Count non-zeros and compute dot product / norm²  */
+        int64_t dot64 = 0;
+        int64_t norm_sq64 = 0;
+        int nonzero_count = 0;
+
         for (uint16_t var_index = 0; var_index < variable_count; var_index++)
         {
-            if (row[var_index] > 0)
+            if (row[var_index] != 0)
             {
-                /* Constraint: +1 * u[j] <= b  →  u[j] = min(u[j], b) */
-                if (variable_vector[var_index] > bound)
-                {
-                    variable_vector[var_index] = bound;
-                }
-                break;  /* Only one non-zero per row in box constraints */
+                dot64 += ((int64_t)row[var_index] * variable_vector[var_index]) >> FP_FRAC_BITS;
+                norm_sq64 += ((int64_t)row[var_index] * row[var_index]) >> FP_FRAC_BITS;
+                nonzero_count++;
             }
-            else if (row[var_index] < 0)
+        }
+
+        if (nonzero_count <= 1) continue;  /* Skip box constraints in phase 1 */
+
+        /*
+         * General linear constraint: project onto halfplane.
+         * violation = A[i] · u - b[i]
+         * If violation > 0: u -= (violation / ||A[i]||²) * A[i]
+         */
+        fixed_point_t dot = (dot64 > INT32_MAX) ? INT32_MAX :
+                            (dot64 < INT32_MIN) ? INT32_MIN :
+                            (fixed_point_t)dot64;
+        fixed_point_t violation = fp_sub(dot, bound);
+
+        if (violation > 0)
+        {
+            fixed_point_t norm_sq = (norm_sq64 > INT32_MAX) ? INT32_MAX :
+                                    (fixed_point_t)norm_sq64;
+
+            if (norm_sq > 0)
             {
-                /* Constraint: -1 * u[j] <= b  →  u[j] >= -b  →  u[j] = max(u[j], -b) */
-                fixed_point_t lower = fp_neg(bound);
-                if (variable_vector[var_index] < lower)
+                fixed_point_t scale = fp_div(violation, norm_sq);
+
+                for (uint16_t var_index = 0; var_index < variable_count; var_index++)
                 {
-                    variable_vector[var_index] = lower;
+                    if (row[var_index] != 0)
+                    {
+                        variable_vector[var_index] = fp_sub(
+                            variable_vector[var_index],
+                            fp_mul(scale, row[var_index]));
+                    }
                 }
-                break;
+            }
+        }
+    }
+
+    /* Phase 2: Box constraints (clamping — always last for guaranteed enforcement) */
+    for (uint16_t constraint_index = 0; constraint_index < constraint_count; constraint_index++)
+    {
+        const fixed_point_t *row = &constraint_matrix[constraint_index * variable_count];
+        fixed_point_t bound = constraint_bounds[constraint_index];
+
+        /* Find the single non-zero entry */
+        int nonzero_count = 0;
+        int single_nonzero_idx = -1;
+
+        for (uint16_t var_index = 0; var_index < variable_count; var_index++)
+        {
+            if (row[var_index] != 0)
+            {
+                if (nonzero_count == 0) single_nonzero_idx = var_index;
+                nonzero_count++;
+            }
+        }
+
+        if (nonzero_count != 1) continue;  /* Skip general constraints in phase 2 */
+
+        /* Box constraint: fast per-variable clamping */
+        if (row[single_nonzero_idx] > 0)
+        {
+            if (variable_vector[single_nonzero_idx] > bound)
+            {
+                variable_vector[single_nonzero_idx] = bound;
+            }
+        }
+        else
+        {
+            fixed_point_t lower = fp_neg(bound);
+            if (variable_vector[single_nonzero_idx] < lower)
+            {
+                variable_vector[single_nonzero_idx] = lower;
             }
         }
     }

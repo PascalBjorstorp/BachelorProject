@@ -22,18 +22,19 @@
  *   kappa = (R_w * omega_w - v_x) / max(|v_x|, epsilon)
  *   F_x = C_x * kappa
  *
- * Tire model (linear, with normal force scaling):
+ * Tire model (linear, with friction and normal force scaling):
  *   alpha_f = delta - atan((v_y + l_f * omega) / v_x)
  *   alpha_r = -atan((v_y - l_r * omega) / v_x)
  *   F_zf = (m*g*l_r - F_x*h) / L    (front normal force)
  *   F_zr = (m*g*l_f + F_x*h) / L    (rear normal force)
- *   F_yf = C_Sf * alpha_f * F_zf     (front lateral tire force)
- *   F_yr = C_Sr * alpha_r * F_zr     (rear lateral tire force)
+ *   F_yf = mu * C_Sf * alpha_f * F_zf (front lateral tire force)
+ *   F_yr = mu * C_Sr * alpha_r * F_zr (rear lateral tire force)
  */
 
 #include "vehicle_model.h"
 #include "fp_math.h"
 #include <stdio.h>
+#include <string.h>
 
 /*===========================================================================
  * Module State (Vehicle Parameters)
@@ -242,9 +243,6 @@ VehicleState_t vehicle_model_predict_next_state(
      * Static weight distribution plus longitudinal load transfer:
      *   F_zf = (m * g * l_r - F_x * h) / (l_f + l_r)
      *   F_zr = (m * g * l_f + F_x * h) / (l_f + l_r)
-     *
-     * Under acceleration (F_x > 0): front unloads, rear loads up.
-     * Under braking   (F_x < 0): front loads up, rear unloads.
      */
     fixed_point_t g   = stored_vehicle_parameters.gravity_acceleration_meters_per_second_squared;
     fixed_point_t h   = stored_vehicle_parameters.height_cg_to_ground_meters;
@@ -295,18 +293,19 @@ VehicleState_t vehicle_model_predict_next_state(
     /*
      * Compute lateral tire forces (linear tire model with normal force)
      *
-     * The cornering stiffness is scaled by normal force to capture
-     * load transfer effects (braking loads the front, accelerating
-     * loads the rear):
+     * The cornering stiffness is scaled by friction coefficient and
+     * normal force to capture load transfer and surface grip effects:
      *
-     *   F_yf = C_Sf * alpha_f * F_zf
-     *   F_yr = C_Sr * alpha_r * F_zr
+     *   F_yf = mu * C_Sf * alpha_f * F_zf
+     *   F_yr = mu * C_Sr * alpha_r * F_zr
      *
-     * C_Sf/C_Sr here have units [1/rad] (normalized cornering stiffness),
-     * and F_zf/F_zr [N] gives the tire force in [N].
+     * mu        — tire-road friction coefficient (dimensionless)
+     * C_Sf/C_Sr — pure tire cornering stiffness [1/rad]
+     * F_zf/F_zr — normal forces [N]
      */
-    fixed_point_t F_yf = fp_mul(fp_mul(C_Sf, alpha_f), F_zf);
-    fixed_point_t F_yr = fp_mul(fp_mul(C_Sr, alpha_r), F_zr);
+    const fixed_point_t mu = F110_FRICTION_COEFFICIENT;
+    fixed_point_t F_yf = fp_mul(mu, fp_mul(fp_mul(C_Sf, alpha_f), F_zf));
+    fixed_point_t F_yr = fp_mul(mu, fp_mul(fp_mul(C_Sr, alpha_r), F_zr));
 
     /*
      * Compute state derivatives
@@ -551,13 +550,93 @@ void vehicle_model_compute_linearization(
     /*
      * Lateral tire force derivatives w.r.t. states
      *
-     * F_yf = C_Sf * alpha_f * F_zf  →  dF_yf/dx = C_Sf * F_zf * d(alpha_f)/dx
-     * F_yr = C_Sr * alpha_r * F_zr  →  dF_yr/dx = C_Sr * F_zr * d(alpha_r)/dx
+     * Linear model:  F_y = C_S · α · F_z  (overestimates at large slip)
      *
-     * (Neglecting cross-coupling dF_zf/dvx × alpha_f, which is second-order small)
+     * Nonlinear Pacejka-like model:
+     *   F_y = D · sin(C · atan(B · α))
+     *   where D = μ · F_z,  B = C_Sα / C_shape,  C_shape ≈ 1.9
+     *   Initial slope equals μ · C_Sα · F_z (matches linear at α=0).
+     *   At large α, the force saturates to μ · F_z.
+     *
+     * The Jacobian entries use the DERIVATIVE of the Pacejka force:
+     *   dF_y/dα = D · C · B · cos(C · atan(B·α)) / (1 + (B·α)²)
+     *
+     * This "effective stiffness" decreases as |α| grows, correctly
+     * modelling the reduced tire authority near the grip limit.
+     * A floor (10% of linear stiffness) prevents zero B-matrix entries.
      */
-    fixed_point_t C_Sf_Fzf = fp_mul(C_Sf, F_zf);
-    fixed_point_t C_Sr_Fzr = fp_mul(C_Sr, F_zr);
+
+    /* Compute front and rear slip angles at operating point */
+    fixed_point_t front_ratio = fp_div(front_num, vx_safe);
+    fixed_point_t alpha_f = fp_sub(delta, fp_atan(front_ratio));
+    fixed_point_t rear_ratio  = fp_div(rear_num, vx_safe);
+    fixed_point_t alpha_r = fp_neg(fp_atan(rear_ratio));
+
+    /* Pacejka / tire parameters */
+    const fixed_point_t mu = F110_FRICTION_COEFFICIENT;
+
+    /* Linear stiffness (slope at α=0): mu * C_Sf * F_zf */
+    fixed_point_t C_Sf_Fzf_linear = fp_mul(mu, fp_mul(C_Sf, F_zf));
+    fixed_point_t C_Sr_Fzr_linear = fp_mul(mu, fp_mul(C_Sr, F_zr));
+    const fixed_point_t C_shape = FP_CONST(1.9);       /* Pacejka shape factor */
+    const fixed_point_t min_stiffness_scale = FP_CONST(0.1);  /* 10% floor */
+
+    /* --- Front tire effective stiffness --- */
+    fixed_point_t C_Sf_Fzf;
+    {
+        /* D_f = μ · F_zf */
+        fixed_point_t D_f = fp_mul(mu, F_zf);
+        /* B_f = C_Sf / C_shape  — ensures slope at α=0 = μ · C_Sf · F_zf */
+        fixed_point_t B_f = fp_div(C_Sf, C_shape);
+        /* B_f · α_f */
+        fixed_point_t Ba_f = fp_mul(B_f, alpha_f);
+        /* cos(C · atan(Ba_f)) */
+        fixed_point_t inner_f = fp_mul(C_shape, fp_atan(Ba_f));
+        fixed_point_t cos_inner_f = fp_cos(inner_f);
+        /* 1 / (1 + (Ba_f)²) */
+        fixed_point_t denom_f = fp_add(FP_ONE, fp_mul(Ba_f, Ba_f));
+        fixed_point_t inv_denom_f = fp_div(FP_ONE, denom_f);
+        /* dFy/dα = D · C · B · cos(...) / (1 + (Bα)²) */
+        fixed_point_t C_eff_f = fp_mul(fp_mul(fp_mul(D_f, C_shape), B_f),
+                                       fp_mul(cos_inner_f, inv_denom_f));
+        /* Floor: at least 10% of linear stiffness */
+        fixed_point_t C_min_f = fp_mul(C_Sf_Fzf_linear, min_stiffness_scale);
+        C_Sf_Fzf = (C_eff_f > C_min_f) ? C_eff_f : C_min_f;
+    }
+
+    /* --- Rear tire effective stiffness --- */
+    fixed_point_t C_Sr_Fzr;
+    {
+        fixed_point_t D_r = fp_mul(mu, F_zr);
+        fixed_point_t B_r = fp_div(C_Sr, C_shape);
+        fixed_point_t Ba_r = fp_mul(B_r, alpha_r);
+        fixed_point_t inner_r = fp_mul(C_shape, fp_atan(Ba_r));
+        fixed_point_t cos_inner_r = fp_cos(inner_r);
+        fixed_point_t denom_r = fp_add(FP_ONE, fp_mul(Ba_r, Ba_r));
+        fixed_point_t inv_denom_r = fp_div(FP_ONE, denom_r);
+        fixed_point_t C_eff_r = fp_mul(fp_mul(fp_mul(D_r, C_shape), B_r),
+                                       fp_mul(cos_inner_r, inv_denom_r));
+        fixed_point_t C_min_r = fp_mul(C_Sr_Fzr_linear, min_stiffness_scale);
+        C_Sr_Fzr = (C_eff_r > C_min_r) ? C_eff_r : C_min_r;
+    }
+
+    /* Compute Pacejka front lateral force for B matrix (replaces linear F_yf) */
+    fixed_point_t F_yf;
+    {
+        fixed_point_t D_f = fp_mul(mu, F_zf);
+        fixed_point_t B_f = fp_div(C_Sf, C_shape);
+        fixed_point_t Ba_f = fp_mul(B_f, alpha_f);
+        fixed_point_t inner_f = fp_mul(C_shape, fp_atan(Ba_f));
+        F_yf = fp_mul(D_f, fp_sin(inner_f));
+    }
+
+#ifdef MPC_DEBUG_PRINT
+    printf("[MPC-DBG] C_Sf_Fzf=%.3f C_Sr_Fzr=%.3f (linear: %.3f, %.3f) F_zf=%.3f F_zr=%.3f alpha_f=%.4f\n",
+           FP_TO_DOUBLE(C_Sf_Fzf), FP_TO_DOUBLE(C_Sr_Fzr),
+           FP_TO_DOUBLE(C_Sf_Fzf_linear), FP_TO_DOUBLE(C_Sr_Fzr_linear),
+           FP_TO_DOUBLE(F_zf), FP_TO_DOUBLE(F_zr),
+           FP_TO_DOUBLE(alpha_f));
+#endif
 
     fixed_point_t dFyf_dvx    = fp_mul(C_Sf_Fzf, daf_dvx);
     fixed_point_t dFyf_dvy    = fp_mul(C_Sf_Fzf, daf_dvy);
@@ -567,13 +646,6 @@ void vehicle_model_compute_linearization(
     fixed_point_t dFyr_dvx    = fp_mul(C_Sr_Fzr, dar_dvx);
     fixed_point_t dFyr_dvy    = fp_mul(C_Sr_Fzr, dar_dvy);
     fixed_point_t dFyr_domega = fp_mul(C_Sr_Fzr, dar_domega);
-
-    /*
-     * Compute current lateral tire forces for B matrix delta column
-     */
-    fixed_point_t front_ratio = fp_div(front_num, vx_safe);
-    fixed_point_t alpha_f = fp_sub(delta, fp_atan(front_ratio));
-    fixed_point_t F_yf = fp_mul(fp_mul(C_Sf, alpha_f), F_zf);
 
     /*
      * Initialize A matrix as identity (7×7)
@@ -719,14 +791,147 @@ void vehicle_model_compute_linearization(
      * Gearbox amplifies motor torque by G at the wheel. */
     input_matrix_B[6][1] = fp_mul(time_step, fp_mul(G_ratio, inv_Iw));
 
-    /* B[3][1]: Approximate direct torque→velocity coupling.
-     * Physically, T_motor affects vx through: T → ωw (B[6][1]) → κ → Fx → vx (A[3][6]).
-     * This 2-step propagation is captured by A^k·B in the condensed QP, but the
-     * gradient is weak and causes poor QP conditioning / chattering.
+    /* B[3][1]: No artificial torque→velocity coupling.
+     * The physical propagation is T → ωw (B[6][1]) → κ → Fx → vx (A[3][6]),
+     * which the condensed QP captures via A^k·B in the Phi matrices.
      *
-     * Adding B[3][1] ≈ A[3][6] × B[6][1] gives the QP a direct gradient from
-     * torque to velocity, dramatically improving convergence.
-     * Equivalent to: dt² × (dFx/dωw) / (m × Iw × G)
+     * Previously, B[3][1] = A[3][6] × B[6][1] was added to give the QP a
+     * direct gradient, but this over-estimates how quickly torque changes
+     * velocity (by one timestep), causing the MPC to command less torque
+     * than needed. With the improved Pacejka model and 2000 solver
+     * iterations, the natural 2-step propagation provides sufficient
+     * gradient for velocity tracking.
      */
-    input_matrix_B[3][1] = fp_mul(state_matrix_A[3][6], input_matrix_B[6][1]);
+    /* input_matrix_B[3][1] = 0; (already zeroed above) */
+}
+
+/*===========================================================================
+ * Frenet Frame Linearization
+ *===========================================================================
+ *
+ * Computes the 6×6 discrete state-space matrices for the Frenet frame.
+ *
+ * Frenet state: [e_y, e_psi, v_x, v_y, omega, omega_w]
+ *
+ * Rows 0-1: Frenet kinematic relations (path-relative)
+ *   e_y_dot   ≈ v_x * e_psi + v_y           (linearized at e_psi=0)
+ *   e_psi_dot ≈ omega - kappa * v_x          (linearized at e_y=0, e_psi=0)
+ *
+ * Rows 2-5: Body-frame dynamics (identical to global model rows 3-6)
+ *   v_x_dot, v_y_dot, omega_dot, omega_w_dot
+ *
+ * Strategy: Call the global linearization and extract body-frame rows,
+ * then build the Frenet kinematic rows using path curvature.
+ */
+void vehicle_model_compute_frenet_linearization(
+    const FrenetState_t *frenet_state,
+    const ControlInput_t *operating_control,
+    fixed_point_t time_step,
+    fixed_point_t path_curvature,
+    fixed_point_t state_matrix_A[FRENET_STATE_DIMENSION][FRENET_STATE_DIMENSION],
+    fixed_point_t input_matrix_B[FRENET_STATE_DIMENSION][2])
+{
+    /*
+     * Step 1: Create a global VehicleState_t for the existing linearization.
+     * Global position and heading don't affect the body-frame Jacobians,
+     * so we set them to zero. Only body-frame states matter.
+     */
+    VehicleState_t global_state;
+    global_state.position_x_meters = 0;
+    global_state.position_y_meters = 0;
+    global_state.heading_angle_radians = 0;
+    global_state.longitudinal_velocity_meters_per_second =
+        frenet_state->longitudinal_velocity_meters_per_second;
+    global_state.lateral_velocity_meters_per_second =
+        frenet_state->lateral_velocity_meters_per_second;
+    global_state.yaw_rate_radians_per_second =
+        frenet_state->yaw_rate_radians_per_second;
+    global_state.wheel_speed_radians_per_second =
+        frenet_state->wheel_speed_radians_per_second;
+
+    /*
+     * Step 2: Get the full 7×7 global linearization
+     */
+    fixed_point_t A_global[7][7];
+    fixed_point_t B_global[7][2];
+    vehicle_model_compute_linearization(
+        &global_state, operating_control, time_step,
+        A_global, B_global);
+
+    /*
+     * Step 3: Initialize Frenet matrices to zero
+     */
+    memset(state_matrix_A, 0,
+           FRENET_STATE_DIMENSION * FRENET_STATE_DIMENSION * sizeof(fixed_point_t));
+    memset(input_matrix_B, 0,
+           FRENET_STATE_DIMENSION * 2 * sizeof(fixed_point_t));
+
+    /*
+     * Step 4: Copy body-frame dynamics (global rows 3-6, cols 3-6)
+     * into Frenet rows 2-5, cols 2-5.
+     *
+     * These rows represent v_x, v_y, omega, omega_w dynamics which
+     * are identical in global and Frenet frames (body-frame forces
+     * don't depend on global position or path-relative position).
+     *
+     * Body dynamics cols 0-2 (dependency on e_y, e_psi) are zero
+     * because body-frame forces don't depend on Frenet position.
+     */
+    for (int i = 0; i < 4; i++)
+    {
+        for (int j = 0; j < 4; j++)
+        {
+            state_matrix_A[i + 2][j + 2] = A_global[i + 3][j + 3];
+        }
+        input_matrix_B[i + 2][0] = B_global[i + 3][0];
+        input_matrix_B[i + 2][1] = B_global[i + 3][1];
+    }
+
+    /*
+     * Step 5: Build Frenet kinematic rows (discrete-time Forward Euler)
+     *
+     * Row 0: e_y dynamics
+     *   Continuous: e_y_dot = v_x * sin(e_psi) + v_y * cos(e_psi)
+     *   Linearized (e_psi ≈ 0): e_y_dot ≈ v_x * e_psi + v_y
+     *   Discrete: e_y[k+1] = e_y[k] + dt * (v_x * e_psi[k] + v_y[k])
+     *
+     *   A[0][0] = 1         (identity)
+     *   A[0][1] = dt * v_x  (heading error drives lateral drift)
+     *   A[0][2] = 0         (∂/∂v_x = sin(e_psi) ≈ 0 at e_psi=0)
+     *   A[0][3] = dt        (lateral velocity directly changes e_y)
+     *   A[0][4] = 0         (no direct omega coupling)
+     *   A[0][5] = 0         (no direct omega_w coupling)
+     */
+    fixed_point_t v_x = frenet_state->longitudinal_velocity_meters_per_second;
+
+    state_matrix_A[0][0] = FP_ONE;
+    state_matrix_A[0][1] = fp_mul(time_step, v_x);
+    /* A[0][2..5] = 0, except: */
+    state_matrix_A[0][3] = time_step;
+
+    /*
+     * Row 1: e_psi dynamics
+     *   Continuous: e_psi_dot = omega - kappa * v_x * cos(e_psi) / (1 - kappa * e_y)
+     *   Linearized (e_y ≈ 0, e_psi ≈ 0): e_psi_dot ≈ omega - kappa * v_x
+     *   Discrete: e_psi[k+1] = e_psi[k] + dt * (omega[k] - kappa * v_x[k])
+     *
+     *   A[1][0] = 0                (∂/∂e_y ≈ kappa² * v_x ≈ 0 for small kappa)
+     *   A[1][1] = 1                (identity)
+     *   A[1][2] = -dt * kappa      (speed along curved path changes heading error)
+     *   A[1][3] = 0                (no v_y coupling)
+     *   A[1][4] = dt               (yaw rate directly changes heading error)
+     *   A[1][5] = 0                (no omega_w coupling)
+     */
+    state_matrix_A[1][1] = FP_ONE;
+    state_matrix_A[1][2] = fp_neg(fp_mul(time_step, path_curvature));
+    state_matrix_A[1][4] = time_step;
+
+    /*
+     * B rows 0-1 are all zero:
+     * Steering and torque don't directly change e_y or e_psi.
+     * Their effect propagates through omega (row 4) and v_y (row 3),
+     * which then affect e_y and e_psi through the A matrix coupling.
+     */
+    /* input_matrix_B[0][0..1] = 0 (already zeroed) */
+    /* input_matrix_B[1][0..1] = 0 (already zeroed) */
 }
