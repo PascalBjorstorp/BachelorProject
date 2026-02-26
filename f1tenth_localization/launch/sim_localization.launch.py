@@ -20,14 +20,16 @@ Usage:
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, LogInfo, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, LogInfo, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node, LifecycleNode
 
 
 def launch_setup(context, *args, **kwargs):
     """Setup function called at launch time with resolved arguments."""
     pkg_dir = get_package_share_directory('f1tenth_localization')
+    lidar_pkg_dir = get_package_share_directory('f1tenth_lidar')
     amcl_params_file = os.path.join(pkg_dir, 'config', 'nav2_amcl_params.yaml')
     gpu_amcl_params_file = os.path.join(pkg_dir, 'config', 'gpu_amcl_params.yaml')
 
@@ -43,6 +45,14 @@ def launch_setup(context, *args, **kwargs):
             'Ensure simulator is running with tf_frame_id=ego_racecar/odom!'
     )
     nodes.append(info_msg)
+
+    # Scan splitter — classifies beams as wall/obstacle so AMCL gets /scan_walls
+    splitter_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(lidar_pkg_dir, 'launch', 'scan_splitter.launch.py')
+        ),
+    )
+    nodes.append(splitter_launch)
 
     # ---- AMCL node ----
     lifecycle_node_names = []

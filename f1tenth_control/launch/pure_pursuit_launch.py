@@ -17,18 +17,17 @@ def generate_launch_description():
     # Get package directories
     f1tenth_control_share = get_package_share_directory('f1tenth_control')
     
-    # Default trajectory path - go up from install dir to find planning package
-    # This works both from install and source directories
-    workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(f1tenth_control_share)))
-    default_trajectory = os.path.join(
-        workspace_root, 'f1tenth_planning', 'trajectories', 'Spielberg_raceline.csv'
-    )
-    
-    # Fallback: check if it exists in the expected location
-    if not os.path.exists(default_trajectory):
-        # Try relative to home
-        default_trajectory = os.path.expanduser(
-            '/ros2_ws/src/f1tenth_planning/trajectories/Spielberg_raceline.csv'
+    # Default trajectory: look in f1tenth_planning's installed share directory
+    try:
+        f1tenth_planning_share = get_package_share_directory('f1tenth_planning')
+        default_trajectory = os.path.join(
+            f1tenth_planning_share, 'trajectories', 'Spielberg_raceline.csv'
+        )
+    except Exception:
+        # Fallback: try workspace source directory
+        workspace_root = os.path.dirname(os.path.dirname(f1tenth_control_share))
+        default_trajectory = os.path.join(
+            workspace_root, 'f1tenth_planning', 'trajectories', 'Spielberg_raceline.csv'
         )
     
     # Launch arguments
