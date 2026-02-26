@@ -1,0 +1,451 @@
+#!/usr/bin/env python3
+"""
+Friction Limit Test for F1/10th Car
+
+Measures the maximum tire grip (friction coefficient μ) by driving circles
+at increasing speed until the tires begin to saturate.
+
+The friction coefficient is:
+    μ = a_y_max / g
+
+where a_y_max is the maximum sustained lateral acceleration before the car
+begins to slide (understeer or oversteer).
+
+Detection methods:
+1. IMU lateral acceleration reaches a plateau
+2. Actual yaw rate diverges from kinematic prediction
+3. Odom-reported radius increases significantly from kinematic radius
+
+NOTE ON ODOMETRY LIMITATIONS:
+    The VESC derives speed from motor ERPM (back-EMF).  During high-speed
+    cornering the driven wheels may spin faster or differently from the true
+    ground speed (lateral slip).  The odom-based trajectory (x, y) is
+    integrated from that ERPM velocity and will diverge from reality.
+    The friction coefficient μ itself comes from the IMU lateral acceleration
+    which is a direct physical measurement and is NOT affected by this.
+    However, the odom-based radius (circle fit) and speed should be
+    cross-checked against the IMU-based radius R = v/|ω_imu|.
+
+CAUTION: This test intentionally approaches the limits of grip!
+Start at low speed and increase gradually. Keep the joystick ready.
+
+Usage:
+    python3 test_friction.py [--steering 0.3] [--max-speed 4.0] [--speed-step 0.5]
+"""
+
+import argparse
+import time
+
+import numpy as np
+import rclpy
+
+import sys as _sys, os as _os  # noqa: E402
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..'))
+from common import (
+    TestNode, fit_circle, radius_from_steering_angle, radius_from_imu,
+    DEFAULT_WHEELBASE
+)
+
+GRAVITY = 9.81  # m/s²
+
+
+class FrictionTestNode(TestNode):
+    
+    def __init__(self, args):
+        columns = [
+            'odom_x', 'odom_y', 'odom_yaw',
+            'odom_vx', 'odom_omega',
+            'imu_ax', 'imu_ay', 'imu_gz',
+            'cmd_speed', 'cmd_steering',
+            'speed_setpoint', 'phase'
+        ]
+        
+        num_speeds = int((args.max_speed - args.min_speed) / args.speed_step) + 1
+        max_time = num_speeds * 15.0 + 60.0
+        
+        # Auto-calculate geofence if not specified (0 = auto)
+        geofence = args.geofence
+        if geofence <= 0:
+            # Kinematic radius at the given steering angle
+            r_kin = radius_from_steering_angle(args.steering, args.wheelbase)
+            # At high speeds tires slip → radius grows significantly
+            r_max_est = r_kin * 3.0  # generous estimate for heavy slip
+            # Car starts at edge of circle, so max distance from origin ≈ 2R
+            geofence = 2.0 * r_max_est + 2.0  # extra 2m margin
+        
+        super().__init__(
+            'friction_test',
+            'friction_test',
+            columns,
+            max_speed=args.max_speed * 1.3,
+            max_time=max_time,
+            max_distance=geofence
+        )
+        
+        self.steering_angle = args.steering
+        self.min_speed = args.min_speed
+        self.max_speed_cmd = args.max_speed
+        self.speed_step = args.speed_step
+        self.wheelbase = args.wheelbase
+        self.circle_time = args.circle_time
+        self.slip_abort_threshold = args.slip_abort
+        
+        self.speed_results = []
+    
+    def run_at_speed(self, target_speed: float):
+        """Drive circle at target speed, record lateral acceleration."""
+        steer = self.steering_angle  # always turn left for consistency
+        
+        self.get_logger().info(f"  Speed: {target_speed:.1f} m/s")
+        
+        # Drive at speed with steering
+        self.send_command(target_speed, steer)
+        
+        # Allow settle time
+        self.spin_for(2.0)
+        
+        # Record data
+        ay_samples = []
+        ax_samples = []
+        omega_samples = []
+        speed_samples = []
+        x_samples = []
+        y_samples = []
+        consistency_samples = []
+        
+        start = time.monotonic()
+        while time.monotonic() - start < self.circle_time:
+            rclpy.spin_once(self, timeout_sec=0.005)
+            
+            if not self.safety.check():
+                self.get_logger().error(f"Safety abort: {self.safety.abort_reason}")
+                self.stop_car()
+                return None
+            
+            self.send_command(target_speed, steer)
+
+            imu_ax_corr = self.imu_ax - self.imu_bias_ax
+            imu_ay_corr = self.imu_ay - self.imu_bias_ay
+            imu_gz_corr = self.imu_gz - self.imu_bias_gz
+            
+            ay_samples.append(imu_ay_corr)
+            ax_samples.append(imu_ax_corr)
+            omega_samples.append(imu_gz_corr)
+            speed_samples.append(self.odom_vx)
+            x_samples.append(self.odom_x)
+            y_samples.append(self.odom_y)
+            consistency_samples.append(abs(abs(imu_ay_corr) - abs(self.odom_vx * imu_gz_corr)))
+            
+            self.recorder.record(
+                odom_x=self.odom_x,
+                odom_y=self.odom_y,
+                odom_yaw=self.odom_yaw,
+                odom_vx=self.odom_vx,
+                odom_omega=self.odom_omega,
+                imu_ax=imu_ax_corr,
+                imu_ay=imu_ay_corr,
+                imu_gz=imu_gz_corr,
+                cmd_speed=target_speed,
+                cmd_steering=steer,
+                speed_setpoint=target_speed,
+                phase=f'friction_v{target_speed:.1f}'
+            )
+        
+        if len(ay_samples) < 10:
+            return None
+        
+        ay_arr = np.abs(np.array(ay_samples))
+        omega_arr = np.abs(np.array(omega_samples))
+        speed_arr = np.array(speed_samples)
+        x_arr = np.array(x_samples)
+        y_arr = np.array(y_samples)
+        consistency_arr = np.array(consistency_samples)
+
+        # Keep only near steady-state samples where |a_y| ≈ |v_x * ω|
+        steady_mask = consistency_arr < 0.8
+        n_total = len(ay_arr)
+        if np.sum(steady_mask) >= 20:
+            ay_used = ay_arr[steady_mask]
+            omega_used = omega_arr[steady_mask]
+            speed_used = speed_arr[steady_mask]
+            x_used = x_arr[steady_mask]
+            y_used = y_arr[steady_mask]
+            consistency_used = consistency_arr[steady_mask]
+        else:
+            ay_used = ay_arr
+            omega_used = omega_arr
+            speed_used = speed_arr
+            x_used = x_arr
+            y_used = y_arr
+            consistency_used = consistency_arr
+
+        avg_ay = np.mean(ay_used)
+        std_ay = np.std(ay_used)
+        avg_speed = np.mean(speed_used)
+        std_speed = np.std(speed_used)
+        avg_omega = np.mean(omega_used)
+        std_omega = np.std(omega_used)
+        consistency_rmse = float(np.sqrt(np.mean(consistency_used**2)))
+        n_samples = len(ay_used)
+        
+        # Kinematic prediction
+        r_kinematic = radius_from_steering_angle(self.steering_angle, self.wheelbase)
+        omega_kinematic = avg_speed / r_kinematic
+        ay_kinematic = avg_speed**2 / r_kinematic
+        
+        # Fit actual radius
+        x = np.array(x_used)
+        y = np.array(y_used)
+        if len(x) > 10:
+            _, _, r_actual, _ = fit_circle(x, y)
+        else:
+            r_actual = r_kinematic
+        
+        # Slip indicator: ratio of actual to kinematic yaw rate
+        slip_ratio = avg_omega / omega_kinematic if omega_kinematic > 0.01 else 1.0
+        omega_kinematic_cmd = abs(target_speed) / r_kinematic if r_kinematic > 0.01 else 0.0
+        slip_ratio_cmd = avg_omega / omega_kinematic_cmd if omega_kinematic_cmd > 0.01 else 1.0
+        
+        # IMU-based radius (slip-independent)
+        r_imu = radius_from_imu(avg_speed, avg_omega)
+        
+        result = {
+            'speed_cmd': target_speed,
+            'speed_actual': avg_speed,
+            'speed_std': std_speed,
+            'ay_imu': avg_ay,
+            'ay_std': std_ay,
+            'ay_kinematic': ay_kinematic,
+            'omega_actual': avg_omega,
+            'omega_std': std_omega,
+            'omega_kinematic': omega_kinematic,
+            'r_actual': r_actual,
+            'r_imu': r_imu,
+            'r_kinematic': r_kinematic,
+            'slip_ratio': slip_ratio,
+            'slip_ratio_cmd': slip_ratio_cmd,
+            'mu_estimate': avg_ay / GRAVITY,
+            'consistency_rmse': consistency_rmse,
+            'n_samples_total': n_total,
+            'n_samples': n_samples,
+        }
+        
+        self.get_logger().info(
+            f"    v={avg_speed:.2f} m/s, "
+            f"a_y={avg_ay:.3f} m/s² ({avg_ay/GRAVITY:.3f}g), "
+            f"ω={np.degrees(avg_omega):.1f}°/s "
+            f"(kinematic: {np.degrees(omega_kinematic):.1f}°/s), "
+            f"slip_ratio={slip_ratio:.3f}")
+        
+        return result
+    
+    def run_test(self):
+        """Execute friction limit test with increasing speed."""
+        if not self.wait_for_sensors():
+            return False
+        
+        r_kinematic = radius_from_steering_angle(self.steering_angle, self.wheelbase)
+        speeds = np.arange(self.min_speed, self.max_speed_cmd + 0.01, self.speed_step)
+        
+        self.get_logger().info("=" * 60)
+        self.get_logger().info("FRICTION LIMIT TEST")
+        self.get_logger().info(f"Steering angle: {np.degrees(self.steering_angle):.1f}°")
+        self.get_logger().info(f"Speed range: {self.min_speed:.1f} to {self.max_speed_cmd:.1f} m/s "
+                              f"(step {self.speed_step:.1f})")
+        self.get_logger().info(f"Kinematic radius: {r_kinematic:.2f}m")
+        self.get_logger().info(f"Required space: ~{2*r_kinematic + 2:.1f}m x {2*r_kinematic + 2:.1f}m")
+        if self.safety.max_distance > 0:
+            min_geofence = 2.0 * r_kinematic + 0.5
+            if self.safety.max_distance < min_geofence:
+                self.get_logger().warn(
+                    f"Geofence ({self.safety.max_distance:.2f}m) may be too tight for this circle. "
+                    f"Recommended >= {min_geofence:.2f}m (2R + margin).")
+            else:
+                self.get_logger().info(
+                    f"Geofence check: {self.safety.max_distance:.2f}m (recommended >= {min_geofence:.2f}m)")
+        self.get_logger().info("")
+        self.get_logger().info("CAUTION: Car will approach grip limits!")
+        self.get_logger().info("Keep joystick ready. Test will auto-abort if")
+        self.get_logger().info(f"slip ratio drops below {self.slip_abort_threshold:.2f} (severe tire saturation).")
+        self.get_logger().info("=" * 60)
+
+        self.calibrate_imu_bias(duration=1.5)
+        
+        self.countdown(5)
+        self.recorder.start()
+        self.safety.start()
+        self.safety.set_origin(self.odom_x, self.odom_y)
+        self.test_running = True
+        
+        for speed in speeds:
+            if not self.test_running:
+                break
+            
+            result = self.run_at_speed(speed)
+            
+            if result is not None:
+                self.speed_results.append(result)
+                
+                # Auto-abort if severe slip detected
+                if self.slip_abort_threshold > 0 and result['slip_ratio_cmd'] < self.slip_abort_threshold:
+                    self.get_logger().warn(
+                        f"  Severe tire slip detected (ratio={result['slip_ratio_cmd']:.2f} "
+                        f"< threshold {self.slip_abort_threshold:.2f}). "
+                        f"Stopping test for safety. "
+                        f"Use --slip-abort <lower> to allow more slip.")
+                    break
+        
+        self.stop_car()
+        time.sleep(0.5)
+        self.stop_car()
+        
+        self.recorder.save()
+        self.analyze()
+        return True
+    
+    def analyze(self):
+        """Analyze friction test results."""
+        if not self.speed_results:
+            self.get_logger().warn("No valid data to analyze")
+            return
+        
+        self.get_logger().info("")
+        self.get_logger().info("=" * 60)
+        self.get_logger().info("ANALYSIS RESULTS")
+        self.get_logger().info("=" * 60)
+        
+        speeds = np.array([r['speed_actual'] for r in self.speed_results])
+        ay_values = np.array([r['ay_imu'] for r in self.speed_results])
+        slip_ratios = np.array([r['slip_ratio_cmd'] for r in self.speed_results])
+        
+        # Maximum lateral acceleration
+        max_ay = np.max(ay_values)
+        mu = max_ay / GRAVITY
+        
+        self.get_logger().info(f"\n1. FRICTION COEFFICIENT:")
+        self.get_logger().info(f"   Max lateral acceleration: {max_ay:.3f} m/s² ({mu:.3f} g)")
+        self.get_logger().info(f"   Friction coefficient μ ≈ {mu:.3f}")
+        self.get_logger().info(f"   At speed: {speeds[np.argmax(ay_values)]:.2f} m/s")
+        
+        # Check if we reached saturation
+        if np.min(slip_ratios) < 0.85:
+            self.get_logger().info(f"   Tire saturation detected (min slip ratio: {np.min(slip_ratios):.3f})")
+        else:
+            self.get_logger().info(f"   Tires did NOT fully saturate at tested speeds.")
+            self.get_logger().info(f"   Consider testing at higher speeds for true μ.")
+        
+        # Print table
+        self.get_logger().info(f"\n2. SPEED vs LATERAL ACCELERATION:")
+        self.get_logger().info(f"   {'v (m/s)':>8} {'a_y (m/s²)':>12} {'a_y (g)':>10} {'slip_cmd':>10} {'R_odom':>8} {'R_imu':>8} {'N_used':>8}")
+        for r in self.speed_results:
+            ri = r.get('r_imu', r['r_actual'])
+            self.get_logger().info(
+                f"   {r['speed_actual']:8.2f} {r['ay_imu']:12.3f} {r['ay_imu']/GRAVITY:10.3f} "
+            f"{r['slip_ratio_cmd']:10.3f} {r['r_actual']:8.3f} {ri:8.3f} {r['n_samples']:8d}")
+        
+        self.get_logger().info(f"\n   NOTE: The friction coefficient μ is from the IMU (direct measurement)")
+        self.get_logger().info(f"   and is NOT affected by odometry errors. R_odom vs R_imu shows")
+        self.get_logger().info(f"   how much the ERPM-based odom diverges from reality at each speed.")
+        
+        # ---- Summary for MPC ----
+        self.get_logger().info(f"\n--- Parameters for MPC ---")
+        self.get_logger().info(f"  Friction coefficient μ: {mu:.3f}")
+        self.get_logger().info(f"  Max safe lateral accel: {max_ay * 0.8:.2f} m/s² (80% margin)")
+        self.get_logger().info(f"  This limits max cornering speed at radius R:")
+        self.get_logger().info(f"    v_max = sqrt(μ * g * R)")
+        
+        r_kin = radius_from_steering_angle(self.steering_angle, self.wheelbase)
+        v_max_corner = np.sqrt(mu * GRAVITY * r_kin)
+        self.get_logger().info(f"  At δ={np.degrees(self.steering_angle):.0f}° (R={r_kin:.2f}m): v_max = {v_max_corner:.2f} m/s")
+
+        # Save summary CSV with per-speed-point results
+        import csv as csv_mod
+        summary_path = self.recorder.filename.replace('.csv', '_summary.csv')
+        with open(summary_path, 'w', newline='') as f:
+            writer = csv_mod.DictWriter(f, fieldnames=[
+                'speed_cmd', 'speed_actual', 'speed_std',
+                'ay_imu', 'ay_std', 'ay_kinematic',
+                'omega_actual', 'omega_std', 'omega_kinematic',
+                'r_actual', 'r_imu', 'r_kinematic',
+                'slip_ratio', 'slip_ratio_cmd',
+                'consistency_rmse', 'mu', 'mu_uncertainty',
+                'n_samples_total', 'n_samples'])
+            writer.writeheader()
+            for r in self.speed_results:
+                mu_val = r['ay_imu'] / GRAVITY
+                mu_unc = r['ay_std'] / GRAVITY  # propagated from ay_std
+                writer.writerow({
+                    'speed_cmd': r['speed_cmd'],
+                    'speed_actual': r['speed_actual'],
+                    'speed_std': r['speed_std'],
+                    'ay_imu': r['ay_imu'],
+                    'ay_std': r['ay_std'],
+                    'ay_kinematic': r['ay_kinematic'],
+                    'omega_actual': r['omega_actual'],
+                    'omega_std': r['omega_std'],
+                    'omega_kinematic': r['omega_kinematic'],
+                    'r_actual': r['r_actual'],
+                    'r_imu': r['r_imu'],
+                    'r_kinematic': r['r_kinematic'],
+                    'slip_ratio': r['slip_ratio'],
+                    'slip_ratio_cmd': r['slip_ratio_cmd'],
+                    'consistency_rmse': r['consistency_rmse'],
+                    'mu': mu_val,
+                    'mu_uncertainty': mu_unc,
+                    'n_samples_total': r['n_samples_total'],
+                    'n_samples': r['n_samples'],
+                })
+        self.get_logger().info(f"Summary saved to {summary_path}")
+
+        # Auto-save to vehicle_params.yaml
+        from common import update_vehicle_params
+        update_vehicle_params({
+            'mu': float(mu),
+            'max_lateral_accel': float(max_ay),
+        }, status='TESTED', logger=self.get_logger())
+        self.get_logger().info("=" * 60)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='F1/10th Friction Limit Test')
+    parser.add_argument('--steering', type=float, default=0.3,
+                        help='Steering angle in radians (default: 0.3 ≈ 17°)')
+    parser.add_argument('--min-speed', type=float, default=2.0,
+                        help='Starting speed (m/s, default: 2.0)')
+    parser.add_argument('--max-speed', type=float, default=5.0,
+                        help='Maximum speed to test (m/s, default: 5.0)')
+    parser.add_argument('--speed-step', type=float, default=0.5,
+                        help='Speed increment (m/s, default: 0.5)')
+    parser.add_argument('--circle-time', type=float, default=8.0,
+                        help='Recording time per speed point (s, default: 8.0)')
+    parser.add_argument('--wheelbase', type=float, default=DEFAULT_WHEELBASE,
+                        help=f'Wheelbase in meters (default: {DEFAULT_WHEELBASE})')
+    parser.add_argument('--geofence', type=float, default=0.0,
+                        help='Max distance from start before abort (m, default: 0=auto-calculate from steering+speed, circle path needs ~2R)')
+    parser.add_argument('--slip-abort', type=float, default=0.0,
+                        help='Abort when slip ratio drops below this (default: 0=never abort on slip)')
+    parser.add_argument('--runs', type=int, default=5,
+                        help='Number of complete test runs (default: 5)')
+    args = parser.parse_args()
+    
+    rclpy.init()
+    for run_idx in range(args.runs):
+        if args.runs > 1:
+            print(f"\n{'='*60}")
+            print(f"RUN {run_idx + 1}/{args.runs}")
+            print(f"{'='*60}\n")
+        node = FrictionTestNode(args)
+        try:
+            node.run_test()
+        finally:
+            node.stop_car()
+            node.destroy_node()
+        if run_idx < args.runs - 1:
+            print("\n  >>> Reposition the car for the next run.")
+            input("  >>> Press ENTER when ready...")
+    rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()

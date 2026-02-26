@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>f1tenth_lidar</name>
+  <version>1.0.0</version>
+  <description>F1Tenth LiDAR drivers and scan processing (Hokuyo UST-10LX driver, scan splitter)</description>
+  <maintainer email="pabjo23@student.sdu.dk">Pascal</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>tf2_geometry_msgs</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

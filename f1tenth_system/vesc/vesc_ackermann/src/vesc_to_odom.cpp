@@ -162,7 +162,9 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   }
 
   // convert to engineering units
-  double current_speed = (state->state.speed - speed_to_erpm_offset_) / speed_to_erpm_gain_;
+  // Linear model: speed = (ERPM - offset) / gain
+  double erpm = state->state.speed;
+  double current_speed = (erpm - speed_to_erpm_offset_) / speed_to_erpm_gain_;
   if (std::fabs(current_speed) < 0.05) {
     current_speed = 0.0;
   }

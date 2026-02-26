@@ -171,6 +171,8 @@ void VescDriver::vescPacketCallback(const std::shared_ptr<VescPacket const> & pa
     auto state_msg = VescStateStamped();
     state_msg.header.stamp = now();
 
+    state_msg.state.temp_fet = values->temp_fet();
+    state_msg.state.temp_motor = values->temp_motor();
     state_msg.state.voltage_input = values->v_in();
     state_msg.state.current_motor = values->avg_motor_current();
     state_msg.state.current_input = values->avg_input_current();

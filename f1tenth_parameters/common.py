@@ -60,7 +60,7 @@ from datetime import datetime
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSProfile
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
 from ackermann_msgs.msg import AckermannDriveStamped
 from nav_msgs.msg import Odometry
@@ -72,18 +72,18 @@ from std_msgs.msg import Float64
 # ============================================================================
 
 # Default safety limits
-DEFAULT_MAX_SPEED = 3.0        # m/s
+DEFAULT_MAX_SPEED = 12.0        # m/s
 DEFAULT_MAX_TEST_TIME = 60.0   # seconds
 DEFAULT_MIN_BATTERY_V = 10.5   # volts (3S LiPo cutoff ~3.5V/cell)
 
 # VESC conversion defaults (from vesc.yaml)
-DEFAULT_ERPM_GAIN = 4450.0
+DEFAULT_ERPM_GAIN = 4550.0
 DEFAULT_ERPM_OFFSET = 0.0
-DEFAULT_SERVO_GAIN = -0.915
-DEFAULT_SERVO_OFFSET = 0.468
-DEFAULT_SERVO_MIN = 0.0
-DEFAULT_SERVO_MAX = 0.82
-DEFAULT_WHEELBASE = 0.3302
+DEFAULT_SERVO_GAIN = -0.7940
+DEFAULT_SERVO_OFFSET = 0.5500
+DEFAULT_SERVO_MIN = 0.202
+DEFAULT_SERVO_MAX = 0.890
+DEFAULT_WHEELBASE = 0.324
 
 # Compute max steering angle from servo limits
 # servo = gain * angle + offset
@@ -112,7 +112,8 @@ class DataRecorder:
         """
         os.makedirs(DATA_DIR, exist_ok=True)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        self.filename = os.path.join(DATA_DIR, f'{test_name}_{timestamp}.csv')
+        self.test_name = f'{test_name}_{timestamp}'
+        self.filename = os.path.join(DATA_DIR, f'{self.test_name}.csv')
         self.columns = ['timestamp_s'] + columns
         self.rows = []
         self.start_time = None
@@ -159,20 +160,45 @@ class SafetyMonitor:
     
     def __init__(self, max_speed: float = DEFAULT_MAX_SPEED,
                  max_time: float = DEFAULT_MAX_TEST_TIME,
-                 min_battery_v: float = DEFAULT_MIN_BATTERY_V):
+                 min_battery_v: float = DEFAULT_MIN_BATTERY_V,
+                 max_distance: float = 0.0,
+                 geofence_consecutive_samples: int = 20):
+        """
+        Args:
+            max_distance: Maximum distance from origin before abort.
+                          0 = disabled (default). Set > 0 to enable geofence.
+            geofence_consecutive_samples: Number of consecutive out-of-bounds
+                          samples required before geofence abort (debounce).
+        """
         self.max_speed = max_speed
         self.max_time = max_time
         self.min_battery_v = min_battery_v
+        self.max_distance = max_distance
+        self.geofence_consecutive_samples = max(1, int(geofence_consecutive_samples))
         self.start_time = None
         self.current_speed = 0.0
         self.battery_voltage = 12.0
+        self.origin_x = None
+        self.origin_y = None
+        self.current_x = 0.0
+        self.current_y = 0.0
+        self._geofence_violation_count = 0
         self.abort_reason = None
     
     def start(self):
         self.start_time = time.monotonic()
     
+    def set_origin(self, x: float, y: float):
+        """Set the geofence origin (call once at test start)."""
+        self.origin_x = x
+        self.origin_y = y
+    
     def update_speed(self, speed: float):
         self.current_speed = abs(speed)
+    
+    def update_position(self, x: float, y: float):
+        self.current_x = x
+        self.current_y = y
     
     def update_battery(self, voltage: float):
         self.battery_voltage = voltage
@@ -184,7 +210,7 @@ class SafetyMonitor:
         
         elapsed = time.monotonic() - self.start_time
         
-        if elapsed > self.max_time:
+        if self.max_time > 0 and elapsed > self.max_time:
             self.abort_reason = f"Test timeout ({self.max_time:.1f}s)"
             return False
         
@@ -195,6 +221,21 @@ class SafetyMonitor:
         if self.battery_voltage < self.min_battery_v:
             self.abort_reason = f"Low battery ({self.battery_voltage:.2f}V < {self.min_battery_v:.2f}V)"
             return False
+        
+        # Geofence: check distance from origin
+        if self.max_distance > 0 and self.origin_x is not None:
+            dx = self.current_x - self.origin_x
+            dy = self.current_y - self.origin_y
+            dist = (dx * dx + dy * dy) ** 0.5
+            if dist > self.max_distance:
+                self._geofence_violation_count += 1
+                if self._geofence_violation_count >= self.geofence_consecutive_samples:
+                    self.abort_reason = (
+                        f"Geofence exceeded ({dist:.2f}m > {self.max_distance:.1f}m from origin, "
+                        f"{self._geofence_violation_count} consecutive samples)")
+                    return False
+            else:
+                self._geofence_violation_count = 0
         
         return True
 
@@ -218,14 +259,17 @@ class TestNode(Node):
     def __init__(self, node_name: str, test_name: str, 
                  data_columns: list,
                  max_speed: float = DEFAULT_MAX_SPEED,
-                 max_time: float = DEFAULT_MAX_TEST_TIME):
+                 max_time: float = DEFAULT_MAX_TEST_TIME,
+                 max_distance: float = 0.0):
         super().__init__(node_name)
         
         # Data recording
         self.recorder = DataRecorder(test_name, data_columns)
         
         # Safety
-        self.safety = SafetyMonitor(max_speed=max_speed, max_time=max_time)
+        self.safety = SafetyMonitor(
+            max_speed=max_speed, max_time=max_time,
+            max_distance=max_distance)
         
         # State
         self.odom_x = 0.0
@@ -240,10 +284,20 @@ class TestNode(Node):
         self.imu_gx = 0.0
         self.imu_gy = 0.0
         self.imu_gz = 0.0
+        self.imu_bias_ax = 0.0
+        self.imu_bias_ay = 0.0
+        self.imu_bias_az = 9.81  # default gravity reference
+        self.imu_bias_gz = 0.0
         self.battery_voltage = 12.0
         self.motor_rpm = 0.0
+        self.motor_current = 0.0
+        self.input_current = 0.0
+        self.temp_fet = 0.0
+        self.temp_motor = 0.0
         self.odom_received = False
         self.imu_received = False
+        self.vesc_received = False
+        self.has_vesc_msgs = False
         self.test_running = False
         self.test_complete = False
         
@@ -252,26 +306,47 @@ class TestNode(Node):
         self.cmd_steering = 0.0
         
         # Publishers
+        # Publish to /drive (mux navigation input). The mux forwards the
+        # highest-priority active topic to /ackermann_cmd.
+        # No joystick needed — when /teleop is inactive the mux passes /drive through.
         self.drive_pub = self.create_publisher(
             AckermannDriveStamped, 'drive', 10)
         
         # Subscribers
+        # NOTE: vesc_to_odom publishes on 'ego_racecar/odom' (hardcoded in vesc_ackermann)
         self.odom_sub = self.create_subscription(
-            Odometry, 'odom', self._odom_callback, 10)
+            Odometry, 'ego_racecar/odom', self._odom_callback, 10)
         self.imu_sub = self.create_subscription(
             Imu, 'sensors/imu/raw', self._imu_callback, 10)
         
-        # VESC state subscriber (for battery voltage, RPM)
-        # VescStateStamped may not be available as a Python msg, use raw subscription
-        # We'll try to import it, fall back to skipping if unavailable
+        # VESC state subscriber (for battery voltage, RPM, current, temperature)
+        # Try both reliable and best-effort QoS to match whatever the driver uses
         try:
             from vesc_msgs.msg import VescStateStamped
+            self._VescStateStamped = VescStateStamped
+            qos_reliable = QoSProfile(
+                reliability=ReliabilityPolicy.RELIABLE,
+                history=HistoryPolicy.KEEP_LAST,
+                depth=10)
+            qos_best_effort = QoSProfile(
+                reliability=ReliabilityPolicy.BEST_EFFORT,
+                history=HistoryPolicy.KEEP_LAST,
+                depth=10)
             self.vesc_sub = self.create_subscription(
-                VescStateStamped, 'sensors/core', self._vesc_callback, 10)
+                VescStateStamped, 'sensors/core',
+                self._vesc_callback, qos_reliable)
+            self.vesc_sub_be = self.create_subscription(
+                VescStateStamped, 'sensors/core',
+                self._vesc_callback, qos_best_effort)
             self.has_vesc_msgs = True
-        except ImportError:
-            self.get_logger().warn(
-                "vesc_msgs not available, battery monitoring disabled")
+            self.get_logger().info("VESC subscription created (reliable + best-effort)")
+        except (ImportError, Exception) as e:
+            self.get_logger().error(
+                f"VESC MSGS NOT AVAILABLE: {e}")
+            self.get_logger().error(
+                "Source your workspace first: source install/setup.bash")
+            self.get_logger().error(
+                "Battery monitoring, current, and temperature disabled!")
             self.has_vesc_msgs = False
         
         # Shutdown handler
@@ -301,6 +376,7 @@ class TestNode(Node):
         self.odom_omega = msg.twist.twist.angular.z
         
         self.safety.update_speed(self.odom_vx)
+        self.safety.update_position(self.odom_x, self.odom_y)
         self.odom_received = True
     
     def _imu_callback(self, msg: Imu):
@@ -321,7 +397,25 @@ class TestNode(Node):
     def _vesc_callback(self, msg):
         self.battery_voltage = msg.state.voltage_input
         self.motor_rpm = msg.state.speed
+        self.motor_current = msg.state.current_motor
+        self.input_current = msg.state.current_input
+        # Use temp_fet if available, otherwise fall back to max of ntc_temp_mos
+        # (the driver now populates temp_fet, but older builds may not)
+        fet_temp = msg.state.temp_fet
+        if fet_temp < 0.1:
+            fet_temp = max(
+                msg.state.ntc_temp_mos1,
+                msg.state.ntc_temp_mos2,
+                msg.state.ntc_temp_mos3)
+        self.temp_fet = fet_temp
+        # Negative temp_motor means no sensor connected
+        self.temp_motor = msg.state.temp_motor if msg.state.temp_motor > -40.0 else 0.0
         self.safety.update_battery(self.battery_voltage)
+        if not self.vesc_received:
+            self.vesc_received = True
+            self.get_logger().info(
+                f"VESC data received: {self.battery_voltage:.1f}V, "
+                f"FET={self.temp_fet:.1f}°C")
     
     def _sigint_handler(self, sig, frame):
         self.get_logger().warn("Ctrl+C detected, stopping car...")
@@ -366,6 +460,36 @@ class TestNode(Node):
     def stop_car(self):
         """Send zero command to stop the car."""
         self.send_command(0.0, 0.0)
+
+    def calibrate_imu_bias(self, duration: float = 1.5):
+        """Estimate IMU biases while the car is stationary."""
+        self.get_logger().info(f"Calibrating IMU bias for {duration:.1f}s (keep car still)...")
+        ax_samples = []
+        ay_samples = []
+        az_samples = []
+        gz_samples = []
+        start = time.monotonic()
+        while time.monotonic() - start < duration:
+            self.send_command(0.0, 0.0)
+            rclpy.spin_once(self, timeout_sec=0.005)
+            if self.imu_received:
+                ax_samples.append(self.imu_ax)
+                ay_samples.append(self.imu_ay)
+                az_samples.append(self.imu_az)
+                gz_samples.append(self.imu_gz)
+
+        if len(ax_samples) < 20:
+            self.get_logger().warn("IMU bias calibration had few samples; keeping previous biases")
+            return
+
+        self.imu_bias_ax = float(np.mean(ax_samples))
+        self.imu_bias_ay = float(np.mean(ay_samples))
+        self.imu_bias_az = float(np.mean(az_samples))  # ≈ g when level
+        self.imu_bias_gz = float(np.mean(gz_samples))
+        self.get_logger().info(
+            f"IMU bias: ax={self.imu_bias_ax:+.4f}, ay={self.imu_bias_ay:+.4f} m/s², "
+            f"az={self.imu_bias_az:+.4f} m/s² (gravity ref), "
+            f"gz={self.imu_bias_gz:+.4f} rad/s")
     
     # --- Utilities ---
     
@@ -381,29 +505,63 @@ class TestNode(Node):
         self.get_logger().info("Odometry received.")
         return True
     
-    def wait_for_sensors(self, timeout: float = 5.0) -> bool:
-        """Wait until all sensor messages are received."""
+    def wait_for_sensors(self, timeout: float = 5.0,
+                          require_vesc: bool = False) -> bool:
+        """Wait until all sensor messages are received.
+        
+        Args:
+            timeout: Seconds to wait before giving up.
+            require_vesc: If True, also wait for VESC state data
+                          (battery, current, temperature).
+        """
         self.get_logger().info("Waiting for sensors...")
         start = time.monotonic()
-        while not (self.odom_received and self.imu_received):
+        while True:
+            ready = self.odom_received and self.imu_received
+            if require_vesc:
+                ready = ready and self.vesc_received
+            if ready:
+                break
             rclpy.spin_once(self, timeout_sec=0.1)
             if time.monotonic() - start > timeout:
                 missing = []
                 if not self.odom_received:
-                    missing.append("odom")
+                    missing.append("odom (ego_racecar/odom)")
                 if not self.imu_received:
-                    missing.append("IMU")
+                    missing.append("IMU (sensors/imu/raw)")
+                if require_vesc and not self.vesc_received:
+                    missing.append("VESC state (sensors/core)")
                 self.get_logger().error(
                     f"Timeout waiting for sensors: {', '.join(missing)}")
+                if require_vesc and not self.vesc_received:
+                    self.get_logger().error(
+                        "VESC state not received! Check that:")
+                    self.get_logger().error(
+                        "  1. The VESC stack is running: "
+                        "ros2 launch f1tenth_stack bringup_launch.py")
+                    self.get_logger().error(
+                        "  2. The workspace is sourced: "
+                        "source install/setup.bash")
+                    self.get_logger().error(
+                        "  3. Run 'ros2 topic echo /sensors/core' to verify")
                 return False
-        self.get_logger().info("All sensors active.")
+        status = "All sensors active"
+        if self.vesc_received:
+            status += f" (battery={self.battery_voltage:.1f}V, FET={self.temp_fet:.1f}°C)"
+        self.get_logger().info(status)
         return True
     
-    def spin_for(self, duration: float, rate_hz: float = 50.0):
-        """Spin the node for a given duration while processing callbacks."""
+    def spin_for(self, duration: float, rate_hz: float = 200.0):
+        """Spin the node for a given duration while processing callbacks.
+        
+        Re-publishes the current command at ~rate_hz to keep the ackermann_mux
+        alive (mux timeout is typically 0.2s).
+        """
         dt = 1.0 / rate_hz
         start = time.monotonic()
         while time.monotonic() - start < duration:
+            # Re-publish current command to prevent mux timeout
+            self.send_command(self.cmd_speed, self.cmd_steering)
             rclpy.spin_once(self, timeout_sec=dt)
             if not self.safety.check():
                 self.get_logger().error(
@@ -413,11 +571,93 @@ class TestNode(Node):
         return True
     
     def countdown(self, seconds: int = 3):
-        """Print a countdown before starting a test."""
+        """Print a countdown before starting a test.
+        
+        Keeps spinning during the countdown so odom/IMU callbacks stay fresh.
+        """
         for i in range(seconds, 0, -1):
             self.get_logger().info(f"Starting in {i}...")
-            time.sleep(1.0)
+            # Spin at ~50Hz during the 1-second wait
+            end = time.monotonic() + 1.0
+            while time.monotonic() < end:
+                rclpy.spin_once(self, timeout_sec=0.02)
         self.get_logger().info("GO!")
+
+
+# ============================================================================
+# IMU-Based Velocity and Radius Estimation
+# ============================================================================
+
+class ImuVelocityEstimator:
+    """
+    Integrates IMU longitudinal acceleration to estimate velocity independently
+    of wheel (ERPM-based) odometry.
+
+    The VESC odometry derives speed from motor ERPM (back-EMF). During
+    braking the wheels can lock or slip, causing ERPM to drop faster than
+    the actual vehicle speed. During aggressive cornering the driven wheels
+    may spin faster than the ground speed. In both cases the ERPM-based
+    velocity is wrong.
+
+    The IMU accelerometer measures actual body acceleration regardless of
+    wheel state, so integrating it gives a slip-independent velocity
+    estimate for short durations. Over longer periods the integrated
+    velocity drifts due to bias, so it should be periodically re-anchored
+    to odom when the car is in a known-good regime (e.g. steady straight
+    driving).
+
+    Usage:
+        estimator = ImuVelocityEstimator()
+        # While stationary, collect imu_ax samples:
+        estimator.calibrate_bias(stationary_ax_samples)
+        # Start from known velocity
+        estimator.reset(initial_velocity=odom_vx)
+        # In the control / recording loop:
+        estimator.update(imu_ax, dt)
+        v = estimator.velocity
+    """
+
+    def __init__(self, bias: float = 0.0):
+        self.velocity = 0.0
+        self.bias = bias
+
+    def reset(self, initial_velocity: float = 0.0, bias: float = None):
+        """Reset velocity; optionally update bias."""
+        self.velocity = initial_velocity
+        if bias is not None:
+            self.bias = bias
+
+    def calibrate_bias(self, samples) -> float:
+        """Compute accelerometer bias from stationary samples (list or array)."""
+        self.bias = float(np.mean(samples)) if len(samples) > 0 else 0.0
+        return self.bias
+
+    def update(self, imu_ax: float, dt: float) -> float:
+        """Integrate corrected acceleration; returns updated velocity."""
+        self.velocity += (imu_ax - self.bias) * dt
+        self.velocity = max(self.velocity, 0.0)  # forward-only assumption
+        return self.velocity
+
+
+def radius_from_imu(speed: float, yaw_rate: float) -> float:
+    """
+    Compute turning radius from speed and IMU yaw rate.
+
+        R = |v| / |ω|
+
+    This is independent of wheel odometry position integration and
+    therefore unaffected by tire slip or ERPM estimation errors.
+
+    Args:
+        speed: Forward speed in m/s (can be from odom or IMU-integrated).
+        yaw_rate: Yaw rate in rad/s (from /sensors/imu/raw angular_velocity.z).
+
+    Returns:
+        Turning radius in meters, or float('inf') if yaw rate ≈ 0.
+    """
+    if abs(yaw_rate) < 0.01:
+        return float('inf')
+    return abs(speed) / abs(yaw_rate)
 
 
 # ============================================================================
@@ -451,22 +691,32 @@ def fit_circle(x: np.ndarray, y: np.ndarray):
 
 def steering_angle_from_radius(radius: float, wheelbase: float) -> float:
     """
-    Compute steering angle from turning radius using kinematic bicycle model.
-    
-    δ = atan(L / R)
+    Compute steering angle from turning radius using the Ackermann kinematic
+    bicycle model (consistent with compute_half_circle_diameter).
+
+    Forward model:  beta = arctan(0.5 * tan(delta))
+                    R = L / (2 * sin(beta))
+
+    Inverse:  delta = arctan(2 * tan(arcsin(L / (2*R))))
     """
-    return np.arctan(wheelbase / radius)
+    sin_beta = wheelbase / (2.0 * radius)
+    sin_beta = np.clip(sin_beta, -1.0, 1.0)  # numerical safety
+    beta = np.arcsin(sin_beta)
+    return np.arctan(2.0 * np.tan(beta))
 
 
 def radius_from_steering_angle(angle: float, wheelbase: float) -> float:
     """
-    Compute turning radius from steering angle using kinematic bicycle model.
-    
-    R = L / tan(δ)
+    Compute turning radius from steering angle using the Ackermann kinematic
+    bicycle model.
+
+    beta = arctan(0.5 * tan(delta))
+    R = L / (2 * sin(beta))
     """
     if abs(angle) < 1e-6:
         return float('inf')
-    return wheelbase / np.tan(angle)
+    beta = np.arctan(0.5 * np.tan(angle))
+    return wheelbase / (2.0 * np.sin(beta))
 
 
 def servo_to_angle(servo_value: float, 
@@ -500,3 +750,132 @@ def load_csv(filepath: str) -> dict:
             data[key] = np.array([row[key] for row in rows])
     
     return data
+
+
+# ============================================================================
+# Vehicle Parameter Auto-Update
+# ============================================================================
+
+VEHICLE_PARAMS_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), 'vehicle_params.yaml')
+
+# Dependency map: which tests need re-running when a parameter changes
+PARAM_DEPENDENCIES = {
+    'mass': ['test_cornering_stiffness.py', 'test_longitudinal_stiffness.py',
+             'test_motor_torque.py'],
+    'l_f': ['test_cornering_stiffness.py'],
+    'l_r': ['test_cornering_stiffness.py'],
+    'r_eff': ['test_longitudinal_stiffness.py', 'test_motor_torque.py'],
+    'gear_ratio': ['test_motor_torque.py'],
+    'wheelbase': ['test_cornering_stiffness.py', 'test_steering_rate.py'],
+}
+
+
+def update_vehicle_param(key: str, value, status: str = 'TESTED',
+                         logger=None):
+    """
+    Update a single parameter in vehicle_params.yaml.
+    
+    Replaces the value on a line like:
+        key: <old_value>    # ...
+    with:
+        key: <new_value>    # [STATUS] ...
+    
+    Args:
+        key:    YAML key name (e.g., 'mu', 'max_velocity', 'C_alpha_f')
+        value:  New value (float, int, or str)
+        status: Tag like 'TESTED', 'CALC', 'MEASURED'
+        logger: Optional ROS2 logger for output
+    """
+    if not os.path.isfile(VEHICLE_PARAMS_FILE):
+        if logger:
+            logger.warn(f'vehicle_params.yaml not found, skipping auto-update')
+        return False
+
+    with open(VEHICLE_PARAMS_FILE, 'r') as f:
+        lines = f.readlines()
+
+    # Format the value
+    if isinstance(value, float):
+        if abs(value) < 0.001 and value != 0:
+            val_str = f'{value:.6f}'
+        elif abs(value) < 1:
+            val_str = f'{value:.4f}'
+        else:
+            val_str = f'{value:.4f}'
+        # Strip trailing zeros but keep at least one decimal
+        val_str = val_str.rstrip('0').rstrip('.')
+        if '.' not in val_str:
+            val_str += '.0'
+    else:
+        val_str = str(value)
+
+    # Find the line with this key
+    import re as _re
+    pattern = _re.compile(
+        r'^(\s*)' + _re.escape(key) + r':\s*'
+        r'([^#\n]*?)'          # current value (group 2)
+        r'(\s*#\s*)'           # comment start (group 3)
+        r'(\[.*?\]\s*)?'       # optional [TAG] (group 4)
+        r'(.*?)$'              # rest of comment (group 5)
+    )
+
+    updated = False
+    for i, line in enumerate(lines):
+        m = pattern.match(line)
+        if m:
+            indent = m.group(1)
+            comment_sep = m.group(3)
+            rest_comment = m.group(5) or ''
+            # Reconstruct line with new value and status tag
+            new_line = (f'{indent}{key}: {val_str}'
+                        f'{comment_sep}[{status}] {rest_comment}\n')
+            lines[i] = new_line
+            updated = True
+            break
+
+    if not updated:
+        # Try simpler pattern (key with ~ or no comment)
+        simple = _re.compile(
+            r'^(\s*)' + _re.escape(key) + r':\s*~?\s*(#.*)?$')
+        for i, line in enumerate(lines):
+            m = simple.match(line)
+            if m:
+                indent = m.group(1)
+                comment = m.group(2) or ''
+                # Insert [STATUS] into comment if present
+                if comment:
+                    comment = _re.sub(r'\[.*?\]\s*', '', comment)
+                    comment = comment.replace('# ', f'# [{status}] ', 1)
+                else:
+                    comment = f'# [{status}]'
+                lines[i] = f'{indent}{key}: {val_str}  {comment}\n'
+                updated = True
+                break
+
+    if updated:
+        with open(VEHICLE_PARAMS_FILE, 'w') as f:
+            f.writelines(lines)
+        if logger:
+            logger.info(f'  Updated vehicle_params.yaml: {key} = {val_str}')
+    else:
+        if logger:
+            logger.warn(f'  Could not find "{key}" in vehicle_params.yaml')
+
+    return updated
+
+
+def update_vehicle_params(params: dict, status: str = 'TESTED',
+                          logger=None):
+    """
+    Update multiple parameters in vehicle_params.yaml at once.
+    
+    Args:
+        params: Dict of {key: value} pairs
+        status: Tag like 'TESTED', 'CALC'
+        logger: Optional ROS2 logger
+    """
+    for key, value in params.items():
+        if value is not None:
+            update_vehicle_param(key, value, status=status, logger=logger)
+

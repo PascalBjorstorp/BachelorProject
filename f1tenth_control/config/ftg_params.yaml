@@ -30,15 +30,15 @@ ftg_node:
     # ===================
     # Safety Parameters
     # ===================
-    emergency_brake_distance: 0.2 # Emergency stop if obstacle closer (m) - reduced for tight spaces
+    emergency_brake_distance: 0.05 # Emergency stop if obstacle closer (m) - reduced for tight spaces
 
     # ===================
     # FTG-Specific Processing
     # ===================
     # These parameters are specific to the Follow The Gap algorithm
     disparity_threshold: 0.6  # Threshold for detecting disparities (m) - lower = more sensitive
-    gap_threshold: 0.8         # Minimum range to consider as "gap" (m) - readings > this are "open"
-    min_gap_width: 0.3        # Minimum angular width of valid gap (rad) ~8 degrees
+    gap_threshold: 0.3         # Minimum range to consider as "gap" (m) - readings > this are "open"
+    min_gap_width: 0.1        # Minimum angular width of valid gap (rad) ~8 degrees
     bubble_radius: 1.0         # Safety bubble radius around closest point (m) - larger for more safety
     apply_bubble: true         # Enable safety bubble
     wall_margin: 0.15          # Shrink all readings by this amount (m) - creates clearance from parallel walls
@@ -60,4 +60,4 @@ ftg_node:
     # Mapping Mode
     # ===================
     mapping_mode: false
-    mapping_sample_rate: 20.0
+    mapping_sample_rate: 40.0

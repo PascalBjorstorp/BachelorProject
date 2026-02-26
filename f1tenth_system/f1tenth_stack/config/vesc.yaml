@@ -8,15 +8,14 @@
     # ===================
     # VESC Device Config
     # ===================
-    port: /dev/ttyACM0
+    port: /dev/sensors/vesc
     
     # ===================
     # Speed Calibration
     # ===================
-    # erpm = speed_to_erpm_gain * speed (m/s) + speed_to_erpm_offset
-    # Typical F1TENTH values: 4000-5000 depending on motor/gearing
-    # Measure by: drive at known speed, record ERPM, calculate ratio
-    speed_to_erpm_gain: 4450.0
+    # ERPM = speed_to_erpm_gain * v + speed_to_erpm_offset
+    # Calibrate by: drive at known speed, record ERPM, solve for gain
+    speed_to_erpm_gain: 4550.0
     speed_to_erpm_offset: 0.0
     
     # ===================
@@ -24,8 +23,8 @@
     # ===================
     # servo_value = steering_angle_to_servo_gain * steering_angle (rad) + steering_angle_to_servo_offset
     # Calibrate by measuring steering angles at servo endpoints
-    steering_angle_to_servo_gain: -0.915
-    steering_angle_to_servo_offset: 0.468
+    steering_angle_to_servo_gain: -0.7940
+    steering_angle_to_servo_offset: 0.5500
     
     # ===================
     # VESC Limits
@@ -40,8 +39,8 @@
     speed_max: 100000.0
     position_min: 0.0
     position_max: 0.0
-    servo_min: 0.0
-    servo_max: 0.82
+    servo_min: 0.190
+    servo_max: 0.910
     
     # ===================
     # IMU Configuration
@@ -60,10 +59,10 @@
 # ===================
 vesc_to_odom_node:
   ros__parameters:
-    odom_frame: odom
-    base_frame: base_link
+    odom_frame: ego_racecar/odom
+    base_frame: ego_racecar/base_link
     
-    # Publish odom -> base_link TF
+    # Publish ego_racecar/odom -> ego_racecar/base_link TF
     publish_tf: true
     
     # Use IMU for yaw estimation (recommended)
@@ -73,7 +72,7 @@ vesc_to_odom_node:
     use_servo_cmd_to_calc_angular_velocity: false
     
     # Car wheelbase (meters) - measure your car!
-    wheelbase: 0.3302
+    wheelbase: 0.324
     
     # Integration method for odometry:
     # "euler": Simple first-order (fastest, least accurate)
@@ -120,7 +119,7 @@ ackermann_to_vesc_node:
     # When current speed < threshold and commanded > threshold, the driver
     # gradually ramps up speed by increment to allow rotor position detection.
     # Set threshold to 0.0 to disable slow-start entirely.
-    slow_start_threshold: 1.0    # m/s (disable with 0.0)
+    slow_start_threshold: 0.0    # m/s (disable with 0.0)
     slow_start_increment: 0.4    # m/s per command step
 
 # ===================

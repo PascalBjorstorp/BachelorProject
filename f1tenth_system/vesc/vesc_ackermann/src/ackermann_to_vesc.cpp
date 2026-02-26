@@ -178,23 +178,27 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
       publish_brake = true;
     } else if (commanded_vel >= 0) {
       // Forward direction
+      double vel;
       if (current_vel_ < slow_start_threshold_ && commanded_vel > slow_start_threshold_) {
         // Slow start to get rotor position (sensorless motor)
-        erpm_msg.data = speed_to_erpm_gain_ * (current_vel_ + slow_start_increment_) + speed_to_erpm_offset_;
+        vel = current_vel_ + slow_start_increment_;
       } else {
         // Direct ERPM command — VESC PID handles accel and decel
-        erpm_msg.data = speed_to_erpm_gain_ * commanded_vel + speed_to_erpm_offset_;
+        vel = commanded_vel;
       }
+      erpm_msg.data = speed_to_erpm_gain_ * vel + speed_to_erpm_offset_;
       publish_erpm = true;
     } else {
       // Reverse direction
+      double vel;
       if (current_vel_ == 0 && commanded_vel < -slow_start_increment_) {
         // Slow start for reverse (sensorless motor)
-        erpm_msg.data = speed_to_erpm_gain_ * -slow_start_increment_ + speed_to_erpm_offset_;
+        vel = -slow_start_increment_;
       } else {
         // Direct ERPM command — VESC PID handles accel and decel
-        erpm_msg.data = speed_to_erpm_gain_ * commanded_vel + speed_to_erpm_offset_;
+        vel = commanded_vel;
       }
+      erpm_msg.data = speed_to_erpm_gain_ * vel + speed_to_erpm_offset_;
       publish_erpm = true;
     }
   }

@@ -24,22 +24,28 @@ ament_target_dependencies(mpc_receiver_node
   ackermann_msgs
 )
 
-# Executable - FPGA-integrated version (trajectory in BRAM)
-add_executable(mpc_receiver_fpga_node src/mpc_receiver_fpga.cpp)
-target_include_directories(mpc_receiver_fpga_node PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../FPGA/include
-)
-ament_target_dependencies(mpc_receiver_fpga_node
-  rclcpp
-  f1tenth_msgs
-  ackermann_msgs
-)
+# Executable - FPGA-integrated version (only when FPGA headers are available)
+set(FPGA_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../FPGA/include")
+if(EXISTS "${FPGA_INCLUDE_DIR}/fpga_interface.h")
+  message(STATUS "FPGA headers found — building mpc_receiver_fpga_node")
+  add_executable(mpc_receiver_fpga_node src/mpc_receiver_fpga.cpp)
+  target_include_directories(mpc_receiver_fpga_node PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${FPGA_INCLUDE_DIR}
+  )
+  ament_target_dependencies(mpc_receiver_fpga_node
+    rclcpp
+    f1tenth_msgs
+    ackermann_msgs
+  )
+  install(TARGETS mpc_receiver_fpga_node DESTINATION lib/${PROJECT_NAME})
+else()
+  message(STATUS "FPGA headers NOT found — skipping mpc_receiver_fpga_node")
+endif()
 
 # Install
 install(TARGETS 
   mpc_receiver_node
-  mpc_receiver_fpga_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

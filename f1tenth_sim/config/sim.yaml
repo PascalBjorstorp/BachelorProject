@@ -44,9 +44,9 @@ bridge:
     scan_noise_std: 0.04      # 4cm stddev
 
     # map parameters
-    # Absolute path to the map file (without extension)
-    # This is automatically configured by setup.sh
-    map_path: '/home/jonathan/Documents/GitHub/BachelorProject/f1tenth_sim/maps/Spielberg_map'
+    # Map name (without extension). The bridge node resolves this to
+    # <package_share>/maps/<map_path>.yaml at runtime.
+    map_path: 'Spielberg_map'
     map_img_ext: '.png'
 
     # car parameters and scale
@@ -69,7 +69,7 @@ bridge:
     vehicle_C_Sr: 5.282     # Pure rear tire stiffness [1/rad]
 
     # opponent parameters
-    num_agent: 1
+    num_agent: 2
 
     # ego starting pose on map (Spielberg raceline start)
     sx: -69.4

@@ -30,12 +30,14 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     pkg_share = get_package_share_directory('f1tenth_stack')
+    lidar_pkg_share = get_package_share_directory('f1tenth_localization')
 
     # ── Config file paths ──
     joy_teleop_config = os.path.join(pkg_share, 'config', 'joy_teleop.yaml')
     vesc_config = os.path.join(pkg_share, 'config', 'vesc.yaml')
     sensors_config = os.path.join(pkg_share, 'config', 'sensors.yaml')
     mux_config = os.path.join(pkg_share, 'config', 'mux.yaml')
+    hokuyo_config = os.path.join(lidar_pkg_share, 'config', 'hokuyo_ust10lx.yaml')
 
     # ── Launch arguments ──
     ld = LaunchDescription([
@@ -50,7 +52,7 @@ def generate_launch_description():
         DeclareLaunchArgument('use_teleop', default_value='true',
                               description='Launch joystick teleop and mux'),
         DeclareLaunchArgument('use_lidar', default_value='true',
-                              description='Launch LiDAR driver (Hokuyo URG)'),
+                              description='Launch LiDAR driver (Hokuyo SCIP 2.0, 40 Hz)'),
     ])
 
     use_teleop = LaunchConfiguration('use_teleop')
@@ -109,20 +111,21 @@ def generate_launch_description():
     ))
 
     # ══════════════════════
-    #  LiDAR
+    #  LiDAR — Custom SCIP 2.0 driver (40 Hz)
     # ══════════════════════
     ld.add_action(Node(
-        package='urg_node',
-        executable='urg_node_driver',
-        name='urg_node',
-        parameters=[LaunchConfiguration('sensors_config')],
+        package='f1tenth_localization',
+        executable='hokuyo_scip_driver.py',
+        name='hokuyo_scip_driver',
+        output='screen',
+        parameters=[hokuyo_config],
         condition=IfCondition(use_lidar),
     ))
 
     # ══════════════════════
     #  Static transforms
     # ══════════════════════
-    # base_link → laser
+    # ego_racecar/base_link → ego_racecar/laser
     # Update x, y, z to match your LiDAR mounting position.
     # Use update_vehicle_params.py in the workspace root to set all values.
     ld.add_action(Node(
@@ -130,9 +133,14 @@ def generate_launch_description():
         executable='static_transform_publisher',
         name='static_baselink_to_laser',
         arguments=[
-            '0.275', '0.0', '0.14',   # x, y, z translation (meters)
-            '0.0', '0.0', '0.0',      # roll, pitch, yaw (radians)
-            'base_link', 'laser',
+            '--x', '0.275',
+            '--y', '0.0',
+            '--z', '0.05',
+            '--roll', '0.0',
+            '--pitch', '0.0',
+            '--yaw', '0.0',
+            '--frame-id', 'ego_racecar/base_link',
+            '--child-frame-id', 'ego_racecar/laser',
         ],
     ))
 

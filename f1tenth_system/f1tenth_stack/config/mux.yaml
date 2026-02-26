@@ -12,14 +12,14 @@ ackermann_mux:
       navigation:
         topic: drive
         timeout: 0.2
-        priority: 10
+        priority: 100
       
       # Joystick teleop commands (highest priority)
       # Holding deadman switch activates this
       joystick:
         topic: teleop
         timeout: 0.5
-        priority: 100
+        priority: 10
       
       # Safety override (can be used for emergency maneuvers)
       # Even higher priority than joystick

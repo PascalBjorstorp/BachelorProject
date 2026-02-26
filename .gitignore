@@ -121,8 +121,6 @@ test-results/
 # URDF compiled from xacro
 *.urdf
 
-# Map files (keep source .yaml, ignore generated)
-*.pgm
 
 # =============================================
 # Documentation Build
@@ -141,6 +139,8 @@ docs/api/
 *.pid
 core
 core.*
+*.cmake
+*.bin
 
 # Coverage reports
 .coverage
@@ -185,3 +185,14 @@ _ide/
 FPGA/Bitstream/*.bit
 FPGA/Bitstream/*.bin
 FPGA/Bitstream/*.ltx
+FPGA/docs/*
+
+# =============================================
+# Parameter csv files 
+# =============================================
+# f1tenth_parameters/data/*.csv  # UNCOMMENT to exclude large CSVs from git
+
+# CMake generated files
+*CMakeConfigureLog.yaml
+*CMakeCCompilerId.c
+*.aux
