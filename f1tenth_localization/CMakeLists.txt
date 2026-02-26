@@ -15,35 +15,32 @@ install(PROGRAMS
   Benchmark/JetsonFiles/performance_monitor.py
   Benchmark/JetsonFiles/odom_tf_publisher.py
   gpu_amcl/scripts/gpu_amcl_node.py
-  RealRobot/JetsonFiles/hokuyo_lidar_diagnostic.py
-  RealRobot/JetsonFiles/hokuyo_scip_driver.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
-# Install launch files from all subdirectories into a single share/launch/ dir
+# Install launch files
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
+# Also install benchmark launch files
 install(FILES
   Benchmark/JetsonFiles/amcl_bag_benchmark.launch.py
   Benchmark/JetsonFiles/sim_headless.launch.py
   Benchmark/JetsonFiles/record_bag.launch.py
-  Simulation/JetsonFiles/sim_localization.launch.py
-  Simulation/PCFiles/amcl_bag_visualization.launch.py
-  RealRobot/JetsonFiles/hokuyo_lidar.launch.py
-  RealRobot/JetsonFiles/real_localization.launch.py
   DESTINATION share/${PROJECT_NAME}/launch
 )
 
-# Install RViz config alongside launch files
-install(FILES
-  Simulation/PCFiles/amcl_bag_visualization.rviz
-  DESTINATION share/${PROJECT_NAME}/launch
+# Install config files (YAML params + RViz configs)
+install(DIRECTORY
+  config
+  DESTINATION share/${PROJECT_NAME}
 )
 
-# Install config files from all config directories into a single share/config/ dir
+# Also install benchmark config
 install(FILES
-  config/nav2_amcl_params.yaml
-  config/gpu_amcl_params.yaml
   Benchmark/config/benchmark_configs.yaml
-  RealRobot/config/hokuyo_ust10lx.yaml
   DESTINATION share/${PROJECT_NAME}/config
 )
 

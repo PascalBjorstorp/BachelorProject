@@ -58,15 +58,24 @@ def launch_setup(context, *args, **kwargs):
     nodes.append(info_msg)
 
     # 1) LiDAR driver — cluster=4 and range filtering handled in YAML config
+    lidar_pkg_dir = get_package_share_directory('f1tenth_lidar')
     lidar_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(pkg_dir, 'launch', 'hokuyo_lidar.launch.py')
+            os.path.join(lidar_pkg_dir, 'launch', 'hokuyo_lidar.launch.py')
         ),
         launch_arguments={
             'ip_address': LaunchConfiguration('lidar_ip'),
         }.items(),
     )
     nodes.append(lidar_launch)
+
+    # 1b) Scan splitter — classifies beams as wall/obstacle for AMCL filtering
+    splitter_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(lidar_pkg_dir, 'launch', 'scan_splitter.launch.py')
+        ),
+    )
+    nodes.append(splitter_launch)
 
     # 2) Map server — serves the static map to AMCL
     map_server_node = LifecycleNode(

@@ -29,7 +29,7 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    pkg_dir = get_package_share_directory('f1tenth_localization')
+    pkg_dir = get_package_share_directory('f1tenth_lidar')
     config_path = os.path.join(pkg_dir, 'config', 'hokuyo_ust10lx.yaml')
     
     declare_ip_address = DeclareLaunchArgument(
@@ -59,7 +59,7 @@ def generate_launch_description():
     
     # Custom SCIP 2.0 driver — full 40 Hz continuous streaming
     scip_driver = Node(
-        package='f1tenth_localization',
+        package='f1tenth_lidar',
         executable='hokuyo_scip_driver.py',
         name='hokuyo_scip_driver',
         output='screen',
