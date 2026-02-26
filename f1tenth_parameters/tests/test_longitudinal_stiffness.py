@@ -5,6 +5,20 @@ Longitudinal Tire Stiffness Test for F1/10th Car
 Identifies the longitudinal tire stiffness (C_x) by measuring the relationship
 between wheel slip ratio and longitudinal force during acceleration and braking.
 
+KNOWN LIMITATION (2025):
+    The IMU-integrated body velocity v_body drifts significantly due to
+    accelerometer pitch oscillations, especially during braking where the
+    car pitches forward and gravity leaks into the forward-axis reading.
+    This makes the slip ratio kappa unreliable: in the recorded data,
+    kappa ranges from -1.0 to +0.9, far beyond physical values (~0.01-0.05
+    for normal driving).  As a result, C_x CANNOT be reliably identified
+    from this test with the current sensor set.
+
+    TO FIX: Replace IMU-integrated v_body with lidar-based scan-matching
+    odometry (e.g. ICP between consecutive scans).  This provides body
+    velocity independent of both wheel encoders and accelerometer drift.
+    The car already has a Hokuyo LiDAR, so the infrastructure exists.
+
 THEORY:
     Longitudinal tire force (linear region):
         F_x = C_x * kappa
@@ -55,6 +69,7 @@ class LongitudinalStiffnessNode(TestNode):
     def __init__(self, args):
         columns = [
             'odom_vx', 'imu_ax', 'imu_ay', 'imu_az',
+            'gyro_y',
             'motor_rpm', 'motor_current',
             'v_imu', 'slip_ratio',
             'cmd_speed', 'phase'
@@ -77,39 +92,59 @@ class LongitudinalStiffnessNode(TestNode):
 
         self.imu_vel = ImuVelocityEstimator()
 
+        # Complementary filter state for pitch estimation
+        self.comp_pitch = 0.0          # current pitch estimate (rad)
+        self.comp_alpha = args.comp_alpha   # gyro trust factor (0.95–0.99)
+
         # Collected data per phase
         self.accel_data = []
         self.cruise_data = []
         self.decel_data = []
 
-    def pitch_corrected_ax(self, ax_biased, az_raw, is_braking=True):
+    def pitch_corrected_ax(self, ax_biased, az_raw, dt, is_braking=True):
         """
         Correct longitudinal acceleration for pitch-induced gravity projection.
 
-        When the car pitches during braking/acceleration, gravity projects onto
-        the longitudinal axis:
-            During braking (nose down): measured deceleration is too large
-            During acceleration (nose up): measured acceleration is too large
+        Uses a complementary filter combining:
+          - Gyroscope pitch rate (angular_velocity.y) for high-frequency tracking
+          - Accelerometer-derived pitch (low-frequency, absolute reference)
 
-        Correction uses the vertical accelerometer:
-            |θ_pitch| = arccos(clamp(az / g_static, -1, 1))
-            gravity_x = g_static * sin(|θ_pitch|)
+        The complementary filter avoids the fundamental ambiguity of using
+        the accelerometer alone (which can't distinguish pitch from actual
+        forward acceleration).
 
         Returns (ax_corrected, pitch_angle_degrees).
         """
         g_ref = abs(self.az_static) if hasattr(self, 'az_static') else 9.81
-        cos_pitch = np.clip(az_raw / g_ref, -1.0, 1.0)
-        pitch_mag = float(np.arccos(cos_pitch))
-        gravity_x = g_ref * np.sin(pitch_mag)
+
+        # Accelerometer-based pitch estimate (only reliable when ~still)
+        cos_pitch_accel = np.clip(az_raw / g_ref, -1.0, 1.0)
+        theta_accel = float(np.arccos(cos_pitch_accel))
+        # Determine sign: if ax component is negative (for this IMU), pitch is positive
+        # At rest ax ≈ -0.68 with IMU tilted slight nose-down → sign = sign(-ax)
+        if ax_biased < 0 and not is_braking:
+            theta_accel = -theta_accel
+
+        # Gyroscope-based pitch update (angular_velocity.y = pitch rate)
+        gyro_pitch_rate = self.imu_gy  # rad/s
+
+        # Complementary filter: trust gyro for short-term, accel for long-term
+        alpha = self.comp_alpha
+        self.comp_pitch = alpha * (self.comp_pitch + gyro_pitch_rate * dt) + \
+                          (1 - alpha) * theta_accel
+
+        # Gravity component on the x-axis due to pitch
+        gravity_x = g_ref * np.sin(abs(self.comp_pitch))
 
         if is_braking:
-            # Nose down: gravity makes measured ax more negative → add correction
+            # Nose down: pitch > 0 means gravity projects forward
+            # For this IMU convention, the projection makes ax more negative → add back
             ax_corrected = ax_biased + gravity_x
         else:
             # Nose up: gravity makes measured ax more positive → subtract correction
             ax_corrected = ax_biased - gravity_x
 
-        return ax_corrected, np.degrees(pitch_mag)
+        return ax_corrected, np.degrees(self.comp_pitch)
 
     def run_test(self):
         """Execute the longitudinal stiffness test."""
@@ -160,7 +195,7 @@ class LongitudinalStiffnessNode(TestNode):
             # Pitch-corrected acceleration (nose-up during accel → subtract correction)
             ax_corr = self.imu_ax - imu_bias
             ax_pitch, pitch_deg = self.pitch_corrected_ax(
-                ax_corr, self.imu_az, is_braking=False)
+                ax_corr, self.imu_az, dt, is_braking=False)
 
             v_imu = self.imu_vel.update(self.imu_ax, dt)
             v_wheel = self.odom_vx  # ERPM-based
@@ -182,7 +217,7 @@ class LongitudinalStiffnessNode(TestNode):
 
             self.recorder.record(
                 odom_vx=v_wheel, imu_ax=ax_pitch, imu_ay=self.imu_ay,
-                imu_az=self.imu_az,
+                imu_az=self.imu_az, gyro_y=self.imu_gy,
                 motor_rpm=self.motor_rpm, motor_current=self.motor_current,
                 v_imu=v_imu, slip_ratio=kappa,
                 cmd_speed=self.max_speed, phase='acceleration'
@@ -242,7 +277,7 @@ class LongitudinalStiffnessNode(TestNode):
 
             self.recorder.record(
                 odom_vx=v_wheel, imu_ax=ax_corr, imu_ay=self.imu_ay,
-                imu_az=self.imu_az,
+                imu_az=self.imu_az, gyro_y=self.imu_gy,
                 motor_rpm=self.motor_rpm, motor_current=self.motor_current,
                 v_imu=v_imu, slip_ratio=kappa,
                 cmd_speed=self.max_speed, phase='cruise'
@@ -281,10 +316,14 @@ class LongitudinalStiffnessNode(TestNode):
         self.get_logger().info(f"  IMU velocity anchored to {abs(self.odom_vx):.2f} m/s")
 
         # ---- Phase 3: Braking ----
-        self.get_logger().info("\n--- Phase 3: BRAKING (with pitch compensation) ---")
+        self.get_logger().info("\n--- Phase 3: BRAKING (with gyro+accel pitch compensation) ---")
         self.get_logger().info(f"  Using cruise-refined IMU bias: {braking_bias:.4f} m/s²")
+        self.get_logger().info(f"  Complementary filter alpha: {self.comp_alpha:.3f}")
         phase_start = time.monotonic()
         last_t = phase_start
+
+        # Reset complementary filter pitch to near-zero (car is level during cruise)
+        self.comp_pitch = 0.0
 
         # Track pitch-corrected velocity separately
         v_imu_pc = abs(self.odom_vx)  # start from anchored value
@@ -302,9 +341,9 @@ class LongitudinalStiffnessNode(TestNode):
             # Raw bias-corrected acceleration
             ax_corr = self.imu_ax - braking_bias
 
-            # Pitch-corrected acceleration (nose-down during braking)
+            # Pitch-corrected acceleration using complementary filter (gyro + accel)
             ax_pitch, pitch_deg = self.pitch_corrected_ax(
-                ax_corr, self.imu_az, is_braking=True)
+                ax_corr, self.imu_az, dt, is_braking=True)
 
             # Integrate pitch-corrected acceleration for body velocity
             v_imu_pc += ax_pitch * dt
@@ -333,7 +372,7 @@ class LongitudinalStiffnessNode(TestNode):
 
             self.recorder.record(
                 odom_vx=v_wheel, imu_ax=ax_pitch, imu_ay=self.imu_ay,
-                imu_az=self.imu_az,
+                imu_az=self.imu_az, gyro_y=self.imu_gy,
                 motor_rpm=self.motor_rpm, motor_current=self.motor_current,
                 v_imu=v_imu_pc, slip_ratio=kappa,
                 cmd_speed=0.0, phase='braking'
@@ -463,7 +502,8 @@ class LongitudinalStiffnessNode(TestNode):
             self.get_logger().info(f"  C_x per tire: ~{abs(best_Cx)/4:.1f} N/unit-slip")
         self.get_logger().info(f"\n  NOTE: This is the COMBINED longitudinal stiffness")
         self.get_logger().info(f"  (all 4 wheels, AWD). For per-tire: divide by ~4.")
-        self.get_logger().info(f"  Pitch compensation applied using vertical accelerometer.")
+        self.get_logger().info(f"  Pitch compensation: complementary filter (gyro + accel).")
+        self.get_logger().info(f"  Gyro trust (alpha): {self.comp_alpha:.3f}")
 
         # Auto-save to vehicle_params.yaml
         from common import update_vehicle_params
@@ -491,6 +531,8 @@ def main():
                         help='Max distance from start before abort (m, default: 10.0)')
     parser.add_argument('--runs', type=int, default=5,
                         help='Number of complete test runs (default: 5)')
+    parser.add_argument('--comp-alpha', type=float, default=0.98,
+                        help='Complementary filter gyro trust factor 0–1 (default: 0.98)')
     args = parser.parse_args()
 
     rclpy.init()

@@ -84,10 +84,92 @@ def save_fig(fig, name):
     print(f'  -> {path}')
 
 
+# ── Vehicle parameters (for computing derived quantities from raw data) ─────
+
+DEFAULT_MASS = 3.314       # kg
+DEFAULT_L = 0.324          # m  wheelbase
+DEFAULT_LF = 0.166         # m  CG to front axle
+DEFAULT_LR = 0.16          # m  CG to rear axle
+
+
+def compute_cornering_summary(data_dir, prefix):
+    """Compute per-(speed, steering) cornering stiffness summary from raw CSVs.
+
+    Returns a dict matching the expected summary column layout:
+      speed, alpha_f_deg, alpha_r_deg, F_yf, F_yr
+    or None if no data is available.
+    """
+    paths = sorted(glob.glob(os.path.join(data_dir, '*cornering_stiffness*.csv')))
+    if prefix:
+        paths = [p for p in paths if prefix in os.path.basename(p)]
+    paths = [p for p in paths if '_summary' not in p]
+    if not paths:
+        return None
+
+    # Aggregate all raw runs
+    all_rows = []
+    for p in paths:
+        d = load_csv(p)
+        if 'phase' not in d:
+            continue
+        mask = d['phase'] == 'record'
+        if np.sum(mask) < 20:
+            continue
+        all_rows.append({k: v[mask] for k, v in d.items()})
+
+    if not all_rows:
+        return None
+
+    # Merge
+    merged = {}
+    for key in all_rows[0]:
+        merged[key] = np.concatenate([r[key] for r in all_rows])
+
+    vx = merged['odom_vx']
+    ay = merged['imu_ay']
+    gz = merged['imu_gz']
+    steer = merged['cmd_steering']
+    cmd_speed = merged['cmd_speed']
+
+    # Group by (cmd_speed, cmd_steering) pair
+    pairs = sorted(set(zip(cmd_speed, np.abs(steer))))
+    out = {'speed': [], 'alpha_f_deg': [], 'alpha_r_deg': [],
+           'F_yf': [], 'F_yr': [], 'cmd_steering': []}
+
+    for sp, st in pairs:
+        sm = (cmd_speed == sp) & (np.abs(steer) == st)
+        v = np.mean(np.abs(vx[sm]))
+        if v < 0.3:
+            continue
+        omega = np.mean(gz[sm])
+        delta = st  # use absolute value of steering
+        a_y = np.mean(ay[sm])
+
+        # Slip angles (bicycle model, small v_y assumption)
+        alpha_f = delta - np.arctan2(DEFAULT_LF * omega, v)
+        alpha_r = np.arctan2(DEFAULT_LR * omega, v)
+
+        # Lateral forces (steady-state: l_f*F_yf = l_r*F_yr, F_yf+F_yr = m*a_y)
+        F_yf = DEFAULT_MASS * a_y * DEFAULT_LR / DEFAULT_L
+        F_yr = DEFAULT_MASS * a_y * DEFAULT_LF / DEFAULT_L
+
+        out['speed'].append(sp)
+        out['cmd_steering'].append(st)
+        out['alpha_f_deg'].append(np.degrees(alpha_f))
+        out['alpha_r_deg'].append(np.degrees(alpha_r))
+        out['F_yf'].append(F_yf)
+        out['F_yr'].append(F_yr)
+
+    if not out['speed']:
+        return None
+
+    return {k: np.array(v) for k, v in out.items()}
+
+
 # ── Plot functions ───────────────────────────────────────────────────────────
 
 def plot_wheelbase(data_dir, prefix):
-    """Figure 1: Wheelbase test quality — consistency across runs and speeds."""
+    """Figure 1: Wheelbase test — calibrated servo gain results."""
     paths = sorted(glob.glob(os.path.join(data_dir, '*wheelbase_test*.csv')))
     if prefix:
         paths = [p for p in paths if prefix in os.path.basename(p)]
@@ -95,20 +177,29 @@ def plot_wheelbase(data_dir, prefix):
         print('  [skip] no wheelbase_test CSV found')
         return
 
+    # ── Servo gain constants (calibrated) ───────────────────────────
+    SERVO_GAIN   = -0.7940
+    SERVO_OFFSET =  0.5500
+    PHYSICAL_L   =  0.324   # CAD wheelbase (m)
+    CMD_STEER    =  0.3     # rad — commanded steering angle
+
+    # The servo duty that was physically sent during the test = 0.7548.
+    # Using the calibrated gain, compute the actual steering angle.
+    SERVO_DUTY_DURING_TEST = 0.7548
+    delta_actual = abs((SERVO_DUTY_DURING_TEST - SERVO_OFFSET) / SERVO_GAIN)
+    beta = np.arctan(0.5 * np.tan(delta_actual))
+
     # Load all runs
     all_runs = []
     for path in paths:
         all_runs.append(load_csv(path))
 
-    # Extract per-run, per-speed metrics
-    steer = 0.3  # default steering angle — TODO: read from CSV cmd_steering
-    beta = np.arctan(0.5 * np.tan(steer))
-
-    # Collect: {speed_label: [{run, L_imu, L_odom, R_imu, R_odom, v_mean, v_std, omega_std}, ...]}
-    speed_data = {}
+    # Collect per-run, per-speed circle radii
+    speed_data = {}  # speed -> list of dicts
     for run_idx, d in enumerate(all_runs):
         phase = d.get('phase', np.array([]))
-        circle_phases = sorted(set(p for p in phase if isinstance(p, str) and p.startswith('circle_v')))
+        circle_phases = sorted(set(
+            p for p in phase if isinstance(p, str) and p.startswith('circle_v')))
         for cp in circle_phases:
             mask = phase == cp
             if np.sum(mask) < 50:
@@ -117,7 +208,7 @@ def plot_wheelbase(data_dir, prefix):
             gz = d['imu_gz'][mask]
             om_odom = d['odom_omega'][mask]
 
-            # Trim 20% from each end (transient)
+            # Trim 20 % from each end (transient)
             n = len(vx)
             trim = int(n * 0.2)
             if n - 2 * trim < 10:
@@ -126,26 +217,23 @@ def plot_wheelbase(data_dir, prefix):
             gz_t = gz[trim:n - trim]
             om_t = om_odom[trim:n - trim]
 
-            valid_imu = np.abs(gz_t) > 0.05
+            valid_imu  = np.abs(gz_t) > 0.05
             valid_odom = np.abs(om_t) > 0.05
-
             if np.sum(valid_imu) < 5 or np.sum(valid_odom) < 5:
                 continue
 
-            r_imu = np.median(np.abs(vx_t[valid_imu] / gz_t[valid_imu]))
+            r_imu  = np.median(np.abs(vx_t[valid_imu]  / gz_t[valid_imu]))
             r_odom = np.median(np.abs(vx_t[valid_odom] / om_t[valid_odom]))
 
             speed_val = float(cp.replace('circle_v', ''))
             entry = {
-                'run': run_idx + 1,
-                'R_imu': r_imu,
+                'run':    run_idx + 1,
+                'R_imu':  r_imu,
                 'R_odom': r_odom,
-                'L_imu': r_imu * 2 * np.sin(beta),
+                'L_imu':  r_imu  * 2 * np.sin(beta),
                 'L_odom': r_odom * 2 * np.sin(beta),
                 'v_mean': np.mean(vx_t),
-                'v_std': np.std(vx_t),
-                'v_cv': np.std(vx_t) / max(np.mean(vx_t), 0.01) * 100,
-                'omega_std': np.std(gz_t),
+                'v_std':  np.std(vx_t),
             }
             speed_data.setdefault(speed_val, []).append(entry)
 
@@ -155,78 +243,72 @@ def plot_wheelbase(data_dir, prefix):
 
     speeds_sorted = sorted(speed_data.keys())
     n_runs = len(all_runs)
+    lowest_speed = speeds_sorted[0]
 
     fig, axes = plt.subplots(2, 2, figsize=(11, 8))
 
-    # ── Panel 1 (top-left): Wheelbase per run at lowest speed ───────
+    # ── Panel 1 (top-left): Wheelbase per speed ────────────────────
     ax = axes[0, 0]
-    lowest_speed = speeds_sorted[0]
-    entries = speed_data[lowest_speed]
-    L_vals = [e['L_imu'] for e in entries]
-    runs = [e['run'] for e in entries]
-    L_mean = np.mean(L_vals)
-    L_std = np.std(L_vals)
+    sp_means = [np.mean([e['L_imu'] for e in speed_data[s]])
+                for s in speeds_sorted]
+    sp_stds = [np.std([e['L_imu'] for e in speed_data[s]])
+               for s in speeds_sorted]
 
-    ax.bar(runs, L_vals, color='tab:blue', alpha=0.7, width=0.6)
-    ax.axhline(L_mean, ls='-', color='tab:red', linewidth=2,
-               label=rf'Mean = {L_mean:.4f} m')
-    ax.axhspan(L_mean - L_std, L_mean + L_std, alpha=0.15, color='tab:red',
-               label=rf'$\pm 1\sigma$ = {L_std:.4f} m')
-    # Show ±2σ band for reference
-    ax.axhspan(L_mean - 2 * L_std, L_mean + 2 * L_std, alpha=0.07, color='tab:red')
-    ax.set_xlabel('Run')
+    x_pos = np.arange(len(speeds_sorted))
+    ax.bar(x_pos, sp_means, 0.5, yerr=sp_stds, capsize=5,
+           color='tab:blue', alpha=0.7, label='Measured (IMU)')
+    ax.axhline(PHYSICAL_L, color='k', ls=':', lw=1.5,
+               label=f'CAD ({PHYSICAL_L} m)')
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels([f'{s:.1f}' for s in speeds_sorted])
+    ax.set_xlabel('Speed (m/s)')
     ax.set_ylabel('Wheelbase (m)')
-    ax.set_title(f'Run-to-Run Consistency (v = {lowest_speed} m/s)')
-    ax.set_xticks(runs)
-    ax.legend(fontsize=8)
-    # Set y-axis to show variation clearly
-    y_margin = max(L_std * 4, 0.005)
-    ax.set_ylim(L_mean - y_margin, L_mean + y_margin)
-
-    # ── Panel 2 (top-right): Wheelbase vs speed (all runs) ──────────
-    ax = axes[0, 1]
-    colors = plt.cm.tab10(np.linspace(0, 0.4, n_runs))
-    for sp in speeds_sorted:
-        for e in speed_data[sp]:
-            ax.plot(sp, e['L_imu'], 'o', color=colors[e['run'] - 1],
-                    alpha=0.6, markersize=7)
-
-    # Mean ± std per speed
-    sp_means = []
-    sp_stds = []
-    for sp in speeds_sorted:
-        vals = [e['L_imu'] for e in speed_data[sp]]
-        sp_means.append(np.mean(vals))
-        sp_stds.append(np.std(vals))
-    ax.errorbar(speeds_sorted, sp_means, yerr=sp_stds, fmt='s-',
-                color='black', capsize=5, linewidth=2, markersize=8,
-                label='Mean ± σ', zorder=5)
-
-    # Annotate growth rate
+    ax.set_title('Effective Wheelbase vs Speed')
+    ax.legend(fontsize=8, loc='upper left')
+    ax.grid(True, alpha=0.3, axis='y')
+    # Annotate speed-dependent growth
     if len(speeds_sorted) >= 2:
-        L_low = sp_means[0]
-        L_high = sp_means[-1]
-        growth = (L_high - L_low) / L_low * 100
-        ax.text(0.02, 0.98,
-                f'Growth {speeds_sorted[0]}→{speeds_sorted[-1]} m/s: '
-                f'+{growth:.1f}%\n(tire slip increases apparent L)',
-                transform=ax.transAxes, va='top', ha='left', fontsize=8,
+        growth = (sp_means[-1] - sp_means[0]) / sp_means[0] * 100
+        ax.text(0.02, 0.72,
+                f'Growth: +{growth:.1f}%\n(understeer + tire slip)',
+                transform=ax.transAxes, fontsize=8,
                 bbox=dict(boxstyle='round,pad=0.3', facecolor='lightyellow',
                           alpha=0.8, edgecolor='none'))
 
-    ax.set_xlabel('Speed (m/s)')
-    ax.set_ylabel('Effective wheelbase (m)')
-    ax.set_title('Wheelbase vs. Speed (tire slip effect)')
-    ax.legend(fontsize=8)
+    # ── Panel 2 (top-right): Per-run consistency at lowest speed ───
+    ax = axes[0, 1]
+    entries = speed_data[lowest_speed]
+    runs = [e['run'] for e in entries]
+    L_vals = [e['L_imu'] for e in entries]
+    L_mean = np.mean(L_vals)
+    L_std  = np.std(L_vals)
 
-    # ── Panel 3 (bottom-left): Circle trajectory (latest run) ───────
+    ax.bar(runs, L_vals, 0.6, color='tab:blue', alpha=0.7)
+    ax.axhline(PHYSICAL_L, color='k', ls=':', lw=1.5,
+               label=f'CAD ({PHYSICAL_L} m)')
+    ax.axhline(L_mean, color='tab:red', ls='-', lw=2,
+               label=f'Mean = {L_mean:.4f} m')
+    ax.axhspan(L_mean - L_std, L_mean + L_std, alpha=0.15, color='tab:red',
+               label=rf'$\pm 1\sigma$ = {L_std:.4f} m')
+    ax.set_xlabel('Run')
+    ax.set_ylabel('Wheelbase (m)')
+    ax.set_title(f'Per-Run Consistency (v = {lowest_speed} m/s)')
+    ax.set_xticks(runs)
+    ax.legend(fontsize=7)
+    ax.grid(True, alpha=0.3, axis='y')
+    y_margin = max(L_std * 5, 0.01)
+    ax.set_ylim(L_mean - y_margin, L_mean + y_margin)
+
+    # ── Panel 3 (bottom-left): Circle trajectory (latest run) ──────
     ax = axes[1, 0]
     d = all_runs[-1]
     phase = d.get('phase', np.array([]))
     x = d['odom_x']
     y = d['odom_y']
-    circle_phases = sorted(set(p for p in phase if isinstance(p, str) and p.startswith('circle_v')))
-    cmap_colors = plt.cm.viridis(np.linspace(0.2, 0.9, max(len(circle_phases), 1)))
+    circle_phases = sorted(set(
+        p for p in phase if isinstance(p, str) and p.startswith('circle_v')))
+    cmap_colors = plt.cm.viridis(
+        np.linspace(0.2, 0.9, max(len(circle_phases), 1)))
     for i, cp in enumerate(circle_phases):
         mask = phase == cp
         if np.sum(mask) < 10:
@@ -241,60 +323,41 @@ def plot_wheelbase(data_dir, prefix):
     ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
 
-    # ── Panel 4 (bottom-right): Data quality metrics ────────────────
+    # ── Panel 4 (bottom-right): Summary text ───────────────────────
     ax = axes[1, 1]
     ax.axis('off')
 
-    # Build quality summary table
     lines = []
-    lines.append(f'WHEELBASE TEST QUALITY REPORT')
-    lines.append(f'{"="*42}')
-    lines.append(f'Runs: {n_runs}    Steering: {np.degrees(steer):.1f}°')
-    lines.append(f'')
-    lines.append(f'{"Speed":>7} {"L_mean":>8} {"L_std":>8} {"CV%":>6} '
-                 f'{"v_CV%":>6} {"Odom/IMU":>8}')
-    lines.append(f'{"-"*7:>7} {"-"*8:>8} {"-"*8:>8} {"-"*6:>6} '
-                 f'{"-"*6:>6} {"-"*8:>8}')
-
-    for sp in speeds_sorted:
-        vals_imu = [e['L_imu'] for e in speed_data[sp]]
-        vals_odom = [e['L_odom'] for e in speed_data[sp]]
-        v_cvs = [e['v_cv'] for e in speed_data[sp]]
-        L_m = np.mean(vals_imu)
-        L_s = np.std(vals_imu)
-        cv = L_s / L_m * 100
-        v_cv = np.mean(v_cvs)
-        # Odom vs IMU discrepancy
-        odom_imu_pct = np.mean(
-            [abs(e['R_odom'] - e['R_imu']) / e['R_imu'] * 100
-             for e in speed_data[sp]])
-        lines.append(f'{sp:7.1f} {L_m:8.4f} {L_s:8.4f} {cv:6.2f} '
-                     f'{v_cv:6.2f} {odom_imu_pct:7.2f}%')
-
-    lines.append(f'')
-    lines.append(f'Best estimate (v={lowest_speed} m/s):')
+    lines.append('WHEELBASE TEST SUMMARY')
+    lines.append('=' * 40)
+    lines.append(f'Runs: {n_runs}')
+    lines.append(f'Servo gain: {SERVO_GAIN}')
+    lines.append(f'Cmd δ: {np.degrees(CMD_STEER):.1f}°')
+    lines.append(f'Actual δ: {np.degrees(delta_actual):.1f}°')
+    lines.append(f'δ_actual / δ_cmd = {delta_actual/CMD_STEER:.2f}')
+    lines.append('')
+    lines.append(f'{"Speed":>6} {"L_meas":>8} {"vs CAD":>9}')
+    lines.append(f'{"-"*6:>6} {"-"*8:>8} {"-"*9:>9}')
+    for i, sp in enumerate(speeds_sorted):
+        diff_pct = (sp_means[i] / PHYSICAL_L - 1) * 100
+        lines.append(f'{sp:6.1f} {sp_means[i]:8.4f} {diff_pct:+8.1f}%')
+    lines.append('')
+    lines.append(f'Best (v={lowest_speed} m/s, IMU):')
     lines.append(f'  L = {L_mean:.4f} ± {L_std:.4f} m')
-    lines.append(f'  Relative uncertainty: {L_std/L_mean*100:.2f}%')
-
-    # Quality verdict
-    lines.append(f'')
-    if L_std / L_mean < 0.01:
-        lines.append(f'Quality: EXCELLENT (σ/μ < 1%)')
-    elif L_std / L_mean < 0.03:
-        lines.append(f'Quality: GOOD (σ/μ < 3%)')
-    elif L_std / L_mean < 0.05:
-        lines.append(f'Quality: ACCEPTABLE (σ/μ < 5%)')
-    else:
-        lines.append(f'Quality: POOR (σ/μ ≥ 5%) — re-run')
+    lines.append(f'  CAD = {PHYSICAL_L} m')
+    diff_pct = (L_mean / PHYSICAL_L - 1) * 100
+    lines.append(f'  Diff: {diff_pct:+.1f}%')
+    lines.append('')
+    lines.append('Understeer inflates apparent L')
+    lines.append('(see report for K_us analysis)')
 
     text = '\n'.join(lines)
     ax.text(0.05, 0.95, text, transform=ax.transAxes,
-            va='top', ha='left', fontsize=9,
-            family='monospace',
+            va='top', ha='left', fontsize=9, family='monospace',
             bbox=dict(boxstyle='round,pad=0.5', facecolor='white',
                       edgecolor='gray', alpha=0.9))
 
-    fig.suptitle('Wheelbase Test — Accuracy & Consistency', fontsize=13, y=1.01)
+    fig.suptitle('Wheelbase Test', fontsize=13, y=1.01)
     fig.tight_layout()
     save_fig(fig, 'wheelbase_circle_trajectory.pdf')
 
@@ -331,27 +394,85 @@ def plot_friction(data_dir, prefix):
                 bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.7, edgecolor='none'))
         ax.legend()
     else:
-        # Fall back to raw CSV
+        # Fall back to raw CSV — compute per-speed stats
         d = load_csv(path)
-        t = d['timestamp_s']
+        phase = d.get('phase', np.array([]))
         ay = d['imu_ay']
-        ax.plot(t, ay, '.', markersize=1, alpha=0.3, label=r'$a_y$ (IMU)')
-        ax.set_xlabel('Time (s)')
-        ax.set_ylabel(r'$a_y$ (m/s²)')
-        ax.set_title('Friction Test — Raw IMU Data')
-        ax.legend()
+
+        # Phases are named 'friction_vX.X'
+        friction_phases = sorted(
+            set(p for p in phase if isinstance(p, str) and p.startswith('friction_v')))
+
+        if friction_phases:
+            speeds = []
+            ay_means = []
+            ay_stds = []
+            for fp in friction_phases:
+                mask = phase == fp
+                if np.sum(mask) < 10:
+                    continue
+                ay_vals = np.abs(ay[mask])
+                # Trim 20% from each end for transients
+                n = len(ay_vals)
+                trim = int(n * 0.2)
+                if n - 2 * trim < 5:
+                    continue
+                ay_vals = ay_vals[trim:n - trim]
+                speed_val = float(fp.replace('friction_v', ''))
+                speeds.append(speed_val)
+                ay_means.append(np.mean(ay_vals))
+                ay_stds.append(np.std(ay_vals))
+
+            if speeds:
+                speeds = np.array(speeds)
+                ay_means = np.array(ay_means)
+                ay_stds = np.array(ay_stds)
+                mu = ay_means / GRAVITY
+
+                ax.errorbar(speeds, ay_means, yerr=ay_stds, fmt='o-',
+                            capsize=4, color='tab:blue',
+                            label=r'$\bar{a}_y$ (IMU)')
+
+                # Identify mu from highest a_y
+                mu_max = np.max(mu)
+                ay_max = np.max(ay_means)
+
+                ax.axhline(ay_max, ls='--', color='tab:red', alpha=0.7,
+                           linewidth=2,
+                           label=rf'$\mu g = {mu_max:.2f} \times'
+                                 rf' {GRAVITY:.1f} = {ay_max:.2f}$'
+                                 r' m/s$^2$')
+
+                ax.set_xlabel('Speed (m/s)')
+                ax.set_ylabel(r'Lateral acceleration $a_y$ (m/s$^2$)')
+                ax.set_title('Friction Coefficient Identification')
+                ax.legend(loc='upper left')
+            else:
+                ax.text(0.5, 0.5, 'No valid friction data',
+                        transform=ax.transAxes, ha='center', va='center')
+        else:
+            # Truly raw: plot over time
+            t = d['timestamp_s']
+            ax.plot(t, ay, '.', markersize=1, alpha=0.3, label=r'$a_y$ (IMU)')
+            ax.set_xlabel('Time (s)')
+            ax.set_ylabel(r'$a_y$ (m/s²)')
+            ax.set_title('Friction Test — Raw IMU Data')
+            ax.legend()
 
     save_fig(fig, 'friction_ay_vs_speed.pdf')
 
 
 def plot_cornering_Fy_alpha(data_dir, prefix):
-    """Figure 2: F_y vs slip angle for front and rear."""
+    """Figure 2: F_y vs slip angle + effective C_alpha vs speed."""
     summary = find_latest('cornering_stiffness_summary', data_dir, prefix)
-    if not summary:
-        print('  [skip] no cornering_stiffness_summary CSV found')
+    if summary:
+        d = load_csv(summary)
+    else:
+        d = compute_cornering_summary(data_dir, prefix)
+    if not d:
+        print('  [skip] no cornering_stiffness data found')
         return
 
-    d = load_csv(summary)
     if 'consistency_rmse' in d:
         keep = d['consistency_rmse'] < 1.0
         if np.any(keep):
@@ -360,47 +481,79 @@ def plot_cornering_Fy_alpha(data_dir, prefix):
     alpha_r = d['alpha_r_deg']
     Fyf = d['F_yf']
     Fyr = d['F_yr']
+    speeds = d['speed']
 
-    fig, ax = setup_fig()
+    # Compute effective C_alpha at each speed
+    C_af = np.abs(Fyf) / np.abs(np.radians(alpha_f))
+    C_ar = np.abs(Fyr) / np.abs(np.radians(alpha_r))
 
-    # Front
-    ax.errorbar(np.abs(alpha_f), np.abs(Fyf),
-                xerr=np.degrees(d.get('sigma_alpha_f', np.zeros_like(alpha_f))),
-                yerr=d.get('sigma_Fyf', np.zeros_like(Fyf)),
-                fmt='o-', capsize=3, label='Front', color='tab:blue')
-    # Rear
-    ax.errorbar(np.abs(alpha_r), np.abs(Fyr),
-                xerr=np.degrees(d.get('sigma_alpha_r', np.zeros_like(alpha_r))),
-                yerr=d.get('sigma_Fyr', np.zeros_like(Fyr)),
-                fmt='s-', capsize=3, label='Rear', color='tab:orange')
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
-    # Linear fits through origin
-    for alpha, Fy, color, name in [(alpha_f, Fyf, 'tab:blue', 'front'),
-                                    (alpha_r, Fyr, 'tab:orange', 'rear')]:
-        a_rad = np.abs(np.radians(alpha))  # convert back to rad for C_alpha
-        f = np.abs(Fy)
-        mask = a_rad > 0.001
-        if np.sum(mask) > 1:
-            C = np.sum(f[mask] * a_rad[mask]) / np.sum(a_rad[mask] ** 2)
-            a_fit = np.linspace(0, np.max(np.abs(alpha)) * 1.05, 50)
-            ax.plot(a_fit, C * np.radians(a_fit), '--', color=color, alpha=0.5,
-                    label=rf'$C_{{\alpha,\mathrm{{{name}}}}}$ = {C:.0f} N/rad')
+    # ── Left panel: F_y vs slip angle (data points, speed annotated) ──
+    ax1.plot(np.abs(alpha_f), np.abs(Fyf), 'o-', color='tab:blue',
+             markersize=7, label='Front')
+    ax1.plot(np.abs(alpha_r), np.abs(Fyr), 's-', color='tab:orange',
+             markersize=7, label='Rear')
 
-    ax.set_xlabel(r'Slip angle $|\alpha|$ (deg)')
-    ax.set_ylabel(r'Lateral force $|F_y|$ (N)')
-    ax.set_title('Cornering Stiffness — Force vs. Slip Angle')
-    ax.legend()
+    # Annotate speed at each point
+    for i, sp in enumerate(speeds):
+        ax1.annotate(f'{sp:.1f}', (np.abs(alpha_f[i]), np.abs(Fyf[i])),
+                     textcoords='offset points', xytext=(5, 5),
+                     fontsize=7, color='tab:blue')
+        ax1.annotate(f'{sp:.1f}', (np.abs(alpha_r[i]), np.abs(Fyr[i])),
+                     textcoords='offset points', xytext=(5, -10),
+                     fontsize=7, color='tab:orange')
+
+    ax1.plot(0, 0, 'kx', markersize=8, markeredgewidth=2, zorder=5)
+    ax1.set_xlabel(r'Slip angle $|\alpha|$ (deg)')
+    ax1.set_ylabel(r'Lateral force $|F_y|$ (N)')
+    ax1.set_title(r'$F_y$ vs. Slip Angle (speed annotated, m/s)')
+    ax1.legend(loc='upper left')
+    ax1.grid(True, alpha=0.3)
+
+    # ── Right panel: Effective C_alpha vs speed ──
+    ax2.plot(speeds, C_af, 'o-', color='tab:blue', markersize=7,
+             label=rf'$C_{{\alpha f}}$ (front)')
+    ax2.plot(speeds, C_ar, 's-', color='tab:orange', markersize=7,
+             label=rf'$C_{{\alpha r}}$ (rear)')
+
+    # Show mean values
+    C_af_mean = np.mean(C_af)
+    C_ar_mean = np.mean(C_ar)
+    ax2.axhline(C_af_mean, ls='--', color='tab:blue', alpha=0.5)
+    ax2.axhline(C_ar_mean, ls='--', color='tab:orange', alpha=0.5)
+    ax2.text(speeds[0], C_af_mean * 1.05,
+             rf'mean = {C_af_mean:.0f} N/rad', fontsize=8, color='tab:blue')
+    ax2.text(speeds[0], C_ar_mean * 0.90,
+             rf'mean = {C_ar_mean:.0f} N/rad', fontsize=8, color='tab:orange')
+
+    ax2.set_xlabel('Speed (m/s)')
+    ax2.set_ylabel(r'Effective $C_\alpha$ (N/rad)')
+    ax2.set_title(r'Effective $C_\alpha$ vs. Speed')
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+
+    # Note about data limitation
+    fig.text(0.5, -0.02,
+             r'Note: Test used single steering angle ($\delta = 0.1$ rad). '
+             r'$C_\alpha$ varies with speed because slip angle range is narrow.',
+             ha='center', fontsize=8, style='italic')
+
+    fig.tight_layout()
     save_fig(fig, 'cornering_Fy_vs_alpha.pdf')
 
 
 def plot_cornering_alpha_speed(data_dir, prefix):
     """Figure 3: slip angles vs speed."""
     summary = find_latest('cornering_stiffness_summary', data_dir, prefix)
-    if not summary:
-        print('  [skip] no cornering_stiffness_summary CSV found')
+    if summary:
+        d = load_csv(summary)
+    else:
+        d = compute_cornering_summary(data_dir, prefix)
+    if not d:
+        print('  [skip] no cornering_stiffness data found')
         return
 
-    d = load_csv(summary)
     if 'consistency_rmse' in d:
         keep = d['consistency_rmse'] < 1.0
         if np.any(keep):
@@ -455,52 +608,116 @@ def plot_long_v_comparison(data_dir, prefix):
 
 
 def plot_long_Fx_kappa(data_dir, prefix):
-    """Figure 5: F_x vs slip ratio with linear fit."""
-    path = find_latest('longitudinal_stiffness', data_dir, prefix)
-    if not path:
-        print('  [skip] no longitudinal_stiffness CSV found')
+    """Figure 5: Traction force balance — F_motor vs m·a (from motor torque test).
+
+    Uses motor torque test data (acceleration from rest) to show the
+    relationship between the motor-side force and the body-side force
+    measured by the IMU.  At high motor current the body acceleration
+    saturates — indicating traction-limit (wheel spin).
+
+    The longitudinal_stiffness test data is not used because the IMU-
+    integrated body velocity drifts too much for reliable κ estimation
+    (pitch effects cause v_imu to diverge during braking).
+    """
+    # Prefer motor_torque test data (many controlled acceleration events)
+    mt_files = sorted(glob.glob(os.path.join(data_dir, '*motor_torque*.csv')))
+    if prefix:
+        mt_files = [f for f in mt_files if prefix in os.path.basename(f)]
+    # Exclude summary files
+    mt_files = [f for f in mt_files if 'summary' not in os.path.basename(f)]
+
+    if not mt_files:
+        print('  [skip] no motor_torque CSV found for traction plot')
         return
 
-    d = load_csv(path)
-    kappa = d['slip_ratio']
-    ax_imu = d['imu_ax']
-    phase = d.get('phase', np.array([''] * len(kappa)))
+    # Motor constants
+    Kt = 60.0 / (2.0 * np.pi * 3500.0)   # N·m/A
+    gear_ratio = 11.82
+    r_eff = 0.051                          # m
+    force_per_amp = Kt * gear_ratio / r_eff  # ≈ 0.632 N/A
 
-    # F_x = m * a_x (mass from vehicle_params or default)
-    mass = 3.314
-    Fx = mass * ax_imu
+    # Collect data from all motor torque runs
+    all_F_motor = []
+    all_F_body = []
+    all_v = []
+    for path in mt_files:
+        d = load_csv(path)
+        phase = d.get('phase', np.array([''] * len(d['odom_vx'])))
+        odom = d['odom_vx']
+        ax = d['imu_ax']
+        I = d['motor_current']
+
+        # Use acceleration phase while car is moving (not stationary noise)
+        mask = (phase == 'acceleration') & (odom > 0.3)
+        if np.any(mask):
+            all_F_motor.append(force_per_amp * I[mask])
+            all_F_body.append(DEFAULT_MASS * ax[mask])
+            all_v.append(odom[mask])
+
+    if not all_F_motor:
+        print('  [skip] no valid acceleration data in motor_torque CSVs')
+        return
+
+    F_motor = np.concatenate(all_F_motor)
+    F_body = np.concatenate(all_F_body)
+    v = np.concatenate(all_v)
 
     fig, ax = setup_fig()
 
-    # Color by phase
-    accel_mask = phase == 'acceleration'
-    brake_mask = phase == 'braking'
-    if np.any(accel_mask):
-        ax.scatter(kappa[accel_mask], Fx[accel_mask], s=4, alpha=0.3,
-                   color='tab:blue', label='Acceleration')
-    if np.any(brake_mask):
-        ax.scatter(kappa[brake_mask], Fx[brake_mask], s=4, alpha=0.3,
-                   color='tab:red', label='Braking')
+    # Scatter (colour by velocity)
+    sc = ax.scatter(F_motor, F_body, c=v, s=4, alpha=0.25,
+                    cmap='viridis', label='_nolegend_')
+    cbar = fig.colorbar(sc, ax=ax, pad=0.02)
+    cbar.set_label(r'$v_\mathrm{odom}$ (m/s)')
 
-    # Linear fit in |kappa| < 0.15
-    linear_mask = (np.abs(kappa) > 0.005) & (np.abs(kappa) < 0.15)
-    if np.sum(linear_mask) > 5:
-        k_lin = kappa[linear_mask]
-        f_lin = Fx[linear_mask]
-        C_x = np.sum(f_lin * k_lin) / np.sum(k_lin ** 2)
-        k_fit = np.linspace(np.min(kappa), np.max(kappa), 100)
-        ax.plot(k_fit, C_x * k_fit, 'k--', linewidth=2,
-                label=rf'$C_x = {C_x:.0f}$ N (linear fit)')
+    # Binned averages for clarity
+    bin_edges = np.linspace(F_motor.min(), F_motor.max(), 25)
+    centres, means, stds = [], [], []
+    for i in range(len(bin_edges) - 1):
+        m = (F_motor >= bin_edges[i]) & (F_motor < bin_edges[i + 1])
+        if np.sum(m) > 10:
+            centres.append(0.5 * (bin_edges[i] + bin_edges[i + 1]))
+            means.append(np.mean(F_body[m]))
+            stds.append(np.std(F_body[m]))
+    centres = np.array(centres)
+    means = np.array(means)
+    stds = np.array(stds)
+    ax.errorbar(centres, means, yerr=stds, fmt='ko', ms=4, capsize=3,
+                label='Bin mean ± 1σ')
 
-    ax.set_xlabel(r'Slip ratio $\kappa$')
-    ax.set_ylabel(r'Longitudinal force $F_x$ (N)')
-    ax.set_title(r'Longitudinal Tire Stiffness — $F_x$ vs. $\kappa$')
-    ax.legend()
+    # Linear fit in unsaturated region (F_motor < 25 N)
+    lin_mask = (F_motor > 0) & (F_motor < 25)
+    if np.sum(lin_mask) > 20:
+        coeffs = np.polyfit(F_motor[lin_mask], F_body[lin_mask], 1)
+        x_fit = np.linspace(0, F_motor.max(), 100)
+        ax.plot(x_fit, np.polyval(coeffs, x_fit), 'r--', linewidth=2,
+                label=rf'Linear: slope = {coeffs[0]:.2f} '
+                      rf'($\eta \approx {coeffs[0]*100:.0f}\%$)')
+
+    # Traction limit annotation
+    sat_mask = F_motor > 25
+    if np.sum(sat_mask) > 20:
+        a_sat = np.median(F_body[sat_mask]) / DEFAULT_MASS
+        mu_x = a_sat / 9.81
+        ax.axhline(DEFAULT_MASS * a_sat, color='tab:orange', ls=':',
+                   linewidth=1.5,
+                   label=rf'Traction limit $\mu_x \approx {mu_x:.2f}$')
+
+    ax.set_xlabel(r'Motor force $F_\mathrm{motor} = K_t G / r_\mathrm{eff} \cdot I$ (N)')
+    ax.set_ylabel(r'Body force $F_\mathrm{body} = m \cdot a_x$ (N)')
+    ax.set_title('Traction Force Balance (Motor Torque Test)')
+    ax.legend(fontsize=8)
     save_fig(fig, 'long_Fx_vs_kappa.pdf')
 
 
 def plot_torque_I_vs_F(data_dir, prefix):
-    """Figure 6: motor current vs net force (scatter + linear fit)."""
+    """Figure 6: motor current vs net force – two-panel view.
+
+    Left:  raw scatter coloured by velocity, showing current-limited launch
+           vs. steady-state cruising.
+    Right: bin-averaged I vs F in the linear region (I < 55 A, F > 1 N)
+           with a linear fit and the theoretical K_t line.
+    """
     summary = find_latest('motor_torque_summary', data_dir, prefix)
     raw = find_latest('motor_torque', data_dir, prefix)
 
@@ -508,100 +725,190 @@ def plot_torque_I_vs_F(data_dir, prefix):
         print('  [skip] no motor_torque CSV found')
         return
 
-    fig, ax = setup_fig()
-
-    if summary and os.path.exists(summary):
-        d = load_csv(summary)
-        # Acceleration points
-        accel = d.get('phase', np.array([])) == 'acceleration'
-        brake = d.get('phase', np.array([])) == 'braking'
-
-        if np.any(accel):
-            I_a = d['avg_current'][accel]
-            F_a = d['F_net'][accel]
-            F_std = d.get('F_net_std', np.zeros_like(F_a))
-            if isinstance(F_std[0], str):
-                F_std = np.zeros_like(F_a)
-            else:
-                F_std = F_std[accel]
-            ax.errorbar(I_a, F_a, yerr=F_std, fmt='o', capsize=4,
-                        color='tab:blue', label='Accel', markersize=8)
-
-            # Linear fit
-            if len(I_a) > 1:
-                p = np.polyfit(I_a, F_a, 1)
-                I_fit = np.linspace(0, np.max(I_a) * 1.1, 50)
-                ax.plot(I_fit, np.polyval(p, I_fit), '--', color='tab:blue',
-                        alpha=0.6, label=rf'Fit: {p[0]:.3f} N/A + {p[1]:.1f} N')
-
-        if np.any(brake):
-            I_b = d['avg_current'][brake]
-            F_b = d['F_net'][brake]
-            ax.plot(I_b, F_b, 's', color='tab:red', label='Braking', markersize=8)
-
-    elif raw:
+    # --- load raw data (preferred for the improved plot) -----------------
+    if raw:
         d = load_csv(raw)
-        phase = d.get('phase', np.array([]))
-        accel_mask = phase == 'acceleration'
-        if np.any(accel_mask):
-            I = d['motor_current'][accel_mask]
-            ax_imu = d['imu_ax'][accel_mask]
-            F = 3.314 * ax_imu
-            ax.scatter(I, F, s=2, alpha=0.2, color='tab:blue')
+    elif summary:
+        # Fall back to summary if raw is missing
+        d = load_csv(summary)
+        fig, ax = setup_fig()
+        accel = d.get('phase', np.array([])) == 'acceleration'
+        if np.any(accel):
+            ax.errorbar(d['avg_current'][accel], d['F_net'][accel],
+                        fmt='o', capsize=4, color='tab:blue', label='Accel')
+        ax.set_xlabel('Motor current (A)')
+        ax.set_ylabel('Net force $F_{net}$ (N)')
+        ax.set_title('Motor Torque Mapping — Current vs. Force')
+        ax.legend()
+        save_fig(fig, 'torque_I_vs_F.pdf')
+        return
 
-    ax.set_xlabel('Motor current (A)')
-    ax.set_ylabel('Net force $F_{net} = m \\cdot a_x$ (N)')
-    ax.set_title('Motor Torque Mapping — Current vs. Force')
-    ax.legend()
+    phase = d.get('phase', np.array([]))
+    accel_mask = phase == 'acceleration'
+    if not np.any(accel_mask):
+        print('  [skip] no acceleration data in motor_torque CSV')
+        return
+
+    I_all  = d['motor_current'][accel_mask]
+    ax_imu = d['imu_ax'][accel_mask]
+    vx     = d['odom_vx'][accel_mask]
+    F_all  = 3.314 * ax_imu                       # F = m·a
+
+    MASS = 3.314
+    Kt   = 60.0 / (2.0 * np.pi * 3500.0)          # 0.00273 N·m/A
+    G    = 11.82
+    r_eff = 0.051
+    SLOPE_THEORY = Kt * G / r_eff                  # ≈ 0.632 N/A
+    I_LIM = 60.0                                   # VESC current limit (approx)
+
+    # ── Figure with two panels ──────────────────────────────────────────
+    fig, (ax_left, ax_right) = plt.subplots(1, 2, figsize=(10, 4.5),
+                                            gridspec_kw={'wspace': 0.35})
+
+    # ---------- LEFT: raw scatter, colour = velocity --------------------
+    sc = ax_left.scatter(I_all, F_all, c=vx, s=2, alpha=0.25,
+                         cmap='viridis', rasterized=True)
+    cb = fig.colorbar(sc, ax=ax_left, pad=0.02)
+    cb.set_label('Velocity (m/s)')
+
+    # annotate current-limit band
+    ax_left.axvspan(I_LIM, I_all.max() + 2, color='red', alpha=0.08)
+    ax_left.axvline(I_LIM, color='red', ls='--', lw=0.8, alpha=0.6)
+    ax_left.text(I_LIM + 1, ax_left.get_ylim()[1] * 0.85 if ax_left.get_ylim()[1] > 0 else 30,
+                 'VESC\ncurrent\nlimit', fontsize=7, color='red', va='top')
+
+    ax_left.set_xlabel('Motor current (A)')
+    ax_left.set_ylabel('Net force  $F_{net} = m \\cdot a_x$  (N)')
+    ax_left.set_title('Raw scatter (all acceleration data)')
+    ax_left.grid(True, alpha=0.3)
+
+    # ---------- RIGHT: binned linear region -----------------------------
+    # Keep only the "active acceleration" points (F > 1 N, I between 5–55 A)
+    linear_mask = (F_all > 1.0) & (I_all > 5.0) & (I_all < I_LIM)
+    I_lin = I_all[linear_mask]
+    F_lin = F_all[linear_mask]
+
+    if len(I_lin) > 20:
+        # Bin by current
+        bin_edges = np.arange(5, 56, 5)
+        bin_centres, bin_means, bin_stds, bin_ns = [], [], [], []
+        for lo, hi in zip(bin_edges[:-1], bin_edges[1:]):
+            m = (I_lin >= lo) & (I_lin < hi)
+            if m.sum() >= 3:
+                bin_centres.append((lo + hi) / 2)
+                bin_means.append(np.mean(F_lin[m]))
+                bin_stds.append(np.std(F_lin[m]))
+                bin_ns.append(m.sum())
+
+        bin_centres = np.array(bin_centres)
+        bin_means   = np.array(bin_means)
+        bin_stds    = np.array(bin_stds)
+
+        ax_right.errorbar(bin_centres, bin_means, yerr=bin_stds, fmt='o',
+                          capsize=4, color='tab:blue', markersize=7,
+                          label='Bin mean ± 1 σ')
+
+        # Linear fit through bin means
+        if len(bin_centres) > 1:
+            p = np.polyfit(bin_centres, bin_means, 1)
+            I_fit = np.linspace(0, 60, 80)
+            ax_right.plot(I_fit, np.polyval(p, I_fit), '--', color='tab:blue',
+                          alpha=0.7, lw=1.5,
+                          label=f'Fit: {p[0]:.3f} N/A  (R²='
+                                f'{1 - np.sum((bin_means - np.polyval(p, bin_centres))**2) / np.sum((bin_means - np.mean(bin_means))**2):.2f})')
+
+        # Theoretical K_t line
+        ax_right.plot(I_fit, SLOPE_THEORY * I_fit, ':', color='tab:orange',
+                      lw=1.5, label=f'Theoretical: {SLOPE_THEORY:.3f} N/A')
+    else:
+        ax_right.text(0.5, 0.5, 'Too few points\nin linear region',
+                      transform=ax_right.transAxes, ha='center', fontsize=10)
+
+    ax_right.set_xlabel('Motor current (A)')
+    ax_right.set_ylabel('Net force  $F_{net}$  (N)')
+    ax_right.set_title('Linear region (5–55 A, $F>1$ N)')
+    ax_right.legend(fontsize=7, loc='upper left')
+    ax_right.grid(True, alpha=0.3)
+    ax_right.set_xlim(0, 60)
+    ax_right.set_ylim(bottom=0)
+
+    fig.suptitle('Motor Torque Mapping — Current vs. Force', fontsize=11, y=1.01)
+    fig.tight_layout()
     save_fig(fig, 'torque_I_vs_F.pdf')
 
 
 def plot_torque_current_time(data_dir, prefix):
-    """Figure 7: motor current time series at each speed target."""
+    """Figure 7: motor current time series at each speed target.
+
+    Time gaps between speed steps are collapsed so the segments appear
+    back-to-back with a small 0.5 s visual separator.
+    """
     path = find_latest('motor_torque', data_dir, prefix)
     if not path:
         print('  [skip] no motor_torque raw CSV found')
         return
 
     d = load_csv(path)
-    t = d['timestamp_s']
-    current = d['motor_current']
-    phase = d.get('phase', np.array([''] * len(t)))
-    cmd_speed = d.get('cmd_speed', np.zeros_like(t))
+    t_raw   = d['timestamp_s'].astype(float)
+    current = d['motor_current'].astype(float)
+    phase   = d.get('phase', np.array([''] * len(t_raw)))
+    cmd_speed = d.get('cmd_speed', np.zeros_like(t_raw))
 
+    # ── Collapse time gaps ──────────────────────────────────────────────
+    GAP_SEP = 0.5                                   # visual gap (seconds)
+    dt = np.diff(t_raw)
+    gap_idx = np.where(dt > 1.0)[0]                 # detect pauses > 1 s
+
+    # Build a shifted time axis that removes the dead time
+    t = t_raw.copy()
+    for gi in gap_idx:
+        actual_gap = t_raw[gi + 1] - t_raw[gi]
+        shift = actual_gap - GAP_SEP               # amount to subtract
+        t[gi + 1:] -= shift
+
+    # ── Plot ────────────────────────────────────────────────────────────
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7, 5), sharex=True,
                                     gridspec_kw={'height_ratios': [2, 1]})
 
-    ax1.plot(t, current, '-', linewidth=0.5, color='tab:blue', alpha=0.7)
+    # Insert NaN at gap positions to break lines
+    t_plot   = t.copy()
+    cur_plot = current.copy()
+    spd_plot = cmd_speed.copy()
+    for offset, gi in enumerate(gap_idx):
+        idx = gi + 1 + offset
+        nan_t = (t_plot[idx - 1] + t_plot[idx]) / 2.0 if idx < len(t_plot) else t_plot[-1]
+        t_plot   = np.insert(t_plot,   idx, nan_t)
+        cur_plot = np.insert(cur_plot, idx, np.nan)
+        spd_plot = np.insert(spd_plot, idx, np.nan)
+
+    ax1.plot(t_plot, cur_plot, '-', linewidth=0.5, color='tab:blue', alpha=0.7)
     ax1.set_ylabel('Motor current (A)')
     ax1.set_title('Motor Current vs. Time')
     ax1.grid(True, alpha=0.3)
 
-    # Shade acceleration vs braking
+    # Shade acceleration vs braking regions
     accel_mask = phase == 'acceleration'
     brake_mask = phase == 'braking'
-    if np.any(accel_mask):
-        ta = t[accel_mask]
-        # Find contiguous acceleration segments
-        diffs = np.diff(np.where(accel_mask)[0])
-        splits = np.where(diffs > 5)[0] + 1
-        segments = np.split(np.where(accel_mask)[0], splits)
-        for seg in segments:
-            if len(seg) > 0:
-                ax1.axvspan(t[seg[0]], t[seg[-1]], alpha=0.08, color='green')
-    if np.any(brake_mask):
-        tb = t[brake_mask]
-        diffs = np.diff(np.where(brake_mask)[0])
-        splits = np.where(diffs > 5)[0] + 1
-        segments = np.split(np.where(brake_mask)[0], splits)
-        for seg in segments:
-            if len(seg) > 0:
-                ax1.axvspan(t[seg[0]], t[seg[-1]], alpha=0.08, color='red')
+    for mask, colour in [(accel_mask, 'green'), (brake_mask, 'red')]:
+        if np.any(mask):
+            diffs = np.diff(np.where(mask)[0])
+            splits = np.where(diffs > 5)[0] + 1
+            segments = np.split(np.where(mask)[0], splits)
+            for seg in segments:
+                if len(seg) > 0:
+                    ax1.axvspan(t[seg[0]], t[seg[-1]], alpha=0.08, color=colour)
 
-    ax2.plot(t, cmd_speed, '-', color='tab:green', linewidth=1)
+    ax2.plot(t_plot, spd_plot, '-', color='tab:green', linewidth=1,
+             drawstyle='steps-post')
     ax2.set_xlabel('Time (s)')
     ax2.set_ylabel('Cmd speed (m/s)')
     ax2.grid(True, alpha=0.3)
+
+    # Add thin vertical lines at gap boundaries for clarity
+    for gi in gap_idx:
+        for axi in (ax1, ax2):
+            axi.axvline(t[gi] + GAP_SEP * 0.5, color='grey', ls=':',
+                        lw=0.6, alpha=0.5)
 
     fig.tight_layout()
     save_fig(fig, 'torque_current_vs_time.pdf')
@@ -658,30 +965,48 @@ def plot_max_dynamics(data_dir, prefix):
 
 
 def plot_steering_rate(data_dir, prefix):
-    """Figure 9: IMU yaw rate and commanded steering vs time."""
+    """Figure 9: IMU yaw rate and commanded steering vs time.
+
+    Breaks lines at recording gaps (≈ 2 s between steps) so that
+    matplotlib does not draw a misleading diagonal through zero.
+    """
     path = find_latest('steering_rate', data_dir, prefix)
     if not path:
         print('  [skip] no steering_rate CSV found')
         return
 
     d = load_csv(path)
-    t = d['timestamp_s']
-    omega = d['imu_gz']
-    cmd = d['cmd_steering']
+    t = d['timestamp_s'].astype(float)
+    omega = d['imu_gz'].astype(float)
+    cmd = d['cmd_steering'].astype(float)
+
+    # Detect recording gaps and insert NaN to break lines
+    dt = np.diff(t)
+    gap_idx = np.where(dt > 0.1)[0]   # gaps > 100 ms
+
+    t_plot = t.copy()
+    omega_plot = omega.copy()
+    cmd_plot = cmd.copy()
+    for offset, gi in enumerate(gap_idx):
+        idx = gi + 1 + offset
+        mid_t = (t_plot[idx - 1] + t_plot[idx]) / 2.0
+        t_plot     = np.insert(t_plot,     idx, mid_t)
+        omega_plot = np.insert(omega_plot, idx, np.nan)
+        cmd_plot   = np.insert(cmd_plot,   idx, np.nan)
 
     fig, ax1 = setup_fig(width=7)
     color_omega = 'tab:blue'
     color_cmd = 'tab:red'
 
-    ax1.plot(t, np.degrees(omega), '-', color=color_omega, linewidth=0.8,
-             label=r'$\omega_z$ (IMU)')
+    ax1.plot(t_plot, np.degrees(omega_plot), '-', color=color_omega,
+             linewidth=0.8, label=r'$\omega_z$ (IMU)')
     ax1.set_xlabel('Time (s)')
     ax1.set_ylabel(r'Yaw rate $\omega_z$ (deg/s)', color=color_omega)
     ax1.tick_params(axis='y', labelcolor=color_omega)
 
     ax2 = ax1.twinx()
-    ax2.plot(t, np.degrees(cmd), '--', color=color_cmd, linewidth=1.2,
-             label=r'$\delta_{cmd}$ (commanded)')
+    ax2.plot(t_plot, np.degrees(cmd_plot), '--', color=color_cmd,
+             linewidth=1.2, label=r'$\delta_{cmd}$ (commanded)')
     ax2.set_ylabel(r'Steering command $\delta$ (deg)', color=color_cmd)
     ax2.tick_params(axis='y', labelcolor=color_cmd)
 

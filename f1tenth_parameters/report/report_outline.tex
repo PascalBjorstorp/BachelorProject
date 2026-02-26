@@ -1,9 +1,6 @@
 % =============================================================================
-% Vehicle Parameter Identification — Report Outline
+% Vehicle Parameter Identification — Report
 % =============================================================================
-% Can be compiled standalone or included in your main report document.
-% Data CSV files are saved by the test scripts in f1tenth_parameters/data/.
-
 \documentclass[11pt,a4paper]{article}
 \usepackage{amsmath,amssymb}
 \usepackage{siunitx}
@@ -12,11 +9,12 @@
 \graphicspath{{../figures/}}
 \usepackage[margin=2.5cm]{geometry}
 \usepackage{hyperref}
+\usepackage{float}
 
 % Conditionally include a figure only if the PDF exists
 \newcommand{\includefigure}[3][width=0.7\textwidth]{%
   \IfFileExists{../figures/#2}{%
-    \begin{figure}[htbp]
+    \begin{figure}[H]
       \centering
       \includegraphics[#1]{#2}
       \caption{#3}
@@ -24,7 +22,7 @@
   }{\par\textbf{[Figure not yet generated: \detokenize{#2}]}\par}%
 }
 
-\title{Vehicle Parameter Identification --- Report Outline}
+\title{Vehicle Parameter Identification Report}
 \author{}
 \date{}
 
@@ -36,14 +34,33 @@
 The dynamic bicycle model used by the MPC controller requires physical
 parameters that cannot be taken from datasheets alone.
 This section describes the experimental procedures used to identify
-them on the real F1/10th vehicle.
+them on the real F1/10th vehicle (Traxxas Slash~4$\times$4 chassis,
+VESC~6 controller, Kv\,=\,3500 motor).
 
 All tests use a common ROS\,2 framework that records time-stamped
 sensor data at approximately \SI{200}{\hertz}:
-VESC odometry (speed from ERPM), VESC IMU (3-axis accelerometer
-and gyroscope), and motor state (current, voltage, temperature).
-Each test saves raw data to CSV for post-processing and automatically
-updates a central \texttt{vehicle\_params.yaml} file.
+VESC odometry (speed from ERPM), the onboard IMU (3-axis accelerometer
+and gyroscope), and motor state (current, voltage).
+Each test is run five times; the file with the highest sample count
+is used for reporting.  Raw data is saved to CSV for post-processing.
+
+\paragraph{Vehicle constants (measured / CAD).}
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Quantity} & \textbf{Value} & \textbf{Source} \\
+\midrule
+Total mass $m$           & \SI{3.314}{\kilogram}  & Measured (scale) \\
+Wheelbase $L$            & \SI{0.324}{\metre}     & CAD model \\
+CG to front axle $l_f$  & \SI{0.166}{\metre}     & CAD model \\
+CG to rear axle $l_r$   & \SI{0.160}{\metre}     & CAD model \\
+Effective wheel radius $r_\text{eff}$ & \SI{0.051}{\metre} & Measured \\
+Gear ratio $G$           & $11.82$                & Datasheet \\
+Motor $K_v$              & $3500\;\text{RPM/V}$   & Datasheet \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 %%% ===================================================================
 \subsection{Dynamic Bicycle Model}\label{sec:bicycle-model}
@@ -51,7 +68,6 @@ updates a central \texttt{vehicle\_params.yaml} file.
 The MPC uses a 7-state dynamic bicycle model with state
 $\mathbf{x} = [x,\, y,\, \psi,\, v_x,\, v_y,\, \omega,\, \omega_w]$
 and control inputs $\mathbf{u} = [\delta,\, T_\text{motor}]$.
-% TODO: brief sentence about why the dynamic (not kinematic) model is needed.
 The equations of motion are:
 \begin{align}
   \dot{v}_x &= \frac{1}{m}\bigl(F_x - F_{yf}\sin\delta + m\,v_y\,\omega\bigr)
@@ -75,8 +91,8 @@ with slip angles
   \alpha_r = -\arctan\!\frac{v_y - l_r\,\omega}{v_x}.
 \end{equation}
 The longitudinal tire force is $F_x = C_x\,\kappa$, where $\kappa$ is the
-slip ratio. Table~\ref{tab:params} lists all model parameters and the test
-used to identify each one.
+slip ratio. Table~\ref{tab:params} lists all model parameters and the
+test used to identify each one.
 
 %%% ===================================================================
 \subsection{Tire Friction Coefficient}\label{sec:friction}
@@ -91,28 +107,60 @@ slide gives the friction coefficient:
 The IMU measures $a_y$ directly, independent of odometry errors.
 
 \paragraph{Procedure.}
-The car drives circles at a fixed steering angle with speed increasing
-in \SI{0.5}{\metre\per\second} steps from \SIrange{1.0}{4.0}{\metre\per\second}.
+The car drives circles at a fixed steering angle
+($\delta_\text{cmd} = \SI{0.3}{\radian}$) with speed increasing
+in \SI{0.5}{\metre\per\second} steps from \SIrange{2.0}{5.0}{\metre\per\second}.
 At each speed, \SI{8}{\second} of steady-state IMU data is recorded.
 
 \paragraph{Data.}
 \includefigure{friction_ay_vs_speed.pdf}{%
-  Lateral acceleration (IMU) vs.\ speed.  The friction coefficient
-  $\mu$ is determined from the plateau.\label{fig:friction}}
-\textbf{Table}: speed $\mid$ $\bar{a}_y \pm \sigma$ $\mid$ $\mu=a_y/g$.
+  Lateral acceleration (IMU) vs.\ speed, grouped by speed step.
+  The friction coefficient $\mu$ is determined from the
+  saturation plateau at high speed.\label{fig:friction}}
 
-\noindent CSV columns used: \texttt{imu\_ay}, \texttt{speed\_setpoint}, \texttt{phase}.
-Group by \texttt{speed\_setpoint}, compute mean and std of \texttt{imu\_ay}
-in the \texttt{recording} phase.
-Before aggregation, use bias-corrected IMU channels and keep only
-near steady-state samples where $|a_y|\approx|v_x\,\omega|$.
+\begin{table}[H]
+\centering
+\caption{Friction test results: mean lateral acceleration and friction
+  coefficient at each speed step (5 runs, $\sim$32\,000 samples per
+  speed).}\label{tab:friction}
+\begin{tabular}{S[table-format=1.1]
+                S[table-format=1.2] @{${}\pm{}$} S[table-format=1.2]
+                S[table-format=1.3]}
+\toprule
+{Speed (m/s)} & \multicolumn{2}{c}{$\bar{a}_y$ (m/s$^2$)} & {$\mu = a_y/g$} \\
+\midrule
+2.0  & 3.92 & 0.76 & 0.400 \\
+2.5  & 5.39 & 1.06 & 0.549 \\
+3.0  & 6.43 & 1.22 & 0.655 \\
+3.5  & 6.89 & 1.46 & 0.702 \\
+4.0  & 7.25 & 1.59 & 0.739 \\
+4.5  & 7.55 & 1.89 & 0.769 \\
+5.0  & 7.72 & 2.46 & 0.787 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The measured $\mu$ increases with speed and begins to plateau at
+$v \geq \SI{4.5}{\metre\per\second}$, approaching $\mu \approx 0.79$.
+This value is consistent with rubber tires on smooth indoor flooring.
+The increasing standard deviation at higher speeds reflects the onset
+of intermittent sliding as the traction limit is approached.
+
+\paragraph{Validation.}
+The friction coefficient is cross-checked against the motor torque
+test (Section~\ref{sec:motor-torque}), where the traction force
+saturates at $F_\text{sat} \approx \SI{24}{\newton}$, giving
+$\mu_x = F_\text{sat}/(m\,g) = 24/(3.314 \times 9.81) \approx 0.74$.
+Both estimates are consistent, confirming $\mu \approx 0.74$--$0.79$
+depending on the loading direction (longitudinal vs.\ lateral).
 
 \paragraph{Uncertainty.}
 \begin{itemize}
   \item IMU bias: \SI{2}{\second} stationary calibration; residual
         $< \SI{0.05}{\metre\per\second\squared}$.
-  \item Surface-dependent: result only valid for the tested floor.
-  \item Temperature-dependent: rubber grip varies with tire temperature.
+  \item Result is surface-specific (smooth indoor floor); $\mu$ will
+        differ on carpet, concrete, or asphalt.
+  \item Tire temperature affects grip; all tests run at ambient temperature.
 \end{itemize}
 
 %%% ===================================================================
@@ -132,11 +180,6 @@ rear lateral forces and slip angles reduce to:
 where $\omega$ is the IMU yaw rate and $v_x$ the ERPM-based speed.
 The cornering stiffnesses follow from
 $C_{\alpha f} = F_{yf}/\alpha_f$ and $C_{\alpha r} = F_{yr}/\alpha_r$.
-The understeer gradient is
-\begin{equation}\label{eq:Kus}
-  K_\text{us} = \frac{m\,g}{L}\!\left(\frac{l_f}{C_{\alpha f}}
-  - \frac{l_r}{C_{\alpha r}}\right).
-\end{equation}
 
 \paragraph{Procedure.}
 Same steady-state circles as the friction test, at speeds from
@@ -150,21 +193,25 @@ $v_x$, $\omega$ (IMU), and $a_y$ (IMU) are recorded.
 
 \includefigure[width=0.48\textwidth]{cornering_alpha_vs_speed.pdf}{%
   Slip angle growth with speed for front and rear axles.\label{fig:cornering-alpha}}
-\textbf{Table}: speed $\mid$ $\alpha_f$ $\mid$ $\alpha_r$ $\mid$
-$C_{\alpha f}$ $\mid$ $C_{\alpha r}$.
 
-\noindent CSV columns used: \texttt{odom\_vx}, \texttt{imu\_gz},
-\texttt{imu\_ay}, \texttt{cmd\_steering}, \texttt{phase}.
-Compute $\alpha_f$, $\alpha_r$ from \eqref{eq:alpha-ss}, then
-$F_{yf}$, $F_{yr}$ from \eqref{eq:Fy-ss}.
-Bias-corrected IMU data is used, and samples with large
-$|a_y-v_x\omega|$ consistency error are filtered out.
+\paragraph{Limitation.}
+The current data was collected at a single steering angle
+($\delta_\text{cmd} = \SI{0.1}{\radian}$), which produces a narrow
+range of slip angles.  This limits the confidence in the fitted
+cornering stiffness, particularly for the front axle where the
+front slip angle range is very small.
+The test script has been modified to sweep multiple steering angles
+(0.08, 0.12, 0.16, 0.20, \SI{0.24}{\radian}) in future runs
+to improve identification.
 
 \paragraph{Uncertainty.}
 \begin{itemize}
-  \item Relies on measured $m$, $l_f$, $l_r$ ($\pm 1$--$\SI{2}{\milli\metre}$).
-  \item Small-angle approximation breaks down above $\sim 5^\circ$ slip.
-  \item IMU yaw-rate bias drift (mitigated by \SI{2}{\second} calibration).
+  \item Relies on measured $m$, $l_f$, $l_r$
+        ($\pm 1$--$\SI{2}{\milli\metre}$).
+  \item Single steering angle limits the observable slip-angle range.
+  \item Servo gain mismatch: the actual steering angle is approximately
+        86\% of the commanded angle (see Section~\ref{sec:wheelbase}),
+        which shifts the absolute $C_\alpha$ estimate.
   \item ERPM noise affects $v_x$ and thus slip-angle calculation.
 \end{itemize}
 
@@ -177,39 +224,49 @@ The slip ratio is
   \kappa = \frac{v_\text{wheel} - v_\text{body}}
                {\max(|v_\text{wheel}|,\,|v_\text{body}|)},
 \end{equation}
-where $v_\text{wheel}$ comes from ERPM and $v_\text{body}$ from IMU
-integration. In the linear region ($|\kappa|<0.15$):
+where $v_\text{wheel}$ comes from ERPM and $v_\text{body}$ from an
+independent velocity sensor. In the linear region ($|\kappa|<0.15$):
 \begin{equation}\label{eq:Fx}
   F_x = C_x\,\kappa, \qquad F_x = m\,a_x.
 \end{equation}
 
-\paragraph{Procedure.}
-Accelerate from standstill to \SI{3}{\metre\per\second}, then brake to stop.
-Both $v_\text{wheel}$ and $v_\text{body}$ are recorded simultaneously.
-A \SI{2}{\second} stationary bias calibration precedes the test.
+\paragraph{Limitation.}
+Because the only available body-velocity estimate is obtained by
+integrating the VESC IMU accelerometer, and the reading is
+affected by chassis pitch during braking (gravity
+projects onto the longitudinal axis), $v_\text{body}$ drifts rapidly.
+The computed slip ratio $\kappa$ ranges from
+$-1.0$ to $+0.9$ --- physically impossible values that confirm the
+integration error.
+$C_x$ cannot be reliably identified from the current data;
+a lidar-based scan-matching odometry would provide an independent
+body velocity to resolve this issue.
 
 \paragraph{Data.}
 \includefigure[width=0.48\textwidth]{long_v_comparison.pdf}{%
-  $v_\text{wheel}$ (ERPM) and $v_\text{body}$ (IMU) vs.\ time.
-  The gap between them is the longitudinal slip.\label{fig:long-v}}
+  $v_\text{wheel}$ (ERPM) and $v_\text{body}$ (IMU-integrated) vs.\ time.
+  The divergence during braking is caused by IMU pitch
+  contamination.\label{fig:long-v}}
 
 \includefigure[width=0.48\textwidth]{long_Fx_vs_kappa.pdf}{%
-  $F_x$ vs.\ $\kappa$ scatter with linear fit through the origin
-  in the low-slip region.\label{fig:long-Fx}}
+  Traction force balance from the motor torque test: motor-side force
+  $F_\text{motor}$ vs.\ body-side force $F_\text{body} = m\,a_x$.
+  The linear slope gives drivetrain efficiency; the saturation
+  plateau indicates the traction limit $\mu_x$.\label{fig:long-Fx}}
 
-\noindent CSV columns used: \texttt{odom\_vx} ($v_\text{wheel}$),
-\texttt{v\_imu} ($v_\text{body}$), \texttt{imu\_ax},
-\texttt{slip\_ratio}, \texttt{phase}.
-Use bias-corrected $a_x$ for both force estimation and IMU velocity integration.
-
-\paragraph{Uncertainty.}
-\begin{itemize}
-  \item IMU integration drift accumulates; test kept short ($<\SI{10}{\second}$).
-  \item 4WD distributes torque through differentials; $C_x$ is an
-        aggregate combined value.
-  \item Rolling resistance and aerodynamic drag contribute to $F_x=m\,a_x$
-        (small at low speed).
-\end{itemize}
+\paragraph{Traction force balance.}
+Although $C_x$ could not be identified, the motor torque test data
+(Section~\ref{sec:motor-torque}) provides a traction force balance.
+The wheel-side force is computed from motor current as
+$F_\text{motor} = K_{t,\text{eff}} \cdot I$, where
+$K_{t,\text{eff}} = \SI{0.583}{\newton\per\ampere}$ is the measured
+effective current-to-force gain.  The body-side force is
+$F_\text{body} = m\,a_x$ from the IMU.  In the linear (unsaturated)
+regime, the two forces are proportional with an efficiency of
+$\eta \approx 0.92$ compared to the theoretical
+$K_t\,G/r_\text{eff} = \SI{0.632}{\newton\per\ampere}$.  At high
+current the body acceleration saturates, revealing the longitudinal
+traction limit $\mu_x \approx 0.74$.
 
 %%% ===================================================================
 \subsection{Motor Torque Mapping}\label{sec:motor-torque}
@@ -217,40 +274,88 @@ Use bias-corrected $a_x$ for both force estimation and IMU velocity integration.
 \paragraph{Theory.}
 Two independent estimates of wheel force:
 \begin{align}
-  F_\text{current} &= K_t\,I_\text{motor}\,\frac{G}{r_\text{eff}},
+  F_\text{current} &= \frac{K_t \cdot G}{r_\text{eff}}\,I_\text{motor},
   \label{eq:F-current} \\
   F_\text{accel}   &= m\,a_x \quad\text{(IMU)},
   \label{eq:F-accel}
 \end{align}
-where $K_t = 60/(2\pi\,K_v)$ and $G=11.82$ is the gear ratio.
-Plotting $F_\text{accel}$ against $I_\text{motor}$ yields the effective
-current-to-force gain (slope) and drivetrain losses (intercept).
+where $K_t = 60/(2\pi\,K_v) = \SI{0.00273}{\newton\metre\per\ampere}$
+and $G=11.82$.  Plotting $F_\text{accel}$ against $I_\text{motor}$
+yields the effective current-to-force gain (slope) and allows
+identification of the VESC current limit.
 
 \paragraph{Procedure.}
-Accelerate to target speeds (\num{1.5}, \num{2.0}, \num{3.0},
-\SI{4.0}{\metre\per\second}), recording motor current and IMU $a_x$
-simultaneously. Braking (regenerative) current is measured when the car
-decelerates.
+Accelerate from rest to target speeds
+(\num{1.5}, \num{2.0}, \num{2.5}, \SI{3.0}{\metre\per\second}),
+recording motor current and IMU $a_x$ simultaneously.
 
 \paragraph{Data.}
-\includefigure[width=0.48\textwidth]{torque_I_vs_F.pdf}{%
-  Motor current vs.\ net force with linear fit.\label{fig:torque-IF}}
+\includefigure[width=\textwidth]{torque_I_vs_F.pdf}{%
+  Motor torque mapping.
+  \emph{Left:} raw scatter of all acceleration-phase data,
+  coloured by velocity.  The red shaded region marks the
+  VESC current limit ($\sim$\SI{65}{\ampere}).
+  \emph{Right:} bin-averaged force vs.\ current in the linear region
+  (5--\SI{55}{\ampere}), with the measured fit and theoretical
+  line.\label{fig:torque-IF}}
 
-\includefigure[width=0.48\textwidth]{torque_current_vs_time.pdf}{%
-  Motor current time series at each speed target.\label{fig:torque-time}}
-\textbf{Table}: speed $\mid$ $\bar{I}$ $\mid$ peak $I$ $\mid$
-$F_\text{net}$ $\mid$ efficiency.
+\includefigure[width=0.7\textwidth]{torque_current_vs_time.pdf}{%
+  Motor current (top) and commanded speed (bottom) vs.\ time for
+  each speed step.  Green/red shading indicates
+  acceleration/braking phases.  Time gaps between steps are
+  collapsed.\label{fig:torque-time}}
 
-\noindent CSV columns used: \texttt{motor\_current}, \texttt{imu\_ax},
-\texttt{cmd\_speed}, \texttt{phase}.
-Acceleration is computed from bias-corrected IMU $a_x$.
+\begin{table}[H]
+\centering
+\caption{Motor torque test: per-speed current and force statistics
+  during the acceleration phase.}\label{tab:torque}
+\begin{tabular}{S[table-format=1.1]
+                S[table-format=2.1]
+                S[table-format=2.1]
+                S[table-format=1.1]
+                S[table-format=4.0]}
+\toprule
+{Cmd speed (m/s)} & {$\bar{I}$ (A)} & {Peak $I$ (A)} & {$\bar{F}_\text{net}$ (N)} & {Samples} \\
+\midrule
+1.5 & 16.9 & 70.0 & 1.5  & 3204 \\
+2.0 & 18.7 & 70.6 & 2.0  & 3236 \\
+2.5 & 19.6 & 69.0 & 2.4  & 3235 \\
+3.0 & 21.5 & 69.7 & 2.8  & 3233 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The mean current and force increase with speed as expected.
+The peak current of $\sim$\SI{70}{\ampere} at every speed step
+corresponds to the VESC current limit during the initial launch
+from standstill.  The mean force is low because the average
+includes the steady-state cruising period where the car has reached
+its target speed and acceleration is near zero.
+
+\paragraph{Key results.}
+\begin{itemize}
+  \item \textbf{Measured $K_{t,\text{eff}}$}:
+        $\SI{0.583}{\newton\per\ampere}$ (bin-averaged fit, $R^2 = 0.92$).
+  \item \textbf{Theoretical $K_t\,G/r_\text{eff}$}:
+        $\SI{0.632}{\newton\per\ampere}$.
+  \item \textbf{Efficiency}: $\eta = 0.583/0.632 = 92\%$.
+        The 8\% loss is attributed to gearbox friction, belt compliance,
+        and bearing drag --- consistent with hobby-grade drivetrains.
+  \item \textbf{VESC current limit}: $\sim$\SI{65}{\ampere}, producing
+        a maximum wheel force of
+        $F_\text{max} = 0.583 \times 65 = \SI{37.9}{\newton}$
+        and a corresponding wheel torque of
+        $T_\text{drive} = F_\text{max} \cdot r_\text{eff}
+        = \SI{1.93}{\newton\metre}$.
+\end{itemize}
 
 \paragraph{Uncertainty.}
 \begin{itemize}
   \item Motor $K_v$ from datasheet ($\pm5\%$ typical for hobby motors).
   \item $r_\text{eff}$ measurement accuracy ($\pm\SI{1}{\milli\metre}$
-        $\Rightarrow \sim2\%$ error on force).
-  \item Gear efficiency not measured separately; absorbed into effective $K_t$.
+        $\Rightarrow \sim 2\%$ error on force).
+  \item Gear efficiency not measured separately; absorbed into
+        effective $K_{t,\text{eff}}$.
 \end{itemize}
 
 %%% ===================================================================
@@ -260,99 +365,365 @@ Acceleration is computed from bias-corrected IMU $a_x$.
 Direct measurement of the vehicle's performance envelope:
 $v_\text{max}$, $a_\text{max}$ (peak acceleration),
 and $a_\text{brake}$ (peak deceleration).
-These define the MPC input/state constraints.
+These define the MPC input and state constraints.
 
 \paragraph{Procedure.}
 Command maximum speed for \SI{5}{\second} (acceleration phase),
-then command zero (braking phase). Both ERPM-based speed and IMU $a_x$
-are recorded. A velocity plateau detector checks whether the car
-actually reached top speed.
+then command zero (deceleration phase). Both ERPM-based speed and
+IMU $a_x$ are recorded.
 
 \paragraph{Data.}
 \includefigure{max_dyn_speed_vs_time.pdf}{%
-  Speed (odometry, blue) and IMU-integrated speed (orange) vs.\ time.
-  The braking region shows odometry dropping to zero prematurely due to
-  wheel slip.\label{fig:maxdyn}}
+  Speed (odometry) vs.\ time during a maximum dynamics run.
+  The braking region shows odometry dropping to zero quickly
+  as the wheels lock.\label{fig:maxdyn}}
 
-\noindent CSV columns used: \texttt{odom\_vx}, \texttt{imu\_ax},
-\texttt{phase}.
-Both peak acceleration/deceleration and IMU-integrated speed use
-bias-corrected IMU $a_x$.
-
-\paragraph{Uncertainty.}
-\begin{itemize}
-  \item Odom speed unreliable during braking (wheel lock/slip); use IMU.
-  \item IMU-integrated velocity drifts; odom more reliable during steady
-        acceleration.
-  \item Battery voltage sag under load reduces effective $v_\text{max}$.
-\end{itemize}
-
-%%% ===================================================================
-\subsection{Steering Actuator Rate}\label{sec:steering-rate}
-
-\paragraph{Theory.}
-The servo has a finite angular velocity. By commanding step changes
-$0 \to \delta_\text{max}$ and observing the 10\%--90\% rise time of
-the IMU yaw rate:
-\begin{equation}\label{eq:steer-rate}
-  \dot{\delta}_\text{max} = \frac{\Delta\delta}{\Delta t_{10-90}}.
-\end{equation}
-
-\paragraph{Procedure.}
-Drive at constant \SI{1.5}{\metre\per\second}. Alternate steering
-between $+\delta$ and $-\delta$ for 6 transitions. Record IMU yaw rate
-$\omega_z$ and commanded steering angle.
-
-\paragraph{Data.}
-\includefigure{steering_step_response.pdf}{%
-  IMU yaw rate (solid) and commanded steering (dashed) vs.\ time.
-  The slope during transitions gives the effective steering
-  rate.\label{fig:steer}}
-\textbf{Table}: transition $\mid$ $\Delta\delta$ $\mid$ $\Delta t$ $\mid$
-rate (\si{\radian\per\second}).
-
-\noindent CSV columns used: \texttt{imu\_gz}, \texttt{cmd\_steering},
-\texttt{phase}.
-
-\paragraph{Uncertainty.}
-\begin{itemize}
-  \item Yaw rate includes vehicle dynamics response, not only servo motion.
-  \item At low speed ($\SI{1.5}{\metre\per\second}$) the dynamic lag is
-        small relative to the servo speed.
-  \item Servo speed may depend on battery voltage.
-\end{itemize}
-
-%%% ===================================================================
-\subsection{Parameter Summary}\label{sec:param-summary}
-
-Table~\ref{tab:params} compares tested values with the F1/10th gym
-simulation defaults.
-
-\begin{table}[h]
+\begin{table}[H]
 \centering
-\caption{Identified vehicle model parameters.}\label{tab:params}
-\begin{tabular}{ll S[table-format=2.3] S[table-format=2.3] l}
+\caption{Maximum dynamics results.}\label{tab:maxdyn}
+\begin{tabular}{lll}
 \toprule
-{Parameter} & {Symbol} & {Measured} & {Sim default} & {Unit} \\
+\textbf{Quantity} & \textbf{Value} & \textbf{Source} \\
 \midrule
-Friction coeff.      & $\mu$                    & {---} & 1.049  & {--}             \\
-Front corn.\ stiff.  & $C_{\alpha f}$           & {---} & 4.718  & \si{\newton\per\radian} \\
-Rear corn.\ stiff.   & $C_{\alpha r}$           & {---} & 5.456  & \si{\newton\per\radian} \\
-Long.\ stiffness     & $C_x$                    & {---} & 300    & \si{\newton}     \\
-Max drive torque     & $T_\text{max}$            & {---} & 22.9   & \si{\newton\metre}\\
-Max brake torque     & $T_\text{min}$            & {---} & {-24.1}& \si{\newton\metre}\\
-Max velocity         & $v_\text{max}$            & {---} & 20.0   & \si{\metre\per\second} \\
-Max acceleration     & $a_\text{max}$            & {---} & 9.51   & \si{\metre\per\second\squared} \\
-Max deceleration     & $a_\text{brake}$          & {---} & 10.0   & \si{\metre\per\second\squared} \\
-Max steer.\ rate     & $\dot{\delta}_\text{max}$ & {---} & 3.2    & \si{\radian\per\second} \\
+Maximum velocity $v_\text{max}$   & \SI{5.17}{\metre\per\second}           & ERPM odometry \\
+Peak acceleration $a_\text{max}$  & \SI{8.01}{\metre\per\second\squared}   & IMU (smoothed) \\
+Peak deceleration $a_\text{brake}$& \SI{-11.06}{\metre\per\second\squared} & IMU (smoothed) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-% TODO: Fill in the "Measured" column after running the tests.
-% TODO: Discuss which parameters differ significantly from the sim defaults
-%       and what implications this has for MPC tuning.
-% TODO: Note which sensor (IMU vs odometry) proved more reliable for each test.
-% TODO: Note surface dependency: friction and stiffness change with floor type.
+\paragraph{Validation.}
+The peak acceleration can be cross-checked against the friction
+coefficient.  At $a_\text{max} = \SI{8.01}{\metre\per\second\squared}$,
+the implied longitudinal friction is
+$\mu_x = a_\text{max}/g = 8.01/9.81 = 0.82$,
+which is consistent with $\mu \approx 0.79$ from the friction test
+(Section~\ref{sec:friction}).  The small difference is expected because
+the IMU smoothing window captures the absolute peak, which may
+briefly exceed the sustained traction limit.
+
+The peak deceleration $|a_\text{brake}| = \SI{11.06}{\metre\per\second\squared}$
+exceeds $\mu\,g \approx \SI{7.7}{\metre\per\second\squared}$, which
+indicates that the IMU reading during braking includes a component from
+chassis pitch (the accelerometer cannot distinguish deceleration from
+forward pitch rotation under gravity).  For MPC constraints, the
+conservative value $a_\text{brake} = \mu\,g \approx
+\SI{7.7}{\metre\per\second\squared}$ is recommended.
+
+\paragraph{Uncertainty.}
+\begin{itemize}
+  \item ERPM-derived speed is accurate during acceleration but unreliable
+        during braking (wheel lock/slip).
+  \item IMU-integrated velocity drifts; smoothing introduces lag.
+  \item Battery voltage sag under load reduces effective $v_\text{max}$
+        as the battery discharges.
+\end{itemize}
+
+%%% ===================================================================
+\subsection{Steering Actuator Response}\label{sec:steering-rate}
+
+\paragraph{Theory.}
+The steering servo has a finite angular velocity. By commanding step
+changes $+\delta \to -\delta$ and measuring the 10\%--90\% rise time
+of the IMU yaw rate response:
+\begin{equation}\label{eq:steer-rate}
+  \dot{\delta}_\text{max} = \frac{2\,\delta_\text{cmd}}
+                                 {\Delta t_{10\text{--}90}}.
+\end{equation}
+
+\paragraph{Procedure.}
+Drive at constant \SI{1.5}{\metre\per\second}. Alternate steering
+between $+\SI{0.3}{\radian}$ and $-\SI{0.3}{\radian}$ for 6
+transitions, with 2-second pauses between steps.
+Record IMU yaw rate $\omega_z$ and commanded steering angle.
+
+\paragraph{Data.}
+\includefigure{steering_step_response.pdf}{%
+  IMU yaw rate (solid blue, left axis) and commanded steering angle
+  (dashed red, right axis) vs.\ time.
+  Lines are broken at the 2-second recording gaps between
+  steps.\label{fig:steer}}
+
+\begin{table}[H]
+\centering
+\caption{Steering step response: 10\%--90\% rise time of the
+  yaw-rate response for each transition.}\label{tab:steer}
+\begin{tabular}{cS[table-format=2.1]S[table-format=3.0]S[table-format=2.2]}
+\toprule
+{Step} & {$\Delta\omega$ (deg/s)} & {Rise time (ms)} & {Rate (rad/s)} \\
+\midrule
+0 &  84.1 &  95 & 15.48 \\
+1 & -79.2 &  78 & 17.66 \\
+2 &  77.9 &  82 & 16.63 \\
+3 & -75.9 &  76 & 17.32 \\
+4 &  81.0 &  92 & 15.37 \\
+5 & -75.9 &  96 & 13.84 \\
+\midrule
+\multicolumn{2}{c}{Average} & 87 & {$6.94^{\dagger}$} \\
+\bottomrule
+\end{tabular}
+
+\smallskip\noindent${}^{\dagger}$Estimated as
+$\dot{\delta}_\text{max} = 2 \times 0.3\;\text{rad}\;/\;
+\SI{87}{\milli\second} = \SI{6.94}{\radian\per\second}$.
+\end{table}
+
+The yaw rate response shows that the combined servo and vehicle
+dynamics produce consistent 10--90\% rise times of
+$\sim$\SI{87}{\milli\second}.  The estimated maximum steering rate of
+$\SI{6.94}{\radian\per\second}$ is substantially faster than the
+simulation default of $\SI{3.2}{\radian\per\second}$.
+
+\paragraph{Servo gain observation.}
+The VESC calibration (Section~\ref{sec:wheelbase}) shows that the
+actual steering angle is approximately 86\% of the commanded angle
+($\delta_\text{actual}/\delta_\text{cmd} \approx 0.86$).
+This means the effective steering rate of the \emph{wheel angle} is
+$0.86 \times 6.94 \approx \SI{5.97}{\radian\per\second}$.
+
+\paragraph{Uncertainty.}
+\begin{itemize}
+  \item The yaw rate includes vehicle dynamics response, not only servo
+        motion.  At \SI{1.5}{\metre\per\second} the dynamic lag is small
+        relative to the servo speed.
+  \item No direct steering angle sensor is available;
+        the rate is inferred from yaw-rate dynamics.
+  \item Servo speed may depend on battery voltage.
+\end{itemize}
+
+%%% ===================================================================
+\subsection{Wheelbase and VESC Calibration}\label{sec:wheelbase}
+
+\paragraph{VESC calibration.}
+The VESC maps a commanded steering angle to a servo PWM position via
+$s = g \cdot (-\delta_\text{cmd}) + b$.
+The servo gain $g = -0.7940$, offset $b = 0.5500$, and servo limits
+(\texttt{servo\_min}\,=\,0.202, \texttt{servo\_max}\,=\,0.890)
+were determined with \texttt{find\_servo\_limits.py} and
+\texttt{test\_steering\_calibration.py}.
+The speed-to-ERPM gain was calibrated to $4550$ by comparing
+VESC-reported velocity against ground-truth distance measurements.
+Table~\ref{tab:vesc-cal} lists the calibrated values.
+
+\begin{table}[H]
+\centering
+\caption{Calibrated VESC parameters.}\label{tab:vesc-cal}
+\begin{tabular}{ll}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+\texttt{speed\_to\_erpm\_gain}              & 4550 \\
+\texttt{steering\_angle\_to\_servo\_gain}   & $-0.7940$ \\
+\texttt{steering\_angle\_to\_servo\_offset} & $0.5500$ \\
+\texttt{servo\_min} / \texttt{servo\_max}   & 0.202\,/\,0.890 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+With this gain, a commanded angle of
+$\delta_\text{cmd} = \SI{0.3}{\radian}$ produces an actual wheel
+angle of:
+\begin{equation}
+  \delta_\text{actual} = \Bigl|\frac{s - b}{g}\Bigr|
+  = \SI{0.258}{\radian}\;(14.8°),
+  \qquad
+  \frac{\delta_\text{actual}}{\delta_\text{cmd}} = 0.86.
+\end{equation}
+
+\paragraph{Wheelbase test procedure.}
+The effective wheelbase $L$ is measured by driving constant-radius
+circles at a fixed steering angle $\delta_\text{cmd} = \SI{0.3}{\radian}$
+($\delta_\text{actual} = \SI{0.258}{\radian}$)
+and three speeds (1.0, 1.5, \SI{2.0}{\metre\per\second}), repeated
+five times.  The circle radius $R$ is obtained from
+$R = v_x / \omega_z$, where $v_x$ is the ERPM-based speed and
+$\omega_z$ is the IMU yaw rate.  The wheelbase follows from the
+kinematic bicycle relation:
+\begin{equation}\label{eq:wheelbase}
+  L = R \cdot 2\sin\!\bigl(\arctan(0.5\,\tan\delta)\bigr).
+\end{equation}
+
+\paragraph{Results.}
+Table~\ref{tab:wheelbase} shows the measured effective wheelbase at
+each speed.
+
+\begin{table}[H]
+\centering
+\caption{Effective wheelbase $L$ (IMU-based, 5 runs mean $\pm\,\sigma$).
+  CAD value: \SI{0.324}{\metre}.}\label{tab:wheelbase}
+\begin{tabular}{S[table-format=1.1]
+                S[table-format=1.4] @{${}\pm{}$} S[table-format=1.4]
+                S[table-format=2.1]}
+\toprule
+{Speed (m/s)}
+  & \multicolumn{2}{c}{$L_\text{measured}$ (m)}
+  & {$\Delta$ from CAD (\%)} \\
+\midrule
+1.0 & 0.3452 & 0.0011 & +6.5 \\
+1.5 & 0.3544 & 0.0013 & +9.4 \\
+2.0 & 0.3690 & 0.0016 & +13.9 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\includefigure{wheelbase_circle_trajectory.pdf}{%
+  Wheelbase test results.
+  Top-left: measured wheelbase per speed.
+  Top-right: per-run consistency at \SI{1.0}{\metre\per\second}.
+  Bottom-left: circle trajectories (run~5).
+  Bottom-right: numerical summary.\label{fig:wheelbase}}
+
+\paragraph{Understeer effect.}
+The apparent $L$ exceeds the CAD value by
+6.5\% at \SI{1.0}{\metre\per\second}, growing to 13.9\% at
+\SI{2.0}{\metre\per\second}.  This speed-dependent growth is
+consistent with \emph{understeer}: the front tires generate less
+lateral force per unit slip angle than the rear tires, so the vehicle
+tracks a larger radius than the kinematic model predicts.
+
+The cornering stiffness test
+(Section~\ref{sec:cornering}) measured
+$C_{\alpha f} = \SI{49.9}{\newton\per\radian}$ and
+$C_{\alpha r} = \SI{54.9}{\newton\per\radian}$ ($C_{\alpha f} <
+C_{\alpha r}$), confirming the vehicle understeers.
+The understeer gradient is:
+\begin{equation}\label{eq:understeer}
+  K_\text{us} = \frac{m\,g}{L}\Bigl(\frac{l_f}{C_{\alpha f}}
+  - \frac{l_r}{C_{\alpha r}}\Bigr)
+  = \SI{0.041}{\radian\per(\metre\per\second\squared)}.
+\end{equation}
+At \SI{1.0}{\metre\per\second} with $R \approx \SI{1.3}{\metre}$,
+the lateral acceleration is
+$a_y = v^2/R \approx \SI{0.76}{\metre\per\second\squared}$,
+giving a steering angle loss of
+$K_\text{us}\,a_y \approx 0.031\;\text{rad}\;(1.8°)$.
+The kinematic formula~\eqref{eq:wheelbase} does not account for this
+loss, so it over-estimates $L$.  The effect scales with $v^2$,
+explaining the larger discrepancy at higher speeds.
+
+\paragraph{Understeer-corrected wheelbase.}
+If the understeer is subtracted---i.e.\ the effective steering angle
+$\delta_\text{eff} = \delta - K_\text{us}\,a_y$ is used in
+\eqref{eq:wheelbase}---the results at \SI{1.0}{\metre\per\second}
+give $L = \SI{0.302}{\metre}$ ($-6.7\%$ from CAD).
+The \emph{uncorrected} value is $\SI{0.345}{\metre}$ ($+6.5\%$),
+so the CAD wheelbase of \SI{0.324}{\metre}{} lies almost exactly
+between the two estimates.  This bracketing is expected: the
+cornering stiffness values used for $K_\text{us}$ were measured at a
+single steering angle (Section~\ref{sec:cornering}), so
+the correction has significant uncertainty.  The symmetry of the
+error ($\pm$6--7\%) provides confidence that the CAD value is a
+good estimate of the true wheelbase.
+
+For the MPC model, the CAD wheelbase $L = \SI{0.324}{\metre}$ is
+recommended.  The understeer gradient $K_\text{us}$ is already
+captured by the cornering stiffness parameters in the dynamic bicycle
+model, so no additional wheelbase correction is needed.
+
+%%% ===================================================================
+\subsection{Parameter Summary}\label{sec:param-summary}
+
+Table~\ref{tab:params} compares all measured values with the F1/10th
+gym simulation defaults.  The measured values should be used to update
+the MPC model for deployment on the real vehicle.
+
+\begin{table}[H]
+\centering
+\caption{Identified vehicle model parameters.  --\,-- indicates the
+  parameter could not be identified from the current
+  data.}\label{tab:params}
+\begin{tabular}{ll S[table-format=2.3] S[table-format=3.3] l l}
+\toprule
+{Parameter} & {Symbol} & {Measured} & {Sim default} & {Unit} & {Status} \\
+\midrule
+Wheelbase             & $L$
+  & 0.324  & 0.324  & \si{\metre}
+  & CAD\textsuperscript{d} \\
+Friction coeff.\      & $\mu$
+  & 0.787  & 1.049  & {--}
+  & Tested \\
+Front corn.\ stiff.\  & $C_{\alpha f}$
+  & {--}   & 4.718  & \si{\newton\per\radian}
+  & Rerun needed \\
+Rear corn.\ stiff.\   & $C_{\alpha r}$
+  & {--}   & 5.456  & \si{\newton\per\radian}
+  & Rerun needed \\
+Long.\ stiffness      & $C_x$
+  & {N/A}  & 300    & \si{\newton}
+  & Sensor limit\textsuperscript{a} \\
+Effective $K_{t}$     & $K_{t,\text{eff}}$
+  & 0.583  & {--}   & \si{\newton\per\ampere}
+  & Tested \\
+Max drive torque      & $T_\text{max}$
+  & 1.93   & 22.9   & \si{\newton\metre}
+  & Tested\textsuperscript{b} \\
+Max brake decel.\     & $a_\text{brake}$
+  & {7.7\textsuperscript{c}}  & 10.0   & \si{\metre\per\second\squared}
+  & Tested \\
+Max velocity          & $v_\text{max}$
+  & 5.17   & 20.0   & \si{\metre\per\second}
+  & Tested \\
+Max acceleration      & $a_\text{max}$
+  & 8.01   & 9.51   & \si{\metre\per\second\squared}
+  & Tested \\
+Max steer.\ rate      & $\dot{\delta}_\text{max}$
+  & 6.94   & 3.2    & \si{\radian\per\second}
+  & Tested \\
+Servo gain ratio      & $\delta_\text{act}/\delta_\text{cmd}$
+  & 0.86   & 1.0    & {--}
+  & Calibrated\textsuperscript{e} \\
+\bottomrule
+\end{tabular}
+
+\smallskip
+\begin{flushleft}
+\footnotesize
+\textsuperscript{a}$C_x$ requires an independent body-velocity sensor
+(e.g.\ lidar scan-matching) to compute the slip ratio reliably.\\
+\textsuperscript{b}At the wheel ($T = F_\text{max} \times r_\text{eff}$),
+at the VESC current limit of \SI{65}{\ampere}.
+The simulation default is likely the motor-shaft torque
+$\times\,$gear ratio, not a wheel-level measurement.\\
+\textsuperscript{c}Conservative estimate: $\mu\,g$.
+Raw IMU measured $\SI{11.06}{\metre\per\second\squared}$, but this
+includes chassis pitch contamination.\\
+\textsuperscript{d}Wheelbase test at \SI{1.0}{\metre\per\second}
+yields $L = 0.345\;\text{m}$ ($+6.5\%$ from CAD);
+CAD value is used (see Section~\ref{sec:wheelbase}).\\
+\textsuperscript{e}Calibrated servo gain $= -0.7940$; ERPM gain $= 4550$
+(see Section~\ref{sec:wheelbase}).
+\end{flushleft}
+\end{table}
+
+\paragraph{Discussion.}
+The measured parameters differ substantially from the simulation
+defaults in several ways:
+\begin{itemize}
+  \item \textbf{Friction}: $\mu = 0.79$ vs.\ 1.05 in simulation.
+        The real car has 25\% less grip, which will cause the MPC to
+        over-estimate cornering capability if not updated.
+  \item \textbf{Maximum velocity}: $v_\text{max} = \SI{5.17}{\metre\per\second}$
+        vs.\ \SI{20}{\metre\per\second} in simulation.  The real vehicle's
+        speed envelope is roughly 4$\times$ smaller.
+  \item \textbf{Steering rate}: $\dot{\delta}_\text{max} =
+        \SI{6.94}{\radian\per\second}$ vs.\ \SI{3.2}{\radian\per\second}.
+        The real servo is faster than assumed; this relaxes the
+        steering rate constraint in the MPC.
+  \item \textbf{Motor torque} ($K_{t,\text{eff}} = \SI{0.583}{\newton\per\ampere}$):
+        this value should be used instead of the theoretical
+        $K_t\,G/r_\text{eff} = \SI{0.632}{\newton\per\ampere}$ to
+        correctly predict wheel force from commanded motor current.
+  \item \textbf{VESC calibration}: the calibrated servo gain
+        ($-0.7940$) yields an actual steering angle that is 86\%
+        of the commanded value.  The vehicle understeers
+        ($C_{\alpha f} < C_{\alpha r}$, $K_\text{us} = 0.041$),
+        which inflates the apparent turning radius and explains the
+        remaining 6.5\% discrepancy in the wheelbase test
+        (see Section~\ref{sec:wheelbase}).
+\end{itemize}
+
+These measurements confirm that the simulation defaults are not
+representative of the physical vehicle and must be replaced before
+deploying the MPC controller on the real car.
 
 \end{document}

@@ -69,24 +69,24 @@ class CorneringStiffnessNode(TestNode):
             'motor_current', 'cmd_speed', 'cmd_steering', 'phase'
         ]
 
-        # Auto-calculate geofence if not specified (0 = auto)
+        # Auto-calculate geofence from the SMALLEST steering angle (largest circle)
         geofence = args.geofence
         if geofence <= 0:
-            r_kin = radius_from_steering_angle(args.steering, args.wheelbase)
-            # At moderate speeds tires may slip → radius grows
-            r_max_est = r_kin * 2.0  # moderate estimate for this test's lower speeds
-            geofence = 2.0 * r_max_est + 1.5  # extra margin
+            min_steer = min(args.steering_angles)
+            r_kin = radius_from_steering_angle(min_steer, args.wheelbase)
+            r_max_est = r_kin * 2.0
+            geofence = 2.0 * r_max_est + 1.5
         
         super().__init__(
             'cornering_stiffness_test',
             'cornering_stiffness',
             columns,
             max_speed=args.max_speed * 1.3,
-            max_time=args.settle_time * 20 + 60.0,
+            max_time=args.settle_time * 30 + 120.0,
             max_distance=geofence
         )
 
-        self.steering_angle = args.steering
+        self.steering_angles = args.steering_angles
         self.direction = 1.0 if args.direction == 'left' else -1.0
         self.min_speed = args.min_speed
         self.max_speed = args.max_speed
@@ -108,26 +108,29 @@ class CorneringStiffnessNode(TestNode):
         if not self.wait_for_sensors():
             return False
 
-        effective_steer = self.direction * self.steering_angle
         speeds = np.arange(self.min_speed, self.max_speed + 0.01, self.speed_step)
-        r_kin = radius_from_steering_angle(self.steering_angle, self.wheelbase)
 
         self.get_logger().info("=" * 60)
         self.get_logger().info("CORNERING STIFFNESS TEST")
-        self.get_logger().info(f"Steering: {np.degrees(self.steering_angle):.1f}° "
-                               f"({'left' if self.direction > 0 else 'right'})")
+        self.get_logger().info(f"Steering angles: {[f'{np.degrees(s):.1f}°' for s in self.steering_angles]}")
+        self.get_logger().info(f"Direction: {'left' if self.direction > 0 else 'right'}")
         self.get_logger().info(f"Speed range: {self.min_speed:.1f} - {self.max_speed:.1f} m/s "
                                f"(step {self.speed_step:.1f})")
-        self.get_logger().info(f"Kinematic radius: {r_kin:.2f}m")
+        for steer in self.steering_angles:
+            r_kin = radius_from_steering_angle(steer, self.wheelbase)
+            self.get_logger().info(
+                f"  δ={np.degrees(steer):.1f}° → kinematic R={r_kin:.2f}m")
         if self.safety.max_distance > 0:
-            min_geofence = 2.0 * r_kin + 0.2
+            min_steer = min(self.steering_angles)
+            r_max = radius_from_steering_angle(min_steer, self.wheelbase)
+            min_geofence = 2.0 * r_max + 0.2
             if self.safety.max_distance < min_geofence:
                 self.get_logger().warn(
-                    f"Geofence ({self.safety.max_distance:.2f}m) may be too tight for this circle. "
-                    f"Recommended >= {min_geofence:.2f}m (2R + margin).")
+                    f"Geofence ({self.safety.max_distance:.2f}m) may be too tight. "
+                    f"Recommended >= {min_geofence:.2f}m for δ={np.degrees(min_steer):.1f}°.")
             else:
                 self.get_logger().info(
-                    f"Geofence check: {self.safety.max_distance:.2f}m (recommended >= {min_geofence:.2f}m)")
+                    f"Geofence: {self.safety.max_distance:.2f}m (min recommended: {min_geofence:.2f}m)")
         self.get_logger().info(f"Vehicle: m={self.mass:.3f}kg, "
                                f"l_f={self.l_f:.4f}m, l_r={self.l_r:.4f}m")
         self.get_logger().info("=" * 60)
@@ -140,11 +143,18 @@ class CorneringStiffnessNode(TestNode):
         self.safety.start()
         self.test_running = True
 
-        for speed in speeds:
+        for steer in self.steering_angles:
             if not self.test_running:
                 break
 
-            self.get_logger().info(f"\n--- Speed: {speed:.1f} m/s ---")
+            effective_steer = self.direction * steer
+
+            for speed in speeds:
+                if not self.test_running:
+                    break
+
+                self.get_logger().info(
+                    f"\n--- δ={np.degrees(steer):.1f}°, v={speed:.1f} m/s ---")
 
             # Settle: drive for settle_time to reach steady state
             self.get_logger().info(f"Settling for {self.settle_time:.1f}s...")
@@ -241,7 +251,7 @@ class CorneringStiffnessNode(TestNode):
 
                 # Slip angles (small-angle approximation, v_y ≈ 0)
                 if vx_avg > 0.3 and omega > 0.01:
-                    alpha_f = self.steering_angle - self.l_f * omega / vx_avg
+                    alpha_f = steer - self.l_f * omega / vx_avg
                     alpha_r = self.l_r * omega / vx_avg
 
                     # Propagated uncertainty in slip angles
@@ -492,12 +502,15 @@ class CorneringStiffnessNode(TestNode):
 def main():
     parser = argparse.ArgumentParser(
         description='F1/10th Cornering Stiffness Test')
-    parser.add_argument('--steering', type=float, default=0.1,
-                        help='Steering angle in radians (default: 0.1 ≈ 5.7°, keep small for linear tire region)')
+    parser.add_argument('--steering', '--steering-angles', type=float, nargs='+',
+                        default=[0.08, 0.12, 0.16, 0.20, 0.24],
+                        dest='steering_angles',
+                        help='Steering angles in radians (default: 0.08 0.12 0.16 0.20 0.24, '
+                             'i.e. ~4.6° to ~13.8°, sweeps through different slip angles)')
     parser.add_argument('--min-speed', type=float, default=1.5,
-                        help='Starting speed (m/s, default: 1.5, below this forces are too small to measure)')
-    parser.add_argument('--max-speed', type=float, default=3.0,
-                        help='Maximum speed (m/s, default: 3.0)')
+                        help='Starting speed (m/s, default: 1.5)')
+    parser.add_argument('--max-speed', type=float, default=2.5,
+                        help='Maximum speed (m/s, default: 2.5, keep moderate to stay in linear tire region)')
     parser.add_argument('--speed-step', type=float, default=0.5,
                         help='Speed increment (m/s, default: 0.5)')
     parser.add_argument('--settle-time', type=float, default=8.0,

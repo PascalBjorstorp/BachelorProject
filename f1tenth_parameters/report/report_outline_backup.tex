@@ -1,0 +1,374 @@
+% =============================================================================
+% Vehicle Parameter Identification — Report Outline
+% =============================================================================
+% Can be compiled standalone or included in your main report document.
+% Data CSV files are saved by the test scripts in f1tenth_parameters/data/.
+
+\documentclass[11pt,a4paper]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{siunitx}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\graphicspath{{../figures/}}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{hyperref}
+
+% Conditionally include a figure only if the PDF exists
+\newcommand{\includefigure}[3][width=0.7\textwidth]{%
+  \IfFileExists{../figures/#2}{%
+    \begin{figure}[htbp]
+      \centering
+      \includegraphics[#1]{#2}
+      \caption{#3}
+    \end{figure}%
+  }{\par\textbf{[Figure not yet generated: \detokenize{#2}]}\par}%
+}
+
+\title{Vehicle Parameter Identification --- Report Outline}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Vehicle Parameter Identification}\label{sec:param-id}
+
+The dynamic bicycle model used by the MPC controller requires physical
+parameters that cannot be taken from datasheets alone.
+This section describes the experimental procedures used to identify
+them on the real F1/10th vehicle.
+
+All tests use a common ROS\,2 framework that records time-stamped
+sensor data at approximately \SI{200}{\hertz}:
+VESC odometry (speed from ERPM), VESC IMU (3-axis accelerometer
+and gyroscope), and motor state (current, voltage, temperature).
+Each test saves raw data to CSV for post-processing and automatically
+updates a central \texttt{vehicle\_params.yaml} file.
+
+%%% ===================================================================
+\subsection{Dynamic Bicycle Model}\label{sec:bicycle-model}
+
+The MPC uses a 7-state dynamic bicycle model with state
+$\mathbf{x} = [x,\, y,\, \psi,\, v_x,\, v_y,\, \omega,\, \omega_w]$
+and control inputs $\mathbf{u} = [\delta,\, T_\text{motor}]$.
+% TODO: brief sentence about why the dynamic (not kinematic) model is needed.
+The equations of motion are:
+\begin{align}
+  \dot{v}_x &= \frac{1}{m}\bigl(F_x - F_{yf}\sin\delta + m\,v_y\,\omega\bigr)
+  \label{eq:dvx}\\
+  \dot{v}_y &= \frac{1}{m}\bigl(F_{yf}\cos\delta + F_{yr} - m\,v_x\,\omega\bigr)
+  \label{eq:dvy}\\
+  \dot{\omega} &= \frac{1}{I_z}\bigl(l_f\,F_{yf}\cos\delta - l_r\,F_{yr}\bigr)
+  \label{eq:domega}\\
+  \dot{\omega}_w &= \frac{1}{I_w}\Bigl(\frac{T_\text{motor}}{G} - F_x\,R_w\Bigr)
+  \label{eq:domegaw}
+\end{align}
+where $G$ is the gear ratio, $R_w$ the wheel radius, and $I_w$ the
+drivetrain inertia. Lateral tire forces use a linear model:
+\begin{equation}\label{eq:tire-lat}
+  F_{yf} = C_{\alpha f}\,\alpha_f, \qquad
+  F_{yr} = C_{\alpha r}\,\alpha_r
+\end{equation}
+with slip angles
+\begin{equation}\label{eq:slip-angles}
+  \alpha_f = \delta - \arctan\!\frac{v_y + l_f\,\omega}{v_x}, \qquad
+  \alpha_r = -\arctan\!\frac{v_y - l_r\,\omega}{v_x}.
+\end{equation}
+The longitudinal tire force is $F_x = C_x\,\kappa$, where $\kappa$ is the
+slip ratio. Table~\ref{tab:params} lists all model parameters and the test
+used to identify each one.
+
+%%% ===================================================================
+\subsection{Tire Friction Coefficient}\label{sec:friction}
+
+\paragraph{Theory.}
+At steady-state circular driving the centripetal acceleration is
+$a_y = v^2/R$. The maximum sustainable $a_y$ before the tires begin to
+slide gives the friction coefficient:
+\begin{equation}\label{eq:mu}
+  \mu = \frac{a_{y,\max}}{g}.
+\end{equation}
+The IMU measures $a_y$ directly, independent of odometry errors.
+
+\paragraph{Procedure.}
+The car drives circles at a fixed steering angle with speed increasing
+in \SI{0.5}{\metre\per\second} steps from \SIrange{1.0}{4.0}{\metre\per\second}.
+At each speed, \SI{8}{\second} of steady-state IMU data is recorded.
+
+\paragraph{Data.}
+\includefigure{friction_ay_vs_speed.pdf}{%
+  Lateral acceleration (IMU) vs.\ speed.  The friction coefficient
+  $\mu$ is determined from the plateau.\label{fig:friction}}
+\textbf{Table}: speed $\mid$ $\bar{a}_y \pm \sigma$ $\mid$ $\mu=a_y/g$.
+
+\noindent CSV columns used: \texttt{imu\_ay}, \texttt{speed\_setpoint}, \texttt{phase}.
+Group by \texttt{speed\_setpoint}, compute mean and std of \texttt{imu\_ay}
+in the \texttt{recording} phase.
+Before aggregation, use bias-corrected IMU channels and keep only
+near steady-state samples where $|a_y|\approx|v_x\,\omega|$.
+
+\paragraph{Uncertainty.}
+\begin{itemize}
+  \item IMU bias: \SI{2}{\second} stationary calibration; residual
+        $< \SI{0.05}{\metre\per\second\squared}$.
+  \item Surface-dependent: result only valid for the tested floor.
+  \item Temperature-dependent: rubber grip varies with tire temperature.
+\end{itemize}
+
+%%% ===================================================================
+\subsection{Cornering Stiffness}\label{sec:cornering}
+
+\paragraph{Theory.}
+In steady-state cornering $(\dot{v}_y=\dot{\omega}=0)$, the front and
+rear lateral forces and slip angles reduce to:
+\begin{equation}\label{eq:Fy-ss}
+  F_{yf} = m\,a_y\,\frac{l_r}{L}, \qquad
+  F_{yr} = m\,a_y\,\frac{l_f}{L},
+\end{equation}
+\begin{equation}\label{eq:alpha-ss}
+  \alpha_f \approx \delta - \frac{l_f\,\omega}{v_x}, \qquad
+  \alpha_r \approx \frac{l_r\,\omega}{v_x},
+\end{equation}
+where $\omega$ is the IMU yaw rate and $v_x$ the ERPM-based speed.
+The cornering stiffnesses follow from
+$C_{\alpha f} = F_{yf}/\alpha_f$ and $C_{\alpha r} = F_{yr}/\alpha_r$.
+The understeer gradient is
+\begin{equation}\label{eq:Kus}
+  K_\text{us} = \frac{m\,g}{L}\!\left(\frac{l_f}{C_{\alpha f}}
+  - \frac{l_r}{C_{\alpha r}}\right).
+\end{equation}
+
+\paragraph{Procedure.}
+Same steady-state circles as the friction test, at speeds from
+\SIrange{1.0}{3.5}{\metre\per\second}. At each speed, \SI{5}{\second} of
+$v_x$, $\omega$ (IMU), and $a_y$ (IMU) are recorded.
+
+\paragraph{Data.}
+\includefigure[width=0.48\textwidth]{cornering_Fy_vs_alpha.pdf}{%
+  Lateral force vs.\ slip angle for front and rear axles.  The linear
+  region yields the cornering stiffness $C_\alpha$.\label{fig:cornering-Fy}}
+
+\includefigure[width=0.48\textwidth]{cornering_alpha_vs_speed.pdf}{%
+  Slip angle growth with speed for front and rear axles.\label{fig:cornering-alpha}}
+\textbf{Table}: speed $\mid$ $\alpha_f$ $\mid$ $\alpha_r$ $\mid$
+$C_{\alpha f}$ $\mid$ $C_{\alpha r}$.
+
+\noindent CSV columns used: \texttt{odom\_vx}, \texttt{imu\_gz},
+\texttt{imu\_ay}, \texttt{cmd\_steering}, \texttt{phase}.
+Compute $\alpha_f$, $\alpha_r$ from \eqref{eq:alpha-ss}, then
+$F_{yf}$, $F_{yr}$ from \eqref{eq:Fy-ss}.
+Bias-corrected IMU data is used, and samples with large
+$|a_y-v_x\omega|$ consistency error are filtered out.
+
+\paragraph{Uncertainty.}
+\begin{itemize}
+  \item Relies on measured $m$, $l_f$, $l_r$ ($\pm 1$--$\SI{2}{\milli\metre}$).
+  \item Small-angle approximation breaks down above $\sim 5^\circ$ slip.
+  \item IMU yaw-rate bias drift (mitigated by \SI{2}{\second} calibration).
+  \item ERPM noise affects $v_x$ and thus slip-angle calculation.
+\end{itemize}
+
+%%% ===================================================================
+\subsection{Longitudinal Tire Stiffness}\label{sec:long-stiffness}
+
+\paragraph{Theory.}
+The slip ratio is
+\begin{equation}\label{eq:kappa}
+  \kappa = \frac{v_\text{wheel} - v_\text{body}}
+               {\max(|v_\text{wheel}|,\,|v_\text{body}|)},
+\end{equation}
+where $v_\text{wheel}$ comes from ERPM and $v_\text{body}$ from an
+independent velocity sensor. In the linear region ($|\kappa|<0.15$):
+\begin{equation}\label{eq:Fx}
+  F_x = C_x\,\kappa, \qquad F_x = m\,a_x.
+\end{equation}
+
+\paragraph{Limitation.}
+Because the only available body-velocity estimate is obtained by
+integrating the IMU, and the accelerometer is affected by pitch
+oscillations during braking, $v_\text{body}$ drifts rapidly.
+As a result, the slip ratio $\kappa$ is dominated by integration error and
+$C_x$ cannot be reliably identified from the current data.
+A lidar-based scan-matching odometry would provide an independent
+body velocity to resolve this issue.
+
+\paragraph{Traction force balance.}
+Instead, the motor torque test data are used to verify the
+force-transmission chain.  The wheel-side force is computed from motor
+current as
+$F_\text{motor} = K_t\,G / r_\text{eff}\cdot I$,
+while the body-side force is $F_\text{body} = m\,a_x$ from the IMU.
+In the unsaturated region, the linear slope gives the drivetrain
+efficiency $\eta$.  At high motor current the body acceleration
+saturates, revealing the longitudinal traction limit.
+
+\paragraph{Data.}
+\includefigure[width=0.48\textwidth]{long_v_comparison.pdf}{%
+  $v_\text{wheel}$ (ERPM) and $v_\text{body}$ (IMU) vs.\ time.
+  The gap between them is the longitudinal slip.\label{fig:long-v}}
+
+\includefigure[width=0.48\textwidth]{long_Fx_vs_kappa.pdf}{%
+  Motor force vs.\ body force from the motor torque test.
+  The linear slope gives the drivetrain efficiency; the saturation
+  plateau indicates the traction limit $\mu_x$.\label{fig:long-Fx}}
+
+\noindent CSV sources: \texttt{longitudinal\_stiffness} (velocity comparison),
+\texttt{motor\_torque} (force balance).
+
+\paragraph{Uncertainty.}
+\begin{itemize}
+  \item IMU integration drift accumulates; slip ratio data is unreliable.
+  \item 4WD distributes torque through differentials; efficiency
+        $\eta$ includes differential and drivetrain losses.
+  \item Traction limit depends on surface and tire temperature.
+\end{itemize}
+
+%%% ===================================================================
+\subsection{Motor Torque Mapping}\label{sec:motor-torque}
+
+\paragraph{Theory.}
+Two independent estimates of wheel force:
+\begin{align}
+  F_\text{current} &= K_t\,I_\text{motor}\,\frac{G}{r_\text{eff}},
+  \label{eq:F-current} \\
+  F_\text{accel}   &= m\,a_x \quad\text{(IMU)},
+  \label{eq:F-accel}
+\end{align}
+where $K_t = 60/(2\pi\,K_v)$ and $G=11.82$ is the gear ratio.
+Plotting $F_\text{accel}$ against $I_\text{motor}$ yields the effective
+current-to-force gain (slope) and drivetrain losses (intercept).
+
+\paragraph{Procedure.}
+Accelerate to target speeds (\num{1.5}, \num{2.0}, \num{3.0},
+\SI{4.0}{\metre\per\second}), recording motor current and IMU $a_x$
+simultaneously. Braking (regenerative) current is measured when the car
+decelerates.
+
+\paragraph{Data.}
+\includefigure[width=0.48\textwidth]{torque_I_vs_F.pdf}{%
+  Motor current vs.\ net force with linear fit.\label{fig:torque-IF}}
+
+\includefigure[width=0.48\textwidth]{torque_current_vs_time.pdf}{%
+  Motor current time series at each speed target.\label{fig:torque-time}}
+\textbf{Table}: speed $\mid$ $\bar{I}$ $\mid$ peak $I$ $\mid$
+$F_\text{net}$ $\mid$ efficiency.
+
+\noindent CSV columns used: \texttt{motor\_current}, \texttt{imu\_ax},
+\texttt{cmd\_speed}, \texttt{phase}.
+Acceleration is computed from bias-corrected IMU $a_x$.
+
+\paragraph{Uncertainty.}
+\begin{itemize}
+  \item Motor $K_v$ from datasheet ($\pm5\%$ typical for hobby motors).
+  \item $r_\text{eff}$ measurement accuracy ($\pm\SI{1}{\milli\metre}$
+        $\Rightarrow \sim2\%$ error on force).
+  \item Gear efficiency not measured separately; absorbed into effective $K_t$.
+\end{itemize}
+
+%%% ===================================================================
+\subsection{Maximum Dynamics}\label{sec:max-dynamics}
+
+\paragraph{Theory.}
+Direct measurement of the vehicle's performance envelope:
+$v_\text{max}$, $a_\text{max}$ (peak acceleration),
+and $a_\text{brake}$ (peak deceleration).
+These define the MPC input/state constraints.
+
+\paragraph{Procedure.}
+Command maximum speed for \SI{5}{\second} (acceleration phase),
+then command zero (braking phase). Both ERPM-based speed and IMU $a_x$
+are recorded. A velocity plateau detector checks whether the car
+actually reached top speed.
+
+\paragraph{Data.}
+\includefigure{max_dyn_speed_vs_time.pdf}{%
+  Speed (odometry, blue) and IMU-integrated speed (orange) vs.\ time.
+  The braking region shows odometry dropping to zero prematurely due to
+  wheel slip.\label{fig:maxdyn}}
+
+\noindent CSV columns used: \texttt{odom\_vx}, \texttt{imu\_ax},
+\texttt{phase}.
+Both peak acceleration/deceleration and IMU-integrated speed use
+bias-corrected IMU $a_x$.
+
+\paragraph{Uncertainty.}
+\begin{itemize}
+  \item Odom speed unreliable during braking (wheel lock/slip); use IMU.
+  \item IMU-integrated velocity drifts; odom more reliable during steady
+        acceleration.
+  \item Battery voltage sag under load reduces effective $v_\text{max}$.
+\end{itemize}
+
+%%% ===================================================================
+\subsection{Steering Actuator Rate}\label{sec:steering-rate}
+
+\paragraph{Theory.}
+The servo has a finite angular velocity. By commanding step changes
+$0 \to \delta_\text{max}$ and observing the 10\%--90\% rise time of
+the IMU yaw rate:
+\begin{equation}\label{eq:steer-rate}
+  \dot{\delta}_\text{max} = \frac{\Delta\delta}{\Delta t_{10-90}}.
+\end{equation}
+
+\paragraph{Procedure.}
+Drive at constant \SI{1.5}{\metre\per\second}. Alternate steering
+between $+\delta$ and $-\delta$ for 6 transitions. Record IMU yaw rate
+$\omega_z$ and commanded steering angle.
+
+\paragraph{Data.}
+\includefigure{steering_step_response.pdf}{%
+  IMU yaw rate (solid) and commanded steering (dashed) vs.\ time.
+  The slope during transitions gives the effective steering
+  rate.\label{fig:steer}}
+\textbf{Table}: transition $\mid$ $\Delta\delta$ $\mid$ $\Delta t$ $\mid$
+rate (\si{\radian\per\second}).
+
+\noindent CSV columns used: \texttt{imu\_gz}, \texttt{cmd\_steering},
+\texttt{phase}.
+
+\paragraph{Uncertainty.}
+\begin{itemize}
+  \item Yaw rate includes vehicle dynamics response, not only servo motion.
+  \item At low speed ($\SI{1.5}{\metre\per\second}$) the dynamic lag is
+        small relative to the servo speed.
+  \item Servo speed may depend on battery voltage.
+\end{itemize}
+
+%%% ===================================================================
+\subsection{Parameter Summary}\label{sec:param-summary}
+
+Table~\ref{tab:params} compares tested values with the F1/10th gym
+simulation defaults.
+
+\begin{table}[h]
+\centering
+\caption{Identified vehicle model parameters.}\label{tab:params}
+\begin{tabular}{ll S[table-format=2.3] S[table-format=2.3] l}
+\toprule
+{Parameter} & {Symbol} & {Measured} & {Sim default} & {Unit} \\
+\midrule
+Friction coeff.      & $\mu$                    & {---} & 1.049  & {--}             \\
+Front corn.\ stiff.  & $C_{\alpha f}$           & {---} & 4.718  & \si{\newton\per\radian} \\
+Rear corn.\ stiff.   & $C_{\alpha r}$           & {---} & 5.456  & \si{\newton\per\radian} \\
+Long.\ stiffness     & $C_x$                    & N/A\textsuperscript{*} & 300    & \si{\newton}     \\
+Max drive torque     & $T_\text{max}$            & {---} & 22.9   & \si{\newton\metre}\\
+Max brake torque     & $T_\text{min}$            & {---} & {-24.1}& \si{\newton\metre}\\
+Max velocity         & $v_\text{max}$            & {---} & 20.0   & \si{\metre\per\second} \\
+Max acceleration     & $a_\text{max}$            & {---} & 9.51   & \si{\metre\per\second\squared} \\
+Max deceleration     & $a_\text{brake}$          & {---} & 10.0   & \si{\metre\per\second\squared} \\
+Max steer.\ rate     & $\dot{\delta}_\text{max}$ & {---} & 3.2    & \si{\radian\per\second} \\
+\bottomrule
+\end{tabular}
+
+\smallskip\noindent\textsuperscript{*}$C_x$ could not be identified:
+IMU-integrated body velocity drifts too much for reliable slip-ratio
+estimation.  Lidar-based scan-matching odometry is recommended.
+\end{table}
+
+% TODO: Fill in the "Measured" column after running the tests.
+% TODO: Discuss which parameters differ significantly from the sim defaults
+%       and what implications this has for MPC tuning.
+% TODO: Note which sensor (IMU vs odometry) proved more reliable for each test.
+% TODO: Note surface dependency: friction and stiffness change with floor type.
+
+\end{document}
