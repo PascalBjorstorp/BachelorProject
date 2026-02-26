@@ -43,7 +43,7 @@ class MaxDynamicsNode(TestNode):
     
     def __init__(self, args):
         columns = [
-            'odom_x', 'odom_y', 'odom_vx',
+            'odom_x', 'odom_y', 'odom_vx', 'v_lidar',
             'imu_ax', 'imu_ay',
             'motor_rpm', 'cmd_speed', 'phase'
         ]
@@ -64,8 +64,8 @@ class MaxDynamicsNode(TestNode):
         self.imu_vel = ImuVelocityEstimator()
         
         # Results
-        self.accel_data = {'time': [], 'speed': [], 'imu_ax': []}
-        self.decel_data = {'time': [], 'speed': [], 'speed_imu': [], 'imu_ax': []}
+        self.accel_data = {'time': [], 'speed': [], 'speed_lidar': [], 'imu_ax': []}
+        self.decel_data = {'time': [], 'speed': [], 'speed_lidar': [], 'speed_imu': [], 'imu_ax': []}
     
     def run_test(self):
         """Execute the max dynamics test."""
@@ -118,12 +118,14 @@ class MaxDynamicsNode(TestNode):
             t = time.monotonic() - phase_start
             self.accel_data['time'].append(t)
             self.accel_data['speed'].append(self.odom_vx)
+            self.accel_data['speed_lidar'].append(self.lidar_vx)
             self.accel_data['imu_ax'].append(imu_ax_corr)
             
             self.recorder.record(
                 odom_x=self.odom_x,
                 odom_y=self.odom_y,
                 odom_vx=self.odom_vx,
+                v_lidar=self.lidar_vx,
                 imu_ax=imu_ax_corr,
                 imu_ay=self.imu_ay,
                 motor_rpm=self.motor_rpm,
@@ -147,6 +149,8 @@ class MaxDynamicsNode(TestNode):
         self.get_logger().info("Commanding 0 m/s (full brake)...")
         self.get_logger().info("NOTE: Odom speed may drop to 0 before the car stops (wheel slip).")
         self.get_logger().info("      IMU-integrated velocity is used for accurate deceleration.")
+        if self.lidar_received:
+            self.get_logger().info("      LiDAR scan-matching velocity also active (drift-free).")
         
         # Calibrate IMU bias from the stationary calibration at start
         # Reset with current speed as initial velocity
@@ -155,7 +159,7 @@ class MaxDynamicsNode(TestNode):
         phase_start = time.monotonic()
         last_t = phase_start
         
-        while (abs(self.odom_vx) > 0.1 or self.imu_vel.velocity > 0.1) and \
+        while (abs(self.odom_vx) > 0.1 or self.imu_vel.velocity > 0.1 or self.lidar_vx > 0.15) and \
               time.monotonic() - phase_start < 10.0:
             rclpy.spin_once(self, timeout_sec=0.005)
             
@@ -172,6 +176,7 @@ class MaxDynamicsNode(TestNode):
             t = now - phase_start
             self.decel_data['time'].append(t)
             self.decel_data['speed'].append(self.odom_vx)
+            self.decel_data['speed_lidar'].append(self.lidar_vx)
             self.decel_data['speed_imu'].append(imu_v)
             self.decel_data['imu_ax'].append(imu_ax_corr)
             
@@ -179,6 +184,7 @@ class MaxDynamicsNode(TestNode):
                 odom_x=self.odom_x,
                 odom_y=self.odom_y,
                 odom_vx=self.odom_vx,
+                v_lidar=self.lidar_vx,
                 imu_ax=imu_ax_corr,
                 imu_ay=self.imu_ay,
                 motor_rpm=self.motor_rpm,
@@ -284,6 +290,7 @@ class MaxDynamicsNode(TestNode):
         if self.decel_data['time']:
             t = np.array(self.decel_data['time'])
             v = np.array(self.decel_data['speed'])
+            v_lidar = np.array(self.decel_data['speed_lidar'])
             v_imu = np.array(self.decel_data['speed_imu'])
             ax = np.array(self.decel_data['imu_ax'])
             
@@ -305,6 +312,18 @@ class MaxDynamicsNode(TestNode):
             stop_time_odom = t[np.argmax(np.abs(v) < 0.1)] if np.any(np.abs(v) < 0.1) else t[-1]
             stop_time_imu = t[np.argmax(v_imu < 0.1)] if np.any(v_imu < 0.1) else t[-1]
             
+            # LiDAR-based deceleration (most accurate — drift-free body velocity)
+            max_decel_from_lidar = 0.0
+            stop_time_lidar = t[-1]
+            if len(v_lidar) > 5 and np.max(v_lidar) > 0.3:
+                kernel = 5
+                vl_smooth = np.convolve(v_lidar, np.ones(kernel)/kernel, mode='valid')
+                tl_smooth = np.convolve(t, np.ones(kernel)/kernel, mode='valid')
+                if len(vl_smooth) > 1:
+                    dv_dt_lidar = np.diff(vl_smooth) / np.diff(tl_smooth)
+                    max_decel_from_lidar = abs(np.min(dv_dt_lidar))
+                stop_time_lidar = t[np.argmax(v_lidar < 0.15)] if np.any(v_lidar < 0.15) else t[-1]
+            
             # IMU-based deceleration (from dv_imu/dt)
             if len(v_imu) > 5:
                 kernel = 5
@@ -322,14 +341,18 @@ class MaxDynamicsNode(TestNode):
             self.get_logger().info(f"   Max deceleration (odom dv/dt):    {max_decel_from_v:.2f} m/s²")
             self.get_logger().info(f"   Max deceleration (IMU ax):        {max_decel_from_imu:.2f} m/s²")
             self.get_logger().info(f"   Max deceleration (IMU integrated): {max_decel_imu_integrated:.2f} m/s²")
+            if max_decel_from_lidar > 0:
+                self.get_logger().info(f"   Max deceleration (LiDAR dv/dt):   {max_decel_from_lidar:.2f} m/s²")
             self.get_logger().info(f"   Time to stop (odom):  {stop_time_odom:.2f}s")
             self.get_logger().info(f"   Time to stop (IMU):   {stop_time_imu:.2f}s")
+            if max_decel_from_lidar > 0:
+                self.get_logger().info(f"   Time to stop (LiDAR): {stop_time_lidar:.2f}s")
             
             if abs(stop_time_odom - stop_time_imu) > 0.3:
                 self.get_logger().warn(
                     f"   ⚠ Odom stops {abs(stop_time_odom - stop_time_imu):.2f}s before "
                     f"IMU — tire slip during braking. "
-                    f"Trust the IMU-based values.")
+                    f"Trust the LiDAR/IMU-based values.")
         
         # ---- Summary for MPC ----
         self.get_logger().info(f"\n--- Parameters for MPC ---")
@@ -337,7 +360,8 @@ class MaxDynamicsNode(TestNode):
             max_v = np.max(self.accel_data['speed'])
             self.get_logger().info(f"  Max velocity: {max_v:.2f} m/s")
             self.get_logger().info(f"    #define MAX_VELOCITY  FP_FROM_FLOAT({max_v:.2f}f)")
-        self.get_logger().info(f"\n  NOTE: Use IMU-based deceleration for MPC constraints.")
+        self.get_logger().info(f"\n  NOTE: Use LiDAR-based deceleration for MPC constraints (most accurate).")
+        self.get_logger().info(f"  Fallback: IMU-based (may drift during braking due to pitch).")
         self.get_logger().info(f"  The odom-based value is unreliable during braking due to wheel slip.")
 
         # Auto-save to vehicle_params.yaml
@@ -360,9 +384,57 @@ class MaxDynamicsNode(TestNode):
                     f"  To set manually: --max-velocity-override <value>")
             else:
                 params['max_velocity'] = measured_max_v
-            params['max_accel'] = float(np.max(np.abs(self.accel_data['imu_ax'])))
+
+            # Use SMOOTHED acceleration, bounded by physical limit (mu * g).
+            # Raw IMU peaks are contaminated by pitch (gravity projection
+            # onto the forward axis during nose-up acceleration or nose-down
+            # braking). A value exceeding mu*g is physically impossible.
+            ax_arr = np.array(self.accel_data['imu_ax'])
+            if len(ax_arr) > 10:
+                kernel = max(11, len(ax_arr) // 50)
+                if kernel % 2 == 0:
+                    kernel += 1
+                ax_smooth = np.convolve(ax_arr, np.ones(kernel)/kernel, mode='valid')
+                max_accel_smooth = float(np.max(np.abs(ax_smooth)))
+            else:
+                max_accel_smooth = float(np.max(np.abs(ax_arr)))
+            params['max_accel'] = max_accel_smooth
+            self.get_logger().info(
+                f"  Smoothed max_accel: {max_accel_smooth:.2f} m/s² "
+                f"(raw peak: {float(np.max(np.abs(ax_arr))):.2f})")
+
         if self.decel_data['imu_ax']:
-            params['max_decel'] = float(np.max(np.abs(self.decel_data['imu_ax'])))
+            # Use conservative physics-based bound: mu * g
+            # The raw IMU decel is always contaminated by chassis pitch
+            # during braking (nose-down projects gravity onto x-axis).
+            ax_decel = np.array(self.decel_data['imu_ax'])
+            raw_peak = float(np.max(np.abs(ax_decel)))
+
+            # Smooth and use that if it's below mu*g, otherwise cap at mu*g
+            if len(ax_decel) > 10:
+                kernel = max(11, len(ax_decel) // 50)
+                if kernel % 2 == 0:
+                    kernel += 1
+                ax_smooth = np.convolve(ax_decel, np.ones(kernel)/kernel, mode='valid')
+                max_decel_smooth = float(np.max(np.abs(ax_smooth)))
+            else:
+                max_decel_smooth = raw_peak
+
+            # Physical bound: deceleration cannot exceed mu * g
+            # Use 0.79 as a reasonable mu estimate (from friction test)
+            mu_g_bound = 0.79 * 9.81  # ~7.7 m/s²
+            if max_decel_smooth > mu_g_bound * 1.1:
+                self.get_logger().warn(
+                    f"  Smoothed decel ({max_decel_smooth:.2f}) exceeds mu*g "
+                    f"({mu_g_bound:.1f}) — pitch contamination detected. "
+                    f"Using mu*g as conservative bound.")
+                params['max_decel'] = round(mu_g_bound, 1)
+            else:
+                params['max_decel'] = max_decel_smooth
+            self.get_logger().info(
+                f"  Saved max_decel: {params['max_decel']:.2f} m/s² "
+                f"(raw peak: {raw_peak:.2f}, smoothed: {max_decel_smooth:.2f})")
+
         if params:
             from common import update_vehicle_params
             update_vehicle_params(params, status='TESTED', logger=self.get_logger())

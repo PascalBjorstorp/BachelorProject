@@ -48,14 +48,14 @@
  *  predicts 2.0s ahead with 40 steps. cross_call_rate_scale handles the mismatch. */
 #define MPC_TIME_STEP_SECONDS 0.05f
 
-/** Maximum allowed steering angle (radians, ~23 degrees) */
-#define MAXIMUM_STEERING_ANGLE_RADIANS 0.4189f
+/** Maximum allowed steering angle (radians, ~24.5 degrees) [TESTED] */
+#define MAXIMUM_STEERING_ANGLE_RADIANS 0.4282f
 
 /** Maximum allowed velocity (m/s) */
 #define MAXIMUM_VELOCITY_METERS_PER_SECOND 20.0f
 
-/** Wheel radius [m] — Traxxas Slash 4x4 VXL */
-#define WHEEL_RADIUS_METERS 0.0545
+/** Wheel radius [m] — Traxxas Slash 4x4 VXL [MEASURED: 0.051 m loaded] */
+#define WHEEL_RADIUS_METERS 0.051
 
 /** Convert vehicle velocity to matching wheel speed (zero slip ratio) */
 #define VX_TO_WHEEL_SPEED(vx) ((vx) / WHEEL_RADIUS_METERS)

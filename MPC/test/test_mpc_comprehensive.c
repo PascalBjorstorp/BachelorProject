@@ -31,8 +31,9 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-/* Convert vehicle velocity to matching wheel speed (zero slip ratio) */
-#define VX_TO_WHEEL_SPEED(vx) ((vx) / 0.0545)
+/* Convert vehicle velocity to matching wheel speed (zero slip ratio)
+ * Must match F110_WHEEL_RADIUS_METERS in mpc_types.h (0.051 m measured) */
+#define VX_TO_WHEEL_SPEED(vx) ((vx) / 0.051)
 
 #include "fp_math.h"
 #include "mpc_types.h"
@@ -368,8 +369,8 @@ static void test_vehicle_model_init(void)
     vehicle_model_initialize();
     VehicleParameters_t params = vehicle_model_get_parameters();
     
-    check_fp("Default wheelbase", params.wheelbase_meters, 0.3302, TOLERANCE_PERCENT);
-    check_fp("Default max steering", params.maximum_steering_angle_radians, 0.4189, TOLERANCE_PERCENT);
+    check_fp("Default wheelbase", params.wheelbase_meters, 0.324, TOLERANCE_PERCENT);
+    check_fp("Default max steering", params.maximum_steering_angle_radians, 0.4282, TOLERANCE_PERCENT);
     check_fp("Default max velocity", params.maximum_velocity_meters_per_second, 20.0, TOLERANCE_PERCENT);
     check_fp("Default min velocity", params.minimum_velocity_meters_per_second, 0.0, TOLERANCE_TIGHT);
     

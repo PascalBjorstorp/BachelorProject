@@ -76,17 +76,22 @@ tire:
                              # From test_friction.py: mu = a_y_max / g
                              # Depends on surface! Re-test if surface changes.
   
-  C_alpha_f: 49.9024         # [TESTED] Front cornering stiffness (N/rad)
+  C_alpha_f: 49.9024         # [TESTED/RERUN NEEDED] Front cornering stiffness (N/rad)
                              # From test_cornering_stiffness.py
-                             # Typical F1/10th: 4-12 N/rad
+                             # WARNING: Only 1 steering angle (0.1 rad) was used.
+                             # C_alpha varies 3x with speed (28-80 N/rad), indicating
+                             # insufficient slip-angle range. Re-run with default sweep
+                             # [0.08, 0.12, 0.16, 0.20, 0.24] for reliable values.
   
-  C_alpha_r: 54.8927         # [TESTED] Rear cornering stiffness (N/rad)
+  C_alpha_r: 54.8927         # [TESTED/RERUN NEEDED] Rear cornering stiffness (N/rad)
                              # From test_cornering_stiffness.py
-                             # Typical F1/10th: 4-12 N/rad
+                             # Same limitation as C_alpha_f above.
   
-  C_x: 79.5                  # [TESTED] Longitudinal tire stiffness (N/unit slip)
-                             # From test_longitudinal_stiffness.py (5 runs, pitch-corrected)
-                             # Combined (all 4 wheels, AWD). Per tire: ~20 N/unit slip
+  C_x: 79.5                  # [ESTIMATE/RERUN WITH LIDAR] Longitudinal tire stiffness (N/unit slip)
+                             # From test_longitudinal_stiffness.py — BUT IMU-integrated
+                             # body velocity drifts badly (pitch contamination during braking).
+                             # Slip ratio κ ranges -1.0 to +0.9 (physically impossible).
+                             # Cannot be reliably identified without lidar scan-matching.
                              # Slip ratio κ = (v_wheel - v_body) / max(|v_wheel|, |v_body|)
 
 # ============================================================================
@@ -198,11 +203,15 @@ dynamics:
   max_velocity: 10.0363      # [TESTED] Maximum achievable velocity (m/s)
                              # From test_max_dynamics.py
   
-  max_accel: 14.5423         # [TESTED] Maximum longitudinal acceleration (m/s²)
-                             # From test_max_dynamics.py (IMU-based)
+  max_accel: 8.0             # [TESTED] Maximum longitudinal acceleration (m/s²)
+                             # From test_max_dynamics.py (smoothed IMU, bounded by mu*g)
+                             # Raw unsmoothed peak was ~14.5 m/s² — that exceeds mu*g=7.3
+                             # and is contaminated by IMU pitch during acceleration.
   
-  max_decel: 18.7332         # [TESTED] Maximum deceleration (m/s²)
-                             # From test_max_dynamics.py (IMU-based)
+  max_decel: 7.7             # [TESTED] Maximum deceleration (m/s²)
+                             # Conservative estimate: mu * g = 0.79 * 9.81 = 7.7 m/s²
+                             # Raw IMU peak was ~18.7 m/s² — heavily contaminated by
+                             # chassis pitch (nose-down) projecting gravity onto IMU x-axis.
   
   max_lateral_accel: 7.3212  # [TESTED] Maximum lateral acceleration before slide (m/s²)
                              # From test_friction.py: mu × g

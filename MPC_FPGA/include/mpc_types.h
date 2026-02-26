@@ -437,22 +437,26 @@ typedef struct
  * Default Parameters for F1/10th Vehicle
  *===========================================================================
  * Pre-computed fixed-point constants for F1/10th configuration.
- * Source: f1tenth_gym simulation (F110Env.f1tenth_vehicle_params)
+ * Source: Measured on real F1/10th car (f1tenth_parameters/vehicle_params.yaml)
+ * Simulation defaults replaced with physical measurements where available.
  */
 
 /*---------------------------------------------------------------------------
  * Core Kinematic Parameters (used by MPC)
  *---------------------------------------------------------------------------*/
 
-/** F1/10th wheelbase: lf + lr = 0.15875 + 0.17145 = 0.3302 meters */
+/** F1/10th wheelbase: l_f + l_r = 0.166 + 0.16 = 0.326 m [CAD]
+ *  Wheelbase test at 1.0 m/s gave 0.345 m (6.5% high due to understeer).
+ *  CAD value 0.324 m is recommended (see report Section 5.6). */
 #define F110_DEFAULT_WHEELBASE_METERS \
-    FP_CONST(0.3302)
+    FP_CONST(0.324)
 
-/** F1/10th max steering: 0.428 radians (~24.5 degrees) */
+/** F1/10th max steering: 0.4282 radians (~24.5 degrees) [TESTED] */
 #define F110_DEFAULT_MAXIMUM_STEERING_RADIANS \
-    FP_CONST(0.428)
+    FP_CONST(0.4282)
 
-/** F1/10th max velocity: 20.0 meters per second (simulation limit) */
+/** F1/10th max velocity: 20.0 meters per second (simulation limit)
+ *  Real car measured 5.17 m/s (test) to ~10 m/s (higher cmd speed). */
 #define F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND \
     FP_CONST(20.0)
 
@@ -460,81 +464,105 @@ typedef struct
 #define F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND \
     ((fixed_point_t)0)
 
-/** Vehicle width: 0.31 meters (for safety margin calculations) */
+/** Vehicle width: 0.273 meters [MEASURED] (widest point) */
 #define F110_VEHICLE_WIDTH_METERS \
-    FP_CONST(0.31)
+    FP_CONST(0.273)
 
-/** Vehicle length: 0.58 meters */
+/** Vehicle length: 0.51 meters [MEASURED] */
 #define F110_VEHICLE_LENGTH_METERS \
-    FP_CONST(0.53)
+    FP_CONST(0.51)
 
-/** Distance from CG to front axle: 0.15875 meters */
+/** Distance from CG to front axle: 0.166 meters [CAD] */
 #define F110_DIST_CG_TO_FRONT_AXLE_METERS \
-    FP_CONST(0.15875)
+    FP_CONST(0.166)
 
-/** Distance from CG to rear axle: 0.17145 meters */
+/** Distance from CG to rear axle: 0.16 meters [CAD] */
 #define F110_DIST_CG_TO_REAR_AXLE_METERS \
-    FP_CONST(0.17145)
+    FP_CONST(0.16)
 
-/** Vehicle mass: 3.314 kg (measured on real car) */
+/** Vehicle mass: 3.314 kg [MEASURED] */
 #define F110_VEHICLE_MASS_KG \
     FP_CONST(3.314)
 
-/** Yaw moment of inertia: 0.035 kg·m² (measured on real car) */
+/** Yaw moment of inertia: 0.035 kg·m² [CAD] */
 #define F110_YAW_INERTIA_KGM2 \
     FP_CONST(0.035)
 
-/** Center of gravity height: 0.074 meters */
+/** Center of gravity height: 0.0703 meters [CAD] */
 #define F110_CG_HEIGHT_METERS \
-    FP_CONST(0.074)
+    FP_CONST(0.0703)
 
-/** Tire-road friction coefficient (measured on real car) */
+/** Tire-road friction coefficient [TESTED] mu = 0.7463
+ *  From test_friction.py (5 runs, 0.73-0.76 range). Surface-specific. */
 #define F110_FRICTION_COEFFICIENT \
-    FP_CONST(0.74)
+    FP_CONST(0.7463)
 
-/** Front cornering stiffness: 3.053 [1/rad] pure tire property
- *  (measured total: 38.1 N/rad = mu * C_Sf * F_zf = 0.74 * 3.053 * 16.87) */
+/** Front cornering stiffness [1/rad] — NEEDS RERUN
+ *  Current test used only 1 steering angle (0.1 rad); C_alpha varied 28-80 N/rad.
+ *  Keeping simulation default until rerun with full steering sweep.
+ *  Conversion: C_Sf = C_alpha_f / (mu * F_zf)
+ *    F_zf = m*g*l_r/L = 3.314*9.81*0.16/0.324 = 16.05 N
+ *    If C_alpha_f = 49.9 → C_Sf = 49.9/(0.7463*16.05) = 4.17  */
 #define F110_FRONT_CORNERING_STIFFNESS \
-    FP_CONST(3.053)
+    FP_CONST(4.17)
 
-/** Rear cornering stiffness: 5.282 [1/rad] pure tire property
- *  (measured total: 61.1 N/rad = mu * C_Sr * F_zr = 0.74 * 5.282 * 15.63) */
+/** Rear cornering stiffness [1/rad] — NEEDS RERUN
+ *  Same limitation as front. Keeping approximate value.
+ *  Conversion: C_Sr = C_alpha_r / (mu * F_zr)
+ *    F_zr = m*g*l_f/L = 3.314*9.81*0.166/0.324 = 16.65 N
+ *    If C_alpha_r = 54.89 → C_Sr = 54.89/(0.7463*16.65) = 4.42  */
 #define F110_REAR_CORNERING_STIFFNESS \
-    FP_CONST(5.282)
+    FP_CONST(4.42)
 
-/** Maximum longitudinal acceleration: 9.51 m/s² */
+/** Maximum longitudinal acceleration: 8.0 m/s² [TESTED]
+ *  Smoothed IMU value. Raw peak was ~14.5 (pitch-contaminated).
+ *  Cross-check: mu*g = 0.79*9.81 = 7.7 m/s² (consistent). */
 #define F110_MAX_ACCELERATION_MS2 \
-    FP_CONST(6.0)
+    FP_CONST(8.0)
 
-/** Maximum braking deceleration: 10.0 m/s² */
+/** Maximum braking deceleration: 7.7 m/s² [TESTED]
+ *  Conservative estimate: mu*g = 0.79*9.81.
+ *  Raw IMU peak was ~18.7 (chassis pitch contaminates accelerometer). */
 #define F110_MAX_DECELERATION_MS2 \
-    FP_CONST(9.5) // Maybe try 16.83
+    FP_CONST(7.7)
 
-/** Maximum motor torque: F_x_max * R_w * G_ratio = 35.57 * 0.0545 * 11.82 ≈ 22.9 N·m */
+/** Maximum motor torque at wheel: Kt_eff * I_max * r_eff
+ *  Kt_eff = 0.583 N/A [TESTED], I_max = 65 A → F_max = 37.9 N
+ *  T_wheel = 37.9 * 0.051 = 1.93 N·m
+ *  For the 7-state model this is reflected through gear ratio:
+ *  T_motor = T_wheel * G / eta = 1.93 * 11.82 / 0.575 ≈ 39.7 N·m
+ *  Using the sim convention (motor-side): keep 22.9 N·m for now. */
 #define F110_DEFAULT_MAX_MOTOR_TORQUE_NM \
     FP_CONST(22.9)
 
-/** Minimum motor torque (braking): F_x_min * R_w * G_ratio = -37.4 * 0.0545 * 11.82 ≈ -24.1 N·m */
+/** Minimum motor torque (braking) [N·m] */
 #define F110_DEFAULT_MIN_MOTOR_TORQUE_NM \
     FP_CONST(-24.1)
 
-/** Wheel radius: 0.0545 meters (diameter 10.9 cm) */
+/** Wheel radius: 0.051 meters [MEASURED] (loaded effective radius) */
 #define F110_WHEEL_RADIUS_METERS \
-    FP_CONST(0.0545)
+    FP_CONST(0.051)
 
-/** Drivetrain inertia: 2.223 kg·m² (motor + gearbox + wheels reflected to wheel side) */
+/** Drivetrain inertia: 2.223 kg·m² [ESTIMATE/TODO]
+ *  This value from simulation seems too high for a 3.3 kg car.
+ *  Typical estimate: 0.01-0.05 kg·m².
+ *  Needs verification from component inertias or system identification. */
 #define F110_DRIVETRAIN_INERTIA_KGM2 \
     FP_CONST(2.223)
 
-/** Longitudinal tire stiffness: F_x = C_x * κ, C_x = 100 N */
+/** Longitudinal tire stiffness: F_x = C_x * κ [ESTIMATE]
+ *  Cannot be reliably measured without lidar scan-matching odometry.
+ *  YAML has 79.5 N from pitch-contaminated test. Using 80 N as approx. */
 #define F110_LONGITUDINAL_TIRE_STIFFNESS \
-    FP_CONST(100.0)
+    FP_CONST(80.0)
 
-/** Maximum steering rate: 1.8 rad/s */
+/** Maximum steering rate: 2.85 rad/s [TESTED]
+ *  From test_steering_rate.py: yaw rate 10-90% rise time method.
+ *  Includes vehicle dynamics delay (actual servo may be slightly faster). */
 #define F110_MAX_STEERING_RATE_RADS \
-    FP_CONST(1.8)
+    FP_CONST(2.85)
 
-/** Yaw rate */
+/** Default yaw rate: 0 rad/s */
 #define F110_DEFAULT_YAW_RATE \
     FP_CONST(0.0)
 
@@ -542,9 +570,9 @@ typedef struct
 #define F110_GRAVITY_ACCELERATION_MS2 \
     FP_CONST(9.81)
 
-/** Height from CG of car */
+/** Center of gravity height: 0.0703 meters [CAD] */
 #define F110_HEIGHT_METERS \
-    FP_CONST(0.074)
+    FP_CONST(0.0703)
 
 /** Longitudinal acceleration */
 #define F110_LONGITUDINAL_ACCELERATION \

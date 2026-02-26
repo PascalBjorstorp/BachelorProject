@@ -48,6 +48,9 @@ DATA PIPELINE NOTES (f1tenth_system VESC stack):
     - Use /odom for velocity (twist.linear.x) — unfiltered but has deadzone
     - Use /odom for position (pose.position.x/y) — integrated, drifts slowly
     - Use /sensors/core for raw RPM and battery voltage
+    - Use /scan for LiDAR scan-matching body velocity — drift-free, independent
+      of wheel state and accelerometer bias. Best source for slip ratio and
+      braking deceleration measurements.
 """
 
 import csv
@@ -64,7 +67,7 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
 from ackermann_msgs.msg import AckermannDriveStamped
 from nav_msgs.msg import Odometry
-from sensor_msgs.msg import Imu
+from sensor_msgs.msg import Imu, LaserScan
 from std_msgs.msg import Float64
 
 # ============================================================================
@@ -84,6 +87,7 @@ DEFAULT_SERVO_OFFSET = 0.5500
 DEFAULT_SERVO_MIN = 0.202
 DEFAULT_SERVO_MAX = 0.890
 DEFAULT_WHEELBASE = 0.324
+DEFAULT_LASER_X_OFFSET = 0.275  # LiDAR (ego_racecar/laser) to base_link x offset (m)
 
 # Compute max steering angle from servo limits
 # servo = gain * angle + offset
@@ -297,6 +301,10 @@ class TestNode(Node):
         self.odom_received = False
         self.imu_received = False
         self.vesc_received = False
+        self.lidar_received = False
+        self.lidar_vx = 0.0
+        self.lidar_vy = 0.0
+        self.lidar_omega = 0.0
         self.has_vesc_msgs = False
         self.test_running = False
         self.test_complete = False
@@ -348,6 +356,14 @@ class TestNode(Node):
             self.get_logger().error(
                 "Battery monitoring, current, and temperature disabled!")
             self.has_vesc_msgs = False
+        
+        # LiDAR subscription for scan-matching velocity estimation
+        # Hokuyo UST-10LX publishes LaserScan on /scan at 40 Hz.
+        # Provides drift-free body velocity via ICP between consecutive scans.
+        self._lidar_vel = LidarVelocityEstimator(
+            laser_x_offset=DEFAULT_LASER_X_OFFSET)
+        self.scan_sub = self.create_subscription(
+            LaserScan, 'scan', self._scan_callback, 10)
         
         # Shutdown handler
         self._original_sigint = signal.getsignal(signal.SIGINT)
@@ -416,6 +432,20 @@ class TestNode(Node):
             self.get_logger().info(
                 f"VESC data received: {self.battery_voltage:.1f}V, "
                 f"FET={self.temp_fet:.1f}°C")
+    
+    def _scan_callback(self, msg: LaserScan):
+        timestamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+        result = self._lidar_vel.update(
+            msg.ranges, msg.angle_min, msg.angle_increment, timestamp)
+        if result[0] is not None:
+            self.lidar_vx = result[0]
+            self.lidar_vy = result[1]
+            self.lidar_omega = self._lidar_vel.omega
+            if not self.lidar_received:
+                self.lidar_received = True
+                hz = 1.0 / max(self._lidar_vel._dt, 0.001)
+                self.get_logger().info(
+                    f"LiDAR velocity active (scan-matching, ~{hz:.0f} Hz)")
     
     def _sigint_handler(self, sig, frame):
         self.get_logger().warn("Ctrl+C detected, stopping car...")
@@ -506,13 +536,16 @@ class TestNode(Node):
         return True
     
     def wait_for_sensors(self, timeout: float = 5.0,
-                          require_vesc: bool = False) -> bool:
+                          require_vesc: bool = False,
+                          require_lidar: bool = False) -> bool:
         """Wait until all sensor messages are received.
         
         Args:
             timeout: Seconds to wait before giving up.
             require_vesc: If True, also wait for VESC state data
                           (battery, current, temperature).
+            require_lidar: If True, also wait for LiDAR scan-matching
+                           velocity (requires two consecutive /scan msgs).
         """
         self.get_logger().info("Waiting for sensors...")
         start = time.monotonic()
@@ -520,6 +553,8 @@ class TestNode(Node):
             ready = self.odom_received and self.imu_received
             if require_vesc:
                 ready = ready and self.vesc_received
+            if require_lidar:
+                ready = ready and self.lidar_received
             if ready:
                 break
             rclpy.spin_once(self, timeout_sec=0.1)
@@ -531,6 +566,8 @@ class TestNode(Node):
                     missing.append("IMU (sensors/imu/raw)")
                 if require_vesc and not self.vesc_received:
                     missing.append("VESC state (sensors/core)")
+                if require_lidar and not self.lidar_received:
+                    missing.append("LiDAR velocity (scan on /scan)")
                 self.get_logger().error(
                     f"Timeout waiting for sensors: {', '.join(missing)}")
                 if require_vesc and not self.vesc_received:
@@ -544,10 +581,20 @@ class TestNode(Node):
                         "source install/setup.bash")
                     self.get_logger().error(
                         "  3. Run 'ros2 topic echo /sensors/core' to verify")
+                if require_lidar and not self.lidar_received:
+                    self.get_logger().error(
+                        "LiDAR not received! Check that:")
+                    self.get_logger().error(
+                        "  1. The LiDAR is running: "
+                        "ros2 launch f1tenth_lidar hokuyo_lidar.launch.py")
+                    self.get_logger().error(
+                        "  2. Run 'ros2 topic echo /scan --once' to verify")
                 return False
         status = "All sensors active"
         if self.vesc_received:
             status += f" (battery={self.battery_voltage:.1f}V, FET={self.temp_fet:.1f}°C)"
+        if self.lidar_received:
+            status += " (LiDAR velocity OK)"
         self.get_logger().info(status)
         return True
     
@@ -637,6 +684,226 @@ class ImuVelocityEstimator:
         self.velocity += (imu_ax - self.bias) * dt
         self.velocity = max(self.velocity, 0.0)  # forward-only assumption
         return self.velocity
+
+
+class LidarVelocityEstimator:
+    """
+    Estimates body velocity from consecutive LiDAR scans using 2D ICP
+    (Iterative Closest Point) scan matching.
+
+    Unlike IMU integration, this provides drift-free velocity independent
+    of both wheel encoders and accelerometer bias. The LiDAR measures the
+    true motion of the car relative to static surroundings.
+
+    The estimator takes raw LaserScan data (ranges + angles), converts to
+    2D Cartesian, and runs point-to-point ICP between consecutive scans.
+    The resulting rigid transform gives the car's displacement per scan
+    interval, from which velocity is derived.
+
+    Requires: scipy (for KDTree nearest-neighbor queries in ICP).
+
+    Usage:
+        estimator = LidarVelocityEstimator(laser_x_offset=0.275)
+        # In scan callback:
+        vx, vy = estimator.update(ranges, angle_min, angle_increment, timestamp)
+        # vx = forward velocity, vy = lateral velocity (body frame)
+    """
+
+    def __init__(self, laser_x_offset: float = 0.275,
+                 max_range: float = 10.0, min_range: float = 0.05,
+                 icp_max_iter: int = 20, icp_tolerance: float = 1e-5,
+                 max_correspondence_dist: float = 0.5,
+                 velocity_limit: float = 15.0):
+        from scipy.spatial import KDTree
+        self._KDTree = KDTree
+
+        self.laser_x_offset = laser_x_offset
+        self.max_range = max_range
+        self.min_range = min_range
+        self.icp_max_iter = icp_max_iter
+        self.icp_tolerance = icp_tolerance
+        self.max_correspondence_dist = max_correspondence_dist
+        self.velocity_limit = velocity_limit
+
+        self._prev_points = None
+        self._prev_time = None
+        self._dt = 0.025  # default 40 Hz
+
+        self.velocity_x = 0.0   # body-frame forward velocity (m/s)
+        self.velocity_y = 0.0   # body-frame lateral velocity (m/s)
+        self.omega = 0.0        # yaw rate from scan matching (rad/s)
+        self._initialized = False
+
+    def _scan_to_points(self, ranges, angle_min, angle_increment):
+        """Convert polar laser scan to 2D Cartesian points in laser frame."""
+        n = len(ranges)
+        angles = angle_min + np.arange(n) * angle_increment
+        ranges = np.asarray(ranges, dtype=np.float64)
+
+        valid = ((ranges > self.min_range) & (ranges < self.max_range)
+                 & np.isfinite(ranges))
+        angles = angles[valid]
+        ranges = ranges[valid]
+
+        x = ranges * np.cos(angles)
+        y = ranges * np.sin(angles)
+        return np.column_stack([x, y])
+
+    def _icp_2d(self, source, target):
+        """
+        Point-to-point 2D ICP: find R, t such that target ≈ R @ source + t.
+
+        Args:
+            source: (N, 2) points from previous scan
+            target: (M, 2) points from current scan
+
+        Returns:
+            (R, t, converged): 2x2 rotation, 2-vector translation, bool
+        """
+        tree = self._KDTree(target)
+        src = source.copy()
+        R_total = np.eye(2)
+        t_total = np.zeros(2)
+
+        for _ in range(self.icp_max_iter):
+            dists, indices = tree.query(src)
+
+            # Filter by max correspondence distance
+            mask = dists < self.max_correspondence_dist
+            n_matched = int(np.sum(mask))
+            if n_matched < 10:
+                break
+
+            src_m = src[mask]
+            tgt_m = target[indices[mask]]
+
+            # Centroids
+            src_c = np.mean(src_m, axis=0)
+            tgt_c = np.mean(tgt_m, axis=0)
+
+            # Center
+            src_centered = src_m - src_c
+            tgt_centered = tgt_m - tgt_c
+
+            # SVD for optimal rotation
+            H = src_centered.T @ tgt_centered
+            U, _, Vt = np.linalg.svd(H)
+            R = Vt.T @ U.T
+
+            # Ensure proper rotation (det = +1)
+            if np.linalg.det(R) < 0:
+                Vt[-1, :] *= -1
+                R = Vt.T @ U.T
+
+            t = tgt_c - R @ src_c
+
+            # Apply
+            src = (R @ src.T).T + t
+            R_total = R @ R_total
+            t_total = R @ t_total + t
+
+            # Convergence check
+            trans_norm = np.linalg.norm(t)
+            rot_angle = abs(np.arctan2(R[1, 0], R[0, 0]))
+            if trans_norm < self.icp_tolerance and rot_angle < self.icp_tolerance:
+                return R_total, t_total, True
+
+        return R_total, t_total, True
+
+    def update(self, ranges, angle_min, angle_increment, timestamp):
+        """
+        Process a new laser scan and estimate body-frame velocity.
+
+        The ICP transform maps previous-scan points to current-scan points:
+            p_current ≈ R_icp @ p_prev + t_icp
+
+        From this the robot's displacement in the current laser frame is:
+            d_laser = -t_icp   (environment shifts opposite to robot motion)
+            dtheta  = -arctan2(R_icp[1,0], R_icp[0,0])
+
+        Velocity is then d_laser / dt, transformed from laser frame to
+        base_link (accounting for the x-offset of the laser).
+
+        Args:
+            ranges: Array of range measurements from LaserScan
+            angle_min: Start angle of scan (rad)
+            angle_increment: Angular step between beams (rad)
+            timestamp: Scan timestamp in seconds
+
+        Returns:
+            (vx, vy): Body-frame velocities (m/s), or (None, None) if
+                      not enough data yet (first scan).
+        """
+        points = self._scan_to_points(ranges, angle_min, angle_increment)
+
+        if len(points) < 30:
+            return None, None
+
+        if self._prev_points is None:
+            self._prev_points = points
+            self._prev_time = timestamp
+            self._initialized = True
+            return None, None
+
+        dt = timestamp - self._prev_time
+        if dt < 1e-6:
+            return self.velocity_x, self.velocity_y
+
+        self._dt = dt
+
+        # Run ICP: find R, t such that current ≈ R @ prev + t
+        R, t, converged = self._icp_2d(self._prev_points, points)
+
+        self._prev_points = points
+        self._prev_time = timestamp
+
+        if not converged:
+            return self.velocity_x, self.velocity_y
+
+        # Robot displacement in current laser frame
+        # Robot moves forward → environment shifts backward → t_icp is negative
+        d_laser_x = -t[0]
+        d_laser_y = -t[1]
+        dtheta = -np.arctan2(R[1, 0], R[0, 0])
+
+        # Velocity in laser frame
+        vx_laser = d_laser_x / dt
+        vy_laser = d_laser_y / dt
+        omega = dtheta / dt
+
+        # Transform to base_link frame
+        # base_link is behind the laser by laser_x_offset along x.
+        # v_base = v_laser - omega × r_laser_to_base
+        # r_laser_to_base = [-offset, 0], cross product:
+        #   v_base_x = v_laser_x   (no y-component in offset)
+        #   v_base_y = v_laser_y + omega * offset
+        vx_base = vx_laser
+        vy_base = vy_laser + omega * self.laser_x_offset
+
+        # Sanity check: reject physically impossible velocities
+        speed = np.sqrt(vx_base**2 + vy_base**2)
+        if speed > self.velocity_limit:
+            return self.velocity_x, self.velocity_y
+
+        self.velocity_x = vx_base
+        self.velocity_y = vy_base
+        self.omega = omega
+
+        return self.velocity_x, self.velocity_y
+
+    def reset(self):
+        """Reset the estimator (clears previous scan data)."""
+        self._prev_points = None
+        self._prev_time = None
+        self.velocity_x = 0.0
+        self.velocity_y = 0.0
+        self.omega = 0.0
+        self._initialized = False
+
+    @property
+    def velocity(self):
+        """Forward velocity (compatible interface with ImuVelocityEstimator)."""
+        return self.velocity_x
 
 
 def radius_from_imu(speed: float, yaw_rate: float) -> float:

@@ -424,62 +424,65 @@ conservative value $a_\text{brake} = \mu\,g \approx
 
 \paragraph{Theory.}
 The steering servo has a finite angular velocity. By commanding step
-changes $+\delta \to -\delta$ and measuring the 10\%--90\% rise time
+changes from $0 \to \delta$ and measuring the 10\%--90\% rise time
 of the IMU yaw rate response:
 \begin{equation}\label{eq:steer-rate}
-  \dot{\delta}_\text{max} = \frac{2\,\delta_\text{cmd}}
+  \dot{\delta}_\text{max} = \frac{0.8\,\delta_\text{cmd}}
                                  {\Delta t_{10\text{--}90}}.
 \end{equation}
+The factor 0.8 accounts for measuring the 10\% to 90\% rise region
+(i.e.\ 80\% of the full step amplitude).
 
 \paragraph{Procedure.}
 Drive at constant \SI{1.5}{\metre\per\second}. Alternate steering
 between $+\SI{0.3}{\radian}$ and $-\SI{0.3}{\radian}$ for 6
-transitions, with 2-second pauses between steps.
+steps (each from the straight-ahead position),
+with 1.5-second straight pauses between steps.
 Record IMU yaw rate $\omega_z$ and commanded steering angle.
 
 \paragraph{Data.}
 \includefigure{steering_step_response.pdf}{%
   IMU yaw rate (solid blue, left axis) and commanded steering angle
   (dashed red, right axis) vs.\ time.
-  Lines are broken at the 2-second recording gaps between
+  Lines are broken at the recording gaps between
   steps.\label{fig:steer}}
 
 \begin{table}[H]
 \centering
 \caption{Steering step response: 10\%--90\% rise time of the
   yaw-rate response for each transition.}\label{tab:steer}
-\begin{tabular}{cS[table-format=2.1]S[table-format=3.0]S[table-format=2.2]}
+\begin{tabular}{cS[table-format=2.1]S[table-format=3.0]S[table-format=1.2]}
 \toprule
-{Step} & {$\Delta\omega$ (deg/s)} & {Rise time (ms)} & {Rate (rad/s)} \\
+{Step} & {$\Delta\omega$ (deg/s)} & {Rise time (ms)} & {$\dot{\delta}$ (rad/s)} \\
 \midrule
-0 &  84.1 &  95 & 15.48 \\
-1 & -79.2 &  78 & 17.66 \\
-2 &  77.9 &  82 & 16.63 \\
-3 & -75.9 &  76 & 17.32 \\
-4 &  81.0 &  92 & 15.37 \\
-5 & -75.9 &  96 & 13.84 \\
+0 &  84.1 &  95 & 2.53 \\
+1 & -79.2 &  78 & 3.08 \\
+2 &  77.9 &  82 & 2.93 \\
+3 & -75.9 &  76 & 3.16 \\
+4 &  81.0 &  92 & 2.61 \\
+5 & -75.9 &  96 & 2.50 \\
 \midrule
-\multicolumn{2}{c}{Average} & 87 & {$6.94^{\dagger}$} \\
+\multicolumn{2}{c}{Average} & 87 & {$2.80^{\dagger}$} \\
 \bottomrule
 \end{tabular}
 
 \smallskip\noindent${}^{\dagger}$Estimated as
-$\dot{\delta}_\text{max} = 2 \times 0.3\;\text{rad}\;/\;
-\SI{87}{\milli\second} = \SI{6.94}{\radian\per\second}$.
+$\dot{\delta}_\text{max} = 0.8 \times 0.3\;\text{rad}\;/\;
+\SI{87}{\milli\second} = \SI{2.80}{\radian\per\second}$.
 \end{table}
 
 The yaw rate response shows that the combined servo and vehicle
 dynamics produce consistent 10--90\% rise times of
 $\sim$\SI{87}{\milli\second}.  The estimated maximum steering rate of
-$\SI{6.94}{\radian\per\second}$ is substantially faster than the
-simulation default of $\SI{3.2}{\radian\per\second}$.
+$\SI{2.80}{\radian\per\second}$ (auto-saved value: \SI{2.85}{\radian\per\second})
+is close to the simulation default of $\SI{3.2}{\radian\per\second}$.
 
 \paragraph{Servo gain observation.}
 The VESC calibration (Section~\ref{sec:wheelbase}) shows that the
 actual steering angle is approximately 86\% of the commanded angle
 ($\delta_\text{actual}/\delta_\text{cmd} \approx 0.86$).
 This means the effective steering rate of the \emph{wheel angle} is
-$0.86 \times 6.94 \approx \SI{5.97}{\radian\per\second}$.
+$0.86 \times 2.85 \approx \SI{2.45}{\radian\per\second}$.
 
 \paragraph{Uncertainty.}
 \begin{itemize}
@@ -667,7 +670,7 @@ Max acceleration      & $a_\text{max}$
   & 8.01   & 9.51   & \si{\metre\per\second\squared}
   & Tested \\
 Max steer.\ rate      & $\dot{\delta}_\text{max}$
-  & 6.94   & 3.2    & \si{\radian\per\second}
+  & 2.85   & 3.2    & \si{\radian\per\second}
   & Tested \\
 Servo gain ratio      & $\delta_\text{act}/\delta_\text{cmd}$
   & 0.86   & 1.0    & {--}
@@ -706,9 +709,10 @@ defaults in several ways:
         vs.\ \SI{20}{\metre\per\second} in simulation.  The real vehicle's
         speed envelope is roughly 4$\times$ smaller.
   \item \textbf{Steering rate}: $\dot{\delta}_\text{max} =
-        \SI{6.94}{\radian\per\second}$ vs.\ \SI{3.2}{\radian\per\second}.
-        The real servo is faster than assumed; this relaxes the
-        steering rate constraint in the MPC.
+        \SI{2.85}{\radian\per\second}$ vs.\ \SI{3.2}{\radian\per\second}.
+        The real servo is slightly slower than assumed, but the values
+        are close enough that the MPC steering rate constraint remains
+        reasonable.
   \item \textbf{Motor torque} ($K_{t,\text{eff}} = \SI{0.583}{\newton\per\ampere}$):
         this value should be used instead of the theoretical
         $K_t\,G/r_\text{eff} = \SI{0.632}{\newton\per\ampere}$ to

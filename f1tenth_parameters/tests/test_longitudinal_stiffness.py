@@ -5,19 +5,14 @@ Longitudinal Tire Stiffness Test for F1/10th Car
 Identifies the longitudinal tire stiffness (C_x) by measuring the relationship
 between wheel slip ratio and longitudinal force during acceleration and braking.
 
-KNOWN LIMITATION (2025):
-    The IMU-integrated body velocity v_body drifts significantly due to
-    accelerometer pitch oscillations, especially during braking where the
-    car pitches forward and gravity leaks into the forward-axis reading.
-    This makes the slip ratio kappa unreliable: in the recorded data,
-    kappa ranges from -1.0 to +0.9, far beyond physical values (~0.01-0.05
-    for normal driving).  As a result, C_x CANNOT be reliably identified
-    from this test with the current sensor set.
+BODY VELOCITY SOURCE:
+    This test uses LiDAR scan-matching (ICP) to measure the true body velocity
+    independently of wheel encoders. The Hokuyo UST-10LX LiDAR at 40 Hz provides
+    drift-free velocity by matching consecutive scans of the static environment.
+    This avoids the limitations of IMU integration (pitch-induced drift during
+    braking) and wheel odometry (ERPM tracks wheel speed, not body speed).
 
-    TO FIX: Replace IMU-integrated v_body with lidar-based scan-matching
-    odometry (e.g. ICP between consecutive scans).  This provides body
-    velocity independent of both wheel encoders and accelerometer drift.
-    The car already has a Hokuyo LiDAR, so the infrastructure exists.
+    The IMU velocity estimator is retained as a comparison channel.
 
 THEORY:
     Longitudinal tire force (linear region):
@@ -30,7 +25,7 @@ THEORY:
     kappa > 0 → driving (traction), kappa < 0 → braking
 
     v_wheel comes from ERPM (speed_to_erpm_gain), which is what the VESC
-    measures directly. v_body comes from IMU integration, which represents
+    measures directly. v_body comes from LiDAR scan-matching, which represents
     the actual vehicle speed independent of wheel state.
 
     F_x = m * a_x (from IMU), so:
@@ -40,10 +35,10 @@ THEORY:
     At higher slip the tires saturate (peak friction, then sliding).
 
 PROCEDURE:
-    1. Calibrate IMU bias while stationary
-    2. Accelerate from standstill → record (v_wheel, v_imu, a_x, current)
-    3. Cruise at steady speed → reset IMU anchor
-    4. Brake to standstill → record (v_wheel, v_imu, a_x, current)
+    1. Calibrate IMU bias while stationary, wait for LiDAR velocity
+    2. Accelerate from standstill → record (v_wheel, v_lidar, a_x, current)
+    3. Cruise at steady speed → verify LiDAR vs wheel agreement
+    4. Brake to standstill → record (v_wheel, v_lidar, a_x, current)
     5. Compute slip ratio and C_x in the linear region
 
 NOTE: The Traxxas Slash 4x4 is all-wheel drive, so all four wheels contribute.
@@ -71,7 +66,7 @@ class LongitudinalStiffnessNode(TestNode):
             'odom_vx', 'imu_ax', 'imu_ay', 'imu_az',
             'gyro_y',
             'motor_rpm', 'motor_current',
-            'v_imu', 'slip_ratio',
+            'v_lidar', 'v_imu', 'slip_ratio',
             'cmd_speed', 'phase'
         ]
 
@@ -148,7 +143,7 @@ class LongitudinalStiffnessNode(TestNode):
 
     def run_test(self):
         """Execute the longitudinal stiffness test."""
-        if not self.wait_for_sensors():
+        if not self.wait_for_sensors(require_lidar=True):
             return False
 
         self.get_logger().info("=" * 60)
@@ -156,6 +151,7 @@ class LongitudinalStiffnessNode(TestNode):
         self.get_logger().info(f"Max speed: {self.max_speed:.1f} m/s")
         self.get_logger().info(f"Cruise time: {self.cruise_time:.1f} s")
         self.get_logger().info(f"Vehicle mass: {self.mass:.3f} kg")
+        self.get_logger().info("Body velocity: LiDAR scan-matching (ICP)")
         self.get_logger().info("=" * 60)
 
         # ---- IMU Bias Calibration ----
@@ -199,14 +195,16 @@ class LongitudinalStiffnessNode(TestNode):
 
             v_imu = self.imu_vel.update(self.imu_ax, dt)
             v_wheel = self.odom_vx  # ERPM-based
+            v_lidar = self.lidar_vx  # LiDAR scan-matching (drift-free)
 
-            # Slip ratio (driving: wheel faster than body for traction)
-            v_max = max(abs(v_wheel), abs(v_imu), 0.1)
-            kappa = (v_wheel - v_imu) / v_max
+            # Slip ratio using LiDAR body velocity (primary)
+            v_max = max(abs(v_wheel), abs(v_lidar), 0.1)
+            kappa = (v_wheel - v_lidar) / v_max
 
             self.accel_data.append({
                 't': now - phase_start,
                 'v_wheel': v_wheel,
+                'v_lidar': v_lidar,
                 'v_imu': v_imu,
                 'ax': ax_pitch,
                 'ax_raw': ax_corr,
@@ -219,7 +217,7 @@ class LongitudinalStiffnessNode(TestNode):
                 odom_vx=v_wheel, imu_ax=ax_pitch, imu_ay=self.imu_ay,
                 imu_az=self.imu_az, gyro_y=self.imu_gy,
                 motor_rpm=self.motor_rpm, motor_current=self.motor_current,
-                v_imu=v_imu, slip_ratio=kappa,
+                v_lidar=v_lidar, v_imu=v_imu, slip_ratio=kappa,
                 cmd_speed=self.max_speed, phase='acceleration'
             )
 
@@ -260,14 +258,17 @@ class LongitudinalStiffnessNode(TestNode):
 
             v_imu = self.imu_vel.update(self.imu_ax, dt)
             v_wheel = self.odom_vx
+            v_lidar = self.lidar_vx
             ax_corr = self.imu_ax - imu_bias
 
-            v_max = max(abs(v_wheel), abs(v_imu), 0.1)
-            kappa = (v_wheel - v_imu) / v_max
+            # Slip ratio using LiDAR body velocity
+            v_max = max(abs(v_wheel), abs(v_lidar), 0.1)
+            kappa = (v_wheel - v_lidar) / v_max
 
             self.cruise_data.append({
                 't': now - cruise_start,
                 'v_wheel': v_wheel,
+                'v_lidar': v_lidar,
                 'v_imu': v_imu,
                 'ax': ax_corr,
                 'az': self.imu_az,
@@ -279,7 +280,7 @@ class LongitudinalStiffnessNode(TestNode):
                 odom_vx=v_wheel, imu_ax=ax_corr, imu_ay=self.imu_ay,
                 imu_az=self.imu_az, gyro_y=self.imu_gy,
                 motor_rpm=self.motor_rpm, motor_current=self.motor_current,
-                v_imu=v_imu, slip_ratio=kappa,
+                v_lidar=v_lidar, v_imu=v_imu, slip_ratio=kappa,
                 cmd_speed=self.max_speed, phase='cruise'
             )
 
@@ -292,6 +293,7 @@ class LongitudinalStiffnessNode(TestNode):
         if self.cruise_data:
             cruise_kappa = np.array([d['kappa'] for d in self.cruise_data])
             cruise_vw = np.array([d['v_wheel'] for d in self.cruise_data])
+            cruise_vl = np.array([d['v_lidar'] for d in self.cruise_data])
             cruise_vi = np.array([d['v_imu'] for d in self.cruise_data])
             # During cruise, true ax ≈ 0 → raw imu_ax ≈ bias
             # ax_corr was stored as (raw - standstill_bias), so raw = ax_corr + standstill_bias
@@ -301,23 +303,23 @@ class LongitudinalStiffnessNode(TestNode):
 
             self.get_logger().info(
                 f"  Cruise: v_wheel={np.mean(cruise_vw):.2f}±{np.std(cruise_vw):.3f}, "
-                f"v_imu={np.mean(cruise_vi):.2f}±{np.std(cruise_vi):.3f}, "
-                f"kappa={np.mean(cruise_kappa):.4f}±{np.std(cruise_kappa):.4f}")
+                f"v_lidar={np.mean(cruise_vl):.2f}±{np.std(cruise_vl):.3f}, "
+                f"v_imu={np.mean(cruise_vi):.2f}±{np.std(cruise_vi):.3f}")
+            self.get_logger().info(
+                f"  LiDAR-wheel diff: {np.mean(cruise_vl - cruise_vw):.4f} m/s, "
+                f"kappa: {np.mean(cruise_kappa):.4f}±{np.std(cruise_kappa):.4f}")
             self.get_logger().info(
                 f"  IMU bias: standstill={imu_bias:.4f}, cruise-refined={cruise_bias:.4f}, "
                 f"delta={cruise_bias - imu_bias:.4f} m/s²")
 
-        # Use cruise-refined bias for braking phase
+        # Use cruise-refined bias for braking phase (IMU comparison only)
         braking_bias = cruise_bias
-
-        # Anchor IMU to current odom speed (known-good at steady state)
-        # Also update IMU estimator bias with cruise-refined value
         self.imu_vel.reset(initial_velocity=abs(self.odom_vx), bias=braking_bias)
         self.get_logger().info(f"  IMU velocity anchored to {abs(self.odom_vx):.2f} m/s")
 
-        # ---- Phase 3: Braking ----
-        self.get_logger().info("\n--- Phase 3: BRAKING (with gyro+accel pitch compensation) ---")
-        self.get_logger().info(f"  Using cruise-refined IMU bias: {braking_bias:.4f} m/s²")
+        # ---- Phase 3: Braking (LiDAR scan-matching for body velocity) ----
+        self.get_logger().info("\n--- Phase 3: BRAKING (LiDAR body velocity) ---")
+        self.get_logger().info(f"  Also tracking: IMU pitch-compensated velocity (comparison)")
         self.get_logger().info(f"  Complementary filter alpha: {self.comp_alpha:.3f}")
         phase_start = time.monotonic()
         last_t = phase_start
@@ -325,10 +327,10 @@ class LongitudinalStiffnessNode(TestNode):
         # Reset complementary filter pitch to near-zero (car is level during cruise)
         self.comp_pitch = 0.0
 
-        # Track pitch-corrected velocity separately
-        v_imu_pc = abs(self.odom_vx)  # start from anchored value
+        # Track pitch-corrected IMU velocity for comparison
+        v_imu_pc = abs(self.odom_vx)
 
-        while (abs(self.odom_vx) > 0.1 or self.imu_vel.velocity > 0.1) and \
+        while (abs(self.odom_vx) > 0.1 or self.lidar_vx > 0.15) and \
               time.monotonic() - phase_start < 10.0:
             rclpy.spin_once(self, timeout_sec=0.005)
 
@@ -353,14 +355,16 @@ class LongitudinalStiffnessNode(TestNode):
             v_imu = self.imu_vel.update(self.imu_ax, dt)
 
             v_wheel = self.odom_vx
+            v_lidar = self.lidar_vx  # LiDAR body velocity (drift-free)
 
-            # Slip ratio using pitch-corrected body velocity
-            v_max = max(abs(v_wheel), abs(v_imu_pc), 0.1)
-            kappa = (v_wheel - v_imu_pc) / v_max
+            # Slip ratio using LiDAR body velocity (primary)
+            v_max = max(abs(v_wheel), abs(v_lidar), 0.1)
+            kappa = (v_wheel - v_lidar) / v_max
 
             self.decel_data.append({
                 't': now - phase_start,
                 'v_wheel': v_wheel,
+                'v_lidar': v_lidar,
                 'v_imu': v_imu_pc,
                 'v_imu_raw': v_imu,
                 'ax': ax_pitch,
@@ -374,7 +378,7 @@ class LongitudinalStiffnessNode(TestNode):
                 odom_vx=v_wheel, imu_ax=ax_pitch, imu_ay=self.imu_ay,
                 imu_az=self.imu_az, gyro_y=self.imu_gy,
                 motor_rpm=self.motor_rpm, motor_current=self.motor_current,
-                v_imu=v_imu_pc, slip_ratio=kappa,
+                v_lidar=v_lidar, v_imu=v_imu_pc, slip_ratio=kappa,
                 cmd_speed=0.0, phase='braking'
             )
 
@@ -387,21 +391,21 @@ class LongitudinalStiffnessNode(TestNode):
         return True
 
     def analyze(self):
-        """Analyze longitudinal stiffness results with pitch compensation."""
+        """Analyze longitudinal stiffness results using LiDAR body velocity."""
         self.get_logger().info("")
         self.get_logger().info("=" * 60)
-        self.get_logger().info("ANALYSIS RESULTS (pitch-compensated)")
+        self.get_logger().info("ANALYSIS RESULTS (LiDAR scan-matching body velocity)")
         self.get_logger().info("=" * 60)
 
         # Cruise phase summary
         if self.cruise_data:
             cruise_kappa = np.array([d['kappa'] for d in self.cruise_data])
             cruise_vw = np.array([d['v_wheel'] for d in self.cruise_data])
-            cruise_vi = np.array([d['v_imu'] for d in self.cruise_data])
+            cruise_vl = np.array([d['v_lidar'] for d in self.cruise_data])
             self.get_logger().info(f"\nCRUISE (steady-state baseline):")
             self.get_logger().info(f"  Samples: {len(self.cruise_data)}")
             self.get_logger().info(f"  v_wheel: {np.mean(cruise_vw):.2f} ± {np.std(cruise_vw):.3f} m/s")
-            self.get_logger().info(f"  v_imu:   {np.mean(cruise_vi):.2f} ± {np.std(cruise_vi):.3f} m/s")
+            self.get_logger().info(f"  v_lidar: {np.mean(cruise_vl):.2f} ± {np.std(cruise_vl):.3f} m/s")
             self.get_logger().info(f"  kappa:   {np.mean(cruise_kappa):.4f} ± {np.std(cruise_kappa):.4f}")
 
         for phase_name, data in [('ACCELERATION', self.accel_data),
@@ -412,13 +416,13 @@ class LongitudinalStiffnessNode(TestNode):
             kappa_arr = np.array([d['kappa'] for d in data])
             ax_arr = np.array([d['ax'] for d in data])
             vw_arr = np.array([d['v_wheel'] for d in data])
-            vi_arr = np.array([d['v_imu'] for d in data])
-            F_x = self.mass * ax_arr  # Longitudinal force (pitch-corrected)
+            vl_arr = np.array([d['v_lidar'] for d in data])
+            F_x = self.mass * ax_arr
 
             self.get_logger().info(f"\n{phase_name}:")
             self.get_logger().info(f"  Samples: {len(data)}")
             self.get_logger().info(f"  Speed range (wheel): {np.min(vw_arr):.2f} - {np.max(vw_arr):.2f} m/s")
-            self.get_logger().info(f"  Speed range (IMU):   {np.min(vi_arr):.2f} - {np.max(vi_arr):.2f} m/s")
+            self.get_logger().info(f"  Speed range (LiDAR): {np.min(vl_arr):.2f} - {np.max(vl_arr):.2f} m/s")
             self.get_logger().info(f"  Slip ratio range: {np.min(kappa_arr):.4f} to {np.max(kappa_arr):.4f}")
             self.get_logger().info(f"  Max |F_x|: {np.max(np.abs(F_x)):.2f} N")
 
@@ -498,12 +502,12 @@ class LongitudinalStiffnessNode(TestNode):
 
         self.get_logger().info(f"\n--- Parameters for MPC ---")
         if best_Cx != 0:
-            self.get_logger().info(f"  C_x: {abs(best_Cx):.1f} N/unit-slip (combined, pitch-corrected)")
+            self.get_logger().info(f"  C_x: {abs(best_Cx):.1f} N/unit-slip (combined, LiDAR body velocity)")
             self.get_logger().info(f"  C_x per tire: ~{abs(best_Cx)/4:.1f} N/unit-slip")
         self.get_logger().info(f"\n  NOTE: This is the COMBINED longitudinal stiffness")
         self.get_logger().info(f"  (all 4 wheels, AWD). For per-tire: divide by ~4.")
-        self.get_logger().info(f"  Pitch compensation: complementary filter (gyro + accel).")
-        self.get_logger().info(f"  Gyro trust (alpha): {self.comp_alpha:.3f}")
+        self.get_logger().info(f"  Body velocity: LiDAR scan-matching (drift-free).")
+        self.get_logger().info(f"  Acceleration: IMU pitch-compensated (alpha={self.comp_alpha:.3f}).")
 
         # Auto-save to vehicle_params.yaml
         from common import update_vehicle_params

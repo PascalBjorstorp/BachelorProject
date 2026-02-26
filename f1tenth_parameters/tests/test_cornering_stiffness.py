@@ -113,6 +113,13 @@ class CorneringStiffnessNode(TestNode):
         self.get_logger().info("=" * 60)
         self.get_logger().info("CORNERING STIFFNESS TEST")
         self.get_logger().info(f"Steering angles: {[f'{np.degrees(s):.1f}°' for s in self.steering_angles]}")
+        if len(self.steering_angles) < 3:
+            self.get_logger().warn(
+                f"⚠ Only {len(self.steering_angles)} steering angle(s) specified! "
+                f"A single angle produces unreliable C_alpha estimates because "
+                f"the slip-angle range is too narrow. Use the default sweep of "
+                f"5 angles [0.08, 0.12, 0.16, 0.20, 0.24] rad for reliable results."
+            )
         self.get_logger().info(f"Direction: {'left' if self.direction > 0 else 'right'}")
         self.get_logger().info(f"Speed range: {self.min_speed:.1f} - {self.max_speed:.1f} m/s "
                                f"(step {self.speed_step:.1f})")
@@ -489,9 +496,25 @@ class CorneringStiffnessNode(TestNode):
         self.get_logger().info(f"Summary saved to {summary_path}")
 
         # Auto-save to vehicle_params.yaml
+        # Only save if multiple steering angles were tested (single-angle
+        # data is unreliable — C_alpha varies with speed when the slip-angle
+        # range is too narrow).
         from common import update_vehicle_params
         params = {}
-        if C_af_best > 0:
+        n_angles_tested = len(set(
+            r.get('steering_angle', 0) for r in self.speed_results
+        )) if self.speed_results else len(self.steering_angles)
+        # Fall back to checking args if steering_angle not in results
+        if n_angles_tested <= 1:
+            n_angles_tested = len(self.steering_angles)
+
+        if n_angles_tested < 3:
+            self.get_logger().warn(
+                f"  ⚠ Only {n_angles_tested} steering angle(s) tested — "
+                f"NOT saving C_alpha to YAML (unreliable with narrow "
+                f"slip-angle range). Re-run with default angle sweep "
+                f"[0.08, 0.12, 0.16, 0.20, 0.24] for valid results.")
+        elif C_af_best > 0:
             params['C_alpha_f'] = float(C_af_best)
             params['C_alpha_r'] = float(C_ar_best)
         if params:
