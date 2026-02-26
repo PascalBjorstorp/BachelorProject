@@ -508,7 +508,7 @@ typedef struct
 
 /** Maximum braking deceleration: 10.0 m/s² */
 #define F110_MAX_DECELERATION_MS2 \
-    FP_CONST(9.5)
+    FP_CONST(9.5) // Maybe try 16.83
 
 /** Maximum motor torque: F_x_max * R_w * G_ratio = 35.57 * 0.0545 * 11.82 ≈ 22.9 N·m */
 #define F110_DEFAULT_MAX_MOTOR_TORQUE_NM \

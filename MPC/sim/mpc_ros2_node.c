@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 
 /* ROS2 C Client Library Headers */
 #include "rcl/rcl.h"
@@ -39,12 +40,12 @@
  * Configuration Constants
  *===========================================================================*/
 
-/** Number of MPC prediction steps (10 steps × 0.05s = 0.5 second lookahead) */
+/** Number of MPC prediction steps (40 steps × 0.05s = 2.0 second lookahead) */
 #define MPC_PREDICTION_HORIZON_STEPS 40
 
 /** Time step between predictions (seconds) - MUST match MPC_DEFAULT_TIME_STEP_SECONDS in mpc_types.h
- *  50 ms for prediction lookahead. MPC is called at ~200 Hz (divider=1) but
- *  predicts 0.5s ahead with 10 steps. cross_call_rate_scale handles the mismatch. */
+ *  50 ms for prediction lookahead. MPC is called at ~250 Hz (divider=1) but
+ *  predicts 2.0s ahead with 40 steps. cross_call_rate_scale handles the mismatch. */
 #define MPC_TIME_STEP_SECONDS 0.05f
 
 /** Maximum allowed steering angle (radians, ~23 degrees) */
@@ -61,7 +62,7 @@
 
 /** Odometry callback divider (run MPC every N callbacks)
  *
- * Set to 1 to run MPC at every odometry callback (~150-200 Hz).
+ * Set to 1 to run MPC at every odometry callback (~250 Hz).
  * The within-horizon rate penalty (between steps k and k+1) provides
  * smoothing regardless of call frequency. The cross-call rate penalty
  * (u[0] vs u_prev) is proportionally weaker at higher frequencies
@@ -76,9 +77,8 @@ static int g_odom_divider = ODOMETRY_CALLBACK_DIVIDER_DEFAULT;
 /** Maximum reference velocity [m/s] (clamp trajectory velocities) */
 #define TRAJECTORY_MAXIMUM_VELOCITY 20.0
 
-/** Speed gain applied to trajectory velocities (0.9 = 90% of optimal racing speed)
- *  User-mandated value. */
-#define TRAJECTORY_SPEED_GAIN 0.6
+/** Speed gain applied to trajectory velocities (1.0 = full optimal racing speed) */
+#define TRAJECTORY_SPEED_GAIN 1.0
 
 /** Maximum longitudinal acceleration for reference velocity ramp [m/s²]
  *  Raised from 2.6 to 5.0 to match physical capability (measured 6-9.5 m/s²).
@@ -283,7 +283,7 @@ static int find_closest_waypoint(double position_x, double position_y, double ve
     }
 
     /* Always search the FULL trajectory to avoid getting stuck at wrong index.
-     * For ~300 waypoints this is negligible at 20Hz. */
+     * For ~300 waypoints this is negligible at 250 Hz. */
     int best_index = global_last_closest_index;
     double best_distance_squared = 1e18;
 
@@ -895,10 +895,15 @@ void odometry_subscription_callback(const void *message_in)
         }
         else
         {
+        struct timespec mpc_t0, mpc_t1;
+        clock_gettime(CLOCK_MONOTONIC, &mpc_t0);
         mpc_status = mpc_compute_optimal_control(
             &global_frenet_state,
             global_reference_trajectory,
             &mpc_result);
+        clock_gettime(CLOCK_MONOTONIC, &mpc_t1);
+        double mpc_solve_us = (mpc_t1.tv_sec - mpc_t0.tv_sec) * 1e6 +
+                              (mpc_t1.tv_nsec - mpc_t0.tv_nsec) / 1e3;
 
         if (mpc_status == MPC_STATUS_SUCCESS ||
             mpc_status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED)
@@ -994,9 +999,9 @@ void odometry_subscription_callback(const void *message_in)
             global_control_command.motor_torque_newton_meters =
                 DOUBLE_TO_FP(velocity_command_mps);
 
-            printf("[MPC] Control: steer=%.4f rad (raw=%.4f, ff=%.3f), torque=%.2f Nm, v_cmd=%.2f m/s (status=%d, iter=%d, dist=%.2f)\n",
+            printf("[MPC] Control: steer=%.4f rad (raw=%.4f, ff=%.3f), torque=%.2f Nm, v_cmd=%.2f m/s (status=%d, iter=%d, dist=%.2f, solve=%.1fus)\n",
                    steering_command_radians, FP_TO_DOUBLE(mpc_result.optimal_control.steering_angle_radians), steer_feedforward, torque_command_nm, velocity_command_mps,
-                   mpc_status, mpc_result.iterations_used, distance_from_trajectory);
+                   mpc_status, mpc_result.iterations_used, distance_from_trajectory, mpc_solve_us);
             fflush(stdout);
         }
         else
@@ -1064,8 +1069,8 @@ int main(int argc, char *argv[])
     /* Initialize MPC controller (includes vehicle model initialization) */
     mpc_initialize();
 
-    /* With ODOMETRY_CALLBACK_DIVIDER=10 the MPC runs at ~20 Hz (~50ms),
-     * matching the prediction time-step. */
+    /* Configure MPC for simulation: ODOMETRY_CALLBACK_DIVIDER=1 runs
+     * MPC at ~250 Hz (every odom callback). */
     {
         MpcConfiguration_t cfg = mpc_get_configuration();
         cfg.cross_call_rate_scale = FP_CONST(0.3);    /* Allow inter-call steering changes */
