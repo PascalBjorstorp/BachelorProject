@@ -63,13 +63,23 @@ class FrictionTestNode(TestNode):
         num_speeds = int((args.max_speed - args.min_speed) / args.speed_step) + 1
         max_time = num_speeds * 15.0 + 60.0
         
+        # Auto-calculate geofence if not specified (0 = auto)
+        geofence = args.geofence
+        if geofence <= 0:
+            # Kinematic radius at the given steering angle
+            r_kin = radius_from_steering_angle(args.steering, args.wheelbase)
+            # At high speeds tires slip → radius grows significantly
+            r_max_est = r_kin * 3.0  # generous estimate for heavy slip
+            # Car starts at edge of circle, so max distance from origin ≈ 2R
+            geofence = 2.0 * r_max_est + 2.0  # extra 2m margin
+        
         super().__init__(
             'friction_test',
             'friction_test',
             columns,
             max_speed=args.max_speed * 1.3,
             max_time=max_time,
-            max_distance=args.geofence
+            max_distance=geofence
         )
         
         self.steering_angle = args.steering
@@ -78,6 +88,7 @@ class FrictionTestNode(TestNode):
         self.speed_step = args.speed_step
         self.wheelbase = args.wheelbase
         self.circle_time = args.circle_time
+        self.slip_abort_threshold = args.slip_abort
         
         self.speed_results = []
     
@@ -244,7 +255,7 @@ class FrictionTestNode(TestNode):
         self.get_logger().info(f"Kinematic radius: {r_kinematic:.2f}m")
         self.get_logger().info(f"Required space: ~{2*r_kinematic + 2:.1f}m x {2*r_kinematic + 2:.1f}m")
         if self.safety.max_distance > 0:
-            min_geofence = 2.0 * r_kinematic + 0.2
+            min_geofence = 2.0 * r_kinematic + 0.5
             if self.safety.max_distance < min_geofence:
                 self.get_logger().warn(
                     f"Geofence ({self.safety.max_distance:.2f}m) may be too tight for this circle. "
@@ -255,7 +266,7 @@ class FrictionTestNode(TestNode):
         self.get_logger().info("")
         self.get_logger().info("CAUTION: Car will approach grip limits!")
         self.get_logger().info("Keep joystick ready. Test will auto-abort if")
-        self.get_logger().info("slip ratio drops significantly (tire saturation).")
+        self.get_logger().info(f"slip ratio drops below {self.slip_abort_threshold:.2f} (severe tire saturation).")
         self.get_logger().info("=" * 60)
 
         self.calibrate_imu_bias(duration=1.5)
@@ -275,11 +286,13 @@ class FrictionTestNode(TestNode):
             if result is not None:
                 self.speed_results.append(result)
                 
-                # Auto-abort if significant slip detected
-                if result['slip_ratio_cmd'] < 0.7:
+                # Auto-abort if severe slip detected
+                if self.slip_abort_threshold > 0 and result['slip_ratio_cmd'] < self.slip_abort_threshold:
                     self.get_logger().warn(
-                        f"  Significant tire slip detected (ratio={result['slip_ratio_cmd']:.2f}). "
-                        f"Stopping test for safety.")
+                        f"  Severe tire slip detected (ratio={result['slip_ratio_cmd']:.2f} "
+                        f"< threshold {self.slip_abort_threshold:.2f}). "
+                        f"Stopping test for safety. "
+                        f"Use --slip-abort <lower> to allow more slip.")
                     break
         
         self.stop_car()
@@ -398,18 +411,20 @@ def main():
         description='F1/10th Friction Limit Test')
     parser.add_argument('--steering', type=float, default=0.3,
                         help='Steering angle in radians (default: 0.3 ≈ 17°)')
-    parser.add_argument('--min-speed', type=float, default=1.0,
-                        help='Starting speed (m/s, default: 1.0)')
-    parser.add_argument('--max-speed', type=float, default=4.0,
-                        help='Maximum speed to test (m/s, default: 4.0)')
+    parser.add_argument('--min-speed', type=float, default=2.0,
+                        help='Starting speed (m/s, default: 2.0)')
+    parser.add_argument('--max-speed', type=float, default=5.0,
+                        help='Maximum speed to test (m/s, default: 5.0)')
     parser.add_argument('--speed-step', type=float, default=0.5,
                         help='Speed increment (m/s, default: 0.5)')
     parser.add_argument('--circle-time', type=float, default=8.0,
                         help='Recording time per speed point (s, default: 8.0)')
     parser.add_argument('--wheelbase', type=float, default=DEFAULT_WHEELBASE,
                         help=f'Wheelbase in meters (default: {DEFAULT_WHEELBASE})')
-    parser.add_argument('--geofence', type=float, default=2.3,
-                        help='Max distance from start before abort (m, default: 2.3, 0=off, circle path needs ~2R)')
+    parser.add_argument('--geofence', type=float, default=0.0,
+                        help='Max distance from start before abort (m, default: 0=auto-calculate from steering+speed, circle path needs ~2R)')
+    parser.add_argument('--slip-abort', type=float, default=0.0,
+                        help='Abort when slip ratio drops below this (default: 0=never abort on slip)')
     parser.add_argument('--runs', type=int, default=5,
                         help='Number of complete test runs (default: 5)')
     args = parser.parse_args()
@@ -427,8 +442,8 @@ def main():
             node.stop_car()
             node.destroy_node()
         if run_idx < args.runs - 1:
-            print("\nCooling down for 5s before next run...")
-            time.sleep(5)
+            print("\n  >>> Reposition the car for the next run.")
+            input("  >>> Press ENTER when ready...")
     rclpy.shutdown()
 
 

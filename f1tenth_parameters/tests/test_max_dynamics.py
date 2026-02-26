@@ -58,6 +58,7 @@ class MaxDynamicsNode(TestNode):
         
         self.max_speed = args.max_speed
         self.accel_time = args.accel_time
+        self.max_velocity_override = getattr(args, 'max_velocity_override', 0.0)
         
         # IMU velocity estimator for braking phase
         self.imu_vel = ImuVelocityEstimator()
@@ -342,7 +343,23 @@ class MaxDynamicsNode(TestNode):
         # Auto-save to vehicle_params.yaml
         params = {}
         if self.accel_data['speed']:
-            params['max_velocity'] = float(np.max(self.accel_data['speed']))
+            measured_max_v = float(np.max(self.accel_data['speed']))
+            # Check if commanded speed was the bottleneck
+            cmd_limited = measured_max_v >= self.max_speed * 0.95
+            
+            if self.max_velocity_override > 0:
+                params['max_velocity'] = self.max_velocity_override
+                self.get_logger().info(
+                    f"  Using manual max velocity override: "
+                    f"{self.max_velocity_override:.2f} m/s")
+            elif cmd_limited:
+                self.get_logger().warn(
+                    f"  NOT saving max_velocity — reached commanded limit "
+                    f"({self.max_speed:.1f} m/s), true max is higher.")
+                self.get_logger().info(
+                    f"  To set manually: --max-velocity-override <value>")
+            else:
+                params['max_velocity'] = measured_max_v
             params['max_accel'] = float(np.max(np.abs(self.accel_data['imu_ax'])))
         if self.decel_data['imu_ax']:
             params['max_decel'] = float(np.max(np.abs(self.decel_data['imu_ax'])))
@@ -357,6 +374,9 @@ def main():
         description='F1/10th Maximum Dynamics Test')
     parser.add_argument('--max-speed', type=float, default=2.5,
                         help='Max speed to command (m/s, default: 2.5)')
+    parser.add_argument('--max-velocity-override', type=float, default=0.0,
+                        help='Manually set max velocity (m/s). Use when '
+                             'runway is too short to reach true top speed.')
     parser.add_argument('--accel-time', type=float, default=5.0,
                         help='Duration of acceleration phase (s, default: 5.0)')
     parser.add_argument('--runs', type=int, default=5,
@@ -376,8 +396,8 @@ def main():
             node.stop_car()
             node.destroy_node()
         if run_idx < args.runs - 1:
-            print("\nCooling down for 5s before next run...")
-            time.sleep(5)
+            print("\n  >>> Reposition the car for the next run.")
+            input("  >>> Press ENTER when ready...")
     rclpy.shutdown()
 
 

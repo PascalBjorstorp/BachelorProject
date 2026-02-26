@@ -12,9 +12,8 @@ PREREQUISITE CALIBRATION (must be done BEFORE running these tests):
     4. prerequisites/test_steering_gain.py       — Steering gain calibration
     5. prerequisites/test_steering_calibration.py — Full steering calibration sweep
     6. prerequisites/test_speed_sweep.py         — Speed/ERPM calibration
-    7. tests/test_current_limits.py              — Find safe motor current limits (iterative!)
 
-Once the VESC calibration and current limits are set, run this script
+Once the VESC calibration is done, run this script
 to identify the vehicle model parameters:
     - Wheelbase
     - Max velocity, acceleration, deceleration
@@ -92,12 +91,13 @@ TESTS = [
         'script': 'tests/test_friction.py',
         'description': (
             'Measures tire grip (friction coefficient mu = a_y_max / g).\n'
-            '  Requires: ~3m x 3m open space\n'
-            '  Duration: ~1 min\n'
+            '  Requires: ~8m x 8m open space (auto-geofence ~8.3m)\n'
+            '  Duration: ~70s per run, 5 runs\n'
             '  Uses: IMU lateral acceleration (not affected by odom errors)\n'
             '  CAUTION: Approaches the limits of grip!'
         ),
-        'default_args': ['--steering', '0.3', '--max-speed', '4.0', '--speed-step', '0.5'],
+        'default_args': ['--steering', '0.3', '--min-speed', '2.0', '--max-speed', '5.0',
+                         '--speed-step', '0.5', '--slip-abort', '0'],
         'data_prefix': 'friction_test',
         'parameters': ['friction_coefficient', 'max_lateral_accel'],
     },
@@ -106,12 +106,14 @@ TESTS = [
         'script': 'tests/test_cornering_stiffness.py',
         'description': (
             'Identifies front/rear cornering stiffness (C_alpha_f, C_alpha_r).\n'
-            '  Requires: ~3m x 3m open space\n'
-            '  Duration: ~2 min\n'
-            '  Drives steady-state circles at increasing speed\n'
+            '  Requires: ~8m x 8m open space (auto-geofence ~14m)\n'
+            '  Duration: ~90s per run, 5 runs\n'
+            '  Uses small steering (0.1 rad) to stay in linear tire region\n'
+            '  Drives steady-state circles at v=1.5-3.0 m/s\n'
             '  Needs: vehicle mass, l_f, l_r (--mass, --l-f, --l-r)'
         ),
-        'default_args': ['--steering', '0.3', '--max-speed', '3.5', '--speed-step', '0.5'],
+        'default_args': ['--steering', '0.1', '--min-speed', '1.5', '--max-speed', '3.0',
+                         '--speed-step', '0.25'],
         'data_prefix': 'cornering_stiffness',
         'parameters': ['C_alpha_f', 'C_alpha_r', 'understeer_gradient'],
     },
@@ -120,12 +122,12 @@ TESTS = [
         'script': 'tests/test_longitudinal_stiffness.py',
         'description': (
             'Identifies longitudinal tire stiffness (C_x) from slip ratio.\n'
-            '  Requires: ~5m straight clear space\n'
-            '  Duration: ~30s\n'
+            '  Requires: ~10m straight clear space\n'
+            '  Duration: ~45s per run\n'
             '  Compares wheel speed (ERPM) vs body speed (IMU)\n'
             '  Needs: vehicle mass (--mass)'
         ),
-        'default_args': ['--max-speed', '2.5'],
+        'default_args': ['--max-speed', '2.5', '--cruise-time', '2.0', '--geofence', '10.0'],
         'data_prefix': 'longitudinal_stiffness',
         'parameters': ['C_x'],
     },
@@ -134,13 +136,13 @@ TESTS = [
         'script': 'tests/test_motor_torque.py',
         'description': (
             'Maps motor current to wheel force (effective torque).\n'
-            '  Requires: ~5m straight clear space\n'
-            '  Duration: ~1 min\n'
+            '  Requires: ~10m straight clear space (repositioning between speeds)\n'
+            '  Duration: ~2 min\n'
             '  Records motor current at different accelerations\n'
             '  Needs: vehicle mass, tire radius (--mass, --r-tire)\n'
             '  NOTE: Update --r-tire with your measured value!'
         ),
-        'default_args': ['--speeds', '1.5,2.0,2.5,3.0'],
+        'default_args': ['--speeds', '1.5,2.0,2.5,3.0', '--geofence', '10.0'],
         'data_prefix': 'motor_torque',
         'parameters': ['max_drive_torque', 'max_brake_torque', 'Kt_effective'],
     },
@@ -220,10 +222,6 @@ def print_header():
     print('    4. Steering gain calibrated      (prerequisites/test_steering_gain.py)')
     print('    5. Steering calibration done     (prerequisites/test_steering_calibration.py)')
     print('    6. Speed calibration done        (prerequisites/test_speed_sweep.py)')
-    print('    7. VESC current limits set       (tests/test_current_limits.py)')
-    print()
-    print('  test_current_limits.py is iterative — run it separately until')
-    print('  you find safe motor current limits, then run this script.')
     print()
     print('  Make sure the f1tenth_stack is running:')
     print('    ros2 launch f1tenth_stack bringup_launch.py')

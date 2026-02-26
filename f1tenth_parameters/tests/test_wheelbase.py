@@ -60,14 +60,13 @@ class WheelbaseTestNode(TestNode):
         ]
         
         max_speed = max(args.speeds) * 1.3
-        max_time = len(args.speeds) * args.laps * 20.0 + 60.0  # rough estimate
         
         super().__init__(
             'wheelbase_test',
             'wheelbase_test',
             columns,
             max_speed=max_speed,
-            max_time=max_time
+            max_time=0.0  # no time limit — user confirms between runs
         )
         
         self.steering_angle = args.steering
@@ -223,9 +222,15 @@ class WheelbaseTestNode(TestNode):
             if result is not None:
                 self.circle_results.append(result)
             
-            # Brief pause between speeds
+            # Stop and let user reposition
             self.stop_car()
-            self.spin_for(2.0)
+            if speed != self.speeds[-1] and self.test_running:
+                self.get_logger().info(
+                    "\n  >>> Reposition the car if needed.")
+                input("  >>> Press ENTER when ready for the next speed...")
+                # Keep subscriptions alive after user input
+                for _ in range(20):
+                    rclpy.spin_once(self, timeout_sec=0.005)
         
         self.stop_car()
         time.sleep(0.5)
@@ -319,28 +324,37 @@ def main():
     parser = argparse.ArgumentParser(description='F1/10th Wheelbase Verification Test')
     parser.add_argument('--steering', type=float, default=0.3,
                         help='Steering angle in radians (default: 0.3 ≈ 17°)')
-    parser.add_argument('--speeds', type=str, default='1.0,1.5,2.0,2.5,3.0',
-                        help='Comma-separated speeds in m/s (default: 1.0,1.5,2.0,2.5,3.0)')
+    parser.add_argument('--speeds', type=str, default='1.0,1.5,2.0',
+                        help='Comma-separated speeds in m/s (default: 1.0,1.5,2.0)')
     parser.add_argument('--laps', type=int, default=2,
                         help='Number of laps per speed point (default: 2)')
     parser.add_argument('--wheelbase', type=float, default=DEFAULT_WHEELBASE,
                         help=f'Expected wheelbase in meters (default: {DEFAULT_WHEELBASE})')
     parser.add_argument('--direction', choices=['left', 'right'], default='left',
                         help='Circle direction (default: left)')
+    parser.add_argument('--runs', type=int, default=5,
+                        help='Number of complete test runs (default: 5)')
     args = parser.parse_args()
     
     # Parse speeds
     args.speeds = [float(s) for s in args.speeds.split(',')]
     
     rclpy.init()
-    node = WheelbaseTestNode(args)
-    
-    try:
-        node.run_test()
-    finally:
-        node.stop_car()
-        node.destroy_node()
-        rclpy.shutdown()
+    for run_idx in range(args.runs):
+        if args.runs > 1:
+            print(f"\n{'='*60}")
+            print(f"RUN {run_idx + 1}/{args.runs}")
+            print(f"{'='*60}\n")
+        node = WheelbaseTestNode(args)
+        try:
+            node.run_test()
+        finally:
+            node.stop_car()
+            node.destroy_node()
+        if run_idx < args.runs - 1:
+            print("\n  >>> Reposition the car for the next run.")
+            input("  >>> Press ENTER when ready...")
+    rclpy.shutdown()
 
 
 if __name__ == '__main__':

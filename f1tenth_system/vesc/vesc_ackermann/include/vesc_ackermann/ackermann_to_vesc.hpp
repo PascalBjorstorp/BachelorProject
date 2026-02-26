@@ -53,7 +53,7 @@ private:
   uint8_t operation_mode_;
 
   // Conversion gain and offset
-  double speed_to_erpm_gain_, speed_to_erpm_offset_, speed_to_erpm_quadratic_;
+  double speed_to_erpm_gain_, speed_to_erpm_offset_;
   double speed_to_braking_gain_, speed_to_braking_center_;
   double speed_to_braking_max_, speed_to_braking_min_;
   double steering_to_servo_gain_, steering_to_servo_offset_;

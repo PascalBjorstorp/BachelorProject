@@ -4,13 +4,13 @@ Speed Calibration Sweep for F1/10th Car
 
 Drives the car at multiple speeds (1-10 m/s in steps of 1 by default),
 measuring actual distance traveled at each speed with a tape measure.
-Then fits the best quadratic model: ERPM = a*v² + b*v (through origin).
+Then fits a linear model: ERPM = gain * v (through origin).
 
 Procedure:
 1. For each speed: drive a straight line, measure actual distance
 2. Script records motor RPM and odom during each run
-3. After all runs, fits the best quadratic model
-4. Outputs new speed_to_erpm_gain and speed_to_erpm_quadratic
+3. After all runs, fits a linear model
+4. Outputs new speed_to_erpm_gain
 
 Usage:
     python3 test_speed_sweep.py [--distance 5.0] [--min-speed 1] [--max-speed 10] [--step 1]
@@ -27,7 +27,7 @@ import rclpy
 import sys as _sys, os as _os  # noqa: E402
 _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..'))
 from common import (
-    TestNode, DEFAULT_ERPM_GAIN, DEFAULT_ERPM_OFFSET, DEFAULT_ERPM_QUADRATIC,
+    TestNode, DEFAULT_ERPM_GAIN, DEFAULT_ERPM_OFFSET,
     DATA_DIR
 )
 
@@ -195,9 +195,7 @@ class SpeedSweepNode(TestNode):
         total_time = time.monotonic() - phase_start
 
         # Compute what ERPM was commanded for this speed
-        erpm_cmd = (DEFAULT_ERPM_QUADRATIC * speed * abs(speed)
-                    + DEFAULT_ERPM_GAIN * speed
-                    + DEFAULT_ERPM_OFFSET)
+        erpm_cmd = DEFAULT_ERPM_GAIN * speed + DEFAULT_ERPM_OFFSET
 
         avg_speed = np.mean(speed_samples) if speed_samples else 0.0
         avg_rpm = np.mean(rpm_samples) if rpm_samples else 0.0
@@ -243,7 +241,7 @@ class SpeedSweepNode(TestNode):
 
     def run_test(self):
         """Execute the full speed sweep."""
-        if not self.wait_for_odom():
+        if not self.wait_for_sensors(require_vesc=True):
             return False
 
         self.get_logger().info("=" * 60)
@@ -320,68 +318,76 @@ class SpeedSweepNode(TestNode):
             self.get_logger().warn("Some runs have zero RPM or speed — check data quality")
             # Filter out bad data
             mask = (rpms != 0) & (actual_speeds != 0)
-            actual_speeds = actual_speeds[mask]
-            rpms = rpms[mask]
+            actual_speeds_fit = actual_speeds[mask]
+            rpms_fit = rpms[mask]
+        else:
+            actual_speeds_fit = actual_speeds
+            rpms_fit = rpms
 
-        if len(actual_speeds) < 2:
-            self.get_logger().warn("Not enough valid data points after filtering")
+        # ── Odom-to-tape ratio method (always works, no RPM needed) ──
+        odom_dists = np.array([r['odom_distance'] for r in self.run_results])
+        tape_dists = np.array([r['actual_distance'] for r in self.run_results])
+        mask_valid = tape_dists > 0
+        if np.any(mask_valid):
+            speed_ratios = odom_dists[mask_valid] / tape_dists[mask_valid]
+            avg_ratio = np.mean(speed_ratios)
+            corrected_erpm_gain = DEFAULT_ERPM_GAIN * avg_ratio
+            self.get_logger().info(f"\n── Odom-to-Tape Ratio Method ──")
+            self.get_logger().info(f"  Speed correction factor: {avg_ratio:.4f} ({(avg_ratio-1)*100:.1f}%)")
+            self.get_logger().info(f"  Current speed_to_erpm_gain: {DEFAULT_ERPM_GAIN:.1f}")
+            self.get_logger().info(f"  Corrected speed_to_erpm_gain: {corrected_erpm_gain:.1f}")
+            for i, r in enumerate(self.run_results):
+                if tape_dists[i] > 0:
+                    self.get_logger().info(
+                        f"    v={r['cmd_speed']:.0f}: odom={r['odom_distance']:.3f}m, "
+                        f"tape={r['actual_distance']:.3f}m, "
+                        f"ratio={r['odom_distance']/r['actual_distance']:.4f}")
+
+        if len(actual_speeds_fit) < 2:
+            self.get_logger().warn("Not enough valid RPM data points — using odom-to-tape ratio only")
             return
 
         # ── Model 1: Linear (gain only, no offset) ──
         # ERPM = b*v → b = sum(ERPM*v) / sum(v²)
-        linear_gain = np.sum(rpms * actual_speeds) / np.sum(actual_speeds**2)
-        linear_erpm = linear_gain * actual_speeds
-        linear_rmse = np.sqrt(np.mean((rpms - linear_erpm)**2))
+        linear_gain = np.sum(rpms_fit * actual_speeds_fit) / np.sum(actual_speeds_fit**2)
+        linear_erpm = linear_gain * actual_speeds_fit
+        linear_rmse = np.sqrt(np.mean((rpms_fit - linear_erpm)**2))
 
         # ── Model 2: Linear with offset ──
         # ERPM = b*v + c
-        A_lo = np.column_stack([actual_speeds, np.ones_like(actual_speeds)])
-        result_lo = np.linalg.lstsq(A_lo, rpms, rcond=None)
+        A_lo = np.column_stack([actual_speeds_fit, np.ones_like(actual_speeds_fit)])
+        result_lo = np.linalg.lstsq(A_lo, rpms_fit, rcond=None)
         lo_gain = result_lo[0][0]
         lo_offset = result_lo[0][1]
-        lo_erpm = lo_gain * actual_speeds + lo_offset
-        lo_rmse = np.sqrt(np.mean((rpms - lo_erpm)**2))
-
-        # ── Model 3: Quadratic through origin ──
-        # ERPM = a*v² + b*v
-        A_quad = np.column_stack([actual_speeds**2, actual_speeds])
-        result_quad = np.linalg.lstsq(A_quad, rpms, rcond=None)
-        quad_a = result_quad[0][0]
-        quad_b = result_quad[0][1]
-        quad_erpm = quad_a * actual_speeds**2 + quad_b * actual_speeds
-        quad_rmse = np.sqrt(np.mean((rpms - quad_erpm)**2))
+        lo_erpm = lo_gain * actual_speeds_fit + lo_offset
+        lo_rmse = np.sqrt(np.mean((rpms_fit - lo_erpm)**2))
 
         self.get_logger().info("")
         self.get_logger().info("── Model Comparison ──")
-        self.get_logger().info(f"  Linear (through origin):")
+        self.get_logger().info(f"  Linear (through origin, RECOMMENDED):")
         self.get_logger().info(f"    ERPM = {linear_gain:.1f} * v")
         self.get_logger().info(f"    RMSE: {linear_rmse:.1f} ERPM")
         self.get_logger().info(f"  Linear (with offset):")
         self.get_logger().info(f"    ERPM = {lo_gain:.1f} * v + {lo_offset:.1f}")
         self.get_logger().info(f"    RMSE: {lo_rmse:.1f} ERPM  (warning: offset breaks stop logic!)")
-        self.get_logger().info(f"  Quadratic (through origin, RECOMMENDED):")
-        self.get_logger().info(f"    ERPM = {quad_a:.2f} * v² + {quad_b:.1f} * v")
-        self.get_logger().info(f"    RMSE: {quad_rmse:.1f} ERPM")
 
         # Verify at each speed
         self.get_logger().info("")
-        self.get_logger().info("── Quadratic Model Verification ──")
+        self.get_logger().info("── Linear Model Verification ──")
         self.get_logger().info(f"{'v_actual':>8} {'RPM_meas':>10} {'RPM_model':>10} {'Error%':>8}")
         for v, rpm in zip(actual_speeds, rpms):
-            model_rpm = quad_a * v**2 + quad_b * v
+            model_rpm = linear_gain * v
             err_pct = 100.0 * (model_rpm - rpm) / rpm if rpm != 0 else 0
             self.get_logger().info(f"{v:8.2f} {rpm:10.0f} {model_rpm:10.0f} {err_pct:8.2f}%")
 
         self.get_logger().info("")
         self.get_logger().info("── Update vesc.yaml with: ──")
-        self.get_logger().info(f"  speed_to_erpm_gain: {quad_b:.1f}")
+        self.get_logger().info(f"  speed_to_erpm_gain: {linear_gain:.1f}")
         self.get_logger().info(f"  speed_to_erpm_offset: 0.0")
-        self.get_logger().info(f"  speed_to_erpm_quadratic: {quad_a:.2f}")
         self.get_logger().info("")
         self.get_logger().info("── Update common.py with: ──")
-        self.get_logger().info(f"  DEFAULT_ERPM_GAIN = {quad_b:.1f}")
+        self.get_logger().info(f"  DEFAULT_ERPM_GAIN = {linear_gain:.1f}")
         self.get_logger().info(f"  DEFAULT_ERPM_OFFSET = 0.0")
-        self.get_logger().info(f"  DEFAULT_ERPM_QUADRATIC = {quad_a:.2f}")
         self.get_logger().info("=" * 60)
 
 

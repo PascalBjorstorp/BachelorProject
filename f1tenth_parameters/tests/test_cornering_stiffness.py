@@ -69,13 +69,21 @@ class CorneringStiffnessNode(TestNode):
             'motor_current', 'cmd_speed', 'cmd_steering', 'phase'
         ]
 
+        # Auto-calculate geofence if not specified (0 = auto)
+        geofence = args.geofence
+        if geofence <= 0:
+            r_kin = radius_from_steering_angle(args.steering, args.wheelbase)
+            # At moderate speeds tires may slip → radius grows
+            r_max_est = r_kin * 2.0  # moderate estimate for this test's lower speeds
+            geofence = 2.0 * r_max_est + 1.5  # extra margin
+        
         super().__init__(
             'cornering_stiffness_test',
             'cornering_stiffness',
             columns,
             max_speed=args.max_speed * 1.3,
             max_time=args.settle_time * 20 + 60.0,
-            max_distance=args.geofence
+            max_distance=geofence
         )
 
         self.steering_angle = args.steering
@@ -484,32 +492,32 @@ class CorneringStiffnessNode(TestNode):
 def main():
     parser = argparse.ArgumentParser(
         description='F1/10th Cornering Stiffness Test')
-    parser.add_argument('--steering', type=float, default=0.3,
-                        help='Steering angle in radians (default: 0.3 ≈ 17°)')
-    parser.add_argument('--min-speed', type=float, default=1.0,
-                        help='Starting speed (m/s, default: 1.0)')
-    parser.add_argument('--max-speed', type=float, default=3.5,
-                        help='Maximum speed (m/s, default: 3.5)')
+    parser.add_argument('--steering', type=float, default=0.1,
+                        help='Steering angle in radians (default: 0.1 ≈ 5.7°, keep small for linear tire region)')
+    parser.add_argument('--min-speed', type=float, default=1.5,
+                        help='Starting speed (m/s, default: 1.5, below this forces are too small to measure)')
+    parser.add_argument('--max-speed', type=float, default=3.0,
+                        help='Maximum speed (m/s, default: 3.0)')
     parser.add_argument('--speed-step', type=float, default=0.5,
                         help='Speed increment (m/s, default: 0.5)')
-    parser.add_argument('--settle-time', type=float, default=4.0,
-                        help='Time to reach steady state per speed (s, default: 4.0)')
-    parser.add_argument('--record-time', type=float, default=5.0,
-                        help='Steady-state recording time per speed (s, default: 5.0)')
+    parser.add_argument('--settle-time', type=float, default=8.0,
+                        help='Time to reach steady state per speed (s, default: 8.0)')
+    parser.add_argument('--record-time', type=float, default=15.0,
+                        help='Steady-state recording time per speed (s, default: 15.0, ~1 full circle at R=3.2m)')
     parser.add_argument('--direction', choices=['left', 'right'], default='left',
                         help='Circle direction (default: left)')
     parser.add_argument('--mass', type=float, default=3.314,
                         help='Vehicle mass in kg (default: 3.314)')
     parser.add_argument('--wheelbase', type=float, default=DEFAULT_WHEELBASE,
                         help=f'Wheelbase in m (default: {DEFAULT_WHEELBASE})')
-    parser.add_argument('--l-f', type=float, default=0.1679,
-                        help='Front axle to CG distance in m (default: 0.1679)')
-    parser.add_argument('--l-r', type=float, default=0.158,
-                        help='Rear axle to CG distance in m (default: 0.158)')
+    parser.add_argument('--l-f', type=float, default=0.166,
+                        help='Front axle to CG distance in m (default: 0.166)')
+    parser.add_argument('--l-r', type=float, default=0.16,
+                        help='Rear axle to CG distance in m (default: 0.16)')
     parser.add_argument('--runs', type=int, default=5,
                         help='Number of complete test runs (default: 5)')
-    parser.add_argument('--geofence', type=float, default=2.3,
-                        help='Max distance from start before abort in m (default: 2.3, 0=off, circle path needs ~2R)')
+    parser.add_argument('--geofence', type=float, default=0.0,
+                        help='Max distance from start before abort in m (default: 0=auto-calculate from steering, circle path needs ~2R)')
     args = parser.parse_args()
 
     rclpy.init()
@@ -525,8 +533,8 @@ def main():
             node.stop_car()
             node.destroy_node()
         if run_idx < args.runs - 1:
-            print("\nCooling down for 5s before next run...")
-            time.sleep(5)
+            print("\n  >>> Reposition the car for the next run.")
+            input("  >>> Press ENTER when ready...")
     rclpy.shutdown()
 
 

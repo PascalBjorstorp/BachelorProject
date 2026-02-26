@@ -68,22 +68,8 @@ class CurrentLimitNode(TestNode):
         self.run_time = args.run_time
         self.cool_time = args.cool_time
 
-        # Temperature tracking (from VESC state)
-        self.temp_fet = 0.0
-        self.temp_motor = 0.0
-
         # Results
         self.run_results = []
-
-    def _vesc_callback(self, msg):
-        """Extended callback that also reads temperature."""
-        self.battery_voltage = msg.state.voltage_input
-        self.motor_rpm = msg.state.speed
-        self.motor_current = msg.state.current_motor
-        self.input_current = msg.state.current_input
-        self.temp_fet = msg.state.temp_fet
-        self.temp_motor = msg.state.temp_motor
-        self.safety.update_battery(self.battery_voltage)
 
     def _estimate_travel_distance(self):
         """Rough estimate of forward travel for straight-line mode."""
@@ -98,7 +84,7 @@ class CurrentLimitNode(TestNode):
 
     def run_test(self):
         """Execute the current limit characterization test."""
-        if not self.wait_for_sensors():
+        if not self.wait_for_sensors(require_vesc=True):
             return False
 
         self.get_logger().info("=" * 65)
@@ -127,12 +113,23 @@ class CurrentLimitNode(TestNode):
         self.get_logger().info("=" * 65)
 
         # Check initial temperatures
+        has_temp_sensors = self.temp_fet > 0.1 or self.temp_motor > 0.1
         self.get_logger().info(f"\nInitial state:")
         self.get_logger().info(f"  FET:     {self.temp_fet:.1f}°C")
         self.get_logger().info(f"  Motor:   {self.temp_motor:.1f}°C")
         self.get_logger().info(f"  Battery: {self.battery_voltage:.1f}V")
 
-        if self.temp_fet > 60:
+        if not has_temp_sensors:
+            self.get_logger().warn(
+                "⚠ VESC reports 0°C for all temperatures!")
+            self.get_logger().warn(
+                "  Your VESC hardware may not have NTC thermistors.")
+            self.get_logger().warn(
+                "  Temperature monitoring DISABLED. Use conservative "
+                "current limits set in VESC Tool.")
+            self.get_logger().warn(
+                "  The test will still measure motor current.")
+        elif self.temp_fet > 60:
             self.get_logger().warn("FET already warm! Let the VESC cool down first.")
 
         self.countdown(5)
@@ -149,7 +146,7 @@ class CurrentLimitNode(TestNode):
                 f"FET: {self.temp_fet:.1f}°C, Motor: {self.temp_motor:.1f}°C")
 
             # Safety: abort if temperatures are too high
-            if self.temp_fet > 85:
+            if has_temp_sensors and self.temp_fet > 85:
                 self.get_logger().error(
                     "FET temperature > 85°C! Aborting for safety.")
                 self.get_logger().error(
@@ -322,8 +319,18 @@ class CurrentLimitNode(TestNode):
             f"over {self.num_runs} runs")
 
         # Assessment
+        has_temp_data = max_fet > 0.1
         self.get_logger().info(f"\n  ASSESSMENT:")
-        if max_fet < 60:
+        if not has_temp_data:
+            self.get_logger().info(
+                f"  ⚠ No temperature data from VESC (all 0°C)")
+            self.get_logger().info(
+                f"    Your VESC has no NTC thermistors. Cannot assess thermals.")
+            self.get_logger().info(
+                f"    Use conservative current limits in VESC Tool.")
+            self.get_logger().info(
+                f"    Peak motor current measured: {peak_I:.1f} A")
+        elif max_fet < 60:
             self.get_logger().info(
                 f"  ✓ FET well within limits ({max_fet:.0f}°C < 60°C)")
             self.get_logger().info(
@@ -346,7 +353,7 @@ class CurrentLimitNode(TestNode):
             self.get_logger().info(
                 f"    DECREASE the motor current limit in VESC Tool!")
 
-        if total_fet_rise > 15:
+        if has_temp_data and total_fet_rise > 15:
             self.get_logger().info(
                 f"  ⚠ Temperature still climbing between runs.")
             self.get_logger().info(
@@ -373,11 +380,16 @@ class CurrentLimitNode(TestNode):
         self.get_logger().info(
             "     - Motor Current Max in VESC Tool: [your setting]")
 
-        # Auto-save to vehicle_params.yaml
+        # Auto-save to vehicle_params.yaml (only if we got real data)
         from common import update_vehicle_params
-        update_vehicle_params({
-            'max_motor_current': float(peak_I),
-        }, status='TESTED', logger=self.get_logger())
+        if peak_I > 0.1:
+            update_vehicle_params({
+                'max_motor_current': float(peak_I),
+            }, status='TESTED', logger=self.get_logger())
+        else:
+            self.get_logger().warn(
+                "Peak current = 0 — NOT saving to vehicle_params.yaml. "
+                "VESC data was not received. Check subscription.")
         self.get_logger().info("=" * 65)
 
 

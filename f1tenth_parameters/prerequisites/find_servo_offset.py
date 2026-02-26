@@ -30,8 +30,8 @@ from ackermann_msgs.msg import AckermannDriveStamped
 from nav_msgs.msg import Odometry
 
 # Current default from vesc.yaml
-DEFAULT_OFFSET = 0.5390
-DEFAULT_GAIN = -0.915
+DEFAULT_OFFSET = 0.5500
+DEFAULT_GAIN = -0.7940
 
 
 class ServoCenterFinder(Node):

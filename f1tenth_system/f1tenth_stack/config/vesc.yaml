@@ -13,20 +13,18 @@
     # ===================
     # Speed Calibration
     # ===================
-    # ERPM = speed_to_erpm_quadratic * v² + speed_to_erpm_gain * v + speed_to_erpm_offset
-    # When quadratic=0, reduces to linear: ERPM = gain * v + offset
-    # Calibrate by: drive at two known speeds, record ERPM, solve for coefficients
-    speed_to_erpm_gain: 4600.0
+    # ERPM = speed_to_erpm_gain * v + speed_to_erpm_offset
+    # Calibrate by: drive at known speed, record ERPM, solve for gain
+    speed_to_erpm_gain: 4550.0
     speed_to_erpm_offset: 0.0
-    speed_to_erpm_quadratic: 0.0
     
     # ===================
     # Steering Calibration
     # ===================
     # servo_value = steering_angle_to_servo_gain * steering_angle (rad) + steering_angle_to_servo_offset
     # Calibrate by measuring steering angles at servo endpoints
-    steering_angle_to_servo_gain: -0.6960
-    steering_angle_to_servo_offset: 0.5460
+    steering_angle_to_servo_gain: -0.7940
+    steering_angle_to_servo_offset: 0.5500
     
     # ===================
     # VESC Limits
@@ -41,8 +39,8 @@
     speed_max: 100000.0
     position_min: 0.0
     position_max: 0.0
-    servo_min: 0.106
-    servo_max: 1.0
+    servo_min: 0.190
+    servo_max: 0.910
     
     # ===================
     # IMU Configuration
@@ -74,7 +72,7 @@ vesc_to_odom_node:
     use_servo_cmd_to_calc_angular_velocity: false
     
     # Car wheelbase (meters) - measure your car!
-    wheelbase: 0.326
+    wheelbase: 0.324
     
     # Integration method for odometry:
     # "euler": Simple first-order (fastest, least accurate)

@@ -51,7 +51,7 @@ class SteeringRateNode(TestNode):
             'steering_rate',
             columns,
             max_speed=args.speed * 1.5,
-            max_time=args.repeats * 15.0 + 30.0
+            max_time=0
         )
         
         self.test_speed = args.speed
@@ -293,8 +293,8 @@ def main():
             node.stop_car()
             node.destroy_node()
         if run_idx < args.runs - 1:
-            print("\nCooling down for 5s before next run...")
-            time.sleep(5)
+            print("\n  >>> Reposition the car for the next run.")
+            input("  >>> Press ENTER when ready...")
     rclpy.shutdown()
 
 

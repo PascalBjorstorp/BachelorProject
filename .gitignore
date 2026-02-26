@@ -190,7 +190,7 @@ FPGA/docs/*
 # =============================================
 # Parameter csv files 
 # =============================================
-f1tenth_parameters/data/*.csv
+# f1tenth_parameters/data/*.csv  # UNCOMMENT to exclude large CSVs from git
 
 # CMake generated files
 *CMakeConfigureLog.yaml

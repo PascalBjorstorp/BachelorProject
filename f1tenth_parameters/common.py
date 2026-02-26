@@ -60,7 +60,7 @@ from datetime import datetime
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSProfile
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
 from ackermann_msgs.msg import AckermannDriveStamped
 from nav_msgs.msg import Odometry
@@ -77,13 +77,12 @@ DEFAULT_MAX_TEST_TIME = 60.0   # seconds
 DEFAULT_MIN_BATTERY_V = 10.5   # volts (3S LiPo cutoff ~3.5V/cell)
 
 # VESC conversion defaults (from vesc.yaml)
-DEFAULT_ERPM_GAIN = 4600.0
+DEFAULT_ERPM_GAIN = 4550.0
 DEFAULT_ERPM_OFFSET = 0.0
-DEFAULT_ERPM_QUADRATIC = 0.0
-DEFAULT_SERVO_GAIN = -0.6960
-DEFAULT_SERVO_OFFSET = 0.5460
-DEFAULT_SERVO_MIN = 0.106
-DEFAULT_SERVO_MAX = 1.0
+DEFAULT_SERVO_GAIN = -0.7940
+DEFAULT_SERVO_OFFSET = 0.5500
+DEFAULT_SERVO_MIN = 0.202
+DEFAULT_SERVO_MAX = 0.890
 DEFAULT_WHEELBASE = 0.324
 
 # Compute max steering angle from servo limits
@@ -211,7 +210,7 @@ class SafetyMonitor:
         
         elapsed = time.monotonic() - self.start_time
         
-        if elapsed > self.max_time:
+        if self.max_time > 0 and elapsed > self.max_time:
             self.abort_reason = f"Test timeout ({self.max_time:.1f}s)"
             return False
         
@@ -287,13 +286,18 @@ class TestNode(Node):
         self.imu_gz = 0.0
         self.imu_bias_ax = 0.0
         self.imu_bias_ay = 0.0
+        self.imu_bias_az = 9.81  # default gravity reference
         self.imu_bias_gz = 0.0
         self.battery_voltage = 12.0
         self.motor_rpm = 0.0
         self.motor_current = 0.0
         self.input_current = 0.0
+        self.temp_fet = 0.0
+        self.temp_motor = 0.0
         self.odom_received = False
         self.imu_received = False
+        self.vesc_received = False
+        self.has_vesc_msgs = False
         self.test_running = False
         self.test_complete = False
         
@@ -315,17 +319,34 @@ class TestNode(Node):
         self.imu_sub = self.create_subscription(
             Imu, 'sensors/imu/raw', self._imu_callback, 10)
         
-        # VESC state subscriber (for battery voltage, RPM)
-        # VescStateStamped may not be available as a Python msg, use raw subscription
-        # We'll try to import it, fall back to skipping if unavailable
+        # VESC state subscriber (for battery voltage, RPM, current, temperature)
+        # Try both reliable and best-effort QoS to match whatever the driver uses
         try:
             from vesc_msgs.msg import VescStateStamped
+            self._VescStateStamped = VescStateStamped
+            qos_reliable = QoSProfile(
+                reliability=ReliabilityPolicy.RELIABLE,
+                history=HistoryPolicy.KEEP_LAST,
+                depth=10)
+            qos_best_effort = QoSProfile(
+                reliability=ReliabilityPolicy.BEST_EFFORT,
+                history=HistoryPolicy.KEEP_LAST,
+                depth=10)
             self.vesc_sub = self.create_subscription(
-                VescStateStamped, 'sensors/core', self._vesc_callback, 10)
+                VescStateStamped, 'sensors/core',
+                self._vesc_callback, qos_reliable)
+            self.vesc_sub_be = self.create_subscription(
+                VescStateStamped, 'sensors/core',
+                self._vesc_callback, qos_best_effort)
             self.has_vesc_msgs = True
-        except ImportError:
-            self.get_logger().warn(
-                "vesc_msgs not available, battery monitoring disabled")
+            self.get_logger().info("VESC subscription created (reliable + best-effort)")
+        except (ImportError, Exception) as e:
+            self.get_logger().error(
+                f"VESC MSGS NOT AVAILABLE: {e}")
+            self.get_logger().error(
+                "Source your workspace first: source install/setup.bash")
+            self.get_logger().error(
+                "Battery monitoring, current, and temperature disabled!")
             self.has_vesc_msgs = False
         
         # Shutdown handler
@@ -378,7 +399,23 @@ class TestNode(Node):
         self.motor_rpm = msg.state.speed
         self.motor_current = msg.state.current_motor
         self.input_current = msg.state.current_input
+        # Use temp_fet if available, otherwise fall back to max of ntc_temp_mos
+        # (the driver now populates temp_fet, but older builds may not)
+        fet_temp = msg.state.temp_fet
+        if fet_temp < 0.1:
+            fet_temp = max(
+                msg.state.ntc_temp_mos1,
+                msg.state.ntc_temp_mos2,
+                msg.state.ntc_temp_mos3)
+        self.temp_fet = fet_temp
+        # Negative temp_motor means no sensor connected
+        self.temp_motor = msg.state.temp_motor if msg.state.temp_motor > -40.0 else 0.0
         self.safety.update_battery(self.battery_voltage)
+        if not self.vesc_received:
+            self.vesc_received = True
+            self.get_logger().info(
+                f"VESC data received: {self.battery_voltage:.1f}V, "
+                f"FET={self.temp_fet:.1f}°C")
     
     def _sigint_handler(self, sig, frame):
         self.get_logger().warn("Ctrl+C detected, stopping car...")
@@ -429,6 +466,7 @@ class TestNode(Node):
         self.get_logger().info(f"Calibrating IMU bias for {duration:.1f}s (keep car still)...")
         ax_samples = []
         ay_samples = []
+        az_samples = []
         gz_samples = []
         start = time.monotonic()
         while time.monotonic() - start < duration:
@@ -437,6 +475,7 @@ class TestNode(Node):
             if self.imu_received:
                 ax_samples.append(self.imu_ax)
                 ay_samples.append(self.imu_ay)
+                az_samples.append(self.imu_az)
                 gz_samples.append(self.imu_gz)
 
         if len(ax_samples) < 20:
@@ -445,9 +484,11 @@ class TestNode(Node):
 
         self.imu_bias_ax = float(np.mean(ax_samples))
         self.imu_bias_ay = float(np.mean(ay_samples))
+        self.imu_bias_az = float(np.mean(az_samples))  # ≈ g when level
         self.imu_bias_gz = float(np.mean(gz_samples))
         self.get_logger().info(
             f"IMU bias: ax={self.imu_bias_ax:+.4f}, ay={self.imu_bias_ay:+.4f} m/s², "
+            f"az={self.imu_bias_az:+.4f} m/s² (gravity ref), "
             f"gz={self.imu_bias_gz:+.4f} rad/s")
     
     # --- Utilities ---
@@ -464,22 +505,50 @@ class TestNode(Node):
         self.get_logger().info("Odometry received.")
         return True
     
-    def wait_for_sensors(self, timeout: float = 5.0) -> bool:
-        """Wait until all sensor messages are received."""
+    def wait_for_sensors(self, timeout: float = 5.0,
+                          require_vesc: bool = False) -> bool:
+        """Wait until all sensor messages are received.
+        
+        Args:
+            timeout: Seconds to wait before giving up.
+            require_vesc: If True, also wait for VESC state data
+                          (battery, current, temperature).
+        """
         self.get_logger().info("Waiting for sensors...")
         start = time.monotonic()
-        while not (self.odom_received and self.imu_received):
+        while True:
+            ready = self.odom_received and self.imu_received
+            if require_vesc:
+                ready = ready and self.vesc_received
+            if ready:
+                break
             rclpy.spin_once(self, timeout_sec=0.1)
             if time.monotonic() - start > timeout:
                 missing = []
                 if not self.odom_received:
-                    missing.append("odom")
+                    missing.append("odom (ego_racecar/odom)")
                 if not self.imu_received:
-                    missing.append("IMU")
+                    missing.append("IMU (sensors/imu/raw)")
+                if require_vesc and not self.vesc_received:
+                    missing.append("VESC state (sensors/core)")
                 self.get_logger().error(
                     f"Timeout waiting for sensors: {', '.join(missing)}")
+                if require_vesc and not self.vesc_received:
+                    self.get_logger().error(
+                        "VESC state not received! Check that:")
+                    self.get_logger().error(
+                        "  1. The VESC stack is running: "
+                        "ros2 launch f1tenth_stack bringup_launch.py")
+                    self.get_logger().error(
+                        "  2. The workspace is sourced: "
+                        "source install/setup.bash")
+                    self.get_logger().error(
+                        "  3. Run 'ros2 topic echo /sensors/core' to verify")
                 return False
-        self.get_logger().info("All sensors active.")
+        status = "All sensors active"
+        if self.vesc_received:
+            status += f" (battery={self.battery_voltage:.1f}V, FET={self.temp_fet:.1f}°C)"
+        self.get_logger().info(status)
         return True
     
     def spin_for(self, duration: float, rate_hz: float = 200.0):

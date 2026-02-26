@@ -28,35 +28,35 @@ vehicle:
   mass: 3.314                # [MEASURED] Total vehicle mass (kg), fully loaded (battery,
                              # electronics, sensors, VESC, motor, chassis)
   
-  wheelbase: 0.326           # [MEASURED/TESTED] Total wheelbase L = l_f + l_r (m)
+  wheelbase: 0.324           # [MEASURED/VERIFIED] Total wheelbase L = l_f + l_r (m)
                              # Measure axle center to axle center, or use test_wheelbase.py
                              # Check: l_f + l_r = 167.9 + 158.0 = 325.9 ≈ 326 mm ✓
   
-  l_f: 0.1679                # [CAD] Distance from front axle to center of gravity (m)
+  l_f: 0.166                 # [CAD] Distance from front axle to center of gravity (m)
   
-  l_r: 0.158                 # [CAD] Distance from rear axle to center of gravity (m)
+  l_r: 0.16                  # [CAD] Distance from rear axle to center of gravity (m)
   
-  Iz: ~                      # [CAD/TODO] Yaw moment of inertia (kg·m²)
+  Iz: 0.035                  # [CAD] Yaw moment of inertia (kg·m²)
                              # In Inventor: Mass Properties → Moments of Inertia
                              # around the vertical axis through the CG
                              # Typical for F1/10th: 0.02 - 0.06 kg·m²
                              # MPC default: 0.04712 (sim value, verify with your CAD)
   
-  h_cg: ~                    # [CAD/TODO] Height of center of gravity above ground (m)
+  h_cg: 0.0703               # [CAD] Height of center of gravity above ground (m)
                              # MPC default: 0.074 m
                              # Measure from CAD, or balance-tilt method:
                              #   Raise one end, measure tilt angle + axle height change
                              # Affects weight transfer during accel/braking
   
-  track_width: ~             # [TODO] Track width (m) - distance between left and right
+  track_width: 0.23          # [MEASURED] Track width (m) - distance between left and right
                              # tire contact patches (center to center)
                              # Measure with ruler on flat surface
   
-  width: ~                   # [TODO] Total vehicle width (m) - widest point
+  width: 0.273               # [MEASURED] Total vehicle width (m) - widest point
                              # Used for safety margins in planning
                              # MPC default: 0.31 m
   
-  length: ~                  # [TODO] Total vehicle length (m) - bumper to bumper
+  length: 0.51               # [MEASURED] Total vehicle length (m) - bumper to bumper
                              # MPC default: 0.53 m
   
   lidar_to_rear_axle: 0.2646 # [CAD] Distance from LiDAR to rear axle (m)
@@ -67,25 +67,26 @@ vehicle:
 # ============================================================================
 
 tire:
-  r_eff: ~                   # [TODO] Effective (loaded) tire radius (m)
+  r_eff: 0.051               # [MEASURED] Effective (loaded) tire radius (m)
                              # Measure from ground to axle center with car on flat surface
                              # Typical Traxxas Slash: ~0.05 m
                              # MPC default: 0.0545 m (diameter 10.9 cm)
   
-  mu: ~                      # [TESTED] Peak friction coefficient (dimensionless)
+  mu: 0.7463                 # [TESTED] Peak friction coefficient (dimensionless)
                              # From test_friction.py: mu = a_y_max / g
                              # Depends on surface! Re-test if surface changes.
   
-  C_alpha_f: ~               # [TODO] Front cornering stiffness (N/rad)
+  C_alpha_f: 49.9024         # [TESTED] Front cornering stiffness (N/rad)
                              # From test_cornering_stiffness.py
                              # Typical F1/10th: 4-12 N/rad
   
-  C_alpha_r: ~               # [TODO] Rear cornering stiffness (N/rad)
+  C_alpha_r: 54.8927         # [TESTED] Rear cornering stiffness (N/rad)
                              # From test_cornering_stiffness.py
                              # Typical F1/10th: 4-12 N/rad
   
-  C_x: ~                     # [TODO] Longitudinal tire stiffness (N/unit slip)
-                             # From test_longitudinal_stiffness.py
+  C_x: 79.5                  # [TESTED] Longitudinal tire stiffness (N/unit slip)
+                             # From test_longitudinal_stiffness.py (5 runs, pitch-corrected)
+                             # Combined (all 4 wheels, AWD). Per tire: ~20 N/unit slip
                              # Slip ratio κ = (v_wheel - v_body) / max(|v_wheel|, |v_body|)
 
 # ============================================================================
@@ -93,20 +94,20 @@ tire:
 # ============================================================================
 
 steering:
-  max_steering_angle: ~      # [TESTED/CALC] Maximum steering angle (rad)
+  max_steering_angle: 0.4282 # [TESTED/CALC] Maximum steering angle (rad) (24.5°)
                              # From servo limits: angle = (servo - offset) / gain
   
-  max_steering_rate: ~       # [TESTED] Maximum steering rate (rad/s)
+  max_steering_rate: 2.8492       # [TESTED] Maximum steering rate (rad/s)
                              # From test_steering_rate.py
   
-  servo_time_constant: ~     # [TESTED] Time for 60° servo travel (s)
+  servo_time_constant: 0.3675     # [TESTED] Time for 60° servo travel (s)
                              # = (60 * pi/180) / max_steering_rate
                              # From test_steering_rate.py
   
-  servo_offset: 0.5460       # [MEASURED] steering_angle_to_servo_offset
-  servo_gain: -0.6960        # [MEASURED] steering_angle_to_servo_gain
-  servo_min: ~               # [TODO] Minimum servo PWM (from find_servo_limits.py)
-  servo_max: ~               # [TODO] Maximum servo PWM (from find_servo_limits.py)
+  servo_offset: 0.5500       # [MEASURED] steering_angle_to_servo_offset
+  servo_gain: -0.7940        # [MEASURED] steering_angle_to_servo_gain
+  servo_min: 0.202           # [MEASURED] Minimum servo PWM (from find_servo_limits.py)
+  servo_max: 0.890           # [MEASURED] Maximum servo PWM (from find_servo_limits.py)
 
 # ============================================================================
 # Motor / Drivetrain Properties
@@ -125,31 +126,60 @@ motor:
   pole_pairs: 2              # [DATASHEET] Velineon 3500 has 4 poles → 2 pole pairs
                              # ERPM = mechanical_RPM × pole_pairs
   
-  # VESC current measurements:
-  # The VESC reports motor current (q-axis in FOC mode).
-  # T_motor_shaft = Kt × I_motor
-  
-  max_motor_torque: ~        # [TODO] Max drive torque at motor shaft (Nm)
-                             # From test_motor_torque.py or: Kt × max_current
-  
-  max_brake_torque: ~        # [TODO] Max regenerative braking torque at motor shaft (Nm)
-                             # The VESC braking is via motor regen, measured from
-                             # /sensors/core current during braking
-  
   gear_ratio: 11.82          # [DATASHEET] Total internal gear ratio (motor to wheels)
                              # Traxxas Slash 4x4 internal: 11.82:1
                              # Spur/pinion gearing: 54T/13T = 4.15:1
                              # NOTE: The 11.82 likely INCLUDES the spur/pinion.
-                             # Verification from ERPM calibration (erpm_gain=4600):
+                             # Verification from ERPM calibration (erpm_gain=4550):
                              #   gear_ratio = erpm_gain × 2π × r_eff / (pole_pairs × 60)
                              # With r_eff≈0.05m: gear_ratio ≈ 12.0 (matches 11.82)
                              # If gearing on your car differs, update and re-verify.
   
-  max_motor_current: ~       # [TODO] Max continuous motor current (A)
-                             # Read from VESC Tool motor settings or test
+  # --- VESC current limits (configured in VESC Tool) ---
+  max_motor_current_limit: 100.0   # [CONFIG] VESC motor current limit (A)
+  max_battery_current_limit: 70.0  # [CONFIG] VESC battery current limit (A)
   
-  max_brake_current: ~       # [TODO] Max braking current (A)
-                             # Read from VESC Tool motor settings
+  # --- Measured peak currents (from test_motor_torque.py, 5 runs) ---
+  max_motor_current: 71.56   # [TESTED] Peak motor current during burst accel (A)
+                             # Range: 69.8 - 74.3 A across runs
+                             # Burst avg: ~65A for first 0.5s, then VESC PID
+                             # reduces to ~14A once target speed is reached.
+                             # Battery current at peak: only ~16A (low duty cycle).
+  
+  max_brake_current: -63.45  # [TESTED] Peak braking (regen) motor current (A)
+                             # Range: -59.2 to -65.6 A across runs
+  
+  max_motor_torque: 0.1954   # [TESTED] Peak drive torque at motor shaft (Nm)
+                             # = Kt × max_motor_current = 0.00273 × 71.56
+  
+  max_brake_torque: 0.1732   # [TESTED] Peak regen braking torque at motor shaft (Nm)
+                             # = Kt × |max_brake_current| = 0.00273 × 63.45
+
+  # --- Effective drivetrain parameters (from test_motor_torque.py) ---
+  # Linear fit of wheel force vs motor current (5 runs × 4 speeds):
+  #   F_net = Kt_eff × I_motor - F_rolling
+  # This includes all drivetrain losses (gearing friction, bearing drag, etc.)
+  
+  Kt_eff: 0.3709             # [TESTED] Effective motor-current-to-wheel-force (N/A)
+                             # Linear fit R² = 0.87
+                             # Theoretical: Kt × gear_ratio × η / r_eff
+                             # = 0.00273 × 11.82 × η / 0.05 → η = 57.5%
+  
+  rolling_resistance: 2.79   # [TESTED] Rolling resistance force (N)
+                             # Intercept of F_net vs I_motor fit
+                             # = 0.84 N per kg (≈ Crr × g with Crr ≈ 0.086)
+  
+  drivetrain_efficiency: 0.575  # [TESTED] Overall drivetrain efficiency
+                             # = Kt_eff × r_eff / (Kt × gear_ratio)
+                             # Losses: gearbox, differentials, bearings, belt/chain
+  
+  max_wheel_force: 23.8      # [TESTED] Peak net wheel force during accel (N)
+                             # = Kt_eff × peak_I - rolling_resistance
+                             # = 0.371 × 71.6 - 2.79 ≈ 23.8 N (0.73 g)
+  
+  accel_to_current_gain: 8.93  # [CALC] Gain for ACCEL_TO_CURRENT mode (A/(m/s²))
+                             # = mass / Kt_eff = 3.314 / 0.371
+                             # Use in vesc.yaml if switching to torque control.
   
   drivetrain_inertia: ~      # [ESTIMATE/TODO] Combined drivetrain inertia (kg·m²)
                              # Motor rotor + gears + wheels, reflected to wheel side
@@ -165,16 +195,16 @@ motor:
 # ============================================================================
 
 dynamics:
-  max_velocity: ~            # [TESTED] Maximum achievable velocity (m/s)
+  max_velocity: 10.0363      # [TESTED] Maximum achievable velocity (m/s)
                              # From test_max_dynamics.py
   
-  max_accel: ~               # [TESTED] Maximum longitudinal acceleration (m/s²)
+  max_accel: 14.5423         # [TESTED] Maximum longitudinal acceleration (m/s²)
                              # From test_max_dynamics.py (IMU-based)
   
-  max_decel: ~               # [TESTED] Maximum deceleration (m/s²)
+  max_decel: 18.7332         # [TESTED] Maximum deceleration (m/s²)
                              # From test_max_dynamics.py (IMU-based)
   
-  max_lateral_accel: ~       # [TESTED] Maximum lateral acceleration before slide (m/s²)
+  max_lateral_accel: 7.3212  # [TESTED] Maximum lateral acceleration before slide (m/s²)
                              # From test_friction.py: mu × g
 
 # ============================================================================
@@ -182,23 +212,30 @@ dynamics:
 # ============================================================================
 
 vesc_calibration:
-  speed_to_erpm_gain: 4600.0
+  speed_to_erpm_gain: 4550.0
   speed_to_erpm_offset: 0.0
-  speed_to_erpm_quadratic: 0.0
-  steering_angle_to_servo_gain: -0.6960
-  steering_angle_to_servo_offset: 0.5460
+  steering_angle_to_servo_gain: -0.7940
+  steering_angle_to_servo_offset: 0.5500
 
 # ============================================================================
 # Conversion Notes
 # ============================================================================
 #
-# Motor torque to wheel force:
-#   F_wheel = T_motor × gear_ratio × efficiency / r_eff
-#   For 4WD: distributed to all 4 wheels via differentials
+# Motor current to wheel force (MEASURED):
+#   F_net = Kt_eff × I_motor - rolling_resistance
+#   F_net = 0.371 × I_motor - 2.79   (N)
+#   This is the NET force at the contact patch after all drivetrain losses.
 #
-# Alternative: measure effective "wheel torque" directly from F = m × a:
-#   T_wheel_total = m × a_x × r_eff
-#   This gives the net force at the contact patch (includes all losses)
+# Motor current to wheel force (THEORETICAL):
+#   F_wheel = Kt × I_motor × gear_ratio × η / r_eff
+#   F_wheel = 0.00273 × I × 11.82 × 0.575 / 0.05
+#   F_wheel = 0.371 × I   (matches measured Kt_eff!)
+#
+# Acceleration to motor current (for ACCEL_TO_CURRENT mode):
+#   I_motor = (m × a_desired + F_rolling) / Kt_eff
+#   I_motor ≈ accel_to_current_gain × a_desired + I_rolling
+#   Where accel_to_current_gain = m / Kt_eff = 3.314 / 0.371 ≈ 8.93 A/(m/s²)
+#   And I_rolling = rolling_resistance / Kt_eff = 2.79 / 0.371 ≈ 7.5 A
 #
 # ERPM to ground speed:
 #   v = ERPM / speed_to_erpm_gain
@@ -207,7 +244,7 @@ vesc_calibration:
 #   v = Wheel RPM × 2π/60 × r_eff
 #   → speed_to_erpm_gain = pole_pairs × gear_ratio × 60 / (2π × r_eff)
 #
-# Verify: with erpm_gain=4600, pole_pairs=2, r_eff=0.05:
+# Verify: with erpm_gain=4550, pole_pairs=2, r_eff=0.05:
 #   gear_ratio = erpm_gain × 2π × r_eff / (pole_pairs × 60)
-#              = 4600 × 2π × 0.05 / (2 × 60) = 1445.1 / 120 ≈ 12.04
-#   This looks reasonable for the Traxxas Slash 4x4.
+#              = 4550 × 2π × 0.05 / (2 × 60) = 1429.4 / 120 ≈ 11.91
+#   This looks reasonable for the Traxxas Slash 4x4 (spec: 11.82).

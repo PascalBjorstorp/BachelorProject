@@ -49,6 +49,8 @@ class ServoLimitFinder(Node):
         self.servo_pos = center
         self.left_limit = None   # servo_max (high servo value = left with negative gain)
         self.right_limit = None  # servo_min (low servo value = right with negative gain)
+        self.paused = False
+        self.saved_pos = None    # position saved when pausing
 
         self.pub = self.create_publisher(
             Float64, 'commands/servo/position', 10)
@@ -58,12 +60,34 @@ class ServoLimitFinder(Node):
 
     def _timer_cb(self):
         msg = Float64()
-        msg.data = self.servo_pos
+        # When paused, publish center to relax the servo
+        msg.data = self.center if self.paused else self.servo_pos
         self.pub.publish(msg)
 
     def adjust(self, delta):
         self.servo_pos += delta
         self.servo_pos = max(0.0, min(1.0, self.servo_pos))
+
+    def back_off(self, amount=0.005):
+        """Move servo_pos toward center by `amount`."""
+        if self.servo_pos > self.center:
+            self.servo_pos = max(self.center, self.servo_pos - amount)
+        else:
+            self.servo_pos = min(self.center, self.servo_pos + amount)
+
+    def toggle_pause(self):
+        """Toggle pause. When pausing, save position. When resuming, restore backed off."""
+        if not self.paused:
+            # Pause: save current position, publish center to relax servo
+            self.saved_pos = self.servo_pos
+            self.paused = True
+        else:
+            # Resume: restore position backed off 0.01 toward center
+            if self.saved_pos is not None:
+                self.servo_pos = self.saved_pos
+                self.back_off(0.01)
+                self.saved_pos = None
+            self.paused = False
 
     def servo_to_angle_deg(self, servo_val):
         """Convert servo value to steering angle (degrees)."""
@@ -92,9 +116,11 @@ def print_status(node):
 
     left_str = f'{node.left_limit:.3f}' if node.left_limit else '---'
     right_str = f'{node.right_limit:.3f}' if node.right_limit else '---'
+    pause_str = ' [PAUSED]' if node.paused else ''
+    saved_str = f' (saved={node.saved_pos:.4f})' if node.saved_pos else ''
 
     print(f'\rservo={node.servo_pos:.4f}  angle={angle:+6.1f}deg  '
-          f'LEFT={left_str}  RIGHT={right_str}    ', end='')
+          f'LEFT={left_str}  RIGHT={right_str}{pause_str}{saved_str}    ', end='')
 
 
 def main():
@@ -127,13 +153,20 @@ def main():
     print('  Controls:')
     print('    a / d   : servo -0.01 / +0.01 (coarse)')
     print('    z / c   : servo -0.002 / +0.002 (fine)')
+    print('    x / v   : servo -0.0005 / +0.0005 (ultra-fine)')
+    print('    SPACE   : pause/resume (relaxes servo at center, saves position)')
+    print('    b       : back off 0.005 toward center (without pausing)')
     print('    1       : mark LEFT limit  (the max servo value before lock)')
     print('    2       : mark RIGHT limit (the min servo value before lock)')
     print('    r       : reset to center')
     print('    q       : quit and show results')
     print()
-    print('  Sweep slowly outward from center. When the wheels stop turning')
-    print('  (you hear/feel the servo straining), back off slightly and mark.')
+    print('  PROCEDURE:')
+    print('    1. Sweep slowly outward from center with a/d or z/c')
+    print('    2. If the servo buzzes, press SPACE to pause (relaxes servo)')
+    print('    3. Press SPACE again to resume (backed off slightly)')
+    print('    4. Use x/v for ultra-fine adjustment near the limit')
+    print('    5. Mark the last non-buzzing position with 1 or 2')
     print('=' * 65)
     print()
 
@@ -153,6 +186,17 @@ def main():
                 node.adjust(-0.002)
             elif key == 'c':
                 node.adjust(0.002)
+            elif key == 'x':
+                node.adjust(-0.0005)
+            elif key == 'v':
+                node.adjust(0.0005)
+            elif key == ' ':
+                node.toggle_pause()
+                state = 'PAUSED — servo at center' if node.paused else 'RESUMED'
+                print(f'\n  >> {state}')
+            elif key == 'b':
+                node.back_off(0.005)
+                print(f'\n  >> Backed off toward center')
             elif key == '1':
                 # Left limit = higher servo value (with negative gain, higher servo = more left)
                 node.left_limit = node.servo_pos

@@ -81,11 +81,9 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
 
   declare_parameter<double>("speed_to_erpm_gain", 0.0);
   declare_parameter<double>("speed_to_erpm_offset", 0.0);
-  declare_parameter<double>("speed_to_erpm_quadratic", 0.0);  // v² coefficient for nonlinear model
 
   speed_to_erpm_gain_ = get_parameter("speed_to_erpm_gain").get_value<double>();
   speed_to_erpm_offset_ = get_parameter("speed_to_erpm_offset").get_value<double>();
-  speed_to_erpm_quadratic_ = get_parameter("speed_to_erpm_quadratic").get_value<double>();
 
   if (use_servo_cmd_) {
     declare_parameter<double>("steering_angle_to_servo_gain", 0.0);
@@ -164,32 +162,9 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   }
 
   // convert to engineering units
-  // Model: ERPM = quad*v*|v| + gain*v + offset
-  // When quad=0, reduces to linear: speed = (ERPM - offset) / gain
-  // When quad!=0, solve quadratic: quad*v² + gain*v + (offset - ERPM) = 0
-  // using the root closest to zero (positive discriminant branch).
+  // Linear model: speed = (ERPM - offset) / gain
   double erpm = state->state.speed;
-  double current_speed;
-  if (std::abs(speed_to_erpm_quadratic_) < 1e-9 || speed_to_erpm_gain_ == 0.0) {
-    // Linear model
-    current_speed = (erpm - speed_to_erpm_offset_) / speed_to_erpm_gain_;
-  } else {
-    // Quadratic model: a*v² + b*v + c = 0 where c = offset - ERPM
-    double a = speed_to_erpm_quadratic_;
-    double b = speed_to_erpm_gain_;
-    double c = speed_to_erpm_offset_ - erpm;
-    double disc = b * b - 4.0 * a * c;
-    if (disc < 0.0) {
-      // Fallback to linear if discriminant is negative
-      current_speed = (erpm - speed_to_erpm_offset_) / speed_to_erpm_gain_;
-    } else {
-      double sqrt_disc = std::sqrt(disc);
-      // Pick the root with smaller absolute value (closer to zero)
-      double v1 = (-b + sqrt_disc) / (2.0 * a);
-      double v2 = (-b - sqrt_disc) / (2.0 * a);
-      current_speed = (std::abs(v1) < std::abs(v2)) ? v1 : v2;
-    }
-  }
+  double current_speed = (erpm - speed_to_erpm_offset_) / speed_to_erpm_gain_;
   if (std::fabs(current_speed) < 0.05) {
     current_speed = 0.0;
   }

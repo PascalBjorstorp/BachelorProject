@@ -63,7 +63,8 @@ class MotorTorqueNode(TestNode):
             'motor_torque',
             columns,
             max_speed=max(args.speeds) * 1.3,
-            max_time=len(args.speeds) * 15 + 60.0
+            max_time=0,
+            max_distance=args.geofence
         )
 
         self.speeds = args.speeds
@@ -234,6 +235,17 @@ class MotorTorqueNode(TestNode):
             # Wait for full stop
             self.spin_for(1.0)
 
+            # Reposition between speed steps if there are more
+            remaining = [s for s in self.speeds if s > speed_target]
+            if remaining and self.test_running:
+                self.stop_car()
+                print(f"\n  >>> Speed {speed_target:.1f} m/s done. "
+                      f"Next: {remaining[0]:.1f} m/s")
+                print(f"  >>> Reposition the car for the next speed step.")
+                input("  >>> Press ENTER when ready...")
+                # Reset safety monitor for new position
+                self.safety.start()
+
         self.stop_car()
         time.sleep(0.5)
         self.stop_car()
@@ -401,6 +413,8 @@ def main():
                         help='Motor torque constant Nm/A (default: 0.00273 for 3351R)')
     parser.add_argument('--r-tire', type=float, default=0.05,
                         help='Effective tire radius in m (default: 0.05, UPDATE THIS)')
+    parser.add_argument('--geofence', type=float, default=10.0,
+                        help='Max distance from start before abort (m, default: 10.0)')
     parser.add_argument('--runs', type=int, default=5,
                         help='Number of complete test runs (default: 5)')
     args = parser.parse_args()
@@ -421,8 +435,8 @@ def main():
             node.stop_car()
             node.destroy_node()
         if run_idx < args.runs - 1:
-            print("\nCooling down for 5s before next run...")
-            time.sleep(5)
+            print("\n  >>> Reposition the car for the next run.")
+            input("  >>> Press ENTER when ready...")
     rclpy.shutdown()
 
 

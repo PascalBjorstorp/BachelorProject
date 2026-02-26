@@ -8,15 +8,16 @@ Usage:
     python3 generate_plots.py --prefix 20260301    # filter by date prefix
 
 Produces PDF figures in figures/ matching the report_outline.tex placeholders:
-  1. friction_ay_vs_speed.pdf
-  2. cornering_Fy_vs_alpha.pdf
-  3. cornering_alpha_vs_speed.pdf
-  4. long_v_comparison.pdf
-  5. long_Fx_vs_kappa.pdf
-  6. torque_I_vs_F.pdf
-  7. torque_current_vs_time.pdf
-  8. max_dyn_speed_vs_time.pdf
-  9. steering_step_response.pdf
+  1. wheelbase_circle_trajectory.pdf
+  2. friction_ay_vs_speed.pdf
+  3. cornering_Fy_vs_alpha.pdf
+  4. cornering_alpha_vs_speed.pdf
+  5. long_v_comparison.pdf
+  6. long_Fx_vs_kappa.pdf
+  7. torque_I_vs_F.pdf
+  8. torque_current_vs_time.pdf
+  9. max_dyn_speed_vs_time.pdf
+  10. steering_step_response.pdf
 """
 
 import argparse
@@ -84,6 +85,219 @@ def save_fig(fig, name):
 
 
 # ── Plot functions ───────────────────────────────────────────────────────────
+
+def plot_wheelbase(data_dir, prefix):
+    """Figure 1: Wheelbase test quality — consistency across runs and speeds."""
+    paths = sorted(glob.glob(os.path.join(data_dir, '*wheelbase_test*.csv')))
+    if prefix:
+        paths = [p for p in paths if prefix in os.path.basename(p)]
+    if not paths:
+        print('  [skip] no wheelbase_test CSV found')
+        return
+
+    # Load all runs
+    all_runs = []
+    for path in paths:
+        all_runs.append(load_csv(path))
+
+    # Extract per-run, per-speed metrics
+    steer = 0.3  # default steering angle — TODO: read from CSV cmd_steering
+    beta = np.arctan(0.5 * np.tan(steer))
+
+    # Collect: {speed_label: [{run, L_imu, L_odom, R_imu, R_odom, v_mean, v_std, omega_std}, ...]}
+    speed_data = {}
+    for run_idx, d in enumerate(all_runs):
+        phase = d.get('phase', np.array([]))
+        circle_phases = sorted(set(p for p in phase if isinstance(p, str) and p.startswith('circle_v')))
+        for cp in circle_phases:
+            mask = phase == cp
+            if np.sum(mask) < 50:
+                continue
+            vx = d['odom_vx'][mask]
+            gz = d['imu_gz'][mask]
+            om_odom = d['odom_omega'][mask]
+
+            # Trim 20% from each end (transient)
+            n = len(vx)
+            trim = int(n * 0.2)
+            if n - 2 * trim < 10:
+                continue
+            vx_t = vx[trim:n - trim]
+            gz_t = gz[trim:n - trim]
+            om_t = om_odom[trim:n - trim]
+
+            valid_imu = np.abs(gz_t) > 0.05
+            valid_odom = np.abs(om_t) > 0.05
+
+            if np.sum(valid_imu) < 5 or np.sum(valid_odom) < 5:
+                continue
+
+            r_imu = np.median(np.abs(vx_t[valid_imu] / gz_t[valid_imu]))
+            r_odom = np.median(np.abs(vx_t[valid_odom] / om_t[valid_odom]))
+
+            speed_val = float(cp.replace('circle_v', ''))
+            entry = {
+                'run': run_idx + 1,
+                'R_imu': r_imu,
+                'R_odom': r_odom,
+                'L_imu': r_imu * 2 * np.sin(beta),
+                'L_odom': r_odom * 2 * np.sin(beta),
+                'v_mean': np.mean(vx_t),
+                'v_std': np.std(vx_t),
+                'v_cv': np.std(vx_t) / max(np.mean(vx_t), 0.01) * 100,
+                'omega_std': np.std(gz_t),
+            }
+            speed_data.setdefault(speed_val, []).append(entry)
+
+    if not speed_data:
+        print('  [skip] no valid circle data extracted')
+        return
+
+    speeds_sorted = sorted(speed_data.keys())
+    n_runs = len(all_runs)
+
+    fig, axes = plt.subplots(2, 2, figsize=(11, 8))
+
+    # ── Panel 1 (top-left): Wheelbase per run at lowest speed ───────
+    ax = axes[0, 0]
+    lowest_speed = speeds_sorted[0]
+    entries = speed_data[lowest_speed]
+    L_vals = [e['L_imu'] for e in entries]
+    runs = [e['run'] for e in entries]
+    L_mean = np.mean(L_vals)
+    L_std = np.std(L_vals)
+
+    ax.bar(runs, L_vals, color='tab:blue', alpha=0.7, width=0.6)
+    ax.axhline(L_mean, ls='-', color='tab:red', linewidth=2,
+               label=rf'Mean = {L_mean:.4f} m')
+    ax.axhspan(L_mean - L_std, L_mean + L_std, alpha=0.15, color='tab:red',
+               label=rf'$\pm 1\sigma$ = {L_std:.4f} m')
+    # Show ±2σ band for reference
+    ax.axhspan(L_mean - 2 * L_std, L_mean + 2 * L_std, alpha=0.07, color='tab:red')
+    ax.set_xlabel('Run')
+    ax.set_ylabel('Wheelbase (m)')
+    ax.set_title(f'Run-to-Run Consistency (v = {lowest_speed} m/s)')
+    ax.set_xticks(runs)
+    ax.legend(fontsize=8)
+    # Set y-axis to show variation clearly
+    y_margin = max(L_std * 4, 0.005)
+    ax.set_ylim(L_mean - y_margin, L_mean + y_margin)
+
+    # ── Panel 2 (top-right): Wheelbase vs speed (all runs) ──────────
+    ax = axes[0, 1]
+    colors = plt.cm.tab10(np.linspace(0, 0.4, n_runs))
+    for sp in speeds_sorted:
+        for e in speed_data[sp]:
+            ax.plot(sp, e['L_imu'], 'o', color=colors[e['run'] - 1],
+                    alpha=0.6, markersize=7)
+
+    # Mean ± std per speed
+    sp_means = []
+    sp_stds = []
+    for sp in speeds_sorted:
+        vals = [e['L_imu'] for e in speed_data[sp]]
+        sp_means.append(np.mean(vals))
+        sp_stds.append(np.std(vals))
+    ax.errorbar(speeds_sorted, sp_means, yerr=sp_stds, fmt='s-',
+                color='black', capsize=5, linewidth=2, markersize=8,
+                label='Mean ± σ', zorder=5)
+
+    # Annotate growth rate
+    if len(speeds_sorted) >= 2:
+        L_low = sp_means[0]
+        L_high = sp_means[-1]
+        growth = (L_high - L_low) / L_low * 100
+        ax.text(0.02, 0.98,
+                f'Growth {speeds_sorted[0]}→{speeds_sorted[-1]} m/s: '
+                f'+{growth:.1f}%\n(tire slip increases apparent L)',
+                transform=ax.transAxes, va='top', ha='left', fontsize=8,
+                bbox=dict(boxstyle='round,pad=0.3', facecolor='lightyellow',
+                          alpha=0.8, edgecolor='none'))
+
+    ax.set_xlabel('Speed (m/s)')
+    ax.set_ylabel('Effective wheelbase (m)')
+    ax.set_title('Wheelbase vs. Speed (tire slip effect)')
+    ax.legend(fontsize=8)
+
+    # ── Panel 3 (bottom-left): Circle trajectory (latest run) ───────
+    ax = axes[1, 0]
+    d = all_runs[-1]
+    phase = d.get('phase', np.array([]))
+    x = d['odom_x']
+    y = d['odom_y']
+    circle_phases = sorted(set(p for p in phase if isinstance(p, str) and p.startswith('circle_v')))
+    cmap_colors = plt.cm.viridis(np.linspace(0.2, 0.9, max(len(circle_phases), 1)))
+    for i, cp in enumerate(circle_phases):
+        mask = phase == cp
+        if np.sum(mask) < 10:
+            continue
+        speed_val = cp.replace('circle_v', '')
+        ax.plot(x[mask], y[mask], '-', color=cmap_colors[i], linewidth=1.2,
+                label=f'v = {speed_val} m/s', alpha=0.85)
+    ax.set_xlabel('X (m)')
+    ax.set_ylabel('Y (m)')
+    ax.set_aspect('equal')
+    ax.set_title(f'Circle Trajectories (run {n_runs})')
+    ax.legend(fontsize=8)
+    ax.grid(True, alpha=0.3)
+
+    # ── Panel 4 (bottom-right): Data quality metrics ────────────────
+    ax = axes[1, 1]
+    ax.axis('off')
+
+    # Build quality summary table
+    lines = []
+    lines.append(f'WHEELBASE TEST QUALITY REPORT')
+    lines.append(f'{"="*42}')
+    lines.append(f'Runs: {n_runs}    Steering: {np.degrees(steer):.1f}°')
+    lines.append(f'')
+    lines.append(f'{"Speed":>7} {"L_mean":>8} {"L_std":>8} {"CV%":>6} '
+                 f'{"v_CV%":>6} {"Odom/IMU":>8}')
+    lines.append(f'{"-"*7:>7} {"-"*8:>8} {"-"*8:>8} {"-"*6:>6} '
+                 f'{"-"*6:>6} {"-"*8:>8}')
+
+    for sp in speeds_sorted:
+        vals_imu = [e['L_imu'] for e in speed_data[sp]]
+        vals_odom = [e['L_odom'] for e in speed_data[sp]]
+        v_cvs = [e['v_cv'] for e in speed_data[sp]]
+        L_m = np.mean(vals_imu)
+        L_s = np.std(vals_imu)
+        cv = L_s / L_m * 100
+        v_cv = np.mean(v_cvs)
+        # Odom vs IMU discrepancy
+        odom_imu_pct = np.mean(
+            [abs(e['R_odom'] - e['R_imu']) / e['R_imu'] * 100
+             for e in speed_data[sp]])
+        lines.append(f'{sp:7.1f} {L_m:8.4f} {L_s:8.4f} {cv:6.2f} '
+                     f'{v_cv:6.2f} {odom_imu_pct:7.2f}%')
+
+    lines.append(f'')
+    lines.append(f'Best estimate (v={lowest_speed} m/s):')
+    lines.append(f'  L = {L_mean:.4f} ± {L_std:.4f} m')
+    lines.append(f'  Relative uncertainty: {L_std/L_mean*100:.2f}%')
+
+    # Quality verdict
+    lines.append(f'')
+    if L_std / L_mean < 0.01:
+        lines.append(f'Quality: EXCELLENT (σ/μ < 1%)')
+    elif L_std / L_mean < 0.03:
+        lines.append(f'Quality: GOOD (σ/μ < 3%)')
+    elif L_std / L_mean < 0.05:
+        lines.append(f'Quality: ACCEPTABLE (σ/μ < 5%)')
+    else:
+        lines.append(f'Quality: POOR (σ/μ ≥ 5%) — re-run')
+
+    text = '\n'.join(lines)
+    ax.text(0.05, 0.95, text, transform=ax.transAxes,
+            va='top', ha='left', fontsize=9,
+            family='monospace',
+            bbox=dict(boxstyle='round,pad=0.5', facecolor='white',
+                      edgecolor='gray', alpha=0.9))
+
+    fig.suptitle('Wheelbase Test — Accuracy & Consistency', fontsize=13, y=1.01)
+    fig.tight_layout()
+    save_fig(fig, 'wheelbase_circle_trajectory.pdf')
+
 
 def plot_friction(data_dir, prefix):
     """Figure 1: a_y (IMU) vs speed with mu line."""
@@ -507,15 +721,16 @@ def main():
     print()
 
     plots = [
-        ('1/9  Friction a_y vs speed',      plot_friction),
-        ('2/9  Cornering F_y vs alpha',      plot_cornering_Fy_alpha),
-        ('3/9  Cornering alpha vs speed',    plot_cornering_alpha_speed),
-        ('4/9  Longitudinal v comparison',   plot_long_v_comparison),
-        ('5/9  Longitudinal F_x vs kappa',   plot_long_Fx_kappa),
-        ('6/9  Motor torque I vs F',         plot_torque_I_vs_F),
-        ('7/9  Motor torque current vs time',plot_torque_current_time),
-        ('8/9  Max dynamics speed vs time',  plot_max_dynamics),
-        ('9/9  Steering step response',      plot_steering_rate),
+        ('1/10  Wheelbase circle trajectory', plot_wheelbase),
+        ('2/10  Friction a_y vs speed',       plot_friction),
+        ('3/10  Cornering F_y vs alpha',      plot_cornering_Fy_alpha),
+        ('4/10  Cornering alpha vs speed',    plot_cornering_alpha_speed),
+        ('5/10  Longitudinal v comparison',   plot_long_v_comparison),
+        ('6/10  Longitudinal F_x vs kappa',   plot_long_Fx_kappa),
+        ('7/10  Motor torque I vs F',         plot_torque_I_vs_F),
+        ('8/10  Motor torque current vs time',plot_torque_current_time),
+        ('9/10  Max dynamics speed vs time',  plot_max_dynamics),
+        ('10/10 Steering step response',      plot_steering_rate),
     ]
 
     for label, func in plots:
