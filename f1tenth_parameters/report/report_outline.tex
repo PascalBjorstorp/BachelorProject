@@ -167,52 +167,156 @@ depending on the loading direction (longitudinal vs.\ lateral).
 \subsection{Cornering Stiffness}\label{sec:cornering}
 
 \paragraph{Theory.}
-In steady-state cornering $(\dot{v}_y=\dot{\omega}=0)$, the front and
-rear lateral forces and slip angles reduce to:
+In steady-state cornering $(\dot{v}_y = \dot{\omega} = 0)$, the lateral
+force balance gives front and rear tyre forces
 \begin{equation}\label{eq:Fy-ss}
   F_{yf} = m\,a_y\,\frac{l_r}{L}, \qquad
   F_{yr} = m\,a_y\,\frac{l_f}{L},
 \end{equation}
+and the linearised slip angles are
 \begin{equation}\label{eq:alpha-ss}
-  \alpha_f \approx \delta - \frac{l_f\,\omega}{v_x}, \qquad
-  \alpha_r \approx \frac{l_r\,\omega}{v_x},
+  \alpha_f = \beta + \frac{l_f\,\omega}{v_x} - \delta, \qquad
+  \alpha_r = \beta - \frac{l_r\,\omega}{v_x},
 \end{equation}
-where $\omega$ is the IMU yaw rate and $v_x$ the ERPM-based speed.
-The cornering stiffnesses follow from
-$C_{\alpha f} = F_{yf}/\alpha_f$ and $C_{\alpha r} = F_{yr}/\alpha_r$.
+where $\beta = v_y / v_x$ is the body sideslip angle.  The cornering
+stiffnesses follow from $C_{\alpha f} = -F_{yf}/\alpha_f$ and
+$C_{\alpha r} = -F_{yr}/\alpha_r$ in the assumed linear tyre region.
+
+\paragraph{Kinematic degeneracy.}
+On this platform the VESC odometry always reports $v_y = 0$, and
+no EKF or other sensor provides a lateral-velocity estimate.
+Setting $\beta = 0$ in~\eqref{eq:alpha-ss} reduces the rear slip
+angle to $\alpha_r = -l_r\,\omega / v_x$, and combining with
+$a_y = \omega\,v_x$ (steady-state kinematic relation) yields
+\begin{equation}\label{eq:degeneracy}
+  C_{\alpha r}
+    = \frac{m\,a_y\,l_f / L}{l_r\,\omega / v_x}
+    = \frac{m\,v_x^2\,l_f}{L\,l_r},
+\end{equation}
+which is a \emph{kinematic identity}---it depends only on speed and
+geometry, not on tyre properties.  A similar argument holds for the
+front axle.  Any apparent ``measurement'' of $C_\alpha$ from
+steady-state data without an independent $v_y$ sensor is therefore
+illusory, as it reproduces the $v^2$ relation rather than a tyre
+characteristic.
+
+\includefigure[width=\textwidth]{cornering_degeneracy.pdf}{%
+  \emph{Left:} Na\"ive $C_{\alpha r}$ (computed with $\beta = 0$)
+  versus speed.  The solid curve is the kinematic identity
+  $m\,v_x^2\,l_f/(L\,l_r)$; the data follow it exactly, confirming
+  that the na\"ive method identifies geometry, not tyre stiffness.
+  \emph{Right:} Lateral force $F_y$ versus slip angle $\alpha$ for the
+  rear axle, coloured by speed.  Each speed forms a distinct cluster
+  because both $F_y$ and $\alpha$ scale with
+  $v_x^2$.\label{fig:cornering-degen}}
+
+LiDAR-based lateral velocity (ICP scan-matching) was also tested as an
+independent $v_y$ source.  The resulting sideslip estimates showed a
+standard deviation of \SIrange{0.2}{0.5}{\metre\per\second} per sample,
+which is an order of magnitude larger than the expected signal
+($\sim$\SI{0.05}{\metre\per\second}).  The ICP-derived $v_y$
+is therefore not usable for cornering stiffness identification.
+
+\paragraph{Understeer gradient measurement.}
+The understeer gradient $K_\text{us}$ provides a well-conditioned
+observable that depends on the \emph{ratio} of front and rear stiffness
+but does not require $v_y$.  In steady-state circular driving:
+\begin{equation}\label{eq:Kus}
+  \delta - \frac{L\,\omega}{v_x} = K_\text{us}\,a_y,
+  \qquad
+  K_\text{us} = \frac{m}{L}
+    \!\left(\frac{l_f}{C_{\alpha r}} - \frac{l_r}{C_{\alpha f}}\right).
+\end{equation}
+The quantity $\delta - L\omega/v_x$ is the deviation of the measured
+steering from the kinematic (Ackermann) steering angle, and equals zero
+for a neutral car.  For each constant-speed constant-steer segment the
+measured values of $\delta$, $\omega$, $v_x$, and $a_y$ are averaged
+over the steady-state window.
 
 \paragraph{Procedure.}
-Same steady-state circles as the friction test, at speeds from
-\SIrange{1.0}{3.5}{\metre\per\second}. At each speed, \SI{5}{\second} of
-$v_x$, $\omega$ (IMU), and $a_y$ (IMU) are recorded.
+Steady-state circles were driven at four commanded steering angles
+($\delta_\text{cmd}$ = 0.12, 0.16, 0.20, \SI{0.24}{\radian}) and three
+speeds (1.5, 2.0, \SI{2.5}{\metre\per\second}), giving 12 operating
+points.  Each point was held for \SI{10}{\second} after a
+\SI{4}{\second} settling period, recording $v_x$, $\omega$, $a_y$, and
+$\delta$ at \SI{40}{\hertz}.
+
+In addition, five step-steer runs (from $\delta = 0$ to $\pm$0.18~rad)
+were recorded at different speeds.  Each run contains six steering
+steps, yielding 30 transient yaw-rate responses.
 
 \paragraph{Data.}
-\includefigure[width=0.48\textwidth]{cornering_Fy_vs_alpha.pdf}{%
-  Lateral force vs.\ slip angle for front and rear axles.  The linear
-  region yields the cornering stiffness $C_\alpha$.\label{fig:cornering-Fy}}
+\includefigure[width=0.65\textwidth]{cornering_understeer_gradient.pdf}{%
+  Understeer gradient measurement.  The vertical axis is
+  $\delta - L\omega/v_x$ (deviation from kinematic steering); the
+  horizontal axis is the lateral acceleration $a_y$.  The slope of the
+  linear fit gives $K_\text{us} = \SI{0.006}{\radian\per(\metre\per\second\squared)}$
+  ($R^2 = 0.62$, $n = 12$).\label{fig:cornering-Kus}}
 
-\includefigure[width=0.48\textwidth]{cornering_alpha_vs_speed.pdf}{%
-  Slip angle growth with speed for front and rear axles.\label{fig:cornering-alpha}}
+\includefigure[width=0.65\textwidth]{cornering_step_response.pdf}{%
+  Example yaw-rate step response from one of the step-steer runs.
+  The \SI{7}{\percent}--\SI{13}{\percent} overshoot indicates a damping
+  ratio $\zeta \approx 0.6$.  The yaw settling time
+  ($\sim$\SIrange{40}{60}{\milli\second}) is comparable to the servo
+  response time ($\sim$\SI{80}{\milli\second}), which limits the
+  accuracy of the extracted natural frequency.\label{fig:cornering-step}}
 
-\paragraph{Limitation.}
-The current data was collected at a single steering angle
-($\delta_\text{cmd} = \SI{0.1}{\radian}$), which produces a narrow
-range of slip angles.  This limits the confidence in the fitted
-cornering stiffness, particularly for the front axle where the
-front slip angle range is very small.
-The test script has been modified to sweep multiple steering angles
-(0.08, 0.12, 0.16, 0.20, \SI{0.24}{\radian}) in future runs
-to improve identification.
+\paragraph{Combined identification.}
+The understeer gradient~\eqref{eq:Kus} provides one equation relating
+two unknowns ($C_{\alpha f}$, $C_{\alpha r}$).  A second constraint is
+obtained from the yaw-plane natural frequency of the single-track model:
+\begin{equation}\label{eq:wn}
+  \omega_n^2 = \frac{1}{I_z}
+    \!\left(l_f^2\,C_{\alpha f} + l_r^2\,C_{\alpha r}\right)
+    + \frac{C_{\alpha f} + C_{\alpha r}}{m}
+    - v_x^2,
+\end{equation}
+where the step-steer transient data supply a lower bound on $\omega_n$.
+Because the observed settling time is dominated by the servo actuator
+rather than the tyre dynamics, only a bounded frequency range is
+identified: $\omega_n \in [20, 35]\;\text{rad/s}$.
+
+\includefigure[width=0.7\textwidth]{cornering_solution_range.pdf}{%
+  Cornering stiffness pairs $(C_{\alpha f},\,C_{\alpha r})$ satisfying
+  the measured $K_\text{us} = 0.006$ as a function of the assumed
+  yaw-plane natural frequency $\omega_n$.  The shaded band marks the
+  frequency range supported by the step-steer data.  The best-estimate
+  point corresponds to $\omega_n \approx \SI{27.5}{\radian\per\second}$.\label{fig:cornering-range}}
+
+Solving~\eqref{eq:Kus} and~\eqref{eq:wn} simultaneously at
+$\omega_n = \SI{27.5}{\radian\per\second}$ yields the best estimates:
+\begin{equation}\label{eq:Calpha-result}
+  C_{\alpha f} = \SI{44.8}{\newton\per\radian}, \qquad
+  C_{\alpha r} = \SI{55.7}{\newton\per\radian}.
+\end{equation}
+The corresponding normalised stiffnesses for the dynamic bicycle model
+are $C_{Sf} = C_{\alpha f}/(m\,g) = 1.38$ and
+$C_{Sr} = C_{\alpha r}/(m\,g) = 1.72$.
+
+A left--right steering asymmetry was observed: fitting
+$K_\text{us}$ separately for left and right turns gives
+$K_\text{us,L} = -0.003$ (slightly oversteer) and
+$K_\text{us,R} = +0.007$ (understeer), which likely reflects
+play or offset in the servo linkage.  The combined value
+$K_\text{us} = 0.006$ represents the overall behaviour averaged
+across both directions.
 
 \paragraph{Uncertainty.}
 \begin{itemize}
-  \item Relies on measured $m$, $l_f$, $l_r$
-        ($\pm 1$--$\SI{2}{\milli\metre}$).
-  \item Single steering angle limits the observable slip-angle range.
-  \item Servo gain mismatch: the actual steering angle is approximately
-        86\% of the commanded angle (see Section~\ref{sec:wheelbase}),
-        which shifts the absolute $C_\alpha$ estimate.
-  \item ERPM noise affects $v_x$ and thus slip-angle calculation.
+  \item $K_\text{us}$ is well-constrained ($\pm$15--20\%) because it
+        depends only on quantities measurable without $v_y$
+        ($\delta$, $\omega$, $v_x$, $a_y$).
+  \item The absolute values of $C_{\alpha f}$ and $C_{\alpha r}$ carry
+        $\pm$30--40\% uncertainty due to the wide admissible range of
+        $\omega_n$ from the servo-limited step response.
+  \item Servo gain mismatch: all analyses use the effective steering
+        angle ($\sim$86\% of commanded, see Section~\ref{sec:wheelbase}).
+  \item The kinematic degeneracy~\eqref{eq:degeneracy} makes any
+        single-test identification of absolute cornering stiffness
+        infeasible without an independent lateral-velocity sensor.
+  \item Left/right asymmetry ($K_\text{us}$ varies by
+        $\sim$\SI{0.01}{\radian\per(\metre\per\second\squared)}) adds
+        systematic uncertainty.
 \end{itemize}
 
 %%% ===================================================================
