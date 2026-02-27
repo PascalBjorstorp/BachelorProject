@@ -230,43 +230,70 @@ independent velocity sensor. In the linear region ($|\kappa|<0.15$):
   F_x = C_x\,\kappa, \qquad F_x = m\,a_x.
 \end{equation}
 
-\paragraph{Limitation.}
-Because the only available body-velocity estimate is obtained by
-integrating the VESC IMU accelerometer, and the reading is
-affected by chassis pitch during braking (gravity
-projects onto the longitudinal axis), $v_\text{body}$ drifts rapidly.
-The computed slip ratio $\kappa$ ranges from
-$-1.0$ to $+0.9$ --- physically impossible values that confirm the
-integration error.
-$C_x$ cannot be reliably identified from the current data;
-a lidar-based scan-matching odometry would provide an independent
-body velocity to resolve this issue.
+\paragraph{LiDAR scan-matching body velocity.}
+An independent body-velocity estimate is obtained from 2D LiDAR
+scan-matching using a point-to-line ICP algorithm.
+Consecutive scans are aligned by minimizing point-to-line distances
+(projections onto surface normals estimated from scan ordering).
+The ICP is seeded with an initial guess from ERPM odometry to improve
+convergence, and scans are deskewed (motion-undistorted) using the
+odometry velocity and IMU yaw rate to compensate for the car's
+displacement during the \SI{25}{\milli\second} scan acquisition.
+Every second scan point is used (2$\times$ downsampling, $\sim$540
+points) to maintain a mean computation time of \SI{4}{\milli\second}.
+The per-scan velocity estimates are smoothed with an exponential
+moving average ($\alpha = 0.3$) to reduce ICP matching noise.
+
+\paragraph{Procedure.}
+The car accelerates from standstill to \SI{6}{\metre\per\second},
+holds a \SI{1}{\second} cruise phase, then brakes to rest.
+Ten runs are performed with \SI{20}{\metre} of clear space.
+During cruise, the LiDAR-to-wheel velocity ratio is
+$0.990 \pm 0.012$ (mean $\pm$ std across 10 runs), confirming
+that the scan-matching tracks the true body velocity to within $\sim$1\%.
 
 \paragraph{Data.}
 \includefigure[width=0.48\textwidth]{long_v_comparison.pdf}{%
-  $v_\text{wheel}$ (ERPM) and $v_\text{body}$ (IMU-integrated) vs.\ time.
-  The divergence during braking is caused by IMU pitch
-  contamination.\label{fig:long-v}}
+  $v_\text{wheel}$ (ERPM) and $v_\text{body}$ (LiDAR ICP) vs.\ time.
+  The LiDAR velocity tracks the wheel speed closely; the small
+  difference during acceleration and braking is the longitudinal
+  slip.\label{fig:long-v}}
 
-\includefigure[width=0.48\textwidth]{long_Fx_vs_kappa.pdf}{%
-  Traction force balance from the motor torque test: motor-side force
-  $F_\text{motor}$ vs.\ body-side force $F_\text{body} = m\,a_x$.
-  The linear slope gives drivetrain efficiency; the saturation
-  plateau indicates the traction limit $\mu_x$.\label{fig:long-Fx}}
+\includefigure[width=\textwidth]{long_Fx_vs_kappa.pdf}{%
+  Longitudinal force $F_x = m\,a_x$ vs.\ slip ratio $\kappa$
+  (acceleration phase only, $|v_\text{lidar}| > \SI{2}{\metre\per\second}$).
+  \emph{Left:} raw scatter from 10 runs, coloured by speed.
+  \emph{Right:} bin-averaged data with standard-error bars.
+  The linear fit yields
+  $C_x = \SI{61.3}{\newton}$ per unit slip
+  ($R^2 = 0.42$).\label{fig:long-Fx}}
 
-\paragraph{Traction force balance.}
-Although $C_x$ could not be identified, the motor torque test data
-(Section~\ref{sec:motor-torque}) provides a traction force balance.
-The wheel-side force is computed from motor current as
-$F_\text{motor} = K_{t,\text{eff}} \cdot I$, where
-$K_{t,\text{eff}} = \SI{0.583}{\newton\per\ampere}$ is the measured
-effective current-to-force gain.  The body-side force is
-$F_\text{body} = m\,a_x$ from the IMU.  In the linear (unsaturated)
-regime, the two forces are proportional with an efficiency of
-$\eta \approx 0.92$ compared to the theoretical
-$K_t\,G/r_\text{eff} = \SI{0.632}{\newton\per\ampere}$.  At high
-current the body acceleration saturates, revealing the longitudinal
-traction limit $\mu_x \approx 0.74$.
+\paragraph{Result.}
+Pooling 10 acceleration runs (6\,722 high-speed points with
+$|v_\text{lidar}| > \SI{2}{\metre\per\second}$ and
+$|\kappa| \in [0.005,\,0.15]$):
+\[
+  C_x = \SI{61.3}{\newton\text{/unit-slip}}, \qquad R^2 = 0.42.
+\]
+Per-run estimates: $C_x = 64.6 \pm 8.2$ (mean $\pm$ std, $n = 10$).
+The braking phase yields a higher apparent stiffness
+($\sim$\SI{154}{\newton}) due to the asymmetric motor torque
+characteristics during regenerative braking.
+
+\paragraph{Uncertainty.}
+\begin{itemize}
+  \item EMA filter lag biases $v_\text{body}$ low during acceleration,
+        inflating the apparent slip ratio and thus $C_x$ by an estimated
+        5--15\% (filter time constant $\tau \approx \SI{78}{\milli\second}$).
+  \item ICP matching noise ($\sigma \approx \SI{1.4}{\metre\per\second}$
+        per scan at \SI{6}{\metre\per\second}) limits per-sample SNR;
+        pooling 10 runs is essential for statistical significance.
+  \item A residual $\sim$1\% negative bias between LiDAR and wheel speed
+        at cruise may indicate slight scan-matching underestimation at
+        high speed despite deskewing.
+  \item Surface-dependent: tire stiffness varies with floor material
+        and tire temperature.
+\end{itemize}
 
 %%% ===================================================================
 \subsection{Motor Torque Mapping}\label{sec:motor-torque}
@@ -652,8 +679,8 @@ Rear corn.\ stiff.\   & $C_{\alpha r}$
   & {--}   & 5.456  & \si{\newton\per\radian}
   & Rerun needed \\
 Long.\ stiffness      & $C_x$
-  & {N/A}  & 300    & \si{\newton}
-  & Sensor limit\textsuperscript{a} \\
+  & 61.3\textsuperscript{a}  & 300    & \si{\newton}
+  & Tested \\
 Effective $K_{t}$     & $K_{t,\text{eff}}$
   & 0.583  & {--}   & \si{\newton\per\ampere}
   & Tested \\
@@ -681,8 +708,8 @@ Servo gain ratio      & $\delta_\text{act}/\delta_\text{cmd}$
 \smallskip
 \begin{flushleft}
 \footnotesize
-\textsuperscript{a}$C_x$ requires an independent body-velocity sensor
-(e.g.\ lidar scan-matching) to compute the slip ratio reliably.\\
+\textsuperscript{a}$C_x$ identified using LiDAR point-to-line ICP
+scan-matching for body velocity; pooled from 10 acceleration runs ($R^2 = 0.42$).\\
 \textsuperscript{b}At the wheel ($T = F_\text{max} \times r_\text{eff}$),
 at the VESC current limit of \SI{65}{\ampere}.
 The simulation default is likely the motor-shaft torque

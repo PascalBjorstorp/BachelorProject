@@ -573,140 +573,228 @@ def plot_cornering_alpha_speed(data_dir, prefix):
 
 
 def plot_long_v_comparison(data_dir, prefix):
-    """Figure 4: v_wheel vs v_body (IMU) over time."""
-    path = find_latest('longitudinal_stiffness', data_dir, prefix)
-    if not path:
+    """Figure 4: v_wheel vs v_lidar (LiDAR scan-matching) over time.
+
+    Uses the best (highest sample count) of the 10 longitudinal stiffness
+    runs.  Shows v_wheel from ERPM odometry and v_body from LiDAR
+    point-to-line ICP scan-matching with motion deskewing.
+    """
+    # Find all longitudinal stiffness CSVs
+    candidates = sorted(glob.glob(os.path.join(data_dir, '*longitudinal_stiffness*.csv')))
+    if prefix:
+        candidates = [c for c in candidates if prefix in os.path.basename(c)]
+    candidates = [c for c in candidates if '_summary' not in c]
+    if not candidates:
         print('  [skip] no longitudinal_stiffness CSV found')
         return
 
-    d = load_csv(path)
+    # Pick the file with the most rows
+    best_path = None
+    best_rows = 0
+    for c in candidates:
+        d = load_csv(c)
+        n = len(d.get('odom_vx', []))
+        if n > best_rows:
+            best_rows = n
+            best_path = c
+    if not best_path:
+        print('  [skip] no valid longitudinal_stiffness CSV')
+        return
+
+    d = load_csv(best_path)
     t = d['timestamp_s']
+    t = t - t[0]  # zero-referenced time
     vw = d['odom_vx']
-    vi = d['v_imu']
+    vl = d['v_lidar']
     phase = d.get('phase', np.array([''] * len(t)))
 
-    fig, ax = setup_fig(width=7)
-    ax.plot(t, vw, '-', label=r'$v_\mathrm{wheel}$ (ERPM)', color='tab:blue', alpha=0.8)
-    ax.plot(t, vi, '-', label=r'$v_\mathrm{body}$ (IMU)', color='tab:orange', alpha=0.8)
+    # Smooth the LiDAR velocity for visualization (reduce ICP noise)
+    # Apply a zero-phase Butterworth low-pass filter at 3 Hz
+    from scipy.signal import butter, filtfilt
+    # Find effective sample rate from data
+    dt_med = np.median(np.diff(t))
+    fs = 1.0 / max(dt_med, 0.001)
+    if fs > 10:  # only filter if sample rate is reasonable
+        b, a = butter(2, 3.0, fs=fs)
+        vl_smooth = filtfilt(b, a, vl)
+    else:
+        vl_smooth = vl
 
-    # Shade acceleration vs braking
-    if hasattr(phase, '__len__') and len(phase) > 0:
-        accel_mask = phase == 'acceleration'
-        brake_mask = phase == 'braking'
-        if np.any(accel_mask):
-            t_a = t[accel_mask]
-            ax.axvspan(t_a[0], t_a[-1], alpha=0.08, color='green', label='Accel phase')
-        if np.any(brake_mask):
-            t_b = t[brake_mask]
-            ax.axvspan(t_b[0], t_b[-1], alpha=0.08, color='red', label='Brake phase')
+    fig, ax = setup_fig(width=7)
+    ax.plot(t, vw, '-', label=r'$v_\mathrm{wheel}$ (ERPM)', color='tab:blue',
+            alpha=0.8, linewidth=1.0)
+    ax.plot(t, vl_smooth, '-', label=r'$v_\mathrm{body}$ (LiDAR ICP)', color='tab:orange',
+            alpha=0.8, linewidth=1.0)
+
+    # Shade phases
+    for phase_name, colour in [('acceleration', 'green'), ('cruise', 'gold'),
+                                ('braking', 'red')]:
+        mask = phase == phase_name
+        if np.any(mask):
+            t_ph = t[mask]
+            ax.axvspan(t_ph[0], t_ph[-1], alpha=0.08, color=colour,
+                       label=phase_name.capitalize())
+
+    # Annotate cruise ratio
+    cruise_mask = phase == 'cruise'
+    if np.any(cruise_mask):
+        ratio = np.mean(vl[cruise_mask]) / np.mean(vw[cruise_mask])
+        ax.text(0.98, 0.05, f'Cruise ratio = {ratio:.3f}',
+                transform=ax.transAxes, ha='right', fontsize=9,
+                bbox=dict(boxstyle='round,pad=0.3', fc='white', alpha=0.8))
 
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Velocity (m/s)')
-    ax.set_title('Wheel Speed vs. Body Speed — Longitudinal Slip')
-    ax.legend(loc='best')
+    ax.set_title('Wheel Speed vs. LiDAR Body Speed — Longitudinal Slip')
+    ax.legend(loc='best', fontsize=8)
     save_fig(fig, 'long_v_comparison.pdf')
 
 
 def plot_long_Fx_kappa(data_dir, prefix):
-    """Figure 5: Traction force balance — F_motor vs m·a (from motor torque test).
+    """Figure 5: F_x vs slip ratio κ — longitudinal tire stiffness identification.
 
-    Uses motor torque test data (acceleration from rest) to show the
-    relationship between the motor-side force and the body-side force
-    measured by the IMU.  At high motor current the body acceleration
-    saturates — indicating traction-limit (wheel spin).
-
-    The longitudinal_stiffness test data is not used because the IMU-
-    integrated body velocity drifts too much for reliable κ estimation
-    (pitch effects cause v_imu to diverge during braking).
+    Pools all longitudinal stiffness test runs.  Uses LiDAR scan-matching
+    body velocity to compute the slip ratio κ, and IMU a_x for the
+    longitudinal force F_x = m·a_x.  A linear regression in the linear
+    region (|κ| ∈ [0.005, 0.15], |v_lidar| > 2 m/s) yields C_x.
     """
-    # Prefer motor_torque test data (many controlled acceleration events)
-    mt_files = sorted(glob.glob(os.path.join(data_dir, '*motor_torque*.csv')))
+    # Collect all longitudinal_stiffness CSVs
+    candidates = sorted(glob.glob(os.path.join(data_dir, '*longitudinal_stiffness*.csv')))
     if prefix:
-        mt_files = [f for f in mt_files if prefix in os.path.basename(f)]
-    # Exclude summary files
-    mt_files = [f for f in mt_files if 'summary' not in os.path.basename(f)]
+        candidates = [c for c in candidates if prefix in os.path.basename(c)]
+    candidates = [c for c in candidates if '_summary' not in c]
+    # Only use the latest batch (files from the same session, within 20 min)
+    if candidates:
+        # Extract timestamps, keep files within 20 min of the latest
+        import re
+        times = []
+        for c in candidates:
+            m = re.search(r'(\d{8}_\d{6})', os.path.basename(c))
+            if m:
+                times.append(m.group(1))
+            else:
+                times.append('')
+        if times:
+            latest = max(times)
+            # parse YYYYMMDD_HHMMSS
+            try:
+                from datetime import datetime
+                latest_dt = datetime.strptime(latest, '%Y%m%d_%H%M%S')
+                batch = []
+                for c, ts in zip(candidates, times):
+                    if ts:
+                        dt = datetime.strptime(ts, '%Y%m%d_%H%M%S')
+                        if abs((latest_dt - dt).total_seconds()) < 1200:
+                            batch.append(c)
+                if len(batch) >= 3:
+                    candidates = batch
+            except ValueError:
+                pass
 
-    if not mt_files:
-        print('  [skip] no motor_torque CSV found for traction plot')
+    if not candidates:
+        print('  [skip] no longitudinal_stiffness CSV found')
         return
 
-    # Motor constants
-    Kt = 60.0 / (2.0 * np.pi * 3500.0)   # N·m/A
-    gear_ratio = 11.82
-    r_eff = 0.051                          # m
-    force_per_amp = Kt * gear_ratio / r_eff  # ≈ 0.632 N/A
-
-    # Collect data from all motor torque runs
-    all_F_motor = []
-    all_F_body = []
+    # Pool data from all runs (acceleration only)
+    all_kappa = []
+    all_Fx = []
     all_v = []
-    for path in mt_files:
+    n_runs = 0
+    for path in candidates:
         d = load_csv(path)
-        phase = d.get('phase', np.array([''] * len(d['odom_vx'])))
-        odom = d['odom_vx']
+        if 'v_lidar' not in d:
+            continue
+        vl = d['v_lidar']
+        vw = d['odom_vx']
         ax = d['imu_ax']
-        I = d['motor_current']
+        phase = d.get('phase', np.array([''] * len(vl)))
 
-        # Use acceleration phase while car is moving (not stationary noise)
-        mask = (phase == 'acceleration') & (odom > 0.3)
-        if np.any(mask):
-            all_F_motor.append(force_per_amp * I[mask])
-            all_F_body.append(DEFAULT_MASS * ax[mask])
-            all_v.append(odom[mask])
+        mask = (phase == 'acceleration') & (np.abs(vl) > 2.0)
+        if np.sum(mask) < 10:
+            continue
+        kappa = (vw[mask] - vl[mask]) / np.maximum(np.abs(vw[mask]), np.abs(vl[mask]))
+        Fx = DEFAULT_MASS * ax[mask]
+        all_kappa.append(kappa)
+        all_Fx.append(Fx)
+        all_v.append(vl[mask])
+        n_runs += 1
 
-    if not all_F_motor:
-        print('  [skip] no valid acceleration data in motor_torque CSVs')
+    if not all_kappa:
+        print('  [skip] no valid v_lidar data in longitudinal_stiffness CSVs')
         return
 
-    F_motor = np.concatenate(all_F_motor)
-    F_body = np.concatenate(all_F_body)
+    kappa = np.concatenate(all_kappa)
+    Fx = np.concatenate(all_Fx)
     v = np.concatenate(all_v)
 
-    fig, ax = setup_fig()
+    # Filter to linear region
+    ok = (np.abs(kappa) > 0.005) & (np.abs(kappa) < 0.15)
 
-    # Scatter (colour by velocity)
-    sc = ax.scatter(F_motor, F_body, c=v, s=4, alpha=0.25,
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    # Left panel: scatter of acceleration data coloured by velocity
+    ax = axes[0]
+    ax.grid(True, alpha=0.3)
+    sc = ax.scatter(kappa, Fx, c=v, s=2, alpha=0.15,
                     cmap='viridis', label='_nolegend_')
     cbar = fig.colorbar(sc, ax=ax, pad=0.02)
-    cbar.set_label(r'$v_\mathrm{odom}$ (m/s)')
+    cbar.set_label(r'$v_\mathrm{body}$ (m/s)')
 
-    # Binned averages for clarity
-    bin_edges = np.linspace(F_motor.min(), F_motor.max(), 25)
-    centres, means, stds = [], [], []
-    for i in range(len(bin_edges) - 1):
-        m = (F_motor >= bin_edges[i]) & (F_motor < bin_edges[i + 1])
-        if np.sum(m) > 10:
-            centres.append(0.5 * (bin_edges[i] + bin_edges[i + 1]))
-            means.append(np.mean(F_body[m]))
-            stds.append(np.std(F_body[m]))
-    centres = np.array(centres)
-    means = np.array(means)
-    stds = np.array(stds)
-    ax.errorbar(centres, means, yerr=stds, fmt='ko', ms=4, capsize=3,
-                label='Bin mean ± 1σ')
+    # Linear fit in linear region
+    if np.sum(ok) > 10:
+        from numpy.polynomial import polynomial as P
+        c = P.polyfit(kappa[ok], Fx[ok], 1)
+        kap_fit = np.linspace(-0.15, 0.15, 100)
+        ax.plot(kap_fit, c[0] + c[1] * kap_fit, 'r-', linewidth=2,
+                label=rf'$C_x = {c[1]:.1f}$ N/slip')
+        # R²
+        pred = c[0] + c[1] * kappa[ok]
+        ss_res = np.sum((Fx[ok] - pred)**2)
+        ss_tot = np.sum((Fx[ok] - np.mean(Fx[ok]))**2)
+        r2 = 1 - ss_res / ss_tot if ss_tot > 0 else 0
+        ax.text(0.02, 0.95,
+                f'$R^2 = {r2:.3f}$\n$n = {np.sum(ok)}$ pts\n{n_runs} runs',
+                transform=ax.transAxes, va='top', fontsize=9,
+                bbox=dict(boxstyle='round,pad=0.3', fc='white', alpha=0.8))
 
-    # Linear fit in unsaturated region (F_motor < 25 N)
-    lin_mask = (F_motor > 0) & (F_motor < 25)
-    if np.sum(lin_mask) > 20:
-        coeffs = np.polyfit(F_motor[lin_mask], F_body[lin_mask], 1)
-        x_fit = np.linspace(0, F_motor.max(), 100)
-        ax.plot(x_fit, np.polyval(coeffs, x_fit), 'r--', linewidth=2,
-                label=rf'Linear: slope = {coeffs[0]:.2f} '
-                      rf'($\eta \approx {coeffs[0]*100:.0f}\%$)')
-
-    # Traction limit annotation
-    sat_mask = F_motor > 25
-    if np.sum(sat_mask) > 20:
-        a_sat = np.median(F_body[sat_mask]) / DEFAULT_MASS
-        mu_x = a_sat / 9.81
-        ax.axhline(DEFAULT_MASS * a_sat, color='tab:orange', ls=':',
-                   linewidth=1.5,
-                   label=rf'Traction limit $\mu_x \approx {mu_x:.2f}$')
-
-    ax.set_xlabel(r'Motor force $F_\mathrm{motor} = K_t G / r_\mathrm{eff} \cdot I$ (N)')
-    ax.set_ylabel(r'Body force $F_\mathrm{body} = m \cdot a_x$ (N)')
-    ax.set_title('Traction Force Balance (Motor Torque Test)')
+    ax.set_xlabel(r'Slip ratio $\kappa$')
+    ax.set_ylabel(r'Longitudinal force $F_x = m \cdot a_x$ (N)')
+    ax.set_title(r'$F_x$ vs. $\kappa$ — Acceleration Data ($|v| > 2$ m/s)')
+    ax.set_xlim(-0.25, 0.25)
     ax.legend(fontsize=8)
+
+    # Right panel: bin-averaged in linear region
+    ax = axes[1]
+    ax.grid(True, alpha=0.3)
+    if np.sum(ok) > 20:
+        bin_edges = np.linspace(-0.15, 0.15, 31)
+        centres, means, stds, counts = [], [], [], []
+        for i in range(len(bin_edges) - 1):
+            m = ok & (kappa >= bin_edges[i]) & (kappa < bin_edges[i + 1])
+            if np.sum(m) > 5:
+                centres.append(0.5 * (bin_edges[i] + bin_edges[i + 1]))
+                means.append(np.mean(Fx[m]))
+                stds.append(np.std(Fx[m]) / np.sqrt(np.sum(m)))
+                counts.append(np.sum(m))
+        centres = np.array(centres)
+        means = np.array(means)
+        stds = np.array(stds)
+
+        ax.errorbar(centres, means, yerr=stds, fmt='ko', ms=5, capsize=3,
+                    label='Bin mean ± SE')
+        kap_fit = np.linspace(-0.15, 0.15, 100)
+        ax.plot(kap_fit, c[0] + c[1] * kap_fit, 'r-', linewidth=2,
+                label=rf'$C_x = {c[1]:.1f}$ N/slip')
+        ax.axhline(0, color='gray', ls='-', lw=0.5)
+        ax.axvline(0, color='gray', ls='-', lw=0.5)
+
+    ax.set_xlabel(r'Slip ratio $\kappa$')
+    ax.set_ylabel(r'Longitudinal force $F_x$ (N)')
+    ax.set_title(r'$F_x$ vs. $\kappa$ — Bin-Averaged (Acceleration, $|v| > 2$ m/s)')
+    ax.set_xlim(-0.18, 0.18)
+    ax.legend(fontsize=8)
+
+    fig.tight_layout()
     save_fig(fig, 'long_Fx_vs_kappa.pdf')
 
 
