@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>mpc_f1_10th</name>
+  <name>mpc_fpga</name>
   <version>0.1.0</version>
   <description>Model Predictive Control for F1/10th Autonomous Vehicle</description>
   <maintainer email="jonathan@example.com">Jonathan</maintainer>
