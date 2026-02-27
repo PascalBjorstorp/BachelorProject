@@ -15,8 +15,8 @@ ftg_node:
     # Speed Control (Reference FTG Formula)
     # ===================
     # Speed = min_speed + (max_speed - min_speed) * range_factor * steer_factor
-    max_speed: 12.0          # Maximum allowed speed (m/s) - reduced for tight corners
-    min_speed: 1.0          # Minimum speed (m/s)
+    max_speed: 2.0          # Maximum allowed speed (m/s) - reduced for tight corners
+    min_speed: 0.5          # Minimum speed (m/s)
     speed_full_range: 3.0   # Distance (m) at which full speed is allowed
     steer_slowdown_gain: 0.2 # How much steering reduces speed (0=none, 1=max) - slow down more on turns
 
@@ -41,7 +41,7 @@ ftg_node:
     min_gap_width: 0.1        # Minimum angular width of valid gap (rad) ~8 degrees
     bubble_radius: 1.0         # Safety bubble radius around closest point (m) - larger for more safety
     apply_bubble: true         # Enable safety bubble
-    wall_margin: 0.15          # Shrink all readings by this amount (m) - creates clearance from parallel walls
+    wall_margin: 0.05          # Shrink all readings by this amount (m) - creates clearance from parallel walls
                                # Set to 0.0 to disable. Typical value: half of car width
 
     # ===================
