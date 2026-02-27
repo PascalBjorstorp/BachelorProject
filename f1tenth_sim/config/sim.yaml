@@ -72,9 +72,9 @@ bridge:
     num_agent: 1
 
     # ego starting pose on map (Spielberg hairpin – unique geometry for AMCL)
-    sx: -12.707
-    sy: 46.878
-    stheta: -0.983
+    sx: 0.0
+    sy: 0.0
+    stheta: -2.88
 
     # opp starting pose on map
     sx1: -2.0

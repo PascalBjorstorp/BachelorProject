@@ -15,7 +15,7 @@ Drive the car around the track using Follow The Gap while simultaneously buildin
 source install/setup.bash
 ros2 launch f1tenth_stack bringup_launch.py use_scan_splitter:=false use_lateral_planner:=false
 ```
-> This starts: VESC driver, ackermann mux, and the custom **Hokuyo SCIP 2.0 LiDAR** at full **40 Hz**.
+> This starts: VESC driver, IMU, ackermann mux, and the custom **Hokuyo SCIP 2.0 LiDAR** at full **40 Hz**.
 > Scan splitter and lateral planner are disabled for mapping (no map available yet).
 
 
@@ -75,8 +75,7 @@ Run the raceline planner on your PC (no need for the car to be on).
 ```bash
 python3 f1tenth_planning/scripts/generate_raceline.py \
   --map ~/maps/my_track_map.yaml \
-  --output f1tenth_planning/trajectories \
-  --visualize
+  --output f1tenth_planning/trajectories
 ```
 
 > This will:
@@ -84,16 +83,7 @@ python3 f1tenth_planning/scripts/generate_raceline.py \
 > 2. Compute the minimum curvature racing line
 > 3. Generate velocity profile (using friction circle model)
 > 4. Save CSV + NPZ to `f1tenth_planning/trajectories/`
->
-> The `--visualize` flag opens matplotlib plots showing the extracted track boundaries, the computed racing line overlaid on the map, and the velocity profile along the trajectory. Useful for verifying the result before deploying on the car.
 
-### Without friction circle (faster but less realistic):
-```bash
-python3 f1tenth_planning/scripts/generate_raceline.py \
-  --map ~/maps/my_track_map.yaml \
-  --output f1tenth_planning/trajectories \
-  --no-friction-circle
-```
 
 ### Check Vehicle Parameters (tune before generating)
 ```bash

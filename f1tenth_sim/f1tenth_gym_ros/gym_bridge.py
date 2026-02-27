@@ -371,6 +371,11 @@ class GymBridge(Node):
         self._ego_odom_msg.header.frame_id = self._odom_frame_id
         self._ego_odom_msg.child_frame_id = f'{self.ego_namespace}/base_link'
 
+        # Pre-allocate ground truth odometry message (noise-free)
+        self._ego_gt_msg = Odometry()
+        self._ego_gt_msg.header.frame_id = 'map'
+        self._ego_gt_msg.child_frame_id = f'{self.ego_namespace}/base_link'
+
         # Pre-allocate transform messages
         self._ego_tf_msg = TransformStamped()
         self._ego_tf_msg.header.frame_id = self._tf_frame_id
@@ -487,6 +492,8 @@ class GymBridge(Node):
         self.ego_scan_pub = self.create_publisher(
             LaserScan, ego_scan_topic, 10)
         self.ego_odom_pub = self.create_publisher(Odometry, ego_odom_topic, 10)
+        self.ego_gt_pub = self.create_publisher(
+            Odometry, f'{self.ego_namespace}/ground_truth', 10)
         self.ego_drive_published = False
 
         # Collision publishers for downstream nodes
@@ -842,13 +849,17 @@ class GymBridge(Node):
 
     def _publish_odom(self, ts) -> None:
         """Publish odometry messages using pre-allocated messages."""
-        # Ego odom
+        # Ego odom (with noise if enabled)
         self._update_odom_msg(
             self._ego_odom_msg,
             ts,
             self.ego_pose,
             self.ego_speed)
         self.ego_odom_pub.publish(self._ego_odom_msg)
+
+        # Ego ground truth (always noise-free)
+        self._update_gt_msg(self._ego_gt_msg, ts, self.ego_pose, self.ego_speed)
+        self.ego_gt_pub.publish(self._ego_gt_msg)
 
         # Opponent odom
         if self.has_opp:
@@ -890,6 +901,23 @@ class GymBridge(Node):
         odom.twist.twist.linear.x = noisy_vx
         odom.twist.twist.linear.y = noisy_vy
         odom.twist.twist.angular.z = noisy_wz
+
+    def _update_gt_msg(self, gt: 'Odometry', ts, pose: List[float],
+                       speed: List[float]) -> None:
+        """Update a ground truth Odometry message (noise-free)."""
+        gt.header.stamp = ts
+        gt.pose.pose.position.x = pose[0]
+        gt.pose.pose.position.y = pose[1]
+
+        quat = euler.euler2quat(0.0, 0.0, pose[2], axes='sxyz')
+        gt.pose.pose.orientation.w = quat[0]
+        gt.pose.pose.orientation.x = quat[1]
+        gt.pose.pose.orientation.y = quat[2]
+        gt.pose.pose.orientation.z = quat[3]
+
+        gt.twist.twist.linear.x = speed[0]
+        gt.twist.twist.linear.y = speed[1]
+        gt.twist.twist.angular.z = speed[2]
 
     def _publish_transforms(self, ts) -> None:
         """Publish base_link and wheel transforms in a single batched call."""

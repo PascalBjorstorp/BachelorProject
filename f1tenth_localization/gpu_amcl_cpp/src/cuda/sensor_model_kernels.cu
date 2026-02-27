@@ -57,13 +57,37 @@ void kernel_sensor_weights(const float* __restrict__ particles, int n,
         float ex = lx + r * cosf(beam_angle);
         float ey = ly + r * sinf(beam_angle);
 
-        // World → map grid.
-        int mx = __float2int_rd((ex - map_ox) / map_res);
-        int my = __float2int_rd((ey - map_oy) / map_res);
+        // World → continuous map coordinates for bilinear interpolation.
+        float fx = (ex - map_ox) / map_res - 0.5f;
+        float fy = (ey - map_oy) / map_res - 0.5f;
 
         float dist;
-        if (mx >= 0 && mx < map_w && my >= 0 && my < map_h) {
-            dist = dist_field[my * map_w + mx];
+        // Check bounds (need fx in [-0.5, map_w-0.5) for valid interpolation)
+        if (fx >= -0.5f && fx < (float)(map_w) - 0.5f &&
+            fy >= -0.5f && fy < (float)(map_h) - 0.5f) {
+            // Bilinear interpolation of the distance field.
+            int x0 = __float2int_rd(fx);  // floor
+            int y0 = __float2int_rd(fy);
+            int x1 = x0 + 1;
+            int y1 = y0 + 1;
+            float sx = fx - (float)x0;    // fractional part [0,1)
+            float sy = fy - (float)y0;
+
+            // Clamp to valid grid range [0, dim-1]
+            x0 = max(0, min(x0, map_w - 1));
+            x1 = max(0, min(x1, map_w - 1));
+            y0 = max(0, min(y0, map_h - 1));
+            y1 = max(0, min(y1, map_h - 1));
+
+            float d00 = dist_field[y0 * map_w + x0];
+            float d10 = dist_field[y0 * map_w + x1];
+            float d01 = dist_field[y1 * map_w + x0];
+            float d11 = dist_field[y1 * map_w + x1];
+
+            // Bilinear blend
+            float d0 = d00 + sx * (d10 - d00);   // top edge
+            float d1 = d01 + sx * (d11 - d01);   // bottom edge
+            dist = d0 + sy * (d1 - d0);           // vertical blend
         } else {
             dist = laser_max;  // out-of-bounds → max distance
         }
