@@ -45,7 +45,7 @@ class LocalizationBenchmark(Node):
         self.declare_parameter('output_dir', os.path.expanduser(
             '~/Documents/BachelorProject/f1tenth_localization/Benchmark'))
         self.declare_parameter('log_rate', 200.0)  # Hz, match EKF rate
-        self.declare_parameter('ground_truth_topic', '/ego_racecar/odom')
+        self.declare_parameter('ground_truth_topic', '/ego_racecar/ground_truth')
         self.declare_parameter('ekf_topic', '/ekf_pose')
         self.declare_parameter('amcl_topic', '/amcl_pose')
         self.declare_parameter('scan_topic', '/scan_walls')
@@ -78,8 +78,11 @@ class LocalizationBenchmark(Node):
             # AMCL estimate
             'amcl_x', 'amcl_y', 'amcl_theta',
             'amcl_cov_xx', 'amcl_cov_yy', 'amcl_cov_tt',
-            # Errors
+            # EKF errors (vs ground truth)
             'error_x', 'error_y', 'error_theta', 'error_euclidean',
+            # AMCL errors (vs ground truth)
+            'amcl_error_x', 'amcl_error_y', 'amcl_error_theta',
+            'amcl_error_euclidean',
             # Timing
             'amcl_processing_ms',
             'scan_to_amcl_ms',
@@ -105,10 +108,27 @@ class LocalizationBenchmark(Node):
 
         # Rolling stats
         self.error_history = deque(maxlen=1000)
+        self.error_x_history = deque(maxlen=1000)
+        self.error_y_history = deque(maxlen=1000)
+        self.error_theta_history = deque(maxlen=1000)
+        self.amcl_error_history = deque(maxlen=1000)   # AMCL euclidean
+        self.amcl_error_x_history = deque(maxlen=1000)
+        self.amcl_error_y_history = deque(maxlen=1000)
         self.amcl_timing_history = deque(maxlen=500)
         self.scan_amcl_history = deque(maxlen=500)
         self.scan_ekf_history = deque(maxlen=500)
         self.log_count = 0
+
+        # Early vs late bias (first 5 seconds vs rest)
+        self._early_errors_x = []   # collected during t < 5s
+        self._early_errors_y = []
+        self._late_errors_x = []    # collected during t >= 5s
+        self._late_errors_y = []
+        self._early_amcl_errors_x = []
+        self._early_amcl_errors_y = []
+        self._late_amcl_errors_x = []
+        self._late_amcl_errors_y = []
+        self._early_cutoff = 5.0    # seconds
 
         # ── QoS ─────────────────────────────────────────────────────
         sensor_qos = QoSProfile(
@@ -219,16 +239,49 @@ class LocalizationBenchmark(Node):
         gt = self.gt_pose
         ekf = self.ekf_pose
 
-        # Compute errors
+        # Compute EKF errors
         error_x = ekf[0] - gt[0]
         error_y = ekf[1] - gt[1]
         error_theta = self._angle_diff(ekf[2], gt[2])
         error_euclid = math.sqrt(error_x ** 2 + error_y ** 2)
 
         self.error_history.append(error_euclid)
+        self.error_x_history.append(error_x)
+        self.error_y_history.append(error_y)
+        self.error_theta_history.append(error_theta)
+
+        # Early vs late bias tracking (EKF)
+        if t < self._early_cutoff:
+            self._early_errors_x.append(error_x)
+            self._early_errors_y.append(error_y)
+        else:
+            self._late_errors_x.append(error_x)
+            self._late_errors_y.append(error_y)
 
         # AMCL pose (may be None if not received yet)
         amcl = self.amcl_pose or (float('nan'),) * 7
+
+        # Compute AMCL errors
+        if not math.isnan(amcl[0]):
+            amcl_err_x = amcl[0] - gt[0]
+            amcl_err_y = amcl[1] - gt[1]
+            amcl_err_theta = self._angle_diff(amcl[2], gt[2])
+            amcl_err_euclid = math.sqrt(amcl_err_x ** 2 + amcl_err_y ** 2)
+            self.amcl_error_history.append(amcl_err_euclid)
+            self.amcl_error_x_history.append(amcl_err_x)
+            self.amcl_error_y_history.append(amcl_err_y)
+            # Early vs late (AMCL)
+            if t < self._early_cutoff:
+                self._early_amcl_errors_x.append(amcl_err_x)
+                self._early_amcl_errors_y.append(amcl_err_y)
+            else:
+                self._late_amcl_errors_x.append(amcl_err_x)
+                self._late_amcl_errors_y.append(amcl_err_y)
+        else:
+            amcl_err_x = float('nan')
+            amcl_err_y = float('nan')
+            amcl_err_theta = float('nan')
+            amcl_err_euclid = float('nan')
 
         self.csv_writer.writerow([
             f'{t:.4f}',
@@ -244,6 +297,10 @@ class LocalizationBenchmark(Node):
             f'{amcl[5]:.8f}' if not math.isnan(amcl[0]) else '',
             f'{error_x:.6f}', f'{error_y:.6f}', f'{error_theta:.6f}',
             f'{error_euclid:.6f}',
+            f'{amcl_err_x:.6f}' if not math.isnan(amcl_err_x) else '',
+            f'{amcl_err_y:.6f}' if not math.isnan(amcl_err_y) else '',
+            f'{amcl_err_theta:.6f}' if not math.isnan(amcl_err_theta) else '',
+            f'{amcl_err_euclid:.6f}' if not math.isnan(amcl_err_euclid) else '',
             f'{self.amcl_proc_ms:.3f}'
             if not math.isnan(self.amcl_proc_ms) else '',
             f'{self.scan_to_amcl_ms:.3f}'
@@ -255,6 +312,16 @@ class LocalizationBenchmark(Node):
         self.log_count += 1
 
     # ── Periodic summary ────────────────────────────────────────────
+    @staticmethod
+    def _stats(data):
+        """Return (mean, std, min, max) for a list of numbers."""
+        n = len(data)
+        if n == 0:
+            return (float('nan'),) * 4
+        m = sum(data) / n
+        var = sum((x - m) ** 2 for x in data) / n
+        return m, math.sqrt(var), min(data), max(data)
+
     def summary_callback(self):
         if len(self.error_history) == 0:
             self.get_logger().info('Waiting for data...')
@@ -267,10 +334,65 @@ class LocalizationBenchmark(Node):
 
         lines = [
             f'--- Benchmark Summary ({self.log_count} samples) ---',
-            f'  Position error: mean={mean_err:.4f}m, '
+            f'  EKF euclidean: mean={mean_err:.4f}m, '
             f'max={max_err:.4f}m, RMS={rms_err:.4f}m',
         ]
 
+        # ── Per-axis EKF bias ────────────────────────────────────
+        if len(self.error_x_history) > 0:
+            bx_m, bx_s, _, _ = self._stats(list(self.error_x_history))
+            by_m, by_s, _, _ = self._stats(list(self.error_y_history))
+            bt_m, bt_s, _, _ = self._stats(list(self.error_theta_history))
+            bias_mag = math.sqrt(bx_m ** 2 + by_m ** 2)
+            lines.append(
+                f'  EKF bias: X={bx_m:+.4f}±{bx_s:.4f}m  '
+                f'Y={by_m:+.4f}±{by_s:.4f}m  '
+                f'θ={math.degrees(bt_m):+.2f}±{math.degrees(bt_s):.2f}°  '
+                f'|bias|={bias_mag:.4f}m')
+
+        # ── Per-axis AMCL bias ───────────────────────────────────
+        if len(self.amcl_error_x_history) > 0:
+            ax_m, ax_s, _, _ = self._stats(list(self.amcl_error_x_history))
+            ay_m, ay_s, _, _ = self._stats(list(self.amcl_error_y_history))
+            amcl_errs = list(self.amcl_error_history)
+            amcl_rms = math.sqrt(
+                sum(e * e for e in amcl_errs) / len(amcl_errs))
+            abias_mag = math.sqrt(ax_m ** 2 + ay_m ** 2)
+            lines.append(
+                f'  AMCL bias: X={ax_m:+.4f}±{ax_s:.4f}m  '
+                f'Y={ay_m:+.4f}±{ay_s:.4f}m  '
+                f'|bias|={abias_mag:.4f}m  RMS={amcl_rms:.4f}m')
+
+        # ── Early vs Late bias (convergence check) ──────────────
+        if len(self._late_errors_x) > 10:
+            ex_m, _, _, _ = self._stats(self._early_errors_x)
+            ey_m, _, _, _ = self._stats(self._early_errors_y)
+            lx_m, lx_s, _, _ = self._stats(self._late_errors_x)
+            ly_m, ly_s, _, _ = self._stats(self._late_errors_y)
+            lines.append(
+                f'  EKF early(<{self._early_cutoff:.0f}s): '
+                f'X={ex_m:+.4f}  Y={ey_m:+.4f}  '
+                f'|bias|={math.sqrt(ex_m**2+ey_m**2):.4f}m')
+            lines.append(
+                f'  EKF late(≥{self._early_cutoff:.0f}s): '
+                f'X={lx_m:+.4f}±{lx_s:.4f}  Y={ly_m:+.4f}±{ly_s:.4f}  '
+                f'|bias|={math.sqrt(lx_m**2+ly_m**2):.4f}m')
+
+        if len(self._late_amcl_errors_x) > 10:
+            eax_m, _, _, _ = self._stats(self._early_amcl_errors_x)
+            eay_m, _, _, _ = self._stats(self._early_amcl_errors_y)
+            lax_m, lax_s, _, _ = self._stats(self._late_amcl_errors_x)
+            lay_m, lay_s, _, _ = self._stats(self._late_amcl_errors_y)
+            lines.append(
+                f'  AMCL early(<{self._early_cutoff:.0f}s): '
+                f'X={eax_m:+.4f}  Y={eay_m:+.4f}  '
+                f'|bias|={math.sqrt(eax_m**2+eay_m**2):.4f}m')
+            lines.append(
+                f'  AMCL late(≥{self._early_cutoff:.0f}s): '
+                f'X={lax_m:+.4f}±{lax_s:.4f}  Y={lay_m:+.4f}±{lay_s:.4f}  '
+                f'|bias|={math.sqrt(lax_m**2+lay_m**2):.4f}m')
+
+        # ── Timing ──────────────────────────────────────────────
         if len(self.amcl_timing_history) > 0:
             t = list(self.amcl_timing_history)
             lines.append(

@@ -165,6 +165,7 @@ ament_python_install_package(gpu_amcl)
 
 # Install Python scripts as executables
 install(PROGRAMS
+  Benchmark/localization_benchmark.py
   Benchmark/JetsonFiles/performance_monitor.py
   Benchmark/JetsonFiles/odom_tf_publisher.py
   gpu_amcl/scripts/gpu_amcl_node.py

@@ -18,9 +18,9 @@ gpu_amcl_cpp:
     use_gpu: true
 
     # ---- Particles ----
-    num_particles: 2500
-    min_particles: 800
-    max_particles: 5000
+    num_particles: 10000
+    min_particles: 1000
+    max_particles: 10000
 
     # ---- KLD adaptive sampling ----
     # Dynamically adjusts particle count based on distribution spread.
@@ -43,7 +43,7 @@ gpu_amcl_cpp:
     # How much the robot must move before we run a PF update.
     # Higher = fewer updates = less noise accumulation but less responsive.
     update_min_d: 0.001
-    update_min_a: 0.1
+    update_min_a: 0.05
 
     # ---- Scan freshness ----
     # Max age (seconds) of a scan before it's rejected as stale.
@@ -55,16 +55,16 @@ gpu_amcl_cpp:
     # These control how much random noise is added to each particle.
     # For simulation (accurate odom), use LOW values.
     # For real hardware (noisy odom/slip), increase 5-10x.
-    alpha1: 0.0025   # rotation  → rotation  noise
-    alpha2: 0.0025   # translation → rotation  noise
-    alpha3: 0.005    # translation → translation noise
-    alpha4: 0.005    # rotation  → translation noise
+    alpha1: 0.0001   # rotation  → rotation  noise
+    alpha2: 0.0001   # translation → rotation  noise
+    alpha3: 0.0001    # translation → translation noise
+    alpha4: 0.0001    # rotation  → translation noise
 
     # ---- Sensor model (likelihood field, Prob. Robotics §6.4) ----
     max_beams: 270
     z_hit: 0.95
     z_rand: 0.05
-    sigma_hit: 0.1
+    sigma_hit: 0.1         # meters (LiDAR noise std dev)
     laser_max_range: 10.0
     laser_offset_x: 0.275   # LiDAR X offset from base_link
     laser_offset_y: 0.0     # LiDAR Y offset from base_link
@@ -78,9 +78,9 @@ gpu_amcl_cpp:
     use_recovery: false
 
     # ---- Initial pose ----
-    initial_pose_x: -12.707
-    initial_pose_y: 46.878
-    initial_pose_a: -0.983
+    initial_pose_x: 0.0
+    initial_pose_y: 0.0
+    initial_pose_a: -2.88
     initial_cov_xx: 0.1
     initial_cov_yy: 0.1
     initial_cov_aa: 0.2
@@ -115,7 +115,7 @@ odom_fused:
     # During normal driving: pure odom (no IMU contribution).
     # When drift/slip is detected: IMU weight ramps up to this maximum.
     # 0 = never use IMU, 1 = full IMU when drift is detected.
-    imu_weight: 0.8       # max IMU contribution at full drift confidence
+    imu_weight: 0.0       # max IMU contribution at full drift confidence
 
     # ---- Drift detection ----
     drift_threshold: 0.15       # rad/s discrepancy to flag drift
@@ -126,8 +126,8 @@ odom_fused:
     # In simulation, odom is very accurate — use low covariance
     # so the EKF smoothly dead-reckons between AMCL corrections.
     # For real hardware, increase 10-100x.
-    base_cov_xy: 0.0001
-    base_cov_theta: 0.001
+    base_cov_xy: 0.00005
+    base_cov_theta: 0.00005
 
 
 # ────────────────────────────────────────────────────────────────
@@ -149,5 +149,5 @@ ekf_localization:
     publish_rate: 200.0          # Hz  (increase later for odom-rate output)
 
     # ---- EKF tuning ----
-    transform_tolerance: 0.1    # seconds into the future for TF
-    process_noise_scale: 1.0    # multiplier on odom covariance for Q
+    transform_tolerance: 0.0    # seconds into the future for TF
+    process_noise_scale: 0.5    # multiplier on odom covariance for Q
