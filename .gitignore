@@ -137,8 +137,6 @@ docs/api/
 *.backup
 *.log
 *.pid
-core
-core.*
 *.cmake
 
 # Coverage reports
