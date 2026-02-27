@@ -66,7 +66,7 @@ class LongitudinalStiffnessNode(TestNode):
             'odom_vx', 'imu_ax', 'imu_ay', 'imu_az',
             'gyro_y',
             'motor_rpm', 'motor_current',
-            'v_lidar', 'v_imu', 'slip_ratio',
+            'v_lidar', 'v_lidar_raw', 'v_imu', 'slip_ratio',
             'cmd_speed', 'phase'
         ]
 
@@ -217,7 +217,8 @@ class LongitudinalStiffnessNode(TestNode):
                 odom_vx=v_wheel, imu_ax=ax_pitch, imu_ay=self.imu_ay,
                 imu_az=self.imu_az, gyro_y=self.imu_gy,
                 motor_rpm=self.motor_rpm, motor_current=self.motor_current,
-                v_lidar=v_lidar, v_imu=v_imu, slip_ratio=kappa,
+                v_lidar=v_lidar, v_lidar_raw=self.lidar_vx_raw,
+                v_imu=v_imu, slip_ratio=kappa,
                 cmd_speed=self.max_speed, phase='acceleration'
             )
 
@@ -280,7 +281,8 @@ class LongitudinalStiffnessNode(TestNode):
                 odom_vx=v_wheel, imu_ax=ax_corr, imu_ay=self.imu_ay,
                 imu_az=self.imu_az, gyro_y=self.imu_gy,
                 motor_rpm=self.motor_rpm, motor_current=self.motor_current,
-                v_lidar=v_lidar, v_imu=v_imu, slip_ratio=kappa,
+                v_lidar=v_lidar, v_lidar_raw=self.lidar_vx_raw,
+                v_imu=v_imu, slip_ratio=kappa,
                 cmd_speed=self.max_speed, phase='cruise'
             )
 
@@ -378,7 +380,8 @@ class LongitudinalStiffnessNode(TestNode):
                 odom_vx=v_wheel, imu_ax=ax_pitch, imu_ay=self.imu_ay,
                 imu_az=self.imu_az, gyro_y=self.imu_gy,
                 motor_rpm=self.motor_rpm, motor_current=self.motor_current,
-                v_lidar=v_lidar, v_imu=v_imu_pc, slip_ratio=kappa,
+                v_lidar=v_lidar, v_lidar_raw=self.lidar_vx_raw,
+                v_imu=v_imu_pc, slip_ratio=kappa,
                 cmd_speed=0.0, phase='braking'
             )
 
@@ -471,34 +474,50 @@ class LongitudinalStiffnessNode(TestNode):
                 self.get_logger().warn(f"  Not enough points in linear region ({len(linear_kappa)})")
                 C_x = 0
 
-        # Best estimate: use early braking window if available, else combined
+            # High-speed only analysis (v > 2 m/s, better LiDAR SNR)
+            hi_speed = np.abs(vl_arr) > 2.0
+            hi_lin = hi_speed & (np.abs(kappa_arr) > 0.005) & (np.abs(kappa_arr) < 0.20)
+            if np.sum(hi_lin) > 5:
+                hk, hf = kappa_arr[hi_lin], F_x[hi_lin]
+                C_x_hi = np.sum(hf * hk) / np.sum(hk ** 2)
+                ss_r = np.sum((hf - C_x_hi * hk)**2)
+                ss_t = np.sum((hf - np.mean(hf))**2)
+                r2_hi = 1 - ss_r / ss_t if ss_t > 0 else 0
+                self.get_logger().info(
+                    f"  High-speed (v>2.0): C_x={C_x_hi:.1f}, R²={r2_hi:.3f}, "
+                    f"n={np.sum(hi_lin)}/{len(data)}")
+
+        # Best estimate: use only high-speed data where LiDAR SNR is adequate
+        # LiDAR ICP noise is ~1 m/s; at v < 2 m/s, κ noise > 0.5 (unusable)
+        MIN_SPEED_FOR_CX = 2.0  # m/s — ignore low-speed data
         best_Cx = 0
 
-        # Try early braking first (most reliable)
-        if self.decel_data:
-            t_arr = np.array([d['t'] for d in self.decel_data])
-            kappa_arr = np.array([d['kappa'] for d in self.decel_data])
-            ax_arr = np.array([d['ax'] for d in self.decel_data])
-            early_mask = (t_arr >= 0.02) & (t_arr <= 0.15)
-            early_lin = early_mask & (np.abs(kappa_arr) > 0.005) & (np.abs(kappa_arr) < 0.25)
-            ek = kappa_arr[early_lin]
-            ef = self.mass * ax_arr[early_lin]
-            if len(ek) > 5:
-                best_Cx = float(np.sum(ef * ek) / np.sum(ek ** 2))
+        combined_kappa = []
+        combined_Fx = []
+        for phase_name_est, data_est in [('accel', self.accel_data),
+                                          ('brake', self.decel_data)]:
+            for d in data_est:
+                v_body = abs(d.get('v_lidar', 0.0))
+                if v_body < MIN_SPEED_FOR_CX:
+                    continue
+                if 0.005 < abs(d['kappa']) < 0.20:
+                    combined_kappa.append(d['kappa'])
+                    combined_Fx.append(self.mass * d['ax'])
 
-        # Fallback: combined estimate
-        if best_Cx == 0:
-            combined_kappa = []
-            combined_Fx = []
-            for data in [self.accel_data, self.decel_data]:
-                for d in data:
-                    if 0.005 < abs(d['kappa']) < 0.15:
-                        combined_kappa.append(d['kappa'])
-                        combined_Fx.append(self.mass * d['ax'])
-            if len(combined_kappa) > 10:
-                kk = np.array(combined_kappa)
-                ff = np.array(combined_Fx)
-                best_Cx = float(np.sum(ff * kk) / np.sum(kk ** 2))
+        if len(combined_kappa) > 10:
+            kk = np.array(combined_kappa)
+            ff = np.array(combined_Fx)
+            best_Cx = float(np.sum(ff * kk) / np.sum(kk ** 2))
+            ss_res = np.sum((ff - best_Cx * kk)**2)
+            ss_tot = np.sum((ff - np.mean(ff))**2)
+            r2 = 1 - ss_res / ss_tot if ss_tot > 0 else 0
+            self.get_logger().info(
+                f"\n  High-speed combined ({len(combined_kappa)} pts, v>{MIN_SPEED_FOR_CX}): "
+                f"C_x={abs(best_Cx):.1f}, R²={r2:.3f}")
+        else:
+            self.get_logger().info(
+                f"\n  WARNING: Only {len(combined_kappa)} high-speed points — "
+                f"C_x estimate may be unreliable")
 
         self.get_logger().info(f"\n--- Parameters for MPC ---")
         if best_Cx != 0:
@@ -521,18 +540,18 @@ class LongitudinalStiffnessNode(TestNode):
 def main():
     parser = argparse.ArgumentParser(
         description='F1/10th Longitudinal Tire Stiffness Test')
-    parser.add_argument('--max-speed', type=float, default=2.5,
-                        help='Max speed to command (m/s, default: 2.5)')
-    parser.add_argument('--accel-time', type=float, default=5.0,
-                        help='Acceleration phase max duration (s, default: 5.0)')
-    parser.add_argument('--cruise-time', type=float, default=2.0,
-                        help='Steady-state cruise duration before braking (s, default: 2.0)')
+    parser.add_argument('--max-speed', type=float, default=5.0,
+                        help='Max speed to command (m/s, default: 5.0)')
+    parser.add_argument('--accel-time', type=float, default=8.0,
+                        help='Acceleration phase max duration (s, default: 8.0)')
+    parser.add_argument('--cruise-time', type=float, default=1.0,
+                        help='Steady-state cruise duration before braking (s, default: 1.0)')
     parser.add_argument('--mass', type=float, default=3.314,
                         help='Vehicle mass in kg (default: 3.314)')
     parser.add_argument('--erpm-gain', type=float, default=DEFAULT_ERPM_GAIN,
                         help=f'ERPM gain (default: {DEFAULT_ERPM_GAIN})')
-    parser.add_argument('--geofence', type=float, default=10.0,
-                        help='Max distance from start before abort (m, default: 10.0)')
+    parser.add_argument('--geofence', type=float, default=20.0,
+                        help='Max distance from start before abort (m, default: 20.0)')
     parser.add_argument('--runs', type=int, default=5,
                         help='Number of complete test runs (default: 5)')
     parser.add_argument('--comp-alpha', type=float, default=0.98,

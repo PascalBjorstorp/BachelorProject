@@ -39,6 +39,10 @@ advanced:
   C_Sr: 5.4562               # [1/rad] Rear cornering stiffness
   # Note: C_Sr > C_Sf → slight understeer tendency
   
+  # Longitudinal tire stiffness (for dynamic models)
+  C_x: 61.3                  # [N/unit-slip] Longitudinal stiffness (combined, all 4 wheels)
+  # Measured via LiDAR ICP scan-matching, 10 runs at 6 m/s, R²=0.42
+  
   # Steering constraints  
   max_steering_angle: 0.4189 # [rad] Maximum steering angle (~24°)
   max_steering_rate: 3.2     # [rad/s] Maximum steering rate

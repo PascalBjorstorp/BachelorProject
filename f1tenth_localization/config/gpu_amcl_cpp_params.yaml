@@ -1,0 +1,153 @@
+# ============================================================
+# GPU AMCL C++ — Unified parameter file
+# ============================================================
+# Contains parameters for all three nodes:
+#   - gpu_amcl_cpp   (AMCL particle filter)
+#   - odom_fused     (IMU + wheel odom fusion)
+#   - ekf_localization (EKF sensor fusion + TF broadcast)
+#
+# All values are configurable — nothing is hardcoded.
+# ============================================================
+
+# ────────────────────────────────────────────────────────────────
+#  AMCL Node
+# ────────────────────────────────────────────────────────────────
+gpu_amcl_cpp:
+  ros__parameters:
+    # ---- General ----
+    use_gpu: true
+
+    # ---- Particles ----
+    num_particles: 2500
+    min_particles: 800
+    max_particles: 5000
+
+    # ---- KLD adaptive sampling ----
+    # Dynamically adjusts particle count based on distribution spread.
+    # When converged (tight cluster), uses fewer particles → saves GPU time.
+    # When uncertain (spread out), uses more particles → better coverage.
+    use_kld_sampling: false
+    kld_epsilon: 0.05          # KL-divergence error bound (smaller → more particles)
+    kld_z: 2.33                # Quantile: 2.33 = 99%, 1.96 = 95%
+
+    # ---- Frame IDs ----
+    base_frame_id: "ego_racecar/base_link"
+    odom_frame_id: "ego_racecar/odom"
+    global_frame_id: "map"
+
+    # ---- Topics ----
+    scan_topic: "/scan_walls"
+    odom_topic: "/ego_racecar/odom"
+
+    # ---- Update thresholds (metres / radians) ----
+    # How much the robot must move before we run a PF update.
+    # Higher = fewer updates = less noise accumulation but less responsive.
+    update_min_d: 0.001
+    update_min_a: 0.1
+
+    # ---- Scan freshness ----
+    # Max age (seconds) of a scan before it's rejected as stale.
+    # At 40 Hz scan rate, scans are 25ms apart. Set slightly above
+    # one scan period to always accept the latest scan.
+    max_scan_age: 0.03
+
+    # ---- Motion model (odometry noise, Prob. Robotics §5.4) ----
+    # These control how much random noise is added to each particle.
+    # For simulation (accurate odom), use LOW values.
+    # For real hardware (noisy odom/slip), increase 5-10x.
+    alpha1: 0.0025   # rotation  → rotation  noise
+    alpha2: 0.0025   # translation → rotation  noise
+    alpha3: 0.005    # translation → translation noise
+    alpha4: 0.005    # rotation  → translation noise
+
+    # ---- Sensor model (likelihood field, Prob. Robotics §6.4) ----
+    max_beams: 270
+    z_hit: 0.95
+    z_rand: 0.05
+    sigma_hit: 0.1
+    laser_max_range: 10.0
+    laser_offset_x: 0.275   # LiDAR X offset from base_link
+    laser_offset_y: 0.0     # LiDAR Y offset from base_link
+
+    # ---- Resampling ----
+    resample_threshold: 0.5  # resample when N_eff < threshold * N
+
+    # ---- Recovery ----
+    # Injects random particles when the filter detects degradation.
+    # Set to false for simulation (stable odom). Enable for real HW.
+    use_recovery: false
+
+    # ---- Initial pose ----
+    initial_pose_x: -12.707
+    initial_pose_y: 46.878
+    initial_pose_a: -0.983
+    initial_cov_xx: 0.1
+    initial_cov_yy: 0.1
+    initial_cov_aa: 0.2
+
+    # ---- Publishing ----
+    publish_rate: 40.0       # Hz (match LiDAR rate)
+    transform_tolerance: 1.0
+
+    # ---- IMU fusion (inside motion model) ----
+    use_imu_rotation: false
+    imu_gyro_weight: 0.8
+
+
+# ────────────────────────────────────────────────────────────────
+#  Odom Fusion Node
+# ────────────────────────────────────────────────────────────────
+odom_fused:
+  ros__parameters:
+    # ---- Topics ----
+    odom_topic: "/ego_racecar/odom"
+    imu_topic: "/sensors/imu/raw"
+    output_topic: "/odom_pose"
+
+    # ---- Frames ----
+    frame_id: "map"
+    child_frame_id: "ego_racecar/base_link"
+
+    # ---- Rate ----
+    publish_rate: 200.0   # Hz — high-rate pose between AMCL updates
+
+    # ---- IMU/Odom blending ----
+    # During normal driving: pure odom (no IMU contribution).
+    # When drift/slip is detected: IMU weight ramps up to this maximum.
+    # 0 = never use IMU, 1 = full IMU when drift is detected.
+    imu_weight: 0.8       # max IMU contribution at full drift confidence
+
+    # ---- Drift detection ----
+    drift_threshold: 0.15       # rad/s discrepancy to flag drift
+    drift_window: 10            # sliding window size (samples)
+    drift_cov_multiplier: 5.0   # inflate covariance during drift
+
+    # ---- Base covariances (metres² / rad²) ----
+    # In simulation, odom is very accurate — use low covariance
+    # so the EKF smoothly dead-reckons between AMCL corrections.
+    # For real hardware, increase 10-100x.
+    base_cov_xy: 0.0001
+    base_cov_theta: 0.001
+
+
+# ────────────────────────────────────────────────────────────────
+#  EKF Node
+# ────────────────────────────────────────────────────────────────
+ekf_localization:
+  ros__parameters:
+    # ---- Topics ----
+    amcl_topic: "/amcl_pose"
+    odom_topic: "/odom_pose"
+    output_topic: "/ekf_pose"
+
+    # ---- Frames ----
+    global_frame: "map"
+    odom_frame: "ego_racecar/odom"
+    base_frame: "ego_racecar/base_link"
+
+    # ---- Rate ----
+    publish_rate: 200.0          # Hz  (increase later for odom-rate output)
+
+    # ---- EKF tuning ----
+    transform_tolerance: 0.1    # seconds into the future for TF
+    process_noise_scale: 1.0    # multiplier on odom covariance for Q

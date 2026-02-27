@@ -69,17 +69,17 @@ bridge:
     vehicle_C_Sr: 5.282     # Pure rear tire stiffness [1/rad]
 
     # opponent parameters
-    num_agent: 2
+    num_agent: 1
 
-    # ego starting pose on map (Spielberg raceline start)
-    sx: -69.4
-    sy: 53.9
-    stheta: 0.024
+    # ego starting pose on map (Spielberg hairpin – unique geometry for AMCL)
+    sx: -12.707
+    sy: 46.878
+    stheta: -0.983
 
     # opp starting pose on map
-    sx1: -67.0
-    sy1: 54.0
-    stheta1: 0.0
+    sx1: -2.0
+    sy1: -2.0
+    stheta1: -2.88
 
     # teleop
     kb_teleop: False

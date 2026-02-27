@@ -9,22 +9,30 @@
 # Unified launch file for the F1TENTH car. Use launch arguments to
 # select which subsystems to start:
 #
-#   Full stack (default):
-#     ros2 launch f1tenth_stack bringup_launch.py
+#   Full stack (default — includes scan splitter + lateral planner):
+#     ros2 launch f1tenth_stack bringup_launch.py \
+#       trajectory_file:=/path/to/raceline.csv
+#
+#   Mapping mode (no scan splitter or lateral planner):
+#     ros2 launch f1tenth_stack bringup_launch.py \
+#       use_scan_splitter:=false use_lateral_planner:=false
 #
 #   Teleop only (no LiDAR):
-#     ros2 launch f1tenth_stack bringup_launch.py use_lidar:=false
+#     ros2 launch f1tenth_stack bringup_launch.py use_lidar:=false \
+#       use_scan_splitter:=false use_lateral_planner:=false
 #
 #   VESC only (testing motor/odom):
-#     ros2 launch f1tenth_stack bringup_launch.py use_teleop:=false use_lidar:=false
+#     ros2 launch f1tenth_stack bringup_launch.py use_teleop:=false use_lidar:=false \
+#       use_scan_splitter:=false use_lateral_planner:=false
 
 import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 
 
@@ -38,6 +46,10 @@ def generate_launch_description():
     sensors_config = os.path.join(pkg_share, 'config', 'sensors.yaml')
     mux_config = os.path.join(pkg_share, 'config', 'mux.yaml')
     hokuyo_config = os.path.join(lidar_pkg_share, 'config', 'hokuyo_ust10lx.yaml')
+
+    # ── Package directories for included launch files ──
+    lidar_pkg_dir = get_package_share_directory('f1tenth_lidar')
+    lateral_planner_pkg_dir = get_package_share_directory('f1tenth_lateral_planner')
 
     # ── Launch arguments ──
     ld = LaunchDescription([
@@ -53,10 +65,18 @@ def generate_launch_description():
                               description='Launch joystick teleop and mux'),
         DeclareLaunchArgument('use_lidar', default_value='true',
                               description='Launch LiDAR driver (Hokuyo SCIP 2.0, 40 Hz)'),
+        DeclareLaunchArgument('use_scan_splitter', default_value='true',
+                              description='Launch scan splitter (requires /map from localization)'),
+        DeclareLaunchArgument('use_lateral_planner', default_value='true',
+                              description='Launch lateral planner for opponent avoidance'),
+        DeclareLaunchArgument('trajectory_file', default_value='',
+                              description='Path to global raceline CSV for lateral planner'),
     ])
 
     use_teleop = LaunchConfiguration('use_teleop')
     use_lidar = LaunchConfiguration('use_lidar')
+    use_scan_splitter = LaunchConfiguration('use_scan_splitter')
+    use_lateral_planner = LaunchConfiguration('use_lateral_planner')
 
     # ══════════════════════
     #  VESC nodes (always)
@@ -120,6 +140,32 @@ def generate_launch_description():
         output='screen',
         parameters=[hokuyo_config],
         condition=IfCondition(use_lidar),
+    ))
+
+    # ══════════════════════
+    #  Scan Splitter — /scan → /scan_walls + /scan_obstacles
+    # ══════════════════════
+    # Requires /map (from localization) and /scan (from LiDAR above).
+    # Will wait for the map to become available.
+    ld.add_action(IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(lidar_pkg_dir, 'launch', 'scan_splitter.launch.py')
+        ),
+        condition=IfCondition(use_scan_splitter),
+    ))
+
+    # ══════════════════════
+    #  Lateral Planner — opponent avoidance → /local_raceline
+    # ══════════════════════
+    # Subscribes to /scan_obstacles and publishes a shifted raceline.
+    ld.add_action(IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(lateral_planner_pkg_dir, 'launch', 'lateral_planner.launch.py')
+        ),
+        launch_arguments={
+            'trajectory_file': LaunchConfiguration('trajectory_file'),
+        }.items(),
+        condition=IfCondition(use_lateral_planner),
     ))
 
     # ══════════════════════

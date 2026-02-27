@@ -106,14 +106,16 @@ TESTS = [
         'script': 'tests/test_cornering_stiffness.py',
         'description': (
             'Identifies front/rear cornering stiffness (C_alpha_f, C_alpha_r).\n'
-            '  Requires: ~8m x 8m open space (auto-geofence ~14m)\n'
-            '  Duration: ~90s per run, 5 runs\n'
-            '  Uses small steering (0.1 rad) to stay in linear tire region\n'
-            '  Drives steady-state circles at v=1.5-3.0 m/s\n'
+            '  Requires: ~10m x 10m open space (auto-geofence)\n'
+            '  Duration: ~3min per run (4 steering angles × 3 speeds × 14s each)\n'
+            '  Sweeps 4 steering angles [0.12-0.24 rad] at v=1.5-2.5 m/s\n'
+            '  Uses LiDAR v_y for sideslip correction (breaks v² artifact)\n'
             '  Needs: vehicle mass, l_f, l_r (--mass, --l-f, --l-r)'
         ),
-        'default_args': ['--steering', '0.1', '--min-speed', '1.5', '--max-speed', '3.0',
-                         '--speed-step', '0.25'],
+        'default_args': ['--steering', '0.12', '0.16', '0.20', '0.24',
+                         '--min-speed', '1.5', '--max-speed', '2.5',
+                         '--speed-step', '0.5',
+                         '--settle-time', '4', '--record-time', '10'],
         'data_prefix': 'cornering_stiffness',
         'parameters': ['C_alpha_f', 'C_alpha_r', 'understeer_gradient'],
     },
@@ -122,12 +124,13 @@ TESTS = [
         'script': 'tests/test_longitudinal_stiffness.py',
         'description': (
             'Identifies longitudinal tire stiffness (C_x) from slip ratio.\n'
-            '  Requires: ~10m straight clear space\n'
+            '  Requires: ~20m straight clear space\n'
             '  Duration: ~45s per run\n'
-            '  Compares wheel speed (ERPM) vs body speed (IMU)\n'
+            '  Uses LiDAR ICP body velocity vs wheel speed (ERPM)\n'
+            '  Higher speed improves LiDAR SNR for slip measurement\n'
             '  Needs: vehicle mass (--mass)'
         ),
-        'default_args': ['--max-speed', '2.5', '--cruise-time', '2.0', '--geofence', '10.0'],
+        'default_args': ['--max-speed', '5.0', '--cruise-time', '1.0', '--geofence', '20.0'],
         'data_prefix': 'longitudinal_stiffness',
         'parameters': ['C_x'],
     },
