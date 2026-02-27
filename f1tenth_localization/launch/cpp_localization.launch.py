@@ -27,7 +27,7 @@ def generate_launch_description():
 
     # Default map path (workspace-relative)
     workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(pkg_dir))))
-    default_map = os.path.join(workspace_root, 'f1tenth_sim', 'maps', 'Spielberg_map.yaml')
+    default_map = os.path.join(workspace_root, 'f1tenth_sim', 'maps', 'my_track_map.yaml')
 
     return LaunchDescription([
         # ── Arguments ──────────────────────────────────────────────
@@ -69,7 +69,7 @@ def generate_launch_description():
                 'use_sim_time': LaunchConfiguration('use_sim_time'),
                 'autostart': True,
                 'node_names': ['map_server'],
-                'bond_timeout': 0.0,
+                'bond_timeout': 5.0,
             }],
         ),
 

@@ -74,8 +74,9 @@ Run the raceline planner on your PC (no need for the car to be on).
 ### Generate the Racing Line
 ```bash
 python3 f1tenth_planning/scripts/generate_raceline.py \
-  --map ~/maps/my_track_map.yaml \
-  --output f1tenth_planning/trajectories
+  --map ~/BachelorProject/f1tenth_sim/maps/my_track_map.yaml \
+  --output f1tenth_planning/trajectories \
+  --visualize
 ```
 
 > This will:
@@ -117,7 +118,7 @@ The new stack uses three key pipelines launched across two terminals:
 ```bash
 source install/setup.bash
 ros2 launch f1tenth_stack bringup_launch.py \
-  trajectory_file:=$HOME/f1tenth_ws/src/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv
+  trajectory_file:=/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv
 ```
 > This starts: VESC driver, ackermann mux, Hokuyo LiDAR (40 Hz), **scan splitter** (classifies beams as wall/obstacle), and **lateral planner** (opponent avoidance).
 >
@@ -128,7 +129,7 @@ ros2 launch f1tenth_stack bringup_launch.py \
 source install/setup.bash
 
 ros2 launch f1tenth_localization cpp_localization.launch.py \
-  map_file:=$HOME/maps/my_track_map.yaml
+  map_file:=/home/f1tenth/BachelorProject/f1tenth_sim/maps/my_track_map.yaml
 ```
 
 > This launches the full C++ GPU AMCL localization stack:
@@ -165,7 +166,7 @@ ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped '
 source install/setup.bash
 
 ros2 launch f1tenth_control pure_pursuit_launch.py \
-  trajectory_file:=$HOME/f1tenth_ws/src/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv \
+  trajectory_file:=/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv
   max_speed:=3.0 \
   min_lookahead:=0.2 \
   max_lookahead:=1.5 \

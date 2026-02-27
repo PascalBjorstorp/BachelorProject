@@ -84,7 +84,7 @@ class HokuyoScipDriver(Node):
 
         # Publisher with SensorDataQoS (best-effort for real-time sensor data)
         sensor_qos = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
+            reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.VOLATILE,
             depth=5,
         )

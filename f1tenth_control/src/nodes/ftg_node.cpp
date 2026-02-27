@@ -70,7 +70,7 @@ void FTGNode::declareParameters() {
     declare_parameter("max_steering_rate", 0.05);  // Reduced for smoother steering
     
     // Safety
-    declare_parameter("emergency_brake_distance", 0.3);
+    declare_parameter("emergency_brake_distance", 0.1);
     
     // FTG-specific LiDAR processing parameters
     declare_parameter("disparity_threshold", 0.5);
@@ -187,63 +187,6 @@ void FTGNode::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     // Recovery mode logic: detect stuck state and try to escape
     DriveCommand final_cmd = smoothed_cmd;
     
-    if (output.emergency_stop && output.all_gaps.empty()) {
-        // We're stuck with no gaps - increment stuck counter
-        stuck_counter_++;
-        
-        if (stuck_counter_ >= STUCK_THRESHOLD && !in_recovery_mode_) {
-            // Enter recovery mode
-            in_recovery_mode_ = true;
-            recovery_counter_ = 0;
-            metrics_.recovery_events++;  // Track recovery event
-            // Choose turn direction based on which side has more space
-            // Use the deepest_idx angle to determine direction
-            ProcessedScan scan = ftg_->getLidarProcessor().processScan(
-                msg->ranges, msg->angle_min, msg->angle_max, msg->angle_increment
-            );
-            if (!scan.angles.empty() && output.closest_point_idx < scan.angles.size()) {
-                // Turn away from the closest obstacle
-                double closest_angle = scan.angles[output.closest_point_idx];
-                recovery_steer_direction_ = (closest_angle > 0) ? -1.0 : 1.0;
-            }
-            RCLCPP_WARN(get_logger(), 
-                "RECOVERY MODE: Stuck for %d cycles, backing up and turning %s",
-                stuck_counter_, recovery_steer_direction_ > 0 ? "RIGHT" : "LEFT");
-        }
-    } else if (!output.emergency_stop && !output.all_gaps.empty()) {
-        // Normal driving - reset stuck counter
-        stuck_counter_ = 0;
-        // Only exit recovery after minimum backup duration (40 cycles ~= 0.8s of backing)
-        constexpr int MIN_RECOVERY_BACKUP = 40;
-        if (in_recovery_mode_ && recovery_counter_ >= MIN_RECOVERY_BACKUP) {
-            RCLCPP_INFO(get_logger(), "RECOVERY MODE: Exited after %d cycles - found gaps!", recovery_counter_);
-            in_recovery_mode_ = false;
-            recovery_counter_ = 0;
-        }
-    }
-    
-    // Apply recovery behavior
-    if (in_recovery_mode_) {
-        recovery_counter_++;
-        
-        // Recovery: reverse slowly with steering to turn away from obstacle
-        double reverse_speed = -0.5;  // Slow reverse
-        double recovery_steer = recovery_steer_direction_ * config_.max_steering;
-        
-        final_cmd = DriveCommand(reverse_speed, recovery_steer);
-        
-        RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 500,
-            "RECOVERY: counter=%d/%d, cmd=(speed=%.2f, steer=%.2f)",
-            recovery_counter_, RECOVERY_DURATION, reverse_speed, recovery_steer);
-        
-        // Exit recovery after duration (even if still stuck, will re-enter if needed)
-        if (recovery_counter_ >= RECOVERY_DURATION) {
-            RCLCPP_WARN(get_logger(), "RECOVERY MODE: Timeout - trying normal mode");
-            in_recovery_mode_ = false;
-            stuck_counter_ = 0;
-            recovery_counter_ = 0;
-        }
-    }
     
     // Publish drive command (either normal or recovery)
     publishDriveCommand(final_cmd);

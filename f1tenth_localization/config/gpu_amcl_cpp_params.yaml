@@ -18,7 +18,7 @@ gpu_amcl_cpp:
     use_gpu: true
 
     # ---- Particles ----
-    num_particles: 10000
+    num_particles: 1500
     min_particles: 1000
     max_particles: 10000
 
@@ -55,10 +55,10 @@ gpu_amcl_cpp:
     # These control how much random noise is added to each particle.
     # For simulation (accurate odom), use LOW values.
     # For real hardware (noisy odom/slip), increase 5-10x.
-    alpha1: 0.0001   # rotation  → rotation  noise
-    alpha2: 0.0001   # translation → rotation  noise
-    alpha3: 0.0001    # translation → translation noise
-    alpha4: 0.0001    # rotation  → translation noise
+    alpha1: 0.01   # rotation  → rotation  noise 0.0001 for sim
+    alpha2: 0.01   # translation → rotation  noise
+    alpha3: 0.01    # translation → translation noise
+    alpha4: 0.01    # rotation  → translation noise
 
     # ---- Sensor model (likelihood field, Prob. Robotics §6.4) ----
     max_beams: 270
@@ -80,10 +80,10 @@ gpu_amcl_cpp:
     # ---- Initial pose ----
     initial_pose_x: 0.0
     initial_pose_y: 0.0
-    initial_pose_a: -2.88
-    initial_cov_xx: 0.1
-    initial_cov_yy: 0.1
-    initial_cov_aa: 0.2
+    initial_pose_a: 0.0
+    initial_cov_xx: 0.3
+    initial_cov_yy: 0.3
+    initial_cov_aa: 0.5
 
     # ---- Publishing ----
     publish_rate: 40.0       # Hz (match LiDAR rate)
@@ -126,8 +126,8 @@ odom_fused:
     # In simulation, odom is very accurate — use low covariance
     # so the EKF smoothly dead-reckons between AMCL corrections.
     # For real hardware, increase 10-100x.
-    base_cov_xy: 0.00005
-    base_cov_theta: 0.00005
+    base_cov_xy: 0.005 # 0.00005 for im
+    base_cov_theta: 0.005
 
 
 # ────────────────────────────────────────────────────────────────
@@ -150,4 +150,4 @@ ekf_localization:
 
     # ---- EKF tuning ----
     transform_tolerance: 0.0    # seconds into the future for TF
-    process_noise_scale: 0.5    # multiplier on odom covariance for Q
+    process_noise_scale: 1.0    # multiplier on odom covariance for Q

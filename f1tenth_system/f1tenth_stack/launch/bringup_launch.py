@@ -38,7 +38,7 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     pkg_share = get_package_share_directory('f1tenth_stack')
-    lidar_pkg_share = get_package_share_directory('f1tenth_localization')
+    lidar_pkg_share = get_package_share_directory('f1tenth_lidar')
 
     # ── Config file paths ──
     joy_teleop_config = os.path.join(pkg_share, 'config', 'joy_teleop.yaml')
@@ -134,7 +134,7 @@ def generate_launch_description():
     #  LiDAR — Custom SCIP 2.0 driver (40 Hz)
     # ══════════════════════
     ld.add_action(Node(
-        package='f1tenth_localization',
+        package='f1tenth_lidar',
         executable='hokuyo_scip_driver.py',
         name='hokuyo_scip_driver',
         output='screen',

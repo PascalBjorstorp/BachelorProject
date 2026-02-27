@@ -4,34 +4,34 @@
 
 vehicle:
   # Physical dimensions
-  wheelbase: 0.3302          # [m] Distance between front and rear axles
-  width: 0.31                # [m] Total car width (for safety margin)
+  wheelbase: 0.324          # [m] Distance between front and rear axles
+  width: 0.273                # [m] Total car width (for safety margin)
   
   # Tire/friction properties
-  friction_coeff: 1.0489     # [-] Tire-road friction coefficient (μ)
+  friction_coeff: 0.7463     # [-] Tire-road friction coefficient (μ)
   
   # Acceleration limits
-  max_acceleration: 9.51     # [m/s²] Maximum longitudinal acceleration
-  max_deceleration: 10.0     # [m/s²] Maximum braking deceleration
+  max_acceleration: 8.0     # [m/s²] Maximum longitudinal acceleration
+  max_deceleration: 7.7     # [m/s²] Maximum braking deceleration
   
   # Speed limits
-  max_speed: 20.0            # [m/s] Maximum vehicle speed
+  max_speed: 3.0            # [m/s] Maximum vehicle speed
 
 optimization:
   # Track boundary safety margin (half car width + buffer)
-  safety_margin: 0.155       # [m] Distance to keep from track edges
+  safety_margin: 0.2       # [m] Distance to keep from track edges
 
 # Additional vehicle properties (for reference, not currently used in optimization)
 # These are kept for documentation and future advanced features
 advanced:
   # Detailed dimensions
-  lf: 0.15875                # [m] CG to front axle
-  lr: 0.17145                # [m] CG to rear axle
+  lf: 0.166                # [m] CG to front axle
+  lr: 0.16                # [m] CG to rear axle
   length: 0.53               # [m] Total car length
   
   # Mass properties
   mass: 3.314                 # [kg] Total vehicle mass
-  inertia: 0.04712           # [kg·m²] Yaw moment of inertia (I_z)
+  inertia: 0.035           # [kg·m²] Yaw moment of inertia (I_z)
   cg_height: 0.074           # [m] Center of gravity height
   
   # Tire cornering stiffness (for dynamic models)
@@ -44,5 +44,5 @@ advanced:
   # Measured via LiDAR ICP scan-matching, 10 runs at 6 m/s, R²=0.42
   
   # Steering constraints  
-  max_steering_angle: 0.4189 # [rad] Maximum steering angle (~24°)
-  max_steering_rate: 3.2     # [rad/s] Maximum steering rate
+  max_steering_angle: 0.4282 # [rad] Maximum steering angle (~24°)
+  max_steering_rate: 2.8492     # [rad/s] Maximum steering rate

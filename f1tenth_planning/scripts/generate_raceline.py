@@ -104,7 +104,12 @@ def extract_boundaries(img: np.ndarray, resolution: float, origin: np.ndarray):
     Extract track boundaries from occupancy grid.
     
     Uses contour detection with hierarchy analysis to find the outer and inner
-    track walls. Handles maps where boundary lines have thickness.
+    track walls. Handles both:
+    - Designed maps (e.g. Spielberg): free space extends to image border,
+      so the largest contour is the image boundary.
+    - SLAM maps (e.g. from slam_toolbox): free space is only the track,
+      surrounded by unknown (gray), so the largest contour IS the outer
+      track boundary.
     
     Returns:
         outer_world: Nx2 array of outer boundary in world coordinates
@@ -121,35 +126,60 @@ def extract_boundaries(img: np.ndarray, resolution: float, origin: np.ndarray):
     if len(contours) < 2:
         raise ValueError("Could not find track boundaries in map")
     
-    # Sort by area to identify hierarchy
-    # Contour 0: Image boundary (largest)
-    # Contour 1: Outer track edge
-    # Contour 4 (innermost): Inner track edge
+    # Sort by area descending
     areas = [(i, cv2.contourArea(c)) for i, c in enumerate(contours)]
     areas.sort(key=lambda x: x[1], reverse=True)
     
-    # Find outer boundary (first child of image boundary)
     outer_idx = None
-    for idx, _ in areas[1:]:
-        parent = hierarchy[0][idx][3]
-        if parent == areas[0][0]:
-            outer_idx = idx
-            break
-    
-    # Find inner boundary (innermost contour - no children)
     inner_idx = None
-    for idx, _ in reversed(areas):
-        if hierarchy[0][idx][2] == -1:  # No children
-            inner_idx = idx
-            break
+    
+    # Check if the largest contour is the image boundary by testing
+    # whether it touches all four edges of the image
+    largest_pts = contours[areas[0][0]].reshape(-1, 2)
+    is_image_boundary = (
+        np.any(largest_pts[:, 0] == 0) and
+        np.any(largest_pts[:, 0] == img.shape[1] - 1) and
+        np.any(largest_pts[:, 1] == 0) and
+        np.any(largest_pts[:, 1] == img.shape[0] - 1)
+    )
+    
+    if is_image_boundary:
+        # Largest contour traces the image border → designed map
+        # (e.g. Spielberg where background is white/free)
+        print("  Map type: designed (image boundary detected)")
+        
+        # Outer boundary: largest child of the image boundary
+        for idx, _ in areas[1:]:
+            if hierarchy[0][idx][3] == areas[0][0]:
+                outer_idx = idx
+                break
+        
+        # Inner boundary: deepest contour with no children
+        for idx, _ in reversed(areas):
+            if hierarchy[0][idx][2] == -1:  # No children
+                inner_idx = idx
+                break
+    else:
+        # Largest contour does NOT touch all edges → SLAM-style map
+        # The largest contour IS the outer track boundary
+        # Its largest-area child is the inner track boundary
+        print("  Map type: SLAM (no image boundary)")
+        outer_idx = areas[0][0]
+        
+        # Find the largest-area child of the outer contour
+        best_area = 0
+        for idx, a in areas[1:]:
+            if hierarchy[0][idx][3] == outer_idx and a > best_area:
+                inner_idx = idx
+                best_area = a
     
     if outer_idx is None or inner_idx is None:
-        # Fallback: use second and smallest contours
-        outer_idx = areas[1][0]
-        inner_idx = areas[-1][0]
+        # Fallback: use two largest contours
+        outer_idx = areas[0][0]
+        inner_idx = areas[1][0]
     
-    outer_contour = contours[outer_idx].squeeze()
-    inner_contour = contours[inner_idx].squeeze()
+    outer_contour = contours[outer_idx].reshape(-1, 2)
+    inner_contour = contours[inner_idx].reshape(-1, 2)
     
     # Convert to world coordinates
     def pixel_to_world(points):
