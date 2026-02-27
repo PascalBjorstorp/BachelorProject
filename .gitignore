@@ -140,7 +140,6 @@ docs/api/
 core
 core.*
 *.cmake
-*.bin
 
 # Coverage reports
 .coverage
@@ -180,10 +179,8 @@ _ide/
 # =============================================
 # FPGA Bitstream / Hardware Export
 # =============================================
-# Keep the exported XSA for deployment
-# (FPGA/Bitstream/ is tracked)
-FPGA/Bitstream/*.bit
-FPGA/Bitstream/*.bin
+# Bitstream files (.bit, .bin) are tracked via Git LFS.
+# Only ignore debug probes (.ltx) which are not needed.
 FPGA/Bitstream/*.ltx
 FPGA/docs/*
 

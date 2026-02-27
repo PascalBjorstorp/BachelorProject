@@ -1,0 +1,39 @@
+# =============================================
+# Git LFS — Large File Storage
+# =============================================
+# Track large binary/data files via LFS to keep
+# the git history lean. Run `git lfs install` once.
+
+# ── ROS2 bag files ──
+*.bag filter=lfs diff=lfs merge=lfs -text
+*.db3 filter=lfs diff=lfs merge=lfs -text
+
+# ── Map images ──
+*.pgm filter=lfs diff=lfs merge=lfs -text
+*.png filter=lfs diff=lfs merge=lfs -text
+*.jpg filter=lfs diff=lfs merge=lfs -text
+*.jpeg filter=lfs diff=lfs merge=lfs -text
+
+# ── Data files (trajectories, performance logs, numpy) ──
+*.csv filter=lfs diff=lfs merge=lfs -text
+*.npz filter=lfs diff=lfs merge=lfs -text
+*.npy filter=lfs diff=lfs merge=lfs -text
+
+# ── Documents / reports ──
+*.pdf filter=lfs diff=lfs merge=lfs -text
+
+# ── FPGA bitstreams / hardware exports ──
+*.bit filter=lfs diff=lfs merge=lfs -text
+*.xsa filter=lfs diff=lfs merge=lfs -text
+*.bin filter=lfs diff=lfs merge=lfs -text
+
+# ── Video / media ──
+*.mp4 filter=lfs diff=lfs merge=lfs -text
+*.avi filter=lfs diff=lfs merge=lfs -text
+
+# ── 3D models (car chassis, mounts) ──
+*.stl filter=lfs diff=lfs merge=lfs -text
+
+# ── Point clouds ──
+*.pcd filter=lfs diff=lfs merge=lfs -text
+*.ply filter=lfs diff=lfs merge=lfs -text
