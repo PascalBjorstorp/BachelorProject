@@ -33,7 +33,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch_ros.actions import Node
+from launch_ros.actions import Node, LifecycleNode
 
 
 def generate_launch_description():
@@ -51,6 +51,10 @@ def generate_launch_description():
     lidar_pkg_dir = get_package_share_directory('f1tenth_lidar')
     lateral_planner_pkg_dir = get_package_share_directory('f1tenth_lateral_planner')
 
+    # ── Default map path ──
+    workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(pkg_share))))
+    default_map = os.path.join(workspace_root, 'f1tenth_sim', 'maps', 'Spielberg_map.yaml')
+
     # ── Launch arguments ──
     ld = LaunchDescription([
         DeclareLaunchArgument('joy_config', default_value=joy_teleop_config,
@@ -66,17 +70,51 @@ def generate_launch_description():
         DeclareLaunchArgument('use_lidar', default_value='true',
                               description='Launch LiDAR driver (Hokuyo SCIP 2.0, 40 Hz)'),
         DeclareLaunchArgument('use_scan_splitter', default_value='true',
-                              description='Launch scan splitter (requires /map from localization)'),
+                              description='Launch scan splitter (uses /map from map_server)'),
         DeclareLaunchArgument('use_lateral_planner', default_value='true',
                               description='Launch lateral planner for opponent avoidance'),
         DeclareLaunchArgument('trajectory_file', default_value='',
                               description='Path to global raceline CSV for lateral planner'),
+        DeclareLaunchArgument('map_file', default_value=default_map,
+                              description='Path to the map YAML file for map_server'),
+        DeclareLaunchArgument('use_sim_time', default_value='false',
+                              description='Use /clock for simulation time'),
     ])
 
     use_teleop = LaunchConfiguration('use_teleop')
     use_lidar = LaunchConfiguration('use_lidar')
     use_scan_splitter = LaunchConfiguration('use_scan_splitter')
     use_lateral_planner = LaunchConfiguration('use_lateral_planner')
+
+    # ══════════════════════
+    #  Map Server (always)
+    # ══════════════════════
+    # Serves the static occupancy-grid map on /map with transient_local QoS.
+    # Started early so the map is available before localization and scan_splitter.
+    ld.add_action(LifecycleNode(
+        package='nav2_map_server',
+        executable='map_server',
+        name='map_server',
+        namespace='/',
+        output='screen',
+        parameters=[{
+            'use_sim_time': LaunchConfiguration('use_sim_time'),
+            'yaml_filename': LaunchConfiguration('map_file'),
+        }],
+    ))
+
+    ld.add_action(Node(
+        package='nav2_lifecycle_manager',
+        executable='lifecycle_manager',
+        name='lifecycle_manager_map',
+        output='screen',
+        parameters=[{
+            'use_sim_time': LaunchConfiguration('use_sim_time'),
+            'autostart': True,
+            'node_names': ['map_server'],
+            'bond_timeout': 0.0,
+        }],
+    ))
 
     # ══════════════════════
     #  VESC nodes (always)
@@ -145,8 +183,7 @@ def generate_launch_description():
     # ══════════════════════
     #  Scan Splitter — /scan → /scan_walls + /scan_obstacles
     # ══════════════════════
-    # Requires /map (from localization) and /scan (from LiDAR above).
-    # Will wait for the map to become available.
+    # Requires /map (from map_server above) and /scan (from LiDAR above).
     ld.add_action(IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(lidar_pkg_dir, 'launch', 'scan_splitter.launch.py')
