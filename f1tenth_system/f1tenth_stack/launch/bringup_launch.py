@@ -227,15 +227,20 @@ def generate_launch_description():
         ],
     ))
 
-    # base_link → imu
+    # ego_racecar/base_link → imu
     ld.add_action(Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='static_baselink_to_imu',
         arguments=[
-            '0.0', '0.0', '0.0',      # x, y, z
-            '0.0', '0.0', '0.0',      # roll, pitch, yaw
-            'base_link', 'imu',
+            '--x', '0.0',
+            '--y', '0.0',
+            '--z', '0.0',
+            '--roll', '0.0',
+            '--pitch', '0.0',
+            '--yaw', '0.0',
+            '--frame-id', 'ego_racecar/base_link',
+            '--child-frame-id', 'imu',
         ],
     ))
 

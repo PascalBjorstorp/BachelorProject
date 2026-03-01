@@ -228,12 +228,6 @@ def main():
         r"('wheelbase':\s*)\d+\.\d+",
         rf"\g<1>{wheelbase}")
 
-    # ekf_launch.py: "'wheelbase': 0.3302,"
-    total += replace_in_file(
-        "f1tenth_control/launch/ekf_launch.py",
-        r"('wheelbase':\s*)\d+\.\d+",
-        rf"\g<1>{wheelbase}")
-
     # MPC mpc_types.h: FP_CONST(0.3302) after F110_DEFAULT_WHEELBASE_METERS
     total += replace_in_file(
         "MPC/include/mpc_types.h",

@@ -19,13 +19,10 @@ f1tenth_control/
 │   │   ├── follow_the_gap.hpp   # Follow The Gap (reactive)
 │   │   ├── pure_pursuit.hpp     # Pure Pursuit (path following)
 │   │   └── stanley.hpp          # Stanley controller (path following)
-│   ├── state_estimation/    # State estimation
-│   │   └── ekf.hpp              # Extended Kalman Filter
 │   └── nodes/               # ROS2 node wrappers
 │       ├── ftg_node.hpp
 │       ├── pure_pursuit_node.hpp
-│       ├── stanley_node.hpp
-│       └── ekf_node.hpp
+│       └── stanley_node.hpp
 ├── src/                     # Implementation files
 ├── config/                  # Configuration files
 │   └── ftg_params.yaml      # FTG parameters
@@ -33,8 +30,7 @@ f1tenth_control/
 │   ├── ftg_launch.py
 │   ├── ftg_hardware_launch.py
 │   ├── pure_pursuit_launch.py
-│   ├── stanley_launch.py
-│   └── ekf_launch.py
+│   └── stanley_launch.py
 └── test/                    # Unit tests
 ```
 
