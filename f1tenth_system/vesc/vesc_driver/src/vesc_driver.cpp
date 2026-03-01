@@ -168,37 +168,37 @@ void VescDriver::vescPacketCallback(const std::shared_ptr<VescPacket const> & pa
     std::shared_ptr<VescPacketValues const> values =
       std::dynamic_pointer_cast<VescPacketValues const>(packet);
 
-    auto state_msg = VescStateStamped();
-    state_msg.header.stamp = now();
+    auto state_msg = std::make_unique<VescStateStamped>();
+    state_msg->header.stamp = now();
 
-    state_msg.state.temp_fet = values->temp_fet();
-    state_msg.state.temp_motor = values->temp_motor();
-    state_msg.state.voltage_input = values->v_in();
-    state_msg.state.current_motor = values->avg_motor_current();
-    state_msg.state.current_input = values->avg_input_current();
-    state_msg.state.avg_id = values->avg_id();
-    state_msg.state.avg_iq = values->avg_iq();
-    state_msg.state.duty_cycle = values->duty_cycle_now();
-    state_msg.state.speed = values->rpm();
+    state_msg->state.temp_fet = values->temp_fet();
+    state_msg->state.temp_motor = values->temp_motor();
+    state_msg->state.voltage_input = values->v_in();
+    state_msg->state.current_motor = values->avg_motor_current();
+    state_msg->state.current_input = values->avg_input_current();
+    state_msg->state.avg_id = values->avg_id();
+    state_msg->state.avg_iq = values->avg_iq();
+    state_msg->state.duty_cycle = values->duty_cycle_now();
+    state_msg->state.speed = values->rpm();
 
-    state_msg.state.charge_drawn = values->amp_hours();
-    state_msg.state.charge_regen = values->amp_hours_charged();
-    state_msg.state.energy_drawn = values->watt_hours();
-    state_msg.state.energy_regen = values->watt_hours_charged();
-    state_msg.state.displacement = values->tachometer();
-    state_msg.state.distance_traveled = values->tachometer_abs();
-    state_msg.state.fault_code = values->fault_code();
+    state_msg->state.charge_drawn = values->amp_hours();
+    state_msg->state.charge_regen = values->amp_hours_charged();
+    state_msg->state.energy_drawn = values->watt_hours();
+    state_msg->state.energy_regen = values->watt_hours_charged();
+    state_msg->state.displacement = values->tachometer();
+    state_msg->state.distance_traveled = values->tachometer_abs();
+    state_msg->state.fault_code = values->fault_code();
 
-    state_msg.state.pid_pos_now = values->pid_pos_now();
-    state_msg.state.controller_id = values->controller_id();
+    state_msg->state.pid_pos_now = values->pid_pos_now();
+    state_msg->state.controller_id = values->controller_id();
 
-    state_msg.state.ntc_temp_mos1 = values->temp_mos1();
-    state_msg.state.ntc_temp_mos2 = values->temp_mos2();
-    state_msg.state.ntc_temp_mos3 = values->temp_mos3();
-    state_msg.state.avg_vd = values->avg_vd();
-    state_msg.state.avg_vq = values->avg_vq();
+    state_msg->state.ntc_temp_mos1 = values->temp_mos1();
+    state_msg->state.ntc_temp_mos2 = values->temp_mos2();
+    state_msg->state.ntc_temp_mos3 = values->temp_mos3();
+    state_msg->state.avg_vd = values->avg_vd();
+    state_msg->state.avg_vq = values->avg_vq();
 
-    state_pub_->publish(state_msg);
+    state_pub_->publish(std::move(state_msg));
   } else if (packet->name() == "FWVersion") {
     std::shared_ptr<VescPacketFWVersion const> fw_version =
       std::dynamic_pointer_cast<VescPacketFWVersion const>(packet);
@@ -219,67 +219,67 @@ void VescDriver::vescPacketCallback(const std::shared_ptr<VescPacket const> & pa
     constexpr double GRAVITATIONAL_ACC = 9.80665;  // m/s²
     constexpr double DEG_TO_RAD = M_PI / 180.0;
 
-    auto imu_msg = VescImuStamped();
-    auto std_imu_msg = Imu();
-    imu_msg.header.stamp = now();
-    imu_msg.header.frame_id = imu_frame_;
-    std_imu_msg.header.stamp = now();
-    std_imu_msg.header.frame_id = imu_frame_;
+    auto imu_msg = std::make_unique<VescImuStamped>();
+    auto std_imu_msg = std::make_unique<Imu>();
+    imu_msg->header.stamp = now();
+    imu_msg->header.frame_id = imu_frame_;
+    std_imu_msg->header.stamp = now();
+    std_imu_msg->header.frame_id = imu_frame_;
 
-    imu_msg.imu.ypr.x = imuData->roll();
-    imu_msg.imu.ypr.y = imuData->pitch();
-    imu_msg.imu.ypr.z = imuData->yaw();
+    imu_msg->imu.ypr.x = imuData->roll();
+    imu_msg->imu.ypr.y = imuData->pitch();
+    imu_msg->imu.ypr.z = imuData->yaw();
 
-    imu_msg.imu.linear_acceleration.x = imuData->acc_x();
-    imu_msg.imu.linear_acceleration.y = imuData->acc_y();
-    imu_msg.imu.linear_acceleration.z = imuData->acc_z();
+    imu_msg->imu.linear_acceleration.x = imuData->acc_x();
+    imu_msg->imu.linear_acceleration.y = imuData->acc_y();
+    imu_msg->imu.linear_acceleration.z = imuData->acc_z();
 
-    imu_msg.imu.angular_velocity.x = imuData->gyr_x();
-    imu_msg.imu.angular_velocity.y = imuData->gyr_y();
-    imu_msg.imu.angular_velocity.z = imuData->gyr_z();
+    imu_msg->imu.angular_velocity.x = imuData->gyr_x();
+    imu_msg->imu.angular_velocity.y = imuData->gyr_y();
+    imu_msg->imu.angular_velocity.z = imuData->gyr_z();
 
-    imu_msg.imu.compass.x = imuData->mag_x();
-    imu_msg.imu.compass.y = imuData->mag_y();
-    imu_msg.imu.compass.z = imuData->mag_z();
+    imu_msg->imu.compass.x = imuData->mag_x();
+    imu_msg->imu.compass.y = imuData->mag_y();
+    imu_msg->imu.compass.z = imuData->mag_z();
 
-    imu_msg.imu.orientation.w = imuData->q_w();
-    imu_msg.imu.orientation.x = imuData->q_x();
-    imu_msg.imu.orientation.y = imuData->q_y();
-    imu_msg.imu.orientation.z = imuData->q_z();
+    imu_msg->imu.orientation.w = imuData->q_w();
+    imu_msg->imu.orientation.x = imuData->q_x();
+    imu_msg->imu.orientation.y = imuData->q_y();
+    imu_msg->imu.orientation.z = imuData->q_z();
 
     // Convert acceleration from g's to m/s² (ROS standard)
-    std_imu_msg.linear_acceleration.x = imuData->acc_x() * GRAVITATIONAL_ACC;
-    std_imu_msg.linear_acceleration.y = imuData->acc_y() * GRAVITATIONAL_ACC;
-    std_imu_msg.linear_acceleration.z = imuData->acc_z() * GRAVITATIONAL_ACC;
+    std_imu_msg->linear_acceleration.x = imuData->acc_x() * GRAVITATIONAL_ACC;
+    std_imu_msg->linear_acceleration.y = imuData->acc_y() * GRAVITATIONAL_ACC;
+    std_imu_msg->linear_acceleration.z = imuData->acc_z() * GRAVITATIONAL_ACC;
 
     // Convert angular velocity from deg/s to rad/s (ROS standard)
-    std_imu_msg.angular_velocity.x = imuData->gyr_x() * DEG_TO_RAD;
-    std_imu_msg.angular_velocity.y = imuData->gyr_y() * DEG_TO_RAD;
-    std_imu_msg.angular_velocity.z = imuData->gyr_z() * DEG_TO_RAD;
+    std_imu_msg->angular_velocity.x = imuData->gyr_x() * DEG_TO_RAD;
+    std_imu_msg->angular_velocity.y = imuData->gyr_y() * DEG_TO_RAD;
+    std_imu_msg->angular_velocity.z = imuData->gyr_z() * DEG_TO_RAD;
 
-    std_imu_msg.orientation.w = imuData->q_w();
-    std_imu_msg.orientation.x = imuData->q_x();
-    std_imu_msg.orientation.y = imuData->q_y();
-    std_imu_msg.orientation.z = imuData->q_z();
+    std_imu_msg->orientation.w = imuData->q_w();
+    std_imu_msg->orientation.x = imuData->q_x();
+    std_imu_msg->orientation.y = imuData->q_y();
+    std_imu_msg->orientation.z = imuData->q_z();
 
     // Set covariance values for sensor fusion (EKF) - configurable via parameters
     // Orientation covariance
-    std_imu_msg.orientation_covariance[0] = imu_orientation_covariance_;
-    std_imu_msg.orientation_covariance[4] = imu_orientation_covariance_;
-    std_imu_msg.orientation_covariance[8] = imu_orientation_covariance_;
+    std_imu_msg->orientation_covariance[0] = imu_orientation_covariance_;
+    std_imu_msg->orientation_covariance[4] = imu_orientation_covariance_;
+    std_imu_msg->orientation_covariance[8] = imu_orientation_covariance_;
 
     // Angular velocity covariance
-    std_imu_msg.angular_velocity_covariance[0] = imu_angular_velocity_covariance_;
-    std_imu_msg.angular_velocity_covariance[4] = imu_angular_velocity_covariance_;
-    std_imu_msg.angular_velocity_covariance[8] = imu_angular_velocity_covariance_;
+    std_imu_msg->angular_velocity_covariance[0] = imu_angular_velocity_covariance_;
+    std_imu_msg->angular_velocity_covariance[4] = imu_angular_velocity_covariance_;
+    std_imu_msg->angular_velocity_covariance[8] = imu_angular_velocity_covariance_;
 
     // Linear acceleration covariance
-    std_imu_msg.linear_acceleration_covariance[0] = imu_linear_acceleration_covariance_;
-    std_imu_msg.linear_acceleration_covariance[4] = imu_linear_acceleration_covariance_;
-    std_imu_msg.linear_acceleration_covariance[8] = imu_linear_acceleration_covariance_;
+    std_imu_msg->linear_acceleration_covariance[0] = imu_linear_acceleration_covariance_;
+    std_imu_msg->linear_acceleration_covariance[4] = imu_linear_acceleration_covariance_;
+    std_imu_msg->linear_acceleration_covariance[8] = imu_linear_acceleration_covariance_;
 
-    imu_pub_->publish(imu_msg);
-    imu_std_pub_->publish(std_imu_msg);
+    imu_pub_->publish(std::move(imu_msg));
+    imu_std_pub_->publish(std::move(std_imu_msg));
   }
   auto & clk = *this->get_clock();
   RCLCPP_DEBUG_THROTTLE(
@@ -367,9 +367,9 @@ void VescDriver::servoCallback(const Float64::SharedPtr servo)
     double servo_clipped(servo_limit_.clip(servo->data));
     vesc_.setServo(servo_clipped);
     // publish clipped servo value as a "sensor"
-    auto servo_sensor_msg = Float64();
-    servo_sensor_msg.data = servo_clipped;
-    servo_sensor_pub_->publish(servo_sensor_msg);
+    auto servo_sensor_msg = std::make_unique<Float64>();
+    servo_sensor_msg->data = servo_clipped;
+    servo_sensor_pub_->publish(std::move(servo_sensor_msg));
   }
 }
 
