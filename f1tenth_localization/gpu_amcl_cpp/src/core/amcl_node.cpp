@@ -203,6 +203,7 @@ void AmclNode::map_callback(
 
 // ─── Odom callback ──────────────────────────────────────────────────
 void AmclNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
+    ++odom_count_;
     double x     = msg->pose.pose.position.x;
     double y     = msg->pose.pose.position.y;
     double theta = math_utils::quaternion_to_yaw(msg->pose.pose.orientation);
@@ -211,6 +212,8 @@ void AmclNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
     std::lock_guard<std::mutex> lock(pf_mutex_);
     if (!odom_received_) {
         odom_received_ = true;
+        RCLCPP_INFO(get_logger(),
+            "[AMCL] First odom received: (%.3f, %.3f, %.3f)", x, y, theta);
     }
     prev_x_     = x;
     prev_y_     = y;
@@ -220,10 +223,27 @@ void AmclNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
 // ─── Scan callback (main PF loop) ──────────────────────────────────
 void AmclNode::scan_callback(
     const sensor_msgs::msg::LaserScan::SharedPtr msg) {
+    int sc = ++scan_count_;
+    // Periodic status dump every ~5 seconds (at ~40Hz scan rate)
+    if (sc % 200 == 0) {
+        RCLCPP_INFO(get_logger(),
+            "[AMCL] Status: scans_received=%d, odoms_received=%d, "
+            "scans_processed=%d, map_loaded=%d, odom_received=%d",
+            sc, odom_count_.load(), scan_processed_count_.load(),
+            map_.is_loaded(), static_cast<int>(odom_received_));
+    }
+
     // Drop scan if still processing the previous one.
-    if (processing_scan_.exchange(true)) return;
+    if (processing_scan_.exchange(true)) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+            "[AMCL] scan dropped: still processing previous scan");
+        return;
+    }
 
     if (!map_.is_loaded() || !odom_received_) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+            "[AMCL] scan dropped: map_loaded=%d, odom_received=%d",
+            map_.is_loaded(), static_cast<int>(odom_received_));
         processing_scan_ = false;
         return;
     }
@@ -231,6 +251,9 @@ void AmclNode::scan_callback(
     // Stale-scan guard.
     auto age = (now() - msg->header.stamp).seconds();
     if (age > max_scan_age_) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+            "[AMCL] scan dropped: age=%.4fs > max_scan_age=%.4fs",
+            age, max_scan_age_);
         processing_scan_ = false;
         return;
     }
@@ -247,6 +270,7 @@ void AmclNode::scan_callback(
     double dtheta   = math_utils::angle_diff(prev_theta_, last_theta);
 
     if (first_scan) {
+        RCLCPP_INFO(get_logger(), "[AMCL] First scan received — recording odom baseline");
         last_x = prev_x_;
         last_y = prev_y_;
         last_theta = prev_theta_;
@@ -268,6 +292,9 @@ void AmclNode::scan_callback(
     // Movement gating.
     double dist = std::sqrt(dx_robot * dx_robot + dy_robot * dy_robot);
     if (dist < update_min_d_ && std::abs(dtheta) < update_min_a_) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+            "[AMCL] scan dropped: no movement (dist=%.5f < %.5f, dtheta=%.5f < %.5f)",
+            dist, update_min_d_, std::abs(dtheta), update_min_a_);
         processing_scan_ = false;
         return;
     }
@@ -297,6 +324,7 @@ void AmclNode::scan_callback(
 
     // 4. Publish pose IMMEDIATELY — no timer delay.
     //    Use scan's original timestamp for correct EKF time alignment.
+    ++scan_processed_count_;
     publish_pose(est, msg->header.stamp);
 
     // Debug: periodic logging (every ~2 seconds at 40 Hz).

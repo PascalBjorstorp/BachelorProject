@@ -33,7 +33,8 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch_ros.actions import Node, LifecycleNode
+from launch_ros.actions import Node, LifecycleNode, ComposableNodeContainer
+from launch_ros.descriptions import ComposableNode
 
 
 def generate_launch_description():
@@ -117,28 +118,37 @@ def generate_launch_description():
     ))
 
     # ══════════════════════
-    #  VESC nodes (always)
+    #  VESC nodes (single process, zero-copy intra-process comms)
     # ══════════════════════
-    ld.add_action(Node(
-        package='vesc_driver',
-        executable='vesc_driver_node',
-        name='vesc_driver_node',
-        parameters=[LaunchConfiguration('vesc_config')],
+    ld.add_action(ComposableNodeContainer(
+        name='vesc_container',
+        namespace='',
+        package='rclcpp_components',
+        executable='component_container_mt',
+        composable_node_descriptions=[
+            ComposableNode(
+                package='vesc_driver',
+                plugin='vesc_driver::VescDriver',
+                name='vesc_driver_node',
+                parameters=[LaunchConfiguration('vesc_config')],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            ),
+            ComposableNode(
+                package='vesc_ackermann',
+                plugin='vesc_ackermann::VescToOdom',
+                name='vesc_to_odom_node',
+                parameters=[LaunchConfiguration('vesc_config')],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            ),
+            ComposableNode(
+                package='vesc_ackermann',
+                plugin='vesc_ackermann::AckermannToVesc',
+                name='ackermann_to_vesc_node',
+                parameters=[LaunchConfiguration('vesc_config')],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            ),
+        ],
         output='screen',
-    ))
-
-    ld.add_action(Node(
-        package='vesc_ackermann',
-        executable='vesc_to_odom_node',
-        name='vesc_to_odom_node',
-        parameters=[LaunchConfiguration('vesc_config')],
-    ))
-
-    ld.add_action(Node(
-        package='vesc_ackermann',
-        executable='ackermann_to_vesc_node',
-        name='ackermann_to_vesc_node',
-        parameters=[LaunchConfiguration('vesc_config')],
     ))
 
     # ══════════════════════
@@ -228,6 +238,7 @@ def generate_launch_description():
     ))
 
     # ego_racecar/base_link → ego_racecar/imu
+    # VESC firmware already compensates for upside-down mounting — identity rotation.
     ld.add_action(Node(
         package='tf2_ros',
         executable='static_transform_publisher',
@@ -238,7 +249,7 @@ def generate_launch_description():
             '--z', '0.0',
             '--roll', '0.0',
             '--pitch', '0.0',
-            '--yaw', '3.1415',
+            '--yaw', '0.0',
             '--frame-id', 'ego_racecar/base_link',
             '--child-frame-id', 'ego_racecar/imu',
         ],

@@ -45,8 +45,8 @@
     # ===================
     # IMU Configuration
     # ===================
-    # Frame ID for IMU messages (should match your URDF)
-    imu_frame: "imu"
+    # Frame ID for IMU messages (should match your TF static transform)
+    imu_frame: "ego_racecar/imu"
     
     # IMU covariances (single double, placed on diagonal of 3x3 covariance matrix)
     # The VESC driver uses this value for [0,0], [1,1], [2,2] entries

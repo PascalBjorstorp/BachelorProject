@@ -34,6 +34,7 @@
 #include <tf2/LinearMath/Quaternion.h>
 
 #include <cmath>
+#include <memory>
 #include <string>
 
 #include <geometry_msgs/msg/transform_stamped.hpp>
@@ -294,29 +295,29 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   // save state for next time
   last_state_ = state;
 
-  // publish odometry message
-  Odometry odom;
-  odom.header.frame_id = odom_frame_;
-  odom.header.stamp = state->header.stamp;
-  odom.child_frame_id = base_frame_;
+  // publish odometry message (zero-copy via unique_ptr)
+  auto odom = std::make_unique<Odometry>();
+  odom->header.frame_id = odom_frame_;
+  odom->header.stamp = state->header.stamp;
+  odom->child_frame_id = base_frame_;
 
   // Position
-  odom.pose.pose.position.x = x_;
-  odom.pose.pose.position.y = y_;
-  odom.pose.pose.orientation.x = 0.0;
-  odom.pose.pose.orientation.y = 0.0;
-  odom.pose.pose.orientation.z = sin(yaw_ / 2.0);
-  odom.pose.pose.orientation.w = cos(yaw_ / 2.0);
+  odom->pose.pose.position.x = x_;
+  odom->pose.pose.position.y = y_;
+  odom->pose.pose.orientation.x = 0.0;
+  odom->pose.pose.orientation.y = 0.0;
+  odom->pose.pose.orientation.z = sin(yaw_ / 2.0);
+  odom->pose.pose.orientation.w = cos(yaw_ / 2.0);
 
   // Position uncertainty - configurable via parameters
-  odom.pose.covariance[0] = odom_x_covariance_;     // x
-  odom.pose.covariance[7] = odom_y_covariance_;     // y
-  odom.pose.covariance[35] = odom_yaw_covariance_;  // yaw
+  odom->pose.covariance[0] = odom_x_covariance_;     // x
+  odom->pose.covariance[7] = odom_y_covariance_;     // y
+  odom->pose.covariance[35] = odom_yaw_covariance_;  // yaw
 
   // Velocity ("in the coordinate frame given by the child_frame_id")
-  odom.twist.twist.linear.x = current_speed;
-  odom.twist.twist.linear.y = 0.0;
-  odom.twist.twist.angular.z = current_angular_velocity;
+  odom->twist.twist.linear.x = current_speed;
+  odom->twist.twist.linear.y = 0.0;
+  odom->twist.twist.angular.z = current_angular_velocity;
 
   // Velocity uncertainty
   /** @todo Think about velocity uncertainty */
@@ -329,7 +330,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     tf.transform.translation.x = x_;
     tf.transform.translation.y = y_;
     tf.transform.translation.z = 0.0;
-    tf.transform.rotation = odom.pose.pose.orientation;
+    tf.transform.rotation = odom->pose.pose.orientation;
 
     if (rclcpp::ok()) {
       tf_pub_->sendTransform(tf);
@@ -337,7 +338,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   }
 
   if (rclcpp::ok()) {
-    odom_pub_->publish(odom);
+    odom_pub_->publish(std::move(odom));
   }
 }
 
@@ -365,9 +366,9 @@ void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
   }
 
   // Publish filtered angular velocity
-  Float64 filtered_msg;
-  filtered_msg.data = filtered_angular_velocity_;
-  filtered_angular_velocity_pub_->publish(filtered_msg);
+  auto filtered_msg = std::make_unique<Float64>();
+  filtered_msg->data = filtered_angular_velocity_;
+  filtered_angular_velocity_pub_->publish(std::move(filtered_msg));
 }
 
 }  // namespace vesc_ackermann
