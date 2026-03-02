@@ -89,6 +89,13 @@ gpu_amcl_cpp:
     publish_rate: 40.0       # Hz (match LiDAR rate)
     transform_tolerance: 1.0
 
+    # ---- Initial convergence ----
+    # Process this many scans before requiring movement to update.
+    # During convergence the sensor model runs without motion prediction,
+    # allowing the particle filter to lock onto the correct position while
+    # the robot is stationary.  Set to 0 to disable.
+    initial_convergence_scans: 200   # ~5 s at 40 Hz
+
     # ---- IMU fusion (inside motion model) ----
     use_imu_rotation: false
     imu_gyro_weight: 0.8

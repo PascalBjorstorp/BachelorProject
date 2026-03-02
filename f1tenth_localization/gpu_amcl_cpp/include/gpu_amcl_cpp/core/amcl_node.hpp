@@ -83,6 +83,9 @@ private:
     rclcpp::CallbackGroup::SharedPtr scan_cb_group_;
     rclcpp::CallbackGroup::SharedPtr odom_cb_group_;
 
+    // Initial convergence: process scans even without movement
+    int initial_convergence_scans_ = 200;  // configurable
+
     // Debug counters — track message reception
     std::atomic<int> scan_count_{0};
     std::atomic<int> odom_count_{0};
