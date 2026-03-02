@@ -191,6 +191,14 @@ void AmclNode::map_callback(
     pf_.init(pf_cfg, mm_cfg, sm_cfg, map_);
     RCLCPP_INFO(get_logger(), "Particle filter initialised with %d particles",
                 pf_cfg.num_particles);
+
+    // Publish the initial pose immediately so the EKF can bootstrap
+    // the map→odom TF even before the car moves.
+    auto init_est = pf_.get_estimate();
+    publish_pose(init_est, now());
+    RCLCPP_INFO(get_logger(),
+                "Published initial pose: (%.2f, %.2f, %.2f)",
+                init_est.x, init_est.y, init_est.theta);
 }
 
 // ─── Odom callback ──────────────────────────────────────────────────

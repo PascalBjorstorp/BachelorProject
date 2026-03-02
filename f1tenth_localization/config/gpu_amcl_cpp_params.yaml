@@ -18,7 +18,7 @@ gpu_amcl_cpp:
     use_gpu: true
 
     # ---- Particles ----
-    num_particles: 1500
+    num_particles: 2000
     min_particles: 1000
     max_particles: 10000
 
@@ -42,14 +42,14 @@ gpu_amcl_cpp:
     # ---- Update thresholds (metres / radians) ----
     # How much the robot must move before we run a PF update.
     # Higher = fewer updates = less noise accumulation but less responsive.
-    update_min_d: 0.001
-    update_min_a: 0.05
+    update_min_d: 0.01
+    update_min_a: 0.01
 
     # ---- Scan freshness ----
     # Max age (seconds) of a scan before it's rejected as stale.
-    # At 40 Hz scan rate, scans are 25ms apart. Set slightly above
-    # one scan period to always accept the latest scan.
-    max_scan_age: 0.03
+    # On real HW, scan_splitter + processing adds latency. 0.5s is safe.
+    # SIM: 0.03  |  REAL: 0.5
+    max_scan_age: 0.5
 
     # ---- Motion model (odometry noise, Prob. Robotics §5.4) ----
     # These control how much random noise is added to each particle.
@@ -64,7 +64,7 @@ gpu_amcl_cpp:
     max_beams: 270
     z_hit: 0.95
     z_rand: 0.05
-    sigma_hit: 0.1         # meters (LiDAR noise std dev)
+    sigma_hit: 0.2         # meters (real LiDAR noise std dev)
     laser_max_range: 10.0
     laser_offset_x: 0.275   # LiDAR X offset from base_link
     laser_offset_y: 0.0     # LiDAR Y offset from base_link
@@ -78,19 +78,21 @@ gpu_amcl_cpp:
     use_recovery: false
 
     # ---- Initial pose ----
+    # Set to where you place the car on my_track_map.
+    # Use RViz "2D Pose Estimate" tool to reinitialize if heading is wrong.
     initial_pose_x: 0.0
     initial_pose_y: 0.0
     initial_pose_a: 0.0
-    initial_cov_xx: 0.3
-    initial_cov_yy: 0.3
-    initial_cov_aa: 0.5
+    initial_cov_xx: 0.5
+    initial_cov_yy: 0.5
+    initial_cov_aa: 1.0
 
     # ---- Publishing ----
     publish_rate: 40.0       # Hz (match LiDAR rate)
     transform_tolerance: 1.0
 
     # ---- IMU fusion (inside motion model) ----
-    use_imu_rotation: false
+    use_imu_rotation: true
     imu_gyro_weight: 0.8
 
 
@@ -115,7 +117,7 @@ odom_fused:
     # During normal driving: pure odom (no IMU contribution).
     # When drift/slip is detected: IMU weight ramps up to this maximum.
     # 0 = never use IMU, 1 = full IMU when drift is detected.
-    imu_weight: 0.0       # max IMU contribution at full drift confidence
+    imu_weight: 0.4       # max IMU contribution at full drift confidence
 
     # ---- Drift detection ----
     drift_threshold: 0.15       # rad/s discrepancy to flag drift
@@ -123,11 +125,9 @@ odom_fused:
     drift_cov_multiplier: 5.0   # inflate covariance during drift
 
     # ---- Base covariances (metres² / rad²) ----
-    # In simulation, odom is very accurate — use low covariance
-    # so the EKF smoothly dead-reckons between AMCL corrections.
-    # For real hardware, increase 10-100x.
-    base_cov_xy: 0.005 # 0.00005 for im
-    base_cov_theta: 0.005
+    # SIM: 0.0005 (accurate odom)  |  REAL: 0.005–0.05 (noisy wheel odom)
+    base_cov_xy: 0.01
+    base_cov_theta: 0.01
 
 
 # ────────────────────────────────────────────────────────────────

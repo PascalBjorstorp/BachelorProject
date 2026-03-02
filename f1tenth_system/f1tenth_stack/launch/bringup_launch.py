@@ -53,7 +53,7 @@ def generate_launch_description():
 
     # ── Default map path ──
     workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(pkg_share))))
-    default_map = os.path.join(workspace_root, 'f1tenth_sim', 'maps', 'Spielberg_map.yaml')
+    default_map = os.path.join(workspace_root, 'f1tenth_sim', 'maps', 'my_track_map.yaml')
 
     # ── Launch arguments ──
     ld = LaunchDescription([
@@ -73,7 +73,7 @@ def generate_launch_description():
                               description='Launch scan splitter (uses /map from map_server)'),
         DeclareLaunchArgument('use_lateral_planner', default_value='true',
                               description='Launch lateral planner for opponent avoidance'),
-        DeclareLaunchArgument('trajectory_file', default_value='',
+        DeclareLaunchArgument('trajectory_file', default_value='/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv',
                               description='Path to global raceline CSV for lateral planner'),
         DeclareLaunchArgument('map_file', default_value=default_map,
                               description='Path to the map YAML file for map_server'),
@@ -216,7 +216,7 @@ def generate_launch_description():
         executable='static_transform_publisher',
         name='static_baselink_to_laser',
         arguments=[
-            '--x', '0.275',
+            '--x', '0.115',
             '--y', '0.0',
             '--z', '0.05',
             '--roll', '0.0',
@@ -227,15 +227,20 @@ def generate_launch_description():
         ],
     ))
 
-    # base_link → imu
+    # ego_racecar/base_link → ego_racecar/imu
     ld.add_action(Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='static_baselink_to_imu',
         arguments=[
-            '0.0', '0.0', '0.0',      # x, y, z
-            '0.0', '0.0', '0.0',      # roll, pitch, yaw
-            'base_link', 'imu',
+            '--x', '0.0',
+            '--y', '0.0',
+            '--z', '0.0',
+            '--roll', '0.0',
+            '--pitch', '0.0',
+            '--yaw', '3.1415',
+            '--frame-id', 'ego_racecar/base_link',
+            '--child-frame-id', 'ego_racecar/imu',
         ],
     ))
 

@@ -117,8 +117,7 @@ The new stack uses three key pipelines launched across two terminals:
 ### Terminal 1 — VESC Driver Stack + Scan Splitter + Lateral Planner (on Jetson)
 ```bash
 source install/setup.bash
-ros2 launch f1tenth_stack bringup_launch.py \
-  trajectory_file:=/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv
+ros2 launch f1tenth_stack bringup_launch.py
 ```
 > This starts: VESC driver, ackermann mux, Hokuyo LiDAR (40 Hz), **scan splitter** (classifies beams as wall/obstacle), and **lateral planner** (opponent avoidance).
 >
@@ -128,8 +127,8 @@ ros2 launch f1tenth_stack bringup_launch.py \
 ```bash
 source install/setup.bash
 
-ros2 launch f1tenth_localization cpp_localization.launch.py \
-  map_file:=/home/f1tenth/BachelorProject/f1tenth_sim/maps/my_track_map.yaml
+ros2 launch f1tenth_localization cpp_localization.launch.py
+  
 ```
 
 > This launches the full C++ GPU AMCL localization stack:
