@@ -10,8 +10,8 @@
  * - Trajectory references
  * - Solver results
  *
- * Dynamic Bicycle Model States: [x, y, psi, v_x, v_y, omega, omega_w]
- * Control Inputs: [delta, T_motor]
+ * Dynamic Bicycle Model States: [x, y, psi, v_x, v_y, omega]
+ * Control Inputs: [delta, acceleration]
  *
  * All numerical values use Q16.16 fixed-point for FPGA compatibility.
  * Units: SI (meters, radians, seconds, Newtons)
@@ -27,10 +27,10 @@
  * Vehicle State (Dynamic Bicycle Model)
  *===========================================================================
  * Represents the current state of the vehicle in the world frame.
- * Uses the 7-state dynamic bicycle model with tire and wheel dynamics.
+ * Uses the 6-state dynamic bicycle model with tire dynamics.
  * This is the INPUT to the MPC solver (from localization or simulator).
  *
- * State vector ordering: [x, y, psi, v_x, v_y, omega, omega_w]
+ * State vector ordering: [x, y, psi, v_x, v_y, omega]
  */
 
 typedef struct
@@ -53,12 +53,6 @@ typedef struct
     /** Yaw rate [radians per second] */
     fixed_point_t yaw_rate_radians_per_second;
 
-    /** Wheel angular velocity [radians per second]
-     *  Single equivalent wheel speed for the 4WD drivetrain.
-     *  At steady state with zero slip: omega_w = v_x / R_w
-     */
-    fixed_point_t wheel_speed_radians_per_second;
-
 } VehicleState_t;
 
 /*===========================================================================
@@ -67,7 +61,7 @@ typedef struct
  * Represents the vehicle state relative to a reference path.
  * Used by the MPC solver for path-following with wall constraints.
  *
- * State vector ordering: [e_y, e_psi, v_x, v_y, omega, omega_w]
+ * State vector ordering: [e_y, e_psi, v_x, v_y, omega]
  *
  * Advantages over global XY:
  *   - Lateral error (e_y) directly maps to "distance from path"
@@ -93,13 +87,10 @@ typedef struct
     /** Yaw rate [radians per second] */
     fixed_point_t yaw_rate_radians_per_second;
 
-    /** Wheel angular velocity [radians per second] */
-    fixed_point_t wheel_speed_radians_per_second;
-
 } FrenetState_t;
 
 /** Number of states in the Frenet vehicle model */
-#define FRENET_STATE_DIMENSION 6
+#define FRENET_STATE_DIMENSION 5
 
 /*===========================================================================
  * Control Input
@@ -120,7 +111,7 @@ typedef struct
      *  Converted to wheel torque: T_wheel = T_motor / G_ratio
      *  Longitudinal force computed from wheel slip ratio.
      */
-    fixed_point_t motor_torque_newton_meters;
+    fixed_point_t acceleration_meters_per_second_squared;  /* [m/s²] longitudinal acceleration command */
 
 } ControlInput_t;
 
@@ -211,13 +202,13 @@ typedef struct
      * Maximum motor torque [Newton-meters]
      * T_max = F_x_max * R_w * G_ratio. Typical: 35.57 * 0.0545 * 11.82 ≈ 22.9 N·m
      */
-    fixed_point_t maximum_motor_torque_newton_meters;
+    fixed_point_t maximum_acceleration_meters_per_second_squared;  /* [m/s²] max accel */
 
     /**
      * Minimum motor torque (braking) [Newton-meters]
      * Negative value. T_min = F_x_min * R_w * G_ratio. Typical: -24.1 N·m
      */
-    fixed_point_t minimum_motor_torque_newton_meters;
+    fixed_point_t minimum_acceleration_meters_per_second_squared;  /* [m/s²] max decel (negative) */
 
     /** 
      * Longitudinal acceleration [m/s²]
@@ -305,20 +296,17 @@ typedef struct
     /** Weight for yaw rate tracking error */
     fixed_point_t weight_yaw_rate;
 
-    /** Weight for wheel speed tracking error */
-    fixed_point_t weight_wheel_speed;
-
     /** Weight for steering angle magnitude (penalizes large steering) */
     fixed_point_t weight_steering_effort;
 
     /** Weight for motor torque magnitude (penalizes large torque) */
-    fixed_point_t weight_torque_effort;
+    fixed_point_t weight_acceleration_effort;
 
     /** Weight for steering rate (penalizes jerky steering changes) */
     fixed_point_t weight_steering_rate;
 
     /** Weight for torque rate (penalizes jerky torque changes) */
-    fixed_point_t weight_torque_rate;
+    fixed_point_t weight_acceleration_rate;
 
     /** Cross-call rate penalty scale factor.
      *
@@ -370,11 +358,6 @@ typedef struct
 
     /** Target yaw rate [radians per second] */
     fixed_point_t reference_yaw_rate_radians_per_second;
-
-    /** Target wheel speed [radians per second]
-     *  Typically v_ref / R_w (zero-slip equilibrium)
-     */
-    fixed_point_t reference_wheel_speed_radians_per_second;
 
     /** Path curvature at this point [radians per meter]
      *  Used for Frenet frame linearization: e_psi_dot = omega - kappa * v_x
@@ -526,18 +509,17 @@ typedef struct
 #define F110_MAX_DECELERATION_MS2 \
     FP_CONST(7.7)
 
-/** Maximum motor torque at wheel: Kt_eff * I_max * r_eff
- *  Kt_eff = 0.583 N/A [TESTED], I_max = 65 A → F_max = 37.9 N
- *  T_wheel = 37.9 * 0.051 = 1.93 N·m
- *  For the 7-state model this is reflected through gear ratio:
- *  T_motor = T_wheel * G / eta = 1.93 * 11.82 / 0.575 ≈ 39.7 N·m
- *  Using the sim convention (motor-side): keep 22.9 N·m for now. */
-#define F110_DEFAULT_MAX_MOTOR_TORQUE_NM \
-    FP_CONST(22.9)
+/** Maximum longitudinal acceleration [m/s²]
+ *  From vehicle_params.yaml: max_accel = 8.0 m/s² [TESTED]
+ *  Bounded by mu*g = 0.746 * 9.81 = 7.32 m/s² (tire limit)
+ *  Using tested IMU value (smoothed): 8.0 m/s² */
+#define F110_DEFAULT_MAX_ACCELERATION \
+    FP_CONST(8.0)
 
-/** Minimum motor torque (braking) [N·m] */
-#define F110_DEFAULT_MIN_MOTOR_TORQUE_NM \
-    FP_CONST(-24.1)
+/** Minimum longitudinal acceleration (braking) [m/s²]
+ *  From vehicle_params.yaml: max_decel = 7.7 m/s² [TESTED] */
+#define F110_DEFAULT_MIN_ACCELERATION \
+    FP_CONST(-7.7)
 
 /** Wheel radius: 0.051 meters [MEASURED] (loaded effective radius) */
 #define F110_WHEEL_RADIUS_METERS \
@@ -589,19 +571,27 @@ typedef struct
  * Default MPC Configuration
  *===========================================================================*/
 
-/** Default prediction horizon: 10 steps */
-#define MPC_DEFAULT_PREDICTION_HORIZON 10
+/** Default prediction horizon: 20 steps */
+#define MPC_DEFAULT_PREDICTION_HORIZON 20
 
 /** Default time step: 0.05 seconds (50 ms) — Q16.16 = 3277
- *  Total lookahead = 10 × 0.05s = 0.5 seconds
- *  The prediction dt is independent of the MPC call rate (200 Hz).
- *  Use cross_call_rate_scale to handle the frequency mismatch.
+ *  Control rate = 200 Hz (5 ms per call).
+ *  Prediction model uses 50ms steps: 10× the control step.
+ *  Total lookahead = 20 × 0.05s = 1.0 seconds.
+ *  The cross_call_rate_scale = 0.1 (5ms / 50ms).
  */
 #define MPC_DEFAULT_TIME_STEP_SECONDS \
     ((fixed_point_t)3277)
 
-/** Default maximum solver iterations */
+/** Default maximum solver iterations.
+ *  FPGA target uses a tighter cap for deterministic worst-case latency.
+ *  With warm-start, the solver typically converges in 0-10 iterations.
+ *  50 iterations provides margin while keeping latency bounded. */
+#ifdef MPC_HLS_TARGET
+#define MPC_DEFAULT_MAXIMUM_ITERATIONS 50
+#else
 #define MPC_DEFAULT_MAXIMUM_ITERATIONS 2000
+#endif
 
 /** Default convergence tolerance: 0.02 — Q16.16 ~ 1310 */
 #define MPC_DEFAULT_CONVERGENCE_TOLERANCE \

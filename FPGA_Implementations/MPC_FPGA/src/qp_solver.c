@@ -17,7 +17,9 @@
 #include "qp_solver.h"
 #include "fp_math.h"
 #include <string.h>
+#ifndef MPC_HLS_TARGET
 #include <stdio.h>
+#endif
 
 typedef struct
 {
@@ -36,6 +38,10 @@ static void build_constraint_metadata(
 {
     for (uint16_t constraint_index = 0; constraint_index < constraint_count; constraint_index++)
     {
+#ifdef MPC_HLS_TARGET
+#pragma HLS PIPELINE II=1
+#pragma HLS LOOP_TRIPCOUNT min=10 max=52 avg=40
+#endif
         const fixed_point_t *row = &constraint_matrix[constraint_index * variable_count];
         int16_t first_nonzero_index = -1;
         uint8_t nonzero_count = 0;
@@ -43,6 +49,9 @@ static void build_constraint_metadata(
 
         for (uint16_t variable_index = 0; variable_index < variable_count; variable_index++)
         {
+#ifdef MPC_HLS_TARGET
+#pragma HLS LOOP_TRIPCOUNT min=10 max=26 avg=20
+#endif
             fixed_point_t coeff = row[variable_index];
             if (coeff != 0)
             {
@@ -92,6 +101,10 @@ static fixed_point_t compute_max_violation_sparse(
 
     for (uint16_t ci = 0; ci < constraint_count; ci++)
     {
+#ifdef MPC_HLS_TARGET
+#pragma HLS PIPELINE II=1
+#pragma HLS LOOP_TRIPCOUNT min=10 max=52 avg=40
+#endif
         fixed_point_t val;
         const fixed_point_t *row = &constraint_matrix[ci * variable_count];
 
@@ -111,6 +124,9 @@ static fixed_point_t compute_max_violation_sparse(
             int64_t dot64 = 0;
             for (uint8_t nz = 0; nz < metadata[ci].nonzero_count; nz++)
             {
+#ifdef MPC_HLS_TARGET
+#pragma HLS LOOP_TRIPCOUNT min=1 max=7 avg=2
+#endif
                 uint8_t j = metadata[ci].nonzero_cols[nz];
                 dot64 += ((int64_t)row[j] * variables[j]) >> FP_FRAC_BITS;
             }
@@ -174,6 +190,9 @@ static void project_onto_feasible_region(
     /* Phase 1: General linear constraints (halfplane projection) */
     for (uint16_t constraint_index = 0; constraint_index < constraint_count; constraint_index++)
     {
+#ifdef MPC_HLS_TARGET
+#pragma HLS LOOP_TRIPCOUNT min=10 max=52 avg=40
+#endif
         const fixed_point_t *row = &constraint_matrix[constraint_index * variable_count];
         const ConstraintMetadata_t *meta = &constraint_metadata[constraint_index];
         fixed_point_t bound = constraint_bounds[constraint_index];
@@ -188,6 +207,9 @@ static void project_onto_feasible_region(
         /* Indexed access: iterate only over nonzero columns (no branch) */
         for (uint8_t nz = 0; nz < meta->nonzero_count; nz++)
         {
+#ifdef MPC_HLS_TARGET
+#pragma HLS LOOP_TRIPCOUNT min=2 max=7 avg=4
+#endif
             uint8_t j = meta->nonzero_cols[nz];
             dot64 += ((int64_t)row[j] * variable_vector[j]) >> FP_FRAC_BITS;
         }
@@ -212,6 +234,9 @@ static void project_onto_feasible_region(
                 /* Indexed projection update: no branch per variable */
                 for (uint8_t nz = 0; nz < meta->nonzero_count; nz++)
                 {
+#ifdef MPC_HLS_TARGET
+#pragma HLS LOOP_TRIPCOUNT min=2 max=7 avg=4
+#endif
                     uint8_t j = meta->nonzero_cols[nz];
                     variable_vector[j] = fp_sub(
                         variable_vector[j],
@@ -224,6 +249,10 @@ static void project_onto_feasible_region(
     /* Phase 2: Box constraints (clamping — always last for guaranteed enforcement) */
     for (uint16_t constraint_index = 0; constraint_index < constraint_count; constraint_index++)
     {
+#ifdef MPC_HLS_TARGET
+#pragma HLS PIPELINE II=1
+#pragma HLS LOOP_TRIPCOUNT min=10 max=52 avg=40
+#endif
         const fixed_point_t *row = &constraint_matrix[constraint_index * variable_count];
         const ConstraintMetadata_t *meta = &constraint_metadata[constraint_index];
         fixed_point_t bound = constraint_bounds[constraint_index];
@@ -269,16 +298,30 @@ QuadraticProgramStatus_t qp_solver_solve(
     ConstraintMetadata_t constraint_metadata[QP_MAXIMUM_CONSTRAINTS];
 
     /* Initialize solution: use warm-start if provided, otherwise zero */
-    if (problem->use_warm_start)
     {
-        memcpy(solution->optimal_variables, problem->initial_point,
-               variable_count * sizeof(fixed_point_t));
+        uint16_t i;
+        for (i = 0; i < QP_MAXIMUM_VARIABLES; i++)
+        {
+#ifdef MPC_HLS_TARGET
+#pragma HLS PIPELINE II=1
+#endif
+            if (i < variable_count)
+            {
+                solution->optimal_variables[i] =
+                    problem->use_warm_start ? problem->initial_point[i] : 0;
+            }
+        }
+        for (i = 0; i < QP_MAXIMUM_CONSTRAINTS; i++)
+        {
+#ifdef MPC_HLS_TARGET
+#pragma HLS PIPELINE II=1
+#endif
+            if (i < constraint_count)
+            {
+                solution->dual_variables[i] = 0;
+            }
+        }
     }
-    else
-    {
-        memset(solution->optimal_variables, 0, variable_count * sizeof(fixed_point_t));
-    }
-    memset(solution->dual_variables, 0, constraint_count * sizeof(fixed_point_t));
 
     solution->iteration_count = 0;
     solution->status = QP_STATUS_ERROR;
@@ -318,10 +361,17 @@ QuadraticProgramStatus_t qp_solver_solve(
 
     for (uint16_t i = 0; i < variable_count; i++)
     {
+#ifdef MPC_HLS_TARGET
+#pragma HLS LOOP_TRIPCOUNT min=20 max=26 avg=26
+#pragma HLS PIPELINE II=1
+#endif
         /* Compute Gershgorin row sum using int64_t to avoid overflow */
         int64_t row_sum_64 = 0;
         for (uint16_t j = 0; j < variable_count; j++)
         {
+#ifdef MPC_HLS_TARGET
+#pragma HLS LOOP_TRIPCOUNT min=10 max=26 avg=20
+#endif
             int64_t hij = (int64_t)problem->hessian_matrix[i * variable_count + j];
             if (hij < 0) hij = -hij;
             row_sum_64 += hij;
@@ -346,12 +396,14 @@ QuadraticProgramStatus_t qp_solver_solve(
         }
 
         /* Debug: print first call's Hessian diagnostics */
+#ifndef MPC_HLS_TARGET
         if (config->enable_verbose_output && i < 4)
         {
             printf("[QP] H_diag[%d]=%d row_sum_64=%lld step=%d\n",
                    i, (int)problem->hessian_matrix[i * variable_count + i],
                    (long long)row_sum_64, (int)inv_row_sum[i]);
         }
+#endif
     }
 
     fixed_point_t tolerance_squared = fp_mul(
@@ -361,6 +413,9 @@ QuadraticProgramStatus_t qp_solver_solve(
     /* Main optimization loop */
     for (int iteration = 0; iteration < config->maximum_iterations; iteration++)
     {
+#ifdef MPC_HLS_TARGET
+#pragma HLS LOOP_TRIPCOUNT min=1 max=50 avg=10
+#endif
         solution->iteration_count = iteration;
 
         /*
@@ -375,11 +430,17 @@ QuadraticProgramStatus_t qp_solver_solve(
             hessian_times_variables,
             variable_count);
 
-        for (uint16_t index = 0; index < variable_count; index++)
+        for (uint16_t index = 0; index < QP_MAXIMUM_VARIABLES; index++)
         {
-            gradient[index] = fp_add_sat(
-                hessian_times_variables[index],
-                problem->linear_cost_vector[index]);
+#ifdef MPC_HLS_TARGET
+#pragma HLS PIPELINE II=1
+#endif
+            if (index < variable_count)
+            {
+                gradient[index] = fp_add_sat(
+                    hessian_times_variables[index],
+                    problem->linear_cost_vector[index]);
+            }
         }
 
         /*
@@ -390,11 +451,17 @@ QuadraticProgramStatus_t qp_solver_solve(
          * Each variable uses its own step size based on the Gershgorin
          * row sum, ensuring convergence regardless of conditioning.
          */
-        for (uint16_t index = 0; index < variable_count; index++)
+        for (uint16_t index = 0; index < QP_MAXIMUM_VARIABLES; index++)
         {
-            next_variables[index] = fp_sub(
-                solution->optimal_variables[index],
-                fp_mul(inv_row_sum[index], gradient[index]));
+#ifdef MPC_HLS_TARGET
+#pragma HLS PIPELINE II=1
+#endif
+            if (index < variable_count)
+            {
+                next_variables[index] = fp_sub(
+                    solution->optimal_variables[index],
+                    fp_mul(inv_row_sum[index], gradient[index]));
+            }
         }
 
         /*
@@ -413,19 +480,36 @@ QuadraticProgramStatus_t qp_solver_solve(
          */
         fixed_point_t step_norm_squared = 0;
 
-        for (uint16_t index = 0; index < variable_count; index++)
+        for (uint16_t index = 0; index < QP_MAXIMUM_VARIABLES; index++)
         {
-            fixed_point_t difference = fp_sub(
-                next_variables[index],
-                solution->optimal_variables[index]);
+#ifdef MPC_HLS_TARGET
+#pragma HLS PIPELINE II=1
+#endif
+            if (index < variable_count)
+            {
+                fixed_point_t difference = fp_sub(
+                    next_variables[index],
+                    solution->optimal_variables[index]);
 
-            fixed_point_t difference_squared = fp_mul(difference, difference);
-            step_norm_squared = fp_add(step_norm_squared, difference_squared);
+                fixed_point_t difference_squared = fp_mul(difference, difference);
+                step_norm_squared = fp_add(step_norm_squared, difference_squared);
+            }
         }
 
         /* Update solution with new variables */
-        memcpy(solution->optimal_variables, next_variables,
-               variable_count * sizeof(fixed_point_t));
+        {
+            uint16_t copy_i;
+            for (copy_i = 0; copy_i < QP_MAXIMUM_VARIABLES; copy_i++)
+            {
+#ifdef MPC_HLS_TARGET
+#pragma HLS PIPELINE II=1
+#endif
+                if (copy_i < variable_count)
+                {
+                    solution->optimal_variables[copy_i] = next_variables[copy_i];
+                }
+            }
+        }
 
         /*
          * Step 5+6: Check termination criteria.
@@ -434,7 +518,7 @@ QuadraticProgramStatus_t qp_solver_solve(
          * This is the single largest per-iteration savings since
          * max_violation_sparse scans all constraint rows.
          */
-        if (step_norm_squared < tolerance_squared)
+        if (step_norm_squared <= tolerance_squared)
         {
             solution->constraint_residual = compute_max_violation_sparse(
                 problem->constraint_matrix,
@@ -444,7 +528,7 @@ QuadraticProgramStatus_t qp_solver_solve(
                 constraint_count,
                 variable_count);
 
-            if (solution->constraint_residual < config->convergence_tolerance)
+            if (solution->constraint_residual <= config->convergence_tolerance)
             {
                 solution->status = QP_STATUS_OPTIMAL;
                 return QP_STATUS_OPTIMAL;
@@ -452,12 +536,14 @@ QuadraticProgramStatus_t qp_solver_solve(
         }
 
         /* Debug: print progress every 500 iterations */
+#ifndef MPC_HLS_TARGET
         if (config->enable_verbose_output && (iteration % 500 == 0 || iteration == config->maximum_iterations - 1))
         {
              printf("[QP] iter=%d step_norm_sq=%d tol_sq=%d residual=%d\n",
                  iteration, (int)step_norm_squared, (int)tolerance_squared,
                    (int)solution->constraint_residual);
         }
+#endif
     }
 
     /*
@@ -471,7 +557,7 @@ QuadraticProgramStatus_t qp_solver_solve(
         constraint_count,
         variable_count);
 
-    if (solution->constraint_residual < config->convergence_tolerance)
+    if (solution->constraint_residual <= config->convergence_tolerance)
     {
         /* Feasible but may not be optimal */
         solution->status = QP_STATUS_MAXIMUM_ITERATIONS_REACHED;

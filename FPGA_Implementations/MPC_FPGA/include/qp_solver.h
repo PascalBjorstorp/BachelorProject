@@ -31,16 +31,25 @@
 
 /**
  * Maximum number of optimization variables.
- * For MPC: horizon_steps × controls_per_step
- * Example: 15 steps × 2 controls = 30 variables
+ * CPU:  80 (generic, supports various horizon lengths)
+ * FPGA: 46 (tight bound: N=20 × 2 controls + 6 slacks)
  */
+#ifdef MPC_HLS_TARGET
+#define QP_MAXIMUM_VARIABLES        42
+#else
 #define QP_MAXIMUM_VARIABLES        80
+#endif
 
 /**
  * Maximum number of inequality constraints.
- * For MPC: typically 2× variables (upper and lower bounds)
+ * CPU:  200 (generic)
+ * FPGA:  96 (tight bound: 80 actuator + 6 wall + 6 slack + 4 margin)
  */
+#ifdef MPC_HLS_TARGET
+#define QP_MAXIMUM_CONSTRAINTS      88
+#else
 #define QP_MAXIMUM_CONSTRAINTS      200
+#endif
 
 /**
  * Maximum solver iterations before termination.

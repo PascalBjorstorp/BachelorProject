@@ -21,8 +21,8 @@
 #include "qp_solver.h"
 #include "vehicle_model.h"
 #include <string.h>
-#include <stdio.h>
 #ifndef MPC_HLS_TARGET
+#include <stdio.h>
 #include <stdlib.h>
 #endif
 
@@ -30,14 +30,20 @@
  * Internal Constants
  *===========================================================================*/
 
-/** Number of states in Frenet vehicle model: [e_y, e_psi, v_x, v_y, omega, omega_w] */
-#define STATE_DIMENSION 6
+/** Number of states in Frenet vehicle model: [e_y, e_psi, v_x, v_y, omega] */
+#define STATE_DIMENSION 5
 
 /** Number of control inputs: [steering, motor_torque] */
 #define CONTROL_DIMENSION 2
 
-/** Maximum prediction horizon supported */
+/** Maximum prediction horizon supported.
+ *  FPGA uses tight bound (matches default horizon) to minimize BRAM.
+ *  CPU mode allows larger horizons for experimentation. */
+#ifdef MPC_HLS_TARGET
+#define MAXIMUM_HORIZON_STEPS 20
+#else
 #define MAXIMUM_HORIZON_STEPS 50
+#endif
 
 /*===========================================================================
  * Module State (Static)
@@ -89,15 +95,10 @@ static int saved_horizon_steps = 0;
  */
 static fixed_point_t normalize_angle(fixed_point_t angle)
 {
-    while (angle > FP_PI)
-    {
-        angle = fp_sub(angle, FP_TWO_PI);
-    }
-    while (angle < -FP_PI)
-    {
-        angle = fp_add(angle, FP_TWO_PI);
-    }
-    return angle;
+#ifdef MPC_HLS_TARGET
+#pragma HLS INLINE
+#endif
+    return fp_normalize_angle(angle);
 }
 
 /*===========================================================================
@@ -127,15 +128,14 @@ static MpcConfiguration_t get_default_configuration(void)
      * products over 10-step horizon).
      */
     config.weight_lateral_error  = FP_CONST(10.0);               /* keep car on path */
-    config.weight_heading_error  = FP_CONST(7.0);                /* heading alignment (needed for corner tracking) */
-    config.weight_velocity   = FP_CONST(0.05);                    /* deprioritize speed vs heading */
-    config.weight_lateral_velocity = FP_CONST(0.3);               /* penalize sideslip to prevent drifting */
-    config.weight_yaw_rate   = FP_CONST(0.07);                    /* light yaw damping; 0 causes corner exit instability; >0.15 causes curve entry aggression */
-    config.weight_wheel_speed = FP_CONST(0.01);                   /* light penalty on wheel speed */
+    config.weight_heading_error  = FP_CONST(15.0);               /* heading alignment */
+    config.weight_velocity   = FP_CONST(0.3);                     /* track reference speed; prevents braking to zero */
+    config.weight_lateral_velocity = FP_CONST(0.5);               /* penalize sideslip to prevent drifting */
+    config.weight_yaw_rate   = FP_CONST(0.15);                    /* yaw damping */
 
     /* Control effort weights */
-    config.weight_steering_effort  = FP_CONST(0.001);    /* regularize steering magnitude */
-    config.weight_torque_effort     = FP_CONST(0.01);    /* regularize torque magnitude */
+    config.weight_steering_effort  = FP_CONST(0.01);      /* regularize steering magnitude */
+    config.weight_acceleration_effort     = FP_CONST(0.05);    /* regularize acceleration magnitude */
 
     /* Control rate weights — tuned so MPC naturally limits steering rate
      * without relying on the external rate clamp.  A high steering-rate
@@ -143,13 +143,15 @@ static MpcConfiguration_t get_default_configuration(void)
      * bang-bang oscillation that occurs when the external clamp truncates
      * a multi-step plan.  The external clamp (±0.15 rad/step) remains as
      * a safety net. */
-    config.weight_steering_rate  = FP_CONST(1.0);                    /* smooth steering; penalizes step-to-step steering changes */
-    config.weight_torque_rate     = FP_CONST(0.1);                    /* prevent torque chattering */
+    config.weight_steering_rate  = FP_CONST(4.0);                    /* smooth steering for curve stability */
+    config.weight_acceleration_rate     = FP_CONST(0.1);                    /* prevent torque chattering */
 
-    /* Cross-call rate scale: 1.0 = call interval matches dt (default for offline use).
-     * Set to smaller value (e.g., 0.1) when MPC is called 10× faster than dt.
+    /* Cross-call rate scale: ratio of control interval to prediction dt.
+     * At 200 Hz with dt_predict=50ms: scale = 5ms / 50ms = 0.1.
+     * This scales the rate penalty between successive MPC calls to
+     * reflect the shorter actual time between control updates.
      */
-    config.cross_call_rate_scale = FP_ONE;
+    config.cross_call_rate_scale = FP_CONST(0.1);
 
     /* Solver parameters */
     config.maximum_solver_iterations = MPC_DEFAULT_MAXIMUM_ITERATIONS;
@@ -176,7 +178,7 @@ static MpcConfiguration_t get_default_configuration(void)
         if ((env_val = getenv("MPC_W_STEER_EFFORT")) != NULL)
             config.weight_steering_effort = DOUBLE_TO_FP(atof(env_val));
         if ((env_val = getenv("MPC_W_TORQUE_RATE")) != NULL)
-            config.weight_torque_rate = DOUBLE_TO_FP(atof(env_val));
+            config.weight_acceleration_rate = DOUBLE_TO_FP(atof(env_val));
         if ((env_val = getenv("MPC_CROSS_CALL_SCALE")) != NULL)
             config.cross_call_rate_scale = DOUBLE_TO_FP(atof(env_val));
     }
@@ -234,8 +236,8 @@ static void build_qp_from_prediction(
     /* ---------------------------------------------------------------
      * Step 1: Linearize vehicle model in Frenet frame
      *
-     * Uses the Frenet linearization which produces a 6×6 A and 6×2 B
-     * for state [e_y, e_psi, v_x, v_y, omega, omega_w].
+     * Uses the Frenet linearization which produces a 5×5 A and 5×2 B
+     * for state [e_y, e_psi, v_x, v_y, omega].
      *
      * The path curvature from the first reference point is used for
      * the linearization (constant across horizon). Body dynamics are
@@ -244,37 +246,37 @@ static void build_qp_from_prediction(
      * Steering is linearized at δ=0 to prevent velocity-steering
      * cross-coupling oscillation (same rationale as global version).
      * --------------------------------------------------------------- */
-    fixed_point_t A[6][6];
-    fixed_point_t B[6][2];
+    fixed_point_t A[5][5];
+    fixed_point_t B[5][2];
 
     ControlInput_t linearization_control;
-    linearization_control.steering_angle_radians = 0;
-    linearization_control.motor_torque_newton_meters = 0;
+    /* Linearize around the kinematic feedforward steering angle.
+     * For curves: delta_ff = atan(L * kappa) gives the steady-state
+     * steering angle, making the Jacobian accurate for curve tracking.
+     * For straight paths (kappa=0): this reduces to delta=0. */
+    fixed_point_t path_curvature_local = reference_trajectory[0].path_curvature_radians_per_meter;
+    VehicleParameters_t vp_lin = vehicle_model_get_parameters();
+    linearization_control.steering_angle_radians =
+        fp_atan(fp_mul(vp_lin.wheelbase_meters, path_curvature_local));
+    linearization_control.acceleration_meters_per_second_squared = 0;
+
+    /* Seed previous control from feedforward when no history is available.
+     * After reset/init, previous_control is zero.  If the vehicle is on a
+     * curve, the cross-call rate penalty (u[0] - u_prev)² pulls the first
+     * control toward zero, causing large transient oscillation.  Seeding
+     * with the feedforward steering angle provides a physically reasonable
+     * starting point that matches the expected steady-state. */
+    if (!warm_start_available)
+    {
+        previous_control_input.steering_angle_radians =
+            linearization_control.steering_angle_radians;
+    }
 
     /* Create Frenet state with velocity floor for linearization */
     FrenetState_t linearization_state = *current_state;
     fixed_point_t min_linearization_velocity = FP_CONST(2.0);
     if (linearization_state.longitudinal_velocity_meters_per_second < min_linearization_velocity)
         linearization_state.longitudinal_velocity_meters_per_second = min_linearization_velocity;
-
-    /* Ensure wheel speed is consistent with velocity floor */
-    VehicleParameters_t vp = vehicle_model_get_parameters();
-    if (linearization_state.longitudinal_velocity_meters_per_second > current_state->longitudinal_velocity_meters_per_second)
-    {
-        /* Velocity was clamped upward — adjust wheel speed proportionally
-         * to maintain the same slip ratio, preventing F_x weight transfer
-         * from distorting the linearization at low speed. */
-        linearization_state.wheel_speed_radians_per_second =
-            fp_div(linearization_state.longitudinal_velocity_meters_per_second,
-                   vp.wheel_radius_meters);
-    }
-    else if (linearization_state.wheel_speed_radians_per_second == 0 &&
-             linearization_state.longitudinal_velocity_meters_per_second > 0)
-    {
-        linearization_state.wheel_speed_radians_per_second =
-            fp_div(linearization_state.longitudinal_velocity_meters_per_second,
-                   vp.wheel_radius_meters);
-    }
 
     /* Use curvature from first reference point */
     fixed_point_t path_curvature = reference_trajectory[0].path_curvature_radians_per_meter;
@@ -287,24 +289,24 @@ static void build_qp_from_prediction(
         A, B);
 
     /* ---------------------------------------------------------------
-     * Stabilize wheel dynamics (row 5 of A matrix = omega_w in Frenet).
+     * Stabilize fast dynamics (row 4 of A matrix: ω).
      *
-     * With small wheel inertia, the wheel dynamics
-     * time constant τ = Iw·vx/(Cx·Rw²) ≈ 0.022s at vx=1 m/s,
-     * much smaller than dt=50ms. Forward Euler is unstable when
-     * dt >> τ, producing |A[5][5]| >> 1 (e.g., -43 at low speed).
-     *
-     * Fix: rescale row 5 of A so A[5][5] is clamped to [-0.95, 0.95].
+     * When the continuous-time pole is fast (τ << dt), forward Euler
+     * maps z = 1 + dt·s to |z| > 1 — a numerical artifact.
+     * Fix: rescale the row so the diagonal stays within [-0.95, 0.95].
      * --------------------------------------------------------------- */
     {
-        fixed_point_t abs_a55 = fp_abs(A[5][5]);
+        int row = 4;
+        fixed_point_t abs_aii = fp_abs(A[row][row]);
         const fixed_point_t stability_limit = FP_CONST(0.95);
 
-        if (abs_a55 > stability_limit)
+        if (abs_aii > stability_limit)
         {
-            fixed_point_t target = (A[5][5] < 0) ? fp_neg(stability_limit) : stability_limit;
+            fixed_point_t target = (A[row][row] < 0)
+                                       ? fp_neg(stability_limit)
+                                       : stability_limit;
             fixed_point_t num = fp_sub(target, FP_ONE);
-            fixed_point_t den = fp_sub(A[5][5], FP_ONE);
+            fixed_point_t den = fp_sub(A[row][row], FP_ONE);
 
             if (den != 0)
             {
@@ -312,59 +314,14 @@ static void build_qp_from_prediction(
 
                 for (int j = 0; j < STATE_DIMENSION; j++)
                 {
-                    if (j != 5)
-                    {
-                        A[5][j] = fp_mul(A[5][j], scale);
-                    }
+                    if (j != row)
+                        A[row][j] = fp_mul(A[row][j], scale);
                 }
-                /* Also scale B row 5 to maintain consistency */
-                B[5][0] = fp_mul(B[5][0], scale);
-                B[5][1] = fp_mul(B[5][1], scale);
+                B[row][0] = fp_mul(B[row][0], scale);
+                B[row][1] = fp_mul(B[row][1], scale);
             }
 
-            A[5][5] = target;
-        }
-    }
-
-    /* ---------------------------------------------------------------
-     * Stabilize yaw rate dynamics (row 4 of A matrix = ω in Frenet).
-     *
-     * The lateral tire force derivatives dFy/dω scale as 1/vx through
-     * the slip angle derivative dα/dω = lf/(vx² + ...). At the
-     * linearization velocity floor of 2.0 m/s, the yaw rate time
-     * constant τ ≈ Iz / (C_Sf·F_zf·lf·dt_tire / vx) can be ~19 ms,
-     * smaller than dt=50ms. This produces |A[4][4]| > 1 (e.g., -1.65),
-     * causing oscillatory Phi matrices and steering bang-bang.
-     *
-     * Fix: same rescaling as row 5 — clamp A[4][4] to [-0.95, 0.95].
-     * --------------------------------------------------------------- */
-    {
-        fixed_point_t abs_a44 = fp_abs(A[4][4]);
-        const fixed_point_t stability_limit = FP_CONST(0.95);
-
-        if (abs_a44 > stability_limit)
-        {
-            fixed_point_t target = (A[4][4] < 0) ? fp_neg(stability_limit) : stability_limit;
-            fixed_point_t num = fp_sub(target, FP_ONE);
-            fixed_point_t den = fp_sub(A[4][4], FP_ONE);
-
-            if (den != 0)
-            {
-                fixed_point_t scale = fp_div(num, den);
-
-                for (int j = 0; j < STATE_DIMENSION; j++)
-                {
-                    if (j != 4)
-                    {
-                        A[4][j] = fp_mul(A[4][j], scale);
-                    }
-                }
-                /* Also scale B row 4 to maintain consistency */
-                B[4][0] = fp_mul(B[4][0], scale);
-                B[4][1] = fp_mul(B[4][1], scale);
-            }
-
-            A[4][4] = target;
+            A[row][row] = target;
         }
     }
 
@@ -409,8 +366,7 @@ static void build_qp_from_prediction(
         current_state->heading_error_radians,
         current_state->longitudinal_velocity_meters_per_second,
         current_state->lateral_velocity_meters_per_second,
-        current_state->yaw_rate_radians_per_second,
-        current_state->wheel_speed_radians_per_second
+        current_state->yaw_rate_radians_per_second
     };
 
     fixed_point_t x_prev[STATE_DIMENSION];
@@ -431,7 +387,9 @@ static void build_qp_from_prediction(
         {
             fixed_point_t sum = 0;
             for (int j = 0; j < STATE_DIMENSION; j++)
+            {
                 sum = fp_add(sum, fp_mul(A[r][j], x_prev[j]));
+            }
             x_free[r] = sum;
         }
         d[0][0] = fp_sub(x_free[0], reference_trajectory[0].reference_lateral_error_meters);
@@ -439,7 +397,6 @@ static void build_qp_from_prediction(
         d[0][2] = fp_sub(x_free[2], reference_trajectory[0].reference_velocity_meters_per_second);
         d[0][3] = fp_sub(x_free[3], reference_trajectory[0].reference_lateral_velocity_meters_per_second);
         d[0][4] = fp_sub(x_free[4], reference_trajectory[0].reference_yaw_rate_radians_per_second);
-        d[0][5] = fp_sub(x_free[5], reference_trajectory[0].reference_wheel_speed_radians_per_second);
         saved_free_response_ey[0] = x_free[0];
         for (int s = 0; s < STATE_DIMENSION; s++)
             x_prev[s] = x_free[s];
@@ -449,6 +406,9 @@ static void build_qp_from_prediction(
     /* Steps k=1..N-1: Phi propagation AND free response share A[1][2] */
     for (int k = 1; k < horizon_steps; k++)
     {
+#ifdef MPC_HLS_TARGET
+#pragma HLS LOOP_TRIPCOUNT min=4 max=9 avg=9
+#endif
         A[1][2] = fp_neg(fp_mul(current_configuration.time_step_seconds,
                                 reference_trajectory[k].path_curvature_radians_per_meter));
 
@@ -458,7 +418,9 @@ static void build_qp_from_prediction(
             {
                 fixed_point_t sum = 0;
                 for (int j = 0; j < STATE_DIMENSION; j++)
+                {
                     sum = fp_add(sum, fp_mul(A[r][j], Phi[k - 1][j][c]));
+                }
                 Phi[k][r][c] = sum;
             }
 
@@ -469,7 +431,9 @@ static void build_qp_from_prediction(
             {
                 fixed_point_t sum = 0;
                 for (int j = 0; j < STATE_DIMENSION; j++)
+                {
                     sum = fp_add(sum, fp_mul(A[r][j], x_prev[j]));
+                }
                 x_free[r] = sum;
             }
             d[k][0] = fp_sub(x_free[0], reference_trajectory[k].reference_lateral_error_meters);
@@ -477,7 +441,6 @@ static void build_qp_from_prediction(
             d[k][2] = fp_sub(x_free[2], reference_trajectory[k].reference_velocity_meters_per_second);
             d[k][3] = fp_sub(x_free[3], reference_trajectory[k].reference_lateral_velocity_meters_per_second);
             d[k][4] = fp_sub(x_free[4], reference_trajectory[k].reference_yaw_rate_radians_per_second);
-            d[k][5] = fp_sub(x_free[5], reference_trajectory[k].reference_wheel_speed_radians_per_second);
             saved_free_response_ey[k] = x_free[0];
             for (int s = 0; s < STATE_DIMENSION; s++)
                 x_prev[s] = x_free[s];
@@ -509,7 +472,7 @@ static void build_qp_from_prediction(
     /* ---------------------------------------------------------------
      * Step 4: State cost weight vector (diagonal Q matrix)
      *
-     * Frenet state weights: [e_y, e_psi, v_x, v_y, omega, omega_w]
+     * Frenet state weights: [e_y, e_psi, v_x, v_y, omega]
      * Lateral error and heading error are the primary tracking states.
      * --------------------------------------------------------------- */
     fixed_point_t Q[STATE_DIMENSION] = {
@@ -517,8 +480,7 @@ static void build_qp_from_prediction(
         current_configuration.weight_heading_error,
         current_configuration.weight_velocity,
         current_configuration.weight_lateral_velocity,
-        current_configuration.weight_yaw_rate,
-        current_configuration.weight_wheel_speed
+        current_configuration.weight_yaw_rate
     };
 
     /* Build list of active (non-zero weight) state indices */
@@ -547,6 +509,9 @@ static void build_qp_from_prediction(
     memset(PhiQ, 0, (size_t)horizon_steps * CONTROL_DIMENSION * STATE_DIMENSION * sizeof(fixed_point_t));
     for (int m = 0; m < horizon_steps; m++)
     {
+#ifdef MPC_HLS_TARGET
+#pragma HLS LOOP_TRIPCOUNT min=5 max=20 avg=10
+#endif
         for (int si = 0; si < num_active_states; si++)
         {
             int s = active_states[si];
@@ -573,78 +538,92 @@ static void build_qp_from_prediction(
         (size_t)n_vars * (size_t)n_vars * sizeof(fixed_point_t));
 
     /* ---------------------------------------------------------------
-     * Step 5a: Precompute G[mi][mj] = PhiQ[mi]^T * Phi[mj]  (2×2 block)
+     * Step 5a+5b: Build Hessian from Phi and PhiQ matrices.
      *
-     * This separates the MULTIPLY phase (G precomputation, N² blocks)
-     * from the ACCUMULATE phase (Hessian summation, addition only).
-     * For N=10: 2400 multiplies (precompute) + 1100 additions (accumulate)
-     * vs. 9240 multiplies in the original triple loop.
-     * ~2.6× faster Hessian construction.
-     * --------------------------------------------------------------- */
-    static int64_t G[MAXIMUM_HORIZON_STEPS][MAXIMUM_HORIZON_STEPS][CONTROL_DIMENSION][CONTROL_DIMENSION];
-
-    for (int mi = 0; mi < horizon_steps; mi++)
-    {
-        for (int mj = 0; mj < horizon_steps; mj++)
-        {
-            for (int a = 0; a < CONTROL_DIMENSION; a++)
-            {
-                for (int b = 0; b < CONTROL_DIMENSION; b++)
-                {
-                    int64_t sum = 0;
-                    for (int s = 0; s < STATE_DIMENSION; s++)
-                    {
-                        sum += ((int64_t)PhiQ[mi][a][s] * Phi[mj][s][b]) >> FP_FRAC_BITS;
-                    }
-                    G[mi][mj][a][b] = sum;
-                }
-            }
-        }
-    }
-
-    /* ---------------------------------------------------------------
-     * Step 5b: Accumulate Hessian from precomputed G blocks (addition only)
-     * --------------------------------------------------------------- */
+     * Direct accumulation: compute PhiQ[k-ci]^T * Phi[k-cj] inline
+     * for each Hessian block (ci, cj). Avoids the N^2*2*2 G array.
+     *
+     * H_block(ci, cj) = 2 * sum_{k=max(ci,cj)}^{N-1} PhiQ[k-ci]^T * Phi[k-cj]
+     *
+     * Inner loops restructured: the a/b/s triple loop is replaced by
+     * 4 explicit dot-product accumulators per k-iteration, enabling
+     * HLS to pipeline the k-loop. Each k computes all 4 elements of
+     * the 2x2 Hessian block in parallel rather than sequentially.
+     * ---------------------------------------------------------------
+     */
     for (int ci = 0; ci < horizon_steps; ci++)
     {
         for (int cj = ci; cj < horizon_steps; cj++)
         {
-            int64_t block64[CONTROL_DIMENSION][CONTROL_DIMENSION];
-            for (int a = 0; a < CONTROL_DIMENSION; a++)
-                for (int b = 0; b < CONTROL_DIMENSION; b++)
-                    block64[a][b] = 0;
+#ifdef MPC_HLS_TARGET
+#pragma HLS LOOP_TRIPCOUNT min=5 max=10 avg=10
+#endif
+            int64_t block00 = 0, block01 = 0, block10 = 0, block11 = 0;
 
-            /* Sum precomputed G blocks — no multiplies needed */
+            /* Accumulate PhiQ^T * Phi over prediction steps */
             for (int k = cj; k < horizon_steps; k++)
             {
+#ifdef MPC_HLS_TARGET
+#pragma HLS PIPELINE
+#pragma HLS LOOP_TRIPCOUNT min=1 max=20 avg=10
+#endif
                 int mi = k - ci;
                 int mj = k - cj;
-                for (int a = 0; a < CONTROL_DIMENSION; a++)
-                    for (int b = 0; b < CONTROL_DIMENSION; b++)
-                        block64[a][b] += G[mi][mj][a][b];
+
+                /* Compute all 4 elements of the 2x2 block in one pass
+                 * through the state dimension. Each dot product sums
+                 * PhiQ[mi][a][:] . Phi[mj][:][b] over s=0..4.
+                 * With PIPELINE, HLS unrolls the s-loop and executes
+                 * all 20 multiplies in parallel using DSP48E2 units. */
+                int64_t d00 = 0, d01 = 0, d10 = 0, d11 = 0;
+                for (int s = 0; s < STATE_DIMENSION; s++)
+                {
+                    fixed_point_t pq0 = PhiQ[mi][0][s];
+                    fixed_point_t pq1 = PhiQ[mi][1][s];
+                    fixed_point_t p0  = Phi[mj][s][0];
+                    fixed_point_t p1  = Phi[mj][s][1];
+
+                    d00 += ((int64_t)pq0 * p0) >> FP_FRAC_BITS;
+                    d01 += ((int64_t)pq0 * p1) >> FP_FRAC_BITS;
+                    d10 += ((int64_t)pq1 * p0) >> FP_FRAC_BITS;
+                    d11 += ((int64_t)pq1 * p1) >> FP_FRAC_BITS;
+                }
+
+                block00 += d00;
+                block01 += d01;
+                block10 += d10;
+                block11 += d11;
             }
 
-            /* Write 2×2 block to Hessian (with ×2 for QP convention) */
+            /* Write 2x2 block to Hessian (with x2 for QP convention) */
             int row = ci * CONTROL_DIMENSION;
             int col = cj * CONTROL_DIMENSION;
 
-            for (int a = 0; a < CONTROL_DIMENSION; a++)
             {
-                for (int b = 0; b < CONTROL_DIMENSION; b++)
+                int64_t block64[CONTROL_DIMENSION][CONTROL_DIMENSION];
+                block64[0][0] = block00;
+                block64[0][1] = block01;
+                block64[1][0] = block10;
+                block64[1][1] = block11;
+
+                for (int a = 0; a < CONTROL_DIMENSION; a++)
                 {
-                    int64_t val64 = block64[a][b] * 2;
-                    /* Clamp to int32_t */
-                    fixed_point_t val;
-                    if (val64 > INT32_MAX) val = INT32_MAX;
-                    else if (val64 < INT32_MIN) val = INT32_MIN;
-                    else val = (fixed_point_t)val64;
-
-                    hessian_matrix[(row + a) * n_vars + (col + b)] = val;
-
-                    /* Symmetric entry */
-                    if (ci != cj)
+                    for (int b = 0; b < CONTROL_DIMENSION; b++)
                     {
-                        hessian_matrix[(col + b) * n_vars + (row + a)] = val;
+                        int64_t val64 = block64[a][b] * 2;
+                        /* Clamp to int32_t */
+                        fixed_point_t val;
+                        if (val64 > INT32_MAX) val = INT32_MAX;
+                        else if (val64 < INT32_MIN) val = INT32_MIN;
+                        else val = (fixed_point_t)val64;
+
+                        hessian_matrix[(row + a) * n_vars + (col + b)] = val;
+
+                        /* Symmetric entry */
+                        if (ci != cj)
+                        {
+                            hessian_matrix[(col + b) * n_vars + (row + a)] = val;
+                        }
                     }
                 }
             }
@@ -655,7 +634,7 @@ static void build_qp_from_prediction(
     fixed_point_t two_w_steer = fp_mul(FP_TWO,
         current_configuration.weight_steering_effort);
     fixed_point_t two_w_torque = fp_mul(FP_TWO,
-        current_configuration.weight_torque_effort);
+        current_configuration.weight_acceleration_effort);
 
     for (int ci = 0; ci < horizon_steps; ci++)
     {
@@ -670,7 +649,7 @@ static void build_qp_from_prediction(
      * Structure: +2w on boundary diagonals, +4w on interior diagonals,
      * -2w on off-diagonals (k,k-1) and (k-1,k). */
     fixed_point_t w_sr = current_configuration.weight_steering_rate;
-    fixed_point_t w_vr = current_configuration.weight_torque_rate;
+    fixed_point_t w_vr = current_configuration.weight_acceleration_rate;
     fixed_point_t w_sr_cross = fp_mul(w_sr, current_configuration.cross_call_rate_scale);
     fixed_point_t w_vr_cross = fp_mul(w_vr, current_configuration.cross_call_rate_scale);
 
@@ -750,12 +729,18 @@ static void build_qp_from_prediction(
      * Store in gradient_int64[] to preserve full precision for auto-scaling. */
     for (int ci = 0; ci < horizon_steps; ci++)
     {
+#ifdef MPC_HLS_TARGET
+#pragma HLS LOOP_TRIPCOUNT min=5 max=10 avg=10
+#endif
         for (int a = 0; a < CONTROL_DIMENSION; a++)
         {
             int64_t sum64 = 0;
 
             for (int k = ci; k < horizon_steps; k++)
             {
+#ifdef MPC_HLS_TARGET
+#pragma HLS LOOP_TRIPCOUNT min=1 max=20 avg=10
+#endif
                 int m = k - ci;
 
                 for (int s = 0; s < STATE_DIMENSION; s++)
@@ -786,7 +771,7 @@ static void build_qp_from_prediction(
     gradient_int64[1] -= (int64_t)fp_mul(
             FP_TWO,
             fp_mul(w_vr_cross,
-                previous_control_input.motor_torque_newton_meters));
+                previous_control_input.acceleration_meters_per_second_squared));
     
     /* Debug: print first element of linear cost (int64 value) */
 #ifdef MPC_DEBUG_PRINT
@@ -843,6 +828,9 @@ static int count_wall_constraint_steps(
     const TrajectoryReferencePoint_t *reference_trajectory,
     int horizon_steps)
 {
+#ifdef MPC_HLS_TARGET
+#pragma HLS INLINE
+#endif
     /* Check if any bounds are meaningful (< 4.0m) */
     int use_wall_constraints = 0;
     for (int k = 0; k < horizon_steps && !use_wall_constraints; k++) {
@@ -892,22 +880,40 @@ static int count_wall_constraint_steps(
 static void build_qp_constraints(
     int horizon_steps,
     const TrajectoryReferencePoint_t *reference_trajectory,
+    fixed_point_t current_velocity,
     int total_variables,
     int n_slack_variables,
-    fixed_point_t current_velocity,
     fixed_point_t *constraint_matrix,
     fixed_point_t *constraint_bounds,
     uint16_t *constraint_count)
 {
     VehicleParameters_t vehicle_params = vehicle_model_get_parameters();
 
-    /* Steering limit: use hardware maximum.
-     * The Pacejka tire model in the linearization naturally captures
-     * tire saturation at high slip angles, so no additional speed-dependent
-     * steering constraint is needed.  The reduced cornering stiffness
-     * (measured: C_Sf=2.259, C_Sr=3.909) already accurately reflects
-     * how much lateral force each steering input actually produces. */
-    fixed_point_t effective_max_steer = vehicle_params.maximum_steering_angle_radians;
+    /* Speed-dependent steering limit to prevent saturation chattering.
+     * At high speed, the tires cannot sustain the lateral forces from
+     * large steering angles.  Limit steering using a quadratic rolloff:
+     *
+     *   max_delta(v) = min( delta_max_hw, delta_max_hw × (v_knee/v)² )
+     *
+     * Below v_knee the full hardware limit applies.  Above it, the limit
+     * decreases as 1/v², matching the physics of centripetal force. */
+    fixed_point_t effective_max_steer;
+    {
+        const fixed_point_t v_knee = FP_CONST(10.0);  /* full steering below 10 m/s */
+        fixed_point_t v = current_velocity;
+        if (v <= v_knee) {
+            effective_max_steer = vehicle_params.maximum_steering_angle_radians;
+        } else {
+            /* ratio = (v_knee / v)^2 */
+            fixed_point_t ratio = fp_div(v_knee, v);
+            ratio = fp_mul(ratio, ratio);
+            effective_max_steer = fp_mul(
+                vehicle_params.maximum_steering_angle_radians, ratio);
+            /* Floor: never go below 0.03 rad (~1.7°) for basic controllability */
+            if (effective_max_steer < FP_CONST(0.03))
+                effective_max_steer = FP_CONST(0.03);
+        }
+    }
 
     int total_controls = horizon_steps * CONTROL_DIMENSION;
     int wall_step_count = n_slack_variables / 2;
@@ -940,6 +946,10 @@ static void build_qp_constraints(
     /* --- Actuator box constraints --- */
     for (int step = 0; step < horizon_steps; step++)
     {
+#ifdef MPC_HLS_TARGET
+#pragma HLS PIPELINE II=1
+#pragma HLS LOOP_TRIPCOUNT min=5 max=10 avg=10
+#endif
         int control_base = step * CONTROL_DIMENSION;
         int constraint_base = step * actuator_constraints_per_step;
 
@@ -959,13 +969,13 @@ static void build_qp_constraints(
         constraint_matrix[(constraint_base + 2) * total_variables + (control_base + 1)] =
             FP_ONE;
         constraint_bounds[constraint_base + 2] =
-            vehicle_params.maximum_motor_torque_newton_meters;
+            vehicle_params.maximum_acceleration_meters_per_second_squared;
 
         /* Constraint 3: -torque <= -min_torque */
         constraint_matrix[(constraint_base + 3) * total_variables + (control_base + 1)] =
             fp_neg(FP_ONE);
         constraint_bounds[constraint_base + 3] =
-            fp_neg(vehicle_params.minimum_motor_torque_newton_meters);
+            fp_neg(vehicle_params.minimum_acceleration_meters_per_second_squared);
     }
 
     /* --- Wall boundary constraints with slack variables ---
@@ -984,6 +994,9 @@ static void build_qp_constraints(
 
     for (int k = WALL_CONSTRAINT_START; k < horizon_steps && wall_row_idx < wall_step_count; k += WALL_CONSTRAINT_STRIDE)
     {
+#ifdef MPC_HLS_TARGET
+#pragma HLS LOOP_TRIPCOUNT min=0 max=3 avg=2
+#endif
         int left_row  = total_actuator + wall_row_idx * 2;
         int right_row = total_actuator + wall_row_idx * 2 + 1;
         int slack_left_col  = slack_col_base + wall_row_idx * 2;
@@ -1056,7 +1069,7 @@ void mpc_initialize(void)
 
     /* Clear previous control */
     previous_control_input.steering_angle_radians = 0;
-    previous_control_input.motor_torque_newton_meters = 0;
+    previous_control_input.acceleration_meters_per_second_squared = 0;
 
     /* Clear warm-start */
     memset(warm_start_variables, 0, sizeof(warm_start_variables));
@@ -1082,7 +1095,7 @@ void mpc_initialize_with_configuration(const MpcConfiguration_t *configuration)
 
     /* Clear previous control */
     previous_control_input.steering_angle_radians = 0;
-    previous_control_input.motor_torque_newton_meters = 0;
+    previous_control_input.acceleration_meters_per_second_squared = 0;
 
     /* Clear warm-start */
     memset(warm_start_variables, 0, sizeof(warm_start_variables));
@@ -1175,7 +1188,7 @@ MpcSolverStatus_t mpc_compute_optimal_control(
     /* Auto-scale Hessian and gradient to fit Q16.16 range.
      *
      * The condensed MPC Hessian (Phi^T Q Phi) can exceed INT32_MAX
-     * due to large B matrix entries (especially torque→wheel_speed: B[6][1]≈2.12).
+     * due to accumulated matrix products over the prediction horizon.
      * The gradient (Phi^T Q d) accumulates even more due to error*weight products.
      *
      * Since scaling H and f by the same factor doesn't change the QP solution
@@ -1191,12 +1204,20 @@ MpcSolverStatus_t mpc_compute_optimal_control(
         int64_t max_abs = 0;
         for (int i = 0; i < total_vars * total_vars; i++)
         {
+#ifdef MPC_HLS_TARGET
+#pragma HLS PIPELINE II=1
+#pragma HLS LOOP_TRIPCOUNT min=100 max=676 avg=400
+#endif
             int64_t v = (int64_t)qp_problem.hessian_matrix[i];
             if (v < 0) v = -v;
             if (v > max_abs) max_abs = v;
         }
         for (int i = 0; i < total_vars; i++)
         {
+#ifdef MPC_HLS_TARGET
+#pragma HLS PIPELINE II=1
+#pragma HLS LOOP_TRIPCOUNT min=10 max=26 avg=20
+#endif
             int64_t v = gradient_int64[i];
             if (v < 0) v = -v;
             if (v > max_abs) max_abs = v;
@@ -1222,6 +1243,10 @@ MpcSolverStatus_t mpc_compute_optimal_control(
         {
             for (int i = 0; i < total_vars * total_vars; i++)
             {
+#ifdef MPC_HLS_TARGET
+#pragma HLS PIPELINE II=1
+#pragma HLS LOOP_TRIPCOUNT min=100 max=676 avg=400
+#endif
                 qp_problem.hessian_matrix[i] >>= shift_bits;
             }
         }
@@ -1241,9 +1266,9 @@ MpcSolverStatus_t mpc_compute_optimal_control(
     build_qp_constraints(
         horizon,
         reference_trajectory,
+        current_frenet_state->longitudinal_velocity_meters_per_second,
         total_vars,
         n_slacks,
-        current_frenet_state->longitudinal_velocity_meters_per_second,
         qp_problem.constraint_matrix,
         qp_problem.constraint_bounds,
         &qp_problem.constraint_count);
@@ -1328,7 +1353,7 @@ MpcSolverStatus_t mpc_compute_optimal_control(
     /* Saturate control to vehicle limits */
     ControlInput_t raw_control;
     raw_control.steering_angle_radians = optimal_steering;
-    raw_control.motor_torque_newton_meters = optimal_torque;
+    raw_control.acceleration_meters_per_second_squared = optimal_torque;
 
     ControlInput_t saturated_control = vehicle_model_saturate_control(&raw_control);
 
@@ -1377,7 +1402,7 @@ void mpc_reset(void)
 {
     /* Clear previous control (no rate penalty on first control after reset) */
     previous_control_input.steering_angle_radians = 0;
-    previous_control_input.motor_torque_newton_meters = 0;
+    previous_control_input.acceleration_meters_per_second_squared = 0;
 
     /* Clear warm-start */
     memset(warm_start_variables, 0, sizeof(warm_start_variables));

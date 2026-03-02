@@ -6,17 +6,16 @@
  * Uses the dynamic bicycle model with linear tire forces and wheel
  * dynamics, appropriate for high-speed autonomous vehicles like F1/10th.
  *
- * State vector (7 states): [x, y, psi, v_x, v_y, omega, omega_w]
+ * State vector (6 states): [x, y, psi, v_x, v_y, omega]
  *   x, y       = position in world frame [meters]
  *   psi        = yaw angle (heading) [radians]
  *   v_x        = longitudinal velocity in body frame [m/s]
  *   v_y        = lateral velocity in body frame [m/s]
  *   omega      = yaw rate [rad/s]
- *   omega_w    = wheel angular velocity [rad/s]
  *
- * Control vector (2 inputs): [delta, T_motor]
+ * Control vector (2 inputs): [delta, acceleration]
  *   delta      = front wheel steering angle [radians]
- *   T_motor    = motor torque [N·m]
+ *   acceleration = longitudinal acceleration [m/s²]
  *
  * Model Equations (continuous time):
  *   dx/dt      = v_x * cos(psi) - v_y * sin(psi)
@@ -25,11 +24,8 @@
  *   dv_x/dt    = (F_x - F_yf * sin(delta) + m * v_y * omega) / m
  *   dv_y/dt    = (F_yf * cos(delta) + F_yr - m * v_x * omega) / m
  *   domega/dt  = (l_f * F_yf * cos(delta) - l_r * F_yr) / I_z
- *   domega_w/dt = (T_motor / G_ratio - F_x * R_w) / I_w
  *
- * Longitudinal force via slip ratio:
- *   κ = (R_w * ω_w - v_x) / max(|v_x|, ε)
- *   F_x = C_x * κ
+ * Longitudinal force: F_x = m * a_cmd (direct acceleration input)
  *
  * Tire model:
  *   Prediction uses a linear model:
@@ -116,8 +112,8 @@ ControlInput_t vehicle_model_saturate_control(
  * Includes tire force computation using linear tire model.
  * The control input is automatically saturated to physical limits.
  *
- * @param current_state   Current vehicle state (7 states)
- * @param control_input   Control input (steering, motor torque)
+ * @param current_state   Current vehicle state (6 states)
+ * @param control_input   Control input (steering, acceleration)
  * @param time_step       Time step duration [seconds] in fixed-point
  * @return Predicted state after time_step seconds
  */
@@ -163,24 +159,24 @@ void vehicle_model_predict_trajectory(
  *   state[k+1] ≈ A × state[k] + B × control[k]
  *
  * Where:
- *   A = I + dt × (∂f/∂state)    [7×7 discrete state matrix]
- *   B = dt × (∂f/∂control)      [7×2 discrete input matrix]
+ *   A = I + dt × (∂f/∂state)    [6×6 discrete state matrix]
+ *   B = dt × (∂f/∂control)      [6×2 discrete input matrix]
  *
- * State ordering: [x, y, heading, v_x, v_y, omega, omega_w]
- * Control ordering: [steering, motor_torque]
+ * State ordering: [x, y, heading, v_x, v_y, omega]
+ * Control ordering: [steering, acceleration]
  *
  * @param operating_state    State to linearize around
  * @param operating_control  Control to linearize around
  * @param time_step          Discretization time step [seconds]
- * @param state_matrix_A     Output: 7×7 state transition matrix
- * @param input_matrix_B     Output: 7×2 input matrix
+ * @param state_matrix_A     Output: 6×6 state transition matrix
+ * @param input_matrix_B     Output: 6×2 input matrix
  */
 void vehicle_model_compute_linearization(
     const VehicleState_t *operating_state,
     const ControlInput_t *operating_control,
     fixed_point_t time_step,
-    fixed_point_t state_matrix_A[7][7],
-    fixed_point_t input_matrix_B[7][2]);
+    fixed_point_t state_matrix_A[6][6],
+    fixed_point_t input_matrix_B[6][2]);
 
 /*===========================================================================
  * Frenet Frame Linearization
@@ -189,25 +185,25 @@ void vehicle_model_compute_linearization(
 /**
  * Compute linearized Frenet-frame state-space matrices.
  *
- * Frenet state: [e_y, e_psi, v_x, v_y, omega, omega_w]
+ * Frenet state: [e_y, e_psi, v_x, v_y, omega]
  *   e_y    = lateral error from reference path [meters]
  *   e_psi  = heading error from path tangent [radians]
- *   v_x, v_y, omega, omega_w = same body-frame dynamics
+ *   v_x, v_y, omega = same body-frame dynamics
  *
  * Frenet kinematic relations:
  *   e_y_dot   = v_x * sin(e_psi) + v_y * cos(e_psi)  ≈ v_x * e_psi + v_y
  *   e_psi_dot = omega - kappa * v_x * cos(e_psi) / (1 - kappa * e_y)
  *             ≈ omega - kappa * v_x
  *
- * The body-frame dynamics (rows 2-5) are identical to the global model.
+ * The body-frame dynamics (rows 2-4) are identical to the global model.
  * The Frenet rows (0-1) add path curvature coupling.
  *
  * @param frenet_state       Frenet state to linearize around
  * @param operating_control  Control to linearize around
  * @param time_step          Discretization time step [seconds]
  * @param path_curvature     Path curvature kappa at current point [rad/m]
- * @param state_matrix_A     Output: 6×6 Frenet state transition matrix
- * @param input_matrix_B     Output: 6×2 Frenet input matrix
+ * @param state_matrix_A     Output: 5×5 Frenet state transition matrix
+ * @param input_matrix_B     Output: 5×2 Frenet input matrix
  */
 void vehicle_model_compute_frenet_linearization(
     const FrenetState_t *frenet_state,

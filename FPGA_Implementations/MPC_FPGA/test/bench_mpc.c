@@ -22,7 +22,7 @@ int main(void)
 
     /* Configure MPC */
     MpcConfiguration_t config = mpc_get_configuration();
-    config.prediction_horizon_steps = 10;
+    config.prediction_horizon_steps = 20;
     config.time_step_seconds = FP_CONST(0.05);
     mpc_set_configuration(&config);
 
@@ -35,7 +35,6 @@ int main(void)
         ref[i].reference_velocity_meters_per_second = FP_CONST(5.0);
         ref[i].reference_lateral_velocity_meters_per_second = 0;
         ref[i].reference_yaw_rate_radians_per_second = 0;
-        ref[i].reference_wheel_speed_radians_per_second = FP_CONST(91.74);
         ref[i].path_curvature_radians_per_meter = 0;
         ref[i].left_wall_bound_meters = FP_CONST(1.5);
         ref[i].right_wall_bound_meters = FP_CONST(1.5);
@@ -48,7 +47,6 @@ int main(void)
     state.longitudinal_velocity_meters_per_second = FP_CONST(5.0);
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
-    state.wheel_speed_radians_per_second = FP_CONST(91.74);
 
     MpcSolverResult_t result;
 
@@ -94,7 +92,6 @@ int main(void)
     state.lateral_error_meters = FP_CONST(0.3);
     state.heading_error_radians = FP_CONST(0.15);
     state.longitudinal_velocity_meters_per_second = FP_CONST(3.0);
-    state.wheel_speed_radians_per_second = FP_CONST(55.0);
 
     /* Cold start (reset warm start) */
     mpc_reset();

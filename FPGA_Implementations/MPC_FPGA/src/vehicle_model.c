@@ -2,14 +2,17 @@
  * @file vehicle_model.c
  * @brief Dynamic Nonlinear Bicycle Model Implementation
  *
- * Implements the dynamic bicycle model with wheel dynamics for
- * F1/10th vehicle dynamics. The linearization uses a Pacejka-like
- * tire model for nonlinear tire force saturation, while the
- * forward prediction uses a linear tire model.
+ * Implements the dynamic bicycle model with direct acceleration input
+ * for F1/10th vehicle dynamics. The MPC commands an acceleration that
+ * the VESC motor controller enforces, so F_x = m * a_cmd directly.
+ *
+ * The linearization uses a Pacejka-like tire model for nonlinear
+ * tire force saturation (lateral), while the forward prediction
+ * uses a linear lateral tire model.
  * All calculations use fixed-point arithmetic for FPGA compatibility.
  *
- * State vector (7): [x, y, psi, v_x, v_y, omega, omega_w]
- * Control vector (2): [delta, T_motor]
+ * State vector (6): [x, y, psi, v_x, v_y, omega]
+ * Control vector (2): [delta, a_cmd]
  *
  * Model Equations:
  *   dx/dt        = v_x * cos(psi) - v_y * sin(psi)
@@ -18,11 +21,9 @@
  *   dv_x/dt      = (F_x - F_yf * sin(delta) + m * v_y * omega) / m
  *   dv_y/dt      = (F_yf * cos(delta) + F_yr - m * v_x * omega) / m
  *   domega/dt    = (l_f * F_yf * cos(delta) - l_r * F_yr) / I_z
- *   domega_w/dt  = (T_motor / G_ratio - F_x * R_w) / I_w
  *
- * Longitudinal force via slip ratio:
- *   kappa = (R_w * omega_w - v_x) / max(|v_x|, epsilon)
- *   F_x = C_x * kappa
+ * Longitudinal force from commanded acceleration:
+ *   F_x = m * a_cmd
  *
  * Tire model (linear, with friction and normal force scaling):
  *   alpha_f = delta - atan((v_y + l_f * omega) / v_x)
@@ -39,7 +40,9 @@
 
 #include "vehicle_model.h"
 #include "fp_math.h"
+#ifndef MPC_HLS_TARGET
 #include <stdio.h>
+#endif
 #include <string.h>
 
 /*===========================================================================
@@ -56,7 +59,7 @@ static uint8_t model_is_initialized = 0;
  *  Precomputed during initialization — saves 3 divisions per linearization. */
 static fixed_point_t cached_inv_mass = 0;   /* 1 / vehicle_mass_kg */
 static fixed_point_t cached_inv_Iz   = 0;   /* 1 / yaw_moment_of_inertia */
-static fixed_point_t cached_inv_Iw   = 0;   /* 1 / drivetrain_inertia */
+static fixed_point_t cached_inv_Rw   = 0;   /* 1 / wheel_radius */
 static fixed_point_t cached_inv_L_wb = 0;   /* 1 / wheelbase */
 
 /*===========================================================================
@@ -68,7 +71,7 @@ static void recompute_cached_reciprocals(void)
 {
     cached_inv_mass = fp_recip(stored_vehicle_parameters.vehicle_mass_kg);
     cached_inv_Iz   = fp_recip(stored_vehicle_parameters.yaw_moment_of_inertia_kgm2);
-    cached_inv_Iw   = fp_recip(stored_vehicle_parameters.drivetrain_inertia_kgm2);
+    cached_inv_Rw   = fp_recip(stored_vehicle_parameters.wheel_radius_meters);
     cached_inv_L_wb = fp_recip(stored_vehicle_parameters.wheelbase_meters);
 }
 
@@ -104,11 +107,11 @@ void vehicle_model_initialize(void)
     stored_vehicle_parameters.minimum_velocity_meters_per_second =
         F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND;
 
-    stored_vehicle_parameters.maximum_motor_torque_newton_meters =
-        F110_DEFAULT_MAX_MOTOR_TORQUE_NM;
+    stored_vehicle_parameters.maximum_acceleration_meters_per_second_squared =
+        F110_DEFAULT_MAX_ACCELERATION;
 
-    stored_vehicle_parameters.minimum_motor_torque_newton_meters =
-        F110_DEFAULT_MIN_MOTOR_TORQUE_NM;
+    stored_vehicle_parameters.minimum_acceleration_meters_per_second_squared =
+        F110_DEFAULT_MIN_ACCELERATION;
 
     stored_vehicle_parameters.omega = 
         F110_DEFAULT_YAW_RATE;
@@ -156,6 +159,9 @@ VehicleParameters_t vehicle_model_get_parameters(void)
 ControlInput_t vehicle_model_saturate_control(
     const ControlInput_t *raw_control)
 {
+#ifdef MPC_HLS_TARGET
+#pragma HLS INLINE
+#endif
     ControlInput_t saturated_control;
 
     /* Clamp steering angle to physical limits */
@@ -164,11 +170,11 @@ ControlInput_t vehicle_model_saturate_control(
         fp_neg(stored_vehicle_parameters.maximum_steering_angle_radians),
         stored_vehicle_parameters.maximum_steering_angle_radians);
 
-    /* Clamp motor torque to [min_torque, max_torque] */
-    saturated_control.motor_torque_newton_meters = fp_clamp(
-        raw_control->motor_torque_newton_meters,
-        stored_vehicle_parameters.minimum_motor_torque_newton_meters,
-        stored_vehicle_parameters.maximum_motor_torque_newton_meters);
+    /* Clamp acceleration to [min, max] */
+    saturated_control.acceleration_meters_per_second_squared = fp_clamp(
+        raw_control->acceleration_meters_per_second_squared,
+        stored_vehicle_parameters.minimum_acceleration_meters_per_second_squared,
+        stored_vehicle_parameters.maximum_acceleration_meters_per_second_squared);
 
     return saturated_control;
 }
@@ -194,13 +200,12 @@ VehicleState_t vehicle_model_predict_next_state(
     fixed_point_t vx  = current_state->longitudinal_velocity_meters_per_second;
     fixed_point_t vy  = current_state->lateral_velocity_meters_per_second;
     fixed_point_t omega = current_state->yaw_rate_radians_per_second;
-    fixed_point_t omega_w = current_state->wheel_speed_radians_per_second;
 
     /*
      * Extract control inputs
      */
     fixed_point_t delta   = saturated_control.steering_angle_radians;
-    fixed_point_t T_motor = saturated_control.motor_torque_newton_meters;
+    fixed_point_t a_cmd  = saturated_control.acceleration_meters_per_second_squared;
 
     /*
      * Extract vehicle parameters
@@ -212,11 +217,8 @@ VehicleState_t vehicle_model_predict_next_state(
     fixed_point_t C_Sf = stored_vehicle_parameters.front_cornering_stiffness;
     fixed_point_t C_Sr = stored_vehicle_parameters.rear_cornering_stiffness;
 
-    /* Wheel / drivetrain parameters */
+    /* Wheel parameters */
     fixed_point_t Rw      = stored_vehicle_parameters.wheel_radius_meters;
-    fixed_point_t Iw      = stored_vehicle_parameters.drivetrain_inertia_kgm2;
-    fixed_point_t Cx      = stored_vehicle_parameters.longitudinal_tire_stiffness;
-    fixed_point_t G_ratio = stored_vehicle_parameters.gear_ratio;
 
     /*
      * Compute trigonometric values
@@ -227,19 +229,16 @@ VehicleState_t vehicle_model_predict_next_state(
     fixed_point_t sin_delta = fp_sin(delta);
 
     /*
-     * Compute longitudinal force from wheel slip ratio
+     * Compute longitudinal force from acceleration command
      *
-     * Slip ratio: kappa = (R_w * omega_w - v_x) / max(|v_x|, epsilon)
-     * Longitudinal force: F_x = C_x * kappa
+     * F_x = m * a_cmd
      *
-     * Positive kappa = traction (wheel spinning faster than ground speed)
-     * Negative kappa = braking (wheel spinning slower than ground speed)
+     * The MPC outputs an acceleration command directly.
+     * The longitudinal force is simply mass × acceleration.
+     * This replaces the slip-ratio based model (F_x = C_x * kappa)
+     * since the VESC accepts acceleration commands.
      */
-    fixed_point_t slip_vx_safe = (vx > FP_CONST(0.5)) ? vx : FP_CONST(0.5);
-    fixed_point_t kappa = fp_div(
-        fp_sub(fp_mul(Rw, omega_w), vx),
-        slip_vx_safe);
-    fixed_point_t Fx = fp_mul(Cx, kappa);
+    fixed_point_t Fx = fp_mul(mass, a_cmd);
 
     /*
      * Compute tire slip angles
@@ -277,43 +276,6 @@ VehicleState_t vehicle_model_predict_next_state(
         fp_sub(fp_mul(mg, lr), fp_mul(Fx, h)), L);
     fixed_point_t F_zr = fp_div(
         fp_add(fp_mul(mg, lf), fp_mul(Fx, h)), L);
-
-    /*
-     * Compute tire contact patch velocities
-     *
-     * Total velocity magnitude at each tire:
-     *   V_tf = sqrt((v_y + l_f * omega)^2 + v_x^2)   [front]
-     *   V_tr = sqrt((v_y - l_r * omega)^2 + v_x^2)   [rear]
-     */
-    fixed_point_t V_tf = fp_sqrt(fp_add(
-        fp_mul(front_numerator, front_numerator),
-        fp_mul(vx_safe, vx_safe)));
-    fixed_point_t V_tr = fp_sqrt(fp_add(
-        fp_mul(rear_numerator, rear_numerator),
-        fp_mul(vx_safe, vx_safe)));
-
-    /*
-     * Compute wheel-frame longitudinal velocities
-     *
-     * Projection of tire velocity onto wheel heading direction:
-     *   v_omega_xf = V_tf * cos(alpha_f)
-     *   v_omega_xr = V_tr * cos(alpha_r)
-     *
-     * These represent the longitudinal speed the tire "sees" and are needed
-     * for longitudinal slip ratio computation: kappa = (R*omega_w - v_omega_x) / v_omega_x
-     */
-    fixed_point_t cos_alpha_f = fp_cos(alpha_f);
-    fixed_point_t cos_alpha_r = fp_cos(alpha_r);
-    fixed_point_t v_omega_xf = fp_mul(V_tf, cos_alpha_f);
-    fixed_point_t v_omega_xr = fp_mul(V_tr, cos_alpha_r);
-
-    /* NOTE: V_tf, V_tr, v_omega_xf, v_omega_xr are computed for
-     * a future combined slip model but not used in the current
-     * linear tire force computation in predict_next_state.
-     * The Pacejka model is used in the linearization instead.
-     * Suppress unused warnings: */
-    (void)V_tf; (void)V_tr;
-    (void)v_omega_xf; (void)v_omega_xr;
 
     /*
      * Compute lateral tire forces (linear tire model with normal force)
@@ -370,15 +332,6 @@ VehicleState_t vehicle_model_predict_next_state(
             fp_mul(lr, F_yr)),
         Iz);
 
-    /* domega_w/dt = (T_motor * G_ratio - F_x * R_w) / I_w
-     * Wheel dynamics: motor torque amplified by gear ratio drives wheel,
-     * tire longitudinal force resists. G > 1 means the gearbox trades
-     * motor speed for wheel torque: T_wheel = T_motor × G. */
-    fixed_point_t T_wheel = fp_mul(T_motor, G_ratio);
-    fixed_point_t domega_w_dt = fp_div(
-        fp_sub(T_wheel, fp_mul(Fx, Rw)),
-        Iw);
-
     /*
      * Forward Euler integration: state[k+1] = state[k] + dt * derivative
      */
@@ -403,9 +356,6 @@ VehicleState_t vehicle_model_predict_next_state(
     next_state.yaw_rate_radians_per_second = fp_add(
         omega, fp_mul(time_step, domega_dt));
 
-    next_state.wheel_speed_radians_per_second = fp_add(
-        omega_w, fp_mul(time_step, domega_w_dt));
-
     /*
      * Apply state constraints
      */
@@ -416,20 +366,14 @@ VehicleState_t vehicle_model_predict_next_state(
         stored_vehicle_parameters.minimum_velocity_meters_per_second,
         stored_vehicle_parameters.maximum_velocity_meters_per_second);
 
-    /* Clamp wheel speed to non-negative (no reverse) */
-    if (next_state.wheel_speed_radians_per_second < 0)
-    {
-        next_state.wheel_speed_radians_per_second = 0;
-    }
-
     /* Normalize heading angle to [-pi, +pi] */
-    while (next_state.heading_angle_radians > FP_PI)
+    for (int _i = 0; _i < 10 && next_state.heading_angle_radians > FP_PI; _i++)
     {
         next_state.heading_angle_radians = fp_sub(
             next_state.heading_angle_radians,
             FP_TWO_PI);
     }
-    while (next_state.heading_angle_radians < -FP_PI)
+    for (int _i = 0; _i < 10 && next_state.heading_angle_radians < -FP_PI; _i++)
     {
         next_state.heading_angle_radians = fp_add(
             next_state.heading_angle_radians,
@@ -471,9 +415,12 @@ void vehicle_model_compute_linearization(
     const VehicleState_t *operating_state,
     const ControlInput_t *operating_control,
     fixed_point_t time_step,
-    fixed_point_t state_matrix_A[7][7],
-    fixed_point_t input_matrix_B[7][2])
+    fixed_point_t state_matrix_A[6][6],
+    fixed_point_t input_matrix_B[6][2])
 {
+#ifdef MPC_HLS_TARGET
+#pragma HLS INLINE
+#endif
     /*
      * Extract operating point variables
      */
@@ -481,7 +428,6 @@ void vehicle_model_compute_linearization(
     fixed_point_t vx      = operating_state->longitudinal_velocity_meters_per_second;
     fixed_point_t vy      = operating_state->lateral_velocity_meters_per_second;
     fixed_point_t omega   = operating_state->yaw_rate_radians_per_second;
-    fixed_point_t omega_w = operating_state->wheel_speed_radians_per_second;
     fixed_point_t delta   = operating_control->steering_angle_radians;
 
     /*
@@ -492,9 +438,6 @@ void vehicle_model_compute_linearization(
     fixed_point_t mass = stored_vehicle_parameters.vehicle_mass_kg;
     fixed_point_t C_Sf = stored_vehicle_parameters.front_cornering_stiffness;
     fixed_point_t C_Sr = stored_vehicle_parameters.rear_cornering_stiffness;
-    fixed_point_t Rw   = stored_vehicle_parameters.wheel_radius_meters;
-    fixed_point_t Cx   = stored_vehicle_parameters.longitudinal_tire_stiffness;
-    fixed_point_t G_ratio = stored_vehicle_parameters.gear_ratio;
 
     /*
      * Compute trigonometric values at operating point.
@@ -520,21 +463,18 @@ void vehicle_model_compute_linearization(
     /*
      * Compute slip ratio and longitudinal force at operating point
      *
-     *   kappa = (R_w * omega_w - v_x) / v_x
+     *   kappa = computed from tire model
      *   F_x = C_x * kappa
      *
      * Derivatives w.r.t. states (for v_x > epsilon):
-     *   dFx/dvx    = -C_x * R_w * omega_w / vx^2
-     *   dFx/domega_w = C_x * R_w / vx
+     *   dFx/dvx    = 0 (Fx = m * a_cmd, independent of state)
      */
-    fixed_point_t kappa = fp_mul(
-        fp_sub(fp_mul(Rw, omega_w), vx_safe), inv_vx_safe);
-    fixed_point_t Fx = fp_mul(Cx, kappa);
-
-    fixed_point_t vx2 = fp_mul(vx_safe, vx_safe);
-    fixed_point_t inv_vx2 = fp_mul(inv_vx_safe, inv_vx_safe);
-    fixed_point_t dFx_dvx = fp_neg(fp_mul(fp_mul(Cx, fp_mul(Rw, omega_w)), inv_vx2));
-    fixed_point_t dFx_domega_w = fp_mul(fp_mul(Cx, Rw), inv_vx_safe);
+    /* With acceleration model: Fx = m * a_cmd
+     * Fx does NOT depend on state, so all Jacobians are zero:
+     *   dFx/dvx = 0
+     * The Fx value is only needed for load transfer. */
+    fixed_point_t Fx = fp_mul(mass, operating_control->acceleration_meters_per_second_squared);
+    fixed_point_t dFx_dvx = 0;
 
     /*
      * Compute slip angle intermediates for Jacobian
@@ -545,6 +485,7 @@ void vehicle_model_compute_linearization(
     fixed_point_t front_num2 = fp_mul(front_num, front_num);
     fixed_point_t rear_num2  = fp_mul(rear_num, rear_num);
 
+    fixed_point_t vx2 = fp_mul(vx_safe, vx_safe);
     fixed_point_t D_f = fp_add(vx2, front_num2);
     fixed_point_t D_r = fp_add(vx2, rear_num2);
 
@@ -676,12 +617,12 @@ void vehicle_model_compute_linearization(
     fixed_point_t dFyr_domega = fp_mul(C_Sr_Fzr, dar_domega);
 
     /*
-     * Initialize A matrix as identity (7×7)
+     * Initialize A matrix as identity (6×6)
      * A_discrete = I + dt * A_continuous
      */
-    for (int row = 0; row < 7; row++)
+    for (int row = 0; row < 6; row++)
     {
-        for (int col = 0; col < 7; col++)
+        for (int col = 0; col < 6; col++)
         {
             state_matrix_A[row][col] = (row == col) ? FP_ONE : 0;
         }
@@ -690,13 +631,10 @@ void vehicle_model_compute_linearization(
     /*
      * Continuous-time A matrix (∂f/∂state) — only non-zero entries
      *
-     * Rows 0-5: same as 6-state model, PLUS:
-     *   Row 3 gains:  A[3][3] += dFx/dvx / m
-     *                 A[3][6]  = dFx/domega_w / m
-     *
-     * Row 6 (domega_w/dt = (T_motor/G - Fx*Rw) / Iw):
-     *   A[6][3] = -Rw * dFx/dvx / Iw
-     *   A[6][6] = -Rw * dFx/domega_w / Iw
+     * Rows 0-2: position/heading kinematics
+     * Row 3: longitudinal velocity (dv_x/dt)
+     * Row 4: lateral velocity (dv_y/dt)
+     * Row 5: yaw rate (domega/dt)
      */
 
     /* Row 0: position X derivatives */
@@ -716,7 +654,7 @@ void vehicle_model_compute_linearization(
 
     /* Row 3: longitudinal velocity derivatives
      * dvx/dt = (Fx - Fyf*sin(d) + m*vy*w) / m
-     * Now Fx depends on vx and omega_w through slip ratio.
+     * Now Fx = m * a_cmd (direct acceleration input).
      */
     fixed_point_t inv_m = cached_inv_mass;
 
@@ -731,10 +669,6 @@ void vehicle_model_compute_linearization(
     state_matrix_A[3][5] = fp_add(state_matrix_A[3][5], fp_mul(time_step,
         fp_add(fp_mul(fp_neg(fp_mul(dFyf_domega, sin_delta)), inv_m), vy)));
 
-    /* A[3][6]: dFx/domega_w / m  (NEW: Fx depends on wheel speed) */
-    state_matrix_A[3][6] = fp_mul(time_step, fp_mul(dFx_domega_w, inv_m));
-
-    /* Row 4: lateral velocity derivatives (unchanged — Fx doesn't enter directly) */
     state_matrix_A[4][3] = fp_add(state_matrix_A[4][3], fp_mul(time_step,
         fp_mul(fp_add(fp_mul(dFyf_dvx, cos_delta),
                        fp_sub(dFyr_dvx, fp_mul(mass, omega))), inv_m)));
@@ -761,37 +695,19 @@ void vehicle_model_compute_linearization(
         fp_mul(fp_sub(fp_mul(lf, fp_mul(dFyf_domega, cos_delta)),
                        fp_mul(lr, dFyr_domega)), inv_Iz)));
 
-    /* Row 6: wheel dynamics
-     * domega_w/dt = (T_motor/G - Fx*Rw) / Iw
-     *
-     * dFx/dvx and dFx/domega_w propagate through:
-     *   A[6][3] = -Rw * dFx/dvx / Iw
-     *   A[6][6] = -Rw * dFx/domega_w / Iw
-     */
-    fixed_point_t inv_Iw = cached_inv_Iw;
-
-    state_matrix_A[6][3] = fp_mul(time_step,
-        fp_mul(fp_neg(fp_mul(Rw, dFx_dvx)), inv_Iw));
-
-    state_matrix_A[6][6] = fp_add(state_matrix_A[6][6], fp_mul(time_step,
-        fp_mul(fp_neg(fp_mul(Rw, dFx_domega_w)), inv_Iw)));
-
     /*
-     * Initialize B matrix as zeros (7×2) and add continuous terms × dt
+     * Initialize B matrix as zeros (6×2) and add continuous terms × dt
      *
      * Column 0: control = delta (steering angle)
      *   B[3][0] = (-dFyf_ddelta * sin(d) - F_yf * cos(d)) / m
      *   B[4][0] = (dFyf_ddelta * cos(d) - F_yf * sin(d)) / m
      *   B[5][0] = lf * (dFyf_ddelta * cos(d) - F_yf * sin(d)) / Iz
      *
-     * Column 1: control = T_motor (motor torque)
-     *   T_motor enters ONLY the wheel dynamics equation:
-     *   B[6][1] = 1 / (Iw * G_ratio)
-     *
-     *   The effect on body states (vx, vy, omega) propagates
-     *   through the A matrix coupling: T → ω_w → κ → Fx → vx.
+     * Column 1: control = a_cmd (commanded acceleration)
+     *   a_cmd directly enters the longitudinal dynamics:
+     *   B[3][1] = dt  (d(dvx/dt)/d(a_cmd) = 1)
      */
-    for (int row = 0; row < 7; row++)
+    for (int row = 0; row < 6; row++)
     {
         for (int col = 0; col < 2; col++)
         {
@@ -815,22 +731,10 @@ void vehicle_model_compute_linearization(
     input_matrix_B[5][0] = fp_mul(time_step,
         fp_mul(fp_mul(lf, fp_sub(dFyf_dd_cos, Fyf_sin)), inv_Iz));
 
-    /* B[6][1]: d(domega_w/dt)/d(T_motor) × dt = G_ratio × dt / Iw
-     * Gearbox amplifies motor torque by G at the wheel. */
-    input_matrix_B[6][1] = fp_mul(time_step, fp_mul(G_ratio, inv_Iw));
-
-    /* B[3][1]: No artificial torque→velocity coupling.
-     * The physical propagation is T → ωw (B[6][1]) → κ → Fx → vx (A[3][6]),
-     * which the condensed QP captures via A^k·B in the Phi matrices.
-     *
-     * Previously, B[3][1] = A[3][6] × B[6][1] was added to give the QP a
-     * direct gradient, but this over-estimates how quickly torque changes
-     * velocity (by one timestep), causing the MPC to command less torque
-     * than needed. With the improved Pacejka model and 2000 solver
-     * iterations, the natural 2-step propagation provides sufficient
-     * gradient for velocity tracking.
-     */
-    /* input_matrix_B[3][1] = 0; (already zeroed above) */
+    /* B[3][1]: d(dvx/dt)/d(a_cmd) × dt = dt
+     * With acceleration model: dvx/dt = a_cmd + lateral force terms
+     * d(dvx/dt)/d(a_cmd) = 1, so B[3][1] = dt */
+    input_matrix_B[3][1] = time_step;
 }
 
 /*===========================================================================
@@ -839,14 +743,14 @@ void vehicle_model_compute_linearization(
  *
  * Computes the 6×6 discrete state-space matrices for the Frenet frame.
  *
- * Frenet state: [e_y, e_psi, v_x, v_y, omega, omega_w]
+ * Frenet state: [e_y, e_psi, v_x, v_y, omega]
  *
  * Rows 0-1: Frenet kinematic relations (path-relative)
  *   e_y_dot   ≈ v_x * e_psi + v_y           (linearized at e_psi=0)
  *   e_psi_dot ≈ omega - kappa * v_x          (linearized at e_y=0, e_psi=0)
  *
- * Rows 2-5: Body-frame dynamics (identical to global model rows 3-6)
- *   v_x_dot, v_y_dot, omega_dot, omega_w_dot
+ * Rows 2-4: Body-frame dynamics (identical to global model rows 3-5)
+ *   v_x_dot, v_y_dot, omega_dot
  *
  * Strategy: Call the global linearization and extract body-frame rows,
  * then build the Frenet kinematic rows using path curvature.
@@ -859,6 +763,9 @@ void vehicle_model_compute_frenet_linearization(
     fixed_point_t state_matrix_A[FRENET_STATE_DIMENSION][FRENET_STATE_DIMENSION],
     fixed_point_t input_matrix_B[FRENET_STATE_DIMENSION][2])
 {
+#ifdef MPC_HLS_TARGET
+#pragma HLS INLINE
+#endif
     /*
      * Step 1: Create a global VehicleState_t for the existing linearization.
      * Global position and heading don't affect the body-frame Jacobians,
@@ -874,40 +781,44 @@ void vehicle_model_compute_frenet_linearization(
         frenet_state->lateral_velocity_meters_per_second;
     global_state.yaw_rate_radians_per_second =
         frenet_state->yaw_rate_radians_per_second;
-    global_state.wheel_speed_radians_per_second =
-        frenet_state->wheel_speed_radians_per_second;
 
     /*
-     * Step 2: Get the full 7×7 global linearization
+     * Step 2: Get the full 6×6 global linearization
      */
-    fixed_point_t A_global[7][7];
-    fixed_point_t B_global[7][2];
+    fixed_point_t A_global[6][6];
+    fixed_point_t B_global[6][2];
     vehicle_model_compute_linearization(
         &global_state, operating_control, time_step,
         A_global, B_global);
 
     /*
      * Step 3: Initialize Frenet matrices to zero
+     * Explicit loops instead of memset for HLS-friendly unrolling.
      */
-    memset(state_matrix_A, 0,
-           FRENET_STATE_DIMENSION * FRENET_STATE_DIMENSION * sizeof(fixed_point_t));
-    memset(input_matrix_B, 0,
-           FRENET_STATE_DIMENSION * 2 * sizeof(fixed_point_t));
+    for (int i = 0; i < FRENET_STATE_DIMENSION; i++)
+    {
+        for (int j = 0; j < FRENET_STATE_DIMENSION; j++)
+        {
+            state_matrix_A[i][j] = 0;
+        }
+        input_matrix_B[i][0] = 0;
+        input_matrix_B[i][1] = 0;
+    }
 
     /*
-     * Step 4: Copy body-frame dynamics (global rows 3-6, cols 3-6)
-     * into Frenet rows 2-5, cols 2-5.
+     * Step 4: Copy body-frame dynamics (global rows 3-5, cols 3-5)
+     * into Frenet rows 2-4, cols 2-4.
      *
-     * These rows represent v_x, v_y, omega, omega_w dynamics which
+     * These rows represent v_x, v_y, omega dynamics which
      * are identical in global and Frenet frames (body-frame forces
      * don't depend on global position or path-relative position).
      *
      * Body dynamics cols 0-2 (dependency on e_y, e_psi) are zero
      * because body-frame forces don't depend on Frenet position.
      */
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 3; i++)
     {
-        for (int j = 0; j < 4; j++)
+        for (int j = 0; j < 3; j++)
         {
             state_matrix_A[i + 2][j + 2] = A_global[i + 3][j + 3];
         }
@@ -928,7 +839,6 @@ void vehicle_model_compute_frenet_linearization(
      *   A[0][2] = 0         (∂/∂v_x = sin(e_psi) ≈ 0 at e_psi=0)
      *   A[0][3] = dt        (lateral velocity directly changes e_y)
      *   A[0][4] = 0         (no direct omega coupling)
-     *   A[0][5] = 0         (no direct omega_w coupling)
      */
     fixed_point_t v_x = frenet_state->longitudinal_velocity_meters_per_second;
 
@@ -948,7 +858,6 @@ void vehicle_model_compute_frenet_linearization(
      *   A[1][2] = -dt * kappa      (speed along curved path changes heading error)
      *   A[1][3] = 0                (no v_y coupling)
      *   A[1][4] = dt               (yaw rate directly changes heading error)
-     *   A[1][5] = 0                (no omega_w coupling)
      */
     state_matrix_A[1][1] = FP_ONE;
     state_matrix_A[1][2] = fp_neg(fp_mul(time_step, path_curvature));
