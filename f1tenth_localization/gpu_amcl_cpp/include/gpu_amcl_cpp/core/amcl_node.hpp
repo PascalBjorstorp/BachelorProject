@@ -82,6 +82,11 @@ private:
     // Callback groups (§10.4) — allow scan and odom to run in parallel.
     rclcpp::CallbackGroup::SharedPtr scan_cb_group_;
     rclcpp::CallbackGroup::SharedPtr odom_cb_group_;
+
+    // Debug counters — track message reception
+    std::atomic<int> scan_count_{0};
+    std::atomic<int> odom_count_{0};
+    std::atomic<int> scan_processed_count_{0};
 };
 
 }  // namespace gpu_amcl_cpp
