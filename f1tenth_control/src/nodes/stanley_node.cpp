@@ -32,7 +32,7 @@ StanleyNode::StanleyNode(const rclcpp::NodeOptions& options)
     
     // Setup publishers/subscribers
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
-        "/odom", 10,
+        "/odom", rclcpp::SensorDataQoS(),
         std::bind(&StanleyNode::odomCallback, this, std::placeholders::_1)
     );
     

@@ -31,6 +31,7 @@
 #include "vesc_ackermann/ackermann_to_vesc.hpp"
 
 #include <cmath>
+#include <memory>
 #include <sstream>
 #include <string>
 
@@ -113,21 +114,21 @@ AckermannToVesc::AckermannToVesc(const rclcpp::NodeOptions & options)
 
 void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPtr cmd)
 {
-  // Initialize messages
-  Float64 servo_msg;
-  Float64 brake_msg;
-  Float64 current_msg;
-  Float64 erpm_msg;
+  // Use unique_ptr messages for zero-copy intra-process publishing
+  auto servo_msg = std::make_unique<Float64>();
+  auto brake_msg = std::make_unique<Float64>();
+  auto current_msg = std::make_unique<Float64>();
+  auto erpm_msg = std::make_unique<Float64>();
   bool publish_brake = false;
   bool publish_erpm = false;
 
   // Zero-initialize
-  brake_msg.data = 0.0;
-  current_msg.data = 0.0;
-  erpm_msg.data = 0.0;
+  brake_msg->data = 0.0;
+  current_msg->data = 0.0;
+  erpm_msg->data = 0.0;
 
   // Calculate steering angle (servo)
-  servo_msg.data = steering_to_servo_gain_ * cmd->drive.steering_angle + steering_to_servo_offset_;
+  servo_msg->data = steering_to_servo_gain_ * cmd->drive.steering_angle + steering_to_servo_offset_;
 
   // Case 1: Acceleration-to-current mode (if gains are set)
   if (accel_to_current_gain_ != 0 && accel_to_brake_gain_ != 0) {
@@ -135,10 +136,10 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
       // Direct acceleration command
       operation_mode_ = ACCEL_TO_CURRENT;
       if (cmd->drive.acceleration < 0) {
-        brake_msg.data = accel_to_brake_gain_ * std::abs(cmd->drive.acceleration);
+        brake_msg->data = accel_to_brake_gain_ * std::abs(cmd->drive.acceleration);
         publish_brake = true;
       } else {
-        current_msg.data = accel_to_current_gain_ * cmd->drive.acceleration;
+        current_msg->data = accel_to_current_gain_ * cmd->drive.acceleration;
         publish_erpm = true;
       }
     } else if (cmd->drive.speed != 0 || operation_mode_ == VEL_TO_CURRENT) {
@@ -147,10 +148,10 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
       double commanded_vel = cmd->drive.speed;
       double acceleration = 10.0 * (commanded_vel - current_vel_);
       if (acceleration > 0) {
-        current_msg.data = acceleration * accel_to_current_gain_;
+        current_msg->data = acceleration * accel_to_current_gain_;
         publish_erpm = true;
       } else {
-        brake_msg.data = std::abs(acceleration) * accel_to_brake_gain_;
+        brake_msg->data = std::abs(acceleration) * accel_to_brake_gain_;
         publish_brake = true;
       }
     }
@@ -174,7 +175,7 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
 
     if (direction_change || stop_command) {
       // Brake to stop (direction reversal or coming to a stop)
-      brake_msg.data = speed_to_braking_max_;
+      brake_msg->data = speed_to_braking_max_;
       publish_brake = true;
     } else if (commanded_vel >= 0) {
       // Forward direction
@@ -186,7 +187,7 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
         // Direct ERPM command — VESC PID handles accel and decel
         vel = commanded_vel;
       }
-      erpm_msg.data = speed_to_erpm_gain_ * vel + speed_to_erpm_offset_;
+      erpm_msg->data = speed_to_erpm_gain_ * vel + speed_to_erpm_offset_;
       publish_erpm = true;
     } else {
       // Reverse direction
@@ -198,27 +199,27 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
         // Direct ERPM command — VESC PID handles accel and decel
         vel = commanded_vel;
       }
-      erpm_msg.data = speed_to_erpm_gain_ * vel + speed_to_erpm_offset_;
+      erpm_msg->data = speed_to_erpm_gain_ * vel + speed_to_erpm_offset_;
       publish_erpm = true;
     }
   }
 
-  // Publish commands
+  // Publish commands (std::move for zero-copy intra-process transfer)
   if (rclcpp::ok()) {
-    if (publish_brake && brake_msg.data != 0.0) {
-      brake_pub_->publish(brake_msg);
+    if (publish_brake && brake_msg->data != 0.0) {
+      brake_pub_->publish(std::move(brake_msg));
     } else if (publish_erpm) {
       if (operation_mode_ == ACCEL_TO_CURRENT || operation_mode_ == VEL_TO_CURRENT) {
-        if (current_msg.data != 0.0) {
-          current_pub_->publish(current_msg);
+        if (current_msg->data != 0.0) {
+          current_pub_->publish(std::move(current_msg));
         }
       } else if (operation_mode_ == VEL_TO_ERPM) {
-        if (erpm_msg.data != 0.0) {
-          erpm_pub_->publish(erpm_msg);
+        if (erpm_msg->data != 0.0) {
+          erpm_pub_->publish(std::move(erpm_msg));
         }
       }
     }
-    servo_pub_->publish(servo_msg);
+    servo_pub_->publish(std::move(servo_msg));
   }
 }
 
