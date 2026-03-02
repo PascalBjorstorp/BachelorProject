@@ -54,7 +54,7 @@ def generate_launch_description():
 
     # ── Default map path ──
     workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(pkg_share))))
-    default_map = os.path.join(workspace_root, 'f1tenth_sim', 'maps', 'Spielberg_map.yaml')
+    default_map = os.path.join(workspace_root, 'f1tenth_sim', 'maps', 'my_track_map.yaml')
 
     # ── Launch arguments ──
     ld = LaunchDescription([
@@ -74,7 +74,7 @@ def generate_launch_description():
                               description='Launch scan splitter (uses /map from map_server)'),
         DeclareLaunchArgument('use_lateral_planner', default_value='true',
                               description='Launch lateral planner for opponent avoidance'),
-        DeclareLaunchArgument('trajectory_file', default_value='',
+        DeclareLaunchArgument('trajectory_file', default_value='/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv',
                               description='Path to global raceline CSV for lateral planner'),
         DeclareLaunchArgument('map_file', default_value=default_map,
                               description='Path to the map YAML file for map_server'),
@@ -226,7 +226,7 @@ def generate_launch_description():
         executable='static_transform_publisher',
         name='static_baselink_to_laser',
         arguments=[
-            '--x', '0.275',
+            '--x', '0.115',
             '--y', '0.0',
             '--z', '0.05',
             '--roll', '0.0',
