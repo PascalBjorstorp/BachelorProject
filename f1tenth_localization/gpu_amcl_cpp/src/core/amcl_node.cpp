@@ -134,9 +134,6 @@ void AmclNode::declare_all_parameters() {
     // IMU
     declare_parameter<bool>("use_imu_rotation", false);
     declare_parameter<double>("imu_gyro_weight", 0.8);
-
-    // Initial convergence: process this many scans before requiring movement
-    declare_parameter<int>("initial_convergence_scans", 200);
 }
 
 void AmclNode::load_parameters() {
@@ -146,12 +143,11 @@ void AmclNode::load_parameters() {
     update_min_d_ = get_parameter("update_min_d").as_double();
     update_min_a_ = get_parameter("update_min_a").as_double();
     max_scan_age_ = get_parameter("max_scan_age").as_double();
-    initial_convergence_scans_ = get_parameter("initial_convergence_scans").as_int();
 
     RCLCPP_INFO(get_logger(),
         "[AMCL] Parameters: update_min_d=%.5f, update_min_a=%.5f, "
-        "max_scan_age=%.4f, initial_convergence_scans=%d",
-        update_min_d_, update_min_a_, max_scan_age_, initial_convergence_scans_);
+        "max_scan_age=%.4f",
+        update_min_d_, update_min_a_, max_scan_age_);
 }
 
 // ─── Map callback ───────────────────────────────────────────────────
@@ -298,33 +294,12 @@ void AmclNode::scan_callback(
     last_y     = prev_y_;
     last_theta = prev_theta_;
 
-    // Movement gating.
-    double dist = std::sqrt(dx_robot * dx_robot + dy_robot * dy_robot);
-    bool has_movement = (dist >= update_min_d_ || std::abs(dtheta) >= update_min_a_);
-    bool in_convergence = (scan_processed_count_.load() < initial_convergence_scans_);
-
-    if (!has_movement && !in_convergence) {
-        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
-            "[AMCL] scan dropped: no movement (dist=%.5f < %.5f, dtheta=%.5f < %.5f)",
-            dist, update_min_d_, std::abs(dtheta), update_min_a_);
-        processing_scan_ = false;
-        return;
-    }
-
-    if (in_convergence && !has_movement) {
-        RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 2000,
-            "[AMCL] Convergence phase (%d/%d): processing scan without movement",
-            scan_processed_count_.load(), initial_convergence_scans_);
-    }
-
     // ── Timing start ──
     auto t_pf_start = std::chrono::high_resolution_clock::now();
 
-    // 1. Predict — skip motion model when stationary (pure sensor update).
-    if (has_movement) {
-        pf_.predict(dx_robot, dy_robot,
-                    static_cast<float>(dtheta), 0.0f);
-    }
+    // 1. Predict — always run with current odom delta (includes IMU).
+    pf_.predict(dx_robot, dy_robot,
+                static_cast<float>(dtheta), 0.0f);
 
     // 2. Update (sensor model + resampling).
     pf_.update(msg->ranges.data(),

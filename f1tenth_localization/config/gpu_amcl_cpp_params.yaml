@@ -3,7 +3,7 @@
 # ============================================================
 # Contains parameters for all three nodes:
 #   - gpu_amcl_cpp   (AMCL particle filter)
-#   - odom_fused     (IMU + wheel odom fusion)
+#   - odom_fused     (odom relay with covariance)
 #   - ekf_localization (EKF sensor fusion + TF broadcast)
 #
 # All values are configurable — nothing is hardcoded.
@@ -91,45 +91,23 @@ gpu_amcl_cpp:
     publish_rate: 40.0       # Hz (match LiDAR rate)
     transform_tolerance: 1.0
 
-    # ---- Initial convergence ----
-    # Process this many scans before requiring movement to update.
-    # During convergence the sensor model runs without motion prediction,
-    # allowing the particle filter to lock onto the correct position while
-    # the robot is stationary.  Set to 0 to disable.
-    initial_convergence_scans: 200   # ~5 s at 40 Hz
-
     # ---- IMU fusion (inside motion model) ----
     use_imu_rotation: true
     imu_gyro_weight: 0.8
 
 
 # ────────────────────────────────────────────────────────────────
-#  Odom Fusion Node
+#  Odom Relay Node  (VESC odom already includes IMU-fused heading)
 # ────────────────────────────────────────────────────────────────
 odom_fused:
   ros__parameters:
     # ---- Topics ----
     odom_topic: "/ego_racecar/odom"
-    imu_topic: "/sensors/imu/raw"
     output_topic: "/odom_pose"
 
     # ---- Frames ----
     frame_id: "map"
     child_frame_id: "ego_racecar/base_link"
-
-    # ---- Rate ----
-    publish_rate: 200.0   # Hz — high-rate pose between AMCL updates
-
-    # ---- IMU/Odom blending ----
-    # During normal driving: pure odom (no IMU contribution).
-    # When drift/slip is detected: IMU weight ramps up to this maximum.
-    # 0 = never use IMU, 1 = full IMU when drift is detected.
-    imu_weight: 0.4       # max IMU contribution at full drift confidence
-
-    # ---- Drift detection ----
-    drift_threshold: 0.15       # rad/s discrepancy to flag drift
-    drift_window: 10            # sliding window size (samples)
-    drift_cov_multiplier: 5.0   # inflate covariance during drift
 
     # ---- Base covariances (metres² / rad²) ----
     # SIM: 0.0005 (accurate odom)  |  REAL: 0.005–0.05 (noisy wheel odom)
