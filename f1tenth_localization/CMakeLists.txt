@@ -158,6 +158,23 @@ else()
 endif()
 
 # ================================================================
+#  Pipeline Latency Monitor (CPU-only, no CUDA dependency)
+# ================================================================
+add_executable(pipeline_latency_monitor
+  gpu_amcl_cpp/src/core/pipeline_latency_monitor.cpp
+)
+target_include_directories(pipeline_latency_monitor PUBLIC
+  gpu_amcl_cpp/include
+)
+ament_target_dependencies(pipeline_latency_monitor
+  rclcpp sensor_msgs geometry_msgs
+)
+install(TARGETS
+  pipeline_latency_monitor
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+# ================================================================
 #  Python gpu_amcl (existing)
 # ================================================================
 # Install gpu_amcl Python module (importable as 'gpu_amcl')

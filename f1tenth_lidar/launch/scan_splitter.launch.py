@@ -40,7 +40,7 @@ def generate_launch_description():
 
     splitter_node = Node(
         package='f1tenth_lidar',
-        executable='scan_splitter_node.py',
+        executable='scan_splitter_node',
         name='scan_splitter_node',
         output='screen',
         parameters=[
