@@ -50,6 +50,7 @@ class VehicleParams:
         self.safety_margin = 0.155     # Distance from walls [m]
         self.wheelbase = 0.3302        # Wheelbase [m]
         self.track_width = 0.31        # Vehicle width [m]
+        self.direction = 'ccw'         # Direction: 'ccw' or 'cw'
         
         if config_path and os.path.exists(config_path):
             self._load_config(config_path)
@@ -72,9 +73,11 @@ class VehicleParams:
         if 'optimization' in config:
             p = config['optimization']
             self.safety_margin = p.get('safety_margin', self.safety_margin)
+            self.direction = p.get('direction', self.direction)
         elif 'planning' in config:
             p = config['planning']
             self.safety_margin = p.get('safety_margin', self.safety_margin)
+            self.direction = p.get('direction', self.direction)
 
 
 # ============================================================================
@@ -884,9 +887,21 @@ def visualize_friction_circle(velocities: np.ndarray, accelerations: np.ndarray,
 # Main
 # ============================================================================
 def main():
+    # Compute workspace root relative to this script:
+    # script is at <workspace>/f1tenth_planning/scripts/generate_raceline.py
+    _script_dir = os.path.dirname(os.path.abspath(__file__))
+    _workspace_root = os.path.abspath(os.path.join(_script_dir, '..', '..'))
+    
+    _default_map = os.path.join(_workspace_root, 'f1tenth_sim', 'maps', 'my_track_map.yaml')
+    _default_output = os.path.join(_workspace_root, 'f1tenth_planning', 'trajectories')
+    
     parser = argparse.ArgumentParser(description='Generate optimized racing line')
-    parser.add_argument('--map', '-m', required=True, help='Path to map YAML file')
-    parser.add_argument('--output', '-o', required=True, help='Output directory')
+    parser.add_argument('--map', '-m',
+                        default=_default_map,
+                        help='Path to map YAML file (default: f1tenth_sim/maps/my_track_map.yaml)')
+    parser.add_argument('--output', '-o',
+                        default=_default_output,
+                        help='Output directory (default: f1tenth_planning/trajectories)')
     parser.add_argument('--config', '-c', help='Path to vehicle config YAML')
     parser.add_argument('--points', '-n', type=int, default=1000,
                         help='Number of waypoints (default: 1000)')
@@ -894,6 +909,9 @@ def main():
                         help='Generate visualization')
     parser.add_argument('--no-friction-circle', action='store_true',
                         help='Disable friction circle constraints (use simple model)')
+    parser.add_argument('--direction', '-d', choices=['ccw', 'cw'],
+                        default=None,
+                        help='Direction of travel: ccw=counter-clockwise, cw=clockwise (default: from config or ccw)')
     args = parser.parse_args()
     
     # Extract track name from map path
@@ -913,12 +931,18 @@ def main():
         config_path = os.path.join(script_dir, '..', 'config', 'vehicle_params.yaml')
     
     params = VehicleParams(config_path if os.path.exists(config_path) else None)
+    
+    # CLI --direction overrides config file
+    if args.direction is not None:
+        params.direction = args.direction
+    
     print(f"\nVehicle Parameters:")
     print(f"  Friction: {params.friction_coeff}")
     print(f"  Max speed: {params.max_speed} m/s")
     print(f"  Max accel: {params.max_accel} m/s²")
     print(f"  Max decel: {params.max_decel} m/s²")
     print(f"  Safety margin: {params.safety_margin} m")
+    print(f"  Direction: {params.direction}")
     
     # Step 1: Load map and extract boundaries
     print("\n" + "=" * 60)
@@ -936,6 +960,20 @@ def main():
     centerline, normals, inner_tree, outer_tree = compute_centerline(
         outer_world, inner_world, num_points=args.points
     )
+    
+    # Reverse direction if clockwise is requested
+    if params.direction == 'cw':
+        print("  Reversing to clockwise direction")
+        centerline = centerline[::-1].copy()
+        # Recompute tangents and normals for reversed direction
+        tangents = np.zeros_like(centerline)
+        tangents[:-1] = np.diff(centerline, axis=0)
+        tangents[-1] = centerline[0] - centerline[-1]
+        tangent_lengths = np.linalg.norm(tangents, axis=1, keepdims=True)
+        tangents = tangents / np.maximum(tangent_lengths, 1e-6)
+        normals = np.zeros_like(tangents)
+        normals[:, 0] = -tangents[:, 1]
+        normals[:, 1] = tangents[:, 0]
     
     # Step 3: Optimize racing line
     print("\n" + "=" * 60)
