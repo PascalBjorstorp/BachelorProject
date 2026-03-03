@@ -35,6 +35,7 @@ class ScanSplitterNode(Node):
         super().__init__("scan_splitter_node")
 
         # ── Parameters ──────────────────────────────────────────────────
+        self.declare_parameter("enable_splitting", True)
         self.declare_parameter("obstacle_threshold_m", 0.3)
         self.declare_parameter("min_cluster_size", 3)
         self.declare_parameter("scan_topic", "/scan")
@@ -43,6 +44,13 @@ class ScanSplitterNode(Node):
         self.declare_parameter("robot_frame", "ego_racecar/base_link")
         self.declare_parameter("laser_frame", "ego_racecar/laser")
         self.declare_parameter("map_frame", "map")
+
+        # Handle enable_splitting — may arrive as string from launch
+        _es = self.get_parameter("enable_splitting").value
+        if isinstance(_es, str):
+            self.enable_splitting = _es.lower() in ('true', '1', 'yes')
+        else:
+            self.enable_splitting = bool(_es)
 
         self.obstacle_threshold = self.get_parameter("obstacle_threshold_m").value
         self.min_cluster_size = self.get_parameter("min_cluster_size").value
@@ -97,6 +105,7 @@ class ScanSplitterNode(Node):
         self.obstacles_pub = self.create_publisher(LaserScan, obstacles_topic, pub_qos)
 
         self.get_logger().info("Scan Splitter Node initialized")
+        self.get_logger().info(f"  Splitting enabled: {self.enable_splitting}")
         self.get_logger().info(f"  Input:  {scan_topic}")
         self.get_logger().info(f"  Walls:  {walls_topic}")
         self.get_logger().info(f"  Obstacles: {obstacles_topic}")
@@ -137,6 +146,16 @@ class ScanSplitterNode(Node):
 
     def _scan_callback(self, scan: LaserScan):
         """Classify each beam as wall or obstacle and publish split scans."""
+        # ── Passthrough mode: publish /scan as /scan_walls unchanged ──
+        if not self.enable_splitting:
+            self.walls_pub.publish(scan)
+            # Publish all-inf on /scan_obstacles so downstream nodes
+            # see no obstacles.
+            empty = self._copy_scan_header(scan)
+            empty.ranges = [float('inf')] * len(scan.ranges)
+            self.obstacles_pub.publish(empty)
+            return
+
         if not self.map_ready:
             # No map yet — pass through raw scan as walls, empty obstacles
             self.walls_pub.publish(scan)

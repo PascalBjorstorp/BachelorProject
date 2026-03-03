@@ -13,7 +13,7 @@
 #     ros2 launch f1tenth_stack bringup_launch.py \
 #       trajectory_file:=/path/to/raceline.csv
 #
-#   Mapping mode (no scan splitter or lateral planner):
+#   Passthrough mode (scan forwarded as walls, original raceline only):
 #     ros2 launch f1tenth_stack bringup_launch.py \
 #       use_scan_splitter:=false use_lateral_planner:=false
 #
@@ -193,26 +193,30 @@ def generate_launch_description():
     # ══════════════════════
     #  Scan Splitter — /scan → /scan_walls + /scan_obstacles
     # ══════════════════════
-    # Requires /map (from map_server above) and /scan (from LiDAR above).
+    # Always launched. When use_scan_splitter=false the node passes /scan
+    # through as /scan_walls without filtering (no map / TF required).
     ld.add_action(IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(lidar_pkg_dir, 'launch', 'scan_splitter.launch.py')
         ),
-        condition=IfCondition(use_scan_splitter),
+        launch_arguments={
+            'enable_splitting': use_scan_splitter,
+        }.items(),
     ))
 
     # ══════════════════════
     #  Lateral Planner — opponent avoidance → /local_raceline
     # ══════════════════════
-    # Subscribes to /scan_obstacles and publishes a shifted raceline.
+    # Always launched. When use_lateral_planner=false the node publishes
+    # the original raceline directly without analysing obstacle scans.
     ld.add_action(IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(lateral_planner_pkg_dir, 'launch', 'lateral_planner.launch.py')
         ),
         launch_arguments={
             'trajectory_file': LaunchConfiguration('trajectory_file'),
+            'enabled': use_lateral_planner,
         }.items(),
-        condition=IfCondition(use_lateral_planner),
     ))
 
     # ══════════════════════

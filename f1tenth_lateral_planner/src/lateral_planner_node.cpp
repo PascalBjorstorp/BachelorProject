@@ -107,6 +107,7 @@ private:
     }
 
     enabled_    = get_parameter("enabled").as_bool();
+    RCLCPP_INFO(get_logger(), "  Avoidance enabled: %s", enabled_ ? "true" : "false");
     map_frame_  = get_parameter("map_frame").as_string();
     base_frame_ = get_parameter("base_frame").as_string();
     laser_frame_ = get_parameter("laser_frame").as_string();
@@ -182,6 +183,11 @@ private:
 
   void obstacleCallback(const sensor_msgs::msg::LaserScan::SharedPtr scan)
   {
+    // Skip obstacle processing when planner is disabled (passthrough mode)
+    if (!enabled_) {
+      return;
+    }
+
     // Look up laser pose in map frame
     geometry_msgs::msg::TransformStamped tf;
     try {
@@ -209,7 +215,7 @@ private:
 
   void planLoop()
   {
-    if (!enabled_ || planner_->waypointCount() == 0) {
+    if (planner_->waypointCount() == 0) {
       return;
     }
 
@@ -219,12 +225,17 @@ private:
     }
 
     // Compute path (handles both normal and avoidance cases)
+    // When disabled, obstacle processing is skipped so computePath()
+    // always sees no opponent and returns the original raceline.
     auto path_waypoints = planner_->computePath();
 
     // Publish controller path (velocity in z) and visualization path (z=0)
     publishPath(path_waypoints);
     publishPathViz(path_waypoints);
-    publishOpponentMarker(planner_->opponent().detected);
+
+    if (enabled_) {
+      publishOpponentMarker(planner_->opponent().detected);
+    }
   }
 
   // ── TF pose update ────────────────────────────────────────────────

@@ -50,7 +50,7 @@ class VehicleParams:
         self.safety_margin = 0.155     # Distance from walls [m]
         self.wheelbase = 0.3302        # Wheelbase [m]
         self.track_width = 0.31        # Vehicle width [m]
-        self.direction = 'ccw'         # Direction: 'ccw' or 'cw'
+        self.direction = 'cw'         # Direction: 'ccw' or 'cw'
         
         if config_path and os.path.exists(config_path):
             self._load_config(config_path)

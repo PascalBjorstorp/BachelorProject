@@ -36,6 +36,12 @@ def generate_launch_description():
         description='Path to global raceline CSV'
     )
 
+    declare_enabled = DeclareLaunchArgument(
+        'enabled',
+        default_value='true',
+        description='Enable obstacle avoidance. When false, publishes original raceline directly.'
+    )
+
     planner_node = Node(
         package='f1tenth_lateral_planner',
         executable='lateral_planner_node',
@@ -43,11 +49,15 @@ def generate_launch_description():
         output='screen',
         parameters=[
             config_path,
-            {'trajectory_file': LaunchConfiguration('trajectory_file')},
+            {
+                'trajectory_file': LaunchConfiguration('trajectory_file'),
+                'enabled': LaunchConfiguration('enabled'),
+            },
         ],
     )
 
     return LaunchDescription([
         declare_trajectory,
+        declare_enabled,
         planner_node,
     ])

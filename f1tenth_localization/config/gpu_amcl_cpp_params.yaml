@@ -18,7 +18,7 @@ gpu_amcl_cpp:
     use_gpu: true
 
     # ---- Particles ----
-    num_particles: 2000
+    num_particles: 1000
     min_particles: 1000
     max_particles: 10000
 
@@ -36,7 +36,7 @@ gpu_amcl_cpp:
     global_frame_id: "map"
 
     # ---- Topics ----
-    scan_topic: "/scan_walls"
+    scan_topic: "/scan"
     odom_topic: "/ego_racecar/odom"
 
     # ---- Update thresholds (metres / radians) ----
@@ -55,10 +55,10 @@ gpu_amcl_cpp:
     # These control how much random noise is added to each particle.
     # For simulation (accurate odom), use LOW values.
     # For real hardware (noisy odom/slip), increase 5-10x.
-    alpha1: 0.1    # rotation  → rotation  noise 0.0001 for sim
-    alpha2: 0.1    # translation → rotation  noise
-    alpha3: 0.2    # translation → translation noise
-    alpha4: 0.2    # rotation  → translation noise
+    alpha1: 0.01    # rotation  → rotation  noise 0.0001 for sim
+    alpha2: 0.01    # translation → rotation  noise
+    alpha3: 0.02    # translation → translation noise
+    alpha4: 0.02    # rotation  → translation noise
 
     # ---- Sensor model (likelihood field, Prob. Robotics §6.4) ----
     max_beams: 270
@@ -75,7 +75,7 @@ gpu_amcl_cpp:
     # ---- Recovery ----
     # Injects random particles when the filter detects degradation.
     # Set to false for simulation (stable odom). Enable for real HW.
-    use_recovery: true
+    use_recovery: false
 
     # ---- Initial pose ----
     # Set to where you place the car on my_track_map.
@@ -93,7 +93,7 @@ gpu_amcl_cpp:
 
     # ---- IMU fusion (inside motion model) ----
     use_imu_rotation: true
-    imu_gyro_weight: 0.8
+    imu_gyro_weight: 0.2
 
 
 # ────────────────────────────────────────────────────────────────

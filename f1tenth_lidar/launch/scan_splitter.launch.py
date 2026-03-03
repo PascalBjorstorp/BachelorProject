@@ -32,6 +32,12 @@ def generate_launch_description():
         description='Distance (m) from nearest wall to classify beam as obstacle'
     )
 
+    declare_enable = DeclareLaunchArgument(
+        'enable_splitting',
+        default_value='true',
+        description='Enable wall/obstacle splitting. When false, /scan is passed through as /scan_walls.'
+    )
+
     splitter_node = Node(
         package='f1tenth_lidar',
         executable='scan_splitter_node.py',
@@ -39,11 +45,15 @@ def generate_launch_description():
         output='screen',
         parameters=[
             config_path,
-            {'obstacle_threshold_m': LaunchConfiguration('obstacle_threshold')},
+            {
+                'obstacle_threshold_m': LaunchConfiguration('obstacle_threshold'),
+                'enable_splitting': LaunchConfiguration('enable_splitting'),
+            },
         ],
     )
 
     return LaunchDescription([
         declare_threshold,
+        declare_enable,
         splitter_node,
     ])
