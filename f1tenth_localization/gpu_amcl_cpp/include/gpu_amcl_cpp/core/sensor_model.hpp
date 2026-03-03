@@ -22,7 +22,7 @@ public:
         double z_rand          = 0.05;
         double sigma_hit       = 0.2;
         double laser_max_range = 10.0;
-        double laser_offset_x  = 0.275;
+        double laser_offset_x  = 0.265;
         double laser_offset_y  = 0.0;
     };
 

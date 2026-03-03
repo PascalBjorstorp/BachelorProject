@@ -60,7 +60,7 @@ class SensorModelConfig:
         # Likelihood field parameters
         max_dist: float = 2.0,    # Max distance in likelihood field lookup (meters)
         # Laser offset from base_link (set to match your robot)
-        laser_offset_x: float = 0.275,  # Forward offset (meters)
+        laser_offset_x: float = 0.265,  # Forward offset (meters)
         laser_offset_y: float = 0.0     # Lateral offset (meters)
     ):
         self.z_hit = z_hit

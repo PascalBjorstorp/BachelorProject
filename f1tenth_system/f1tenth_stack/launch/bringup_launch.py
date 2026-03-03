@@ -226,7 +226,7 @@ def generate_launch_description():
         executable='static_transform_publisher',
         name='static_baselink_to_laser',
         arguments=[
-            '--x', '0.115',
+            '--x', '0.265',
             '--y', '0.0',
             '--z', '0.05',
             '--roll', '0.0',

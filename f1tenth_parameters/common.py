@@ -87,7 +87,7 @@ DEFAULT_SERVO_OFFSET = 0.5500
 DEFAULT_SERVO_MIN = 0.202
 DEFAULT_SERVO_MAX = 0.890
 DEFAULT_WHEELBASE = 0.324
-DEFAULT_LASER_X_OFFSET = 0.275  # LiDAR (ego_racecar/laser) to base_link x offset (m)
+DEFAULT_LASER_X_OFFSET = 0.265  # LiDAR (ego_racecar/laser) to base_link x offset (m)
 
 # Compute max steering angle from servo limits
 # servo = gain * angle + offset

@@ -52,7 +52,7 @@ gpu_amcl:
     z_rand: 0.05
     sigma_hit: 0.2
     laser_max_range: 10.0
-    laser_offset_x: 0.275
+    laser_offset_x: 0.265
     laser_offset_y: 0.0
 
     # ---- Resampling ----

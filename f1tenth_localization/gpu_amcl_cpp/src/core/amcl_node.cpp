@@ -110,7 +110,7 @@ void AmclNode::declare_all_parameters() {
     declare_parameter<double>("z_rand", 0.05);
     declare_parameter<double>("sigma_hit", 0.2);
     declare_parameter<double>("laser_max_range", 10.0);
-    declare_parameter<double>("laser_offset_x", 0.275);
+    declare_parameter<double>("laser_offset_x", 0.265);
     declare_parameter<double>("laser_offset_y", 0.0);
 
     // Resampling

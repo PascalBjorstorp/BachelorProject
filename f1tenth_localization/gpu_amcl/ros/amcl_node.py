@@ -221,7 +221,7 @@ class GPUAMCLNode(Node):
         self.declare_parameter('laser_max_range', 10.0)
         
         # Laser offset
-        self.declare_parameter('laser_offset_x', 0.275)
+        self.declare_parameter('laser_offset_x', 0.265)
         self.declare_parameter('laser_offset_y', 0.0)
         
         # Resampling
