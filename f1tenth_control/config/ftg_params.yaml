@@ -9,7 +9,7 @@ ftg_node:
     # Vehicle Parameters
     # ===================
     wheelbase: 0.3302        # Distance between front and rear axles (m)
-    car_width: 0.31         # Width for disparity extension (m) - actual car width
+    car_width: 0.27         # Width for disparity extension (m) - actual car width
 
     # ===================
     # Speed Control (Reference FTG Formula)
@@ -23,7 +23,7 @@ ftg_node:
     # ===================
     # Steering Control
     # ===================
-    max_steering: 0.4          # [rad] Maximum steering angle (~23°)
+    max_steering: 0.4262          # [rad] Maximum steering angle (~23°)
     steering_gain: 1.0           # Gain for steering toward gap
     max_steering_rate: 0.12      # [rad] Maximum steering change per update
 
@@ -39,7 +39,7 @@ ftg_node:
     disparity_threshold: 0.6  # Threshold for detecting disparities (m) - lower = more sensitive
     gap_threshold: 0.3         # Minimum range to consider as "gap" (m) - readings > this are "open"
     min_gap_width: 0.1        # Minimum angular width of valid gap (rad) ~8 degrees
-    bubble_radius: 1.0         # Safety bubble radius around closest point (m) - larger for more safety
+    bubble_radius: 0.15         # Safety bubble radius around closest point (m) - larger for more safety
     apply_bubble: true         # Enable safety bubble
     wall_margin: 0.05          # Shrink all readings by this amount (m) - creates clearance from parallel walls
                                # Set to 0.0 to disable. Typical value: half of car width
@@ -53,7 +53,7 @@ ftg_node:
       range_max: 10.0       # Maximum range to consider (m)
       angle_min: -1.57      # Minimum angle to process (rad) - -90 degrees
       angle_max: 1.57       # Maximum angle to process (rad) - +90 degrees
-      apply_median_filter: true  # Apply median filter for noise reduction
+      apply_median_filter: false  # Apply median filter for noise reduction
       median_window_size: 3      # Window size (should be odd)
 
     # ===================

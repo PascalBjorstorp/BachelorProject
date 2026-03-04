@@ -59,8 +59,6 @@ FTGOutput FollowTheGap::compute(
     output.closest_point_idx = lidar_processor_.findClosestPoint(scan);
     output.closest_point_dist = scan.filtered_ranges[output.closest_point_idx];
 
-    // Step 4: Check for emergency stop RIP
-
     // Step 5: Apply disparity extension for safety (FTG-specific)
     applyDisparityExtension(scan);
     
