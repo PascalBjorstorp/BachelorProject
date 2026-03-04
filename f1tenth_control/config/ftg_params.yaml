@@ -18,14 +18,16 @@ ftg_node:
     max_speed: 2.0          # Maximum allowed speed (m/s) - reduced for tight corners
     min_speed: 0.5          # Minimum speed (m/s)
     speed_full_range: 3.0   # Distance (m) at which full speed is allowed
-    steer_slowdown_gain: 0.2 # How much steering reduces speed (0=none, 1=max) - slow down more on turns
+    steer_slowdown_gain: 0.4 # How much steering reduces speed (0=none, 1=max)
 
     # ===================
     # Steering Control
     # ===================
-    max_steering: 0.4262          # [rad] Maximum steering angle (~23°)
-    steering_gain: 1.0           # Gain for steering toward gap
-    max_steering_rate: 0.12      # [rad] Maximum steering change per update
+    max_steering: 0.4262          # [rad] Maximum steering angle (~24°)
+    steering_gain: 1.0            # Gain for steering toward gap
+    max_steering_rate: 3.0        # [rad/s] Time-based max steering change rate
+    target_ema_alpha: 0.35        # EMA smoothing for target angle (0.1=very smooth, 1.0=no smoothing)
+    heading_bias_weight: 0.4      # Prefer gaps near current heading (0=disabled, higher=stronger)
 
     # ===================
     # Safety Parameters
@@ -36,13 +38,12 @@ ftg_node:
     # FTG-Specific Processing
     # ===================
     # These parameters are specific to the Follow The Gap algorithm
-    disparity_threshold: 0.6  # Threshold for detecting disparities (m) - lower = more sensitive
-    gap_threshold: 0.3         # Minimum range to consider as "gap" (m) - readings > this are "open"
-    min_gap_width: 0.1        # Minimum angular width of valid gap (rad) ~8 degrees
-    bubble_radius: 0.15         # Safety bubble radius around closest point (m) - larger for more safety
+    disparity_threshold: 0.3  # Threshold for detecting disparities (m) - lower = more sensitive
+    gap_threshold: 0.2         # Minimum range to consider as "gap" (m) - readings > this are "open"
+    min_gap_width: 0.3         # Minimum angular width of valid gap (rad) ~17 degrees
+    bubble_radius: 0.15        # Safety bubble radius around closest point (m)
     apply_bubble: true         # Enable safety bubble
     wall_margin: 0.05          # Shrink all readings by this amount (m) - creates clearance from parallel walls
-                               # Set to 0.0 to disable. Typical value: half of car width
 
     # ===================
     # Generic LiDAR Preprocessing
@@ -53,8 +54,8 @@ ftg_node:
       range_max: 10.0       # Maximum range to consider (m)
       angle_min: -1.57      # Minimum angle to process (rad) - -90 degrees
       angle_max: 1.57       # Maximum angle to process (rad) - +90 degrees
-      apply_median_filter: false  # Apply median filter for noise reduction
-      median_window_size: 3      # Window size (should be odd)
+      apply_median_filter: true   # Apply median filter for noise reduction (reduces jitter)
+      median_window_size: 3       # Window size (should be odd)
 
     # ===================
     # Mapping Mode

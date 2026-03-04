@@ -3,6 +3,7 @@
 #include <cmath>
 #include <algorithm>
 #include <limits>
+#include <chrono>
 
 namespace f1tenth_control {
 
@@ -17,6 +18,8 @@ void FollowTheGap::setConfig(const FTGConfig& config) {
 void FollowTheGap::reset() {
     // Reset internal state
     last_steering_ = 0.0;
+    smoothed_target_ = 0.0;
+    first_compute_ = true;
 }
 
 FTGOutput FollowTheGap::compute(
@@ -28,6 +31,15 @@ FTGOutput FollowTheGap::compute(
     double timestamp
 ) {
     FTGOutput output;
+
+    // Time-based rate limiting: compute dt
+    auto now = std::chrono::steady_clock::now();
+    double dt = 0.025;  // default 25ms (40 Hz)
+    if (!first_compute_) {
+        dt = std::chrono::duration<double>(now - last_compute_time_).count();
+        dt = math::clamp(dt, 0.001, 0.5);  // Guard against crazy values
+    }
+    last_compute_time_ = now;
 
     // Handle empty scan
     if (ranges.empty()) {
@@ -82,14 +94,23 @@ FTGOutput FollowTheGap::compute(
     // Step 9: Calculate steering toward the gap (using deepest point)
     double target_angle = calculateTargetAngle(output.selected_gap, scan);
     
+    // Apply EMA smoothing to target angle to prevent jitter
+    if (first_compute_) {
+        smoothed_target_ = target_angle;
+        first_compute_ = false;
+    } else {
+        double alpha = math::clamp(config_.target_ema_alpha, 0.05, 1.0);
+        smoothed_target_ = alpha * target_angle + (1.0 - alpha) * smoothed_target_;
+    }
+    
     double raw_steering = math::clamp(
-        config_.steering_gain * target_angle,
+        config_.steering_gain * smoothed_target_,
         -config_.max_steering,
         config_.max_steering
     );
     
-    // Apply steering rate limiting for smooth control
-    double steering = smoothSteering(raw_steering, last_steering_);
+    // Apply time-based steering rate limiting for smooth control
+    double steering = smoothSteering(raw_steering, last_steering_, dt);
     last_steering_ = steering;
     
     // Step 10: Calculate speed based on range and steering (reference formula)
@@ -326,16 +347,27 @@ double FollowTheGap::calculateSpeed(const Gap& gap, double steering_angle) {
 }
 
 double FollowTheGap::scoreGap(const Gap& gap) {
-    // Pure FTG scoring: prefer gaps that are wide and deep
-    return gap.deepest_range * gap.angular_width;
+    // Base score: prefer gaps that are wide and deep
+    double base_score = gap.deepest_range * gap.angular_width;
+    
+    // Heading bias: prefer gaps near current heading (angle 0 = straight ahead)
+    // This reduces gap-flipping between similar-scoring gaps on left/right
+    if (config_.heading_bias_weight > 0.0) {
+        double center = gap.centerAngle();
+        double heading_penalty = config_.heading_bias_weight * std::abs(center);
+        base_score *= std::exp(-heading_penalty);
+    }
+    
+    return base_score;
 }
 
-double FollowTheGap::smoothSteering(double target_steering, double last_steering) {
+double FollowTheGap::smoothSteering(double target_steering, double last_steering, double dt) {
+    double max_change = config_.max_steering_rate * dt;  // rad/s * s = rad
     double delta = target_steering - last_steering;
     
-    if (std::abs(delta) > config_.max_steering_rate) {
+    if (std::abs(delta) > max_change) {
         double sign = (delta > 0) ? 1.0 : -1.0;
-        return last_steering + sign * config_.max_steering_rate;
+        return last_steering + sign * max_change;
     }
     
     return target_steering;

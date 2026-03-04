@@ -5,6 +5,7 @@
 #include "f1tenth_control/common/lidar_processor.hpp"
 #include <memory>
 #include <functional>
+#include <chrono>
 
 namespace f1tenth_control {
 
@@ -27,7 +28,9 @@ struct FTGConfig {
     // Steering control
     double max_steering{0.4};        // [rad] Maximum steering angle (~23°)
     double steering_gain{0.8};       // Gain for steering toward gap (reduced for stability)
-    double max_steering_rate{0.05};  // [rad] Maximum steering change per update for smoothing
+    double max_steering_rate{2.0};   // [rad/s] Maximum steering change rate (time-based)
+    double target_ema_alpha{0.3};    // EMA smoothing for target angle (0=full smooth, 1=no smooth)
+    double heading_bias_weight{0.3}; // Weight for preferring gaps near current heading (0=disabled)
     
     // Safety
     double emergency_brake_distance{0.3};  // Brake if obstacle closer than this (m)
@@ -120,7 +123,10 @@ public:
 private:
     FTGConfig config_;
     LidarProcessor lidar_processor_;
-    double last_steering_{0.0};  // For steering rate limiting
+    double last_steering_{0.0};     // For steering rate limiting
+    double smoothed_target_{0.0};   // EMA-filtered target angle
+    bool first_compute_{true};      // First invocation flag
+    std::chrono::steady_clock::time_point last_compute_time_;  // For time-based rate limiting
     
     // ============================================
     // FTG-Specific LiDAR Processing (moved from LidarProcessor)
@@ -192,9 +198,9 @@ private:
     double scoreGap(const Gap& gap);
     
     /**
-     * @brief Smooth steering with rate limiting
+     * @brief Smooth steering with time-based rate limiting
      */
-    double smoothSteering(double target_steering, double last_steering);
+    double smoothSteering(double target_steering, double last_steering, double dt);
 };
 
 }  // namespace f1tenth_control
