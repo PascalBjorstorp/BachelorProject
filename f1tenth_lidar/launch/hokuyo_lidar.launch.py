@@ -93,7 +93,7 @@ def generate_launch_description():
         executable='static_transform_publisher',
         name='laser_tf_publisher',
         arguments=[
-            '--x', '0.275',
+            '--x', '0.265',
             '--y', '0.0',
             '--z', '0.05',
             '--roll', '0.0',

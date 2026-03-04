@@ -13,10 +13,10 @@ Drive the car around the track using Follow The Gap while simultaneously buildin
 ### Terminal 1 — VESC Driver Stack (on Jetson)
 ```bash
 source install/setup.bash
-ros2 launch f1tenth_stack bringup_launch.py use_scan_splitter:=false use_lateral_planner:=false
+ros2 launch f1tenth_stack bringup_launch.py mapping_mode:=true
 ```
-> This starts: VESC driver, IMU, ackermann mux, and the custom **Hokuyo SCIP 2.0 LiDAR** at full **40 Hz**.
-> Scan splitter and lateral planner are disabled for mapping (no map available yet).
+> This starts: VESC driver, IMU, ackermann mux, and the custom **Hokuyo SCIP 2.0 LiDAR** at **20 Hz** (270 beams).
+> Mapping mode disables scan splitter and lateral planner (no map available yet).
 
 
 ### Terminal 2 — SLAM Toolbox (on Jetson)
@@ -132,10 +132,11 @@ ros2 launch f1tenth_localization cpp_localization.launch.py
 ```
 
 > This launches the full C++ GPU AMCL localization stack:
-> - **map_server** — serves the static map to AMCL and the scan splitter
 > - **gpu_amcl_cpp** — CUDA-accelerated particle filter (subscribes to `/scan_walls`)
 > - **odom_fused** — IMU + wheel odom fusion at 200 Hz
 > - **ekf_localization** — EKF sensor fusion + TF broadcast at 200 Hz
+>
+> **Note:** `map_server` is launched by the bringup in Terminal 1, not here.
 >
 > All parameters are in `f1tenth_localization/config/gpu_amcl_cpp_params.yaml`.
 
@@ -165,7 +166,7 @@ ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped '
 source install/setup.bash
 
 ros2 launch f1tenth_control pure_pursuit_launch.py \
-  trajectory_file:=/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv
+  trajectory_file:=/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv \
   max_speed:=3.0 \
   min_lookahead:=0.2 \
   max_lookahead:=1.5 \
@@ -239,6 +240,34 @@ ros2 run rviz2 rviz2 --ros-args -p use_sim_time:=true
 - **Plot Panel**: `/drive.drive.speed`, `/drive.drive.steering_angle`
 - **Raw Messages**: `/amcl_pose`, `/odom`
 - **State Transitions**: Compare commanded vs actual speed
+
+---
+
+## Jetson Performance Monitoring
+
+Useful commands for checking system load during mapping or racing.
+
+### CPU + GPU + Memory (all-in-one)
+```bash
+sudo tegrastats
+```
+> Live feed showing per-core CPU %, GPU %, RAM, thermals.
+> Output: `RAM 3456/7620MB | CPU [45%@1420,32%@1420,...] | GPU 12%@510 | ...`
+
+### CPU only — per-core usage
+```bash
+htop
+```
+> Or without htop:
+> ```bash
+> watch -n 1 'cat /proc/stat | head -9'
+> ```
+
+### GPU only
+```bash
+watch -n 1 'cat /sys/devices/gpu.0/load'
+```
+> Value is in per-mille (500 = 50%).
 
 ---
 
