@@ -13,7 +13,7 @@
 #     ros2 launch f1tenth_stack bringup_launch.py \
 #       trajectory_file:=/path/to/raceline.csv
 #
-#   Mapping mode (1080 beams, no scan splitter or lateral planner):
+#   Mapping mode (270 beams @ 20 Hz, no scan splitter or lateral planner):
 #     ros2 launch f1tenth_stack bringup_launch.py mapping_mode:=true
 #
 #   Teleop only (no LiDAR):
@@ -68,7 +68,7 @@ def generate_launch_description():
         DeclareLaunchArgument('use_lidar', default_value='true',
                               description='Launch LiDAR driver (Hokuyo SCIP 2.0, 40 Hz)'),
         DeclareLaunchArgument('mapping_mode', default_value='false',
-                              description='Mapping mode: 1080 beams, no scan splitter or lateral planner'),
+                              description='Mapping mode: 270 beams @ 20 Hz, no scan splitter or lateral planner'),
         DeclareLaunchArgument('trajectory_file', default_value='/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv',
                               description='Path to global raceline CSV for lateral planner'),
         DeclareLaunchArgument('map_file', default_value=default_map,
@@ -173,27 +173,27 @@ def generate_launch_description():
     ))
 
     # ══════════════════════
-    #  LiDAR — Custom SCIP 2.0 driver (40 Hz)
+    #  LiDAR — Custom SCIP 2.0 driver
     # ══════════════════════
-    # Normal mode: cluster=4 → 270 beams at 1° resolution (from YAML default)
+    # Normal mode: 270 beams @ 40 Hz (cluster=4, skip=0)
     ld.add_action(Node(
         package='f1tenth_lidar',
         executable='hokuyo_scip_driver_node',
         name='hokuyo_scip_driver',
         output='screen',
-        parameters=[hokuyo_config],
+        parameters=[hokuyo_config, {'skip': 0}],
         condition=IfCondition(PythonExpression([
             "'", use_lidar, "' == 'true' and '", mapping_mode, "' != 'true'"
         ])),
     ))
 
-    # Mapping mode: cluster=4 → 270 beams at 1° resolution (from YAML default)
+    # Mapping mode: 270 beams @ 20 Hz (cluster=4, skip=1)
     ld.add_action(Node(
         package='f1tenth_lidar',
         executable='hokuyo_scip_driver_node',
         name='hokuyo_scip_driver',
         output='screen',
-        parameters=[hokuyo_config, {'cluster': 4}],   
+        parameters=[hokuyo_config, {'skip': 1}],
         condition=IfCondition(PythonExpression([
             "'", use_lidar, "' == 'true' and '", mapping_mode, "' == 'true'"
         ])),
