@@ -301,6 +301,39 @@ std::vector<Gap> FollowTheGap::findGaps(const ProcessedScan& scan) {
         }
     }
     
+    // Trim gap edges: discard first/last N indices from each gap to avoid
+    // driving toward extremities near obstacles. Recompute deepest point
+    // within the trimmed range.
+    if (config_.gap_edge_trim > 0) {
+        for (auto& gap : gaps) {
+            size_t trim = static_cast<size_t>(config_.gap_edge_trim);
+            size_t gap_width = gap.end_idx - gap.start_idx + 1;
+            
+            // Only trim if gap is wide enough (need at least 1 index after trimming)
+            if (gap_width > 2 * trim) {
+                gap.start_idx += trim;
+                gap.end_idx -= trim;
+                gap.start_angle = scan.angles[gap.start_idx];
+                gap.end_angle = scan.angles[gap.end_idx];
+                gap.angular_width = gap.end_angle - gap.start_angle;
+                
+                // Recompute deepest point within trimmed range
+                gap.deepest_range = 0.0;
+                gap.min_range = std::numeric_limits<double>::infinity();
+                gap.max_range = 0.0;
+                for (size_t j = gap.start_idx; j <= gap.end_idx; ++j) {
+                    double r = scan.filtered_ranges[j];
+                    if (r > gap.deepest_range) {
+                        gap.deepest_range = r;
+                        gap.deepest_idx = j;
+                    }
+                    gap.min_range = std::min(gap.min_range, r);
+                    gap.max_range = std::max(gap.max_range, r);
+                }
+            }
+        }
+    }
+    
     return gaps;
 }
 

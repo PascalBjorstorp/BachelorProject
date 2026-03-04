@@ -42,6 +42,7 @@ struct FTGConfig {
     double bubble_radius{0.2};       // Safety bubble radius around closest point (m)
     bool apply_bubble{true};         // Whether to apply safety bubble
     double wall_margin{0.35};        // Shrink all readings by this amount (m)
+    int gap_edge_trim{0};            // Number of indices to discard from each side of a gap
     
     // Generic LiDAR processing config (for preprocessing only)
     LidarProcessorConfig lidar_config;

@@ -88,6 +88,7 @@ void FTGNode::declareParameters() {
     declare_parameter("bubble_radius", 0.25);
     declare_parameter("apply_bubble", true);
     declare_parameter("wall_margin", 0.35);
+    declare_parameter("gap_edge_trim", 3);
     
     // Generic LiDAR preprocessing parameters
     declare_parameter("lidar.range_min", 0.1);
@@ -130,6 +131,7 @@ void FTGNode::loadParameters() {
     config_.bubble_radius = get_parameter("bubble_radius").as_double();
     config_.apply_bubble = get_parameter("apply_bubble").as_bool();
     config_.wall_margin = get_parameter("wall_margin").as_double();
+    config_.gap_edge_trim = get_parameter("gap_edge_trim").as_int();
     
     // Generic LiDAR preprocessing config
     config_.lidar_config.range_min = get_parameter("lidar.range_min").as_double();

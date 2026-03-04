@@ -44,6 +44,7 @@ ftg_node:
     bubble_radius: 0.15        # Safety bubble radius around closest point (m)
     apply_bubble: true         # Enable safety bubble
     wall_margin: 0.05          # Shrink all readings by this amount (m) - creates clearance from parallel walls
+    gap_edge_trim: 3           # Discard this many indices from each side of a gap (0=off, 1-5 typical)
 
     # ===================
     # Generic LiDAR Preprocessing
