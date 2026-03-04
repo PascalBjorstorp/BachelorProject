@@ -163,6 +163,12 @@ void FollowTheGap::applyDisparityExtension(ProcessedScan& scan) {
             size_t closer_idx = (ranges[i] < ranges[i-1]) ? i : i-1;
             double closer_range = ranges[closer_idx];
             
+            // Skip artificial disparities: if the closer reading was already
+            // set by a previous extension, this is a cascade boundary, not a
+            // real obstacle edge. Without this check, each extension's
+            // boundary triggers a new extension, chaining across the scan.
+            if (scan.disparity_blocked[closer_idx]) continue;
+            
             // Calculate how many indices to extend based on car width
             double angle_to_extend = std::atan2(half_car, closer_range);
             int indices_to_extend = static_cast<int>(
@@ -189,11 +195,6 @@ void FollowTheGap::applyDisparityExtension(ProcessedScan& scan) {
                         ranges[idx] = closer_range;
                     }
                 }
-                // Skip past the extension to prevent cascade:
-                // Without this, the boundary of the extension creates a new
-                // artificial disparity with the next unmodified range, causing
-                // the extension to chain across the entire scan.
-                i = closer_point_idx + indices_to_extend;
             }
         }
     }
