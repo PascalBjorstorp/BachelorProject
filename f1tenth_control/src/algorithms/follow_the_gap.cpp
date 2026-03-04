@@ -150,7 +150,7 @@ void FollowTheGap::applyDisparityExtension(ProcessedScan& scan) {
             
             // Extend in the appropriate direction
             if (closer_idx == i) {
-                // Closer point is on the right, extend left
+                // Closer point is on the right, extend left (into the gap behind)
                 for (int j = 0; j < indices_to_extend && static_cast<int>(i) - j >= 0; ++j) {
                     size_t idx = i - j;
                     if (ranges[idx] > closer_range) {
@@ -159,7 +159,7 @@ void FollowTheGap::applyDisparityExtension(ProcessedScan& scan) {
                     }
                 }
             } else {
-                // Closer point is on the left, extend right
+                // Closer point is on the left, extend right (into the gap ahead)
                 size_t closer_point_idx = i - 1;
                 for (int j = 0; j < indices_to_extend && closer_point_idx + j < ranges.size(); ++j) {
                     size_t idx = closer_point_idx + j;
@@ -168,6 +168,11 @@ void FollowTheGap::applyDisparityExtension(ProcessedScan& scan) {
                         ranges[idx] = closer_range;
                     }
                 }
+                // Skip past the extension to prevent cascade:
+                // Without this, the boundary of the extension creates a new
+                // artificial disparity with the next unmodified range, causing
+                // the extension to chain across the entire scan.
+                i = closer_point_idx + indices_to_extend;
             }
         }
     }
