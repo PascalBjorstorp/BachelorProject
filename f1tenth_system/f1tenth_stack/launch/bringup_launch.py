@@ -9,29 +9,26 @@
 # Unified launch file for the F1TENTH car. Use launch arguments to
 # select which subsystems to start:
 #
-#   Full stack (default — includes scan splitter + lateral planner):
+#   Full stack (default — includes scan splitter + lateral planner, 270 beams):
 #     ros2 launch f1tenth_stack bringup_launch.py \
 #       trajectory_file:=/path/to/raceline.csv
 #
-#   Passthrough mode (scan forwarded as walls, original raceline only):
-#     ros2 launch f1tenth_stack bringup_launch.py \
-#       use_scan_splitter:=false use_lateral_planner:=false
+#   Mapping mode (1080 beams, no scan splitter or lateral planner):
+#     ros2 launch f1tenth_stack bringup_launch.py mapping_mode:=true
 #
 #   Teleop only (no LiDAR):
-#     ros2 launch f1tenth_stack bringup_launch.py use_lidar:=false \
-#       use_scan_splitter:=false use_lateral_planner:=false
+#     ros2 launch f1tenth_stack bringup_launch.py use_lidar:=false
 #
 #   VESC only (testing motor/odom):
-#     ros2 launch f1tenth_stack bringup_launch.py use_teleop:=false use_lidar:=false \
-#       use_scan_splitter:=false use_lateral_planner:=false
+#     ros2 launch f1tenth_stack bringup_launch.py use_teleop:=false use_lidar:=false
 
 import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration
+from launch.conditions import IfCondition, UnlessCondition
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node, LifecycleNode, ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
@@ -70,10 +67,8 @@ def generate_launch_description():
                               description='Launch joystick teleop and mux'),
         DeclareLaunchArgument('use_lidar', default_value='true',
                               description='Launch LiDAR driver (Hokuyo SCIP 2.0, 40 Hz)'),
-        DeclareLaunchArgument('use_scan_splitter', default_value='true',
-                              description='Launch scan splitter (uses /map from map_server)'),
-        DeclareLaunchArgument('use_lateral_planner', default_value='true',
-                              description='Launch lateral planner for opponent avoidance'),
+        DeclareLaunchArgument('mapping_mode', default_value='false',
+                              description='Mapping mode: 1080 beams, no scan splitter or lateral planner'),
         DeclareLaunchArgument('trajectory_file', default_value='/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv',
                               description='Path to global raceline CSV for lateral planner'),
         DeclareLaunchArgument('map_file', default_value=default_map,
@@ -84,8 +79,7 @@ def generate_launch_description():
 
     use_teleop = LaunchConfiguration('use_teleop')
     use_lidar = LaunchConfiguration('use_lidar')
-    use_scan_splitter = LaunchConfiguration('use_scan_splitter')
-    use_lateral_planner = LaunchConfiguration('use_lateral_planner')
+    mapping_mode = LaunchConfiguration('mapping_mode')
 
     # ══════════════════════
     #  Map Server (always)
@@ -181,42 +175,53 @@ def generate_launch_description():
     # ══════════════════════
     #  LiDAR — Custom SCIP 2.0 driver (40 Hz)
     # ══════════════════════
+    # Normal mode: cluster=4 → 270 beams at 1° resolution (from YAML default)
     ld.add_action(Node(
         package='f1tenth_lidar',
         executable='hokuyo_scip_driver_node',
         name='hokuyo_scip_driver',
         output='screen',
         parameters=[hokuyo_config],
-        condition=IfCondition(use_lidar),
+        condition=IfCondition(PythonExpression([
+            "'", use_lidar, "' == 'true' and '", mapping_mode, "' != 'true'"
+        ])),
+    ))
+
+    # Mapping mode: cluster=1 → 1080 beams at 0.25° resolution (full sensor data)
+    ld.add_action(Node(
+        package='f1tenth_lidar',
+        executable='hokuyo_scip_driver_node',
+        name='hokuyo_scip_driver',
+        output='screen',
+        parameters=[hokuyo_config, {'cluster': 1}],
+        condition=IfCondition(PythonExpression([
+            "'", use_lidar, "' == 'true' and '", mapping_mode, "' == 'true'"
+        ])),
     ))
 
     # ══════════════════════
     #  Scan Splitter — /scan → /scan_walls + /scan_obstacles
     # ══════════════════════
-    # Always launched. When use_scan_splitter=false the node passes /scan
-    # through as /scan_walls without filtering (no map / TF required).
+    # Only launched in racing mode (mapping_mode=false).
     ld.add_action(IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(lidar_pkg_dir, 'launch', 'scan_splitter.launch.py')
         ),
-        launch_arguments={
-            'enable_splitting': use_scan_splitter,
-        }.items(),
+        condition=UnlessCondition(mapping_mode),
     ))
 
     # ══════════════════════
     #  Lateral Planner — opponent avoidance → /local_raceline
     # ══════════════════════
-    # Always launched. When use_lateral_planner=false the node publishes
-    # the original raceline directly without analysing obstacle scans.
+    # Only launched in racing mode (mapping_mode=false).
     ld.add_action(IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(lateral_planner_pkg_dir, 'launch', 'lateral_planner.launch.py')
         ),
         launch_arguments={
             'trajectory_file': LaunchConfiguration('trajectory_file'),
-            'enabled': use_lateral_planner,
         }.items(),
+        condition=UnlessCondition(mapping_mode),
     ))
 
     # ══════════════════════
