@@ -44,6 +44,14 @@ private:
     // Steering smoothing
     double last_steering_{0.0};
     
+    // Visualization throttling — decoupled from scan callback
+    rclcpp::TimerBase::SharedPtr viz_timer_;
+    FTGOutput latest_output_;        // Cached for viz timer
+    ProcessedScan latest_scan_;      // Cached for viz timer
+    std::mutex viz_mutex_;           // Protects latest_output_ / latest_scan_
+    bool viz_data_ready_{false};     // Flag: new data available for viz
+    static constexpr double VIZ_RATE_HZ = 10.0;  // Max viz publish rate
+    
     // Recovery state
     int stuck_counter_{0};
     int recovery_counter_{0};
@@ -99,6 +107,7 @@ private:
     void scanCallback(const sensor_msgs::msg::LaserScan::ConstSharedPtr msg);
     void odomCallback(const nav_msgs::msg::Odometry::ConstSharedPtr msg);
     void enableCallback(const std_msgs::msg::Bool::ConstSharedPtr msg);
+    void vizTimerCallback();  // Throttled visualization publisher
     
     // Publishing
     void publishDriveCommand(const DriveCommand& cmd);

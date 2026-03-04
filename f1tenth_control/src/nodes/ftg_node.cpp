@@ -49,6 +49,12 @@ FTGNode::FTGNode(const rclcpp::NodeOptions& options)
         "ftg/visualization", reliable_qos
     );
     
+    // Visualization timer — decoupled from scan callback to prevent blocking
+    viz_timer_ = create_wall_timer(
+        std::chrono::milliseconds(static_cast<int>(1000.0 / VIZ_RATE_HZ)),
+        std::bind(&FTGNode::vizTimerCallback, this)
+    );
+    
     RCLCPP_INFO(get_logger(), "FTG Node initialized");
     RCLCPP_INFO(get_logger(), "  Subscribing to: scan, odom");
     RCLCPP_INFO(get_logger(), "  Publishing to: drive, ftg/visualization");
@@ -68,7 +74,9 @@ void FTGNode::declareParameters() {
     // Steering control
     declare_parameter("max_steering", 0.4);
     declare_parameter("steering_gain", 0.8);  // Reduced for stability
-    declare_parameter("max_steering_rate", 0.05);  // Reduced for smoother steering
+    declare_parameter("max_steering_rate", 2.0);  // [rad/s] Time-based rate limit
+    declare_parameter("target_ema_alpha", 0.3);   // EMA smoothing for target angle
+    declare_parameter("heading_bias_weight", 0.3); // Prefer gaps near current heading
     
     // Safety
     declare_parameter("emergency_brake_distance", 0.1);
@@ -109,6 +117,8 @@ void FTGNode::loadParameters() {
     config_.max_steering = get_parameter("max_steering").as_double();
     config_.steering_gain = get_parameter("steering_gain").as_double();
     config_.max_steering_rate = get_parameter("max_steering_rate").as_double();
+    config_.target_ema_alpha = get_parameter("target_ema_alpha").as_double();
+    config_.heading_bias_weight = get_parameter("heading_bias_weight").as_double();
     
     // Safety
     config_.emergency_brake_distance = get_parameter("emergency_brake_distance").as_double();
@@ -190,9 +200,12 @@ void FTGNode::scanCallback(const sensor_msgs::msg::LaserScan::ConstSharedPtr msg
     // Update performance metrics
     updatePerformanceMetrics(output, output.command);
     
-    // Publish visualization if anyone is listening
-    if (viz_pub_->get_subscription_count() > 0) {
-        publishVisualization(output, output.processed_scan);
+    // Cache output for throttled visualization (non-blocking)
+    {
+        std::lock_guard<std::mutex> lock(viz_mutex_);
+        latest_output_ = output;
+        latest_scan_ = output.processed_scan;
+        viz_data_ready_ = true;
     }
     
     // Performance logging (throttled to reduce overhead)
@@ -243,6 +256,24 @@ void FTGNode::enableCallback(const std_msgs::msg::Bool::ConstSharedPtr msg) {
         // Publish zero command when disabled
         publishDriveCommand(DriveCommand(0.0, 0.0));
     }
+}
+
+void FTGNode::vizTimerCallback() {
+    // Only publish if someone is listening and we have data
+    if (viz_pub_->get_subscription_count() == 0 || !viz_data_ready_) {
+        return;
+    }
+    
+    FTGOutput output;
+    ProcessedScan scan;
+    {
+        std::lock_guard<std::mutex> lock(viz_mutex_);
+        output = latest_output_;
+        scan = latest_scan_;
+        viz_data_ready_ = false;
+    }
+    
+    publishVisualization(output, scan);
 }
 
 void FTGNode::publishDriveCommand(const DriveCommand& cmd) {
