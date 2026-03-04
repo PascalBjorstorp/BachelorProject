@@ -187,13 +187,13 @@ def generate_launch_description():
         ])),
     ))
 
-    # Mapping mode: 1080 beams @ 20 Hz (cluster=1, skip=1)
+    # Mapping mode: 1080 beams @ 40 Hz (cluster=1, skip=0 — full resolution)
     ld.add_action(Node(
         package='f1tenth_lidar',
         executable='hokuyo_scip_driver_node',
         name='hokuyo_scip_driver',
         output='screen',
-        parameters=[hokuyo_config, {'skip': 0}],
+        parameters=[hokuyo_config, {'skip': 0, 'cluster': 1}],
         condition=IfCondition(PythonExpression([
             "'", use_lidar, "' == 'true' and '", mapping_mode, "' == 'true'"
         ])),

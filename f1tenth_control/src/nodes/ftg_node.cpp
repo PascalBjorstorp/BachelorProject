@@ -289,50 +289,68 @@ void FTGNode::publishDriveCommand(const DriveCommand& cmd) {
 }
 
 void FTGNode::publishVisualization(const FTGOutput& output, const ProcessedScan& scan) {
+    // Guard: don't publish if scan data is empty (not yet initialized)
+    if (scan.filtered_ranges.empty() || scan.angles.empty()) {
+        return;
+    }
+    
     visualization_msgs::msg::MarkerArray marker_array;
     
     int id = 0;
     
     // 1. Visualize ALL valid scan points as point cloud
-    marker_array.markers.push_back(createValidScanMarker(scan, id++));
+    auto valid_marker = createValidScanMarker(scan, id++);
+    if (!valid_marker.points.empty()) {
+        marker_array.markers.push_back(std::move(valid_marker));
+    }
     
     // 2. Visualize disparity-blocked points (purple)
-    marker_array.markers.push_back(createDisparityBlockedMarker(scan, id++));
+    auto disp_marker = createDisparityBlockedMarker(scan, id++);
+    if (!disp_marker.points.empty()) {
+        marker_array.markers.push_back(std::move(disp_marker));
+    }
     
     // 3. Visualize bubble-blocked points (orange)
-    marker_array.markers.push_back(createBubbleBlockedMarker(scan, id++));
+    auto bubble_marker = createBubbleBlockedMarker(scan, id++);
+    if (!bubble_marker.points.empty()) {
+        marker_array.markers.push_back(std::move(bubble_marker));
+    }
     
     // 4. Visualize all gaps
     for (size_t i = 0; i < output.all_gaps.size(); ++i) {
-        // A gap is selected if its indices match the selected gap
         bool is_selected =
             (output.all_gaps[i].start_idx == output.selected_gap.start_idx &&
              output.all_gaps[i].end_idx == output.selected_gap.end_idx);
-        marker_array.markers.push_back(
-            createGapMarker(output.all_gaps[i], scan, id++, is_selected)
-        );
+        auto gap_marker = createGapMarker(output.all_gaps[i], scan, id++, is_selected);
+        if (!gap_marker.points.empty()) {
+            marker_array.markers.push_back(std::move(gap_marker));
+        }
     }
     
     // 5. Visualize closest point
-    marker_array.markers.push_back(
-        createClosestPointMarker(scan, output.closest_point_idx, id++)
-    );
+    if (output.closest_point_idx < scan.filtered_ranges.size()) {
+        marker_array.markers.push_back(
+            createClosestPointMarker(scan, output.closest_point_idx, id++)
+        );
+    }
     
     // 6. Visualize deepest point in selected gap (yellow sphere)
-    if (!output.emergency_stop) {
+    if (!output.emergency_stop && output.selected_gap.deepest_idx < scan.angles.size()) {
         marker_array.markers.push_back(
             createDeepestPointMarker(output.selected_gap, scan, id++)
         );
     }
     
     // 7. Visualize target point (where we're steering toward)
-    if (!output.emergency_stop) {
+    if (!output.emergency_stop && output.selected_gap.deepest_idx < scan.filtered_ranges.size()) {
         marker_array.markers.push_back(
             createTargetPointMarker(output.selected_gap, scan, id++)
         );
     }
     
-    viz_pub_->publish(marker_array);
+    if (!marker_array.markers.empty()) {
+        viz_pub_->publish(marker_array);
+    }
 }
 
 visualization_msgs::msg::Marker FTGNode::createGapMarker(
