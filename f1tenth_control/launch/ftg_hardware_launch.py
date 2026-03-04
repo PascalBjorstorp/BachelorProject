@@ -22,7 +22,8 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, LogInfo
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node
+from launch_ros.actions import Node, ComposableNodeContainer
+from launch_ros.descriptions import ComposableNode
 
 
 def generate_launch_description():
@@ -88,26 +89,35 @@ def generate_launch_description():
         ]
     )
 
-    # FTG Node configured for real hardware
-    ftg_node = Node(
-        package='f1tenth_control',
-        executable='ftg_node',
-        name='ftg_node',
-        output='screen',
-        parameters=[
-            LaunchConfiguration('config_file'),
-            {
-                'max_speed': LaunchConfiguration('max_speed'),
-                'min_speed': LaunchConfiguration('min_speed'),
-                'mapping_mode': LaunchConfiguration('mapping_mode'),
-            }
+    # FTG Node in composable container (zero-copy intra-process comms)
+    ftg_container = ComposableNodeContainer(
+        name='ftg_container',
+        namespace='',
+        package='rclcpp_components',
+        executable='component_container',
+        composable_node_descriptions=[
+            ComposableNode(
+                package='f1tenth_control',
+                plugin='f1tenth_control::FTGNode',
+                name='ftg_node',
+                parameters=[
+                    LaunchConfiguration('config_file'),
+                    {
+                        'max_speed': LaunchConfiguration('max_speed'),
+                        'min_speed': LaunchConfiguration('min_speed'),
+                        'mapping_mode': LaunchConfiguration('mapping_mode'),
+                    }
+                ],
+                remappings=[
+                    # Hardware topic names (no namespace prefix)
+                    ('scan', '/scan'),
+                    ('odom', '/ego_racecar/odom'),
+                    ('drive', '/drive'),
+                ],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            ),
         ],
-        remappings=[
-            # Hardware topic names (no namespace prefix)
-            ('scan', '/scan'),
-            ('odom', '/ego_racecar/odom'),
-            ('drive', '/drive'),
-        ]
+        output='screen',
     )
 
     return LaunchDescription([
@@ -116,5 +126,5 @@ def generate_launch_description():
         declare_mapping_mode,
         declare_config_file,
         startup_info,
-        ftg_node,
+        ftg_container,
     ])

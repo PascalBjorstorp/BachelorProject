@@ -14,24 +14,20 @@ std::vector<double> medianFilter(const std::vector<double>& data, size_t window_
     const size_t half_window = window_size / 2;
     const size_t n = data.size();
     std::vector<double> result(n);
-    std::vector<double> window;
-    window.reserve(window_size);
+    std::vector<double> window(window_size);  // Pre-allocate once outside loop
     
     for (size_t i = 0; i < n; ++i) {
-        window.clear();
-        
         // Calculate window bounds with boundary handling
         const size_t start = (i >= half_window) ? i - half_window : 0;
         const size_t end = std::min(i + half_window + 1, n);
+        const size_t wlen = end - start;
         
-        // Copy window data
-        for (size_t j = start; j < end; ++j) {
-            window.push_back(data[j]);
-        }
+        // Copy window data (reuse pre-allocated buffer)
+        std::copy(data.begin() + start, data.begin() + end, window.begin());
         
         // Find median using partial sort - O(n) average
-        const size_t mid = window.size() / 2;
-        std::nth_element(window.begin(), window.begin() + mid, window.end());
+        const size_t mid = wlen / 2;
+        std::nth_element(window.begin(), window.begin() + mid, window.begin() + wlen);
         result[i] = window[mid];
     }
     

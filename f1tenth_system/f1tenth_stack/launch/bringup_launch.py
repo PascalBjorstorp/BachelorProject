@@ -118,7 +118,7 @@ def generate_launch_description():
         name='vesc_container',
         namespace='',
         package='rclcpp_components',
-        executable='component_container_mt',
+        executable='component_container',
         composable_node_descriptions=[
             ComposableNode(
                 package='vesc_driver',

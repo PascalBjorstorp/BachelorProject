@@ -1,4 +1,5 @@
 #include "f1tenth_control/nodes/ftg_node.hpp"
+#include <rclcpp_components/register_node_macro.hpp>
 #include <tf2/utils.h>
 #include <algorithm>
 
@@ -20,7 +21,7 @@ FTGNode::FTGNode(const rclcpp::NodeOptions& options)
     );
     
     // QoS profiles
-    auto sensor_qos = rclcpp::SensorDataQoS();
+    auto sensor_qos = rclcpp::SensorDataQoS().keep_last(1);
     auto reliable_qos = rclcpp::QoS(10);
     
     // Subscribers
@@ -152,7 +153,7 @@ rcl_interfaces::msg::SetParametersResult FTGNode::parametersCallback(
     return result;
 }
 
-void FTGNode::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
+void FTGNode::scanCallback(const sensor_msgs::msg::LaserScan::ConstSharedPtr msg) {
     if (!enabled_) {
         return;
     }
@@ -181,18 +182,13 @@ void FTGNode::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     
     // Steering smoothing is now handled internally by the FTG algorithm
     // via rate limiting (max_steering_rate)
-    DriveCommand smoothed_cmd = output.command;
     last_steering_ = output.command.steering_angle;
     
-    // Recovery mode logic: detect stuck state and try to escape
-    DriveCommand final_cmd = smoothed_cmd;
-    
-    
-    // Publish drive command (either normal or recovery)
-    publishDriveCommand(final_cmd);
+    // Publish drive command
+    publishDriveCommand(output.command);
     
     // Update performance metrics
-    updatePerformanceMetrics(output, final_cmd);
+    updatePerformanceMetrics(output, output.command);
     
     // Publish visualization if anyone is listening
     if (viz_pub_->get_subscription_count() > 0) {
@@ -202,7 +198,7 @@ void FTGNode::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     // Performance logging (throttled to reduce overhead)
     RCLCPP_DEBUG_THROTTLE(get_logger(), *get_clock(), 2000,
         "FTG: gaps=%zu, cmd=(%.2f, %.2f), closest=%.2fm",
-        output.all_gaps.size(), final_cmd.speed, final_cmd.steering_angle,
+        output.all_gaps.size(), output.command.speed, output.command.steering_angle,
         output.closest_point_dist);
     
     // Periodic performance report (every 30 seconds)
@@ -218,7 +214,7 @@ void FTGNode::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     }
 }
 
-void FTGNode::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
+void FTGNode::odomCallback(const nav_msgs::msg::Odometry::ConstSharedPtr msg) {
     std::lock_guard<std::mutex> lock(state_mutex_);
     
     // Extract pose
@@ -239,7 +235,7 @@ void FTGNode::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
     current_state_.angular_velocity = msg->twist.twist.angular.z;
 }
 
-void FTGNode::enableCallback(const std_msgs::msg::Bool::SharedPtr msg) {
+void FTGNode::enableCallback(const std_msgs::msg::Bool::ConstSharedPtr msg) {
     enabled_ = msg->data;
     RCLCPP_INFO(get_logger(), "FTG %s", enabled_ ? "enabled" : "disabled");
     
@@ -717,6 +713,9 @@ void FTGNode::printPerformanceSummary() {
 }
 
 }  // namespace f1tenth_control
+
+// Register as composable node for zero-copy intra-process communication
+RCLCPP_COMPONENTS_REGISTER_NODE(f1tenth_control::FTGNode)
 
 // Main function
 int main(int argc, char** argv) {

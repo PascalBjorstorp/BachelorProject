@@ -88,6 +88,16 @@ target_link_libraries(ftg_node ftg_algorithm f1tenth_common)
 ament_target_dependencies(ftg_node ${DEPENDENCIES})
 
 # ===================
+# FTG Node Component (composable, zero-copy intra-process)
+# ===================
+add_library(ftg_node_component SHARED
+  src/nodes/ftg_node.cpp
+)
+target_link_libraries(ftg_node_component ftg_algorithm f1tenth_common)
+ament_target_dependencies(ftg_node_component ${DEPENDENCIES})
+rclcpp_components_register_nodes(ftg_node_component "f1tenth_control::FTGNode")
+
+# ===================
 # Pure Pursuit Node Component
 # ===================
 add_library(pure_pursuit_node SHARED
@@ -125,7 +135,7 @@ ament_target_dependencies(stanley_node_exe ${DEPENDENCIES})
 # Install targets
 # ===================
 install(
-  TARGETS f1tenth_common ftg_algorithm pure_pursuit_algorithm stanley_algorithm pure_pursuit_node stanley_node
+  TARGETS f1tenth_common ftg_algorithm pure_pursuit_algorithm stanley_algorithm pure_pursuit_node stanley_node ftg_node_component
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
@@ -181,7 +191,7 @@ endif()
 
 # Export
 ament_export_include_directories(include)
-ament_export_libraries(f1tenth_common ftg_algorithm pure_pursuit_algorithm stanley_algorithm pure_pursuit_node stanley_node)
+ament_export_libraries(f1tenth_common ftg_algorithm pure_pursuit_algorithm stanley_algorithm pure_pursuit_node stanley_node ftg_node_component)
 ament_export_dependencies(${DEPENDENCIES})
 
 ament_package()

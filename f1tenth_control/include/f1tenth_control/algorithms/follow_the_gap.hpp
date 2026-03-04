@@ -153,8 +153,9 @@ private:
      * the robot doesn't drive toward the nearest obstacle.
      * 
      * @param scan Processed scan to modify (in-place)
+     * @param closest_idx Pre-computed index of the closest point
      */
-    void applySafetyBubble(ProcessedScan& scan);
+    void applySafetyBubble(ProcessedScan& scan, size_t closest_idx);
     
     /**
      * @brief Find all gaps in the processed scan

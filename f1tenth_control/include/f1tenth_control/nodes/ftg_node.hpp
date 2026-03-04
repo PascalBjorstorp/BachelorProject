@@ -13,6 +13,7 @@
 #include <mutex>
 #include <deque>
 #include <cmath>
+#include <chrono>
 
 namespace f1tenth_control {
 
@@ -94,10 +95,10 @@ private:
     );
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
     
-    // Callbacks
-    void scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg);
-    void odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg);
-    void enableCallback(const std_msgs::msg::Bool::SharedPtr msg);
+    // Callbacks (ConstSharedPtr for zero-copy intra-process)
+    void scanCallback(const sensor_msgs::msg::LaserScan::ConstSharedPtr msg);
+    void odomCallback(const nav_msgs::msg::Odometry::ConstSharedPtr msg);
+    void enableCallback(const std_msgs::msg::Bool::ConstSharedPtr msg);
     
     // Publishing
     void publishDriveCommand(const DriveCommand& cmd);

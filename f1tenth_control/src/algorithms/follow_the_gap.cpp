@@ -63,7 +63,7 @@ FTGOutput FollowTheGap::compute(
     applyDisparityExtension(scan);
     
     // Step 6: Apply safety bubble around closest point (FTG-specific)
-    applySafetyBubble(scan);
+    applySafetyBubble(scan, output.closest_point_idx);
     
     // Step 7: Find all gaps (FTG-specific)
     output.all_gaps = findGaps(scan);
@@ -173,11 +173,10 @@ void FollowTheGap::applyDisparityExtension(ProcessedScan& scan) {
     }
 }
 
-void FollowTheGap::applySafetyBubble(ProcessedScan& scan) {
+void FollowTheGap::applySafetyBubble(ProcessedScan& scan, size_t closest_idx) {
     if (!config_.apply_bubble || scan.filtered_ranges.empty()) return;
     
-    // Find closest point
-    size_t closest_idx = lidar_processor_.findClosestPoint(scan);
+    // Use the pre-computed closest point index (already found in compute())
     double closest_range = scan.filtered_ranges[closest_idx];
     
     if (closest_range >= lidar_processor_.getConfig().range_max) return;
@@ -206,6 +205,8 @@ std::vector<Gap> FollowTheGap::findGaps(const ProcessedScan& scan) {
     const auto& lidar_config = lidar_processor_.getConfig();
     bool in_gap = false;
     Gap current_gap;
+    double running_sum = 0.0;
+    size_t running_count = 0;
     
     for (size_t i = 0; i < scan.filtered_ranges.size(); ++i) {
         double range = scan.filtered_ranges[i];
@@ -228,14 +229,18 @@ std::vector<Gap> FollowTheGap::findGaps(const ProcessedScan& scan) {
             current_gap.max_range = range;
             current_gap.deepest_idx = i;
             current_gap.deepest_range = range;
+            running_sum = range;
+            running_count = 1;
         } else if (is_gap_point && in_gap) {
-            // Continue gap
+            // Continue gap (incremental avg_range)
             current_gap.min_range = std::min(current_gap.min_range, range);
             if (range > current_gap.deepest_range) {
                 current_gap.deepest_range = range;
                 current_gap.deepest_idx = i;
             }
             current_gap.max_range = std::max(current_gap.max_range, range);
+            running_sum += range;
+            ++running_count;
         } else if (!is_gap_point && in_gap) {
             // End of gap
             in_gap = false;
@@ -243,16 +248,10 @@ std::vector<Gap> FollowTheGap::findGaps(const ProcessedScan& scan) {
             current_gap.end_angle = scan.angles[i - 1];
             current_gap.angular_width = current_gap.end_angle - current_gap.start_angle;
             
-            // Calculate average range
-            double sum = 0.0;
-            size_t count = 0;
-            for (size_t j = current_gap.start_idx; j <= current_gap.end_idx; ++j) {
-                if (scan.valid[j]) {
-                    sum += scan.filtered_ranges[j];
-                    ++count;
-                }
-            }
-            current_gap.avg_range = (count > 0) ? sum / count : 0.0;
+            // Use incrementally-computed average range (O(1) instead of O(n))
+            current_gap.avg_range = (running_count > 0) ? running_sum / running_count : 0.0;
+            running_sum = 0.0;
+            running_count = 0;
             
             // Only add if gap is wide enough
             if (current_gap.angular_width >= config_.min_gap_width) {
@@ -267,15 +266,8 @@ std::vector<Gap> FollowTheGap::findGaps(const ProcessedScan& scan) {
         current_gap.end_angle = scan.angles.back();
         current_gap.angular_width = current_gap.end_angle - current_gap.start_angle;
         
-        double sum = 0.0;
-        size_t count = 0;
-        for (size_t j = current_gap.start_idx; j <= current_gap.end_idx; ++j) {
-            if (scan.valid[j]) {
-                sum += scan.filtered_ranges[j];
-                ++count;
-            }
-        }
-        current_gap.avg_range = (count > 0) ? sum / count : 0.0;
+        // Use incrementally-computed average range
+        current_gap.avg_range = (running_count > 0) ? running_sum / running_count : 0.0;
         
         if (current_gap.angular_width >= config_.min_gap_width) {
             gaps.push_back(current_gap);

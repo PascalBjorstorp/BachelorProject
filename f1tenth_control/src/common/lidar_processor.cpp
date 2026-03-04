@@ -26,12 +26,13 @@ ProcessedScan LidarProcessor::processScan(
     scan.range_min = config_.range_min;
     scan.range_max = config_.range_max;
     
-    // Convert to double and compute angles
-    scan.ranges.reserve(ranges.size());
-    scan.angles.reserve(ranges.size());
-    scan.valid.reserve(ranges.size());
+    // Convert to double and compute angles (resize + direct writes for cache efficiency)
+    const size_t n = ranges.size();
+    scan.ranges.resize(n);
+    scan.angles.resize(n);
+    scan.valid.resize(n);
     
-    for (size_t i = 0; i < ranges.size(); ++i) {
+    for (size_t i = 0; i < n; ++i) {
         double angle = angle_min + i * angle_increment;
         double range = static_cast<double>(ranges[i]);
         
@@ -42,9 +43,9 @@ ProcessedScan LidarProcessor::processScan(
         // Note: range > range_max is valid (it's just far away) - we'll clip it later
         bool valid_range = std::isfinite(range) && range >= config_.range_min;
         
-        scan.ranges.push_back(range);
-        scan.angles.push_back(angle);
-        scan.valid.push_back(in_range && valid_range);
+        scan.ranges[i] = range;
+        scan.angles[i] = angle;
+        scan.valid[i] = (in_range && valid_range);
     }
     
     // Apply filtering
