@@ -77,6 +77,7 @@ void FTGNode::declareParameters() {
     declare_parameter("max_steering_rate", 2.0);  // [rad/s] Time-based rate limit
     declare_parameter("target_ema_alpha", 0.3);   // EMA smoothing for target angle
     declare_parameter("heading_bias_weight", 0.3); // Prefer gaps near current heading
+    declare_parameter("center_weight", 0.7);       // Blend gap center vs deepest point
     
     // Safety
     declare_parameter("emergency_brake_distance", 0.1);
@@ -120,6 +121,7 @@ void FTGNode::loadParameters() {
     config_.max_steering_rate = get_parameter("max_steering_rate").as_double();
     config_.target_ema_alpha = get_parameter("target_ema_alpha").as_double();
     config_.heading_bias_weight = get_parameter("heading_bias_weight").as_double();
+    config_.center_weight = get_parameter("center_weight").as_double();
     
     // Safety
     config_.emergency_brake_distance = get_parameter("emergency_brake_distance").as_double();

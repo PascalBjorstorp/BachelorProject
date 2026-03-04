@@ -31,6 +31,7 @@ struct FTGConfig {
     double max_steering_rate{2.0};   // [rad/s] Maximum steering change rate (time-based)
     double target_ema_alpha{0.3};    // EMA smoothing for target angle (0=full smooth, 1=no smooth)
     double heading_bias_weight{0.3}; // Weight for preferring gaps near current heading (0=disabled)
+    double center_weight{0.7};       // Blend gap center (1.0) vs deepest point (0.0) for target angle
     
     // Safety
     double emergency_brake_distance{0.3};  // Brake if obstacle closer than this (m)
