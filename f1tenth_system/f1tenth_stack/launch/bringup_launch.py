@@ -183,7 +183,7 @@ def generate_launch_description():
     # ══════════════════════
     ld.add_action(Node(
         package='f1tenth_lidar',
-        executable='hokuyo_scip_driver.py',
+        executable='hokuyo_scip_driver_node',
         name='hokuyo_scip_driver',
         output='screen',
         parameters=[hokuyo_config],

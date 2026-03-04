@@ -132,10 +132,11 @@ ros2 launch f1tenth_localization cpp_localization.launch.py
 ```
 
 > This launches the full C++ GPU AMCL localization stack:
-> - **map_server** — serves the static map to AMCL and the scan splitter
 > - **gpu_amcl_cpp** — CUDA-accelerated particle filter (subscribes to `/scan_walls`)
 > - **odom_fused** — IMU + wheel odom fusion at 200 Hz
 > - **ekf_localization** — EKF sensor fusion + TF broadcast at 200 Hz
+>
+> **Note:** `map_server` is launched by the bringup in Terminal 1, not here.
 >
 > All parameters are in `f1tenth_localization/config/gpu_amcl_cpp_params.yaml`.
 
@@ -165,7 +166,7 @@ ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped '
 source install/setup.bash
 
 ros2 launch f1tenth_control pure_pursuit_launch.py \
-  trajectory_file:=/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv
+  trajectory_file:=/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv \
   max_speed:=3.0 \
   min_lookahead:=0.2 \
   max_lookahead:=1.5 \
