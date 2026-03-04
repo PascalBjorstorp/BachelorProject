@@ -154,8 +154,23 @@ void FollowTheGap::applyDisparityExtension(ProcessedScan& scan) {
     
     std::vector<double>& ranges = scan.filtered_ranges;
     const double half_car = config_.car_width / 2.0;
+    const auto& lidar_config = lidar_processor_.getConfig();
+    
+    // Cap extension to prevent blocking the entire scan
+    // At most extend ~15 degrees worth of beams
+    const int max_extension = static_cast<int>(
+        std::ceil(0.26 / std::abs(scan.angle_increment))  // ~15 degrees
+    );
     
     for (size_t i = 1; i < ranges.size(); ++i) {
+        // Only process disparities between two VALID points within our angular range
+        if (!scan.valid[i] || !scan.valid[i-1]) continue;
+        
+        double angle_i = scan.angles[i];
+        double angle_im1 = scan.angles[i-1];
+        if (angle_i < lidar_config.angle_min || angle_i > lidar_config.angle_max) continue;
+        if (angle_im1 < lidar_config.angle_min || angle_im1 > lidar_config.angle_max) continue;
+        
         double diff = std::abs(ranges[i] - ranges[i-1]);
         
         if (diff > config_.disparity_threshold) {
@@ -163,10 +178,14 @@ void FollowTheGap::applyDisparityExtension(ProcessedScan& scan) {
             size_t closer_idx = (ranges[i] < ranges[i-1]) ? i : i-1;
             double closer_range = ranges[closer_idx];
             
+            // Skip if the closer range is very small (noise / invalid)
+            if (closer_range < config_.lidar_config.range_min + 0.05) continue;
+            
             // Calculate how many indices to extend based on car width
             double angle_to_extend = std::atan2(half_car, closer_range);
-            int indices_to_extend = static_cast<int>(
-                std::ceil(angle_to_extend / std::abs(scan.angle_increment))
+            int indices_to_extend = std::min(
+                static_cast<int>(std::ceil(angle_to_extend / std::abs(scan.angle_increment))),
+                max_extension
             );
             
             // Extend in the appropriate direction
@@ -174,8 +193,8 @@ void FollowTheGap::applyDisparityExtension(ProcessedScan& scan) {
                 // Closer point is on the right, extend left
                 for (int j = 0; j < indices_to_extend && static_cast<int>(i) - j >= 0; ++j) {
                     size_t idx = i - j;
-                    if (ranges[idx] > closer_range) {
-                        scan.disparity_blocked[idx] = true;  // Mark as blocked
+                    if (scan.valid[idx] && ranges[idx] > closer_range) {
+                        scan.disparity_blocked[idx] = true;
                         ranges[idx] = closer_range;
                     }
                 }
@@ -184,8 +203,8 @@ void FollowTheGap::applyDisparityExtension(ProcessedScan& scan) {
                 size_t closer_point_idx = i - 1;
                 for (int j = 0; j < indices_to_extend && closer_point_idx + j < ranges.size(); ++j) {
                     size_t idx = closer_point_idx + j;
-                    if (ranges[idx] > closer_range) {
-                        scan.disparity_blocked[idx] = true;  // Mark as blocked
+                    if (scan.valid[idx] && ranges[idx] > closer_range) {
+                        scan.disparity_blocked[idx] = true;
                         ranges[idx] = closer_range;
                     }
                 }
