@@ -9,7 +9,7 @@ ftg_node:
     # Vehicle Parameters
     # ===================
     wheelbase: 0.3302        # Distance between front and rear axles (m)
-    car_width: 0.27         # Width for disparity extension (m) - actual car width
+    car_width: 0.4         # Width for disparity extension (m) - actual car width
 
     # ===================
     # Speed Control (Reference FTG Formula)
@@ -38,12 +38,12 @@ ftg_node:
     # FTG-Specific Processing
     # ===================
     # These parameters are specific to the Follow The Gap algorithm
-    disparity_threshold: 0.3  # Threshold for detecting disparities (m) - lower = more sensitive
-    gap_threshold: 0.2         # Minimum range to consider as "gap" (m) - readings > this are "open"
+    disparity_threshold: 0.4  # Threshold for detecting disparities (m) - lower = more sensitive
+    gap_threshold: 0.4         # Minimum range to consider as "gap" (m) - readings > this are "open"
     min_gap_width: 0.3         # Minimum angular width of valid gap (rad) ~17 degrees
-    bubble_radius: 0.15        # Safety bubble radius around closest point (m)
+    bubble_radius: 0.2        # Safety bubble radius around closest point (m)
     apply_bubble: true         # Enable safety bubble
-    wall_margin: 0.05          # Shrink all readings by this amount (m) - creates clearance from parallel walls
+    wall_margin: 0.1          # Shrink all readings by this amount (m) - creates clearance from parallel walls
 
     # ===================
     # Generic LiDAR Preprocessing
@@ -52,8 +52,8 @@ ftg_node:
     lidar:
       range_min: 0.1        # Ignore readings closer than this (m)
       range_max: 10.0       # Maximum range to consider (m)
-      angle_min: -2.356194      # Minimum angle to process (rad) - -90 degrees
-      angle_max: 2.356194       # Maximum angle to process (rad) - +90 degrees
+      angle_min: -1.2      # Minimum angle to process (rad) - -90 degrees
+      angle_max: 1.2       # Maximum angle to process (rad) - +90 degrees
       apply_median_filter: true   # Apply median filter for noise reduction (reduces jitter)
       median_window_size: 3       # Window size (should be odd)
 
