@@ -187,13 +187,13 @@ def generate_launch_description():
         ])),
     ))
 
-    # Mapping mode: cluster=1 → 1080 beams at 0.25° resolution (full sensor data)
+    # Mapping mode: cluster=4 → 270 beams at 1° resolution (from YAML default)
     ld.add_action(Node(
         package='f1tenth_lidar',
         executable='hokuyo_scip_driver_node',
         name='hokuyo_scip_driver',
         output='screen',
-        parameters=[hokuyo_config, {'cluster': 1}],
+        parameters=[hokuyo_config, {'cluster': 4}],   
         condition=IfCondition(PythonExpression([
             "'", use_lidar, "' == 'true' and '", mapping_mode, "' == 'true'"
         ])),

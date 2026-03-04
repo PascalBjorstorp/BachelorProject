@@ -16,6 +16,10 @@ slam_toolbox:
     ceres_dogleg_type: TRADITIONAL_DOGLEG
     ceres_loss_function: None
 
+    ceres_max_num_iterations: 50
+
+    num_threads: 4
+
     # ROS Parameters — MUST match your TF tree
     odom_frame: ego_racecar/odom
     base_frame: ego_racecar/base_link
@@ -32,7 +36,7 @@ slam_toolbox:
     min_laser_range: 0.1        # Hokuyo UST-10LX minimum range
     max_laser_range: 10.0       # Limit to 10m for indoor tracks
     minimum_time_interval: 0.5
-    transform_timeout: 0.2
+    transform_timeout: 0.5
     tf_buffer_duration: 30.0
     stack_size_to_use: 40000000
     enable_interactive_mode: true
@@ -42,7 +46,7 @@ slam_toolbox:
     use_scan_barycenter: true
     minimum_travel_distance: 0.5
     minimum_travel_heading: 0.5
-    scan_buffer_size: 10
+    scan_buffer_size: 20
     scan_buffer_maximum_scan_distance: 10.0
     link_match_minimum_response_fine: 0.1
     link_scan_maximum_distance: 1.5
