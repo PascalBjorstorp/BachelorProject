@@ -10,7 +10,6 @@ endif()
 
 # ── Dependencies ──────────────────────────────────────────────────────
 find_package(ament_cmake REQUIRED)
-find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
@@ -18,7 +17,6 @@ find_package(geometry_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(rclpy REQUIRED)
 
 # ── C++ Scan Splitter Node ───────────────────────────────────────────
 add_executable(scan_splitter_node
@@ -38,13 +36,25 @@ ament_target_dependencies(scan_splitter_node
   tf2_ros
 )
 
-install(TARGETS scan_splitter_node
+# ── C++ Hokuyo SCIP 2.0 Driver Node ─────────────────────────────────
+add_executable(hokuyo_scip_driver_node
+  src/hokuyo_scip_driver.cpp
+)
+target_include_directories(hokuyo_scip_driver_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+ament_target_dependencies(hokuyo_scip_driver_node
+  rclcpp
+  sensor_msgs
+)
+
+install(TARGETS scan_splitter_node hokuyo_scip_driver_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
-# ── Python scripts ───────────────────────────────────────────────────
+# ── Python diagnostic script ──────────────────────────────────────────
 install(PROGRAMS
-  src/hokuyo_scip_driver.py
   src/hokuyo_lidar_diagnostic.py
   DESTINATION lib/${PROJECT_NAME}
 )

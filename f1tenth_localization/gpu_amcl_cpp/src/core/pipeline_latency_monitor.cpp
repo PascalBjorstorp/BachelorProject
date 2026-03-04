@@ -2,7 +2,9 @@
 #include "gpu_amcl_cpp/core/pipeline_latency_monitor.hpp"
 
 #include <chrono>
+#include <cmath>
 #include <cstdio>
+#include <numeric>
 
 namespace f1tenth_localization
 {
@@ -142,6 +144,23 @@ void PipelineLatencyMonitor::ekf_callback(
 //  Report
 // ────────────────────────────────────────────────────────────────────────────
 
+static double vec_mean(const std::vector<double> & v)
+{
+  if (v.empty()) return 0.0;
+  return std::accumulate(v.begin(), v.end(), 0.0) / static_cast<double>(v.size());
+}
+
+static double vec_var(const std::vector<double> & v, double mean)
+{
+  if (v.size() < 2) return 0.0;
+  double sum_sq = 0.0;
+  for (auto x : v) {
+    double d = x - mean;
+    sum_sq += d * d;
+  }
+  return sum_sq / static_cast<double>(v.size() - 1);  // sample variance
+}
+
 void PipelineLatencyMonitor::try_report(int64_t key)
 {
   // Caller holds mutex_
@@ -151,30 +170,51 @@ void PipelineLatencyMonitor::try_report(int64_t key)
   const auto & e = it->second;
   if (!e.has_scan || !e.has_walls || !e.has_amcl || !e.has_ekf) return;
 
-  ++cycle_count_;
-  if (cycle_count_ % print_every_ != 0) {
-    entries_.erase(it);
-    return;
-  }
-
-  // Convert nanoseconds to milliseconds
+  // Convert nanoseconds to milliseconds and accumulate
   const double ns_to_ms = 1e-6;
-  const double scan_to_walls = (e.walls_recv_ns - e.scan_recv_ns) * ns_to_ms;
-  const double walls_to_amcl = (e.amcl_recv_ns - e.walls_recv_ns) * ns_to_ms;
-  const double amcl_to_ekf   = (e.ekf_recv_ns - e.amcl_recv_ns) * ns_to_ms;
-  const double scan_to_ekf   = (e.ekf_recv_ns - e.scan_recv_ns) * ns_to_ms;
+  acc_scan_to_walls_.push_back((e.walls_recv_ns - e.scan_recv_ns) * ns_to_ms);
+  acc_walls_to_amcl_.push_back((e.amcl_recv_ns - e.walls_recv_ns) * ns_to_ms);
+  acc_amcl_to_ekf_.push_back((e.ekf_recv_ns   - e.amcl_recv_ns)  * ns_to_ms);
+  acc_scan_to_ekf_.push_back((e.ekf_recv_ns   - e.scan_recv_ns)  * ns_to_ms);
+
+  entries_.erase(it);
+
+  ++cycle_count_;
+  if (cycle_count_ % print_every_ != 0) return;
+
+  // Compute mean and variance for each stage
+  const double m_sw = vec_mean(acc_scan_to_walls_);
+  const double m_wa = vec_mean(acc_walls_to_amcl_);
+  const double m_ae = vec_mean(acc_amcl_to_ekf_);
+  const double m_se = vec_mean(acc_scan_to_ekf_);
+
+  const double v_sw = vec_var(acc_scan_to_walls_, m_sw);
+  const double v_wa = vec_var(acc_walls_to_amcl_, m_wa);
+  const double v_ae = vec_var(acc_amcl_to_ekf_,   m_ae);
+  const double v_se = vec_var(acc_scan_to_ekf_,   m_se);
+
+  const int n = static_cast<int>(acc_scan_to_ekf_.size());
 
   RCLCPP_INFO(get_logger(),
     "\n"
-    "  ┌─── Pipeline Latency ───────────────────────┐\n"
-    "  │ scan → scan_walls  : %7.2f ms             │\n"
-    "  │ scan_walls → amcl  : %7.2f ms             │\n"
-    "  │ amcl → ekf         : %7.2f ms             │\n"
-    "  │ scan → ekf (total) : %7.2f ms             │\n"
-    "  └────────────────────────────────────────────┘",
-    scan_to_walls, walls_to_amcl, amcl_to_ekf, scan_to_ekf);
+    "  ┌─── Pipeline Latency (n=%d) ────────────────────────────────┐\n"
+    "  │                         mean        var                    │\n"
+    "  │ scan → scan_walls  : %7.2f ms   %7.2f ms²              │\n"
+    "  │ scan_walls → amcl  : %7.2f ms   %7.2f ms²              │\n"
+    "  │ amcl → ekf         : %7.2f ms   %7.2f ms²              │\n"
+    "  │ scan → ekf (total) : %7.2f ms   %7.2f ms²              │\n"
+    "  └───────────────────────────────────────────────────────────┘",
+    n,
+    m_sw, v_sw,
+    m_wa, v_wa,
+    m_ae, v_ae,
+    m_se, v_se);
 
-  entries_.erase(it);
+  // Reset accumulators
+  acc_scan_to_walls_.clear();
+  acc_walls_to_amcl_.clear();
+  acc_amcl_to_ekf_.clear();
+  acc_scan_to_ekf_.clear();
 }
 
 void PipelineLatencyMonitor::cleanup_old_entries()

@@ -57,10 +57,10 @@ def generate_launch_description():
              ' (driver: ', LaunchConfiguration('driver'), ')']
     )
     
-    # Custom SCIP 2.0 driver — full 40 Hz continuous streaming
+    # Custom SCIP 2.0 driver — full 40 Hz continuous streaming (C++)
     scip_driver = Node(
         package='f1tenth_lidar',
-        executable='hokuyo_scip_driver.py',
+        executable='hokuyo_scip_driver_node',
         name='hokuyo_scip_driver',
         output='screen',
         parameters=[

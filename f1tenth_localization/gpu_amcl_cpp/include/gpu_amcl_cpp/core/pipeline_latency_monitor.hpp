@@ -2,6 +2,7 @@
 #pragma once
 
 #include <unordered_map>
+#include <vector>
 #include <string>
 #include <mutex>
 
@@ -74,6 +75,12 @@ private:
   // Print rate limiting
   int print_every_{1};
   int cycle_count_{0};
+
+  // Accumulators for mean/variance over print_every_ cycles
+  std::vector<double> acc_scan_to_walls_;
+  std::vector<double> acc_walls_to_amcl_;
+  std::vector<double> acc_amcl_to_ekf_;
+  std::vector<double> acc_scan_to_ekf_;
 
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr walls_sub_;
