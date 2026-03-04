@@ -52,8 +52,8 @@ ftg_node:
     lidar:
       range_min: 0.1        # Ignore readings closer than this (m)
       range_max: 10.0       # Maximum range to consider (m)
-      angle_min: -1.2      # Minimum angle to process (rad) - -90 degrees
-      angle_max: 1.2       # Maximum angle to process (rad) - +90 degrees
+      angle_min: -1.57      # Minimum angle to process (rad) - -90 degrees
+      angle_max: 1.57       # Maximum angle to process (rad) - +90 degrees
       apply_median_filter: true   # Apply median filter for noise reduction (reduces jitter)
       median_window_size: 3       # Window size (should be odd)
 
