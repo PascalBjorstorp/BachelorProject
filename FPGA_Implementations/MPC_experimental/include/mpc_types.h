@@ -107,11 +107,8 @@ typedef struct
     /** Front wheel steering angle [radians] */
     fixed_point_t steering_angle_radians;
 
-    /** Motor torque [Newton-meters]
-     *  Converted to wheel torque: T_wheel = T_motor / G_ratio
-     *  Longitudinal force computed from wheel slip ratio.
-     */
-    fixed_point_t acceleration_meters_per_second_squared;  /* [m/s²] longitudinal acceleration command */
+    /** Longitudinal acceleration command [m/s²] */
+    fixed_point_t acceleration_meters_per_second_squared;
 
 } ControlInput_t;
 
@@ -198,59 +195,11 @@ typedef struct
      */
     fixed_point_t minimum_velocity_meters_per_second;
 
-    /**
-     * Maximum motor torque [Newton-meters]
-     * T_max = F_x_max * R_w * G_ratio. Typical: 35.57 * 0.0545 * 11.82 ≈ 22.9 N·m
-     */
-    fixed_point_t maximum_acceleration_meters_per_second_squared;  /* [m/s²] max accel */
+    /** Maximum longitudinal acceleration [m/s²] */
+    fixed_point_t maximum_acceleration_meters_per_second_squared;
 
-    /**
-     * Minimum motor torque (braking) [Newton-meters]
-     * Negative value. T_min = F_x_min * R_w * G_ratio. Typical: -24.1 N·m
-     */
-    fixed_point_t minimum_acceleration_meters_per_second_squared;  /* [m/s²] max decel (negative) */
-
-    /** 
-     * Longitudinal acceleration [m/s²]
-     */
-    fixed_point_t longitudinal_acceleration_meters_per_second_squared;
-
-    /**
-     * Yaw heading rate [rad/s]
-     */
-    fixed_point_t omega;
-
-    /*
-     * Wheel / Drivetrain Parameters (7-state model)
-     */
-
-    /**
-     * Wheel radius [meters]
-     * Diameter 10.9 cm → R_w = 0.0545 m
-     */
-    fixed_point_t wheel_radius_meters;
-
-    /**
-     * Drivetrain inertia [kg·m²]
-     * Combined inertia of wheels + drivetrain (4WD, single equivalent).
-     * Typical F1/10th value: 2.223 kg·m²
-     */
-    fixed_point_t drivetrain_inertia_kgm2;
-
-    /**
-     * Longitudinal tire stiffness [Newtons]
-     * In the linear slip model: F_x = C_x * κ
-     * where κ = (R_w * ω_w - v_x) / max(|v_x|, ε)
-     * Typical F1/10th value: 100 N
-     */
-    fixed_point_t longitudinal_tire_stiffness;
-
-    /**
-     * Gear ratio (motor_speed / wheel_speed) [-]
-     * T_wheel = T_motor / G_ratio (speed reduction, torque multiplication).
-     * F1/10th Velineon 3500kV + spur/pinion: 11.82
-     */
-    fixed_point_t gear_ratio;
+    /** Minimum longitudinal acceleration (braking) [m/s²] */
+    fixed_point_t minimum_acceleration_meters_per_second_squared;
 
 } VehicleParameters_t;
 
@@ -360,8 +309,7 @@ typedef struct
     fixed_point_t reference_yaw_rate_radians_per_second;
 
     /** Target longitudinal acceleration [meters per second²]
-     *  From the raceline's planned acceleration profile.
-     *  Used for feedforward bias in the control cost. */
+     *  Currently unused by solver (feedforward disabled). */
     fixed_point_t reference_acceleration_meters_per_second_squared;
 
     /** Path curvature at this point [radians per meter]
@@ -452,14 +400,6 @@ typedef struct
 #define F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND \
     ((fixed_point_t)0)
 
-/** Vehicle width: 0.273 meters [MEASURED] (widest point) */
-#define F110_VEHICLE_WIDTH_METERS \
-    FP_CONST(0.273)
-
-/** Vehicle length: 0.51 meters [MEASURED] */
-#define F110_VEHICLE_LENGTH_METERS \
-    FP_CONST(0.51)
-
 /** Distance from CG to front axle: 0.166 meters [CAD] */
 #define F110_DIST_CG_TO_FRONT_AXLE_METERS \
     FP_CONST(0.166)
@@ -513,12 +453,6 @@ typedef struct
 #define F110_DEFAULT_MIN_ACCELERATION \
     FP_CONST(-7.7)
 
-/** Maximum steering rate: 2.85 rad/s [TESTED]
- *  From test_steering_rate.py: yaw rate 10-90% rise time method.
- *  Includes vehicle dynamics delay (actual servo may be slightly faster). */
-#define F110_MAX_STEERING_RATE_RADS \
-    FP_CONST(2.85)
-
 /** Default yaw rate: 0 rad/s */
 #define F110_DEFAULT_YAW_RATE \
     FP_CONST(0.0)
@@ -526,10 +460,6 @@ typedef struct
 /** Gravity acceleration: 9.81 m/s² */
 #define F110_GRAVITY_ACCELERATION_MS2 \
     FP_CONST(9.81)
-
-/** Center of gravity height: 0.0703 meters [CAD] */
-#define F110_HEIGHT_METERS \
-    FP_CONST(0.0703)
 
 /*===========================================================================
  * Default MPC Configuration

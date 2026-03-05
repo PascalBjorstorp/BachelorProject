@@ -40,7 +40,7 @@
  * Configuration
  *===========================================================================*/
 
-#define SIM_DT            0.005   /* MPC time step = 50ms */
+#define SIM_DT            0.005   /* Simulation time step = 5ms */
 #define SIM_DURATION      30.0   /* seconds */
 #define SIM_STEPS         ((int)(SIM_DURATION / SIM_DT))
 #define MPC_HORIZON       20
@@ -183,12 +183,12 @@ static void build_reference(int closest, double actual_vx, TrajectoryReferencePo
         double kappa = raceline[wp].kappa;
         double v_wp = raceline[base].vx;
 
-        /* B5: vy reference — DISABLED for baseline test */
+        /* vy reference: zero */
         ref[step].reference_lateral_velocity_meters_per_second = 0;
 
         ref[step].reference_yaw_rate_radians_per_second = DOUBLE_TO_FP(kappa * v_wp);
 
-        /* B3: Acceleration feedforward from raceline */
+        /* Acceleration feedforward: populated but currently unused by solver */
         ref[step].reference_acceleration_meters_per_second_squared = DOUBLE_TO_FP(raceline[base].ax);
 
         ref[step].path_curvature_radians_per_meter = DOUBLE_TO_FP(raceline[wp].kappa);
@@ -321,31 +321,23 @@ int main(void)
         if (accel_cmd > PHYSICAL_MAX_ACCEL) accel_cmd = PHYSICAL_MAX_ACCEL;
         if (accel_cmd < -PHYSICAL_MAX_ACCEL) accel_cmd = -PHYSICAL_MAX_ACCEL;
 
-        /* Servo dynamics: rate-limit steering to the measured actuator rate.
-         * The MPC output (steer) is the command; the servo moves toward it
-         * at max F110_MAX_STEERING_RATE_RADS = 2.85 rad/s.
-         * This matches the real car's servo behavior. */
+        /* Servo dynamics: rate-limit steering at 2.85 rad/s */
         {
-            double max_delta = 2.85 * SIM_DT;  /* F110_MAX_STEERING_RATE_RADS * dt */
+            double max_delta = 2.85 * SIM_DT;
             double steer_diff = steer - actual_steer;
             if (steer_diff > max_delta) steer_diff = max_delta;
             if (steer_diff < -max_delta) steer_diff = -max_delta;
             actual_steer += steer_diff;
         }
 
-        /* Feed the actual servo position back to the MPC so its delta_prev
-         * state matches the realized steering, not the commanded steering.
-         * Without this, servo rate-limiting creates a growing model mismatch:
-         * the MPC thinks delta_prev = command, but reality = rate-limited.
-         * NOTE: disabled for now — while more accurate, the awareness of
-         * servo lag makes the MPC too conservative for cornering speed.
-         * TODO: re-enable once servo-aware planning is implemented. */
-        /* {
+        /* Feed the actual servo position back to the MPC so delta_prev
+         * matches the realized steering. */
+        {
             ControlInput_t actual_ctrl;
             actual_ctrl.steering_angle_radians = DOUBLE_TO_FP(actual_steer);
             actual_ctrl.acceleration_meters_per_second_squared = DOUBLE_TO_FP(accel_cmd);
             mpc_set_actual_previous_control(&actual_ctrl);
-        } */
+        }
 
         /* Metrics */
         if (fabs(e_y) > max_lat_err) max_lat_err = fabs(e_y);

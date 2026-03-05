@@ -68,7 +68,6 @@ static uint8_t model_is_initialized = 0;
  *  Precomputed during initialization — saves 3 divisions per linearization. */
 static fixed_point_t cached_inv_mass = 0;   /* 1 / vehicle_mass_kg */
 static fixed_point_t cached_inv_Iz   = 0;   /* 1 / yaw_moment_of_inertia */
-static fixed_point_t cached_inv_Rw   = 0;   /* 1 / wheel_radius */
 static fixed_point_t cached_inv_L_wb = 0;   /* 1 / wheelbase */
 
 /*===========================================================================
@@ -80,7 +79,6 @@ static void recompute_cached_reciprocals(void)
 {
     cached_inv_mass = fp_recip(stored_vehicle_parameters.vehicle_mass_kg);
     cached_inv_Iz   = fp_recip(stored_vehicle_parameters.yaw_moment_of_inertia_kgm2);
-    cached_inv_Rw   = fp_recip(stored_vehicle_parameters.wheel_radius_meters);
     cached_inv_L_wb = fp_recip(stored_vehicle_parameters.wheelbase_meters);
 }
 
@@ -121,9 +119,6 @@ void vehicle_model_initialize(void)
 
     stored_vehicle_parameters.minimum_acceleration_meters_per_second_squared =
         F110_DEFAULT_MIN_ACCELERATION;
-
-    stored_vehicle_parameters.omega = 
-        F110_DEFAULT_YAW_RATE;
 
     stored_vehicle_parameters.height_cg_to_ground_meters =
         F110_CG_HEIGHT_METERS;
@@ -212,9 +207,6 @@ VehicleState_t vehicle_model_predict_next_state(
     fixed_point_t Iz   = stored_vehicle_parameters.yaw_moment_of_inertia_kgm2;
     fixed_point_t C_Sf = stored_vehicle_parameters.front_cornering_stiffness;
     fixed_point_t C_Sr = stored_vehicle_parameters.rear_cornering_stiffness;
-
-    /* Wheel parameters */
-    fixed_point_t Rw      = stored_vehicle_parameters.wheel_radius_meters;
 
     /*
      * Compute trigonometric values
@@ -627,14 +619,6 @@ void vehicle_model_compute_linearization(
         fixed_point_t C_min_r = fp_mul(C_Sr_Fzr_linear, min_stiffness_scale);
         C_Sr_Fzr = (C_eff_r > C_min_r) ? C_eff_r : C_min_r;
     }
-#endif
-
-#ifdef MPC_DEBUG_PRINT
-    printf("[MPC-DBG] C_Sf_Fzf=%.3f C_Sr_Fzr=%.3f (linear: %.3f, %.3f) F_zf=%.3f F_zr=%.3f alpha_f=%.4f\n",
-           FP_TO_DOUBLE(C_Sf_Fzf), FP_TO_DOUBLE(C_Sr_Fzr),
-           FP_TO_DOUBLE(C_Sf_Fzf_linear), FP_TO_DOUBLE(C_Sr_Fzr_linear),
-           FP_TO_DOUBLE(F_zf), FP_TO_DOUBLE(F_zr),
-           FP_TO_DOUBLE(alpha_f));
 #endif
 
     fixed_point_t dFyf_dvx    = fp_mul(C_Sf_Fzf, daf_dvx);

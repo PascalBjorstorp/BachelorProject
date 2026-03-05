@@ -88,7 +88,11 @@ static inline fixed_point_t fp_sub(fixed_point_t a, fixed_point_t b)
 
 static inline fixed_point_t fp_mul(fixed_point_t a, fixed_point_t b)
 {
-    return (fixed_point_t)((int64_t)a * b >> FP_FRAC_BITS);
+    int64_t product = (int64_t)a * (int64_t)b;
+#ifdef MPC_HLS_TARGET
+#pragma HLS BIND_OP variable=product op=mul impl=dsp
+#endif
+    return (fixed_point_t)(product >> FP_FRAC_BITS);
 }
 
 static inline fixed_point_t fp_div(fixed_point_t a, fixed_point_t b)

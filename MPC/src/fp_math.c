@@ -35,9 +35,23 @@
 
 fixed_point_t fp_normalize_angle(fixed_point_t angle)
 {
-    while (angle > FP_PI)
+#ifdef MPC_HLS_TARGET
+#pragma HLS INLINE
+#endif
+    /* Fast path: compute wraps needed via integer division.
+     * This handles arbitrarily large angles in O(1) instead of O(n).
+     * The final bounded loop is only for rounding correction (≤2 iterations). */
+    if (angle > FP_PI || angle < -FP_PI) {
+        /* n = floor((angle + π) / (2π)) */
+        int32_t shifted = angle + FP_PI;
+        int32_t n = shifted / FP_TWO_PI;
+        if (shifted < 0 && (shifted % FP_TWO_PI) != 0) n--;  /* floor for negatives */
+        angle -= n * FP_TWO_PI;
+    }
+    /* Correct any rounding residual (at most 2 iterations) */
+    for (int _i = 0; _i < 2 && angle > FP_PI; _i++)
         angle = fp_sub(angle, FP_TWO_PI);
-    while (angle < -FP_PI)
+    for (int _i = 0; _i < 2 && angle < -FP_PI; _i++)
         angle = fp_add(angle, FP_TWO_PI);
     return angle;
 }
@@ -48,6 +62,9 @@ fixed_point_t fp_normalize_angle(fixed_point_t angle)
 
 fixed_point_t fp_recip(fixed_point_t x)
 {
+#ifdef MPC_HLS_TARGET
+#pragma HLS INLINE
+#endif
     if (x == 0) return 0;
 
     int32_t sign = (x < 0) ? -1 : 1;
@@ -82,6 +99,9 @@ fixed_point_t fp_recip(fixed_point_t x)
 
 fixed_point_t fp_sqrt(fixed_point_t x)
 {
+#ifdef MPC_HLS_TARGET
+#pragma HLS INLINE
+#endif
     if (x <= 0) return 0;
 
     /* Initial guess */
@@ -123,6 +143,9 @@ fixed_point_t fp_sqrt(fixed_point_t x)
 
 fixed_point_t fp_sin(fixed_point_t angle)
 {
+#ifdef MPC_HLS_TARGET
+#pragma HLS INLINE
+#endif
     /* Normalize to [-π, π] */
     angle = fp_normalize_angle(angle);
     
@@ -163,6 +186,9 @@ fixed_point_t fp_sin(fixed_point_t angle)
 
 fixed_point_t fp_cos(fixed_point_t angle)
 {
+#ifdef MPC_HLS_TARGET
+#pragma HLS INLINE
+#endif
     /* Normalize to [-π, π] */
     angle = fp_normalize_angle(angle);
     
@@ -201,6 +227,9 @@ fixed_point_t fp_cos(fixed_point_t angle)
 
 fixed_point_t fp_tan(fixed_point_t angle)
 {
+#ifdef MPC_HLS_TARGET
+#pragma HLS INLINE
+#endif
     angle = fp_normalize_angle(angle);
 
     /* Protect against overflow near ±π/2 */
@@ -227,6 +256,9 @@ fixed_point_t fp_tan(fixed_point_t angle)
 
 fixed_point_t fp_pow(fixed_point_t base, int exp)
 {
+#ifdef MPC_HLS_TARGET
+#pragma HLS INLINE
+#endif
     if (exp == 0) return FP_ONE;
     if (exp == 1) return base;
     if (exp == -1) return fp_recip(base);
@@ -276,6 +308,9 @@ fixed_point_t fp_pow(fixed_point_t base, int exp)
 /* Internal helper: atan for |x| <= 0.5 using Taylor series */
 static fixed_point_t fp_atan_small(fixed_point_t x)
 {
+#ifdef MPC_HLS_TARGET
+#pragma HLS INLINE
+#endif
     fixed_point_t x2 = fp_mul(x, x);
     fixed_point_t term = x;
     fixed_point_t result = x;
@@ -303,6 +338,9 @@ static fixed_point_t fp_atan_small(fixed_point_t x)
 
 fixed_point_t fp_atan(fixed_point_t x)
 {
+#ifdef MPC_HLS_TARGET
+#pragma HLS INLINE
+#endif
     if (x == 0) return 0;
     
     int32_t sign = (x < 0) ? -1 : 1;
@@ -355,6 +393,9 @@ fixed_point_t fp_atan(fixed_point_t x)
 
 fixed_point_t fp_atan2(fixed_point_t y, fixed_point_t x)
 {
+#ifdef MPC_HLS_TARGET
+#pragma HLS INLINE
+#endif
     /* Handle special cases */
     if (x == 0)
     {
@@ -416,13 +457,24 @@ void fp_mat_vec_mul(
 {
     for (uint16_t r = 0; r < rows; r++)
     {
+#ifdef MPC_HLS_TARGET
+#pragma HLS LOOP_TRIPCOUNT min=20 max=26 avg=26
+#pragma HLS PIPELINE II=1
+#endif
         /* Use int64_t accumulator to prevent overflow with large matrices.
          * Critical for the QP Hessian-vector product where 20+ terms are
          * summed, each potentially large in Q16.16 fixed-point. */
         int64_t sum64 = 0;
         for (uint16_t c = 0; c < cols; c++)
         {
-            sum64 += (int64_t)matrix[r * cols + c] * vec[c] >> FP_FRAC_BITS;
+#ifdef MPC_HLS_TARGET
+#pragma HLS LOOP_TRIPCOUNT min=20 max=26 avg=26
+#endif
+            int64_t product = (int64_t)matrix[r * cols + c] * vec[c];
+#ifdef MPC_HLS_TARGET
+#pragma HLS BIND_OP variable=product op=mul impl=dsp
+#endif
+            sum64 += product >> FP_FRAC_BITS;
         }
         /* Clamp to int32_t range */
         if (sum64 > INT32_MAX) sum64 = INT32_MAX;
@@ -445,14 +497,29 @@ void fp_symmetric_mat_vec_mul(
     }
 
     /* int64 accumulators prevent overflow during multi-term summation.
-     * Size 80 matches QP_MAXIMUM_VARIABLES. */
-    int64_t accum[80];
-    memset(accum, 0, n * sizeof(int64_t));
+     * Size matches QP_MAXIMUM_VARIABLES (46 for FPGA, 80 for CPU). */
+#ifndef QP_MAXIMUM_VARIABLES
+#define QP_MAXIMUM_VARIABLES 80
+#endif
+    int64_t accum[QP_MAXIMUM_VARIABLES];
+    {
+        uint16_t ai;
+        for (ai = 0; ai < QP_MAXIMUM_VARIABLES; ai++)
+        {
+#ifdef MPC_HLS_TARGET
+#pragma HLS PIPELINE II=1
+#endif
+            accum[ai] = 0;
+        }
+    }
 
     uint16_t n_blocks = n >> 1;
 
     for (uint16_t bi = 0; bi < n_blocks; bi++)
     {
+#ifdef MPC_HLS_TARGET
+#pragma HLS LOOP_TRIPCOUNT min=10 max=13 avg=13
+#endif
         uint16_t ri = bi << 1;
         int64_t vi0 = (int64_t)vec[ri];
         int64_t vi1 = (int64_t)vec[ri + 1];
@@ -473,6 +540,10 @@ void fp_symmetric_mat_vec_mul(
          * Each block read serves double duty, halving H memory accesses. */
         for (uint16_t bj = bi + 1; bj < n_blocks; bj++)
         {
+#ifdef MPC_HLS_TARGET
+#pragma HLS LOOP_TRIPCOUNT min=0 max=12 avg=6
+#pragma HLS PIPELINE II=1
+#endif
             uint16_t rj = bj << 1;
             int64_t vj0 = (int64_t)vec[rj];
             int64_t vj1 = (int64_t)vec[rj + 1];
@@ -495,6 +566,10 @@ void fp_symmetric_mat_vec_mul(
     /* Clamp int64 accumulators to int32 range */
     for (uint16_t i = 0; i < n; i++)
     {
+#ifdef MPC_HLS_TARGET
+#pragma HLS LOOP_TRIPCOUNT min=20 max=26 avg=26
+#pragma HLS PIPELINE II=1
+#endif
         if (accum[i] > INT32_MAX) accum[i] = INT32_MAX;
         else if (accum[i] < INT32_MIN) accum[i] = INT32_MIN;
         result[i] = (fixed_point_t)accum[i];

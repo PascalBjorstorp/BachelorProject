@@ -13,17 +13,19 @@
  *   v_y        = lateral velocity in body frame [m/s]
  *   omega      = yaw rate [rad/s]
  *
- * Control vector (2 inputs): [delta, a_x]
+ * Control vector (2 inputs): [delta, acceleration]
  *   delta      = front wheel steering angle [radians]
- *   a_x        = longitudinal acceleration [m/s²]
+ *   acceleration = longitudinal acceleration [m/s²]
  *
  * Model Equations (continuous time):
  *   dx/dt      = v_x * cos(psi) - v_y * sin(psi)
  *   dy/dt      = v_x * sin(psi) + v_y * cos(psi)
  *   dpsi/dt    = omega
- *   dv_x/dt    = a_x
+ *   dv_x/dt    = (F_x - F_yf * sin(delta) + m * v_y * omega) / m
  *   dv_y/dt    = (F_yf * cos(delta) + F_yr - m * v_x * omega) / m
  *   domega/dt  = (l_f * F_yf * cos(delta) - l_r * F_yr) / I_z
+ *
+ * Longitudinal force: F_x = m * a_cmd (direct acceleration input)
  *
  * Tire model:
  *   Prediction uses a linear model:
@@ -52,14 +54,16 @@
  * Initialize vehicle model with default F1/10th parameters.
  *
  * Default values:
- * - Wheelbase: 0.326 m (l_f=0.166, l_r=0.16)
+ * - Wheelbase: 0.3302 m (l_f=0.15875, l_r=0.17145)
  * - Mass: 3.314 kg
  * - Yaw inertia: 0.035 kg*m^2
- * - Front cornering stiffness: 2.804 [1/rad]
- * - Rear cornering stiffness: 3.320 [1/rad]
- * - Max steering: 0.4282 rad (~24.5 deg)
+ * - Front cornering stiffness: 3.053 [1/rad]
+ * - Rear cornering stiffness: 5.282 [1/rad]
+ * - Max steering: 0.428 rad (~24.5 deg)
  * - Max velocity: 20.0 m/s
- * - Max acceleration: 8.0 m/s², Min: -7.7 m/s²
+ * - Max motor torque: 22.9 N·m, Min: -24.1 N·m
+ * - Wheel radius: 0.0545 m, Gear ratio: 11.82
+ * - Drivetrain inertia: 2.223 kg·m², C_x: 100 N
  */
 void vehicle_model_initialize(void);
 
@@ -87,7 +91,7 @@ VehicleParameters_t vehicle_model_get_parameters(void);
  *
  * Ensures:
  * - Steering angle within [-max_steering, +max_steering]
- * - Acceleration within [min_accel, max_accel]
+ * - Motor torque within [min_torque, max_torque]
  *
  * @param raw_control  Unconstrained control input
  * @return Constrained control input within physical limits

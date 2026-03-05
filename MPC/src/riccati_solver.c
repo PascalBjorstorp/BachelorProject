@@ -28,7 +28,7 @@
  * All matrix ops use int64_t intermediates to avoid Q16.16 overflow.
  */
 
-#include "../include/riccati_solver.h"
+#include "riccati_solver.h"
 #include <string.h>
 #include <stdio.h>
 
