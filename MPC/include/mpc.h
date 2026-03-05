@@ -35,7 +35,7 @@
  * - Prediction horizon: 10 steps
  * - Time step: 0.05 seconds (50 ms)
  * - Balanced cost weights
- * - 2000 solver iterations max
+ * - 500 solver iterations max (scaled with horizon for N > 10)
  */
 void mpc_initialize(void);
 
