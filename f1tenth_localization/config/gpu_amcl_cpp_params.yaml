@@ -78,7 +78,7 @@ gpu_amcl_cpp:
     use_recovery: false
 
     # ---- Initial pose ----
-    # Set to where you place the car on my_track_map.
+    # Spielberg starting position (matches sim.yaml sx/sy/stheta).
     # Use RViz "2D Pose Estimate" tool to reinitialize if heading is wrong.
     initial_pose_x: 0.0
     initial_pose_y: 0.0

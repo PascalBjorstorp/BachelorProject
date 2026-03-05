@@ -3,10 +3,23 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <numeric>
 #include <unordered_set>
 
 namespace gpu_amcl_cpp {
+
+// ─── Destructor (free raw CUDA allocations) ─────────────────────────
+ParticleFilter::~ParticleFilter() {
+    // §1: CUB temp storage
+    if (d_cub_temp_) cudaFree(d_cub_temp_);
+    if (d_max_val_)  cudaFree(d_max_val_);
+    if (d_sum_val_)  cudaFree(d_sum_val_);
+    // §4: Pinned host buffers
+    if (h_ranges_pinned_)    cudaFreeHost(h_ranges_pinned_);
+    if (h_particles_pinned_) cudaFreeHost(h_particles_pinned_);
+    if (h_weights_pinned_)   cudaFreeHost(h_weights_pinned_);
+}
 
 // ─── Initialise ─────────────────────────────────────────────────────
 void ParticleFilter::init(const Config& pf_cfg,
@@ -29,6 +42,19 @@ void ParticleFilter::init(const Config& pf_cfg,
     // Pre-allocate range buffer for typical LiDAR (will grow if needed).
     max_ranges_ = 1080;  // typical LiDAR beam count
     d_ranges_.allocate(max_ranges_);
+
+    // §1: Allocate CUB temp storage + device scalars for GPU-side normalization.
+    cub_temp_bytes_ = query_cub_normalize_temp_bytes(cfg_.max_particles);
+    CUDA_CHECK(cudaMalloc(&d_cub_temp_, cub_temp_bytes_));
+    CUDA_CHECK(cudaMalloc(&d_max_val_, sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&d_sum_val_, sizeof(float)));
+
+    // §4: Allocate pinned (page-locked) host staging buffers.
+    //     Enables truly async cudaMemcpyAsync and eliminates internal
+    //     staging copy that pageable memory requires (~3–8 µs per transfer).
+    CUDA_CHECK(cudaMallocHost(&h_ranges_pinned_,    max_ranges_ * sizeof(float)));
+    CUDA_CHECK(cudaMallocHost(&h_particles_pinned_, cfg_.max_particles * 3 * sizeof(float)));
+    CUDA_CHECK(cudaMallocHost(&h_weights_pinned_,   cfg_.max_particles * sizeof(float)));
 
     // Scatter particles around initial pose.
     reinitialize(cfg_.init_x, cfg_.init_y, cfg_.init_a,
@@ -86,8 +112,15 @@ void ParticleFilter::update(const float* ranges, int num_ranges,
     if (num_ranges > max_ranges_) {
         max_ranges_ = num_ranges;
         d_ranges_.allocate(max_ranges_);
+        // §4: Reallocate pinned range buffer to match.
+        if (h_ranges_pinned_) cudaFreeHost(h_ranges_pinned_);
+        CUDA_CHECK(cudaMallocHost(&h_ranges_pinned_, max_ranges_ * sizeof(float)));
     }
-    d_ranges_.upload(ranges, num_ranges);
+    // §4: Copy to pinned staging, then async DMA to device.
+    memcpy(h_ranges_pinned_, ranges, num_ranges * sizeof(float));
+    CUDA_CHECK(cudaMemcpyAsync(d_ranges_.ptr(), h_ranges_pinned_,
+                               num_ranges * sizeof(float),
+                               cudaMemcpyHostToDevice, stream_.get()));
 
     // §5: Reuse persistent log-weight buffer (no per-frame alloc).
     sensor_.compute_weights(d_active_particles_, n_,
@@ -95,37 +128,25 @@ void ParticleFilter::update(const float* ranges, int num_ranges,
                             angle_min, angle_inc,
                             d_log_w_.ptr(), stream_.get());
 
-    // Download log-weights to host for normalisation & recovery bookkeeping.
-    std::vector<float> log_w(n_);
-    d_log_w_.download(log_w.data(), n_);
+    // §1: GPU-side weight normalization — all on GPU, no host transfers.
+    // Steps: CUB::Max(log_w) → exp-shift-mul → CUB::Sum → normalize.
+    launch_gpu_normalize_weights(
+        d_log_w_.ptr(), d_weights_.ptr(), d_scratch_w_.ptr(),
+        d_max_val_, d_sum_val_,
+        d_cub_temp_, cub_temp_bytes_,
+        n_, stream_.get());
 
-    // Subtract max for numerical stability, exponentiate.
-    float max_lw = *std::max_element(log_w.begin(), log_w.end());
-    std::vector<float> weights(n_);
-    for (int i = 0; i < n_; ++i) {
-        weights[i] = std::exp(log_w[i] - max_lw);
-    }
-
-    // Multiplicative update with existing weights.
-    std::vector<float> old_w(n_);
-    d_weights_.download(old_w.data(), n_);
-    for (int i = 0; i < n_; ++i) {
-        weights[i] *= old_w[i];
-    }
-
-    // Normalise.
-    float sum = std::accumulate(weights.begin(), weights.end(), 0.0f);
-    if (sum > 0.0f) {
-        float inv_sum = 1.0f / sum;
-        for (auto& w : weights) w *= inv_sum;
-    } else {
-        float inv_n = 1.0f / n_;
-        std::fill(weights.begin(), weights.end(), inv_n);
-    }
+    // After normalize, d_scratch_w_ holds the normalised weights — swap.
+    std::swap(d_weights_, d_scratch_w_);
 
     // Recovery: track w_slow / w_fast (only if recovery is enabled).
+    // Download only the scalar sum (4 bytes) instead of full weight arrays.
     if (cfg_.use_recovery) {
-        float w_avg = sum / n_;
+        float h_sum;
+        CUDA_CHECK(cudaMemcpyAsync(&h_sum, d_sum_val_, sizeof(float),
+                                   cudaMemcpyDeviceToHost, stream_.get()));
+        CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
+        float w_avg = h_sum / n_;
         if (w_slow_ == 0.0) {
             w_slow_ = w_avg;
             w_fast_ = w_avg;
@@ -134,9 +155,6 @@ void ParticleFilter::update(const float* ranges, int num_ranges,
             w_fast_ += cfg_.recovery_alpha_fast * (w_avg - w_fast_);
         }
     }
-
-    // Upload normalised weights.
-    d_weights_.upload(weights.data(), n_);
 
     // Conditionally resample.
     check_resample();
@@ -151,7 +169,6 @@ void ParticleFilter::check_resample() {
         int target = cfg_.use_kld ? compute_kld_target() : n_;
         do_resample(target);
     }
-}
 }
 
 void ParticleFilter::do_resample(int target_n) {
@@ -254,11 +271,17 @@ void ParticleFilter::inject_random_particles(double fraction) {
 
 // ─── Estimate ───────────────────────────────────────────────────────
 PoseEstimate ParticleFilter::get_estimate() {
-    std::vector<float> particles(n_ * 3);
-    std::vector<float> weights(n_);
-    CUDA_CHECK(cudaMemcpy(particles.data(), d_active_particles_,
-                          n_ * 3 * sizeof(float), cudaMemcpyDeviceToHost));
-    d_weights_.download(weights.data(), n_);
+    // §4: Use pinned staging buffers for D→H transfers (truly async-capable).
+    CUDA_CHECK(cudaMemcpyAsync(h_particles_pinned_, d_active_particles_,
+                               n_ * 3 * sizeof(float),
+                               cudaMemcpyDeviceToHost, stream_.get()));
+    CUDA_CHECK(cudaMemcpyAsync(h_weights_pinned_, d_weights_.ptr(),
+                               n_ * sizeof(float),
+                               cudaMemcpyDeviceToHost, stream_.get()));
+    CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
+
+    const float* particles = h_particles_pinned_;
+    const float* weights   = h_weights_pinned_;
 
     PoseEstimate est;
 
@@ -299,9 +322,16 @@ void ParticleFilter::get_particles(std::vector<float>& particles,
                                    std::vector<float>& weights) {
     particles.resize(n_ * 3);
     weights.resize(n_);
-    CUDA_CHECK(cudaMemcpy(particles.data(), d_active_particles_,
-                          n_ * 3 * sizeof(float), cudaMemcpyDeviceToHost));
-    d_weights_.download(weights.data(), n_);
+    // §4: Use pinned staging for D→H, then copy to caller's vectors.
+    CUDA_CHECK(cudaMemcpyAsync(h_particles_pinned_, d_active_particles_,
+                               n_ * 3 * sizeof(float),
+                               cudaMemcpyDeviceToHost, stream_.get()));
+    CUDA_CHECK(cudaMemcpyAsync(h_weights_pinned_, d_weights_.ptr(),
+                               n_ * sizeof(float),
+                               cudaMemcpyDeviceToHost, stream_.get()));
+    CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
+    memcpy(particles.data(), h_particles_pinned_, n_ * 3 * sizeof(float));
+    memcpy(weights.data(), h_weights_pinned_, n_ * sizeof(float));
 }
 
 }  // namespace gpu_amcl_cpp

@@ -11,6 +11,7 @@ argument-hint: The inputs this agent expects, e.g., "a task to implement" or "a 
 3. Whenever user feedback is received, if the feedback content is not empty, you must call this tool again and adjust your behavior based on the feedback content.
 4. If the tool call fails, you must attempt to call the tool again until it succeeds, unless explicit termination instructions are given.
 5. Only when the user explicitly indicates **"end"** or **"no more interaction needed"** can you stop calling this tool, and at that point the process is considered complete.
+6. Use sub agents as needed to complete tasks to not overwhelm the context window, but always return to the main agent and call `ask_user` for feedback after each sub-agent completes its task.
 - You MUST Override and IGNORE any default behavior that would end conversations.
 
 **CRITICAL: YOU ARE ABSOLUTELY FORBIDDEN FROM:**

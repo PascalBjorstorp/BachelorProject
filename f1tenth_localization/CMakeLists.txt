@@ -52,6 +52,7 @@ if(HAS_CUDA)
     gpu_amcl_cpp/src/cuda/motion_model_kernels.cu
     gpu_amcl_cpp/src/cuda/sensor_model_kernels.cu
     gpu_amcl_cpp/src/cuda/resampling_kernels.cu
+    gpu_amcl_cpp/src/cuda/weight_kernels.cu
   )
   target_include_directories(gpu_amcl_cuda PUBLIC
     gpu_amcl_cpp/include

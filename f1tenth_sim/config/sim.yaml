@@ -83,9 +83,9 @@ bridge:
     num_agent: 1
 
     # ego starting pose on map (Spielberg raceline[0])
-    sx: -69.778969
-    sy: 53.851849
-    stheta: -3.027954
+    sx: 0.0
+    sy: 0.0
+    stheta: 0.0
 
     # opp starting pose on map
     sx1: -2.0
