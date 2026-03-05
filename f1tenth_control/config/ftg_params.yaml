@@ -15,8 +15,8 @@ ftg_node:
     # Speed Control (Reference FTG Formula)
     # ===================
     # Speed = min_speed + (max_speed - min_speed) * range_factor * steer_factor
-    max_speed: 2.0          # Maximum allowed speed (m/s) - reduced for tight corners
-    min_speed: 0.5          # Minimum speed (m/s)
+    max_speed: 2.0          # Maximum allowed speed (m/s)
+    min_speed: 1.0          # Minimum speed (m/s)
     speed_full_range: 3.0   # Distance (m) at which full speed is allowed
     steer_slowdown_gain: 0.4 # How much steering reduces speed (0=none, 1=max)
 
@@ -27,7 +27,8 @@ ftg_node:
     steering_gain: 1.0            # Gain for steering toward gap
     max_steering_rate: 3.0        # [rad/s] Time-based max steering change rate
     target_ema_alpha: 0.35        # EMA smoothing for target angle (0.1=very smooth, 1.0=no smoothing)
-    heading_bias_weight: 0.4      # Prefer gaps near current heading (0=disabled, higher=stronger)
+    heading_bias_weight: 0.6      # Prefer gaps near current heading (0=disabled, higher=stronger)
+    center_weight: 0.25            # Blend: 1.0=steer to gap center, 0.0=steer to deepest point
 
     # ===================
     # Safety Parameters
@@ -39,12 +40,12 @@ ftg_node:
     # ===================
     # These parameters are specific to the Follow The Gap algorithm
     disparity_threshold: 0.3  # Threshold for detecting disparities (m) - lower = more sensitive
-    gap_threshold: 0.4         # Minimum range to consider as "gap" (m) - readings > this are "open"
+    gap_threshold: 0.5         # Minimum range to consider as "gap" (m) - readings > this are "open"
     min_gap_width: 0.3         # Minimum angular width of valid gap (rad) ~17 degrees
     bubble_radius: 0.2        # Safety bubble radius around closest point (m)
     apply_bubble: true         # Enable safety bubble
     wall_margin: 0.05          # Shrink all readings by this amount (m) - creates clearance from parallel walls
-    gap_edge_trim: 3           # Discard this many indices from each side of a gap (0=off, 1-5 typical)
+    gap_edge_trim: 10           # Discard this many indices from each side of a gap (0=off, 1-5 typical)
     wall_margin: 0.2          # Shrink all readings by this amount (m) - creates clearance from parallel walls
 
     # ===================
@@ -54,10 +55,10 @@ ftg_node:
     lidar:
       range_min: 0.1        # Ignore readings closer than this (m)
       range_max: 10.0       # Maximum range to consider (m)
-      angle_min: -1.57      # Minimum angle to process (rad) - -90 degrees
-      angle_max: 1.57       # Maximum angle to process (rad) - +90 degrees
+      angle_min: -1.05      # Minimum angle to process (rad) - -90 degrees
+      angle_max: 1.05       # Maximum angle to process (rad) - +90 degrees
       apply_median_filter: true   # Apply median filter for noise reduction (reduces jitter)
-      median_window_size: 3       # Window size (should be odd)
+      median_window_size: 3       # Window size (should be odd) 
 
     # ===================
     # Mapping Mode

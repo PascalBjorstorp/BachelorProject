@@ -195,12 +195,16 @@ def extract_boundaries(img: np.ndarray, resolution: float, origin: np.ndarray):
 
 
 def compute_centerline(outer_world: np.ndarray, inner_world: np.ndarray, 
-                       num_points: int = 1000):
+                       num_points: int = 1000,
+                       map_img: np.ndarray = None,
+                       map_resolution: float = None,
+                       map_origin: np.ndarray = None):
     """
     Compute track centerline from boundaries.
     
     For each point on the outer boundary, finds the closest point on the inner
-    boundary and computes the midpoint.
+    boundary and computes the midpoint. Then validates against occupancy grid
+    to ensure centerline stays in free space.
     
     Returns:
         centerline: Nx2 array of centerline coordinates
@@ -241,6 +245,62 @@ def compute_centerline(outer_world: np.ndarray, inner_world: np.ndarray,
     u_new = np.linspace(0, 1, num_points, endpoint=False)
     centerline = np.array(splev(u_new, tck)).T
     
+    # ── Collision correction: snap any wall-crossing points to free space ──
+    if map_img is not None and map_resolution is not None and map_origin is not None:
+        free = (map_img > 205).astype(np.uint8)
+        dist_transform = cv2.distanceTransform(free, cv2.DIST_L2, 5)
+        min_clearance_px = 2.0  # at least 2 pixels from any wall
+        
+        n_fixed = 0
+        for i in range(len(centerline)):
+            col = int((centerline[i, 0] - map_origin[0]) / map_resolution)
+            row = int(map_img.shape[0] - (centerline[i, 1] - map_origin[1]) / map_resolution)
+            
+            if (0 <= row < map_img.shape[0] and 0 <= col < map_img.shape[1]
+                    and dist_transform[row, col] >= min_clearance_px):
+                continue  # Already in free space with clearance
+            
+            # Point is in/near wall — find nearest free pixel with adequate
+            # clearance using expanding ring search (closest first)
+            best_r, best_c = row, col
+            best_sq = float('inf')
+            found = False
+            search_radius = 30  # pixels
+            for dr in range(-search_radius, search_radius + 1):
+                for dc in range(-search_radius, search_radius + 1):
+                    nr, nc = row + dr, col + dc
+                    sq = dr * dr + dc * dc
+                    if sq >= best_sq:
+                        continue
+                    if 0 <= nr < map_img.shape[0] and 0 <= nc < map_img.shape[1]:
+                        if dist_transform[nr, nc] >= min_clearance_px:
+                            best_sq = sq
+                            best_r, best_c = nr, nc
+                            found = True
+            
+            if found:
+                centerline[i, 0] = best_c * map_resolution + map_origin[0]
+                centerline[i, 1] = (map_img.shape[0] - best_r) * map_resolution + map_origin[1]
+                n_fixed += 1
+        
+        if n_fixed > 0:
+            print(f"  Collision correction: fixed {n_fixed}/{len(centerline)} points")
+            # Remove potential duplicates after snapping
+            diff = np.diff(centerline, axis=0)
+            dist_arr = np.linalg.norm(diff, axis=1)
+            keep = np.concatenate([[True], dist_arr > 0.005])
+            if not np.all(keep):
+                centerline = centerline[keep]
+                # Re-sample to original count
+                cl_closed = np.vstack([centerline, centerline[0]])
+                tck2, u2 = splprep(
+                    [cl_closed[:, 0], cl_closed[:, 1]],
+                    s=len(centerline) * 0.001,
+                    per=True
+                )
+                u_new2 = np.linspace(0, 1, num_points, endpoint=False)
+                centerline = np.array(splev(u_new2, tck2)).T
+    
     # Compute normals (perpendicular to tangent)
     tangents = np.zeros_like(centerline)
     tangents[:-1] = np.diff(centerline, axis=0)
@@ -260,49 +320,77 @@ def compute_centerline(outer_world: np.ndarray, inner_world: np.ndarray,
 # ============================================================================
 def optimize_racing_line(centerline: np.ndarray, normals: np.ndarray,
                          inner_tree: cKDTree, outer_tree: cKDTree,
-                         params: VehicleParams, verbose: bool = True):
+                         params: VehicleParams, verbose: bool = True,
+                         map_img: np.ndarray = None,
+                         map_resolution: float = None,
+                         map_origin: np.ndarray = None):
     """
     Optimize racing line using minimum curvature approach.
     
-    Parameterizes lateral deviation from centerline and minimizes
-    total curvature squared subject to boundary constraints.
+    Uses distance-transform-based clearance when map data is provided,
+    falling back to KD-tree distances otherwise.
     
     Returns:
         raceline: Nx2 array of optimized racing line coordinates
     """
     n = len(centerline)
     
-    # Compute actual distances to boundaries for each centerline point
-    widths_inner = np.array([inner_tree.query(pt)[0] for pt in centerline])
-    widths_outer = np.array([outer_tree.query(pt)[0] for pt in centerline])
+    # ── Compute widths using distance transform (wall-aware) ──
+    if map_img is not None and map_resolution is not None and map_origin is not None:
+        free = (map_img > 205).astype(np.uint8)
+        dist_transform = cv2.distanceTransform(free, cv2.DIST_L2, 5)
+        
+        # For each centerline point, the distance transform gives the distance
+        # to the nearest wall in ANY direction.  By triangle inequality:
+        #   dist(displaced_pt, wall) >= dist(center, wall) - |displacement|
+        # So if displacement < (dt_clearance - safety), we guarantee >= safety
+        # clearance from walls.  Use dt_clearance as both inner/outer width.
+        widths_inner = np.zeros(n)
+        widths_outer = np.zeros(n)
+        
+        for i in range(n):
+            col = int((centerline[i, 0] - map_origin[0]) / map_resolution)
+            row = int(map_img.shape[0] - (centerline[i, 1] - map_origin[1]) / map_resolution)
+            
+            if 0 <= row < map_img.shape[0] and 0 <= col < map_img.shape[1]:
+                dt_clearance = dist_transform[row, col] * map_resolution
+            else:
+                dt_clearance = 0.0
+            
+            # Conservative: both inner and outer width = dt clearance
+            widths_inner[i] = max(dt_clearance, 0.01)
+            widths_outer[i] = max(dt_clearance, 0.01)
+        
+        if verbose:
+            print(f"  Using distance-transform widths (wall-aware)")
+    else:
+        # Fallback to KD-tree distances
+        widths_inner = np.array([inner_tree.query(pt)[0] for pt in centerline])
+        widths_outer = np.array([outer_tree.query(pt)[0] for pt in centerline])
+        if verbose:
+            print(f"  Using KD-tree widths (fallback)")
     
     if verbose:
         print(f"  Centerline points: {n}")
-        print(f"  Distance to inner: {widths_inner.min():.2f} - {widths_inner.max():.2f} m")
-        print(f"  Distance to outer: {widths_outer.min():.2f} - {widths_outer.max():.2f} m")
+        print(f"  Width inner: {widths_inner.min():.2f} - {widths_inner.max():.2f} m")
+        print(f"  Width outer: {widths_outer.min():.2f} - {widths_outer.max():.2f} m")
     
     # Optimization parameters
     safety = params.safety_margin
     curvature_weight = 1.0
     smoothness_weight = 0.5
     
-    def get_bounds(i):
-        """Get allowed alpha range for point i."""
-        w_inner = max(widths_inner[i] - safety, 0.05)
-        w_outer = max(widths_outer[i] - safety, 0.05)
-        alpha_min = -w_inner / max(widths_inner[i], 0.1)
-        alpha_max = w_outer / max(widths_outer[i], 0.1)
-        return max(alpha_min, -0.9), min(alpha_max, 0.9)
+    # Vectorized bounds: alpha * width = displacement, need |displacement| <= width - safety
+    effective_inner = np.maximum(widths_inner - safety, 0.0)
+    effective_outer = np.maximum(widths_outer - safety, 0.0)
+    alpha_mins = np.maximum(-effective_inner / np.maximum(widths_inner, 0.01), -0.9)
+    alpha_maxs = np.minimum(effective_outer / np.maximum(widths_outer, 0.01), 0.9)
+    bounds = list(zip(alpha_mins, alpha_maxs))
     
     def path_from_alpha(alpha):
-        """Convert alpha parameters to path coordinates."""
-        path = np.zeros_like(centerline)
-        for i in range(n):
-            if alpha[i] < 0:
-                displacement = alpha[i] * widths_inner[i]
-            else:
-                displacement = alpha[i] * widths_outer[i]
-            path[i] = centerline[i] + displacement * normals[i]
+        """Convert alpha parameters to path coordinates (vectorized)."""
+        displacement = np.where(alpha < 0, alpha * widths_inner, alpha * widths_outer)
+        path = centerline + displacement[:, np.newaxis] * normals
         return path
     
     def compute_curvature(path):
@@ -329,8 +417,7 @@ def optimize_racing_line(centerline: np.ndarray, normals: np.ndarray,
         
         return curvature_cost + smoothness_cost
     
-    # Build bounds and optimize
-    bounds = [get_bounds(i) for i in range(n)]
+    # Build and optimize
     alpha0 = np.zeros(n)
     
     if verbose:
@@ -346,12 +433,45 @@ def optimize_racing_line(centerline: np.ndarray, normals: np.ndarray,
     
     raceline = path_from_alpha(result.x)
     
-    # Verify safety margins
-    min_dist = float('inf')
-    for pt in raceline:
-        d_inner, _ = inner_tree.query(pt)
-        d_outer, _ = outer_tree.query(pt)
-        min_dist = min(min_dist, d_inner, d_outer)
+    # ── Post-optimization collision correction ──
+    if map_img is not None and map_resolution is not None and map_origin is not None:
+        free = (map_img > 205).astype(np.uint8)
+        dist_transform = cv2.distanceTransform(free, cv2.DIST_L2, 5)
+        min_clearance_px = max(safety / map_resolution, 1.0)
+        
+        n_wall = 0
+        for i in range(len(raceline)):
+            col = int((raceline[i, 0] - map_origin[0]) / map_resolution)
+            row = int(map_img.shape[0] - (raceline[i, 1] - map_origin[1]) / map_resolution)
+            
+            if (0 <= row < map_img.shape[0] and 0 <= col < map_img.shape[1]
+                    and dist_transform[row, col] >= min_clearance_px):
+                continue
+            
+            # Snap back to centerline (safe fallback)
+            raceline[i] = centerline[i]
+            n_wall += 1
+        
+        if n_wall > 0 and verbose:
+            print(f"  Post-opt collision fix: snapped {n_wall}/{len(raceline)} points to centerline")
+    
+    # Verify safety margins using distance transform
+    if map_img is not None and map_resolution is not None and map_origin is not None:
+        min_wall_dist = float('inf')
+        for pt in raceline:
+            col = int((pt[0] - map_origin[0]) / map_resolution)
+            row = int(map_img.shape[0] - (pt[1] - map_origin[1]) / map_resolution)
+            if 0 <= row < map_img.shape[0] and 0 <= col < map_img.shape[1]:
+                d = dist_transform[row, col] * map_resolution
+            else:
+                d = 0.0
+            min_wall_dist = min(min_wall_dist, d)
+    else:
+        min_wall_dist = float('inf')
+        for pt in raceline:
+            d_inner, _ = inner_tree.query(pt)
+            d_outer, _ = outer_tree.query(pt)
+            min_wall_dist = min(min_wall_dist, d_inner, d_outer)
     
     if verbose:
         kappa_opt = compute_curvature(raceline)
@@ -359,7 +479,7 @@ def optimize_racing_line(centerline: np.ndarray, normals: np.ndarray,
         reduction = 100 * (1 - np.sum(kappa_opt**2) / np.sum(kappa_center**2))
         
         print(f"  Optimization {'converged' if result.success else 'did not converge'}")
-        print(f"  Min wall distance: {min_dist:.3f} m")
+        print(f"  Min wall distance: {min_wall_dist:.3f} m")
         print(f"  Curvature reduction: {reduction:.1f}%")
     
     return raceline
@@ -958,7 +1078,8 @@ def main():
     print("Step 2: Computing centerline")
     print("=" * 60)
     centerline, normals, inner_tree, outer_tree = compute_centerline(
-        outer_world, inner_world, num_points=args.points
+        outer_world, inner_world, num_points=args.points,
+        map_img=img, map_resolution=resolution, map_origin=origin
     )
     
     # Reverse direction if clockwise is requested
@@ -980,7 +1101,8 @@ def main():
     print("Step 3: Optimizing racing line")
     print("=" * 60)
     raceline = optimize_racing_line(
-        centerline, normals, inner_tree, outer_tree, params, verbose=True
+        centerline, normals, inner_tree, outer_tree, params, verbose=True,
+        map_img=img, map_resolution=resolution, map_origin=origin
     )
     
     # Step 4: Compute velocity profile
