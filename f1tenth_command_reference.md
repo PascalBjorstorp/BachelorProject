@@ -308,11 +308,6 @@ ros2 topic list     # should show topics from both machines
 
 ## Troubleshooting
 
-### SLAM map looks bad
-- Drive **slowly** (1-2 m/s) during mapping
-- Make sure odom TF frames match Cartographer Lua config (`ego_racecar/odom`, `ego_racecar/base_link`)
-- Tune `real_time_correlative_scan_matcher.linear_search_window` in the Lua config if the car drives fast
-- Check the Cartographer Lua file: `f1tenth_system/f1tenth_stack/config/cartographer_f1tenth.lua`
 
 ### AMCL won't localize / particles diverge
 - Set the initial pose first (RViz "2D Pose Estimate") or set `initial_pose_x/y/a` in `gpu_amcl_cpp_params.yaml`

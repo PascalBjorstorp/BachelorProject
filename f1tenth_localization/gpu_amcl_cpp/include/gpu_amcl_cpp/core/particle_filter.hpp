@@ -113,10 +113,18 @@ private:
     Resampler       resampler_;
     CudaStream      stream_;
 
-    DeviceBuffer<float> d_particles_;  ///< Nx3  (x, y, θ)
-    DeviceBuffer<float> d_weights_;    ///< N
+    // ── Persistent GPU buffers (§5: allocated once in init, reused every frame) ──
+    DeviceBuffer<float> d_particles_a_;   ///< Nx3 particle buffer A
+    DeviceBuffer<float> d_particles_b_;   ///< Nx3 particle buffer B (double-buffer)
+    float* d_active_particles_ = nullptr; ///< Points to active buffer (a or b)
+
+    DeviceBuffer<float> d_weights_;       ///< N normalised weights
+    DeviceBuffer<float> d_ranges_;        ///< Persistent scan buffer (max beams)
+    DeviceBuffer<float> d_log_w_;         ///< Persistent log-weight buffer
+    DeviceBuffer<float> d_scratch_w_;     ///< Scratch buffer for normalization swap
 
     int n_ = 0;  ///< current active particle count.
+    int max_ranges_ = 0; ///< allocated range buffer capacity
 
     // Recovery state
     double w_slow_ = 0.0;

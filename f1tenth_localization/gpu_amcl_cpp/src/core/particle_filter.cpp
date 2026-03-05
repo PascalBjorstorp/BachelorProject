@@ -17,9 +17,18 @@ void ParticleFilter::init(const Config& pf_cfg,
     map_ = &map;
     n_   = cfg_.num_particles;
 
-    // Allocate GPU buffers.
-    d_particles_.allocate(cfg_.max_particles * 3);
+    // ── Allocate persistent GPU buffers (§5: done once, reused every frame) ──
+    d_particles_a_.allocate(cfg_.max_particles * 3);
+    d_particles_b_.allocate(cfg_.max_particles * 3);
+    d_active_particles_ = d_particles_a_.ptr();
+
     d_weights_.allocate(cfg_.max_particles);
+    d_log_w_.allocate(cfg_.max_particles);
+    d_scratch_w_.allocate(cfg_.max_particles);
+
+    // Pre-allocate range buffer for typical LiDAR (will grow if needed).
+    max_ranges_ = 1080;  // typical LiDAR beam count
+    d_ranges_.allocate(max_ranges_);
 
     // Scatter particles around initial pose.
     reinitialize(cfg_.init_x, cfg_.init_y, cfg_.init_a,
@@ -54,7 +63,8 @@ void ParticleFilter::reinitialize(double x, double y, double theta,
         particles[i * 3 + 2] = std::atan2(std::sin(a), std::cos(a));
     }
 
-    d_particles_.upload(particles.data(), n_ * 3);
+    CUDA_CHECK(cudaMemcpy(d_active_particles_, particles.data(),
+                          n_ * 3 * sizeof(float), cudaMemcpyHostToDevice));
     d_weights_.upload(weights.data(), n_);
 
     w_slow_ = 0.0;
@@ -64,7 +74,7 @@ void ParticleFilter::reinitialize(double x, double y, double theta,
 // ─── Predict ────────────────────────────────────────────────────────
 void ParticleFilter::predict(float dx, float dy, float dtheta,
                              float imu_dtheta) {
-    motion_.apply(d_particles_.ptr(), n_,
+    motion_.apply(d_active_particles_, n_,
                   dx, dy, dtheta, imu_dtheta,
                   stream_.get());
 }
@@ -72,20 +82,22 @@ void ParticleFilter::predict(float dx, float dy, float dtheta,
 // ─── Update ─────────────────────────────────────────────────────────
 void ParticleFilter::update(const float* ranges, int num_ranges,
                             float angle_min, float angle_inc) {
-    // Upload scan data to GPU.
-    DeviceBuffer<float> d_ranges(num_ranges);
-    d_ranges.upload(ranges, num_ranges);
+    // §5: Reuse persistent range buffer (grow if needed, never per-frame alloc).
+    if (num_ranges > max_ranges_) {
+        max_ranges_ = num_ranges;
+        d_ranges_.allocate(max_ranges_);
+    }
+    d_ranges_.upload(ranges, num_ranges);
 
-    // Compute log-weights on GPU.
-    DeviceBuffer<float> d_log_w(n_);
-    sensor_.compute_weights(d_particles_.ptr(), n_,
-                            d_ranges.ptr(), num_ranges,
+    // §5: Reuse persistent log-weight buffer (no per-frame alloc).
+    sensor_.compute_weights(d_active_particles_, n_,
+                            d_ranges_.ptr(), num_ranges,
                             angle_min, angle_inc,
-                            d_log_w.ptr(), stream_.get());
+                            d_log_w_.ptr(), stream_.get());
 
     // Download log-weights to host for normalisation & recovery bookkeeping.
     std::vector<float> log_w(n_);
-    d_log_w.download(log_w.data(), n_);
+    d_log_w_.download(log_w.data(), n_);
 
     // Subtract max for numerical stability, exponentiate.
     float max_lw = *std::max_element(log_w.begin(), log_w.end());
@@ -140,12 +152,20 @@ void ParticleFilter::check_resample() {
         do_resample(target);
     }
 }
+}
 
 void ParticleFilter::do_resample(int target_n) {
     target_n = std::clamp(target_n, cfg_.min_particles, cfg_.max_particles);
 
-    n_ = resampler_.resample(d_particles_.ptr(), d_weights_.ptr(),
-                             n_, target_n, stream_.get());
+    // §5: Double-buffer resample — write to inactive buffer, then swap pointers.
+    float* inactive = (d_active_particles_ == d_particles_a_.ptr())
+                      ? d_particles_b_.ptr() : d_particles_a_.ptr();
+
+    n_ = resampler_.resample_to(d_active_particles_, d_weights_.ptr(),
+                                inactive, n_, target_n, stream_.get());
+
+    // Pointer swap — no D→D memcpy, no sync needed.
+    d_active_particles_ = inactive;
 
     // Recovery: inject random particles if filter is degrading.
     if (cfg_.use_recovery && w_slow_ > 0.0) {
@@ -160,7 +180,8 @@ void ParticleFilter::do_resample(int target_n) {
 int ParticleFilter::compute_kld_target() {
     // Download particles.
     std::vector<float> particles(n_ * 3);
-    d_particles_.download(particles.data(), n_ * 3);
+    CUDA_CHECK(cudaMemcpy(particles.data(), d_active_particles_,
+                          n_ * 3 * sizeof(float), cudaMemcpyDeviceToHost));
 
     // Bin particles into (x, y, θ) histogram.
     std::unordered_set<long long> bins;
@@ -199,7 +220,8 @@ void ParticleFilter::inject_random_particles(double fraction) {
     // Download current particles + weights.
     std::vector<float> particles(n_ * 3);
     std::vector<float> weights(n_);
-    d_particles_.download(particles.data(), n_ * 3);
+    CUDA_CHECK(cudaMemcpy(particles.data(), d_active_particles_,
+                          n_ * 3 * sizeof(float), cudaMemcpyDeviceToHost));
     d_weights_.download(weights.data(), n_);
 
     // Find indices of lowest-weight particles.
@@ -225,7 +247,8 @@ void ParticleFilter::inject_random_particles(double fraction) {
         weights[pi] = 1.0f / n_;
     }
 
-    d_particles_.upload(particles.data(), n_ * 3);
+    CUDA_CHECK(cudaMemcpy(d_active_particles_, particles.data(),
+                          n_ * 3 * sizeof(float), cudaMemcpyHostToDevice));
     d_weights_.upload(weights.data(), n_);
 }
 
@@ -233,7 +256,8 @@ void ParticleFilter::inject_random_particles(double fraction) {
 PoseEstimate ParticleFilter::get_estimate() {
     std::vector<float> particles(n_ * 3);
     std::vector<float> weights(n_);
-    d_particles_.download(particles.data(), n_ * 3);
+    CUDA_CHECK(cudaMemcpy(particles.data(), d_active_particles_,
+                          n_ * 3 * sizeof(float), cudaMemcpyDeviceToHost));
     d_weights_.download(weights.data(), n_);
 
     PoseEstimate est;
@@ -275,7 +299,8 @@ void ParticleFilter::get_particles(std::vector<float>& particles,
                                    std::vector<float>& weights) {
     particles.resize(n_ * 3);
     weights.resize(n_);
-    d_particles_.download(particles.data(), n_ * 3);
+    CUDA_CHECK(cudaMemcpy(particles.data(), d_active_particles_,
+                          n_ * 3 * sizeof(float), cudaMemcpyDeviceToHost));
     d_weights_.download(weights.data(), n_);
 }
 
