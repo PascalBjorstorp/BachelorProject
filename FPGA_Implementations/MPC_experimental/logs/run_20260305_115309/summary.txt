@@ -1,0 +1,5 @@
+first_collision_line: 66
+first_status2_line: None
+status2_count: 0
+status0_count: 890
+first_collision_text: [gym_bridge-1] [WARN] [1772708004.826847339] [bridge]: Ego vehicle collision detected!

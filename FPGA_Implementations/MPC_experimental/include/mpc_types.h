@@ -359,6 +359,11 @@ typedef struct
     /** Target yaw rate [radians per second] */
     fixed_point_t reference_yaw_rate_radians_per_second;
 
+    /** Target longitudinal acceleration [meters per second²]
+     *  From the raceline's planned acceleration profile.
+     *  Used for feedforward bias in the control cost. */
+    fixed_point_t reference_acceleration_meters_per_second_squared;
+
     /** Path curvature at this point [radians per meter]
      *  Used for Frenet frame linearization: e_psi_dot = omega - kappa * v_x
      */
@@ -480,34 +485,21 @@ typedef struct
 #define F110_FRICTION_COEFFICIENT \
     FP_CONST(0.7463)
 
-/** Front cornering stiffness [1/rad] — NEEDS RERUN
- *  Current test used only 1 steering angle (0.1 rad); C_alpha varied 28-80 N/rad.
- *  Keeping simulation default until rerun with full steering sweep.
+/** Front cornering stiffness [1/rad] [TESTED]
+ *  From test_cornering_stiffness.py measurements, consistent with sim.yaml.
  *  Conversion: C_Sf = C_alpha_f / (mu * F_zf)
- *    F_zf = m*g*l_r/L = 3.314*9.81*0.16/0.324 = 16.05 N
- *    If C_alpha_f = 49.9 → C_Sf = 49.9/(0.7463*16.05) = 4.17  */
+ *    F_zf = m*g*l_r/L = 3.314*9.81*0.16/0.326 = 15.95 N
+ *    C_alpha_f = 33.38 → C_Sf = 33.38/(0.7463*15.95) = 2.804  */
 #define F110_FRONT_CORNERING_STIFFNESS \
-    FP_CONST(4.17)
+    FP_CONST(2.804)
 
-/** Rear cornering stiffness [1/rad] — NEEDS RERUN
- *  Same limitation as front. Keeping approximate value.
+/** Rear cornering stiffness [1/rad] [TESTED]
+ *  From test_cornering_stiffness.py measurements, consistent with sim.yaml.
  *  Conversion: C_Sr = C_alpha_r / (mu * F_zr)
- *    F_zr = m*g*l_f/L = 3.314*9.81*0.166/0.324 = 16.65 N
- *    If C_alpha_r = 54.89 → C_Sr = 54.89/(0.7463*16.65) = 4.42  */
+ *    F_zr = m*g*l_f/L = 3.314*9.81*0.166/0.326 = 16.55 N
+ *    C_alpha_r = 41.00 → C_Sr = 41.00/(0.7463*16.55) = 3.320  */
 #define F110_REAR_CORNERING_STIFFNESS \
-    FP_CONST(4.42)
-
-/** Maximum longitudinal acceleration: 8.0 m/s² [TESTED]
- *  Smoothed IMU value. Raw peak was ~14.5 (pitch-contaminated).
- *  Cross-check: mu*g = 0.79*9.81 = 7.7 m/s² (consistent). */
-#define F110_MAX_ACCELERATION_MS2 \
-    FP_CONST(8.0)
-
-/** Maximum braking deceleration: 7.7 m/s² [TESTED]
- *  Conservative estimate: mu*g = 0.79*9.81.
- *  Raw IMU peak was ~18.7 (chassis pitch contaminates accelerometer). */
-#define F110_MAX_DECELERATION_MS2 \
-    FP_CONST(7.7)
+    FP_CONST(3.320)
 
 /** Maximum longitudinal acceleration [m/s²]
  *  From vehicle_params.yaml: max_accel = 8.0 m/s² [TESTED]
@@ -520,23 +512,6 @@ typedef struct
  *  From vehicle_params.yaml: max_decel = 7.7 m/s² [TESTED] */
 #define F110_DEFAULT_MIN_ACCELERATION \
     FP_CONST(-7.7)
-
-/** Wheel radius: 0.051 meters [MEASURED] (loaded effective radius) */
-#define F110_WHEEL_RADIUS_METERS \
-    FP_CONST(0.051)
-
-/** Drivetrain inertia: 2.223 kg·m² [ESTIMATE/TODO]
- *  This value from simulation seems too high for a 3.3 kg car.
- *  Typical estimate: 0.01-0.05 kg·m².
- *  Needs verification from component inertias or system identification. */
-#define F110_DRIVETRAIN_INERTIA_KGM2 \
-    FP_CONST(2.223)
-
-/** Longitudinal tire stiffness: F_x = C_x * κ [ESTIMATE]
- *  Cannot be reliably measured without lidar scan-matching odometry.
- *  YAML has 79.5 N from pitch-contaminated test. Using 80 N as approx. */
-#define F110_LONGITUDINAL_TIRE_STIFFNESS \
-    FP_CONST(80.0)
 
 /** Maximum steering rate: 2.85 rad/s [TESTED]
  *  From test_steering_rate.py: yaw rate 10-90% rise time method.
@@ -555,17 +530,6 @@ typedef struct
 /** Center of gravity height: 0.0703 meters [CAD] */
 #define F110_HEIGHT_METERS \
     FP_CONST(0.0703)
-
-/** Longitudinal acceleration */
-#define F110_LONGITUDINAL_ACCELERATION \
-    FP_CONST(0)
-
-/** Latteral acceleration */
-
-
-/** Gear ratio */
-#define F110_GEAR_RATIO \
-    FP_CONST(11.82)    
 
 /*===========================================================================
  * Default MPC Configuration
@@ -587,11 +551,8 @@ typedef struct
  *  FPGA target uses a tighter cap for deterministic worst-case latency.
  *  With warm-start, the solver typically converges in 0-10 iterations.
  *  50 iterations provides margin while keeping latency bounded. */
-#ifdef MPC_HLS_TARGET
 #define MPC_DEFAULT_MAXIMUM_ITERATIONS 50
-#else
-#define MPC_DEFAULT_MAXIMUM_ITERATIONS 2000
-#endif
+
 
 /** Default convergence tolerance: 0.02 — Q16.16 ~ 1310 */
 #define MPC_DEFAULT_CONVERGENCE_TOLERANCE \

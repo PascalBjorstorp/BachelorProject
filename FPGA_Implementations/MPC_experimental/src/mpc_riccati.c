@@ -23,9 +23,8 @@
 #include "riccati_solver.h"
 #include "vehicle_model.h"
 #include <string.h>
-#ifndef MPC_HLS_TARGET
 #include <stdio.h>
-#endif
+#include <stdlib.h>
 
 /*===========================================================================
  * Internal Constants
@@ -63,6 +62,15 @@
 #define WALL_CONSTRAINT_START  2
 #define WALL_CONSTRAINT_STRIDE 3
 
+/** Maximum steering change per PREDICTION step (2.85 rad/s × 0.05s) */
+#define MAX_STEER_CHANGE_PER_STEP FP_CONST(0.1425)
+
+/** Maximum steering change per CONTROL interval (2.85 rad/s × 0.005s) */
+#define MAX_STEER_CHANGE_PER_CALL FP_CONST(0.01425)
+
+/** v_switch: power-limited acceleration threshold [m/s] (matches gym) */
+#define V_SWITCH FP_CONST(7.319)
+
 /*===========================================================================
  * Module State (Static)
  *===========================================================================*/
@@ -74,10 +82,131 @@ static RiccatiAdmmState_t admm_state;
 static fixed_point_t warm_start_prev_curvature = 0;
 
 /*===========================================================================
- * Public API
+ * Default Configuration
  *===========================================================================*/
 
-void mpc_riccati_initialize(void)
+MpcConfiguration_t get_default_configuration(void)
+{
+    MpcConfiguration_t cfg;
+
+    cfg.prediction_horizon_steps = MPC_DEFAULT_PREDICTION_HORIZON;
+    cfg.time_step_seconds = MPC_DEFAULT_TIME_STEP_SECONDS;
+
+    /* State tracking weights (Frenet frame)
+     * Matched to the working condensed MPC values:
+     * - Lateral error dominates (50): strong lane-keeping
+     * - Heading error moderate (5): prevents over-correction
+     * - Velocity tracked (2.0): reasonable speed following
+     * - vy/omega dampened (5.0): side-slip/yaw suppression */
+    cfg.weight_lateral_error    = FP_CONST(100.0);
+    cfg.weight_heading_error    = FP_CONST(200.0);
+    cfg.weight_velocity         = FP_CONST(3.0);
+    cfg.weight_lateral_velocity = FP_CONST(10.0);
+    cfg.weight_yaw_rate         = FP_CONST(10.0);
+
+    /* Control effort weights
+     * Critical: R_steer = 0.5 provides Hessian regularization.
+     * With R=0.01, the Riccati gain K ≈ -(B^T P B)^{-1} G is
+     * hypersensitive to state changes, causing sign flips. */
+    cfg.weight_steering_effort      = FP_CONST(0.5);
+    cfg.weight_acceleration_effort  = FP_CONST(0.05);
+
+    /* Control rate weights
+     * With the trust region on step 0 preventing inter-call oscillation,
+     * the rate penalty can be moderate (2.0 instead of 10.0).
+     * This allows faster steering response on tight corners while
+     * maintaining smooth intra-horizon control sequences. */
+    cfg.weight_steering_rate        = FP_CONST(5.0);
+    cfg.weight_acceleration_rate    = FP_CONST(0.2);
+
+    /* Cross-call rate scale: ratio of control interval to prediction dt. */
+    cfg.cross_call_rate_scale = FP_CONST(0.1);
+
+    /* Solver parameters */
+    cfg.maximum_solver_iterations = MPC_DEFAULT_MAXIMUM_ITERATIONS;
+    cfg.solver_convergence_tolerance = MPC_DEFAULT_CONVERGENCE_TOLERANCE;
+
+    /* Environment variable overrides for runtime tuning */
+    {
+        const char *env_val;
+        if ((env_val = getenv("MPC_W_LAT_ERROR")) != NULL)
+            cfg.weight_lateral_error = DOUBLE_TO_FP(atof(env_val));
+        if ((env_val = getenv("MPC_W_HEADING")) != NULL)
+            cfg.weight_heading_error = DOUBLE_TO_FP(atof(env_val));
+        if ((env_val = getenv("MPC_W_VELOCITY")) != NULL)
+            cfg.weight_velocity = DOUBLE_TO_FP(atof(env_val));
+        if ((env_val = getenv("MPC_W_LAT_VEL")) != NULL)
+            cfg.weight_lateral_velocity = DOUBLE_TO_FP(atof(env_val));
+        if ((env_val = getenv("MPC_W_YAW_RATE")) != NULL)
+            cfg.weight_yaw_rate = DOUBLE_TO_FP(atof(env_val));
+        if ((env_val = getenv("MPC_W_STEER_RATE")) != NULL)
+            cfg.weight_steering_rate = DOUBLE_TO_FP(atof(env_val));
+        if ((env_val = getenv("MPC_W_STEER_EFFORT")) != NULL)
+            cfg.weight_steering_effort = DOUBLE_TO_FP(atof(env_val));
+        if ((env_val = getenv("MPC_W_TORQUE_RATE")) != NULL)
+            cfg.weight_acceleration_rate = DOUBLE_TO_FP(atof(env_val));
+        if ((env_val = getenv("MPC_CROSS_CALL_SCALE")) != NULL)
+            cfg.cross_call_rate_scale = DOUBLE_TO_FP(atof(env_val));
+    }
+
+    return cfg;
+}
+
+/*===========================================================================
+ * Forward declarations for Riccati-ADMM specific functions
+ *===========================================================================*/
+
+static void mpc_riccati_initialize(void);
+static void mpc_riccati_initialize_with_configuration(const MpcConfiguration_t *cfg);
+static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
+    const FrenetState_t *current_frenet_state,
+    const TrajectoryReferencePoint_t *reference_trajectory,
+    MpcSolverResult_t *result);
+static void mpc_riccati_reset(void);
+
+/*===========================================================================
+ * Public API (mpc.h interface — delegates to Riccati-ADMM)
+ *===========================================================================*/
+
+void mpc_initialize(void)
+{
+    mpc_riccati_initialize();
+}
+
+void mpc_initialize_with_configuration(const MpcConfiguration_t *configuration)
+{
+    mpc_riccati_initialize_with_configuration(configuration);
+}
+
+MpcSolverStatus_t mpc_compute_optimal_control(
+    const FrenetState_t *current_frenet_state,
+    const TrajectoryReferencePoint_t *reference_trajectory,
+    MpcSolverResult_t *result)
+{
+    return mpc_riccati_compute_optimal_control(
+        current_frenet_state, reference_trajectory, result);
+}
+
+MpcConfiguration_t mpc_get_configuration(void)
+{
+    return config;
+}
+
+void mpc_set_configuration(const MpcConfiguration_t *configuration)
+{
+    if (configuration) config = *configuration;
+}
+
+void mpc_reset(void)
+{
+    mpc_riccati_reset();
+}
+
+/*===========================================================================
+ * Riccati-ADMM specific implementation
+ *===========================================================================*/
+
+static void mpc_riccati_initialize(void)
 {
     config = get_default_configuration();
     vehicle_model_initialize();
@@ -88,7 +217,7 @@ void mpc_riccati_initialize(void)
     initialized = 1;
 }
 
-void mpc_riccati_initialize_with_configuration(const MpcConfiguration_t *cfg)
+static void mpc_riccati_initialize_with_configuration(const MpcConfiguration_t *cfg)
 {
     config = cfg ? *cfg : get_default_configuration();
     vehicle_model_initialize();
@@ -99,7 +228,7 @@ void mpc_riccati_initialize_with_configuration(const MpcConfiguration_t *cfg)
     initialized = 1;
 }
 
-void mpc_riccati_reset(void)
+static void mpc_riccati_reset(void)
 {
     prev_control.steering_angle_radians = 0;
     prev_control.acceleration_meters_per_second_squared = 0;
@@ -107,7 +236,14 @@ void mpc_riccati_reset(void)
     warm_start_prev_curvature = 0;
 }
 
-MpcSolverStatus_t mpc_riccati_compute_optimal_control(
+void mpc_set_actual_previous_control(const ControlInput_t *actual)
+{
+    if (actual) {
+        prev_control = *actual;
+    }
+}
+
+static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
     const FrenetState_t *current_frenet_state,
     const TrajectoryReferencePoint_t *reference_trajectory,
     MpcSolverResult_t *result)
@@ -123,29 +259,36 @@ MpcSolverStatus_t mpc_riccati_compute_optimal_control(
     if (N > MAX_HORIZON) N = MAX_HORIZON;
 
     /* ---------------------------------------------------------------
-     * Step 1: Linearize vehicle model (same as condensed approach)
+     * Step 1: Linearize vehicle model
+     *
+     * Linearize at δ=atan(L·κ): the kinematic feedforward steering.
+     * This gives the most accurate model for corners (κ up to 0.72),
+     * because the Pacejka tire forces and B matrix entries are evaluated
+     * at the actual operating point rather than at δ=0.
+     * At 200Hz control, the Riccati gains change slowly between calls,
+     * so the B matrix sensitivity is not an issue.
      * --------------------------------------------------------------- */
-    fixed_point_t A_base[5][5];
-    fixed_point_t B_base[5][2];
-
-    ControlInput_t lin_control;
+    /* Set up linearization point */
     VehicleParameters_t vp = vehicle_model_get_parameters();
     fixed_point_t path_curvature0 = reference_trajectory[0].path_curvature_radians_per_meter;
-    /* Feedforward steering: atan(L * κ), clamped to ±δ_max/2 to keep
-     * the linearization in the linear region of the Pacejka tire model.
-     * Without clamping, large κ (>1.3) puts δ_ff beyond the physical
-     * steering limit, causing tire saturation and a sign flip in B[4][0]
-     * (the δ→ω Jacobian), which makes the optimizer steer the wrong way. */
+
+    /* Feedforward steering: atan(L * κ), clamped to ±δ_max/2 */
     fixed_point_t delta_ff = fp_atan(fp_mul(vp.wheelbase_meters, path_curvature0));
-    fixed_point_t delta_clamp = vp.maximum_steering_angle_radians >> 1;  /* δ_max / 2 */
+    fixed_point_t delta_clamp = vp.maximum_steering_angle_radians >> 1;
     if (delta_ff > delta_clamp) delta_ff = delta_clamp;
     if (delta_ff < fp_neg(delta_clamp)) delta_ff = fp_neg(delta_clamp);
+
+    ControlInput_t lin_control;
     lin_control.steering_angle_radians = delta_ff;
     lin_control.acceleration_meters_per_second_squared = 0;
 
     FrenetState_t lin_state = *current_frenet_state;
     if (lin_state.longitudinal_velocity_meters_per_second < MIN_LINEARIZATION_VELOCITY)
         lin_state.longitudinal_velocity_meters_per_second = MIN_LINEARIZATION_VELOCITY;
+
+    /* Single-step Forward Euler linearization */
+    fixed_point_t A_base[5][5];
+    fixed_point_t B_base[5][2];
 
     vehicle_model_compute_frenet_linearization(
         &lin_state, &lin_control,
@@ -215,22 +358,6 @@ MpcSolverStatus_t mpc_riccati_compute_optimal_control(
     fixed_point_t w_steer_rate = config.weight_steering_rate;
     fixed_point_t w_accel_rate = config.weight_acceleration_rate;
 
-    /* Speed-dependent steering limit (same as condensed) */
-    fixed_point_t effective_max_steer;
-    {
-        const fixed_point_t v_knee = FP_CONST(10.0);
-        fixed_point_t v = current_frenet_state->longitudinal_velocity_meters_per_second;
-        if (v <= v_knee) {
-            effective_max_steer = vp.maximum_steering_angle_radians;
-        } else {
-            fixed_point_t ratio = fp_div(v_knee, v);
-            ratio = fp_mul(ratio, ratio);
-            effective_max_steer = fp_mul(vp.maximum_steering_angle_radians, ratio);
-            if (effective_max_steer < FP_CONST(0.03))
-                effective_max_steer = FP_CONST(0.03);
-        }
-    }
-
     /* Build per-step data array */
     RiccatiStepData_t step_data[MAX_HORIZON];
     memset(step_data, 0, sizeof(step_data));
@@ -255,18 +382,29 @@ MpcSolverStatus_t mpc_riccati_compute_optimal_control(
         for (int i = 0; i < 5; i++)
             for (int a = 0; a < 2; a++)
                 sd->B[i][a] = B_base[i][a];
+
+        /* B1: ZOH correction — DISABLED for testing.
+         * TODO: re-enable after other changes are validated.
+         * sd->B[1][0] = fp_mul(fp_div(config.time_step_seconds, FP_TWO), B_base[4][0]); */
+
         /* u_prev_{k+1} = u_k: identity block */
         sd->B[5][0] = FP_ONE;  /* delta_prev = delta */
         sd->B[6][1] = FP_ONE;  /* accel_prev = accel */
 
         /* Q_diag: tracking weights (doubled for 0.5*x^T*Q*x convention)
-         * plus rate weights on the augmented u_prev states */
+         * plus rate weights on the augmented u_prev states.
+         *
+         * B2: Discount removed (γ=1.0). The exponential discount caused
+         * a 7.4× discontinuity with the terminal cost and made the MPC
+         * "give up" on tracking at mid-horizon. Consistent weighting
+         * throughout the horizon improves heading error significantly.
+         */
         sd->Q_diag[0] = fp_mul(FP_TWO, config.weight_lateral_error);
         sd->Q_diag[1] = fp_mul(FP_TWO, config.weight_heading_error);
         sd->Q_diag[2] = fp_mul(FP_TWO, config.weight_velocity);
         sd->Q_diag[3] = fp_mul(FP_TWO, config.weight_lateral_velocity);
         sd->Q_diag[4] = fp_mul(FP_TWO, config.weight_yaw_rate);
-        sd->Q_diag[5] = fp_mul(FP_TWO, w_steer_rate);   /* penalty on u_prev (from rate expansion) */
+        sd->Q_diag[5] = fp_mul(FP_TWO, w_steer_rate);
         sd->Q_diag[6] = fp_mul(FP_TWO, w_accel_rate);
 
         /* Apply cross-call scaling for step 0 */
@@ -275,26 +413,36 @@ MpcSolverStatus_t mpc_riccati_compute_optimal_control(
             sd->Q_diag[6] = fp_mul(FP_TWO, fp_mul(w_accel_rate, config.cross_call_rate_scale));
         }
 
-        /* q: linear state cost (tracking references) */
-        sd->q[0] = -fp_mul(sd->Q_diag[0], reference_trajectory[k].reference_lateral_error_meters);
-        sd->q[1] = -fp_mul(sd->Q_diag[1], reference_trajectory[k].reference_heading_error_radians);
-        sd->q[2] = -fp_mul(sd->Q_diag[2], reference_trajectory[k].reference_velocity_meters_per_second);
-        sd->q[3] = -fp_mul(sd->Q_diag[3], reference_trajectory[k].reference_lateral_velocity_meters_per_second);
-        sd->q[4] = -fp_mul(sd->Q_diag[4], reference_trajectory[k].reference_yaw_rate_radians_per_second);
+        /* q: linear state cost (tracking references) — discounted like Q */
+        sd->q[0] = fp_neg(fp_mul(sd->Q_diag[0], reference_trajectory[k].reference_lateral_error_meters));
+        sd->q[1] = fp_neg(fp_mul(sd->Q_diag[1], reference_trajectory[k].reference_heading_error_radians));
+        sd->q[2] = fp_neg(fp_mul(sd->Q_diag[2], reference_trajectory[k].reference_velocity_meters_per_second));
+        sd->q[3] = fp_neg(fp_mul(sd->Q_diag[3], reference_trajectory[k].reference_lateral_velocity_meters_per_second));
+        sd->q[4] = fp_neg(fp_mul(sd->Q_diag[4], reference_trajectory[k].reference_yaw_rate_radians_per_second));
         sd->q[5] = 0;  /* No tracking reference for u_prev */
         sd->q[6] = 0;
 
-        /* R_diag: control effort + rate weights (doubled) */
+        /* R_diag: control effort + rate weights (doubled for 0.5*u^T*R*u convention)
+         *
+         * The trust region on step 0 (see control bounds below) limits the
+         * inter-call steering change to the physical actuator rate. This
+         * allows using low R for responsive Riccati gains — the solver
+         * produces the optimal control for tracking, and the trust region
+         * ensures the output changes at most at the actuator rate per call. */
         sd->R_diag[0] = fp_mul(FP_TWO, fp_add(w_steer_eff, w_steer_rate));
         sd->R_diag[1] = fp_mul(FP_TWO, fp_add(w_accel_eff, w_accel_rate));
 
         if (k == 0) {
-            /* First step also has cross-call rate in R */
             sd->R_diag[0] = fp_mul(FP_TWO, fp_add(w_steer_eff,
                 fp_mul(w_steer_rate, config.cross_call_rate_scale)));
             sd->R_diag[1] = fp_mul(FP_TWO, fp_add(w_accel_eff,
                 fp_mul(w_accel_rate, config.cross_call_rate_scale)));
         }
+
+        /* B3+B4: Feedforward — DISABLED for testing.
+         * TODO: re-enable after other changes are validated. */
+        sd->r[0] = 0;
+        sd->r[1] = 0;
 
         /* Cross-cost N: couples u_prev (x_aug[5:6]) with u */
         /* N[5][0] = -2 * w_rate_steer, N[6][1] = -2 * w_rate_accel */
@@ -329,9 +477,9 @@ MpcSolverStatus_t mpc_riccati_compute_optimal_control(
             sd->x_ub[s] = BIG_BOUND;
         }
 
-        /* Control bounds */
-        sd->u_lb[0] = fp_neg(effective_max_steer);
-        sd->u_ub[0] = effective_max_steer;
+        /* Control bounds: simple physical limits (A4/A5 disabled for testing) */
+        sd->u_lb[0] = fp_neg(vp.maximum_steering_angle_radians);
+        sd->u_ub[0] = vp.maximum_steering_angle_radians;
         sd->u_lb[1] = vp.minimum_acceleration_meters_per_second_squared;
         sd->u_ub[1] = vp.maximum_acceleration_meters_per_second_squared;
     }
@@ -375,9 +523,11 @@ MpcSolverStatus_t mpc_riccati_compute_optimal_control(
      * Step 4: Warm-start management
      * --------------------------------------------------------------- */
     fixed_point_t cur_curvature = reference_trajectory[0].path_curvature_radians_per_meter;
-    if (fp_abs(fp_sub(cur_curvature, warm_start_prev_curvature)) > FP_CONST(0.1)) {
-        riccati_admm_state_init(&admm_state);
-    }
+    /* Always cold-start: warm-start duals bias the solver toward saturation,
+     * causing ±max_steer oscillation even with proper weights. With R=0.5 and
+     * rate=10, the cold-start unconstrained Riccati produces near-optimal
+     * solutions that need at most 1-5 ADMM iterations for constraint cleanup. */
+    riccati_admm_state_init(&admm_state);
     warm_start_prev_curvature = cur_curvature;
 
     /* ---------------------------------------------------------------
@@ -385,17 +535,14 @@ MpcSolverStatus_t mpc_riccati_compute_optimal_control(
      * --------------------------------------------------------------- */
     RiccatiAdmmConfig_t solver_config;
     riccati_admm_config_init(&solver_config);
-    /* Riccati-ADMM needs more iterations than projected gradient for
-     * constrained curves, but fewer for easy scenarios. Cap at 200
-     * (vs 2000 for projected gradient) since each iteration is O(N*nx^3). */
-    solver_config.max_iterations = config.maximum_solver_iterations > 0
-        ? (config.maximum_solver_iterations < 500 ? config.maximum_solver_iterations : 500)
-        : 50;
-    /* Use a tolerance appropriate for Riccati-ADMM:
-     * - MPC config tolerance (0.02) is fine for steering/accel resolution
-     * - Don't use the very tight projected gradient tolerance */
-    solver_config.tolerance = config.solver_convergence_tolerance > 0
-        ? config.solver_convergence_tolerance : FP_CONST(0.02);
+    /* ADMM convergence tolerance: use the riccati_admm_config_init defaults
+     * (0.1), NOT the MPC config tolerance (0.02). The MPC config tolerance
+     * was designed for projected gradient which converges to tighter values.
+     * ADMM with Q16.16 fixed-point needs more headroom.
+     * Similarly, cap max iterations at 200 — ADMM doesn't benefit from
+     * running 2000 iterations with adaptive rho, as rho can escalate and
+     * make the solver do pure projection. */
+    /* solver_config.tolerance and max_iterations stay at riccati_admm_config_init defaults */
 
     RiccatiSolution_t riccati_sol;
     memset(&riccati_sol, 0, sizeof(riccati_sol));

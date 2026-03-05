@@ -240,4 +240,7 @@ RiccatiStatus_t riccati_admm_solve(
     RiccatiAdmmState_t *admm_state,
     RiccatiSolution_t *solution);
 
+/** Debug flag: set to 1 to print ADMM iteration details */
+extern int riccati_admm_debug;
+
 #endif /* RICCATI_SOLVER_H */

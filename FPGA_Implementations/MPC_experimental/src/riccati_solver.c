@@ -30,6 +30,10 @@
 
 #include "../include/riccati_solver.h"
 #include <string.h>
+#include <stdio.h>
+
+/* Debug flag: set to 1 from tests to print ADMM iteration details */
+int riccati_admm_debug = 0;
 
 /*===========================================================================
  * Configuration Defaults
@@ -37,12 +41,12 @@
 
 void riccati_admm_config_init(RiccatiAdmmConfig_t *config)
 {
-    config->rho            = FP_CONST(1.0);   /* State constraint penalty */
-    config->rho_u          = 0;               /* No control penalty: iLQR clips controls in forward pass */
-    config->tolerance      = FP_CONST(0.05);  /* 0.05 rad/m is fine for 200Hz MPC */
-    config->max_iterations = 50;
+    config->rho            = FP_CONST(5.0);   /* State constraint penalty — moderate, balanced with costs */
+    config->rho_u          = FP_CONST(5.0);   /* Control constraint penalty — equal to rho, adaptive handles rest */
+    config->tolerance      = FP_CONST(0.1);   /* Relaxed for fixed-point Q16.16 precision */
+    config->max_iterations = 200;
     config->adaptive_rho   = 1;               /* Adaptive rho by default */
-    config->alpha          = FP_CONST(1.6);   /* Over-relaxation: ~30% faster convergence */
+    config->alpha          = FP_CONST(1.0);   /* No over-relaxation — prevents chattering at saturation */
 }
 
 void riccati_admm_state_init(RiccatiAdmmState_t *state)
@@ -641,8 +645,23 @@ RiccatiStatus_t riccati_admm_solve(
         solution->primal_residual = primal_res;
         solution->dual_residual = dual_res;
 
-        /* Converge on STATE residuals only — controls are feasible via z_u */
-        if (state_primal <= config->tolerance && state_dual <= config->tolerance) {
+        /* Debug: print iteration details for first few iterations and periodically */
+        if (riccati_admm_debug && (iter < 5 || iter % 50 == 0 || iter == max_iter - 1)) {
+            printf("    ADMM[%3d] p=%.4f(s=%.4f,c=%.4f) d=%.4f(s=%.4f,c=%.4f) rho=%.2f rho_u=%.2f u0=[%.4f,%.3f] z0=[%.4f,%.3f] y0=[%.4f,%.3f]\n",
+                   iter,
+                   FP_TO_DOUBLE(primal_res), FP_TO_DOUBLE(state_primal), FP_TO_DOUBLE(ctrl_primal),
+                   FP_TO_DOUBLE(dual_res), FP_TO_DOUBLE(state_dual), FP_TO_DOUBLE(ctrl_dual),
+                   FP_TO_DOUBLE(rho), FP_TO_DOUBLE(rho_u),
+                   FP_TO_DOUBLE(solution->u[0][0]), FP_TO_DOUBLE(solution->u[0][1]),
+                   FP_TO_DOUBLE(z_u[0][0]), FP_TO_DOUBLE(z_u[0][1]),
+                   FP_TO_DOUBLE(y_u[0][0]), FP_TO_DOUBLE(y_u[0][1]));
+        }
+
+        /* Converge on BOTH state and control residuals.
+         * Previously only state residuals were checked, causing false
+         * convergence in 1-2 iterations when controls were heavily
+         * saturated but no wall constraints were active. */
+        if (primal_res <= config->tolerance && dual_res <= config->tolerance) {
             status = RICCATI_STATUS_OPTIMAL;
             break;
         }
@@ -650,10 +669,10 @@ RiccatiStatus_t riccati_admm_solve(
         /*--- Adaptive rho: balance primal/dual convergence rates ---*/
         if (config->adaptive_rho && iter > 0 && (iter & 3) == 0) {
             /* Check every 4 iterations to avoid oscillation */
-            if (primal_res > 10 * dual_res && rho < FP_CONST(100.0)) {
+            if (primal_res > 10 * dual_res && rho < FP_CONST(50.0)) {
                 /* Primal lagging: increase rho to penalize constraint violation more */
                 rho = fp_mul(rho, FP_CONST(2.0));
-                if (rho_u < FP_CONST(1000.0))
+                if (rho_u < FP_CONST(50.0))
                     rho_u = fp_mul(rho_u, FP_CONST(2.0));
                 /* Scale dual variables: y = y / 2 (compensates for rho doubling) */
                 for (int k = 0; k <= N; k++)
@@ -662,10 +681,10 @@ RiccatiStatus_t riccati_admm_solve(
                 for (int k = 0; k < N; k++)
                     for (int a = 0; a < nu; a++)
                         y_u[k][a] >>= 1;
-            } else if (dual_res > 10 * primal_res && rho > FP_CONST(0.1)) {
+            } else if (dual_res > 10 * primal_res && rho > FP_CONST(0.5)) {
                 /* Dual lagging: decrease rho to let the cost dominate */
                 rho = fp_mul(rho, FP_CONST(0.5));
-                if (rho_u > FP_CONST(1.0))
+                if (rho_u > FP_CONST(0.5))
                     rho_u = fp_mul(rho_u, FP_CONST(0.5));
                 /* Scale dual variables: y = y * 2 */
                 for (int k = 0; k <= N; k++)
@@ -682,11 +701,11 @@ RiccatiStatus_t riccati_admm_solve(
     memcpy(admm_state->z_x, z_x, sizeof(z_x));
     memcpy(admm_state->z_u, z_u, sizeof(z_u));
     memcpy(admm_state->y_x, y_x, sizeof(y_x));
-    /* Don't preserve y_u across calls: with state-only convergence,
-     * control duals accumulate indefinitely (u never exactly equals z_u).
-     * Reset y_u to prevent unbounded growth that destabilizes warm-starts.
-     * z_u provides sufficient warm-start for control projections. */
-    memset(admm_state->y_u, 0, sizeof(admm_state->y_u));
+    /* Preserve y_u across calls for warm-starting.
+     * Previously y_u was zeroed because state-only convergence allowed
+     * control duals to accumulate indefinitely. With the fixed combined
+     * convergence check, y_u converges properly and warm-starting is safe. */
+    memcpy(admm_state->y_u, y_u, sizeof(y_u));
     admm_state->initialized = 1;
 
     /* Output feasible controls: z_u is the ADMM projection, always
