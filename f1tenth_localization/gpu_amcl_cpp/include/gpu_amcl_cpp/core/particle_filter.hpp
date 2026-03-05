@@ -13,6 +13,20 @@
 
 namespace gpu_amcl_cpp {
 
+// ─── CUDA kernel declarations for GPU-side weight normalization (§1) ──
+size_t query_cub_normalize_temp_bytes(int max_n);
+
+void launch_gpu_normalize_weights(
+        const float* d_log_w,
+        float* d_old_w,
+        float* d_scratch_w,
+        float* d_max_val,
+        float* d_sum_val,
+        void* d_cub_temp,
+        size_t cub_temp_bytes,
+        int n,
+        cudaStream_t stream);
+
 /**
  * @brief Pose estimate with 3×3 covariance [x, y, θ].
  */
@@ -58,6 +72,11 @@ public:
     };
 
     ParticleFilter() = default;
+    ~ParticleFilter();
+
+    // Non-copyable (owns GPU + pinned memory)
+    ParticleFilter(const ParticleFilter&) = delete;
+    ParticleFilter& operator=(const ParticleFilter&) = delete;
 
     /**
      * @brief Initialise particles and sub-components.
@@ -113,10 +132,32 @@ private:
     Resampler       resampler_;
     CudaStream      stream_;
 
-    DeviceBuffer<float> d_particles_;  ///< Nx3  (x, y, θ)
-    DeviceBuffer<float> d_weights_;    ///< N
+    // ── Persistent GPU buffers (§5: allocated once in init, reused every frame) ──
+    DeviceBuffer<float> d_particles_a_;   ///< Nx3 particle buffer A
+    DeviceBuffer<float> d_particles_b_;   ///< Nx3 particle buffer B (double-buffer)
+    float* d_active_particles_ = nullptr; ///< Points to active buffer (a or b)
+
+    DeviceBuffer<float> d_weights_;       ///< N normalised weights
+    DeviceBuffer<float> d_ranges_;        ///< Persistent scan buffer (max beams)
+    DeviceBuffer<float> d_log_w_;         ///< Persistent log-weight buffer
+    DeviceBuffer<float> d_scratch_w_;     ///< Scratch buffer for normalization swap
+
+    // §1: CUB temp storage + device scalars for GPU-side normalization
+    void*  d_cub_temp_     = nullptr;  ///< CUB DeviceReduce temp storage
+    size_t cub_temp_bytes_ = 0;        ///< Size of CUB temp allocation
+    float* d_max_val_      = nullptr;  ///< Device scalar for CUB Max output
+    float* d_sum_val_      = nullptr;  ///< Device scalar for CUB Sum output
+
+    // §4: Pinned (page-locked) host staging buffers for async-capable transfers.
+    //     cudaMemcpyAsync only works asynchronously with pinned memory;
+    //     with pageable memory it silently falls back to synchronous.
+    //     Budget: 5000×3×4 + 5000×4 + 1080×4 ≈ 84 KB — negligible.
+    float* h_ranges_pinned_    = nullptr;  ///< Pinned staging for scan upload
+    float* h_particles_pinned_ = nullptr;  ///< Pinned staging for particle D2H
+    float* h_weights_pinned_   = nullptr;  ///< Pinned staging for weight D2H
 
     int n_ = 0;  ///< current active particle count.
+    int max_ranges_ = 0; ///< allocated range buffer capacity
 
     // Recovery state
     double w_slow_ = 0.0;

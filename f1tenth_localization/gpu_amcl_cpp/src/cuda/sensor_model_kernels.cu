@@ -24,6 +24,19 @@ void kernel_sensor_weights(const float* __restrict__ particles, int n,
                            int map_w, int map_h,
                            float map_res, float map_ox, float map_oy,
                            float* __restrict__ out_weights) {
+    // §8: Load ranges + beam angles into shared memory cooperatively.
+    // All threads in a block read the same ranges[b] — shared memory gives
+    // ~6× lower latency (5 cycles vs ~30 for L1 hit) and frees L1 cache
+    // for distance-field lookups. 270 beams × 4B × 2 arrays = ~2 KB.
+    extern __shared__ float smem[];
+    float* s_ranges = smem;
+    float* s_angles = &smem[num_ranges];
+    for (int j = threadIdx.x; j < num_ranges; j += blockDim.x) {
+        s_ranges[j] = ranges[j];
+        s_angles[j] = angle_min + j * angle_inc;  // precompute beam angles
+    }
+    __syncthreads();
+
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= n) return;
 
@@ -48,12 +61,12 @@ void kernel_sensor_weights(const float* __restrict__ particles, int n,
     float log_w = 0.0f;
 
     for (int b = 0; b < num_ranges; b += step) {
-        float r = ranges[b];
+        float r = s_ranges[b];  // §8: read from shared memory
 
         // Skip invalid beams.
         if (r < 0.1f || r > laser_max) continue;
 
-        float beam_angle = angle_min + b * angle_inc + ptheta;
+        float beam_angle = s_angles[b] + ptheta;  // §8: precomputed angle
         float ex = lx + r * cosf(beam_angle);
         float ey = ly + r * sinf(beam_angle);
 
@@ -79,10 +92,15 @@ void kernel_sensor_weights(const float* __restrict__ particles, int n,
             y0 = max(0, min(y0, map_h - 1));
             y1 = max(0, min(y1, map_h - 1));
 
-            float d00 = dist_field[y0 * map_w + x0];
-            float d10 = dist_field[y0 * map_w + x1];
-            float d01 = dist_field[y1 * map_w + x0];
-            float d11 = dist_field[y1 * map_w + x1];
+            // §7: Use __ldg() to load through the read-only data cache.
+            // The texture/RO cache (48 KB on sm_87/89) is separate from L1,
+            // effectively increasing total cache capacity and reducing
+            // eviction of other data (particles, ranges). Guarantees LDG
+            // instruction even if compiler doesn't auto-detect const.
+            float d00 = __ldg(&dist_field[y0 * map_w + x0]);
+            float d10 = __ldg(&dist_field[y0 * map_w + x1]);
+            float d01 = __ldg(&dist_field[y1 * map_w + x0]);
+            float d11 = __ldg(&dist_field[y1 * map_w + x1]);
 
             // Bilinear blend
             float d0 = d00 + sx * (d10 - d00);   // top edge
@@ -116,7 +134,9 @@ void launch_sensor_weights(const float* particles, int n,
                            cudaStream_t stream) {
     int block = 256;
     int grid  = (n + block - 1) / block;
-    kernel_sensor_weights<<<grid, block, 0, stream>>>(
+    // §8: Shared memory for ranges + beam angles (2 arrays of num_ranges floats)
+    size_t smem_bytes = 2 * num_ranges * sizeof(float);
+    kernel_sensor_weights<<<grid, block, smem_bytes, stream>>>(
         particles, n,
         ranges, num_ranges, max_beams,
         angle_min, angle_inc,
