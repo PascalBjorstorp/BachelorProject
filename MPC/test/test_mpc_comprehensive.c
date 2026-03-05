@@ -31,9 +31,6 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-/* Convert vehicle velocity to matching wheel speed (zero slip ratio)
- * Must match F110_WHEEL_RADIUS_METERS in mpc_types.h (0.051 m measured) */
-#define VX_TO_WHEEL_SPEED(vx) ((vx) / 0.051)
 
 #include "fp_math.h"
 #include "mpc_types.h"
@@ -104,7 +101,6 @@ static FrenetState_t vehicle_to_frenet_straight(const VehicleState_t *state)
     f.longitudinal_velocity_meters_per_second = state->longitudinal_velocity_meters_per_second;
     f.lateral_velocity_meters_per_second = state->lateral_velocity_meters_per_second;
     f.yaw_rate_radians_per_second = state->yaw_rate_radians_per_second;
-    f.wheel_speed_radians_per_second = state->wheel_speed_radians_per_second;
     return f;
 }
 
@@ -119,7 +115,6 @@ static void init_frenet_ref(TrajectoryReferencePoint_t *ref, double velocity, do
     ref->reference_velocity_meters_per_second = DOUBLE_TO_FP(velocity);
     ref->reference_lateral_velocity_meters_per_second = 0;
     ref->reference_yaw_rate_radians_per_second = 0;
-    ref->reference_wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(velocity));
     ref->path_curvature_radians_per_meter = DOUBLE_TO_FP(curvature);
     ref->left_wall_bound_meters = DOUBLE_TO_FP(5.0);
     ref->right_wall_bound_meters = DOUBLE_TO_FP(5.0);
@@ -402,22 +397,22 @@ static void test_vehicle_control_saturation(void)
     vehicle_model_initialize();
     VehicleParameters_t params = vehicle_model_get_parameters();
     double max_steer = FP_TO_DOUBLE(params.maximum_steering_angle_radians);
-    double max_force = FP_TO_DOUBLE(params.maximum_motor_torque_newton_meters);
-    double min_force = FP_TO_DOUBLE(params.minimum_motor_torque_newton_meters);
+    double max_force = FP_TO_DOUBLE(params.maximum_acceleration_meters_per_second_squared);
+    double min_force = FP_TO_DOUBLE(params.minimum_acceleration_meters_per_second_squared);
     
     /* Normal input - should pass through unchanged */
     ControlInput_t normal;
     normal.steering_angle_radians = FP_CONST(0.1);
-    normal.motor_torque_newton_meters = FP_CONST(5.0);
+    normal.acceleration_meters_per_second_squared = FP_CONST(3.0);
     
     ControlInput_t sat = vehicle_model_saturate_control(&normal);
     check_fp("Normal steering unchanged", sat.steering_angle_radians, 0.1, TOLERANCE_TIGHT);
-    check_fp("Normal force unchanged", sat.motor_torque_newton_meters, 5.0, TOLERANCE_TIGHT);
+    check_fp("Normal accel unchanged", sat.acceleration_meters_per_second_squared, 3.0, TOLERANCE_TIGHT);
     
     /* Over-limit steering */
     ControlInput_t over_steer;
     over_steer.steering_angle_radians = FP_CONST(1.0);  /* Way over limit */
-    over_steer.motor_torque_newton_meters = FP_CONST(5.0);
+    over_steer.acceleration_meters_per_second_squared = FP_CONST(3.0);
     
     sat = vehicle_model_saturate_control(&over_steer);
     check_fp("Over-limit steering clamped", sat.steering_angle_radians, max_steer, TOLERANCE_TIGHT);
@@ -430,18 +425,18 @@ static void test_vehicle_control_saturation(void)
     /* Over-limit force */
     ControlInput_t over_force;
     over_force.steering_angle_radians = 0;
-    over_force.motor_torque_newton_meters = FP_CONST(100.0);  /* Way over limit */
+    over_force.acceleration_meters_per_second_squared = FP_CONST(20.0);  /* Way over limit */
     
     sat = vehicle_model_saturate_control(&over_force);
-    check_fp("Over-limit force clamped", sat.motor_torque_newton_meters, max_force, TOLERANCE_TIGHT);
+    check_fp("Over-limit accel clamped", sat.acceleration_meters_per_second_squared, max_force, TOLERANCE_TIGHT);
     
     /* Negative force (should clamp to min, which allows braking) */
     ControlInput_t neg_force;
     neg_force.steering_angle_radians = 0;
-    neg_force.motor_torque_newton_meters = FP_CONST(-100.0);
+    neg_force.acceleration_meters_per_second_squared = FP_CONST(-20.0);
     
     sat = vehicle_model_saturate_control(&neg_force);
-    check_fp("Negative force clamped to min", sat.motor_torque_newton_meters, min_force, TOLERANCE_TIGHT);
+    check_fp("Negative accel clamped to min", sat.acceleration_meters_per_second_squared, min_force, TOLERANCE_TIGHT);
 }
 
 /*===========================================================================
@@ -463,10 +458,9 @@ static void test_vehicle_state_prediction(void)
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(2.0));
     ControlInput_t control;
     control.steering_angle_radians = 0;  /* Straight */
-    control.motor_torque_newton_meters = 0;  /* No acceleration → maintain speed */
+    control.acceleration_meters_per_second_squared = 0;  /* No acceleration → maintain speed */
     
     fixed_point_t dt = FP_CONST(0.1);  /* 100ms */
     
@@ -483,8 +477,7 @@ static void test_vehicle_state_prediction(void)
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(2.0));
-    control.motor_torque_newton_meters = 0;
+    control.acceleration_meters_per_second_squared = 0;
     next = vehicle_model_predict_next_state(&state, &control, dt);
     
     check_fp("90° heading x (should be ~0)", next.position_x_meters, 0.0, TOLERANCE_PERCENT);
@@ -500,9 +493,8 @@ static void test_vehicle_state_prediction(void)
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(5.0));
     control.steering_angle_radians = FP_CONST(0.2);  /* Turn left */
-    control.motor_torque_newton_meters = 0;
+    control.acceleration_meters_per_second_squared = 0;
     
     next = vehicle_model_predict_next_state(&state, &control, dt);
     /* After step 1: yaw_rate should have developed (non-zero) */
@@ -517,7 +509,7 @@ static void test_vehicle_state_prediction(void)
     /* Test 4: Heading wrap-around */
     state.heading_angle_radians = FP_CONST(3.0);  /* Close to π */
     control.steering_angle_radians = FP_CONST(0.3);
-    control.motor_torque_newton_meters = FP_CONST(10.0);
+    control.acceleration_meters_per_second_squared = FP_CONST(10.0);
     dt = FP_CONST(0.5);
     
     next = vehicle_model_predict_next_state(&state, &control, dt);
@@ -546,12 +538,11 @@ static void test_vehicle_trajectory_prediction(void)
     initial.lateral_velocity_meters_per_second = 0;
     initial.yaw_rate_radians_per_second = 0;
 
-    initial.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(1.0));
     /* Constant velocity (no force), zero steering for 5 steps */
     ControlInput_t controls[5];
     for (int i = 0; i < 5; i++) {
         controls[i].steering_angle_radians = 0;
-        controls[i].motor_torque_newton_meters = 0;  /* Maintain current speed */
+        controls[i].acceleration_meters_per_second_squared = 0;  /* Maintain current speed */
     }
     
     VehicleState_t trajectory[6];  /* 5 steps + initial */
@@ -593,19 +584,18 @@ static void test_vehicle_linearization(void)
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(2.0));
     ControlInput_t control;
     control.steering_angle_radians = 0;
-    control.motor_torque_newton_meters = FP_CONST(2.0);
+    control.acceleration_meters_per_second_squared = FP_CONST(2.0);
     
     fixed_point_t dt = FP_CONST(0.1);
-    fixed_point_t A[7][7], B[7][2];
+    fixed_point_t A[6][6], B[6][2];
     
     vehicle_model_compute_linearization(&state, &control, dt, A, B);
     
     /* A should be close to identity on position/heading diagonal.
-     * The dynamic model's A matrix is 7x7 with states:
-     * [x, y, psi, vx, vy, yaw_rate, omega_w] */
+     * The dynamic model's A matrix is 6x6 with states:
+     * [x, y, psi, vx, vy, yaw_rate] */
     check_fp("A[0][0] diagonal", A[0][0], 1.0, TOLERANCE_PERCENT);
     check_fp("A[1][1] diagonal", A[1][1], 1.0, TOLERANCE_PERCENT);
     check_fp("A[2][2] diagonal", A[2][2], 1.0, TOLERANCE_PERCENT);
@@ -613,15 +603,13 @@ static void test_vehicle_linearization(void)
     /* B should have non-zero entries.
      * In the dynamic model: B[2][0] = 0 (steering doesn't directly affect heading)
      * but B[5][0] != 0 (steering affects yaw rate through tire forces)
-     * and B[3][1] != 0 (force affects longitudinal velocity) */
+     * and B[3][1] != 0 (accel affects longitudinal velocity) */
     check_condition("B[5][0] (steer->yaw_rate) non-zero", B[5][0] != 0);
-    check_condition("B[6][1] (torque->wheel_speed) non-zero", B[6][1] != 0);
     
-    printf("  A matrix (first row): [%.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f]\n",
+    printf("  A matrix (first row): [%.4f, %.4f, %.4f, %.4f, %.4f, %.4f]\n",
            FP_TO_DOUBLE(A[0][0]), FP_TO_DOUBLE(A[0][1]), 
            FP_TO_DOUBLE(A[0][2]), FP_TO_DOUBLE(A[0][3]),
-           FP_TO_DOUBLE(A[0][4]), FP_TO_DOUBLE(A[0][5]),
-           FP_TO_DOUBLE(A[0][6]));
+           FP_TO_DOUBLE(A[0][4]), FP_TO_DOUBLE(A[0][5]));
     printf("  B matrix (first row): [%.4f, %.4f]\n",
            FP_TO_DOUBLE(B[0][0]), FP_TO_DOUBLE(B[0][1]));
     printf("  B[2][0] (steering effect on heading): %.6f\n", FP_TO_DOUBLE(B[2][0]));
@@ -775,11 +763,10 @@ static void test_mpc_straight_line(void)
     frenet.longitudinal_velocity_meters_per_second = FP_CONST(3.0);
     frenet.lateral_velocity_meters_per_second = 0;
     frenet.yaw_rate_radians_per_second = 0;
-    frenet.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
 
     /* Reference: straight path at 3 m/s, zero curvature */
-    int horizon = 10;
-    TrajectoryReferencePoint_t ref[10];
+    int horizon = 20;
+    TrajectoryReferencePoint_t ref[20];
     
     for (int i = 0; i < horizon; i++) {
         init_frenet_ref(&ref[i], 3.0, 0.0);
@@ -797,7 +784,7 @@ static void test_mpc_straight_line(void)
     check_condition("Steering near zero on straight line", fabs(steering_deg) < 5.0);
     
     /* Force output should be within force limits */
-    double force = FP_TO_DOUBLE(result.optimal_control.motor_torque_newton_meters);
+    double force = FP_TO_DOUBLE(result.optimal_control.acceleration_meters_per_second_squared);
     check_condition("Force within limits",
                     force >= -37.5 && force <= 35.6);
     
@@ -823,11 +810,10 @@ static void test_mpc_turn_left(void)
     frenet.longitudinal_velocity_meters_per_second = FP_CONST(3.0);
     frenet.lateral_velocity_meters_per_second = 0;
     frenet.yaw_rate_radians_per_second = 0;
-    frenet.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
 
     /* Reference: left-curving path, κ = ω/v = 1.0/3.0 ≈ 0.333 rad/m */
-    int horizon = 10;
-    TrajectoryReferencePoint_t ref[10];
+    int horizon = 20;
+    TrajectoryReferencePoint_t ref[20];
     double curvature = 1.0 / 3.0;  /* ω=1 rad/s at v=3 m/s */
     
     for (int i = 0; i < horizon; i++) {
@@ -850,7 +836,7 @@ static void test_mpc_turn_left(void)
     check_condition("Non-trivial steering for left turn", fabs(steering_rad) > 0.001);
     
     printf("  Steering: %.2f degrees\n", steering_deg);
-    printf("  Force: %.2f N\n", FP_TO_DOUBLE(result.optimal_control.motor_torque_newton_meters));
+    printf("  Force: %.2f N\n", FP_TO_DOUBLE(result.optimal_control.acceleration_meters_per_second_squared));
 }
 
 /*===========================================================================
@@ -870,11 +856,10 @@ static void test_mpc_lateral_offset(void)
     frenet.longitudinal_velocity_meters_per_second = FP_CONST(3.0);
     frenet.lateral_velocity_meters_per_second = 0;
     frenet.yaw_rate_radians_per_second = 0;
-    frenet.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
 
     /* Reference: straight path at 3 m/s, zero curvature */
-    int horizon = 10;
-    TrajectoryReferencePoint_t ref[10];
+    int horizon = 20;
+    TrajectoryReferencePoint_t ref[20];
     
     for (int i = 0; i < horizon; i++) {
         init_frenet_ref(&ref[i], 3.0, 0.0);
@@ -911,11 +896,10 @@ static void test_mpc_zero_velocity(void)
     frenet.longitudinal_velocity_meters_per_second = 0;  /* ZERO velocity */
     frenet.lateral_velocity_meters_per_second = 0;
     frenet.yaw_rate_radians_per_second = 0;
-    frenet.wheel_speed_radians_per_second = 0;
 
     /* Reference: want to go forward at 3 m/s on straight path */
-    int horizon = 10;
-    TrajectoryReferencePoint_t ref[10];
+    int horizon = 20;
+    TrajectoryReferencePoint_t ref[20];
     
     for (int i = 0; i < horizon; i++) {
         init_frenet_ref(&ref[i], 3.0, 0.0);
@@ -928,11 +912,11 @@ static void test_mpc_zero_velocity(void)
                     status == MPC_STATUS_SUCCESS || 
                     status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED);
     
-    /* With wheel dynamics model, the MPC output is motor_torque, not velocity.
+    /* With wheel dynamics model, the MPC output is acceleration, not velocity.
      * At standstill the slip-ratio model has singular coupling (huge gain at low speed)
      * which can cause the MPC to output negative torque to avoid overshooting
      * position targets. Just check the MPC produces a non-zero response. */
-    double torque = FP_TO_DOUBLE(result.optimal_control.motor_torque_newton_meters);
+    double torque = FP_TO_DOUBLE(result.optimal_control.acceleration_meters_per_second_squared);
     check_condition("Commands non-zero torque from standstill", fabs(torque) > 0.001);
     
     printf("  Starting torque command: %.2f Nm\n", torque);
@@ -957,11 +941,10 @@ static void test_mpc_heading_reversal(void)
     frenet.longitudinal_velocity_meters_per_second = FP_CONST(2.0);
     frenet.lateral_velocity_meters_per_second = 0;
     frenet.yaw_rate_radians_per_second = 0;
-    frenet.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(2.0));
 
     /* Reference: straight path at 2 m/s */
-    int horizon = 10;
-    TrajectoryReferencePoint_t ref[10];
+    int horizon = 20;
+    TrajectoryReferencePoint_t ref[20];
     
     for (int i = 0; i < horizon; i++) {
         init_frenet_ref(&ref[i], 2.0, 0.0);
@@ -999,10 +982,9 @@ static void test_mpc_rate_limiting(void)
     frenet.longitudinal_velocity_meters_per_second = FP_CONST(3.0);
     frenet.lateral_velocity_meters_per_second = 0;
     frenet.yaw_rate_radians_per_second = 0;
-    frenet.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
 
-    int horizon = 10;
-    TrajectoryReferencePoint_t ref[10];
+    int horizon = 20;
+    TrajectoryReferencePoint_t ref[20];
     for (int i = 0; i < horizon; i++) {
         init_frenet_ref(&ref[i], 3.0, 0.0);  /* Straight path */
     }
@@ -1052,12 +1034,11 @@ static void test_integration_circle(void)
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(2.0));    
     /* Circular reference in Frenet: constant curvature κ = 1/R */
-    int horizon = 10;
+    int horizon = 20;
     double radius = 5.0;
     double curvature = 1.0 / radius;  /* κ = 0.2 rad/m */
-    TrajectoryReferencePoint_t ref[10];
+    TrajectoryReferencePoint_t ref[20];
     
     double dt = 0.05;  /* 50ms time step */
     
@@ -1136,10 +1117,9 @@ static void test_sim_velocity_handling(void)
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(5.0));
     /* Curved reference in Frenet: κ = ψ_dot/v = 1.0/5.0 = 0.2 */
-    int horizon = 10;
-    TrajectoryReferencePoint_t ref[10];
+    int horizon = 20;
+    TrajectoryReferencePoint_t ref[20];
     double trajectory_velocity = 5.0;  /* Fixed, from trajectory */
     double path_curvature = 1.0 / trajectory_velocity;  /* κ = 0.2 rad/m */
 
@@ -1162,7 +1142,7 @@ static void test_sim_velocity_handling(void)
         /* Use MPC steering and a small maintenance force (like the real sim) */
         ControlInput_t sim_control;
         sim_control.steering_angle_radians = result.optimal_control.steering_angle_radians;
-        sim_control.motor_torque_newton_meters = 0;  /* Maintain current speed */
+        sim_control.acceleration_meters_per_second_squared = 0;  /* Maintain current speed */
 
         state = vehicle_model_predict_next_state(&state, &sim_control, FP_CONST(0.05));
 
@@ -1171,7 +1151,6 @@ static void test_sim_velocity_handling(void)
         {
             double vx_now = FP_TO_DOUBLE(state.longitudinal_velocity_meters_per_second);
             if (vx_now > 0.1) {
-                state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(vx_now));
             }
         }
 
@@ -1226,10 +1205,9 @@ static void test_distance_speed_reduction(void)
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(10.0));
     /* Reference: straight path at trajectory velocity */
-    int horizon = 10;
-    TrajectoryReferencePoint_t ref[10];
+    int horizon = 20;
+    TrajectoryReferencePoint_t ref[20];
     double trajectory_vel = 10.0;
 
     for (int i = 0; i < horizon; i++) {
@@ -1268,7 +1246,7 @@ static void test_distance_speed_reduction(void)
 
         ControlInput_t ctrl;
         ctrl.steering_angle_radians = result.optimal_control.steering_angle_radians;
-        ctrl.motor_torque_newton_meters = FP_CONST(reduced_vel);
+        ctrl.acceleration_meters_per_second_squared = FP_CONST(reduced_vel);
         state = vehicle_model_predict_next_state(&state, &ctrl, FP_CONST(0.05));
 
         /* Update reference with reduced velocity */
@@ -1534,11 +1512,10 @@ static void stress_vehicle_extreme(void)
     init.lateral_velocity_meters_per_second = 0;
     init.yaw_rate_radians_per_second = 0;
 
-    init.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(5.0));
     ControlInput_t controls[50];
     for (int i = 0; i < 50; i++) {
         controls[i].steering_angle_radians = FP_CONST(0.1);  /* Gentle turn */
-        controls[i].motor_torque_newton_meters = FP_CONST(5.0);
+        controls[i].acceleration_meters_per_second_squared = FP_CONST(5.0);
     }
 
     VehicleState_t trajectory[51];
@@ -1565,10 +1542,9 @@ static void stress_vehicle_extreme(void)
     init.lateral_velocity_meters_per_second = 0;
     init.yaw_rate_radians_per_second = 0;
 
-    init.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(20.0));
     for (int i = 0; i < 50; i++) {
         controls[i].steering_angle_radians = FP_CONST(0.4189);  /* Max steering */
-        controls[i].motor_torque_newton_meters = FP_CONST(20.0);
+        controls[i].acceleration_meters_per_second_squared = FP_CONST(20.0);
     }
 
     vehicle_model_predict_trajectory(&init, controls, FP_CONST(0.05), 50, trajectory);
@@ -1587,9 +1563,9 @@ static void stress_vehicle_extreme(void)
     init.lateral_velocity_meters_per_second = 0;
     init.yaw_rate_radians_per_second = 0;
 
-    init.wheel_speed_radians_per_second = 0;    ControlInput_t zero_ctrl;
+    ControlInput_t zero_ctrl = {0};
     zero_ctrl.steering_angle_radians = FP_CONST(0.3);
-    zero_ctrl.motor_torque_newton_meters = 0;
+    zero_ctrl.acceleration_meters_per_second_squared = 0;
 
     VehicleState_t stationary = vehicle_model_predict_next_state(
         &init, &zero_ctrl, FP_CONST(0.1));
@@ -1602,10 +1578,9 @@ static void stress_vehicle_extreme(void)
     init.lateral_velocity_meters_per_second = 0;
     init.yaw_rate_radians_per_second = 0;
 
-    init.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(5.0));
     ControlInput_t fwd;
     fwd.steering_angle_radians = 0;
-    fwd.motor_torque_newton_meters = FP_CONST(5.0);
+    fwd.acceleration_meters_per_second_squared = FP_CONST(5.0);
 
     VehicleState_t tiny_step = vehicle_model_predict_next_state(
         &init, &fwd, FP_CONST(0.001));
@@ -1617,7 +1592,7 @@ static void stress_vehicle_extreme(void)
     check_fp("Large dt: x ~= 50.0", big_step.position_x_meters, 50.0, TOLERANCE_PERCENT);
 
     /* Linearization at extreme operating points */
-    fixed_point_t A_mat[7][7], B_mat[7][2];
+    fixed_point_t A_mat[6][6], B_mat[6][2];
 
     /* High speed, max steering */
     VehicleState_t extreme_state;
@@ -1628,10 +1603,9 @@ static void stress_vehicle_extreme(void)
     extreme_state.lateral_velocity_meters_per_second = 0;
     extreme_state.yaw_rate_radians_per_second = 0;
 
-    extreme_state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(15.0));
     ControlInput_t extreme_ctrl;
     extreme_ctrl.steering_angle_radians = FP_CONST(0.4);
-    extreme_ctrl.motor_torque_newton_meters = FP_CONST(15.0);
+    extreme_ctrl.acceleration_meters_per_second_squared = FP_CONST(15.0);
 
     vehicle_model_compute_linearization(
         &extreme_state, &extreme_ctrl, FP_CONST(0.05), A_mat, B_mat);
@@ -1845,7 +1819,7 @@ static void stress_mpc_chicane(void)
     config.time_step_seconds = FP_CONST(0.05);
     config.weight_heading_error = (fixed_point_t)(10 * FP_ONE);     /* Original weight for dt=50ms */
     config.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
-    config.weight_torque_rate = FP_CONST(0.1);
+    config.weight_acceleration_rate = FP_CONST(0.1);
     mpc_set_configuration(&config);
 
     VehicleState_t state;
@@ -1856,18 +1830,17 @@ static void stress_mpc_chicane(void)
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(5.0));
     /* Simulate 50 steps of a chicane (left-right-left) */
     double dt = 0.05;
     int total_steps = 50;
-    int horizon = 10;
+    int horizon = 20;
 
     double max_steering_rad = 0.0;
     int success_count = 0;
     int max_iter_count = 0;
 
     for (int step = 0; step < total_steps; step++) {
-        TrajectoryReferencePoint_t ref[10];
+        TrajectoryReferencePoint_t ref[20];
 
         for (int i = 0; i < horizon; i++) {
             double future_t = (step + i + 1) * dt;
@@ -1931,7 +1904,6 @@ static void stress_mpc_max_horizon(void)
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
     TrajectoryReferencePoint_t ref[20];
     for (int i = 0; i < 20; i++) {
         init_frenet_ref(&ref[i], 3.0, 0.0);
@@ -1947,7 +1919,7 @@ static void stress_mpc_max_horizon(void)
     printf("  Horizon=20: status=%d, iters=%d, steer=%.4f, vel=%.2f\n",
            status, result.iterations_used,
            FP_TO_DOUBLE(result.optimal_control.steering_angle_radians),
-           FP_TO_DOUBLE(result.optimal_control.motor_torque_newton_meters));
+           FP_TO_DOUBLE(result.optimal_control.acceleration_meters_per_second_squared));
 
     /* Test with maximum horizon = 40 (80 vars = QP_MAXIMUM_VARIABLES) */
     config.prediction_horizon_steps = 40;
@@ -1988,7 +1960,7 @@ static void stress_mpc_repeated_calls(void)
     rconfig.time_step_seconds = FP_CONST(0.05);
     rconfig.weight_heading_error = (fixed_point_t)(10 * FP_ONE);
     rconfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
-    rconfig.weight_torque_rate = FP_CONST(0.1);
+    rconfig.weight_acceleration_rate = FP_CONST(0.1);
     mpc_set_configuration(&rconfig);
 
     VehicleState_t state;
@@ -1999,8 +1971,7 @@ static void stress_mpc_repeated_calls(void)
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
-    int horizon = 10;
+    int horizon = 20;
     int total_calls = 100;
     double dt = 0.05;
 
@@ -2009,7 +1980,7 @@ static void stress_mpc_repeated_calls(void)
     int success_count = 0;
 
     for (int call = 0; call < total_calls; call++) {
-        TrajectoryReferencePoint_t ref[10];
+        TrajectoryReferencePoint_t ref[20];
         for (int i = 0; i < horizon; i++) {
             init_frenet_ref(&ref[i], 3.0, 0.0);
         }
@@ -2058,7 +2029,7 @@ static void stress_mpc_high_speed_turn(void)
     tconfig.time_step_seconds = FP_CONST(0.05);
     tconfig.weight_heading_error = (fixed_point_t)(10 * FP_ONE);
     tconfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
-    tconfig.weight_torque_rate = FP_CONST(0.1);
+    tconfig.weight_acceleration_rate = FP_CONST(0.1);
     mpc_set_configuration(&tconfig);
 
     /* Start at high speed, need to take a sharp 90° turn */
@@ -2070,8 +2041,7 @@ static void stress_mpc_high_speed_turn(void)
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(10.0));
-    int horizon = 10;
+    int horizon = 20;
     double dt = 0.05;
     int total_steps = 40;
 
@@ -2079,7 +2049,7 @@ static void stress_mpc_high_speed_turn(void)
     double max_velocity = 0.0;
 
     for (int step = 0; step < total_steps; step++) {
-        TrajectoryReferencePoint_t ref[10];
+        TrajectoryReferencePoint_t ref[20];
         double t0 = step * dt;
 
         for (int i = 0; i < horizon; i++) {
@@ -2103,7 +2073,7 @@ static void stress_mpc_high_speed_turn(void)
         mpc_compute_optimal_control(&frenet, ref, &result);
 
         double steer = fabs(FP_TO_DOUBLE(result.optimal_control.steering_angle_radians));
-        double vel = FP_TO_DOUBLE(result.optimal_control.motor_torque_newton_meters);
+        double vel = FP_TO_DOUBLE(result.optimal_control.acceleration_meters_per_second_squared);
         if (steer > max_steering) max_steering = steer;
         if (vel > max_velocity) max_velocity = vel;
 
@@ -2136,7 +2106,7 @@ static void stress_mpc_simultaneous_changes(void)
     sconfig.time_step_seconds = FP_CONST(0.05);
     sconfig.weight_heading_error = (fixed_point_t)(10 * FP_ONE);
     sconfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
-    sconfig.weight_torque_rate = FP_CONST(0.1);
+    sconfig.weight_acceleration_rate = FP_CONST(0.1);
     mpc_set_configuration(&sconfig);
 
     /* Frenet state: on path, low velocity (2 m/s), heading misaligned */
@@ -2146,12 +2116,11 @@ static void stress_mpc_simultaneous_changes(void)
     frenet.longitudinal_velocity_meters_per_second = FP_CONST(2.0);
     frenet.lateral_velocity_meters_per_second = 0;
     frenet.yaw_rate_radians_per_second = 0;
-    frenet.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(2.0));
 
-    int horizon = 10;
+    int horizon = 20;
 
     /* Reference demands both speed-up and turn simultaneously */
-    TrajectoryReferencePoint_t ref[10];
+    TrajectoryReferencePoint_t ref[20];
     for (int i = 0; i < horizon; i++) {
         init_frenet_ref(&ref[i], 8.0, 0.0);  /* High speed target, straight path */
     }
@@ -2160,7 +2129,7 @@ static void stress_mpc_simultaneous_changes(void)
     MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet, ref, &result);
 
     double steer = FP_TO_DOUBLE(result.optimal_control.steering_angle_radians);
-    double vel = FP_TO_DOUBLE(result.optimal_control.motor_torque_newton_meters);
+    double vel = FP_TO_DOUBLE(result.optimal_control.acceleration_meters_per_second_squared);
 
     check_condition("Simultaneous changes: solver completes",
                     status == MPC_STATUS_SUCCESS ||
@@ -2186,7 +2155,7 @@ static void stress_mpc_null_inputs(void)
 
     /* NULL state pointer (FrenetState_t*) */
     MpcSolverResult_t result;
-    TrajectoryReferencePoint_t ref[10];
+    TrajectoryReferencePoint_t ref[20];
     memset(ref, 0, sizeof(ref));
 
     MpcSolverStatus_t status = mpc_compute_optimal_control(NULL, ref, &result);
@@ -2211,7 +2180,7 @@ static void stress_mpc_null_inputs(void)
     printf("  Zero inputs: status=%d, steer=%.4f, vel=%.4f\n",
            status,
            FP_TO_DOUBLE(result.optimal_control.steering_angle_radians),
-           FP_TO_DOUBLE(result.optimal_control.motor_torque_newton_meters));
+           FP_TO_DOUBLE(result.optimal_control.acceleration_meters_per_second_squared));
 }
 
 /*===========================================================================
@@ -2229,10 +2198,9 @@ static void stress_mpc_config_changes(void)
     frenet.longitudinal_velocity_meters_per_second = FP_CONST(3.0);
     frenet.lateral_velocity_meters_per_second = 0;
     frenet.yaw_rate_radians_per_second = 0;
-    frenet.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
 
-    int horizon = 10;
-    TrajectoryReferencePoint_t ref[10];
+    int horizon = 20;
+    TrajectoryReferencePoint_t ref[20];
     for (int i = 0; i < horizon; i++) {
         init_frenet_ref(&ref[i], 3.0, 0.0);
     }
@@ -2244,7 +2212,7 @@ static void stress_mpc_config_changes(void)
     config.weight_heading_error = FP_CONST(10.0);
     config.weight_velocity = FP_CONST(10.0);
     config.weight_steering_rate = FP_CONST(0.01);
-    config.weight_torque_rate = FP_CONST(0.01);
+    config.weight_acceleration_rate = FP_CONST(0.01);
     mpc_set_configuration(&config);
 
     MpcSolverResult_t result_aggressive;
@@ -2258,7 +2226,7 @@ static void stress_mpc_config_changes(void)
     config.weight_heading_error = FP_CONST(0.1);
     config.weight_velocity = FP_CONST(0.1);
     config.weight_steering_rate = FP_CONST(10.0);
-    config.weight_torque_rate = FP_CONST(10.0);
+    config.weight_acceleration_rate = FP_CONST(10.0);
     mpc_set_configuration(&config);
 
     MpcSolverResult_t result_conservative;
@@ -2279,9 +2247,9 @@ static void stress_mpc_config_changes(void)
     config.weight_heading_error = 0;
     config.weight_velocity = 0;
     config.weight_steering_effort = FP_ONE;
-    config.weight_torque_effort = FP_ONE;
+    config.weight_acceleration_effort = FP_ONE;
     config.weight_steering_rate = 0;
-    config.weight_torque_rate = 0;
+    config.weight_acceleration_rate = 0;
     mpc_set_configuration(&config);
 
     MpcSolverResult_t result_zero;
@@ -2292,7 +2260,7 @@ static void stress_mpc_config_changes(void)
                     status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED);
     printf("  Zero tracking weights: steer=%.4f, vel=%.4f\n",
            FP_TO_DOUBLE(result_zero.optimal_control.steering_angle_radians),
-           FP_TO_DOUBLE(result_zero.optimal_control.motor_torque_newton_meters));
+           FP_TO_DOUBLE(result_zero.optimal_control.acceleration_meters_per_second_squared));
 
     /* Very short time step → large B matrix elements */
     mpc_initialize();
@@ -2332,7 +2300,7 @@ static void stress_mpc_all_quadrants(void)
 {
     printf("\n========== STRESS: MPC All Quadrant Headings ==========\n");
 
-    int horizon = 10;
+    int horizon = 20;
     double headings_deg[] = {0, 45, 90, 135, 180, -135, -90, -45, -179, 179};
     int n_headings = 10;
 
@@ -2347,9 +2315,8 @@ static void stress_mpc_all_quadrants(void)
         frenet.longitudinal_velocity_meters_per_second = FP_CONST(3.0);
         frenet.lateral_velocity_meters_per_second = 0;
         frenet.yaw_rate_radians_per_second = 0;
-        frenet.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
 
-        TrajectoryReferencePoint_t ref[10];
+        TrajectoryReferencePoint_t ref[20];
         for (int i = 0; i < horizon; i++) {
             init_frenet_ref(&ref[i], 3.0, 0.0);
         }
@@ -2366,7 +2333,7 @@ static void stress_mpc_all_quadrants(void)
         double steer_deg = FP_TO_DOUBLE(result.optimal_control.steering_angle_radians) * 57.3;
         printf("  Heading=%.0f°: steer=%.2f°, vel=%.2f m/s\n",
                headings_deg[h], steer_deg,
-               FP_TO_DOUBLE(result.optimal_control.motor_torque_newton_meters));
+               FP_TO_DOUBLE(result.optimal_control.acceleration_meters_per_second_squared));
     }
 }
 
@@ -2384,7 +2351,7 @@ static void stress_mpc_s_curve(void)
     scconfig.time_step_seconds = FP_CONST(0.05);
     scconfig.weight_heading_error = (fixed_point_t)(10 * FP_ONE);
     scconfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
-    scconfig.weight_torque_rate = FP_CONST(0.1);
+    scconfig.weight_acceleration_rate = FP_CONST(0.1);
     mpc_set_configuration(&scconfig);
 
     VehicleState_t state;
@@ -2395,8 +2362,7 @@ static void stress_mpc_s_curve(void)
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(4.0));
-    int horizon = 10;
+    int horizon = 20;
     double dt = 0.05;
     int total_steps = 80;
 
@@ -2404,7 +2370,7 @@ static void stress_mpc_s_curve(void)
     int success_count = 0;
 
     for (int step = 0; step < total_steps; step++) {
-        TrajectoryReferencePoint_t ref[10];
+        TrajectoryReferencePoint_t ref[20];
 
         for (int i = 0; i < horizon; i++) {
             double t = (step + i + 1) * dt;
@@ -2456,19 +2422,19 @@ static void stress_vehicle_saturation_extremes(void)
     vehicle_model_initialize();
 
     /* Extreme control values */
-    double extreme_values[] = {-100.0, -50.0, -10.0, -1.0, 0.0, 1.0, 10.0, 50.0, 100.0};
+    double extreme_values[] = {-20.0, -10.0, -5.0, -1.0, 0.0, 1.0, 5.0, 10.0, 20.0};
     int n_vals = 9;
 
     for (int si = 0; si < n_vals; si++) {
         for (int vi = 0; vi < n_vals; vi++) {
             ControlInput_t raw;
             raw.steering_angle_radians = DOUBLE_TO_FP(extreme_values[si]);
-            raw.motor_torque_newton_meters = DOUBLE_TO_FP(extreme_values[vi]);
+            raw.acceleration_meters_per_second_squared = DOUBLE_TO_FP(extreme_values[vi]);
 
             ControlInput_t sat = vehicle_model_saturate_control(&raw);
 
             double sat_steer = FP_TO_DOUBLE(sat.steering_angle_radians);
-            double sat_vel = FP_TO_DOUBLE(sat.motor_torque_newton_meters);
+            double sat_vel = FP_TO_DOUBLE(sat.acceleration_meters_per_second_squared);
 
             /* Verify saturation limits */
             if (fabs(sat_steer) > 0.42 + 0.01) {
@@ -2477,8 +2443,8 @@ static void stress_vehicle_saturation_extremes(void)
                          "Steer saturated (raw=%.0f)", extreme_values[si]);
                 check_condition(name, 0);
             }
-            /* Force limits: [F110_DEFAULT_MIN (-37.4), F110_DEFAULT_MAX (35.57)] */
-            if (sat_vel < -37.4 - 0.01 || sat_vel > 35.57 + 0.01) {
+            /* Accel limits: [F110_DEFAULT_MIN (-7.7), F110_DEFAULT_MAX (8.0)] */
+            if (sat_vel < -7.7 - 0.01 || sat_vel > 8.0 + 0.01) {
                 char name[128];
                 snprintf(name, sizeof(name),
                          "Force saturated (raw=%.0f)", extreme_values[vi]);
@@ -2498,7 +2464,7 @@ static void stress_mpc_reset_behavior(void)
 {
     printf("\n========== STRESS: MPC Reset Behavior ==========\n");
 
-    int horizon = 10;
+    int horizon = 20;
 
     /* Scenario 1: Hard left turn */
     mpc_initialize();
@@ -2510,8 +2476,7 @@ static void stress_mpc_reset_behavior(void)
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
-    TrajectoryReferencePoint_t ref[10];
+    TrajectoryReferencePoint_t ref[20];
     for (int i = 0; i < horizon; i++) {
         init_frenet_ref(&ref[i], 3.0, 1.0/3.0);  /* Left curve */
     }
@@ -2539,7 +2504,6 @@ static void stress_mpc_reset_behavior(void)
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
     for (int i = 0; i < horizon; i++) {
         init_frenet_ref(&ref[i], 3.0, -1.0/3.0);  /* Right curve */
     }
@@ -2633,10 +2597,10 @@ static void stress_mpc_velocity_ramps(void)
     vrconfig.time_step_seconds = FP_CONST(0.05);
     vrconfig.weight_heading_error = (fixed_point_t)(10 * FP_ONE);
     vrconfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
-    vrconfig.weight_torque_rate = FP_CONST(0.1);
+    vrconfig.weight_acceleration_rate = FP_CONST(0.1);
     mpc_set_configuration(&vrconfig);
 
-    int horizon = 10;
+    int horizon = 20;
     double dt = 0.05;
 
     /* Ramp up: reference velocity increases from 1 to 10 m/s */
@@ -2648,13 +2612,12 @@ static void stress_mpc_velocity_ramps(void)
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(1.0));
     int ramp_steps = 30;
     double max_accel = 0.0;
     double prev_vel = 1.0;
 
     for (int step = 0; step < ramp_steps; step++) {
-        TrajectoryReferencePoint_t ref[10];
+        TrajectoryReferencePoint_t ref[20];
         for (int i = 0; i < horizon; i++) {
             double future_vel = 1.0 + 9.0 * (step + i + 1) / (double)ramp_steps;
             if (future_vel > 10.0) future_vel = 10.0;
@@ -2665,7 +2628,7 @@ static void stress_mpc_velocity_ramps(void)
         MpcSolverResult_t result;
         mpc_compute_optimal_control(&frenet, ref, &result);
 
-        double vel = FP_TO_DOUBLE(result.optimal_control.motor_torque_newton_meters);
+        double vel = FP_TO_DOUBLE(result.optimal_control.acceleration_meters_per_second_squared);
         double accel = fabs(vel - prev_vel) / dt;
         if (accel > max_accel) max_accel = accel;
         prev_vel = vel;
@@ -2688,7 +2651,7 @@ static void stress_mpc_velocity_ramps(void)
         double target_vel = 10.0 - 9.0 * step / (double)ramp_steps;
         if (target_vel < 0.5) target_vel = 0.5;
 
-        TrajectoryReferencePoint_t ref[10];
+        TrajectoryReferencePoint_t ref[20];
         for (int i = 0; i < horizon; i++) {
             double future_vel = 10.0 - 9.0 * (step + i + 1) / (double)ramp_steps;
             if (future_vel < 0.5) future_vel = 0.5;
@@ -2699,7 +2662,7 @@ static void stress_mpc_velocity_ramps(void)
         MpcSolverResult_t result;
         mpc_compute_optimal_control(&frenet, ref, &result);
 
-        double vel = FP_TO_DOUBLE(result.optimal_control.motor_torque_newton_meters);
+        double vel = FP_TO_DOUBLE(result.optimal_control.acceleration_meters_per_second_squared);
         double decel = fabs(vel - prev_vel) / dt;
         if (decel > max_accel) max_accel = decel;
         prev_vel = vel;
@@ -2730,7 +2693,7 @@ static void stress_mpc_endurance(void)
     econfig.time_step_seconds = FP_CONST(0.05);
     econfig.weight_heading_error = (fixed_point_t)(10 * FP_ONE);
     econfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
-    econfig.weight_torque_rate = FP_CONST(0.1);
+    econfig.weight_acceleration_rate = FP_CONST(0.1);
     mpc_set_configuration(&econfig);
 
     VehicleState_t state;
@@ -2741,8 +2704,7 @@ static void stress_mpc_endurance(void)
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
-    int horizon = 10;
+    int horizon = 20;
     double dt = 0.05;
     int total_calls = 500;
 
@@ -2755,7 +2717,7 @@ static void stress_mpc_endurance(void)
     for (int call = 0; call < total_calls; call++) {
         /* Generate a slowly varying reference (gentle sinusoid) */
         double t0 = call * dt;
-        TrajectoryReferencePoint_t ref[10];
+        TrajectoryReferencePoint_t ref[20];
         for (int i = 0; i < horizon; i++) {
             double t = t0 + (i + 1) * dt;
             /* Curvature from heading = 0.3*sin(0.5*t): κ = ψ_dot/v */
@@ -2775,7 +2737,7 @@ static void stress_mpc_endurance(void)
         }
 
         double steer = fabs(FP_TO_DOUBLE(result.optimal_control.steering_angle_radians));
-        double vel = FP_TO_DOUBLE(result.optimal_control.motor_torque_newton_meters);
+        double vel = FP_TO_DOUBLE(result.optimal_control.acceleration_meters_per_second_squared);
         if (steer > max_steer) max_steer = steer;
         if (vel > max_vel) max_vel = vel;
 
@@ -2887,28 +2849,23 @@ static void stress_linearization_jacobian(void)
                 op_state.lateral_velocity_meters_per_second = 0;
                 op_state.yaw_rate_radians_per_second = 0;
 
-                op_state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(test_velocities[vi]));
                 ControlInput_t op_ctrl;
                 op_ctrl.steering_angle_radians = DOUBLE_TO_FP(test_steerings[si]);
-                op_ctrl.motor_torque_newton_meters = DOUBLE_TO_FP(test_velocities[vi]);
+                op_ctrl.acceleration_meters_per_second_squared = DOUBLE_TO_FP(test_velocities[vi]);
 
-                fixed_point_t A[7][7], B[7][2];
+                fixed_point_t A[6][6], B[6][2];
                 vehicle_model_compute_linearization(
                     &op_state, &op_ctrl, FP_CONST(0.05), A, B);
 
                 total_tests++;
 
-                /* Dynamic model checks for 7-state with wheel dynamics:
-                 * A[3][3] has slip-ratio coupling: 1 + dt*dFx_dvx/m
-                 *   dFx_dvx = Cx*(-1/vx) → large at low speed, so A[3][3]
-                 *   can be far from 1.0. Just check it's finite.
-                 * B[6][1] = dt/(Iw*G_ratio) ≈ 2.114 (constant, motor→wheel)
+                /* Dynamic model checks for 6-state model:
+                 * A[3][3] relates to longitudinal velocity dynamics.
+                 *   Can be far from 1.0 at low speed. Just check it's finite.
                  * A diagonal [0..2] near 1.0 (position/heading states)
                  */
                 double a33 = FP_TO_DOUBLE(A[3][3]);
                 if (fabs(a33) > 1000.0 || a33 != a33) continue;  /* sanity: finite */
-                double b61_expected = 11.82 * 0.05 / 2.223;  /* G_ratio * dt / Iw */
-                if (fabs(FP_TO_DOUBLE(B[6][1]) - b61_expected) > 0.5) continue;
                 /* Verify A diagonal elements near 1 (position/heading states) */
                 int diag_ok = 1;
                 for (int d = 0; d < 3; d++) {
@@ -2941,7 +2898,7 @@ static void stress_mpc_disturbance(void)
     dconfig.time_step_seconds = FP_CONST(0.05);
     dconfig.weight_heading_error = (fixed_point_t)(10 * FP_ONE);
     dconfig.weight_steering_rate = (fixed_point_t)(10 * FP_ONE);
-    dconfig.weight_torque_rate = FP_CONST(0.1);
+    dconfig.weight_acceleration_rate = FP_CONST(0.1);
     mpc_set_configuration(&dconfig);
 
     VehicleState_t state;
@@ -2952,8 +2909,7 @@ static void stress_mpc_disturbance(void)
     state.lateral_velocity_meters_per_second = 0;
     state.yaw_rate_radians_per_second = 0;
 
-    state.wheel_speed_radians_per_second = DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(3.0));
-    int horizon = 10;
+    int horizon = 20;
     double dt = 0.05;
     int total_steps = 60;
     int recovery_count = 0;
@@ -2969,7 +2925,7 @@ static void stress_mpc_disturbance(void)
             printf("  [Step %d] Disturbance injected: y+=0.5, heading+=0.3\n", step);
         }
 
-        TrajectoryReferencePoint_t ref[10];
+        TrajectoryReferencePoint_t ref[20];
         for (int i = 0; i < horizon; i++) {
             init_frenet_ref(&ref[i], 3.0, 0.0);
         }

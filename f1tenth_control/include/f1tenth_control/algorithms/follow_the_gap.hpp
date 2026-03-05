@@ -31,6 +31,7 @@ struct FTGConfig {
     double max_steering_rate{2.0};   // [rad/s] Maximum steering change rate (time-based)
     double target_ema_alpha{0.3};    // EMA smoothing for target angle (0=full smooth, 1=no smooth)
     double heading_bias_weight{0.3}; // Weight for preferring gaps near current heading (0=disabled)
+    double center_weight{0.7};       // Blend gap center (1.0) vs deepest point (0.0) for target angle
     
     // Safety
     double emergency_brake_distance{0.3};  // Brake if obstacle closer than this (m)
@@ -42,6 +43,7 @@ struct FTGConfig {
     double bubble_radius{0.2};       // Safety bubble radius around closest point (m)
     bool apply_bubble{true};         // Whether to apply safety bubble
     double wall_margin{0.35};        // Shrink all readings by this amount (m)
+    int gap_edge_trim{0};            // Number of indices to discard from each side of a gap
     
     // Generic LiDAR processing config (for preprocessing only)
     LidarProcessorConfig lidar_config;

@@ -6,7 +6,7 @@
  * Subscribes to odometry, runs MPC solver, publishes control commands.
  *
  * Topics:
- *   Subscribe: /ego_racecar/odom (nav_msgs/Odometry)
+ *   Subscribe: /ego_racecar/ground_truth (nav_msgs/Odometry)
  *   Publish:   /drive (ackermann_msgs/AckermannDriveStamped)
  */
 
@@ -15,6 +15,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <signal.h>
 
 /* ROS2 C Client Library Headers */
 #include "rcl/rcl.h"
@@ -29,6 +30,7 @@
 #include "nav_msgs/msg/path.h"
 #include "ackermann_msgs/msg/ackermann_drive_stamped.h"
 #include "geometry_msgs/msg/pose_stamped.h"
+#include "std_msgs/msg/bool.h"
 
 /* MPC Core Library Headers (Platform-Independent) */
 #include "mpc.h"
@@ -40,25 +42,13 @@
  * Configuration Constants
  *===========================================================================*/
 
-/** Number of MPC prediction steps (40 steps × 0.05s = 2.0 second lookahead) */
-#define MPC_PREDICTION_HORIZON_STEPS 40
+/** Number of MPC prediction steps (20 steps × 0.05s = 1.0 second lookahead) */
+#define MPC_PREDICTION_HORIZON_STEPS 20
 
 /** Time step between predictions (seconds) - MUST match MPC_DEFAULT_TIME_STEP_SECONDS in mpc_types.h
- *  50 ms for prediction lookahead. MPC is called at ~250 Hz (divider=1) but
- *  predicts 2.0s ahead with 40 steps. cross_call_rate_scale handles the mismatch. */
+ *  50 ms per step. MPC is called at ~250 Hz (divider=1) but
+ *  predicts 1.0s ahead with 20 steps. cross_call_rate_scale handles the mismatch. */
 #define MPC_TIME_STEP_SECONDS 0.05f
-
-/** Maximum allowed steering angle (radians, ~24.5 degrees) [TESTED] */
-#define MAXIMUM_STEERING_ANGLE_RADIANS 0.4282f
-
-/** Maximum allowed velocity (m/s) */
-#define MAXIMUM_VELOCITY_METERS_PER_SECOND 20.0f
-
-/** Wheel radius [m] — Traxxas Slash 4x4 VXL [MEASURED: 0.051 m loaded] */
-#define WHEEL_RADIUS_METERS 0.051
-
-/** Convert vehicle velocity to matching wheel speed (zero slip ratio) */
-#define VX_TO_WHEEL_SPEED(vx) ((vx) / WHEEL_RADIUS_METERS)
 
 /** Odometry callback divider (run MPC every N callbacks)
  *
@@ -79,11 +69,6 @@ static int g_odom_divider = ODOMETRY_CALLBACK_DIVIDER_DEFAULT;
 
 /** Speed gain applied to trajectory velocities (1.0 = full optimal racing speed) */
 #define TRAJECTORY_SPEED_GAIN 1.0
-
-/** Maximum longitudinal acceleration for reference velocity ramp [m/s²]
- *  Raised from 2.6 to 5.0 to match physical capability (measured 6-9.5 m/s²).
- *  The MPC's internal torque constraints (±22.9 N·m) provide the real limit. */
-#define MAX_REFERENCE_ACCELERATION 5.0
 
 /*===========================================================================
  * Trajectory Waypoint (loaded from CSV, stored as double)
@@ -107,14 +92,6 @@ typedef struct
 /*===========================================================================
  * Global State Variables
  *===========================================================================*/
-
-/** Runtime-tunable parameters (initialized from environment variables) */
-static double g_min_speed_for_mpc = 0.5;    /**< Min speed before MPC engages (m/s) */
-static double g_max_speed = 20.0;           /**< Global speed cap (m/s) */
-static double g_speed_ramp = 1.0;           /**< Max speed increase per MPC step (m/s) */
-static double g_feedforward_gain = 0.0;     /**< Curvature feedforward gain (0=off, 1=full). OFF: MPC Frenet model handles curvature via A matrix */
-static double g_max_lateral_accel = 7.0;    /**< Max lateral accel for curvature speed limit (m/s²), measured on real car */
-static double g_curvature_lookahead = 150;  /**< Waypoints ahead to scan for curvature (for speed limit) */
 
 /** Loaded trajectory waypoints */
 static TrajectoryWaypoint_t global_trajectory[TRAJECTORY_MAXIMUM_WAYPOINTS];
@@ -140,6 +117,12 @@ static int global_odometry_received_flag = 0;
 /** Counter for odometry callbacks (used for rate limiting MPC) */
 static int global_odometry_callback_counter = 0;
 
+/** Collision detected flag — causes process exit */
+static volatile int global_collision_detected = 0;
+
+/** Global ROS2 context pointer for shutdown from callbacks */
+static rcl_context_t *global_ros2_context = NULL;
+
 /** ROS2 publisher handle for control commands */
 static rcl_publisher_t global_control_publisher;
 
@@ -151,6 +134,9 @@ static rcl_publisher_t global_trajectory_path_publisher;
 
 /** Buffer for incoming odometry message */
 static nav_msgs__msg__Odometry global_odometry_message_buffer;
+
+/** Buffer for incoming collision message */
+static std_msgs__msg__Bool global_collision_message_buffer;
 
 /** Buffer for outgoing drive command message */
 static ackermann_msgs__msg__AckermannDriveStamped global_drive_message_buffer;
@@ -351,9 +337,9 @@ static int find_closest_waypoint(double position_x, double position_y, double ve
  * travel distance based on the REFERENCE velocity (not current velocity).
  *
  * @param closest_index Index of the closest waypoint
- * @param current_velocity Current vehicle velocity (m/s) - used for reference velocity ramp
+ * @param closest_index  Index into the global trajectory array
  */
-static void build_reference_from_trajectory(int closest_index, double current_velocity)
+static void build_reference_from_trajectory(int closest_index)
 {
     /* MPC time step in seconds */
     const double mpc_dt = (double)MPC_TIME_STEP_SECONDS;
@@ -402,10 +388,8 @@ static void build_reference_from_trajectory(int closest_index, double current_ve
         global_reference_trajectory[step].right_wall_bound_meters =
             DOUBLE_TO_FP(wp->right_bound_meters);
 
-        /* === Velocity reference (capped to achievable ramp) === */
+        /* === Velocity reference (directly from raceline, no artificial ramp) === */
         double traj_vel = global_trajectory[base_waypoint_index].velocity_meters_per_second;
-        double max_achievable = current_velocity + MAX_REFERENCE_ACCELERATION * mpc_dt * (step + 1);
-        if (traj_vel > max_achievable) traj_vel = max_achievable;
         if (traj_vel < 0.0) traj_vel = 0.0;
         global_reference_trajectory[step].reference_velocity_meters_per_second =
             DOUBLE_TO_FP(traj_vel);
@@ -416,10 +400,6 @@ static void build_reference_from_trajectory(int closest_index, double current_ve
         /* Yaw rate reference: will be computed in second pass from heading differences */
         global_reference_trajectory[step].reference_yaw_rate_radians_per_second = 0;
 
-        /* Wheel speed reference: match capped velocity for zero slip ratio */
-        double ref_ww = (traj_vel > 0.01) ? VX_TO_WHEEL_SPEED(traj_vel) : 0.0;
-        global_reference_trajectory[step].reference_wheel_speed_radians_per_second =
-            DOUBLE_TO_FP(ref_ww);
     }
 
     /* Second pass: yaw rate reference = κ · v_ref (steady-state cornering).
@@ -428,7 +408,7 @@ static void build_reference_from_trajectory(int closest_index, double current_ve
      * now providing correct (reduced) B-matrix gains at high slip angles,
      * setting the physically correct ω_ref = κ · v improves steady-state
      * curve tracking without causing yaw cascade.
-     * The small weight_yaw_rate (0.05) keeps this a gentle guide, not a
+     * The moderate weight_yaw_rate (0.3–2.0, speed-blended) keeps this a guide, not a
      * hard target — heading error still drives the primary cornering. */
     for (int step = 0; step < MPC_PREDICTION_HORIZON_STEPS; step++)
     {
@@ -494,51 +474,6 @@ static void yaw_to_quaternion(double yaw_radians, geometry_msgs__msg__Quaternion
  * @param steering_angle_radians Steering angle to saturate (modified in-place)
  * @param velocity_mps Velocity to saturate (modified in-place)
  */
-/* Maximum steering rate per MPC step (rad).  Tunable via MPC_STEER_RATE_LIMIT.
- * This is a SAFETY-ONLY clamp — the MPC's internal weight_steering_rate
- * (0.5) is the primary steering-rate controller.  The external clamp must
- * be wide enough to never override the MPC plan, otherwise the two rate-
- * limiting systems fight each other, causing oscillation at straight→curve
- * transitions.  Default 0.40 rad/step ≈ full lock-to-lock in ~1 step. */
-static double g_steer_rate_limit = 0.40;
-static double previous_steering_command = 0.0;
-
-static void saturate_control_commands(double *steering_angle_radians,
-                                      double *velocity_mps)
-{
-    /* Steering rate clamp: safety-only — should rarely activate.
-     * The MPC internal rate penalty (weight_steering_rate) handles
-     * smooth steering transitions.  This clamp only catches extreme
-     * solver failures or transients (e.g., low-speed→MPC handover). */
-    double delta_steer = *steering_angle_radians - previous_steering_command;
-    if (delta_steer > g_steer_rate_limit)
-    {
-        *steering_angle_radians = previous_steering_command + g_steer_rate_limit;
-    }
-    else if (delta_steer < -g_steer_rate_limit)
-    {
-        *steering_angle_radians = previous_steering_command - g_steer_rate_limit;
-    }
-    previous_steering_command = *steering_angle_radians;
-
-    /* Steering magnitude clamp */
-    if (*steering_angle_radians > MAXIMUM_STEERING_ANGLE_RADIANS)
-    {
-        *steering_angle_radians = MAXIMUM_STEERING_ANGLE_RADIANS;
-    }
-    if (*steering_angle_radians < -MAXIMUM_STEERING_ANGLE_RADIANS)
-    {
-        *steering_angle_radians = -MAXIMUM_STEERING_ANGLE_RADIANS;
-    }
-    if (*velocity_mps > MAXIMUM_VELOCITY_METERS_PER_SECOND)
-    {
-        *velocity_mps = MAXIMUM_VELOCITY_METERS_PER_SECOND;
-    }
-    if (*velocity_mps < 0.0)
-    {
-        *velocity_mps = 0.0;
-    }
-}
 
 /**
  * @brief Pre-allocate a rosidl string with a fixed capacity (static memory model)
@@ -599,7 +534,7 @@ static void set_rosidl_string(rosidl_runtime_c__String *str, const char *value)
 /**
  * @brief Convert global vehicle state to Frenet (path-relative) state
  *
- * Computes the Frenet state [e_y, e_psi, v_x, v_y, omega, omega_w] from
+ * Computes the Frenet state [e_y, e_psi, v_x, v_y, omega] from
  * the global vehicle pose and the closest trajectory waypoint.
  *
  * e_y (lateral error) = signed perpendicular distance from car to path
@@ -609,7 +544,7 @@ static void set_rosidl_string(rosidl_runtime_c__String *str, const char *value)
  * e_psi (heading error) = vehicle heading - path tangent heading
  *   Positive = vehicle is turned left relative to path
  *
- * v_x, v_y, omega, omega_w are unchanged (already in body frame).
+ * v_x, v_y, omega are unchanged (already in body frame).
  *
  * @param car_x         Vehicle X position [meters]
  * @param car_y         Vehicle Y position [meters]
@@ -652,8 +587,6 @@ static void convert_to_frenet_state(
         global_vehicle_state.lateral_velocity_meters_per_second;
     frenet_out->yaw_rate_radians_per_second =
         global_vehicle_state.yaw_rate_radians_per_second;
-    frenet_out->wheel_speed_radians_per_second =
-        global_vehicle_state.wheel_speed_radians_per_second;
 }
 
 /*===========================================================================
@@ -705,22 +638,14 @@ void odometry_subscription_callback(const void *message_in)
     global_vehicle_state.lateral_velocity_meters_per_second = DOUBLE_TO_FP(velocity_y_meters_per_second);
     global_vehicle_state.yaw_rate_radians_per_second = DOUBLE_TO_FP(yaw_rate_radians_per_second);
 
-    /* Wheel speed: compute from longitudinal velocity assuming zero slip ratio.
-     * In practice, the VESC maintains wheel speed close to commanded speed,
-     * so ωw ≈ vx / Rw is a reasonable estimate when no direct wheel speed sensor is available. */
-    double wheel_speed_estimate = (velocity_x_meters_per_second > 0.01)
-        ? VX_TO_WHEEL_SPEED(velocity_x_meters_per_second) : 0.0;
-    global_vehicle_state.wheel_speed_radians_per_second = DOUBLE_TO_FP(wheel_speed_estimate);
-
     global_odometry_received_flag = 1;
 
     /* Run MPC solver at reduced rate */
     if ((global_odometry_callback_counter % g_odom_divider) == 0)
     {
-        printf("[MPC] State: x=%.2f m, y=%.2f m, θ=%.2f rad, vx=%.2f m/s, vy=%.2f m/s, ω=%.2f rad/s, ωw=%.1f rad/s\n",
+        printf("[MPC] State: x=%.2f m, y=%.2f m, θ=%.2f rad, vx=%.2f m/s, vy=%.2f m/s, ω=%.2f rad/s\n",
                position_x_meters, position_y_meters, heading_angle_radians,
-               velocity_x_meters_per_second, velocity_y_meters_per_second, yaw_rate_radians_per_second,
-               wheel_speed_estimate);
+               velocity_x_meters_per_second, velocity_y_meters_per_second, yaw_rate_radians_per_second);
 
         /*
          * Build reference trajectory from loaded waypoints.
@@ -732,7 +657,7 @@ void odometry_subscription_callback(const void *message_in)
             /* Compute velocity magnitude for waypoint lookup and reference building */
             double velocity_magnitude = sqrt(velocity_x_meters_per_second * velocity_x_meters_per_second +
                                              velocity_y_meters_per_second * velocity_y_meters_per_second);
-            build_reference_from_trajectory(closest_index, velocity_magnitude);
+            build_reference_from_trajectory(closest_index);
 
             /* Convert global pose to Frenet state for MPC */
             convert_to_frenet_state(position_x_meters, position_y_meters,
@@ -796,8 +721,7 @@ void odometry_subscription_callback(const void *message_in)
                         rcl_get_error_string().str);
             }
 
-            /* Publish full trajectory path occasionally for RViz */
-            if ((global_odometry_callback_counter % g_odom_divider) == 0)
+            /* Publish full trajectory path for RViz */
             {
                 global_trajectory_path_message.header.stamp = odometry_message->header.stamp;
                 rcl_ret_t trajectory_publish_result = rcl_publish(
@@ -827,8 +751,6 @@ void odometry_subscription_callback(const void *message_in)
                 global_vehicle_state.lateral_velocity_meters_per_second;
             global_frenet_state.yaw_rate_radians_per_second =
                 global_vehicle_state.yaw_rate_radians_per_second;
-            global_frenet_state.wheel_speed_radians_per_second =
-                global_vehicle_state.wheel_speed_radians_per_second;
 
             for (int step = 0; step < MPC_PREDICTION_HORIZON_STEPS; step++)
             {
@@ -840,61 +762,12 @@ void odometry_subscription_callback(const void *message_in)
                 global_reference_trajectory[step].reference_velocity_meters_per_second = target_velocity;
                 global_reference_trajectory[step].reference_lateral_velocity_meters_per_second = 0;
                 global_reference_trajectory[step].reference_yaw_rate_radians_per_second = 0;
-                global_reference_trajectory[step].reference_wheel_speed_radians_per_second =
-                    DOUBLE_TO_FP(VX_TO_WHEEL_SPEED(1.0));
             }
         }
 
         /* Run MPC to compute optimal control */
         MpcSolverResult_t mpc_result;
         MpcSolverStatus_t mpc_status;
-        
-        /* LOW-SPEED GUARD: At very low speed (< 0.5 m/s), the dynamic model
-         * linearization is degenerate (vx appears in denominator of tire
-         * slip angle). The QP produces garbage steering that accumulates
-         * heading errors.  Instead: steer straight and accelerate. */
-        double current_vx = FP_TO_DOUBLE(
-            global_vehicle_state.longitudinal_velocity_meters_per_second);
-        const double MIN_SPEED_FOR_MPC = g_min_speed_for_mpc;
-        
-        if (fabs(current_vx) < MIN_SPEED_FOR_MPC)
-        {
-            /* Bypass MPC: drive straight, accelerate to trajectory velocity */
-            double trajectory_ref_velocity =
-                global_trajectory[global_last_closest_index].velocity_meters_per_second;
-            double velocity_command_mps = trajectory_ref_velocity;
-            double v_cmd_ceiling = fabs(current_vx) + g_speed_ramp;
-            if (velocity_command_mps > v_cmd_ceiling)
-                velocity_command_mps = v_cmd_ceiling;
-            if (velocity_command_mps > g_max_speed)
-                velocity_command_mps = g_max_speed;
-            if (velocity_command_mps < 0.0) velocity_command_mps = 0.0;
-            
-            /* Steer toward trajectory heading (simple proportional) */
-            double traj_heading = global_trajectory[global_last_closest_index].heading_radians;
-            double heading_error = traj_heading - heading_angle_radians;
-            /* Wrap to ±π */
-            while (heading_error > 3.14159) heading_error -= 2.0 * 3.14159;
-            while (heading_error < -3.14159) heading_error += 2.0 * 3.14159;
-            double low_speed_steer = 0.5 * heading_error; /* proportional gain */
-            if (low_speed_steer > 0.2) low_speed_steer = 0.2;
-            if (low_speed_steer < -0.2) low_speed_steer = -0.2;
-            
-            /* Update the rate-limiter's previous steering so MPC transition
-             * is smooth (no jump from 0 to MPC's first output) */
-            previous_steering_command = low_speed_steer;
-
-            global_control_command.steering_angle_radians =
-                DOUBLE_TO_FP(low_speed_steer);
-            global_control_command.motor_torque_newton_meters =
-                DOUBLE_TO_FP(velocity_command_mps);
-            
-            printf("[MPC] LOW-SPEED: steer=%.3f rad, v_cmd=%.2f m/s (vx=%.2f, θ_err=%.3f)\n",
-                   low_speed_steer, velocity_command_mps, current_vx, heading_error);
-            fflush(stdout);
-        }
-        else
-        {
         struct timespec mpc_t0, mpc_t1;
         clock_gettime(CLOCK_MONOTONIC, &mpc_t0);
         mpc_status = mpc_compute_optimal_control(
@@ -912,95 +785,23 @@ void odometry_subscription_callback(const void *message_in)
             double steering_command_radians = FP_TO_DOUBLE(
                 mpc_result.optimal_control.steering_angle_radians);
             
-            /* Extract motor torque from MPC result (for logging).
-             * The 6-state Frenet MPC optimizes [steering, motor_torque].
-             */
-            double torque_command_nm = FP_TO_DOUBLE(
-                mpc_result.optimal_control.motor_torque_newton_meters);
-            
-            /* Velocity command for the simulator:
-             * The sim uses a PID speed controller, so we send the trajectory
-             * reference velocity directly. The MPC's torque channel is used
-             * internally for prediction, not as the speed command.
-             *
-             * For the REAL CAR with VESC, the torque → velocity conversion
-             * should be used instead:
-             *   wheel_accel = T_motor * G / Iw
-             *   delta_vx = Rw * wheel_accel * dt
-             *   v_cmd = current_vx + delta_vx
-             */
-            /* current_vx already declared above for low-speed guard */
-            
-            /* Speed command for the simulator:
-             * Use the trajectory reference velocity, with a progressive ramp
-             * to prevent sending 20 m/s from standstill. The sim has its own
-             * PID speed controller with acceleration limits, so we can be
-             * more aggressive than the MPC internal ramp. */
-            double trajectory_ref_velocity =
-                global_trajectory[global_last_closest_index].velocity_meters_per_second;
+            /* Extract acceleration from MPC result. */
+            double accel_cmd = FP_TO_DOUBLE(
+                mpc_result.optimal_control.acceleration_meters_per_second_squared);
 
-            /* Curvature-based speed limit with proper braking profile.
-             * For each waypoint ahead, compute the max cornering speed:
-             *   v_corner = sqrt(a_lat_max / |kappa|)
-             * Then back-calculate the max speed NOW using kinematics:
-             *   v_now = sqrt(v_corner² + 2 * a_brake * distance)
-             * This means: go fast on straights, brake smoothly into corners. */
-            {
-                const double a_brake = 5.0; /* braking deceleration (m/s²) */
-                const double wp_spacing = 0.346; /* approximate waypoint spacing (m) */
-                double v_limit = 1e6; /* start with no limit */
-                int lookahead = (int)g_curvature_lookahead;
-                for (int la = 0; la <= lookahead; la++)
-                {
-                    int wp_idx = (global_last_closest_index + la) % global_trajectory_count;
-                    double k = fabs(global_trajectory[wp_idx].curvature_radians_per_meter);
-                    if (k < 0.001) k = 0.001; /* prevent div-by-zero */
-                    double v_corner = sqrt(g_max_lateral_accel / k);
-                    double dist = la * wp_spacing;
-                    /* v_now² = v_corner² + 2*a_brake*dist */
-                    double v_now = sqrt(v_corner * v_corner + 2.0 * a_brake * dist);
-                    if (v_now < v_limit) v_limit = v_now;
-                }
-                if (trajectory_ref_velocity > v_limit)
-                    trajectory_ref_velocity = v_limit;
-            }
-
-            double velocity_command_mps = trajectory_ref_velocity;
-            double v_cmd_ceiling = current_vx + g_speed_ramp;
-            if (velocity_command_mps > v_cmd_ceiling)
-                velocity_command_mps = v_cmd_ceiling;
-            if (velocity_command_mps > g_max_speed)
-                velocity_command_mps = g_max_speed;
-            if (velocity_command_mps < 0.0) velocity_command_mps = 0.0;
-            
             double distance_from_trajectory = fabs(
                 FP_TO_DOUBLE(global_frenet_state.lateral_error_meters));
 
-            /* Curvature feedforward steering: pre-steer for the current
-             * trajectory curvature so MPC only handles corrections.
-             * δ_ff = atan(L * κ) where L=0.3302m is the wheelbase. */
-            double current_kappa = global_trajectory[global_last_closest_index].curvature_radians_per_meter;
-            double steer_feedforward = g_feedforward_gain * atan(0.3302 * current_kappa);
-            steering_command_radians += steer_feedforward;
-
-            /* ESC removed — Pacejka nonlinear tire model in the
-             * linearization naturally reduces B-matrix gain at high
-             * slip angles, preventing the yaw-rate cascade without
-             * blocking necessary curve-following steering. */
-
-            /* Apply safety saturation */
-            saturate_control_commands(&steering_command_radians, &velocity_command_mps);
-
-            /* Store control command:
-             * steering_angle_radians: direct MPC output
-             * motor_torque_newton_meters: stores velocity command for sim/VESC */
+            /* Store direct MPC output.
+             * gym_bridge uses control_input=['accl','steering_angle'] and
+             * interprets drive.speed as acceleration. */
             global_control_command.steering_angle_radians =
                 DOUBLE_TO_FP(steering_command_radians);
-            global_control_command.motor_torque_newton_meters =
-                DOUBLE_TO_FP(velocity_command_mps);
+            global_control_command.acceleration_meters_per_second_squared =
+                DOUBLE_TO_FP(accel_cmd);
 
-            printf("[MPC] Control: steer=%.4f rad (raw=%.4f, ff=%.3f), torque=%.2f Nm, v_cmd=%.2f m/s (status=%d, iter=%d, dist=%.2f, solve=%.1fus)\n",
-                   steering_command_radians, FP_TO_DOUBLE(mpc_result.optimal_control.steering_angle_radians), steer_feedforward, torque_command_nm, velocity_command_mps,
+                 printf("[MPC] Control: steer=%.4f rad, accel=%.2f m/s² (status=%d, iter=%d, dist=%.2f, solve=%.1fus)\n",
+                     steering_command_radians, accel_cmd,
                    mpc_status, mpc_result.iterations_used, distance_from_trajectory, mpc_solve_us);
             fflush(stdout);
         }
@@ -1008,7 +809,6 @@ void odometry_subscription_callback(const void *message_in)
         {
             printf("[MPC] WARNING: Solver status=%d, keeping previous command\n", mpc_status);
         }
-        } /* end of else (speed >= MIN_SPEED_FOR_MPC) */
     }
 
     /* Publish drive command every callback (not just when MPC runs) */
@@ -1017,11 +817,10 @@ void odometry_subscription_callback(const void *message_in)
         global_drive_message_buffer.drive.steering_angle = FP_TO_FLOAT(
             global_control_command.steering_angle_radians);
 
-        /* The MPC solve block converted torque→velocity and stored
-         * the velocity command in motor_torque_newton_meters field. */
+        /* gym_bridge configured with control_input=['accl','steering_angle']
+         * interprets drive.speed as acceleration command. */
         float speed_cmd = FP_TO_FLOAT(
-            global_control_command.motor_torque_newton_meters);
-        if (speed_cmd < 0.0f) speed_cmd = 0.0f;
+            global_control_command.acceleration_meters_per_second_squared);
         global_drive_message_buffer.drive.speed = speed_cmd;
 
         rcl_ret_t publish_result = rcl_publish(
@@ -1038,6 +837,48 @@ void odometry_subscription_callback(const void *message_in)
     global_odometry_callback_counter++;
 }
 
+/**
+ * @brief Callback for collision messages
+ *
+ * Shuts down the MPC node when a collision is detected.
+ *
+ * @param message_in Pointer to incoming std_msgs/Bool message
+ */
+void collision_subscription_callback(const void *message_in)
+{
+    if (message_in == NULL)
+    {
+        return;
+    }
+
+    const std_msgs__msg__Bool *collision_message =
+        (const std_msgs__msg__Bool *)message_in;
+
+    if (!collision_message->data || global_collision_detected)
+    {
+        return;
+    }
+
+    global_collision_detected = 1;
+    fprintf(stderr, "[MPC] COLLISION detected on /ego_racecar/collision. Shutting down MPC node.\n");
+
+    if (global_ros2_context != NULL && rcl_context_is_valid(global_ros2_context))
+    {
+        rcl_ret_t shutdown_result = rcl_shutdown(global_ros2_context);
+        if (shutdown_result != RCL_RET_OK)
+        {
+            fprintf(stderr, "[ROS2] WARNING: rcl_shutdown failed: %s\n",
+                    rcl_get_error_string().str);
+            rcl_reset_error();
+            raise(SIGINT);
+        }
+    }
+    else
+    {
+        raise(SIGINT);
+    }
+}
+
 /*===========================================================================
  * Main Entry Point
  *===========================================================================*/
@@ -1046,21 +887,16 @@ int main(int argc, char *argv[])
 {
     printf("============================================================\n");
     printf("  MPC ROS2 Node for F1/10th Simulator (Jazzy)\n");
-    printf("  6-state Frenet model [e_y, e_ψ, vx, vy, ω, ωw]\n");
-    printf("  Controls: [δ, T_motor]\n");
+    printf("  5-state Frenet model [e_y, e_ψ, vx, vy, ω]\n");
+    printf("  Controls: [δ, a_x]\n");
     printf("============================================================\n");
     printf("  Prediction horizon: %d steps (%.1f ms each)\n",
            MPC_PREDICTION_HORIZON_STEPS,
            MPC_TIME_STEP_SECONDS * 1000.0f);
-    printf("  Max steering: %.2f rad (%.1f°)\n",
-           MAXIMUM_STEERING_ANGLE_RADIANS,
-           MAXIMUM_STEERING_ANGLE_RADIANS * 180.0f / 3.14159f);
-    printf("  Max velocity: %.1f m/s\n",
-           MAXIMUM_VELOCITY_METERS_PER_SECOND);
     printf("  Trajectory speed gain: %.2f, max velocity: %.1f m/s\n",
            TRAJECTORY_SPEED_GAIN, TRAJECTORY_MAXIMUM_VELOCITY);
     printf("------------------------------------------------------------\n");
-    printf("  Subscribe: /ego_racecar/odom (nav_msgs/Odometry)\n");
+    printf("  Subscribe: /ego_racecar/ground_truth (nav_msgs/Odometry)\n");
     printf("  Publish:   /drive (ackermann_msgs/AckermannDriveStamped)\n");
     printf("============================================================\n\n");
 
@@ -1069,32 +905,9 @@ int main(int argc, char *argv[])
     /* Initialize MPC controller (includes vehicle model initialization) */
     mpc_initialize();
 
-    /* Configure MPC for simulation: ODOMETRY_CALLBACK_DIVIDER=1 runs
-     * MPC at ~250 Hz (every odom callback). */
-    {
-        MpcConfiguration_t cfg = mpc_get_configuration();
-        cfg.cross_call_rate_scale = FP_CONST(0.3);    /* Allow inter-call steering changes */
-        mpc_set_configuration(&cfg);
-    }
-
-    /* Load runtime parameters from environment variables (no rebuild needed).
-     * Example: MPC_W_LAT_ERROR=2.0 MPC_W_HEADING=5.0 ros2 launch ... */
+    /* Load runtime parameters from environment variables (no rebuild needed). */
     {
         const char *env_val;
-        if ((env_val = getenv("MPC_MIN_SPEED")) != NULL)
-            g_min_speed_for_mpc = atof(env_val);
-        if ((env_val = getenv("MPC_MAX_SPEED")) != NULL)
-            g_max_speed = atof(env_val);
-        if ((env_val = getenv("MPC_SPEED_RAMP")) != NULL)
-            g_speed_ramp = atof(env_val);
-        if ((env_val = getenv("MPC_STEER_RATE_LIMIT")) != NULL)
-            g_steer_rate_limit = atof(env_val);
-        if ((env_val = getenv("MPC_FEEDFORWARD")) != NULL)
-            g_feedforward_gain = atof(env_val);
-        if ((env_val = getenv("MPC_MAX_LAT_ACCEL")) != NULL)
-            g_max_lateral_accel = atof(env_val);
-        if ((env_val = getenv("MPC_CURV_LOOKAHEAD")) != NULL)
-            g_curvature_lookahead = atof(env_val);
         if ((env_val = getenv("MPC_RATE_DIVIDER")) != NULL) {
             int div = atoi(env_val);
             if (div >= 1 && div <= 100) g_odom_divider = div;
@@ -1118,14 +931,6 @@ int main(int argc, char *argv[])
             FP_TO_DOUBLE(mpc_config.weight_steering_effort));
         printf("[MPC] cross_call_scale=%.2f\n",
             FP_TO_DOUBLE(mpc_config.cross_call_rate_scale));
-        printf("[MPC] Frenet MPC: min_speed=%.1f m/s\n",
-            g_min_speed_for_mpc);
-        printf("[MPC] Speed: max=%.1f m/s, ramp=%.1f m/s per step\n",
-            g_max_speed, g_speed_ramp);
-        printf("[MPC] Steer rate limit: %.2f rad/step (%.1f rad/s at 20Hz)\n",
-            g_steer_rate_limit, g_steer_rate_limit * 20.0);
-        printf("[MPC] Feedforward: gain=%.2f, max_lat_accel=%.1f m/s², curv_lookahead=%.0f wp\n",
-            g_feedforward_gain, g_max_lateral_accel, g_curvature_lookahead);
 
     /* Load trajectory from CSV file */
     const char *trajectory_file = NULL;
@@ -1201,6 +1006,7 @@ int main(int argc, char *argv[])
         return 1;
     }
     printf("[ROS2] Context initialized\n");
+    global_ros2_context = &ros2_context;
 
     /* Create ROS2 Node */
     rcl_node_t ros2_node = rcl_get_zero_initialized_node();
@@ -1225,15 +1031,34 @@ int main(int argc, char *argv[])
         &odometry_subscription,
         &ros2_node,
         odometry_type_support,
-        "/ego_racecar/odom",
+        "/ego_racecar/ground_truth",
         &subscription_options);
     if (return_code != RCL_RET_OK)
     {
-        fprintf(stderr, "[ROS2] ERROR: Failed to create odometry subscription: %s\n",
+        fprintf(stderr, "[ROS2] ERROR: Failed to create state subscription: %s\n",
                 rcl_get_error_string().str);
         return 1;
     }
-    printf("[ROS2] Subscribed to /ego_racecar/odom\n");
+    printf("[ROS2] Subscribed to /ego_racecar/ground_truth\n");
+
+    /* Create Collision Subscription */
+    rcl_subscription_t collision_subscription = rcl_get_zero_initialized_subscription();
+    const rosidl_message_type_support_t *collision_type_support =
+        ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Bool);
+
+    return_code = rcl_subscription_init(
+        &collision_subscription,
+        &ros2_node,
+        collision_type_support,
+        "/ego_racecar/collision",
+        &subscription_options);
+    if (return_code != RCL_RET_OK)
+    {
+        fprintf(stderr, "[ROS2] ERROR: Failed to create collision subscription: %s\n",
+                rcl_get_error_string().str);
+        return 1;
+    }
+    printf("[ROS2] Subscribed to /ego_racecar/collision\n");
 
     /* Create Control Command Publisher */
     global_control_publisher = rcl_get_zero_initialized_publisher();
@@ -1303,6 +1128,9 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    /* Initialize collision message buffer (incoming) */
+    std_msgs__msg__Bool__init(&global_collision_message_buffer);
+
     /* Initialize drive message buffer (outgoing) */
     ackermann_msgs__msg__AckermannDriveStamped__init(&global_drive_message_buffer);
     if (!preallocate_rosidl_string(&global_drive_message_buffer.header.frame_id, 64))
@@ -1332,7 +1160,7 @@ int main(int argc, char *argv[])
     rclc_executor_t ros2_executor = rclc_executor_get_zero_initialized_executor();
     rcl_allocator_t memory_allocator = rcl_get_default_allocator();
 
-    return_code = rclc_executor_init(&ros2_executor, &ros2_context, 1, &memory_allocator);
+    return_code = rclc_executor_init(&ros2_executor, &ros2_context, 2, &memory_allocator);
     if (return_code != RCL_RET_OK)
     {
         fprintf(stderr, "[ROS2] ERROR: Failed to initialize executor: %s\n",
@@ -1354,6 +1182,19 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    return_code = rclc_executor_add_subscription(
+        &ros2_executor,
+        &collision_subscription,
+        &global_collision_message_buffer,
+        &collision_subscription_callback,
+        ON_NEW_DATA);
+    if (return_code != RCL_RET_OK)
+    {
+        fprintf(stderr, "[ROS2] ERROR: Failed to add collision subscription to executor: %s\n",
+                rcl_get_error_string().str);
+        return 1;
+    }
+
     printf("[ROS2] Executor ready\n");
     printf("\n[MPC] Spinning... (waiting for odometry messages)\n\n");
 
@@ -1364,11 +1205,13 @@ int main(int argc, char *argv[])
     printf("\n[ROS2] Shutting down...\n");
     rclc_executor_fini(&ros2_executor);
     nav_msgs__msg__Odometry__fini(&global_odometry_message_buffer);
+    std_msgs__msg__Bool__fini(&global_collision_message_buffer);
     ackermann_msgs__msg__AckermannDriveStamped__fini(&global_drive_message_buffer);
     nav_msgs__msg__Path__fini(&global_reference_path_message);
     nav_msgs__msg__Path__fini(&global_trajectory_path_message);
     rcl_ret_t rc;  /* Suppress unused-result warnings for cleanup */
     rc = rcl_subscription_fini(&odometry_subscription, &ros2_node); (void)rc;
+    rc = rcl_subscription_fini(&collision_subscription, &ros2_node); (void)rc;
     rc = rcl_publisher_fini(&global_control_publisher, &ros2_node); (void)rc;
     rc = rcl_publisher_fini(&global_reference_path_publisher, &ros2_node); (void)rc;
     rc = rcl_publisher_fini(&global_trajectory_path_publisher, &ros2_node); (void)rc;

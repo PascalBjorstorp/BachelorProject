@@ -154,8 +154,23 @@ void FollowTheGap::applyDisparityExtension(ProcessedScan& scan) {
     
     std::vector<double>& ranges = scan.filtered_ranges;
     const double half_car = config_.car_width / 2.0;
+    const auto& lidar_config = lidar_processor_.getConfig();
+    
+    // Cap extension to prevent blocking the entire scan
+    // At most extend ~15 degrees worth of beams
+    const int max_extension = static_cast<int>(
+        std::ceil(0.26 / std::abs(scan.angle_increment))  // ~15 degrees
+    );
     
     for (size_t i = 1; i < ranges.size(); ++i) {
+        // Only process disparities between two VALID points within our angular range
+        if (!scan.valid[i] || !scan.valid[i-1]) continue;
+        
+        double angle_i = scan.angles[i];
+        double angle_im1 = scan.angles[i-1];
+        if (angle_i < lidar_config.angle_min || angle_i > lidar_config.angle_max) continue;
+        if (angle_im1 < lidar_config.angle_min || angle_im1 > lidar_config.angle_max) continue;
+        
         double diff = std::abs(ranges[i] - ranges[i-1]);
         
         if (diff > config_.disparity_threshold) {
@@ -163,29 +178,36 @@ void FollowTheGap::applyDisparityExtension(ProcessedScan& scan) {
             size_t closer_idx = (ranges[i] < ranges[i-1]) ? i : i-1;
             double closer_range = ranges[closer_idx];
             
+            // Skip artificial disparities: if the closer reading was already
+            // set by a previous extension, this is a cascade boundary, not a
+            // real obstacle edge. Without this check, each extension's
+            // boundary triggers a new extension, chaining across the scan.
+            if (scan.disparity_blocked[closer_idx]) continue;
+            
             // Calculate how many indices to extend based on car width
             double angle_to_extend = std::atan2(half_car, closer_range);
-            int indices_to_extend = static_cast<int>(
-                std::ceil(angle_to_extend / std::abs(scan.angle_increment))
+            int indices_to_extend = std::min(
+                static_cast<int>(std::ceil(angle_to_extend / std::abs(scan.angle_increment))),
+                max_extension
             );
             
             // Extend in the appropriate direction
             if (closer_idx == i) {
-                // Closer point is on the right, extend left
+                // Closer point is on the right, extend left (into the gap behind)
                 for (int j = 0; j < indices_to_extend && static_cast<int>(i) - j >= 0; ++j) {
                     size_t idx = i - j;
-                    if (ranges[idx] > closer_range) {
-                        scan.disparity_blocked[idx] = true;  // Mark as blocked
+                    if (scan.valid[idx] && ranges[idx] > closer_range) {
+                        scan.disparity_blocked[idx] = true;
                         ranges[idx] = closer_range;
                     }
                 }
             } else {
-                // Closer point is on the left, extend right
+                // Closer point is on the left, extend right (into the gap ahead)
                 size_t closer_point_idx = i - 1;
                 for (int j = 0; j < indices_to_extend && closer_point_idx + j < ranges.size(); ++j) {
                     size_t idx = closer_point_idx + j;
-                    if (ranges[idx] > closer_range) {
-                        scan.disparity_blocked[idx] = true;  // Mark as blocked
+                    if (scan.valid[idx] && ranges[idx] > closer_range) {
+                        scan.disparity_blocked[idx] = true;
                         ranges[idx] = closer_range;
                     }
                 }
@@ -295,6 +317,39 @@ std::vector<Gap> FollowTheGap::findGaps(const ProcessedScan& scan) {
         }
     }
     
+    // Trim gap edges: discard first/last N indices from each gap to avoid
+    // driving toward extremities near obstacles. Recompute deepest point
+    // within the trimmed range.
+    if (config_.gap_edge_trim > 0) {
+        for (auto& gap : gaps) {
+            size_t trim = static_cast<size_t>(config_.gap_edge_trim);
+            size_t gap_width = gap.end_idx - gap.start_idx + 1;
+            
+            // Only trim if gap is wide enough (need at least 1 index after trimming)
+            if (gap_width > 2 * trim) {
+                gap.start_idx += trim;
+                gap.end_idx -= trim;
+                gap.start_angle = scan.angles[gap.start_idx];
+                gap.end_angle = scan.angles[gap.end_idx];
+                gap.angular_width = gap.end_angle - gap.start_angle;
+                
+                // Recompute deepest point within trimmed range
+                gap.deepest_range = 0.0;
+                gap.min_range = std::numeric_limits<double>::infinity();
+                gap.max_range = 0.0;
+                for (size_t j = gap.start_idx; j <= gap.end_idx; ++j) {
+                    double r = scan.filtered_ranges[j];
+                    if (r > gap.deepest_range) {
+                        gap.deepest_range = r;
+                        gap.deepest_idx = j;
+                    }
+                    gap.min_range = std::min(gap.min_range, r);
+                    gap.max_range = std::max(gap.max_range, r);
+                }
+            }
+        }
+    }
+    
     return gaps;
 }
 
@@ -322,8 +377,15 @@ Gap FollowTheGap::findBestGap(const std::vector<Gap>& gaps) {
 // ============================================
 
 double FollowTheGap::calculateTargetAngle(const Gap& gap, const ProcessedScan& scan) {
-    // Target the deepest point in the gap (standard FTG behavior)
-    return scan.angles[gap.deepest_idx];
+    // Deepest point angle (standard FTG — chases furthest open space)
+    double deepest_angle = scan.angles[gap.deepest_idx];
+    
+    // Gap center angle (centers the car between gap edges)
+    double center_angle = gap.centerAngle();
+    
+    // Blend: center_weight=1.0 → pure centering, 0.0 → pure deepest
+    double w = math::clamp(config_.center_weight, 0.0, 1.0);
+    return w * center_angle + (1.0 - w) * deepest_angle;
 }
 
 double FollowTheGap::calculateSpeed(const Gap& gap, double steering_angle) {

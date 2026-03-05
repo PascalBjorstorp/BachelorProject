@@ -19,6 +19,32 @@
 #include <string.h>
 #include <stdio.h>
 
+/**
+ * Integer square root of a non-negative int64 value.
+ * Uses Newton's method. Returns floor(sqrt(n)).
+ */
+static uint32_t isqrt64(int64_t n)
+{
+    if (n <= 0) return 0;
+    uint64_t x = (uint64_t)n;
+    /* Initial estimate: 2^(bits/2) */
+    int bits = 0;
+    uint64_t tmp = x;
+    while (tmp > 0) { tmp >>= 1; bits++; }
+    uint64_t r = 1ULL << (bits / 2);
+    /* Newton iterations (converges in ~6 for 64-bit) */
+    for (int i = 0; i < 8; i++)
+    {
+        uint64_t next = (r + x / r) / 2;
+        if (next >= r) break; /* converged */
+        r = next;
+    }
+    /* Fine-tune */
+    while (r * r > x) r--;
+    while ((r + 1) * (r + 1) <= x) r++;
+    return (uint32_t)r;
+}
+
 typedef struct
 {
     uint8_t nonzero_count;
@@ -290,84 +316,81 @@ QuadraticProgramStatus_t qp_solver_solve(
         constraint_metadata);
 
     /*
-     * Compute per-variable step sizes using Gershgorin row sums.
+     * Compute per-variable step sizes using diagonal preconditioning.
      *
-     * For projected gradient descent, convergence requires:
-     *   step_size < 2 / lambda_max(H)
+     * Problem: the raw Gershgorin row sums treat all variables equally,
+     * but steering has H_diag ~240K while accel has ~30M — a 125x ratio.
+     * This causes PGD to take tiny steps for steering (row_sum ~120M
+     * dominated by off-diagonal coupling) while accel converges quickly.
      *
-     * Using a GLOBAL step size is problematic because different variables
-     * (steering vs velocity) have very different Hessian eigenvalues.
-     * At high velocity, steering Hessian diagonal ≈ 184, while
-     * velocity diagonal ≈ 2.4, requiring step < 0.001 globally — far
-     * too slow for velocity convergence.
+     * Solution: Diagonal preconditioning.  Scale the QP by D = diag(sqrt(H_ii)):
+     *   H_tilde = D^{-1} H D^{-1}   (has unit diagonal)
+     *   Gershgorin on H_tilde: L_tilde_i = sum_j |H[i][j]| / (sqrt(H_ii)*sqrt(H_jj))
      *
-     * Solution: Use per-variable step sizes based on Gershgorin row sums.
-     * For each variable i, the step size is:
+     * The effective step size in original u-space becomes:
+     *   step_denom[i] = sqrt(H_ii) * sum_j (|H[i][j]| / sqrt(H_jj))
      *
-     *   step[i] = 1 / gershgorin_radius[i]
-     *   gershgorin_radius[i] = |H[i][i]| + Σ_{j≠i} |H[i][j]|
-     *
-     * This guarantees convergence for all variables simultaneously while
-     * allowing each to converge at its own natural rate.
-     *
-     * CRITICAL FIX: The previous fixed step_size of 0.03 caused divergence
-     * at high velocities where the steering Hessian eigenvalue >> 2/0.03.
-     * This was the root cause of the "car randomly turning" bug.
+     * This gives much tighter bounds for poorly-conditioned variables
+     * while maintaining convergence guarantees.
      */
-    fixed_point_t inv_row_sum[QP_MAXIMUM_VARIABLES];
+    int64_t step_denom_64[QP_MAXIMUM_VARIABLES];
 
+    /* Phase 1: compute sqrt of each diagonal element */
+    uint32_t sqrt_diag[QP_MAXIMUM_VARIABLES];
+    for (uint16_t j = 0; j < variable_count; j++)
+    {
+        int64_t hd = (int64_t)problem->hessian_matrix[j * variable_count + j];
+        if (hd < 0) hd = -hd;
+        if (hd == 0) hd = 1;
+        sqrt_diag[j] = isqrt64(hd);
+        if (sqrt_diag[j] == 0) sqrt_diag[j] = 1;
+    }
+
+    /* Phase 2: compute preconditioned Gershgorin step denominators */
     for (uint16_t i = 0; i < variable_count; i++)
     {
-        /* Compute Gershgorin row sum using int64_t to avoid overflow */
-        int64_t row_sum_64 = 0;
+        /* Scaled row sum: sum_j |H[i][j]| / sqrt(H[j][j]) */
+        int64_t scaled_row_sum = 0;
         for (uint16_t j = 0; j < variable_count; j++)
         {
             int64_t hij = (int64_t)problem->hessian_matrix[i * variable_count + j];
             if (hij < 0) hij = -hij;
-            row_sum_64 += hij;
+            scaled_row_sum += hij / (int64_t)sqrt_diag[j];
         }
 
-        /* Clamp to Q16.16 range before division */
-        fixed_point_t row_sum;
-        if (row_sum_64 > INT32_MAX)
-            row_sum = INT32_MAX;
-        else
-            row_sum = (fixed_point_t)row_sum_64;
+        /* step_denom = sqrt(H[i][i]) * scaled_row_sum */
+        step_denom_64[i] = (int64_t)sqrt_diag[i] * scaled_row_sum;
 
-        /* step[i] = 1 / row_sum using Newton-Raphson reciprocal
-         * (multiplication-only, no hardware division — FPGA-friendly) */
-        if (row_sum > FP_ONE)
-        {
-            inv_row_sum[i] = fp_recip(row_sum);
-        }
-        else
-        {
-            inv_row_sum[i] = config->gradient_step_size;
-        }
+        /* Floor: prevent division by zero or huge steps */
+        if (step_denom_64[i] < (int64_t)FP_ONE)
+            step_denom_64[i] = (int64_t)FP_ONE;
 
         /* Debug: print first call's Hessian diagnostics */
         if (config->enable_verbose_output && i < 4)
         {
-            printf("[QP] H_diag[%d]=%d row_sum_64=%lld step=%d\n",
+            printf("[QP] H_diag[%d]=%d sqrt_diag=%u step_denom=%lld scaled_rs=%lld\n",
                    i, (int)problem->hessian_matrix[i * variable_count + i],
-                   (long long)row_sum_64, (int)inv_row_sum[i]);
+                   sqrt_diag[i],
+                   (long long)step_denom_64[i], (long long)scaled_row_sum);
         }
     }
 
-    fixed_point_t tolerance_squared = fp_mul(
-        config->convergence_tolerance,
-        config->convergence_tolerance);
-
-    /* Main optimization loop */
+    /* Convergence threshold using int64 to avoid Q16.16 precision loss.
+     * In Q16.16: tol=1310 (0.02). fp_mul(1310,1310) = 26 (rounds to ~0).
+     * Using int64: (1310 * 1310) >> 16 with full precision = 26, still small.
+     * Instead compute in raw int64: tol_raw² = 1310² = 1,716,100.
+     * Then the step-norm is also accumulated in int64 raw units.
+     * This gives proper convergence detection. Trust-region bounds in
+     * the constraint matrix now prevent full-lock divergence instead of
+     * relying on broken convergence as an implicit trust region. */
+    /* Main optimization loop: projected gradient descent with int64 step
+     * computation and max-element convergence check. */
     for (int iteration = 0; iteration < config->maximum_iterations; iteration++)
     {
         solution->iteration_count = iteration;
 
         /*
          * Step 1: Compute gradient = H×u + f
-         * Uses symmetric mat-vec: Hessian is symmetric, so only the
-         * upper triangle is read. 2×2 block processing matches the
-         * control-pair structure. Halves memory reads.
          */
         fp_symmetric_mat_vec_mul(
             problem->hessian_matrix,
@@ -385,16 +408,21 @@ QuadraticProgramStatus_t qp_solver_solve(
         /*
          * Step 2: Gradient descent step with per-variable Gershgorin steps.
          *
-         * u_new[i] = u[i] - step[i] × gradient[i]
+         * u_new[i] = u[i] - gradient[i] / gershgorin_radius[i]
          *
-         * Each variable uses its own step size based on the Gershgorin
-         * row sum, ensuring convergence regardless of conditioning.
+         * Uses int64 division to avoid Q16.16 underflow when the
+         * Gershgorin radius exceeds INT32_MAX (common at high speed
+         * where the auto-scaled Hessian has row sums of 1-10B).
          */
         for (uint16_t index = 0; index < variable_count; index++)
         {
+            int64_t step64 = (int64_t)gradient[index] * (int64_t)FP_ONE
+                             / step_denom_64[index];
+            if (step64 > INT32_MAX) step64 = INT32_MAX;
+            else if (step64 < INT32_MIN) step64 = INT32_MIN;
             next_variables[index] = fp_sub(
                 solution->optimal_variables[index],
-                fp_mul(inv_row_sum[index], gradient[index]));
+                (fixed_point_t)step64);
         }
 
         /*
@@ -409,18 +437,23 @@ QuadraticProgramStatus_t qp_solver_solve(
             constraint_count);
 
         /*
-         * Step 4: Check convergence ||u_new - u||
+         * Step 4: Check convergence using max-abs per-variable step.
+         *
+         * max_i |u_new[i] - u[i]| < tolerance
+         *
+         * Sum-of-squares converged prematurely at high speed because
+         * Gershgorin steps (~100-500 raw) fell below the squared tolerance
+         * (1310² = 1.72M) with only 10 variables. Max-element is scale-
+         * independent and prevents false convergence.
          */
-        fixed_point_t step_norm_squared = 0;
+        fixed_point_t max_step = 0;
 
         for (uint16_t index = 0; index < variable_count; index++)
         {
-            fixed_point_t difference = fp_sub(
-                next_variables[index],
-                solution->optimal_variables[index]);
-
-            fixed_point_t difference_squared = fp_mul(difference, difference);
-            step_norm_squared = fp_add(step_norm_squared, difference_squared);
+            fixed_point_t diff = next_variables[index] -
+                                 solution->optimal_variables[index];
+            if (diff < 0) diff = -diff;
+            if (diff > max_step) max_step = diff;
         }
 
         /* Update solution with new variables */
@@ -429,12 +462,10 @@ QuadraticProgramStatus_t qp_solver_solve(
 
         /*
          * Step 5+6: Check termination criteria.
-         * Constraint residual is DEFERRED until the norm check passes,
+         * Constraint residual is DEFERRED until the step check passes,
          * avoiding the O(constraints) scan on every iteration.
-         * This is the single largest per-iteration savings since
-         * max_violation_sparse scans all constraint rows.
          */
-        if (step_norm_squared < tolerance_squared)
+        if (max_step < config->convergence_tolerance)
         {
             solution->constraint_residual = compute_max_violation_sparse(
                 problem->constraint_matrix,
@@ -454,9 +485,8 @@ QuadraticProgramStatus_t qp_solver_solve(
         /* Debug: print progress every 500 iterations */
         if (config->enable_verbose_output && (iteration % 500 == 0 || iteration == config->maximum_iterations - 1))
         {
-             printf("[QP] iter=%d step_norm_sq=%d tol_sq=%d residual=%d\n",
-                 iteration, (int)step_norm_squared, (int)tolerance_squared,
-                   (int)solution->constraint_residual);
+             printf("[QP] iter=%d max_step=%d tol=%d\n",
+                 iteration, (int)max_step, (int)config->convergence_tolerance);
         }
     }
 
@@ -522,7 +552,10 @@ void qp_solver_initialize_config(QuadraticProgramConfig_t *config)
      */
     config->gradient_step_size = (fixed_point_t)1966;  /* 0.03 in Q16.16 = 0.03 × 65536 ≈ 1966 */
 
-    /* Convergence tolerance of 0.001 (about 65 in fixed-point) */
+    /* Convergence tolerance: 0.001 in Q16.16 (raw=65).
+     * The MPC layer overrides this with its own tolerance (typically 0.005).
+     * Convergence check uses max-absolute-element (not sum-of-squares)
+     * to avoid Q16.16 quantization issues at high speed. */
     config->convergence_tolerance = (fixed_point_t)65;  /* 0.001 in Q16.16 ≈ 65 */
 
     /* Maximum iterations */

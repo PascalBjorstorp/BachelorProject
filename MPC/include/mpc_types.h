@@ -10,8 +10,8 @@
  * - Trajectory references
  * - Solver results
  *
- * Dynamic Bicycle Model States: [x, y, psi, v_x, v_y, omega, omega_w]
- * Control Inputs: [delta, T_motor]
+ * Dynamic Bicycle Model States: [x, y, psi, v_x, v_y, omega]
+ * Control Inputs: [delta, a]
  *
  * All numerical values use Q16.16 fixed-point for FPGA compatibility.
  * Units: SI (meters, radians, seconds, Newtons)
@@ -27,10 +27,10 @@
  * Vehicle State (Dynamic Bicycle Model)
  *===========================================================================
  * Represents the current state of the vehicle in the world frame.
- * Uses the 7-state dynamic bicycle model with tire and wheel dynamics.
+ * Uses the 6-state dynamic bicycle model.
  * This is the INPUT to the MPC solver (from localization or simulator).
  *
- * State vector ordering: [x, y, psi, v_x, v_y, omega, omega_w]
+ * State vector ordering: [x, y, psi, v_x, v_y, omega]
  */
 
 typedef struct
@@ -53,12 +53,6 @@ typedef struct
     /** Yaw rate [radians per second] */
     fixed_point_t yaw_rate_radians_per_second;
 
-    /** Wheel angular velocity [radians per second]
-     *  Single equivalent wheel speed for the 4WD drivetrain.
-     *  At steady state with zero slip: omega_w = v_x / R_w
-     */
-    fixed_point_t wheel_speed_radians_per_second;
-
 } VehicleState_t;
 
 /*===========================================================================
@@ -67,7 +61,7 @@ typedef struct
  * Represents the vehicle state relative to a reference path.
  * Used by the MPC solver for path-following with wall constraints.
  *
- * State vector ordering: [e_y, e_psi, v_x, v_y, omega, omega_w]
+ * State vector ordering: [e_y, e_psi, v_x, v_y, omega]
  *
  * Advantages over global XY:
  *   - Lateral error (e_y) directly maps to "distance from path"
@@ -93,22 +87,19 @@ typedef struct
     /** Yaw rate [radians per second] */
     fixed_point_t yaw_rate_radians_per_second;
 
-    /** Wheel angular velocity [radians per second] */
-    fixed_point_t wheel_speed_radians_per_second;
-
 } FrenetState_t;
 
 /** Number of states in the Frenet vehicle model */
-#define FRENET_STATE_DIMENSION 6
+#define FRENET_STATE_DIMENSION 5
 
 /*===========================================================================
  * Control Input
  ===========================================================================
  * The control signals computed by the MPC solver.
- * Steering angle is sent to the servo; motor torque is converted
- * to a motor command (current/duty) by the VESC controller.
+ * Steering angle is sent to the servo; acceleration is the
+ * longitudinal acceleration command.
  *
- * Control vector ordering: [delta, T_motor]
+ * Control vector ordering: [delta, a]
  */
 
 typedef struct
@@ -116,11 +107,8 @@ typedef struct
     /** Front wheel steering angle [radians] */
     fixed_point_t steering_angle_radians;
 
-    /** Motor torque [Newton-meters]
-     *  Converted to wheel torque: T_wheel = T_motor / G_ratio
-     *  Longitudinal force computed from wheel slip ratio.
-     */
-    fixed_point_t motor_torque_newton_meters;
+    /** Longitudinal acceleration [meters per second squared] */
+    fixed_point_t acceleration_meters_per_second_squared;
 
 } ControlInput_t;
 
@@ -208,16 +196,16 @@ typedef struct
     fixed_point_t minimum_velocity_meters_per_second;
 
     /**
-     * Maximum motor torque [Newton-meters]
-     * T_max = F_x_max * R_w * G_ratio. Typical: 35.57 * 0.0545 * 11.82 ≈ 22.9 N·m
+     * Maximum longitudinal acceleration [m/s²]
+     * Typical F1/10th value: 8.0 m/s²
      */
-    fixed_point_t maximum_motor_torque_newton_meters;
+    fixed_point_t maximum_acceleration_meters_per_second_squared;
 
     /**
-     * Minimum motor torque (braking) [Newton-meters]
-     * Negative value. T_min = F_x_min * R_w * G_ratio. Typical: -24.1 N·m
+     * Minimum longitudinal acceleration (braking) [m/s²]
+     * Negative value. Typical F1/10th value: -7.7 m/s²
      */
-    fixed_point_t minimum_motor_torque_newton_meters;
+    fixed_point_t minimum_acceleration_meters_per_second_squared;
 
     /** 
      * Longitudinal acceleration [m/s²]
@@ -228,38 +216,6 @@ typedef struct
      * Yaw heading rate [rad/s]
      */
     fixed_point_t omega;
-
-    /*
-     * Wheel / Drivetrain Parameters (7-state model)
-     */
-
-    /**
-     * Wheel radius [meters]
-     * Diameter 10.9 cm → R_w = 0.0545 m
-     */
-    fixed_point_t wheel_radius_meters;
-
-    /**
-     * Drivetrain inertia [kg·m²]
-     * Combined inertia of wheels + drivetrain (4WD, single equivalent).
-     * Typical F1/10th value: 2.223 kg·m²
-     */
-    fixed_point_t drivetrain_inertia_kgm2;
-
-    /**
-     * Longitudinal tire stiffness [Newtons]
-     * In the linear slip model: F_x = C_x * κ
-     * where κ = (R_w * ω_w - v_x) / max(|v_x|, ε)
-     * Typical F1/10th value: 100 N
-     */
-    fixed_point_t longitudinal_tire_stiffness;
-
-    /**
-     * Gear ratio (motor_speed / wheel_speed) [-]
-     * T_wheel = T_motor / G_ratio (speed reduction, torque multiplication).
-     * F1/10th Velineon 3500kV + spur/pinion: 11.82
-     */
-    fixed_point_t gear_ratio;
 
 } VehicleParameters_t;
 
@@ -305,20 +261,17 @@ typedef struct
     /** Weight for yaw rate tracking error */
     fixed_point_t weight_yaw_rate;
 
-    /** Weight for wheel speed tracking error */
-    fixed_point_t weight_wheel_speed;
-
     /** Weight for steering angle magnitude (penalizes large steering) */
     fixed_point_t weight_steering_effort;
 
-    /** Weight for motor torque magnitude (penalizes large torque) */
-    fixed_point_t weight_torque_effort;
+    /** Weight for acceleration magnitude (penalizes large acceleration) */
+    fixed_point_t weight_acceleration_effort;
 
     /** Weight for steering rate (penalizes jerky steering changes) */
     fixed_point_t weight_steering_rate;
 
-    /** Weight for torque rate (penalizes jerky torque changes) */
-    fixed_point_t weight_torque_rate;
+    /** Weight for acceleration rate (penalizes jerky acceleration changes) */
+    fixed_point_t weight_acceleration_rate;
 
     /** Cross-call rate penalty scale factor.
      *
@@ -370,11 +323,6 @@ typedef struct
 
     /** Target yaw rate [radians per second] */
     fixed_point_t reference_yaw_rate_radians_per_second;
-
-    /** Target wheel speed [radians per second]
-     *  Typically v_ref / R_w (zero-slip equilibrium)
-     */
-    fixed_point_t reference_wheel_speed_radians_per_second;
 
     /** Path curvature at this point [radians per meter]
      *  Used for Frenet frame linearization: e_psi_dot = omega - kappa * v_x
@@ -445,13 +393,13 @@ typedef struct
  * Core Kinematic Parameters (used by MPC)
  *---------------------------------------------------------------------------*/
 
-/** F1/10th wheelbase: l_f + l_r = 0.166 + 0.16 = 0.326 m [CAD]
- *  Wheelbase test at 1.0 m/s gave 0.345 m (6.5% high due to understeer).
- *  CAD value 0.324 m is recommended (see report Section 5.6). */
+/** F1/10th wheelbase: l_f + l_r = 0.166 + 0.16 = 0.326 m
+ *  From vehicle_params.yaml: wheelbase 0.324 m [MEASURED], using l_f+l_r for model consistency. */
 #define F110_DEFAULT_WHEELBASE_METERS \
-    FP_CONST(0.324)
+    FP_CONST(0.326)
 
-/** F1/10th max steering: 0.4282 radians (~24.5 degrees) [TESTED] */
+/** F1/10th max steering: 0.4282 radians (~24.5 degrees)
+ *  From vehicle_params.yaml [TESTED/CALC] (servo limits). */
 #define F110_DEFAULT_MAXIMUM_STEERING_RADIANS \
     FP_CONST(0.4282)
 
@@ -472,11 +420,13 @@ typedef struct
 #define F110_VEHICLE_LENGTH_METERS \
     FP_CONST(0.51)
 
-/** Distance from CG to front axle: 0.166 meters [CAD] */
+/** Distance from CG to front axle: 0.166 meters
+ *  From vehicle_params.yaml [CAD]. */
 #define F110_DIST_CG_TO_FRONT_AXLE_METERS \
     FP_CONST(0.166)
 
-/** Distance from CG to rear axle: 0.16 meters [CAD] */
+/** Distance from CG to rear axle: 0.16 meters
+ *  From vehicle_params.yaml [CAD]. */
 #define F110_DIST_CG_TO_REAR_AXLE_METERS \
     FP_CONST(0.16)
 
@@ -488,79 +438,48 @@ typedef struct
 #define F110_YAW_INERTIA_KGM2 \
     FP_CONST(0.035)
 
-/** Center of gravity height: 0.0703 meters [CAD] */
+/** Center of gravity height: 0.0703 meters
+ *  From vehicle_params.yaml [CAD]. */
 #define F110_CG_HEIGHT_METERS \
     FP_CONST(0.0703)
 
 /** Tire-road friction coefficient [TESTED] mu = 0.7463
- *  From test_friction.py (5 runs, 0.73-0.76 range). Surface-specific. */
+ *  From vehicle_params.yaml / test_friction.py (5 runs, 0.73-0.76 range). */
 #define F110_FRICTION_COEFFICIENT \
     FP_CONST(0.7463)
 
-/** Front cornering stiffness [1/rad] — NEEDS RERUN
- *  Current test used only 1 steering angle (0.1 rad); C_alpha varied 28-80 N/rad.
- *  Keeping simulation default until rerun with full steering sweep.
- *  Conversion: C_Sf = C_alpha_f / (mu * F_zf)
- *    F_zf = m*g*l_r/L = 3.314*9.81*0.16/0.324 = 16.05 N
- *    If C_alpha_f = 49.9 → C_Sf = 49.9/(0.7463*16.05) = 4.17  */
+/** Front cornering stiffness [1/rad] — from vehicle_params.yaml C_alpha_f=33.38 N/rad
+ *  C_Sf = C_alpha_f / (mu * F_zf) = 33.38 / (0.7463 * 15.95) = 2.804
+ *  Total front lateral force: mu * C_Sf * F_zf = 0.7463 * 2.804 * 15.95 = 33.4 N/rad */
 #define F110_FRONT_CORNERING_STIFFNESS \
-    FP_CONST(4.17)
+    FP_CONST(2.804)
 
-/** Rear cornering stiffness [1/rad] — NEEDS RERUN
- *  Same limitation as front. Keeping approximate value.
- *  Conversion: C_Sr = C_alpha_r / (mu * F_zr)
- *    F_zr = m*g*l_f/L = 3.314*9.81*0.166/0.324 = 16.65 N
- *    If C_alpha_r = 54.89 → C_Sr = 54.89/(0.7463*16.65) = 4.42  */
+/** Rear cornering stiffness [1/rad] — from vehicle_params.yaml C_alpha_r=41.00 N/rad
+ *  C_Sr = C_alpha_r / (mu * F_zr) = 41.00 / (0.7463 * 16.55) = 3.320
+ *  Total rear lateral force: mu * C_Sr * F_zr = 0.7463 * 3.320 * 16.55 = 41.0 N/rad */
 #define F110_REAR_CORNERING_STIFFNESS \
-    FP_CONST(4.42)
+    FP_CONST(3.320)
 
-/** Maximum longitudinal acceleration: 8.0 m/s² [TESTED]
- *  Smoothed IMU value. Raw peak was ~14.5 (pitch-contaminated).
- *  Cross-check: mu*g = 0.79*9.81 = 7.7 m/s² (consistent). */
+/** Maximum longitudinal acceleration: 8.0 m/s²
+ *  From vehicle_params.yaml [TESTED] (smoothed IMU). */
 #define F110_MAX_ACCELERATION_MS2 \
     FP_CONST(8.0)
 
-/** Maximum braking deceleration: 7.7 m/s² [TESTED]
- *  Conservative estimate: mu*g = 0.79*9.81.
- *  Raw IMU peak was ~18.7 (chassis pitch contaminates accelerometer). */
+/** Maximum braking deceleration: 7.7 m/s²
+ *  From vehicle_params.yaml [TESTED] (conservative: mu*g). */
 #define F110_MAX_DECELERATION_MS2 \
     FP_CONST(7.7)
 
-/** Maximum motor torque at wheel: Kt_eff * I_max * r_eff
- *  Kt_eff = 0.583 N/A [TESTED], I_max = 65 A → F_max = 37.9 N
- *  T_wheel = 37.9 * 0.051 = 1.93 N·m
- *  For the 7-state model this is reflected through gear ratio:
- *  T_motor = T_wheel * G / eta = 1.93 * 11.82 / 0.575 ≈ 39.7 N·m
- *  Using the sim convention (motor-side): keep 22.9 N·m for now. */
-#define F110_DEFAULT_MAX_MOTOR_TORQUE_NM \
-    FP_CONST(22.9)
+#define F110_DEFAULT_MAX_ACCELERATION_MS2 \
+    DOUBLE_TO_FP(8.0)    /* Maximum acceleration [m/s²] (vehicle_params.yaml) */
 
-/** Minimum motor torque (braking) [N·m] */
-#define F110_DEFAULT_MIN_MOTOR_TORQUE_NM \
-    FP_CONST(-24.1)
+#define F110_DEFAULT_MIN_ACCELERATION_MS2 \
+    DOUBLE_TO_FP(-7.7)   /* Maximum deceleration [m/s²] (vehicle_params.yaml) */
 
-/** Wheel radius: 0.051 meters [MEASURED] (loaded effective radius) */
-#define F110_WHEEL_RADIUS_METERS \
-    FP_CONST(0.051)
-
-/** Drivetrain inertia: 2.223 kg·m² [ESTIMATE/TODO]
- *  This value from simulation seems too high for a 3.3 kg car.
- *  Typical estimate: 0.01-0.05 kg·m².
- *  Needs verification from component inertias or system identification. */
-#define F110_DRIVETRAIN_INERTIA_KGM2 \
-    FP_CONST(2.223)
-
-/** Longitudinal tire stiffness: F_x = C_x * κ [ESTIMATE]
- *  Cannot be reliably measured without lidar scan-matching odometry.
- *  YAML has 79.5 N from pitch-contaminated test. Using 80 N as approx. */
-#define F110_LONGITUDINAL_TIRE_STIFFNESS \
-    FP_CONST(80.0)
-
-/** Maximum steering rate: 2.85 rad/s [TESTED]
- *  From test_steering_rate.py: yaw rate 10-90% rise time method.
- *  Includes vehicle dynamics delay (actual servo may be slightly faster). */
+/** Maximum steering rate: 2.8492 rad/s
+ *  From vehicle_params.yaml [TESTED] (test_steering_rate.py). */
 #define F110_MAX_STEERING_RATE_RADS \
-    FP_CONST(2.85)
+    FP_CONST(2.8492)
 
 /** Default yaw rate: 0 rad/s */
 #define F110_DEFAULT_YAW_RATE \
@@ -570,41 +489,38 @@ typedef struct
 #define F110_GRAVITY_ACCELERATION_MS2 \
     FP_CONST(9.81)
 
-/** Center of gravity height: 0.0703 meters [CAD] */
+/** Center of gravity height: 0.0703 meters
+ *  From vehicle_params.yaml [CAD]. */
 #define F110_HEIGHT_METERS \
     FP_CONST(0.0703)
-
-/** Longitudinal acceleration */
-#define F110_LONGITUDINAL_ACCELERATION \
-    FP_CONST(0)
-
-/** Latteral acceleration */
-
-
-/** Gear ratio */
-#define F110_GEAR_RATIO \
-    FP_CONST(11.82)    
 
 /*===========================================================================
  * Default MPC Configuration
  *===========================================================================*/
 
-/** Default prediction horizon: 10 steps */
+/** Default prediction horizon: 10 steps at dt=50ms = 0.5s preview.
+ *  Shorter horizon prevents distant-step lateral overshoot from
+ *  dominating the QP gradient at high speed with compliant tires. */
 #define MPC_DEFAULT_PREDICTION_HORIZON 10
 
 /** Default time step: 0.05 seconds (50 ms) — Q16.16 = 3277
- *  Total lookahead = 10 × 0.05s = 0.5 seconds
+ *  Total lookahead = 10 × 0.05s = 0.5 seconds (default horizon).
  *  The prediction dt is independent of the MPC call rate (200 Hz).
  *  Use cross_call_rate_scale to handle the frequency mismatch.
  */
 #define MPC_DEFAULT_TIME_STEP_SECONDS \
     ((fixed_point_t)3277)
 
-/** Default maximum solver iterations */
-#define MPC_DEFAULT_MAXIMUM_ITERATIONS 2000
+/** Default maximum solver iterations — increased for tight convergence tolerance.
+ *  At high speed, the Hessian conditioning requires many PGD iterations. */
+#define MPC_DEFAULT_MAXIMUM_ITERATIONS 500
 
-/** Default convergence tolerance: 0.02 — Q16.16 ~ 1310 */
+/** Default convergence tolerance: 0.0003 — Q16.16 ~ 20
+ *  Very tight tolerance forces the solver to iterate until true convergence.
+ *  At high speed, poorly-conditioned Hessians cause tiny PGD step sizes;
+ *  a loose tolerance would cause premature convergence to suboptimal
+ *  near-zero steering, resulting in poor path tracking. */
 #define MPC_DEFAULT_CONVERGENCE_TOLERANCE \
-    ((fixed_point_t)1310)
+    ((fixed_point_t)20)
 
 #endif /* MPC_TYPES_H */

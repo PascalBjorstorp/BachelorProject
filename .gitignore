@@ -177,7 +177,9 @@ _ide/
 # Only ignore debug probes (.ltx) which are not needed.
 FPGA/Bitstream/*.ltx
 FPGA/docs/*
-
+MPC/build_test/*
+MPC/build_local/*
+MPC/logs/*
 # =============================================
 # Parameter csv files 
 # =============================================

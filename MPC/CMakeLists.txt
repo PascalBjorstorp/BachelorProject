@@ -28,7 +28,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 # Compiler warnings for code quality
 if(NOT MSVC)
-    add_compile_options(-Wall -Wextra -Wpedantic)
+    add_compile_options(-Wall -Wextra -Wpedantic -O2)
 endif()
 
 #===========================================================================
@@ -82,7 +82,7 @@ target_include_directories(mpc_core
 
 add_executable(mpc_node sim/mpc_ros2_node.c)
 
-target_compile_definitions(mpc_core PRIVATE MPC_DEBUG_PRINT)
+# target_compile_definitions(mpc_core PRIVATE MPC_DEBUG_PRINT)  # Disabled for performance
 
 target_link_libraries(mpc_node
     mpc_core

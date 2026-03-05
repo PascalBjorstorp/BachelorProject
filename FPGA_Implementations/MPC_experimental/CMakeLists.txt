@@ -19,7 +19,7 @@
 #===========================================================================
 
 cmake_minimum_required(VERSION 3.16)
-project(mpc_fpga C)
+project(mpc_fpga_admm C)
 
 # C99 standard for FPGA compatibility
 set(CMAKE_C_STANDARD 99)

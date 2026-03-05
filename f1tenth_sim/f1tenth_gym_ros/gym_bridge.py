@@ -205,6 +205,15 @@ class GymBridge(Node):
         self.declare_parameter('vehicle_I', 0.0)
         self.declare_parameter('vehicle_C_Sf', 0.0)
         self.declare_parameter('vehicle_C_Sr', 0.0)
+        self.declare_parameter('vehicle_lf', 0.0)
+        self.declare_parameter('vehicle_lr', 0.0)
+        self.declare_parameter('vehicle_h', 0.0)
+        self.declare_parameter('vehicle_s_max', 0.0)
+        self.declare_parameter('vehicle_sv_max', 0.0)
+        self.declare_parameter('vehicle_a_max', 0.0)
+        self.declare_parameter('vehicle_v_max', 0.0)
+        self.declare_parameter('vehicle_width', 0.0)
+        self.declare_parameter('vehicle_length', 0.0)
 
     def _validate_num_agents(self) -> int:
         """Validate and return number of agents."""
@@ -236,7 +245,19 @@ class GymBridge(Node):
             'I': self.get_parameter('vehicle_I').value,
             'C_Sf': self.get_parameter('vehicle_C_Sf').value,
             'C_Sr': self.get_parameter('vehicle_C_Sr').value,
+            'lf': self.get_parameter('vehicle_lf').value,
+            'lr': self.get_parameter('vehicle_lr').value,
+            'h': self.get_parameter('vehicle_h').value,
+            's_max': self.get_parameter('vehicle_s_max').value,
+            'sv_max': self.get_parameter('vehicle_sv_max').value,
+            'a_max': self.get_parameter('vehicle_a_max').value,
+            'v_max': self.get_parameter('vehicle_v_max').value,
+            'width': self.get_parameter('vehicle_width').value,
+            'length': self.get_parameter('vehicle_length').value,
         }
+        # Also mirror s_max → s_min and sv_max → sv_min
+        s_max_val = self.get_parameter('vehicle_s_max').value
+        sv_max_val = self.get_parameter('vehicle_sv_max').value
         for key, val in overrides.items():
             if val > 0.0:
                 old_val = params[key]
@@ -244,6 +265,17 @@ class GymBridge(Node):
                 self.get_logger().info(
                     f'Vehicle param override: {key} = {val} (default was {old_val})'
                 )
+        # Mirror symmetric limits
+        if s_max_val > 0.0:
+            params['s_min'] = -s_max_val
+            self.get_logger().info(
+                f'Vehicle param override: s_min = {-s_max_val} (mirrored from s_max)'
+            )
+        if sv_max_val > 0.0:
+            params['sv_min'] = -sv_max_val
+            self.get_logger().info(
+                f'Vehicle param override: sv_min = {-sv_max_val} (mirrored from sv_max)'
+            )
 
         return params
 
@@ -281,7 +313,7 @@ class GymBridge(Node):
                     'num_agents': num_agents,
                     'timestep': sim_timestep,
                     'integrator': 'rk4',
-                    'control_input': ['speed', 'steering_angle'],
+                    'control_input': ['accl', 'steering_angle'],
                     'model': 'st',
                     'observation_config': {'type': 'original'},
                     'params': self.vehicle_params,
