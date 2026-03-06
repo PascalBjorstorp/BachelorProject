@@ -420,8 +420,11 @@ double FollowTheGap::calculateSpeed(const Gap& gap, double steering_angle) {
 }
 
 double FollowTheGap::scoreGap(const Gap& gap) {
-    // Base score: prefer gaps that are wide and deep
-    double base_score = gap.deepest_range * gap.angular_width;
+    // Base score: prefer gaps that are wide and have good average clearance.
+    // Using avg_range (instead of deepest_range) naturally favours the
+    // centre of the track: a gap centred between two walls will have a
+    // higher average range than a gap that runs along one wall.
+    double base_score = gap.avg_range * gap.angular_width;
     
     // Heading bias: prefer gaps near current heading (angle 0 = straight ahead)
     // This reduces gap-flipping between similar-scoring gaps on left/right

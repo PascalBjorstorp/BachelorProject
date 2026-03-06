@@ -46,8 +46,8 @@ bridge:
     # map parameters
     # Map name (without extension). The bridge node resolves this to
     # <package_share>/maps/<map_path>.yaml at runtime.
-    map_path: 'Spielberg_map'
-    map_img_ext: '.png'
+    map_path: 'my_track_map'
+    map_img_ext: '.pgm'
 
     # car parameters and scale
     vehicle_params: 'f1tenth'
