@@ -206,17 +206,19 @@ fixed_point_t fp_atan(fixed_point_t x)
         /* atan(x) = atan(0.5) + atan((x-0.5)/(1+0.5*x)) */
         fixed_point_t num = fp_sub(abs_x, FP_HALF_CONST);
         fixed_point_t den = fp_add(FP_ONE, fp_mul(FP_HALF_CONST, abs_x));
-        fixed_point_t reduced = fp_div(num, den);
+        fixed_point_t inv_den = fp_recip(den);
+        fixed_point_t reduced = fp_mul(num, inv_den);
         result = fp_add(FP_ATAN_HALF, fp_atan_small(reduced));
     } else {
         /* atan(x) = pi/2 - atan(1/x) */
-        fixed_point_t inv_x = fp_div(FP_ONE, abs_x);
+        fixed_point_t inv_x = fp_recip(abs_x);
         if (inv_x <= FP_HALF_CONST) {
             result = fp_sub(FP_PI_HALF, fp_atan_small(inv_x));
         } else {
             fixed_point_t num = fp_sub(inv_x, FP_HALF_CONST);
             fixed_point_t den = fp_add(FP_ONE, fp_mul(FP_HALF_CONST, inv_x));
-            fixed_point_t reduced = fp_div(num, den);
+            fixed_point_t inv_den = fp_recip(den);
+            fixed_point_t reduced = fp_mul(num, inv_den);
             fixed_point_t atan_inv = fp_add(FP_ATAN_HALF, fp_atan_small(reduced));
             result = fp_sub(FP_PI_HALF, atan_inv);
         }

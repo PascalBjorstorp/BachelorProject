@@ -15,7 +15,6 @@
 #include "../include/fp_math_hls.h"
 #include "../include/riccati_solver_hls.h"
 #include "../include/mpc_fpga_types.h"
-#include <string.h>
 
 /* Forward declaration of vehicle model (defined in vehicle_model_hls.c) */
 extern void compute_frenet_AB_hls(
@@ -128,9 +127,11 @@ void mpc_compute_hls(
 
         /* Zero the sparse blocks that the explicit assignments below don't cover.
          * This replaces the costly memset(step_data) that zeroed the entire array. */
-        /* A rows 6,7 = 0 (no dynamics on prev-control states from other states) */
+        /* A rows 5,6,7 = 0 (delta integrator + prev-controls have no
+         * cross-coupling to Frenet states in cols 0..4) */
         for (j = 0; j < MPC_NX_AUG; j++) {
 #pragma HLS UNROLL
+            sd->A[IDX_DELTA_ACT][j] = 0;
             sd->A[IDX_DRATE_PREV][j] = 0;
             sd->A[IDX_ACCEL_PREV][j] = 0;
         }
@@ -187,6 +188,7 @@ void mpc_compute_hls(
         }
         /* B[5][0] = dt (delta integrator) */
         sd->B[IDX_DELTA_ACT][0] = dt;
+        sd->B[IDX_DELTA_ACT][1] = 0;  /* delta not affected by accel */
         /* B[6][0] = 1 (drate_prev = delta_rate) */
         sd->B[IDX_DRATE_PREV][0] = FP_ONE;
         /* B[7][1] = 1 (accel_prev = accel) */
@@ -297,8 +299,11 @@ void mpc_compute_hls(
      * --------------------------------------------------------------- */
     fixed_point_t terminal_Q[MPC_NX_AUG];
     fixed_point_t terminal_q[MPC_NX_AUG];
-    memset(terminal_Q, 0, sizeof(terminal_Q));
-    memset(terminal_q, 0, sizeof(terminal_q));
+    for (i = 0; i < MPC_NX_AUG; i++) {
+#pragma HLS UNROLL
+        terminal_Q[i] = 0;
+        terminal_q[i] = 0;
+    }
 
     terminal_Q[0] = fp_mul(FP_TWO, MPC_W_LAT_ERROR);
     terminal_Q[1] = fp_mul(FP_TWO, MPC_W_HEADING);
@@ -351,7 +356,23 @@ void mpc_compute_hls(
     solver_cfg.adaptive_rho   = 1;
 
     MpcSolution_t sol;
-    memset(&sol, 0, sizeof(sol));
+    /* Zero-initialize solution (HLS-friendly, no memset) */
+    sol.iterations = 0;
+    sol.primal_residual = 0;
+    sol.dual_residual = 0;
+    sol.status = MPC_STATUS_MAX_ITER;
+    for (k = 0; k <= N; k++) {
+#pragma HLS PIPELINE II=1
+        for (i = 0; i < MPC_NX_AUG; i++) {
+            sol.x[k][i] = 0;
+        }
+    }
+    for (k = 0; k < N; k++) {
+#pragma HLS PIPELINE II=1
+        for (i = 0; i < MPC_NU; i++) {
+            sol.u[k][i] = 0;
+        }
+    }
 
     MpcStatus_t rstatus = riccati_admm_solve_hls(
         step_data, terminal_Q, terminal_q, x0,

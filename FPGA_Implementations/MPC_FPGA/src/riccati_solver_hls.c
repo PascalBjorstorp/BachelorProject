@@ -16,7 +16,6 @@
 
 #include "../include/riccati_solver_hls.h"
 #include "../include/fp_math_hls.h"
-#include <string.h>
 
 /*===========================================================================
  * 64-bit Reciprocal: 1/det via Newton-Raphson (multiply-only, no division)
@@ -129,6 +128,7 @@ static void riccati_pass_hls(
     int64_t P[MPC_NX_AUG][MPC_NX_AUG];
     int64_t p[MPC_NX_AUG];
 #pragma HLS ARRAY_PARTITION variable=P cyclic factor=4 dim=1
+#pragma HLS ARRAY_PARTITION variable=P cyclic factor=2 dim=2
 
     /* Initialize terminal cost: P_N = Q_N [+ rho*I if constrained] */
     int s, i, j, a, b, k;
@@ -193,6 +193,8 @@ static void riccati_pass_hls(
 
         /* Step 1: M = B^T * P (nu x nx) — exploit B sparsity */
         int64_t M[MPC_NU][MPC_NX_AUG];
+#pragma HLS ARRAY_PARTITION variable=M complete dim=1
+#pragma HLS ARRAY_PARTITION variable=M cyclic factor=4 dim=2
         for (j = 0; j < nx; j++) {
 #pragma HLS PIPELINE II=1
             int64_t s0 = 0, s1 = 0;
@@ -228,6 +230,8 @@ static void riccati_pass_hls(
 
         /* Step 4: G = M*A + N^T (nu x nx) — exploit A sparsity */
         int64_t G[MPC_NU][MPC_NX_AUG];
+#pragma HLS ARRAY_PARTITION variable=G complete dim=1
+#pragma HLS ARRAY_PARTITION variable=G cyclic factor=4 dim=2
         for (a = 0; a < nu; a++) {
 #pragma HLS UNROLL
             /* Cols 0..5: M*A uses A rows 0..5 (6x6 dense block) */
@@ -288,6 +292,8 @@ static void riccati_pass_hls(
         /* Step 7: P = Q_diag + A^T*P*A + G^T*K  (fused) */
         /* PA = P * A (only 6x6 dense block needed) */
         int64_t PA[MPC_NX_DENSE][MPC_NX_DENSE];
+#pragma HLS ARRAY_PARTITION variable=PA cyclic factor=2 dim=1
+#pragma HLS ARRAY_PARTITION variable=PA cyclic factor=2 dim=2
         for (i = 0; i < 6; i++) {
             for (j = 0; j < 6; j++) {
 #pragma HLS PIPELINE II=1
@@ -445,6 +451,7 @@ MpcStatus_t riccati_admm_solve_hls(
 
     /* Precompute constrained flags */
     uint8_t x_is_con[MPC_HORIZON + 1][MPC_NX_AUG];
+#pragma HLS ARRAY_PARTITION variable=x_is_con complete dim=2
     int k, s, a;
 
     for (k = 0; k <= N; k++) {
@@ -475,10 +482,20 @@ MpcStatus_t riccati_admm_solve_hls(
         }
     } else {
         /* Cold start: unconstrained Riccati pass to initialize */
-        memset(z_x, 0, sizeof(z_x));
-        memset(z_u, 0, sizeof(z_u));
-        memset(y_x, 0, sizeof(y_x));
-        memset(y_u, 0, sizeof(y_u));
+        for (k = 0; k <= N; k++) {
+#pragma HLS PIPELINE II=1
+            for (s = 0; s < nx; s++) {
+                z_x[k][s] = 0;
+                y_x[k][s] = 0;
+            }
+        }
+        for (k = 0; k < N; k++) {
+#pragma HLS PIPELINE II=1
+            for (a = 0; a < nu; a++) {
+                z_u[k][a] = 0;
+                y_u[k][a] = 0;
+            }
+        }
 
         riccati_pass_hls(
             step_data, terminal_Q, terminal_q, x0, 0, 0,
@@ -530,33 +547,11 @@ MpcStatus_t riccati_admm_solve_hls(
         }
     }
 
-    /* Previous z for dual residual */
-    fixed_point_t z_x_old[MPC_HORIZON + 1][MPC_NX_AUG];
-    fixed_point_t z_u_old[MPC_HORIZON][MPC_NU];
-#pragma HLS BIND_STORAGE variable=z_x_old type=ram_2p impl=bram
-#pragma HLS ARRAY_PARTITION variable=z_x_old cyclic factor=4 dim=2
-#pragma HLS BIND_STORAGE variable=z_u_old type=ram_2p impl=bram
-#pragma HLS ARRAY_PARTITION variable=z_u_old complete dim=2
-
     MpcStatus_t status = MPC_STATUS_MAX_ITER;
     int iter;
 
     for (iter = 0; iter < max_iter; iter++) {
 #pragma HLS LOOP_TRIPCOUNT min=1 max=50 avg=10
-
-        /* Pipelined copy: z → z_old */
-        for (k = 0; k <= N; k++) {
-#pragma HLS PIPELINE II=1
-            for (s = 0; s < nx; s++) {
-                z_x_old[k][s] = z_x[k][s];
-            }
-        }
-        for (k = 0; k < N; k++) {
-#pragma HLS PIPELINE II=1
-            for (a = 0; a < nu; a++) {
-                z_u_old[k][a] = z_u[k][a];
-            }
-        }
 
         /* --- Primal update: Riccati pass with augmented costs --- */
         riccati_pass_hls(
@@ -567,11 +562,13 @@ MpcStatus_t riccati_admm_solve_hls(
             (const fixed_point_t (*)[MPC_NU])y_u,
             solution->x, solution->u);
 
-        /* --- Fused z-update, y-update, and residual computation --- */
+        /* --- Fused z-update, y-update, and residual computation ---
+         * Dual residual computed inline: save z_old before overwrite,
+         * eliminating the z_x_old/z_u_old arrays and copy loop. */
         fixed_point_t state_primal = 0, state_dual = 0;
         fixed_point_t ctrl_primal = 0, ctrl_dual = 0;
 
-        /* State z/y update */
+        /* State z/y update — dual residual computed inline */
         for (k = 0; k <= N; k++) {
 #pragma HLS LOOP_TRIPCOUNT min=21 max=21
 #pragma HLS PIPELINE II=4
@@ -585,7 +582,9 @@ MpcStatus_t riccati_admm_solve_hls(
                     if (val > (int64_t)sd->x_ub[s]) val = (int64_t)sd->x_ub[s];
                     fixed_point_t z_new = (fixed_point_t)val;
 
-                    int64_t d64 = ((int64_t)rho * ((int64_t)z_new - (int64_t)z_x_old[k][s])) >> FP_FRAC_BITS;
+                    /* Dual residual: rho * (z_new - z_old), save z_old before overwrite */
+                    fixed_point_t z_prev = z_x[k][s];
+                    int64_t d64 = ((int64_t)rho * ((int64_t)z_new - (int64_t)z_prev)) >> FP_FRAC_BITS;
                     fixed_point_t dd = (fixed_point_t)(d64 < 0 ? -d64 : d64);
                     if (dd > state_dual) state_dual = dd;
 
@@ -602,7 +601,7 @@ MpcStatus_t riccati_admm_solve_hls(
             }
         }
 
-        /* Control z/y update */
+        /* Control z/y update — dual residual computed inline */
         for (k = 0; k < N; k++) {
 #pragma HLS LOOP_TRIPCOUNT min=20 max=20
 #pragma HLS PIPELINE II=1
@@ -615,7 +614,9 @@ MpcStatus_t riccati_admm_solve_hls(
                 if (val > (int64_t)sd->u_ub[a]) val = (int64_t)sd->u_ub[a];
                 fixed_point_t z_new = (fixed_point_t)val;
 
-                int64_t d64 = ((int64_t)rho_u * ((int64_t)z_new - (int64_t)z_u_old[k][a])) >> FP_FRAC_BITS;
+                /* Dual residual: rho_u * (z_new - z_old) */
+                fixed_point_t z_prev = z_u[k][a];
+                int64_t d64 = ((int64_t)rho_u * ((int64_t)z_new - (int64_t)z_prev)) >> FP_FRAC_BITS;
                 fixed_point_t dd = (fixed_point_t)(d64 < 0 ? -d64 : d64);
                 if (dd > ctrl_dual) ctrl_dual = dd;
 

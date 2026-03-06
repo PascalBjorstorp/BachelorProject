@@ -17,8 +17,9 @@
 #define MPC_HLS_TARGET
 #endif
 
-/* Use sim-matching model (matches f1tenth_gym exactly) */
-#define MPC_SIM_MATCHING
+/* Real-hardware vehicle model: full atan-based slip angles,
+ * cos(δ)/sin(δ) force resolution, and Pacejka tire saturation.
+ * No simulation-matching simplifications. */
 
 #include <stdint.h>
 
@@ -113,6 +114,11 @@ typedef int32_t fixed_point_t;
 #define VP_INV_MASS         FP_CONST(0.301750)  /* 1/3.314 */
 #define VP_INV_IZ           FP_CONST(28.571429) /* 1/0.035 */
 #define VP_INV_L            FP_CONST(3.086420)  /* 1/0.324 */
+
+/* Pacejka tire model constants (for real-hardware linearization) */
+#define VP_C_SHAPE          FP_CONST(1.9)       /* Pacejka shape factor C */
+#define VP_INV_C_SHAPE      FP_CONST(0.526316)  /* 1/1.9 */
+#define VP_MIN_STIFF_SCALE  FP_CONST(0.1)       /* Floor for effective stiffness */
 
 /*===========================================================================
  * MPC Default Cost Weights (tuned for F1/10th)

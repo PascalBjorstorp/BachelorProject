@@ -47,8 +47,8 @@ MPC_FPGA/
 │   └── mpc_fpga_interface.h    # AXI-Lite register map (documentation)
 ├── src/
 │   ├── fp_math_hls.c           # Trig functions (sin, cos, atan, recip)
-│   ├── vehicle_model_hls.c     # Frenet linearization (sim-matching)
-│   ├── riccati_solver_hls.c    # Riccati-ADMM solver core (~400 lines)
+│   ├── vehicle_model_hls.c     # Frenet linearization (Pacejka + full physics)
+│   ├── riccati_solver_hls.c    # Riccati-ADMM solver core (~700 lines)
 │   ├── mpc_riccati_hls.c       # MPC QP construction + control extraction
 │   └── mpc_fpga_top.c          # Top-level AXI-Lite wrapper
 ├── testbench/
@@ -168,20 +168,26 @@ All cases well within the 5 ms control period (200 Hz).
 
 1. **No dynamic memory**: All arrays statically sized
 2. **No globals**: Persistent state via `static` locals in top function
-3. **No stdio/stdlib**: Debug prints removed; config via `#define`
+3. **No stdio/stdlib/string.h**: Removed all C library deps from synthesized code
 4. **Compile-time vehicle params**: F1/10th constants enable propagation
-5. **Sim-matching mode**: Linear tire model (matches f1tenth_gym)
+5. **Real-hardware physics**: Full atan slip angles, Pacejka tire saturation,
+   cos(δ)/sin(δ) force resolution. No simulation-matching simplifications.
 6. **Frenet on FPGA**: Global→Frenet conversion inside top function
 7. **Sparsity preserved**: 6×6 dense block + identity rows 6–7
+8. **Division-free critical path**: fp_atan uses fp_recip (Newton-Raphson)
 
-### HLS Pragmas Applied
+### HLS Optimizations Applied
 
 - `INTERFACE s_axilite` on all top-function ports
 - `PIPELINE II=1` on inner matrix-operation loops
 - `LOOP_TRIPCOUNT` on all loops for report accuracy
-- `ARRAY_PARTITION` on K gains and P matrix
+- `ARRAY_PARTITION` on K gains, P matrix (dim=1 + dim=2), M, G, PA arrays
 - `BIND_OP impl=dsp` on critical multiplications
-- `INLINE` on small helper functions
+- `INLINE` on small helper functions and vehicle model
+- **z_old elimination**: Dual residual computed inline during z-update,
+  saving ~4KB BRAM and eliminating copy loop per ADMM iteration
+- **memset elimination**: All zero-fills use explicit HLS-friendly loops
+- **fp_atan division-free**: All divisions replaced with fp_recip (multiply-only)
 
 ## Tuning
 
