@@ -43,13 +43,13 @@ def generate_launch_description():
     workspace_root = os.path.dirname(
         os.path.dirname(os.path.dirname(os.path.dirname(loc_pkg)))
     )
-    default_map = os.path.join(workspace_root, 'f1tenth_sim', 'maps', 'Spielberg_map.yaml')
+    default_map = os.path.join(workspace_root, 'f1tenth_sim', 'maps', 'my_track_map.yaml')
 
     # Default trajectory for lateral planner
     try:
         planning_pkg = get_package_share_directory('f1tenth_planning')
         default_trajectory = os.path.join(
-            planning_pkg, 'trajectories', 'Spielberg_raceline.csv'
+            planning_pkg, 'trajectories', 'my_track_raceline.csv'
         )
     except Exception:
         default_trajectory = ''

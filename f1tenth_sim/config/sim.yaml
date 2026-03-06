@@ -138,4 +138,4 @@ bridge:
     #   1.0 = real-time (sim time == wall time)
     #   0.5 = half speed, 2.0 = double speed
     # Set to 1.0 when recording bags for benchmarking to avoid sim/wall time mismatch
-    real_time_factor: 0.0
+    real_time_factor: 1.0

@@ -6,101 +6,100 @@
 #include <memory>
 #include <functional>
 #include <chrono>
+#include <vector>
 
 namespace f1tenth_control {
 
 /**
- * @brief Configuration for Follow The Gap algorithm
- * 
- * Contains both generic LiDAR processing config and FTG-specific parameters.
+ * @brief Configuration for the Weighted Free-Space FTG algorithm
+ *
+ * This algorithm replaces discrete gap-finding with a continuous drivability
+ * scoring approach.  For every beam direction it computes an "effective
+ * clearance" (the minimum range within a cone that accounts for car width),
+ * scores directions with an exponential heading preference, and steers toward
+ * the *weighted centroid* of all high-scoring directions.  This naturally
+ * centres the car in corridors and follows curves smoothly.
  */
 struct FTGConfig {
-    // Vehicle parameters
-    double wheelbase{0.324};         // Vehicle wheelbase (m) - from vesc.yaml
-    double car_width{0.30};          // Vehicle width (m) for disparity extension
-    
-    // Speed control (reference FTG formula)
-    double max_speed{6.0};           // Maximum speed (m/s)
-    double min_speed{2.0};           // Minimum speed (m/s)
-    double speed_full_range{9.0};    // Range at which full speed is allowed (m)
-    double steer_slowdown_gain{0.7}; // How much steering reduces speed (0-1)
-    
-    // Steering control
-    double max_steering{0.4};        // [rad] Maximum steering angle (~23°)
-    double steering_gain{0.8};       // Gain for steering toward gap (reduced for stability)
-    double max_steering_rate{2.0};   // [rad/s] Maximum steering change rate (time-based)
-    double target_ema_alpha{0.3};    // EMA smoothing for target angle (0=full smooth, 1=no smooth)
-    double heading_bias_weight{0.3}; // Weight for preferring gaps near current heading (0=disabled)
-    double center_weight{0.7};       // Blend gap center (1.0) vs deepest point (0.0) for target angle
-    
-    // Safety
-    double emergency_brake_distance{0.3};  // Brake if obstacle closer than this (m)
-    
-    // FTG-specific LiDAR processing parameters
-    double disparity_threshold{0.3}; // Threshold for disparity extension (m)
-    double gap_threshold{3.0};       // Minimum range to consider as gap (m)
-    double min_gap_width{0.3};       // Minimum angular width of gap (rad)
-    double bubble_radius{0.2};       // Safety bubble radius around closest point (m)
-    bool apply_bubble{true};         // Whether to apply safety bubble
-    double wall_margin{0.35};        // Shrink all readings by this amount (m)
-    int gap_edge_trim{0};            // Number of indices to discard from each side of a gap
-    
-    // Generic LiDAR processing config (for preprocessing only)
+    // -- Vehicle parameters ---------------------------------------------------
+    double wheelbase{0.3302};        // Distance between axles (m)
+    double car_width{0.30};          // Vehicle width for clearance cone (m)
+
+    // -- Speed control --------------------------------------------------------
+    double max_speed{2.0};           // Maximum speed (m/s)
+    double min_speed{1.0};           // Minimum speed (m/s)
+    double speed_full_range{4.0};    // Range (m) at which full speed is used
+    double steer_slowdown_gain{0.5}; // How much steering reduces speed (0-1)
+
+    // -- Steering control -----------------------------------------------------
+    double max_steering{0.4262};     // [rad] Maximum steering angle (~24 deg)
+    double steering_gain{1.0};       // Proportional gain on target angle
+    double max_steering_rate{3.5};   // [rad/s] Maximum steering change rate
+    double target_ema_alpha{0.35};   // EMA smoothing for target angle (lower = smoother)
+
+    // -- Weighted free-space scoring ------------------------------------------
+    double heading_weight{1.0};      // Exponential decay for non-forward dirs
+    double score_power{2.0};         // Raise effective clearance to this power
+    double clearance_cone_scale{1.5};// Multiplier on car half-width for cone
+    double min_score_range{0.3};     // Beams shorter than this get zero score (m)
+
+    // -- Safety ---------------------------------------------------------------
+    double emergency_brake_distance{0.15}; // Brake if any beam closer (m)
+
+    // -- LiDAR processing -----------------------------------------------------
+    double disparity_threshold{0.5}; // Threshold for disparity extension (m)
+    double wall_margin{0.15};        // Shrink all readings by this (m)
+    double gap_threshold{0.5};       // Min range to count as "gap" in viz (m)
+    double min_gap_width{0.15};      // Min angular width of gap for viz (rad)
+
+    // -- Generic LiDAR preprocessing ------------------------------------------
     LidarProcessorConfig lidar_config;
-    
-    // Mapping mode
-    bool mapping_mode{false};        // Enable boundary point extraction for mapping
-    double mapping_sample_rate{10.0}; // Hz for boundary point sampling
+
+    // -- Mapping mode ---------------------------------------------------------
+    bool mapping_mode{false};
+    double mapping_sample_rate{10.0};
 };
 
 /**
- * @brief FTG algorithm output
+ * @brief FTG algorithm output (unchanged interface for node compatibility)
  */
 struct FTGOutput {
-    DriveCommand command;            // Drive command
-    Gap selected_gap;                // The gap that was selected
-    size_t closest_point_idx{0};     // Index of closest point
-    double closest_point_dist{0.0};  // Distance to closest point
-    bool emergency_stop{false};      // Whether emergency stop is active
-    std::vector<Gap> all_gaps;       // All detected gaps (for visualization)
-    std::vector<BoundaryPoint> boundary_points; // For mapping mode
-    ProcessedScan processed_scan;    // The processed scan (for visualization)
+    DriveCommand command;
+    Gap selected_gap;
+    size_t closest_point_idx{0};
+    double closest_point_dist{0.0};
+    bool emergency_stop{false};
+    std::vector<Gap> all_gaps;
+    std::vector<BoundaryPoint> boundary_points;
+    ProcessedScan processed_scan;
 };
 
 /**
- * @brief Follow The Gap (FTG) Algorithm
- * 
- * A reactive algorithm that:
- * 1. Finds the closest obstacle
- * 2. Creates a "safety bubble" around it
- * 3. Finds the largest gap in the LiDAR scan
- * 4. Steers toward the deepest point in the gap
- * 
- * This implementation includes:
- * - Disparity extension for safety at narrow passages
- * - Configurable speed based on gap distance
- * - Emergency braking for close obstacles
- * - Mapping mode for track boundary extraction
+ * @brief Weighted Free-Space Follow The Gap Algorithm
+ *
+ * Instead of discrete gap detection, this algorithm:
+ *  1. Preprocesses the LiDAR scan (median filter, range clip).
+ *  2. Applies disparity extension for safety near narrow passages.
+ *  3. Computes an "effective clearance" for every beam direction --
+ *     the minimum range within a cone that accounts for the car's width.
+ *  4. Scores each direction:  score = eff_clearance^power * exp(-w|theta|)
+ *  5. Computes the target angle as the weighted centroid of all scored beams.
+ *  6. Applies EMA smoothing + rate limiting for smooth steering.
+ *  7. Sets speed proportional to forward clearance and inversely to steering.
+ *
+ * The weighted-centroid approach is inherently smooth (one noisy beam barely
+ * moves the average) and naturally centres the car in corridors because
+ * symmetric clearance produces a centroid at theta ~ 0.
  */
 class FollowTheGap {
 public:
     explicit FollowTheGap(const FTGConfig& config = FTGConfig());
-    
-    /**
-     * @brief Update algorithm configuration
-     */
+
     void setConfig(const FTGConfig& config);
     const FTGConfig& getConfig() const { return config_; }
-    
+
     /**
      * @brief Compute drive command from LiDAR scan
-     * @param ranges Raw LiDAR ranges
-     * @param angle_min Minimum scan angle (rad)
-     * @param angle_max Maximum scan angle (rad)
-     * @param angle_increment Angular increment (rad)
-     * @param current_pose Current robot pose (for mapping mode)
-     * @param timestamp Current timestamp (for mapping mode)
-     * @return FTG output including drive command and debug info
      */
     FTGOutput compute(
         const std::vector<float>& ranges,
@@ -110,99 +109,51 @@ public:
         const Pose2D& current_pose = Pose2D(),
         double timestamp = 0.0
     );
-    
-    /**
-     * @brief Get the LiDAR processor (for external use/visualization)
-     */
+
     LidarProcessor& getLidarProcessor() { return lidar_processor_; }
     const LidarProcessor& getLidarProcessor() const { return lidar_processor_; }
-    
-    /**
-     * @brief Reset internal state (if any)
-     */
+
     void reset();
 
 private:
     FTGConfig config_;
     LidarProcessor lidar_processor_;
-    double last_steering_{0.0};     // For steering rate limiting
-    double smoothed_target_{0.0};   // EMA-filtered target angle
-    bool first_compute_{true};      // First invocation flag
-    std::chrono::steady_clock::time_point last_compute_time_;  // For time-based rate limiting
-    
-    // ============================================
-    // FTG-Specific LiDAR Processing (moved from LidarProcessor)
-    // ============================================
-    
-    /**
-     * @brief Apply disparity extension to ranges
-     * 
-     * Extends obstacles at disparity points (sudden range changes) to prevent
-     * the robot from driving into narrow gaps that it cannot fit through.
-     * 
-     * @param scan Processed scan to modify (in-place)
-     */
+    double last_steering_{0.0};
+    double smoothed_target_{0.0};
+    bool first_compute_{true};
+    std::chrono::steady_clock::time_point last_compute_time_;
+
+    // -- LiDAR safety processing ----------------------------------------------
     void applyDisparityExtension(ProcessedScan& scan);
-    
-    /**
-     * @brief Apply wall margin to all readings
-     * 
-     * Shrinks all range readings by wall_margin to create artificial clearance
-     * from walls when driving parallel to them (where disparity won't help).
-     * 
-     * @param scan Processed scan to modify (in-place)
-     */
     void applyWallMargin(ProcessedScan& scan);
-    
+
+    // -- Weighted free-space core ---------------------------------------------
+
     /**
-     * @brief Apply safety bubble around closest point
-     * 
-     * Zeros out ranges within bubble_radius of the closest point to ensure
-     * the robot doesn't drive toward the nearest obstacle.
-     * 
-     * @param scan Processed scan to modify (in-place)
-     * @param closest_idx Pre-computed index of the closest point
+     * @brief Compute effective clearance for every beam.
+     *
+     * For beam i the effective clearance is the minimum filtered range within
+     * a cone of +/- atan(car_half_width * scale / range) indices around i.
      */
-    void applySafetyBubble(ProcessedScan& scan, size_t closest_idx);
-    
+    std::vector<double> computeEffectiveClearance(const ProcessedScan& scan);
+
     /**
-     * @brief Find all gaps in the processed scan
-     * @param scan Processed scan
-     * @return Vector of detected gaps
+     * @brief Compute weighted-centroid target angle from effective clearances.
+     *
+     * score_i = max(0, clearance_i - min_score_range)^power
+     *         * exp(-heading_weight * |angle_i|)
+     * target  = sum(angle_i * score_i) / sum(score_i)
      */
-    std::vector<Gap> findGaps(const ProcessedScan& scan);
-    
-    /**
-     * @brief Find the best gap based on scoring function
-     * @param gaps Vector of gaps to search
-     * @return Best gap, or invalid gap if none found
-     */
-    Gap findBestGap(const std::vector<Gap>& gaps);
-    
-    // ============================================
-    // Control Calculations
-    // ============================================
-    
-    /**
-     * @brief Calculate target angle toward gap (deepest point)
-     */
-    double calculateTargetAngle(const Gap& gap, const ProcessedScan& scan);
-    
-    /**
-     * @brief Calculate speed based on range and steering
-     */
-    double calculateSpeed(const Gap& gap, double steering_angle);
-    
-    /**
-     * @brief Score a gap for selection
-     * Higher score = better gap (depth × width)
-     */
-    double scoreGap(const Gap& gap);
-    
-    /**
-     * @brief Smooth steering with time-based rate limiting
-     */
-    double smoothSteering(double target_steering, double last_steering, double dt);
+    double computeTargetAngle(const ProcessedScan& scan,
+                              const std::vector<double>& eff_clearance);
+
+    // -- Gap detection (lightweight, for visualisation only) ------------------
+    std::vector<Gap> findGapsForViz(const ProcessedScan& scan);
+    Gap findBestGapForViz(const std::vector<Gap>& gaps);
+
+    // -- Control --------------------------------------------------------------
+    double calculateSpeed(double forward_clearance, double steering_angle);
+    double smoothSteering(double target, double last, double dt);
 };
 
 }  // namespace f1tenth_control
