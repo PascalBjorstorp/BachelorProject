@@ -8,6 +8,8 @@
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 
 #include "f1tenth_control/algorithms/pure_pursuit.hpp"
 #include <memory>
@@ -77,6 +79,10 @@ private:
     Metrics metrics_;
     
     // ROS2 Communication
+    // TF for map-frame pose (keeps waypoint and vehicle coordinates consistent)
+    std::shared_ptr<tf2_ros::Buffer>            tf_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr enable_sub_;
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr local_raceline_sub_;
@@ -89,6 +95,8 @@ private:
     
     // Parameters
     std::string trajectory_file_;
+    std::string map_frame_{"map"};
+    std::string base_frame_{"ego_racecar/base_link"};
     bool publish_visualization_{true};
     double control_rate_{50.0};  // Hz
     
@@ -104,6 +112,7 @@ private:
     void enableCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void localRacelineCallback(const nav_msgs::msg::Path::SharedPtr msg);
     void controlLoop();
+    bool updatePoseFromTF();  // Updates pose in map frame; falls back to /odom
     
     // Publishing
     void publishDriveCommand(double steering, double speed);
