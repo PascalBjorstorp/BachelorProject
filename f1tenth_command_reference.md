@@ -74,8 +74,6 @@ Run the raceline planner on your PC (no need for the car to be on).
 ### Generate the Racing Line
 ```bash
 python3 f1tenth_planning/scripts/generate_raceline.py \
-  --map ~/BachelorProject/f1tenth_sim/maps/my_track_map.yaml \
-  --output f1tenth_planning/trajectories \
   --visualize
 ```
 

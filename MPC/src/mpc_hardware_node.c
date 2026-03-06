@@ -1139,10 +1139,13 @@ int main(int argc, char *argv[])
     rcl_timer_t mpc_timer = rcl_get_zero_initialized_timer();
     int64_t timer_period_ns = (int64_t)(1e9 / g_control_rate_hz);  /* e.g., 5ms for 200Hz */
 
-    rc = rcl_timer_init2(
+    /* Use rcl_timer_init (available on all Humble builds).
+     * rcl_timer_init2 (adds autostart param) was only added in later patches
+     * and is missing on some Jetson Humble installations. */
+    rc = rcl_timer_init(
         &mpc_timer, &steady_clock, &ctx,
         timer_period_ns, &mpc_timer_callback,
-        alloc, true /* autostart */);
+        alloc);
     if (rc != RCL_RET_OK)
     {
         fprintf(stderr, "[ROS2] ERROR: timer init: %s\n", rcl_get_error_string().str);

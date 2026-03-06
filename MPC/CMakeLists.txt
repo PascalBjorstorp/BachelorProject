@@ -58,11 +58,9 @@ target_link_libraries(mpc_hardware_node
 target_compile_options(mpc_hardware_node PRIVATE
     -O3
     -march=native
-    -flto
     -Wall -Wextra
     -std=c99
 )
-target_link_options(mpc_hardware_node PRIVATE -flto)
 target_compile_definitions(mpc_hardware_node PRIVATE
     _GNU_SOURCE
     _POSIX_C_SOURCE=200809L
