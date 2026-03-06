@@ -11,5 +11,20 @@ state_publisher:
     # Output topic (MpcState message)
     output_topic: "/mpc_state"
     
-    # Rate at which to check for new messages (Hz)
-    publish_rate_hz: 50.0
+    # Servo position feedback topic (for actual steering angle)
+    # On real car: "/sensors/servo_position_command" from VESC
+    # Set to "" to disable and use bicycle-model estimate instead
+    servo_topic: "/sensors/servo_position_command"
+    
+    # Vehicle wheelbase [m] (used for steering angle estimation fallback)
+    wheelbase: 0.324   # [m] (matches MPC/FPGA VP_WHEELBASE)
+    
+    # VESC servo → steering angle conversion
+    # δ = (servo_val - servo_offset) / servo_gain
+    # Default: servo_val = -0.794 × δ + 0.55
+    servo_gain: -0.794     # [servo_units / rad]
+    servo_offset: 0.55     # servo center value (δ=0)
+    
+    # Forward-biased waypoint lookup: number of waypoints ahead of KD-tree
+    # nearest to check.  Prevents selecting a waypoint behind the car at speed.
+    forward_lookahead: 3

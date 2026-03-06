@@ -9,6 +9,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <std_msgs/msg/float64.hpp>
 #include <f1tenth_msgs/msg/mpc_state.hpp>
 
 #include <fstream>
@@ -142,11 +143,22 @@ public:
         this->declare_parameter("trajectory_file", "");
         this->declare_parameter("odom_topic", "/ego_racecar/odom");
         this->declare_parameter("output_topic", "/mpc_state");
-        this->declare_parameter("publish_rate_hz", 50.0);
+        this->declare_parameter("servo_topic", "/sensors/servo_position_command");
+        this->declare_parameter("wheelbase", 0.324);
+        // VESC servo → steering angle conversion: δ = (servo_val - offset) / gain
+        this->declare_parameter("servo_gain", -0.794);
+        this->declare_parameter("servo_offset", 0.55);
+        // Number of waypoints ahead of KD-tree nearest to check for forward bias
+        this->declare_parameter("forward_lookahead", 3);
         
         std::string trajectory_file = this->get_parameter("trajectory_file").as_string();
         std::string odom_topic = this->get_parameter("odom_topic").as_string();
         std::string output_topic = this->get_parameter("output_topic").as_string();
+        std::string servo_topic = this->get_parameter("servo_topic").as_string();
+        wheelbase_ = this->get_parameter("wheelbase").as_double();
+        servo_gain_ = this->get_parameter("servo_gain").as_double();
+        servo_offset_ = this->get_parameter("servo_offset").as_double();
+        forward_lookahead_ = static_cast<int>(this->get_parameter("forward_lookahead").as_int());
         
         if (trajectory_file.empty()) {
             RCLCPP_ERROR(this->get_logger(), "No trajectory file specified!");
@@ -160,8 +172,8 @@ public:
             return;
         }
         
-        RCLCPP_INFO(this->get_logger(), "Loaded %zu waypoints from %s",
-                   kdtree_.size(), trajectory_file.c_str());
+        RCLCPP_INFO(this->get_logger(), "Loaded %zu waypoints from %s (hash=0x%08X)",
+                   kdtree_.size(), trajectory_file.c_str(), trajectory_hash_);
         
         // Create publisher with Best Effort QoS (lower latency)
         auto qos = rclcpp::QoS(1)
@@ -174,6 +186,33 @@ public:
             odom_topic, qos,
             std::bind(&StatePublisherNode::odom_callback, this, std::placeholders::_1));
         
+        // Subscribe to servo position feedback (for actual steering angle)
+        if (!servo_topic.empty()) {
+            servo_sub_ = this->create_subscription<std_msgs::msg::Float64>(
+                servo_topic, qos,
+                [this](const std_msgs::msg::Float64::SharedPtr msg) {
+                    // msg->data is the VESC servo command value (0.0-1.0),
+                    // NOT the steering angle in radians.
+                    // Convert: δ = (servo_val - offset) / gain
+                    current_steering_angle_ = (msg->data - servo_offset_) / servo_gain_;
+                    has_servo_feedback_ = true;
+                });
+            RCLCPP_INFO(this->get_logger(), "Subscribing to servo feedback: %s", servo_topic.c_str());
+        }
+        
+        // Odom timeout watchdog: warn if no odom received for 500ms
+        odom_watchdog_timer_ = this->create_wall_timer(
+            std::chrono::milliseconds(500),
+            [this]() {
+                if (!odom_received_) return;  // Haven't received first message yet
+                auto elapsed_ms = std::chrono::duration<double, std::milli>(
+                    std::chrono::steady_clock::now() - last_odom_time_).count();
+                if (elapsed_ms > 500.0) {
+                    RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
+                        "No odom received for %.0f ms — localization may be stalled", elapsed_ms);
+                }
+            });
+
         RCLCPP_INFO(this->get_logger(), "State publisher ready (Best Effort QoS). Subscribing to %s, publishing to %s",
                    odom_topic.c_str(), output_topic.c_str());
     }
@@ -182,6 +221,20 @@ private:
     KDTree kdtree_;
     rclcpp::Publisher<f1tenth_msgs::msg::MpcState>::SharedPtr pub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_;
+    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr servo_sub_;
+    
+    double current_steering_angle_ = 0.0;  // Steering angle [rad] (converted from servo value)
+    bool has_servo_feedback_ = false;
+    double wheelbase_ = 0.324;
+    double servo_gain_ = -0.794;     // VESC servo → steering gain
+    double servo_offset_ = 0.55;     // VESC servo center offset
+    int forward_lookahead_ = 3;      // Waypoints ahead to check for forward bias
+    uint32_t trajectory_hash_ = 0;   // Checksum for cross-node trajectory verification
+
+    // Odom timeout detection
+    rclcpp::TimerBase::SharedPtr odom_watchdog_timer_;
+    std::chrono::steady_clock::time_point last_odom_time_ = std::chrono::steady_clock::now();
+    bool odom_received_ = false;
     
     bool load_trajectory(const std::string& filepath) {
         std::ifstream file(filepath);
@@ -216,13 +269,55 @@ private:
         }
         
         kdtree_.build(waypoints);
+
+        // Compute trajectory checksum for cross-node verification
+        trajectory_hash_ = 0;
+        for (const auto& wp : waypoints) {
+            trajectory_hash_ ^= static_cast<uint32_t>(wp.x * 65536.0)
+                              ^ (static_cast<uint32_t>(wp.y * 65536.0) << 16);
+        }
         return true;
     }
     
     void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
+        last_odom_time_ = std::chrono::steady_clock::now();
+        odom_received_ = true;
+
         // Extract position
         double x = msg->pose.pose.position.x;
         double y = msg->pose.pose.position.y;
+
+        // --- Input bounds validation ---
+        // Skip this message if any key value is NaN/Inf or clearly out of range.
+        {
+            double qx = msg->pose.pose.orientation.x;
+            double qy = msg->pose.pose.orientation.y;
+            double qz = msg->pose.pose.orientation.z;
+            double qw = msg->pose.pose.orientation.w;
+            double vx = msg->twist.twist.linear.x;
+            double vy = msg->twist.twist.linear.y;
+            double wz = msg->twist.twist.angular.z;
+
+            auto ok = [](double v) { return std::isfinite(v); };
+            if (!ok(x) || !ok(y) || !ok(qx) || !ok(qy) || !ok(qz) || !ok(qw) ||
+                !ok(vx) || !ok(vy) || !ok(wz)) {
+                RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                    "Dropping odom: NaN/Inf detected in incoming message");
+                return;
+            }
+            constexpr double POS_LIMIT = 500.0;   // ±500 m
+            constexpr double VEL_LIMIT = 50.0;    // ±50 m/s
+            if (std::abs(x) > POS_LIMIT || std::abs(y) > POS_LIMIT) {
+                RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                    "Dropping odom: position out of range (%.1f, %.1f)", x, y);
+                return;
+            }
+            if (std::abs(vx) > VEL_LIMIT || std::abs(vy) > VEL_LIMIT) {
+                RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                    "Dropping odom: velocity out of range (vx=%.1f, vy=%.1f)", vx, vy);
+                return;
+            }
+        }
         
         // Extract yaw from quaternion
         double qx = msg->pose.pose.orientation.x;
@@ -242,9 +337,44 @@ private:
         constexpr double WHEEL_RADIUS = 0.0545;
         double wheel_speed = (velocity > 0.01) ? (velocity / WHEEL_RADIUS) : 0.0;
         
-        // KD-tree lookup
+        // Determine steering angle: use servo feedback if available,
+        // otherwise estimate from bicycle model: δ ≈ atan(L * ω / v_x)
+        double steering_angle = current_steering_angle_;
+        if (!has_servo_feedback_ && std::abs(velocity) > 0.1) {
+            steering_angle = std::atan2(wheelbase_ * omega, velocity);
+        }
+        
+        // KD-tree lookup + forward-biased waypoint selection
         auto start_time = std::chrono::high_resolution_clock::now();
         size_t waypoint_idx = kdtree_.find_nearest(x, y);
+        
+        // Forward bias: at high speed the closest waypoint may be slightly
+        // behind the car.  Check the next few waypoints and prefer the
+        // nearest one that is *ahead* of the vehicle heading.
+        {
+            const double cos_theta = std::cos(theta);
+            const double sin_theta = std::sin(theta);
+            const size_t N = kdtree_.size();
+            size_t best_idx = waypoint_idx;
+            double best_dist = std::numeric_limits<double>::max();
+            
+            for (int i = 0; i <= forward_lookahead_; ++i) {
+                size_t check_idx = (waypoint_idx + static_cast<size_t>(i)) % N;
+                const auto& wp = kdtree_.get_waypoint(check_idx);
+                double dx_wp = wp.x - x;
+                double dy_wp = wp.y - y;
+                // Dot product with heading: positive means ahead
+                double ahead = dx_wp * cos_theta + dy_wp * sin_theta;
+                if (ahead >= 0.0) {
+                    double dist = dx_wp * dx_wp + dy_wp * dy_wp;
+                    if (dist < best_dist) {
+                        best_dist = dist;
+                        best_idx = check_idx;
+                    }
+                }
+            }
+            waypoint_idx = best_idx;
+        }
         auto end_time = std::chrono::high_resolution_clock::now();
         
         // Create and publish message (using Q16.16 fixed-point for FPGA efficiency)
@@ -253,6 +383,7 @@ private:
         
         // Round to nearest (avoid truncation bias in Q16.16 conversion)
         auto to_fp = [](double v) -> int32_t {
+            if (!std::isfinite(v)) return 0;  // Guard against NaN/Inf from localization
             return static_cast<int32_t>(v >= 0.0 ? v * FP_SCALE + 0.5 : v * FP_SCALE - 0.5);
         };
         
@@ -266,6 +397,7 @@ private:
         mpc_state.vy_fp = to_fp(vy);
         mpc_state.omega_fp = to_fp(omega);
         mpc_state.wheel_speed_fp = to_fp(wheel_speed);
+        mpc_state.steering_angle_fp = to_fp(steering_angle);
         mpc_state.waypoint_index = static_cast<uint32_t>(waypoint_idx);
         mpc_state.timestamp_ms = static_cast<uint32_t>(
             std::chrono::duration_cast<std::chrono::milliseconds>(

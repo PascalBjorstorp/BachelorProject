@@ -52,7 +52,7 @@
  *   - Small-angle slip angles (no atan)
  * This improves sim prediction accuracy at the cost of real-world fidelity.
  * Undefine for real-car deployment.  */
-#define MPC_SIM_MATCHING
+/* #define MPC_SIM_MATCHING */
 
 /*===========================================================================
  * Module State (Vehicle Parameters)
