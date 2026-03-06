@@ -62,43 +62,44 @@ FTGNode::FTGNode(const rclcpp::NodeOptions& options)
 
 void FTGNode::declareParameters() {
     // Vehicle parameters
-    declare_parameter("wheelbase", 0.324);
-    declare_parameter("car_width", 0.50);
-    
-    // Speed control (reference FTG formula)
-    declare_parameter("max_speed", 6.0);
-    declare_parameter("min_speed", 2.0);
-    declare_parameter("speed_full_range", 9.0);
-    declare_parameter("steer_slowdown_gain", 0.7);
-    
+    declare_parameter("wheelbase", 0.3302);
+    declare_parameter("car_width", 0.30);
+
+    // Speed control
+    declare_parameter("max_speed", 2.0);
+    declare_parameter("min_speed", 1.0);
+    declare_parameter("speed_full_range", 4.0);
+    declare_parameter("steer_slowdown_gain", 0.5);
+
     // Steering control
-    declare_parameter("max_steering", 0.4);
-    declare_parameter("steering_gain", 0.8);  // Reduced for stability
-    declare_parameter("max_steering_rate", 2.0);  // [rad/s] Time-based rate limit
-    declare_parameter("target_ema_alpha", 0.3);   // EMA smoothing for target angle
-    declare_parameter("heading_bias_weight", 0.3); // Prefer gaps near current heading
-    declare_parameter("center_weight", 0.7);       // Blend gap center vs deepest point
-    
+    declare_parameter("max_steering", 0.4262);
+    declare_parameter("steering_gain", 1.0);
+    declare_parameter("max_steering_rate", 3.5);
+    declare_parameter("target_ema_alpha", 0.35);
+
+    // Weighted free-space scoring
+    declare_parameter("heading_weight", 1.0);
+    declare_parameter("score_power", 2.0);
+    declare_parameter("clearance_cone_scale", 1.5);
+    declare_parameter("min_score_range", 0.3);
+
     // Safety
-    declare_parameter("emergency_brake_distance", 0.1);
-    
-    // FTG-specific LiDAR processing parameters
+    declare_parameter("emergency_brake_distance", 0.15);
+
+    // LiDAR processing
     declare_parameter("disparity_threshold", 0.5);
-    declare_parameter("gap_threshold", 0.8);
+    declare_parameter("wall_margin", 0.15);
+    declare_parameter("gap_threshold", 0.5);
     declare_parameter("min_gap_width", 0.15);
-    declare_parameter("bubble_radius", 0.25);
-    declare_parameter("apply_bubble", true);
-    declare_parameter("wall_margin", 0.35);
-    declare_parameter("gap_edge_trim", 3);
-    
-    // Generic LiDAR preprocessing parameters
+
+    // Generic LiDAR preprocessing
     declare_parameter("lidar.range_min", 0.1);
-    declare_parameter("lidar.range_max", 12.0);
-    declare_parameter("lidar.angle_min", -1.57);  // -90 degrees
-    declare_parameter("lidar.angle_max", 1.57);   // +90 degrees
+    declare_parameter("lidar.range_max", 10.0);
+    declare_parameter("lidar.angle_min", -1.5708);
+    declare_parameter("lidar.angle_max", 1.5708);
     declare_parameter("lidar.apply_median_filter", true);
     declare_parameter("lidar.median_window_size", 3);
-    
+
     // Mapping mode
     declare_parameter("mapping_mode", false);
     declare_parameter("mapping_sample_rate", 10.0);
@@ -108,33 +109,34 @@ void FTGNode::loadParameters() {
     // Vehicle parameters
     config_.wheelbase = get_parameter("wheelbase").as_double();
     config_.car_width = get_parameter("car_width").as_double();
-    
-    // Speed control (reference FTG formula)
+
+    // Speed control
     config_.max_speed = get_parameter("max_speed").as_double();
     config_.min_speed = get_parameter("min_speed").as_double();
     config_.speed_full_range = get_parameter("speed_full_range").as_double();
     config_.steer_slowdown_gain = get_parameter("steer_slowdown_gain").as_double();
-    
+
     // Steering control
     config_.max_steering = get_parameter("max_steering").as_double();
     config_.steering_gain = get_parameter("steering_gain").as_double();
     config_.max_steering_rate = get_parameter("max_steering_rate").as_double();
     config_.target_ema_alpha = get_parameter("target_ema_alpha").as_double();
-    config_.heading_bias_weight = get_parameter("heading_bias_weight").as_double();
-    config_.center_weight = get_parameter("center_weight").as_double();
-    
+
+    // Weighted free-space scoring
+    config_.heading_weight = get_parameter("heading_weight").as_double();
+    config_.score_power = get_parameter("score_power").as_double();
+    config_.clearance_cone_scale = get_parameter("clearance_cone_scale").as_double();
+    config_.min_score_range = get_parameter("min_score_range").as_double();
+
     // Safety
     config_.emergency_brake_distance = get_parameter("emergency_brake_distance").as_double();
-    
-    // FTG-specific LiDAR processing parameters (now in FTGConfig)
+
+    // LiDAR processing
     config_.disparity_threshold = get_parameter("disparity_threshold").as_double();
+    config_.wall_margin = get_parameter("wall_margin").as_double();
     config_.gap_threshold = get_parameter("gap_threshold").as_double();
     config_.min_gap_width = get_parameter("min_gap_width").as_double();
-    config_.bubble_radius = get_parameter("bubble_radius").as_double();
-    config_.apply_bubble = get_parameter("apply_bubble").as_bool();
-    config_.wall_margin = get_parameter("wall_margin").as_double();
-    config_.gap_edge_trim = get_parameter("gap_edge_trim").as_int();
-    
+
     // Generic LiDAR preprocessing config
     config_.lidar_config.range_min = get_parameter("lidar.range_min").as_double();
     config_.lidar_config.range_max = get_parameter("lidar.range_max").as_double();
@@ -142,7 +144,7 @@ void FTGNode::loadParameters() {
     config_.lidar_config.angle_max = get_parameter("lidar.angle_max").as_double();
     config_.lidar_config.apply_median_filter = get_parameter("lidar.apply_median_filter").as_bool();
     config_.lidar_config.median_window_size = get_parameter("lidar.median_window_size").as_int();
-    
+
     // Mapping mode
     config_.mapping_mode = get_parameter("mapping_mode").as_bool();
     config_.mapping_sample_rate = get_parameter("mapping_sample_rate").as_double();

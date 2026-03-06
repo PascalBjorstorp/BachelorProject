@@ -1,7 +1,8 @@
-# Follow The Gap (FTG) Algorithm Configuration
-# =============================================
-# Pure FTG implementation based on reference that achieves 8 m/s
-# This is designed for real-world use without a map.
+# Weighted Free-Space Follow The Gap (FTG) Configuration
+# ======================================================
+# Replaces discrete gap-finding with continuous drivability scoring.
+# Steers toward the weighted centroid of all high-scoring directions,
+# naturally centring the car in corridors for smooth 1-2 m/s driving.
 
 ftg_node:
   ros__parameters:
@@ -9,56 +10,67 @@ ftg_node:
     # Vehicle Parameters
     # ===================
     wheelbase: 0.3302        # Distance between front and rear axles (m)
-    car_width: 0.4         # Width for disparity extension (m) - actual car width
+    car_width: 0.30          # Vehicle width for clearance cone (m)
 
     # ===================
-    # Speed Control (Reference FTG Formula)
+    # Speed Control
     # ===================
     # Speed = min_speed + (max_speed - min_speed) * range_factor * steer_factor
-    max_speed: 2.0          # Maximum allowed speed (m/s)
-    min_speed: 1.0          # Minimum speed (m/s)
-    speed_full_range: 3.0   # Distance (m) at which full speed is allowed
-    steer_slowdown_gain: 0.4 # How much steering reduces speed (0=none, 1=max)
+    max_speed: 2.0           # Maximum allowed speed (m/s)
+    min_speed: 1.0           # Minimum speed (m/s) - keeps car moving
+    speed_full_range: 4.0    # Range (m) at which full speed is used
+    steer_slowdown_gain: 0.5 # How much steering reduces speed (0=none, 1=max)
 
     # ===================
     # Steering Control
     # ===================
-    max_steering: 0.4262          # [rad] Maximum steering angle (~24°)
-    steering_gain: 1.0            # Gain for steering toward gap
-    max_steering_rate: 3.0        # [rad/s] Time-based max steering change rate
-    target_ema_alpha: 0.35        # EMA smoothing for target angle (0.1=very smooth, 1.0=no smoothing)
-    heading_bias_weight: 0.6      # Prefer gaps near current heading (0=disabled, higher=stronger)
-    center_weight: 0.25            # Blend: 1.0=steer to gap center, 0.0=steer to deepest point
+    max_steering: 0.4262          # [rad] Maximum steering angle (~24 deg)
+    steering_gain: 1.0            # Proportional gain on target angle
+    max_steering_rate: 3.5        # [rad/s] Max steering change rate
+    target_ema_alpha: 0.35        # EMA smoothing (lower = smoother, 1.0 = none)
+
+    # ===================
+    # Weighted Free-Space Scoring
+    # ===================
+    # These control how the algorithm picks a steering direction.
+    #
+    # heading_weight  - exponential decay for non-forward directions.
+    #                   Higher values bias toward going straight.
+    #                   0.5-1.0 = gentle bias, 2.0+ = very straight.
+    # score_power     - raise effective clearance to this power.
+    #                   Higher = sharper selection, lower = more averaging.
+    # clearance_cone_scale - multiplier on car half-width for the safety
+    #                        cone used to compute effective clearance.
+    #                        1.5 = 50% extra margin beyond car edge.
+    # min_score_range - beams shorter than this (m) are scored as zero.
+    heading_weight: 1.0
+    score_power: 2.0
+    clearance_cone_scale: 1.5
+    min_score_range: 0.3
 
     # ===================
     # Safety Parameters
     # ===================
-    emergency_brake_distance: 0.05 # Emergency stop if obstacle closer (m) - reduced for tight spaces
+    emergency_brake_distance: 0.15  # Emergency stop if obstacle closer (m)
 
     # ===================
-    # FTG-Specific Processing
+    # LiDAR Processing
     # ===================
-    # These parameters are specific to the Follow The Gap algorithm
-    disparity_threshold: 0.3  # Threshold for detecting disparities (m) - lower = more sensitive
-    gap_threshold: 0.5         # Minimum range to consider as "gap" (m) - readings > this are "open"
-    min_gap_width: 0.3         # Minimum angular width of valid gap (rad) ~17 degrees
-    bubble_radius: 0.2        # Safety bubble radius around closest point (m)
-    apply_bubble: true         # Enable safety bubble
-    wall_margin: 0.05          # Shrink all readings by this amount (m) - creates clearance from parallel walls
-    gap_edge_trim: 10           # Discard this many indices from each side of a gap (0=off, 1-5 typical)
-    wall_margin: 0.2          # Shrink all readings by this amount (m) - creates clearance from parallel walls
+    disparity_threshold: 0.5  # Disparity detection threshold (m)
+    wall_margin: 0.15         # Shrink all readings by this (m) for safety
+    gap_threshold: 0.5        # Min range to count as "gap" for visualisation
+    min_gap_width: 0.15       # Min angular gap width for visualisation (rad)
 
     # ===================
     # Generic LiDAR Preprocessing
     # ===================
-    # These parameters are generic and can be reused by other algorithms
     lidar:
-      range_min: 0.1        # Ignore readings closer than this (m)
-      range_max: 10.0       # Maximum range to consider (m)
-      angle_min: -1.05      # Minimum angle to process (rad) - -90 degrees
-      angle_max: 1.05       # Maximum angle to process (rad) - +90 degrees
-      apply_median_filter: true   # Apply median filter for noise reduction (reduces jitter)
-      median_window_size: 3       # Window size (should be odd) 
+      range_min: 0.1         # Ignore readings closer than this (m)
+      range_max: 10.0        # Maximum range to consider (m)
+      angle_min: -1.5708     # Min angle to process (rad) = -90 deg
+      angle_max: 1.5708      # Max angle to process (rad) = +90 deg
+      apply_median_filter: true    # Median filter for noise reduction
+      median_window_size: 3        # Window (must be odd)
 
     # ===================
     # Mapping Mode
