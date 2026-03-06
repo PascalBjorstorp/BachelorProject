@@ -108,7 +108,15 @@ ackermann_to_vesc_node:
     # "ACCEL_TO_CURRENT": acceleration command -> current
     # "VEL_TO_CURRENT": velocity command -> current (with PID)
     # "VEL_TO_ERPM": velocity command -> ERPM (default, simplest)
+    # Mode is determined by accel gains: non-zero enables ACCEL_TO_CURRENT.
     operation_mode: "VEL_TO_ERPM"
+
+    # Acceleration-to-current gains (set non-zero to enable ACCEL_TO_CURRENT)
+    # Derived from tested drivetrain model:
+    #   gain = mass / Kt_eff = 3.314 / 0.3709 = 8.935 A/(m/s²)
+    # Source: f1tenth_parameters/vehicle_params.yaml (Kt_eff tested, R²=0.87)
+    accel_to_current_gain: 0.0    # 0.0 = VEL_TO_ERPM mode (set to 8.935 for ACCEL_TO_CURRENT)
+    accel_to_brake_gain: 0.0      # 0.0 = VEL_TO_ERPM mode (set to 8.935 for ACCEL_TO_CURRENT)
     
     # Braking parameters (for ACCEL_TO_CURRENT and VEL_TO_CURRENT modes)
     use_braking: true
@@ -119,7 +127,11 @@ ackermann_to_vesc_node:
     # When current speed < threshold and commanded > threshold, the driver
     # gradually ramps up speed by increment to allow rotor position detection.
     # Set threshold to 0.0 to disable slow-start entirely.
-    slow_start_threshold: 0.0    # m/s (disable with 0.0)
+    # IMPORTANT: When using ACCEL_TO_CURRENT mode with a sensorless motor,
+    # this MUST be > 0 to avoid sending COMM_SET_CURRENT at standstill,
+    # which causes cogging/vibration because the back-EMF observer cannot
+    # determine rotor position at zero speed.
+    slow_start_threshold: 1.0    # m/s (>0 enables ERPM-based startup below this speed)
     slow_start_increment: 0.4    # m/s per command step
 
 # ===================

@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>mpc_hardware</name>
+  <version>1.0.0</version>
+  <description>
+    MPC Riccati-ADMM controller for F1/10th real hardware.
+    Uses Q16.16 fixed-point arithmetic for deterministic real-time performance.
+    8-state augmented Frenet model with steering rate control.
+    Designed for Jetson Xavier NX @ 200 Hz.
+  </description>
+  <maintainer email="todo@todo.com">F1TENTH Team</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rcl</depend>
+  <depend>rclc</depend>
+  <depend>nav_msgs</depend>
+  <depend>ackermann_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>rosidl_runtime_c</depend>
+  <depend>rcutils</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

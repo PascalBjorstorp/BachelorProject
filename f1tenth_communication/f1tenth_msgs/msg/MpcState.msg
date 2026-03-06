@@ -16,6 +16,7 @@ int32 velocity_fp    # Longitudinal velocity v_x [m/s], Q16.16 (body frame)
 int32 vy_fp          # Lateral velocity v_y [m/s], Q16.16 (body frame)
 int32 omega_fp       # Yaw rate ω [rad/s], Q16.16
 int32 wheel_speed_fp # Wheel rotational speed ω_w [rad/s], Q16.16
+int32 steering_angle_fp  # Actual servo steering angle δ [rad], Q16.16
 
 # Trajectory reference (integer, no conversion needed)
 uint32 waypoint_index

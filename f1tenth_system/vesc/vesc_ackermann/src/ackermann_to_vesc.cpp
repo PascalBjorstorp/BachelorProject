@@ -133,12 +133,42 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
   // Case 1: Acceleration-to-current mode (if gains are set)
   if (accel_to_current_gain_ != 0 && accel_to_brake_gain_ != 0) {
     if (cmd->drive.acceleration != 0) {
-      // Direct acceleration command
-      operation_mode_ = ACCEL_TO_CURRENT;
       if (cmd->drive.acceleration < 0) {
+        // Braking — always safe regardless of speed
+        operation_mode_ = ACCEL_TO_CURRENT;
         brake_msg->data = accel_to_brake_gain_ * std::abs(cmd->drive.acceleration);
         publish_brake = true;
+      } else if (slow_start_threshold_ > 0.0 &&
+                 std::abs(current_vel_) < slow_start_threshold_) {
+        // LOW-SPEED PROTECTION for sensorless motors:
+        // Below the slow-start threshold, COMM_SET_CURRENT is unreliable
+        // because the back-EMF observer has insufficient signal for rotor
+        // position estimation. Instead, use COMM_SET_RPM which triggers
+        // the VESC firmware's built-in open-loop startup sequence.
+        //
+        // The target velocity is computed from the drive.speed field (set by
+        // MPC as v_ref + a_cmd*dt) or, if zero, from a small increment.
+        // The slow_start_increment_ parameter limits how quickly we ramp
+        // to avoid overshooting the open-loop → sensorless transition.
+        operation_mode_ = VEL_TO_ERPM;
+        double target_vel = cmd->drive.speed;
+        if (target_vel <= 0.0) {
+          // Fallback: use a gentle kick to get the motor moving
+          target_vel = slow_start_increment_;
+        }
+        // Limit the commanded velocity to the threshold during startup
+        if (target_vel > slow_start_threshold_) {
+          target_vel = std::min(current_vel_ + slow_start_increment_, slow_start_threshold_);
+        }
+        erpm_msg->data = speed_to_erpm_gain_ * target_vel + speed_to_erpm_offset_;
+        publish_erpm = true;
+        RCLCPP_DEBUG_THROTTLE(get_logger(), *get_clock(), 500,
+          "Low-speed protection: using ERPM mode (vel=%.2f, target=%.2f, threshold=%.2f)",
+          current_vel_, target_vel, slow_start_threshold_);
       } else {
+        // Above threshold: direct current command is safe — the observer
+        // has enough back-EMF signal for reliable rotor position estimation.
+        operation_mode_ = ACCEL_TO_CURRENT;
         current_msg->data = accel_to_current_gain_ * cmd->drive.acceleration;
         publish_erpm = true;
       }
@@ -148,7 +178,18 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
       double commanded_vel = cmd->drive.speed;
       double acceleration = 10.0 * (commanded_vel - current_vel_);
       if (acceleration > 0) {
-        current_msg->data = acceleration * accel_to_current_gain_;
+        if (slow_start_threshold_ > 0.0 &&
+            std::abs(current_vel_) < slow_start_threshold_) {
+          // Low-speed protection: use ERPM instead of current
+          operation_mode_ = VEL_TO_ERPM;
+          double target_vel = std::min(commanded_vel, slow_start_threshold_);
+          if (current_vel_ < slow_start_threshold_) {
+            target_vel = std::min(current_vel_ + slow_start_increment_, target_vel);
+          }
+          erpm_msg->data = speed_to_erpm_gain_ * target_vel + speed_to_erpm_offset_;
+        } else {
+          current_msg->data = acceleration * accel_to_current_gain_;
+        }
         publish_erpm = true;
       } else {
         brake_msg->data = std::abs(acceleration) * accel_to_brake_gain_;
