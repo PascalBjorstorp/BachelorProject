@@ -26,9 +26,9 @@ ftg_node:
     max_steering: 0.4262          # [rad] Maximum steering angle (~24°)
     steering_gain: 1.0            # Gain for steering toward gap
     max_steering_rate: 3.0        # [rad/s] Time-based max steering change rate
-    target_ema_alpha: 0.35        # EMA smoothing for target angle (0.1=very smooth, 1.0=no smoothing)
-    heading_bias_weight: 0.6      # Prefer gaps near current heading (0=disabled, higher=stronger)
-    center_weight: 0.25            # Blend: 1.0=steer to gap center, 0.0=steer to deepest point
+    target_ema_alpha: 0.65        # EMA smoothing for target angle (0.1=very smooth, 1.0=no smoothing)
+    heading_bias_weight: 0.9      # Prefer gaps near current heading (0=disabled, higher=stronger)
+    center_weight: 0.4            # Blend: 1.0=steer to gap center, 0.0=steer to deepest point
 
     # ===================
     # Safety Parameters
@@ -40,12 +40,12 @@ ftg_node:
     # ===================
     # These parameters are specific to the Follow The Gap algorithm
     disparity_threshold: 0.3  # Threshold for detecting disparities (m) - lower = more sensitive
-    gap_threshold: 0.5         # Minimum range to consider as "gap" (m) - readings > this are "open"
+    gap_threshold: 0.35         # Minimum range to consider as "gap" (m) - readings > this are "open"
     min_gap_width: 0.3         # Minimum angular width of valid gap (rad) ~17 degrees
-    bubble_radius: 0.2        # Safety bubble radius around closest point (m)
+    bubble_radius: 0.3        # Safety bubble radius around closest point (m)
     apply_bubble: true         # Enable safety bubble
-    wall_margin: 0.05          # Shrink all readings by this amount (m) - creates clearance from parallel walls
-    gap_edge_trim: 10           # Discard this many indices from each side of a gap (0=off, 1-5 typical)
+    wall_margin: 0.1          # Shrink all readings by this amount (m) - creates clearance from parallel walls
+    gap_edge_trim: 40           # Discard this many indices from each side of a gap (0=off, 1-5 typical)
     wall_margin: 0.2          # Shrink all readings by this amount (m) - creates clearance from parallel walls
 
     # ===================
