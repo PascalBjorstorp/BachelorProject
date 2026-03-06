@@ -1,6 +1,7 @@
 #include "f1tenth_control/nodes/pure_pursuit_node.hpp"
 #include <tf2/utils.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <tf2/exceptions.h>
 
 namespace f1tenth_control {
 
@@ -12,6 +13,10 @@ PurePursuitNode::PurePursuitNode(const rclcpp::NodeOptions& options)
     // Declare and load parameters
     declareParameters();
     loadParameters();
+
+    // TF listener for map-frame pose (must be created after node is constructed)
+    tf_buffer_   = std::make_shared<tf2_ros::Buffer>(get_clock());
+    tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
     
     // Create controller
     controller_ = std::make_unique<PurePursuit>(config_);
@@ -104,6 +109,8 @@ void PurePursuitNode::declareParameters() {
     // Misc
     declare_parameter("publish_visualization", true);
     declare_parameter("control_rate", 50.0);
+    declare_parameter("map_frame",  std::string("map"));
+    declare_parameter("base_frame", std::string("ego_racecar/base_link"));
 }
 
 void PurePursuitNode::loadParameters() {
@@ -125,6 +132,8 @@ void PurePursuitNode::loadParameters() {
     publish_visualization_ = get_parameter("publish_visualization").as_bool();
     control_rate_ = get_parameter("control_rate").as_double();
     config_.control_rate = control_rate_;  // Pass control rate to algorithm for rate limiting
+    map_frame_  = get_parameter("map_frame").as_string();
+    base_frame_ = get_parameter("base_frame").as_string();
 }
 
 rcl_interfaces::msg::SetParametersResult PurePursuitNode::parametersCallback(
@@ -177,18 +186,7 @@ bool PurePursuitNode::loadTrajectory() {
 void PurePursuitNode::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
     std::lock_guard<std::mutex> lock(state_mutex_);
     
-    current_state_.pose.x = msg->pose.pose.position.x;
-    current_state_.pose.y = msg->pose.pose.position.y;
-    
-    // Extract yaw from quaternion
-    tf2::Quaternion q(
-        msg->pose.pose.orientation.x,
-        msg->pose.pose.orientation.y,
-        msg->pose.pose.orientation.z,
-        msg->pose.pose.orientation.w
-    );
-    current_state_.pose.theta = tf2::getYaw(q);
-    
+    // Only take velocity from /odom — pose comes from TF (map frame) in controlLoop()
     current_state_.velocity = msg->twist.twist.linear.x;
     current_state_.angular_velocity = msg->twist.twist.angular.z;
 }
@@ -261,6 +259,10 @@ void PurePursuitNode::controlLoop() {
         return;
     }
     
+    // Update pose from TF so it is in the same frame as the trajectory (map).
+    // Falls back to last known pose if TF is temporarily unavailable.
+    updatePoseFromTF();
+
     VehicleState state;
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
@@ -282,6 +284,30 @@ void PurePursuitNode::controlLoop() {
         RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, 
                             "Invalid Pure Pursuit output");
     }
+}
+
+bool PurePursuitNode::updatePoseFromTF() {
+    geometry_msgs::msg::TransformStamped tf;
+    try {
+        tf = tf_buffer_->lookupTransform(
+            map_frame_, base_frame_,
+            tf2::TimePointZero,
+            tf2::durationFromSec(0.02));
+    } catch (const tf2::TransformException & ex) {
+        RCLCPP_DEBUG(get_logger(), "TF lookup failed: %s", ex.what());
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    current_state_.pose.x = tf.transform.translation.x;
+    current_state_.pose.y = tf.transform.translation.y;
+    current_state_.pose.theta = tf2::getYaw(
+        tf2::Quaternion(
+            tf.transform.rotation.x,
+            tf.transform.rotation.y,
+            tf.transform.rotation.z,
+            tf.transform.rotation.w));
+    return true;
 }
 
 void PurePursuitNode::publishDriveCommand(double steering, double speed) {
