@@ -251,6 +251,21 @@ std::vector<Gap> FollowTheGap::findGaps(const ProcessedScan& scan) {
     double running_sum = 0.0;
     size_t running_count = 0;
     
+    auto finalize_current_gap = [&](size_t end_idx) {
+        in_gap = false;
+        current_gap.end_idx = end_idx;
+        current_gap.end_angle = scan.angles[end_idx];
+        current_gap.angular_width = current_gap.end_angle - current_gap.start_angle;
+
+        current_gap.avg_range = (running_count > 0) ? running_sum / running_count : 0.0;
+        running_sum = 0.0;
+        running_count = 0;
+
+        if (current_gap.angular_width >= config_.min_gap_width) {
+            gaps.push_back(current_gap);
+        }
+    };
+    
     for (size_t i = 0; i < scan.filtered_ranges.size(); ++i) {
         double range = scan.filtered_ranges[i];
         double angle = scan.angles[i];
@@ -275,6 +290,29 @@ std::vector<Gap> FollowTheGap::findGaps(const ProcessedScan& scan) {
             running_sum = range;
             running_count = 1;
         } else if (is_gap_point && in_gap) {
+            bool has_disparity_break = false;
+            if (config_.disparity_threshold > 0.0 && i > current_gap.start_idx) {
+                double prev_range = scan.filtered_ranges[i - 1];
+                has_disparity_break = std::abs(range - prev_range) > config_.disparity_threshold;
+            }
+
+            if (has_disparity_break) {
+                // Split gap at disparity boundary
+                finalize_current_gap(i - 1);
+
+                in_gap = true;
+                current_gap = Gap();
+                current_gap.start_idx = i;
+                current_gap.start_angle = angle;
+                current_gap.min_range = range;
+                current_gap.max_range = range;
+                current_gap.deepest_idx = i;
+                current_gap.deepest_range = range;
+                running_sum = range;
+                running_count = 1;
+                continue;
+            }
+
             // Continue gap (incremental avg_range)
             current_gap.min_range = std::min(current_gap.min_range, range);
             if (range > current_gap.deepest_range) {
@@ -286,35 +324,13 @@ std::vector<Gap> FollowTheGap::findGaps(const ProcessedScan& scan) {
             ++running_count;
         } else if (!is_gap_point && in_gap) {
             // End of gap
-            in_gap = false;
-            current_gap.end_idx = i - 1;
-            current_gap.end_angle = scan.angles[i - 1];
-            current_gap.angular_width = current_gap.end_angle - current_gap.start_angle;
-            
-            // Use incrementally-computed average range (O(1) instead of O(n))
-            current_gap.avg_range = (running_count > 0) ? running_sum / running_count : 0.0;
-            running_sum = 0.0;
-            running_count = 0;
-            
-            // Only add if gap is wide enough
-            if (current_gap.angular_width >= config_.min_gap_width) {
-                gaps.push_back(current_gap);
-            }
+            finalize_current_gap(i - 1);
         }
     }
     
     // Handle gap that extends to the end
     if (in_gap) {
-        current_gap.end_idx = scan.filtered_ranges.size() - 1;
-        current_gap.end_angle = scan.angles.back();
-        current_gap.angular_width = current_gap.end_angle - current_gap.start_angle;
-        
-        // Use incrementally-computed average range
-        current_gap.avg_range = (running_count > 0) ? running_sum / running_count : 0.0;
-        
-        if (current_gap.angular_width >= config_.min_gap_width) {
-            gaps.push_back(current_gap);
-        }
+        finalize_current_gap(scan.filtered_ranges.size() - 1);
     }
     
     // Trim gap edges: discard first/last N indices from each gap to avoid

@@ -262,6 +262,41 @@ TEST_F(FollowTheGapTest, SelectsBestGap) {
     EXPECT_GE(output.selected_gap.deepest_range, 4.0);
 }
 
+TEST_F(FollowTheGapTest, DisparitySplitsContinuousGap) {
+    config_.apply_bubble = false;
+    config_.gap_threshold = 0.8;
+    config_.disparity_threshold = 0.5;
+    ftg_->setConfig(config_);
+
+    // Entire scan is above gap threshold, but a large adjacent jump exists.
+    // This disparity should split what would otherwise be one continuous gap.
+    std::vector<float> ranges(100, 3.0f);
+    for (int i = 50; i < 100; ++i) {
+        ranges[i] = 6.0f;
+    }
+
+    double angle_min, angle_max, angle_inc;
+    getStandardScanParams(100, angle_min, angle_max, angle_inc);
+
+    auto output = ftg_->compute(ranges, angle_min, angle_max, angle_inc);
+
+    EXPECT_GE(output.all_gaps.size(), 2u);
+
+    bool found_left_gap = false;
+    bool found_right_gap = false;
+    for (const auto& gap : output.all_gaps) {
+        if (gap.end_idx < 50) {
+            found_left_gap = true;
+        }
+        if (gap.start_idx >= 50) {
+            found_right_gap = true;
+        }
+    }
+
+    EXPECT_TRUE(found_left_gap);
+    EXPECT_TRUE(found_right_gap);
+}
+
 // ===================
 // Steering Tests
 // ===================
