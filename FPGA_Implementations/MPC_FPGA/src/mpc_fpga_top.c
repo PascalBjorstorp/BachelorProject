@@ -207,17 +207,39 @@ void mpc_fpga_top(
         fixed_point_t omega = (fixed_point_t)state_omega_fp;
 
         /* ----- Build reference trajectory -----
-         * Look ahead MPC_HORIZON waypoints from current position. */
+         * Look ahead MPC_HORIZON waypoints from current position.
+         * Velocity-based spacing: at higher speeds, skip more waypoints
+         * per prediction step so the horizon covers the correct distance.
+         * wp_advance = round(vx * dt / wp_spacing) where dt=0.05s, spacing≈0.347m */
         MpcRefPoint_t ref[MPC_HORIZON];
 #pragma HLS ARRAY_PARTITION variable=ref complete dim=0
+
+        /* Compute waypoint advance based on reference velocity */
+        int wp_advance = 1;
+        {
+            fixed_point_t ref_vx = trajectory[wp_idx].vx;
+            if (ref_vx < FP_CONST(1.0)) ref_vx = FP_CONST(1.0);
+            /* ds = vx * 0.05s (prediction dt) */
+            fixed_point_t ds = fp_mul(ref_vx, FP_CONST(0.05));
+            /* wp_advance = ds / 0.347 ≈ ds * 2.88 */
+            fixed_point_t scaled = fp_mul(ds, FP_CONST(2.88));
+            wp_advance = (int)(scaled >> FP_FRAC_BITS);
+            if (wp_advance < 1) wp_advance = 1;
+            if (wp_advance > WP_ADVANCE_MAX) wp_advance = WP_ADVANCE_MAX;  /* Safety cap */
+        }
 
         int k;
         for (k = 0; k < MPC_HORIZON; k++) {
 #pragma HLS PIPELINE II=1
-            int idx = wp_idx + k + 1;
+            int idx = wp_idx + (k + 1) * wp_advance;
             if (idx >= trajectory_size) idx -= trajectory_size;
             ref[k].velocity    = trajectory[idx].vx;
-            ref[k].kappa       = trajectory[idx].kappa;
+            /* Clamp kappa to physical limits (prevents corrupted trajectory data
+             * from destabilizing the solver: max ~1.5 rad/m for F1Tenth) */
+            fixed_point_t kappa = trajectory[idx].kappa;
+            if (kappa > FP_CONST(1.5))  kappa = FP_CONST(1.5);
+            if (kappa < FP_CONST(-1.5)) kappa = FP_CONST(-1.5);
+            ref[k].kappa       = kappa;
             ref[k].left_bound  = trajectory[idx].left_bound;
             ref[k].right_bound = trajectory[idx].right_bound;
         }

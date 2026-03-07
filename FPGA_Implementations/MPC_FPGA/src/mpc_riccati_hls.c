@@ -115,6 +115,28 @@ void mpc_compute_hls(
     fixed_point_t w_delta_act  = MPC_W_DELTA_ACT;
     fixed_point_t cross_scale  = MPC_CROSS_CALL_SCALE;
 
+    /* Precompute constant Q/R/N values (hoisted from inner loop — saves
+     * 8+ fp_mul per horizon step = 160+ multiplies total) */
+    const fixed_point_t Q2_lat  = fp_mul(FP_TWO, MPC_W_LAT_ERROR);
+    const fixed_point_t Q2_hdg  = fp_mul(FP_TWO, MPC_W_HEADING);
+    const fixed_point_t Q2_vel  = fp_mul(FP_TWO, MPC_W_VELOCITY);
+    const fixed_point_t Q2_lv   = fp_mul(FP_TWO, MPC_W_LAT_VEL);
+    const fixed_point_t Q2_yaw  = fp_mul(FP_TWO, MPC_W_YAW_RATE);
+    const fixed_point_t Q2_dact = fp_mul(FP_TWO, w_delta_act);
+    const fixed_point_t Q2_jerk = fp_mul(FP_TWO, w_steer_jerk);
+    const fixed_point_t Q2_arate = fp_mul(FP_TWO, w_accel_rate);
+    const fixed_point_t R2_steer = fp_mul(FP_TWO, fp_add(w_steer_eff, w_steer_jerk));
+    const fixed_point_t R2_accel = fp_mul(FP_TWO, fp_add(w_accel_eff, w_accel_rate));
+    const fixed_point_t N2_jerk  = fp_neg(Q2_jerk);
+    const fixed_point_t N2_arate = fp_neg(Q2_arate);
+    /* Cross-call scaled versions for step 0 */
+    const fixed_point_t Q2_jerk_cs  = fp_mul(FP_TWO, fp_mul(w_steer_jerk, cross_scale));
+    const fixed_point_t Q2_arate_cs = fp_mul(FP_TWO, fp_mul(w_accel_rate, cross_scale));
+    const fixed_point_t R2_steer_cs = fp_mul(FP_TWO, fp_add(w_steer_eff,
+                                        fp_mul(w_steer_jerk, cross_scale)));
+    const fixed_point_t R2_accel_cs = fp_mul(FP_TWO, fp_add(w_accel_eff,
+                                        fp_mul(w_accel_rate, cross_scale)));
+
     StepData_t step_data[MPC_HORIZON];
 #pragma HLS BIND_STORAGE variable=step_data type=ram_2p impl=bram
     /* NOTE: Do NOT use memset on the whole array (wastes ~2680 sequential cycles).
@@ -194,20 +216,20 @@ void mpc_compute_hls(
         /* B[7][1] = 1 (accel_prev = accel) */
         sd->B[IDX_ACCEL_PREV][1] = FP_ONE;
 
-        /* === Q_diag (8 elements) === */
-        sd->Q_diag[0] = fp_mul(FP_TWO, MPC_W_LAT_ERROR);
-        sd->Q_diag[1] = fp_mul(FP_TWO, MPC_W_HEADING);
-        sd->Q_diag[2] = fp_mul(FP_TWO, MPC_W_VELOCITY);
-        sd->Q_diag[3] = fp_mul(FP_TWO, MPC_W_LAT_VEL);
-        sd->Q_diag[4] = fp_mul(FP_TWO, MPC_W_YAW_RATE);
-        sd->Q_diag[IDX_DELTA_ACT] = fp_mul(FP_TWO, w_delta_act);
-        sd->Q_diag[IDX_DRATE_PREV] = fp_mul(FP_TWO, w_steer_jerk);
-        sd->Q_diag[IDX_ACCEL_PREV] = fp_mul(FP_TWO, w_accel_rate);
+        /* === Q_diag (8 elements) — precomputed constants === */
+        sd->Q_diag[0] = Q2_lat;
+        sd->Q_diag[1] = Q2_hdg;
+        sd->Q_diag[2] = Q2_vel;
+        sd->Q_diag[3] = Q2_lv;
+        sd->Q_diag[4] = Q2_yaw;
+        sd->Q_diag[IDX_DELTA_ACT] = Q2_dact;
+        sd->Q_diag[IDX_DRATE_PREV] = Q2_jerk;
+        sd->Q_diag[IDX_ACCEL_PREV] = Q2_arate;
 
         /* Cross-call scaling for step 0 */
         if (k == 0) {
-            sd->Q_diag[IDX_DRATE_PREV] = fp_mul(FP_TWO, fp_mul(w_steer_jerk, cross_scale));
-            sd->Q_diag[IDX_ACCEL_PREV] = fp_mul(FP_TWO, fp_mul(w_accel_rate, cross_scale));
+            sd->Q_diag[IDX_DRATE_PREV] = Q2_jerk_cs;
+            sd->Q_diag[IDX_ACCEL_PREV] = Q2_arate_cs;
         }
 
         /* === q (8 elements): linear cost from tracking references === */
@@ -226,31 +248,28 @@ void mpc_compute_hls(
         sd->q[IDX_DRATE_PREV] = 0;
         sd->q[IDX_ACCEL_PREV] = 0;
 
-        /* === R_diag (2 elements) === */
-        sd->R_diag[0] = fp_mul(FP_TWO, fp_add(w_steer_eff, w_steer_jerk));
-        sd->R_diag[1] = fp_mul(FP_TWO, fp_add(w_accel_eff, w_accel_rate));
+        /* === R_diag (2 elements) — precomputed constants === */
+        sd->R_diag[0] = R2_steer;
+        sd->R_diag[1] = R2_accel;
         if (k == 0) {
-            sd->R_diag[0] = fp_mul(FP_TWO, fp_add(w_steer_eff,
-                fp_mul(w_steer_jerk, cross_scale)));
-            sd->R_diag[1] = fp_mul(FP_TWO, fp_add(w_accel_eff,
-                fp_mul(w_accel_rate, cross_scale)));
+            sd->R_diag[0] = R2_steer_cs;
+            sd->R_diag[1] = R2_accel_cs;
         }
         sd->r[0] = 0;
         sd->r[1] = 0;
 
-        /* === Cross-cost N (8x2) === */
-        sd->N_cross[IDX_DRATE_PREV][0] = fp_neg(fp_mul(FP_TWO, w_steer_jerk));
-        sd->N_cross[IDX_ACCEL_PREV][1] = fp_neg(fp_mul(FP_TWO, w_accel_rate));
+        /* === Cross-cost N (8x2) — precomputed constants === */
+        sd->N_cross[IDX_DRATE_PREV][0] = N2_jerk;
+        sd->N_cross[IDX_ACCEL_PREV][1] = N2_arate;
         if (k == 0) {
-            sd->N_cross[IDX_DRATE_PREV][0] = fp_neg(fp_mul(FP_TWO,
-                fp_mul(w_steer_jerk, cross_scale)));
-            sd->N_cross[IDX_ACCEL_PREV][1] = fp_neg(fp_mul(FP_TWO,
-                fp_mul(w_accel_rate, cross_scale)));
+            sd->N_cross[IDX_DRATE_PREV][0] = fp_neg(Q2_jerk_cs);
+            sd->N_cross[IDX_ACCEL_PREV][1] = fp_neg(Q2_arate_cs);
         }
 
         /* === State bounds === */
-        /* e_y: wall constraints (sparse pattern) */
+        /* e_y: wall constraints (near-term: steps START..END, every STRIDE) */
         int wall_active = (k >= WALL_START) &&
+                          (k <= WALL_END) &&
                           ((k - WALL_START) % WALL_STRIDE == 0);
         if (wall_active &&
             ref[k].left_bound < FP_CONST(4.0) &&
@@ -336,10 +355,10 @@ void mpc_compute_hls(
      * Step 5: Warm-start management
      * --------------------------------------------------------------- */
     {
+        /* OPT-3: Only invalidate warm-start on actual cold-start or large
+         * curvature change. prev_converged=0 (max_iter) is fine for warm-start. */
         fixed_point_t kappa_diff = fp_abs(fp_sub(kappa0, persist->prev_curvature));
-        if (!persist->prev_converged || !admm_state->initialized ||
-            kappa_diff > FP_CONST(0.3)) {
-            /* Clear warm-start */
+        if (!admm_state->initialized || kappa_diff > FP_CONST(0.5)) {
             admm_state->initialized = 0;
         }
     }

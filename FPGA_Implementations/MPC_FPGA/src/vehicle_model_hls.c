@@ -120,12 +120,12 @@ void compute_frenet_AB_hls(
     fixed_point_t alpha_f_op = fp_sub(delta, fp_atan(front_ratio));
     fixed_point_t alpha_r_op = fp_neg(fp_atan(rear_ratio));
 
-    /* Linear stiffness (slope at α=0): mu * C_S * F_z */
-    fixed_point_t C_Sf_Fzf_linear = fp_mul(VP_MU, fp_mul(VP_CSF, F_zf));
-    fixed_point_t C_Sr_Fzr_linear = fp_mul(VP_MU, fp_mul(VP_CSR, F_zr));
+    /* Linear stiffness (slope at α=0): mu * C_S * F_z — using precomputed mu*C_S */
+    fixed_point_t C_Sf_Fzf_linear = fp_mul(VP_MU_CSF, F_zf);
+    fixed_point_t C_Sr_Fzr_linear = fp_mul(VP_MU_CSR, F_zr);
 
-    /* Front tire — Pacejka effective stiffness */
-    fixed_point_t B_f = fp_mul(VP_CSF, VP_INV_C_SHAPE);
+    /* Front tire — Pacejka effective stiffness (B_f precomputed) */
+    fixed_point_t B_f = VP_B_FRONT;
     fixed_point_t D_pac_f = fp_mul(VP_MU, F_zf);
     fixed_point_t Ba_f = fp_mul(B_f, alpha_f_op);
     fixed_point_t inner_f = fp_mul(VP_C_SHAPE, fp_atan(Ba_f));
@@ -143,8 +143,8 @@ void compute_frenet_AB_hls(
     /* F_yf at operating point (for B matrix cos/sin terms) */
     fixed_point_t F_yf = fp_mul(D_pac_f, fp_sin(inner_f));
 
-    /* Rear tire — Pacejka effective stiffness */
-    fixed_point_t B_r = fp_mul(VP_CSR, VP_INV_C_SHAPE);
+    /* Rear tire — Pacejka effective stiffness (B_r precomputed) */
+    fixed_point_t B_r = VP_B_REAR;
     fixed_point_t D_pac_r = fp_mul(VP_MU, F_zr);
     fixed_point_t Ba_r = fp_mul(B_r, alpha_r_op);
     fixed_point_t inner_r = fp_mul(VP_C_SHAPE, fp_atan(Ba_r));

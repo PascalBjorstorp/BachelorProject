@@ -13,7 +13,7 @@
  * Constants
  *===========================================================================*/
 
-#define RECIP_ITERATIONS    6
+#define RECIP_ITERATIONS    4
 #define INV_FACT_3          10923   /* 1/3! in Q16.16 */
 #define INV_FACT_4          2731    /* 1/4! */
 #define INV_FACT_5          546     /* 1/5! */
@@ -38,23 +38,18 @@
 fixed_point_t fp_normalize_angle(fixed_point_t angle)
 {
 #pragma HLS INLINE
-    if (angle > FP_PI || angle < -FP_PI) {
-        int32_t shifted = angle + FP_PI;
-        int32_t n = shifted / FP_TWO_PI;
-        if (shifted < 0 && (shifted % FP_TWO_PI) != 0) n--;
-        angle -= n * FP_TWO_PI;
-    }
-    /* Bounded correction (max 2 iterations) */
+    /* Loop-based: subtract/add 2*pi until in [-pi, pi]
+     * 4 iterations handles angles up to ±5*pi — sufficient for MPC */
     int _i;
-    for (_i = 0; _i < 2; _i++) {
-#pragma HLS LOOP_TRIPCOUNT min=0 max=2
+    for (_i = 0; _i < 4; _i++) {
+#pragma HLS LOOP_TRIPCOUNT min=0 max=4
         if (angle <= FP_PI) break;
-        angle = fp_sub(angle, FP_TWO_PI);
+        angle -= FP_TWO_PI;
     }
-    for (_i = 0; _i < 2; _i++) {
-#pragma HLS LOOP_TRIPCOUNT min=0 max=2
-        if (angle >= -FP_PI) break;
-        angle = fp_add(angle, FP_TWO_PI);
+    for (_i = 0; _i < 4; _i++) {
+#pragma HLS LOOP_TRIPCOUNT min=0 max=4
+        if (angle >= fp_neg(FP_PI)) break;
+        angle += FP_TWO_PI;
     }
     return angle;
 }
@@ -65,7 +60,7 @@ fixed_point_t fp_normalize_angle(fixed_point_t angle)
 
 fixed_point_t fp_recip(fixed_point_t x)
 {
-#pragma HLS INLINE
+#pragma HLS INLINE off
     if (x == 0) return 0;
 
     int32_t sign = (x < 0) ? -1 : 1;

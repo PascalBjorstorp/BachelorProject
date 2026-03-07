@@ -53,7 +53,7 @@ print(f"  Mode: {run_mode}")
 print("=" * 60)
 
 # ====== Create fresh workspace ======
-if os.path.exists(WORKSPACE):
+if run_mode != "impl" and os.path.exists(WORKSPACE):
     print(f"Removing existing workspace: {WORKSPACE}")
     shutil.rmtree(WORKSPACE, ignore_errors=True)
 
@@ -82,8 +82,8 @@ cfg_lines.append("clock_uncertainty=12.5%")
 cfg_lines.append("flow_target=vivado")
 cfg_lines.append("package.output.format=ip_catalog")
 
-# Optimization (pipeline_loops is supported)
-cfg_lines.append("syn.compile.pipeline_loops=6")
+# Optimization — disable auto-pipelining so only explicit pragmas drive pipelining
+cfg_lines.append("syn.compile.pipeline_loops=0")
 
 with open(cfg_path, "w") as f:
     f.write("\n".join(cfg_lines) + "\n")
@@ -111,7 +111,7 @@ if run_mode in ("all", "csim"):
     comp.run(operation="C_SIMULATION")
     print("  C Simulation PASSED")
 
-if run_mode in ("all", "synth"):
+if run_mode in ("all", "synth", "synth_impl"):
     print("\n" + "=" * 60)
     print("  Running C Synthesis")
     print("=" * 60)
@@ -132,11 +132,12 @@ if run_mode in ("all", "package"):
     comp.run(operation="PACKAGE")
     print("  IP Package COMPLETE")
 
-if run_mode == "impl":
+if run_mode in ("impl", "synth_impl"):
     print("\n" + "=" * 60)
-    print("  Running Implementation")
+    print("  Running Vivado Implementation (Place & Route)")
     print("=" * 60)
     comp.run(operation="IMPLEMENTATION")
+    print("  Implementation COMPLETE")
 
 # ====== Print report location ======
 report_dir = os.path.join(WORKSPACE, COMP_NAME, "hls", "syn", "report")

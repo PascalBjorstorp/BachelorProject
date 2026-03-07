@@ -48,9 +48,9 @@ static int64_t reciprocal_64(int64_t det)
     int64_t est = (int64_t)1 << lead_zeros;
 
     /* Newton-Raphson: x_{n+1} = x_n + x_n * (1 - det * x_n)
-     * 6 iterations for Q16.16 convergence */
+     * 4 iterations sufficient for Q16.16 (each doubles correct bits) */
     int i;
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < 4; i++) {
 #pragma HLS PIPELINE II=4
 #pragma HLS LOOP_TRIPCOUNT min=6 max=6
         int64_t prod = (abs_det * est) >> FP_FRAC_BITS;
@@ -191,7 +191,7 @@ static void riccati_pass_hls(
                      - (((int64_t)rho_u * ((int64_t)z_u[k][a] - (int64_t)y_u[k][a])) >> FP_FRAC_BITS);
         }
 
-        /* Step 1: M = B^T * P (nu x nx) — exploit B sparsity */
+        /* Step 1: M = B^T * P (nu x nx) — loop over B rows 2-5 */
         int64_t M[MPC_NU][MPC_NX_AUG];
 #pragma HLS ARRAY_PARTITION variable=M complete dim=1
 #pragma HLS ARRAY_PARTITION variable=M cyclic factor=4 dim=2
@@ -199,26 +199,28 @@ static void riccati_pass_hls(
 #pragma HLS PIPELINE II=1
             int64_t s0 = 0, s1 = 0;
             for (s = 2; s < 6; s++) {
-                s0 += ((int64_t)sd->B[s][0] * P[s][j]) >> FP_FRAC_BITS;
-                s1 += ((int64_t)sd->B[s][1] * P[s][j]) >> FP_FRAC_BITS;
+                s0 += (int64_t)sd->B[s][0] * P[s][j];
+                s1 += (int64_t)sd->B[s][1] * P[s][j];
             }
-            M[0][j] = s0 + P[6][j];   /* B[6][0] = 1 */
-            M[1][j] = s1 + P[7][j];   /* B[7][1] = 1 */
+            M[0][j] = (s0 >> FP_FRAC_BITS) + P[6][j];   /* B[6][0] = 1 */
+            M[1][j] = (s1 >> FP_FRAC_BITS) + P[7][j];   /* B[7][1] = 1 */
         }
 
-        /* Step 2: S = R_aug + M*B (2x2) — exploit B sparsity */
+        /* Step 2: S = R_aug + M*B (2x2) — loop over B rows 2-5 */
         int64_t S[2][2];
-        S[0][0] = R_aug[0]; S[0][1] = 0;
-        S[1][0] = 0;        S[1][1] = R_aug[1];
-        for (s = 2; s < 6; s++) {
-#pragma HLS PIPELINE II=1
-            S[0][0] += (M[0][s] * (int64_t)sd->B[s][0]) >> FP_FRAC_BITS;
-            S[0][1] += (M[0][s] * (int64_t)sd->B[s][1]) >> FP_FRAC_BITS;
-            S[1][0] += (M[1][s] * (int64_t)sd->B[s][0]) >> FP_FRAC_BITS;
-            S[1][1] += (M[1][s] * (int64_t)sd->B[s][1]) >> FP_FRAC_BITS;
+        {
+            int64_t s00 = 0, s01 = 0, s10 = 0, s11 = 0;
+            for (s = 2; s < 6; s++) {
+                s00 += M[0][s] * (int64_t)sd->B[s][0];
+                s01 += M[0][s] * (int64_t)sd->B[s][1];
+                s10 += M[1][s] * (int64_t)sd->B[s][0];
+                s11 += M[1][s] * (int64_t)sd->B[s][1];
+            }
+            S[0][0] = R_aug[0] + (s00 >> FP_FRAC_BITS) + M[0][6];
+            S[0][1] = (s01 >> FP_FRAC_BITS) + M[0][7];
+            S[1][0] = (s10 >> FP_FRAC_BITS) + M[1][6];
+            S[1][1] = R_aug[1] + (s11 >> FP_FRAC_BITS) + M[1][7];
         }
-        S[0][0] += M[0][6];  S[0][1] += M[0][7];
-        S[1][0] += M[1][6];  S[1][1] += M[1][7];
 
         /* Step 3: Invert S (2x2) */
         int64_t Si[2][2];
@@ -237,11 +239,11 @@ static void riccati_pass_hls(
             /* Cols 0..5: M*A uses A rows 0..5 (6x6 dense block) */
             for (j = 0; j < 6; j++) {
 #pragma HLS PIPELINE II=1
-                int64_t sum = (int64_t)sd->N_cross[j][a]; /* N^T[a][j] */
+                int64_t sum = 0;
                 for (s = 0; s < 6; s++) {
-                    sum += (M[a][s] * (int64_t)sd->A[s][j]) >> FP_FRAC_BITS;
+                    sum += M[a][s] * (int64_t)sd->A[s][j];
                 }
-                G[a][j] = sum;
+                G[a][j] = (int64_t)sd->N_cross[j][a] + (sum >> FP_FRAC_BITS);
             }
             /* Cols 6,7: A cols 6,7 are zero */
             G[a][6] = (int64_t)sd->N_cross[6][a];
@@ -255,35 +257,34 @@ static void riccati_pass_hls(
 #pragma HLS PIPELINE II=1
                 int64_t val = 0;
                 for (b = 0; b < nu; b++) {
-                    val += (Si[a][b] * G[b][j]) >> FP_FRAC_BITS;
+                    val += Si[a][b] * G[b][j];
                 }
-                val = -val;
+                val = -(val >> FP_FRAC_BITS);
                 if (val > INT32_MAX) val = INT32_MAX;
                 else if (val < INT32_MIN) val = INT32_MIN;
                 K[k][a][j] = (fixed_point_t)val;
             }
         }
 
-        /* Step 6: kk = -S^{-1} * (r_aug + B^T * p) */
+        /* Step 6: kk = -S^{-1} * (r_aug + B^T * p) — loop over B rows 2-5 */
         int64_t Bp[MPC_NU];
         {
             int64_t bp0 = 0, bp1 = 0;
             for (s = 2; s < 6; s++) {
-#pragma HLS PIPELINE II=1
-                bp0 += ((int64_t)sd->B[s][0] * p[s]) >> FP_FRAC_BITS;
-                bp1 += ((int64_t)sd->B[s][1] * p[s]) >> FP_FRAC_BITS;
+                bp0 += (int64_t)sd->B[s][0] * p[s];
+                bp1 += (int64_t)sd->B[s][1] * p[s];
             }
-            Bp[0] = bp0 + p[6];
-            Bp[1] = bp1 + p[7];
+            Bp[0] = (bp0 >> FP_FRAC_BITS) + p[6];
+            Bp[1] = (bp1 >> FP_FRAC_BITS) + p[7];
         }
 
         for (a = 0; a < nu; a++) {
 #pragma HLS UNROLL
             int64_t val = 0;
             for (b = 0; b < nu; b++) {
-                val += (Si[a][b] * (r_aug[b] + Bp[b])) >> FP_FRAC_BITS;
+                val += Si[a][b] * (r_aug[b] + Bp[b]);
             }
-            val = -val;
+            val = -(val >> FP_FRAC_BITS);
             if (val > INT32_MAX) val = INT32_MAX;
             else if (val < INT32_MIN) val = INT32_MIN;
             kk[k][a] = (fixed_point_t)val;
@@ -299,9 +300,9 @@ static void riccati_pass_hls(
 #pragma HLS PIPELINE II=1
                 int64_t sum = 0;
                 for (s = 0; s < 6; s++) {
-                    sum += (P[i][s] * (int64_t)sd->A[s][j]) >> FP_FRAC_BITS;
+                    sum += P[i][s] * (int64_t)sd->A[s][j];
                 }
-                PA[i][j] = sum;
+                PA[i][j] = sum >> FP_FRAC_BITS;
             }
         }
 
@@ -310,36 +311,36 @@ static void riccati_pass_hls(
         for (i = 0; i < 6; i++) {
             for (j = 0; j < 6; j++) {
 #pragma HLS PIPELINE II=1
-                int64_t sum = (i == j) ? Q_aug[i] : 0;
+                int64_t sum = 0;
                 /* A^T * PA contribution */
                 for (s = 0; s < 6; s++) {
-                    sum += ((int64_t)sd->A[s][i] * PA[s][j]) >> FP_FRAC_BITS;
+                    sum += (int64_t)sd->A[s][i] * PA[s][j];
                 }
                 /* G^T * K contribution */
                 for (a = 0; a < nu; a++) {
-                    sum += (G[a][i] * (int64_t)K[k][a][j]) >> FP_FRAC_BITS;
+                    sum += G[a][i] * (int64_t)K[k][a][j];
                 }
-                P[i][j] = sum;
+                P[i][j] = ((i == j) ? Q_aug[i] : 0) + (sum >> FP_FRAC_BITS);
             }
             /* Cols 6,7: AtPA=0, only G^T*K contributes */
             for (j = 6; j < nx; j++) {
 #pragma HLS PIPELINE II=1
                 int64_t sum = 0;
                 for (a = 0; a < nu; a++) {
-                    sum += (G[a][i] * (int64_t)K[k][a][j]) >> FP_FRAC_BITS;
+                    sum += G[a][i] * (int64_t)K[k][a][j];
                 }
-                P[i][j] = sum;
+                P[i][j] = sum >> FP_FRAC_BITS;
             }
         }
         /* Rows 6,7: A^T rows 6,7 zero, only G^T*K + Q_diag */
         for (i = 6; i < nx; i++) {
             for (j = 0; j < nx; j++) {
 #pragma HLS PIPELINE II=1
-                int64_t sum = (i == j) ? Q_aug[i] : 0;
+                int64_t sum = 0;
                 for (a = 0; a < nu; a++) {
-                    sum += (G[a][i] * (int64_t)K[k][a][j]) >> FP_FRAC_BITS;
+                    sum += G[a][i] * (int64_t)K[k][a][j];
                 }
-                P[i][j] = sum;
+                P[i][j] = ((i == j) ? Q_aug[i] : 0) + (sum >> FP_FRAC_BITS);
             }
         }
 
@@ -349,21 +350,21 @@ static void riccati_pass_hls(
 #pragma HLS PIPELINE II=1
             int64_t Atp = 0;
             for (s = 0; s < 6; s++) {
-                Atp += ((int64_t)sd->A[s][i] * p[s]) >> FP_FRAC_BITS;
+                Atp += (int64_t)sd->A[s][i] * p[s];
             }
             int64_t Gtk = 0;
             for (a = 0; a < nu; a++) {
-                Gtk += (G[a][i] * (int64_t)kk[k][a]) >> FP_FRAC_BITS;
+                Gtk += G[a][i] * (int64_t)kk[k][a];
             }
-            p_new[i] = q_aug[i] + Atp + Gtk;
+            p_new[i] = q_aug[i] + (Atp >> FP_FRAC_BITS) + (Gtk >> FP_FRAC_BITS);
         }
         for (i = 6; i < nx; i++) {
 #pragma HLS UNROLL
             int64_t Gtk = 0;
             for (a = 0; a < nu; a++) {
-                Gtk += (G[a][i] * (int64_t)kk[k][a]) >> FP_FRAC_BITS;
+                Gtk += G[a][i] * (int64_t)kk[k][a];
             }
-            p_new[i] = q_aug[i] + Gtk;
+            p_new[i] = q_aug[i] + (Gtk >> FP_FRAC_BITS);
         }
         for (i = 0; i < nx; i++) p[i] = p_new[i];
 
@@ -431,8 +432,11 @@ MpcStatus_t riccati_admm_solve_hls(
     const int nu = MPC_NU;
     const int N = MPC_HORIZON;
 
-    fixed_point_t rho   = config->rho;
-    fixed_point_t rho_u = config->rho_u > 0 ? config->rho_u : rho;
+    /* OPT-2: Restore persisted rho from warm-start if available */
+    fixed_point_t rho   = (admm_state->initialized && admm_state->rho > 0)
+                        ? admm_state->rho : config->rho;
+    fixed_point_t rho_u = (admm_state->initialized && admm_state->rho_u > 0)
+                        ? admm_state->rho_u : (config->rho_u > 0 ? config->rho_u : rho);
     int max_iter = config->max_iterations;
 
     /* Local ADMM variables */
@@ -568,7 +572,9 @@ MpcStatus_t riccati_admm_solve_hls(
         fixed_point_t state_primal = 0, state_dual = 0;
         fixed_point_t ctrl_primal = 0, ctrl_dual = 0;
 
-        /* State z/y update — dual residual computed inline */
+        /* State z/y update — dual residual computed inline
+         * Over-relaxation: use x_hat = alpha*x + (1-alpha)*z_old instead of x
+         * in the z-update projection. This accelerates ADMM convergence. */
         for (k = 0; k <= N; k++) {
 #pragma HLS LOOP_TRIPCOUNT min=21 max=21
 #pragma HLS PIPELINE II=4
@@ -577,10 +583,16 @@ MpcStatus_t riccati_admm_solve_hls(
 #pragma HLS UNROLL factor=2
                 if (x_is_con[k][s]) {
                     fixed_point_t x_val = solution->x[k][s];
-                    int64_t val = (int64_t)x_val + (int64_t)y_x[k][s];
+                    /* Over-relaxation: x_hat = x + (alpha-1)*(x - z_old)
+                     * 1 multiply instead of 2 — saves one DSP per variable. */
+                    int64_t diff_x = (int64_t)x_val - (int64_t)z_x[k][s];
+                    int64_t x_hat64 = (int64_t)x_val
+                                    + (((int64_t)ADMM_OVER_RELAX_MINUS1 * diff_x) >> FP_FRAC_BITS);
+                    int64_t val = x_hat64 + (int64_t)y_x[k][s];
                     if (val < (int64_t)sd->x_lb[s]) val = (int64_t)sd->x_lb[s];
                     if (val > (int64_t)sd->x_ub[s]) val = (int64_t)sd->x_ub[s];
                     fixed_point_t z_new = (fixed_point_t)val;
+                    fixed_point_t x_hat = (fixed_point_t)x_hat64;
 
                     /* Dual residual: rho * (z_new - z_old), save z_old before overwrite */
                     fixed_point_t z_prev = z_x[k][s];
@@ -588,9 +600,10 @@ MpcStatus_t riccati_admm_solve_hls(
                     fixed_point_t dd = (fixed_point_t)(d64 < 0 ? -d64 : d64);
                     if (dd > state_dual) state_dual = dd;
 
-                    y_x[k][s] = (fixed_point_t)((int64_t)x_val - (int64_t)z_new + (int64_t)y_x[k][s]);
+                    /* y-update uses x_hat (over-relaxed) per Boyd et al. */
+                    y_x[k][s] = (fixed_point_t)((int64_t)x_hat - (int64_t)z_new + (int64_t)y_x[k][s]);
 
-                    fixed_point_t pd = x_val - z_new;
+                    fixed_point_t pd = x_hat - z_new;
                     if (pd < 0) pd = -pd;
                     if (pd > state_primal) state_primal = pd;
 
@@ -601,7 +614,7 @@ MpcStatus_t riccati_admm_solve_hls(
             }
         }
 
-        /* Control z/y update — dual residual computed inline */
+        /* Control z/y update — dual residual computed inline (with over-relaxation) */
         for (k = 0; k < N; k++) {
 #pragma HLS LOOP_TRIPCOUNT min=20 max=20
 #pragma HLS PIPELINE II=1
@@ -609,10 +622,16 @@ MpcStatus_t riccati_admm_solve_hls(
             for (a = 0; a < nu; a++) {
 #pragma HLS UNROLL
                 fixed_point_t u_val = solution->u[k][a];
-                int64_t val = (int64_t)u_val + (int64_t)y_u[k][a];
+                /* Over-relaxation: u_hat = u + (alpha-1)*(u - z_old)
+                 * 1 multiply instead of 2 — saves one DSP per variable. */
+                int64_t diff_u = (int64_t)u_val - (int64_t)z_u[k][a];
+                int64_t u_hat64 = (int64_t)u_val
+                                + (((int64_t)ADMM_OVER_RELAX_MINUS1 * diff_u) >> FP_FRAC_BITS);
+                int64_t val = u_hat64 + (int64_t)y_u[k][a];
                 if (val < (int64_t)sd->u_lb[a]) val = (int64_t)sd->u_lb[a];
                 if (val > (int64_t)sd->u_ub[a]) val = (int64_t)sd->u_ub[a];
                 fixed_point_t z_new = (fixed_point_t)val;
+                fixed_point_t u_hat = (fixed_point_t)u_hat64;
 
                 /* Dual residual: rho_u * (z_new - z_old) */
                 fixed_point_t z_prev = z_u[k][a];
@@ -620,9 +639,10 @@ MpcStatus_t riccati_admm_solve_hls(
                 fixed_point_t dd = (fixed_point_t)(d64 < 0 ? -d64 : d64);
                 if (dd > ctrl_dual) ctrl_dual = dd;
 
-                y_u[k][a] = (fixed_point_t)((int64_t)u_val - (int64_t)z_new + (int64_t)y_u[k][a]);
+                /* y-update uses u_hat (over-relaxed) per Boyd et al. */
+                y_u[k][a] = (fixed_point_t)((int64_t)u_hat - (int64_t)z_new + (int64_t)y_u[k][a]);
 
-                fixed_point_t pd = u_val - z_new;
+                fixed_point_t pd = u_hat - z_new;
                 if (pd < 0) pd = -pd;
                 if (pd > ctrl_primal) ctrl_primal = pd;
 
@@ -643,8 +663,8 @@ MpcStatus_t riccati_admm_solve_hls(
             break;
         }
 
-        /* Adaptive rho: balance convergence rates (every 4 iterations) */
-        if (config->adaptive_rho && iter > 0 && (iter & 3) == 0) {
+        /* Adaptive rho: balance convergence rates (OPT-5: every 2 iterations) */
+        if (config->adaptive_rho && iter > 0 && (iter & 1) == 0) {
             if (primal_res > 10 * dual_res && rho < FP_CONST(100.0)) {
                 rho = fp_mul(rho, FP_TWO);
                 if (rho_u < FP_CONST(100.0))
@@ -704,6 +724,9 @@ MpcStatus_t riccati_admm_solve_hls(
             admm_state->y_u[k][a] = y_u[k][a];
         }
     }
+    /* OPT-2: Save adapted rho for next warm-start */
+    admm_state->rho = rho;
+    admm_state->rho_u = rho_u;
     admm_state->initialized = 1;
 
     /* Output feasible controls (projected z_u, always within bounds) */
