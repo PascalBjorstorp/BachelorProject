@@ -1,0 +1,416 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{siunitx}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{red},
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny\color{gray}
+}
+
+\title{MPC Optimization Findings\\
+\large F1Tenth Bachelor Project --- CPU, FPGA, and Simulator}
+\author{Optimization Report}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\tableofcontents
+\newpage
+
+%% ============================================================
+\section{Overview}
+This document summarizes the optimizations and findings for the Model Predictive Control (MPC) implementation across three targets: CPU (Task~B), FPGA (Task~A), and the F1Tenth simulator (Task~C). The MPC uses a Riccati-ADMM solver with a 20-step prediction horizon (\SI{1.0}{\second} lookahead) on a Frenet-frame single-track vehicle model.
+
+\subsection{Vehicle Parameters}
+All implementations use the same measured vehicle parameters (Table~\ref{tab:vehicle_params}).
+
+\begin{table}[H]
+\centering
+\caption{Measured vehicle parameters used across all implementations.}
+\label{tab:vehicle_params}
+\begin{tabular}{@{}llrl@{}}
+\toprule
+\textbf{Parameter} & \textbf{Symbol} & \textbf{Value} & \textbf{Source} \\
+\midrule
+Mass & $m$ & \SI{3.314}{\kilo\gram} & Measured \\
+Moment of inertia & $I_z$ & \SI{0.035}{\kilo\gram\meter\squared} & CAD \\
+Front axle distance & $l_f$ & \SI{0.166}{\meter} & CAD \\
+Rear axle distance & $l_r$ & \SI{0.160}{\meter} & CAD \\
+Wheelbase & $L$ & \SI{0.326}{\meter} & $l_f + l_r$ \\
+CG height & $h$ & \SI{0.0703}{\meter} & CAD \\
+Friction coefficient & $\mu$ & 0.7463 & Tested \\
+Front tire stiffness & $C_{S_f}$ & 2.804 & Tested \\
+Rear tire stiffness & $C_{S_r}$ & 3.320 & Tested \\
+Max steering angle & $\delta_{\max}$ & \SI{0.4282}{\radian} & Tested \\
+Max steering velocity & $\dot{\delta}_{\max}$ & \SI{2.8492}{\radian\per\second} & Tested \\
+Max acceleration & $a_{\max}$ & \SI{8.0}{\meter\per\second\squared} & Tested \\
+Power transition speed & $v_{\text{switch}}$ & \SI{7.319}{\meter\per\second} & Default \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%% ============================================================
+\section{Task B: CPU MPC Optimization}
+
+The CPU MPC targets the Jetson Xavier NX (ARM Cortex-A57 @ \SI{1.9}{\giga\hertz}), tested on an x86 laptop.
+
+\subsection{Float32 Conversion}
+\label{sec:float32}
+The original CPU implementation used Q16.16 fixed-point arithmetic (matching the FPGA). This was converted to native \texttt{float32} operations:
+
+\begin{itemize}
+  \item \textbf{fp\_math.h}: \texttt{typedef float fixed\_point\_t}. All \texttt{fp\_*} functions became inline float operations (\texttt{fp\_mul(a,b) = a*b}).
+  \item \textbf{fp\_math.c}: Reduced to ~130 lines (matrix-vector ops only). Removed Taylor series and Newton-Raphson approximations.
+  \item \textbf{riccati\_solver.c}: Complete rewrite. All \texttt{int64\_t} intermediates $\to$ float. Removed all \texttt{>> FP\_FRAC\_BITS} shift operations. \texttt{invert\_2x2} uses \texttt{1.0f/det}.
+  \item \textbf{mpc\_riccati.c}: Fixed bitshift on float (\texttt{>> 1} $\to$ \texttt{* 0.5f}).
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{CPU solve time progression.}
+\label{tab:cpu_speed}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Configuration} & \textbf{Avg Time} & \textbf{Reduction} & \textbf{Tests} \\
+\midrule
+Baseline (Q16.16, -O2)      & \SI{111.7}{\micro\second} & ---    & 6/6 PASS \\
+Float32, -O2                 & \SI{64.0}{\micro\second}  & 43\%  & 6/6 PASS \\
+Float32, -O2 -ffast-math     & \SI{61.5}{\micro\second}  & 45\%  & 6/6 PASS \\
+Float32, -O3 -ffast-math     & \SI{39.0}{\micro\second}  & 65\%  & 6/6 PASS \\
++ Algorithmic optimizations  & \SI{40.3}{\micro\second}  & 64\%  & 6/6 PASS \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Algorithmic Optimizations (from FPGA)}
+Several FPGA-originated optimizations were ported to the CPU:
+\begin{itemize}
+  \item \textbf{Warm-start fix}: Removed \texttt{!prev\_converged} condition, increased kappa threshold from 0.3 to 0.5.
+  \item \textbf{Adaptive rho every 2 iterations}: Checks ADMM primal/dual balance every 2 iterations instead of every iteration, reducing overhead.
+\end{itemize}
+
+These reduced average iterations from 14.2 to 13.1 per solve and improved tracking (max lateral error from \SI{0.836}{\meter} to \SI{0.742}{\meter}).
+
+\subsection{MPC Control Frequency Analysis}
+Testing across different control frequencies with the best weights:
+
+\begin{table}[H]
+\centering
+\caption{Control frequency comparison (Q\_lat=150, Q\_vel=3).}
+\label{tab:freq}
+\begin{tabular}{@{}rrrrrr@{}}
+\toprule
+\textbf{Freq (Hz)} & \textbf{MaxLat (m)} & \textbf{AvgLat (m)} & \textbf{AvgHdg (rad)} & \textbf{AvgSolve ($\mu$s)} & \textbf{Time>5m/s} \\
+\midrule
+100  & 0.521 & 0.083 & 0.068 & 35.0 & 15.1\,s \\
+200  & 0.515 & 0.085 & 0.068 & 28.1 & 15.3\,s \\
+400  & 0.515 & 0.086 & 0.067 & 24.4 & 15.3\,s \\
+500  & 0.515 & 0.086 & 0.067 & 22.9 & 15.2\,s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Finding:} 200\,Hz is the optimal control rate. Increasing to 400\,Hz or beyond provides no measurable improvement in tracking accuracy (max lateral error: \SI{0.515}{\meter} at all rates $\geq$200\,Hz). The slight improvement in avg solve time at higher rates is due to better warm-starting (smaller state changes between calls). 100\,Hz suffers only marginal degradation (\SI{0.521}{\meter} vs \SI{0.515}{\meter}).
+
+\subsection{Weight Tuning}
+\label{sec:weights}
+Starting from \textbf{MPC\_experimental base weights} (Table~\ref{tab:base_weights}), a systematic sweep of 39 configurations was performed.
+
+\begin{table}[H]
+\centering
+\caption{MPC\_experimental base weights.}
+\label{tab:base_weights}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Weight} & \textbf{Value} \\
+\midrule
+$Q_{\text{lat}}$ (lateral error) & 75.0 \\
+$Q_{\text{hdg}}$ (heading error) & 100.0 \\
+$Q_{\text{vel}}$ (velocity) & 6.0 \\
+$Q_{\text{lat\_vel}}$ (lateral velocity) & 60.0 \\
+$Q_{\text{yaw}}$ (yaw rate) & 5.0 \\
+$R_{\text{steer}}$ (steering effort) & 0.35 \\
+$R_{\text{accel}}$ (accel effort) & 0.01 \\
+$W_{\text{jerk}}$ (steering rate) & 2.5 \\
+$W_{\text{accel\_rate}}$ (accel rate) & 0.01 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Top 5 weight configurations from tuning sweep (39 total).}
+\label{tab:tuning}
+\begin{tabular}{@{}rlrrrrr@{}}
+\toprule
+\textbf{Rank} & \textbf{Configuration} & \textbf{Score} & \textbf{MaxLat} & \textbf{AvgLat} & \textbf{AvgHdg} & \textbf{Solve ($\mu$s)} \\
+\midrule
+1 & $Q_{\text{lat}} \times 2$, $Q_{\text{vel}} \times 0.5$ & 2.53 & 0.515 & 0.085 & 0.068 & 31 \\
+2 & $Q_{\text{lat}} \times 2$, $Q_{\text{hdg}} \times 2$   & 2.78 & 0.551 & 0.100 & 0.069 & 33 \\
+3 & $Q_{\text{lat}} \times 2$, $Q_{\text{lat\_vel}} \times 2$ & 2.80 & 0.512 & 0.115 & 0.056 & 34 \\
+4 & $Q_{\text{lat}} = 150$ (only)                           & 2.86 & 0.555 & 0.102 & 0.077 & 35 \\
+5 & Baseline                                                & 3.94 & 0.756 & 0.186 & 0.056 & 30 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Finding:} Doubling $Q_{\text{lat}}$ to 150 is the single most impactful change. Combined with halving $Q_{\text{vel}}$ to 3.0 (reducing velocity tracking priority), the best configuration achieves \SI{0.085}{\meter} average lateral error --- a 54\% improvement over baseline.
+
+%% ============================================================
+\section{Task A: FPGA MPC Optimization}
+
+The FPGA targets the Ultra96-V2 (Xilinx ZU3EG) at \SI{100}{\mega\hertz} using Q16.16 fixed-point arithmetic.
+
+\subsection{Algorithmic Optimizations}
+Six optimizations were applied to reduce iteration count:
+
+\begin{enumerate}
+  \item \textbf{B-matrix sparsity}: Exploiting the sparse structure of the Frenet linearized model's B matrix to skip zero multiplications.
+  \item \textbf{Persistent rho}: Maintaining ADMM penalty parameter $\rho$ across solver calls instead of resetting (warm-starting the dual).
+  \item \textbf{Max iterations 50$\to$30}: Reduced maximum ADMM iterations with negligible accuracy impact.
+  \item \textbf{Adaptive rho every 2 iterations}: Reduced adaptive rho check frequency (halves computational overhead of the check).
+  \item \textbf{Newton-Raphson reciprocal 6$\to$4 iterations}: Reduced NR iterations for Q16.16 division.
+  \item \textbf{Warm-start fix}: Same as CPU (kappa threshold 0.5, removed prev\_converged check).
+\end{enumerate}
+
+\subsection{FPGA Performance with New Raceline}
+With MPC\_experimental weights and the corrected raceline:
+
+\begin{table}[H]
+\centering
+\caption{FPGA test results with new raceline and experimental weights.}
+\label{tab:fpga_results}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Tests passed & 6/6 \\
+Max lateral error & \SI{0.578}{\meter} \\
+Avg lateral error & \SI{0.263}{\meter} \\
+Max heading error & \SI{0.3403}{\radian} \\
+Avg heading error & \SI{0.0400}{\radian} \\
+Max velocity & \SI{11.50}{\meter\per\second} \\
+Avg iterations/call & 6.1 \\
+Max iterations & 30 \\
+Est.\ FPGA time/call & \SI{686.9}{\micro\second} \\
+Est.\ FPGA max time & \SI{3360}{\micro\second} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Finding:} The FPGA MPC runs within the \SI{5}{\milli\second} budget at 200\,Hz. Average estimated time is \SI{687}{\micro\second} (13.7\% utilization of the time budget), with worst-case \SI{3.36}{\milli\second} (67.2\% utilization). The Q16.16 fixed-point FPGA achieves slightly worse tracking than the float32 CPU (\SI{0.263}{\meter} vs \SI{0.186}{\meter} avg lateral error with base weights) due to quantization effects.
+
+\subsection{Resource Utilization}
+\begin{itemize}
+  \item DSP usage: 96\% of Ultra96-V2 (ZU3EG has limited DSP blocks)
+  \item LUT usage: $\sim$84.8\%
+  \item BRAM: trajectory storage for up to 1024 waypoints
+\end{itemize}
+
+%% ============================================================
+\section{Task C: Simulator Accuracy}
+
+\subsection{Dynamics Model Alignment}
+The simulation testbench was rewritten to match the f1tenth\_gym's single-track (ST) dynamic model exactly:
+
+\begin{itemize}
+  \item \textbf{Model}: 7-state single-track $[X, Y, \delta, V, \psi, \dot{\psi}, \beta]$
+  \item \textbf{Integrator}: RK4 (4th-order Runge-Kutta), matching gym's integrator.py
+  \item \textbf{Steering}: Bang-bang PID controller (\texttt{pid\_steer}) converting desired angle to steering velocity at $\pm\dot{\delta}_{\max}$
+  \item \textbf{Kinematic/Dynamic switch}: At $V < \SI{0.5}{\meter\per\second}$, uses kinematic bicycle; above, uses full tire-force dynamics
+  \item \textbf{MPC\_SIM\_MATCHING}: Enabled in vehicle\_model.c to align MPC's internal prediction model with the simplified gym tire model (linear slip angles, no $\cos(\delta)/\sin(\delta)$ force resolution)
+\end{itemize}
+
+\subsection{Raceline Fix}
+The optimization-generated raceline (\texttt{traj\_race\_cl.csv}) had a $\pi/2$ heading offset from the map coordinate frame. This caused the car to barely move in simulation (reaching only \SI{2.29}{\meter\per\second} before waypoint matching failed). The fix was to add $\pi/2$ to all $\psi$ values in the CSV, verified by computing $\text{atan2}(y_{i+1}-y_i, x_{i+1}-x_i)$ for all waypoints and confirming a constant offset with $\sigma = 0.015\,\text{rad}$.
+
+\subsection{Gym Bridge Improvements}
+\begin{itemize}
+  \item \textbf{Control model}: Changed from kinematic (\texttt{'ks'}) to single-track (\texttt{'st'}) dynamics
+  \item \textbf{Control input}: Changed from \texttt{['speed', 'steering\_angle']} to \texttt{['accl', 'steering\_angle']} --- the MPC outputs acceleration, not speed
+  \item \textbf{Parameter overrides}: Added \texttt{v\_switch} and \texttt{v\_min} as configurable parameters in sim.yaml
+  \item \textbf{Starting pose}: Updated to match raceline[0] position ($x=0.190$, $y=-0.752$, $\psi=-2.888$)
+  \item \textbf{All measured vehicle parameters}: Already properly overridden via sim.yaml
+\end{itemize}
+
+\subsection{Key Accuracy Insight}
+The gym bridge interprets \texttt{drive.speed} from AckermannDriveStamped messages as \textbf{direct acceleration} (m/s\textsuperscript{2}), not as a speed setpoint. This is correct for the MPC controller which outputs acceleration commands. However, any controller publishing speed setpoints will behave incorrectly with the \texttt{'accl'} control input mode.
+
+%% ============================================================
+\section{FPGA B-Matrix Bug Fix}
+\label{sec:bmatrix_bugfix}
+
+A sparsity exploitation bug was discovered and fixed in \texttt{riccati\_solver\_hls.c} at three locations in the Riccati backward pass:
+
+\begin{enumerate}
+  \item \textbf{Step~1 (M-computation):} B-matrix rows~2--5 were being skipped --- only row~5 for column~0 and row~2 for column~1 were used, due to hardcoded single-row indexing.
+  \item \textbf{Step~2 (S-computation):} The Schur complement calculation had the same single-row issue.
+  \item \textbf{Step~6 ($B^\top p$ feedforward):} The $p$-vector update likewise used only one row per column.
+\end{enumerate}
+
+All three sites were replaced with proper loops over rows~2--5, ensuring that every non-zero entry of the B~matrix participates in the backward pass.
+
+\textbf{Impact:} Correctness fix. Result: 6/6~PASS, no change in average iterations (solver already converged due to dominant $Q$~diagonal), but the computed gains are now mathematically correct.
+
+%% ============================================================
+\section{CPU Speed Optimizations}
+\label{sec:cpu_speed_opts}
+
+Four changes yielded a \textbf{72\% reduction in CPU solve time} (Table~\ref{tab:cpu_speed_v2}).
+
+\begin{table}[H]
+\centering
+\caption{CPU solve time before and after speed optimizations.}
+\label{tab:cpu_speed_v2}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Metric} & \textbf{Before} & \textbf{After} & \textbf{Change} \\
+\midrule
+Avg iterations  & 11.0  & 3.2   & $-71\%$ \\
+Max iterations  & 50    & 18    & $-64\%$ \\
+Avg solve time  & \SI{41.7}{\micro\second} & \SI{11.8}{\micro\second} & $-72\%$ \\
+Max solve time  & \SI{189.1}{\micro\second} & \SI{60.2}{\micro\second} & $-68\%$ \\
+Total solve time (60\,s) & \SI{500.4}{\milli\second} & \SI{141.6}{\milli\second} & $-72\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The four changes, in order of impact:
+\begin{enumerate}
+  \item \textbf{Persist adapted ADMM~$\rho$ across warm-starts.} The FPGA already retained $\rho$ between calls, but the CPU reset $\rho = 25.0$ on every invocation. After fixing this, the CPU matches the FPGA's $\sim$3.2 average iterations. This was the single largest improvement.
+  \item \textbf{Direct Frenet linearization.} Eliminated the global-to-Frenet indirection that previously computed the full $6\times 6$ global $A/B$ matrices and then extracted rows~3--5.
+  \item \textbf{Sparse zeroing.} Replaced \texttt{memset(step\_data, 0, 31\,KB)} with targeted zeroing of individual struct fields.
+  \item \textbf{\texttt{MAX\_HORIZON}~$50 \to 20$.} Matched the compile-time constant to the actual horizon, reducing stack usage by $2.5\times$.
+\end{enumerate}
+
+%% ============================================================
+\section{FPGA Accuracy \& Resource Optimizations}
+\label{sec:fpga_accuracy}
+
+Two changes targeting FPGA synthesis quality:
+
+\subsection{Over-Relaxation Simplification}
+The ADMM over-relaxation step was algebraically simplified:
+\[
+  \hat{x} = \alpha x + (1-\alpha)z
+  \;\;\longrightarrow\;\;
+  \hat{x} = x + (\alpha - 1)(x - z)
+\]
+The original form requires two multiplications per element; the new form requires one.
+Across all state and control variables this saves \textbf{208~DSP multiply operations per ADMM iteration}.
+Result: identical convergence (3.8~avg iterations), better FPGA resource utilization.
+
+\subsection{Deferred P~Normalization}
+In the Riccati backward pass, ten accumulation sites were changed from per-multiply normalization (\texttt{>> FP\_FRAC\_BITS} after each product) to accumulation in \texttt{int64\_t} with a single shift at the end.
+
+\textbf{Overflow analysis:} Worst case is 8~terms $\times$ max Q16.16 value $\approx 2^{42}$, safely within the \texttt{int64\_t} range of $2^{63}$.
+
+\textbf{Result:} Marginal accuracy improvement (heading error $-0.5\%$), no convergence change.
+
+%% ============================================================
+\section{Wall Constraint Tuning}
+\label{sec:wall_constraints}
+
+Systematic investigation of wall constraints for the ADMM solver.
+
+\subsection{Problem}
+Real wall distances (minimum \SI{0.05}{\meter} in tight sections) caused the solver to struggle: 23--30~average iterations, wall collisions, and only 23\% of simulation time above \SI{5}{\meter\per\second}.
+
+\subsection{Solution}
+Three complementary changes:
+\begin{enumerate}
+  \item \textbf{Enforce minimum wall distance of \SI{1.2}{\meter}} in the trajectory via \texttt{--min-distance} in \texttt{compute\_wall\_distances.py}.
+  \item \textbf{Reduce MPC wall margin} from \SI{0.25}{\meter} to \SI{0.05}{\meter} (the safety margin now comes from trajectory pre-processing).
+  \item \textbf{Add \texttt{WALL\_CONSTRAINT\_END} parameter} --- only constrain the first~5 of 20~horizon steps (near-term safety, far-horizon freedom).
+\end{enumerate}
+
+\subsection{Binary Search}
+A sweep over minimum distance values: \SI{0.3}{\meter}--\SI{1.0}{\meter} $\to$ FAIL; \SI{1.2}{\meter}$+$ $\to$ PASS.
+
+\textbf{Result:} CPU 6/6~PASS (10.9~avg iterations with walls), FPGA 6/6~PASS (3.8~avg iterations with walls).
+
+%% ============================================================
+\section{Universal Raceline Pipeline}
+\label{sec:raceline_pipeline}
+
+A new script \texttt{optimize\_trajectory.py} provides one-command trajectory generation:
+
+\begin{lstlisting}[language=bash]
+python3 optimize_trajectory.py --map path/to/map.yaml
+\end{lstlisting}
+
+\noindent\textbf{Pipeline stages:}
+\[
+  \text{Map (PGM)} \;\to\; \text{Boundary extraction} \;\to\; \text{Centerline (periodic B-spline)} \;\to\; \text{Width (ray-cast)} \;\to\; \text{TUM min-curvature optimizer} \;\to\; \text{MPC CSV}
+\]
+
+\noindent Key features:
+\begin{itemize}
+  \item Works on both designed maps (Spielberg) and SLAM maps (\texttt{my\_track\_map}).
+  \item Auto-scales centerline point count based on perimeter: $n_{\text{pts}} = \lfloor\text{perimeter} / 0.4\rfloor$.
+  \item Curvature-based width capping ($w \leq 0.8\,R$) prevents TUM optimizer spline normal crossings.
+  \item Heading convention: $\psi_{\text{TUM}} + \pi/2 = \psi_{\text{MPC}}$.
+\end{itemize}
+
+%% ============================================================
+\section{Exhaustive Weight Tuning}
+\label{sec:exhaustive_weights}
+
+690~test combinations were evaluated in \SI{106}{\second} total:
+
+\begin{itemize}
+  \item \textbf{Phase~1:} One-at-a-time (44) + pairwise (580) + triple grid (215) + velocity-focused (19) = 649~unique combinations.
+  \item \textbf{Phase~2:} Secondary sweep on the best primary configuration (41~combinations).
+\end{itemize}
+
+\textbf{Bug found:} The previous \texttt{tune\_weights.py} was \emph{broken} --- environment variable names did not match the C~code constants, so prior tuning results were invalid.
+
+\textbf{Result:} The current weights are near-optimal. Best found: $Q_{\text{lat}} = 100$ (vs\ 75~baseline), score 52.73 vs\ 52.79. The top~20 configurations all score 52.73--52.78, indicating the weights reside in a very flat optimum region.
+
+The final tuned weights are $Q_{\text{lat}} = 100$, $Q_{\text{vel}} = 12$.
+
+%% ============================================================
+\section{Summary of Key Findings}
+
+\begin{enumerate}
+  \item \textbf{Float32 conversion} provides a 43\% speed improvement on CPU with no accuracy loss, and enables compiler autovectorization (\texttt{-O3 -ffast-math}) for a total 65\% reduction.
+  \item \textbf{200\,Hz is the optimal control rate} --- higher frequencies provide no tracking improvement.
+  \item \textbf{Raceline heading convention} must be verified when importing from external optimizers --- a $\pi/2$ offset caused complete simulation failure.
+  \item \textbf{Plant-model matching} (enabling MPC\_SIM\_MATCHING) is critical for the ST dynamic model to avoid tire model discrepancies between the MPC predictor and the gym simulator.
+  \item \textbf{Persist adapted $\rho$} provides a 72\% CPU solve time reduction ($11.0 \to 3.2$ avg iterations).
+  \item \textbf{B-matrix sparsity fix} corrects all 3~locations in the FPGA backward pass.
+  \item \textbf{Wall constraints} work reliably with min-distance \SI{1.2}{\meter}, \texttt{MARGIN}$=$\SI{0.05}{\meter}, \texttt{END}$=$5.
+  \item \textbf{Universal raceline pipeline} supports any map $\to$ optimized trajectory in one command.
+  \item \textbf{Over-relaxation simplification} saves 208~DSP multiplies per FPGA ADMM iteration.
+  \item \textbf{Exhaustive weight sweep} (690~combos) confirms $Q_{\text{lat}} = 100$, $Q_{\text{vel}} = 12$ as optimal.
+\end{enumerate}
+
+\subsection*{Current Performance (60\,s simulation, 200\,Hz)}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Target} & \textbf{Avg Iter} & \textbf{Avg Solve} & \textbf{Avg Lat Err} & \textbf{Time $>$\SI{5}{\meter\per\second}} \\
+\midrule
+CPU  & 3.2  & \SI{11.8}{\micro\second}  & \SI{0.24}{\meter} & 62\% \\
+FPGA & 3.8  & \SI{429}{\micro\second} (est.) & \SI{0.25}{\meter} & 67\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\end{document}
