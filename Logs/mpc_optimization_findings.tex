@@ -298,6 +298,27 @@ The four changes, in order of impact:
   \item \textbf{\texttt{MAX\_HORIZON}~$50 \to 20$.} Matched the compile-time constant to the actual horizon, reducing stack usage by $2.5\times$.
 \end{enumerate}
 
+\subsection{Tolerance Optimization on CPU}
+\label{sec:cpu_tolerance}
+With warm-start and rho persistence, early ADMM iterations capture most of the control signal. Relaxing the convergence tolerance from 0.1 to 0.5 yields large speed gains:
+
+\begin{table}[H]
+\centering
+\caption{CPU performance with tolerance 0.1 vs.\ 0.5 at 200\,Hz and 400\,Hz.}
+\label{tab:cpu_tol}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Metric} & \textbf{tol=0.1, 200Hz} & \textbf{tol=0.5, 200Hz} & \textbf{tol=0.5, 400Hz} \\
+\midrule
+Avg iterations   & 4.7   & 2.2   & 1.5   \\
+Avg solve time   & \SI{17.5}{\micro\second} & \SI{8.7}{\micro\second} & \SI{6.2}{\micro\second} \\
+Solve reduction  & ---   & 50\%  & 65\%  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Finding:} At \SI{400}{\hertz}, the controller averages 1.5~iterations and \SI{6.2}{\micro\second} per solve, meaning it could theoretically run at $>$\SI{160}{\kilo\hertz}. The \SI{400}{\hertz} rate gives slightly better tracking than \SI{200}{\hertz} due to smaller state changes between calls.
+
 %% ============================================================
 \section{FPGA Accuracy \& Resource Optimizations}
 \label{sec:fpga_accuracy}
@@ -344,6 +365,25 @@ A sweep over minimum distance values: \SI{0.3}{\meter}--\SI{1.0}{\meter} $\to$ F
 
 \textbf{Result:} CPU 6/6~PASS (10.9~avg iterations with walls), FPGA 6/6~PASS (3.8~avg iterations with walls).
 
+\subsection{Soft Wall Constraints}
+\label{sec:soft_walls}
+The hard box constraints in the ADMM z-update were replaced with a \textbf{proximal operator} formulation:
+\[
+  \text{prox}_{g/\rho}(v) =
+  \begin{cases}
+    \dfrac{k \cdot \text{bound} + \rho \cdot v}{k + \rho} & \text{if } v \text{ violates bound,} \\[4pt]
+    v & \text{otherwise.}
+  \end{cases}
+\]
+Hard constraints caused ADMM divergence at tight walls because the discontinuous gradient at the boundary prevented smooth convergence. With soft constraints ($k = 500$), the minimum wall distance can be reduced from \SI{1.2}{\meter} to \SI{0.5}{\meter}.
+
+\textbf{Key insights:}
+\begin{itemize}
+  \item On Spielberg, walls rarely bind --- the raceline naturally stays within bounds.
+  \item Previous failures at \SI{1.0}{\meter} were due to the unoptimized solver (no rho persistence), not wall distance.
+  \item Soft constraints provide a smooth penalty gradient that guides the solver away from walls rather than hitting an infeasible wall.
+\end{itemize}
+
 %% ============================================================
 \section{Universal Raceline Pipeline}
 \label{sec:raceline_pipeline}
@@ -371,44 +411,146 @@ python3 optimize_trajectory.py --map path/to/map.yaml
 \section{Exhaustive Weight Tuning}
 \label{sec:exhaustive_weights}
 
-690~test combinations were evaluated in \SI{106}{\second} total:
+\subsection{Critical Bug Fix}
+\texttt{tune\_weights.py} used \texttt{MPC\_W\_LAT\_ERROR} environment variable names, but \texttt{test\_sim\_drive.c} reads \texttt{Q\_LAT}, \texttt{Q\_HDG}, etc. \textbf{All previous tuning runs tested identical (baseline) configurations.} After fixing the variable name mapping, the tuner could actually change solver weights.
 
+\subsection{Initial Sweep (690 Combinations)}
+690~test combinations were evaluated in \SI{106}{\second} total:
 \begin{itemize}
   \item \textbf{Phase~1:} One-at-a-time (44) + pairwise (580) + triple grid (215) + velocity-focused (19) = 649~unique combinations.
   \item \textbf{Phase~2:} Secondary sweep on the best primary configuration (41~combinations).
 \end{itemize}
 
-\textbf{Bug found:} The previous \texttt{tune\_weights.py} was \emph{broken} --- environment variable names did not match the C~code constants, so prior tuning results were invalid.
+\subsection{Extended Tuning (1850 Combinations)}
+After the bug fix, a 3-phase approach was used:
+\begin{enumerate}
+  \item \textbf{Coarse grid:} broad sweeps across all weight dimensions.
+  \item \textbf{Secondary sweep:} focused grid around promising regions.
+  \item \textbf{Fine-tuning:} $\pm 10$--$50\%$ perturbations of the best configuration.
+\end{enumerate}
 
-\textbf{Result:} The current weights are near-optimal. Best found: $Q_{\text{lat}} = 100$ (vs\ 75~baseline), score 52.73 vs\ 52.79. The top~20 configurations all score 52.73--52.78, indicating the weights reside in a very flat optimum region.
+\textbf{1850~total combinations} were evaluated. Best weights found:
 
-The final tuned weights are $Q_{\text{lat}} = 100$, $Q_{\text{vel}} = 12$.
+\begin{table}[H]
+\centering
+\caption{Final tuned weights (after bug fix and 1850-combination sweep).}
+\label{tab:final_weights}
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+\textbf{Weight} & \textbf{Baseline} & \textbf{Tuned} & \textbf{Change} \\
+\midrule
+$Q_{\text{lat}}$  & 75   & 125  & $+67\%$ \\
+$Q_{\text{hdg}}$  & 100  & 300  & $+200\%$ \\
+$Q_{\text{vel}}$  & 12   & 30   & $+150\%$ \\
+$Q_{\text{yaw}}$  & 5    & 20   & $+300\%$ \\
+$W_{\text{jerk}}$ & 2.5  & 0.5  & $-80\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key results:}
+\begin{itemize}
+  \item Velocity error: $2.09 \to 1.59$~m/s (\textbf{24\% improvement}).
+  \item Time above \SI{5}{\meter\per\second}: $66\% \to 72\%$ (\textbf{9\% improvement}).
+  \item $Q_{\text{hdg}} = 300$ ($3\times$ increase) and $Q_{\text{vel}} = 30$ ($2.5\times$ increase) show that velocity tracking was severely under-weighted in prior configurations.
+\end{itemize}
+
+%% ============================================================
+\section{FPGA Tolerance Optimization}
+\label{sec:fpga_tolerance}
+
+The ADMM convergence tolerance was relaxed from 0.1 to 0.5. With warm-start and rho persistence, early iterations already capture most of the control signal.
+
+\begin{table}[H]
+\centering
+\caption{FPGA performance with convergence tolerance 0.1 vs.\ 0.5.}
+\label{tab:fpga_tol}
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+\textbf{Metric} & \textbf{tol=0.1} & \textbf{tol=0.5} & \textbf{Change} \\
+\midrule
+Avg iterations     & 5.6   & 2.5   & $-56\%$ \\
+Est.\ FPGA time    & \SI{628}{\micro\second} & \SI{279}{\micro\second} & $-56\%$ \\
+Max lateral error  & \SI{0.656}{\meter} & \SI{0.619}{\meter} & $-5.6\%$ \\
+Avg lateral error  & \SI{0.220}{\meter} & \SI{0.210}{\meter} & $-4.5\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key points:}
+\begin{itemize}
+  \item At tol$=$1.0: 1.7~avg iterations, \SI{191}{\micro\second} --- but tol$=$0.5 provides a safety margin.
+  \item Tracking quality is \emph{unchanged or slightly improved} because the extra iterations at tight tolerance were refining already-good solutions.
+  \item \textbf{HLS partition improvements}: PA~complete, P~factor$=$8, K~complete dim$=$3.
+  \item \textbf{y-variable saturation}: prevents dual variable explosion at maximum iterations.
+\end{itemize}
+
+%% ============================================================
+\section{Nonlinear Simulator Model}
+\label{sec:nonlinear_sim}
+
+The simulation testbench (\texttt{test\_sim\_drive.c}) was updated to match \texttt{f1tenth\_gym}'s \texttt{single\_track.py} exactly, replacing the previous CommonRoad linear approximation.
+
+\subsection{Changes}
+\begin{itemize}
+  \item \textbf{Slip angles}: \texttt{atan2}-based computation (nonlinear) instead of small-angle linear approximation.
+  \item \textbf{Force resolution}: $\cos(\delta)/\sin(\delta)$ terms for front tire forces (full body dynamics).
+  \item \textbf{Load transfer}: Explicit longitudinal load transfer model.
+  \item \textbf{Tire saturation}: Nonlinear tire forces with proper saturation in tight corners.
+\end{itemize}
+
+\subsection{Comparison}
+\begin{table}[H]
+\centering
+\caption{Old (linear) vs.\ new (nonlinear) simulator model.}
+\label{tab:sim_model}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Aspect} & \textbf{Old (CommonRoad)} & \textbf{New (gym-matched)} \\
+\midrule
+Slip angles   & Linear ($\alpha \approx \beta + \dots$)   & $\text{atan2}(v_y + l\dot{\psi},\, v_x)$ \\
+Force model   & Small-angle simplification & Full $\cos/\sin$ resolution \\
+Load transfer & Omitted  & Explicit longitudinal transfer \\
+Consistency   & Diverges from gym at limit & Matches gym single-track \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Result:} 6/6~PASS with similar tracking quality. The nonlinear model provides physically accurate tire saturation in tight corners, matching the simulator the MPC will actually run against.
 
 %% ============================================================
 \section{Summary of Key Findings}
 
 \begin{enumerate}
   \item \textbf{Float32 conversion} provides a 43\% speed improvement on CPU with no accuracy loss, and enables compiler autovectorization (\texttt{-O3 -ffast-math}) for a total 65\% reduction.
-  \item \textbf{200\,Hz is the optimal control rate} --- higher frequencies provide no tracking improvement.
+  \item \textbf{200\,Hz is the optimal control rate} --- higher frequencies provide no tracking improvement (but 400\,Hz helps with tolerance relaxation).
   \item \textbf{Raceline heading convention} must be verified when importing from external optimizers --- a $\pi/2$ offset caused complete simulation failure.
   \item \textbf{Plant-model matching} (enabling MPC\_SIM\_MATCHING) is critical for the ST dynamic model to avoid tire model discrepancies between the MPC predictor and the gym simulator.
   \item \textbf{Persist adapted $\rho$} provides a 72\% CPU solve time reduction ($11.0 \to 3.2$ avg iterations).
   \item \textbf{B-matrix sparsity fix} corrects all 3~locations in the FPGA backward pass.
-  \item \textbf{Wall constraints} work reliably with min-distance \SI{1.2}{\meter}, \texttt{MARGIN}$=$\SI{0.05}{\meter}, \texttt{END}$=$5.
+  \item \textbf{Soft wall constraints} ($k=500$ proximal operator) replace hard box constraints, reducing minimum wall distance from \SI{1.2}{\meter} to \SI{0.5}{\meter} without ADMM divergence.
   \item \textbf{Universal raceline pipeline} supports any map $\to$ optimized trajectory in one command.
   \item \textbf{Over-relaxation simplification} saves 208~DSP multiplies per FPGA ADMM iteration.
-  \item \textbf{Exhaustive weight sweep} (690~combos) confirms $Q_{\text{lat}} = 100$, $Q_{\text{vel}} = 12$ as optimal.
+  \item \textbf{Weight tuning bug fix \& 1850-combo sweep}: $Q_{\text{hdg}}=300$, $Q_{\text{vel}}=30$ give 24\% velocity error reduction and 9\% more time above \SI{5}{\meter\per\second}.
+  \item \textbf{FPGA tolerance relaxation} ($0.1 \to 0.5$): 56\% iteration reduction ($5.6 \to 2.5$), estimated \SI{279}{\micro\second} per solve.
+  \item \textbf{CPU tolerance relaxation} ($0.1 \to 0.5$): 50\% solve time reduction to \SI{8.7}{\micro\second} at 200\,Hz; \SI{6.2}{\micro\second} at 400\,Hz.
+  \item \textbf{Nonlinear simulator model}: \texttt{atan2}-based slip angles, full $\cos/\sin$ force resolution matching \texttt{f1tenth\_gym}.
 \end{enumerate}
 
-\subsection*{Current Performance (60\,s simulation, 200\,Hz)}
+\subsection*{Overall Performance Comparison}
 \begin{table}[H]
 \centering
+\caption{Before vs.\ after optimizations (60\,s simulation).}
+\label{tab:overall_perf}
 \begin{tabular}{@{}lrrrr@{}}
 \toprule
-\textbf{Target} & \textbf{Avg Iter} & \textbf{Avg Solve} & \textbf{Avg Lat Err} & \textbf{Time $>$\SI{5}{\meter\per\second}} \\
+\textbf{Metric} & \textbf{CPU Before} & \textbf{CPU After} & \textbf{FPGA Before} & \textbf{FPGA After} \\
 \midrule
-CPU  & 3.2  & \SI{11.8}{\micro\second}  & \SI{0.24}{\meter} & 62\% \\
-FPGA & 3.8  & \SI{429}{\micro\second} (est.) & \SI{0.25}{\meter} & 67\% \\
+Avg iterations   & 11.0 & 2.2 (200Hz) / 1.5 (400Hz) & 5.6  & 2.5  \\
+Solve time       & \SI{42}{\micro\second} & \SI{8.7}{\micro\second} (200Hz) / \SI{6.2}{\micro\second} (400Hz) & \SI{628}{\micro\second} est. & \SI{279}{\micro\second} est. \\
+Max lateral error & \SI{0.89}{\meter} & \SI{0.70}{\meter} & \SI{0.66}{\meter} & \SI{0.62}{\meter} \\
+Wall distance     & \SI{1.2}{\meter} min & \SI{0.5}{\meter} min (soft) & N/A & N/A \\
+Tests             & 6/6 & 6/6 & 6/6 & 6/6 \\
 \bottomrule
 \end{tabular}
 \end{table}
