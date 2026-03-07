@@ -52,7 +52,7 @@ static int64_t reciprocal_64(int64_t det)
     int i;
     for (i = 0; i < 4; i++) {
 #pragma HLS PIPELINE II=4
-#pragma HLS LOOP_TRIPCOUNT min=6 max=6
+#pragma HLS LOOP_TRIPCOUNT min=4 max=4
         int64_t prod = (abs_det * est) >> FP_FRAC_BITS;
         int64_t corr = (int64_t)FP_ONE - prod;
         int64_t adj  = (est * corr) >> FP_FRAC_BITS;
@@ -555,7 +555,7 @@ MpcStatus_t riccati_admm_solve_hls(
     int iter;
 
     for (iter = 0; iter < max_iter; iter++) {
-#pragma HLS LOOP_TRIPCOUNT min=1 max=50 avg=10
+#pragma HLS LOOP_TRIPCOUNT min=1 max=8 avg=2
 
         /* --- Primal update: Riccati pass with augmented costs --- */
         riccati_pass_hls(

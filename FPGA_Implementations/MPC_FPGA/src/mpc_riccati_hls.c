@@ -199,7 +199,7 @@ void mpc_compute_hls(
 
         /* A[5][5] = 1 (delta integrator) */
         sd->A[IDX_DELTA_ACT][IDX_DELTA_ACT] = FP_ONE;
-        /* Rows/cols 6,7 of A: all zero (from memset) */
+        /* Rows/cols 6,7 of A: all zero (from sparse zeroing above) */
 
         /* === Augmented B (8x2) === */
         /* Rows 0-4, col 0: ZERO (delta_rate does not directly affect Frenet) */
