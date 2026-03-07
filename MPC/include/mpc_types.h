@@ -398,7 +398,7 @@ typedef struct
 
 /** F1/10th minimum velocity: 0 m/s (no reverse) */
 #define F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND \
-    ((fixed_point_t)0)
+    FP_CONST(0.0)
 
 /** Distance from CG to front axle: 0.166 meters [CAD] */
 #define F110_DIST_CG_TO_FRONT_AXLE_METERS \
@@ -475,7 +475,7 @@ typedef struct
  *  The cross_call_rate_scale = 0.1 (5ms / 50ms).
  */
 #define MPC_DEFAULT_TIME_STEP_SECONDS \
-    ((fixed_point_t)3277)
+    FP_CONST(0.05)
 
 /** Default maximum solver iterations.
  *  FPGA target uses a tighter cap for deterministic worst-case latency.
@@ -486,7 +486,7 @@ typedef struct
 
 /** Default convergence tolerance: 0.02 — Q16.16 ~ 1310 */
 #define MPC_DEFAULT_CONVERGENCE_TOLERANCE \
-    ((fixed_point_t)1310)
+    FP_CONST(0.02)
 
 /**
  * Get the default MPC configuration (F1/10th tuned values).

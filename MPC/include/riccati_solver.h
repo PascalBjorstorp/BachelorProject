@@ -185,6 +185,12 @@ typedef struct
     /** ADMM dual variables for controls y_u[0..N-1] */
     fixed_point_t y_u[RICCATI_MAX_HORIZON][RICCATI_MAX_NU];
 
+    /** Persisted adaptive rho (0 = use config default) */
+    fixed_point_t rho;
+
+    /** Persisted adaptive rho_u (0 = use config default) */
+    fixed_point_t rho_u;
+
     /** Whether warm-start data is valid */
     int initialized;
 

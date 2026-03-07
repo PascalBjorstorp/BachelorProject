@@ -58,11 +58,7 @@
 #define MAX_STEERING_RATE FP_CONST(2.849)
 
 /** Maximum horizon steps */
-#ifdef MPC_HLS_TARGET
 #define MAX_HORIZON 20
-#else
-#define MAX_HORIZON 50
-#endif
 
 /** Big number for unconstrained states */
 #define BIG_BOUND FP_CONST(100.0)
@@ -73,12 +69,13 @@
 /** A-row stability limit (same as condensed approach) */
 #define STABILITY_LIMIT FP_CONST(0.95)
 
-/** Wall constraint margin (same as condensed approach) */
-#define WALL_MARGIN FP_CONST(0.10)
+/** Wall constraint margin — 0.05m (safety added in trajectory generation) */
+#define WALL_MARGIN FP_CONST(0.05)
 
-/** Match PG's sparse wall constraints: start at step 2, every 3 steps */
-#define WALL_CONSTRAINT_START  2
-#define WALL_CONSTRAINT_STRIDE 3
+/** Wall constraints: only first few horizon steps for near-term safety */
+#define WALL_CONSTRAINT_START  1
+#define WALL_CONSTRAINT_STRIDE 1
+#define WALL_CONSTRAINT_END    5     /* last horizon step to constrain (0=disable) */
 
 /** v_switch: above this velocity, max acceleration = a_max * v_switch / v.
  *  From f1tenth gym STDynamicsModel: v_switch = 7.319 m/s.
@@ -102,7 +99,7 @@ static fixed_point_t prev_delta_cmd = 0;  /* Previous steer output for rate-limi
  *  At 200 Hz control rate, 0.02 rad/solve ≈ 4 rad/s — well above servo limit
  *  (2.849 rad/s) but prevents erratic jumps from non-converged solves.
  *  Data shows all high-speed wild turns are from status=1 solves. */
-#define MAX_NONCONV_STEER_DELTA FP_CONST(0.01)
+#define MAX_NONCONV_STEER_DELTA FP_CONST(0.005)
 
 /*===========================================================================
  * Default Configuration
@@ -132,18 +129,18 @@ MpcConfiguration_t get_default_configuration(void)
      *   Tested: 0 collisions in 60s ROS2 sim, 67→68% time above 5 m/s.
      */
     cfg.weight_lateral_error    = FP_CONST(100.0);
-    cfg.weight_heading_error    = FP_CONST(1000.0);
-    cfg.weight_velocity         = FP_CONST(10.0);
-    cfg.weight_lateral_velocity = FP_CONST(28.0);
-    cfg.weight_yaw_rate         = FP_CONST(10.0);
+    cfg.weight_heading_error    = FP_CONST(100.0);
+    cfg.weight_velocity         = FP_CONST(12.0);
+    cfg.weight_lateral_velocity = FP_CONST(60.0);
+    cfg.weight_yaw_rate         = FP_CONST(5.0);
 
     /* Control effort weights */
     cfg.weight_steering_effort      = FP_CONST(0.35);
-    cfg.weight_acceleration_effort  = FP_CONST(0.05);
+    cfg.weight_acceleration_effort  = FP_CONST(0.01);
 
     /* Control rate weights */
-    cfg.weight_steering_rate        = FP_CONST(3.0);
-    cfg.weight_acceleration_rate    = FP_CONST(0.1);
+    cfg.weight_steering_rate        = FP_CONST(2.5);
+    cfg.weight_acceleration_rate    = FP_CONST(0.01);
 
     /* Cross-call rate scale: ratio of control interval to prediction dt. */
     cfg.cross_call_rate_scale = FP_CONST(0.1);
@@ -312,7 +309,7 @@ static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
 
     /* Feedforward steering: atan(L * κ), clamped to ±δ_max/2 */
     fixed_point_t delta_ff = fp_atan(fp_mul(vp.wheelbase_meters, path_curvature0));
-    fixed_point_t delta_clamp = vp.maximum_steering_angle_radians >> 1;
+    fixed_point_t delta_clamp = vp.maximum_steering_angle_radians * 0.5f;
     if (delta_ff > delta_clamp) delta_ff = delta_clamp;
     if (delta_ff < fp_neg(delta_clamp)) delta_ff = fp_neg(delta_clamp);
 
@@ -409,10 +406,39 @@ static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
 
     /* Build per-step data array */
     RiccatiStepData_t step_data[MAX_HORIZON];
-    memset(step_data, 0, sizeof(step_data));
+    /* NOTE: Do NOT use memset on the whole array (wastes ~31KB of zeroing).
+     * Instead, zero only the sparse blocks that the loop doesn't fill. */
 
     for (int k = 0; k < N; k++) {
         RiccatiStepData_t *sd = &step_data[k];
+
+        /* --- Sparse zeroing (replaces memset) --- */
+
+        /* A rows 5,6,7: zero all columns (delta integrator + prev-controls
+         * have no cross-coupling to Frenet states in cols 0..4) */
+        for (int j = 0; j < NX_AUG; j++) {
+            sd->A[IDX_DELTA_ACTUAL][j] = 0;
+            sd->A[IDX_DRATE_PREV][j]   = 0;
+            sd->A[IDX_ACCEL_PREV][j]   = 0;
+        }
+        /* A cols 6,7: zero for rows 0..5 */
+        for (int i = 0; i < NX_DENSE; i++) {
+            sd->A[i][IDX_DRATE_PREV] = 0;
+            sd->A[i][IDX_ACCEL_PREV] = 0;
+        }
+        /* B rows 0-4, col 0: zero (δ̇ doesn't directly affect Frenet) */
+        for (int i = 0; i < NX_FRENET; i++)
+            sd->B[i][0] = 0;
+        /* B sparse zeros for prev-control rows */
+        sd->B[IDX_DRATE_PREV][1] = 0;  /* δ̇_prev not affected by accel */
+        sd->B[IDX_ACCEL_PREV][0] = 0;  /* a_prev not affected by δ̇ */
+        /* N cross-cost: zero all, non-zero entries set below */
+        for (int i = 0; i < NX_AUG; i++) {
+            sd->N[i][0] = 0;
+            sd->N[i][1] = 0;
+        }
+
+        /* --- End sparse zeroing --- */
 
         /* === Augmented A matrix (8×8) === */
 
@@ -434,15 +460,12 @@ static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
         /* A[5][5] = 1: δ_actual integrator (δ_{k+1} = δ_k + dt*δ̇) */
         sd->A[IDX_DELTA_ACTUAL][IDX_DELTA_ACTUAL] = FP_ONE;
 
-        /* Rows 6-7 of A: all zero (prev controls overwritten by B) */
-        /* Cols 6-7 of A: all zero (prev controls don't affect dynamics) */
-        /* Already zero from memset */
+        /* Rows 6-7: already zeroed above */
+        /* Cols 6-7: already zeroed above */
 
         /* === Augmented B matrix (8×2) === */
 
-        /* Rows 0-4, col 0: ZERO — δ̇ doesn't directly affect Frenet dynamics */
-        /* (steering effect goes through A[i][5] via δ_actual state) */
-        /* Already zero from memset */
+        /* Rows 0-4, col 0: already zeroed above */
 
         /* Rows 0-4, col 1: acceleration effect on dynamics (unchanged) */
         for (int i = 0; i < 5; i++)
@@ -519,8 +542,9 @@ static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
 
         /* === State bounds (8 elements) === */
 
-        /* e_y: wall constraints (sparse: every 3rd step) */
+        /* e_y: wall constraints (near-term: steps START..END, every STRIDE) */
         int wall_active = (k >= WALL_CONSTRAINT_START) &&
+                          (k <= WALL_CONSTRAINT_END) &&
                           ((k - WALL_CONSTRAINT_START) % WALL_CONSTRAINT_STRIDE == 0);
 
         if (wall_active &&
@@ -622,13 +646,12 @@ static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
      * Step 4: Warm-start management
      * --------------------------------------------------------------- */
     fixed_point_t cur_curvature = reference_trajectory[0].path_curvature_radians_per_meter;
-    /* Convergence-conditioned warm-start: reuse ADMM state only when the
-     * previous call converged AND curvature hasn't changed drastically.
-     * Non-converged dual variables cause cascading failures (steering
-     * ramps to zero while accelerating into walls). */
+    /* Warm-start: reuse ADMM state unless curvature changed drastically.
+     * With float32 precision, convergence is more reliable, so we
+     * don't invalidate on non-convergence (matching FPGA OPT-3). */
     {
         fixed_point_t kappa_diff = fp_abs(fp_sub(cur_curvature, warm_start_prev_curvature));
-        if (!prev_solver_converged || !admm_state.initialized || kappa_diff > FP_CONST(0.3)) {
+        if (!admm_state.initialized || kappa_diff > FP_CONST(0.5)) {
             riccati_admm_state_init(&admm_state);
         }
     }

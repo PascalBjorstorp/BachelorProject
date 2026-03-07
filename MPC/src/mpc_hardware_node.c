@@ -54,6 +54,7 @@
 #include "nav_msgs/msg/odometry.h"
 #include "ackermann_msgs/msg/ackermann_drive_stamped.h"
 #include "std_msgs/msg/float64.h"
+#include "geometry_msgs/msg/pose_with_covariance_stamped.h"
 
 /* MPC Core Library Headers (Platform-Independent) */
 #include "mpc.h"
@@ -85,10 +86,17 @@ static const char *g_odom_topic = "/ego_racecar/odom";
 static const char *g_drive_topic = "/drive";
 static const char *g_servo_topic = "/sensors/servo_position_command";
 static const char *g_imu_topic = "/imu/filtered_angular_velocity";
+static const char *g_amcl_pose_topic = "/amcl_pose";
 static const char *g_trajectory_file = NULL;
 
 /** Enable verbose logging (disabled by default for real-time performance) */
 static int g_verbose = 0;
+
+/** Set to 1 once the first /amcl_pose message has been received.
+ *  When enabled, position/heading come from the map frame (AMCL)
+ *  rather than the odom frame.  The trajectory CSV is in map frame,
+ *  so Frenet errors are only correct when this flag is set. */
+static int g_amcl_received = 0;
 
 /** Timer-driven control rate [Hz] */
 static double g_control_rate_hz = 200.0;
@@ -158,6 +166,7 @@ static nav_msgs__msg__Odometry global_odometry_message_buffer;
 static std_msgs__msg__Float64 global_servo_message_buffer;
 static std_msgs__msg__Float64 global_imu_message_buffer;
 static ackermann_msgs__msg__AckermannDriveStamped global_drive_message_buffer;
+static geometry_msgs__msg__PoseWithCovarianceStamped global_amcl_pose_buffer;
 
 static TrajectoryReferencePoint_t global_reference_trajectory[MPC_PREDICTION_HORIZON_STEPS];
 
@@ -186,8 +195,8 @@ static unsigned long g_solve_cycle_count = 0;
 /** Computed control dt from g_control_rate_hz (set in main) */
 static double g_control_dt = 0.005;
 
-/** Number of executor handles: 3 subscriptions + 1 timer */
-#define EXECUTOR_NUM_HANDLES 4
+/** Number of executor handles: 4 subscriptions + 1 timer */
+#define EXECUTOR_NUM_HANDLES 5
 
 /*===========================================================================
  * Signal Handler for Graceful Shutdown
@@ -639,10 +648,15 @@ void odometry_subscription_callback(const void *message_in)
         global_vehicle_state.yaw_rate_radians_per_second = DOUBLE_TO_FP(omega);
     }
 
-    /* Cache latest double values for the timer callback */
-    g_latest_pos_x = pos_x;
-    g_latest_pos_y = pos_y;
-    g_latest_heading = heading;
+    /* Cache velocity for the timer callback.
+     * Position/heading are only taken from odom when AMCL is not available.
+     * When AMCL is running the amcl_pose_callback keeps them updated in the
+     * map frame, which is the same frame as the trajectory CSV. */
+    if (!g_amcl_received) {
+        g_latest_pos_x = pos_x;
+        g_latest_pos_y = pos_y;
+        g_latest_heading = heading;
+    }
     g_latest_vx = vx;
     g_latest_vy = vy;
     g_latest_omega = omega;
@@ -696,6 +710,38 @@ void imu_callback(const void *message_in)
 
     g_imu_yaw_rate = msg->data;
     g_imu_received = 1;
+}
+
+/*===========================================================================
+ * ROS2 Callback: AMCL Pose (map-frame localised position)
+ *===========================================================================
+ * Overrides the odom-frame position from odometry_subscription_callback.
+ * The trajectory CSV is in map frame, so Frenet errors are only meaningful
+ * when position comes from here rather than from raw wheel odometry.
+ *===========================================================================*/
+void amcl_pose_callback(const void *message_in)
+{
+    if (message_in == NULL) return;
+
+    const geometry_msgs__msg__PoseWithCovarianceStamped *msg =
+        (const geometry_msgs__msg__PoseWithCovarianceStamped *)message_in;
+
+    double pos_x   = msg->pose.pose.position.x;
+    double pos_y   = msg->pose.pose.position.y;
+    double heading = quaternion_to_yaw_angle(
+        msg->pose.pose.orientation.x,
+        msg->pose.pose.orientation.y,
+        msg->pose.pose.orientation.z,
+        msg->pose.pose.orientation.w);
+
+    g_latest_pos_x   = pos_x;
+    g_latest_pos_y   = pos_y;
+    g_latest_heading = heading;
+
+    if (!g_amcl_received) {
+        printf("[MPC] AMCL pose received — switching to map-frame position\n");
+        g_amcl_received = 1;
+    }
 }
 
 /*===========================================================================
@@ -879,29 +925,37 @@ void mpc_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
         /* VEL_TO_ERPM mode: the ackermann_to_vesc node converts drive.speed
          * to ERPM and the VESC's internal PID handles velocity tracking.
          *
-         * The velocity target is computed by integrating the MPC's acceleration
-         * output from the current measured velocity:
-         *   v_target = v_current + a_cmd * dt
+         * drive.speed is computed by integrating the MPC's acceleration command
+         * over ONE MPC PREDICTION STEP (MPC_TIME_STEP_SECONDS = 0.05 s),
+         * NOT the control timer period (g_control_dt = 0.005 s at 200 Hz).
          *
-         * This ensures the MPC owns the velocity decision through its
-         * acceleration output. The trajectory reference velocities feed into
-         * the MPC's cost function (optimization target), but the actual
-         * velocity command comes from the MPC's optimized acceleration.
+         * WHY MPC_TIME_STEP_SECONDS and not g_control_dt:
+         * At 200 Hz (dt=0.005s), even a 5 m/s^2 command produces only a
+         * 0.025 m/s increment per cycle.  ERPM = 4550 * 0.025 = ~114 ERPM.
+         * A sensorless BLDC motor needs sufficient back-EMF (hundreds of RPM)
+         * for the rotor-position observer to lock onto.  Below that threshold
+         * the motor strains, current-limits, and stalls, then MPC re-issues
+         * the same tiny target => repeated start-stop.  The slow_start ramp
+         * in ackermann_to_vesc never fires because commanded_vel never jumps
+         * from <1 m/s to >1 m/s in a single step.
          *
-         * To switch to ACCEL_TO_CURRENT mode (direct force control), set
-         * accel_to_current_gain and accel_to_brake_gain to 8.935 in vesc.yaml.
+         * drive.acceleration is still set so that systems configured with
+         * non-zero accel_to_current_gain / accel_to_brake_gain use the MPC's
+         * direct torque command.  Set those gains to 8.935 A/(m/s^2) in
+         * vesc.yaml to switch to ACCEL_TO_CURRENT mode.
          */
         {
             double a_cmd = FP_TO_DOUBLE(
                 global_control_command.acceleration_meters_per_second_squared);
 
-            /* Integrate MPC acceleration from current measured velocity.
-             * g_latest_vx comes from VESC odometry (self-correcting). */
-            double v_target = g_latest_vx + a_cmd * g_control_dt;
-            if (v_target < 0.0) v_target = 0.0;
-            if (v_target > TRAJECTORY_MAXIMUM_VELOCITY) v_target = TRAJECTORY_MAXIMUM_VELOCITY;
+            /* Integrate MPC acceleration over one MPC prediction step.
+             * See the comment block above for why MPC_TIME_STEP_SECONDS (0.05s)
+             * is used here rather than g_control_dt. */
+            double v_cmd = g_latest_vx + a_cmd * MPC_TIME_STEP_SECONDS;
+            if (v_cmd < 0.0) v_cmd = 0.0;
+            if (v_cmd > TRAJECTORY_MAXIMUM_VELOCITY) v_cmd = TRAJECTORY_MAXIMUM_VELOCITY;
 
-            global_drive_message_buffer.drive.speed = (float)v_target;
+            global_drive_message_buffer.drive.speed = (float)v_cmd;
             global_drive_message_buffer.drive.acceleration = (float)a_cmd;
         }
 
@@ -974,6 +1028,8 @@ int main(int argc, char *argv[])
         {
             g_steering_to_servo_offset = atof(env_val);
         }
+        if ((env_val = getenv("MPC_AMCL_TOPIC")) != NULL)
+            g_amcl_pose_topic = env_val;
     }
 
     printf("[MPC] Controller initialized (horizon=%d, dt=%.0fms)\n",
@@ -988,6 +1044,7 @@ int main(int argc, char *argv[])
            g_servo_topic, g_steering_to_servo_gain, g_steering_to_servo_offset);
     printf("[MPC] IMU yaw rate: %s\n", g_imu_topic);
     printf("[MPC] Watchdog timeout: %.0f ms\n", g_watchdog_timeout_sec * 1000.0);
+    printf("[MPC] AMCL pose topic: %s (map-frame position source)\n", g_amcl_pose_topic);
     printf("[MPC] Verbose=%d\n", g_verbose);
 
     {
@@ -1111,6 +1168,33 @@ int main(int argc, char *argv[])
     }
     printf("[ROS2] Subscribed to %s (Reliable, KeepLast(10))\n", g_imu_topic);
 
+    /* ===== Subscription 4: /amcl_pose (geometry_msgs/PoseWithCovarianceStamped) ===== *
+     * Best-effort QoS — AMCL publishes at low rate (~10 Hz) and is not
+     * safety-critical (odometry is the fallback). */
+    rmw_qos_profile_t qos_amcl = rmw_qos_profile_default;
+    qos_amcl.reliability = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+    qos_amcl.history     = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
+    qos_amcl.depth       = 1;
+
+    rcl_subscription_t amcl_sub = rcl_get_zero_initialized_subscription();
+    rcl_subscription_options_t amcl_sub_opts = rcl_subscription_get_default_options();
+    amcl_sub_opts.qos = qos_amcl;
+
+    rc = rcl_subscription_init(&amcl_sub, &node,
+        ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, PoseWithCovarianceStamped),
+        g_amcl_pose_topic, &amcl_sub_opts);
+    if (rc != RCL_RET_OK)
+    {
+        /* Non-fatal: robot may not have localization running */
+        fprintf(stderr, "[ROS2] WARNING: amcl_pose subscription failed (%s) — using odom\n",
+                rcl_get_error_string().str);
+        rcl_reset_error();
+    }
+    else
+    {
+        printf("[ROS2] Subscribed to %s (BestEffort, KeepLast(1))\n", g_amcl_pose_topic);
+    }
+
     /* ===== Publisher: /drive (ackermann_msgs/AckermannDriveStamped) ===== */
     rcl_publisher_options_t pub_opts = rcl_publisher_get_default_options();
     pub_opts.qos = qos_reliable_10;
@@ -1165,6 +1249,7 @@ int main(int argc, char *argv[])
 
     std_msgs__msg__Float64__init(&global_servo_message_buffer);
     std_msgs__msg__Float64__init(&global_imu_message_buffer);
+    geometry_msgs__msg__PoseWithCovarianceStamped__init(&global_amcl_pose_buffer);
 
     ackermann_msgs__msg__AckermannDriveStamped__init(&global_drive_message_buffer);
     if (!preallocate_rosidl_string(&global_drive_message_buffer.header.frame_id, 64))
@@ -1211,6 +1296,15 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    /* Add AMCL pose subscription (non-fatal if not available) */
+    rc = rclc_executor_add_subscription(&executor, &amcl_sub,
+        &global_amcl_pose_buffer, &amcl_pose_callback, ON_NEW_DATA);
+    if (rc != RCL_RET_OK)
+    {
+        fprintf(stderr, "[ROS2] WARNING: add amcl_pose sub failed — Frenet will use odom frame\n");
+        rcl_reset_error();
+    }
+
     /* Add MPC timer */
     rc = rclc_executor_add_timer(&executor, &mpc_timer);
     if (rc != RCL_RET_OK)
@@ -1219,7 +1313,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    printf("[ROS2] Executor ready (3 subs + 1 timer)\n");
+    printf("[ROS2] Executor ready (4 subs + 1 timer)\n");  /* odom, servo, imu, amcl */
     printf("\n[MPC] Spinning... (waiting for odometry on %s)\n\n", g_odom_topic);
 
     rclc_executor_spin(&executor);
@@ -1236,6 +1330,8 @@ int main(int argc, char *argv[])
     cleanup_rc = rcl_subscription_fini(&odom_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&servo_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&imu_sub, &node); (void)cleanup_rc;
+    cleanup_rc = rcl_subscription_fini(&amcl_sub, &node); (void)cleanup_rc;
+    geometry_msgs__msg__PoseWithCovarianceStamped__fini(&global_amcl_pose_buffer);
     cleanup_rc = rcl_publisher_fini(&global_control_publisher, &node); (void)cleanup_rc;
     cleanup_rc = rcl_steady_clock_fini(&steady_clock); (void)cleanup_rc;
     cleanup_rc = rcl_node_fini(&node); (void)cleanup_rc;
