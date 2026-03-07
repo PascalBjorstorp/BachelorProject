@@ -33,33 +33,35 @@ from datetime import datetime
 
 # ─── Base weights matching current codebase ─────────────────────────────────
 BASE_WEIGHTS = {
-    "Q_LAT":       75.0,
-    "Q_HDG":       100.0,
-    "Q_VEL":       12.0,
+    "Q_LAT":       125.0,
+    "Q_HDG":       300.0,
+    "Q_VEL":       30.0,
     "Q_LAT_VEL":   60.0,
-    "Q_YAW":       5.0,
+    "Q_YAW":       20.0,
     "R_STEER":     0.35,
-    "W_JERK":      2.5,
+    "W_JERK":      0.5,
     "W_ACCEL_RATE": 0.01,
 }
 
-# Friendly name → C env name (only weights with working env vars)
+# Friendly name → C env name used by test_sim_drive.c
+# The test binary reads these directly (line ~240 of test_sim_drive.c),
+# NOT the MPC_W_* names from mpc_riccati.c's get_default_configuration().
 WEIGHT_TO_ENV = {
-    "Q_LAT":        "MPC_W_LAT_ERROR",
-    "Q_HDG":        "MPC_W_HEADING",
-    "Q_VEL":        "MPC_W_VELOCITY",
-    "Q_LAT_VEL":    "MPC_W_LAT_VEL",
-    "Q_YAW":        "MPC_W_YAW_RATE",
-    "R_STEER":      "MPC_W_STEER_EFFORT",
-    "W_JERK":       "MPC_W_STEER_RATE",
-    "W_ACCEL_RATE": "MPC_W_TORQUE_RATE",
+    "Q_LAT":        "Q_LAT",
+    "Q_HDG":        "Q_HDG",
+    "Q_VEL":        "Q_VEL",
+    "Q_LAT_VEL":    "Q_LAT_VEL",
+    "Q_YAW":        "Q_YAW",
+    "R_STEER":      "R_STEER",
+    "W_JERK":       "W_JERK",
+    "W_ACCEL_RATE": "W_ACCEL_RATE",
 }
 
 # ─── Weight value ranges for exhaustive search ──────────────────────────────
 WEIGHT_VALUES = {
-    "Q_LAT":       [25, 50, 75, 100, 150, 200],
-    "Q_HDG":       [30, 60, 100, 150, 200, 300],
-    "Q_VEL":       [4, 8, 12, 20, 30, 50],
+    "Q_LAT":       [25, 50, 75, 100, 125, 150, 175, 200, 250, 300],
+    "Q_HDG":       [25, 50, 75, 100, 125, 150, 175, 200, 250, 300],
+    "Q_VEL":       [4, 6, 8, 10, 12, 16, 20, 30, 40, 50],
     "Q_LAT_VEL":   [10, 30, 60, 100, 150],
     "Q_YAW":       [1, 3, 5, 10, 20],
     "R_STEER":     [0.1, 0.2, 0.35, 0.5, 1.0],
@@ -129,20 +131,36 @@ def run_test(weights: dict, binary: str = "./test_sim_drive") -> dict:
 
 
 def compute_score(r: dict) -> float:
-    """Composite score (lower = better). Penalizes failures heavily."""
+    """Composite score (lower = better).
+
+    Priority hierarchy:
+      Catastrophic: wall_collisions, test failures  → instant penalty
+      Primary:      time_above_5ms (speed), avg_vel_err (velocity tracking)
+      Secondary:    avg_lat_err (lateral safety)
+      Tertiary:     avg_iters (computation efficiency)
+    """
     if r["status"] != "OK" or r["failed"] > 0:
         return 999.0
 
+    # Catastrophic: wall collisions
+    if r["wall_collisions"] > 0:
+        return 500.0 + r["wall_collisions"] * 100.0
+
     score = (
-        r["avg_vel_err"] * 15.0 +                    # velocity tracking (primary)
-        r["max_vel_err"] * 3.0 +                      # worst-case velocity
-        max(0, 20 - r["time_above_5ms"]) * 2.0 +      # penalize slow driving
-        (12.0 - r["max_vx"]) * 5.0 +                  # penalize not reaching speed
-        r["avg_lat_err"] * 3.0 +                       # lateral safety
-        r["max_lat_err"] * 1.0 +                       # worst-case lateral
+        # PRIMARY — speed & velocity tracking (70% of score budget)
+        r["avg_vel_err"] * 20.0 +                     # velocity tracking error
+        r["max_vel_err"] * 4.0 +                       # worst-case velocity error
+        max(0, 25 - r["time_above_5ms"]) * 3.0 +       # penalize slow driving
+        max(0, 12.0 - r["max_vx"]) * 8.0 +             # penalize not reaching speed
+
+        # SECONDARY — lateral safety (20% of score budget)
+        r["avg_lat_err"] * 5.0 +                       # lateral deviation
+        r["max_lat_err"] * 1.5 +                       # worst-case lateral
         r["avg_hdg_err"] * 2.0 +                       # heading tracking
-        r["avg_solve_us"] * 0.005 +                    # solver cost (minor)
-        r["wall_collisions"] * 200.0                   # crashes = catastrophic
+
+        # TERTIARY — computation (10% of score budget)
+        r.get("avg_iters", 0) * 0.5 +                  # fewer iterations better
+        r["avg_solve_us"] * 0.003                      # solver cost
     )
     return round(score, 3)
 
@@ -187,14 +205,14 @@ def generate_pairwise(values_dict):
 def generate_triple_grid():
     """Exhaustive grid over the 3 most impactful weights: Q_LAT, Q_HDG, Q_VEL."""
     combos = []
-    lat_vals = [25, 50, 75, 100, 150, 200]
-    hdg_vals = [30, 60, 100, 150, 200, 300]
-    vel_vals = [4, 8, 12, 20, 30, 50]
+    lat_vals = [25, 50, 75, 100, 125, 150, 175, 200, 250, 300]
+    hdg_vals = [25, 50, 75, 100, 125, 150, 175, 200, 250, 300]
+    vel_vals = [4, 6, 8, 10, 12, 16, 20, 30, 40, 50]
 
     for ql in lat_vals:
         for qh in hdg_vals:
             for qv in vel_vals:
-                if ql == 75 and qh == 100 and qv == 12:
+                if ql == 100 and qh == 100 and qv == 12:
                     continue
                 w = dict(BASE_WEIGHTS)
                 w["Q_LAT"] = ql
@@ -266,6 +284,47 @@ def generate_velocity_focused():
         w.update(cfg)
         label = "+".join(f"{k}={v}" for k, v in cfg.items())
         combos.append((label, w))
+    return combos
+
+
+def generate_fine_tuning(best_weights):
+    """Phase 3: Fine-tuning around the best found configuration.
+
+    For each weight, test ±10%, ±25%, ±50% of its current value.
+    Then test all pairwise ±10% combinations.
+    """
+    combos = []
+    perturbations = [0.50, 0.75, 0.90, 1.10, 1.25, 1.50]
+
+    # Single-weight perturbations: 8 weights × 6 perturbations = 48
+    for wname, base_val in best_weights.items():
+        if base_val == 0:
+            continue
+        for mult in perturbations:
+            new_val = round(base_val * mult, 6)
+            w = dict(best_weights)
+            w[wname] = new_val
+            pct = int((mult - 1.0) * 100)
+            sign = "+" if pct >= 0 else ""
+            combos.append((f"FT:{wname}{sign}{pct}%", w))
+
+    # Pairwise ±10% combinations: C(8,2) × 4 = 112
+    weight_names = list(best_weights.keys())
+    pair_mults = [0.90, 1.10]
+    for w1, w2 in itertools.combinations(weight_names, 2):
+        v1_base = best_weights[w1]
+        v2_base = best_weights[w2]
+        if v1_base == 0 or v2_base == 0:
+            continue
+        for m1 in pair_mults:
+            for m2 in pair_mults:
+                w = dict(best_weights)
+                w[w1] = round(v1_base * m1, 6)
+                w[w2] = round(v2_base * m2, 6)
+                p1 = "+10%" if m1 > 1 else "-10%"
+                p2 = "+10%" if m2 > 1 else "-10%"
+                combos.append((f"FT:{w1}{p1}+{w2}{p2}", w))
+
     return combos
 
 
@@ -405,6 +464,50 @@ def main():
                           f"vErr={r['avg_vel_err']:.2f}  "
                           f"lat={r['avg_lat_err']:.3f}/{r['max_lat_err']:.3f}")
 
+    # ─── Phase 3: Fine-tuning around the best found ─────────────────────
+    if results and not quick:
+        all_sorted = sorted(results, key=lambda x: x.get("score", 999))
+        best_so_far = all_sorted[0]
+        if best_so_far.get("score", 999) < 999:
+            best_weights = {k: best_so_far[k] for k in BASE_WEIGHTS.keys()}
+            phase3_combos = generate_fine_tuning(best_weights)
+            phase3_combos = deduplicate(phase3_combos)
+
+            # Also remove any already-tested combinations
+            tested_keys = set()
+            for r in results:
+                key = tuple(sorted((k, r.get(k)) for k in BASE_WEIGHTS.keys()))
+                tested_keys.add(key)
+            phase3_combos = [(l, w) for l, w in phase3_combos
+                             if tuple(sorted(w.items())) not in tested_keys]
+
+            p3_total = len(phase3_combos)
+            print(f"\n{'='*80}")
+            print(f"Phase 3: Fine-tuning ({p3_total} combos) around best ")
+            print(f"  {best_so_far['label']} (score={best_so_far['score']:.2f})")
+            print(f"  Weights: " + ", ".join(f"{k}={best_weights[k]}" for k in BASE_WEIGHTS.keys()))
+            print(f"{'='*80}")
+
+            for i, (label, weights) in enumerate(phase3_combos):
+                elapsed = time.time() - t0
+                print(f"[P3 {i+1:3d}/{p3_total}] {label:50s} ", end="", flush=True)
+                r = run_test(weights, binary)
+                score = compute_score(r)
+                r["label"] = label
+                r["score"] = score
+                r.update(weights)
+                results.append(r)
+
+                if r["status"] != "OK" or r["failed"] > 0:
+                    failed_count += 1
+                    print(f"  -> FAIL")
+                else:
+                    passed_count += 1
+                    print(f"  -> PASS  sc={score:6.2f}  "
+                          f"vErr={r['avg_vel_err']:.2f}  "
+                          f"lat={r['avg_lat_err']:.3f}/{r['max_lat_err']:.3f}  "
+                          f"t5={r['time_above_5ms']:.0f}s")
+
     # ─── Sort and report ────────────────────────────────────────────────
     results.sort(key=lambda x: x.get("score", 999))
 
@@ -420,7 +523,7 @@ def main():
                        "max_lat_err", "avg_lat_err", "max_hdg_err", "avg_hdg_err",
                        "max_vx", "avg_vel_err", "max_vel_err",
                        "avg_solve_us", "max_solve_us",
-                       "wall_collisions", "time_above_5ms", "status"]
+                       "wall_collisions", "time_above_5ms", "avg_iters", "status"]
                       + list(BASE_WEIGHTS.keys()))
         with open(outfile, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
