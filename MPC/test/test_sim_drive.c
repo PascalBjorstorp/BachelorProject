@@ -14,7 +14,7 @@
  *          velocity tracking, and step-by-step diagnostics near crashes.
  *
  * Compile (standalone):
- *   cd MPC_experimental
+ *   cd MPC
  *   cmake -S . -B build -DMPC_BUILD_TESTS=ON
  *   cmake --build build -j
  *   ./build/test_sim_drive
@@ -406,7 +406,12 @@ int main(void)
 
         /* Propagate vehicle state using gym-matching ST model with RK4.
          * State: [X, Y, delta, V, psi, psi_dot, beta] (7 states)
-         * Matches f1tenth_gym single_track.py exactly.
+         * Matches f1tenth_gym single_track.py exactly:
+         *   - Kinematic mode (V < 0.5 m/s)
+         *   - Full nonlinear dynamic mode (V >= 0.5 m/s) with:
+         *     * atan2-based slip angles (not small-angle approx)
+         *     * cos(δ)/sin(δ) front force resolution
+         *     * Body-frame dynamics for V_DOT and BETA_DOT
          * Vehicle params from measured data (sim.yaml / vehicle_params.yaml). */
         {
             /* Vehicle parameters matching gym config */
@@ -463,7 +468,12 @@ int main(void)
             if (st_V <= v_min && accl < 0) accl = 0.0;
             if (st_V >= v_max && accl > 0) accl = 0.0;
 
-            /* ST dynamics RHS function (matching single_track.py exactly) */
+            /* ST dynamics RHS function matching gym's single_track.py exactly.
+             * Kinematic mode (V < 0.5): same as CommonRoad.
+             * Dynamic mode (V >= 0.5): full nonlinear model with:
+             *   - atan2-based slip angles
+             *   - cos(δ)/sin(δ) front force resolution
+             *   - Full body-frame dynamics for V_DOT, BETA_DOT */
             #define ST_DYNAMICS(X, Y, DELTA, V, PSI, PSI_DOT_VAL, BETA, SV, ACCL, \
                                dX, dY, dDELTA, dV, dPSI, dPSI_DOT, dBETA) \
             do { \
@@ -483,23 +493,39 @@ int main(void)
                         + ((V) * cos(BETA) * (SV)) / pow(cos(DELTA), 2.0)); \
                     (dBETA) = beta_dot; \
                 } else { \
-                    /* Dynamic ST mode */ \
-                    double glr_ = g_acc * lr - (ACCL) * h_cg; \
-                    double glf_ = g_acc * lf + (ACCL) * h_cg; \
+                    /* Dynamic ST mode — full nonlinear (matching gym single_track.py) */ \
+                    double vx_ = (V) * cos(BETA); \
+                    double vy_ = (V) * sin(BETA); \
+                    double vx_safe_ = (vx_ > 0.5) ? vx_ : 0.5; \
+                    /* Normal forces with longitudinal load transfer */ \
+                    double Fzf_ = mass * (g_acc * lr - (ACCL) * h_cg) / lwb; \
+                    double Fzr_ = mass * (g_acc * lf + (ACCL) * h_cg) / lwb; \
+                    /* atan2-based slip angles (not small-angle approx) */ \
+                    double alpha_f_ = (DELTA) - atan2(vy_ + lf * (PSI_DOT_VAL), vx_safe_); \
+                    double alpha_r_ = -atan2(vy_ - lr * (PSI_DOT_VAL), vx_safe_); \
+                    /* Lateral tire forces: F_y = mu * C_S * alpha * F_z */ \
+                    double Fyf_ = mu * C_Sf * alpha_f_ * Fzf_; \
+                    double Fyr_ = mu * C_Sr * alpha_r_ * Fzr_; \
+                    /* Longitudinal force from acceleration command */ \
+                    double Fx_ = mass * (ACCL); \
+                    double cos_delta_ = cos(DELTA); \
+                    double sin_delta_ = sin(DELTA); \
+                    /* Body-frame dynamics with cos(δ)/sin(δ) force resolution */ \
+                    double dvx_dt_ = (Fx_ - Fyf_ * sin_delta_ \
+                                      + mass * vy_ * (PSI_DOT_VAL)) / mass; \
+                    double dvy_dt_ = (Fyf_ * cos_delta_ + Fyr_ \
+                                      - mass * vx_ * (PSI_DOT_VAL)) / mass; \
+                    /* Convert body-frame accelerations to (V, β) derivatives */ \
+                    double V_safe_ = ((V) > 0.001) ? (V) : 0.001; \
+                    double V_sq_ = (V) * (V); \
+                    if (V_sq_ < 0.001) V_sq_ = 0.001; \
                     (dX) = (V) * cos((PSI) + (BETA)); \
                     (dY) = (V) * sin((PSI) + (BETA)); \
                     (dDELTA) = (SV); \
-                    (dV) = (ACCL); \
+                    (dV) = (vx_ * dvx_dt_ + vy_ * dvy_dt_) / V_safe_; \
                     (dPSI) = (PSI_DOT_VAL); \
-                    (dPSI_DOT) = (mu * mass / (Iz * lwb)) * ( \
-                        lf * C_Sf * glr_ * (DELTA) \
-                        + (lr * C_Sr * glf_ - lf * C_Sf * glr_) * (BETA) \
-                        - (lf*lf * C_Sf * glr_ + lr*lr * C_Sr * glf_) * (PSI_DOT_VAL) / (V)); \
-                    (dBETA) = (mu / ((V) * lwb)) * ( \
-                        C_Sf * glr_ * (DELTA) \
-                        - (C_Sr * glf_ + C_Sf * glr_) * (BETA) \
-                        + (C_Sr * glf_ * lr - C_Sf * glr_ * lf) * (PSI_DOT_VAL) / (V)) \
-                        - (PSI_DOT_VAL); \
+                    (dPSI_DOT) = (lf * Fyf_ * cos_delta_ - lr * Fyr_) / Iz; \
+                    (dBETA) = (vx_ * dvy_dt_ - vy_ * dvx_dt_) / V_sq_; \
                 } \
             } while(0)
 
