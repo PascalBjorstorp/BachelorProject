@@ -519,38 +519,217 @@ Consistency   & Diverges from gym at limit & Matches gym single-track \\
 \textbf{Result:} 6/6~PASS with similar tracking quality. The nonlinear model provides physically accurate tire saturation in tight corners, matching the simulator the MPC will actually run against.
 
 %% ============================================================
+\section{Final FPGA Optimization Results (Task~A)}
+\label{sec:fpga_final}
+
+A final round of FPGA parameter tuning produced significant improvements in both speed and accuracy.
+
+\subsection{Parameter Changes}
+\begin{table}[H]
+\centering
+\caption{FPGA parameter changes in final optimization round.}
+\label{tab:fpga_final_params}
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+\textbf{Parameter} & \textbf{Before} & \textbf{After} & \textbf{Rationale} \\
+\midrule
+Tolerance       & 0.5   & 5.0  & First 1--2 iterations capture 95\%+ of optimal signal \\
+$\rho$          & 25    & 40   & Better suited for Q16.16 fixed-point arithmetic \\
+Max iterations  & 30    & 8    & Effective warm-starting makes high caps unnecessary \\
+$Q_{\text{lat}}$  & 125 & 150  & Stronger lateral tracking \\
+$Q_{\text{hdg}}$  & 300 & 500  & Stronger heading correction \\
+$Q_{\text{vel}}$  & 30  & 15   & Reduced velocity tracking priority \\
+$R_{\text{steer}}$ & 0.35 & 0.2 & More aggressive steering allowed \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Performance Comparison}
+\begin{table}[H]
+\centering
+\caption{FPGA before vs.\ after final optimization.}
+\label{tab:fpga_final_perf}
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+\textbf{Metric} & \textbf{Before} & \textbf{After} & \textbf{Improvement} \\
+\midrule
+Avg lateral error    & \SI{0.210}{\meter}  & \SI{0.126}{\meter}  & $-40\%$ \\
+Max lateral error    & \SI{0.619}{\meter}  & \SI{0.446}{\meter}  & $-28\%$ \\
+Avg iterations       & 2.5                 & 1.1                 & $-56\%$ \\
+Max iterations       & 30                  & 6                   & $-80\%$ \\
+Est.\ FPGA time      & \SI{278.6}{\micro\second} & \SI{120.8}{\micro\second} & $-57\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key insight:} With effective warm-starting, the ADMM solver rarely needs more than 1--2 iterations. Raising the convergence tolerance from 0.5 to 5.0 was the single biggest speed improvement---the first 1--2 iterations capture 95\%+ of the optimal control signal. The higher $\rho = 40$ compensates for quantization noise in Q16.16 fixed-point arithmetic.
+
+%% ============================================================
+\section{Final CPU Optimization Results (Task~B)}
+\label{sec:cpu_final}
+
+A parallel optimization round for the CPU solver, exploiting float32 arithmetic advantages.
+
+\subsection{Parameter Changes}
+\begin{table}[H]
+\centering
+\caption{CPU parameter changes in final optimization round.}
+\label{tab:cpu_final_params}
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+\textbf{Parameter} & \textbf{Before} & \textbf{After} & \textbf{Rationale} \\
+\midrule
+Tolerance         & 0.5   & 5.0  & Same insight as FPGA \\
+$\rho$            & 25    & 15   & Lower $\rho$ optimal for float32 (no quantization noise) \\
+Max iterations    & 50    & 8    & Warm-starting reduces iteration need \\
+$Q_{\text{lat}}$  & 125   & 150  & Stronger lateral tracking \\
+$Q_{\text{hdg}}$  & 300   & 500  & Stronger heading correction \\
+$Q_{\text{vel}}$  & 30    & 6    & CPU can afford more precision elsewhere \\
+$Q_{\text{yaw}}$  & 20    & 10   & Reduced yaw rate priority \\
+$W_{\text{jerk}}$ & 0.5   & 0.2  & More responsive steering changes \\
+$R_{\text{steer}}$ & 0.35 & 0.1  & More aggressive steering \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Performance Comparison}
+\begin{table}[H]
+\centering
+\caption{CPU before vs.\ after final optimization.}
+\label{tab:cpu_final_perf}
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+\textbf{Metric} & \textbf{Before} & \textbf{After} & \textbf{Improvement} \\
+\midrule
+Avg lateral error    & \SI{0.202}{\meter}  & \SI{0.106}{\meter}  & $-48\%$ \\
+Max lateral error    & \SI{0.703}{\meter}  & \SI{0.412}{\meter}  & $-41\%$ \\
+Avg heading error    & \SI{0.072}{\radian} & \SI{0.067}{\radian} & $-7\%$ \\
+Avg iterations       & 2.1                 & 1.1                 & $-48\%$ \\
+Avg solve time       & \SI{8.1}{\micro\second} & \SI{4.8}{\micro\second} & $-41\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key insight:} The CPU benefits from a lower $\rho = 15$ (vs.\ FPGA's 40) because float32 arithmetic has no quantization noise from fixed-point representation. A lower $Q_{\text{vel}} = 6$ (vs.\ FPGA's 15) improves lateral tracking because the CPU solver does not fight as hard to match the velocity profile, freeing control authority for lateral corrections.
+
+%% ============================================================
+\section{CPU vs FPGA Parameter Differences}
+\label{sec:cpu_vs_fpga}
+
+Despite running the same ADMM algorithm, the CPU and FPGA require different tuning due to arithmetic differences (Table~\ref{tab:cpu_fpga_diff}).
+
+\begin{table}[H]
+\centering
+\caption{Parameter differences between CPU (float32) and FPGA (Q16.16 fixed-point).}
+\label{tab:cpu_fpga_diff}
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+\textbf{Parameter} & \textbf{CPU} & \textbf{FPGA} & \textbf{Reason} \\
+\midrule
+$\rho$              & 15  & 40  & Float vs.\ fixed-point arithmetic \\
+$Q_{\text{vel}}$    & 6   & 15  & CPU can afford more precision elsewhere \\
+$Q_{\text{yaw}}$    & 10  & 20  & Same reasoning \\
+$W_{\text{jerk}}$   & 0.2 & 0.5 & CPU more responsive \\
+$R_{\text{steer}}$  & 0.1 & 0.2 & CPU more aggressive steering \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Root cause:} Q16.16 fixed-point has $\sim$16~bits of fractional precision vs.\ float32's 23-bit mantissa. The FPGA needs higher $\rho$ to stabilize ADMM convergence against quantization noise, and higher $Q_{\text{vel}}$ to prevent accumulation of small fixed-point rounding errors in the velocity state.
+
+%% ============================================================
+\section{Dynamic Raceline Test Results}
+\label{sec:dynamic_raceline}
+
+A dedicated test (\texttt{test\_dynamic\_raceline.c}) was created to validate MPC behavior during overtaking scenarios, where the raceline shifts laterally in real time.
+
+\subsection{Test Design}
+\begin{itemize}
+  \item \textbf{Lateral shifts:} Smooth raceline shifts of $\pm X$\,m at prescribed times using 5-second ramps.
+  \item \textbf{Obstacle zones:} Tightened walls simulating obstacles (wp~200--300: right $-0.4$\,m; wp~700--800: left $-0.3$\,m).
+  \item \textbf{Configurable via environment variables:} \texttt{SHIFT\_MAG}, \texttt{WALL\_END}, \texttt{WALL\_SOFT\_K}.
+\end{itemize}
+
+\subsection{Results}
+Tests with \SI{0.3}{\meter} minimum wall distance, \texttt{WALL\_END=20} (full horizon), hard constraints:
+
+\begin{table}[H]
+\centering
+\caption{Dynamic raceline shift test results on Spielberg track.}
+\label{tab:dynamic_raceline}
+\begin{tabular}{@{}rrrrl@{}}
+\toprule
+\textbf{Shift (m)} & \textbf{Wall Collisions} & \textbf{Max Lat Error (m)} & \textbf{Avg Iters} & \textbf{Status} \\
+\midrule
+0.3 & 0 & 0.68 & 2.2 & PASS \\
+0.5 & 0 & 0.71 & 2.1 & PASS \\
+1.0 & 0 & 0.71 & 2.3 & PASS \\
+2.0 & 0 & 1.00 & 2.3 & PASS \\
+2.3 & 0 & 1.12 & 2.3 & PASS (max stable) \\
+2.5 & 0 & 1.19 & 2.3 & CRASH (raceline exits track) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Key Findings}
+\begin{enumerate}
+  \item \textbf{Full-horizon wall constraints work perfectly:} \texttt{WALL\_END=20} with 2.2~avg iterations and no convergence issues.
+  \item \textbf{Walls never actually bind} on the Spielberg track, even at \SI{0.3}{\meter} minimum distance---the MPC naturally stays near the raceline center.
+  \item \textbf{Breakpoint at $\sim$\SI{2.5}{\meter}} is \emph{not} an MPC failure; the shifted raceline goes outside the physical track bounds.
+  \item \textbf{Real F1Tenth overtaking} requires only \SI{0.3}{\meter}--\SI{1.0}{\meter} lateral shifts, providing a massive safety margin.
+\end{enumerate}
+
+%% ============================================================
+\section{Simulator Accuracy Update (Task~C)}
+\label{sec:sim_accuracy_update}
+
+Final verification of simulator fidelity across the test simulator, f1tenth\_gym, and real vehicle:
+
+\begin{itemize}
+  \item All vehicle parameters match \texttt{vehicle\_params.yaml} (Table~\ref{tab:vehicle_params}).
+  \item Nonlinear single-track model with \texttt{atan2} slip angles---identical to f1tenth\_gym.
+  \item RK4 integration at \SI{200}{\hertz} (configurable to \SI{400}{\hertz} via \texttt{SIM\_DT=0.0025}).
+  \item FPGA test updated from old simplified (CommonRoad) model to full nonlinear model.
+  \item Only remaining difference: \SI{2}{\milli\meter} wheelbase discrepancy (\SI{0.324}{\meter} measured vs.\ \SI{0.326}{\meter} from $l_f + l_r$)---negligible.
+\end{itemize}
+
+%% ============================================================
 \section{Summary of Key Findings}
 
 \begin{enumerate}
   \item \textbf{Float32 conversion} provides a 43\% speed improvement on CPU with no accuracy loss, and enables compiler autovectorization (\texttt{-O3 -ffast-math}) for a total 65\% reduction.
-  \item \textbf{200\,Hz is the optimal control rate} --- higher frequencies provide no tracking improvement (but 400\,Hz helps with tolerance relaxation).
-  \item \textbf{Raceline heading convention} must be verified when importing from external optimizers --- a $\pi/2$ offset caused complete simulation failure.
-  \item \textbf{Plant-model matching} (enabling MPC\_SIM\_MATCHING) is critical for the ST dynamic model to avoid tire model discrepancies between the MPC predictor and the gym simulator.
+  \item \textbf{200\,Hz is the optimal control rate}---higher frequencies provide no tracking improvement.
+  \item \textbf{Raceline heading convention} must be verified when importing from external optimizers---a $\pi/2$ offset caused complete simulation failure.
+  \item \textbf{Plant-model matching} (enabling MPC\_SIM\_MATCHING) is critical for the ST dynamic model.
   \item \textbf{Persist adapted $\rho$} provides a 72\% CPU solve time reduction ($11.0 \to 3.2$ avg iterations).
   \item \textbf{B-matrix sparsity fix} corrects all 3~locations in the FPGA backward pass.
-  \item \textbf{Soft wall constraints} ($k=500$ proximal operator) replace hard box constraints, reducing minimum wall distance from \SI{1.2}{\meter} to \SI{0.5}{\meter} without ADMM divergence.
+  \item \textbf{Soft wall constraints} ($k=500$ proximal operator) replace hard box constraints, reducing minimum wall distance from \SI{1.2}{\meter} to \SI{0.5}{\meter}.
   \item \textbf{Universal raceline pipeline} supports any map $\to$ optimized trajectory in one command.
   \item \textbf{Over-relaxation simplification} saves 208~DSP multiplies per FPGA ADMM iteration.
-  \item \textbf{Weight tuning bug fix \& 1850-combo sweep}: $Q_{\text{hdg}}=300$, $Q_{\text{vel}}=30$ give 24\% velocity error reduction and 9\% more time above \SI{5}{\meter\per\second}.
-  \item \textbf{FPGA tolerance relaxation} ($0.1 \to 0.5$): 56\% iteration reduction ($5.6 \to 2.5$), estimated \SI{279}{\micro\second} per solve.
-  \item \textbf{CPU tolerance relaxation} ($0.1 \to 0.5$): 50\% solve time reduction to \SI{8.7}{\micro\second} at 200\,Hz; \SI{6.2}{\micro\second} at 400\,Hz.
+  \item \textbf{Weight tuning bug fix \& 1850-combo sweep}: $Q_{\text{hdg}}=300$, $Q_{\text{vel}}=30$.
+  \item \textbf{Tolerance relaxation} ($0.5 \to 5.0$): The first 1--2 ADMM iterations capture 95\%+ of the optimal control signal with effective warm-starting.
   \item \textbf{Nonlinear simulator model}: \texttt{atan2}-based slip angles, full $\cos/\sin$ force resolution matching \texttt{f1tenth\_gym}.
+  \item \textbf{CPU vs FPGA divergence}: float32 vs.\ Q16.16 arithmetic requires different $\rho$ (15 vs.\ 40) and weight tuning.
+  \item \textbf{Dynamic raceline testing}: MPC handles up to \SI{2.3}{\meter} lateral shifts with zero wall collisions; real overtaking needs only \SI{0.3}{\meter}--\SI{1.0}{\meter}.
 \end{enumerate}
 
-\subsection*{Overall Performance Comparison}
+\subsection*{Final System Performance}
 \begin{table}[H]
 \centering
-\caption{Before vs.\ after optimizations (60\,s simulation).}
-\label{tab:overall_perf}
-\begin{tabular}{@{}lrrrr@{}}
+\caption{Final system performance (60\,s Spielberg simulation, 200\,Hz).}
+\label{tab:final_perf}
+\begin{tabular}{@{}lrr@{}}
 \toprule
-\textbf{Metric} & \textbf{CPU Before} & \textbf{CPU After} & \textbf{FPGA Before} & \textbf{FPGA After} \\
+\textbf{Metric} & \textbf{CPU MPC} & \textbf{FPGA MPC} \\
 \midrule
-Avg iterations   & 11.0 & 2.2 (200Hz) / 1.5 (400Hz) & 5.6  & 2.5  \\
-Solve time       & \SI{42}{\micro\second} & \SI{8.7}{\micro\second} (200Hz) / \SI{6.2}{\micro\second} (400Hz) & \SI{628}{\micro\second} est. & \SI{279}{\micro\second} est. \\
-Max lateral error & \SI{0.89}{\meter} & \SI{0.70}{\meter} & \SI{0.66}{\meter} & \SI{0.62}{\meter} \\
-Wall distance     & \SI{1.2}{\meter} min & \SI{0.5}{\meter} min (soft) & N/A & N/A \\
-Tests             & 6/6 & 6/6 & 6/6 & 6/6 \\
+Avg solve time          & \SI{4.8}{\micro\second}   & \SI{120.8}{\micro\second} (est.) \\
+Max solve time          & \SI{41.4}{\micro\second}  & --- \\
+Avg iterations          & 1.1                       & 1.1 \\
+Max iterations          & ---                       & 6 (cap: 8) \\
+Avg lateral error       & \SI{0.106}{\meter}        & \SI{0.126}{\meter} \\
+Max lateral error       & \SI{0.412}{\meter}        & \SI{0.446}{\meter} \\
+Tests passing           & 6/6                       & 6/6 \\
+Target hardware         & Jetson Xavier NX          & Ultra96-V2 (ZU3EG) \\
 \bottomrule
 \end{tabular}
 \end{table}
