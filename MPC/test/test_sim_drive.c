@@ -228,22 +228,22 @@ int main(void)
     mpc_initialize();
     mpc_reset();
 
-    /* Configure horizon and weights to match MPC_experimental tuned values */
+    /* Configure horizon and weights */
     MpcConfiguration_t cfg = mpc_get_configuration();
     cfg.prediction_horizon_steps = MPC_HORIZON;
     /* cross_call_rate_scale: ratio of control interval to prediction dt */
     cfg.cross_call_rate_scale = FP_CONST(cross_scale);
-    /* MPC_experimental base weights — user-specified baseline for tuning.
-     * All weights can be overridden via environment variables (for tuning script). */
+    /* Tuned weights — overridable via environment variables for tuning script.
+     * See tune_weights.py for automated grid search. */
     const char *env;
-    cfg.weight_lateral_error          = FP_CONST((env = getenv("Q_LAT"))       ? atof(env) : 75.0);
-    cfg.weight_heading_error          = FP_CONST((env = getenv("Q_HDG"))       ? atof(env) : 100.0);
-    cfg.weight_velocity               = FP_CONST((env = getenv("Q_VEL"))       ? atof(env) : 8.0);
+    cfg.weight_lateral_error          = FP_CONST((env = getenv("Q_LAT"))       ? atof(env) : 125.0);
+    cfg.weight_heading_error          = FP_CONST((env = getenv("Q_HDG"))       ? atof(env) : 300.0);
+    cfg.weight_velocity               = FP_CONST((env = getenv("Q_VEL"))       ? atof(env) : 30.0);
     cfg.weight_lateral_velocity       = FP_CONST((env = getenv("Q_LAT_VEL"))   ? atof(env) : 60.0);
-    cfg.weight_yaw_rate               = FP_CONST((env = getenv("Q_YAW"))       ? atof(env) : 5.0);
+    cfg.weight_yaw_rate               = FP_CONST((env = getenv("Q_YAW"))       ? atof(env) : 20.0);
     cfg.weight_steering_effort        = FP_CONST((env = getenv("R_STEER"))     ? atof(env) : 0.35);
     cfg.weight_acceleration_effort    = FP_CONST((env = getenv("R_ACCEL"))     ? atof(env) : 0.01);
-    cfg.weight_steering_rate          = FP_CONST((env = getenv("W_JERK"))      ? atof(env) : 2.5);
+    cfg.weight_steering_rate          = FP_CONST((env = getenv("W_JERK"))      ? atof(env) : 0.5);
     cfg.weight_acceleration_rate      = FP_CONST((env = getenv("W_ACCEL_RATE"))? atof(env) : 0.01);
     mpc_set_configuration(&cfg);
 

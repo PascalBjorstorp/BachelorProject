@@ -132,18 +132,17 @@ typedef int32_t fixed_point_t;
  *===========================================================================*/
 
 #define MPC_DT              ((fixed_point_t)3277)   /* 0.05s in Q16.16 */
-#define MPC_W_LAT_ERROR     FP_CONST(100.0)
-#define MPC_W_HEADING       FP_CONST(100.0)
-#define MPC_W_VELOCITY      FP_CONST(12.0)
+#define MPC_W_LAT_ERROR     FP_CONST(125.0)
+#define MPC_W_HEADING       FP_CONST(300.0)
+#define MPC_W_VELOCITY      FP_CONST(30.0)
 #define MPC_W_LAT_VEL       FP_CONST(60.0)
-#define MPC_W_YAW_RATE      FP_CONST(5.0)
+#define MPC_W_YAW_RATE      FP_CONST(20.0)
 #define MPC_W_STEER_EFF     FP_CONST(0.35)
 #define MPC_W_ACCEL_EFF     FP_CONST(0.01)
-#define MPC_W_STEER_JERK    FP_CONST(2.5)
+#define MPC_W_STEER_JERK    FP_CONST(0.5)
 #define MPC_W_ACCEL_RATE    FP_CONST(0.01)
 #define MPC_W_DELTA_ACT     FP_CONST(0.1)
 #define MPC_CROSS_CALL_SCALE FP_CONST(0.1)
-#define MPC_TOLERANCE       ((fixed_point_t)1310)  /* ~0.02 in Q16.16 */
 
 /*===========================================================================
  * Solver/Constraint Constants

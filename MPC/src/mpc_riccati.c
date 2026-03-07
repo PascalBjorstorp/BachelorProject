@@ -122,34 +122,23 @@ MpcConfiguration_t get_default_configuration(void)
     cfg.prediction_horizon_steps = MPC_DEFAULT_PREDICTION_HORIZON;
     cfg.time_step_seconds = MPC_DEFAULT_TIME_STEP_SECONDS;
 
-    /* State tracking weights (Frenet frame)
-     * Tuning v3 — cornering-speed optimized via steering responsiveness:
-     *   Q_hdg reduced 1500→800: diminishes anticipatory braking while still
-     *         driving proactive steering into corners. The 47% cut changes the
-     *         Q_hdg/Q_vel ratio from 500:1 to 53:1.
-     *   Q_vel increased 3→15: creates strong incentive to maintain speed and
-     *         re-accelerate after corners. 5× increase.
-     *   w_vy reduced 30→25: allows slightly more sideslip in dynamic cornering.
-     *   Q_lat, w_yaw_rate unchanged: these were already working for safety.
-     *
-     * Performance vs original (Q_hdg=1500, Q_vel=3):
-     *   Q_hdg=1000 is the safe lower bound (Q_hdg<1000 crashes at hairpin).
-     *   Q_vel=10: improved speed tracking vs original (3).
-     *   w_vy=28, R_steer=0.35, w_jerk=3.0: stable agile steering.
-     *   Tested: 0 collisions in 60s ROS2 sim, 67→68% time above 5 m/s.
-     */
-    cfg.weight_lateral_error    = FP_CONST(100.0);
-    cfg.weight_heading_error    = FP_CONST(100.0);
-    cfg.weight_velocity         = FP_CONST(12.0);
+    /* State tracking weights (Frenet frame).
+     * Tuned via grid search (tune_weights.py) to balance speed and safety.
+     * Q_HDG dominates to enforce proactive steering into corners.
+     * Q_VEL drives re-acceleration on straights.
+     * Low W_JERK allows responsive steering rate changes. */
+    cfg.weight_lateral_error    = FP_CONST(125.0);
+    cfg.weight_heading_error    = FP_CONST(300.0);
+    cfg.weight_velocity         = FP_CONST(30.0);
     cfg.weight_lateral_velocity = FP_CONST(60.0);
-    cfg.weight_yaw_rate         = FP_CONST(5.0);
+    cfg.weight_yaw_rate         = FP_CONST(20.0);
 
     /* Control effort weights */
     cfg.weight_steering_effort      = FP_CONST(0.35);
     cfg.weight_acceleration_effort  = FP_CONST(0.01);
 
     /* Control rate weights */
-    cfg.weight_steering_rate        = FP_CONST(2.5);
+    cfg.weight_steering_rate        = FP_CONST(0.5);
     cfg.weight_acceleration_rate    = FP_CONST(0.01);
 
     /* Cross-call rate scale: ratio of control interval to prediction dt. */
