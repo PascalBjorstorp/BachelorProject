@@ -176,6 +176,8 @@ def main():
                         help='Maximum raycasting distance (meters)')
     parser.add_argument('--car-width', type=float, default=0.30,
                         help='Car width for safety margin (meters)')
+    parser.add_argument('--min-distance', type=float, default=0.0,
+                        help='Minimum wall distance clamp (meters, 0=disabled)')
     args = parser.parse_args()
 
     print(f"Loading map from: {args.map}")
@@ -197,6 +199,19 @@ def main():
         map_height, map_width,
         max_distance=args.max_distance,
         car_half_width=args.car_width / 2.0)
+
+    # Clamp to minimum distance if specified
+    if args.min_distance > 0:
+        clamped = 0
+        for i in range(len(wall_distances)):
+            d_left, d_right = wall_distances[i]
+            new_left = max(d_left, args.min_distance)
+            new_right = max(d_right, args.min_distance)
+            if new_left != d_left or new_right != d_right:
+                clamped += 1
+            wall_distances[i] = (new_left, new_right)
+        if clamped > 0:
+            print(f"  Clamped {clamped} waypoints to min distance {args.min_distance:.2f}m")
 
     # Print statistics
     d_lefts = [d[0] for d in wall_distances]

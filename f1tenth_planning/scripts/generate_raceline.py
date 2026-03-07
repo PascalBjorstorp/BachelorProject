@@ -47,7 +47,7 @@ class VehicleParams:
         self.max_speed = 20.0          # Maximum velocity [m/s]
         self.max_accel = 9.51          # Maximum acceleration [m/s²]
         self.max_decel = 10.0          # Maximum deceleration [m/s²]
-        self.safety_margin = 0.155     # Distance from walls [m]
+        self.safety_margin = 0.30      # Distance from walls [m]
         self.wheelbase = 0.3302        # Wheelbase [m]
         self.track_width = 0.31        # Vehicle width [m]
         self.direction = 'cw'         # Direction: 'ccw' or 'cw'
@@ -1032,6 +1032,8 @@ def main():
     parser.add_argument('--direction', '-d', choices=['ccw', 'cw'],
                         default=None,
                         help='Direction of travel: ccw=counter-clockwise, cw=clockwise (default: from config or ccw)')
+    parser.add_argument('--safety-margin', type=float, default=None,
+                        help='Min distance from walls [m] (default: 0.30)')
     args = parser.parse_args()
     
     # Extract track name from map path
@@ -1052,9 +1054,11 @@ def main():
     
     params = VehicleParams(config_path if os.path.exists(config_path) else None)
     
-    # CLI --direction overrides config file
+    # CLI overrides
     if args.direction is not None:
         params.direction = args.direction
+    if args.safety_margin is not None:
+        params.safety_margin = args.safety_margin
     
     print(f"\nVehicle Parameters:")
     print(f"  Friction: {params.friction_coeff}")
