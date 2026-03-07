@@ -212,6 +212,8 @@ class GymBridge(Node):
         self.declare_parameter('vehicle_sv_max', 0.0)
         self.declare_parameter('vehicle_a_max', 0.0)
         self.declare_parameter('vehicle_v_max', 0.0)
+        self.declare_parameter('vehicle_v_min', 0.0)
+        self.declare_parameter('vehicle_v_switch', 0.0)
         self.declare_parameter('vehicle_width', 0.0)
         self.declare_parameter('vehicle_length', 0.0)
 
@@ -252,6 +254,8 @@ class GymBridge(Node):
             'sv_max': self.get_parameter('vehicle_sv_max').value,
             'a_max': self.get_parameter('vehicle_a_max').value,
             'v_max': self.get_parameter('vehicle_v_max').value,
+            'v_min': self.get_parameter('vehicle_v_min').value,
+            'v_switch': self.get_parameter('vehicle_v_switch').value,
             'width': self.get_parameter('vehicle_width').value,
             'length': self.get_parameter('vehicle_length').value,
         }
@@ -265,6 +269,14 @@ class GymBridge(Node):
                 self.get_logger().info(
                     f'Vehicle param override: {key} = {val} (default was {old_val})'
                 )
+        # v_min is negative, so handle separately
+        v_min_val = self.get_parameter('vehicle_v_min').value
+        if v_min_val < 0.0:
+            old_val = params.get('v_min', -5.0)
+            params['v_min'] = v_min_val
+            self.get_logger().info(
+                f'Vehicle param override: v_min = {v_min_val} (default was {old_val})'
+            )
         # Mirror symmetric limits
         if s_max_val > 0.0:
             params['s_min'] = -s_max_val
@@ -313,8 +325,8 @@ class GymBridge(Node):
                     'num_agents': num_agents,
                     'timestep': sim_timestep,
                     'integrator': 'rk4',
-                    'control_input': ['speed', 'steering_angle'],
-                    'model': 'ks',
+                    'control_input': ['accl', 'steering_angle'],
+                    'model': 'st',
                     'observation_config': {'type': 'original'},
                     'params': self.vehicle_params,
                     'reset_config': {'type': 'map_random_static'},

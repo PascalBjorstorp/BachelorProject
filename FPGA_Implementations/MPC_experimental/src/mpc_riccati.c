@@ -70,7 +70,7 @@
 #define STABILITY_LIMIT FP_CONST(0.95)
 
 /** Wall constraint margin (same as condensed approach) */
-#define WALL_MARGIN FP_CONST(0.1)
+#define WALL_MARGIN FP_CONST(0.10)
 
 /** Match PG's sparse wall constraints: start at step 2, every 3 steps */
 #define WALL_CONSTRAINT_START  2
