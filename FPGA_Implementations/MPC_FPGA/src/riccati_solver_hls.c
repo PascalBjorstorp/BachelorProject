@@ -120,14 +120,14 @@ static void riccati_pass_hls(
     /* Gains stored for forward pass */
     fixed_point_t K[MPC_HORIZON][MPC_NU][MPC_NX_AUG];
     fixed_point_t kk[MPC_HORIZON][MPC_NU];
-#pragma HLS ARRAY_PARTITION variable=K cyclic factor=4 dim=3
+#pragma HLS ARRAY_PARTITION variable=K complete dim=3
 #pragma HLS BIND_STORAGE variable=K type=ram_2p impl=bram
 #pragma HLS ARRAY_PARTITION variable=kk complete dim=2
 
     /* Value function P (nx x nx) and p (nx x 1) in int64 */
     int64_t P[MPC_NX_AUG][MPC_NX_AUG];
     int64_t p[MPC_NX_AUG];
-#pragma HLS ARRAY_PARTITION variable=P cyclic factor=4 dim=1
+#pragma HLS ARRAY_PARTITION variable=P cyclic factor=8 dim=1
 #pragma HLS ARRAY_PARTITION variable=P cyclic factor=2 dim=2
 
     /* Initialize terminal cost: P_N = Q_N [+ rho*I if constrained] */
@@ -293,8 +293,8 @@ static void riccati_pass_hls(
         /* Step 7: P = Q_diag + A^T*P*A + G^T*K  (fused) */
         /* PA = P * A (only 6x6 dense block needed) */
         int64_t PA[MPC_NX_DENSE][MPC_NX_DENSE];
-#pragma HLS ARRAY_PARTITION variable=PA cyclic factor=2 dim=1
-#pragma HLS ARRAY_PARTITION variable=PA cyclic factor=2 dim=2
+#pragma HLS ARRAY_PARTITION variable=PA complete dim=1
+#pragma HLS ARRAY_PARTITION variable=PA complete dim=2
         for (i = 0; i < 6; i++) {
             for (j = 0; j < 6; j++) {
 #pragma HLS PIPELINE II=1
@@ -432,7 +432,7 @@ MpcStatus_t riccati_admm_solve_hls(
     const int nu = MPC_NU;
     const int N = MPC_HORIZON;
 
-    /* OPT-2: Restore persisted rho from warm-start if available */
+    /* Restore persisted rho from warm-start if available */
     fixed_point_t rho   = (admm_state->initialized && admm_state->rho > 0)
                         ? admm_state->rho : config->rho;
     fixed_point_t rho_u = (admm_state->initialized && admm_state->rho_u > 0)
@@ -469,7 +469,7 @@ MpcStatus_t riccati_admm_solve_hls(
     }
 
     if (admm_state->initialized) {
-        /* Warm-start from previous solve — pipelined copy loops */
+        /* Warm-start from previous solve — direct copy of ADMM state */
         for (k = 0; k <= N; k++) {
 #pragma HLS PIPELINE II=1
             for (s = 0; s < nx; s++) {
@@ -580,7 +580,7 @@ MpcStatus_t riccati_admm_solve_hls(
 #pragma HLS PIPELINE II=4
             const StepData_t *sd = (k < N) ? &step_data[k] : &step_data[N - 1];
             for (s = 0; s < nx; s++) {
-#pragma HLS UNROLL factor=2
+#pragma HLS UNROLL factor=4
                 if (x_is_con[k][s]) {
                     fixed_point_t x_val = solution->x[k][s];
                     /* Over-relaxation: x_hat = x + (alpha-1)*(x - z_old)
@@ -601,7 +601,11 @@ MpcStatus_t riccati_admm_solve_hls(
                     if (dd > state_dual) state_dual = dd;
 
                     /* y-update uses x_hat (over-relaxed) per Boyd et al. */
-                    y_x[k][s] = (fixed_point_t)((int64_t)x_hat - (int64_t)z_new + (int64_t)y_x[k][s]);
+                    fixed_point_t y_new_x = (fixed_point_t)((int64_t)x_hat - (int64_t)z_new + (int64_t)y_x[k][s]);
+                    /* Saturate y to prevent dual variable explosion */
+                    if (y_new_x > FP_CONST(50.0)) y_new_x = FP_CONST(50.0);
+                    if (y_new_x < FP_CONST(-50.0)) y_new_x = FP_CONST(-50.0);
+                    y_x[k][s] = y_new_x;
 
                     fixed_point_t pd = x_hat - z_new;
                     if (pd < 0) pd = -pd;
@@ -640,7 +644,11 @@ MpcStatus_t riccati_admm_solve_hls(
                 if (dd > ctrl_dual) ctrl_dual = dd;
 
                 /* y-update uses u_hat (over-relaxed) per Boyd et al. */
-                y_u[k][a] = (fixed_point_t)((int64_t)u_hat - (int64_t)z_new + (int64_t)y_u[k][a]);
+                fixed_point_t y_new_u = (fixed_point_t)((int64_t)u_hat - (int64_t)z_new + (int64_t)y_u[k][a]);
+                /* Saturate y to prevent dual variable explosion */
+                if (y_new_u > FP_CONST(50.0)) y_new_u = FP_CONST(50.0);
+                if (y_new_u < FP_CONST(-50.0)) y_new_u = FP_CONST(-50.0);
+                y_u[k][a] = y_new_u;
 
                 fixed_point_t pd = u_hat - z_new;
                 if (pd < 0) pd = -pd;
@@ -663,7 +671,7 @@ MpcStatus_t riccati_admm_solve_hls(
             break;
         }
 
-        /* Adaptive rho: balance convergence rates (OPT-5: every 2 iterations) */
+        /* Adaptive rho: balance convergence rates (checked every 2 iterations) */
         if (config->adaptive_rho && iter > 0 && (iter & 1) == 0) {
             if (primal_res > 10 * dual_res && rho < FP_CONST(100.0)) {
                 rho = fp_mul(rho, FP_TWO);
@@ -724,7 +732,7 @@ MpcStatus_t riccati_admm_solve_hls(
             admm_state->y_u[k][a] = y_u[k][a];
         }
     }
-    /* OPT-2: Save adapted rho for next warm-start */
+    /* Save adapted rho for next warm-start */
     admm_state->rho = rho;
     admm_state->rho_u = rho_u;
     admm_state->initialized = 1;
