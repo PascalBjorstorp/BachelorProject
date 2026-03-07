@@ -44,7 +44,7 @@ void riccati_admm_config_init(RiccatiAdmmConfig_t *config)
 {
     config->rho            = FP_CONST(25.0);
     config->rho_u          = FP_CONST(10.0);
-    config->tolerance      = FP_CONST(0.1);
+    config->tolerance      = FP_CONST(0.5);
     config->max_iterations = 200;
     config->adaptive_rho   = 1;
     config->alpha          = FP_CONST(1.6);

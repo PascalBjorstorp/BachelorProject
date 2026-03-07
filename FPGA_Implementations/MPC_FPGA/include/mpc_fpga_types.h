@@ -163,7 +163,7 @@ typedef int32_t fixed_point_t;
 /* ADMM default parameters */
 #define ADMM_RHO_DEFAULT    FP_CONST(25.0)
 #define ADMM_RHO_U_DEFAULT  FP_CONST(10.0)
-#define ADMM_TOL_DEFAULT    FP_CONST(0.1)
+#define ADMM_TOL_DEFAULT    FP_CONST(0.5)
 
 /* Over-relaxation parameter (alpha): typical range [1.5, 1.8]
  * Replaces x with alpha*x + (1-alpha)*z_old in z-update.

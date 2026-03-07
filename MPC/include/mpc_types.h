@@ -484,9 +484,12 @@ typedef struct
 #define MPC_DEFAULT_MAXIMUM_ITERATIONS 50
 
 
-/** Default convergence tolerance: 0.02 — Q16.16 ~ 1310 */
+/** Default convergence tolerance: 0.1 — tolerant enough for warm-start MPC
+ *  With warm-start + rho persistence, 0.1 gives ~3 avg iterations at 200Hz
+ *  while maintaining excellent tracking. For FPGA, an even higher tolerance
+ *  (0.5) works well due to the high call rate and warm-start quality. */
 #define MPC_DEFAULT_CONVERGENCE_TOLERANCE \
-    FP_CONST(0.02)
+    FP_CONST(0.1)
 
 /**
  * Get the default MPC configuration (F1/10th tuned values).
