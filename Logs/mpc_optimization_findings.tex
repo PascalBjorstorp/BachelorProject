@@ -690,8 +690,56 @@ Final verification of simulator fidelity across the test simulator, f1tenth\_gym
   \item Nonlinear single-track model with \texttt{atan2} slip angles---identical to f1tenth\_gym.
   \item RK4 integration at \SI{200}{\hertz} (configurable to \SI{400}{\hertz} via \texttt{SIM\_DT=0.0025}).
   \item FPGA test updated from old simplified (CommonRoad) model to full nonlinear model.
-  \item Only remaining difference: \SI{2}{\milli\meter} wheelbase discrepancy (\SI{0.324}{\meter} measured vs.\ \SI{0.326}{\meter} from $l_f + l_r$)---negligible.
+  \item \textbf{Only remaining difference:} \SI{2}{\milli\meter} wheelbase discrepancy (\SI{0.324}{\meter} measured vs.\ \SI{0.326}{\meter} from $l_f + l_r$)---negligible.
 \end{itemize}
+
+\subsection{Decoupled Simulation and Control Frequencies}
+The test simulator now supports independent sim physics and MPC control rates via environment variables \texttt{SIM\_DT} and \texttt{MPC\_DT}. This better approximates continuous real-world dynamics: higher sim frequencies model physics more accurately while MPC runs at a fixed rate.
+
+\begin{table}[H]
+\centering
+\caption{Effect of simulation frequency (MPC fixed at 200\,Hz).}
+\label{tab:sim_freq}
+\begin{tabular}{@{}rrrrrr@{}}
+\toprule
+\textbf{Sim Hz} & \textbf{MPC Hz} & \textbf{MPC every N} & \textbf{Avg Lat (m)} & \textbf{Max Lat (m)} & \textbf{Avg Iters} \\
+\midrule
+200  & 200 & 1  & 0.106 & 0.412 & 1.1 \\
+400  & 200 & 2  & 0.114 & 0.560 & 1.1 \\
+1000 & 200 & 5  & 0.118 & 0.554 & 1.0 \\
+2000 & 200 & 10 & 0.117 & 0.575 & 1.0 \\
+1000 & 400 & 3  & 0.110 & 0.528 & 1.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Higher sim frequencies slightly increase max lateral error (the car drifts between MPC updates) but average tracking remains nearly identical. When modelling real-world continuous dynamics, 1000\,Hz sim with 200\,Hz MPC is recommended---all configurations pass 6/6 tests.
+
+%% ============================================================
+\section{FPGA Resource Usage Estimate}
+\label{sec:fpga_resources}
+
+Estimated resource utilization on the Ultra96-V2 (ZU3EG) FPGA:
+
+\begin{table}[H]
+\centering
+\caption{FPGA resource utilization estimate for Ultra96-V2 (ZU3EG).}
+\label{tab:fpga_resources}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Resource} & \textbf{ZU3EG Total} & \textbf{Estimated} & \textbf{Utilization} & \textbf{Notes} \\
+\midrule
+LUT       & 70,560  & 25--40K  & 35--57\% & Tightest; inlined trig \\
+FF        & 141,120 & 25--35K  & 18--25\% & Pipeline registers \\
+BRAM (36K)& 216     & 27--35   & 12--16\% & Trajectory + gains \\
+DSP48E2   & 360     & 80--150  & 22--42\% & Matrix multiplies \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The design comfortably fits on the ZU3EG with the tightest resource (LUTs at $\sim$50\%) driven primarily by inlined trigonometric functions (\texttt{fp\_sin}, \texttt{fp\_cos}, \texttt{fp\_atan}) duplicated across 9~call sites in the vehicle model. Un-inlining \texttt{fp\_atan} alone could save 5,000--8,000 LUTs if needed.
+
+Worst-case latency at 300\,MHz: $\sim$\SI{167}{\micro\second} (cold start, 8~ADMM iterations). Typical warm-start: $\sim$\SI{40}{\micro\second}. Both are well within the \SI{2.5}{\milli\second} budget at 400\,Hz control.
 
 %% ============================================================
 \section{Summary of Key Findings}

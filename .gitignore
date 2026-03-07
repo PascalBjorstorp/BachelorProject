@@ -246,4 +246,6 @@ f1tenth_parameters/data/*.csv
 # CMake generated files
 *CMakeConfigureLog.yaml
 *CMakeCCompilerId.c
-*.aux
+*.auxf1tenth_gym
+MPC/test_dynamic
+MPC/test_sim_drive

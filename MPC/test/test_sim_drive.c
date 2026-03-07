@@ -3,12 +3,15 @@
  * @brief Realistic 60-second MPC simulation on Spielberg raceline
  *
  * Tests the Riccati-ADMM MPC controller in a closed-loop simulation:
- *   - dt = 0.005s (5ms sim step, 200Hz control rate)
+ *   - SIM_DT = sim physics step (default 5ms = 200Hz, configurable via env)
+ *   - MPC_DT = MPC control interval (default 5ms = 200Hz, configurable via env)
+ *   - Higher sim frequencies (e.g. SIM_DT=0.001 = 1000Hz) with MPC at 200Hz
+ *     better approximate continuous dynamics (real-world behavior)
  *   - v_cmd = raceline velocity
  *   - Wall bounds from the CSV
  *   - Nonlinear single-track vehicle model (matching f1tenth_gym)
  *   - Spawn at raceline[0]
- *   - Runs for 60 seconds (12000 steps at 200Hz)
+ *   - Runs for 60 seconds
  *
  * Reports: wall collisions, max/avg lateral error, steering behavior,
  *          velocity tracking, and step-by-step diagnostics near crashes.
@@ -44,6 +47,7 @@
  *===========================================================================*/
 
 #define SIM_DT_DEFAULT    0.005   /* Simulation time step = 5ms (200Hz) */
+#define MPC_DT_DEFAULT    0.005   /* MPC control interval = 5ms (200Hz) */
 #define SIM_DURATION      60.0   /* seconds */
 #define MPC_HORIZON       20
 #define MPC_REF_ENTRIES   20     /* Must match horizon */
@@ -52,7 +56,6 @@
 #define MAX_VELOCITY      20.0   /* m/s */
 #define PHYSICAL_MAX_ACCEL 8.0   /* m/s² — matches MPC constraint bounds */
 #define MIN_SPEED_FOR_MPC 0.5    /* m/s — below this, use low-speed guard */
-#define MPC_CALL_INTERVAL 1      /* Call MPC every sim step */
 
 /*===========================================================================
  * Raceline Data
@@ -214,15 +217,25 @@ static void check(const char *name, int cond)
 
 int main(void)
 {
-    /* Runtime-configurable timestep (env SIM_DT, default 0.005 = 200Hz) */
+    /* Runtime-configurable timesteps:
+     *   SIM_DT  = physics simulation timestep (env SIM_DT, default 5ms = 200Hz)
+     *   MPC_DT  = MPC control interval (env MPC_DT, default 5ms = 200Hz)
+     * The MPC is called every MPC_DT/SIM_DT simulation steps.
+     * Higher SIM_DT frequencies (e.g. 1000Hz) better approximate continuous
+     * dynamics while keeping MPC at a fixed rate (e.g. 200Hz). */
     const char *dt_env = getenv("SIM_DT");
     const double SIM_DT = dt_env ? atof(dt_env) : SIM_DT_DEFAULT;
+    const char *mpc_dt_env = getenv("MPC_DT");
+    const double MPC_DT = mpc_dt_env ? atof(mpc_dt_env) : MPC_DT_DEFAULT;
+    const int MPC_CALL_INTERVAL = (int)(MPC_DT / SIM_DT + 0.5);
     const int SIM_STEPS = (int)(SIM_DURATION / SIM_DT);
     const double mpc_prediction_dt = 0.05;
-    const double cross_scale = SIM_DT / mpc_prediction_dt;
+    const double cross_scale = MPC_DT / mpc_prediction_dt;
 
-    printf("=== Spielberg Sim-Drive Test (Riccati-ADMM, %.0fs at dt=%.4fs = %d steps, %.0fHz) ===\n\n",
+    printf("=== Spielberg Sim-Drive Test (Riccati-ADMM, %.0fs at dt=%.4fs = %d steps, %.0fHz) ===\n",
            SIM_DURATION, SIM_DT, SIM_STEPS, 1.0/SIM_DT);
+    printf("    MPC rate: %.0fHz (every %d sim steps)\n\n",
+           1.0/MPC_DT, MPC_CALL_INTERVAL);
 
     if (!load_raceline()) return 1;
 
