@@ -72,10 +72,20 @@
 /** Wall constraint margin — 0.05m (safety added in trajectory generation) */
 #define WALL_MARGIN FP_CONST(0.05)
 
-/** Wall constraints: only first few horizon steps for near-term safety */
+/** Wall constraints: only first few horizon steps for near-term safety.
+ *  Override at runtime via WALL_END environment variable. */
 #define WALL_CONSTRAINT_START  1
 #define WALL_CONSTRAINT_STRIDE 1
-#define WALL_CONSTRAINT_END    5     /* last horizon step to constrain (0=disable) */
+#define WALL_CONSTRAINT_END_DEFAULT 5     /* last horizon step to constrain (0=disable) */
+
+/** Soft wall constraint stiffness (0 = hard box constraint).
+ *  When > 0, wall constraints use a quadratic penalty instead of hard clipping:
+ *    g(z) = (k/2) * max(0, z - ub)^2 + (k/2) * max(0, lb - z)^2
+ *  The ADMM z-update uses the proximal operator, allowing controlled violation.
+ *  Higher k = stiffer (500+ approaches hard). Lower k = more flexible.
+ *  Recommended: 200-500 for tight corridors, 0 for wide tracks.
+ *  Override at runtime via WALL_SOFT_K environment variable. */
+#define WALL_SOFT_STIFFNESS_DEFAULT FP_CONST(500.0)
 
 /** v_switch: above this velocity, max acceleration = a_max * v_switch / v.
  *  From f1tenth gym STDynamicsModel: v_switch = 7.319 m/s.
@@ -542,9 +552,34 @@ static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
 
         /* === State bounds (8 elements) === */
 
+        /* Initialize soft constraint weights to 0 (hard by default) */
+        for (int s = 0; s < NX_AUG; s++)
+            sd->x_soft_weight[s] = 0;
+
+        /* Soft wall stiffness: runtime override via WALL_SOFT_K env var.
+         * WALL_END: runtime override controls how many horizon steps are constrained. */
+        fixed_point_t wall_soft_k = WALL_SOFT_STIFFNESS_DEFAULT;
+        int wall_end = WALL_CONSTRAINT_END_DEFAULT;
+        {
+            static int env_checked = 0;
+            static fixed_point_t env_soft_k = 0;
+            static int env_wall_end = 0;
+            if (!env_checked) {
+                const char *env_val = getenv("WALL_SOFT_K");
+                if (env_val) env_soft_k = (fixed_point_t)atof(env_val);
+                else env_soft_k = WALL_SOFT_STIFFNESS_DEFAULT;
+                env_val = getenv("WALL_END");
+                if (env_val) env_wall_end = atoi(env_val);
+                else env_wall_end = WALL_CONSTRAINT_END_DEFAULT;
+                env_checked = 1;
+            }
+            wall_soft_k = env_soft_k;
+            wall_end = env_wall_end;
+        }
+
         /* e_y: wall constraints (near-term: steps START..END, every STRIDE) */
         int wall_active = (k >= WALL_CONSTRAINT_START) &&
-                          (k <= WALL_CONSTRAINT_END) &&
+                          (k <= wall_end) &&
                           ((k - WALL_CONSTRAINT_START) % WALL_CONSTRAINT_STRIDE == 0);
 
         if (wall_active &&
@@ -552,6 +587,8 @@ static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
             reference_trajectory[k].right_wall_bound_meters < FP_CONST(4.0)) {
             sd->x_lb[0] = fp_neg(fp_sub(reference_trajectory[k].right_wall_bound_meters, WALL_MARGIN));
             sd->x_ub[0] = fp_sub(reference_trajectory[k].left_wall_bound_meters, WALL_MARGIN);
+            /* Use soft constraint for walls (0 = hard, >0 = soft stiffness) */
+            sd->x_soft_weight[0] = wall_soft_k;
         } else {
             sd->x_lb[0] = -BIG_BOUND;
             sd->x_ub[0] = BIG_BOUND;

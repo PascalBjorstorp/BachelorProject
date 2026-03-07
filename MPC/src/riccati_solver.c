@@ -410,8 +410,18 @@ RiccatiStatus_t riccati_admm_solve(
             const RiccatiStepData_t *sd = (k < N) ? &step_data[k] : &step_data[N - 1];
             for (int s = 0; s < nx; s++) {
                 fixed_point_t val = solution->x[k][s];
-                if (val < sd->x_lb[s]) val = sd->x_lb[s];
-                if (val > sd->x_ub[s]) val = sd->x_ub[s];
+                float k_soft = sd->x_soft_weight[s];
+                if (k_soft > 0.0f) {
+                    /* Soft: use proximal (same formula as in ADMM loop, rho=1 initial) */
+                    float inv_kr = 1.0f / (k_soft + 1.0f);
+                    if (val > sd->x_ub[s])
+                        val = (k_soft * sd->x_ub[s] + val) * inv_kr;
+                    else if (val < sd->x_lb[s])
+                        val = (k_soft * sd->x_lb[s] + val) * inv_kr;
+                } else {
+                    if (val < sd->x_lb[s]) val = sd->x_lb[s];
+                    if (val > sd->x_ub[s]) val = sd->x_ub[s];
+                }
                 z_x[k][s] = val;
             }
         }
@@ -469,10 +479,29 @@ RiccatiStatus_t riccati_admm_solve(
                     fixed_point_t x_val = solution->x[k][s];
                     /* Over-relaxation: x_hat = alpha*x + (1-alpha)*z_old */
                     float x_hat = alpha_or * x_val + one_minus_alpha * z_x[k][s];
-                    /* z-update: z = clip(x_hat + y, lb, ub) */
                     float val = x_hat + y_x[k][s];
-                    if (val < sd->x_lb[s]) val = sd->x_lb[s];
-                    if (val > sd->x_ub[s]) val = sd->x_ub[s];
+
+                    /* z-update: hard or soft constraint projection */
+                    float k_soft = sd->x_soft_weight[s];
+                    if (k_soft > 0.0f) {
+                        /* Soft constraint: proximal operator of quadratic penalty.
+                         * g(z) = (k/2)*max(0, z-ub)^2 + (k/2)*max(0, lb-z)^2
+                         * prox_{g/rho}(v):
+                         *   if v > ub: z = (k*ub + rho*v) / (k + rho)
+                         *   if v < lb: z = (k*lb + rho*v) / (k + rho)
+                         *   else:      z = v                             */
+                        float inv_kr = 1.0f / (k_soft + rho);
+                        if (val > sd->x_ub[s])
+                            val = (k_soft * sd->x_ub[s] + rho * val) * inv_kr;
+                        else if (val < sd->x_lb[s])
+                            val = (k_soft * sd->x_lb[s] + rho * val) * inv_kr;
+                        /* else val stays as-is (inside bounds, no penalty) */
+                    } else {
+                        /* Hard constraint: standard box clipping */
+                        if (val < sd->x_lb[s]) val = sd->x_lb[s];
+                        if (val > sd->x_ub[s]) val = sd->x_ub[s];
+                    }
+
                     fixed_point_t z_new = val;
                     /* Dual residual */
                     fixed_point_t z_prev = z_x[k][s];
