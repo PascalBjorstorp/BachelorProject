@@ -123,22 +123,24 @@ MpcConfiguration_t get_default_configuration(void)
     cfg.time_step_seconds = MPC_DEFAULT_TIME_STEP_SECONDS;
 
     /* State tracking weights (Frenet frame).
-     * Tuned via grid search (tune_weights.py) to balance speed and safety.
-     * Q_HDG dominates to enforce proactive steering into corners.
-     * Q_VEL drives re-acceleration on straights.
-     * Low W_JERK allows responsive steering rate changes. */
-    cfg.weight_lateral_error    = FP_CONST(125.0);
-    cfg.weight_heading_error    = FP_CONST(300.0);
-    cfg.weight_velocity         = FP_CONST(30.0);
+     * Optimized via systematic CPU sweep, matching FPGA parameter search.
+     * Q_HDG=500 dominates to enforce proactive corner steering.
+     * Q_VEL=6 (low) allows natural speed variation, reducing lateral error.
+     * Q_YAW=10 (low) reduces yaw rate dampening for faster response.
+     * R_STEER=0.1 (low) allows reactive steering.
+     * W_JERK=0.2 (low) enables responsive steering rate changes. */
+    cfg.weight_lateral_error    = FP_CONST(150.0);
+    cfg.weight_heading_error    = FP_CONST(500.0);
+    cfg.weight_velocity         = FP_CONST(6.0);
     cfg.weight_lateral_velocity = FP_CONST(60.0);
-    cfg.weight_yaw_rate         = FP_CONST(20.0);
+    cfg.weight_yaw_rate         = FP_CONST(10.0);
 
     /* Control effort weights */
-    cfg.weight_steering_effort      = FP_CONST(0.35);
+    cfg.weight_steering_effort      = FP_CONST(0.1);
     cfg.weight_acceleration_effort  = FP_CONST(0.01);
 
     /* Control rate weights */
-    cfg.weight_steering_rate        = FP_CONST(0.5);
+    cfg.weight_steering_rate        = FP_CONST(0.2);
     cfg.weight_acceleration_rate    = FP_CONST(0.01);
 
     /* Cross-call rate scale: ratio of control interval to prediction dt. */
@@ -689,6 +691,18 @@ static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
     RiccatiAdmmConfig_t solver_config;
     riccati_admm_config_init(&solver_config);
     solver_config.max_iterations = (int)config.maximum_solver_iterations;
+    /* Pass through convergence tolerance from MPC config */
+    solver_config.tolerance = config.solver_convergence_tolerance;
+    /* Environment variable overrides for solver tuning */
+    {
+        const char *env_val;
+        if ((env_val = getenv("TOL")) != NULL)
+            solver_config.tolerance = DOUBLE_TO_FP(atof(env_val));
+        if ((env_val = getenv("RHO")) != NULL)
+            solver_config.rho = DOUBLE_TO_FP(atof(env_val));
+        if ((env_val = getenv("MAX_ITER")) != NULL)
+            solver_config.max_iterations = atoi(env_val);
+    }
 
     RiccatiSolution_t riccati_sol;
     memset(&riccati_sol, 0, sizeof(riccati_sol));

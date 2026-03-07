@@ -1,23 +1,25 @@
 /**
  * @file test_sim_drive.c
- * @brief Realistic 30-second MPC simulation on Spielberg raceline
+ * @brief Realistic 60-second MPC simulation on Spielberg raceline
  *
  * Tests the Riccati-ADMM MPC controller in a closed-loop simulation:
- *   - dt = 0.05s (MPC time step, matching sim update rate)
+ *   - dt = 0.005s (5ms sim step, 200Hz control rate)
  *   - v_cmd = raceline velocity
  *   - Wall bounds from the CSV
- *   - Vehicle model propagation with MPC acceleration output
+ *   - Nonlinear single-track vehicle model (matching f1tenth_gym)
  *   - Spawn at raceline[0]
- *   - Runs for 30 seconds (600 steps)
+ *   - Runs for 60 seconds (12000 steps at 200Hz)
  *
  * Reports: wall collisions, max/avg lateral error, steering behavior,
  *          velocity tracking, and step-by-step diagnostics near crashes.
  *
  * Compile (standalone):
  *   cd MPC
- *   cmake -S . -B build -DMPC_BUILD_TESTS=ON
- *   cmake --build build -j
- *   ./build/test_sim_drive
+ *   gcc -D_GNU_SOURCE -O3 -std=c99 -Wall -ffast-math \
+ *       -Wno-unused-variable -Wno-unused-but-set-variable \
+ *       -Iinclude test/test_sim_drive.c src/mpc_riccati.c \
+ *       src/riccati_solver.c src/vehicle_model.c src/fp_math.c \
+ *       -o test_sim_drive -lm
  */
 
 #define _USE_MATH_DEFINES
@@ -236,15 +238,17 @@ int main(void)
     /* Tuned weights — overridable via environment variables for tuning script.
      * See tune_weights.py for automated grid search. */
     const char *env;
-    cfg.weight_lateral_error          = FP_CONST((env = getenv("Q_LAT"))       ? atof(env) : 125.0);
-    cfg.weight_heading_error          = FP_CONST((env = getenv("Q_HDG"))       ? atof(env) : 300.0);
-    cfg.weight_velocity               = FP_CONST((env = getenv("Q_VEL"))       ? atof(env) : 30.0);
+    cfg.weight_lateral_error          = FP_CONST((env = getenv("Q_LAT"))       ? atof(env) : 150.0);
+    cfg.weight_heading_error          = FP_CONST((env = getenv("Q_HDG"))       ? atof(env) : 500.0);
+    cfg.weight_velocity               = FP_CONST((env = getenv("Q_VEL"))       ? atof(env) : 6.0);
     cfg.weight_lateral_velocity       = FP_CONST((env = getenv("Q_LAT_VEL"))   ? atof(env) : 60.0);
-    cfg.weight_yaw_rate               = FP_CONST((env = getenv("Q_YAW"))       ? atof(env) : 20.0);
-    cfg.weight_steering_effort        = FP_CONST((env = getenv("R_STEER"))     ? atof(env) : 0.35);
+    cfg.weight_yaw_rate               = FP_CONST((env = getenv("Q_YAW"))       ? atof(env) : 10.0);
+    cfg.weight_steering_effort        = FP_CONST((env = getenv("R_STEER"))     ? atof(env) : 0.1);
     cfg.weight_acceleration_effort    = FP_CONST((env = getenv("R_ACCEL"))     ? atof(env) : 0.01);
-    cfg.weight_steering_rate          = FP_CONST((env = getenv("W_JERK"))      ? atof(env) : 0.5);
+    cfg.weight_steering_rate          = FP_CONST((env = getenv("W_JERK"))      ? atof(env) : 0.2);
     cfg.weight_acceleration_rate      = FP_CONST((env = getenv("W_ACCEL_RATE"))? atof(env) : 0.01);
+    cfg.maximum_solver_iterations       = (env = getenv("MAX_ITER")) ? atoi(env) : 8;
+    cfg.solver_convergence_tolerance    = FP_CONST((env = getenv("TOL")) ? atof(env) : 5.0);
     mpc_set_configuration(&cfg);
 
     printf("  Horizon: %d, Q_lat=%.2f Q_hdg=%.2f Q_vel=%.2f R_steer=%.2f R_accel=%.2f\n",
