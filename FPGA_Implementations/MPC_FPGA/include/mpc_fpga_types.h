@@ -68,7 +68,7 @@ typedef int32_t fixed_point_t;
 #define MPC_HORIZON     20
 
 /** Maximum ADMM iterations */
-#define MPC_MAX_ADMM_ITER 30
+#define MPC_MAX_ADMM_ITER 8
 
 /*===========================================================================
  * Augmented State Indices
@@ -132,12 +132,12 @@ typedef int32_t fixed_point_t;
  *===========================================================================*/
 
 #define MPC_DT              ((fixed_point_t)3277)   /* 0.05s in Q16.16 */
-#define MPC_W_LAT_ERROR     FP_CONST(125.0)
-#define MPC_W_HEADING       FP_CONST(300.0)
-#define MPC_W_VELOCITY      FP_CONST(30.0)
+#define MPC_W_LAT_ERROR     FP_CONST(150.0)
+#define MPC_W_HEADING       FP_CONST(500.0)
+#define MPC_W_VELOCITY      FP_CONST(15.0)
 #define MPC_W_LAT_VEL       FP_CONST(60.0)
 #define MPC_W_YAW_RATE      FP_CONST(20.0)
-#define MPC_W_STEER_EFF     FP_CONST(0.35)
+#define MPC_W_STEER_EFF     FP_CONST(0.2)
 #define MPC_W_ACCEL_EFF     FP_CONST(0.01)
 #define MPC_W_STEER_JERK    FP_CONST(0.5)
 #define MPC_W_ACCEL_RATE    FP_CONST(0.01)
@@ -161,9 +161,9 @@ typedef int32_t fixed_point_t;
 #define WP_ADVANCE_MAX      10   /* Max waypoint advance per horizon step */
 
 /* ADMM default parameters */
-#define ADMM_RHO_DEFAULT    FP_CONST(25.0)
+#define ADMM_RHO_DEFAULT    FP_CONST(40.0)
 #define ADMM_RHO_U_DEFAULT  FP_CONST(10.0)
-#define ADMM_TOL_DEFAULT    FP_CONST(0.5)
+#define ADMM_TOL_DEFAULT    FP_CONST(5.0)
 
 /* Over-relaxation parameter (alpha): typical range [1.5, 1.8]
  * Replaces x with alpha*x + (1-alpha)*z_old in z-update.
