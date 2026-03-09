@@ -74,7 +74,7 @@
  *  0.60 provides ~0.40m buffer beyond body-edge collision boundary, enough to
  *  absorb model mismatch from rolling resistance, tire saturation, delay, and noise.
  *  Override at runtime via WALL_MARGIN environment variable. */
-#define WALL_MARGIN_DEFAULT FP_CONST(0.36)
+#define WALL_MARGIN_DEFAULT FP_CONST(0.15)
 
 /** Wall constraints: only first few horizon steps for near-term safety.
  *  Override at runtime via WALL_END environment variable.
@@ -82,7 +82,7 @@
  *  Override at runtime via WALL_STRIDE environment variable. */
 #define WALL_CONSTRAINT_START  1
 #define WALL_CONSTRAINT_STRIDE_DEFAULT 1
-#define WALL_CONSTRAINT_END_DEFAULT 16    /* last horizon step to constrain (0=disable) */
+#define WALL_CONSTRAINT_END_DEFAULT 18    /* last horizon step to constrain (0=disable) */
 
 /** Soft wall constraint stiffness (0 = hard box constraint).
  *  When > 0, wall constraints use a quadratic penalty instead of hard clipping:
@@ -91,7 +91,7 @@
  *  Higher k = stiffer (500+ approaches hard). Lower k = more flexible.
  *  Recommended: 200-500 for tight corridors, 0 for wide tracks.
  *  Override at runtime via WALL_SOFT_K environment variable. */
-#define WALL_SOFT_STIFFNESS_DEFAULT FP_CONST(5000.0)
+#define WALL_SOFT_STIFFNESS_DEFAULT FP_CONST(0.0)
 
 /** v_switch: above this velocity, max acceleration = a_max * v_switch / v.
  *  From f1tenth gym STDynamicsModel: v_switch = 7.319 m/s.
@@ -136,9 +136,9 @@ MpcConfiguration_t get_default_configuration(void)
      * Q_LAT=500, Q_HDG=1000 provide strong lateral+heading tracking.
      * Q_VEL=30 pushes velocity without over-acceleration.
      * Solve time: 6.5 μs avg (well within 4ms FPGA budget). */
-    cfg.weight_lateral_error    = FP_CONST(500.0);
+    cfg.weight_lateral_error    = FP_CONST(340.0);
     cfg.weight_heading_error    = FP_CONST(1000.0);
-    cfg.weight_velocity         = FP_CONST(30.0);
+    cfg.weight_velocity         = FP_CONST(26.0);
     cfg.weight_lateral_velocity = FP_CONST(69.0);
     cfg.weight_yaw_rate         = FP_CONST(22.0);
 

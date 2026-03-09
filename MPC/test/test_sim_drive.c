@@ -392,9 +392,9 @@ int main(void)
     /* Tuned weights — overridable via environment variables for tuning script.
      * See tune_weights.py for automated grid search. */
     const char *env;
-    cfg.weight_lateral_error          = FP_CONST((env = getenv("Q_LAT"))       ? atof(env) : 300.0);
+    cfg.weight_lateral_error          = FP_CONST((env = getenv("Q_LAT"))       ? atof(env) : 340.0);
     cfg.weight_heading_error          = FP_CONST((env = getenv("Q_HDG"))       ? atof(env) : 1000.0);
-    cfg.weight_velocity               = FP_CONST((env = getenv("Q_VEL"))       ? atof(env) : 50.0);
+    cfg.weight_velocity               = FP_CONST((env = getenv("Q_VEL"))       ? atof(env) : 26.0);
     cfg.weight_lateral_velocity       = FP_CONST((env = getenv("Q_LAT_VEL"))   ? atof(env) : 69.0);
     cfg.weight_yaw_rate               = FP_CONST((env = getenv("Q_YAW"))       ? atof(env) : 22.0);
     cfg.weight_steering_effort        = FP_CONST((env = getenv("R_STEER"))     ? atof(env) : 0.15);
