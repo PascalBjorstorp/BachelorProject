@@ -90,6 +90,15 @@ typedef struct
     /** Control box constraint upper bounds */
     fixed_point_t u_ub[RICCATI_MAX_NU];
 
+    /** Soft constraint stiffness per state.
+     *  0 = hard constraint (standard ADMM box projection).
+     *  >0 = soft quadratic penalty: g(z) = (k/2)*max(0, z-ub)^2 + (k/2)*max(0, lb-z)^2
+     *  The ADMM z-update uses the proximal operator instead of clipping:
+     *    if v > ub: z = (k*ub + rho*v) / (k + rho)
+     *    if v < lb: z = (k*lb + rho*v) / (k + rho)
+     *  Higher k = stiffer (approaches hard constraint). Typical: 200-1000. */
+    fixed_point_t x_soft_weight[RICCATI_MAX_NX];
+
 } RiccatiStepData_t;
 
 /*===========================================================================
@@ -184,6 +193,12 @@ typedef struct
 
     /** ADMM dual variables for controls y_u[0..N-1] */
     fixed_point_t y_u[RICCATI_MAX_HORIZON][RICCATI_MAX_NU];
+
+    /** Persisted adaptive rho (0 = use config default) */
+    fixed_point_t rho;
+
+    /** Persisted adaptive rho_u (0 = use config default) */
+    fixed_point_t rho_u;
 
     /** Whether warm-start data is valid */
     int initialized;

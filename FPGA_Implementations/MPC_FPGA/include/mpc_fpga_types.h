@@ -17,8 +17,9 @@
 #define MPC_HLS_TARGET
 #endif
 
-/* Use sim-matching model (matches f1tenth_gym exactly) */
-#define MPC_SIM_MATCHING
+/* Real-hardware vehicle model: full atan-based slip angles,
+ * cos(δ)/sin(δ) force resolution, and Pacejka tire saturation.
+ * No simulation-matching simplifications. */
 
 #include <stdint.h>
 
@@ -67,7 +68,7 @@ typedef int32_t fixed_point_t;
 #define MPC_HORIZON     20
 
 /** Maximum ADMM iterations */
-#define MPC_MAX_ADMM_ITER 50
+#define MPC_MAX_ADMM_ITER 8
 
 /*===========================================================================
  * Augmented State Indices
@@ -114,23 +115,34 @@ typedef int32_t fixed_point_t;
 #define VP_INV_IZ           FP_CONST(28.571429) /* 1/0.035 */
 #define VP_INV_L            FP_CONST(3.086420)  /* 1/0.324 */
 
+/* Pacejka tire model constants (for real-hardware linearization) */
+#define VP_C_SHAPE          FP_CONST(1.9)       /* Pacejka shape factor C */
+#define VP_INV_C_SHAPE      FP_CONST(0.526316)  /* 1/1.9 */
+#define VP_MIN_STIFF_SCALE  FP_CONST(0.1)       /* Floor for effective stiffness */
+
+/* Precomputed Pacejka B parameters (saves 2 fp_mul per linearization call) */
+#define VP_B_FRONT          FP_CONST(1.476)     /* C_Sf / C_shape = 2.804/1.9  */
+#define VP_B_REAR           FP_CONST(1.747)     /* C_Sr / C_shape = 3.320/1.9  */
+/* Precomputed mu*C_S products (saves 2 fp_mul per linearization) */
+#define VP_MU_CSF           FP_CONST(2.092)     /* mu * C_Sf = 0.7463*2.804 */
+#define VP_MU_CSR           FP_CONST(2.478)     /* mu * C_Sr = 0.7463*3.320 */
+
 /*===========================================================================
  * MPC Default Cost Weights (tuned for F1/10th)
  *===========================================================================*/
 
 #define MPC_DT              ((fixed_point_t)3277)   /* 0.05s in Q16.16 */
-#define MPC_W_LAT_ERROR     FP_CONST(100.0)
-#define MPC_W_HEADING       FP_CONST(1000.0)
-#define MPC_W_VELOCITY      FP_CONST(10.0)
-#define MPC_W_LAT_VEL       FP_CONST(28.0)
-#define MPC_W_YAW_RATE      FP_CONST(10.0)
-#define MPC_W_STEER_EFF     FP_CONST(0.35)
-#define MPC_W_ACCEL_EFF     FP_CONST(0.05)
-#define MPC_W_STEER_JERK    FP_CONST(3.0)
-#define MPC_W_ACCEL_RATE    FP_CONST(0.1)
+#define MPC_W_LAT_ERROR     FP_CONST(150.0)
+#define MPC_W_HEADING       FP_CONST(500.0)
+#define MPC_W_VELOCITY      FP_CONST(15.0)
+#define MPC_W_LAT_VEL       FP_CONST(60.0)
+#define MPC_W_YAW_RATE      FP_CONST(20.0)
+#define MPC_W_STEER_EFF     FP_CONST(0.2)
+#define MPC_W_ACCEL_EFF     FP_CONST(0.01)
+#define MPC_W_STEER_JERK    FP_CONST(0.5)
+#define MPC_W_ACCEL_RATE    FP_CONST(0.01)
 #define MPC_W_DELTA_ACT     FP_CONST(0.1)
 #define MPC_CROSS_CALL_SCALE FP_CONST(0.1)
-#define MPC_TOLERANCE       ((fixed_point_t)1310)  /* ~0.02 in Q16.16 */
 
 /*===========================================================================
  * Solver/Constraint Constants
@@ -139,17 +151,29 @@ typedef int32_t fixed_point_t;
 #define BIG_BOUND           FP_CONST(100.0)
 #define MIN_LIN_VEL         FP_CONST(2.0)
 #define STABILITY_LIMIT_VAL FP_CONST(0.95)
-#define WALL_MARGIN         FP_CONST(0.10)
-#define WALL_START          2
-#define WALL_STRIDE         3
+#define WALL_MARGIN         FP_CONST(0.05)
+#define WALL_START          1
+#define WALL_STRIDE         1
+#define WALL_END            5     /* last horizon step with wall constraint */
 #define V_SWITCH            FP_CONST(7.319)
 #define MAX_NONCONV_DELTA   FP_CONST(0.01)
 #define BOUND_THRESHOLD     FP_CONST(100.0)
+#define WP_ADVANCE_MAX      10   /* Max waypoint advance per horizon step */
 
 /* ADMM default parameters */
-#define ADMM_RHO_DEFAULT    FP_CONST(25.0)
+#define ADMM_RHO_DEFAULT    FP_CONST(40.0)
 #define ADMM_RHO_U_DEFAULT  FP_CONST(10.0)
-#define ADMM_TOL_DEFAULT    FP_CONST(0.1)
+#define ADMM_TOL_DEFAULT    FP_CONST(5.0)
+
+/* Over-relaxation parameter (alpha): typical range [1.5, 1.8]
+ * Replaces x with alpha*x + (1-alpha)*z_old in z-update.
+ * Literature shows 30-50% iteration reduction.
+ *
+ * DSP-optimised form: x_hat = x + (alpha-1)*(x - z_old)
+ * uses 1 multiply instead of 2. */
+#define ADMM_OVER_RELAX             FP_CONST(1.6)
+#define ADMM_OVER_RELAX_COMPLEMENT  FP_CONST(-0.6)  /* 1 - alpha  (kept for reference) */
+#define ADMM_OVER_RELAX_MINUS1      39322           /* alpha - 1 = 0.6  in Q16.16 */
 
 /*===========================================================================
  * Data Structures
@@ -203,6 +227,8 @@ typedef struct {
     fixed_point_t z_u[MPC_HORIZON][MPC_NU];
     fixed_point_t y_x[MPC_HORIZON + 1][MPC_NX_AUG];
     fixed_point_t y_u[MPC_HORIZON][MPC_NU];
+    fixed_point_t rho;      /* Persisted adapted rho (OPT-2) */
+    fixed_point_t rho_u;    /* Persisted adapted rho_u (OPT-2) */
     int initialized;
 } AdmmState_t;
 

@@ -76,16 +76,18 @@ bridge:
     vehicle_sv_max: 2.8492  # [TESTED] Max steering rate (rad/s)
     vehicle_a_max: 8.0      # [TESTED] Max accel (m/s^2)
     vehicle_v_max: 20.0     # Sim speed limit (m/s)
+    vehicle_v_min: -5.0     # Min velocity (m/s) — matches gym default
+    vehicle_v_switch: 7.319  # [DEFAULT] Power-limited acceleration transition speed (m/s)
     vehicle_width: 0.273    # [MEASURED] Vehicle width (m)
     vehicle_length: 0.51    # [MEASURED] Vehicle length (m)
 
     # opponent parameters
     num_agent: 1
 
-    # ego starting pose on map (Spielberg raceline[0])
-    sx: 0.0
-    sy: 0.0
-    stheta: 0.0
+    # ego starting pose on map (Spielberg raceline[0] in map frame)
+    sx: 0.189601
+    sy: -0.752178
+    stheta: -2.888103
 
     # opp starting pose on map
     sx1: -2.0

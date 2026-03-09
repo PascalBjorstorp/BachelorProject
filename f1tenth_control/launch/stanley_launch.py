@@ -55,7 +55,7 @@ def generate_launch_description():
     
     k_h_arg = DeclareLaunchArgument(
         'k_h',
-        default_value='1.5',  # Increase for
+        default_value='0.5',  # Increase for
         description='Heading error gain (auto-reduces at high speed)'
     )
     
@@ -99,7 +99,7 @@ def generate_launch_description():
             'use_feedforward': True,
             'feedforward_gain': 1.0,
             'max_speed': LaunchConfiguration('max_speed'),
-            'min_speed': 4.0,
+            'min_speed': 1.0,
             'speed_gain': LaunchConfiguration('speed_gain'),
             'max_steering': 0.4189,
             'max_steering_rate': 3.0,  # rad/s - allows responsive steering

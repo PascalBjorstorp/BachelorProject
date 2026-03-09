@@ -1,4 +1,0 @@
-first_collision_line: None
-first_status2_line: None
-status2_count: 0
-status0_count: 13986

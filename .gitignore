@@ -125,6 +125,60 @@ docs/_build/
 docs/api/
 
 # =============================================
+# ROS2 Bag Files (large binary recordings)
+# =============================================
+bags/
+*.db3
+*.mcap
+
+# =============================================
+# Compiled Test Binaries (no extension)
+# =============================================
+MPC/test_sim_drive*
+MPC/mpc_test
+MPC/test/test_mpc_cpu
+FPGA_Implementations/**/tb_mpc
+FPGA_Implementations/**/tb_test
+FPGA_Implementations/**/tb_mpc_fpga_check
+FPGA_Implementations/**/test_fpga_sim*
+
+# =============================================
+# Tuning / Benchmark Outputs
+# =============================================
+MPC/test/tuning_results_*.csv
+MPC/test/full_sweep_output.txt
+MPC/test/tune_weights_old.py
+f1tenth_localization/Benchmark/localization_benchmark_*.csv
+
+# =============================================
+# Parameter Experiment Data (large CSVs)
+# =============================================
+f1tenth_parameters/data/*.csv
+f1tenth_parameters/oldData/
+
+# =============================================
+# Trajectory Backup / Working Files
+# =============================================
+f1tenth_planning/trajectories/*_OLD*
+f1tenth_planning/trajectories/*_backup*
+f1tenth_planning/trajectories/*_working*
+f1tenth_planning/trajectories/working_*.csv
+
+# =============================================
+# LaTeX Build Artifacts
+# =============================================
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.toc
+
+# =============================================
+# FPGA Bitstream Artifacts
+# =============================================
+*.xsa
+*.ltx
+
+# =============================================
 # Temporary / Misc
 # =============================================
 *.tmp
@@ -185,11 +239,13 @@ FPGA_Implementations/MPC_experimental/build_local/*
 FPGA_Implementations/MPC_experimental/logs/*
 MPC_legacy/*
 # =============================================
-# Parameter csv files 
+# Parameter csv files (excluded — large data)
 # =============================================
-# f1tenth_parameters/data/*.csv  # UNCOMMENT to exclude large CSVs from git
+f1tenth_parameters/data/*.csv
 
 # CMake generated files
 *CMakeConfigureLog.yaml
 *CMakeCCompilerId.c
-*.aux
+*.auxf1tenth_gym
+MPC/test_dynamic
+MPC/test_sim_drive
