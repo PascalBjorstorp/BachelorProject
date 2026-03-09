@@ -48,7 +48,7 @@ from ament_index_python.packages import get_package_share_directory
 import os
 
 # Constants for timer periods (in seconds)
-PUBLISH_TIMER_PERIOD: float = 0.004  # 250 Hz for sensor data publishing
+PUBLISH_TIMER_PERIOD: float = 0.005  # 200 Hz for sensor data publishing (matches sim_timestep)
 SYNC_MODE_TIMER_PERIOD: float = 1.0  # 1 Hz heartbeat in sync mode
 
 # Identity quaternion (w, x, y, z) for no rotation
