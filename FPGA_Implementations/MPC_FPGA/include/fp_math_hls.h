@@ -28,9 +28,12 @@ static inline fixed_point_t fp_sub(fixed_point_t a, fixed_point_t b)
 static inline fixed_point_t fp_mul(fixed_point_t a, fixed_point_t b)
 {
     int64_t product = (int64_t)a * (int64_t)b;
-    /* No BIND_OP: let HLS ALLOCATION limits control DSP sharing.
+    /* Force 3-cycle pipelined DSP48E2 to prevent combinational chaining.
+     * Without this, Vivado chains 4+ DSP blocks in one clock cycle,
+     * creating 20+ ns paths (WNS=-10ns at 100MHz).
      * Inner-loop multiplies in riccati solver use raw (int64_t) casts,
-     * not fp_mul, so this only affects setup/trig code. */
+     * not fp_mul, so this only affects vehicle model/setup code. */
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency=3
     return (fixed_point_t)(product >> FP_FRAC_BITS);
 }
 

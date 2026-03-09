@@ -34,31 +34,28 @@ static int64_t reciprocal_64(int64_t det)
     int64_t sign = (det < 0) ? -1 : 1;
     int64_t abs_det = (det < 0) ? -det : det;
 
-    /* Initial guess via leading-zero count (same approach as fp_recip) */
-    int lead_zeros = 0;
-    int64_t temp = abs_det;
-    int lz_i;
-    for (lz_i = 0; lz_i < 31; lz_i++) {
-#pragma HLS LOOP_TRIPCOUNT min=1 max=31
-        if (temp & 0x40000000LL) break;
-        temp <<= 1;
-        lead_zeros++;
-    }
+    /* Initial guess via leading-zero count — single-cycle priority encoder.
+     * For Q16.16 in int64_t: true 1/det ≈ 2^(32-p) where p = MSB position.
+     * clzll = 63 - p, so 1/det ≈ 2^(clzll-31). Use 2^(clzll-32) for safe
+     * underestimate keeping det*x_0 ∈ [0.5, 1.0]. */
+    int lead_zeros = __builtin_clzll((unsigned long long)abs_det) - 32;
+    if (lead_zeros < 0) lead_zeros = 0;
+    if (lead_zeros > 30) lead_zeros = 30;
 
     int64_t est = (int64_t)1 << lead_zeros;
 
     /* Newton-Raphson: x_{n+1} = x_n + x_n * (1 - det * x_n)
-     * 4 iterations sufficient for Q16.16 (each doubles correct bits) */
+     * CLZ gives ~1-bit initial guess (power-of-2 underestimate),
+     * each NR iteration doubles bits → 1→2→4→8→16 after 4 iter.
+     * 4 iterations sufficient for < 1 LSB error in Q16.16. */
     int i;
     for (i = 0; i < 4; i++) {
-#pragma HLS PIPELINE II=4
-#pragma HLS LOOP_TRIPCOUNT min=4 max=4
+#pragma HLS PIPELINE II=2
+#pragma HLS LOOP_TRIPCOUNT min=3 max=3
         int64_t prod = abs_det * est;
-#pragma HLS BIND_OP variable=prod op=mul impl=fabric
         prod >>= FP_FRAC_BITS;
         int64_t corr = (int64_t)FP_ONE - prod;
         int64_t adj  = est * corr;
-#pragma HLS BIND_OP variable=adj op=mul impl=fabric
         adj >>= FP_FRAC_BITS;
         est = est + adj;
     }
@@ -85,16 +82,12 @@ static int invert_2x2_hls(const int64_t S[2][2], int64_t Si[2][2])
     int64_t inv_det = reciprocal_64(det);
 
     int64_t si00 = S[1][1] * inv_det;
-#pragma HLS BIND_OP variable=si00 op=mul impl=fabric
     Si[0][0] =  si00 >> FP_FRAC_BITS;
     int64_t si01 = S[0][1] * inv_det;
-#pragma HLS BIND_OP variable=si01 op=mul impl=fabric
     Si[0][1] = -(si01 >> FP_FRAC_BITS);
     int64_t si10 = S[1][0] * inv_det;
-#pragma HLS BIND_OP variable=si10 op=mul impl=fabric
     Si[1][0] = -(si10 >> FP_FRAC_BITS);
     int64_t si11 = S[0][0] * inv_det;
-#pragma HLS BIND_OP variable=si11 op=mul impl=fabric
     Si[1][1] =  si11 >> FP_FRAC_BITS;
 
     return 0;
@@ -141,7 +134,7 @@ static void riccati_pass_hls(
     int64_t p[MPC_NX_AUG];
 #pragma HLS ARRAY_PARTITION variable=P cyclic factor=8 dim=1
 #pragma HLS ALLOCATION operation instances=mul limit=MPC_HLS_MUL_LIMIT
-#pragma HLS ARRAY_PARTITION variable=P cyclic factor=2 dim=2
+#pragma HLS ARRAY_PARTITION variable=P complete dim=2
 
     /* Initialize terminal cost: P_N = Q_N [+ rho*I if constrained] */
     int s, i, j, a, b, k;
@@ -225,10 +218,8 @@ static void riccati_pass_hls(
 #pragma HLS PIPELINE II=1
             /* Col 0: only B[5][0] nonzero */
             int64_t s0 = (int64_t)sd->B[5][0] * P[5][j];
-#pragma HLS BIND_OP variable=s0 op=mul impl=fabric
             /* Col 1: only B[2][1] = dt is nonzero */
             int64_t s1 = (int64_t)sd->B[2][1] * P[2][j];
-#pragma HLS BIND_OP variable=s1 op=mul impl=fabric
             M[0][j] = (s0 >> FP_FRAC_BITS) + P[6][j];   /* B[6][0] = 1 */
             M[1][j] = (s1 >> FP_FRAC_BITS) + P[7][j];   /* B[7][1] = 1 */
         }
@@ -251,8 +242,12 @@ static void riccati_pass_hls(
         /* Step 3: Invert S (2x2) */
         int64_t Si[2][2];
         if (invert_2x2_hls(S, Si) < 0) {
+            /* Fallback: diagonal inverse using hardware division.
+             * This path executes only when det ≈ 0 (nearly singular S).
+             * The sdiv unit costs ~469 LUT / 779 FF but 0 DSP. */
             Si[0][0] = S[0][0] != 0 ? ((int64_t)FP_ONE << FP_FRAC_BITS) / S[0][0] : 0;
             Si[0][1] = 0; Si[1][0] = 0;
+            Si[1][1] = S[1][1] != 0 ? ((int64_t)FP_ONE << FP_FRAC_BITS) / S[1][1] : 0;
             Si[1][1] = S[1][1] != 0 ? ((int64_t)FP_ONE << FP_FRAC_BITS) / S[1][1] : 0;
         }
 
@@ -261,11 +256,12 @@ static void riccati_pass_hls(
 #pragma HLS ARRAY_PARTITION variable=G complete dim=1
 #pragma HLS ARRAY_PARTITION variable=G cyclic factor=4 dim=2
         for (a = 0; a < nu; a++) {
-#pragma HLS UNROLL
             /* Cols 0..5: M*A uses A rows 0..5 (6x6 dense block) */
             for (j = 0; j < 6; j++) {
+#pragma HLS PIPELINE II=2
                 int64_t sum = 0;
                 for (s = 0; s < 6; s++) {
+#pragma HLS UNROLL
                     int64_t gma_prod = M[a][s] * (int64_t)A_local[s][j];
                     sum += gma_prod;
                 }
@@ -278,11 +274,13 @@ static void riccati_pass_hls(
 
         /* Step 5: K = -S^{-1} * G (nu x nx) */
         for (a = 0; a < nu; a++) {
-#pragma HLS UNROLL
             for (j = 0; j < nx; j++) {
+#pragma HLS PIPELINE II=1
                 int64_t val = 0;
                 for (b = 0; b < nu; b++) {
-                    val += Si[a][b] * G[b][j];
+#pragma HLS UNROLL
+                    int64_t k_prod = Si[a][b] * G[b][j];
+                    val += k_prod;
                 }
                 val = -(val >> FP_FRAC_BITS);
                 if (val > INT32_MAX) val = INT32_MAX;
@@ -330,11 +328,10 @@ static void riccati_pass_hls(
         /* Cols 1-5: full inner product */
         for (i = 0; i < 6; i++) {
             for (j = 1; j < 6; j++) {
-#pragma HLS PIPELINE II=2
+#pragma HLS PIPELINE II=1
                 int64_t sum = 0;
                 for (s = 0; s < 6; s++) {
                     int64_t pa_prod = P[i][s] * (int64_t)sd->A[s][j];
-#pragma HLS BIND_OP variable=pa_prod op=mul impl=fabric
                     sum += pa_prod;
                 }
                 PA[i][j] = sum >> FP_FRAC_BITS;
@@ -342,67 +339,78 @@ static void riccati_pass_hls(
         }
 
         /* Fused: P = Q_diag + A^T*PA + G^T*K (written directly) */
-        /* Dense block: rows 0..5, cols 0..5 */
-        for (i = 0; i < 6; i++) {
-            for (j = 0; j < 6; j++) {
+        /* Dense block: rows 0..5, cols 0..5 — exploit P symmetry (21 vs 36 iters) */
+        {
+            /* Upper-triangle decode tables (i,j) for 21 entries */
+            static const int sym_i[21] = {0,0,0,0,0,0, 1,1,1,1,1, 2,2,2,2, 3,3,3, 4,4, 5};
+            static const int sym_j[21] = {0,1,2,3,4,5, 1,2,3,4,5, 2,3,4,5, 3,4,5, 4,5, 5};
+            for (int idx = 0; idx < 21; idx++) {
 #pragma HLS PIPELINE II=1
+                int ii = sym_i[idx];
+                int jj = sym_j[idx];
                 int64_t sum = 0;
                 /* A^T * PA: A_local in registers (no BRAM bottleneck) */
                 for (s = 0; s < 6; s++) {
 #pragma HLS UNROLL factor=2
-                    int64_t atpa_prod = (int64_t)A_local[s][i] * PA[s][j];
-#pragma HLS BIND_OP variable=atpa_prod op=mul impl=fabric
+                    int64_t atpa_prod = (int64_t)A_local[s][ii] * PA[s][jj];
                     sum += atpa_prod;
                 }
                 /* G^T * K contribution */
                 for (a = 0; a < nu; a++) {
 #pragma HLS UNROLL
-                    int64_t gtk_prod = G[a][i] * (int64_t)K[k][a][j];
-#pragma HLS BIND_OP variable=gtk_prod op=mul impl=fabric
+                    int64_t gtk_prod = G[a][ii] * (int64_t)K[k][a][jj];
                     sum += gtk_prod;
                 }
-                P[i][j] = ((i == j) ? Q_aug[i] : 0) + (sum >> FP_FRAC_BITS);
+                int64_t val = ((ii == jj) ? Q_aug[ii] : 0) + (sum >> FP_FRAC_BITS);
+                P[ii][jj] = val;
+                if (ii != jj) P[jj][ii] = val;  /* Symmetric mirror */
             }
-            /* Cols 6,7: AtPA=0, only G^T*K contributes */
+        }
+        /* Cols 6,7: AtPA=0, only G^T*K contributes */
+        for (i = 0; i < 6; i++) {
             for (j = 6; j < nx; j++) {
+#pragma HLS PIPELINE II=2
                 int64_t sum = 0;
                 for (a = 0; a < nu; a++) {
+#pragma HLS UNROLL
                     sum += G[a][i] * (int64_t)K[k][a][j];
                 }
                 P[i][j] = sum >> FP_FRAC_BITS;
             }
         }
-        /* Rows 6,7: A^T rows 6,7 zero, only G^T*K + Q_diag */
-        for (i = 6; i < nx; i++) {
-            for (j = 0; j < nx; j++) {
-                int64_t sum = 0;
-                for (a = 0; a < nu; a++) {
-                    sum += G[a][i] * (int64_t)K[k][a][j];
-                }
-                P[i][j] = ((i == j) ? Q_aug[i] : 0) + (sum >> FP_FRAC_BITS);
-            }
+        /* Rows 6,7: A^T rows 6,7 zero, only G^T*K + Q_diag.
+         * Exploit N_cross sparsity: G[1][6]=0, G[0][7]=0, so only
+         * one multiply per entry instead of the generic nu-sum. */
+        for (j = 0; j < nx; j++) {
+#pragma HLS PIPELINE II=1
+            int64_t s6 = G[0][6] * (int64_t)K[k][0][j];
+            P[6][j] = ((j == 6) ? Q_aug[6] : 0) + (s6 >> FP_FRAC_BITS);
+            int64_t s7 = G[1][7] * (int64_t)K[k][1][j];
+            P[7][j] = ((j == 7) ? Q_aug[7] : 0) + (s7 >> FP_FRAC_BITS);
         }
 
         /* Step 8: p_new = q_aug + A^T*p + G^T*kk */
         int64_t p_new[MPC_NX_AUG];
         for (i = 0; i < 6; i++) {
+#pragma HLS PIPELINE II=2
             int64_t Atp = 0;
             for (s = 0; s < 6; s++) {
-#pragma HLS UNROLL factor=2
+#pragma HLS UNROLL
                 int64_t step8_prod = (int64_t)A_local[s][i] * p[s];
-#pragma HLS BIND_OP variable=step8_prod op=mul impl=fabric
                 Atp += step8_prod;
             }
             int64_t Gtk = 0;
             for (a = 0; a < nu; a++) {
+#pragma HLS UNROLL
                 Gtk += G[a][i] * (int64_t)kk[k][a];
             }
             p_new[i] = q_aug[i] + (Atp >> FP_FRAC_BITS) + (Gtk >> FP_FRAC_BITS);
         }
         for (i = 6; i < nx; i++) {
-#pragma HLS UNROLL
+#pragma HLS PIPELINE II=2
             int64_t Gtk = 0;
             for (a = 0; a < nu; a++) {
+#pragma HLS UNROLL
                 Gtk += G[a][i] * (int64_t)kk[k][a];
             }
             p_new[i] = q_aug[i] + (Gtk >> FP_FRAC_BITS);
@@ -436,34 +444,30 @@ static void riccati_pass_hls(
         /* u_k = K_k * x_k + kk_k */
         for (a = 0; a < nu; a++) {
 #pragma HLS UNROLL
-            int64_t sum = (int64_t)kk[k][a];
+            int64_t prod_sum = 0;
             for (s = 0; s < nx; s++) {
-                int64_t kx_prod = (int64_t)K[k][a][s] * (int64_t)x_out[k][s];
-#pragma HLS BIND_OP variable=kx_prod op=mul impl=fabric
-                sum += kx_prod >> FP_FRAC_BITS;
+                prod_sum += (int64_t)K[k][a][s] * (int64_t)x_out[k][s];
             }
+            int64_t sum = (int64_t)kk[k][a] + (prod_sum >> FP_FRAC_BITS);
             if (sum > INT32_MAX) sum = INT32_MAX;
             else if (sum < INT32_MIN) sum = INT32_MIN;
             u_out[k][a] = (fixed_point_t)sum;
         }
 
         /* x_{k+1} = A_k * x_k + B_k * u_k
-         * Dense rows 0..5: A*x + B*u */
+         * Dense rows 0..5: A*x + B*u (single shift after full accumulation) */
         for (i = 0; i < 6; i++) {
             int64_t sum = 0;
             for (s = 0; s < 6; s++) {
-                int64_t ax_prod = (int64_t)A_fwd[i][s] * (int64_t)x_out[k][s];
-#pragma HLS BIND_OP variable=ax_prod op=mul impl=fabric
-                sum += ax_prod >> FP_FRAC_BITS;
+                sum += (int64_t)A_fwd[i][s] * (int64_t)x_out[k][s];
             }
             for (a = 0; a < nu; a++) {
-                int64_t bu_prod = (int64_t)sd->B[i][a] * (int64_t)u_out[k][a];
-#pragma HLS BIND_OP variable=bu_prod op=mul impl=fabric
-                sum += bu_prod >> FP_FRAC_BITS;
+                sum += (int64_t)sd->B[i][a] * (int64_t)u_out[k][a];
             }
-            if (sum > INT32_MAX) sum = INT32_MAX;
-            else if (sum < INT32_MIN) sum = INT32_MIN;
-            x_out[k + 1][i] = (fixed_point_t)sum;
+            int64_t result = sum >> FP_FRAC_BITS;
+            if (result > INT32_MAX) result = INT32_MAX;
+            else if (result < INT32_MIN) result = INT32_MIN;
+            x_out[k + 1][i] = (fixed_point_t)result;
         }
         /* Rows 6,7: x_prev = u (identity in B, zero in A) */
         x_out[k + 1][6] = u_out[k][0];
@@ -500,12 +504,10 @@ MpcStatus_t riccati_admm_solve_hls(
     fixed_point_t z_u[MPC_HORIZON][MPC_NU];
     fixed_point_t y_x[MPC_HORIZON + 1][MPC_NX_AUG];
     fixed_point_t y_u[MPC_HORIZON][MPC_NU];
-#pragma HLS BIND_STORAGE variable=z_x type=ram_2p impl=bram
-#pragma HLS ARRAY_PARTITION variable=z_x cyclic factor=4 dim=2
+#pragma HLS ARRAY_PARTITION variable=z_x complete dim=2
 #pragma HLS BIND_STORAGE variable=z_u type=ram_2p impl=bram
 #pragma HLS ARRAY_PARTITION variable=z_u complete dim=2
-#pragma HLS BIND_STORAGE variable=y_x type=ram_2p impl=bram
-#pragma HLS ARRAY_PARTITION variable=y_x cyclic factor=4 dim=2
+#pragma HLS ARRAY_PARTITION variable=y_x complete dim=2
 #pragma HLS BIND_STORAGE variable=y_u type=ram_2p impl=bram
 #pragma HLS ARRAY_PARTITION variable=y_u complete dim=2
 

@@ -75,12 +75,11 @@ typedef int32_t fixed_point_t;
  *===========================================================================*/
 
 /** Maximum multiplier instances in Riccati pass (trades latency for DSP area).
- *  Default 6: saves DSP by shifting multiply-heavy loops to fabric (LUTs)
- *  via BIND_OP pragmas on PA, M, forward-pass, and reciprocal_64.
- *  Fits ZU3EG with ~85% DSP and ~82% LUT after fabric offloading.
+ *  Default 6: limits DSP usage in Riccati solver to fit ZU3EG (360 DSP).
+ *  Vehicle model uses fp_mul_vm (separate DSP-pipelined, non-inline).
  *  Override at compile time: -DMPC_HLS_MUL_LIMIT=N */
 #ifndef MPC_HLS_MUL_LIMIT
-#define MPC_HLS_MUL_LIMIT 6
+#define MPC_HLS_MUL_LIMIT 4
 #endif
 
 /*===========================================================================
