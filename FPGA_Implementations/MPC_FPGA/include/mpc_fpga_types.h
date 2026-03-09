@@ -65,10 +65,23 @@ typedef int32_t fixed_point_t;
 #define MPC_NU          2
 
 /** Fixed prediction horizon */
-#define MPC_HORIZON     20
+#define MPC_HORIZON     19
 
-/** Maximum ADMM iterations */
+/** Maximum ADMM iterations (reduced from 20 for timing budget) */
 #define MPC_MAX_ADMM_ITER 8
+
+/*===========================================================================
+ * HLS Resource Constraints
+ *===========================================================================*/
+
+/** Maximum multiplier instances in Riccati pass (trades latency for DSP area).
+ *  Default 6: saves DSP by shifting multiply-heavy loops to fabric (LUTs)
+ *  via BIND_OP pragmas on PA, M, forward-pass, and reciprocal_64.
+ *  Fits ZU3EG with ~85% DSP and ~82% LUT after fabric offloading.
+ *  Override at compile time: -DMPC_HLS_MUL_LIMIT=N */
+#ifndef MPC_HLS_MUL_LIMIT
+#define MPC_HLS_MUL_LIMIT 6
+#endif
 
 /*===========================================================================
  * Augmented State Indices
@@ -131,18 +144,44 @@ typedef int32_t fixed_point_t;
  * MPC Default Cost Weights (tuned for F1/10th)
  *===========================================================================*/
 
-#define MPC_DT              ((fixed_point_t)3277)   /* 0.05s in Q16.16 */
-#define MPC_W_LAT_ERROR     FP_CONST(150.0)
-#define MPC_W_HEADING       FP_CONST(500.0)
-#define MPC_W_VELOCITY      FP_CONST(15.0)
-#define MPC_W_LAT_VEL       FP_CONST(60.0)
-#define MPC_W_YAW_RATE      FP_CONST(20.0)
-#define MPC_W_STEER_EFF     FP_CONST(0.2)
+#define MPC_DT              ((fixed_point_t)2621)   /* 0.04s in Q16.16 */
+
+/* Precomputed dt*inv_mass and dt*inv_Iz (eliminates 9 fp_mul per linearization) */
+#define VP_DT_INV_MASS      FP_CONST(0.012070)  /* dt * (1/mass) = 0.04 * 0.301750 */
+#define VP_DT_INV_IZ        FP_CONST(1.142857)  /* dt * (1/I_z)  = 0.04 * 28.571429 */
+
+#define MPC_W_LAT_ERROR     FP_CONST(500.0)
+#define MPC_W_HEADING       FP_CONST(2000.0)     /* cl050 sweep best (was 1000) */
+#define MPC_W_VELOCITY      FP_CONST(30.0)
+#define MPC_W_LAT_VEL       FP_CONST(100.0)      /* cl050 sweep best (was 69) */
+#define MPC_W_YAW_RATE      FP_CONST(22.0)
+#define MPC_W_STEER_EFF     FP_CONST(0.15)
 #define MPC_W_ACCEL_EFF     FP_CONST(0.01)
-#define MPC_W_STEER_JERK    FP_CONST(0.5)
-#define MPC_W_ACCEL_RATE    FP_CONST(0.01)
-#define MPC_W_DELTA_ACT     FP_CONST(0.1)
-#define MPC_CROSS_CALL_SCALE FP_CONST(0.1)
+#define MPC_W_STEER_JERK    FP_CONST(0.3)
+#define MPC_W_ACCEL_RATE    FP_CONST(0.1)        /* cl050 sweep best (was 0.116) */
+#define MPC_W_DELTA_ACT     FP_CONST(0.795)      /* cl050 sweep best (was 0.53) */
+#define MPC_CROSS_CALL_SCALE FP_CONST(0.125)
+
+/* === Precomputed 2x weights for QP Hessian diagonal ===
+ * Eliminates ~24 runtime fp_mul calls in mpc_compute_hls.
+ * All computed at compile time via integer arithmetic. */
+#define MPC_Q2_LAT_ERROR    ((MPC_W_LAT_ERROR) << 1)     /* 2*500 = 1000 */
+#define MPC_Q2_HEADING      ((MPC_W_HEADING) << 1)        /* 2*2000 = 4000 */
+#define MPC_Q2_VELOCITY     ((MPC_W_VELOCITY) << 1)       /* 2*30 = 60 */
+#define MPC_Q2_LAT_VEL      ((MPC_W_LAT_VEL) << 1)        /* 2*100 = 200 */
+#define MPC_Q2_YAW_RATE     ((MPC_W_YAW_RATE) << 1)       /* 2*22 = 44 */
+#define MPC_Q2_DELTA_ACT    ((MPC_W_DELTA_ACT) << 1)      /* 2*0.795 */
+#define MPC_Q2_STEER_JERK   ((MPC_W_STEER_JERK) << 1)     /* 2*0.3 */
+#define MPC_Q2_ACCEL_RATE   ((MPC_W_ACCEL_RATE) << 1)     /* 2*0.1 */
+#define MPC_R2_STEER        (((MPC_W_STEER_EFF) + (MPC_W_STEER_JERK)) << 1)  /* 2*(0.15+0.3) */
+#define MPC_R2_ACCEL        (((MPC_W_ACCEL_EFF) + (MPC_W_ACCEL_RATE)) << 1)   /* 2*(0.01+0.1) */
+#define MPC_N2_STEER_JERK   (-((MPC_W_STEER_JERK) << 1))  /* -2*0.3 */
+#define MPC_N2_ACCEL_RATE   (-((MPC_W_ACCEL_RATE) << 1))   /* -2*0.1 */
+/* Cross-call scaled variants for step 0 (0.125 = >>3) */
+#define MPC_Q2_JERK_CS      ((MPC_W_STEER_JERK >> 3) << 1)  /* 2*0.3*0.125 */
+#define MPC_Q2_ARATE_CS     ((MPC_W_ACCEL_RATE >> 3) << 1)   /* 2*0.1*0.125 */
+#define MPC_R2_STEER_CS     (((MPC_W_STEER_EFF) + (MPC_W_STEER_JERK >> 3)) << 1)
+#define MPC_R2_ACCEL_CS     (((MPC_W_ACCEL_EFF) + (MPC_W_ACCEL_RATE >> 3)) << 1)
 
 /*===========================================================================
  * Solver/Constraint Constants
@@ -151,19 +190,27 @@ typedef int32_t fixed_point_t;
 #define BIG_BOUND           FP_CONST(100.0)
 #define MIN_LIN_VEL         FP_CONST(2.0)
 #define STABILITY_LIMIT_VAL FP_CONST(0.95)
-#define WALL_MARGIN         FP_CONST(0.05)
+/* WALL_MARGIN = 0.36m: vehicle half-width=0.137m + body_safety=0.06m = 0.197m
+ * effective body edge.  cl050 raceline has ~0.44m wall clearance in tightest
+ * sections.  0.36 keeps constraints feasible while maintaining safety. */
+#define WALL_MARGIN         FP_CONST(0.4)    /* cl050 sweep best (was 0.36) */
 #define WALL_START          1
 #define WALL_STRIDE         1
-#define WALL_END            5     /* last horizon step with wall constraint */
+#define WALL_END            10     /* cl050 sweep best (was 16) */
 #define V_SWITCH            FP_CONST(7.319)
-#define MAX_NONCONV_DELTA   FP_CONST(0.01)
 #define BOUND_THRESHOLD     FP_CONST(100.0)
 #define WP_ADVANCE_MAX      10   /* Max waypoint advance per horizon step */
 
 /* ADMM default parameters */
-#define ADMM_RHO_DEFAULT    FP_CONST(40.0)
-#define ADMM_RHO_U_DEFAULT  FP_CONST(10.0)
+#define ADMM_RHO_DEFAULT    FP_CONST(50.0)
+#define ADMM_RHO_U_DEFAULT  FP_CONST(26.6)
 #define ADMM_TOL_DEFAULT    FP_CONST(5.0)
+
+/* ADMM steering rate quantization — disabled (ADMM_QUANTIZE_STEER was 0).
+ * Kept as comment for reference.
+ * #define ADMM_QUANTIZE_STEER         0
+ * #define ADMM_STEER_HALF_THRESHOLD   FP_CONST(1.4245)  // VP_MAX_STEER_RATE / 2
+ */
 
 /* Over-relaxation parameter (alpha): typical range [1.5, 1.8]
  * Replaces x with alpha*x + (1-alpha)*z_old in z-update.
@@ -171,9 +218,10 @@ typedef int32_t fixed_point_t;
  *
  * DSP-optimised form: x_hat = x + (alpha-1)*(x - z_old)
  * uses 1 multiply instead of 2. */
-#define ADMM_OVER_RELAX             FP_CONST(1.6)
-#define ADMM_OVER_RELAX_COMPLEMENT  FP_CONST(-0.6)  /* 1 - alpha  (kept for reference) */
-#define ADMM_OVER_RELAX_MINUS1      39322           /* alpha - 1 = 0.6  in Q16.16 */
+#define ADMM_OVER_RELAX             FP_CONST(1.5)  /* cl050 sweep best (was 1.2) */
+/* ADMM_OVER_RELAX_COMPLEMENT removed — was FP_CONST(-0.2), never used in HLS source.
+ * Note: fpga_tune_weights.py also wrote this define; update that script if needed. */
+#define ADMM_OVER_RELAX_MINUS1      32768           /* alpha - 1 = 0.5  in Q16.16 */
 
 /*===========================================================================
  * Data Structures

@@ -28,7 +28,9 @@ static inline fixed_point_t fp_sub(fixed_point_t a, fixed_point_t b)
 static inline fixed_point_t fp_mul(fixed_point_t a, fixed_point_t b)
 {
     int64_t product = (int64_t)a * (int64_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp
+    /* No BIND_OP: let HLS ALLOCATION limits control DSP sharing.
+     * Inner-loop multiplies in riccati solver use raw (int64_t) casts,
+     * not fp_mul, so this only affects setup/trig code. */
     return (fixed_point_t)(product >> FP_FRAC_BITS);
 }
 

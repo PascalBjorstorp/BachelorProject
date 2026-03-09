@@ -40,20 +40,30 @@ void compute_frenet_AB_hls(
     fixed_point_t A_fr[MPC_NX_FRENET][MPC_NX_FRENET],
     fixed_point_t B_fr[MPC_NX_FRENET][MPC_NU])
 {
-#pragma HLS INLINE
+/* Un-inline vehicle model: keeps multiplier resources separate from riccati_pass.
+ * Limit=8 avoids DSP-sharing between fp_recip (2 DSPs/cycle) and matrix math (up to 6):
+ * limit=4 caused fp_recip and matrix operations to share DSPs, creating a 20ns cross-module
+ * combinational path (WNS=-10.5ns). limit=8 isolates the two computation domains. */
+#pragma HLS INLINE off
+#pragma HLS ALLOCATION operation instances=mul limit=6
 
     /* Velocity floor for numerical stability */
     fixed_point_t vx_safe = (vx > FP_CONST(0.5)) ? vx : FP_CONST(0.5);
     fixed_point_t inv_vx = fp_recip(vx_safe);
 
-    /* Trig of steering angle — short-circuit at zero (common case) */
+    /* Trig of steering angle — Taylor approx for small |δ| < 0.4 rad:
+     *   sin(x) ≈ x - x³/6    (error < 0.03% at δ=0.4)
+     *   cos(x) ≈ 1 - x²/2    (error < 0.12% at δ=0.4)
+     * Saves ~20 fp_mul vs full polynomial sin/cos computation. */
     fixed_point_t cos_delta, sin_delta;
     if (delta == 0) {
         cos_delta = FP_ONE;
         sin_delta = 0;
     } else {
-        cos_delta = fp_cos(delta);
-        sin_delta = fp_sin(delta);
+        fixed_point_t d2 = fp_mul(delta, delta);       /* δ² */
+        cos_delta = FP_ONE - (d2 >> 1);                /* 1 - δ²/2 */
+        fixed_point_t d3 = fp_mul(d2, delta);           /* δ³ */
+        sin_delta = delta - fp_mul(d3, FP_CONST(0.16666667)); /* δ - δ³/6 */
     }
 
     /* Longitudinal force for load transfer: Fx = m * a_cmd */
@@ -198,9 +208,9 @@ void compute_frenet_AB_hls(
 
     /* --- Row 2: vx dynamics (full model with cos/sin delta) ---
      * dvx/dt = (Fx - Fyf*sin(δ) + m*vy*ω) / m
-     * A[2][2] = 1 + dt * (-dFyf_dvx * sin(δ)) / m */
-    A_fr[2][2] = fp_add(FP_ONE, fp_mul(dt,
-        fp_mul(fp_neg(fp_mul(dFyf_dvx, sin_delta)), VP_INV_MASS)));
+     * A[2][2] = 1 + (-dFyf_dvx * sin(δ)) * dt/m */
+    A_fr[2][2] = fp_add(FP_ONE,
+        fp_mul(fp_neg(fp_mul(dFyf_dvx, sin_delta)), VP_DT_INV_MASS));
     /* A[2][3] = dt * (-dFyf_dvy * sin(δ) / m + ω) */
     A_fr[2][3] = fp_mul(dt,
         fp_add(fp_mul(fp_neg(fp_mul(dFyf_dvy, sin_delta)), VP_INV_MASS), omega));
@@ -210,32 +220,32 @@ void compute_frenet_AB_hls(
 
     /* --- Row 3: vy dynamics (full model) ---
      * dvy/dt = (Fyf*cos(δ) + Fyr - m*vx*ω) / m */
-    A_fr[3][2] = fp_mul(dt, fp_mul(
+    A_fr[3][2] = fp_mul(
         fp_sub(fp_add(fp_mul(dFyf_dvx, cos_delta), dFyr_dvx),
                fp_mul(VP_MASS, omega)),
-        VP_INV_MASS));
-    A_fr[3][3] = fp_add(FP_ONE, fp_mul(dt, fp_mul(
+        VP_DT_INV_MASS);
+    A_fr[3][3] = fp_add(FP_ONE, fp_mul(
         fp_add(fp_mul(dFyf_dvy, cos_delta), dFyr_dvy),
-        VP_INV_MASS)));
-    A_fr[3][4] = fp_mul(dt, fp_mul(
+        VP_DT_INV_MASS));
+    A_fr[3][4] = fp_mul(
         fp_sub(fp_add(fp_mul(dFyf_dom, cos_delta), dFyr_dom),
                fp_mul(VP_MASS, vx_safe)),
-        VP_INV_MASS));
+        VP_DT_INV_MASS);
 
     /* --- Row 4: omega dynamics (full model) ---
      * dω/dt = (lf*Fyf*cos(δ) - lr*Fyr) / Iz */
-    A_fr[4][2] = fp_mul(dt, fp_mul(
+    A_fr[4][2] = fp_mul(
         fp_sub(fp_mul(VP_LF, fp_mul(dFyf_dvx, cos_delta)),
                fp_mul(VP_LR, dFyr_dvx)),
-        VP_INV_IZ));
-    A_fr[4][3] = fp_mul(dt, fp_mul(
+        VP_DT_INV_IZ);
+    A_fr[4][3] = fp_mul(
         fp_sub(fp_mul(VP_LF, fp_mul(dFyf_dvy, cos_delta)),
                fp_mul(VP_LR, dFyr_dvy)),
-        VP_INV_IZ));
-    A_fr[4][4] = fp_add(FP_ONE, fp_mul(dt, fp_mul(
+        VP_DT_INV_IZ);
+    A_fr[4][4] = fp_add(FP_ONE, fp_mul(
         fp_sub(fp_mul(VP_LF, fp_mul(dFyf_dom, cos_delta)),
                fp_mul(VP_LR, dFyr_dom)),
-        VP_INV_IZ)));
+        VP_DT_INV_IZ));
 
     /* ================================================================
      * B matrix: steering and acceleration effects
@@ -248,17 +258,14 @@ void compute_frenet_AB_hls(
     fixed_point_t dFyf_dd_cos = fp_mul(dFyf_dd, cos_delta);
     fixed_point_t Fyf_sin     = fp_mul(F_yf, sin_delta);
 
-    /* B[2][0]: d(dvx/dt)/dδ = (-dFyf_dd*sin(δ) - Fyf*cos(δ)) / m */
-    B_fr[2][0] = fp_mul(dt,
-        fp_mul(fp_sub(fp_neg(dFyf_dd_sin), Fyf_cos), VP_INV_MASS));
+    /* B[2][0]: d(dvx/dt)/dδ = (-dFyf_dd*sin(δ) - Fyf*cos(δ)) * dt/m */
+    B_fr[2][0] = fp_mul(fp_sub(fp_neg(dFyf_dd_sin), Fyf_cos), VP_DT_INV_MASS);
 
-    /* B[3][0]: d(dvy/dt)/dδ = (dFyf_dd*cos(δ) - Fyf*sin(δ)) / m */
-    B_fr[3][0] = fp_mul(dt,
-        fp_mul(fp_sub(dFyf_dd_cos, Fyf_sin), VP_INV_MASS));
+    /* B[3][0]: d(dvy/dt)/dδ = (dFyf_dd*cos(δ) - Fyf*sin(δ)) * dt/m */
+    B_fr[3][0] = fp_mul(fp_sub(dFyf_dd_cos, Fyf_sin), VP_DT_INV_MASS);
 
-    /* B[4][0]: d(dω/dt)/dδ = lf*(dFyf_dd*cos(δ) - Fyf*sin(δ)) / Iz */
-    B_fr[4][0] = fp_mul(dt,
-        fp_mul(fp_mul(VP_LF, fp_sub(dFyf_dd_cos, Fyf_sin)), VP_INV_IZ));
+    /* B[4][0]: d(dω/dt)/dδ = lf*(dFyf_dd*cos(δ) - Fyf*sin(δ)) * dt/Iz */
+    B_fr[4][0] = fp_mul(fp_mul(VP_LF, fp_sub(dFyf_dd_cos, Fyf_sin)), VP_DT_INV_IZ);
 
     /* B[2][1] = dt (acceleration → vx directly) */
     B_fr[2][1] = dt;

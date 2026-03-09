@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
 #===========================================================================
-# run_logged_sim.sh — Launch the Riccati-ADMM MPC with the F1/10th sim
+# FPGA_Implementations/MPC_FPGA/run_sim.sh — Launch FPGA MPC (HLS C-sim)
+#                                              with F1/10th simulator
 #
 # Usage:
-#   ./run_logged_sim.sh [DURATION_SECONDS] [TRAJECTORY_FILE]
+#   ./run_sim.sh [DURATION_SECONDS] [TRAJECTORY_FILE]
 #
 # Defaults:
 #   DURATION_SECONDS = 120
 #   TRAJECTORY_FILE  = <workspace>/f1tenth_planning/trajectories/Spielberg_raceline.csv
+#
+# This script:
+#   1. Builds the mpc_fpga ROS2 package (C-simulation of HLS sources)
+#   2. Launches gym_bridge + FPGA MPC node
+#   3. Monitors for collision, logs everything, produces summary
 #
 # Logs are saved to logs/run_<timestamp>/.
 #===========================================================================
@@ -39,9 +45,9 @@ cleanup() {
         kill "${SIM_PID}" 2>/dev/null || true
     fi
 
-    pkill -f 'ros2 launch mpc_riccati mpc_launch.py' 2>/dev/null || true
+    pkill -f 'ros2 launch mpc_fpga mpc_fpga_launch.py' 2>/dev/null || true
     pkill -f 'ros2 launch f1tenth_gym_ros gym_bridge_launch.py' 2>/dev/null || true
-    pkill -f '/mpc_riccati/mpc_riccati_node' 2>/dev/null || true
+    pkill -f '/mpc_fpga/mpc_fpga_node' 2>/dev/null || true
     pkill -f '/f1tenth_gym_ros/gym_bridge' 2>/dev/null || true
     pkill -f 'rviz2.*gym_bridge.rviz' 2>/dev/null || true
     pkill -f 'lifecycle_manager_localization' 2>/dev/null || true
@@ -50,25 +56,46 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if [[ ! -f "${ROOT_DIR}/install/setup.bash" ]]; then
-    echo "ERROR: Missing ${ROOT_DIR}/install/setup.bash" >&2
-    exit 1
-fi
-
 if [[ ! -f "${TRAJECTORY_FILE}" ]]; then
     echo "ERROR: Trajectory file not found: ${TRAJECTORY_FILE}" >&2
     exit 1
 fi
 
-echo "=== MPC Riccati-ADMM Simulation Run ==="
+echo "=== FPGA MPC (HLS C-Simulation) Simulation Run ==="
 echo "Logs: ${LOG_DIR}"
 echo "Duration: ${DURATION_SECONDS}s"
 echo "Trajectory: ${TRAJECTORY_FILE}"
 
+#===========================================================================
+# Step 1: Build the FPGA MPC ROS2 package
+#===========================================================================
+echo ""
+echo "--- Building mpc_fpga ROS2 package ---"
+
+cd "${ROOT_DIR}"
+
+# Source ROS2 base
+set +u
+source /opt/ros/jazzy/setup.bash
+set -u
+
+# Build just the mpc_fpga package
+colcon build --packages-select mpc_fpga 2>&1 | tail -5
+
+# Re-source the workspace after build
 set +u
 source "${ROOT_DIR}/install/setup.bash"
 set -u
-export PYTHONPATH="${ROOT_DIR}/f1tenth_sim/.venv/lib/python3.12/site-packages:${PYTHONPATH:-}"
+
+echo "  Build complete."
+
+#===========================================================================
+# Step 2: Launch simulation
+#===========================================================================
+echo ""
+echo "--- Launching simulation ---"
+
+export PYTHONPATH="${ROOT_DIR}/f1tenth_sim:${ROOT_DIR}/f1tenth_sim/.venv/lib/python3.12/site-packages:${PYTHONPATH:-}"
 
 echo "Launching gym_bridge..."
 ros2 launch f1tenth_gym_ros gym_bridge_launch.py >"${GYM_LOG}" 2>&1 &
@@ -76,10 +103,13 @@ SIM_PID=$!
 
 sleep 4
 
-echo "Launching MPC Riccati-ADMM..."
-ros2 launch mpc_riccati mpc_launch.py "trajectory_file:=${TRAJECTORY_FILE}" >"${MPC_LOG}" 2>&1 &
+echo "Launching FPGA MPC (HLS C-sim)..."
+ros2 launch mpc_fpga mpc_fpga_launch.py "trajectory_file:=${TRAJECTORY_FILE}" >"${MPC_LOG}" 2>&1 &
 MPC_PID=$!
 
+#===========================================================================
+# Step 3: Monitor for collision / timeout
+#===========================================================================
 echo "Running for up to ${DURATION_SECONDS}s (stops early on collision)..."
 END_TIME=$((SECONDS + DURATION_SECONDS))
 COLLISION_SEEN=0
@@ -96,6 +126,9 @@ while (( SECONDS < END_TIME )); do
     sleep 0.5
 done
 
+#===========================================================================
+# Step 4: Produce summary
+#===========================================================================
 LOG_DIR_ENV="${LOG_DIR}" python3 - <<'PY' > "${SUMMARY_LOG}"
 import os
 from pathlib import Path
@@ -113,8 +146,9 @@ def first_line(lines, token):
 first_collision_line, first_collision_text = first_line(gym, "Ego vehicle collision detected!")
 first_status2_line, first_status2_text = first_line(mpc, "WARNING: Solver status=2")
 status2_count = sum("WARNING: Solver status=2" in line for line in mpc)
-status0_count = sum("[MPC] Control:" in line and "status=0" in line for line in mpc)
+status0_count = sum("[MPC-FPGA] Control:" in line and "status=0" in line for line in mpc)
 
+print(f"variant: FPGA MPC (HLS C-Simulation)")
 print(f"first_collision_line: {first_collision_line}")
 print(f"first_status2_line: {first_status2_line}")
 print(f"status2_count: {status2_count}")

@@ -1,0 +1,515 @@
+
+################################################################################
+# RACELINE: cl050
+################################################################################
+
+================================================================================
+FPGA MPC Parameter Tuning — QUICK — raceline=cl050
+================================================================================
+
+--- Phase 1a: Structural sweep (108 configs) ---
+[   1/108] dt=0.035+N=16+WE=5+WM=0.1                                 → wc=1  t5=4s  lat=0.011  (ETA 1s)
+[   2/108] dt=0.035+N=16+WE=5+WM=0.2                                 → wc=1  t5=4s  lat=0.011  (ETA 54s)
+[   3/108] dt=0.035+N=16+WE=5+WM=0.36                                → wc=1  t5=4s  lat=0.011  (ETA 71s)
+[   4/108] dt=0.035+N=16+WE=5+WM=0.5                                 → wc=1  t5=4s  lat=0.011  (ETA 81s)
+[   5/108] dt=0.035+N=16+WE=8+WM=0.1                                 → wc=1  t5=4s  lat=0.011  (ETA 86s)
+[   6/108] dt=0.035+N=16+WE=8+WM=0.2                                 → wc=1  t5=4s  lat=0.011  (ETA 88s)
+[   7/108] dt=0.035+N=16+WE=8+WM=0.36                                → wc=1  t5=4s  lat=0.011  (ETA 90s)
+[   8/108] dt=0.035+N=16+WE=8+WM=0.5                                 → wc=1  t5=4s  lat=0.011  (ETA 90s)
+[   9/108] dt=0.035+N=16+WE=12+WM=0.1                                → wc=1  t5=4s  lat=0.011  (ETA 90s)
+[  10/108] dt=0.035+N=16+WE=12+WM=0.2                                → wc=1  t5=4s  lat=0.012  (ETA 90s)
+[  11/108] dt=0.035+N=16+WE=12+WM=0.36                               → wc=1  t5=4s  lat=0.012  (ETA 90s)
+[  12/108] dt=0.035+N=16+WE=12+WM=0.5                                → wc=1  t5=4s  lat=0.012  (ETA 90s)
+[  13/108] dt=0.035+N=18+WE=5+WM=0.1                                 → wc=1  t5=5s  lat=0.026  (ETA 90s)
+[  14/108] dt=0.035+N=18+WE=5+WM=0.2                                 → wc=1  t5=5s  lat=0.026  (ETA 90s)
+[  15/108] dt=0.035+N=18+WE=5+WM=0.36                                → wc=1  t5=5s  lat=0.026  (ETA 89s)
+[  16/108] dt=0.035+N=18+WE=5+WM=0.5                                 → wc=1  t5=5s  lat=0.026  (ETA 89s)
+[  17/108] dt=0.035+N=18+WE=8+WM=0.1                                 → wc=1  t5=5s  lat=0.026  (ETA 88s)
+[  18/108] dt=0.035+N=18+WE=8+WM=0.2                                 → wc=1  t5=5s  lat=0.026  (ETA 88s)
+[  19/108] dt=0.035+N=18+WE=8+WM=0.36                                → wc=1  t5=5s  lat=0.026  (ETA 87s)
+[  20/108] dt=0.035+N=18+WE=8+WM=0.5                                 → wc=1  t5=5s  lat=0.026  (ETA 86s)
+[  21/108] dt=0.035+N=18+WE=12+WM=0.1                                → wc=1  t5=5s  lat=0.026  (ETA 85s)
+[  22/108] dt=0.035+N=18+WE=12+WM=0.2                                → wc=1  t5=5s  lat=0.026  (ETA 85s)
+[  23/108] dt=0.035+N=18+WE=12+WM=0.36                               → wc=1  t5=5s  lat=0.026  (ETA 83s)
+[  24/108] dt=0.035+N=18+WE=12+WM=0.5                                → wc=1  t5=14s  lat=0.084  (ETA 82s)
+[  25/108] dt=0.035+N=20+WE=5+WM=0.1                                 → wc=1  t5=15s  lat=0.047  (ETA 82s)
+[  26/108] dt=0.035+N=20+WE=5+WM=0.2                                 → wc=1  t5=15s  lat=0.048  (ETA 81s)
+[  27/108] dt=0.035+N=20+WE=5+WM=0.36                                → wc=1  t5=15s  lat=0.053  (ETA 81s)
+[  28/108] dt=0.035+N=20+WE=5+WM=0.5                                 → wc=1  t5=15s  lat=0.048  (ETA 80s)
+[  29/108] dt=0.035+N=20+WE=8+WM=0.1                                 → wc=1  t5=15s  lat=0.050  (ETA 79s)
+[  30/108] dt=0.035+N=20+WE=8+WM=0.2                                 → wc=1  t5=15s  lat=0.050  (ETA 78s)
+[  31/108] dt=0.035+N=20+WE=8+WM=0.36                                → wc=1  t5=15s  lat=0.047  (ETA 78s)
+[  32/108] dt=0.035+N=20+WE=8+WM=0.5                                 → wc=1  t5=43s  lat=0.158  (ETA 77s)
+[  33/108] dt=0.035+N=20+WE=12+WM=0.1                                → wc=1  t5=15s  lat=0.049  (ETA 76s)
+[  34/108] dt=0.035+N=20+WE=12+WM=0.2                                → wc=1  t5=15s  lat=0.049  (ETA 75s)
+[  35/108] dt=0.035+N=20+WE=12+WM=0.36                               → wc=1  t5=15s  lat=0.050  (ETA 74s)
+[  36/108] dt=0.035+N=20+WE=12+WM=0.5                                → wc=1  t5=15s  lat=0.049  (ETA 73s)
+[  37/108] dt=0.04+N=16+WE=5+WM=0.1                                  → wc=1  t5=5s  lat=0.026  (ETA 72s)
+[  38/108] dt=0.04+N=16+WE=5+WM=0.2                                  → wc=1  t5=5s  lat=0.026  (ETA 71s)
+[  39/108] dt=0.04+N=16+WE=5+WM=0.36                                 → wc=1  t5=5s  lat=0.026  (ETA 71s)
+[  40/108] dt=0.04+N=16+WE=5+WM=0.5                                  → wc=1  t5=5s  lat=0.026  (ETA 70s)
+[  41/108] dt=0.04+N=16+WE=8+WM=0.1                                  → wc=1  t5=5s  lat=0.026  (ETA 69s)
+[  42/108] dt=0.04+N=16+WE=8+WM=0.2                                  → wc=1  t5=5s  lat=0.026  (ETA 68s)
+[  43/108] dt=0.04+N=16+WE=8+WM=0.36                                 → wc=1  t5=5s  lat=0.026  (ETA 67s)
+[  44/108] dt=0.04+N=16+WE=8+WM=0.5                                  → wc=1  t5=5s  lat=0.026  (ETA 66s)
+[  45/108] dt=0.04+N=16+WE=12+WM=0.1                                 → wc=1  t5=5s  lat=0.026  (ETA 65s)
+[  46/108] dt=0.04+N=16+WE=12+WM=0.2                                 → wc=1  t5=5s  lat=0.025  (ETA 64s)
+[  47/108] dt=0.04+N=16+WE=12+WM=0.36                                → wc=1  t5=8s  lat=0.042  (ETA 63s)
+[  48/108] dt=0.04+N=16+WE=12+WM=0.5                                 → wc=1  t5=8s  lat=0.042  (ETA 62s)
+[  49/108] dt=0.04+N=18+WE=5+WM=0.1                                  → wc=1  t5=15s  lat=0.050  (ETA 61s)
+[  50/108] dt=0.04+N=18+WE=5+WM=0.2                                  → wc=1  t5=29s  lat=0.091  (ETA 60s)
+[  51/108] dt=0.04+N=18+WE=5+WM=0.36                                 → wc=1  t5=14s  lat=0.048  (ETA 59s)
+[  52/108] dt=0.04+N=18+WE=5+WM=0.5                                  → wc=1  t5=29s  lat=0.092  (ETA 58s)
+[  53/108] dt=0.04+N=18+WE=8+WM=0.1                                  → wc=1  t5=15s  lat=0.048  (ETA 58s)
+[  54/108] dt=0.04+N=18+WE=8+WM=0.2                                  → wc=1  t5=28s  lat=0.092  (ETA 57s)
+[  55/108] dt=0.04+N=18+WE=8+WM=0.36                                 → wc=1  t5=28s  lat=0.098  (ETA 56s)
+[  56/108] dt=0.04+N=18+WE=8+WM=0.5                                  → wc=1  t5=33s  lat=0.104  (ETA 55s)
+[  57/108] dt=0.04+N=18+WE=12+WM=0.1                                 → wc=1  t5=32s  lat=0.113  (ETA 54s)
+[  58/108] dt=0.04+N=18+WE=12+WM=0.2                                 → wc=1  t5=33s  lat=0.106  (ETA 53s)
+[  59/108] dt=0.04+N=18+WE=12+WM=0.36                                → wc=1  t5=14s  lat=0.048  (ETA 52s)
+[  60/108] dt=0.04+N=18+WE=12+WM=0.5                                 → wc=1  t5=28s  lat=0.087  (ETA 51s)
+[  61/108] dt=0.04+N=20+WE=5+WM=0.1                                  → wc=1  t5=16s  lat=0.043  (ETA 50s)
+[  62/108] dt=0.04+N=20+WE=5+WM=0.2                                  → PASS sc=114.75  t5=58s  vmax=10.6  lat=0.184  (ETA 49s)
+[  63/108] dt=0.04+N=20+WE=5+WM=0.36                                 → wc=27  t5=19s  lat=0.063  (ETA 48s)
+[  64/108] dt=0.04+N=20+WE=5+WM=0.5                                  → wc=1  t5=16s  lat=0.048  (ETA 47s)
+[  65/108] dt=0.04+N=20+WE=8+WM=0.1                                  → wc=1  t5=37s  lat=0.104  (ETA 46s)
+[  66/108] dt=0.04+N=20+WE=8+WM=0.2                                  → wc=1  t5=16s  lat=0.050  (ETA 45s)
+[  67/108] dt=0.04+N=20+WE=8+WM=0.36                                 → wc=1  t5=54s  lat=0.165  (ETA 44s)
+[  68/108] dt=0.04+N=20+WE=8+WM=0.5                                  → wc=1  t5=16s  lat=0.046  (ETA 43s)
+[  69/108] dt=0.04+N=20+WE=12+WM=0.1                                 → wc=1  t5=54s  lat=0.193  (ETA 42s)
+[  70/108] dt=0.04+N=20+WE=12+WM=0.2                                 → wc=1  t5=48s  lat=0.155  (ETA 41s)
+[  71/108] dt=0.04+N=20+WE=12+WM=0.36                                → wc=1  t5=16s  lat=0.049  (ETA 40s)
+[  72/108] dt=0.04+N=20+WE=12+WM=0.5                                 → PASS sc=115.44  t5=60s  vmax=10.4  lat=0.182  (ETA 39s)
+[  73/108] dt=0.05+N=16+WE=5+WM=0.1                                  → wc=1  t5=42s  lat=0.110  (ETA 38s)
+[  74/108] dt=0.05+N=16+WE=5+WM=0.2                                  → wc=1  t5=28s  lat=0.072  (ETA 37s)
+[  75/108] dt=0.05+N=16+WE=5+WM=0.36                                 → wc=1  t5=41s  lat=0.115  (ETA 36s)
+[  76/108] dt=0.05+N=16+WE=5+WM=0.5                                  → wc=1  t5=40s  lat=0.110  (ETA 35s)
+[  77/108] dt=0.05+N=16+WE=8+WM=0.1                                  → wc=1  t5=41s  lat=0.112  (ETA 34s)
+[  78/108] dt=0.05+N=16+WE=8+WM=0.2                                  → wc=1  t5=40s  lat=0.110  (ETA 33s)
+[  79/108] dt=0.05+N=16+WE=8+WM=0.36                                 → wc=1  t5=28s  lat=0.074  (ETA 32s)
+[  80/108] dt=0.05+N=16+WE=8+WM=0.5                                  → wc=1  t5=11s  lat=0.022  (ETA 31s)
+[  81/108] dt=0.05+N=16+WE=12+WM=0.1                                 → wc=1  t5=41s  lat=0.112  (ETA 30s)
+[  82/108] dt=0.05+N=16+WE=12+WM=0.2                                 → wc=1  t5=28s  lat=0.072  (ETA 29s)
+[  83/108] dt=0.05+N=16+WE=12+WM=0.36                                → wc=1  t5=40s  lat=0.112  (ETA 28s)
+[  84/108] dt=0.05+N=16+WE=12+WM=0.5                                 → wc=2  t5=10s  lat=0.021  (ETA 26s)
+[  85/108] dt=0.05+N=18+WE=5+WM=0.1                                  → wc=72  t5=26s  lat=0.097  (ETA 25s)
+[  86/108] dt=0.05+N=18+WE=5+WM=0.2                                  → wc=1  t5=8s  lat=0.028  (ETA 24s)
+[  87/108] dt=0.05+N=18+WE=5+WM=0.36                                 → wc=1  t5=28s  lat=0.101  (ETA 23s)
+[  88/108] dt=0.05+N=18+WE=5+WM=0.5                                  → wc=61  t5=27s  lat=0.092  (ETA 22s)
+[  89/108] dt=0.05+N=18+WE=8+WM=0.1                                  → wc=1  t5=16s  lat=0.060  (ETA 21s)
+[  90/108] dt=0.05+N=18+WE=8+WM=0.2                                  → wc=1  t5=40s  lat=0.138  (ETA 20s)
+[  91/108] dt=0.05+N=18+WE=8+WM=0.36                                 → wc=1  t5=6s  lat=0.013  (ETA 19s)
+[  92/108] dt=0.05+N=18+WE=8+WM=0.5                                  → wc=1  t5=8s  lat=0.023  (ETA 18s)
+[  93/108] dt=0.05+N=18+WE=12+WM=0.1                                 → wc=1  t5=26s  lat=0.097  (ETA 17s)
+[  94/108] dt=0.05+N=18+WE=12+WM=0.2                                 → PASS sc=138.40  t5=53s  vmax=9.5  lat=0.170  (ETA 16s)
+[  95/108] dt=0.05+N=18+WE=12+WM=0.36                                → PASS sc=143.46  t5=53s  vmax=9.0  lat=0.170  (ETA 14s)
+[  96/108] dt=0.05+N=18+WE=12+WM=0.5                                 → wc=1  t5=16s  lat=0.057  (ETA 13s)
+[  97/108] dt=0.05+N=20+WE=5+WM=0.1                                  → wc=1  t5=3s  lat=0.006  (ETA 12s)
+[  98/108] dt=0.05+N=20+WE=5+WM=0.2                                  → wc=1  t5=3s  lat=0.006  (ETA 11s)
+[  99/108] dt=0.05+N=20+WE=5+WM=0.36                                 → wc=1  t5=3s  lat=0.007  (ETA 10s)
+[ 100/108] dt=0.05+N=20+WE=5+WM=0.5                                  → wc=1  t5=3s  lat=0.006  (ETA 9s)
+[ 101/108] dt=0.05+N=20+WE=8+WM=0.1                                  → wc=1  t5=3s  lat=0.008  (ETA 8s)
+[ 102/108] dt=0.05+N=20+WE=8+WM=0.2                                  → wc=1  t5=1s  lat=0.005  (ETA 7s)
+[ 103/108] dt=0.05+N=20+WE=8+WM=0.36                                 → wc=1  t5=3s  lat=0.006  (ETA 6s)
+[ 104/108] dt=0.05+N=20+WE=8+WM=0.5                                  → wc=1  t5=4s  lat=0.009  (ETA 4s)
+[ 105/108] dt=0.05+N=20+WE=12+WM=0.1                                 → wc=1  t5=3s  lat=0.010  (ETA 3s)
+[ 106/108] dt=0.05+N=20+WE=12+WM=0.2                                 → wc=1  t5=3s  lat=0.009  (ETA 2s)
+[ 107/108] dt=0.05+N=20+WE=12+WM=0.36                                → wc=1  t5=3s  lat=0.008  (ETA 1s)
+[ 108/108] dt=0.05+N=20+WE=12+WM=0.5                                 → wc=1  t5=1s  lat=0.004  (ETA 0s)
+
+  Top 10 — Phase 1a:
+  Rank Label                                                     Score  T>5s    WC AvgLat  MaxVx
+  1    dt=0.04+N=20+WE=12+WM=0.5                                 115.4    60     0  0.182   10.4
+  2    dt=0.04+N=20+WE=5+WM=0.2                                  114.7    58     0  0.184   10.6
+  3    dt=0.05+N=18+WE=12+WM=0.2                                 138.4    53     0  0.170    9.5
+  4    dt=0.05+N=18+WE=12+WM=0.36                                143.5    53     0  0.170    9.0
+  5    dt=0.04+N=20+WE=8+WM=0.36                                 999.0    54     1  0.165   10.2
+  6    dt=0.04+N=20+WE=12+WM=0.1                                 999.0    54     1  0.193   10.2
+  7    dt=0.04+N=20+WE=12+WM=0.2                                 999.0    48     1  0.155   10.3
+  8    dt=0.035+N=20+WE=8+WM=0.5                                 999.0    43     1  0.158   12.0
+  9    dt=0.05+N=16+WE=5+WM=0.1                                  999.0    42     1  0.110   11.0
+  10   dt=0.05+N=16+WE=8+WM=0.1                                  999.0    41     1  0.112   10.7
+
+  *** 4 configs passed without wall collisions ***
+
+Best structural: dt=0.04, N=20, WE=5, WM=0.2, WS=1, WST=1
+
+--- Phase 2: Primary weights (48 configs) ---
+[   1/48] QL=150+QH=400+QV=15                                       → wc=1  t5=5s  lat=0.014  (ETA 52s)
+[   2/48] QL=150+QH=400+QV=30                                       → wc=1  t5=4s  lat=0.011  (ETA 51s)
+[   3/48] QL=150+QH=400+QV=60                                       → wc=1  t5=4s  lat=0.014  (ETA 50s)
+[   4/48] QL=150+QH=400+QV=100                                      → wc=1  t5=4s  lat=0.020  (ETA 49s)
+[   5/48] QL=150+QH=700+QV=15                                       → wc=1  t5=5s  lat=0.015  (ETA 48s)
+[   6/48] QL=150+QH=700+QV=30                                       → wc=1  t5=4s  lat=0.011  (ETA 47s)
+[   7/48] QL=150+QH=700+QV=60                                       → wc=1  t5=4s  lat=0.013  (ETA 45s)
+[   8/48] QL=150+QH=700+QV=100                                      → wc=1  t5=4s  lat=0.017  (ETA 44s)
+[   9/48] QL=150+QH=1000+QV=15                                      → wc=1  t5=5s  lat=0.015  (ETA 43s)
+[  10/48] QL=150+QH=1000+QV=30                                      → wc=1  t5=4s  lat=0.011  (ETA 42s)
+[  11/48] QL=150+QH=1000+QV=60                                      → wc=1  t5=4s  lat=0.013  (ETA 41s)
+[  12/48] QL=150+QH=1000+QV=100                                     → wc=1  t5=4s  lat=0.016  (ETA 40s)
+[  13/48] QL=150+QH=1500+QV=15                                      → wc=1  t5=5s  lat=0.024  (ETA 39s)
+[  14/48] QL=150+QH=1500+QV=30                                      → wc=1  t5=5s  lat=0.014  (ETA 38s)
+[  15/48] QL=150+QH=1500+QV=60                                      → wc=1  t5=4s  lat=0.012  (ETA 36s)
+[  16/48] QL=150+QH=1500+QV=100                                     → wc=1  t5=4s  lat=0.015  (ETA 35s)
+[  17/48] QL=300+QH=400+QV=15                                       → PASS sc=94.11  t5=58s  vmax=11.6  lat=0.202  (ETA 34s)
+[  18/48] QL=300+QH=400+QV=30                                       → wc=1  t5=15s  lat=0.055  (ETA 33s)
+[  19/48] QL=300+QH=400+QV=60                                       → wc=1  t5=5s  lat=0.023  (ETA 32s)
+[  20/48] QL=300+QH=400+QV=100                                      → wc=1  t5=5s  lat=0.027  (ETA 31s)
+[  21/48] QL=300+QH=700+QV=15                                       → wc=1  t5=36s  lat=0.113  (ETA 30s)
+[  22/48] QL=300+QH=700+QV=30                                       → wc=1  t5=15s  lat=0.058  (ETA 29s)
+[  23/48] QL=300+QH=700+QV=60                                       → wc=1  t5=5s  lat=0.023  (ETA 28s)
+[  24/48] QL=300+QH=700+QV=100                                      → wc=1  t5=14s  lat=0.077  (ETA 27s)
+[  25/48] QL=300+QH=1000+QV=15                                      → wc=1  t5=15s  lat=0.045  (ETA 25s)
+[  26/48] QL=300+QH=1000+QV=30                                      → wc=1  t5=14s  lat=0.059  (ETA 24s)
+[  27/48] QL=300+QH=1000+QV=60                                      → wc=1  t5=5s  lat=0.023  (ETA 23s)
+[  28/48] QL=300+QH=1000+QV=100                                     → wc=1  t5=5s  lat=0.025  (ETA 22s)
+[  29/48] QL=300+QH=1500+QV=15                                      → wc=1  t5=6s  lat=0.019  (ETA 21s)
+[  30/48] QL=300+QH=1500+QV=30                                      → wc=1  t5=6s  lat=0.021  (ETA 20s)
+[  31/48] QL=300+QH=1500+QV=60                                      → wc=1  t5=5s  lat=0.023  (ETA 19s)
+[  32/48] QL=300+QH=1500+QV=100                                     → wc=1  t5=5s  lat=0.024  (ETA 18s)
+[  33/48] QL=500+QH=400+QV=15                                       → wc=1  t5=24s  lat=0.084  (ETA 17s)
+[  34/48] QL=500+QH=400+QV=30                                       → wc=1  t5=9s  lat=0.024  (ETA 16s)
+[  35/48] QL=500+QH=400+QV=60                                       → wc=1  t5=8s  lat=0.032  (ETA 14s)
+[  36/48] QL=500+QH=400+QV=100                                      → wc=1  t5=6s  lat=0.025  (ETA 13s)
+[  37/48] QL=500+QH=700+QV=15                                       → wc=83  t5=48s  lat=0.155  (ETA 12s)
+[  38/48] QL=500+QH=700+QV=30                                       → wc=25  t5=7s  lat=0.016  (ETA 11s)
+[  39/48] QL=500+QH=700+QV=60                                       → wc=1  t5=13s  lat=0.044  (ETA 10s)
+[  40/48] QL=500+QH=700+QV=100                                      → wc=1  t5=6s  lat=0.027  (ETA 9s)
+[  41/48] QL=500+QH=1000+QV=15                                      → PASS sc=137.30  t5=52s  vmax=9.8  lat=0.150  (ETA 8s)
+[  43/48] QL=500+QH=1000+QV=60                                      → wc=1  t5=9s  lat=0.025  (ETA 6s)
+[  44/48] QL=500+QH=1000+QV=100                                     → wc=1  t5=8s  lat=0.030  (ETA 4s)
+[  45/48] QL=500+QH=1500+QV=15                                      → PASS sc=128.40  t5=55s  vmax=10.3  lat=0.155  (ETA 3s)
+[  46/48] QL=500+QH=1500+QV=30                                      → wc=1  t5=41s  lat=0.112  (ETA 2s)
+[  47/48] QL=500+QH=1500+QV=60                                      → wc=1  t5=9s  lat=0.026  (ETA 1s)
+[  48/48] QL=500+QH=1500+QV=100                                     → wc=1  t5=6s  lat=0.024  (ETA 0s)
+
+  Top 10 — Phase 2:
+  Rank Label                                                     Score  T>5s    WC AvgLat  MaxVx
+  1    QL=300+QH=400+QV=15                                        94.1    58     0  0.202   11.6
+  2    QL=500+QH=1500+QV=15                                      128.4    55     0  0.155   10.3
+  3    QL=500+QH=1000+QV=15                                      137.3    52     0  0.150    9.8
+  4    QL=500+QH=1500+QV=30                                      999.0    41     1  0.112   11.0
+  5    QL=300+QH=700+QV=15                                       999.0    36     1  0.113   11.3
+  6    QL=500+QH=400+QV=15                                       999.0    24     1  0.084    8.8
+  7    QL=300+QH=1000+QV=15                                      999.0    15     1  0.045   11.1
+  8    QL=300+QH=700+QV=30                                       999.0    15     1  0.058   11.7
+  9    QL=300+QH=400+QV=30                                       999.0    15     1  0.055   11.8
+  10   QL=300+QH=1000+QV=30                                      999.0    14     1  0.059   11.7
+
+  *** 3 configs passed without wall collisions ***
+
+--- Phase 3: Secondary weights (20 configs) ---
+[   1/20] best+Q_LAT_VEL=30                                         → wc=1  t5=35s  lat=0.092  (ETA 21s)
+[   2/20] best+Q_LAT_VEL=60                                         → wc=1  t5=47s  lat=0.143  (ETA 20s)
+[   3/20] best+Q_LAT_VEL=100                                        → wc=1  t5=14s  lat=0.053  (ETA 19s)
+[   4/20] best+Q_YAW=10                                             → wc=1  t5=16s  lat=0.053  (ETA 18s)
+[   5/20] best+Q_YAW=20                                             → wc=1  t5=44s  lat=0.155  (ETA 17s)
+[   6/20] best+Q_YAW=40                                             → wc=1  t5=15s  lat=0.057  (ETA 16s)
+[   7/20] best+R_STEER=0.1                                          → wc=13  t5=54s  lat=0.202  (ETA 15s)
+[   9/20] best+R_STEER=0.25                                         → wc=1  t5=37s  lat=0.128  (ETA 12s)
+[  10/20] best+W_JERK=0.1                                           → wc=1  t5=26s  lat=0.079  (ETA 11s)
+[  11/20] best+W_JERK=0.5                                           → wc=1  t5=14s  lat=0.051  (ETA 10s)
+[  12/20] best+W_ACCEL_RATE=0.05                                    → wc=1  t5=26s  lat=0.080  (ETA 9s)
+[  13/20] best+W_ACCEL_RATE=0.3                                     → PASS sc=93.31  t5=59s  vmax=11.5  lat=0.194  (ETA 8s)
+[  14/20] best+W_DELTA_ACT=0.1                                      → wc=1  t5=38s  lat=0.120  (ETA 7s)
+[  15/20] best+W_DELTA_ACT=0.5                                      → wc=1  t5=37s  lat=0.127  (ETA 6s)
+[  16/20] best+W_DELTA_ACT=1.0                                      → wc=1  t5=37s  lat=0.125  (ETA 5s)
+[  17/20] best+RS=0.1+WJ=0.1                                        → PASS sc=95.58  t5=60s  vmax=11.9  lat=0.176  (ETA 3s)
+[  18/20] best+RS=0.1+WJ=0.5                                        → wc=1  t5=39s  lat=0.140  (ETA 2s)
+[  19/20] best+RS=0.25+WJ=0.1                                       → wc=1  t5=38s  lat=0.112  (ETA 1s)
+[  20/20] best+RS=0.25+WJ=0.5                                       → wc=1  t5=15s  lat=0.056  (ETA 0s)
+
+  Top 10 — Phase 3:
+  Rank Label                                                     Score  T>5s    WC AvgLat  MaxVx
+  1    best+RS=0.1+WJ=0.1                                         95.6    60     0  0.176   11.9
+  2    best+W_ACCEL_RATE=0.3                                      93.3    59     0  0.194   11.5
+  3    best+Q_LAT_VEL=60                                         999.0    47     1  0.143   11.1
+  4    best+Q_YAW=20                                             999.0    44     1  0.155   12.0
+  5    best+RS=0.1+WJ=0.5                                        999.0    39     1  0.140   11.5
+  6    best+W_DELTA_ACT=0.1                                      999.0    38     1  0.120   11.2
+  7    best+RS=0.25+WJ=0.1                                       999.0    38     1  0.112   11.0
+  8    best+W_DELTA_ACT=1.0                                      999.0    37     1  0.125   11.2
+  9    best+W_DELTA_ACT=0.5                                      999.0    37     1  0.127   11.3
+  10   best+R_STEER=0.25                                         999.0    37     1  0.128   11.5
+
+  *** 2 configs passed without wall collisions ***
+
+--- Phase 4: ADMM parameters (20 configs) ---
+[   1/20] best+ADMM_RHO=20                                          → wc=1  t5=48s  lat=0.164  (ETA 21s)
+[   2/20] best+ADMM_RHO=30                                          → PASS sc=93.84  t5=60s  vmax=11.6  lat=0.195  (ETA 20s)
+[   4/20] best+ADMM_RHO_U=10                                        → wc=1  t5=37s  lat=0.121  (ETA 18s)
+[   5/20] best+ADMM_RHO_U=20                                        → wc=1  t5=37s  lat=0.127  (ETA 17s)
+[   6/20] best+ADMM_RHO_U=30                                        → PASS sc=93.20  t5=59s  vmax=11.3  lat=0.201  (ETA 16s)
+[   7/20] best+ADMM_TOL=3.0                                         → wc=1  t5=39s  lat=0.136  (ETA 15s)
+[   8/20] best+ADMM_ALPHA=1.0                                       → PASS sc=93.74  t5=58s  vmax=11.5  lat=0.195  (ETA 14s)
+[   9/20] best+ADMM_ALPHA=1.4                                       → wc=1  t5=35s  lat=0.123  (ETA 12s)
+[  10/20] best+MAX_ADMM_ITER=10                                     → PASS sc=93.93  t5=59s  vmax=11.5  lat=0.196  (ETA 11s)
+[  11/20] best+rho=20+rho_u=10                                      → wc=1  t5=40s  lat=0.133  (ETA 10s)
+[  12/20] best+rho=20+rho_u=20                                      → PASS sc=94.87  t5=58s  vmax=11.4  lat=0.197  (ETA 9s)
+[  13/20] best+rho=20+rho_u=30                                      → wc=1  t5=38s  lat=0.122  (ETA 8s)
+[  14/20] best+rho=30+rho_u=10                                      → wc=1  t5=15s  lat=0.048  (ETA 7s)
+[  15/20] best+rho=30+rho_u=20                                      → PASS sc=93.44  t5=58s  vmax=11.4  lat=0.206  (ETA 6s)
+[  16/20] best+rho=30+rho_u=30                                      → wc=1  t5=38s  lat=0.123  (ETA 5s)
+[  17/20] best+rho=20+alpha=1.0                                     → wc=1  t5=25s  lat=0.083  (ETA 3s)
+[  18/20] best+rho=20+alpha=1.4                                     → wc=1  t5=38s  lat=0.119  (ETA 2s)
+[  19/20] best+rho=30+alpha=1.0                                     → wc=1  t5=36s  lat=0.118  (ETA 1s)
+[  20/20] best+rho=30+alpha=1.4                                     → PASS sc=96.27  t5=59s  vmax=11.3  lat=0.199  (ETA 0s)
+
+  Top 10 — Phase 4:
+  Rank Label                                                     Score  T>5s    WC AvgLat  MaxVx
+  1    best+ADMM_RHO=30                                           93.8    60     0  0.195   11.6
+  2    best+ADMM_RHO_U=30                                         93.2    59     0  0.201   11.3
+  3    best+MAX_ADMM_ITER=10                                      93.9    59     0  0.196   11.5
+  4    best+rho=30+alpha=1.4                                      96.3    59     0  0.199   11.3
+  5    best+rho=20+rho_u=20                                       94.9    58     0  0.197   11.4
+  6    best+ADMM_ALPHA=1.0                                        93.7    58     0  0.195   11.5
+  7    best+rho=30+rho_u=20                                       93.4    58     0  0.206   11.4
+  8    best+ADMM_RHO=20                                          999.0    48     1  0.164   11.5
+  9    best+rho=20+rho_u=10                                      999.0    40     1  0.133   11.4
+  10   best+ADMM_TOL=3.0                                         999.0    39     1  0.136   11.3
+
+  *** 7 configs passed without wall collisions ***
+
+--- Phase 5: Fine-tuning (84 configs) ---
+[   1/84] FT:Q_LAT-50%=150.0                                        → wc=1  t5=5s  lat=0.014  (ETA 95s)
+[   2/84] FT:Q_LAT-25%=225.0                                        → wc=1  t5=14s  lat=0.059  (ETA 94s)
+[   3/84] FT:Q_LAT-9%=270.0                                         → wc=1  t5=26s  lat=0.091  (ETA 92s)
+[   4/84] FT:Q_LAT-5%=285.0                                         → PASS sc=90.41  t5=57s  vmax=11.7  lat=0.197  (ETA 91s)
+[   5/84] FT:Q_LAT+5%=315.0                                         → wc=1  t5=26s  lat=0.081  (ETA 90s)
+[   6/84] FT:Q_LAT+10%=330.0                                        → wc=1  t5=41s  lat=0.115  (ETA 89s)
+[   7/84] FT:Q_LAT+25%=375.0                                        → wc=1  t5=35s  lat=0.117  (ETA 88s)
+[   8/84] FT:Q_LAT+50%=450.0                                        → wc=9  t5=48s  lat=0.177  (ETA 87s)
+[   9/84] FT:Q_HDG-50%=200.0                                        → wc=1  t5=34s  lat=0.118  (ETA 86s)
+[  10/84] FT:Q_HDG-25%=300.0                                        → wc=101  t5=25s  lat=0.092  (ETA 85s)
+[  11/84] FT:Q_HDG-9%=360.0                                         → wc=1  t5=40s  lat=0.135  (ETA 84s)
+[  12/84] FT:Q_HDG-5%=380.0                                         → wc=1  t5=47s  lat=0.169  (ETA 83s)
+[  13/84] FT:Q_HDG+5%=420.0                                         → PASS sc=95.11  t5=57s  vmax=11.3  lat=0.202  (ETA 82s)
+[  14/84] FT:Q_HDG+10%=440.0                                        → wc=1  t5=39s  lat=0.127  (ETA 81s)
+[  15/84] FT:Q_HDG+25%=500.0                                        → wc=1  t5=16s  lat=0.050  (ETA 79s)
+[  16/84] FT:Q_HDG+50%=600.0                                        → wc=1  t5=15s  lat=0.043  (ETA 78s)
+[  17/84] FT:Q_VEL-50%=7.5                                          → wc=1  t5=15s  lat=0.048  (ETA 77s)
+[  18/84] FT:Q_VEL-25%=11.25                                        → wc=1  t5=26s  lat=0.079  (ETA 76s)
+[  19/84] FT:Q_VEL-9%=13.5                                          → wc=1  t5=38s  lat=0.112  (ETA 75s)
+[  20/84] FT:Q_VEL-5%=14.25                                         → wc=1  t5=15s  lat=0.043  (ETA 74s)
+[  21/84] FT:Q_VEL+5%=15.75                                         → PASS sc=93.15  t5=58s  vmax=11.6  lat=0.200  (ETA 73s)
+[  22/84] FT:Q_VEL+10%=16.5                                         → wc=1  t5=47s  lat=0.169  (ETA 71s)
+[  23/84] FT:Q_VEL+25%=18.75                                        → wc=1  t5=32s  lat=0.104  (ETA 70s)
+[  24/84] FT:Q_VEL+50%=22.5                                         → wc=1  t5=27s  lat=0.087  (ETA 69s)
+[  25/84] FT:Q_LAT_VEL-50%=34.5                                     → wc=1  t5=38s  lat=0.111  (ETA 68s)
+[  26/84] FT:Q_LAT_VEL-25%=51.75                                    → wc=1  t5=56s  lat=0.162  (ETA 67s)
+[  27/84] FT:Q_LAT_VEL-9%=62.1                                      → wc=1  t5=38s  lat=0.113  (ETA 66s)
+[  28/84] FT:Q_LAT_VEL-5%=65.55                                     → wc=1  t5=16s  lat=0.043  (ETA 65s)
+[  29/84] FT:Q_LAT_VEL+5%=72.45                                     → wc=1  t5=37s  lat=0.124  (ETA 64s)
+[  30/84] FT:Q_LAT_VEL+10%=75.9                                     → wc=1  t5=14s  lat=0.052  (ETA 62s)
+[  31/84] FT:Q_LAT_VEL+25%=86.25                                    → wc=1  t5=14s  lat=0.055  (ETA 61s)
+[  32/84] FT:Q_LAT_VEL+50%=103.5                                    → wc=1  t5=14s  lat=0.058  (ETA 60s)
+[  33/84] FT:Q_YAW-50%=11.0                                         → wc=1  t5=50s  lat=0.169  (ETA 59s)
+[  34/84] FT:Q_YAW-25%=16.5                                         → wc=1  t5=38s  lat=0.108  (ETA 58s)
+[  35/84] FT:Q_YAW-9%=19.8                                          → wc=1  t5=33s  lat=0.104  (ETA 57s)
+[  36/84] FT:Q_YAW-5%=20.9                                          → PASS sc=91.57  t5=58s  vmax=11.8  lat=0.188  (ETA 56s)
+[  37/84] FT:Q_YAW+5%=23.1                                          → wc=1  t5=40s  lat=0.127  (ETA 55s)
+[  38/84] FT:Q_YAW+10%=24.2                                         → wc=1  t5=39s  lat=0.137  (ETA 53s)
+[  39/84] FT:Q_YAW+25%=27.5                                         → wc=1  t5=15s  lat=0.057  (ETA 52s)
+[  40/84] FT:Q_YAW+50%=33.0                                         → wc=1  t5=39s  lat=0.141  (ETA 51s)
+[  41/84] FT:R_STEER-50%=0.075                                      → wc=1  t5=39s  lat=0.132  (ETA 50s)
+[  42/84] FT:R_STEER-25%=0.1125                                     → wc=1  t5=36s  lat=0.116  (ETA 49s)
+[  43/84] FT:R_STEER-9%=0.135                                       → wc=1  t5=40s  lat=0.130  (ETA 48s)
+[  44/84] FT:R_STEER-5%=0.1425                                      → wc=1  t5=35s  lat=0.124  (ETA 46s)
+[  45/84] FT:R_STEER+5%=0.1575                                      → PASS sc=95.53  t5=58s  vmax=11.3  lat=0.195  (ETA 45s)
+[  46/84] FT:R_STEER+10%=0.165                                      → PASS sc=94.33  t5=58s  vmax=11.6  lat=0.190  (ETA 44s)
+[  47/84] FT:R_STEER+25%=0.1875                                     → PASS sc=93.55  t5=57s  vmax=11.4  lat=0.204  (ETA 43s)
+[  48/84] FT:R_STEER+50%=0.225                                      → wc=1  t5=34s  lat=0.121  (ETA 42s)
+[  49/84] FT:W_JERK-50%=0.15                                        → wc=1  t5=38s  lat=0.110  (ETA 41s)
+[  50/84] FT:W_JERK-25%=0.225                                       → wc=1  t5=16s  lat=0.044  (ETA 40s)
+[  51/84] FT:W_JERK-9%=0.27                                         → wc=1  t5=15s  lat=0.045  (ETA 38s)
+[  52/84] FT:W_JERK-5%=0.285                                        → wc=1  t5=15s  lat=0.045  (ETA 37s)
+[  53/84] FT:W_JERK+5%=0.315                                        → PASS sc=93.24  t5=57s  vmax=11.4  lat=0.204  (ETA 36s)
+[  54/84] FT:W_JERK+10%=0.33                                        → wc=1  t5=38s  lat=0.132  (ETA 35s)
+[  55/84] FT:W_JERK+25%=0.375                                       → wc=1  t5=25s  lat=0.088  (ETA 34s)
+[  56/84] FT:W_JERK+50%=0.45                                        → wc=1  t5=39s  lat=0.136  (ETA 33s)
+[  57/84] FT:W_DELTA_ACT-50%=0.265                                  → wc=1  t5=40s  lat=0.126  (ETA 31s)
+[  58/84] FT:W_DELTA_ACT-25%=0.3975                                 → wc=1  t5=37s  lat=0.124  (ETA 30s)
+[  59/84] FT:W_DELTA_ACT-9%=0.477                                   → wc=1  t5=48s  lat=0.163  (ETA 29s)
+[  60/84] FT:W_DELTA_ACT-5%=0.5035                                  → wc=1  t5=40s  lat=0.131  (ETA 28s)
+[  61/84] FT:W_DELTA_ACT+5%=0.5565                                  → PASS sc=93.79  t5=58s  vmax=11.4  lat=0.187  (ETA 27s)
+[  62/84] FT:W_DELTA_ACT+10%=0.583                                  → wc=1  t5=47s  lat=0.158  (ETA 26s)
+[  63/84] FT:W_DELTA_ACT+25%=0.6625                                 → wc=1  t5=36s  lat=0.117  (ETA 25s)
+[  64/84] FT:W_DELTA_ACT+50%=0.795                                  → wc=1  t5=35s  lat=0.116  (ETA 23s)
+[  65/84] FT:WALL_MARGIN-50%=0.1                                    → wc=1  t5=36s  lat=0.119  (ETA 22s)
+[  66/84] FT:WALL_MARGIN-25%=0.15                                   → wc=1  t5=38s  lat=0.125  (ETA 21s)
+[  67/84] FT:WALL_MARGIN-9%=0.18                                    → wc=1  t5=15s  lat=0.051  (ETA 20s)
+[  68/84] FT:WALL_MARGIN-5%=0.19                                    → wc=1  t5=37s  lat=0.125  (ETA 19s)
+[  69/84] FT:WALL_MARGIN+5%=0.21                                    → PASS sc=93.60  t5=57s  vmax=11.5  lat=0.195  (ETA 17s)
+[  70/84] FT:WALL_MARGIN+10%=0.22                                   → wc=1  t5=40s  lat=0.130  (ETA 16s)
+[  71/84] FT:WALL_MARGIN+25%=0.25                                   → wc=1  t5=16s  lat=0.046  (ETA 15s)
+[  72/84] FT:WALL_MARGIN+50%=0.3                                    → wc=1  t5=40s  lat=0.129  (ETA 14s)
+[  73/84] FT:Q_LAT-10%+Q_HDG-10%                                    → wc=1  t5=26s  lat=0.092  (ETA 13s)
+[  74/84] FT:Q_LAT-10%+Q_HDG+10%                                    → wc=1  t5=26s  lat=0.087  (ETA 12s)
+[  75/84] FT:Q_LAT+10%+Q_HDG-10%                                    → wc=1  t5=27s  lat=0.077  (ETA 10s)
+[  76/84] FT:Q_LAT+10%+Q_HDG+10%                                    → wc=1  t5=47s  lat=0.141  (ETA 9s)
+[  77/84] FT:Q_LAT-10%+Q_VEL-10%                                    → wc=1  t5=34s  lat=0.118  (ETA 8s)
+[  78/84] FT:Q_LAT-10%+Q_VEL+10%                                    → wc=1  t5=26s  lat=0.091  (ETA 7s)
+[  79/84] FT:Q_LAT+10%+Q_VEL-10%                                    → wc=1  t5=50s  lat=0.171  (ETA 6s)
+[  80/84] FT:Q_LAT+10%+Q_VEL+10%                                    → wc=1  t5=38s  lat=0.107  (ETA 5s)
+[  81/84] FT:Q_HDG-10%+Q_VEL-10%                                    → wc=1  t5=38s  lat=0.123  (ETA 3s)
+[  82/84] FT:Q_HDG-10%+Q_VEL+10%                                    → wc=1  t5=31s  lat=0.113  (ETA 2s)
+[  83/84] FT:Q_HDG+10%+Q_VEL-10%                                    → wc=1  t5=37s  lat=0.115  (ETA 1s)
+[  84/84] FT:Q_HDG+10%+Q_VEL+10%                                    → PASS sc=91.74  t5=58s  vmax=11.5  lat=0.204  (ETA 0s)
+
+  Top 10 — Phase 5:
+  Rank Label                                                     Score  T>5s    WC AvgLat  MaxVx
+  1    FT:Q_YAW-5%=20.9                                           91.6    58     0  0.188   11.8
+  2    FT:Q_VEL+5%=15.75                                          93.1    58     0  0.200   11.6
+  3    FT:R_STEER+5%=0.1575                                       95.5    58     0  0.195   11.3
+  4    FT:W_DELTA_ACT+5%=0.5565                                   93.8    58     0  0.187   11.4
+  5    FT:R_STEER+10%=0.165                                       94.3    58     0  0.190   11.6
+  6    FT:Q_HDG+10%+Q_VEL+10%                                     91.7    58     0  0.204   11.5
+  7    FT:Q_HDG+5%=420.0                                          95.1    57     0  0.202   11.3
+  8    FT:WALL_MARGIN+5%=0.21                                     93.6    57     0  0.195   11.5
+  9    FT:R_STEER+25%=0.1875                                      93.5    57     0  0.204   11.4
+  10   FT:W_JERK+5%=0.315                                         93.2    57     0  0.204   11.4
+
+  *** 11 configs passed without wall collisions ***
+
+--- Phase 6: Random neighbors (60 configs) ---
+[   1/60] RND1:Q_YAW=18.8+W_JERK=0.269                              → wc=1  t5=38s  lat=0.135  (ETA 69s)
+[   2/60] RND2:W_JERK=0.211+Q_YAW=16+Q_VEL=12.8                     → wc=1  t5=45s  lat=0.135  (ETA 68s)
+[   3/60] RND3:Q_YAW=28.7+WALL_MARGIN=0.154                         → wc=1  t5=36s  lat=0.130  (ETA 67s)
+[   4/60] RND4:Q_LAT_VEL=48.2+ADMM_RHO=47.1+Q_LAT=369               → PASS sc=131.29  t5=57s  vmax=9.6  lat=0.177  (ETA 65s)
+[   5/60] RND5:WALL_MARGIN=0.135+ADMM_RHO_U=34                      → PASS sc=91.01  t5=56s  vmax=11.6  lat=0.201  (ETA 64s)
+[   6/60] RND6:Q_YAW=30.3+Q_VEL=12.8+WALL_MARGIN=0.21               → wc=1  t5=15s  lat=0.052  (ETA 63s)
+[   7/60] RND7:W_ACCEL_RATE=0.381+Q_VEL=10.2+W_DELTA_ACT=0.385      → wc=1  t5=34s  lat=0.107  (ETA 62s)
+[   8/60] RND8:Q_LAT_VEL=51.9+Q_YAW=30.3+R_STEER=0.149              → wc=1  t5=36s  lat=0.114  (ETA 61s)
+[   9/60] RND9:ADMM_ALPHA=1.28+Q_LAT_VEL=74.1+Q_LAT=353             → wc=1  t5=52s  lat=0.168  (ETA 60s)
+[  10/60] RND10:Q_YAW=27.5+W_ACCEL_RATE=0.308+ADMM_RHO_U=35.8       → wc=1  t5=24s  lat=0.089  (ETA 59s)
+[  11/60] RND11:WALL_MARGIN=0.193+Q_LAT_VEL=56.7+ADMM_ALPHA=1.34    → wc=1  t5=36s  lat=0.110  (ETA 57s)
+[  12/60] RND12:ADMM_RHO=56+W_JERK=0.378+W_DELTA_ACT=0.477          → wc=1  t5=31s  lat=0.115  (ETA 56s)
+[  13/60] RND13:ADMM_RHO=36.5+ADMM_ALPHA=0.753+W_JERK=0.298         → wc=1  t5=47s  lat=0.168  (ETA 55s)
+[  14/60] RND14:W_DELTA_ACT=0.398+R_STEER=0.146+W_ACCEL_RATE=0.373   → PASS sc=90.56  t5=56s  vmax=11.7  lat=0.207  (ETA 54s)
+[  15/60] RND15:Q_LAT_VEL=74.8+WALL_MARGIN=0.191+ADMM_RHO=37.3      → wc=1  t5=41s  lat=0.128  (ETA 53s)
+[  16/60] RND16:W_DELTA_ACT=0.44+W_JERK=0.363                       → wc=1  t5=14s  lat=0.052  (ETA 52s)
+[  17/60] RND17:Q_LAT_VEL=51.2+Q_YAW=16.9+ADMM_RHO_U=31             → wc=1  t5=15s  lat=0.047  (ETA 50s)
+[  18/60] RND18:R_STEER=0.188+Q_VEL=18+Q_LAT=318                    → wc=1  t5=38s  lat=0.125  (ETA 49s)
+[  19/60] RND19:Q_HDG=341+Q_LAT=181+W_JERK=0.273                    → wc=1  t5=5s  lat=0.030  (ETA 48s)
+[  20/60] RND20:Q_VEL=15+W_JERK=0.205+Q_YAW=25.8                    → PASS sc=89.77  t5=57s  vmax=11.7  lat=0.198  (ETA 47s)
+[  21/60] RND21:R_STEER=0.18+W_DELTA_ACT=0.514+Q_YAW=25.8           → wc=1  t5=31s  lat=0.114  (ETA 46s)
+[  22/60] RND22:ADMM_RHO_U=30.3+W_DELTA_ACT=0.421+ADMM_RHO=49.3     → wc=1  t5=27s  lat=0.087  (ETA 44s)
+[  23/60] RND23:W_DELTA_ACT=0.415+WALL_MARGIN=0.175+R_STEER=0.189   → PASS sc=90.78  t5=57s  vmax=11.6  lat=0.205  (ETA 43s)
+[  24/60] RND24:W_DELTA_ACT=0.679+Q_LAT_VEL=90.5+Q_VEL=15.6         → wc=1  t5=14s  lat=0.059  (ETA 42s)
+[  25/60] RND25:Q_LAT_VEL=88.5+ADMM_RHO=33.3                        → wc=1  t5=14s  lat=0.058  (ETA 41s)
+[  26/60] RND26:Q_YAW=28.5+W_DELTA_ACT=0.602+ADMM_RHO_U=29.9        → wc=1  t5=15s  lat=0.057  (ETA 40s)
+[  27/60] RND27:W_JERK=0.267+Q_LAT=236+W_DELTA_ACT=0.334            → wc=1  t5=14s  lat=0.057  (ETA 39s)
+[  28/60] RND28:Q_YAW=26.5+Q_HDG=359+ADMM_RHO_U=33.6                → wc=1  t5=5s  lat=0.031  (ETA 37s)
+[  29/60] RND29:Q_YAW=21.1+Q_HDG=272+ADMM_ALPHA=1.42                → wc=1  t5=47s  lat=0.164  (ETA 36s)
+[  30/60] RND30:Q_YAW=28.7+Q_VEL=13.4+Q_LAT_VEL=67.6                → wc=1  t5=26s  lat=0.092  (ETA 35s)
+[  31/60] RND31:Q_YAW=22.8+W_ACCEL_RATE=0.35+Q_HDG=414              → PASS sc=92.91  t5=60s  vmax=11.7  lat=0.190  (ETA 34s)
+[  32/60] RND32:W_JERK=0.202+Q_HDG=460+WALL_MARGIN=0.15             → PASS sc=93.30  t5=58s  vmax=11.5  lat=0.192  (ETA 33s)
+[  33/60] RND33:W_DELTA_ACT=0.712+Q_YAW=25.8                        → PASS sc=89.33  t5=57s  vmax=11.8  lat=0.202  (ETA 32s)
+[  34/60] RND34:Q_LAT=324+ADMM_RHO_U=25.6                           → wc=1  t5=48s  lat=0.138  (ETA 31s)
+[  35/60] RND35:ADMM_RHO=56.9+WALL_MARGIN=0.275                     → PASS sc=91.46  t5=57s  vmax=11.7  lat=0.205  (ETA 29s)
+[  36/60] RND36:W_DELTA_ACT=0.352+ADMM_RHO=64.8+W_ACCEL_RATE=0.412   → PASS sc=89.47  t5=58s  vmax=11.7  lat=0.213  (ETA 28s)
+[  37/60] RND37:WALL_MARGIN=0.147+W_JERK=0.352+W_DELTA_ACT=0.626    → wc=1  t5=37s  lat=0.124  (ETA 27s)
+[  38/60] RND38:ADMM_RHO_U=38.6+W_ACCEL_RATE=0.319                  → wc=1  t5=15s  lat=0.053  (ETA 26s)
+[  39/60] RND39:Q_YAW=20.3+Q_LAT_VEL=71.4+W_JERK=0.286              → wc=1  t5=37s  lat=0.136  (ETA 25s)
+[  40/60] RND40:W_JERK=0.34+Q_VEL=16.6                              → wc=1  t5=26s  lat=0.086  (ETA 23s)
+[  41/60] RND41:W_DELTA_ACT=0.7+W_ACCEL_RATE=0.235+R_STEER=0.133    → wc=1  t5=48s  lat=0.140  (ETA 22s)
+[  42/60] RND42:Q_YAW=28.4+W_ACCEL_RATE=0.418                       → wc=1  t5=36s  lat=0.127  (ETA 21s)
+[  43/60] RND43:Q_HDG=378+ADMM_ALPHA=1.07                           → wc=1  t5=15s  lat=0.053  (ETA 20s)
+[  44/60] RND44:ADMM_RHO_U=21.2+Q_VEL=17.2+WALL_MARGIN=0.154        → wc=1  t5=26s  lat=0.084  (ETA 19s)
+[  45/60] RND45:R_STEER=0.0917+W_ACCEL_RATE=0.402                   → wc=1  t5=37s  lat=0.124  (ETA 18s)
+[  46/60] RND46:W_JERK=0.191+W_DELTA_ACT=0.581+WALL_MARGIN=0.137    → wc=1  t5=47s  lat=0.163  (ETA 16s)
+[  47/60] RND47:WALL_MARGIN=0.215+ADMM_ALPHA=0.772+Q_VEL=18.7       → wc=1  t5=27s  lat=0.096  (ETA 15s)
+[  48/60] RND48:ADMM_RHO_U=31.5+Q_YAW=22+Q_LAT=234                  → wc=1  t5=14s  lat=0.057  (ETA 14s)
+[  49/60] RND49:ADMM_RHO=52.1+Q_YAW=29                              → PASS sc=89.14  t5=57s  vmax=11.8  lat=0.213  (ETA 13s)
+[  50/60] RND50:R_STEER=0.152+ADMM_RHO=53.8+WALL_MARGIN=0.267       → wc=1  t5=15s  lat=0.044  (ETA 12s)
+[  51/60] RND51:ADMM_ALPHA=0.842+Q_YAW=22.9+ADMM_RHO_U=21           → PASS sc=91.14  t5=57s  vmax=11.7  lat=0.201  (ETA 11s)
+[  52/60] RND52:ADMM_ALPHA=1.01+Q_LAT_VEL=87.1+R_STEER=0.107        → wc=1  t5=14s  lat=0.058  (ETA 9s)
+[  53/60] RND53:WALL_MARGIN=0.278+Q_LAT_VEL=89+R_STEER=0.154        → wc=1  t5=14s  lat=0.058  (ETA 8s)
+[  54/60] RND54:W_ACCEL_RATE=0.304+Q_YAW=22.9+ADMM_RHO_U=29         → wc=1  t5=15s  lat=0.053  (ETA 7s)
+[  55/60] RND55:Q_HDG=306+ADMM_RHO_U=33                             → wc=1  t5=33s  lat=0.119  (ETA 6s)
+[  56/60] RND56:W_JERK=0.253+R_STEER=0.206+Q_LAT=309                → wc=1  t5=37s  lat=0.112  (ETA 5s)
+[  57/60] RND57:W_DELTA_ACT=0.338+Q_LAT_VEL=56.3+W_JERK=0.261       → PASS sc=93.23  t5=60s  vmax=11.6  lat=0.202  (ETA 4s)
+[  58/60] RND58:Q_LAT_VEL=73.6+Q_HDG=302+ADMM_RHO=57.3              → wc=1  t5=15s  lat=0.054  (ETA 2s)
+[  59/60] RND59:R_STEER=0.111+ADMM_RHO=54.2+W_ACCEL_RATE=0.278      → wc=1  t5=48s  lat=0.170  (ETA 1s)
+[  60/60] RND60:Q_HDG=351+ADMM_RHO=59.9                             → wc=1  t5=14s  lat=0.052  (ETA 0s)
+
+  Top 10 — Phase 6:
+  Rank Label                                                     Score  T>5s    WC AvgLat  MaxVx
+  1    RND31:Q_YAW=22.8+W_ACCEL_RATE=0.35+Q_HDG=414               92.9    60     0  0.190   11.7
+  2    RND57:W_DELTA_ACT=0.338+Q_LAT_VEL=56.3+W_JERK=0.261        93.2    60     0  0.202   11.6
+  3    RND32:W_JERK=0.202+Q_HDG=460+WALL_MARGIN=0.15              93.3    58     0  0.192   11.5
+  4    RND36:W_DELTA_ACT=0.352+ADMM_RHO=64.8+W_ACCEL_RATE=0.41    89.5    58     0  0.213   11.7
+  5    RND23:W_DELTA_ACT=0.415+WALL_MARGIN=0.175+R_STEER=0.189    90.8    57     0  0.205   11.6
+  6    RND49:ADMM_RHO=52.1+Q_YAW=29                               89.1    57     0  0.213   11.8
+  7    RND4:Q_LAT_VEL=48.2+ADMM_RHO=47.1+Q_LAT=369               131.3    57     0  0.177    9.6
+  8    RND20:Q_VEL=15+W_JERK=0.205+Q_YAW=25.8                     89.8    57     0  0.198   11.7
+  9    RND51:ADMM_ALPHA=0.842+Q_YAW=22.9+ADMM_RHO_U=21            91.1    57     0  0.201   11.7
+  10   RND33:W_DELTA_ACT=0.712+Q_YAW=25.8                         89.3    57     0  0.202   11.8
+
+  *** 13 configs passed without wall collisions ***
+
+================================================================================
+[cl050] Completed 337 tests in 398.0s
+Results saved to: testbench/fpga_tuning_cl050_20260308_154709.csv
+================================================================================
+
+  Top 30 — OVERALL (cl050):
+  Rank Label                                                     Score  T>5s    WC AvgLat  MaxVx
+  1    dt=0.04+N=20+WE=12+WM=0.5                                 115.4    60     0  0.182   10.4
+  2    best+RS=0.1+WJ=0.1                                         95.6    60     0  0.176   11.9
+  3    RND31:Q_YAW=22.8+W_ACCEL_RATE=0.35+Q_HDG=414               92.9    60     0  0.190   11.7
+  4    RND57:W_DELTA_ACT=0.338+Q_LAT_VEL=56.3+W_JERK=0.261        93.2    60     0  0.202   11.6
+  5    best+ADMM_RHO=30                                           93.8    60     0  0.195   11.6
+  6    best+ADMM_RHO_U=30                                         93.2    59     0  0.201   11.3
+  7    best+W_ACCEL_RATE=0.3                                      93.3    59     0  0.194   11.5
+  8    best+MAX_ADMM_ITER=10                                      93.9    59     0  0.196   11.5
+  9    best+rho=30+alpha=1.4                                      96.3    59     0  0.199   11.3
+  10   FT:Q_YAW-5%=20.9                                           91.6    58     0  0.188   11.8
+  11   dt=0.04+N=20+WE=5+WM=0.2                                  114.7    58     0  0.184   10.6
+  12   FT:Q_VEL+5%=15.75                                          93.1    58     0  0.200   11.6
+  13   FT:R_STEER+5%=0.1575                                       95.5    58     0  0.195   11.3
+  14   FT:W_DELTA_ACT+5%=0.5565                                   93.8    58     0  0.187   11.4
+  15   FT:R_STEER+10%=0.165                                       94.3    58     0  0.190   11.6
+  16   RND32:W_JERK=0.202+Q_HDG=460+WALL_MARGIN=0.15              93.3    58     0  0.192   11.5
+  17   best+rho=20+rho_u=20                                       94.9    58     0  0.197   11.4
+  18   best+ADMM_ALPHA=1.0                                        93.7    58     0  0.195   11.5
+  19   QL=300+QH=400+QV=15                                        94.1    58     0  0.202   11.6
+  20   RND36:W_DELTA_ACT=0.352+ADMM_RHO=64.8+W_ACCEL_RATE=0.41    89.5    58     0  0.213   11.7
+  21   best+rho=30+rho_u=20                                       93.4    58     0  0.206   11.4
+  22   FT:Q_HDG+10%+Q_VEL+10%                                     91.7    58     0  0.204   11.5
+  23   RND23:W_DELTA_ACT=0.415+WALL_MARGIN=0.175+R_STEER=0.189    90.8    57     0  0.205   11.6
+  24   RND49:ADMM_RHO=52.1+Q_YAW=29                               89.1    57     0  0.213   11.8
+  25   FT:Q_HDG+5%=420.0                                          95.1    57     0  0.202   11.3
+  26   FT:WALL_MARGIN+5%=0.21                                     93.6    57     0  0.195   11.5
+  27   FT:R_STEER+25%=0.1875                                      93.5    57     0  0.204   11.4
+  28   RND4:Q_LAT_VEL=48.2+ADMM_RHO=47.1+Q_LAT=369               131.3    57     0  0.177    9.6
+  29   RND20:Q_VEL=15+W_JERK=0.205+Q_YAW=25.8                     89.8    57     0  0.198   11.7
+  30   RND51:ADMM_ALPHA=0.842+Q_YAW=22.9+ADMM_RHO_U=21            91.1    57     0  0.201   11.7
+
+  *** 40 configs passed without wall collisions ***
+
+--- Best Configuration (cl050) ---
+  ADMM_ALPHA       = 1.2
+  ADMM_RHO         = 52.109506 ←CHANGED
+  ADMM_RHO_U       = 30 ←CHANGED
+  ADMM_TOL         = 5.0
+  MAX_ADMM_ITER    = 20
+  MIN_LIN_VEL      = 2.0
+  N                = 20 ←CHANGED
+  Q_HDG            = 400 ←CHANGED
+  Q_LAT            = 285.0 ←CHANGED
+  Q_LAT_VEL        = 69.0
+  Q_VEL            = 15 ←CHANGED
+  Q_YAW            = 29.011251 ←CHANGED
+  R_ACCEL          = 0.01
+  R_STEER          = 0.15
+  STABILITY_LIMIT  = 0.95
+  WALL_END         = 5 ←CHANGED
+  WALL_MARGIN      = 0.2 ←CHANGED
+  WALL_START       = 1
+  WALL_STRIDE      = 1
+  WP_ADVANCE_MAX   = 10
+  W_ACCEL_RATE     = 0.3 ←CHANGED
+  W_DELTA_ACT      = 0.53
+  W_JERK           = 0.3
+  dt               = 0.04

@@ -1,14 +1,14 @@
 """
-Launch file for MPC Riccati-ADMM with F1/10th simulator.
+Launch file for FPGA MPC (HLS C-simulation) with F1/10th simulator.
 
 Usage:
-  ros2 launch mpc_riccati mpc_launch.py
+  ros2 launch mpc_fpga mpc_fpga_launch.py
 
 Prerequisites:
   1. F1/10th simulator must be running:
      - ros2 launch f1tenth_gym_ros gym_bridge_launch.py
   2. Build this package:
-     - colcon build --symlink-install --packages-select mpc_riccati
+     - colcon build --packages-select mpc_fpga
 """
 
 from launch import LaunchDescription
@@ -19,7 +19,7 @@ import os
 
 
 def generate_launch_description():
-    """Generate launch description for MPC Riccati-ADMM node."""
+    """Generate launch description for FPGA MPC node."""
 
     # Resolve default trajectory path from f1tenth_planning if available
     try:
@@ -35,10 +35,10 @@ def generate_launch_description():
         default_value=default_trajectory,
         description='Path to trajectory CSV file (TUM format)')
 
-    mpc_node = Node(
-        package='mpc_riccati',
-        executable='mpc_riccati_node',
-        name='mpc_riccati_node',
+    mpc_fpga_node = Node(
+        package='mpc_fpga',
+        executable='mpc_fpga_node',
+        name='mpc_fpga_node',
         output='screen',
         emulate_tty=True,
         arguments=[LaunchConfiguration('trajectory_file')],
@@ -46,5 +46,5 @@ def generate_launch_description():
 
     return LaunchDescription([
         trajectory_arg,
-        mpc_node,
+        mpc_fpga_node,
     ])

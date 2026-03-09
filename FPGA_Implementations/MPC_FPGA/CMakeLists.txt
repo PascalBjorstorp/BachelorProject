@@ -1,57 +1,55 @@
 #===========================================================================
-# MPC Riccati-ADMM — CMake Build Configuration
+# MPC FPGA (HLS) — CMake Build Configuration
 #===========================================================================
 #
 # Project Structure:
-#   include/           - Public headers
-#   src/               - Core MPC library (Riccati-ADMM solver)
-#   sim/               - ROS2 integration for simulation
-#   test/              - Tests
+#   include/           - FPGA MPC headers (HLS types, fixed-point math)
+#   src/               - FPGA MPC core (HLS-compatible C sources)
+#   sim/               - ROS2 integration for simulation (C-sim of FPGA)
+#   testbench/         - Standalone tests
 #
 # Build Targets:
-#   mpc_riccati_core   - Core MPC library (pure C, no ROS)
-#   mpc_riccati_node   - ROS2 node for simulator integration
-#   test_sim_drive     - Standalone simulation test
+#   mpc_fpga_core      - Core FPGA MPC library (pure C, no ROS)
+#   mpc_fpga_node      - ROS2 node for simulator integration
 #
-# Standalone test build (no ROS2 required):
-#   cmake -S . -B build -DMPC_BUILD_TESTS=ON
-#   cmake --build build -j
-#   ./build/test_sim_drive
+# The FPGA sources are compiled as regular C for software simulation.
+# HLS pragmas are ignored by GCC (-Wno-unknown-pragmas).
 #
 #===========================================================================
 
 cmake_minimum_required(VERSION 3.16)
-project(mpc_riccati C)
+project(mpc_fpga C)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 if(NOT MSVC)
-    add_compile_options(-Wall -Wextra -Wpedantic -O2)
+    add_compile_options(-Wall -Wextra -Wpedantic -Wno-unknown-pragmas -O2)
 endif()
 
-option(MPC_BUILD_TESTS "Build test executables" OFF)
-
 #===========================================================================
-# MPC Riccati-ADMM Core Library (Pure C, No ROS Dependencies)
+# MPC FPGA Core Library (Pure C, No ROS Dependencies)
 #===========================================================================
+# These are the HLS sources compiled as regular C for software simulation.
+# HLS pragmas (#pragma HLS ...) are silently ignored by GCC.
 
-set(MPC_CORE_SOURCES
-    src/fp_math.c
-    src/vehicle_model.c
-    src/riccati_solver.c
-    src/mpc_riccati.c
+set(MPC_FPGA_CORE_SOURCES
+    src/fp_math_hls.c
+    src/vehicle_model_hls.c
+    src/riccati_solver_hls.c
+    src/mpc_riccati_hls.c
+    src/mpc_fpga_top.c
 )
 
-add_library(mpc_riccati_core STATIC ${MPC_CORE_SOURCES})
+add_library(mpc_fpga_core STATIC ${MPC_FPGA_CORE_SOURCES})
 
-target_include_directories(mpc_riccati_core
+target_include_directories(mpc_fpga_core
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(mpc_riccati_core PUBLIC m)
+target_link_libraries(mpc_fpga_core PUBLIC m)
 
 #===========================================================================
 # ROS2 Dependencies (optional — only when building as a ROS2 package)
@@ -69,22 +67,22 @@ if(ament_cmake_FOUND)
     find_package(std_msgs REQUIRED)
 
     #===================================================================
-    # ROS2 MPC Riccati Node
+    # ROS2 FPGA MPC Node
     #===================================================================
 
-    add_executable(mpc_riccati_node sim/mpc_ros2_node.c)
+    add_executable(mpc_fpga_node sim/mpc_fpga_ros2_node.c)
 
-    target_link_libraries(mpc_riccati_node
-        mpc_riccati_core
+    target_link_libraries(mpc_fpga_node
+        mpc_fpga_core
         m
     )
 
-    target_include_directories(mpc_riccati_node
+    target_include_directories(mpc_fpga_node
         PRIVATE
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     )
 
-    ament_target_dependencies(mpc_riccati_node
+    ament_target_dependencies(mpc_fpga_node
         rclc
         rcl
         rcutils
@@ -94,7 +92,7 @@ if(ament_cmake_FOUND)
         std_msgs
     )
 
-    install(TARGETS mpc_riccati_node
+    install(TARGETS mpc_fpga_node
         DESTINATION lib/${PROJECT_NAME}
     )
 
@@ -109,18 +107,4 @@ if(ament_cmake_FOUND)
     endif()
 
     ament_package()
-endif()
-
-#===========================================================================
-# Tests (standalone, no ROS2 needed)
-#===========================================================================
-
-if(MPC_BUILD_TESTS)
-    enable_testing()
-
-    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test/test_sim_drive.c)
-        add_executable(test_sim_drive test/test_sim_drive.c)
-        target_link_libraries(test_sim_drive mpc_riccati_core m)
-        add_test(NAME test_sim_drive COMMAND test_sim_drive)
-    endif()
 endif()

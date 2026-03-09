@@ -210,7 +210,7 @@ void mpc_fpga_top(
          * Look ahead MPC_HORIZON waypoints from current position.
          * Velocity-based spacing: at higher speeds, skip more waypoints
          * per prediction step so the horizon covers the correct distance.
-         * wp_advance = round(vx * dt / wp_spacing) where dt=0.05s, spacing≈0.347m */
+         * wp_advance = round(vx * dt / wp_spacing) where dt=MPC_DT, spacing≈0.347m */
         MpcRefPoint_t ref[MPC_HORIZON];
 #pragma HLS ARRAY_PARTITION variable=ref complete dim=0
 
@@ -219,8 +219,8 @@ void mpc_fpga_top(
         {
             fixed_point_t ref_vx = trajectory[wp_idx].vx;
             if (ref_vx < FP_CONST(1.0)) ref_vx = FP_CONST(1.0);
-            /* ds = vx * 0.05s (prediction dt) */
-            fixed_point_t ds = fp_mul(ref_vx, FP_CONST(0.05));
+            /* ds = vx * dt (prediction dt from MPC_DT) */
+            fixed_point_t ds = fp_mul(ref_vx, MPC_DT);
             /* wp_advance = ds / 0.347 ≈ ds * 2.88 */
             fixed_point_t scaled = fp_mul(ds, FP_CONST(2.88));
             wp_advance = (int)(scaled >> FP_FRAC_BITS);

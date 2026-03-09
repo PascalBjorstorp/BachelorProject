@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>mpc_riccati</name>
+  <name>mpc_fpga</name>
   <version>0.1.0</version>
-  <description>MPC using Riccati-ADMM solver for F1/10th Autonomous Vehicle</description>
+  <description>FPGA MPC using Riccati-ADMM HLS solver for F1/10th Autonomous Vehicle (C-simulation)</description>
   <maintainer email="akselmo@example.com">akselmo</maintainer>
   <license>MIT</license>
 

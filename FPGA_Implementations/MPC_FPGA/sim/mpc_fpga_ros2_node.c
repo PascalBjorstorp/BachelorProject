@@ -1,15 +1,20 @@
 /**
- * @file mpc_ros2_node.c
- * @brief MPC Riccati-ADMM ROS2 Node for F1/10th Simulator Integration
+ * @file mpc_fpga_ros2_node.c
+ * @brief FPGA MPC ROS2 Node for F1/10th Simulator Integration
  *
  * Implements ROS2 node using rclc (C client library) for Jazzy.
- * Subscribes to odometry, runs the Riccati-ADMM MPC solver,
+ * Subscribes to odometry, runs the FPGA MPC solver (C simulation of HLS),
  * publishes control commands.
  *
+ * This node calls the FPGA top-level function mpc_fpga_top() which uses
+ * a mode-based interface:
+ *   Mode 0: Compute MPC control from vehicle state
+ *   Mode 1: Load one waypoint into internal BRAM
+ *   Mode 2: Finalize trajectory (set total count)
+ *
  * IMPORTANT: This node is a transparent bridge between the simulator and the
- * MPC solver.  Nothing in this file may alter, clamp, bias, or post-process
- * the control output returned by mpc_compute_optimal_control().  All tuning
- * and constraint handling lives inside the solver.
+ * FPGA MPC solver. Nothing in this file may alter, clamp, bias, or
+ * post-process the control output returned by mpc_fpga_top().
  *
  * Topics:
  *   Subscribe: /ego_racecar/ground_truth (nav_msgs/Odometry)
@@ -41,34 +46,44 @@
 #include "geometry_msgs/msg/pose_stamped.h"
 #include "std_msgs/msg/bool.h"
 
-/* MPC Core Library Headers (Platform-Independent) */
-#include "mpc.h"
-#include "mpc_types.h"
-#include "fp_math.h"
-#include "vehicle_model.h"
+/* FPGA MPC Headers */
+#include "mpc_fpga_types.h"
+#include "fp_math_hls.h"
+
+/* Forward declaration of the FPGA top-level function */
+extern void mpc_fpga_top(
+    int mode, int wp_index,
+    int wp_x_fp, int wp_y_fp, int wp_psi_fp,
+    int wp_vx_fp, int wp_kappa_fp, int wp_ax_fp,
+    int wp_left_bound_fp, int wp_right_bound_fp, int wp_total,
+    int state_x_fp, int state_y_fp, int state_theta_fp,
+    int state_vx_fp, int state_vy_fp, int state_omega_fp,
+    int state_steering_fp, int state_wp_idx,
+    int *out_steering_fp, int *out_accel_fp,
+    int *out_status, int *out_iterations);
 
 /*===========================================================================
  * Configuration Constants
  *===========================================================================*/
 
-/** Number of MPC prediction steps (20 steps x 0.05s = 1.0 second lookahead) */
-#define MPC_PREDICTION_HORIZON_STEPS 20
-
-/** Time step between predictions [seconds] — must match MPC_DEFAULT_TIME_STEP_SECONDS */
-#define MPC_TIME_STEP_SECONDS 0.05f
-
-/** Odometry callback divider (run MPC every N callbacks, default 1 = ~250 Hz) */
+/** Odometry callback divider (run MPC every N callbacks) */
 #define ODOMETRY_CALLBACK_DIVIDER_DEFAULT 1
 static int g_odom_divider = ODOMETRY_CALLBACK_DIVIDER_DEFAULT;
 
 /** Maximum number of waypoints in loaded trajectory */
-#define TRAJECTORY_MAXIMUM_WAYPOINTS 2000
+#define TRAJECTORY_MAXIMUM_WAYPOINTS 1024
 
 /** Maximum reference velocity [m/s] */
 #define TRAJECTORY_MAXIMUM_VELOCITY 20.0
 
-/** Speed gain applied to trajectory velocities (1.0 = full optimal racing speed) */
+/** Speed gain applied to trajectory velocities */
 #define TRAJECTORY_SPEED_GAIN 1.0
+
+/** MPC prediction horizon (must match MPC_HORIZON in mpc_fpga_types.h) */
+#define MPC_PREDICTION_HORIZON_STEPS 20
+
+/** MPC time step */
+#define MPC_TIME_STEP_SECONDS 0.04f
 
 /*===========================================================================
  * Trajectory Waypoint (loaded from CSV, stored as double)
@@ -81,6 +96,7 @@ typedef struct
     double heading_radians;
     double velocity_meters_per_second;
     double curvature_radians_per_meter;
+    double acceleration_meters_per_second_squared;
     double left_bound_meters;
     double right_bound_meters;
 } TrajectoryWaypoint_t;
@@ -92,22 +108,29 @@ typedef struct
 static TrajectoryWaypoint_t global_trajectory[TRAJECTORY_MAXIMUM_WAYPOINTS];
 static int global_trajectory_count = 0;
 static int global_last_closest_index = 0;
-static VehicleState_t global_vehicle_state = {0};
-static FrenetState_t global_frenet_state = {0};
-static ControlInput_t global_control_command = {0};
 static int global_odometry_received_flag = 0;
 static int global_odometry_callback_counter = 0;
 static volatile int global_collision_detected = 0;
 static rcl_context_t *global_ros2_context = NULL;
 
-/* Servo dynamics tracking for 8-state MPC.
- * The MPC needs to know the actual servo position (δ_actual) to correctly
- * compute steering commands via the integrator: δ_cmd = δ_actual + dt * δ̇.
- * Since the f1tenth gym doesn't publish the actual servo angle, we simulate
- * it locally using the same rate limit (sv_max = 2.849 rad/s). */
+/* Current vehicle state (doubles) */
+static double global_pos_x = 0.0;
+static double global_pos_y = 0.0;
+static double global_heading = 0.0;
+static double global_vx = 0.0;
+static double global_vy = 0.0;
+static double global_omega = 0.0;
+
+/* Servo dynamics tracking.
+ * Since f1tenth gym doesn't publish actual servo angle, we simulate it
+ * locally using the same rate limit (sv_max = 2.849 rad/s). */
 static double global_actual_steering_angle = 0.0;
-#define SERVO_RATE_LIMIT  2.849  /* rad/s — matches f1tenth gym sv_max */
+#define SERVO_RATE_LIMIT  2.849  /* rad/s */
 #define CONTROL_DT        0.005  /* 200 Hz control rate */
+
+/* Last MPC output (held between calls) */
+static double global_cmd_steer = 0.0;
+static double global_cmd_accel = 0.0;
 
 static rcl_publisher_t global_control_publisher;
 static rcl_publisher_t global_reference_path_publisher;
@@ -119,30 +142,22 @@ static ackermann_msgs__msg__AckermannDriveStamped global_drive_message_buffer;
 static nav_msgs__msg__Path global_reference_path_message;
 static nav_msgs__msg__Path global_trajectory_path_message;
 
-static TrajectoryReferencePoint_t global_reference_trajectory[MPC_PREDICTION_HORIZON_STEPS];
-
 /*===========================================================================
  * Trajectory Loading (CSV from f1tenth_planning)
  *===========================================================================*/
 
 /**
- * @brief Load trajectory from CSV file.
+ * @brief Load trajectory from CSV file and upload to FPGA via mode 1/2 calls.
  *
  * CSV format (TUM compatible):
  *   # s_m,x_m,y_m,psi_rad,kappa_radpm,vx_mps,ax_mps2[,left_bound,right_bound]
- *
- * Velocities are scaled by TRAJECTORY_SPEED_GAIN and clamped
- * to TRAJECTORY_MAXIMUM_VELOCITY.
- *
- * @param file_path  Path to the CSV trajectory file
- * @return 1 on success, 0 on failure
  */
 static int load_trajectory_from_csv(const char *file_path)
 {
     FILE *csv_file = fopen(file_path, "r");
     if (csv_file == NULL)
     {
-        fprintf(stderr, "[MPC] ERROR: Cannot open trajectory file: %s\n", file_path);
+        fprintf(stderr, "[MPC-FPGA] ERROR: Cannot open trajectory file: %s\n", file_path);
         return 0;
     }
 
@@ -158,7 +173,7 @@ static int load_trajectory_from_csv(const char *file_path)
 
         if (global_trajectory_count >= TRAJECTORY_MAXIMUM_WAYPOINTS)
         {
-            printf("[MPC] WARNING: Trajectory truncated at %d waypoints\n",
+            printf("[MPC-FPGA] WARNING: Trajectory truncated at %d waypoints\n",
                    TRAJECTORY_MAXIMUM_WAYPOINTS);
             break;
         }
@@ -170,25 +185,22 @@ static int load_trajectory_from_csv(const char *file_path)
                                  &kappa_radpm, &vx_mps, &ax_mps2,
                                  &left_bound, &right_bound);
 
-        if (fields_read >= 6)
+        if (fields_read >= 7)
         {
             TrajectoryWaypoint_t *wp = &global_trajectory[global_trajectory_count];
             wp->x_meters = x_m;
             wp->y_meters = y_m;
             wp->heading_radians = psi_rad;
             wp->curvature_radians_per_meter = kappa_radpm;
+            wp->acceleration_meters_per_second_squared = ax_mps2;
             wp->left_bound_meters = (fields_read >= 9) ? left_bound : 5.0;
             wp->right_bound_meters = (fields_read >= 9) ? right_bound : 5.0;
 
             double scaled_velocity = vx_mps * TRAJECTORY_SPEED_GAIN;
             if (scaled_velocity > TRAJECTORY_MAXIMUM_VELOCITY)
-            {
                 scaled_velocity = TRAJECTORY_MAXIMUM_VELOCITY;
-            }
             if (scaled_velocity < 0.0)
-            {
                 scaled_velocity = 0.0;
-            }
             wp->velocity_meters_per_second = scaled_velocity;
 
             global_trajectory_count++;
@@ -199,18 +211,45 @@ static int load_trajectory_from_csv(const char *file_path)
 
     if (global_trajectory_count == 0)
     {
-        fprintf(stderr, "[MPC] ERROR: No waypoints loaded from %s\n", file_path);
+        fprintf(stderr, "[MPC-FPGA] ERROR: No waypoints loaded from %s\n", file_path);
         return 0;
     }
 
-    printf("[MPC] Loaded %d waypoints from %s\n", global_trajectory_count, file_path);
-    printf("[MPC] Speed gain: %.2f, max velocity: %.1f m/s\n",
+    printf("[MPC-FPGA] Loaded %d waypoints from %s\n", global_trajectory_count, file_path);
+    printf("[MPC-FPGA] Speed gain: %.2f, max velocity: %.1f m/s\n",
            TRAJECTORY_SPEED_GAIN, TRAJECTORY_MAXIMUM_VELOCITY);
 
-    printf("[MPC] Sample velocities: wp[0]=%.2f, wp[100]=%.2f, wp[500]=%.2f m/s\n",
-           global_trajectory[0].velocity_meters_per_second,
-           global_trajectory[100 < global_trajectory_count ? 100 : global_trajectory_count - 1].velocity_meters_per_second,
-           global_trajectory[500 < global_trajectory_count ? 500 : global_trajectory_count - 1].velocity_meters_per_second);
+    /* Upload trajectory to FPGA via mode 1 calls */
+    printf("[MPC-FPGA] Uploading %d waypoints to FPGA BRAM...\n", global_trajectory_count);
+
+    int dummy_steer, dummy_accel, dummy_status, dummy_iters;
+    for (int i = 0; i < global_trajectory_count; i++)
+    {
+        TrajectoryWaypoint_t *wp = &global_trajectory[i];
+        mpc_fpga_top(
+            1, i,  /* mode=1 (load waypoint), index=i */
+            DOUBLE_TO_FP(wp->x_meters),
+            DOUBLE_TO_FP(wp->y_meters),
+            DOUBLE_TO_FP(wp->heading_radians),
+            DOUBLE_TO_FP(wp->velocity_meters_per_second),
+            DOUBLE_TO_FP(wp->curvature_radians_per_meter),
+            DOUBLE_TO_FP(wp->acceleration_meters_per_second_squared),
+            DOUBLE_TO_FP(wp->left_bound_meters),
+            DOUBLE_TO_FP(wp->right_bound_meters),
+            0,  /* wp_total unused in mode 1 */
+            0, 0, 0, 0, 0, 0, 0, 0,  /* state unused in mode 1 */
+            &dummy_steer, &dummy_accel, &dummy_status, &dummy_iters);
+    }
+
+    /* Finalize via mode 2 */
+    mpc_fpga_top(
+        2, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        global_trajectory_count,  /* wp_total */
+        0, 0, 0, 0, 0, 0, 0, 0,
+        &dummy_steer, &dummy_accel, &dummy_status, &dummy_iters);
+
+    printf("[MPC-FPGA] Trajectory finalized: status=%d, count=%d\n",
+           dummy_status, dummy_iters);
 
     return 1;
 }
@@ -223,110 +262,42 @@ static int load_trajectory_from_csv(const char *file_path)
  * @brief Find the closest trajectory waypoint to a position.
  *
  * Forward-biased local search from the last known position.
- * Searches a window of 50 waypoints ahead and 3 behind to prevent
- * backward jumps that cause Frenet frame discontinuities.
- * Among equidistant candidates, prefers the one ahead of the vehicle.
  */
 static int find_closest_waypoint(double position_x, double position_y, double vehicle_heading)
 {
     if (global_trajectory_count == 0)
-    {
         return 0;
-    }
 
-    int search_start = global_last_closest_index;
-    int search_window = 50;
-    int best_index = search_start;
-    double best_score = 1e18;
+    int search_window = global_trajectory_count / 4;
+    if (search_window < 50) search_window = 50;
+    int best_index = global_last_closest_index;
+    double best_dist = 1e18;
 
-    for (int offset = -3; offset < search_window; offset++)
+    double dir_x = cos(vehicle_heading);
+    double dir_y = sin(vehicle_heading);
+
+    for (int offset = -search_window; offset <= search_window; offset++)
     {
-        int idx = (search_start + offset) % global_trajectory_count;
+        int idx = (global_last_closest_index + offset) % global_trajectory_count;
         if (idx < 0) idx += global_trajectory_count;
 
         double dx = global_trajectory[idx].x_meters - position_x;
         double dy = global_trajectory[idx].y_meters - position_y;
         double dist = dx * dx + dy * dy;
 
-        /* Penalize points behind the vehicle */
-        double veh_dx = cos(vehicle_heading);
-        double veh_dy = sin(vehicle_heading);
-        double dot = dx * veh_dx + dy * veh_dy;
-        double score = dist + ((dot < 0.0) ? 2.0 : 0.0);
+        /* Skip points that are behind the vehicle AND far away */
+        double dot = dx * dir_x + dy * dir_y;
+        if (dot < -0.5 && dist > 0.25) continue;
 
-        if (score < best_score)
+        if (dist < best_dist)
         {
-            best_score = score;
+            best_dist = dist;
             best_index = idx;
         }
     }
 
     global_last_closest_index = best_index;
     return best_index;
-}
-
-/*===========================================================================
- * Reference Trajectory Builder
- *===========================================================================*/
-
-/**
- * @brief Build MPC reference trajectory from loaded waypoints (Frenet frame).
- *
- * Frenet references: lateral and heading error are zero (follow the path).
- * Each prediction step maps to the waypoint at the expected travel distance
- * based on the reference velocity.
- */
-static void build_reference_from_trajectory(int closest_index)
-{
-    const double mpc_dt = (double)MPC_TIME_STEP_SECONDS;
-    const double avg_waypoint_spacing = 0.346;  /* meters — from Spielberg trajectory */
-
-    for (int step = 0; step < MPC_PREDICTION_HORIZON_STEPS; step++)
-    {
-        int base_waypoint_index = (closest_index + step) % global_trajectory_count;
-        double ref_velocity = global_trajectory[base_waypoint_index].velocity_meters_per_second;
-
-        if (ref_velocity < 3.0) ref_velocity = 3.0;
-        if (ref_velocity > TRAJECTORY_MAXIMUM_VELOCITY) ref_velocity = TRAJECTORY_MAXIMUM_VELOCITY;
-
-        double expected_distance = ref_velocity * mpc_dt * (step + 1);
-        int waypoints_ahead = (int)(expected_distance / avg_waypoint_spacing);
-        if (waypoints_ahead < step + 1) waypoints_ahead = step + 1;
-
-        int waypoint_index = (closest_index + waypoints_ahead) % global_trajectory_count;
-        TrajectoryWaypoint_t *wp = &global_trajectory[waypoint_index];
-
-        global_reference_trajectory[step].reference_lateral_error_meters = 0;
-        global_reference_trajectory[step].reference_heading_error_radians = 0;
-
-        global_reference_trajectory[step].path_curvature_radians_per_meter =
-            DOUBLE_TO_FP(wp->curvature_radians_per_meter);
-        global_reference_trajectory[step].left_wall_bound_meters =
-            DOUBLE_TO_FP(wp->left_bound_meters);
-        global_reference_trajectory[step].right_wall_bound_meters =
-            DOUBLE_TO_FP(wp->right_bound_meters);
-
-        double traj_vel = wp->velocity_meters_per_second;
-        if (traj_vel < 0.0) traj_vel = 0.0;
-        global_reference_trajectory[step].reference_velocity_meters_per_second =
-            DOUBLE_TO_FP(traj_vel);
-
-        global_reference_trajectory[step].reference_lateral_velocity_meters_per_second = 0;
-        global_reference_trajectory[step].reference_yaw_rate_radians_per_second = 0;
-    }
-
-    /* Second pass: yaw rate reference = kappa * v_ref (steady-state cornering) */
-    for (int step = 0; step < MPC_PREDICTION_HORIZON_STEPS; step++)
-    {
-        double kappa = FP_TO_DOUBLE(global_reference_trajectory[step].path_curvature_radians_per_meter);
-        double v_ref = FP_TO_DOUBLE(global_reference_trajectory[step].reference_velocity_meters_per_second);
-        double omega_ref = kappa * v_ref;
-        global_reference_trajectory[step].reference_yaw_rate_radians_per_second =
-            DOUBLE_TO_FP(omega_ref);
-
-        /* Lateral velocity reference: zero (not used) */
-        global_reference_trajectory[step].reference_lateral_velocity_meters_per_second = 0;
-    }
 }
 
 /*===========================================================================
@@ -374,76 +345,6 @@ static void set_rosidl_string(rosidl_runtime_c__String *str, const char *value)
 }
 
 /*===========================================================================
- * Frenet State Conversion
- *===========================================================================*/
-
-/**
- * @brief Convert global vehicle state to Frenet (path-relative) state.
- *
- * Projects the car position onto the segment between closest and closest+1
- * waypoints, then interpolates path position and heading at the projection
- * point. This eliminates discontinuous jumps when the closest waypoint index
- * changes, providing smooth Frenet state feedback to the MPC.
- *
- * e_y   = signed perpendicular distance (positive = left of path)
- * e_psi = heading error (vehicle heading - interpolated path tangent)
- * v_x, v_y, omega copied from body-frame state unchanged.
- */
-static void convert_to_frenet_state(
-    double car_x, double car_y, double car_heading,
-    int closest_index,
-    FrenetState_t *frenet_out)
-{
-    int idx0 = closest_index;
-    int idx1 = (closest_index + 1) % global_trajectory_count;
-
-    double ax = global_trajectory[idx0].x_meters;
-    double ay = global_trajectory[idx0].y_meters;
-    double bx = global_trajectory[idx1].x_meters;
-    double by = global_trajectory[idx1].y_meters;
-
-    /* Project car position onto segment A→B, parameter t ∈ [0,1] */
-    double abx = bx - ax, aby = by - ay;
-    double apx = car_x - ax, apy = car_y - ay;
-    double ab_len2 = abx * abx + aby * aby;
-    double t = 0.0;
-    if (ab_len2 > 1e-12)
-        t = (apx * abx + apy * aby) / ab_len2;
-    if (t < 0.0) t = 0.0;
-    if (t > 1.0) t = 1.0;
-
-    /* Interpolated path point */
-    double path_x = ax + t * abx;
-    double path_y = ay + t * aby;
-
-    /* Interpolated heading (with angle wrapping) */
-    double h0 = global_trajectory[idx0].heading_radians;
-    double h1 = global_trajectory[idx1].heading_radians;
-    double dh = h1 - h0;
-    while (dh > 3.14159265) dh -= 2.0 * 3.14159265;
-    while (dh < -3.14159265) dh += 2.0 * 3.14159265;
-    double path_heading = h0 + t * dh;
-
-    /* Signed lateral error (positive = left of path) */
-    double dx = car_x - path_x;
-    double dy = car_y - path_y;
-    double lateral_error = -dx * sin(path_heading) + dy * cos(path_heading);
-
-    double heading_error = car_heading - path_heading;
-    while (heading_error > 3.14159265) heading_error -= 2.0 * 3.14159265;
-    while (heading_error < -3.14159265) heading_error += 2.0 * 3.14159265;
-
-    frenet_out->lateral_error_meters = DOUBLE_TO_FP(lateral_error);
-    frenet_out->heading_error_radians = DOUBLE_TO_FP(heading_error);
-    frenet_out->longitudinal_velocity_meters_per_second =
-        global_vehicle_state.longitudinal_velocity_meters_per_second;
-    frenet_out->lateral_velocity_meters_per_second =
-        global_vehicle_state.lateral_velocity_meters_per_second;
-    frenet_out->yaw_rate_radians_per_second =
-        global_vehicle_state.yaw_rate_radians_per_second;
-}
-
-/*===========================================================================
  * ROS2 Callback: Odometry Subscription
  *===========================================================================*/
 
@@ -451,55 +352,53 @@ void odometry_subscription_callback(const void *message_in)
 {
     if (message_in == NULL)
     {
-        fprintf(stderr, "[MPC] ERROR: Odometry callback received NULL message\n");
+        fprintf(stderr, "[MPC-FPGA] ERROR: Odometry callback received NULL message\n");
         return;
     }
 
     const nav_msgs__msg__Odometry *odom =
         (const nav_msgs__msg__Odometry *)message_in;
 
-    double pos_x = odom->pose.pose.position.x;
-    double pos_y = odom->pose.pose.position.y;
-    double heading = quaternion_to_yaw_angle(
+    global_pos_x = odom->pose.pose.position.x;
+    global_pos_y = odom->pose.pose.position.y;
+    global_heading = quaternion_to_yaw_angle(
         odom->pose.pose.orientation.x,
         odom->pose.pose.orientation.y,
         odom->pose.pose.orientation.z,
         odom->pose.pose.orientation.w);
-    double vx = odom->twist.twist.linear.x;
-    double vy = odom->twist.twist.linear.y;
-    double omega = odom->twist.twist.angular.z;
-
-    global_vehicle_state.position_x_meters = DOUBLE_TO_FP(pos_x);
-    global_vehicle_state.position_y_meters = DOUBLE_TO_FP(pos_y);
-    global_vehicle_state.heading_angle_radians = DOUBLE_TO_FP(heading);
-    global_vehicle_state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(vx);
-    global_vehicle_state.lateral_velocity_meters_per_second = DOUBLE_TO_FP(vy);
-    global_vehicle_state.yaw_rate_radians_per_second = DOUBLE_TO_FP(omega);
+    global_vx = odom->twist.twist.linear.x;
+    global_vy = odom->twist.twist.linear.y;
+    global_omega = odom->twist.twist.angular.z;
 
     global_odometry_received_flag = 1;
 
-    /* Run MPC at reduced rate */
+    /* Run MPC at configured rate */
     if ((global_odometry_callback_counter % g_odom_divider) == 0)
     {
-        printf("[MPC] State: x=%.2f y=%.2f th=%.2f vx=%.2f vy=%.2f w=%.2f\n",
-               pos_x, pos_y, heading, vx, vy, omega);
+        printf("[MPC-FPGA] State: x=%.2f y=%.2f th=%.2f vx=%.2f vy=%.2f w=%.2f\n",
+               global_pos_x, global_pos_y, global_heading,
+               global_vx, global_vy, global_omega);
 
         if (global_trajectory_count > 0)
         {
-            int closest = find_closest_waypoint(pos_x, pos_y, heading);
-            build_reference_from_trajectory(closest);
-            convert_to_frenet_state(pos_x, pos_y, heading, closest, &global_frenet_state);
+            int closest = find_closest_waypoint(global_pos_x, global_pos_y, global_heading);
 
-            /* Debug: Frenet state + reference */
+            /* Debug: Frenet error (computed host-side for logging only;
+             * the FPGA does its own Frenet conversion internally) */
             {
-                double ey  = FP_TO_DOUBLE(global_frenet_state.lateral_error_meters);
-                double epsi = FP_TO_DOUBLE(global_frenet_state.heading_error_radians);
-                double vref = FP_TO_DOUBLE(global_reference_trajectory[0].reference_velocity_meters_per_second);
-                double kappa = FP_TO_DOUBLE(global_reference_trajectory[0].path_curvature_radians_per_meter);
-                double lw = FP_TO_DOUBLE(global_reference_trajectory[0].left_wall_bound_meters);
-                double rw = FP_TO_DOUBLE(global_reference_trajectory[0].right_wall_bound_meters);
-                printf("[MPC] Frenet: e_y=%.3f e_psi=%.3f v_ref=%.2f kappa=%.3f walls=[%.2f,%.2f]\n",
-                       ey, epsi, vref, kappa, lw, rw);
+                double dx = global_pos_x - global_trajectory[closest].x_meters;
+                double dy = global_pos_y - global_trajectory[closest].y_meters;
+                double wp_psi = global_trajectory[closest].heading_radians;
+                double e_y = -dx * sin(wp_psi) + dy * cos(wp_psi);
+                double e_psi = global_heading - wp_psi;
+                while (e_psi > 3.14159265) e_psi -= 2.0 * 3.14159265;
+                while (e_psi < -3.14159265) e_psi += 2.0 * 3.14159265;
+                double vref = global_trajectory[closest].velocity_meters_per_second;
+                double kappa = global_trajectory[closest].curvature_radians_per_meter;
+                double lw = global_trajectory[closest].left_bound_meters;
+                double rw = global_trajectory[closest].right_bound_meters;
+                printf("[MPC-FPGA] Frenet: e_y=%.3f e_psi=%.3f v_ref=%.2f kappa=%.3f walls=[%.2f,%.2f]\n",
+                       e_y, e_psi, vref, kappa, lw, rw);
             }
 
             /* Publish reference path visualization */
@@ -531,61 +430,37 @@ void odometry_subscription_callback(const void *message_in)
             /* Publish full trajectory visualization */
             global_trajectory_path_message.header.stamp = odom->header.stamp;
             rcl_publish(&global_trajectory_path_publisher, &global_trajectory_path_message, NULL);
-        }
-        else
-        {
-            /* Fallback: straight line at low speed */
-            fixed_point_t target_velocity = DOUBLE_TO_FP(1.0);
 
-            global_frenet_state.lateral_error_meters = 0;
-            global_frenet_state.heading_error_radians = 0;
-            global_frenet_state.longitudinal_velocity_meters_per_second =
-                global_vehicle_state.longitudinal_velocity_meters_per_second;
-            global_frenet_state.lateral_velocity_meters_per_second =
-                global_vehicle_state.lateral_velocity_meters_per_second;
-            global_frenet_state.yaw_rate_radians_per_second =
-                global_vehicle_state.yaw_rate_radians_per_second;
+            /* ===== Call FPGA MPC (mode 0: compute) — always, no guards ===== */
+            int out_steer_fp, out_accel_fp, out_status, out_iters;
 
-            for (int step = 0; step < MPC_PREDICTION_HORIZON_STEPS; step++)
-            {
-                global_reference_trajectory[step].reference_lateral_error_meters = 0;
-                global_reference_trajectory[step].reference_heading_error_radians = 0;
-                global_reference_trajectory[step].path_curvature_radians_per_meter = 0;
-                global_reference_trajectory[step].left_wall_bound_meters = DOUBLE_TO_FP(5.0);
-                global_reference_trajectory[step].right_wall_bound_meters = DOUBLE_TO_FP(5.0);
-                global_reference_trajectory[step].reference_velocity_meters_per_second = target_velocity;
-                global_reference_trajectory[step].reference_lateral_velocity_meters_per_second = 0;
-                global_reference_trajectory[step].reference_yaw_rate_radians_per_second = 0;
-                global_reference_trajectory[step].reference_acceleration_meters_per_second_squared = 0;
-            }
-        }
+            struct timespec t0, t1;
+            clock_gettime(CLOCK_MONOTONIC, &t0);
 
-        /* ===== Run MPC — output used DIRECTLY, no post-processing ===== */
-        MpcSolverResult_t mpc_result;
-        MpcSolverStatus_t mpc_status;
-        struct timespec t0, t1;
-        clock_gettime(CLOCK_MONOTONIC, &t0);
-        mpc_status = mpc_compute_optimal_control(
-            &global_frenet_state,
-            global_reference_trajectory,
-            &mpc_result);
-        clock_gettime(CLOCK_MONOTONIC, &t1);
-        double solve_us = (t1.tv_sec - t0.tv_sec) * 1e6 +
-                          (t1.tv_nsec - t0.tv_nsec) / 1e3;
+            mpc_fpga_top(
+                0,  /* mode=0 (compute) */
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* waypoint params unused in mode 0 */
+                DOUBLE_TO_FP(global_pos_x),
+                DOUBLE_TO_FP(global_pos_y),
+                DOUBLE_TO_FP(global_heading),
+                DOUBLE_TO_FP(global_vx),
+                DOUBLE_TO_FP(global_vy),
+                DOUBLE_TO_FP(global_omega),
+                DOUBLE_TO_FP(global_actual_steering_angle),
+                closest,  /* closest waypoint index */
+                &out_steer_fp, &out_accel_fp,
+                &out_status, &out_iters);
 
-        if (mpc_status == MPC_STATUS_SUCCESS ||
-            mpc_status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED)
-        {
-            double steer = FP_TO_DOUBLE(
-                mpc_result.optimal_control.steering_angle_radians);
-            double accel = FP_TO_DOUBLE(
-                mpc_result.optimal_control.acceleration_meters_per_second_squared);
+            clock_gettime(CLOCK_MONOTONIC, &t1);
+            double solve_us = (t1.tv_sec - t0.tv_sec) * 1e6 +
+                              (t1.tv_nsec - t0.tv_nsec) / 1e3;
 
-            /* Pass MPC output directly — no clamping, no bias, no softening. */
-            global_control_command.steering_angle_radians =
-                mpc_result.optimal_control.steering_angle_radians;
-            global_control_command.acceleration_meters_per_second_squared =
-                mpc_result.optimal_control.acceleration_meters_per_second_squared;
+            double steer = FP_TO_DOUBLE(out_steer_fp);
+            double accel = FP_TO_DOUBLE(out_accel_fp);
+
+            /* Always use MPC output — no fallback, no override */
+            global_cmd_steer = steer;
+            global_cmd_accel = accel;
 
             /* Simulate servo dynamics to track the actual steering angle.
              * The f1tenth gym rate-limits steering at sv_max = 2.849 rad/s.
@@ -598,37 +473,26 @@ void odometry_subscription_callback(const void *message_in)
                 global_actual_steering_angle += steer_diff;
             }
 
-            /* Feed actual servo position and acceleration back to MPC.
-             * This updates actual_steering_angle (for x0[5]) and prev accel. */
-            {
-                ControlInput_t actual_ctrl;
-                actual_ctrl.steering_angle_radians =
-                    DOUBLE_TO_FP(global_actual_steering_angle);
-                actual_ctrl.acceleration_meters_per_second_squared =
-                    mpc_result.optimal_control.acceleration_meters_per_second_squared;
-                mpc_set_actual_previous_control(&actual_ctrl);
-            }
-
-            printf("[MPC] Control: steer=%.4f accel=%.2f (status=%d iter=%d solve=%.1fus)\n",
-                   steer, accel, mpc_status, mpc_result.iterations_used, solve_us);
+            printf("[MPC-FPGA] Control: steer=%.4f accel=%.2f (status=%d iter=%d solve=%.1fus)\n",
+                   steer, accel, out_status, out_iters, solve_us);
             fflush(stdout);
         }
         else
         {
-            printf("[MPC] WARNING: Solver status=%d, keeping previous command\n", mpc_status);
+            /* No trajectory: stop */
+            global_cmd_steer = 0.0;
+            global_cmd_accel = 0.0;
         }
     }
 
     /* Publish drive command every callback */
     if (global_odometry_received_flag)
     {
-        global_drive_message_buffer.drive.steering_angle = FP_TO_FLOAT(
-            global_control_command.steering_angle_radians);
+        global_drive_message_buffer.drive.steering_angle = (float)global_cmd_steer;
 
         /* gym_bridge with control_input=['accl','steering_angle']
          * interprets drive.speed as acceleration command. */
-        global_drive_message_buffer.drive.speed = FP_TO_FLOAT(
-            global_control_command.acceleration_meters_per_second_squared);
+        global_drive_message_buffer.drive.speed = (float)global_cmd_accel;
 
         rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);
     }
@@ -649,7 +513,7 @@ void collision_subscription_callback(const void *message_in)
     if (!msg->data || global_collision_detected) return;
 
     global_collision_detected = 1;
-    fprintf(stderr, "[MPC] COLLISION detected. Shutting down.\n");
+    fprintf(stderr, "[MPC-FPGA] COLLISION detected. Shutting down.\n");
 
     if (global_ros2_context != NULL && rcl_context_is_valid(global_ros2_context))
     {
@@ -675,17 +539,18 @@ void collision_subscription_callback(const void *message_in)
 int main(int argc, char *argv[])
 {
     printf("============================================================\n");
-    printf("  MPC Riccati-ADMM ROS2 Node for F1/10th Simulator\n");
-    printf("  8-state augmented Frenet model\n");
-    printf("  [e_y, e_psi, vx, vy, omega, delta_actual, drate_prev, accel_prev]\n");
-    printf("  Controls: [delta_rate, a_x]\n");
-    printf("  Solver: Riccati backward/forward pass inside ADMM loop\n");
+    printf("  FPGA MPC (Riccati-ADMM HLS) ROS2 Node for F1/10th Sim\n");
+    printf("  C-simulation of FPGA top-level function\n");
+    printf("  Mode-based interface: mpc_fpga_top()\n");
+    printf("  State: [e_y, e_psi, vx, vy, omega, delta_actual, drate_prev, accel_prev]\n");
+    printf("  Controls: [delta_rate, a_x] -> output: [steering, accel]\n");
     printf("============================================================\n");
     printf("  Prediction horizon: %d steps (%.1f ms each)\n",
            MPC_PREDICTION_HORIZON_STEPS,
            MPC_TIME_STEP_SECONDS * 1000.0f);
     printf("  Trajectory speed gain: %.2f, max velocity: %.1f m/s\n",
            TRAJECTORY_SPEED_GAIN, TRAJECTORY_MAXIMUM_VELOCITY);
+    printf("  Max waypoints: %d (FPGA BRAM limit)\n", TRAJECTORY_MAXIMUM_WAYPOINTS);
     printf("------------------------------------------------------------\n");
     printf("  Subscribe: /ego_racecar/ground_truth (nav_msgs/Odometry)\n");
     printf("  Subscribe: /ego_racecar/collision     (std_msgs/Bool)\n");
@@ -694,10 +559,7 @@ int main(int argc, char *argv[])
 
     rcl_ret_t rc;
 
-    /* Initialize MPC controller — uses Riccati-ADMM internally */
-    mpc_initialize();
-
-    /* Runtime parameters from environment (no rebuild needed) */
+    /* Runtime parameters from environment */
     {
         const char *env_val;
         if ((env_val = getenv("MPC_RATE_DIVIDER")) != NULL)
@@ -707,27 +569,10 @@ int main(int argc, char *argv[])
         }
     }
 
-    printf("[MPC] Controller initialized (horizon=%d, dt=%.0fms)\n",
-           MPC_PREDICTION_HORIZON_STEPS, MPC_TIME_STEP_SECONDS * 1000.0f);
-    printf("[MPC] Control rate: ~%d Hz (odom_divider=%d)\n",
+    printf("[MPC-FPGA] Control rate: ~%d Hz (odom_divider=%d)\n",
            200 / g_odom_divider, g_odom_divider);
 
-    {
-        MpcConfiguration_t cfg = mpc_get_configuration();
-        printf("[MPC] max_iter=%u, tol=%d\n",
-               cfg.maximum_solver_iterations,
-               (int)cfg.solver_convergence_tolerance);
-        printf("[MPC] Weights: lat=%.2f heading=%.2f vel=%.2f steer_rate=%.2f steer_effort=%.4f\n",
-               FP_TO_DOUBLE(cfg.weight_lateral_error),
-               FP_TO_DOUBLE(cfg.weight_heading_error),
-               FP_TO_DOUBLE(cfg.weight_velocity),
-               FP_TO_DOUBLE(cfg.weight_steering_rate),
-               FP_TO_DOUBLE(cfg.weight_steering_effort));
-        printf("[MPC] cross_call_scale=%.2f\n",
-               FP_TO_DOUBLE(cfg.cross_call_rate_scale));
-    }
-
-    /* Load trajectory */
+    /* Load trajectory (this also uploads to FPGA via mode 1/2) */
     const char *trajectory_file = NULL;
     if (argc >= 2)
     {
@@ -740,11 +585,12 @@ int main(int argc, char *argv[])
 
     if (load_trajectory_from_csv(trajectory_file))
     {
-        printf("[MPC] Trajectory loaded successfully\n");
+        printf("[MPC-FPGA] Trajectory loaded and uploaded successfully\n");
     }
     else
     {
-        printf("[MPC] WARNING: No trajectory loaded, using straight-line fallback\n");
+        fprintf(stderr, "[MPC-FPGA] ERROR: Failed to load trajectory\n");
+        return 1;
     }
 
     /* Build full trajectory path message for RViz */
@@ -801,13 +647,13 @@ int main(int argc, char *argv[])
     rcl_node_t node = rcl_get_zero_initialized_node();
     rcl_node_options_t node_opts = rcl_node_get_default_options();
 
-    rc = rcl_node_init(&node, "mpc_riccati_node", "", &ctx, &node_opts);
+    rc = rcl_node_init(&node, "mpc_fpga_node", "", &ctx, &node_opts);
     if (rc != RCL_RET_OK)
     {
         fprintf(stderr, "[ROS2] ERROR: node_init: %s\n", rcl_get_error_string().str);
         return 1;
     }
-    printf("[ROS2] Node 'mpc_riccati_node' created\n");
+    printf("[ROS2] Node 'mpc_fpga_node' created\n");
 
     /* Subscriptions */
     rcl_subscription_t odom_sub = rcl_get_zero_initialized_subscription();
@@ -932,7 +778,7 @@ int main(int argc, char *argv[])
     }
 
     printf("[ROS2] Executor ready\n");
-    printf("\n[MPC] Spinning... (waiting for odometry messages)\n\n");
+    printf("\n[MPC-FPGA] Spinning... (waiting for odometry messages)\n\n");
 
     rclc_executor_spin(&executor);
 
