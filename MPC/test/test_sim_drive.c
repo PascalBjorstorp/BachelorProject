@@ -395,6 +395,8 @@ int main(void)
     if (realistic_mode) horizon = 19;
     if (getenv("HORIZON")) horizon = atoi(getenv("HORIZON"));
     cfg.prediction_horizon_steps = horizon;
+    /* Prediction time step: propagate PRED_DT to solver's dynamics model */
+    cfg.time_step_seconds = FP_CONST(g_mpc_prediction_dt);
     /* cross_call_rate_scale: ratio of control interval to prediction dt */
     cfg.cross_call_rate_scale = FP_CONST(cross_scale);
     /* Tuned weights — overridable via environment variables for tuning script.

@@ -70,7 +70,7 @@
 #define MPC_PREDICTION_HORIZON_STEPS 20
 
 /** Time step between predictions [seconds] — must match MPC_DEFAULT_TIME_STEP_SECONDS */
-#define MPC_TIME_STEP_SECONDS 0.05
+#define MPC_TIME_STEP_SECONDS 0.04
 
 /** Maximum number of waypoints in loaded trajectory */
 #define TRAJECTORY_MAXIMUM_WAYPOINTS 1000
