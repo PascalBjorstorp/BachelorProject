@@ -466,7 +466,7 @@ typedef struct
  *===========================================================================*/
 
 /** Default prediction horizon: 20 steps */
-#define MPC_DEFAULT_PREDICTION_HORIZON 18
+#define MPC_DEFAULT_PREDICTION_HORIZON 20
 
 /** Default time step: 0.04 seconds (40 ms)
  *  Control rate = 200 Hz (5 ms per call).
