@@ -31,7 +31,7 @@ def generate_launch_description():
     try:
         f1tenth_planning_share = get_package_share_directory('f1tenth_planning')
         candidate = os.path.join(
-            f1tenth_planning_share, 'trajectories', 'Spielberg_raceline.csv'
+            f1tenth_planning_share, 'trajectories', 'my_track_map.csv'
         )
         if os.path.isfile(candidate):
             default_trajectory = candidate
@@ -43,7 +43,7 @@ def generate_launch_description():
         launch_dir = os.path.dirname(os.path.abspath(__file__))
         workspace_root = os.path.dirname(os.path.dirname(launch_dir))
         candidate = os.path.join(
-            workspace_root, 'f1tenth_planning', 'trajectories', 'Spielberg_raceline.csv'
+            workspace_root, 'f1tenth_planning', 'trajectories', 'my_track_map.csv'
         )
         if os.path.isfile(candidate):
             default_trajectory = candidate

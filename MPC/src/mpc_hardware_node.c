@@ -948,12 +948,20 @@ void mpc_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
             double a_cmd = FP_TO_DOUBLE(
                 global_control_command.acceleration_meters_per_second_squared);
 
+<<<<<<< HEAD
+            /* Integrate MPC acceleration from current measured velocity.
+             * g_latest_vx comes from VESC odometry (self-correcting). */
+            double v_target = g_latest_vx + a_cmd * MPC_TIME_STEP_SECONDS;
+            if (v_target < 0.0) v_target = 0.0;
+            if (v_target > TRAJECTORY_MAXIMUM_VELOCITY) v_target = TRAJECTORY_MAXIMUM_VELOCITY;
+=======
             /* Integrate MPC acceleration over one MPC prediction step.
              * See the comment block above for why MPC_TIME_STEP_SECONDS (0.05s)
              * is used here rather than g_control_dt. */
             double v_cmd = g_latest_vx + a_cmd * MPC_TIME_STEP_SECONDS;
             if (v_cmd < 0.0) v_cmd = 0.0;
             if (v_cmd > TRAJECTORY_MAXIMUM_VELOCITY) v_cmd = TRAJECTORY_MAXIMUM_VELOCITY;
+>>>>>>> 1622427459ade435aa238c1ad5cddf4d2b36f92b
 
             global_drive_message_buffer.drive.speed = (float)v_cmd;
             global_drive_message_buffer.drive.acceleration = (float)a_cmd;
