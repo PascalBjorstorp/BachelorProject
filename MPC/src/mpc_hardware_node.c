@@ -897,7 +897,7 @@ void mpc_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
 
             /* Integrate MPC acceleration from current measured velocity.
              * g_latest_vx comes from VESC odometry (self-correcting). */
-            double v_target = g_latest_vx + a_cmd * g_control_dt;
+            double v_target = g_latest_vx + a_cmd * MPC_TIME_STEP_SECONDS;
             if (v_target < 0.0) v_target = 0.0;
             if (v_target > TRAJECTORY_MAXIMUM_VELOCITY) v_target = TRAJECTORY_MAXIMUM_VELOCITY;
 

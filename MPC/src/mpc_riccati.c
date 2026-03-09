@@ -58,11 +58,7 @@
 #define MAX_STEERING_RATE FP_CONST(2.849)
 
 /** Maximum horizon steps */
-#ifdef MPC_HLS_TARGET
 #define MAX_HORIZON 20
-#else
-#define MAX_HORIZON 50
-#endif
 
 /** Big number for unconstrained states */
 #define BIG_BOUND FP_CONST(100.0)
@@ -131,19 +127,19 @@ MpcConfiguration_t get_default_configuration(void)
      *   w_vy=28, R_steer=0.35, w_jerk=3.0: stable agile steering.
      *   Tested: 0 collisions in 60s ROS2 sim, 67→68% time above 5 m/s.
      */
-    cfg.weight_lateral_error    = FP_CONST(100.0);
-    cfg.weight_heading_error    = FP_CONST(1000.0);
-    cfg.weight_velocity         = FP_CONST(10.0);
-    cfg.weight_lateral_velocity = FP_CONST(28.0);
-    cfg.weight_yaw_rate         = FP_CONST(10.0);
+    cfg.weight_lateral_error    = FP_CONST(75.0);
+    cfg.weight_heading_error    = FP_CONST(100.0);
+    cfg.weight_velocity         = FP_CONST(6.0);
+    cfg.weight_lateral_velocity = FP_CONST(60.0);
+    cfg.weight_yaw_rate         = FP_CONST(5.0);
 
     /* Control effort weights */
     cfg.weight_steering_effort      = FP_CONST(0.35);
-    cfg.weight_acceleration_effort  = FP_CONST(0.05);
+    cfg.weight_acceleration_effort  = FP_CONST(0.01);
 
     /* Control rate weights */
-    cfg.weight_steering_rate        = FP_CONST(3.0);
-    cfg.weight_acceleration_rate    = FP_CONST(0.1);
+    cfg.weight_steering_rate        = FP_CONST(2.5);
+    cfg.weight_acceleration_rate    = FP_CONST(0.01);
 
     /* Cross-call rate scale: ratio of control interval to prediction dt. */
     cfg.cross_call_rate_scale = FP_CONST(0.1);
