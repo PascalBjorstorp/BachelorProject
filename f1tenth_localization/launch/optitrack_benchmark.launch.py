@@ -103,21 +103,26 @@ def launch_setup(context, *args, **kwargs):
     # ──────────────────────────────────────────────
     # 1) OptiTrack Ground Truth Publisher
     # ──────────────────────────────────────────────
-    stack_share = get_package_share_directory('f1tenth_stack')
-    optitrack_node = Node(
-        package='f1tenth_stack',
-        executable='optitrack_tf_publisher.py',
-        name='optitrack_ground_truth',
+    # Find the script in the workspace source tree
+    optitrack_script = os.path.join(
+        _workspace_root, 'f1tenth_system', 'f1tenth_stack', 'scripts',
+        'optitrack_tf_publisher.py'
+    )
+    vrpn_topic = LaunchConfiguration('vrpn_topic').perform(context)
+    optitrack_node = ExecuteProcess(
+        cmd=[
+            'python3', optitrack_script,
+            '--ros-args',
+            '-p', f'vrpn_topic:={vrpn_topic}',
+            '-p', 'ground_truth_topic:=/ego_racecar/ground_truth',
+            '-p', 'map_frame:=map',
+            '-p', 'base_frame:=ego_racecar/base_link',
+            '-p', f'offset_x:={offset_x}',
+            '-p', f'offset_y:={offset_y}',
+            '-p', f'offset_yaw:={offset_yaw}',
+        ],
         output='screen',
-        parameters=[{
-            'vrpn_topic': LaunchConfiguration('vrpn_topic'),
-            'ground_truth_topic': '/ego_racecar/ground_truth',
-            'map_frame': 'map',
-            'base_frame': 'ego_racecar/base_link',
-            'offset_x': float(offset_x),
-            'offset_y': float(offset_y),
-            'offset_yaw': float(offset_yaw),
-        }],
+        name='optitrack_ground_truth',
     )
     nodes.append(optitrack_node)
 
