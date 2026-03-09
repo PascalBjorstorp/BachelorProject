@@ -149,9 +149,9 @@ typedef int32_t fixed_point_t;
 #define VP_DT_INV_MASS      FP_CONST(0.012070)  /* dt * (1/mass) = 0.04 * 0.301750 */
 #define VP_DT_INV_IZ        FP_CONST(1.142857)  /* dt * (1/I_z)  = 0.04 * 28.571429 */
 
-#define MPC_W_LAT_ERROR     FP_CONST(500.0)
+#define MPC_W_LAT_ERROR     FP_CONST(340.0)
 #define MPC_W_HEADING       FP_CONST(2000.0)     /* cl050 sweep best (was 1000) */
-#define MPC_W_VELOCITY      FP_CONST(30.0)
+#define MPC_W_VELOCITY      FP_CONST(26.0)
 #define MPC_W_LAT_VEL       FP_CONST(100.0)      /* cl050 sweep best (was 69) */
 #define MPC_W_YAW_RATE      FP_CONST(22.0)
 #define MPC_W_STEER_EFF     FP_CONST(0.15)
@@ -164,9 +164,9 @@ typedef int32_t fixed_point_t;
 /* === Precomputed 2x weights for QP Hessian diagonal ===
  * Eliminates ~24 runtime fp_mul calls in mpc_compute_hls.
  * All computed at compile time via integer arithmetic. */
-#define MPC_Q2_LAT_ERROR    ((MPC_W_LAT_ERROR) << 1)     /* 2*500 = 1000 */
+#define MPC_Q2_LAT_ERROR    ((MPC_W_LAT_ERROR) << 1)     /* 2*340 = 680 */
 #define MPC_Q2_HEADING      ((MPC_W_HEADING) << 1)        /* 2*2000 = 4000 */
-#define MPC_Q2_VELOCITY     ((MPC_W_VELOCITY) << 1)       /* 2*30 = 60 */
+#define MPC_Q2_VELOCITY     ((MPC_W_VELOCITY) << 1)       /* 2*26 = 52 */
 #define MPC_Q2_LAT_VEL      ((MPC_W_LAT_VEL) << 1)        /* 2*100 = 200 */
 #define MPC_Q2_YAW_RATE     ((MPC_W_YAW_RATE) << 1)       /* 2*22 = 44 */
 #define MPC_Q2_DELTA_ACT    ((MPC_W_DELTA_ACT) << 1)      /* 2*0.795 */
@@ -192,10 +192,10 @@ typedef int32_t fixed_point_t;
 /* WALL_MARGIN = 0.36m: vehicle half-width=0.137m + body_safety=0.06m = 0.197m
  * effective body edge.  cl050 raceline has ~0.44m wall clearance in tightest
  * sections.  0.36 keeps constraints feasible while maintaining safety. */
-#define WALL_MARGIN         FP_CONST(0.4)    /* cl050 sweep best (was 0.36) */
+#define WALL_MARGIN         FP_CONST(0.15)   /* updated from CPU sweep (was 0.4) */
 #define WALL_START          1
 #define WALL_STRIDE         1
-#define WALL_END            10     /* cl050 sweep best (was 16) */
+#define WALL_END            18     /* updated from CPU sweep (was 10) */
 #define V_SWITCH            FP_CONST(7.319)
 #define BOUND_THRESHOLD     FP_CONST(100.0)
 #define WP_ADVANCE_MAX      10   /* Max waypoint advance per horizon step */
