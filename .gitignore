@@ -210,6 +210,7 @@ FPGA/*.log
 # =============================================
 # Entire Vivado project (re-creatable from FPGA/create_vivado_project.tcl)
 Ultra96_PP/
+Ultra96_MPC/
 
 # Vivado journal and log files
 *.jou
