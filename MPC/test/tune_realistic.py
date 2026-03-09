@@ -27,7 +27,6 @@ TRAJ_DIR = os.path.join(os.path.dirname(PROJECT_DIR),
 
 # ─── Raceline variants (pipeline-generated with different wall clearances) ───
 RACELINES = {
-    "cl020_orig": os.path.join(TRAJ_DIR, "Spielberg_raceline_clearance_0.20.csv"),
     "cl020": os.path.join(TRAJ_DIR, "Spielberg_raceline_pipeline_cl020.csv"),
     "cl030": os.path.join(TRAJ_DIR, "Spielberg_raceline_pipeline_cl030.csv"),
     "cl045": os.path.join(TRAJ_DIR, "Spielberg_raceline_pipeline_cl045.csv"),
@@ -35,10 +34,11 @@ RACELINES = {
 }
 
 # ─── Tunable parameters ─────────────────────────────────────────────────────
+# NOTE: BASE updated to best-found config (from raceline cl050) on 2026-03-09
 BASE = {
-    "Q_LAT":        400.0,
+    "Q_LAT":        340.0,
     "Q_HDG":        1000.0,
-    "Q_VEL":        30.0,
+    "Q_VEL":        26.0,
     "Q_LAT_VEL":    69.0,
     "Q_YAW":        22.0,
     "R_STEER":      0.15,
@@ -50,12 +50,12 @@ BASE = {
     "ALPHA":        0.93,
     "TOL":          5.0,
     "MAX_ITER":     20,
-    "WALL_END":     16,
+    "WALL_END":     18,
     "WALL_STRIDE":  1,
-    "WALL_SOFT_K":  5000.0,
-    "WALL_MARGIN":  0.40,
+    "WALL_SOFT_K":  0.0,
+    "WALL_MARGIN":  0.15,
     "HORIZON":      20,
-    "PRED_DT":      0.04,
+    "PRED_DT":      0.03,
 }
 
 # ─── Special env vars (not weights, passed as env directly) ──────────────────
@@ -63,30 +63,30 @@ SPECIAL_PARAMS = {"WALL_MARGIN", "WALL_STRIDE", "HORIZON", "RACELINE_PATH", "PRE
 
 # ─── Sweep ranges ───────────────────────────────────────────────────────────
 FULL_VALUES = {
-    "Q_LAT":        [100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800],
-    "Q_HDG":        [100, 200, 300, 400, 600, 800, 900, 1000, 1200, 1500],
-    "Q_VEL":        [4, 6, 8, 10, 15, 20, 25, 30, 35, 40, 50],
-    "Q_LAT_VEL":    [1, 5, 10, 15, 20, 40, 60, 80, 120],
-    "Q_YAW":        [5, 10, 22, 40, 60, 100],
-    "R_STEER":      [0.04, 0.08, 0.12, 0.15, 0.20, 0.30, 0.5],
-    "R_ACCEL":      [0.005, 0.01, 0.02, 0.05, 0.1, 0.2],
-    "W_JERK":       [0.1, 0.2, 0.3, 0.5, 1.0],
-    "W_ACCEL_RATE": [0.05, 0.1, 0.2, 0.5, 1.0],
-    "HORIZON":      [5, 10, 15, 20, 25, 30, 35, 40],
-    "WALL_MARGIN":  [0.00, 0.05, 0.10, 0.15, 0.20, 0.30, 0.40, 0.50, 0.70],
-    "WALL_END":     [8, 12, 16, 20, 24, 28, 32, 36, 40],
+    "Q_LAT":        [150, 200, 250, 300, 320, 340, 350, 360, 380, 400, 450, 500, 550, 600, 650, 700, 750, 800],
+    "Q_HDG":        [100, 180, 190, 200, 210, 220, 300, 400, 600, 800, 900, 1000, 1200, 1500],
+    "Q_VEL":        [4, 6, 8, 10, 15, 20, 22, 24, 25, 26, 28, 30, 35],
+    "Q_LAT_VEL":    [15, 20, 30, 40, 45, 55, 60, 80, 120],
+    "Q_YAW":        [5, 10, 15, 18, 22, 30, 40, 60],
+    "R_STEER":      [0.04, 0.06, 0.08, 0.09, 0.12, 0.15, 0.18, 0.20, 0.30, 0.5],
+    "R_ACCEL":      [0.01, 0.012, 0.015, 0.02, 0.05, 0.1],
+    "W_JERK":       [0.08, 0.1, 0.14, 0.2, 0.3, 0.5, 1.0],
+    "W_ACCEL_RATE": [0.05, 0.08, 0.1, 0.15, 0.2, 0.5, 1.0],
+    "HORIZON":      [15, 20, 25, 30, 35, 40],
+    "WALL_MARGIN":  [0.00, 0.05, 0.10, 0.15, 0.20, 0.30, 0.35, 0.40, 0.45, 0.50, 0.70],
+    "WALL_END":     [12, 16, 18, 20, 22, 24, 28],
     "WALL_STRIDE":  [1, 2, 3, 4],
-    "WALL_SOFT_K":  [0, 500, 1000, 3000, 5000, 10000],
-    "RHO":          [1, 5, 10, 20, 30, 50, 80],
-    "RHO_U":        [1, 5, 10, 20, 30, 50],
-    "ALPHA":        [0.7, 0.93, 1.0, 1.2, 1.4, 1.6],
-    "PRED_DT":      [0.02, 0.04, 0.05, 0.06, 0.08, 0.1, 0.2],
+    "WALL_SOFT_K":  [0, 500, 1000, 2000, 3000, 5000, 7000, 10000],
+    "RHO":          [10, 20, 30, 40, 50, 60, 70, 80],
+    "RHO_U":        [10, 15, 20, 25, 30, 40, 50],
+    "ALPHA":        [0.93, 0.95, 1.0, 1.05, 1.15, 1.2, 1.4],
+    "PRED_DT":      [0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.1],
 }
 
 QUICK_VALUES = {
     "Q_LAT":        [300, 400, 600],
     "Q_HDG":        [600, 1000, 1200],
-    "Q_VEL":        [20, 30, 40],
+        "Q_VEL":        [20, 30],
     "Q_LAT_VEL":    [40, 60, 100],
     "Q_YAW":        [22, 40],
     "HORIZON":      [18, 19, 20],
