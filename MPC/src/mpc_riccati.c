@@ -77,9 +77,11 @@
 #define WALL_MARGIN_DEFAULT FP_CONST(0.36)
 
 /** Wall constraints: only first few horizon steps for near-term safety.
- *  Override at runtime via WALL_END environment variable. */
+ *  Override at runtime via WALL_END environment variable.
+ *  WALL_STRIDE controls step spacing (1=every step, 2=every other, etc.).
+ *  Override at runtime via WALL_STRIDE environment variable. */
 #define WALL_CONSTRAINT_START  1
-#define WALL_CONSTRAINT_STRIDE 1
+#define WALL_CONSTRAINT_STRIDE_DEFAULT 1
 #define WALL_CONSTRAINT_END_DEFAULT 16    /* last horizon step to constrain (0=disable) */
 
 /** Soft wall constraint stiffness (0 = hard box constraint).
@@ -615,16 +617,18 @@ static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
         for (int s = 0; s < NX_AUG; s++)
             sd->x_soft_weight[s] = 0;
 
-        /* Runtime overrides via env vars: WALL_SOFT_K, WALL_END, WALL_MARGIN.
+        /* Runtime overrides via env vars: WALL_SOFT_K, WALL_END, WALL_MARGIN, WALL_STRIDE.
          * Cached after first call for performance. */
         fixed_point_t wall_soft_k = WALL_SOFT_STIFFNESS_DEFAULT;
         fixed_point_t wall_margin = WALL_MARGIN_DEFAULT;
         int wall_end = WALL_CONSTRAINT_END_DEFAULT;
+        int wall_stride = WALL_CONSTRAINT_STRIDE_DEFAULT;
         {
             static int env_checked = 0;
             static fixed_point_t env_soft_k = 0;
             static fixed_point_t env_wall_margin = 0;
             static int env_wall_end = 0;
+            static int env_wall_stride = 0;
             if (!env_checked) {
                 const char *env_val = getenv("WALL_SOFT_K");
                 if (env_val) env_soft_k = (fixed_point_t)atof(env_val);
@@ -635,17 +639,22 @@ static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
                 env_val = getenv("WALL_MARGIN");
                 if (env_val) env_wall_margin = DOUBLE_TO_FP(atof(env_val));
                 else env_wall_margin = WALL_MARGIN_DEFAULT;
+                env_val = getenv("WALL_STRIDE");
+                if (env_val) env_wall_stride = atoi(env_val);
+                else env_wall_stride = WALL_CONSTRAINT_STRIDE_DEFAULT;
                 env_checked = 1;
             }
             wall_soft_k = env_soft_k;
             wall_end = env_wall_end;
             wall_margin = env_wall_margin;
+            wall_stride = env_wall_stride;
+            if (wall_stride < 1) wall_stride = 1;
         }
 
         /* e_y: wall constraints (near-term: steps START..END, every STRIDE) */
         int wall_active = (k >= WALL_CONSTRAINT_START) &&
                           (k <= wall_end) &&
-                          ((k - WALL_CONSTRAINT_START) % WALL_CONSTRAINT_STRIDE == 0);
+                          ((k - WALL_CONSTRAINT_START) % wall_stride == 0);
 
         if (wall_active &&
             reference_trajectory[k].left_wall_bound_meters < FP_CONST(4.0) &&

@@ -97,6 +97,7 @@ typedef struct {
 
 static Waypoint_t raceline[MAX_WAYPOINTS];
 static int raceline_count = 0;
+static double g_mpc_prediction_dt = 0.04;  /* Set from PRED_DT env or default */
 
 static int load_raceline(void)
 {
@@ -243,8 +244,7 @@ static void build_reference(int closest, double actual_vx, TrajectoryReferencePo
      * indexes everything via (closest + (step+1) * wp_advance), NOT (step * ...). */
     double v_cur = fabs(raceline[closest].vx);
     if (v_cur < 1.0) v_cur = 1.0;
-    const double mpc_prediction_dt = 0.04;  /* Must match MPC_DEFAULT_TIME_STEP_SECONDS */
-    double ds_per_step = v_cur * mpc_prediction_dt;
+    double ds_per_step = v_cur * g_mpc_prediction_dt;
     int wp_advance = (int)(ds_per_step / wp_spacing + 0.5);
     if (wp_advance < 1) wp_advance = 1;
 
@@ -338,8 +338,9 @@ int main(void)
     const double MPC_DT = mpc_dt_env ? atof(mpc_dt_env) : MPC_DT_DEFAULT;
     const int MPC_CALL_INTERVAL = (int)(MPC_DT / SIM_DT + 0.5);
     const int SIM_STEPS = (int)(SIM_DURATION / SIM_DT);
-    const double mpc_prediction_dt = 0.04;
-    const double cross_scale = MPC_DT / mpc_prediction_dt;
+    const char *pred_dt_env = getenv("PRED_DT");
+    g_mpc_prediction_dt = pred_dt_env ? atof(pred_dt_env) : 0.04;
+    const double cross_scale = MPC_DT / g_mpc_prediction_dt;
 
     const int verbose = getenv("VERBOSE") != NULL;
 
