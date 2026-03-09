@@ -45,13 +45,14 @@
 #endif
 #include <string.h>
 
-/* When MPC_SIM_MATCHING is defined, the vehicle model uses simplified
- * equations that exactly match the f1tenth_gym simulator:
- *   - No cos(δ)/sin(δ) in force resolution (gym doesn't have them)
- *   - Linear tire model (no Pacejka saturation)
- *   - Small-angle slip angles (no atan)
- * This improves sim prediction accuracy at the cost of real-world fidelity.
- * Undefine for real-car deployment.  */
+/* MPC_SIM_MATCHING: DISABLED
+ * Both the MPC prediction model and the f1tenth_gym simulator now use
+ * the full nonlinear tire model with:
+ *   - atan-based slip angles
+ *   - cos(δ)/sin(δ) force resolution
+ * This provides real-world fidelity. The gym's single_track.py has been
+ * updated to match this full model.
+ * Re-enable this define if you revert the gym to the original CommonRoad model. */
 /* #define MPC_SIM_MATCHING */
 
 /*===========================================================================
@@ -785,10 +786,11 @@ void vehicle_model_compute_linearization(
 }
 
 /*===========================================================================
- * Frenet Frame Linearization
+ * Frenet Frame Linearization (Direct Computation)
  *===========================================================================
  *
- * Computes the 6×6 discrete state-space matrices for the Frenet frame.
+ * Computes the 5×5 discrete state-space matrices for the Frenet frame
+ * directly, without building the full 6×6 global matrices first.
  *
  * Frenet state: [e_y, e_psi, v_x, v_y, omega]
  *
@@ -798,9 +800,8 @@ void vehicle_model_compute_linearization(
  *
  * Rows 2-4: Body-frame dynamics (identical to global model rows 3-5)
  *   v_x_dot, v_y_dot, omega_dot
- *
- * Strategy: Call the global linearization and extract body-frame rows,
- * then build the Frenet kinematic rows using path curvature.
+ *   Computed inline — avoids the 6×6 global A/B allocation and the
+ *   wasted work on global rows 0-2 (X, Y, heading kinematics).
  */
 void vehicle_model_compute_frenet_linearization(
     const FrenetState_t *frenet_state,
@@ -813,33 +814,183 @@ void vehicle_model_compute_frenet_linearization(
 #ifdef MPC_HLS_TARGET
 #pragma HLS INLINE
 #endif
-    /*
-     * Step 1: Create a global VehicleState_t for the existing linearization.
-     * Global position and heading don't affect the body-frame Jacobians,
-     * so we set them to zero. Only body-frame states matter.
-     */
-    VehicleState_t global_state;
-    global_state.position_x_meters = 0;
-    global_state.position_y_meters = 0;
-    global_state.heading_angle_radians = 0;
-    global_state.longitudinal_velocity_meters_per_second =
-        frenet_state->longitudinal_velocity_meters_per_second;
-    global_state.lateral_velocity_meters_per_second =
-        frenet_state->lateral_velocity_meters_per_second;
-    global_state.yaw_rate_radians_per_second =
-        frenet_state->yaw_rate_radians_per_second;
 
     /*
-     * Step 2: Get the full 6×6 global linearization
+     * Extract operating point (body-frame states only — Frenet position
+     * and heading error don't affect body-frame dynamics).
      */
-    fixed_point_t A_global[6][6];
-    fixed_point_t B_global[6][2];
-    vehicle_model_compute_linearization(
-        &global_state, operating_control, time_step,
-        A_global, B_global);
+    fixed_point_t vx    = frenet_state->longitudinal_velocity_meters_per_second;
+    fixed_point_t vy    = frenet_state->lateral_velocity_meters_per_second;
+    fixed_point_t omega = frenet_state->yaw_rate_radians_per_second;
+    fixed_point_t delta = operating_control->steering_angle_radians;
 
     /*
-     * Step 3: Initialize Frenet matrices to zero
+     * Vehicle parameters
+     */
+    fixed_point_t lf   = stored_vehicle_parameters.distance_cg_to_front_axle_meters;
+    fixed_point_t lr   = stored_vehicle_parameters.distance_cg_to_rear_axle_meters;
+    fixed_point_t mass = stored_vehicle_parameters.vehicle_mass_kg;
+    fixed_point_t C_Sf = stored_vehicle_parameters.front_cornering_stiffness;
+    fixed_point_t C_Sr = stored_vehicle_parameters.rear_cornering_stiffness;
+
+    /*
+     * Steering trig — short-circuit at zero (MPC always linearizes at δ=0
+     * in Frenet, saving 2 Taylor-series evaluations).
+     */
+    fixed_point_t cos_delta, sin_delta;
+    if (delta == 0) { cos_delta = FP_ONE; sin_delta = 0; }
+    else { cos_delta = fp_cos(delta); sin_delta = fp_sin(delta); }
+
+    /*
+     * Velocity floor for linearization stability
+     */
+    fixed_point_t min_vx = FP_CONST(0.5);
+    fixed_point_t vx_safe = (vx > min_vx) ? vx : min_vx;
+    fixed_point_t inv_vx_safe = fp_recip(vx_safe);
+
+    /*
+     * Longitudinal force (for load transfer only).
+     * Fx = m * a_cmd — independent of state, so dFx/dvx = 0.
+     */
+    fixed_point_t Fx = fp_mul(mass, operating_control->acceleration_meters_per_second_squared);
+    fixed_point_t dFx_dvx = 0;
+
+    /*
+     * Slip angle intermediates for Jacobians
+     */
+    fixed_point_t front_num = fp_add(vy, fp_mul(lf, omega));
+    fixed_point_t rear_num  = fp_sub(vy, fp_mul(lr, omega));
+
+#ifdef MPC_SIM_MATCHING
+    /* Small-angle slip Jacobians (matches gym exactly) */
+    fixed_point_t inv_vx2 = fp_mul(inv_vx_safe, inv_vx_safe);
+
+    fixed_point_t daf_dvx    = fp_mul(front_num, inv_vx2);
+    fixed_point_t daf_dvy    = fp_neg(inv_vx_safe);
+    fixed_point_t daf_domega = fp_neg(fp_mul(lf, inv_vx_safe));
+
+    fixed_point_t dar_dvx    = fp_mul(rear_num, inv_vx2);
+    fixed_point_t dar_dvy    = fp_neg(inv_vx_safe);
+    fixed_point_t dar_domega = fp_mul(lr, inv_vx_safe);
+#else
+    /* Full atan model: d(atan(n/d))/dx = (d·dn/dx - n·dd/dx) / (d² + n²) */
+    fixed_point_t front_num2 = fp_mul(front_num, front_num);
+    fixed_point_t rear_num2  = fp_mul(rear_num, rear_num);
+    fixed_point_t vx2 = fp_mul(vx_safe, vx_safe);
+
+    fixed_point_t D_f = fp_add(vx2, front_num2);
+    fixed_point_t D_r = fp_add(vx2, rear_num2);
+    if (D_f == 0) D_f = FP_ONE;
+    if (D_r == 0) D_r = FP_ONE;
+
+    fixed_point_t inv_D_f = fp_recip(D_f);
+    fixed_point_t inv_D_r = fp_recip(D_r);
+
+    fixed_point_t daf_dvx    = fp_mul(front_num, inv_D_f);
+    fixed_point_t daf_dvy    = fp_neg(fp_mul(vx_safe, inv_D_f));
+    fixed_point_t daf_domega = fp_neg(fp_mul(fp_mul(lf, vx_safe), inv_D_f));
+
+    fixed_point_t dar_dvx    = fp_mul(rear_num, inv_D_r);
+    fixed_point_t dar_dvy    = fp_neg(fp_mul(vx_safe, inv_D_r));
+    fixed_point_t dar_domega = fp_mul(fp_mul(lr, vx_safe), inv_D_r);
+#endif
+
+    /*
+     * Normal forces with load transfer
+     *   F_zf = (m*g*l_r - F_x*h) / L
+     *   F_zr = (m*g*l_f + F_x*h) / L
+     */
+    fixed_point_t g_acc = stored_vehicle_parameters.gravity_acceleration_meters_per_second_squared;
+    fixed_point_t h_cg  = stored_vehicle_parameters.height_cg_to_ground_meters;
+    fixed_point_t mg    = fp_mul(mass, g_acc);
+
+    fixed_point_t F_zf = fp_mul(
+        fp_sub(fp_mul(mg, lr), fp_mul(Fx, h_cg)), cached_inv_L_wb);
+    fixed_point_t F_zr = fp_mul(
+        fp_add(fp_mul(mg, lf), fp_mul(Fx, h_cg)), cached_inv_L_wb);
+
+    /*
+     * Tire force model for linearization
+     */
+    fixed_point_t front_ratio_lin = fp_mul(front_num, inv_vx_safe);
+    fixed_point_t rear_ratio_lin  = fp_mul(rear_num, inv_vx_safe);
+
+    const fixed_point_t mu = F110_FRICTION_COEFFICIENT;
+
+    fixed_point_t C_Sf_Fzf_linear = fp_mul(mu, fp_mul(C_Sf, F_zf));
+    fixed_point_t C_Sr_Fzr_linear = fp_mul(mu, fp_mul(C_Sr, F_zr));
+
+#ifdef MPC_SIM_MATCHING
+    /* Pure linear tire model (matches gym exactly) */
+    fixed_point_t C_Sf_Fzf = C_Sf_Fzf_linear;
+    fixed_point_t C_Sr_Fzr = C_Sr_Fzr_linear;
+
+    fixed_point_t alpha_f_op = fp_sub(delta, front_ratio_lin);
+    fixed_point_t F_yf = fp_mul(C_Sf_Fzf, alpha_f_op);
+    (void)rear_ratio_lin;
+#else
+    /* Full Pacejka-like tire model for real-world accuracy */
+    fixed_point_t alpha_f_op = fp_sub(delta, fp_atan(front_ratio_lin));
+    fixed_point_t alpha_r_op = fp_neg(fp_atan(rear_ratio_lin));
+
+    const fixed_point_t C_shape = FP_CONST(1.9);
+    const fixed_point_t inv_C_shape = fp_recip(C_shape);
+    const fixed_point_t min_stiffness_scale = FP_CONST(0.1);
+
+    fixed_point_t B_f = fp_mul(C_Sf, inv_C_shape);
+    fixed_point_t B_r = fp_mul(C_Sr, inv_C_shape);
+
+    fixed_point_t C_Sf_Fzf;
+    fixed_point_t F_yf;
+    {
+        fixed_point_t D_pac_f = fp_mul(mu, F_zf);
+        fixed_point_t Ba_f = fp_mul(B_f, alpha_f_op);
+        fixed_point_t inner_f = fp_mul(C_shape, fp_atan(Ba_f));
+        fixed_point_t cos_inner_f = fp_cos(inner_f);
+        fixed_point_t denom_f_pac = fp_add(FP_ONE, fp_mul(Ba_f, Ba_f));
+        fixed_point_t inv_denom_f_pac = fp_recip(denom_f_pac);
+        fixed_point_t C_eff_f = fp_mul(fp_mul(fp_mul(D_pac_f, C_shape), B_f),
+                                       fp_mul(cos_inner_f, inv_denom_f_pac));
+        fixed_point_t C_min_f = fp_mul(C_Sf_Fzf_linear, min_stiffness_scale);
+        C_Sf_Fzf = (C_eff_f > C_min_f) ? C_eff_f : C_min_f;
+        F_yf = fp_mul(D_pac_f, fp_sin(inner_f));
+    }
+
+    fixed_point_t C_Sr_Fzr;
+    {
+        fixed_point_t D_pac_r = fp_mul(mu, F_zr);
+        fixed_point_t Ba_r = fp_mul(B_r, alpha_r_op);
+        fixed_point_t inner_r = fp_mul(C_shape, fp_atan(Ba_r));
+        fixed_point_t cos_inner_r = fp_cos(inner_r);
+        fixed_point_t denom_r_pac = fp_add(FP_ONE, fp_mul(Ba_r, Ba_r));
+        fixed_point_t inv_denom_r_pac = fp_recip(denom_r_pac);
+        fixed_point_t C_eff_r = fp_mul(fp_mul(fp_mul(D_pac_r, C_shape), B_r),
+                                       fp_mul(cos_inner_r, inv_denom_r_pac));
+        fixed_point_t C_min_r = fp_mul(C_Sr_Fzr_linear, min_stiffness_scale);
+        C_Sr_Fzr = (C_eff_r > C_min_r) ? C_eff_r : C_min_r;
+    }
+#endif
+
+    /*
+     * Tire force Jacobians w.r.t. body states
+     */
+    fixed_point_t dFyf_dvx    = fp_mul(C_Sf_Fzf, daf_dvx);
+    fixed_point_t dFyf_dvy    = fp_mul(C_Sf_Fzf, daf_dvy);
+    fixed_point_t dFyf_domega = fp_mul(C_Sf_Fzf, daf_domega);
+    fixed_point_t dFyf_ddelta = C_Sf_Fzf;
+
+    fixed_point_t dFyr_dvx    = fp_mul(C_Sr_Fzr, dar_dvx);
+    fixed_point_t dFyr_dvy    = fp_mul(C_Sr_Fzr, dar_dvy);
+    fixed_point_t dFyr_domega = fp_mul(C_Sr_Fzr, dar_domega);
+
+    /*
+     * Cached reciprocals for mass and inertia
+     */
+    fixed_point_t inv_m  = cached_inv_mass;
+    fixed_point_t inv_Iz = cached_inv_Iz;
+
+    /*
+     * Initialize Frenet matrices to zero.
      * Explicit loops instead of memset for HLS-friendly unrolling.
      */
     for (int i = 0; i < FRENET_STATE_DIMENSION; i++)
@@ -853,30 +1004,7 @@ void vehicle_model_compute_frenet_linearization(
     }
 
     /*
-     * Step 4: Copy body-frame dynamics (global rows 3-5, cols 3-5)
-     * into Frenet rows 2-4, cols 2-4.
-     *
-     * These rows represent v_x, v_y, omega dynamics which
-     * are identical in global and Frenet frames (body-frame forces
-     * don't depend on global position or path-relative position).
-     *
-     * Body dynamics cols 0-2 (dependency on e_y, e_psi) are zero
-     * because body-frame forces don't depend on Frenet position.
-     */
-    for (int i = 0; i < 3; i++)
-    {
-        for (int j = 0; j < 3; j++)
-        {
-            state_matrix_A[i + 2][j + 2] = A_global[i + 3][j + 3];
-        }
-        input_matrix_B[i + 2][0] = B_global[i + 3][0];
-        input_matrix_B[i + 2][1] = B_global[i + 3][1];
-    }
-
-    /*
-     * Step 5: Build Frenet kinematic rows (discrete-time Forward Euler)
-     *
-     * Row 0: e_y dynamics
+     * Row 0: e_y dynamics (Frenet kinematics)
      *   Continuous: e_y_dot = v_x * sin(e_psi) + v_y * cos(e_psi)
      *   Linearized (e_psi ≈ 0): e_y_dot ≈ v_x * e_psi + v_y
      *   Discrete: e_y[k+1] = e_y[k] + dt * (v_x * e_psi[k] + v_y[k])
@@ -887,28 +1015,114 @@ void vehicle_model_compute_frenet_linearization(
      *   A[0][3] = dt        (lateral velocity directly changes e_y)
      *   A[0][4] = 0         (no direct omega coupling)
      */
-    fixed_point_t v_x = frenet_state->longitudinal_velocity_meters_per_second;
-
     state_matrix_A[0][0] = FP_ONE;
-    state_matrix_A[0][1] = fp_mul(time_step, v_x);
-    /* A[0][2..5] = 0, except: */
+    state_matrix_A[0][1] = fp_mul(time_step, vx);
     state_matrix_A[0][3] = time_step;
 
     /*
-     * Row 1: e_psi dynamics
+     * Row 1: e_psi dynamics (Frenet kinematics)
      *   Continuous: e_psi_dot = omega - kappa * v_x * cos(e_psi) / (1 - kappa * e_y)
      *   Linearized (e_y ≈ 0, e_psi ≈ 0): e_psi_dot ≈ omega - kappa * v_x
      *   Discrete: e_psi[k+1] = e_psi[k] + dt * (omega[k] - kappa * v_x[k])
      *
-     *   A[1][0] = 0                (∂/∂e_y ≈ kappa² * v_x ≈ 0 for small kappa)
      *   A[1][1] = 1                (identity)
      *   A[1][2] = -dt * kappa      (speed along curved path changes heading error)
-     *   A[1][3] = 0                (no v_y coupling)
      *   A[1][4] = dt               (yaw rate directly changes heading error)
      */
     state_matrix_A[1][1] = FP_ONE;
     state_matrix_A[1][2] = fp_neg(fp_mul(time_step, path_curvature));
     state_matrix_A[1][4] = time_step;
+
+    /*
+     * Rows 2-4: Body-frame dynamics (computed directly — avoids the
+     * 6×6 global matrix allocation and discarded rows 0-2).
+     *
+     * These are the Jacobians of [v_x_dot, v_y_dot, omega_dot] w.r.t.
+     * body states [v_x, v_y, omega], discretized via Forward Euler.
+     */
+#ifdef MPC_SIM_MATCHING
+    /* Sim-matching: no sin(δ)/cos(δ) force resolution (matches gym) */
+
+    /* Row 2: dvx/dt = a_cmd + vy*omega */
+    state_matrix_A[2][2] = FP_ONE;
+    state_matrix_A[2][3] = fp_mul(time_step, omega);
+    state_matrix_A[2][4] = fp_mul(time_step, vy);
+
+    /* Row 3: dvy/dt = (F_yf + F_yr)/m - vx*omega */
+    state_matrix_A[3][2] = fp_mul(time_step,
+        fp_mul(fp_add(dFyf_dvx, fp_sub(dFyr_dvx, fp_mul(mass, omega))), inv_m));
+    state_matrix_A[3][3] = fp_add(FP_ONE, fp_mul(time_step,
+        fp_mul(fp_add(dFyf_dvy, dFyr_dvy), inv_m)));
+    state_matrix_A[3][4] = fp_mul(time_step,
+        fp_mul(fp_sub(fp_add(dFyf_domega, dFyr_domega),
+                       fp_mul(mass, vx)), inv_m));
+
+    /* Row 4: dω/dt = (lf*F_yf - lr*F_yr)/Iz */
+    state_matrix_A[4][2] = fp_mul(time_step,
+        fp_mul(fp_sub(fp_mul(lf, dFyf_dvx), fp_mul(lr, dFyr_dvx)), inv_Iz));
+    state_matrix_A[4][3] = fp_mul(time_step,
+        fp_mul(fp_sub(fp_mul(lf, dFyf_dvy), fp_mul(lr, dFyr_dvy)), inv_Iz));
+    state_matrix_A[4][4] = fp_add(FP_ONE, fp_mul(time_step,
+        fp_mul(fp_sub(fp_mul(lf, dFyf_domega), fp_mul(lr, dFyr_domega)), inv_Iz)));
+
+    /* B matrix — steering column (no longitudinal coupling in gym model) */
+    /* input_matrix_B[2][0] = 0 (already zeroed) */
+    input_matrix_B[3][0] = fp_mul(time_step, fp_mul(dFyf_ddelta, inv_m));
+    input_matrix_B[4][0] = fp_mul(time_step, fp_mul(fp_mul(lf, dFyf_ddelta), inv_Iz));
+#else
+    /* Full model with cos(δ)/sin(δ) force resolution */
+
+    /* Row 2: dvx/dt = (Fx - Fyf*sin(δ) + m*vy*ω) / m */
+    state_matrix_A[2][2] = fp_add(FP_ONE, fp_mul(time_step,
+        fp_add(fp_mul(dFx_dvx, inv_m),
+               fp_mul(fp_neg(fp_mul(dFyf_dvx, sin_delta)), inv_m))));
+    state_matrix_A[2][3] = fp_mul(time_step,
+        fp_add(fp_mul(fp_neg(fp_mul(dFyf_dvy, sin_delta)), inv_m), omega));
+    state_matrix_A[2][4] = fp_mul(time_step,
+        fp_add(fp_mul(fp_neg(fp_mul(dFyf_domega, sin_delta)), inv_m), vy));
+
+    /* Row 3: dvy/dt = (Fyf*cos(δ) + Fyr - m*vx*ω) / m */
+    state_matrix_A[3][2] = fp_mul(time_step,
+        fp_mul(fp_add(fp_mul(dFyf_dvx, cos_delta),
+                       fp_sub(dFyr_dvx, fp_mul(mass, omega))), inv_m));
+    state_matrix_A[3][3] = fp_add(FP_ONE, fp_mul(time_step,
+        fp_mul(fp_add(fp_mul(dFyf_dvy, cos_delta), dFyr_dvy), inv_m)));
+    state_matrix_A[3][4] = fp_mul(time_step,
+        fp_mul(fp_sub(fp_add(fp_mul(dFyf_domega, cos_delta), dFyr_domega),
+                       fp_mul(mass, vx)), inv_m));
+
+    /* Row 4: dω/dt = (lf*Fyf*cos(δ) - lr*Fyr) / Iz */
+    state_matrix_A[4][2] = fp_mul(time_step,
+        fp_mul(fp_sub(fp_mul(lf, fp_mul(dFyf_dvx, cos_delta)),
+                       fp_mul(lr, dFyr_dvx)), inv_Iz));
+    state_matrix_A[4][3] = fp_mul(time_step,
+        fp_mul(fp_sub(fp_mul(lf, fp_mul(dFyf_dvy, cos_delta)),
+                       fp_mul(lr, dFyr_dvy)), inv_Iz));
+    state_matrix_A[4][4] = fp_add(FP_ONE, fp_mul(time_step,
+        fp_mul(fp_sub(fp_mul(lf, fp_mul(dFyf_domega, cos_delta)),
+                       fp_mul(lr, dFyr_domega)), inv_Iz)));
+
+    /* B matrix — steering column with cos(δ)/sin(δ) force resolution */
+    fixed_point_t dFyf_dd_sin = fp_mul(dFyf_ddelta, sin_delta);
+    fixed_point_t Fyf_cos     = fp_mul(F_yf, cos_delta);
+    fixed_point_t dFyf_dd_cos = fp_mul(dFyf_ddelta, cos_delta);
+    fixed_point_t Fyf_sin     = fp_mul(F_yf, sin_delta);
+
+    /* B[2][0]: d(dvx/dt)/dδ = (-dFyf_dd*sin(δ) - Fyf*cos(δ)) / m */
+    input_matrix_B[2][0] = fp_mul(time_step,
+        fp_mul(fp_sub(fp_neg(dFyf_dd_sin), Fyf_cos), inv_m));
+
+    /* B[3][0]: d(dvy/dt)/dδ = (dFyf_dd*cos(δ) - Fyf*sin(δ)) / m */
+    input_matrix_B[3][0] = fp_mul(time_step,
+        fp_mul(fp_sub(dFyf_dd_cos, Fyf_sin), inv_m));
+
+    /* B[4][0]: d(dω/dt)/dδ = lf*(dFyf_dd*cos(δ) - Fyf*sin(δ)) / Iz */
+    input_matrix_B[4][0] = fp_mul(time_step,
+        fp_mul(fp_mul(lf, fp_sub(dFyf_dd_cos, Fyf_sin)), inv_Iz));
+#endif
+
+    /* B[2][1]: acceleration → vx directly (dt * 1) */
+    input_matrix_B[2][1] = time_step;
 
     /*
      * B rows 0-1 are all zero:

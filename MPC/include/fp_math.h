@@ -1,208 +1,140 @@
 /**
  * @file fp_math.h
- * @brief Q16.16 Fixed-Point Arithmetic and Math Operations
+ * @brief Float32 Arithmetic and Math Operations
  *
- * Format: Q16.16
- * - 16 bits integer, 16 bits fractional
- * - Range: -32768.0 to 32767.99998
- * - Precision: ~0.000015 (1/65536)
+ * Converted from Q16.16 fixed-point to native float32 for
+ * ~3-5× speedup on ARM Cortex-A57 (Jetson Xavier NX).
+ * All fp_* functions are kept as thin wrappers for compatibility.
  *
- * All operations use integer arithmetic (FPGA compatible).
+ * The typedef `fixed_point_t` is retained as `float` to minimize
+ * code churn in dependent files.
  */
 
 #ifndef FP_MATH_H
 #define FP_MATH_H
 
 #include <stdint.h>
+#include <math.h>
 
 /*===========================================================================
- * Type Definition
+ * Type Definition — float32 (was Q16.16 int32_t)
  *===========================================================================*/
 
-typedef int32_t fixed_point_t;
+typedef float fixed_point_t;
 
 /*===========================================================================
  * Constants
  *===========================================================================*/
 
-#define FP_FRAC_BITS    16
-#define FP_ONE          (1 << FP_FRAC_BITS)
-#define FP_TWO          (2 << FP_FRAC_BITS)
-#define FP_HALF         (FP_ONE >> 1)
-#define FP_PI           205887      /* π in Q16.16 */
-#define FP_PI_HALF      102943      /* π/2 in Q16.16 */
-#define FP_TWO_PI       411775      /* 2π in Q16.16 */
+#define FP_FRAC_BITS    16              /* Kept for any legacy references */
+#define FP_ONE          1.0f
+#define FP_TWO          2.0f
+#define FP_HALF         0.5f
+#define FP_PI           3.14159265f
+#define FP_PI_HALF      1.57079633f
+#define FP_TWO_PI       6.28318530f
 
 /*===========================================================================
- * Conversion Macros
+ * Conversion Macros — identity/cast operations
  *===========================================================================*/
 
-/** Compile-time float → Q16.16 (rounded to nearest) */
-#define FP_CONST(x)     ((fixed_point_t)(((double)(x) >= 0) ? \
-                        ((double)(x) * FP_ONE + 0.5) : \
-                        ((double)(x) * FP_ONE - 0.5)))
-
-/** Runtime double → Q16.16 (rounded to nearest) */
-#define DOUBLE_TO_FP(x) ((fixed_point_t)(((x) >= 0) ? \
-                        ((x) * FP_ONE + 0.5) : \
-                        ((x) * FP_ONE - 0.5)))
-
-/** Runtime Q16.16 → double */
-#define FP_TO_DOUBLE(x) ((double)(x) / (double)FP_ONE)
-
-/** Runtime Q16.16 → float */
-#define FP_TO_FLOAT(x)  ((float)(x) / (float)FP_ONE)
+#define FP_CONST(x)     ((float)(x))
+#define DOUBLE_TO_FP(x) ((float)(x))
+#define FP_TO_DOUBLE(x) ((double)(x))
+#define FP_TO_FLOAT(x)  (x)
 
 /*===========================================================================
- * Bit Shift Operations
+ * Bit Shift Operations — multiply/divide by power of 2
  *===========================================================================*/
 
-#define fp_shift_left(val, n)  ((fixed_point_t)((int64_t)(val) << (n)))
-#define fp_shift_right(val, n) ((fixed_point_t)((int64_t)(val) >> (n)))
+#define fp_shift_left(val, n)  ((float)(val) * (float)(1 << (n)))
+#define fp_shift_right(val, n) ((float)(val) / (float)(1 << (n)))
 
 /*===========================================================================
- * Basic Arithmetic (inline)
+ * Basic Arithmetic (inline — zero overhead)
  *===========================================================================*/
 
-static inline fixed_point_t fp_add(fixed_point_t a, fixed_point_t b)
-{
-    return a + b;
-}
+static inline float fp_add(float a, float b) { return a + b; }
+static inline float fp_add_sat(float a, float b) { return a + b; }
+static inline float fp_sub(float a, float b) { return a - b; }
+static inline float fp_mul(float a, float b) { return a * b; }
 
-/**
- * Saturating addition: clamps result to [INT32_MIN, INT32_MAX] on overflow.
- * Use for accumulations that can exceed int32_t range (e.g., Hessian construction).
- */
-static inline fixed_point_t fp_add_sat(fixed_point_t a, fixed_point_t b)
+static inline float fp_div(float a, float b)
 {
-    int64_t sum = (int64_t)a + (int64_t)b;
-    if (sum > INT32_MAX) return INT32_MAX;
-    if (sum < INT32_MIN) return INT32_MIN;
-    return (fixed_point_t)sum;
-}
-
-static inline fixed_point_t fp_sub(fixed_point_t a, fixed_point_t b)
-{
-    return a - b;
-}
-
-static inline fixed_point_t fp_mul(fixed_point_t a, fixed_point_t b)
-{
-    int64_t product = (int64_t)a * (int64_t)b;
-#ifdef MPC_HLS_TARGET
-#pragma HLS BIND_OP variable=product op=mul impl=dsp
-#endif
-    return (fixed_point_t)(product >> FP_FRAC_BITS);
-}
-
-static inline fixed_point_t fp_div(fixed_point_t a, fixed_point_t b)
-{
-    if (a == 0 || b == 0) return 0;
-    return (fixed_point_t)(((int64_t)a << FP_FRAC_BITS) / b);
+    return (b != 0.0f) ? a / b : 0.0f;
 }
 
 /*===========================================================================
  * Unary Operations (inline)
  *===========================================================================*/
 
-static inline fixed_point_t fp_abs(fixed_point_t a)
-{
-    return (a < 0) ? -a : a;
-}
-
-static inline fixed_point_t fp_neg(fixed_point_t a)
-{
-    return -a;
-}
+static inline float fp_abs(float a) { return fabsf(a); }
+static inline float fp_neg(float a) { return -a; }
 
 /*===========================================================================
  * Comparison and Clamping (inline)
  *===========================================================================*/
 
-static inline fixed_point_t fp_min(fixed_point_t a, fixed_point_t b)
-{
-    return (a < b) ? a : b;
-}
+static inline float fp_min(float a, float b) { return fminf(a, b); }
+static inline float fp_max(float a, float b) { return fmaxf(a, b); }
 
-static inline fixed_point_t fp_max(fixed_point_t a, fixed_point_t b)
+static inline float fp_clamp(float val, float lo, float hi)
 {
-    return (a > b) ? a : b;
-}
-
-static inline fixed_point_t fp_clamp(fixed_point_t val, fixed_point_t lo, fixed_point_t hi)
-{
-    if (val < lo) return lo;
-    if (val > hi) return hi;
-    return val;
+    return fminf(fmaxf(val, lo), hi);
 }
 
 /*===========================================================================
- * Advanced Math Functions (implemented in fp_math.c)
+ * Advanced Math Functions — direct libm calls
  *===========================================================================*/
 
-/** Normalize angle to [-π, π] */
-fixed_point_t fp_normalize_angle(fixed_point_t angle);
+static inline float fp_normalize_angle(float angle)
+{
+    angle = fmodf(angle + FP_PI, FP_TWO_PI);
+    if (angle < 0.0f) angle += FP_TWO_PI;
+    return angle - FP_PI;
+}
 
-/** Reciprocal: 1/x using Newton-Raphson */
-fixed_point_t fp_recip(fixed_point_t x);
+static inline float fp_recip(float x) { return (x != 0.0f) ? 1.0f / x : 0.0f; }
+static inline float fp_sqrt(float x)  { return sqrtf(fabsf(x)); }
+static inline float fp_sin(float a)   { return sinf(a); }
+static inline float fp_cos(float a)   { return cosf(a); }
+static inline float fp_tan(float a)   { return tanf(a); }
+static inline float fp_atan(float x)  { return atanf(x); }
+static inline float fp_atan2(float y, float x) { return atan2f(y, x); }
 
-/** Square root using Newton-Raphson */
-fixed_point_t fp_sqrt(fixed_point_t x);
-
-/** Sine using Taylor series */
-fixed_point_t fp_sin(fixed_point_t angle);
-
-/** Cosine using Taylor series */
-fixed_point_t fp_cos(fixed_point_t angle);
-
-/** Tangent: sin/cos with overflow protection */
-fixed_point_t fp_tan(fixed_point_t angle);
-
-/** Arctangent using Taylor series + range reduction */
-fixed_point_t fp_atan(fixed_point_t x);
-
-/** Two-argument arctangent with quadrant handling */
-fixed_point_t fp_atan2(fixed_point_t y, fixed_point_t x);
-
-/** Integer power: base^exponent */
-fixed_point_t fp_pow(fixed_point_t base, int exp);
+static inline float fp_pow(float base, int exp)
+{
+    return powf(base, (float)exp);
+}
 
 /*===========================================================================
- * Matrix-Vector Operations
+ * Matrix-Vector Operations (implemented in fp_math.c)
  *===========================================================================*/
 
-/** Matrix-vector multiply: result = M × v */
 void fp_mat_vec_mul(
-    const fixed_point_t *matrix,
-    const fixed_point_t *vec,
-    fixed_point_t *result,
+    const float *matrix,
+    const float *vec,
+    float *result,
     uint16_t rows,
     uint16_t cols);
 
-/** Symmetric matrix-vector multiply: result = M × v
- *  Exploits M[i][j] == M[j][i], reading only upper triangle.
- *  Uses 2×2 block processing matching MPC's control-pair structure.
- *  Halves matrix memory reads vs fp_mat_vec_mul.
- *  Falls back to fp_mat_vec_mul for odd n. */
 void fp_symmetric_mat_vec_mul(
-    const fixed_point_t *matrix,
-    const fixed_point_t *vec,
-    fixed_point_t *result,
+    const float *matrix,
+    const float *vec,
+    float *result,
     uint16_t n);
 
-/** Vector add scaled: result = a + scalar × b */
 void fp_vec_add_scaled(
-    const fixed_point_t *a,
-    const fixed_point_t *b,
-    fixed_point_t scalar,
-    fixed_point_t *result,
+    const float *a,
+    const float *b,
+    float scalar,
+    float *result,
     uint16_t len);
 
-/** Max constraint violation: max(A×x - b, 0) */
-fixed_point_t fp_max_violation(
-    const fixed_point_t *A,
-    const fixed_point_t *x,
-    const fixed_point_t *b,
+float fp_max_violation(
+    const float *A,
+    const float *x,
+    const float *b,
     uint16_t constraints,
     uint16_t vars);
 

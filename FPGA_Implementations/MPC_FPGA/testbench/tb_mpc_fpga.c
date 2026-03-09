@@ -2,13 +2,19 @@
  * @file tb_mpc_fpga.c
  * @brief C Testbench for MPC FPGA HLS Cosimulation
  *
- * Tests the mpc_fpga_top function in three phases:
+ * Tests the mpc_fpga_top function in multiple phases:
  *   1. Load a simple oval trajectory (mode=1 + mode=2)
- *   2. Run compute mode (mode=0) with a test vehicle state
- *   3. Verify outputs are reasonable
+ *   2. Run compute mode (mode=0) with test vehicle states
+ *   3. Verify outputs with quantitative bounds
+ *   4. Test warm-start convergence improvement
+ *   5. Test on curved section (steering direction)
+ *   6. Consistency check: repeated calls produce stable output
  *
- * Build with: gcc -I../include -o tb_mpc_fpga tb_mpc_fpga.c \
- *             ../src/mpc_fpga_top.c ../src/mpc_riccati_hls.c \
+ * Uses full real-hardware physics model (Pacejka tires, atan slip angles,
+ * cos/sin delta force resolution).
+ *
+ * Build with: gcc -O2 -I../include -Wno-unknown-pragmas -o tb_mpc_fpga \
+ *             tb_mpc_fpga.c ../src/mpc_fpga_top.c ../src/mpc_riccati_hls.c \
  *             ../src/riccati_solver_hls.c ../src/vehicle_model_hls.c \
  *             ../src/fp_math_hls.c -lm
  */
@@ -42,20 +48,30 @@ static double fptof(int v) {
     return (double)v / 65536.0;
 }
 
+/* Test assertion macro */
+static int total_checks = 0;
+static int passed_checks = 0;
+
+#define CHECK(cond, msg) do { \
+    total_checks++; \
+    if (cond) { passed_checks++; } \
+    else { printf("  FAIL: %s\n", msg); } \
+} while(0)
+
+#define CHECK_RANGE(val, lo, hi, name) do { \
+    total_checks++; \
+    if ((val) >= (lo) && (val) <= (hi)) { passed_checks++; } \
+    else { printf("  FAIL: %s = %.6f not in [%.3f, %.3f]\n", name, (double)(val), (double)(lo), (double)(hi)); } \
+} while(0)
+
 int main(void)
 {
     int out_steer, out_accel, out_status, out_iters;
-    int pass = 1;
 
-    printf("=== MPC FPGA Testbench ===\n\n");
+    printf("=== MPC FPGA Testbench (Real-Hardware Model) ===\n\n");
 
     /* ---------------------------------------------------------------
      * Phase 1: Load an oval trajectory (100 waypoints)
-     *
-     * Simple oval: two straights + two semicircles
-     * Straight: 10m long, semicircle: radius 5m
-     * Track width: 2m (left_bound=1m, right_bound=1m)
-     * Target velocity: 5 m/s
      * --------------------------------------------------------------- */
     printf("Phase 1: Loading trajectory...\n");
     const int N_WP = 100;
@@ -66,34 +82,23 @@ int main(void)
         double t = (double)i / N_WP;
         double x, y, psi, kappa;
 
-        /* Simple oval parameterization */
         double straight_len = 10.0;
         double radius = 5.0;
         double total_len = 2.0 * straight_len + 2.0 * M_PI * radius;
         double s = t * total_len;
 
         if (s < straight_len) {
-            /* Bottom straight (going right) */
-            x = s;
-            y = 0.0;
-            psi = 0.0;
-            kappa = 0.0;
+            x = s; y = 0.0; psi = 0.0; kappa = 0.0;
         } else if (s < straight_len + M_PI * radius) {
-            /* Right semicircle */
             double angle = (s - straight_len) / radius;
             x = straight_len + radius * sin(angle);
             y = radius * (1.0 - cos(angle));
             psi = angle;
             kappa = 1.0 / radius;
         } else if (s < 2.0 * straight_len + M_PI * radius) {
-            /* Top straight (going left) */
             double ds = s - straight_len - M_PI * radius;
-            x = straight_len - ds;
-            y = 2.0 * radius;
-            psi = M_PI;
-            kappa = 0.0;
+            x = straight_len - ds; y = 2.0 * radius; psi = M_PI; kappa = 0.0;
         } else {
-            /* Left semicircle */
             double angle = (s - 2.0 * straight_len - M_PI * radius) / radius;
             x = -radius * sin(angle);
             y = 2.0 * radius - radius * (1.0 - cos(angle));
@@ -101,135 +106,181 @@ int main(void)
             kappa = 1.0 / radius;
         }
 
-        /* Normalize psi to [-pi, pi] */
         while (psi > M_PI) psi -= 2.0 * M_PI;
         while (psi < -M_PI) psi += 2.0 * M_PI;
 
         mpc_fpga_top(
-            1, /* mode = load waypoint */
-            i,
+            1, i,
             ftofp(x), ftofp(y), ftofp(psi),
             ftofp(target_vel), ftofp(kappa), ftofp(0.0),
             ftofp(track_half_width), ftofp(track_half_width),
-            0, /* wp_total unused in mode 1 */
-            0, 0, 0, 0, 0, 0, 0, 0, /* state unused */
+            0,
+            0, 0, 0, 0, 0, 0, 0, 0,
             &out_steer, &out_accel, &out_status, &out_iters);
     }
 
     /* Finalize trajectory */
     mpc_fpga_top(
-        2, /* mode = finalize */
-        0, 0, 0, 0, 0, 0, 0, 0, 0,
-        N_WP, /* wp_total */
+        2, 0, 0, 0, 0, 0, 0, 0, 0, 0, N_WP,
         0, 0, 0, 0, 0, 0, 0, 0,
         &out_steer, &out_accel, &out_status, &out_iters);
 
     printf("  Loaded %d waypoints, status=%d\n\n", out_iters, out_status);
-    if (out_status != 0) {
-        printf("FAIL: Trajectory loading failed\n");
-        return 1;
-    }
+    CHECK(out_status == 0, "Trajectory loading should succeed");
 
     /* ---------------------------------------------------------------
-     * Phase 2: Run MPC compute with a test state
-     *
-     * Vehicle at (x=1.0, y=0.2, theta=0.05) on the bottom straight,
-     * moving at 5 m/s with small lateral error.
+     * Phase 2: Cold-start compute on straight section
+     * Vehicle at (x=1.0, y=0.2, θ=0.05), 5 m/s, slight lateral error
      * --------------------------------------------------------------- */
-    printf("Phase 2: Running MPC compute...\n");
+    printf("Phase 2: Cold-start compute (straight section)...\n");
 
-    /* First call (cold start) */
     mpc_fpga_top(
-        0, /* mode = compute */
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* wp params unused */
-        ftofp(1.0),   /* state_x */
-        ftofp(0.2),   /* state_y (slightly off-centerline) */
-        ftofp(0.05),  /* state_theta (slight heading error) */
-        ftofp(5.0),   /* state_vx */
-        ftofp(0.0),   /* state_vy */
-        ftofp(0.0),   /* state_omega */
-        ftofp(0.0),   /* state_steering (centered) */
-        2,            /* state_wp_idx (closest waypoint) */
-        &out_steer, &out_accel, &out_status, &out_iters);
-
-    double steer_val = fptof(out_steer);
-    double accel_val = fptof(out_accel);
-
-    printf("  Call 1 (cold start):\n");
-    printf("    Steering: %.4f rad (%.1f deg)\n", steer_val, steer_val * 180.0 / M_PI);
-    printf("    Accel:    %.4f m/s^2\n", accel_val);
-    printf("    Status:   %d\n", out_status);
-    printf("    Iters:    %d\n\n", out_iters);
-
-    /* Check: steering should be negative (correcting rightward back to path) */
-    if (steer_val > 0.5 || steer_val < -0.5) {
-        printf("  WARNING: Steering magnitude seems large: %.4f rad\n", steer_val);
-    }
-    if (out_status == 2) {
-        printf("  FAIL: Solver returned error status\n");
-        pass = 0;
-    }
-
-    /* Second call (warm start) — same state, should converge faster */
-    mpc_fpga_top(
-        0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ftofp(1.0), ftofp(0.2), ftofp(0.05),
         ftofp(5.0), ftofp(0.0), ftofp(0.0),
-        out_steer, /* Use previous steering output as current servo pos */
-        2,
+        ftofp(0.0), 2,
         &out_steer, &out_accel, &out_status, &out_iters);
 
-    steer_val = fptof(out_steer);
-    accel_val = fptof(out_accel);
+    double steer1 = fptof(out_steer);
+    double accel1 = fptof(out_accel);
 
-    printf("  Call 2 (warm start):\n");
-    printf("    Steering: %.4f rad (%.1f deg)\n", steer_val, steer_val * 180.0 / M_PI);
-    printf("    Accel:    %.4f m/s^2\n", accel_val);
-    printf("    Status:   %d\n", out_status);
-    printf("    Iters:    %d\n\n", out_iters);
+    printf("    Steering: %.4f rad (%.1f deg)\n", steer1, steer1 * 180.0 / M_PI);
+    printf("    Accel:    %.4f m/s^2\n", accel1);
+    printf("    Status:   %d, Iters: %d\n\n", out_status, out_iters);
+
+    /* Quantitative checks for straight section with rightward lateral error:
+     * - Steering should be negative (correct back toward path)
+     * - Magnitude should be reasonable (not saturated for small error) */
+    CHECK(out_status != 2, "Solver should not return error");
+    CHECK_RANGE(steer1, -0.45, 0.0, "steering_cold_straight");
+    CHECK_RANGE(accel1, -8.0, 8.0, "accel_cold_straight");
+    CHECK(out_iters > 0, "Should take at least 1 iteration");
 
     /* ---------------------------------------------------------------
-     * Phase 3: Run on a curved section
+     * Phase 3: Warm-start compute (same state — should converge faster)
      * --------------------------------------------------------------- */
-    printf("Phase 3: Testing on curved section...\n");
-
-    /* Place vehicle entering the right semicircle */
-    int curve_wp = N_WP / 4;  /* ~25% into trajectory = start of curve */
-    double curve_x = 10.0;
-    double curve_y = 0.5;
-    double curve_theta = 0.3;
+    printf("Phase 3: Warm-start compute...\n");
+    int cold_iters = out_iters;
 
     mpc_fpga_top(
-        0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ftofp(curve_x), ftofp(curve_y), ftofp(curve_theta),
-        ftofp(5.0), ftofp(0.1), ftofp(0.05),
-        ftofp(0.05), /* Small existing steering */
-        curve_wp,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ftofp(1.0), ftofp(0.2), ftofp(0.05),
+        ftofp(5.0), ftofp(0.0), ftofp(0.0),
+        out_steer, 2,
         &out_steer, &out_accel, &out_status, &out_iters);
 
-    steer_val = fptof(out_steer);
-    accel_val = fptof(out_accel);
+    double steer2 = fptof(out_steer);
+    double accel2 = fptof(out_accel);
 
-    printf("  Curve entry:\n");
-    printf("    Steering: %.4f rad (%.1f deg)\n", steer_val, steer_val * 180.0 / M_PI);
-    printf("    Accel:    %.4f m/s^2\n", accel_val);
-    printf("    Status:   %d\n", out_status);
-    printf("    Iters:    %d\n\n", out_iters);
+    printf("    Steering: %.4f rad (%.1f deg)\n", steer2, steer2 * 180.0 / M_PI);
+    printf("    Accel:    %.4f m/s^2\n", accel2);
+    printf("    Status:   %d, Iters: %d (cold was %d)\n\n",
+           out_status, out_iters, cold_iters);
 
-    /* Steering should be positive (turning left for right semicircle) */
-    if (out_status == 2) {
-        printf("  FAIL: Solver error on curve\n");
-        pass = 0;
+    CHECK(out_status != 2, "Warm-start should not error");
+    /* Warm-start should converge in fewer or equal iterations */
+    CHECK(out_iters <= cold_iters + 5,
+          "Warm-start should not need many more iterations than cold");
+
+    /* Consistency: warm-start output should be close to cold-start */
+    double steer_diff = fabs(steer2 - steer1);
+    CHECK(steer_diff < 0.15, "Warm vs cold steering should be similar (<0.15 rad)");
+
+    /* ---------------------------------------------------------------
+     * Phase 4: Curved section test
+     * Vehicle entering right semicircle — steering should be positive
+     * --------------------------------------------------------------- */
+    printf("Phase 4: Curved section test...\n");
+
+    int curve_wp = N_WP / 4;
+
+    mpc_fpga_top(
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ftofp(10.0), ftofp(0.5), ftofp(0.3),
+        ftofp(5.0), ftofp(0.1), ftofp(0.05),
+        ftofp(0.05), curve_wp,
+        &out_steer, &out_accel, &out_status, &out_iters);
+
+    double steer_curve = fptof(out_steer);
+    double accel_curve = fptof(out_accel);
+
+    printf("    Steering: %.4f rad (%.1f deg)\n", steer_curve, steer_curve * 180.0 / M_PI);
+    printf("    Accel:    %.4f m/s^2\n", accel_curve);
+    printf("    Status:   %d, Iters: %d\n\n", out_status, out_iters);
+
+    CHECK(out_status != 2, "Curve solver should not error");
+    /* On a right semicircle (left turn), steering should be positive */
+    CHECK(steer_curve > -0.05, "Curve steering should be positive (left turn)");
+    CHECK_RANGE(steer_curve, -0.10, 0.45, "steering_curve");
+
+    /* ---------------------------------------------------------------
+     * Phase 5: Stability test — run 5 consecutive calls, check output
+     * doesn't diverge
+     * --------------------------------------------------------------- */
+    printf("Phase 5: Stability test (5 consecutive calls)...\n");
+    int prev_steer = ftofp(0.0);
+    int stable = 1;
+
+    for (int call = 0; call < 5; call++) {
+        mpc_fpga_top(
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ftofp(2.0 + call * 0.5), ftofp(0.1), ftofp(0.02),
+            ftofp(5.0), ftofp(0.0), ftofp(0.0),
+            prev_steer, 5 + call,
+            &out_steer, &out_accel, &out_status, &out_iters);
+
+        double sv = fptof(out_steer);
+        double av = fptof(out_accel);
+        printf("    Call %d: steer=%.4f, accel=%.4f, status=%d, iters=%d\n",
+               call, sv, av, out_status, out_iters);
+
+        if (fabs(sv) > 0.45 || fabs(av) > 8.5) {
+            printf("    WARNING: Output exceeds physical limits!\n");
+            stable = 0;
+        }
+        if (out_status == 2) stable = 0;
+
+        prev_steer = out_steer;
     }
+    printf("\n");
+    CHECK(stable, "All 5 consecutive calls should be within physical limits");
+
+    /* ---------------------------------------------------------------
+     * Phase 6: Zero-lateral-error test — steering should be near zero
+     * --------------------------------------------------------------- */
+    printf("Phase 6: Zero-error test (on path, correct heading)...\n");
+
+    /* Reset ADMM state by reloading trajectory */
+    mpc_fpga_top(2, 0, 0, 0, 0, 0, 0, 0, 0, 0, N_WP,
+                 0, 0, 0, 0, 0, 0, 0, 0,
+                 &out_steer, &out_accel, &out_status, &out_iters);
+
+    /* Vehicle exactly on path, correct heading, target velocity */
+    mpc_fpga_top(
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ftofp(5.0), ftofp(0.0), ftofp(0.0),
+        ftofp(5.0), ftofp(0.0), ftofp(0.0),
+        ftofp(0.0), 15,
+        &out_steer, &out_accel, &out_status, &out_iters);
+
+    double steer_zero = fptof(out_steer);
+    double accel_zero = fptof(out_accel);
+
+    printf("    Steering: %.4f rad\n", steer_zero);
+    printf("    Accel:    %.4f m/s^2\n", accel_zero);
+    printf("    Status:   %d, Iters: %d\n\n", out_status, out_iters);
+
+    /* On a straight with zero error, steering should be near zero.
+     * Note: MPC horizon may see upcoming curve, allowing small anticipatory steering */
+    CHECK_RANGE(steer_zero, -0.10, 0.10, "steering_zero_error");
+    /* Accel should be near zero (already at target velocity) */
+    CHECK_RANGE(accel_zero, -2.0, 2.0, "accel_zero_error");
 
     /* ---------------------------------------------------------------
      * Results
      * --------------------------------------------------------------- */
-    printf("=== Test %s ===\n", pass ? "PASSED" : "FAILED");
-    printf("  Note: Verify exact values match MPC_experimental output\n");
-    printf("  for numerical equivalence testing.\n");
+    printf("=== %d / %d checks passed ===\n", passed_checks, total_checks);
+    printf("=== Test %s ===\n", (passed_checks == total_checks) ? "PASSED" : "FAILED");
 
-    return pass ? 0 : 1;
+    return (passed_checks == total_checks) ? 0 : 1;
 }
