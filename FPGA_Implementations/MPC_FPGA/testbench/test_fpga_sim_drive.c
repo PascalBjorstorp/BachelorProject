@@ -30,6 +30,14 @@
 #include "mpc_fpga_types.h"
 #include "fp_math_hls.h"
 
+/* Portability: some systems (e.g. Windows) don't define CLOCK_MONOTONIC_RAW.
+ * Provide a safe fallback to CLOCK_MONOTONIC when RAW is unavailable. */
+#ifndef CLOCK_MONOTONIC_RAW
+#ifdef CLOCK_MONOTONIC
+#define CLOCK_MONOTONIC_RAW CLOCK_MONOTONIC
+#endif
+#endif
+
 /* External: FPGA top-level function */
 extern void mpc_fpga_top(
     int mode, int wp_index,
