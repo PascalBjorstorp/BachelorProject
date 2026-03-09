@@ -81,6 +81,7 @@ def launch_setup(context, *args, **kwargs):
     pkg_dir = get_package_share_directory('f1tenth_localization')
     amcl_params_file = os.path.join(pkg_dir, 'config', 'nav2_amcl_params.yaml')
     gpu_amcl_params_file = os.path.join(pkg_dir, 'config', 'gpu_amcl_params.yaml')
+    cpp_params_file = os.path.join(pkg_dir, 'config', 'gpu_amcl_cpp_params.yaml')
 
     amcl_type = LaunchConfiguration('amcl_type').perform(context)
     min_particles = LaunchConfiguration('min_particles').perform(context)
@@ -127,11 +128,35 @@ def launch_setup(context, *args, **kwargs):
     nodes.append(optitrack_node)
 
     # ──────────────────────────────────────────────
-    # 2) AMCL Localization (under test)
+    # 2) Localization stack (under test)
     # ──────────────────────────────────────────────
     lifecycle_node_names = []
 
-    if amcl_type == 'gpu_amcl':
+    if amcl_type == 'gpu_amcl_cpp':
+        # ── Full C++ stack: odom_fused + gpu_amcl_cpp + ekf ──
+        nodes.append(Node(
+            package='f1tenth_localization',
+            executable='odom_fused_node',
+            name='odom_fused',
+            output='screen',
+            parameters=[cpp_params_file, {'use_sim_time': False}],
+        ))
+        nodes.append(Node(
+            package='f1tenth_localization',
+            executable='gpu_amcl_cpp_node',
+            name='gpu_amcl_cpp',
+            output='screen',
+            parameters=[cpp_params_file, {'use_sim_time': False}],
+        ))
+        nodes.append(Node(
+            package='f1tenth_localization',
+            executable='ekf_localization_node',
+            name='ekf_localization',
+            output='screen',
+            parameters=[cpp_params_file, {'use_sim_time': False}],
+        ))
+    elif amcl_type == 'gpu_amcl':
+        # ── Python GPU AMCL + odom_fused + ekf ──
         amcl_node = Node(
             package='f1tenth_localization',
             executable='gpu_amcl_node.py',
@@ -146,7 +171,24 @@ def launch_setup(context, *args, **kwargs):
                 },
             ],
         )
+        nodes.append(amcl_node)
+        # Also start odom_fused + ekf so /ekf_pose is published
+        nodes.append(Node(
+            package='f1tenth_localization',
+            executable='odom_fused_node',
+            name='odom_fused',
+            output='screen',
+            parameters=[cpp_params_file, {'use_sim_time': False}],
+        ))
+        nodes.append(Node(
+            package='f1tenth_localization',
+            executable='ekf_localization_node',
+            name='ekf_localization',
+            output='screen',
+            parameters=[cpp_params_file, {'use_sim_time': False}],
+        ))
     else:
+        # ── nav2_amcl + odom_fused + ekf ──
         amcl_node = LifecycleNode(
             package='nav2_amcl',
             executable='amcl',
@@ -164,8 +206,21 @@ def launch_setup(context, *args, **kwargs):
             ],
         )
         lifecycle_node_names.append('amcl')
-
-    nodes.append(amcl_node)
+        nodes.append(amcl_node)
+        nodes.append(Node(
+            package='f1tenth_localization',
+            executable='odom_fused_node',
+            name='odom_fused',
+            output='screen',
+            parameters=[cpp_params_file, {'use_sim_time': False}],
+        ))
+        nodes.append(Node(
+            package='f1tenth_localization',
+            executable='ekf_localization_node',
+            name='ekf_localization',
+            output='screen',
+            parameters=[cpp_params_file, {'use_sim_time': False}],
+        ))
 
     # Lifecycle manager (only needed for nav2_amcl)
     if lifecycle_node_names:
@@ -192,7 +247,7 @@ def launch_setup(context, *args, **kwargs):
 
     benchmark_node = Node(
         package='f1tenth_localization',
-        executable='localization_benchmark',
+        executable='localization_benchmark.py',
         name='localization_benchmark',
         output='screen',
         parameters=[{
@@ -250,7 +305,7 @@ def generate_launch_description():
         # ── AMCL ──
         DeclareLaunchArgument(
             'amcl_type', default_value='gpu_amcl',
-            description="AMCL implementation: 'gpu_amcl' or 'nav2_amcl'",
+            description="AMCL: 'gpu_amcl' (Python), 'gpu_amcl_cpp' (C++), or 'nav2_amcl'",
         ),
         DeclareLaunchArgument(
             'min_particles', default_value='500',
