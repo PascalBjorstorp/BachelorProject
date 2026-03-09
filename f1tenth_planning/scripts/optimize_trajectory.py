@@ -107,10 +107,14 @@ def load_map(map_yaml_path):
     if img is None:
         raise FileNotFoundError(f"Could not load map image: {image_path}")
 
-    return img, resolution, origin
+    # Read occupied_thresh from map YAML (ROS convention).
+    # Used to compute a consistent wall threshold across the pipeline.
+    occupied_thresh = float(config.get('occupied_thresh', 0.65))
+
+    return img, resolution, origin, occupied_thresh
 
 
-def extract_boundaries(img, resolution, origin):
+def extract_boundaries(img, resolution, origin, wall_thresh=140):
     """
     Extract outer and inner track boundaries from a map image.
 
@@ -122,12 +126,23 @@ def extract_boundaries(img, resolution, origin):
         the image.  Outer wall = largest contour, inner wall = its largest
         child.
 
+    Parameters
+    ----------
+    wall_thresh : int
+        Pixel values >= wall_thresh are considered free space.  Must match
+        the threshold used by compute_wall_distances.py to avoid a grey-zone
+        that silently eats into the safety budget.
+
     Returns
     -------
     outer_world : np.ndarray, shape (N, 2) -- outer boundary in world coords
     inner_world : np.ndarray, shape (M, 2) -- inner boundary in world coords
     """
-    free_space = (img > 205).astype(np.uint8)
+    # Use the same wall threshold as compute_wall_distances.py:
+    #   wall_thresh = int(255 * (1.0 - occupied_thresh))
+    # Pixels below this value are walls.  Using a consistent threshold
+    # prevents a ~1-2 pixel grey zone from eating into the safety budget.
+    free_space = (img >= wall_thresh).astype(np.uint8)
     contours, hierarchy = cv2.findContours(
         free_space, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE
     )
@@ -192,7 +207,8 @@ def extract_boundaries(img, resolution, origin):
 
 
 def compute_centerline(outer_world, inner_world, num_points=1000,
-                       map_img=None, map_resolution=None, map_origin=None):
+                       map_img=None, map_resolution=None, map_origin=None,
+                       wall_thresh=140):
     """
     Compute a smooth, periodic centerline between the two boundaries.
 
@@ -238,7 +254,8 @@ def compute_centerline(outer_world, inner_world, num_points=1000,
 
     # Collision correction via distance transform
     if map_img is not None:
-        free = (map_img > 205).astype(np.uint8)
+        # Use consistent wall threshold (see extract_boundaries docstring)
+        free = (map_img >= wall_thresh).astype(np.uint8)
         dist_transform = cv2.distanceTransform(free, cv2.DIST_L2, 5)
         min_clearance_px = 2.0
         n_fixed = 0
@@ -292,7 +309,7 @@ def detect_winding_direction(centerline):
 
 
 def measure_track_widths(centerline, map_img, resolution, origin,
-                         max_dist=5.0):
+                         max_dist=5.0, wall_thresh=140):
     """
     Ray-cast from each centerline point perpendicular to path direction to
     find wall distances (right and left).
@@ -304,13 +321,16 @@ def measure_track_widths(centerline, map_img, resolution, origin,
     resolution : float -- meters per pixel
     origin : np.ndarray -- map origin [x, y, theta]
     max_dist : float -- maximum ray-cast distance in metres
+    wall_thresh : int -- pixel values >= this are free space (must match
+        compute_wall_distances.py threshold to avoid grey-zone errors)
 
     Returns
     -------
     w_right : np.ndarray, shape (N,) -- distance to right wall
     w_left  : np.ndarray, shape (N,) -- distance to left wall
     """
-    free = (map_img > 205).astype(np.uint8)
+    # Consistent wall threshold: pixels below wall_thresh are walls.
+    free = (map_img >= wall_thresh).astype(np.uint8)
     n = len(centerline)
 
     # Compute tangent vectors (periodic)
@@ -676,16 +696,34 @@ def main():
     )
     parser.add_argument(
         '--car-width', type=float, default=0.30,
-        help='Car width for wall margin [m] (default: 0.30)',
+        help='Physical car width [m] used for wall distance margin (default: 0.30)',
+    )
+    parser.add_argument(
+        '--wall-clearance', type=float, default=0.45,
+        help='Extra clearance from walls beyond car width on each side [m] (default: 0.45). '
+             'Optimizer width_opt = car_width + 2*wall_clearance',
     )
     parser.add_argument(
         '--max-ray-distance', type=float, default=5.0,
         help='Max wall ray-cast distance [m] (default: 5.0)',
     )
     parser.add_argument(
+        '--min-track-width', type=float, default=None,
+        help='Minimum enforced track width [m] in TUM optimizer (default: auto = 2*wall_clearance + car_width). '
+             'Narrow track sections are widened to this value before optimization.',
+    )
+    parser.add_argument(
         '--direction', default='auto',
         choices=['auto', 'cw', 'ccw'],
         help='Track direction: auto-detect from winding order, or force cw/ccw (default: auto)',
+    )
+    parser.add_argument(
+        '--no-fix', action='store_true',
+        help='Disable automatic wall-clearance fix post-processing (default: enabled when --with-walls)',
+    )
+    parser.add_argument(
+        '--min-clearance', type=float, default=None,
+        help='Minimum wall clearance [m] for the fix step (default: same as --wall-clearance)',
     )
 
     args = parser.parse_args()
@@ -711,23 +749,46 @@ def main():
     if args.with_walls:
         args.skip_walls = False
 
+    # Fix clearance defaults: enabled when --with-walls, unless --no-fix
+    args.fix_clearance = (not args.skip_walls) and (not args.no_fix)
+
+    # Default min-clearance to wall-clearance if not set
+    if args.min_clearance is None:
+        args.min_clearance = args.wall_clearance
+
     track_csv = os.path.join(
         global_opt_dir, 'inputs', 'tracks', f'{track_name}.csv'
     )
     output_name = f'{track_name}_raceline.csv'
-    output_csv = os.path.join(args.output, output_name)
+    # If --output looks like a file path (ends with .csv), use it directly;
+    # otherwise treat it as a directory and append the default filename.
+    if args.output.lower().endswith('.csv'):
+        output_csv = args.output
+    else:
+        output_csv = os.path.join(args.output, output_name)
 
     # ---- Banner --------------------------------------------------------------
     print("=" * 64)
     print("  F1Tenth Universal Trajectory Optimization Pipeline")
     print("=" * 64)
     print(f"  Map:              {args.map}")
+    # Compute minimum track width if not explicitly set
+    if args.min_track_width is None:
+        args.min_track_width = args.car_width + 2.0 * args.wall_clearance
+
     print(f"  Track name:       {track_name}")
     print(f"  Opt type:         {args.opt_type}")
     print(f"  Max speed:        {args.max_speed} m/s")
     print(f"  Centerline pts:   {args.centerline_points}")
     print(f"  Direction:        {args.direction}")
+    print(f"  Car width:        {args.car_width} m")
+    print(f"  Wall clearance:   {args.wall_clearance} m")
+    print(f"  Optimizer width:  {args.car_width + 2*args.wall_clearance:.3f} m")
+    print(f"  Min track width:  {args.min_track_width:.3f} m")
     print(f"  Wall distances:   {'yes' if not args.skip_walls else 'no (default)'}")
+    print(f"  Fix clearance:    {'yes' if args.fix_clearance else 'no'}")
+    if args.fix_clearance:
+        print(f"  Min clearance:    {args.min_clearance} m")
     print(f"  Output:           {output_csv}")
     print(f"  Skip extract:     {args.skip_extract}")
     print(f"  Skip optimize:    {args.skip_optimize}")
@@ -738,11 +799,18 @@ def main():
         print(f"  Step 0: Extract centerline from map")
         print(f"{'=' * 64}")
 
-        map_img, resolution, origin = load_map(args.map)
+        map_img, resolution, origin, occupied_thresh = load_map(args.map)
+
+        # Compute wall threshold from map YAML's occupied_thresh, matching
+        # the convention in compute_wall_distances.py:
+        #   ROS: p = (255 - pixel) / 255; occupied if p > occupied_thresh
+        #   => pixel < 255*(1 - occupied_thresh) is a wall
+        wall_thresh = int(255 * (1.0 - occupied_thresh))
+        print(f"  Wall threshold: {wall_thresh} (occupied_thresh={occupied_thresh:.2f})")
         print(f"  Image size: {map_img.shape[1]}x{map_img.shape[0]} px, "
               f"resolution: {resolution} m/px")
 
-        outer_world, inner_world = extract_boundaries(map_img, resolution, origin)
+        outer_world, inner_world = extract_boundaries(map_img, resolution, origin, wall_thresh=wall_thresh)
 
         # Auto-scale number of centerline points based on track perimeter
         # Estimate perimeter from outer boundary
@@ -760,6 +828,7 @@ def main():
             map_img=map_img,
             map_resolution=resolution,
             map_origin=origin,
+            wall_thresh=wall_thresh,
         )
 
         # Determine direction
@@ -780,10 +849,29 @@ def main():
         w_right, w_left = measure_track_widths(
             centerline, map_img, resolution, origin,
             max_dist=args.max_ray_distance,
+            wall_thresh=wall_thresh,
         )
 
-        # Smooth and cap widths to prevent spline normal crossings
-        w_right, w_left = smooth_track_widths(centerline, w_right, w_left)
+        # Smooth and cap widths to prevent spline normal crossings.
+        # Use car half-width as the absolute minimum per side (car must physically fit).
+        # Do NOT inflate to width_opt/2 — instead let the optimizer's width_opt
+        # constraint naturally push the raceline away from narrow walls.
+        # This is safe because total_width >= width_opt at every point (checked below).
+        car_half = args.car_width / 2.0
+        w_right, w_left = smooth_track_widths(
+            centerline, w_right, w_left, min_width=car_half
+        )
+
+        # Verify the optimizer can find a feasible solution
+        total_w = np.array(w_right) + np.array(w_left)
+        min_total = total_w.min()
+        if min_total < args.min_track_width:
+            print(f"  WARNING: Narrowest total width ({min_total:.3f}m) < "
+                  f"min_track_width ({args.min_track_width:.3f}m)")
+            print(f"  Optimizer may fail at these points. Consider reducing --wall-clearance.")
+        else:
+            print(f"  Track feasibility OK: narrowest total={min_total:.3f}m >= "
+                  f"min_track_width={args.min_track_width:.3f}m")
 
         # Save TUM-format track CSV
         save_tum_track_csv(centerline, w_right, w_left, track_csv)
@@ -807,14 +895,47 @@ def main():
 
     if not args.skip_optimize:
         main_py = os.path.join(global_opt_dir, 'main_globaltraj.py')
+        racecar_ini = os.path.join(global_opt_dir, 'params', 'racecar.ini')
 
         # Save original content for restoration
         with open(main_py, 'r') as f:
             original_content = f.read()
+        with open(racecar_ini, 'r') as f:
+            original_ini_content = f.read()
 
         try:
             set_track_in_main(main_py, track_name)
             set_opt_type_in_main(main_py, args.opt_type)
+
+            # Patch width_opt in racecar.ini: car_width + 2*wall_clearance
+            # This ensures the optimizer keeps the raceline far enough
+            # from track boundaries that after subtracting car_half_width
+            # in wall distance computation, there is wall_clearance of
+            # driveable room for the MPC on each side.
+            optimizer_width = args.car_width + 2.0 * args.wall_clearance
+            patched_ini = re.sub(
+                r'(optim_opts_mincurv\s*=\s*\{"width_opt":\s*)[\d.]+',
+                rf'\g<1>{optimizer_width:.3f}',
+                original_ini_content,
+            )
+            with open(racecar_ini, 'w') as f:
+                f.write(patched_ini)
+            print(f"  Patched racecar.ini: width_opt -> {optimizer_width:.3f} "
+                  f"(car_width={args.car_width:.2f} + 2*clearance={args.wall_clearance:.2f})")
+
+            # Patch min_track_width in main_globaltraj.py
+            # This widens narrow track sections so the optimizer can find a valid solution.
+            patched_main = original_content
+            with open(main_py, 'r') as f:
+                patched_main = f.read()
+            patched_main = re.sub(
+                r'("min_track_width":\s*)(None|[\d.]+)',
+                rf'\g<1>{args.min_track_width:.3f}',
+                patched_main,
+            )
+            with open(main_py, 'w') as f:
+                f.write(patched_main)
+            print(f"  Patched main_globaltraj.py: min_track_width -> {args.min_track_width:.3f}")
 
             run_step(
                 f"Step 1: Optimize trajectory ({args.opt_type}, {track_name})",
@@ -822,9 +943,11 @@ def main():
                 cwd=global_opt_dir,
             )
         finally:
-            # Always restore original file
+            # Always restore original files
             with open(main_py, 'w') as f:
                 f.write(original_content)
+            with open(racecar_ini, 'w') as f:
+                f.write(original_ini_content)
     else:
         print(f"\n  Skipping optimization (--skip-optimize)")
 
@@ -837,7 +960,7 @@ def main():
     print(f"  Step 2: Convert to MPC format (psi += pi/2, ';' -> ',')")
     print(f"{'=' * 64}")
 
-    os.makedirs(args.output, exist_ok=True)
+    os.makedirs(os.path.dirname(output_csv), exist_ok=True)
 
     # Intermediate 7-column CSV
     intermediate_csv = output_csv + '.7col'
@@ -860,7 +983,6 @@ def main():
                 '--output', output_csv,
                 '--max-distance', str(args.max_ray_distance),
                 '--car-width', str(args.car_width),
-                '--min-distance', '1.20',   # enforce 1.2m minimum clearance
             ]
             run_step("Step 3: Compute ray-cast wall distances", wall_cmd)
 
@@ -876,6 +998,71 @@ def main():
     print(f"  Step 4: Verify output")
     print(f"{'=' * 64}")
     ok = verify_output(output_csv)
+
+    # ---- Step 5: Fix wall clearance (optional) -------------------------------
+    if args.fix_clearance and not args.skip_walls:
+        fix_script = os.path.join(scripts_dir, 'fix_raceline_clearance.py')
+        if not os.path.exists(fix_script):
+            print(f"\n  WARNING: Fix script not found: {fix_script}")
+            print(f"  Skipping wall clearance fix.")
+        else:
+            fixed_tmp = output_csv + '.fixed'
+            fix_cmd = [
+                sys.executable, fix_script,
+                '--input', output_csv,
+                '--output', fixed_tmp,
+                '--map', args.map,
+                '--min-clearance', str(args.min_clearance),
+                '--car-width', str(args.car_width),
+                '--iterations', '5',
+            ]
+            run_step("Step 5: Fix wall clearance", fix_cmd)
+
+            if os.path.exists(fixed_tmp):
+                os.replace(fixed_tmp, output_csv)
+                print(f"  Clearance-fixed raceline saved to {output_csv}")
+            else:
+                print(f"  WARNING: Fix script did not produce output: {fixed_tmp}")
+
+            # ---- Step 6: Recompute wall distances on fixed raceline ----------
+            wall_script = os.path.join(scripts_dir, 'compute_wall_distances.py')
+            if not os.path.exists(wall_script):
+                print(f"\n  WARNING: Wall script not found: {wall_script}")
+                print(f"  Skipping wall distance recomputation.")
+            else:
+                # Strip to 7-col (s,x,y,psi,kappa,vx,ax) for recomputation
+                stripped_tmp = output_csv + '.7col'
+                with open(output_csv, 'r') as f_in, open(stripped_tmp, 'w') as f_out:
+                    for line in f_in:
+                        line = line.strip()
+                        if not line or line.startswith('#'):
+                            f_out.write(line + '\n')
+                            continue
+                        fields = line.split(',')
+                        if len(fields) >= 7:
+                            f_out.write(','.join(fields[:7]) + '\n')
+                        else:
+                            f_out.write(line + '\n')
+
+                recompute_cmd = [
+                    sys.executable, wall_script,
+                    '--map', args.map,
+                    '--trajectory', stripped_tmp,
+                    '--output', output_csv,
+                    '--max-distance', str(args.max_ray_distance),
+                    '--car-width', str(args.car_width),
+                ]
+                run_step("Step 6: Recompute wall distances on fixed raceline", recompute_cmd)
+
+                # Clean up temp file
+                if os.path.exists(stripped_tmp):
+                    os.remove(stripped_tmp)
+
+                # Verify again after fix
+                print(f"\n{'=' * 64}")
+                print(f"  Step 6b: Verify fixed output")
+                print(f"{'=' * 64}")
+                ok = verify_output(output_csv)
 
     # ---- Done ----------------------------------------------------------------
     print(f"\n{'=' * 64}")
