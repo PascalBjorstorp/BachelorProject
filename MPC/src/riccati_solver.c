@@ -42,12 +42,12 @@ int riccati_admm_debug = 0;
 
 void riccati_admm_config_init(RiccatiAdmmConfig_t *config)
 {
-    config->rho            = FP_CONST(15.0);
-    config->rho_u          = FP_CONST(10.0);
+    config->rho            = FP_CONST(32.0);
+    config->rho_u          = FP_CONST(20.0);
     config->tolerance      = FP_CONST(5.0);
     config->max_iterations = 200;
     config->adaptive_rho   = 1;
-    config->alpha          = FP_CONST(1.6);
+    config->alpha          = FP_CONST(0.93);
 }
 
 void riccati_admm_state_init(RiccatiAdmmState_t *state)
@@ -86,11 +86,11 @@ static int invert_2x2(
 
 #define BOUND_THRESHOLD  FP_CONST(100.0)
 
-static void riccati_pass(
-    const RiccatiStepData_t *step_data,
-    const fixed_point_t *terminal_Q,
-    const fixed_point_t *terminal_q,
-    const fixed_point_t *x0,
+static inline __attribute__((always_inline)) void riccati_pass(
+    const RiccatiStepData_t * restrict step_data,
+    const fixed_point_t * restrict terminal_Q,
+    const fixed_point_t * restrict terminal_q,
+    const fixed_point_t * restrict x0,
     int nx, int nu, int N,
     fixed_point_t rho,
     fixed_point_t rho_u,

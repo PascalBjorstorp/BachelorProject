@@ -44,6 +44,7 @@
 #include <stdio.h>
 #endif
 #include <string.h>
+#include <stdlib.h>
 
 /* MPC_SIM_MATCHING: DISABLED
  * Both the MPC prediction model and the f1tenth_gym simulator now use
@@ -105,6 +106,22 @@ void vehicle_model_initialize(void)
 
     stored_vehicle_parameters.rear_cornering_stiffness =
         F110_REAR_CORNERING_STIFFNESS;
+
+    /* MPC_TIRE_SCALE: optional env-var scaling of cornering stiffness for the
+     * MPC prediction model. Values < 1.0 make the MPC assume weaker tires,
+     * which produces more conservative cornering — reduces model mismatch when
+     * the real tires saturate (Pacejka) more than the linearized prediction.
+     * Default: 1.0 (no scaling). Recommended for realistic mode: 0.80. */
+    {
+        const char *tire_env = getenv("MPC_TIRE_SCALE");
+        if (tire_env) {
+            fixed_point_t scale = DOUBLE_TO_FP(atof(tire_env));
+            stored_vehicle_parameters.front_cornering_stiffness =
+                fp_mul(stored_vehicle_parameters.front_cornering_stiffness, scale);
+            stored_vehicle_parameters.rear_cornering_stiffness =
+                fp_mul(stored_vehicle_parameters.rear_cornering_stiffness, scale);
+        }
+    }
 
     stored_vehicle_parameters.maximum_steering_angle_radians =
         F110_DEFAULT_MAXIMUM_STEERING_RADIANS;
