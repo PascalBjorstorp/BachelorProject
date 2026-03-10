@@ -45,8 +45,6 @@ import cv2
 import numpy as np
 import yaml
 from scipy.interpolate import splprep, splev
-from scipy.spatial import cKDTree
-
 
 # =============================================================================
 #  Utility helpers (kept from original)
@@ -85,17 +83,15 @@ def run_step(label, cmd, cwd=None):
 
 def compute_centerline_thinned_loop(map_img, resolution, origin, wall_thresh, num_points):
     """
-    Compute the track centerline using a GVD (Generalised Voronoi Diagram) approach:
+    Compute the track centerline using a GVD (Generalised Voronoi Diagram):
 
-      1. Label the two wall obstacle components (outer walls + inner island)
-      2. Compute per-obstacle Euclidean distance transforms → GVD boundary
-         = free pixels equidistant (within gvd_thresh px) from BOTH obstacles
-      3. Zhang-Suen thinning of the GVD boundary → 1-px skeleton ring
-         (far fewer junctions than thinning the full free space)
-      4. Junction-cluster contraction: collapse dense junction pixels into nodes;
-         degree-2 chains become graph edges
-      5. DFS on the cluster graph: find the longest simple loop back to start
-      6. Expand to pixel path, B-spline smooth + uniform resample
+      1. Label wall obstacle components (outer wall vs inner island)
+      2. Per-obstacle Euclidean distance transforms → GVD boundary
+         (free pixels equidistant from both obstacles)
+      3. Zhang-Suen thinning of the GVD boundary → clean 1-px skeleton ring
+      4. Walk the skeleton ring from the widest point (max EDT) →
+         ordered pixel loop
+      5. B-spline smooth + uniform resample
 
     Parameters
     ----------
@@ -110,181 +106,119 @@ def compute_centerline_thinned_loop(map_img, resolution, origin, wall_thresh, nu
     centerline  : (num_points, 2) world-frame coordinates
     half_widths : (num_points,)   EDT-based half-track-width in metres
     """
-    from scipy.ndimage import label as _sc_label, distance_transform_edt as _edt2
-    from collections import defaultdict
+    from scipy.ndimage import label as _sc_label
+    from scipy.ndimage import distance_transform_edt as _edt_scipy
 
     h, w = map_img.shape[:2]
     free = (map_img >= wall_thresh).astype(np.uint8)
     edt  = cv2.distanceTransform(free, cv2.DIST_L2, 5)
 
-    # 1. Zhang-Suen thinning ------------------------------------------------
-    skel_mat = cv2.ximgproc.thinning(free * 255,
-                                      thinningType=cv2.ximgproc.THINNING_ZHANGSUEN)
+    # ---- 1. Label wall obstacles -----------------------------------------
+    wall = (1 - free).astype(np.uint8)
+    wall_labeled, n_wall = _sc_label(wall, structure=np.ones((3, 3), int))
+    print(f"  Wall obstacle components: {n_wall}")
+    if n_wall < 2:
+        raise RuntimeError(
+            f"Expected ≥2 wall components (outer + inner), got {n_wall}. "
+            "Map may not have a ring-shaped corridor."
+        )
+
+    # ---- 2. Per-obstacle EDT → GVD boundary ------------------------------
+    # Distance from every pixel to each obstacle
+    dists = []
+    for wid in range(1, n_wall + 1):
+        # _edt_scipy: distance to nearest 0-pixel; invert so obstacle=0
+        dists.append(_edt_scipy((wall_labeled != wid).astype(np.uint8)))
+
+    # GVD boundary: free pixels where the two closest obstacles are
+    # nearly equidistant.  For 2 obstacles this is simply |d1 - d2| < thr.
+    d1, d2 = dists[0], dists[1]
+    diff_map = np.abs(d1.astype(float) - d2.astype(float))
+    gvd_thresh = 2.0   # pixels
+    gvd_mask = (free == 1) & (diff_map < gvd_thresh)
+    n_gvd = int(gvd_mask.sum())
+    print(f"  GVD boundary pixels (thresh={gvd_thresh}): {n_gvd}")
+
+    # ---- 3. Zhang-Suen thinning of GVD boundary -------------------------
+    skel_mat = cv2.ximgproc.thinning(
+        gvd_mask.astype(np.uint8) * 255,
+        thinningType=cv2.ximgproc.THINNING_ZHANGSUEN,
+    )
     skel_set = set(map(tuple, np.column_stack(np.where(skel_mat > 0)).tolist()))
-    n_skel   = len(skel_set)
-    print(f"  Thinned skeleton: {n_skel} pixels")
+    n_skel = len(skel_set)
+    print(f"  GVD skeleton: {n_skel} pixels")
     if n_skel < 20:
-        raise RuntimeError("Skeleton too sparse; check wall_thresh or map quality.")
+        raise RuntimeError("GVD skeleton too sparse; check wall_thresh or map.")
 
-    # 2. Identify junction pixels (degree ≠ 2) and cluster them ------------
-    def _deg(r, c):
-        return sum(1 for dr in (-1, 0, 1) for dc in (-1, 0, 1)
-                   if (dr or dc) and (r+dr, c+dc) in skel_set)
+    # ---- 4. Walk the skeleton ring from the widest point -----------------
+    # The GVD skeleton is mostly a single ring with a few short spurs.
+    # Strategy: start at the pixel with maximum EDT, greedily walk
+    # choosing the neighbour with highest EDT (prefers the main ring
+    # over short spurs).  If we return to start, we have the loop.
 
-    junc_mask = np.zeros((h, w), dtype=np.uint8)
-    for rc in skel_set:
-        if _deg(*rc) != 2:
-            junc_mask[rc] = 1
+    skel_arr  = np.array(list(skel_set))
+    edt_vals  = edt[skel_arr[:, 0], skel_arr[:, 1]]
+    start_idx = int(np.argmax(edt_vals))
+    start_rc  = tuple(skel_arr[start_idx].tolist())
 
-    junc_labeled, n_cl = _sc_label(junc_mask, structure=np.ones((3, 3), dtype=int))
-
-    # Representative pixel for each cluster: the one with max EDT
-    cl_rep = {}          # cluster_id -> (r, c) representative pixel
-    for cid in range(1, n_cl + 1):
-        ys, xs = np.where(junc_labeled == cid)
-        best   = int(np.argmax(edt[ys, xs]))
-        cl_rep[cid] = (int(ys[best]), int(xs[best]))
-
-    print(f"  Junction clusters: {n_cl}")
-
-    # 3. Walk degree-2 chains between clusters → graph edges ---------------
-    # chain_edges: list of (cluster_a, cluster_b, length_px, pixel_list)
-    walked       = set()
-    chain_edges  = []
-
-    for rc in skel_set:
-        cid = int(junc_labeled[rc])
-        if cid == 0:
-            continue          # degree-2 pixel; chains are started from clusters
-        for dr in (-1, 0, 1):
-            for dc in (-1, 0, 1):
-                if not (dr or dc):
-                    continue
-                first = (rc[0]+dr, rc[1]+dc)
-                if first not in skel_set:
-                    continue
-                if int(junc_labeled[first]) > 0:
-                    continue  # cluster→cluster direct connection (< 2px chain)
-
-                # Unique key so we don't walk the same chain twice
-                chain_key = (rc, first)  # ordered: start from cluster pixel
-                if chain_key in walked:
-                    continue
-                walked.add(chain_key)
-
-                # Walk the degree-2 chain
-                path = [rc, first]
-                plen = float(np.hypot(dc, dr))
-                prev, cur = rc, first
-                while True:
-                    nbrs = [(cur[0]+dr2, cur[1]+dc2)
-                            for dr2 in (-1, 0, 1) for dc2 in (-1, 0, 1)
-                            if (dr2 or dc2)
-                            and (cur[0]+dr2, cur[1]+dc2) in skel_set
-                            and (cur[0]+dr2, cur[1]+dc2) != prev]
-                    if not nbrs:
-                        break   # dangling end — not connected to another cluster
-                    nxt = nbrs[0]
-                    plen += float(np.hypot(nxt[1]-cur[1], nxt[0]-cur[0]))
-                    path.append(nxt)
-                    prev, cur = cur, nxt
-                    other_cid = int(junc_labeled[cur])
-                    if other_cid > 0:
-                        if other_cid != cid:
-                            chain_edges.append((cid, other_cid, plen, path))
-                        break
-
-    print(f"  Chain edges: {len(chain_edges)}")
-
-    # Build adjacency list (multi-graph allowed)
-    adj = defaultdict(list)  # cluster_id -> [(other_cid, weight, edge_idx)]
-    for ei, (a, b, wt, _) in enumerate(chain_edges):
-        adj[a].append((b, wt, ei))
-        adj[b].append((a, wt, ei))
-
-    # 4. Start cluster: closest to the pixel with maximum EDT --------------
-    skel_arr = np.array(list(skel_set))
-    edt_vals = edt[skel_arr[:, 0], skel_arr[:, 1]]
-    max_rc   = tuple(skel_arr[int(np.argmax(edt_vals))].tolist())
-    start_cl = min(range(1, n_cl + 1),
-                   key=lambda c: (cl_rep[c][0]-max_rc[0])**2
-                               + (cl_rep[c][1]-max_rc[1])**2)
-
-    nr0, nc0 = cl_rep[start_cl]
-    print(f"  Start cluster {start_cl} at pixel ({nr0},{nc0}), "
-          f"EDT={edt[nr0,nc0]:.1f}px, "
+    nr0, nc0 = start_rc
+    print(f"  Start pixel ({nr0},{nc0}), EDT={edt[nr0,nc0]:.1f}px, "
           f"world=({origin[0]+nc0*resolution:.2f},"
           f"{origin[1]+(h-1-nr0)*resolution:.2f})")
 
-    # 5. DFS to find the longest simple loop back to start_cl --------------
-    # Approach: for each outgoing edge from start_cl, do a DFS (banning start_cl)
-    # and look for paths that end at start_cl via an unused edge.
-    banned    = {start_cl}
-    best_path = []     # list of (cluster_id, edge_index) pairs on the loop
-    best_len  = 0.0
+    def _neighbours(rc):
+        """8-connected skeleton neighbours of pixel rc."""
+        r, c = rc
+        return [(r+dr, c+dc)
+                for dr in (-1, 0, 1) for dc in (-1, 0, 1)
+                if (dr or dc) and (r+dr, c+dc) in skel_set]
 
-    def _dfs(cur, path, used_edges, path_set, total_w):
-        nonlocal best_path, best_len
-        # Check if we can close the loop back to start_cl
-        for nb2, w2, ei2 in adj[cur]:
-            if nb2 == start_cl and ei2 not in used_edges:
-                loop_w = total_w + w2
-                if loop_w > best_len:
-                    best_len = loop_w
-                    best_path = path + [(nb2, ei2)]
-                # Don't return yet; might find a longer loop by continuing
-        # Explore further
-        for nb, wt, ei in adj[cur]:
-            if nb in banned or nb in path_set or ei in used_edges:
-                continue
-            path_set.add(nb)
-            used_edges.add(ei)
-            _dfs(nb, path + [(nb, ei)], used_edges, path_set, total_w + wt)
-            path_set.discard(nb)
-            used_edges.discard(ei)
+    # Greedy ring walk
+    visited = {start_rc}
+    pixel_path = [start_rc]
+    cur = start_rc
+    closed_loop = False
 
-    for nb0, w0, ei0 in adj[start_cl]:
-        _dfs(nb0, [(nb0, ei0)], {ei0}, {nb0}, w0)
+    while True:
+        nbrs = _neighbours(cur)
+        # Unvisited neighbours, sorted by EDT descending (prefer main ring)
+        unvis = [(edt[n[0], n[1]], n) for n in nbrs if n not in visited]
+        if unvis:
+            unvis.sort(reverse=True)
+            nxt = unvis[0][1]
+            visited.add(nxt)
+            pixel_path.append(nxt)
+            cur = nxt
+        else:
+            # No unvisited neighbours — check if we can close back to start
+            if start_rc in nbrs and len(pixel_path) > 10:
+                closed_loop = True
+            break
 
-    if not best_path:
+    print(f"  Ring walk: {len(pixel_path)} pixels, closed={closed_loop}")
+
+    if not closed_loop:
         raise RuntimeError(
-            "No loop found in the skeleton graph.  "
-            "The map may not have a closed corridor; try a different wall_clearance."
+            f"Ring walk collected {len(pixel_path)} pixels but could not "
+            "close the loop.  The GVD skeleton may be disconnected."
         )
 
-    loop_len_m = best_len * resolution
-    print(f"  Best loop: {len(best_path)} nodes, {loop_len_m:.1f} m")
-
-    # 6. Expand to full pixel path -----------------------------------------
-    pixel_path = [cl_rep[start_cl]]
-    prev_cl    = start_cl
-    for next_cl, ei in best_path:
-        pix_list = chain_edges[ei][3]
-        # Orient pixel list from prev_cl toward next_cl
-        if int(junc_labeled[pix_list[0]]) == prev_cl:
-            seg = pix_list
-        elif int(junc_labeled[pix_list[-1]]) == prev_cl:
-            seg = list(reversed(pix_list))
-        else:
-            seg = pix_list   # fallback; may be slightly mis-oriented
-        # Skip the first pixel of seg (duplicate of last added pixel)
-        pixel_path.extend(seg[1:])
-        prev_cl = next_cl
-
-    pixel_path = np.array(pixel_path)   # shape (M, 2)
+    # ---- 5. Convert to world coords + half-widths -----------------------
+    pixel_path = np.array(pixel_path)
     rows = pixel_path[:, 0]
     cols = pixel_path[:, 1]
 
-    wx  = origin[0] + cols * resolution
-    wy  = origin[1] + (h - 1 - rows) * resolution
-    hw  = edt[rows, cols] * resolution   # half-widths [m]
+    wx = origin[0] + cols * resolution
+    wy = origin[1] + (h - 1 - rows) * resolution
+    hw = edt[rows, cols] * resolution   # half-widths in metres
 
     skel_world = np.column_stack([wx, wy])
-    pg          = float(np.linalg.norm(skel_world[-1] - skel_world[0]))
-    px_len      = float(np.sum(np.linalg.norm(np.diff(skel_world, axis=0), axis=1)))
-    print(f"  Pixel path: {len(pixel_path)} pts, {px_len:.1f} m, loop_gap={pg:.3f} m")
+    pg     = float(np.linalg.norm(skel_world[-1] - skel_world[0]))
+    px_len = float(np.sum(np.linalg.norm(np.diff(skel_world, axis=0), axis=1)))
+    print(f"  Pixel path: {len(pixel_path)} pts, {px_len:.1f} m, "
+          f"loop_gap={pg:.3f} m")
 
-    # 7. Remove near-duplicates → B-spline smooth + uniform resample ------
+    # ---- 6. Remove near-duplicates → B-spline smooth + resample ---------
     dd   = np.linalg.norm(np.diff(skel_world, axis=0), axis=1)
     keep = np.concatenate([[True], dd > 0.005])
     skel_world = skel_world[keep]
@@ -293,9 +227,9 @@ def compute_centerline_thinned_loop(map_img, resolution, origin, wall_thresh, nu
     closed = np.vstack([skel_world, skel_world[0]])
     try:
         tck, _ = splprep([closed[:, 0], closed[:, 1]],
-                         s=max(5.0, len(skel_world) * 0.1), per=True)
+                         s=0, per=True)
     except Exception as exc:
-        raise RuntimeError(f"B-spline on skeleton loop failed: {exc}") from exc
+        raise RuntimeError(f"B-spline on GVD skeleton loop failed: {exc}") from exc
 
     u_new = np.linspace(0, 1, num_points, endpoint=False)
     centerline      = np.array(splev(u_new, tck)).T
@@ -345,6 +279,16 @@ def load_map(map_yaml_path):
     occupied_thresh = float(config.get('occupied_thresh', 0.65))
 
     # --- SLAM map preprocessing ---
+    # 0. Convert grey "unknown" pixels to wall (black).
+    #    SLAM maps use: 0=occupied (wall), 205=unknown, 254=free.
+    #    Unknown regions are outside the track and must be treated as wall
+    #    so the GVD sees exactly 2 obstacle components (outer + inner).
+    free_thresh = 240  # pixels >= this are free space
+    grey_mask = (img > 0) & (img < free_thresh)
+    if grey_mask.sum() > 0:
+        img[grey_mask] = 0
+        print(f"  Converted {grey_mask.sum()} grey/unknown pixels to wall (SLAM cleanup)")
+
     # 1. Close small gaps in walls (SLAM maps often have 1-2 pixel wall gaps)
     wall_thresh_tmp = int(255 * (1.0 - occupied_thresh))
     wall_mask = (img < wall_thresh_tmp).astype(np.uint8)
@@ -382,277 +326,42 @@ def load_map(map_yaml_path):
     return img, resolution, origin, occupied_thresh
 
 
-def extract_boundaries(img, resolution, origin, wall_thresh=140):
+def extract_outer_boundary(img, resolution, origin, wall_thresh=140):
     """
-    Extract outer and inner track boundaries from a map image.
+    Extract the outer track boundary from a SLAM map image.
 
-    Handles two map types automatically:
-      - Designed maps (e.g. Spielberg): white background, boundary touches
-        image edges.  Outer track wall = largest child of the image-edge
-        contour, inner wall = smallest leaf contour.
-      - SLAM maps (e.g. my_track_map): grey background, track "floats" in
-        the image.  Outer wall = largest contour, inner wall = its largest
-        child.
+    The outer wall is the largest free-space contour.  This is used to
+    estimate the track perimeter for auto-scaling the number of centerline
+    waypoints.
 
     Parameters
     ----------
     wall_thresh : int
-        Pixel values >= wall_thresh are considered free space.  Must match
-        the threshold used by compute_wall_distances.py to avoid a grey-zone
-        that silently eats into the safety budget.
+        Pixel values >= wall_thresh are considered free space.
 
     Returns
     -------
     outer_world : np.ndarray, shape (N, 2) -- outer boundary in world coords
-    inner_world : np.ndarray, shape (M, 2) -- inner boundary in world coords
     """
-    # Use the same wall threshold as compute_wall_distances.py:
-    #   wall_thresh = int(255 * (1.0 - occupied_thresh))
-    # Pixels below this value are walls.  Using a consistent threshold
-    # prevents a ~1-2 pixel grey zone from eating into the safety budget.
     free_space = (img >= wall_thresh).astype(np.uint8)
-    contours, hierarchy = cv2.findContours(
-        free_space, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE
+    contours, _ = cv2.findContours(
+        free_space, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
     )
-
     if not contours:
         raise RuntimeError("No contours found in the map image")
 
-    # Sort contours by area (descending)
-    areas = [(i, cv2.contourArea(c)) for i, c in enumerate(contours)]
-    areas.sort(key=lambda x: x[1], reverse=True)
+    # Largest contour = outer wall of the track
+    outer = max(contours, key=cv2.contourArea).reshape(-1, 2)
 
-    # Detect map type: does the largest contour touch all four image edges?
-    largest_pts = contours[areas[0][0]].reshape(-1, 2)
-    is_image_boundary = (
-        np.any(largest_pts[:, 0] == 0)
-        and np.any(largest_pts[:, 0] == img.shape[1] - 1)
-        and np.any(largest_pts[:, 1] == 0)
-        and np.any(largest_pts[:, 1] == img.shape[0] - 1)
-    )
-
-    if is_image_boundary:
-        # Designed map ---------------------------------------------------------
-        # Outer wall = largest child of the image-boundary contour
-        outer_idx = next(
-            idx for idx, _ in areas[1:]
-            if hierarchy[0][idx][3] == areas[0][0]
-        )
-        # Inner wall = smallest leaf contour (no children)
-        inner_idx = next(
-            idx for idx, _ in reversed(areas)
-            if hierarchy[0][idx][2] == -1
-        )
-        print("  Map type: designed (image-edge boundary detected)")
-        slam_map = False
-    else:
-        # SLAM map -------------------------------------------------------------
-        outer_idx = areas[0][0]
-        # Inner walls = ALL children of the outer contour (all inner obstacles,
-        # e.g. the central island AND any smaller obstacles like a U-notch).
-        # Using only the largest child leaves smaller inner obstacles undetected,
-        # causing the midpoint-centerline to pass through them.
-        children = [
-            (idx, a) for idx, a in areas[1:]
-            if hierarchy[0][idx][3] == outer_idx
-        ]
-        if not children:
-            raise RuntimeError(
-                "Could not find inner boundary -- is this a closed track?"
-            )
-        print("  Map type: SLAM (floating track)")
-        slam_map = True
-
-    def pixel_to_world(points):
-        world = np.zeros((len(points), 2))
-        world[:, 0] = points[:, 0] * resolution + origin[0]
-        world[:, 1] = (img.shape[0] - points[:, 1]) * resolution + origin[1]
-        return world
-
-    outer_world = pixel_to_world(contours[outer_idx].reshape(-1, 2))
-
-    if not slam_map:
-        # Designed map: single inner boundary
-        inner_world = pixel_to_world(contours[inner_idx].reshape(-1, 2))
-        print(f"  Outer boundary: {len(outer_world)} points")
-        print(f"  Inner boundary: {len(inner_world)} points")
-    else:
-        # SLAM map: merge ALL inner obstacle boundaries
-        inner_parts = []
-        for child_idx, child_area in sorted(children, key=lambda x: x[1], reverse=True):
-            pts = pixel_to_world(contours[child_idx].reshape(-1, 2))
-            inner_parts.append(pts)
-        inner_world = np.vstack(inner_parts)
-        total_inner_pts = sum(len(p) for p in inner_parts)
-        print(f"  Outer boundary: {len(outer_world)} points")
-        print(f"  Inner boundary: {total_inner_pts} points "
-              f"({len(inner_parts)} obstacle(s))")
-
-    return outer_world, inner_world, slam_map
+    # Convert pixel coords → world coords
+    outer_world = np.zeros((len(outer), 2))
+    outer_world[:, 0] = outer[:, 0] * resolution + origin[0]
+    outer_world[:, 1] = (img.shape[0] - outer[:, 1]) * resolution + origin[1]
+    print(f"  Outer boundary: {len(outer_world)} points")
+    return outer_world
 
 
-def compute_centerline(outer_world, inner_world, num_points=1000,
-                       map_img=None, map_resolution=None, map_origin=None,
-                       wall_thresh=140):
-    """
-    Compute a smooth, periodic centerline between the two boundaries.
 
-    Uses the equidistance curve between the outer and inner wall
-    contours (black-pixel boundaries) to find the medial axis of the
-    track corridor.  This correctly follows the corridor even on
-    complex SLAM maps where simple nearest-point pairing cuts through
-    walls and free-space skeletons leak through wall gaps.
-
-    Falls back to nearest-point pairing if no map image is provided
-    or the equidistance extraction fails.
-
-    Returns
-    -------
-    centerline : np.ndarray, shape (num_points, 2)
-    inner_tree : cKDTree -- KD-tree built from inner_world
-    outer_tree : cKDTree -- KD-tree built from outer_world
-    """
-    from skimage.morphology import skeletonize
-
-    outer_tree = cKDTree(outer_world)
-    inner_tree = cKDTree(inner_world)
-    h, w = (map_img.shape if map_img is not None else (0, 0))
-
-    equidist_ok = False
-    if map_img is not None:
-        try:
-            # --- Equidistance approach using wall contours ---
-            # Find black-pixel (wall) contours and their hierarchy to
-            # identify the outer track wall and inner obstacle.
-            wall_mask = (map_img < 50).astype(np.uint8)
-            w_contours, w_hierarchy = cv2.findContours(
-                wall_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE
-            )
-            w_areas = [(i, cv2.contourArea(c))
-                       for i, c in enumerate(w_contours)]
-            w_areas.sort(key=lambda x: x[1], reverse=True)
-
-            if len(w_areas) >= 3:
-                # Root = outermost wall boundary
-                root_idx = w_areas[0][0]
-                # Track outer wall = largest child of root
-                children_of_root = [
-                    i for i, _ in w_areas
-                    if w_hierarchy[0][i][3] == root_idx
-                ]
-                track_outer_idx = max(
-                    children_of_root,
-                    key=lambda i: cv2.contourArea(w_contours[i]),
-                )
-                # Track inner wall = largest child of track_outer
-                children_of_outer = [
-                    i for i, _ in w_areas
-                    if w_hierarchy[0][i][3] == track_outer_idx
-                ]
-                track_inner_idx = max(
-                    children_of_outer,
-                    key=lambda i: cv2.contourArea(w_contours[i]),
-                )
-
-                # Draw wall contour lines (1-pixel thick)
-                outer_line = np.zeros((h, w), dtype=np.uint8)
-                cv2.drawContours(outer_line, w_contours,
-                                 track_outer_idx, 1, 1)
-                inner_line = np.zeros((h, w), dtype=np.uint8)
-                cv2.drawContours(inner_line, w_contours,
-                                 track_inner_idx, 1, 1)
-
-    # ---- Pre-smoothing collision correction + medial-axis projection --------
-    # Applied to the RAW centerline BEFORE the B-spline so that the spline
-    # interpolates smoothly between all corrected points (instead of making
-    # a sudden jump between corrected and uncorrected neighbours).
-    #
-    # For each raw point that lands inside a wall (EDT < min_clearance_px):
-    #   Step 1: jump to nearest free pixel (wide 3m search radius)
-    #   Step 2: gradient ascent toward local EDT maximum (corridor medial axis)
-    #
-    # Points already in free space are left UNCHANGED.
-    if map_img is not None:
-        free = (map_img >= wall_thresh).astype(np.uint8)
-        dist_transform = cv2.distanceTransform(free, cv2.DIST_L2, 5)
-        img_h, img_w = map_img.shape
-        min_clearance_px = 2.0      # 2px = 0.10m minimum EDT to be "in free space"
-        max_ascent_steps  = 80      # max 80 gradient steps = 4m max travel
-
-        n_fixed = 0
-        for i in range(len(centerline_raw)):
-            col = int((centerline_raw[i, 0] - map_origin[0]) / map_resolution)
-            row = int(img_h - (centerline_raw[i, 1] - map_origin[1]) / map_resolution)
-
-            # Skip points already in free space with sufficient clearance
-            if (0 <= row < img_h and 0 <= col < img_w
-                    and dist_transform[row, col] >= min_clearance_px):
-                continue
-
-            # --- Step 1: jump to nearest free pixel ---
-            best_r, best_c = row, col
-            best_dt = 0.0
-            search_r = 30
-            found = False
-            search_r = 60       # 60px = 3m search radius
-            for dr in range(-search_r, search_r + 1):
-                for dc in range(-search_r, search_r + 1):
-                    nr, nc = row + dr, col + dc
-                    sq = dr * dr + dc * dc
-                    if sq >= best_sq:
-                        continue
-                    if (0 <= nr < img_h and 0 <= nc < img_w
-                            and dist_transform[nr, nc] >= min_clearance_px):
-                        best_sq = sq
-                        best_r, best_c = nr, nc
-                        found = True
-            if not found:
-                continue
-            row, col = best_r, best_c
-
-            # --- Step 2: gradient ascent toward the local EDT maximum ---
-            for _step in range(max_ascent_steps):
-                best_val = dist_transform[row, col]
-                best_r2, best_c2 = row, col
-                for dr in (-1, 0, 1):
-                    for dc in (-1, 0, 1):
-                        if dr == 0 and dc == 0:
-                            continue
-                        nr, nc = row + dr, col + dc
-                        if (0 <= nr < img_h and 0 <= nc < img_w
-                                and dist_transform[nr, nc] > best_val):
-                            best_val = dist_transform[nr, nc]
-                            best_r2, best_c2 = nr, nc
-                if best_r2 == row and best_c2 == col:
-                    break   # at local EDT maximum (medial axis)
-                row, col = best_r2, best_c2
-
-            centerline_raw[i, 0] = col * map_resolution + map_origin[0]
-            centerline_raw[i, 1] = (img_h - row) * map_resolution + map_origin[1]
-            n_fixed += 1
-
-        if n_fixed > 0:
-            print(f"  Collision correction + medial-axis: fixed {n_fixed}/{len(centerline_raw)} raw pts")
-            # Re-apply near-duplicate removal after correction (corrected points
-            # can converge to the same local EDT maximum, creating duplicates).
-            diff2 = np.diff(centerline_raw, axis=0)
-            dist2 = np.linalg.norm(diff2, axis=1)
-            mask2 = np.concatenate([[True], dist2 > 0.01])
-            centerline_raw = centerline_raw[mask2]
-
-    # Smooth with a periodic B-spline AFTER correction.
-    # Using the corrected raw points as input ensures the spline smoothly
-    # interpolates between the fixed-up positions (no sudden kinks).
-    centerline_closed = np.vstack([centerline_raw, centerline_raw[0]])
-    tck, _u = splprep(
-        [centerline_closed[:, 0], centerline_closed[:, 1]],
-        s=max(5.0, len(centerline_raw) * 0.5),   # 0.5x N: smooth yet accurate
-        per=True,
-    )
-    u_new = np.linspace(0, 1, num_points, endpoint=False)
-    centerline = np.array(splev(u_new, tck)).T
-
-    return centerline, inner_tree, outer_tree
 
 
 def detect_winding_direction(centerline):
@@ -914,7 +623,7 @@ def set_opt_type_in_main(main_py_path, opt_type):
 #  Step 2 -- TUM -> MPC format conversion (kept from original)
 # =============================================================================
 
-def convert_tum_to_mpc(input_csv, output_csv, max_speed=None):
+def convert_tum_to_mpc(input_csv, output_csv, max_speed=None, min_speed=None):
     """
     Convert TUM global optimizer output to MPC-compatible CSV.
 
@@ -922,7 +631,7 @@ def convert_tum_to_mpc(input_csv, output_csv, max_speed=None):
       - Delimiter: semicolon -> comma
       - Heading: psi += pi/2, wrapped to [-pi, pi]
       - Header: standardised to ``# s_m,x_m,y_m,...``
-      - Optional: clamp velocity to max_speed
+      - Optional: clamp velocity to [min_speed, max_speed]
     """
     rows = []
     with open(input_csv, 'r') as f:
@@ -935,7 +644,8 @@ def convert_tum_to_mpc(input_csv, output_csv, max_speed=None):
                 continue
             rows.append(parts)
 
-    clamped = 0
+    clamped_hi = 0
+    clamped_lo = 0
     with open(output_csv, 'w') as f:
         f.write('# s_m,x_m,y_m,psi_rad,kappa_radpm,vx_mps,ax_mps2\n')
         for row in rows:
@@ -946,94 +656,23 @@ def convert_tum_to_mpc(input_csv, output_csv, max_speed=None):
             psi_corrected = (psi_corrected + math.pi) % (2 * math.pi) - math.pi
             row[3] = f"{psi_corrected:.7f}"
 
-            # Clamp velocity
-            if max_speed is not None:
-                vx = float(row[5])
-                if vx > max_speed:
-                    row[5] = f"{max_speed:.7f}"
-                    clamped += 1
+            # Clamp velocity to [min_speed, max_speed]
+            vx = float(row[5])
+            if max_speed is not None and vx > max_speed:
+                row[5] = f"{max_speed:.7f}"
+                clamped_hi += 1
+            elif min_speed is not None and vx < min_speed:
+                row[5] = f"{min_speed:.7f}"
+                clamped_lo += 1
 
             f.write(','.join(row[:7]) + '\n')
 
     print(f"  Converted {len(rows)} waypoints (psi += pi/2)")
-    if clamped > 0:
-        print(f"  Clamped {clamped}/{len(rows)} velocities to {max_speed:.1f} m/s")
+    if clamped_hi > 0:
+        print(f"  Clamped {clamped_hi}/{len(rows)} velocities to max {max_speed:.1f} m/s")
+    if clamped_lo > 0:
+        print(f"  Clamped {clamped_lo}/{len(rows)} velocities to min {min_speed:.1f} m/s")
     return len(rows)
-
-
-# =============================================================================
-#  Velocity profile recomputation (forward-backward pass)
-# =============================================================================
-
-def recompute_velocity_profile(csv_path, max_speed, ay_max=7.3, ax_max=7.3, ax_min=-7.3):
-    """
-    Recompute the vx and ax columns in a trajectory CSV using the actual kappa.
-
-    Uses a 3-pass forward-backward algorithm:
-      1. Point speed limit: v[i] = sqrt(ay_max / |kappa[i]|), clamped to max_speed
-      2. Forward pass: enforce acceleration limit
-      3. Backward pass: enforce deceleration limit
-
-    Parameters
-    ----------
-    ay_max : float  lateral acceleration limit [m/s²] (from GGV)
-    ax_max : float  max longitudinal accel [m/s²]
-    ax_min : float  max longitudinal decel [m/s²] (negative)
-    """
-    # Read CSV
-    lines_in = open(csv_path).readlines()
-    header_lines = [ln for ln in lines_in if ln.strip().startswith('#')]
-    data_lines   = [ln for ln in lines_in if ln.strip() and not ln.strip().startswith('#')]
-
-    rows = [[float(v) for v in ln.strip().split(',')] for ln in data_lines]
-    n = len(rows)
-    if n == 0:
-        return
-
-    # Arc-length spacing from s_m column
-    s = np.array([r[0] for r in rows])
-    ds = np.diff(s)
-    ds = np.append(ds, ds[-1])  # pad last step with same as preceding
-    ds = np.maximum(ds, 1e-4)
-
-    kappa = np.array([r[4] for r in rows])
-
-    # 1. Point speed limit from lateral friction
-    v_lat = np.sqrt(ay_max / np.maximum(np.abs(kappa), 1e-6))
-    v_max = np.minimum(v_lat, max_speed)
-
-    # 2. Forward pass (enforce ax_max)
-    v_fwd = v_max.copy()
-    for i in range(1, n):
-        v_fwd[i] = min(v_max[i], math.sqrt(v_fwd[i-1]**2 + 2.0 * ax_max * ds[i-1]))
-
-    # 3. Backward pass (enforce ax_min = deceleration)
-    v_bwd = v_max.copy()
-    for i in range(n - 2, -1, -1):
-        v_bwd[i] = min(v_max[i], math.sqrt(v_bwd[i+1]**2 - 2.0 * ax_min * ds[i]))
-
-    v_final = np.minimum(v_fwd, v_bwd)
-
-    # 4. Compute ax from vx profile
-    ax_final = np.zeros(n)
-    for i in range(n - 1):
-        ax_final[i] = (v_final[i+1]**2 - v_final[i]**2) / (2.0 * ds[i])
-    ax_final[-1] = ax_final[-2]
-
-    # 5. Write back to CSV (update columns 5 and 6)
-    ncols = len(rows[0])
-    for i, r in enumerate(rows):
-        r[5] = v_final[i]
-        r[6] = ax_final[i]
-
-    with open(csv_path, 'w') as fout:
-        fout.writelines(header_lines)
-        for r in rows:
-            fout.write(','.join(f'{v:.7f}' for v in r) + '\n')
-
-    over = int(np.sum(v_final**2 * np.abs(kappa) > ay_max * 1.01))
-    print(f"  Velocity profile recomputed: [{v_final.min():.2f}, {v_final.max():.2f}] m/s  "
-          f"({over} lateral-limit violations remain)")
 
 
 # =============================================================================
@@ -1208,12 +847,16 @@ def main():
         help='Clamp velocity to this value [m/s] (default: 12.0)',
     )
     parser.add_argument(
+        '--min-speed', type=float, default=2.0,
+        help='Minimum velocity [m/s] (default: 2.0). DC motors struggle below this.',
+    )
+    parser.add_argument(
         '--output', '-o', default=default_output,
         help='Output directory (default: f1tenth_planning/trajectories/)',
     )
     parser.add_argument(
-        '--centerline-points', type=int, default=1000,
-        help='Number of centerline points to sample (default: 1000)',
+        '--centerline-points', type=int, default=300,
+        help='Number of centerline points to sample (default: 300)',
     )
     parser.add_argument(
         '--skip-extract', action='store_true',
@@ -1232,12 +875,12 @@ def main():
         help='Compute ray-cast wall distances (9-col output, default: True)',
     )
     parser.add_argument(
-        '--car-width', type=float, default=0.27,
-        help='Physical car width [m] used for wall distance margin (default: 0.27)',
+        '--car-width', type=float, default=0.273,
+        help='Physical car width [m] used for wall distance margin (default: 0.273, F1Tenth)',
     )
     parser.add_argument(
-        '--wall-clearance', type=float, default=0.15,
-        help='Extra clearance from walls beyond car width on each side [m] (default: 0.15). '
+        '--wall-clearance', type=float, default=0.05,
+        help='Extra clearance from walls beyond car width on each side [m] (default: 0.05). '
              'Optimizer width_opt = car_width + 2*wall_clearance',
     )
     parser.add_argument(
@@ -1250,33 +893,21 @@ def main():
              'Narrow track sections are widened to this value before optimization.',
     )
     parser.add_argument(
-        '--direction', default='auto',
+        '--direction', default='cw',
         choices=['auto', 'cw', 'ccw'],
-        help='Track direction: auto-detect from winding order, or force cw/ccw (default: auto)',
+        help='Track direction: auto-detect from winding order, or force cw/ccw (default: cw)',
     )
     parser.add_argument(
-        '--no-fix', action='store_true',
-        help='Disable automatic wall-clearance fix post-processing (default: enabled when --with-walls)',
-    )
-    parser.add_argument(
-        '--min-clearance', type=float, default=None,
-        help='Minimum wall clearance [m] for the fix step (default: same as --wall-clearance)',
-    )
-    parser.add_argument(
-        '--smooth-factor', type=float, default=None,
-        help='Spline smoothing factor s_reg for TUM optimizer (default: auto = max(25, N_points)). '
-             'Increase if you get "spline normals crossed" errors on tight SLAM tracks.',
+        '--smooth-factor', type=float, default=2.0,
+        help='Spline smoothing factor s_reg for TUM optimizer (default: 2.0). '
+             'Lower values preserve centerline shape better; higher values smooth more. '
+             '0 = exact interpolation (safest but slowest), 2 = good balance for small tracks.',
     )
     parser.add_argument(
         '--waypoint-spacing', type=float, default=0.15,
         help='Waypoint spacing [m] for the final trajectory (stepsize_interp_after_opt, default: 0.15). '
              'Smaller values produce denser waypoints (recommended for MPC).',
     )
-    parser.add_argument(
-        '--fix-iterations', type=int, default=10,
-        help='Number of wall-clearance fix iterations (default: 10).',
-    )
-
     args = parser.parse_args()
 
     # Auto-detect map if not specified
@@ -1310,13 +941,6 @@ def main():
     if args.with_walls:
         args.skip_walls = False
 
-    # Fix clearance defaults: enabled when --with-walls, unless --no-fix
-    args.fix_clearance = (not args.skip_walls) and (not args.no_fix)
-
-    # Default min-clearance to wall-clearance if not set
-    if args.min_clearance is None:
-        args.min_clearance = args.wall_clearance
-
     track_csv = os.path.join(
         global_opt_dir, 'inputs', 'tracks', f'{track_name}.csv'
     )
@@ -1347,9 +971,6 @@ def main():
     print(f"  Optimizer width:  {args.car_width + 2*args.wall_clearance:.3f} m")
     print(f"  Min track width:  {args.min_track_width:.3f} m")
     print(f"  Wall distances:   {'yes' if not args.skip_walls else 'no (default)'}")
-    print(f"  Fix clearance:    {'yes' if args.fix_clearance else 'no'}")
-    if args.fix_clearance:
-        print(f"  Min clearance:    {args.min_clearance} m")
     print(f"  Output:           {output_csv}")
     print(f"  Skip extract:     {args.skip_extract}")
     print(f"  Skip optimize:    {args.skip_optimize}")
@@ -1386,39 +1007,22 @@ def main():
         print(f"  Image size: {map_img.shape[1]}x{map_img.shape[0]} px, "
               f"resolution: {resolution} m/px")
 
-        outer_world, inner_world, is_slam_map = extract_boundaries(map_img, resolution, origin, wall_thresh=wall_thresh)
+        outer_world = extract_outer_boundary(map_img, resolution, origin, wall_thresh=wall_thresh)
 
         # Auto-scale number of centerline points based on track perimeter
-        # Estimate perimeter from outer boundary
         outer_closed = np.vstack([outer_world, outer_world[0]])
         perimeter = np.sum(np.linalg.norm(np.diff(outer_closed, axis=0), axis=1))
-        # Target ~0.3-0.5m spacing
-        auto_pts = int(perimeter / 0.4)
-        auto_pts = max(100, min(auto_pts, args.centerline_points))
+        auto_pts = max(100, min(int(perimeter / 0.4), args.centerline_points))
         num_pts = auto_pts if args.centerline_points == 1000 else args.centerline_points
         print(f"  Estimated perimeter: {perimeter:.1f} m → using {num_pts} centerline points")
 
-        if is_slam_map:
-            # SLAM map: thinned-skeleton + graph + longest-loop approach.
-            # Correctly routes through ALL corridor sections (U-notches, bays)
-            # by finding the longest simple loop in the skeleton graph.
-            centerline, _ = compute_centerline_thinned_loop(
-                map_img, resolution, origin,
-                wall_thresh=wall_thresh,
-                num_points=num_pts,
-            )
-            inner_tree = outer_tree = None   # not used downstream
-        else:
-            # Designed map: use midpoint-between-boundaries approach (robust for
-            # simple oval or closed-loop tracks with well-defined inner contours)
-            centerline, inner_tree, outer_tree = compute_centerline(
-                outer_world, inner_world,
-                num_points=num_pts,
-                map_img=map_img,
-                map_resolution=resolution,
-                map_origin=origin,
-                wall_thresh=wall_thresh,
-            )
+        # GVD centerline: label wall obstacles, find equidistant boundary,
+        # thin it, walk the ring, B-spline smooth.
+        centerline, _ = compute_centerline_thinned_loop(
+            map_img, resolution, origin,
+            wall_thresh=wall_thresh,
+            num_points=num_pts,
+        )
 
         # Determine direction
         winding = detect_winding_direction(centerline)
@@ -1550,19 +1154,31 @@ def main():
                 original_ini_content,
             )
 
-            # Patch s_reg only if explicitly requested via --smooth-factor.
-            # Otherwise leave the racecar.ini default (25) which is robust.
-            if args.smooth_factor is not None:
-                s_reg_val = float(args.smooth_factor)
-                patched_ini = re.sub(
-                    r'("s_reg":\s*)[\d.]+',
-                    rf'\g<1>{s_reg_val:.1f}',
-                    patched_ini,
-                )
-                print(f"  Patched racecar.ini: s_reg -> {s_reg_val:.1f} (--smooth-factor)")
+            # Patch s_reg (spline smoothing factor)
+            s_reg_val = float(args.smooth_factor)
+            patched_ini = re.sub(
+                r'("s_reg":\s*)[\d.]+',
+                rf'\g<1>{s_reg_val:.1f}',
+                patched_ini,
+            )
+            print(f"  Patched racecar.ini: s_reg -> {s_reg_val:.1f}")
 
             print(f"  Patched racecar.ini: width_opt -> {optimizer_width:.3f} "
                   f"(car_width={args.car_width:.2f} + 2*clearance={args.wall_clearance:.2f})")
+
+            # Auto-reduce stepsize_prep and stepsize_reg for small tracks
+            # (TUM defaults are 0.3m and 0.5m, designed for 100m+ tracks)
+            patched_ini = re.sub(
+                r'("stepsize_prep":\s*)[\d.]+',
+                rf'\g<1>0.150',
+                patched_ini,
+            )
+            patched_ini = re.sub(
+                r'("stepsize_reg":\s*)[\d.]+',
+                rf'\g<1>0.200',
+                patched_ini,
+            )
+            print(f"  Patched racecar.ini: stepsize_prep -> 0.150m, stepsize_reg -> 0.200m")
 
             # Patch stepsize_interp_after_opt to produce denser waypoints
             patched_ini = re.sub(
@@ -1617,7 +1233,8 @@ def main():
     # Intermediate 7-column CSV
     intermediate_csv = output_csv + '.7col'
     n_waypoints = convert_tum_to_mpc(
-        tum_output, intermediate_csv, max_speed=args.max_speed
+        tum_output, intermediate_csv,
+        max_speed=args.max_speed, min_speed=args.min_speed
     )
 
     # ---- Step 3: Add wall distances (optional) ------------------------------
@@ -1651,109 +1268,6 @@ def main():
     print(f"{'=' * 64}")
     ok = verify_output(output_csv)
 
-    # ---- Step 5: Fix wall clearance (optional) -------------------------------
-    if args.fix_clearance and not args.skip_walls:
-        fix_script = os.path.join(scripts_dir, 'fix_raceline_clearance.py')
-        if not os.path.exists(fix_script):
-            print(f"\n  WARNING: Fix script not found: {fix_script}")
-            print(f"  Skipping wall clearance fix.")
-        else:
-            fixed_tmp = output_csv + '.fixed'
-            fix_cmd = [
-                sys.executable, fix_script,
-                '--input', output_csv,
-                '--output', fixed_tmp,
-                '--map', args.map,
-                '--min-clearance', str(args.min_clearance),
-                '--car-width', str(args.car_width),
-                '--iterations', str(args.fix_iterations),
-            ]
-            run_step("Step 5: Fix wall clearance", fix_cmd)
-
-            if os.path.exists(fixed_tmp):
-                os.replace(fixed_tmp, output_csv)
-                print(f"  Clearance-fixed raceline saved to {output_csv}")
-            else:
-                print(f"  WARNING: Fix script did not produce output: {fixed_tmp}")
-
-            # ---- Step 6: Recompute wall distances on fixed raceline ----------
-            wall_script = os.path.join(scripts_dir, 'compute_wall_distances.py')
-            if not os.path.exists(wall_script):
-                print(f"\n  WARNING: Wall script not found: {wall_script}")
-                print(f"  Skipping wall distance recomputation.")
-            else:
-                # Strip to 7-col (s,x,y,psi,kappa,vx,ax) for recomputation
-                stripped_tmp = output_csv + '.7col'
-                with open(output_csv, 'r') as f_in, open(stripped_tmp, 'w') as f_out:
-                    for line in f_in:
-                        line = line.strip()
-                        if not line or line.startswith('#'):
-                            f_out.write(line + '\n')
-                            continue
-                        fields = line.split(',')
-                        if len(fields) >= 7:
-                            f_out.write(','.join(fields[:7]) + '\n')
-                        else:
-                            f_out.write(line + '\n')
-
-                recompute_cmd = [
-                    sys.executable, wall_script,
-                    '--map', args.map,
-                    '--trajectory', stripped_tmp,
-                    '--output', output_csv,
-                    '--max-distance', str(args.max_ray_distance),
-                    '--car-width', str(args.car_width),
-                ]
-                run_step("Step 6: Recompute wall distances on fixed raceline", recompute_cmd)
-
-                # Clean up temp file
-                if os.path.exists(stripped_tmp):
-                    os.remove(stripped_tmp)
-
-                # Verify again after fix
-                print(f"\n{'=' * 64}")
-                print(f"  Step 6b: Verify fixed output")
-                print(f"{'=' * 64}")
-                ok = verify_output(output_csv)
-
-    # ---- Step 7: Smooth kappa column ----------------------------------------
-    # The clearance-fix step can create artificial kappa spikes at shifted
-    # waypoints.  Apply a short moving-average to the kappa column so the MPC
-    # feedforward steering doesn't chatter.  Positions, headings, and velocities
-    # are untouched.
-    if not args.skip_walls and os.path.exists(output_csv):
-        from scipy.ndimage import uniform_filter1d as _uf1d
-        lines_in = open(output_csv).readlines()
-        header_lines, data_lines = [], []
-        for ln in lines_in:
-            (header_lines if ln.strip().startswith('#') else data_lines).append(ln)
-
-        rows_kappa = [[float(v) for v in ln.strip().split(',')] for ln in data_lines if ln.strip()]
-        if rows_kappa:
-            kappa = np.array([r[4] for r in rows_kappa])
-            kappa_smooth = _uf1d(kappa, size=5, mode='wrap')
-            for i, r in enumerate(rows_kappa):
-                r[4] = kappa_smooth[i]
-            with open(output_csv, 'w') as fout:
-                fout.writelines(header_lines)
-                for r in rows_kappa:
-                    fout.write(','.join(f'{v:.7f}' for v in r) + '\n')
-            print(f"\n  Step 7: Smoothed kappa (window=5); "
-                  f"range [{kappa_smooth.min():.4f}, {kappa_smooth.max():.4f}] rad/m")
-
-    # ---- Step 8: Recompute velocity profile based on kappa ------------------
-    # The clearance-fix and kappa smoothing may change the curvature from the
-    # original TUM output.  Recompute vx and ax with a forward-backward pass
-    # so that lateral friction limits are respected at every waypoint.
-    if not args.skip_walls and os.path.exists(output_csv):
-        print(f"\n  Step 8: Recompute velocity profile (ay_max=7.3 m/s², ax_max=7.3 m/s²)")
-        recompute_velocity_profile(
-            output_csv,
-            max_speed=args.max_speed,
-            ay_max=7.3,
-            ax_max=7.3,
-            ax_min=-7.3,
-        )
     # ---- Visualization --------------------------------------------------------
     viz_path = output_csv.replace('.csv', '_viz.png')
     try:
