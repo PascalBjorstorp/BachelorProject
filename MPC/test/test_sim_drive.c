@@ -68,7 +68,7 @@
 #define TRAJECTORY_SPEED_GAIN     1.0
 #define TRAJECTORY_MAX_VELOCITY   20.0
 #define VEHICLE_HALF_WIDTH        0.137   /* meters — for body-edge collision */
-#define BODY_SAFETY_MARGIN        0.06    /* extra margin: gym bitmap is stricter */
+#define DEFAULT_BODY_SAFETY_MARGIN 0.06   /* extra margin: gym bitmap is stricter */
 #define STEER_BUFFER_SIZE         2       /* matching gym steer_buffer_size */
 
 /*===========================================================================
@@ -350,6 +350,12 @@ int main(void)
     g_mpc_prediction_dt = pred_dt_env ? atof(pred_dt_env) : 0.04;
     const double cross_scale = MPC_DT / g_mpc_prediction_dt;
 
+    /* Body safety margin: extra buffer beyond VEHICLE_HALF_WIDTH for wall checks.
+     * Default 0.06m matches gym bitmap strictness.  Set to 0 for pure
+     * body-edge collision (more accurate for real hardware). */
+    const char *bsm_env = getenv("BODY_SAFETY_MARGIN");
+    const double body_safety_margin = bsm_env ? atof(bsm_env) : DEFAULT_BODY_SAFETY_MARGIN;
+
     const int verbose = getenv("VERBOSE") != NULL;
 
     printf("=== Spielberg Sim-Drive Test (Riccati-ADMM, %.0fs at dt=%.4fs = %d steps, %.0fHz) ===\n",
@@ -377,6 +383,9 @@ int main(void)
         if (realistic_noise) printf(" [sensor noise]");
         printf("\n");
     }
+    if (body_safety_margin != DEFAULT_BODY_SAFETY_MARGIN)
+        printf("    BODY_SAFETY_MARGIN: %.3fm (default: %.3fm)\n",
+               body_safety_margin, DEFAULT_BODY_SAFETY_MARGIN);
     printf("\n");
 
     if (!load_raceline()) return 1;
@@ -454,6 +463,10 @@ int main(void)
     double max_steer_change = 0;
     double time_above_5ms = 0;
     double max_vx = 0;
+
+    /* True (noise-free) state for wall checks and metrics.
+     * Sensor noise should only affect MPC input, not ground-truth collision. */
+    VehicleState_t true_state = state;  /* Starts same as initial state */
     long total_iterations = 0;
     int max_iter_single = 0;
     double total_solve_us = 0.0, max_solve_us = 0.0;
@@ -517,16 +530,21 @@ int main(void)
             frenet_for_mpc = frenet;
         }
 
-        /* Use unfiltered for wall check and metrics */
-        double e_y = FP_TO_DOUBLE(frenet.lateral_error_meters);
-        double e_psi = FP_TO_DOUBLE(frenet.heading_error_radians);
+        /* Wall check and metrics use TRUE state (no sensor noise) */
+        double true_px = FP_TO_DOUBLE(true_state.position_x_meters);
+        double true_py = FP_TO_DOUBLE(true_state.position_y_meters);
+        double true_psi = FP_TO_DOUBLE(true_state.heading_angle_radians);
+        int true_closest = realistic_noise ? find_closest_waypoint(true_px, true_py, true_psi) : closest;
+        FrenetState_t true_frenet = realistic_noise ? vehicle_to_frenet(&true_state, true_closest) : frenet;
+        double e_y = FP_TO_DOUBLE(true_frenet.lateral_error_meters);
+        double e_psi = FP_TO_DOUBLE(true_frenet.heading_error_radians);
 
-        /* Wall collision check — body-edge (matching gym iTTC) */
-        double left_wall = raceline[closest].left_bound;
-        double right_wall = raceline[closest].right_bound;
+        /* Wall collision check — body-edge, using TRUE state */
+        double left_wall = raceline[true_closest].left_bound;
+        double right_wall = raceline[true_closest].right_bound;
         int wall_hit = 0;
-        if (e_y > (left_wall - VEHICLE_HALF_WIDTH - BODY_SAFETY_MARGIN))  { wall_hit = 1;  wall_collisions++; }
-        if (e_y < -(right_wall - VEHICLE_HALF_WIDTH - BODY_SAFETY_MARGIN)){ wall_hit = -1; wall_collisions++; }
+        if (e_y > (left_wall - VEHICLE_HALF_WIDTH - body_safety_margin))  { wall_hit = 1;  wall_collisions++; }
+        if (e_y < -(right_wall - VEHICLE_HALF_WIDTH - body_safety_margin)){ wall_hit = -1; wall_collisions++; }
         if (wall_hit && vx > 1.0) {
             printf("\n  !!! WALL CRASH: e_y = %.3f m (bound: %.3f) at step %d (t=%.2fs, wp=%d, v=%.1f) !!!\n",
                    e_y, wall_hit > 0 ? left_wall : right_wall, step, t, closest, vx);
@@ -772,7 +790,11 @@ int main(void)
 
             /* RK4 integration (matching gym's integrator) */
             double k1[7], k2[7], k3[7], k4[7];
-            double s0[7] = {px, py, st_delta, st_V, psi, st_psi_dot, st_beta};
+            /* Use TRUE state for dynamics (not noisy measurement) */
+            double true_px_dyn = FP_TO_DOUBLE(true_state.position_x_meters);
+            double true_py_dyn = FP_TO_DOUBLE(true_state.position_y_meters);
+            double true_psi_dyn = FP_TO_DOUBLE(true_state.heading_angle_radians);
+            double s0[7] = {true_px_dyn, true_py_dyn, st_delta, st_V, true_psi_dyn, st_psi_dot, st_beta};
 
             /* k1 */
             ST_DYNAMICS(s0[0], s0[1], s0[2], s0[3], s0[4], s0[5], s0[6],
@@ -828,7 +850,14 @@ int main(void)
 
             /* Convert ST state to MPC vehicle state */
             if (realistic_noise) {
-                /* Add sensor noise matching real hardware characteristics */
+                /* True state: noise-free for wall checks and metrics */
+                true_state.position_x_meters = DOUBLE_TO_FP(sn[0]);
+                true_state.position_y_meters = DOUBLE_TO_FP(sn[1]);
+                true_state.heading_angle_radians = DOUBLE_TO_FP(sn[4]);
+                true_state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(sn[3] * cos(sn[6]));
+                true_state.lateral_velocity_meters_per_second = DOUBLE_TO_FP(sn[3] * sin(sn[6]));
+                true_state.yaw_rate_radians_per_second = DOUBLE_TO_FP(sn[5]);
+                /* Noisy state: what the MPC controller sees */
                 state.position_x_meters = DOUBLE_TO_FP(sn[0] + NOISE_POS_M * randn());
                 state.position_y_meters = DOUBLE_TO_FP(sn[1] + NOISE_POS_M * randn());
                 state.heading_angle_radians = DOUBLE_TO_FP(sn[4] + NOISE_HDG_RAD * randn());
@@ -845,6 +874,7 @@ int main(void)
                 state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(sn[3] * cos(sn[6]));
                 state.lateral_velocity_meters_per_second = DOUBLE_TO_FP(sn[3] * sin(sn[6]));
                 state.yaw_rate_radians_per_second = DOUBLE_TO_FP(sn[5]);
+                true_state = state;
             }
 
             /* Also update actual_steer from the ST state (delta is now a state) */
