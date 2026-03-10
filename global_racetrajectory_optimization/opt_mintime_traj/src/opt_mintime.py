@@ -840,11 +840,27 @@ def opt_mintime(reftrack: np.ndarray,
     # concatenate NLP vectors
     w = ca.vertcat(*w)
     g = ca.vertcat(*g)
-    w0 = np.concatenate(w0)
-    lbw = np.concatenate(lbw)
-    ubw = np.concatenate(ubw)
-    lbg = np.concatenate(lbg)
-    ubg = np.concatenate(ubg)
+
+    def _flatten_to_1d(lst):
+        """Flatten a list of mixed scalars/lists/arrays into a 1-D numpy array."""
+        import collections.abc
+        flat = []
+        def _recurse(obj):
+            if isinstance(obj, (list, tuple)):
+                for sub in obj:
+                    _recurse(sub)
+            elif isinstance(obj, np.ndarray):
+                flat.extend(obj.ravel().tolist())
+            else:
+                flat.append(float(obj))
+        _recurse(lst)
+        return np.array(flat, dtype=float)
+
+    w0 = _flatten_to_1d(w0)
+    lbw = _flatten_to_1d(lbw)
+    ubw = _flatten_to_1d(ubw)
+    lbg = _flatten_to_1d(lbg)
+    ubg = _flatten_to_1d(ubg)
 
     # concatenate output vectors
     x_opt = ca.vertcat(*x_opt)
