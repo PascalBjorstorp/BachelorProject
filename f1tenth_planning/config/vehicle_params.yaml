@@ -15,7 +15,7 @@ vehicle:
   max_deceleration: 7.7     # [m/s²] Maximum braking deceleration
   
   # Speed limits
-  max_speed: 1.5            # [m/s] Maximum vehicle speed
+  max_speed: 5.0            # [m/s] Maximum vehicle speed
 
 optimization:
   # Track boundary safety margin (half car width + buffer)

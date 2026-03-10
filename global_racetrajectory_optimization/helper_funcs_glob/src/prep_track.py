@@ -59,6 +59,21 @@ def prep_track(reftrack_imp: np.ndarray,
                                                                          horizon=10)
 
     if normals_crossing:
+        # Progressively shrink widths until normals no longer cross
+        orig_w2 = reftrack_interp[:, 2].copy()
+        orig_w3 = reftrack_interp[:, 3].copy()
+        for factor in [0.8, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]:
+            reftrack_interp[:, 2] = orig_w2 * factor
+            reftrack_interp[:, 3] = orig_w3 * factor
+            normals_crossing = tph.check_normals_crossing.check_normals_crossing(
+                track=reftrack_interp,
+                normvec_normalized=normvec_normalized_interp,
+                horizon=10)
+            if not normals_crossing:
+                print(f"Fixed normal crossings by shrinking widths to {factor*100:.0f}%")
+                break
+
+    if normals_crossing:
         bound_1_tmp = reftrack_interp[:, :2] + normvec_normalized_interp * np.expand_dims(reftrack_interp[:, 2], axis=1)
         bound_2_tmp = reftrack_interp[:, :2] - normvec_normalized_interp * np.expand_dims(reftrack_interp[:, 3], axis=1)
 

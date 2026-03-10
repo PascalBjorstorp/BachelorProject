@@ -123,6 +123,41 @@ def load_map(map_yaml_path):
     # Used to compute a consistent wall threshold across the pipeline.
     occupied_thresh = float(config.get('occupied_thresh', 0.65))
 
+    # --- SLAM map preprocessing ---
+    # 1. Close small gaps in walls (SLAM maps often have 1-2 pixel wall gaps)
+    wall_thresh_tmp = int(255 * (1.0 - occupied_thresh))
+    wall_mask = (img < wall_thresh_tmp).astype(np.uint8)
+    kernel = np.ones((3, 3), np.uint8)
+    wall_closed = cv2.morphologyEx(wall_mask, cv2.MORPH_CLOSE, kernel, iterations=1)
+    gap_pixels = (wall_closed > 0) & (wall_mask == 0) & (img != 0)
+    if gap_pixels.sum() > 0:
+        # Fill gaps: set gap pixels to wall (black)
+        img[gap_pixels] = 0
+        print(f"  Closed {gap_pixels.sum()} wall gap pixels")
+
+    # 2. Pad map if free space touches any edge (SLAM map cropped too tight)
+    h, w = img.shape
+    free_mask = (img >= 240)
+    pad_needed = [
+        free_mask[0, :].any(),   # top
+        free_mask[-1, :].any(),  # bottom
+        free_mask[:, 0].any(),   # left
+        free_mask[:, -1].any(),  # right
+    ]
+    if any(pad_needed):
+        pad_px = 15  # pad by 15 pixels = 0.75m at 0.05m/px
+        # Pad with grey (205) = non-free, treated as wall
+        new_img = np.full((h + 2 * pad_px, w + 2 * pad_px), 205, dtype=np.uint8)
+        new_img[pad_px:pad_px + h, pad_px:pad_px + w] = img
+        img = new_img
+        # Adjust origin to account for the padding
+        origin[0] -= pad_px * resolution
+        origin[1] -= pad_px * resolution
+        sides = ['top', 'bottom', 'left', 'right']
+        padded_sides = [s for s, p in zip(sides, pad_needed) if p]
+        print(f"  Padded map by {pad_px}px ({padded_sides}): "
+              f"new size {img.shape[1]}x{img.shape[0]}")
+
     return img, resolution, origin, occupied_thresh
 
 
@@ -793,8 +828,8 @@ def smooth_track_widths(centerline, w_right, w_left, min_width=0.3):
     kappa = (dx * ddy - dy * ddx) / np.maximum((dx ** 2 + dy ** 2) ** 1.5, 1e-10)
     R = 1.0 / np.maximum(np.abs(kappa), 1e-6)
 
-    # Cap widths to 80% of curvature radius (prevents normal crossings)
-    cap = 0.8 * R
+    # Cap widths to 90% of curvature radius (prevents normal crossings)
+    cap = 0.9 * R
     w_right_c = np.minimum(w_right, cap)
     w_left_c = np.minimum(w_left, cap)
 
@@ -1344,7 +1379,35 @@ def main():
             centerline, w_right, w_left, min_width=car_half
         )
 
-        # Verify the optimizer can find a feasible solution
+        # Save TUM-format track CSV
+        # Remove duplicate/near-duplicate points and resample uniformly
+        ds = np.sqrt(np.sum(np.diff(centerline, axis=0)**2, axis=1))
+        keep = np.concatenate([[True], ds > 0.01])  # drop points < 1cm apart
+        if not np.all(keep):
+            n_dup = np.sum(~keep)
+            centerline = centerline[keep]
+            w_right = np.array(w_right)[keep]
+            w_left = np.array(w_left)[keep]
+            print(f"  Removed {n_dup} near-duplicate centerline points")
+            # Resample to uniform spacing via spline
+            cl_closed = np.vstack([centerline, centerline[0]])
+            tck_resamp, _ = splprep(
+                [cl_closed[:, 0], cl_closed[:, 1]],
+                s=len(centerline) * 0.1, per=True,
+            )
+            u_new = np.linspace(0, 1, len(centerline), endpoint=False)
+            centerline = np.array(splev(u_new, tck_resamp)).T
+            # Re-measure widths at new positions
+            w_right, w_left = measure_track_widths(
+                centerline, map_img, resolution, origin,
+                max_dist=args.max_ray_distance,
+                wall_thresh=wall_thresh,
+            )
+            w_right, w_left = smooth_track_widths(
+                centerline, w_right, w_left, min_width=car_half
+            )
+
+        # Verify the optimizer can find a feasible solution (after resampling)
         total_w = np.array(w_right) + np.array(w_left)
         min_total = total_w.min()
         if min_total < args.min_track_width:
@@ -1362,7 +1425,6 @@ def main():
             print(f"  Track feasibility OK: narrowest total={min_total:.3f}m >= "
                   f"min_track_width={args.min_track_width:.3f}m")
 
-        # Save TUM-format track CSV
         save_tum_track_csv(centerline, w_right, w_left, track_csv)
     else:
         print(f"\n  Skipping extraction (--skip-extract)")
@@ -1402,6 +1464,14 @@ def main():
             # in wall distance computation, there is wall_clearance of
             # driveable room for the MPC on each side.
             optimizer_width = args.car_width + 2.0 * args.wall_clearance
+            # Ensure width_opt doesn't exceed minimum track width (infeasible QP)
+            track_data_check = np.loadtxt(track_csv, delimiter=',', comments='#')
+            min_total_w = (track_data_check[:, 2] + track_data_check[:, 3]).min()
+            if optimizer_width > min_total_w:
+                # Leave 5% margin for the TUM's internal spline resampling
+                optimizer_width = max(args.car_width * 0.95, min_total_w * 0.90)
+                print(f"  Clamped width_opt to {optimizer_width:.3f}m "
+                      f"(min track width = {min_total_w:.3f}m)")
             patched_ini = re.sub(
                 r'(optim_opts_mincurv\s*=\s*\{"width_opt":\s*)[\d.]+',
                 rf'\g<1>{optimizer_width:.3f}',
@@ -1420,7 +1490,7 @@ def main():
                 sp = max(0.05, 0.3 * scale)
                 sr = max(0.05, 0.5 * scale)
                 si = max(0.05, 0.35 * scale)
-                s_reg = max(1.0, 25.0 * scale)
+                s_reg = max(1.0, 10.0 * scale)
                 patched_ini = re.sub(
                     r'"stepsize_prep":\s*[\d.]+', f'"stepsize_prep": {sp:.3f}', patched_ini)
                 patched_ini = re.sub(
