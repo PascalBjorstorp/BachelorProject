@@ -13,6 +13,7 @@ setup(
         package_name: [
             '../maps/*.yaml',
             '../maps/*.png',
+            '../maps/*.pgm',
         ],
     },
     data_files=[
@@ -26,7 +27,7 @@ setup(
         (f'share/{package_name}/maps', [
             os.path.join('maps', f)
             for f in os.listdir('maps')
-            if f.endswith('.yaml') or f.endswith('.png')
+            if f.endswith('.yaml') or f.endswith('.png') or f.endswith('.pgm')
         ]),
     ],
     install_requires=[

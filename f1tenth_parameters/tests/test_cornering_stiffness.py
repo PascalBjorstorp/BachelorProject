@@ -534,8 +534,11 @@ class CorneringStiffnessNode(TestNode):
 
         # Understeer gradient
         if C_af_best > 0 and C_ar_best > 0:
-            K_us = (self.mass * GRAVITY / self.wheelbase) * \
-                   (self.l_f / C_af_best - self.l_r / C_ar_best)
+            # SAE/bicycle-model convention:
+            # K_us = m/L * (l_r/C_αf - l_f/C_αr)
+            # K_us > 0 → understeer
+            K_us = (self.mass / self.wheelbase) * \
+                   (self.l_r / C_af_best - self.l_f / C_ar_best)
 
             self.get_logger().info(f"\n3. UNDERSTEER GRADIENT:")
             self.get_logger().info(f"   K_us = {K_us:.4f} rad/(m/s²)")
@@ -555,7 +558,7 @@ class CorneringStiffnessNode(TestNode):
         # has high noise from LiDAR ICP) is NOT needed.
         #
         # Theory: δ = L/R_actual + K_us * a_y
-        # where K_us = (m*g/L) * (l_f/C_αf - l_r/C_αr)
+        # where K_us = (m/L) * (l_r/C_αf - l_f/C_αr)   [SAE bicycle-model convention]
         #
         # Rearranging: (δ - L * ω/v) = K_us * a_y
         # A linear fit of (δ - L*ω/v) vs a_y gives K_us as slope.
@@ -640,14 +643,16 @@ class CorneringStiffnessNode(TestNode):
                     f"   C_αf/C_αr ratio (yaw balance): {median_ratio:.3f} "
                     f"(n={len(ug_ratio_points)})")
                 
-                # K_us = (mg/L) * (l_f/C_αf - l_r/C_αr)
-                # Let R = C_αf/C_αr (= median_ratio)
-                # K_us = (mg/L) * (l_f/(R*C_αr) - l_r/C_αr) = (mg/(L*C_αr))*(l_f/R - l_r)
-                # C_αr = (mg/L) * (l_f/R - l_r) / K_us  (if K_us ≠ 0)
+                # Correct SAE formula:
+                # K_us = m/L * (l_r/C_αf - l_f/C_αr)
+                # Let R = C_αf/C_αr (= median_ratio), C_αf = R * C_αr
+                # K_us = (m/(L*C_αr)) * (l_r/R - l_f)
+                # → C_αr = (m/L) * (l_r/R - l_f) / K_us
                 if abs(K_us_measured) > 1e-8:
-                    C_ar_ug = abs((self.mass * GRAVITY / self.wheelbase) * \
-                                  (self.l_f / median_ratio - self.l_r) / K_us_measured)
-                    C_af_ug = abs(median_ratio * C_ar_ug)
+                    denom = self.l_r / median_ratio - self.l_f
+                    if abs(denom) > 1e-6:
+                        C_ar_ug = abs((self.mass / self.wheelbase) * denom / K_us_measured)
+                        C_af_ug = abs(median_ratio * C_ar_ug)
                     
                     self.get_logger().info(
                         f"   C_alpha_f = {C_af_ug:.1f} N/rad (understeer gradient)")
