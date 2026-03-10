@@ -106,7 +106,7 @@ class CorneringStiffnessNode(TestNode):
 
     def run_test(self):
         """Execute the cornering stiffness test."""
-        if not self.wait_for_sensors():
+        if not self.wait_for_sensors(require_lidar=True):
             return False
 
         speeds = np.arange(self.min_speed, self.max_speed + 0.01, self.speed_step)
@@ -296,6 +296,11 @@ class CorneringStiffnessNode(TestNode):
                             vy_for_slip_std = vy_lidar_std
                             vy_source = "LiDAR"
 
+                        # v_y quality gating: LiDAR v_y noise (~0.1 m/s) dominates
+                        # the actual sideslip signal at low speeds. Flag if SNR < 1.
+                        vy_snr = abs(vy_for_slip) / max(vy_for_slip_std, 1e-6)
+                        vy_reliable = vy_snr > 1.0 and vx_avg > 1.5
+
                         beta = vy_for_slip / vx_avg if abs(vx_avg) > 0.1 else 0.0
                         alpha_f = steer - beta - self.l_f * omega / vx_avg
                         alpha_r = self.l_r * omega / vx_avg - beta
@@ -383,6 +388,8 @@ class CorneringStiffnessNode(TestNode):
                             'consistency_rmse': consistency_rmse,
                             'n_samples_total': n_total,
                             'n_samples': n_samples,
+                            'vy_reliable': vy_reliable,
+                            'vy_snr': vy_snr,
                         }
                         self.speed_results.append(result)
 
@@ -539,15 +546,155 @@ class CorneringStiffnessNode(TestNode):
             else:
                 self.get_logger().info(f"   → Neutral steer")
 
+        # ================================================================
+        # 4. UNDERSTEER GRADIENT METHOD (does NOT require v_y)
+        # ================================================================
+        # This method is more robust than per-point C_alpha because it
+        # uses how the actual turning radius deviates from the kinematic
+        # prediction as speed increases. The lateral velocity v_y (which
+        # has high noise from LiDAR ICP) is NOT needed.
+        #
+        # Theory: δ = L/R_actual + K_us * a_y
+        # where K_us = (m*g/L) * (l_f/C_αf - l_r/C_αr)
+        #
+        # Rearranging: (δ - L * ω/v) = K_us * a_y
+        # A linear fit of (δ - L*ω/v) vs a_y gives K_us as slope.
+        #
+        # To separate C_αf and C_αr, use the yaw moment balance:
+        #   F_yf * l_f = F_yr * l_r
+        #   C_αf * α_f * l_f = C_αr * α_r * l_r
+        # With kinematic slip angles (no v_y):
+        #   α_f ≈ δ - l_f*ω/v,  α_r ≈ l_r*ω/v
+        # This gives: C_αf/C_αr = (l_r² * ω/v) / ((δ - l_f*ω/v) * l_f)
+        # Combined with K_us, we solve for both.
+        # ================================================================
+        self.get_logger().info(f"\n4. UNDERSTEER GRADIENT METHOD (v_y-independent):")
+
+        ug_delta_eff = []    # δ - L*ω/v  (understeer correction)
+        ug_ay = []           # measured a_y
+        ug_ratio_points = [] # C_αf/C_αr ratio at each point
+        
+        for r in self.speed_results:
+            v = r['speed']
+            omega = r['omega']
+            delta = r['steering_angle']
+            a_y = r['ay']
+            
+            if v < 0.5 or omega < 0.01 or a_y < 0.1:
+                continue
+            
+            # Kinematic steering correction
+            delta_kinematic = self.wheelbase * omega / v
+            delta_understeer = delta - delta_kinematic
+            
+            ug_delta_eff.append(delta_understeer)
+            ug_ay.append(a_y)
+            
+            # Yaw moment ratio for C_αf/C_αr separation
+            alpha_f_kin = delta - self.l_f * omega / v
+            alpha_r_kin = self.l_r * omega / v
+            if abs(alpha_f_kin) > 0.001 and abs(alpha_r_kin) > 0.001:
+                ratio = (self.l_r ** 2 * omega / v) / (alpha_f_kin * self.l_f)
+                if 0.1 < ratio < 10.0:  # sanity bounds
+                    ug_ratio_points.append(ratio)
+        
+        C_af_ug = 0.0
+        C_ar_ug = 0.0
+        K_us_measured = None
+        
+        if len(ug_delta_eff) >= 3:
+            ug_x = np.array(ug_ay)
+            ug_y = np.array(ug_delta_eff)
+            
+            # Robust fit: δ - L*ω/v = K_us * a_y + intercept
+            # intercept should be ~0 (at zero a_y, δ ≈ L/R)
+            if len(ug_x) >= 4:
+                p = np.polyfit(ug_x, ug_y, 1)
+                K_us_measured = p[0]
+                intercept = p[1]
+            else:
+                # Through-origin fit
+                K_us_measured = float(np.sum(ug_x * ug_y) / np.sum(ug_x ** 2))
+                intercept = 0.0
+            
+            # R² for the fit
+            ug_pred = K_us_measured * ug_x + intercept
+            ss_res = np.sum((ug_y - ug_pred) ** 2)
+            ss_tot = np.sum((ug_y - np.mean(ug_y)) ** 2)
+            R2_ug = 1 - ss_res / ss_tot if ss_tot > 0 else 0
+            
+            self.get_logger().info(
+                f"   K_us = {K_us_measured:.6f} rad/(m/s²)  "
+                f"(R² = {R2_ug:.4f}, n = {len(ug_x)})")
+            self.get_logger().info(f"   Intercept = {intercept:.6f} rad (should be ~0)")
+            
+            if K_us_measured > 0:
+                self.get_logger().info(f"   → UNDERSTEER")
+            elif K_us_measured < 0:
+                self.get_logger().info(f"   → OVERSTEER")
+            
+            # Separate C_αf and C_αr using yaw-moment ratio
+            if ug_ratio_points:
+                median_ratio = float(np.median(ug_ratio_points))
+                self.get_logger().info(
+                    f"   C_αf/C_αr ratio (yaw balance): {median_ratio:.3f} "
+                    f"(n={len(ug_ratio_points)})")
+                
+                # K_us = (mg/L) * (l_f/C_αf - l_r/C_αr)
+                # Let R = C_αf/C_αr (= median_ratio)
+                # K_us = (mg/L) * (l_f/(R*C_αr) - l_r/C_αr) = (mg/(L*C_αr))*(l_f/R - l_r)
+                # C_αr = (mg/L) * (l_f/R - l_r) / K_us  (if K_us ≠ 0)
+                if abs(K_us_measured) > 1e-8:
+                    C_ar_ug = abs((self.mass * GRAVITY / self.wheelbase) * \
+                                  (self.l_f / median_ratio - self.l_r) / K_us_measured)
+                    C_af_ug = abs(median_ratio * C_ar_ug)
+                    
+                    self.get_logger().info(
+                        f"   C_alpha_f = {C_af_ug:.1f} N/rad (understeer gradient)")
+                    self.get_logger().info(
+                        f"   C_alpha_r = {C_ar_ug:.1f} N/rad (understeer gradient)")
+                else:
+                    self.get_logger().info(
+                        f"   K_us ≈ 0 (neutral steer) — cannot separate C_αf and C_αr")
+        else:
+            self.get_logger().info(
+                f"   Not enough data points ({len(ug_delta_eff)}) for understeer "
+                f"gradient fit (need ≥ 3)")
+
+        # Check v_y reliability across all points
+        n_vy_reliable = sum(1 for r in self.speed_results if r.get('vy_reliable', False))
+        n_total_pts = len(self.speed_results)
+        self.get_logger().info(f"\n5. V_Y QUALITY ASSESSMENT:")
+        self.get_logger().info(
+            f"   LiDAR v_y reliable (SNR>1, v>1.5): {n_vy_reliable}/{n_total_pts} points")
+        if n_vy_reliable < n_total_pts * 0.5:
+            self.get_logger().info(
+                f"   ⚠ Most v_y measurements are unreliable. The understeer gradient "
+                f"method (section 4) is preferred over per-point C_alpha.")
+            if C_af_ug > 0:
+                self.get_logger().info(
+                    f"   → USING understeer gradient values as best estimate.")
+                C_af_best = C_af_ug
+                C_ar_best = C_ar_ug
+        else:
+            self.get_logger().info(
+                f"   v_y measurements look reasonable. Per-point method results used.")
+
         # Summary
-        self.get_logger().info(f"\n--- Parameters for MPC ---")
+        self.get_logger().info(f"\n--- BEST ESTIMATE for MPC ---")
         if C_af_best > 0:
             self.get_logger().info(f"  C_alpha_f: {C_af_best:.1f} N/rad (front)")
             self.get_logger().info(f"  C_alpha_r: {C_ar_best:.1f} N/rad (rear)")
+            if K_us_measured is not None:
+                self.get_logger().info(f"  K_us: {K_us_measured:.6f} rad/(m/s²)")
         self.get_logger().info(
             f"\n  NOTE: Slip angles computed WITH measured sideslip (v_y).")
         self.get_logger().info(
             f"  This overcomes the v² kinematic degeneracy of the naive method.")
+        if C_af_ug > 0:
+            self.get_logger().info(
+                f"  Understeer gradient method (no v_y needed): "
+                f"C_αf={C_af_ug:.1f}, C_αr={C_ar_ug:.1f}")
 
         # Save summary CSV with per-speed-point results
         import csv as csv_mod
@@ -630,6 +777,9 @@ class CorneringStiffnessNode(TestNode):
         elif C_af_best > 0:
             params['C_alpha_f'] = float(C_af_best)
             params['C_alpha_r'] = float(C_ar_best)
+        # Also save understeer gradient K_us if available
+        if K_us_measured is not None:
+            params['understeer_gradient'] = float(K_us_measured)
         if params:
             update_vehicle_params(params, status='TESTED', logger=self.get_logger())
         self.get_logger().info("=" * 60)
@@ -645,8 +795,8 @@ def main():
                              'i.e. ~4.6° to ~13.8°, sweeps through different slip angles)')
     parser.add_argument('--min-speed', type=float, default=1.5,
                         help='Starting speed (m/s, default: 1.5)')
-    parser.add_argument('--max-speed', type=float, default=2.5,
-                        help='Maximum speed (m/s, default: 2.5, keep moderate to stay in linear tire region)')
+    parser.add_argument('--max-speed', type=float, default=3.5,
+                        help='Maximum speed (m/s, default: 3.5, moderate: more slip signal while staying in linear tire region)')
     parser.add_argument('--speed-step', type=float, default=0.5,
                         help='Speed increment (m/s, default: 0.5)')
     parser.add_argument('--settle-time', type=float, default=8.0,
