@@ -326,11 +326,58 @@ def load_map(map_yaml_path):
 
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     if img is None:
-        raise FileNotFoundError(f"Could not load map image: {image_path}")
+        if not os.path.exists(image_path):
+            raise FileNotFoundError(f"Map image file does not exist: {image_path}")
+        try:
+            from PIL import Image
+            pil_img = Image.open(image_path).convert('L')
+            img = np.array(pil_img)
+            print(f"  Warning: cv2.imread failed, loaded via PIL instead")
+        except Exception:
+            raise FileNotFoundError(
+                f"Could not load map image: {image_path}\n"
+                f"  File exists but cv2.imread returned None.\n"
+                f"  Check: pip install opencv-python (or opencv-python-headless)"
+            )
 
     # Read occupied_thresh from map YAML (ROS convention).
     # Used to compute a consistent wall threshold across the pipeline.
     occupied_thresh = float(config.get('occupied_thresh', 0.65))
+
+    # --- SLAM map preprocessing ---
+    # 1. Close small gaps in walls (SLAM maps often have 1-2 pixel wall gaps)
+    wall_thresh_tmp = int(255 * (1.0 - occupied_thresh))
+    wall_mask = (img < wall_thresh_tmp).astype(np.uint8)
+    kernel = np.ones((3, 3), np.uint8)
+    wall_closed = cv2.morphologyEx(wall_mask, cv2.MORPH_CLOSE, kernel, iterations=1)
+    gap_pixels = (wall_closed > 0) & (wall_mask == 0) & (img != 0)
+    if gap_pixels.sum() > 0:
+        # Fill gaps: set gap pixels to wall (black)
+        img[gap_pixels] = 0
+        print(f"  Closed {gap_pixels.sum()} wall gap pixels")
+
+    # 2. Pad map if free space touches any edge (SLAM map cropped too tight)
+    h, w = img.shape
+    free_mask = (img >= 240)
+    pad_needed = [
+        free_mask[0, :].any(),   # top
+        free_mask[-1, :].any(),  # bottom
+        free_mask[:, 0].any(),   # left
+        free_mask[:, -1].any(),  # right
+    ]
+    if any(pad_needed):
+        pad_px = 15  # pad by 15 pixels = 0.75m at 0.05m/px
+        # Pad with grey (205) = non-free, treated as wall
+        new_img = np.full((h + 2 * pad_px, w + 2 * pad_px), 205, dtype=np.uint8)
+        new_img[pad_px:pad_px + h, pad_px:pad_px + w] = img
+        img = new_img
+        # Adjust origin to account for the padding
+        origin[0] -= pad_px * resolution
+        origin[1] -= pad_px * resolution
+        sides = ['top', 'bottom', 'left', 'right']
+        padded_sides = [s for s, p in zip(sides, pad_needed) if p]
+        print(f"  Padded map by {pad_px}px ({padded_sides}): "
+              f"new size {img.shape[1]}x{img.shape[0]}")
 
     return img, resolution, origin, occupied_thresh
 
@@ -450,10 +497,14 @@ def compute_centerline(outer_world, inner_world, num_points=1000,
     """
     Compute a smooth, periodic centerline between the two boundaries.
 
-    For each sampled point on the outer boundary, finds the closest point on
-    the inner boundary and takes the midpoint.  The result is smoothed with a
-    periodic B-spline and optionally corrected to avoid wall collisions using
-    a distance-transform.
+    Uses the equidistance curve between the outer and inner wall
+    contours (black-pixel boundaries) to find the medial axis of the
+    track corridor.  This correctly follows the corridor even on
+    complex SLAM maps where simple nearest-point pairing cuts through
+    walls and free-space skeletons leak through wall gaps.
+
+    Falls back to nearest-point pairing if no map image is provided
+    or the equidistance extraction fails.
 
     Returns
     -------
@@ -461,24 +512,55 @@ def compute_centerline(outer_world, inner_world, num_points=1000,
     inner_tree : cKDTree -- KD-tree built from inner_world
     outer_tree : cKDTree -- KD-tree built from outer_world
     """
+    from skimage.morphology import skeletonize
+
     outer_tree = cKDTree(outer_world)
     inner_tree = cKDTree(inner_world)
+    h, w = (map_img.shape if map_img is not None else (0, 0))
 
-    step = max(1, len(outer_world) // num_points)
-    outer_sampled = outer_world[::step]
+    equidist_ok = False
+    if map_img is not None:
+        try:
+            # --- Equidistance approach using wall contours ---
+            # Find black-pixel (wall) contours and their hierarchy to
+            # identify the outer track wall and inner obstacle.
+            wall_mask = (map_img < 50).astype(np.uint8)
+            w_contours, w_hierarchy = cv2.findContours(
+                wall_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE
+            )
+            w_areas = [(i, cv2.contourArea(c))
+                       for i, c in enumerate(w_contours)]
+            w_areas.sort(key=lambda x: x[1], reverse=True)
 
-    centerline_raw = []
-    for outer_pt in outer_sampled:
-        d_inner, idx = inner_tree.query(outer_pt)
-        inner_pt = inner_world[idx]
-        centerline_raw.append((inner_pt + outer_pt) / 2.0)
-    centerline_raw = np.array(centerline_raw)
+            if len(w_areas) >= 3:
+                # Root = outermost wall boundary
+                root_idx = w_areas[0][0]
+                # Track outer wall = largest child of root
+                children_of_root = [
+                    i for i, _ in w_areas
+                    if w_hierarchy[0][i][3] == root_idx
+                ]
+                track_outer_idx = max(
+                    children_of_root,
+                    key=lambda i: cv2.contourArea(w_contours[i]),
+                )
+                # Track inner wall = largest child of track_outer
+                children_of_outer = [
+                    i for i, _ in w_areas
+                    if w_hierarchy[0][i][3] == track_outer_idx
+                ]
+                track_inner_idx = max(
+                    children_of_outer,
+                    key=lambda i: cv2.contourArea(w_contours[i]),
+                )
 
-    # Remove near-duplicate points
-    diff = np.diff(centerline_raw, axis=0)
-    dist = np.linalg.norm(diff, axis=1)
-    mask = np.concatenate([[True], dist > 0.01])
-    centerline_raw = centerline_raw[mask]
+                # Draw wall contour lines (1-pixel thick)
+                outer_line = np.zeros((h, w), dtype=np.uint8)
+                cv2.drawContours(outer_line, w_contours,
+                                 track_outer_idx, 1, 1)
+                inner_line = np.zeros((h, w), dtype=np.uint8)
+                cv2.drawContours(inner_line, w_contours,
+                                 track_inner_idx, 1, 1)
 
     # ---- Pre-smoothing collision correction + medial-axis projection --------
     # Applied to the RAW centerline BEFORE the B-spline so that the spline
@@ -509,7 +591,8 @@ def compute_centerline(outer_world, inner_world, num_points=1000,
 
             # --- Step 1: jump to nearest free pixel ---
             best_r, best_c = row, col
-            best_sq = float('inf')
+            best_dt = 0.0
+            search_r = 30
             found = False
             search_r = 60       # 60px = 3m search radius
             for dr in range(-search_r, search_r + 1):
@@ -650,6 +733,30 @@ def measure_track_widths(centerline, map_img, resolution, origin,
         else:
             w_right[i] = max_dist
 
+    # Cap widths to the distance-transform value at each point.
+    # This prevents inflated widths from rays escaping through wall gaps
+    # into exterior free space.  After ridge-snapping the centerline to
+    # the white-space centre, the cap should only trim outlier rays.
+    dist_transform = cv2.distanceTransform(free, cv2.DIST_L2, 5)
+    n_capped = 0
+    for i in range(n):
+        col = int((centerline[i, 0] - origin[0]) / resolution)
+        row = int(map_img.shape[0] - (centerline[i, 1] - origin[1]) / resolution)
+        if 0 <= row < map_img.shape[0] and 0 <= col < map_img.shape[1]:
+            dt_val = dist_transform[row, col] * resolution
+            # Cap ray-cast width to the DT value (distance to nearest
+            # non-free pixel).  This prevents rays from escaping through
+            # wall gaps into the exterior free space.
+            cap = dt_val * 1.0
+            if w_right[i] > cap:
+                w_right[i] = cap
+                n_capped += 1
+            if w_left[i] > cap:
+                w_left[i] = cap
+                n_capped += 1
+    if n_capped > 0:
+        print(f"  Width DT-capped: {n_capped} sides")
+
     return w_right, w_left
 
 
@@ -683,11 +790,8 @@ def smooth_track_widths(centerline, w_right, w_left, min_width=0.3):
     kappa = (dx * ddy - dy * ddx) / np.maximum((dx ** 2 + dy ** 2) ** 1.5, 1e-10)
     R = 1.0 / np.maximum(np.abs(kappa), 1e-6)
 
-    # Cap widths to 45% of curvature radius PER SIDE (total ≤ 0.9 * R).
-    # TUM's prep_track checks normals within horizon=10 pts; for crossings
-    # not to occur each boundary must stay within R of the centreline.
-    # Using 0.45*R per side (total 0.9*R) gives a comfortable safety margin.
-    cap = 0.45 * R
+    # Cap widths to 90% of curvature radius (prevents normal crossings)
+    cap = 0.9 * R
     w_right_c = np.minimum(w_right, cap)
     w_left_c = np.minimum(w_left, cap)
 
@@ -1001,6 +1105,67 @@ def verify_output(csv_path):
 
 
 # =============================================================================
+#  Visualization
+# =============================================================================
+
+def visualize_raceline(map_yaml_path, csv_path, output_path):
+    """Create visualization of racing line on track map, colored by velocity."""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
+    with open(map_yaml_path, 'r') as f:
+        config = yaml.safe_load(f)
+
+    img_path = config['image']
+    if not os.path.isabs(img_path):
+        img_path = os.path.join(os.path.dirname(map_yaml_path), img_path)
+
+    img = cv2.imread(img_path)
+    resolution = config['resolution']
+    origin = np.array(config['origin'])
+    img_height = img.shape[0]
+
+    # Load trajectory
+    data = np.loadtxt(csv_path, delimiter=',', comments='#')
+    xy = data[:, 1:3]
+    velocities = data[:, 5]
+
+    # Convert world coords to pixel coords
+    px = ((xy[:, 0] - origin[0]) / resolution).astype(int)
+    py = (img_height - (xy[:, 1] - origin[1]) / resolution).astype(int)
+
+    fig, ax = plt.subplots(figsize=(16, 16))
+    ax.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+
+    scatter = ax.scatter(px, py, c=velocities, cmap='RdYlGn', s=20,
+                         vmin=velocities.min(), vmax=velocities.max())
+    cbar = plt.colorbar(scatter, ax=ax, shrink=0.6)
+    cbar.set_label('Velocity (m/s)', fontsize=12)
+
+    ax.scatter(px[0], py[0], c='blue', s=300, marker='*', label='Start', zorder=10)
+
+    # Direction arrows
+    for i in range(0, len(px), max(1, len(px) // 8)):
+        if i + 1 < len(px):
+            dx = px[i + 1] - px[i]
+            dy = py[i + 1] - py[i]
+            length = np.sqrt(dx**2 + dy**2)
+            if length > 0:
+                dx, dy = dx / length * 15, dy / length * 15
+                ax.annotate('', xy=(px[i] + dx, py[i] + dy),
+                            xytext=(px[i], py[i]),
+                            arrowprops=dict(arrowstyle='->', color='white', lw=2))
+
+    ax.legend(loc='upper right', fontsize=12)
+    ax.set_title('Optimized Racing Line', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150)
+    plt.close()
+    print(f"  Saved visualization: {output_path}")
+
+
+# =============================================================================
 #  Main pipeline
 # =============================================================================
 
@@ -1025,8 +1190,8 @@ def main():
     )
 
     parser.add_argument(
-        '--map', '-m', required=True,
-        help='Path to map .yaml file (e.g. f1tenth_sim/maps/Spielberg_map.yaml)',
+        '--map', '-m', default=None,
+        help='Path to map .yaml file (default: auto-detect my_track_map.yaml in f1tenth_sim/maps/)',
     )
     parser.add_argument(
         '--track-name', '-t', default=None,
@@ -1063,16 +1228,16 @@ def main():
         help='Skip wall distance computation (default: True, 7-col output)',
     )
     parser.add_argument(
-        '--with-walls', action='store_true',
-        help='Compute ray-cast wall distances (9-col output)',
+        '--with-walls', action='store_true', default=True,
+        help='Compute ray-cast wall distances (9-col output, default: True)',
     )
     parser.add_argument(
-        '--car-width', type=float, default=0.30,
-        help='Physical car width [m] used for wall distance margin (default: 0.30)',
+        '--car-width', type=float, default=0.27,
+        help='Physical car width [m] used for wall distance margin (default: 0.27)',
     )
     parser.add_argument(
-        '--wall-clearance', type=float, default=0.45,
-        help='Extra clearance from walls beyond car width on each side [m] (default: 0.45). '
+        '--wall-clearance', type=float, default=0.15,
+        help='Extra clearance from walls beyond car width on each side [m] (default: 0.15). '
              'Optimizer width_opt = car_width + 2*wall_clearance',
     )
     parser.add_argument(
@@ -1113,6 +1278,16 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # Auto-detect map if not specified
+    if args.map is None:
+        default_map = os.path.join(workspace, 'f1tenth_sim', 'maps', 'my_track_map.yaml')
+        if os.path.exists(default_map):
+            args.map = default_map
+        else:
+            print("ERROR: No --map specified and default my_track_map.yaml not found.")
+            print(f"  Looked at: {default_map}")
+            sys.exit(1)
 
     # Resolve map path
     if not os.path.isabs(args.map):
@@ -1193,6 +1368,21 @@ def main():
         #   => pixel < 255*(1 - occupied_thresh) is a wall
         wall_thresh = int(255 * (1.0 - occupied_thresh))
         print(f"  Wall threshold: {wall_thresh} (occupied_thresh={occupied_thresh:.2f})")
+
+        # SLAM maps have grey (typically ~205) for unknown/unexplored areas.
+        # These must be treated as walls, not free space.
+        unique_vals, counts = np.unique(map_img, return_counts=True)
+        grey_mask = (unique_vals > wall_thresh) & (unique_vals < 240)
+        grey_pct = counts[grey_mask].sum() / map_img.size
+        if grey_pct > 0.10:
+            # Find the lowest "white" (free space) pixel value
+            white_mask = unique_vals >= 240
+            if white_mask.any():
+                white_min = unique_vals[white_mask].min()
+                wall_thresh = int(white_min) - 5
+                print(f"  SLAM grey detected ({grey_pct:.0%}): raised wall_thresh to {wall_thresh} "
+                      f"(only pixels >= {wall_thresh} are free)")
+
         print(f"  Image size: {map_img.shape[1]}x{map_img.shape[0]} px, "
               f"resolution: {resolution} m/px")
 
@@ -1261,18 +1451,52 @@ def main():
             centerline, w_right, w_left, min_width=car_half
         )
 
-        # Verify the optimizer can find a feasible solution
+        # Save TUM-format track CSV
+        # Remove duplicate/near-duplicate points and resample uniformly
+        ds = np.sqrt(np.sum(np.diff(centerline, axis=0)**2, axis=1))
+        keep = np.concatenate([[True], ds > 0.01])  # drop points < 1cm apart
+        if not np.all(keep):
+            n_dup = np.sum(~keep)
+            centerline = centerline[keep]
+            w_right = np.array(w_right)[keep]
+            w_left = np.array(w_left)[keep]
+            print(f"  Removed {n_dup} near-duplicate centerline points")
+            # Resample to uniform spacing via spline
+            cl_closed = np.vstack([centerline, centerline[0]])
+            tck_resamp, _ = splprep(
+                [cl_closed[:, 0], cl_closed[:, 1]],
+                s=len(centerline) * 0.1, per=True,
+            )
+            u_new = np.linspace(0, 1, len(centerline), endpoint=False)
+            centerline = np.array(splev(u_new, tck_resamp)).T
+            # Re-measure widths at new positions
+            w_right, w_left = measure_track_widths(
+                centerline, map_img, resolution, origin,
+                max_dist=args.max_ray_distance,
+                wall_thresh=wall_thresh,
+            )
+            w_right, w_left = smooth_track_widths(
+                centerline, w_right, w_left, min_width=car_half
+            )
+
+        # Verify the optimizer can find a feasible solution (after resampling)
         total_w = np.array(w_right) + np.array(w_left)
         min_total = total_w.min()
         if min_total < args.min_track_width:
             print(f"  WARNING: Narrowest total width ({min_total:.3f}m) < "
                   f"min_track_width ({args.min_track_width:.3f}m)")
-            print(f"  Optimizer may fail at these points. Consider reducing --wall-clearance.")
+            # Auto-reduce min_track_width and optimizer width to avoid infeasible QP
+            actual_max_width = float(min_total) - 0.01
+            args.min_track_width = actual_max_width
+            # Recompute wall clearance from available space
+            effective_clearance = (actual_max_width - args.car_width) / 2.0
+            args.wall_clearance = max(0.05, effective_clearance)
+            print(f"  Auto-reduced min_track_width to {args.min_track_width:.3f}m, "
+                  f"wall_clearance to {args.wall_clearance:.3f}m")
         else:
             print(f"  Track feasibility OK: narrowest total={min_total:.3f}m >= "
                   f"min_track_width={args.min_track_width:.3f}m")
 
-        # Save TUM-format track CSV
         save_tum_track_csv(centerline, w_right, w_left, track_csv)
     else:
         print(f"\n  Skipping extraction (--skip-extract)")
@@ -1312,6 +1536,14 @@ def main():
             # in wall distance computation, there is wall_clearance of
             # driveable room for the MPC on each side.
             optimizer_width = args.car_width + 2.0 * args.wall_clearance
+            # Ensure width_opt doesn't exceed minimum track width (infeasible QP)
+            track_data_check = np.loadtxt(track_csv, delimiter=',', comments='#')
+            min_total_w = (track_data_check[:, 2] + track_data_check[:, 3]).min()
+            if optimizer_width > min_total_w:
+                # Leave 5% margin for the TUM's internal spline resampling
+                optimizer_width = max(args.car_width * 0.95, min_total_w * 0.90)
+                print(f"  Clamped width_opt to {optimizer_width:.3f}m "
+                      f"(min track width = {min_total_w:.3f}m)")
             patched_ini = re.sub(
                 r'(optim_opts_mincurv\s*=\s*\{"width_opt":\s*)[\d.]+',
                 rf'\g<1>{optimizer_width:.3f}',
@@ -1522,6 +1754,12 @@ def main():
             ax_max=7.3,
             ax_min=-7.3,
         )
+    # ---- Visualization --------------------------------------------------------
+    viz_path = output_csv.replace('.csv', '_viz.png')
+    try:
+        visualize_raceline(args.map, output_csv, viz_path)
+    except Exception as e:
+        print(f"  WARNING: Visualization failed: {e}")
 
     # ---- Done ----------------------------------------------------------------
     print(f"\n{'=' * 64}")

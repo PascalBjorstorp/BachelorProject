@@ -166,8 +166,8 @@ source install/setup.bash
 ros2 launch f1tenth_control pure_pursuit_launch.py \
   trajectory_file:=/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv \
   max_speed:=3.0 \
-  min_lookahead:=0.2 \
-  max_lookahead:=1.5 \
+  min_lookahead:=1.0 \
+  max_lookahead:=2.0 \
   lookahead_gain:=0.10
 ```
 > **Start with low speed** (3.0 m/s) and increase gradually!
