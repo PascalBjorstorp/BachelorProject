@@ -107,7 +107,6 @@ def load_map(map_yaml_path):
     if img is None:
         if not os.path.exists(image_path):
             raise FileNotFoundError(f"Map image file does not exist: {image_path}")
-        # File exists but cv2 can't read it - try with PIL as fallback
         try:
             from PIL import Image
             pil_img = Image.open(image_path).convert('L')
@@ -405,7 +404,12 @@ def compute_centerline(outer_world, inner_world, num_points=1000,
                             if (0 <= ey < h and 0 <= ex < w
                                     and dt_free[ey, ex] < 2):
                                 n_low += 1
-                        needs_projection = n_low > len(pruned_pts) * 0.1
+                        # Always project for SLAM maps (wall_thresh > 200)
+                        # to keep centerline well-centered in the corridor.
+                        needs_projection = (
+                            wall_thresh > 200
+                            or n_low > len(pruned_pts) * 0.1
+                        )
 
                         if needs_projection:
                             search_r = 8  # pixel radius
@@ -624,7 +628,8 @@ def compute_centerline(outer_world, inner_world, num_points=1000,
     if map_img is not None:
         free = (map_img >= wall_thresh).astype(np.uint8)
         dist_transform = cv2.distanceTransform(free, cv2.DIST_L2, 5)
-        min_clearance_px = 2.0
+        # For SLAM maps, require higher clearance to keep centerline centered
+        min_clearance_px = 6.0 if wall_thresh > 200 else 2.0
         n_fixed = 0
         for i in range(len(centerline)):
             col = int((centerline[i, 0] - map_origin[0]) / map_resolution)
@@ -632,20 +637,23 @@ def compute_centerline(outer_world, inner_world, num_points=1000,
             if (0 <= row < h and 0 <= col < w
                     and dist_transform[row, col] >= min_clearance_px):
                 continue
+            # Find nearest pixel with highest DT (best centered)
             best_r, best_c = row, col
-            best_sq = float('inf')
+            best_dt = 0.0
+            search_r = 30
             found = False
-            for dr in range(-30, 31):
-                for dc in range(-30, 31):
+            for dr in range(-search_r, search_r + 1):
+                for dc in range(-search_r, search_r + 1):
                     nr, nc = row + dr, col + dc
-                    sq = dr * dr + dc * dc
-                    if sq >= best_sq:
-                        continue
                     if (0 <= nr < h and 0 <= nc < w
                             and dist_transform[nr, nc] >= min_clearance_px):
-                        best_sq = sq
-                        best_r, best_c = nr, nc
-                        found = True
+                        dt_here = dist_transform[nr, nc]
+                        sq = dr * dr + dc * dc
+                        # Prefer higher DT; break ties by closer distance
+                        if dt_here > best_dt or (dt_here == best_dt and sq < (best_r - row)**2 + (best_c - col)**2):
+                            best_dt = dt_here
+                            best_r, best_c = nr, nc
+                            found = True
             if found:
                 centerline[i, 0] = best_c * map_resolution + map_origin[0]
                 centerline[i, 1] = (h - best_r) * map_resolution + map_origin[1]
