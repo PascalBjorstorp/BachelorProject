@@ -248,22 +248,42 @@ def main():
 
         # Collect all tight spots and their needed shifts
         tight_spots = []
+        recenter_count = 0
         for i in range(n):
             r = rows[i]
             need_shift = 0.0
             shift_dir = 0.0
+            d_total = r['d_left_m'] + r['d_right_m']
 
-            if r['d_right_m'] < eff_min:
-                need_shift = eff_min - r['d_right_m'] + 0.02  # +2cm overshoot to survive smoothing
-                shift_dir = r['psi_rad'] + math.pi / 2  # LEFT
-
-            elif r['d_left_m'] < eff_min:
-                need_shift = eff_min - r['d_left_m'] + 0.02
-                shift_dir = r['psi_rad'] - math.pi / 2  # RIGHT
+            if r['d_right_m'] < eff_min or r['d_left_m'] < eff_min:
+                if d_total < 2 * eff_min:
+                    # Physically too tight to satisfy eff_min on both sides.
+                    # Best action: re-center the waypoint (move to midpoint).
+                    # Compute shift toward midpoint (d_left == d_right == d_total/2).
+                    d_mid = d_total / 2.0
+                    if r['d_right_m'] < r['d_left_m']:
+                        # Right wall closer → push LEFT toward midpoint
+                        need_shift = max(0, d_mid - r['d_right_m'])
+                        shift_dir = r['psi_rad'] + math.pi / 2  # LEFT
+                    else:
+                        # Left wall closer → push RIGHT toward midpoint
+                        need_shift = max(0, d_mid - r['d_left_m'])
+                        shift_dir = r['psi_rad'] - math.pi / 2  # RIGHT
+                    if need_shift > 1e-4:
+                        recenter_count += 1
+                elif r['d_right_m'] < eff_min:
+                    need_shift = eff_min - r['d_right_m'] + 0.02  # +2cm overshoot to survive smoothing
+                    shift_dir = r['psi_rad'] + math.pi / 2  # LEFT
+                else:
+                    need_shift = eff_min - r['d_left_m'] + 0.02
+                    shift_dir = r['psi_rad'] - math.pi / 2  # RIGHT
 
             if need_shift > 0:
                 need_shift = min(need_shift, args.max_shift)
                 tight_spots.append((i, need_shift, shift_dir))
+
+        if recenter_count > 0:
+            print(f"  Iteration {iteration+1}: {recenter_count} physically-tight pts re-centered (total width < 2×eff_min)")
 
         if not tight_spots:
             print(f"\n  Iteration {iteration+1}: no tight spots remaining")
