@@ -105,7 +105,20 @@ def load_map(map_yaml_path):
 
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     if img is None:
-        raise FileNotFoundError(f"Could not load map image: {image_path}")
+        if not os.path.exists(image_path):
+            raise FileNotFoundError(f"Map image file does not exist: {image_path}")
+        # File exists but cv2 can't read it - try with PIL as fallback
+        try:
+            from PIL import Image
+            pil_img = Image.open(image_path).convert('L')
+            img = np.array(pil_img)
+            print(f"  Warning: cv2.imread failed, loaded via PIL instead")
+        except Exception:
+            raise FileNotFoundError(
+                f"Could not load map image: {image_path}\n"
+                f"  File exists but cv2.imread returned None.\n"
+                f"  Check: pip install opencv-python (or opencv-python-headless)"
+            )
 
     # Read occupied_thresh from map YAML (ROS convention).
     # Used to compute a consistent wall threshold across the pipeline.
@@ -1089,8 +1102,8 @@ def main():
     )
 
     parser.add_argument(
-        '--map', '-m', required=True,
-        help='Path to map .yaml file (e.g. f1tenth_sim/maps/Spielberg_map.yaml)',
+        '--map', '-m', default=None,
+        help='Path to map .yaml file (default: auto-detect my_track_map.yaml in f1tenth_sim/maps/)',
     )
     parser.add_argument(
         '--track-name', '-t', default=None,
@@ -1127,8 +1140,8 @@ def main():
         help='Skip wall distance computation (default: True, 7-col output)',
     )
     parser.add_argument(
-        '--with-walls', action='store_true',
-        help='Compute ray-cast wall distances (9-col output)',
+        '--with-walls', action='store_true', default=True,
+        help='Compute ray-cast wall distances (9-col output, default: True)',
     )
     parser.add_argument(
         '--car-width', type=float, default=0.27,
@@ -1163,6 +1176,16 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # Auto-detect map if not specified
+    if args.map is None:
+        default_map = os.path.join(workspace, 'f1tenth_sim', 'maps', 'my_track_map.yaml')
+        if os.path.exists(default_map):
+            args.map = default_map
+        else:
+            print("ERROR: No --map specified and default my_track_map.yaml not found.")
+            print(f"  Looked at: {default_map}")
+            sys.exit(1)
 
     # Resolve map path
     if not os.path.isabs(args.map):
