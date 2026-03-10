@@ -45,6 +45,15 @@
 
 namespace f1tenth_communication {
 
+/* Portability: some systems (e.g. Windows) don't define CLOCK_MONOTONIC_RAW.
+ * Provide a safe fallback to CLOCK_MONOTONIC when RAW is unavailable. */
+#ifndef CLOCK_MONOTONIC_RAW
+#ifdef CLOCK_MONOTONIC
+#define CLOCK_MONOTONIC_RAW CLOCK_MONOTONIC
+#endif
+#endif
+
+
 /*===========================================================================
  * Fixed-Point Helpers (Q16.16)
  *===========================================================================*/

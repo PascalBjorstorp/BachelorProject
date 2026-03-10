@@ -41,6 +41,15 @@ namespace f1tenth_communication {
  * FP_SCALE = 2^16 = 65536, used for float<->fixed conversion
  *===========================================================================*/
 
+/* Portability: some systems (e.g. Windows) don't define CLOCK_MONOTONIC_RAW.
+ * Provide a safe fallback to CLOCK_MONOTONIC when RAW is unavailable. */
+#ifndef CLOCK_MONOTONIC_RAW
+#ifdef CLOCK_MONOTONIC
+#define CLOCK_MONOTONIC_RAW CLOCK_MONOTONIC
+#endif
+#endif
+
+
 constexpr int32_t FP_SCALE = 65536;  // = 2^16
 
 inline float fp_to_float(int32_t fp) {

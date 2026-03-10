@@ -30,6 +30,14 @@
 #include "mpc_fpga_types.h"
 #include "fp_math_hls.h"
 
+/* Portability: some systems (e.g. Windows) don't define CLOCK_MONOTONIC_RAW.
+ * Provide a safe fallback to CLOCK_MONOTONIC when RAW is unavailable. */
+#ifndef CLOCK_MONOTONIC_RAW
+#ifdef CLOCK_MONOTONIC
+#define CLOCK_MONOTONIC_RAW CLOCK_MONOTONIC
+#endif
+#endif
+
 /* External: FPGA top-level function */
 extern void mpc_fpga_top(
     int mode, int wp_index,
@@ -47,14 +55,38 @@ extern void mpc_fpga_top(
  *===========================================================================*/
 
 #define SIM_DT            0.005   /* 5ms simulation step */
-#define SIM_DURATION      60.0    /* seconds */
+#define SIM_DURATION      100.0   /* seconds */
 #define SIM_STEPS         ((int)(SIM_DURATION / SIM_DT))
 #define MAX_WAYPOINTS     2000
 #define MAX_STEERING      0.4282  /* rad */
 #define MAX_VELOCITY      20.0    /* m/s */
 #define PHYSICAL_MAX_ACCEL 8.0    /* m/s^2 */
-#define MIN_SPEED_FOR_MPC 0.5     /* m/s */
 #define MPC_CALL_INTERVAL 1       /* Call MPC every sim step = 5ms = 200Hz (matches CPU test) */
+
+/* Trajectory pre-processing (matching gym_bridge ROS2 node exactly) */
+#define TRAJECTORY_SPEED_GAIN     1.0
+#define TRAJECTORY_MAX_VELOCITY   20.0
+#define VEHICLE_HALF_WIDTH        0.137   /* meters — for body-edge collision */
+#define BODY_SAFETY_MARGIN        0.06    /* extra margin: gym bitmap is stricter */
+#define STEER_BUFFER_SIZE         2       /* 0 = disabled; 2 = gym-matching delay  */
+
+/*===========================================================================
+ * Realistic Simulation Enhancements (enabled with REALISTIC_SIM=1 env var)
+ *
+ * When enabled, the plant model adds real-world effects NOT in the gym:
+ *   1. Rolling resistance (F_roll = 2.79 N)
+ *   2. Pacejka tire saturation (replaces linear Fy = mu*Cs*alpha*Fz)
+ *   3. 1-step MPC computation delay (control computed at t applied at t+dt)
+ *   4. Sensor noise (position ±1cm, heading ±0.5°, velocity ±0.05 m/s)
+ * These values come from measured vehicle parameters in vehicle_params.yaml.
+ *===========================================================================*/
+#define ROLLING_RESISTANCE_N      2.79    /* Measured: vehicle_params.yaml L176 */
+#define PACEJKA_C_SHAPE           1.9     /* Shape factor for Pacejka tire */
+#define NOISE_POS_M               0.01    /* AMCL position noise (m) */
+#define NOISE_HDG_RAD             0.009   /* AMCL heading noise (~0.5 deg) */
+#define NOISE_VX_MS               0.05    /* ERPM velocity noise (m/s) */
+#define NOISE_VY_MS               0.05    /* Lateral vel noise (m/s) */
+#define NOISE_OMEGA_RAD           0.05    /* IMU yaw rate noise (rad/s) */
 
 /*===========================================================================
  * Vehicle Model — Single Track (ST) dynamic model matching f1tenth_gym
@@ -86,6 +118,32 @@ static const double ST_v_min    = 0.0;
 static const double ST_v_max    = 20.0;
 static const double ST_lwb      = 0.166 + 0.16;  /* lf + lr */
 
+/* 2-step steer delay buffer matching gym (steer_buffer_size=2) */
+#if STEER_BUFFER_SIZE > 0
+static double steer_buf[STEER_BUFFER_SIZE];
+static int    steer_buf_count = 0;
+#endif
+
+static double steer_buffer_push(double raw_steer)
+{
+#if STEER_BUFFER_SIZE == 0
+    return raw_steer;  /* No delay */
+#else
+    double delayed;
+    if (steer_buf_count < STEER_BUFFER_SIZE) {
+        delayed = 0.0;
+        steer_buf[steer_buf_count] = raw_steer;
+        steer_buf_count++;
+    } else {
+        delayed = steer_buf[0];
+        for (int i = 0; i < STEER_BUFFER_SIZE - 1; i++)
+            steer_buf[i] = steer_buf[i + 1];
+        steer_buf[STEER_BUFFER_SIZE - 1] = raw_steer;
+    }
+    return delayed;
+#endif
+}
+
 /* Persistent ST state variables (survive across propagate_vehicle calls) */
 static double st_delta       = 0.0;
 static double st_V           = 0.0;
@@ -100,12 +158,18 @@ static double st_wrap_angle(double a)
     return a;
 }
 
+/* Global realistic mode flags (set in main(), read by ST_DYNAMICS macro) */
+static int realistic_tires_g = 0;
+static int realistic_drive_g = 0;
+
 /* ST dynamics RHS function matching f1tenth_gym single_track.py exactly.
  * Kinematic mode (V < 0.5): same as CommonRoad.
  * Dynamic mode (V >= 0.5): full nonlinear model with:
  *   - atan2-based slip angles (not small-angle approx)
  *   - cos(δ)/sin(δ) front force resolution
- *   - Full body-frame dynamics for V_DOT, BETA_DOT */
+ *   - Full body-frame dynamics for V_DOT, BETA_DOT
+ * When realistic_tires_g: Pacejka tire model replaces linear.
+ * When realistic_drive_g: Rolling resistance subtracted from Fx. */
 #define ST_DYNAMICS(X, Y, DELTA, V, PSI, PSI_DOT_VAL, BETA, SV, ACCL, \
                    dX, dY, dDELTA, dV, dPSI, dPSI_DOT, dBETA) \
 do { \
@@ -135,11 +199,29 @@ do { \
         /* atan2-based slip angles (not small-angle approx) */ \
         double alpha_f_ = (DELTA) - atan2(vy_ + ST_lf * (PSI_DOT_VAL), vx_safe_); \
         double alpha_r_ = -atan2(vy_ - ST_lr * (PSI_DOT_VAL), vx_safe_); \
-        /* Lateral tire forces: F_y = mu * C_S * alpha * F_z */ \
-        double Fyf_ = ST_mu * ST_C_Sf * alpha_f_ * Fzf_; \
-        double Fyr_ = ST_mu * ST_C_Sr * alpha_r_ * Fzr_; \
-        /* Longitudinal force from acceleration command */ \
-        double Fx_ = ST_mass * (ACCL); \
+        /* Lateral tire forces */ \
+        double Fyf_, Fyr_; \
+        if (realistic_tires_g) { \
+            /* Pacejka magic formula: Fy = D*sin(C*atan(B*alpha)) */ \
+            double B_f_ = ST_C_Sf / PACEJKA_C_SHAPE; \
+            double B_r_ = ST_C_Sr / PACEJKA_C_SHAPE; \
+            double D_f_ = ST_mu * Fzf_; \
+            double D_r_ = ST_mu * Fzr_; \
+            Fyf_ = D_f_ * sin(PACEJKA_C_SHAPE * atan(B_f_ * alpha_f_)); \
+            Fyr_ = D_r_ * sin(PACEJKA_C_SHAPE * atan(B_r_ * alpha_r_)); \
+        } else { \
+            /* Linear tire model: Fy = mu * C_S * alpha * Fz */ \
+            Fyf_ = ST_mu * ST_C_Sf * alpha_f_ * Fzf_; \
+            Fyr_ = ST_mu * ST_C_Sr * alpha_r_ * Fzr_; \
+        } \
+        /* Longitudinal force */ \
+        double Fx_raw_ = ST_mass * (ACCL); \
+        double Fx_; \
+        if (realistic_drive_g) { \
+            Fx_ = Fx_raw_ - ROLLING_RESISTANCE_N; \
+        } else { \
+            Fx_ = Fx_raw_; \
+        } \
         double cos_delta_ = cos(DELTA); \
         double sin_delta_ = sin(DELTA); \
         /* Body-frame dynamics with cos(δ)/sin(δ) force resolution */ \
@@ -172,19 +254,23 @@ static SimState_t propagate_vehicle(SimState_t s, double desired_steer, double a
         st_initialized = 1;
     }
 
-    /* steering_constraint: bang-bang controller for steering velocity */
+    /* pid_steer: bang-bang controller matching gym's pid_steer() exactly.
+     * gym: sv = sign(steer_diff) * max_sv  if |diff| > 1e-4, else 0.
+     * NO overshoot clipping — gym relies on angle limits only. */
     double steer_vel;
     {
         double diff = desired_steer - st_delta;
-        if (diff > 0)      steer_vel = ST_sv_max;
-        else if (diff < 0) steer_vel = -ST_sv_max;
-        else               steer_vel = 0.0;
-        /* Clip so we don't overshoot the target */
-        if (fabs(diff) < ST_sv_max * dt)
-            steer_vel = diff / dt;
-        /* Enforce steering angle limits */
+        if (fabs(diff) > 1e-4)
+            steer_vel = (diff > 0 ? 1.0 : -1.0) * ST_sv_max;
+        else
+            steer_vel = 0.0;
+    }
+    /* steering_constraint: enforce angle limits (matching gym steering_constraint) */
+    {
         if (st_delta >= ST_s_max && steer_vel > 0) steer_vel = 0.0;
         if (st_delta <= -ST_s_max && steer_vel < 0) steer_vel = 0.0;
+        if (steer_vel < -ST_sv_max) steer_vel = -ST_sv_max;
+        if (steer_vel >  ST_sv_max) steer_vel =  ST_sv_max;
     }
 
     /* accl_constraints: v_switch power limit */
@@ -279,6 +365,8 @@ typedef struct {
 static Waypoint_t raceline[MAX_WAYPOINTS];
 static int raceline_count = 0;
 
+static const char *raceline_override = NULL;  /* set from argv */
+
 static int load_raceline(void)
 {
     const char *paths[] = {
@@ -289,9 +377,15 @@ static int load_raceline(void)
         NULL
     };
     FILE *f = NULL;
-    for (int i = 0; paths[i]; i++) {
-        f = fopen(paths[i], "r");
-        if (f) { printf("[LOAD] %s\n", paths[i]); break; }
+    if (raceline_override) {
+        f = fopen(raceline_override, "r");
+        if (f) printf("[LOAD] %s (from argv)\n", raceline_override);
+        else { fprintf(stderr, "ERROR: Cannot open '%s'\n", raceline_override); return 0; }
+    } else {
+        for (int i = 0; paths[i]; i++) {
+            f = fopen(paths[i], "r");
+            if (f) { printf("[LOAD] %s\n", paths[i]); break; }
+        }
     }
     if (!f) { fprintf(stderr, "ERROR: Cannot open Spielberg_raceline.csv\n"); return 0; }
 
@@ -312,8 +406,18 @@ static int load_raceline(void)
         }
     }
     fclose(f);
-    printf("[LOAD] %d waypoints (v: %.1f-%.1f m/s)\n",
-           raceline_count, raceline[0].vx, raceline[raceline_count/2].vx);
+
+    /* === Trajectory speed gain === */
+    for (int i = 0; i < raceline_count; i++) {
+        double sv = raceline[i].vx * TRAJECTORY_SPEED_GAIN;
+        if (sv > TRAJECTORY_MAX_VELOCITY) sv = TRAJECTORY_MAX_VELOCITY;
+        if (sv < 0.0) sv = 0.0;
+        raceline[i].vx = sv;
+    }
+
+    printf("[LOAD] %d waypoints (speed_gain=%.2f, v: %.1f-%.1f m/s)\n",
+           raceline_count, TRAJECTORY_SPEED_GAIN,
+           raceline[0].vx, raceline[raceline_count/2].vx);
     return raceline_count > 0;
 }
 
@@ -349,6 +453,11 @@ static int find_closest_waypoint(double px, double py, double heading)
         double d2 = dx * dx + dy * dy;
         double dot = dx * dir_x + dy * dir_y;
         if (dot < -0.5 && d2 > 0.25) continue;
+        /* Reject waypoints with opposite heading (prevents closure wrap) */
+        double hdg_diff = heading - raceline[idx].psi;
+        while (hdg_diff >  M_PI) hdg_diff -= 2*M_PI;
+        while (hdg_diff < -M_PI) hdg_diff += 2*M_PI;
+        if (fabs(hdg_diff) > 1.57 && d2 < 4.0) continue;
         if (d2 < best_dist) { best_dist = d2; best = idx; }
     }
     last_closest = best;
@@ -367,15 +476,82 @@ static void check(const char *name, int cond)
     else      { tests_failed++; printf("  [FAIL] %s\n", name); }
 }
 
-int main(void)
+/* Box-Muller Gaussian random number generator (for sensor noise) */
+static double randn(void)
 {
+    double u1 = ((double)rand() + 1.0) / ((double)RAND_MAX + 2.0);
+    double u2 = ((double)rand() + 1.0) / ((double)RAND_MAX + 2.0);
+    return sqrt(-2.0 * log(u1)) * cos(2.0 * M_PI * u2);
+}
+
+int main(int argc, char *argv[])
+{
+    if (argc > 1) raceline_override = argv[1];
+    /* Also accept RACELINE env var (for tuning script compatibility) */
+    if (!raceline_override) {
+        const char *env_rl = getenv("RACELINE");
+        if (env_rl && env_rl[0]) raceline_override = env_rl;
+    }
+
+    const int verbose = getenv("VERBOSE") != NULL;
+
     printf("=== FPGA MPC Sim-Drive Test (Riccati-ADMM HLS, %.0fs at dt=%.3fs) ===\n\n",
            SIM_DURATION, SIM_DT);
 
+    /* Realistic simulation mode: enable real-world effects.
+     * REALISTIC_SIM=1  → all features
+     * Individual toggles: REALISTIC_TIRES=1, REALISTIC_DRIVE=1,
+     *                     REALISTIC_DELAY=1, REALISTIC_NOISE=1  */
+    const char *realistic_env = getenv("REALISTIC_SIM");
+    const int realistic_all = realistic_env ? atoi(realistic_env) : 0;
+    const int realistic_tires = realistic_all || (getenv("REALISTIC_TIRES") && atoi(getenv("REALISTIC_TIRES")));
+    const int realistic_drive = realistic_all || (getenv("REALISTIC_DRIVE") && atoi(getenv("REALISTIC_DRIVE")));
+    const int realistic_delay = realistic_all || (getenv("REALISTIC_DELAY") && atoi(getenv("REALISTIC_DELAY")));
+    const int realistic_noise = realistic_all || (getenv("REALISTIC_NOISE") && atoi(getenv("REALISTIC_NOISE")));
+    const int realistic_mode = realistic_tires || realistic_drive || realistic_delay || realistic_noise;
+    /* Set global flags so ST_DYNAMICS macro can read them */
+    realistic_tires_g = realistic_tires;
+    realistic_drive_g = realistic_drive;
+    if (realistic_mode) {
+        srand(42);  /* Fixed seed for reproducibility */
+        printf("    REALISTIC MODE:");
+        if (realistic_drive) printf(" [drag: F_roll=%.1fN]", ROLLING_RESISTANCE_N);
+        if (realistic_tires) printf(" [Pacejka tires: C=%.1f]", PACEJKA_C_SHAPE);
+        if (realistic_delay) printf(" [1-step delay]");
+        if (realistic_noise) printf(" [sensor noise]");
+        printf("\n");
+    }
+
     if (!load_raceline()) return 1;
 
+    /* Velocity limiting: cap raceline velocities by curvature.
+     * Curvature limiting: realistic mode only (physics-based).
+     * Corridor-width velocity cap removed — wall constraints in the MPC
+     * solver handle tight sections; pre-capping velocity was too aggressive
+     * and inconsistent with the CPU MPC version. */
+    {
+        double a_lat_max = 7.3212;  /* m/s² — mu*g = 0.7463 * 9.81 */
+        const char *al = getenv("MAX_LAT_ACCEL");
+        if (al) a_lat_max = atof(al);
+        int vlimit_count = 0;
+        for (int i = 0; i < raceline_count; i++) {
+            double v_ref = raceline[i].vx;
+            /* Curvature-based limit (realistic mode only) */
+            if (realistic_mode) {
+                double abs_kappa = fabs(raceline[i].kappa);
+                if (abs_kappa > 0.01) {
+                    double v_curv = sqrt(a_lat_max / abs_kappa);
+                    if (v_ref > v_curv) { v_ref = v_curv; vlimit_count++; }
+                }
+            }
+            raceline[i].vx = v_ref;
+        }
+        printf("  Velocity limiting: %d/%d waypoints capped (a_lat_max=%.1f)\n",
+               vlimit_count, raceline_count, a_lat_max);
+    }
+
     /* ===== Phase 1: Load trajectory into FPGA ===== */
-    printf("  Loading %d waypoints into FPGA...\n", raceline_count);
+    if (verbose) printf("  Loading %d waypoints into FPGA...\n", raceline_count);
 
     int dummy_steer, dummy_accel, dummy_status, dummy_iters;
     for (int i = 0; i < raceline_count; i++) {
@@ -399,7 +575,7 @@ int main(void)
         2, 0, 0, 0, 0, 0, 0, 0, 0, 0, raceline_count,
         0, 0, 0, 0, 0, 0, 0, 0,
         &dummy_steer, &dummy_accel, &dummy_status, &dummy_iters);
-    printf("  Finalized: status=%d, count=%d\n\n", dummy_status, dummy_iters);
+    if (verbose) printf("  Finalized: status=%d, count=%d\n\n", dummy_status, dummy_iters);
 
     /* ===== Phase 2: Run simulation ===== */
     SimState_t state;
@@ -434,8 +610,20 @@ int main(void)
     double cmd_steer = 0.0;
     double cmd_accel = 0.0;
 
-    printf("  Step | Time  | vx    | v_ref | e_y   | e_psi | steer  | accel | iter | wp  | wall?\n");
-    printf("  -----|-------|-------|-------|-------|-------|--------|-------|------|-----|------\n");
+    /* MPC computation delay buffer (realistic mode only):
+     * Control computed from state at time t is applied at time t+dt. */
+    double delayed_steer = 0.0;
+    double delayed_accel = 0.0;
+
+    /* EMA (exponential moving average) filter state for noise mode */
+    double ema_x = 0, ema_y = 0, ema_theta = 0;
+    double ema_vx = 0, ema_vy = 0, ema_omega = 0;
+    int ema_initialized = 0;
+
+    if (verbose) {
+        printf("  Step | Time  | vx    | v_ref | e_y   | e_psi | steer  | accel | iter | wp  | wall?\n");
+        printf("  -----|-------|-------|-------|-------|-------|--------|-------|------|-----|------\n");
+    }
 
     for (int step = 0; step < SIM_STEPS; step++) {
         double t = step * SIM_DT;
@@ -449,65 +637,90 @@ int main(void)
                      + (state.y - raceline[closest].y) * cos(raceline[closest].psi);
         double e_psi = wrap_angle(state.theta - raceline[closest].psi);
 
-        /* Wall collision check — wall hit = crash */
+        /* EMA (exponential moving average) filter on state for MPC.
+         * Smooths sensor noise in realistic mode. Wall check uses unfiltered. */
+        double mpc_x = state.x, mpc_y = state.y, mpc_theta = state.theta;
+        double mpc_vx = state.vx, mpc_vy = state.vy, mpc_omega = state.omega;
+        if (realistic_noise) {
+            if (!ema_initialized) {
+                ema_x = state.x; ema_y = state.y; ema_theta = state.theta;
+                ema_vx = state.vx; ema_vy = state.vy; ema_omega = state.omega;
+                ema_initialized = 1;
+            }
+            const double ema_alpha = 0.35; /* 0.35 = 65% filtered (aggressive for FP noise) */
+            ema_x = ema_alpha * state.x + (1.0 - ema_alpha) * ema_x;
+            ema_y = ema_alpha * state.y + (1.0 - ema_alpha) * ema_y;
+            ema_theta = ema_alpha * state.theta + (1.0 - ema_alpha) * ema_theta;
+            ema_vx = ema_alpha * state.vx + (1.0 - ema_alpha) * ema_vx;
+            ema_vy = ema_alpha * state.vy + (1.0 - ema_alpha) * ema_vy;
+            ema_omega = ema_alpha * state.omega + (1.0 - ema_alpha) * ema_omega;
+            mpc_x = ema_x; mpc_y = ema_y; mpc_theta = ema_theta;
+            mpc_vx = ema_vx; mpc_vy = ema_vy; mpc_omega = ema_omega;
+        }
+
+        /* Wall collision check — body-edge (matching gym iTTC) */
         double left_wall = raceline[closest].left_bound;
         double right_wall = raceline[closest].right_bound;
         int wall_hit = 0;
-        if (e_y > left_wall)  { wall_hit = 1;  wall_collisions++; }
-        if (e_y < -right_wall){ wall_hit = -1; wall_collisions++; }
+        if (e_y > (left_wall - VEHICLE_HALF_WIDTH - BODY_SAFETY_MARGIN))  { wall_hit = 1;  wall_collisions++; }
+        if (e_y < -(right_wall - VEHICLE_HALF_WIDTH - BODY_SAFETY_MARGIN)){ wall_hit = -1; wall_collisions++; }
         if (wall_hit && state.vx > 1.0) {
             printf("\n  !!! WALL CRASH: e_y = %.3f m (bound: %.3f) at step %d (t=%.2fs, wp=%d, v=%.1f) !!!\n",
                    e_y, wall_hit > 0 ? left_wall : right_wall, step, t, closest, state.vx);
             break;
         }
 
-        /* Call MPC at the configured interval (or at low speed for startup) */
+        /* Call MPC at the configured interval — always, no low-speed guard */
         if (step % MPC_CALL_INTERVAL == 0) {
-            if (fabs(state.vx) < MIN_SPEED_FOR_MPC) {
-                /* Low-speed guard */
-                cmd_steer = -0.5 * e_psi;
-                if (cmd_steer > 0.2) cmd_steer = 0.2;
-                if (cmd_steer < -0.2) cmd_steer = -0.2;
-                cmd_accel = PHYSICAL_MAX_ACCEL;
+            int out_steer_fp, out_accel_fp, out_status, out_iters;
+
+            clock_gettime(CLOCK_MONOTONIC_RAW, &t0);
+
+            mpc_fpga_top(
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                DOUBLE_TO_FP(mpc_x),
+                DOUBLE_TO_FP(mpc_y),
+                DOUBLE_TO_FP(mpc_theta),
+                DOUBLE_TO_FP(mpc_vx),
+                DOUBLE_TO_FP(mpc_vy),
+                DOUBLE_TO_FP(mpc_omega),
+                DOUBLE_TO_FP(st_delta),  /* feed actual servo position, not command */
+                closest,
+                &out_steer_fp, &out_accel_fp,
+                &out_status, &out_iters);
+
+            clock_gettime(CLOCK_MONOTONIC_RAW, &t1);
+            double solve_us = (t1.tv_sec - t0.tv_sec) * 1e6
+                            + (t1.tv_nsec - t0.tv_nsec) / 1e3;
+            total_solve_us += solve_us;
+            if (solve_us > max_solve_us) max_solve_us = solve_us;
+
+            /* Always use MPC output — no fallback, no override */
+            cmd_steer = FP_TO_DOUBLE(out_steer_fp);
+            cmd_accel = FP_TO_DOUBLE(out_accel_fp);
+            total_iterations += out_iters;
+            if (out_iters > max_iters_single) max_iters_single = out_iters;
+
+            if (out_status == 0 || out_status == 1)
                 solver_ok++;
-            } else {
-                int out_steer_fp, out_accel_fp, out_status, out_iters;
-
-                clock_gettime(CLOCK_MONOTONIC_RAW, &t0);
-
-                mpc_fpga_top(
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    DOUBLE_TO_FP(state.x),
-                    DOUBLE_TO_FP(state.y),
-                    DOUBLE_TO_FP(state.theta),
-                    DOUBLE_TO_FP(state.vx),
-                    DOUBLE_TO_FP(state.vy),
-                    DOUBLE_TO_FP(state.omega),
-                    DOUBLE_TO_FP(actual_steer),
-                    closest,
-                    &out_steer_fp, &out_accel_fp,
-                    &out_status, &out_iters);
-
-                clock_gettime(CLOCK_MONOTONIC_RAW, &t1);
-                double solve_us = (t1.tv_sec - t0.tv_sec) * 1e6
-                                + (t1.tv_nsec - t0.tv_nsec) / 1e3;
-                total_solve_us += solve_us;
-                if (solve_us > max_solve_us) max_solve_us = solve_us;
-
-                cmd_steer = FP_TO_DOUBLE(out_steer_fp);
-                cmd_accel = FP_TO_DOUBLE(out_accel_fp);
-                total_iterations += out_iters;
-                if (out_iters > max_iters_single) max_iters_single = out_iters;
-
-                if (out_status == 0 || out_status == 1)
-                    solver_ok++;
-            }
             solver_calls++;
         }
 
         /* Physical saturation */
         double steer = cmd_steer;
         double accel = cmd_accel;
+
+        /* Realistic mode: 1-step MPC computation delay.
+         * Control computed this step is applied next step. */
+        if (realistic_delay) {
+            double apply_steer = delayed_steer;
+            double apply_accel = delayed_accel;
+            delayed_steer = steer;
+            delayed_accel = accel;
+            steer = apply_steer;
+            accel = apply_accel;
+        }
+
         if (steer > MAX_STEERING) steer = MAX_STEERING;
         if (steer < -MAX_STEERING) steer = -MAX_STEERING;
         if (accel > PHYSICAL_MAX_ACCEL) accel = PHYSICAL_MAX_ACCEL;
@@ -515,8 +728,9 @@ int main(void)
 
         /* ST model handles servo dynamics internally via steering velocity.
          * actual_steer tracks the desired MPC command for the ST model.
-         * We feed the REALIZED st_delta (from previous step) to MPC. */
-        actual_steer = steer;
+         * We feed the REALIZED st_delta (from previous step) to MPC.
+         * Apply 2-step steer delay buffer to match gym's steer_buffer. */
+        actual_steer = steer_buffer_push(steer);
 
         /* Metrics */
         if (fabs(e_y) > max_lat_err) max_lat_err = fabs(e_y);
@@ -535,13 +749,15 @@ int main(void)
         prev_steer = actual_steer;
 
         /* Print schedule */
-        int print_row = (step < 40) || (step % 200 == 0) || wall_hit || (fabs(e_y) > 0.8);
-        if (print_row) {
-            printf("  %4d | %5.2f | %5.2f | %5.2f | %+.3f | %+.3f | %+.4f | %+.2f | %4d | %3d | %s\n",
-                   step, t, state.vx, raceline[closest].vx, e_y, e_psi, actual_steer, accel,
-                   (step % MPC_CALL_INTERVAL == 0) ? max_iters_single : -1,
-                   closest,
-                   wall_hit > 0 ? "LEFT!" : (wall_hit < 0 ? "RIGHT!" : ""));
+        if (verbose) {
+            int print_row = (step < 40) || (step % 200 == 0) || wall_hit || (fabs(e_y) > 0.8);
+            if (print_row) {
+                printf("  %4d | %5.2f | %5.2f | %5.2f | %+.3f | %+.3f | %+.4f | %+.2f | %4d | %3d | %s\n",
+                       step, t, state.vx, raceline[closest].vx, e_y, e_psi, actual_steer, accel,
+                       (step % MPC_CALL_INTERVAL == 0) ? max_iters_single : -1,
+                       closest,
+                       wall_hit > 0 ? "LEFT!" : (wall_hit < 0 ? "RIGHT!" : ""));
+            }
         }
 
         /* Propagate vehicle (ST model with RK4) */
@@ -549,6 +765,16 @@ int main(void)
 
         /* Update actual_steer from ST model's realized delta state */
         actual_steer = st_delta;
+
+        /* Realistic mode: add sensor noise after physics propagation */
+        if (realistic_noise) {
+            state.x     += NOISE_POS_M * randn();
+            state.y     += NOISE_POS_M * randn();
+            state.theta += NOISE_HDG_RAD * randn();
+            state.vx    += NOISE_VX_MS * randn();
+            state.vy    += NOISE_VY_MS * randn();
+            state.omega += NOISE_OMEGA_RAD * randn();
+        }
 
         /* Early termination on extreme deviation (safety net) */
         if (fabs(e_y) > 5.0) {
@@ -591,15 +817,36 @@ int main(void)
            max_iters_single * 112.0, max_iters_single);
     printf("\n");
 
-    /* Pass/fail criteria */
+    /* Pass/fail criteria — relaxed speed threshold in realistic mode since
+     * rolling resistance, Pacejka saturation, delay, and noise all reduce
+     * achievable speed compared to the ideal model. */
+    double speed_threshold = realistic_mode ? 0.30 : 0.50;
     check("No wall collisions", wall_collisions == 0);
     check("Max lateral error < 1.5 m", max_lat_err < 1.5);
     check("Avg lateral error < 0.5 m", avg_lat < 0.5);
     check("Avg heading error < 0.3 rad (17 deg)", avg_hdg < 0.3);
     check("Solver mostly succeeds (>80%)", solver_ok > solver_calls * 80 / 100);
-    check("Reaches driving speed (>5 m/s for >50% of time)",
-          time_above_5ms > SIM_DURATION * 0.5);
+    if (realistic_mode) {
+        char speed_msg[128];
+        snprintf(speed_msg, sizeof(speed_msg),
+                 "Reaches driving speed (>5 m/s for >%.0f%% of time, realistic)",
+                 speed_threshold * 100);
+        check(speed_msg, time_above_5ms > SIM_DURATION * speed_threshold);
+    } else {
+        check("Reaches driving speed (>5 m/s for >50% of time)",
+              time_above_5ms > SIM_DURATION * 0.5);
+    }
 
     printf("\n=== RESULTS: %d passed, %d failed ===\n", tests_passed, tests_failed);
+
+    /* Machine-readable CSV summary line for tuning scripts */
+    if (getenv("MPC_TUNING_CSV")) {
+        printf("CSV,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%.1f,%d,%.1f,%.4f,%.4f,%.1f\n",
+               tests_passed, tests_failed,
+               max_lat_err, avg_lat, max_hdg_err, avg_hdg,
+               max_vx, avg_solve, max_solve_us,
+               wall_collisions, time_above_5ms,
+               max_vel_err, avg_vel, avg_iters);
+    }
     return tests_failed > 0 ? 1 : 0;
 }

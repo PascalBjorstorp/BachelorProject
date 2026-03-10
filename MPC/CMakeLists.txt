@@ -1,100 +1,83 @@
-cmake_minimum_required(VERSION 3.8)
-project(mpc_hardware C)
+cmake_minimum_required(VERSION 3.16)
+project(mpc_riccati C)
 
-# ROS2 ament_cmake build system
-find_package(ament_cmake REQUIRED)
-find_package(rcl REQUIRED)
-find_package(rclc REQUIRED)
-find_package(nav_msgs REQUIRED)
-find_package(ackermann_msgs REQUIRED)
-find_package(std_msgs REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(rosidl_runtime_c REQUIRED)
-find_package(rcutils REQUIRED)
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
+if(NOT MSVC)
+    add_compile_options(-Wall -Wextra -Wpedantic -O3 -ffast-math)
+endif()
 
 # ===========================================================================
-# MPC Core Library (Q16.16 fixed-point, platform-independent)
+# MPC Core Library (float32, platform-independent)
 # ===========================================================================
-add_library(mpc_core STATIC
+add_library(mpc_riccati_core STATIC
     src/fp_math.c
     src/vehicle_model.c
     src/riccati_solver.c
     src/mpc_riccati.c
 )
-target_include_directories(mpc_core PUBLIC
+target_include_directories(mpc_riccati_core PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-# Aggressive optimization for real-time performance on Jetson
-# NOTE: -ffast-math is intentionally omitted — it can alter rounding behavior
-# of the Q16.16 fixed-point math (integer-based), causing subtle bugs.
-# -flto enables Link-Time Optimization for cross-TU inlining of fp_mul/fp_add
-# into the hardware node (~5-15% solver speedup on ARM).
-target_compile_options(mpc_core PRIVATE
-    -O3
-    -march=native
-    -funroll-loops
-    -flto
-    -Wall -Wextra -Wpedantic
-    -std=c99
-)
-target_compile_definitions(mpc_core PRIVATE
-    _POSIX_C_SOURCE=200809L
-)
+target_link_libraries(mpc_riccati_core PUBLIC m)
 
 # ===========================================================================
-# MPC Hardware Node (ROS2 rclc executable)
+# ROS2 Dependencies
 # ===========================================================================
-add_executable(mpc_hardware_node
-    src/mpc_hardware_node.c
-)
-target_include_directories(mpc_hardware_node PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(mpc_hardware_node
-    mpc_core
-    m  # libm for math functions (sin, cos, atan2, sqrt)
-)
-target_compile_options(mpc_hardware_node PRIVATE
-    -O3
-    -march=native
-    -Wall -Wextra
-    -std=c99
-)
-target_compile_definitions(mpc_hardware_node PRIVATE
-    _GNU_SOURCE
-    _POSIX_C_SOURCE=200809L
-)
+find_package(ament_cmake QUIET)
 
-# Link ROS2 dependencies
-ament_target_dependencies(mpc_hardware_node
-    rcl
-    rclc
-    nav_msgs
-    ackermann_msgs
-    std_msgs
-    geometry_msgs
-    rosidl_runtime_c
-    rcutils
-)
+if(ament_cmake_FOUND)
+    find_package(rclc REQUIRED)
+    find_package(rcl REQUIRED)
+    find_package(rcutils REQUIRED)
+    find_package(nav_msgs REQUIRED)
+    find_package(geometry_msgs REQUIRED)
+    find_package(ackermann_msgs REQUIRED)
+    find_package(std_msgs REQUIRED)
 
-# ===========================================================================
-# Install
-# ===========================================================================
-install(TARGETS mpc_hardware_node
-    DESTINATION lib/${PROJECT_NAME}
-)
+    # ===================================================================
+    # ROS2 MPC Simulation Node (gym_bridge / simulator)
+    # ===================================================================
+    add_executable(mpc_riccati_node sim/mpc_ros2_node.c)
+    target_link_libraries(mpc_riccati_node mpc_riccati_core m)
+    target_include_directories(mpc_riccati_node PRIVATE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    )
+    ament_target_dependencies(mpc_riccati_node
+        rclc rcl rcutils nav_msgs geometry_msgs ackermann_msgs std_msgs
+    )
 
-install(DIRECTORY config/
-    DESTINATION share/${PROJECT_NAME}/config
-)
+    # ===================================================================
+    # ROS2 MPC Hardware Node (real car)
+    # ===================================================================
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/mpc_hardware_node.c)
+        add_executable(mpc_hardware_node src/mpc_hardware_node.c)
+        target_link_libraries(mpc_hardware_node mpc_riccati_core m)
+        target_include_directories(mpc_hardware_node PRIVATE
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        )
+        target_compile_definitions(mpc_hardware_node PRIVATE _GNU_SOURCE)
+        ament_target_dependencies(mpc_hardware_node
+            rclc rcl rcutils nav_msgs geometry_msgs ackermann_msgs std_msgs
+        )
+        install(TARGETS mpc_hardware_node DESTINATION lib/${PROJECT_NAME})
+    endif()
 
-install(DIRECTORY launch/
-    DESTINATION share/${PROJECT_NAME}/launch
-)
+    # ===================================================================
+    # Install
+    # ===================================================================
+    install(TARGETS mpc_riccati_node DESTINATION lib/${PROJECT_NAME})
+    install(DIRECTORY include/ DESTINATION include)
 
-install(DIRECTORY include/
-    DESTINATION include
-)
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/launch)
+        install(DIRECTORY launch/ DESTINATION share/${PROJECT_NAME}/launch)
+    endif()
 
-ament_package()
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/config)
+        install(DIRECTORY config/ DESTINATION share/${PROJECT_NAME}/config)
+    endif()
+
+    ament_package()
+endif()

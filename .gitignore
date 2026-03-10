@@ -210,6 +210,7 @@ FPGA/*.log
 # =============================================
 # Entire Vivado project (re-creatable from FPGA/create_vivado_project.tcl)
 Ultra96_PP/
+Ultra96_MPC/
 
 # Vivado journal and log files
 *.jou
@@ -234,10 +235,11 @@ FPGA/docs/*
 MPC/build_test/*
 MPC/build_local/*
 MPC/logs/*
-FPGA_Implementations/MPC_experimental/build_test/*
-FPGA_Implementations/MPC_experimental/build_local/*
-FPGA_Implementations/MPC_experimental/logs/*
+FPGA_Implementations/MPC_FPGA/build_test/*
+FPGA_Implementations/MPC_FPGA/build_local/*
+FPGA_Implementations/MPC_FPGA/logs/*
 MPC_legacy/*
+*.tcl
 # =============================================
 # Parameter csv files (excluded — large data)
 # =============================================

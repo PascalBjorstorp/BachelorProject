@@ -16,9 +16,13 @@
 #===========================================================================
 
 # Parse optional argument for selective execution
-set run_mode "all"
+# Valid modes: csim, synth, cosim, export, all
+set run_mode "synth"
 if {$argc > 0} {
-    set run_mode [lindex $argv 0]
+    set arg0 [lindex $argv 0]
+    if {$arg0 eq "csim" || $arg0 eq "synth" || $arg0 eq "cosim" || $arg0 eq "export" || $arg0 eq "all"} {
+        set run_mode $arg0
+    }
 }
 
 # Project configuration
@@ -34,6 +38,13 @@ set SRC_DIR     "src"
 set INC_DIR     "include"
 set TB_DIR      "testbench"
 
+# Extra C flags (can be set externally via: set ::env(HLS_EXTRA_CFLAGS) "-DMPC_HLS_MUL_LIMIT=10")
+set EXTRA_CFLAGS ""
+if {[info exists ::env(HLS_EXTRA_CFLAGS)]} {
+    set EXTRA_CFLAGS $::env(HLS_EXTRA_CFLAGS)
+    puts "INFO: Extra CFLAGS: $EXTRA_CFLAGS"
+}
+
 #===========================================================================
 # Create or open project
 #===========================================================================
@@ -46,11 +57,12 @@ if {[file exists $PROJECT_NAME]} {
 #===========================================================================
 # Add source files
 #===========================================================================
-add_files ${SRC_DIR}/fp_math_hls.c       -cflags "-I${INC_DIR} -DMPC_HLS_TARGET"
-add_files ${SRC_DIR}/vehicle_model_hls.c  -cflags "-I${INC_DIR} -DMPC_HLS_TARGET"
-add_files ${SRC_DIR}/riccati_solver_hls.c -cflags "-I${INC_DIR} -DMPC_HLS_TARGET"
-add_files ${SRC_DIR}/mpc_riccati_hls.c    -cflags "-I${INC_DIR} -DMPC_HLS_TARGET"
-add_files ${SRC_DIR}/mpc_fpga_top.c       -cflags "-I${INC_DIR} -DMPC_HLS_TARGET"
+set COMMON_CFLAGS "-I${INC_DIR} -DMPC_HLS_TARGET ${EXTRA_CFLAGS}"
+add_files ${SRC_DIR}/fp_math_hls.c       -cflags "$COMMON_CFLAGS"
+add_files ${SRC_DIR}/vehicle_model_hls.c  -cflags "$COMMON_CFLAGS"
+add_files ${SRC_DIR}/riccati_solver_hls.c -cflags "$COMMON_CFLAGS"
+add_files ${SRC_DIR}/mpc_riccati_hls.c    -cflags "$COMMON_CFLAGS"
+add_files ${SRC_DIR}/mpc_fpga_top.c       -cflags "$COMMON_CFLAGS"
 
 # Set top function
 set_top $TOP_FUNCTION
@@ -73,9 +85,16 @@ create_clock -period $CLOCK_PERIOD -name default
 set_clock_uncertainty $CLOCK_UNCERT
 
 # Optimization directives
-config_compile -pipeline_loops 6
-config_schedule -effort high
-config_bind -effort high
+# pipeline_loops: 0 = disable auto-pipelining — required to fit ZU3EG (340/360 DSP)
+# pipeline_loops: 6 = auto-pipeline innermost loops (original, DOES NOT FIT: 585 DSP)
+if {[info exists ::env(HLS_PIPELINE_LOOPS)]} {
+    config_compile -pipeline_loops $::env(HLS_PIPELINE_LOOPS)
+    puts "INFO: pipeline_loops = $::env(HLS_PIPELINE_LOOPS)"
+} else {
+    config_compile -pipeline_loops 0
+    puts "INFO: pipeline_loops = 0 (default, fits ZU3EG)"
+}
+# Note: config_schedule -effort and config_bind -effort deprecated in Vitis 2025.1+
 
 #===========================================================================
 # Execution based on run_mode

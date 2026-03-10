@@ -66,11 +66,11 @@
  * Configuration Constants
  *===========================================================================*/
 
-/** Number of MPC prediction steps (20 steps x 0.05s = 1.0 second lookahead) */
+/** Number of MPC prediction steps (20 steps x 0.04s = 0.8 second lookahead) */
 #define MPC_PREDICTION_HORIZON_STEPS 20
 
 /** Time step between predictions [seconds] — must match MPC_DEFAULT_TIME_STEP_SECONDS */
-#define MPC_TIME_STEP_SECONDS 0.05
+#define MPC_TIME_STEP_SECONDS 0.04
 
 /** Maximum number of waypoints in loaded trajectory */
 #define TRAJECTORY_MAXIMUM_WAYPOINTS 1000
@@ -86,7 +86,7 @@ static const char *g_odom_topic = "/ego_racecar/odom";
 static const char *g_drive_topic = "/drive";
 static const char *g_servo_topic = "/sensors/servo_position_command";
 static const char *g_imu_topic = "/imu/filtered_angular_velocity";
-static const char *g_amcl_pose_topic = "/amcl_pose";
+static const char *g_amcl_pose_topic = "/ekf_pose";
 static const char *g_trajectory_file = NULL;
 
 /** Enable verbose logging (disabled by default for real-time performance) */
@@ -713,11 +713,12 @@ void imu_callback(const void *message_in)
 }
 
 /*===========================================================================
- * ROS2 Callback: AMCL Pose (map-frame localised position)
+ * ROS2 Callback: Map-Frame Pose (EKF or AMCL)
  *===========================================================================
  * Overrides the odom-frame position from odometry_subscription_callback.
  * The trajectory CSV is in map frame, so Frenet errors are only meaningful
  * when position comes from here rather than from raw wheel odometry.
+ * Default source: /ekf_pose (EKF fuses odom + AMCL for smooth updates).
  *===========================================================================*/
 void amcl_pose_callback(const void *message_in)
 {
@@ -739,7 +740,7 @@ void amcl_pose_callback(const void *message_in)
     g_latest_heading = heading;
 
     if (!g_amcl_received) {
-        printf("[MPC] AMCL pose received — switching to map-frame position\n");
+        printf("[MPC] Map-frame pose received — switching to map-frame position\n");
         g_amcl_received = 1;
     }
 }
@@ -948,20 +949,12 @@ void mpc_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
             double a_cmd = FP_TO_DOUBLE(
                 global_control_command.acceleration_meters_per_second_squared);
 
-<<<<<<< HEAD
-            /* Integrate MPC acceleration from current measured velocity.
-             * g_latest_vx comes from VESC odometry (self-correcting). */
-            double v_target = g_latest_vx + a_cmd * MPC_TIME_STEP_SECONDS;
-            if (v_target < 0.0) v_target = 0.0;
-            if (v_target > TRAJECTORY_MAXIMUM_VELOCITY) v_target = TRAJECTORY_MAXIMUM_VELOCITY;
-=======
             /* Integrate MPC acceleration over one MPC prediction step.
-             * See the comment block above for why MPC_TIME_STEP_SECONDS (0.05s)
+             * See the comment block above for why MPC_TIME_STEP_SECONDS (0.04s)
              * is used here rather than g_control_dt. */
             double v_cmd = g_latest_vx + a_cmd * MPC_TIME_STEP_SECONDS;
             if (v_cmd < 0.0) v_cmd = 0.0;
             if (v_cmd > TRAJECTORY_MAXIMUM_VELOCITY) v_cmd = TRAJECTORY_MAXIMUM_VELOCITY;
->>>>>>> 1622427459ade435aa238c1ad5cddf4d2b36f92b
 
             global_drive_message_buffer.drive.speed = (float)v_cmd;
             global_drive_message_buffer.drive.acceleration = (float)a_cmd;
@@ -1052,7 +1045,7 @@ int main(int argc, char *argv[])
            g_servo_topic, g_steering_to_servo_gain, g_steering_to_servo_offset);
     printf("[MPC] IMU yaw rate: %s\n", g_imu_topic);
     printf("[MPC] Watchdog timeout: %.0f ms\n", g_watchdog_timeout_sec * 1000.0);
-    printf("[MPC] AMCL pose topic: %s (map-frame position source)\n", g_amcl_pose_topic);
+    printf("[MPC] Map-frame pose topic: %s\n", g_amcl_pose_topic);
     printf("[MPC] Verbose=%d\n", g_verbose);
 
     {
@@ -1176,13 +1169,14 @@ int main(int argc, char *argv[])
     }
     printf("[ROS2] Subscribed to %s (Reliable, KeepLast(10))\n", g_imu_topic);
 
-    /* ===== Subscription 4: /amcl_pose (geometry_msgs/PoseWithCovarianceStamped) ===== *
-     * Best-effort QoS — AMCL publishes at low rate (~10 Hz) and is not
-     * safety-critical (odometry is the fallback). */
+    /* ===== Subscription 4: Map-frame pose (geometry_msgs/PoseWithCovarianceStamped) ==
+     * Default: /ekf_pose from the EKF localization node (fuses odom + AMCL).
+     * Override with MPC_AMCL_TOPIC env var (e.g. /amcl_pose for raw AMCL).
+     * Reliable QoS to match the EKF publisher. */
     rmw_qos_profile_t qos_amcl = rmw_qos_profile_default;
-    qos_amcl.reliability = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+    qos_amcl.reliability = RMW_QOS_POLICY_RELIABILITY_RELIABLE;
     qos_amcl.history     = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
-    qos_amcl.depth       = 1;
+    qos_amcl.depth       = 10;
 
     rcl_subscription_t amcl_sub = rcl_get_zero_initialized_subscription();
     rcl_subscription_options_t amcl_sub_opts = rcl_subscription_get_default_options();
@@ -1194,13 +1188,13 @@ int main(int argc, char *argv[])
     if (rc != RCL_RET_OK)
     {
         /* Non-fatal: robot may not have localization running */
-        fprintf(stderr, "[ROS2] WARNING: amcl_pose subscription failed (%s) — using odom\n",
+        fprintf(stderr, "[ROS2] WARNING: map-frame pose subscription failed (%s) — using odom\n",
                 rcl_get_error_string().str);
         rcl_reset_error();
     }
     else
     {
-        printf("[ROS2] Subscribed to %s (BestEffort, KeepLast(1))\n", g_amcl_pose_topic);
+        printf("[ROS2] Subscribed to %s (Reliable, KeepLast(10))\n", g_amcl_pose_topic);
     }
 
     /* ===== Publisher: /drive (ackermann_msgs/AckermannDriveStamped) ===== */

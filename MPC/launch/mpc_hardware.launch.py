@@ -79,6 +79,12 @@ def generate_launch_description():
         description='Filtered IMU angular velocity topic'
     )
 
+    pose_topic_arg = DeclareLaunchArgument(
+        'pose_topic',
+        default_value='/ekf_pose',
+        description='Map-frame pose topic (EKF-fused or raw AMCL)'
+    )
+
     speed_gain_arg = DeclareLaunchArgument(
         'speed_gain',
         default_value='1.0',
@@ -136,6 +142,10 @@ def generate_launch_description():
         'MPC_IMU_TOPIC',
         LaunchConfiguration('imu_topic')
     )
+    set_pose = SetEnvironmentVariable(
+        'MPC_AMCL_TOPIC',
+        LaunchConfiguration('pose_topic')
+    )
     set_speed = SetEnvironmentVariable(
         'MPC_SPEED_GAIN',
         LaunchConfiguration('speed_gain')
@@ -163,7 +173,7 @@ def generate_launch_description():
 
     # MPC hardware node
     mpc_node = Node(
-        package='mpc_hardware',
+        package='mpc_riccati',
         executable='mpc_hardware_node',
         name='mpc_hardware_node',
         output='screen',
@@ -178,6 +188,7 @@ def generate_launch_description():
         drive_topic_arg,
         servo_topic_arg,
         imu_topic_arg,
+        pose_topic_arg,
         speed_gain_arg,
         verbose_arg,
         control_rate_arg,
@@ -189,6 +200,7 @@ def generate_launch_description():
         set_drive,
         set_servo,
         set_imu,
+        set_pose,
         set_speed,
         set_verbose,
         set_rate,
