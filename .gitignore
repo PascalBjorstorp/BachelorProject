@@ -117,19 +117,11 @@ test-results/
 # URDF compiled from xacro
 *.urdf
 
-
 # =============================================
 # Documentation Build
 # =============================================
 docs/_build/
 docs/api/
-
-# =============================================
-# ROS2 Bag Files (large binary recordings)
-# =============================================
-bags/
-*.db3
-*.mcap
 
 # =============================================
 # Compiled Test Binaries (no extension)
