@@ -47,6 +47,14 @@ def load_map(yaml_path):
         # ROS convention: p = (255 - pixel) / 255
         # occupied if p > occupied_thresh
         threshold = int(255 * (1.0 - occupied_thresh))
+        # SLAM maps: treat grey (unknown) pixels as walls
+        unique_vals, counts = np.unique(map_array, return_counts=True)
+        grey_mask = (unique_vals > threshold) & (unique_vals < 240)
+        grey_pct = counts[grey_mask].sum() / map_array.size
+        if grey_pct > 0.10:
+            white_mask = unique_vals >= 240
+            if white_mask.any():
+                threshold = int(unique_vals[white_mask].min()) - 5
         is_wall = map_array < threshold  # pixel < threshold → wall
     else:
         # Inverted: white = wall, black = free
