@@ -76,23 +76,20 @@ tire:
                              # From test_friction.py: mu = a_y_max / g
                              # Depends on surface! Re-test if surface changes.
   
-  C_alpha_f: 33.3795         # [TESTED] Front cornering stiffness (N/rad)
-                             # From test_cornering_stiffness.py
-                             # WARNING: Only 1 steering angle (0.1 rad) was used.
-                             # C_alpha varies 3x with speed (28-80 N/rad), indicating
-                             # insufficient slip-angle range. Re-run with default sweep
-                             # [0.08, 0.12, 0.16, 0.20, 0.24] for reliable values.
+  C_alpha_f: 44.8   # [TESTED] Front cornering stiffness (N/rad)
+                             # From combined K_us + yaw-resonance method (report_outline.tex)
+                             # K_us = 0.006 rad/(m/s²) from steady-state circle data (n=12)
+                             # ±30-40% uncertainty; car understeers (C_alpha_f < C_alpha_r)
   
-  C_alpha_r: 41.0048         # [TESTED] Rear cornering stiffness (N/rad)
-                             # From test_cornering_stiffness.py
-                             # Same limitation as C_alpha_f above.
+  C_alpha_r: 55.7   # [TESTED] Rear cornering stiffness (N/rad)
+                             # From combined K_us + yaw-resonance method (see C_alpha_f)
+                             # ±30-40% uncertainty.
   
-  C_x: 79.5                  # [ESTIMATE/RERUN WITH LIDAR] Longitudinal tire stiffness (N/unit slip)
-                             # From test_longitudinal_stiffness.py — BUT IMU-integrated
-                             # body velocity drifts badly (pitch contamination during braking).
-                             # Slip ratio κ ranges -1.0 to +0.9 (physically impossible).
-                             # Cannot be reliably identified without lidar scan-matching.
-                             # Slip ratio κ = (v_wheel - v_body) / max(|v_wheel|, |v_body|)
+  C_x: 61.3   # [TESTED] Combined longitudinal tire stiffness (N/unit slip)
+                             # From 10 acceleration runs, LiDAR ICP body velocity (EMA α=0.3)
+                             # 6722 high-speed points (v>2 m/s, |κ|∈[0.005,0.15]), R²=0.42
+                             # Braking phase gives ~154 N (asymmetric motor torque → ignore)
+                             # Per tire: ~15.3 N/slip (AWD, divide by 4)
 
 # ============================================================================
 # Steering Properties

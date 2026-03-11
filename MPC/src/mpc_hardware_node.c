@@ -1061,7 +1061,11 @@ int main(int argc, char *argv[])
                FP_TO_DOUBLE(cfg.weight_steering_effort));
     }
 
-    /* Load trajectory */
+    /* Load trajectory — search order:
+     *   1. Command-line argument: ./mpc_hardware_node /path/to/raceline.csv
+     *   2. Environment variable:  MPC_TRAJECTORY_FILE=/path/to/raceline.csv
+     *   3. Default search paths (relative to cwd and common install locations)
+     */
     if (argc >= 2)
     {
         g_trajectory_file = argv[1];
@@ -1071,6 +1075,30 @@ int main(int argc, char *argv[])
         const char *env_val = getenv("MPC_TRAJECTORY_FILE");
         if (env_val != NULL)
             g_trajectory_file = env_val;
+    }
+
+    /* If no explicit path given, try common relative/absolute locations */
+    if (g_trajectory_file == NULL || strlen(g_trajectory_file) == 0)
+    {
+        static const char *search_paths[] = {
+            "my_track_raceline.csv",
+            "trajectories/my_track_raceline.csv",
+            "f1tenth_planning/trajectories/my_track_raceline.csv",
+            "../f1tenth_planning/trajectories/my_track_raceline.csv",
+            "../trajectories/my_track_raceline.csv",
+            NULL
+        };
+        for (int i = 0; search_paths[i] != NULL; i++)
+        {
+            FILE *test = fopen(search_paths[i], "r");
+            if (test != NULL)
+            {
+                fclose(test);
+                g_trajectory_file = search_paths[i];
+                printf("[MPC] Auto-found trajectory: %s\n", g_trajectory_file);
+                break;
+            }
+        }
     }
 
     if (g_trajectory_file != NULL && strlen(g_trajectory_file) > 0)
@@ -1083,6 +1111,7 @@ int main(int argc, char *argv[])
     else
     {
         printf("[MPC] WARNING: No trajectory file specified. Use arg or MPC_TRAJECTORY_FILE env.\n");
+        printf("[MPC] Searched: my_track_raceline.csv, trajectories/, f1tenth_planning/trajectories/, ../f1tenth_planning/trajectories/\n");
         printf("[MPC] Using straight-line fallback.\n");
     }
 

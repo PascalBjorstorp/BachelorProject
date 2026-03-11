@@ -717,20 +717,21 @@ tracks a larger radius than the kinematic model predicts.
 
 The cornering stiffness test
 (Section~\ref{sec:cornering}) measured
-$C_{\alpha f} = \SI{49.9}{\newton\per\radian}$ and
-$C_{\alpha r} = \SI{54.9}{\newton\per\radian}$ ($C_{\alpha f} <
+$C_{\alpha f} = \SI{44.8}{\newton\per\radian}$ and
+$C_{\alpha r} = \SI{55.7}{\newton\per\radian}$ ($C_{\alpha f} <
 C_{\alpha r}$), confirming the vehicle understeers.
-The understeer gradient is:
+The understeer gradient computed from these values is:
 \begin{equation}\label{eq:understeer}
-  K_\text{us} = \frac{m\,g}{L}\Bigl(\frac{l_f}{C_{\alpha f}}
-  - \frac{l_r}{C_{\alpha r}}\Bigr)
-  = \SI{0.041}{\radian\per(\metre\per\second\squared)}.
+  K_\text{us} = \frac{m}{L}\Bigl(\frac{l_r}{C_{\alpha f}}
+  - \frac{l_f}{C_{\alpha r}}\Bigr)
+  = \SI{0.006}{\radian\per(\metre\per\second\squared)},
 \end{equation}
+consistent with the direct data fit in Section~\ref{sec:cornering}.
 At \SI{1.0}{\metre\per\second} with $R \approx \SI{1.3}{\metre}$,
 the lateral acceleration is
 $a_y = v^2/R \approx \SI{0.76}{\metre\per\second\squared}$,
 giving a steering angle loss of
-$K_\text{us}\,a_y \approx 0.031\;\text{rad}\;(1.8°)$.
+$K_\text{us}\,a_y \approx 0.005\;\text{rad}\;(0.3°)$.
 The kinematic formula~\eqref{eq:wheelbase} does not account for this
 loss, so it over-estimates $L$.  The effect scales with $v^2$,
 explaining the larger discrepancy at higher speeds.
@@ -777,11 +778,11 @@ Friction coeff.\      & $\mu$
   & 0.787  & 1.049  & {--}
   & Tested \\
 Front corn.\ stiff.\  & $C_{\alpha f}$
-  & {--}   & 4.718  & \si{\newton\per\radian}
-  & Rerun needed \\
+  & 44.8   & 4.718  & \si{\newton\per\radian}
+  & Tested\textsuperscript{f} \\
 Rear corn.\ stiff.\   & $C_{\alpha r}$
-  & {--}   & 5.456  & \si{\newton\per\radian}
-  & Rerun needed \\
+  & 55.7   & 5.456  & \si{\newton\per\radian}
+  & Tested\textsuperscript{f} \\
 Long.\ stiffness      & $C_x$
   & 61.3\textsuperscript{a}  & 300    & \si{\newton}
   & Tested \\
@@ -825,7 +826,9 @@ includes chassis pitch contamination.\\
 yields $L = 0.345\;\text{m}$ ($+6.5\%$ from CAD);
 CAD value is used (see Section~\ref{sec:wheelbase}).\\
 \textsuperscript{e}Calibrated servo gain $= -0.7940$; ERPM gain $= 4550$
-(see Section~\ref{sec:wheelbase}).
+(see Section~\ref{sec:wheelbase}).\\
+\textsuperscript{f}Combined K\textsubscript{us} + yaw-resonance method (Section~\ref{sec:cornering});
+$\pm$30--40\% uncertainty on absolute values.
 \end{flushleft}
 \end{table}
 
@@ -851,7 +854,7 @@ defaults in several ways:
   \item \textbf{VESC calibration}: the calibrated servo gain
         ($-0.7940$) yields an actual steering angle that is 86\%
         of the commanded value.  The vehicle understeers
-        ($C_{\alpha f} < C_{\alpha r}$, $K_\text{us} = 0.041$),
+        ($C_{\alpha f} < C_{\alpha r}$, $K_\text{us} = 0.006$),
         which inflates the apparent turning radius and explains the
         remaining 6.5\% discrepancy in the wheelbase test
         (see Section~\ref{sec:wheelbase}).

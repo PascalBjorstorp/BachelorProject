@@ -139,15 +139,17 @@ void VescInterface::Impl::packet_creation_thread()
       }
       buffer_.erase(buffer_.begin(), iter);
     }
-    // Only attempt to read every 5 ms
-    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    // Poll frequently to keep up with 200 Hz request rate.
+    // USB CDC has no physical baud-rate limit, so a short sleep
+    // avoids the beat-frequency stall between send timer and read thread.
+    std::this_thread::sleep_for(std::chrono::microseconds(500));
   }
 }
 
 void VescInterface::Impl::connect(const std::string & port)
 {
   uint32_t baud_rate = 115200;
-  auto fc = drivers::serial_driver::FlowControl::HARDWARE;
+  auto fc = drivers::serial_driver::FlowControl::NONE;  // USB CDC ignores HW flow control
   auto pt = drivers::serial_driver::Parity::NONE;
   auto sb = drivers::serial_driver::StopBits::ONE;
   device_config_ =

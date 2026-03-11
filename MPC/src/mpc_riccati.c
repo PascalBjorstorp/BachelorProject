@@ -178,6 +178,20 @@ MpcConfiguration_t get_default_configuration(void)
             cfg.weight_acceleration_rate = DOUBLE_TO_FP(atof(env_val));
         if ((env_val = getenv("MPC_CROSS_CALL_SCALE")) != NULL)
             cfg.cross_call_rate_scale = DOUBLE_TO_FP(atof(env_val));
+
+        /* Horizon and prediction dt overrides (also used by sim/hardware node) */
+        if ((env_val = getenv("HORIZON")) != NULL) {
+            int h = atoi(env_val);
+            if (h >= 1 && h <= MAX_HORIZON) cfg.prediction_horizon_steps = h;
+        }
+        if ((env_val = getenv("PRED_DT")) != NULL) {
+            double dt = atof(env_val);
+            cfg.time_step_seconds = DOUBLE_TO_FP(dt);
+            /* Auto-update cross_call_rate_scale unless explicitly set.
+             * CONTROL_DT = 0.005s (200 Hz), scale = CONTROL_DT / PRED_DT */
+            if (getenv("MPC_CROSS_CALL_SCALE") == NULL)
+                cfg.cross_call_rate_scale = DOUBLE_TO_FP(0.005 / dt);
+        }
     }
 
     return cfg;

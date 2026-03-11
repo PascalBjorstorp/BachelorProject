@@ -51,11 +51,16 @@
  * Configuration Constants
  *===========================================================================*/
 
-/** Number of MPC prediction steps (20 steps x 0.05s = 1.0 second lookahead) */
-#define MPC_PREDICTION_HORIZON_STEPS 20
+/** Maximum prediction horizon (array sizing) */
+#define MPC_MAX_HORIZON_STEPS 30
 
-/** Time step between predictions [seconds] — must match MPC_DEFAULT_TIME_STEP_SECONDS */
-#define MPC_TIME_STEP_SECONDS 0.05f
+/** Default prediction horizon and dt — overridden by HORIZON / PRED_DT env vars */
+#define MPC_DEFAULT_HORIZON 20
+#define MPC_DEFAULT_DT      0.05f
+
+/** Runtime horizon and dt (set from env vars in main()) */
+static int    g_mpc_horizon = MPC_DEFAULT_HORIZON;
+static double g_mpc_dt      = MPC_DEFAULT_DT;
 
 /** Odometry callback divider (run MPC every N callbacks, default 1 = ~250 Hz) */
 #define ODOMETRY_CALLBACK_DIVIDER_DEFAULT 1
@@ -119,7 +124,7 @@ static ackermann_msgs__msg__AckermannDriveStamped global_drive_message_buffer;
 static nav_msgs__msg__Path global_reference_path_message;
 static nav_msgs__msg__Path global_trajectory_path_message;
 
-static TrajectoryReferencePoint_t global_reference_trajectory[MPC_PREDICTION_HORIZON_STEPS];
+static TrajectoryReferencePoint_t global_reference_trajectory[MPC_MAX_HORIZON_STEPS];
 
 /*===========================================================================
  * Trajectory Loading (CSV from f1tenth_planning)
@@ -278,10 +283,10 @@ static int find_closest_waypoint(double position_x, double position_y, double ve
  */
 static void build_reference_from_trajectory(int closest_index)
 {
-    const double mpc_dt = (double)MPC_TIME_STEP_SECONDS;
+    const double mpc_dt = g_mpc_dt;
     const double avg_waypoint_spacing = 0.346;  /* meters — from Spielberg trajectory */
 
-    for (int step = 0; step < MPC_PREDICTION_HORIZON_STEPS; step++)
+    for (int step = 0; step < g_mpc_horizon; step++)
     {
         int base_waypoint_index = (closest_index + step) % global_trajectory_count;
         double ref_velocity = global_trajectory[base_waypoint_index].velocity_meters_per_second;
@@ -316,7 +321,7 @@ static void build_reference_from_trajectory(int closest_index)
     }
 
     /* Second pass: yaw rate reference = kappa * v_ref (steady-state cornering) */
-    for (int step = 0; step < MPC_PREDICTION_HORIZON_STEPS; step++)
+    for (int step = 0; step < g_mpc_horizon; step++)
     {
         double kappa = FP_TO_DOUBLE(global_reference_trajectory[step].path_curvature_radians_per_meter);
         double v_ref = FP_TO_DOUBLE(global_reference_trajectory[step].reference_velocity_meters_per_second);
@@ -504,11 +509,11 @@ void odometry_subscription_callback(const void *message_in)
 
             /* Publish reference path visualization */
             global_reference_path_message.header.stamp = odom->header.stamp;
-            global_reference_path_message.poses.size = MPC_PREDICTION_HORIZON_STEPS;
+            global_reference_path_message.poses.size = g_mpc_horizon;
             {
-                const double mpc_dt_viz = (double)MPC_TIME_STEP_SECONDS;
+                const double mpc_dt_viz = g_mpc_dt;
                 const double avg_spacing_viz = 0.346;
-                for (int step = 0; step < MPC_PREDICTION_HORIZON_STEPS; step++)
+                for (int step = 0; step < g_mpc_horizon; step++)
                 {
                     geometry_msgs__msg__PoseStamped *pose =
                         &global_reference_path_message.poses.data[step];
@@ -546,7 +551,7 @@ void odometry_subscription_callback(const void *message_in)
             global_frenet_state.yaw_rate_radians_per_second =
                 global_vehicle_state.yaw_rate_radians_per_second;
 
-            for (int step = 0; step < MPC_PREDICTION_HORIZON_STEPS; step++)
+            for (int step = 0; step < g_mpc_horizon; step++)
             {
                 global_reference_trajectory[step].reference_lateral_error_meters = 0;
                 global_reference_trajectory[step].reference_heading_error_radians = 0;
@@ -676,8 +681,8 @@ int main(int argc, char *argv[])
     printf("  Solver: Riccati backward/forward pass inside ADMM loop\n");
     printf("============================================================\n");
     printf("  Prediction horizon: %d steps (%.1f ms each)\n",
-           MPC_PREDICTION_HORIZON_STEPS,
-           MPC_TIME_STEP_SECONDS * 1000.0f);
+           g_mpc_horizon,
+           g_mpc_dt * 1000.0);
     printf("  Trajectory speed gain: %.2f, max velocity: %.1f m/s\n",
            TRAJECTORY_SPEED_GAIN, TRAJECTORY_MAXIMUM_VELOCITY);
     printf("------------------------------------------------------------\n");
@@ -699,10 +704,22 @@ int main(int argc, char *argv[])
             int div = atoi(env_val);
             if (div >= 1 && div <= 100) g_odom_divider = div;
         }
+        /* HORIZON and PRED_DT are also read by the library's get_default_configuration(),
+         * but the sim node needs its own copies for reference trajectory building and viz. */
+        if ((env_val = getenv("HORIZON")) != NULL)
+        {
+            int h = atoi(env_val);
+            if (h >= 1 && h <= MPC_MAX_HORIZON_STEPS) g_mpc_horizon = h;
+        }
+        if ((env_val = getenv("PRED_DT")) != NULL)
+        {
+            double dt = atof(env_val);
+            if (dt > 0.001 && dt < 1.0) g_mpc_dt = dt;
+        }
     }
 
     printf("[MPC] Controller initialized (horizon=%d, dt=%.0fms)\n",
-           MPC_PREDICTION_HORIZON_STEPS, MPC_TIME_STEP_SECONDS * 1000.0f);
+           g_mpc_horizon, g_mpc_dt * 1000.0);
     printf("[MPC] Control rate: ~%d Hz (odom_divider=%d)\n",
            200 / g_odom_divider, g_odom_divider);
 
@@ -892,7 +909,7 @@ int main(int argc, char *argv[])
 
     if (!geometry_msgs__msg__PoseStamped__Sequence__init(
             &global_reference_path_message.poses,
-            MPC_PREDICTION_HORIZON_STEPS))
+            g_mpc_horizon))
     {
         fprintf(stderr, "[ROS2] ERROR: ref path poses alloc\n");
         return 1;

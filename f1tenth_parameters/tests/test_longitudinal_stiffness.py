@@ -91,6 +91,10 @@ class LongitudinalStiffnessNode(TestNode):
         self.comp_pitch = 0.0          # current pitch estimate (rad)
         self.comp_alpha = args.comp_alpha   # gyro trust factor (0.95–0.99)
 
+        # EMA smoothing for LiDAR velocity (40 Hz steps → smooth signal)
+        self.lidar_vx_ema = 0.0
+        self.lidar_ema_alpha = 0.3  # blend factor: 0.3 = moderate smoothing
+
         # Collected data per phase
         self.accel_data = []
         self.cruise_data = []
@@ -151,7 +155,7 @@ class LongitudinalStiffnessNode(TestNode):
         self.get_logger().info(f"Max speed: {self.max_speed:.1f} m/s")
         self.get_logger().info(f"Cruise time: {self.cruise_time:.1f} s")
         self.get_logger().info(f"Vehicle mass: {self.mass:.3f} kg")
-        self.get_logger().info("Body velocity: LiDAR scan-matching (ICP)")
+        self.get_logger().info("Body velocity: LiDAR scan-matching (ICP) with EMA smoothing")
         self.get_logger().info("=" * 60)
 
         # ---- IMU Bias Calibration ----
@@ -197,14 +201,21 @@ class LongitudinalStiffnessNode(TestNode):
             v_wheel = self.odom_vx  # ERPM-based
             v_lidar = self.lidar_vx  # LiDAR scan-matching (drift-free)
 
-            # Slip ratio using LiDAR body velocity (primary)
-            v_max = max(abs(v_wheel), abs(v_lidar), 0.1)
-            kappa = (v_wheel - v_lidar) / v_max
+            # EMA-smooth LiDAR velocity (40 Hz step function → smooth)
+            self.lidar_vx_ema = (self.lidar_ema_alpha * v_lidar +
+                                 (1 - self.lidar_ema_alpha) * self.lidar_vx_ema)
+            v_lidar_smooth = self.lidar_vx_ema
+
+            # Slip ratio using EMA-smoothed LiDAR body velocity (primary)
+            # Floor of 0.5 m/s prevents garbage ratios at low speed
+            v_max = max(abs(v_wheel), abs(v_lidar_smooth), 0.5)
+            kappa = (v_wheel - v_lidar_smooth) / v_max
 
             self.accel_data.append({
                 't': now - phase_start,
                 'v_wheel': v_wheel,
-                'v_lidar': v_lidar,
+                'v_lidar': v_lidar_smooth,
+                'v_lidar_raw': v_lidar,
                 'v_imu': v_imu,
                 'ax': ax_pitch,
                 'ax_raw': ax_corr,
@@ -262,14 +273,19 @@ class LongitudinalStiffnessNode(TestNode):
             v_lidar = self.lidar_vx
             ax_corr = self.imu_ax - imu_bias
 
-            # Slip ratio using LiDAR body velocity
-            v_max = max(abs(v_wheel), abs(v_lidar), 0.1)
-            kappa = (v_wheel - v_lidar) / v_max
+            # EMA-smooth LiDAR velocity
+            self.lidar_vx_ema = (self.lidar_ema_alpha * v_lidar +
+                                 (1 - self.lidar_ema_alpha) * self.lidar_vx_ema)
+            v_lidar_smooth = self.lidar_vx_ema
+
+            # Slip ratio using EMA-smoothed LiDAR body velocity
+            v_max = max(abs(v_wheel), abs(v_lidar_smooth), 0.5)
+            kappa = (v_wheel - v_lidar_smooth) / v_max
 
             self.cruise_data.append({
                 't': now - cruise_start,
                 'v_wheel': v_wheel,
-                'v_lidar': v_lidar,
+                'v_lidar': v_lidar_smooth,
                 'v_imu': v_imu,
                 'ax': ax_corr,
                 'az': self.imu_az,
@@ -359,14 +375,19 @@ class LongitudinalStiffnessNode(TestNode):
             v_wheel = self.odom_vx
             v_lidar = self.lidar_vx  # LiDAR body velocity (drift-free)
 
-            # Slip ratio using LiDAR body velocity (primary)
-            v_max = max(abs(v_wheel), abs(v_lidar), 0.1)
-            kappa = (v_wheel - v_lidar) / v_max
+            # EMA-smooth LiDAR velocity
+            self.lidar_vx_ema = (self.lidar_ema_alpha * v_lidar +
+                                 (1 - self.lidar_ema_alpha) * self.lidar_vx_ema)
+            v_lidar_smooth = self.lidar_vx_ema
+
+            # Slip ratio using EMA-smoothed LiDAR body velocity (primary)
+            v_max = max(abs(v_wheel), abs(v_lidar_smooth), 0.5)
+            kappa = (v_wheel - v_lidar_smooth) / v_max
 
             self.decel_data.append({
                 't': now - phase_start,
                 'v_wheel': v_wheel,
-                'v_lidar': v_lidar,
+                'v_lidar': v_lidar_smooth,
                 'v_imu': v_imu_pc,
                 'v_imu_raw': v_imu,
                 'ax': ax_pitch,
@@ -488,7 +509,7 @@ class LongitudinalStiffnessNode(TestNode):
                     f"n={np.sum(hi_lin)}/{len(data)}")
 
         # Best estimate: use only high-speed data where LiDAR SNR is adequate
-        # LiDAR ICP noise is ~1 m/s; at v < 2 m/s, κ noise > 0.5 (unusable)
+        # LiDAR ICP noise is ~0.1 m/s (EMA-smoothed); at v < 2 m/s, κ noise dominates
         MIN_SPEED_FOR_CX = 2.0  # m/s — ignore low-speed data
         best_Cx = 0
 
@@ -525,7 +546,7 @@ class LongitudinalStiffnessNode(TestNode):
             self.get_logger().info(f"  C_x per tire: ~{abs(best_Cx)/4:.1f} N/unit-slip")
         self.get_logger().info(f"\n  NOTE: This is the COMBINED longitudinal stiffness")
         self.get_logger().info(f"  (all 4 wheels, AWD). For per-tire: divide by ~4.")
-        self.get_logger().info(f"  Body velocity: LiDAR scan-matching (drift-free).")
+        self.get_logger().info(f"  Body velocity: LiDAR scan-matching (drift-free, EMA-smoothed).")
         self.get_logger().info(f"  Acceleration: IMU pitch-compensated (alpha={self.comp_alpha:.3f}).")
 
         # Auto-save to vehicle_params.yaml
