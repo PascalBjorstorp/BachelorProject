@@ -65,7 +65,7 @@ class LongitudinalStiffnessNode(TestNode):
         columns = [
             'odom_vx', 'imu_ax', 'imu_ay', 'imu_az',
             'gyro_y',
-            'motor_rpm', 'motor_current',
+            'motor_rpm', 'motor_current', 'battery_voltage',
             'v_lidar', 'v_lidar_raw', 'v_imu', 'slip_ratio',
             'cmd_speed', 'phase'
         ]
