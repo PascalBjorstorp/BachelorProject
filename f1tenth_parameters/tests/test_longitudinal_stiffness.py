@@ -95,6 +95,11 @@ class LongitudinalStiffnessNode(TestNode):
         self.lidar_vx_ema = 0.0
         self.lidar_ema_alpha = 0.3  # blend factor: 0.3 = moderate smoothing
 
+        # Heading-hold controller (compensates for steering slack/offset)
+        self.heading_hold_kp = args.heading_kp
+        self.max_steer_correction = 0.05  # rad (~2.9°) max correction
+        self.initial_yaw = None
+
         # Collected data per phase
         self.accel_data = []
         self.cruise_data = []
@@ -136,14 +141,28 @@ class LongitudinalStiffnessNode(TestNode):
         gravity_x = g_ref * np.sin(abs(self.comp_pitch))
 
         if is_braking:
-            # Nose down: pitch > 0 means gravity projects forward
-            # For this IMU convention, the projection makes ax more negative → add back
-            ax_corrected = ax_biased + gravity_x
-        else:
-            # Nose up: gravity makes measured ax more positive → subtract correction
+            # Nose down: pitch > 0 means gravity projects forward (+x)
+            # IMU reads: ax_meas = ax_true + g*sin(pitch)
+            # True ax: ax_true = ax_meas - g*sin(pitch)
             ax_corrected = ax_biased - gravity_x
+        else:
+            # Nose up: gravity projects backward (-x)
+            # IMU reads: ax_meas = ax_true - g*sin(pitch)
+            # True ax: ax_true = ax_meas + g*sin(pitch)
+            ax_corrected = ax_biased + gravity_x
 
         return ax_corrected, np.degrees(self.comp_pitch)
+
+    def heading_correction(self):
+        """Compute small steering correction to hold initial heading."""
+        if self.initial_yaw is None or self.heading_hold_kp == 0:
+            return 0.0
+        # Wrap heading error to [-pi, pi]
+        err = self.odom_yaw - self.initial_yaw
+        err = (err + np.pi) % (2 * np.pi) - np.pi
+        correction = -self.heading_hold_kp * err
+        return float(np.clip(correction, -self.max_steer_correction,
+                              self.max_steer_correction))
 
     def run_test(self):
         """Execute the longitudinal stiffness test."""
@@ -169,6 +188,7 @@ class LongitudinalStiffnessNode(TestNode):
         self.recorder.start()
         self.safety.start()
         self.test_running = True
+        self.initial_yaw = self.odom_yaw  # heading reference for straight-line hold
 
         # ---- Phase 1: Acceleration ----
         self.get_logger().info("\n--- Phase 1: ACCELERATION ---")
@@ -190,7 +210,7 @@ class LongitudinalStiffnessNode(TestNode):
             dt = now - last_t
             last_t = now
 
-            self.send_command(self.max_speed, 0.0)
+            self.send_command(self.max_speed, self.heading_correction())
 
             # Pitch-corrected acceleration (nose-up during accel → subtract correction)
             ax_corr = self.imu_ax - imu_bias
@@ -228,6 +248,7 @@ class LongitudinalStiffnessNode(TestNode):
                 odom_vx=v_wheel, imu_ax=ax_pitch, imu_ay=self.imu_ay,
                 imu_az=self.imu_az, gyro_y=self.imu_gy,
                 motor_rpm=self.motor_rpm, motor_current=self.motor_current,
+                battery_voltage=self.battery_voltage,
                 v_lidar=v_lidar, v_lidar_raw=self.lidar_vx_raw,
                 v_imu=v_imu, slip_ratio=kappa,
                 cmd_speed=self.max_speed, phase='acceleration'
@@ -266,7 +287,7 @@ class LongitudinalStiffnessNode(TestNode):
             dt = now - last_t
             last_t = now
 
-            self.send_command(self.max_speed, 0.0)
+            self.send_command(self.max_speed, self.heading_correction())
 
             v_imu = self.imu_vel.update(self.imu_ax, dt)
             v_wheel = self.odom_vx
@@ -297,6 +318,7 @@ class LongitudinalStiffnessNode(TestNode):
                 odom_vx=v_wheel, imu_ax=ax_corr, imu_ay=self.imu_ay,
                 imu_az=self.imu_az, gyro_y=self.imu_gy,
                 motor_rpm=self.motor_rpm, motor_current=self.motor_current,
+                battery_voltage=self.battery_voltage,
                 v_lidar=v_lidar, v_lidar_raw=self.lidar_vx_raw,
                 v_imu=v_imu, slip_ratio=kappa,
                 cmd_speed=self.max_speed, phase='cruise'
@@ -356,7 +378,7 @@ class LongitudinalStiffnessNode(TestNode):
             dt = now - last_t
             last_t = now
 
-            self.send_command(0.0, 0.0)
+            self.send_command(0.0, self.heading_correction())
 
             # Raw bias-corrected acceleration
             ax_corr = self.imu_ax - braking_bias
@@ -401,6 +423,7 @@ class LongitudinalStiffnessNode(TestNode):
                 odom_vx=v_wheel, imu_ax=ax_pitch, imu_ay=self.imu_ay,
                 imu_az=self.imu_az, gyro_y=self.imu_gy,
                 motor_rpm=self.motor_rpm, motor_current=self.motor_current,
+                battery_voltage=self.battery_voltage,
                 v_lidar=v_lidar, v_lidar_raw=self.lidar_vx_raw,
                 v_imu=v_imu_pc, slip_ratio=kappa,
                 cmd_speed=0.0, phase='braking'
@@ -510,35 +533,64 @@ class LongitudinalStiffnessNode(TestNode):
 
         # Best estimate: use only high-speed data where LiDAR SNR is adequate
         # LiDAR ICP noise is ~0.1 m/s (EMA-smoothed); at v < 2 m/s, κ noise dominates
+        # Analyze accel and braking SEPARATELY (different tire behavior)
         MIN_SPEED_FOR_CX = 2.0  # m/s — ignore low-speed data
         best_Cx = 0
 
-        combined_kappa = []
-        combined_Fx = []
-        for phase_name_est, data_est in [('accel', self.accel_data),
-                                          ('brake', self.decel_data)]:
+        for phase_label, data_est in [('Acceleration', self.accel_data),
+                                       ('Braking', self.decel_data)]:
+            phase_kappa = []
+            phase_Fx = []
             for d in data_est:
                 v_body = abs(d.get('v_lidar', 0.0))
                 if v_body < MIN_SPEED_FOR_CX:
                     continue
                 if 0.005 < abs(d['kappa']) < 0.20:
-                    combined_kappa.append(d['kappa'])
-                    combined_Fx.append(self.mass * d['ax'])
+                    phase_kappa.append(d['kappa'])
+                    phase_Fx.append(self.mass * d['ax'])
 
-        if len(combined_kappa) > 10:
-            kk = np.array(combined_kappa)
-            ff = np.array(combined_Fx)
-            best_Cx = float(np.sum(ff * kk) / np.sum(kk ** 2))
-            ss_res = np.sum((ff - best_Cx * kk)**2)
-            ss_tot = np.sum((ff - np.mean(ff))**2)
-            r2 = 1 - ss_res / ss_tot if ss_tot > 0 else 0
-            self.get_logger().info(
-                f"\n  High-speed combined ({len(combined_kappa)} pts, v>{MIN_SPEED_FOR_CX}): "
-                f"C_x={abs(best_Cx):.1f}, R²={r2:.3f}")
-        else:
-            self.get_logger().info(
-                f"\n  WARNING: Only {len(combined_kappa)} high-speed points — "
-                f"C_x estimate may be unreliable")
+            if len(phase_kappa) > 10:
+                kk = np.array(phase_kappa)
+                ff = np.array(phase_Fx)
+                C_x_phase = float(np.sum(ff * kk) / np.sum(kk ** 2))
+                ss_res = np.sum((ff - C_x_phase * kk)**2)
+                ss_tot = np.sum((ff - np.mean(ff))**2)
+                r2 = 1 - ss_res / ss_tot if ss_tot > 0 else 0
+                self.get_logger().info(
+                    f"\n  {phase_label} (v>{MIN_SPEED_FOR_CX}, {len(phase_kappa)} pts): "
+                    f"C_x={abs(C_x_phase):.1f} N/slip, R²={r2:.3f}")
+                # Prefer acceleration-only (more linear tire behavior, no stick-slip)
+                if phase_label == 'Acceleration':
+                    best_Cx = C_x_phase
+            else:
+                self.get_logger().info(
+                    f"\n  {phase_label}: only {len(phase_kappa)} high-speed points — skipping")
+
+        # Fall back to combined if accel alone was insufficient
+        if best_Cx == 0:
+            combined_kappa = []
+            combined_Fx = []
+            for data_est in [self.accel_data, self.decel_data]:
+                for d in data_est:
+                    v_body = abs(d.get('v_lidar', 0.0))
+                    if v_body < MIN_SPEED_FOR_CX:
+                        continue
+                    if 0.005 < abs(d['kappa']) < 0.20:
+                        combined_kappa.append(d['kappa'])
+                        combined_Fx.append(self.mass * d['ax'])
+            if len(combined_kappa) > 10:
+                kk = np.array(combined_kappa)
+                ff = np.array(combined_Fx)
+                best_Cx = float(np.sum(ff * kk) / np.sum(kk ** 2))
+                ss_res = np.sum((ff - best_Cx * kk)**2)
+                ss_tot = np.sum((ff - np.mean(ff))**2)
+                r2 = 1 - ss_res / ss_tot if ss_tot > 0 else 0
+                self.get_logger().info(
+                    f"\n  Combined fallback ({len(combined_kappa)} pts): "
+                    f"C_x={abs(best_Cx):.1f} N/slip, R²={r2:.3f}")
+
+        self.get_logger().info(f"\n  NOTE: Accel-only C_x preferred (braking has nonlinear stick-slip)")
+
 
         self.get_logger().info(f"\n--- Parameters for MPC ---")
         if best_Cx != 0:
@@ -561,22 +613,24 @@ class LongitudinalStiffnessNode(TestNode):
 def main():
     parser = argparse.ArgumentParser(
         description='F1/10th Longitudinal Tire Stiffness Test')
-    parser.add_argument('--max-speed', type=float, default=5.0,
-                        help='Max speed to command (m/s, default: 5.0)')
+    parser.add_argument('--max-speed', type=float, default=6.0,
+                        help='Max speed to command (m/s, default: 6.0)')
     parser.add_argument('--accel-time', type=float, default=8.0,
                         help='Acceleration phase max duration (s, default: 8.0)')
-    parser.add_argument('--cruise-time', type=float, default=1.0,
-                        help='Steady-state cruise duration before braking (s, default: 1.0)')
+    parser.add_argument('--cruise-time', type=float, default=2.0,
+                        help='Steady-state cruise duration before braking (s, default: 2.0)')
     parser.add_argument('--mass', type=float, default=3.314,
                         help='Vehicle mass in kg (default: 3.314)')
     parser.add_argument('--erpm-gain', type=float, default=DEFAULT_ERPM_GAIN,
                         help=f'ERPM gain (default: {DEFAULT_ERPM_GAIN})')
-    parser.add_argument('--geofence', type=float, default=20.0,
-                        help='Max distance from start before abort (m, default: 20.0)')
+    parser.add_argument('--geofence', type=float, default=35.0,
+                        help='Max distance from start before abort (m, default: 35.0)')
     parser.add_argument('--runs', type=int, default=5,
                         help='Number of complete test runs (default: 5)')
     parser.add_argument('--comp-alpha', type=float, default=0.98,
                         help='Complementary filter gyro trust factor 0–1 (default: 0.98)')
+    parser.add_argument('--heading-kp', type=float, default=1.0,
+                        help='Heading-hold P-gain for straight-line correction (default: 1.0, 0=disabled)')
     args = parser.parse_args()
 
     rclpy.init()

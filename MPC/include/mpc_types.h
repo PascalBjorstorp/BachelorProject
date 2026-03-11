@@ -420,30 +420,30 @@ typedef struct
 #define F110_CG_HEIGHT_METERS \
     FP_CONST(0.0703)
 
-/** Tire-road friction coefficient [TESTED] mu = 0.7463
- *  From test_friction.py (5 runs, 0.73-0.76 range). Surface-specific. */
+/** Tire-road friction coefficient [TESTED] mu = 0.787
+ *  From test_friction.py (lateral accel saturation at 5.0 m/s). Surface-specific. */
 #define F110_FRICTION_COEFFICIENT \
-    FP_CONST(0.7463)
+    FP_CONST(0.787)
 
 /** Front cornering stiffness [1/rad] [TESTED]
  *  From test_cornering_stiffness.py measurements, consistent with sim.yaml.
  *  Conversion: C_Sf = C_alpha_f / (mu * F_zf)
- *    F_zf = m*g*l_r/L = 3.314*9.81*0.16/0.326 = 15.95 N
- *    C_alpha_f = 33.38 → C_Sf = 33.38/(0.7463*15.95) = 2.804  */
+ *    F_zf = m*g*l_r/L = 3.314*9.81*0.16/0.324 = 16.05 N
+ *    C_alpha_f = 44.8 → C_Sf = 44.8/(0.787*16.05) = 3.546  */
 #define F110_FRONT_CORNERING_STIFFNESS \
-    FP_CONST(2.804)
+    FP_CONST(3.546)
 
 /** Rear cornering stiffness [1/rad] [TESTED]
  *  From test_cornering_stiffness.py measurements, consistent with sim.yaml.
  *  Conversion: C_Sr = C_alpha_r / (mu * F_zr)
- *    F_zr = m*g*l_f/L = 3.314*9.81*0.166/0.326 = 16.55 N
- *    C_alpha_r = 41.00 → C_Sr = 41.00/(0.7463*16.55) = 3.320  */
+ *    F_zr = m*g*l_f/L = 3.314*9.81*0.166/0.324 = 16.66 N
+ *    C_alpha_r = 55.7 → C_Sr = 55.7/(0.787*16.66) = 4.249  */
 #define F110_REAR_CORNERING_STIFFNESS \
-    FP_CONST(3.320)
+    FP_CONST(4.249)
 
 /** Maximum longitudinal acceleration [m/s²]
  *  From vehicle_params.yaml: max_accel = 8.0 m/s² [TESTED]
- *  Bounded by mu*g = 0.746 * 9.81 = 7.32 m/s² (tire limit)
+ *  Bounded by mu*g = 0.787 * 9.81 = 7.72 m/s² (tire limit)
  *  Using tested IMU value (smoothed): 8.0 m/s² */
 #define F110_DEFAULT_MAX_ACCELERATION \
     FP_CONST(8.0)

@@ -318,20 +318,42 @@ class FrictionTestNode(TestNode):
         ay_values = np.array([r['ay_imu'] for r in self.speed_results])
         slip_ratios = np.array([r['slip_ratio_cmd'] for r in self.speed_results])
         
-        # Maximum lateral acceleration
-        max_ay = np.max(ay_values)
+        # Use steady-state plateau: mean of the top-speed points where ay plateaus
+        # Plateau detection: find where consecutive ay differences < 5% of max
+        if len(ay_values) >= 3:
+            # Use the last N points where ay has stopped increasing significantly
+            diffs = np.diff(ay_values)
+            relative_increase = diffs / np.maximum(ay_values[:-1], 0.1)
+            # Find last index where increase > 5%
+            plateau_mask = relative_increase < 0.05
+            # Count consecutive plateau points from the end
+            n_plateau = 0
+            for i in range(len(plateau_mask) - 1, -1, -1):
+                if plateau_mask[i]:
+                    n_plateau += 1
+                else:
+                    break
+            n_plateau = max(n_plateau + 1, 1)  # include the last point
+            plateau_ay = ay_values[-n_plateau:]
+            max_ay = float(np.mean(plateau_ay))
+            self.get_logger().info(f"\n   Plateau detected: last {n_plateau} speed points "
+                                  f"(mean a_y = {max_ay:.3f} m/s²)")
+        else:
+            max_ay = float(np.mean(ay_values[-1:]))
+        
         mu = max_ay / GRAVITY
         
-        self.get_logger().info(f"\n1. FRICTION COEFFICIENT:")
-        self.get_logger().info(f"   Max lateral acceleration: {max_ay:.3f} m/s² ({mu:.3f} g)")
-        self.get_logger().info(f"   Friction coefficient μ ≈ {mu:.3f}")
-        self.get_logger().info(f"   At speed: {speeds[np.argmax(ay_values)]:.2f} m/s")
+        self.get_logger().info(f"\n1. FRICTION COEFFICIENT (steady-state plateau):")
+        self.get_logger().info(f"   Plateau lateral acceleration: {max_ay:.3f} m/s² ({mu:.3f} g)")
+        self.get_logger().info(f"   Friction coefficient μ ≈ {mu:.4f}")
+        self.get_logger().info(f"   Highest-speed point: v={speeds[-1]:.2f} m/s, "
+                              f"a_y={ay_values[-1]:.3f} m/s²")
         
         # Check if we reached saturation
         if np.min(slip_ratios) < 0.85:
             self.get_logger().info(f"   Tire saturation detected (min slip ratio: {np.min(slip_ratios):.3f})")
         else:
-            self.get_logger().info(f"   Tires did NOT fully saturate at tested speeds.")
+            self.get_logger().info(f"   Tires may not have fully saturated at tested speeds.")
             self.get_logger().info(f"   Consider testing at higher speeds for true μ.")
         
         # Print table

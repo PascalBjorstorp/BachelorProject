@@ -261,7 +261,7 @@ static void build_reference(int closest, double actual_vx, TrajectoryReferencePo
      * v_max_curve = sqrt(a_lat_max / |kappa|)   — lateral grip limit
      * Active in realistic mode only. */
     static int use_vlimit = -1;
-    static double a_lat_max = 7.3212;  /* m/s² — mu*g = 0.7463 * 9.81 */
+    static double a_lat_max = 7.7205;  /* m/s² — mu*g = 0.787 * 9.81 */
     if (use_vlimit < 0) {
         use_vlimit = (getenv("REALISTIC_SIM") && atoi(getenv("REALISTIC_SIM")))
                   || (getenv("REALISTIC_TIRES") && atoi(getenv("REALISTIC_TIRES")))
@@ -652,7 +652,7 @@ int main(void)
          * Vehicle params from measured data (sim.yaml / vehicle_params.yaml). */
         {
             /* Vehicle parameters matching gym config */
-            static const double mu = 0.7463, mass = 3.314, Iz = 0.035;
+            static const double mu = 0.787, mass = 3.314, Iz = 0.035;
             static const double C_Sf = 2.804, C_Sr = 3.320;
             static const double lf = 0.166, lr = 0.16, h_cg = 0.0703;
             static const double g_acc = 9.81;

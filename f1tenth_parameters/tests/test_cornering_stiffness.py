@@ -180,11 +180,14 @@ class CorneringStiffnessNode(TestNode):
                     imu_gz_corr = self.imu_gz - self.imu_bias_gz
                     self.recorder.record(
                         odom_vx=self.odom_vx, odom_vy=self.odom_vy,
+                        odom_x=self.odom_x, odom_y=self.odom_y,
+                        odom_yaw=self.odom_yaw,
                         imu_ay=imu_ay_corr,
                         imu_gz=imu_gz_corr, imu_ax=imu_ax_corr,
                         v_lidar_vx=self.lidar_vx,
                         v_lidar_vy=self.lidar_vy,
                         motor_current=self.motor_current,
+                        battery_voltage=self.battery_voltage,
                         cmd_speed=speed, cmd_steering=effective_steer,
                         phase='settle'
                     )
@@ -225,11 +228,14 @@ class CorneringStiffnessNode(TestNode):
 
                     self.recorder.record(
                         odom_vx=self.odom_vx, odom_vy=self.odom_vy,
+                        odom_x=self.odom_x, odom_y=self.odom_y,
+                        odom_yaw=self.odom_yaw,
                         imu_ay=imu_ay_corr,
                         imu_gz=imu_gz_corr, imu_ax=imu_ax_corr,
                         v_lidar_vx=self.lidar_vx,
                         v_lidar_vy=self.lidar_vy,
                         motor_current=self.motor_current,
+                        battery_voltage=self.battery_voltage,
                         cmd_speed=speed, cmd_steering=effective_steer,
                         phase='record'
                     )
@@ -330,13 +336,15 @@ class CorneringStiffnessNode(TestNode):
                         sigma_Fyf = self.mass * ay_std * self.l_r / self.wheelbase
                         sigma_Fyr = self.mass * ay_std * self.l_f / self.wheelbase
 
-                        # Cornering stiffness (with sideslip correction)
-                        C_af = F_yf / alpha_f if abs(alpha_f) > 0.001 else float('nan')
-                        C_ar = F_yr / alpha_r if abs(alpha_r) > 0.001 else float('nan')
+                        # Cornering stiffness: C_alpha = |F_y| / |alpha|
+                        # Use magnitudes since sign depends on turn direction
+                        # but stiffness is always a positive physical property
+                        C_af = F_yf / abs(alpha_f) if abs(alpha_f) > 0.001 else float('nan')
+                        C_ar = F_yr / abs(alpha_r) if abs(alpha_r) > 0.001 else float('nan')
 
                         # Naive (no sideslip) for comparison
-                        C_af_naive = F_yf / alpha_f_naive if abs(alpha_f_naive) > 0.001 else float('nan')
-                        C_ar_naive = F_yr / alpha_r_naive if abs(alpha_r_naive) > 0.001 else float('nan')
+                        C_af_naive = F_yf / abs(alpha_f_naive) if abs(alpha_f_naive) > 0.001 else float('nan')
+                        C_ar_naive = F_yr / abs(alpha_r_naive) if abs(alpha_r_naive) > 0.001 else float('nan')
 
                         # Propagated uncertainty
                         if abs(alpha_f) > 0.001 and not np.isnan(C_af):
@@ -487,13 +495,13 @@ class CorneringStiffnessNode(TestNode):
             self.get_logger().info(f"   C_alpha_f = {C_af_avg:.1f} ± {C_af_std:.1f} N/rad")
             self.get_logger().info(f"   C_alpha_r = {C_ar_avg:.1f} ± {C_ar_std:.1f} N/rad")
 
-            # --- Method 2: Linear regression F_y vs alpha ---
-            alpha_f_arr = np.array([r['alpha_f'] for r in valid_points])
-            alpha_r_arr = np.array([r['alpha_r'] for r in valid_points])
+            # --- Method 2: Linear regression |F_y| vs |alpha| ---
+            alpha_f_arr = np.abs(np.array([r['alpha_f'] for r in valid_points]))
+            alpha_r_arr = np.abs(np.array([r['alpha_r'] for r in valid_points]))
             F_yf_arr = np.array([r['F_yf'] for r in valid_points])
             F_yr_arr = np.array([r['F_yr'] for r in valid_points])
 
-            # Regression through origin: F_y = C_alpha * alpha
+            # Regression through origin: |F_y| = C_alpha * |alpha|
             C_af_reg = float(np.sum(alpha_f_arr * F_yf_arr) / np.sum(alpha_f_arr**2))
             C_ar_reg = float(np.sum(alpha_r_arr * F_yr_arr) / np.sum(alpha_r_arr**2))
 
@@ -507,7 +515,7 @@ class CorneringStiffnessNode(TestNode):
             R2_f = 1 - ss_res_f / ss_tot_f if ss_tot_f > 0 else 0
             R2_r = 1 - ss_res_r / ss_tot_r if ss_tot_r > 0 else 0
 
-            self.get_logger().info(f"\n2. CORNERING STIFFNESS (linear regression F_y = C_α·α):")
+            self.get_logger().info(f"\n2. CORNERING STIFFNESS (linear regression |F_y| = C_α·|α|):")
             self.get_logger().info(f"   C_alpha_f = {C_af_reg:.1f} N/rad  (R² = {R2_f:.4f})")
             self.get_logger().info(f"   C_alpha_r = {C_ar_reg:.1f} N/rad  (R² = {R2_r:.4f})")
 
