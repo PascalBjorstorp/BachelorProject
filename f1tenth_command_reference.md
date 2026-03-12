@@ -1,27 +1,20 @@
 # F1Tenth Real Robot — Command Reference (ROS2 Humble)
 
-> **Hardware:** Jetson Orin + Hokuyo UST-10LX + VESC  
-> **Workspace:** `~/BachelorProject` (or wherever you built)  
-> **Always source first:** `source install/setup.bash`
-
----
-
 ## PHASE 1: Mapping with FTG + SLAM Toolbox
 
 Drive the car around the track using Follow The Gap while simultaneously building a map with SLAM Toolbox.
 
-### Terminal 1 — VESC Driver Stack (on Jetson)
+### Terminal 1 — VESC Driver Stack
 ```bash
-source install/setup.bash
 ros2 launch f1tenth_stack bringup_launch.py mapping_mode:=true
 ```
-> This starts: VESC driver, IMU, ackermann mux, and the custom **Hokuyo SCIP 2.0 LiDAR** at **20 Hz** (270 beams).
-> Mapping mode disables scan splitter and lateral planner (no map available yet).
+> This starts: VESC driver, IMU, ackermann mux, and the custom **Hokuyo SCIP 2.0 LiDAR** at **40 Hz** with 1080 beams.
+>
+> Mapping mode disables scan splitter and lateral planner.
 
 
-### Terminal 2 — SLAM Toolbox (on Jetson)
+### Terminal 2 — SLAM Toolbox
 ```bash
-source install/setup.bash
 ros2 launch slam_toolbox online_async_launch.py \
   slam_params_file:=/home/f1tenth/BachelorProject/f1tenth_system/f1tenth_stack/config/slam_params.yaml \
   use_sim_time:=false
@@ -31,79 +24,39 @@ ros2 launch slam_toolbox online_async_launch.py \
 > Frames: `ego_racecar/odom`, `ego_racecar/base_link`
 > scan topic `/scan`.
 
-### Terminal 3 — FTG Autonomous Driving (on Jetson)
+### Terminal 3 — FTG Autonomous Driving 
 ```bash
-source install/setup.bash
 ros2 launch f1tenth_control ftg_hardware_launch.py max_speed:=2.0 mapping_mode:=true
 ```
-> The car will avoid obstacles and explore the track.  
+> The car will explore the track.  
 > `mapping_mode:=true` enables track boundary extraction.
 
-### Terminal 4 — RViz Visualization (on PC, same ROS_DOMAIN_ID)
+### Terminal 4 - Save the Map 
 ```bash
-source install/setup.bash
-rviz2
-```
-> Add these displays:
-> - Map
-> - LaserScan (`/scan`)
-> - TF
-> - Odometry (`/odom`)
->
-> Watch the map build in real-time.
-
-### Save the Map (after driving the full track)
-```bash
-# On Jetson or PC (wherever map_server/slam is running)
-# NOTE: map_subscribe_transient_local:=true is REQUIRED — SLAM Toolbox publishes
-# /map with TRANSIENT_LOCAL QoS; without this flag map_saver hangs forever.
 ros2 run nav2_map_server map_saver_cli \
   -f ~/BachelorProject/f1tenth_sim/maps/my_track_map \
   --ros-args -p save_map_timeout:=10000.0 -p map_subscribe_transient_local:=true
 ```
 
 > This saves `my_track_map.yaml` + `my_track_map.pgm` into `f1tenth_sim/maps`.  
-> **Keep these files** — you need them for localization and planning.
-
 ---
 
 ## PHASE 2: Generate Racing Line from the SLAM Map
 
-Run the raceline planner on your PC (no need for the car to be on).
+Run the raceline planner.
 
 ### Generate the Racing Line
 ```bash
 python3 f1tenth_planning/scripts/generate_raceline.py \
   --visualize
 ```
-
-> This will:
-> 1. Extract track boundaries from your SLAM map
-> 2. Compute the minimum curvature racing line
-> 3. Generate velocity profile (using friction circle model)
-> 4. Save CSV + NPZ to `f1tenth_planning/trajectories/`
-
-
-### Check Vehicle Parameters (tune before generating)
-```bash
-nano f1tenth_planning/config/vehicle_params.yaml
-```
-> Key parameters to verify (ask Aksel for measured values):
->
-> | Parameter | Description |
-> |-----------|-------------|
-> | Friction coefficient (μ) | Tyre–surface grip limit |
-> | Max acceleration | Longitudinal acceleration cap [m/s²] |
-> | Max deceleration | Braking limit [m/s²] |
-> | Car width | Used for track-boundary clearance [m] |
-> | Wheelbase | Axle-to-axle distance [m] |
-> | Max steering angle | Ackermann steering limit [rad] |
+> Save CSV to `f1tenth_planning/trajectories/`
 
 ---
 
 ## PHASE 3: Autonomous Racing — C++ GPU AMCL + Lateral Planner + Pure Pursuit + ROS Bag
 
-Run the car autonomously using the SLAM map for localization, the lateral planner for opponent avoidance, and pure pursuit for path following. Record everything.
+Run the car autonomously using the SLAM map for localization, the lateral planner for opponent avoidance, and pure pursuit for path following.
 
 ### Architecture Overview
 The new stack uses three key pipelines launched across two terminals:
@@ -114,7 +67,6 @@ The new stack uses three key pipelines launched across two terminals:
 
 ### Terminal 1 — VESC Driver Stack + Scan Splitter + Lateral Planner (on Jetson)
 ```bash
-source install/setup.bash
 ros2 launch f1tenth_stack bringup_launch.py
 ```
 > This starts: VESC driver, ackermann mux, Hokuyo LiDAR (40 Hz), **scan splitter** (classifies beams as wall/obstacle), and **lateral planner** (opponent avoidance).
@@ -123,10 +75,7 @@ ros2 launch f1tenth_stack bringup_launch.py
 
 ### Terminal 2 — Localization: C++ GPU AMCL (on Jetson)
 ```bash
-source install/setup.bash
-
 ros2 launch f1tenth_localization cpp_localization.launch.py
-  
 ```
 
 > This launches the full C++ GPU AMCL localization stack:
@@ -134,35 +83,11 @@ ros2 launch f1tenth_localization cpp_localization.launch.py
 > - **odom_fused** — IMU + wheel odom fusion at 200 Hz
 > - **ekf_localization** — EKF sensor fusion + TF broadcast at 200 Hz
 >
-> **Note:** `map_server` is launched by the bringup in Terminal 1, not here.
->
 > All parameters are in `f1tenth_localization/config/gpu_amcl_cpp_params.yaml`.
 
-### Terminal 2b — Set Initial Pose (IMPORTANT!)
-AMCL needs an initial pose estimate. Either:
-
-**Option A:** Use RViz — click "2D Pose Estimate" and place the arrow on the map.
-
-**Option B:** Publish from terminal:
-```bash
-ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped '{
-  header: {frame_id: "map"},
-  pose: {
-    pose: {
-      position: {x: 0.0, y: 0.0, z: 0.0},
-      orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
-    }
-  }
-}'
-```
-> Adjust x, y, and orientation to match where you placed the car on the track.
->
-> **Tip:** The C++ AMCL also supports setting the initial pose in the YAML file (`initial_pose_x`, `initial_pose_y`, `initial_pose_a` under `gpu_amcl_cpp`). This avoids needing to publish manually each time.
-
+---
 ### Terminal 3 — Pure Pursuit Controller (on Jetson)
 ```bash
-source install/setup.bash
-
 ros2 launch f1tenth_control pure_pursuit_launch.py \
   trajectory_file:=/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv \
   max_speed:=3.0 \
@@ -170,31 +95,12 @@ ros2 launch f1tenth_control pure_pursuit_launch.py \
   max_lookahead:=2.0 \
   lookahead_gain:=0.10
 ```
-> **Start with low speed** (3.0 m/s) and increase gradually!
->
-> When the lateral planner is active (from bringup), it publishes a modified raceline on `/local_raceline` that avoids detected opponents. Pure pursuit can subscribe to this topic for dynamic path updates.
 
 ### Terminal 4 — ROS BAG Recording (on Jetson)
 ```bash
-source install/setup.bash
-
 # Record EVERYTHING (large files, but complete):
 ros2 bag record -a -o ~/bags/race_run_$(date +%Y%m%d_%H%M%S)
 ```
-
-### Terminal 5 — RViz on PC (for live monitoring)
-```bash
-source install/setup.bash
-rviz2
-```
-> Add these displays:
-> - Map
-> - LaserScan (`/scan_walls`)
-> - TF
-> - Path (`/local_raceline`)
-> - PoseArray (particle cloud)
-> - Odometry (`/ekf_pose`)
-
 ---
 
 ## PHASE 4: Replay Bags on PC (Foxglove / RViz)
@@ -291,39 +197,3 @@ watch -n 1 'cat /sys/devices/gpu.0/load'
 
 ---
 
-## Network Setup (Jetson ↔ PC)
-
-```bash
-# Both machines must have the same ROS_DOMAIN_ID:
-export ROS_DOMAIN_ID=0  # Add to ~/.bashrc on both machines
-
-# Test connectivity:
-ping JETSON_IP  # from PC
-ros2 topic list     # should show topics from both machines
-```
-
----
-
-## Troubleshooting
-
-
-### AMCL won't localize / particles diverge
-- Set the initial pose first (RViz "2D Pose Estimate") or set `initial_pose_x/y/a` in `gpu_amcl_cpp_params.yaml`
-- Check that `/scan_walls` is being published (scan splitter needs `/map` and `/scan`)
-- Increase `num_particles` in the YAML (default: 2500)
-- Check map quality — poor maps = poor localization
-- Verify the EKF is publishing TF: `ros2 run tf2_ros tf2_echo map ego_racecar/base_link`
-
-### Pure Pursuit oscillates or goes off-track
-- Reduce `max_speed`
-- Increase `min_lookahead` (e.g., 0.5-1.0m)
-- Check that the trajectory CSV coordinates match your map frame
-- Verify the `/amcl_pose` is accurate before enabling
-
-### Car doesn't respond to /drive commands
-- Check `ros2 topic echo /ackermann_cmd` — is the mux forwarding?
-- Check VESC connection: `ros2 topic echo /sensors/core`
-
-### Bag files are too large
-- Record only the topics listed above instead of `-a`
-- Use `ros2 bag record --compression-mode file --compression-format zstd` for compression
