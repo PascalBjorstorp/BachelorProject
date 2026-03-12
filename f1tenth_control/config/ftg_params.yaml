@@ -24,7 +24,7 @@ ftg_node:
     # ===================
     # Steering Control
     # ===================
-    max_steering: 0.4262          # [rad] Maximum steering angle (~24 deg)
+    max_steering: 0.4189          # [rad] Maximum steering angle (~24 deg, calibrated)
     steering_gain: 1.0            # Proportional gain on target angle
     max_steering_rate: 3.5        # [rad/s] Max steering change rate
     target_ema_alpha: 0.35        # EMA smoothing (lower = smoother, 1.0 = none)

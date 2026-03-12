@@ -111,14 +111,30 @@ def generate_launch_description():
 
     servo_gain_arg = DeclareLaunchArgument(
         'servo_gain',
-        default_value='-0.794',
-        description='VESC steering_angle_to_servo_gain'
+        default_value='-0.7284',
+        description='VESC steering_angle_to_servo_gain (calibrated)'
     )
 
     servo_offset_arg = DeclareLaunchArgument(
         'servo_offset',
         default_value='0.55',
         description='VESC steering_angle_to_servo_offset'
+    )
+
+    steer_c2_arg = DeclareLaunchArgument(
+        'steering_correction_c2',
+        default_value='0.589566',
+        description='Steering nonlinearity correction c2 (calibrated 2026-03-12)'
+    )
+    steer_c1_arg = DeclareLaunchArgument(
+        'steering_correction_c1',
+        default_value='0.918061',
+        description='Steering nonlinearity correction c1'
+    )
+    steer_c0_arg = DeclareLaunchArgument(
+        'steering_correction_c0',
+        default_value='0.001490',
+        description='Steering nonlinearity correction c0'
     )
 
     # Set environment variables for the MPC node
@@ -170,6 +186,18 @@ def generate_launch_description():
         'MPC_SERVO_OFFSET',
         LaunchConfiguration('servo_offset')
     )
+    set_steer_c2 = SetEnvironmentVariable(
+        'MPC_STEERING_CORRECTION_C2',
+        LaunchConfiguration('steering_correction_c2')
+    )
+    set_steer_c1 = SetEnvironmentVariable(
+        'MPC_STEERING_CORRECTION_C1',
+        LaunchConfiguration('steering_correction_c1')
+    )
+    set_steer_c0 = SetEnvironmentVariable(
+        'MPC_STEERING_CORRECTION_C0',
+        LaunchConfiguration('steering_correction_c0')
+    )
 
     # MPC hardware node
     mpc_node = Node(
@@ -195,6 +223,9 @@ def generate_launch_description():
         watchdog_timeout_arg,
         servo_gain_arg,
         servo_offset_arg,
+        steer_c2_arg,
+        steer_c1_arg,
+        steer_c0_arg,
         set_trajectory,
         set_odom,
         set_drive,
@@ -207,5 +238,8 @@ def generate_launch_description():
         set_watchdog,
         set_servo_gain,
         set_servo_offset,
+        set_steer_c2,
+        set_steer_c1,
+        set_steer_c0,
         mpc_node,
     ])

@@ -64,6 +64,7 @@ private:
   // conversion gain and offset
   double speed_to_erpm_gain_, speed_to_erpm_offset_;
   double steering_to_servo_gain_, steering_to_servo_offset_;
+  double steering_correction_c2_, steering_correction_c1_, steering_correction_c0_;
   double wheelbase_;
   bool publish_tf_;
   std::string integration_method_;  ///< Integration method: "euler", "trapezoidal", "analytical"

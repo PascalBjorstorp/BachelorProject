@@ -72,7 +72,7 @@ void FTGNode::declareParameters() {
     declare_parameter("steer_slowdown_gain", 0.5);
 
     // Steering control
-    declare_parameter("max_steering", 0.4262);
+    declare_parameter("max_steering", 0.4189);
     declare_parameter("steering_gain", 1.0);
     declare_parameter("max_steering_rate", 3.5);
     declare_parameter("target_ema_alpha", 0.35);

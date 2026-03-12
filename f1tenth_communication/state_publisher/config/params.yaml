@@ -20,10 +20,13 @@ state_publisher:
     wheelbase: 0.324   # [m] (matches MPC/FPGA VP_WHEELBASE)
     
     # VESC servo → steering angle conversion
-    # δ = (servo_val - servo_offset) / servo_gain
-    # Default: servo_val = -0.794 × δ + 0.55
-    servo_gain: -0.794     # [servo_units / rad]
+    # Forward: servo = gain * (c2·|δ|² + c1·|δ| + c0) + offset
+    # Inverse (feedback): solve quadratic to recover δ
+    servo_gain: -0.7284    # [servo_units / rad]
     servo_offset: 0.55     # servo center value (δ=0)
+    steering_correction_c2: 0.589566   # Polynomial correction (calibrated 2026-03-12)
+    steering_correction_c1: 0.918061
+    steering_correction_c0: 0.001490
     
     # Forward-biased waypoint lookup: number of waypoints ahead of KD-tree
     # nearest to check.  Prevents selecting a waypoint behind the car at speed.

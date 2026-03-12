@@ -58,7 +58,7 @@ extern void mpc_fpga_top(
 #define SIM_DURATION      100.0   /* seconds */
 #define SIM_STEPS         ((int)(SIM_DURATION / SIM_DT))
 #define MAX_WAYPOINTS     2000
-#define MAX_STEERING      0.4282  /* rad */
+#define MAX_STEERING      0.4189  /* rad (calibrated with polynomial servo correction) */
 #define MAX_VELOCITY      20.0    /* m/s */
 #define PHYSICAL_MAX_ACCEL 8.0    /* m/s^2 */
 #define MPC_CALL_INTERVAL 1       /* Call MPC every sim step = 5ms = 200Hz (matches CPU test) */
@@ -112,7 +112,7 @@ static const double ST_lr       = 0.16;
 static const double ST_h_cg     = 0.0703;
 static const double ST_g_acc    = 9.81;
 static const double ST_sv_max   = 2.8492;  /* max steering velocity (rad/s) */
-static const double ST_s_max    = 0.4282;  /* max steering angle (rad) */
+static const double ST_s_max    = 0.4189;  /* max steering angle (rad, calibrated) */
 static const double ST_v_switch = 7.319;
 static const double ST_v_min    = 0.0;
 static const double ST_v_max    = 20.0;

@@ -108,12 +108,21 @@ static double g_watchdog_timeout_sec = 0.2;
  * VESC Servo Conversion Parameters
  *===========================================================================
  * The VESC converts steering angle to servo position:
- *   servo_val = steering_to_servo_gain * delta + steering_to_servo_offset
- * Inversion:
- *   delta = (servo_val - steering_to_servo_offset) / steering_to_servo_gain
+ *   servo_val = steering_to_servo_gain * corrected_angle + steering_to_servo_offset
+ * where corrected_angle = c2·|δ|² + c1·|δ| + c0  (sign-preserved)
+ *
+ * Forward (angle → servo): applied in ackermann_to_vesc
+ * Inverse (servo → angle): solve quadratic to recover δ from corrected_angle
+ *   corrected = (servo_val - offset) / gain
+ *   δ = sign(corrected) * (-c1 + sqrt(c1² - 4·c2·(c0 - |corrected|))) / (2·c2)
  */
-static double g_steering_to_servo_gain = -0.794;
+static double g_steering_to_servo_gain = -0.7284;
 static double g_steering_to_servo_offset = 0.55;
+
+/* Servo nonlinearity correction coefficients (calibrated 2026-03-12) */
+static double g_steering_correction_c2 = 0.589566;
+static double g_steering_correction_c1 = 0.918061;
+static double g_steering_correction_c0 = 0.001490;
 
 /*===========================================================================
  * Servo Dynamics Tracking
@@ -678,14 +687,47 @@ void servo_feedback_callback(const void *message_in)
     const std_msgs__msg__Float64 *msg =
         (const std_msgs__msg__Float64 *)message_in;
 
-    /* Convert servo position (0-1) back to steering angle using VESC formula:
-     * servo_val = gain * delta + offset
-     * => delta = (servo_val - offset) / gain */
+    /* Convert servo position (0-1) back to steering angle.
+     *
+     * Forward path (in ackermann_to_vesc):
+     *   corrected = c2·|δ|² + c1·|δ| + c0   (sign preserved)
+     *   servo_val = gain * corrected + offset
+     *
+     * Inverse: recover δ from servo_val:
+     *   corrected = (servo_val - offset) / gain
+     *   solve c2·t² + c1·t + (c0 - |corrected|) = 0 for t
+     *   δ = sign(corrected) * t
+     */
     double servo_val = msg->data;
     if (g_steering_to_servo_gain != 0.0)
     {
-        global_actual_steering_angle =
-            (servo_val - g_steering_to_servo_offset) / g_steering_to_servo_gain;
+        double corrected = (servo_val - g_steering_to_servo_offset)
+                         / g_steering_to_servo_gain;
+        double abs_corr = fabs(corrected);
+
+        /* Invert the polynomial: t = (-c1 + sqrt(c1² + 4·c2·(abs_corr - c0))) / (2·c2) */
+        if (g_steering_correction_c2 != 0.0)
+        {
+            double disc = g_steering_correction_c1 * g_steering_correction_c1
+                        - 4.0 * g_steering_correction_c2
+                              * (g_steering_correction_c0 - abs_corr);
+            if (disc >= 0.0)
+            {
+                double t = (-g_steering_correction_c1 + sqrt(disc))
+                         / (2.0 * g_steering_correction_c2);
+                global_actual_steering_angle = copysign(t, corrected);
+            }
+            else
+            {
+                /* Fallback: linear inverse (discriminant < 0 should not happen) */
+                global_actual_steering_angle = corrected;
+            }
+        }
+        else
+        {
+            /* No polynomial correction (c2=0) — pure linear */
+            global_actual_steering_angle = corrected;
+        }
     }
 
     g_use_steering_feedback = 1;
@@ -1029,6 +1071,12 @@ int main(int argc, char *argv[])
         {
             g_steering_to_servo_offset = atof(env_val);
         }
+        if ((env_val = getenv("MPC_STEERING_CORRECTION_C2")) != NULL)
+            g_steering_correction_c2 = atof(env_val);
+        if ((env_val = getenv("MPC_STEERING_CORRECTION_C1")) != NULL)
+            g_steering_correction_c1 = atof(env_val);
+        if ((env_val = getenv("MPC_STEERING_CORRECTION_C0")) != NULL)
+            g_steering_correction_c0 = atof(env_val);
         if ((env_val = getenv("MPC_AMCL_TOPIC")) != NULL)
             g_amcl_pose_topic = env_val;
     }
@@ -1041,8 +1089,10 @@ int main(int argc, char *argv[])
 
     printf("[MPC] Control rate: %.0f Hz (timer-driven, dt=%.4fs)\n", g_control_rate_hz, g_control_dt);
     printf("[MPC] Topics: odom=%s, drive=%s\n", g_odom_topic, g_drive_topic);
-    printf("[MPC] Servo feedback: %s (gain=%.3f, offset=%.3f)\n",
+    printf("[MPC] Servo feedback: %s (gain=%.4f, offset=%.4f)\n",
            g_servo_topic, g_steering_to_servo_gain, g_steering_to_servo_offset);
+    printf("[MPC] Steering correction: c2=%.6f, c1=%.6f, c0=%.6f\n",
+           g_steering_correction_c2, g_steering_correction_c1, g_steering_correction_c0);
     printf("[MPC] IMU yaw rate: %s\n", g_imu_topic);
     printf("[MPC] Watchdog timeout: %.0f ms\n", g_watchdog_timeout_sec * 1000.0);
     printf("[MPC] Map-frame pose topic: %s\n", g_amcl_pose_topic);

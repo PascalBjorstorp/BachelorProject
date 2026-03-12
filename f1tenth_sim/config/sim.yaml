@@ -72,7 +72,7 @@ bridge:
     vehicle_lf: 0.166       # [CAD] CG to front axle (m)
     vehicle_lr: 0.16        # [CAD] CG to rear axle (m)
     vehicle_h: 0.0703       # [CAD] CG height (m)
-    vehicle_s_max: 0.4282   # [TESTED/CALC] Max steering angle (rad)
+    vehicle_s_max: 0.4189   # [CALIBRATED] Max steering angle (rad) — with polynomial correction
     vehicle_sv_max: 2.8492  # [TESTED] Max steering rate (rad/s)
     vehicle_a_max: 8.0      # [TESTED] Max accel (m/s^2)
     vehicle_v_max: 20.0     # Sim speed limit (m/s)

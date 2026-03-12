@@ -16,7 +16,7 @@ protected:
         config_.min_speed = 1.0;
         config_.speed_full_range = 4.0;
         config_.steer_slowdown_gain = 0.5;
-        config_.max_steering = 0.4262;
+        config_.max_steering = 0.4189;
         config_.steering_gain = 1.0;
         config_.max_steering_rate = 100.0;  // Very high for deterministic tests
         config_.target_ema_alpha = 1.0;     // No smoothing for deterministic tests
