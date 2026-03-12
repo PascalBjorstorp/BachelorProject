@@ -77,12 +77,13 @@ tire:
                              # Cross-validated with motor torque test (μ_x ≈ 0.74)
                              # Depends on surface! Re-test if surface changes.
   
-  C_alpha_f: 55.60  # [TESTED] Front cornering stiffness (N/rad)
+  C_alpha_f: 51.40  # [TESTED] Front cornering stiffness (N/rad)
                              # From combined K_us + yaw-frequency method (report_outline.tex)
-                             # K_us = 0.012 rad/(m/s²) from steady-state cornering data
-                             # Absolute values depend on assumed ω_n=10; ratio C_af/C_ar=1.31
+                             # K_us = 0.0093 rad/(m/s²) from steady-state cornering data
+                             # Corrected for nonlinear servo mapping (old gain −0.7940)
+                             # Absolute values depend on assumed ω_n=10; ratio C_af/C_ar=1.19
   
-  C_alpha_r: 42.30  # [TESTED] Rear cornering stiffness (N/rad)
+  C_alpha_r: 43.10  # [TESTED] Rear cornering stiffness (N/rad)
                              # From combined K_us + yaw-frequency method (see C_alpha_f)
   
   c_roll: 0.163  # Rolling resistance coefficient (dimensionless) — coast-down test 2025-03-11

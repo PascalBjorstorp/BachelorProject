@@ -260,9 +260,9 @@ def reanalyze_cornering():
     #    from step-steer transients). Without that data here, we use
     #    the report's combined K_us + omega_n result.
     # ----------------------------------------------------------
-    C_alpha_best_f = 55.6   # N/rad — combined K_us + yaw-frequency (report_outline.tex)
-    C_alpha_best_r = 42.3   # N/rad — depends on assumed omega_n=10
-    source = "combined K_us + yaw-frequency (report_outline.tex)"
+    C_alpha_best_f = 51.4   # N/rad — combined K_us + yaw-frequency (corrected for servo nonlinearity)
+    C_alpha_best_r = 43.1   # N/rad — depends on assumed omega_n=10
+    source = "combined K_us + yaw-frequency, corrected for nonlinear servo mapping"
 
     print(f"\n  *** BEST ESTIMATE [{source}] ***")
     print(f"    C_alpha_f = {C_alpha_best_f:.1f} N/rad" if C_alpha_best_f else "    C_alpha_f = N/A")

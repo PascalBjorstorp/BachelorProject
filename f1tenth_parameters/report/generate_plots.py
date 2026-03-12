@@ -94,7 +94,22 @@ DEFAULT_L = 0.324          # m  wheelbase
 DEFAULT_LF = 0.169         # m  CG to front axle
 DEFAULT_LR = 0.155         # m  CG to rear axle
 DEFAULT_IZ = 0.035         # kg*m^2  yaw inertia
-SERVO_EFF  = 1.09          # actual_wheel_angle / commanded_angle (from calibration)
+
+# Servo nonlinearity correction for cornering stiffness tests.
+# These tests were run with the OLD servo gain (-0.7940).  The physical
+# servo mapping (actual wheel angle vs. servo value) is:
+#   actual = -0.9262 * s^2 - 0.4778 * s + 0.5365   (s = gain*(-cmd) + offset)
+# With gain=-0.7940, offset=0.55, the actual angle at each commanded angle
+# is computed by _servo_actual_angle() below.
+_SERVO_OLD_GAIN   = -0.7940
+_SERVO_OFFSET     = 0.55
+_SERVO_POLY       = np.array([-0.9262, -0.4778, 0.5365])  # actual = poly(s)
+_SERVO_ZERO_ANGLE = np.polyval(_SERVO_POLY, _SERVO_OFFSET)  # actual at cmd=0
+
+def _servo_actual_angle(cmd_abs):
+    """Return actual wheel angle for a positive commanded angle using old gain."""
+    s = _SERVO_OLD_GAIN * (-cmd_abs) + _SERVO_OFFSET
+    return np.polyval(_SERVO_POLY, s) - _SERVO_ZERO_ANGLE
 
 
 def compute_cornering_summary(data_dir, prefix):
@@ -146,7 +161,7 @@ def compute_cornering_summary(data_dir, prefix):
         if v < 0.3:
             continue
         omega = np.mean(gz[sm])
-        delta = SERVO_EFF * st  # corrected actual wheel angle
+        delta = _servo_actual_angle(st)  # corrected actual wheel angle (old gain)
         a_y = np.mean(ay[sm])
 
         # Slip angles (bicycle model, v_y ≈ 0 assumption)

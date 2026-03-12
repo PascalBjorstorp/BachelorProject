@@ -105,8 +105,8 @@ typedef struct {
 static const double ST_mu       = 0.7463;
 static const double ST_mass     = 3.314;
 static const double ST_Iz       = 0.035;
-static const double ST_C_Sf     = 2.804;
-static const double ST_C_Sr     = 3.320;
+static const double ST_C_Sf     = 4.199;
+static const double ST_C_Sr     = 3.230;
 static const double ST_lf       = 0.166;
 static const double ST_lr       = 0.16;
 static const double ST_h_cg     = 0.0703;

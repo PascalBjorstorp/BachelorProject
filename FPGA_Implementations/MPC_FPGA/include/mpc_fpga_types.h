@@ -133,11 +133,11 @@ typedef int32_t fixed_point_t;
 #define VP_MIN_STIFF_SCALE  FP_CONST(0.1)       /* Floor for effective stiffness */
 
 /* Precomputed Pacejka B parameters (saves 2 fp_mul per linearization call) */
-#define VP_B_FRONT          FP_CONST(1.866)     /* C_Sf / C_shape = 3.546/1.9  */
-#define VP_B_REAR           FP_CONST(2.236)     /* C_Sr / C_shape = 4.249/1.9  */
+#define VP_B_FRONT          FP_CONST(2.210)     /* C_Sf / C_shape = 4.199/1.9  */
+#define VP_B_REAR           FP_CONST(1.700)     /* C_Sr / C_shape = 3.230/1.9  */
 /* Precomputed mu*C_S products (saves 2 fp_mul per linearization) */
-#define VP_MU_CSF           FP_CONST(2.790)     /* mu * C_Sf = 0.787*3.546 */
-#define VP_MU_CSR           FP_CONST(3.344)     /* mu * C_Sr = 0.787*4.249 */
+#define VP_MU_CSF           FP_CONST(3.305)     /* mu * C_Sf = 0.787*4.199 */
+#define VP_MU_CSR           FP_CONST(2.542)     /* mu * C_Sr = 0.787*3.230 */
 
 /*===========================================================================
  * MPC Default Cost Weights (tuned for F1/10th)

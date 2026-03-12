@@ -150,51 +150,253 @@ def compute_centerline_thinned_loop(map_img, resolution, origin, wall_thresh, nu
     if n_skel < 20:
         raise RuntimeError("GVD skeleton too sparse; check wall_thresh or map.")
 
-    # ---- 4. Walk the skeleton ring from the widest point -----------------
-    # The GVD skeleton is mostly a single ring with a few short spurs.
-    # Strategy: start at the pixel with maximum EDT, greedily walk
-    # choosing the neighbour with highest EDT (prefers the main ring
-    # over short spurs).  If we return to start, we have the loop.
+    # ---- 4. Extract the main ring from the skeleton ----------------------
+    # The skeleton is one connected component forming a ring (centerline)
+    # with optional short cross-links at junctions.  A simple greedy walk
+    # can get trapped at multi-pixel junctions.
+    #
+    # Robust approach:
+    #   1. Build adjacency graph.
+    #   2. Find *all* simple cycles using a DFS.
+    #   3. Pick the longest cycle — that's the main ring.
+    #
+    # Since the graph is sparse (~2k nodes, mostly degree 2), this is fast.
 
-    skel_arr  = np.array(list(skel_set))
-    edt_vals  = edt[skel_arr[:, 0], skel_arr[:, 1]]
-    start_idx = int(np.argmax(edt_vals))
-    start_rc  = tuple(skel_arr[start_idx].tolist())
+    from collections import deque
 
-    nr0, nc0 = start_rc
-    print(f"  Start pixel ({nr0},{nc0}), EDT={edt[nr0,nc0]:.1f}px, "
-          f"world=({origin[0]+nc0*resolution:.2f},"
-          f"{origin[1]+(h-1-nr0)*resolution:.2f})")
-
-    def _neighbours(rc):
-        """8-connected skeleton neighbours of pixel rc."""
+    def _nbrs8(rc, pset):
+        """8-connected neighbours of pixel rc that are in pset."""
         r, c = rc
         return [(r+dr, c+dc)
                 for dr in (-1, 0, 1) for dc in (-1, 0, 1)
-                if (dr or dc) and (r+dr, c+dc) in skel_set]
+                if (dr or dc) and (r+dr, c+dc) in pset]
 
-    # Greedy ring walk
-    visited = {start_rc}
-    pixel_path = [start_rc]
-    cur = start_rc
-    closed_loop = False
+    # Build adjacency dict
+    adj = {p: set(_nbrs8(p, skel_set)) for p in skel_set}
 
-    while True:
-        nbrs = _neighbours(cur)
-        # Unvisited neighbours, sorted by EDT descending (prefer main ring)
-        unvis = [(edt[n[0], n[1]], n) for n in nbrs if n not in visited]
-        if unvis:
-            unvis.sort(reverse=True)
-            nxt = unvis[0][1]
-            visited.add(nxt)
-            pixel_path.append(nxt)
-            cur = nxt
+    # Identify junction pixels (degree >= 3)
+    junc_pixels = {p for p in adj if len(adj[p]) >= 3}
+    print(f"  Junction pixels (degree>=3): {len(junc_pixels)}")
+
+    # Strategy: simplify the graph by contracting degree-2 chains into
+    # single edges between junctions.  Then find the main cycle on the
+    # simplified graph.  Finally expand back.
+    #
+    # If there are no junctions (pure ring), just walk it directly.
+
+    if not junc_pixels:
+        # Pure ring — simple walk
+        ring_arr = np.array(list(skel_set))
+        edt_vals = edt[ring_arr[:, 0], ring_arr[:, 1]]
+        start_idx = int(np.argmax(edt_vals))
+        start_rc = tuple(ring_arr[start_idx].tolist())
+        visited_w = {start_rc}
+        pixel_path = [start_rc]
+        cur = start_rc
+        closed_loop = False
+        while True:
+            unvis = [(edt[n[0], n[1]], n) for n in adj[cur] if n not in visited_w]
+            if unvis:
+                unvis.sort(reverse=True)
+                nxt = unvis[0][1]
+                visited_w.add(nxt)
+                pixel_path.append(nxt)
+                cur = nxt
+            else:
+                if start_rc in adj[cur] and len(pixel_path) > 10:
+                    closed_loop = True
+                break
+    else:
+        # --- Contract degree-2 chains into edges ---
+        # Group junction pixels into clusters (connected via other junctions)
+        junc_remaining = set(junc_pixels)
+        junc_clusters = []
+        while junc_remaining:
+            seed = next(iter(junc_remaining))
+            cluster = set()
+            q = deque([seed])
+            while q:
+                p = q.popleft()
+                if p in cluster:
+                    continue
+                cluster.add(p)
+                junc_remaining.discard(p)
+                for nb in adj[p]:
+                    if nb in junc_remaining:
+                        q.append(nb)
+            junc_clusters.append(frozenset(cluster))
+
+        # Map pixel → cluster id
+        px_to_cid = {}
+        for cid, cl in enumerate(junc_clusters):
+            for p in cl:
+                px_to_cid[p] = cid
+
+        print(f"  Junction clusters: {len(junc_clusters)}, "
+              f"sizes: {sorted(len(c) for c in junc_clusters)}")
+
+        # Trace chains: start from each junction pixel, follow degree-2
+        # pixels until reaching another junction pixel.
+        chains = []  # (cid_a, cid_b, [pixel list including endpoints])
+        chain_visited_px = set()
+
+        for cid_a, cluster_a in enumerate(junc_clusters):
+            for jp in cluster_a:
+                for nb in adj[jp]:
+                    if nb in junc_pixels:
+                        continue  # skip junction-junction direct edges for now
+                    if nb in chain_visited_px:
+                        continue
+                    # Trace a chain from jp through nb
+                    chain = [jp, nb]
+                    chain_visited_px.add(nb)
+                    cur = nb
+                    prev = jp
+                    while True:
+                        nxts = [n for n in adj[cur] if n != prev and n not in chain_visited_px]
+                        # Filter: if we hit a junction pixel, stop
+                        junc_nxts = [n for n in nxts if n in junc_pixels]
+                        non_junc = [n for n in nxts if n not in junc_pixels]
+                        if junc_nxts:
+                            # Reached a junction — pick the one that continues the ring
+                            chain.append(junc_nxts[0])
+                            cid_b = px_to_cid[junc_nxts[0]]
+                            chains.append((cid_a, cid_b, chain))
+                            break
+                        elif non_junc:
+                            nxt = non_junc[0]
+                            chain_visited_px.add(nxt)
+                            chain.append(nxt)
+                            prev = cur
+                            cur = nxt
+                        else:
+                            # Dead end (spur) — discard this chain
+                            break
+
+        # Also add direct junction-to-junction edges (between different clusters)
+        direct_edges = set()
+        for cid_a, cluster_a in enumerate(junc_clusters):
+            for jp in cluster_a:
+                for nb in adj[jp]:
+                    if nb in junc_pixels and px_to_cid[nb] != cid_a:
+                        pair = (min(cid_a, px_to_cid[nb]), max(cid_a, px_to_cid[nb]))
+                        if pair not in direct_edges:
+                            direct_edges.add(pair)
+                            chains.append((pair[0], pair[1], [jp, nb]))
+
+        # Filter out self-loops (chains from cluster X back to cluster X)
+        ring_chains = [(a, b, c) for a, b, c in chains if a != b]
+        self_loops  = [(a, b, c) for a, b, c in chains if a == b]
+        if self_loops:
+            print(f"  Dropped {len(self_loops)} self-loop chain(s)")
+        chains = ring_chains
+
+        print(f"  Chains: {len(chains)}")
+        for i, (ca, cb, ch) in enumerate(chains):
+            print(f"    Chain {i}: cluster {ca}→{cb}, {len(ch)} px")
+
+        # Build a simplified multigraph: nodes = cluster ids, edges = chains
+        n_clusters = len(junc_clusters)
+        cluster_adj = {cid: [] for cid in range(n_clusters)}
+        for ci, (ca, cb, ch) in enumerate(chains):
+            cluster_adj[ca].append((ci, cb))
+            cluster_adj[cb].append((ci, ca))
+
+        # Find the main cycle using DFS on the simplified graph
+        # We want the longest simple cycle
+        best_cycle = None
+
+        def dfs_cycle(start_cid):
+            nonlocal best_cycle
+            # stack: (current_cluster, list_of_chain_indices, set_of_used_chains)
+            stack = [(start_cid, [], set())]
+            while stack:
+                cur_cid, path, used = stack.pop()
+                for ci, next_cid in cluster_adj[cur_cid]:
+                    if ci in used:
+                        continue
+                    if next_cid == start_cid and len(path) > 0:
+                        # Found a cycle
+                        cycle = path + [ci]
+                        if best_cycle is None or len(cycle) > len(best_cycle):
+                            best_cycle = cycle
+                        continue
+                    # Avoid revisiting clusters (except start)
+                    visited_clusters = {start_cid}
+                    for pci in path:
+                        ca, cb, _ = chains[pci]
+                        visited_clusters.add(ca)
+                        visited_clusters.add(cb)
+                    if next_cid in visited_clusters and next_cid != start_cid:
+                        continue
+                    new_used = used | {ci}
+                    stack.append((next_cid, path + [ci], new_used))
+
+        # Try starting from each cluster to find the best cycle
+        for start in range(n_clusters):
+            dfs_cycle(start)
+            if best_cycle and len(best_cycle) >= n_clusters:
+                break  # found a Hamiltonian cycle, can't do better
+
+        if best_cycle is None:
+            raise RuntimeError("Could not find a cycle in the simplified skeleton graph.")
+
+        print(f"  Best cycle: {len(best_cycle)} chains (of {len(chains)})")
+
+        # Reconstruct pixel path from the chain cycle
+        # Determine correct chain orientation for each step
+        pixel_path = []
+        # Determine traversal direction for each chain in the cycle
+        first_chain = chains[best_cycle[0]]
+        # Start cluster for the cycle
+        if len(best_cycle) > 1:
+            second_chain = chains[best_cycle[1]]
+            # Figure out shared cluster between chain 0 and chain 1
+            c0_set = {first_chain[0], first_chain[1]}
+            c1_set = {second_chain[0], second_chain[1]}
+            shared = c0_set & c1_set
+            if shared:
+                # Chain 0 should end at the shared cluster
+                end_cluster = next(iter(shared))
+                if first_chain[1] == end_cluster:
+                    pixel_path.extend(first_chain[2])
+                else:
+                    pixel_path.extend(reversed(first_chain[2]))
+            else:
+                pixel_path.extend(first_chain[2])
         else:
-            # No unvisited neighbours — check if we can close back to start
-            if start_rc in nbrs and len(pixel_path) > 10:
-                closed_loop = True
-            break
+            pixel_path.extend(first_chain[2])
 
+        for step in range(1, len(best_cycle)):
+            ci = best_cycle[step]
+            ca, cb, ch = chains[ci]
+            # Connect to previous path
+            last_px = pixel_path[-1]
+            # Check which end of chain is closer to last_px
+            d_start = abs(ch[0][0] - last_px[0]) + abs(ch[0][1] - last_px[1])
+            d_end = abs(ch[-1][0] - last_px[0]) + abs(ch[-1][1] - last_px[1])
+            if d_start <= d_end:
+                # Forward direction: skip first pixel if it overlaps
+                start_idx = 1 if ch[0] == last_px or d_start == 0 else 0
+                pixel_path.extend(ch[start_idx:])
+            else:
+                # Reverse direction
+                rev = list(reversed(ch))
+                start_idx = 1 if rev[0] == last_px or d_end == 0 else 0
+                pixel_path.extend(rev[start_idx:])
+
+        closed_loop = True  # we found a cycle
+
+    # Re-order path to start from the pixel with highest EDT
+    path_arr = np.array(pixel_path)
+    path_edt = edt[path_arr[:, 0], path_arr[:, 1]]
+    best_start = int(np.argmax(path_edt))
+    pixel_path = pixel_path[best_start:] + pixel_path[:best_start]
+
+    nr0, nc0 = pixel_path[0]
+    print(f"  Start pixel ({nr0},{nc0}), EDT={edt[nr0,nc0]:.1f}px, "
+          f"world=({origin[0]+nc0*resolution:.2f},"
+          f"{origin[1]+(h-1-nr0)*resolution:.2f})")
     print(f"  Ring walk: {len(pixel_path)} pixels, closed={closed_loop}")
 
     if not closed_loop:

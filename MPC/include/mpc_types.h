@@ -428,20 +428,20 @@ typedef struct
     FP_CONST(0.787)
 
 /** Front cornering stiffness [1/rad] [TESTED]
- *  From test_cornering_stiffness.py measurements, consistent with sim.yaml.
+ *  From test_cornering_stiffness.py, corrected for nonlinear servo mapping.
  *  Conversion: C_Sf = C_alpha_f / (mu * F_zf)
- *    F_zf = m*g*l_r/L = 3.314*9.81*0.16/0.324 = 16.05 N
- *    C_alpha_f = 44.8 → C_Sf = 44.8/(0.787*16.05) = 3.546  */
+ *    F_zf = m*g*l_r/L = 3.314*9.81*0.155/0.324 = 15.55 N
+ *    C_alpha_f = 51.4 → C_Sf = 51.4/(0.787*15.55) = 4.199  */
 #define F110_FRONT_CORNERING_STIFFNESS \
-    FP_CONST(3.546)
+    FP_CONST(4.199)
 
 /** Rear cornering stiffness [1/rad] [TESTED]
- *  From test_cornering_stiffness.py measurements, consistent with sim.yaml.
+ *  From test_cornering_stiffness.py, corrected for nonlinear servo mapping.
  *  Conversion: C_Sr = C_alpha_r / (mu * F_zr)
- *    F_zr = m*g*l_f/L = 3.314*9.81*0.166/0.324 = 16.66 N
- *    C_alpha_r = 55.7 → C_Sr = 55.7/(0.787*16.66) = 4.249  */
+ *    F_zr = m*g*l_f/L = 3.314*9.81*0.169/0.324 = 16.96 N
+ *    C_alpha_r = 43.1 → C_Sr = 43.1/(0.787*16.96) = 3.230  */
 #define F110_REAR_CORNERING_STIFFNESS \
-    FP_CONST(4.249)
+    FP_CONST(3.230)
 
 /** Maximum longitudinal acceleration [m/s²]
  *  From vehicle_params.yaml: max_accel = 8.0 m/s² [TESTED]
