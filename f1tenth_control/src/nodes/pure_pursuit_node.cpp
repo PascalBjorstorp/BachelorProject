@@ -1,4 +1,6 @@
 #include "f1tenth_control/nodes/pure_pursuit_node.hpp"
+#include <tf2/utils.h>
+#include <tf2/exceptions.h>
 #include <cmath>
 
 namespace f1tenth_control {
@@ -11,6 +13,10 @@ PurePursuitNode::PurePursuitNode(const rclcpp::NodeOptions& options)
     // Declare and load parameters
     declareParameters();
     loadParameters();
+
+    // TF listener for map-frame pose
+    tf_buffer_   = std::make_shared<tf2_ros::Buffer>(get_clock());
+    tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
     
     // Create controller
     controller_ = std::make_unique<PurePursuit>(config_);
@@ -22,11 +28,6 @@ PurePursuitNode::PurePursuitNode(const rclcpp::NodeOptions& options)
     }
     
     // Setup subscribers
-    pose_sub_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
-        "/ekf_pose", 10,
-        std::bind(&PurePursuitNode::poseCallback, this, std::placeholders::_1)
-    );
-    
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
         "/odom", rclcpp::SensorDataQoS(),
         std::bind(&PurePursuitNode::odomCallback, this, std::placeholders::_1)
@@ -90,6 +91,8 @@ void PurePursuitNode::declareParameters() {
     
     // Misc
     declare_parameter("publish_visualization", true);
+    declare_parameter("map_frame",  std::string("map"));
+    declare_parameter("base_frame", std::string("ego_racecar/base_link"));
 }
 
 void PurePursuitNode::loadParameters() {
@@ -107,6 +110,8 @@ void PurePursuitNode::loadParameters() {
     config_.wheelbase = get_parameter("wheelbase").as_double();
     
     publish_visualization_ = get_parameter("publish_visualization").as_bool();
+    map_frame_  = get_parameter("map_frame").as_string();
+    base_frame_ = get_parameter("base_frame").as_string();
 }
 
 rcl_interfaces::msg::SetParametersResult PurePursuitNode::parametersCallback(
@@ -156,21 +161,9 @@ bool PurePursuitNode::loadTrajectory() {
     return false;
 }
 
-void PurePursuitNode::poseCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
-    std::lock_guard<std::mutex> lock(state_mutex_);
-    current_state_.pose.x = msg->pose.pose.position.x;
-    current_state_.pose.y = msg->pose.pose.position.y;
-    // Extract yaw from quaternion
-    const auto& q = msg->pose.pose.orientation;
-    double siny = 2.0 * (q.w * q.z + q.x * q.y);
-    double cosy = 1.0 - 2.0 * (q.y * q.y + q.z * q.z);
-    current_state_.pose.theta = std::atan2(siny, cosy);
-}
-
 void PurePursuitNode::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
-        // Only take velocity from /odom — pose comes from /ekf_pose
         current_state_.velocity = msg->twist.twist.linear.x;
         current_state_.angular_velocity = msg->twist.twist.angular.z;
     }
@@ -246,6 +239,9 @@ void PurePursuitNode::controlLoop() {
     if (!enabled_ || !trajectory_loaded_) {
         return;
     }
+    
+    // Update pose from TF (map frame)
+    updatePoseFromTF();
 
     VehicleState state;
     {
@@ -277,6 +273,30 @@ void PurePursuitNode::controlLoop() {
         RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, 
                             "Invalid Pure Pursuit output");
     }
+}
+
+bool PurePursuitNode::updatePoseFromTF() {
+    geometry_msgs::msg::TransformStamped tf;
+    try {
+        tf = tf_buffer_->lookupTransform(
+            map_frame_, base_frame_,
+            tf2::TimePointZero,
+            tf2::durationFromSec(0.02));
+    } catch (const tf2::TransformException & ex) {
+        RCLCPP_DEBUG(get_logger(), "TF lookup failed: %s", ex.what());
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    current_state_.pose.x = tf.transform.translation.x;
+    current_state_.pose.y = tf.transform.translation.y;
+    current_state_.pose.theta = tf2::getYaw(
+        tf2::Quaternion(
+            tf.transform.rotation.x,
+            tf.transform.rotation.y,
+            tf.transform.rotation.z,
+            tf.transform.rotation.w));
+    return true;
 }
 
 void PurePursuitNode::publishDriveCommand(double steering, double speed) {
