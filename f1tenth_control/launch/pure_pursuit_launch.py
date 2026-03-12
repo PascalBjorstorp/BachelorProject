@@ -63,7 +63,7 @@ def generate_launch_description():
     
     speed_gain_arg = DeclareLaunchArgument(
         'speed_gain',
-        default_value='0.8',
+        default_value='1.0',
         description='Multiplier for trajectory target speeds (0-1)'
     )
     
@@ -83,7 +83,6 @@ def generate_launch_description():
             'speed_gain': LaunchConfiguration('speed_gain'),
             'max_steering': 0.4189,
             'wheelbase': 0.3302,
-            'curvature_speed_factor': 0.3,  # Speed reduction based on path curvature
             'publish_visualization': True,
         }],
         remappings=[

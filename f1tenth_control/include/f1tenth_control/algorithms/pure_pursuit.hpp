@@ -31,9 +31,6 @@ struct PurePursuitConfig {
     
     // Path tracking
     double position_tolerance{0.5}; // [m] Max deviation before re-finding closest point
-    
-    // Stability
-    double curvature_speed_factor{1.0}; // Speed reduction factor based on path curvature (increased)
 };
 
 // TrajectoryPoint is defined in common/types.hpp

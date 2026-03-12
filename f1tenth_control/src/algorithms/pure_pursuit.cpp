@@ -219,27 +219,8 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     // Clamp steering (hardware servo enforces its own rate limit)
     steering_angle = std::clamp(steering_angle, -config_.max_steering, config_.max_steering);
     
-    // Compute target speed from trajectory
+    // Compute target speed from trajectory (optimizer accounts for tire limits)
     double target_speed = target_pt.velocity * config_.speed_gain;
-    
-    // Speed reduction based on path curvature ahead
-    // Look at curvature along the next few waypoints
-    double max_upcoming_curvature = 0.0;
-    const size_t lookahead_points = 20;  // Look ~2 seconds ahead at ~10 points/sec
-    for (size_t i = 0; i < lookahead_points && (closest_idx + i) < trajectory_.size(); ++i) {
-        size_t idx = (closest_idx + i) % trajectory_.size();
-        max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(trajectory_[idx].curvature));
-    }
-    
-    // Reduce speed based on upcoming curvature
-    // Higher curvature = sharper turn = need to slow down
-    double curvature_speed_limit = config_.max_speed / (1.0 + config_.curvature_speed_factor * max_upcoming_curvature * 10.0);
-    target_speed = std::min(target_speed, curvature_speed_limit);
-    
-    // Also reduce speed based on steering magnitude
-    double steer_ratio = std::abs(steering_angle) / config_.max_steering;
-    double speed_reduction = 1.0 - 0.3 * steer_ratio;
-    target_speed *= speed_reduction;
     
     // Apply speed limits
     target_speed = std::clamp(target_speed, config_.min_speed, config_.max_speed);

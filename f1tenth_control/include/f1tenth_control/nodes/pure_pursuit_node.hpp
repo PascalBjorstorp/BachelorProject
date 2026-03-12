@@ -7,9 +7,7 @@
 #include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <std_msgs/msg/bool.hpp>
-#include <geometry_msgs/msg/pose_stamped.hpp>
-#include <tf2_ros/buffer.h>
-#include <tf2_ros/transform_listener.h>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 
 #include "f1tenth_control/algorithms/pure_pursuit.hpp"
 #include <memory>
@@ -29,7 +27,8 @@ namespace f1tenth_control {
  * 
  * Topics:
  *   Subscriptions:
- *     - /odom (nav_msgs/Odometry): Vehicle pose and velocity
+ *     - /ekf_pose (geometry_msgs/PoseWithCovarianceStamped): Map-frame pose from EKF
+ *     - /odom (nav_msgs/Odometry): Vehicle velocity
  *     - /pp_enable (std_msgs/Bool): Enable/disable controller
  *   
  *   Publications:
@@ -62,10 +61,7 @@ private:
     bool trajectory_loaded_{false};
     
     // ROS2 Communication
-    // TF for map-frame pose (keeps waypoint and vehicle coordinates consistent)
-    std::shared_ptr<tf2_ros::Buffer>            tf_buffer_;
-    std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
-
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr enable_sub_;
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr local_raceline_sub_;
@@ -79,8 +75,6 @@ private:
     
     // Parameters
     std::string trajectory_file_;
-    std::string map_frame_{"map"};
-    std::string base_frame_{"ego_racecar/base_link"};
     bool publish_visualization_{true};
     
     void declareParameters();
@@ -91,11 +85,11 @@ private:
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
     
     // Callbacks
+    void poseCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
     void odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg);
     void enableCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void localRacelineCallback(const nav_msgs::msg::Path::SharedPtr msg);
     void controlLoop();
-    bool updatePoseFromTF();  // Updates pose in map frame; falls back to /odom
     
     // Publishing
     void publishDriveCommand(double steering, double speed);
