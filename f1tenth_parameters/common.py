@@ -82,7 +82,7 @@ DEFAULT_MIN_BATTERY_V = 10.5   # volts (3S LiPo cutoff ~3.5V/cell)
 # VESC conversion defaults (from vesc.yaml)
 DEFAULT_ERPM_GAIN = 4550.0
 DEFAULT_ERPM_OFFSET = 0.0
-DEFAULT_SERVO_GAIN = -0.7940
+DEFAULT_SERVO_GAIN = -0.7284
 DEFAULT_SERVO_OFFSET = 0.5500
 DEFAULT_SERVO_MIN = 0.202
 DEFAULT_SERVO_MAX = 0.890
@@ -1242,11 +1242,11 @@ VEHICLE_PARAMS_FILE = os.path.join(
 
 # Dependency map: which tests need re-running when a parameter changes
 PARAM_DEPENDENCIES = {
-    'mass': ['test_cornering_stiffness.py', 'test_longitudinal_stiffness.py',
+    'mass': ['test_cornering_stiffness.py', 'test_rolling_resistance.py',
              'test_motor_torque.py'],
     'l_f': ['test_cornering_stiffness.py'],
     'l_r': ['test_cornering_stiffness.py'],
-    'r_eff': ['test_longitudinal_stiffness.py', 'test_motor_torque.py'],
+    'r_eff': ['test_motor_torque.py'],
     'gear_ratio': ['test_motor_torque.py'],
     'wheelbase': ['test_cornering_stiffness.py', 'test_steering_rate.py'],
 }

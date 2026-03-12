@@ -51,10 +51,10 @@ from scipy.interpolate import splprep, splev
 # =============================================================================
 
 def find_workspace_root():
-    """Walk up from this script to find the workspace root (contains global_racetrajectory_optimization/)."""
+    """Walk up from this script to find the workspace root (contains f1tenth_sim/)."""
     d = os.path.dirname(os.path.abspath(__file__))
     for _ in range(10):
-        if os.path.isdir(os.path.join(d, 'global_racetrajectory_optimization')):
+        if os.path.isdir(os.path.join(d, 'f1tenth_sim')):
             return d
         d = os.path.dirname(d)
     return None
@@ -813,12 +813,12 @@ def main():
     if not workspace:
         print(
             "ERROR: Could not find workspace root "
-            "(no global_racetrajectory_optimization/ found)"
+            "(no f1tenth_sim/ found)"
         )
         sys.exit(1)
 
     scripts_dir = os.path.dirname(os.path.abspath(__file__))
-    global_opt_dir = os.path.join(workspace, 'global_racetrajectory_optimization')
+    global_opt_dir = os.path.join(workspace, 'f1tenth_planning', 'global_racetrajectory_optimization')
     default_output = os.path.join(workspace, 'f1tenth_planning', 'trajectories')
 
     # ---- Argument parsing ----------------------------------------------------
@@ -879,7 +879,7 @@ def main():
         help='Physical car width [m] used for wall distance margin (default: 0.273, F1Tenth)',
     )
     parser.add_argument(
-        '--wall-clearance', type=float, default=0.05,
+        '--wall-clearance', type=float, default=0.02,
         help='Extra clearance from walls beyond car width on each side [m] (default: 0.05). '
              'Optimizer width_opt = car_width + 2*wall_clearance',
     )

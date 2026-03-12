@@ -22,8 +22,8 @@ import numpy as np
 OLD_GAIN = -0.6960
 OLD_OFFSET = 0.5460
 
-# New corrected gain (final calibrated values)
-NEW_GAIN = -0.7940
+# New calibrated gain (final calibrated values)
+NEW_GAIN = -0.7284
 NEW_OFFSET = 0.5500  # final offset
 
 # Physical wheelbase for reference (tape measurement / CAD)
