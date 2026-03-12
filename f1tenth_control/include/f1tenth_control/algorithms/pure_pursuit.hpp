@@ -25,7 +25,6 @@ struct PurePursuitConfig {
     
     // Steering limits
     double max_steering{0.4189};    // [rad] Maximum steering angle (~24°)
-    double max_steering_rate{3.0};  // [rad/s] Max steering change rate for stability
     
     // Vehicle parameters
     double wheelbase{0.3302};       // [m] Distance between axles
@@ -35,9 +34,6 @@ struct PurePursuitConfig {
     
     // Stability
     double curvature_speed_factor{1.0}; // Speed reduction factor based on path curvature (increased)
-    
-    // Control rate (for steering rate limiting)
-    double control_rate{50.0};          // [Hz] Control loop frequency
 };
 
 // TrajectoryPoint is defined in common/types.hpp
@@ -118,16 +114,10 @@ public:
      */
     double getTrajectoryLength() const;
     
-    /**
-     * @brief Set previous steering for rate limiting
-     */
-    void setLastSteering(double steering) { last_steering_ = steering; }
-    
 private:
     PurePursuitConfig config_;
     std::vector<TrajectoryPoint> trajectory_;
     size_t last_closest_idx_{0};  // For efficient search
-    double last_steering_{0.0};   // For steering rate limiting
     
     /**
      * @brief Find closest point on trajectory to position

@@ -82,11 +82,9 @@ def generate_launch_description():
             'min_speed': 1.0,
             'speed_gain': LaunchConfiguration('speed_gain'),
             'max_steering': 0.4189,
-            'max_steering_rate': 3.0,  # rad/s - limits steering rate for stability
             'wheelbase': 0.3302,
             'curvature_speed_factor': 0.3,  # Speed reduction based on path curvature
             'publish_visualization': True,
-            'control_rate': 200.0,
         }],
         remappings=[
             ('/odom', '/ego_racecar/odom'),

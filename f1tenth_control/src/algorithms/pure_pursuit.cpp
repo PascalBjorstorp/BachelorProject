@@ -206,17 +206,7 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     // Convert curvature to steering angle using bicycle model
     double steering_angle = std::atan(config_.wheelbase * curvature);
     
-    // Apply steering rate limiting for stability at high speeds
-    // This prevents sudden steering changes that cause oscillation
-    double dt = 1.0 / config_.control_rate;
-    double max_delta = config_.max_steering_rate * dt;
-    double delta_steering = steering_angle - last_steering_;
-    if (std::abs(delta_steering) > max_delta) {
-        steering_angle = last_steering_ + std::copysign(max_delta, delta_steering);
-    }
-    last_steering_ = steering_angle;
-    
-    // Clamp steering
+    // Clamp steering (hardware servo enforces its own rate limit)
     steering_angle = std::clamp(steering_angle, -config_.max_steering, config_.max_steering);
     
     // Compute target speed from trajectory
