@@ -1,7 +1,7 @@
 image: my_track_map.pgm
-resolution: 0.05
-origin: [-1.87, -6.36, 0]
+mode: trinary
+resolution: 0.010
+origin: [-2.423, -5.815, 0]
 negate: 0
 occupied_thresh: 0.65
 free_thresh: 0.196
-free_thresh: 0.25
