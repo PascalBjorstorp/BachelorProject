@@ -411,8 +411,8 @@ def main():
                         help='Vehicle mass in kg (default: 3.314)')
     parser.add_argument('--Kt', type=float, default=0.00273,
                         help='Motor torque constant Nm/A (default: 0.00273 for 3351R)')
-    parser.add_argument('--r-tire', type=float, default=0.05,
-                        help='Effective tire radius in m (default: 0.05, UPDATE THIS)')
+    parser.add_argument('--r-tire', type=float, default=0.051,
+                        help='Effective tire radius in m (default: 0.051, from vehicle_params.yaml)')
     parser.add_argument('--geofence', type=float, default=10.0,
                         help='Max distance from start before abort (m, default: 10.0)')
     parser.add_argument('--runs', type=int, default=5,

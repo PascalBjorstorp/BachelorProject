@@ -8,7 +8,7 @@ vehicle:
   width: 0.273                # [m] Total car width (for safety margin)
   
   # Tire/friction properties
-  friction_coeff: 0.7463     # [-] Tire-road friction coefficient (μ)
+  friction_coeff: 0.787      # [-] Tire-road friction coefficient (μ)
   
   # Acceleration limits
   max_acceleration: 8.0     # [m/s²] Maximum longitudinal acceleration
@@ -29,8 +29,8 @@ optimization:
 # These are kept for documentation and future advanced features
 advanced:
   # Detailed dimensions
-  lf: 0.166                # [m] CG to front axle
-  lr: 0.16                # [m] CG to rear axle
+  lf: 0.169                # [m] CG to front axle
+  lr: 0.155                # [m] CG to rear axle
   length: 0.53               # [m] Total car length
   
   # Mass properties
@@ -39,14 +39,13 @@ advanced:
   cg_height: 0.074           # [m] Center of gravity height
   
   # Tire cornering stiffness (for dynamic models)
-  C_Sf: 4.718                # [1/rad] Front cornering stiffness
-  C_Sr: 5.4562               # [1/rad] Rear cornering stiffness
-  # Note: C_Sr > C_Sf → slight understeer tendency
+  C_Sf: 1.71                # [1/rad] Front cornering stiffness (C_af/(m*g))
+  C_Sr: 1.30                # [1/rad] Rear cornering stiffness (C_ar/(m*g))
+  # Note: C_Sf > C_Sr; car understeers (K_us = 0.012)
   
-  # Longitudinal tire stiffness (for dynamic models)
-  C_x: 61.3                  # [N/unit-slip] Longitudinal stiffness (combined, all 4 wheels)
-  # Measured via LiDAR ICP scan-matching, 10 runs at 6 m/s, R²=0.42
+  # Rolling resistance (for trajectory optimizer mintime mode)
+  c_roll: 0.163               # [-] Rolling resistance coefficient (measured coast-down 2025-03-11)
   
   # Steering constraints  
-  max_steering_angle: 0.4282 # [rad] Maximum steering angle (~24°)
+  max_steering_angle: 0.4668 # [rad] Maximum steering angle (~27°)
   max_steering_rate: 2.8492     # [rad/s] Maximum steering rate

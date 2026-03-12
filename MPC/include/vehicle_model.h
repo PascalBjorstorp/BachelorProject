@@ -63,7 +63,7 @@
  * - Max velocity: 20.0 m/s
  * - Max motor torque: 22.9 N·m, Min: -24.1 N·m
  * - Wheel radius: 0.0545 m, Gear ratio: 11.82
- * - Drivetrain inertia: 2.223 kg·m², C_x: 100 N
+ * - Drivetrain inertia: 2.223 kg·m²
  */
 void vehicle_model_initialize(void);
 

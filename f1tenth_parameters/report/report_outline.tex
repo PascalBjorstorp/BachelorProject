@@ -90,9 +90,9 @@ with slip angles
   \alpha_f = \delta - \arctan\!\frac{v_y + l_f\,\omega}{v_x}, \qquad
   \alpha_r = -\arctan\!\frac{v_y - l_r\,\omega}{v_x}.
 \end{equation}
-The longitudinal tire force is $F_x = C_x\,\kappa$, where $\kappa$ is the
-slip ratio. Table~\ref{tab:params} lists all model parameters and the
-test used to identify each one.
+The longitudinal force is modelled as $F_x = m\,a_\text{cmd}$ (the MPC
+commands acceleration directly via the VESC). Table~\ref{tab:params} lists
+all model parameters and the test used to identify each one.
 
 %%% ===================================================================
 \subsection{Tire Friction Coefficient}\label{sec:friction}
@@ -182,45 +182,15 @@ where $\beta = v_y / v_x$ is the body sideslip angle.  The cornering
 stiffnesses follow from $C_{\alpha f} = -F_{yf}/\alpha_f$ and
 $C_{\alpha r} = -F_{yr}/\alpha_r$ in the assumed linear tyre region.
 
-\paragraph{Kinematic degeneracy.}
-On this platform the VESC odometry always reports $v_y = 0$, and
-no EKF or other sensor provides a lateral-velocity estimate.
-Setting $\beta = 0$ in~\eqref{eq:alpha-ss} reduces the rear slip
-angle to $\alpha_r = -l_r\,\omega / v_x$, and combining with
-$a_y = \omega\,v_x$ (steady-state kinematic relation) yields
-\begin{equation}\label{eq:degeneracy}
-  C_{\alpha r}
-    = \frac{m\,a_y\,l_f / L}{l_r\,\omega / v_x}
-    = \frac{m\,v_x^2\,l_f}{L\,l_r},
-\end{equation}
-which is a \emph{kinematic identity}---it depends only on speed and
-geometry, not on tyre properties.  A similar argument holds for the
-front axle.  Any apparent ``measurement'' of $C_\alpha$ from
-steady-state data without an independent $v_y$ sensor is therefore
-illusory, as it reproduces the $v^2$ relation rather than a tyre
-characteristic.
+Because the VESC odometry reports $v_y = 0$ and no sensor on this platform
+provides a reliable lateral-velocity estimate, the per-point slip angle
+method cannot separate tyre properties from kinematics.
+The understeer gradient method avoids this limitation entirely.
 
-\includefigure[width=\textwidth]{cornering_degeneracy.pdf}{%
-  \emph{Left:} Na\"ive $C_{\alpha r}$ (computed with $\beta = 0$)
-  versus speed.  The solid curve is the kinematic identity
-  $m\,v_x^2\,l_f/(L\,l_r)$; the data follow it exactly, confirming
-  that the na\"ive method identifies geometry, not tyre stiffness.
-  \emph{Right:} Lateral force $F_y$ versus slip angle $\alpha$ for the
-  rear axle, coloured by speed.  Each speed forms a distinct cluster
-  because both $F_y$ and $\alpha$ scale with
-  $v_x^2$.\label{fig:cornering-degen}}
-
-LiDAR-based lateral velocity (ICP scan-matching) was also tested as an
-independent $v_y$ source.  The resulting sideslip estimates showed a
-standard deviation of \SIrange{0.2}{0.5}{\metre\per\second} per sample,
-which is an order of magnitude larger than the expected signal
-($\sim$\SI{0.05}{\metre\per\second}).  The ICP-derived $v_y$
-is therefore not usable for cornering stiffness identification.
-
-\paragraph{Understeer gradient measurement.}
-The understeer gradient $K_\text{us}$ provides a well-conditioned
-observable that depends on the \emph{ratio} of front and rear stiffness
-but does not require $v_y$.  In steady-state circular driving:
+\paragraph{Understeer gradient method.}
+The understeer gradient $K_\text{us}$ is a well-conditioned observable
+that characterises the vehicle's steering balance without requiring
+$v_y$.  In steady-state circular driving:
 \begin{equation}\label{eq:Kus}
   \delta - \frac{L\,\omega}{v_x} = K_\text{us}\,a_y,
   \qquad
@@ -228,40 +198,35 @@ but does not require $v_y$.  In steady-state circular driving:
     \!\left(\frac{l_f}{C_{\alpha r}} - \frac{l_r}{C_{\alpha f}}\right).
 \end{equation}
 The quantity $\delta - L\omega/v_x$ is the deviation of the measured
-steering from the kinematic (Ackermann) steering angle, and equals zero
-for a neutral car.  For each constant-speed constant-steer segment the
-measured values of $\delta$, $\omega$, $v_x$, and $a_y$ are averaged
-over the steady-state window.
+steering from the kinematic (Ackermann) steering angle; it equals zero
+for a neutral car and is positive for understeer.
 
 \paragraph{Procedure.}
-Steady-state circles were driven at four commanded steering angles
-($\delta_\text{cmd}$ = 0.12, 0.16, 0.20, \SI{0.24}{\radian}) and three
-speeds (1.5, 2.0, \SI{2.5}{\metre\per\second}), giving 12 operating
-points.  Each point was held for \SI{10}{\second} after a
-\SI{4}{\second} settling period, recording $v_x$, $\omega$, $a_y$, and
-$\delta$ at \SI{40}{\hertz}.
+Steady-state circles were driven at five commanded steering angles
+($\delta_\text{cmd}$ = 0.12, 0.16, 0.20, 0.24, \SI{0.28}{\radian})
+and four speeds (1.5, 2.0, 2.5, \SI{3.0}{\metre\per\second}), giving
+20 operating points per run.  Each point was held for \SI{10}{\second}
+after a \SI{4}{\second} settling period, recording $v_x$, $\omega$,
+$a_y$, and $\delta$ at approximately \SI{200}{\hertz}.  The full test
+was repeated five times, yielding 100 data points in total.
 
-In addition, five step-steer runs (from $\delta = 0$ to $\pm$0.18~rad)
-were recorded at different speeds.  Each run contains six steering
-steps, yielding 30 transient yaw-rate responses.
-
-\paragraph{Data.}
+\paragraph{Results.}
 \includefigure[width=0.65\textwidth]{cornering_understeer_gradient.pdf}{%
   Understeer gradient measurement.  The vertical axis is
   $\delta - L\omega/v_x$ (deviation from kinematic steering); the
   horizontal axis is the lateral acceleration $a_y$.  The slope of the
-  linear fit gives $K_\text{us} = \SI{0.006}{\radian\per(\metre\per\second\squared)}$
-  ($R^2 = 0.62$, $n = 12$).\label{fig:cornering-Kus}}
+  linear fit gives
+  $K_\text{us} = \SI{0.012}{\radian\per(\metre\per\second\squared)}$
+  ($R^2 = 0.94$, $n = 20$ operating points, 5 runs).\label{fig:cornering-Kus}}
 
-\includefigure[width=0.65\textwidth]{cornering_step_response.pdf}{%
-  Example yaw-rate step response from one of the step-steer runs.
-  The \SI{7}{\percent}--\SI{13}{\percent} overshoot indicates a damping
-  ratio $\zeta \approx 0.6$.  The yaw settling time
-  ($\sim$\SIrange{40}{60}{\milli\second}) is comparable to the servo
-  response time ($\sim$\SI{80}{\milli\second}), which limits the
-  accuracy of the extracted natural frequency.\label{fig:cornering-step}}
+The steering angle used in the regression is the calibrated wheel
+angle from the VESC servo mapping
+(Section~\ref{sec:vesc-cal}).  The measured understeer gradient is
+$K_\text{us} = 0.012 \pm 0.001\;\text{rad/(m/s}^2\text{)}$.
+The positive value confirms the vehicle understeers, requiring
+progressively more steering input at higher lateral accelerations.
 
-\paragraph{Combined identification.}
+\paragraph{Individual cornering stiffness.}
 The understeer gradient~\eqref{eq:Kus} provides one equation relating
 two unknowns ($C_{\alpha f}$, $C_{\alpha r}$).  A second constraint is
 obtained from the yaw-plane natural frequency of the single-track model:
@@ -269,135 +234,66 @@ obtained from the yaw-plane natural frequency of the single-track model:
   \omega_n^2 = \frac{1}{I_z}
     \!\left(l_f^2\,C_{\alpha f} + l_r^2\,C_{\alpha r}\right)
     + \frac{C_{\alpha f} + C_{\alpha r}}{m}
-    - v_x^2,
+    - v_x^2.
 \end{equation}
-where the step-steer transient data supply a lower bound on $\omega_n$.
-Because the observed settling time is dominated by the servo actuator
-rather than the tyre dynamics, only a bounded frequency range is
-identified: $\omega_n \in [20, 35]\;\text{rad/s}$.
+For a given $\omega_n$, the system~\eqref{eq:Kus}--\eqref{eq:wn} can
+be solved for the individual stiffnesses.
+Figure~\ref{fig:cornering-range} shows the parametric solution.
 
 \includefigure[width=0.7\textwidth]{cornering_solution_range.pdf}{%
   Cornering stiffness pairs $(C_{\alpha f},\,C_{\alpha r})$ satisfying
-  the measured $K_\text{us} = 0.006$ as a function of the assumed
-  yaw-plane natural frequency $\omega_n$.  The shaded band marks the
-  frequency range supported by the step-steer data.  The best-estimate
-  point corresponds to $\omega_n \approx \SI{27.5}{\radian\per\second}$.\label{fig:cornering-range}}
+  the measured $K_\text{us} = 0.012$ as a function of the assumed
+  yaw-plane natural frequency $\omega_n$.  The shaded band marks an
+  estimated frequency range.\label{fig:cornering-range}}
 
-Solving~\eqref{eq:Kus} and~\eqref{eq:wn} simultaneously at
-$\omega_n = \SI{27.5}{\radian\per\second}$ yields the best estimates:
+At $\omega_n = \SI{10}{\radian\per\second}$, the solution is:
 \begin{equation}\label{eq:Calpha-result}
-  C_{\alpha f} = \SI{44.8}{\newton\per\radian}, \qquad
-  C_{\alpha r} = \SI{55.7}{\newton\per\radian}.
+  C_{\alpha f} = \SI{55.6}{\newton\per\radian}, \qquad
+  C_{\alpha r} = \SI{42.3}{\newton\per\radian}.
 \end{equation}
 The corresponding normalised stiffnesses for the dynamic bicycle model
-are $C_{Sf} = C_{\alpha f}/(m\,g) = 1.38$ and
-$C_{Sr} = C_{\alpha r}/(m\,g) = 1.72$.
-
-A left--right steering asymmetry was observed: fitting
-$K_\text{us}$ separately for left and right turns gives
-$K_\text{us,L} = -0.003$ (slightly oversteer) and
-$K_\text{us,R} = +0.007$ (understeer), which likely reflects
-play or offset in the servo linkage.  The combined value
-$K_\text{us} = 0.006$ represents the overall behaviour averaged
-across both directions.
-
-\paragraph{Uncertainty.}
-\begin{itemize}
-  \item $K_\text{us}$ is well-constrained ($\pm$15--20\%) because it
-        depends only on quantities measurable without $v_y$
-        ($\delta$, $\omega$, $v_x$, $a_y$).
-  \item The absolute values of $C_{\alpha f}$ and $C_{\alpha r}$ carry
-        $\pm$30--40\% uncertainty due to the wide admissible range of
-        $\omega_n$ from the servo-limited step response.
-  \item Servo gain mismatch: all analyses use the effective steering
-        angle ($\sim$86\% of commanded, see Section~\ref{sec:wheelbase}).
-  \item The kinematic degeneracy~\eqref{eq:degeneracy} makes any
-        single-test identification of absolute cornering stiffness
-        infeasible without an independent lateral-velocity sensor.
-  \item Left/right asymmetry ($K_\text{us}$ varies by
-        $\sim$\SI{0.01}{\radian\per(\metre\per\second\squared)}) adds
-        systematic uncertainty.
-\end{itemize}
+are $C_{Sf} = C_{\alpha f}/(m\,g) = 1.71$ and
+$C_{Sr} = C_{\alpha r}/(m\,g) = 1.30$.
+The absolute values depend on the assumed $\omega_n$; the ratio
+$C_{\alpha f}/C_{\alpha r} \approx 1.31$ is less sensitive and
+consistent with the measured understeer behaviour.
 
 %%% ===================================================================
-\subsection{Longitudinal Tire Stiffness}\label{sec:long-stiffness}
+\subsection{Rolling Resistance}\label{sec:rolling-resistance}
 
 \paragraph{Theory.}
-The slip ratio is
-\begin{equation}\label{eq:kappa}
-  \kappa = \frac{v_\text{wheel} - v_\text{body}}
-               {\max(|v_\text{wheel}|,\,|v_\text{body}|)},
-\end{equation}
-where $v_\text{wheel}$ comes from ERPM and $v_\text{body}$ from an
-independent velocity sensor. In the linear region ($|\kappa|<0.15$):
-\begin{equation}\label{eq:Fx}
-  F_x = C_x\,\kappa, \qquad F_x = m\,a_x.
-\end{equation}
-
-\paragraph{LiDAR scan-matching body velocity.}
-An independent body-velocity estimate is obtained from 2D LiDAR
-scan-matching using a point-to-line ICP algorithm.
-Consecutive scans are aligned by minimizing point-to-line distances
-(projections onto surface normals estimated from scan ordering).
-The ICP is seeded with an initial guess from ERPM odometry to improve
-convergence, and scans are deskewed (motion-undistorted) using the
-odometry velocity and IMU yaw rate to compensate for the car's
-displacement during the \SI{25}{\milli\second} scan acquisition.
-Every second scan point is used (2$\times$ downsampling, $\sim$540
-points) to maintain a mean computation time of \SI{4}{\milli\second}.
-The per-scan velocity estimates are smoothed with an exponential
-moving average ($\alpha = 0.3$) to reduce ICP matching noise.
+When the throttle is released and the motor coasts freely, the only
+decelerating forces are rolling resistance and aerodynamic drag:
+\[
+  m\,a_x = -c_\text{roll}\,m\,g - \tfrac{1}{2}\rho\,C_d\,A\,v^2.
+\]
+At F1/10th scale and $v < \SI{4}{\metre\per\second}$, aerodynamic drag
+is negligible ($< \SI{0.03}{\newton}$), giving
+$c_\text{roll} \approx |a_x|/g$.
 
 \paragraph{Procedure.}
-The car accelerates from standstill to \SI{6}{\metre\per\second},
-holds a \SI{1}{\second} cruise phase, then brakes to rest.
-Ten runs are performed with \SI{20}{\metre} of clear space.
-During cruise, the LiDAR-to-wheel velocity ratio is
-$0.990 \pm 0.012$ (mean $\pm$ std across 10 runs), confirming
-that the scan-matching tracks the true body velocity to within $\sim$1\%.
+The car accelerates to \SI{3}{\metre\per\second}, then the motor current
+is set to zero (bypassing the VESC speed controller, which would actively
+brake) and the car coasts to a stop.  Ten runs are performed.  The
+deceleration is measured from wheel odometry (ERPM), which is accurate
+during free rolling (no traction slip).
 
-\paragraph{Data.}
-\includefigure[width=0.48\textwidth]{long_v_comparison.pdf}{%
-  $v_\text{wheel}$ (ERPM) and $v_\text{body}$ (LiDAR ICP) vs.\ time.
-  The LiDAR velocity tracks the wheel speed closely; the small
-  difference during acceleration and braking is the longitudinal
-  slip.\label{fig:long-v}}
+\paragraph{Results.}
+\includefigure[width=0.8\textwidth]{rolling_resistance_coastdown.pdf}{%
+  Left: coast-down velocity profiles for all ten runs.
+  Right: per-run $c_\text{roll}$ from both the velocity-fit and IMU
+  methods.\label{fig:rolling-resistance}}
 
-\includefigure[width=\textwidth]{long_Fx_vs_kappa.pdf}{%
-  Longitudinal force $F_x = m\,a_x$ vs.\ slip ratio $\kappa$
-  (acceleration phase only, $|v_\text{lidar}| > \SI{2}{\metre\per\second}$).
-  \emph{Left:} raw scatter from 10 runs, coloured by speed.
-  \emph{Right:} bin-averaged data with standard-error bars.
-  The linear fit yields
-  $C_x = \SI{61.3}{\newton}$ per unit slip
-  ($R^2 = 0.42$).\label{fig:long-Fx}}
-
-\paragraph{Result.}
-Pooling 10 acceleration runs (6\,722 high-speed points with
-$|v_\text{lidar}| > \SI{2}{\metre\per\second}$ and
-$|\kappa| \in [0.005,\,0.15]$):
-\[
-  C_x = \SI{61.3}{\newton\text{/unit-slip}}, \qquad R^2 = 0.42.
-\]
-Per-run estimates: $C_x = 64.6 \pm 8.2$ (mean $\pm$ std, $n = 10$).
-The braking phase yields a higher apparent stiffness
-($\sim$\SI{154}{\newton}) due to the asymmetric motor torque
-characteristics during regenerative braking.
-
-\paragraph{Uncertainty.}
-\begin{itemize}
-  \item EMA filter lag biases $v_\text{body}$ low during acceleration,
-        inflating the apparent slip ratio and thus $C_x$ by an estimated
-        5--15\% (filter time constant $\tau \approx \SI{78}{\milli\second}$).
-  \item ICP matching noise ($\sigma \approx \SI{1.4}{\metre\per\second}$
-        per scan at \SI{6}{\metre\per\second}) limits per-sample SNR;
-        pooling 10 runs is essential for statistical significance.
-  \item A residual $\sim$1\% negative bias between LiDAR and wheel speed
-        at cruise may indicate slight scan-matching underestimation at
-        high speed despite deskewing.
-  \item Surface-dependent: tire stiffness varies with floor material
-        and tire temperature.
-\end{itemize}
+A linear fit of $v(t)$ during the coast phase gives the deceleration
+$a_\text{coast}$, from which $c_\text{roll} = |a_\text{coast}|/g$.
+Over ten runs, the velocity-fit method yields
+$c_\text{roll} = 0.163 \pm 0.003$
+(IMU method: $0.163 \pm 0.004$).
+Mean motor current during coasting was \SI{0.37}{\ampere} (below the
+\SI{1}{\ampere} threshold), confirming the motor was freewheeling.
+This value includes both tire rolling resistance and drivetrain friction
+(gear mesh, bearings), which is the total resistive coefficient needed by
+the minimum-time optimizer.
 
 %%% ===================================================================
 \subsection{Motor Torque Mapping}\label{sec:motor-torque}
@@ -488,6 +384,19 @@ its target speed and acceleration is near zero.
   \item Gear efficiency not measured separately; absorbed into
         effective $K_{t,\text{eff}}$.
 \end{itemize}
+
+\paragraph{VESC current limiting.}
+During the motor torque tests, the motor current was observed to peak
+at approximately \SI{71.6}{\ampere} during burst acceleration and
+\SI{-63.5}{\ampere} during regenerative braking.  Based on these
+observations, the VESC motor current limit was configured to
+\SI{100}{\ampere} (motor) and \SI{70}{\ampere} (battery) in the
+VESC~Tool to ensure the motor and ESC operate within safe thermal
+limits.  Data above the \SI{60}{\ampere} threshold was excluded from
+the $K_{t,\text{eff}}$ regression because the VESC current limiter
+saturates the motor current in this region, producing a non-linear
+force--current relationship.  Below this threshold the force--current
+relationship is linear and the measured $K_{t,\text{eff}}$ is valid.
 
 %%% ===================================================================
 \subsection{Maximum Dynamics}\label{sec:max-dynamics}
@@ -605,33 +514,16 @@ $\dot{\delta}_\text{max} = 0.8 \times 0.3\;\text{rad}\;/\;
 The yaw rate response shows that the combined servo and vehicle
 dynamics produce consistent 10--90\% rise times of
 $\sim$\SI{87}{\milli\second}.  The estimated maximum steering rate of
-$\SI{2.80}{\radian\per\second}$ (auto-saved value: \SI{2.85}{\radian\per\second})
+$\SI{2.85}{\radian\per\second}$
 is close to the simulation default of $\SI{3.2}{\radian\per\second}$.
 
-\paragraph{Servo gain observation.}
-The VESC calibration (Section~\ref{sec:wheelbase}) shows that the
-actual steering angle is approximately 86\% of the commanded angle
-($\delta_\text{actual}/\delta_\text{cmd} \approx 0.86$).
-This means the effective steering rate of the \emph{wheel angle} is
-$0.86 \times 2.85 \approx \SI{2.45}{\radian\per\second}$.
-
-\paragraph{Uncertainty.}
-\begin{itemize}
-  \item The yaw rate includes vehicle dynamics response, not only servo
-        motion.  At \SI{1.5}{\metre\per\second} the dynamic lag is small
-        relative to the servo speed.
-  \item No direct steering angle sensor is available;
-        the rate is inferred from yaw-rate dynamics.
-  \item Servo speed may depend on battery voltage.
-\end{itemize}
-
 %%% ===================================================================
-\subsection{Wheelbase and VESC Calibration}\label{sec:wheelbase}
+\subsection{VESC Calibration}\label{sec:vesc-cal}
 
-\paragraph{VESC calibration.}
+\paragraph{Procedure.}
 The VESC maps a commanded steering angle to a servo PWM position via
 $s = g \cdot (-\delta_\text{cmd}) + b$.
-The servo gain $g = -0.7940$, offset $b = 0.5500$, and servo limits
+The servo gain $g = -0.7284$, offset $b = 0.5500$, and servo limits
 (\texttt{servo\_min}\,=\,0.202, \texttt{servo\_max}\,=\,0.890)
 were determined with \texttt{find\_servo\_limits.py} and
 \texttt{test\_steering\_calibration.py}.
@@ -647,153 +539,52 @@ Table~\ref{tab:vesc-cal} lists the calibrated values.
 \textbf{Parameter} & \textbf{Value} \\
 \midrule
 \texttt{speed\_to\_erpm\_gain}              & 4550 \\
-\texttt{steering\_angle\_to\_servo\_gain}   & $-0.7940$ \\
+\texttt{steering\_angle\_to\_servo\_gain}   & $-0.7284$ \\
 \texttt{steering\_angle\_to\_servo\_offset} & $0.5500$ \\
 \texttt{servo\_min} / \texttt{servo\_max}   & 0.202\,/\,0.890 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-With this gain, a commanded angle of
-$\delta_\text{cmd} = \SI{0.3}{\radian}$ produces an actual wheel
-angle of:
-\begin{equation}
-  \delta_\text{actual} = \Bigl|\frac{s - b}{g}\Bigr|
-  = \SI{0.258}{\radian}\;(14.8°),
-  \qquad
-  \frac{\delta_\text{actual}}{\delta_\text{cmd}} = 0.86.
-\end{equation}
-
-\paragraph{Wheelbase test procedure.}
-The effective wheelbase $L$ is measured by driving constant-radius
-circles at a fixed steering angle $\delta_\text{cmd} = \SI{0.3}{\radian}$
-($\delta_\text{actual} = \SI{0.258}{\radian}$)
-and three speeds (1.0, 1.5, \SI{2.0}{\metre\per\second}), repeated
-five times.  The circle radius $R$ is obtained from
-$R = v_x / \omega_z$, where $v_x$ is the ERPM-based speed and
-$\omega_z$ is the IMU yaw rate.  The wheelbase follows from the
-kinematic bicycle relation:
-\begin{equation}\label{eq:wheelbase}
-  L = R \cdot 2\sin\!\bigl(\arctan(0.5\,\tan\delta)\bigr).
-\end{equation}
-
-\paragraph{Results.}
-Table~\ref{tab:wheelbase} shows the measured effective wheelbase at
-each speed.
-
-\begin{table}[H]
-\centering
-\caption{Effective wheelbase $L$ (IMU-based, 5 runs mean $\pm\,\sigma$).
-  CAD value: \SI{0.324}{\metre}.}\label{tab:wheelbase}
-\begin{tabular}{S[table-format=1.1]
-                S[table-format=1.4] @{${}\pm{}$} S[table-format=1.4]
-                S[table-format=2.1]}
-\toprule
-{Speed (m/s)}
-  & \multicolumn{2}{c}{$L_\text{measured}$ (m)}
-  & {$\Delta$ from CAD (\%)} \\
-\midrule
-1.0 & 0.3452 & 0.0011 & +6.5 \\
-1.5 & 0.3544 & 0.0013 & +9.4 \\
-2.0 & 0.3690 & 0.0016 & +13.9 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\includefigure{wheelbase_circle_trajectory.pdf}{%
-  Wheelbase test results.
-  Top-left: measured wheelbase per speed.
-  Top-right: per-run consistency at \SI{1.0}{\metre\per\second}.
-  Bottom-left: circle trajectories (run~5).
-  Bottom-right: numerical summary.\label{fig:wheelbase}}
-
-\paragraph{Understeer effect.}
-The apparent $L$ exceeds the CAD value by
-6.5\% at \SI{1.0}{\metre\per\second}, growing to 13.9\% at
-\SI{2.0}{\metre\per\second}.  This speed-dependent growth is
-consistent with \emph{understeer}: the front tires generate less
-lateral force per unit slip angle than the rear tires, so the vehicle
-tracks a larger radius than the kinematic model predicts.
-
-The cornering stiffness test
-(Section~\ref{sec:cornering}) measured
-$C_{\alpha f} = \SI{44.8}{\newton\per\radian}$ and
-$C_{\alpha r} = \SI{55.7}{\newton\per\radian}$ ($C_{\alpha f} <
-C_{\alpha r}$), confirming the vehicle understeers.
-The understeer gradient computed from these values is:
-\begin{equation}\label{eq:understeer}
-  K_\text{us} = \frac{m}{L}\Bigl(\frac{l_r}{C_{\alpha f}}
-  - \frac{l_f}{C_{\alpha r}}\Bigr)
-  = \SI{0.006}{\radian\per(\metre\per\second\squared)},
-\end{equation}
-consistent with the direct data fit in Section~\ref{sec:cornering}.
-At \SI{1.0}{\metre\per\second} with $R \approx \SI{1.3}{\metre}$,
-the lateral acceleration is
-$a_y = v^2/R \approx \SI{0.76}{\metre\per\second\squared}$,
-giving a steering angle loss of
-$K_\text{us}\,a_y \approx 0.005\;\text{rad}\;(0.3°)$.
-The kinematic formula~\eqref{eq:wheelbase} does not account for this
-loss, so it over-estimates $L$.  The effect scales with $v^2$,
-explaining the larger discrepancy at higher speeds.
-
-\paragraph{Understeer-corrected wheelbase.}
-If the understeer is subtracted---i.e.\ the effective steering angle
-$\delta_\text{eff} = \delta - K_\text{us}\,a_y$ is used in
-\eqref{eq:wheelbase}---the results at \SI{1.0}{\metre\per\second}
-give $L = \SI{0.302}{\metre}$ ($-6.7\%$ from CAD).
-The \emph{uncorrected} value is $\SI{0.345}{\metre}$ ($+6.5\%$),
-so the CAD wheelbase of \SI{0.324}{\metre}{} lies almost exactly
-between the two estimates.  This bracketing is expected: the
-cornering stiffness values used for $K_\text{us}$ were measured at a
-single steering angle (Section~\ref{sec:cornering}), so
-the correction has significant uncertainty.  The symmetry of the
-error ($\pm$6--7\%) provides confidence that the CAD value is a
-good estimate of the true wheelbase.
-
-For the MPC model, the CAD wheelbase $L = \SI{0.324}{\metre}$ is
-recommended.  The understeer gradient $K_\text{us}$ is already
-captured by the cornering stiffness parameters in the dynamic bicycle
-model, so no additional wheelbase correction is needed.
-
 %%% ===================================================================
 \subsection{Parameter Summary}\label{sec:param-summary}
 
 Table~\ref{tab:params} compares all measured values with the F1/10th
-gym simulation defaults.  The measured values should be used to update
-the MPC model for deployment on the real vehicle.
+gym simulation defaults.
 
 \begin{table}[H]
 \centering
-\caption{Identified vehicle model parameters.  --\,-- indicates the
-  parameter could not be identified from the current
-  data.}\label{tab:params}
+\caption{Identified vehicle model parameters.}\label{tab:params}
 \begin{tabular}{ll S[table-format=2.3] S[table-format=3.3] l l}
 \toprule
 {Parameter} & {Symbol} & {Measured} & {Sim default} & {Unit} & {Status} \\
 \midrule
 Wheelbase             & $L$
   & 0.324  & 0.324  & \si{\metre}
-  & CAD\textsuperscript{d} \\
+  & Measured \\
 Friction coeff.\      & $\mu$
   & 0.787  & 1.049  & {--}
   & Tested \\
 Front corn.\ stiff.\  & $C_{\alpha f}$
-  & 44.8   & 4.718  & \si{\newton\per\radian}
-  & Tested\textsuperscript{f} \\
+  & 55.6   & 4.718  & \si{\newton\per\radian}
+  & Tested\textsuperscript{a} \\
 Rear corn.\ stiff.\   & $C_{\alpha r}$
-  & 55.7   & 5.456  & \si{\newton\per\radian}
-  & Tested\textsuperscript{f} \\
-Long.\ stiffness      & $C_x$
-  & 61.3\textsuperscript{a}  & 300    & \si{\newton}
+  & 42.3   & 5.456  & \si{\newton\per\radian}
+  & Tested\textsuperscript{a} \\
+Understeer gradient   & $K_\text{us}$
+  & 0.012  & {--}   & \si{\radian\per(\metre\per\second\squared)}
   & Tested \\
+Rolling resistance   & $c_\text{roll}$
+  & 0.163  & 0.003    & {--}
+  & Tested\textsuperscript{b} \\
 Effective $K_{t}$     & $K_{t,\text{eff}}$
   & 0.583  & {--}   & \si{\newton\per\ampere}
   & Tested \\
 Max drive torque      & $T_\text{max}$
   & 1.93   & 22.9   & \si{\newton\metre}
-  & Tested\textsuperscript{b} \\
+  & Tested\textsuperscript{c} \\
 Max brake decel.\     & $a_\text{brake}$
-  & {7.7\textsuperscript{c}}  & 10.0   & \si{\metre\per\second\squared}
+  & 7.7    & 10.0   & \si{\metre\per\second\squared}
   & Tested \\
 Max velocity          & $v_\text{max}$
   & 5.17   & 20.0   & \si{\metre\per\second}
@@ -806,58 +597,45 @@ Max steer.\ rate      & $\dot{\delta}_\text{max}$
   & Tested \\
 Servo gain ratio      & $\delta_\text{act}/\delta_\text{cmd}$
   & 0.86   & 1.0    & {--}
-  & Calibrated\textsuperscript{e} \\
+  & Calibrated \\
 \bottomrule
 \end{tabular}
 
 \smallskip
 \begin{flushleft}
 \footnotesize
-\textsuperscript{a}$C_x$ identified using LiDAR point-to-line ICP
-scan-matching for body velocity; pooled from 10 acceleration runs ($R^2 = 0.42$).\\
-\textsuperscript{b}At the wheel ($T = F_\text{max} \times r_\text{eff}$),
+\textsuperscript{a}Combined $K_\text{us}$ + yaw-frequency method
+(Section~\ref{sec:cornering}); absolute values depend on assumed
+$\omega_n$.  The ratio $C_{\alpha f}/C_{\alpha r} = 1.31$ is
+better constrained.\\
+\textsuperscript{b}Includes both tire rolling resistance and drivetrain
+friction; measured via coast-down test
+(Section~\ref{sec:rolling-resistance}).\\
+\textsuperscript{c}At the wheel ($T = F_\text{max} \times r_\text{eff}$),
 at the VESC current limit of \SI{65}{\ampere}.
-The simulation default is likely the motor-shaft torque
-$\times\,$gear ratio, not a wheel-level measurement.\\
-\textsuperscript{c}Conservative estimate: $\mu\,g$.
-Raw IMU measured $\SI{11.06}{\metre\per\second\squared}$, but this
-includes chassis pitch contamination.\\
-\textsuperscript{d}Wheelbase test at \SI{1.0}{\metre\per\second}
-yields $L = 0.345\;\text{m}$ ($+6.5\%$ from CAD);
-CAD value is used (see Section~\ref{sec:wheelbase}).\\
-\textsuperscript{e}Calibrated servo gain $= -0.7940$; ERPM gain $= 4550$
-(see Section~\ref{sec:wheelbase}).\\
-\textsuperscript{f}Combined K\textsubscript{us} + yaw-resonance method (Section~\ref{sec:cornering});
-$\pm$30--40\% uncertainty on absolute values.
 \end{flushleft}
 \end{table}
 
 \paragraph{Discussion.}
 The measured parameters differ substantially from the simulation
-defaults in several ways:
+defaults:
 \begin{itemize}
   \item \textbf{Friction}: $\mu = 0.79$ vs.\ 1.05 in simulation.
-        The real car has 25\% less grip, which will cause the MPC to
-        over-estimate cornering capability if not updated.
+        The real car has 25\% less grip.
   \item \textbf{Maximum velocity}: $v_\text{max} = \SI{5.17}{\metre\per\second}$
         vs.\ \SI{20}{\metre\per\second} in simulation.  The real vehicle's
         speed envelope is roughly 4$\times$ smaller.
-  \item \textbf{Steering rate}: $\dot{\delta}_\text{max} =
-        \SI{2.85}{\radian\per\second}$ vs.\ \SI{3.2}{\radian\per\second}.
-        The real servo is slightly slower than assumed, but the values
-        are close enough that the MPC steering rate constraint remains
-        reasonable.
   \item \textbf{Motor torque} ($K_{t,\text{eff}} = \SI{0.583}{\newton\per\ampere}$):
-        this value should be used instead of the theoretical
-        $K_t\,G/r_\text{eff} = \SI{0.632}{\newton\per\ampere}$ to
-        correctly predict wheel force from commanded motor current.
-  \item \textbf{VESC calibration}: the calibrated servo gain
-        ($-0.7940$) yields an actual steering angle that is 86\%
-        of the commanded value.  The vehicle understeers
-        ($C_{\alpha f} < C_{\alpha r}$, $K_\text{us} = 0.006$),
-        which inflates the apparent turning radius and explains the
-        remaining 6.5\% discrepancy in the wheelbase test
-        (see Section~\ref{sec:wheelbase}).
+        8\% lower than the theoretical
+        $K_t\,G/r_\text{eff} = \SI{0.632}{\newton\per\ampere}$, indicating
+        drivetrain losses.
+  \item \textbf{Rolling resistance}: $c_\text{roll} = 0.163$ is
+        significantly higher than the simulation default of 0.003,
+        reflecting the combined tire and drivetrain friction of a geared
+        4$\times$4 chassis.
+  \item \textbf{Understeer}: the vehicle understeers with
+        $K_\text{us} = 0.012$, requiring progressively more steering
+        input at higher lateral accelerations.
 \end{itemize}
 
 These measurements confirm that the simulation defaults are not

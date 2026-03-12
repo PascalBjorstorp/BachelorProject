@@ -82,7 +82,7 @@ DEFAULT_MIN_BATTERY_V = 10.5   # volts (3S LiPo cutoff ~3.5V/cell)
 # VESC conversion defaults (from vesc.yaml)
 DEFAULT_ERPM_GAIN = 4550.0
 DEFAULT_ERPM_OFFSET = 0.0
-DEFAULT_SERVO_GAIN = -0.7940
+DEFAULT_SERVO_GAIN = -0.7284
 DEFAULT_SERVO_OFFSET = 0.5500
 DEFAULT_SERVO_MIN = 0.202
 DEFAULT_SERVO_MAX = 0.890
@@ -727,6 +727,7 @@ class LidarVelocityEstimator:
                  icp_max_iter: int = 30, icp_tolerance: float = 1e-6,
                  max_correspondence_dist: float = 0.5,
                  velocity_limit: float = 15.0,
+                 max_accel: float = 25.0,
                  normal_k: int = 7,
                  downsample: int = 2,
                  ema_alpha: float = 0.3):
@@ -740,6 +741,7 @@ class LidarVelocityEstimator:
         self.icp_tolerance = icp_tolerance
         self.max_correspondence_dist = max_correspondence_dist
         self.velocity_limit = velocity_limit
+        self.max_accel = max_accel  # max plausible accel (m/s²) for outlier rejection
         self.normal_k = normal_k  # neighbors for normal estimation
         self.downsample = downsample  # keep every Nth point
 
@@ -1077,6 +1079,17 @@ class LidarVelocityEstimator:
         if speed > self.velocity_limit:
             return self.velocity_x, self.velocity_y
 
+        # Rate-of-change clamp: limit how fast ICP velocity can change per
+        # scan to catch local-minima failures during hard braking.
+        # Clamping (vs rejection) avoids "sticky" stale-value drift.
+        max_dv = self.max_accel * dt
+        vx_base = np.clip(vx_base,
+                          self.velocity_x - max_dv,
+                          self.velocity_x + max_dv)
+        vy_base = np.clip(vy_base,
+                          self.velocity_y - max_dv,
+                          self.velocity_y + max_dv)
+
         # Store raw (unfiltered) values for debugging
         self._raw_vx = vx_base
         self._raw_vy = vy_base
@@ -1229,11 +1242,11 @@ VEHICLE_PARAMS_FILE = os.path.join(
 
 # Dependency map: which tests need re-running when a parameter changes
 PARAM_DEPENDENCIES = {
-    'mass': ['test_cornering_stiffness.py', 'test_longitudinal_stiffness.py',
+    'mass': ['test_cornering_stiffness.py', 'test_rolling_resistance.py',
              'test_motor_torque.py'],
     'l_f': ['test_cornering_stiffness.py'],
     'l_r': ['test_cornering_stiffness.py'],
-    'r_eff': ['test_longitudinal_stiffness.py', 'test_motor_torque.py'],
+    'r_eff': ['test_motor_torque.py'],
     'gear_ratio': ['test_motor_torque.py'],
     'wheelbase': ['test_cornering_stiffness.py', 'test_steering_rate.py'],
 }

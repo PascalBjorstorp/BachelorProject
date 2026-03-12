@@ -53,7 +53,7 @@ Front axle distance & $l_f$ & \SI{0.166}{\meter} & CAD \\
 Rear axle distance & $l_r$ & \SI{0.160}{\meter} & CAD \\
 Wheelbase & $L$ & \SI{0.326}{\meter} & $l_f + l_r$ \\
 CG height & $h$ & \SI{0.0703}{\meter} & CAD \\
-Friction coefficient & $\mu$ & 0.7463 & Tested \\
+Friction coefficient & $\mu$ & 0.787 & Tested \\
 Front tire stiffness & $C_{S_f}$ & 2.804 & Tested \\
 Rear tire stiffness & $C_{S_r}$ & 3.320 & Tested \\
 Max steering angle & $\delta_{\max}$ & \SI{0.4282}{\radian} & Tested \\
@@ -214,7 +214,7 @@ Independent sim physics and MPC control rates via environment variables. 1000\,H
 The \texttt{REALISTIC\_SIM=1} flag activates four physical effects simultaneously:
 \begin{enumerate}
   \item \textbf{Drivetrain model} --- aerodynamic drag ($C_d A = 0.008$), rolling resistance ($\mu_r = 0.015$), and motor torque limits.
-  \item \textbf{Pacejka tire model} --- non-linear $F_y(\alpha)$ with shape parameter $C = 1.9$ and $\mu = 0.7463$.
+  \item \textbf{Pacejka tire model} --- non-linear $F_y(\alpha)$ with shape parameter $C = 1.9$ and $\mu = 0.787$.
   \item \textbf{One-step actuator delay} --- 2-sample steering buffer delaying commanded angle by one MPC step (\SI{5}{\milli\second}).
   \item \textbf{Sensor noise} --- Gaussian noise on lateral error ($\sigma_e = \SI{3}{\milli\meter}$), heading ($\sigma_\psi = 0.004\;\text{rad}$), and velocity ($\sigma_v = \SI{10}{\milli\meter\per\second}$), with EMA low-pass filter ($\alpha = 0.35$).
 \end{enumerate}

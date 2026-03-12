@@ -14,9 +14,9 @@
 # AUTO-UPDATED: Test scripts automatically write [TESTED] values here.
 #
 # DEPENDENCY MAP — if you change a fundamental measurement, re-run:
-#   mass changed    → test_cornering_stiffness, test_longitudinal_stiffness, test_motor_torque
+#   mass changed    → test_cornering_stiffness, test_rolling_resistance, test_motor_torque
 #   l_f/l_r changed → test_cornering_stiffness
-#   r_eff changed   → test_longitudinal_stiffness, test_motor_torque
+#   r_eff changed   → test_motor_torque
 #   gear_ratio      → test_motor_torque
 #   wheelbase       → test_cornering_stiffness, test_steering_rate
 
@@ -72,31 +72,29 @@ tire:
                              # Typical Traxxas Slash: ~0.05 m
                              # MPC default: 0.0545 m (diameter 10.9 cm)
   
-  mu: 0.7463                 # [TESTED] Peak friction coefficient (dimensionless)
-                             # From test_friction.py: mu = a_y_max / g
+  mu: 0.787                  # [TESTED] Peak friction coefficient (dimensionless)
+                             # From test_friction.py: mu = a_y_max / g at saturation (5.0 m/s)
+                             # Cross-validated with motor torque test (μ_x ≈ 0.74)
                              # Depends on surface! Re-test if surface changes.
   
-  C_alpha_f: 44.8   # [TESTED] Front cornering stiffness (N/rad)
-                             # From combined K_us + yaw-resonance method (report_outline.tex)
-                             # K_us = 0.006 rad/(m/s²) from steady-state circle data (n=12)
-                             # ±30-40% uncertainty; car understeers (C_alpha_f < C_alpha_r)
+  C_alpha_f: 55.60  # [TESTED] Front cornering stiffness (N/rad)
+                             # From combined K_us + yaw-frequency method (report_outline.tex)
+                             # K_us = 0.012 rad/(m/s²) from steady-state cornering data
+                             # Absolute values depend on assumed ω_n=10; ratio C_af/C_ar=1.31
   
-  C_alpha_r: 55.7   # [TESTED] Rear cornering stiffness (N/rad)
-                             # From combined K_us + yaw-resonance method (see C_alpha_f)
-                             # ±30-40% uncertainty.
+  C_alpha_r: 42.30  # [TESTED] Rear cornering stiffness (N/rad)
+                             # From combined K_us + yaw-frequency method (see C_alpha_f)
   
-  C_x: 61.3   # [TESTED] Combined longitudinal tire stiffness (N/unit slip)
-                             # From 10 acceleration runs, LiDAR ICP body velocity (EMA α=0.3)
-                             # 6722 high-speed points (v>2 m/s, |κ|∈[0.005,0.15]), R²=0.42
-                             # Braking phase gives ~154 N (asymmetric motor torque → ignore)
-                             # Per tire: ~15.3 N/slip (AWD, divide by 4)
+  c_roll: 0.163  # Rolling resistance coefficient (dimensionless) — coast-down test 2025-03-11
+                             # Measured via coast-down test (test_rolling_resistance.py)
+                             # Used by TUM mintime trajectory optimizer
 
 # ============================================================================
 # Steering Properties
 # ============================================================================
 
 steering:
-  max_steering_angle: 0.4282 # [TESTED/CALC] Maximum steering angle (rad) (24.5°)
+  max_steering_angle: 0.4668 # [TESTED/CALC] Maximum steering angle (rad) (26.7°)
                              # From servo limits: angle = (servo - offset) / gain
   
   max_steering_rate: 2.8492       # [TESTED] Maximum steering rate (rad/s)
@@ -107,7 +105,7 @@ steering:
                              # From test_steering_rate.py
   
   servo_offset: 0.5500       # [MEASURED] steering_angle_to_servo_offset
-  servo_gain: -0.7940        # [MEASURED] steering_angle_to_servo_gain
+  servo_gain: -0.7284        # [CALIBRATED] steering_angle_to_servo_gain
   servo_min: 0.202           # [MEASURED] Minimum servo PWM (from find_servo_limits.py)
   servo_max: 0.890           # [MEASURED] Maximum servo PWM (from find_servo_limits.py)
 
@@ -162,25 +160,25 @@ motor:
   #   F_net = Kt_eff × I_motor - F_rolling
   # This includes all drivetrain losses (gearing friction, bearing drag, etc.)
   
-  Kt_eff: 0.3709             # [TESTED] Effective motor-current-to-wheel-force (N/A)
-                             # Linear fit R² = 0.87
-                             # Theoretical: Kt × gear_ratio × η / r_eff
-                             # = 0.00273 × 11.82 × η / 0.05 → η = 57.5%
+  Kt_eff: 0.583              # [TESTED] Effective motor-current-to-wheel-force (N/A)
+                             # Bin-averaged linear fit R² = 0.92
+                             # Theoretical: Kt × gear_ratio / r_eff = 0.632 N/A
+                             # Efficiency η = 0.583/0.632 = 92%
   
   rolling_resistance: 2.79   # [TESTED] Rolling resistance force (N)
                              # Intercept of F_net vs I_motor fit
                              # = 0.84 N per kg (≈ Crr × g with Crr ≈ 0.086)
   
-  drivetrain_efficiency: 0.575  # [TESTED] Overall drivetrain efficiency
+  drivetrain_efficiency: 0.92   # [TESTED] Overall drivetrain efficiency
                              # = Kt_eff × r_eff / (Kt × gear_ratio)
-                             # Losses: gearbox, differentials, bearings, belt/chain
+                             # = 0.583 × 0.051 / (0.00273 × 11.82) = 0.92
   
-  max_wheel_force: 23.8      # [TESTED] Peak net wheel force during accel (N)
+  max_wheel_force: 38.9      # [TESTED] Peak net wheel force during accel (N)
                              # = Kt_eff × peak_I - rolling_resistance
-                             # = 0.371 × 71.6 - 2.79 ≈ 23.8 N (0.73 g)
+                             # = 0.583 × 71.6 - 2.79 ≈ 38.9 N (1.2 g)
   
-  accel_to_current_gain: 8.93  # [CALC] Gain for ACCEL_TO_CURRENT mode (A/(m/s²))
-                             # = mass / Kt_eff = 3.314 / 0.371
+  accel_to_current_gain: 5.69  # [CALC] Gain for ACCEL_TO_CURRENT mode (A/(m/s²))
+                             # = mass / Kt_eff = 3.314 / 0.583
                              # Use in vesc.yaml if switching to torque control.
   
   drivetrain_inertia: ~      # [ESTIMATE/TODO] Combined drivetrain inertia (kg·m²)
@@ -210,8 +208,8 @@ dynamics:
                              # Raw IMU peak was ~18.7 m/s² — heavily contaminated by
                              # chassis pitch (nose-down) projecting gravity onto IMU x-axis.
   
-  max_lateral_accel: 7.3212  # [TESTED] Maximum lateral acceleration before slide (m/s²)
-                             # From test_friction.py: mu × g
+  max_lateral_accel: 7.7205  # [TESTED] Maximum lateral acceleration before slide (m/s²)
+                             # From test_friction.py: mu × g = 0.787 × 9.81
 
 # ============================================================================
 # VESC Calibration (from vesc.yaml, for reference)
@@ -220,7 +218,7 @@ dynamics:
 vesc_calibration:
   speed_to_erpm_gain: 4550.0
   speed_to_erpm_offset: 0.0
-  steering_angle_to_servo_gain: -0.7940
+  steering_angle_to_servo_gain: -0.7284
   steering_angle_to_servo_offset: 0.5500
 
 # ============================================================================
