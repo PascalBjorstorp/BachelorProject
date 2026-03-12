@@ -48,7 +48,7 @@ hokuyo_scip_driver:
     cluster: 4
 
     # SCIP scan interval: 0 = every scan (full 40 Hz), 1 = every other, …
-    skip: 1
+    skip: 0
 
     # Range filtering (meters)
     range_min: 0.1

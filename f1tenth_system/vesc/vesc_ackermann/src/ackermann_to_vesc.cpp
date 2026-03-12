@@ -56,6 +56,13 @@ AckermannToVesc::AckermannToVesc(const rclcpp::NodeOptions & options)
   declare_parameter("steering_angle_to_servo_gain", 0.0);
   declare_parameter("steering_angle_to_servo_offset", 0.0);
 
+  // Steering nonlinearity correction: δ_corrected = c2·|δ|² + c1·|δ| + c0
+  // Default coefficients are identity (c2=0, c1=1, c0=0 → no correction).
+  // Run test_servo_calibration.py to measure and fit these.
+  declare_parameter("steering_correction_c2", 0.0);
+  declare_parameter("steering_correction_c1", 1.0);
+  declare_parameter("steering_correction_c0", 0.0);
+
   // Braking parameters
   declare_parameter("brake_deadzone", 0.1);
   declare_parameter("speed_to_braking_gain", 0.0);
@@ -77,6 +84,9 @@ AckermannToVesc::AckermannToVesc(const rclcpp::NodeOptions & options)
   speed_to_erpm_offset_ = get_parameter("speed_to_erpm_offset").get_value<double>();
   steering_to_servo_gain_ = get_parameter("steering_angle_to_servo_gain").get_value<double>();
   steering_to_servo_offset_ = get_parameter("steering_angle_to_servo_offset").get_value<double>();
+  steering_correction_c2_ = get_parameter("steering_correction_c2").get_value<double>();
+  steering_correction_c1_ = get_parameter("steering_correction_c1").get_value<double>();
+  steering_correction_c0_ = get_parameter("steering_correction_c0").get_value<double>();
 
   // Braking parameters
   brake_deadzone_ = get_parameter("brake_deadzone").get_value<double>();
@@ -127,8 +137,14 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
   current_msg->data = 0.0;
   erpm_msg->data = 0.0;
 
-  // Calculate steering angle (servo)
-  servo_msg->data = steering_to_servo_gain_ * cmd->drive.steering_angle + steering_to_servo_offset_;
+  // Calculate steering angle (servo) with nonlinearity correction
+  double angle = cmd->drive.steering_angle;
+  double abs_angle = std::abs(angle);
+  double corrected_abs = steering_correction_c2_ * abs_angle * abs_angle
+                       + steering_correction_c1_ * abs_angle
+                       + steering_correction_c0_;
+  double corrected_angle = std::copysign(corrected_abs, angle);
+  servo_msg->data = steering_to_servo_gain_ * corrected_angle + steering_to_servo_offset_;
 
   // Case 1: Acceleration-to-current mode (if gains are set)
   if (accel_to_current_gain_ != 0 && accel_to_brake_gain_ != 0) {

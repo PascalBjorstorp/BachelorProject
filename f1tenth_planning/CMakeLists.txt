@@ -16,12 +16,10 @@ find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 
-# Install Python modules
-ament_python_install_package(${PROJECT_NAME})
-
 # Install Python scripts
 install(PROGRAMS
-  scripts/generate_raceline.py
+  scripts/optimize_trajectory.py
+  scripts/compute_wall_distances.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
