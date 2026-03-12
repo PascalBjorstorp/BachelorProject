@@ -65,9 +65,11 @@ class CorneringStiffnessNode(TestNode):
 
     def __init__(self, args):
         columns = [
-            'odom_vx', 'odom_vy', 'imu_ay', 'imu_gz', 'imu_ax',
+            'odom_vx', 'odom_vy', 'odom_x', 'odom_y', 'odom_yaw',
+            'imu_ay', 'imu_gz', 'imu_ax',
             'v_lidar_vx', 'v_lidar_vy',
-            'motor_current', 'cmd_speed', 'cmd_steering', 'phase'
+            'motor_current', 'battery_voltage',
+            'cmd_speed', 'cmd_steering', 'phase'
         ]
 
         # Auto-calculate geofence from the SMALLEST steering angle (largest circle)
