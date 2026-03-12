@@ -61,7 +61,7 @@
 #define MPC_HORIZON       20
 #define MPC_REF_ENTRIES   20
 #define MAX_WAYPOINTS     2000
-#define MAX_STEERING      0.4282  /* rad */
+#define MAX_STEERING      0.4189  /* rad (calibrated with polynomial servo correction) */
 #define MAX_VELOCITY      20.0    /* m/s */
 #define PHYSICAL_MAX_ACCEL 8.0   /* m/s² */
 #define MIN_SPEED_FOR_MPC 0.5    /* m/s */
@@ -556,7 +556,7 @@ int main(void)
             static const double lf = 0.166, lr = 0.16, h_cg = 0.0703;
             static const double g_acc = 9.81;
             static const double sv_max = 2.8492;
-            static const double s_max  = 0.4282;
+            static const double s_max  = 0.4189;
             static const double v_switch = 7.319;
             static const double v_min = 0.0, v_max = 20.0;
             static const double lwb = 0.166 + 0.16;

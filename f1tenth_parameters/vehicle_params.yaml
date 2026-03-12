@@ -94,8 +94,9 @@ tire:
 # ============================================================================
 
 steering:
-  max_steering_angle: 0.4668 # [TESTED/CALC] Maximum steering angle (rad) (26.7°)
-                             # From servo limits: angle = (servo - offset) / gain
+  max_steering_angle: 0.4189 # [CALIBRATED] Maximum steering angle (rad) (24.0°)
+                             # With polynomial servo correction, servo saturates at ~0.42 rad
+                             # Reduced from 0.4668 to stay within corrected servo range
   
   max_steering_rate: 2.8492       # [TESTED] Maximum steering rate (rad/s)
                              # From test_steering_rate.py
@@ -108,6 +109,12 @@ steering:
   servo_gain: -0.7284        # [CALIBRATED] steering_angle_to_servo_gain
   servo_min: 0.202           # [MEASURED] Minimum servo PWM (from find_servo_limits.py)
   servo_max: 0.890           # [MEASURED] Maximum servo PWM (from find_servo_limits.py)
+  
+  # Nonlinearity correction polynomial (calibrated 2026-03-12, 7 angles)
+  # corrected = c2·|δ|² + c1·|δ| + c0  (sign-preserved)
+  steering_correction_c2: 0.589566
+  steering_correction_c1: 0.918061
+  steering_correction_c0: 0.001490
 
 # ============================================================================
 # Motor / Drivetrain Properties

@@ -115,7 +115,7 @@ typedef int32_t fixed_point_t;
 #define VP_CSF              FP_CONST(2.804)
 #define VP_CSR              FP_CONST(3.320)
 #define VP_MU               FP_CONST(0.7463)
-#define VP_MAX_STEER        FP_CONST(0.4282)
+#define VP_MAX_STEER        FP_CONST(0.4189)
 #define VP_MAX_VEL          FP_CONST(20.0)
 #define VP_MIN_VEL          ((fixed_point_t)0)
 #define VP_MAX_ACCEL        FP_CONST(8.0)

@@ -387,9 +387,11 @@ typedef struct
 #define F110_DEFAULT_WHEELBASE_METERS \
     FP_CONST(0.324)
 
-/** F1/10th max steering: 0.4282 radians (~24.5 degrees) [TESTED] */
+/** F1/10th max steering: 0.4189 radians (~24.0 degrees) [CALIBRATED]
+ *  With polynomial servo correction, servo saturates at ~0.42 rad.
+ *  Reduced from 0.4282 to stay within corrected servo range. */
 #define F110_DEFAULT_MAXIMUM_STEERING_RADIANS \
-    FP_CONST(0.4282)
+    FP_CONST(0.4189)
 
 /** F1/10th max velocity: 20.0 meters per second (simulation limit)
  *  Real car measured 5.17 m/s (test) to ~10 m/s (higher cmd speed). */

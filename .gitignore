@@ -145,7 +145,6 @@ f1tenth_localization/Benchmark/localization_benchmark_*.csv
 # =============================================
 # Parameter Experiment Data (large CSVs)
 # =============================================
-f1tenth_parameters/data/*.csv
 f1tenth_parameters/oldData/
 
 # =============================================
@@ -235,8 +234,6 @@ MPC_legacy/*
 # =============================================
 # Parameter csv files (excluded — large data)
 # =============================================
-f1tenth_parameters/data/*.csv
-
 # CMake generated files
 *CMakeConfigureLog.yaml
 *CMakeCCompilerId.c

@@ -24,10 +24,13 @@ mpc_hardware_node:
     watchdog_timeout_sec: 0.2     # Zero command if no odom for this long [seconds]
 
     # VESC servo conversion parameters
-    # servo_val = steering_to_servo_gain * delta + steering_to_servo_offset
-    # delta = (servo_val - offset) / gain
-    steering_to_servo_gain: -0.794    # VESC steering_angle_to_servo_gain
+    # Forward: servo = gain * (c2·|δ|² + c1·|δ| + c0) + offset
+    # Inverse: solve quadratic to recover δ from servo position
+    steering_to_servo_gain: -0.7284   # VESC steering_angle_to_servo_gain [calibrated]
     steering_to_servo_offset: 0.55    # VESC steering_angle_to_servo_offset
+    steering_correction_c2: 0.589566  # Polynomial correction (calibrated 2026-03-12)
+    steering_correction_c1: 0.918061
+    steering_correction_c0: 0.001490
 
     # MPC solver tuning (override defaults via environment variables)
     # MPC_W_LAT_ERROR:    Lateral error weight (default: 340.0)

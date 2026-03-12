@@ -90,10 +90,16 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
     declare_parameter<double>("steering_angle_to_servo_gain", 0.0);
     declare_parameter<double>("steering_angle_to_servo_offset", 0.0);
     declare_parameter<double>("wheelbase", 0.0);
+    declare_parameter<double>("steering_correction_c2", 0.0);
+    declare_parameter<double>("steering_correction_c1", 1.0);
+    declare_parameter<double>("steering_correction_c0", 0.0);
 
     steering_to_servo_gain_ = get_parameter("steering_angle_to_servo_gain").get_value<double>();
     steering_to_servo_offset_ = get_parameter("steering_angle_to_servo_offset").get_value<double>();
     wheelbase_ = get_parameter("wheelbase").get_value<double>();
+    steering_correction_c2_ = get_parameter("steering_correction_c2").get_value<double>();
+    steering_correction_c1_ = get_parameter("steering_correction_c1").get_value<double>();
+    steering_correction_c0_ = get_parameter("steering_correction_c0").get_value<double>();
   }
 
   publish_tf_ = declare_parameter("publish_tf", publish_tf_);
@@ -176,9 +182,24 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     // Use filtered IMU yaw rate (angular velocity around z-axis)
     current_angular_velocity = filtered_angular_velocity_;
   } else if (use_servo_cmd_) {
-    // Calculate from steering angle
-    double current_steering_angle =
+    // Calculate from steering angle (with polynomial inverse correction)
+    double corrected_angle =
       (last_servo_cmd_->data - steering_to_servo_offset_) / steering_to_servo_gain_;
+    double abs_corr = std::abs(corrected_angle);
+    double current_steering_angle;
+    if (steering_correction_c2_ != 0.0) {
+      double disc = steering_correction_c1_ * steering_correction_c1_
+                  - 4.0 * steering_correction_c2_ * (steering_correction_c0_ - abs_corr);
+      if (disc >= 0.0) {
+        double t = (-steering_correction_c1_ + std::sqrt(disc))
+                 / (2.0 * steering_correction_c2_);
+        current_steering_angle = std::copysign(t, corrected_angle);
+      } else {
+        current_steering_angle = corrected_angle;
+      }
+    } else {
+      current_steering_angle = corrected_angle;
+    }
     current_angular_velocity = current_speed * tan(current_steering_angle) / wheelbase_;
   }
 

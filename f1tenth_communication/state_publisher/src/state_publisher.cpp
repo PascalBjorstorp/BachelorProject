@@ -145,9 +145,14 @@ public:
         this->declare_parameter("output_topic", "/mpc_state");
         this->declare_parameter("servo_topic", "/sensors/servo_position_command");
         this->declare_parameter("wheelbase", 0.324);
-        // VESC servo → steering angle conversion: δ = (servo_val - offset) / gain
-        this->declare_parameter("servo_gain", -0.794);
+        // VESC servo → steering angle conversion
+        // Forward: servo = gain * (c2·|δ|² + c1·|δ| + c0) + offset
+        // Inverse: solve quadratic to recover δ from servo value
+        this->declare_parameter("servo_gain", -0.7284);
         this->declare_parameter("servo_offset", 0.55);
+        this->declare_parameter("steering_correction_c2", 0.589566);
+        this->declare_parameter("steering_correction_c1", 0.918061);
+        this->declare_parameter("steering_correction_c0", 0.001490);
         // Number of waypoints ahead of KD-tree nearest to check for forward bias
         this->declare_parameter("forward_lookahead", 3);
         
@@ -158,6 +163,9 @@ public:
         wheelbase_ = this->get_parameter("wheelbase").as_double();
         servo_gain_ = this->get_parameter("servo_gain").as_double();
         servo_offset_ = this->get_parameter("servo_offset").as_double();
+        steer_c2_ = this->get_parameter("steering_correction_c2").as_double();
+        steer_c1_ = this->get_parameter("steering_correction_c1").as_double();
+        steer_c0_ = this->get_parameter("steering_correction_c0").as_double();
         forward_lookahead_ = static_cast<int>(this->get_parameter("forward_lookahead").as_int());
         
         if (trajectory_file.empty()) {
@@ -191,10 +199,24 @@ public:
             servo_sub_ = this->create_subscription<std_msgs::msg::Float64>(
                 servo_topic, qos,
                 [this](const std_msgs::msg::Float64::SharedPtr msg) {
-                    // msg->data is the VESC servo command value (0.0-1.0),
-                    // NOT the steering angle in radians.
-                    // Convert: δ = (servo_val - offset) / gain
-                    current_steering_angle_ = (msg->data - servo_offset_) / servo_gain_;
+                    // msg->data is the VESC servo command value (0.0-1.0)
+                    // Invert: corrected = (servo - offset) / gain
+                    // Then solve polynomial: c2·t² + c1·t + c0 = corrected for t
+                    double corrected = (msg->data - servo_offset_) / servo_gain_;
+                    double abs_corr = std::abs(corrected);
+                    if (steer_c2_ != 0.0) {
+                        double disc = steer_c1_ * steer_c1_
+                                    - 4.0 * steer_c2_ * (steer_c0_ - abs_corr);
+                        if (disc >= 0.0) {
+                            double t = (-steer_c1_ + std::sqrt(disc))
+                                     / (2.0 * steer_c2_);
+                            current_steering_angle_ = std::copysign(t, corrected);
+                        } else {
+                            current_steering_angle_ = corrected;
+                        }
+                    } else {
+                        current_steering_angle_ = corrected;
+                    }
                     has_servo_feedback_ = true;
                 });
             RCLCPP_INFO(this->get_logger(), "Subscribing to servo feedback: %s", servo_topic.c_str());
@@ -226,8 +248,11 @@ private:
     double current_steering_angle_ = 0.0;  // Steering angle [rad] (converted from servo value)
     bool has_servo_feedback_ = false;
     double wheelbase_ = 0.324;
-    double servo_gain_ = -0.794;     // VESC servo → steering gain
+    double servo_gain_ = -0.7284;    // VESC servo → steering gain
     double servo_offset_ = 0.55;     // VESC servo center offset
+    double steer_c2_ = 0.589566;     // Steering correction polynomial c2
+    double steer_c1_ = 0.918061;     // Steering correction polynomial c1
+    double steer_c0_ = 0.001490;     // Steering correction polynomial c0
     int forward_lookahead_ = 3;      // Waypoints ahead to check for forward bias
     uint32_t trajectory_hash_ = 0;   // Checksum for cross-node trajectory verification
 

@@ -47,5 +47,5 @@ advanced:
   c_roll: 0.163               # [-] Rolling resistance coefficient (measured coast-down 2025-03-11)
   
   # Steering constraints  
-  max_steering_angle: 0.4668 # [rad] Maximum steering angle (~27°)
+  max_steering_angle: 0.4189 # [rad] Maximum steering angle (~24°, calibrated with polynomial correction)
   max_steering_rate: 2.8492     # [rad/s] Maximum steering rate

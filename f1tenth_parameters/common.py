@@ -89,14 +89,15 @@ DEFAULT_SERVO_MAX = 0.890
 DEFAULT_WHEELBASE = 0.324
 DEFAULT_LASER_X_OFFSET = 0.265  # LiDAR (ego_racecar/laser) to base_link x offset (m)
 
-# Compute max steering angle from servo limits
-# servo = gain * angle + offset
-# angle = (servo - offset) / gain
-# For gain < 0: max angle at servo_min, min angle at servo_max
-# Use the minimum of both sides for a safe symmetric limit
-_steer_at_servo_min = abs((DEFAULT_SERVO_MIN - DEFAULT_SERVO_OFFSET) / DEFAULT_SERVO_GAIN)
-_steer_at_servo_max = abs((DEFAULT_SERVO_MAX - DEFAULT_SERVO_OFFSET) / DEFAULT_SERVO_GAIN)
-DEFAULT_MAX_STEER = min(_steer_at_servo_min, _steer_at_servo_max)
+# Servo nonlinearity correction (calibrated 2026-03-12)
+# corrected = c2·|δ|² + c1·|δ| + c0  (sign-preserved)
+DEFAULT_STEERING_CORRECTION_C2 = 0.589566
+DEFAULT_STEERING_CORRECTION_C1 = 0.918061
+DEFAULT_STEERING_CORRECTION_C0 = 0.001490
+
+# Max steering angle accounting for polynomial correction.
+# With correction, servo saturates at target ≈ 0.42 rad.
+DEFAULT_MAX_STEER = 0.4189
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 

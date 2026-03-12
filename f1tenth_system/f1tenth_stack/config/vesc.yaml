@@ -21,10 +21,17 @@
     # ===================
     # Steering Calibration
     # ===================
-    # servo_value = steering_angle_to_servo_gain * steering_angle (rad) + steering_angle_to_servo_offset
-    # Calibrate by measuring steering angles at servo endpoints
+    # servo_value = steering_angle_to_servo_gain * corrected_angle + steering_angle_to_servo_offset
+    # where corrected_angle = c2·|δ|² + c1·|δ| + c0  (sign-preserved)
+    # Calibrate by running: python3 test_servo_calibration.py
     steering_angle_to_servo_gain: -0.7284
     steering_angle_to_servo_offset: 0.5500
+    
+    # Servo nonlinearity correction (calibrated 2026-03-12, 7 angles)
+    # Set c2=0, c1=1, c0=0 to disable correction (pure linear gain).
+    steering_correction_c2: 0.589566
+    steering_correction_c1: 0.918061
+    steering_correction_c0: 0.001490
     
     # ===================
     # VESC Limits

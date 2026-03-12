@@ -47,8 +47,7 @@ Run the raceline planner.
 
 ### Generate the Racing Line
 ```bash
-python3 f1tenth_planning/scripts/generate_raceline.py \
-  --visualize
+python3 f1tenth_planning/scripts/optimize_trajectory.py
 ```
 > Save CSV to `f1tenth_planning/trajectories/`
 
