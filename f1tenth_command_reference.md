@@ -73,15 +73,14 @@ Run the raceline planner on your PC (no need for the car to be on).
 
 ### Generate the Racing Line
 ```bash
-python3 f1tenth_planning/scripts/generate_raceline.py \
-  --visualize
+python3 f1tenth_planning/scripts/optimize_trajectory.py
 ```
 
 > This will:
 > 1. Extract track boundaries from your SLAM map
-> 2. Compute the minimum curvature racing line
-> 3. Generate velocity profile (using friction circle model)
-> 4. Save CSV + NPZ to `f1tenth_planning/trajectories/`
+> 2. Run the TUM optimizer (minimum curvature)
+> 3. Convert to MPC format and compute wall distances
+> 4. Save CSV to `f1tenth_planning/trajectories/`
 
 
 ### Check Vehicle Parameters (tune before generating)
