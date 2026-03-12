@@ -70,7 +70,6 @@ double PurePursuit::getTrajectoryLength() const {
 size_t PurePursuit::findClosestPoint(const Point2D& position) {
     if (trajectory_.empty()) return 0;
     
-    // Start search from last known closest point for efficiency
     const size_t n = trajectory_.size();
     const size_t search_radius = std::min(n / 2, size_t(100));
     
@@ -81,8 +80,17 @@ size_t PurePursuit::findClosestPoint(const Point2D& position) {
     double min_dist = std::numeric_limits<double>::max();
     size_t closest_idx = last_closest_idx_;
     
-    // Search local region
+    // Search local region — only consider forward-facing waypoints
+    // to prevent snapping to the return leg on a closed track
+    auto heading_ok = [&](size_t idx) {
+        // Accept if heading difference is within ±90° of car heading
+        double dh = trajectory_[idx].heading - current_heading_;
+        dh = std::atan2(std::sin(dh), std::cos(dh));
+        return std::abs(dh) < M_PI_2;
+    };
+    
     for (size_t i = start_idx; i <= end_idx; ++i) {
+        if (!heading_ok(i)) continue;
         double d = math::distance(position.x, position.y, trajectory_[i].x, trajectory_[i].y);
         if (d < min_dist) {
             min_dist = d;
@@ -90,9 +98,10 @@ size_t PurePursuit::findClosestPoint(const Point2D& position) {
         }
     }
     
-    // If we're too far from path, do a full search
+    // If we're too far from path, do a full search (still heading-filtered)
     if (min_dist > config_.position_tolerance * 2) {
         for (size_t i = 0; i < n; ++i) {
+            if (!heading_ok(i)) continue;
             double d = math::distance(position.x, position.y, trajectory_[i].x, trajectory_[i].y);
             if (d < min_dist) {
                 min_dist = d;
@@ -164,6 +173,7 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     Point2D position{state.pose.x, state.pose.y};
     double heading = state.pose.theta;
     double current_speed = std::abs(state.velocity);
+    current_heading_ = heading;  // Store for heading-aware closest point search
     
     // Find closest point on trajectory
     size_t closest_idx = findClosestPoint(position);

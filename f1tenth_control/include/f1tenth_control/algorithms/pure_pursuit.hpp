@@ -118,6 +118,7 @@ private:
     PurePursuitConfig config_;
     std::vector<TrajectoryPoint> trajectory_;
     size_t last_closest_idx_{0};  // For efficient search
+    double current_heading_{0.0}; // Car heading for direction-aware search
     
     /**
      * @brief Find closest point on trajectory to position
