@@ -51,7 +51,7 @@ python3 tests/test_max_dynamics.py --max-speed 3.0
 python3 tests/test_steering_rate.py
 python3 tests/test_friction.py --max-speed 4.0
 python3 tests/test_cornering_stiffness.py
-python3 tests/test_longitudinal_stiffness.py
+python3 tests/test_rolling_resistance.py
 python3 tests/test_motor_torque.py
 python3 tests/test_current_limits.py
 ```

@@ -21,11 +21,9 @@ PARAMS_FILE = os.path.join(os.path.dirname(__file__), 'vehicle_params.yaml')
 
 # Vehicle constants
 MASS = 3.314          # kg
-L_F  = 0.166          # m (front axle to CoG)
-L_R  = 0.16           # m (rear axle to CoG)
-L    = L_F + L_R      # 0.326 m wheelbase
-EMA_ALPHA = 0.3       # LiDAR velocity smoothing factor
-MIN_SPEED_CX = 2.0    # m/s — ignore low-speed longit. data (LiDAR SNR)
+L_F  = 0.169          # m (front axle to CoG)
+L_R  = 0.155          # m (rear axle to CoG)
+L    = L_F + L_R      # 0.324 m wheelbase
 GRAVITY = 9.81
 
 
@@ -262,9 +260,9 @@ def reanalyze_cornering():
     #    from step-steer transients). Without that data here, we use
     #    the report's combined K_us + omega_n result.
     # ----------------------------------------------------------
-    C_alpha_best_f = 44.8   # N/rad — combined K_us + yaw-resonance (report_outline.tex)
-    C_alpha_best_r = 55.7   # N/rad — ±30-40% uncertainty
-    source = "combined K_us + yaw-resonance (report_outline.tex)"
+    C_alpha_best_f = 55.6   # N/rad — combined K_us + yaw-frequency (report_outline.tex)
+    C_alpha_best_r = 42.3   # N/rad — depends on assumed omega_n=10
+    source = "combined K_us + yaw-frequency (report_outline.tex)"
 
     print(f"\n  *** BEST ESTIMATE [{source}] ***")
     print(f"    C_alpha_f = {C_alpha_best_f:.1f} N/rad" if C_alpha_best_f else "    C_alpha_f = N/A")
@@ -274,101 +272,66 @@ def reanalyze_cornering():
 
 
 # ============================================================
-# LONGITUDINAL STIFFNESS (re-analysis)
+# ROLLING RESISTANCE (re-analysis from coast-down data)
 # ============================================================
 
-def ema(arr, alpha):
-    """Exponential moving average."""
-    out = np.empty_like(arr, dtype=float)
-    out[0] = arr[0]
-    for i in range(1, len(arr)):
-        out[i] = alpha * arr[i] + (1 - alpha) * out[i - 1]
-    return out
-
-
-def reanalyze_longitudinal():
-    """Re-analyse longitudinal stiffness using EMA-smoothed LiDAR velocity."""
+def reanalyze_rolling_resistance():
+    """Re-analyse rolling resistance from coast-down test CSVs."""
     print("\n" + "=" * 60)
-    print("LONGITUDINAL STIFFNESS — OFFLINE RE-ANALYSIS")
-    print(f"EMA alpha = {EMA_ALPHA},  min v for C_x = {MIN_SPEED_CX} m/s")
+    print("ROLLING RESISTANCE — OFFLINE RE-ANALYSIS")
+    print("Method: v(t) linear fit during coast phase")
     print("=" * 60)
 
-    raw_files = sorted(glob.glob(os.path.join(DATA_DIR, 'longitudinal_stiffness_*.csv')))
-    # exclude any summary files
+    raw_files = sorted(glob.glob(os.path.join(DATA_DIR, 'rolling_resistance_*.csv')))
     raw_files = [f for f in raw_files if 'summary' not in f]
     if not raw_files:
-        print("  ERROR: No longitudinal_stiffness_*.csv found in data/")
+        print("  ERROR: No rolling_resistance_*.csv found in data/")
         return None
 
     print(f"\n  Found {len(raw_files)} run files")
 
-    all_kappa = []
-    all_Fx    = []
-    accel_kappa, accel_Fx = [], []
-    brake_kappa, brake_Fx = [], []
-
+    run_c_rolls = []
     for fpath in raw_files:
         df = pd.read_csv(fpath)
-        if 'v_lidar' not in df.columns:
-            print(f"  SKIP {os.path.basename(fpath)} — no v_lidar column")
+
+        # Use coast phase only
+        coast = df[df['phase'] == 'coast'].copy()
+        if len(coast) < 20:
+            print(f"  SKIP {os.path.basename(fpath)}: not enough coast data ({len(coast)})")
             continue
 
-        # Apply EMA smoothing to LiDAR velocity per phase
-        for phase in ['acceleration', 'cruise', 'braking']:
-            mask = df['phase'] == phase
-            if mask.sum() < 5:
-                continue
+        t = coast['timestamp_s'].values - coast['timestamp_s'].values[0]
+        v = np.abs(coast['odom_vx'].values)
 
-            seg = df[mask].copy()
-            seg_vlidar_ema = ema(seg['v_lidar'].values, EMA_ALPHA)
-            seg_vwheel = seg['odom_vx'].values
-            seg_ax     = seg['imu_ax'].values
+        # Filter above noise floor
+        hi_speed = v > 0.5
+        if np.sum(hi_speed) < 10:
+            print(f"  SKIP {os.path.basename(fpath)}: not enough high-speed coast data")
+            continue
 
-            v_max_arr  = np.maximum(np.maximum(np.abs(seg_vwheel), np.abs(seg_vlidar_ema)), 0.5)
-            kappa_arr  = (seg_vwheel - seg_vlidar_ema) / v_max_arr
-            F_x_arr    = MASS * seg_ax
+        # Linear fit: v = v0 - a_decel * t
+        p = np.polyfit(t[hi_speed], v[hi_speed], 1)
+        a_decel = abs(p[0])
+        c_roll = a_decel / GRAVITY
 
-            hi_speed = np.abs(seg_vlidar_ema) > MIN_SPEED_CX
-            lin      = hi_speed & (np.abs(kappa_arr) > 0.005) & (np.abs(kappa_arr) < 0.20)
+        # Check motor current (should be near zero for true coasting)
+        if 'motor_current' in coast.columns:
+            mean_current = np.mean(np.abs(coast['motor_current'].values[hi_speed]))
+        else:
+            mean_current = 0.0
 
-            if np.sum(lin) > 0:
-                all_kappa.extend(kappa_arr[lin].tolist())
-                all_Fx.extend(F_x_arr[lin].tolist())
-                if phase == 'acceleration':
-                    accel_kappa.extend(kappa_arr[lin].tolist())
-                    accel_Fx.extend(F_x_arr[lin].tolist())
-                elif phase == 'braking':
-                    brake_kappa.extend(kappa_arr[lin].tolist())
-                    brake_Fx.extend(F_x_arr[lin].tolist())
+        run_c_rolls.append(c_roll)
+        print(f"  {os.path.basename(fpath)}: c_roll = {c_roll:.4f} "
+              f"(a_decel = {a_decel:.3f} m/s², mean |I| = {mean_current:.2f} A)")
 
-    def fit_cx(kappa_list, Fx_list, label):
-        if len(kappa_list) < 10:
-            print(f"\n  {label}: only {len(kappa_list)} points — not enough for fit")
-            return 0.0
-        kk = np.array(kappa_list)
-        ff = np.array(Fx_list)
-        Cx = float(np.sum(ff * kk) / np.sum(kk ** 2))
-        ss_res = np.sum((ff - Cx * kk)**2)
-        ss_tot = np.sum((ff - np.mean(ff))**2)
-        r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
-        p = np.polyfit(kk, ff, 1)
-        print(f"\n  {label} ({len(kappa_list)} pts):")
-        print(f"    C_x (origin-fit) = {abs(Cx):.1f} N/slip,  R² = {r2:.3f}")
-        print(f"    C_x (polyfit)    = slope {p[0]:.1f}, intercept {p[1]:.1f} N")
-        return Cx
-
-    Cx_accel   = fit_cx(accel_kappa, accel_Fx,   "Acceleration phase")
-    Cx_brake   = fit_cx(brake_kappa, brake_Fx,   "Braking phase")
-    Cx_combined = fit_cx(all_kappa,   all_Fx,    "Combined (all phases)")
-
-    best_Cx = Cx_accel if accel_kappa else (Cx_brake if brake_kappa else Cx_combined)
-    # NOTE: Use acceleration-only estimate (braking phase inflated by regen)
-
-    print(f"\n  *** BEST ESTIMATE ***")
-    print(f"    C_x = {abs(best_Cx):.1f} N/unit-slip  (combined, EMA-smoothed LiDAR)")
-    print(f"    C_x per tire ≈ {abs(best_Cx)/4:.1f} N/unit-slip")
-
-    return best_Cx
+    if run_c_rolls:
+        c_roll_mean = np.mean(run_c_rolls)
+        c_roll_std = np.std(run_c_rolls)
+        print(f"\n  *** BEST ESTIMATE ***")
+        print(f"    c_roll = {c_roll_mean:.4f} ± {c_roll_std:.4f}  (n={len(run_c_rolls)} runs)")
+        print(f"    F_roll = {c_roll_mean * MASS * GRAVITY:.2f} N")
+        return c_roll_mean
+    return None
 
 
 # ============================================================
@@ -410,12 +373,12 @@ def update_yaml(key, value, comment=''):
 
 if __name__ == '__main__':
     print("F1/10th Vehicle Parameter Offline Re-Analysis")
-    print("Using improved methods: plateau detection, understeer-gradient, EMA smoothing")
+    print("Using improved methods: plateau detection, understeer-gradient, coast-down")
 
     mu = reanalyze_friction()
     Kt_eff, F_rolling = reanalyze_motor_torque() or (None, None)
     C_af, C_ar = reanalyze_cornering() or (None, None)
-    Cx = reanalyze_longitudinal()
+    c_roll = reanalyze_rolling_resistance()
 
     print("\n" + "=" * 60)
     print("SUMMARY")
@@ -425,7 +388,7 @@ if __name__ == '__main__':
     if F_rolling: print(f"  F_rolling   = {F_rolling:.2f} N")
     if C_af: print(f"  C_alpha_f   = {C_af:.1f} N/rad")
     if C_ar: print(f"  C_alpha_r   = {C_ar:.1f} N/rad")
-    if Cx:   print(f"  C_x         = {abs(Cx):.1f} N/unit-slip")
+    if c_roll: print(f"  c_roll      = {c_roll:.4f}")
 
     # Auto-update vehicle_params.yaml
     print("\n  Updating vehicle_params.yaml...")
@@ -434,6 +397,6 @@ if __name__ == '__main__':
     if F_rolling: update_yaml('rolling_resistance', F_rolling, '[TESTED] rolling resistance force (N)')
     if C_af: update_yaml('C_alpha_f', C_af, '[TESTED] cornering stiffness front (N/rad)')
     if C_ar: update_yaml('C_alpha_r', C_ar, '[TESTED] cornering stiffness rear (N/rad)')
-    if Cx:   update_yaml('C_x', abs(Cx), '[TESTED] combined longitudinal stiffness (N/slip)')
+    if c_roll: update_yaml('c_roll', c_roll, '[TESTED] rolling resistance coefficient')
 
     print("\nDone.")
