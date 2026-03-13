@@ -33,13 +33,13 @@
 \@writefile{toc}{\contentsline {paragraph}{Understeer gradient method.}{3}{section*.8}\protected@file@percent }
 \newlabel{eq:Kus}{{10}{3}{Understeer gradient method}{equation.1.10}{}}
 \@writefile{toc}{\contentsline {paragraph}{Procedure.}{3}{section*.9}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Understeer gradient measurement. The vertical axis is $\delta - L\omega /v_x$ (deviation from kinematic steering); the horizontal axis is the lateral acceleration $a_y$. The slope of the linear fit gives $K_\text  {us} = \SI {0.012}{\radian \per (\metre \per \second \squared )}$ ($R^2 = 0.94$, $n = 20$ operating points, 5 runs).}}{4}{figure.2}\protected@file@percent }
-\newlabel{fig:cornering-Kus}{{2}{4}{Understeer gradient measurement. The vertical axis is $\delta - L\omega /v_x$ (deviation from kinematic steering); the horizontal axis is the lateral acceleration $a_y$. The slope of the linear fit gives $K_\text {us} = \SI {0.012}{\radian \per (\metre \per \second \squared )}$ ($R^2 = 0.94$, $n = 20$ operating points, 5 runs)}{figure.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Understeer gradient measurement. The vertical axis is $\delta - L\omega /v_x$ (deviation from kinematic steering); the horizontal axis is the lateral acceleration $a_y$. The slope of the linear fit gives $K_\text  {us} = \SI {0.0093}{\radian \per (\metre \per \second \squared )}$ ($R^2 = 0.81$, $n = 20$ operating points, 5 runs).}}{4}{figure.2}\protected@file@percent }
+\newlabel{fig:cornering-Kus}{{2}{4}{Understeer gradient measurement. The vertical axis is $\delta - L\omega /v_x$ (deviation from kinematic steering); the horizontal axis is the lateral acceleration $a_y$. The slope of the linear fit gives $K_\text {us} = \SI {0.0093}{\radian \per (\metre \per \second \squared )}$ ($R^2 = 0.81$, $n = 20$ operating points, 5 runs)}{figure.2}{}}
 \@writefile{toc}{\contentsline {paragraph}{Results.}{4}{figure.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Individual cornering stiffness.}{4}{section*.11}\protected@file@percent }
 \newlabel{eq:wn}{{11}{4}{Individual cornering stiffness}{equation.1.11}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Cornering stiffness pairs $(C_{\alpha f},\,C_{\alpha r})$ satisfying the measured $K_\text  {us} = 0.012$ as a function of the assumed yaw-plane natural frequency $\omega _n$. The shaded band marks an estimated frequency range.}}{5}{figure.3}\protected@file@percent }
-\newlabel{fig:cornering-range}{{3}{5}{Cornering stiffness pairs $(C_{\alpha f},\,C_{\alpha r})$ satisfying the measured $K_\text {us} = 0.012$ as a function of the assumed yaw-plane natural frequency $\omega _n$. The shaded band marks an estimated frequency range}{figure.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Cornering stiffness pairs $(C_{\alpha f},\,C_{\alpha r})$ satisfying the measured $K_\text  {us} = 0.0093$ as a function of the assumed yaw-plane natural frequency $\omega _n$. The shaded band marks an estimated frequency range.}}{5}{figure.3}\protected@file@percent }
+\newlabel{fig:cornering-range}{{3}{5}{Cornering stiffness pairs $(C_{\alpha f},\,C_{\alpha r})$ satisfying the measured $K_\text {us} = 0.0093$ as a function of the assumed yaw-plane natural frequency $\omega _n$. The shaded band marks an estimated frequency range}{figure.3}{}}
 \newlabel{eq:Calpha-result}{{12}{5}{Individual cornering stiffness}{equation.1.12}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {1.4}Rolling Resistance}{5}{subsection.1.4}\protected@file@percent }
 \newlabel{sec:rolling-resistance}{{1.4}{5}{Rolling Resistance}{subsection.1.4}{}}
@@ -90,9 +90,17 @@
 \@writefile{toc}{\contentsline {paragraph}{Procedure.}{11}{section*.29}\protected@file@percent }
 \@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Calibrated VESC parameters.}}{11}{table.5}\protected@file@percent }
 \newlabel{tab:vesc-cal}{{5}{11}{Calibrated VESC parameters}{table.5}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {1.9}Parameter Summary}{11}{subsection.1.9}\protected@file@percent }
-\newlabel{sec:param-summary}{{1.9}{11}{Parameter Summary}{subsection.1.9}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Identified vehicle model parameters.}}{11}{table.6}\protected@file@percent }
-\newlabel{tab:params}{{6}{11}{Identified vehicle model parameters}{table.6}{}}
-\@writefile{toc}{\contentsline {paragraph}{Discussion.}{11}{section*.30}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.9}Servo Nonlinearity Correction}{11}{subsection.1.9}\protected@file@percent }
+\newlabel{sec:servo-correction}{{1.9}{11}{Servo Nonlinearity Correction}{subsection.1.9}{}}
+\@writefile{toc}{\contentsline {paragraph}{Motivation.}{11}{section*.30}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Physical servo mapping.}{11}{section*.31}\protected@file@percent }
+\newlabel{eq:servo-poly}{{16}{11}{Physical servo mapping}{equation.1.16}{}}
+\@writefile{toc}{\contentsline {paragraph}{Correction polynomial.}{11}{section*.32}\protected@file@percent }
+\newlabel{eq:servo-correction}{{17}{11}{Correction polynomial}{equation.1.17}{}}
+\@writefile{toc}{\contentsline {paragraph}{Impact on cornering stiffness.}{11}{section*.33}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.10}Parameter Summary}{11}{subsection.1.10}\protected@file@percent }
+\newlabel{sec:param-summary}{{1.10}{11}{Parameter Summary}{subsection.1.10}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Identified vehicle model parameters.}}{12}{table.6}\protected@file@percent }
+\newlabel{tab:params}{{6}{12}{Identified vehicle model parameters}{table.6}{}}
+\@writefile{toc}{\contentsline {paragraph}{Discussion.}{12}{section*.34}\protected@file@percent }
 \gdef \@abspage@last{12}
