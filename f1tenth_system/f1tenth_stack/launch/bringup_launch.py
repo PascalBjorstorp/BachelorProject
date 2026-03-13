@@ -48,7 +48,6 @@ def generate_launch_description():
     # ── Package directories for included launch files ──
     lidar_pkg_dir = get_package_share_directory('f1tenth_lidar')
     lateral_planner_pkg_dir = get_package_share_directory('f1tenth_lateral_planner')
-    localization_pkg_dir = get_package_share_directory('f1tenth_localization')
 
     # ── Default map path ──
     workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(pkg_share))))
@@ -208,22 +207,6 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
             os.path.join(lidar_pkg_dir, 'launch', 'scan_splitter.launch.py')
         ),
-        condition=UnlessCondition(mapping_mode),
-    ))
-
-    # ══════════════════════
-    #  Localization — GPU AMCL + Odom Fusion + EKF
-    # ══════════════════════
-    # Bridges TF: map → ego_racecar/odom → ego_racecar/base_link
-    # Requires /scan_walls (scan_splitter) and /map (map_server).
-    # Only launched in racing mode (mapping_mode=false).
-    ld.add_action(IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(localization_pkg_dir, 'launch', 'cpp_localization.launch.py')
-        ),
-        launch_arguments={
-            'use_sim_time': LaunchConfiguration('use_sim_time'),
-        }.items(),
         condition=UnlessCondition(mapping_mode),
     ))
 

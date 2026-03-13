@@ -1081,7 +1081,7 @@ def main():
         help='Physical car width [m] used for wall distance margin (default: 0.273, F1Tenth)',
     )
     parser.add_argument(
-        '--wall-clearance', type=float, default=0.02,
+        '--wall-clearance', type=float, default=0.06,
         help='Extra clearance from walls beyond car width on each side [m] (default: 0.05). '
              'Optimizer width_opt = car_width + 2*wall_clearance',
     )

@@ -81,7 +81,7 @@ void PurePursuitNode::declareParameters() {
     // Speed
     declare_parameter("max_speed", 8.0);
     declare_parameter("min_speed", 1.0);
-    declare_parameter("speed_gain", 0.8);
+    declare_parameter("speed_gain", 1.0);
     
     // Steering
     declare_parameter("max_steering", 0.4189);
