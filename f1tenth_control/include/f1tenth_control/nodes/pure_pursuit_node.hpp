@@ -7,7 +7,6 @@
 #include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <std_msgs/msg/bool.hpp>
-#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 
@@ -29,13 +28,12 @@ namespace f1tenth_control {
  * 
  * Topics:
  *   Subscriptions:
- *     - /odom (nav_msgs/Odometry): Vehicle pose and velocity
+ *     - /odom (nav_msgs/Odometry): Vehicle velocity
  *     - /pp_enable (std_msgs/Bool): Enable/disable controller
  *   
  *   Publications:
  *     - /drive (ackermann_msgs/AckermannDriveStamped): Control commands
- *     - /pp_viz (visualization_msgs/MarkerArray): Debug visualization
- *     - /pp_path (nav_msgs/Path): Loaded trajectory for visualization
+ *     - /pp_viz (visualization_msgs/MarkerArray): Lookahead point visualization
  * 
  * Parameters:
  *     - trajectory_file: Path to CSV trajectory file
@@ -62,24 +60,7 @@ private:
     bool enabled_{true};
     bool trajectory_loaded_{false};
     
-    // Performance tracking
-    struct Metrics {
-        double total_distance{0.0};
-        double lap_count{0.0};
-        rclcpp::Time start_time;
-        double last_x{0.0};
-        double last_y{0.0};
-        double start_x{0.0};
-        double start_y{0.0};
-        bool initialized{false};
-        double max_cross_track_error{0.0};
-        double sum_cross_track_error{0.0};
-        int update_count{0};
-    };
-    Metrics metrics_;
-    
     // ROS2 Communication
-    // TF for map-frame pose (keeps waypoint and vehicle coordinates consistent)
     std::shared_ptr<tf2_ros::Buffer>            tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
@@ -89,16 +70,16 @@ private:
     
     rclcpp::Publisher<ackermann_msgs::msg::AckermannDriveStamped>::SharedPtr drive_pub_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_pub_;
-    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
     
-    rclcpp::TimerBase::SharedPtr control_timer_;
+    // Soft start
+    rclcpp::Time soft_start_time_;
+    bool soft_start_initialized_{false};
     
     // Parameters
     std::string trajectory_file_;
     std::string map_frame_{"map"};
     std::string base_frame_{"ego_racecar/base_link"};
     bool publish_visualization_{true};
-    double control_rate_{50.0};  // Hz
     
     void declareParameters();
     void loadParameters();
@@ -112,17 +93,14 @@ private:
     void enableCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void localRacelineCallback(const nav_msgs::msg::Path::SharedPtr msg);
     void controlLoop();
-    bool updatePoseFromTF();  // Updates pose in map frame; falls back to /odom
+    bool updatePoseFromTF();
     
     // Publishing
     void publishDriveCommand(double steering, double speed);
-    void publishVisualization(const PurePursuitOutput& output);
-    void publishTrajectoryPath();
+    void publishLookaheadMarker(const PurePursuitOutput& output);
     
     // Helpers
     bool loadTrajectory();
-    void updateMetrics(const PurePursuitOutput& output);
-    void printMetricsSummary();
 };
 
 }  // namespace f1tenth_control

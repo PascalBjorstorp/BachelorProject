@@ -70,7 +70,6 @@ double PurePursuit::getTrajectoryLength() const {
 size_t PurePursuit::findClosestPoint(const Point2D& position) {
     if (trajectory_.empty()) return 0;
     
-    // Start search from last known closest point for efficiency
     const size_t n = trajectory_.size();
     const size_t search_radius = std::min(n / 2, size_t(100));
     
@@ -81,8 +80,17 @@ size_t PurePursuit::findClosestPoint(const Point2D& position) {
     double min_dist = std::numeric_limits<double>::max();
     size_t closest_idx = last_closest_idx_;
     
-    // Search local region
+    // Search local region — only consider forward-facing waypoints
+    // to prevent snapping to the return leg on a closed track
+    auto heading_ok = [&](size_t idx) {
+        // Accept if heading difference is within ±90° of car heading
+        double dh = trajectory_[idx].heading - current_heading_;
+        dh = std::atan2(std::sin(dh), std::cos(dh));
+        return std::abs(dh) < M_PI_2;
+    };
+    
     for (size_t i = start_idx; i <= end_idx; ++i) {
+        if (!heading_ok(i)) continue;
         double d = math::distance(position.x, position.y, trajectory_[i].x, trajectory_[i].y);
         if (d < min_dist) {
             min_dist = d;
@@ -90,9 +98,10 @@ size_t PurePursuit::findClosestPoint(const Point2D& position) {
         }
     }
     
-    // If we're too far from path, do a full search
+    // If we're too far from path, do a full search (still heading-filtered)
     if (min_dist > config_.position_tolerance * 2) {
         for (size_t i = 0; i < n; ++i) {
+            if (!heading_ok(i)) continue;
             double d = math::distance(position.x, position.y, trajectory_[i].x, trajectory_[i].y);
             if (d < min_dist) {
                 min_dist = d;
@@ -164,6 +173,7 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     Point2D position{state.pose.x, state.pose.y};
     double heading = state.pose.theta;
     double current_speed = std::abs(state.velocity);
+    current_heading_ = heading;  // Store for heading-aware closest point search
     
     // Find closest point on trajectory
     size_t closest_idx = findClosestPoint(position);
@@ -206,40 +216,11 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     // Convert curvature to steering angle using bicycle model
     double steering_angle = std::atan(config_.wheelbase * curvature);
     
-    // Apply steering rate limiting for stability at high speeds
-    // This prevents sudden steering changes that cause oscillation
-    double dt = 1.0 / config_.control_rate;
-    double max_delta = config_.max_steering_rate * dt;
-    double delta_steering = steering_angle - last_steering_;
-    if (std::abs(delta_steering) > max_delta) {
-        steering_angle = last_steering_ + std::copysign(max_delta, delta_steering);
-    }
-    last_steering_ = steering_angle;
-    
-    // Clamp steering
+    // Clamp steering (hardware servo enforces its own rate limit)
     steering_angle = std::clamp(steering_angle, -config_.max_steering, config_.max_steering);
     
-    // Compute target speed from trajectory
+    // Compute target speed from trajectory (optimizer accounts for tire limits)
     double target_speed = target_pt.velocity * config_.speed_gain;
-    
-    // Speed reduction based on path curvature ahead
-    // Look at curvature along the next few waypoints
-    double max_upcoming_curvature = 0.0;
-    const size_t lookahead_points = 20;  // Look ~2 seconds ahead at ~10 points/sec
-    for (size_t i = 0; i < lookahead_points && (closest_idx + i) < trajectory_.size(); ++i) {
-        size_t idx = (closest_idx + i) % trajectory_.size();
-        max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(trajectory_[idx].curvature));
-    }
-    
-    // Reduce speed based on upcoming curvature
-    // Higher curvature = sharper turn = need to slow down
-    double curvature_speed_limit = config_.max_speed / (1.0 + config_.curvature_speed_factor * max_upcoming_curvature * 10.0);
-    target_speed = std::min(target_speed, curvature_speed_limit);
-    
-    // Also reduce speed based on steering magnitude
-    double steer_ratio = std::abs(steering_angle) / config_.max_steering;
-    double speed_reduction = 1.0 - 0.3 * steer_ratio;
-    target_speed *= speed_reduction;
     
     // Apply speed limits
     target_speed = std::clamp(target_speed, config_.min_speed, config_.max_speed);
