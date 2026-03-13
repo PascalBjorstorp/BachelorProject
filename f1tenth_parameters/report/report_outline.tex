@@ -216,13 +216,14 @@ was repeated five times, yielding 100 data points in total.
   $\delta - L\omega/v_x$ (deviation from kinematic steering); the
   horizontal axis is the lateral acceleration $a_y$.  The slope of the
   linear fit gives
-  $K_\text{us} = \SI{0.012}{\radian\per(\metre\per\second\squared)}$
-  ($R^2 = 0.94$, $n = 20$ operating points, 5 runs).\label{fig:cornering-Kus}}
+  $K_\text{us} = \SI{0.0093}{\radian\per(\metre\per\second\squared)}$
+  ($R^2 = 0.81$, $n = 20$ operating points, 5 runs).\label{fig:cornering-Kus}}
 
 The steering angle used in the regression is the calibrated wheel
 angle from the VESC servo mapping
-(Section~\ref{sec:vesc-cal}).  The measured understeer gradient is
-$K_\text{us} = 0.012 \pm 0.001\;\text{rad/(m/s}^2\text{)}$.
+(Section~\ref{sec:vesc-cal}), corrected for the nonlinear servo
+response (Section~\ref{sec:servo-correction}).  The measured understeer gradient is
+$K_\text{us} = 0.0093 \pm 0.001\;\text{rad/(m/s}^2\text{)}$.
 The positive value confirms the vehicle understeers, requiring
 progressively more steering input at higher lateral accelerations.
 
@@ -242,20 +243,20 @@ Figure~\ref{fig:cornering-range} shows the parametric solution.
 
 \includefigure[width=0.7\textwidth]{cornering_solution_range.pdf}{%
   Cornering stiffness pairs $(C_{\alpha f},\,C_{\alpha r})$ satisfying
-  the measured $K_\text{us} = 0.012$ as a function of the assumed
+  the measured $K_\text{us} = 0.0093$ as a function of the assumed
   yaw-plane natural frequency $\omega_n$.  The shaded band marks an
   estimated frequency range.\label{fig:cornering-range}}
 
 At $\omega_n = \SI{10}{\radian\per\second}$, the solution is:
 \begin{equation}\label{eq:Calpha-result}
-  C_{\alpha f} = \SI{55.6}{\newton\per\radian}, \qquad
-  C_{\alpha r} = \SI{42.3}{\newton\per\radian}.
+  C_{\alpha f} = \SI{51.4}{\newton\per\radian}, \qquad
+  C_{\alpha r} = \SI{43.1}{\newton\per\radian}.
 \end{equation}
 The corresponding normalised stiffnesses for the dynamic bicycle model
-are $C_{Sf} = C_{\alpha f}/(m\,g) = 1.71$ and
-$C_{Sr} = C_{\alpha r}/(m\,g) = 1.30$.
+are $C_{Sf} = C_{\alpha f}/(m\,g) = 1.58$ and
+$C_{Sr} = C_{\alpha r}/(m\,g) = 1.33$.
 The absolute values depend on the assumed $\omega_n$; the ratio
-$C_{\alpha f}/C_{\alpha r} \approx 1.31$ is less sensitive and
+$C_{\alpha f}/C_{\alpha r} \approx 1.19$ is less sensitive and
 consistent with the measured understeer behaviour.
 
 %%% ===================================================================
@@ -547,6 +548,54 @@ Table~\ref{tab:vesc-cal} lists the calibrated values.
 \end{table}
 
 %%% ===================================================================
+\subsection{Servo Nonlinearity Correction}\label{sec:servo-correction}
+
+\paragraph{Motivation.}
+The standard F1/10th VESC driver assumes that the actual wheel angle
+is proportional to the commanded angle, i.e.\
+$\delta_\text{act} = \delta_\text{cmd}$, after applying the servo gain
+and offset.  Physical measurements with a digital protractor revealed
+that the relationship between the servo PWM value~$s$ and the actual
+wheel angle is \emph{nonlinear}, introducing a systematic error that
+grows with steering magnitude.
+
+\paragraph{Physical servo mapping.}
+The actual wheel angle was measured at 15 servo positions spanning the
+full range.  A second-order polynomial fit to the data gives:
+\begin{equation}\label{eq:servo-poly}
+  \delta_\text{act}(s) = -0.9262\,s^2 - 0.4778\,s + 0.5365,
+\end{equation}
+where $s$ is the servo value ($s = g \cdot (-\delta_\text{cmd}) + b$,
+with gain $g$ and offset $b$ from Table~\ref{tab:vesc-cal}).
+The zero-steering offset $\delta_\text{act}(b)$ is subtracted so that
+$\delta_\text{act} = 0$ when $\delta_\text{cmd} = 0$.
+
+\paragraph{Correction polynomial.}
+To compensate the nonlinearity in real time, a correction is applied
+in the VESC Ackermann node before the standard gain/offset mapping:
+\begin{equation}\label{eq:servo-correction}
+  \delta_\text{corrected} = c_2\,|\delta_\text{cmd}|^2
+    + c_1\,|\delta_\text{cmd}| + c_0,
+\end{equation}
+with $c_2 = 0.5896$, $c_1 = 0.9181$, $c_0 = 0.0015$
+(sign restored from $\delta_\text{cmd}$).
+The correction was validated by repeating the protractor measurements
+with the polynomial active:
+max $|\text{error}| = 1.8\%$, mean $= 1.0\%$, RMS $= 1.2\%$.
+
+\paragraph{Impact on cornering stiffness.}
+The cornering stiffness tests (Section~\ref{sec:cornering}) were
+conducted \emph{before} the polynomial correction was deployed, using
+an earlier servo gain of $g_\text{old} = -0.7940$.
+With this gain, the servo overshoot caused actual wheel angles to
+exceed the commanded values by up to $6.5\%$ at small angles.
+Retrospectively correcting the commanded angles through
+Equation~\eqref{eq:servo-poly} with the old gain reduces the measured
+understeer gradient from $K_\text{us} = 0.012$ to
+$K_\text{us} = 0.0093\;\text{rad/(m/s}^2\text{)}$ and yields the
+updated cornering stiffnesses in Equation~\eqref{eq:Calpha-result}.
+
+%%% ===================================================================
 \subsection{Parameter Summary}\label{sec:param-summary}
 
 Table~\ref{tab:params} compares all measured values with the F1/10th
@@ -566,13 +615,13 @@ Friction coeff.\      & $\mu$
   & 0.787  & 1.049  & {--}
   & Tested \\
 Front corn.\ stiff.\  & $C_{\alpha f}$
-  & 55.6   & 4.718  & \si{\newton\per\radian}
+  & 51.4   & 4.718  & \si{\newton\per\radian}
   & Tested\textsuperscript{a} \\
 Rear corn.\ stiff.\   & $C_{\alpha r}$
-  & 42.3   & 5.456  & \si{\newton\per\radian}
+  & 43.1   & 5.456  & \si{\newton\per\radian}
   & Tested\textsuperscript{a} \\
 Understeer gradient   & $K_\text{us}$
-  & 0.012  & {--}   & \si{\radian\per(\metre\per\second\squared)}
+  & 0.0093  & {--}   & \si{\radian\per(\metre\per\second\squared)}
   & Tested \\
 Rolling resistance   & $c_\text{roll}$
   & 0.163  & 0.003    & {--}
@@ -605,8 +654,9 @@ Servo gain ratio      & $\delta_\text{act}/\delta_\text{cmd}$
 \begin{flushleft}
 \footnotesize
 \textsuperscript{a}Combined $K_\text{us}$ + yaw-frequency method
-(Section~\ref{sec:cornering}); absolute values depend on assumed
-$\omega_n$.  The ratio $C_{\alpha f}/C_{\alpha r} = 1.31$ is
+(Section~\ref{sec:cornering}); corrected for nonlinear servo response
+(Section~\ref{sec:servo-correction}).  Absolute values depend on assumed
+$\omega_n$.  The ratio $C_{\alpha f}/C_{\alpha r} = 1.19$ is
 better constrained.\\
 \textsuperscript{b}Includes both tire rolling resistance and drivetrain
 friction; measured via coast-down test
