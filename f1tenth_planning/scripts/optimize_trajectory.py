@@ -46,6 +46,35 @@ import numpy as np
 import yaml
 from scipy.interpolate import splprep, splev
 
+
+def thin_binary_mask(binary_mask):
+    """Return a 1-pixel skeleton from a binary mask using best available method."""
+    mask_u8 = (binary_mask.astype(np.uint8) > 0).astype(np.uint8) * 255
+
+    # Preferred: OpenCV contrib Zhang-Suen thinning.
+    if hasattr(cv2, 'ximgproc') and hasattr(cv2.ximgproc, 'thinning'):
+        skel = cv2.ximgproc.thinning(
+            mask_u8,
+            thinningType=cv2.ximgproc.THINNING_ZHANGSUEN,
+        )
+        return skel, 'cv2.ximgproc.THINNING_ZHANGSUEN'
+
+    # Fallback: morphological skeletonization (no extra dependency).
+    element = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
+    img = mask_u8.copy()
+    skel = np.zeros_like(img)
+    max_iter = img.size
+    for _ in range(max_iter):
+        eroded = cv2.erode(img, element)
+        opened = cv2.dilate(eroded, element)
+        temp = cv2.subtract(img, opened)
+        skel = cv2.bitwise_or(skel, temp)
+        img = eroded
+        if cv2.countNonZero(img) == 0:
+            break
+
+    return skel, 'morphological_skeleton_fallback'
+
 # =============================================================================
 #  Utility helpers (kept from original)
 # =============================================================================
@@ -81,7 +110,14 @@ def run_step(label, cmd, cwd=None):
 #  Step 0 -- Map loading, boundary extraction, centerline, track widths
 # =============================================================================
 
-def compute_centerline_thinned_loop(map_img, resolution, origin, wall_thresh, num_points):
+def compute_centerline_thinned_loop(
+    map_img,
+    resolution,
+    origin,
+    wall_thresh,
+    num_points,
+    gvd_debug_path=None,
+):
     """
     Compute the track centerline using a GVD (Generalised Voronoi Diagram):
 
@@ -113,6 +149,23 @@ def compute_centerline_thinned_loop(map_img, resolution, origin, wall_thresh, nu
     free = (map_img >= wall_thresh).astype(np.uint8)
     edt  = cv2.distanceTransform(free, cv2.DIST_L2, 5)
 
+    def _save_gvd_debug(pixel_path=None, start_rc=None):
+        if not gvd_debug_path:
+            return
+        os.makedirs(os.path.dirname(gvd_debug_path), exist_ok=True)
+        vis = cv2.cvtColor(map_img, cv2.COLOR_GRAY2BGR)
+        vis[gvd_mask] = (0, 220, 255)   # GVD boundary in yellow
+        vis[skel_mat > 0] = (0, 0, 255) # Skeleton in red
+        if pixel_path is not None:
+            for rr, cc in pixel_path:
+                vis[rr, cc] = (0, 255, 0)  # Ring walk in green
+        if start_rc is not None:
+            cv2.circle(vis, (start_rc[1], start_rc[0]), 4, (255, 0, 0), -1)
+        if cv2.imwrite(gvd_debug_path, vis):
+            print(f"  Saved GVD debug visualization: {gvd_debug_path}")
+        else:
+            print(f"  WARNING: Failed to save GVD debug visualization: {gvd_debug_path}")
+
     # ---- 1. Label wall obstacles -----------------------------------------
     wall = (1 - free).astype(np.uint8)
     wall_labeled, n_wall = _sc_label(wall, structure=np.ones((3, 3), int))
@@ -125,8 +178,15 @@ def compute_centerline_thinned_loop(map_img, resolution, origin, wall_thresh, nu
 
     # ---- 2. Per-obstacle EDT → GVD boundary ------------------------------
     # Distance from every pixel to each obstacle
-    dists = []
+    comp_sizes = []
     for wid in range(1, n_wall + 1):
+        comp_sizes.append((wid, int((wall_labeled == wid).sum())))
+    comp_sizes.sort(key=lambda x: x[1], reverse=True)
+    keep_ids = [wid for wid, _ in comp_sizes[:2]]
+    print(f"  Using wall components for GVD: {keep_ids} (sizes: {[s for _, s in comp_sizes[:2]]})")
+
+    dists = []
+    for wid in keep_ids:
         # _edt_scipy: distance to nearest 0-pixel; invert so obstacle=0
         dists.append(_edt_scipy((wall_labeled != wid).astype(np.uint8)))
 
@@ -140,13 +200,12 @@ def compute_centerline_thinned_loop(map_img, resolution, origin, wall_thresh, nu
     print(f"  GVD boundary pixels (thresh={gvd_thresh}): {n_gvd}")
 
     # ---- 3. Zhang-Suen thinning of GVD boundary -------------------------
-    skel_mat = cv2.ximgproc.thinning(
-        gvd_mask.astype(np.uint8) * 255,
-        thinningType=cv2.ximgproc.THINNING_ZHANGSUEN,
-    )
+    skel_mat, thin_method = thin_binary_mask(gvd_mask)
+    print(f"  Thinning method: {thin_method}")
     skel_set = set(map(tuple, np.column_stack(np.where(skel_mat > 0)).tolist()))
     n_skel = len(skel_set)
     print(f"  GVD skeleton: {n_skel} pixels")
+    _save_gvd_debug(pixel_path=None, start_rc=None)
     if n_skel < 20:
         raise RuntimeError("GVD skeleton too sparse; check wall_thresh or map.")
 
@@ -339,53 +398,66 @@ def compute_centerline_thinned_loop(map_img, resolution, origin, wall_thresh, nu
                 break  # found a Hamiltonian cycle, can't do better
 
         if best_cycle is None:
-            raise RuntimeError("Could not find a cycle in the simplified skeleton graph.")
+            # Fallback: use the longest contour on the skeleton image.
+            skel_bin = (skel_mat > 0).astype(np.uint8)
+            contours, _ = cv2.findContours(
+                skel_bin, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE
+            )
+            if contours:
+                best_cnt = max(contours, key=lambda c: len(c))
+                cnt = best_cnt.reshape(-1, 2)  # x, y
+                pixel_path = [(int(y), int(x)) for x, y in cnt]
+                closed_loop = len(pixel_path) > 20
+                print(f"  Fallback contour walk: {len(pixel_path)} pixels")
+            else:
+                _save_gvd_debug(pixel_path=None, start_rc=None)
+                raise RuntimeError("Could not find a cycle in the simplified skeleton graph.")
+        else:
+            print(f"  Best cycle: {len(best_cycle)} chains (of {len(chains)})")
 
-        print(f"  Best cycle: {len(best_cycle)} chains (of {len(chains)})")
-
-        # Reconstruct pixel path from the chain cycle
-        # Determine correct chain orientation for each step
-        pixel_path = []
-        # Determine traversal direction for each chain in the cycle
-        first_chain = chains[best_cycle[0]]
-        # Start cluster for the cycle
-        if len(best_cycle) > 1:
-            second_chain = chains[best_cycle[1]]
-            # Figure out shared cluster between chain 0 and chain 1
-            c0_set = {first_chain[0], first_chain[1]}
-            c1_set = {second_chain[0], second_chain[1]}
-            shared = c0_set & c1_set
-            if shared:
-                # Chain 0 should end at the shared cluster
-                end_cluster = next(iter(shared))
-                if first_chain[1] == end_cluster:
-                    pixel_path.extend(first_chain[2])
+            # Reconstruct pixel path from the chain cycle
+            # Determine correct chain orientation for each step
+            pixel_path = []
+            # Determine traversal direction for each chain in the cycle
+            first_chain = chains[best_cycle[0]]
+            # Start cluster for the cycle
+            if len(best_cycle) > 1:
+                second_chain = chains[best_cycle[1]]
+                # Figure out shared cluster between chain 0 and chain 1
+                c0_set = {first_chain[0], first_chain[1]}
+                c1_set = {second_chain[0], second_chain[1]}
+                shared = c0_set & c1_set
+                if shared:
+                    # Chain 0 should end at the shared cluster
+                    end_cluster = next(iter(shared))
+                    if first_chain[1] == end_cluster:
+                        pixel_path.extend(first_chain[2])
+                    else:
+                        pixel_path.extend(reversed(first_chain[2]))
                 else:
-                    pixel_path.extend(reversed(first_chain[2]))
+                    pixel_path.extend(first_chain[2])
             else:
                 pixel_path.extend(first_chain[2])
-        else:
-            pixel_path.extend(first_chain[2])
 
-        for step in range(1, len(best_cycle)):
-            ci = best_cycle[step]
-            ca, cb, ch = chains[ci]
-            # Connect to previous path
-            last_px = pixel_path[-1]
-            # Check which end of chain is closer to last_px
-            d_start = abs(ch[0][0] - last_px[0]) + abs(ch[0][1] - last_px[1])
-            d_end = abs(ch[-1][0] - last_px[0]) + abs(ch[-1][1] - last_px[1])
-            if d_start <= d_end:
-                # Forward direction: skip first pixel if it overlaps
-                start_idx = 1 if ch[0] == last_px or d_start == 0 else 0
-                pixel_path.extend(ch[start_idx:])
-            else:
-                # Reverse direction
-                rev = list(reversed(ch))
-                start_idx = 1 if rev[0] == last_px or d_end == 0 else 0
-                pixel_path.extend(rev[start_idx:])
+            for step in range(1, len(best_cycle)):
+                ci = best_cycle[step]
+                ca, cb, ch = chains[ci]
+                # Connect to previous path
+                last_px = pixel_path[-1]
+                # Check which end of chain is closer to last_px
+                d_start = abs(ch[0][0] - last_px[0]) + abs(ch[0][1] - last_px[1])
+                d_end = abs(ch[-1][0] - last_px[0]) + abs(ch[-1][1] - last_px[1])
+                if d_start <= d_end:
+                    # Forward direction: skip first pixel if it overlaps
+                    start_idx = 1 if ch[0] == last_px or d_start == 0 else 0
+                    pixel_path.extend(ch[start_idx:])
+                else:
+                    # Reverse direction
+                    rev = list(reversed(ch))
+                    start_idx = 1 if rev[0] == last_px or d_end == 0 else 0
+                    pixel_path.extend(rev[start_idx:])
 
-        closed_loop = True  # we found a cycle
+            closed_loop = True  # we found a cycle
 
     # Re-order path to start from the pixel with highest EDT
     path_arr = np.array(pixel_path)
@@ -398,6 +470,8 @@ def compute_centerline_thinned_loop(map_img, resolution, origin, wall_thresh, nu
           f"world=({origin[0]+nc0*resolution:.2f},"
           f"{origin[1]+(h-1-nr0)*resolution:.2f})")
     print(f"  Ring walk: {len(pixel_path)} pixels, closed={closed_loop}")
+
+    _save_gvd_debug(pixel_path=pixel_path, start_rc=(nr0, nc0))
 
     if not closed_loop:
         raise RuntimeError(
@@ -1100,7 +1174,7 @@ def main():
         help='Track direction: auto-detect from winding order, or force cw/ccw (default: cw)',
     )
     parser.add_argument(
-        '--smooth-factor', type=float, default=10.0,
+        '--smooth-factor', type=float, default=1.0,
         help='Spline smoothing factor s_reg for TUM optimizer (default: 2.0). '
              'Lower values preserve centerline shape better; higher values smooth more. '
              '0 = exact interpolation (safest but slowest), 2 = good balance for small tracks.',
@@ -1153,6 +1227,7 @@ def main():
         output_csv = args.output
     else:
         output_csv = os.path.join(args.output, output_name)
+    gvd_debug_path = output_csv.replace('.csv', '_gvd.png')
 
     # ---- Banner --------------------------------------------------------------
     print("=" * 64)
@@ -1224,6 +1299,7 @@ def main():
             map_img, resolution, origin,
             wall_thresh=wall_thresh,
             num_points=num_pts,
+            gvd_debug_path=gvd_debug_path,
         )
 
         # Determine direction
