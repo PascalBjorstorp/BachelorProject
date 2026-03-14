@@ -8,7 +8,7 @@ mpc_receiver_mpc_fpga:
     drive_topic: "/drive"
 
     # Trajectory CSV (path to raceline)
-    trajectory_file: ""  # Must be set at launch!
+    trajectory_file: "/home/xilinx/trajectories/Spielberg_raceline.csv"
 
     # MPC horizon
     horizon: 20

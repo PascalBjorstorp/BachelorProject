@@ -53,7 +53,7 @@ python3 f1tenth_planning/scripts/optimize_trajectory.py
 
 ---
 
-## PHASE 3: Autonomous Racing — C++ GPU AMCL + Lateral Planner + Pure Pursuit + ROS Bag
+## PHASE 3A: Autonomous Racing — C++ GPU AMCL + Lateral Planner + Pure Pursuit + ROS Bag
 
 Run the car autonomously using the SLAM map for localization, the lateral planner for opponent avoidance, and pure pursuit for path following.
 
@@ -95,12 +95,51 @@ ros2 launch f1tenth_control pure_pursuit_launch.py \
   lookahead_gain:=0.10
 ```
 
+### Terminal 3 — Model Predictive Control (on Jetson)
+```bash
+ros2 launch mpc_riccati mpc_hardware.launch.py \
+  trajectory_file:=/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv \
+```
+> Use this as an alternative to Pure Pursuit in Terminal 3.
+>
+> If your trajectory file is named differently (for example `my_track_map.csv`), update `trajectory_file:=...` accordingly.
+
 ### Terminal 4 — ROS BAG Recording (on Jetson)
 ```bash
 # Record EVERYTHING (large files, but complete):
 ros2 bag record -a -o ~/bags/race_run_$(date +%Y%m%d_%H%M%S)
 ```
 ---
+
+## PHASE 3B: Run MPC on FPGA (Ultra96 PS)
+
+Use this when the control solve should run on the FPGA through the Ultra96.
+
+### Jetson — Publish MPC State for Ultra96
+```bash
+ros2 launch state_publisher state_publisher_launch.py
+```
+
+### Ultra96 Terminal 0 — Flash the FPGA Bitstream (before ROS2 launch)
+```bash
+# Example filenames - replace with your actual MPC bitstream + overlay names
+cd ~/fpga
+sudo fpgautil -b mpc_fpga.bin -o mpc_fpga.dtbo
+
+# Verify FPGA is programmed
+fpgautil -i
+```
+
+### Ultra96 Terminal 1 — Source Workspace
+```bash
+cd ~/BachelorProject
+source install/setup.bash
+```
+
+### Ultra96 Terminal 2 — Launch MPC FPGA Receiver Node
+```bash
+sudo -E ros2 launch mpc_receiver mpc_fpga_launch.py
+```
 
 ## PHASE 4: Replay Bags on PC (Foxglove / RViz)
 
