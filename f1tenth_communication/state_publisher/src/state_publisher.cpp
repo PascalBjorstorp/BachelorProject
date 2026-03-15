@@ -16,6 +16,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <limits>
 #include <cmath>
 #include <chrono>
 
@@ -138,6 +140,8 @@ private:
 
 class StatePublisherNode : public rclcpp::Node {
 public:
+    static constexpr size_t MAX_MPC_HORIZON = 20;
+
     StatePublisherNode() : Node("state_publisher") {
         // Parameters
         this->declare_parameter("trajectory_file", "");
@@ -155,6 +159,7 @@ public:
         this->declare_parameter("steering_correction_c0", 0.001490);
         // Number of waypoints ahead of KD-tree nearest to check for forward bias
         this->declare_parameter("forward_lookahead", 3);
+        this->declare_parameter("horizon", static_cast<int>(MAX_MPC_HORIZON));
         
         std::string trajectory_file = this->get_parameter("trajectory_file").as_string();
         std::string odom_topic = this->get_parameter("odom_topic").as_string();
@@ -167,6 +172,13 @@ public:
         steer_c1_ = this->get_parameter("steering_correction_c1").as_double();
         steer_c0_ = this->get_parameter("steering_correction_c0").as_double();
         forward_lookahead_ = static_cast<int>(this->get_parameter("forward_lookahead").as_int());
+        const int horizon_param = this->get_parameter("horizon").as_int();
+        if (horizon_param != static_cast<int>(MAX_MPC_HORIZON)) {
+            RCLCPP_WARN(this->get_logger(),
+                "horizon=%d requested, but FPGA bitstream expects fixed MPC_HORIZON=%zu. Forcing %zu.",
+                horizon_param, MAX_MPC_HORIZON, MAX_MPC_HORIZON);
+        }
+        horizon_ = MAX_MPC_HORIZON;
         
         if (trajectory_file.empty()) {
             RCLCPP_ERROR(this->get_logger(), "No trajectory file specified!");
@@ -182,6 +194,7 @@ public:
         
         RCLCPP_INFO(this->get_logger(), "Loaded %zu waypoints from %s (hash=0x%08X)",
                    kdtree_.size(), trajectory_file.c_str(), trajectory_hash_);
+            RCLCPP_INFO(this->get_logger(), "Streaming horizon length: %zu", horizon_);
         
         // Create publisher with Best Effort QoS (lower latency)
         auto qos = rclcpp::QoS(1)
@@ -254,6 +267,7 @@ private:
     double steer_c1_ = 0.918061;     // Steering correction polynomial c1
     double steer_c0_ = 0.001490;     // Steering correction polynomial c0
     int forward_lookahead_ = 3;      // Waypoints ahead to check for forward bias
+    size_t horizon_ = MAX_MPC_HORIZON;
     uint32_t trajectory_hash_ = 0;   // Checksum for cross-node trajectory verification
 
     // Odom timeout detection
@@ -424,6 +438,20 @@ private:
         mpc_state.wheel_speed_fp = to_fp(wheel_speed);
         mpc_state.steering_angle_fp = to_fp(steering_angle);
         mpc_state.waypoint_index = static_cast<uint32_t>(waypoint_idx);
+        mpc_state.horizon_length = static_cast<uint32_t>(horizon_);
+
+        // Stream only the valid MPC horizon to Ultra96 (no full raceline preload).
+        const size_t N = kdtree_.size();
+        for (size_t i = 0; i < horizon_; ++i) {
+            const size_t idx = (waypoint_idx + i) % N;
+            const auto& wp = kdtree_.get_waypoint(idx);
+            mpc_state.ref_x_fp[i] = to_fp(wp.x);
+            mpc_state.ref_y_fp[i] = to_fp(wp.y);
+            mpc_state.ref_psi_fp[i] = to_fp(wp.psi);
+            mpc_state.ref_vx_fp[i] = to_fp(wp.vx);
+            mpc_state.ref_kappa_fp[i] = to_fp(wp.kappa);
+            mpc_state.ref_ax_fp[i] = to_fp(wp.ax);
+        }
         mpc_state.timestamp_ms = static_cast<uint32_t>(
             std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now().time_since_epoch()).count() & 0xFFFFFFFF);

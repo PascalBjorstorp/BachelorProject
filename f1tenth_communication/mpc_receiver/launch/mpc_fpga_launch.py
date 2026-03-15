@@ -1,11 +1,11 @@
 """
-Launch file for MPC Receiver with Riccati-ADMM FPGA controller.
+Launch file for MPC Receiver FPGA controller.
 
 Usage:
-    ros2 launch mpc_receiver mpc_fpga_launch.py trajectory_file:=/path/to/raceline.csv
+    ros2 launch mpc_receiver mpc_fpga_launch.py
 
 Arguments:
-    trajectory_file: Path to raceline CSV file (required)
+    trajectory_file: Optional fallback raceline CSV file (used when FPGA disabled)
     use_fpga: Use FPGA hardware or software fallback (default: true)
     drive_topic: Topic to publish drive commands (default: /drive)
     input_topic: Topic to receive MPC state from (default: /mpc_state)
@@ -25,7 +25,8 @@ def generate_launch_description():
 
     trajectory_file_arg = DeclareLaunchArgument(
         'trajectory_file',
-        description='Path to raceline CSV file'
+        default_value='',
+        description='Optional fallback trajectory CSV (SW fallback only)'
     )
 
     use_fpga_arg = DeclareLaunchArgument(
@@ -48,8 +49,8 @@ def generate_launch_description():
 
     mpc_fpga_node = Node(
         package='mpc_receiver',
-        executable='mpc_receiver_mpc_fpga_node',
-        name='mpc_receiver_mpc_fpga',
+        executable='mpc_receiver_fpga_node',
+        name='mpc_receiver_fpga',
         output='screen',
         parameters=[
             default_config,

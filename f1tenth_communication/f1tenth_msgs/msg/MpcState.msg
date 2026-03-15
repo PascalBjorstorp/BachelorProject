@@ -21,5 +21,15 @@ int32 steering_angle_fp  # Actual servo steering angle δ [rad], Q16.16
 # Trajectory reference (integer, no conversion needed)
 uint32 waypoint_index
 
+# Streaming MPC horizon reference in Q16.16 (from state_publisher).
+# Only the first horizon_length entries are valid.
+uint32 horizon_length
+int32[20] ref_x_fp
+int32[20] ref_y_fp
+int32[20] ref_psi_fp
+int32[20] ref_vx_fp
+int32[20] ref_kappa_fp
+int32[20] ref_ax_fp
+
 # For latency measurement / debugging
 uint32 timestamp_ms  # Milliseconds since epoch

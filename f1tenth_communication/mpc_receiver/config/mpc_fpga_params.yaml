@@ -1,17 +1,15 @@
 # MPC Receiver — FPGA Riccati-ADMM Configuration
-# For use with mpc_receiver_mpc_fpga_node on Ultra96-V2
+# For use with mpc_receiver_fpga_node on Ultra96-V2
 
-mpc_receiver_mpc_fpga:
+mpc_receiver_fpga:
   ros__parameters:
     # Topics
     input_topic: "/mpc_state"
     drive_topic: "/drive"
 
-    # Trajectory CSV (path to raceline)
-    trajectory_file: ""  # Must be set at launch!
-
-    # MPC horizon
-    horizon: 20
+    # Optional fallback trajectory CSV.
+    # Only used when use_fpga=false or if FPGA init fails and SW fallback is active.
+    trajectory_file: ""
 
     # FPGA settings
     use_fpga: true                    # false → software Frenet fallback

@@ -7,7 +7,6 @@ import trajectory_planning_helpers as tph
 import copy
 import matplotlib.pyplot as plt
 import configparser
-import pkg_resources
 import helper_funcs_glob
 
 """

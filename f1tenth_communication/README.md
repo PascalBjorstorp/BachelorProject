@@ -8,10 +8,10 @@ Communication packages for Jetson ↔ Ultra96 data transfer.
 ┌──────────────────────────────────┐     ┌─────────────────────────────────┐
 │           JETSON                 │     │           ULTRA96               │
 │                                  │     │                                 │
-│  Localization → state_publisher  │────→│  mpc_receiver                   │
+│  Localization → state_publisher  │────→│  mpc_receiver_fpga              │
 │  (/odom)         (KD-tree)       │     │  (/mpc_state subscriber)        │
 │                  ↓               │     │  ↓                              │
-│              /mpc_state          │     │  Extract reference trajectory   │
+│              /mpc_state          │     │  Load streamed horizon to FPGA  │
 │              (MpcState.msg)      │     │  ↓                              │
 │              [Q16.16 fixed-pt]   │     │  MPC → /drive                   │
 └──────────────────────────────────┘     └─────────────────────────────────┘
@@ -26,6 +26,7 @@ Custom ROS2 message definitions:
 - **MpcState.msg** (Q16.16 Fixed-Point):
   - `x_fp, y_fp, theta_fp, velocity_fp`: Vehicle state in Q16.16
   - `waypoint_index`: Nearest waypoint index
+    - `horizon_length` + `ref_*_fp[20]`: Streaming MPC reference horizon
   - `timestamp_ms`: For latency measurement
 
 ### state_publisher (Jetson)
@@ -35,16 +36,16 @@ ROS2 node that runs on **Jetson**:
 2. Subscribes to `/ego_racecar/odom`
 3. Performs KD-tree lookup
 4. Publishes `MpcState` with Q16.16 fixed-point values
-5. Uses Best Effort QoS for low latency
+5. Streams next N reference waypoints in each message
+6. Uses Best Effort QoS for low latency
 
 ### mpc_receiver (Ultra96)
 
 ROS2 node that runs on **Ultra96**:
-1. Loads same trajectory CSV file
-2. Subscribes to `/mpc_state` (Best Effort QoS)
-3. Converts Q16.16 to float (or passes directly to FPGA)
-4. Extracts next N waypoints for MPC reference
-5. Publishes `/drive` commands
+1. Subscribes to `/mpc_state` (Best Effort QoS)
+2. Loads only the streamed horizon waypoints into FPGA BRAM each cycle
+3. Writes current vehicle state registers and runs FPGA MPC
+4. Publishes `/drive` commands
 
 ## Setup
 
@@ -73,7 +74,7 @@ ros2 launch state_publisher state_publisher_launch.py
 ### 4. Run on Ultra96
 
 ```bash
-ros2 launch mpc_receiver mpc_receiver_launch.py
+ros2 launch mpc_receiver mpc_fpga_launch.py
 ```
 
 ## Q16.16 Fixed-Point Format

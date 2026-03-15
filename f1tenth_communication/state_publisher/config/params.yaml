@@ -31,3 +31,7 @@ state_publisher:
     # Forward-biased waypoint lookup: number of waypoints ahead of KD-tree
     # nearest to check.  Prevents selecting a waypoint behind the car at speed.
     forward_lookahead: 3
+
+    # Number of reference waypoints to stream in each MpcState message.
+    # Current FPGA bitstream expects fixed horizon=20.
+    horizon: 20

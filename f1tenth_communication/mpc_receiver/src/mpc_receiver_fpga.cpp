@@ -1,19 +1,19 @@
 /**
- * @file mpc_receiver_mpc_fpga.cpp
+ * @file mpc_receiver_fpga.cpp
  * @brief MPC Receiver with Riccati-ADMM FPGA Integration
  *
  * Runs on Ultra96-V2. Interfaces with the MPC FPGA IP core via /dev/mem mmap.
  *
  * Startup:
- *   1. Load trajectory CSV → write each waypoint to FPGA BRAM (mode=1)
- *   2. Finalize trajectory (mode=2)
+ *   1. Initialize FPGA register interface
  *
  * Runtime (per MpcState message):
- *   1. Write vehicle state to 8 AXI-Lite registers (mode=0)
- *   2. Start FPGA (AP_START)
- *   3. Wait for done (AP_DONE)
- *   4. Read steering + accel from output registers
- *   5. Publish AckermannDriveStamped to /drive
+ *   1. Load streamed N-step horizon into FPGA BRAM (mode=1, then mode=2)
+ *   2. Write vehicle state to 8 AXI-Lite registers (mode=0)
+ *   3. Start FPGA (AP_START)
+ *   4. Wait for done (AP_DONE)
+ *   5. Read steering + accel from output registers
+ *   6. Publish AckermannDriveStamped to /drive
  *
  * When FPGA is unavailable, falls back to proportional Frenet controller.
  *
@@ -148,17 +148,18 @@ public:
     bool is_ready() const { return initialized_; }
 
     /**
-     * Load full trajectory to FPGA BRAM.
+     * Load streamed horizon to FPGA BRAM.
      * Each waypoint written individually (mode=1), then finalized (mode=2).
-     * Called once at startup.
+     * Called once per MpcState message.
      */
-    bool load_trajectory(const std::vector<WaypointCSV>& waypoints,
-                         int32_t default_left_bound_fp,
-                         int32_t default_right_bound_fp) {
+    bool load_horizon(const f1tenth_msgs::msg::MpcState& msg,
+                      int32_t default_left_bound_fp,
+                      int32_t default_right_bound_fp) {
         if (!initialized_) return false;
 
-        const size_t count = std::min(waypoints.size(),
-                                       static_cast<size_t>(MPC_FPGA_MAX_TRAJECTORY_SIZE));
+        const size_t count = std::min(static_cast<size_t>(msg.horizon_length),
+                                      static_cast<size_t>(20));
+        if (count == 0) return false;
 
         for (size_t i = 0; i < count; ++i) {
             if (!wait_idle(50000)) {
@@ -168,12 +169,12 @@ public:
 
             write_reg(REG_MODE,            1);
             write_reg(REG_WP_INDEX,        static_cast<uint32_t>(i));
-            write_reg(REG_WP_X,            static_cast<uint32_t>(float_to_fp(waypoints[i].x)));
-            write_reg(REG_WP_Y,            static_cast<uint32_t>(float_to_fp(waypoints[i].y)));
-            write_reg(REG_WP_PSI,          static_cast<uint32_t>(float_to_fp(waypoints[i].psi)));
-            write_reg(REG_WP_VX,           static_cast<uint32_t>(float_to_fp(waypoints[i].vx)));
-            write_reg(REG_WP_KAPPA,        static_cast<uint32_t>(float_to_fp(waypoints[i].kappa)));
-            write_reg(REG_WP_AX,           static_cast<uint32_t>(float_to_fp(waypoints[i].ax)));
+            write_reg(REG_WP_X,            static_cast<uint32_t>(msg.ref_x_fp[i]));
+            write_reg(REG_WP_Y,            static_cast<uint32_t>(msg.ref_y_fp[i]));
+            write_reg(REG_WP_PSI,          static_cast<uint32_t>(msg.ref_psi_fp[i]));
+            write_reg(REG_WP_VX,           static_cast<uint32_t>(msg.ref_vx_fp[i]));
+            write_reg(REG_WP_KAPPA,        static_cast<uint32_t>(msg.ref_kappa_fp[i]));
+            write_reg(REG_WP_AX,           static_cast<uint32_t>(msg.ref_ax_fp[i]));
             write_reg(REG_WP_LEFT_BOUND,   static_cast<uint32_t>(default_left_bound_fp));
             write_reg(REG_WP_RIGHT_BOUND,  static_cast<uint32_t>(default_right_bound_fp));
             write_reg(REG_WP_TOTAL,        static_cast<uint32_t>(count));
@@ -347,9 +348,9 @@ private:
  * MPC Receiver MPC FPGA Node
  *===========================================================================*/
 
-class MpcReceiverMpcFpgaNode : public rclcpp::Node {
+class MpcReceiverFpgaNode : public rclcpp::Node {
 public:
-    MpcReceiverMpcFpgaNode() : Node("mpc_receiver_mpc_fpga") {
+    MpcReceiverFpgaNode() : Node("mpc_receiver_fpga") {
         // --- Parameters ---
         declare_parameter("trajectory_file", "");
         declare_parameter("input_topic", "/mpc_state");
@@ -357,7 +358,6 @@ public:
         declare_parameter("use_fpga", true);
         declare_parameter("fpga_base_address",
                            static_cast<int64_t>(MPC_FPGA_BASE_ADDR));
-        declare_parameter("horizon", 20);
 
         // Vehicle / controller
         declare_parameter("max_steering", 0.4189);
@@ -390,24 +390,9 @@ public:
         K_epsi_     = static_cast<float>(get_parameter("K_epsi").as_double());
         K_slowdown_ = static_cast<float>(get_parameter("K_slowdown").as_double());
 
-        const float track_hw = static_cast<float>(
-            get_parameter("track_half_width").as_double());
-        const int32_t left_bound_fp  = float_to_fp(track_hw);
-        const int32_t right_bound_fp = float_to_fp(track_hw);
-
-        if (trajectory_file.empty()) {
-            RCLCPP_ERROR(get_logger(), "No trajectory file specified!");
-            return;
-        }
-
-        if (!load_trajectory(trajectory_file)) {
-            RCLCPP_ERROR(get_logger(), "Failed to load trajectory: %s",
-                         trajectory_file.c_str());
-            return;
-        }
-
-        RCLCPP_INFO(get_logger(), "Loaded %zu waypoints from %s (hash=0x%08X)",
-                     trajectory_.size(), trajectory_file.c_str(), trajectory_hash_);
+        const float track_hw = static_cast<float>(get_parameter("track_half_width").as_double());
+        left_bound_fp_ = float_to_fp(track_hw);
+        right_bound_fp_ = float_to_fp(track_hw);
 
         // --- Initialize FPGA ---
         if (use_fpga_) {
@@ -415,16 +400,7 @@ public:
                 get_parameter("fpga_base_address").as_int());
 
             if (fpga_.initialize(addr)) {
-                if (fpga_.load_trajectory(trajectory_,
-                                           left_bound_fp, right_bound_fp)) {
-                    RCLCPP_INFO(get_logger(),
-                        "MPC FPGA init OK at 0x%08X, %zu waypoints in BRAM",
-                        addr, fpga_.get_trajectory_size());
-                } else {
-                    RCLCPP_WARN(get_logger(),
-                        "Failed to load trajectory to MPC FPGA — SW fallback");
-                    use_fpga_ = false;
-                }
+                RCLCPP_INFO(get_logger(), "MPC FPGA init OK at 0x%08X (streamed horizon mode)", addr);
             } else {
                 RCLCPP_WARN(get_logger(),
                     "MPC FPGA init failed — SW fallback");
@@ -433,6 +409,16 @@ public:
         }
 
         if (!use_fpga_) {
+            if (trajectory_file.empty()) {
+                RCLCPP_ERROR(get_logger(), "trajectory_file is required for software fallback mode");
+                return;
+            }
+            if (!load_trajectory(trajectory_file)) {
+                RCLCPP_ERROR(get_logger(), "Failed to load trajectory: %s", trajectory_file.c_str());
+                return;
+            }
+            RCLCPP_INFO(get_logger(), "Loaded %zu fallback waypoints from %s",
+                        trajectory_.size(), trajectory_file.c_str());
             sw_fallback_.set_trajectory(trajectory_);
             RCLCPP_INFO(get_logger(), "Using software Frenet controller fallback");
         }
@@ -445,7 +431,7 @@ public:
         auto qos = rclcpp::QoS(1).best_effort().durability_volatile();
         sub_ = create_subscription<f1tenth_msgs::msg::MpcState>(
             input_topic, qos,
-            std::bind(&MpcReceiverMpcFpgaNode::state_callback, this,
+            std::bind(&MpcReceiverFpgaNode::state_callback, this,
                       std::placeholders::_1));
 
         RCLCPP_INFO(get_logger(),
@@ -479,11 +465,12 @@ public:
 
 private:
     std::vector<WaypointCSV> trajectory_;
-    uint32_t trajectory_hash_ = 0;  // Checksum for cross-node trajectory verification
     bool  use_fpga_      = true;
     float max_steering_   = 0.4189f;
     float max_velocity_   = 6.0f;
     float control_dt_     = 0.02f;   // Default control interval for speed integration [s]
+    int32_t left_bound_fp_ = float_to_fp(2.0f);
+    int32_t right_bound_fp_ = float_to_fp(2.0f);
 
     // Cached software fallback gains (read once at startup)
     float K_ey_       = 1.0f;
@@ -530,12 +517,6 @@ private:
             trajectory_.push_back(wp);
         }
 
-        // Compute trajectory checksum for cross-node verification
-        trajectory_hash_ = 0;
-        for (const auto& wp : trajectory_) {
-            trajectory_hash_ ^= static_cast<uint32_t>(wp.x * 65536.0f)
-                              ^ (static_cast<uint32_t>(wp.y * 65536.0f) << 16);
-        }
         return !trajectory_.empty();
     }
 
@@ -569,26 +550,50 @@ private:
         if (use_fpga_) {
             int32_t out_steer_fp = 0;
             int32_t out_accel_fp = 0;
+            bool use_sw_fallback = false;
 
-            bool ok = fpga_.compute(
-                msg->x_fp, msg->y_fp, msg->theta_fp,
-                msg->velocity_fp, msg->vy_fp, msg->omega_fp,
-                msg->steering_angle_fp, msg->waypoint_index,
-                out_steer_fp, out_accel_fp, status, iters);
-
-            if (ok) {
-                steering = fp_to_float(out_steer_fp);
-                accel    = fp_to_float(out_accel_fp);
-
-                // Speed: integrate current velocity + MPC acceleration output.
-                // The VESC interprets drive.speed as target velocity and uses
-                // its own PID to reach it.  This mirrors the approach in MPC/.
-                float vx = fp_to_float(msg->velocity_fp);
-                float v_target = vx + accel * actual_dt;
-                speed = std::max(0.0f, std::min(v_target, max_velocity_));
-            } else {
+            const uint32_t horizon_len = std::min(static_cast<uint32_t>(20), msg->horizon_length);
+            if (horizon_len < 20) {
                 RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                    "FPGA compute failed — using SW fallback");
+                    "Received horizon_length=%u (<20 required by FPGA bitstream) — using SW fallback",
+                    horizon_len);
+                use_sw_fallback = true;
+            }
+
+            if (!use_sw_fallback) {
+                const bool horizon_loaded = fpga_.load_horizon(*msg, left_bound_fp_, right_bound_fp_);
+                if (!horizon_loaded) {
+                    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+                        "FPGA horizon load failed — using SW fallback");
+                    use_sw_fallback = true;
+                }
+            }
+
+            if (!use_sw_fallback) {
+                bool ok = fpga_.compute(
+                    msg->x_fp, msg->y_fp, msg->theta_fp,
+                    msg->velocity_fp, msg->vy_fp, msg->omega_fp,
+                    msg->steering_angle_fp, 0,
+                    out_steer_fp, out_accel_fp, status, iters);
+
+                if (ok) {
+                    steering = fp_to_float(out_steer_fp);
+                    accel    = fp_to_float(out_accel_fp);
+
+                    // Speed: integrate current velocity + MPC acceleration output.
+                    // The VESC interprets drive.speed as target velocity and uses
+                    // its own PID to reach it.  This mirrors the approach in MPC/.
+                    float vx = fp_to_float(msg->velocity_fp);
+                    float v_target = vx + accel * actual_dt;
+                    speed = std::max(0.0f, std::min(v_target, max_velocity_));
+                } else {
+                    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+                        "FPGA compute failed — using SW fallback");
+                    use_sw_fallback = true;
+                }
+            }
+
+            if (use_sw_fallback) {
                 run_sw_fallback(msg, steering, speed);
             }
         } else {
@@ -658,7 +663,7 @@ private:
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
-    auto node = std::make_shared<f1tenth_communication::MpcReceiverMpcFpgaNode>();
+    auto node = std::make_shared<f1tenth_communication::MpcReceiverFpgaNode>();
     rclcpp::spin(node);
     rclcpp::shutdown();
     return 0;

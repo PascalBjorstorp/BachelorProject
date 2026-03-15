@@ -1139,18 +1139,6 @@ def main():
         help='Skip centerline extraction (use existing TUM track CSV)',
     )
     parser.add_argument(
-        '--skip-optimize', action='store_true',
-        help='Skip TUM optimization (use existing traj_race_cl.csv)',
-    )
-    parser.add_argument(
-        '--skip-walls', action='store_true', default=True,
-        help='Skip wall distance computation (default: True, 7-col output)',
-    )
-    parser.add_argument(
-        '--with-walls', action='store_true', default=True,
-        help='Compute ray-cast wall distances (9-col output, default: True)',
-    )
-    parser.add_argument(
         '--car-width', type=float, default=0.273,
         help='Physical car width [m] used for wall distance margin (default: 0.273, F1Tenth)',
     )
@@ -1160,7 +1148,7 @@ def main():
              'Optimizer width_opt = car_width + 2*wall_clearance',
     )
     parser.add_argument(
-        '--max-ray-distance', type=float, default=5.0,
+        '--max-ray-distance', type=float, default=2.0,
         help='Max wall ray-cast distance [m] (default: 5.0)',
     )
     parser.add_argument(
@@ -1174,17 +1162,18 @@ def main():
         help='Track direction: auto-detect from winding order, or force cw/ccw (default: cw)',
     )
     parser.add_argument(
-        '--smooth-factor', type=float, default=1.0,
+        '--smooth-factor', type=float, default=10.0,
         help='Spline smoothing factor s_reg for TUM optimizer (default: 2.0). '
              'Lower values preserve centerline shape better; higher values smooth more. '
              '0 = exact interpolation (safest but slowest), 2 = good balance for small tracks.',
     )
     parser.add_argument(
-        '--waypoint-spacing', type=float, default=0.15,
+        '--waypoint-spacing', type=float, default=0.05,
         help='Waypoint spacing [m] for the final trajectory (stepsize_interp_after_opt, default: 0.15). '
              'Smaller values produce denser waypoints (recommended for MPC).',
     )
     args = parser.parse_args()
+    args.skip_walls = False
 
     # Auto-detect map if not specified
     if args.map is None:
@@ -1212,10 +1201,6 @@ def main():
         else:
             args.track_name = basename
     track_name = args.track_name
-
-    # Override skip_walls if --with-walls was explicitly given
-    if args.with_walls:
-        args.skip_walls = False
 
     track_csv = os.path.join(
         global_opt_dir, 'inputs', 'tracks', f'{track_name}.csv'
@@ -1250,7 +1235,6 @@ def main():
     print(f"  Wall distances:   {'yes' if not args.skip_walls else 'no (default)'}")
     print(f"  Output:           {output_csv}")
     print(f"  Skip extract:     {args.skip_extract}")
-    print(f"  Skip optimize:    {args.skip_optimize}")
 
     # ---- Step 0: Extract centerline + track widths from map ------------------
     if not args.skip_extract:
@@ -1398,104 +1382,101 @@ def main():
     # ---- Step 1: Run TUM global_racetrajectory_optimization -----------------
     tum_output = os.path.join(global_opt_dir, 'outputs', 'traj_race_cl.csv')
 
-    if not args.skip_optimize:
-        main_py = os.path.join(global_opt_dir, 'main_globaltraj.py')
-        racecar_ini = os.path.join(global_opt_dir, 'params', 'racecar.ini')
+    main_py = os.path.join(global_opt_dir, 'main_globaltraj.py')
+    racecar_ini = os.path.join(global_opt_dir, 'params', 'racecar.ini')
 
-        # Save original content for restoration
+    # Save original content for restoration
+    with open(main_py, 'r') as f:
+        original_content = f.read()
+    with open(racecar_ini, 'r') as f:
+        original_ini_content = f.read()
+
+    try:
+        set_track_in_main(main_py, track_name)
+        set_opt_type_in_main(main_py, args.opt_type)
+
+        # Patch width_opt in racecar.ini: car_width + 2*wall_clearance
+        # This ensures the optimizer keeps the raceline far enough
+        # from track boundaries that after subtracting car_half_width
+        # in wall distance computation, there is wall_clearance of
+        # driveable room for the MPC on each side.
+        optimizer_width = args.car_width + 2.0 * args.wall_clearance
+        # Ensure width_opt doesn't exceed minimum track width (infeasible QP)
+        track_data_check = np.loadtxt(track_csv, delimiter=',', comments='#')
+        min_total_w = (track_data_check[:, 2] + track_data_check[:, 3]).min()
+        if optimizer_width > min_total_w:
+            # Leave 5% margin for the TUM's internal spline resampling
+            optimizer_width = max(args.car_width * 0.95, min_total_w * 0.90)
+            print(f"  Clamped width_opt to {optimizer_width:.3f}m "
+                  f"(min track width = {min_total_w:.3f}m)")
+        patched_ini = re.sub(
+            r'(optim_opts_mincurv\s*=\s*\{"width_opt":\s*)[\d.]+',
+            rf'\g<1>{optimizer_width:.3f}',
+            original_ini_content,
+        )
+
+        # Patch s_reg (spline smoothing factor)
+        s_reg_val = float(args.smooth_factor)
+        patched_ini = re.sub(
+            r'("s_reg":\s*)[\d.]+',
+            rf'\g<1>{s_reg_val:.1f}',
+            patched_ini,
+        )
+        print(f"  Patched racecar.ini: s_reg -> {s_reg_val:.1f}")
+
+        print(f"  Patched racecar.ini: width_opt -> {optimizer_width:.3f} "
+              f"(car_width={args.car_width:.2f} + 2*clearance={args.wall_clearance:.2f})")
+
+        # Auto-reduce stepsize_prep and stepsize_reg for small tracks
+        # (TUM defaults are 0.3m and 0.5m, designed for 100m+ tracks)
+        patched_ini = re.sub(
+            r'("stepsize_prep":\s*)[\d.]+',
+            rf'\g<1>0.150',
+            patched_ini,
+        )
+        patched_ini = re.sub(
+            r'("stepsize_reg":\s*)[\d.]+',
+            rf'\g<1>0.200',
+            patched_ini,
+        )
+        print(f"  Patched racecar.ini: stepsize_prep -> 0.150m, stepsize_reg -> 0.200m")
+
+        # Patch stepsize_interp_after_opt to produce denser waypoints
+        patched_ini = re.sub(
+            r'("stepsize_interp_after_opt":\s*)[\d.]+',
+            rf'\g<1>{args.waypoint_spacing:.3f}',
+            patched_ini,
+        )
+        print(f"  Patched racecar.ini: stepsize_interp_after_opt -> {args.waypoint_spacing:.3f}m")
+        # Write all ini patches at once
+        with open(racecar_ini, 'w') as f:
+            f.write(patched_ini)
+
+        # Patch min_track_width in main_globaltraj.py
+        # This widens narrow track sections so the optimizer can find a valid solution.
+        patched_main = original_content
         with open(main_py, 'r') as f:
-            original_content = f.read()
-        with open(racecar_ini, 'r') as f:
-            original_ini_content = f.read()
+            patched_main = f.read()
+        patched_main = re.sub(
+            r'("min_track_width":\s*)(None|[\d.]+)',
+            rf'\g<1>{args.min_track_width:.3f}',
+            patched_main,
+        )
+        with open(main_py, 'w') as f:
+            f.write(patched_main)
+        print(f"  Patched main_globaltraj.py: min_track_width -> {args.min_track_width:.3f}")
 
-        try:
-            set_track_in_main(main_py, track_name)
-            set_opt_type_in_main(main_py, args.opt_type)
-
-            # Patch width_opt in racecar.ini: car_width + 2*wall_clearance
-            # This ensures the optimizer keeps the raceline far enough
-            # from track boundaries that after subtracting car_half_width
-            # in wall distance computation, there is wall_clearance of
-            # driveable room for the MPC on each side.
-            optimizer_width = args.car_width + 2.0 * args.wall_clearance
-            # Ensure width_opt doesn't exceed minimum track width (infeasible QP)
-            track_data_check = np.loadtxt(track_csv, delimiter=',', comments='#')
-            min_total_w = (track_data_check[:, 2] + track_data_check[:, 3]).min()
-            if optimizer_width > min_total_w:
-                # Leave 5% margin for the TUM's internal spline resampling
-                optimizer_width = max(args.car_width * 0.95, min_total_w * 0.90)
-                print(f"  Clamped width_opt to {optimizer_width:.3f}m "
-                      f"(min track width = {min_total_w:.3f}m)")
-            patched_ini = re.sub(
-                r'(optim_opts_mincurv\s*=\s*\{"width_opt":\s*)[\d.]+',
-                rf'\g<1>{optimizer_width:.3f}',
-                original_ini_content,
-            )
-
-            # Patch s_reg (spline smoothing factor)
-            s_reg_val = float(args.smooth_factor)
-            patched_ini = re.sub(
-                r'("s_reg":\s*)[\d.]+',
-                rf'\g<1>{s_reg_val:.1f}',
-                patched_ini,
-            )
-            print(f"  Patched racecar.ini: s_reg -> {s_reg_val:.1f}")
-
-            print(f"  Patched racecar.ini: width_opt -> {optimizer_width:.3f} "
-                  f"(car_width={args.car_width:.2f} + 2*clearance={args.wall_clearance:.2f})")
-
-            # Auto-reduce stepsize_prep and stepsize_reg for small tracks
-            # (TUM defaults are 0.3m and 0.5m, designed for 100m+ tracks)
-            patched_ini = re.sub(
-                r'("stepsize_prep":\s*)[\d.]+',
-                rf'\g<1>0.150',
-                patched_ini,
-            )
-            patched_ini = re.sub(
-                r'("stepsize_reg":\s*)[\d.]+',
-                rf'\g<1>0.200',
-                patched_ini,
-            )
-            print(f"  Patched racecar.ini: stepsize_prep -> 0.150m, stepsize_reg -> 0.200m")
-
-            # Patch stepsize_interp_after_opt to produce denser waypoints
-            patched_ini = re.sub(
-                r'("stepsize_interp_after_opt":\s*)[\d.]+',
-                rf'\g<1>{args.waypoint_spacing:.3f}',
-                patched_ini,
-            )
-            print(f"  Patched racecar.ini: stepsize_interp_after_opt -> {args.waypoint_spacing:.3f}m")
-            # Write all ini patches at once
-            with open(racecar_ini, 'w') as f:
-                f.write(patched_ini)
-
-            # Patch min_track_width in main_globaltraj.py
-            # This widens narrow track sections so the optimizer can find a valid solution.
-            patched_main = original_content
-            with open(main_py, 'r') as f:
-                patched_main = f.read()
-            patched_main = re.sub(
-                r'("min_track_width":\s*)(None|[\d.]+)',
-                rf'\g<1>{args.min_track_width:.3f}',
-                patched_main,
-            )
-            with open(main_py, 'w') as f:
-                f.write(patched_main)
-            print(f"  Patched main_globaltraj.py: min_track_width -> {args.min_track_width:.3f}")
-
-            run_step(
-                f"Step 1: Optimize trajectory ({args.opt_type}, {track_name})",
-                [sys.executable, 'main_globaltraj.py'],
-                cwd=global_opt_dir,
-            )
-        finally:
-            # Always restore original files
-            with open(main_py, 'w') as f:
-                f.write(original_content)
-            with open(racecar_ini, 'w') as f:
-                f.write(original_ini_content)
-    else:
-        print(f"\n  Skipping optimization (--skip-optimize)")
+        run_step(
+            f"Step 1: Optimize trajectory ({args.opt_type}, {track_name})",
+            [sys.executable, 'main_globaltraj.py'],
+            cwd=global_opt_dir,
+        )
+    finally:
+        # Always restore original files
+        with open(main_py, 'w') as f:
+            f.write(original_content)
+        with open(racecar_ini, 'w') as f:
+            f.write(original_ini_content)
 
     if not os.path.exists(tum_output):
         print(f"  ERROR: TUM output not found: {tum_output}")
