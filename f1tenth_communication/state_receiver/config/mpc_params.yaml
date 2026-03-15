@@ -1,7 +1,7 @@
 # MPC Receiver — FPGA Riccati-ADMM Configuration
-# For use with mpc_receiver_fpga_node on Ultra96-V2
+# For use with mpc_receiver_node on Ultra96-V2
 
-mpc_receiver_fpga:
+mpc_receiver:
   ros__parameters:
     # Topics
     input_topic: "/mpc_state"

@@ -1,8 +1,8 @@
 """
-Launch file for MPC Receiver FPGA controller.
+Launch file for state receiver FPGA controller.
 
 Usage:
-    ros2 launch mpc_receiver mpc_fpga_launch.py
+    ros2 launch state_receiver mpc_launch.py
 
 Arguments:
     trajectory_file: Optional fallback raceline CSV file (used when FPGA disabled)
@@ -20,8 +20,8 @@ from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
-    pkg_share = get_package_share_directory('mpc_receiver')
-    default_config = os.path.join(pkg_share, 'config', 'mpc_fpga_params.yaml')
+    pkg_share = get_package_share_directory('state_receiver')
+    default_config = os.path.join(pkg_share, 'config', 'mpc_params.yaml')
 
     trajectory_file_arg = DeclareLaunchArgument(
         'trajectory_file',
@@ -48,9 +48,9 @@ def generate_launch_description():
     )
 
     mpc_fpga_node = Node(
-        package='mpc_receiver',
-        executable='mpc_receiver_fpga_node',
-        name='mpc_receiver_fpga',
+        package='state_receiver',
+        executable='mpc_receiver_node',
+        name='mpc_receiver',
         output='screen',
         parameters=[
             default_config,

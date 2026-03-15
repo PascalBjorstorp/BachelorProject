@@ -1,5 +1,5 @@
 /**
- * @file mpc_receiver_fpga.cpp
+ * @file mpc_receiver.cpp
  * @brief MPC Receiver with Riccati-ADMM FPGA Integration
  *
  * Runs on Ultra96-V2. Interfaces with the MPC FPGA IP core via /dev/mem mmap.
@@ -350,7 +350,7 @@ private:
 
 class MpcReceiverFpgaNode : public rclcpp::Node {
 public:
-    MpcReceiverFpgaNode() : Node("mpc_receiver_fpga") {
+    MpcReceiverFpgaNode() : Node("mpc_receiver") {
         // --- Parameters ---
         declare_parameter("trajectory_file", "");
         declare_parameter("input_topic", "/mpc_state");

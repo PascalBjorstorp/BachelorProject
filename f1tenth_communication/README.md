@@ -8,7 +8,7 @@ Communication packages for Jetson ↔ Ultra96 data transfer.
 ┌──────────────────────────────────┐     ┌─────────────────────────────────┐
 │           JETSON                 │     │           ULTRA96               │
 │                                  │     │                                 │
-│  Localization → state_publisher  │────→│  mpc_receiver_fpga              │
+│  Localization → state_publisher  │────→│  mpc_receiver / pp_receiver     │
 │  (/odom)         (KD-tree)       │     │  (/mpc_state subscriber)        │
 │                  ↓               │     │  ↓                              │
 │              /mpc_state          │     │  Load streamed horizon to FPGA  │
@@ -39,7 +39,7 @@ ROS2 node that runs on **Jetson**:
 5. Streams next N reference waypoints in each message
 6. Uses Best Effort QoS for low latency
 
-### mpc_receiver (Ultra96)
+### state_receiver (Ultra96)
 
 ROS2 node that runs on **Ultra96**:
 1. Subscribes to `/mpc_state` (Best Effort QoS)
@@ -53,7 +53,7 @@ ROS2 node that runs on **Ultra96**:
 
 ```bash
 cd ~/BachelorProject
-colcon build --packages-select f1tenth_msgs state_publisher mpc_receiver
+colcon build --packages-select f1tenth_msgs state_publisher state_receiver
 source install/setup.bash
 ```
 
@@ -74,7 +74,7 @@ ros2 launch state_publisher state_publisher_launch.py
 ### 4. Run on Ultra96
 
 ```bash
-ros2 launch mpc_receiver mpc_fpga_launch.py
+ros2 launch state_receiver mpc_launch.py
 ```
 
 ## Q16.16 Fixed-Point Format

@@ -14,7 +14,7 @@ Usage:
     export ROS_DOMAIN_ID=42
     source /home/xilinx/ros2_humble/install/setup.bash
     source /home/xilinx/ros2_ws/install/setup.bash
-    ros2 run mpc_receiver mpc_receiver_fpga_node \
+    ros2 run state_receiver mpc_receiver_node \
         --ros-args -p trajectory_file:=/home/xilinx/trajectories/Spielberg_raceline.csv
 
   Terminal 2 (test):
@@ -96,7 +96,7 @@ class FpgaTestPublisher(Node):
         self.raceline = load_raceline(raceline_path)
         self.get_logger().info(f'Loaded {len(self.raceline)} waypoints from {raceline_path}')
 
-        # QoS matching mpc_receiver_fpga (Best Effort)
+        # QoS matching mpc_receiver node (Best Effort)
         qos = QoSProfile(
             depth=1,
             reliability=ReliabilityPolicy.BEST_EFFORT,

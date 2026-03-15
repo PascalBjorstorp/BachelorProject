@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(mpc_receiver)
+project(state_receiver)
 
 # C++17 standard
 if(NOT CMAKE_CXX_STANDARD)
@@ -17,39 +17,39 @@ find_package(f1tenth_msgs REQUIRED)
 find_package(ackermann_msgs REQUIRED)
 
 # ===========================================================================
-# Pure Pursuit — FPGA (pp_receiver_fpga.cpp)
+# Pure Pursuit — FPGA (pp_receiver.cpp)
 # ===========================================================================
 set(PP_FPGA_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../FPGA_Implementations/PP_FPGA/include")
 if(EXISTS "${PP_FPGA_INCLUDE_DIR}/fpga_interface.h")
-  message(STATUS "PP FPGA headers found — building pp_receiver_fpga_node")
-  add_executable(pp_receiver_fpga_node src/pp_receiver_fpga.cpp)
-  target_include_directories(pp_receiver_fpga_node PRIVATE ${PP_FPGA_INCLUDE_DIR})
-  ament_target_dependencies(pp_receiver_fpga_node
+  message(STATUS "PP FPGA headers found — building pp_receiver_node")
+  add_executable(pp_receiver_node src/pp_receiver.cpp)
+  target_include_directories(pp_receiver_node PRIVATE ${PP_FPGA_INCLUDE_DIR})
+  ament_target_dependencies(pp_receiver_node
     rclcpp
     f1tenth_msgs
     ackermann_msgs
   )
-  install(TARGETS pp_receiver_fpga_node DESTINATION lib/${PROJECT_NAME})
+  install(TARGETS pp_receiver_node DESTINATION lib/${PROJECT_NAME})
 else()
-  message(STATUS "PP FPGA headers NOT found at ${PP_FPGA_INCLUDE_DIR} — skipping pp_receiver_fpga_node")
+  message(STATUS "PP FPGA headers NOT found at ${PP_FPGA_INCLUDE_DIR} — skipping pp_receiver_node")
 endif()
 
 # ===========================================================================
-# MPC Riccati-ADMM — FPGA (mpc_receiver_fpga.cpp)
+# MPC Riccati-ADMM — FPGA (mpc_receiver.cpp)
 # ===========================================================================
 set(MPC_FPGA_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../FPGA_Implementations/MPC_FPGA/include")
 if(EXISTS "${MPC_FPGA_INCLUDE_DIR}/mpc_fpga_interface.h")
-  message(STATUS "MPC FPGA headers found — building mpc_receiver_fpga_node")
-  add_executable(mpc_receiver_fpga_node src/mpc_receiver_fpga.cpp)
-  target_include_directories(mpc_receiver_fpga_node PRIVATE ${MPC_FPGA_INCLUDE_DIR})
-  ament_target_dependencies(mpc_receiver_fpga_node
+  message(STATUS "MPC FPGA headers found — building mpc_receiver_node")
+  add_executable(mpc_receiver_node src/mpc_receiver.cpp)
+  target_include_directories(mpc_receiver_node PRIVATE ${MPC_FPGA_INCLUDE_DIR})
+  ament_target_dependencies(mpc_receiver_node
     rclcpp
     f1tenth_msgs
     ackermann_msgs
   )
-  install(TARGETS mpc_receiver_fpga_node DESTINATION lib/${PROJECT_NAME})
+  install(TARGETS mpc_receiver_node DESTINATION lib/${PROJECT_NAME})
 else()
-  message(STATUS "MPC FPGA headers NOT found at ${MPC_FPGA_INCLUDE_DIR} — skipping mpc_receiver_fpga_node")
+  message(STATUS "MPC FPGA headers NOT found at ${MPC_FPGA_INCLUDE_DIR} — skipping mpc_receiver_node")
 endif()
 
 # ===========================================================================

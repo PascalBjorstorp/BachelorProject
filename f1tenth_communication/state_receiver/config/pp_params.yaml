@@ -1,7 +1,7 @@
 # Pure Pursuit FPGA Configuration
-# For use with mpc_receiver_fpga_node
+# For use with pp_receiver_node
 
-mpc_receiver_fpga_node:
+pp_receiver:
   ros__parameters:
     # Input/Output topics
     input_topic: "/mpc_state"

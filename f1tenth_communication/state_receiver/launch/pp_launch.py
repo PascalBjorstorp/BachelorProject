@@ -1,8 +1,8 @@
 """
-Launch file for MPC Receiver with FPGA Pure Pursuit controller.
+Launch file for state receiver with FPGA Pure Pursuit controller.
 
 Usage:
-    ros2 launch mpc_receiver fpga_launch.py trajectory_file:=/path/to/raceline.csv
+    ros2 launch state_receiver pp_launch.py trajectory_file:=/path/to/raceline.csv
 
 Arguments:
     trajectory_file: Path to raceline CSV file (required)
@@ -20,8 +20,8 @@ from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
     # Get package paths
-    pkg_share = get_package_share_directory('mpc_receiver')
-    default_config = os.path.join(pkg_share, 'config', 'fpga_params.yaml')
+    pkg_share = get_package_share_directory('state_receiver')
+    default_config = os.path.join(pkg_share, 'config', 'pp_params.yaml')
     
     # Declare launch arguments
     trajectory_file_arg = DeclareLaunchArgument(
@@ -47,11 +47,11 @@ def generate_launch_description():
         description='Topic to receive MPC state from'
     )
     
-    # MPC Receiver FPGA Node
-    mpc_receiver_fpga_node = Node(
-        package='mpc_receiver',
-        executable='mpc_receiver_fpga_node',
-        name='mpc_receiver_fpga',
+    # PP receiver Node
+    pp_receiver_node = Node(
+        package='state_receiver',
+        executable='pp_receiver_node',
+        name='pp_receiver',
         output='screen',
         parameters=[
             default_config,
@@ -73,5 +73,5 @@ def generate_launch_description():
         use_fpga_arg,
         drive_topic_arg,
         input_topic_arg,
-        mpc_receiver_fpga_node,
+        pp_receiver_node,
     ])

@@ -1,5 +1,5 @@
 /**
- * @file mpc_receiver_fpga.cpp
+ * @file pp_receiver.cpp
  * @brief MPC Receiver with FPGA Integration - Trajectory Stored in FPGA BRAM
  *
  * Loads trajectory to FPGA BRAM at startup via AXI-Lite register writes.
@@ -408,7 +408,7 @@ private:
 
 class MpcReceiverFpgaNode : public rclcpp::Node {
 public:
-    MpcReceiverFpgaNode() : Node("mpc_receiver_fpga") {
+    MpcReceiverFpgaNode() : Node("pp_receiver") {
         // Declare parameters
         declare_parameter("trajectory_file", "");
         declare_parameter("input_topic", "/mpc_state");
