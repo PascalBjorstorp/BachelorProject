@@ -1,6 +1,4 @@
 #include "f1tenth_control/nodes/pure_pursuit_node.hpp"
-#include <tf2/utils.h>
-#include <tf2/exceptions.h>
 #include <cmath>
 
 namespace f1tenth_control {
@@ -14,10 +12,6 @@ PurePursuitNode::PurePursuitNode(const rclcpp::NodeOptions& options)
     declareParameters();
     loadParameters();
 
-    // TF listener for map-frame pose
-    tf_buffer_   = std::make_shared<tf2_ros::Buffer>(get_clock());
-    tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
-    
     // Create controller
     controller_ = std::make_unique<PurePursuit>(config_);
     
@@ -31,6 +25,11 @@ PurePursuitNode::PurePursuitNode(const rclcpp::NodeOptions& options)
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
         "/odom", rclcpp::SensorDataQoS(),
         std::bind(&PurePursuitNode::odomCallback, this, std::placeholders::_1)
+    );
+
+    pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>(
+        pose_topic_, rclcpp::SensorDataQoS(),
+        std::bind(&PurePursuitNode::poseCallback, this, std::placeholders::_1)
     );
     
     enable_sub_ = create_subscription<std_msgs::msg::Bool>(
@@ -65,8 +64,8 @@ PurePursuitNode::PurePursuitNode(const rclcpp::NodeOptions& options)
                 trajectory_file_.c_str(), controller_->getTrajectory().size());
     RCLCPP_INFO(get_logger(), "  Lookahead: %.2f - %.2f m (gain: %.2f)",
                 config_.min_lookahead, config_.max_lookahead, config_.lookahead_gain);
-    RCLCPP_INFO(get_logger(), "  Speed: %.1f - %.1f m/s (gain: %.2f)",
-                config_.min_speed, config_.max_speed, config_.speed_gain);
+    RCLCPP_INFO(get_logger(), "  Lookahead adapt: cte_weight=%.2f cte_gain=%.3f curvature_gain=%.3f",
+                config_.cte_lookahead_weight, config_.cte_lookahead_gain, config_.curvature_lookahead_gain);
 }
 
 void PurePursuitNode::declareParameters() {
@@ -77,11 +76,9 @@ void PurePursuitNode::declareParameters() {
     declare_parameter("min_lookahead", 0.5);
     declare_parameter("max_lookahead", 2.5);
     declare_parameter("lookahead_gain", 0.15);
-    
-    // Speed
-    declare_parameter("max_speed", 8.0);
-    declare_parameter("min_speed", 1.0);
-    declare_parameter("speed_gain", 1.0);
+    declare_parameter("cte_lookahead_weight", 1.0);
+    declare_parameter("cte_lookahead_gain", 0.03);
+    declare_parameter("curvature_lookahead_gain", 0.0);
     
     // Steering
     declare_parameter("max_steering", 0.4189);
@@ -91,8 +88,8 @@ void PurePursuitNode::declareParameters() {
     
     // Misc
     declare_parameter("publish_visualization", true);
-    declare_parameter("map_frame",  std::string("map"));
-    declare_parameter("base_frame", std::string("ego_racecar/base_link"));
+    declare_parameter("pose_topic", std::string("/ekf_pose"));
+    declare_parameter("pose_timeout_s", 0.1);
 }
 
 void PurePursuitNode::loadParameters() {
@@ -101,17 +98,16 @@ void PurePursuitNode::loadParameters() {
     config_.min_lookahead = get_parameter("min_lookahead").as_double();
     config_.max_lookahead = get_parameter("max_lookahead").as_double();
     config_.lookahead_gain = get_parameter("lookahead_gain").as_double();
-    
-    config_.max_speed = get_parameter("max_speed").as_double();
-    config_.min_speed = get_parameter("min_speed").as_double();
-    config_.speed_gain = get_parameter("speed_gain").as_double();
+    config_.cte_lookahead_weight = get_parameter("cte_lookahead_weight").as_double();
+    config_.cte_lookahead_gain = get_parameter("cte_lookahead_gain").as_double();
+    config_.curvature_lookahead_gain = get_parameter("curvature_lookahead_gain").as_double();
     
     config_.max_steering = get_parameter("max_steering").as_double();
     config_.wheelbase = get_parameter("wheelbase").as_double();
     
     publish_visualization_ = get_parameter("publish_visualization").as_bool();
-    map_frame_  = get_parameter("map_frame").as_string();
-    base_frame_ = get_parameter("base_frame").as_string();
+    pose_topic_ = get_parameter("pose_topic").as_string();
+    pose_timeout_s_ = get_parameter("pose_timeout_s").as_double();
 }
 
 rcl_interfaces::msg::SetParametersResult PurePursuitNode::parametersCallback(
@@ -127,14 +123,16 @@ rcl_interfaces::msg::SetParametersResult PurePursuitNode::parametersCallback(
             config_.max_lookahead = param.as_double();
         } else if (param.get_name() == "lookahead_gain") {
             config_.lookahead_gain = param.as_double();
-        } else if (param.get_name() == "max_speed") {
-            config_.max_speed = param.as_double();
-        } else if (param.get_name() == "min_speed") {
-            config_.min_speed = param.as_double();
-        } else if (param.get_name() == "speed_gain") {
-            config_.speed_gain = param.as_double();
+        } else if (param.get_name() == "cte_lookahead_weight") {
+            config_.cte_lookahead_weight = param.as_double();
+        } else if (param.get_name() == "cte_lookahead_gain") {
+            config_.cte_lookahead_gain = param.as_double();
+        } else if (param.get_name() == "curvature_lookahead_gain") {
+            config_.curvature_lookahead_gain = param.as_double();
         } else if (param.get_name() == "max_steering") {
             config_.max_steering = param.as_double();
+        } else if (param.get_name() == "pose_timeout_s") {
+            pose_timeout_s_ = param.as_double();
         }
     }
     
@@ -170,6 +168,21 @@ void PurePursuitNode::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg)
     
     // Run control on every odom update
     controlLoop();
+}
+
+void PurePursuitNode::poseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    current_state_.pose.x = msg->pose.position.x;
+    current_state_.pose.y = msg->pose.position.y;
+    const double qx = msg->pose.orientation.x;
+    const double qy = msg->pose.orientation.y;
+    const double qz = msg->pose.orientation.z;
+    const double qw = msg->pose.orientation.w;
+    current_state_.pose.theta = std::atan2(
+        2.0 * (qw * qz + qx * qy),
+        1.0 - 2.0 * (qy * qy + qz * qz));
+    pose_received_ = true;
+    last_pose_time_ = now();
 }
 
 void PurePursuitNode::enableCallback(const std_msgs::msg::Bool::SharedPtr msg) {
@@ -239,9 +252,22 @@ void PurePursuitNode::controlLoop() {
     if (!enabled_ || !trajectory_loaded_) {
         return;
     }
-    
-    // Update pose from TF (map frame)
-    updatePoseFromTF();
+
+    if (!pose_received_) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+                             "No pose received on %s yet", pose_topic_.c_str());
+        publishDriveCommand(0.0, 0.0);
+        return;
+    }
+
+    const double pose_age = (now() - last_pose_time_).seconds();
+    if (pose_age > pose_timeout_s_) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+                             "Pose timeout %.3fs > %.3fs; issuing stop for fail-safe",
+                             pose_age, pose_timeout_s_);
+        publishDriveCommand(0.0, 0.0);
+        return;
+    }
 
     VehicleState state;
     {
@@ -272,31 +298,8 @@ void PurePursuitNode::controlLoop() {
     } else {
         RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, 
                             "Invalid Pure Pursuit output");
+        publishDriveCommand(0.0, 0.0);
     }
-}
-
-bool PurePursuitNode::updatePoseFromTF() {
-    geometry_msgs::msg::TransformStamped tf;
-    try {
-        tf = tf_buffer_->lookupTransform(
-            map_frame_, base_frame_,
-            tf2::TimePointZero,
-            tf2::durationFromSec(0.02));
-    } catch (const tf2::TransformException & ex) {
-        RCLCPP_DEBUG(get_logger(), "TF lookup failed: %s", ex.what());
-        return false;
-    }
-
-    std::lock_guard<std::mutex> lock(state_mutex_);
-    current_state_.pose.x = tf.transform.translation.x;
-    current_state_.pose.y = tf.transform.translation.y;
-    current_state_.pose.theta = tf2::getYaw(
-        tf2::Quaternion(
-            tf.transform.rotation.x,
-            tf.transform.rotation.y,
-            tf.transform.rotation.z,
-            tf.transform.rotation.w));
-    return true;
 }
 
 void PurePursuitNode::publishDriveCommand(double steering, double speed) {

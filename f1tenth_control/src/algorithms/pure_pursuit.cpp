@@ -187,11 +187,46 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     
     // Compute adaptive lookahead distance
     double lookahead_dist = config_.min_lookahead + config_.lookahead_gain * current_speed;
+    lookahead_dist -= config_.cte_lookahead_gain * config_.cte_lookahead_weight * std::abs(output.cross_track_error);
+    lookahead_dist -= config_.curvature_lookahead_gain * std::abs(closest_pt.curvature);
     lookahead_dist = std::clamp(lookahead_dist, config_.min_lookahead, config_.max_lookahead);
-    
-    // Find lookahead target point
-    size_t target_idx = findLookaheadTarget(closest_idx, lookahead_dist);
-    const auto& target_pt = trajectory_[target_idx];
+
+    // Find lookahead target and interpolate for continuous target tracking.
+    size_t target_idx = closest_idx;
+    size_t target_seg_start_idx = closest_idx;
+    size_t target_seg_end_idx = closest_idx;
+    double target_seg_t = 0.0;
+    const size_t n = trajectory_.size();
+    double accumulated_dist = 0.0;
+    bool found_target = false;
+    for (size_t i = closest_idx; i < closest_idx + n; ++i) {
+        size_t curr_idx = i % n;
+        size_t next_idx = (i + 1) % n;
+        double segment_dist = math::distance(
+            trajectory_[curr_idx].x, trajectory_[curr_idx].y,
+            trajectory_[next_idx].x, trajectory_[next_idx].y
+        );
+
+        if (segment_dist > 1e-9 && accumulated_dist + segment_dist >= lookahead_dist) {
+            target_seg_start_idx = curr_idx;
+            target_seg_end_idx = next_idx;
+            target_seg_t = (lookahead_dist - accumulated_dist) / segment_dist;
+            target_seg_t = std::clamp(target_seg_t, 0.0, 1.0);
+            target_idx = next_idx;
+            found_target = true;
+            break;
+        }
+
+        accumulated_dist += segment_dist;
+        target_idx = next_idx;
+    }
+
+    TrajectoryPoint target_pt;
+    if (found_target) {
+        target_pt = interpolate(target_seg_start_idx, target_seg_end_idx, target_seg_t);
+    } else {
+        target_pt = trajectory_[target_idx];
+    }
     
     // Compute target point relative to vehicle
     double tx = target_pt.x - position.x;
@@ -219,11 +254,8 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     // Clamp steering (hardware servo enforces its own rate limit)
     steering_angle = std::clamp(steering_angle, -config_.max_steering, config_.max_steering);
     
-    // Compute target speed from trajectory (optimizer accounts for tire limits)
-    double target_speed = target_pt.velocity * config_.speed_gain;
-    
-    // Apply speed limits
-    target_speed = std::clamp(target_speed, config_.min_speed, config_.max_speed);
+    // Follow trajectory speed directly (no controller-side speed limiting).
+    double target_speed = target_pt.velocity;
     
     // Fill output
     output.steering_angle = steering_angle;

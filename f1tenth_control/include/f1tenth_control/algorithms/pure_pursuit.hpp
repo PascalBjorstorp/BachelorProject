@@ -17,11 +17,9 @@ struct PurePursuitConfig {
     double min_lookahead{0.5};      // [m] Minimum lookahead distance
     double max_lookahead{2.5};      // [m] Maximum lookahead distance (reduced to avoid early turn-in)
     double lookahead_gain{0.15};    // Velocity-proportional gain: L = min_L + k*v (reduced)
-    
-    // Speed control
-    double max_speed{8.0};          // [m/s] Maximum speed
-    double min_speed{1.0};          // [m/s] Minimum speed
-    double speed_gain{1.0};         // Multiplier for trajectory target speed
+    double cte_lookahead_weight{1.0}; // [unitless] Weight on |CTE| contribution
+    double cte_lookahead_gain{0.0}; // [m/m] Reduce lookahead with cross-track error
+    double curvature_lookahead_gain{0.0}; // [m/(1/m)] Reduce lookahead in high curvature
     
     // Steering limits
     double max_steering{0.4189};    // [rad] Maximum steering angle (~24°)
