@@ -133,11 +133,13 @@ typedef int32_t fixed_point_t;
 #define VP_MIN_STIFF_SCALE  FP_CONST(0.1)       /* Floor for effective stiffness */
 
 /* Precomputed Pacejka B parameters (saves 2 fp_mul per linearization call) */
-#define VP_B_FRONT          FP_CONST(2.210)     /* C_Sf / C_shape = 4.199/1.9  */
-#define VP_B_REAR           FP_CONST(1.700)     /* C_Sr / C_shape = 3.230/1.9  */
-/* Precomputed mu*C_S products (saves 2 fp_mul per linearization) */
-#define VP_MU_CSF           FP_CONST(3.305)     /* mu * C_Sf = 0.787*4.199 */
-#define VP_MU_CSR           FP_CONST(2.542)     /* mu * C_Sr = 0.787*3.230 */
+#define VP_B_FRONT          FP_CONST(2.210)     /* Front tire Pacejka B parameter */
+#define VP_B_REAR           FP_CONST(1.700)     /* Rear tire Pacejka B parameter  */
+#define VP_CB_FRONT         FP_CONST(4.199)     /* C_shape * B_front */
+#define VP_CB_REAR          FP_CONST(3.230)     /* C_shape * B_rear  */
+/* Precomputed minimum effective stiffness factors (mu*C_S*MIN_STIFF_SCALE) */
+#define VP_MU_CSF_MIN       FP_CONST(0.3305)    /* mu*C_Sf*MIN_STIFF_SCALE */
+#define VP_MU_CSR_MIN       FP_CONST(0.2542)    /* mu*C_Sr*MIN_STIFF_SCALE */
 
 /*===========================================================================
  * MPC Default Cost Weights (tuned for F1/10th)
@@ -189,10 +191,9 @@ typedef int32_t fixed_point_t;
 #define BIG_BOUND           FP_CONST(100.0)
 #define MIN_LIN_VEL         FP_CONST(2.0)
 #define STABILITY_LIMIT_VAL FP_CONST(0.95)
-/* WALL_MARGIN = 0.36m: vehicle half-width=0.137m + body_safety=0.06m = 0.197m
- * effective body edge.  cl050 raceline has ~0.44m wall clearance in tightest
- * sections.  0.36 keeps constraints feasible while maintaining safety. */
-#define WALL_MARGIN         FP_CONST(0.15)   /* updated from CPU sweep (was 0.4) */
+/* WALL_MARGIN = 0.15m (updated from sweep values used in older runs).
+ * Keep a small safety buffer while preserving feasibility in tight sections. */
+#define WALL_MARGIN         FP_CONST(0.15)
 #define WALL_START          1
 #define WALL_STRIDE         1
 #define WALL_END            18     /* updated from CPU sweep (was 10) */
@@ -204,23 +205,6 @@ typedef int32_t fixed_point_t;
 #define ADMM_RHO_DEFAULT    FP_CONST(50.0)
 #define ADMM_RHO_U_DEFAULT  FP_CONST(26.6)
 #define ADMM_TOL_DEFAULT    FP_CONST(5.0)
-
-/* ADMM steering rate quantization — disabled (ADMM_QUANTIZE_STEER was 0).
- * Kept as comment for reference.
- * #define ADMM_QUANTIZE_STEER         0
- * #define ADMM_STEER_HALF_THRESHOLD   FP_CONST(1.4245)  // VP_MAX_STEER_RATE / 2
- */
-
-/* Over-relaxation parameter (alpha): typical range [1.5, 1.8]
- * Replaces x with alpha*x + (1-alpha)*z_old in z-update.
- * Literature shows 30-50% iteration reduction.
- *
- * DSP-optimised form: x_hat = x + (alpha-1)*(x - z_old)
- * uses 1 multiply instead of 2. */
-#define ADMM_OVER_RELAX             FP_CONST(1.5)  /* cl050 sweep best (was 1.2) */
-/* ADMM_OVER_RELAX_COMPLEMENT removed — was FP_CONST(-0.2), never used in HLS source.
- * Note: fpga_tune_weights.py also wrote this define; update that script if needed. */
-#define ADMM_OVER_RELAX_MINUS1      32768           /* alpha - 1 = 0.5  in Q16.16 */
 
 /*===========================================================================
  * Data Structures

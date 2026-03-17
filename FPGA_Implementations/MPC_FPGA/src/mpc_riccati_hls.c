@@ -67,10 +67,8 @@ void mpc_compute_hls(
      * --------------------------------------------------------------- */
     fixed_point_t kappa0 = ref[0].kappa;
 
-    /* Feedforward steering: delta_ff ≈ L * kappa (small-angle approximation).
-     * For VP_WHEELBASE=0.324 and kappa_max=1.5, argument <= 0.486 rad.
-     * atan(0.486) = 0.457, linear approx = 0.486 -> 6.3% error (acceptable
-     * for linearization operating point, same approx used per-step). */
+    /* Feedforward steering: delta_ff ≈ L * kappa using atan(L*kappa) ≈ L*kappa.
+     * This is used as a linearization operating point and re-evaluated per step. */
     fixed_point_t delta_ff = fp_mul(VP_WHEELBASE, kappa0);
     fixed_point_t half_steer = VP_MAX_STEER >> 1;
     delta_ff = fp_clamp(delta_ff, fp_neg(half_steer), half_steer);

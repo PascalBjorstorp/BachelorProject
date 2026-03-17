@@ -51,7 +51,7 @@ static int64_t reciprocal_64(int64_t det)
     int i;
     for (i = 0; i < 4; i++) {
 #pragma HLS PIPELINE II=2
-#pragma HLS LOOP_TRIPCOUNT min=3 max=3
+#pragma HLS LOOP_TRIPCOUNT min=4 max=4
         int64_t prod = abs_det * est;
         prod >>= FP_FRAC_BITS;
         int64_t corr = (int64_t)FP_ONE - prod;
@@ -247,7 +247,6 @@ static void riccati_pass_hls(
              * The sdiv unit costs ~469 LUT / 779 FF but 0 DSP. */
             Si[0][0] = S[0][0] != 0 ? ((int64_t)FP_ONE << FP_FRAC_BITS) / S[0][0] : 0;
             Si[0][1] = 0; Si[1][0] = 0;
-            Si[1][1] = S[1][1] != 0 ? ((int64_t)FP_ONE << FP_FRAC_BITS) / S[1][1] : 0;
             Si[1][1] = S[1][1] != 0 ? ((int64_t)FP_ONE << FP_FRAC_BITS) / S[1][1] : 0;
         }
 

@@ -99,8 +99,8 @@ void mpc_fpga_top(
 #pragma HLS INTERFACE s_axilite port=out_status      bundle=ctrl
 #pragma HLS INTERFACE s_axilite port=out_iterations  bundle=ctrl
 
-    /* Limit top-level multiplier instances: Frenet conversion and waypoint advance
-     * only run once per MPC solve (<0.1% of runtime). Free DSP for Riccati solver. */
+    /* Limit top-level multiplier instances to leave DSP budget for Riccati.
+     * The top-level math here runs once per solve, while Riccati dominates runtime. */
 #pragma HLS ALLOCATION operation instances=mul limit=2
 
     /* ===== Static Persistent State (survives between calls) ===== */

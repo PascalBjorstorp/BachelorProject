@@ -80,7 +80,7 @@ fixed_point_t fp_normalize_angle(fixed_point_t angle)
 }
 
 /*===========================================================================
- * Reciprocal: 1/x (Newton-Raphson, 6 iterations)
+ * Reciprocal: 1/x (Newton-Raphson, 4 iterations)
  *===========================================================================*/
 
 fixed_point_t fp_recip(fixed_point_t x)
@@ -103,7 +103,7 @@ fixed_point_t fp_recip(fixed_point_t x)
     int i;
     for (i = 0; i < RECIP_ITERATIONS; i++) {
 #pragma HLS PIPELINE II=2
-#pragma HLS LOOP_TRIPCOUNT min=6 max=6
+#pragma HLS LOOP_TRIPCOUNT min=4 max=4
         fixed_point_t prod = fp_mul(abs_x, est);
         fixed_point_t corr = fp_sub(FP_ONE, prod);
         fixed_point_t adj = fp_mul(est, corr);
