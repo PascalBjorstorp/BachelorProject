@@ -31,6 +31,10 @@ driveTopicPattern = '/drive';
 tPre = 1.0;
 tPost = 30.0;
 
+% Fallback when /drive cannot be decoded in MATLAB (e.g., missing custom msg)
+fallbackSpeedThresh = 0.2;   % [m/s]
+fallbackMinConsecutive = 3;  % samples above threshold
+
 % Common time vector for aggregate mean/std curves
 tRelCommon = (0:0.1:tPost)';
 
@@ -85,40 +89,59 @@ for i = 1:numel(bagInfo)
     end
 
     driveTopic = resolveDriveTopic(allTopics, driveTopicPattern);
-    if isempty(driveTopic)
-        warning('No drive topic found in %s', bagName);
-        continue;
-    end
 
     fprintf('Using car topic:   %s\n', carTopic);
     fprintf('Using ego topic:   %s\n', egoTopic);
-    fprintf('Using drive topic: %s\n', driveTopic);
+    if ~isempty(driveTopic)
+        fprintf('Using drive topic: %s\n', driveTopic);
+    else
+        fprintf('Using drive topic: <none found> (will use pose-motion fallback)\n');
+    end
 
     carMsgs = readMessages(select(bag, 'Topic', carTopic));
     egoMsgs = readMessages(select(bag, 'Topic', egoTopic));
-    drvMsgs = readMessages(select(bag, 'Topic', driveTopic));
+    drvMsgs = {};
+    if ~isempty(driveTopic)
+        try
+            drvMsgs = readMessages(select(bag, 'Topic', driveTopic));
+        catch ME
+            warning('Failed to read drive topic in %s: %s', bagName, ME.message);
+        end
+    end
 
-    if isempty(carMsgs) || isempty(egoMsgs) || isempty(drvMsgs)
-        warning('One or more required topics are empty in %s', bagName);
+    if isempty(carMsgs) || isempty(egoMsgs)
+        warning('One or more required pose topics are empty in %s', bagName);
         continue;
     end
 
     [tCar, posCar, yawCar] = extractPoseSeries(carMsgs);
     [tEgo, posEgo, yawEgo] = extractPoseSeries(egoMsgs);
-    [tDrv, speedDrv] = extractDriveSeries(drvMsgs);
+    tDrv = [];
+    speedDrv = [];
+    if ~isempty(drvMsgs)
+        [tDrv, speedDrv] = extractDriveSeries(drvMsgs);
+    end
 
-    if isempty(tCar) || isempty(tEgo) || isempty(tDrv)
+    if isempty(tCar) || isempty(tEgo)
         warning('Failed to extract data from %s', bagName);
         continue;
     end
 
+    tDrive0 = NaN;
     idxMove = find(abs(speedDrv) > 0.05, 1, 'first');
-    if isempty(idxMove)
-        warning('No non-zero drive command found in %s', bagName);
-        continue;
+    if ~isempty(idxMove)
+        tDrive0 = tDrv(idxMove);
+    else
+        tFromEgo = estimateStartTimeFromMotion(tEgo, posEgo, fallbackSpeedThresh, fallbackMinConsecutive);
+        tFromCar = estimateStartTimeFromMotion(tCar, posCar, fallbackSpeedThresh, fallbackMinConsecutive);
+        tDrive0 = pickFirstFinite(tFromEgo, tFromCar);
+        if ~isfinite(tDrive0)
+            warning('No non-zero drive command and no motion-based start detected in %s', bagName);
+            continue;
+        end
+        warning('Using pose-motion fallback start time in %s (drive topic unavailable/empty).', bagName);
     end
 
-    tDrive0 = tDrv(idxMove);
     tStart = tDrive0 - tPre;
     tEnd = tDrive0 + tPost;
 
@@ -478,6 +501,54 @@ speed = speed(idx);
 
 [t, idxUnique] = unique(t);
 speed = speed(idxUnique);
+end
+
+function t0 = estimateStartTimeFromMotion(t, pos, speedThresh, minConsecutive)
+t0 = NaN;
+
+if numel(t) < 3 || size(pos, 1) < 3
+    return;
+end
+
+dt = diff(t);
+dp = diff(pos(:, 1:2), 1, 1); % planar displacement
+dist = hypot(dp(:, 1), dp(:, 2));
+
+valid = isfinite(dt) & dt > 0 & isfinite(dist);
+if ~any(valid)
+    return;
+end
+
+speed = nan(size(dt));
+speed(valid) = dist(valid) ./ dt(valid);
+
+% Smooth jitter from mocap/estimator noise before thresholding.
+speed = movmedian(speed, 5, 'omitnan');
+isMoving = speed > speedThresh;
+
+if minConsecutive <= 1
+    idx = find(isMoving, 1, 'first');
+else
+    window = ones(minConsecutive, 1);
+    streak = conv(double(isMoving), window, 'same');
+    idx = find(streak >= minConsecutive, 1, 'first');
+end
+
+if ~isempty(idx)
+    idxT = min(idx + 1, numel(t));
+    t0 = t(idxT);
+end
+end
+
+function out = pickFirstFinite(varargin)
+out = NaN;
+for i = 1:nargin
+    v = varargin{i};
+    if isfinite(v)
+        out = v;
+        return;
+    end
+end
 end
 
 function [tW, posW, yawW] = trimPoseWindow(t, pos, yaw, tStart, tEnd)
