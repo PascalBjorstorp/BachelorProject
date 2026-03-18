@@ -55,6 +55,12 @@ def generate_launch_description():
         description='Velocity-proportional lookahead gain'
     )
 
+    max_speed_arg = DeclareLaunchArgument(
+        'max_speed',
+        default_value='2.0',
+        description='Maximum commanded speed cap [m/s]'
+    )
+
     cte_lookahead_weight_arg = DeclareLaunchArgument(
         'cte_lookahead_weight',
         default_value='1.0',
@@ -96,6 +102,7 @@ def generate_launch_description():
             'min_lookahead': LaunchConfiguration('min_lookahead'),
             'max_lookahead': LaunchConfiguration('max_lookahead'),
             'lookahead_gain': LaunchConfiguration('lookahead_gain'),
+            'max_speed': LaunchConfiguration('max_speed'),
             'cte_lookahead_weight': LaunchConfiguration('cte_lookahead_weight'),
             'cte_lookahead_gain': LaunchConfiguration('cte_lookahead_gain'),
             'curvature_lookahead_gain': LaunchConfiguration('curvature_lookahead_gain'),
@@ -116,6 +123,7 @@ def generate_launch_description():
         min_lookahead_arg,
         max_lookahead_arg,
         lookahead_gain_arg,
+        max_speed_arg,
         cte_lookahead_weight_arg,
         cte_lookahead_gain_arg,
         curvature_lookahead_gain_arg,
