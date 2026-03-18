@@ -145,10 +145,6 @@ void compute_frenet_AB_hls(
     fixed_point_t alpha_f_op = fp_sub(delta, fp_atan(front_ratio));
     fixed_point_t alpha_r_op = fp_neg(fp_atan(rear_ratio));
 
-    /* Linear stiffness (slope at α=0): mu * C_S * F_z — using precomputed mu*C_S */
-    fixed_point_t C_Sf_Fzf_linear = fp_mul_vm(VP_MU_CSF, F_zf);
-    fixed_point_t C_Sr_Fzr_linear = fp_mul_vm(VP_MU_CSR, F_zr);
-
     /* Front tire — Pacejka effective stiffness (B_f precomputed) */
     fixed_point_t B_f = VP_B_FRONT;
     fixed_point_t D_pac_f = fp_mul_vm(VP_MU, F_zf);
@@ -160,9 +156,9 @@ void compute_frenet_AB_hls(
 
     /* C_eff_f = D * C * B * cos(C*atan(B*α)) / (1 + (B*α)^2) */
     fixed_point_t C_eff_f = fp_mul_vm(
-        fp_mul_vm(fp_mul_vm(D_pac_f, VP_C_SHAPE), B_f),
+        fp_mul_vm(D_pac_f, VP_CB_FRONT),
         fp_mul_vm(cos_inner_f, inv_denom_f));
-    fixed_point_t C_min_f = fp_mul_vm(C_Sf_Fzf_linear, VP_MIN_STIFF_SCALE);
+    fixed_point_t C_min_f = fp_mul_vm(F_zf, VP_MU_CSF_MIN);
     C_eff_f = (C_eff_f > C_min_f) ? C_eff_f : C_min_f;
 
     /* F_yf at operating point (for B matrix cos/sin terms) */
@@ -178,9 +174,9 @@ void compute_frenet_AB_hls(
     fixed_point_t inv_denom_r = fp_recip(denom_r);
 
     fixed_point_t C_eff_r = fp_mul_vm(
-        fp_mul_vm(fp_mul_vm(D_pac_r, VP_C_SHAPE), B_r),
+        fp_mul_vm(D_pac_r, VP_CB_REAR),
         fp_mul_vm(cos_inner_r, inv_denom_r));
-    fixed_point_t C_min_r = fp_mul_vm(C_Sr_Fzr_linear, VP_MIN_STIFF_SCALE);
+    fixed_point_t C_min_r = fp_mul_vm(F_zr, VP_MU_CSR_MIN);
     C_eff_r = (C_eff_r > C_min_r) ? C_eff_r : C_min_r;
 
     /* ================================================================
@@ -224,14 +220,14 @@ void compute_frenet_AB_hls(
     /* --- Row 2: vx dynamics (full model with cos/sin delta) ---
      * dvx/dt = (Fx - Fyf*sin(δ) + m*vy*ω) / m
      * A[2][2] = 1 + (-dFyf_dvx * sin(δ)) * dt/m */
-    A_fr[2][2] = fp_add(FP_ONE,
-        fp_mul_vm(fp_neg(fp_mul_vm(dFyf_dvx, sin_delta)), VP_DT_INV_MASS));
+    A_fr[2][2] = fp_sub(FP_ONE,
+        fp_mul_vm(fp_mul_vm(dFyf_dvx, sin_delta), VP_DT_INV_MASS));
     /* A[2][3] = dt * (-dFyf_dvy * sin(δ) / m + ω) */
     A_fr[2][3] = fp_mul_vm(dt,
-        fp_add(fp_mul_vm(fp_neg(fp_mul_vm(dFyf_dvy, sin_delta)), VP_INV_MASS), omega));
+        fp_sub(omega, fp_mul_vm(fp_mul_vm(dFyf_dvy, sin_delta), VP_INV_MASS)));
     /* A[2][4] = dt * (-dFyf_dom * sin(δ) / m + vy) */
     A_fr[2][4] = fp_mul_vm(dt,
-        fp_add(fp_mul_vm(fp_neg(fp_mul_vm(dFyf_dom, sin_delta)), VP_INV_MASS), vy));
+        fp_sub(vy, fp_mul_vm(fp_mul_vm(dFyf_dom, sin_delta), VP_INV_MASS)));
 
     /* --- Row 3: vy dynamics (full model) ---
      * dvy/dt = (Fyf*cos(δ) + Fyr - m*vx*ω) / m */
@@ -274,7 +270,7 @@ void compute_frenet_AB_hls(
     fixed_point_t Fyf_sin     = fp_mul_vm(F_yf, sin_delta);
 
     /* B[2][0]: d(dvx/dt)/dδ = (-dFyf_dd*sin(δ) - Fyf*cos(δ)) * dt/m */
-    B_fr[2][0] = fp_mul_vm(fp_sub(fp_neg(dFyf_dd_sin), Fyf_cos), VP_DT_INV_MASS);
+    B_fr[2][0] = fp_neg(fp_mul_vm(fp_add(dFyf_dd_sin, Fyf_cos), VP_DT_INV_MASS));
 
     /* B[3][0]: d(dvy/dt)/dδ = (dFyf_dd*cos(δ) - Fyf*sin(δ)) * dt/m */
     B_fr[3][0] = fp_mul_vm(fp_sub(dFyf_dd_cos, Fyf_sin), VP_DT_INV_MASS);
