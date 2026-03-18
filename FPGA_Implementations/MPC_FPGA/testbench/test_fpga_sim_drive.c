@@ -81,7 +81,7 @@ extern void mpc_fpga_top(
  * These values come from measured vehicle parameters in vehicle_params.yaml.
  *===========================================================================*/
 #define ROLLING_RESISTANCE_N      2.79    /* Measured: vehicle_params.yaml L176 */
-#define PACEJKA_C_SHAPE           1.9     /* Shape factor for Pacejka tire */
+#define PACEJKA_C_SHAPE           FP_TO_DOUBLE(VP_C_SHAPE) /* Keep testbench aligned with header */
 #define NOISE_POS_M               0.01    /* AMCL position noise (m) */
 #define NOISE_HDG_RAD             0.009   /* AMCL heading noise (~0.5 deg) */
 #define NOISE_VX_MS               0.05    /* ERPM velocity noise (m/s) */
@@ -101,18 +101,18 @@ typedef struct {
     double vx, vy, omega;
 } SimState_t;
 
-/* Vehicle parameters matching gym config */
-static const double ST_mu       = 0.7463;
-static const double ST_mass     = 3.314;
-static const double ST_Iz       = 0.035;
-static const double ST_C_Sf     = 4.199;
-static const double ST_C_Sr     = 3.230;
-static const double ST_lf       = 0.166;
-static const double ST_lr       = 0.16;
-static const double ST_h_cg     = 0.0703;
-static const double ST_g_acc    = 9.81;
-static const double ST_sv_max   = 2.8492;  /* max steering velocity (rad/s) */
-static const double ST_s_max    = 0.4189;  /* max steering angle (rad, calibrated) */
+/* Vehicle parameters from FPGA header constants (keeps plant and controller aligned). */
+static const double ST_mu       = FP_TO_DOUBLE(VP_MU);
+static const double ST_mass     = FP_TO_DOUBLE(VP_MASS);
+static const double ST_Iz       = FP_TO_DOUBLE(VP_IZ);
+static const double ST_C_Sf     = FP_TO_DOUBLE(VP_C_ALPHA_SF);
+static const double ST_C_Sr     = FP_TO_DOUBLE(VP_C_ALPHA_SR);
+static const double ST_lf       = FP_TO_DOUBLE(VP_LF);
+static const double ST_lr       = FP_TO_DOUBLE(VP_LR);
+static const double ST_h_cg     = FP_TO_DOUBLE(VP_CG_HEIGHT);
+static const double ST_g_acc    = FP_TO_DOUBLE(VP_GRAVITY);
+static const double ST_sv_max   = FP_TO_DOUBLE(VP_MAX_STEER_RATE);  /* max steering velocity (rad/s) */
+static const double ST_s_max    = FP_TO_DOUBLE(VP_MAX_STEER);       /* max steering angle (rad, calibrated) */
 static const double ST_v_switch = 7.319;
 static const double ST_v_min    = 0.0;
 static const double ST_v_max    = 20.0;

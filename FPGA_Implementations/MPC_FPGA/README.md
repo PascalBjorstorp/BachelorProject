@@ -62,31 +62,50 @@ MPC_FPGA/
 
 ### Prerequisites
 
-- Vitis HLS 2022.2+ (or Vivado HLS 2020.1+)
+- Vitis 2025.1+ (uses `vitis-run --mode hls`)
 - Target part: `xczu3eg-sbva484-1-e` (Ultra96-V2)
+
+### Environment Setup
+
+```bash
+source /tools/Xilinx/2025.1/Vitis/settings64.sh
+```
+
+### Synthesis (default run mode)
+
+```bash
+cd FPGA_Implementations/MPC_FPGA
+vitis-run --mode hls --tcl scripts/run_hls.tcl
+```
+
+Notes:
+- In `scripts/run_hls.tcl`, default mode is `synth`.
+- This command was re-validated on this repo after latest changes.
 
 ### Full Flow (csim → synth → cosim → export)
 
 ```bash
 cd FPGA_Implementations/MPC_FPGA
-vitis_hls -f scripts/run_hls.tcl
+HLS_RUN_MODE=all vitis-run --mode hls --tcl scripts/run_hls.tcl
 ```
 
-### Step-by-Step
+### Step-by-Step (Vitis 2025.1+)
 
 ```bash
 # C simulation only
-vitis_hls -f scripts/run_hls.tcl -tclargs csim
+HLS_RUN_MODE=csim vitis-run --mode hls --tcl scripts/run_hls.tcl
 
 # Synthesis only
-vitis_hls -f scripts/run_hls.tcl -tclargs synth
+HLS_RUN_MODE=synth vitis-run --mode hls --tcl scripts/run_hls.tcl
 
 # Co-simulation only (requires prior synthesis)
-vitis_hls -f scripts/run_hls.tcl -tclargs cosim
+HLS_RUN_MODE=cosim vitis-run --mode hls --tcl scripts/run_hls.tcl
 
 # Export IP catalog (requires prior synthesis)
-vitis_hls -f scripts/run_hls.tcl -tclargs export
+HLS_RUN_MODE=export vitis-run --mode hls --tcl scripts/run_hls.tcl
 ```
+
+The exported IP can then be imported into Vivado IP Catalog.
 
 ### GCC Testbench (quick validation)
 
@@ -103,6 +122,22 @@ gcc -O2 -I include -Wno-unknown-pragmas \
     -lm
 ./tb_mpc
 ```
+
+### Vivado Implementation and Bitstream
+
+1. Generate the HLS IP package:
+
+```bash
+cd FPGA_Implementations/MPC_FPGA
+HLS_RUN_MODE=export vitis-run --mode hls --tcl scripts/run_hls.tcl
+```
+
+2. Open Vivado GUI and add this IP repository:
+    `FPGA_Implementations/MPC_FPGA/mpc_fpga_hls/ultra96v2/impl/ip`
+3. Add the packaged core (`mpc_fpga_top`) to your block design and connect AXI,
+    clocks, resets, and interrupt as needed.
+4. Run Vivado flow: Generate Output Products → Synthesis → Implementation →
+    Generate Bitstream.
 
 ## Interface
 
@@ -194,7 +229,7 @@ All cases well within the 5 ms control period (200 Hz).
 MPC weights are `#define` constants in `include/mpc_fpga_types.h`. To retune:
 
 1. Edit weight values (e.g., `MPC_W_LAT_ERROR`, `MPC_W_HEADING`)
-2. Re-run synthesis: `vitis_hls -f scripts/run_hls.tcl -tclargs synth`
+2. Re-run synthesis: `HLS_RUN_MODE=synth vitis-run --mode hls --tcl scripts/run_hls.tcl`
 3. Re-export IP
 
 For runtime-tunable weights, add AXI-Lite registers (increases resource usage).

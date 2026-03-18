@@ -6,18 +6,30 @@
 # Clock:  100 MHz (10 ns period)
 #
 # Usage:
-#   vitis_hls -f scripts/run_hls.tcl
+#   source /tools/Xilinx/2025.1/Vitis/settings64.sh
+#   vitis-run --mode hls --tcl scripts/run_hls.tcl
 #
-# Or step-by-step:
-#   vitis_hls -f scripts/run_hls.tcl -tclargs csim
-#   vitis_hls -f scripts/run_hls.tcl -tclargs synth
-#   vitis_hls -f scripts/run_hls.tcl -tclargs cosim
-#   vitis_hls -f scripts/run_hls.tcl -tclargs export
+# Optional run mode with Vitis 2025.1:
+#   HLS_RUN_MODE=csim   vitis-run --mode hls --tcl scripts/run_hls.tcl
+#   HLS_RUN_MODE=synth  vitis-run --mode hls --tcl scripts/run_hls.tcl
+#   HLS_RUN_MODE=cosim  vitis-run --mode hls --tcl scripts/run_hls.tcl
+#   HLS_RUN_MODE=export vitis-run --mode hls --tcl scripts/run_hls.tcl
+#   HLS_RUN_MODE=all    vitis-run --mode hls --tcl scripts/run_hls.tcl
 #===========================================================================
 
 # Parse optional argument for selective execution
 # Valid modes: csim, synth, cosim, export, all
 set run_mode "synth"
+
+# Prefer environment override for vitis-run workflows.
+if {[info exists ::env(HLS_RUN_MODE)]} {
+    set env_mode $::env(HLS_RUN_MODE)
+    if {$env_mode eq "csim" || $env_mode eq "synth" || $env_mode eq "cosim" || $env_mode eq "export" || $env_mode eq "all"} {
+        set run_mode $env_mode
+    }
+}
+
+# Also allow argv override when arguments are provided.
 if {$argc > 0} {
     set arg0 [lindex $argv 0]
     if {$arg0 eq "csim" || $arg0 eq "synth" || $arg0 eq "cosim" || $arg0 eq "export" || $arg0 eq "all"} {

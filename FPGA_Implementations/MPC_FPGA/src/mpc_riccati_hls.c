@@ -147,13 +147,13 @@ void mpc_compute_hls(
         for (j = 0; j < MPC_NX_AUG; j++) {
 #pragma HLS UNROLL
             sd->A[IDX_DELTA_ACT][j] = 0;
-            sd->A[IDX_DRATE_PREV][j] = 0;
+            sd->A[IDX_DELTA_RATE_PREV][j] = 0;
             sd->A[IDX_ACCEL_PREV][j] = 0;
         }
         /* A cols 6,7 = 0 for rows 0..5 */
         for (i = 0; i < 6; i++) {
 #pragma HLS UNROLL
-            sd->A[i][IDX_DRATE_PREV] = 0;
+            sd->A[i][IDX_DELTA_RATE_PREV] = 0;
             sd->A[i][IDX_ACCEL_PREV] = 0;
         }
         /* B rows 0-4 col 0 = 0 (delta_rate doesn't directly affect Frenet) */
@@ -162,7 +162,7 @@ void mpc_compute_hls(
             sd->B[i][0] = 0;
         }
         /* B rows 6,7 for col not set */
-        sd->B[IDX_DRATE_PREV][1] = 0;
+        sd->B[IDX_DELTA_RATE_PREV][1] = 0;
         sd->B[IDX_ACCEL_PREV][0] = 0;
         /* N_cross: zero all, then set the two non-zero entries below */
         for (i = 0; i < MPC_NX_AUG; i++) {
@@ -205,7 +205,7 @@ void mpc_compute_hls(
         sd->B[IDX_DELTA_ACT][0] = dt;
         sd->B[IDX_DELTA_ACT][1] = 0;  /* delta not affected by accel */
         /* B[6][0] = 1 (drate_prev = delta_rate) */
-        sd->B[IDX_DRATE_PREV][0] = FP_ONE;
+        sd->B[IDX_DELTA_RATE_PREV][0] = FP_ONE;
         /* B[7][1] = 1 (accel_prev = accel) */
         sd->B[IDX_ACCEL_PREV][1] = FP_ONE;
 
@@ -216,12 +216,12 @@ void mpc_compute_hls(
         sd->Q_diag[3] = Q2_lv;
         sd->Q_diag[4] = Q2_yaw;
         sd->Q_diag[IDX_DELTA_ACT] = Q2_dact;
-        sd->Q_diag[IDX_DRATE_PREV] = Q2_jerk;
+        sd->Q_diag[IDX_DELTA_RATE_PREV] = Q2_jerk;
         sd->Q_diag[IDX_ACCEL_PREV] = Q2_arate;
 
         /* Cross-call scaling for step 0 */
         if (k == 0) {
-            sd->Q_diag[IDX_DRATE_PREV] = Q2_jerk_cs;
+            sd->Q_diag[IDX_DELTA_RATE_PREV] = Q2_jerk_cs;
             sd->Q_diag[IDX_ACCEL_PREV] = Q2_arate_cs;
         }
 
@@ -238,7 +238,7 @@ void mpc_compute_hls(
             fixed_point_t dff_k = fp_mul(VP_WHEELBASE, kappa_k);  /* atan(x)≈x, max err 0.4% */
             sd->q[IDX_DELTA_ACT] = fp_neg(fp_mul(sd->Q_diag[IDX_DELTA_ACT], dff_k));
         }
-        sd->q[IDX_DRATE_PREV] = 0;
+        sd->q[IDX_DELTA_RATE_PREV] = 0;
         sd->q[IDX_ACCEL_PREV] = 0;
 
         /* === R_diag (2 elements) — precomputed constants === */
@@ -252,10 +252,10 @@ void mpc_compute_hls(
         sd->r[1] = 0;
 
         /* === Cross-cost N (8x2) — precomputed constants === */
-        sd->N_cross[IDX_DRATE_PREV][0] = N2_jerk;
+        sd->N_cross[IDX_DELTA_RATE_PREV][0] = N2_jerk;
         sd->N_cross[IDX_ACCEL_PREV][1] = N2_arate;
         if (k == 0) {
-            sd->N_cross[IDX_DRATE_PREV][0] = fp_neg(Q2_jerk_cs);
+            sd->N_cross[IDX_DELTA_RATE_PREV][0] = fp_neg(Q2_jerk_cs);
             sd->N_cross[IDX_ACCEL_PREV][1] = fp_neg(Q2_arate_cs);
         }
 
@@ -282,8 +282,8 @@ void mpc_compute_hls(
         sd->x_lb[IDX_DELTA_ACT] = fp_neg(VP_MAX_STEER);
         sd->x_ub[IDX_DELTA_ACT] = VP_MAX_STEER;
         /* States 6-7: unconstrained */
-        sd->x_lb[IDX_DRATE_PREV] = -BIG_BOUND;
-        sd->x_ub[IDX_DRATE_PREV] =  BIG_BOUND;
+        sd->x_lb[IDX_DELTA_RATE_PREV] = -BIG_BOUND;
+        sd->x_ub[IDX_DELTA_RATE_PREV] =  BIG_BOUND;
         sd->x_lb[IDX_ACCEL_PREV] = -BIG_BOUND;
         sd->x_ub[IDX_ACCEL_PREV] =  BIG_BOUND;
 
@@ -341,7 +341,7 @@ void mpc_compute_hls(
     x0[3] = state_vy;
     x0[4] = state_omega;
     x0[IDX_DELTA_ACT]  = persist->actual_steering;
-    x0[IDX_DRATE_PREV] = persist->prev_steer_rate;
+    x0[IDX_DELTA_RATE_PREV] = persist->prev_steer_rate;
     x0[IDX_ACCEL_PREV] = persist->prev_accel;
 
     /* ---------------------------------------------------------------

@@ -3,7 +3,6 @@
  * @brief Riccati-ADMM Solver Interface for HLS
  *
  * Constrained LQR solver using ADMM with Riccati recursion.
- * O(N * nx^3) per iteration. Fixed Q16.16 arithmetic.
  */
 
 #ifndef RICCATI_SOLVER_HLS_H
@@ -19,7 +18,7 @@
  * @param terminal_q  Terminal linear cost (length MPC_NX_AUG)
  * @param x0          Initial state (length MPC_NX_AUG)
  * @param config      ADMM configuration
- * @param admm_state  Warm-start state (modified in-place)
+ * @param admm_state  Warm-start state
  * @param solution    Output: optimal trajectories and status
  * @return Solver status
  */

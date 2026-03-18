@@ -33,8 +33,11 @@ import time
 import itertools
 import math
 import random
+import tempfile
 from datetime import datetime
 from pathlib import Path
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import multiprocessing
 
 # ─── Project layout ──────────────────────────────────────────────────────────
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -53,6 +56,10 @@ SRC_FILES = [
 BINARY = PROJECT_DIR / "test_fpga_tune"
 CC_FLAGS = ["-D_GNU_SOURCE", "-O2", "-std=c99", "-Wall", "-Wno-unknown-pragmas",
             f"-I{PROJECT_DIR / 'include'}"]
+
+# Parallel worker scratch area (created only when --jobs > 1)
+WORKER_ROOT = PROJECT_DIR / ".fpga_tune_workers"
+_WORKER_CTX = None
 
 # ─── Raceline variants ───────────────────────────────────────────────────────
 WORKSPACE_ROOT = PROJECT_DIR.parent.parent  # BachelorProject/
@@ -104,6 +111,9 @@ BASE_PARAMS = {
     "MIN_LIN_VEL":      2.0,
     "WP_ADVANCE_MAX":   10,
     "STABILITY_LIMIT":  0.95,
+    # Fixed physical tire model constant for F1TENTH rubber tires.
+    # Kept as a baseline parameter for single-run overrides, but not swept.
+    "C_SHAPE":         1.9,
 }
 
 # Map parameter names → header #define names
@@ -248,60 +258,75 @@ def set_header_param(header_text: str, param: str, value) -> str:
         return re.sub(pattern, replacement, header_text)
 
 
-def apply_params(params: dict):
+def apply_params(params: dict, header_path: Path = HEADER, header_bak_path: Path = HEADER_BAK,
+                 base_params: dict = None):
     """Write modified header with given parameters."""
-    header_text = HEADER_BAK.read_text()
+    if base_params is None:
+        base_params = BASE_PARAMS
+
+    header_text = header_bak_path.read_text()
 
     for param, value in params.items():
         if param in PARAM_TO_DEFINE:
             header_text = set_header_param(header_text, param, value)
 
     # Ensure WALL_END doesn't exceed N-1
-    n = int(params.get("N", BASE_PARAMS["N"]))
-    we = int(params.get("WALL_END", BASE_PARAMS["WALL_END"]))
+    n = int(params.get("N", base_params["N"]))
+    we = int(params.get("WALL_END", base_params["WALL_END"]))
     if we >= n:
         we = n - 2
         header_text = set_header_param(header_text, "WALL_END", we)
 
     # Ensure WALL_START < WALL_END
-    ws = int(params.get("WALL_START", BASE_PARAMS["WALL_START"]))
+    ws = int(params.get("WALL_START", base_params["WALL_START"]))
     if ws >= we:
         ws = max(0, we - 1)
         header_text = set_header_param(header_text, "WALL_START", ws)
 
-    HEADER.write_text(header_text)
+    header_path.write_text(header_text)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  Compile & Run
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def compile_test() -> bool:
+def compile_test(project_dir: Path = PROJECT_DIR, binary_path: Path = BINARY) -> bool:
     """Compile the test binary. Returns True on success."""
-    src_paths = [str(PROJECT_DIR / s) for s in SRC_FILES]
-    cmd = ["gcc"] + CC_FLAGS + src_paths + ["-o", str(BINARY), "-lm"]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    src_paths = [str(project_dir / s) for s in SRC_FILES]
+    cc_flags = ["-D_GNU_SOURCE", "-O2", "-std=c99", "-Wall", "-Wno-unknown-pragmas",
+                f"-I{project_dir / 'include'}"]
+    cmd = ["gcc"] + cc_flags + src_paths + ["-o", str(binary_path), "-lm"]
+    result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(project_dir))
     return result.returncode == 0
 
 
-def run_test(params: dict, raceline: str = None) -> dict:
+def run_test(params: dict, raceline: str = None,
+             project_dir: Path = PROJECT_DIR,
+             header_path: Path = HEADER,
+             header_bak_path: Path = HEADER_BAK,
+             binary_path: Path = BINARY,
+             base_params: dict = None) -> dict:
     """Apply params, compile, run, return parsed results."""
-    apply_params(params)
+    apply_params(params, header_path=header_path, header_bak_path=header_bak_path,
+                 base_params=base_params)
 
-    if not compile_test():
+    if not compile_test(project_dir=project_dir, binary_path=binary_path):
         return {"status": "COMPILE_FAIL", "passed": 0, "failed": 6}
 
     env = os.environ.copy()
     env["MPC_TUNING_CSV"] = "1"
     env["REALISTIC_SIM"] = "1"
+
+    cmd = [str(binary_path)]
     if raceline:
-        env["RACELINE"] = raceline
+        # test_fpga_sim_drive.c reads raceline override from argv[1]
+        cmd.append(str(raceline))
 
     try:
         result = subprocess.run(
-            [str(BINARY)],
+            cmd,
             capture_output=True, text=True, timeout=180, env=env,
-            cwd=str(PROJECT_DIR)
+            cwd=str(project_dir)
         )
     except subprocess.TimeoutExpired:
         return {"status": "TIMEOUT", "passed": 0, "failed": 6}
@@ -340,24 +365,78 @@ def run_test(params: dict, raceline: str = None) -> dict:
 
 def compute_score(r: dict) -> float:
     """Composite score (lower = better)."""
-    if r["status"] != "OK" or r["failed"] > 0:
+    if r["status"] != "OK":
         return 999.0
 
     if r["wall_collisions"] > 0:
         return 500.0 + r["wall_collisions"] * 100.0
 
+    # Match tune_realistic Spielberg scoring.
+    # This is a weighted composite, not an automatic normalization pass.
+    # Metric scaling is encoded in the constants below to keep scoring stable
+    # and comparable across sweeps:
+    # - speed shortfall uses max(0, 12.0 - max_vx)
+    # - latency uses max(0, 60 - time_above_5ms)
+    # - errors/iters/runtime use fixed coefficients.
     score = (
-        r["avg_vel_err"] * 20.0 +
-        r["max_vel_err"] * 4.0 +
-        max(0, 30 - r["time_above_5ms"]) * 3.0 +
-        max(0, 12.0 - r["max_vx"]) * 8.0 +
+        max(0, 12.0 - r["max_vx"]) * 15.0 +
+        max(0, 60 - r["time_above_5ms"]) * 2.0 +
         r["avg_lat_err"] * 5.0 +
-        r["max_lat_err"] * 1.5 +
+        r["max_lat_err"] * 1.0 +
+        r["avg_vel_err"] * 5.0 +
         r["avg_hdg_err"] * 2.0 +
-        r.get("avg_iters", 0) * 0.5 +
-        r["avg_solve_us"] * 0.003
+        r.get("avg_iters", 0) * 0.3 +
+        r["avg_solve_us"] * 0.002
     )
     return round(score, 3)
+
+
+def _setup_worker_context() -> dict:
+    """Create one isolated workspace per process for safe parallel compilation."""
+    global _WORKER_CTX
+    if _WORKER_CTX is not None:
+        return _WORKER_CTX
+
+    pid = os.getpid()
+    worker_dir = WORKER_ROOT / f"worker_{pid}"
+    if worker_dir.exists():
+        shutil.rmtree(worker_dir)
+
+    worker_dir.mkdir(parents=True, exist_ok=True)
+    for rel in ("include", "src", "testbench"):
+        shutil.copytree(PROJECT_DIR / rel, worker_dir / rel)
+
+    header = worker_dir / "include" / "mpc_fpga_types.h"
+    header_bak = header.with_suffix(".h.tuning_backup")
+    shutil.copy2(header, header_bak)
+    binary = worker_dir / "test_fpga_tune"
+
+    _WORKER_CTX = {
+        "project_dir": worker_dir,
+        "header": header,
+        "header_bak": header_bak,
+        "binary": binary,
+    }
+    return _WORKER_CTX
+
+
+def _run_single_parallel(job):
+    """Worker entrypoint: run one config in an isolated per-process copy."""
+    label, params, raceline = job
+    ctx = _setup_worker_context()
+    r = run_test(
+        params,
+        raceline=raceline,
+        project_dir=ctx["project_dir"],
+        header_path=ctx["header"],
+        header_bak_path=ctx["header_bak"],
+        binary_path=ctx["binary"],
+        base_params=BASE_PARAMS,
+    )
+    r["label"] = label
+    r["score"] = compute_score(r)
+    r["params"] = dict(params)
+    return r
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -564,13 +643,21 @@ def main():
     quick = "--quick" in sys.argv
     phase_only = None
     raceline_name = None
+    num_workers = 1
     for i, arg in enumerate(sys.argv):
         if arg == "--phase" and i + 1 < len(sys.argv):
             phase_only = int(sys.argv[i + 1])
         if arg == "--raceline" and i + 1 < len(sys.argv):
             raceline_name = sys.argv[i + 1]
+        if arg == "--jobs" and i + 1 < len(sys.argv):
+            num_workers = int(sys.argv[i + 1])
+        if arg == "-j" and i + 1 < len(sys.argv):
+            num_workers = int(sys.argv[i + 1])
     single = "--single" in sys.argv
     all_racelines = "--all-racelines" in sys.argv
+
+    if num_workers <= 0:
+        num_workers = multiprocessing.cpu_count()
 
     os.chdir(str(PROJECT_DIR))
 
@@ -595,6 +682,7 @@ def main():
 
     try:
         values = QUICK_VALUES if quick else FULL_VALUES
+        print(f"Workers: {num_workers} ({'sequential' if num_workers == 1 else 'parallel'})")
 
         if single:
             params = dict(BASE_PARAMS)
@@ -628,7 +716,7 @@ def main():
             if rl_name in PER_RACELINE_WM:
                 sweep_base["WALL_MARGIN"] = PER_RACELINE_WM[rl_name]
 
-            run_sweep(values, phase_only, quick, rl_path, rl_name, sweep_base)
+            run_sweep(values, phase_only, quick, rl_path, rl_name, sweep_base, num_workers)
 
     finally:
         # Restore original header
@@ -637,9 +725,11 @@ def main():
             HEADER_BAK.unlink()
         if BINARY.exists():
             BINARY.unlink()
+        if WORKER_ROOT.exists():
+            shutil.rmtree(WORKER_ROOT, ignore_errors=True)
 
 
-def run_sweep(values, phase_only, quick, raceline_path, raceline_name, base_params):
+def run_sweep(values, phase_only, quick, raceline_path, raceline_name, base_params, num_workers=1):
     """Run a full multi-phase sweep for one raceline."""
     all_results = []
     t0 = time.time()
@@ -659,7 +749,7 @@ def run_sweep(values, phase_only, quick, raceline_path, raceline_name, base_para
         combos = gen_structural_sweep(values, base_params)
         combos = deduplicate(combos)
         print(f"\n--- Phase 1a: Structural sweep ({len(combos)} configs) ---")
-        phase_results = run_phase(combos, all_results, t0, rl)
+        phase_results = run_phase(combos, all_results, t0, rl, num_workers=num_workers)
         all_results.extend(phase_results)
         print_top(phase_results, "Phase 1a")
 
@@ -672,7 +762,7 @@ def run_sweep(values, phase_only, quick, raceline_path, raceline_name, base_para
                     if param_key(p) not in tested]
         if combos_b:
             print(f"\n--- Phase 1b: Wall detail ({len(combos_b)} configs) ---")
-            phase_results_b = run_phase(combos_b, all_results, t0, rl)
+            phase_results_b = run_phase(combos_b, all_results, t0, rl, num_workers=num_workers)
             all_results.extend(phase_results_b)
             print_top(phase_results_b, "Phase 1b")
 
@@ -690,7 +780,7 @@ def run_sweep(values, phase_only, quick, raceline_path, raceline_name, base_para
         combos = gen_primary_sweep(best_struct, values)
         combos = deduplicate(combos)
         print(f"\n--- Phase 2: Primary weights ({len(combos)} configs) ---")
-        phase_results = run_phase(combos, all_results, t0, rl)
+        phase_results = run_phase(combos, all_results, t0, rl, num_workers=num_workers)
         all_results.extend(phase_results)
         print_top(phase_results, "Phase 2")
 
@@ -701,7 +791,7 @@ def run_sweep(values, phase_only, quick, raceline_path, raceline_name, base_para
         combos = gen_secondary_sweep(best_primary, values)
         combos = deduplicate(combos)
         print(f"\n--- Phase 3: Secondary weights ({len(combos)} configs) ---")
-        phase_results = run_phase(combos, all_results, t0, rl)
+        phase_results = run_phase(combos, all_results, t0, rl, num_workers=num_workers)
         all_results.extend(phase_results)
         print_top(phase_results, "Phase 3")
 
@@ -712,7 +802,7 @@ def run_sweep(values, phase_only, quick, raceline_path, raceline_name, base_para
         combos = gen_solver_sweep(best_secondary, values)
         combos = deduplicate(combos)
         print(f"\n--- Phase 4: ADMM parameters ({len(combos)} configs) ---")
-        phase_results = run_phase(combos, all_results, t0, rl)
+        phase_results = run_phase(combos, all_results, t0, rl, num_workers=num_workers)
         all_results.extend(phase_results)
         print_top(phase_results, "Phase 4")
 
@@ -727,7 +817,7 @@ def run_sweep(values, phase_only, quick, raceline_path, raceline_name, base_para
         combos = [(l, p) for l, p in combos
                   if param_key(p) not in tested]
         print(f"\n--- Phase 5: Fine-tuning ({len(combos)} configs) ---")
-        phase_results = run_phase(combos, all_results, t0, rl)
+        phase_results = run_phase(combos, all_results, t0, rl, num_workers=num_workers)
         all_results.extend(phase_results)
         print_top(phase_results, "Phase 5")
 
@@ -741,7 +831,7 @@ def run_sweep(values, phase_only, quick, raceline_path, raceline_name, base_para
         combos = [(l, p) for l, p in combos
                   if param_key(p) not in tested]
         print(f"\n--- Phase 6: Random neighbors ({len(combos)} configs) ---")
-        phase_results = run_phase(combos, all_results, t0, rl)
+        phase_results = run_phase(combos, all_results, t0, rl, num_workers=num_workers)
         all_results.extend(phase_results)
         print_top(phase_results, "Phase 6")
 
@@ -765,39 +855,69 @@ def run_sweep(values, phase_only, quick, raceline_path, raceline_name, base_para
             print(f"  {k:16s} = {v}{marker}")
 
 
-def run_phase(combos, previous_results, t0, raceline=None):
+def run_phase(combos, previous_results, t0, raceline=None, num_workers=1):
     """Run all combos, print progress, return results."""
     results = []
-    total = len(combos)
     tested = get_tested_keys(previous_results)
+    pending = [(l, p) for l, p in combos if param_key(p) not in tested]
+    total = len(pending)
 
-    for i, (label, params) in enumerate(combos):
-        key = param_key(params)
-        if key in tested:
-            continue
+    if total == 0:
+        return results
 
-        elapsed = time.time() - t0
-        rate = max((len(previous_results) + len(results) + 1) / max(elapsed, 0.01), 0.1)
-        eta = (total - i - 1) / rate
-        print(f"[{i+1:4d}/{total}] {label:55s} ", end="", flush=True)
+    if num_workers > 1 and not WORKER_ROOT.exists():
+        WORKER_ROOT.mkdir(parents=True, exist_ok=True)
 
-        r = run_test(params, raceline=raceline)
-        score = compute_score(r)
-        r["label"] = label
-        r["score"] = score
-        r["params"] = dict(params)
-        results.append(r)
+    if num_workers <= 1:
+        for i, (label, params) in enumerate(pending):
+            elapsed = time.time() - t0
+            rate = max((len(previous_results) + len(results) + 1) / max(elapsed, 0.01), 0.1)
+            eta = (total - i - 1) / rate
+            print(f"[{i+1:4d}/{total}] {label:55s} ", end="", flush=True)
 
-        if r["status"] != "OK":
-            print(f"  → {r['status']}  (ETA {eta:.0f}s)")
-        elif r["wall_collisions"] > 0:
-            print(f"  → wc={r['wall_collisions']}  t5={r['time_above_5ms']:.0f}s  "
-                  f"lat={r['avg_lat_err']:.3f}  (ETA {eta:.0f}s)")
-        elif r["failed"] > 0:
-            print(f"  → FAIL {r['failed']}  (ETA {eta:.0f}s)")
-        else:
-            print(f"  → PASS sc={score:.2f}  t5={r['time_above_5ms']:.0f}s  "
-                  f"vmax={r['max_vx']:.1f}  lat={r['avg_lat_err']:.3f}  (ETA {eta:.0f}s)")
+            r = run_test(params, raceline=raceline, base_params=BASE_PARAMS)
+            score = compute_score(r)
+            r["label"] = label
+            r["score"] = score
+            r["params"] = dict(params)
+            results.append(r)
+
+            if r["status"] != "OK":
+                print(f"  → {r['status']}  (ETA {eta:.0f}s)")
+            elif r["wall_collisions"] > 0:
+                print(f"  → wc={r['wall_collisions']}  t5={r['time_above_5ms']:.0f}s  "
+                      f"lat={r['avg_lat_err']:.3f}  (ETA {eta:.0f}s)")
+            elif r["failed"] > 0:
+                print(f"  → FAIL {r['failed']}  (ETA {eta:.0f}s)")
+            else:
+                print(f"  → PASS sc={score:.2f}  t5={r['time_above_5ms']:.0f}s  "
+                      f"vmax={r['max_vx']:.1f}  lat={r['avg_lat_err']:.3f}  (ETA {eta:.0f}s)")
+        return results
+
+    jobs = [(label, params, raceline) for label, params in pending]
+    done = 0
+    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        futures = [executor.submit(_run_single_parallel, job) for job in jobs]
+        for fut in as_completed(futures):
+            done += 1
+            r = fut.result()
+            results.append(r)
+
+            elapsed = time.time() - t0
+            rate = max((len(previous_results) + done) / max(elapsed, 0.01), 0.1)
+            eta = (total - done) / rate
+
+            if r["status"] != "OK":
+                print(f"[{done:4d}/{total}] {r['label']:55s}   → {r['status']}  (ETA {eta:.0f}s)")
+            elif r["wall_collisions"] > 0:
+                print(f"[{done:4d}/{total}] {r['label']:55s}   → wc={r['wall_collisions']}  "
+                      f"t5={r['time_above_5ms']:.0f}s  lat={r['avg_lat_err']:.3f}  (ETA {eta:.0f}s)")
+            elif r["failed"] > 0:
+                print(f"[{done:4d}/{total}] {r['label']:55s}   → FAIL {r['failed']}  (ETA {eta:.0f}s)")
+            else:
+                print(f"[{done:4d}/{total}] {r['label']:55s}   → PASS sc={r['score']:.2f}  "
+                      f"t5={r['time_above_5ms']:.0f}s  vmax={r['max_vx']:.1f}  "
+                      f"lat={r['avg_lat_err']:.3f}  (ETA {eta:.0f}s)")
 
     return results
 

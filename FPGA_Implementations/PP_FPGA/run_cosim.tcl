@@ -4,7 +4,8 @@
 # Uses a minimal testbench that only calls the top-level function.
 #
 # Usage:
-#   vitis_hls -f run_cosim.tcl
+#   source /tools/Xilinx/2025.1/Vitis/settings64.sh
+#   vitis-run --mode hls --tcl run_cosim.tcl
 # ============================================================================
 
 # Project settings

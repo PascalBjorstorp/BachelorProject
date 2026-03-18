@@ -1,9 +1,9 @@
 /**
  * @file fp_math_hls.h
- * @brief Q16.16 Fixed-Point Math for HLS Synthesis
+ * @brief Q16.16 fixed-point math helpers for HLS synthesis.
  *
  * Inline arithmetic operations and declarations for non-inline functions.
- * All operations use int32_t with int64_t intermediates for FPGA synthesis.
+ * Operations use int32_t values with int64_t intermediates where needed.
  */
 
 #ifndef FP_MATH_HLS_H
@@ -28,17 +28,13 @@ static inline fixed_point_t fp_sub(fixed_point_t a, fixed_point_t b)
 static inline fixed_point_t fp_mul(fixed_point_t a, fixed_point_t b)
 {
     int64_t product = (int64_t)a * (int64_t)b;
-    /* Force 3-cycle pipelined DSP48E2 to prevent combinational chaining.
-     * Without this, Vivado chains 4+ DSP blocks in one clock cycle,
-     * creating 20+ ns paths (WNS=-10ns at 100MHz).
-     * Inner-loop multiplies in riccati solver use raw (int64_t) casts,
-     * not fp_mul, so this only affects vehicle model/setup code. */
 #pragma HLS BIND_OP variable=product op=mul impl=dsp latency=3
     return (fixed_point_t)(product >> FP_FRAC_BITS);
 }
 
 static inline fixed_point_t fp_div(fixed_point_t a, fixed_point_t b)
 {
+    /* Return 0 for undefined divisions to avoid divide-by-zero hardware paths. */
     if (a == 0 || b == 0) return 0;
     return (fixed_point_t)(((int64_t)a << FP_FRAC_BITS) / b);
 }
@@ -84,19 +80,22 @@ static inline fixed_point_t fp_add_sat(fixed_point_t a, fixed_point_t b)
  * Non-Inline Function Declarations
  *===========================================================================*/
 
-/** Normalize angle to [-pi, pi] */
+/** Normalize angle to the range [-pi, pi]. */
 fixed_point_t fp_normalize_angle(fixed_point_t angle);
 
-/** Reciprocal 1/x using Newton-Raphson (4 iterations) */
+/** Reciprocal 1/x using Newton-Raphson with fixed iteration count. */
 fixed_point_t fp_recip(fixed_point_t x);
 
-/** Sine via Taylor series with range reduction */
+/** Sine via range reduction and low-order polynomial approximation. */
 fixed_point_t fp_sin(fixed_point_t angle);
 
-/** Cosine via Taylor series with range reduction */
+/** Cosine via range reduction and low-order polynomial approximation. */
 fixed_point_t fp_cos(fixed_point_t angle);
 
-/** Arctangent with range reduction */
+/** Arctangent using piecewise range reduction and polynomial approximation. */
 fixed_point_t fp_atan(fixed_point_t x);
+
+/** Cubic arctangent approximation used in tire-model angle terms. */
+fixed_point_t fp_atan_tire_approx(fixed_point_t x);
 
 #endif /* FP_MATH_HLS_H */

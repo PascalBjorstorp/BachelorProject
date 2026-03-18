@@ -1,0 +1,7 @@
+udp_control_bridge:
+  ros__parameters:
+    drive_topic: "/drive"
+    listen_port: 49001
+    max_steering: 0.4189
+    max_velocity: 12.0
+    watchdog_timeout_ms: 100.0

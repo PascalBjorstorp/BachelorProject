@@ -4,22 +4,14 @@
  *
  * Defines all types for the FPGA MPC Riccati-ADMM implementation.
  * Uses Q16.16 fixed-point arithmetic (int32_t with 64-bit intermediates).
- * Targets Xilinx Zynq UltraScale+ ZU3EG (Ultra96-V2).
- *
- * HLS-compatible: no malloc, no stdio, no globals, no function pointers.
  */
 
 #ifndef MPC_FPGA_TYPES_H
 #define MPC_FPGA_TYPES_H
 
-/* Always enable HLS target mode */
 #ifndef MPC_HLS_TARGET
 #define MPC_HLS_TARGET
 #endif
-
-/* Real-hardware vehicle model: full atan-based slip angles,
- * cos(δ)/sin(δ) force resolution, and Pacejka tire saturation.
- * No simulation-matching simplifications. */
 
 #include <stdint.h>
 
@@ -30,23 +22,27 @@
 typedef int32_t fixed_point_t;
 
 #define FP_FRAC_BITS    16
-#define FP_ONE          (1 << FP_FRAC_BITS)       /* 65536 */
-#define FP_TWO          (2 << FP_FRAC_BITS)       /* 131072 */
-#define FP_HALF         (FP_ONE >> 1)              /* 32768 */
-#define FP_PI           205887                     /* pi */
-#define FP_PI_HALF      102943                     /* pi/2 */
-#define FP_TWO_PI       411775                     /* 2*pi */
+#define FP_ONE          (1 << FP_FRAC_BITS)       /* 65536 (2^16) */
+#define FP_TWO          (2 << FP_FRAC_BITS)       /* 131072 (2^17) */
+#define FP_HALF         (FP_ONE >> 1)             /* 32768 (2^15) */
+#define FP_PI           205887                    /* pi (3.14159 * 65536) */
+#define FP_PI_HALF      102943                    /* pi/2 (1.5708 * 65536) */
+#define FP_TWO_PI       411775                    /* 2*pi (6.28318 * 65536) */
 
-/** Compile-time float to Q16.16 conversion */
+/** Compile-time float to Q16.16 conversion 
+ *  Rounding is applied to minimize quantization error in constants.
+*/
 #define FP_CONST(x) ((fixed_point_t)(((double)(x) >= 0) ? \
                     ((double)(x) * FP_ONE + 0.5) : \
                     ((double)(x) * FP_ONE - 0.5)))
 
-/** Runtime conversions */
-#define DOUBLE_TO_FP(x) ((fixed_point_t)(((x) >= 0) ? \
-                        ((x) * FP_ONE + 0.5) : ((x) * FP_ONE - 0.5)))
-#define FP_TO_DOUBLE(x) ((double)(x) / (double)FP_ONE)
-#define FP_TO_FLOAT(x)  ((float)(x) / (float)FP_ONE)
+/* Fixed-point arithmetic helpers (Q16.16) */
+#define FP_MUL(a, b) ((fixed_point_t)(((int64_t)(a) * (int64_t)(b)) >> FP_FRAC_BITS))
+#define FP_DIV(a, b) ((fixed_point_t)(((int64_t)(a) << FP_FRAC_BITS) / (int64_t)(b)))
+#define FP_TO_FLOAT(x) ((float)(x) / FP_ONE)
+#define FLOAT_TO_FP(x) ((fixed_point_t)((x) * FP_ONE))
+#define FP_TO_DOUBLE(x) ((double)(x) / FP_ONE)
+#define DOUBLE_TO_FP(x) ((fixed_point_t)((x) * FP_ONE))
 
 /*===========================================================================
  * MPC Dimension Constants
@@ -55,7 +51,7 @@ typedef int32_t fixed_point_t;
 /** Frenet state dimension: [e_y, e_psi, vx, vy, omega] */
 #define MPC_NX_FRENET   5
 
-/** Augmented state: [e_y, e_psi, vx, vy, omega, delta_actual, drate_prev, accel_prev] */
+/** Augmented state: [e_y, e_psi, vx, vy, omega, delta_actual, delta_rate_prev, accel_prev] */
 #define MPC_NX_AUG      8
 
 /** Dense block size in A matrix (Frenet + delta_actual) */
@@ -67,122 +63,166 @@ typedef int32_t fixed_point_t;
 /** Fixed prediction horizon */
 #define MPC_HORIZON     19
 
-/** Maximum ADMM iterations (reduced from 20 for timing budget) */
+/** Maximum ADMM iterations */
 #define MPC_MAX_ADMM_ITER 8
 
 /*===========================================================================
  * HLS Resource Constraints
  *===========================================================================*/
 
-/** Maximum multiplier instances in Riccati pass (trades latency for DSP area).
- *  Default 6: limits DSP usage in Riccati solver to fit ZU3EG (360 DSP).
- *  Vehicle model uses fp_mul_vm (separate DSP-pipelined, non-inline).
+/** Default multiplier budget for non-hot blocks.
  *  Override at compile time: -DMPC_HLS_MUL_LIMIT=N */
 #ifndef MPC_HLS_MUL_LIMIT
 #define MPC_HLS_MUL_LIMIT 4
+#endif
+
+/** Multiplier budget for Riccati hot path.
+ *  Higher default to reduce cycle count in matrix-heavy backward/forward passes.
+ *  Override at compile time: -DMPC_HLS_RICCATI_MUL_LIMIT=N */
+#ifndef MPC_HLS_RICCATI_MUL_LIMIT
+#define MPC_HLS_RICCATI_MUL_LIMIT 6
+#endif
+
+/** Vehicle model multiplier budget.
+ *  Override at compile time: -DMPC_HLS_VEHICLE_MUL_LIMIT=N */
+#ifndef MPC_HLS_VEHICLE_MUL_LIMIT
+#define MPC_HLS_VEHICLE_MUL_LIMIT 4
 #endif
 
 /*===========================================================================
  * Augmented State Indices
  *===========================================================================*/
 
-#define IDX_EY          0
-#define IDX_EPSI        1
-#define IDX_VX          2
-#define IDX_VY          3
-#define IDX_OMEGA       4
-#define IDX_DELTA_ACT   5   /* Actual servo steering angle */
-#define IDX_DRATE_PREV  6   /* Previous steering rate (for jerk penalty) */
-#define IDX_ACCEL_PREV  7   /* Previous acceleration (for accel rate) */
+#define IDX_EY                  0   /* Lateral error */
+#define IDX_EPSI                1   /* Heading error */
+#define IDX_VX                  2   /* Longitudinal velocity */
+#define IDX_VY                  3   /* Lateral velocity */
+#define IDX_OMEGA               4   /* Yaw rate */
+#define IDX_DELTA_ACT           5   /* Actual servo steering angle */
+#define IDX_DELTA_RATE_PREV     6   /* Previous steering rate (for jerk penalty) */
+#define IDX_ACCEL_PREV          7   /* Previous acceleration (for accel rate) */
 
 /*===========================================================================
  * Trajectory
  *===========================================================================*/
 
-#define MAX_TRAJECTORY_SIZE 1024
+#define MAX_TRAJECTORY_SIZE     1024
 
 /*===========================================================================
  * F1/10th Vehicle Parameters (compile-time constants)
+ * Values can be found in f1tenth_parameters/vehicle_params.yaml
  *===========================================================================*/
 
-#define VP_WHEELBASE        FP_CONST(0.324)
-#define VP_LF               FP_CONST(0.166)
-#define VP_LR               FP_CONST(0.16)
-#define VP_MASS             FP_CONST(3.314)
-#define VP_IZ               FP_CONST(0.035)
-#define VP_CG_HEIGHT        FP_CONST(0.0703)
-#define VP_GRAVITY          FP_CONST(9.81)
-#define VP_CSF              FP_CONST(2.804)
-#define VP_CSR              FP_CONST(3.320)
-#define VP_MU               FP_CONST(0.7463)
-#define VP_MAX_STEER        FP_CONST(0.4189)
-#define VP_MAX_VEL          FP_CONST(20.0)
-#define VP_MIN_VEL          ((fixed_point_t)0)
-#define VP_MAX_ACCEL        FP_CONST(8.0)
-#define VP_MIN_ACCEL        FP_CONST(-7.7)
-#define VP_MAX_STEER_RATE   FP_CONST(2.849)
+#define VP_WHEELBASE            FP_CONST(0.324)     /* Distance between front and rear axles */
+#define VP_LF                   FP_CONST(0.166)     /* Distance from CG to front axle */
+#define VP_LR                   FP_CONST(0.16)      /* Distance from CG to rear axle */
+#define VP_MASS                 FP_CONST(3.314)     /* Vehicle mass (kg) */
+#define VP_IZ                   FP_CONST(0.035)     /* Yaw moment of inertia (kg*m^2) */
+#define VP_CG_HEIGHT            FP_CONST(0.0703)    /* Center of gravity height (m) */
+#define VP_GRAVITY              FP_CONST(9.81)      /* Gravitational acceleration (m/s^2) */
+#define VP_MU                   FP_CONST(0.787)     /* Tire friction coefficient */
+#define VP_MAX_STEER            FP_CONST(0.4189)    /* Maximum steering angle (rad) */
+#define VP_MAX_VEL              FP_CONST(14.0)      /* Maximum velocity (m/s) */
+#define VP_MIN_VEL              FP_CONST(0.0)       /* Minimum velocity (m/s) */
+#define VP_MAX_ACCEL            FP_CONST(7.7)       /* Maximum acceleration (m/s^2) */
+#define VP_MIN_ACCEL            FP_CONST(-7.7)      /* Minimum acceleration (m/s^2) */
+#define VP_MAX_STEER_RATE       FP_CONST(2.849)     /* Maximum steering rate (rad/s) */
+#define VP_C_ALPHA_F_NRAD       FP_CONST(51.40)     /* Front tire cornering stiffness (N/rad) */
+#define VP_C_ALPHA_R_NRAD       FP_CONST(43.10)     /* Rear tire cornering stiffness (N/rad) */
 
-/* Precomputed reciprocals for FPGA efficiency */
-#define VP_INV_MASS         FP_CONST(0.301750)  /* 1/3.314 */
-#define VP_INV_IZ           FP_CONST(28.571429) /* 1/0.035 */
-#define VP_INV_L            FP_CONST(3.086420)  /* 1/0.324 */
+#define VP_INV_L                FP_DIV(FP_ONE, VP_WHEELBASE)         /* 1/L */
+#define VP_MG                   FP_MUL(VP_MASS, VP_GRAVITY)          /* mass * gravity */
+#define VP_MG_LR                FP_MUL(VP_MG, VP_LR)                 /* mass * gravity * l_r */
+#define VP_MG_LF                FP_MUL(VP_MG, VP_LF)                 /* mass * gravity * l_f */
+#define VP_INV_MASS             FP_DIV(FP_ONE, VP_MASS)              /* 1/mass */
+#define VP_INV_IZ               FP_DIV(FP_ONE, VP_IZ)                /* 1/I_z */
 
-/* Pacejka tire model constants (for real-hardware linearization) */
-#define VP_C_SHAPE          FP_CONST(1.9)       /* Pacejka shape factor C */
-#define VP_INV_C_SHAPE      FP_CONST(0.526316)  /* 1/1.9 */
-#define VP_MIN_STIFF_SCALE  FP_CONST(0.1)       /* Floor for effective stiffness */
+#define VP_C_SHAPE              FP_CONST(1.9)       /* Pacejka shape factor C for lateral slip */
+#define VP_INV_C_SHAPE          FP_DIV(FP_ONE, VP_C_SHAPE)
+#define MIN_STIFF_SCALE         FP_CONST(0.1)       /* Minimum stiffness scale to prevent singularities */
 
-/* Precomputed Pacejka B parameters (saves 2 fp_mul per linearization call) */
-#define VP_B_FRONT          FP_CONST(2.210)     /* Front tire Pacejka B parameter */
-#define VP_B_REAR           FP_CONST(1.700)     /* Rear tire Pacejka B parameter  */
-#define VP_CB_FRONT         FP_CONST(4.199)     /* C_shape * B_front */
-#define VP_CB_REAR          FP_CONST(3.230)     /* C_shape * B_rear  */
+/*
+ * Static normal loads and Pacejka D terms per axle:
+ * Fz_front = (m*g*lr)/L
+ * Fz_rear  = (m*g*lf)/L
+ * D_front  = mu * Fz_front
+ * D_rear   = mu * Fz_rear
+*/
+#define VP_FZ_FRONT             FP_DIV(VP_MG_LR, VP_WHEELBASE)
+#define VP_FZ_REAR              FP_DIV(VP_MG_LF, VP_WHEELBASE)
+#define VP_D_FRONT              FP_MUL(VP_MU, VP_FZ_FRONT)
+#define VP_D_REAR               FP_MUL(VP_MU, VP_FZ_REAR)
+
+/*
+ * Normalize absolute cornering stiffness (N/rad) into model C_S terms ([1/rad]):
+ *   C_Sf = C_alpha_f / D_front
+ *   C_Sr = C_alpha_r / D_rear
+ *
+ * This is the exact normalization used by the linear tire form:
+ *   Fy = mu * C_S * Fz * alpha.
+ */
+#define VP_C_ALPHA_SF           FP_DIV(VP_C_ALPHA_F_NRAD, VP_D_FRONT)
+#define VP_C_ALPHA_SR           FP_DIV(VP_C_ALPHA_R_NRAD, VP_D_REAR) 
+
+/*
+ * B factors for Pacejka nonlinearity: Fy = D * sin(C * atan(B * alpha)).
+ * B appears inside atan(B*alpha), so it is required explicitly.
+ */
+#define VP_B_FRONT              FP_DIV(VP_C_ALPHA_SF, VP_C_SHAPE)
+#define VP_B_REAR               FP_DIV(VP_C_ALPHA_SR, VP_C_SHAPE)
+
+/* C_shape * B aliases used in Jacobian terms (equal to C_alpha_S* by construction). */
+#define VP_CB_FRONT             (VP_C_ALPHA_SF)
+#define VP_CB_REAR              (VP_C_ALPHA_SR)
+
 /* Precomputed minimum effective stiffness factors (mu*C_S*MIN_STIFF_SCALE) */
-#define VP_MU_CSF_MIN       FP_CONST(0.3305)    /* mu*C_Sf*MIN_STIFF_SCALE */
-#define VP_MU_CSR_MIN       FP_CONST(0.2542)    /* mu*C_Sr*MIN_STIFF_SCALE */
+#define VP_MU_CSF_MIN           FP_MUL(FP_MUL(VP_MU, VP_C_ALPHA_SF), MIN_STIFF_SCALE) /* mu*C_Sf*MIN_STIFF_SCALE */
+#define VP_MU_CSR_MIN           FP_MUL(FP_MUL(VP_MU, VP_C_ALPHA_SR), MIN_STIFF_SCALE) /* mu*C_Sr*MIN_STIFF_SCALE */
 
 /*===========================================================================
  * MPC Default Cost Weights (tuned for F1/10th)
  *===========================================================================*/
 
-#define MPC_DT              ((fixed_point_t)2621)   /* 0.04s in Q16.16 */
+#define MPC_DT              FP_CONST(0.04)      /* 0.04s in Q16.16 */
 
-/* Precomputed dt*inv_mass and dt*inv_Iz (eliminates 9 fp_mul per linearization) */
-#define VP_DT_INV_MASS      FP_CONST(0.012070)  /* dt * (1/mass) = 0.04 * 0.301750 */
-#define VP_DT_INV_IZ        FP_CONST(1.142857)  /* dt * (1/I_z)  = 0.04 * 28.571429 */
+/* Precomputed dt*inv_mass and dt*inv_Iz */
+#define VP_DT_INV_MASS      FP_MUL(MPC_DT, VP_INV_MASS)     /* dt * (1/mass) */
+#define VP_DT_INV_IZ        FP_MUL(MPC_DT, VP_INV_IZ)       /* dt * (1/I_z) */
 
 #define MPC_W_LAT_ERROR     FP_CONST(340.0)
-#define MPC_W_HEADING       FP_CONST(2000.0)     /* cl050 sweep best (was 1000) */
+#define MPC_W_HEADING       FP_CONST(2000.0)    
 #define MPC_W_VELOCITY      FP_CONST(26.0)
-#define MPC_W_LAT_VEL       FP_CONST(100.0)      /* cl050 sweep best (was 69) */
+#define MPC_W_LAT_VEL       FP_CONST(100.0)    
 #define MPC_W_YAW_RATE      FP_CONST(22.0)
 #define MPC_W_STEER_EFF     FP_CONST(0.15)
 #define MPC_W_ACCEL_EFF     FP_CONST(0.01)
 #define MPC_W_STEER_JERK    FP_CONST(0.3)
-#define MPC_W_ACCEL_RATE    FP_CONST(0.1)        /* cl050 sweep best (was 0.116) */
-#define MPC_W_DELTA_ACT     FP_CONST(0.795)      /* cl050 sweep best (was 0.53) */
+#define MPC_W_ACCEL_RATE    FP_CONST(0.1)    
+#define MPC_W_DELTA_ACT     FP_CONST(0.795)    
 #define MPC_CROSS_CALL_SCALE FP_CONST(0.125)
 
 /* === Precomputed 2x weights for QP Hessian diagonal ===
- * Eliminates ~24 runtime fp_mul calls in mpc_compute_hls.
  * All computed at compile time via integer arithmetic. */
-#define MPC_Q2_LAT_ERROR    ((MPC_W_LAT_ERROR) << 1)     /* 2*340 = 680 */
-#define MPC_Q2_HEADING      ((MPC_W_HEADING) << 1)        /* 2*2000 = 4000 */
-#define MPC_Q2_VELOCITY     ((MPC_W_VELOCITY) << 1)       /* 2*26 = 52 */
-#define MPC_Q2_LAT_VEL      ((MPC_W_LAT_VEL) << 1)        /* 2*100 = 200 */
-#define MPC_Q2_YAW_RATE     ((MPC_W_YAW_RATE) << 1)       /* 2*22 = 44 */
-#define MPC_Q2_DELTA_ACT    ((MPC_W_DELTA_ACT) << 1)      /* 2*0.795 */
-#define MPC_Q2_STEER_JERK   ((MPC_W_STEER_JERK) << 1)     /* 2*0.3 */
-#define MPC_Q2_ACCEL_RATE   ((MPC_W_ACCEL_RATE) << 1)     /* 2*0.1 */
-#define MPC_R2_STEER        (((MPC_W_STEER_EFF) + (MPC_W_STEER_JERK)) << 1)  /* 2*(0.15+0.3) */
-#define MPC_R2_ACCEL        (((MPC_W_ACCEL_EFF) + (MPC_W_ACCEL_RATE)) << 1)   /* 2*(0.01+0.1) */
-#define MPC_N2_STEER_JERK   (-((MPC_W_STEER_JERK) << 1))  /* -2*0.3 */
-#define MPC_N2_ACCEL_RATE   (-((MPC_W_ACCEL_RATE) << 1))   /* -2*0.1 */
-/* Cross-call scaled variants for step 0 (0.125 = >>3) */
-#define MPC_Q2_JERK_CS      ((MPC_W_STEER_JERK >> 3) << 1)  /* 2*0.3*0.125 */
-#define MPC_Q2_ARATE_CS     ((MPC_W_ACCEL_RATE >> 3) << 1)   /* 2*0.1*0.125 */
-#define MPC_R2_STEER_CS     (((MPC_W_STEER_EFF) + (MPC_W_STEER_JERK >> 3)) << 1)
-#define MPC_R2_ACCEL_CS     (((MPC_W_ACCEL_EFF) + (MPC_W_ACCEL_RATE >> 3)) << 1)
+#define MPC_Q2_LAT_ERROR    ((MPC_W_LAT_ERROR) << 1)   
+#define MPC_Q2_HEADING      ((MPC_W_HEADING) << 1)   
+#define MPC_Q2_VELOCITY     ((MPC_W_VELOCITY) << 1)    
+#define MPC_Q2_LAT_VEL      ((MPC_W_LAT_VEL) << 1)  
+#define MPC_Q2_YAW_RATE     ((MPC_W_YAW_RATE) << 1)    
+#define MPC_Q2_DELTA_ACT    ((MPC_W_DELTA_ACT) << 1) 
+#define MPC_Q2_STEER_JERK   ((MPC_W_STEER_JERK) << 1)    
+#define MPC_Q2_ACCEL_RATE   ((MPC_W_ACCEL_RATE) << 1)    
+#define MPC_R2_STEER        (((MPC_W_STEER_EFF) + (MPC_W_STEER_JERK)) << 1)
+#define MPC_R2_ACCEL        (((MPC_W_ACCEL_EFF) + (MPC_W_ACCEL_RATE)) << 1) 
+#define MPC_N2_STEER_JERK   (-((MPC_W_STEER_JERK) << 1))  
+#define MPC_N2_ACCEL_RATE   (-((MPC_W_ACCEL_RATE) << 1))  
+
+/* Cross-call scaled variants for step 0 (scale = control_dt / prediction_dt) */
+#define MPC_W_STEER_JERK_CS FP_MUL(MPC_W_STEER_JERK, MPC_CROSS_CALL_SCALE)
+#define MPC_W_ACCEL_RATE_CS FP_MUL(MPC_W_ACCEL_RATE, MPC_CROSS_CALL_SCALE)
+#define MPC_Q2_JERK_CS      ((MPC_W_STEER_JERK_CS) << 1)
+#define MPC_Q2_ARATE_CS     ((MPC_W_ACCEL_RATE_CS) << 1)
+#define MPC_R2_STEER_CS     (((MPC_W_STEER_EFF) + (MPC_W_STEER_JERK_CS)) << 1)
+#define MPC_R2_ACCEL_CS     (((MPC_W_ACCEL_EFF) + (MPC_W_ACCEL_RATE_CS)) << 1)
 
 /*===========================================================================
  * Solver/Constraint Constants
@@ -191,15 +231,13 @@ typedef int32_t fixed_point_t;
 #define BIG_BOUND           FP_CONST(100.0)
 #define MIN_LIN_VEL         FP_CONST(2.0)
 #define STABILITY_LIMIT_VAL FP_CONST(0.95)
-/* WALL_MARGIN = 0.15m (updated from sweep values used in older runs).
- * Keep a small safety buffer while preserving feasibility in tight sections. */
 #define WALL_MARGIN         FP_CONST(0.15)
 #define WALL_START          1
 #define WALL_STRIDE         1
-#define WALL_END            18     /* updated from CPU sweep (was 10) */
+#define WALL_END            18    
 #define V_SWITCH            FP_CONST(7.319)
 #define BOUND_THRESHOLD     FP_CONST(100.0)
-#define WP_ADVANCE_MAX      10   /* Max waypoint advance per horizon step */
+#define WP_ADVANCE_MAX      10  
 
 /* ADMM default parameters */
 #define ADMM_RHO_DEFAULT    FP_CONST(50.0)
@@ -258,8 +296,8 @@ typedef struct {
     fixed_point_t z_u[MPC_HORIZON][MPC_NU];
     fixed_point_t y_x[MPC_HORIZON + 1][MPC_NX_AUG];
     fixed_point_t y_u[MPC_HORIZON][MPC_NU];
-    fixed_point_t rho;      /* Persisted adapted rho (OPT-2) */
-    fixed_point_t rho_u;    /* Persisted adapted rho_u (OPT-2) */
+    fixed_point_t rho;    
+    fixed_point_t rho_u;  
     int initialized;
 } AdmmState_t;
 
