@@ -144,6 +144,7 @@ static int g_use_steering_feedback = 0;
 
 typedef struct
 {
+    double s_meters;
     double x_meters;
     double y_meters;
     double heading_radians;
@@ -280,6 +281,7 @@ static void setup_realtime_scheduling(void)
 
 /** Average waypoint spacing, computed from loaded trajectory. */
 static double g_avg_waypoint_spacing = 0.346;
+static double g_track_length_meters = 0.0;
 
 /**
  * @brief Load trajectory from CSV file.
@@ -323,6 +325,7 @@ static int load_trajectory_from_csv(const char *file_path)
         if (fields_read >= 6)
         {
             TrajectoryWaypoint_t *wp = &global_trajectory[global_trajectory_count];
+            wp->s_meters = s_m;
             wp->x_meters = x_m;
             wp->y_meters = y_m;
             wp->heading_radians = psi_rad;
@@ -375,6 +378,15 @@ static int load_trajectory_from_csv(const char *file_path)
         g_avg_waypoint_spacing = total_spacing / (global_trajectory_count - 1);
         if (g_avg_waypoint_spacing < 0.01) g_avg_waypoint_spacing = 0.01; /* safety floor */
         printf("[MPC] Average waypoint spacing: %.4f m\n", g_avg_waypoint_spacing);
+    }
+
+    g_track_length_meters = 0.0;
+    if (global_trajectory_count >= 2)
+    {
+        g_track_length_meters = global_trajectory[global_trajectory_count - 1].s_meters
+                              - global_trajectory[0].s_meters;
+        if (g_track_length_meters < 1e-3)
+            g_track_length_meters = g_avg_waypoint_spacing * global_trajectory_count;
     }
 
     return 1;
@@ -435,6 +447,78 @@ static int find_closest_waypoint(double position_x, double position_y, double ve
     return best_index;
 }
 
+static double wrap_track_s(double s)
+{
+    if (g_track_length_meters <= 1e-6)
+        return s;
+
+    double s0 = global_trajectory[0].s_meters;
+    while (s < s0) s += g_track_length_meters;
+    while (s >= s0 + g_track_length_meters) s -= g_track_length_meters;
+    return s;
+}
+
+static void sample_waypoint_by_s(double s_query, TrajectoryWaypoint_t *out)
+{
+    if (out == NULL || global_trajectory_count == 0)
+        return;
+
+    if (global_trajectory_count == 1)
+    {
+        *out = global_trajectory[0];
+        return;
+    }
+
+    double s = wrap_track_s(s_query);
+
+    for (int i = 0; i < global_trajectory_count - 1; i++)
+    {
+        TrajectoryWaypoint_t *w0 = &global_trajectory[i];
+        TrajectoryWaypoint_t *w1 = &global_trajectory[i + 1];
+        if (s >= w0->s_meters && s <= w1->s_meters)
+        {
+            double denom = w1->s_meters - w0->s_meters;
+            double t = (denom > 1e-9) ? ((s - w0->s_meters) / denom) : 0.0;
+            *out = *w0;
+            out->s_meters = s;
+            out->x_meters = w0->x_meters + (w1->x_meters - w0->x_meters) * t;
+            out->y_meters = w0->y_meters + (w1->y_meters - w0->y_meters) * t;
+            out->heading_radians = w0->heading_radians + (w1->heading_radians - w0->heading_radians) * t;
+            out->curvature_radians_per_meter = w0->curvature_radians_per_meter +
+                                               (w1->curvature_radians_per_meter - w0->curvature_radians_per_meter) * t;
+            out->velocity_meters_per_second = w0->velocity_meters_per_second +
+                                              (w1->velocity_meters_per_second - w0->velocity_meters_per_second) * t;
+            out->left_bound_meters = w0->left_bound_meters + (w1->left_bound_meters - w0->left_bound_meters) * t;
+            out->right_bound_meters = w0->right_bound_meters + (w1->right_bound_meters - w0->right_bound_meters) * t;
+            out->sin_heading = sin(out->heading_radians);
+            out->cos_heading = cos(out->heading_radians);
+            return;
+        }
+    }
+
+    TrajectoryWaypoint_t *w0 = &global_trajectory[global_trajectory_count - 1];
+    TrajectoryWaypoint_t *w1 = &global_trajectory[0];
+    double s1 = w1->s_meters + g_track_length_meters;
+    double denom = s1 - w0->s_meters;
+    double s_adj = s;
+    if (s_adj < w0->s_meters)
+        s_adj += g_track_length_meters;
+    double t = (denom > 1e-9) ? ((s_adj - w0->s_meters) / denom) : 0.0;
+    *out = *w0;
+    out->s_meters = s;
+    out->x_meters = w0->x_meters + (w1->x_meters - w0->x_meters) * t;
+    out->y_meters = w0->y_meters + (w1->y_meters - w0->y_meters) * t;
+    out->heading_radians = w0->heading_radians + (w1->heading_radians - w0->heading_radians) * t;
+    out->curvature_radians_per_meter = w0->curvature_radians_per_meter +
+                                       (w1->curvature_radians_per_meter - w0->curvature_radians_per_meter) * t;
+    out->velocity_meters_per_second = w0->velocity_meters_per_second +
+                                      (w1->velocity_meters_per_second - w0->velocity_meters_per_second) * t;
+    out->left_bound_meters = w0->left_bound_meters + (w1->left_bound_meters - w0->left_bound_meters) * t;
+    out->right_bound_meters = w0->right_bound_meters + (w1->right_bound_meters - w0->right_bound_meters) * t;
+    out->sin_heading = sin(out->heading_radians);
+    out->cos_heading = cos(out->heading_radians);
+}
+
 /*===========================================================================
  * Reference Trajectory Builder
  *===========================================================================*/
@@ -448,44 +532,38 @@ static int find_closest_waypoint(double position_x, double position_y, double ve
 static void build_reference_from_trajectory(int closest_index)
 {
     const double mpc_dt = MPC_TIME_STEP_SECONDS;
-    const double avg_waypoint_spacing = g_avg_waypoint_spacing;
+    double s_query = global_trajectory[closest_index].s_meters;
+    double step_velocity = global_trajectory[closest_index].velocity_meters_per_second;
+    if (step_velocity < 3.0) step_velocity = 3.0;
+    if (step_velocity > TRAJECTORY_MAXIMUM_VELOCITY) step_velocity = TRAJECTORY_MAXIMUM_VELOCITY;
 
     for (int step = 0; step < MPC_PREDICTION_HORIZON_STEPS; step++)
     {
-        int base_waypoint_index = closest_index + step;
-        if (base_waypoint_index >= global_trajectory_count)
-            base_waypoint_index -= global_trajectory_count;
-        double ref_velocity = global_trajectory[base_waypoint_index].velocity_meters_per_second;
+        s_query += step_velocity * mpc_dt;
+        TrajectoryWaypoint_t wp;
+        sample_waypoint_by_s(s_query, &wp);
 
-        if (ref_velocity < 3.0) ref_velocity = 3.0;
-        if (ref_velocity > TRAJECTORY_MAXIMUM_VELOCITY) ref_velocity = TRAJECTORY_MAXIMUM_VELOCITY;
-
-        double expected_distance = ref_velocity * mpc_dt * (step + 1);
-        int waypoints_ahead = (int)(expected_distance / avg_waypoint_spacing);
-        if (waypoints_ahead < step + 1) waypoints_ahead = step + 1;
-
-        int waypoint_index = closest_index + waypoints_ahead;
-        if (waypoint_index >= global_trajectory_count)
-            waypoint_index -= global_trajectory_count;
-        TrajectoryWaypoint_t *wp = &global_trajectory[waypoint_index];
+        double traj_vel = wp.velocity_meters_per_second;
+        if (traj_vel < 0.0) traj_vel = 0.0;
+        if (traj_vel > TRAJECTORY_MAXIMUM_VELOCITY) traj_vel = TRAJECTORY_MAXIMUM_VELOCITY;
+        if (traj_vel < 3.0) traj_vel = 3.0;
+        step_velocity = traj_vel;
 
         global_reference_trajectory[step].reference_lateral_error_meters = 0;
         global_reference_trajectory[step].reference_heading_error_radians = 0;
 
         global_reference_trajectory[step].path_curvature_radians_per_meter =
-            DOUBLE_TO_FP(wp->curvature_radians_per_meter);
+            DOUBLE_TO_FP(wp.curvature_radians_per_meter);
         global_reference_trajectory[step].left_wall_bound_meters =
-            DOUBLE_TO_FP(wp->left_bound_meters);
+            DOUBLE_TO_FP(wp.left_bound_meters);
         global_reference_trajectory[step].right_wall_bound_meters =
-            DOUBLE_TO_FP(wp->right_bound_meters);
+            DOUBLE_TO_FP(wp.right_bound_meters);
 
-        double traj_vel = wp->velocity_meters_per_second;
-        if (traj_vel < 0.0) traj_vel = 0.0;
         global_reference_trajectory[step].reference_velocity_meters_per_second =
             DOUBLE_TO_FP(traj_vel);
 
         /* Yaw rate reference = kappa * v_ref (steady-state cornering) — fused in single pass */
-        double omega_ref = wp->curvature_radians_per_meter * traj_vel;
+        double omega_ref = wp.curvature_radians_per_meter * traj_vel;
         global_reference_trajectory[step].reference_yaw_rate_radians_per_second =
             DOUBLE_TO_FP(omega_ref);
         global_reference_trajectory[step].reference_lateral_velocity_meters_per_second = 0;

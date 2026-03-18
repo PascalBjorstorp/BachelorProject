@@ -35,12 +35,9 @@ TRAJ_DIR = os.path.join(os.path.dirname(PROJECT_DIR),
 # MODE-SPECIFIC CONFIGURATIONS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# ─── Spielberg: large track, multiple clearance racelines ────────────────────
+# ─── Spielberg: large track, single current raceline ─────────────────────────
 SPIELBERG_RACELINES = {
-    "cl020": os.path.join(TRAJ_DIR, "Spielberg_raceline_pipeline_cl020.csv"),
-    "cl030": os.path.join(TRAJ_DIR, "Spielberg_raceline_pipeline_cl030.csv"),
-    "cl045": os.path.join(TRAJ_DIR, "Spielberg_raceline_pipeline_cl045.csv"),
-    "cl050": os.path.join(TRAJ_DIR, "Spielberg_raceline_pipeline_cl050.csv"),
+    "spielberg": os.path.join(TRAJ_DIR, "Spielberg_raceline_current.csv"),
 }
 
 SPIELBERG_BASE = {
@@ -67,10 +64,7 @@ SPIELBERG_BASE = {
 }
 
 SPIELBERG_PER_RACELINE_WM = {
-    "cl020": 0.10,
-    "cl030": 0.20,
-    "cl045": 0.40,
-    "cl050": 0.40,
+    "spielberg": 0.20,
 }
 
 # ─── Hardware: small SLAM-mapped track (~22m, 0.27-1.4m wide) ────────────────
