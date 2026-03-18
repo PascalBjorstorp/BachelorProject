@@ -34,6 +34,7 @@
 #include <cmath>
 #include <cerrno>
 #include <algorithm>
+#include <limits>
 
 // Linux memory-mapped I/O
 #include <sys/mman.h>
@@ -486,6 +487,9 @@ private:
 
     uint64_t msg_count_       = 0;
     double   total_latency_ms_ = 0.0;
+    double   total_loop_us_ = 0.0;
+    double   min_loop_us_ = std::numeric_limits<double>::infinity();
+    double   max_loop_us_ = 0.0;
     std::chrono::steady_clock::time_point last_msg_time_ = std::chrono::steady_clock::now();
     rclcpp::Time last_callback_time_;   // For computing actual elapsed dt
     bool has_prev_callback_ = false;    // True after first callback
@@ -618,6 +622,9 @@ private:
         auto compute_us = std::chrono::duration_cast<std::chrono::microseconds>(
                               t_end - t_start).count();
         msg_count_++;
+        total_loop_us_ += static_cast<double>(compute_us);
+        min_loop_us_ = std::min(min_loop_us_, static_cast<double>(compute_us));
+        max_loop_us_ = std::max(max_loop_us_, static_cast<double>(compute_us));
 
         auto now_ms = static_cast<uint64_t>(
             std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -627,16 +634,18 @@ private:
 
         if (msg_count_ % 100 == 0) {
             double avg = total_latency_ms_ / static_cast<double>(msg_count_);
+            double avg_loop_us = total_loop_us_ / static_cast<double>(msg_count_);
             int64_t fpga_ns = use_fpga_ ? fpga_.get_last_compute_ns() : 0;
             RCLCPP_INFO(get_logger(),
                 "[%s] WP=%u  delta=%.1f deg  v=%.1f  a=%.1f | "
                 "Status=%u  Iter=%u | Total=%ld us  FPGA=%ld ns | "
-                "Lat %.1f ms (avg %.1f)",
+                "Loop us avg/min/max=%.1f/%.1f/%.1f | Lat %.1f ms (avg %.1f)",
                 use_fpga_ ? "FPGA" : "SW",
                 msg->waypoint_index,
                 steering * 57.2958f, speed, accel,
                 status, iters,
                 compute_us, fpga_ns,
+                avg_loop_us, min_loop_us_, max_loop_us_,
                 latency_ms, avg);
         }
     }

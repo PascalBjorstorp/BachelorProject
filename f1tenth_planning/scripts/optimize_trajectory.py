@@ -1131,7 +1131,7 @@ def main():
         help='Output directory (default: f1tenth_planning/trajectories/)',
     )
     parser.add_argument(
-        '--centerline-points', type=int, default=300,
+        '--centerline-points', type=int, default=2000,
         help='Number of centerline points to sample (default: 300)',
     )
     parser.add_argument(
