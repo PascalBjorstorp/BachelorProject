@@ -1,0 +1,29 @@
+Combined OptiTrack Benchmark Summary
+===================================
+
+Per-bag metrics
+---------------
+GroundTruth: pairs=1422, rmse_xy=0.0837, rmse_yaw=0.0420, mean_dt_ms=0.03, amcl_msgs=2337
+GroundTruthFastWork: pairs=1853, rmse_xy=0.1168, rmse_yaw=0.0569, mean_dt_ms=1.72, amcl_msgs=3133
+
+Combined metrics
+----------------
+n_bags: 2
+n_total_pairs: 3275
+mean_pair_dt_ms: 0.987571
+std_pair_dt_ms: 9.106207
+mean_ex: 0.023766
+mean_ey: 0.036202
+rmse_x: 0.074325
+rmse_y: 0.072327
+rmse_xy: 0.103708
+mae_xy: 0.094856
+std_epos: 0.041931
+rmse_yaw: 0.050963
+mae_yaw: 0.032069
+mean_abs_eyaw: 0.032069
+std_abs_eyaw: 0.039614
+
+Suggested next parameter changes (combined)
+-------------------------------------------
+1. Baseline for this summary: num_particles=10000, max_beams=270. Change one knob per iteration.

@@ -14,7 +14,7 @@ function analyze_benchmark_bags()
 % Update paths below if your checkout is in a different location.
 
 %% Configuration
-rootDir = 'C:\Bachelor\BachelorProject';
+rootDir = '/home/pascal/Documents/BachelorProject';
 benchmarkDir = fullfile(rootDir, 'f1tenth_localization', 'Benchmark');
 bagsRoot   = fullfile(benchmarkDir, 'bags', 'benchmarkBags');
 
