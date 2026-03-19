@@ -363,8 +363,48 @@ int main(int argc, const char *argv[])
     rcl_node_t node;
     rclc_node_init_default(&node, "mpcc_node", "", &support);
 
-    /* ── Initialize MPCC ─────────────────────────────────────────────── */
-    mpcc_initialize();
+    /* ── Initialize MPCC (with env var overrides for tuning) ─────────── */
+    {
+        /* Start from defaults, then override from env vars if present */
+        mpcc_initialize();
+        MPCCConfiguration_t cfg = mpcc_get_configuration();
+
+        const char *v;
+        if ((v = getenv("Q_N")))             cfg.weight_n          = float_to_fp((float)atof(v));
+        if ((v = getenv("Q_ALPHA")))         cfg.weight_alpha      = float_to_fp((float)atof(v));
+        if ((v = getenv("Q_PROGRESS")))      cfg.weight_progress   = float_to_fp((float)atof(v));
+        if ((v = getenv("Q_VX")))            cfg.weight_vx         = float_to_fp((float)atof(v));
+        if ((v = getenv("VX_REF")))          cfg.vx_ref            = float_to_fp((float)atof(v));
+        if ((v = getenv("Q_VY")))            cfg.weight_vy         = float_to_fp((float)atof(v));
+        if ((v = getenv("Q_OMEGA")))         cfg.weight_omega      = float_to_fp((float)atof(v));
+        if ((v = getenv("R_DELTA")))         cfg.weight_delta      = float_to_fp((float)atof(v));
+        if ((v = getenv("R_AX")))            cfg.weight_ax         = float_to_fp((float)atof(v));
+        if ((v = getenv("R_VTHETA")))        cfg.weight_v_theta    = float_to_fp((float)atof(v));
+        if ((v = getenv("W_DELTA_RATE")))    cfg.weight_delta_rate = float_to_fp((float)atof(v));
+        if ((v = getenv("W_AX_RATE")))       cfg.weight_ax_rate    = float_to_fp((float)atof(v));
+        if ((v = getenv("W_VTHETA_RATE")))   cfg.weight_v_theta_rate = float_to_fp((float)atof(v));
+        if ((v = getenv("Q_N_TERM")))        cfg.weight_n_terminal = float_to_fp((float)atof(v));
+        if ((v = getenv("Q_ALPHA_TERM")))    cfg.weight_alpha_terminal = float_to_fp((float)atof(v));
+        if ((v = getenv("Q_PROGRESS_TERM"))) cfg.weight_progress_terminal = float_to_fp((float)atof(v));
+        if ((v = getenv("ADMM_RHO")))        cfg.admm_rho          = float_to_fp((float)atof(v));
+        if ((v = getenv("ADMM_MAX_ITER")))   cfg.admm_max_iterations = (uint16_t)atoi(v);
+        if ((v = getenv("ADMM_TOL")))        cfg.admm_tolerance    = float_to_fp((float)atof(v));
+        if ((v = getenv("HORIZON")))         cfg.horizon_steps     = (uint16_t)atoi(v);
+        if ((v = getenv("DT")))              cfg.dt                = float_to_fp((float)atof(v));
+        if ((v = getenv("V_THETA_MAX")))     cfg.v_theta_max       = float_to_fp((float)atof(v));
+        if ((v = getenv("V_THETA_MIN")))     cfg.v_theta_min       = float_to_fp((float)atof(v));
+
+        /* Apply the possibly-modified config */
+        mpcc_set_configuration(&cfg);
+
+        printf("[MPCC] Config: N=%d dt=%.3f Q_n=%.1f Q_alpha=%.1f Q_prog=%.1f "
+               "R_delta=%.2f W_drate=%.1f ADMM_rho=%.2f\n",
+               cfg.horizon_steps, fp_to_float(cfg.dt),
+               fp_to_float(cfg.weight_n), fp_to_float(cfg.weight_alpha),
+               fp_to_float(cfg.weight_progress),
+               fp_to_float(cfg.weight_delta), fp_to_float(cfg.weight_delta_rate),
+               fp_to_float(cfg.admm_rho));
+    }
     current_s = 0;
 
     /* Load reference trajectory from CSV */
