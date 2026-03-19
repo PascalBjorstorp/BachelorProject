@@ -7,12 +7,12 @@
  * node, but stripped of simulation-specific code and optimized for
  * real-time 200 Hz execution on embedded hardware.
  *
- * Architecture (timer-driven):
- *   - Odometry callback: stores latest state (fast, non-blocking)
+ * Architecture (EKF-driven):
+ *   - Odometry callback: stores latest velocity state (fast, non-blocking)
  *   - Servo feedback callback: stores actual steering angle from VESC
  *   - IMU callback: stores filtered yaw rate for higher-quality feedback
- *   - 200 Hz wall timer: runs MPC computation and publishes the result
- *   - Safety watchdog: zeros command if odometry is stale (>200ms)
+ *   - EKF pose callback: receives map-frame pose, runs MPC, publishes result
+ *   - Safety: no command published until both odom and EKF pose are received
  *
  * Topics:
  *   Subscribe: /ego_racecar/odom       (nav_msgs/Odometry)     — VESC odometry [QoS(10)]
@@ -97,6 +97,9 @@ static int g_verbose = 0;
  *  rather than the odom frame.  The trajectory CSV is in map frame,
  *  so Frenet errors are only correct when this flag is set. */
 static int g_amcl_received = 0;
+
+/** Flag for new EKF pose message */
+static int g_new_ekf_pose = 0;
 
 /** Timer-driven control rate [Hz] */
 static double g_control_rate_hz = 200.0;
@@ -204,8 +207,8 @@ static unsigned long g_solve_cycle_count = 0;
 /** Computed control dt from g_control_rate_hz (set in main) */
 static double g_control_dt = 0.005;
 
-/** Number of executor handles: 4 subscriptions + 1 timer */
-#define EXECUTOR_NUM_HANDLES 5
+/** Number of executor handles: 4 subscriptions (no timer) */
+#define EXECUTOR_NUM_HANDLES 4
 
 /*===========================================================================
  * Signal Handler for Graceful Shutdown
@@ -755,9 +758,10 @@ void imu_callback(const void *message_in)
 }
 
 /*===========================================================================
- * ROS2 Callback: Map-Frame Pose (EKF or AMCL)
+ * ROS2 Callback: Map-Frame Pose (EKF or AMCL) + MPC Computation
  *===========================================================================
- * Overrides the odom-frame position from odometry_subscription_callback.
+ * Receives the map-frame position from the EKF and runs the MPC solver.
+ * MPC only executes when a new EKF pose message arrives (event-driven).
  * The trajectory CSV is in map frame, so Frenet errors are only meaningful
  * when position comes from here rather than from raw wheel odometry.
  * Default source: /ekf_pose (EKF fuses odom + AMCL for smooth updates).
@@ -781,23 +785,20 @@ void amcl_pose_callback(const void *message_in)
     g_latest_pos_y   = pos_y;
     g_latest_heading = heading;
 
+    g_new_ekf_pose = 1;
+
     if (!g_amcl_received) {
         printf("[MPC] Map-frame pose received — switching to map-frame position\n");
         g_amcl_received = 1;
     }
-}
 
-/*===========================================================================
- * Timer Callback: MPC Computation + Publish (200 Hz)
- *===========================================================================*/
+    /* Don't run MPC until odometry (velocity) has been received */
+    if (!global_odometry_received_flag)
+    {
+        return;
+    }
 
-void mpc_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
-{
-    (void)timer;
-    (void)last_call_time;
-
-    /* Safety watchdog: check if odometry is stale */
-    if (global_odometry_received_flag)
+    /* Safety watchdog: check if odometry velocity is stale */
     {
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
@@ -821,16 +822,6 @@ void mpc_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
             return;
         }
     }
-    else
-    {
-        /* No odometry received yet — don't publish anything */
-        return;
-    }
-
-    /* Use cached latest odometry values */
-    double pos_x = g_latest_pos_x;
-    double pos_y = g_latest_pos_y;
-    double heading = g_latest_heading;
 
     if (g_verbose)
     {
@@ -1015,7 +1006,7 @@ int main(int argc, char *argv[])
 {
     printf("============================================================\n");
     printf("  MPC Riccati-ADMM ROS2 Node for F1/10th Hardware\n");
-    printf("  Target: Jetson Xavier NX @ 200 Hz (timer-driven)\n");
+    printf("  Target: Jetson Xavier NX (EKF-driven)\n");
     printf("  8-state augmented Frenet model\n");
     printf("  [e_y, e_psi, vx, vy, omega, delta_actual, drate_prev, accel_prev]\n");
     printf("  Controls: [delta_rate, a_x]\n");
@@ -1087,7 +1078,7 @@ int main(int argc, char *argv[])
     /* Compute CONTROL_DT from the configured control rate */
     g_control_dt = 1.0 / g_control_rate_hz;
 
-    printf("[MPC] Control rate: %.0f Hz (timer-driven, dt=%.4fs)\n", g_control_rate_hz, g_control_dt);
+    printf("[MPC] Control mode: EKF-driven (MPC runs on each /ekf_pose message)\n");
     printf("[MPC] Topics: odom=%s, drive=%s\n", g_odom_topic, g_drive_topic);
     printf("[MPC] Servo feedback: %s (gain=%.4f, offset=%.4f)\n",
            g_servo_topic, g_steering_to_servo_gain, g_steering_to_servo_offset);
@@ -1291,34 +1282,6 @@ int main(int argc, char *argv[])
     }
     printf("[ROS2] Publishing to %s (Reliable, KeepLast(10))\n", g_drive_topic);
 
-    /* ===== Timer: 200 Hz MPC computation ===== */
-    rcl_clock_t steady_clock;
-    rcl_allocator_t alloc = rcl_get_default_allocator();
-    rc = rcl_steady_clock_init(&steady_clock, &alloc);
-    if (rc != RCL_RET_OK)
-    {
-        fprintf(stderr, "[ROS2] ERROR: clock init: %s\n", rcl_get_error_string().str);
-        return 1;
-    }
-
-    rcl_timer_t mpc_timer = rcl_get_zero_initialized_timer();
-    int64_t timer_period_ns = (int64_t)(1e9 / g_control_rate_hz);  /* e.g., 5ms for 200Hz */
-
-    /* Use rcl_timer_init (available on all Humble builds).
-     * rcl_timer_init2 (adds autostart param) was only added in later patches
-     * and is missing on some Jetson Humble installations. */
-    rc = rcl_timer_init(
-        &mpc_timer, &steady_clock, &ctx,
-        timer_period_ns, &mpc_timer_callback,
-        alloc);
-    if (rc != RCL_RET_OK)
-    {
-        fprintf(stderr, "[ROS2] ERROR: timer init: %s\n", rcl_get_error_string().str);
-        return 1;
-    }
-    printf("[ROS2] Timer created: %.0f Hz (%ld ns period)\n",
-           g_control_rate_hz, (long)timer_period_ns);
-
     /* Initialize message buffers (pre-allocate all strings) */
     nav_msgs__msg__Odometry__init(&global_odometry_message_buffer);
     if (!preallocate_rosidl_string(&global_odometry_message_buffer.header.frame_id, 64) ||
@@ -1340,7 +1303,8 @@ int main(int argc, char *argv[])
     }
     set_rosidl_string(&global_drive_message_buffer.header.frame_id, "base_link");
 
-    /* Executor: 3 subscriptions + 1 timer */
+    /* Executor: 4 subscriptions (odom, servo, imu, ekf_pose) */
+    rcl_allocator_t alloc = rcl_get_default_allocator();
     rclc_executor_t executor = rclc_executor_get_zero_initialized_executor();
 
     rc = rclc_executor_init(&executor, &ctx, EXECUTOR_NUM_HANDLES, &alloc);
@@ -1377,25 +1341,18 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* Add AMCL pose subscription (non-fatal if not available) */
+    /* Add AMCL/EKF pose subscription — this drives MPC execution */
     rc = rclc_executor_add_subscription(&executor, &amcl_sub,
         &global_amcl_pose_buffer, &amcl_pose_callback, ON_NEW_DATA);
     if (rc != RCL_RET_OK)
     {
-        fprintf(stderr, "[ROS2] WARNING: add amcl_pose sub failed — Frenet will use odom frame\n");
-        rcl_reset_error();
-    }
-
-    /* Add MPC timer */
-    rc = rclc_executor_add_timer(&executor, &mpc_timer);
-    if (rc != RCL_RET_OK)
-    {
-        fprintf(stderr, "[ROS2] ERROR: add timer: %s\n", rcl_get_error_string().str);
+        fprintf(stderr, "[ROS2] ERROR: add amcl_pose sub failed — MPC cannot run without EKF pose\n");
         return 1;
     }
 
-    printf("[ROS2] Executor ready (4 subs + 1 timer)\n");  /* odom, servo, imu, amcl */
-    printf("\n[MPC] Spinning... (waiting for odometry on %s)\n\n", g_odom_topic);
+    printf("[ROS2] Executor ready (4 subs, MPC driven by %s)\n", g_amcl_pose_topic);
+    printf("\n[MPC] Spinning... (waiting for EKF pose on %s and odometry on %s)\n\n",
+           g_amcl_pose_topic, g_odom_topic);
 
     rclc_executor_spin(&executor);
 
@@ -1407,14 +1364,12 @@ int main(int argc, char *argv[])
     std_msgs__msg__Float64__fini(&global_imu_message_buffer);
     ackermann_msgs__msg__AckermannDriveStamped__fini(&global_drive_message_buffer);
     rcl_ret_t cleanup_rc;
-    cleanup_rc = rcl_timer_fini(&mpc_timer); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&odom_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&servo_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&imu_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&amcl_sub, &node); (void)cleanup_rc;
     geometry_msgs__msg__PoseWithCovarianceStamped__fini(&global_amcl_pose_buffer);
     cleanup_rc = rcl_publisher_fini(&global_control_publisher, &node); (void)cleanup_rc;
-    cleanup_rc = rcl_steady_clock_fini(&steady_clock); (void)cleanup_rc;
     cleanup_rc = rcl_node_fini(&node); (void)cleanup_rc;
     cleanup_rc = rcl_context_fini(&ctx); (void)cleanup_rc;
 
