@@ -5,10 +5,12 @@
 #include <vector>
 #include <string>
 #include <mutex>
+#include <fstream>
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
+#include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
 
 namespace f1tenth_localization
 {
@@ -33,6 +35,7 @@ class PipelineLatencyMonitor : public rclcpp::Node
 public:
   explicit PipelineLatencyMonitor(
     const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
+  ~PipelineLatencyMonitor() override;
 
 private:
   // Key = nanosecond timestamp from header.stamp (int64_t)
@@ -53,9 +56,19 @@ private:
     const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr & msg);
   void ekf_callback(
     const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr & msg);
+  void drive_callback(
+    const ackermann_msgs::msg::AckermannDriveStamped::ConstSharedPtr & msg);
 
   void try_report(int64_t key);
   void cleanup_old_entries();
+  void initialize_csv_logging();
+  void write_csv_row(
+    int64_t stamp_ns,
+    double scan_to_walls_ms,
+    double walls_to_amcl_ms,
+    double amcl_to_ekf_ms,
+    double scan_to_ekf_ms,
+    double ekf_to_drive_ms);
 
   double wall_clock_ns() const;
   int64_t stamp_to_key(const builtin_interfaces::msg::Time & stamp) const;
@@ -71,6 +84,13 @@ private:
   std::string walls_topic_;
   std::string amcl_topic_;
   std::string ekf_topic_;
+  std::string drive_topic_;
+
+  // CSV logging
+  bool log_to_csv_{true};
+  std::string csv_output_dir_;
+  std::string csv_path_;
+  std::ofstream csv_file_;
 
   // Print rate limiting
   int print_every_{1};
@@ -81,6 +101,11 @@ private:
   std::vector<double> acc_walls_to_amcl_;
   std::vector<double> acc_amcl_to_ekf_;
   std::vector<double> acc_scan_to_ekf_;
+  std::vector<double> acc_ekf_to_drive_;
+  std::vector<double> acc_scan_to_drive_;
+
+  // Queue of EKF receive times waiting for the corresponding drive command.
+  std::vector<double> pending_ekf_recv_ns_;
 
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr walls_sub_;
@@ -88,6 +113,7 @@ private:
     geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr amcl_sub_;
   rclcpp::Subscription<
     geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr ekf_sub_;
+  rclcpp::Subscription<ackermann_msgs::msg::AckermannDriveStamped>::SharedPtr drive_sub_;
 };
 
 }  // namespace f1tenth_localization

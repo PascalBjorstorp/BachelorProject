@@ -1,12 +1,10 @@
 """
-Launch file for state receiver FPGA controller.
+Launch file for FPGA-only MPC receiver.
 
 Usage:
     ros2 launch state_receiver mpc_launch.py
 
 Arguments:
-    trajectory_file: Optional fallback raceline CSV file (used when FPGA disabled)
-    use_fpga: Use FPGA hardware or software fallback (default: true)
     drive_topic: Topic to publish drive commands (default: /drive)
     input_topic: Topic to receive MPC state from (default: /mpc_state)
 """
@@ -22,18 +20,6 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     pkg_share = get_package_share_directory('state_receiver')
     default_config = os.path.join(pkg_share, 'config', 'mpc_params.yaml')
-
-    trajectory_file_arg = DeclareLaunchArgument(
-        'trajectory_file',
-        default_value='',
-        description='Optional fallback trajectory CSV (SW fallback only)'
-    )
-
-    use_fpga_arg = DeclareLaunchArgument(
-        'use_fpga',
-        default_value='true',
-        description='Use FPGA hardware (false for software fallback)'
-    )
 
     drive_topic_arg = DeclareLaunchArgument(
         'drive_topic',
@@ -55,8 +41,6 @@ def generate_launch_description():
         parameters=[
             default_config,
             {
-                'trajectory_file': LaunchConfiguration('trajectory_file'),
-                'use_fpga': LaunchConfiguration('use_fpga'),
                 'drive_topic': LaunchConfiguration('drive_topic'),
                 'input_topic': LaunchConfiguration('input_topic'),
             }
@@ -64,8 +48,6 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        trajectory_file_arg,
-        use_fpga_arg,
         drive_topic_arg,
         input_topic_arg,
         mpc_fpga_node,

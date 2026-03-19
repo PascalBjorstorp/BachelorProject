@@ -2,12 +2,12 @@
  * @file pp_receiver.cpp
  * @brief MPC Receiver with FPGA Integration - Trajectory Stored in FPGA BRAM
  *
- * Loads trajectory to FPGA BRAM at startup via AXI-Lite register writes.
- * Each waypoint is loaded one at a time (mode=1), then finalized (mode=2).
- * Runtime: Only writes vehicle state registers (mode=0), gets steering output.
+ * Loads trajectory to FPGA BRAM at startup via AXI-Lite register writes
+ * (mode=1 per waypoint, mode=2 finalize).
+ * Runtime uses mode=0 compute cycles with state-only updates.
  *
  * Flow:
- *   Startup: Load trajectory CSV → Per-register writes to FPGA BRAM (once)
+ *   Startup: Load trajectory CSV -> Write BRAM once
  *   Runtime: Receive MpcState → Write state regs → Start FPGA → Read output → Publish /drive
  */
 
@@ -37,8 +37,8 @@ extern "C" {
 namespace f1tenth_communication {
 
 /*===========================================================================
- * Fixed-Point Helpers (Q16.16 format: 16 integer bits, 16 fractional bits)
- * FP_SCALE = 2^16 = 65536, used for float<->fixed conversion
+ * Fixed-Point Helpers (Q16.16)
+ * Deterministic fixed-point arithmetic keeps FPGA and CPU numerics aligned.
  *===========================================================================*/
 
 /* Portability: some systems (e.g. Windows) don't define CLOCK_MONOTONIC_RAW.
@@ -50,7 +50,7 @@ namespace f1tenth_communication {
 #endif
 
 
-constexpr int32_t FP_SCALE = 65536;  // = 2^16
+constexpr int32_t FP_SCALE = 65536;
 
 inline float fp_to_float(int32_t fp) {
     return static_cast<float>(fp) / static_cast<float>(FP_SCALE);
@@ -140,10 +140,10 @@ public:
         
         // Load each waypoint one at a time (mode=1)
         for (size_t i = 0; i < count; i++) {
-            // Wait for idle
+            // AXI-Lite transactions are issued only when the core is idle.
             if (!wait_idle(1000)) return false;
             
-            // Write waypoint registers
+            // Write waypoint payload for BRAM load mode.
             write_reg(REG_MODE,     1);  // mode = LOAD_WAYPOINT
             write_reg(REG_WP_INDEX, static_cast<uint32_t>(i));
             write_reg(REG_WP_X,     static_cast<uint32_t>(float_to_fp(waypoints[i].x)));
@@ -190,7 +190,7 @@ public:
         
         if (!initialized_) return;
         
-        // Wait for idle before writing
+        // Parameter writes are synchronized to idle to avoid race with compute.
         wait_idle(1000);
         
         // Write parameter registers (persist until overwritten)

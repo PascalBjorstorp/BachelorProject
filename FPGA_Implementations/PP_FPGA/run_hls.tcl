@@ -4,7 +4,8 @@
 # Target: Xilinx Ultra96-V2 (Zynq UltraScale+ ZU3EG)
 #
 # Usage:
-#   vitis_hls -f run_hls.tcl
+#   source /tools/Xilinx/2025.1/Vitis/settings64.sh
+#   vitis-run --mode hls --tcl run_hls.tcl
 #
 # Output:
 #   - C simulation results

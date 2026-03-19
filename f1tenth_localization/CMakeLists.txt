@@ -22,6 +22,7 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(ackermann_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
@@ -168,10 +169,22 @@ target_include_directories(pipeline_latency_monitor PUBLIC
   gpu_amcl_cpp/include
 )
 ament_target_dependencies(pipeline_latency_monitor
-  rclcpp sensor_msgs geometry_msgs
+  rclcpp sensor_msgs geometry_msgs ackermann_msgs
 )
+
+add_executable(performance_monitor_cpp
+  gpu_amcl_cpp/src/core/performance_monitor.cpp
+)
+target_include_directories(performance_monitor_cpp PUBLIC
+  gpu_amcl_cpp/include
+)
+ament_target_dependencies(performance_monitor_cpp
+  rclcpp
+)
+
 install(TARGETS
   pipeline_latency_monitor
+  performance_monitor_cpp
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -184,7 +197,6 @@ ament_python_install_package(gpu_amcl)
 # Install Python scripts as executables
 install(PROGRAMS
   Benchmark/localization_benchmark.py
-  Benchmark/JetsonFiles/performance_monitor.py
   Benchmark/JetsonFiles/odom_tf_publisher.py
   gpu_amcl/scripts/gpu_amcl_node.py
   DESTINATION lib/${PROJECT_NAME}

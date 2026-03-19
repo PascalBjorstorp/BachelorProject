@@ -4,7 +4,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
-#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <std_msgs/msg/bool.hpp>
@@ -58,7 +58,7 @@ private:
     
     // ROS2 Communication
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
-    rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_sub_;
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr enable_sub_;
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr local_raceline_sub_;
     
@@ -76,6 +76,7 @@ private:
     bool pose_received_{false};
     rclcpp::Time last_pose_time_;
     double pose_timeout_s_{0.1};
+    double max_speed_{2.0};
     
     void declareParameters();
     void loadParameters();
@@ -86,7 +87,7 @@ private:
     
     // Callbacks
     void odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg);
-    void poseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
+    void poseCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
     void enableCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void localRacelineCallback(const nav_msgs::msg::Path::SharedPtr msg);
     void controlLoop();

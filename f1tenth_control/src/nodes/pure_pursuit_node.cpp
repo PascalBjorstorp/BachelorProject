@@ -1,4 +1,5 @@
 #include "f1tenth_control/nodes/pure_pursuit_node.hpp"
+#include <algorithm>
 #include <cmath>
 
 namespace f1tenth_control {
@@ -27,7 +28,7 @@ PurePursuitNode::PurePursuitNode(const rclcpp::NodeOptions& options)
         std::bind(&PurePursuitNode::odomCallback, this, std::placeholders::_1)
     );
 
-    pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>(
+    pose_sub_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
         pose_topic_, rclcpp::SensorDataQoS(),
         std::bind(&PurePursuitNode::poseCallback, this, std::placeholders::_1)
     );
@@ -64,6 +65,7 @@ PurePursuitNode::PurePursuitNode(const rclcpp::NodeOptions& options)
                 trajectory_file_.c_str(), controller_->getTrajectory().size());
     RCLCPP_INFO(get_logger(), "  Lookahead: %.2f - %.2f m (gain: %.2f)",
                 config_.min_lookahead, config_.max_lookahead, config_.lookahead_gain);
+    RCLCPP_INFO(get_logger(), "  Max speed cap: %.2f m/s", max_speed_);
     RCLCPP_INFO(get_logger(), "  Lookahead adapt: cte_weight=%.2f cte_gain=%.3f curvature_gain=%.3f",
                 config_.cte_lookahead_weight, config_.cte_lookahead_gain, config_.curvature_lookahead_gain);
 }
@@ -76,6 +78,7 @@ void PurePursuitNode::declareParameters() {
     declare_parameter("min_lookahead", 0.5);
     declare_parameter("max_lookahead", 2.5);
     declare_parameter("lookahead_gain", 0.15);
+    declare_parameter("max_speed", 2.0);
     declare_parameter("cte_lookahead_weight", 1.0);
     declare_parameter("cte_lookahead_gain", 0.03);
     declare_parameter("curvature_lookahead_gain", 0.0);
@@ -98,6 +101,7 @@ void PurePursuitNode::loadParameters() {
     config_.min_lookahead = get_parameter("min_lookahead").as_double();
     config_.max_lookahead = get_parameter("max_lookahead").as_double();
     config_.lookahead_gain = get_parameter("lookahead_gain").as_double();
+    max_speed_ = get_parameter("max_speed").as_double();
     config_.cte_lookahead_weight = get_parameter("cte_lookahead_weight").as_double();
     config_.cte_lookahead_gain = get_parameter("cte_lookahead_gain").as_double();
     config_.curvature_lookahead_gain = get_parameter("curvature_lookahead_gain").as_double();
@@ -123,6 +127,8 @@ rcl_interfaces::msg::SetParametersResult PurePursuitNode::parametersCallback(
             config_.max_lookahead = param.as_double();
         } else if (param.get_name() == "lookahead_gain") {
             config_.lookahead_gain = param.as_double();
+        } else if (param.get_name() == "max_speed") {
+            max_speed_ = param.as_double();
         } else if (param.get_name() == "cte_lookahead_weight") {
             config_.cte_lookahead_weight = param.as_double();
         } else if (param.get_name() == "cte_lookahead_gain") {
@@ -165,24 +171,26 @@ void PurePursuitNode::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg)
         current_state_.velocity = msg->twist.twist.linear.x;
         current_state_.angular_velocity = msg->twist.twist.angular.z;
     }
-    
-    // Run control on every odom update
-    controlLoop();
 }
 
-void PurePursuitNode::poseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
-    std::lock_guard<std::mutex> lock(state_mutex_);
-    current_state_.pose.x = msg->pose.position.x;
-    current_state_.pose.y = msg->pose.position.y;
-    const double qx = msg->pose.orientation.x;
-    const double qy = msg->pose.orientation.y;
-    const double qz = msg->pose.orientation.z;
-    const double qw = msg->pose.orientation.w;
-    current_state_.pose.theta = std::atan2(
-        2.0 * (qw * qz + qx * qy),
-        1.0 - 2.0 * (qy * qy + qz * qz));
-    pose_received_ = true;
-    last_pose_time_ = now();
+void PurePursuitNode::poseCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        current_state_.pose.x = msg->pose.pose.position.x;
+        current_state_.pose.y = msg->pose.pose.position.y;
+        const double qx = msg->pose.pose.orientation.x;
+        const double qy = msg->pose.pose.orientation.y;
+        const double qz = msg->pose.pose.orientation.z;
+        const double qw = msg->pose.pose.orientation.w;
+        current_state_.pose.theta = std::atan2(
+            2.0 * (qw * qz + qx * qy),
+            1.0 - 2.0 * (qy * qy + qz * qz));
+        pose_received_ = true;
+        last_pose_time_ = now();
+    }
+
+    // Run control on every pose update (typically /ekf_pose).
+    controlLoop();
 }
 
 void PurePursuitNode::enableCallback(const std_msgs::msg::Bool::SharedPtr msg) {
@@ -289,6 +297,8 @@ void PurePursuitNode::controlLoop() {
         if (elapsed < 2.0) {
             output.target_speed = std::min(output.target_speed, 1.0);
         }
+
+        output.target_speed = std::clamp(output.target_speed, 0.0, max_speed_);
         
         publishDriveCommand(output.steering_angle, output.target_speed);
         

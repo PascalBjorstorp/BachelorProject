@@ -367,6 +367,9 @@ typedef struct
     /** Final cost function value */
     fixed_point_t final_cost;
 
+    /** Final dual residual (ADMM convergence metric) */
+    fixed_point_t dual_residual;
+
 } MpcSolverResult_t;
 
 /*===========================================================================
@@ -430,18 +433,18 @@ typedef struct
 /** Front cornering stiffness [1/rad] [TESTED]
  *  From test_cornering_stiffness.py, corrected for nonlinear servo mapping.
  *  Conversion: C_Sf = C_alpha_f / (mu * F_zf)
- *    F_zf = m*g*l_r/L = 3.314*9.81*0.155/0.324 = 15.55 N
- *    C_alpha_f = 51.4 → C_Sf = 51.4/(0.787*15.55) = 4.199  */
+ *    F_zf = m*g*l_r/L = 3.314*9.81*0.160/0.324 = 16.05 N
+ *    C_alpha_f = 51.4 → C_Sf = 51.4/(0.787*16.05) = 4.068  */
 #define F110_FRONT_CORNERING_STIFFNESS \
-    FP_CONST(4.199)
+    FP_CONST(4.068)
 
 /** Rear cornering stiffness [1/rad] [TESTED]
  *  From test_cornering_stiffness.py, corrected for nonlinear servo mapping.
  *  Conversion: C_Sr = C_alpha_r / (mu * F_zr)
- *    F_zr = m*g*l_f/L = 3.314*9.81*0.169/0.324 = 16.96 N
- *    C_alpha_r = 43.1 → C_Sr = 43.1/(0.787*16.96) = 3.230  */
+ *    F_zr = m*g*l_f/L = 3.314*9.81*0.166/0.324 = 16.66 N
+ *    C_alpha_r = 43.1 → C_Sr = 43.1/(0.787*16.66) = 3.288  */
 #define F110_REAR_CORNERING_STIFFNESS \
-    FP_CONST(3.230)
+    FP_CONST(3.288)
 
 /** Maximum longitudinal acceleration [m/s²]
  *  From vehicle_params.yaml: max_accel = 8.0 m/s² [TESTED]

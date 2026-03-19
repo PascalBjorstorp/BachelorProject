@@ -39,6 +39,8 @@
 #include <sched.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/stat.h>
+#include <limits.h>
 
 /* ROS2 C Client Library Headers */
 #include "rcl/rcl.h"
@@ -147,6 +149,7 @@ static int g_use_steering_feedback = 0;
 
 typedef struct
 {
+    double s_meters;
     double x_meters;
     double y_meters;
     double heading_radians;
@@ -203,6 +206,49 @@ static double g_solve_time_sum_us = 0.0;
 static double g_solve_time_max_us = 0.0;
 static unsigned long g_solve_cycle_count = 0;
 #define SOLVE_STATS_PRINT_INTERVAL 500
+
+/** Optional solver telemetry logging for post-drive analysis. */
+static FILE *g_solver_log_file = NULL;
+static unsigned long g_solver_log_counter = 0;
+static int g_solver_log_stride = 1;
+
+/* Ensure all parent directories for a filepath exist (mkdir -p behavior). */
+static void ensure_parent_directories(const char *filepath)
+{
+    if (filepath == NULL) return;
+
+    char path_buf[PATH_MAX];
+    size_t n = strlen(filepath);
+    if (n == 0 || n >= sizeof(path_buf)) return;
+
+    memcpy(path_buf, filepath, n + 1);
+
+    char *last_slash = strrchr(path_buf, '/');
+    if (last_slash == NULL) return;  /* No directory component */
+
+    *last_slash = '\0';
+    if (path_buf[0] == '\0') return;
+
+    char tmp[PATH_MAX];
+    size_t len = strlen(path_buf);
+    if (len >= sizeof(tmp)) return;
+
+    memcpy(tmp, path_buf, len + 1);
+
+    for (char *p = tmp + 1; *p; p++) {
+        if (*p == '/') {
+            *p = '\0';
+            if (mkdir(tmp, 0775) != 0 && errno != EEXIST) {
+                return;
+            }
+            *p = '/';
+        }
+    }
+
+    if (mkdir(tmp, 0775) != 0 && errno != EEXIST) {
+        return;
+    }
+}
 
 /** Computed control dt from g_control_rate_hz (set in main) */
 static double g_control_dt = 0.005;
@@ -283,6 +329,7 @@ static void setup_realtime_scheduling(void)
 
 /** Average waypoint spacing, computed from loaded trajectory. */
 static double g_avg_waypoint_spacing = 0.346;
+static double g_track_length_meters = 0.0;
 
 /**
  * @brief Load trajectory from CSV file.
@@ -326,6 +373,7 @@ static int load_trajectory_from_csv(const char *file_path)
         if (fields_read >= 6)
         {
             TrajectoryWaypoint_t *wp = &global_trajectory[global_trajectory_count];
+            wp->s_meters = s_m;
             wp->x_meters = x_m;
             wp->y_meters = y_m;
             wp->heading_radians = psi_rad;
@@ -378,6 +426,15 @@ static int load_trajectory_from_csv(const char *file_path)
         g_avg_waypoint_spacing = total_spacing / (global_trajectory_count - 1);
         if (g_avg_waypoint_spacing < 0.01) g_avg_waypoint_spacing = 0.01; /* safety floor */
         printf("[MPC] Average waypoint spacing: %.4f m\n", g_avg_waypoint_spacing);
+    }
+
+    g_track_length_meters = 0.0;
+    if (global_trajectory_count >= 2)
+    {
+        g_track_length_meters = global_trajectory[global_trajectory_count - 1].s_meters
+                              - global_trajectory[0].s_meters;
+        if (g_track_length_meters < 1e-3)
+            g_track_length_meters = g_avg_waypoint_spacing * global_trajectory_count;
     }
 
     return 1;
@@ -438,6 +495,78 @@ static int find_closest_waypoint(double position_x, double position_y, double ve
     return best_index;
 }
 
+static double wrap_track_s(double s)
+{
+    if (g_track_length_meters <= 1e-6)
+        return s;
+
+    double s0 = global_trajectory[0].s_meters;
+    while (s < s0) s += g_track_length_meters;
+    while (s >= s0 + g_track_length_meters) s -= g_track_length_meters;
+    return s;
+}
+
+static void sample_waypoint_by_s(double s_query, TrajectoryWaypoint_t *out)
+{
+    if (out == NULL || global_trajectory_count == 0)
+        return;
+
+    if (global_trajectory_count == 1)
+    {
+        *out = global_trajectory[0];
+        return;
+    }
+
+    double s = wrap_track_s(s_query);
+
+    for (int i = 0; i < global_trajectory_count - 1; i++)
+    {
+        TrajectoryWaypoint_t *w0 = &global_trajectory[i];
+        TrajectoryWaypoint_t *w1 = &global_trajectory[i + 1];
+        if (s >= w0->s_meters && s <= w1->s_meters)
+        {
+            double denom = w1->s_meters - w0->s_meters;
+            double t = (denom > 1e-9) ? ((s - w0->s_meters) / denom) : 0.0;
+            *out = *w0;
+            out->s_meters = s;
+            out->x_meters = w0->x_meters + (w1->x_meters - w0->x_meters) * t;
+            out->y_meters = w0->y_meters + (w1->y_meters - w0->y_meters) * t;
+            out->heading_radians = w0->heading_radians + (w1->heading_radians - w0->heading_radians) * t;
+            out->curvature_radians_per_meter = w0->curvature_radians_per_meter +
+                                               (w1->curvature_radians_per_meter - w0->curvature_radians_per_meter) * t;
+            out->velocity_meters_per_second = w0->velocity_meters_per_second +
+                                              (w1->velocity_meters_per_second - w0->velocity_meters_per_second) * t;
+            out->left_bound_meters = w0->left_bound_meters + (w1->left_bound_meters - w0->left_bound_meters) * t;
+            out->right_bound_meters = w0->right_bound_meters + (w1->right_bound_meters - w0->right_bound_meters) * t;
+            out->sin_heading = sin(out->heading_radians);
+            out->cos_heading = cos(out->heading_radians);
+            return;
+        }
+    }
+
+    TrajectoryWaypoint_t *w0 = &global_trajectory[global_trajectory_count - 1];
+    TrajectoryWaypoint_t *w1 = &global_trajectory[0];
+    double s1 = w1->s_meters + g_track_length_meters;
+    double denom = s1 - w0->s_meters;
+    double s_adj = s;
+    if (s_adj < w0->s_meters)
+        s_adj += g_track_length_meters;
+    double t = (denom > 1e-9) ? ((s_adj - w0->s_meters) / denom) : 0.0;
+    *out = *w0;
+    out->s_meters = s;
+    out->x_meters = w0->x_meters + (w1->x_meters - w0->x_meters) * t;
+    out->y_meters = w0->y_meters + (w1->y_meters - w0->y_meters) * t;
+    out->heading_radians = w0->heading_radians + (w1->heading_radians - w0->heading_radians) * t;
+    out->curvature_radians_per_meter = w0->curvature_radians_per_meter +
+                                       (w1->curvature_radians_per_meter - w0->curvature_radians_per_meter) * t;
+    out->velocity_meters_per_second = w0->velocity_meters_per_second +
+                                      (w1->velocity_meters_per_second - w0->velocity_meters_per_second) * t;
+    out->left_bound_meters = w0->left_bound_meters + (w1->left_bound_meters - w0->left_bound_meters) * t;
+    out->right_bound_meters = w0->right_bound_meters + (w1->right_bound_meters - w0->right_bound_meters) * t;
+    out->sin_heading = sin(out->heading_radians);
+    out->cos_heading = cos(out->heading_radians);
+}
+
 /*===========================================================================
  * Reference Trajectory Builder
  *===========================================================================*/
@@ -451,44 +580,38 @@ static int find_closest_waypoint(double position_x, double position_y, double ve
 static void build_reference_from_trajectory(int closest_index)
 {
     const double mpc_dt = MPC_TIME_STEP_SECONDS;
-    const double avg_waypoint_spacing = g_avg_waypoint_spacing;
+    double s_query = global_trajectory[closest_index].s_meters;
+    double step_velocity = global_trajectory[closest_index].velocity_meters_per_second;
+    if (step_velocity < 3.0) step_velocity = 3.0;
+    if (step_velocity > TRAJECTORY_MAXIMUM_VELOCITY) step_velocity = TRAJECTORY_MAXIMUM_VELOCITY;
 
     for (int step = 0; step < MPC_PREDICTION_HORIZON_STEPS; step++)
     {
-        int base_waypoint_index = closest_index + step;
-        if (base_waypoint_index >= global_trajectory_count)
-            base_waypoint_index -= global_trajectory_count;
-        double ref_velocity = global_trajectory[base_waypoint_index].velocity_meters_per_second;
+        s_query += step_velocity * mpc_dt;
+        TrajectoryWaypoint_t wp;
+        sample_waypoint_by_s(s_query, &wp);
 
-        if (ref_velocity < 3.0) ref_velocity = 3.0;
-        if (ref_velocity > TRAJECTORY_MAXIMUM_VELOCITY) ref_velocity = TRAJECTORY_MAXIMUM_VELOCITY;
-
-        double expected_distance = ref_velocity * mpc_dt * (step + 1);
-        int waypoints_ahead = (int)(expected_distance / avg_waypoint_spacing);
-        if (waypoints_ahead < step + 1) waypoints_ahead = step + 1;
-
-        int waypoint_index = closest_index + waypoints_ahead;
-        if (waypoint_index >= global_trajectory_count)
-            waypoint_index -= global_trajectory_count;
-        TrajectoryWaypoint_t *wp = &global_trajectory[waypoint_index];
+        double traj_vel = wp.velocity_meters_per_second;
+        if (traj_vel < 0.0) traj_vel = 0.0;
+        if (traj_vel > TRAJECTORY_MAXIMUM_VELOCITY) traj_vel = TRAJECTORY_MAXIMUM_VELOCITY;
+        if (traj_vel < 3.0) traj_vel = 3.0;
+        step_velocity = traj_vel;
 
         global_reference_trajectory[step].reference_lateral_error_meters = 0;
         global_reference_trajectory[step].reference_heading_error_radians = 0;
 
         global_reference_trajectory[step].path_curvature_radians_per_meter =
-            DOUBLE_TO_FP(wp->curvature_radians_per_meter);
+            DOUBLE_TO_FP(wp.curvature_radians_per_meter);
         global_reference_trajectory[step].left_wall_bound_meters =
-            DOUBLE_TO_FP(wp->left_bound_meters);
+            DOUBLE_TO_FP(wp.left_bound_meters);
         global_reference_trajectory[step].right_wall_bound_meters =
-            DOUBLE_TO_FP(wp->right_bound_meters);
+            DOUBLE_TO_FP(wp.right_bound_meters);
 
-        double traj_vel = wp->velocity_meters_per_second;
-        if (traj_vel < 0.0) traj_vel = 0.0;
         global_reference_trajectory[step].reference_velocity_meters_per_second =
             DOUBLE_TO_FP(traj_vel);
 
         /* Yaw rate reference = kappa * v_ref (steady-state cornering) — fused in single pass */
-        double omega_ref = wp->curvature_radians_per_meter * traj_vel;
+        double omega_ref = wp.curvature_radians_per_meter * traj_vel;
         global_reference_trajectory[step].reference_yaw_rate_radians_per_second =
             DOUBLE_TO_FP(omega_ref);
         global_reference_trajectory[step].reference_lateral_velocity_meters_per_second = 0;
@@ -803,6 +926,7 @@ void amcl_pose_callback(const void *message_in)
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
         double elapsed = timespec_diff_sec(&g_last_odom_time, &now);
+        watchdog_elapsed_ms = elapsed * 1000.0;
 
         if (elapsed > g_watchdog_timeout_sec)
         {
@@ -831,18 +955,21 @@ void amcl_pose_callback(const void *message_in)
 
     if (global_trajectory_count > 0)
     {
-        int closest = find_closest_waypoint(pos_x, pos_y, heading);
+        closest = find_closest_waypoint(pos_x, pos_y, heading);
         build_reference_from_trajectory(closest);
         convert_to_frenet_state(pos_x, pos_y, heading, closest, &global_frenet_state);
 
+        ey = FP_TO_DOUBLE(global_frenet_state.lateral_error_meters);
+        epsi = FP_TO_DOUBLE(global_frenet_state.heading_error_radians);
+        vref0 = FP_TO_DOUBLE(global_reference_trajectory[0].reference_velocity_meters_per_second);
+        kappa0 = FP_TO_DOUBLE(global_reference_trajectory[0].path_curvature_radians_per_meter);
+        left_wall0 = FP_TO_DOUBLE(global_reference_trajectory[0].left_wall_bound_meters);
+        right_wall0 = FP_TO_DOUBLE(global_reference_trajectory[0].right_wall_bound_meters);
+
         if (g_verbose)
         {
-            double ey  = FP_TO_DOUBLE(global_frenet_state.lateral_error_meters);
-            double epsi = FP_TO_DOUBLE(global_frenet_state.heading_error_radians);
-            double vref = FP_TO_DOUBLE(global_reference_trajectory[0].reference_velocity_meters_per_second);
-            double kappa = FP_TO_DOUBLE(global_reference_trajectory[0].path_curvature_radians_per_meter);
             printf("[MPC] Frenet: e_y=%.3f e_psi=%.3f v_ref=%.2f kappa=%.3f\n",
-                   ey, epsi, vref, kappa);
+                   ey, epsi, vref0, kappa0);
         }
     }
     else
@@ -885,6 +1012,8 @@ void amcl_pose_callback(const void *message_in)
     clock_gettime(CLOCK_MONOTONIC, &t1);
     double solve_us = (t1.tv_sec - t0.tv_sec) * 1e6 +
                       (t1.tv_nsec - t0.tv_nsec) / 1e3;
+    double primal_res = FP_TO_DOUBLE(mpc_result.final_cost);
+    double dual_res = FP_TO_DOUBLE(mpc_result.dual_residual);
 
     /* Rolling solve-time statistics (always active, lightweight) */
     g_solve_time_sum_us += solve_us;
@@ -935,12 +1064,13 @@ void amcl_pose_callback(const void *message_in)
             mpc_set_actual_previous_control(&actual_ctrl);
         }
 
-        if (g_verbose)
+        if (g_verbose && g_solver_log_file == NULL)
         {
             double accel = FP_TO_DOUBLE(
                 mpc_result.optimal_control.acceleration_meters_per_second_squared);
-            printf("[MPC] Control: steer=%.4f accel=%.2f (status=%d iter=%d solve=%.1fus)\n",
-                   steer, accel, mpc_status, mpc_result.iterations_used, solve_us);
+            printf("[MPC] Control: steer=%.4f accel=%.2f (status=%d iter=%d pr=%.3e dr=%.3e solve=%.1fus)\n",
+                   steer, accel, mpc_status, mpc_result.iterations_used,
+                   primal_res, dual_res, solve_us);
         }
     }
     else
@@ -948,6 +1078,39 @@ void amcl_pose_callback(const void *message_in)
         if (g_verbose)
         {
             printf("[MPC] WARNING: Solver status=%d, keeping previous command\n", mpc_status);
+        }
+    }
+
+    /* Optional per-cycle solver telemetry (CSV) for post-drive analysis. */
+    if (g_solver_log_file != NULL)
+    {
+        g_solver_log_counter++;
+        if ((g_solver_log_counter % (unsigned long)g_solver_log_stride) == 0)
+        {
+            struct timespec now_rt;
+            clock_gettime(CLOCK_REALTIME, &now_rt);
+            long long unix_time_ns =
+                (long long)now_rt.tv_sec * 1000000000LL + (long long)now_rt.tv_nsec;
+
+            double cmd_steer = FP_TO_DOUBLE(mpc_result.optimal_control.steering_angle_radians);
+            double cmd_accel = FP_TO_DOUBLE(mpc_result.optimal_control.acceleration_meters_per_second_squared);
+
+            fprintf(g_solver_log_file,
+                    "%lld,%.3f,%d,%u,%.9f,%.9f,%d,"
+                    "%.6f,%.6f,%.6f,%.6f,%.6f,"
+                    "%.6f,%.6f,%.6f,%.6f,"
+                    "%.6f,%.6f,%.6f,%.3f,%d\n",
+                    unix_time_ns, solve_us, (int)mpc_status, mpc_result.iterations_used,
+                    primal_res, dual_res, closest,
+                    ey, epsi, g_latest_vx, g_latest_vy, g_latest_omega,
+                    vref0, kappa0, left_wall0, right_wall0,
+                    cmd_steer, cmd_accel, global_actual_steering_angle,
+                    watchdog_elapsed_ms, g_use_steering_feedback);
+
+            if ((g_solver_log_counter % 20UL) == 0UL)
+            {
+                fflush(g_solver_log_file);
+            }
         }
     }
 
@@ -1070,6 +1233,42 @@ int main(int argc, char *argv[])
             g_steering_correction_c0 = atof(env_val);
         if ((env_val = getenv("MPC_AMCL_TOPIC")) != NULL)
             g_amcl_pose_topic = env_val;
+
+    }
+
+    {
+        const char *log_path = getenv("MPC_SOLVER_LOG");
+        char default_log_path[256];
+
+        /* Always log every control callback unless code is changed. */
+        g_solver_log_stride = 1;
+
+        if (log_path == NULL || log_path[0] == '\0')
+        {
+            time_t now = time(NULL);
+            struct tm tm_now;
+            localtime_r(&now, &tm_now);
+            strftime(default_log_path, sizeof(default_log_path),
+                     "log/mpc_solver_%Y%m%d_%H%M%S.csv", &tm_now);
+            log_path = default_log_path;
+        }
+
+        ensure_parent_directories(log_path);
+
+        g_solver_log_file = fopen(log_path, "w");
+        if (g_solver_log_file == NULL)
+        {
+            fprintf(stderr, "[MPC] WARNING: Failed to open solver log file %s\n", log_path);
+        }
+        else
+        {
+            fprintf(g_solver_log_file,
+                    "unix_time_ns,solve_us,status,iterations,primal_residual,dual_residual,closest_wp,"
+                    "e_y,e_psi,vx,vy,omega,v_ref0,kappa0,left_wall0,right_wall0,"
+                    "cmd_steer,cmd_accel,actual_steer,watchdog_elapsed_ms,use_steering_feedback\n");
+            fflush(g_solver_log_file);
+            printf("[MPC] Solver telemetry log: %s (every control callback)\n", log_path);
+        }
     }
 
     printf("[MPC] Controller initialized (horizon=%d, dt=%.0fms)\n",
@@ -1358,6 +1557,12 @@ int main(int argc, char *argv[])
 
     /* Cleanup */
     printf("\n[ROS2] Shutting down...\n");
+    if (g_solver_log_file != NULL)
+    {
+        fflush(g_solver_log_file);
+        fclose(g_solver_log_file);
+        g_solver_log_file = NULL;
+    }
     rclc_executor_fini(&executor);
     nav_msgs__msg__Odometry__fini(&global_odometry_message_buffer);
     std_msgs__msg__Float64__fini(&global_servo_message_buffer);

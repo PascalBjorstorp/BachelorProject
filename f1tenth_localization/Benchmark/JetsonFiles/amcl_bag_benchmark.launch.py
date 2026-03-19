@@ -194,7 +194,7 @@ def launch_setup(context, *args, **kwargs):
     # ==================== Performance Monitor ====================
     performance_monitor = Node(
         package='f1tenth_localization',
-        executable='performance_monitor.py',
+        executable='performance_monitor_cpp',
         name='performance_monitor',
         output='screen',
         parameters=[{

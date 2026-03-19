@@ -64,10 +64,12 @@ bridge:
     vehicle_I: 0.035        # [CAD] Moment of inertia Iz in kg*m^2
     # C_Sf/C_Sr: dimensionless tire stiffness. F_y = mu * C_S * F_z * alpha
     # Derived from measured C_alpha (corrected for nonlinear servo mapping):
-    #   C_Sf = C_alpha_f / (mu * F_zf) = 51.4 / (0.787 * 15.55) = 4.199
-    #   C_Sr = C_alpha_r / (mu * F_zr) = 43.1 / (0.787 * 16.96) = 3.230
-    vehicle_C_Sf: 4.199     # [TESTED] Front tire stiffness [1/rad]
-    vehicle_C_Sr: 3.230     # [TESTED] Rear tire stiffness [1/rad]
+    #   F_zf = m*g*l_r/L = 3.314*9.81*0.160/0.324 = 16.05 N
+    #   F_zr = m*g*l_f/L = 3.314*9.81*0.166/0.324 = 16.66 N
+    #   C_Sf = C_alpha_f / (mu * F_zf) = 51.4 / (0.787 * 16.05) = 4.068
+    #   C_Sr = C_alpha_r / (mu * F_zr) = 43.1 / (0.787 * 16.66) = 3.288
+    vehicle_C_Sf: 4.068     # [TESTED] Front tire stiffness [1/rad]
+    vehicle_C_Sr: 3.288     # [TESTED] Rear tire stiffness [1/rad]
     # Geometry overrides
     vehicle_lf: 0.166       # [CAD] CG to front axle (m)
     vehicle_lr: 0.16        # [CAD] CG to rear axle (m)
