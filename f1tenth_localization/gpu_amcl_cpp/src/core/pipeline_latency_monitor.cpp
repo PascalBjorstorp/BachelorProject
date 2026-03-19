@@ -27,6 +27,7 @@ PipelineLatencyMonitor::PipelineLatencyMonitor(
   declare_parameter("amcl_topic", std::string("/amcl_pose"));
   declare_parameter("ekf_topic", std::string("/ekf_pose"));
   declare_parameter("drive_topic", std::string("/drive"));
+  declare_parameter("drive_match_max_ms", 20.0);
   declare_parameter("print_every", 40);  // print every N cycles (~1 Hz at 40 Hz)
   declare_parameter("log_to_csv", true);
   declare_parameter("csv_output_dir", std::string("f1tenth_localization/Benchmark/Matlab/csv"));
@@ -36,6 +37,7 @@ PipelineLatencyMonitor::PipelineLatencyMonitor(
   amcl_topic_  = get_parameter("amcl_topic").as_string();
   ekf_topic_   = get_parameter("ekf_topic").as_string();
   drive_topic_ = get_parameter("drive_topic").as_string();
+  drive_match_max_ms_ = get_parameter("drive_match_max_ms").as_double();
   print_every_ = get_parameter("print_every").as_int();
   log_to_csv_ = get_parameter("log_to_csv").as_bool();
   csv_output_dir_ = get_parameter("csv_output_dir").as_string();
@@ -184,17 +186,31 @@ void PipelineLatencyMonitor::drive_callback(
   const double recv = wall_ns();
 
   std::lock_guard<std::mutex> lk(mutex_);
+  if (pending_ekf_recv_ns_.empty() || drive_match_max_ms_ <= 0.0) {
+    return;
+  }
+
+  const double max_window_ns = drive_match_max_ms_ * 1e6;
+
+  // Drop stale EKF events that are too old to correspond to this drive command.
+  while (!pending_ekf_recv_ns_.empty() &&
+         (recv - pending_ekf_recv_ns_.front()) > max_window_ns)
+  {
+    pending_ekf_recv_ns_.erase(pending_ekf_recv_ns_.begin());
+  }
+
   if (pending_ekf_recv_ns_.empty()) {
     return;
   }
 
-  // Match to the oldest outstanding EKF message.
-  const double ekf_recv_ns = pending_ekf_recv_ns_.front();
-  pending_ekf_recv_ns_.erase(pending_ekf_recv_ns_.begin());
+  // Match to the most recent EKF event in the valid window.
+  const double ekf_recv_ns = pending_ekf_recv_ns_.back();
+  pending_ekf_recv_ns_.clear();
 
   const double ekf_to_drive_ms = (recv - ekf_recv_ns) * 1e-6;
   if (ekf_to_drive_ms >= 0.0 && ekf_to_drive_ms < 5000.0) {
     acc_ekf_to_drive_.push_back(ekf_to_drive_ms);
+    ekf_to_drive_by_ekf_recv_ns_[static_cast<int64_t>(ekf_recv_ns)] = ekf_to_drive_ms;
   }
 }
 
@@ -234,7 +250,15 @@ void PipelineLatencyMonitor::try_report(int64_t key)
   const double walls_to_amcl_ms = (e.amcl_recv_ns - e.walls_recv_ns) * ns_to_ms;
   const double amcl_to_ekf_ms = (e.ekf_recv_ns   - e.amcl_recv_ns)  * ns_to_ms;
   const double scan_to_ekf_ms = (e.ekf_recv_ns   - e.scan_recv_ns)  * ns_to_ms;
-  const double ekf_to_drive_ms = acc_ekf_to_drive_.empty() ? -1.0 : acc_ekf_to_drive_.back();
+
+  double ekf_to_drive_ms = -1.0;
+  const int64_t ekf_recv_key = static_cast<int64_t>(e.ekf_recv_ns);
+  auto drive_it = ekf_to_drive_by_ekf_recv_ns_.find(ekf_recv_key);
+  if (drive_it != ekf_to_drive_by_ekf_recv_ns_.end()) {
+    ekf_to_drive_ms = drive_it->second;
+    ekf_to_drive_by_ekf_recv_ns_.erase(drive_it);
+  }
+
   if (ekf_to_drive_ms >= 0.0) {
     acc_scan_to_drive_.push_back(scan_to_ekf_ms + ekf_to_drive_ms);
   }

@@ -85,6 +85,7 @@ private:
   std::string amcl_topic_;
   std::string ekf_topic_;
   std::string drive_topic_;
+  double drive_match_max_ms_{20.0};
 
   // CSV logging
   bool log_to_csv_{true};
@@ -106,6 +107,9 @@ private:
 
   // Queue of EKF receive times waiting for the corresponding drive command.
   std::vector<double> pending_ekf_recv_ns_;
+
+  // Matched ekf->drive latency indexed by EKF receive wall-time key.
+  std::unordered_map<int64_t, double> ekf_to_drive_by_ekf_recv_ns_;
 
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr walls_sub_;
