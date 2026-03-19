@@ -2,14 +2,11 @@
  * @file mpc_riccati_hls.c
  * @brief MPC Riccati-ADMM Compute Function — HLS-Synthesizable
  *
- * Builds the augmented 8-state QP from Frenet state and reference
- * trajectory, then solves via Riccati-ADMM.
+ * Builds the augmented 8-state QP from Frenet state and streamed
+ * horizon references, then solves via Riccati-ADMM.
  *
  * Augmented state: [e_y, e_psi, vx, vy, omega, delta_actual, drate_prev, accel_prev]
  * Control: [delta_rate, acceleration]
- *
- * No global variables — all persistent state passed via MpcPersistState_t
- * and AdmmState_t pointers.
  */
 
 #include "../include/fp_math_hls.h"
@@ -110,38 +107,15 @@ void mpc_compute_hls(
      * Step 2: Build augmented per-step data (8-state formulation)
      * --------------------------------------------------------------- */
 
-    /* All 2× weight constants are now compile-time #defines in mpc_fpga_types.h.
-     * This eliminates ~24 runtime fp_mul calls that previously used DSP. */
-    const fixed_point_t Q2_lat   = MPC_Q2_LAT_ERROR;
-    const fixed_point_t Q2_hdg   = MPC_Q2_HEADING;
-    const fixed_point_t Q2_vel   = MPC_Q2_VELOCITY;
-    const fixed_point_t Q2_lv    = MPC_Q2_LAT_VEL;
-    const fixed_point_t Q2_yaw   = MPC_Q2_YAW_RATE;
-    const fixed_point_t Q2_dact  = MPC_Q2_DELTA_ACT;
-    const fixed_point_t Q2_jerk  = MPC_Q2_STEER_JERK;
-    const fixed_point_t Q2_arate = MPC_Q2_ACCEL_RATE;
-    const fixed_point_t R2_steer = MPC_R2_STEER;
-    const fixed_point_t R2_accel = MPC_R2_ACCEL;
-    const fixed_point_t N2_jerk  = MPC_N2_STEER_JERK;
-    const fixed_point_t N2_arate = MPC_N2_ACCEL_RATE;
-    /* Cross-call scaled versions for step 0 */
-    const fixed_point_t Q2_jerk_cs  = MPC_Q2_JERK_CS;
-    const fixed_point_t Q2_arate_cs = MPC_Q2_ARATE_CS;
-    const fixed_point_t R2_steer_cs = MPC_R2_STEER_CS;
-    const fixed_point_t R2_accel_cs = MPC_R2_ACCEL_CS;
-
     StepData_t step_data[MPC_HORIZON];
 #pragma HLS BIND_STORAGE variable=step_data type=ram_2p impl=bram
-    /* NOTE: Do NOT use memset on the whole array (wastes ~2680 sequential cycles).
-     * Instead, zero only the fields that need it at the start of each loop iteration.
-     * The loop below explicitly sets all fields it uses. */
+    /* Zero only sparse fields that are not explicitly overwritten below. */
 
     for (k = 0; k < N; k++) {
 #pragma HLS LOOP_TRIPCOUNT min=20 max=20
         StepData_t *sd = &step_data[k];
 
-        /* Zero the sparse blocks that the explicit assignments below don't cover.
-         * This replaces the costly memset(step_data) that zeroed the entire array. */
+        /* Zero sparse blocks not explicitly written by the assignments below. */
         /* A rows 5,6,7 = 0 (delta integrator + prev-controls have no
          * cross-coupling to Frenet states in cols 0..4) */
         for (j = 0; j < MPC_NX_AUG; j++) {
@@ -204,59 +178,59 @@ void mpc_compute_hls(
         /* B[5][0] = dt (delta integrator) */
         sd->B[IDX_DELTA_ACT][0] = dt;
         sd->B[IDX_DELTA_ACT][1] = 0;  /* delta not affected by accel */
-        /* B[6][0] = 1 (drate_prev = delta_rate) */
+        /* B[6][0] = 1 (delta_rate_prev = delta_rate) */
         sd->B[IDX_DELTA_RATE_PREV][0] = FP_ONE;
         /* B[7][1] = 1 (accel_prev = accel) */
         sd->B[IDX_ACCEL_PREV][1] = FP_ONE;
 
         /* === Q_diag (8 elements) — precomputed constants === */
-        sd->Q_diag[0] = Q2_lat;
-        sd->Q_diag[1] = Q2_hdg;
-        sd->Q_diag[2] = Q2_vel;
-        sd->Q_diag[3] = Q2_lv;
-        sd->Q_diag[4] = Q2_yaw;
-        sd->Q_diag[IDX_DELTA_ACT] = Q2_dact;
-        sd->Q_diag[IDX_DELTA_RATE_PREV] = Q2_jerk;
-        sd->Q_diag[IDX_ACCEL_PREV] = Q2_arate;
+        sd->Q_diag[0] = MPC_Q2_LAT_ERROR;
+        sd->Q_diag[1] = MPC_Q2_HEADING;
+        sd->Q_diag[2] = MPC_Q2_VELOCITY;
+        sd->Q_diag[3] = MPC_Q2_LAT_VEL;
+        sd->Q_diag[4] = MPC_Q2_YAW_RATE;
+        sd->Q_diag[IDX_DELTA_ACT] = MPC_Q2_DELTA_ACT;
+        sd->Q_diag[IDX_DELTA_RATE_PREV] = MPC_Q2_STEER_JERK;
+        sd->Q_diag[IDX_ACCEL_PREV] = MPC_Q2_ACCEL_RATE;
 
         /* Cross-call scaling for step 0 */
         if (k == 0) {
-            sd->Q_diag[IDX_DELTA_RATE_PREV] = Q2_jerk_cs;
-            sd->Q_diag[IDX_ACCEL_PREV] = Q2_arate_cs;
+            sd->Q_diag[IDX_DELTA_RATE_PREV] = MPC_Q2_JERK_CS;
+            sd->Q_diag[IDX_ACCEL_PREV] = MPC_Q2_ARATE_CS;
         }
 
         /* === q (8 elements): linear cost from tracking references === */
         /* References for e_y and e_psi are 0 (path following) */
         sd->q[0] = 0;
         sd->q[1] = 0;
-        sd->q[2] = fp_neg(fp_mul(sd->Q_diag[2], ref[k].velocity));
+        sd->q[2] = fp_neg(fp_mul(MPC_Q2_VELOCITY, ref[k].velocity));
         sd->q[3] = 0;  /* vy_ref = 0 */
         sd->q[4] = 0;  /* omega_ref = 0 */
         /* delta_actual reference: feedforward steering */
         {
             fixed_point_t kappa_k = ref[k].kappa;
             fixed_point_t dff_k = fp_mul(VP_WHEELBASE, kappa_k);  /* atan(x)≈x, max err 0.4% */
-            sd->q[IDX_DELTA_ACT] = fp_neg(fp_mul(sd->Q_diag[IDX_DELTA_ACT], dff_k));
+            sd->q[IDX_DELTA_ACT] = fp_neg(fp_mul(MPC_Q2_DELTA_ACT, dff_k));
         }
         sd->q[IDX_DELTA_RATE_PREV] = 0;
         sd->q[IDX_ACCEL_PREV] = 0;
 
         /* === R_diag (2 elements) — precomputed constants === */
-        sd->R_diag[0] = R2_steer;
-        sd->R_diag[1] = R2_accel;
+        sd->R_diag[0] = MPC_R2_STEER;
+        sd->R_diag[1] = MPC_R2_ACCEL;
         if (k == 0) {
-            sd->R_diag[0] = R2_steer_cs;
-            sd->R_diag[1] = R2_accel_cs;
+            sd->R_diag[0] = MPC_R2_STEER_CS;
+            sd->R_diag[1] = MPC_R2_ACCEL_CS;
         }
         sd->r[0] = 0;
         sd->r[1] = 0;
 
         /* === Cross-cost N (8x2) — precomputed constants === */
-        sd->N_cross[IDX_DELTA_RATE_PREV][0] = N2_jerk;
-        sd->N_cross[IDX_ACCEL_PREV][1] = N2_arate;
+        sd->N_cross[IDX_DELTA_RATE_PREV][0] = MPC_N2_STEER_JERK;
+        sd->N_cross[IDX_ACCEL_PREV][1] = MPC_N2_ACCEL_RATE;
         if (k == 0) {
-            sd->N_cross[IDX_DELTA_RATE_PREV][0] = fp_neg(Q2_jerk_cs);
-            sd->N_cross[IDX_ACCEL_PREV][1] = fp_neg(Q2_arate_cs);
+            sd->N_cross[IDX_DELTA_RATE_PREV][0] = fp_neg(MPC_Q2_JERK_CS);
+            sd->N_cross[IDX_ACCEL_PREV][1] = fp_neg(MPC_Q2_ARATE_CS);
         }
 
         /* === State bounds === */
@@ -348,8 +322,8 @@ void mpc_compute_hls(
      * Step 5: Warm-start management
      * --------------------------------------------------------------- */
     {
-        /* OPT-3: Only invalidate warm-start on actual cold-start or large
-         * curvature change. prev_converged=0 (max_iter) is fine for warm-start. */
+        /* Invalidate warm-start only on cold start or large curvature jump.
+         * Keeping warm-start after a max-iteration return is still useful. */
         fixed_point_t kappa_diff = fp_abs(fp_sub(kappa0, persist->prev_curvature));
         if (!admm_state->initialized || kappa_diff > FP_CONST(0.5)) {
             admm_state->initialized = 0;
@@ -368,7 +342,7 @@ void mpc_compute_hls(
     solver_cfg.adaptive_rho   = 1;
 
     MpcSolution_t sol;
-    /* Zero-initialize solution (HLS-friendly, no memset) */
+    /* Zero-initialize solution */
     sol.iterations = 0;
     sol.primal_residual = 0;
     sol.dual_residual = 0;

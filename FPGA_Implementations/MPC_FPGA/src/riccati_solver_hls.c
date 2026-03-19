@@ -43,7 +43,7 @@ static int64_t reciprocal_64(int64_t det)
      * 4 iterations sufficient for < 1 LSB error in Q16.16. */
     int i;
     for (i = 0; i < 4; i++) {
-#pragma HLS PIPELINE II=1
+#pragma HLS PIPELINE II=2
 #pragma HLS LOOP_TRIPCOUNT min=4 max=4
         int64_t prod = abs_det * est;
         prod >>= FP_FRAC_BITS;
@@ -440,7 +440,7 @@ static void riccati_pass_hls(
 #pragma HLS UNROLL
             int64_t prod_sum = 0;
             for (s = 0; s < nx; s++) {
-    #pragma HLS UNROLL factor=4
+    #pragma HLS UNROLL factor=2
                 prod_sum += (int64_t)K[k][a][s] * (int64_t)x_out[k][s];
             }
             int64_t sum = (int64_t)kk[k][a] + (prod_sum >> FP_FRAC_BITS);
@@ -455,7 +455,7 @@ static void riccati_pass_hls(
 #pragma HLS PIPELINE II=1
             int64_t sum = 0;
             for (s = 0; s < 6; s++) {
-    #pragma HLS UNROLL factor=4
+    #pragma HLS UNROLL factor=2
                 sum += (int64_t)A_fwd[i][s] * (int64_t)x_out[k][s];
             }
             for (a = 0; a < nu; a++) {
@@ -635,7 +635,7 @@ MpcStatus_t riccati_admm_solve_hls(
     #pragma HLS PIPELINE II=2
             const StepData_t *sd = (k < N) ? &step_data[k] : &step_data[N - 1];
             for (s = 0; s < nx; s++) {
-    #pragma HLS UNROLL factor=8
+#pragma HLS UNROLL factor=2
                 if (x_is_con[k][s]) {
                     fixed_point_t x_val = solution->x[k][s];
                     /* x_hat = x + (alpha-1)*(x - z_old), alpha=1.5 */

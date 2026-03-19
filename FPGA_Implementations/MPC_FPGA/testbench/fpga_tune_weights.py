@@ -7,7 +7,7 @@ Since FPGA uses compile-time constants, this script modifies the header
 file (mpc_fpga_types.h), recompiles, runs the test, and collects results.
 
 Sweep parameters:
-  - dt (prediction timestep): affects horizon length and cross_call_scale
+    - dt (prediction timestep): affects horizon spacing and model discretization
   - N  (horizon steps): affects how many prediction steps (array sizes)
   - WALL_END, WALL_MARGIN: wall constraint parameters
   - Q_LAT, Q_HDG, Q_VEL, Q_LAT_VEL, Q_YAW: state tracking weights
@@ -31,9 +31,7 @@ import re
 import shutil
 import time
 import itertools
-import math
 import random
-import tempfile
 from datetime import datetime
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -217,14 +215,7 @@ def set_header_param(header_text: str, param: str, value) -> str:
         fp_val = round(value * 65536)
         pattern = r"#define\s+MPC_DT\s+.*"
         replacement = f"#define MPC_DT              ((fixed_point_t){fp_val})   /* {value}s in Q16.16 */"
-        header_text = re.sub(pattern, replacement, header_text)
-
-        # Also update MPC_CROSS_CALL_SCALE = control_dt / prediction_dt
-        cross_scale = round(0.005 / value, 4)
-        pattern2 = r"#define\s+MPC_CROSS_CALL_SCALE\s+.*"
-        replacement2 = f"#define MPC_CROSS_CALL_SCALE FP_CONST({cross_scale})"
-        header_text = re.sub(pattern2, replacement2, header_text)
-        return header_text
+        return re.sub(pattern, replacement, header_text)
 
     elif param == "ADMM_ALPHA":
         # Update ADMM_OVER_RELAX and its derived constants

@@ -35,6 +35,8 @@ struct Waypoint {
     double kappa;   // Curvature
     double vx;      // Target velocity
     double ax;      // Acceleration
+    double left_bound;   // Left lateral bound [m]
+    double right_bound;  // Right lateral bound [m]
 };
 
 struct KDNode {
@@ -160,6 +162,8 @@ public:
         // Number of waypoints ahead of KD-tree nearest to check for forward bias
         this->declare_parameter("forward_lookahead", 3);
         this->declare_parameter("horizon", static_cast<int>(MAX_MPC_HORIZON));
+        this->declare_parameter("default_left_bound", 2.0);
+        this->declare_parameter("default_right_bound", 2.0);
         
         std::string trajectory_file = this->get_parameter("trajectory_file").as_string();
         std::string odom_topic = this->get_parameter("odom_topic").as_string();
@@ -173,6 +177,8 @@ public:
         steer_c0_ = this->get_parameter("steering_correction_c0").as_double();
         forward_lookahead_ = static_cast<int>(this->get_parameter("forward_lookahead").as_int());
         const int horizon_param = this->get_parameter("horizon").as_int();
+        default_left_bound_ = this->get_parameter("default_left_bound").as_double();
+        default_right_bound_ = this->get_parameter("default_right_bound").as_double();
         if (horizon_param != static_cast<int>(MAX_MPC_HORIZON)) {
             RCLCPP_WARN(this->get_logger(),
                 "horizon=%d requested, but FPGA bitstream expects fixed MPC_HORIZON=%zu. Forcing %zu.",
@@ -194,7 +200,8 @@ public:
         
         RCLCPP_INFO(this->get_logger(), "Loaded %zu waypoints from %s (hash=0x%08X)",
                    kdtree_.size(), trajectory_file.c_str(), trajectory_hash_);
-            RCLCPP_INFO(this->get_logger(), "Streaming horizon length: %zu", horizon_);
+            RCLCPP_INFO(this->get_logger(),
+                "Streaming mode: horizon-only (length=%zu)", horizon_);
         
         // Create publisher with Best Effort QoS (lower latency)
         auto qos = rclcpp::QoS(1)
@@ -269,6 +276,8 @@ private:
     int forward_lookahead_ = 3;      // Waypoints ahead to check for forward bias
     size_t horizon_ = MAX_MPC_HORIZON;
     uint32_t trajectory_hash_ = 0;   // Checksum for cross-node trajectory verification
+    double default_left_bound_ = 2.0;
+    double default_right_bound_ = 2.0;
 
     // Odom timeout detection
     rclcpp::TimerBase::SharedPtr odom_watchdog_timer_;
@@ -299,6 +308,16 @@ private:
             std::getline(ss, token, ','); wp.kappa = std::stod(token);
             std::getline(ss, token, ','); wp.vx = std::stod(token);
             std::getline(ss, token, ','); wp.ax = std::stod(token);
+            wp.left_bound = default_left_bound_;
+            wp.right_bound = default_right_bound_;
+
+            // Optional bounds columns: left_bound,right_bound
+            if (std::getline(ss, token, ',')) {
+                if (!token.empty()) wp.left_bound = std::stod(token);
+                if (std::getline(ss, token, ',')) {
+                    if (!token.empty()) wp.right_bound = std::stod(token);
+                }
+            }
             
             waypoints.push_back(wp);
         }
@@ -438,11 +457,21 @@ private:
         mpc_state.wheel_speed_fp = to_fp(wheel_speed);
         mpc_state.steering_angle_fp = to_fp(steering_angle);
         mpc_state.waypoint_index = static_cast<uint32_t>(waypoint_idx);
-        mpc_state.horizon_length = static_cast<uint32_t>(horizon_);
-
-        // Stream only the valid MPC horizon to Ultra96 (no full raceline preload).
         const size_t N = kdtree_.size();
-        for (size_t i = 0; i < horizon_; ++i) {
+        const size_t stream_count = std::min(horizon_, N);
+        mpc_state.horizon_length = static_cast<uint32_t>(stream_count);
+
+        mpc_state.ref_x_fp.resize(stream_count);
+        mpc_state.ref_y_fp.resize(stream_count);
+        mpc_state.ref_psi_fp.resize(stream_count);
+        mpc_state.ref_vx_fp.resize(stream_count);
+        mpc_state.ref_kappa_fp.resize(stream_count);
+        mpc_state.ref_ax_fp.resize(stream_count);
+        mpc_state.ref_left_bound_fp.resize(stream_count);
+        mpc_state.ref_right_bound_fp.resize(stream_count);
+
+        // Stream only the required horizon waypoints each cycle.
+        for (size_t i = 0; i < stream_count; ++i) {
             const size_t idx = (waypoint_idx + i) % N;
             const auto& wp = kdtree_.get_waypoint(idx);
             mpc_state.ref_x_fp[i] = to_fp(wp.x);
@@ -451,6 +480,8 @@ private:
             mpc_state.ref_vx_fp[i] = to_fp(wp.vx);
             mpc_state.ref_kappa_fp[i] = to_fp(wp.kappa);
             mpc_state.ref_ax_fp[i] = to_fp(wp.ax);
+            mpc_state.ref_left_bound_fp[i] = to_fp(wp.left_bound);
+            mpc_state.ref_right_bound_fp[i] = to_fp(wp.right_bound);
         }
         mpc_state.timestamp_ms = static_cast<uint32_t>(
             std::chrono::duration_cast<std::chrono::milliseconds>(

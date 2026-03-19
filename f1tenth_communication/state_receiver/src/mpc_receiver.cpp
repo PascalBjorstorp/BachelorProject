@@ -25,8 +25,6 @@
 #include <f1tenth_msgs/msg/mpc_state.hpp>
 #include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
 
-#include <fstream>
-#include <sstream>
 #include <string>
 #include <vector>
 #include <chrono>
@@ -35,6 +33,7 @@
 #include <cerrno>
 #include <algorithm>
 #include <limits>
+#include <stdexcept>
 
 // Linux memory-mapped I/O
 #include <sys/mman.h>
@@ -76,14 +75,6 @@ inline int32_t float_to_fp(float f) {
 static constexpr uint32_t AP_START = 0x01;
 static constexpr uint32_t AP_DONE  = 0x02;
 static constexpr uint32_t AP_IDLE  = 0x04;
-
-/*===========================================================================
- * Waypoint from CSV
- *===========================================================================*/
-
-struct WaypointCSV {
-    float s, x, y, psi, kappa, vx, ax;
-};
 
 /*===========================================================================
  * MPC FPGA AXI-Lite Interface
@@ -135,6 +126,27 @@ public:
     }
 
     void close_device() {
+        if (ref_vx_map_ && ref_vx_map_ != MAP_FAILED) {
+            munmap(ref_vx_map_, ref_vx_map_size_);
+            ref_vx_map_ = nullptr;
+        }
+        if (ref_kappa_map_ && ref_kappa_map_ != MAP_FAILED) {
+            munmap(ref_kappa_map_, ref_kappa_map_size_);
+            ref_kappa_map_ = nullptr;
+        }
+        if (ref_left_map_ && ref_left_map_ != MAP_FAILED) {
+            munmap(ref_left_map_, ref_left_map_size_);
+            ref_left_map_ = nullptr;
+        }
+        if (ref_right_map_ && ref_right_map_ != MAP_FAILED) {
+            munmap(ref_right_map_, ref_right_map_size_);
+            ref_right_map_ = nullptr;
+        }
+        ref_vx_buf_ = nullptr;
+        ref_kappa_buf_ = nullptr;
+        ref_left_buf_ = nullptr;
+        ref_right_buf_ = nullptr;
+
         if (fpga_base_ && fpga_base_ != MAP_FAILED) {
             munmap(fpga_base_, map_size_);
             fpga_base_ = nullptr;
@@ -144,95 +156,99 @@ public:
             mem_fd_ = -1;
         }
         initialized_ = false;
+        buffers_ready_ = false;
+        ref_count_ = 0;
     }
 
     bool is_ready() const { return initialized_; }
 
-    /**
-     * Load streamed horizon to FPGA BRAM.
-     * Each waypoint written individually (mode=1), then finalized (mode=2).
-     * Called once per MpcState message.
-     */
-    bool load_horizon(const f1tenth_msgs::msg::MpcState& msg,
-                      int32_t default_left_bound_fp,
-                      int32_t default_right_bound_fp) {
+    bool configure_reference_buffers(uint64_t ref_vx_phys,
+                                     uint64_t ref_kappa_phys,
+                                     uint64_t ref_left_phys,
+                                     uint64_t ref_right_phys,
+                                     size_t capacity_points) {
         if (!initialized_) return false;
+        if (capacity_points == 0 || capacity_points > MPC_FPGA_MAX_REF_POINTS) return false;
+        if (ref_vx_phys == 0 || ref_kappa_phys == 0 || ref_left_phys == 0 || ref_right_phys == 0) return false;
 
-        const size_t count = std::min(static_cast<size_t>(msg.horizon_length),
-                                      static_cast<size_t>(20));
+        const size_t bytes = capacity_points * sizeof(int32_t);
+        ref_capacity_ = capacity_points;
+        ref_vx_phys_ = ref_vx_phys;
+        ref_kappa_phys_ = ref_kappa_phys;
+        ref_left_phys_ = ref_left_phys;
+        ref_right_phys_ = ref_right_phys;
+
+        ref_vx_buf_ = static_cast<int32_t*>(map_physical_buffer(ref_vx_phys_, bytes, ref_vx_map_, ref_vx_map_size_));
+        if (!ref_vx_buf_) return false;
+        ref_kappa_buf_ = static_cast<int32_t*>(map_physical_buffer(ref_kappa_phys_, bytes, ref_kappa_map_, ref_kappa_map_size_));
+        if (!ref_kappa_buf_) return false;
+        ref_left_buf_ = static_cast<int32_t*>(map_physical_buffer(ref_left_phys_, bytes, ref_left_map_, ref_left_map_size_));
+        if (!ref_left_buf_) return false;
+        ref_right_buf_ = static_cast<int32_t*>(map_physical_buffer(ref_right_phys_, bytes, ref_right_map_, ref_right_map_size_));
+        if (!ref_right_buf_) return false;
+
+        buffers_ready_ = true;
+        return true;
+    }
+
+    /**
+     * Fill mapped reference buffers for one horizon frame.
+     */
+    bool load_horizon(const f1tenth_msgs::msg::MpcState& msg) {
+        if (!initialized_ || !buffers_ready_) return false;
+
+        size_t count = static_cast<size_t>(msg.horizon_length);
+        count = std::min(count, msg.ref_x_fp.size());
+        count = std::min(count, msg.ref_y_fp.size());
+        count = std::min(count, msg.ref_psi_fp.size());
+        count = std::min(count, msg.ref_vx_fp.size());
+        count = std::min(count, msg.ref_kappa_fp.size());
+        count = std::min(count, msg.ref_ax_fp.size());
+        count = std::min(count, msg.ref_left_bound_fp.size());
+        count = std::min(count, msg.ref_right_bound_fp.size());
+        count = std::min(count, ref_capacity_);
         if (count == 0) return false;
 
         for (size_t i = 0; i < count; ++i) {
-            if (!wait_idle(50000)) {
-                fprintf(stderr, "MPC-FPGA: idle timeout at wp %zu\n", i);
-                return false;
-            }
-
-            write_reg(REG_MODE,            1);
-            write_reg(REG_WP_INDEX,        static_cast<uint32_t>(i));
-            write_reg(REG_WP_X,            static_cast<uint32_t>(msg.ref_x_fp[i]));
-            write_reg(REG_WP_Y,            static_cast<uint32_t>(msg.ref_y_fp[i]));
-            write_reg(REG_WP_PSI,          static_cast<uint32_t>(msg.ref_psi_fp[i]));
-            write_reg(REG_WP_VX,           static_cast<uint32_t>(msg.ref_vx_fp[i]));
-            write_reg(REG_WP_KAPPA,        static_cast<uint32_t>(msg.ref_kappa_fp[i]));
-            write_reg(REG_WP_AX,           static_cast<uint32_t>(msg.ref_ax_fp[i]));
-            write_reg(REG_WP_LEFT_BOUND,   static_cast<uint32_t>(default_left_bound_fp));
-            write_reg(REG_WP_RIGHT_BOUND,  static_cast<uint32_t>(default_right_bound_fp));
-            write_reg(REG_WP_TOTAL,        static_cast<uint32_t>(count));
-            __sync_synchronize();
-
-            write_reg(REG_AP_CTRL, AP_START);
-
-            if (!wait_done(100000)) {
-                fprintf(stderr, "MPC-FPGA: done timeout at wp %zu\n", i);
-                return false;
-            }
+            ref_vx_buf_[i] = msg.ref_vx_fp[i];
+            ref_kappa_buf_[i] = msg.ref_kappa_fp[i];
+            ref_left_buf_[i] = msg.ref_left_bound_fp[i];
+            ref_right_buf_[i] = msg.ref_right_bound_fp[i];
         }
-
-        // Finalize trajectory (mode=2)
-        if (!wait_idle(50000)) return false;
-        write_reg(REG_MODE,     2);
-        write_reg(REG_WP_TOTAL, static_cast<uint32_t>(count));
         __sync_synchronize();
-        write_reg(REG_AP_CTRL, AP_START);
-        if (!wait_done(100000)) return false;
 
-        trajectory_size_   = count;
-        trajectory_loaded_ = true;
-
-        // Pre-set mode=0 for compute cycles
-        write_reg(REG_MODE, 0);
-        __sync_synchronize();
+        ref_count_ = count;
 
         return true;
     }
 
     /**
      * Run one MPC compute cycle.
-     * Writes 8 vehicle-state registers, starts FPGA, reads 4 output registers.
-     * Total register I/O: 8 writes + 1 start + 4 reads = minimal latency.
+        * Writes vehicle-state registers, starts FPGA, reads 4 output registers.
      */
-    bool compute(int32_t x_fp, int32_t y_fp, int32_t theta_fp,
+    bool compute(int32_t x_fp, int32_t theta_fp,
                  int32_t vx_fp, int32_t vy_fp, int32_t omega_fp,
-                 int32_t steering_fp, uint32_t wp_idx,
+                 int32_t steering_fp,
                  int32_t& out_steering_fp, int32_t& out_accel_fp,
                  uint32_t& out_status, uint32_t& out_iterations) {
-        if (!initialized_ || !trajectory_loaded_) return false;
+        if (!initialized_ || !buffers_ready_ || ref_count_ == 0) return false;
 
         if (!wait_idle(10000)) return false;
 
-        // --- Write mode=0 explicitly for robustness (in case of spurious resets) ---
-        write_reg(REG_MODE, 0);
+        // --- Write bulk reference pointers and count ---
+        write_reg64(REG_REF_VX_MEM_LO, ref_vx_phys_);
+        write_reg64(REG_REF_KAPPA_MEM_LO, ref_kappa_phys_);
+        write_reg64(REG_REF_LEFT_MEM_LO, ref_left_phys_);
+        write_reg64(REG_REF_RIGHT_MEM_LO, ref_right_phys_);
+        write_reg(REG_REF_COUNT, static_cast<uint32_t>(ref_count_));
 
-        // --- Write vehicle state (8 registers, mode=0 persists) ---
+        // --- Write vehicle state registers ---
         write_reg(REG_ST_X,        static_cast<uint32_t>(x_fp));
-        write_reg(REG_ST_Y,        static_cast<uint32_t>(y_fp));
         write_reg(REG_ST_THETA,    static_cast<uint32_t>(theta_fp));
         write_reg(REG_ST_VX,       static_cast<uint32_t>(vx_fp));
         write_reg(REG_ST_VY,       static_cast<uint32_t>(vy_fp));
         write_reg(REG_ST_OMEGA,    static_cast<uint32_t>(omega_fp));
         write_reg(REG_ST_STEERING, static_cast<uint32_t>(steering_fp));
-        write_reg(REG_ST_WP_IDX,   wp_idx);
         __sync_synchronize();
 
         // --- Measure FPGA compute time ---
@@ -260,8 +276,8 @@ public:
     }
 
     int64_t get_last_compute_ns()   const { return last_compute_ns_; }
-    size_t  get_trajectory_size()   const { return trajectory_size_; }
-    bool    is_trajectory_loaded()  const { return trajectory_loaded_; }
+    size_t  get_reference_count() const { return ref_count_; }
+    bool    has_reference_frame() const { return ref_count_ > 0; }
 
 private:
     int     mem_fd_       = -1;
@@ -269,9 +285,29 @@ private:
     uint32_t base_addr_   = 0;
     size_t  map_size_     = 0;
     bool    initialized_  = false;
-    size_t  trajectory_size_   = 0;
-    bool    trajectory_loaded_ = false;
+    size_t  ref_count_        = 0;
+    size_t  ref_capacity_     = 0;
+    bool    buffers_ready_    = false;
     int64_t last_compute_ns_   = 0;
+
+    uint64_t ref_vx_phys_     = 0;
+    uint64_t ref_kappa_phys_  = 0;
+    uint64_t ref_left_phys_   = 0;
+    uint64_t ref_right_phys_  = 0;
+
+    void* ref_vx_map_ = nullptr;
+    void* ref_kappa_map_ = nullptr;
+    void* ref_left_map_ = nullptr;
+    void* ref_right_map_ = nullptr;
+    size_t ref_vx_map_size_ = 0;
+    size_t ref_kappa_map_size_ = 0;
+    size_t ref_left_map_size_ = 0;
+    size_t ref_right_map_size_ = 0;
+
+    int32_t* ref_vx_buf_ = nullptr;
+    int32_t* ref_kappa_buf_ = nullptr;
+    int32_t* ref_left_buf_ = nullptr;
+    int32_t* ref_right_buf_ = nullptr;
 
     void write_reg(uint32_t offset, uint32_t value) {
         volatile uint32_t* reg = reinterpret_cast<volatile uint32_t*>(
@@ -283,6 +319,28 @@ private:
         volatile uint32_t* reg = reinterpret_cast<volatile uint32_t*>(
             static_cast<volatile uint8_t*>(fpga_base_) + offset);
         return *reg;
+    }
+
+    void write_reg64(uint32_t low_offset, uint64_t value) {
+        write_reg(low_offset, static_cast<uint32_t>(value & 0xFFFFFFFFULL));
+        write_reg(low_offset + 4, static_cast<uint32_t>((value >> 32) & 0xFFFFFFFFULL));
+    }
+
+    void* map_physical_buffer(uint64_t phys_addr, size_t bytes, void*& map_base, size_t& map_size) {
+        const long page_size = sysconf(_SC_PAGESIZE);
+        const uint64_t page_mask = static_cast<uint64_t>(page_size - 1);
+        const uint64_t page_base = phys_addr & ~page_mask;
+        const uint64_t page_off = phys_addr - page_base;
+        const size_t total_map = static_cast<size_t>(page_off + bytes);
+
+        map_base = mmap(nullptr, total_map, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd_, static_cast<off_t>(page_base));
+        if (map_base == MAP_FAILED) {
+            map_base = nullptr;
+            map_size = 0;
+            return nullptr;
+        }
+        map_size = total_map;
+        return static_cast<void*>(static_cast<uint8_t*>(map_base) + page_off);
     }
 
     bool wait_idle(int timeout_cycles) {
@@ -301,51 +359,6 @@ private:
 };
 
 /*===========================================================================
- * Software Fallback —  Proportional Frenet Controller
- * Used when FPGA is unavailable or initialization fails.
- *===========================================================================*/
-
-class SoftwareFallback {
-public:
-    void set_trajectory(const std::vector<WaypointCSV>& wp) { traj_ = wp; }
-
-    void compute(float x, float y, float theta, float /* vx */,
-                 uint32_t wp_idx,
-                 float max_steer, float max_vel,
-                 float K_ey, float K_epsi, float K_slow,
-                 float& out_steering, float& out_speed) {
-        if (traj_.empty()) {
-            out_steering = 0.0f;
-            out_speed    = 0.0f;
-            return;
-        }
-
-        const size_t idx = wp_idx % traj_.size();
-        const float wx   = traj_[idx].x;
-        const float wy   = traj_[idx].y;
-        const float wpsi = traj_[idx].psi;
-
-        const float dx  = x - wx;
-        const float dy  = y - wy;
-        const float e_y = -std::sin(wpsi) * dx + std::cos(wpsi) * dy;
-
-        float e_psi = theta - wpsi;
-        while (e_psi >  static_cast<float>(M_PI)) e_psi -= 2.0f * static_cast<float>(M_PI);
-        while (e_psi < -static_cast<float>(M_PI)) e_psi += 2.0f * static_cast<float>(M_PI);
-
-        out_steering = std::clamp(-K_ey * e_y - K_epsi * e_psi,
-                                   -max_steer, max_steer);
-
-        const float v_ref = std::min(traj_[idx].vx, max_vel);
-        out_speed = v_ref * (1.0f - K_slow * std::min(std::abs(e_y), 1.0f));
-        out_speed = std::max(out_speed, 0.0f);
-    }
-
-private:
-    std::vector<WaypointCSV> traj_;
-};
-
-/*===========================================================================
  * MPC Receiver MPC FPGA Node
  *===========================================================================*/
 
@@ -353,23 +366,19 @@ class MpcReceiverFpgaNode : public rclcpp::Node {
 public:
     MpcReceiverFpgaNode() : Node("mpc_receiver") {
         // --- Parameters ---
-        declare_parameter("trajectory_file", "");
         declare_parameter("input_topic", "/mpc_state");
         declare_parameter("drive_topic", "/drive");
-        declare_parameter("use_fpga", true);
         declare_parameter("fpga_base_address",
                            static_cast<int64_t>(MPC_FPGA_BASE_ADDR));
+        declare_parameter("ref_vx_phys_addr", static_cast<int64_t>(0));
+        declare_parameter("ref_kappa_phys_addr", static_cast<int64_t>(0));
+        declare_parameter("ref_left_phys_addr", static_cast<int64_t>(0));
+        declare_parameter("ref_right_phys_addr", static_cast<int64_t>(0));
+        declare_parameter("ref_buffer_capacity", static_cast<int>(64));
 
         // Vehicle / controller
         declare_parameter("max_steering", 0.4189);
         declare_parameter("max_velocity", 6.0);
-        declare_parameter("wheelbase", 0.324);
-        declare_parameter("track_half_width", 2.0);  // Default track bounds [m]
-
-        // Software fallback gains
-        declare_parameter("K_ey", 1.0);
-        declare_parameter("K_epsi", 1.5);
-        declare_parameter("K_slowdown", 0.5);
 
         // Control interval for speed = vx + accel * dt
         declare_parameter("control_dt", 0.02);  // [s] (default 50 Hz state rate)
@@ -378,51 +387,36 @@ public:
         declare_parameter("watchdog_timeout_ms", 100.0);  // [ms]
 
         // --- Read parameters ---
-        auto trajectory_file = get_parameter("trajectory_file").as_string();
         auto input_topic     = get_parameter("input_topic").as_string();
         auto drive_topic     = get_parameter("drive_topic").as_string();
-        use_fpga_            = get_parameter("use_fpga").as_bool();
         max_steering_        = static_cast<float>(get_parameter("max_steering").as_double());
         max_velocity_        = static_cast<float>(get_parameter("max_velocity").as_double());
         control_dt_          = static_cast<float>(get_parameter("control_dt").as_double());
 
-        // Cache software fallback gains at startup (avoids per-callback parameter lookups)
-        K_ey_       = static_cast<float>(get_parameter("K_ey").as_double());
-        K_epsi_     = static_cast<float>(get_parameter("K_epsi").as_double());
-        K_slowdown_ = static_cast<float>(get_parameter("K_slowdown").as_double());
+        // Bounds are currently provided as receiver defaults.
+        // Keep them fixed here until explicit bound arrays are streamed.
 
-        const float track_hw = static_cast<float>(get_parameter("track_half_width").as_double());
-        left_bound_fp_ = float_to_fp(track_hw);
-        right_bound_fp_ = float_to_fp(track_hw);
+        // --- Initialize FPGA (required) ---
+        const uint32_t addr = static_cast<uint32_t>(
+            get_parameter("fpga_base_address").as_int());
 
-        // --- Initialize FPGA ---
-        if (use_fpga_) {
-            const uint32_t addr = static_cast<uint32_t>(
-                get_parameter("fpga_base_address").as_int());
-
-            if (fpga_.initialize(addr)) {
-                RCLCPP_INFO(get_logger(), "MPC FPGA init OK at 0x%08X (streamed horizon mode)", addr);
-            } else {
-                RCLCPP_WARN(get_logger(),
-                    "MPC FPGA init failed — SW fallback");
-                use_fpga_ = false;
-            }
+        if (!fpga_.initialize(addr)) {
+            throw std::runtime_error("MPC FPGA init failed");
         }
 
-        if (!use_fpga_) {
-            if (trajectory_file.empty()) {
-                RCLCPP_ERROR(get_logger(), "trajectory_file is required for software fallback mode");
-                return;
-            }
-            if (!load_trajectory(trajectory_file)) {
-                RCLCPP_ERROR(get_logger(), "Failed to load trajectory: %s", trajectory_file.c_str());
-                return;
-            }
-            RCLCPP_INFO(get_logger(), "Loaded %zu fallback waypoints from %s",
-                        trajectory_.size(), trajectory_file.c_str());
-            sw_fallback_.set_trajectory(trajectory_);
-            RCLCPP_INFO(get_logger(), "Using software Frenet controller fallback");
+        const uint64_t ref_vx_phys = static_cast<uint64_t>(get_parameter("ref_vx_phys_addr").as_int());
+        const uint64_t ref_kappa_phys = static_cast<uint64_t>(get_parameter("ref_kappa_phys_addr").as_int());
+        const uint64_t ref_left_phys = static_cast<uint64_t>(get_parameter("ref_left_phys_addr").as_int());
+        const uint64_t ref_right_phys = static_cast<uint64_t>(get_parameter("ref_right_phys_addr").as_int());
+        const int ref_capacity = static_cast<int>(get_parameter("ref_buffer_capacity").as_int());
+
+        if (!fpga_.configure_reference_buffers(ref_vx_phys, ref_kappa_phys,
+                                               ref_left_phys, ref_right_phys,
+                                               static_cast<size_t>(std::max(0, ref_capacity)))) {
+            throw std::runtime_error("MPC FPGA reference buffer mapping failed");
         }
+
+        RCLCPP_INFO(get_logger(), "MPC FPGA init OK at 0x%08X (bulk memory horizon mode)", addr);
 
         // --- Create publisher & subscriber ---
         // Use SystemDefaultsQoS (Reliable) to match ackermann_mux subscriber
@@ -436,8 +430,8 @@ public:
                       std::placeholders::_1));
 
         RCLCPP_INFO(get_logger(),
-            "MPC Receiver [%s] ready.  %s → %s",
-            use_fpga_ ? "FPGA" : "SW", input_topic.c_str(), drive_topic.c_str());
+            "MPC Receiver [FPGA] ready.  %s → %s",
+            input_topic.c_str(), drive_topic.c_str());
 
         // --- Safety watchdog timer ---
         double watchdog_ms = get_parameter("watchdog_timeout_ms").as_double();
@@ -465,21 +459,11 @@ public:
     }
 
 private:
-    std::vector<WaypointCSV> trajectory_;
-    bool  use_fpga_      = true;
     float max_steering_   = 0.4189f;
     float max_velocity_   = 6.0f;
     float control_dt_     = 0.02f;   // Default control interval for speed integration [s]
-    int32_t left_bound_fp_ = float_to_fp(2.0f);
-    int32_t right_bound_fp_ = float_to_fp(2.0f);
-
-    // Cached software fallback gains (read once at startup)
-    float K_ey_       = 1.0f;
-    float K_epsi_     = 1.5f;
-    float K_slowdown_ = 0.5f;
 
     MpcFpgaInterface    fpga_;
-    SoftwareFallback    sw_fallback_;
 
     rclcpp::Subscription<f1tenth_msgs::msg::MpcState>::SharedPtr sub_;
     rclcpp::Publisher<ackermann_msgs::msg::AckermannDriveStamped>::SharedPtr drive_pub_;
@@ -493,36 +477,6 @@ private:
     std::chrono::steady_clock::time_point last_msg_time_ = std::chrono::steady_clock::now();
     rclcpp::Time last_callback_time_;   // For computing actual elapsed dt
     bool has_prev_callback_ = false;    // True after first callback
-
-    /*-----------------------------------------------------------------------
-     * Load trajectory CSV
-     *---------------------------------------------------------------------*/
-    bool load_trajectory(const std::string& filepath) {
-        std::ifstream file(filepath);
-        if (!file.is_open()) return false;
-
-        trajectory_.clear();
-        std::string line;
-        std::getline(file, line);  // skip header
-
-        while (std::getline(file, line)) {
-            std::stringstream ss(line);
-            std::string tok;
-            WaypointCSV wp{};
-
-            std::getline(ss, tok, ','); wp.s     = std::stof(tok);
-            std::getline(ss, tok, ','); wp.x     = std::stof(tok);
-            std::getline(ss, tok, ','); wp.y     = std::stof(tok);
-            std::getline(ss, tok, ','); wp.psi   = std::stof(tok);
-            std::getline(ss, tok, ','); wp.kappa = std::stof(tok);
-            std::getline(ss, tok, ','); wp.vx    = std::stof(tok);
-            std::getline(ss, tok, ','); wp.ax    = std::stof(tok);
-
-            trajectory_.push_back(wp);
-        }
-
-        return !trajectory_.empty();
-    }
 
     /*-----------------------------------------------------------------------
      * State callback  —  FPGA compute → publish drive
@@ -551,57 +505,62 @@ private:
         uint32_t status   = 0;
         uint32_t iters    = 0;
 
-        if (use_fpga_) {
-            int32_t out_steer_fp = 0;
-            int32_t out_accel_fp = 0;
-            bool use_sw_fallback = false;
+        int32_t out_steer_fp = 0;
+        int32_t out_accel_fp = 0;
 
-            const uint32_t horizon_len = std::min(static_cast<uint32_t>(20), msg->horizon_length);
-            if (horizon_len < 20) {
-                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                    "Received horizon_length=%u (<20 required by FPGA bitstream) — using SW fallback",
-                    horizon_len);
-                use_sw_fallback = true;
-            }
+        if (msg->ref_x_fp.empty() || msg->ref_y_fp.empty() || msg->ref_psi_fp.empty()) {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+                "No streamed waypoint data in message");
+            return;
+        }
 
-            if (!use_sw_fallback) {
-                const bool horizon_loaded = fpga_.load_horizon(*msg, left_bound_fp_, right_bound_fp_);
-                if (!horizon_loaded) {
-                    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                        "FPGA horizon load failed — using SW fallback");
-                    use_sw_fallback = true;
-                }
-            }
+        const bool horizon_loaded = fpga_.load_horizon(*msg);
+        if (!horizon_loaded) {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+                "FPGA horizon load failed");
+            return;
+        }
 
-            if (!use_sw_fallback) {
-                bool ok = fpga_.compute(
-                    msg->x_fp, msg->y_fp, msg->theta_fp,
-                    msg->velocity_fp, msg->vy_fp, msg->omega_fp,
-                    msg->steering_angle_fp, 0,
-                    out_steer_fp, out_accel_fp, status, iters);
+        const float x = fp_to_float(msg->x_fp);
+        const float y = fp_to_float(msg->y_fp);
+        const float theta = fp_to_float(msg->theta_fp);
+        const float wx = fp_to_float(msg->ref_x_fp[0]);
+        const float wy = fp_to_float(msg->ref_y_fp[0]);
+        const float wpsi = fp_to_float(msg->ref_psi_fp[0]);
 
-                if (ok) {
-                    steering = fp_to_float(out_steer_fp);
-                    accel    = fp_to_float(out_accel_fp);
+        const float dx = x - wx;
+        const float dy = y - wy;
+        const float e_y = -std::sin(wpsi) * dx + std::cos(wpsi) * dy;
 
-                    // Speed: integrate current velocity + MPC acceleration output.
-                    // The VESC interprets drive.speed as target velocity and uses
-                    // its own PID to reach it.  This mirrors the approach in MPC/.
-                    float vx = fp_to_float(msg->velocity_fp);
-                    float v_target = vx + accel * actual_dt;
-                    speed = std::max(0.0f, std::min(v_target, max_velocity_));
-                } else {
-                    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                        "FPGA compute failed — using SW fallback");
-                    use_sw_fallback = true;
-                }
-            }
+        float e_psi = theta - wpsi;
+        while (e_psi > static_cast<float>(M_PI)) e_psi -= 2.0f * static_cast<float>(M_PI);
+        while (e_psi < -static_cast<float>(M_PI)) e_psi += 2.0f * static_cast<float>(M_PI);
 
-            if (use_sw_fallback) {
-                run_sw_fallback(msg, steering, speed);
-            }
-        } else {
-            run_sw_fallback(msg, steering, speed);
+        const int32_t e_y_fp = float_to_fp(e_y);
+        const int32_t e_psi_fp = float_to_fp(e_psi);
+
+        const bool ok = fpga_.compute(
+            e_y_fp, e_psi_fp,
+            msg->velocity_fp, msg->vy_fp, msg->omega_fp,
+            msg->steering_angle_fp,
+            out_steer_fp, out_accel_fp, status, iters);
+
+        if (!ok) {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+                "FPGA compute failed");
+            return;
+        }
+
+        steering = fp_to_float(out_steer_fp);
+        accel    = fp_to_float(out_accel_fp);
+
+        // Speed: integrate current velocity + MPC acceleration output.
+        // The VESC interprets drive.speed as target velocity and uses
+        // its own PID to reach it.  This mirrors the approach in MPC/.
+        {
+            float vx = fp_to_float(msg->velocity_fp);
+            float v_target = vx + accel * actual_dt;
+            speed = std::max(0.0f, std::min(v_target, max_velocity_));
         }
 
         // Clamp outputs
@@ -635,12 +594,12 @@ private:
         if (msg_count_ % 100 == 0) {
             double avg = total_latency_ms_ / static_cast<double>(msg_count_);
             double avg_loop_us = total_loop_us_ / static_cast<double>(msg_count_);
-            int64_t fpga_ns = use_fpga_ ? fpga_.get_last_compute_ns() : 0;
+            int64_t fpga_ns = fpga_.get_last_compute_ns();
             RCLCPP_INFO(get_logger(),
                 "[%s] WP=%u  delta=%.1f deg  v=%.1f  a=%.1f | "
                 "Status=%u  Iter=%u | Total=%ld us  FPGA=%ld ns | "
                 "Loop us avg/min/max=%.1f/%.1f/%.1f | Lat %.1f ms (avg %.1f)",
-                use_fpga_ ? "FPGA" : "SW",
+                "FPGA",
                 msg->waypoint_index,
                 steering * 57.2958f, speed, accel,
                 status, iters,
@@ -650,22 +609,6 @@ private:
         }
     }
 
-    /*-----------------------------------------------------------------------
-     * Software fallback path
-     *---------------------------------------------------------------------*/
-    void run_sw_fallback(const f1tenth_msgs::msg::MpcState::SharedPtr& msg,
-                         float& steering, float& speed) {
-        const float x     = fp_to_float(msg->x_fp);
-        const float y     = fp_to_float(msg->y_fp);
-        const float theta = fp_to_float(msg->theta_fp);
-        const float vx    = fp_to_float(msg->velocity_fp);
-
-        sw_fallback_.compute(
-            x, y, theta, vx, msg->waypoint_index,
-            max_steering_, max_velocity_,
-            K_ey_, K_epsi_, K_slowdown_,
-            steering, speed);
-    }
 };
 
 }  // namespace f1tenth_communication

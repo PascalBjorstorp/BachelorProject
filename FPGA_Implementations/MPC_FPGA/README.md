@@ -15,10 +15,10 @@ CPU (ARM Cortex-A53)               FPGA (Programmable Logic)
 │ ROS2 MPC Node        │  AXI-   │  mpc_fpga_top              │
 │                      │  Lite   │  ┌────────────────────────┐ │
 │ 1. Localization      │◄───────►│  │ Waypoint BRAM (32 KB)  │ │
-│ 2. Closest waypoint  │         │  │ ADMM warm-start state  │ │
+│ 2. Frenet error      │         │  │ ADMM warm-start state  │ │
 │ 3. Write state regs  │         │  ├────────────────────────┤ │
-│ 4. Trigger compute   │         │  │ Frenet conversion      │ │
-│ 5. Poll/IRQ done     │         │  │ Vehicle linearization  │ │
+│ 4. Write ref buffers │         │  │ Vehicle linearization  │ │
+│ 5. Trigger compute   │         │  │ QP setup (8×8 augment) │ │
 │ 6. Read result regs  │         │  │ QP setup (8×8 augment) │ │
 │                      │         │  │ Riccati-ADMM solver    │ │
 │                      │         │  │ Control extraction     │ │
@@ -34,7 +34,7 @@ CPU (ARM Cortex-A53)               FPGA (Programmable Logic)
 | Solver | Riccati-ADMM | O(N·nx³) per iter vs O(N³) for dense QP |
 | Warm-start | Static BRAM | Persists across calls, reduces iterations |
 | State dimension | 8 (5 Frenet + 3 augmented) | Rate penalties + steering dynamics |
-| Horizon | 20 steps × 50 ms = 1 s | Sufficient look-ahead for racing |
+| Horizon | 19 steps × 40 ms = 0.76 s | Balances look-ahead, latency, and resources |
 
 ## File Structure
 
@@ -52,7 +52,7 @@ MPC_FPGA/
 │   ├── mpc_riccati_hls.c       # MPC QP construction + control extraction
 │   └── mpc_fpga_top.c          # Top-level AXI-Lite wrapper
 ├── testbench/
-│   └── tb_mpc_fpga.c           # C testbench for csim/cosim
+│   └── test_fpga_sim_drive.c   # Closed-loop FPGA simulation test
 ├── scripts/
 │   └── run_hls.tcl             # Vitis HLS automation script
 └── README.md                   # This file
@@ -112,15 +112,15 @@ The exported IP can then be imported into Vivado IP Catalog.
 ```bash
 cd FPGA_Implementations/MPC_FPGA
 gcc -O2 -I include -Wno-unknown-pragmas \
-    -o tb_mpc \
-    testbench/tb_mpc_fpga.c \
+    -o test_fpga_sim \
+    testbench/test_fpga_sim_drive.c \
     src/mpc_fpga_top.c \
     src/mpc_riccati_hls.c \
     src/riccati_solver_hls.c \
     src/vehicle_model_hls.c \
     src/fp_math_hls.c \
     -lm
-./tb_mpc
+./test_fpga_sim
 ```
 
 ### Vivado Implementation and Bitstream
@@ -141,24 +141,15 @@ HLS_RUN_MODE=export vitis-run --mode hls --tcl scripts/run_hls.tcl
 
 ## Interface
 
-### Operating Modes
+### Compute Interface
 
-| Mode | Description |
-|------|-------------|
-| 0 | **Compute**: Convert state to Frenet, run MPC, return controls |
-| 1 | **Load waypoint**: Store one waypoint into BRAM at `wp_index` |
-| 2 | **Finalize**: Set trajectory size, reset solver warm-start |
+The top-level IP runs one compute transaction per call.
 
-### Mode 1: Trajectory Loading (called N_total times)
-
-Write registers: `wp_index`, `wp_x_fp` .. `wp_right_bound_fp`, `mode=1`, trigger.
-
-### Mode 0: MPC Compute (called at control rate, ~200 Hz)
-
-1. Write vehicle state registers (`state_x_fp` .. `state_wp_idx`)
-2. Write `mode=0`, trigger `ap_start`
-3. Wait for `ap_done` (poll or interrupt)
-4. Read `out_steering_fp`, `out_accel_fp`, `out_status`, `out_iterations`
+1. Write Frenet/controller state registers (`state_x_fp=e_y`, `state_theta_fp=e_psi`, `state_vx_fp`, `state_vy_fp`, `state_omega_fp`, `state_steering_fp`)
+2. Write reference buffer addresses (`ref_vx_mem`, `ref_kappa_mem`, `ref_left_bound_mem`, `ref_right_bound_mem`) and `ref_count`
+3. Trigger `ap_start`
+4. Wait for `ap_done` (poll or interrupt)
+5. Read `out_steering_fp`, `out_accel_fp`, `out_status`, `out_iterations`
 
 ### AXI-Lite Register Map
 
@@ -207,7 +198,7 @@ All cases well within the 5 ms control period (200 Hz).
 4. **Compile-time vehicle params**: F1/10th constants enable propagation
 5. **Real-hardware physics**: Full atan slip angles, Pacejka tire saturation,
    cos(δ)/sin(δ) force resolution. No simulation-matching simplifications.
-6. **Frenet on FPGA**: Global→Frenet conversion inside top function
+6. **Frenet on ARM**: Top-level consumes precomputed Frenet errors
 7. **Sparsity preserved**: 6×6 dense block + identity rows 6–7
 8. **Division-free critical path**: fp_atan uses fp_recip (Newton-Raphson)
 

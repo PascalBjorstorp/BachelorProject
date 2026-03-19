@@ -13,36 +13,7 @@
 #define MPC_HLS_TARGET
 #endif
 
-#include <stdint.h>
-
-/*===========================================================================
- * Fixed-Point Type and Constants (Q16.16)
- *===========================================================================*/
-
-typedef int32_t fixed_point_t;
-
-#define FP_FRAC_BITS    16
-#define FP_ONE          (1 << FP_FRAC_BITS)       /* 65536 (2^16) */
-#define FP_TWO          (2 << FP_FRAC_BITS)       /* 131072 (2^17) */
-#define FP_HALF         (FP_ONE >> 1)             /* 32768 (2^15) */
-#define FP_PI           205887                    /* pi (3.14159 * 65536) */
-#define FP_PI_HALF      102943                    /* pi/2 (1.5708 * 65536) */
-#define FP_TWO_PI       411775                    /* 2*pi (6.28318 * 65536) */
-
-/** Compile-time float to Q16.16 conversion 
- *  Rounding is applied to minimize quantization error in constants.
-*/
-#define FP_CONST(x) ((fixed_point_t)(((double)(x) >= 0) ? \
-                    ((double)(x) * FP_ONE + 0.5) : \
-                    ((double)(x) * FP_ONE - 0.5)))
-
-/* Fixed-point arithmetic helpers (Q16.16) */
-#define FP_MUL(a, b) ((fixed_point_t)(((int64_t)(a) * (int64_t)(b)) >> FP_FRAC_BITS))
-#define FP_DIV(a, b) ((fixed_point_t)(((int64_t)(a) << FP_FRAC_BITS) / (int64_t)(b)))
-#define FP_TO_FLOAT(x) ((float)(x) / FP_ONE)
-#define FLOAT_TO_FP(x) ((fixed_point_t)((x) * FP_ONE))
-#define FP_TO_DOUBLE(x) ((double)(x) / FP_ONE)
-#define DOUBLE_TO_FP(x) ((fixed_point_t)((x) * FP_ONE))
+#include "fp_math_hls.h"
 
 /*===========================================================================
  * MPC Dimension Constants
@@ -199,7 +170,14 @@ typedef int32_t fixed_point_t;
 #define MPC_W_STEER_JERK    FP_CONST(0.3)
 #define MPC_W_ACCEL_RATE    FP_CONST(0.1)    
 #define MPC_W_DELTA_ACT     FP_CONST(0.795)    
-#define MPC_CROSS_CALL_SCALE FP_CONST(0.125)
+
+/* Control period for cross-call rate scaling.
+ * Default control loop is 200 Hz => 0.005 s. */
+#define MPC_CONTROL_RATE_HZ     FP_CONST(200.0)
+#define MPC_CONTROL_DT          FP_DIV(FP_ONE, MPC_CONTROL_RATE_HZ)
+
+/* Cross-call rate scale = control_dt / prediction_dt. */
+#define MPC_CROSS_CALL_SCALE    FP_DIV(MPC_CONTROL_DT, MPC_DT)
 
 /* === Precomputed 2x weights for QP Hessian diagonal ===
  * All computed at compile time via integer arithmetic. */
