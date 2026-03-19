@@ -59,7 +59,7 @@ private:
   void drive_callback(
     const ackermann_msgs::msg::AckermannDriveStamped::ConstSharedPtr & msg);
 
-  void try_report(int64_t key);
+  void try_report(int64_t key, double ekf_to_drive_ms = -1.0);
   void cleanup_old_entries();
   void initialize_csv_logging();
   void write_csv_row(
@@ -105,11 +105,13 @@ private:
   std::vector<double> acc_ekf_to_drive_;
   std::vector<double> acc_scan_to_drive_;
 
-  // Queue of EKF receive times waiting for the corresponding drive command.
-  std::vector<double> pending_ekf_recv_ns_;
+  struct PendingDriveEntry {
+    int64_t key{0};
+    double ekf_recv_ns{0.0};
+  };
 
-  // Matched ekf->drive latency indexed by EKF receive wall-time key.
-  std::unordered_map<int64_t, double> ekf_to_drive_by_ekf_recv_ns_;
+  // EKF-complete pipeline entries waiting for corresponding drive command.
+  std::vector<PendingDriveEntry> pending_drive_entries_;
 
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr walls_sub_;
