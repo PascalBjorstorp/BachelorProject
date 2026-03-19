@@ -18,7 +18,7 @@ gpu_amcl_cpp:
     use_gpu: true
 
     # ---- Particles ----
-    num_particles: 2000
+    num_particles: 1000
     min_particles: 1000
     max_particles: 10000
 
@@ -55,10 +55,10 @@ gpu_amcl_cpp:
     # These control how much random noise is added to each particle.
     # For simulation (accurate odom), use LOW values.
     # For real hardware (noisy odom/slip), increase 5-10x.
-    alpha1: 0.05    # rotation  → rotation  noise 0.0001 for sim
-    alpha2: 0.05    # translation → rotation  noise
-    alpha3: 0.05    # translation → translation noise
-    alpha4: 0.05    # rotation  → translation noise
+    alpha1: 0.08    # rotation  → rotation  noise 0.0001 for sim
+    alpha2: 0.08    # translation → rotation  noise
+    alpha3: 0.08    # translation → translation noise
+    alpha4: 0.08    # rotation  → translation noise
 
     # ---- Sensor model (likelihood field, Prob. Robotics §6.4) ----
     max_beams: 270
@@ -80,9 +80,9 @@ gpu_amcl_cpp:
     # ---- Initial pose ----
     # Spielberg starting position (matches sim.yaml sx/sy/stheta).
     # Use RViz "2D Pose Estimate" tool to reinitialize if heading is wrong.
-    initial_pose_x: 0.04450
-    initial_pose_y: 0.16858
-    initial_pose_a: -0.09374
+    initial_pose_x: 0.0
+    initial_pose_y: 0.0
+    initial_pose_a: 0.0
     initial_cov_xx: 0.02
     initial_cov_yy: 0.02
     initial_cov_aa: 0.05

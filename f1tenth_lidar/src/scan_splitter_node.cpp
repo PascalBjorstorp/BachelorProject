@@ -23,7 +23,7 @@ ScanSplitterNode::ScanSplitterNode(const rclcpp::NodeOptions & options)
 {
   // ── Declare parameters ────────────────────────────────────────────
   this->declare_parameter("enable_splitting", true);
-  this->declare_parameter("obstacle_threshold_m", 0.3);
+  this->declare_parameter("obstacle_threshold_m", 0.1);
   this->declare_parameter("min_cluster_size", 3);
   this->declare_parameter("scan_topic", std::string("/scan"));
   this->declare_parameter("walls_topic", std::string("/scan_walls"));

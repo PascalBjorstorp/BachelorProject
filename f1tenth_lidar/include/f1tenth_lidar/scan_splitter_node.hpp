@@ -50,7 +50,7 @@ private:
 
   // ── Parameters ─────────────────────────────────────────────────────
   bool   enable_splitting_{true};
-  double obstacle_threshold_{0.3};
+  double obstacle_threshold_{0.1};
   int    min_cluster_size_{3};
   std::string scan_topic_{"/scan"};
   std::string walls_topic_{"/scan_walls"};
