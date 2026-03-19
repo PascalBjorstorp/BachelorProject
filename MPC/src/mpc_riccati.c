@@ -69,20 +69,17 @@
 /** A-row stability limit (same as condensed approach) */
 #define STABILITY_LIMIT FP_CONST(0.95)
 
-/** Wall constraint margin — accounts for vehicle half-width (0.137m) + safety buffer.
- *  The gym's iTTC collision uses the car's physical body edge, not just the CG.
- *  0.60 provides ~0.40m buffer beyond body-edge collision boundary, enough to
- *  absorb model mismatch from rolling resistance, tire saturation, delay, and noise.
+/** Wall constraint margin — default from latest best hardware tuning run.
  *  Override at runtime via WALL_MARGIN environment variable. */
-#define WALL_MARGIN_DEFAULT FP_CONST(0.15)
+#define WALL_MARGIN_DEFAULT FP_CONST(0.855)
 
 /** Wall constraints: only first few horizon steps for near-term safety.
  *  Override at runtime via WALL_END environment variable.
  *  WALL_STRIDE controls step spacing (1=every step, 2=every other, etc.).
  *  Override at runtime via WALL_STRIDE environment variable. */
 #define WALL_CONSTRAINT_START  1
-#define WALL_CONSTRAINT_STRIDE_DEFAULT 1
-#define WALL_CONSTRAINT_END_DEFAULT 18    /* last horizon step to constrain (0=disable) */
+#define WALL_CONSTRAINT_STRIDE_DEFAULT 3
+#define WALL_CONSTRAINT_END_DEFAULT 20    /* last horizon step to constrain (0=disable) */
 
 /** Soft wall constraint stiffness (0 = hard box constraint).
  *  When > 0, wall constraints use a quadratic penalty instead of hard clipping:
@@ -91,7 +88,7 @@
  *  Higher k = stiffer (500+ approaches hard). Lower k = more flexible.
  *  Recommended: 200-500 for tight corridors, 0 for wide tracks.
  *  Override at runtime via WALL_SOFT_K environment variable. */
-#define WALL_SOFT_STIFFNESS_DEFAULT FP_CONST(0.0)
+#define WALL_SOFT_STIFFNESS_DEFAULT FP_CONST(657.0)
 
 /** v_switch: above this velocity, max acceleration = a_max * v_switch / v.
  *  From f1tenth gym STDynamicsModel: v_switch = 7.319 m/s.
@@ -128,30 +125,23 @@ MpcConfiguration_t get_default_configuration(void)
     cfg.time_step_seconds = MPC_DEFAULT_TIME_STEP_SECONDS;
 
     /* State tracking weights (Frenet frame).
-     * Optimized via per-raceline sweep with REALISTIC_SIM=1 (Pacejka tires,
-     * rolling resistance, 1-step delay, sensor noise). Corridor velocity
-     * capping removed — the MPC drives purely from physics-based constraints.
-     * Best config for cl050 raceline (eff wall clearance=0.44m):
-     *   score=15.4, T>5=64.4%, maxV=12.17 m/s, 0 wall collisions.
-     * Q_LAT=500, Q_HDG=1000 provide strong lateral+heading tracking.
-     * Q_VEL=30 pushes velocity without over-acceleration.
-     * Solve time: 6.5 μs avg (well within 4ms FPGA budget). */
-    cfg.weight_lateral_error    = FP_CONST(340.0);
-    cfg.weight_heading_error    = FP_CONST(1000.0);
-    cfg.weight_velocity         = FP_CONST(26.0);
-    cfg.weight_lateral_velocity = FP_CONST(69.0);
-    cfg.weight_yaw_rate         = FP_CONST(22.0);
+     * Defaults updated to latest best hardware tuning row (RND_76). */
+    cfg.weight_lateral_error    = FP_CONST(5000.0);
+    cfg.weight_heading_error    = FP_CONST(500.0);
+    cfg.weight_velocity         = FP_CONST(165.0);
+    cfg.weight_lateral_velocity = FP_CONST(10.0);
+    cfg.weight_yaw_rate         = FP_CONST(5.0);
 
     /* Control effort weights */
-    cfg.weight_steering_effort      = FP_CONST(0.15);
+    cfg.weight_steering_effort      = FP_CONST(0.18);
     cfg.weight_acceleration_effort  = FP_CONST(0.01);
 
     /* Control rate weights (W_JERK, W_ACCEL_RATE) */
-    cfg.weight_steering_rate        = FP_CONST(0.3);
+    cfg.weight_steering_rate        = FP_CONST(0.15);
     cfg.weight_acceleration_rate    = FP_CONST(0.1);
 
-    /* Cross-call rate scale: ratio of control interval to prediction dt. */
-    cfg.cross_call_rate_scale = FP_CONST(0.125);
+    /* Cross-call rate scale: CONTROL_DT / PRED_DT = 0.005 / 0.02 = 0.25. */
+    cfg.cross_call_rate_scale = FP_CONST(0.25);
 
     /* Solver parameters */
     cfg.maximum_solver_iterations = MPC_DEFAULT_MAXIMUM_ITERATIONS;
