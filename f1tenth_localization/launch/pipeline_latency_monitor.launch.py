@@ -41,6 +41,16 @@ def generate_launch_description():
             description='Maximum ekf->drive match window in ms to reject startup/stale pairs'),
 
         DeclareLaunchArgument(
+            'threaded',
+            default_value='false',
+            description='If true, run pipeline monitor in multithreaded executor'),
+
+        DeclareLaunchArgument(
+            'threaded_cores',
+            default_value='6',
+            description='Number of executor threads when threaded=true'),
+
+        DeclareLaunchArgument(
             'log_to_csv',
             default_value='true',
             description='Enable per-cycle latency CSV logging'),
@@ -82,6 +92,8 @@ def generate_launch_description():
                 'ekf_topic': '/ekf_pose',
                 'drive_topic': LaunchConfiguration('drive_topic'),
                 'drive_match_max_ms': LaunchConfiguration('drive_match_max_ms'),
+                'threaded': LaunchConfiguration('threaded'),
+                'threaded_cores': LaunchConfiguration('threaded_cores'),
                 'print_every': LaunchConfiguration('print_every'),
                 'log_to_csv': LaunchConfiguration('log_to_csv'),
                 'csv_output_dir': LaunchConfiguration('csv_output_dir'),
