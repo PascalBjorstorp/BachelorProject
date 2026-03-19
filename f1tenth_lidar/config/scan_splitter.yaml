@@ -7,7 +7,7 @@ scan_splitter_node:
     # Distance (meters) from a known wall beyond which a beam endpoint
     # is considered an obstacle rather than a wall reflection.
     # Higher = more tolerant of localization error / map inaccuracy.
-    obstacle_threshold_m: 0.3
+    obstacle_threshold_m: 0.2
 
     # Minimum number of adjacent obstacle beams to count as a real obstacle.
     # With 270-beam scans (cluster=4), 2 is often a better starting point than 3.

@@ -8,11 +8,11 @@ vehicle:
   width: 0.273                # [m] Total car width (for safety margin)
   
   # Tire/friction properties
-  friction_coeff: 0.5      # [-] Tire-road friction coefficient (μ)
+  friction_coeff: 0.7      # [-] Tire-road friction coefficient (μ)
   
   # Acceleration limits
-  max_acceleration: 5.0     # [m/s²] Maximum longitudinal acceleration
-  max_deceleration: 5.0     # [m/s²] Maximum braking deceleration
+  max_acceleration: 7.0     # [m/s²] Maximum longitudinal acceleration
+  max_deceleration: 7.0     # [m/s²] Maximum braking deceleration
   
   # Speed limits
   max_speed: 12.0            # [m/s] Maximum vehicle speed
