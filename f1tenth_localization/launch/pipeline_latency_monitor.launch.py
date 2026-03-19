@@ -36,6 +36,11 @@ def generate_launch_description():
             description='Drive command topic used for ekf_pose -> drive latency measurement'),
 
         DeclareLaunchArgument(
+            'drive_match_max_ms',
+            default_value='20.0',
+            description='Maximum ekf->drive match window in ms to reject startup/stale pairs'),
+
+        DeclareLaunchArgument(
             'log_to_csv',
             default_value='true',
             description='Enable per-cycle latency CSV logging'),
@@ -60,6 +65,11 @@ def generate_launch_description():
             default_value='1000.0',
             description='High-rate CPU/GPU sampling frequency for performance_monitor_cpp'),
 
+        DeclareLaunchArgument(
+            'system_cpu_update_hz',
+            default_value='50.0',
+            description='CPU usage estimation update frequency for performance_monitor_cpp'),
+
         Node(
             package='f1tenth_localization',
             executable='pipeline_latency_monitor',
@@ -71,6 +81,7 @@ def generate_launch_description():
                 'amcl_topic': '/amcl_pose',
                 'ekf_topic': '/ekf_pose',
                 'drive_topic': LaunchConfiguration('drive_topic'),
+                'drive_match_max_ms': LaunchConfiguration('drive_match_max_ms'),
                 'print_every': LaunchConfiguration('print_every'),
                 'log_to_csv': LaunchConfiguration('log_to_csv'),
                 'csv_output_dir': LaunchConfiguration('csv_output_dir'),
@@ -86,6 +97,7 @@ def generate_launch_description():
             parameters=[{
                 'output_dir': LaunchConfiguration('system_output_dir'),
                 'high_rate_sample_hz': LaunchConfiguration('system_high_rate_hz'),
+                'cpu_usage_update_hz': LaunchConfiguration('system_cpu_update_hz'),
                 'print_rate_hz': 1.0,
             }],
         ),

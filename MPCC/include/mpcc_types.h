@@ -17,9 +17,6 @@
  *   vy      — lateral velocity (body frame) [m/s]
  *   omega   — yaw rate [rad/s]
  *   omega_w — wheel angular velocity [rad/s]
- *   X       — global X position [m]  (redundant, for obstacle avoidance)
- *   Y       — global Y position [m]  (redundant, for obstacle avoidance)
- *   psi     — global heading [rad]   (redundant, for obstacle avoidance)
  *
  * Controls (2): [delta, T_motor]
  *   delta   — front wheel steering angle [rad]
@@ -27,7 +24,6 @@
  *
  * Key advantages of Lifted ODE over standard MPCC:
  *   1. Track bounds are trivial box constraints on n
- *   2. Obstacle avoidance uses Cartesian (X, Y) — convex in global frame
  *   3. Virtual progress control v_theta: ds/dt = v_theta decouples path
  *   4. Progress maximisation: reward ds/dt or terminal s_N
  *
@@ -40,17 +36,11 @@
  *   domega/dt  = (l_f*F_yf*cos(delta) - l_r*F_yr) / I_z
  *   domega_w/dt= (T_motor/G_ratio - F_x*R_w) / I_w
  *
- * Redundant Cartesian ODE:
- *   dX/dt  = vx*cos(psi) - vy*sin(psi)
- *   dY/dt  = vx*sin(psi) + vy*cos(psi)
- *   dpsi/dt= omega
- *
  * Cost:
  *   J = Sum_k [ q_n*n^2 + q_alpha*alpha^2 + q_vy*vy^2 + q_omega*omega^2
  *             - q_s * ds/dt_k                         progress reward
  *             + u^T R u  +  du^T Rd du ]              control
  *       + terminal terms
- *       + obstacle penalty/constraints on (X, Y)
  *
  * All numerical values use Q16.16 fixed-point for FPGA compatibility.
  * Units: SI (meters, radians, seconds, Newtons).
@@ -65,9 +55,6 @@
 /*===========================================================================
  * Convenience float <-> fixed-point conversion
  *===========================================================================
- * fp_math.h provides FP_CONST (compile-time) and FP_TO_FLOAT (macro).
- * These add runtime float<->fp helpers used by tests and the ROS2 node.
- */
 
 /** Convert a float to Q16.16 fixed-point at runtime */
 static inline fixed_point_t float_to_fp(float f)
@@ -92,8 +79,8 @@ static inline float fp_to_float(fixed_point_t x)
  *===========================================================================*/
 
 /** Number of Lifted ODE states:
- *  [s, n, alpha, vx, vy, omega, X, Y, psi] */
-#define MPCC_NX 9
+ *  [s, n, alpha, vx, vy, omega] */
+#define MPCC_NX 6
 
 /** Number of controls: [delta, a_x, v_theta] */
 #define MPCC_NU 3
@@ -101,8 +88,6 @@ static inline float fp_to_float(fixed_point_t x)
 /** Number of Frenet states (first 6 of MPCC state) */
 #define MPCC_N_FRENET 6
 
-/** Number of redundant Cartesian states (last 3 of MPCC state) */
-#define MPCC_N_CARTESIAN 3
 
 /** State index constants for readability */
 #define MPCC_IDX_S       0   /**< arc-length progress */
@@ -111,45 +96,29 @@ static inline float fp_to_float(fixed_point_t x)
 #define MPCC_IDX_VX      3   /**< longitudinal velocity */
 #define MPCC_IDX_VY      4   /**< lateral velocity */
 #define MPCC_IDX_OMEGA   5   /**< yaw rate */
-#define MPCC_IDX_X       6   /**< global X position (Cartesian) */
-#define MPCC_IDX_Y       7   /**< global Y position (Cartesian) */
-#define MPCC_IDX_PSI     8   /**< global heading (Cartesian) */
 
 /** Control index constants */
 #define MPCC_IDX_DELTA   0   /**< steering angle */
 #define MPCC_IDX_AX      1   /**< longitudinal acceleration */
 #define MPCC_IDX_VTHETA  2   /**< virtual progress speed ds/dt */
 
-/** Maximum prediction horizon steps.
- *  MPCC typically uses 20-40 steps to benefit from free speed-profile. */
-#define MPCC_MAX_HORIZON 40
+/** Maximum prediction horizon steps.*/
+#define MPCC_MAX_HORIZON 20
 
-/** Maximum number of reference path waypoints.
- *  For a typical F1/10th track (~20 m), spaced at ~0.05 m = 400 points. */
+/** Maximum number of reference path waypoints.*/
+
 #define MPCC_MAX_PATH_POINTS 500
 
-/** Maximum number of obstacles that can be tracked simultaneously */
-#define MPCC_MAX_OBSTACLES 10
+/** Maximum number of obstacles that can be tracked simultaneously 
+#define MPCC_MAX_OBSTACLES 10 */
 
 /*===========================================================================
- * MPCC Lifted ODE State
+ * MPCC ODE State
  *===========================================================================
- * Frenet primary states + redundant Cartesian states.
- *
- * The Frenet part [s, n, alpha, vx, vy, omega] captures the
- * vehicle dynamics relative to the reference path (racing line).
- *   - s evolves naturally from the Frenet kinematics (no virtual input)
- *   - n is directly the lateral deviation -> trivial track bounds
- *   - alpha is heading error relative to the local path tangent
- *
- * The Cartesian part [X, Y, psi] is propagated as a redundant ODE
- * for obstacle avoidance (obstacles are convex in Cartesian frame
- * but generally non-convex in Frenet frame).
- */
-
+ 
 typedef struct
 {
-    /*--- Frenet states (primary) ---*/
+    /*--- Frenet states ---*/
 
     /** Arc-length position along reference path [m].
      *  Evolves from Frenet kinematics: ds/dt = v_proj / (1 - n*kappa(s)).
@@ -666,7 +635,7 @@ typedef struct
 /*--- ADMM solver ---*/
 #define MPCC_DEFAULT_ADMM_RHO         FP_CONST(1.0)
 #define MPCC_DEFAULT_ADMM_MAX_ITER    100
-#define MPCC_DEFAULT_ADMM_TOLERANCE   FP_CONST(0.01)
+#define MPCC_DEFAULT_ADMM_TOLERANCE   FP_CONST(0.001)
 
 /*--- Track half-width (default if per-stage not set) ---*/
 #define MPCC_DEFAULT_N_MAX            FP_CONST(0.5)

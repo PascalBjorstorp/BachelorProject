@@ -3,11 +3,7 @@
  * @brief Q16.16 Fixed-Point Math for MPCC Solver
  *
  * Self-contained fixed-point arithmetic for the MPCC.
- * Uses int32_t with int64_t intermediates — matches the FPGA HLS design
- * (fp_math_hls.h) so the C code can be ported to HLS with minimal changes.
- *
- * Deliberately defines guard FP_MATH_H to shadow the MPC's float-based
- * fp_math.h when both headers appear in the include chain (via mpc_types.h).
+ * Uses int32_t with int64_t intermediates
  */
 
 #ifndef FP_MATH_H

@@ -19,6 +19,7 @@ PerformanceMonitor::PerformanceMonitor(const rclcpp::NodeOptions & options)
   declare_parameter("output_dir", std::string("f1tenth_localization/Benchmark/Matlab/csv"));
   declare_parameter("high_rate_sample_hz", 1000.0);
   declare_parameter("print_rate_hz", 1.0);
+  declare_parameter("cpu_usage_update_hz", 50.0);
   // Compatibility parameters to keep existing launch files working.
   declare_parameter("sample_rate_hz", 5.0);
   declare_parameter("enable_high_rate_system_logging", true);
@@ -33,12 +34,16 @@ PerformanceMonitor::PerformanceMonitor(const rclcpp::NodeOptions & options)
   output_dir_ = get_parameter("output_dir").as_string();
   high_rate_sample_hz_ = get_parameter("high_rate_sample_hz").as_double();
   print_rate_hz_ = get_parameter("print_rate_hz").as_double();
+  cpu_usage_update_hz_ = get_parameter("cpu_usage_update_hz").as_double();
 
   if (high_rate_sample_hz_ <= 0.0) {
     high_rate_sample_hz_ = 1000.0;
   }
   if (print_rate_hz_ <= 0.0) {
     print_rate_hz_ = 1.0;
+  }
+  if (cpu_usage_update_hz_ <= 0.0) {
+    cpu_usage_update_hz_ = 50.0;
   }
 
   num_cores_ = std::max<size_t>(1, std::thread::hardware_concurrency());
@@ -59,6 +64,7 @@ PerformanceMonitor::PerformanceMonitor(const rclcpp::NodeOptions & options)
   RCLCPP_INFO(get_logger(), "Performance monitor started");
   RCLCPP_INFO(get_logger(), "  CSV output: %s", csv_path_.c_str());
   RCLCPP_INFO(get_logger(), "  High-rate sampling: %.1f Hz", high_rate_sample_hz_);
+  RCLCPP_INFO(get_logger(), "  CPU usage update: %.1f Hz", cpu_usage_update_hz_);
 }
 
 PerformanceMonitor::~PerformanceMonitor()
@@ -217,7 +223,10 @@ double PerformanceMonitor::read_gpu_percent() const
 void PerformanceMonitor::sampling_loop()
 {
   const auto period = std::chrono::duration<double>(1.0 / high_rate_sample_hz_);
+  const auto cpu_period = std::chrono::duration<double>(1.0 / cpu_usage_update_hz_);
   auto next_tick = std::chrono::steady_clock::now();
+  auto next_cpu_tick = next_tick;
+  std::vector<double> cached_core_usage = latest_core_usage_;
 
   while (running_.load()) {
     const auto steady_now = std::chrono::steady_clock::now();
@@ -225,13 +234,18 @@ void PerformanceMonitor::sampling_loop()
       steady_now.time_since_epoch()).count();
     const auto ros_now = get_clock()->now();
 
-    const auto current_cpu = read_cpu_times();
-    auto core_usage = compute_per_core_usage(current_cpu);
-    if (core_usage.size() > num_cores_) {
-      core_usage.resize(num_cores_);
-    } else if (core_usage.size() < num_cores_) {
-      core_usage.resize(num_cores_, 0.0);
+    if (steady_now >= next_cpu_tick) {
+      const auto current_cpu = read_cpu_times();
+      cached_core_usage = compute_per_core_usage(current_cpu);
+      if (cached_core_usage.size() > num_cores_) {
+        cached_core_usage.resize(num_cores_);
+      } else if (cached_core_usage.size() < num_cores_) {
+        cached_core_usage.resize(num_cores_, 0.0);
+      }
+      next_cpu_tick = steady_now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(cpu_period);
     }
+
+    const auto & core_usage = cached_core_usage;
     const double gpu_percent = read_gpu_percent();
 
     {

@@ -39,6 +39,7 @@ private:
   std::string output_dir_;
   double high_rate_sample_hz_{1000.0};
   double print_rate_hz_{1.0};
+  double cpu_usage_update_hz_{50.0};
 
   size_t num_cores_{1};
   std::string gpu_load_path_;

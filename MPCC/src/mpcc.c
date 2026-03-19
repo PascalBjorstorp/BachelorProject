@@ -154,6 +154,7 @@ void mpcc_initialize_with_config(const MPCCConfiguration_t *cfg)
 {
     config = *cfg;
 
+    admm_solver_default_config(&admm_config);
     admm_config.rho = cfg->admm_rho;
     admm_config.max_iterations = cfg->admm_max_iterations;
     admm_config.eps_primal = cfg->admm_tolerance;
@@ -575,8 +576,10 @@ static void build_qp_problem(
 
     for (uint16_t k = 0; k < N; k++)
     {
-        /* Get operating point */
-        if (warm_start_available && k < N)
+        /* Get operating point: k=0 always uses the actual current state x0
+         * for accurate linearization.  Subsequent stages use the warm-start
+         * trajectory (shifted from previous solve). */
+        if (warm_start_available && k > 0)
         {
             z_bar = prev_predicted_states[k + 1]; /* shifted */
             if (k + 1 < N)
@@ -711,9 +714,19 @@ static void shift_warm_start(void)
                sizeof(fixed_point_t) * MPCC_NU);
     }
 
-    /* Reset dual variables for fresh ADMM convergence */
-    memset(admm_workspace.lambda_x, 0, sizeof(admm_workspace.lambda_x));
-    memset(admm_workspace.lambda_u, 0, sizeof(admm_workspace.lambda_u));
+    /* Shift dual variables (lambda) forward to preserve ADMM convergence
+     * history.  Zeroing lambda defeats warm-starting — ADMM needs the
+     * accumulated constraint-violation information to converge properly. */
+    for (uint16_t k = 0; k < N; k++) {
+        memcpy(admm_workspace.lambda_x[k], admm_workspace.lambda_x[k + 1],
+               sizeof(fixed_point_t) * MPCC_NX);
+        if (k + 1 < N)
+            memcpy(admm_workspace.lambda_u[k], admm_workspace.lambda_u[k + 1],
+                   sizeof(fixed_point_t) * MPCC_NU);
+    }
+    /* Terminal lambda: hold last */
+    /* lambda_x[N] stays as lambda_x[N] (already in place after shift) */
+    /* lambda_u[N-1] stays as lambda_u[N-1] (already in place after shift) */
 }
 
 /*===========================================================================
@@ -774,6 +787,58 @@ MPCCStatus_t mpcc_compute_control(
 
     /* Build the multistage QP */
     build_qp_problem(current_state, &qp_problem);
+
+#ifdef MPCC_DEBUG_PRINT
+    {
+        /* Print B matrix coupling for steering at k=0 */
+        printf("  [DBG-QP] k=0 B[1][δ]=%.6f B[4][δ]=%.6f B[5][δ]=%.6f B[0][vθ]=%.6f B[2][vθ]=%.6f B[3][ax]=%.6f\n",
+               FP_TO_DOUBLE(qp_problem.dynamics[0].B[1][0]),
+               FP_TO_DOUBLE(qp_problem.dynamics[0].B[4][0]),
+               FP_TO_DOUBLE(qp_problem.dynamics[0].B[5][0]),
+               FP_TO_DOUBLE(qp_problem.dynamics[0].B[0][2]),
+               FP_TO_DOUBLE(qp_problem.dynamics[0].B[2][2]),
+               FP_TO_DOUBLE(qp_problem.dynamics[0].B[3][1]));
+        /* Print key A matrix entries at k=0 */
+        printf("  [DBG-QP] k=0 A[1][2]=%.4f A[1][3]=%.4f A[1][4]=%.4f A[2][5]=%.4f\n",
+               FP_TO_DOUBLE(qp_problem.dynamics[0].A[1][2]),
+               FP_TO_DOUBLE(qp_problem.dynamics[0].A[1][3]),
+               FP_TO_DOUBLE(qp_problem.dynamics[0].A[1][4]),
+               FP_TO_DOUBLE(qp_problem.dynamics[0].A[2][5]));
+        /* Print affine term d[1] (n offset) */
+        printf("  [DBG-QP] k=0 d[0]=%.4f d[1]=%.4f d[2]=%.4f d[3]=%.4f\n",
+               FP_TO_DOUBLE(qp_problem.dynamics[0].d[0]),
+               FP_TO_DOUBLE(qp_problem.dynamics[0].d[1]),
+               FP_TO_DOUBLE(qp_problem.dynamics[0].d[2]),
+               FP_TO_DOUBLE(qp_problem.dynamics[0].d[3]));
+        /* Print cost weights */
+        printf("  [DBG-QP] Q[n]=%.1f Q[α]=%.1f Q[vx]=%.1f q[vx]=%.1f R[δ]=%.1f R[ax]=%.1f r[vθ]=%.1f\n",
+               FP_TO_DOUBLE(qp_problem.stage_cost[0].Q[1][1]),
+               FP_TO_DOUBLE(qp_problem.stage_cost[0].Q[2][2]),
+               FP_TO_DOUBLE(qp_problem.stage_cost[0].Q[3][3]),
+               FP_TO_DOUBLE(qp_problem.stage_cost[0].q[3]),
+               FP_TO_DOUBLE(qp_problem.stage_cost[0].R[0][0]),
+               FP_TO_DOUBLE(qp_problem.stage_cost[0].R[1][1]),
+               FP_TO_DOUBLE(qp_problem.stage_cost[0].r[2]));
+        /* Print rate penalty linear terms (r values) */
+        printf("  [DBG-QP] r[δ]=%.4f r[ax]=%.4f r[vθ]=%.4f\n",
+               FP_TO_DOUBLE(qp_problem.stage_cost[0].r[0]),
+               FP_TO_DOUBLE(qp_problem.stage_cost[0].r[1]),
+               FP_TO_DOUBLE(qp_problem.stage_cost[0].r[2]));
+        /* Print track bounds */
+        printf("  [DBG-QP] track_left[0]=%.2f track_right[0]=%.2f  n_bound_global=%.2f\n",
+               FP_TO_DOUBLE(qp_problem.track_left[0]),
+               FP_TO_DOUBLE(qp_problem.track_right[0]),
+               FP_TO_DOUBLE(qp_problem.x_upper[1]));
+        /* Print initial state */
+        printf("  [DBG-QP] x0: s=%.3f n=%.4f α=%.4f vx=%.3f vy=%.4f ω=%.4f\n",
+               FP_TO_DOUBLE(qp_problem.x0[0]),
+               FP_TO_DOUBLE(qp_problem.x0[1]),
+               FP_TO_DOUBLE(qp_problem.x0[2]),
+               FP_TO_DOUBLE(qp_problem.x0[3]),
+               FP_TO_DOUBLE(qp_problem.x0[4]),
+               FP_TO_DOUBLE(qp_problem.x0[5]));
+    }
+#endif
 
     /* Solve via ADMM + Riccati */
     ADMMResult_t admm_result;
@@ -848,6 +913,40 @@ MPCCStatus_t mpcc_compute_control(
            FP_TO_DOUBLE(result->optimal_control.v_theta),
            FP_TO_DOUBLE(result->predicted_states[0].s),
            FP_TO_DOUBLE(result->predicted_states[0].n));
+    /* Print predicted trajectory: n, vx, delta for first 5 stages */
+    {
+        uint16_t N = config.horizon_steps;
+        uint16_t print_n = N < 5 ? N : 5;
+        printf("  [Traj] n: ");
+        for (uint16_t k = 0; k <= print_n; k++)
+            printf("%.4f ", FP_TO_DOUBLE(result->predicted_states[k].n));
+        printf("\n  [Traj] vx: ");
+        for (uint16_t k = 0; k <= print_n; k++)
+            printf("%.3f ", FP_TO_DOUBLE(result->predicted_states[k].vx));
+        printf("\n  [Traj] δ: ");
+        for (uint16_t k = 0; k < print_n; k++)
+            printf("%.4f ", FP_TO_DOUBLE(result->predicted_controls[k].delta));
+        printf("\n  [Traj] ax: ");
+        for (uint16_t k = 0; k < print_n; k++)
+            printf("%.4f ", FP_TO_DOUBLE(result->predicted_controls[k].a_x));
+        printf("\n");
+        /* Print Riccati K gains at k=0 for steering → lateral states */
+        printf("  [K] K[δ,s]=%.6f K[δ,n]=%.6f K[δ,α]=%.6f K[δ,vx]=%.6f K[δ,vy]=%.6f K[δ,ω]=%.6f\n",
+               FP_TO_DOUBLE(admm_workspace.K[0][0][0]),
+               FP_TO_DOUBLE(admm_workspace.K[0][0][1]),
+               FP_TO_DOUBLE(admm_workspace.K[0][0][2]),
+               FP_TO_DOUBLE(admm_workspace.K[0][0][3]),
+               FP_TO_DOUBLE(admm_workspace.K[0][0][4]),
+               FP_TO_DOUBLE(admm_workspace.K[0][0][5]));
+        printf("  [K] K[ax,s]=%.6f K[ax,n]=%.6f K[ax,vx]=%.6f\n",
+               FP_TO_DOUBLE(admm_workspace.K[0][1][0]),
+               FP_TO_DOUBLE(admm_workspace.K[0][1][1]),
+               FP_TO_DOUBLE(admm_workspace.K[0][1][3]));
+        printf("  [K] kk[δ]=%.6f kk[ax]=%.6f kk[vθ]=%.6f\n",
+               FP_TO_DOUBLE(admm_workspace.kk[0][0]),
+               FP_TO_DOUBLE(admm_workspace.kk[0][1]),
+               FP_TO_DOUBLE(admm_workspace.kk[0][2]));
+    }
 #endif
 
     return status;
