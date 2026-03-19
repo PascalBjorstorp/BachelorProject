@@ -28,7 +28,7 @@ def generate_launch_description():
 
     declare_threshold = DeclareLaunchArgument(
         'obstacle_threshold',
-        default_value='0.3',
+        default_value='0.1',
         description='Distance (m) from nearest wall to classify beam as obstacle'
     )
 
