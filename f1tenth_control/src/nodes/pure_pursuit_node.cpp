@@ -171,24 +171,26 @@ void PurePursuitNode::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg)
         current_state_.velocity = msg->twist.twist.linear.x;
         current_state_.angular_velocity = msg->twist.twist.angular.z;
     }
-    
-    // Run control on every odom update
-    controlLoop();
 }
 
 void PurePursuitNode::poseCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
-    std::lock_guard<std::mutex> lock(state_mutex_);
-    current_state_.pose.x = msg->pose.pose.position.x;
-    current_state_.pose.y = msg->pose.pose.position.y;
-    const double qx = msg->pose.pose.orientation.x;
-    const double qy = msg->pose.pose.orientation.y;
-    const double qz = msg->pose.pose.orientation.z;
-    const double qw = msg->pose.pose.orientation.w;
-    current_state_.pose.theta = std::atan2(
-        2.0 * (qw * qz + qx * qy),
-        1.0 - 2.0 * (qy * qy + qz * qz));
-    pose_received_ = true;
-    last_pose_time_ = now();
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        current_state_.pose.x = msg->pose.pose.position.x;
+        current_state_.pose.y = msg->pose.pose.position.y;
+        const double qx = msg->pose.pose.orientation.x;
+        const double qy = msg->pose.pose.orientation.y;
+        const double qz = msg->pose.pose.orientation.z;
+        const double qw = msg->pose.pose.orientation.w;
+        current_state_.pose.theta = std::atan2(
+            2.0 * (qw * qz + qx * qy),
+            1.0 - 2.0 * (qy * qy + qz * qz));
+        pose_received_ = true;
+        last_pose_time_ = now();
+    }
+
+    // Run control on every pose update (typically /ekf_pose).
+    controlLoop();
 }
 
 void PurePursuitNode::enableCallback(const std_msgs::msg::Bool::SharedPtr msg) {

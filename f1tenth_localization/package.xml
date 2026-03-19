@@ -27,11 +27,13 @@
   <build_depend>sensor_msgs</build_depend>
   <build_depend>nav_msgs</build_depend>
   <build_depend>geometry_msgs</build_depend>
+  <build_depend>ackermann_msgs</build_depend>
   <build_depend>tf2_ros</build_depend>
   <build_depend>tf2_geometry_msgs</build_depend>
   <build_depend>std_msgs</build_depend>
   <build_depend>eigen</build_depend>
   <exec_depend>rclcpp</exec_depend>
+  <exec_depend>ackermann_msgs</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
