@@ -367,6 +367,9 @@ typedef struct
     /** Final cost function value */
     fixed_point_t final_cost;
 
+    /** Final dual residual (ADMM convergence metric) */
+    fixed_point_t dual_residual;
+
 } MpcSolverResult_t;
 
 /*===========================================================================

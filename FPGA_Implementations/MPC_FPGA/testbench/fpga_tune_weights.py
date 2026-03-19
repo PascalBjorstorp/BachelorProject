@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-FPGA MPC Weight Tuning Script — Exhaustive Search with dt/N sweep
-=================================================================
-Systematically tests parameter combinations for the FPGA Riccati-ADMM MPC.
+FPGA MPC Weight Tuning Script — Spielberg Realistic Sweep
+=========================================================
+Systematically tests parameter combinations for the FPGA Riccati-ADMM MPC
+using the same realistic Spielberg workflow as the CPU tuning flow.
 Since FPGA uses compile-time constants, this script modifies the header
 file (mpc_fpga_types.h), recompiles, runs the test, and collects results.
 
@@ -15,9 +16,10 @@ Sweep parameters:
   - ADMM_RHO, ADMM_RHO_U: solver parameters
 
 Usage:
-    python3 fpga_tune_weights.py                    # Full exhaustive sweep (default raceline)
+    python3 fpga_tune_weights.py Spielberg         # Full Spielberg sweep (default)
+    python3 fpga_tune_weights.py Hardware          # Full Hardware-map sweep
     python3 fpga_tune_weights.py --quick             # Quick sweep
-    python3 fpga_tune_weights.py --raceline cl050    # Sweep specific raceline
+    python3 fpga_tune_weights.py --raceline spielberg # Sweep specific Spielberg raceline
     python3 fpga_tune_weights.py --all-racelines     # Sweep all racelines sequentially
     python3 fpga_tune_weights.py --phase 1           # Phase 1 only (dt × N × WALL)
     python3 fpga_tune_weights.py --single dt=0.05 N=20 Q_VEL=80   # Single test
@@ -59,26 +61,27 @@ CC_FLAGS = ["-D_GNU_SOURCE", "-O2", "-std=c99", "-Wall", "-Wno-unknown-pragmas",
 WORKER_ROOT = PROJECT_DIR / ".fpga_tune_workers"
 _WORKER_CTX = None
 
-# ─── Raceline variants ───────────────────────────────────────────────────────
+# ─── Mode-specific racelines (aligned with CPU realistic tuner) ─────────────
 WORKSPACE_ROOT = PROJECT_DIR.parent.parent  # BachelorProject/
 TRAJ_DIR = WORKSPACE_ROOT / "f1tenth_planning" / "trajectories"
-RACELINES = {
-    "cl020": str(TRAJ_DIR / "Spielberg_raceline_pipeline_cl020.csv"),
-    "cl030": str(TRAJ_DIR / "Spielberg_raceline_pipeline_cl030.csv"),
-    "cl045": str(TRAJ_DIR / "Spielberg_raceline_pipeline_cl045.csv"),
-    "cl050": str(TRAJ_DIR / "Spielberg_raceline_pipeline_cl050.csv"),
+SPIELBERG_RACELINES = {
+    "spielberg": str(TRAJ_DIR / "Spielberg_raceline_current.csv"),
+}
+HARDWARE_RACELINES = {
+    "hardware": str(TRAJ_DIR / "hardware_raceline.csv"),
+}
+HARDWARE_MAP_YAML = str(WORKSPACE_ROOT / "f1tenth_sim" / "maps" / "hardware_map.yaml")
+
+# Per-raceline WALL_MARGIN defaults (matching CPU realistic sweeps)
+SPIELBERG_PER_RACELINE_WM = {
+    "spielberg": 0.20,
+}
+HARDWARE_PER_RACELINE_WM = {
+    "hardware": 0.02,
 }
 
-# Per-raceline WALL_MARGIN defaults (matching CPU optimal results)
-PER_RACELINE_WM = {
-    "cl020": 0.10,
-    "cl030": 0.18,
-    "cl045": 0.15,
-    "cl050": 0.15,
-}
-
-# ─── Current baseline (synced with CPU optimal sweep results) ──────────────
-BASE_PARAMS = {
+# ─── Current baseline (synced with CPU realistic sweep results) ─────────────
+SPIELBERG_BASE_PARAMS = {
     # Structural / timing
     "dt":               0.04,
     "N":                20,
@@ -114,6 +117,40 @@ BASE_PARAMS = {
     "C_SHAPE":         1.9,
 }
 
+HARDWARE_BASE_PARAMS = {
+    # Structural / timing
+    "dt":               0.06,
+    "N":                10,
+    "MAX_ADMM_ITER":    20,
+    # Wall constraints
+    "WALL_START":       1,
+    "WALL_STRIDE":      4,
+    "WALL_END":         10,
+    "WALL_MARGIN":      0.02,
+    # State weights
+    "Q_LAT":            5000.0,
+    "Q_HDG":            1000.0,
+    "Q_VEL":            100.0,
+    "Q_LAT_VEL":        69.0,
+    "Q_YAW":            22.0,
+    # Control weights
+    "R_STEER":          0.15,
+    "R_ACCEL":          0.01,
+    "W_JERK":           0.3,
+    "W_ACCEL_RATE":     0.1,
+    "W_DELTA_ACT":      0.53,
+    # Solver
+    "ADMM_RHO":         32.0,
+    "ADMM_RHO_U":       20.0,
+    "ADMM_TOL":         5.0,
+    "ADMM_ALPHA":       0.93,
+    # Model/constraint limits
+    "MIN_LIN_VEL":      2.0,
+    "WP_ADVANCE_MAX":   10,
+    "STABILITY_LIMIT":  0.95,
+    "C_SHAPE":         1.9,
+}
+
 # Map parameter names → header #define names
 PARAM_TO_DEFINE = {
     "dt":               "MPC_DT",
@@ -143,10 +180,10 @@ PARAM_TO_DEFINE = {
 }
 
 # ─── Sweep ranges (THOROUGH) ─────────────────────────────────────────────────
-FULL_VALUES = {
+SPIELBERG_FULL_VALUES = {
     # Structural / timing
     "dt":               [0.02, 0.025, 0.030, 0.035, 0.040, 0.050, 0.060, 0.075, 0.08, 0.1],
-    "N":                [16, 17, 18, 19, 20],
+    "N":                [16, 18, 20, 22, 24, 26, 28, 30, 35, 40],
     "MAX_ADMM_ITER":    [5, 8, 10, 15, 20, 30],
     # Wall constraints
     "WALL_START":       [0, 1, 2, 3],
@@ -175,9 +212,9 @@ FULL_VALUES = {
     "STABILITY_LIMIT":  [0.85, 0.90, 0.95, 1.0],
 }
 
-QUICK_VALUES = {
+SPIELBERG_QUICK_VALUES = {
     "dt":               [0.03, 0.035, 0.040, 0.050],
-    "N":                [18, 19, 20],
+    "N":                [18, 20, 24, 30],
     "MAX_ADMM_ITER":    [10, 20],
     "WALL_START":       [1],
     "WALL_STRIDE":      [1, 2],
@@ -200,6 +237,67 @@ QUICK_VALUES = {
     "WP_ADVANCE_MAX":   [10],
     "STABILITY_LIMIT":  [0.95],
 }
+
+HARDWARE_FULL_VALUES = {
+    # Structural / timing
+    "dt":               [0.04, 0.05, 0.055, 0.06, 0.065, 0.07, 0.08, 0.10],
+    "N":                [8, 9, 10, 11, 12, 15, 18, 20, 22, 24, 26, 30],
+    "MAX_ADMM_ITER":    [10, 15, 20, 30],
+    # Wall constraints
+    "WALL_START":       [0, 1, 2],
+    "WALL_STRIDE":      [1, 2, 3, 4, 5, 6],
+    "WALL_END":         [4, 6, 8, 9, 10, 11, 12, 18],
+    "WALL_MARGIN":      [0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.08, 0.10, 0.15, 0.20, 0.30],
+    # State weights
+    "Q_LAT":            [2000, 3000, 3500, 4000, 5000, 6000, 7000, 8000, 10000, 15000, 30000],
+    "Q_HDG":            [500, 750, 800, 1000, 1200, 1500, 2000, 3000, 5000, 10000, 20000],
+    "Q_VEL":            [5, 10, 15, 26, 50, 60, 75, 80, 90, 100, 120],
+    "Q_LAT_VEL":        [5, 10, 20, 30, 40, 50, 55, 60, 69, 80, 100, 150],
+    "Q_YAW":            [5, 10, 15, 18, 20, 22, 25, 30, 50],
+    # Control weights
+    "R_STEER":          [0.01, 0.03, 0.05, 0.10, 0.12, 0.15, 0.18, 0.20, 0.30, 0.40, 0.60, 1.0],
+    "W_JERK":           [0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 1.0, 1.5, 2.0],
+    "W_ACCEL_RATE":     [0.05, 0.08, 0.1, 0.12, 0.15, 0.2, 0.5, 1.0],
+    "W_DELTA_ACT":      [0.05, 0.1, 0.2, 0.5, 1.0, 2.0],
+    # Solver
+    "ADMM_RHO":         [10, 15, 20, 25, 28, 30, 32, 35, 38, 40, 50, 80],
+    "ADMM_RHO_U":       [10, 15, 16, 18, 20, 22, 25, 30, 50],
+    "ADMM_TOL":         [1.0, 3.0, 5.0, 10.0, 20.0],
+    "ADMM_ALPHA":       [0.85, 0.90, 0.91, 0.92, 0.93, 0.95, 1.0, 1.1, 1.2, 1.4],
+    # Model limits
+    "MIN_LIN_VEL":      [1.0, 1.5, 2.0, 3.0],
+    "WP_ADVANCE_MAX":   [5, 8, 10, 15, 20],
+    "STABILITY_LIMIT":  [0.85, 0.90, 0.95, 1.0],
+}
+
+HARDWARE_QUICK_VALUES = {
+    "dt":               [0.05, 0.06, 0.08],
+    "N":                [8, 10, 12, 15, 20, 22, 24],
+    "MAX_ADMM_ITER":    [10, 20],
+    "WALL_START":       [1],
+    "WALL_STRIDE":      [1, 2, 4],
+    "WALL_END":         [6, 8, 10, 12, 18],
+    "WALL_MARGIN":      [0.00, 0.02, 0.05, 0.10, 0.15, 0.30],
+    "Q_LAT":            [3000, 5000, 7000, 10000, 15000],
+    "Q_HDG":            [500, 1000, 2000, 5000, 10000],
+    "Q_VEL":            [15, 50, 80, 100, 120],
+    "Q_LAT_VEL":        [20, 50, 69, 100],
+    "Q_YAW":            [10, 15, 22, 30],
+    "R_STEER":          [0.05, 0.10, 0.15, 0.20, 0.40],
+    "W_JERK":           [0.1, 0.3, 0.5],
+    "W_ACCEL_RATE":     [0.05, 0.1, 0.3],
+    "W_DELTA_ACT":      [0.1, 0.5, 1.0],
+    "ADMM_RHO":         [20, 30, 32, 50],
+    "ADMM_RHO_U":       [15, 20, 25, 30],
+    "ADMM_TOL":         [3.0, 5.0],
+    "ADMM_ALPHA":       [0.90, 0.93, 1.0, 1.2],
+    "MIN_LIN_VEL":      [2.0],
+    "WP_ADVANCE_MAX":   [10],
+    "STABILITY_LIMIT":  [0.95],
+}
+
+ACTIVE_MODE = "Spielberg"
+BASE_PARAMS = dict(SPIELBERG_BASE_PARAMS)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -307,11 +405,20 @@ def run_test(params: dict, raceline: str = None,
     env = os.environ.copy()
     env["MPC_TUNING_CSV"] = "1"
     env["REALISTIC_SIM"] = "1"
+    env["REALISTIC_TIRES"] = "1"
+    env["REALISTIC_DRIVE"] = "1"
+    env["REALISTIC_DELAY"] = "1"
+    env["REALISTIC_NOISE"] = "1"
+
+    if raceline:
+        # Keep both names for compatibility with different test binaries.
+        env["RACELINE"] = str(raceline)
+        env["RACELINE_PATH"] = str(raceline)
+
+    if ACTIVE_MODE == "Hardware":
+        env["MAP_YAML"] = HARDWARE_MAP_YAML
 
     cmd = [str(binary_path)]
-    if raceline:
-        # test_fpga_sim_drive.c reads raceline override from argv[1]
-        cmd.append(str(raceline))
 
     try:
         result = subprocess.run(
@@ -362,13 +469,17 @@ def compute_score(r: dict) -> float:
     if r["wall_collisions"] > 0:
         return 500.0 + r["wall_collisions"] * 100.0
 
-    # Match tune_realistic Spielberg scoring.
-    # This is a weighted composite, not an automatic normalization pass.
-    # Metric scaling is encoded in the constants below to keep scoring stable
-    # and comparable across sweeps:
-    # - speed shortfall uses max(0, 12.0 - max_vx)
-    # - latency uses max(0, 60 - time_above_5ms)
-    # - errors/iters/runtime use fixed coefficients.
+    if ACTIVE_MODE == "Hardware":
+        tracking = (
+            r["avg_lat_err"] * 50.0 +
+            r["avg_vel_err"] * 20.0 +
+            r["max_lat_err"] * 10.0 +
+            r["avg_hdg_err"] * 15.0
+        )
+        velocity_penalty = max(0, 5.0 - r["max_vx"]) * 10.0
+        solver = r.get("avg_iters", 0) * 0.2 + r["avg_solve_us"] * 0.001
+        return round(tracking + velocity_penalty + solver, 3)
+
     score = (
         max(0, 12.0 - r["max_vx"]) * 15.0 +
         max(0, 60 - r["time_above_5ms"]) * 2.0 +
@@ -631,6 +742,15 @@ def gen_random_neighbors(best_params, n_samples=150):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def main():
+    global ACTIVE_MODE, BASE_PARAMS
+
+    mode = "Spielberg"
+    for arg in sys.argv[1:]:
+        if arg in ("Spielberg", "spielberg"):
+            mode = "Spielberg"
+        elif arg in ("Hardware", "hardware"):
+            mode = "Hardware"
+
     quick = "--quick" in sys.argv
     phase_only = None
     raceline_name = None
@@ -650,18 +770,32 @@ def main():
     if num_workers <= 0:
         num_workers = multiprocessing.cpu_count()
 
+    ACTIVE_MODE = mode
+    if mode == "Hardware":
+        BASE_PARAMS = dict(HARDWARE_BASE_PARAMS)
+        full_values_mode = HARDWARE_FULL_VALUES
+        quick_values_mode = HARDWARE_QUICK_VALUES
+        racelines_mode = HARDWARE_RACELINES
+        per_raceline_wm_mode = HARDWARE_PER_RACELINE_WM
+    else:
+        BASE_PARAMS = dict(SPIELBERG_BASE_PARAMS)
+        full_values_mode = SPIELBERG_FULL_VALUES
+        quick_values_mode = SPIELBERG_QUICK_VALUES
+        racelines_mode = SPIELBERG_RACELINES
+        per_raceline_wm_mode = SPIELBERG_PER_RACELINE_WM
+
     os.chdir(str(PROJECT_DIR))
 
     # Resolve raceline path
     raceline_path = None
     if raceline_name:
-        if raceline_name in RACELINES:
-            raceline_path = RACELINES[raceline_name]
+        if raceline_name in racelines_mode:
+            raceline_path = racelines_mode[raceline_name]
         elif os.path.isfile(raceline_name):
             raceline_path = raceline_name
         else:
             print(f"ERROR: Unknown raceline '{raceline_name}'. "
-                  f"Available: {', '.join(RACELINES.keys())}")
+                  f"Available: {', '.join(racelines_mode.keys())}")
             return 1
 
     # Backup header
@@ -672,8 +806,9 @@ def main():
         pass
 
     try:
-        values = QUICK_VALUES if quick else FULL_VALUES
+        values = quick_values_mode if quick else full_values_mode
         print(f"Workers: {num_workers} ({'sequential' if num_workers == 1 else 'parallel'})")
+        print(f"Mode: {mode}")
 
         if single:
             params = dict(BASE_PARAMS)
@@ -691,11 +826,14 @@ def main():
 
         # If --all-racelines, iterate over all racelines
         if all_racelines:
-            racelines_to_test = list(RACELINES.items())
+            racelines_to_test = list(racelines_mode.items())
         elif raceline_name:
             racelines_to_test = [(raceline_name, raceline_path)]
         else:
-            racelines_to_test = [("default", None)]
+            if mode == "Hardware":
+                racelines_to_test = [("hardware", racelines_mode["hardware"])]
+            else:
+                racelines_to_test = [("spielberg", racelines_mode["spielberg"])]
 
         for rl_name, rl_path in racelines_to_test:
             print(f"\n{'#'*80}")
@@ -704,8 +842,8 @@ def main():
 
             # Override WALL_MARGIN baseline for this raceline
             sweep_base = dict(BASE_PARAMS)
-            if rl_name in PER_RACELINE_WM:
-                sweep_base["WALL_MARGIN"] = PER_RACELINE_WM[rl_name]
+            if rl_name in per_raceline_wm_mode:
+                sweep_base["WALL_MARGIN"] = per_raceline_wm_mode[rl_name]
 
             run_sweep(values, phase_only, quick, rl_path, rl_name, sweep_base, num_workers)
 
@@ -942,8 +1080,9 @@ def get_tested_keys(results):
 def print_top(results, phase_name, n=10):
     """Print top N results from this phase."""
     passing = [r for r in results if r.get("score", 999) < 500]
-    best = sorted(results, key=lambda r: (r.get("wall_collisions", 99),
-                                           -r.get("time_above_5ms", 0)))
+    best = sorted(results, key=lambda r: (r.get("score", 999),
+                                          r.get("wall_collisions", 99),
+                                          -r.get("time_above_5ms", 0)))
 
     print(f"\n  Top {min(n, len(best))} — {phase_name}:")
     fmt = "  {:<4} {:<55} {:>7} {:>5} {:>5} {:>6} {:>6}"

@@ -39,6 +39,7 @@
 #include <sched.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/stat.h>
 
 /* ROS2 C Client Library Headers */
 #include "rcl/rcl.h"
@@ -201,6 +202,11 @@ static double g_solve_time_sum_us = 0.0;
 static double g_solve_time_max_us = 0.0;
 static unsigned long g_solve_cycle_count = 0;
 #define SOLVE_STATS_PRINT_INTERVAL 500
+
+/** Optional solver telemetry logging for post-drive analysis. */
+static FILE *g_solver_log_file = NULL;
+static unsigned long g_solver_log_counter = 0;
+static int g_solver_log_stride = 1;
 
 /** Computed control dt from g_control_rate_hz (set in main) */
 static double g_control_dt = 0.005;
@@ -873,6 +879,7 @@ void mpc_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
 {
     (void)timer;
     (void)last_call_time;
+    double watchdog_elapsed_ms = 0.0;
 
     /* Safety watchdog: check if odometry is stale */
     if (global_odometry_received_flag)
@@ -880,6 +887,7 @@ void mpc_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
         double elapsed = timespec_diff_sec(&g_last_odom_time, &now);
+        watchdog_elapsed_ms = elapsed * 1000.0;
 
         if (elapsed > g_watchdog_timeout_sec)
         {
@@ -909,6 +917,10 @@ void mpc_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
     double pos_x = g_latest_pos_x;
     double pos_y = g_latest_pos_y;
     double heading = g_latest_heading;
+    int closest = -1;
+    double ey = 0.0, epsi = 0.0;
+    double vref0 = 0.0, kappa0 = 0.0;
+    double left_wall0 = 0.0, right_wall0 = 0.0;
 
     if (g_verbose)
     {
@@ -918,18 +930,21 @@ void mpc_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
 
     if (global_trajectory_count > 0)
     {
-        int closest = find_closest_waypoint(pos_x, pos_y, heading);
+        closest = find_closest_waypoint(pos_x, pos_y, heading);
         build_reference_from_trajectory(closest);
         convert_to_frenet_state(pos_x, pos_y, heading, closest, &global_frenet_state);
 
+        ey = FP_TO_DOUBLE(global_frenet_state.lateral_error_meters);
+        epsi = FP_TO_DOUBLE(global_frenet_state.heading_error_radians);
+        vref0 = FP_TO_DOUBLE(global_reference_trajectory[0].reference_velocity_meters_per_second);
+        kappa0 = FP_TO_DOUBLE(global_reference_trajectory[0].path_curvature_radians_per_meter);
+        left_wall0 = FP_TO_DOUBLE(global_reference_trajectory[0].left_wall_bound_meters);
+        right_wall0 = FP_TO_DOUBLE(global_reference_trajectory[0].right_wall_bound_meters);
+
         if (g_verbose)
         {
-            double ey  = FP_TO_DOUBLE(global_frenet_state.lateral_error_meters);
-            double epsi = FP_TO_DOUBLE(global_frenet_state.heading_error_radians);
-            double vref = FP_TO_DOUBLE(global_reference_trajectory[0].reference_velocity_meters_per_second);
-            double kappa = FP_TO_DOUBLE(global_reference_trajectory[0].path_curvature_radians_per_meter);
             printf("[MPC] Frenet: e_y=%.3f e_psi=%.3f v_ref=%.2f kappa=%.3f\n",
-                   ey, epsi, vref, kappa);
+                   ey, epsi, vref0, kappa0);
         }
     }
     else
@@ -972,6 +987,8 @@ void mpc_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
     clock_gettime(CLOCK_MONOTONIC, &t1);
     double solve_us = (t1.tv_sec - t0.tv_sec) * 1e6 +
                       (t1.tv_nsec - t0.tv_nsec) / 1e3;
+    double primal_res = FP_TO_DOUBLE(mpc_result.final_cost);
+    double dual_res = FP_TO_DOUBLE(mpc_result.dual_residual);
 
     /* Rolling solve-time statistics (always active, lightweight) */
     g_solve_time_sum_us += solve_us;
@@ -1022,12 +1039,13 @@ void mpc_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
             mpc_set_actual_previous_control(&actual_ctrl);
         }
 
-        if (g_verbose)
+        if (g_verbose && g_solver_log_file == NULL)
         {
             double accel = FP_TO_DOUBLE(
                 mpc_result.optimal_control.acceleration_meters_per_second_squared);
-            printf("[MPC] Control: steer=%.4f accel=%.2f (status=%d iter=%d solve=%.1fus)\n",
-                   steer, accel, mpc_status, mpc_result.iterations_used, solve_us);
+            printf("[MPC] Control: steer=%.4f accel=%.2f (status=%d iter=%d pr=%.3e dr=%.3e solve=%.1fus)\n",
+                   steer, accel, mpc_status, mpc_result.iterations_used,
+                   primal_res, dual_res, solve_us);
         }
     }
     else
@@ -1035,6 +1053,39 @@ void mpc_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
         if (g_verbose)
         {
             printf("[MPC] WARNING: Solver status=%d, keeping previous command\n", mpc_status);
+        }
+    }
+
+    /* Optional per-cycle solver telemetry (CSV) for post-drive analysis. */
+    if (g_solver_log_file != NULL)
+    {
+        g_solver_log_counter++;
+        if ((g_solver_log_counter % (unsigned long)g_solver_log_stride) == 0)
+        {
+            struct timespec now_rt;
+            clock_gettime(CLOCK_REALTIME, &now_rt);
+            long long unix_time_ns =
+                (long long)now_rt.tv_sec * 1000000000LL + (long long)now_rt.tv_nsec;
+
+            double cmd_steer = FP_TO_DOUBLE(mpc_result.optimal_control.steering_angle_radians);
+            double cmd_accel = FP_TO_DOUBLE(mpc_result.optimal_control.acceleration_meters_per_second_squared);
+
+            fprintf(g_solver_log_file,
+                    "%lld,%.3f,%d,%u,%.9f,%.9f,%d,"
+                    "%.6f,%.6f,%.6f,%.6f,%.6f,"
+                    "%.6f,%.6f,%.6f,%.6f,"
+                    "%.6f,%.6f,%.6f,%.3f,%d\n",
+                    unix_time_ns, solve_us, (int)mpc_status, mpc_result.iterations_used,
+                    primal_res, dual_res, closest,
+                    ey, epsi, g_latest_vx, g_latest_vy, g_latest_omega,
+                    vref0, kappa0, left_wall0, right_wall0,
+                    cmd_steer, cmd_accel, global_actual_steering_angle,
+                    watchdog_elapsed_ms, g_use_steering_feedback);
+
+            if ((g_solver_log_counter % 20UL) == 0UL)
+            {
+                fflush(g_solver_log_file);
+            }
         }
     }
 
@@ -1157,6 +1208,46 @@ int main(int argc, char *argv[])
             g_steering_correction_c0 = atof(env_val);
         if ((env_val = getenv("MPC_AMCL_TOPIC")) != NULL)
             g_amcl_pose_topic = env_val;
+
+    }
+
+    {
+        const char *log_path = getenv("MPC_SOLVER_LOG");
+        char default_log_path[256];
+
+        /* Always log every control callback unless code is changed. */
+        g_solver_log_stride = 1;
+
+        if (mkdir("log", 0775) != 0 && errno != EEXIST)
+        {
+            fprintf(stderr, "[MPC] WARNING: Could not create log directory: %s\n",
+                    strerror(errno));
+        }
+
+        if (log_path == NULL || log_path[0] == '\0')
+        {
+            time_t now = time(NULL);
+            struct tm tm_now;
+            localtime_r(&now, &tm_now);
+            strftime(default_log_path, sizeof(default_log_path),
+                     "log/mpc_solver_%Y%m%d_%H%M%S.csv", &tm_now);
+            log_path = default_log_path;
+        }
+
+        g_solver_log_file = fopen(log_path, "w");
+        if (g_solver_log_file == NULL)
+        {
+            fprintf(stderr, "[MPC] WARNING: Failed to open solver log file %s\n", log_path);
+        }
+        else
+        {
+            fprintf(g_solver_log_file,
+                    "unix_time_ns,solve_us,status,iterations,primal_residual,dual_residual,closest_wp,"
+                    "e_y,e_psi,vx,vy,omega,v_ref0,kappa0,left_wall0,right_wall0,"
+                    "cmd_steer,cmd_accel,actual_steer,watchdog_elapsed_ms,use_steering_feedback\n");
+            fflush(g_solver_log_file);
+            printf("[MPC] Solver telemetry log: %s (every control callback)\n", log_path);
+        }
     }
 
     printf("[MPC] Controller initialized (horizon=%d, dt=%.0fms)\n",
@@ -1479,6 +1570,12 @@ int main(int argc, char *argv[])
 
     /* Cleanup */
     printf("\n[ROS2] Shutting down...\n");
+    if (g_solver_log_file != NULL)
+    {
+        fflush(g_solver_log_file);
+        fclose(g_solver_log_file);
+        g_solver_log_file = NULL;
+    }
     rclc_executor_fini(&executor);
     nav_msgs__msg__Odometry__fini(&global_odometry_message_buffer);
     std_msgs__msg__Float64__fini(&global_servo_message_buffer);

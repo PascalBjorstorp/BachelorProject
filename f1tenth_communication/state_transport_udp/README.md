@@ -34,6 +34,9 @@ The Ultra96 process does not publish ROS2 topics.
 ## End-to-end loop
 
 1. Jetson ros2_udp_sender subscribes to odom, computes nearest waypoint + horizon from trajectory, and sends StatePacket to Ultra96:49000.
+   - The sender uses KD-tree nearest lookup plus heading-based forward bias.
+   - This keeps lookup latency stable with larger trajectories while avoiding
+     behind-vehicle waypoint picks during fast motion.
 2. Ultra96 ultra96_udp_receiver validates CRC, loads horizon to FPGA, computes control, sends ControlPacket to Jetson:49001.
 3. Jetson udp_control_bridge validates CRC and publishes /drive.
 

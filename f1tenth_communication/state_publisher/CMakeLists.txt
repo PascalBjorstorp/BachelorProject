@@ -19,7 +19,11 @@ find_package(geometry_msgs REQUIRED)
 find_package(f1tenth_msgs REQUIRED)
 
 # Executable
-add_executable(state_publisher_node src/state_publisher.cpp)
+add_executable(state_publisher_node
+  src/state_publisher.cpp
+  src/kdtree.cpp
+)
+target_include_directories(state_publisher_node PRIVATE include)
 ament_target_dependencies(state_publisher_node
   rclcpp
   std_msgs

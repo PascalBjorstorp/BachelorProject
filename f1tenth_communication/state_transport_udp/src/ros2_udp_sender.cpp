@@ -20,6 +20,14 @@
 
 namespace state_transport_udp {
 
+/*===========================================================================
+ * KD-Tree waypoint indexer
+ *
+ * The sender runs nearest-waypoint lookup at odometry rate, so query cost must
+ * remain stable when trajectory size grows. KD-tree keeps lookup near O(log N)
+ * and avoids worst-case full scans when localization jumps.
+ *===========================================================================*/
+
 struct Waypoint {
     double s;
     double x;
@@ -405,6 +413,8 @@ private:
             steering_angle = std::atan2(wheelbase_ * omega, vx);
         }
 
+        // Choose nearest waypoint, then bias forward using heading projection
+        // to avoid selecting points slightly behind the vehicle at speed.
         size_t waypoint_idx = kdtree_.findNearest(x, y);
         {
             const double cos_theta = std::cos(theta);
