@@ -1,0 +1,23 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+    fragment@0 {
+        target-path = "/";
+        __overlay__ {
+            #address-cells = <2>;
+            #size-cells = <2>;
+
+            reserved-memory {
+                #address-cells = <2>;
+                #size-cells = <2>;
+                ranges;
+
+                mpc_ref_buffers: mpc_ref_buffers@70000000 {
+                    no-map;
+                    reg = <0x0 0x70000000 0x0 0x00100000>;
+                };
+            };
+        };
+    };
+};

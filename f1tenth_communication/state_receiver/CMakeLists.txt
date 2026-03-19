@@ -37,20 +37,13 @@ endif()
 # ===========================================================================
 # MPC Riccati-ADMM — FPGA (mpc_receiver.cpp)
 # ===========================================================================
-set(MPC_FPGA_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../FPGA_Implementations/MPC_FPGA/include")
-if(EXISTS "${MPC_FPGA_INCLUDE_DIR}/mpc_fpga_interface.h")
-  message(STATUS "MPC FPGA headers found — building mpc_receiver_node")
-  add_executable(mpc_receiver_node src/mpc_receiver.cpp)
-  target_include_directories(mpc_receiver_node PRIVATE ${MPC_FPGA_INCLUDE_DIR})
-  ament_target_dependencies(mpc_receiver_node
-    rclcpp
-    f1tenth_msgs
-    ackermann_msgs
-  )
-  install(TARGETS mpc_receiver_node DESTINATION lib/${PROJECT_NAME})
-else()
-  message(STATUS "MPC FPGA headers NOT found at ${MPC_FPGA_INCLUDE_DIR} — skipping mpc_receiver_node")
-endif()
+add_executable(mpc_receiver_node src/mpc_receiver.cpp)
+ament_target_dependencies(mpc_receiver_node
+  rclcpp
+  f1tenth_msgs
+  ackermann_msgs
+)
+install(TARGETS mpc_receiver_node DESTINATION lib/${PROJECT_NAME})
 
 # ===========================================================================
 # Install
