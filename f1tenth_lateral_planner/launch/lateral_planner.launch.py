@@ -12,52 +12,59 @@ Usage:
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+
+
+def _parse_bool(text: str) -> bool:
+    return str(text).strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def _create_planner_node(context, config_path):
+    # Use YAML values by default. Apply launch overrides only when explicit.
+    sentinel = '__from_yaml__'
+    overrides = {}
+
+    trajectory_file = LaunchConfiguration('trajectory_file').perform(context)
+    if trajectory_file != sentinel:
+        overrides['trajectory_file'] = trajectory_file
+
+    enabled = LaunchConfiguration('enabled').perform(context)
+    if enabled != sentinel:
+        overrides['enabled'] = _parse_bool(enabled)
+
+    parameters = [config_path]
+    if overrides:
+        parameters.append(overrides)
+
+    return [Node(
+        package='f1tenth_lateral_planner',
+        executable='lateral_planner_node',
+        name='lateral_planner_node',
+        output='screen',
+        parameters=parameters,
+    )]
 
 
 def generate_launch_description():
     pkg_dir = get_package_share_directory('f1tenth_lateral_planner')
     config_path = os.path.join(pkg_dir, 'config', 'lateral_planner.yaml')
 
-    # Resolve default trajectory from f1tenth_planning package
-    try:
-        planning_share = get_package_share_directory('f1tenth_planning')
-        default_trajectory = os.path.join(
-            planning_share, 'trajectories', 'Spielberg_raceline.csv'
-        )
-    except Exception:
-        default_trajectory = ''
-
     declare_trajectory = DeclareLaunchArgument(
         'trajectory_file',
-        default_value=default_trajectory,
-        description='Path to global raceline CSV'
+        default_value='__from_yaml__',
+        description='Optional override for trajectory_file. Default: value from lateral_planner.yaml'
     )
 
     declare_enabled = DeclareLaunchArgument(
         'enabled',
-        default_value='true',
-        description='Enable obstacle avoidance. When false, publishes original raceline directly.'
-    )
-
-    planner_node = Node(
-        package='f1tenth_lateral_planner',
-        executable='lateral_planner_node',
-        name='lateral_planner_node',
-        output='screen',
-        parameters=[
-            config_path,
-            {
-                'trajectory_file': LaunchConfiguration('trajectory_file'),
-                'enabled': LaunchConfiguration('enabled'),
-            },
-        ],
+        default_value='__from_yaml__',
+        description='Optional override for enabled. Default: value from lateral_planner.yaml'
     )
 
     return LaunchDescription([
         declare_trajectory,
         declare_enabled,
-        planner_node,
+        OpaqueFunction(function=lambda context: _create_planner_node(context, config_path)),
     ])

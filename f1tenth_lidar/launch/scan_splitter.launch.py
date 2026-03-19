@@ -17,9 +17,44 @@ Usage:
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+
+
+def _parse_bool(text: str) -> bool:
+    return str(text).strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def _create_splitter_node(context, config_path):
+    # Only apply launch overrides when they are explicitly set.
+    # Otherwise, values from scan_splitter.yaml are used as-is.
+    sentinel = '__from_yaml__'
+    overrides = {}
+
+    obstacle_threshold = LaunchConfiguration('obstacle_threshold').perform(context)
+    if obstacle_threshold != sentinel:
+        overrides['obstacle_threshold_m'] = float(obstacle_threshold)
+
+    enable_splitting = LaunchConfiguration('enable_splitting').perform(context)
+    if enable_splitting != sentinel:
+        overrides['enable_splitting'] = _parse_bool(enable_splitting)
+
+    min_cluster_size = LaunchConfiguration('min_cluster_size').perform(context)
+    if min_cluster_size != sentinel:
+        overrides['min_cluster_size'] = int(min_cluster_size)
+
+    parameters = [config_path]
+    if overrides:
+        parameters.append(overrides)
+
+    return [Node(
+        package='f1tenth_lidar',
+        executable='scan_splitter_node',
+        name='scan_splitter_node',
+        output='screen',
+        parameters=parameters,
+    )]
 
 
 def generate_launch_description():
@@ -28,32 +63,25 @@ def generate_launch_description():
 
     declare_threshold = DeclareLaunchArgument(
         'obstacle_threshold',
-        default_value='0.1',
-        description='Distance (m) from nearest wall to classify beam as obstacle'
+        default_value='__from_yaml__',
+        description='Optional override for obstacle_threshold_m. Default: value from scan_splitter.yaml'
     )
 
     declare_enable = DeclareLaunchArgument(
         'enable_splitting',
-        default_value='true',
-        description='Enable wall/obstacle splitting. When false, /scan is passed through as /scan_walls.'
+        default_value='__from_yaml__',
+        description='Optional override for enable_splitting. Default: value from scan_splitter.yaml'
     )
 
-    splitter_node = Node(
-        package='f1tenth_lidar',
-        executable='scan_splitter_node',
-        name='scan_splitter_node',
-        output='screen',
-        parameters=[
-            config_path,
-            {
-                'obstacle_threshold_m': LaunchConfiguration('obstacle_threshold'),
-                'enable_splitting': LaunchConfiguration('enable_splitting'),
-            },
-        ],
+    declare_min_cluster_size = DeclareLaunchArgument(
+        'min_cluster_size',
+        default_value='__from_yaml__',
+        description='Optional override for min_cluster_size. Default: value from scan_splitter.yaml'
     )
 
     return LaunchDescription([
         declare_threshold,
         declare_enable,
-        splitter_node,
+        declare_min_cluster_size,
+        OpaqueFunction(function=lambda context: _create_splitter_node(context, config_path)),
     ])
