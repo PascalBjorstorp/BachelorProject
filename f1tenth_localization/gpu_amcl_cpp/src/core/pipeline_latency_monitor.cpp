@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <numeric>
 #include <sstream>
+#include <algorithm>
 
 namespace f1tenth_localization
 {
@@ -237,6 +238,16 @@ static double vec_var(const std::vector<double> & v, double mean)
   return sum_sq / static_cast<double>(v.size() - 1);  // sample variance
 }
 
+static double vec_percentile(std::vector<double> v, double pct)
+{
+  if (v.empty()) return 0.0;
+  pct = std::clamp(pct, 0.0, 100.0);
+  const double pos = (pct / 100.0) * static_cast<double>(v.size() - 1);
+  const size_t idx = static_cast<size_t>(pos);
+  std::nth_element(v.begin(), v.begin() + idx, v.end());
+  return v[idx];
+}
+
 void PipelineLatencyMonitor::try_report(int64_t key, double ekf_to_drive_ms)
 {
   // Caller holds mutex_
@@ -286,26 +297,33 @@ void PipelineLatencyMonitor::try_report(int64_t key, double ekf_to_drive_ms)
   const double v_ed = vec_var(acc_ekf_to_drive_,  m_ed);
   const double v_sd = vec_var(acc_scan_to_drive_, m_sd);
 
+  const double p95_sw = vec_percentile(acc_scan_to_walls_, 95.0);
+  const double p95_wa = vec_percentile(acc_walls_to_amcl_, 95.0);
+  const double p95_ae = vec_percentile(acc_amcl_to_ekf_, 95.0);
+  const double p95_se = vec_percentile(acc_scan_to_ekf_, 95.0);
+  const double p95_ed = vec_percentile(acc_ekf_to_drive_, 95.0);
+  const double p95_sd = vec_percentile(acc_scan_to_drive_, 95.0);
+
   const int n = static_cast<int>(acc_scan_to_ekf_.size());
 
   RCLCPP_INFO(get_logger(),
     "\n"
     "  ┌─── Pipeline Latency (n=%d) ────────────────────────────────┐\n"
-    "  │                         mean        var                    │\n"
-    "  │ scan → scan_walls  : %7.2f ms   %7.2f ms²              │\n"
-    "  │ scan_walls → amcl  : %7.2f ms   %7.2f ms²              │\n"
-    "  │ amcl → ekf         : %7.2f ms   %7.2f ms²              │\n"
-    "  │ scan → ekf (total) : %7.2f ms   %7.2f ms²              │\n"
-    "  │ ekf → drive        : %7.2f ms   %7.2f ms²              │\n"
-    "  │ scan → drive       : %7.2f ms   %7.2f ms²              │\n"
+    "  │                         mean        var         p95      │\n"
+    "  │ scan → scan_walls  : %7.2f ms   %7.2f ms²   %7.2f ms   │\n"
+    "  │ scan_walls → amcl  : %7.2f ms   %7.2f ms²   %7.2f ms   │\n"
+    "  │ amcl → ekf         : %7.2f ms   %7.2f ms²   %7.2f ms   │\n"
+    "  │ scan → ekf (total) : %7.2f ms   %7.2f ms²   %7.2f ms   │\n"
+    "  │ ekf → drive        : %7.2f ms   %7.2f ms²   %7.2f ms   │\n"
+    "  │ scan → drive       : %7.2f ms   %7.2f ms²   %7.2f ms   │\n"
     "  └───────────────────────────────────────────────────────────┘",
     n,
-    m_sw, v_sw,
-    m_wa, v_wa,
-    m_ae, v_ae,
-    m_se, v_se,
-    m_ed, v_ed,
-    m_sd, v_sd);
+    m_sw, v_sw, p95_sw,
+    m_wa, v_wa, p95_wa,
+    m_ae, v_ae, p95_ae,
+    m_se, v_se, p95_se,
+    m_ed, v_ed, p95_ed,
+    m_sd, v_sd, p95_sd);
 
   // Reset accumulators
   acc_scan_to_walls_.clear();
