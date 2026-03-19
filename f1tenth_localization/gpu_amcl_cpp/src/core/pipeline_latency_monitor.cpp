@@ -170,14 +170,11 @@ void PipelineLatencyMonitor::ekf_callback(
   it->second.ekf_recv_ns = recv;
   it->second.has_ekf = true;
 
-  // Track EKF receive times so we can measure ekf -> drive latency.
-  pending_ekf_recv_ns_.push_back(recv);
-  if (pending_ekf_recv_ns_.size() > 1000) {
-    pending_ekf_recv_ns_.erase(pending_ekf_recv_ns_.begin(), pending_ekf_recv_ns_.begin() + 500);
+  // Keep this completed pipeline entry pending until matching drive arrives.
+  pending_drive_entries_.push_back(PendingDriveEntry{last_amcl_key_, recv});
+  if (pending_drive_entries_.size() > 2000) {
+    pending_drive_entries_.erase(pending_drive_entries_.begin(), pending_drive_entries_.begin() + 1000);
   }
-
-  // This entry is now complete — report it
-  try_report(last_amcl_key_);
 }
 
 void PipelineLatencyMonitor::drive_callback(
@@ -186,32 +183,37 @@ void PipelineLatencyMonitor::drive_callback(
   const double recv = wall_ns();
 
   std::lock_guard<std::mutex> lk(mutex_);
-  if (pending_ekf_recv_ns_.empty() || drive_match_max_ms_ <= 0.0) {
+  if (pending_drive_entries_.empty() || drive_match_max_ms_ <= 0.0) {
     return;
   }
 
   const double max_window_ns = drive_match_max_ms_ * 1e6;
 
-  // Drop stale EKF events that are too old to correspond to this drive command.
-  while (!pending_ekf_recv_ns_.empty() &&
-         (recv - pending_ekf_recv_ns_.front()) > max_window_ns)
+  // Drop stale EKF-complete entries and report them without drive latency.
+  while (!pending_drive_entries_.empty() &&
+         (recv - pending_drive_entries_.front().ekf_recv_ns) > max_window_ns)
   {
-    pending_ekf_recv_ns_.erase(pending_ekf_recv_ns_.begin());
+    const auto stale = pending_drive_entries_.front();
+    pending_drive_entries_.erase(pending_drive_entries_.begin());
+    try_report(stale.key, -1.0);
   }
 
-  if (pending_ekf_recv_ns_.empty()) {
+  if (pending_drive_entries_.empty()) {
     return;
   }
 
-  // Match to the most recent EKF event in the valid window.
-  const double ekf_recv_ns = pending_ekf_recv_ns_.back();
-  pending_ekf_recv_ns_.clear();
+  // Match to the oldest outstanding EKF-complete entry (FIFO pairing).
+  const auto matched = pending_drive_entries_.front();
+  pending_drive_entries_.erase(pending_drive_entries_.begin());
 
-  const double ekf_to_drive_ms = (recv - ekf_recv_ns) * 1e-6;
-  if (ekf_to_drive_ms >= 0.0 && ekf_to_drive_ms < 5000.0) {
+  double ekf_to_drive_ms = -1.0;
+  const double measured_ms = (recv - matched.ekf_recv_ns) * 1e-6;
+  if (measured_ms >= 0.0 && measured_ms < 5000.0) {
+    ekf_to_drive_ms = measured_ms;
     acc_ekf_to_drive_.push_back(ekf_to_drive_ms);
-    ekf_to_drive_by_ekf_recv_ns_[static_cast<int64_t>(ekf_recv_ns)] = ekf_to_drive_ms;
   }
+
+  try_report(matched.key, ekf_to_drive_ms);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -235,7 +237,7 @@ static double vec_var(const std::vector<double> & v, double mean)
   return sum_sq / static_cast<double>(v.size() - 1);  // sample variance
 }
 
-void PipelineLatencyMonitor::try_report(int64_t key)
+void PipelineLatencyMonitor::try_report(int64_t key, double ekf_to_drive_ms)
 {
   // Caller holds mutex_
   auto it = entries_.find(key);
@@ -250,14 +252,6 @@ void PipelineLatencyMonitor::try_report(int64_t key)
   const double walls_to_amcl_ms = (e.amcl_recv_ns - e.walls_recv_ns) * ns_to_ms;
   const double amcl_to_ekf_ms = (e.ekf_recv_ns   - e.amcl_recv_ns)  * ns_to_ms;
   const double scan_to_ekf_ms = (e.ekf_recv_ns   - e.scan_recv_ns)  * ns_to_ms;
-
-  double ekf_to_drive_ms = -1.0;
-  const int64_t ekf_recv_key = static_cast<int64_t>(e.ekf_recv_ns);
-  auto drive_it = ekf_to_drive_by_ekf_recv_ns_.find(ekf_recv_key);
-  if (drive_it != ekf_to_drive_by_ekf_recv_ns_.end()) {
-    ekf_to_drive_ms = drive_it->second;
-    ekf_to_drive_by_ekf_recv_ns_.erase(drive_it);
-  }
 
   if (ekf_to_drive_ms >= 0.0) {
     acc_scan_to_drive_.push_back(scan_to_ekf_ms + ekf_to_drive_ms);

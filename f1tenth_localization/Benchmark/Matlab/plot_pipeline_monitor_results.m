@@ -13,11 +13,6 @@ if nargin < 1 || isempty(csvDir)
     csvDir = fullfile(scriptDir, 'csv');
 end
 
-plotsDir = fullfile(fileparts(mfilename('fullpath')), 'plots');
-if ~exist(plotsDir, 'dir')
-    mkdir(plotsDir);
-end
-
 pipelineFile = latestFile(csvDir, 'pipeline_latency_*.csv');
 systemFile = latestFile(csvDir, 'system_usage_highrate_*.csv');
 
