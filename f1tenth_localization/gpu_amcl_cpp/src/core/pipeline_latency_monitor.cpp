@@ -9,6 +9,7 @@
 #include <numeric>
 #include <sstream>
 #include <algorithm>
+#include <thread>
 
 namespace f1tenth_localization
 {
@@ -29,6 +30,8 @@ PipelineLatencyMonitor::PipelineLatencyMonitor(
   declare_parameter("ekf_topic", std::string("/ekf_pose"));
   declare_parameter("drive_topic", std::string("/drive"));
   declare_parameter("drive_match_max_ms", 20.0);
+  declare_parameter("threaded", false);
+  declare_parameter("threaded_cores", 6);
   declare_parameter("print_every", 40);  // print every N cycles (~1 Hz at 40 Hz)
   declare_parameter("log_to_csv", true);
   declare_parameter("csv_output_dir", std::string("f1tenth_localization/Benchmark/Matlab/csv"));
@@ -424,7 +427,22 @@ int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
   auto node = std::make_shared<f1tenth_localization::PipelineLatencyMonitor>();
-  rclcpp::spin(node);
+
+  bool threaded = false;
+  int threaded_cores = 6;
+  node->get_parameter("threaded", threaded);
+  node->get_parameter("threaded_cores", threaded_cores);
+
+  if (threaded) {
+    const size_t thread_count =
+      threaded_cores > 0 ? static_cast<size_t>(threaded_cores) : std::max<size_t>(1, std::thread::hardware_concurrency());
+    rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), thread_count);
+    executor.add_node(node);
+    executor.spin();
+  } else {
+    rclcpp::spin(node);
+  }
+
   rclcpp::shutdown();
   return 0;
 }
