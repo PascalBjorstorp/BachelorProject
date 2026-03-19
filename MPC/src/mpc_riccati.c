@@ -357,63 +357,18 @@ static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
     if (N > MAX_HORIZON) N = MAX_HORIZON;
 
     /* ---------------------------------------------------------------
-     * Step 1: Linearize vehicle model
+     * Step 1: Prepare model constants for per-step linearization.
      *
-     * Linearize at δ=atan(L·κ): the kinematic feedforward steering.
-     * This gives the most accurate model for corners (κ up to 0.72),
-     * because the Pacejka tire forces and B matrix entries are evaluated
-     * at the actual operating point rather than at δ=0.
-     * At 200Hz control, the Riccati gains change slowly between calls,
-     * so the B matrix sensitivity is not an issue.
+     * Full Frenet linearization is computed per horizon point in the
+     * loop below (A_step/B_step), using each step's curvature and
+     * feedforward steering operating point.
      * --------------------------------------------------------------- */
-    /* Set up linearization point */
     VehicleParameters_t vp = vehicle_model_get_parameters();
-    fixed_point_t path_curvature0 = reference_trajectory[0].path_curvature_radians_per_meter;
-
-    /* Feedforward steering: atan(L * κ), clamped to ±δ_max/2 */
-    fixed_point_t delta_ff = fp_atan(fp_mul(vp.wheelbase_meters, path_curvature0));
     fixed_point_t delta_clamp = vp.maximum_steering_angle_radians * 0.5f;
-    if (delta_ff > delta_clamp) delta_ff = delta_clamp;
-    if (delta_ff < fp_neg(delta_clamp)) delta_ff = fp_neg(delta_clamp);
-
-    ControlInput_t lin_control;
-    lin_control.steering_angle_radians = delta_ff;
-    lin_control.acceleration_meters_per_second_squared = 0;
 
     FrenetState_t lin_state = *frenet;
     if (lin_state.longitudinal_velocity_meters_per_second < MIN_LINEARIZATION_VELOCITY)
         lin_state.longitudinal_velocity_meters_per_second = MIN_LINEARIZATION_VELOCITY;
-
-    /* Single-step Forward Euler linearization */
-    fixed_point_t A_base[5][5];
-    fixed_point_t B_base[5][2];
-
-    vehicle_model_compute_frenet_linearization(
-        &lin_state, &lin_control,
-        config.time_step_seconds,
-        path_curvature0,
-        A_base, B_base);
-
-    /* Stabilize fast dynamics (row 4 = omega) */
-    {
-        int row = 4;
-        fixed_point_t abs_aii = fp_abs(A_base[row][row]);
-        if (abs_aii > STABILITY_LIMIT) {
-            fixed_point_t target = (A_base[row][row] < 0)
-                ? fp_neg(STABILITY_LIMIT) : STABILITY_LIMIT;
-            fixed_point_t num = fp_sub(target, FP_ONE);
-            fixed_point_t den = fp_sub(A_base[row][row], FP_ONE);
-            if (den != 0) {
-                fixed_point_t scale = fp_div(num, den);
-                for (int j = 0; j < 5; j++) {
-                    if (j != row) A_base[row][j] = fp_mul(A_base[row][j], scale);
-                }
-                B_base[row][0] = fp_mul(B_base[row][0], scale);
-                B_base[row][1] = fp_mul(B_base[row][1], scale);
-            }
-            A_base[row][row] = target;
-        }
-    }
 
     /* ---------------------------------------------------------------
      * Step 2: Build augmented per-step data (8-state servo formulation)
@@ -503,22 +458,64 @@ static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
 
         /* --- End sparse zeroing --- */
 
+        /* Per-step Frenet linearization */
+        fixed_point_t kappa_k = reference_trajectory[k].path_curvature_radians_per_meter;
+
+        ControlInput_t lin_control;
+        lin_control.steering_angle_radians = fp_atan(fp_mul(vp.wheelbase_meters, kappa_k));
+        if (lin_control.steering_angle_radians > delta_clamp)
+            lin_control.steering_angle_radians = delta_clamp;
+        if (lin_control.steering_angle_radians < fp_neg(delta_clamp))
+            lin_control.steering_angle_radians = fp_neg(delta_clamp);
+        lin_control.acceleration_meters_per_second_squared = 0;
+
+        lin_state.longitudinal_velocity_meters_per_second =
+            reference_trajectory[k].reference_velocity_meters_per_second;
+        if (lin_state.longitudinal_velocity_meters_per_second < MIN_LINEARIZATION_VELOCITY)
+            lin_state.longitudinal_velocity_meters_per_second = MIN_LINEARIZATION_VELOCITY;
+
+        fixed_point_t A_step[5][5];
+        fixed_point_t B_step[5][2];
+
+        vehicle_model_compute_frenet_linearization(
+            &lin_state, &lin_control,
+            config.time_step_seconds,
+            kappa_k,
+            A_step, B_step);
+
+        /* Stabilize fast dynamics (omega row = 4) per stage */
+        {
+            int row = 4;
+            fixed_point_t abs_aii = fp_abs(A_step[row][row]);
+            if (abs_aii > STABILITY_LIMIT) {
+                fixed_point_t target = (A_step[row][row] < 0)
+                    ? fp_neg(STABILITY_LIMIT) : STABILITY_LIMIT;
+                fixed_point_t num = fp_sub(target, FP_ONE);
+                fixed_point_t den = fp_sub(A_step[row][row], FP_ONE);
+                if (den != 0) {
+                    fixed_point_t scale = fp_div(num, den);
+                    for (int j = 0; j < 5; j++) {
+                        if (j != row) A_step[row][j] = fp_mul(A_step[row][j], scale);
+                    }
+                    B_step[row][0] = fp_mul(B_step[row][0], scale);
+                    B_step[row][1] = fp_mul(B_step[row][1], scale);
+                }
+                A_step[row][row] = target;
+            }
+        }
+
         /* === Augmented A matrix (8×8) === */
 
-        /* Top-left 5×5: Frenet A (dynamics of e_y, e_psi, vx, vy, omega) */
+        /* Top-left 5×5: per-step Frenet A (e_y, e_psi, vx, vy, omega) */
         for (int i = 0; i < 5; i++)
             for (int j = 0; j < 5; j++)
-                sd->A[i][j] = A_base[i][j];
-
-        /* A[1][2] varies with per-step curvature */
-        sd->A[1][2] = fp_neg(fp_mul(config.time_step_seconds,
-            reference_trajectory[k].path_curvature_radians_per_meter));
+            sd->A[i][j] = A_step[i][j];
 
         /* Column 5 of A (rows 0-4): steering effect via δ_actual.
          * This is the old B_frenet[:,0] — steering no longer comes
          * through the control, it comes through the δ_actual state. */
         for (int i = 0; i < 5; i++)
-            sd->A[i][IDX_DELTA_ACTUAL] = B_base[i][0];
+            sd->A[i][IDX_DELTA_ACTUAL] = B_step[i][0];
 
         /* A[5][5] = 1: δ_actual integrator (δ_{k+1} = δ_k + dt*δ̇) */
         sd->A[IDX_DELTA_ACTUAL][IDX_DELTA_ACTUAL] = FP_ONE;
@@ -532,7 +529,7 @@ static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
 
         /* Rows 0-4, col 1: acceleration effect on dynamics (unchanged) */
         for (int i = 0; i < 5; i++)
-            sd->B[i][1] = B_base[i][1];
+            sd->B[i][1] = B_step[i][1];
 
         /* Row 5: δ_actual integrator — B[5][0] = dt */
         sd->B[IDX_DELTA_ACTUAL][0] = config.time_step_seconds;
@@ -890,6 +887,7 @@ static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
     result->optimal_control = saturated;
     result->iterations_used = (uint16_t)riccati_sol.iterations;
     result->final_cost = riccati_sol.primal_residual;
+    result->dual_residual = riccati_sol.dual_residual;
 
     switch (rstatus) {
     case RICCATI_STATUS_OPTIMAL:

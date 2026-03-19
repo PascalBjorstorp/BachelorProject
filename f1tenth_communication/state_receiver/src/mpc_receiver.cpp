@@ -8,8 +8,8 @@
  *   1. Initialize FPGA register interface
  *
  * Runtime (per MpcState message):
- *   1. Load streamed N-step horizon into FPGA BRAM (mode=1, then mode=2)
- *   2. Write vehicle state to 8 AXI-Lite registers (mode=0)
+ *   1. Copy streamed horizon references into mapped BRAM buffers
+ *   2. Write state + buffer pointers through AXI-Lite
  *   3. Start FPGA (AP_START)
  *   4. Wait for done (AP_DONE)
  *   5. Read steering + accel from output registers
@@ -17,7 +17,7 @@
  *
  * When FPGA is unavailable, falls back to proportional Frenet controller.
  *
- * Register map: mpc_fpga_interface.h
+ * Register map: mpc_fpga_interface.h 
  * Data format:  Q16.16 fixed-point (int32_t)
  */
 
@@ -203,7 +203,6 @@ public:
         count = std::min(count, msg.ref_psi_fp.size());
         count = std::min(count, msg.ref_vx_fp.size());
         count = std::min(count, msg.ref_kappa_fp.size());
-        count = std::min(count, msg.ref_ax_fp.size());
         count = std::min(count, msg.ref_left_bound_fp.size());
         count = std::min(count, msg.ref_right_bound_fp.size());
         count = std::min(count, ref_capacity_);
@@ -393,8 +392,7 @@ public:
         max_velocity_        = static_cast<float>(get_parameter("max_velocity").as_double());
         control_dt_          = static_cast<float>(get_parameter("control_dt").as_double());
 
-        // Bounds are currently provided as receiver defaults.
-        // Keep them fixed here until explicit bound arrays are streamed.
+        // Bounds are streamed inside each MpcState horizon frame.
 
         // --- Initialize FPGA (required) ---
         const uint32_t addr = static_cast<uint32_t>(
@@ -459,16 +457,19 @@ public:
     }
 
 private:
+    // --- Configurable limits -------------------------------------------------
     float max_steering_   = 0.4189f;
     float max_velocity_   = 6.0f;
     float control_dt_     = 0.02f;   // Default control interval for speed integration [s]
 
+    // --- FPGA + ROS interfaces ----------------------------------------------
     MpcFpgaInterface    fpga_;
 
     rclcpp::Subscription<f1tenth_msgs::msg::MpcState>::SharedPtr sub_;
     rclcpp::Publisher<ackermann_msgs::msg::AckermannDriveStamped>::SharedPtr drive_pub_;
     rclcpp::TimerBase::SharedPtr watchdog_timer_;
 
+    // --- Runtime statistics/state -------------------------------------------
     uint64_t msg_count_       = 0;
     double   total_latency_ms_ = 0.0;
     double   total_loop_us_ = 0.0;
@@ -478,49 +479,32 @@ private:
     rclcpp::Time last_callback_time_;   // For computing actual elapsed dt
     bool has_prev_callback_ = false;    // True after first callback
 
-    /*-----------------------------------------------------------------------
-     * State callback  —  FPGA compute → publish drive
-     *---------------------------------------------------------------------*/
-    void state_callback(const f1tenth_msgs::msg::MpcState::SharedPtr msg) {
-        auto t_start = std::chrono::high_resolution_clock::now();
-        last_msg_time_ = std::chrono::steady_clock::now();
+    struct FrenetErrorsFp {
+        int32_t e_y_fp;
+        int32_t e_psi_fp;
+    };
 
-        // Compute actual elapsed dt from message timestamps for speed integration.
-        // Falls back to the configured control_dt_ for the first callback.
+    // Compute elapsed dt from message timestamps; falls back to configured dt.
+    float compute_actual_dt(const rclcpp::Time& msg_time) {
         float actual_dt = control_dt_;
-        rclcpp::Time msg_time(msg->header.stamp);
         if (has_prev_callback_) {
             double dt_sec = (msg_time - last_callback_time_).seconds();
-            // Sanity-check: only use measured dt if it is within [0.1 ms, 200 ms]
+            // Use measured dt only if it stays within [0.1 ms, 200 ms].
             if (dt_sec > 0.0001 && dt_sec < 0.2) {
                 actual_dt = static_cast<float>(dt_sec);
             }
         }
         last_callback_time_ = msg_time;
         has_prev_callback_ = true;
+        return actual_dt;
+    }
 
-        float    steering = 0.0f;
-        float    speed    = 0.0f;
-        float    accel    = 0.0f;
-        uint32_t status   = 0;
-        uint32_t iters    = 0;
+    bool has_required_horizon_data(const f1tenth_msgs::msg::MpcState::SharedPtr& msg) const {
+        return !(msg->ref_x_fp.empty() || msg->ref_y_fp.empty() || msg->ref_psi_fp.empty());
+    }
 
-        int32_t out_steer_fp = 0;
-        int32_t out_accel_fp = 0;
-
-        if (msg->ref_x_fp.empty() || msg->ref_y_fp.empty() || msg->ref_psi_fp.empty()) {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                "No streamed waypoint data in message");
-            return;
-        }
-
-        const bool horizon_loaded = fpga_.load_horizon(*msg);
-        if (!horizon_loaded) {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                "FPGA horizon load failed");
-            return;
-        }
-
+    // Compute first-point Frenet tracking errors for FPGA state input.
+    static FrenetErrorsFp compute_frenet_errors(const f1tenth_msgs::msg::MpcState::SharedPtr& msg) {
         const float x = fp_to_float(msg->x_fp);
         const float y = fp_to_float(msg->y_fp);
         const float theta = fp_to_float(msg->theta_fp);
@@ -536,11 +520,103 @@ private:
         while (e_psi > static_cast<float>(M_PI)) e_psi -= 2.0f * static_cast<float>(M_PI);
         while (e_psi < -static_cast<float>(M_PI)) e_psi += 2.0f * static_cast<float>(M_PI);
 
-        const int32_t e_y_fp = float_to_fp(e_y);
-        const int32_t e_psi_fp = float_to_fp(e_psi);
+        return FrenetErrorsFp{float_to_fp(e_y), float_to_fp(e_psi)};
+    }
+
+    float compute_target_speed(const f1tenth_msgs::msg::MpcState::SharedPtr& msg,
+                               float accel,
+                               float actual_dt) const {
+        const float vx = fp_to_float(msg->velocity_fp);
+        const float v_target = vx + accel * actual_dt;
+        return std::max(0.0f, std::min(v_target, max_velocity_));
+    }
+
+    void publish_drive_command(float steering, float speed, float accel) {
+        auto drive = ackermann_msgs::msg::AckermannDriveStamped();
+        drive.header.stamp = now();
+        drive.header.frame_id = "base_link";
+        drive.drive.steering_angle = steering;
+        drive.drive.speed = speed;
+        drive.drive.acceleration = accel;
+        drive_pub_->publish(drive);
+    }
+
+    void update_timing_and_log(const f1tenth_msgs::msg::MpcState::SharedPtr& msg,
+                               const std::chrono::high_resolution_clock::time_point& t_start,
+                               const std::chrono::high_resolution_clock::time_point& t_end,
+                               float steering,
+                               float speed,
+                               float accel,
+                               uint32_t status,
+                               uint32_t iters) {
+        const auto compute_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                                t_end - t_start).count();
+        msg_count_++;
+        total_loop_us_ += static_cast<double>(compute_us);
+        min_loop_us_ = std::min(min_loop_us_, static_cast<double>(compute_us));
+        max_loop_us_ = std::max(max_loop_us_, static_cast<double>(compute_us));
+
+        const auto now_ms = static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count());
+        const double latency_ms = static_cast<double>(now_ms - msg->timestamp_ms);
+        total_latency_ms_ += latency_ms;
+
+        if (msg_count_ % 100 == 0) {
+            const double avg = total_latency_ms_ / static_cast<double>(msg_count_);
+            const double avg_loop_us = total_loop_us_ / static_cast<double>(msg_count_);
+            const int64_t fpga_ns = fpga_.get_last_compute_ns();
+            RCLCPP_INFO(get_logger(),
+                "[%s] WP=%u  delta=%.1f deg  v=%.1f  a=%.1f | "
+                "Status=%u  Iter=%u | Total=%ld us  FPGA=%ld ns | "
+                "Loop us avg/min/max=%.1f/%.1f/%.1f | Lat %.1f ms (avg %.1f)",
+                "FPGA",
+                msg->waypoint_index,
+                steering * 57.2958f, speed, accel,
+                status, iters,
+                compute_us, fpga_ns,
+                avg_loop_us, min_loop_us_, max_loop_us_,
+                latency_ms, avg);
+        }
+    }
+
+    // --- State callback -----------------------------------------------------
+    void state_callback(const f1tenth_msgs::msg::MpcState::SharedPtr msg) {
+        auto t_start = std::chrono::high_resolution_clock::now();
+        last_msg_time_ = std::chrono::steady_clock::now();
+
+        // 1) Update time base
+        const rclcpp::Time msg_time(msg->header.stamp);
+        const float actual_dt = compute_actual_dt(msg_time);
+
+        float    steering = 0.0f;
+        float    speed    = 0.0f;
+        float    accel    = 0.0f;
+        uint32_t status   = 0;
+        uint32_t iters    = 0;
+
+        int32_t out_steer_fp = 0;
+        int32_t out_accel_fp = 0;
+
+        // 2) Validate inputs
+        if (!has_required_horizon_data(msg)) {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+                "No streamed waypoint data in message");
+            return;
+        }
+
+        const bool horizon_loaded = fpga_.load_horizon(*msg);
+        if (!horizon_loaded) {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+                "FPGA horizon load failed");
+            return;
+        }
+
+        // 3) Build tracking errors
+        const FrenetErrorsFp errors = compute_frenet_errors(msg);
 
         const bool ok = fpga_.compute(
-            e_y_fp, e_psi_fp,
+            errors.e_y_fp, errors.e_psi_fp,
             msg->velocity_fp, msg->vy_fp, msg->omega_fp,
             msg->steering_angle_fp,
             out_steer_fp, out_accel_fp, status, iters);
@@ -554,59 +630,19 @@ private:
         steering = fp_to_float(out_steer_fp);
         accel    = fp_to_float(out_accel_fp);
 
-        // Speed: integrate current velocity + MPC acceleration output.
-        // The VESC interprets drive.speed as target velocity and uses
-        // its own PID to reach it.  This mirrors the approach in MPC/.
-        {
-            float vx = fp_to_float(msg->velocity_fp);
-            float v_target = vx + accel * actual_dt;
-            speed = std::max(0.0f, std::min(v_target, max_velocity_));
-        }
+        // 4) Post-process command
+        speed = compute_target_speed(msg, accel, actual_dt);
 
         // Clamp outputs
         steering = std::clamp(steering, -max_steering_, max_steering_);
         speed    = std::clamp(speed,    0.0f,           max_velocity_);
 
-        // --- Publish AckermannDriveStamped ---
-        auto drive = ackermann_msgs::msg::AckermannDriveStamped();
-        drive.header.stamp    = now();
-        drive.header.frame_id = "base_link";
-        drive.drive.steering_angle = steering;
-        drive.drive.speed          = speed;
-        drive.drive.acceleration   = accel;
-        drive_pub_->publish(drive);
+        // 5) Publish command
+        publish_drive_command(steering, speed, accel);
 
-        // --- Timing & logging ---
-        auto t_end      = std::chrono::high_resolution_clock::now();
-        auto compute_us = std::chrono::duration_cast<std::chrono::microseconds>(
-                              t_end - t_start).count();
-        msg_count_++;
-        total_loop_us_ += static_cast<double>(compute_us);
-        min_loop_us_ = std::min(min_loop_us_, static_cast<double>(compute_us));
-        max_loop_us_ = std::max(max_loop_us_, static_cast<double>(compute_us));
-
-        auto now_ms = static_cast<uint64_t>(
-            std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::system_clock::now().time_since_epoch()).count());
-        double latency_ms = static_cast<double>(now_ms - msg->timestamp_ms);
-        total_latency_ms_ += latency_ms;
-
-        if (msg_count_ % 100 == 0) {
-            double avg = total_latency_ms_ / static_cast<double>(msg_count_);
-            double avg_loop_us = total_loop_us_ / static_cast<double>(msg_count_);
-            int64_t fpga_ns = fpga_.get_last_compute_ns();
-            RCLCPP_INFO(get_logger(),
-                "[%s] WP=%u  delta=%.1f deg  v=%.1f  a=%.1f | "
-                "Status=%u  Iter=%u | Total=%ld us  FPGA=%ld ns | "
-                "Loop us avg/min/max=%.1f/%.1f/%.1f | Lat %.1f ms (avg %.1f)",
-                "FPGA",
-                msg->waypoint_index,
-                steering * 57.2958f, speed, accel,
-                status, iters,
-                compute_us, fpga_ns,
-                avg_loop_us, min_loop_us_, max_loop_us_,
-                latency_ms, avg);
-        }
+        // 6) Update timing stats and logs
+        auto t_end = std::chrono::high_resolution_clock::now();
+        update_timing_and_log(msg, t_start, t_end, steering, speed, accel, status, iters);
     }
 
 };

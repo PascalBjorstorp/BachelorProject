@@ -22,6 +22,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <ctype.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -368,6 +369,200 @@ static int raceline_count = 0;
 
 static const char *raceline_override = NULL;  /* set from argv */
 
+typedef struct {
+    int width;
+    int height;
+    int maxval;
+    unsigned char *data;
+    double resolution;
+    double origin_x;
+    double origin_y;
+    int negate;
+    double occupied_thresh;
+    int loaded;
+} OccupancyMap_t;
+
+static OccupancyMap_t occ_map = {0};
+
+static void trim_ws(char *s)
+{
+    size_t n = strlen(s);
+    while (n > 0 && isspace((unsigned char)s[n - 1])) s[--n] = '\0';
+    while (*s && isspace((unsigned char)*s)) memmove(s, s + 1, strlen(s));
+}
+
+static int read_pgm_file(const char *pgm_path, OccupancyMap_t *m)
+{
+    FILE *f = fopen(pgm_path, "rb");
+    if (!f) return 0;
+
+    char magic[3] = {0};
+    if (fscanf(f, "%2s", magic) != 1) { fclose(f); return 0; }
+    if (strcmp(magic, "P5") != 0 && strcmp(magic, "P2") != 0) {
+        fclose(f);
+        return 0;
+    }
+
+    int c = fgetc(f);
+    while (c == '#') {
+        while (c != '\n' && c != EOF) c = fgetc(f);
+        c = fgetc(f);
+    }
+    if (c != EOF) ungetc(c, f);
+
+    if (fscanf(f, "%d %d", &m->width, &m->height) != 2) { fclose(f); return 0; }
+    if (fscanf(f, "%d", &m->maxval) != 1) { fclose(f); return 0; }
+    if (m->width <= 0 || m->height <= 0 || m->maxval <= 0 || m->maxval > 255) {
+        fclose(f);
+        return 0;
+    }
+
+    m->data = (unsigned char *)malloc((size_t)m->width * (size_t)m->height);
+    if (!m->data) { fclose(f); return 0; }
+
+    fgetc(f); /* consume one whitespace byte before pixel payload */
+
+    if (strcmp(magic, "P5") == 0) {
+        size_t need = (size_t)m->width * (size_t)m->height;
+        size_t got = fread(m->data, 1, need, f);
+        if (got != need) { fclose(f); free(m->data); m->data = NULL; return 0; }
+    } else {
+        for (int i = 0; i < m->width * m->height; i++) {
+            int v;
+            if (fscanf(f, "%d", &v) != 1) {
+                fclose(f); free(m->data); m->data = NULL; return 0;
+            }
+            if (v < 0) v = 0;
+            if (v > 255) v = 255;
+            m->data[i] = (unsigned char)v;
+        }
+    }
+
+    fclose(f);
+    return 1;
+}
+
+static int load_map_yaml(const char *yaml_path)
+{
+    FILE *f = fopen(yaml_path, "r");
+    if (!f) {
+        fprintf(stderr, "WARN: cannot open map yaml '%s'\n", yaml_path);
+        return 0;
+    }
+
+    char image_name[512] = {0};
+    occ_map.resolution = 0.01;
+    occ_map.origin_x = 0.0;
+    occ_map.origin_y = 0.0;
+    occ_map.negate = 0;
+    occ_map.occupied_thresh = 0.65;
+
+    char line[512];
+    while (fgets(line, sizeof(line), f)) {
+        char key[64] = {0};
+        char rest[448] = {0};
+        if (sscanf(line, " %63[^:]: %447[^\n]", key, rest) != 2) continue;
+        trim_ws(rest);
+        if (strcmp(key, "image") == 0) {
+            strncpy(image_name, rest, sizeof(image_name) - 1);
+        } else if (strcmp(key, "resolution") == 0) {
+            occ_map.resolution = atof(rest);
+        } else if (strcmp(key, "negate") == 0) {
+            occ_map.negate = atoi(rest);
+        } else if (strcmp(key, "occupied_thresh") == 0) {
+            occ_map.occupied_thresh = atof(rest);
+        } else if (strcmp(key, "origin") == 0) {
+            double ox = 0.0, oy = 0.0, oz = 0.0;
+            if (sscanf(rest, "[%lf,%lf,%lf]", &ox, &oy, &oz) == 3) {
+                occ_map.origin_x = ox;
+                occ_map.origin_y = oy;
+            }
+        }
+    }
+    fclose(f);
+
+    if (image_name[0] == '\0') {
+        fprintf(stderr, "WARN: map yaml has no image field: %s\n", yaml_path);
+        return 0;
+    }
+
+    char pgm_path[1024] = {0};
+    if (image_name[0] == '/') {
+        strncpy(pgm_path, image_name, sizeof(pgm_path) - 1);
+    } else {
+        const char *last_slash = strrchr(yaml_path, '/');
+        if (!last_slash) {
+            snprintf(pgm_path, sizeof(pgm_path), "%s", image_name);
+        } else {
+            size_t dir_len = (size_t)(last_slash - yaml_path + 1);
+            if (dir_len >= sizeof(pgm_path)) dir_len = sizeof(pgm_path) - 1;
+            memcpy(pgm_path, yaml_path, dir_len);
+            pgm_path[dir_len] = '\0';
+            strncat(pgm_path, image_name, sizeof(pgm_path) - strlen(pgm_path) - 1);
+        }
+    }
+
+    if (occ_map.data) {
+        free(occ_map.data);
+        occ_map.data = NULL;
+    }
+    if (!read_pgm_file(pgm_path, &occ_map)) {
+        fprintf(stderr, "WARN: failed to load map image '%s'\n", pgm_path);
+        return 0;
+    }
+
+    occ_map.loaded = 1;
+    printf("[MAP] %s (%dx%d, res=%.3f, occ_th=%.2f)\n",
+           pgm_path, occ_map.width, occ_map.height,
+           occ_map.resolution, occ_map.occupied_thresh);
+    return 1;
+}
+
+static int map_is_occupied_world(double wx, double wy)
+{
+    if (!occ_map.loaded || !occ_map.data) return 0;
+
+    double mx = (wx - occ_map.origin_x) / occ_map.resolution;
+    double my = (wy - occ_map.origin_y) / occ_map.resolution;
+    int col = (int)llround(mx);
+    int row = occ_map.height - 1 - (int)llround(my);
+
+    if (col < 0 || col >= occ_map.width || row < 0 || row >= occ_map.height) {
+        return 1;
+    }
+
+    unsigned char pix = occ_map.data[row * occ_map.width + col];
+    double occ = occ_map.negate ? ((double)pix / 255.0)
+                                : (1.0 - (double)pix / 255.0);
+    return occ > occ_map.occupied_thresh;
+}
+
+static int map_body_collision(double x, double y, double theta)
+{
+    if (!occ_map.loaded) return 0;
+
+    const double half_len = 0.16;
+    const double half_w = VEHICLE_HALF_WIDTH + BODY_SAFETY_MARGIN;
+    const double c = cos(theta);
+    const double s = sin(theta);
+
+    const double pts[5][2] = {
+        {0.0, 0.0},
+        {half_len,  half_w},
+        {half_len, -half_w},
+        {-half_len,  half_w},
+        {-half_len, -half_w},
+    };
+
+    for (int i = 0; i < 5; i++) {
+        double lx = pts[i][0], ly = pts[i][1];
+        double wx = x + c * lx - s * ly;
+        double wy = y + s * lx + c * ly;
+        if (map_is_occupied_world(wx, wy)) return 1;
+    }
+    return 0;
+}
+
 static int load_raceline(void)
 {
     const char *paths[] = {
@@ -525,6 +720,15 @@ int main(int argc, char *argv[])
 
     if (!load_raceline()) return 1;
 
+    {
+        const char *map_yaml = getenv("MAP_YAML");
+        if (map_yaml && map_yaml[0]) {
+            if (!load_map_yaml(map_yaml)) {
+                fprintf(stderr, "WARN: MAP_YAML provided but map loading failed, continuing with raceline-only wall checks.\n");
+            }
+        }
+    }
+
     /* Velocity limiting: cap raceline velocities by curvature.
      * Curvature limiting: realistic mode only (physics-based).
      * Corridor-width velocity cap removed — wall constraints in the MPC
@@ -645,12 +849,18 @@ int main(int argc, char *argv[])
             mpc_vx = ema_vx; mpc_vy = ema_vy; mpc_omega = ema_omega;
         }
 
-        /* Wall collision check — body-edge (matching gym iTTC) */
+        /* Collision checks:
+         * 1) corridor check from raceline bounds,
+         * 2) occupancy-map body check when MAP_YAML is configured. */
         double left_wall = raceline[closest].left_bound;
         double right_wall = raceline[closest].right_bound;
         int wall_hit = 0;
         if (e_y > (left_wall - VEHICLE_HALF_WIDTH - BODY_SAFETY_MARGIN))  { wall_hit = 1;  wall_collisions++; }
         if (e_y < -(right_wall - VEHICLE_HALF_WIDTH - BODY_SAFETY_MARGIN)){ wall_hit = -1; wall_collisions++; }
+        if (map_body_collision(state.x, state.y, state.theta)) {
+            wall_hit = (wall_hit == 0) ? 2 : wall_hit;
+            wall_collisions++;
+        }
         if (wall_hit && state.vx > 1.0) {
             printf("\n  !!! WALL CRASH: e_y = %.3f m (bound: %.3f) at step %d (t=%.2fs, wp=%d, v=%.1f) !!!\n",
                    e_y, wall_hit > 0 ? left_wall : right_wall, step, t, closest, state.vx);

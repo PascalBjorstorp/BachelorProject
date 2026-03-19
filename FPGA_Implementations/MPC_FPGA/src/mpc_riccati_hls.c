@@ -60,48 +60,10 @@ void mpc_compute_hls(
     int k, i, j;
 
     /* ---------------------------------------------------------------
-     * Step 1: Linearize vehicle model
+     * Step 1: Keep first-point curvature for warm-start validation.
+     * Full model linearization is performed per-step in the loop below.
      * --------------------------------------------------------------- */
     fixed_point_t kappa0 = ref[0].kappa;
-
-    /* Feedforward steering: delta_ff ≈ L * kappa using atan(L*kappa) ≈ L*kappa.
-     * This is used as a linearization operating point and re-evaluated per step. */
-    fixed_point_t delta_ff = fp_mul(VP_WHEELBASE, kappa0);
-    fixed_point_t half_steer = VP_MAX_STEER >> 1;
-    delta_ff = fp_clamp(delta_ff, fp_neg(half_steer), half_steer);
-
-    /* Linearize at (lin_state, lin_control) */
-    fixed_point_t lin_vx = (state_vx > MIN_LIN_VEL) ? state_vx : MIN_LIN_VEL;
-
-    fixed_point_t A_base[MPC_NX_FRENET][MPC_NX_FRENET];
-    fixed_point_t B_base[MPC_NX_FRENET][MPC_NU];
-
-    compute_frenet_AB_hls(
-        lin_vx, state_vy, state_omega,
-        delta_ff, 0, /* a_cmd = 0 at linearization point */
-        kappa0, dt,
-        A_base, B_base);
-
-    /* Stabilize fast dynamics (omega row = 4) */
-    {
-        fixed_point_t a44 = A_base[4][4];
-        fixed_point_t abs_a44 = fp_abs(a44);
-        if (abs_a44 > STABILITY_LIMIT_VAL) {
-            fixed_point_t target = (a44 < 0) ? fp_neg(STABILITY_LIMIT_VAL)
-                                              : STABILITY_LIMIT_VAL;
-            fixed_point_t num = fp_sub(target, FP_ONE);
-            fixed_point_t den = fp_sub(a44, FP_ONE);
-            if (den != 0) {
-                fixed_point_t scale = fp_mul(num, fp_recip(den));
-                for (j = 0; j < MPC_NX_FRENET; j++) {
-                    if (j != 4) A_base[4][j] = fp_mul(A_base[4][j], scale);
-                }
-                B_base[4][0] = fp_mul(B_base[4][0], scale);
-                B_base[4][1] = fp_mul(B_base[4][1], scale);
-            }
-            A_base[4][4] = target;
-        }
-    }
 
     /* ---------------------------------------------------------------
      * Step 2: Build augmented per-step data (8-state formulation)
@@ -145,23 +107,61 @@ void mpc_compute_hls(
             sd->N_cross[i][1] = 0;
         }
 
+        /* Per-step Frenet linearization */
+        fixed_point_t A_step[MPC_NX_FRENET][MPC_NX_FRENET];
+        fixed_point_t B_step[MPC_NX_FRENET][MPC_NU];
+
+        fixed_point_t kappa_k = ref[k].kappa;
+        fixed_point_t dff_k = fp_mul(VP_WHEELBASE, kappa_k);
+        fixed_point_t half_steer = VP_MAX_STEER >> 1;
+        dff_k = fp_clamp(dff_k, fp_neg(half_steer), half_steer);
+
+        fixed_point_t lin_vx_k = (ref[k].velocity > MIN_LIN_VEL) ? ref[k].velocity
+                                                                  : MIN_LIN_VEL;
+
+        compute_frenet_AB_hls(
+            lin_vx_k, state_vy, state_omega,
+            dff_k, 0,
+            kappa_k, dt,
+            A_step, B_step);
+
+        /* Stabilize fast dynamics (omega row = 4) per stage */
+        {
+            fixed_point_t a44 = A_step[4][4];
+            fixed_point_t abs_a44 = fp_abs(a44);
+            if (abs_a44 > STABILITY_LIMIT_VAL) {
+                fixed_point_t target = (a44 < 0) ? fp_neg(STABILITY_LIMIT_VAL)
+                                                  : STABILITY_LIMIT_VAL;
+                fixed_point_t num = fp_sub(target, FP_ONE);
+                fixed_point_t den = fp_sub(a44, FP_ONE);
+                if (den != 0) {
+                    fixed_point_t scale = fp_mul(num, fp_recip(den));
+                    for (j = 0; j < MPC_NX_FRENET; j++) {
+#pragma HLS UNROLL
+                        if (j != 4) A_step[4][j] = fp_mul(A_step[4][j], scale);
+                    }
+                    B_step[4][0] = fp_mul(B_step[4][0], scale);
+                    B_step[4][1] = fp_mul(B_step[4][1], scale);
+                }
+                A_step[4][4] = target;
+            }
+        }
+
         /* === Augmented A (8x8) === */
 
-        /* Top-left 5x5: Frenet dynamics */
+        /* Top-left 5x5: per-step Frenet dynamics */
         for (i = 0; i < 5; i++) {
 #pragma HLS UNROLL
             for (j = 0; j < 5; j++) {
 #pragma HLS UNROLL
-                sd->A[i][j] = A_base[i][j];
+                sd->A[i][j] = A_step[i][j];
             }
         }
-        /* Per-step curvature variation in A[1][2] */
-        sd->A[1][2] = fp_neg(fp_mul(dt, ref[k].kappa));
 
         /* Column 5: steering effect via delta_actual */
         for (i = 0; i < 5; i++) {
 #pragma HLS UNROLL
-            sd->A[i][IDX_DELTA_ACT] = B_base[i][0];
+            sd->A[i][IDX_DELTA_ACT] = B_step[i][0];
         }
 
         /* A[5][5] = 1 (delta integrator) */
@@ -173,7 +173,7 @@ void mpc_compute_hls(
         /* Rows 0-4, col 1: acceleration effect */
         for (i = 0; i < 5; i++) {
 #pragma HLS UNROLL
-            sd->B[i][1] = B_base[i][1];
+            sd->B[i][1] = B_step[i][1];
         }
         /* B[5][0] = dt (delta integrator) */
         sd->B[IDX_DELTA_ACT][0] = dt;
@@ -207,11 +207,7 @@ void mpc_compute_hls(
         sd->q[3] = 0;  /* vy_ref = 0 */
         sd->q[4] = 0;  /* omega_ref = 0 */
         /* delta_actual reference: feedforward steering */
-        {
-            fixed_point_t kappa_k = ref[k].kappa;
-            fixed_point_t dff_k = fp_mul(VP_WHEELBASE, kappa_k);  /* atan(x)≈x, max err 0.4% */
-            sd->q[IDX_DELTA_ACT] = fp_neg(fp_mul(MPC_Q2_DELTA_ACT, dff_k));
-        }
+        sd->q[IDX_DELTA_ACT] = fp_neg(fp_mul(MPC_Q2_DELTA_ACT, dff_k));
         sd->q[IDX_DELTA_RATE_PREV] = 0;
         sd->q[IDX_ACCEL_PREV] = 0;
 
