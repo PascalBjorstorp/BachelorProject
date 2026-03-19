@@ -40,6 +40,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <limits.h>
 
 /* ROS2 C Client Library Headers */
 #include "rcl/rcl.h"
@@ -207,6 +208,44 @@ static unsigned long g_solve_cycle_count = 0;
 static FILE *g_solver_log_file = NULL;
 static unsigned long g_solver_log_counter = 0;
 static int g_solver_log_stride = 1;
+
+/* Ensure all parent directories for a filepath exist (mkdir -p behavior). */
+static void ensure_parent_directories(const char *filepath)
+{
+    if (filepath == NULL) return;
+
+    char path_buf[PATH_MAX];
+    size_t n = strlen(filepath);
+    if (n == 0 || n >= sizeof(path_buf)) return;
+
+    memcpy(path_buf, filepath, n + 1);
+
+    char *last_slash = strrchr(path_buf, '/');
+    if (last_slash == NULL) return;  /* No directory component */
+
+    *last_slash = '\0';
+    if (path_buf[0] == '\0') return;
+
+    char tmp[PATH_MAX];
+    size_t len = strlen(path_buf);
+    if (len >= sizeof(tmp)) return;
+
+    memcpy(tmp, path_buf, len + 1);
+
+    for (char *p = tmp + 1; *p; p++) {
+        if (*p == '/') {
+            *p = '\0';
+            if (mkdir(tmp, 0775) != 0 && errno != EEXIST) {
+                return;
+            }
+            *p = '/';
+        }
+    }
+
+    if (mkdir(tmp, 0775) != 0 && errno != EEXIST) {
+        return;
+    }
+}
 
 /** Computed control dt from g_control_rate_hz (set in main) */
 static double g_control_dt = 0.005;
@@ -1218,12 +1257,6 @@ int main(int argc, char *argv[])
         /* Always log every control callback unless code is changed. */
         g_solver_log_stride = 1;
 
-        if (mkdir("log", 0775) != 0 && errno != EEXIST)
-        {
-            fprintf(stderr, "[MPC] WARNING: Could not create log directory: %s\n",
-                    strerror(errno));
-        }
-
         if (log_path == NULL || log_path[0] == '\0')
         {
             time_t now = time(NULL);
@@ -1233,6 +1266,8 @@ int main(int argc, char *argv[])
                      "log/mpc_solver_%Y%m%d_%H%M%S.csv", &tm_now);
             log_path = default_log_path;
         }
+
+        ensure_parent_directories(log_path);
 
         g_solver_log_file = fopen(log_path, "w");
         if (g_solver_log_file == NULL)
