@@ -72,8 +72,9 @@ tire:
                              # Typical Traxxas Slash: ~0.05 m
                              # MPC default: 0.0545 m (diameter 10.9 cm)
   
-  mu: 0.787                  # [TESTED] Peak friction coefficient (dimensionless)
-                             # From test_friction.py: mu = a_y_max / g at saturation (5.0 m/s)
+  mu: 0.745                  # [TESTED] Peak friction coefficient (dimensionless)
+                             # From all friction_test_20260226_* runs in data/
+                             # using steady-state filtered a_y at highest tested speed (5.0 m/s)
                              # Cross-validated with motor torque test (μ_x ≈ 0.74)
                              # Depends on surface! Re-test if surface changes.
   
@@ -206,18 +207,17 @@ dynamics:
   max_velocity: 10.0363      # [TESTED] Maximum achievable velocity (m/s)
                              # From test_max_dynamics.py
   
-  max_accel: 8.0             # [TESTED] Maximum longitudinal acceleration (m/s²)
-                             # From test_max_dynamics.py (smoothed IMU, bounded by mu*g)
-                             # Raw unsmoothed peak was ~14.5 m/s² — that exceeds mu*g=7.3
-                             # and is contaminated by IMU pitch during acceleration.
+  max_accel: 7.31            # [TESTED] Maximum longitudinal acceleration (m/s²)
+                             # Conservative bound: mu * g = 0.745 * 9.81 = 7.31 m/s²
+                             # Smoothed IMU peaks can exceed this due to pitch/sensor coupling.
   
-  max_decel: 7.7             # [TESTED] Maximum deceleration (m/s²)
-                             # Conservative estimate: mu * g = 0.79 * 9.81 = 7.7 m/s²
+  max_decel: 7.31            # [TESTED] Maximum deceleration (m/s²)
+                             # Conservative estimate: mu * g = 0.745 * 9.81 = 7.31 m/s²
                              # Raw IMU peak was ~18.7 m/s² — heavily contaminated by
                              # chassis pitch (nose-down) projecting gravity onto IMU x-axis.
   
-  max_lateral_accel: 7.7205  # [TESTED] Maximum lateral acceleration before slide (m/s²)
-                             # From test_friction.py: mu × g = 0.787 × 9.81
+  max_lateral_accel: 7.3078  # [TESTED] Maximum lateral acceleration before slide (m/s²)
+                             # From test_friction.py: mu × g = 0.745 × 9.81
 
 # ============================================================================
 # VESC Calibration (from vesc.yaml, for reference)

@@ -77,7 +77,7 @@
  * Trajectory
  *===========================================================================*/
 
-#define MAX_TRAJECTORY_SIZE     1024
+#define MAX_TRAJECTORY_SIZE     64
 
 /*===========================================================================
  * F1/10th Vehicle Parameters (compile-time constants)
@@ -91,12 +91,12 @@
 #define VP_IZ                   FP_CONST(0.035)     /* Yaw moment of inertia (kg*m^2) */
 #define VP_CG_HEIGHT            FP_CONST(0.0703)    /* Center of gravity height (m) */
 #define VP_GRAVITY              FP_CONST(9.81)      /* Gravitational acceleration (m/s^2) */
-#define VP_MU                   FP_CONST(0.787)     /* Tire friction coefficient */
+#define VP_MU                   FP_CONST(0.745)     /* Tire friction coefficient */
 #define VP_MAX_STEER            FP_CONST(0.4189)    /* Maximum steering angle (rad) */
 #define VP_MAX_VEL              FP_CONST(14.0)      /* Maximum velocity (m/s) */
 #define VP_MIN_VEL              FP_CONST(0.0)       /* Minimum velocity (m/s) */
-#define VP_MAX_ACCEL            FP_CONST(7.7)       /* Maximum acceleration (m/s^2) */
-#define VP_MIN_ACCEL            FP_CONST(-7.7)      /* Minimum acceleration (m/s^2) */
+#define VP_MAX_ACCEL            FP_CONST(7.31)      /* Maximum acceleration (m/s^2) */
+#define VP_MIN_ACCEL            FP_CONST(-7.31)     /* Minimum acceleration (m/s^2) */
 #define VP_MAX_STEER_RATE       FP_CONST(2.849)     /* Maximum steering rate (rad/s) */
 #define VP_C_ALPHA_F_NRAD       FP_CONST(51.40)     /* Front tire cornering stiffness (N/rad) */
 #define VP_C_ALPHA_R_NRAD       FP_CONST(43.10)     /* Rear tire cornering stiffness (N/rad) */

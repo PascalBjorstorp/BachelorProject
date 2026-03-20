@@ -97,9 +97,9 @@
 
 /** Maximum lateral acceleration for curvature-based velocity limiting [m/s²].
  *  v_max(κ) = √(a_lat_max / |κ|), capping reference velocities in corners.
- *  Physically correct value: mu*g = 0.787 * 9.81 = 7.72 m/s².
+ *  Physically correct value: mu*g = 0.745 * 9.81 = 7.31 m/s².
  *  Override at runtime via MPC_MAX_LAT_ACCEL environment variable. */
-#define MPC_MAX_LAT_ACCEL_DEFAULT FP_CONST(7.3212)
+#define MPC_MAX_LAT_ACCEL_DEFAULT FP_CONST(7.3078)
 
 /*===========================================================================
  * Module State (Static)

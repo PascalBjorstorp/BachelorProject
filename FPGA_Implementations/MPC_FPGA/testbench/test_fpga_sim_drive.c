@@ -62,7 +62,7 @@ extern void mpc_fpga_top(
 #define MAX_WAYPOINTS     2000
 #define MAX_STEERING      0.4189  /* rad (calibrated with polynomial servo correction) */
 #define MAX_VELOCITY      20.0    /* m/s */
-#define PHYSICAL_MAX_ACCEL 8.0    /* m/s^2 */
+#define PHYSICAL_MAX_ACCEL 7.31   /* m/s^2 */
 #define MPC_CALL_INTERVAL 1       /* Call MPC every sim step = 5ms = 200Hz (matches CPU test) */
 
 /* Trajectory pre-processing (matching gym_bridge ROS2 node exactly) */

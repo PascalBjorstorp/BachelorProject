@@ -425,38 +425,37 @@ typedef struct
 #define F110_CG_HEIGHT_METERS \
     FP_CONST(0.0703)
 
-/** Tire-road friction coefficient [TESTED] mu = 0.787
- *  From test_friction.py (lateral accel saturation at 5.0 m/s). Surface-specific. */
+/** Tire-road friction coefficient [TESTED] mu = 0.745
+ *  From all friction_test_20260226_* runs (steady-state lateral saturation). */
 #define F110_FRICTION_COEFFICIENT \
-    FP_CONST(0.787)
+    FP_CONST(0.745)
 
 /** Front cornering stiffness [1/rad] [TESTED]
  *  From test_cornering_stiffness.py, corrected for nonlinear servo mapping.
  *  Conversion: C_Sf = C_alpha_f / (mu * F_zf)
  *    F_zf = m*g*l_r/L = 3.314*9.81*0.160/0.324 = 16.05 N
- *    C_alpha_f = 51.4 → C_Sf = 51.4/(0.787*16.05) = 4.068  */
+ *    C_alpha_f = 51.4 → C_Sf = 51.4/(0.745*16.05) = 4.297  */
 #define F110_FRONT_CORNERING_STIFFNESS \
-    FP_CONST(4.068)
+     FP_CONST(4.297)
 
 /** Rear cornering stiffness [1/rad] [TESTED]
  *  From test_cornering_stiffness.py, corrected for nonlinear servo mapping.
  *  Conversion: C_Sr = C_alpha_r / (mu * F_zr)
  *    F_zr = m*g*l_f/L = 3.314*9.81*0.166/0.324 = 16.66 N
- *    C_alpha_r = 43.1 → C_Sr = 43.1/(0.787*16.66) = 3.288  */
+ *    C_alpha_r = 43.1 → C_Sr = 43.1/(0.745*16.66) = 3.473  */
 #define F110_REAR_CORNERING_STIFFNESS \
-    FP_CONST(3.288)
+     FP_CONST(3.473)
 
 /** Maximum longitudinal acceleration [m/s²]
- *  From vehicle_params.yaml: max_accel = 8.0 m/s² [TESTED]
- *  Bounded by mu*g = 0.787 * 9.81 = 7.72 m/s² (tire limit)
- *  Using tested IMU value (smoothed): 8.0 m/s² */
+ *  From vehicle_params.yaml: max_accel = 7.31 m/s² [TESTED]
+ *  Conservative friction bound: mu*g = 0.745 * 9.81 = 7.31 m/s² */
 #define F110_DEFAULT_MAX_ACCELERATION \
-    FP_CONST(8.0)
+    FP_CONST(7.31)
 
 /** Minimum longitudinal acceleration (braking) [m/s²]
- *  From vehicle_params.yaml: max_decel = 7.7 m/s² [TESTED] */
+ *  From vehicle_params.yaml: max_decel = 7.31 m/s² [TESTED] */
 #define F110_DEFAULT_MIN_ACCELERATION \
-    FP_CONST(-7.7)
+    FP_CONST(-7.31)
 
 /** Default yaw rate: 0 rad/s */
 #define F110_DEFAULT_YAW_RATE \

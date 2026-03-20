@@ -59,24 +59,24 @@ bridge:
     # Set to 0.0 to use the default f1tenth_gym values.
     # Set to a positive value to override the default.
     # Defaults: mu=1.0489, m=3.74, I=0.04712, lf=0.15875, lr=0.17145
-    vehicle_mu: 0.787       # [TESTED] Surface friction coefficient (test_friction.py)
+    vehicle_mu: 0.745       # [TESTED] Surface friction coefficient (all 5 friction runs)
     vehicle_m: 3.314        # [MEASURED] Vehicle mass in kg
     vehicle_I: 0.035        # [CAD] Moment of inertia Iz in kg*m^2
     # C_Sf/C_Sr: dimensionless tire stiffness. F_y = mu * C_S * F_z * alpha
     # Derived from measured C_alpha (corrected for nonlinear servo mapping):
     #   F_zf = m*g*l_r/L = 3.314*9.81*0.160/0.324 = 16.05 N
     #   F_zr = m*g*l_f/L = 3.314*9.81*0.166/0.324 = 16.66 N
-    #   C_Sf = C_alpha_f / (mu * F_zf) = 51.4 / (0.787 * 16.05) = 4.068
-    #   C_Sr = C_alpha_r / (mu * F_zr) = 43.1 / (0.787 * 16.66) = 3.288
-    vehicle_C_Sf: 4.068     # [TESTED] Front tire stiffness [1/rad]
-    vehicle_C_Sr: 3.288     # [TESTED] Rear tire stiffness [1/rad]
+    #   C_Sf = C_alpha_f / (mu * F_zf) = 51.4 / (0.745 * 16.05) = 4.297
+    #   C_Sr = C_alpha_r / (mu * F_zr) = 43.1 / (0.745 * 16.66) = 3.473
+    vehicle_C_Sf: 4.297     # [TESTED] Front tire stiffness [1/rad]
+    vehicle_C_Sr: 3.473     # [TESTED] Rear tire stiffness [1/rad]
     # Geometry overrides
     vehicle_lf: 0.166       # [CAD] CG to front axle (m)
     vehicle_lr: 0.16        # [CAD] CG to rear axle (m)
     vehicle_h: 0.0703       # [CAD] CG height (m)
     vehicle_s_max: 0.4189   # [CALIBRATED] Max steering angle (rad) — with polynomial correction
     vehicle_sv_max: 2.8492  # [TESTED] Max steering rate (rad/s)
-    vehicle_a_max: 8.0      # [TESTED] Max accel (m/s^2)
+    vehicle_a_max: 7.31     # [TESTED] Max accel (m/s^2), bounded by mu*g
     vehicle_v_max: 20.0     # Sim speed limit (m/s)
     vehicle_v_min: -5.0     # Min velocity (m/s) — matches gym default
     vehicle_v_switch: 7.319  # [DEFAULT] Power-limited acceleration transition speed (m/s)

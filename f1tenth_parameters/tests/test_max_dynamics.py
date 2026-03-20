@@ -421,8 +421,8 @@ class MaxDynamicsNode(TestNode):
                 max_decel_smooth = raw_peak
 
             # Physical bound: deceleration cannot exceed mu * g
-            # Use 0.79 as a reasonable mu estimate (from friction test)
-            mu_g_bound = 0.79 * 9.81  # ~7.7 m/s²
+            # Use 0.745 as the measured mu estimate (from friction test)
+            mu_g_bound = 0.745 * 9.81  # ~7.3 m/s²
             if max_decel_smooth > mu_g_bound * 1.1:
                 self.get_logger().warn(
                     f"  Smoothed decel ({max_decel_smooth:.2f}) exceeds mu*g "

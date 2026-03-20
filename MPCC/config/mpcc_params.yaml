@@ -52,16 +52,16 @@ mpcc_node:
 
     # --- Constraint Bounds ---
     delta_max: 0.4282     # [rad] max steering angle
-    ax_max: 7.0           # [m/s^2] max longitudinal acceleration
-    ax_min: -10.0         # [m/s^2] max braking deceleration
+    ax_max: 7.31          # [m/s^2] max longitudinal acceleration (mu*g bounded)
+    ax_min: -7.31         # [m/s^2] max braking deceleration (mu*g bounded)
     vx_max: 20.0          # [m/s] max longitudinal velocity
     vx_min: 0.0           # [m/s] min longitudinal velocity
     n_max: 0.5            # [m] default track half-width
 
     # --- Tire Parameters ---
-    mu: 0.7463            # [-] road-tire friction coefficient
-    C_Sf: 4.17            # [1/rad] front normalized cornering stiffness
-    C_Sr: 4.42            # [1/rad] rear normalized cornering stiffness
+    mu: 0.745             # [-] road-tire friction coefficient
+    C_Sf: 4.297           # [1/rad] front normalized cornering stiffness
+    C_Sr: 3.473           # [1/rad] rear normalized cornering stiffness
 
     # --- ROS2 Topics ---
     odom_topic: "/odom"
