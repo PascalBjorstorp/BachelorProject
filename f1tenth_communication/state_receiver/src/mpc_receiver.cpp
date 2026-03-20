@@ -410,13 +410,10 @@ public:
 
         // Vehicle / controller
         declare_parameter("max_steering", 0.4189);
-        declare_parameter("max_velocity", 6.0);
+        declare_parameter("max_velocity", 20.0);
 
         // Control interval for speed = vx + accel * dt
         declare_parameter("control_dt", 0.02);  // [s] (default 50 Hz state rate)
-
-        // Watchdog timeout: zero drive if no state received
-        declare_parameter("watchdog_timeout_ms", 100.0);  // [ms]
 
         // --- Read parameters ---
         auto input_topic     = get_parameter("input_topic").as_string();
@@ -464,35 +461,13 @@ public:
             "MPC Receiver [FPGA] ready.  %s → %s",
             input_topic.c_str(), drive_topic.c_str());
 
-        // --- Safety watchdog timer ---
-        double watchdog_ms = get_parameter("watchdog_timeout_ms").as_double();
-        watchdog_timer_ = create_wall_timer(
-            std::chrono::milliseconds(static_cast<int>(watchdog_ms)),
-            [this]() {
-                auto now = std::chrono::steady_clock::now();
-                double elapsed_ms = std::chrono::duration<double, std::milli>(
-                    now - last_msg_time_).count();
-                double timeout_ms = get_parameter("watchdog_timeout_ms").as_double();
-                if (elapsed_ms > timeout_ms && msg_count_ > 0) {
-                    // State messages have stopped — zero the command for safety
-                    auto drive = ackermann_msgs::msg::AckermannDriveStamped();
-                    drive.header.stamp = this->now();
-                    drive.header.frame_id = "base_link";
-                    drive.drive.steering_angle = 0.0f;
-                    drive.drive.speed = 0.0f;
-                    drive.drive.acceleration = 0.0f;
-                    drive_pub_->publish(drive);
-                    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                        "WATCHDOG: No state received for %.0f ms — zeroing drive", elapsed_ms);
-                }
-            });
-        RCLCPP_INFO(get_logger(), "Watchdog timer: %.0f ms timeout", watchdog_ms);
+        RCLCPP_INFO(get_logger(), "Watchdog disabled to match MPC node behavior");
     }
 
 private:
     // --- Configurable limits -------------------------------------------------
     float max_steering_   = 0.4189f;
-    float max_velocity_   = 6.0f;
+    float max_velocity_   = 20.0f;
     float control_dt_     = 0.02f;   // Default control interval for speed integration [s]
 
     // --- FPGA + ROS interfaces ----------------------------------------------
@@ -500,10 +475,10 @@ private:
 
     rclcpp::Subscription<f1tenth_msgs::msg::MpcState>::SharedPtr sub_;
     rclcpp::Publisher<ackermann_msgs::msg::AckermannDriveStamped>::SharedPtr drive_pub_;
-    rclcpp::TimerBase::SharedPtr watchdog_timer_;
 
     // --- Runtime statistics/state -------------------------------------------
     uint64_t msg_count_       = 0;
+    uint64_t latency_count_   = 0;
     double   total_latency_ms_ = 0.0;
     double   total_loop_us_ = 0.0;
     double   min_loop_us_ = std::numeric_limits<double>::infinity();
@@ -511,6 +486,7 @@ private:
     std::chrono::steady_clock::time_point last_msg_time_ = std::chrono::steady_clock::now();
     rclcpp::Time last_callback_time_;   // For computing actual elapsed dt
     bool has_prev_callback_ = false;    // True after first callback
+    float latest_vx_mps_ = 0.0f;
 
     struct FrenetErrorsFp {
         int32_t e_y_fp;
@@ -556,15 +532,13 @@ private:
         return FrenetErrorsFp{float_to_fp(e_y), float_to_fp(e_psi)};
     }
 
-    float compute_target_speed(const f1tenth_msgs::msg::MpcState::SharedPtr& msg,
-                               float accel,
+    float compute_target_speed(float accel,
                                float actual_dt) const {
         (void)actual_dt;
         // Match MPC/src/mpc_hardware_node.c behavior: integrate accel over
         // one MPC prediction step rather than callback-period dt.
         constexpr float kMpcPredictionStepSeconds = 0.04f;
-        const float vx = fp_to_float(msg->velocity_fp);
-        const float v_target = vx + accel * kMpcPredictionStepSeconds;
+        const float v_target = latest_vx_mps_ + accel * kMpcPredictionStepSeconds;
         return std::max(0.0f, std::min(v_target, max_velocity_));
     }
 
@@ -596,24 +570,52 @@ private:
         const auto now_ms = static_cast<uint64_t>(
             std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now().time_since_epoch()).count());
-        const double latency_ms = static_cast<double>(now_ms - msg->timestamp_ms);
-        total_latency_ms_ += latency_ms;
+        double latency_ms = -1.0;
+        if (msg->timestamp_ms > 0 && msg->timestamp_ms <= now_ms + 1000ULL && msg->timestamp_ms + 600000ULL >= now_ms) {
+            latency_ms = static_cast<double>(now_ms - msg->timestamp_ms);
+        } else {
+            const rclcpp::Time msg_time(msg->header.stamp);
+            if (msg_time.nanoseconds() > 0) {
+                latency_ms = (this->now() - msg_time).seconds() * 1000.0;
+            }
+        }
+        if (latency_ms >= 0.0) {
+            total_latency_ms_ += latency_ms;
+            latency_count_++;
+        }
 
         if (msg_count_ % 100 == 0) {
-            const double avg = total_latency_ms_ / static_cast<double>(msg_count_);
+            const double avg = (latency_count_ > 0)
+                ? (total_latency_ms_ / static_cast<double>(latency_count_))
+                : -1.0;
             const double avg_loop_us = total_loop_us_ / static_cast<double>(msg_count_);
             const int64_t fpga_ns = fpga_.get_last_compute_ns();
-            RCLCPP_INFO(get_logger(),
-                "[%s] WP=%u  delta=%.1f deg  v=%.1f  a=%.1f | "
-                "Status=%u  Iter=%u | Total=%ld us  FPGA=%ld ns | "
-                "Loop us avg/min/max=%.1f/%.1f/%.1f | Lat %.1f ms (avg %.1f)",
-                "FPGA",
-                msg->waypoint_index,
-                steering * 57.2958f, speed, accel,
-                status, iters,
-                compute_us, fpga_ns,
-                avg_loop_us, min_loop_us_, max_loop_us_,
-                latency_ms, avg);
+            const char* lat_tag = (latency_ms >= 0.0) ? "%.1f" : "N/A";
+            if (latency_ms >= 0.0 && avg >= 0.0) {
+                RCLCPP_INFO(get_logger(),
+                    "[%s] WP=%u  delta=%.1f deg  v=%.1f  a=%.1f | "
+                    "Status=%u  Iter=%u | Total=%ld us  FPGA=%ld ns | "
+                    "Loop us avg/min/max=%.1f/%.1f/%.1f | Lat %.1f ms (avg %.1f)",
+                    "FPGA",
+                    msg->waypoint_index,
+                    steering * 57.2958f, speed, accel,
+                    status, iters,
+                    compute_us, fpga_ns,
+                    avg_loop_us, min_loop_us_, max_loop_us_,
+                    latency_ms, avg);
+            } else {
+                (void)lat_tag;
+                RCLCPP_INFO(get_logger(),
+                    "[%s] WP=%u  delta=%.1f deg  v=%.1f  a=%.1f | "
+                    "Status=%u  Iter=%u | Total=%ld us  FPGA=%ld ns | "
+                    "Loop us avg/min/max=%.1f/%.1f/%.1f | Lat N/A",
+                    "FPGA",
+                    msg->waypoint_index,
+                    steering * 57.2958f, speed, accel,
+                    status, iters,
+                    compute_us, fpga_ns,
+                    avg_loop_us, min_loop_us_, max_loop_us_);
+            }
         }
     }
 
@@ -649,6 +651,10 @@ private:
             return;
         }
 
+        // Track latest odometry-equivalent longitudinal speed (matches MPC node
+        // use of latest vx sample in speed integration).
+        latest_vx_mps_ = fp_to_float(msg->velocity_fp);
+
         // 3) Build tracking errors
         const FrenetErrorsFp errors = compute_frenet_errors(msg);
 
@@ -668,7 +674,7 @@ private:
         accel    = fp_to_float(out_accel_fp);
 
         // 4) Post-process command
-        speed = compute_target_speed(msg, accel, actual_dt);
+        speed = compute_target_speed(accel, actual_dt);
 
         // Clamp outputs
         steering = std::clamp(steering, -max_steering_, max_steering_);
