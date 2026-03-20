@@ -1,4 +1,7 @@
 function plot_pipeline_monitor_results(csvDir)
+clc;
+clear all;
+close all;
 % Plot pipeline latency and high-rate system usage CSV outputs.
 % Usage:
 %   plot_pipeline_monitor_results
@@ -82,10 +85,10 @@ f1 = figure('Name', 'Pipeline Latency Over Time', 'Color', 'w');
 tiledlayout(3,2, 'Padding', 'compact', 'TileSpacing', 'compact');
 
 nexttile;
-plotLatencyTrace(tPipe, scan2walls, 'scan->scan_walls', [0.0 0.45 0.74]);
+plotLatencyTrace(tPipe, scan2walls, 'scan->scan_{walls}', [0.0 0.45 0.74]);
 
 nexttile;
-plotLatencyTrace(tPipe, walls2amcl, 'scan_walls->amcl', [0.85 0.33 0.10]);
+plotLatencyTrace(tPipe, walls2amcl, 'scan_{walls}->amcl', [0.85 0.33 0.10]);
 
 nexttile;
 plotLatencyTrace(tPipe, amcl2ekf, 'amcl->ekf', [0.93 0.69 0.13]);
@@ -187,16 +190,23 @@ if ~isempty(cpuNames) && hasS2D && any(~isnan(s2dPlot))
     gpuAtPipe = interp1(tSys, double(Ts.gpu_percent), tPipe, 'linear', 'extrap');
 
     valid = ~isnan(s2dPlot);
-    yyaxis left;
-    scatter(cpuAtPipe(valid), s2dPlot(valid), 12, 'filled');
-    ylabel('scan->drive latency [ms]');
-    xlabel('CPU mean [%]');
-    grid on;
+    tiledlayout(2,1, 'Padding', 'compact', 'TileSpacing', 'compact');
 
-    yyaxis right;
-    scatter(gpuAtPipe(valid), s2dPlot(valid), 12, 'filled');
+    nexttile;
+    scatter(cpuAtPipe(valid), s2dPlot(valid), 12, [0.00 0.45 0.74], 'filled', ...
+        'MarkerFaceAlpha', 0.35, 'MarkerEdgeAlpha', 0.35);
+    grid on;
+    xlabel('CPU mean [%]');
     ylabel('scan->drive latency [ms]');
-    title('scan->drive latency vs CPU/GPU');
+    title('scan->drive latency vs CPU mean');
+
+    nexttile;
+    scatter(gpuAtPipe(valid), s2dPlot(valid), 12, [0.85 0.33 0.10], 'filled', ...
+        'MarkerFaceAlpha', 0.35, 'MarkerEdgeAlpha', 0.35);
+    grid on;
+    xlabel('GPU [%]');
+    ylabel('scan->drive latency [ms]');
+    title('scan->drive latency vs GPU');
 else
     axis off;
     text(0.1, 0.5, 'Not enough data for correlation plot', 'FontSize', 12);
@@ -214,8 +224,8 @@ b6 = clipForBoxplot(s2dPlot(isfinite(s2dPlot) & s2dPlot >= 0));
 
 allVals = [b1; b2; b3; b4; b5; b6];
 grp = [
-    repmat({'scan->scan_walls'}, numel(b1), 1);
-    repmat({'scan_walls->amcl'}, numel(b2), 1);
+    repmat({'scan->scan_{walls}'}, numel(b1), 1);
+    repmat({'scan_{walls}->amcl'}, numel(b2), 1);
     repmat({'amcl->ekf'}, numel(b3), 1);
     repmat({'scan->ekf'}, numel(b4), 1);
     repmat({'ekf->drive'}, numel(b5), 1);
@@ -238,8 +248,8 @@ end
 
 %% Stats summary
 fprintf('\nLatency summary\n');
-printStats('scan->scan_walls', scan2walls);
-printStats('scan_walls->amcl', walls2amcl);
+printStats('scan->scan_{walls}', scan2walls);
+printStats('scan_{walls}->amcl', walls2amcl);
 printStats('amcl->ekf', amcl2ekf);
 printStats('scan->ekf', scan2ekf);
 if hasE2D
@@ -286,29 +296,22 @@ if isempty(y)
     return;
 end
 
-function yOut = clipForBoxplot(yIn)
-yIn = double(yIn(:));
-yIn = yIn(isfinite(yIn));
-if isempty(yIn)
-    yOut = yIn;
-    return;
-end
-lo = prctile(yIn, 0.5);
-hi = prctile(yIn, 99.5);
-yOut = yIn(yIn >= lo & yIn <= hi);
-end
-
-% Plot sampled raw points for density perception without overdraw.
-ds = max(1, floor(numel(y) / 4000));
-idx = 1:ds:numel(y);
-plot(t(idx), y(idx), '.', 'Color', [color 0.25], 'MarkerSize', 4); hold on;
-
-% Overlay robust trend line.
+% Plot smoothed trend with a local variability band.
 win = max(11, floor(numel(y) * 0.01));
 if mod(win,2) == 0
     win = win + 1;
 end
+
 yTrend = movmedian(y, win);
+ySpread = movstd(y, win, 0, 'omitnan');
+yLo = max(0, yTrend - ySpread);
+yHi = yTrend + ySpread;
+
+bandX = [t; flipud(t)];
+bandY = [yLo; flipud(yHi)];
+fill(bandX, bandY, color, 'FaceAlpha', 0.18, 'EdgeColor', 'none');
+hold on;
+
 plot(t, yTrend, '-', 'Color', color, 'LineWidth', 1.6);
 hold off;
 
@@ -320,4 +323,16 @@ grid on;
 xlabel('Time [s]');
 ylabel('Latency [ms]');
 title(titleText);
+end
+
+function yOut = clipForBoxplot(yIn)
+yIn = double(yIn(:));
+yIn = yIn(isfinite(yIn));
+if isempty(yIn)
+    yOut = yIn;
+    return;
+end
+lo = prctile(yIn, 0.5);
+hi = prctile(yIn, 99.5);
+yOut = yIn(yIn >= lo & yIn <= hi);
 end
