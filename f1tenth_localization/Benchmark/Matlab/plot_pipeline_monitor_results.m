@@ -16,8 +16,8 @@ if nargin < 1 || isempty(csvDir)
     csvDir = fullfile(scriptDir, 'csv');
 end
 
-pipelineFile = latestFile(csvDir, 'pipeline_latency_*.csv');
-systemFile = latestFile(csvDir, 'system_usage_highrate_*.csv');
+pipelineFile = latestFile(csvDir, 'Pipeline_*.csv');
+systemFile = latestFile(csvDir, 'System_*.csv');
 
 fprintf('Using pipeline CSV: %s\n', pipelineFile);
 fprintf('Using system CSV:   %s\n', systemFile);
