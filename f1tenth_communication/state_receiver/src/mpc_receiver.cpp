@@ -40,8 +40,41 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-// MPC FPGA register map
-#include "mpc_fpga_interface.h"
+// MPC FPGA AXI-Lite register map and constants
+#define MPC_FPGA_BASE_ADDR      0xA0000000
+
+#define REG_AP_CTRL             0x000
+#define REG_GIE                 0x004
+#define REG_IER                 0x008
+#define REG_ISR                 0x00C
+
+#define REG_ST_X                0x010
+#define REG_ST_THETA            0x018
+#define REG_ST_VX               0x020
+#define REG_ST_VY               0x028
+#define REG_ST_OMEGA            0x030
+#define REG_ST_STEERING         0x038
+
+#define REG_REF_VX_MEM_LO       0x040
+#define REG_REF_VX_MEM_HI       0x044
+#define REG_REF_KAPPA_MEM_LO    0x04C
+#define REG_REF_KAPPA_MEM_HI    0x050
+#define REG_REF_LEFT_MEM_LO     0x058
+#define REG_REF_LEFT_MEM_HI     0x05C
+#define REG_REF_RIGHT_MEM_LO    0x064
+#define REG_REF_RIGHT_MEM_HI    0x068
+#define REG_REF_COUNT           0x070
+
+#define REG_OUT_STEERING        0x078
+#define REG_OUT_STEERING_VLD    0x07C
+#define REG_OUT_ACCEL           0x088
+#define REG_OUT_ACCEL_VLD       0x08C
+#define REG_OUT_STATUS          0x098
+#define REG_OUT_STATUS_VLD      0x09C
+#define REG_OUT_ITERATIONS      0x0A8
+#define REG_OUT_ITERATIONS_VLD  0x0AC
+
+#define MPC_FPGA_MAX_REF_POINTS 64
 
 namespace f1tenth_communication {
 

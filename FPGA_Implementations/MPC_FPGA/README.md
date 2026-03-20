@@ -172,7 +172,7 @@ are in the generated driver header after synthesis).
 
 | Array | Size | BRAMs (36Kb) |
 |-------|------|------|
-| trajectory[1024] | 32 KB | 8 |
+| trajectory[64] | 2 KB | 1 |
 | step_data[20] | 11 KB | 3 |
 | ADMM state | 2 KB | 1 |
 | K gains + misc | 2 KB | 1 |

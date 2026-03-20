@@ -63,7 +63,7 @@
 #define MAX_WAYPOINTS     2000
 #define MAX_STEERING      0.4189  /* rad (calibrated with polynomial servo correction) */
 #define MAX_VELOCITY      20.0    /* m/s */
-#define PHYSICAL_MAX_ACCEL 8.0   /* m/s² */
+#define PHYSICAL_MAX_ACCEL 7.31  /* m/s² */
 #define MIN_SPEED_FOR_MPC 0.5    /* m/s */
 #define MPC_CALL_INTERVAL 1
 
@@ -551,8 +551,8 @@ int main(void)
 
         /* ---- Vehicle propagation (ST model with RK4) ---- */
         {
-            static const double mu = 0.787, mass = 3.314, Iz = 0.035;
-            static const double C_Sf = 3.546, C_Sr = 4.249;
+            static const double mu = 0.745, mass = 3.314, Iz = 0.035;
+            static const double C_Sf = 4.297, C_Sr = 3.473;
             static const double lf = 0.166, lr = 0.16, h_cg = 0.0703;
             static const double g_acc = 9.81;
             static const double sv_max = 2.8492;

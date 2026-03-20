@@ -74,10 +74,10 @@ void mpc_fpga_top(
 #pragma HLS INTERFACE s_axilite port=out_status      bundle=ctrl
 #pragma HLS INTERFACE s_axilite port=out_iterations  bundle=ctrl
 
-#pragma HLS INTERFACE m_axi port=ref_vx_mem offset=slave bundle=gmem0 depth=1024
-#pragma HLS INTERFACE m_axi port=ref_kappa_mem offset=slave bundle=gmem1 depth=1024
-#pragma HLS INTERFACE m_axi port=ref_left_bound_mem offset=slave bundle=gmem2 depth=1024
-#pragma HLS INTERFACE m_axi port=ref_right_bound_mem offset=slave bundle=gmem3 depth=1024
+#pragma HLS INTERFACE m_axi port=ref_vx_mem offset=slave bundle=gmem0 depth=64
+#pragma HLS INTERFACE m_axi port=ref_kappa_mem offset=slave bundle=gmem1 depth=64
+#pragma HLS INTERFACE m_axi port=ref_left_bound_mem offset=slave bundle=gmem2 depth=64
+#pragma HLS INTERFACE m_axi port=ref_right_bound_mem offset=slave bundle=gmem3 depth=64
 
 #pragma HLS ALLOCATION operation instances=mul limit=2
 
