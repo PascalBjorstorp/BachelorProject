@@ -68,6 +68,8 @@ PurePursuitNode::PurePursuitNode(const rclcpp::NodeOptions& options)
     RCLCPP_INFO(get_logger(), "  Max speed cap: %.2f m/s", max_speed_);
     RCLCPP_INFO(get_logger(), "  Lookahead adapt: cte_weight=%.2f cte_gain=%.3f curvature_gain=%.3f",
                 config_.cte_lookahead_weight, config_.cte_lookahead_gain, config_.curvature_lookahead_gain);
+    RCLCPP_INFO(get_logger(), "  Speed adapt: curvature_factor=%.3f floor_ratio=%.2f",
+                config_.curvature_speed_factor, config_.curvature_speed_floor_ratio);
 }
 
 void PurePursuitNode::declareParameters() {
@@ -82,6 +84,8 @@ void PurePursuitNode::declareParameters() {
     declare_parameter("cte_lookahead_weight", 1.0);
     declare_parameter("cte_lookahead_gain", 0.03);
     declare_parameter("curvature_lookahead_gain", 0.0);
+    declare_parameter("curvature_speed_factor", 0.20);
+    declare_parameter("curvature_speed_floor_ratio", 0.85);
     
     // Steering
     declare_parameter("max_steering", 0.4189);
@@ -105,6 +109,9 @@ void PurePursuitNode::loadParameters() {
     config_.cte_lookahead_weight = get_parameter("cte_lookahead_weight").as_double();
     config_.cte_lookahead_gain = get_parameter("cte_lookahead_gain").as_double();
     config_.curvature_lookahead_gain = get_parameter("curvature_lookahead_gain").as_double();
+    config_.curvature_speed_factor = get_parameter("curvature_speed_factor").as_double();
+    config_.curvature_speed_floor_ratio = std::clamp(
+        get_parameter("curvature_speed_floor_ratio").as_double(), 0.0, 1.0);
     
     config_.max_steering = get_parameter("max_steering").as_double();
     config_.wheelbase = get_parameter("wheelbase").as_double();
@@ -135,6 +142,10 @@ rcl_interfaces::msg::SetParametersResult PurePursuitNode::parametersCallback(
             config_.cte_lookahead_gain = param.as_double();
         } else if (param.get_name() == "curvature_lookahead_gain") {
             config_.curvature_lookahead_gain = param.as_double();
+        } else if (param.get_name() == "curvature_speed_factor") {
+            config_.curvature_speed_factor = param.as_double();
+        } else if (param.get_name() == "curvature_speed_floor_ratio") {
+            config_.curvature_speed_floor_ratio = std::clamp(param.as_double(), 0.0, 1.0);
         } else if (param.get_name() == "max_steering") {
             config_.max_steering = param.as_double();
         } else if (param.get_name() == "pose_timeout_s") {
