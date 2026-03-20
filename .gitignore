@@ -264,3 +264,7 @@ MPC/test_sim_drive
 
 *.drawio
 
+
+# Ignore ROS2 bag database files
+bags/*.db3
+bags/*/*.db3

@@ -3,7 +3,7 @@ state_publisher:
   ros__parameters:
     # Path to trajectory CSV file (comma-delimited)
     # Format: s_m,x_m,y_m,psi_rad,kappa_radpm,vx_mps,ax_mps2
-    trajectory_file: "/ros2_ws/src/f1tenth_planning/trajectories/Spielberg_raceline.csv"
+    trajectory_file: "/ros2_ws/src/f1tenth_planning/trajectories/my_track_raceline.csv"
     
     # Input topic (localization output)
     odom_topic: "/ego_racecar/odom"
