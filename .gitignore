@@ -204,6 +204,9 @@ FPGA/*.log
 # Entire Vivado project (re-creatable from FPGA/create_vivado_project.tcl)
 Ultra96_PP/
 Ultra96_MPC/
+!Ultra96_MPC/
+Ultra96_MPC/*
+!Ultra96_MPC/mpc_design_wrapper.xsa
 
 # Vivado journal and log files
 *.jou
