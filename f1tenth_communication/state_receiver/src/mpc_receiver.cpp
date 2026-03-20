@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <limits>
 #include <stdexcept>
+#include <fstream>
 
 // Linux memory-mapped I/O
 #include <sys/mman.h>
@@ -129,6 +130,11 @@ public:
      */
     bool initialize(uint32_t base_addr = MPC_FPGA_BASE_ADDR,
                     size_t map_size = 0x10000) {
+        if (!is_fpga_operating()) {
+            fprintf(stderr, "MPC-FPGA: fpga_manager state is not operating; refusing /dev/mem init\n");
+            return false;
+        }
+
         base_addr_ = base_addr;
         map_size_  = map_size;
 
@@ -200,6 +206,7 @@ public:
                                      uint64_t ref_left_phys,
                                      uint64_t ref_right_phys,
                                      size_t capacity_points) {
+        if (!is_fpga_operating()) return false;
         if (!initialized_) return false;
         if (capacity_points == 0 || capacity_points > MPC_FPGA_MAX_REF_POINTS) return false;
         if (ref_vx_phys == 0 || ref_kappa_phys == 0 || ref_left_phys == 0 || ref_right_phys == 0) return false;
@@ -263,6 +270,7 @@ public:
                  int32_t steering_fp,
                  int32_t& out_steering_fp, int32_t& out_accel_fp,
                  uint32_t& out_status, uint32_t& out_iterations) {
+        if (!is_fpga_operating()) return false;
         if (!initialized_ || !buffers_ready_ || ref_count_ == 0) return false;
 
         if (!wait_idle(10000)) return false;
@@ -388,6 +396,16 @@ private:
         }
         return false;
     }
+
+    static bool is_fpga_operating() {
+        std::ifstream f("/sys/class/fpga_manager/fpga0/state");
+        if (!f.is_open()) {
+            return false;
+        }
+        std::string state;
+        std::getline(f, state);
+        return state == "operating";
+    }
 };
 
 /*===========================================================================
@@ -413,7 +431,7 @@ public:
         declare_parameter("max_velocity", 20.0);
 
         // Control interval for speed = vx + accel * dt
-        declare_parameter("control_dt", 0.02);  // [s] (default 50 Hz state rate)
+        declare_parameter("control_dt", 0.04);  // [s] (default 50 Hz state rate)
 
         // --- Read parameters ---
         auto input_topic     = get_parameter("input_topic").as_string();
@@ -468,7 +486,7 @@ private:
     // --- Configurable limits -------------------------------------------------
     float max_steering_   = 0.4189f;
     float max_velocity_   = 20.0f;
-    float control_dt_     = 0.02f;   // Default control interval for speed integration [s]
+    float control_dt_     = 0.04f;   // Default control interval for speed integration [s]
 
     // --- FPGA + ROS interfaces ----------------------------------------------
     MpcFpgaInterface    fpga_;
