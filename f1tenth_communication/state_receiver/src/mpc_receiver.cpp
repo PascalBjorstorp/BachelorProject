@@ -559,8 +559,12 @@ private:
     float compute_target_speed(const f1tenth_msgs::msg::MpcState::SharedPtr& msg,
                                float accel,
                                float actual_dt) const {
+        (void)actual_dt;
+        // Match MPC/src/mpc_hardware_node.c behavior: integrate accel over
+        // one MPC prediction step rather than callback-period dt.
+        constexpr float kMpcPredictionStepSeconds = 0.04f;
         const float vx = fp_to_float(msg->velocity_fp);
-        const float v_target = vx + accel * actual_dt;
+        const float v_target = vx + accel * kMpcPredictionStepSeconds;
         return std::max(0.0f, std::min(v_target, max_velocity_));
     }
 
