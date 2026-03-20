@@ -926,7 +926,6 @@ void amcl_pose_callback(const void *message_in)
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
         double elapsed = timespec_diff_sec(&g_last_odom_time, &now);
-        watchdog_elapsed_ms = elapsed * 1000.0;
 
         if (elapsed > g_watchdog_timeout_sec)
         {
@@ -952,7 +951,13 @@ void amcl_pose_callback(const void *message_in)
         printf("[MPC] State: x=%.2f y=%.2f th=%.2f vx=%.2f vy=%.2f w=%.2f\n",
                pos_x, pos_y, heading, g_latest_vx, g_latest_vy, g_latest_omega);
     }
-
+    double ey = 0;
+    double epsi = 0;
+    double vref0 = 0;
+    double kappa0 = 0;
+    double left_wall0 = 0;
+    double right_wall0 = 0;
+    int closest = 0;
     if (global_trajectory_count > 0)
     {
         closest = find_closest_waypoint(pos_x, pos_y, heading);
@@ -1099,13 +1104,13 @@ void amcl_pose_callback(const void *message_in)
                     "%lld,%.3f,%d,%u,%.9f,%.9f,%d,"
                     "%.6f,%.6f,%.6f,%.6f,%.6f,"
                     "%.6f,%.6f,%.6f,%.6f,"
-                    "%.6f,%.6f,%.6f,%.3f,%d\n",
+                    "%.6f,%.6f,%.3f,%d\n",
                     unix_time_ns, solve_us, (int)mpc_status, mpc_result.iterations_used,
                     primal_res, dual_res, closest,
                     ey, epsi, g_latest_vx, g_latest_vy, g_latest_omega,
                     vref0, kappa0, left_wall0, right_wall0,
                     cmd_steer, cmd_accel, global_actual_steering_angle,
-                    watchdog_elapsed_ms, g_use_steering_feedback);
+                    g_use_steering_feedback);
 
             if ((g_solver_log_counter % 20UL) == 0UL)
             {
@@ -1265,7 +1270,7 @@ int main(int argc, char *argv[])
             fprintf(g_solver_log_file,
                     "unix_time_ns,solve_us,status,iterations,primal_residual,dual_residual,closest_wp,"
                     "e_y,e_psi,vx,vy,omega,v_ref0,kappa0,left_wall0,right_wall0,"
-                    "cmd_steer,cmd_accel,actual_steer,watchdog_elapsed_ms,use_steering_feedback\n");
+                    "cmd_steer,cmd_accel,actual_steer,use_steering_feedback\n");
             fflush(g_solver_log_file);
             printf("[MPC] Solver telemetry log: %s (every control callback)\n", log_path);
         }
