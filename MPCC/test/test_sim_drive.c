@@ -48,7 +48,7 @@
 #define MAX_WAYPOINTS     2000
 #define MAX_STEERING      0.4189  /* rad */
 #define MAX_VELOCITY      20.0    /* m/s */
-#define PHYSICAL_MAX_ACCEL 8.0    /* m/s² */
+#define PHYSICAL_MAX_ACCEL 7.31   /* m/s² */
 
 #define VEHICLE_HALF_WIDTH        0.155f  /* meters (F1/10th body half-width) */
 #define DEFAULT_BODY_SAFETY_MARGIN 0.06
@@ -319,9 +319,9 @@ int main(void)
     cfg.v_theta_min = FP_CONST(env_double("V_THETA_MIN", 0.0));
 
     /* Tire parameters */
-    cfg.mu   = FP_CONST(env_double("MU", 0.787));
-    cfg.C_Sf = FP_CONST(env_double("C_SF", 4.199));
-    cfg.C_Sr = FP_CONST(env_double("C_SR", 3.230));
+    cfg.mu   = FP_CONST(env_double("MU", 0.745));
+    cfg.C_Sf = FP_CONST(env_double("C_SF", 4.297));
+    cfg.C_Sr = FP_CONST(env_double("C_SR", 3.473));
 
     if (verbose) {
         printf("  Config: N=%d dt=%.3f Q_n=%.1f Q_alpha=%.1f Q_prog=%.1f\n",
@@ -342,8 +342,8 @@ int main(void)
     mpcc_set_reference_path(&g_ref_path);
 
     /* ── Vehicle model parameters (gym-matching) ───────────────────────── */
-    static const double mu = 0.787, mass = 3.314, Iz = 0.035;
-    static const double C_Sf = 2.804, C_Sr = 3.320;
+    static const double mu = 0.745, mass = 3.314, Iz = 0.035;
+    static const double C_Sf = 4.297, C_Sr = 3.473;
     static const double lf = 0.166, lr = 0.16, h_cg = 0.0703;
     static const double g_acc = 9.81;
     static const double sv_max = 2.8492;

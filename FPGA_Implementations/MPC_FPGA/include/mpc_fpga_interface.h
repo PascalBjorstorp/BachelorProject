@@ -77,6 +77,6 @@
  * Reference Buffer Configuration
  *===========================================================================*/
 
-#define MPC_FPGA_MAX_REF_POINTS         1024
+#define MPC_FPGA_MAX_REF_POINTS         64
 
 #endif /* MPC_FPGA_INTERFACE_H */

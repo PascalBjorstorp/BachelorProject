@@ -74,7 +74,7 @@
 #define REG_OUT_ITERATIONS      0x0A8
 #define REG_OUT_ITERATIONS_VLD  0x0AC
 
-#define MPC_FPGA_MAX_REF_POINTS 1024
+#define MPC_FPGA_MAX_REF_POINTS 64
 
 namespace f1tenth_communication {
 

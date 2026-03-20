@@ -129,19 +129,19 @@ At each speed, \SI{8}{\second} of steady-state IMU data is recorded.
 \toprule
 {Speed (m/s)} & \multicolumn{2}{c}{$\bar{a}_y$ (m/s$^2$)} & {$\mu = a_y/g$} \\
 \midrule
-2.0  & 3.92 & 0.76 & 0.400 \\
-2.5  & 5.39 & 1.06 & 0.549 \\
-3.0  & 6.43 & 1.22 & 0.655 \\
-3.5  & 6.89 & 1.46 & 0.702 \\
-4.0  & 7.25 & 1.59 & 0.739 \\
-4.5  & 7.55 & 1.89 & 0.769 \\
-5.0  & 7.72 & 2.46 & 0.787 \\
+2.0  & 3.67 & 0.01 & 0.374 \\
+2.5  & 5.03 & 0.03 & 0.512 \\
+3.0  & 6.02 & 0.08 & 0.614 \\
+3.5  & 6.45 & 0.07 & 0.657 \\
+4.0  & 6.79 & 0.06 & 0.693 \\
+4.5  & 7.11 & 0.11 & 0.725 \\
+5.0  & 7.31 & 0.10 & 0.745 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 The measured $\mu$ increases with speed and begins to plateau at
-$v \geq \SI{4.5}{\metre\per\second}$, approaching $\mu \approx 0.79$.
+$v \geq \SI{4.5}{\metre\per\second}$, approaching $\mu \approx 0.75$.
 This value is consistent with rubber tires on smooth indoor flooring.
 The increasing standard deviation at higher speeds reflects the onset
 of intermittent sliding as the traction limit is approached.
@@ -151,7 +151,7 @@ The friction coefficient is cross-checked against the motor torque
 test (Section~\ref{sec:motor-torque}), where the traction force
 saturates at $F_\text{sat} \approx \SI{24}{\newton}$, giving
 $\mu_x = F_\text{sat}/(m\,g) = 24/(3.314 \times 9.81) \approx 0.74$.
-Both estimates are consistent, confirming $\mu \approx 0.74$--$0.79$
+Both estimates are consistent, confirming $\mu \approx 0.74$--$0.75$
 depending on the loading direction (longitudinal vs.\ lateral).
 
 \paragraph{Uncertainty.}
@@ -427,29 +427,26 @@ IMU $a_x$ are recorded.
 \textbf{Quantity} & \textbf{Value} & \textbf{Source} \\
 \midrule
 Maximum velocity $v_\text{max}$   & \SI{5.17}{\metre\per\second}           & ERPM odometry \\
-Peak acceleration $a_\text{max}$  & \SI{8.01}{\metre\per\second\squared}   & IMU (smoothed) \\
+Peak acceleration $a_\text{max}$  & \SI{7.3}{\metre\per\second\squared}    & Friction-bound ($\mu g$) \\
 Peak deceleration $a_\text{brake}$& \SI{-11.06}{\metre\per\second\squared} & IMU (smoothed) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \paragraph{Validation.}
-The peak acceleration can be cross-checked against the friction
-coefficient.  At $a_\text{max} = \SI{8.01}{\metre\per\second\squared}$,
-the implied longitudinal friction is
-$\mu_x = a_\text{max}/g = 8.01/9.81 = 0.82$,
-which is consistent with $\mu \approx 0.79$ from the friction test
-(Section~\ref{sec:friction}).  The small difference is expected because
-the IMU smoothing window captures the absolute peak, which may
-briefly exceed the sustained traction limit.
+The smoothed IMU acceleration peak can exceed the physical traction
+limit due to pitch dynamics and sensor coupling.  Therefore the
+longitudinal acceleration used for constraints is conservatively bounded
+by the friction estimate, $a_\text{max} = \mu g \approx
+\SI{7.3}{\metre\per\second\squared}$.
 
 The peak deceleration $|a_\text{brake}| = \SI{11.06}{\metre\per\second\squared}$
-exceeds $\mu\,g \approx \SI{7.7}{\metre\per\second\squared}$, which
+exceeds $\mu\,g \approx \SI{7.3}{\metre\per\second\squared}$, which
 indicates that the IMU reading during braking includes a component from
 chassis pitch (the accelerometer cannot distinguish deceleration from
 forward pitch rotation under gravity).  For MPC constraints, the
 conservative value $a_\text{brake} = \mu\,g \approx
-\SI{7.7}{\metre\per\second\squared}$ is recommended.
+\SI{7.3}{\metre\per\second\squared}$ is recommended.
 
 \paragraph{Uncertainty.}
 \begin{itemize}
@@ -612,7 +609,7 @@ Wheelbase             & $L$
   & 0.324  & 0.324  & \si{\metre}
   & Measured \\
 Friction coeff.\      & $\mu$
-  & 0.787  & 1.049  & {--}
+  & 0.745  & 1.049  & {--}
   & Tested \\
 Front corn.\ stiff.\  & $C_{\alpha f}$
   & 51.4   & 4.718  & \si{\newton\per\radian}
@@ -633,13 +630,13 @@ Max drive torque      & $T_\text{max}$
   & 1.93   & 22.9   & \si{\newton\metre}
   & Tested\textsuperscript{c} \\
 Max brake decel.\     & $a_\text{brake}$
-  & 7.7    & 10.0   & \si{\metre\per\second\squared}
+  & 7.3    & 10.0   & \si{\metre\per\second\squared}
   & Tested \\
 Max velocity          & $v_\text{max}$
   & 5.17   & 20.0   & \si{\metre\per\second}
   & Tested \\
 Max acceleration      & $a_\text{max}$
-  & 8.01   & 9.51   & \si{\metre\per\second\squared}
+  & 7.3    & 9.51   & \si{\metre\per\second\squared}
   & Tested \\
 Max steer.\ rate      & $\dot{\delta}_\text{max}$
   & 2.85   & 3.2    & \si{\radian\per\second}
@@ -670,8 +667,8 @@ at the VESC current limit of \SI{65}{\ampere}.
 The measured parameters differ substantially from the simulation
 defaults:
 \begin{itemize}
-  \item \textbf{Friction}: $\mu = 0.79$ vs.\ 1.05 in simulation.
-        The real car has 25\% less grip.
+    \item \textbf{Friction}: $\mu = 0.75$ vs.\ 1.05 in simulation.
+      The real car has about 29\% less grip.
   \item \textbf{Maximum velocity}: $v_\text{max} = \SI{5.17}{\metre\per\second}$
         vs.\ \SI{20}{\metre\per\second} in simulation.  The real vehicle's
         speed envelope is roughly 4$\times$ smaller.

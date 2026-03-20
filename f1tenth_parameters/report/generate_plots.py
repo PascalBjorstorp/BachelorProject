@@ -192,81 +192,62 @@ def compute_cornering_summary(data_dir, prefix):
 # ── Plot functions ───────────────────────────────────────────────────────────
 
 def plot_friction(data_dir, prefix):
-    """Friction coefficient: a_y vs speed with mu plateau."""
+    """Friction coefficient: a_y vs speed using all available friction runs."""
     paths = find_csvs('friction_test', data_dir, prefix)
     if not paths:
         print('  [skip] no friction_test CSV found')
         return
 
-    # Pool all runs, compute per-speed stats from phase labels
-    all_data = []
+    # Compute per-run per-speed steady-state ay means, then aggregate across runs.
+    speed_to_run_ay = {}
     for p in paths:
         d = load_csv(p)
-        if 'phase' not in d:
+        if 'speed_setpoint' not in d or 'imu_ay' not in d or 'imu_gz' not in d or 'odom_vx' not in d:
             continue
-        all_data.append(d)
 
-    if not all_data:
-        print('  [skip] no valid friction data')
-        return
+        run_speeds = sorted(set(d['speed_setpoint']))
+        for sp in run_speeds:
+            mask = d['speed_setpoint'] == sp
+            if np.sum(mask) < 10:
+                continue
 
-    # Merge
-    merged = {}
-    for key in all_data[0]:
-        merged[key] = np.concatenate([d[key] for d in all_data])
+            ay_vals = np.abs(d['imu_ay'][mask])
+            vx_vals = d['odom_vx'][mask]
+            gz_vals = d['imu_gz'][mask]
+            consistency = np.abs(np.abs(ay_vals) - np.abs(vx_vals * gz_vals))
 
-    phase = merged['phase']
-    ay = merged['imu_ay']
+            steady_mask = consistency < 0.8
+            if np.sum(steady_mask) >= 20:
+                ay_used = ay_vals[steady_mask]
+            else:
+                ay_used = ay_vals
 
-    # Phases are named 'friction_vX.X'
-    friction_phases = sorted(
-        set(p for p in phase if isinstance(p, str) and p.startswith('friction_v')))
+            speed_to_run_ay.setdefault(float(sp), []).append(float(np.mean(ay_used)))
 
-    if not friction_phases:
-        print('  [skip] no friction_vX.X phases found')
-        return
-
-    speeds = []
-    ay_means = []
-    ay_stds = []
-    for fp in friction_phases:
-        mask = phase == fp
-        if np.sum(mask) < 10:
-            continue
-        ay_vals = np.abs(ay[mask])
-        # Trim 20% from each end for transients
-        n = len(ay_vals)
-        trim = int(n * 0.2)
-        if n - 2 * trim < 5:
-            continue
-        ay_vals = ay_vals[trim:n - trim]
-        speed_val = float(fp.replace('friction_v', ''))
-        speeds.append(speed_val)
-        ay_means.append(np.mean(ay_vals))
-        ay_stds.append(np.std(ay_vals))
-
-    if not speeds:
+    if not speed_to_run_ay:
         print('  [skip] no valid friction phases')
         return
 
-    speeds = np.array(speeds)
-    ay_means = np.array(ay_means)
-    ay_stds = np.array(ay_stds)
-    mu = ay_means / GRAVITY
+    speeds = np.array(sorted(speed_to_run_ay.keys()))
+    ay_means = np.array([np.mean(speed_to_run_ay[s]) for s in speeds])
+    ay_stds = np.array([np.std(speed_to_run_ay[s]) for s in speeds])
+
+    # Data-driven limit: use highest-speed aggregate point (5.0 m/s in current set).
+    idx_peak = int(np.argmax(speeds))
+    ay_limit = float(ay_means[idx_peak])
+    mu_limit = ay_limit / GRAVITY
 
     fig, ax = setup_fig()
     ax.errorbar(speeds, ay_means, yerr=ay_stds, fmt='o-',
                 capsize=4, color='tab:blue', label=r'$\bar{a}_y$ (IMU)')
 
-    mu_max = np.max(mu)
-    ay_max = np.max(ay_means)
-    ax.axhline(ay_max, ls='--', color='tab:red', alpha=0.7, linewidth=2,
-               label=rf'$\mu g = {mu_max:.2f} \times {GRAVITY:.1f}'
-                     rf' = {ay_max:.2f}$ m/s$^2$')
+    ax.axhline(ay_limit, ls='--', color='tab:red', alpha=0.8, linewidth=2,
+               label=rf'Data peak (all runs): $\mu = {mu_limit:.3f}$, '
+                     rf'$\mu g = {ay_limit:.2f}$ m/s$^2$')
 
     ax.set_xlabel('Speed (m/s)')
     ax.set_ylabel(r'Lateral acceleration $a_y$ (m/s$^2$)')
-    ax.set_title('Friction Coefficient Identification')
+    ax.set_title(f'Friction Coefficient Identification ({len(paths)} runs)')
     ax.legend(loc='upper left')
     save_fig(fig, 'friction_ay_vs_speed.pdf')
 
