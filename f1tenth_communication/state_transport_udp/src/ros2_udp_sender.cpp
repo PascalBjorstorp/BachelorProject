@@ -1,5 +1,6 @@
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/odometry.hpp>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <std_msgs/msg/float64.hpp>
 
 #include "state_transport_udp/state_packet.hpp"
@@ -148,6 +149,7 @@ public:
     Ros2UdpSender() : Node("ros2_udp_sender") {
         declare_parameter<std::string>("trajectory_file", "");
         declare_parameter<std::string>("odom_topic", "/ego_racecar/odom");
+        declare_parameter<std::string>("pose_topic", "/ekf_pose");
         declare_parameter<std::string>("servo_topic", "/sensors/servo_position_command");
         declare_parameter<double>("wheelbase", 0.324);
         declare_parameter<double>("servo_gain", -0.7284);
@@ -165,6 +167,7 @@ public:
 
         const std::string trajectory_file = get_parameter("trajectory_file").as_string();
         const std::string odom_topic = get_parameter("odom_topic").as_string();
+        const std::string pose_topic = get_parameter("pose_topic").as_string();
         const std::string servo_topic = get_parameter("servo_topic").as_string();
         const std::string dest_ip = get_parameter("dest_ip").as_string();
         const int dest_port = get_parameter("dest_port").as_int();
@@ -213,6 +216,11 @@ public:
             qos,
             std::bind(&Ros2UdpSender::odomCallback, this, std::placeholders::_1));
 
+        pose_sub_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+            pose_topic,
+            qos,
+            std::bind(&Ros2UdpSender::poseCallback, this, std::placeholders::_1));
+
         if (!servo_topic.empty()) {
             servo_sub_ = create_subscription<std_msgs::msg::Float64>(
                 servo_topic,
@@ -221,8 +229,9 @@ public:
         }
 
         RCLCPP_INFO(get_logger(),
-                    "ROS2->UDP sender ready: odom=%s traj_points=%zu interp=%s step=%.3f -> %s:%d",
+                "ROS2->UDP sender ready: odom cache=%s pose trigger=%s traj_points=%zu interp=%s step=%.3f -> %s:%d",
                     odom_topic.c_str(),
+                pose_topic.c_str(),
                     kdtree_.size(),
                     interpolate_horizon_ ? "on" : "off",
                     horizon_step_m_,
@@ -391,19 +400,41 @@ private:
             return;
         }
 
+        latest_vx_ = msg->twist.twist.linear.x;
+        latest_vy_ = msg->twist.twist.linear.y;
+        latest_omega_ = msg->twist.twist.angular.z;
+        has_odom_dynamics_ = std::isfinite(latest_vx_) && std::isfinite(latest_vy_) && std::isfinite(latest_omega_);
+    }
+
+    void poseCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+        if (kdtree_.size() == 0) {
+            return;
+        }
+        if (!has_odom_dynamics_) {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+                                 "Skipping UDP send: waiting for valid odom dynamics sample");
+            return;
+        }
+
         const double x = msg->pose.pose.position.x;
         const double y = msg->pose.pose.position.y;
-
         const double qx = msg->pose.pose.orientation.x;
         const double qy = msg->pose.pose.orientation.y;
         const double qz = msg->pose.pose.orientation.z;
         const double qw = msg->pose.pose.orientation.w;
+        if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(qx) ||
+            !std::isfinite(qy) || !std::isfinite(qz) || !std::isfinite(qw)) {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+                                 "Skipping UDP send: invalid ekf_pose values");
+            return;
+        }
+
         const double theta = std::atan2(2.0 * (qw * qz + qx * qy),
                                         1.0 - 2.0 * (qy * qy + qz * qz));
 
-        const double vx = msg->twist.twist.linear.x;
-        const double vy = msg->twist.twist.linear.y;
-        const double omega = msg->twist.twist.angular.z;
+        const double vx = latest_vx_;
+        const double vy = latest_vy_;
+        const double omega = latest_omega_;
 
         constexpr double kWheelRadius = 0.0545;
         const double wheel_speed = (vx > 0.01) ? (vx / kWheelRadius) : 0.0;
@@ -527,7 +558,13 @@ private:
     std::vector<Waypoint> trajectory_;
     KDTree kdtree_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
     rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr servo_sub_;
+
+    double latest_vx_{0.0};
+    double latest_vy_{0.0};
+    double latest_omega_{0.0};
+    bool has_odom_dynamics_{false};
 };
 
 }  // namespace state_transport_udp

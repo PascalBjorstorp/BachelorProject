@@ -99,7 +99,7 @@ HARDWARE_BASE = {
 }
 
 HARDWARE_PER_RACELINE_WM = {
-    "my_track": 0.02,
+    "hardware": 0.02,
 }
 
 # ─── Active config (set by mode selection in main()) ─────────────────────────
@@ -162,10 +162,11 @@ HARDWARE_FULL_VALUES = {
     "R_ACCEL":      [0.005, 0.008, 0.01, 0.012, 0.015, 0.02, 0.05, 0.1],
     "W_JERK":       [0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 1.0, 1.5, 2.0],
     "W_ACCEL_RATE": [0.05, 0.08, 0.1, 0.12, 0.15, 0.2, 0.5, 1.0],
-    "HORIZON":      [15, 18, 20, 22, 25, 30, 40],
-    "WALL_MARGIN":  [0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.08, 0.10, 0.15, 0.20, 0.30],
-    "WALL_END":     [4, 6, 8, 9, 10, 11, 12, 18],
-    "WALL_STRIDE":  [1, 2, 3, 4, 5, 6],
+    "HORIZON":      [15, 18, 20, 22, 25, 30, 35, 40],
+    "WALL_MARGIN":  [0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.08,
+                      0.10, 0.12, 0.15, 0.18, 0.20],
+    "WALL_END":     [6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 40],
+    "WALL_STRIDE":  [1, 2, 3, 4],
     "WALL_SOFT_K":  [0, 100, 150, 200, 300, 400, 500, 1000, 5000, 10000, 20000],
     "RHO":          [10, 15, 20, 25, 28, 30, 32, 35, 38, 40, 50, 80],
     "RHO_U":        [10, 15, 16, 18, 20, 22, 25, 30, 50],
@@ -180,10 +181,10 @@ HARDWARE_QUICK_VALUES = {
     "Q_LAT_VEL":    [20, 50, 69, 100],
     "Q_YAW":        [10, 15, 22, 30],
     "R_STEER":      [0.05, 0.10, 0.15, 0.20, 0.40],
-    "HORIZON":      [8, 10, 12, 15, 20],
-    "WALL_MARGIN":  [0.00, 0.02, 0.05, 0.10, 0.15, 0.30],
-    "WALL_END":     [6, 8, 10, 12, 18],
-    "WALL_STRIDE":  [1, 2, 4],
+    "HORIZON":      [8, 10, 12, 15, 20, 22, 25, 30],
+    "WALL_MARGIN":  [0.00, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.15, 0.18],
+    "WALL_END":     [6, 8, 10, 12, 14, 16, 18, 20, 24],
+    "WALL_STRIDE":  [1, 2, 3, 4],
     "WALL_SOFT_K":  [0, 200, 1000, 5000, 10000],
     "PRED_DT":      [0.04, 0.05, 0.06, 0.08],
 }
@@ -195,11 +196,11 @@ HARDWARE_GRID_VALUES = {
     "Q_LAT":        [3000, 5000, 10000, 15000],
     "Q_HDG":        [500, 1000, 5000, 10000],
     "Q_VEL":        [15, 50, 100, 120],
-    "HORIZON":      [8, 10, 15, 20],
+    "HORIZON":      [8, 10, 15, 20, 22, 25, 30],
     "PRED_DT":      [0.04, 0.06, 0.08],
-    "WALL_MARGIN":  [0.00, 0.02, 0.05, 0.10, 0.15],
+    "WALL_MARGIN":  [0.00, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.15],
     "WALL_SOFT_K":  [0, 200, 1000, 10000],
-    "WALL_END":     [6, 8, 10, 12],
+    "WALL_END":     [6, 8, 10, 12, 14, 16, 18, 20, 24, 30],
 }
 
 # Active sweep values (set by mode selection in main())
@@ -333,6 +334,40 @@ def gen_one_at_a_time(values_dict):
     return combos
 
 
+def valid_wall_combo(params: dict, horizon: int = None) -> bool:
+    """Return True when wall settings are valid for the current horizon.
+
+    Adds stricter checks for high-horizon Hardware sweeps so wall constraints
+    remain dense enough and cover a meaningful prefix of the prediction.
+    """
+    h = int(horizon if horizon is not None else params.get("HORIZON", BASE.get("HORIZON", 20)))
+    we = int(params.get("WALL_END", BASE.get("WALL_END", h)))
+    ws = int(params.get("WALL_STRIDE", BASE.get("WALL_STRIDE", 1)))
+    wm = float(params.get("WALL_MARGIN", BASE.get("WALL_MARGIN", 0.0)))
+
+    if ws < 1 or we < 1 or we > h:
+        return False
+
+    # Keep hardware margins in a realistic band for the measured map clearances.
+    if MODE == "Hardware" and (wm < 0.0 or wm > 0.20):
+        return False
+
+    # Ensure we still activate enough constrained nodes.
+    constrained_nodes = (we // ws) + 1
+    if constrained_nodes < 5:
+        return False
+
+    # Extra guardrails for long horizons where sparse/short wall windows under-constrain.
+    if MODE == "Hardware" and h > 20:
+        min_wall_end = max(12, int(round(0.60 * h)))
+        if we < min_wall_end:
+            return False
+        if ws > 3:
+            return False
+
+    return True
+
+
 def gen_primary_grid(values_dict):
     """Grid: Q_LAT × Q_HDG × Q_VEL × HORIZON × PRED_DT.
     In Hardware mode, also sweeps WALL_MARGIN × WALL_SOFT_K × WALL_END
@@ -351,12 +386,12 @@ def gen_primary_grid(values_dict):
         we_vals = values_dict.get("WALL_END", [BASE["WALL_END"]])
         for ql, qh, qv, h, pd, wm, wk, we in itertools.product(
                 ql_vals, qh_vals, qv_vals, h_vals, pd_vals, wm_vals, wk_vals, we_vals):
-            if we > h:
-                continue  # WALL_END can't exceed HORIZON
             w = dict(BASE)
             w["Q_LAT"] = ql; w["Q_HDG"] = qh; w["Q_VEL"] = qv
             w["HORIZON"] = h; w["PRED_DT"] = pd
             w["WALL_MARGIN"] = wm; w["WALL_SOFT_K"] = wk; w["WALL_END"] = we
+            if not valid_wall_combo(w, horizon=h):
+                continue
             combos.append((f"L={ql}+H={qh}+V={qv}+N={h}+dt={pd}+WM={wm}+WK={wk}+WE={we}", w))
     else:
         for ql, qh, qv, h, pd in itertools.product(ql_vals, qh_vals, qv_vals, h_vals, pd_vals):
@@ -376,11 +411,11 @@ def gen_wall_grid(values_dict):
     wk_vals = values_dict.get("WALL_SOFT_K", [BASE["WALL_SOFT_K"]])
     horizon = BASE.get("HORIZON", 20)
     for wm, we, ws, wk in itertools.product(wm_vals, we_vals, ws_vals, wk_vals):
-        if we > horizon:
-            continue  # WALL_END can't exceed HORIZON
         w = dict(BASE)
         w["WALL_MARGIN"] = wm; w["WALL_END"] = we
         w["WALL_STRIDE"] = ws; w["WALL_SOFT_K"] = wk
+        if not valid_wall_combo(w, horizon=horizon):
+            continue
         combos.append((f"WM={wm}+WE={we}+WS={ws}+WK={wk}", w))
     return combos
 

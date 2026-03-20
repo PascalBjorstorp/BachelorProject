@@ -8,6 +8,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/odometry.hpp>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <f1tenth_msgs/msg/mpc_state.hpp>
 
@@ -36,6 +37,7 @@ public:
         // Parameters
         this->declare_parameter("trajectory_file", "");
         this->declare_parameter("odom_topic", "/ego_racecar/odom");
+        this->declare_parameter("pose_topic", "/ekf_pose");
         this->declare_parameter("output_topic", "/mpc_state");
         this->declare_parameter("servo_topic", "/sensors/servo_position_command");
         this->declare_parameter("wheelbase", 0.324);
@@ -55,6 +57,7 @@ public:
         
         std::string trajectory_file = this->get_parameter("trajectory_file").as_string();
         std::string odom_topic = this->get_parameter("odom_topic").as_string();
+        std::string pose_topic = this->get_parameter("pose_topic").as_string();
         std::string output_topic = this->get_parameter("output_topic").as_string();
         std::string servo_topic = this->get_parameter("servo_topic").as_string();
         wheelbase_ = this->get_parameter("wheelbase").as_double();
@@ -97,10 +100,15 @@ public:
             .durability_volatile();
         pub_ = this->create_publisher<f1tenth_msgs::msg::MpcState>(output_topic, qos);
         
-        // Subscribe to odometry with Best Effort QoS
+        // Subscribe to odometry with Best Effort QoS (velocity/yaw-rate cache only).
         sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
             odom_topic, qos,
             std::bind(&StatePublisherNode::odom_callback, this, std::placeholders::_1));
+
+        // Subscribe to EKF pose: publish one state packet for each incoming pose.
+        pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+            pose_topic, qos,
+            std::bind(&StatePublisherNode::pose_callback, this, std::placeholders::_1));
         
         // Subscribe to servo position feedback (for actual steering angle)
         if (!servo_topic.empty()) {
@@ -141,8 +149,9 @@ public:
                 }
             });
 
-        RCLCPP_INFO(this->get_logger(), "State publisher ready (Best Effort QoS). Subscribing to %s, publishing to %s",
-                   odom_topic.c_str(), output_topic.c_str());
+        RCLCPP_INFO(this->get_logger(),
+                "State publisher ready (Best Effort QoS). Odom cache: %s, pose trigger: %s, publishing: %s",
+                odom_topic.c_str(), pose_topic.c_str(), output_topic.c_str());
     }
     
 private:
@@ -150,6 +159,7 @@ private:
     KDTree kdtree_;
     rclcpp::Publisher<f1tenth_msgs::msg::MpcState>::SharedPtr pub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_;
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
     rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr servo_sub_;
     
     // --- Runtime state -------------------------------------------------------
@@ -171,6 +181,12 @@ private:
     rclcpp::TimerBase::SharedPtr odom_watchdog_timer_;
     std::chrono::steady_clock::time_point last_odom_time_ = std::chrono::steady_clock::now();
     bool odom_received_ = false;
+
+    // --- Cached dynamics from odometry -------------------------------------
+    double latest_velocity_ = 0.0;
+    double latest_vy_ = 0.0;
+    double latest_omega_ = 0.0;
+    bool has_odom_dynamics_ = false;
 
     // --- Odometry processing helpers ----------------------------------------
     bool validate_odom_message(const nav_msgs::msg::Odometry::SharedPtr& msg,
@@ -355,33 +371,44 @@ private:
             return;
         }
         
-        // 3) Derive vehicle state
-        double qx = msg->pose.pose.orientation.x;
-        double qy = msg->pose.pose.orientation.y;
-        double qz = msg->pose.pose.orientation.z;
-        double qw = msg->pose.pose.orientation.w;
-        double theta = quaternion_to_yaw(qx, qy, qz, qw);
-        
-        // Extract velocity (body-frame twist from EKF / odometry)
-        double velocity = msg->twist.twist.linear.x;   // Longitudinal v_x
-        double vy = msg->twist.twist.linear.y;          // Lateral v_y
-        double omega = msg->twist.twist.angular.z;       // Yaw rate ω
-        
-        // Determine steering angle: use servo feedback if available,
-        // otherwise estimate from bicycle model: δ ≈ atan(L * ω / v_x)
-        double steering_angle = compute_steering_angle(velocity, omega);
-        
-        // 4) Select reference index
-        // KD-tree gives a geometric nearest point; then apply heading-aware
-        // forward bias so the selected waypoint is in front of vehicle motion.
+        // Cache dynamics for use by pose callback.
+        latest_velocity_ = msg->twist.twist.linear.x;
+        latest_vy_ = msg->twist.twist.linear.y;
+        latest_omega_ = msg->twist.twist.angular.z;
+        has_odom_dynamics_ = true;
+    }
+
+    void pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+        const double x = msg->pose.pose.position.x;
+        const double y = msg->pose.pose.position.y;
+        const double qx = msg->pose.pose.orientation.x;
+        const double qy = msg->pose.pose.orientation.y;
+        const double qz = msg->pose.pose.orientation.z;
+        const double qw = msg->pose.pose.orientation.w;
+
+        auto ok = [](double v) { return std::isfinite(v); };
+        if (!ok(x) || !ok(y) || !ok(qx) || !ok(qy) || !ok(qz) || !ok(qw)) {
+            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                "Dropping ekf_pose: NaN/Inf detected in incoming message");
+            return;
+        }
+        if (!has_odom_dynamics_) {
+            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                "Skipping publish: waiting for first odom dynamics sample");
+            return;
+        }
+
+        const double theta = quaternion_to_yaw(qx, qy, qz, qw);
+        const double velocity = latest_velocity_;
+        const double vy = latest_vy_;
+        const double omega = latest_omega_;
+        const double steering_angle = compute_steering_angle(velocity, omega);
+
         auto start_time = std::chrono::high_resolution_clock::now();
         size_t waypoint_idx = kdtree_.find_nearest(x, y);
-        
         waypoint_idx = apply_forward_bias(waypoint_idx, x, y, theta);
         auto end_time = std::chrono::high_resolution_clock::now();
-        
-        // 5) Pack and publish state
-        // Create and publish message
+
         auto mpc_state = f1tenth_msgs::msg::MpcState();
         mpc_state.header.stamp = msg->header.stamp;
         mpc_state.header.frame_id = "map";
@@ -394,20 +421,19 @@ private:
         mpc_state.steering_angle_fp = to_fixed_q16(steering_angle);
         mpc_state.waypoint_index = static_cast<uint32_t>(waypoint_idx);
         fill_horizon_references(mpc_state, waypoint_idx);
-        
+
         mpc_state.timestamp_ms = static_cast<uint32_t>(
             std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now().time_since_epoch()).count() & 0xFFFFFFFF);
-        
+
         pub_->publish(mpc_state);
-        
-        // Debug logging (throttled)
+
         static int count = 0;
         if (++count % 50 == 0) {
             auto lookup_us = std::chrono::duration_cast<std::chrono::microseconds>(
                 end_time - start_time).count();
-            RCLCPP_DEBUG(this->get_logger(), 
-                        "Published MpcState: pos=(%.2f, %.2f), waypoint=%u, lookup=%ldus",
+            RCLCPP_DEBUG(this->get_logger(),
+                        "Published MpcState on ekf_pose: pos=(%.2f, %.2f), waypoint=%u, lookup=%ldus",
                         x, y, mpc_state.waypoint_index, lookup_us);
         }
     }
