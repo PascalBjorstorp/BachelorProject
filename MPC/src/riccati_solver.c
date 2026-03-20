@@ -42,12 +42,12 @@ int riccati_admm_debug = 0;
 
 void riccati_admm_config_init(RiccatiAdmmConfig_t *config)
 {
-    config->rho            = FP_CONST(32.0);
+    config->rho            = FP_CONST(80.0);
     config->rho_u          = FP_CONST(20.0);
-    config->tolerance      = FP_CONST(5.0);
+    config->tolerance      = FP_CONST(6.334361);
     config->max_iterations = 200;
     config->adaptive_rho   = 1;
-    config->alpha          = FP_CONST(0.93);
+    config->alpha          = FP_CONST(1.4);
 }
 
 void riccati_admm_state_init(RiccatiAdmmState_t *state)
