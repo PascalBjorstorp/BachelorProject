@@ -479,7 +479,7 @@ typedef struct
  *  The cross_call_rate_scale = 0.125 (5ms / 40ms).
  */
 #define MPC_DEFAULT_TIME_STEP_SECONDS \
-    FP_CONST(0.04)
+    FP_CONST(0.06)
 
 /** Default maximum solver iterations.
  *  FPGA target uses a tighter cap for deterministic worst-case latency.
