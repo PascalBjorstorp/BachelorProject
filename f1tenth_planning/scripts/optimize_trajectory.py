@@ -1162,7 +1162,7 @@ def main():
         help='Track direction: auto-detect from winding order, or force cw/ccw (default: cw)',
     )
     parser.add_argument(
-        '--smooth-factor', type=float, default=2.0,
+        '--smooth-factor', type=float, default=5.0,
         help='Spline smoothing factor s_reg for TUM optimizer (default: 2.0). '
              'Lower values preserve centerline shape better; higher values smooth more. '
              '0 = exact interpolation (safest but slowest), 2 = good balance for small tracks.',
