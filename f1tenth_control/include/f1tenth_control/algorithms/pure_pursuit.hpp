@@ -20,6 +20,10 @@ struct PurePursuitConfig {
     double cte_lookahead_weight{1.0}; // [unitless] Weight on |CTE| contribution
     double cte_lookahead_gain{0.0}; // [m/m] Reduce lookahead with cross-track error
     double curvature_lookahead_gain{0.0}; // [m/(1/m)] Reduce lookahead in high curvature
+
+    // Speed control
+    double curvature_speed_factor{0.20}; // [unitless] Aggressiveness of curvature-based slowdown
+    double curvature_speed_floor_ratio{0.85}; // [0..1] Minimum speed ratio after slowdown
     
     // Steering limits
     double max_steering{0.4189};    // [rad] Maximum steering angle (~24°)
