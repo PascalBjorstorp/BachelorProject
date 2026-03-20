@@ -470,16 +470,16 @@ typedef struct
  *===========================================================================*/
 
 /** Default prediction horizon: 20 steps */
-#define MPC_DEFAULT_PREDICTION_HORIZON 20
+#define MPC_DEFAULT_PREDICTION_HORIZON 10
 
-/** Default time step: 0.04 seconds (40 ms)
+/** Default time step: 0.048 seconds (48 ms)
  *  Control rate = 200 Hz (5 ms per call).
- *  Prediction model uses 40ms steps: 8× the control step.
- *  Total lookahead = 20 × 0.04s = 0.8 seconds.
- *  The cross_call_rate_scale = 0.125 (5ms / 40ms).
+ *  Prediction model uses 48ms steps: 9.6× the control step.
+ *  Total lookahead = 20 × 0.048s = 0.96 seconds.
+ *  The cross_call_rate_scale = 0.125 (5ms / 48ms).
  */
 #define MPC_DEFAULT_TIME_STEP_SECONDS \
-    FP_CONST(0.06)
+    FP_CONST(0.048)
 
 /** Default maximum solver iterations.
  *  FPGA target uses a tighter cap for deterministic worst-case latency.
@@ -494,7 +494,7 @@ typedef struct
  *  Higher tolerance exploits warm-start quality — solution changes little
  *  between consecutive calls, so coarse convergence suffices. */
 #define MPC_DEFAULT_CONVERGENCE_TOLERANCE \
-    FP_CONST(5.0)
+    FP_CONST(6.334361)
 
 /**
  * Get the default MPC configuration (F1/10th tuned values).

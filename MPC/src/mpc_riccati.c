@@ -58,7 +58,7 @@
 #define MAX_STEERING_RATE FP_CONST(2.849)
 
 /** Maximum horizon steps */
-#define MAX_HORIZON 20
+#define MAX_HORIZON 10
 
 /** Big number for unconstrained states */
 #define BIG_BOUND FP_CONST(100.0)
@@ -71,7 +71,7 @@
 
 /** Wall constraint margin — default from latest best hardware tuning run.
  *  Override at runtime via WALL_MARGIN environment variable. */
-#define WALL_MARGIN_DEFAULT FP_CONST(0.03)
+#define WALL_MARGIN_DEFAULT FP_CONST(0.08)
 
 /** Wall constraints: only first few horizon steps for near-term safety.
  *  Override at runtime via WALL_END environment variable.
@@ -79,7 +79,7 @@
  *  Override at runtime via WALL_STRIDE environment variable. */
 #define WALL_CONSTRAINT_START  1
 #define WALL_CONSTRAINT_STRIDE_DEFAULT 1
-#define WALL_CONSTRAINT_END_DEFAULT 20    /* last horizon step to constrain (0=disable) */
+#define WALL_CONSTRAINT_END_DEFAULT 10    /* last horizon step to constrain (0=disable) */
 
 /** v_switch: above this velocity, max acceleration = a_max * v_switch / v.
  *  From f1tenth gym STDynamicsModel: v_switch = 7.319 m/s.
@@ -118,21 +118,21 @@ MpcConfiguration_t get_default_configuration(void)
     /* State tracking weights (Frenet frame).
      * Defaults updated to latest best hardware tuning row (RND_76). */
     cfg.weight_lateral_error    = FP_CONST(5000.0);
-    cfg.weight_heading_error    = FP_CONST(500.0);
-    cfg.weight_velocity         = FP_CONST(120.0);
-    cfg.weight_lateral_velocity = FP_CONST(60.0);
-    cfg.weight_yaw_rate         = FP_CONST(15.0);
+    cfg.weight_heading_error    = FP_CONST(1000.0);
+    cfg.weight_velocity         = FP_CONST(147.0);
+    cfg.weight_lateral_velocity = FP_CONST(5.0);
+    cfg.weight_yaw_rate         = FP_CONST(13.5);
 
     /* Control effort weights */
-    cfg.weight_steering_effort      = FP_CONST(0.05);
+    cfg.weight_steering_effort      = FP_CONST(0.6);
     cfg.weight_acceleration_effort  = FP_CONST(0.01);
 
     /* Control rate weights (W_JERK, W_ACCEL_RATE) */
-    cfg.weight_steering_rate        = FP_CONST(0.4);
+    cfg.weight_steering_rate        = FP_CONST(0.25);
     cfg.weight_acceleration_rate    = FP_CONST(0.1);
 
-    /* Cross-call rate scale: CONTROL_DT / PRED_DT = 0.005 / 0.06 = 0.083. */
-    cfg.cross_call_rate_scale = FP_CONST(0.083);
+    /* Cross-call rate scale: CONTROL_DT / PRED_DT = 0.005 / 0.048 = 0.104. */
+    cfg.cross_call_rate_scale = FP_CONST(0.104);
 
     /* Solver parameters */
     cfg.maximum_solver_iterations = MPC_DEFAULT_MAXIMUM_ITERATIONS;
