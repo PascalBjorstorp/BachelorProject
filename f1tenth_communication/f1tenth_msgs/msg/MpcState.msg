@@ -1,5 +1,5 @@
 # MPC State Message (Fixed-Point Optimized)
-# Contains vehicle state + waypoint index for trajectory tracking
+# Contains vehicle state + horizon reference for trajectory tracking
 # Uses Q16.16 fixed-point for FPGA compatibility and efficiency
 #
 # Q16.16 format: value = raw_int32 / 65536.0
@@ -17,20 +17,16 @@ int32 vy_fp          # Lateral velocity v_y [m/s], Q16.16 (body frame)
 int32 omega_fp       # Yaw rate ω [rad/s], Q16.16
 int32 steering_angle_fp  # Actual servo steering angle δ [rad], Q16.16
 
-# Trajectory reference (integer, no conversion needed)
-uint32 waypoint_index
+# First waypoint reference for Frenet error computation (ARM-side)
+# Only index [0] is needed; the rest are computed from the horizon arrays
+int32 ref_x_0_fp     # First waypoint X position [meters], Q16.16
+int32 ref_y_0_fp     # First waypoint Y position [meters], Q16.16
+int32 ref_psi_0_fp   # First waypoint heading [radians], Q16.16
 
-# Streaming reference waypoints in Q16.16 (from state_publisher).
-# All entries up to horizon_length are valid. This may be the full
-# planner trajectory for dynamic updates on every control cycle.
+# Horizon reference arrays (sent to FPGA via AXI-Stream)
+# All entries up to horizon_length are valid.
 uint32 horizon_length
-int32[] ref_x_fp
-int32[] ref_y_fp
-int32[] ref_psi_fp
-int32[] ref_vx_fp
-int32[] ref_kappa_fp
-int32[] ref_left_bound_fp
-int32[] ref_right_bound_fp
-
-# For latency measurement / debugging
-uint32 timestamp_ms  # Milliseconds since epoch
+int32[] ref_vx_fp          # Reference velocity [m/s], Q16.16
+int32[] ref_kappa_fp       # Reference curvature [1/m], Q16.16
+int32[] ref_left_bound_fp  # Left track bound [m], Q16.16
+int32[] ref_right_bound_fp # Right track bound [m], Q16.16

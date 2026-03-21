@@ -281,9 +281,13 @@ private:
         const size_t stream_count = std::min(horizon_, N);
         mpc_state.horizon_length = static_cast<uint32_t>(stream_count);
 
-        mpc_state.ref_x_fp.resize(stream_count);
-        mpc_state.ref_y_fp.resize(stream_count);
-        mpc_state.ref_psi_fp.resize(stream_count);
+        // First waypoint for Frenet error computation (ARM-side)
+        const auto& wp0 = kdtree_.get_waypoint(waypoint_idx % N);
+        mpc_state.ref_x_0_fp = to_fixed_q16(wp0.x);
+        mpc_state.ref_y_0_fp = to_fixed_q16(wp0.y);
+        mpc_state.ref_psi_0_fp = to_fixed_q16(wp0.psi);
+
+        // Resize only the arrays that go to FPGA
         mpc_state.ref_vx_fp.resize(stream_count);
         mpc_state.ref_kappa_fp.resize(stream_count);
         mpc_state.ref_left_bound_fp.resize(stream_count);
@@ -293,9 +297,6 @@ private:
         for (size_t i = 0; i < stream_count; ++i) {
             const size_t idx = (waypoint_idx + i) % N;
             const auto& wp = kdtree_.get_waypoint(idx);
-            mpc_state.ref_x_fp[i] = to_fixed_q16(wp.x);
-            mpc_state.ref_y_fp[i] = to_fixed_q16(wp.y);
-            mpc_state.ref_psi_fp[i] = to_fixed_q16(wp.psi);
             mpc_state.ref_vx_fp[i] = to_fixed_q16(wp.vx);
             mpc_state.ref_kappa_fp[i] = to_fixed_q16(wp.kappa);
             mpc_state.ref_left_bound_fp[i] = to_fixed_q16(wp.left_bound);
@@ -419,12 +420,7 @@ private:
         mpc_state.vy_fp = to_fixed_q16(vy);
         mpc_state.omega_fp = to_fixed_q16(omega);
         mpc_state.steering_angle_fp = to_fixed_q16(steering_angle);
-        mpc_state.waypoint_index = static_cast<uint32_t>(waypoint_idx);
         fill_horizon_references(mpc_state, waypoint_idx);
-
-        mpc_state.timestamp_ms = static_cast<uint32_t>(
-            std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::system_clock::now().time_since_epoch()).count() & 0xFFFFFFFF);
 
         pub_->publish(mpc_state);
 
@@ -433,8 +429,8 @@ private:
             auto lookup_us = std::chrono::duration_cast<std::chrono::microseconds>(
                 end_time - start_time).count();
             RCLCPP_DEBUG(this->get_logger(),
-                        "Published MpcState on ekf_pose: pos=(%.2f, %.2f), waypoint=%u, lookup=%ldus",
-                        x, y, mpc_state.waypoint_index, lookup_us);
+                        "Published MpcState on ekf_pose: pos=(%.2f, %.2f), waypoint=%zu, lookup=%ldus",
+                        x, y, waypoint_idx, lookup_us);
         }
     }
 };

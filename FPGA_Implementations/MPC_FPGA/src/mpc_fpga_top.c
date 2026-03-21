@@ -1,20 +1,33 @@
 /**
  * @file mpc_fpga_top.c
- * @brief Top-Level HLS Function with AXI-Lite Interface
+ * @brief Top-Level HLS Function with AXI-Stream + AXI-Lite Interface
  *
  * This is the synthesizable top function for the MPC FPGA IP core.
- * It wraps the MPC Riccati-ADMM solver with an AXI-Lite register interface
- * for CPU communication on the Ultra96-V2 (Zynq UltraScale+ ZU3EG).
+ * It wraps the MPC Riccati-ADMM solver with:
+ *   - AXI-Stream input for state + reference data (fastest transfer)
+ *   - AXI-Lite registers for control and output
  *
- * No-preload dataflow model:
- *   - CPU writes one horizon frame to memory
- *   - FPGA reads that frame via AXI master in one compute transaction
+ * Stream Format (128-bit words):
+ *   Beat 0: [e_y | e_psi | vx | vy]
+ *   Beat 1: [omega | steering | horizon_length | reserved]
+ *   Beat 2..N+1: [ref_vx[i] | ref_kappa[i] | ref_left[i] | ref_right[i]]
  *
+ * Total: 2 + MPC_HORIZON beats = 21 beats for 19-point horizon
  */
 
 #include "../include/fp_math_hls.h"
 #include "../include/mpc_fpga_types.h"
 #include "../include/riccati_solver_hls.h"
+
+#ifdef __SYNTHESIS__
+#include <hls_stream.h>
+#include <ap_int.h>
+#include <ap_axi_sdata.h>
+#endif
+
+/* Stream data type: 128 bits = 4 × 32-bit values */
+typedef ap_uint<128> stream_word_t;
+typedef hls::axis<stream_word_t, 0, 0, 0> axis_word_t;
 
 /* Forward declarations */
 extern void mpc_compute_hls(
@@ -32,62 +45,32 @@ extern void mpc_compute_hls(
     int *out_iters);
 
 /**
- * MPC FPGA Top-Level Function.
-**/
+ * MPC FPGA Top-Level Function with AXI-Stream input.
+ */
 void mpc_fpga_top(
-    /* Vehicle state input */
-    int state_x_fp,
-    int state_theta_fp,
-    int state_vx_fp,
-    int state_vy_fp,
-    int state_omega_fp,
-    int state_steering_fp,
-
-    /* Bulk horizon references in external memory */
-    const int *ref_vx_mem,
-    const int *ref_kappa_mem,
-    const int *ref_left_bound_mem,
-    const int *ref_right_bound_mem,
-    int ref_count,
-
-    /* Outputs (mode=0) */
+    /* AXI-Stream input: state + horizon data */
+    hls::stream<axis_word_t>& input_stream,
+    
+    /* Outputs via AXI-Lite registers */
     int *out_steering_fp,
     int *out_accel_fp,
     int *out_status,
     int *out_iterations)
 {
-    /* ===== AXI-Lite Interface Pragmas ===== */
-#pragma HLS INTERFACE s_axilite port=return          bundle=ctrl
-#pragma HLS INTERFACE s_axilite port=state_x_fp      bundle=ctrl
-#pragma HLS INTERFACE s_axilite port=state_theta_fp  bundle=ctrl
-#pragma HLS INTERFACE s_axilite port=state_vx_fp     bundle=ctrl
-#pragma HLS INTERFACE s_axilite port=state_vy_fp     bundle=ctrl
-#pragma HLS INTERFACE s_axilite port=state_omega_fp  bundle=ctrl
-#pragma HLS INTERFACE s_axilite port=state_steering_fp bundle=ctrl
-#pragma HLS INTERFACE s_axilite port=ref_vx_mem      bundle=ctrl
-#pragma HLS INTERFACE s_axilite port=ref_kappa_mem   bundle=ctrl
-#pragma HLS INTERFACE s_axilite port=ref_left_bound_mem bundle=ctrl
-#pragma HLS INTERFACE s_axilite port=ref_right_bound_mem bundle=ctrl
-#pragma HLS INTERFACE s_axilite port=ref_count       bundle=ctrl
+    /* ===== Interface Pragmas ===== */
+#pragma HLS INTERFACE axis port=input_stream
+#pragma HLS INTERFACE s_axilite port=return bundle=ctrl
 #pragma HLS INTERFACE s_axilite port=out_steering_fp bundle=ctrl
-#pragma HLS INTERFACE s_axilite port=out_accel_fp    bundle=ctrl
-#pragma HLS INTERFACE s_axilite port=out_status      bundle=ctrl
-#pragma HLS INTERFACE s_axilite port=out_iterations  bundle=ctrl
-
-#pragma HLS INTERFACE m_axi port=ref_vx_mem offset=slave bundle=gmem0 depth=64
-#pragma HLS INTERFACE m_axi port=ref_kappa_mem offset=slave bundle=gmem1 depth=64
-#pragma HLS INTERFACE m_axi port=ref_left_bound_mem offset=slave bundle=gmem2 depth=64
-#pragma HLS INTERFACE m_axi port=ref_right_bound_mem offset=slave bundle=gmem3 depth=64
+#pragma HLS INTERFACE s_axilite port=out_accel_fp bundle=ctrl
+#pragma HLS INTERFACE s_axilite port=out_status bundle=ctrl
+#pragma HLS INTERFACE s_axilite port=out_iterations bundle=ctrl
 
 #pragma HLS ALLOCATION operation instances=mul limit=2
 
     /* ===== Static Persistent State (survives between calls) ===== */
-
-    /* ADMM warm-start state */
     static AdmmState_t admm_state;
 #pragma HLS BIND_STORAGE variable=admm_state type=ram_2p impl=bram
 
-    /* MPC persistent state */
     static MpcPersistState_t persist;
 #pragma HLS BIND_STORAGE variable=persist type=register
     static int first_call = 1;
@@ -104,49 +87,62 @@ void mpc_fpga_top(
         first_call = 0;
     }
 
-    /* --- Compute MPC control from one bulk horizon frame --- */
-    int horizon_size = ref_count;
+    /* ===== Read input stream ===== */
+    
+    /* Beat 0: State part 1 [e_y | e_psi | vx | vy] */
+    axis_word_t beat0 = input_stream.read();
+    stream_word_t data0 = beat0.data;
+    fixed_point_t e_y   = (fixed_point_t)(int)(data0.range(31, 0));
+    fixed_point_t e_psi = fp_normalize_angle((fixed_point_t)(int)(data0.range(63, 32)));
+    fixed_point_t vx    = (fixed_point_t)(int)(data0.range(95, 64));
+    fixed_point_t vy    = (fixed_point_t)(int)(data0.range(127, 96));
+    
+    /* Beat 1: State part 2 [omega | steering | horizon_length | reserved] */
+    axis_word_t beat1 = input_stream.read();
+    stream_word_t data1 = beat1.data;
+    fixed_point_t omega    = (fixed_point_t)(int)(data1.range(31, 0));
+    fixed_point_t steering = (fixed_point_t)(int)(data1.range(63, 32));
+    int horizon_length     = (int)(data1.range(95, 64));
+    /* Reserved: data1.range(127, 96) */
+    
+    /* Update actual steering from measurement */
+    persist.actual_steering = steering;
+    
+    /* Validate horizon */
+    int horizon_size = horizon_length;
     if (horizon_size <= 0) {
         *out_steering_fp = 0;
         *out_accel_fp    = 0;
         *out_status      = 3;  /* NO_TRAJECTORY */
         *out_iterations  = 0;
+        /* Drain remaining stream data if any */
         return;
     }
-    if (horizon_size > MAX_TRAJECTORY_SIZE) horizon_size = MAX_TRAJECTORY_SIZE;
-
-    /* Update actual steering from CPU measurement */
-    persist.actual_steering = (fixed_point_t)state_steering_fp;
-
-    /* ARM precomputes Frenet errors and passes them in registers.
-     * state_x_fp: e_y, state_theta_fp: e_psi */
-    fixed_point_t e_y = (fixed_point_t)state_x_fp;
-    fixed_point_t e_psi = fp_normalize_angle((fixed_point_t)state_theta_fp);
-
-    fixed_point_t vx    = (fixed_point_t)state_vx_fp;
-    fixed_point_t vy    = (fixed_point_t)state_vy_fp;
-    fixed_point_t omega = (fixed_point_t)state_omega_fp;
-
+    if (horizon_size > MPC_HORIZON) horizon_size = MPC_HORIZON;
+    
+    /* Beat 2..N+1: Reference trajectory */
     MpcRefPoint_t ref[MPC_HORIZON];
 #pragma HLS ARRAY_PARTITION variable=ref complete dim=0
 
     int k;
     for (k = 0; k < MPC_HORIZON; k++) {
 #pragma HLS PIPELINE II=1
-        int idx = k;
-        if (idx >= horizon_size) idx = horizon_size - 1;
-
-        ref[k].velocity = (fixed_point_t)ref_vx_mem[idx];
-
-        fixed_point_t kappa = (fixed_point_t)ref_kappa_mem[idx];
+        axis_word_t beat_ref = input_stream.read();
+        stream_word_t data_ref = beat_ref.data;
+        
+        /* Extract 4 × 32-bit values from 128-bit word */
+        ref[k].velocity    = (fixed_point_t)(int)(data_ref.range(31, 0));
+        
+        fixed_point_t kappa = (fixed_point_t)(int)(data_ref.range(63, 32));
         if (kappa > FP_CONST(1.5))  kappa = FP_CONST(1.5);
         if (kappa < FP_CONST(-1.5)) kappa = FP_CONST(-1.5);
         ref[k].kappa = kappa;
-
-        ref[k].left_bound  = (fixed_point_t)ref_left_bound_mem[idx];
-        ref[k].right_bound = (fixed_point_t)ref_right_bound_mem[idx];
+        
+        ref[k].left_bound  = (fixed_point_t)(int)(data_ref.range(95, 64));
+        ref[k].right_bound = (fixed_point_t)(int)(data_ref.range(127, 96));
     }
 
+    /* ===== Run MPC solver ===== */
     fixed_point_t steer_out, accel_out;
     int status, iters;
 

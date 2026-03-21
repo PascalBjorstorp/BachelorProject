@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# One-shot Ultra96 helper:
+# One-shot Ultra96 helper for AXI-Stream DMA-based MPC:
 #  1) Configure eth0 address
-#  2) Apply DDR reserved-memory DT overlay
+#  2) Apply DDR reserved-memory DT overlay (for DMA buffer)
 #  3) Program PL from XSA
-#  4) Run mpc_receiver_node with required addresses
+#  4) Run mpc_receiver_node with DMA parameters
 
 ETH_IFACE="${ETH_IFACE:-eth0}"
 ULTRA_IP_CIDR="${ULTRA_IP_CIDR:-10.23.0.148/24}"
@@ -15,12 +15,10 @@ DTBO_PATH="${DTBO_PATH:-/home/xilinx/mpc_ref_buffers.dtbo}"
 ROS_SETUP="${ROS_SETUP:-/home/xilinx/ros2_humble/install/setup.bash}"
 WS_SETUP="${WS_SETUP:-/home/xilinx/ros2_ws/install/setup.bash}"
 
-FPGA_BASE="${FPGA_BASE:-0xA0000000}"
-REF_VX="${REF_VX:-0x70000000}"
-REF_KAPPA="${REF_KAPPA:-0x70010000}"
-REF_LEFT="${REF_LEFT:-0x70020000}"
-REF_RIGHT="${REF_RIGHT:-0x70030000}"
-REF_CAPACITY="${REF_CAPACITY:-64}"
+# MPC IP and DMA addresses (configure in Vivado)
+MPC_BASE="${MPC_BASE:-0xA0000000}"
+DMA_BASE="${DMA_BASE:-0xA0010000}"
+DMA_BUFFER="${DMA_BUFFER:-0x70000000}"
 MAX_VEL="${MAX_VEL:-20.0}"
 
 if [[ ! -f "$XSA_PATH" ]]; then
@@ -50,6 +48,7 @@ sudo ip link set "$ETH_IFACE" up
 ip -4 addr show dev "$ETH_IFACE" || true
 
 echo "[2/4] Applying reserved-memory overlay from $DTBO_PATH"
+echo "      (DMA buffer at $DMA_BUFFER needs physically contiguous memory)"
 sudo mount -t configfs none /sys/kernel/config 2>/dev/null || true
 sudo rmdir /sys/kernel/config/device-tree/overlays/mpc_ref_buffers 2>/dev/null || true
 sudo mkdir -p /sys/kernel/config/device-tree/overlays/mpc_ref_buffers
@@ -68,14 +67,11 @@ if [[ -f /sys/class/fpga_manager/fpga0/state ]]; then
   echo "fpga0 state: $(cat /sys/class/fpga_manager/fpga0/state)"
 fi
 
-echo "[4/4] Launching mpc_receiver_node"
+echo "[4/4] Launching mpc_receiver_node (AXI-Stream DMA mode)"
 source "$ROS_SETUP"
 source "$WS_SETUP"
 exec sudo -E ros2 run state_receiver mpc_receiver_node --ros-args \
-  -p fpga_base_address:="$FPGA_BASE" \
-  -p ref_vx_phys_addr:="$REF_VX" \
-  -p ref_kappa_phys_addr:="$REF_KAPPA" \
-  -p ref_left_phys_addr:="$REF_LEFT" \
-  -p ref_right_phys_addr:="$REF_RIGHT" \
-  -p ref_buffer_capacity:="$REF_CAPACITY" \
+  -p mpc_base_address:="$MPC_BASE" \
+  -p dma_base_address:="$DMA_BASE" \
+  -p dma_buffer_phys_addr:="$DMA_BUFFER" \
   -p max_velocity:="$MAX_VEL"
