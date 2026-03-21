@@ -90,7 +90,7 @@ ros2 launch f1tenth_localization cpp_localization.launch.py
 ros2 launch f1tenth_control pure_pursuit_launch.py \
   trajectory_file:=/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv \
   max_speed:=3.0 \
-  min_lookahead:=1.0 \
+  min_lookahead:=0.265 \
   max_lookahead:=2.0 \
   lookahead_gain:=0.10
 ```
@@ -182,6 +182,105 @@ ros2 run rviz2 rviz2 --ros-args -p use_sim_time:=true
 - **Plot Panel**: `/drive.drive.speed`, `/drive.drive.steering_angle`
 - **Raw Messages**: `/amcl_pose`, `/odom`
 - **State Transitions**: Compare commanded vs actual speed
+
+---
+
+## PHASE 5: Ultra96 MPC FPGA Bring-Up (Manual, No Autostart)
+
+Use this phase when running the FPGA-backed MPC receiver on Ultra96.
+This flow is intentionally manual so the process stops when your SSH session stops.
+
+### Terminal 1 (Ultra96) — Ensure Services Are Disabled
+```bash
+sudo systemctl disable --now mpc-receiver.service mpc-overlay.service
+```
+> Keeps runtime under manual control (no boot autostart).
+
+### Terminal 1 (Ultra96) — Verify Network + Reserved Memory Overlay
+```bash
+ip -br a
+sudo systemctl start mpc-overlay.service
+sudo systemctl status mpc-overlay.service --no-pager -n 20
+ls /sys/firmware/devicetree/base/reserved-memory
+```
+> Confirms Ultra96 IP is up and `mpc_ref_buffers@70000000` is present.
+
+### Terminal 1 (Ultra96) — Program FPGA, Then Validate MMIO Base
+```bash
+# Program FPGA using your board flow (PYNQ/fpgautil/overlay loader)
+# Then verify control region reads respond quickly:
+sudo devmem 0xA0000000 32
+sudo devmem 0xA0000004 32
+```
+> Do not launch `state_receiver` before FPGA programming + MMIO validation.
+
+### Terminal 1 (Ultra96) — Build Receiver Packages Only
+```bash
+cd ~/ros2_ws
+source /home/xilinx/ros2_humble/install/setup.bash
+colcon build --symlink-install --packages-select f1tenth_msgs state_receiver
+source ~/ros2_ws/install/setup.bash
+```
+
+### Terminal 1 (Ultra96) — Launch MPC Receiver Manually
+```bash
+sudo /bin/bash -lc 'source /home/xilinx/ros2_humble/install/setup.bash; source /home/xilinx/ros2_ws/install/setup.bash; ros2 launch state_receiver mpc_launch.py'
+```
+> Foreground launch ties lifecycle to your session (no unattended background control).
+
+### Terminal 2 (Jetson/Publisher Side) — Publish MPC State
+```bash
+ros2 launch state_publisher state_publisher_launch.py
+```
+
+### Terminal 3 (Ultra96 or Jetson) — Runtime Checks
+```bash
+ros2 topic hz /mpc_state
+ros2 topic echo /drive
+```
+> If `/mpc_state` is missing, receiver will appear idle but healthy.
+
+---
+
+## PHASE 6: Ultra96 Recovery Commands (When Links/Session Drop)
+
+### PC — Reapply Dedicated Ultra96 Link IP
+```bash
+sudo ip link set enx806d97376383 up
+sudo ip addr flush dev enx806d97376383
+sudo ip addr add 10.23.0.1/24 dev enx806d97376383
+ip -br a | grep enx806d97376383
+ping -c 3 10.23.0.120
+```
+
+### PC — Disable USB Autosuspend for Stability Testing
+```bash
+echo -1 | sudo tee /sys/module/usbcore/parameters/autosuspend
+for f in /sys/bus/usb/devices/*/power/control; do echo on | sudo tee "$f" >/dev/null; done
+```
+
+### PC — Live USB Fault Monitor
+```bash
+sudo dmesg -w
+```
+> Watch for `error -71`, `error -110`, `USB disconnect`, and repeated re-enumeration.
+
+### Ultra96 Serial Console Fallback
+```bash
+# Try USB serial channels
+screen /dev/ttyUSB0 115200
+# or
+screen /dev/ttyUSB1 115200
+```
+
+### SD Card Offline Repair (if rootfs becomes unstable)
+```bash
+lsblk -f
+sudo umount /dev/sdX2
+sudo e2fsck -f -y /dev/sdX2
+sudo fsck.vfat -a /dev/sdX1
+```
+> Replace `sdX` with the detected SD card device.
 
 ---
 

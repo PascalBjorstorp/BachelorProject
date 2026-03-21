@@ -187,11 +187,46 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     
     // Compute adaptive lookahead distance
     double lookahead_dist = config_.min_lookahead + config_.lookahead_gain * current_speed;
+    lookahead_dist -= config_.cte_lookahead_gain * config_.cte_lookahead_weight * std::abs(output.cross_track_error);
+    lookahead_dist -= config_.curvature_lookahead_gain * std::abs(closest_pt.curvature);
     lookahead_dist = std::clamp(lookahead_dist, config_.min_lookahead, config_.max_lookahead);
-    
-    // Find lookahead target point
-    size_t target_idx = findLookaheadTarget(closest_idx, lookahead_dist);
-    const auto& target_pt = trajectory_[target_idx];
+
+    // Find lookahead target and interpolate for continuous target tracking.
+    size_t target_idx = closest_idx;
+    size_t target_seg_start_idx = closest_idx;
+    size_t target_seg_end_idx = closest_idx;
+    double target_seg_t = 0.0;
+    const size_t n = trajectory_.size();
+    double accumulated_dist = 0.0;
+    bool found_target = false;
+    for (size_t i = closest_idx; i < closest_idx + n; ++i) {
+        size_t curr_idx = i % n;
+        size_t next_idx = (i + 1) % n;
+        double segment_dist = math::distance(
+            trajectory_[curr_idx].x, trajectory_[curr_idx].y,
+            trajectory_[next_idx].x, trajectory_[next_idx].y
+        );
+
+        if (segment_dist > 1e-9 && accumulated_dist + segment_dist >= lookahead_dist) {
+            target_seg_start_idx = curr_idx;
+            target_seg_end_idx = next_idx;
+            target_seg_t = (lookahead_dist - accumulated_dist) / segment_dist;
+            target_seg_t = std::clamp(target_seg_t, 0.0, 1.0);
+            target_idx = next_idx;
+            found_target = true;
+            break;
+        }
+
+        accumulated_dist += segment_dist;
+        target_idx = next_idx;
+    }
+
+    TrajectoryPoint target_pt;
+    if (found_target) {
+        target_pt = interpolate(target_seg_start_idx, target_seg_end_idx, target_seg_t);
+    } else {
+        target_pt = trajectory_[target_idx];
+    }
     
     // Compute target point relative to vehicle
     double tx = target_pt.x - position.x;
@@ -219,11 +254,49 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     // Clamp steering (hardware servo enforces its own rate limit)
     steering_angle = std::clamp(steering_angle, -config_.max_steering, config_.max_steering);
     
-    // Compute target speed from trajectory (optimizer accounts for tire limits)
-    double target_speed = target_pt.velocity * config_.speed_gain;
-    
-    // Apply speed limits
-    target_speed = std::clamp(target_speed, config_.min_speed, config_.max_speed);
+    // Base speed from trajectory, then apply lookahead-based curvature slowdown.
+    double target_speed = target_pt.velocity;
+
+    // Preview curvature over approximately one dynamic lookahead distance.
+    // This slows the car before entering tighter turns on real hardware.
+    double max_upcoming_curvature = std::abs(closest_pt.curvature);
+    double preview_distance = 0.0;
+    const double preview_target = std::max(lookahead_dist, config_.min_lookahead);
+    for (size_t i = closest_idx; i < closest_idx + n && preview_distance < preview_target; ++i) {
+        const size_t curr_idx = i % n;
+        const size_t next_idx = (i + 1) % n;
+
+        const double k0 = trajectory_[curr_idx].curvature;
+        const double k1 = trajectory_[next_idx].curvature;
+        max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(k0));
+
+        const double segment_dist = math::distance(
+            trajectory_[curr_idx].x, trajectory_[curr_idx].y,
+            trajectory_[next_idx].x, trajectory_[next_idx].y
+        );
+
+        if (segment_dist <= 1e-9) {
+            continue;
+        }
+
+        const double remaining = preview_target - preview_distance;
+        if (remaining <= segment_dist) {
+            const double t = std::clamp(remaining / segment_dist, 0.0, 1.0);
+            const double k_interp = k0 + t * (k1 - k0);
+            max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(k_interp));
+            preview_distance = preview_target;
+            break;
+        }
+
+        max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(k1));
+        preview_distance += segment_dist;
+    }
+
+    const double floor_ratio = std::clamp(config_.curvature_speed_floor_ratio, 0.0, 1.0);
+    double curvature_speed_scale =
+        1.0 / (1.0 + config_.curvature_speed_factor * max_upcoming_curvature);
+    curvature_speed_scale = std::clamp(curvature_speed_scale, floor_ratio, 1.0);
+    target_speed *= curvature_speed_scale;
     
     // Fill output
     output.steering_angle = steering_angle;

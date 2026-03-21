@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>state_transport_udp</name>
+  <version>0.1.0</version>
+  <description>
+    Standalone UDP transport for Jetson-to-Ultra96 state streaming.
+    Jetson sender reads MpcState from ROS2 and transmits fixed-size UDP packets.
+    Ultra96 receiver is non-ROS and consumes packets directly.
+  </description>
+  <maintainer email="todo@example.com">Your Name</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>f1tenth_msgs</depend>
+  <depend>ackermann_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>std_msgs</depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

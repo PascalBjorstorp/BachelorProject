@@ -23,8 +23,9 @@ ScanSplitterNode::ScanSplitterNode(const rclcpp::NodeOptions & options)
 {
   // ── Declare parameters ────────────────────────────────────────────
   this->declare_parameter("enable_splitting", true);
-  this->declare_parameter("obstacle_threshold_m", 0.3);
-  this->declare_parameter("min_cluster_size", 3);
+  this->declare_parameter("obstacle_threshold_m", 0.05);
+  this->declare_parameter("min_cluster_size", 1);
+  this->declare_parameter("max_cluster_gap_beams", 0);
   this->declare_parameter("scan_topic", std::string("/scan"));
   this->declare_parameter("walls_topic", std::string("/scan_walls"));
   this->declare_parameter("obstacles_topic", std::string("/scan_obstacles"));
@@ -36,6 +37,7 @@ ScanSplitterNode::ScanSplitterNode(const rclcpp::NodeOptions & options)
   enable_splitting_   = this->get_parameter("enable_splitting").as_bool();
   obstacle_threshold_ = this->get_parameter("obstacle_threshold_m").as_double();
   min_cluster_size_   = this->get_parameter("min_cluster_size").as_int();
+  max_cluster_gap_beams_ = this->get_parameter("max_cluster_gap_beams").as_int();
   scan_topic_         = this->get_parameter("scan_topic").as_string();
   walls_topic_        = this->get_parameter("walls_topic").as_string();
   obstacles_topic_    = this->get_parameter("obstacles_topic").as_string();
@@ -80,6 +82,8 @@ ScanSplitterNode::ScanSplitterNode(const rclcpp::NodeOptions & options)
   RCLCPP_INFO(this->get_logger(), "  Walls:  %s", walls_topic_.c_str());
   RCLCPP_INFO(this->get_logger(), "  Obstacles: %s", obstacles_topic_.c_str());
   RCLCPP_INFO(this->get_logger(), "  Threshold: %.2f m", obstacle_threshold_);
+  RCLCPP_INFO(this->get_logger(), "  Min cluster size: %d beams", min_cluster_size_);
+  RCLCPP_INFO(this->get_logger(), "  Max cluster gap: %d beams", max_cluster_gap_beams_);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -264,7 +268,7 @@ void ScanSplitterNode::scan_callback(
 
   // ── Cluster filtering ─────────────────────────────────────────────
   if (min_cluster_size_ > 1) {
-    filter_clusters(is_obstacle_, min_cluster_size_);
+    filter_clusters(is_obstacle_, min_cluster_size_, max_cluster_gap_beams_);
   }
 
   // ── Build output scans ────────────────────────────────────────────
@@ -318,9 +322,33 @@ void ScanSplitterNode::scan_callback(
 //  Cluster filter — keeps only obstacle runs >= min_size
 // ────────────────────────────────────────────────────────────────────────────
 
-void ScanSplitterNode::filter_clusters(std::vector<bool> & mask, int min_size) const
+void ScanSplitterNode::filter_clusters(std::vector<bool> & mask, int min_size, int max_gap) const
 {
   const int n = static_cast<int>(mask.size());
+
+  // Bridge tiny false gaps between obstacle runs so sparse/decimated scans
+  // do not fragment a single object into many one-beam clusters.
+  if (max_gap > 0) {
+    int i = 0;
+    while (i < n) {
+      while (i < n && mask[i]) ++i;
+      const int gap_start = i;
+      while (i < n && !mask[i]) ++i;
+      const int gap_end = i;
+      const int gap_len = gap_end - gap_start;
+
+      if (
+        gap_len > 0 && gap_len <= max_gap &&
+        gap_start > 0 && gap_end < n &&
+        mask[gap_start - 1] && mask[gap_end])
+      {
+        for (int k = gap_start; k < gap_end; ++k) {
+          mask[k] = true;
+        }
+      }
+    }
+  }
+
   int i = 0;
   while (i < n) {
     if (mask[i]) {

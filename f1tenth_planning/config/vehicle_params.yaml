@@ -8,14 +8,14 @@ vehicle:
   width: 0.273                # [m] Total car width (for safety margin)
   
   # Tire/friction properties
-  friction_coeff: 0.787      # [-] Tire-road friction coefficient (μ)
+  friction_coeff: 0.745    # [-] Tire-road friction coefficient (μ)
   
   # Acceleration limits
-  max_acceleration: 8.0     # [m/s²] Maximum longitudinal acceleration
-  max_deceleration: 7.7     # [m/s²] Maximum braking deceleration
+  max_acceleration: 7.31    # [m/s²] Maximum longitudinal acceleration
+  max_deceleration: 7.31    # [m/s²] Maximum braking deceleration
   
   # Speed limits
-  max_speed: 5.0            # [m/s] Maximum vehicle speed
+  max_speed: 12.0            # [m/s] Maximum vehicle speed
 
 optimization:
   # Track boundary safety margin (half car width + buffer)
@@ -47,5 +47,5 @@ advanced:
   c_roll: 0.163               # [-] Rolling resistance coefficient (measured coast-down 2025-03-11)
   
   # Steering constraints  
-  max_steering_angle: 0.4189 # [rad] Maximum steering angle (~24°, calibrated with polynomial correction)
+  max_steering_angle: 0.39 # OLD VALUE 0.4189 [rad] Maximum steering angle (~24°, calibrated with polynomial correction)
   max_steering_rate: 2.8492     # [rad/s] Maximum steering rate

@@ -45,13 +45,19 @@ private:
    */
   void compute_distance_field(const nav_msgs::msg::OccupancyGrid & grid);
 
-  /** Keep only obstacle runs with >= min_cluster_size adjacent beams. */
-  void filter_clusters(std::vector<bool> & mask, int min_size) const;
+  /**
+   * Keep only obstacle runs with >= min_cluster_size beams.
+   *
+   * Small false gaps (<= max_gap beams) between two obstacle runs can be
+   * bridged before size filtering to reduce sensitivity to sparse scans.
+   */
+  void filter_clusters(std::vector<bool> & mask, int min_size, int max_gap) const;
 
   // ── Parameters ─────────────────────────────────────────────────────
   bool   enable_splitting_{true};
-  double obstacle_threshold_{0.3};
+  double obstacle_threshold_{0.1};
   int    min_cluster_size_{3};
+  int    max_cluster_gap_beams_{0};
   std::string scan_topic_{"/scan"};
   std::string walls_topic_{"/scan_walls"};
   std::string obstacles_topic_{"/scan_obstacles"};

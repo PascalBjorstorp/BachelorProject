@@ -39,17 +39,19 @@ This directory contains the FPGA implementation of path tracking controllers for
 ## Directory Structure
 
 ```
-FPGA/
+PP_FPGA/
 ├── include/
 │   ├── fpga_interface.h      # CPU<->FPGA shared data structures
-│   ├── fp_math_hls.h         # Fixed-point math for HLS
-│   └── pure_pursuit_fpga.h   # Pure Pursuit function declarations
+│   └── fp_math_hls.h         # Fixed-point math for HLS
 ├── src/
-│   └── pure_pursuit_fpga.c   # Pure Pursuit HLS implementation
+│   ├── pure_pursuit_fpga.c   # Pure Pursuit HLS implementation
+│   └── fp_math_hls.c         # Fixed-point math implementation
 ├── test/
-│   └── test_pure_pursuit.c   # x86 testbench
-├── Makefile                  # Build system
-├── run_hls.tcl              # Vitis HLS synthesis script
+│   ├── test_pure_pursuit.c   # x86 testbench
+│   ├── test_with_raceline.c  # raceline-based software test
+│   └── test_cosim.c          # HLS C/RTL cosim testbench
+├── run_hls.tcl               # C-sim + synthesis + export flow
+├── run_cosim.tcl             # C-sim + synthesis + RTL cosim flow
 └── README.md                # This file
 ```
 
@@ -58,26 +60,41 @@ FPGA/
 ### 1. Test on x86 (Validate Algorithm)
 
 ```bash
-cd FPGA
-make test
+cd FPGA_Implementations/PP_FPGA
+gcc -O2 -I include -Wno-unknown-pragmas \
+   -o test_pure_pursuit \
+   test/test_pure_pursuit.c \
+   src/pure_pursuit_fpga.c \
+   src/fp_math_hls.c \
+   -lm
+./test_pure_pursuit
 ```
 
-This compiles the Pure Pursuit algorithm and runs the testbench on your development machine.
+This compiles the Pure Pursuit algorithm and runs the software testbench on your development machine.
 
 ### 2. Synthesize for FPGA
 
-Requires Vitis HLS 2022.1 or later:
+Requires Vitis 2025.1+:
 
 ```bash
-source /tools/Xilinx/Vitis_HLS/2022.1/settings64.sh
-make hls
+cd FPGA_Implementations/PP_FPGA
+source /tools/Xilinx/2025.1/Vitis/settings64.sh
+vitis-run --mode hls --tcl run_hls.tcl
 ```
 
 This generates:
 - RTL (Verilog/VHDL) in `pure_pursuit_fpga_hls/solution1/syn/`
 - IP package in `pure_pursuit_fpga_hls/solution1/impl/ip/`
 
-### 3. Integrate with Vivado
+### 3. Run RTL Co-Simulation
+
+```bash
+cd FPGA_Implementations/PP_FPGA
+source /tools/Xilinx/2025.1/Vitis/settings64.sh
+vitis-run --mode hls --tcl run_cosim.tcl
+```
+
+### 4. Integrate with Vivado
 
 1. Open Vivado and create a block design for Ultra96-V2
 2. Add the Zynq UltraScale+ PS
@@ -86,7 +103,7 @@ This generates:
 5. Generate bitstream
 6. Export hardware (`.xsa` file)
 
-### 4. Deploy to Ultra96
+### 5. Deploy to Ultra96
 
 1. Copy bitstream and device tree overlay to Ultra96
 2. Load FPGA configuration:

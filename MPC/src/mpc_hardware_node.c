@@ -7,12 +7,12 @@
  * node, but stripped of simulation-specific code and optimized for
  * real-time 200 Hz execution on embedded hardware.
  *
- * Architecture (timer-driven):
- *   - Odometry callback: stores latest state (fast, non-blocking)
+ * Architecture (EKF-driven):
+ *   - Odometry callback: stores latest velocity state (fast, non-blocking)
  *   - Servo feedback callback: stores actual steering angle from VESC
  *   - IMU callback: stores filtered yaw rate for higher-quality feedback
- *   - 200 Hz wall timer: runs MPC computation and publishes the result
- *   - Safety watchdog: zeros command if odometry is stale (>200ms)
+ *   - EKF pose callback: receives map-frame pose, runs MPC, publishes result
+ *   - Safety: no command published until both odom and EKF pose are received
  *
  * Topics:
  *   Subscribe: /ego_racecar/odom       (nav_msgs/Odometry)     — VESC odometry [QoS(10)]
@@ -39,6 +39,8 @@
 #include <sched.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/stat.h>
+#include <limits.h>
 
 /* ROS2 C Client Library Headers */
 #include "rcl/rcl.h"
@@ -98,6 +100,9 @@ static int g_verbose = 0;
  *  so Frenet errors are only correct when this flag is set. */
 static int g_amcl_received = 0;
 
+/** Flag for new EKF pose message */
+static int g_new_ekf_pose = 0;
+
 /** Timer-driven control rate [Hz] */
 static double g_control_rate_hz = 200.0;
 
@@ -144,6 +149,7 @@ static int g_use_steering_feedback = 0;
 
 typedef struct
 {
+    double s_meters;
     double x_meters;
     double y_meters;
     double heading_radians;
@@ -201,11 +207,54 @@ static double g_solve_time_max_us = 0.0;
 static unsigned long g_solve_cycle_count = 0;
 #define SOLVE_STATS_PRINT_INTERVAL 500
 
+/** Optional solver telemetry logging for post-drive analysis. */
+static FILE *g_solver_log_file = NULL;
+static unsigned long g_solver_log_counter = 0;
+static int g_solver_log_stride = 1;
+
+/* Ensure all parent directories for a filepath exist (mkdir -p behavior). */
+static void ensure_parent_directories(const char *filepath)
+{
+    if (filepath == NULL) return;
+
+    char path_buf[PATH_MAX];
+    size_t n = strlen(filepath);
+    if (n == 0 || n >= sizeof(path_buf)) return;
+
+    memcpy(path_buf, filepath, n + 1);
+
+    char *last_slash = strrchr(path_buf, '/');
+    if (last_slash == NULL) return;  /* No directory component */
+
+    *last_slash = '\0';
+    if (path_buf[0] == '\0') return;
+
+    char tmp[PATH_MAX];
+    size_t len = strlen(path_buf);
+    if (len >= sizeof(tmp)) return;
+
+    memcpy(tmp, path_buf, len + 1);
+
+    for (char *p = tmp + 1; *p; p++) {
+        if (*p == '/') {
+            *p = '\0';
+            if (mkdir(tmp, 0775) != 0 && errno != EEXIST) {
+                return;
+            }
+            *p = '/';
+        }
+    }
+
+    if (mkdir(tmp, 0775) != 0 && errno != EEXIST) {
+        return;
+    }
+}
+
 /** Computed control dt from g_control_rate_hz (set in main) */
 static double g_control_dt = 0.005;
 
-/** Number of executor handles: 4 subscriptions + 1 timer */
-#define EXECUTOR_NUM_HANDLES 5
+/** Number of executor handles: 4 subscriptions (no timer) */
+#define EXECUTOR_NUM_HANDLES 4
 
 /*===========================================================================
  * Signal Handler for Graceful Shutdown
@@ -280,6 +329,7 @@ static void setup_realtime_scheduling(void)
 
 /** Average waypoint spacing, computed from loaded trajectory. */
 static double g_avg_waypoint_spacing = 0.346;
+static double g_track_length_meters = 0.0;
 
 /**
  * @brief Load trajectory from CSV file.
@@ -323,6 +373,7 @@ static int load_trajectory_from_csv(const char *file_path)
         if (fields_read >= 6)
         {
             TrajectoryWaypoint_t *wp = &global_trajectory[global_trajectory_count];
+            wp->s_meters = s_m;
             wp->x_meters = x_m;
             wp->y_meters = y_m;
             wp->heading_radians = psi_rad;
@@ -375,6 +426,15 @@ static int load_trajectory_from_csv(const char *file_path)
         g_avg_waypoint_spacing = total_spacing / (global_trajectory_count - 1);
         if (g_avg_waypoint_spacing < 0.01) g_avg_waypoint_spacing = 0.01; /* safety floor */
         printf("[MPC] Average waypoint spacing: %.4f m\n", g_avg_waypoint_spacing);
+    }
+
+    g_track_length_meters = 0.0;
+    if (global_trajectory_count >= 2)
+    {
+        g_track_length_meters = global_trajectory[global_trajectory_count - 1].s_meters
+                              - global_trajectory[0].s_meters;
+        if (g_track_length_meters < 1e-3)
+            g_track_length_meters = g_avg_waypoint_spacing * global_trajectory_count;
     }
 
     return 1;
@@ -435,6 +495,78 @@ static int find_closest_waypoint(double position_x, double position_y, double ve
     return best_index;
 }
 
+static double wrap_track_s(double s)
+{
+    if (g_track_length_meters <= 1e-6)
+        return s;
+
+    double s0 = global_trajectory[0].s_meters;
+    while (s < s0) s += g_track_length_meters;
+    while (s >= s0 + g_track_length_meters) s -= g_track_length_meters;
+    return s;
+}
+
+static void sample_waypoint_by_s(double s_query, TrajectoryWaypoint_t *out)
+{
+    if (out == NULL || global_trajectory_count == 0)
+        return;
+
+    if (global_trajectory_count == 1)
+    {
+        *out = global_trajectory[0];
+        return;
+    }
+
+    double s = wrap_track_s(s_query);
+
+    for (int i = 0; i < global_trajectory_count - 1; i++)
+    {
+        TrajectoryWaypoint_t *w0 = &global_trajectory[i];
+        TrajectoryWaypoint_t *w1 = &global_trajectory[i + 1];
+        if (s >= w0->s_meters && s <= w1->s_meters)
+        {
+            double denom = w1->s_meters - w0->s_meters;
+            double t = (denom > 1e-9) ? ((s - w0->s_meters) / denom) : 0.0;
+            *out = *w0;
+            out->s_meters = s;
+            out->x_meters = w0->x_meters + (w1->x_meters - w0->x_meters) * t;
+            out->y_meters = w0->y_meters + (w1->y_meters - w0->y_meters) * t;
+            out->heading_radians = w0->heading_radians + (w1->heading_radians - w0->heading_radians) * t;
+            out->curvature_radians_per_meter = w0->curvature_radians_per_meter +
+                                               (w1->curvature_radians_per_meter - w0->curvature_radians_per_meter) * t;
+            out->velocity_meters_per_second = w0->velocity_meters_per_second +
+                                              (w1->velocity_meters_per_second - w0->velocity_meters_per_second) * t;
+            out->left_bound_meters = w0->left_bound_meters + (w1->left_bound_meters - w0->left_bound_meters) * t;
+            out->right_bound_meters = w0->right_bound_meters + (w1->right_bound_meters - w0->right_bound_meters) * t;
+            out->sin_heading = sin(out->heading_radians);
+            out->cos_heading = cos(out->heading_radians);
+            return;
+        }
+    }
+
+    TrajectoryWaypoint_t *w0 = &global_trajectory[global_trajectory_count - 1];
+    TrajectoryWaypoint_t *w1 = &global_trajectory[0];
+    double s1 = w1->s_meters + g_track_length_meters;
+    double denom = s1 - w0->s_meters;
+    double s_adj = s;
+    if (s_adj < w0->s_meters)
+        s_adj += g_track_length_meters;
+    double t = (denom > 1e-9) ? ((s_adj - w0->s_meters) / denom) : 0.0;
+    *out = *w0;
+    out->s_meters = s;
+    out->x_meters = w0->x_meters + (w1->x_meters - w0->x_meters) * t;
+    out->y_meters = w0->y_meters + (w1->y_meters - w0->y_meters) * t;
+    out->heading_radians = w0->heading_radians + (w1->heading_radians - w0->heading_radians) * t;
+    out->curvature_radians_per_meter = w0->curvature_radians_per_meter +
+                                       (w1->curvature_radians_per_meter - w0->curvature_radians_per_meter) * t;
+    out->velocity_meters_per_second = w0->velocity_meters_per_second +
+                                      (w1->velocity_meters_per_second - w0->velocity_meters_per_second) * t;
+    out->left_bound_meters = w0->left_bound_meters + (w1->left_bound_meters - w0->left_bound_meters) * t;
+    out->right_bound_meters = w0->right_bound_meters + (w1->right_bound_meters - w0->right_bound_meters) * t;
+    out->sin_heading = sin(out->heading_radians);
+    out->cos_heading = cos(out->heading_radians);
+}
+
 /*===========================================================================
  * Reference Trajectory Builder
  *===========================================================================*/
@@ -448,44 +580,38 @@ static int find_closest_waypoint(double position_x, double position_y, double ve
 static void build_reference_from_trajectory(int closest_index)
 {
     const double mpc_dt = MPC_TIME_STEP_SECONDS;
-    const double avg_waypoint_spacing = g_avg_waypoint_spacing;
+    double s_query = global_trajectory[closest_index].s_meters;
+    double step_velocity = global_trajectory[closest_index].velocity_meters_per_second;
+    if (step_velocity < 3.0) step_velocity = 3.0;
+    if (step_velocity > TRAJECTORY_MAXIMUM_VELOCITY) step_velocity = TRAJECTORY_MAXIMUM_VELOCITY;
 
     for (int step = 0; step < MPC_PREDICTION_HORIZON_STEPS; step++)
     {
-        int base_waypoint_index = closest_index + step;
-        if (base_waypoint_index >= global_trajectory_count)
-            base_waypoint_index -= global_trajectory_count;
-        double ref_velocity = global_trajectory[base_waypoint_index].velocity_meters_per_second;
+        s_query += step_velocity * mpc_dt;
+        TrajectoryWaypoint_t wp;
+        sample_waypoint_by_s(s_query, &wp);
 
-        if (ref_velocity < 3.0) ref_velocity = 3.0;
-        if (ref_velocity > TRAJECTORY_MAXIMUM_VELOCITY) ref_velocity = TRAJECTORY_MAXIMUM_VELOCITY;
-
-        double expected_distance = ref_velocity * mpc_dt * (step + 1);
-        int waypoints_ahead = (int)(expected_distance / avg_waypoint_spacing);
-        if (waypoints_ahead < step + 1) waypoints_ahead = step + 1;
-
-        int waypoint_index = closest_index + waypoints_ahead;
-        if (waypoint_index >= global_trajectory_count)
-            waypoint_index -= global_trajectory_count;
-        TrajectoryWaypoint_t *wp = &global_trajectory[waypoint_index];
+        double traj_vel = wp.velocity_meters_per_second;
+        if (traj_vel < 0.0) traj_vel = 0.0;
+        if (traj_vel > TRAJECTORY_MAXIMUM_VELOCITY) traj_vel = TRAJECTORY_MAXIMUM_VELOCITY;
+        if (traj_vel < 3.0) traj_vel = 3.0;
+        step_velocity = traj_vel;
 
         global_reference_trajectory[step].reference_lateral_error_meters = 0;
         global_reference_trajectory[step].reference_heading_error_radians = 0;
 
         global_reference_trajectory[step].path_curvature_radians_per_meter =
-            DOUBLE_TO_FP(wp->curvature_radians_per_meter);
+            DOUBLE_TO_FP(wp.curvature_radians_per_meter);
         global_reference_trajectory[step].left_wall_bound_meters =
-            DOUBLE_TO_FP(wp->left_bound_meters);
+            DOUBLE_TO_FP(wp.left_bound_meters);
         global_reference_trajectory[step].right_wall_bound_meters =
-            DOUBLE_TO_FP(wp->right_bound_meters);
+            DOUBLE_TO_FP(wp.right_bound_meters);
 
-        double traj_vel = wp->velocity_meters_per_second;
-        if (traj_vel < 0.0) traj_vel = 0.0;
         global_reference_trajectory[step].reference_velocity_meters_per_second =
             DOUBLE_TO_FP(traj_vel);
 
         /* Yaw rate reference = kappa * v_ref (steady-state cornering) — fused in single pass */
-        double omega_ref = wp->curvature_radians_per_meter * traj_vel;
+        double omega_ref = wp.curvature_radians_per_meter * traj_vel;
         global_reference_trajectory[step].reference_yaw_rate_radians_per_second =
             DOUBLE_TO_FP(omega_ref);
         global_reference_trajectory[step].reference_lateral_velocity_meters_per_second = 0;
@@ -755,9 +881,10 @@ void imu_callback(const void *message_in)
 }
 
 /*===========================================================================
- * ROS2 Callback: Map-Frame Pose (EKF or AMCL)
+ * ROS2 Callback: Map-Frame Pose (EKF or AMCL) + MPC Computation
  *===========================================================================
- * Overrides the odom-frame position from odometry_subscription_callback.
+ * Receives the map-frame position from the EKF and runs the MPC solver.
+ * MPC only executes when a new EKF pose message arrives (event-driven).
  * The trajectory CSV is in map frame, so Frenet errors are only meaningful
  * when position comes from here rather than from raw wheel odometry.
  * Default source: /ekf_pose (EKF fuses odom + AMCL for smooth updates).
@@ -781,23 +908,20 @@ void amcl_pose_callback(const void *message_in)
     g_latest_pos_y   = pos_y;
     g_latest_heading = heading;
 
+    g_new_ekf_pose = 1;
+
     if (!g_amcl_received) {
         printf("[MPC] Map-frame pose received — switching to map-frame position\n");
         g_amcl_received = 1;
     }
-}
 
-/*===========================================================================
- * Timer Callback: MPC Computation + Publish (200 Hz)
- *===========================================================================*/
+    /* Don't run MPC until odometry (velocity) has been received */
+    if (!global_odometry_received_flag)
+    {
+        return;
+    }
 
-void mpc_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
-{
-    (void)timer;
-    (void)last_call_time;
-
-    /* Safety watchdog: check if odometry is stale */
-    if (global_odometry_received_flag)
+    /* Safety watchdog: check if odometry velocity is stale */
     {
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
@@ -821,37 +945,36 @@ void mpc_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
             return;
         }
     }
-    else
-    {
-        /* No odometry received yet — don't publish anything */
-        return;
-    }
-
-    /* Use cached latest odometry values */
-    double pos_x = g_latest_pos_x;
-    double pos_y = g_latest_pos_y;
-    double heading = g_latest_heading;
 
     if (g_verbose)
     {
         printf("[MPC] State: x=%.2f y=%.2f th=%.2f vx=%.2f vy=%.2f w=%.2f\n",
                pos_x, pos_y, heading, g_latest_vx, g_latest_vy, g_latest_omega);
     }
-
+    double ey = 0;
+    double epsi = 0;
+    double vref0 = 0;
+    double kappa0 = 0;
+    double left_wall0 = 0;
+    double right_wall0 = 0;
+    int closest = 0;
     if (global_trajectory_count > 0)
     {
-        int closest = find_closest_waypoint(pos_x, pos_y, heading);
+        closest = find_closest_waypoint(pos_x, pos_y, heading);
         build_reference_from_trajectory(closest);
         convert_to_frenet_state(pos_x, pos_y, heading, closest, &global_frenet_state);
 
+        ey = FP_TO_DOUBLE(global_frenet_state.lateral_error_meters);
+        epsi = FP_TO_DOUBLE(global_frenet_state.heading_error_radians);
+        vref0 = FP_TO_DOUBLE(global_reference_trajectory[0].reference_velocity_meters_per_second);
+        kappa0 = FP_TO_DOUBLE(global_reference_trajectory[0].path_curvature_radians_per_meter);
+        left_wall0 = FP_TO_DOUBLE(global_reference_trajectory[0].left_wall_bound_meters);
+        right_wall0 = FP_TO_DOUBLE(global_reference_trajectory[0].right_wall_bound_meters);
+
         if (g_verbose)
         {
-            double ey  = FP_TO_DOUBLE(global_frenet_state.lateral_error_meters);
-            double epsi = FP_TO_DOUBLE(global_frenet_state.heading_error_radians);
-            double vref = FP_TO_DOUBLE(global_reference_trajectory[0].reference_velocity_meters_per_second);
-            double kappa = FP_TO_DOUBLE(global_reference_trajectory[0].path_curvature_radians_per_meter);
             printf("[MPC] Frenet: e_y=%.3f e_psi=%.3f v_ref=%.2f kappa=%.3f\n",
-                   ey, epsi, vref, kappa);
+                   ey, epsi, vref0, kappa0);
         }
     }
     else
@@ -894,6 +1017,8 @@ void mpc_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
     clock_gettime(CLOCK_MONOTONIC, &t1);
     double solve_us = (t1.tv_sec - t0.tv_sec) * 1e6 +
                       (t1.tv_nsec - t0.tv_nsec) / 1e3;
+    double primal_res = FP_TO_DOUBLE(mpc_result.final_cost);
+    double dual_res = FP_TO_DOUBLE(mpc_result.dual_residual);
 
     /* Rolling solve-time statistics (always active, lightweight) */
     g_solve_time_sum_us += solve_us;
@@ -944,12 +1069,13 @@ void mpc_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
             mpc_set_actual_previous_control(&actual_ctrl);
         }
 
-        if (g_verbose)
+        if (g_verbose && g_solver_log_file == NULL)
         {
             double accel = FP_TO_DOUBLE(
                 mpc_result.optimal_control.acceleration_meters_per_second_squared);
-            printf("[MPC] Control: steer=%.4f accel=%.2f (status=%d iter=%d solve=%.1fus)\n",
-                   steer, accel, mpc_status, mpc_result.iterations_used, solve_us);
+            printf("[MPC] Control: steer=%.4f accel=%.2f (status=%d iter=%d pr=%.3e dr=%.3e solve=%.1fus)\n",
+                   steer, accel, mpc_status, mpc_result.iterations_used,
+                   primal_res, dual_res, solve_us);
         }
     }
     else
@@ -957,6 +1083,39 @@ void mpc_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
         if (g_verbose)
         {
             printf("[MPC] WARNING: Solver status=%d, keeping previous command\n", mpc_status);
+        }
+    }
+
+    /* Optional per-cycle solver telemetry (CSV) for post-drive analysis. */
+    if (g_solver_log_file != NULL)
+    {
+        g_solver_log_counter++;
+        if ((g_solver_log_counter % (unsigned long)g_solver_log_stride) == 0)
+        {
+            struct timespec now_rt;
+            clock_gettime(CLOCK_REALTIME, &now_rt);
+            long long unix_time_ns =
+                (long long)now_rt.tv_sec * 1000000000LL + (long long)now_rt.tv_nsec;
+
+            double cmd_steer = FP_TO_DOUBLE(mpc_result.optimal_control.steering_angle_radians);
+            double cmd_accel = FP_TO_DOUBLE(mpc_result.optimal_control.acceleration_meters_per_second_squared);
+
+            fprintf(g_solver_log_file,
+                    "%lld,%.3f,%d,%u,%.9f,%.9f,%d,"
+                    "%.6f,%.6f,%.6f,%.6f,%.6f,"
+                    "%.6f,%.6f,%.6f,%.6f,"
+                    "%.6f,%.6f,%.3f,%d\n",
+                    unix_time_ns, solve_us, (int)mpc_status, mpc_result.iterations_used,
+                    primal_res, dual_res, closest,
+                    ey, epsi, g_latest_vx, g_latest_vy, g_latest_omega,
+                    vref0, kappa0, left_wall0, right_wall0,
+                    cmd_steer, cmd_accel, global_actual_steering_angle,
+                    g_use_steering_feedback);
+
+            if ((g_solver_log_counter % 20UL) == 0UL)
+            {
+                fflush(g_solver_log_file);
+            }
         }
     }
 
@@ -1015,7 +1174,7 @@ int main(int argc, char *argv[])
 {
     printf("============================================================\n");
     printf("  MPC Riccati-ADMM ROS2 Node for F1/10th Hardware\n");
-    printf("  Target: Jetson Xavier NX @ 200 Hz (timer-driven)\n");
+    printf("  Target: Jetson Xavier NX (EKF-driven)\n");
     printf("  8-state augmented Frenet model\n");
     printf("  [e_y, e_psi, vx, vy, omega, delta_actual, drate_prev, accel_prev]\n");
     printf("  Controls: [delta_rate, a_x]\n");
@@ -1079,6 +1238,42 @@ int main(int argc, char *argv[])
             g_steering_correction_c0 = atof(env_val);
         if ((env_val = getenv("MPC_AMCL_TOPIC")) != NULL)
             g_amcl_pose_topic = env_val;
+
+    }
+
+    {
+        const char *log_path = getenv("MPC_SOLVER_LOG");
+        char default_log_path[256];
+
+        /* Always log every control callback unless code is changed. */
+        g_solver_log_stride = 1;
+
+        if (log_path == NULL || log_path[0] == '\0')
+        {
+            time_t now = time(NULL);
+            struct tm tm_now;
+            localtime_r(&now, &tm_now);
+            strftime(default_log_path, sizeof(default_log_path),
+                     "log/mpc_solver_%Y%m%d_%H%M%S.csv", &tm_now);
+            log_path = default_log_path;
+        }
+
+        ensure_parent_directories(log_path);
+
+        g_solver_log_file = fopen(log_path, "w");
+        if (g_solver_log_file == NULL)
+        {
+            fprintf(stderr, "[MPC] WARNING: Failed to open solver log file %s\n", log_path);
+        }
+        else
+        {
+            fprintf(g_solver_log_file,
+                    "unix_time_ns,solve_us,status,iterations,primal_residual,dual_residual,closest_wp,"
+                    "e_y,e_psi,vx,vy,omega,v_ref0,kappa0,left_wall0,right_wall0,"
+                    "cmd_steer,cmd_accel,actual_steer,use_steering_feedback\n");
+            fflush(g_solver_log_file);
+            printf("[MPC] Solver telemetry log: %s (every control callback)\n", log_path);
+        }
     }
 
     printf("[MPC] Controller initialized (horizon=%d, dt=%.0fms)\n",
@@ -1087,7 +1282,7 @@ int main(int argc, char *argv[])
     /* Compute CONTROL_DT from the configured control rate */
     g_control_dt = 1.0 / g_control_rate_hz;
 
-    printf("[MPC] Control rate: %.0f Hz (timer-driven, dt=%.4fs)\n", g_control_rate_hz, g_control_dt);
+    printf("[MPC] Control mode: EKF-driven (MPC runs on each /ekf_pose message)\n");
     printf("[MPC] Topics: odom=%s, drive=%s\n", g_odom_topic, g_drive_topic);
     printf("[MPC] Servo feedback: %s (gain=%.4f, offset=%.4f)\n",
            g_servo_topic, g_steering_to_servo_gain, g_steering_to_servo_offset);
@@ -1291,34 +1486,6 @@ int main(int argc, char *argv[])
     }
     printf("[ROS2] Publishing to %s (Reliable, KeepLast(10))\n", g_drive_topic);
 
-    /* ===== Timer: 200 Hz MPC computation ===== */
-    rcl_clock_t steady_clock;
-    rcl_allocator_t alloc = rcl_get_default_allocator();
-    rc = rcl_steady_clock_init(&steady_clock, &alloc);
-    if (rc != RCL_RET_OK)
-    {
-        fprintf(stderr, "[ROS2] ERROR: clock init: %s\n", rcl_get_error_string().str);
-        return 1;
-    }
-
-    rcl_timer_t mpc_timer = rcl_get_zero_initialized_timer();
-    int64_t timer_period_ns = (int64_t)(1e9 / g_control_rate_hz);  /* e.g., 5ms for 200Hz */
-
-    /* Use rcl_timer_init (available on all Humble builds).
-     * rcl_timer_init2 (adds autostart param) was only added in later patches
-     * and is missing on some Jetson Humble installations. */
-    rc = rcl_timer_init(
-        &mpc_timer, &steady_clock, &ctx,
-        timer_period_ns, &mpc_timer_callback,
-        alloc);
-    if (rc != RCL_RET_OK)
-    {
-        fprintf(stderr, "[ROS2] ERROR: timer init: %s\n", rcl_get_error_string().str);
-        return 1;
-    }
-    printf("[ROS2] Timer created: %.0f Hz (%ld ns period)\n",
-           g_control_rate_hz, (long)timer_period_ns);
-
     /* Initialize message buffers (pre-allocate all strings) */
     nav_msgs__msg__Odometry__init(&global_odometry_message_buffer);
     if (!preallocate_rosidl_string(&global_odometry_message_buffer.header.frame_id, 64) ||
@@ -1340,7 +1507,8 @@ int main(int argc, char *argv[])
     }
     set_rosidl_string(&global_drive_message_buffer.header.frame_id, "base_link");
 
-    /* Executor: 3 subscriptions + 1 timer */
+    /* Executor: 4 subscriptions (odom, servo, imu, ekf_pose) */
+    rcl_allocator_t alloc = rcl_get_default_allocator();
     rclc_executor_t executor = rclc_executor_get_zero_initialized_executor();
 
     rc = rclc_executor_init(&executor, &ctx, EXECUTOR_NUM_HANDLES, &alloc);
@@ -1377,44 +1545,41 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* Add AMCL pose subscription (non-fatal if not available) */
+    /* Add AMCL/EKF pose subscription — this drives MPC execution */
     rc = rclc_executor_add_subscription(&executor, &amcl_sub,
         &global_amcl_pose_buffer, &amcl_pose_callback, ON_NEW_DATA);
     if (rc != RCL_RET_OK)
     {
-        fprintf(stderr, "[ROS2] WARNING: add amcl_pose sub failed — Frenet will use odom frame\n");
-        rcl_reset_error();
-    }
-
-    /* Add MPC timer */
-    rc = rclc_executor_add_timer(&executor, &mpc_timer);
-    if (rc != RCL_RET_OK)
-    {
-        fprintf(stderr, "[ROS2] ERROR: add timer: %s\n", rcl_get_error_string().str);
+        fprintf(stderr, "[ROS2] ERROR: add amcl_pose sub failed — MPC cannot run without EKF pose\n");
         return 1;
     }
 
-    printf("[ROS2] Executor ready (4 subs + 1 timer)\n");  /* odom, servo, imu, amcl */
-    printf("\n[MPC] Spinning... (waiting for odometry on %s)\n\n", g_odom_topic);
+    printf("[ROS2] Executor ready (4 subs, MPC driven by %s)\n", g_amcl_pose_topic);
+    printf("\n[MPC] Spinning... (waiting for EKF pose on %s and odometry on %s)\n\n",
+           g_amcl_pose_topic, g_odom_topic);
 
     rclc_executor_spin(&executor);
 
     /* Cleanup */
     printf("\n[ROS2] Shutting down...\n");
+    if (g_solver_log_file != NULL)
+    {
+        fflush(g_solver_log_file);
+        fclose(g_solver_log_file);
+        g_solver_log_file = NULL;
+    }
     rclc_executor_fini(&executor);
     nav_msgs__msg__Odometry__fini(&global_odometry_message_buffer);
     std_msgs__msg__Float64__fini(&global_servo_message_buffer);
     std_msgs__msg__Float64__fini(&global_imu_message_buffer);
     ackermann_msgs__msg__AckermannDriveStamped__fini(&global_drive_message_buffer);
     rcl_ret_t cleanup_rc;
-    cleanup_rc = rcl_timer_fini(&mpc_timer); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&odom_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&servo_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&imu_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&amcl_sub, &node); (void)cleanup_rc;
     geometry_msgs__msg__PoseWithCovarianceStamped__fini(&global_amcl_pose_buffer);
     cleanup_rc = rcl_publisher_fini(&global_control_publisher, &node); (void)cleanup_rc;
-    cleanup_rc = rcl_steady_clock_fini(&steady_clock); (void)cleanup_rc;
     cleanup_rc = rcl_node_fini(&node); (void)cleanup_rc;
     cleanup_rc = rcl_context_fini(&ctx); (void)cleanup_rc;
 

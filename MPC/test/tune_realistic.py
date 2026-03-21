@@ -35,12 +35,9 @@ TRAJ_DIR = os.path.join(os.path.dirname(PROJECT_DIR),
 # MODE-SPECIFIC CONFIGURATIONS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# ─── Spielberg: large track, multiple clearance racelines ────────────────────
+# ─── Spielberg: large track, single current raceline ─────────────────────────
 SPIELBERG_RACELINES = {
-    "cl020": os.path.join(TRAJ_DIR, "Spielberg_raceline_pipeline_cl020.csv"),
-    "cl030": os.path.join(TRAJ_DIR, "Spielberg_raceline_pipeline_cl030.csv"),
-    "cl045": os.path.join(TRAJ_DIR, "Spielberg_raceline_pipeline_cl045.csv"),
-    "cl050": os.path.join(TRAJ_DIR, "Spielberg_raceline_pipeline_cl050.csv"),
+    "spielberg": os.path.join(TRAJ_DIR, "Spielberg_raceline_current.csv"),
 }
 
 SPIELBERG_BASE = {
@@ -60,17 +57,13 @@ SPIELBERG_BASE = {
     "MAX_ITER":     20,
     "WALL_END":     18,
     "WALL_STRIDE":  1,
-    "WALL_SOFT_K":  0.0,
     "WALL_MARGIN":  0.15,
     "HORIZON":      20,
     "PRED_DT":      0.03,
 }
 
 SPIELBERG_PER_RACELINE_WM = {
-    "cl020": 0.10,
-    "cl030": 0.20,
-    "cl045": 0.40,
-    "cl050": 0.40,
+    "spielberg": 0.20,
 }
 
 # ─── Hardware: small SLAM-mapped track (~22m, 0.27-1.4m wide) ────────────────
@@ -78,7 +71,7 @@ SPIELBERG_PER_RACELINE_WM = {
 # has only ~0.10m effective clearance at tight corners (wp 48-58).
 # Realistic mode will always clip 1 wall at that corner; scoring tolerates this.
 HARDWARE_RACELINES = {
-    "my_track": os.path.join(TRAJ_DIR, "my_track_raceline.csv"),
+    "hardware": os.path.join(TRAJ_DIR, "hardware_raceline.csv"),
 }
 
 HARDWARE_BASE = {
@@ -98,14 +91,13 @@ HARDWARE_BASE = {
     "MAX_ITER":     20,
     "WALL_END":     10,
     "WALL_STRIDE":  4,
-    "WALL_SOFT_K":  200.0,
     "WALL_MARGIN":  0.02,
     "HORIZON":      10,
     "PRED_DT":      0.06,
 }
 
 HARDWARE_PER_RACELINE_WM = {
-    "my_track": 0.02,
+    "hardware": 0.02,
 }
 
 # ─── Active config (set by mode selection in main()) ─────────────────────────
@@ -122,18 +114,17 @@ SPECIAL_PARAMS = {"WALL_MARGIN", "WALL_STRIDE", "HORIZON", "RACELINE_PATH", "PRE
 SPIELBERG_FULL_VALUES = {
     "Q_LAT":        [150, 200, 250, 300, 320, 340, 350, 360, 380, 400, 450, 500, 550, 600, 650, 700, 750, 800],
     "Q_HDG":        [100, 180, 190, 200, 210, 220, 300, 400, 600, 800, 900, 1000, 1200, 1500],
-    "Q_VEL":        [4, 6, 8, 10, 15, 20, 22, 24, 25, 26, 28, 30, 35],
+    "Q_VEL":        [4, 6, 8, 10, 15, 20, 22, 24, 25, 26, 28, 30],
     "Q_LAT_VEL":    [15, 20, 30, 40, 45, 55, 60, 80, 120],
     "Q_YAW":        [5, 10, 15, 18, 22, 30, 40, 60],
     "R_STEER":      [0.04, 0.06, 0.08, 0.09, 0.12, 0.15, 0.18, 0.20, 0.30, 0.5],
-    "R_ACCEL":      [0.01, 0.012, 0.015, 0.02, 0.05, 0.1],
+    "R_ACCEL":      [0.01, 0.012, 0.015, 0.02, 0.05],
     "W_JERK":       [0.08, 0.1, 0.14, 0.2, 0.3, 0.5, 1.0],
     "W_ACCEL_RATE": [0.05, 0.08, 0.1, 0.15, 0.2, 0.5, 1.0],
     "HORIZON":      [15, 20, 25, 30, 35, 40],
     "WALL_MARGIN":  [0.00, 0.05, 0.10, 0.15, 0.20, 0.30, 0.35, 0.40, 0.45, 0.50, 0.70],
     "WALL_END":     [12, 16, 18, 20, 22, 24, 28],
     "WALL_STRIDE":  [1, 2, 3, 4],
-    "WALL_SOFT_K":  [0, 500, 1000, 2000, 3000, 5000, 7000, 10000],
     "RHO":          [10, 20, 30, 40, 50, 60, 70, 80],
     "RHO_U":        [10, 15, 20, 25, 30, 40, 50],
     "ALPHA":        [0.93, 0.95, 1.0, 1.05, 1.15, 1.2, 1.4],
@@ -150,7 +141,6 @@ SPIELBERG_QUICK_VALUES = {
     "WALL_MARGIN":  [0.10, 0.20, 0.40, 0.70],
     "WALL_END":     [10, 12, 16, 20],
     "WALL_STRIDE":  [1, 2, 3],
-    "WALL_SOFT_K":  [0, 3000, 5000, 10000],
     "PRED_DT":      [0.02, 0.04, 0.06, 0.1],
 }
 
@@ -162,17 +152,17 @@ HARDWARE_FULL_VALUES = {
     "Q_LAT":        [2000, 3000, 3500, 4000, 5000, 6000, 7000, 8000, 10000, 15000, 30000],
     "Q_HDG":        [500, 750, 800, 1000, 1200, 1500, 2000, 3000, 5000, 10000, 20000],
     "Q_VEL":        [5, 10, 15, 26, 50, 60, 75, 80, 90, 100, 120],
-    "Q_LAT_VEL":    [5, 10, 20, 30, 40, 50, 55, 60, 69, 80, 100, 150],
+    "Q_LAT_VEL":    [5, 10, 20, 30, 40, 50, 55, 60, 70, 80, 100, 150],
     "Q_YAW":        [5, 10, 15, 18, 20, 22, 25, 30, 50],
     "R_STEER":      [0.01, 0.03, 0.05, 0.10, 0.12, 0.15, 0.18, 0.20, 0.30, 0.40, 0.60, 1.0],
     "R_ACCEL":      [0.005, 0.008, 0.01, 0.012, 0.015, 0.02, 0.05, 0.1],
     "W_JERK":       [0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 1.0, 1.5, 2.0],
     "W_ACCEL_RATE": [0.05, 0.08, 0.1, 0.12, 0.15, 0.2, 0.5, 1.0],
-    "HORIZON":      [6, 8, 9, 10, 11, 12, 15, 18, 20],
-    "WALL_MARGIN":  [0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.08, 0.10, 0.15, 0.20, 0.30],
-    "WALL_END":     [4, 6, 8, 9, 10, 11, 12, 18],
-    "WALL_STRIDE":  [1, 2, 3, 4, 5, 6],
-    "WALL_SOFT_K":  [0, 100, 150, 200, 300, 400, 500, 1000, 5000, 10000, 20000],
+    "HORIZON":      [15, 18, 20, 22, 25, 30, 35, 40],
+    "WALL_MARGIN":  [0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.08,
+                      0.10, 0.12, 0.15, 0.18, 0.20],
+    "WALL_END":     [6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 40],
+    "WALL_STRIDE":  [1, 2, 3, 4],
     "RHO":          [10, 15, 20, 25, 28, 30, 32, 35, 38, 40, 50, 80],
     "RHO_U":        [10, 15, 16, 18, 20, 22, 25, 30, 50],
     "ALPHA":        [0.85, 0.90, 0.91, 0.92, 0.93, 0.95, 1.0, 1.1, 1.2, 1.4],
@@ -186,11 +176,10 @@ HARDWARE_QUICK_VALUES = {
     "Q_LAT_VEL":    [20, 50, 69, 100],
     "Q_YAW":        [10, 15, 22, 30],
     "R_STEER":      [0.05, 0.10, 0.15, 0.20, 0.40],
-    "HORIZON":      [8, 10, 12, 15, 20],
-    "WALL_MARGIN":  [0.00, 0.02, 0.05, 0.10, 0.15, 0.30],
-    "WALL_END":     [6, 8, 10, 12, 18],
-    "WALL_STRIDE":  [1, 2, 4],
-    "WALL_SOFT_K":  [0, 200, 1000, 5000, 10000],
+    "HORIZON":      [8, 10, 12, 15, 20, 22, 25, 30],
+    "WALL_MARGIN":  [0.00, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.15, 0.18],
+    "WALL_END":     [6, 8, 10, 12, 14, 16, 18, 20, 24],
+    "WALL_STRIDE":  [1, 2, 3, 4],
     "PRED_DT":      [0.04, 0.05, 0.06, 0.08],
 }
 
@@ -201,12 +190,33 @@ HARDWARE_GRID_VALUES = {
     "Q_LAT":        [3000, 5000, 10000, 15000],
     "Q_HDG":        [500, 1000, 5000, 10000],
     "Q_VEL":        [15, 50, 100, 120],
-    "HORIZON":      [8, 10, 15, 20],
+    "HORIZON":      [8, 10, 15, 20, 22, 25, 30],
     "PRED_DT":      [0.04, 0.06, 0.08],
-    "WALL_MARGIN":  [0.00, 0.02, 0.05, 0.10, 0.15],
-    "WALL_SOFT_K":  [0, 200, 1000, 10000],
-    "WALL_END":     [6, 8, 10, 12],
+    "WALL_MARGIN":  [0.00, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.15],
+    "WALL_END":     [6, 8, 10, 12, 14, 16, 18, 20, 24, 30],
 }
+
+SUPPORTED_SWEEP_PARAMS = {
+    "Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW",
+    "R_STEER", "R_ACCEL", "W_JERK", "W_ACCEL_RATE",
+    "RHO", "RHO_U", "ALPHA", "TOL", "MAX_ITER",
+    "WALL_END", "WALL_STRIDE", "WALL_MARGIN",
+    "HORIZON", "PRED_DT"
+}
+
+INT_ENV_PARAMS = {"HORIZON", "WALL_END", "WALL_STRIDE", "MAX_ITER"}
+
+
+def canonicalize_params_for_env(params: dict) -> dict:
+    """Normalize params to the values MPC actually receives via env parsing."""
+    out = dict(params)
+
+    # MPC code reads these with atoi(), so drop any fractional part.
+    for k in INT_ENV_PARAMS:
+        if k in out:
+            out[k] = int(float(out[k]))
+
+    return out
 
 # Active sweep values (set by mode selection in main())
 FULL_VALUES = {}
@@ -219,6 +229,7 @@ def run_test(params: dict, binary: str, raceline: str = None) -> dict:
     env = os.environ.copy()
     env["MPC_TUNING_CSV"] = "1"
     env["REALISTIC_SIM"] = "1"
+    env["WALL_SOFT_K"] = "0"
 
     if raceline:
         env["RACELINE_PATH"] = raceline
@@ -339,9 +350,96 @@ def gen_one_at_a_time(values_dict):
     return combos
 
 
+def valid_wall_combo(params: dict, horizon: int = None) -> bool:
+    """Return True when wall settings are valid for the current horizon.
+
+    Adds stricter checks for high-horizon Hardware sweeps so wall constraints
+    remain dense enough and cover a meaningful prefix of the prediction.
+    """
+    h = int(horizon if horizon is not None else params.get("HORIZON", BASE.get("HORIZON", 20)))
+    we = int(params.get("WALL_END", BASE.get("WALL_END", h)))
+    ws = int(params.get("WALL_STRIDE", BASE.get("WALL_STRIDE", 1)))
+    wm = float(params.get("WALL_MARGIN", BASE.get("WALL_MARGIN", 0.0)))
+
+    if ws < 1 or we < 1 or we > h:
+        return False
+
+    # Keep hardware margins in a realistic band for the measured map clearances.
+    if MODE == "Hardware" and (wm < 0.0 or wm > 0.20):
+        return False
+
+    # Ensure we still activate enough constrained nodes.
+    constrained_nodes = (we // ws) + 1
+    if constrained_nodes < 5:
+        return False
+
+    # Extra guardrails for long horizons where sparse/short wall windows under-constrain.
+    if MODE == "Hardware" and h > 20:
+        min_wall_end = max(12, int(round(0.60 * h)))
+        if we < min_wall_end:
+            return False
+        if ws > 3:
+            return False
+
+    return True
+
+
+def assert_sweep_params_supported(values_dict: dict):
+    """Fail fast if sweep keys include unknown/unused MPC env variables."""
+    unknown = sorted(set(values_dict.keys()) - SUPPORTED_SWEEP_PARAMS)
+    if unknown:
+        raise RuntimeError("Unsupported sweep parameter(s): " + ", ".join(unknown))
+
+
+def _result_signature(r: dict) -> tuple:
+    """Comparable result signature for sanity-checking parameter impact."""
+    return (
+        r.get("status"),
+        r.get("passed"),
+        r.get("failed"),
+        round(r.get("max_lat_err", 0.0), 6),
+        round(r.get("avg_lat_err", 0.0), 6),
+        round(r.get("max_hdg_err", 0.0), 6),
+        round(r.get("avg_hdg_err", 0.0), 6),
+        round(r.get("max_vx", 0.0), 6),
+        round(r.get("avg_vel_err", 0.0), 6),
+        round(r.get("avg_iters", 0.0), 6),
+        r.get("wall_collisions"),
+        round(r.get("time_above_5ms", 0.0), 6),
+    )
+
+
+def sanity_check_parameter_effects(binary: str, raceline: str):
+    """Run small A/B checks so key swept params demonstrably affect output."""
+    baseline = run_test(dict(BASE), binary, raceline)
+    baseline_sig = _result_signature(baseline)
+
+    probes = [
+        ("Q_LAT", max(1.0, float(BASE.get("Q_LAT", 1.0)) * 1.5)),
+        ("RHO", max(1.0, float(BASE.get("RHO", 1.0)) * 1.5)),
+        ("HORIZON", int(max(2, min(40, int(BASE.get("HORIZON", 20)) + 5)))),
+    ]
+    if MODE == "Hardware":
+        probes.append(("WALL_END", int(max(6, min(32, int(BASE.get("WALL_END", 10)) + 6)))))
+
+    ineffective = []
+    for name, new_val in probes:
+        p = dict(BASE)
+        p[name] = new_val
+        if not valid_wall_combo(p):
+            continue
+        rr = run_test(p, binary, raceline)
+        if _result_signature(rr) == baseline_sig:
+            ineffective.append(name)
+
+    if ineffective:
+        print("WARNING: Possible no-effect sweep parameters detected: " + ", ".join(ineffective))
+        print("         Verify env-variable plumbing in test_sim_drive/mpc_riccati.")
+
+
 def gen_primary_grid(values_dict):
     """Grid: Q_LAT × Q_HDG × Q_VEL × HORIZON × PRED_DT.
-    In Hardware mode, also sweeps WALL_MARGIN × WALL_SOFT_K × WALL_END
+    In Hardware mode, also sweeps WALL_MARGIN × WALL_END
     so that wall avoidance params are co-optimized with driving weights."""
     combos = []
     ql_vals = values_dict.get("Q_LAT", [BASE["Q_LAT"]])
@@ -353,17 +451,16 @@ def gen_primary_grid(values_dict):
     if MODE == "Hardware":
         # Hardware: include wall params in primary grid (reduced per-dim)
         wm_vals = values_dict.get("WALL_MARGIN", [BASE["WALL_MARGIN"]])
-        wk_vals = values_dict.get("WALL_SOFT_K", [BASE["WALL_SOFT_K"]])
         we_vals = values_dict.get("WALL_END", [BASE["WALL_END"]])
-        for ql, qh, qv, h, pd, wm, wk, we in itertools.product(
-                ql_vals, qh_vals, qv_vals, h_vals, pd_vals, wm_vals, wk_vals, we_vals):
-            if we > h:
-                continue  # WALL_END can't exceed HORIZON
+        for ql, qh, qv, h, pd, wm, we in itertools.product(
+                ql_vals, qh_vals, qv_vals, h_vals, pd_vals, wm_vals, we_vals):
             w = dict(BASE)
             w["Q_LAT"] = ql; w["Q_HDG"] = qh; w["Q_VEL"] = qv
             w["HORIZON"] = h; w["PRED_DT"] = pd
-            w["WALL_MARGIN"] = wm; w["WALL_SOFT_K"] = wk; w["WALL_END"] = we
-            combos.append((f"L={ql}+H={qh}+V={qv}+N={h}+dt={pd}+WM={wm}+WK={wk}+WE={we}", w))
+            w["WALL_MARGIN"] = wm; w["WALL_END"] = we
+            if not valid_wall_combo(w, horizon=h):
+                continue
+            combos.append((f"L={ql}+H={qh}+V={qv}+N={h}+dt={pd}+WM={wm}+WE={we}", w))
     else:
         for ql, qh, qv, h, pd in itertools.product(ql_vals, qh_vals, qv_vals, h_vals, pd_vals):
             w = dict(BASE)
@@ -373,21 +470,20 @@ def gen_primary_grid(values_dict):
 
 
 def gen_wall_grid(values_dict):
-    """Grid: WALL_MARGIN × WALL_END × WALL_STRIDE × WALL_SOFT_K.
+    """Grid: WALL_MARGIN × WALL_END × WALL_STRIDE.
     Skips combos where WALL_END > current HORIZON (from BASE/cascade)."""
     combos = []
     wm_vals = values_dict.get("WALL_MARGIN", [BASE["WALL_MARGIN"]])
     we_vals = values_dict.get("WALL_END", [BASE["WALL_END"]])
     ws_vals = values_dict.get("WALL_STRIDE", [BASE["WALL_STRIDE"]])
-    wk_vals = values_dict.get("WALL_SOFT_K", [BASE["WALL_SOFT_K"]])
     horizon = BASE.get("HORIZON", 20)
-    for wm, we, ws, wk in itertools.product(wm_vals, we_vals, ws_vals, wk_vals):
-        if we > horizon:
-            continue  # WALL_END can't exceed HORIZON
+    for wm, we, ws in itertools.product(wm_vals, we_vals, ws_vals):
         w = dict(BASE)
         w["WALL_MARGIN"] = wm; w["WALL_END"] = we
-        w["WALL_STRIDE"] = ws; w["WALL_SOFT_K"] = wk
-        combos.append((f"WM={wm}+WE={we}+WS={ws}+WK={wk}", w))
+        w["WALL_STRIDE"] = ws
+        if not valid_wall_combo(w, horizon=horizon):
+            continue
+        combos.append((f"WM={wm}+WE={we}+WS={ws}", w))
     return combos
 
 
@@ -447,11 +543,6 @@ def gen_velocity_push():
         # High ADMM alpha (over-relaxation) + velocity
         {"Q_VEL": 100, "ALPHA": 1.2, "RHO": 50},
         {"Q_VEL": 100, "ALPHA": 1.4, "RHO": 50},
-        # Soft vs hard wall constraints
-        {"Q_VEL": 100, "WALL_SOFT_K": 0},
-        {"Q_VEL": 100, "WALL_SOFT_K": 500},
-        {"Q_VEL": 100, "WALL_SOFT_K": 1000},
-        {"Q_VEL": 100, "WALL_SOFT_K": 10000},
     ]
     for cfg in configs:
         w = dict(BASE)
@@ -464,7 +555,7 @@ def gen_velocity_push():
 def gen_fine_tuning(best_weights, pct_range=(0.80, 0.85, 0.90, 0.95, 1.05, 1.10, 1.15, 1.20)):
     """Fine-tuning around best config."""
     combos = []
-    skip = {"MAX_ITER", "HORIZON"}
+    skip = {"MAX_ITER", "HORIZON", "WALL_STRIDE"}
     for name, base_val in best_weights.items():
         if base_val == 0 or name in skip:
             continue
@@ -472,8 +563,13 @@ def gen_fine_tuning(best_weights, pct_range=(0.80, 0.85, 0.90, 0.95, 1.05, 1.10,
             new_val = round(base_val * mult, 6)
             if name in ("WALL_END",):
                 new_val = max(1, int(new_val))
-            elif name in ("WALL_SOFT_K",):
-                new_val = max(0, round(new_val))
+
+            # Skip perturbations that do not change the effective value.
+            base_eff = canonicalize_params_for_env({name: base_val})[name]
+            new_eff = canonicalize_params_for_env({name: new_val})[name]
+            if base_eff == new_eff:
+                continue
+
             w = dict(best_weights)
             w[name] = new_val
             pct = int((mult - 1.0) * 100)
@@ -519,8 +615,6 @@ def gen_random_neighbors(best_weights, n=150):
                 w[name] = round(w[name] * mult, 6)
                 if name in ("WALL_END",):
                     w[name] = max(1, int(w[name]))
-                elif name in ("WALL_SOFT_K",):
-                    w[name] = max(0, round(w[name]))
         combos.append((f"RND_{i}", w))
     return combos
 
@@ -530,8 +624,9 @@ def deduplicate(combos):
     seen = set()
     unique = []
     for label, params in combos:
+        effective = canonicalize_params_for_env(params)
         key = tuple(sorted((k, round(v, 4) if isinstance(v, float) else v)
-                           for k, v in params.items()))
+                           for k, v in effective.items()))
         if key not in seen:
             seen.add(key)
             unique.append((label, params))
@@ -780,6 +875,7 @@ def main():
             print(f"  WARNING: --raceline {raceline_arg} not found, using all available")
 
     values = QUICK_VALUES if quick else FULL_VALUES
+    assert_sweep_params_supported(values)
     results = []
     t0 = time.time()
     total_p = total_f = 0
@@ -859,6 +955,9 @@ def main():
         print(f"# Mode: {MODE}  Raceline: [{rl_tag}]  WALL_MARGIN={BASE['WALL_MARGIN']}")
         print(f"{'#'*80}")
 
+        # Preflight: ensure key swept params change closed-loop outputs.
+        sanity_check_parameter_effects(binary, rl_path)
+
         # ─── Phase 1: One-at-a-time (from original BASE) ────────────
         if should_run(1):
             p, f = run_phase("Phase 1: One-at-a-time",
@@ -870,7 +969,7 @@ def main():
         if should_run(2):
             if MODE == "Hardware":
                 grid_vals = HARDWARE_GRID_VALUES
-                phase2_label = "Phase 2: Primary+Wall grid (Q_LAT×Q_HDG×Q_VEL×HORIZON×PRED_DT×WM×WK×WE)"
+                phase2_label = "Phase 2: Primary+Wall grid (Q_LAT×Q_HDG×Q_VEL×HORIZON×PRED_DT×WM×WE)"
             else:
                 grid_vals = values
                 phase2_label = "Phase 2: Primary grid (Q_LAT×Q_HDG×Q_VEL×HORIZON×PRED_DT)"
@@ -900,7 +999,7 @@ def main():
 
             # ─── Phase 3: Wall grid (cascaded) ──────────────────────
             if should_run(3):
-                p, f = run_phase(f"Phase 3: Wall grid (WM×WE×WS×WK) [branch {ci+1}]",
+                p, f = run_phase(f"Phase 3: Wall grid (WM×WE×WS) [branch {ci+1}]",
                                  gen_wall_grid(values), binary, results, t0,
                                  rl_path, rl_tag, num_workers, csv_writer)
                 total_p += p; total_f += f
@@ -992,9 +1091,9 @@ def main():
         print(f"\n{'='*80}")
         print(f"[{MODE}] TOP 30 (lowest score = best)")
         print(f"{'='*80}")
-        fmt = "{:<4} {:<50} {:>7} {:>6} {:>5} {:>5} {:>5} {:>4} {:>4} {:>3} {:>6} {:>6} {:>6} {:>3}"
+        fmt = "{:<4} {:<50} {:>7} {:>6} {:>5} {:>5} {:>5} {:>4} {:>4} {:>3} {:>6} {:>6} {:>3}"
         print(fmt.format("Rank", "Label", "Score", "AvgVE", "MaxVx", "T>5s",
-                          "AvgLt", "WM", "WE", "WS", "WK", "N", "PdDT", "WC"))
+                  "AvgLt", "WM", "WE", "WS", "N", "PdDT", "WC"))
         print("-" * 140)
         for i, r in enumerate(passing[:30]):
             print(fmt.format(
@@ -1005,7 +1104,6 @@ def main():
                 f"{r.get('WALL_MARGIN', '-')}",
                 f"{r.get('WALL_END', '-')}",
                 f"{r.get('WALL_STRIDE', '-')}",
-                f"{r.get('WALL_SOFT_K', '-')}",
                 f"{r.get('HORIZON', '-')}",
                 f"{r.get('PRED_DT', '-')}",
                 f"{r.get('wall_collisions', '-')}" ))

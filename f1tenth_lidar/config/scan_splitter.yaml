@@ -1,14 +1,21 @@
 # Scan Splitter Node Configuration
 scan_splitter_node:
   ros__parameters:
+    # Master switch. false = publish raw scan on walls topic and empty obstacle scan.
+    enable_splitting: true
+
     # Distance (meters) from a known wall beyond which a beam endpoint
     # is considered an obstacle rather than a wall reflection.
     # Higher = more tolerant of localization error / map inaccuracy.
     obstacle_threshold_m: 0.2
 
     # Minimum number of adjacent obstacle beams to count as a real obstacle.
-    # Filters out single-beam noise from localization jitter or map errors.
+    # With 270-beam scans (cluster=4), 2 is often a better starting point than 3.
     min_cluster_size: 3
+
+    # Bridge short false gaps inside obstacle runs (in beam count) before
+    # applying min_cluster_size. Helps when sparse scans fragment obstacles.
+    max_cluster_gap_beams: 1
 
     # Topics
     scan_topic: "/scan"

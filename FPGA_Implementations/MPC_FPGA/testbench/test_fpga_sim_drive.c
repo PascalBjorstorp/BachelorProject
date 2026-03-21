@@ -2,10 +2,10 @@
  * @file test_fpga_sim_drive.c
  * @brief Closed-loop MPC simulation test for the FPGA HLS implementation
  *
- * Tests the FPGA top-level function (mpc_fpga_top) in a 60-second
- * closed-loop simulation using the nonlinear single-track vehicle model
- * (matching f1tenth_gym). Runs at 200Hz (5ms dt) with the Spielberg
- * raceline.
+ * Tests the FPGA top-level function (mpc_fpga_top) in a 100-second
+ * closed-loop simulation using a nonlinear single-track plant model.
+ * The objective is to validate closed-loop stability and constraint
+ * behavior under the same update rate used by control (200 Hz, 5 ms).
  *
  * Compile (standalone GCC, no Vitis needed):
  *   cd FPGA_Implementations/MPC_FPGA
@@ -22,6 +22,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <ctype.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -40,13 +41,14 @@
 
 /* External: FPGA top-level function */
 extern void mpc_fpga_top(
-    int mode, int wp_index,
-    int wp_x_fp, int wp_y_fp, int wp_psi_fp,
-    int wp_vx_fp, int wp_kappa_fp, int wp_ax_fp,
-    int wp_left_bound_fp, int wp_right_bound_fp, int wp_total,
-    int state_x_fp, int state_y_fp, int state_theta_fp,
+    int state_x_fp, int state_theta_fp,
     int state_vx_fp, int state_vy_fp, int state_omega_fp,
-    int state_steering_fp, int state_wp_idx,
+    int state_steering_fp,
+    const int *ref_vx_mem,
+    const int *ref_kappa_mem,
+    const int *ref_left_bound_mem,
+    const int *ref_right_bound_mem,
+    int ref_count,
     int *out_steering_fp, int *out_accel_fp,
     int *out_status, int *out_iterations);
 
@@ -60,7 +62,7 @@ extern void mpc_fpga_top(
 #define MAX_WAYPOINTS     2000
 #define MAX_STEERING      0.4189  /* rad (calibrated with polynomial servo correction) */
 #define MAX_VELOCITY      20.0    /* m/s */
-#define PHYSICAL_MAX_ACCEL 8.0    /* m/s^2 */
+#define PHYSICAL_MAX_ACCEL 7.31   /* m/s^2 */
 #define MPC_CALL_INTERVAL 1       /* Call MPC every sim step = 5ms = 200Hz (matches CPU test) */
 
 /* Trajectory pre-processing (matching gym_bridge ROS2 node exactly) */
@@ -81,7 +83,7 @@ extern void mpc_fpga_top(
  * These values come from measured vehicle parameters in vehicle_params.yaml.
  *===========================================================================*/
 #define ROLLING_RESISTANCE_N      2.79    /* Measured: vehicle_params.yaml L176 */
-#define PACEJKA_C_SHAPE           1.9     /* Shape factor for Pacejka tire */
+#define PACEJKA_C_SHAPE           FP_TO_DOUBLE(VP_C_SHAPE) /* Keep testbench aligned with header */
 #define NOISE_POS_M               0.01    /* AMCL position noise (m) */
 #define NOISE_HDG_RAD             0.009   /* AMCL heading noise (~0.5 deg) */
 #define NOISE_VX_MS               0.05    /* ERPM velocity noise (m/s) */
@@ -101,18 +103,18 @@ typedef struct {
     double vx, vy, omega;
 } SimState_t;
 
-/* Vehicle parameters matching gym config */
-static const double ST_mu       = 0.7463;
-static const double ST_mass     = 3.314;
-static const double ST_Iz       = 0.035;
-static const double ST_C_Sf     = 4.199;
-static const double ST_C_Sr     = 3.230;
-static const double ST_lf       = 0.166;
-static const double ST_lr       = 0.16;
-static const double ST_h_cg     = 0.0703;
-static const double ST_g_acc    = 9.81;
-static const double ST_sv_max   = 2.8492;  /* max steering velocity (rad/s) */
-static const double ST_s_max    = 0.4189;  /* max steering angle (rad, calibrated) */
+/* Vehicle parameters from FPGA header constants (keeps plant and controller aligned). */
+static const double ST_mu       = FP_TO_DOUBLE(VP_MU);
+static const double ST_mass     = FP_TO_DOUBLE(VP_MASS);
+static const double ST_Iz       = FP_TO_DOUBLE(VP_IZ);
+static const double ST_C_Sf     = FP_TO_DOUBLE(VP_C_ALPHA_SF);
+static const double ST_C_Sr     = FP_TO_DOUBLE(VP_C_ALPHA_SR);
+static const double ST_lf       = FP_TO_DOUBLE(VP_LF);
+static const double ST_lr       = FP_TO_DOUBLE(VP_LR);
+static const double ST_h_cg     = FP_TO_DOUBLE(VP_CG_HEIGHT);
+static const double ST_g_acc    = FP_TO_DOUBLE(VP_GRAVITY);
+static const double ST_sv_max   = FP_TO_DOUBLE(VP_MAX_STEER_RATE);  /* max steering velocity (rad/s) */
+static const double ST_s_max    = FP_TO_DOUBLE(VP_MAX_STEER);       /* max steering angle (rad, calibrated) */
 static const double ST_v_switch = 7.319;
 static const double ST_v_min    = 0.0;
 static const double ST_v_max    = 20.0;
@@ -367,6 +369,200 @@ static int raceline_count = 0;
 
 static const char *raceline_override = NULL;  /* set from argv */
 
+typedef struct {
+    int width;
+    int height;
+    int maxval;
+    unsigned char *data;
+    double resolution;
+    double origin_x;
+    double origin_y;
+    int negate;
+    double occupied_thresh;
+    int loaded;
+} OccupancyMap_t;
+
+static OccupancyMap_t occ_map = {0};
+
+static void trim_ws(char *s)
+{
+    size_t n = strlen(s);
+    while (n > 0 && isspace((unsigned char)s[n - 1])) s[--n] = '\0';
+    while (*s && isspace((unsigned char)*s)) memmove(s, s + 1, strlen(s));
+}
+
+static int read_pgm_file(const char *pgm_path, OccupancyMap_t *m)
+{
+    FILE *f = fopen(pgm_path, "rb");
+    if (!f) return 0;
+
+    char magic[3] = {0};
+    if (fscanf(f, "%2s", magic) != 1) { fclose(f); return 0; }
+    if (strcmp(magic, "P5") != 0 && strcmp(magic, "P2") != 0) {
+        fclose(f);
+        return 0;
+    }
+
+    int c = fgetc(f);
+    while (c == '#') {
+        while (c != '\n' && c != EOF) c = fgetc(f);
+        c = fgetc(f);
+    }
+    if (c != EOF) ungetc(c, f);
+
+    if (fscanf(f, "%d %d", &m->width, &m->height) != 2) { fclose(f); return 0; }
+    if (fscanf(f, "%d", &m->maxval) != 1) { fclose(f); return 0; }
+    if (m->width <= 0 || m->height <= 0 || m->maxval <= 0 || m->maxval > 255) {
+        fclose(f);
+        return 0;
+    }
+
+    m->data = (unsigned char *)malloc((size_t)m->width * (size_t)m->height);
+    if (!m->data) { fclose(f); return 0; }
+
+    fgetc(f); /* consume one whitespace byte before pixel payload */
+
+    if (strcmp(magic, "P5") == 0) {
+        size_t need = (size_t)m->width * (size_t)m->height;
+        size_t got = fread(m->data, 1, need, f);
+        if (got != need) { fclose(f); free(m->data); m->data = NULL; return 0; }
+    } else {
+        for (int i = 0; i < m->width * m->height; i++) {
+            int v;
+            if (fscanf(f, "%d", &v) != 1) {
+                fclose(f); free(m->data); m->data = NULL; return 0;
+            }
+            if (v < 0) v = 0;
+            if (v > 255) v = 255;
+            m->data[i] = (unsigned char)v;
+        }
+    }
+
+    fclose(f);
+    return 1;
+}
+
+static int load_map_yaml(const char *yaml_path)
+{
+    FILE *f = fopen(yaml_path, "r");
+    if (!f) {
+        fprintf(stderr, "WARN: cannot open map yaml '%s'\n", yaml_path);
+        return 0;
+    }
+
+    char image_name[512] = {0};
+    occ_map.resolution = 0.01;
+    occ_map.origin_x = 0.0;
+    occ_map.origin_y = 0.0;
+    occ_map.negate = 0;
+    occ_map.occupied_thresh = 0.65;
+
+    char line[512];
+    while (fgets(line, sizeof(line), f)) {
+        char key[64] = {0};
+        char rest[448] = {0};
+        if (sscanf(line, " %63[^:]: %447[^\n]", key, rest) != 2) continue;
+        trim_ws(rest);
+        if (strcmp(key, "image") == 0) {
+            strncpy(image_name, rest, sizeof(image_name) - 1);
+        } else if (strcmp(key, "resolution") == 0) {
+            occ_map.resolution = atof(rest);
+        } else if (strcmp(key, "negate") == 0) {
+            occ_map.negate = atoi(rest);
+        } else if (strcmp(key, "occupied_thresh") == 0) {
+            occ_map.occupied_thresh = atof(rest);
+        } else if (strcmp(key, "origin") == 0) {
+            double ox = 0.0, oy = 0.0, oz = 0.0;
+            if (sscanf(rest, "[%lf,%lf,%lf]", &ox, &oy, &oz) == 3) {
+                occ_map.origin_x = ox;
+                occ_map.origin_y = oy;
+            }
+        }
+    }
+    fclose(f);
+
+    if (image_name[0] == '\0') {
+        fprintf(stderr, "WARN: map yaml has no image field: %s\n", yaml_path);
+        return 0;
+    }
+
+    char pgm_path[1024] = {0};
+    if (image_name[0] == '/') {
+        strncpy(pgm_path, image_name, sizeof(pgm_path) - 1);
+    } else {
+        const char *last_slash = strrchr(yaml_path, '/');
+        if (!last_slash) {
+            snprintf(pgm_path, sizeof(pgm_path), "%s", image_name);
+        } else {
+            size_t dir_len = (size_t)(last_slash - yaml_path + 1);
+            if (dir_len >= sizeof(pgm_path)) dir_len = sizeof(pgm_path) - 1;
+            memcpy(pgm_path, yaml_path, dir_len);
+            pgm_path[dir_len] = '\0';
+            strncat(pgm_path, image_name, sizeof(pgm_path) - strlen(pgm_path) - 1);
+        }
+    }
+
+    if (occ_map.data) {
+        free(occ_map.data);
+        occ_map.data = NULL;
+    }
+    if (!read_pgm_file(pgm_path, &occ_map)) {
+        fprintf(stderr, "WARN: failed to load map image '%s'\n", pgm_path);
+        return 0;
+    }
+
+    occ_map.loaded = 1;
+    printf("[MAP] %s (%dx%d, res=%.3f, occ_th=%.2f)\n",
+           pgm_path, occ_map.width, occ_map.height,
+           occ_map.resolution, occ_map.occupied_thresh);
+    return 1;
+}
+
+static int map_is_occupied_world(double wx, double wy)
+{
+    if (!occ_map.loaded || !occ_map.data) return 0;
+
+    double mx = (wx - occ_map.origin_x) / occ_map.resolution;
+    double my = (wy - occ_map.origin_y) / occ_map.resolution;
+    int col = (int)llround(mx);
+    int row = occ_map.height - 1 - (int)llround(my);
+
+    if (col < 0 || col >= occ_map.width || row < 0 || row >= occ_map.height) {
+        return 1;
+    }
+
+    unsigned char pix = occ_map.data[row * occ_map.width + col];
+    double occ = occ_map.negate ? ((double)pix / 255.0)
+                                : (1.0 - (double)pix / 255.0);
+    return occ > occ_map.occupied_thresh;
+}
+
+static int map_body_collision(double x, double y, double theta)
+{
+    if (!occ_map.loaded) return 0;
+
+    const double half_len = 0.16;
+    const double half_w = VEHICLE_HALF_WIDTH + BODY_SAFETY_MARGIN;
+    const double c = cos(theta);
+    const double s = sin(theta);
+
+    const double pts[5][2] = {
+        {0.0, 0.0},
+        {half_len,  half_w},
+        {half_len, -half_w},
+        {-half_len,  half_w},
+        {-half_len, -half_w},
+    };
+
+    for (int i = 0; i < 5; i++) {
+        double lx = pts[i][0], ly = pts[i][1];
+        double wx = x + c * lx - s * ly;
+        double wy = y + s * lx + c * ly;
+        if (map_is_occupied_world(wx, wy)) return 1;
+    }
+    return 0;
+}
+
 static int load_raceline(void)
 {
     const char *paths[] = {
@@ -524,6 +720,15 @@ int main(int argc, char *argv[])
 
     if (!load_raceline()) return 1;
 
+    {
+        const char *map_yaml = getenv("MAP_YAML");
+        if (map_yaml && map_yaml[0]) {
+            if (!load_map_yaml(map_yaml)) {
+                fprintf(stderr, "WARN: MAP_YAML provided but map loading failed, continuing with raceline-only wall checks.\n");
+            }
+        }
+    }
+
     /* Velocity limiting: cap raceline velocities by curvature.
      * Curvature limiting: realistic mode only (physics-based).
      * Corridor-width velocity cap removed — wall constraints in the MPC
@@ -550,32 +755,9 @@ int main(int argc, char *argv[])
                vlimit_count, raceline_count, a_lat_max);
     }
 
-    /* ===== Phase 1: Load trajectory into FPGA ===== */
-    if (verbose) printf("  Loading %d waypoints into FPGA...\n", raceline_count);
-
-    int dummy_steer, dummy_accel, dummy_status, dummy_iters;
-    for (int i = 0; i < raceline_count; i++) {
-        mpc_fpga_top(
-            1, i,
-            DOUBLE_TO_FP(raceline[i].x),
-            DOUBLE_TO_FP(raceline[i].y),
-            DOUBLE_TO_FP(raceline[i].psi),
-            DOUBLE_TO_FP(raceline[i].vx),
-            DOUBLE_TO_FP(raceline[i].kappa),
-            DOUBLE_TO_FP(raceline[i].ax),
-            DOUBLE_TO_FP(raceline[i].left_bound),
-            DOUBLE_TO_FP(raceline[i].right_bound),
-            0,
-            0, 0, 0, 0, 0, 0, 0, 0,
-            &dummy_steer, &dummy_accel, &dummy_status, &dummy_iters);
+    if (verbose) {
+        printf("  No preload phase: horizon frame is streamed per compute call.\n\n");
     }
-
-    /* Finalize trajectory */
-    mpc_fpga_top(
-        2, 0, 0, 0, 0, 0, 0, 0, 0, 0, raceline_count,
-        0, 0, 0, 0, 0, 0, 0, 0,
-        &dummy_steer, &dummy_accel, &dummy_status, &dummy_iters);
-    if (verbose) printf("  Finalized: status=%d, count=%d\n\n", dummy_status, dummy_iters);
 
     /* ===== Phase 2: Run simulation ===== */
     SimState_t state;
@@ -592,6 +774,10 @@ int main(int argc, char *argv[])
     double max_vel_err = 0, sum_vel_err = 0;
     int wall_collisions = 0;
     int solver_ok = 0, solver_calls = 0;
+    int status_optimal = 0;
+    int status_max_iter = 0;
+    int status_error = 0;
+    int max_iter_hits = 0;
     double actual_steer = 0.0;
     double prev_steer = 0.0;
     int steer_reversals = 0;
@@ -609,6 +795,11 @@ int main(int argc, char *argv[])
     /* Current MPC output (held between MPC calls) */
     double cmd_steer = 0.0;
     double cmd_accel = 0.0;
+
+    int ref_vx_mem[MPC_HORIZON];
+    int ref_kappa_mem[MPC_HORIZON];
+    int ref_left_mem[MPC_HORIZON];
+    int ref_right_mem[MPC_HORIZON];
 
     /* MPC computation delay buffer (realistic mode only):
      * Control computed from state at time t is applied at time t+dt. */
@@ -632,7 +823,7 @@ int main(int argc, char *argv[])
 
         int closest = find_closest_waypoint(state.x, state.y, state.theta);
 
-        /* Frenet error (for metrics only — FPGA computes its own) */
+        /* Frenet error used for tracking metrics and as controller input. */
         double e_y = -(state.x - raceline[closest].x) * sin(raceline[closest].psi)
                      + (state.y - raceline[closest].y) * cos(raceline[closest].psi);
         double e_psi = wrap_angle(state.theta - raceline[closest].psi);
@@ -658,12 +849,18 @@ int main(int argc, char *argv[])
             mpc_vx = ema_vx; mpc_vy = ema_vy; mpc_omega = ema_omega;
         }
 
-        /* Wall collision check — body-edge (matching gym iTTC) */
+        /* Collision checks:
+         * 1) corridor check from raceline bounds,
+         * 2) occupancy-map body check when MAP_YAML is configured. */
         double left_wall = raceline[closest].left_bound;
         double right_wall = raceline[closest].right_bound;
         int wall_hit = 0;
         if (e_y > (left_wall - VEHICLE_HALF_WIDTH - BODY_SAFETY_MARGIN))  { wall_hit = 1;  wall_collisions++; }
         if (e_y < -(right_wall - VEHICLE_HALF_WIDTH - BODY_SAFETY_MARGIN)){ wall_hit = -1; wall_collisions++; }
+        if (map_body_collision(state.x, state.y, state.theta)) {
+            wall_hit = (wall_hit == 0) ? 2 : wall_hit;
+            wall_collisions++;
+        }
         if (wall_hit && state.vx > 1.0) {
             printf("\n  !!! WALL CRASH: e_y = %.3f m (bound: %.3f) at step %d (t=%.2fs, wp=%d, v=%.1f) !!!\n",
                    e_y, wall_hit > 0 ? left_wall : right_wall, step, t, closest, state.vx);
@@ -676,16 +873,35 @@ int main(int argc, char *argv[])
 
             clock_gettime(CLOCK_MONOTONIC_RAW, &t0);
 
+            /* Build one prediction horizon frame from the local track segment.
+             * A local horizon keeps optimization causal and consistent with
+             * receding-horizon MPC assumptions. */
+            for (int hk = 0; hk < MPC_HORIZON; hk++) {
+                int ridx = closest + hk;
+                while (ridx >= raceline_count) ridx -= raceline_count;
+                ref_vx_mem[hk] = DOUBLE_TO_FP(raceline[ridx].vx);
+                ref_kappa_mem[hk] = DOUBLE_TO_FP(raceline[ridx].kappa);
+                ref_left_mem[hk] = DOUBLE_TO_FP(raceline[ridx].left_bound);
+                ref_right_mem[hk] = DOUBLE_TO_FP(raceline[ridx].right_bound);
+            }
+
+            /* Controller state is in Frenet coordinates (e_y, e_psi). */
+            double mpc_e_y = -(mpc_x - raceline[closest].x) * sin(raceline[closest].psi)
+                           + (mpc_y - raceline[closest].y) * cos(raceline[closest].psi);
+            double mpc_e_psi = wrap_angle(mpc_theta - raceline[closest].psi);
+
             mpc_fpga_top(
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                DOUBLE_TO_FP(mpc_x),
-                DOUBLE_TO_FP(mpc_y),
-                DOUBLE_TO_FP(mpc_theta),
+                DOUBLE_TO_FP(mpc_e_y),
+                DOUBLE_TO_FP(mpc_e_psi),
                 DOUBLE_TO_FP(mpc_vx),
                 DOUBLE_TO_FP(mpc_vy),
                 DOUBLE_TO_FP(mpc_omega),
                 DOUBLE_TO_FP(st_delta),  /* feed actual servo position, not command */
-                closest,
+                ref_vx_mem,
+                ref_kappa_mem,
+                ref_left_mem,
+                ref_right_mem,
+                MPC_HORIZON,
                 &out_steer_fp, &out_accel_fp,
                 &out_status, &out_iters);
 
@@ -700,9 +916,13 @@ int main(int argc, char *argv[])
             cmd_accel = FP_TO_DOUBLE(out_accel_fp);
             total_iterations += out_iters;
             if (out_iters > max_iters_single) max_iters_single = out_iters;
+            if (out_iters >= MPC_MAX_ADMM_ITER) max_iter_hits++;
 
             if (out_status == 0 || out_status == 1)
                 solver_ok++;
+            if (out_status == 0) status_optimal++;
+            else if (out_status == 1) status_max_iter++;
+            else status_error++;
             solver_calls++;
         }
 
@@ -794,6 +1014,10 @@ int main(int argc, char *argv[])
     printf("\n  === Results (FPGA HLS Riccati-ADMM, %.0f seconds) ===\n", SIM_DURATION);
     printf("  Solver calls:       %d (success: %d, %.1f%%)\n",
            solver_calls, solver_ok, 100.0 * solver_ok / (solver_calls > 0 ? solver_calls : 1));
+        printf("  Status breakdown:   optimal=%d, max_iter=%d, error=%d\n",
+            status_optimal, status_max_iter, status_error);
+        printf("  Hit iteration cap:  %d times (iters >= %d)\n",
+            max_iter_hits, MPC_MAX_ADMM_ITER);
     printf("  Max velocity:       %.2f m/s\n", max_vx);
     printf("  Max lateral error:  %.3f m\n", max_lat_err);
     printf("  Avg lateral error:  %.3f m\n", avg_lat);

@@ -62,7 +62,7 @@
 #define MAX_WAYPOINTS     2000
 #define MAX_STEERING      0.4189 /* rad — calibrated limit (with polynomial servo correction) */
 #define MAX_VELOCITY      20.0   /* m/s */
-#define PHYSICAL_MAX_ACCEL 8.0   /* m/s² — matches MPC constraint bounds */
+#define PHYSICAL_MAX_ACCEL 7.31  /* m/s² — bounded by mu*g */
 
 /* Trajectory pre-processing (matching gym_bridge ROS2 node exactly) */
 #define TRAJECTORY_SPEED_GAIN     1.0
@@ -85,7 +85,7 @@
 #define PACEJKA_C_SHAPE           1.9     /* Shape factor for Pacejka tire */
 /* Noise std-devs matching real sensor characteristics.
  * Note: VESC ACCEL_TO_CURRENT mode compensates for rolling resistance and
- * drivetrain efficiency, so a_max=8.0 already includes those losses.
+ * drivetrain efficiency, so a_max=7.31 respects measured traction limits.
  * Rolling resistance is modeled as speed-dependent aerodynamic+friction drag
  * that the VESC cannot fully compensate at high speed. */
 #define NOISE_POS_M               0.01    /* AMCL position noise (m) */
@@ -106,9 +106,12 @@ typedef struct {
 static Waypoint_t raceline[MAX_WAYPOINTS];
 static int raceline_count = 0;
 static double g_mpc_prediction_dt = 0.04;  /* Set from PRED_DT env or default */
+static double g_track_length_m = 0.0;
 
 static int load_raceline(void)
 {
+    raceline_count = 0;
+
     /* Allow env var override for raceline path (tuning with different tracks) */
     const char *env_path = getenv("RACELINE_PATH");
     if (env_path) {
@@ -124,11 +127,32 @@ static int load_raceline(void)
                                &wp->s, &wp->x, &wp->y, &wp->psi,
                                &wp->kappa, &wp->vx, &wp->ax,
                                &wp->left_bound, &wp->right_bound);
-                if (n >= 7) raceline_count++;
+                if (n >= 9) {
+                    raceline_count++;
+                } else if (n >= 7) {
+                    /* Older racelines do not include wall bounds. */
+                    wp->left_bound = 5.0;
+                    wp->right_bound = 5.0;
+                    raceline_count++;
+                }
             }
             fclose(f);
+
+            /* Keep behavior aligned with default loader path. */
+            for (int i = 0; i < raceline_count; i++) {
+                double sv = raceline[i].vx * TRAJECTORY_SPEED_GAIN;
+                if (sv > TRAJECTORY_MAX_VELOCITY) sv = TRAJECTORY_MAX_VELOCITY;
+                if (sv < 0.0) sv = 0.0;
+                raceline[i].vx = sv;
+            }
+
+            if (raceline_count >= 2) {
+                g_track_length_m = raceline[raceline_count - 1].s - raceline[0].s;
+                if (g_track_length_m < 1e-3) g_track_length_m = 0.0;
+            }
+
             printf("  Loaded %d waypoints\n", raceline_count);
-            return 1;
+            return raceline_count > 0;
         }
         fprintf(stderr, "ERROR: Cannot open RACELINE_PATH=%s\n", env_path);
         return 0;
@@ -177,6 +201,11 @@ static int load_raceline(void)
     printf("[LOAD] %d waypoints (speed_gain=%.2f, v: %.1f-%.1f m/s)\n",
            raceline_count, TRAJECTORY_SPEED_GAIN,
            raceline[0].vx, raceline[raceline_count/2].vx);
+
+    if (raceline_count >= 2) {
+        g_track_length_m = raceline[raceline_count - 1].s - raceline[0].s;
+        if (g_track_length_m < 1e-3) g_track_length_m = 0.0;
+    }
     return raceline_count > 0;
 }
 
@@ -240,28 +269,79 @@ static FrenetState_t vehicle_to_frenet(const VehicleState_t *v, int wp)
     return f;
 }
 
+static double wrap_track_s(double s)
+{
+    if (g_track_length_m <= 1e-6 || raceline_count <= 1) return s;
+    double s0 = raceline[0].s;
+    while (s < s0) s += g_track_length_m;
+    while (s >= s0 + g_track_length_m) s -= g_track_length_m;
+    return s;
+}
+
+static Waypoint_t sample_raceline_by_s(double s_query)
+{
+    if (raceline_count <= 0) {
+        Waypoint_t empty = {0};
+        return empty;
+    }
+    if (raceline_count == 1 || g_track_length_m <= 1e-6) {
+        return raceline[0];
+    }
+
+    const double s = wrap_track_s(s_query);
+    for (int i = 0; i < raceline_count - 1; i++) {
+        const Waypoint_t *w0 = &raceline[i];
+        const Waypoint_t *w1 = &raceline[i + 1];
+        if (s >= w0->s && s <= w1->s) {
+            const double denom = w1->s - w0->s;
+            const double t = (denom > 1e-9) ? ((s - w0->s) / denom) : 0.0;
+            Waypoint_t out = *w0;
+            out.s = s;
+            out.x = w0->x + (w1->x - w0->x) * t;
+            out.y = w0->y + (w1->y - w0->y) * t;
+            out.psi = w0->psi + (w1->psi - w0->psi) * t;
+            out.kappa = w0->kappa + (w1->kappa - w0->kappa) * t;
+            out.vx = w0->vx + (w1->vx - w0->vx) * t;
+            out.ax = w0->ax + (w1->ax - w0->ax) * t;
+            out.left_bound = w0->left_bound + (w1->left_bound - w0->left_bound) * t;
+            out.right_bound = w0->right_bound + (w1->right_bound - w0->right_bound) * t;
+            return out;
+        }
+    }
+
+    const Waypoint_t *w0 = &raceline[raceline_count - 1];
+    const Waypoint_t *w1 = &raceline[0];
+    const double s1 = w1->s + g_track_length_m;
+    double s_adj = s;
+    if (s_adj < w0->s) s_adj += g_track_length_m;
+    const double denom = s1 - w0->s;
+    const double t = (denom > 1e-9) ? ((s_adj - w0->s) / denom) : 0.0;
+    Waypoint_t out = *w0;
+    out.s = s;
+    out.x = w0->x + (w1->x - w0->x) * t;
+    out.y = w0->y + (w1->y - w0->y) * t;
+    out.psi = w0->psi + (w1->psi - w0->psi) * t;
+    out.kappa = w0->kappa + (w1->kappa - w0->kappa) * t;
+    out.vx = w0->vx + (w1->vx - w0->vx) * t;
+    out.ax = w0->ax + (w1->ax - w0->ax) * t;
+    out.left_bound = w0->left_bound + (w1->left_bound - w0->left_bound) * t;
+    out.right_bound = w0->right_bound + (w1->right_bound - w0->right_bound) * t;
+    return out;
+}
+
 static void build_reference(int closest, double actual_vx, TrajectoryReferencePoint_t *ref)
 {
-    double wp_spacing = 0.347;
-    /* Use the raceline velocity for reference spacing.
-     * The reference at step k represents the waypoint the car should aim
-     * for at prediction time k*dt_pred.  The raceline velocity determines
-     * the expected distance traveled per prediction step.
-     *
-     * MUST MATCH FPGA mpc_fpga_top.c: uses ref_vx (not actual_vx) and
-     * indexes everything via (closest + (step+1) * wp_advance), NOT (step * ...). */
-    double v_cur = fabs(raceline[closest].vx);
-    if (v_cur < 1.0) v_cur = 1.0;
-    double ds_per_step = v_cur * g_mpc_prediction_dt;
-    int wp_advance = (int)(ds_per_step / wp_spacing + 0.5);
-    if (wp_advance < 1) wp_advance = 1;
+    (void)actual_vx;
+    double s_query = raceline[closest].s;
+    double step_velocity = fabs(raceline[closest].vx);
+    if (step_velocity < 1.0) step_velocity = 1.0;
 
     /* Curvature-based velocity limiting.
      * Caps reference velocity to what the tires can support at each curvature.
      * v_max_curve = sqrt(a_lat_max / |kappa|)   — lateral grip limit
      * Active in realistic mode only. */
     static int use_vlimit = -1;
-    static double a_lat_max = 7.7205;  /* m/s² — mu*g = 0.787 * 9.81 */
+    static double a_lat_max = 7.3078;  /* m/s² — mu*g = 0.745 * 9.81 */
     if (use_vlimit < 0) {
         use_vlimit = (getenv("REALISTIC_SIM") && atoi(getenv("REALISTIC_SIM")))
                   || (getenv("REALISTIC_TIRES") && atoi(getenv("REALISTIC_TIRES")))
@@ -273,28 +353,31 @@ static void build_reference(int closest, double actual_vx, TrajectoryReferencePo
     }
 
     for (int step = 0; step < MPC_REF_ENTRIES; step++) {
-        /* Match FPGA: idx = wp_idx + (k + 1) * wp_advance
-         * All reference data comes from the same lookahead waypoint. */
-        int wp = (closest + (step + 1) * wp_advance) % raceline_count;
+        s_query += step_velocity * g_mpc_prediction_dt;
+        Waypoint_t wp = sample_raceline_by_s(s_query);
 
         ref[step].reference_lateral_error_meters = 0;
         ref[step].reference_heading_error_radians = 0;
 
-        double v_ref = raceline[wp].vx;
+        double v_ref = wp.vx;
 
         /* Velocity limiting: curvature-based (realistic mode only). */
         if (use_vlimit) {
-            double abs_kappa = fabs(raceline[wp].kappa);
+            double abs_kappa = fabs(wp.kappa);
             if (abs_kappa > 0.01) {
                 double v_curv = sqrt(a_lat_max / abs_kappa);
                 if (v_ref > v_curv) v_ref = v_curv;
             }
         }
 
+        if (v_ref < 1.0) v_ref = 1.0;
+        if (v_ref > TRAJECTORY_MAX_VELOCITY) v_ref = TRAJECTORY_MAX_VELOCITY;
+        step_velocity = v_ref;
+
         ref[step].reference_velocity_meters_per_second = DOUBLE_TO_FP(v_ref);
 
         /* Clamp kappa to physical limits (matching FPGA) */
-        double kappa = raceline[wp].kappa;
+        double kappa = wp.kappa;
         if (kappa > 1.5) kappa = 1.5;
         if (kappa < -1.5) kappa = -1.5;
 
@@ -304,11 +387,11 @@ static void build_reference(int closest, double actual_vx, TrajectoryReferencePo
         ref[step].reference_yaw_rate_radians_per_second = DOUBLE_TO_FP(kappa * v_ref);
 
         /* Acceleration feedforward: populated but currently unused by solver */
-        ref[step].reference_acceleration_meters_per_second_squared = DOUBLE_TO_FP(raceline[wp].ax);
+        ref[step].reference_acceleration_meters_per_second_squared = DOUBLE_TO_FP(wp.ax);
 
         ref[step].path_curvature_radians_per_meter = DOUBLE_TO_FP(kappa);
-        ref[step].left_wall_bound_meters = DOUBLE_TO_FP(raceline[wp].left_bound);
-        ref[step].right_wall_bound_meters = DOUBLE_TO_FP(raceline[wp].right_bound);
+        ref[step].left_wall_bound_meters = DOUBLE_TO_FP(wp.left_bound);
+        ref[step].right_wall_bound_meters = DOUBLE_TO_FP(wp.right_bound);
     }
 }
 
@@ -652,8 +735,8 @@ int main(void)
          * Vehicle params from measured data (sim.yaml / vehicle_params.yaml). */
         {
             /* Vehicle parameters matching gym config */
-            static const double mu = 0.787, mass = 3.314, Iz = 0.035;
-            static const double C_Sf = 2.804, C_Sr = 3.320;
+            static const double mu = 0.745, mass = 3.314, Iz = 0.035;
+            static const double C_Sf = 4.297, C_Sr = 3.473;
             static const double lf = 0.166, lr = 0.16, h_cg = 0.0703;
             static const double g_acc = 9.81;
             static const double sv_max = 2.8492;  /* max steering velocity */

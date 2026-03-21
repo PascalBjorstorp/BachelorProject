@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-FPGA Pure Pursuit Test Script
-=============================
-Publishes simulated MpcState messages that follow the actual loaded
-raceline trajectory to test the FPGA pure pursuit controller.
+FPGA Closed-Loop Input Test Script
+==================================
+Publishes simulated MpcState messages along a raceline trajectory to validate
+the full control path: state input -> FPGA compute -> /drive output.
 
-The script reads the same trajectory CSV that was loaded into the FPGA
-and simulates driving along it, sending correct positions and waypoint indices.
+The script exercises geometric tracking behavior (cross-track error,
+heading error, and lookahead-dependent steering response), not only message I/O.
 
 Usage:
   Terminal 1 (receiver):
@@ -14,7 +14,7 @@ Usage:
     export ROS_DOMAIN_ID=42
     source /home/xilinx/ros2_humble/install/setup.bash
     source /home/xilinx/ros2_ws/install/setup.bash
-    ros2 run mpc_receiver mpc_receiver_fpga_node \
+    ros2 run state_receiver mpc_receiver_node \
         --ros-args -p trajectory_file:=/home/xilinx/trajectories/Spielberg_raceline.csv
 
   Terminal 2 (test):
@@ -40,8 +40,13 @@ import sys
 import csv
 
 
-# Q16.16 conversion
+# Q16.16 fixed-point scale (2^16) for deterministic FPGA arithmetic.
 FP_SCALE = 65536
+
+
+def current_time_ms_u32() -> int:
+    """Return wall-clock milliseconds wrapped to uint32 for wire compatibility."""
+    return int(time.time() * 1000) & 0xFFFFFFFF
 
 def float_to_fp(val: float) -> int:
     """Convert float to Q16.16 fixed-point (signed int32)."""
@@ -62,7 +67,7 @@ class Waypoint:
 
 
 def load_raceline(filepath: str) -> list:
-    """Load raceline from CSV file (same format as FPGA uses).
+    """Load raceline from CSV used by the controller reference path.
     Format: s_m,x_m,y_m,psi_rad,kappa_radpm,vx_mps,ax_mps2
     """
     waypoints = []
@@ -92,11 +97,11 @@ class FpgaTestPublisher(Node):
         from ackermann_msgs.msg import AckermannDriveStamped
         self.MpcState = MpcState
 
-        # Load the same raceline the FPGA has
+        # Use the same path parameterization as the control stack.
         self.raceline = load_raceline(raceline_path)
         self.get_logger().info(f'Loaded {len(self.raceline)} waypoints from {raceline_path}')
 
-        # QoS matching mpc_receiver_fpga (Best Effort)
+        # Best-effort QoS favors low latency over retransmission of stale commands.
         qos = QoSProfile(
             depth=1,
             reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -127,7 +132,7 @@ class FpgaTestPublisher(Node):
         msg.theta_fp = float_to_fp(theta)
         msg.velocity_fp = float_to_fp(vel)
         msg.waypoint_index = wp_idx
-        msg.timestamp_ms = int(time.time() * 1000) & 0xFFFFFFFF
+        msg.timestamp_ms = current_time_ms_u32()
         self.pub.publish(msg)
 
     def wait_and_report(self, dt=0.1):
@@ -151,6 +156,7 @@ class FpgaTestPublisher(Node):
         self.get_logger().info(f'First waypoint: ({first.x:.2f}, {first.y:.2f}), heading={first.psi:.3f}')
         self.get_logger().info('=' * 60)
 
+        # Scenario progression: nominal tracking -> perturbations -> stress rate.
         tests = [
             ('1. On-track at waypoint 0', self.test_on_track_start),
             ('2. Drive along raceline (10 Hz)', self.test_follow_raceline_10hz),
@@ -187,8 +193,7 @@ class FpgaTestPublisher(Node):
 
     def test_follow_raceline_10hz(self):
         """Simulate driving along the raceline at 10 Hz for 5 seconds.
-        The waypoint_index tells the FPGA where the car is on the track,
-        and the position matches that waypoint.
+        The waypoint index anchors local horizon context while pose stays on path.
         Expect: consistent small steering following the track curvature.
         """
         n = len(self.raceline)
@@ -240,7 +245,7 @@ class FpgaTestPublisher(Node):
             self.wait_and_report(0.1)
 
     def test_velocities(self):
-        """Test at different velocities. Higher velocity -> longer lookahead distance.
+        """Test speed-dependent lookahead behavior.
         Expect: higher speed produces gentler steering (larger look-ahead).
         """
         wp = self.raceline[100]  # pick a waypoint with some curvature
@@ -256,7 +261,7 @@ class FpgaTestPublisher(Node):
 
     def test_full_lap_200hz(self):
         """Simulate a full lap at 200 Hz, following every waypoint.
-        This is the closest to real operation.
+        This approximates runtime update rate and message timing pressure.
         """
         n = len(self.raceline)
         rate_hz = 200

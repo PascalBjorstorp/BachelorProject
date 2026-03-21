@@ -4,7 +4,12 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <filesystem>
+#include <iomanip>
 #include <numeric>
+#include <sstream>
+#include <algorithm>
+#include <thread>
 
 namespace f1tenth_localization
 {
@@ -23,13 +28,25 @@ PipelineLatencyMonitor::PipelineLatencyMonitor(
   declare_parameter("walls_topic", std::string("/scan_walls"));
   declare_parameter("amcl_topic", std::string("/amcl_pose"));
   declare_parameter("ekf_topic", std::string("/ekf_pose"));
+  declare_parameter("drive_topic", std::string("/drive"));
+  declare_parameter("drive_match_max_ms", 20.0);
+  declare_parameter("threaded", false);
+  declare_parameter("threaded_cores", 6);
   declare_parameter("print_every", 40);  // print every N cycles (~1 Hz at 40 Hz)
+  declare_parameter("log_to_csv", true);
+  declare_parameter("csv_output_dir", std::string("f1tenth_localization/Benchmark/Matlab/csv"));
 
   scan_topic_  = get_parameter("scan_topic").as_string();
   walls_topic_ = get_parameter("walls_topic").as_string();
   amcl_topic_  = get_parameter("amcl_topic").as_string();
   ekf_topic_   = get_parameter("ekf_topic").as_string();
+  drive_topic_ = get_parameter("drive_topic").as_string();
+  drive_match_max_ms_ = get_parameter("drive_match_max_ms").as_double();
   print_every_ = get_parameter("print_every").as_int();
+  log_to_csv_ = get_parameter("log_to_csv").as_bool();
+  csv_output_dir_ = get_parameter("csv_output_dir").as_string();
+
+  initialize_csv_logging();
 
   // All subscriptions use BEST_EFFORT to match sensor data QoS
   auto sensor_qos = rclcpp::SensorDataQoS();
@@ -56,12 +73,33 @@ PipelineLatencyMonitor::PipelineLatencyMonitor(
     std::bind(&PipelineLatencyMonitor::ekf_callback, this,
               std::placeholders::_1));
 
+  drive_sub_ = create_subscription<ackermann_msgs::msg::AckermannDriveStamped>(
+    drive_topic_, rclcpp::QoS(20),
+    std::bind(&PipelineLatencyMonitor::drive_callback, this,
+              std::placeholders::_1));
+
   RCLCPP_INFO(get_logger(),
     "Pipeline Latency Monitor started (print every %d cycles)", print_every_);
   RCLCPP_INFO(get_logger(),
-    "  Tracking: %s → %s → %s → %s",
+    "  Tracking: %s → %s → %s → %s → %s",
     scan_topic_.c_str(), walls_topic_.c_str(),
-    amcl_topic_.c_str(), ekf_topic_.c_str());
+    amcl_topic_.c_str(), ekf_topic_.c_str(), drive_topic_.c_str());
+
+  if (log_to_csv_) {
+    if (!csv_path_.empty()) {
+      RCLCPP_INFO(get_logger(), "  CSV logging: %s", csv_path_.c_str());
+    } else {
+      RCLCPP_WARN(get_logger(), "  CSV logging requested, but file could not be created");
+    }
+  }
+}
+
+PipelineLatencyMonitor::~PipelineLatencyMonitor()
+{
+  if (csv_file_.is_open()) {
+    csv_file_.flush();
+    csv_file_.close();
+  }
 }
 
 int64_t PipelineLatencyMonitor::stamp_to_key(
@@ -136,8 +174,50 @@ void PipelineLatencyMonitor::ekf_callback(
   it->second.ekf_recv_ns = recv;
   it->second.has_ekf = true;
 
-  // This entry is now complete — report it
-  try_report(last_amcl_key_);
+  // Keep this completed pipeline entry pending until matching drive arrives.
+  pending_drive_entries_.push_back(PendingDriveEntry{last_amcl_key_, recv});
+  if (pending_drive_entries_.size() > 2000) {
+    pending_drive_entries_.erase(pending_drive_entries_.begin(), pending_drive_entries_.begin() + 1000);
+  }
+}
+
+void PipelineLatencyMonitor::drive_callback(
+  const ackermann_msgs::msg::AckermannDriveStamped::ConstSharedPtr & /*msg*/)
+{
+  const double recv = wall_ns();
+
+  std::lock_guard<std::mutex> lk(mutex_);
+  if (pending_drive_entries_.empty() || drive_match_max_ms_ <= 0.0) {
+    return;
+  }
+
+  const double max_window_ns = drive_match_max_ms_ * 1e6;
+
+  // Drop stale EKF-complete entries and report them without drive latency.
+  while (!pending_drive_entries_.empty() &&
+         (recv - pending_drive_entries_.front().ekf_recv_ns) > max_window_ns)
+  {
+    const auto stale = pending_drive_entries_.front();
+    pending_drive_entries_.erase(pending_drive_entries_.begin());
+    try_report(stale.key, -1.0);
+  }
+
+  if (pending_drive_entries_.empty()) {
+    return;
+  }
+
+  // Match to the oldest outstanding EKF-complete entry (FIFO pairing).
+  const auto matched = pending_drive_entries_.front();
+  pending_drive_entries_.erase(pending_drive_entries_.begin());
+
+  double ekf_to_drive_ms = -1.0;
+  const double measured_ms = (recv - matched.ekf_recv_ns) * 1e-6;
+  if (measured_ms >= 0.0 && measured_ms < 5000.0) {
+    ekf_to_drive_ms = measured_ms;
+    acc_ekf_to_drive_.push_back(ekf_to_drive_ms);
+  }
+
+  try_report(matched.key, ekf_to_drive_ms);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -161,7 +241,17 @@ static double vec_var(const std::vector<double> & v, double mean)
   return sum_sq / static_cast<double>(v.size() - 1);  // sample variance
 }
 
-void PipelineLatencyMonitor::try_report(int64_t key)
+static double vec_percentile(std::vector<double> v, double pct)
+{
+  if (v.empty()) return 0.0;
+  pct = std::clamp(pct, 0.0, 100.0);
+  const double pos = (pct / 100.0) * static_cast<double>(v.size() - 1);
+  const size_t idx = static_cast<size_t>(pos);
+  std::nth_element(v.begin(), v.begin() + idx, v.end());
+  return v[idx];
+}
+
+void PipelineLatencyMonitor::try_report(int64_t key, double ekf_to_drive_ms)
 {
   // Caller holds mutex_
   auto it = entries_.find(key);
@@ -172,10 +262,23 @@ void PipelineLatencyMonitor::try_report(int64_t key)
 
   // Convert nanoseconds to milliseconds and accumulate
   const double ns_to_ms = 1e-6;
-  acc_scan_to_walls_.push_back((e.walls_recv_ns - e.scan_recv_ns) * ns_to_ms);
-  acc_walls_to_amcl_.push_back((e.amcl_recv_ns - e.walls_recv_ns) * ns_to_ms);
-  acc_amcl_to_ekf_.push_back((e.ekf_recv_ns   - e.amcl_recv_ns)  * ns_to_ms);
-  acc_scan_to_ekf_.push_back((e.ekf_recv_ns   - e.scan_recv_ns)  * ns_to_ms);
+  const double scan_to_walls_ms = (e.walls_recv_ns - e.scan_recv_ns) * ns_to_ms;
+  const double walls_to_amcl_ms = (e.amcl_recv_ns - e.walls_recv_ns) * ns_to_ms;
+  const double amcl_to_ekf_ms = (e.ekf_recv_ns   - e.amcl_recv_ns)  * ns_to_ms;
+  const double scan_to_ekf_ms = (e.ekf_recv_ns   - e.scan_recv_ns)  * ns_to_ms;
+
+  if (ekf_to_drive_ms >= 0.0) {
+    acc_scan_to_drive_.push_back(scan_to_ekf_ms + ekf_to_drive_ms);
+  }
+
+  acc_scan_to_walls_.push_back(scan_to_walls_ms);
+  acc_walls_to_amcl_.push_back(walls_to_amcl_ms);
+  acc_amcl_to_ekf_.push_back(amcl_to_ekf_ms);
+  acc_scan_to_ekf_.push_back(scan_to_ekf_ms);
+
+  write_csv_row(
+    key, scan_to_walls_ms, walls_to_amcl_ms, amcl_to_ekf_ms, scan_to_ekf_ms,
+    ekf_to_drive_ms);
 
   entries_.erase(it);
 
@@ -187,34 +290,51 @@ void PipelineLatencyMonitor::try_report(int64_t key)
   const double m_wa = vec_mean(acc_walls_to_amcl_);
   const double m_ae = vec_mean(acc_amcl_to_ekf_);
   const double m_se = vec_mean(acc_scan_to_ekf_);
+  const double m_ed = vec_mean(acc_ekf_to_drive_);
+  const double m_sd = vec_mean(acc_scan_to_drive_);
 
   const double v_sw = vec_var(acc_scan_to_walls_, m_sw);
   const double v_wa = vec_var(acc_walls_to_amcl_, m_wa);
   const double v_ae = vec_var(acc_amcl_to_ekf_,   m_ae);
   const double v_se = vec_var(acc_scan_to_ekf_,   m_se);
+  const double v_ed = vec_var(acc_ekf_to_drive_,  m_ed);
+  const double v_sd = vec_var(acc_scan_to_drive_, m_sd);
+
+  const double p95_sw = vec_percentile(acc_scan_to_walls_, 95.0);
+  const double p95_wa = vec_percentile(acc_walls_to_amcl_, 95.0);
+  const double p95_ae = vec_percentile(acc_amcl_to_ekf_, 95.0);
+  const double p95_se = vec_percentile(acc_scan_to_ekf_, 95.0);
+  const double p95_ed = vec_percentile(acc_ekf_to_drive_, 95.0);
+  const double p95_sd = vec_percentile(acc_scan_to_drive_, 95.0);
 
   const int n = static_cast<int>(acc_scan_to_ekf_.size());
 
   RCLCPP_INFO(get_logger(),
     "\n"
     "  ┌─── Pipeline Latency (n=%d) ────────────────────────────────┐\n"
-    "  │                         mean        var                    │\n"
-    "  │ scan → scan_walls  : %7.2f ms   %7.2f ms²              │\n"
-    "  │ scan_walls → amcl  : %7.2f ms   %7.2f ms²              │\n"
-    "  │ amcl → ekf         : %7.2f ms   %7.2f ms²              │\n"
-    "  │ scan → ekf (total) : %7.2f ms   %7.2f ms²              │\n"
+    "  │                         mean        var         p95      │\n"
+    "  │ scan → scan_walls  : %7.2f ms   %7.2f ms²   %7.2f ms   │\n"
+    "  │ scan_walls → amcl  : %7.2f ms   %7.2f ms²   %7.2f ms   │\n"
+    "  │ amcl → ekf         : %7.2f ms   %7.2f ms²   %7.2f ms   │\n"
+    "  │ scan → ekf (total) : %7.2f ms   %7.2f ms²   %7.2f ms   │\n"
+    "  │ ekf → drive        : %7.2f ms   %7.2f ms²   %7.2f ms   │\n"
+    "  │ scan → drive       : %7.2f ms   %7.2f ms²   %7.2f ms   │\n"
     "  └───────────────────────────────────────────────────────────┘",
     n,
-    m_sw, v_sw,
-    m_wa, v_wa,
-    m_ae, v_ae,
-    m_se, v_se);
+    m_sw, v_sw, p95_sw,
+    m_wa, v_wa, p95_wa,
+    m_ae, v_ae, p95_ae,
+    m_se, v_se, p95_se,
+    m_ed, v_ed, p95_ed,
+    m_sd, v_sd, p95_sd);
 
   // Reset accumulators
   acc_scan_to_walls_.clear();
   acc_walls_to_amcl_.clear();
   acc_amcl_to_ekf_.clear();
   acc_scan_to_ekf_.clear();
+  acc_ekf_to_drive_.clear();
+  acc_scan_to_drive_.clear();
 }
 
 void PipelineLatencyMonitor::cleanup_old_entries()
@@ -230,6 +350,74 @@ void PipelineLatencyMonitor::cleanup_old_entries()
   }
 }
 
+void PipelineLatencyMonitor::initialize_csv_logging()
+{
+  if (!log_to_csv_) {
+    return;
+  }
+
+  try {
+    if (csv_output_dir_.empty()) {
+      csv_output_dir_ = "f1tenth_localization/Benchmark/Matlab/csv";
+    }
+
+    std::filesystem::create_directories(csv_output_dir_);
+
+    const auto now = std::chrono::system_clock::now();
+    const auto secs = std::chrono::duration_cast<std::chrono::seconds>(
+      now.time_since_epoch()).count();
+
+    std::ostringstream filename;
+    filename << "pipeline_latency_" << secs << ".csv";
+    csv_path_ = (std::filesystem::path(csv_output_dir_) / filename.str()).string();
+
+    csv_file_.open(csv_path_, std::ios::out | std::ios::trunc);
+    if (!csv_file_.is_open()) {
+      csv_path_.clear();
+      RCLCPP_ERROR(get_logger(), "Failed to open CSV file for latency logging");
+      return;
+    }
+
+    csv_file_ << "wall_time_ns,scan_stamp_ns,scan_to_scan_walls_ms,walls_to_amcl_ms,amcl_to_ekf_ms,scan_to_ekf_ms,ekf_to_drive_ms,scan_to_drive_ms\n";
+    csv_file_.flush();
+  } catch (const std::exception & e) {
+    csv_path_.clear();
+    RCLCPP_ERROR(get_logger(), "CSV logging init failed: %s", e.what());
+  }
+}
+
+void PipelineLatencyMonitor::write_csv_row(
+  int64_t stamp_ns,
+  double scan_to_walls_ms,
+  double walls_to_amcl_ms,
+  double amcl_to_ekf_ms,
+  double scan_to_ekf_ms,
+  double ekf_to_drive_ms)
+{
+  if (!log_to_csv_ || !csv_file_.is_open()) {
+    return;
+  }
+
+  const auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+    std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+  const double scan_to_drive_ms =
+    (ekf_to_drive_ms >= 0.0) ? (scan_to_ekf_ms + ekf_to_drive_ms) : -1.0;
+
+  csv_file_ << now_ns << ','
+            << stamp_ns << ','
+            << std::fixed << std::setprecision(3)
+            << scan_to_walls_ms << ','
+            << walls_to_amcl_ms << ','
+            << amcl_to_ekf_ms << ','
+            << scan_to_ekf_ms << ','
+            << ekf_to_drive_ms << ','
+            << scan_to_drive_ms << '\n';
+
+  if (cycle_count_ % 50 == 0) {
+    csv_file_.flush();
+  }
+}
+
 }  // namespace f1tenth_localization
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -239,7 +427,22 @@ int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
   auto node = std::make_shared<f1tenth_localization::PipelineLatencyMonitor>();
-  rclcpp::spin(node);
+
+  bool threaded = false;
+  int threaded_cores = 6;
+  node->get_parameter("threaded", threaded);
+  node->get_parameter("threaded_cores", threaded_cores);
+
+  if (threaded) {
+    const size_t thread_count =
+      threaded_cores > 0 ? static_cast<size_t>(threaded_cores) : std::max<size_t>(1, std::thread::hardware_concurrency());
+    rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), thread_count);
+    executor.add_node(node);
+    executor.spin();
+  } else {
+    rclcpp::spin(node);
+  }
+
   rclcpp::shutdown();
   return 0;
 }

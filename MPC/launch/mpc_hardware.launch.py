@@ -105,7 +105,7 @@ def generate_launch_description():
 
     watchdog_timeout_arg = DeclareLaunchArgument(
         'watchdog_timeout',
-        default_value='0.2',
+        default_value='0.5',
         description='Safety watchdog timeout in seconds'
     )
 

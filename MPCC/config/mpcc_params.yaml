@@ -1,0 +1,71 @@
+# MPCC Configuration Parameters
+# Lifted ODE: Frenet primary + Cartesian redundant
+#
+# State [9]: s, n, alpha, vx, vy, omega, X, Y, psi
+# Control [2]: delta, a_x
+#
+# Usage: ros2 launch mpcc_f1_10th mpcc_launch.py
+# Override: ros2 launch mpcc_f1_10th mpcc_launch.py weight_n:=200.0
+
+mpcc_node:
+  ros__parameters:
+
+    # --- Prediction Horizon ---
+    horizon_steps: 20
+    dt: 0.05              # [seconds] time step between prediction stages
+
+    # --- Frenet Tracking Weights ---
+    # weight_n: penalizes lateral deviation (n^2) from path
+    # weight_alpha: penalizes heading error (alpha^2) from path tangent
+    # weight_progress: reward for forward progress (-q_s * s)
+    weight_n: 100.0
+    weight_alpha: 50.0
+    weight_progress: 1.0
+
+    # --- State Regularization ---
+    weight_vx: 0.0        # velocity tracking (0 = pure progress mode)
+    vx_ref: 3.0           # [m/s] reference velocity (if weight_vx > 0)
+    weight_vy: 0.5        # lateral velocity penalty (anti-drift)
+    weight_omega: 0.1     # yaw rate penalty
+
+    # --- Control Effort ---
+    weight_delta: 1.0     # steering magnitude penalty
+    weight_ax: 0.01       # acceleration magnitude penalty
+
+    # --- Control Smoothness (rate penalties) ---
+    weight_delta_rate: 10.0    # steering rate (high = smooth)
+    weight_ax_rate: 0.1        # acceleration rate
+
+    # --- Terminal Cost ---
+    weight_n_terminal: 100.0
+    weight_alpha_terminal: 50.0
+    weight_progress_terminal: 5.0
+
+    # --- Obstacle Avoidance ---
+    weight_obstacle: 1000.0   # penalty for ellipsoidal constraint violation
+    obstacle_margin: 0.1      # [m] safety margin added to obstacles
+
+    # --- ADMM Solver ---
+    admm_rho: 1.0         # penalty parameter (0.1 to 10.0)
+    admm_max_iterations: 50
+    admm_tolerance: 0.01  # convergence tolerance (primal + dual)
+
+    # --- Constraint Bounds ---
+    delta_max: 0.4282     # [rad] max steering angle
+    ax_max: 7.31          # [m/s^2] max longitudinal acceleration (mu*g bounded)
+    ax_min: -7.31         # [m/s^2] max braking deceleration (mu*g bounded)
+    vx_max: 20.0          # [m/s] max longitudinal velocity
+    vx_min: 0.0           # [m/s] min longitudinal velocity
+    n_max: 0.5            # [m] default track half-width
+
+    # --- Tire Parameters ---
+    mu: 0.745             # [-] road-tire friction coefficient
+    C_Sf: 4.297           # [1/rad] front normalized cornering stiffness
+    C_Sr: 3.473           # [1/rad] rear normalized cornering stiffness
+
+    # --- ROS2 Topics ---
+    odom_topic: "/odom"
+    drive_topic: "/drive"
+    path_topic: "/reference_path"
+    obstacle_topic: "/obstacles"
+    predicted_path_topic: "/mpcc/predicted_path"

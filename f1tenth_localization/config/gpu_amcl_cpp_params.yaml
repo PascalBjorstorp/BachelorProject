@@ -26,7 +26,7 @@ gpu_amcl_cpp:
     # Dynamically adjusts particle count based on distribution spread.
     # When converged (tight cluster), uses fewer particles → saves GPU time.
     # When uncertain (spread out), uses more particles → better coverage.
-    use_kld_sampling: false
+    use_kld_sampling: true
     kld_epsilon: 0.05          # KL-divergence error bound (smaller → more particles)
     kld_z: 2.33                # Quantile: 2.33 = 99%, 1.96 = 95%
 
@@ -55,16 +55,16 @@ gpu_amcl_cpp:
     # These control how much random noise is added to each particle.
     # For simulation (accurate odom), use LOW values.
     # For real hardware (noisy odom/slip), increase 5-10x.
-    alpha1: 0.01    # rotation  → rotation  noise 0.0001 for sim
-    alpha2: 0.01    # translation → rotation  noise
-    alpha3: 0.02    # translation → translation noise
-    alpha4: 0.02    # rotation  → translation noise
+    alpha1: 0.08    # rotation  → rotation  noise 0.0001 for sim
+    alpha2: 0.08    # translation → rotation  noise
+    alpha3: 0.08    # translation → translation noise
+    alpha4: 0.08    # rotation  → translation noise
 
     # ---- Sensor model (likelihood field, Prob. Robotics §6.4) ----
     max_beams: 270
-    z_hit: 0.95
-    z_rand: 0.05
-    sigma_hit: 0.2         # meters (real LiDAR noise std dev)
+    z_hit: 0.975
+    z_rand: 0.025
+    sigma_hit: 0.1         # meters (real LiDAR noise std dev)
     laser_max_range: 10.0
     laser_offset_x: 0.265   # LiDAR X offset from base_link
     laser_offset_y: 0.0     # LiDAR Y offset from base_link
@@ -83,16 +83,16 @@ gpu_amcl_cpp:
     initial_pose_x: 0.0
     initial_pose_y: 0.0
     initial_pose_a: 0.0
-    initial_cov_xx: 0.5
-    initial_cov_yy: 0.5
-    initial_cov_aa: 1.0
+    initial_cov_xx: 0.02
+    initial_cov_yy: 0.02
+    initial_cov_aa: 0.05
 
     # ---- Publishing ----
     publish_rate: 40.0       # Hz (match LiDAR rate)
     transform_tolerance: 1.0
 
     # ---- IMU fusion (inside motion model) ----
-    use_imu_rotation: true
+    use_imu_rotation: false
     imu_gyro_weight: 0.2
 
 
@@ -111,8 +111,8 @@ odom_fused:
 
     # ---- Base covariances (metres² / rad²) ----
     # SIM: 0.0005 (accurate odom)  |  REAL: 0.005–0.05 (noisy wheel odom)
-    base_cov_xy: 0.01
-    base_cov_theta: 0.01
+    base_cov_xy: 0.005
+    base_cov_theta: 0.005
 
 
 # ────────────────────────────────────────────────────────────────
@@ -134,5 +134,5 @@ ekf_localization:
     publish_rate: 200.0          # Hz  (increase later for odom-rate output)
 
     # ---- EKF tuning ----
-    transform_tolerance: 0.1    # seconds into the future for TF
+    transform_tolerance: 0.0    # seconds into the future for TF
     process_noise_scale: 1.0    # multiplier on odom covariance for Q

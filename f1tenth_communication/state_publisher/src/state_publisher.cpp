@@ -8,129 +8,22 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/odometry.hpp>
-#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <f1tenth_msgs/msg/mpc_state.hpp>
+
+#include "state_publisher/kdtree.hpp"
 
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <limits>
 #include <cmath>
 #include <chrono>
 
 namespace f1tenth_communication {
-
-/*===========================================================================
- * KD-Tree Implementation (embedded for portability)
- *===========================================================================*/
-
-struct Waypoint {
-    double s;       // Arc length
-    double x;       // Position X
-    double y;       // Position Y
-    double psi;     // Heading
-    double kappa;   // Curvature
-    double vx;      // Target velocity
-    double ax;      // Acceleration
-};
-
-struct KDNode {
-    double x, y;
-    size_t index;
-};
-
-class KDTree {
-public:
-    void build(const std::vector<Waypoint>& waypoints) {
-        waypoints_ = waypoints;
-        nodes_.clear();
-        nodes_.reserve(waypoints.size());
-        
-        // Create nodes with original indices
-        for (size_t i = 0; i < waypoints.size(); i++) {
-            nodes_.push_back({waypoints[i].x, waypoints[i].y, i});
-        }
-        
-        // Build tree
-        build_recursive(0, nodes_.size(), 0);
-    }
-    
-    size_t find_nearest(double x, double y) const {
-        if (nodes_.empty()) return 0;
-        
-        size_t best_idx = 0;
-        double best_dist = std::numeric_limits<double>::max();
-        search_recursive(0, nodes_.size(), 0, x, y, best_idx, best_dist);
-        return nodes_[best_idx].index;
-    }
-    
-    const Waypoint& get_waypoint(size_t idx) const {
-        return waypoints_[idx];
-    }
-    
-    size_t size() const { return waypoints_.size(); }
-    
-private:
-    std::vector<KDNode> nodes_;
-    std::vector<Waypoint> waypoints_;
-    
-    void build_recursive(size_t start, size_t end, int depth) {
-        if (end - start <= 1) return;
-        
-        size_t mid = start + (end - start) / 2;
-        
-        // Sort by appropriate dimension
-        if (depth % 2 == 0) {
-            std::nth_element(nodes_.begin() + start, nodes_.begin() + mid, 
-                           nodes_.begin() + end,
-                           [](const KDNode& a, const KDNode& b) { return a.x < b.x; });
-        } else {
-            std::nth_element(nodes_.begin() + start, nodes_.begin() + mid,
-                           nodes_.begin() + end,
-                           [](const KDNode& a, const KDNode& b) { return a.y < b.y; });
-        }
-        
-        build_recursive(start, mid, depth + 1);
-        build_recursive(mid + 1, end, depth + 1);
-    }
-    
-    void search_recursive(size_t start, size_t end, int depth,
-                         double x, double y,
-                         size_t& best_idx, double& best_dist) const {
-        if (start >= end) return;
-        
-        size_t mid = start + (end - start) / 2;
-        const KDNode& node = nodes_[mid];
-        
-        // Check this node
-        double dx = x - node.x;
-        double dy = y - node.y;
-        double dist = dx * dx + dy * dy;
-        
-        if (dist < best_dist) {
-            best_dist = dist;
-            best_idx = mid;
-        }
-        
-        // Determine which side to search first
-        double split_val = (depth % 2 == 0) ? node.x : node.y;
-        double query_val = (depth % 2 == 0) ? x : y;
-        double diff = query_val - split_val;
-        
-        if (diff < 0) {
-            search_recursive(start, mid, depth + 1, x, y, best_idx, best_dist);
-            if (diff * diff < best_dist) {
-                search_recursive(mid + 1, end, depth + 1, x, y, best_idx, best_dist);
-            }
-        } else {
-            search_recursive(mid + 1, end, depth + 1, x, y, best_idx, best_dist);
-            if (diff * diff < best_dist) {
-                search_recursive(start, mid, depth + 1, x, y, best_idx, best_dist);
-            }
-        }
-    }
-};
 
 /*===========================================================================
  * State Publisher Node
@@ -138,10 +31,13 @@ private:
 
 class StatePublisherNode : public rclcpp::Node {
 public:
+    static constexpr size_t MAX_MPC_HORIZON = 20;
+
     StatePublisherNode() : Node("state_publisher") {
         // Parameters
         this->declare_parameter("trajectory_file", "");
         this->declare_parameter("odom_topic", "/ego_racecar/odom");
+        this->declare_parameter("pose_topic", "/ekf_pose");
         this->declare_parameter("output_topic", "/mpc_state");
         this->declare_parameter("servo_topic", "/sensors/servo_position_command");
         this->declare_parameter("wheelbase", 0.324);
@@ -155,9 +51,13 @@ public:
         this->declare_parameter("steering_correction_c0", 0.001490);
         // Number of waypoints ahead of KD-tree nearest to check for forward bias
         this->declare_parameter("forward_lookahead", 3);
+        this->declare_parameter("horizon", static_cast<int>(MAX_MPC_HORIZON));
+        this->declare_parameter("default_left_bound", 2.0);
+        this->declare_parameter("default_right_bound", 2.0);
         
         std::string trajectory_file = this->get_parameter("trajectory_file").as_string();
         std::string odom_topic = this->get_parameter("odom_topic").as_string();
+        std::string pose_topic = this->get_parameter("pose_topic").as_string();
         std::string output_topic = this->get_parameter("output_topic").as_string();
         std::string servo_topic = this->get_parameter("servo_topic").as_string();
         wheelbase_ = this->get_parameter("wheelbase").as_double();
@@ -167,6 +67,15 @@ public:
         steer_c1_ = this->get_parameter("steering_correction_c1").as_double();
         steer_c0_ = this->get_parameter("steering_correction_c0").as_double();
         forward_lookahead_ = static_cast<int>(this->get_parameter("forward_lookahead").as_int());
+        const int horizon_param = this->get_parameter("horizon").as_int();
+        default_left_bound_ = this->get_parameter("default_left_bound").as_double();
+        default_right_bound_ = this->get_parameter("default_right_bound").as_double();
+        if (horizon_param != static_cast<int>(MAX_MPC_HORIZON)) {
+            RCLCPP_WARN(this->get_logger(),
+                "horizon=%d requested, but FPGA bitstream expects fixed MPC_HORIZON=%zu. Forcing %zu.",
+                horizon_param, MAX_MPC_HORIZON, MAX_MPC_HORIZON);
+        }
+        horizon_ = MAX_MPC_HORIZON;
         
         if (trajectory_file.empty()) {
             RCLCPP_ERROR(this->get_logger(), "No trajectory file specified!");
@@ -182,26 +91,31 @@ public:
         
         RCLCPP_INFO(this->get_logger(), "Loaded %zu waypoints from %s (hash=0x%08X)",
                    kdtree_.size(), trajectory_file.c_str(), trajectory_hash_);
+            RCLCPP_INFO(this->get_logger(),
+                "Streaming mode: horizon-only (length=%zu)", horizon_);
         
-        // Create publisher with Best Effort QoS (lower latency)
+        // Best Effort + volatile minimizes control latency under packet loss.
         auto qos = rclcpp::QoS(1)
-            .best_effort()           // Don't retry failed packets
-            .durability_volatile();  // Don't store messages
+            .best_effort()
+            .durability_volatile();
         pub_ = this->create_publisher<f1tenth_msgs::msg::MpcState>(output_topic, qos);
         
-        // Subscribe to odometry with Best Effort QoS
+        // Subscribe to odometry with Best Effort QoS (velocity/yaw-rate cache only).
         sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
             odom_topic, qos,
             std::bind(&StatePublisherNode::odom_callback, this, std::placeholders::_1));
+
+        // Subscribe to EKF pose: publish one state packet for each incoming pose.
+        pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+            pose_topic, qos,
+            std::bind(&StatePublisherNode::pose_callback, this, std::placeholders::_1));
         
         // Subscribe to servo position feedback (for actual steering angle)
         if (!servo_topic.empty()) {
             servo_sub_ = this->create_subscription<std_msgs::msg::Float64>(
                 servo_topic, qos,
                 [this](const std_msgs::msg::Float64::SharedPtr msg) {
-                    // msg->data is the VESC servo command value (0.0-1.0)
-                    // Invert: corrected = (servo - offset) / gain
-                    // Then solve polynomial: c2·t² + c1·t + c0 = corrected for t
+                    // Recover steering angle from calibrated VESC servo mapping.
                     double corrected = (msg->data - servo_offset_) / servo_gain_;
                     double abs_corr = std::abs(corrected);
                     if (steer_c2_ != 0.0) {
@@ -235,31 +149,161 @@ public:
                 }
             });
 
-        RCLCPP_INFO(this->get_logger(), "State publisher ready (Best Effort QoS). Subscribing to %s, publishing to %s",
-                   odom_topic.c_str(), output_topic.c_str());
+        RCLCPP_INFO(this->get_logger(),
+                "State publisher ready (Best Effort QoS). Odom cache: %s, pose trigger: %s, publishing: %s",
+                odom_topic.c_str(), pose_topic.c_str(), output_topic.c_str());
     }
     
 private:
+    // --- ROS interfaces ------------------------------------------------------
     KDTree kdtree_;
     rclcpp::Publisher<f1tenth_msgs::msg::MpcState>::SharedPtr pub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_;
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
     rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr servo_sub_;
     
+    // --- Runtime state -------------------------------------------------------
     double current_steering_angle_ = 0.0;  // Steering angle [rad] (converted from servo value)
     bool has_servo_feedback_ = false;
-    double wheelbase_ = 0.324;
-    double servo_gain_ = -0.7284;    // VESC servo → steering gain
-    double servo_offset_ = 0.55;     // VESC servo center offset
-    double steer_c2_ = 0.589566;     // Steering correction polynomial c2
-    double steer_c1_ = 0.918061;     // Steering correction polynomial c1
-    double steer_c0_ = 0.001490;     // Steering correction polynomial c0
-    int forward_lookahead_ = 3;      // Waypoints ahead to check for forward bias
+    double wheelbase_ = 0.0;
+    double servo_gain_ = 0.0;
+    double servo_offset_ = 0.0;
+    double steer_c2_ = 0.0;
+    double steer_c1_ = 0.0;
+    double steer_c0_ = 0.0;
+    int forward_lookahead_ = 0;
+    size_t horizon_ = MAX_MPC_HORIZON;
     uint32_t trajectory_hash_ = 0;   // Checksum for cross-node trajectory verification
+    double default_left_bound_ = 0.0;
+    double default_right_bound_ = 0.0;
 
-    // Odom timeout detection
+    // --- Watchdog state -----------------------------------------------------
     rclcpp::TimerBase::SharedPtr odom_watchdog_timer_;
     std::chrono::steady_clock::time_point last_odom_time_ = std::chrono::steady_clock::now();
     bool odom_received_ = false;
+
+    // --- Cached dynamics from odometry -------------------------------------
+    double latest_velocity_ = 0.0;
+    double latest_vy_ = 0.0;
+    double latest_omega_ = 0.0;
+    bool has_odom_dynamics_ = false;
+
+    // --- Odometry processing helpers ----------------------------------------
+    bool validate_odom_message(const nav_msgs::msg::Odometry::SharedPtr& msg,
+                               double x,
+                               double y) {
+        const double qx = msg->pose.pose.orientation.x;
+        const double qy = msg->pose.pose.orientation.y;
+        const double qz = msg->pose.pose.orientation.z;
+        const double qw = msg->pose.pose.orientation.w;
+        const double vx = msg->twist.twist.linear.x;
+        const double vy = msg->twist.twist.linear.y;
+        const double wz = msg->twist.twist.angular.z;
+
+        auto ok = [](double v) { return std::isfinite(v); };
+        if (!ok(x) || !ok(y) || !ok(qx) || !ok(qy) || !ok(qz) || !ok(qw) ||
+            !ok(vx) || !ok(vy) || !ok(wz)) {
+            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                "Dropping odom: NaN/Inf detected in incoming message");
+            return false;
+        }
+
+        constexpr double POS_LIMIT = 500.0;   // ±500 m
+        constexpr double VEL_LIMIT = 50.0;    // ±50 m/s
+        if (std::abs(x) > POS_LIMIT || std::abs(y) > POS_LIMIT) {
+            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                "Dropping odom: position out of range (%.1f, %.1f)", x, y);
+            return false;
+        }
+        if (std::abs(vx) > VEL_LIMIT || std::abs(vy) > VEL_LIMIT) {
+            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                "Dropping odom: velocity out of range (vx=%.1f, vy=%.1f)", vx, vy);
+            return false;
+        }
+
+        return true;
+    }
+
+    // Convert quaternion to planar yaw.
+    static double quaternion_to_yaw(double qx, double qy, double qz, double qw) {
+        return std::atan2(2.0 * (qw * qz + qx * qy),
+                          1.0 - 2.0 * (qy * qy + qz * qz));
+    }
+
+    // Prefer measured steering; fall back to bicycle-model estimate if needed.
+    double compute_steering_angle(double velocity, double omega) const {
+        if (!has_servo_feedback_ && std::abs(velocity) > 0.1) {
+            return std::atan2(wheelbase_ * omega, velocity);
+        }
+        return current_steering_angle_;
+    }
+
+    // Choose a forward waypoint near the geometric nearest index.
+    size_t apply_forward_bias(size_t nearest_idx, double x, double y, double theta) const {
+        const double cos_theta = std::cos(theta);
+        const double sin_theta = std::sin(theta);
+        const size_t N = kdtree_.size();
+        size_t best_idx = nearest_idx;
+        double best_dist = std::numeric_limits<double>::max();
+
+        for (int i = 0; i <= forward_lookahead_; ++i) {
+            size_t check_idx = (nearest_idx + static_cast<size_t>(i)) % N;
+            const auto& wp = kdtree_.get_waypoint(check_idx);
+            double dx_wp = wp.x - x;
+            double dy_wp = wp.y - y;
+            // Dot product with heading: positive means ahead.
+            double ahead = dx_wp * cos_theta + dy_wp * sin_theta;
+            if (ahead >= 0.0) {
+                double dist = dx_wp * dx_wp + dy_wp * dy_wp;
+                if (dist < best_dist) {
+                    best_dist = dist;
+                    best_idx = check_idx;
+                }
+            }
+        }
+
+        return best_idx;
+    }
+
+    // Convert floating-point values to Q16.16 for FPGA transport.
+    static int32_t to_fixed_q16(double v) {
+        constexpr double FP_SCALE = 65536.0;
+        if (!std::isfinite(v)) {
+            return 0;
+        }
+        return static_cast<int32_t>(v >= 0.0 ? v * FP_SCALE + 0.5 : v * FP_SCALE - 0.5);
+    }
+
+    // Fill only the horizon window needed by the receiver/FPGA.
+    void fill_horizon_references(f1tenth_msgs::msg::MpcState& mpc_state,
+                                 size_t waypoint_idx) const {
+        const size_t N = kdtree_.size();
+        const size_t stream_count = std::min(horizon_, N);
+        mpc_state.horizon_length = static_cast<uint32_t>(stream_count);
+
+        mpc_state.ref_x_fp.resize(stream_count);
+        mpc_state.ref_y_fp.resize(stream_count);
+        mpc_state.ref_psi_fp.resize(stream_count);
+        mpc_state.ref_vx_fp.resize(stream_count);
+        mpc_state.ref_kappa_fp.resize(stream_count);
+        mpc_state.ref_left_bound_fp.resize(stream_count);
+        mpc_state.ref_right_bound_fp.resize(stream_count);
+
+        // Stream only the required horizon waypoints each cycle.
+        for (size_t i = 0; i < stream_count; ++i) {
+            const size_t idx = (waypoint_idx + i) % N;
+            const auto& wp = kdtree_.get_waypoint(idx);
+            mpc_state.ref_x_fp[i] = to_fixed_q16(wp.x);
+            mpc_state.ref_y_fp[i] = to_fixed_q16(wp.y);
+            mpc_state.ref_psi_fp[i] = to_fixed_q16(wp.psi);
+            mpc_state.ref_vx_fp[i] = to_fixed_q16(wp.vx);
+            mpc_state.ref_kappa_fp[i] = to_fixed_q16(wp.kappa);
+            mpc_state.ref_left_bound_fp[i] = to_fixed_q16(wp.left_bound);
+            mpc_state.ref_right_bound_fp[i] = to_fixed_q16(wp.right_bound);
+        }
+    }
+
+    // --- Trajectory I/O ------------------------------------------------------
     
     bool load_trajectory(const std::string& filepath) {
         std::ifstream file(filepath);
@@ -284,7 +328,17 @@ private:
             std::getline(ss, token, ','); wp.psi = std::stod(token);
             std::getline(ss, token, ','); wp.kappa = std::stod(token);
             std::getline(ss, token, ','); wp.vx = std::stod(token);
-            std::getline(ss, token, ','); wp.ax = std::stod(token);
+            std::getline(ss, token, ',');  // Legacy ax column kept for CSV compatibility
+            wp.left_bound = default_left_bound_;
+            wp.right_bound = default_right_bound_;
+
+            // Optional bounds columns: left_bound,right_bound
+            if (std::getline(ss, token, ',')) {
+                if (!token.empty()) wp.left_bound = std::stod(token);
+                if (std::getline(ss, token, ',')) {
+                    if (!token.empty()) wp.right_bound = std::stod(token);
+                }
+            }
             
             waypoints.push_back(wp);
         }
@@ -308,135 +362,78 @@ private:
         last_odom_time_ = std::chrono::steady_clock::now();
         odom_received_ = true;
 
-        // Extract position
+        // 1) Extract inputs
         double x = msg->pose.pose.position.x;
         double y = msg->pose.pose.position.y;
 
-        // --- Input bounds validation ---
-        // Skip this message if any key value is NaN/Inf or clearly out of range.
-        {
-            double qx = msg->pose.pose.orientation.x;
-            double qy = msg->pose.pose.orientation.y;
-            double qz = msg->pose.pose.orientation.z;
-            double qw = msg->pose.pose.orientation.w;
-            double vx = msg->twist.twist.linear.x;
-            double vy = msg->twist.twist.linear.y;
-            double wz = msg->twist.twist.angular.z;
+        // 2) Validate inputs
+        if (!validate_odom_message(msg, x, y)) {
+            return;
+        }
+        
+        // Cache dynamics for use by pose callback.
+        latest_velocity_ = msg->twist.twist.linear.x;
+        latest_vy_ = msg->twist.twist.linear.y;
+        latest_omega_ = msg->twist.twist.angular.z;
+        has_odom_dynamics_ = true;
+    }
 
-            auto ok = [](double v) { return std::isfinite(v); };
-            if (!ok(x) || !ok(y) || !ok(qx) || !ok(qy) || !ok(qz) || !ok(qw) ||
-                !ok(vx) || !ok(vy) || !ok(wz)) {
-                RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
-                    "Dropping odom: NaN/Inf detected in incoming message");
-                return;
-            }
-            constexpr double POS_LIMIT = 500.0;   // ±500 m
-            constexpr double VEL_LIMIT = 50.0;    // ±50 m/s
-            if (std::abs(x) > POS_LIMIT || std::abs(y) > POS_LIMIT) {
-                RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
-                    "Dropping odom: position out of range (%.1f, %.1f)", x, y);
-                return;
-            }
-            if (std::abs(vx) > VEL_LIMIT || std::abs(vy) > VEL_LIMIT) {
-                RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
-                    "Dropping odom: velocity out of range (vx=%.1f, vy=%.1f)", vx, vy);
-                return;
-            }
+    void pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+        const double x = msg->pose.pose.position.x;
+        const double y = msg->pose.pose.position.y;
+        const double qx = msg->pose.pose.orientation.x;
+        const double qy = msg->pose.pose.orientation.y;
+        const double qz = msg->pose.pose.orientation.z;
+        const double qw = msg->pose.pose.orientation.w;
+
+        auto ok = [](double v) { return std::isfinite(v); };
+        if (!ok(x) || !ok(y) || !ok(qx) || !ok(qy) || !ok(qz) || !ok(qw)) {
+            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                "Dropping ekf_pose: NaN/Inf detected in incoming message");
+            return;
         }
-        
-        // Extract yaw from quaternion
-        double qx = msg->pose.pose.orientation.x;
-        double qy = msg->pose.pose.orientation.y;
-        double qz = msg->pose.pose.orientation.z;
-        double qw = msg->pose.pose.orientation.w;
-        double theta = std::atan2(2.0 * (qw * qz + qx * qy), 
-                                  1.0 - 2.0 * (qy * qy + qz * qz));
-        
-        // Extract velocity (body-frame twist from EKF / odometry)
-        double velocity = msg->twist.twist.linear.x;   // Longitudinal v_x
-        double vy = msg->twist.twist.linear.y;          // Lateral v_y
-        double omega = msg->twist.twist.angular.z;       // Yaw rate ω
-        
-        // Compute wheel speed from longitudinal velocity (zero-slip assumption)
-        // ω_w = v_x / R_w where R_w = 0.0545m (Traxxas Slash 4x4 VXL)
-        constexpr double WHEEL_RADIUS = 0.0545;
-        double wheel_speed = (velocity > 0.01) ? (velocity / WHEEL_RADIUS) : 0.0;
-        
-        // Determine steering angle: use servo feedback if available,
-        // otherwise estimate from bicycle model: δ ≈ atan(L * ω / v_x)
-        double steering_angle = current_steering_angle_;
-        if (!has_servo_feedback_ && std::abs(velocity) > 0.1) {
-            steering_angle = std::atan2(wheelbase_ * omega, velocity);
+        if (!has_odom_dynamics_) {
+            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                "Skipping publish: waiting for first odom dynamics sample");
+            return;
         }
-        
-        // KD-tree lookup + forward-biased waypoint selection
+
+        const double theta = quaternion_to_yaw(qx, qy, qz, qw);
+        const double velocity = latest_velocity_;
+        const double vy = latest_vy_;
+        const double omega = latest_omega_;
+        const double steering_angle = compute_steering_angle(velocity, omega);
+
         auto start_time = std::chrono::high_resolution_clock::now();
         size_t waypoint_idx = kdtree_.find_nearest(x, y);
-        
-        // Forward bias: at high speed the closest waypoint may be slightly
-        // behind the car.  Check the next few waypoints and prefer the
-        // nearest one that is *ahead* of the vehicle heading.
-        {
-            const double cos_theta = std::cos(theta);
-            const double sin_theta = std::sin(theta);
-            const size_t N = kdtree_.size();
-            size_t best_idx = waypoint_idx;
-            double best_dist = std::numeric_limits<double>::max();
-            
-            for (int i = 0; i <= forward_lookahead_; ++i) {
-                size_t check_idx = (waypoint_idx + static_cast<size_t>(i)) % N;
-                const auto& wp = kdtree_.get_waypoint(check_idx);
-                double dx_wp = wp.x - x;
-                double dy_wp = wp.y - y;
-                // Dot product with heading: positive means ahead
-                double ahead = dx_wp * cos_theta + dy_wp * sin_theta;
-                if (ahead >= 0.0) {
-                    double dist = dx_wp * dx_wp + dy_wp * dy_wp;
-                    if (dist < best_dist) {
-                        best_dist = dist;
-                        best_idx = check_idx;
-                    }
-                }
-            }
-            waypoint_idx = best_idx;
-        }
+        waypoint_idx = apply_forward_bias(waypoint_idx, x, y, theta);
         auto end_time = std::chrono::high_resolution_clock::now();
-        
-        // Create and publish message (using Q16.16 fixed-point for FPGA efficiency)
-        // Q16.16: multiply by 65536 (2^16) to convert float to fixed-point
-        constexpr double FP_SCALE = 65536.0;
-        
-        // Round to nearest (avoid truncation bias in Q16.16 conversion)
-        auto to_fp = [](double v) -> int32_t {
-            if (!std::isfinite(v)) return 0;  // Guard against NaN/Inf from localization
-            return static_cast<int32_t>(v >= 0.0 ? v * FP_SCALE + 0.5 : v * FP_SCALE - 0.5);
-        };
-        
+
         auto mpc_state = f1tenth_msgs::msg::MpcState();
         mpc_state.header.stamp = msg->header.stamp;
         mpc_state.header.frame_id = "map";
-        mpc_state.x_fp = to_fp(x);
-        mpc_state.y_fp = to_fp(y);
-        mpc_state.theta_fp = to_fp(theta);
-        mpc_state.velocity_fp = to_fp(velocity);
-        mpc_state.vy_fp = to_fp(vy);
-        mpc_state.omega_fp = to_fp(omega);
-        mpc_state.wheel_speed_fp = to_fp(wheel_speed);
-        mpc_state.steering_angle_fp = to_fp(steering_angle);
+        mpc_state.x_fp = to_fixed_q16(x);
+        mpc_state.y_fp = to_fixed_q16(y);
+        mpc_state.theta_fp = to_fixed_q16(theta);
+        mpc_state.velocity_fp = to_fixed_q16(velocity);
+        mpc_state.vy_fp = to_fixed_q16(vy);
+        mpc_state.omega_fp = to_fixed_q16(omega);
+        mpc_state.steering_angle_fp = to_fixed_q16(steering_angle);
         mpc_state.waypoint_index = static_cast<uint32_t>(waypoint_idx);
+        fill_horizon_references(mpc_state, waypoint_idx);
+
         mpc_state.timestamp_ms = static_cast<uint32_t>(
             std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now().time_since_epoch()).count() & 0xFFFFFFFF);
-        
+
         pub_->publish(mpc_state);
-        
-        // Debug logging (throttled)
+
         static int count = 0;
         if (++count % 50 == 0) {
             auto lookup_us = std::chrono::duration_cast<std::chrono::microseconds>(
                 end_time - start_time).count();
-            RCLCPP_DEBUG(this->get_logger(), 
-                        "Published MpcState: pos=(%.2f, %.2f), waypoint=%u, lookup=%ldus",
+            RCLCPP_DEBUG(this->get_logger(),
+                        "Published MpcState on ekf_pose: pos=(%.2f, %.2f), waypoint=%u, lookup=%ldus",
                         x, y, mpc_state.waypoint_index, lookup_us);
         }
     }

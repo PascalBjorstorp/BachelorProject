@@ -54,17 +54,53 @@ def generate_launch_description():
         default_value='0.10',
         description='Velocity-proportional lookahead gain'
     )
-    
+
     max_speed_arg = DeclareLaunchArgument(
         'max_speed',
-        default_value='12.0',
-        description='Maximum speed [m/s]'
+        default_value='2.0',
+        description='Maximum commanded speed cap [m/s]'
+    )
+
+    cte_lookahead_weight_arg = DeclareLaunchArgument(
+        'cte_lookahead_weight',
+        default_value='1.0',
+        description='Weight on cross-track error in dynamic lookahead'
+    )
+
+    cte_lookahead_gain_arg = DeclareLaunchArgument(
+        'cte_lookahead_gain',
+        default_value='0.0',
+        description='Lookahead reduction gain based on cross-track error [m/m]'
+    )
+
+    curvature_lookahead_gain_arg = DeclareLaunchArgument(
+        'curvature_lookahead_gain',
+        default_value='0.0',
+        description='Lookahead reduction gain based on path curvature [m/(1/m)]'
+    )
+
+    curvature_speed_factor_arg = DeclareLaunchArgument(
+        'curvature_speed_factor',
+        default_value='0.20',
+        description='Curvature-based speed slowdown aggressiveness'
+    )
+
+    curvature_speed_floor_ratio_arg = DeclareLaunchArgument(
+        'curvature_speed_floor_ratio',
+        default_value='0.85',
+        description='Minimum speed ratio after curvature slowdown [0..1]'
     )
     
-    speed_gain_arg = DeclareLaunchArgument(
-        'speed_gain',
-        default_value='1.0',
-        description='Multiplier for trajectory target speeds (0-1)'
+    pose_topic_arg = DeclareLaunchArgument(
+        'pose_topic',
+        default_value='/ekf_pose',
+        description='Pose topic in map frame'
+    )
+
+    pose_timeout_arg = DeclareLaunchArgument(
+        'pose_timeout_s',
+        default_value='0.10',
+        description='Fail-safe timeout for stale pose [s]'
     )
     
     # Pure Pursuit Node
@@ -79,11 +115,16 @@ def generate_launch_description():
             'max_lookahead': LaunchConfiguration('max_lookahead'),
             'lookahead_gain': LaunchConfiguration('lookahead_gain'),
             'max_speed': LaunchConfiguration('max_speed'),
-            'min_speed': 1.0,
-            'speed_gain': LaunchConfiguration('speed_gain'),
+            'cte_lookahead_weight': LaunchConfiguration('cte_lookahead_weight'),
+            'cte_lookahead_gain': LaunchConfiguration('cte_lookahead_gain'),
+            'curvature_lookahead_gain': LaunchConfiguration('curvature_lookahead_gain'),
+            'curvature_speed_factor': LaunchConfiguration('curvature_speed_factor'),
+            'curvature_speed_floor_ratio': LaunchConfiguration('curvature_speed_floor_ratio'),
             'max_steering': 0.4189,
             'wheelbase': 0.3302,
             'publish_visualization': True,
+            'pose_topic': LaunchConfiguration('pose_topic'),
+            'pose_timeout_s': LaunchConfiguration('pose_timeout_s'),
         }],
         remappings=[
             ('/odom', '/ego_racecar/odom'),
@@ -97,6 +138,12 @@ def generate_launch_description():
         max_lookahead_arg,
         lookahead_gain_arg,
         max_speed_arg,
-        speed_gain_arg,
+        cte_lookahead_weight_arg,
+        cte_lookahead_gain_arg,
+        curvature_lookahead_gain_arg,
+        curvature_speed_factor_arg,
+        curvature_speed_floor_ratio_arg,
+        pose_topic_arg,
+        pose_timeout_arg,
         pure_pursuit_node,
     ])
