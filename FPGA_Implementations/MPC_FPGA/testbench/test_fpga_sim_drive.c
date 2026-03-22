@@ -2,17 +2,20 @@
  * @file test_fpga_sim_drive.c
  * @brief Closed-loop MPC simulation test for the FPGA HLS implementation
  *
- * Tests the FPGA top-level function (mpc_fpga_top) in a 100-second
+ * Tests the FPGA top-level interface (mpc_fpga_top_scalar) in a 100-second
  * closed-loop simulation using a nonlinear single-track plant model.
  * The objective is to validate closed-loop stability and constraint
  * behavior under the same update rate used by control (200 Hz, 5 ms).
  *
- * Compile (standalone GCC, no Vitis needed):
+ * Compile (standalone, no Vitis needed):
  *   cd FPGA_Implementations/MPC_FPGA
- *   gcc -D_GNU_SOURCE -O2 -std=c99 -Wall -Wno-unknown-pragmas -Iinclude \
- *       testbench/test_fpga_sim_drive.c src/riccati_solver_hls.c \
- *       src/mpc_riccati_hls.c src/mpc_fpga_top.c src/vehicle_model_hls.c \
- *       src/fp_math_hls.c -o test_fpga_sim -lm
+ *   gcc -D_GNU_SOURCE -O2 -Wall -Wno-unknown-pragmas -Iinclude -c testbench/test_fpga_sim_drive.c -o test_fpga_sim_drive.o
+ *   gcc -D_GNU_SOURCE -O2 -Wall -Wno-unknown-pragmas -Iinclude -c src/riccati_solver_hls.c -o riccati_solver_hls.o
+ *   gcc -D_GNU_SOURCE -O2 -Wall -Wno-unknown-pragmas -Iinclude -c src/mpc_riccati_hls.c -o mpc_riccati_hls.o
+ *   gcc -D_GNU_SOURCE -O2 -Wall -Wno-unknown-pragmas -Iinclude -c src/vehicle_model_hls.c -o vehicle_model_hls.o
+ *   gcc -D_GNU_SOURCE -O2 -Wall -Wno-unknown-pragmas -Iinclude -c src/fp_math_hls.c -o fp_math_hls.o
+ *   g++ -D_GNU_SOURCE -O2 -Wall -Wno-unknown-pragmas -Iinclude -x c++ -c src/mpc_fpga_top.cpp -o mpc_fpga_top.o
+ *   g++ -o test_fpga_sim test_fpga_sim_drive.o mpc_fpga_top.o mpc_riccati_hls.o riccati_solver_hls.o vehicle_model_hls.o fp_math_hls.o -lm
  *   ./test_fpga_sim
  */
 
@@ -39,25 +42,41 @@
 #endif
 #endif
 
-/* External: FPGA top-level function */
-extern void mpc_fpga_top(
-    int state_x_fp, int state_theta_fp,
-    int state_vx_fp, int state_vy_fp, int state_omega_fp,
-    int state_steering_fp,
-    const int *ref_vx_mem,
-    const int *ref_kappa_mem,
-    const int *ref_left_bound_mem,
-    const int *ref_right_bound_mem,
+/* External: FPGA scalar compatibility wrapper.
+ * Note: Parameters use Frenet frame naming (ey, epsi) to match mpc_fpga_top.cpp */
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern void mpc_fpga_top_scalar(
+    int ey_fp, int epsi_fp,
+    int vx_fp, int vy_fp, int omega_fp,
+    int steering_fp,
+    const int *ref_vx,
+    const int *ref_kappa,
+    const int *ref_left,
+    const int *ref_right,
     int ref_count,
-    int *out_steering_fp, int *out_accel_fp,
-    int *out_status, int *out_iterations);
+    int *out_steering, int *out_accel,
+    int *out_status, int *out_iters);
+#ifdef __cplusplus
+}
+#endif
 
 /*===========================================================================
  * Configuration
  *===========================================================================*/
 
 #define SIM_DT            0.005   /* 5ms simulation step */
+
+/* CoSim runs full RTL simulation per MPC call — limit iterations to avoid OOM.
+ * Full 100s sim (20k calls) works for C-sim; CoSim needs minimal calls.
+ * 20 calls verifies basic functionality; speed checks are skipped in CoSim. */
+#ifdef MPC_HLS_COSIM
+#define SIM_DURATION      0.1     /* 0.1 seconds = 20 MPC calls for CoSim */
+#else
 #define SIM_DURATION      100.0   /* seconds */
+#endif
+
 #define SIM_STEPS         ((int)(SIM_DURATION / SIM_DT))
 #define MAX_WAYPOINTS     2000
 #define MAX_STEERING      0.4189  /* rad (calibrated with polynomial servo correction) */
@@ -566,6 +585,15 @@ static int map_body_collision(double x, double y, double theta)
 static int load_raceline(void)
 {
     const char *paths[] = {
+        /* HLS csim/cosim paths (runs from mpc_fpga_hls/ultra96v2/csim/build) */
+        "../../../../testbench/data/Spielberg_raceline.csv",
+        "../../../testbench/data/Spielberg_raceline.csv",
+        "../../testbench/data/Spielberg_raceline.csv",
+        "../testbench/data/Spielberg_raceline.csv",
+        "testbench/data/Spielberg_raceline.csv",
+        /* Standalone test paths */
+        "../../../../../../f1tenth_planning/trajectories/Spielberg_raceline.csv",
+        "../../../../../../MPC/trajectories/Spielberg_raceline.csv",
         "../../f1tenth_planning/trajectories/Spielberg_raceline.csv",
         "../../../f1tenth_planning/trajectories/Spielberg_raceline.csv",
         "../../../../f1tenth_planning/trajectories/Spielberg_raceline.csv",
@@ -890,7 +918,7 @@ int main(int argc, char *argv[])
                            + (mpc_y - raceline[closest].y) * cos(raceline[closest].psi);
             double mpc_e_psi = wrap_angle(mpc_theta - raceline[closest].psi);
 
-            mpc_fpga_top(
+            mpc_fpga_top_scalar(
                 DOUBLE_TO_FP(mpc_e_y),
                 DOUBLE_TO_FP(mpc_e_psi),
                 DOUBLE_TO_FP(mpc_vx),
@@ -1050,6 +1078,8 @@ int main(int argc, char *argv[])
     check("Avg lateral error < 0.5 m", avg_lat < 0.5);
     check("Avg heading error < 0.3 rad (17 deg)", avg_hdg < 0.3);
     check("Solver mostly succeeds (>80%)", solver_ok > solver_calls * 80 / 100);
+#ifndef MPC_HLS_COSIM
+    /* Skip speed check in CoSim — 20 calls isn't enough to reach steady-state */
     if (realistic_mode) {
         char speed_msg[128];
         snprintf(speed_msg, sizeof(speed_msg),
@@ -1060,6 +1090,9 @@ int main(int argc, char *argv[])
         check("Reaches driving speed (>5 m/s for >50% of time)",
               time_above_5ms > SIM_DURATION * 0.5);
     }
+#else
+    printf("  [SKIP] Speed check skipped in CoSim mode (insufficient iterations)\n");
+#endif
 
     printf("\n=== RESULTS: %d passed, %d failed ===\n", tests_passed, tests_failed);
 

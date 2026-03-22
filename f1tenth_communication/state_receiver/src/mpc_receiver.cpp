@@ -50,10 +50,11 @@
 #include <unistd.h>
 
 // MPC FPGA AXI-Lite register map and constants
-#define MPC_FPGA_BASE_ADDR      0xA0000000
+// NOTE: Addresses configured in Vivado block design (Address Editor)
+#define MPC_FPGA_BASE_ADDR      0xA0010000
 
-// AXI DMA IP base address (configure in Vivado, typical default)
-#define AXI_DMA_BASE_ADDR       0xA0010000
+// AXI DMA IP base address
+#define AXI_DMA_BASE_ADDR       0xA0000000
 
 // MPC IP control registers (AXI-Lite)
 #define REG_AP_CTRL             0x000

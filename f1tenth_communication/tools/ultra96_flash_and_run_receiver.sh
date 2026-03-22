@@ -15,9 +15,9 @@ DTBO_PATH="${DTBO_PATH:-/home/xilinx/mpc_ref_buffers.dtbo}"
 ROS_SETUP="${ROS_SETUP:-/home/xilinx/ros2_humble/install/setup.bash}"
 WS_SETUP="${WS_SETUP:-/home/xilinx/ros2_ws/install/setup.bash}"
 
-# MPC IP and DMA addresses (configure in Vivado)
-MPC_BASE="${MPC_BASE:-0xA0000000}"
-DMA_BASE="${DMA_BASE:-0xA0010000}"
+# MPC IP and DMA addresses (must match Vivado Address Editor)
+MPC_BASE="${MPC_BASE:-0xA0010000}"
+DMA_BASE="${DMA_BASE:-0xA0000000}"
 DMA_BUFFER="${DMA_BUFFER:-0x70000000}"
 MAX_VEL="${MAX_VEL:-20.0}"
 

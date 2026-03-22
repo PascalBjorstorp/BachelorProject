@@ -24,7 +24,7 @@ ARM → DMA Buffer → AXI DMA → AXI-Stream → FPGA
 ## Step 1: Export and Synthesize New HLS IP
 
 ### 1.1 Update HLS Source
-The `mpc_fpga_top.c` has already been modified to use AXI-Stream input:
+The `mpc_fpga_top.cpp` source is compiled as C++ for HLS and exposes the AXI-stream top:
 
 ```c
 void mpc_fpga_top(

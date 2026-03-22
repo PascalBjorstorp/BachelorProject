@@ -10,6 +10,10 @@
 
 #include "mpc_fpga_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Solve constrained LQR via Riccati-ADMM (HLS-synthesizable).
  *
@@ -30,5 +34,9 @@ MpcStatus_t riccati_admm_solve_hls(
     const AdmmConfig_t *config,
     AdmmState_t *admm_state,
     MpcSolution_t *solution);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* RICCATI_SOLVER_HLS_H */
