@@ -110,6 +110,10 @@ static inline fixed_point_t fp_add_sat(fixed_point_t a, fixed_point_t b)
  * Non-Inline Function Declarations
  *===========================================================================*/
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** Normalize angle to the range [-pi, pi]. */
 fixed_point_t fp_normalize_angle(fixed_point_t angle);
 
@@ -127,5 +131,9 @@ fixed_point_t fp_atan(fixed_point_t x);
 
 /** Cubic arctangent approximation used in tire-model angle terms. */
 fixed_point_t fp_atan_tire_approx(fixed_point_t x);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* FP_MATH_HLS_H */

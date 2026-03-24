@@ -56,7 +56,7 @@
 
 /** Default prediction horizon and dt — overridden by HORIZON / PRED_DT env vars */
 #define MPC_DEFAULT_HORIZON 20
-#define MPC_DEFAULT_DT      0.05f
+#define MPC_DEFAULT_DT      0.048f
 
 /** Runtime horizon and dt (set from env vars in main()) */
 static int    g_mpc_horizon = MPC_DEFAULT_HORIZON;

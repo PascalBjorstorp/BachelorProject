@@ -26,6 +26,7 @@ def generate_launch_description():
     # Declare launch arguments
     trajectory_file_arg = DeclareLaunchArgument(
         'trajectory_file',
+        default_value='/home/xilinx/trajectories/Spielberg_raceline.csv',
         description='Path to raceline CSV file'
     )
     
