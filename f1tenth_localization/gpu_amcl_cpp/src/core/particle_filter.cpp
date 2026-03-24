@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <numeric>
 #include <unordered_set>
@@ -39,8 +40,9 @@ void ParticleFilter::init(const Config& pf_cfg,
     d_log_w_.allocate(cfg_.max_particles);
     d_scratch_w_.allocate(cfg_.max_particles);
 
-    // Pre-allocate range buffer for typical LiDAR (will grow if needed).
-    max_ranges_ = 1080;  // typical LiDAR beam count
+    // Pre-allocate for your wall scan path (typically 270 beams).
+    // Buffer still grows automatically if a larger scan arrives.
+    max_ranges_ = 270;
     d_ranges_.allocate(max_ranges_);
 
     // §1: Allocate CUB temp storage + device scalars for GPU-side normalization.
@@ -110,11 +112,16 @@ void ParticleFilter::update(const float* ranges, int num_ranges,
                             float angle_min, float angle_inc) {
     // §5: Reuse persistent range buffer (grow if needed, never per-frame alloc).
     if (num_ranges > max_ranges_) {
+    int old_max = max_ranges_;
         max_ranges_ = num_ranges;
         d_ranges_.allocate(max_ranges_);
         // §4: Reallocate pinned range buffer to match.
         if (h_ranges_pinned_) cudaFreeHost(h_ranges_pinned_);
         CUDA_CHECK(cudaMallocHost(&h_ranges_pinned_, max_ranges_ * sizeof(float)));
+        // If this appears often, scan source/config likely changed unexpectedly.
+        std::fprintf(stderr,
+                     "[gpu_amcl_cpp][ParticleFilter] Reallocated range buffers: %d -> %d beams\n",
+                     old_max, max_ranges_);
     }
     // §4: Copy to pinned staging, then async DMA to device.
     memcpy(h_ranges_pinned_, ranges, num_ranges * sizeof(float));

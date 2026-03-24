@@ -65,6 +65,12 @@ private:
     double update_min_d_ = 0.001;
     double update_min_a_ = 0.001;
     double max_scan_age_ = 0.05;
+    size_t map_msg_count_ = 0;
+
+    // Prediction baseline state (used to compute scan-to-scan odom deltas).
+    // Must be reset whenever PF is reinitialised.
+    bool prediction_baseline_ready_ = false;
+    double pred_last_x_ = 0, pred_last_y_ = 0, pred_last_theta_ = 0;
 
     // Thread safety
     std::mutex pf_mutex_;
