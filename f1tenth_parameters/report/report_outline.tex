@@ -216,14 +216,14 @@ was repeated five times, yielding 100 data points in total.
   $\delta - L\omega/v_x$ (deviation from kinematic steering); the
   horizontal axis is the lateral acceleration $a_y$.  The slope of the
   linear fit gives
-  $K_\text{us} = \SI{0.0093}{\radian\per(\metre\per\second\squared)}$
+  $K_\text{us} = \SI{0.0092}{\radian\per(\metre\per\second\squared)}$
   ($R^2 = 0.81$, $n = 20$ operating points, 5 runs).\label{fig:cornering-Kus}}
 
 The steering angle used in the regression is the calibrated wheel
 angle from the VESC servo mapping
 (Section~\ref{sec:vesc-cal}), corrected for the nonlinear servo
 response (Section~\ref{sec:servo-correction}).  The measured understeer gradient is
-$K_\text{us} = 0.0093 \pm 0.001\;\text{rad/(m/s}^2\text{)}$.
+$K_\text{us} = 0.0092 \pm 0.001\;\text{rad/(m/s}^2\text{)}$.
 The positive value confirms the vehicle understeers, requiring
 progressively more steering input at higher lateral accelerations.
 
@@ -243,21 +243,33 @@ Figure~\ref{fig:cornering-range} shows the parametric solution.
 
 \includefigure[width=0.7\textwidth]{cornering_solution_range.pdf}{%
   Cornering stiffness pairs $(C_{\alpha f},\,C_{\alpha r})$ satisfying
-  the measured $K_\text{us} = 0.0093$ as a function of the assumed
+  the measured $K_\text{us} = 0.0092$ as a function of the assumed
   yaw-plane natural frequency $\omega_n$.  The shaded band marks an
   estimated frequency range.\label{fig:cornering-range}}
 
-At $\omega_n = \SI{10}{\radian\per\second}$, the solution is:
+For the selected nominal value $\omega_n = \SI{10}{\radian\per\second}$
+(configurable in the plotting script), the solution is:
 \begin{equation}\label{eq:Calpha-result}
-  C_{\alpha f} = \SI{51.4}{\newton\per\radian}, \qquad
-  C_{\alpha r} = \SI{43.1}{\newton\per\radian}.
+  C_{\alpha f} = \SI{53.6}{\newton\per\radian}, \qquad
+  C_{\alpha r} = \SI{44.6}{\newton\per\radian}.
 \end{equation}
 The corresponding normalised stiffnesses for the dynamic bicycle model
-are $C_{Sf} = C_{\alpha f}/(m\,g) = 1.58$ and
-$C_{Sr} = C_{\alpha r}/(m\,g) = 1.33$.
+are $C_{Sf} = C_{\alpha f}/(m\,g) = 1.65$ and
+$C_{Sr} = C_{\alpha r}/(m\,g) = 1.37$.
 The absolute values depend on the assumed $\omega_n$; the ratio
-$C_{\alpha f}/C_{\alpha r} \approx 1.19$ is less sensitive and
+$C_{\alpha f}/C_{\alpha r} \approx 1.20$ is less sensitive and
 consistent with the measured understeer behaviour.
+
+\paragraph{Can the Pacejka shape factor $C$ be identified?}
+Not uniquely from the present dataset.  The experiments provide
+(i) near-linear slip-angle behaviour through $K_\text{us}$ and the
+derived $C_{\alpha}$ values, and (ii) a friction limit $\mu$ from peak
+lateral acceleration.  In the simplified Magic Formula
+$F_y = D\sin\!\big(C\arctan(B\alpha)\big)$, these constrain
+$D \approx \mu F_z$ and the low-slip slope $BCD \approx C_{\alpha}$, but
+do not separate $B$ and $C$.  Therefore $C$ must be assumed or bounded
+from prior tire data unless additional nonlinear $F_y(\alpha)$ sweep
+measurements near saturation are collected.
 
 %%% ===================================================================
 \subsection{Rolling Resistance}\label{sec:rolling-resistance}
@@ -562,7 +574,7 @@ full range.  A second-order polynomial fit to the data gives:
 \begin{equation}\label{eq:servo-poly}
   \delta_\text{act}(s) = -0.9262\,s^2 - 0.4778\,s + 0.5365,
 \end{equation}
-where $s$ is the servo value ($s = g \cdot (-\delta_\text{cmd}) + b$,
+where $s$ is the servo value ($s = g \cdot \delta_\text{cmd} + b$,
 with gain $g$ and offset $b$ from Table~\ref{tab:vesc-cal}).
 The zero-steering offset $\delta_\text{act}(b)$ is subtracted so that
 $\delta_\text{act} = 0$ when $\delta_\text{cmd} = 0$.
@@ -585,11 +597,11 @@ The cornering stiffness tests (Section~\ref{sec:cornering}) were
 conducted \emph{before} the polynomial correction was deployed, using
 an earlier servo gain of $g_\text{old} = -0.7940$.
 With this gain, the servo overshoot caused actual wheel angles to
-exceed the commanded values by up to $6.5\%$ at small angles.
+exceed the commanded values by up to $11.8\%$ at small angles.
 Retrospectively correcting the commanded angles through
 Equation~\eqref{eq:servo-poly} with the old gain reduces the measured
 understeer gradient from $K_\text{us} = 0.012$ to
-$K_\text{us} = 0.0093\;\text{rad/(m/s}^2\text{)}$ and yields the
+$K_\text{us} = 0.0092\;\text{rad/(m/s}^2\text{)}$ and yields the
 updated cornering stiffnesses in Equation~\eqref{eq:Calpha-result}.
 
 %%% ===================================================================
@@ -612,13 +624,13 @@ Friction coeff.\      & $\mu$
   & 0.745  & 1.049  & {--}
   & Tested \\
 Front corn.\ stiff.\  & $C_{\alpha f}$
-  & 51.4   & 4.718  & \si{\newton\per\radian}
+  & 53.6   & 4.718  & \si{\newton\per\radian}
   & Tested\textsuperscript{a} \\
 Rear corn.\ stiff.\   & $C_{\alpha r}$
-  & 43.1   & 5.456  & \si{\newton\per\radian}
+  & 44.6   & 5.456  & \si{\newton\per\radian}
   & Tested\textsuperscript{a} \\
 Understeer gradient   & $K_\text{us}$
-  & 0.0093  & {--}   & \si{\radian\per(\metre\per\second\squared)}
+  & 0.0092  & {--}   & \si{\radian\per(\metre\per\second\squared)}
   & Tested \\
 Rolling resistance   & $c_\text{roll}$
   & 0.163  & 0.003    & {--}
@@ -642,7 +654,7 @@ Max steer.\ rate      & $\dot{\delta}_\text{max}$
   & 2.85   & 3.2    & \si{\radian\per\second}
   & Tested \\
 Servo gain ratio      & $\delta_\text{act}/\delta_\text{cmd}$
-  & 0.86   & 1.0    & {--}
+  & 1.07   & 1.0    & {--}
   & Calibrated \\
 \bottomrule
 \end{tabular}
@@ -653,7 +665,7 @@ Servo gain ratio      & $\delta_\text{act}/\delta_\text{cmd}$
 \textsuperscript{a}Combined $K_\text{us}$ + yaw-frequency method
 (Section~\ref{sec:cornering}); corrected for nonlinear servo response
 (Section~\ref{sec:servo-correction}).  Absolute values depend on assumed
-$\omega_n$.  The ratio $C_{\alpha f}/C_{\alpha r} = 1.19$ is
+$\omega_n$.  The ratio $C_{\alpha f}/C_{\alpha r} = 1.20$ is
 better constrained.\\
 \textsuperscript{b}Includes both tire rolling resistance and drivetrain
 friction; measured via coast-down test
@@ -681,7 +693,7 @@ defaults:
         reflecting the combined tire and drivetrain friction of a geared
         4$\times$4 chassis.
   \item \textbf{Understeer}: the vehicle understeers with
-        $K_\text{us} = 0.012$, requiring progressively more steering
+        $K_\text{us} = 0.0092$, requiring progressively more steering
         input at higher lateral accelerations.
 \end{itemize}
 
