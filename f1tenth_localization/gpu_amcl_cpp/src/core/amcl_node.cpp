@@ -153,8 +153,17 @@ void AmclNode::load_parameters() {
 // ─── Map callback ───────────────────────────────────────────────────
 void AmclNode::map_callback(
     const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
-    RCLCPP_INFO(get_logger(), "Received map (%dx%d @ %.3f m/cell)",
-                msg->info.width, msg->info.height, msg->info.resolution);
+    ++map_msg_count_;
+    if (map_msg_count_ == 1) {
+        RCLCPP_INFO(get_logger(),
+                    "Received first map (%dx%d @ %.3f m/cell) — initialising PF",
+                    msg->info.width, msg->info.height, msg->info.resolution);
+    } else {
+        RCLCPP_WARN(get_logger(),
+                    "Received map update #%zu (%dx%d @ %.3f m/cell) — reinitialising PF",
+                    map_msg_count_, msg->info.width, msg->info.height,
+                    msg->info.resolution);
+    }
 
     std::lock_guard<std::mutex> lock(pf_mutex_);
     map_.load_from_msg(*msg);
@@ -194,6 +203,7 @@ void AmclNode::map_callback(
     sm_cfg.laser_offset_y  = get_parameter("laser_offset_y").as_double();
 
     pf_.init(pf_cfg, mm_cfg, sm_cfg, map_);
+    prediction_baseline_ready_ = false;
     RCLCPP_INFO(get_logger(), "Particle filter initialised with %d particles",
                 pf_cfg.num_particles);
 
@@ -245,32 +255,29 @@ void AmclNode::scan_callback(
     std::lock_guard<std::mutex> lock(pf_mutex_);
 
     // Compute odom delta in robot frame.
-    // (For the first scan we skip the update — just record the pose.)
-    static bool first_scan = true;
-    static double last_x = 0, last_y = 0, last_theta = 0;
-
-    double dx_world = prev_x_ - last_x;
-    double dy_world = prev_y_ - last_y;
-    double dtheta   = math_utils::angle_diff(prev_theta_, last_theta);
-
-    if (first_scan) {
-        last_x = prev_x_;
-        last_y = prev_y_;
-        last_theta = prev_theta_;
-        first_scan = false;
+    // For the first scan after startup/reinit, just seed the baseline.
+    if (!prediction_baseline_ready_) {
+        pred_last_x_ = prev_x_;
+        pred_last_y_ = prev_y_;
+        pred_last_theta_ = prev_theta_;
+        prediction_baseline_ready_ = true;
         processing_scan_ = false;
         return;
     }
 
+    double dx_world = prev_x_ - pred_last_x_;
+    double dy_world = prev_y_ - pred_last_y_;
+    double dtheta   = math_utils::angle_diff(prev_theta_, pred_last_theta_);
+
     // Transform world-frame delta to robot-frame.
-    double c = std::cos(last_theta);
-    double s = std::sin(last_theta);
+    double c = std::cos(pred_last_theta_);
+    double s = std::sin(pred_last_theta_);
     float dx_robot = static_cast<float>( dx_world * c + dy_world * s);
     float dy_robot = static_cast<float>(-dx_world * s + dy_world * c);
 
-    last_x     = prev_x_;
-    last_y     = prev_y_;
-    last_theta = prev_theta_;
+    pred_last_x_     = prev_x_;
+    pred_last_y_     = prev_y_;
+    pred_last_theta_ = prev_theta_;
 
     // ── Timing start ──
     auto t_pf_start = std::chrono::high_resolution_clock::now();
@@ -323,6 +330,7 @@ void AmclNode::initialpose_callback(
                      get_parameter("initial_cov_xx").as_double(),
                      get_parameter("initial_cov_yy").as_double(),
                      get_parameter("initial_cov_aa").as_double());
+    prediction_baseline_ready_ = false;
 }
 
 // ─── Direct pose publish (called from scan_callback) ────────────────
