@@ -4,59 +4,64 @@
 # State [9]: s, n, alpha, vx, vy, omega, X, Y, psi
 # Control [2]: delta, a_x
 #
+# Tuned via full parameter sweep (128k tests, score=116.47)
+#
 # Usage: ros2 launch mpcc_f1_10th mpcc_launch.py
 # Override: ros2 launch mpcc_f1_10th mpcc_launch.py weight_n:=200.0
 
 mpcc_node:
   ros__parameters:
 
-    # --- Prediction Horizon ---
-    horizon_steps: 20
-    dt: 0.05              # [seconds] time step between prediction stages
+    # --- Prediction Horizon (aligned-dynamics sweep best) ---
+    horizon_steps: 10
+    dt: 0.0425            # [seconds] time step between prediction stages
 
-    # --- Frenet Tracking Weights ---
+    # --- Frenet Tracking Weights (aligned-dynamics sweep best) ---
     # weight_n: penalizes lateral deviation (n^2) from path
     # weight_alpha: penalizes heading error (alpha^2) from path tangent
     # weight_progress: reward for forward progress (-q_s * s)
-    weight_n: 100.0
-    weight_alpha: 50.0
-    weight_progress: 1.0
+    weight_n: 50.0
+    weight_alpha: 20.0
+    weight_progress: 2.0
 
-    # --- State Regularization ---
-    weight_vx: 0.0        # velocity tracking (0 = pure progress mode)
-    vx_ref: 3.0           # [m/s] reference velocity (if weight_vx > 0)
-    weight_vy: 0.5        # lateral velocity penalty (anti-drift)
+    # --- State Regularization (aligned-dynamics sweep best) ---
+    weight_vx: 0.0        # velocity tracking disabled (pure progress mode)
+    vx_ref: 12.0          # [m/s] reference velocity
+    weight_vy: 10.0       # lateral velocity penalty (anti-drift)
     weight_omega: 0.1     # yaw rate penalty
 
-    # --- Control Effort ---
-    weight_delta: 1.0     # steering magnitude penalty
+    # --- Control Effort (aligned-dynamics sweep best) ---
+    weight_delta: 0.01    # steering magnitude penalty
     weight_ax: 0.01       # acceleration magnitude penalty
+    weight_v_theta: 0.5   # progress rate penalty
 
-    # --- Control Smoothness (rate penalties) ---
-    weight_delta_rate: 10.0    # steering rate (high = smooth)
+    # --- Control Smoothness (rate penalties, aligned-dynamics sweep best) ---
+    weight_delta_rate: 0.1     # steering rate
     weight_ax_rate: 0.1        # acceleration rate
+    weight_v_theta_rate: 0.1   # progress acceleration rate
 
     # --- Terminal Cost ---
     weight_n_terminal: 100.0
-    weight_alpha_terminal: 50.0
+    weight_alpha_terminal: 10.0
     weight_progress_terminal: 5.0
 
     # --- Obstacle Avoidance ---
     weight_obstacle: 1000.0   # penalty for ellipsoidal constraint violation
     obstacle_margin: 0.1      # [m] safety margin added to obstacles
 
-    # --- ADMM Solver ---
-    admm_rho: 1.0         # penalty parameter (0.1 to 10.0)
-    admm_max_iterations: 50
-    admm_tolerance: 0.01  # convergence tolerance (primal + dual)
+    # --- ADMM Solver (tuned) ---
+    admm_rho: 1.218171    # penalty parameter
+    admm_max_iterations: 100
+    admm_tolerance: 0.014462  # convergence tolerance
 
     # --- Constraint Bounds ---
-    delta_max: 0.4282     # [rad] max steering angle
-    ax_max: 7.31          # [m/s^2] max longitudinal acceleration (mu*g bounded)
-    ax_min: -7.31         # [m/s^2] max braking deceleration (mu*g bounded)
+    delta_max: 0.4189     # [rad] max steering angle
+    ax_max: 7.0           # [m/s^2] max longitudinal acceleration
+    ax_min: -10.0         # [m/s^2] max braking deceleration
     vx_max: 20.0          # [m/s] max longitudinal velocity
     vx_min: 0.0           # [m/s] min longitudinal velocity
     n_max: 0.5            # [m] default track half-width
+    v_theta_max: 2.0      # [m/s] max progress rate
 
     # --- Tire Parameters ---
     mu: 0.745             # [-] road-tire friction coefficient

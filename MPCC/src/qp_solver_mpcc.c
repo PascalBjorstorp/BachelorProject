@@ -775,6 +775,7 @@ void admm_projection_step(
                 ws->w_x[k][MPCC_IDX_N] = val_n;
             }
         }
+
     }
 
     /* Project controls */

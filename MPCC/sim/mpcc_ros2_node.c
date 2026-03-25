@@ -23,7 +23,7 @@
 
 #include "mpcc_types.h"
 #include "mpcc.h"
-#include "mpc_types.h"        /* VehicleState_t */
+/* VehicleState_t is now defined in mpcc_types.h — no MPC dependency */
 
 /* ── Globals ─────────────────────────────────────────────────────────────── */
 static VehicleState_t   current_vehicle_state;
@@ -238,7 +238,7 @@ static void odom_callback(const void *msg_in)
 
 /* ── Control Timer Callback ──────────────────────────────────────────────── */
 static uint32_t solve_count = 0;
-#define STARTUP_RAMP_STEPS 40  /* 40 * 50ms = 2 seconds */
+static int startup_ramp_steps = -1; /* from env MPCC_STARTUP_RAMP_STEPS, default 40 */
 
 static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
 {
@@ -260,13 +260,19 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
 
     solve_count++;
 
+    if (startup_ramp_steps < 0) {
+        const char *v = getenv("MPCC_STARTUP_RAMP_STEPS");
+        startup_ramp_steps = v ? atoi(v) : 40;
+        if (startup_ramp_steps < 0) startup_ramp_steps = 0;
+    }
+
     float a_x_cmd   = fp_to_float(result.optimal_control.a_x);
     float delta_cmd  = fp_to_float(result.optimal_control.delta);
     float v_theta_cmd = fp_to_float(result.optimal_control.v_theta);
 
     /* ── Startup ramp: gently increase control authority ────────────── */
-    if (solve_count <= STARTUP_RAMP_STEPS) {
-        float ramp = (float)solve_count / (float)STARTUP_RAMP_STEPS;
+    if (startup_ramp_steps > 0 && solve_count <= (uint32_t)startup_ramp_steps) {
+        float ramp = (float)solve_count / (float)startup_ramp_steps;
         /* Accel: ramp from 1.0 → 7.0 m/s² over 2 seconds */
         float max_ax = 1.0f + 6.0f * ramp;
         if (a_x_cmd >  max_ax) a_x_cmd =  max_ax;
@@ -415,7 +421,7 @@ int main(int argc, const char *argv[])
     }
     else
     {
-        trajectory_file = "/ros2_ws/src/f1tenth_planning/trajectories/Spielberg_raceline_optimized_wide.csv";
+        trajectory_file = "/ros2_ws/src/f1tenth_planning/trajectories/Spielberg_raceline.csv";
     }
 
     MPCCReferencePath_t ref_path;

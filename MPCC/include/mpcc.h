@@ -47,7 +47,6 @@
 #define MPCC_H
 
 #include "mpcc_types.h"
-#include "vehicle_model.h"
 
 /*===========================================================================
  * MPCC Initialization

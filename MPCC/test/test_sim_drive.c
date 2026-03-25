@@ -83,7 +83,8 @@ static int load_raceline(void)
                                &wp->kappa, &wp->vx, &wp->ax,
                                &wp->left_bound, &wp->right_bound);
                 if (n >= 9) raceline_count++;
-                else if (n >= 6) {
+                else if (n >= 7) {
+                    /* Legacy 7-column format without track bounds */
                     wp->left_bound = 5.0;
                     wp->right_bound = 5.0;
                     raceline_count++;
@@ -121,7 +122,8 @@ static int load_raceline(void)
                        &wp->kappa, &wp->vx, &wp->ax,
                        &wp->left_bound, &wp->right_bound);
         if (n >= 9) raceline_count++;
-        else if (n >= 6) {
+        else if (n >= 7) {
+            /* Legacy 7-column format without track bounds */
             wp->left_bound = 5.0;
             wp->right_bound = 5.0;
             raceline_count++;
@@ -270,27 +272,27 @@ int main(void)
     memset(&cfg, 0, sizeof(cfg));
 
     /* Horizon */
-    cfg.horizon_steps     = env_int("HORIZON", MPCC_DEFAULT_HORIZON);
-    cfg.dt                = FP_CONST(env_double("DT", 0.05));
+    cfg.horizon_steps     = env_int("HORIZON", 10);
+    cfg.dt                = FP_CONST(env_double("DT", 0.0425));
 
-    /* Frenet tracking */
-    cfg.weight_n          = FP_CONST(env_double("Q_N", 100.0));
-    cfg.weight_alpha      = FP_CONST(env_double("Q_ALPHA", 10.0));
-    cfg.weight_progress   = FP_CONST(env_double("Q_PROGRESS", 1.0));
+    /* Frenet tracking (tuned via aligned-dynamics full sweep: score=117.63) */
+    cfg.weight_n          = FP_CONST(env_double("Q_N", 50.0));
+    cfg.weight_alpha      = FP_CONST(env_double("Q_ALPHA", 20.0));
+    cfg.weight_progress   = FP_CONST(env_double("Q_PROGRESS", 2.0));
 
     /* State regularization */
-    cfg.weight_vx         = FP_CONST(env_double("Q_VX", 15.0));
-    cfg.vx_ref            = FP_CONST(env_double("VX_REF", 3.0));
-    cfg.weight_vy         = FP_CONST(env_double("Q_VY", 0.5));
+    cfg.weight_vx         = FP_CONST(env_double("Q_VX", 0.0));
+    cfg.vx_ref            = FP_CONST(env_double("VX_REF", 12.0));
+    cfg.weight_vy         = FP_CONST(env_double("Q_VY", 10.0));
     cfg.weight_omega      = FP_CONST(env_double("Q_OMEGA", 0.1));
 
     /* Control effort */
-    cfg.weight_delta      = FP_CONST(env_double("R_DELTA", 0.1));
+    cfg.weight_delta      = FP_CONST(env_double("R_DELTA", 0.01));
     cfg.weight_ax         = FP_CONST(env_double("R_AX", 0.01));
     cfg.weight_v_theta    = FP_CONST(env_double("R_VTHETA", 0.5));
 
     /* Control rate */
-    cfg.weight_delta_rate   = FP_CONST(env_double("W_DELTA_RATE", 2.0));
+    cfg.weight_delta_rate   = FP_CONST(env_double("W_DELTA_RATE", 0.1));
     cfg.weight_ax_rate      = FP_CONST(env_double("W_AX_RATE", 0.1));
     cfg.weight_v_theta_rate = FP_CONST(env_double("W_VTHETA_RATE", 0.1));
 
@@ -303,10 +305,10 @@ int main(void)
     cfg.weight_obstacle   = FP_CONST(env_double("W_OBSTACLE", 1000.0));
     cfg.obstacle_margin   = FP_CONST(env_double("OBSTACLE_MARGIN", 0.1));
 
-    /* ADMM solver */
-    cfg.admm_rho            = FP_CONST(env_double("ADMM_RHO", 1.0));
+    /* ADMM solver (tuned via sweep) */
+    cfg.admm_rho            = FP_CONST(env_double("ADMM_RHO", 1.218171));
     cfg.admm_max_iterations = env_int("ADMM_MAX_ITER", 100);
-    cfg.admm_tolerance      = FP_CONST(env_double("ADMM_TOL", 0.001));
+    cfg.admm_tolerance      = FP_CONST(env_double("ADMM_TOL", 0.014462));
 
     /* Constraint bounds */
     cfg.delta_max = FP_CONST(env_double("DELTA_MAX", 0.4189));
@@ -315,7 +317,7 @@ int main(void)
     cfg.vx_max    = FP_CONST(env_double("VX_MAX", 20.0));
     cfg.vx_min    = FP_CONST(env_double("VX_MIN", 0.0));
     cfg.n_max     = FP_CONST(env_double("N_MAX", 0.5));
-    cfg.v_theta_max = FP_CONST(env_double("V_THETA_MAX", 3.5));
+    cfg.v_theta_max = FP_CONST(env_double("V_THETA_MAX", 2.0));
     cfg.v_theta_min = FP_CONST(env_double("V_THETA_MIN", 0.0));
 
     /* Tire parameters */

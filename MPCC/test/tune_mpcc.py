@@ -42,31 +42,27 @@ RUN_SIM_SH = os.path.join(MPCC_DIR, "run_sim.sh")
 # MODE-SPECIFIC CONFIGURATIONS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# ─── Spielberg: large track, multiple clearance racelines ────────────────────
+# ─── Spielberg: large track, single default raceline (matches MPC/) ──────────
 SPIELBERG_RACELINES = {
-    "cl020": os.path.join(TRAJ_DIR, "Spielberg_raceline_pipeline_cl020.csv"),
-    "cl030": os.path.join(TRAJ_DIR, "Spielberg_raceline_pipeline_cl030.csv"),
-    "cl045": os.path.join(TRAJ_DIR, "Spielberg_raceline_pipeline_cl045.csv"),
-    "cl050": os.path.join(TRAJ_DIR, "Spielberg_raceline_pipeline_cl050.csv"),
     "default": os.path.join(TRAJ_DIR, "Spielberg_raceline.csv"),
 }
 
 SPIELBERG_BASE = {
-    # Frenet tracking
-    "Q_N":              100.0,
-    "Q_ALPHA":          10.0,
-    "Q_PROGRESS":       1.0,
+    # Frenet tracking — tuned on aligned dynamics (25k tests, score=117.63)
+    "Q_N":              50.0,
+    "Q_ALPHA":          20.0,
+    "Q_PROGRESS":       2.0,
     # State regularization
-    "Q_VX":             15.0,
+    "Q_VX":             0.0,
     "VX_REF":           12.0,
-    "Q_VY":             0.5,
+    "Q_VY":             10.0,
     "Q_OMEGA":          0.1,
     # Control effort
-    "R_DELTA":          0.1,
+    "R_DELTA":          0.01,
     "R_AX":             0.01,
     "R_VTHETA":         0.5,
     # Control rate
-    "W_DELTA_RATE":     2.0,
+    "W_DELTA_RATE":     0.1,
     "W_AX_RATE":        0.1,
     "W_VTHETA_RATE":    0.1,
     # Terminal
@@ -74,13 +70,13 @@ SPIELBERG_BASE = {
     "Q_ALPHA_TERM":     10.0,
     "Q_PROGRESS_TERM":  5.0,
     # ADMM solver
-    "ADMM_RHO":         1.0,
+    "ADMM_RHO":         1.218171,
     "ADMM_MAX_ITER":    100,
-    "ADMM_TOL":         0.01,
+    "ADMM_TOL":         0.014462,
     # Horizon
-    "HORIZON":          20,
-    "DT":               0.05,
-    "V_THETA_MAX":      3.5,
+    "HORIZON":          10,
+    "DT":               0.0425,
+    "V_THETA_MAX":      2.0,
 }
 
 # ─── Hardware: small SLAM-mapped track (~22m, 0.27-1.4m wide) ────────────────
@@ -103,7 +99,7 @@ HARDWARE_BASE = {
     "R_AX":             0.01,
     "R_VTHETA":         1.0,
     # Control rate
-    "W_DELTA_RATE":     5.0,
+    "W_DELTA_RATE":     0.1,
     "W_AX_RATE":        0.1,
     "W_VTHETA_RATE":    0.1,
     # Terminal
@@ -223,9 +219,8 @@ def build_binary():
         "gcc",
         "-D_GNU_SOURCE", "-O3", "-std=c99", "-Wall", "-ffast-math",
         "-Wno-unused-variable", "-Wno-unused-but-set-variable",
-        "-Wno-unknown-pragmas",
+        "-Wno-unused-function", "-Wno-unknown-pragmas",
         f"-I{MPCC_DIR}/include",
-        f"-I{MPC_DIR}/include",
         f"{MPCC_DIR}/test/test_sim_drive.c",
         f"{MPCC_DIR}/src/mpcc.c",
         f"{MPCC_DIR}/src/mpcc_vehicle_model.c",
