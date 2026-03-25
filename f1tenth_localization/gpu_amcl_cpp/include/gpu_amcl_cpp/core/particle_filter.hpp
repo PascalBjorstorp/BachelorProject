@@ -9,7 +9,6 @@
 #include <Eigen/Core>
 #include <vector>
 #include <random>
-#include <mutex>
 
 namespace gpu_amcl_cpp {
 
@@ -50,8 +49,12 @@ public:
         int    max_particles       = 5000;
 
         // Initial pose
-        double init_x  = 0.0, init_y  = 0.0, init_a  = 0.0;
-        double init_cov_xx = 0.5, init_cov_yy = 0.5, init_cov_aa = 0.2;
+        double init_x  = 0.0; 
+        double init_y  = 0.0;
+        double init_a  = 0.0;
+        double init_cov_xx = 0.5; 
+        double init_cov_yy = 0.5; 
+        double init_cov_aa = 0.2;
 
         // Resampling
         double resample_threshold   = 0.5;
@@ -63,12 +66,6 @@ public:
         double kld_bin_x            = 0.5;  ///< metres
         double kld_bin_y            = 0.5;
         double kld_bin_theta        = 0.1;  ///< radians
-
-        // Recovery (nav2-style, slow/fast weight tracking)
-        bool   use_recovery         = false;
-        double recovery_alpha_slow  = 0.001;
-        double recovery_alpha_fast  = 0.1;
-        double recovery_random_max  = 0.05;
     };
 
     ParticleFilter() = default;
@@ -93,16 +90,9 @@ public:
                       double cov_xx, double cov_yy, double cov_aa);
 
     /// Prediction step: propagate particles by odom delta.
-    void predict(float dx, float dy, float dtheta, float imu_dtheta);
+    void predict(float dx, float dy, float dtheta);
 
-    /**
-     * @brief Measurement (sensor model) update + conditional resampling.
-     *
-     * @param ranges      Host array of laser range readings.
-     * @param num_ranges  Number of readings.
-     * @param angle_min   First beam angle (rad).
-     * @param angle_inc   Angle increment (rad).
-     */
+    /// Update step: compute particle weights from a new scan.
     void update(const float* ranges, int num_ranges,
                 float angle_min, float angle_inc);
 
@@ -124,7 +114,6 @@ private:
     void check_resample();
     void do_resample(int target_n);
     int  compute_kld_target();
-    void inject_random_particles(double fraction);
 
     Config          cfg_;
     MotionModel     motion_;
@@ -132,40 +121,32 @@ private:
     Resampler       resampler_;
     CudaStream      stream_;
 
-    // ── Persistent GPU buffers (§5: allocated once in init, reused every frame) ──
-    DeviceBuffer<float> d_particles_a_;   ///< Nx3 particle buffer A
-    DeviceBuffer<float> d_particles_b_;   ///< Nx3 particle buffer B (double-buffer)
-    float* d_active_particles_ = nullptr; ///< Points to active buffer (a or b)
+    // GPU double-buffering strategy
+    // Two particle buffers to avoid data race: one reads, one writes
+    DeviceBuffer<float> d_particles_a_;      // Buffer A
+    DeviceBuffer<float> d_particles_b_;      // Buffer B
+    float* d_active_particles_ = nullptr;    // Points to active (a or b)
+    
+    DeviceBuffer<float> d_weights_;
+    DeviceBuffer<float> d_ranges_;           // Persisted for async
+    DeviceBuffer<float> d_log_w_;            // For numerical stability
+    DeviceBuffer<float> d_scratch_w_;        // Swap during normalizatio
 
-    DeviceBuffer<float> d_weights_;       ///< N normalised weights
-    DeviceBuffer<float> d_ranges_;        ///< Persistent scan buffer (max beams)
-    DeviceBuffer<float> d_log_w_;         ///< Persistent log-weight buffer
-    DeviceBuffer<float> d_scratch_w_;     ///< Scratch buffer for normalization swap
+    // CUB temp storage for GPU-side reductions
+    void* d_cub_temp_ = nullptr;             // CUB DeviceReduce temp
+    size_t cub_temp_bytes_ = 0;
+    float* d_max_val_ = nullptr;             // Device scalars
+    float* d_sum_val_ = nullptr;
 
-    // §1: CUB temp storage + device scalars for GPU-side normalization
-    void*  d_cub_temp_     = nullptr;  ///< CUB DeviceReduce temp storage
-    size_t cub_temp_bytes_ = 0;        ///< Size of CUB temp allocation
-    float* d_max_val_      = nullptr;  ///< Device scalar for CUB Max output
-    float* d_sum_val_      = nullptr;  ///< Device scalar for CUB Sum output
+    // Pinned memory for async GPU↔CPU transfers
+    float* h_ranges_pinned_ = nullptr;       // Input: ranges CPU→GPU
+    float* h_particles_pinned_ = nullptr;    // Output: particles GPU→CPU
+    float* h_weights_pinned_ = nullptr;      // Output: weights GPU→CPU
 
-    // §4: Pinned (page-locked) host staging buffers for async-capable transfers.
-    //     cudaMemcpyAsync only works asynchronously with pinned memory;
-    //     with pageable memory it silently falls back to synchronous.
-    //     Budget: 5000×3×4 + 5000×4 + 1080×4 ≈ 84 KB — negligible.
-    float* h_ranges_pinned_    = nullptr;  ///< Pinned staging for scan upload
-    float* h_particles_pinned_ = nullptr;  ///< Pinned staging for particle D2H
-    float* h_weights_pinned_   = nullptr;  ///< Pinned staging for weight D2H
+    int n_ = 0;                              // Current particle count
+    int max_ranges_ = 0;                     // Allocated range buffer capacity
 
-    int n_ = 0;  ///< current active particle count.
-    int max_ranges_ = 0; ///< allocated range buffer capacity
-
-    // Recovery state
-    double w_slow_ = 0.0;
-    double w_fast_ = 0.0;
-
-    // Free-space cells for random injection
-    const MapProcessor* map_ = nullptr;
-    std::mt19937        rng_{42};
+    std::mt19937 rng_{42};                   // For reinitialize() Gaussian sampling
 };
 
 }  // namespace gpu_amcl_cpp

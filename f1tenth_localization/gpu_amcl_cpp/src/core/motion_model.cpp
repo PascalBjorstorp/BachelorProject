@@ -30,7 +30,6 @@ void MotionModel::ensure_capacity(int n) {
 
 void MotionModel::apply(float* d_particles, int n,
                         float dx, float dy, float dtheta,
-                        float imu_dtheta,
                         cudaStream_t stream) {
     ensure_capacity(n);
 
@@ -42,9 +41,6 @@ void MotionModel::apply(float* d_particles, int n,
     launch_motion_update(d_particles, n,
                          dx, dy, dtheta,
                          a1, a2, a3, a4,
-                         cfg_.use_imu,
-                         static_cast<float>(cfg_.imu_gyro_weight),
-                         imu_dtheta,
                          d_rng_states_.ptr(),
                          stream);
 }

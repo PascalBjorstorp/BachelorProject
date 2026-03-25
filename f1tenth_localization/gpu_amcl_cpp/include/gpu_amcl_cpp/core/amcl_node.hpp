@@ -42,50 +42,55 @@ private:
     void publish_pose(const PoseEstimate& est, const rclcpp::Time& stamp);
 
     // ── ROS I/O ────────────────────────────────────────────────────
-    rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr       scan_sub_;
-    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr           odom_sub_;
-    rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr      map_sub_;
-    rclcpp::Subscription<
-        geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr      initpose_sub_;
+    // Subscribers
+    rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+    rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub_;
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr initpose_sub_;
 
-    rclcpp::Publisher<
-        geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr      pose_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr         cloud_pub_;
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr               timing_pub_;
-
-    rclcpp::TimerBase::SharedPtr publish_timer_;
+    // Publishers    
+    rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_pub_;  // /amcl_pose
+    rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr cloud_pub_;                 // /particlecloud
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr timing_pub_;                       // /amcl_timing
+    
+    // Timer for decoupled particle cloud publishing
+    rclcpp::TimerBase::SharedPtr publish_timer_; // For particle cloud viz
 
     // ── Core ───────────────────────────────────────────────────────
-    ParticleFilter pf_;
-    MapProcessor   map_;
+    ParticleFilter pf_;     // The particle filter
+    MapProcessor   map_;    // Map + distance field
 
     // Motion tracking
     bool   odom_received_ = false;
-    double prev_x_ = 0, prev_y_ = 0, prev_theta_ = 0;
+    double prev_x_ = 0;
+    double prev_y_ = 0;
+    double prev_theta_ = 0;
     double update_min_d_ = 0.001;
     double update_min_a_ = 0.001;
     double max_scan_age_ = 0.05;
-    size_t map_msg_count_ = 0;
 
-    // Prediction baseline state (used to compute scan-to-scan odom deltas).
-    // Must be reset whenever PF is reinitialised.
+    // Prediction baseline (reset on reinit)
     bool prediction_baseline_ready_ = false;
-    double pred_last_x_ = 0, pred_last_y_ = 0, pred_last_theta_ = 0;
+    double pred_last_x_ = 0;
+    double pred_last_y_ = 0;
+    double pred_last_theta_ = 0;
 
     // Thread safety
-    std::mutex pf_mutex_;
-    std::atomic<bool> processing_scan_{false};
+    std::mutex pf_mutex_;                       // Protects pf_ during GPU ops
+    std::atomic<bool> processing_scan_{false};  // Drop scans during processing
 
     // Cached estimate for decoupled publishing
     PoseEstimate cached_estimate_;
     std::mutex   estimate_mutex_;
 
-    // Frame IDs
+    // Frame IDs and topic names
     std::string base_frame_;
     std::string odom_frame_;
     std::string global_frame_;
+    std::string scan_topic_;
+    std::string odom_topic_;
 
-    // Callback groups (§10.4) — allow scan and odom to run in parallel.
+    // Callback groups for parallel execution
     rclcpp::CallbackGroup::SharedPtr scan_cb_group_;
     rclcpp::CallbackGroup::SharedPtr odom_cb_group_;
 };

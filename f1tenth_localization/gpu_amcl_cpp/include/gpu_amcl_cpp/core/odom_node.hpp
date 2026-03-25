@@ -5,7 +5,6 @@
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
-#include <mutex>
 
 namespace gpu_amcl_cpp {
 
@@ -31,13 +30,16 @@ private:
     void publish_pose(const rclcpp::Time& stamp);
 
     // ── ROS I/O ────────────────────────────────────────────────────
+    // Subscriber: receives wheel odometry
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr  odom_sub_;
+    // Publisher: outputs PoseWithCovarianceStamped
     rclcpp::Publisher<
         geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_pub_;
 
     // ── State ──────────────────────────────────────────────────────
-    bool   odom_init_ = false;
-    double odom_x_    = 0.0, odom_y_    = 0.0, odom_theta_ = 0.0;
+    double odom_x_    = 0.0;
+    double odom_y_    = 0.0;
+    double odom_theta_ = 0.0;
 
     // Parameters
     double base_cov_xy_    = 0.01;
@@ -46,9 +48,6 @@ private:
     std::string odom_topic_;
     std::string output_topic_;
     std::string frame_id_;
-    std::string child_frame_id_;
-
-    std::mutex state_mutex_;
 };
 
 }  // namespace gpu_amcl_cpp

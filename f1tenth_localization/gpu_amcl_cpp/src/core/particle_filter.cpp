@@ -5,18 +5,17 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
-#include <numeric>
 #include <unordered_set>
 
 namespace gpu_amcl_cpp {
 
 // ─── Destructor (free raw CUDA allocations) ─────────────────────────
 ParticleFilter::~ParticleFilter() {
-    // §1: CUB temp storage
+    // CUB temp storage
     if (d_cub_temp_) cudaFree(d_cub_temp_);
     if (d_max_val_)  cudaFree(d_max_val_);
     if (d_sum_val_)  cudaFree(d_sum_val_);
-    // §4: Pinned host buffers
+    // Pinned host buffers
     if (h_ranges_pinned_)    cudaFreeHost(h_ranges_pinned_);
     if (h_particles_pinned_) cudaFreeHost(h_particles_pinned_);
     if (h_weights_pinned_)   cudaFreeHost(h_weights_pinned_);
@@ -28,102 +27,90 @@ void ParticleFilter::init(const Config& pf_cfg,
                           const SensorModel::Config& sm_cfg,
                           const MapProcessor& map) {
     cfg_ = pf_cfg;
-    map_ = &map;
     n_   = cfg_.num_particles;
 
-    // ── Allocate persistent GPU buffers (§5: done once, reused every frame) ──
-    d_particles_a_.allocate(cfg_.max_particles * 3);
+    // ── GPU Buffer Allocations ──
+    // Double-buffer for particles (A and B)
+    d_particles_a_.allocate(cfg_.max_particles * 3);    // x,y,θ per particle
     d_particles_b_.allocate(cfg_.max_particles * 3);
-    d_active_particles_ = d_particles_a_.ptr();
+    d_active_particles_ = d_particles_a_.ptr();         // Start with buffer A
 
     d_weights_.allocate(cfg_.max_particles);
     d_log_w_.allocate(cfg_.max_particles);
     d_scratch_w_.allocate(cfg_.max_particles);
 
-    // Pre-allocate for your wall scan path (typically 270 beams).
-    // Buffer still grows automatically if a larger scan arrives.
-    max_ranges_ = 270;
+    // Pre-allocate range buffer based on max_beams config
+    max_ranges_ = sm_cfg.max_beams;
     d_ranges_.allocate(max_ranges_);
 
-    // §1: Allocate CUB temp storage + device scalars for GPU-side normalization.
+    // CUB temp storage for GPU reductions
     cub_temp_bytes_ = query_cub_normalize_temp_bytes(cfg_.max_particles);
     CUDA_CHECK(cudaMalloc(&d_cub_temp_, cub_temp_bytes_));
     CUDA_CHECK(cudaMalloc(&d_max_val_, sizeof(float)));
     CUDA_CHECK(cudaMalloc(&d_sum_val_, sizeof(float)));
 
-    // §4: Allocate pinned (page-locked) host staging buffers.
-    //     Enables truly async cudaMemcpyAsync and eliminates internal
-    //     staging copy that pageable memory requires (~3–8 µs per transfer).
+    // Pinned memory for async transfers
     CUDA_CHECK(cudaMallocHost(&h_ranges_pinned_,    max_ranges_ * sizeof(float)));
     CUDA_CHECK(cudaMallocHost(&h_particles_pinned_, cfg_.max_particles * 3 * sizeof(float)));
     CUDA_CHECK(cudaMallocHost(&h_weights_pinned_,   cfg_.max_particles * sizeof(float)));
 
-    // Scatter particles around initial pose.
+    // Initialize particles around starting pose
     reinitialize(cfg_.init_x, cfg_.init_y, cfg_.init_a,
                  cfg_.init_cov_xx, cfg_.init_cov_yy, cfg_.init_cov_aa);
 
-    // Init sub-components.
+    // Initialize sub-components
     motion_.init(cfg_.max_particles, mm_cfg);
     sensor_.init(map, sm_cfg);
     resampler_.init(cfg_.max_particles);
-
-    // Reset recovery.
-    w_slow_ = 0.0;
-    w_fast_ = 0.0;
 }
 
 void ParticleFilter::reinitialize(double x, double y, double theta,
                                   double cov_xx, double cov_yy,
                                   double cov_aa) {
-    n_ = cfg_.num_particles;
+    n_ = cfg_.num_particles;    // Reset to initial number of particles
 
-    std::vector<float> particles(n_ * 3);
-    std::vector<float> weights(n_, 1.0f / n_);
+    // Create CPU arrays for particles and weights
+    std::vector<float> particles(n_ * 3);       // x, y, θ for each particle
+    std::vector<float> weights(n_, 1.0f / n_);  // Uniform weights
 
+    // Create Gaussian distributions for noise
     std::normal_distribution<float> dx(0, static_cast<float>(std::sqrt(cov_xx)));
     std::normal_distribution<float> dy(0, static_cast<float>(std::sqrt(cov_yy)));
     std::normal_distribution<float> da(0, static_cast<float>(std::sqrt(cov_aa)));
 
+    // Generate particles around the pose
     for (int i = 0; i < n_; ++i) {
-        particles[i * 3 + 0] = static_cast<float>(x) + dx(rng_);
-        particles[i * 3 + 1] = static_cast<float>(y) + dy(rng_);
-        float a = static_cast<float>(theta) + da(rng_);
-        particles[i * 3 + 2] = std::atan2(std::sin(a), std::cos(a));
+        particles[i * 3 + 0] = static_cast<float>(x) + dx(rng_);        // Add noise to x
+        particles[i * 3 + 1] = static_cast<float>(y) + dy(rng_);        // Add noise to y
+        float a = static_cast<float>(theta) + da(rng_);                 // Add noise to θ
+        particles[i * 3 + 2] = std::atan2(std::sin(a), std::cos(a));    // Normalize angle to [-π, π]
     }
 
-    CUDA_CHECK(cudaMemcpy(d_active_particles_, particles.data(),
-                          n_ * 3 * sizeof(float), cudaMemcpyHostToDevice));
+    // Upload to GPU
+    CUDA_CHECK(cudaMemcpy(d_active_particles_, particles.data(), n_ * 3 * sizeof(float), cudaMemcpyHostToDevice));
     d_weights_.upload(weights.data(), n_);
-
-    w_slow_ = 0.0;
-    w_fast_ = 0.0;
 }
 
 // ─── Predict ────────────────────────────────────────────────────────
-void ParticleFilter::predict(float dx, float dy, float dtheta,
-                             float imu_dtheta) {
+void ParticleFilter::predict(float dx, float dy, float dtheta) {
     motion_.apply(d_active_particles_, n_,
-                  dx, dy, dtheta, imu_dtheta,
+                  dx, dy, dtheta,
                   stream_.get());
 }
 
 // ─── Update ─────────────────────────────────────────────────────────
 void ParticleFilter::update(const float* ranges, int num_ranges,
                             float angle_min, float angle_inc) {
-    // §5: Reuse persistent range buffer (grow if needed, never per-frame alloc).
+    // Guard: ensure scan fits in pre-allocated buffer (set by max_beams param)
     if (num_ranges > max_ranges_) {
-    int old_max = max_ranges_;
-        max_ranges_ = num_ranges;
-        d_ranges_.allocate(max_ranges_);
-        // §4: Reallocate pinned range buffer to match.
-        if (h_ranges_pinned_) cudaFreeHost(h_ranges_pinned_);
-        CUDA_CHECK(cudaMallocHost(&h_ranges_pinned_, max_ranges_ * sizeof(float)));
-        // If this appears often, scan source/config likely changed unexpectedly.
         std::fprintf(stderr,
-                     "[gpu_amcl_cpp][ParticleFilter] Reallocated range buffers: %d -> %d beams\n",
-                     old_max, max_ranges_);
+                     "[gpu_amcl_cpp][ParticleFilter] ERROR: num_ranges (%d) exceeds max_ranges_ (%d). "
+                     "Increase max_beams in config.\n",
+                     num_ranges, max_ranges_);
+        return;
     }
-    // §4: Copy to pinned staging, then async DMA to device.
+
+    // Copy to pinned staging, then async DMA to device.
     memcpy(h_ranges_pinned_, ranges, num_ranges * sizeof(float));
     CUDA_CHECK(cudaMemcpyAsync(d_ranges_.ptr(), h_ranges_pinned_,
                                num_ranges * sizeof(float),
@@ -144,24 +131,7 @@ void ParticleFilter::update(const float* ranges, int num_ranges,
         n_, stream_.get());
 
     // After normalize, d_scratch_w_ holds the normalised weights — swap.
-    std::swap(d_weights_, d_scratch_w_);
-
-    // Recovery: track w_slow / w_fast (only if recovery is enabled).
-    // Download only the scalar sum (4 bytes) instead of full weight arrays.
-    if (cfg_.use_recovery) {
-        float h_sum;
-        CUDA_CHECK(cudaMemcpyAsync(&h_sum, d_sum_val_, sizeof(float),
-                                   cudaMemcpyDeviceToHost, stream_.get()));
-        CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
-        float w_avg = h_sum / n_;
-        if (w_slow_ == 0.0) {
-            w_slow_ = w_avg;
-            w_fast_ = w_avg;
-        } else {
-            w_slow_ += cfg_.recovery_alpha_slow * (w_avg - w_slow_);
-            w_fast_ += cfg_.recovery_alpha_fast * (w_avg - w_fast_);
-        }
-    }
+    std::swap(d_weights_, d_scratch_w_); // Pointer swap, no copy, no sync needed. d_weights_ now has normalised weights for resampling.
 
     // Conditionally resample.
     check_resample();
@@ -190,15 +160,6 @@ void ParticleFilter::do_resample(int target_n) {
 
     // Pointer swap — no D→D memcpy, no sync needed.
     d_active_particles_ = inactive;
-
-    // Recovery: inject random particles if filter is degrading.
-    if (cfg_.use_recovery && w_slow_ > 0.0) {
-        double ratio = 1.0 - w_fast_ / w_slow_;
-        if (ratio > 0.0) {
-            double frac = std::min(ratio, cfg_.recovery_random_max);
-            inject_random_particles(frac);
-        }
-    }
 }
 
 int ParticleFilter::compute_kld_target() {
@@ -233,47 +194,6 @@ int ParticleFilter::compute_kld_target() {
 
     return std::clamp(static_cast<int>(std::ceil(target)),
                       cfg_.min_particles, cfg_.max_particles);
-}
-
-void ParticleFilter::inject_random_particles(double fraction) {
-    if (!map_ || map_->free_cells().empty()) return;
-
-    int num_inject = static_cast<int>(fraction * n_);
-    if (num_inject <= 0) return;
-
-    // Download current particles + weights.
-    std::vector<float> particles(n_ * 3);
-    std::vector<float> weights(n_);
-    CUDA_CHECK(cudaMemcpy(particles.data(), d_active_particles_,
-                          n_ * 3 * sizeof(float), cudaMemcpyDeviceToHost));
-    d_weights_.download(weights.data(), n_);
-
-    // Find indices of lowest-weight particles.
-    std::vector<int> idx(n_);
-    std::iota(idx.begin(), idx.end(), 0);
-    std::partial_sort(idx.begin(), idx.begin() + num_inject, idx.end(),
-                      [&](int a, int b) { return weights[a] < weights[b]; });
-
-    const auto& free = map_->free_cells();
-    std::uniform_int_distribution<int> cell_dist(0,
-                                                 static_cast<int>(free.size()) - 1);
-    std::uniform_real_distribution<float> angle_dist(
-        -static_cast<float>(M_PI), static_cast<float>(M_PI));
-
-    for (int j = 0; j < num_inject; ++j) {
-        int fi = free[cell_dist(rng_)];
-        double wx, wy;
-        map_->map_to_world(fi % map_->width(), fi / map_->width(), wx, wy);
-        int pi = idx[j];
-        particles[pi * 3 + 0] = static_cast<float>(wx);
-        particles[pi * 3 + 1] = static_cast<float>(wy);
-        particles[pi * 3 + 2] = angle_dist(rng_);
-        weights[pi] = 1.0f / n_;
-    }
-
-    CUDA_CHECK(cudaMemcpy(d_active_particles_, particles.data(),
-                          n_ * 3 * sizeof(float), cudaMemcpyHostToDevice));
-    d_weights_.upload(weights.data(), n_);
 }
 
 // ─── Estimate ───────────────────────────────────────────────────────
