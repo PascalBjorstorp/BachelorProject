@@ -324,6 +324,138 @@ fixed_point_t mpcc_find_closest_s(
     return path->points[best_idx].s_ref;
 }
 
+/* Find closest s near a hint to preserve longitudinal continuity. */
+static fixed_point_t mpcc_find_closest_s_with_hint(
+    const MPCCReferencePath_t *path,
+    fixed_point_t X,
+    fixed_point_t Y,
+    fixed_point_t s_hint)
+{
+    if (path->num_points < 1) return 0;
+    if (path->num_points < 8 || s_hint <= 0)
+        return mpcc_find_closest_s(path, X, Y);
+
+    fixed_point_t s_min = path->points[0].s_ref;
+    fixed_point_t s_max = path->points[path->num_points - 1].s_ref;
+    fixed_point_t s_query = s_hint;
+    if (path->is_closed && s_max > s_min) {
+        fixed_point_t len = fp_sub(s_max, s_min);
+        while (s_query > s_max) s_query = fp_sub(s_query, len);
+        while (s_query < s_min) s_query = fp_add(s_query, len);
+    }
+
+    uint16_t lo = 0;
+    uint16_t hi = path->num_points - 1;
+    while (hi - lo > 1) {
+        uint16_t mid = (uint16_t)((lo + hi) / 2);
+        if (path->points[mid].s_ref <= s_query) lo = mid;
+        else hi = mid;
+    }
+    uint16_t center = lo;
+
+    const int window = 80;
+    int64_t best_dist_sq = INT64_MAX;
+    uint16_t best_idx = center;
+    for (int off = -window; off <= window; off++) {
+        int idx = (int)center + off;
+        if (path->is_closed) {
+            while (idx < 0) idx += path->num_points;
+            while (idx >= (int)path->num_points) idx -= path->num_points;
+        } else {
+            if (idx < 0 || idx >= (int)path->num_points) continue;
+        }
+        int64_t dx = (int64_t)X - (int64_t)path->points[idx].x_ref;
+        int64_t dy = (int64_t)Y - (int64_t)path->points[idx].y_ref;
+        int64_t dist_sq = dx * dx + dy * dy;
+        if (dist_sq < best_dist_sq) {
+            best_dist_sq = dist_sq;
+            best_idx = (uint16_t)idx;
+        }
+    }
+
+    /* Local search failed (far from path): fall back to global search. */
+    {
+        int64_t max_dist = (int64_t)FP_CONST(3.0);
+        int64_t max_dist_sq = max_dist * max_dist;
+        if (best_dist_sq > max_dist_sq)
+            return mpcc_find_closest_s(path, X, Y);
+    }
+
+    return path->points[best_idx].s_ref;
+}
+
+/* MPC-style forward-biased closest-waypoint search with heading penalty. */
+static uint16_t mpcc_find_closest_index_forward_biased(
+    const MPCCReferencePath_t *path,
+    fixed_point_t X,
+    fixed_point_t Y,
+    fixed_point_t psi,
+    uint16_t start_idx)
+{
+    if (path->num_points == 0) return 0;
+
+    const int search_forward = 200;
+    const int search_backward = 20;
+    uint16_t best_idx = start_idx;
+    int64_t best_score = INT64_MAX;
+
+    fixed_point_t veh_dx = fp_cos(psi);
+    fixed_point_t veh_dy = fp_sin(psi);
+    fixed_point_t behind_penalty = FP_CONST(2.0);
+
+    for (int off = -search_backward; off < search_forward; off++) {
+        int idx = (int)start_idx + off;
+        if (path->is_closed) {
+            while (idx < 0) idx += path->num_points;
+            while (idx >= (int)path->num_points) idx -= path->num_points;
+        } else {
+            if (idx < 0 || idx >= (int)path->num_points) continue;
+        }
+
+        fixed_point_t dx = fp_sub(path->points[idx].x_ref, X);
+        fixed_point_t dy = fp_sub(path->points[idx].y_ref, Y);
+
+        int64_t dist_sq = (int64_t)dx * (int64_t)dx + (int64_t)dy * (int64_t)dy;
+        fixed_point_t dot = fp_add(fp_mul(dx, veh_dx), fp_mul(dy, veh_dy));
+        int64_t score = dist_sq;
+        if (dot < 0) score += ((int64_t)behind_penalty * (int64_t)behind_penalty);
+
+        if (score < best_score) {
+            best_score = score;
+            best_idx = (uint16_t)idx;
+        }
+    }
+    return best_idx;
+}
+
+/* Project onto segment [idx0, idx1] like MPC does, then compute s on segment. */
+static fixed_point_t mpcc_project_s_on_segment(
+    const MPCCReferencePath_t *path,
+    uint16_t idx0,
+    uint16_t idx1,
+    fixed_point_t X,
+    fixed_point_t Y)
+{
+    const MPCCPathPoint_t *p0 = &path->points[idx0];
+    const MPCCPathPoint_t *p1 = &path->points[idx1];
+
+    fixed_point_t ax = p0->x_ref, ay = p0->y_ref;
+    fixed_point_t bx = p1->x_ref, by = p1->y_ref;
+    fixed_point_t abx = fp_sub(bx, ax);
+    fixed_point_t aby = fp_sub(by, ay);
+    fixed_point_t apx = fp_sub(X, ax);
+    fixed_point_t apy = fp_sub(Y, ay);
+    fixed_point_t ab_len2 = fp_add(fp_mul(abx, abx), fp_mul(aby, aby));
+
+    fixed_point_t t = 0;
+    if (ab_len2 > FP_CONST(1e-9))
+        t = fp_div(fp_add(fp_mul(apx, abx), fp_mul(apy, aby)), ab_len2);
+    if (t < 0) t = 0;
+    if (t > FP_ONE) t = FP_ONE;
+
+    return fp_add(p0->s_ref, fp_mul(t, fp_sub(p1->s_ref, p0->s_ref)));
+}
+
 /*===========================================================================
  * Frenet-Cartesian Conversion
  *===========================================================================*/
@@ -356,6 +488,7 @@ MPCCState_t mpcc_state_from_vehicle_state(
     const VehicleState_t *vs,
     fixed_point_t s_hint)
 {
+    static uint16_t last_closest_idx = 0;
     MPCCState_t st;
     memset(&st, 0, sizeof(st));
 
@@ -368,30 +501,19 @@ MPCCState_t mpcc_state_from_vehicle_state(
     st.omega = vs->yaw_rate_radians_per_second;
     /* omega_w removed — not needed with a_x control */
 
-    /* Compute Frenet states from Cartesian + path */
-    /* TODO: Implement Cartesian -> Frenet conversion.
-     *
-     * 1. Find closest s using s_hint as warm-start:
-     *    s = search_nearest_s(path, X, Y, s_hint)
-     *
-     * 2. Interpolate path at s:
-     *    pt = path_interpolate(s)
-     *
-     * 3. Compute Frenet position:
-     *    dx = X - pt.x_ref
-     *    dy = Y - pt.y_ref
-     *    n = -sin(phi) * dx + cos(phi) * dy
-     *    (sign: n > 0 means left of path)
-     *
-     * 4. Compute heading error:
-     *    alpha = psi - phi_gamma(s)
-     *    alpha = normalize_angle(alpha)
-     *
-     * 5. s is from step 1.
-     *
-     * For now, use brute-force closest s:
-     */
-    st.s = mpcc_find_closest_s(&ref_path, st.X, st.Y);
+    /* Compute Frenet states from Cartesian + path.
+     * Use continuity-preserving local search around s_hint to avoid
+     * jumps between nearby segments in hairpins/self-near track regions. */
+    /* MPC-style closest waypoint search: forward-biased + heading penalty */
+    {
+        if (last_closest_idx >= ref_path.num_points) last_closest_idx = 0;
+        uint16_t idx0 = mpcc_find_closest_index_forward_biased(
+            &ref_path, st.X, st.Y, st.psi, last_closest_idx);
+        uint16_t idx1 = (uint16_t)(idx0 + 1);
+        if (idx1 >= ref_path.num_points) idx1 = ref_path.is_closed ? 0 : (ref_path.num_points - 1);
+        last_closest_idx = idx0;
+        st.s = mpcc_project_s_on_segment(&ref_path, idx0, idx1, st.X, st.Y);
+    }
 
     /* Interpolate path at s */
     MPCCPathPoint_t pt;
@@ -406,8 +528,6 @@ MPCCState_t mpcc_state_from_vehicle_state(
 
     /* alpha: heading error */
     st.alpha = fp_normalize_angle(fp_sub(st.psi, pt.phi_ref));
-
-    (void)s_hint; /* TODO: use for warm-start search */
 
     return st;
 }

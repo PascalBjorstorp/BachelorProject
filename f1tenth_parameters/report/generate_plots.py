@@ -6,6 +6,8 @@ Usage:
     python3 generate_plots.py                      # auto-detect latest CSVs
     python3 generate_plots.py --data-dir data/     # explicit data directory
     python3 generate_plots.py --prefix 20260301    # filter by date prefix
+    python3 generate_plots.py --wn-best 10         # explicit omega_n pick (rad/s)
+    python3 generate_plots.py --wn-best auto       # estimate omega_n from step-response
 
 Produces PDF figures in figures/ matching the report_outline.tex placeholders:
   1. friction_ay_vs_speed.pdf
@@ -87,6 +89,119 @@ def save_fig(fig, name):
     print(f'  -> {path}')
 
 
+def _moving_average(x, window):
+    """Simple moving average used for noise-robust transient metrics."""
+    if window <= 1:
+        return x
+    kernel = np.ones(window, dtype=float) / float(window)
+    return np.convolve(x, kernel, mode='same')
+
+
+def _ordered_unique(values):
+    """Return first-seen unique values while preserving order."""
+    seen = set()
+    out = []
+    for v in values:
+        if v not in seen:
+            seen.add(v)
+            out.append(v)
+    return out
+
+
+def estimate_wn_from_steering_rate(data_dir, prefix):
+    """Estimate a yaw natural-frequency proxy from steering step-response runs.
+
+    For each step segment, the 10-90% rise time of the yaw-rate response is
+    measured and mapped to omega_n with:
+        omega_n ≈ 1.8 / t_r
+    (standard second-order approximation for zeta ≈ 0.7).
+
+    Returns:
+      dict with keys: wn, sample_count, q25, q75
+      or None if no reliable estimate can be extracted.
+    """
+    paths = find_csvs('steering_rate', data_dir, prefix)
+    if not paths:
+        return None
+
+    wn_samples = []
+
+    for p in paths:
+        d = load_csv(p)
+        needed = {'timestamp_s', 'imu_gz', 'phase'}
+        if not needed.issubset(set(d.keys())):
+            continue
+
+        t = d['timestamp_s'].astype(float)
+        omega = d['imu_gz'].astype(float)
+        phase = d['phase']
+
+        if len(t) < 50:
+            continue
+
+        dt = float(np.median(np.diff(t)))
+        if not np.isfinite(dt) or dt <= 0:
+            continue
+
+        # Light smoothing (~10 ms) to stabilize threshold crossings.
+        smooth_n = max(3, int(round(0.01 / dt)))
+        if smooth_n % 2 == 0:
+            smooth_n += 1
+        omega_f = _moving_average(omega, smooth_n)
+
+        for label in _ordered_unique(phase):
+            mask = phase == label
+            if np.sum(mask) < 200:
+                continue
+
+            ts = t[mask] - t[mask][0]
+            ys = omega_f[mask]
+            n = len(ys)
+
+            # Initial and steady-state levels from segment head/tail windows.
+            n0 = max(8, int(0.03 * n))
+            nss = max(20, int(0.25 * n))
+            y0 = float(np.median(ys[:n0]))
+            yss = float(np.median(ys[-nss:]))
+            dy = yss - y0
+
+            # Skip too-small responses (poor signal-to-noise for rise-time).
+            if abs(dy) < 0.25:
+                continue
+
+            y10 = y0 + 0.1 * dy
+            y90 = y0 + 0.9 * dy
+
+            if dy > 0:
+                idx10 = np.where(ys >= y10)[0]
+                idx90 = np.where(ys >= y90)[0]
+            else:
+                idx10 = np.where(ys <= y10)[0]
+                idx90 = np.where(ys <= y90)[0]
+
+            if len(idx10) == 0 or len(idx90) == 0:
+                continue
+
+            tr = float(ts[idx90[0]] - ts[idx10[0]])
+            if tr <= 0.01 or tr > 1.0:
+                continue
+
+            wn = 1.8 / tr
+            if 2.0 <= wn <= 60.0:
+                wn_samples.append(wn)
+
+    if len(wn_samples) < 3:
+        return None
+
+    arr = np.array(wn_samples, dtype=float)
+    return {
+        'wn': float(np.median(arr)),
+        'sample_count': int(len(arr)),
+        'q25': float(np.percentile(arr, 25)),
+        'q75': float(np.percentile(arr, 75)),
+    }
+
+
 # ── Vehicle parameters (for computing derived quantities from raw data) ─────
 
 DEFAULT_MASS = 3.314       # kg
@@ -96,11 +211,14 @@ DEFAULT_LR = 0.155         # m  CG to rear axle
 DEFAULT_IZ = 0.035         # kg*m^2  yaw inertia
 
 # Servo nonlinearity correction for cornering stiffness tests.
-# These tests were run with the OLD servo gain (-0.7940).  The physical
+# These tests were run with the OLD servo gain (-0.7940). The physical
 # servo mapping (actual wheel angle vs. servo value) is:
-#   actual = -0.9262 * s^2 - 0.4778 * s + 0.5365   (s = gain*(-cmd) + offset)
+#   actual = -0.9262 * s^2 - 0.4778 * s + 0.5365
+# where the VESC command path is:
+#   s = gain * cmd + offset
+# (ackermann_to_vesc applies gain directly to the signed steering command).
 # With gain=-0.7940, offset=0.55, the actual angle at each commanded angle
-# is computed by _servo_actual_angle() below.
+# magnitude is computed by _servo_actual_angle() below.
 _SERVO_OLD_GAIN   = -0.7940
 _SERVO_OFFSET     = 0.55
 _SERVO_POLY       = np.array([-0.9262, -0.4778, 0.5365])  # actual = poly(s)
@@ -108,7 +226,7 @@ _SERVO_ZERO_ANGLE = np.polyval(_SERVO_POLY, _SERVO_OFFSET)  # actual at cmd=0
 
 def _servo_actual_angle(cmd_abs):
     """Return actual wheel angle for a positive commanded angle using old gain."""
-    s = _SERVO_OLD_GAIN * (-cmd_abs) + _SERVO_OFFSET
+    s = _SERVO_OLD_GAIN * cmd_abs + _SERVO_OFFSET
     return np.polyval(_SERVO_POLY, s) - _SERVO_ZERO_ANGLE
 
 
@@ -312,7 +430,8 @@ def plot_cornering_understeer_gradient(data_dir, prefix):
     return K_us, r2
 
 
-def plot_cornering_solution_range(data_dir, prefix, K_us=None):
+def plot_cornering_solution_range(data_dir, prefix, K_us=None,
+                                  wn_range=(8.0, 15.0), wn_best=10.0):
     """Solution range: C_af vs C_ar for measured K_us across omega_n range."""
     if K_us is None:
         summary = compute_cornering_summary(data_dir, prefix)
@@ -340,12 +459,12 @@ def plot_cornering_solution_range(data_dir, prefix, K_us=None):
     # We parametrize by omega_n and solve the two equations
 
     v_ref = 2.0  # reference speed for omega_n
-    wn_range = np.linspace(5, 45, 400)
+    wn_grid = np.linspace(5, 45, 400)
     C_af_vals = []
     C_ar_vals = []
     wn_valid = []
 
-    for wn in wn_range:
+    for wn in wn_grid:
         # From K_us: lf/C_ar - lr/C_af = K_us * L / m
         K_val = K_us * L / m
         # From omega_n: (lf^2*C_af + lr^2*C_ar)/Iz + (C_af + C_ar)/m = wn^2 + v^2
@@ -401,24 +520,24 @@ def plot_cornering_solution_range(data_dir, prefix, K_us=None):
     ax.plot(wn_valid, C_ar_vals, '-', color='tab:orange', linewidth=2,
             label=r'$C_{\alpha r}$ (rear)')
 
-    # Shade an estimated frequency range
-    wn_lo, wn_hi = 8, 15
+    # Shade selected frequency range
+    wn_lo, wn_hi = sorted((float(wn_range[0]), float(wn_range[1])))
     ax.axvspan(wn_lo, wn_hi, alpha=0.15, color='gray',
                label=rf'$\omega_n \in [{wn_lo}, {wn_hi}]$ rad/s')
 
-    # Best estimate at omega_n = 10
-    wn_best = 10
+    # Best estimate at selected omega_n
     idx_best = np.argmin(np.abs(wn_valid - wn_best))
+    wn_best_used = float(wn_valid[idx_best])
     Caf_best = C_af_vals[idx_best]
     Car_best = C_ar_vals[idx_best]
-    ax.plot(wn_best, Caf_best, 'o', color='tab:blue', markersize=10,
+    ax.plot(wn_best_used, Caf_best, 'o', color='tab:blue', markersize=10,
             markeredgecolor='k', zorder=5)
-    ax.plot(wn_best, Car_best, 'o', color='tab:orange', markersize=10,
+    ax.plot(wn_best_used, Car_best, 'o', color='tab:orange', markersize=10,
             markeredgecolor='k', zorder=5)
-    ax.annotate(f'{Caf_best:.1f} N/rad', (wn_best, Caf_best),
+    ax.annotate(f'{Caf_best:.1f} N/rad', (wn_best_used, Caf_best),
                 textcoords='offset points', xytext=(10, 5), fontsize=9,
                 color='tab:blue')
-    ax.annotate(f'{Car_best:.1f} N/rad', (wn_best, Car_best),
+    ax.annotate(f'{Car_best:.1f} N/rad', (wn_best_used, Car_best),
                 textcoords='offset points', xytext=(10, -12), fontsize=9,
                 color='tab:orange')
 
@@ -428,7 +547,7 @@ def plot_cornering_solution_range(data_dir, prefix, K_us=None):
     ax.legend(fontsize=8, loc='upper left')
 
     save_fig(fig, 'cornering_solution_range.pdf')
-    return Caf_best, Car_best
+    return Caf_best, Car_best, wn_best_used
 
 
 def plot_rolling_resistance(data_dir, prefix):
@@ -781,10 +900,49 @@ def main():
                         help=f'Directory with CSV files (default: {DATA_DIR})')
     parser.add_argument('--prefix', type=str, default=None,
                         help='Filter CSVs by date prefix (e.g. 20260301)')
+    parser.add_argument('--wn-best', type=str, default='10.0',
+                        help=("Best-estimate omega_n in rad/s for selecting one "
+                              "C_alpha pair, or 'auto' to estimate from steering "
+                              "step-response data (default: 10.0)."))
+    parser.add_argument('--wn-range', type=float, nargs=2,
+                        metavar=('WN_MIN', 'WN_MAX'),
+                        default=(8.0, 15.0),
+                        help='Shaded omega_n range in cornering plot (default: 8 15).')
     args = parser.parse_args()
 
     data_dir = args.data_dir
     prefix = args.prefix
+    wn_lo, wn_hi = sorted((float(args.wn_range[0]), float(args.wn_range[1])))
+    wn_range = (wn_lo, wn_hi)
+
+    wn_best_source = 'user/default'
+    if args.wn_best.lower() == 'auto':
+        est = estimate_wn_from_steering_rate(data_dir, prefix)
+        if est is not None:
+            wn_best = float(est['wn'])
+            wn_best_source = (f"auto estimate from steering_rate "
+                              f"(n={est['sample_count']}, "
+                              f"IQR=[{est['q25']:.2f}, {est['q75']:.2f}])")
+            # Guard against using an auto-estimate that is inconsistent with the
+            # intended reporting range; keep reporting within the selected band.
+            if not (wn_lo <= wn_best <= wn_hi):
+                wn_best_mid = 0.5 * (wn_lo + wn_hi)
+                print(f"[warn] auto omega_n={wn_best:.2f} rad/s is outside "
+                      f"selected range [{wn_lo:.2f}, {wn_hi:.2f}] rad/s.")
+                print(f"[warn] using midpoint omega_n={wn_best_mid:.2f} rad/s "
+                      f"for cornering-solution reporting.")
+                wn_best = wn_best_mid
+                wn_best_source += '; out-of-range fallback to range midpoint'
+        else:
+            wn_best = 10.0
+            wn_best_source = 'fallback default (auto unavailable)'
+    else:
+        try:
+            wn_best = float(args.wn_best)
+        except ValueError:
+            print(f"Invalid --wn-best value: {args.wn_best}")
+            print("Use a numeric value in rad/s or 'auto'.")
+            sys.exit(2)
 
     if not os.path.isdir(data_dir):
         print(f'Data directory not found: {data_dir}')
@@ -795,6 +953,8 @@ def main():
     print(f'Output:   {FIG_DIR}/')
     if prefix:
         print(f'Prefix:   {prefix}')
+    print(f'omega_n range: [{wn_lo:.2f}, {wn_hi:.2f}] rad/s')
+    print(f'omega_n best:  {wn_best:.2f} rad/s ({wn_best_source})')
     print()
 
     # ── 1. Friction ──
@@ -817,7 +977,13 @@ def main():
     # ── 3. Cornering solution range ──
     print('[3/8  Cornering solution range]')
     try:
-        plot_cornering_solution_range(data_dir, prefix, K_us=K_us)
+        result = plot_cornering_solution_range(data_dir, prefix, K_us=K_us,
+                                               wn_range=wn_range, wn_best=wn_best)
+        if result:
+            Caf_best, Car_best, wn_best_used = result
+            print(f'  [info] selected omega_n on curve: {wn_best_used:.2f} rad/s')
+            print(f'  [info] C_alpha_f={Caf_best:.2f} N/rad, '
+                  f'C_alpha_r={Car_best:.2f} N/rad')
     except Exception as e:
         print(f'  [ERROR] {e}')
 
