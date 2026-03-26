@@ -142,7 +142,7 @@ typedef struct
 
     /** Enable adaptive rho scaling (1=enabled, 0=fixed rho).
      *  When enabled, rho is doubled if primal_res > 10*dual_res
-     *  and halved if dual_res > 10*primal_res, every 4 iterations.
+        *  and halved if dual_res > 10*primal_res, every 2 iterations.
      *  Dual variables are rescaled to maintain ADMM consistency. */
     uint8_t adaptive_rho;
 
@@ -200,6 +200,12 @@ typedef struct
     fixed_point_t primal_residual;
     fixed_point_t dual_residual;
     uint16_t iterations;
+    uint16_t adaptive_rho_updates;
+    uint32_t numeric_clip_count;
+
+    /* Persisted adaptive penalties for warm-started solves */
+    fixed_point_t rho_state;
+    fixed_point_t rho_u_state;
 
 } ADMMWorkspace_t;
 
@@ -220,6 +226,16 @@ typedef struct
 
     /** Final dual residual rho * ||w_new - w_old|| */
     fixed_point_t dual_residual;
+
+    /** Final adapted rho values used by this solve */
+    fixed_point_t rho_final;
+    fixed_point_t rho_u_final;
+
+    /** Number of adaptive rho updates during this solve */
+    uint16_t adaptive_rho_updates;
+
+    /** Count of int64->int32 clipping events during this solve */
+    uint32_t numeric_clip_count;
 
     /** Optimal state trajectory */
     fixed_point_t x_opt[MPCC_MAX_HORIZON + 1][MPCC_NX];

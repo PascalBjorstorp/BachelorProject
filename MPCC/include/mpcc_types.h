@@ -605,6 +605,16 @@ typedef struct
     /** Final ADMM dual residual rho * ||w_new - w_old|| */
     fixed_point_t dual_residual;
 
+    /** Final adapted ADMM rho values used by this solve */
+    fixed_point_t rho_final;
+    fixed_point_t rho_u_final;
+
+    /** Number of adaptive rho updates during solve */
+    uint16_t adaptive_rho_updates;
+
+    /** Number of numeric clipping events during solve */
+    uint32_t numeric_clip_count;
+
     /** Final cost function value */
     fixed_point_t cost;
 
@@ -740,8 +750,8 @@ typedef struct
 
 /*--- ADMM solver (tuned via sweep) ---*/
 #define MPCC_DEFAULT_ADMM_RHO         FP_CONST(1.218171)
-#define MPCC_DEFAULT_ADMM_MAX_ITER    100
-#define MPCC_DEFAULT_ADMM_TOLERANCE   FP_CONST(0.014462)
+#define MPCC_DEFAULT_ADMM_MAX_ITER    200
+#define MPCC_DEFAULT_ADMM_TOLERANCE   FP_CONST(0.05)
 
 /*--- Track half-width (default if per-stage not set) ---*/
 #define MPCC_DEFAULT_N_MAX            FP_CONST(0.5)

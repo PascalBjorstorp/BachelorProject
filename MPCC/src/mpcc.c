@@ -48,6 +48,9 @@
 
 static MPCCConfiguration_t config;
 static MPCCReferencePath_t ref_path;
+
+/* Path tracking state — reset when path changes or controller resets */
+static uint16_t last_closest_idx = 0;
 static MPCCObstacleSet_t obstacle_set;
 static uint8_t mpcc_initialized = 0;
 
@@ -136,6 +139,17 @@ static MPCCConfiguration_t get_default_config(void)
     return cfg;
 }
 
+static void sanitize_config(MPCCConfiguration_t *cfg)
+{
+    if (!cfg)
+        return;
+
+    if (cfg->horizon_steps == 0)
+        cfg->horizon_steps = MPCC_DEFAULT_HORIZON;
+    if (cfg->horizon_steps > MPCC_MAX_HORIZON)
+        cfg->horizon_steps = MPCC_MAX_HORIZON;
+}
+
 /*===========================================================================
  * Initialization
  *===========================================================================*/
@@ -156,13 +170,14 @@ void mpcc_initialize(void)
 
 void mpcc_initialize_with_config(const MPCCConfiguration_t *cfg)
 {
-    config = *cfg;
+    config = cfg ? *cfg : get_default_config();
+    sanitize_config(&config);
 
     admm_solver_default_config(&admm_config);
-    admm_config.rho = cfg->admm_rho;
-    admm_config.max_iterations = cfg->admm_max_iterations;
-    admm_config.eps_primal = cfg->admm_tolerance;
-    admm_config.eps_dual = cfg->admm_tolerance;
+    admm_config.rho = config.admm_rho;
+    admm_config.max_iterations = config.admm_max_iterations;
+    admm_config.eps_primal = config.admm_tolerance;
+    admm_config.eps_dual = config.admm_tolerance;
     admm_config.warm_start = 0;
 
     admm_solver_initialize(&admm_workspace);
@@ -181,6 +196,7 @@ void mpcc_set_reference_path(const MPCCReferencePath_t *path)
 {
     ref_path = *path;
     warm_start_available = 0;
+    last_closest_idx = 0; /* Reset path tracking when new path is loaded */
 }
 
 /*===========================================================================
@@ -399,7 +415,7 @@ static uint16_t mpcc_find_closest_index_forward_biased(
     if (path->num_points == 0) return 0;
 
     const int search_forward = 200;
-    const int search_backward = 20;
+    const int search_backward = 100; /* Increased for recovery after segment loss */
     uint16_t best_idx = start_idx;
     int64_t best_score = INT64_MAX;
 
@@ -492,7 +508,7 @@ MPCCState_t mpcc_state_from_vehicle_state(
     const VehicleState_t *vs,
     fixed_point_t s_hint)
 {
-    static uint16_t last_closest_idx = 0;
+    /* Use module-level last_closest_idx — reset via mpcc_set_reference_path/mpcc_reset */
     MPCCState_t st;
     memset(&st, 0, sizeof(st));
 
@@ -817,9 +833,10 @@ static void build_qp_problem(
          * trajectory (shifted from previous solve). */
         if (warm_start_available && k > 0)
         {
-            z_bar = prev_predicted_states[k + 1]; /* shifted */
-            if (k + 1 < N)
-                u_bar = prev_predicted_controls[k + 1];
+            /* shift_warm_start() already advanced the trajectory by one step,
+             * so stage k should use index k (not k+1). */
+            z_bar = prev_predicted_states[k];
+            u_bar = prev_predicted_controls[k];
         }
 
         /* Interpolate path at s_bar */
@@ -860,10 +877,8 @@ static void build_qp_problem(
          * steering without penalty but penalizes oscillation. */
         {
             MPCCControl_t u_ref;
-            if (warm_start_available && k + 1 < N)
-                u_ref = prev_predicted_controls[k + 1]; /* shifted */
-            else if (warm_start_available)
-                u_ref = prev_predicted_controls[N - 1]; /* hold last */
+            if (warm_start_available)
+                u_ref = prev_predicted_controls[k];
             else {
                 u_ref.delta = 0;
                 u_ref.a_x = 0;
@@ -970,6 +985,8 @@ static void shift_warm_start(void)
             memcpy(admm_workspace.lambda_u[k], admm_workspace.lambda_u[k + 1],
                    sizeof(fixed_point_t) * MPCC_NU);
     }
+    /* k=0 state is hard-fixed to x0 each solve; reset its dual row. */
+    memset(admm_workspace.lambda_x[0], 0, sizeof(admm_workspace.lambda_x[0]));
     /* Terminal lambda: hold last */
     /* lambda_x[N] stays as lambda_x[N] (already in place after shift) */
     /* lambda_u[N-1] stays as lambda_u[N-1] (already in place after shift) */
@@ -1096,9 +1113,14 @@ MPCCStatus_t mpcc_compute_control(
     result->admm_iterations = admm_result.iterations;
     result->primal_residual = admm_result.primal_residual;
     result->dual_residual = admm_result.dual_residual;
+    result->rho_final = admm_result.rho_final;
+    result->rho_u_final = admm_result.rho_u_final;
+    result->adaptive_rho_updates = admm_result.adaptive_rho_updates;
+    result->numeric_clip_count = admm_result.numeric_clip_count;
 
-    if (status == MPCC_STATUS_SUCCESS) {
-        /* Converged: use solver output, update warm-start */
+    if (status == MPCC_STATUS_SUCCESS || status == MPCC_STATUS_MAX_ITERATIONS) {
+        /* Use the latest ADMM iterate for control (same policy as MPC).
+         * MAX_ITERATIONS is still a usable solution in practice. */
         result->optimal_control.delta = admm_result.u_opt[0][MPCC_IDX_DELTA];
         result->optimal_control.a_x = admm_result.u_opt[0][MPCC_IDX_AX];
         result->optimal_control.v_theta = admm_result.u_opt[0][MPCC_IDX_VTHETA];
@@ -1122,11 +1144,8 @@ MPCCStatus_t mpcc_compute_control(
 
         prev_control = result->optimal_control;
     } else {
-        /* NOT converged: use shifted warm-start control (last good plan)
-         * as the output, but still update warm-start with the ADMM output
-         * to prevent stale plans on consecutive failures. The ADMM output
-         * after 100 iterations is approximate but much better than an
-         * increasingly shifted old trajectory. */
+        /* Infeasible/error: fall back to shifted warm-start control, but
+         * still update warm-start buffers with the latest ADMM iterate. */
         result->optimal_control = fallback_control;
 
         /* Copy ADMM predicted trajectory for warm-start AND diagnostics */
@@ -1149,11 +1168,16 @@ MPCCStatus_t mpcc_compute_control(
     warm_start_available = 1;
 
 #ifdef MPCC_DEBUG_PRINT
-    printf("[MPCC] status=%d  iter=%u  prim=%.4f  dual=%.4f  "
-           "delta=%.3f  a_x=%.3f  v_theta=%.3f  s=%.2f  n=%.3f\n",
+        printf("[MPCC] status=%d  iter=%u  prim=%.4f  dual=%.4f  "
+            "rho=%.3f  rho_u=%.3f  rho_upd=%u  clip=%u  "
+            "delta=%.3f  a_x=%.3f  v_theta=%.3f  s=%.2f  n=%.3f\n",
            status, admm_result.iterations,
            FP_TO_DOUBLE(admm_result.primal_residual),
            FP_TO_DOUBLE(admm_result.dual_residual),
+            FP_TO_DOUBLE(admm_result.rho_final),
+            FP_TO_DOUBLE(admm_result.rho_u_final),
+            admm_result.adaptive_rho_updates,
+            admm_result.numeric_clip_count,
            FP_TO_DOUBLE(result->optimal_control.delta),
            FP_TO_DOUBLE(result->optimal_control.a_x),
            FP_TO_DOUBLE(result->optimal_control.v_theta),
@@ -1209,7 +1233,11 @@ MPCCConfiguration_t mpcc_get_configuration(void)
 
 void mpcc_set_configuration(const MPCCConfiguration_t *cfg)
 {
+    if (!cfg)
+        return;
+
     config = *cfg;
+    sanitize_config(&config);
     admm_config.rho = cfg->admm_rho;
     admm_config.max_iterations = cfg->admm_max_iterations;
     admm_config.eps_primal = cfg->admm_tolerance;
@@ -1219,6 +1247,7 @@ void mpcc_set_configuration(const MPCCConfiguration_t *cfg)
 void mpcc_reset(void)
 {
     warm_start_available = 0;
+    last_closest_idx = 0; /* Reset path tracking */
     memset(&prev_control, 0, sizeof(prev_control));
     admm_solver_initialize(&admm_workspace);
 }
