@@ -57,25 +57,20 @@
 #define MPC_MAX_HORIZON_STEPS 30
 
 /** Default prediction horizon and dt — overridden by HORIZON / PRED_DT env vars */
-#define MPC_DEFAULT_HORIZON 20
 #define MPC_DEFAULT_DT      0.048f
 
 /** Runtime horizon and dt (set from env vars in main()) */
-static int    g_mpc_horizon = MPC_DEFAULT_HORIZON;
+static int    g_mpc_horizon = MPC_PREDICTION_HORIZON;
 static double g_mpc_dt      = MPC_DEFAULT_DT;
 
 /** Odometry callback divider (run MPC every N callbacks, default 1 = ~250 Hz) */
 #define ODOMETRY_CALLBACK_DIVIDER_DEFAULT 1
-static int g_odom_divider = ODOMETRY_CALLBACK_DIVIDER_DEFAULT;
 
 /** Maximum number of waypoints in loaded trajectory */
 #define TRAJECTORY_MAXIMUM_WAYPOINTS 2000
 
 /** Maximum reference velocity [m/s] */
 #define TRAJECTORY_MAXIMUM_VELOCITY 20.0
-
-/** Speed gain applied to trajectory velocities (1.0 = full optimal racing speed) */
-#define TRAJECTORY_SPEED_GAIN 1.0
 
 /*===========================================================================
  * Trajectory Waypoint (loaded from CSV, stored as double)
@@ -137,9 +132,6 @@ static TrajectoryReferencePoint_t global_reference_trajectory[MPC_MAX_HORIZON_ST
  *
  * CSV format (TUM compatible):
  *   # s_m,x_m,y_m,psi_rad,kappa_radpm,vx_mps,ax_mps2,left_bound,right_bound
- *
- * Velocities are scaled by TRAJECTORY_SPEED_GAIN and clamped
- * to TRAJECTORY_MAXIMUM_VELOCITY.
  *
  * @param file_path  Path to the CSV trajectory file
  * @return 1 on success, 0 on failure
@@ -203,16 +195,15 @@ static int load_trajectory_from_csv(const char *file_path)
         wp->left_bound_meters = left_bound;
         wp->right_bound_meters = right_bound;
 
-        double scaled_velocity = vx_mps * TRAJECTORY_SPEED_GAIN;
-        if (scaled_velocity > TRAJECTORY_MAXIMUM_VELOCITY)
+        if (vx_mps > TRAJECTORY_MAXIMUM_VELOCITY)
         {
-            scaled_velocity = TRAJECTORY_MAXIMUM_VELOCITY;
+            vx_mps = TRAJECTORY_MAXIMUM_VELOCITY;
         }
-        if (scaled_velocity < 0.0)
+        if (vx_mps < 0.0)
         {
-            scaled_velocity = 0.0;
+            vx_mps = 0.0;
         }
-        wp->velocity_meters_per_second = scaled_velocity;
+        wp->velocity_meters_per_second = vx_mps;
 
         global_trajectory_count++;
     }
@@ -226,8 +217,8 @@ static int load_trajectory_from_csv(const char *file_path)
     }
 
     printf("[MPC] Loaded %d waypoints from %s\n", global_trajectory_count, file_path);
-    printf("[MPC] Speed gain: %.2f, max velocity: %.1f m/s\n",
-           TRAJECTORY_SPEED_GAIN, TRAJECTORY_MAXIMUM_VELOCITY);
+    printf("[MPC] Max velocity: %.1f m/s\n",
+           TRAJECTORY_MAXIMUM_VELOCITY);
 
     printf("[MPC] Sample velocities: wp[0]=%.2f, wp[100]=%.2f, wp[500]=%.2f m/s\n",
            global_trajectory[0].velocity_meters_per_second,
@@ -556,122 +547,6 @@ void odometry_subscription_callback(const void *message_in)
 
     global_odometry_received_flag = 1;
 
-    /* Run MPC at reduced rate */
-    if ((global_odometry_callback_counter % g_odom_divider) == 0)
-    {
-        printf("[MPC] State: x=%.2f y=%.2f th=%.2f vx=%.2f vy=%.2f w=%.2f\n",
-               pos_x, pos_y, heading, vx, vy, omega);
-
-        if (global_trajectory_count > 0)
-        {
-            int closest = find_closest_waypoint(pos_x, pos_y, heading);
-            build_reference_from_trajectory(closest);
-            convert_to_frenet_state(pos_x, pos_y, heading, closest, &global_frenet_state);
-
-            /* Debug: Frenet state + reference */
-            {
-                double ey   = (double)global_frenet_state.flat_error;
-                double epsi = (double)global_frenet_state.fhead_error;
-                double vref = (double)global_reference_trajectory[0].reference_velocity;
-                double kappa = (double)global_reference_trajectory[0].path_curvature;
-                double lw   = (double)global_reference_trajectory[0].left_wall_bound;
-                double rw   = (double)global_reference_trajectory[0].right_wall_bound;
-                printf("[MPC] Frenet: e_y=%.3f e_psi=%.3f v_ref=%.2f kappa=%.3f walls=[%.2f,%.2f]\n",
-                       ey, epsi, vref, kappa, lw, rw);
-            }
-
-            /* Publish reference path visualization */
-            global_reference_path_message.header.stamp = odom->header.stamp;
-            global_reference_path_message.poses.size = g_mpc_horizon;
-            {
-                const double mpc_dt_viz = g_mpc_dt;
-                const double avg_spacing_viz = 0.346;
-                for (int step = 0; step < g_mpc_horizon; step++)
-                {
-                    geometry_msgs__msg__PoseStamped *pose =
-                        &global_reference_path_message.poses.data[step];
-                    int base_idx = (closest + step) % global_trajectory_count;
-                    double rv = global_trajectory[base_idx].velocity_meters_per_second;
-                    if (rv < 3.0) rv = 3.0;
-                    if (rv > TRAJECTORY_MAXIMUM_VELOCITY) rv = TRAJECTORY_MAXIMUM_VELOCITY;
-                    int wpa = (int)(rv * mpc_dt_viz * (step + 1) / avg_spacing_viz);
-                    if (wpa < step + 1) wpa = step + 1;
-                    int wp_idx = (closest + wpa) % global_trajectory_count;
-                    pose->pose.position.x = global_trajectory[wp_idx].x_meters;
-                    pose->pose.position.y = global_trajectory[wp_idx].y_meters;
-                    pose->pose.position.z = 0.0;
-                    yaw_to_quaternion(global_trajectory[wp_idx].heading_radians,
-                                      &pose->pose.orientation);
-                }
-            }
-            rcl_publish(&global_reference_path_publisher, &global_reference_path_message, NULL);
-
-            /* Publish full trajectory visualization */
-            global_trajectory_path_message.header.stamp = odom->header.stamp;
-            rcl_publish(&global_trajectory_path_publisher, &global_trajectory_path_message, NULL);
-        }
-        else
-        {
-            global_control_command.steer_ang = 0.0f;
-            global_control_command.long_acc = 0.0f;
-
-            global_drive_message_buffer.drive.steering_angle = 0.0f;
-            global_drive_message_buffer.drive.speed = 0.0f;
-            global_drive_message_buffer.drive.acceleration = 0.0f;
-            rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);
-            return;
-        }
-
-        /* ===== Run MPC — always, output used DIRECTLY, no guards ===== */
-        MpcSolverResult_t mpc_result;
-        MpcSolverStatus_t mpc_status;
-        struct timespec t0, t1;
-        clock_gettime(CLOCK_MONOTONIC, &t0);
-        mpc_status = mpc_compute_optimal_control(
-            &global_frenet_state,
-            global_reference_trajectory,
-            &mpc_result);
-        clock_gettime(CLOCK_MONOTONIC, &t1);
-        double solve_us = (t1.tv_sec - t0.tv_sec) * 1e6 +
-                          (t1.tv_nsec - t0.tv_nsec) / 1e3;
-
-        {
-            double steer = (double)mpc_result.optimal_control.steer_ang;
-            double accel = (double)mpc_result.optimal_control.long_acc;
-
-            /* Always use MPC output — no fallback, no override */
-            global_control_command.steer_ang =
-                mpc_result.optimal_control.steer_ang;
-            global_control_command.long_acc =
-                mpc_result.optimal_control.long_acc;
-
-            /* Simulate servo dynamics to track the actual steering angle.
-             * The f1tenth gym rate-limits steering at sv_max = 2.849 rad/s.
-             * We replicate this locally to feed δ_actual back to the MPC. */
-            {
-                double max_delta = MPC_STEERING_RATE_LIMIT * MPC_CONTROL_DT_SECONDS;
-                double steer_diff = steer - global_actual_steering_angle;
-                if (steer_diff > max_delta) steer_diff = max_delta;
-                if (steer_diff < -max_delta) steer_diff = -max_delta;
-                global_actual_steering_angle += steer_diff;
-            }
-
-            /* Feed actual servo position and acceleration back to MPC.
-             * This updates actual_steering_angle (for x0[5]) and prev accel. */
-            {
-                ControlInput_t actual_ctrl;
-                actual_ctrl.steer_ang = global_actual_steering_angle;
-                actual_ctrl.long_acc =
-                    mpc_result.optimal_control.long_acc;
-                mpc_set_actual_previous_control(&actual_ctrl);
-            }
-
-            printf("[MPC] Control: steer=%.4f accel=%.2f (status=%d iter=%d solve=%.1fus)\n",
-                   steer, accel, mpc_status, mpc_result.iterations_used, solve_us);
-            fflush(stdout);
-        }
-    }
-
     /* Publish drive command every callback */
     if (global_odometry_received_flag)
     {
@@ -737,8 +612,8 @@ int main(int argc, char *argv[])
     printf("  Prediction horizon: %d steps (%.1f ms each)\n",
            g_mpc_horizon,
            g_mpc_dt * 1000.0);
-    printf("  Trajectory speed gain: %.2f, max velocity: %.1f m/s\n",
-           TRAJECTORY_SPEED_GAIN, TRAJECTORY_MAXIMUM_VELOCITY);
+    printf("  Max velocity: %.1f m/s\n",
+           TRAJECTORY_MAXIMUM_VELOCITY);
     printf("------------------------------------------------------------\n");
     printf("  Subscribe: /ego_racecar/ground_truth (nav_msgs/Odometry)\n");
     printf("  Subscribe: /ego_racecar/collision     (std_msgs/Bool)\n");
@@ -753,11 +628,6 @@ int main(int argc, char *argv[])
     /* Runtime parameters from environment (no rebuild needed) */
     {
         const char *env_val;
-        if ((env_val = getenv("MPC_RATE_DIVIDER")) != NULL)
-        {
-            int div = atoi(env_val);
-            if (div >= 1 && div <= 100) g_odom_divider = div;
-        }
         /* HORIZON and PRED_DT are also read by the library's get_default_configuration(),
          * but the sim node needs its own copies for reference trajectory building and viz. */
         if ((env_val = getenv("HORIZON")) != NULL)
@@ -774,8 +644,8 @@ int main(int argc, char *argv[])
 
     printf("[MPC] Controller initialized (horizon=%d, dt=%.0fms)\n",
            g_mpc_horizon, g_mpc_dt * 1000.0);
-    printf("[MPC] Control rate: ~%d Hz (odom_divider=%d)\n",
-           200 / g_odom_divider, g_odom_divider);
+    printf("[MPC] Control rate: ~%d Hz \n",
+           200);
 
     {
         MpcConfiguration_t cfg = mpc_get_configuration();
