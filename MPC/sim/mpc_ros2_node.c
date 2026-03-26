@@ -113,10 +113,8 @@ static rcl_context_t *global_ros2_context = NULL;
  * The MPC needs to know the actual servo position (δ_actual) to correctly
  * compute steering commands via the integrator: δ_cmd = δ_actual + dt * δ̇.
  * Since the f1tenth gym doesn't publish the actual servo angle, we simulate
- * it locally using the same rate limit (sv_max = 2.849 rad/s). */
+ * it locally using the configured steering-rate limit. */
 static double global_actual_steering_angle = 0.0;
-#define SERVO_RATE_LIMIT  2.849  /* rad/s — matches f1tenth gym sv_max */
-#define CONTROL_DT        0.005  /* 200 Hz control rate */
 
 static rcl_publisher_t global_control_publisher;
 static rcl_publisher_t global_reference_path_publisher;
@@ -138,7 +136,7 @@ static TrajectoryReferencePoint_t global_reference_trajectory[MPC_MAX_HORIZON_ST
  * @brief Load trajectory from CSV file.
  *
  * CSV format (TUM compatible):
- *   # s_m,x_m,y_m,psi_rad,kappa_radpm,vx_mps,ax_mps2[,left_bound,right_bound]
+ *   # s_m,x_m,y_m,psi_rad,kappa_radpm,vx_mps,ax_mps2,left_bound,right_bound
  *
  * Velocities are scaled by TRAJECTORY_SPEED_GAIN and clamped
  * to TRAJECTORY_MAXIMUM_VELOCITY.
@@ -156,10 +154,12 @@ static int load_trajectory_from_csv(const char *file_path)
     }
 
     char line_buffer[512];
+    int line_number = 0;
     global_trajectory_count = 0;
 
     while (fgets(line_buffer, sizeof(line_buffer), csv_file) != NULL)
     {
+        line_number++;
         if (line_buffer[0] == '#' || line_buffer[0] == '\n' || line_buffer[0] == '\r')
         {
             continue;
@@ -173,36 +173,48 @@ static int load_trajectory_from_csv(const char *file_path)
         }
 
         double s_m, x_m, y_m, psi_rad, kappa_radpm, vx_mps, ax_mps2;
-        double left_bound = 5.0, right_bound = 5.0;
+        double left_bound = 0.0, right_bound = 0.0;
         int fields_read = sscanf(line_buffer, "%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf",
                                  &s_m, &x_m, &y_m, &psi_rad,
                                  &kappa_radpm, &vx_mps, &ax_mps2,
                                  &left_bound, &right_bound);
 
-        if (fields_read >= 6)
-        {
-            TrajectoryWaypoint_t *wp = &global_trajectory[global_trajectory_count];
-            wp->s_meters = s_m;
-            wp->x_meters = x_m;
-            wp->y_meters = y_m;
-            wp->heading_radians = psi_rad;
-            wp->curvature_radians_per_meter = kappa_radpm;
-            wp->left_bound_meters = (fields_read >= 9) ? left_bound : 5.0;
-            wp->right_bound_meters = (fields_read >= 9) ? right_bound : 5.0;
-
-            double scaled_velocity = vx_mps * TRAJECTORY_SPEED_GAIN;
-            if (scaled_velocity > TRAJECTORY_MAXIMUM_VELOCITY)
-            {
-                scaled_velocity = TRAJECTORY_MAXIMUM_VELOCITY;
-            }
-            if (scaled_velocity < 0.0)
-            {
-                scaled_velocity = 0.0;
-            }
-            wp->velocity_meters_per_second = scaled_velocity;
-
-            global_trajectory_count++;
+        if (fields_read != 9) {
+            fprintf(stderr,
+                    "[MPC] ERROR: Trajectory line %d must contain 9 columns including wall bounds\n",
+                    line_number);
+            fclose(csv_file);
+            return 0;
         }
+        if (left_bound <= 0.0 || right_bound <= 0.0) {
+            fprintf(stderr,
+                    "[MPC] ERROR: Invalid wall bounds at trajectory line %d (left=%.3f right=%.3f)\n",
+                    line_number, left_bound, right_bound);
+            fclose(csv_file);
+            return 0;
+        }
+
+        TrajectoryWaypoint_t *wp = &global_trajectory[global_trajectory_count];
+        wp->s_meters = s_m;
+        wp->x_meters = x_m;
+        wp->y_meters = y_m;
+        wp->heading_radians = psi_rad;
+        wp->curvature_radians_per_meter = kappa_radpm;
+        wp->left_bound_meters = left_bound;
+        wp->right_bound_meters = right_bound;
+
+        double scaled_velocity = vx_mps * TRAJECTORY_SPEED_GAIN;
+        if (scaled_velocity > TRAJECTORY_MAXIMUM_VELOCITY)
+        {
+            scaled_velocity = TRAJECTORY_MAXIMUM_VELOCITY;
+        }
+        if (scaled_velocity < 0.0)
+        {
+            scaled_velocity = 0.0;
+        }
+        wp->velocity_meters_per_second = scaled_velocity;
+
+        global_trajectory_count++;
     }
 
     fclose(csv_file);
@@ -600,29 +612,14 @@ void odometry_subscription_callback(const void *message_in)
         }
         else
         {
-            /* Fallback: straight line at low speed */
-            float target_velocity = 1.0f;
+            global_control_command.steer_ang = 0.0f;
+            global_control_command.long_acc = 0.0f;
 
-            global_frenet_state.flat_error = 0;
-            global_frenet_state.fhead_error = 0;
-            global_frenet_state.flong_vel =
-                global_vehicle_state.long_vel;
-            global_frenet_state.flat_vel =
-                global_vehicle_state.lat_vel;
-            global_frenet_state.fyaw_rate =
-                global_vehicle_state.yaw_rate;
-
-            for (int step = 0; step < g_mpc_horizon; step++)
-            {
-                global_reference_trajectory[step].reference_lateral_error = 0;
-                global_reference_trajectory[step].reference_heading_error = 0;
-                global_reference_trajectory[step].path_curvature = 0;
-                global_reference_trajectory[step].left_wall_bound = 5.0;
-                global_reference_trajectory[step].right_wall_bound = 5.0;
-                global_reference_trajectory[step].reference_velocity = target_velocity;
-                global_reference_trajectory[step].reference_lateral_velocity = 0;
-                global_reference_trajectory[step].reference_yaw_rate = 0;
-            }
+            global_drive_message_buffer.drive.steering_angle = 0.0f;
+            global_drive_message_buffer.drive.speed = 0.0f;
+            global_drive_message_buffer.drive.acceleration = 0.0f;
+            rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);
+            return;
         }
 
         /* ===== Run MPC — always, output used DIRECTLY, no guards ===== */
@@ -652,7 +649,7 @@ void odometry_subscription_callback(const void *message_in)
              * The f1tenth gym rate-limits steering at sv_max = 2.849 rad/s.
              * We replicate this locally to feed δ_actual back to the MPC. */
             {
-                double max_delta = SERVO_RATE_LIMIT * CONTROL_DT;
+                double max_delta = MPC_STEERING_RATE_LIMIT * MPC_CONTROL_DT_SECONDS;
                 double steer_diff = steer - global_actual_steering_angle;
                 if (steer_diff > max_delta) steer_diff = max_delta;
                 if (steer_diff < -max_delta) steer_diff = -max_delta;

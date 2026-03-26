@@ -375,7 +375,7 @@ static void build_reference(int closest, double actual_vx, TrajectoryReferencePo
 
         ref[step].reference_velocity = (float)(v_ref);
 
-        /* Clamp kappa to physical limits (matching FPGA) */
+        /* Clamp kappa to physical limits */
         double kappa = wp.kappa;
         if (kappa > 1.5) kappa = 1.5;
         if (kappa < -1.5) kappa = -1.5;
@@ -455,12 +455,15 @@ int main(void)
     const int realistic_noise = realistic_all || (getenv("REALISTIC_NOISE") && atoi(getenv("REALISTIC_NOISE")));
     const int realistic_mode = realistic_tires || realistic_drive || realistic_delay || realistic_noise;
     if (realistic_mode) {
-        srand(42);  /* Fixed seed for reproducibility */
+        const char *seed_env = getenv("SIM_SEED");
+        unsigned int sim_seed = seed_env ? (unsigned int)strtoul(seed_env, NULL, 10) : 42u;
+        srand(sim_seed);  /* Deterministic by default; override with SIM_SEED for multi-trial robustness. */
         printf("    REALISTIC MODE:");
         if (realistic_drive) printf(" [drag: F_roll=%.1fN]", ROLLING_RESISTANCE_N);
         if (realistic_tires) printf(" [Pacejka tires: C=%.1f]", PACEJKA_C_SHAPE);
         if (realistic_delay) printf(" [1-step delay]");
         if (realistic_noise) printf(" [sensor noise]");
+        printf(" [seed=%u]", sim_seed);
         printf("\n");
     }
     if (body_safety_margin != DEFAULT_BODY_SAFETY_MARGIN)
@@ -543,6 +546,7 @@ int main(void)
     double max_steer_change = 0;
     double time_above_5ms = 0;
     double max_vx = 0;
+    double sum_vx = 0;
 
     /* True (noise-free) state for wall checks and metrics.
      * Sensor noise should only affect MPC input, not ground-truth collision. */
@@ -574,6 +578,7 @@ int main(void)
         double vx = (double)(state.long_vel);
 
         if (vx > max_vx) max_vx = vx;
+        sum_vx += vx;
 
         int closest = find_closest_waypoint(px, py, psi);
 
@@ -589,7 +594,7 @@ int main(void)
             ema_initialized = 1;
         }
         if (realistic_noise) {
-            const double ema_alpha = 0.35;  /* 0.35 = 65% filtered (matches FPGA) */
+            const double ema_alpha = 0.35;  /* 0.35 = 65% filtered */
             frenet_filt.flat_error = (float)(
                 ema_alpha * (double)(frenet.flat_error)
                 + (1.0 - ema_alpha) * (double)(frenet_filt.flat_error));
@@ -974,10 +979,12 @@ int main(void)
     double avg_lat = sum_lat_err / SIM_STEPS;
     double avg_hdg = sum_hdg_err / SIM_STEPS;
     double avg_vel = sum_vel_err / SIM_STEPS;
+    double avg_vx = sum_vx / SIM_STEPS;
     printf("\n  === Results (%.0f seconds, Riccati-ADMM, 200Hz MPC) ===\n", SIM_DURATION);
     printf("  Solver success:     %d / %d (%.1f%%)\n", solver_ok, solver_calls,
            100.0*solver_ok/(solver_calls > 0 ? solver_calls : 1));
     printf("  Max velocity:       %.2f m/s\n", max_vx);
+    printf("  Avg velocity:       %.2f m/s\n", avg_vx);
     printf("  Max lateral error:  %.3f m\n", max_lat_err);
     printf("  Avg lateral error:  %.3f m\n", avg_lat);
     printf("  Max heading error:  %.4f rad (%.1f deg)\n", max_hdg_err, max_hdg_err*180/M_PI);
@@ -1025,12 +1032,12 @@ int main(void)
 
     /* Machine-readable CSV summary line for tuning scripts */
     if (getenv("MPC_TUNING_CSV")) {
-        printf("CSV,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%.1f,%d,%.1f,%.4f,%.4f,%.1f\n",
+         printf("CSV,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%.1f,%d,%.1f,%.4f,%.4f,%.1f,%.4f\n",
                tests_passed, tests_failed,
                max_lat_err, avg_lat, max_hdg_err, avg_hdg,
                max_vx, avg_solve, max_solve_us,
                wall_collisions, time_above_5ms,
-               max_vel_err, avg_vel, avg_iters);
+             max_vel_err, avg_vel, avg_iters, avg_vx);
     }
     return tests_failed > 0 ? 1 : 0;
 }

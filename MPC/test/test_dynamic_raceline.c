@@ -5,11 +5,10 @@
  * Variant of test_sim_drive.c that simulates overtaking scenarios:
  *   - Raceline shifts laterally mid-race (smooth ramps)
  *   - Wall constraints tighten at specific waypoints (nearby car)
- *   - Runs multiple configurations: WALL_END × WALL_SOFT_K
+ *   - Runs multiple horizon configurations via WALL_END
  *
  * Configurations are controlled via environment variables:
  *   WALL_END    — last horizon step with wall constraint (default 5)
- *   WALL_SOFT_K — wall soft stiffness, 0 = hard (default 500)
  *   NO_SHIFT    — if set to "1", disable raceline shifts (baseline)
  *
  * Compile:
@@ -21,10 +20,8 @@
  *       -o test_dynamic -lm
  *
  * Run:
- *   WALL_END=5  WALL_SOFT_K=500 ./test_dynamic   # default soft, 5 steps
- *   WALL_END=20 WALL_SOFT_K=500 ./test_dynamic   # full horizon soft
- *   WALL_END=5  WALL_SOFT_K=0   ./test_dynamic   # hard, 5 steps
- *   WALL_END=20 WALL_SOFT_K=0   ./test_dynamic   # full horizon hard
+ *   WALL_END=5  ./test_dynamic
+ *   WALL_END=20 ./test_dynamic
  */
 
 #define _USE_MATH_DEFINES
@@ -107,11 +104,12 @@ static int load_raceline(void)
                        &wp->s, &wp->x, &wp->y, &wp->psi,
                        &wp->kappa, &wp->vx, &wp->ax,
                        &wp->left_bound, &wp->right_bound);
-        if (n >= 9) raceline_count++;
-        else if (n >= 6) {
-            wp->left_bound = 5.0;
-            wp->right_bound = 5.0;
+        if (n == 9) {
             raceline_count++;
+        } else if (n > 0) {
+            fprintf(stderr, "ERROR: Raceline rows must include wall bounds (9 columns).\n");
+            fclose(f);
+            return 0;
         }
     }
     fclose(f);
@@ -313,9 +311,7 @@ int main(void)
     const double cross_scale = SIM_DT / mpc_prediction_dt;
 
     const char *wall_end_env  = getenv("WALL_END");
-    const char *wall_soft_env = getenv("WALL_SOFT_K");
     int cfg_wall_end    = wall_end_env  ? atoi(wall_end_env)  : 5;
-    int cfg_wall_soft_k = wall_soft_env ? atoi(wall_soft_env) : 500;
 
     const char *no_shift_env = getenv("NO_SHIFT");
     int shift_enabled = !(no_shift_env && atoi(no_shift_env));
@@ -329,8 +325,6 @@ int main(void)
     printf("  Duration:    %.0fs at dt=%.4fs (%d steps, %.0fHz)\n",
            SIM_DURATION, SIM_DT, SIM_STEPS, 1.0 / SIM_DT);
     printf("  WALL_END:    %d\n", cfg_wall_end);
-    printf("  WALL_SOFT_K: %d%s\n", cfg_wall_soft_k,
-           cfg_wall_soft_k == 0 ? " (HARD)" : " (SOFT)");
     printf("  Shift magnitude: %.2fm\n", shift_magnitude);
     printf("  Raceline shift: %s\n", shift_enabled ? "ENABLED" : "DISABLED");
     printf("  Obstacle zones: wp 200-300 (right -0.4m), wp 700-800 (left -0.3m)\n");
@@ -729,8 +723,8 @@ int main(void)
 
     printf("\n");
     printf("============================================================\n");
-    printf("  Results: WALL_END=%d  WALL_SOFT_K=%d  Shift=%s\n",
-           cfg_wall_end, cfg_wall_soft_k,
+        printf("  Results: WALL_END=%d  Shift=%s\n",
+            cfg_wall_end,
            shift_enabled ? "ON" : "OFF");
     printf("============================================================\n");
     printf("  Completed:          %d / %d steps (%.1fs / %.1fs)\n",
@@ -764,8 +758,8 @@ int main(void)
     printf("  Total solve time:    %.1f ms\n", total_solve_us / 1000.0);
 
     /* Machine-readable CSV line */
-    printf("\nCSV_DYNAMIC,%d,%d,%s,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%d,%.1f,%.1f,%d\n",
-           cfg_wall_end, cfg_wall_soft_k,
+        printf("\nCSV_DYNAMIC,%d,%s,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%d,%.1f,%.1f,%d\n",
+            cfg_wall_end,
            shift_enabled ? "ON" : "OFF",
            wall_collisions, convergence_failures,
            max_lat_err, avg_lat, max_hdg_err, avg_hdg,

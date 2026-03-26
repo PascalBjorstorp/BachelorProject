@@ -35,8 +35,6 @@
  *
  * Discretization: Forward Euler method
  *   state[k+1] = state[k] + dt * derivative[k]
- *
- * All calculations use fixed-point arithmetic for FPGA compatibility.
  */
 
 #ifndef VEHICLE_MODEL_H

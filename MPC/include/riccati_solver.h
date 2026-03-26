@@ -15,7 +15,7 @@
  * Supports cross-cost term x^T N u for rate-penalty formulations
  * where the state is augmented with previous control inputs.
  *
- * All arithmetic uses Q16.16 fixed-point for FPGA compatibility.
+ * All arithmetic uses native float operations.
  */
 
 #ifndef RICCATI_SOLVER_H

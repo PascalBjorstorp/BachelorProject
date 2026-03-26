@@ -33,15 +33,16 @@ mpc_hardware_node:
     steering_correction_c0: 0.001490
 
     # MPC solver tuning (override defaults via environment variables)
-    # MPC_W_LAT_ERROR:    Lateral error weight (default: 340.0)
-    # MPC_W_HEADING:      Heading error weight (default: 1000.0)
-    # MPC_W_VELOCITY:     Velocity tracking weight (default: 26.0)
-    # MPC_W_LAT_VEL:      Lateral velocity weight (default: 69.0)
-    # MPC_W_YAW_RATE:     Yaw rate weight (default: 22.0)
-    # MPC_W_STEER_RATE:   Steering jerk weight (default: 0.3)
-    # MPC_W_STEER_EFFORT: Steering rate effort weight (default: 0.15)
-    # MPC_W_TORQUE_RATE:  Acceleration rate weight (default: 0.1)
-    # MPC_CROSS_CALL_SCALE: Cross-call rate penalty scale (default: 0.125)
+    # MPC_W_LAT_ERROR: lateral error weight
+    # MPC_W_HEADING: heading error weight
+    # MPC_W_VELOCITY: velocity tracking weight
+    # MPC_W_LAT_VEL: lateral velocity weight
+    # MPC_W_YAW_RATE: yaw rate weight
+    # MPC_W_STEER_RATE: steering rate-change weight
+    # MPC_W_STEER_EFFORT: steering effort weight
+    # MPC_W_TORQUE_RATE: acceleration rate-change weight
+    # MPC_W_DELTA_ACTUAL: steering centering state weight
+    # MPC_CROSS_CALL_SCALE: cross-call rate penalty scale
 
     # Logging
     verbose: false                # Enable verbose console output (disable for RT)

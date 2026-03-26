@@ -25,6 +25,54 @@
 
 #define FRENET_STATE_DIMENSION 5
 
+/*===========================================================================
+ * Global MPC Constants
+ *===========================================================================*/
+
+#define MPC_TWO_PI (2.0 * M_PI)
+
+/* Timing */
+#define MPC_CONTROL_RATE_HZ 200.0f
+#define MPC_CONTROL_DT_SECONDS (1.0f / MPC_CONTROL_RATE_HZ)
+#define MPC_PREDICTION_DT_SECONDS 0.048f
+#define MPC_DEFAULT_CROSS_CALL_RATE_SCALE (MPC_CONTROL_DT_SECONDS / MPC_PREDICTION_DT_SECONDS)
+
+/* Default MPC weights */
+#define MPC_WEIGHT_LAT_ERROR_DEFAULT 5000.0f
+#define MPC_WEIGHT_HEADING_DEFAULT 500.0f
+#define MPC_WEIGHT_VELOCITY_DEFAULT 165.0f
+#define MPC_WEIGHT_LAT_VEL_DEFAULT 10.0f
+#define MPC_WEIGHT_YAW_RATE_DEFAULT 5.0f
+#define MPC_WEIGHT_STEER_EFFORT_DEFAULT 0.18f
+#define MPC_WEIGHT_ACCEL_EFFORT_DEFAULT 0.01f
+#define MPC_WEIGHT_STEER_RATE_DEFAULT 0.15f
+#define MPC_WEIGHT_ACCEL_RATE_DEFAULT 0.1f
+#define MPC_WEIGHT_DELTA_ACTUAL_DEFAULT 0.5f
+#define MPC_EMA_ALPHA_DEFAULT 0.7f
+#define MPC_RICCATI_COST_FACTOR 2.0f
+
+/* Model and solver constants */
+#define MPC_STEERING_RATE_LIMIT 2.849f
+#define MPC_STEERING_FEEDFORWARD_CLAMP_FACTOR 0.5f
+#define MPC_BIG_BOUND 100.0f
+#define MPC_MIN_LINEARIZATION_VELOCITY 2.0f
+#define MPC_STABILITY_LIMIT 0.95f
+#define MPC_WALL_MARGIN_DEFAULT 0.855f
+#define MPC_WALL_CONSTRAINT_START 1
+#define MPC_WALL_CONSTRAINT_STRIDE_DEFAULT 3
+#define MPC_WALL_CONSTRAINT_END_DEFAULT 20
+#define MPC_V_SWITCH 7.319f
+#define MPC_CONVERGENCE_TOLERANCE_DEFAULT 5.0f
+#define MPC_MIN_SLIP_VELOCITY 0.5f
+#define MPC_WARMSTART_CURVATURE_RESET_THRESHOLD 0.5f
+#define MPC_ADMM_RHO_DEFAULT 32.0f
+#define MPC_ADMM_RHO_U_DEFAULT 20.0f
+#define MPC_ADMM_ALPHA_DEFAULT 0.93f
+
+/* Hardware/sim defaults */
+#define MPC_DEFAULT_TRACK_HALF_WIDTH 5.0
+#define MPC_MIN_TRAJECTORY_SPEED_MPS 3.0
+
 
 /*===========================================================================
  * Vehicle State (Dynamic Bicycle Model)
@@ -121,6 +169,7 @@ typedef struct
     float weight_acceleration_effort;   /** Weight for motor torque magnitude */
     float weight_steering_rate;         /** Weight for steering rate */
     float weight_acceleration_rate;     /** Weight for acceleration rate **/
+    float weight_delta_actual;          /** Weight for steering centering state */
     float cross_call_rate_scale;        /** Cross-call rate penalty scale factor.
                                         * Scales the rate penalty between the current first control u[0]
                                         * and the previous MPC output u_prev. */
@@ -193,44 +242,44 @@ typedef struct
  * Core Kinematic Parameters
  *---------------------------------------------------------------------------*/
 
-/** F1/10th wheelbase: l_f + l_r = 0.166 + 0.16 = 0.326 m [CAD] */
+/** Vehicle wheelbase */
 #define F110_DEFAULT_WHEELBASE_METERS 0.324f
 
-/** F1/10th max steering: 0.4189 radians (~24.0 degrees) [CALIBRATED] */
+/** Maximum steering angle */
 #define F110_DEFAULT_MAXIMUM_STEERING_RADIANS 0.4189f
 
-/** F1/10th max velocity: 20.0 meters per second  */
+/** Maximum forward velocity */
 #define F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND 20.0f
 
-/** F1/10th minimum velocity: 0 m/s (no reverse) */
+/** Minimum forward velocity */
 #define F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND 0.0f
 
-/** Distance from CG to front axle: 0.166 meters [CAD] */
-#define F110_DIST_CG_TO_FRONT_AXLE_METERS 0.166f
+/** Distance from center of gravity to front axle */
+#define VEHICLE_CG_TO_FRONT_AXLE_M 0.166f
 
-/** Distance from CG to rear axle: 0.16 meters [CAD] */
-#define F110_DIST_CG_TO_REAR_AXLE_METERS 0.16f
+/** Distance from center of gravity to rear axle */
+#define VEHICLE_CG_TO_REAR_AXLE_M 0.16f
 
-/** Vehicle mass: 3.314 kg [MEASURED] */
+/** Vehicle mass */
 #define F110_VEHICLE_MASS_KG 3.314f
 
-/** Yaw moment of inertia: 0.035 kg·m² [CAD] */
+/** Yaw moment of inertia */
 #define F110_YAW_INERTIA_KGM2 0.035f
 
-/** Center of gravity height: 0.0703 meters [CAD] */
+/** Center of gravity height */
 #define F110_CG_HEIGHT_METERS 0.0703f
 
-/** Tire-road friction coefficient [TESTED] */
+/** Tire-road friction coefficient */
 #define F110_FRICTION_COEFFICIENT 0.787f
 
-/** Gravity acceleration: 9.81 m/s² */
+/** Gravity acceleration */
 #define F110_GRAVITY_ACCELERATION_MS2 9.81f
 
-/** Maximum longitudinal acceleration bounded by mu*g  [m/s²] */
-#define F110_DEFAULT_MAX_ACCELERATION       F110_FRICTION_COEFFICIENT * F110_GRAVITY_ACCELERATION_MS2
+/** Maximum longitudinal acceleration */
+#define F110_DEFAULT_MAXIMUM_ACCELERATION_METERS_PER_SECOND2 (F110_FRICTION_COEFFICIENT * F110_GRAVITY_ACCELERATION_MS2)
 
-/** Minimum longitudinal acceleration (braking) [m/s²] [TESTED]*/
-#define F110_DEFAULT_MIN_ACCELERATION       -F110_DEFAULT_MAX_ACCELERATION
+/** Minimum longitudinal acceleration */
+#define F110_DEFAULT_MINIMUM_ACCELERATION_METERS_PER_SECOND2 (-F110_DEFAULT_MAXIMUM_ACCELERATION_METERS_PER_SECOND2)
 
 /** Cornoring stiffness for front wheel */
 #define VP_C_ALPHA_F 51.40f
@@ -239,49 +288,34 @@ typedef struct
 #define VP_C_ALPHA_R 43.10f
 
 /** Normal force on front wheel */
-#define VP_NORM_LOAD_F         F110_VEHICLE_MASS_KG * F110_GRAVITY_ACCELERATION_MS2 * F110_DIST_CG_TO_REAR_AXLE_METERS / F110_DEFAULT_WHEELBASE_METERS
+#define VP_NORM_LOAD_F (F110_VEHICLE_MASS_KG * F110_GRAVITY_ACCELERATION_MS2 * VEHICLE_CG_TO_REAR_AXLE_M / F110_DEFAULT_WHEELBASE_METERS)
 
 /** Normal force on rear wheel */
-#define VP_NORM_LOAD_R         F110_VEHICLE_MASS_KG * F110_GRAVITY_ACCELERATION_MS2 * F110_DIST_CG_TO_FRONT_AXLE_METERS / F110_DEFAULT_WHEELBASE_METERS
+#define VP_NORM_LOAD_R (F110_VEHICLE_MASS_KG * F110_GRAVITY_ACCELERATION_MS2 * VEHICLE_CG_TO_FRONT_AXLE_M / F110_DEFAULT_WHEELBASE_METERS)
 
 /** Peak force on front wheel D */
-#define VP_D_FRONT        F110_FRICTION_COEFFICIENT * VP_NORM_LOAD_F
+#define VP_D_FRONT (F110_FRICTION_COEFFICIENT * VP_NORM_LOAD_F)
 
 /** Peak force on rear wheel D */
-#define VP_D_REAR        F110_FRICTION_COEFFICIENT * VP_NORM_LOAD_R
+#define VP_D_REAR (F110_FRICTION_COEFFICIENT * VP_NORM_LOAD_R)
 
 /** Shape factor C */
 #define VP_C_SHAPE 1.9f
-
-/** Inverse shape factor */
-#define VP_INV_C_SHAPE 1/VP_C_SHAPE
 
 /** Scalar to prevent at low speeds */
 #define MIN_STIFF_SCALE 0.1f
 
 /** Front cornering stiffness [1/rad] */
-#define F110_FRONT_CORNERING_STIFFNESS      VP_C_ALPHA_F / (F110_FRICTION_COEFFICIENT*VP_D_FRONT)
+#define F110_FRONT_CORNERING_STIFFNESS (VP_C_ALPHA_F / (F110_FRICTION_COEFFICIENT * VP_D_FRONT))
 
 /** Rear cornering stiffness [1/rad] */
-#define F110_REAR_CORNERING_STIFFNESS   VP_C_ALPHA_R / (F110_FRICTION_COEFFICIENT*VP_D_REAR)
-
-/** B factors for pacejka nonlinearity model */
-#define VP_B_FRONT  F110_FRONT_CORNERING_STIFFNESS / VP_C_SHAPE
-#define VP_B_REAR   F110_REAR_CORNERING_STIFFNESS / VP_C_SHAPE
-
-/* C_shape * B aliases used in Jacobian terms (equal to C_alpha_S* by construction). */
-#define VP_CB_FRONT F110_FRONT_CORNERING_STIFFNESS
-#define VP_CB_REAR  F110_REAR_CORNERING_STIFFNESS
-
-/* Precomputed minimum effective stiffness factors (mu*C_S*MIN_STIFF_SCALE) */
-#define VP_MU_CSF_MIN           F110_FRICTION_COEFFICIENT * F110_FRONT_CORNERING_STIFFNESS * MIN_STIFF_SCALE
-#define VP_MU_CSR_MIN           F110_FRICTION_COEFFICIENT * F110_REAR_CORNERING_STIFFNESS * MIN_STIFF_SCALE
+#define F110_REAR_CORNERING_STIFFNESS (VP_C_ALPHA_R / (F110_FRICTION_COEFFICIENT * VP_D_REAR))
 
 
 
 /*=========================================================================== 
  * Internal Constants
- * ==========================================================================/
+ *===========================================================================*/
 
  /** Frenet state dimension (e_y, e_psi, vx, vy, omega) */
 #define NX_FRENET 5
@@ -307,82 +341,27 @@ typedef struct
 /** Control dimension (delta_rate, acceleration) */
 #define NU 2
 
-/** Maximum steering rate (rad/s) */
-#define MAX_STEERING_RATE 2.849f
-
-/** Big number for unconstrained states */
-#define BIG_BOUND 100.0f
-
-/** Minimum linearization velocity */
-#define MIN_LINEARIZATION_VELOCITY 2.0f
-
-/** A-row stability limit */
-#define STABILITY_LIMIT 0.95f
-
-/** Wall constraint margin  */
-#define WALL_MARGIN_DEFAULT 0.855f
-
-/** Wall constraints: only first few horizon steps for near-term safety.
- *  Override at runtime via WALL_END environment variable.
- *  WALL_STRIDE controls step spacing (1=every step, 2=every other, etc.).
- *  Override at runtime via WALL_STRIDE environment variable. */
-#define WALL_CONSTRAINT_START  1
-#define WALL_CONSTRAINT_STRIDE_DEFAULT 3
-#define WALL_CONSTRAINT_END_DEFAULT 20    /* last horizon step to constrain (0=disable) */
-
-/** Soft wall constraint stiffness (0 = hard box constraint).
- *  When > 0, wall constraints use a quadratic penalty instead of hard clipping:
- *    g(z) = (k/2) * max(0, z - ub)^2 + (k/2) * max(0, lb - z)^2
- *  The ADMM z-update uses the proximal operator, allowing controlled violation.
- *  Higher k = stiffer (500+ approaches hard). Lower k = more flexible.
- *  Recommended: 200-500 for tight corridors, 0 for wide tracks.
- *  Override at runtime via WALL_SOFT_K environment variable. */
-#define WALL_SOFT_STIFFNESS_DEFAULT 657.0f
-
-/** v_switch: above this velocity, max acceleration = a_max * v_switch / v.
- *  From f1tenth gym STDynamicsModel: v_switch = 7.319 m/s.
- *  Models constant-power regime: P = F*v = const → a_max(v) ∝ 1/v. */
-#define V_SWITCH 7.319f
-
-/** Maximum lateral acceleration for curvature-based velocity limiting [m/s²].
- *  v_max(κ) = √(a_lat_max / |κ|), capping reference velocities in corners.
- *  Physically correct value: mu*g = 0.787 * 9.81 = 7.72 m/s².
- *  Override at runtime via MPC_MAX_LAT_ACCEL environment variable. */
-#define MPC_MAX_LAT_ACCEL_DEFAULT 7.3212f
-
 /*===========================================================================
  * Default MPC Configuration
  *===========================================================================*/
 
-/** Default prediction horizon: 20 steps */
+/** Default prediction horizon */
 #define MPC_PREDICTION_HORIZON 20
 
-/** Default time step: 0.048 seconds (48 ms)
- *  Control rate = 200 Hz (5 ms per call).
- *  Prediction model uses 40ms steps: 8× the control step.
- *  Total lookahead = 20 × 0.04s = 0.8 seconds.
- *  The cross_call_rate_scale = 0.125 (5ms / 40ms).
- */
-#define MPC_TIME_STEP_SECONDS 0.048f
+/** Default prediction time step */
+#define MPC_TIME_STEP_SECONDS MPC_PREDICTION_DT_SECONDS
 
-/** Default maximum solver iterations.
- *  FPGA target uses a tighter cap for deterministic worst-case latency.
- *  With warm-start and optimized tolerance (5.0), the solver converges
- *  in 1-2 iterations on average (max observed: 5). 8 provides margin. */
+/** Default maximum solver iterations */
 #define MPC_MAXIMUM_ITERATIONS 20
 
 /** Maximum number of waypoints in loaded trajectory */
 #define TRAJECTORY_MAXIMUM_WAYPOINTS 1000
 
-/** Maximum reference velocity [m/s] */
+/** Maximum reference velocity */
 #define TRAJECTORY_MAXIMUM_VELOCITY 20.0f
 
-/** Default convergence tolerance: 5.0 — optimized for warm-start MPC
- *  With warm-start + rho=15 persistence, tolerance=5.0 gives ~1.1 avg
- *  iterations at 200Hz with excellent tracking (avg lat 0.106m).
- *  Higher tolerance exploits warm-start quality — solution changes little
- *  between consecutive calls, so coarse convergence suffices. */
-#define MPC_CONVERGENCE_TOLERANCE 5.0f
+/** Default convergence tolerance */
+#define MPC_CONVERGENCE_TOLERANCE MPC_CONVERGENCE_TOLERANCE_DEFAULT
 
 /**
  * Get the default MPC configuration (F1/10th tuned values).

@@ -93,7 +93,7 @@ static int g_amcl_received = 0;
 static int g_new_ekf_pose = 0;
 
 /** Timer-driven control rate [Hz] */
-static double g_control_rate_hz = 200.0;
+static double g_control_rate_hz = MPC_CONTROL_RATE_HZ;
 
 /** Safety watchdog timeout [seconds] */
 static double g_watchdog_timeout_sec = 0.2;
@@ -113,7 +113,7 @@ static double g_watchdog_timeout_sec = 0.2;
 static double g_steering_to_servo_gain = -0.7284;
 static double g_steering_to_servo_offset = 0.55;
 
-/* Servo nonlinearity correction coefficients (calibrated 2026-03-12) */
+/* Servo nonlinearity correction coefficients from calibration data */
 static double g_steering_correction_c2 = 0.589566;
 static double g_steering_correction_c1 = 0.918061;
 static double g_steering_correction_c0 = 0.001490;
@@ -128,7 +128,6 @@ static double g_steering_correction_c0 = 0.001490;
  * gives the commanded servo value (0-1). We convert it back to steering angle.
  * If servo feedback is not available, fall back to rate-limited tracking.
  */
-#define SERVO_RATE_LIMIT  2.849  /* rad/s — matches f1tenth servo sv_max */
 static double global_actual_steering_angle = 0.0;
 static int g_use_steering_feedback = 0;
 
@@ -240,7 +239,7 @@ static void ensure_parent_directories(const char *filepath)
 }
 
 /** Computed control dt from g_control_rate_hz (set in main) */
-static double g_control_dt = 0.005;
+static double g_control_dt = MPC_CONTROL_DT_SECONDS;
 
 /** Number of executor handles: 4 subscriptions (no timer) */
 #define EXECUTOR_NUM_HANDLES 4
@@ -324,7 +323,7 @@ static double g_track_length_meters = 0.0;
  * @brief Load trajectory from CSV file.
  *
  * CSV format (TUM compatible):
- *   # s_m,x_m,y_m,psi_rad,kappa_radpm,vx_mps,ax_mps2[,left_bound,right_bound]
+ *   # s_m,x_m,y_m,psi_rad,kappa_radpm,vx_mps,ax_mps2,left_bound,right_bound
  */
 static int load_trajectory_from_csv(const char *file_path)
 {
@@ -336,10 +335,12 @@ static int load_trajectory_from_csv(const char *file_path)
     }
 
     char line_buffer[512];
+    int line_number = 0;
     global_trajectory_count = 0;
 
     while (fgets(line_buffer, sizeof(line_buffer), csv_file) != NULL)
     {
+        line_number++;
         if (line_buffer[0] == '#' || line_buffer[0] == '\n' || line_buffer[0] == '\r')
         {
             continue;
@@ -353,32 +354,45 @@ static int load_trajectory_from_csv(const char *file_path)
         }
 
         double s_m, x_m, y_m, psi_rad, kappa_radpm, vx_mps, ax_mps2;
-        double left_bound = 5.0, right_bound = 5.0;
+        double left_bound = 0.0;
+        double right_bound = 0.0;
         int fields_read = sscanf(line_buffer, "%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf",
                                  &s_m, &x_m, &y_m, &psi_rad,
                                  &kappa_radpm, &vx_mps, &ax_mps2,
                                  &left_bound, &right_bound);
 
-        if (fields_read >= 6)
-        {
-            TrajectoryWaypoint_t *wp = &global_trajectory[global_trajectory_count];
-            wp->s_meters = s_m;
-            wp->x_meters = x_m;
-            wp->y_meters = y_m;
-            wp->heading_radians = psi_rad;
-            wp->curvature_radians_per_meter = kappa_radpm;
-            wp->left_bound_meters = (fields_read >= 9) ? left_bound : 5.0;
-            wp->right_bound_meters = (fields_read >= 9) ? right_bound : 5.0;
-
-            double scaled_velocity = vx_mps * g_speed_gain;
-            if (scaled_velocity > TRAJECTORY_MAXIMUM_VELOCITY)
-                scaled_velocity = TRAJECTORY_MAXIMUM_VELOCITY;
-            if (scaled_velocity < 0.0)
-                scaled_velocity = 0.0;
-            wp->velocity_meters_per_second = scaled_velocity;
-
-            global_trajectory_count++;
+        if (fields_read != 9) {
+            fprintf(stderr,
+                    "[MPC] ERROR: Trajectory line %d must contain 9 columns including wall bounds\n",
+                    line_number);
+            fclose(csv_file);
+            return 0;
         }
+        if (left_bound <= 0.0 || right_bound <= 0.0) {
+            fprintf(stderr,
+                    "[MPC] ERROR: Invalid wall bounds at trajectory line %d (left=%.3f right=%.3f)\n",
+                    line_number, left_bound, right_bound);
+            fclose(csv_file);
+            return 0;
+        }
+
+        TrajectoryWaypoint_t *wp = &global_trajectory[global_trajectory_count];
+        wp->s_meters = s_m;
+        wp->x_meters = x_m;
+        wp->y_meters = y_m;
+        wp->heading_radians = psi_rad;
+        wp->curvature_radians_per_meter = kappa_radpm;
+        wp->left_bound_meters = left_bound;
+        wp->right_bound_meters = right_bound;
+
+        double scaled_velocity = vx_mps * g_speed_gain;
+        if (scaled_velocity > TRAJECTORY_MAXIMUM_VELOCITY)
+            scaled_velocity = TRAJECTORY_MAXIMUM_VELOCITY;
+        if (scaled_velocity < 0.0)
+            scaled_velocity = 0.0;
+        wp->velocity_meters_per_second = scaled_velocity;
+
+        global_trajectory_count++;
     }
 
     fclose(csv_file);
@@ -571,7 +585,7 @@ static void build_reference_from_trajectory(int closest_index)
     const double mpc_dt = MPC_TIME_STEP_SECONDS;
     double s_query = global_trajectory[closest_index].s_meters;
     double step_velocity = global_trajectory[closest_index].velocity_meters_per_second;
-    if (step_velocity < 3.0) step_velocity = 3.0;
+    if (step_velocity < MPC_MIN_TRAJECTORY_SPEED_MPS) step_velocity = MPC_MIN_TRAJECTORY_SPEED_MPS;
     if (step_velocity > TRAJECTORY_MAXIMUM_VELOCITY) step_velocity = TRAJECTORY_MAXIMUM_VELOCITY;
 
     for (int step = 0; step < MPC_PREDICTION_HORIZON; step++)
@@ -583,7 +597,7 @@ static void build_reference_from_trajectory(int closest_index)
         double traj_vel = wp.velocity_meters_per_second;
         if (traj_vel < 0.0) traj_vel = 0.0;
         if (traj_vel > TRAJECTORY_MAXIMUM_VELOCITY) traj_vel = TRAJECTORY_MAXIMUM_VELOCITY;
-        if (traj_vel < 3.0) traj_vel = 3.0;
+        if (traj_vel < MPC_MIN_TRAJECTORY_SPEED_MPS) traj_vel = MPC_MIN_TRAJECTORY_SPEED_MPS;
         step_velocity = traj_vel;
 
         global_reference_trajectory[step].reference_lateral_error = 0;
@@ -685,8 +699,8 @@ static void convert_to_frenet_state(
     double h0 = global_trajectory[idx0].heading_radians;
     double h1 = global_trajectory[idx1].heading_radians;
     double dh = h1 - h0;
-    while (dh > 3.14159265) dh -= 2.0 * 3.14159265;
-    while (dh < -3.14159265) dh += 2.0 * 3.14159265;
+    while (dh > M_PI) dh -= MPC_TWO_PI;
+    while (dh < -M_PI) dh += MPC_TWO_PI;
     double path_heading = h0 + t * dh;
 
     /* Signed lateral error (positive = left of path).
@@ -704,8 +718,8 @@ static void convert_to_frenet_state(
     double lateral_error = -dx * sin_h + dy * cos_h;
 
     double heading_error = car_heading - path_heading;
-    while (heading_error > 3.14159265) heading_error -= 2.0 * 3.14159265;
-    while (heading_error < -3.14159265) heading_error += 2.0 * 3.14159265;
+    while (heading_error > M_PI) heading_error -= MPC_TWO_PI;
+    while (heading_error < -M_PI) heading_error += MPC_TWO_PI;
 
     frenet_out->flat_error = lateral_error;
     frenet_out->fhead_error = heading_error;
@@ -963,29 +977,16 @@ void amcl_pose_callback(const void *message_in)
     }
     else
     {
-        /* Fallback: straight line at low speed */
-        float target_velocity = 1.0f;
-
-        global_frenet_state.flat_error = 0;
-        global_frenet_state.fhead_error = 0;
-        global_frenet_state.flong_vel =
-            global_vehicle_state.long_vel;
-        global_frenet_state.flat_vel =
-            global_vehicle_state.lat_vel;
-        global_frenet_state.fyaw_rate =
-            global_vehicle_state.yaw_rate;
-
-        for (int step = 0; step < MPC_PREDICTION_HORIZON; step++)
+        if (g_verbose)
         {
-            global_reference_trajectory[step].reference_lateral_error = 0;
-            global_reference_trajectory[step].reference_heading_error = 0;
-            global_reference_trajectory[step].path_curvature = 0;
-            global_reference_trajectory[step].left_wall_bound = 5.0f;
-            global_reference_trajectory[step].right_wall_bound = 5.0f;
-            global_reference_trajectory[step].reference_velocity = target_velocity;
-            global_reference_trajectory[step].reference_lateral_velocity = 0;
-            global_reference_trajectory[step].reference_yaw_rate = 0;
+            printf("[MPC] ERROR: No trajectory loaded, publishing zero command\n");
         }
+        global_drive_message_buffer.drive.steering_angle = 0.0f;
+        global_drive_message_buffer.drive.speed = 0.0f;
+        global_drive_message_buffer.drive.acceleration = 0.0f;
+        rcl_ret_t pub_rc __attribute__((unused)) =
+            rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);
+        return;
     }
 
     /* ===== Run MPC — output used DIRECTLY, no post-processing ===== */
@@ -1035,7 +1036,7 @@ void amcl_pose_callback(const void *message_in)
          * the servo callback. Otherwise, simulate servo dynamics with rate limit. */
         if (!g_use_steering_feedback)
         {
-            double max_delta = SERVO_RATE_LIMIT * g_control_dt;
+            double max_delta = MPC_STEERING_RATE_LIMIT * g_control_dt;
             double steer_diff = steer - global_actual_steering_angle;
             if (steer_diff > max_delta) steer_diff = max_delta;
             if (steer_diff < -max_delta) steer_diff = -max_delta;
@@ -1107,35 +1108,13 @@ void amcl_pose_callback(const void *message_in)
         global_drive_message_buffer.drive.steering_angle = 
             global_control_command.steer_ang;
 
-        /* VEL_TO_ERPM mode: the ackermann_to_vesc node converts drive.speed
-         * to ERPM and the VESC's internal PID handles velocity tracking.
-         *
-         * drive.speed is computed by integrating the MPC's acceleration command
-         * over ONE MPC PREDICTION STEP (MPC_TIME_STEP_SECONDS = 0.05 s),
-         * NOT the control timer period (g_control_dt = 0.005 s at 200 Hz).
-         *
-         * WHY MPC_TIME_STEP_SECONDS and not g_control_dt:
-         * At 200 Hz (dt=0.005s), even a 5 m/s^2 command produces only a
-         * 0.025 m/s increment per cycle.  ERPM = 4550 * 0.025 = ~114 ERPM.
-         * A sensorless BLDC motor needs sufficient back-EMF (hundreds of RPM)
-         * for the rotor-position observer to lock onto.  Below that threshold
-         * the motor strains, current-limits, and stalls, then MPC re-issues
-         * the same tiny target => repeated start-stop.  The slow_start ramp
-         * in ackermann_to_vesc never fires because commanded_vel never jumps
-         * from <1 m/s to >1 m/s in a single step.
-         *
-         * drive.acceleration is still set so that systems configured with
-         * non-zero accel_to_current_gain / accel_to_brake_gain use the MPC's
-         * direct torque command.  Set those gains to 8.935 A/(m/s^2) in
-         * vesc.yaml to switch to ACCEL_TO_CURRENT mode.
-         */
+        /* Convert acceleration command to velocity target over one prediction step.
+         * This keeps the velocity command consistent with the MPC integration model. */
         {
             double a_cmd =
                 global_control_command.long_acc;
 
-            /* Integrate MPC acceleration over one MPC prediction step.
-             * See the comment block above for why MPC_TIME_STEP_SECONDS (0.04s)
-             * is used here rather than g_control_dt. */
+            /* Integrate over the prediction time step used by MPC. */
             double v_cmd = g_latest_vx + a_cmd * MPC_TIME_STEP_SECONDS;
             if (v_cmd < 0.0) v_cmd = 0.0;
             if (v_cmd > TRAJECTORY_MAXIMUM_VELOCITY) v_cmd = TRAJECTORY_MAXIMUM_VELOCITY;

@@ -17,13 +17,17 @@ Usage:
     python3 test/tune_realistic.py Hardware --phase 2     # Run single phase
     python3 test/tune_realistic.py Hardware --jobs 8      # 8 parallel workers
     python3 test/tune_realistic.py Hardware -j 0          # Auto-detect CPU count
+    python3 test/tune_realistic.py Hardware --trials 3    # 3-seed aggregate per config
+    python3 test/tune_realistic.py Hardware --seed-base 7 # Deterministic seed offset
+    python3 test/tune_realistic.py Hardware --objective fastest
     python3 test/tune_realistic.py Hardware --cascade-top 20  # Cascade top-20
 """
 
-import subprocess, os, sys, csv, itertools, time, random
+import subprocess, os, sys, csv, itertools, time, random, hashlib
 from datetime import datetime
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, wait, FIRST_COMPLETED
 import multiprocessing
+from typing import Optional
 
 # ─── Environment ─────────────────────────────────────────────────────────────
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -106,6 +110,9 @@ BASE = {}
 MODE = "Spielberg"
 CASCADE_TOP_N = 1
 MAX_ALLOWED_COLLISIONS = 0
+TRIALS_PER_CONFIG = 1
+SEED_BASE = 42
+OBJECTIVE = "tracker"
 
 # ─── Special env vars (not weights, passed as env directly) ──────────────────
 SPECIAL_PARAMS = {"WALL_MARGIN", "WALL_STRIDE", "HORIZON", "RACELINE_PATH", "PRED_DT"}
@@ -145,56 +152,190 @@ SPIELBERG_QUICK_VALUES = {
 }
 
 # ─── Sweep ranges (Hardware) ────────────────────────────────────────────────
-# Ranges trimmed based on 65K-test sweep (2025-03-10):
-# - Removed values with 0 passing or extreme-bad avg scores
-# - Added finer values near the best config (base)
-HARDWARE_FULL_VALUES = {
-    "Q_LAT":        [2000, 3000, 3500, 4000, 5000, 6000, 7000, 8000, 10000, 15000, 30000],
-    "Q_HDG":        [500, 750, 800, 1000, 1200, 1500, 2000, 3000, 5000, 10000, 20000],
-    "Q_VEL":        [5, 10, 15, 26, 50, 60, 75, 80, 90, 100, 120],
-    "Q_LAT_VEL":    [5, 10, 20, 30, 40, 50, 55, 60, 70, 80, 100, 150],
-    "Q_YAW":        [5, 10, 15, 18, 20, 22, 25, 30, 50],
-    "R_STEER":      [0.01, 0.03, 0.05, 0.10, 0.12, 0.15, 0.18, 0.20, 0.30, 0.40, 0.60, 1.0],
-    "R_ACCEL":      [0.005, 0.008, 0.01, 0.012, 0.015, 0.02, 0.05, 0.1],
-    "W_JERK":       [0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 1.0, 1.5, 2.0],
-    "W_ACCEL_RATE": [0.05, 0.08, 0.1, 0.12, 0.15, 0.2, 0.5, 1.0],
-    "HORIZON":      [15, 18, 20, 22, 25, 30, 35, 40],
-    "WALL_MARGIN":  [0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.08,
-                      0.10, 0.12, 0.15, 0.18, 0.20],
-    "WALL_END":     [6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 40],
-    "WALL_STRIDE":  [1, 2, 3, 4],
-    "RHO":          [10, 15, 20, 25, 28, 30, 32, 35, 38, 40, 50, 80],
-    "RHO_U":        [10, 15, 16, 18, 20, 22, 25, 30, 50],
-    "ALPHA":        [0.85, 0.90, 0.91, 0.92, 0.93, 0.95, 1.0, 1.1, 1.2, 1.4],
-    "PRED_DT":      [0.02, 0.03, 0.04, 0.05, 0.055, 0.06, 0.065, 0.07, 0.08, 0.10],
+# Tracker and fastest objectives intentionally use different search spaces to
+# bias exploration toward their own goals.
+HARDWARE_TRACKER_FULL_VALUES = {
+    "Q_LAT":        [3500, 4500, 5000, 6000, 7000],
+    "Q_HDG":        [700, 900, 1000, 1200, 1500],
+    "Q_VEL":        [80, 90, 100, 110, 120],
+    "Q_LAT_VEL":    [3, 5, 7, 10],
+    "Q_YAW":        [3, 5, 7, 10],
+    "R_STEER":      [0.25, 0.35, 0.4, 0.5, 0.6],
+    "R_ACCEL":      [0.008, 0.01, 0.012],
+    "W_JERK":       [0.3, 0.5, 0.7, 1.0],
+    "W_ACCEL_RATE": [0.08, 0.1, 0.12, 0.15],
+    "HORIZON":      [9, 10, 11, 12],
+    "WALL_MARGIN":  [0.006, 0.008, 0.01, 0.012, 0.015],
+    "WALL_END":     [8, 10, 12, 14],
+    "WALL_STRIDE":  [1, 2, 3],
+    "RHO":          [32, 40, 50, 64],
+    "RHO_U":        [6, 8, 10, 12, 16],
+    "ALPHA":        [1.1, 1.25, 1.4, 1.6],
+    "PRED_DT":      [0.034, 0.036, 0.038, 0.04],
+    "TOL":          [4.0, 5.0, 6.0, 7.0],
+    "MAX_ITER":     [20, 24, 28],
 }
 
-HARDWARE_QUICK_VALUES = {
-    "Q_LAT":        [3000, 5000, 7000, 10000, 15000],
-    "Q_HDG":        [500, 1000, 2000, 5000, 10000],
-    "Q_VEL":        [15, 50, 80, 100, 120],
-    "Q_LAT_VEL":    [20, 50, 69, 100],
-    "Q_YAW":        [10, 15, 22, 30],
-    "R_STEER":      [0.05, 0.10, 0.15, 0.20, 0.40],
-    "HORIZON":      [8, 10, 12, 15, 20, 22, 25, 30],
-    "WALL_MARGIN":  [0.00, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.15, 0.18],
-    "WALL_END":     [6, 8, 10, 12, 14, 16, 18, 20, 24],
-    "WALL_STRIDE":  [1, 2, 3, 4],
-    "PRED_DT":      [0.04, 0.05, 0.06, 0.08],
+HARDWARE_FASTEST_FULL_VALUES = {
+    "Q_LAT":        [5000, 5600, 6200, 6800],
+    "Q_HDG":        [650, 720, 800, 900],
+    "Q_VEL":        [220, 260, 300, 340],
+    "Q_LAT_VEL":    [2.0, 3, 4, 5, 8],
+    "Q_YAW":        [2, 3, 5, 7],
+    "R_STEER":      [0.2, 0.25, 0.3, 0.35],
+    "R_ACCEL":      [0.008, 0.01, 0.012],
+    "W_JERK":       [0.2, 0.3, 0.4, 0.5],
+    "W_ACCEL_RATE": [0.06, 0.08, 0.1],
+    "HORIZON":      [9, 10, 11, 12],
+    "WALL_MARGIN":  [0.008, 0.01, 0.012, 0.015],
+    "WALL_END":     [8, 10, 12, 14],
+    "WALL_STRIDE":  [1, 2, 3],
+    "RHO":          [50, 64, 80],
+    "RHO_U":        [7, 8, 10, 12],
+    "ALPHA":        [1.1, 1.25, 1.4, 1.55],
+    "PRED_DT":      [0.036, 0.038, 0.04],
+    "TOL":          [4.0, 4.5, 5.0],
+    "MAX_ITER":     [20, 24, 28],
 }
 
-# Reduced grid specifically for Phase 2 Hardware combined sweep
-# Trimmed based on 65K sweep: centered on best config, dead values removed
-# (primary weights + wall params together, ~49K combos)
-HARDWARE_GRID_VALUES = {
-    "Q_LAT":        [3000, 5000, 10000, 15000],
-    "Q_HDG":        [500, 1000, 5000, 10000],
-    "Q_VEL":        [15, 50, 100, 120],
-    "HORIZON":      [8, 10, 15, 20, 22, 25, 30],
-    "PRED_DT":      [0.04, 0.06, 0.08],
-    "WALL_MARGIN":  [0.00, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.15],
-    "WALL_END":     [6, 8, 10, 12, 14, 16, 18, 20, 24, 30],
+HARDWARE_TRACKER_QUICK_VALUES = {
+    "Q_LAT":        [4500, 5000, 6000],
+    "Q_HDG":        [850, 1000, 1200],
+    "Q_VEL":        [90, 100, 110, 120],
+    "Q_LAT_VEL":    [4, 5, 6],
+    "Q_YAW":        [4, 5, 6],
+    "R_STEER":      [0.35, 0.4, 0.5],
+    "HORIZON":      [10, 11, 12],
+    "WALL_MARGIN":  [0.008, 0.01, 0.012],
+    "WALL_END":     [10, 12, 14],
+    "WALL_STRIDE":  [1, 2],
+    "PRED_DT":      [0.034, 0.036, 0.038],
 }
+
+HARDWARE_FASTEST_QUICK_VALUES = {
+    "Q_LAT":        [5000, 5600, 6200],
+    "Q_HDG":        [650, 800, 900],
+    "Q_VEL":        [200, 260, 320],
+    "Q_LAT_VEL":    [2, 3, 5],
+    "Q_YAW":        [3, 5, 7],
+    "R_STEER":      [0.2, 0.25, 0.3],
+    "HORIZON":      [9, 10, 11],
+    "WALL_MARGIN":  [0.008, 0.01, 0.012],
+    "WALL_END":     [10, 12, 14],
+    "WALL_STRIDE":  [1, 2, 3],
+    "PRED_DT":      [0.036, 0.038, 0.04],
+}
+
+HARDWARE_TRACKER_GRID_VALUES = {
+    "Q_LAT":        [4500, 5000, 6000],
+    "Q_HDG":        [850, 1000, 1150],
+    "Q_VEL":        [90, 100, 110],
+    "HORIZON":      [10, 11],
+    "PRED_DT":      [0.034, 0.036, 0.038],
+    "WALL_MARGIN":  [0.008, 0.01, 0.012],
+    "WALL_END":     [10, 12, 14],
+}
+
+HARDWARE_FASTEST_GRID_VALUES = {
+    "Q_LAT":        [5000, 5600, 6200],
+    "Q_HDG":        [650, 800, 900],
+    "Q_VEL":        [220, 260, 300, 340],
+    "HORIZON":      [9, 10, 11],
+    "PRED_DT":      [0.036, 0.038, 0.04],
+    "WALL_MARGIN":  [0.008, 0.01, 0.012],
+    "WALL_END":     [10, 12, 14],
+}
+
+HARDWARE_FASTEST_BASE_OVERRIDES = {
+    "Q_LAT": 5600.0,
+    "Q_HDG": 800.0,
+    "Q_VEL": 300.0,
+    "Q_LAT_VEL": 3.0,
+    "Q_YAW": 5.0,
+    "R_STEER": 0.25,
+    "R_ACCEL": 0.0106,
+    "W_JERK": 0.3,
+    "W_ACCEL_RATE": 0.1,
+    "RHO": 64.0,
+    "RHO_U": 8.0,
+    "ALPHA": 1.4,
+    "TOL": 4.5,
+    "MAX_ITER": 20,
+    "WALL_END": 10,
+    "WALL_STRIDE": 2,
+    "WALL_MARGIN": 0.012,
+    "HORIZON": 10,
+    "PRED_DT": 0.038,
+}
+
+HARDWARE_OBJECTIVE_SWEEPS = {
+    "tracker": {
+        "full": HARDWARE_TRACKER_FULL_VALUES,
+        "quick": HARDWARE_TRACKER_QUICK_VALUES,
+        "grid": HARDWARE_TRACKER_GRID_VALUES,
+    },
+    "fastest": {
+        "full": HARDWARE_FASTEST_FULL_VALUES,
+        "quick": HARDWARE_FASTEST_QUICK_VALUES,
+        "grid": HARDWARE_FASTEST_GRID_VALUES,
+    },
+}
+
+RANDOM_NEIGHBOR_PROFILES = {
+    "tracker": {
+        "num_perturb_range": (3, 6),
+        "default_multipliers": [0.85, 0.95, 1.0, 1.1, 1.2],
+        "param_multipliers": {
+            "Q_LAT": [0.9, 0.97, 1.0, 1.08, 1.18],
+            "Q_HDG": [0.9, 0.97, 1.0, 1.08, 1.18],
+            "Q_VEL": [0.9, 0.95, 1.0, 1.05],
+            "Q_LAT_VEL": [0.75, 0.9, 1.0, 1.15, 1.3],
+            "Q_YAW": [0.75, 0.9, 1.0, 1.15, 1.3],
+            "R_STEER": [0.85, 0.95, 1.0, 1.15, 1.3],
+            "W_JERK": [0.85, 0.95, 1.0, 1.15, 1.3],
+            "RHO": [0.75, 0.9, 1.0, 1.15, 1.35],
+            "RHO_U": [0.75, 0.9, 1.0, 1.15, 1.35],
+        },
+        "discrete": {
+            "HORIZON": [9, 10, 11, 12],
+            "PRED_DT": [0.034, 0.036, 0.038, 0.04],
+            "WALL_STRIDE": [1, 2, 3],
+            "WALL_MARGIN": [0.006, 0.008, 0.01, 0.012, 0.015],
+            "WALL_END": [8, 10, 12, 14],
+            "ALPHA": [1.15, 1.25, 1.4, 1.55],
+            "MAX_ITER": [20, 24, 28],
+        },
+    },
+    "fastest": {
+        "num_perturb_range": (3, 7),
+        "default_multipliers": [0.9, 0.97, 1.0, 1.06, 1.12],
+        "param_multipliers": {
+            "Q_LAT": [0.9, 0.97, 1.0, 1.06, 1.12],
+            "Q_HDG": [0.9, 0.97, 1.0, 1.06, 1.12],
+            "Q_VEL": [0.97, 1.0, 1.05, 1.1, 1.15, 1.2],
+            "Q_LAT_VEL": [0.85, 0.95, 1.0, 1.1, 1.2],
+            "Q_YAW": [0.7, 0.85, 1.0, 1.1, 1.2],
+            "R_STEER": [0.9, 0.97, 1.0, 1.08, 1.15],
+            "W_JERK": [0.85, 0.95, 1.0, 1.1, 1.2],
+            "RHO": [0.85, 0.95, 1.0, 1.1, 1.2],
+            "RHO_U": [0.85, 0.95, 1.0, 1.1, 1.2],
+        },
+        "discrete": {
+            "HORIZON": [9, 10, 11, 12],
+            "PRED_DT": [0.034, 0.036, 0.038, 0.04, 0.042],
+            "WALL_STRIDE": [1, 2, 3],
+            "WALL_MARGIN": [0.006, 0.008, 0.01, 0.012, 0.015],
+            "WALL_END": [8, 10, 12, 14],
+            "ALPHA": [1.1, 1.25, 1.4, 1.55],
+            "MAX_ITER": [20, 24, 28],
+        },
+    },
+}
+
+# Backward-compatible aliases used as defaults/fallbacks.
+HARDWARE_FULL_VALUES = HARDWARE_TRACKER_FULL_VALUES
+HARDWARE_QUICK_VALUES = HARDWARE_TRACKER_QUICK_VALUES
+HARDWARE_GRID_VALUES = HARDWARE_TRACKER_GRID_VALUES
 
 SUPPORTED_SWEEP_PARAMS = {
     "Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW",
@@ -223,13 +364,20 @@ FULL_VALUES = {}
 QUICK_VALUES = {}
 
 
+def clone_values_dict(values_dict: dict) -> dict:
+    """Copy sweep dictionaries so objective selection never mutates shared lists."""
+    return {k: list(v) for k, v in values_dict.items()}
+
+
 # ─── Test runner ─────────────────────────────────────────────────────────────
-def run_test(params: dict, binary: str, raceline: str = None) -> dict:
+def run_test(params: dict, binary: str, raceline: Optional[str] = None, seed: Optional[int] = None) -> dict:
     """Run a single REALISTIC_SIM=1 test with given parameters."""
     env = os.environ.copy()
     env["MPC_TUNING_CSV"] = "1"
     env["REALISTIC_SIM"] = "1"
     env["WALL_SOFT_K"] = "0"
+    if seed is not None:
+        env["SIM_SEED"] = str(seed)
 
     if raceline:
         env["RACELINE_PATH"] = raceline
@@ -253,6 +401,7 @@ def run_test(params: dict, binary: str, raceline: str = None) -> dict:
             try:
                 return {
                     "status": "OK",
+                    "return_code": result.returncode,
                     "passed": int(parts[1]),
                     "failed": int(parts[2]),
                     "max_lat_err": float(parts[3]),
@@ -267,72 +416,118 @@ def run_test(params: dict, binary: str, raceline: str = None) -> dict:
                     "max_vel_err": float(parts[12]) if len(parts) > 12 else 12.0,
                     "avg_vel_err": float(parts[13]) if len(parts) > 13 else 5.0,
                     "avg_iters": float(parts[14]) if len(parts) > 14 else 0.0,
+                    "avg_vx": float(parts[15]) if len(parts) > 15 else 0.0,
                 }
             except (IndexError, ValueError):
                 pass
 
-    return {"status": "NO_CSV", "passed": 0, "failed": 6}
+    if result.returncode != 0:
+        return {"status": "EXIT_FAIL", "return_code": result.returncode, "passed": 0, "failed": 6}
+    return {"status": "NO_CSV", "return_code": result.returncode, "passed": 0, "failed": 6}
 
 
-def compute_score(r: dict) -> float:
-    """Composite score — lower is better.
+def derive_config_seed_base(label: str, params: dict, raceline_label: str = "") -> int:
+    """Deterministic per-config seed base so results are reproducible across parallel runs."""
+    eff = canonicalize_params_for_env(params)
+    key = f"{SEED_BASE}|{raceline_label}|{label}|{sorted(eff.items())}"
+    digest = hashlib.sha1(key.encode("utf-8")).hexdigest()
+    return int(digest[:8], 16)
 
-    Any wall collision is an automatic failure (score 999) in all modes.
 
-    Spielberg mode (large track, high speeds):
-      Primary: max velocity + time above 5 m/s
-      Secondary: tracking quality (lat/hdg/vel errors)
-      Tertiary: solver efficiency
+def run_test_with_trials(params: dict,
+                         binary: str,
+                         raceline: Optional[str] = None,
+                         label: str = "",
+                         raceline_label: str = "",
+                         trials: int = 1) -> dict:
+    """Run multiple seeds and aggregate conservatively to reduce single-seed overfitting."""
+    trials = max(1, int(trials))
+    seed0 = derive_config_seed_base(label, params, raceline_label)
 
-    Hardware mode (small track, low speeds ~2-5 m/s):
-      Primary: tracking quality (avg_lat_err, avg_vel_err)
-      Secondary: heading tracking, max lateral error
-      Tertiary: velocity relative to raceline max, solver efficiency
-      (No "time above 5 m/s" — track is too short / slow for that metric)
-    """
-    if r["status"] != "OK":
-        return 999.0
+    if trials == 1:
+        r = run_test(params, binary, raceline, seed=seed0)
+        r["trials"] = 1
+        r["seed_base"] = seed0
+        return r
 
-    collisions = r["wall_collisions"]
-    if collisions > MAX_ALLOWED_COLLISIONS:
-        return 500.0 + collisions * 100.0
+    out = []
+    for i in range(trials):
+        rr = run_test(params, binary, raceline, seed=seed0 + i)
+        out.append(rr)
+        if rr.get("status") != "OK":
+            fail = dict(rr)
+            fail["status"] = f"TRIAL_{rr.get('status', 'FAIL')}"
+            fail["trials"] = trials
+            fail["seed_base"] = seed0
+            return fail
 
-    if MODE == "Hardware":
-        # ─── Hardware scoring ────────────────────────────────────────
-        # Primary: tracking quality (stay on the raceline)
-        tracking = (
-            r["avg_lat_err"] * 50.0 +    # lateral tracking is critical
-            r["avg_vel_err"] * 20.0 +     # velocity tracking
-            r["max_lat_err"] * 10.0 +     # worst-case lateral offset
-            r["avg_hdg_err"] * 15.0       # heading alignment
-        )
+    agg = {
+        "status": "OK",
+        "passed": min(r.get("passed", 0) for r in out),
+        "failed": max(r.get("failed", 0) for r in out),
+        "max_lat_err": max(r.get("max_lat_err", 0.0) for r in out),
+        "avg_lat_err": sum(r.get("avg_lat_err", 0.0) for r in out) / trials,
+        "max_hdg_err": max(r.get("max_hdg_err", 0.0) for r in out),
+        "avg_hdg_err": sum(r.get("avg_hdg_err", 0.0) for r in out) / trials,
+        "max_vx": sum(r.get("max_vx", 0.0) for r in out) / trials,
+        "avg_solve_us": sum(r.get("avg_solve_us", 0.0) for r in out) / trials,
+        "max_solve_us": max(r.get("max_solve_us", 0.0) for r in out),
+        "wall_collisions": max(r.get("wall_collisions", 0) for r in out),
+        "time_above_5ms": sum(r.get("time_above_5ms", 0.0) for r in out) / trials,
+        "max_vel_err": max(r.get("max_vel_err", 0.0) for r in out),
+        "avg_vel_err": sum(r.get("avg_vel_err", 0.0) for r in out) / trials,
+        "avg_iters": sum(r.get("avg_iters", 0.0) for r in out) / trials,
+        "trials": trials,
+        "seed_base": seed0,
+    }
+    return agg
 
-        # Secondary: speed achieved relative to raceline (~5.1 m/s max)
-        # Penalize configs that are too slow but don't expect Spielberg speeds
-        velocity_penalty = max(0, 5.0 - r["max_vx"]) * 10.0
 
-        # Tertiary: solver efficiency
-        solver = r.get("avg_iters", 0) * 0.2 + r["avg_solve_us"] * 0.001
+def is_safe_result(r: dict) -> bool:
+    """True when run is valid and collision-free enough for objective ranking."""
+    if r.get("status") != "OK":
+        return False
+    if int(r.get("wall_collisions", 999)) > MAX_ALLOWED_COLLISIONS:
+        return False
+    return True
 
-        return round(tracking + velocity_penalty + solver, 3)
-    else:
-        # ─── Spielberg scoring (original) ────────────────────────────
-        # Primary: velocity (penalize low velocity)
-        velocity_penalty = max(0, 12.0 - r["max_vx"]) * 15.0
-        time_penalty = max(0, 60 - r["time_above_5ms"]) * 2.0
 
-        # Secondary: tracking quality
-        tracking = (
-            r["avg_lat_err"] * 5.0 +
-            r["max_lat_err"] * 1.0 +
-            r["avg_vel_err"] * 5.0 +
-            r["avg_hdg_err"] * 2.0
-        )
+def compute_tracker_score(r: dict) -> float:
+    """Tracker score: minimize trajectory-following errors (lower is better)."""
+    if not is_safe_result(r):
+        if r.get("status") != "OK":
+            return 5000.0
+        return 2000.0 + 100.0 * float(max(0, r.get("wall_collisions", 0) - MAX_ALLOWED_COLLISIONS))
 
-        # Tertiary: solver efficiency
-        solver = r.get("avg_iters", 0) * 0.3 + r["avg_solve_us"] * 0.002
+    tracking = (
+        r["avg_lat_err"] * 80.0 +
+        r["max_lat_err"] * 15.0 +
+        r["avg_hdg_err"] * 35.0 +
+        r["max_hdg_err"] * 8.0 +
+        r["avg_vel_err"] * 40.0 +
+        r["max_vel_err"] * 4.0
+    )
+    solver = r.get("avg_iters", 0) * 0.2 + r["avg_solve_us"] * 0.001
+    return round(tracking + solver, 3)
 
-        return round(velocity_penalty + time_penalty + tracking + solver, 3)
+
+def compute_fastest_score(r: dict) -> float:
+    """Fastest score: maximize average speed while staying collision-free."""
+    if not is_safe_result(r):
+        if r.get("status") != "OK":
+            return 5000.0
+        return 2000.0 + 100.0 * float(max(0, r.get("wall_collisions", 0) - MAX_ALLOWED_COLLISIONS))
+
+    # Solely speed-based objective: lower score means higher average speed.
+    return round(-r.get("avg_vx", 0.0), 6)
+
+
+def apply_scores(r: dict) -> dict:
+    """Attach both objective scores and active primary score to a result row."""
+    r["tracker_score"] = compute_tracker_score(r)
+    r["fastest_score"] = compute_fastest_score(r)
+    r["score"] = r["tracker_score"] if OBJECTIVE == "tracker" else r["fastest_score"]
+    return r
 
 
 # ─── Combination generators ─────────────────────────────────────────────────
@@ -350,7 +545,7 @@ def gen_one_at_a_time(values_dict):
     return combos
 
 
-def valid_wall_combo(params: dict, horizon: int = None) -> bool:
+def valid_wall_combo(params: dict, horizon: Optional[int] = None) -> bool:
     """Return True when wall settings are valid for the current horizon.
 
     Adds stricter checks for high-horizon Hardware sweeps so wall constraints
@@ -381,6 +576,14 @@ def valid_wall_combo(params: dict, horizon: int = None) -> bool:
         if ws > 3:
             return False
 
+    return True
+
+
+def valid_objective_combo(params: dict) -> bool:
+    """Objective-specific guardrails to keep tracker/fastest searches distinct."""
+    qv = float(params.get("Q_VEL", BASE.get("Q_VEL", 0.0)))
+    if OBJECTIVE == "tracker" and qv > 140.0:
+        return False
     return True
 
 
@@ -501,52 +704,66 @@ def gen_secondary_grid(values_dict):
     return combos
 
 
-def gen_solver_grid():
-    """Grid: RHO × RHO_U × ALPHA."""
+def gen_solver_grid(objective="tracker"):
+    """Grid: RHO × RHO_U × ALPHA with objective-specific defaults."""
     combos = []
-    for rho in [20, 30, 50, 80]:
-        for rho_u in [10, 20, 30, 50]:
-            for alpha in [0.93, 1.0, 1.2, 1.4]:
+    if objective == "fastest":
+        rho_vals = [32, 40, 50, 64]
+        rho_u_vals = [8, 10, 12, 16]
+        alpha_vals = [1.1, 1.25, 1.4, 1.6]
+    else:
+        rho_vals = [32, 40, 50, 64]
+        rho_u_vals = [6, 8, 10, 12, 16]
+        alpha_vals = [1.1, 1.25, 1.4, 1.6]
+
+    for rho in rho_vals:
+        for rho_u in rho_u_vals:
+            for alpha in alpha_vals:
                 w = dict(BASE)
                 w["RHO"] = rho; w["RHO_U"] = rho_u; w["ALPHA"] = alpha
                 combos.append((f"rho={rho}+ru={rho_u}+a={alpha}", w))
     return combos
 
 
-def gen_velocity_push():
-    """Configurations targeting max velocity with various safety levels."""
+def gen_velocity_push(objective="tracker"):
+    """Configurations targeting objective-specific speed/handling tradeoffs."""
     combos = []
-    configs = [
-        # Aggressive velocity tracking, strong lateral control
-        {"Q_VEL": 100, "Q_LAT": 500, "Q_HDG": 1200},
-        {"Q_VEL": 150, "Q_LAT": 500, "Q_HDG": 1200},
-        {"Q_VEL": 100, "Q_LAT": 600, "Q_HDG": 1500},
-        {"Q_VEL": 150, "Q_LAT": 600, "Q_HDG": 1500},
-        # High lateral weight
-        {"Q_VEL": 80, "Q_LAT": 800, "Q_HDG": 1200},
-        {"Q_VEL": 100, "Q_LAT": 800, "Q_HDG": 1200},
-        # Strong wall margin
-        {"Q_VEL": 100, "WALL_MARGIN": 0.95, "WALL_END": 20},
-        {"Q_VEL": 150, "WALL_MARGIN": 0.95, "WALL_END": 20},
-        # Low wall margin (aggressive)
-        {"Q_VEL": 100, "WALL_MARGIN": 0.50, "WALL_END": 16},
-        {"Q_VEL": 100, "WALL_MARGIN": 0.60, "WALL_END": 16},
-        # Different horizon with high velocity
-        {"Q_VEL": 100, "HORIZON": 18},
-        {"Q_VEL": 100, "HORIZON": 20},
-        # Low R_STEER for agile steering
-        {"Q_VEL": 100, "R_STEER": 0.08, "W_JERK": 0.1},
-        {"Q_VEL": 100, "R_STEER": 0.08, "Q_LAT": 600},
-        # Low yaw rate penalty for faster cornering
-        {"Q_VEL": 100, "Q_YAW": 10, "Q_LAT_VEL": 30},
-        {"Q_VEL": 100, "Q_YAW": 10, "Q_LAT": 600},
-        # High ADMM alpha (over-relaxation) + velocity
-        {"Q_VEL": 100, "ALPHA": 1.2, "RHO": 50},
-        {"Q_VEL": 100, "ALPHA": 1.4, "RHO": 50},
-    ]
+    if objective == "fastest":
+        configs = [
+            {"Q_VEL": 260, "Q_LAT": 5600, "Q_HDG": 800, "Q_LAT_VEL": 3, "Q_YAW": 5},
+            {"Q_VEL": 300, "Q_LAT": 5600, "Q_HDG": 800, "Q_LAT_VEL": 3, "Q_YAW": 5},
+            {"Q_VEL": 320, "Q_LAT": 5600, "Q_HDG": 720, "Q_LAT_VEL": 3, "Q_YAW": 5},
+            {"Q_VEL": 340, "Q_LAT": 6200, "Q_HDG": 720, "Q_LAT_VEL": 3, "Q_YAW": 5},
+            {"Q_VEL": 300, "HORIZON": 10, "PRED_DT": 0.038},
+            {"Q_VEL": 320, "HORIZON": 10, "PRED_DT": 0.036},
+            {"Q_VEL": 300, "R_STEER": 0.25, "Q_YAW": 5},
+            {"Q_VEL": 320, "R_STEER": 0.25, "Q_YAW": 3},
+            {"Q_VEL": 300, "WALL_MARGIN": 0.012, "WALL_END": 10, "WALL_STRIDE": 2},
+            {"Q_VEL": 320, "WALL_MARGIN": 0.01, "WALL_END": 10, "WALL_STRIDE": 2},
+            {"Q_VEL": 300, "ALPHA": 1.4, "RHO": 64, "RHO_U": 8},
+            {"Q_VEL": 320, "ALPHA": 1.4, "RHO": 64, "RHO_U": 8},
+        ]
+    else:
+        configs = [
+            {"Q_VEL": 100, "Q_LAT": 5000, "Q_HDG": 1000},
+            {"Q_VEL": 110, "Q_LAT": 5000, "Q_HDG": 1000},
+            {"Q_VEL": 120, "Q_LAT": 6000, "Q_HDG": 1200},
+            {"Q_VEL": 110, "Q_LAT": 7000, "Q_HDG": 1200},
+            {"Q_VEL": 110, "WALL_MARGIN": 0.01, "WALL_END": 12, "WALL_STRIDE": 1},
+            {"Q_VEL": 120, "WALL_MARGIN": 0.012, "WALL_END": 12, "WALL_STRIDE": 1},
+            {"Q_VEL": 110, "R_STEER": 0.4, "W_JERK": 0.5},
+            {"Q_VEL": 120, "R_STEER": 0.5, "W_JERK": 0.5},
+            {"Q_VEL": 110, "Q_YAW": 5, "Q_LAT_VEL": 5},
+            {"Q_VEL": 120, "Q_YAW": 5, "Q_LAT_VEL": 5},
+            {"Q_VEL": 110, "ALPHA": 1.4, "RHO": 40, "RHO_U": 8},
+            {"Q_VEL": 120, "ALPHA": 1.4, "RHO": 50, "RHO_U": 10},
+        ]
+
     for cfg in configs:
         w = dict(BASE)
         w.update(cfg)
+        if not valid_wall_combo(w):
+            continue
         label = "+".join(f"{k}={v}" for k, v in cfg.items())
         combos.append((label, w))
     return combos
@@ -593,29 +810,50 @@ def gen_fine_tuning(best_weights, pct_range=(0.80, 0.85, 0.90, 0.95, 1.05, 1.10,
     return combos
 
 
-def gen_random_neighbors(best_weights, n=150):
-    """Random perturbations around best config."""
+def gen_random_neighbors(best_weights, n=150, profile=None, seed=None):
+    """Random perturbations around best config with objective-specific profile."""
     combos = []
-    random.seed(42)
+    rng = random.Random(42 if seed is None else int(seed))
+    profile = profile or RANDOM_NEIGHBOR_PROFILES.get(OBJECTIVE, RANDOM_NEIGHBOR_PROFILES["tracker"])
+    discrete = profile.get("discrete", {})
+    param_multipliers = profile.get("param_multipliers", {})
+    default_multipliers = profile.get("default_multipliers", [0.85, 0.95, 1.0, 1.1, 1.2])
+    min_perturb, max_perturb = profile.get("num_perturb_range", (2, 6))
+
     tune_params = [k for k in best_weights.keys()
                    if k not in ("MAX_ITER",) and best_weights[k] != 0]
-    for i in range(n):
+    i = 0
+    attempts = 0
+    max_attempts = max(50, n * 20)
+    while i < n and attempts < max_attempts:
+        attempts += 1
         w = dict(best_weights)
-        num_perturb = random.randint(2, min(6, len(tune_params)))
-        params_to_perturb = random.sample(tune_params, num_perturb)
+        num_perturb = rng.randint(min_perturb, min(max_perturb, len(tune_params)))
+        params_to_perturb = rng.sample(tune_params, num_perturb)
         for name in params_to_perturb:
-            if name == "HORIZON":
-                w[name] = random.choice(range(0, 40))
-            elif name == "PRED_DT":
-                w[name] = random.choice([0.02, 0.04, 0.05, 0.06, 0.08, 0.1, 0.2])
-            elif name == "WALL_STRIDE":
-                w[name] = random.choice([1, 2, 3, 4])
+            if name in discrete:
+                w[name] = rng.choice(discrete[name])
             else:
-                mult = random.uniform(0.6, 1.5)
+                mult = rng.choice(param_multipliers.get(name, default_multipliers))
                 w[name] = round(w[name] * mult, 6)
-                if name in ("WALL_END",):
-                    w[name] = max(1, int(w[name]))
+
+            if name in INT_ENV_PARAMS:
+                w[name] = int(float(w[name]))
+                if name == "HORIZON":
+                    w[name] = max(2, min(40, w[name]))
+                elif name == "WALL_END":
+                    w[name] = max(1, w[name])
+                elif name == "WALL_STRIDE":
+                    w[name] = max(1, w[name])
+                elif name == "MAX_ITER":
+                    w[name] = max(10, w[name])
+
+        if not valid_wall_combo(w):
+            continue
+
         combos.append((f"RND_{i}", w))
+        i += 1
+
     return combos
 
 
@@ -655,11 +893,10 @@ class IncrementalCSV:
 # ─── Worker function for parallel execution ──────────────────────────────────
 def _run_single(args):
     """Worker: run one test and return scored result. Picklable for multiprocessing."""
-    label, params, binary, raceline, raceline_label, phase_name = args
-    r = run_test(params, binary, raceline)
-    score = compute_score(r)
+    label, params, binary, raceline, raceline_label, phase_name, trials = args
+    r = run_test_with_trials(params, binary, raceline, label, raceline_label, trials)
+    r = apply_scores(r)
     r["label"] = label
-    r["score"] = score
     r["phase"] = phase_name
     r["raceline"] = raceline_label or "default"
     r.update(params)
@@ -671,6 +908,7 @@ def run_phase(phase_name, combos, binary, results, t0,
               raceline=None, raceline_label="", num_workers=1,
               csv_writer=None):
     """Run a sweep phase. Returns (passed, failed)."""
+    combos = [(label, params) for label, params in combos if valid_objective_combo(params)]
     combos = deduplicate(combos)
     if not combos:
         print(f"  ({phase_name}: empty, skipping)")
@@ -694,87 +932,111 @@ def run_phase(phase_name, combos, binary, results, t0,
             tag = f"{label}|{raceline_label}" if raceline_label else label
             print(f"  [{i+1:4d}/{total}] {tag:60s} ", end="", flush=True)
 
-            r = run_test(params, binary, raceline)
-            score = compute_score(r)
+            r = run_test_with_trials(params, binary, raceline, label, raceline_label, TRIALS_PER_CONFIG)
+            r = apply_scores(r)
             r["label"] = label
-            r["score"] = score
             r["phase"] = phase_name
             r["raceline"] = raceline_label or "default"
             r.update(params)
             results.append(r)
             if csv_writer:
                 csv_writer.write_row(r)
+            score = r["score"]
 
             if r["status"] != "OK":
                 failed += 1
                 print(f"FAIL  (ETA {eta:.0f}s)")
-            elif r["wall_collisions"] > MAX_ALLOWED_COLLISIONS:
+            elif not is_safe_result(r):
                 failed += 1
-                print(f"wc={r['wall_collisions']}  (ETA {eta:.0f}s)")
+                print(f"unsafe wc={r.get('wall_collisions', '?')}  (ETA {eta:.0f}s)")
             else:
                 passed += 1
                 wc_tag = f"wc={r['wall_collisions']} " if r["wall_collisions"] > 0 else ""
-                print(f"sc={score:7.2f}  vx={r['max_vx']:.1f}  "
+                tr_tag = f"n={r.get('trials', 1)} " if r.get("trials", 1) > 1 else ""
+                tf_tag = f"tf={r.get('failed', 0)} " if int(r.get("failed", 0)) > 0 else ""
+                print(f"sc={score:7.2f}  avx={r.get('avg_vx', 0.0):.2f}  vx={r['max_vx']:.1f}  "
                       f"t5={r['time_above_5ms']:.0f}s  "
                       f"lat={r['avg_lat_err']:.3f}  "
-                      f"ve={r['avg_vel_err']:.2f}  {wc_tag}(ETA {eta:.0f}s)")
+                      f"ve={r['avg_vel_err']:.2f}  {tf_tag}{wc_tag}{tr_tag}(ETA {eta:.0f}s)")
     else:
         # Parallel execution
         work_items = [
-            (label, params, binary, raceline, raceline_label, phase_name)
+            (label, params, binary, raceline, raceline_label, phase_name, TRIALS_PER_CONFIG)
             for label, params in combos
         ]
         done_count = 0
         with ProcessPoolExecutor(max_workers=num_workers) as executor:
-            futures = {executor.submit(_run_single, item): item
-                       for item in work_items}
-            for future in as_completed(futures):
-                done_count += 1
-                r = future.result()
-                results.append(r)
-                if csv_writer:
-                    csv_writer.write_row(r)
+            it = iter(work_items)
+            max_in_flight = max(num_workers * 4, num_workers + 2)
+            futures = set()
 
-                tag = r["label"]
-                if raceline_label:
-                    tag = f"{tag}|{raceline_label}"
-                score = r["score"]
+            for _ in range(min(total, max_in_flight)):
+                try:
+                    futures.add(executor.submit(_run_single, next(it)))
+                except StopIteration:
+                    break
 
-                elapsed = time.time() - t0
-                rate = max(done_count, 1) / max(elapsed, 0.01)
-                eta = (total - done_count) / max(rate, 0.01)
+            while futures:
+                done, futures = wait(futures, return_when=FIRST_COMPLETED)
+                for future in done:
+                    try:
+                        futures.add(executor.submit(_run_single, next(it)))
+                    except StopIteration:
+                        pass
 
-                if r["status"] != "OK":
-                    failed += 1
-                    print(f"  [{done_count:4d}/{total}] {tag:60s} "
-                          f"FAIL  (ETA {eta:.0f}s)")
-                elif r["wall_collisions"] > MAX_ALLOWED_COLLISIONS:
-                    failed += 1
-                    print(f"  [{done_count:4d}/{total}] {tag:60s} "
-                          f"wc={r['wall_collisions']}  (ETA {eta:.0f}s)")
-                else:
-                    passed += 1
-                    wc_tag = f"wc={r['wall_collisions']} " if r["wall_collisions"] > 0 else ""
-                    print(f"  [{done_count:4d}/{total}] {tag:60s} "
-                          f"sc={score:7.2f}  vx={r['max_vx']:.1f}  "
-                          f"t5={r['time_above_5ms']:.0f}s  "
-                          f"lat={r['avg_lat_err']:.3f}  "
-                          f"ve={r['avg_vel_err']:.2f}  {wc_tag}(ETA {eta:.0f}s)")
+                    done_count += 1
+                    r = future.result()
+                    results.append(r)
+                    if csv_writer:
+                        csv_writer.write_row(r)
+
+                    tag = r["label"]
+                    if raceline_label:
+                        tag = f"{tag}|{raceline_label}"
+                    r = apply_scores(r)
+                    score = r["score"]
+
+                    elapsed = time.time() - t0
+                    rate = max(done_count, 1) / max(elapsed, 0.01)
+                    eta = (total - done_count) / max(rate, 0.01)
+
+                    if r["status"] != "OK":
+                        failed += 1
+                        print(f"  [{done_count:4d}/{total}] {tag:60s} "
+                              f"FAIL  (ETA {eta:.0f}s)")
+                    elif not is_safe_result(r):
+                        failed += 1
+                        print(f"  [{done_count:4d}/{total}] {tag:60s} "
+                              f"unsafe wc={r.get('wall_collisions', '?')}  (ETA {eta:.0f}s)")
+                    else:
+                        passed += 1
+                        wc_tag = f"wc={r['wall_collisions']} " if r["wall_collisions"] > 0 else ""
+                        tr_tag = f"n={r.get('trials', 1)} " if r.get("trials", 1) > 1 else ""
+                        tf_tag = f"tf={r.get('failed', 0)} " if int(r.get("failed", 0)) > 0 else ""
+                        print(f"  [{done_count:4d}/{total}] {tag:60s} "
+                              f"sc={score:7.2f}  avx={r.get('avg_vx', 0.0):.2f}  vx={r['max_vx']:.1f}  "
+                              f"t5={r['time_above_5ms']:.0f}s  "
+                              f"lat={r['avg_lat_err']:.3f}  "
+                              f"ve={r['avg_vel_err']:.2f}  {tf_tag}{wc_tag}{tr_tag}(ETA {eta:.0f}s)")
 
     return passed, failed
 
 
 # ─── Main ────────────────────────────────────────────────────────────────────
 def main():
-    global RACELINES, BASE, FULL_VALUES, QUICK_VALUES, MODE, CASCADE_TOP_N, MAX_ALLOWED_COLLISIONS
+    global RACELINES, BASE, FULL_VALUES, QUICK_VALUES, MODE, CASCADE_TOP_N, MAX_ALLOWED_COLLISIONS, TRIALS_PER_CONFIG, SEED_BASE, OBJECTIVE
 
     # ─── Parse CLI arguments ─────────────────────────────────────────────
     quick = "--quick" in sys.argv
     phase_only = None
     raceline_arg = None
-    num_workers = 1
+    num_workers = 0
     cascade_top = 1
     mode_arg = None
+    trials = 1
+    seed_base = 42
+    objective = "tracker"
+    hardware_grid_values = {}
 
     # First positional arg (not starting with --) after script name is the mode
     positional_args = [a for a in sys.argv[1:] if not a.startswith("-")
@@ -782,7 +1044,7 @@ def main():
     # Filter out values that follow --phase, --raceline, --jobs, -j, --cascade-top
     skip_next = set()
     for i, arg in enumerate(sys.argv):
-        if arg in ("--phase", "--raceline", "--jobs", "-j", "--cascade-top") and i + 1 < len(sys.argv):
+        if arg in ("--phase", "--raceline", "--jobs", "-j", "--cascade-top", "--trials", "--seed-base", "--objective") and i + 1 < len(sys.argv):
             skip_next.add(sys.argv[i + 1])
     positional_args = [a for a in positional_args if a not in skip_next]
     if positional_args:
@@ -799,14 +1061,28 @@ def main():
             num_workers = int(sys.argv[i + 1])
         if arg == "--cascade-top" and i + 1 < len(sys.argv):
             cascade_top = int(sys.argv[i + 1])
+        if arg == "--trials" and i + 1 < len(sys.argv):
+            trials = int(sys.argv[i + 1])
+        if arg == "--seed-base" and i + 1 < len(sys.argv):
+            seed_base = int(sys.argv[i + 1])
+        if arg == "--objective" and i + 1 < len(sys.argv):
+            objective = sys.argv[i + 1].strip().lower()
+
+    if objective not in ("tracker", "fastest"):
+        print("ERROR: --objective must be one of: tracker, fastest")
+        sys.exit(1)
 
     # ─── Mode selection ──────────────────────────────────────────────────
     if mode_arg and mode_arg.lower() in ("hardware", "hw"):
         MODE = "Hardware"
         RACELINES.update(HARDWARE_RACELINES)
         BASE.update(HARDWARE_BASE)
-        FULL_VALUES.update(HARDWARE_FULL_VALUES)
-        QUICK_VALUES.update(HARDWARE_QUICK_VALUES)
+        if objective == "fastest":
+            BASE.update(HARDWARE_FASTEST_BASE_OVERRIDES)
+        hw_spaces = HARDWARE_OBJECTIVE_SWEEPS.get(objective, HARDWARE_OBJECTIVE_SWEEPS["tracker"])
+        FULL_VALUES.update(clone_values_dict(hw_spaces["full"]))
+        QUICK_VALUES.update(clone_values_dict(hw_spaces["quick"]))
+        hardware_grid_values = clone_values_dict(hw_spaces["grid"])
         MAX_ALLOWED_COLLISIONS = 0  # Tight corner always clips in realistic
         PER_RACELINE_WM = HARDWARE_PER_RACELINE_WM
     elif mode_arg and mode_arg.lower() in ("spielberg", "sp"):
@@ -823,6 +1099,9 @@ def main():
         sys.exit(1)
 
     CASCADE_TOP_N = max(1, cascade_top)
+    TRIALS_PER_CONFIG = max(1, trials)
+    SEED_BASE = int(seed_base)
+    OBJECTIVE = objective
 
     if num_workers <= 0:
         num_workers = multiprocessing.cpu_count()
@@ -830,12 +1109,18 @@ def main():
     print(f"\n  Mode:          {MODE}")
     print(f"  Workers:       {num_workers} "
           f"({'sequential' if num_workers == 1 else 'parallel'})")
+    print(f"  Trials/config: {TRIALS_PER_CONFIG}")
+    print(f"  Seed base:     {SEED_BASE}")
+    print(f"  Objective:     {OBJECTIVE}")
     print(f"  Cascade top-N: {CASCADE_TOP_N}")
     print(f"  Max collisions allowed: {MAX_ALLOWED_COLLISIONS}")
     print(f"  Quick mode:    {quick}")
 
     os.chdir(PROJECT_DIR)
-    binary = "./test_sim_drive"
+    binary_name = f"test_sim_drive_{os.getpid()}_{int(time.time())}"
+    if os.name == "nt":
+        binary_name += ".exe"
+    binary = f"./{binary_name}"
 
     # Build optimized binary
     print("\nBuilding optimized test binary with REALISTIC_SIM support...")
@@ -846,7 +1131,7 @@ def main():
         "-Iinclude",
         "test/test_sim_drive.c", "src/mpc_riccati.c", "src/riccati_solver.c",
         "src/vehicle_model.c", "src/util_math.c",
-        "-o", "test_sim_drive", "-lm"
+        "-o", binary_name, "-lm"
     ], capture_output=True, text=True)
     if ret.returncode != 0:
         print(f"BUILD FAILED:\n{ret.stderr}")
@@ -882,13 +1167,15 @@ def main():
 
     # Incremental CSV writer — results saved after each test
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    outfile = f"test/tuning_{MODE.lower()}_{timestamp}.csv"
-    fieldnames = (["label", "phase", "raceline", "score",
+    outfile = f"test/tuning_{MODE.lower()}_{OBJECTIVE}_{timestamp}.csv"
+    fieldnames = (["label", "phase", "raceline", "score", "tracker_score", "fastest_score",
                    "passed", "failed", "max_lat_err", "avg_lat_err",
                    "max_hdg_err", "avg_hdg_err", "max_vx",
+                   "avg_vx",
                    "avg_vel_err", "max_vel_err",
                    "avg_solve_us", "max_solve_us",
-                   "wall_collisions", "time_above_5ms", "avg_iters", "status"]
+                   "wall_collisions", "time_above_5ms", "avg_iters", "status",
+                   "trials", "seed_base", "return_code"]
                   + list(BASE.keys()))
     csv_writer = IncrementalCSV(outfile, fieldnames)
     print(f"  Results file: {outfile} (incremental)\n")
@@ -902,10 +1189,10 @@ def main():
         if n is None:
             n = CASCADE_TOP_N
         rl_results = [r for r in results
-                      if r.get("raceline") == rl_tag and r.get("score", 999) < 500]
+                      if r.get("raceline") == rl_tag and is_safe_result(r)]
         if not rl_results:
             return []
-        rl_results.sort(key=lambda x: x["score"])
+        rl_results.sort(key=lambda x: x.get("score", 999999.0))
         # Deduplicate by params
         seen = set()
         unique = []
@@ -923,7 +1210,7 @@ def main():
         if unique:
             for i, (r, _) in enumerate(unique):
                 print(f"  Top-{i+1}: {r['label']} "
-                      f"(score={r['score']:.2f}, vx={r.get('max_vx', 0):.1f}, "
+                        f"(score={r.get('score', 0.0):.2f}, avx={r.get('avg_vx', 0):.2f}, vx={r.get('max_vx', 0):.1f}, "
                       f"wc={r.get('wall_collisions', 0)})")
         return [p for _, p in unique]
 
@@ -968,7 +1255,7 @@ def main():
         # ─── Phase 2: Primary grid (from original BASE) ─────────────
         if should_run(2):
             if MODE == "Hardware":
-                grid_vals = HARDWARE_GRID_VALUES
+                grid_vals = hardware_grid_values if hardware_grid_values else HARDWARE_GRID_VALUES
                 phase2_label = "Phase 2: Primary+Wall grid (Q_LAT×Q_HDG×Q_VEL×HORIZON×PRED_DT×WM×WE)"
             else:
                 grid_vals = values
@@ -993,8 +1280,9 @@ def main():
             # Set BASE to this cascade config
             for k, v in cascade_base.items():
                 BASE[k] = v
-            # Preserve per-raceline WALL_MARGIN for wall sweep
-            if rl_tag in PER_RACELINE_WM:
+            # Tracker keeps per-raceline wall margin defaults; fastest keeps
+            # phase-discovered wall margin from top phase-1/2 candidates.
+            if rl_tag in PER_RACELINE_WM and OBJECTIVE != "fastest":
                 BASE["WALL_MARGIN"] = PER_RACELINE_WM[rl_tag]
 
             # ─── Phase 3: Wall grid (cascaded) ──────────────────────
@@ -1025,7 +1313,7 @@ def main():
                 # ─── Phase 5: Solver parameters ─────────────────────
                 if should_run(5):
                     p, f = run_phase(f"Phase 5: Solver grid [branch {ci+1}]",
-                                     gen_solver_grid(), binary, results, t0,
+                                     gen_solver_grid(OBJECTIVE), binary, results, t0,
                                      rl_path, rl_tag, num_workers, csv_writer)
                     total_p += p; total_f += f
 
@@ -1037,7 +1325,7 @@ def main():
                 # ─── Phase 6: Velocity push ─────────────────────────
                 if should_run(6):
                     p, f = run_phase(f"Phase 6: Velocity push [branch {ci+1}]",
-                                     gen_velocity_push(), binary, results, t0,
+                                     gen_velocity_push(OBJECTIVE), binary, results, t0,
                                      rl_path, rl_tag, num_workers, csv_writer)
                     total_p += p; total_f += f
 
@@ -1054,9 +1342,23 @@ def main():
             if should_run(8):
                 best_params = get_best_params(rl_tag)
                 if best_params:
-                    n = 150 if not quick else 50
+                    if OBJECTIVE == "fastest":
+                        n = 180 if not quick else 60
+                    else:
+                        n = 150 if not quick else 50
+                    phase8_profile = RANDOM_NEIGHBOR_PROFILES.get(
+                        OBJECTIVE,
+                        RANDOM_NEIGHBOR_PROFILES["tracker"]
+                    )
+                    phase8_seed = derive_config_seed_base(
+                        f"phase8-{OBJECTIVE}-branch{ci+1}",
+                        best_params,
+                        rl_tag,
+                    )
                     p, f = run_phase(f"Phase 8: Random ({n}) [branch {ci+1}]",
-                                     gen_random_neighbors(best_params, n), binary, results, t0,
+                                     gen_random_neighbors(best_params, n,
+                                                          profile=phase8_profile,
+                                                          seed=phase8_seed), binary, results, t0,
                                      rl_path, rl_tag, num_workers, csv_writer)
                     total_p += p; total_f += f
 
@@ -1065,7 +1367,7 @@ def main():
             BASE[k] = v
 
     # ─── Results ─────────────────────────────────────────────────────────
-    results.sort(key=lambda x: x.get("score", 999))
+    results.sort(key=lambda x: x.get("score", 999999.0))
     elapsed = time.time() - t0
 
     print(f"\n{'='*80}")
@@ -1085,19 +1387,34 @@ def main():
         print(f"Incremental results: {outfile}")
         print(f"Sorted results:      {sorted_outfile}")
 
-    # Print top 30
-    passing = [r for r in results if r.get("score", 999) < 500]
-    if passing:
+        tracker_sorted = outfile.replace(".csv", "_tracker_sorted.csv")
+        fastest_sorted = outfile.replace(".csv", "_fastest_sorted.csv")
+        safe_rows = [r for r in results if is_safe_result(r)]
+        with open(tracker_sorted, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(sorted(safe_rows, key=lambda x: x.get("tracker_score", 999999.0)))
+        with open(fastest_sorted, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(sorted(safe_rows, key=lambda x: x.get("fastest_score", 999999.0)))
+        print(f"Tracker ranking:    {tracker_sorted}")
+        print(f"Fastest ranking:    {fastest_sorted}")
+
+    safe = [r for r in results if is_safe_result(r)]
+    if safe:
         print(f"\n{'='*80}")
-        print(f"[{MODE}] TOP 30 (lowest score = best)")
+        print(f"[{MODE}] TOP 30 TRACKER (lowest score = best)")
         print(f"{'='*80}")
-        fmt = "{:<4} {:<50} {:>7} {:>6} {:>5} {:>5} {:>5} {:>4} {:>4} {:>3} {:>6} {:>6} {:>3}"
-        print(fmt.format("Rank", "Label", "Score", "AvgVE", "MaxVx", "T>5s",
+        fmt = "{:<4} {:<50} {:>8} {:>6} {:>6} {:>5} {:>5} {:>5} {:>4} {:>4} {:>3} {:>6} {:>6} {:>3}"
+        print(fmt.format("Rank", "Label", "TrackSc", "AvgVx", "AvgVE", "MaxVx", "T>5s",
                   "AvgLt", "WM", "WE", "WS", "N", "PdDT", "WC"))
         print("-" * 140)
-        for i, r in enumerate(passing[:30]):
+        tracker_top = sorted(safe, key=lambda x: x.get("tracker_score", 999999.0))
+        for i, r in enumerate(tracker_top[:30]):
             print(fmt.format(
-                i+1, r['label'][:50], f"{r['score']:.1f}",
+                i+1, r['label'][:50], f"{r.get('tracker_score', 0.0):.1f}",
+                f"{r.get('avg_vx', 0.0):.2f}",
                 f"{r['avg_vel_err']:.2f}", f"{r['max_vx']:.1f}",
                 f"{r['time_above_5ms']:.0f}",
                 f"{r['avg_lat_err']:.3f}",
@@ -1108,17 +1425,55 @@ def main():
                 f"{r.get('PRED_DT', '-')}",
                 f"{r.get('wall_collisions', '-')}" ))
 
-        best = passing[0]
-        print(f"\n  BEST CONFIGURATION ({MODE}):")
-        print(f"    Score: {best['score']:.2f}")
+        best = tracker_top[0]
+        print(f"\n  BEST TRACKER ({MODE}):")
+        print(f"    Tracker score: {best.get('tracker_score', 0.0):.2f}")
+        print(f"    Avg velocity: {best.get('avg_vx', 0.0):.2f} m/s")
         print(f"    Max velocity: {best['max_vx']:.2f} m/s")
-        print(f"    Time > 5 m/s: {best['time_above_5ms']:.1f} s")
         print(f"    Avg lat err:  {best['avg_lat_err']:.4f} m")
+        print(f"    Avg hdg err:  {best['avg_hdg_err']:.4f} rad")
         print(f"    Avg vel err:  {best['avg_vel_err']:.2f} m/s")
         print(f"    Walls:        {best['wall_collisions']}")
         print(f"    ---")
         for k in sorted(BASE.keys()):
             print(f"    {k:15s} = {best.get(k, BASE[k])}")
+
+        print(f"\n{'='*80}")
+        print(f"[{MODE}] TOP 30 FASTEST (lowest score = best)")
+        print(f"{'='*80}")
+        print(fmt.format("Rank", "Label", "FastSc", "AvgVx", "AvgVE", "MaxVx", "T>5s",
+                  "AvgLt", "WM", "WE", "WS", "N", "PdDT", "WC"))
+        print("-" * 140)
+        fastest_top = sorted(safe, key=lambda x: x.get("fastest_score", 999999.0))
+        for i, r in enumerate(fastest_top[:30]):
+            print(fmt.format(
+                i+1, r['label'][:50], f"{r.get('fastest_score', 0.0):.1f}",
+                f"{r.get('avg_vx', 0.0):.2f}",
+                f"{r['avg_vel_err']:.2f}", f"{r['max_vx']:.1f}",
+                f"{r['time_above_5ms']:.0f}",
+                f"{r['avg_lat_err']:.3f}",
+                f"{r.get('WALL_MARGIN', '-')}",
+                f"{r.get('WALL_END', '-')}",
+                f"{r.get('WALL_STRIDE', '-')}",
+                f"{r.get('HORIZON', '-')}",
+                f"{r.get('PRED_DT', '-')}",
+                f"{r.get('wall_collisions', '-')}" ))
+
+        fastest = fastest_top[0]
+        print(f"\n  FASTEST SAFE CONFIGURATION ({MODE}):")
+        print(f"    Fastest score: {fastest.get('fastest_score', 0.0):.2f}")
+        print(f"    Avg velocity:  {fastest.get('avg_vx', 0.0):.2f} m/s")
+        print(f"    Max velocity: {fastest['max_vx']:.2f} m/s")
+        print(f"    Time > 5 m/s: {fastest['time_above_5ms']:.1f} s")
+        print(f"    Walls:        {fastest['wall_collisions']}")
+        print(f"    ---")
+        for k in sorted(BASE.keys()):
+            print(f"    {k:15s} = {fastest.get(k, BASE[k])}")
+
+    try:
+        os.remove(binary_name)
+    except OSError:
+        pass
 
     return 0
 

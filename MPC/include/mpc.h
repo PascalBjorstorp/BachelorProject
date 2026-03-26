@@ -16,7 +16,7 @@
  *      - Apply returned control to vehicle (no post-processing needed)
  *
  * Platform-independent (no ROS dependencies).
- * All arithmetic uses Q16.16 fixed-point for FPGA compatibility.
+ * All arithmetic uses native float operations.
  */
 
 #ifndef MPC_H
