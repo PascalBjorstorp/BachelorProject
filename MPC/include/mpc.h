@@ -24,7 +24,7 @@
 
 #include "mpc_types.h"
 #include "vehicle_model.h"
-#include "fp_math.h"
+#include "util_math.h"
 
 /*===========================================================================
  * MPC Initialization

@@ -493,12 +493,12 @@ MPCCState_t mpcc_state_from_vehicle_state(
     memset(&st, 0, sizeof(st));
 
     /* Copy Cartesian states directly */
-    st.X = vs->position_x_meters;
-    st.Y = vs->position_y_meters;
-    st.psi = vs->heading_angle_radians;
-    st.vx = vs->longitudinal_velocity_meters_per_second;
-    st.vy = vs->lateral_velocity_meters_per_second;
-    st.omega = vs->yaw_rate_radians_per_second;
+    st.X = vs->pos_x;
+    st.Y = vs->pos_y;
+    st.psi = vs->heading;
+    st.vx = vs->long_vel;
+    st.vy = vs->lat_vel;
+    st.omega = vs->yaw_rate;
     /* omega_w removed — not needed with a_x control */
 
     /* Compute Frenet states from Cartesian + path.

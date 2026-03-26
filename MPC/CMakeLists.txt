@@ -12,7 +12,7 @@ endif()
 # MPC Core Library (float32, platform-independent)
 # ===========================================================================
 add_library(mpc_riccati_core STATIC
-    src/fp_math.c
+    src/util_math.c
     src/vehicle_model.c
     src/riccati_solver.c
     src/mpc_riccati.c

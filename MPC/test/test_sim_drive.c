@@ -38,7 +38,6 @@
 
 #include "mpc.h"
 #include "mpc_types.h"
-#include "fp_math.h"
 #include "vehicle_model.h"
 #include "riccati_solver.h"
 
@@ -253,19 +252,19 @@ static int find_closest_waypoint(double px, double py, double heading)
 static FrenetState_t vehicle_to_frenet(const VehicleState_t *v, int wp)
 {
     FrenetState_t f;
-    double px = FP_TO_DOUBLE(v->position_x_meters);
-    double py = FP_TO_DOUBLE(v->position_y_meters);
-    double psi = FP_TO_DOUBLE(v->heading_angle_radians);
+    double px = (double)(v->pos_x);
+    double py = (double)(v->pos_y);
+    double psi = (double)(v->heading);
     double dx = px - raceline[wp].x;
     double dy = py - raceline[wp].y;
     double path_psi = raceline[wp].psi;
     double lat_err = -dx * sin(path_psi) + dy * cos(path_psi);
     double hdg_err = wrap_angle(psi - path_psi);
-    f.lateral_error_meters = DOUBLE_TO_FP(lat_err);
-    f.heading_error_radians = DOUBLE_TO_FP(hdg_err);
-    f.longitudinal_velocity_meters_per_second = v->longitudinal_velocity_meters_per_second;
-    f.lateral_velocity_meters_per_second = v->lateral_velocity_meters_per_second;
-    f.yaw_rate_radians_per_second = v->yaw_rate_radians_per_second;
+    f.flat_error = (float)(lat_err);
+    f.fhead_error = (float)(hdg_err);
+    f.flong_vel = v->long_vel;
+    f.flat_vel = v->lat_vel;
+    f.fyaw_rate = v->yaw_rate;
     return f;
 }
 
@@ -356,8 +355,8 @@ static void build_reference(int closest, double actual_vx, TrajectoryReferencePo
         s_query += step_velocity * g_mpc_prediction_dt;
         Waypoint_t wp = sample_raceline_by_s(s_query);
 
-        ref[step].reference_lateral_error_meters = 0;
-        ref[step].reference_heading_error_radians = 0;
+        ref[step].reference_lateral_error = 0;
+        ref[step].reference_heading_error = 0;
 
         double v_ref = wp.vx;
 
@@ -374,7 +373,7 @@ static void build_reference(int closest, double actual_vx, TrajectoryReferencePo
         if (v_ref > TRAJECTORY_MAX_VELOCITY) v_ref = TRAJECTORY_MAX_VELOCITY;
         step_velocity = v_ref;
 
-        ref[step].reference_velocity_meters_per_second = DOUBLE_TO_FP(v_ref);
+        ref[step].reference_velocity = (float)(v_ref);
 
         /* Clamp kappa to physical limits (matching FPGA) */
         double kappa = wp.kappa;
@@ -382,16 +381,14 @@ static void build_reference(int closest, double actual_vx, TrajectoryReferencePo
         if (kappa < -1.5) kappa = -1.5;
 
         /* vy reference: zero */
-        ref[step].reference_lateral_velocity_meters_per_second = 0;
+        ref[step].reference_lateral_velocity = 0;
 
-        ref[step].reference_yaw_rate_radians_per_second = DOUBLE_TO_FP(kappa * v_ref);
+        ref[step].reference_yaw_rate = (float)(kappa * v_ref);
 
-        /* Acceleration feedforward: populated but currently unused by solver */
-        ref[step].reference_acceleration_meters_per_second_squared = DOUBLE_TO_FP(wp.ax);
 
-        ref[step].path_curvature_radians_per_meter = DOUBLE_TO_FP(kappa);
-        ref[step].left_wall_bound_meters = DOUBLE_TO_FP(wp.left_bound);
-        ref[step].right_wall_bound_meters = DOUBLE_TO_FP(wp.right_bound);
+        ref[step].path_curvature = (float)(kappa);
+        ref[step].left_wall_bound = (float)(wp.left_bound);
+        ref[step].right_wall_bound = (float)(wp.right_bound);
     }
 }
 
@@ -488,47 +485,47 @@ int main(void)
     if (getenv("HORIZON")) horizon = atoi(getenv("HORIZON"));
     cfg.prediction_horizon_steps = horizon;
     /* Prediction time step: propagate PRED_DT to solver's dynamics model */
-    cfg.time_step_seconds = FP_CONST(g_mpc_prediction_dt);
+    cfg.time_step = (float)(g_mpc_prediction_dt);
     /* cross_call_rate_scale: ratio of control interval to prediction dt */
-    cfg.cross_call_rate_scale = FP_CONST(cross_scale);
+    cfg.cross_call_rate_scale = (float)(cross_scale);
     /* Tuned weights — overridable via environment variables for tuning script.
      * See tune_weights.py for automated grid search. */
     const char *env;
-    cfg.weight_lateral_error          = FP_CONST((env = getenv("Q_LAT"))       ? atof(env) : 340.0);
-    cfg.weight_heading_error          = FP_CONST((env = getenv("Q_HDG"))       ? atof(env) : 1000.0);
-    cfg.weight_velocity               = FP_CONST((env = getenv("Q_VEL"))       ? atof(env) : 26.0);
-    cfg.weight_lateral_velocity       = FP_CONST((env = getenv("Q_LAT_VEL"))   ? atof(env) : 69.0);
-    cfg.weight_yaw_rate               = FP_CONST((env = getenv("Q_YAW"))       ? atof(env) : 22.0);
-    cfg.weight_steering_effort        = FP_CONST((env = getenv("R_STEER"))     ? atof(env) : 0.15);
-    cfg.weight_acceleration_effort    = FP_CONST((env = getenv("R_ACCEL"))     ? atof(env) : 0.01);
-    cfg.weight_steering_rate          = FP_CONST((env = getenv("W_JERK"))      ? atof(env) : 0.3);
-    cfg.weight_acceleration_rate      = FP_CONST((env = getenv("W_ACCEL_RATE"))? atof(env) : 0.1);
-    cfg.maximum_solver_iterations       = (env = getenv("MAX_ITER")) ? atoi(env) : 20;
-    cfg.solver_convergence_tolerance    = FP_CONST((env = getenv("TOL")) ? atof(env) : 5.0);
+    cfg.weight_lateral_error          = (float)((env = getenv("Q_LAT"))       ? atof(env) : 340.0);
+    cfg.weight_heading_error          = (float)((env = getenv("Q_HDG"))       ? atof(env) : 1000.0);
+    cfg.weight_velocity               = (float)((env = getenv("Q_VEL"))       ? atof(env) : 26.0);
+    cfg.weight_lateral_velocity       = (float)((env = getenv("Q_LAT_VEL"))   ? atof(env) : 69.0);
+    cfg.weight_yaw_rate               = (float)((env = getenv("Q_YAW"))       ? atof(env) : 22.0);
+    cfg.weight_steering_effort        = (float)((env = getenv("R_STEER"))     ? atof(env) : 0.15);
+    cfg.weight_acceleration_effort    = (float)((env = getenv("R_ACCEL"))     ? atof(env) : 0.01);
+    cfg.weight_steering_rate          = (float)((env = getenv("W_JERK"))      ? atof(env) : 0.3);
+    cfg.weight_acceleration_rate      = (float)((env = getenv("W_ACCEL_RATE"))? atof(env) : 0.1);
+    cfg.max_solver_iterations       = (env = getenv("MAX_ITER")) ? atoi(env) : 20;
+    cfg.solver_convergence_tolerance    = (float)((env = getenv("TOL")) ? atof(env) : 5.0);
     mpc_set_configuration(&cfg);
 
     if (verbose) {
         printf("  Horizon: %d, Q_lat=%.2f Q_hdg=%.2f Q_vel=%.2f R_steer=%.2f R_accel=%.2f\n",
                cfg.prediction_horizon_steps,
-               FP_TO_DOUBLE(cfg.weight_lateral_error),
-               FP_TO_DOUBLE(cfg.weight_heading_error),
-               FP_TO_DOUBLE(cfg.weight_velocity),
-               FP_TO_DOUBLE(cfg.weight_steering_effort),
-               FP_TO_DOUBLE(cfg.weight_acceleration_effort));
+               (double)(cfg.weight_lateral_error),
+               (double)(cfg.weight_heading_error),
+               (double)(cfg.weight_velocity),
+               (double)(cfg.weight_steering_effort),
+               (double)(cfg.weight_acceleration_effort));
         printf("  Steer_rate=%.2f Accel_rate=%.2f Cross_call=%.2f\n",
-               FP_TO_DOUBLE(cfg.weight_steering_rate),
-               FP_TO_DOUBLE(cfg.weight_acceleration_rate),
-               FP_TO_DOUBLE(cfg.cross_call_rate_scale));
+               (double)(cfg.weight_steering_rate),
+               (double)(cfg.weight_acceleration_rate),
+               (double)(cfg.cross_call_rate_scale));
     }
 
     /* Spawn at raceline[0] at standstill */
     VehicleState_t state;
-    state.position_x_meters = DOUBLE_TO_FP(raceline[0].x);
-    state.position_y_meters = DOUBLE_TO_FP(raceline[0].y);
-    state.heading_angle_radians = DOUBLE_TO_FP(raceline[0].psi);
-    state.longitudinal_velocity_meters_per_second = 0;
-    state.lateral_velocity_meters_per_second = 0;
-    state.yaw_rate_radians_per_second = 0;
+    state.pos_x = (float)(raceline[0].x);
+    state.pos_y = (float)(raceline[0].y);
+    state.heading = (float)(raceline[0].psi);
+    state.long_vel = 0;
+    state.lat_vel = 0;
+    state.yaw_rate = 0;
 
     /* Tracking metrics */
     double max_lat_err = 0, sum_lat_err = 0;
@@ -571,10 +568,10 @@ int main(void)
 
     for (int step = 0; step < SIM_STEPS; step++) {
         double t = step * SIM_DT;
-        double px = FP_TO_DOUBLE(state.position_x_meters);
-        double py = FP_TO_DOUBLE(state.position_y_meters);
-        double psi = FP_TO_DOUBLE(state.heading_angle_radians);
-        double vx = FP_TO_DOUBLE(state.longitudinal_velocity_meters_per_second);
+        double px = (double)(state.pos_x);
+        double py = (double)(state.pos_y);
+        double psi = (double)(state.heading);
+        double vx = (double)(state.long_vel);
 
         if (vx > max_vx) max_vx = vx;
 
@@ -593,34 +590,34 @@ int main(void)
         }
         if (realistic_noise) {
             const double ema_alpha = 0.35;  /* 0.35 = 65% filtered (matches FPGA) */
-            frenet_filt.lateral_error_meters = DOUBLE_TO_FP(
-                ema_alpha * FP_TO_DOUBLE(frenet.lateral_error_meters)
-                + (1.0 - ema_alpha) * FP_TO_DOUBLE(frenet_filt.lateral_error_meters));
-            frenet_filt.heading_error_radians = DOUBLE_TO_FP(
-                ema_alpha * FP_TO_DOUBLE(frenet.heading_error_radians)
-                + (1.0 - ema_alpha) * FP_TO_DOUBLE(frenet_filt.heading_error_radians));
-            frenet_filt.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(
-                ema_alpha * FP_TO_DOUBLE(frenet.longitudinal_velocity_meters_per_second)
-                + (1.0 - ema_alpha) * FP_TO_DOUBLE(frenet_filt.longitudinal_velocity_meters_per_second));
-            frenet_filt.lateral_velocity_meters_per_second = DOUBLE_TO_FP(
-                ema_alpha * FP_TO_DOUBLE(frenet.lateral_velocity_meters_per_second)
-                + (1.0 - ema_alpha) * FP_TO_DOUBLE(frenet_filt.lateral_velocity_meters_per_second));
-            frenet_filt.yaw_rate_radians_per_second = DOUBLE_TO_FP(
-                ema_alpha * FP_TO_DOUBLE(frenet.yaw_rate_radians_per_second)
-                + (1.0 - ema_alpha) * FP_TO_DOUBLE(frenet_filt.yaw_rate_radians_per_second));
+            frenet_filt.flat_error = (float)(
+                ema_alpha * (double)(frenet.flat_error)
+                + (1.0 - ema_alpha) * (double)(frenet_filt.flat_error));
+            frenet_filt.fhead_error = (float)(
+                ema_alpha * (double)(frenet.fhead_error)
+                + (1.0 - ema_alpha) * (double)(frenet_filt.fhead_error));
+            frenet_filt.flong_vel = (float)(
+                ema_alpha * (double)(frenet.flong_vel)
+                + (1.0 - ema_alpha) * (double)(frenet_filt.flong_vel));
+            frenet_filt.flat_vel = (float)(
+                ema_alpha * (double)(frenet.flat_vel)
+                + (1.0 - ema_alpha) * (double)(frenet_filt.flat_vel));
+            frenet_filt.fyaw_rate = (float)(
+                ema_alpha * (double)(frenet.fyaw_rate)
+                + (1.0 - ema_alpha) * (double)(frenet_filt.fyaw_rate));
             frenet_for_mpc = frenet_filt;
         } else {
             frenet_for_mpc = frenet;
         }
 
         /* Wall check and metrics use TRUE state (no sensor noise) */
-        double true_px = FP_TO_DOUBLE(true_state.position_x_meters);
-        double true_py = FP_TO_DOUBLE(true_state.position_y_meters);
-        double true_psi = FP_TO_DOUBLE(true_state.heading_angle_radians);
+        double true_px = (double)(true_state.pos_x);
+        double true_py = (double)(true_state.pos_y);
+        double true_psi = (double)(true_state.heading);
         int true_closest = realistic_noise ? find_closest_waypoint(true_px, true_py, true_psi) : closest;
         FrenetState_t true_frenet = realistic_noise ? vehicle_to_frenet(&true_state, true_closest) : frenet;
-        double e_y = FP_TO_DOUBLE(true_frenet.lateral_error_meters);
-        double e_psi = FP_TO_DOUBLE(true_frenet.heading_error_radians);
+        double e_y = (double)(true_frenet.flat_error);
+        double e_psi = (double)(true_frenet.fhead_error);
 
         /* Wall collision check — body-edge, using TRUE state */
         double left_wall = raceline[true_closest].left_bound;
@@ -644,8 +641,8 @@ int main(void)
         {
             ControlInput_t actual_ctrl;
             /* Use previously realized steering (st_delta), not desired */
-            actual_ctrl.steering_angle_radians = DOUBLE_TO_FP(actual_steer);
-            actual_ctrl.acceleration_meters_per_second_squared = DOUBLE_TO_FP(cmd_accel);
+            actual_ctrl.steer_ang = (float)(actual_steer);
+            actual_ctrl.long_acc = (float)(cmd_accel);
             mpc_set_actual_previous_control(&actual_ctrl);
         }
 
@@ -663,8 +660,8 @@ int main(void)
                             + (ts1.tv_nsec - ts0.tv_nsec) / 1e3;
             total_solve_us += solve_us;
             if (solve_us > max_solve_us) max_solve_us = solve_us;
-            steer = FP_TO_DOUBLE(result.optimal_control.steering_angle_radians);
-            accel_cmd = FP_TO_DOUBLE(result.optimal_control.acceleration_meters_per_second_squared);
+            steer = (double)(result.optimal_control.steer_ang);
+            accel_cmd = (double)(result.optimal_control.long_acc);
             iter = result.iterations_used;
             total_iterations += iter;
             if (iter > max_iter_single) max_iter_single = iter;
@@ -874,9 +871,9 @@ int main(void)
             /* RK4 integration (matching gym's integrator) */
             double k1[7], k2[7], k3[7], k4[7];
             /* Use TRUE state for dynamics (not noisy measurement) */
-            double true_px_dyn = FP_TO_DOUBLE(true_state.position_x_meters);
-            double true_py_dyn = FP_TO_DOUBLE(true_state.position_y_meters);
-            double true_psi_dyn = FP_TO_DOUBLE(true_state.heading_angle_radians);
+            double true_px_dyn = (double)(true_state.pos_x);
+            double true_py_dyn = (double)(true_state.pos_y);
+            double true_psi_dyn = (double)(true_state.heading);
             double s0[7] = {true_px_dyn, true_py_dyn, st_delta, st_V, true_psi_dyn, st_psi_dot, st_beta};
 
             /* k1 */
@@ -934,29 +931,29 @@ int main(void)
             /* Convert ST state to MPC vehicle state */
             if (realistic_noise) {
                 /* True state: noise-free for wall checks and metrics */
-                true_state.position_x_meters = DOUBLE_TO_FP(sn[0]);
-                true_state.position_y_meters = DOUBLE_TO_FP(sn[1]);
-                true_state.heading_angle_radians = DOUBLE_TO_FP(sn[4]);
-                true_state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(sn[3] * cos(sn[6]));
-                true_state.lateral_velocity_meters_per_second = DOUBLE_TO_FP(sn[3] * sin(sn[6]));
-                true_state.yaw_rate_radians_per_second = DOUBLE_TO_FP(sn[5]);
+                true_state.pos_x = (float)(sn[0]);
+                true_state.pos_y = (float)(sn[1]);
+                true_state.heading = (float)(sn[4]);
+                true_state.long_vel = (float)(sn[3] * cos(sn[6]));
+                true_state.lat_vel = (float)(sn[3] * sin(sn[6]));
+                true_state.yaw_rate = (float)(sn[5]);
                 /* Noisy state: what the MPC controller sees */
-                state.position_x_meters = DOUBLE_TO_FP(sn[0] + NOISE_POS_M * randn());
-                state.position_y_meters = DOUBLE_TO_FP(sn[1] + NOISE_POS_M * randn());
-                state.heading_angle_radians = DOUBLE_TO_FP(sn[4] + NOISE_HDG_RAD * randn());
-                state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(
+                state.pos_x = (float)(sn[0] + NOISE_POS_M * randn());
+                state.pos_y = (float)(sn[1] + NOISE_POS_M * randn());
+                state.heading = (float)(sn[4] + NOISE_HDG_RAD * randn());
+                state.long_vel = (float)(
                     sn[3] * cos(sn[6]) + NOISE_VX_MS * randn());
-                state.lateral_velocity_meters_per_second = DOUBLE_TO_FP(
+                state.lat_vel = (float)(
                     sn[3] * sin(sn[6]) + NOISE_VY_MS * randn());
-                state.yaw_rate_radians_per_second = DOUBLE_TO_FP(
+                state.yaw_rate = (float)(
                     sn[5] + NOISE_OMEGA_RAD * randn());
             } else {
-                state.position_x_meters = DOUBLE_TO_FP(sn[0]);
-                state.position_y_meters = DOUBLE_TO_FP(sn[1]);
-                state.heading_angle_radians = DOUBLE_TO_FP(sn[4]);
-                state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(sn[3] * cos(sn[6]));
-                state.lateral_velocity_meters_per_second = DOUBLE_TO_FP(sn[3] * sin(sn[6]));
-                state.yaw_rate_radians_per_second = DOUBLE_TO_FP(sn[5]);
+                state.pos_x = (float)(sn[0]);
+                state.pos_y = (float)(sn[1]);
+                state.heading = (float)(sn[4]);
+                state.long_vel = (float)(sn[3] * cos(sn[6]));
+                state.lat_vel = (float)(sn[3] * sin(sn[6]));
+                state.yaw_rate = (float)(sn[5]);
                 true_state = state;
             }
 

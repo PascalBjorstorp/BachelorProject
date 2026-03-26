@@ -356,12 +356,12 @@ int main(void)
 
     /* ── Spawn at raceline[0] ──────────────────────────────────────────── */
     VehicleState_t state;
-    state.position_x_meters = DOUBLE_TO_FP(raceline[0].x);
-    state.position_y_meters = DOUBLE_TO_FP(raceline[0].y);
-    state.heading_angle_radians = DOUBLE_TO_FP(raceline[0].psi);
-    state.longitudinal_velocity_meters_per_second = 0;
-    state.lateral_velocity_meters_per_second = 0;
-    state.yaw_rate_radians_per_second = 0;
+    state.pos_x = DOUBLE_TO_FP(raceline[0].x);
+    state.pos_y = DOUBLE_TO_FP(raceline[0].y);
+    state.heading = DOUBLE_TO_FP(raceline[0].psi);
+    state.long_vel = 0;
+    state.lat_vel = 0;
+    state.yaw_rate = 0;
 
     /* Tracking metrics */
     double max_lat_err = 0, sum_lat_err = 0;
@@ -405,10 +405,10 @@ int main(void)
 
     for (int step = 0; step < SIM_STEPS; step++) {
         double t = step * SIM_DT;
-        double px = FP_TO_DOUBLE(state.position_x_meters);
-        double py = FP_TO_DOUBLE(state.position_y_meters);
-        double psi = FP_TO_DOUBLE(state.heading_angle_radians);
-        double vx = FP_TO_DOUBLE(state.longitudinal_velocity_meters_per_second);
+        double px = FP_TO_DOUBLE(state.pos_x);
+        double py = FP_TO_DOUBLE(state.pos_y);
+        double psi = FP_TO_DOUBLE(state.heading);
+        double vx = FP_TO_DOUBLE(state.long_vel);
 
         if (vx > max_vx) max_vx = vx;
 
@@ -596,9 +596,9 @@ int main(void)
                 } \
             } while(0)
 
-            double true_px = FP_TO_DOUBLE(state.position_x_meters);
-            double true_py = FP_TO_DOUBLE(state.position_y_meters);
-            double true_psi = FP_TO_DOUBLE(state.heading_angle_radians);
+            double true_px = FP_TO_DOUBLE(state.pos_x);
+            double true_py = FP_TO_DOUBLE(state.pos_y);
+            double true_psi = FP_TO_DOUBLE(state.heading);
             double s0[7] = {true_px, true_py, st_delta, st_V, true_psi, st_psi_dot, st_beta};
 
             double k1[7], k2[7], k3[7], k4[7];
@@ -643,12 +643,12 @@ int main(void)
             st_psi_dot = sn[5];
             st_beta = sn[6];
 
-            state.position_x_meters = DOUBLE_TO_FP(sn[0]);
-            state.position_y_meters = DOUBLE_TO_FP(sn[1]);
-            state.heading_angle_radians = DOUBLE_TO_FP(sn[4]);
-            state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(sn[3] * cos(sn[6]));
-            state.lateral_velocity_meters_per_second = DOUBLE_TO_FP(sn[3] * sin(sn[6]));
-            state.yaw_rate_radians_per_second = DOUBLE_TO_FP(sn[5]);
+            state.pos_x = DOUBLE_TO_FP(sn[0]);
+            state.pos_y = DOUBLE_TO_FP(sn[1]);
+            state.heading = DOUBLE_TO_FP(sn[4]);
+            state.long_vel = DOUBLE_TO_FP(sn[3] * cos(sn[6]));
+            state.lat_vel = DOUBLE_TO_FP(sn[3] * sin(sn[6]));
+            state.yaw_rate = DOUBLE_TO_FP(sn[5]);
 
             actual_steer = st_delta;
 

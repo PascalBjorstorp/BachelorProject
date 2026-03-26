@@ -226,12 +226,12 @@ static void odom_callback(const void *msg_in)
     double omega   = msg->twist.twist.angular.z;
 
     /* Pack into VehicleState (x, y, psi, vx, vy, omega) */
-    current_vehicle_state.position_x_meters     = float_to_fp((float)X);
-    current_vehicle_state.position_y_meters     = float_to_fp((float)Y);
-    current_vehicle_state.heading_angle_radians = float_to_fp((float)psi);
-    current_vehicle_state.longitudinal_velocity_meters_per_second = float_to_fp((float)vx_body);
-    current_vehicle_state.lateral_velocity_meters_per_second      = float_to_fp((float)vy_body);
-    current_vehicle_state.yaw_rate_radians_per_second             = float_to_fp((float)omega);
+    current_vehicle_state.pos_x     = float_to_fp((float)X);
+    current_vehicle_state.pos_y     = float_to_fp((float)Y);
+    current_vehicle_state.heading = float_to_fp((float)psi);
+    current_vehicle_state.long_vel = float_to_fp((float)vx_body);
+    current_vehicle_state.lat_vel      = float_to_fp((float)vy_body);
+    current_vehicle_state.yaw_rate             = float_to_fp((float)omega);
 
     state_valid = 1;
 }

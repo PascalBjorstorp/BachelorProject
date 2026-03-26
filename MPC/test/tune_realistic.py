@@ -845,7 +845,7 @@ def main():
         "-Wno-unknown-pragmas",
         "-Iinclude",
         "test/test_sim_drive.c", "src/mpc_riccati.c", "src/riccati_solver.c",
-        "src/vehicle_model.c", "src/fp_math.c",
+        "src/vehicle_model.c", "src/util_math.c",
         "-o", "test_sim_drive", "-lm"
     ], capture_output=True, text=True)
     if ret.returncode != 0:

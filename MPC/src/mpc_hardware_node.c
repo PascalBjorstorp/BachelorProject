@@ -41,6 +41,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <limits.h>
+#include <yaml.h>
 
 /* ROS2 C Client Library Headers */
 #include "rcl/rcl.h"
@@ -61,24 +62,12 @@
 /* MPC Core Library Headers (Platform-Independent) */
 #include "mpc.h"
 #include "mpc_types.h"
-#include "fp_math.h"
+#include "util_math.h"
 #include "vehicle_model.h"
 
 /*===========================================================================
  * Configuration Constants
  *===========================================================================*/
-
-/** Number of MPC prediction steps (20 steps x 0.04s = 0.8 second lookahead) */
-#define MPC_PREDICTION_HORIZON_STEPS 20
-
-/** Time step between predictions [seconds] — must match MPC_DEFAULT_TIME_STEP_SECONDS */
-#define MPC_TIME_STEP_SECONDS 0.04
-
-/** Maximum number of waypoints in loaded trajectory */
-#define TRAJECTORY_MAXIMUM_WAYPOINTS 1000
-
-/** Maximum reference velocity [m/s] */
-#define TRAJECTORY_MAXIMUM_VELOCITY 20.0
 
 /** Speed gain applied to trajectory velocities (1.0 = full optimal racing speed) */
 static double g_speed_gain = 1.0;
@@ -183,7 +172,7 @@ static std_msgs__msg__Float64 global_imu_message_buffer;
 static ackermann_msgs__msg__AckermannDriveStamped global_drive_message_buffer;
 static geometry_msgs__msg__PoseWithCovarianceStamped global_amcl_pose_buffer;
 
-static TrajectoryReferencePoint_t global_reference_trajectory[MPC_PREDICTION_HORIZON_STEPS];
+static TrajectoryReferencePoint_t global_reference_trajectory[MPC_PREDICTION_HORIZON];
 
 /** Cached latest odometry values for the timer callback (stored in odom callback) */
 static double g_latest_pos_x = 0.0;
@@ -585,7 +574,7 @@ static void build_reference_from_trajectory(int closest_index)
     if (step_velocity < 3.0) step_velocity = 3.0;
     if (step_velocity > TRAJECTORY_MAXIMUM_VELOCITY) step_velocity = TRAJECTORY_MAXIMUM_VELOCITY;
 
-    for (int step = 0; step < MPC_PREDICTION_HORIZON_STEPS; step++)
+    for (int step = 0; step < MPC_PREDICTION_HORIZON; step++)
     {
         s_query += step_velocity * mpc_dt;
         TrajectoryWaypoint_t wp;
@@ -597,24 +586,19 @@ static void build_reference_from_trajectory(int closest_index)
         if (traj_vel < 3.0) traj_vel = 3.0;
         step_velocity = traj_vel;
 
-        global_reference_trajectory[step].reference_lateral_error_meters = 0;
-        global_reference_trajectory[step].reference_heading_error_radians = 0;
+        global_reference_trajectory[step].reference_lateral_error = 0;
+        global_reference_trajectory[step].reference_heading_error = 0;
 
-        global_reference_trajectory[step].path_curvature_radians_per_meter =
-            DOUBLE_TO_FP(wp.curvature_radians_per_meter);
-        global_reference_trajectory[step].left_wall_bound_meters =
-            DOUBLE_TO_FP(wp.left_bound_meters);
-        global_reference_trajectory[step].right_wall_bound_meters =
-            DOUBLE_TO_FP(wp.right_bound_meters);
+        global_reference_trajectory[step].path_curvature = wp.curvature_radians_per_meter;
+        global_reference_trajectory[step].left_wall_bound = wp.left_bound_meters;
+        global_reference_trajectory[step].right_wall_bound = wp.right_bound_meters;
 
-        global_reference_trajectory[step].reference_velocity_meters_per_second =
-            DOUBLE_TO_FP(traj_vel);
+        global_reference_trajectory[step].reference_velocity = traj_vel;
 
         /* Yaw rate reference = kappa * v_ref (steady-state cornering) — fused in single pass */
         double omega_ref = wp.curvature_radians_per_meter * traj_vel;
-        global_reference_trajectory[step].reference_yaw_rate_radians_per_second =
-            DOUBLE_TO_FP(omega_ref);
-        global_reference_trajectory[step].reference_lateral_velocity_meters_per_second = 0;
+        global_reference_trajectory[step].reference_yaw_rate = omega_ref;
+        global_reference_trajectory[step].reference_lateral_velocity = 0;
     }
 }
 
@@ -723,14 +707,14 @@ static void convert_to_frenet_state(
     while (heading_error > 3.14159265) heading_error -= 2.0 * 3.14159265;
     while (heading_error < -3.14159265) heading_error += 2.0 * 3.14159265;
 
-    frenet_out->lateral_error_meters = DOUBLE_TO_FP(lateral_error);
-    frenet_out->heading_error_radians = DOUBLE_TO_FP(heading_error);
-    frenet_out->longitudinal_velocity_meters_per_second =
-        global_vehicle_state.longitudinal_velocity_meters_per_second;
-    frenet_out->lateral_velocity_meters_per_second =
-        global_vehicle_state.lateral_velocity_meters_per_second;
-    frenet_out->yaw_rate_radians_per_second =
-        global_vehicle_state.yaw_rate_radians_per_second;
+    frenet_out->flat_error = lateral_error;
+    frenet_out->fhead_error = heading_error;
+    frenet_out->flong_vel =
+        global_vehicle_state.long_vel;
+    frenet_out->flat_vel =
+        global_vehicle_state.lat_vel;
+    frenet_out->fyaw_rate =
+        global_vehicle_state.yaw_rate;
 }
 
 /* 8-state augmented model verification note:
@@ -770,17 +754,17 @@ void odometry_subscription_callback(const void *message_in)
     /* Store into vehicle state (fixed-point for MPC) — only store fields
      * actually consumed by the solver (vx, vy, omega).  Position/heading
      * are used as doubles for Frenet conversion, so skip the FP conversion. */
-    global_vehicle_state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(vx);
-    global_vehicle_state.lateral_velocity_meters_per_second = DOUBLE_TO_FP(vy);
+    global_vehicle_state.long_vel = vx;
+    global_vehicle_state.lat_vel = vy;
 
     /* Use IMU yaw rate if available (higher quality than odom twist) */
     if (g_imu_received)
     {
-        global_vehicle_state.yaw_rate_radians_per_second = DOUBLE_TO_FP(g_imu_yaw_rate);
+        global_vehicle_state.yaw_rate = g_imu_yaw_rate;
     }
     else
     {
-        global_vehicle_state.yaw_rate_radians_per_second = DOUBLE_TO_FP(omega);
+        global_vehicle_state.yaw_rate = omega;
     }
 
     /* Cache velocity for the timer callback.
@@ -908,6 +892,13 @@ void amcl_pose_callback(const void *message_in)
     g_latest_pos_y   = pos_y;
     g_latest_heading = heading;
 
+    /* Local variables for MPC computation and logging */
+    int closest = 0;
+    double ey = 0.0, epsi = 0.0;
+    double vref0 = 0.0, kappa0 = 0.0;
+    double left_wall0 = 0.0, right_wall0 = 0.0;
+    double watchdog_elapsed_ms = 0.0;
+
     g_new_ekf_pose = 1;
 
     if (!g_amcl_received) {
@@ -951,25 +942,18 @@ void amcl_pose_callback(const void *message_in)
         printf("[MPC] State: x=%.2f y=%.2f th=%.2f vx=%.2f vy=%.2f w=%.2f\n",
                pos_x, pos_y, heading, g_latest_vx, g_latest_vy, g_latest_omega);
     }
-    double ey = 0;
-    double epsi = 0;
-    double vref0 = 0;
-    double kappa0 = 0;
-    double left_wall0 = 0;
-    double right_wall0 = 0;
-    int closest = 0;
     if (global_trajectory_count > 0)
     {
         closest = find_closest_waypoint(pos_x, pos_y, heading);
         build_reference_from_trajectory(closest);
         convert_to_frenet_state(pos_x, pos_y, heading, closest, &global_frenet_state);
 
-        ey = FP_TO_DOUBLE(global_frenet_state.lateral_error_meters);
-        epsi = FP_TO_DOUBLE(global_frenet_state.heading_error_radians);
-        vref0 = FP_TO_DOUBLE(global_reference_trajectory[0].reference_velocity_meters_per_second);
-        kappa0 = FP_TO_DOUBLE(global_reference_trajectory[0].path_curvature_radians_per_meter);
-        left_wall0 = FP_TO_DOUBLE(global_reference_trajectory[0].left_wall_bound_meters);
-        right_wall0 = FP_TO_DOUBLE(global_reference_trajectory[0].right_wall_bound_meters);
+        ey = global_frenet_state.flat_error;
+        epsi = global_frenet_state.fhead_error;
+        vref0 = global_reference_trajectory[0].reference_velocity;
+        kappa0 = global_reference_trajectory[0].path_curvature;
+        left_wall0 = global_reference_trajectory[0].left_wall_bound;
+        right_wall0 = global_reference_trajectory[0].right_wall_bound;
 
         if (g_verbose)
         {
@@ -980,28 +964,27 @@ void amcl_pose_callback(const void *message_in)
     else
     {
         /* Fallback: straight line at low speed */
-        fixed_point_t target_velocity = DOUBLE_TO_FP(1.0);
+        float target_velocity = 1.0f;
 
-        global_frenet_state.lateral_error_meters = 0;
-        global_frenet_state.heading_error_radians = 0;
-        global_frenet_state.longitudinal_velocity_meters_per_second =
-            global_vehicle_state.longitudinal_velocity_meters_per_second;
-        global_frenet_state.lateral_velocity_meters_per_second =
-            global_vehicle_state.lateral_velocity_meters_per_second;
-        global_frenet_state.yaw_rate_radians_per_second =
-            global_vehicle_state.yaw_rate_radians_per_second;
+        global_frenet_state.flat_error = 0;
+        global_frenet_state.fhead_error = 0;
+        global_frenet_state.flong_vel =
+            global_vehicle_state.long_vel;
+        global_frenet_state.flat_vel =
+            global_vehicle_state.lat_vel;
+        global_frenet_state.fyaw_rate =
+            global_vehicle_state.yaw_rate;
 
-        for (int step = 0; step < MPC_PREDICTION_HORIZON_STEPS; step++)
+        for (int step = 0; step < MPC_PREDICTION_HORIZON; step++)
         {
-            global_reference_trajectory[step].reference_lateral_error_meters = 0;
-            global_reference_trajectory[step].reference_heading_error_radians = 0;
-            global_reference_trajectory[step].path_curvature_radians_per_meter = 0;
-            global_reference_trajectory[step].left_wall_bound_meters = DOUBLE_TO_FP(5.0);
-            global_reference_trajectory[step].right_wall_bound_meters = DOUBLE_TO_FP(5.0);
-            global_reference_trajectory[step].reference_velocity_meters_per_second = target_velocity;
-            global_reference_trajectory[step].reference_lateral_velocity_meters_per_second = 0;
-            global_reference_trajectory[step].reference_yaw_rate_radians_per_second = 0;
-            global_reference_trajectory[step].reference_acceleration_meters_per_second_squared = 0;
+            global_reference_trajectory[step].reference_lateral_error = 0;
+            global_reference_trajectory[step].reference_heading_error = 0;
+            global_reference_trajectory[step].path_curvature = 0;
+            global_reference_trajectory[step].left_wall_bound = 5.0f;
+            global_reference_trajectory[step].right_wall_bound = 5.0f;
+            global_reference_trajectory[step].reference_velocity = target_velocity;
+            global_reference_trajectory[step].reference_lateral_velocity = 0;
+            global_reference_trajectory[step].reference_yaw_rate = 0;
         }
     }
 
@@ -1017,8 +1000,8 @@ void amcl_pose_callback(const void *message_in)
     clock_gettime(CLOCK_MONOTONIC, &t1);
     double solve_us = (t1.tv_sec - t0.tv_sec) * 1e6 +
                       (t1.tv_nsec - t0.tv_nsec) / 1e3;
-    double primal_res = FP_TO_DOUBLE(mpc_result.final_cost);
-    double dual_res = FP_TO_DOUBLE(mpc_result.dual_residual);
+    double primal_res = mpc_result.final_cost;
+    double dual_res = mpc_result.dual_residual;
 
     /* Rolling solve-time statistics (always active, lightweight) */
     g_solve_time_sum_us += solve_us;
@@ -1038,14 +1021,14 @@ void amcl_pose_callback(const void *message_in)
     if (mpc_status == MPC_STATUS_SUCCESS ||
         mpc_status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED)
     {
-        double steer = FP_TO_DOUBLE(
-            mpc_result.optimal_control.steering_angle_radians);
+        double steer =
+            mpc_result.optimal_control.steer_ang;
 
         /* Pass MPC output directly — no clamping, no bias, no softening. */
-        global_control_command.steering_angle_radians =
-            mpc_result.optimal_control.steering_angle_radians;
-        global_control_command.acceleration_meters_per_second_squared =
-            mpc_result.optimal_control.acceleration_meters_per_second_squared;
+        global_control_command.steer_ang =
+            mpc_result.optimal_control.steer_ang;
+        global_control_command.long_acc =
+            mpc_result.optimal_control.long_acc;
 
         /* Update servo tracking.
          * If steering feedback is available from VESC, it's already set by
@@ -1062,17 +1045,17 @@ void amcl_pose_callback(const void *message_in)
         /* Feed actual servo position back to MPC */
         {
             ControlInput_t actual_ctrl;
-            actual_ctrl.steering_angle_radians =
-                DOUBLE_TO_FP(global_actual_steering_angle);
-            actual_ctrl.acceleration_meters_per_second_squared =
-                mpc_result.optimal_control.acceleration_meters_per_second_squared;
+            actual_ctrl.steer_ang =
+                global_actual_steering_angle;
+            actual_ctrl.long_acc =
+                mpc_result.optimal_control.long_acc;
             mpc_set_actual_previous_control(&actual_ctrl);
         }
 
         if (g_verbose && g_solver_log_file == NULL)
         {
-            double accel = FP_TO_DOUBLE(
-                mpc_result.optimal_control.acceleration_meters_per_second_squared);
+            double accel = 
+                mpc_result.optimal_control.long_acc;
             printf("[MPC] Control: steer=%.4f accel=%.2f (status=%d iter=%d pr=%.3e dr=%.3e solve=%.1fus)\n",
                    steer, accel, mpc_status, mpc_result.iterations_used,
                    primal_res, dual_res, solve_us);
@@ -1097,8 +1080,8 @@ void amcl_pose_callback(const void *message_in)
             long long unix_time_ns =
                 (long long)now_rt.tv_sec * 1000000000LL + (long long)now_rt.tv_nsec;
 
-            double cmd_steer = FP_TO_DOUBLE(mpc_result.optimal_control.steering_angle_radians);
-            double cmd_accel = FP_TO_DOUBLE(mpc_result.optimal_control.acceleration_meters_per_second_squared);
+            double cmd_steer = mpc_result.optimal_control.steer_ang;
+            double cmd_accel = mpc_result.optimal_control.long_acc;
 
             fprintf(g_solver_log_file,
                     "%lld,%.3f,%d,%u,%.9f,%.9f,%d,"
@@ -1121,8 +1104,8 @@ void amcl_pose_callback(const void *message_in)
 
     /* Publish drive command */
     {
-        global_drive_message_buffer.drive.steering_angle = FP_TO_FLOAT(
-            global_control_command.steering_angle_radians);
+        global_drive_message_buffer.drive.steering_angle = 
+            global_control_command.steer_ang;
 
         /* VEL_TO_ERPM mode: the ackermann_to_vesc node converts drive.speed
          * to ERPM and the VESC's internal PID handles velocity tracking.
@@ -1147,8 +1130,8 @@ void amcl_pose_callback(const void *message_in)
          * vesc.yaml to switch to ACCEL_TO_CURRENT mode.
          */
         {
-            double a_cmd = FP_TO_DOUBLE(
-                global_control_command.acceleration_meters_per_second_squared);
+            double a_cmd =
+                global_control_command.long_acc;
 
             /* Integrate MPC acceleration over one MPC prediction step.
              * See the comment block above for why MPC_TIME_STEP_SECONDS (0.04s)
@@ -1277,7 +1260,7 @@ int main(int argc, char *argv[])
     }
 
     printf("[MPC] Controller initialized (horizon=%d, dt=%.0fms)\n",
-           MPC_PREDICTION_HORIZON_STEPS, MPC_TIME_STEP_SECONDS * 1000.0);
+           MPC_PREDICTION_HORIZON, MPC_TIME_STEP_SECONDS * 1000.0);
 
     /* Compute CONTROL_DT from the configured control rate */
     g_control_dt = 1.0 / g_control_rate_hz;
@@ -1296,14 +1279,14 @@ int main(int argc, char *argv[])
     {
         MpcConfiguration_t cfg = mpc_get_configuration();
         printf("[MPC] max_iter=%u, tol=%d\n",
-               cfg.maximum_solver_iterations,
+               cfg.max_solver_iterations,
                (int)cfg.solver_convergence_tolerance);
         printf("[MPC] Weights: lat=%.1f heading=%.1f vel=%.1f steer_rate=%.2f steer_effort=%.4f\n",
-               FP_TO_DOUBLE(cfg.weight_lateral_error),
-               FP_TO_DOUBLE(cfg.weight_heading_error),
-               FP_TO_DOUBLE(cfg.weight_velocity),
-               FP_TO_DOUBLE(cfg.weight_steering_rate),
-               FP_TO_DOUBLE(cfg.weight_steering_effort));
+               cfg.weight_lateral_error,
+               cfg.weight_heading_error,
+               cfg.weight_velocity,
+               cfg.weight_steering_rate,
+               cfg.weight_steering_effort);
     }
 
     /* Load trajectory — search order:

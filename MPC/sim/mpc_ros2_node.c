@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 199309L
+
 /**
  * @file mpc_ros2_node.c
  * @brief MPC Riccati-ADMM ROS2 Node for F1/10th Simulator Integration
@@ -44,7 +46,7 @@
 /* MPC Core Library Headers (Platform-Independent) */
 #include "mpc.h"
 #include "mpc_types.h"
-#include "fp_math.h"
+#include "util_math.h"
 #include "vehicle_model.h"
 
 /*===========================================================================
@@ -354,7 +356,7 @@ static void sample_waypoint_by_s(double s_query, TrajectoryWaypoint_t *out)
 
 /**
  * @brief Build MPC reference trajectory from loaded waypoints (Frenet frame).
- *
+ *path_curvature
  * Frenet references: lateral and heading error are zero (follow the path).
  * Each prediction step maps to the waypoint at the expected travel distance
  * based on the reference velocity.
@@ -378,23 +380,18 @@ static void build_reference_from_trajectory(int closest_index)
         if (traj_vel > TRAJECTORY_MAXIMUM_VELOCITY) traj_vel = TRAJECTORY_MAXIMUM_VELOCITY;
         step_velocity = traj_vel;
 
-        global_reference_trajectory[step].reference_lateral_error_meters = 0;
-        global_reference_trajectory[step].reference_heading_error_radians = 0;
+        global_reference_trajectory[step].reference_lateral_error = 0;
+        global_reference_trajectory[step].reference_heading_error = 0;
 
-        global_reference_trajectory[step].path_curvature_radians_per_meter =
-            DOUBLE_TO_FP(wp.curvature_radians_per_meter);
-        global_reference_trajectory[step].left_wall_bound_meters =
-            DOUBLE_TO_FP(wp.left_bound_meters);
-        global_reference_trajectory[step].right_wall_bound_meters =
-            DOUBLE_TO_FP(wp.right_bound_meters);
+        global_reference_trajectory[step].path_curvature = wp.curvature_radians_per_meter;
+        global_reference_trajectory[step].left_wall_bound = wp.left_bound_meters;
+        global_reference_trajectory[step].right_wall_bound = wp.right_bound_meters;
 
-        global_reference_trajectory[step].reference_velocity_meters_per_second =
-            DOUBLE_TO_FP(traj_vel);
+        global_reference_trajectory[step].reference_velocity = traj_vel;
 
-        global_reference_trajectory[step].reference_lateral_velocity_meters_per_second = 0;
+        global_reference_trajectory[step].reference_lateral_velocity = 0;
         double omega_ref = wp.curvature_radians_per_meter * traj_vel;
-        global_reference_trajectory[step].reference_yaw_rate_radians_per_second =
-            DOUBLE_TO_FP(omega_ref);
+        global_reference_trajectory[step].reference_yaw_rate = omega_ref;
     }
 }
 
@@ -502,14 +499,14 @@ static void convert_to_frenet_state(
     while (heading_error > 3.14159265) heading_error -= 2.0 * 3.14159265;
     while (heading_error < -3.14159265) heading_error += 2.0 * 3.14159265;
 
-    frenet_out->lateral_error_meters = DOUBLE_TO_FP(lateral_error);
-    frenet_out->heading_error_radians = DOUBLE_TO_FP(heading_error);
-    frenet_out->longitudinal_velocity_meters_per_second =
-        global_vehicle_state.longitudinal_velocity_meters_per_second;
-    frenet_out->lateral_velocity_meters_per_second =
-        global_vehicle_state.lateral_velocity_meters_per_second;
-    frenet_out->yaw_rate_radians_per_second =
-        global_vehicle_state.yaw_rate_radians_per_second;
+    frenet_out->flat_error = lateral_error;
+    frenet_out->fhead_error = heading_error;
+    frenet_out->flong_vel =
+        global_vehicle_state.long_vel;
+    frenet_out->flat_vel =
+        global_vehicle_state.lat_vel;
+    frenet_out->fyaw_rate =
+        global_vehicle_state.yaw_rate;
 }
 
 /*===========================================================================
@@ -538,12 +535,12 @@ void odometry_subscription_callback(const void *message_in)
     double vy = odom->twist.twist.linear.y;
     double omega = odom->twist.twist.angular.z;
 
-    global_vehicle_state.position_x_meters = DOUBLE_TO_FP(pos_x);
-    global_vehicle_state.position_y_meters = DOUBLE_TO_FP(pos_y);
-    global_vehicle_state.heading_angle_radians = DOUBLE_TO_FP(heading);
-    global_vehicle_state.longitudinal_velocity_meters_per_second = DOUBLE_TO_FP(vx);
-    global_vehicle_state.lateral_velocity_meters_per_second = DOUBLE_TO_FP(vy);
-    global_vehicle_state.yaw_rate_radians_per_second = DOUBLE_TO_FP(omega);
+    global_vehicle_state.pos_x = pos_x;
+    global_vehicle_state.pos_y = pos_y;
+    global_vehicle_state.heading = heading;
+    global_vehicle_state.long_vel = vx;
+    global_vehicle_state.lat_vel = vy;
+    global_vehicle_state.yaw_rate = omega;
 
     global_odometry_received_flag = 1;
 
@@ -561,12 +558,12 @@ void odometry_subscription_callback(const void *message_in)
 
             /* Debug: Frenet state + reference */
             {
-                double ey  = FP_TO_DOUBLE(global_frenet_state.lateral_error_meters);
-                double epsi = FP_TO_DOUBLE(global_frenet_state.heading_error_radians);
-                double vref = FP_TO_DOUBLE(global_reference_trajectory[0].reference_velocity_meters_per_second);
-                double kappa = FP_TO_DOUBLE(global_reference_trajectory[0].path_curvature_radians_per_meter);
-                double lw = FP_TO_DOUBLE(global_reference_trajectory[0].left_wall_bound_meters);
-                double rw = FP_TO_DOUBLE(global_reference_trajectory[0].right_wall_bound_meters);
+                double ey   = (double)global_frenet_state.flat_error;
+                double epsi = (double)global_frenet_state.fhead_error;
+                double vref = (double)global_reference_trajectory[0].reference_velocity;
+                double kappa = (double)global_reference_trajectory[0].path_curvature;
+                double lw   = (double)global_reference_trajectory[0].left_wall_bound;
+                double rw   = (double)global_reference_trajectory[0].right_wall_bound;
                 printf("[MPC] Frenet: e_y=%.3f e_psi=%.3f v_ref=%.2f kappa=%.3f walls=[%.2f,%.2f]\n",
                        ey, epsi, vref, kappa, lw, rw);
             }
@@ -604,28 +601,27 @@ void odometry_subscription_callback(const void *message_in)
         else
         {
             /* Fallback: straight line at low speed */
-            fixed_point_t target_velocity = DOUBLE_TO_FP(1.0);
+            float target_velocity = 1.0f;
 
-            global_frenet_state.lateral_error_meters = 0;
-            global_frenet_state.heading_error_radians = 0;
-            global_frenet_state.longitudinal_velocity_meters_per_second =
-                global_vehicle_state.longitudinal_velocity_meters_per_second;
-            global_frenet_state.lateral_velocity_meters_per_second =
-                global_vehicle_state.lateral_velocity_meters_per_second;
-            global_frenet_state.yaw_rate_radians_per_second =
-                global_vehicle_state.yaw_rate_radians_per_second;
+            global_frenet_state.flat_error = 0;
+            global_frenet_state.fhead_error = 0;
+            global_frenet_state.flong_vel =
+                global_vehicle_state.long_vel;
+            global_frenet_state.flat_vel =
+                global_vehicle_state.lat_vel;
+            global_frenet_state.fyaw_rate =
+                global_vehicle_state.yaw_rate;
 
             for (int step = 0; step < g_mpc_horizon; step++)
             {
-                global_reference_trajectory[step].reference_lateral_error_meters = 0;
-                global_reference_trajectory[step].reference_heading_error_radians = 0;
-                global_reference_trajectory[step].path_curvature_radians_per_meter = 0;
-                global_reference_trajectory[step].left_wall_bound_meters = DOUBLE_TO_FP(5.0);
-                global_reference_trajectory[step].right_wall_bound_meters = DOUBLE_TO_FP(5.0);
-                global_reference_trajectory[step].reference_velocity_meters_per_second = target_velocity;
-                global_reference_trajectory[step].reference_lateral_velocity_meters_per_second = 0;
-                global_reference_trajectory[step].reference_yaw_rate_radians_per_second = 0;
-                global_reference_trajectory[step].reference_acceleration_meters_per_second_squared = 0;
+                global_reference_trajectory[step].reference_lateral_error = 0;
+                global_reference_trajectory[step].reference_heading_error = 0;
+                global_reference_trajectory[step].path_curvature = 0;
+                global_reference_trajectory[step].left_wall_bound = 5.0;
+                global_reference_trajectory[step].right_wall_bound = 5.0;
+                global_reference_trajectory[step].reference_velocity = target_velocity;
+                global_reference_trajectory[step].reference_lateral_velocity = 0;
+                global_reference_trajectory[step].reference_yaw_rate = 0;
             }
         }
 
@@ -643,16 +639,14 @@ void odometry_subscription_callback(const void *message_in)
                           (t1.tv_nsec - t0.tv_nsec) / 1e3;
 
         {
-            double steer = FP_TO_DOUBLE(
-                mpc_result.optimal_control.steering_angle_radians);
-            double accel = FP_TO_DOUBLE(
-                mpc_result.optimal_control.acceleration_meters_per_second_squared);
+            double steer = (double)mpc_result.optimal_control.steer_ang;
+            double accel = (double)mpc_result.optimal_control.long_acc;
 
             /* Always use MPC output — no fallback, no override */
-            global_control_command.steering_angle_radians =
-                mpc_result.optimal_control.steering_angle_radians;
-            global_control_command.acceleration_meters_per_second_squared =
-                mpc_result.optimal_control.acceleration_meters_per_second_squared;
+            global_control_command.steer_ang =
+                mpc_result.optimal_control.steer_ang;
+            global_control_command.long_acc =
+                mpc_result.optimal_control.long_acc;
 
             /* Simulate servo dynamics to track the actual steering angle.
              * The f1tenth gym rate-limits steering at sv_max = 2.849 rad/s.
@@ -669,10 +663,9 @@ void odometry_subscription_callback(const void *message_in)
              * This updates actual_steering_angle (for x0[5]) and prev accel. */
             {
                 ControlInput_t actual_ctrl;
-                actual_ctrl.steering_angle_radians =
-                    DOUBLE_TO_FP(global_actual_steering_angle);
-                actual_ctrl.acceleration_meters_per_second_squared =
-                    mpc_result.optimal_control.acceleration_meters_per_second_squared;
+                actual_ctrl.steer_ang = global_actual_steering_angle;
+                actual_ctrl.long_acc =
+                    mpc_result.optimal_control.long_acc;
                 mpc_set_actual_previous_control(&actual_ctrl);
             }
 
@@ -685,13 +678,13 @@ void odometry_subscription_callback(const void *message_in)
     /* Publish drive command every callback */
     if (global_odometry_received_flag)
     {
-        global_drive_message_buffer.drive.steering_angle = FP_TO_FLOAT(
-            global_control_command.steering_angle_radians);
+        global_drive_message_buffer.drive.steering_angle =
+            global_control_command.steer_ang;
 
         /* gym_bridge with control_input=['accl','steering_angle']
          * interprets drive.speed as acceleration command. */
-        global_drive_message_buffer.drive.speed = FP_TO_FLOAT(
-            global_control_command.acceleration_meters_per_second_squared);
+        global_drive_message_buffer.drive.speed =
+            global_control_command.long_acc;
 
         rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);
     }
@@ -790,16 +783,16 @@ int main(int argc, char *argv[])
     {
         MpcConfiguration_t cfg = mpc_get_configuration();
         printf("[MPC] max_iter=%u, tol=%d\n",
-               cfg.maximum_solver_iterations,
+               cfg.max_solver_iterations,
                (int)cfg.solver_convergence_tolerance);
         printf("[MPC] Weights: lat=%.2f heading=%.2f vel=%.2f steer_rate=%.2f steer_effort=%.4f\n",
-               FP_TO_DOUBLE(cfg.weight_lateral_error),
-               FP_TO_DOUBLE(cfg.weight_heading_error),
-               FP_TO_DOUBLE(cfg.weight_velocity),
-               FP_TO_DOUBLE(cfg.weight_steering_rate),
-               FP_TO_DOUBLE(cfg.weight_steering_effort));
+               (double)cfg.weight_lateral_error,
+               (double)cfg.weight_heading_error,
+               (double)cfg.weight_velocity,
+               (double)cfg.weight_steering_rate,
+               (double)cfg.weight_steering_effort);
         printf("[MPC] cross_call_scale=%.2f\n",
-               FP_TO_DOUBLE(cfg.cross_call_rate_scale));
+               (double)cfg.cross_call_rate_scale);
     }
 
     /* Load trajectory */

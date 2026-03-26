@@ -42,12 +42,12 @@ int riccati_admm_debug = 0;
 
 void riccati_admm_config_init(RiccatiAdmmConfig_t *config)
 {
-    config->rho            = FP_CONST(80.0);
-    config->rho_u          = FP_CONST(20.0);
-    config->tolerance      = FP_CONST(6.334361);
+    config->rho            = 32.0f;
+    config->rho_u          = 20.0f;
+    config->tolerance      = 5.0f;
     config->max_iterations = 200;
     config->adaptive_rho   = 1;
-    config->alpha          = FP_CONST(1.4);
+    config->alpha          = 0.93f;
 }
 
 void riccati_admm_state_init(RiccatiAdmmState_t *state)
@@ -84,26 +84,26 @@ static int invert_2x2(
  * Riccati Backward + Forward Pass
  *===========================================================================*/
 
-#define BOUND_THRESHOLD  FP_CONST(100.0)
+#define BOUND_THRESHOLD  100.0f
 
 static inline __attribute__((always_inline)) void riccati_pass(
     const RiccatiStepData_t * restrict step_data,
-    const fixed_point_t * restrict terminal_Q,
-    const fixed_point_t * restrict terminal_q,
-    const fixed_point_t * restrict x0,
+    const float * restrict terminal_Q,
+    const float * restrict terminal_q,
+    const float * restrict x0,
     int nx, int nu, int N,
-    fixed_point_t rho,
-    fixed_point_t rho_u,
-    const fixed_point_t z_x[][RICCATI_MAX_NX],
-    const fixed_point_t y_x[][RICCATI_MAX_NX],
-    const fixed_point_t z_u[][RICCATI_MAX_NU],
-    const fixed_point_t y_u[][RICCATI_MAX_NU],
-    fixed_point_t x_out[][RICCATI_MAX_NX],
-    fixed_point_t u_out[][RICCATI_MAX_NU])
+    float rho,
+    float rho_u,
+    const float z_x[][RICCATI_MAX_NX],
+    const float y_x[][RICCATI_MAX_NX],
+    const float z_u[][RICCATI_MAX_NU],
+    const float y_u[][RICCATI_MAX_NU],
+    float x_out[][RICCATI_MAX_NX],
+    float u_out[][RICCATI_MAX_NU])
 {
     /* Gains stored for forward pass */
-    fixed_point_t K[RICCATI_MAX_HORIZON][RICCATI_MAX_NU][RICCATI_MAX_NX];
-    fixed_point_t kk[RICCATI_MAX_HORIZON][RICCATI_MAX_NU];
+    float K[MPC_PREDICTION_HORIZON][RICCATI_MAX_NU][RICCATI_MAX_NX];
+    float kk[MPC_PREDICTION_HORIZON][RICCATI_MAX_NU];
 
     /* Value function: P (nx x nx symmetric), p (nx x 1) */
     float P[RICCATI_MAX_NX][RICCATI_MAX_NX];
@@ -347,34 +347,34 @@ static inline __attribute__((always_inline)) void riccati_pass(
 
 RiccatiStatus_t riccati_admm_solve(
     const RiccatiStepData_t *step_data,
-    const fixed_point_t *terminal_Q,
-    const fixed_point_t *terminal_q,
-    const fixed_point_t *x0,
+    const float *terminal_Q,
+    const float *terminal_q,
+    const float *x0,
     int nx, int nu, int N,
     const RiccatiAdmmConfig_t *config,
     RiccatiAdmmState_t *admm_state,
     RiccatiSolution_t *solution)
 {
     if (nx <= 0 || nx > RICCATI_MAX_NX || nu <= 0 || nu > RICCATI_MAX_NU ||
-        N <= 0 || N > RICCATI_MAX_HORIZON) {
+        N <= 0 || N > MPC_PREDICTION_HORIZON) {
         solution->status = RICCATI_STATUS_ERROR;
         return RICCATI_STATUS_ERROR;
     }
 
-    fixed_point_t rho   = (admm_state->initialized && admm_state->rho > 0)
+    float rho   = (admm_state->initialized && admm_state->rho > 0)
                         ? admm_state->rho : config->rho;
-    fixed_point_t rho_u = (admm_state->initialized && admm_state->rho_u > 0)
+    float rho_u = (admm_state->initialized && admm_state->rho_u > 0)
                         ? admm_state->rho_u : (config->rho_u > 0 ? config->rho_u : rho);
     int max_iter = config->max_iterations;
 
     /* ADMM variables */
-    fixed_point_t z_x[RICCATI_MAX_HORIZON + 1][RICCATI_MAX_NX];
-    fixed_point_t z_u[RICCATI_MAX_HORIZON][RICCATI_MAX_NU];
-    fixed_point_t y_x[RICCATI_MAX_HORIZON + 1][RICCATI_MAX_NX];
-    fixed_point_t y_u[RICCATI_MAX_HORIZON][RICCATI_MAX_NU];
+    float z_x[MPC_PREDICTION_HORIZON + 1][RICCATI_MAX_NX];
+    float z_u[MPC_PREDICTION_HORIZON][RICCATI_MAX_NU];
+    float y_x[MPC_PREDICTION_HORIZON + 1][RICCATI_MAX_NX];
+    float y_u[MPC_PREDICTION_HORIZON][RICCATI_MAX_NU];
 
     /* Precompute constrained flags */
-    uint8_t x_is_constrained[RICCATI_MAX_HORIZON + 1][RICCATI_MAX_NX];
+    uint8_t x_is_constrained[MPC_PREDICTION_HORIZON + 1][RICCATI_MAX_NX];
     memset(x_is_constrained, 0, sizeof(x_is_constrained));
     for (int k = 0; k <= N; k++) {
         const RiccatiStepData_t *sd = (k < N) ? &step_data[k] : &step_data[N - 1];
@@ -399,17 +399,17 @@ RiccatiStatus_t riccati_admm_solve(
         riccati_pass(
             step_data, terminal_Q, terminal_q, x0,
             nx, nu, N, 0.0f, 0.0f,
-            (const fixed_point_t (*)[RICCATI_MAX_NX])z_x,
-            (const fixed_point_t (*)[RICCATI_MAX_NX])y_x,
-            (const fixed_point_t (*)[RICCATI_MAX_NU])z_u,
-            (const fixed_point_t (*)[RICCATI_MAX_NU])y_u,
+            (const float (*)[RICCATI_MAX_NX])z_x,
+            (const float (*)[RICCATI_MAX_NX])y_x,
+            (const float (*)[RICCATI_MAX_NU])z_u,
+            (const float (*)[RICCATI_MAX_NU])y_u,
             solution->x, solution->u);
 
         /* Initialize z from projection of unconstrained solution */
         for (int k = 0; k <= N; k++) {
             const RiccatiStepData_t *sd = (k < N) ? &step_data[k] : &step_data[N - 1];
             for (int s = 0; s < nx; s++) {
-                fixed_point_t val = solution->x[k][s];
+                float val = solution->x[k][s];
                 float k_soft = sd->x_soft_weight[s];
                 if (k_soft > 0.0f) {
                     /* Soft: use proximal (same formula as in ADMM loop, rho=1 initial) */
@@ -427,7 +427,7 @@ RiccatiStatus_t riccati_admm_solve(
         }
         for (int k = 0; k < N; k++) {
             for (int a = 0; a < nu; a++) {
-                fixed_point_t val = solution->u[k][a];
+                float val = solution->u[k][a];
                 if (val < step_data[k].u_lb[a]) val = step_data[k].u_lb[a];
                 if (val > step_data[k].u_ub[a]) val = step_data[k].u_ub[a];
                 z_u[k][a] = val;
@@ -457,15 +457,15 @@ RiccatiStatus_t riccati_admm_solve(
         riccati_pass(
             step_data, terminal_Q, terminal_q, x0,
             nx, nu, N, rho, rho_u,
-            (const fixed_point_t (*)[RICCATI_MAX_NX])z_x,
-            (const fixed_point_t (*)[RICCATI_MAX_NX])y_x,
-            (const fixed_point_t (*)[RICCATI_MAX_NU])z_u,
-            (const fixed_point_t (*)[RICCATI_MAX_NU])y_u,
+            (const float (*)[RICCATI_MAX_NX])z_x,
+            (const float (*)[RICCATI_MAX_NX])y_x,
+            (const float (*)[RICCATI_MAX_NU])z_u,
+            (const float (*)[RICCATI_MAX_NU])y_u,
             solution->x, solution->u);
 
         /*--- Fused z-update, y-update, and residual computation ---*/
-        fixed_point_t state_primal = 0.0f, state_dual = 0.0f;
-        fixed_point_t ctrl_primal = 0.0f, ctrl_dual = 0.0f;
+        float state_primal = 0.0f, state_dual = 0.0f;
+        float ctrl_primal = 0.0f, ctrl_dual = 0.0f;
 
         /* Over-relaxation parameters */
         const float alpha_or = config->alpha;
@@ -476,7 +476,7 @@ RiccatiStatus_t riccati_admm_solve(
             const RiccatiStepData_t *sd = (k < N) ? &step_data[k] : &step_data[N - 1];
             for (int s = 0; s < nx; s++) {
                 if (x_is_constrained[k][s]) {
-                    fixed_point_t x_val = solution->x[k][s];
+                    float x_val = solution->x[k][s];
                     /* Over-relaxation: x_hat = alpha*x + (1-alpha)*z_old */
                     float x_hat = alpha_or * x_val + one_minus_alpha * z_x[k][s];
                     float val = x_hat + y_x[k][s];
@@ -502,9 +502,9 @@ RiccatiStatus_t riccati_admm_solve(
                         if (val > sd->x_ub[s]) val = sd->x_ub[s];
                     }
 
-                    fixed_point_t z_new = val;
+                    float z_new = val;
                     /* Dual residual */
-                    fixed_point_t z_prev = z_x[k][s];
+                    float z_prev = z_x[k][s];
                     float dd = fabsf(rho * (z_new - z_prev));
                     if (dd > state_dual) state_dual = dd;
                     /* y-update: y += x_hat - z (over-relaxed per Boyd et al.) */
@@ -523,16 +523,16 @@ RiccatiStatus_t riccati_admm_solve(
         for (int k = 0; k < N; k++) {
             const RiccatiStepData_t *sd = &step_data[k];
             for (int a = 0; a < nu; a++) {
-                fixed_point_t u_val = solution->u[k][a];
+                float u_val = solution->u[k][a];
                 /* Over-relaxation: u_hat = alpha*u + (1-alpha)*z_old */
                 float u_hat = alpha_or * u_val + one_minus_alpha * z_u[k][a];
                 /* z-update: z = clip(u_hat + y, lb, ub) */
                 float val = u_hat + y_u[k][a];
                 if (val < sd->u_lb[a]) val = sd->u_lb[a];
                 if (val > sd->u_ub[a]) val = sd->u_ub[a];
-                fixed_point_t z_new = val;
+                float z_new = val;
                 /* Dual residual */
-                fixed_point_t z_prev = z_u[k][a];
+                float z_prev = z_u[k][a];
                 float dd = fabsf(rho_u * (z_new - z_prev));
                 if (dd > ctrl_dual) ctrl_dual = dd;
                 /* y-update: y += u_hat - z (over-relaxed per Boyd et al.) */
@@ -544,8 +544,8 @@ RiccatiStatus_t riccati_admm_solve(
             }
         }
 
-        fixed_point_t primal_res = state_primal > ctrl_primal ? state_primal : ctrl_primal;
-        fixed_point_t dual_res = state_dual > ctrl_dual ? state_dual : ctrl_dual;
+        float primal_res = state_primal > ctrl_primal ? state_primal : ctrl_primal;
+        float dual_res = state_dual > ctrl_dual ? state_dual : ctrl_dual;
 
         solution->iterations = iter + 1;
         solution->primal_residual = primal_res;
@@ -555,12 +555,12 @@ RiccatiStatus_t riccati_admm_solve(
         if (riccati_admm_debug && (iter < 5 || iter % 50 == 0 || iter == max_iter - 1)) {
             printf("    ADMM[%3d] p=%.4f(s=%.4f,c=%.4f) d=%.4f(s=%.4f,c=%.4f) rho=%.2f rho_u=%.2f u0=[%.4f,%.3f] z0=[%.4f,%.3f] y0=[%.4f,%.3f]\n",
                    iter,
-                   FP_TO_DOUBLE(primal_res), FP_TO_DOUBLE(state_primal), FP_TO_DOUBLE(ctrl_primal),
-                   FP_TO_DOUBLE(dual_res), FP_TO_DOUBLE(state_dual), FP_TO_DOUBLE(ctrl_dual),
-                   FP_TO_DOUBLE(rho), FP_TO_DOUBLE(rho_u),
-                   FP_TO_DOUBLE(solution->u[0][0]), FP_TO_DOUBLE(solution->u[0][1]),
-                   FP_TO_DOUBLE(z_u[0][0]), FP_TO_DOUBLE(z_u[0][1]),
-                   FP_TO_DOUBLE(y_u[0][0]), FP_TO_DOUBLE(y_u[0][1]));
+                   (double)primal_res, (double)state_primal, (double)ctrl_primal,
+                   (double)dual_res, (double)state_dual, (double)ctrl_dual,
+                   (double)rho, (double)rho_u,
+                   (double)solution->u[0][0], (double)solution->u[0][1],
+                   (double)z_u[0][0], (double)z_u[0][1],
+                   (double)y_u[0][0], (double)y_u[0][1]);
         }
 
         if (primal_res <= config->tolerance && dual_res <= config->tolerance) {
@@ -570,9 +570,9 @@ RiccatiStatus_t riccati_admm_solve(
 
         /*--- Adaptive rho: every 2 iterations (OPT-5) ---*/
         if (config->adaptive_rho && iter > 0 && (iter & 1) == 0) {
-            if (primal_res > 10.0f * dual_res && rho < FP_CONST(100.0)) {
+            if (primal_res > 10.0f * dual_res && rho < 100.0f) {
                 rho *= 2.0f;
-                if (rho_u < FP_CONST(100.0))
+                if (rho_u < 100.0f)
                     rho_u *= 2.0f;
                 /* Scale dual variables: y = y / 2 */
                 for (int k = 0; k <= N; k++)
@@ -581,9 +581,9 @@ RiccatiStatus_t riccati_admm_solve(
                 for (int k = 0; k < N; k++)
                     for (int a = 0; a < nu; a++)
                         y_u[k][a] *= 0.5f;
-            } else if (dual_res > 10.0f * primal_res && rho > FP_CONST(0.5)) {
+            } else if (dual_res > 10.0f * primal_res && rho > 0.5f) {
                 rho *= 0.5f;
-                if (rho_u > FP_CONST(0.5))
+                if (rho_u > 0.5f)
                     rho_u *= 0.5f;
                 /* Scale dual variables: y = y * 2 */
                 for (int k = 0; k <= N; k++)

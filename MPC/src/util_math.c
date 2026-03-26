@@ -1,12 +1,4 @@
-/**
- * @file fp_math.c
- * @brief Float32 matrix/vector operations.
- *
- * This file contains vector and matrix kernels used by the MPC QP path.
- * Scalar wrappers are defined inline in fp_math.h.
- */
-
-#include "fp_math.h"
+#include "util_math.h"
 #include <string.h>
 #include <stdint.h>
 
@@ -15,7 +7,7 @@
  *===========================================================================*/
 
 /* Dense row-major matrix-vector multiply. */
-void fp_mat_vec_mul(
+void util_mat_vec_mul(
     const float *matrix,
     const float *vec,
     float *result,
@@ -35,9 +27,9 @@ void fp_mat_vec_mul(
 
 /*
  * Symmetric dense matrix-vector multiply using 2x2 blocking when n is even.
- * This avoids recomputing mirrored terms in the upper/lower triangular halves.
  */
-void fp_symmetric_mat_vec_mul(
+
+void util_symmetric_mat_vec_mul(
     const float *matrix,
     const float *vec,
     float *result,
@@ -46,14 +38,12 @@ void fp_symmetric_mat_vec_mul(
     /* Fallback to generic multiplication when n is odd. */
     if (n & 1)
     {
-        fp_mat_vec_mul(matrix, vec, result, n, n);
+        util_mat_vec_mul(matrix, vec, result, n, n);
         return;
     }
 
-#ifndef QP_MAXIMUM_VARIABLES
-#define QP_MAXIMUM_VARIABLES 80
-#endif
-    /* Workspace is statically sized; expected usage keeps n within this bound. */
+    
+/** Statically set workspace to keep within bounds. */
     float accum[QP_MAXIMUM_VARIABLES];
     for (uint16_t ai = 0; ai < n && ai < QP_MAXIMUM_VARIABLES; ai++)
         accum[ai] = 0.0f;
@@ -100,7 +90,7 @@ void fp_symmetric_mat_vec_mul(
 }
 
 /* Elementwise a + scalar*b. */
-void fp_vec_add_scaled(
+void util_vec_add_scaled(
     const float *a,
     const float *b,
     float scalar,
@@ -113,8 +103,10 @@ void fp_vec_add_scaled(
     }
 }
 
-/* Maximum positive value of (A*x - b). Negative values are treated as zero. */
-float fp_max_violation(
+/* Maximum positive value of (A*x - b). 
+ * Negative values are treated as zero. */
+
+float util_max_violation(
     const float *A,
     const float *x,
     const float *b,
