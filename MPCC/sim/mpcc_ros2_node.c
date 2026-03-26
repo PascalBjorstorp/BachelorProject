@@ -238,7 +238,6 @@ static void odom_callback(const void *msg_in)
 
 /* ── Control Timer Callback ──────────────────────────────────────────────── */
 static uint32_t solve_count = 0;
-static int startup_ramp_steps = -1; /* from env MPCC_STARTUP_RAMP_STEPS, default 40 */
 
 static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
 {
@@ -260,74 +259,11 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
 
     solve_count++;
 
-    if (startup_ramp_steps < 0) {
-        const char *v = getenv("MPCC_STARTUP_RAMP_STEPS");
-        startup_ramp_steps = v ? atoi(v) : 40;
-        if (startup_ramp_steps < 0) startup_ramp_steps = 0;
-    }
-
     float a_x_cmd   = fp_to_float(result.optimal_control.a_x);
     float delta_cmd  = fp_to_float(result.optimal_control.delta);
     float v_theta_cmd = fp_to_float(result.optimal_control.v_theta);
 
-    /* ── Startup ramp: gently increase control authority ────────────── */
-    if (startup_ramp_steps > 0 && solve_count <= (uint32_t)startup_ramp_steps) {
-        float ramp = (float)solve_count / (float)startup_ramp_steps;
-        /* Accel: ramp from 1.0 → 7.0 m/s² over 2 seconds */
-        float max_ax = 1.0f + 6.0f * ramp;
-        if (a_x_cmd >  max_ax) a_x_cmd =  max_ax;
-        if (a_x_cmd < -max_ax) a_x_cmd = -max_ax;
-        /* Steer: ramp from 0.1 → 0.43 rad over 2 seconds */
-        float max_d = 0.1f + 0.33f * ramp;
-        if (delta_cmd >  max_d) delta_cmd =  max_d;
-        if (delta_cmd < -max_d) delta_cmd = -max_d;
-    }
-
-    /* ── If solver didn't converge, mpcc.c already falls back to the
-     *    shifted warm-start control (last good plan). Just cap accel
-     *    for safety — steering from the warm-start is trustworthy. ── */
-    if (status != MPCC_STATUS_SUCCESS) {
-        if (a_x_cmd >  3.0f) a_x_cmd =  3.0f;
-        if (a_x_cmd < -3.0f) a_x_cmd = -3.0f;
-    }
-
-    /* ── Gentle correction: limit speed when far from raceline ────── */
-    /* Only active until the car joins the raceline for the first time.
-     * Prevents building dangerous momentum during initial transient.  */
-    {
-        static int joined_raceline = 0;
-        float n_abs = fp_to_float(mpcc_state.n);
-        if (n_abs < 0.0f) n_abs = -n_abs;
-
-        if (n_abs < 0.15f) joined_raceline = 1;
-
-        if (!joined_raceline && n_abs > 0.15f) {
-            float vx_now = fp_to_float(mpcc_state.vx);
-            /* Target max speed scales with proximity to raceline:
-             *   |n| >= 0.5  →  max_vx = 1.0 m/s  (crawl)
-             *   |n|  = 0.3  →  max_vx = 2.2 m/s
-             *   |n| <= 0.15 →  no limit from here                    */
-            float prox = 1.0f - n_abs / 0.5f;
-            if (prox < 0.0f) prox = 0.0f;
-            float max_vx = 1.0f + 3.0f * prox;
-
-            if (vx_now > max_vx) {
-                if (a_x_cmd > 0.0f) a_x_cmd = 0.0f;
-            } else {
-                if (a_x_cmd > 1.0f) a_x_cmd = 1.0f;
-            }
-        }
-    }
-
-    /* Minimum acceleration: prevent car from nearly stopping.
-     * At very low speed the optimizer can't plan turns effectively. */
-    {
-        float vx_now = fp_to_float(mpcc_state.vx);
-        if (vx_now < 1.5f && a_x_cmd < 0.5f)
-            a_x_cmd = 0.5f;
-    }
-
-    /* Diagnostic: show state + ACTUAL commands sent (after ramp/clamp) */
+    /* Diagnostic: show state + actual commands sent */
     if (solve_count <= 20 || (solve_count % 10 == 0)) {
         fprintf(stderr,
             "[MPCC %3u] s=%.2f n=%.3f a=%.3f vx=%.2f | "
@@ -399,6 +335,11 @@ int main(int argc, const char *argv[])
         if ((v = getenv("DT")))              cfg.dt                = float_to_fp((float)atof(v));
         if ((v = getenv("V_THETA_MAX")))     cfg.v_theta_max       = float_to_fp((float)atof(v));
         if ((v = getenv("V_THETA_MIN")))     cfg.v_theta_min       = float_to_fp((float)atof(v));
+        if ((v = getenv("MU")))              cfg.mu                = float_to_fp((float)atof(v));
+        if ((v = getenv("C_SF")))            cfg.C_Sf              = float_to_fp((float)atof(v));
+        if ((v = getenv("C_SR")))            cfg.C_Sr              = float_to_fp((float)atof(v));
+        if ((v = getenv("AX_MAX")))          cfg.ax_max            = float_to_fp((float)atof(v));
+        if ((v = getenv("AX_MIN")))          cfg.ax_min            = float_to_fp((float)atof(v));
 
         /* Apply the possibly-modified config */
         mpcc_set_configuration(&cfg);
