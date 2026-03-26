@@ -81,6 +81,8 @@ static MPCCConfiguration_t get_default_config(void)
 
     /* Frenet tracking */
     cfg.weight_n = MPCC_DEFAULT_WEIGHT_N;
+    cfg.weight_contouring = MPCC_DEFAULT_WEIGHT_CONTOURING;
+    cfg.weight_lag = MPCC_DEFAULT_WEIGHT_LAG;
     cfg.weight_alpha = MPCC_DEFAULT_WEIGHT_ALPHA;
     cfg.weight_progress = MPCC_DEFAULT_WEIGHT_PROGRESS;
 
@@ -102,6 +104,8 @@ static MPCCConfiguration_t get_default_config(void)
 
     /* Terminal */
     cfg.weight_n_terminal = MPCC_DEFAULT_WEIGHT_N_TERMINAL;
+    cfg.weight_contouring_terminal = MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL;
+    cfg.weight_lag_terminal = MPCC_DEFAULT_WEIGHT_LAG_TERMINAL;
     cfg.weight_alpha_terminal = MPCC_DEFAULT_WEIGHT_ALPHA_TERMINAL;
     cfg.weight_progress_terminal = MPCC_DEFAULT_WEIGHT_PROGRESS_TERMINAL;
 
@@ -577,7 +581,9 @@ static void build_stage_cost(
 {
     memset(cost, 0, sizeof(*cost));
 
-    /* Quadratic state costs (diagonal) */
+    /* Quadratic state costs (diagonal).
+     * Note: contouring/lag error Q contributions are added separately
+     * in add_contouring_lag_cost() since they depend on the operating point. */
     if (is_terminal)
     {
         cost->Q[MPCC_IDX_N][MPCC_IDX_N] = config.weight_n_terminal;
@@ -623,6 +629,116 @@ static void build_stage_cost(
             fp_add(config.weight_ax, config.weight_ax_rate);
         cost->R[MPCC_IDX_VTHETA][MPCC_IDX_VTHETA] =
             fp_add(config.weight_v_theta, config.weight_v_theta_rate);
+    }
+}
+
+/*===========================================================================
+ * Contouring / Lag Error Linearization (Real MPCC Errors)
+ *===========================================================================
+ *
+ * Standard MPCC (Liniger 2015) defines errors at the virtual arc parameter s:
+ *
+ *   e_c = sin(phi(s)) * (X - gamma_x(s)) - cos(phi(s)) * (Y - gamma_y(s))
+ *   e_l = -cos(phi(s)) * (X - gamma_x(s)) - sin(phi(s)) * (Y - gamma_y(s))
+ *
+ * where gamma(s) is the reference path point and phi(s) is the tangent angle.
+ *
+ * Cost contribution: q_c * e_c^2 + q_l * e_l^2
+ *
+ * Linearized at operating point (s_bar, X_bar, Y_bar):
+ *   e_c ≈ g_c^T x + d_c   where g_c has entries at [s, X, Y]
+ *   e_l ≈ g_l^T x + d_l   where g_l has entries at [s, X, Y]
+ *
+ * Jacobians:
+ *   de_c/ds = -kappa * e_l_bar
+ *   de_c/dX = sin(phi)
+ *   de_c/dY = -cos(phi)
+ *
+ *   de_l/ds = kappa * e_c_bar + 1
+ *   de_l/dX = -cos(phi)
+ *   de_l/dY = -sin(phi)
+ *
+ * Resulting QP cost addition (where cost_form = 0.5 x^T Q x + q^T x):
+ *   Q += 2*(q_c * g_c * g_c^T + q_l * g_l * g_l^T)
+ *   q += 2*(q_c * d_c * g_c + q_l * d_l * g_l)
+ */
+static void add_contouring_lag_cost(
+    MPCCStageCost_t *cost,
+    const MPCCState_t *z_bar,
+    const MPCCPathPoint_t *path_pt,
+    fixed_point_t q_c,
+    fixed_point_t q_l)
+{
+    if (q_c == 0 && q_l == 0) return;
+
+    /* Path quantities at operating point */
+    fixed_point_t sin_phi = fp_sin(path_pt->phi_ref);
+    fixed_point_t cos_phi = fp_cos(path_pt->phi_ref);
+    fixed_point_t kappa   = path_pt->kappa_ref;
+
+    /* Position error in global frame */
+    fixed_point_t dX = fp_sub(z_bar->X, path_pt->x_ref);
+    fixed_point_t dY = fp_sub(z_bar->Y, path_pt->y_ref);
+
+    /* Errors at operating point */
+    fixed_point_t e_c_bar = fp_sub(fp_mul(sin_phi, dX), fp_mul(cos_phi, dY));
+    fixed_point_t e_l_bar = fp_sub(0, fp_add(fp_mul(cos_phi, dX), fp_mul(sin_phi, dY)));
+
+    /* Gradient vectors (only s, X, Y components are nonzero) */
+    fixed_point_t g_c[MPCC_NX];
+    fixed_point_t g_l[MPCC_NX];
+    memset(g_c, 0, sizeof(g_c));
+    memset(g_l, 0, sizeof(g_l));
+
+    g_c[MPCC_IDX_S] = fp_sub(0, fp_mul(kappa, e_l_bar));  /* -kappa * e_l */
+    g_c[MPCC_IDX_X] = sin_phi;
+    g_c[MPCC_IDX_Y] = fp_sub(0, cos_phi);                 /* -cos(phi) */
+
+    g_l[MPCC_IDX_S] = fp_add(fp_mul(kappa, e_c_bar), FP_ONE);  /* kappa * e_c + 1 */
+    g_l[MPCC_IDX_X] = fp_sub(0, cos_phi);                      /* -cos(phi) */
+    g_l[MPCC_IDX_Y] = fp_sub(0, sin_phi);                      /* -sin(phi) */
+
+    /* Constant terms: d = e_bar - g^T * x_bar */
+    fixed_point_t x_bar[MPCC_NX] = {
+        z_bar->s, z_bar->n, z_bar->alpha,
+        z_bar->vx, z_bar->vy, z_bar->omega,
+        z_bar->X, z_bar->Y, z_bar->psi
+    };
+
+    /* d_c = e_c_bar - g_c^T * x_bar */
+    int64_t gc_xbar = 0;
+    int64_t gl_xbar = 0;
+    for (int i = 0; i < MPCC_NX; i++) {
+        gc_xbar += (int64_t)g_c[i] * (int64_t)x_bar[i];
+        gl_xbar += (int64_t)g_l[i] * (int64_t)x_bar[i];
+    }
+    fixed_point_t d_c = fp_sub(e_c_bar, (fixed_point_t)(gc_xbar >> FP_FRAC_BITS));
+    fixed_point_t d_l = fp_sub(e_l_bar, (fixed_point_t)(gl_xbar >> FP_FRAC_BITS));
+
+    /* Add to Q matrix:  Q += 2*(q_c * g_c * g_c^T + q_l * g_l * g_l^T)
+     * (factor 2 because cost form is 0.5 * x^T Q x) */
+    for (int i = 0; i < MPCC_NX; i++) {
+        if (g_c[i] == 0 && g_l[i] == 0) continue;
+        for (int j = 0; j < MPCC_NX; j++) {
+            if (g_c[j] == 0 && g_l[j] == 0) continue;
+            int64_t qc_gi_gj = (int64_t)q_c * (int64_t)g_c[i] >> FP_FRAC_BITS;
+            qc_gi_gj = qc_gi_gj * (int64_t)g_c[j] >> FP_FRAC_BITS;
+            int64_t ql_gi_gj = (int64_t)q_l * (int64_t)g_l[i] >> FP_FRAC_BITS;
+            ql_gi_gj = ql_gi_gj * (int64_t)g_l[j] >> FP_FRAC_BITS;
+            fixed_point_t contrib = (fixed_point_t)((qc_gi_gj + ql_gi_gj) * 2);
+            cost->Q[i][j] = fp_add(cost->Q[i][j], contrib);
+        }
+    }
+
+    /* Add to q vector:  q += 2*(q_c * d_c * g_c + q_l * d_l * g_l) */
+    for (int i = 0; i < MPCC_NX; i++) {
+        if (g_c[i] == 0 && g_l[i] == 0) continue;
+        int64_t qc_dc_gi = (int64_t)q_c * (int64_t)d_c >> FP_FRAC_BITS;
+        qc_dc_gi = qc_dc_gi * (int64_t)g_c[i] >> FP_FRAC_BITS;
+        int64_t ql_dl_gi = (int64_t)q_l * (int64_t)d_l >> FP_FRAC_BITS;
+        ql_dl_gi = ql_dl_gi * (int64_t)g_l[i] >> FP_FRAC_BITS;
+        fixed_point_t contrib = (fixed_point_t)((qc_dc_gi + ql_dl_gi) * 2);
+        cost->q[i] = fp_add(cost->q[i], contrib);
     }
 }
 
@@ -717,6 +833,10 @@ static void build_qp_problem(
         /* Build stage cost */
         build_stage_cost(&qp->stage_cost[k], 0);
 
+        /* Add real contouring/lag error cost (linearized at operating point) */
+        add_contouring_lag_cost(&qp->stage_cost[k], &z_bar, &path_pt,
+                                config.weight_contouring, config.weight_lag);
+
         /* Override vx_ref with the per-stage value from the raceline velocity
          * profile so the solver naturally slows before turns. */
         if (path_pt.vx_ref > 0 && config.weight_vx > 0) {
@@ -790,6 +910,12 @@ static void build_qp_problem(
 
         /* Terminal cost — also override vx_ref so terminal matches stage vx targets */
         build_stage_cost(&qp->terminal_cost, 1);
+
+        /* Add real contouring/lag error cost at terminal stage */
+        add_contouring_lag_cost(&qp->terminal_cost, &z_bar, &path_pt,
+                                config.weight_contouring_terminal,
+                                config.weight_lag_terminal);
+
         if (path_pt.vx_ref > 0 && config.weight_vx > 0) {
             qp->terminal_cost.q[MPCC_IDX_VX] = fp_sub(0,
                 fp_mul(FP_CONST(2.0), fp_mul(config.weight_vx, path_pt.vx_ref)));

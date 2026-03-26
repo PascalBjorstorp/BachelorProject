@@ -275,8 +275,10 @@ int main(void)
     cfg.horizon_steps     = env_int("HORIZON", 10);
     cfg.dt                = FP_CONST(env_double("DT", 0.0425));
 
-    /* Frenet tracking (tuned via aligned-dynamics full sweep: score=117.63) */
-    cfg.weight_n          = FP_CONST(env_double("Q_N", 50.0));
+    /* Frenet tracking */
+    cfg.weight_n          = FP_CONST(env_double("Q_N", 0.0));
+    cfg.weight_contouring = FP_CONST(env_double("Q_CONTOURING", 50.0));
+    cfg.weight_lag        = FP_CONST(env_double("Q_LAG", 100.0));
     cfg.weight_alpha      = FP_CONST(env_double("Q_ALPHA", 20.0));
     cfg.weight_progress   = FP_CONST(env_double("Q_PROGRESS", 2.0));
 
@@ -297,7 +299,9 @@ int main(void)
     cfg.weight_v_theta_rate = FP_CONST(env_double("W_VTHETA_RATE", 0.1));
 
     /* Terminal */
-    cfg.weight_n_terminal       = FP_CONST(env_double("Q_N_TERM", 100.0));
+    cfg.weight_n_terminal       = FP_CONST(env_double("Q_N_TERM", 0.0));
+    cfg.weight_contouring_terminal = FP_CONST(env_double("Q_CONTOURING_TERM", 100.0));
+    cfg.weight_lag_terminal     = FP_CONST(env_double("Q_LAG_TERM", 200.0));
     cfg.weight_alpha_terminal   = FP_CONST(env_double("Q_ALPHA_TERM", 10.0));
     cfg.weight_progress_terminal = FP_CONST(env_double("Q_PROGRESS_TERM", 5.0));
 
@@ -326,9 +330,11 @@ int main(void)
     cfg.C_Sr = FP_CONST(env_double("C_SR", 3.473));
 
     if (verbose) {
-        printf("  Config: N=%d dt=%.3f Q_n=%.1f Q_alpha=%.1f Q_prog=%.1f\n",
+        printf("  Config: N=%d dt=%.3f Q_n=%.1f Q_c=%.1f Q_l=%.1f Q_alpha=%.1f Q_prog=%.1f\n",
                cfg.horizon_steps, fp_to_float(cfg.dt),
-               fp_to_float(cfg.weight_n), fp_to_float(cfg.weight_alpha),
+               fp_to_float(cfg.weight_n),
+               fp_to_float(cfg.weight_contouring), fp_to_float(cfg.weight_lag),
+               fp_to_float(cfg.weight_alpha),
                fp_to_float(cfg.weight_progress));
         printf("  Q_vx=%.1f vx_ref=%.1f R_delta=%.2f R_ax=%.3f R_vt=%.2f\n",
                fp_to_float(cfg.weight_vx), fp_to_float(cfg.vx_ref),

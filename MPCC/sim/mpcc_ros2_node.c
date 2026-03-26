@@ -377,6 +377,8 @@ int main(int argc, const char *argv[])
 
         const char *v;
         if ((v = getenv("Q_N")))             cfg.weight_n          = float_to_fp((float)atof(v));
+        if ((v = getenv("Q_CONTOURING")))    cfg.weight_contouring = float_to_fp((float)atof(v));
+        if ((v = getenv("Q_LAG")))           cfg.weight_lag        = float_to_fp((float)atof(v));
         if ((v = getenv("Q_ALPHA")))         cfg.weight_alpha      = float_to_fp((float)atof(v));
         if ((v = getenv("Q_PROGRESS")))      cfg.weight_progress   = float_to_fp((float)atof(v));
         if ((v = getenv("Q_VX")))            cfg.weight_vx         = float_to_fp((float)atof(v));
@@ -390,6 +392,8 @@ int main(int argc, const char *argv[])
         if ((v = getenv("W_AX_RATE")))       cfg.weight_ax_rate    = float_to_fp((float)atof(v));
         if ((v = getenv("W_VTHETA_RATE")))   cfg.weight_v_theta_rate = float_to_fp((float)atof(v));
         if ((v = getenv("Q_N_TERM")))        cfg.weight_n_terminal = float_to_fp((float)atof(v));
+        if ((v = getenv("Q_CONTOURING_TERM"))) cfg.weight_contouring_terminal = float_to_fp((float)atof(v));
+        if ((v = getenv("Q_LAG_TERM")))      cfg.weight_lag_terminal = float_to_fp((float)atof(v));
         if ((v = getenv("Q_ALPHA_TERM")))    cfg.weight_alpha_terminal = float_to_fp((float)atof(v));
         if ((v = getenv("Q_PROGRESS_TERM"))) cfg.weight_progress_terminal = float_to_fp((float)atof(v));
         if ((v = getenv("ADMM_RHO")))        cfg.admm_rho          = float_to_fp((float)atof(v));
@@ -403,10 +407,12 @@ int main(int argc, const char *argv[])
         /* Apply the possibly-modified config */
         mpcc_set_configuration(&cfg);
 
-        printf("[MPCC] Config: N=%d dt=%.3f Q_n=%.1f Q_alpha=%.1f Q_prog=%.1f "
-               "R_delta=%.2f W_drate=%.1f ADMM_rho=%.2f\n",
+        printf("[MPCC] Config: N=%d dt=%.3f Q_n=%.1f Q_c=%.1f Q_l=%.1f Q_alpha=%.1f "
+               "Q_prog=%.1f R_delta=%.2f W_drate=%.1f ADMM_rho=%.2f\n",
                cfg.horizon_steps, fp_to_float(cfg.dt),
-               fp_to_float(cfg.weight_n), fp_to_float(cfg.weight_alpha),
+               fp_to_float(cfg.weight_n),
+               fp_to_float(cfg.weight_contouring), fp_to_float(cfg.weight_lag),
+               fp_to_float(cfg.weight_alpha),
                fp_to_float(cfg.weight_progress),
                fp_to_float(cfg.weight_delta), fp_to_float(cfg.weight_delta_rate),
                fp_to_float(cfg.admm_rho));

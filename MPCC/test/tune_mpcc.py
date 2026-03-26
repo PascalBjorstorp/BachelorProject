@@ -48,8 +48,10 @@ SPIELBERG_RACELINES = {
 }
 
 SPIELBERG_BASE = {
-    # Frenet tracking — tuned on aligned dynamics (25k tests, score=117.63)
-    "Q_N":              50.0,
+    # Tracking — real contouring/lag errors (Liniger MPCC)
+    "Q_N":              0.0,
+    "Q_CONTOURING":     50.0,
+    "Q_LAG":            100.0,
     "Q_ALPHA":          20.0,
     "Q_PROGRESS":       2.0,
     # State regularization
@@ -66,7 +68,9 @@ SPIELBERG_BASE = {
     "W_AX_RATE":        0.1,
     "W_VTHETA_RATE":    0.1,
     # Terminal
-    "Q_N_TERM":         100.0,
+    "Q_N_TERM":         0.0,
+    "Q_CONTOURING_TERM": 100.0,
+    "Q_LAG_TERM":       200.0,
     "Q_ALPHA_TERM":     10.0,
     "Q_PROGRESS_TERM":  5.0,
     # ADMM solver
@@ -85,8 +89,10 @@ HARDWARE_RACELINES = {
 }
 
 HARDWARE_BASE = {
-    # Frenet tracking — higher weights for tight track
-    "Q_N":              500.0,
+    # Tracking — real contouring/lag errors (Liniger MPCC)
+    "Q_N":              0.0,
+    "Q_CONTOURING":     500.0,
+    "Q_LAG":            1000.0,
     "Q_ALPHA":          50.0,
     "Q_PROGRESS":       1.0,
     # State regularization
@@ -103,7 +109,9 @@ HARDWARE_BASE = {
     "W_AX_RATE":        0.1,
     "W_VTHETA_RATE":    0.1,
     # Terminal
-    "Q_N_TERM":         500.0,
+    "Q_N_TERM":         0.0,
+    "Q_CONTOURING_TERM": 500.0,
+    "Q_LAG_TERM":       1000.0,
     "Q_ALPHA_TERM":     50.0,
     "Q_PROGRESS_TERM":  5.0,
     # ADMM solver
@@ -125,7 +133,9 @@ MAX_ALLOWED_COLLISIONS = 0
 
 # ─── Sweep ranges (Spielberg) ────────────────────────────────────────────────
 SPIELBERG_FULL_VALUES = {
-    "Q_N":              [20, 50, 80, 100, 150, 200, 300, 500, 800, 1000],
+    "Q_N":              [0],
+    "Q_CONTOURING":     [10, 20, 50, 80, 100, 200, 500],
+    "Q_LAG":            [10, 50, 100, 200, 500, 1000],
     "Q_ALPHA":          [1, 5, 10, 20, 50, 100, 200],
     "Q_PROGRESS":       [0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0],
     "Q_VX":             [0, 5, 10, 15, 25, 50, 100],
@@ -138,7 +148,9 @@ SPIELBERG_FULL_VALUES = {
     "W_DELTA_RATE":     [0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0],
     "W_AX_RATE":        [0.01, 0.05, 0.1, 0.5, 1.0],
     "W_VTHETA_RATE":    [0.01, 0.05, 0.1, 0.5, 1.0],
-    "Q_N_TERM":         [50, 100, 200, 500, 1000],
+    "Q_N_TERM":         [0],
+    "Q_CONTOURING_TERM": [50, 100, 200, 500],
+    "Q_LAG_TERM":       [100, 200, 500, 1000],
     "Q_ALPHA_TERM":     [5, 10, 50, 100],
     "Q_PROGRESS_TERM":  [1, 5, 10, 20, 50],
     "ADMM_RHO":         [0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0],
@@ -150,7 +162,9 @@ SPIELBERG_FULL_VALUES = {
 }
 
 SPIELBERG_QUICK_VALUES = {
-    "Q_N":              [50, 100, 200, 500],
+    "Q_N":              [0],
+    "Q_CONTOURING":     [20, 50, 100, 200],
+    "Q_LAG":            [50, 100, 200, 500],
     "Q_ALPHA":          [5, 10, 50],
     "Q_PROGRESS":       [0.5, 1.0, 5.0, 10.0],
     "Q_VX":             [0, 15, 50],
@@ -165,7 +179,9 @@ SPIELBERG_QUICK_VALUES = {
 
 # ─── Sweep ranges (Hardware) ────────────────────────────────────────────────
 HARDWARE_FULL_VALUES = {
-    "Q_N":              [100, 200, 300, 500, 800, 1000, 2000, 5000, 10000],
+    "Q_N":              [0],
+    "Q_CONTOURING":     [100, 200, 500, 1000, 2000, 5000],
+    "Q_LAG":            [100, 500, 1000, 2000, 5000, 10000],
     "Q_ALPHA":          [5, 10, 20, 50, 100, 200, 500],
     "Q_PROGRESS":       [0.1, 0.5, 1.0, 2.0, 5.0, 10.0],
     "Q_VX":             [0, 5, 10, 15, 25, 50, 100],
@@ -178,7 +194,9 @@ HARDWARE_FULL_VALUES = {
     "W_DELTA_RATE":     [0.5, 1.0, 2.0, 5.0, 10.0, 20.0],
     "W_AX_RATE":        [0.01, 0.05, 0.1, 0.5, 1.0],
     "W_VTHETA_RATE":    [0.01, 0.05, 0.1, 0.5, 1.0],
-    "Q_N_TERM":         [100, 200, 500, 1000, 5000],
+    "Q_N_TERM":         [0],
+    "Q_CONTOURING_TERM": [200, 500, 1000, 5000],
+    "Q_LAG_TERM":       [500, 1000, 2000, 5000],
     "Q_ALPHA_TERM":     [10, 50, 100, 200],
     "Q_PROGRESS_TERM":  [1, 5, 10, 20],
     "ADMM_RHO":         [0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0],
@@ -190,7 +208,9 @@ HARDWARE_FULL_VALUES = {
 }
 
 HARDWARE_QUICK_VALUES = {
-    "Q_N":              [200, 500, 1000, 5000],
+    "Q_N":              [0],
+    "Q_CONTOURING":     [200, 500, 1000, 5000],
+    "Q_LAG":            [200, 1000, 5000],
     "Q_ALPHA":          [10, 50, 200],
     "Q_PROGRESS":       [0.5, 1.0, 5.0],
     "Q_VX":             [0, 15, 50],
@@ -206,6 +226,79 @@ HARDWARE_QUICK_VALUES = {
 # Active sweep values (set by mode selection in main())
 FULL_VALUES = {}
 QUICK_VALUES = {}
+
+# ─── Integer env-var params (read with atoi() in C) ──────────────────────────
+INT_ENV_PARAMS = {"HORIZON", "ADMM_MAX_ITER"}
+
+SUPPORTED_SWEEP_PARAMS = {
+    "Q_N", "Q_CONTOURING", "Q_LAG", "Q_ALPHA", "Q_PROGRESS",
+    "Q_VX", "VX_REF", "Q_VY", "Q_OMEGA",
+    "R_DELTA", "R_AX", "R_VTHETA",
+    "W_DELTA_RATE", "W_AX_RATE", "W_VTHETA_RATE",
+    "Q_N_TERM", "Q_CONTOURING_TERM", "Q_LAG_TERM",
+    "Q_ALPHA_TERM", "Q_PROGRESS_TERM",
+    "ADMM_RHO", "ADMM_MAX_ITER", "ADMM_TOL",
+    "HORIZON", "DT", "V_THETA_MAX",
+}
+
+
+def canonicalize_params_for_env(params: dict) -> dict:
+    """Normalize params to the values MPCC actually receives via env parsing."""
+    out = dict(params)
+    for k in INT_ENV_PARAMS:
+        if k in out:
+            out[k] = int(float(out[k]))
+    return out
+
+
+def assert_sweep_params_supported(values_dict: dict):
+    """Fail fast if sweep keys include unknown/unused MPCC env variables."""
+    unknown = sorted(set(values_dict.keys()) - SUPPORTED_SWEEP_PARAMS)
+    if unknown:
+        raise RuntimeError("Unsupported sweep parameter(s): " + ", ".join(unknown))
+
+
+def _result_signature(r: dict) -> tuple:
+    """Comparable result signature for sanity-checking parameter impact."""
+    return (
+        r.get("status"),
+        r.get("passed"),
+        r.get("failed"),
+        round(r.get("max_lat_err", 0.0), 6),
+        round(r.get("avg_lat_err", 0.0), 6),
+        round(r.get("max_hdg_err", 0.0), 6),
+        round(r.get("avg_hdg_err", 0.0), 6),
+        round(r.get("max_vx", 0.0), 6),
+        round(r.get("avg_vel_err", 0.0), 6),
+        round(r.get("avg_iters", 0.0), 6),
+        r.get("wall_collisions"),
+        round(r.get("time_above_5ms", 0.0), 6),
+    )
+
+
+def sanity_check_parameter_effects(binary: str, raceline: str):
+    """Run small A/B checks so key swept params demonstrably affect output."""
+    baseline = run_test(dict(BASE), binary, raceline)
+    baseline_sig = _result_signature(baseline)
+
+    probes = [
+        ("Q_CONTOURING", max(1.0, float(BASE.get("Q_CONTOURING", 50.0)) * 1.5)),
+        ("Q_LAG", max(1.0, float(BASE.get("Q_LAG", 100.0)) * 1.5)),
+        ("ADMM_RHO", max(1.0, float(BASE.get("ADMM_RHO", 1.0)) * 1.5)),
+        ("HORIZON", int(max(2, min(40, int(BASE.get("HORIZON", 10)) + 5)))),
+    ]
+
+    ineffective = []
+    for name, new_val in probes:
+        p = dict(BASE)
+        p[name] = new_val
+        rr = run_test(p, binary, raceline)
+        if _result_signature(rr) == baseline_sig:
+            ineffective.append(name)
+
+    if ineffective:
+        print("WARNING: Possible no-effect sweep parameters detected: " + ", ".join(ineffective))
+        print("         Verify env-variable plumbing in test_sim_drive/mpcc.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -353,8 +446,9 @@ def gen_one_at_a_time(values_dict):
 
 def gen_primary_grid(values_dict):
     """Grid over key MPCC parameters:
-    Q_N × Q_ALPHA × Q_PROGRESS × HORIZON × V_THETA_MAX (× DT for Hardware)."""
-    qn_vals  = values_dict.get("Q_N", [BASE["Q_N"]])
+    Q_CONTOURING × Q_LAG × Q_ALPHA × Q_PROGRESS × HORIZON × V_THETA_MAX (× DT for Hardware)."""
+    qc_vals  = values_dict.get("Q_CONTOURING", [BASE["Q_CONTOURING"]])
+    ql_vals  = values_dict.get("Q_LAG", [BASE["Q_LAG"]])
     qa_vals  = values_dict.get("Q_ALPHA", [BASE["Q_ALPHA"]])
     qp_vals  = values_dict.get("Q_PROGRESS", [BASE["Q_PROGRESS"]])
     h_vals   = values_dict.get("HORIZON", [BASE["HORIZON"]])
@@ -363,19 +457,19 @@ def gen_primary_grid(values_dict):
     combos = []
     if MODE == "Hardware":
         dt_vals = values_dict.get("DT", [BASE["DT"]])
-        for qn, qa, qp, h, vt, dt in itertools.product(
-                qn_vals, qa_vals, qp_vals, h_vals, vt_vals, dt_vals):
+        for qc, ql, qa, qp, h, vt, dt in itertools.product(
+                qc_vals, ql_vals, qa_vals, qp_vals, h_vals, vt_vals, dt_vals):
             w = dict(BASE)
-            w["Q_N"] = qn; w["Q_ALPHA"] = qa; w["Q_PROGRESS"] = qp
-            w["HORIZON"] = h; w["V_THETA_MAX"] = vt; w["DT"] = dt
-            combos.append((f"QN{qn}_QA{qa}_QP{qp}_H{h}_VT{vt}_DT{dt}", w))
+            w["Q_CONTOURING"] = qc; w["Q_LAG"] = ql; w["Q_ALPHA"] = qa
+            w["Q_PROGRESS"] = qp; w["HORIZON"] = h; w["V_THETA_MAX"] = vt; w["DT"] = dt
+            combos.append((f"QC{qc}_QL{ql}_QA{qa}_QP{qp}_H{h}_VT{vt}_DT{dt}", w))
     else:
-        for qn, qa, qp, h, vt in itertools.product(
-                qn_vals, qa_vals, qp_vals, h_vals, vt_vals):
+        for qc, ql, qa, qp, h, vt in itertools.product(
+                qc_vals, ql_vals, qa_vals, qp_vals, h_vals, vt_vals):
             w = dict(BASE)
-            w["Q_N"] = qn; w["Q_ALPHA"] = qa; w["Q_PROGRESS"] = qp
-            w["HORIZON"] = h; w["V_THETA_MAX"] = vt
-            combos.append((f"QN{qn}_QA{qa}_QP{qp}_H{h}_VT{vt}", w))
+            w["Q_CONTOURING"] = qc; w["Q_LAG"] = ql; w["Q_ALPHA"] = qa
+            w["Q_PROGRESS"] = qp; w["HORIZON"] = h; w["V_THETA_MAX"] = vt
+            combos.append((f"QC{qc}_QL{ql}_QA{qa}_QP{qp}_H{h}_VT{vt}", w))
     return combos
 
 
@@ -414,14 +508,14 @@ def gen_velocity_push():
     combos = []
     configs = [
         # High progress reward
-        {"Q_PROGRESS": 10.0, "Q_N": 200, "Q_ALPHA": 50},
-        {"Q_PROGRESS": 20.0, "Q_N": 200, "Q_ALPHA": 50},
-        {"Q_PROGRESS": 10.0, "Q_N": 500, "Q_ALPHA": 100},
-        {"Q_PROGRESS": 20.0, "Q_N": 500, "Q_ALPHA": 100},
+        {"Q_PROGRESS": 10.0, "Q_CONTOURING": 200, "Q_LAG": 500, "Q_ALPHA": 50},
+        {"Q_PROGRESS": 20.0, "Q_CONTOURING": 200, "Q_LAG": 500, "Q_ALPHA": 50},
+        {"Q_PROGRESS": 10.0, "Q_CONTOURING": 500, "Q_LAG": 1000, "Q_ALPHA": 100},
+        {"Q_PROGRESS": 20.0, "Q_CONTOURING": 500, "Q_LAG": 1000, "Q_ALPHA": 100},
         # High velocity tracking
-        {"Q_VX": 100, "VX_REF": 12.0, "Q_N": 200},
-        {"Q_VX": 100, "VX_REF": 15.0, "Q_N": 200},
-        {"Q_VX": 100, "VX_REF": 12.0, "Q_N": 500},
+        {"Q_VX": 100, "VX_REF": 12.0, "Q_CONTOURING": 200},
+        {"Q_VX": 100, "VX_REF": 15.0, "Q_CONTOURING": 200},
+        {"Q_VX": 100, "VX_REF": 12.0, "Q_CONTOURING": 500},
         # Large V_THETA_MAX (progress uncapped)
         {"V_THETA_MAX": 8.0, "Q_PROGRESS": 5.0},
         {"V_THETA_MAX": 12.0, "Q_PROGRESS": 5.0},
@@ -434,7 +528,7 @@ def gen_velocity_push():
         {"HORIZON": 40, "Q_PROGRESS": 5.0},
         {"HORIZON": 15, "DT": 0.08, "Q_PROGRESS": 5.0},
         # Low yaw rate penalty for cornering
-        {"Q_OMEGA": 0.01, "Q_PROGRESS": 5.0, "Q_N": 200},
+        {"Q_OMEGA": 0.01, "Q_PROGRESS": 5.0, "Q_CONTOURING": 200},
         # High ADMM rho (stiff constraints)
         {"ADMM_RHO": 10.0, "Q_PROGRESS": 5.0},
         {"ADMM_RHO": 20.0, "Q_PROGRESS": 5.0},
@@ -468,7 +562,7 @@ def gen_fine_tuning(best_weights,
             combos.append((f"FT:{name}{sign}{pct}%", w))
 
     # Pairwise perturbation of key params
-    key_params = ["Q_N", "Q_ALPHA", "Q_PROGRESS", "R_DELTA", "V_THETA_MAX", "HORIZON",
+    key_params = ["Q_CONTOURING", "Q_LAG", "Q_ALPHA", "Q_PROGRESS", "R_DELTA", "V_THETA_MAX", "HORIZON",
                   "ADMM_RHO", "W_DELTA_RATE"]
     for w1, w2 in itertools.combinations(key_params, 2):
         v1 = best_weights.get(w1, 0)
