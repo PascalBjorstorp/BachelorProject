@@ -38,7 +38,7 @@ set(MPC_FPGA_CORE_SOURCES
     src/vehicle_model_hls.c
     src/riccati_solver_hls.c
     src/mpc_riccati_hls.c
-    src/mpc_fpga_top.c
+    src/mpc_fpga_top.cpp
 )
 
 add_library(mpc_fpga_core STATIC ${MPC_FPGA_CORE_SOURCES})

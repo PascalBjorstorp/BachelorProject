@@ -39,25 +39,25 @@ def generate_launch_description():
     
     min_lookahead_arg = DeclareLaunchArgument(
         'min_lookahead',
-        default_value='0.3',
+        default_value='0.49',
         description='Minimum lookahead distance [m]'
     )
     
     max_lookahead_arg = DeclareLaunchArgument(
         'max_lookahead',
-        default_value='2.0',
+        default_value='1.67',
         description='Maximum lookahead distance [m]'
     )
     
     lookahead_gain_arg = DeclareLaunchArgument(
         'lookahead_gain',
-        default_value='0.10',
+        default_value='0.16',
         description='Velocity-proportional lookahead gain'
     )
 
     max_speed_arg = DeclareLaunchArgument(
         'max_speed',
-        default_value='2.0',
+        default_value='5.0',
         description='Maximum commanded speed cap [m/s]'
     )
 
@@ -69,25 +69,25 @@ def generate_launch_description():
 
     cte_lookahead_gain_arg = DeclareLaunchArgument(
         'cte_lookahead_gain',
-        default_value='0.0',
+        default_value='0.07',
         description='Lookahead reduction gain based on cross-track error [m/m]'
     )
 
     curvature_lookahead_gain_arg = DeclareLaunchArgument(
         'curvature_lookahead_gain',
-        default_value='0.0',
+        default_value='0.07',
         description='Lookahead reduction gain based on path curvature [m/(1/m)]'
     )
 
     curvature_speed_factor_arg = DeclareLaunchArgument(
         'curvature_speed_factor',
-        default_value='0.30',
+        default_value='0.48',
         description='Curvature-based speed slowdown aggressiveness'
     )
 
     curvature_speed_floor_ratio_arg = DeclareLaunchArgument(
         'curvature_speed_floor_ratio',
-        default_value='0.6',
+        default_value='0.36',
         description='Minimum speed ratio after curvature slowdown [0..1]'
     )
     
