@@ -21,13 +21,13 @@ def generate_launch_description():
     try:
         f1tenth_planning_share = get_package_share_directory('f1tenth_planning')
         default_trajectory = os.path.join(
-            f1tenth_planning_share, 'trajectories', 'Spielberg_raceline.csv'
+            f1tenth_planning_share, 'trajectories', 'my_track_raceline.csv'
         )
     except Exception:
         # Fallback: try workspace source directory
         workspace_root = os.path.dirname(os.path.dirname(f1tenth_control_share))
         default_trajectory = os.path.join(
-            workspace_root, 'f1tenth_planning', 'trajectories', 'Spielberg_raceline.csv'
+            workspace_root, 'f1tenth_planning', 'trajectories', 'my_track_raceline.csv'
         )
     
     # Launch arguments
@@ -39,13 +39,13 @@ def generate_launch_description():
     
     min_lookahead_arg = DeclareLaunchArgument(
         'min_lookahead',
-        default_value='0.2',
+        default_value='0.3',
         description='Minimum lookahead distance [m]'
     )
     
     max_lookahead_arg = DeclareLaunchArgument(
         'max_lookahead',
-        default_value='1.5',
+        default_value='2.0',
         description='Maximum lookahead distance [m]'
     )
     
@@ -81,13 +81,13 @@ def generate_launch_description():
 
     curvature_speed_factor_arg = DeclareLaunchArgument(
         'curvature_speed_factor',
-        default_value='0.20',
+        default_value='0.30',
         description='Curvature-based speed slowdown aggressiveness'
     )
 
     curvature_speed_floor_ratio_arg = DeclareLaunchArgument(
         'curvature_speed_floor_ratio',
-        default_value='0.85',
+        default_value='0.6',
         description='Minimum speed ratio after curvature slowdown [0..1]'
     )
     

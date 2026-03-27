@@ -90,9 +90,6 @@ ros2 launch f1tenth_localization cpp_localization.launch.py
 ros2 launch f1tenth_control pure_pursuit_launch.py \
   trajectory_file:=/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv \
   max_speed:=3.0 \
-  min_lookahead:=0.265 \
-  max_lookahead:=2.0 \
-  lookahead_gain:=0.10
 ```
 
 ### Terminal 3 — Model Predictive Control (on Jetson)
