@@ -30,8 +30,8 @@
  * Base Addresses (set in Vivado Address Editor)
  *===========================================================================*/
 
-#define MPC_FPGA_BASE_ADDR      0xA0000000  /* MPC IP AXI-Lite control */
-#define AXI_DMA_BASE_ADDR       0xA0010000  /* AXI DMA controller */
+#define MPC_FPGA_BASE_ADDR      0xA0010000  /* MPC IP AXI-Lite control */
+#define AXI_DMA_BASE_ADDR       0xA0000000  /* AXI DMA controller */
 #define DMA_BUFFER_PHYS_ADDR    0x70000000  /* Reserved memory for DMA */
 
 /*===========================================================================

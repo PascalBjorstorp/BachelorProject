@@ -295,6 +295,15 @@ public:
         struct timespec t0, t1;
         clock_gettime(CLOCK_MONOTONIC_RAW, &t0);
 
+        // --- Start MPC IP (required for AXI-Stream to be accepted) ---
+        // Clear any pending interrupt status bits before starting
+        uint32_t isr = mpc_read(REG_ISR);
+        if (isr) {
+            mpc_write(REG_ISR, isr);  // Write 1 to clear pending interrupts
+        }
+        // Start the MPC IP
+        mpc_write(REG_AP_CTRL, AP_START);
+
         // --- Start DMA transfer ---
         // Configure source address (physical address of our buffer)
         dma_write(DMA_MM2S_SRC_LO, static_cast<uint32_t>(dma_buf_phys_ & 0xFFFFFFFFULL));
@@ -317,10 +326,10 @@ public:
         }
 
         // --- Wait for MPC compute completion ---
-        // With AXI-Stream, FPGA starts automatically when data arrives
         // AP_DONE indicates MPC computation finished
         if (!wait_mpc_done(200000)) {
             fprintf(stderr, "MPC-FPGA: MPC compute timeout (DMA OK)\n");
+            reset_dma();  // Reset DMA to recover for next attempt
             last_compute_ns_ = -1;
             return false;
         }
@@ -328,6 +337,17 @@ public:
         clock_gettime(CLOCK_MONOTONIC_RAW, &t1);
         last_compute_ns_ = (t1.tv_sec - t0.tv_sec) * 1000000000LL
                           + (t1.tv_nsec - t0.tv_nsec);
+
+        // Ensure output registers are marked valid before reading.
+        if (!wait_output_valid(50000)) {
+            const uint32_t steer_vld = mpc_read(REG_OUT_STEERING_VLD);
+            const uint32_t accel_vld = mpc_read(REG_OUT_ACCEL_VLD);
+            fprintf(stderr,
+                "MPC-FPGA: output valid timeout (steer_vld=0x%08X, accel_vld=0x%08X)\n",
+                steer_vld, accel_vld);
+            last_compute_ns_ = -1;
+            return false;
+        }
 
         // --- Read output registers ---
         out_steering_fp = static_cast<int32_t>(mpc_read(REG_OUT_STEERING));
@@ -419,6 +439,15 @@ private:
     bool wait_mpc_done(int timeout_cycles) {
         while (timeout_cycles-- > 0) {
             if (mpc_read(REG_AP_CTRL) & AP_DONE) return true;
+        }
+        return false;
+    }
+
+    bool wait_output_valid(int timeout_cycles) {
+        while (timeout_cycles-- > 0) {
+            const uint32_t steer_vld = mpc_read(REG_OUT_STEERING_VLD);
+            const uint32_t accel_vld = mpc_read(REG_OUT_ACCEL_VLD);
+            if ((steer_vld & 0x1u) && (accel_vld & 0x1u)) return true;
         }
         return false;
     }
@@ -660,6 +689,20 @@ private:
         if (!has_required_horizon_data(msg)) {
             RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
                 "No streamed waypoint data in message");
+            return;
+        }
+
+        // Validate array sizes to prevent out-of-bounds access
+        const size_t horizon = std::min(static_cast<size_t>(msg->horizon_length),
+                                        static_cast<size_t>(MPC_HORIZON));
+        if (msg->ref_vx_fp.size() < horizon ||
+            msg->ref_kappa_fp.size() < horizon ||
+            msg->ref_left_bound_fp.size() < horizon ||
+            msg->ref_right_bound_fp.size() < horizon) {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+                "Horizon data arrays too small for horizon_length=%zu, got sizes: vx=%zu kappa=%zu left=%zu right=%zu",
+                horizon, msg->ref_vx_fp.size(), msg->ref_kappa_fp.size(),
+                msg->ref_left_bound_fp.size(), msg->ref_right_bound_fp.size());
             return;
         }
 

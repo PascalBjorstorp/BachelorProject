@@ -119,6 +119,10 @@ test-results/
 # URDF compiled from xacro
 *.urdf
 
+# Bags
+*.db3
+*.bag
+
 # =============================================
 # Documentation Build
 # =============================================
@@ -266,5 +270,3 @@ MPC/test_sim_drive
 
 
 # Ignore ROS2 bag database files
-bags/*.db3
-bags/*/*.db3
