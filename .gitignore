@@ -122,7 +122,7 @@ test-results/
 # Bags
 *.db3
 *.bag
-/bags/
+bags/
 
 # =============================================
 # Documentation Build
