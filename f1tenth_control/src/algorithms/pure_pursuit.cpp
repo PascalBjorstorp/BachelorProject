@@ -465,6 +465,13 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
         1.0 / (1.0 + config_.curvature_speed_factor * max_upcoming_curvature);
     curvature_speed_scale = std::clamp(curvature_speed_scale, floor_ratio, 1.0);
     target_speed *= curvature_speed_scale;
+
+    // Additional slowdown when cross-track error grows, improving robustness
+    // against lap-to-lap drift at higher speeds.
+    const double cte_floor_ratio = std::clamp(config_.cte_speed_floor_ratio, 0.0, 1.0);
+    double cte_speed_scale = 1.0 / (1.0 + config_.cte_speed_factor * std::abs(output.cross_track_error));
+    cte_speed_scale = std::clamp(cte_speed_scale, cte_floor_ratio, 1.0);
+    target_speed *= cte_speed_scale;
     
     // Fill output
     output.steering_angle = steering_angle;
