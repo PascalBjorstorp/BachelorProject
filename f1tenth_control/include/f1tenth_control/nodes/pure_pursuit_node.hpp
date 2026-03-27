@@ -67,12 +67,13 @@ private:
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_pub_;
     
     // Soft start
-    rclcpp::Time soft_start_time_;
+    double soft_start_distance_traveled_{0.0};
     bool soft_start_initialized_{false};
     double last_cmd_steering_{0.0};
     double last_cmd_speed_{0.0};
     bool cmd_history_initialized_{false};
     rclcpp::Time last_cmd_time_;
+    Point2D last_position_;
     
     // Parameters
     std::string trajectory_file_;

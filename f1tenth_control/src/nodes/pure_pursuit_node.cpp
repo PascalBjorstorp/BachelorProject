@@ -435,6 +435,8 @@ void PurePursuitNode::enableCallback(const std_msgs::msg::Bool::SharedPtr msg) {
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
             cmd_history_initialized_ = false;
+            soft_start_initialized_ = false;
+            soft_start_distance_traveled_ = 0.0;
             last_cmd_speed_ = 0.0;
             last_cmd_steering_ = 0.0;
         }
@@ -599,21 +601,28 @@ void PurePursuitNode::controlLoop() {
     }
     
     if (output.valid) {
-        // Soft start: cap speed to 1.0 m/s for the first 2 seconds
+        // Soft start: cap speed to 1.0 m/s for the first 2 meters
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
             if (!soft_start_initialized_) {
-                soft_start_time_ = now();
+                soft_start_distance_traveled_ = 0.0;
+                last_position_ = {state.pose.x, state.pose.y};
                 soft_start_initialized_ = true;
-                RCLCPP_INFO(get_logger(), "Soft start: capping speed to 1.0 m/s for 2 seconds");
+                RCLCPP_INFO(get_logger(), "Soft start: capping speed to 1.0 m/s for first 2 meters");
+            } else if (soft_start_distance_traveled_ < 2.0) {
+                const double dx = state.pose.x - last_position_.x;
+                const double dy = state.pose.y - last_position_.y;
+                soft_start_distance_traveled_ += std::sqrt(dx * dx + dy * dy);
+                last_position_ = {state.pose.x, state.pose.y};
             }
         }
-        double elapsed = 0.0;
+        
+        double soft_start_dist = 0.0;
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
-            elapsed = (now() - soft_start_time_).seconds();
+            soft_start_dist = soft_start_distance_traveled_;
         }
-        if (elapsed < 2.0) {
+        if (soft_start_dist < 2.0) {
             output.target_speed = std::min(output.target_speed, 1.0);
         }
 
@@ -709,8 +718,6 @@ void PurePursuitNode::publishLookaheadMarker(const PurePursuitOutput& output) {
     
     viz_pub_->publish(markers);
 }
-
-
 
 }  // namespace f1tenth_control
 

@@ -3,7 +3,6 @@
 #include <sstream>
 #include <algorithm>
 #include <cmath>
-#include <stdexcept>
 
 namespace f1tenth_control {
 
@@ -237,298 +236,185 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
         return output;
     }
     
-    // Get current position and heading
-    Point2D position{state.pose.x, state.pose.y};
-    double heading = state.pose.theta;
-    double current_speed = std::abs(state.velocity);
-    current_heading_ = heading;  // Store for heading-aware closest point search
+    const Point2D position{state.pose.x, state.pose.y};
+    const double heading = state.pose.theta;
+    const double current_speed = std::abs(state.velocity);
+    current_heading_ = heading;
     
-    // Find closest point on trajectory
-    size_t closest_idx = findClosestPoint(position);
+    const size_t n = trajectory_.size();
+    const bool closed_loop = isTrajectoryClosed();
+    
+    // Helper to get next index (wrap-aware)
+    auto next_idx = [n, closed_loop](size_t i) -> size_t {
+        return closed_loop ? ((i + 1) % n) : std::min(i + 1, n - 1);
+    };
+    
+    const size_t closest_idx = findClosestPoint(position);
     const auto& closest_pt = trajectory_[closest_idx];
     
-    // Compute cross-track error (signed distance to path)
-    double dx = closest_pt.x - position.x;
-    double dy = closest_pt.y - position.y;
-    double path_heading = closest_pt.heading;
+    // Cross-track error (signed)
+    const double path_heading = closest_pt.heading;
+    const double dx = closest_pt.x - position.x;
+    const double dy = closest_pt.y - position.y;
     output.cross_track_error = -std::sin(path_heading) * dx + std::cos(path_heading) * dy;
 
-    // Corridor-aware footprint clearance at closest point (if bounds are available).
+    // Corridor clearance
     const bool have_bounds = std::isfinite(closest_pt.left_bound) && std::isfinite(closest_pt.right_bound);
-    const double required_half_width = std::max(0.0, config_.vehicle_half_width) +
-                                       std::max(0.0, config_.wall_safety_margin);
+    const double required_half_width = config_.vehicle_half_width + config_.wall_safety_margin;
     double usable_half_width = std::numeric_limits<double>::infinity();
     if (have_bounds) {
-        const double left_clearance = closest_pt.left_bound - output.cross_track_error;
-        const double right_clearance = closest_pt.right_bound + output.cross_track_error;
-        const double corridor_clearance = std::min(left_clearance, right_clearance);
+        const double corridor_clearance = std::min(
+            closest_pt.left_bound - output.cross_track_error,
+            closest_pt.right_bound + output.cross_track_error);
         usable_half_width = corridor_clearance - required_half_width;
     }
     
-    // Compute adaptive lookahead distance
-    // Base: min + velocity-proportional gain
+    // Adaptive lookahead
     double lookahead_dist = config_.min_lookahead + config_.lookahead_gain * current_speed;
-    
-    // Reduce for cross-track error (tighter tracking when off-path)
     lookahead_dist -= config_.cte_lookahead_gain * config_.cte_lookahead_weight * std::abs(output.cross_track_error);
     
-    // Turn-radius-based limiting: lookahead should not exceed a fraction of turn radius.
-    // Turn radius R = 1/|κ|. Setting L ≤ factor/|κ| keeps arc geometry reasonable.
+    // Turn-radius limit
     const double abs_curvature = std::abs(closest_pt.curvature);
-    if (abs_curvature > 0.05) {  // Only apply for meaningful curvature
-        const double curvature_limited_lookahead = config_.curvature_lookahead_gain / abs_curvature;
-        lookahead_dist = std::min(lookahead_dist, curvature_limited_lookahead);
+    if (abs_curvature > 0.05) {
+        lookahead_dist = std::min(lookahead_dist, config_.curvature_lookahead_gain / abs_curvature);
     }
-
-    // Clamp lookahead by available corridor width so the controller does not
-    // over-preview through tight corners with limited vehicle clearance.
+    
+    // Corridor limit
     if (have_bounds) {
-        const double corridor_limited_lookahead = config_.min_lookahead +
-            std::max(0.0, usable_half_width) * std::max(0.0, config_.corridor_lookahead_factor);
-        lookahead_dist = std::min(lookahead_dist, corridor_limited_lookahead);
+        const double corridor_limit = config_.min_lookahead + 
+            std::max(0.0, usable_half_width) * config_.corridor_lookahead_factor;
+        lookahead_dist = std::min(lookahead_dist, corridor_limit);
     }
-
+    
     lookahead_dist = std::clamp(lookahead_dist, config_.min_lookahead, config_.max_lookahead);
 
-    const bool closed_loop = isTrajectoryClosed();
-
-    // Find lookahead target and interpolate for continuous target tracking.
+    // Find lookahead target with interpolation
     size_t target_idx = closest_idx;
-    size_t target_seg_start_idx = closest_idx;
-    size_t target_seg_end_idx = closest_idx;
-    double target_seg_t = 0.0;
-    const size_t n = trajectory_.size();
+    TrajectoryPoint target_pt = closest_pt;
     double accumulated_dist = 0.0;
-    bool found_target = false;
-    if (closed_loop) {
-        for (size_t i = closest_idx; i < closest_idx + n; ++i) {
-            size_t curr_idx = i % n;
-            size_t next_idx = (i + 1) % n;
-            double segment_dist = math::distance(
-                trajectory_[curr_idx].x, trajectory_[curr_idx].y,
-                trajectory_[next_idx].x, trajectory_[next_idx].y
-            );
-
-            if (segment_dist > 1e-9 && accumulated_dist + segment_dist >= lookahead_dist) {
-                target_seg_start_idx = curr_idx;
-                target_seg_end_idx = next_idx;
-                target_seg_t = (lookahead_dist - accumulated_dist) / segment_dist;
-                target_seg_t = std::clamp(target_seg_t, 0.0, 1.0);
-                target_idx = next_idx;
-                found_target = true;
-                break;
-            }
-
-            accumulated_dist += segment_dist;
-            target_idx = next_idx;
+    const size_t max_steps = closed_loop ? n : (n - closest_idx - 1);
+    
+    for (size_t step = 0; step < max_steps; ++step) {
+        const size_t curr = closed_loop ? ((closest_idx + step) % n) : (closest_idx + step);
+        const size_t next = next_idx(curr);
+        if (next == curr) break;
+        
+        const double seg_dist = math::distance(
+            trajectory_[curr].x, trajectory_[curr].y,
+            trajectory_[next].x, trajectory_[next].y);
+        
+        if (seg_dist > 1e-9 && accumulated_dist + seg_dist >= lookahead_dist) {
+            const double t = std::clamp((lookahead_dist - accumulated_dist) / seg_dist, 0.0, 1.0);
+            target_pt = interpolate(curr, next, t);
+            target_idx = next;
+            break;
         }
-    } else {
-        for (size_t curr_idx = closest_idx; curr_idx + 1 < n; ++curr_idx) {
-            const size_t next_idx = curr_idx + 1;
-            const double segment_dist = math::distance(
-                trajectory_[curr_idx].x, trajectory_[curr_idx].y,
-                trajectory_[next_idx].x, trajectory_[next_idx].y
-            );
-
-            if (segment_dist > 1e-9 && accumulated_dist + segment_dist >= lookahead_dist) {
-                target_seg_start_idx = curr_idx;
-                target_seg_end_idx = next_idx;
-                target_seg_t = (lookahead_dist - accumulated_dist) / segment_dist;
-                target_seg_t = std::clamp(target_seg_t, 0.0, 1.0);
-                target_idx = next_idx;
-                found_target = true;
-                break;
-            }
-
-            accumulated_dist += segment_dist;
-            target_idx = next_idx;
-        }
-    }
-
-    TrajectoryPoint target_pt;
-    if (found_target) {
-        target_pt = interpolate(target_seg_start_idx, target_seg_end_idx, target_seg_t);
-    } else {
-        target_pt = trajectory_[target_idx];
+        accumulated_dist += seg_dist;
+        target_idx = next;
+        target_pt = trajectory_[next];
     }
     
-    // Transform to vehicle frame
-    double cos_h = std::cos(-heading);
-    double sin_h = std::sin(-heading);
-    auto targetToVehicleFrame = [&](const TrajectoryPoint& pt) {
-        const double tx = pt.x - position.x;
-        const double ty = pt.y - position.y;
-        return Point2D{
-            cos_h * tx - sin_h * ty,
-            sin_h * tx + cos_h * ty
-        };
+    // Transform target to vehicle frame
+    const double cos_h = std::cos(-heading);
+    const double sin_h = std::sin(-heading);
+    auto toVehicle = [&](double px, double py) -> Point2D {
+        const double tx = px - position.x;
+        const double ty = py - position.y;
+        return {cos_h * tx - sin_h * ty, sin_h * tx + cos_h * ty};
     };
-
-    Point2D target_vehicle = targetToVehicleFrame(target_pt);
-    double target_x_vehicle = target_vehicle.x;
-    double target_y_vehicle = target_vehicle.y;
-
-    // Guard against behind-target geometry which can yield near-straight steering.
-    if (target_x_vehicle <= 0.0) {
-        bool found_forward_target = false;
-        if (closed_loop) {
-            for (size_t step = 1; step < n; ++step) {
-                const size_t idx = (closest_idx + step) % n;
-                const Point2D candidate = targetToVehicleFrame(trajectory_[idx]);
-                if (candidate.x > 0.05) {
-                    target_idx = idx;
-                    target_pt = trajectory_[idx];
-                    target_x_vehicle = candidate.x;
-                    target_y_vehicle = candidate.y;
-                    found_forward_target = true;
-                    break;
-                }
-            }
-        } else {
-            for (size_t idx = closest_idx + 1; idx < n; ++idx) {
-                const Point2D candidate = targetToVehicleFrame(trajectory_[idx]);
-                if (candidate.x > 0.05) {
-                    target_idx = idx;
-                    target_pt = trajectory_[idx];
-                    target_x_vehicle = candidate.x;
-                    target_y_vehicle = candidate.y;
-                    found_forward_target = true;
-                    break;
-                }
+    
+    Point2D target_vehicle = toVehicle(target_pt.x, target_pt.y);
+    
+    // If target is behind, find forward waypoint
+    if (target_vehicle.x <= 0.0) {
+        bool found = false;
+        for (size_t step = 1; step < max_steps; ++step) {
+            const size_t idx = closed_loop ? ((closest_idx + step) % n) : (closest_idx + step);
+            const Point2D cand = toVehicle(trajectory_[idx].x, trajectory_[idx].y);
+            if (cand.x > 0.05) {
+                target_idx = idx;
+                target_pt = trajectory_[idx];
+                target_vehicle = cand;
+                found = true;
+                break;
             }
         }
-
-        if (!found_forward_target) {
-            return output;
-        }
+        if (!found) return output;
     }
     
-    // Actual lookahead distance
-    double actual_lookahead = std::hypot(target_x_vehicle, target_y_vehicle);
-    if (actual_lookahead < 0.01) {
-        actual_lookahead = 0.01;  // Prevent division by zero
-    }
-    
-    // Pure Pursuit steering law
-    // curvature = 2 * y / L^2 where y is lateral offset in vehicle frame
-    double curvature = 2.0 * target_y_vehicle / (actual_lookahead * actual_lookahead);
-    
-    // Convert curvature to steering angle using bicycle model
+    // Steering computation
+    const double actual_lookahead = std::max(0.01, std::hypot(target_vehicle.x, target_vehicle.y));
+    const double curvature = 2.0 * target_vehicle.y / (actual_lookahead * actual_lookahead);
     double steering_angle = std::atan(config_.wheelbase * curvature);
-    
-    // Clamp steering (hardware servo enforces its own rate limit)
     steering_angle = std::clamp(steering_angle, -config_.max_steering, config_.max_steering);
     
-    // Base speed from trajectory, then apply lookahead-based curvature slowdown.
+    // Speed regulation
     double target_speed = target_pt.velocity;
-
-    // Preview curvature over an extended distance (preview_factor × lookahead)
-    // to allow braking well before entering tight corners.
-    double max_upcoming_curvature = std::abs(closest_pt.curvature);
-    double preview_distance = 0.0;
-    const double preview_factor = std::max(1.0, config_.curvature_preview_factor);
-    const double preview_target = std::max(lookahead_dist * preview_factor, config_.min_lookahead);
-    if (closed_loop) {
-        for (size_t i = closest_idx; i < closest_idx + n && preview_distance < preview_target; ++i) {
-            const size_t curr_idx = i % n;
-            const size_t next_idx = (i + 1) % n;
-
-            const double k0 = trajectory_[curr_idx].curvature;
-            const double k1 = trajectory_[next_idx].curvature;
-            max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(k0));
-
-            const double segment_dist = math::distance(
-                trajectory_[curr_idx].x, trajectory_[curr_idx].y,
-                trajectory_[next_idx].x, trajectory_[next_idx].y
-            );
-
-            if (segment_dist <= 1e-9) {
-                continue;
-            }
-
-            const double remaining = preview_target - preview_distance;
-            if (remaining <= segment_dist) {
-                const double t = std::clamp(remaining / segment_dist, 0.0, 1.0);
-                const double k_interp = k0 + t * (k1 - k0);
-                max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(k_interp));
-                preview_distance = preview_target;
-                break;
-            }
-
-            max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(k1));
-            preview_distance += segment_dist;
+    
+    // Preview curvature for braking
+    const double preview_target = std::max(lookahead_dist * config_.curvature_preview_factor, config_.min_lookahead);
+    double max_curvature = std::abs(closest_pt.curvature);
+    double preview_dist = 0.0;
+    
+    for (size_t step = 0; step < max_steps && preview_dist < preview_target; ++step) {
+        const size_t curr = closed_loop ? ((closest_idx + step) % n) : (closest_idx + step);
+        const size_t next = next_idx(curr);
+        if (next == curr) break;
+        
+        max_curvature = std::max(max_curvature, std::abs(trajectory_[curr].curvature));
+        const double seg_dist = math::distance(
+            trajectory_[curr].x, trajectory_[curr].y,
+            trajectory_[next].x, trajectory_[next].y);
+        
+        if (seg_dist <= 1e-9) continue;
+        
+        const double remaining = preview_target - preview_dist;
+        if (remaining <= seg_dist) {
+            const double t = remaining / seg_dist;
+            const double k_interp = trajectory_[curr].curvature + 
+                t * (trajectory_[next].curvature - trajectory_[curr].curvature);
+            max_curvature = std::max(max_curvature, std::abs(k_interp));
+            break;
         }
-    } else {
-        for (size_t curr_idx = closest_idx; curr_idx + 1 < n && preview_distance < preview_target; ++curr_idx) {
-            const size_t next_idx = curr_idx + 1;
-
-            const double k0 = trajectory_[curr_idx].curvature;
-            const double k1 = trajectory_[next_idx].curvature;
-            max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(k0));
-
-            const double segment_dist = math::distance(
-                trajectory_[curr_idx].x, trajectory_[curr_idx].y,
-                trajectory_[next_idx].x, trajectory_[next_idx].y
-            );
-
-            if (segment_dist <= 1e-9) {
-                continue;
-            }
-
-            const double remaining = preview_target - preview_distance;
-            if (remaining <= segment_dist) {
-                const double t = std::clamp(remaining / segment_dist, 0.0, 1.0);
-                const double k_interp = k0 + t * (k1 - k0);
-                max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(k_interp));
-                preview_distance = preview_target;
-                break;
-            }
-
-            max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(k1));
-            preview_distance += segment_dist;
-        }
+        max_curvature = std::max(max_curvature, std::abs(trajectory_[next].curvature));
+        preview_dist += seg_dist;
     }
-
-    const double floor_ratio = std::clamp(config_.curvature_speed_floor_ratio, 0.0, 1.0);
-    double curvature_speed_scale =
-        1.0 / (1.0 + config_.curvature_speed_factor * max_upcoming_curvature);
-    curvature_speed_scale = std::clamp(curvature_speed_scale, floor_ratio, 1.0);
-    target_speed *= curvature_speed_scale;
-
-    // Additional slowdown when cross-track error grows, improving robustness
-    // against lap-to-lap drift at higher speeds.
-    const double cte_floor_ratio = std::clamp(config_.cte_speed_floor_ratio, 0.0, 1.0);
-    double cte_speed_scale = 1.0 / (1.0 + config_.cte_speed_factor * std::abs(output.cross_track_error));
-    cte_speed_scale = std::clamp(cte_speed_scale, cte_floor_ratio, 1.0);
-    target_speed *= cte_speed_scale;
-
+    
+    // Apply speed scaling factors
+    const double curv_scale = std::clamp(
+        1.0 / (1.0 + config_.curvature_speed_factor * max_curvature),
+        config_.curvature_speed_floor_ratio, 1.0);
+    const double cte_scale = std::clamp(
+        1.0 / (1.0 + config_.cte_speed_factor * std::abs(output.cross_track_error)),
+        config_.cte_speed_floor_ratio, 1.0);
+    target_speed *= curv_scale * cte_scale;
+    
+    // Corridor speed scaling
     if (have_bounds) {
         if (usable_half_width <= 0.0) {
             target_speed = 0.0;
         } else {
-            const double corridor_ref = std::max(0.05, config_.corridor_half_width_ref);
-            const double corridor_floor = std::clamp(config_.corridor_speed_floor_ratio, 0.0, 1.0);
-            double corridor_speed_scale = usable_half_width / corridor_ref;
-            corridor_speed_scale = std::clamp(corridor_speed_scale, corridor_floor, 1.0);
-            target_speed *= corridor_speed_scale;
+            const double corridor_scale = std::clamp(
+                usable_half_width / config_.corridor_half_width_ref,
+                config_.corridor_speed_floor_ratio, 1.0);
+            target_speed *= corridor_scale;
         }
     }
-
-    // Physics-aware speed cap from lateral acceleration: v <= sqrt(a_lat_max / |kappa|).
-    const double kappa_preview = std::max(max_upcoming_curvature, std::abs(curvature));
-    if (config_.max_lateral_accel > 1e-3 && kappa_preview > 1e-5) {
-        const double v_lat_limit = std::sqrt(config_.max_lateral_accel / kappa_preview);
-        target_speed = std::min(target_speed, v_lat_limit);
+    
+    // Physics limit
+    const double kappa = std::max(max_curvature, std::abs(curvature));
+    if (config_.max_lateral_accel > 1e-3 && kappa > 1e-5) {
+        target_speed = std::min(target_speed, std::sqrt(config_.max_lateral_accel / kappa));
     }
-
+    
     target_speed = std::max(config_.min_regulated_speed, target_speed);
     
-    // Fill output
+    // Output
     output.steering_angle = steering_angle;
     output.target_speed = target_speed;
     output.closest_idx = closest_idx;
     output.target_idx = target_idx;
-    output.target_point = Point2D{target_pt.x, target_pt.y};
+    output.target_point = {target_pt.x, target_pt.y};
     output.lookahead_distance = actual_lookahead;
     output.valid = true;
     

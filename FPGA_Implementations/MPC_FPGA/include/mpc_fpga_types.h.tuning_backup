@@ -32,10 +32,10 @@
 #define MPC_NU          2
 
 /** Fixed prediction horizon */
-#define MPC_HORIZON              10
+#define MPC_HORIZON     10
 
 /** Maximum ADMM iterations */
-#define MPC_MAX_ADMM_ITER        20
+#define MPC_MAX_ADMM_ITER 8
 
 /*===========================================================================
  * HLS Resource Constraints
@@ -154,22 +154,22 @@
  * MPC Default Cost Weights (tuned for F1/10th)
  *===========================================================================*/
 
-#define MPC_DT              ((fixed_point_t)3932)   /* 0.06s in Q16.16 */
+#define MPC_DT              FP_CONST(0.06)      /* 0.06s in Q16.16 */
 
 /* Precomputed dt*inv_mass and dt*inv_Iz */
 #define VP_DT_INV_MASS      FP_MUL(MPC_DT, VP_INV_MASS)     /* dt * (1/mass) */
 #define VP_DT_INV_IZ        FP_MUL(MPC_DT, VP_INV_IZ)       /* dt * (1/I_z) */
 
-#define MPC_W_LAT_ERROR          FP_CONST(14000)
-#define MPC_W_HEADING            FP_CONST(950)
-#define MPC_W_VELOCITY           FP_CONST(20)
-#define MPC_W_LAT_VEL            FP_CONST(48.350998)
-#define MPC_W_YAW_RATE           FP_CONST(22.0)
-#define MPC_W_STEER_EFF          FP_CONST(0.15)
-#define MPC_W_ACCEL_EFF          FP_CONST(0.01)
-#define MPC_W_STEER_JERK         FP_CONST(0.3)
-#define MPC_W_ACCEL_RATE         FP_CONST(0.1)    
-#define MPC_W_DELTA_ACT          FP_CONST(0.347091)
+#define MPC_W_LAT_ERROR     FP_CONST(15774.935711)
+#define MPC_W_HEADING       FP_CONST(1229.435672)
+#define MPC_W_VELOCITY      FP_CONST(26.0)
+#define MPC_W_LAT_VEL       FP_CONST(48.350998)
+#define MPC_W_YAW_RATE      FP_CONST(22.0)
+#define MPC_W_STEER_EFF     FP_CONST(0.15)
+#define MPC_W_ACCEL_EFF     FP_CONST(0.01)
+#define MPC_W_STEER_JERK    FP_CONST(0.3)
+#define MPC_W_ACCEL_RATE    FP_CONST(0.1)    
+#define MPC_W_DELTA_ACT     FP_CONST(0.347091)
 
 /* Control period for cross-call rate scaling.
  * Default control loop is 200 Hz => 0.005 s. */
@@ -207,20 +207,20 @@
  *===========================================================================*/
 
 #define BIG_BOUND           FP_CONST(100.0)
-#define MIN_LIN_VEL              FP_CONST(2.0)
-#define STABILITY_LIMIT_VAL      FP_CONST(0.9)
-#define WALL_MARGIN              FP_CONST(0.02)
-#define WALL_START               1
-#define WALL_STRIDE              1
-#define WALL_END                 8
+#define MIN_LIN_VEL         FP_CONST(2.0)
+#define STABILITY_LIMIT_VAL FP_CONST(0.9)
+#define WALL_MARGIN         FP_CONST(0.02)
+#define WALL_START          1
+#define WALL_STRIDE         1
+#define WALL_END            10
 #define V_SWITCH            FP_CONST(7.319)
 #define BOUND_THRESHOLD     FP_CONST(100.0)
-#define WP_ADVANCE_MAX           10  
+#define WP_ADVANCE_MAX      10  
 
 /* ADMM default parameters */
-#define ADMM_RHO_DEFAULT         FP_CONST(25.435364)
-#define ADMM_RHO_U_DEFAULT       FP_CONST(20.0)
-#define ADMM_TOL_DEFAULT         FP_CONST(5.0)
+#define ADMM_RHO_DEFAULT    FP_CONST(25.435364)
+#define ADMM_RHO_U_DEFAULT  FP_CONST(20.0)
+#define ADMM_TOL_DEFAULT    FP_CONST(5.0)
 
 /*===========================================================================
  * Data Structures
