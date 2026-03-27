@@ -73,9 +73,10 @@ source "$ROS_SETUP"
 source "$WS_SETUP"
 set -u  # Re-enable unbound variable check
 
-# sudo -E doesn't preserve PYTHONPATH reliably; pass env vars explicitly
+# sudo -E doesn't preserve env reliably; pass all ROS2 env vars explicitly
 exec sudo PYTHONPATH="$PYTHONPATH" \
           AMENT_PREFIX_PATH="$AMENT_PREFIX_PATH" \
+          LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
           ROS_DISTRO="$ROS_DISTRO" \
           PATH="$PATH" \
   ros2 run state_receiver mpc_receiver_node --ros-args \
