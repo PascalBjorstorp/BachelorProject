@@ -42,7 +42,7 @@ using f1tenth_control::PurePursuitOutput;
 using f1tenth_control::TrajectoryPoint;
 using f1tenth_control::VehicleState;
 
-constexpr double kDefaultDt = 0.01;                  // 100 Hz simulation
+constexpr double kDefaultDt = 0.002;                  // 500 Hz simulation (finer for stability)
 constexpr double kMaxSimTime = 240.0;                // seconds
 constexpr double kSpeedTimeConstant = 0.30;          // seconds
 constexpr double kSteerTimeConstant = 0.10;          // seconds
@@ -57,6 +57,13 @@ constexpr double kMaxLateralAccel = 7.27;            // m/s^2 (mu*g from request
 constexpr double kVehicleHalfWidth = 0.137;          // m
 constexpr double kBodySafetyMargin = 0.040;          // m
 constexpr size_t kClosestWindowMin = 30;
+
+// Enhanced dynamics model constants
+constexpr double kTireLagTimeConstant = 0.025;       // 25ms tire force build-up lag
+constexpr double kFrontGripRatio = 0.70;             // front axle gets 70% of grip
+constexpr double kRearGripRatio = 0.30;              // rear axle gets 30% of grip
+constexpr double kBrakeLoadTransferGain = 0.10;      // extra front grip per m/s^2 braking
+constexpr double kOversteerTendency = 0.15;          // rear-biased slip induces yaw
 
 struct WaypointWithBounds {
     TrajectoryPoint pt;
@@ -336,6 +343,7 @@ SimMetrics runSimulation(const std::vector<WaypointWithBounds>& traj,
     state.velocity = 0.0;
 
     double steer_actual = 0.0;
+    double lateral_force_state = 0.0;  // first-order tire lag state
     size_t closest_idx = 0;
     double sum_cte_sq = 0.0;
     int cte_count = 0;
@@ -381,15 +389,36 @@ SimMetrics runSimulation(const std::vector<WaypointWithBounds>& traj,
         state.velocity += accel_cmd * dt;
         state.velocity = clampValue(state.velocity, 0.0, candidate.max_speed);
 
+        // Enhanced dynamics: compute available grip considering load transfer
+        double effective_max_lat_accel = kMaxLateralAccel;
+        if (accel_cmd < 0.0) {
+            // Braking: weight shifts forward, increasing front grip
+            effective_max_lat_accel += kBrakeLoadTransferGain * std::abs(accel_cmd);
+        }
+
         const double nominal_yaw_rate =
             state.velocity * std::tan(steer_actual) / candidate.config.wheelbase;
         const double nominal_lat_accel = std::abs(state.velocity * nominal_yaw_rate);
+        
+        // First-order tire force lag (τ=25ms)
+        const double target_lateral_force = nominal_lat_accel;
+        const double alpha = dt / (kTireLagTimeConstant + dt);
+        lateral_force_state = lateral_force_state + alpha * (target_lateral_force - lateral_force_state);
+        
+        // Grip saturation check with lagged force
         double grip_scale = 1.0;
-        if (nominal_lat_accel > kMaxLateralAccel) {
-            grip_scale = kMaxLateralAccel / nominal_lat_accel;
+        if (lateral_force_state > effective_max_lat_accel) {
+            grip_scale = effective_max_lat_accel / lateral_force_state;
         }
 
-        const double yaw_rate = nominal_yaw_rate * grip_scale;
+        // Front/rear grip distribution: rear-biased saturation causes oversteer
+        double yaw_rate = nominal_yaw_rate * grip_scale;
+        if (grip_scale < 0.999) {
+            // Rear saturates first → oversteer tendency (additional yaw in turn direction)
+            const double oversteer_yaw_delta = kOversteerTendency * (1.0 - grip_scale) * nominal_yaw_rate;
+            yaw_rate += oversteer_yaw_delta;
+        }
+        
         state.angular_velocity = yaw_rate;
         state.steering_angle = steer_actual;
 
@@ -399,7 +428,7 @@ SimMetrics runSimulation(const std::vector<WaypointWithBounds>& traj,
 
         // Under high lateral demand, emulate understeer by drifting outward.
         if (grip_scale < 0.999) {
-            const double slip_speed = state.velocity * (1.0 - grip_scale);
+            const double slip_speed = state.velocity * (1.0 - grip_scale) * 0.5; // reduced drift
             const double nx = -std::sin(theta);
             const double ny = std::cos(theta);
             const double outward_sign = (steer_actual >= 0.0) ? -1.0 : 1.0;
@@ -479,39 +508,41 @@ double scoreCandidate(const SimMetrics& m) {
 
 Candidate launchLikeBaseline() {
     Candidate c;
-    c.config.min_lookahead = 0.74;
-    c.config.max_lookahead = 1.80;
-    c.config.lookahead_gain = 0.11;
-    c.config.cte_lookahead_weight = 1.5;
-    c.config.cte_lookahead_gain = 0.03;
-    c.config.curvature_lookahead_gain = 0.18;
+    c.config.min_lookahead = 0.48;
+    c.config.max_lookahead = 1.20;
+    c.config.lookahead_gain = 0.15;
+    c.config.cte_lookahead_weight = 1.0;
+    c.config.cte_lookahead_gain = 0.05;
+    c.config.curvature_lookahead_gain = 1.34;  // turn-radius based: L_max = 1.34/|kappa|
     c.config.curvature_speed_factor = 0.10;
-    c.config.curvature_speed_floor_ratio = 0.52;
-    c.config.cte_speed_factor = 0.36;
-    c.config.cte_speed_floor_ratio = 0.37;
+    c.config.curvature_speed_floor_ratio = 0.43;
+    c.config.cte_speed_factor = 0.10;
+    c.config.cte_speed_floor_ratio = 0.50;
+    c.config.curvature_preview_factor = 1.2;
     c.config.max_steering = 0.4189;
     c.config.wheelbase = 0.324;
     c.config.position_tolerance = 0.5;
-    c.max_speed = 5.0;
+    c.max_speed = 5.5;
     return c;
 }
 
 Candidate conservativeSeed() {
     Candidate c;
-    c.config.min_lookahead = 0.60;
-    c.config.max_lookahead = 1.80;
-    c.config.lookahead_gain = 0.10;
+    c.config.min_lookahead = 0.20;
+    c.config.max_lookahead = 0.50;
+    c.config.lookahead_gain = 0.08;
     c.config.cte_lookahead_weight = 1.0;
     c.config.cte_lookahead_gain = 0.03;
-    c.config.curvature_lookahead_gain = 0.06;
-    c.config.curvature_speed_factor = 0.55;
-    c.config.curvature_speed_floor_ratio = 0.50;
-    c.config.cte_speed_factor = 0.8;
-    c.config.cte_speed_floor_ratio = 0.5;
+    c.config.curvature_lookahead_gain = 1.0;  // more aggressive shrink
+    c.config.curvature_speed_factor = 0.40;
+    c.config.curvature_speed_floor_ratio = 0.35;
+    c.config.cte_speed_factor = 0.80;
+    c.config.cte_speed_floor_ratio = 0.35;
+    c.config.curvature_preview_factor = 2.5;
     c.config.max_steering = 0.4189;
     c.config.wheelbase = 0.324;
     c.config.position_tolerance = 0.5;
-    c.max_speed = 2.4;
+    c.max_speed = 2.5;
     return c;
 }
 
@@ -519,21 +550,23 @@ Candidate sampleRandom(std::mt19937& rng) {
     std::uniform_real_distribution<double> u01(0.0, 1.0);
 
     Candidate c;
-    c.config.min_lookahead = 0.40 + 0.60 * u01(rng);
-    c.config.max_lookahead = c.config.min_lookahead + 0.70 + 1.20 * u01(rng);
-    c.config.max_lookahead = std::min(c.config.max_lookahead, 2.60);
-    c.config.lookahead_gain = 0.06 + 0.10 * u01(rng);
+    // Tighter lookahead ranges for sharp corners
+    c.config.min_lookahead = 0.15 + 0.25 * u01(rng);  // [0.15, 0.40]
+    c.config.max_lookahead = c.config.min_lookahead + 0.20 + 0.50 * u01(rng);  // min + [0.20, 0.70]
+    c.config.max_lookahead = std::min(c.config.max_lookahead, 1.20);
+    c.config.lookahead_gain = 0.05 + 0.12 * u01(rng);  // [0.05, 0.17]
     c.config.cte_lookahead_weight = 1.0;
-    c.config.cte_lookahead_gain = 0.00 + 0.08 * u01(rng);
-    c.config.curvature_lookahead_gain = 0.00 + 0.16 * u01(rng);
-    c.config.curvature_speed_factor = 0.25 + 0.85 * u01(rng);
-    c.config.curvature_speed_floor_ratio = 0.35 + 0.35 * u01(rng);
-    c.config.cte_speed_factor = 0.5 + 2.5 * u01(rng);
-    c.config.cte_speed_floor_ratio = 0.20 + 0.40 * u01(rng);
+    c.config.cte_lookahead_gain = 0.00 + 0.06 * u01(rng);  // [0, 0.06]
+    c.config.curvature_lookahead_gain = 0.4 + 1.2 * u01(rng);  // [0.4, 1.6] (turn radius based)
+    c.config.curvature_speed_factor = 0.15 + 0.50 * u01(rng);  // [0.15, 0.65]
+    c.config.curvature_speed_floor_ratio = 0.25 + 0.30 * u01(rng);  // [0.25, 0.55]
+    c.config.cte_speed_factor = 0.3 + 1.2 * u01(rng);  // [0.3, 1.5]
+    c.config.cte_speed_floor_ratio = 0.20 + 0.35 * u01(rng);  // [0.20, 0.55]
+    c.config.curvature_preview_factor = 1.5 + 1.5 * u01(rng);  // [1.5, 3.0]
     c.config.max_steering = 0.4189;
     c.config.wheelbase = 0.324;
     c.config.position_tolerance = 0.5;
-    c.max_speed = 1.8 + 1.5 * u01(rng);
+    c.max_speed = 3.0 + 3.0 * u01(rng);  // [3.0, 6.0]
     return c;
 }
 
@@ -541,19 +574,21 @@ Candidate sampleAround(const Candidate& base, std::mt19937& rng) {
     std::normal_distribution<double> n01(0.0, 1.0);
 
     Candidate c = base;
-    c.config.min_lookahead = clampValue(base.config.min_lookahead + 0.06 * n01(rng), 0.35, 1.20);
-    c.config.max_lookahead = clampValue(base.config.max_lookahead + 0.15 * n01(rng), 1.0, 2.8);
-    if (c.config.max_lookahead < c.config.min_lookahead + 0.45) {
-        c.config.max_lookahead = c.config.min_lookahead + 0.45;
+    // Tighter perturbation ranges matching new parameter space
+    c.config.min_lookahead = clampValue(base.config.min_lookahead + 0.03 * n01(rng), 0.12, 0.50);
+    c.config.max_lookahead = clampValue(base.config.max_lookahead + 0.08 * n01(rng), 0.35, 1.20);
+    if (c.config.max_lookahead < c.config.min_lookahead + 0.15) {
+        c.config.max_lookahead = c.config.min_lookahead + 0.15;
     }
-    c.config.lookahead_gain = clampValue(base.config.lookahead_gain + 0.015 * n01(rng), 0.04, 0.20);
-    c.config.cte_lookahead_gain = clampValue(base.config.cte_lookahead_gain + 0.012 * n01(rng), 0.0, 0.12);
-    c.config.curvature_lookahead_gain = clampValue(base.config.curvature_lookahead_gain + 0.020 * n01(rng), 0.0, 0.25);
-    c.config.curvature_speed_factor = clampValue(base.config.curvature_speed_factor + 0.08 * n01(rng), 0.10, 1.30);
-    c.config.curvature_speed_floor_ratio = clampValue(base.config.curvature_speed_floor_ratio + 0.05 * n01(rng), 0.20, 0.80);
-    c.config.cte_speed_factor = clampValue(base.config.cte_speed_factor + 0.20 * n01(rng), 0.0, 3.5);
-    c.config.cte_speed_floor_ratio = clampValue(base.config.cte_speed_floor_ratio + 0.05 * n01(rng), 0.10, 0.80);
-    c.max_speed = clampValue(base.max_speed + 0.10 * n01(rng), 1.5, 3.4);
+    c.config.lookahead_gain = clampValue(base.config.lookahead_gain + 0.015 * n01(rng), 0.03, 0.18);
+    c.config.cte_lookahead_gain = clampValue(base.config.cte_lookahead_gain + 0.010 * n01(rng), 0.0, 0.08);
+    c.config.curvature_lookahead_gain = clampValue(base.config.curvature_lookahead_gain + 0.15 * n01(rng), 0.3, 2.0);
+    c.config.curvature_speed_factor = clampValue(base.config.curvature_speed_factor + 0.06 * n01(rng), 0.10, 0.80);
+    c.config.curvature_speed_floor_ratio = clampValue(base.config.curvature_speed_floor_ratio + 0.04 * n01(rng), 0.20, 0.60);
+    c.config.cte_speed_factor = clampValue(base.config.cte_speed_factor + 0.15 * n01(rng), 0.1, 2.0);
+    c.config.cte_speed_floor_ratio = clampValue(base.config.cte_speed_floor_ratio + 0.04 * n01(rng), 0.15, 0.60);
+    c.config.curvature_preview_factor = clampValue(base.config.curvature_preview_factor + 0.20 * n01(rng), 1.2, 3.5);
+    c.max_speed = clampValue(base.max_speed + 0.25 * n01(rng), 2.5, 6.0);
     return c;
 }
 
@@ -581,6 +616,7 @@ void printCandidate(const EvaluatedCandidate& e, size_t rank = 0) {
               << ", floor=" << e.candidate.config.curvature_speed_floor_ratio
               << ", kCteV=" << e.candidate.config.cte_speed_factor
               << ", cteFloor=" << e.candidate.config.cte_speed_floor_ratio
+              << ", preview=" << e.candidate.config.curvature_preview_factor
               << "}"
               << "\n";
 }

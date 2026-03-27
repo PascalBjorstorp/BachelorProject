@@ -38,44 +38,44 @@ def generate_launch_description():
     
     min_lookahead_arg = DeclareLaunchArgument(
         'min_lookahead',
-        default_value='0.74',
+        default_value='0.48',
         description='Minimum lookahead distance [m]'
     )
     
     max_lookahead_arg = DeclareLaunchArgument(
         'max_lookahead',
-        default_value='1.80',
+        default_value='1.20',
         description='Maximum lookahead distance [m]'
     )
     
     lookahead_gain_arg = DeclareLaunchArgument(
         'lookahead_gain',
-        default_value='0.11',
+        default_value='0.15',
         description='Velocity-proportional lookahead gain'
     )
 
     max_speed_arg = DeclareLaunchArgument(
         'max_speed',
-        default_value='5.0',
+        default_value='5.5',
         description='Maximum commanded speed cap [m/s]'
     )
 
     cte_lookahead_weight_arg = DeclareLaunchArgument(
         'cte_lookahead_weight',
-        default_value='1.50',
+        default_value='1.0',
         description='Weight on cross-track error in dynamic lookahead'
     )
 
     cte_lookahead_gain_arg = DeclareLaunchArgument(
         'cte_lookahead_gain',
-        default_value='0.03',
+        default_value='0.05',
         description='Lookahead reduction gain based on cross-track error [m/m]'
     )
 
     curvature_lookahead_gain_arg = DeclareLaunchArgument(
         'curvature_lookahead_gain',
-        default_value='0.18',
-        description='Lookahead reduction gain based on path curvature [m/(1/m)]'
+        default_value='1.34',
+        description='Turn-radius-based lookahead limit factor [m·m] (L_max = gain/kappa)'
     )
 
     curvature_speed_factor_arg = DeclareLaunchArgument(
@@ -86,18 +86,19 @@ def generate_launch_description():
 
     curvature_speed_floor_ratio_arg = DeclareLaunchArgument(
         'curvature_speed_floor_ratio',
-        default_value='0.52',
+        default_value='0.43',
         description='Minimum speed ratio after curvature slowdown [0..1]'
     )
 
     cte_speed_factor_arg = DeclareLaunchArgument(
         'cte_speed_factor',
-        default_value='0.36',
+        default_value='0.10',
         description='CTE-based speed slowdown aggressiveness'
     )
 
     cte_speed_floor_ratio_arg = DeclareLaunchArgument(
         'cte_speed_floor_ratio',
+        default_value='0.50',
         default_value='0.37',
         description='Minimum speed ratio after CTE slowdown [0..1]'
     )
@@ -112,6 +113,42 @@ def generate_launch_description():
         'min_regulated_speed',
         default_value='0.30',
         description='Minimum speed allowed after regulation [m/s]'
+    )
+
+    curvature_preview_factor_arg = DeclareLaunchArgument(
+        'curvature_preview_factor',
+        default_value='2.0',
+        description='Preview distance multiplier for curvature-based braking'
+    )
+
+    vehicle_half_width_arg = DeclareLaunchArgument(
+        'vehicle_half_width',
+        default_value='0.1365',
+        description='Half of physical car width for corridor clearance [m]'
+    )
+
+    wall_safety_margin_arg = DeclareLaunchArgument(
+        'wall_safety_margin',
+        default_value='0.03',
+        description='Additional static wall clearance margin [m]'
+    )
+
+    corridor_half_width_ref_arg = DeclareLaunchArgument(
+        'corridor_half_width_ref',
+        default_value='0.25',
+        description='Reference usable half-width for full speed [m]'
+    )
+
+    corridor_speed_floor_ratio_arg = DeclareLaunchArgument(
+        'corridor_speed_floor_ratio',
+        default_value='0.20',
+        description='Floor for corridor-based speed scaling [0..1]'
+    )
+
+    corridor_lookahead_factor_arg = DeclareLaunchArgument(
+        'corridor_lookahead_factor',
+        default_value='2.0',
+        description='Additional lookahead allowed per usable half-width [m/m]'
     )
 
     max_steering_rate_arg = DeclareLaunchArgument(
@@ -171,6 +208,12 @@ def generate_launch_description():
             'cte_speed_floor_ratio': LaunchConfiguration('cte_speed_floor_ratio'),
             'max_lateral_accel': LaunchConfiguration('max_lateral_accel'),
             'min_regulated_speed': LaunchConfiguration('min_regulated_speed'),
+            'curvature_preview_factor': LaunchConfiguration('curvature_preview_factor'),
+            'vehicle_half_width': LaunchConfiguration('vehicle_half_width'),
+            'wall_safety_margin': LaunchConfiguration('wall_safety_margin'),
+            'corridor_half_width_ref': LaunchConfiguration('corridor_half_width_ref'),
+            'corridor_speed_floor_ratio': LaunchConfiguration('corridor_speed_floor_ratio'),
+            'corridor_lookahead_factor': LaunchConfiguration('corridor_lookahead_factor'),
             'max_steering': 0.4189,
             'wheelbase': 0.324,
             'max_steering_rate': LaunchConfiguration('max_steering_rate'),
@@ -202,6 +245,12 @@ def generate_launch_description():
         cte_speed_floor_ratio_arg,
         max_lateral_accel_arg,
         min_regulated_speed_arg,
+        curvature_preview_factor_arg,
+        vehicle_half_width_arg,
+        wall_safety_margin_arg,
+        corridor_half_width_ref_arg,
+        corridor_speed_floor_ratio_arg,
+        corridor_lookahead_factor_arg,
         max_steering_rate_arg,
         max_accel_cmd_arg,
         max_decel_cmd_arg,

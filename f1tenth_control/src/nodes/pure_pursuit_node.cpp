@@ -82,20 +82,28 @@ void PurePursuitNode::declareParameters() {
     // Trajectory
     declare_parameter("trajectory_file", "");
     
-    // Lookahead
-    declare_parameter("min_lookahead", 0.5);
-    declare_parameter("max_lookahead", 2.5);
+    // Lookahead - sweep-optimized defaults
+    declare_parameter("min_lookahead", 0.48);
+    declare_parameter("max_lookahead", 1.20);
     declare_parameter("lookahead_gain", 0.15);
-    declare_parameter("max_speed", 2.0);
+    declare_parameter("max_speed", 5.5);
     declare_parameter("cte_lookahead_weight", 1.0);
-    declare_parameter("cte_lookahead_gain", 0.0);
-    declare_parameter("curvature_lookahead_gain", 0.0);
-    declare_parameter("curvature_speed_factor", 0.20);
-    declare_parameter("curvature_speed_floor_ratio", 0.85);
-    declare_parameter("cte_speed_factor", 0.0);
-    declare_parameter("cte_speed_floor_ratio", 0.3);
-    declare_parameter("max_lateral_accel", 6.5);
+    declare_parameter("cte_lookahead_gain", 0.05);
+    declare_parameter("curvature_lookahead_gain", 1.34);
+    declare_parameter("curvature_speed_factor", 0.10);
+    declare_parameter("curvature_speed_floor_ratio", 0.43);
+    declare_parameter("cte_speed_factor", 0.10);
+    declare_parameter("cte_speed_floor_ratio", 0.50);
+    declare_parameter("max_lateral_accel", 7.27);
     declare_parameter("min_regulated_speed", 0.30);
+    declare_parameter("curvature_preview_factor", 1.2);
+    
+    // Corridor-aware width regulation
+    declare_parameter("vehicle_half_width", 0.1365);
+    declare_parameter("wall_safety_margin", 0.03);
+    declare_parameter("corridor_half_width_ref", 0.25);
+    declare_parameter("corridor_speed_floor_ratio", 0.20);
+    declare_parameter("corridor_lookahead_factor", 2.0);
     
     // Steering
     declare_parameter("max_steering", 0.4189);
@@ -131,6 +139,15 @@ void PurePursuitNode::loadParameters() {
         get_parameter("cte_speed_floor_ratio").as_double(), 0.0, 1.0);
     config_.max_lateral_accel = std::max(0.5, get_parameter("max_lateral_accel").as_double());
     config_.min_regulated_speed = std::max(0.0, get_parameter("min_regulated_speed").as_double());
+    config_.curvature_preview_factor = std::max(1.0, get_parameter("curvature_preview_factor").as_double());
+    
+    // Corridor-aware width regulation
+    config_.vehicle_half_width = std::max(0.01, get_parameter("vehicle_half_width").as_double());
+    config_.wall_safety_margin = std::max(0.0, get_parameter("wall_safety_margin").as_double());
+    config_.corridor_half_width_ref = std::max(0.01, get_parameter("corridor_half_width_ref").as_double());
+    config_.corridor_speed_floor_ratio = std::clamp(
+        get_parameter("corridor_speed_floor_ratio").as_double(), 0.0, 1.0);
+    config_.corridor_lookahead_factor = std::max(0.0, get_parameter("corridor_lookahead_factor").as_double());
 
     config_.max_steering = std::max(1e-3, get_parameter("max_steering").as_double());
     config_.wheelbase = std::max(1e-3, get_parameter("wheelbase").as_double());
@@ -185,6 +202,18 @@ rcl_interfaces::msg::SetParametersResult PurePursuitNode::parametersCallback(
             candidate.max_lateral_accel = param.as_double();
         } else if (param.get_name() == "min_regulated_speed") {
             candidate.min_regulated_speed = param.as_double();
+        } else if (param.get_name() == "curvature_preview_factor") {
+            candidate.curvature_preview_factor = param.as_double();
+        } else if (param.get_name() == "vehicle_half_width") {
+            candidate.vehicle_half_width = param.as_double();
+        } else if (param.get_name() == "wall_safety_margin") {
+            candidate.wall_safety_margin = param.as_double();
+        } else if (param.get_name() == "corridor_half_width_ref") {
+            candidate.corridor_half_width_ref = param.as_double();
+        } else if (param.get_name() == "corridor_speed_floor_ratio") {
+            candidate.corridor_speed_floor_ratio = param.as_double();
+        } else if (param.get_name() == "corridor_lookahead_factor") {
+            candidate.corridor_lookahead_factor = param.as_double();
         } else if (param.get_name() == "max_steering") {
             candidate.max_steering = param.as_double();
         } else if (param.get_name() == "wheelbase") {
@@ -249,6 +278,33 @@ rcl_interfaces::msg::SetParametersResult PurePursuitNode::parametersCallback(
         result.reason = "min_regulated_speed must be finite and >= 0";
         return result;
     }
+    if (!finite(candidate.curvature_preview_factor) || candidate.curvature_preview_factor < 1.0) {
+        result.reason = "curvature_preview_factor must be finite and >= 1.0";
+        return result;
+    }
+    // Corridor-aware width regulation validation
+    if (!finite(candidate.vehicle_half_width) || candidate.vehicle_half_width <= 0.01) {
+        result.reason = "vehicle_half_width must be finite and > 0.01";
+        return result;
+    }
+    if (!finite_and_nonnegative(candidate.wall_safety_margin)) {
+        result.reason = "wall_safety_margin must be finite and >= 0";
+        return result;
+    }
+    if (!finite(candidate.corridor_half_width_ref) || candidate.corridor_half_width_ref <= 0.01) {
+        result.reason = "corridor_half_width_ref must be finite and > 0.01";
+        return result;
+    }
+    if (!finite(candidate.corridor_speed_floor_ratio) ||
+        candidate.corridor_speed_floor_ratio < 0.0 ||
+        candidate.corridor_speed_floor_ratio > 1.0) {
+        result.reason = "corridor_speed_floor_ratio must be in [0,1]";
+        return result;
+    }
+    if (!finite_and_nonnegative(candidate.corridor_lookahead_factor)) {
+        result.reason = "corridor_lookahead_factor must be finite and >= 0";
+        return result;
+    }
     if (!finite(candidate.max_steering) || candidate.max_steering <= 0.0) {
         result.reason = "max_steering must be finite and > 0";
         return result;
@@ -280,6 +336,7 @@ rcl_interfaces::msg::SetParametersResult PurePursuitNode::parametersCallback(
 
     candidate.curvature_speed_floor_ratio = std::clamp(candidate.curvature_speed_floor_ratio, 0.0, 1.0);
     candidate.cte_speed_floor_ratio = std::clamp(candidate.cte_speed_floor_ratio, 0.0, 1.0);
+    candidate.corridor_speed_floor_ratio = std::clamp(candidate.corridor_speed_floor_ratio, 0.0, 1.0);
 
     {
         std::scoped_lock lock(state_mutex_, controller_mutex_);

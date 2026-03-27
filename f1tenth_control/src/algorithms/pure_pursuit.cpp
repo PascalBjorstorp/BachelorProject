@@ -47,6 +47,10 @@ bool PurePursuit::loadTrajectory(const std::string& csv_path) {
             pt.heading = values[3];
             pt.curvature = values[4];
             pt.velocity = values[5];
+            if (values.size() >= 9) {
+                pt.left_bound = values[7];
+                pt.right_bound = values[8];
+            }
 
             if (!std::isfinite(pt.arc_length) ||
                 !std::isfinite(pt.x) ||
@@ -55,6 +59,13 @@ bool PurePursuit::loadTrajectory(const std::string& csv_path) {
                 !std::isfinite(pt.curvature) ||
                 !std::isfinite(pt.velocity)) {
                 continue;
+            }
+
+            if (std::isfinite(pt.left_bound) && pt.left_bound < 0.0) {
+                pt.left_bound = std::numeric_limits<double>::infinity();
+            }
+            if (std::isfinite(pt.right_bound) && pt.right_bound < 0.0) {
+                pt.right_bound = std::numeric_limits<double>::infinity();
             }
 
             trajectory_.push_back(pt);
@@ -241,11 +252,42 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     double dy = closest_pt.y - position.y;
     double path_heading = closest_pt.heading;
     output.cross_track_error = -std::sin(path_heading) * dx + std::cos(path_heading) * dy;
+
+    // Corridor-aware footprint clearance at closest point (if bounds are available).
+    const bool have_bounds = std::isfinite(closest_pt.left_bound) && std::isfinite(closest_pt.right_bound);
+    const double required_half_width = std::max(0.0, config_.vehicle_half_width) +
+                                       std::max(0.0, config_.wall_safety_margin);
+    double usable_half_width = std::numeric_limits<double>::infinity();
+    if (have_bounds) {
+        const double left_clearance = closest_pt.left_bound - output.cross_track_error;
+        const double right_clearance = closest_pt.right_bound + output.cross_track_error;
+        const double corridor_clearance = std::min(left_clearance, right_clearance);
+        usable_half_width = corridor_clearance - required_half_width;
+    }
     
     // Compute adaptive lookahead distance
+    // Base: min + velocity-proportional gain
     double lookahead_dist = config_.min_lookahead + config_.lookahead_gain * current_speed;
+    
+    // Reduce for cross-track error (tighter tracking when off-path)
     lookahead_dist -= config_.cte_lookahead_gain * config_.cte_lookahead_weight * std::abs(output.cross_track_error);
-    lookahead_dist -= config_.curvature_lookahead_gain * std::abs(closest_pt.curvature);
+    
+    // Turn-radius-based limiting: lookahead should not exceed a fraction of turn radius.
+    // Turn radius R = 1/|κ|. Setting L ≤ factor/|κ| keeps arc geometry reasonable.
+    const double abs_curvature = std::abs(closest_pt.curvature);
+    if (abs_curvature > 0.05) {  // Only apply for meaningful curvature
+        const double curvature_limited_lookahead = config_.curvature_lookahead_gain / abs_curvature;
+        lookahead_dist = std::min(lookahead_dist, curvature_limited_lookahead);
+    }
+
+    // Clamp lookahead by available corridor width so the controller does not
+    // over-preview through tight corners with limited vehicle clearance.
+    if (have_bounds) {
+        const double corridor_limited_lookahead = config_.min_lookahead +
+            std::max(0.0, usable_half_width) * std::max(0.0, config_.corridor_lookahead_factor);
+        lookahead_dist = std::min(lookahead_dist, corridor_limited_lookahead);
+    }
+
     lookahead_dist = std::clamp(lookahead_dist, config_.min_lookahead, config_.max_lookahead);
 
     const bool closed_loop = isTrajectoryClosed();
@@ -380,11 +422,12 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     // Base speed from trajectory, then apply lookahead-based curvature slowdown.
     double target_speed = target_pt.velocity;
 
-    // Preview curvature over approximately one dynamic lookahead distance.
-    // This slows the car before entering tighter turns on real hardware.
+    // Preview curvature over an extended distance (preview_factor × lookahead)
+    // to allow braking well before entering tight corners.
     double max_upcoming_curvature = std::abs(closest_pt.curvature);
     double preview_distance = 0.0;
-    const double preview_target = std::max(lookahead_dist, config_.min_lookahead);
+    const double preview_factor = std::max(1.0, config_.curvature_preview_factor);
+    const double preview_target = std::max(lookahead_dist * preview_factor, config_.min_lookahead);
     if (closed_loop) {
         for (size_t i = closest_idx; i < closest_idx + n && preview_distance < preview_target; ++i) {
             const size_t curr_idx = i % n;
@@ -458,6 +501,18 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     double cte_speed_scale = 1.0 / (1.0 + config_.cte_speed_factor * std::abs(output.cross_track_error));
     cte_speed_scale = std::clamp(cte_speed_scale, cte_floor_ratio, 1.0);
     target_speed *= cte_speed_scale;
+
+    if (have_bounds) {
+        if (usable_half_width <= 0.0) {
+            target_speed = 0.0;
+        } else {
+            const double corridor_ref = std::max(0.05, config_.corridor_half_width_ref);
+            const double corridor_floor = std::clamp(config_.corridor_speed_floor_ratio, 0.0, 1.0);
+            double corridor_speed_scale = usable_half_width / corridor_ref;
+            corridor_speed_scale = std::clamp(corridor_speed_scale, corridor_floor, 1.0);
+            target_speed *= corridor_speed_scale;
+        }
+    }
 
     // Physics-aware speed cap from lateral acceleration: v <= sqrt(a_lat_max / |kappa|).
     const double kappa_preview = std::max(max_upcoming_curvature, std::abs(curvature));
