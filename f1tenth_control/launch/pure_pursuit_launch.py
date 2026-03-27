@@ -39,13 +39,13 @@ def generate_launch_description():
     
     min_lookahead_arg = DeclareLaunchArgument(
         'min_lookahead',
-        default_value='0.3',
+        default_value='0.30',
         description='Minimum lookahead distance [m]'
     )
     
     max_lookahead_arg = DeclareLaunchArgument(
         'max_lookahead',
-        default_value='0.6',
+        default_value='0.60',
         description='Maximum lookahead distance [m]'
     )
     
@@ -63,7 +63,7 @@ def generate_launch_description():
 
     cte_lookahead_weight_arg = DeclareLaunchArgument(
         'cte_lookahead_weight',
-        default_value='1.5',
+        default_value='1.50',
         description='Weight on cross-track error in dynamic lookahead'
     )
 
@@ -81,7 +81,7 @@ def generate_launch_description():
 
     curvature_speed_factor_arg = DeclareLaunchArgument(
         'curvature_speed_factor',
-        default_value='1.2',
+        default_value='1.20',
         description='Curvature-based speed slowdown aggressiveness'
     )
 
@@ -89,6 +89,18 @@ def generate_launch_description():
         'curvature_speed_floor_ratio',
         default_value='0.12',
         description='Minimum speed ratio after curvature slowdown [0..1]'
+    )
+
+    cte_speed_factor_arg = DeclareLaunchArgument(
+        'cte_speed_factor',
+        default_value='2.50',
+        description='CTE-based speed slowdown aggressiveness'
+    )
+
+    cte_speed_floor_ratio_arg = DeclareLaunchArgument(
+        'cte_speed_floor_ratio',
+        default_value='0.25',
+        description='Minimum speed ratio after CTE slowdown [0..1]'
     )
     
     pose_topic_arg = DeclareLaunchArgument(
@@ -120,6 +132,8 @@ def generate_launch_description():
             'curvature_lookahead_gain': LaunchConfiguration('curvature_lookahead_gain'),
             'curvature_speed_factor': LaunchConfiguration('curvature_speed_factor'),
             'curvature_speed_floor_ratio': LaunchConfiguration('curvature_speed_floor_ratio'),
+            'cte_speed_factor': LaunchConfiguration('cte_speed_factor'),
+            'cte_speed_floor_ratio': LaunchConfiguration('cte_speed_floor_ratio'),
             'max_steering': 0.4189,
             'wheelbase': 0.3302,
             'publish_visualization': True,
@@ -143,6 +157,8 @@ def generate_launch_description():
         curvature_lookahead_gain_arg,
         curvature_speed_factor_arg,
         curvature_speed_floor_ratio_arg,
+        cte_speed_factor_arg,
+        cte_speed_floor_ratio_arg,
         pose_topic_arg,
         pose_timeout_arg,
         pure_pursuit_node,

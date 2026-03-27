@@ -24,6 +24,8 @@ struct PurePursuitConfig {
     // Speed control
     double curvature_speed_factor{0.20}; // [unitless] Aggressiveness of curvature-based slowdown
     double curvature_speed_floor_ratio{0.85}; // [0..1] Minimum speed ratio after slowdown
+    double cte_speed_factor{0.0}; // [unitless] Slowdown gain based on |CTE|
+    double cte_speed_floor_ratio{0.3}; // [0..1] Minimum speed ratio from CTE slowdown
     
     // Steering limits
     double max_steering{0.4189};    // [rad] Maximum steering angle (~24°)
