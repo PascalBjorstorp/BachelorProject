@@ -187,6 +187,11 @@ if(BUILD_TESTING)
   ament_add_gtest(test_follow_the_gap test/test_follow_the_gap.cpp)
   target_link_libraries(test_follow_the_gap ftg_algorithm f1tenth_common)
   ament_target_dependencies(test_follow_the_gap ${DEPENDENCIES})
+
+  # Pure Pursuit closed-loop simulation sweep (standalone executable)
+  add_executable(test_sim_drive_pure_pursuit test/test_sim_drive_pure_pursuit.cpp)
+  target_link_libraries(test_sim_drive_pure_pursuit pure_pursuit_algorithm)
+  ament_target_dependencies(test_sim_drive_pure_pursuit ${DEPENDENCIES})
 endif()
 
 # Export
