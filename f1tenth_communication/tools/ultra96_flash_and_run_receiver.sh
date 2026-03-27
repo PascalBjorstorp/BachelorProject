@@ -68,9 +68,17 @@ if [[ -f /sys/class/fpga_manager/fpga0/state ]]; then
 fi
 
 echo "[4/4] Launching mpc_receiver_node (AXI-Stream DMA mode)"
+set +u  # Temporarily allow unbound variables for ROS setup scripts
 source "$ROS_SETUP"
 source "$WS_SETUP"
-exec sudo -E ros2 run state_receiver mpc_receiver_node --ros-args \
+set -u  # Re-enable unbound variable check
+
+# sudo -E doesn't preserve PYTHONPATH reliably; pass env vars explicitly
+exec sudo PYTHONPATH="$PYTHONPATH" \
+          AMENT_PREFIX_PATH="$AMENT_PREFIX_PATH" \
+          ROS_DISTRO="$ROS_DISTRO" \
+          PATH="$PATH" \
+  ros2 run state_receiver mpc_receiver_node --ros-args \
   -p mpc_base_address:="$MPC_BASE" \
   -p dma_base_address:="$DMA_BASE" \
   -p dma_buffer_phys_addr:="$DMA_BUFFER" \
