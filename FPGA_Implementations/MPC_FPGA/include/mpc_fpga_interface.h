@@ -88,9 +88,9 @@
  * MPC Configuration
  *===========================================================================*/
 
-#define MPC_HORIZON             19      /* Prediction horizon (steps) */
-#define DMA_BUFFER_BEATS        21      /* 2 header + 19 reference beats */
-#define DMA_BUFFER_BYTES        336     /* 21 beats × 16 bytes */
+#define MPC_HORIZON             10                          /* Prediction horizon (steps) */
+#define DMA_BUFFER_BEATS        MPC_HORIZON + 2             /* 2 header + reference beats */
+#define DMA_BUFFER_BYTES        DMA_BUFFER_BEATS * 16       /* 21 beats × 16 bytes */
 
 /*===========================================================================
  * Status Codes

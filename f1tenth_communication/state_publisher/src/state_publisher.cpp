@@ -31,7 +31,7 @@ namespace f1tenth_communication {
 
 class StatePublisherNode : public rclcpp::Node {
 public:
-    static constexpr size_t MAX_MPC_HORIZON = 20;
+    static constexpr size_t MAX_MPC_HORIZON = 10;
 
     StatePublisherNode() : Node("state_publisher") {
         // Parameters

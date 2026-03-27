@@ -89,7 +89,7 @@
 #define DMA_STATUS_ERR_DEC      0x0040  // Decode error
 
 // MPC horizon parameters
-#define MPC_HORIZON             19
+#define MPC_HORIZON             10
 #define DMA_BUFFER_BEATS        (2 + MPC_HORIZON)   // 21 beats
 #define DMA_BUFFER_BYTES        (DMA_BUFFER_BEATS * 16)  // 336 bytes
 

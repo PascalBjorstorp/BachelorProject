@@ -26,12 +26,14 @@ struct PurePursuitConfig {
     double curvature_speed_floor_ratio{0.85}; // [0..1] Minimum speed ratio after slowdown
     double cte_speed_factor{0.0}; // [unitless] Slowdown gain based on |CTE|
     double cte_speed_floor_ratio{0.3}; // [0..1] Minimum speed ratio from CTE slowdown
+    double max_lateral_accel{7.27}; // [m/s^2] Physics-aware cornering speed cap
+    double min_regulated_speed{0.30}; // [m/s] Lower bound after speed regulation
     
     // Steering limits
     double max_steering{0.4189};    // [rad] Maximum steering angle (~24°)
     
     // Vehicle parameters
-    double wheelbase{0.3302};       // [m] Distance between axles
+    double wheelbase{0.324};        // [m] Distance between axles
     
     // Path tracking
     double position_tolerance{0.5}; // [m] Max deviation before re-finding closest point
@@ -126,14 +128,6 @@ private:
      * @param position Current position
      */
     size_t findClosestPoint(const Point2D& position);
-    
-    /**
-     * @brief Find lookahead target point
-     * @param closest_idx Index of closest waypoint
-     * @param lookahead_dist Desired lookahead distance
-     * @return Index of target waypoint
-     */
-    size_t findLookaheadTarget(size_t closest_idx, double lookahead_dist);
     
     /**
      * @brief Interpolate between two trajectory points

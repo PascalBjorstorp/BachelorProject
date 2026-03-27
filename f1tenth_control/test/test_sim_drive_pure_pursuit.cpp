@@ -23,6 +23,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdlib>
+#include <deque>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -45,12 +46,16 @@ constexpr double kDefaultDt = 0.01;                  // 100 Hz simulation
 constexpr double kMaxSimTime = 240.0;                // seconds
 constexpr double kSpeedTimeConstant = 0.30;          // seconds
 constexpr double kSteerTimeConstant = 0.10;          // seconds
-constexpr double kMaxSteeringRate = 2.85;            // rad/s
+constexpr double kSteerCommandDelay = 0.06;          // seconds
+constexpr double kSpeedCommandDelay = 0.08;          // seconds
+constexpr double kSoftStartDuration = 2.0;           // seconds
+constexpr double kSoftStartSpeed = 1.0;              // m/s
+constexpr double kMaxSteeringRate = 2.8;             // rad/s
 constexpr double kMaxAccel = 4.0;                    // m/s^2
 constexpr double kMaxBrake = 6.0;                    // m/s^2
-constexpr double kMaxLateralAccel = 7.31;            // m/s^2 (mu*g from measured params)
+constexpr double kMaxLateralAccel = 7.27;            // m/s^2 (mu*g from requested params)
 constexpr double kVehicleHalfWidth = 0.137;          // m
-constexpr double kBodySafetyMargin = 0.020;          // m
+constexpr double kBodySafetyMargin = 0.040;          // m
 constexpr size_t kClosestWindowMin = 30;
 
 struct WaypointWithBounds {
@@ -69,6 +74,15 @@ struct SimMetrics {
     double avg_speed{0.0};
     double max_abs_cte{0.0};
     double rms_cte{0.0};
+};
+
+struct TrackProjection {
+    size_t seg_idx{0};
+    double t{0.0};
+    double signed_lateral{0.0};
+    double left_bound{0.0};
+    double right_bound{0.0};
+    double dist2{std::numeric_limits<double>::max()};
 };
 
 struct Candidate {
@@ -199,6 +213,71 @@ double crossTrackError(const WaypointWithBounds& wp, const VehicleState& state) 
     return -std::sin(wp.pt.heading) * dx + std::cos(wp.pt.heading) * dy;
 }
 
+TrackProjection projectToTrack(const std::vector<WaypointWithBounds>& traj,
+                               const VehicleState& state,
+                               size_t around_idx) {
+    TrackProjection best;
+    const size_t n = traj.size();
+    if (n < 2) {
+        return best;
+    }
+
+    const int window = static_cast<int>(std::max<size_t>(20, n / 10));
+    const int n_i = static_cast<int>(n);
+
+    for (int off = -window; off <= window; ++off) {
+        int i_raw = static_cast<int>(around_idx) + off;
+        int i_wrap = (i_raw % n_i + n_i) % n_i;
+        const size_t i = static_cast<size_t>(i_wrap);
+        const size_t j = (i + 1) % n;
+
+        const double ax = traj[i].pt.x;
+        const double ay = traj[i].pt.y;
+        const double bx = traj[j].pt.x;
+        const double by = traj[j].pt.y;
+        const double vx = bx - ax;
+        const double vy = by - ay;
+        const double seg_len2 = vx * vx + vy * vy;
+        if (seg_len2 <= 1e-10) {
+            continue;
+        }
+
+        const double wx = state.pose.x - ax;
+        const double wy = state.pose.y - ay;
+        const double t = clampValue((wx * vx + wy * vy) / seg_len2, 0.0, 1.0);
+        const double px = ax + t * vx;
+        const double py = ay + t * vy;
+        const double dx = state.pose.x - px;
+        const double dy = state.pose.y - py;
+        const double d2 = dx * dx + dy * dy;
+
+        if (d2 < best.dist2) {
+            const double seg_len = std::sqrt(seg_len2);
+            const double nx = -vy / seg_len;  // Left normal of segment direction
+            const double ny = vx / seg_len;
+
+            best.seg_idx = i;
+            best.t = t;
+            best.signed_lateral = dx * nx + dy * ny;
+            best.left_bound = traj[i].left_bound + t * (traj[j].left_bound - traj[i].left_bound);
+            best.right_bound = traj[i].right_bound + t * (traj[j].right_bound - traj[i].right_bound);
+            best.dist2 = d2;
+        }
+    }
+
+    if (best.dist2 == std::numeric_limits<double>::max()) {
+        const auto& wp = traj[around_idx % n];
+        best.seg_idx = around_idx % n;
+        best.t = 0.0;
+        best.signed_lateral = crossTrackError(wp, state);
+        best.left_bound = wp.left_bound;
+        best.right_bound = wp.right_bound;
+        best.dist2 = best.signed_lateral * best.signed_lateral;
+    }
+
+    return best;
+}
+
 double advanceAlongTrack(const std::vector<WaypointWithBounds>& traj,
                          size_t prev_idx,
                          size_t curr_idx) {
@@ -254,12 +333,19 @@ SimMetrics runSimulation(const std::vector<WaypointWithBounds>& traj,
     state.pose.x = traj.front().pt.x;
     state.pose.y = traj.front().pt.y;
     state.pose.theta = traj.front().pt.heading;
-    state.velocity = std::min(candidate.max_speed, std::max(0.5, traj.front().pt.velocity));
+    state.velocity = 0.0;
 
     double steer_actual = 0.0;
     size_t closest_idx = 0;
     double sum_cte_sq = 0.0;
     int cte_count = 0;
+
+    const size_t steer_delay_steps =
+        std::max<size_t>(1, static_cast<size_t>(std::round(kSteerCommandDelay / dt)));
+    const size_t speed_delay_steps =
+        std::max<size_t>(1, static_cast<size_t>(std::round(kSpeedCommandDelay / dt)));
+    std::deque<double> steer_cmd_delay(steer_delay_steps + 1, 0.0);
+    std::deque<double> speed_cmd_delay(speed_delay_steps + 1, state.velocity);
 
     for (double t = 0.0; t < kMaxSimTime; t += dt) {
         const PurePursuitOutput output = controller.compute(state);
@@ -272,14 +358,25 @@ SimMetrics runSimulation(const std::vector<WaypointWithBounds>& traj,
                                             -candidate.config.max_steering,
                                             candidate.config.max_steering);
 
-        double steer_rate_cmd = (steer_cmd - steer_actual) / kSteerTimeConstant;
+        const double soft_speed_cmd =
+            (t < kSoftStartDuration) ? std::min(speed_cmd, kSoftStartSpeed) : speed_cmd;
+
+        steer_cmd_delay.push_back(steer_cmd);
+        const double delayed_steer_cmd = steer_cmd_delay.front();
+        steer_cmd_delay.pop_front();
+
+        speed_cmd_delay.push_back(soft_speed_cmd);
+        const double delayed_speed_cmd = speed_cmd_delay.front();
+        speed_cmd_delay.pop_front();
+
+        double steer_rate_cmd = (delayed_steer_cmd - steer_actual) / kSteerTimeConstant;
         steer_rate_cmd = clampValue(steer_rate_cmd, -kMaxSteeringRate, kMaxSteeringRate);
         steer_actual += steer_rate_cmd * dt;
         steer_actual = clampValue(steer_actual,
                                   -candidate.config.max_steering,
                                   candidate.config.max_steering);
 
-        double accel_cmd = (speed_cmd - state.velocity) / kSpeedTimeConstant;
+        double accel_cmd = (delayed_speed_cmd - state.velocity) / kSpeedTimeConstant;
         accel_cmd = clampValue(accel_cmd, -kMaxBrake, kMaxAccel);
         state.velocity += accel_cmd * dt;
         state.velocity = clampValue(state.velocity, 0.0, candidate.max_speed);
@@ -316,13 +413,14 @@ SimMetrics runSimulation(const std::vector<WaypointWithBounds>& traj,
         closest_idx = findClosestIndex(traj, state, closest_idx);
         metrics.traveled_distance += advanceAlongTrack(traj, prev_idx, closest_idx);
 
-        const double cte = crossTrackError(traj[closest_idx], state);
+        const TrackProjection proj = projectToTrack(traj, state, closest_idx);
+        const double cte = proj.signed_lateral;
         metrics.max_abs_cte = std::max(metrics.max_abs_cte, std::abs(cte));
         sum_cte_sq += cte * cte;
         ++cte_count;
 
-        const double allowed_left = traj[closest_idx].left_bound - (kVehicleHalfWidth + kBodySafetyMargin);
-        const double allowed_right = traj[closest_idx].right_bound - (kVehicleHalfWidth + kBodySafetyMargin);
+        const double allowed_left = proj.left_bound - (kVehicleHalfWidth + kBodySafetyMargin);
+        const double allowed_right = proj.right_bound - (kVehicleHalfWidth + kBodySafetyMargin);
         if ((allowed_left > 0.0 && cte > allowed_left) ||
             (allowed_right > 0.0 && -cte > allowed_right)) {
             metrics.collided = true;
@@ -366,31 +464,33 @@ SimMetrics runSimulation(const std::vector<WaypointWithBounds>& traj,
 }
 
 double scoreCandidate(const SimMetrics& m) {
+    const double tracking_penalty = 2.5 * m.max_abs_cte + 1.5 * m.rms_cte;
+
     if (m.completed && !m.collided) {
-        const double tracking_penalty = 2.5 * m.max_abs_cte + 1.5 * m.rms_cte;
-        return m.avg_speed - tracking_penalty;
+        // Large feasibility bonus so any clean full-lap run dominates crashy runs.
+        return 1000.0 + 100.0 * m.avg_speed - 40.0 * tracking_penalty;
     }
 
-    double penalty = 0.0;
-    if (m.collided) {
-        penalty += 1.0;
-    }
-    const double tracking_penalty = 2.5 * m.max_abs_cte + 1.5 * m.rms_cte;
-    return m.avg_speed * m.completion_ratio - penalty - tracking_penalty;
+    // For infeasible runs, prioritize how far it got before failure and tracking quality.
+    const double progress_score = 300.0 * m.completion_ratio;
+    const double collision_penalty = m.collided ? 150.0 : 0.0;
+    return progress_score - 80.0 * tracking_penalty - collision_penalty;
 }
 
 Candidate launchLikeBaseline() {
     Candidate c;
-    c.config.min_lookahead = 0.49;
-    c.config.max_lookahead = 1.67;
-    c.config.lookahead_gain = 0.16;
-    c.config.cte_lookahead_weight = 1.0;
-    c.config.cte_lookahead_gain = 0.07;
-    c.config.curvature_lookahead_gain = 0.07;
-    c.config.curvature_speed_factor = 0.48;
-    c.config.curvature_speed_floor_ratio = 0.36;
+    c.config.min_lookahead = 0.74;
+    c.config.max_lookahead = 1.80;
+    c.config.lookahead_gain = 0.11;
+    c.config.cte_lookahead_weight = 1.5;
+    c.config.cte_lookahead_gain = 0.03;
+    c.config.curvature_lookahead_gain = 0.18;
+    c.config.curvature_speed_factor = 0.10;
+    c.config.curvature_speed_floor_ratio = 0.52;
+    c.config.cte_speed_factor = 0.36;
+    c.config.cte_speed_floor_ratio = 0.37;
     c.config.max_steering = 0.4189;
-    c.config.wheelbase = 0.3302;
+    c.config.wheelbase = 0.324;
     c.config.position_tolerance = 0.5;
     c.max_speed = 5.0;
     return c;
@@ -406,8 +506,10 @@ Candidate conservativeSeed() {
     c.config.curvature_lookahead_gain = 0.06;
     c.config.curvature_speed_factor = 0.55;
     c.config.curvature_speed_floor_ratio = 0.50;
+    c.config.cte_speed_factor = 0.8;
+    c.config.cte_speed_floor_ratio = 0.5;
     c.config.max_steering = 0.4189;
-    c.config.wheelbase = 0.3302;
+    c.config.wheelbase = 0.324;
     c.config.position_tolerance = 0.5;
     c.max_speed = 2.4;
     return c;
@@ -426,8 +528,10 @@ Candidate sampleRandom(std::mt19937& rng) {
     c.config.curvature_lookahead_gain = 0.00 + 0.16 * u01(rng);
     c.config.curvature_speed_factor = 0.25 + 0.85 * u01(rng);
     c.config.curvature_speed_floor_ratio = 0.35 + 0.35 * u01(rng);
+    c.config.cte_speed_factor = 0.5 + 2.5 * u01(rng);
+    c.config.cte_speed_floor_ratio = 0.20 + 0.40 * u01(rng);
     c.config.max_steering = 0.4189;
-    c.config.wheelbase = 0.3302;
+    c.config.wheelbase = 0.324;
     c.config.position_tolerance = 0.5;
     c.max_speed = 1.8 + 1.5 * u01(rng);
     return c;
@@ -447,6 +551,8 @@ Candidate sampleAround(const Candidate& base, std::mt19937& rng) {
     c.config.curvature_lookahead_gain = clampValue(base.config.curvature_lookahead_gain + 0.020 * n01(rng), 0.0, 0.25);
     c.config.curvature_speed_factor = clampValue(base.config.curvature_speed_factor + 0.08 * n01(rng), 0.10, 1.30);
     c.config.curvature_speed_floor_ratio = clampValue(base.config.curvature_speed_floor_ratio + 0.05 * n01(rng), 0.20, 0.80);
+    c.config.cte_speed_factor = clampValue(base.config.cte_speed_factor + 0.20 * n01(rng), 0.0, 3.5);
+    c.config.cte_speed_floor_ratio = clampValue(base.config.cte_speed_floor_ratio + 0.05 * n01(rng), 0.10, 0.80);
     c.max_speed = clampValue(base.max_speed + 0.10 * n01(rng), 1.5, 3.4);
     return c;
 }
@@ -461,6 +567,8 @@ void printCandidate(const EvaluatedCandidate& e, size_t rank = 0) {
               << " completed=" << e.metrics.completed
               << " collided=" << e.metrics.collided
               << " laps=" << e.metrics.laps_completed
+              << " completion=" << e.metrics.completion_ratio
+              << " t=" << e.metrics.sim_time
               << " cte_max=" << e.metrics.max_abs_cte
               << " cfg{"
               << "vmax=" << e.candidate.max_speed
@@ -471,6 +579,8 @@ void printCandidate(const EvaluatedCandidate& e, size_t rank = 0) {
               << ", kCurvL=" << e.candidate.config.curvature_lookahead_gain
               << ", kCurvV=" << e.candidate.config.curvature_speed_factor
               << ", floor=" << e.candidate.config.curvature_speed_floor_ratio
+              << ", kCteV=" << e.candidate.config.cte_speed_factor
+              << ", cteFloor=" << e.candidate.config.cte_speed_floor_ratio
               << "}"
               << "\n";
 }
@@ -594,11 +704,14 @@ int main(int argc, char** argv) {
     }
 
     std::sort(all.begin(), all.end(), [](const EvaluatedCandidate& a, const EvaluatedCandidate& b) {
+        if (std::abs(a.score - b.score) > 1e-6) {
+            return a.score > b.score;
+        }
         if (a.metrics.completed != b.metrics.completed) {
             return a.metrics.completed > b.metrics.completed;
         }
-        if (std::abs(a.score - b.score) > 1e-6) {
-            return a.score > b.score;
+        if (std::abs(a.metrics.completion_ratio - b.metrics.completion_ratio) > 1e-6) {
+            return a.metrics.completion_ratio > b.metrics.completion_ratio;
         }
         if (std::abs(a.metrics.avg_speed - b.metrics.avg_speed) > 1e-6) {
             return a.metrics.avg_speed > b.metrics.avg_speed;
@@ -626,7 +739,12 @@ int main(int argc, char** argv) {
     }
 
     const EvaluatedCandidate& winner = all.front();
-    std::cout << "\nRecommended parameters (best completed lap set):\n";
+    const bool have_feasible_winner = winner.metrics.completed && !winner.metrics.collided;
+    if (have_feasible_winner) {
+        std::cout << "\nRecommended parameters (best collision-free set):\n";
+    } else {
+        std::cout << "\nRecommended parameters (no collision-free set found; least-bad candidate):\n";
+    }
     std::cout << std::fixed << std::setprecision(4)
               << "  max_speed: " << winner.candidate.max_speed << "\n"
               << "  min_lookahead: " << winner.candidate.config.min_lookahead << "\n"
@@ -635,7 +753,9 @@ int main(int argc, char** argv) {
               << "  cte_lookahead_gain: " << winner.candidate.config.cte_lookahead_gain << "\n"
               << "  curvature_lookahead_gain: " << winner.candidate.config.curvature_lookahead_gain << "\n"
               << "  curvature_speed_factor: " << winner.candidate.config.curvature_speed_factor << "\n"
-              << "  curvature_speed_floor_ratio: " << winner.candidate.config.curvature_speed_floor_ratio << "\n";
+              << "  curvature_speed_floor_ratio: " << winner.candidate.config.curvature_speed_floor_ratio << "\n"
+              << "  cte_speed_factor: " << winner.candidate.config.cte_speed_factor << "\n"
+              << "  cte_speed_floor_ratio: " << winner.candidate.config.cte_speed_floor_ratio << "\n";
 
     return 0;
 }

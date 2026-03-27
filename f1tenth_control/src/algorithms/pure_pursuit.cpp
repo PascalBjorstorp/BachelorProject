@@ -47,6 +47,16 @@ bool PurePursuit::loadTrajectory(const std::string& csv_path) {
             pt.heading = values[3];
             pt.curvature = values[4];
             pt.velocity = values[5];
+
+            if (!std::isfinite(pt.arc_length) ||
+                !std::isfinite(pt.x) ||
+                !std::isfinite(pt.y) ||
+                !std::isfinite(pt.heading) ||
+                !std::isfinite(pt.curvature) ||
+                !std::isfinite(pt.velocity)) {
+                continue;
+            }
+
             trajectory_.push_back(pt);
         }
     }
@@ -65,7 +75,12 @@ bool PurePursuit::loadTrajectory(const std::string& csv_path) {
 
     last_closest_idx_ = 0;
     
-    return !trajectory_.empty();
+    if (trajectory_.size() < 3) {
+        trajectory_.clear();
+        return false;
+    }
+
+    return true;
 }
 
 void PurePursuit::setTrajectory(const std::vector<TrajectoryPoint>& trajectory) {
@@ -183,35 +198,6 @@ size_t PurePursuit::findClosestPoint(const Point2D& position) {
     
     last_closest_idx_ = closest_idx;
     return closest_idx;
-}
-
-size_t PurePursuit::findLookaheadTarget(size_t closest_idx, double lookahead_dist) {
-    if (trajectory_.empty()) return 0;
-    
-    const size_t n = trajectory_.size();
-    double accumulated_dist = 0.0;
-    size_t target_idx = closest_idx;
-    
-    // Walk forward along trajectory until we reach lookahead distance
-    for (size_t i = closest_idx; i < closest_idx + n; ++i) {
-        size_t curr_idx = i % n;
-        size_t next_idx = (i + 1) % n;
-        
-        double segment_dist = math::distance(
-            trajectory_[curr_idx].x, trajectory_[curr_idx].y,
-            trajectory_[next_idx].x, trajectory_[next_idx].y
-        );
-        
-        if (accumulated_dist + segment_dist >= lookahead_dist) {
-            target_idx = next_idx;
-            break;
-        }
-        
-        accumulated_dist += segment_dist;
-        target_idx = next_idx;
-    }
-    
-    return target_idx;
 }
 
 TrajectoryPoint PurePursuit::interpolate(size_t idx1, size_t idx2, double t) const {
@@ -472,6 +458,15 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     double cte_speed_scale = 1.0 / (1.0 + config_.cte_speed_factor * std::abs(output.cross_track_error));
     cte_speed_scale = std::clamp(cte_speed_scale, cte_floor_ratio, 1.0);
     target_speed *= cte_speed_scale;
+
+    // Physics-aware speed cap from lateral acceleration: v <= sqrt(a_lat_max / |kappa|).
+    const double kappa_preview = std::max(max_upcoming_curvature, std::abs(curvature));
+    if (config_.max_lateral_accel > 1e-3 && kappa_preview > 1e-5) {
+        const double v_lat_limit = std::sqrt(config_.max_lateral_accel / kappa_preview);
+        target_speed = std::min(target_speed, v_lat_limit);
+    }
+
+    target_speed = std::max(config_.min_regulated_speed, target_speed);
     
     // Fill output
     output.steering_angle = steering_angle;

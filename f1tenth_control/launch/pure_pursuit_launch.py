@@ -7,9 +7,8 @@ This launches the Pure Pursuit node which follows a pre-computed racing line.
 import os
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
 from ament_index_python.packages import get_package_share_directory
 
 
@@ -39,19 +38,19 @@ def generate_launch_description():
     
     min_lookahead_arg = DeclareLaunchArgument(
         'min_lookahead',
-        default_value='0.30',
+        default_value='0.74',
         description='Minimum lookahead distance [m]'
     )
     
     max_lookahead_arg = DeclareLaunchArgument(
         'max_lookahead',
-        default_value='0.60',
+        default_value='1.80',
         description='Maximum lookahead distance [m]'
     )
     
     lookahead_gain_arg = DeclareLaunchArgument(
         'lookahead_gain',
-        default_value='0.08',
+        default_value='0.11',
         description='Velocity-proportional lookahead gain'
     )
 
@@ -69,38 +68,68 @@ def generate_launch_description():
 
     cte_lookahead_gain_arg = DeclareLaunchArgument(
         'cte_lookahead_gain',
-        default_value='0.05',
+        default_value='0.03',
         description='Lookahead reduction gain based on cross-track error [m/m]'
     )
 
     curvature_lookahead_gain_arg = DeclareLaunchArgument(
         'curvature_lookahead_gain',
-        default_value='0.05',
+        default_value='0.18',
         description='Lookahead reduction gain based on path curvature [m/(1/m)]'
     )
 
     curvature_speed_factor_arg = DeclareLaunchArgument(
         'curvature_speed_factor',
-        default_value='1.20',
+        default_value='0.10',
         description='Curvature-based speed slowdown aggressiveness'
     )
 
     curvature_speed_floor_ratio_arg = DeclareLaunchArgument(
         'curvature_speed_floor_ratio',
-        default_value='0.12',
+        default_value='0.52',
         description='Minimum speed ratio after curvature slowdown [0..1]'
     )
 
     cte_speed_factor_arg = DeclareLaunchArgument(
         'cte_speed_factor',
-        default_value='2.50',
+        default_value='0.36',
         description='CTE-based speed slowdown aggressiveness'
     )
 
     cte_speed_floor_ratio_arg = DeclareLaunchArgument(
         'cte_speed_floor_ratio',
-        default_value='0.25',
+        default_value='0.37',
         description='Minimum speed ratio after CTE slowdown [0..1]'
+    )
+
+    max_lateral_accel_arg = DeclareLaunchArgument(
+        'max_lateral_accel',
+        default_value='7.27',
+        description='Physics-aware lateral acceleration limit for speed regulation [m/s^2]'
+    )
+
+    min_regulated_speed_arg = DeclareLaunchArgument(
+        'min_regulated_speed',
+        default_value='0.30',
+        description='Minimum speed allowed after regulation [m/s]'
+    )
+
+    max_steering_rate_arg = DeclareLaunchArgument(
+        'max_steering_rate',
+        default_value='2.80',
+        description='Steering rate limit applied in callback-driven command shaping [rad/s]'
+    )
+
+    max_accel_cmd_arg = DeclareLaunchArgument(
+        'max_accel_cmd',
+        default_value='3.00',
+        description='Command-side acceleration limit [m/s^2]'
+    )
+
+    max_decel_cmd_arg = DeclareLaunchArgument(
+        'max_decel_cmd',
+        default_value='5.00',
+        description='Command-side deceleration limit [m/s^2]'
     )
     
     pose_topic_arg = DeclareLaunchArgument(
@@ -113,6 +142,12 @@ def generate_launch_description():
         'pose_timeout_s',
         default_value='0.10',
         description='Fail-safe timeout for stale pose [s]'
+    )
+
+    odom_timeout_arg = DeclareLaunchArgument(
+        'odom_timeout_s',
+        default_value='0.20',
+        description='Fail-safe timeout for stale odometry [s]'
     )
     
     # Pure Pursuit Node
@@ -134,11 +169,17 @@ def generate_launch_description():
             'curvature_speed_floor_ratio': LaunchConfiguration('curvature_speed_floor_ratio'),
             'cte_speed_factor': LaunchConfiguration('cte_speed_factor'),
             'cte_speed_floor_ratio': LaunchConfiguration('cte_speed_floor_ratio'),
+            'max_lateral_accel': LaunchConfiguration('max_lateral_accel'),
+            'min_regulated_speed': LaunchConfiguration('min_regulated_speed'),
             'max_steering': 0.4189,
-            'wheelbase': 0.3302,
+            'wheelbase': 0.324,
+            'max_steering_rate': LaunchConfiguration('max_steering_rate'),
+            'max_accel_cmd': LaunchConfiguration('max_accel_cmd'),
+            'max_decel_cmd': LaunchConfiguration('max_decel_cmd'),
             'publish_visualization': True,
             'pose_topic': LaunchConfiguration('pose_topic'),
             'pose_timeout_s': LaunchConfiguration('pose_timeout_s'),
+            'odom_timeout_s': LaunchConfiguration('odom_timeout_s'),
         }],
         remappings=[
             ('/odom', '/ego_racecar/odom'),
@@ -159,7 +200,13 @@ def generate_launch_description():
         curvature_speed_floor_ratio_arg,
         cte_speed_factor_arg,
         cte_speed_floor_ratio_arg,
+        max_lateral_accel_arg,
+        min_regulated_speed_arg,
+        max_steering_rate_arg,
+        max_accel_cmd_arg,
+        max_decel_cmd_arg,
         pose_topic_arg,
         pose_timeout_arg,
+        odom_timeout_arg,
         pure_pursuit_node,
     ])

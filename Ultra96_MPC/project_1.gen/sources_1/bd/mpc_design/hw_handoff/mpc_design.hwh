@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
-<EDKSYSTEM EDWVERSION="1.2" TIMESTAMP="Sun Mar 22 13:34:13 2026" VIVADOVERSION="2025.1">
+<EDKSYSTEM EDWVERSION="1.2" TIMESTAMP="Fri Mar 27 13:54:59 2026" VIVADOVERSION="2025.1">
 
   <SYSTEMINFO ARCH="zynquplus" BOARD="avnet.com:ultra96v2:part0:1.2" DEVICE="xczu3eg" NAME="mpc_design" PACKAGE="sbva484" SPEEDGRADE="-1"/>
 
@@ -1215,7 +1215,7 @@
         <PERIPHERAL INSTANCE="mpc_fpga_top_0"/>
       </PERIPHERALS>
     </MODULE>
-    <MODULE COREREVISION="2114532167" FULLNAME="/mpc_fpga_top_0" HWVERSION="1.0" INSTANCE="mpc_fpga_top_0" IPTYPE="PERIPHERAL" IS_ENABLE="1" MODCLASS="PERIPHERAL" MODTYPE="mpc_fpga_top" VLNV="f1tenth:mpc:mpc_fpga_top:1.0">
+    <MODULE COREREVISION="2114539419" FULLNAME="/mpc_fpga_top_0" HWVERSION="1.0" INSTANCE="mpc_fpga_top_0" IPTYPE="PERIPHERAL" IS_ENABLE="1" MODCLASS="PERIPHERAL" MODTYPE="mpc_fpga_top" VLNV="f1tenth:mpc:mpc_fpga_top:1.0">
       <DOCUMENTS/>
       <ADDRESSBLOCKS>
         <ADDRESSBLOCK ACCESS="read-write" INTERFACE="s_axi_ctrl" NAME="Reg" RANGE="65536" USAGE="register">
@@ -1637,7 +1637,7 @@
         <PARAMETER NAME="C_S_AXI_CTRL_ADDR_WIDTH" VALUE="7"/>
         <PARAMETER NAME="C_S_AXI_CTRL_DATA_WIDTH" VALUE="32"/>
         <PARAMETER NAME="Component_Name" VALUE="mpc_design_mpc_fpga_top_0_2"/>
-        <PARAMETER NAME="II" VALUE="6 ~ 74118"/>
+        <PARAMETER NAME="II" VALUE="6 ~ 39270"/>
         <PARAMETER NAME="clk_period" VALUE="10"/>
         <PARAMETER NAME="combinational" VALUE="0"/>
         <PARAMETER NAME="latency" VALUE="5"/>
@@ -1883,10 +1883,10 @@
         <PORT DIR="O" NAME="mb_reset" POLARITY="ACTIVE_HIGH" SIGIS="rst"/>
         <PORT DIR="O" LEFT="0" NAME="peripheral_aresetn" POLARITY="ACTIVE_LOW" RIGHT="0" SIGIS="rst" SIGNAME="rst_ps8_0_99M_peripheral_aresetn">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="ap_rst_n"/>
             <CONNECTION INSTANCE="axi_dma_0" PORT="axi_resetn"/>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="aresetn"/>
             <CONNECTION INSTANCE="smartconnect_data" PORT="aresetn"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="ap_rst_n"/>
           </CONNECTIONS>
         </PORT>
         <PORT DIR="O" LEFT="0" NAME="peripheral_reset" POLARITY="ACTIVE_HIGH" RIGHT="0" SIGIS="rst"/>
@@ -2892,6 +2892,12 @@
       <DOCUMENTS>
         <DOCUMENT SOURCE="http://www.xilinx.com/cgi-bin/docs/ipdoc?c=zynq_ultra_ps_e;v=v3_5;d=pg201-zynq-ultrascale-plus-processing-system.pdf"/>
       </DOCUMENTS>
+      <ADDRESSBLOCKS>
+        <ADDRESSBLOCK ACCESS="" INTERFACE="SAXIGP2" NAME="HP0_LPS_OCM" RANGE="0x1000000" USAGE="register"/>
+      </ADDRESSBLOCKS>
+      <ADDRESSBLOCKS>
+        <ADDRESSBLOCK ACCESS="" INTERFACE="SAXIGP2" NAME="HP0_DDR_LOW" RANGE="0x80000000" USAGE="memory"/>
+      </ADDRESSBLOCKS>
       <PARAMETERS>
         <PARAMETER NAME="C_DP_USE_AUDIO" VALUE="0"/>
         <PARAMETER NAME="C_DP_USE_VIDEO" VALUE="0"/>
@@ -4829,12 +4835,12 @@
           <CONNECTIONS>
             <CONNECTION INSTANCE="axi_dma_0" PORT="m_axi_mm2s_aclk"/>
             <CONNECTION INSTANCE="smartconnect_data" PORT="aclk"/>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="ap_clk"/>
             <CONNECTION INSTANCE="rst_ps8_0_99M" PORT="slowest_sync_clk"/>
             <CONNECTION INSTANCE="axi_dma_0" PORT="s_axi_lite_aclk"/>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="aclk"/>
             <CONNECTION INSTANCE="zynq_ultra_ps_e_0" PORT="maxihpm0_fpd_aclk"/>
             <CONNECTION INSTANCE="zynq_ultra_ps_e_0" PORT="saxihp0_fpd_aclk"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="ap_clk"/>
           </CONNECTIONS>
         </PORT>
         <PORT DIR="I" LEFT="1" NAME="pl_ps_irq0" RIGHT="0" SENSITIVITY="LEVEL_HIGH:LEVEL_HIGH" SIGIS="INTERRUPT" SIGNAME="xlconcat_0_dout">
