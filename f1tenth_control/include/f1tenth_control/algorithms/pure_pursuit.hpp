@@ -137,6 +137,11 @@ private:
      * @brief Interpolate between two trajectory points
      */
     TrajectoryPoint interpolate(size_t idx1, size_t idx2, double t) const;
+
+    /**
+     * @brief Whether current trajectory should be treated as a closed loop.
+     */
+    bool isTrajectoryClosed() const;
 };
 
 }  // namespace f1tenth_control

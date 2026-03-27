@@ -52,6 +52,17 @@ bool PurePursuit::loadTrajectory(const std::string& csv_path) {
     }
     
     file.close();
+
+    // Avoid duplicate terminal waypoint creating a zero-length seam segment.
+    if (trajectory_.size() > 2) {
+        const auto& first = trajectory_.front();
+        const auto& last = trajectory_.back();
+        const double seam_dist = math::distance(first.x, first.y, last.x, last.y);
+        if (seam_dist < 1e-4) {
+            trajectory_.pop_back();
+        }
+    }
+
     last_closest_idx_ = 0;
     
     return !trajectory_.empty();
@@ -59,6 +70,16 @@ bool PurePursuit::loadTrajectory(const std::string& csv_path) {
 
 void PurePursuit::setTrajectory(const std::vector<TrajectoryPoint>& trajectory) {
     trajectory_ = trajectory;
+
+    if (trajectory_.size() > 2) {
+        const auto& first = trajectory_.front();
+        const auto& last = trajectory_.back();
+        const double seam_dist = math::distance(first.x, first.y, last.x, last.y);
+        if (seam_dist < 1e-4) {
+            trajectory_.pop_back();
+        }
+    }
+
     last_closest_idx_ = 0;
 }
 
@@ -67,18 +88,28 @@ double PurePursuit::getTrajectoryLength() const {
     return trajectory_.back().arc_length;
 }
 
+bool PurePursuit::isTrajectoryClosed() const {
+    if (trajectory_.size() < 3) {
+        return false;
+    }
+
+    const auto& first = trajectory_.front();
+    const auto& last = trajectory_.back();
+    const double seam_dist = math::distance(first.x, first.y, last.x, last.y);
+    const double closure_threshold = std::max(0.25, config_.min_lookahead);
+    return seam_dist <= closure_threshold;
+}
+
 size_t PurePursuit::findClosestPoint(const Point2D& position) {
     if (trajectory_.empty()) return 0;
     
     const size_t n = trajectory_.size();
     const size_t search_radius = std::min(n / 2, size_t(100));
-    
-    size_t start_idx = (last_closest_idx_ > search_radius) 
-                       ? last_closest_idx_ - search_radius : 0;
-    size_t end_idx = std::min(last_closest_idx_ + search_radius, n - 1);
+    const bool closed_loop = isTrajectoryClosed();
     
     double min_dist = std::numeric_limits<double>::max();
     size_t closest_idx = last_closest_idx_;
+    bool found_heading_candidate = false;
     
     // Search local region — only consider forward-facing waypoints
     // to prevent snapping to the return leg on a closed track
@@ -89,19 +120,59 @@ size_t PurePursuit::findClosestPoint(const Point2D& position) {
         return std::abs(dh) < M_PI_2;
     };
     
-    for (size_t i = start_idx; i <= end_idx; ++i) {
-        if (!heading_ok(i)) continue;
-        double d = math::distance(position.x, position.y, trajectory_[i].x, trajectory_[i].y);
-        if (d < min_dist) {
-            min_dist = d;
-            closest_idx = i;
+    if (closed_loop) {
+        const int center = static_cast<int>(last_closest_idx_);
+        const int radius = static_cast<int>(search_radius);
+        const int n_i = static_cast<int>(n);
+        for (int off = -radius; off <= radius; ++off) {
+            int idx_i = (center + off) % n_i;
+            if (idx_i < 0) {
+                idx_i += n_i;
+            }
+            const size_t i = static_cast<size_t>(idx_i);
+            if (!heading_ok(i)) continue;
+            const double d = math::distance(position.x, position.y, trajectory_[i].x, trajectory_[i].y);
+            if (d < min_dist) {
+                min_dist = d;
+                closest_idx = i;
+                found_heading_candidate = true;
+            }
+        }
+    } else {
+        const size_t start_idx = (last_closest_idx_ > search_radius)
+                                 ? last_closest_idx_ - search_radius : 0;
+        const size_t end_idx = std::min(last_closest_idx_ + search_radius, n - 1);
+
+        for (size_t i = start_idx; i <= end_idx; ++i) {
+            if (!heading_ok(i)) continue;
+            const double d = math::distance(position.x, position.y, trajectory_[i].x, trajectory_[i].y);
+            if (d < min_dist) {
+                min_dist = d;
+                closest_idx = i;
+                found_heading_candidate = true;
+            }
         }
     }
     
     // If we're too far from path, do a full search (still heading-filtered)
-    if (min_dist > config_.position_tolerance * 2) {
+    const bool seam_region = closed_loop &&
+        (last_closest_idx_ < search_radius || last_closest_idx_ + search_radius >= n);
+    if (min_dist > config_.position_tolerance * 2 || seam_region) {
         for (size_t i = 0; i < n; ++i) {
             if (!heading_ok(i)) continue;
+            double d = math::distance(position.x, position.y, trajectory_[i].x, trajectory_[i].y);
+            if (d < min_dist) {
+                min_dist = d;
+                closest_idx = i;
+                found_heading_candidate = true;
+            }
+        }
+    }
+
+    // Recovery fallback: if heading gating rejected everything (e.g. spun car
+    // or large transient heading error), reacquire using pure distance search.
+    if (!found_heading_candidate) {
+        for (size_t i = 0; i < n; ++i) {
             double d = math::distance(position.x, position.y, trajectory_[i].x, trajectory_[i].y);
             if (d < min_dist) {
                 min_dist = d;
@@ -191,6 +262,8 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     lookahead_dist -= config_.curvature_lookahead_gain * std::abs(closest_pt.curvature);
     lookahead_dist = std::clamp(lookahead_dist, config_.min_lookahead, config_.max_lookahead);
 
+    const bool closed_loop = isTrajectoryClosed();
+
     // Find lookahead target and interpolate for continuous target tracking.
     size_t target_idx = closest_idx;
     size_t target_seg_start_idx = closest_idx;
@@ -199,26 +272,49 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     const size_t n = trajectory_.size();
     double accumulated_dist = 0.0;
     bool found_target = false;
-    for (size_t i = closest_idx; i < closest_idx + n; ++i) {
-        size_t curr_idx = i % n;
-        size_t next_idx = (i + 1) % n;
-        double segment_dist = math::distance(
-            trajectory_[curr_idx].x, trajectory_[curr_idx].y,
-            trajectory_[next_idx].x, trajectory_[next_idx].y
-        );
+    if (closed_loop) {
+        for (size_t i = closest_idx; i < closest_idx + n; ++i) {
+            size_t curr_idx = i % n;
+            size_t next_idx = (i + 1) % n;
+            double segment_dist = math::distance(
+                trajectory_[curr_idx].x, trajectory_[curr_idx].y,
+                trajectory_[next_idx].x, trajectory_[next_idx].y
+            );
 
-        if (segment_dist > 1e-9 && accumulated_dist + segment_dist >= lookahead_dist) {
-            target_seg_start_idx = curr_idx;
-            target_seg_end_idx = next_idx;
-            target_seg_t = (lookahead_dist - accumulated_dist) / segment_dist;
-            target_seg_t = std::clamp(target_seg_t, 0.0, 1.0);
+            if (segment_dist > 1e-9 && accumulated_dist + segment_dist >= lookahead_dist) {
+                target_seg_start_idx = curr_idx;
+                target_seg_end_idx = next_idx;
+                target_seg_t = (lookahead_dist - accumulated_dist) / segment_dist;
+                target_seg_t = std::clamp(target_seg_t, 0.0, 1.0);
+                target_idx = next_idx;
+                found_target = true;
+                break;
+            }
+
+            accumulated_dist += segment_dist;
             target_idx = next_idx;
-            found_target = true;
-            break;
         }
+    } else {
+        for (size_t curr_idx = closest_idx; curr_idx + 1 < n; ++curr_idx) {
+            const size_t next_idx = curr_idx + 1;
+            const double segment_dist = math::distance(
+                trajectory_[curr_idx].x, trajectory_[curr_idx].y,
+                trajectory_[next_idx].x, trajectory_[next_idx].y
+            );
 
-        accumulated_dist += segment_dist;
-        target_idx = next_idx;
+            if (segment_dist > 1e-9 && accumulated_dist + segment_dist >= lookahead_dist) {
+                target_seg_start_idx = curr_idx;
+                target_seg_end_idx = next_idx;
+                target_seg_t = (lookahead_dist - accumulated_dist) / segment_dist;
+                target_seg_t = std::clamp(target_seg_t, 0.0, 1.0);
+                target_idx = next_idx;
+                found_target = true;
+                break;
+            }
+
+            accumulated_dist += segment_dist;
+            target_idx = next_idx;
+        }
     }
 
     TrajectoryPoint target_pt;
@@ -228,15 +324,56 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
         target_pt = trajectory_[target_idx];
     }
     
-    // Compute target point relative to vehicle
-    double tx = target_pt.x - position.x;
-    double ty = target_pt.y - position.y;
-    
     // Transform to vehicle frame
     double cos_h = std::cos(-heading);
     double sin_h = std::sin(-heading);
-    double target_x_vehicle = cos_h * tx - sin_h * ty;
-    double target_y_vehicle = sin_h * tx + cos_h * ty;
+    auto targetToVehicleFrame = [&](const TrajectoryPoint& pt) {
+        const double tx = pt.x - position.x;
+        const double ty = pt.y - position.y;
+        return Point2D{
+            cos_h * tx - sin_h * ty,
+            sin_h * tx + cos_h * ty
+        };
+    };
+
+    Point2D target_vehicle = targetToVehicleFrame(target_pt);
+    double target_x_vehicle = target_vehicle.x;
+    double target_y_vehicle = target_vehicle.y;
+
+    // Guard against behind-target geometry which can yield near-straight steering.
+    if (target_x_vehicle <= 0.0) {
+        bool found_forward_target = false;
+        if (closed_loop) {
+            for (size_t step = 1; step < n; ++step) {
+                const size_t idx = (closest_idx + step) % n;
+                const Point2D candidate = targetToVehicleFrame(trajectory_[idx]);
+                if (candidate.x > 0.05) {
+                    target_idx = idx;
+                    target_pt = trajectory_[idx];
+                    target_x_vehicle = candidate.x;
+                    target_y_vehicle = candidate.y;
+                    found_forward_target = true;
+                    break;
+                }
+            }
+        } else {
+            for (size_t idx = closest_idx + 1; idx < n; ++idx) {
+                const Point2D candidate = targetToVehicleFrame(trajectory_[idx]);
+                if (candidate.x > 0.05) {
+                    target_idx = idx;
+                    target_pt = trajectory_[idx];
+                    target_x_vehicle = candidate.x;
+                    target_y_vehicle = candidate.y;
+                    found_forward_target = true;
+                    break;
+                }
+            }
+        }
+
+        if (!found_forward_target) {
+            return output;
+        }
+    }
     
     // Actual lookahead distance
     double actual_lookahead = std::hypot(target_x_vehicle, target_y_vehicle);
@@ -262,34 +399,65 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     double max_upcoming_curvature = std::abs(closest_pt.curvature);
     double preview_distance = 0.0;
     const double preview_target = std::max(lookahead_dist, config_.min_lookahead);
-    for (size_t i = closest_idx; i < closest_idx + n && preview_distance < preview_target; ++i) {
-        const size_t curr_idx = i % n;
-        const size_t next_idx = (i + 1) % n;
+    if (closed_loop) {
+        for (size_t i = closest_idx; i < closest_idx + n && preview_distance < preview_target; ++i) {
+            const size_t curr_idx = i % n;
+            const size_t next_idx = (i + 1) % n;
 
-        const double k0 = trajectory_[curr_idx].curvature;
-        const double k1 = trajectory_[next_idx].curvature;
-        max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(k0));
+            const double k0 = trajectory_[curr_idx].curvature;
+            const double k1 = trajectory_[next_idx].curvature;
+            max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(k0));
 
-        const double segment_dist = math::distance(
-            trajectory_[curr_idx].x, trajectory_[curr_idx].y,
-            trajectory_[next_idx].x, trajectory_[next_idx].y
-        );
+            const double segment_dist = math::distance(
+                trajectory_[curr_idx].x, trajectory_[curr_idx].y,
+                trajectory_[next_idx].x, trajectory_[next_idx].y
+            );
 
-        if (segment_dist <= 1e-9) {
-            continue;
+            if (segment_dist <= 1e-9) {
+                continue;
+            }
+
+            const double remaining = preview_target - preview_distance;
+            if (remaining <= segment_dist) {
+                const double t = std::clamp(remaining / segment_dist, 0.0, 1.0);
+                const double k_interp = k0 + t * (k1 - k0);
+                max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(k_interp));
+                preview_distance = preview_target;
+                break;
+            }
+
+            max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(k1));
+            preview_distance += segment_dist;
         }
+    } else {
+        for (size_t curr_idx = closest_idx; curr_idx + 1 < n && preview_distance < preview_target; ++curr_idx) {
+            const size_t next_idx = curr_idx + 1;
 
-        const double remaining = preview_target - preview_distance;
-        if (remaining <= segment_dist) {
-            const double t = std::clamp(remaining / segment_dist, 0.0, 1.0);
-            const double k_interp = k0 + t * (k1 - k0);
-            max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(k_interp));
-            preview_distance = preview_target;
-            break;
+            const double k0 = trajectory_[curr_idx].curvature;
+            const double k1 = trajectory_[next_idx].curvature;
+            max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(k0));
+
+            const double segment_dist = math::distance(
+                trajectory_[curr_idx].x, trajectory_[curr_idx].y,
+                trajectory_[next_idx].x, trajectory_[next_idx].y
+            );
+
+            if (segment_dist <= 1e-9) {
+                continue;
+            }
+
+            const double remaining = preview_target - preview_distance;
+            if (remaining <= segment_dist) {
+                const double t = std::clamp(remaining / segment_dist, 0.0, 1.0);
+                const double k_interp = k0 + t * (k1 - k0);
+                max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(k_interp));
+                preview_distance = preview_target;
+                break;
+            }
+
+            max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(k1));
+            preview_distance += segment_dist;
         }
-
-        max_upcoming_curvature = std::max(max_upcoming_curvature, std::abs(k1));
-        preview_distance += segment_dist;
     }
 
     const double floor_ratio = std::clamp(config_.curvature_speed_floor_ratio, 0.0, 1.0);
