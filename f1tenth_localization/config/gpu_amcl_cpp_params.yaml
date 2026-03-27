@@ -60,6 +60,11 @@ gpu_amcl_cpp:
     alpha3: 0.08    # translation → translation noise
     alpha4: 0.08    # rotation  → translation noise
 
+    # ---- Slip-aware noise scaling ----
+    # During aggressive turns, increase noise to account for tire slip
+    slip_angular_threshold: 1.0  # rad/s — angular velocity above which slip is assumed
+    slip_noise_multiplier: 2.0   # multiply alpha values by this during slip
+
     # ---- Sensor model (likelihood field, Prob. Robotics §6.4) ----
     max_beams: 270
     z_hit: 0.975
@@ -83,7 +88,8 @@ gpu_amcl_cpp:
     initial_cov_aa: 0.05
 
     # ---- Publishing ----
-    publish_rate: 40.0       # Hz (match LiDAR rate)
+    publish_rate: 40.0           # Hz — pose publish rate (match LiDAR rate)
+    cloud_publish_rate: 2.0      # Hz — particle cloud visualization rate (lower saves GPU bandwidth)
     transform_tolerance: 1.0
 
 

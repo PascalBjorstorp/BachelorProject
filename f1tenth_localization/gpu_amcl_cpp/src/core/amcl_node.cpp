@@ -53,10 +53,11 @@ AmclNode::AmclNode(const rclcpp::NodeOptions& options)
                   std::placeholders::_1));
 
     // ── Timer for particle cloud visualization ──
-    double rate = get_parameter("publish_rate").as_double();
-    auto period = std::chrono::duration<double>(1.0 / rate);
+    // Uses separate rate to save GPU→CPU bandwidth (default 2 Hz)
+    double cloud_rate = get_parameter("cloud_publish_rate").as_double();
+    auto cloud_period = std::chrono::duration<double>(1.0 / cloud_rate);
     publish_timer_ = create_wall_timer(
-        std::chrono::duration_cast<std::chrono::nanoseconds>(period),
+        std::chrono::duration_cast<std::chrono::nanoseconds>(cloud_period),
         std::bind(&AmclNode::publish_timer_callback, this));
 
     RCLCPP_INFO(get_logger(), "GPU AMCL C++ node created — waiting for map...");
@@ -99,6 +100,10 @@ void AmclNode::declare_all_parameters() {
     declare_parameter<double>("alpha3", 0.2);
     declare_parameter<double>("alpha4", 0.2);
 
+    // Slip-aware noise scaling
+    declare_parameter<double>("slip_angular_threshold", 1.0);  // rad/s — above this, increase noise
+    declare_parameter<double>("slip_noise_multiplier", 2.0);   // multiplier when slip detected
+
     // Sensor model
     declare_parameter<int>("max_beams", 270);
     declare_parameter<double>("z_hit", 0.95);
@@ -121,6 +126,7 @@ void AmclNode::declare_all_parameters() {
 
     // Publishing
     declare_parameter<double>("publish_rate", 40.0);
+    declare_parameter<double>("cloud_publish_rate", 2.0);  // Particle cloud rate (Hz) — lower to save bandwidth
     declare_parameter<double>("transform_tolerance", 1.0);
 }
 
@@ -133,11 +139,13 @@ void AmclNode::load_parameters() {
     update_min_d_ = get_parameter("update_min_d").as_double();
     update_min_a_ = get_parameter("update_min_a").as_double();
     max_scan_age_ = get_parameter("max_scan_age").as_double();
+    slip_angular_threshold_ = get_parameter("slip_angular_threshold").as_double();
+    slip_noise_multiplier_  = get_parameter("slip_noise_multiplier").as_double();
 
     RCLCPP_INFO(get_logger(),
         "[AMCL] Parameters: update_min_d=%.5f, update_min_a=%.5f, "
-        "max_scan_age=%.4f",
-        update_min_d_, update_min_a_, max_scan_age_);
+        "max_scan_age=%.4f, slip_threshold=%.2f rad/s",
+        update_min_d_, update_min_a_, max_scan_age_, slip_angular_threshold_);
 }
 
 // ─── Map callback ───────────────────────────────────────────────────
@@ -294,6 +302,20 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     // ═══════════════════════════════════════════════════════════
     // STEP 1: PREDICT — Propagate particles by odom delta + noise
     // ═══════════════════════════════════════════════════════════
+
+    // Slip-aware noise scaling: increase noise during aggressive turns
+    rclcpp::Time current_scan_time(msg->header.stamp);
+    double dt = (current_scan_time - last_scan_time_).seconds();
+    if (dt > 0.001 && dt < 1.0) {  // Valid dt range
+        double angular_velocity = std::abs(dtheta) / dt;
+        if (angular_velocity > slip_angular_threshold_) {
+            pf_.motion_model().set_noise_multiplier(slip_noise_multiplier_);
+        } else {
+            pf_.motion_model().reset_noise_multiplier();
+        }
+    }
+    last_scan_time_ = current_scan_time;
+
     pf_.predict(dx_robot, dy_robot, static_cast<float>(dtheta)); 
 
     // ═══════════════════════════════════════════════════════════

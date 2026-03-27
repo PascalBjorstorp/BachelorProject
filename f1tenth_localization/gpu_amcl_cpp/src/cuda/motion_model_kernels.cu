@@ -15,8 +15,11 @@ namespace gpu_amcl_cpp {
 __global__
 void kernel_init_rng(curandState* states, int n,
                      unsigned long long seed) {
+
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= n) return;
+
+    // curand_init(seed, sequence, offset, state)
     curand_init(seed, i, 0, &states[i]);
 }
 
@@ -31,7 +34,7 @@ void launch_init_rng(curandState* states, int n,
 
 // ─── Motion update ──────────────────────────────────────────────────
 /**
- * Probabilistic Robotics §5.4, sample-based odometry model.
+ * Probabilistic Robotics sample-based odometry model.
  *
  * particles[i*3+0] = x,  particles[i*3+1] = y,  particles[i*3+2] = θ
  */
@@ -42,43 +45,47 @@ void kernel_motion_update(float* particles, int n,
                           curandState* rng) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= n) return;
-
+    
+    // Copy RNG state to local memory (faster access)
     curandState local_rng = rng[i];
 
+    // Compute translation magnitude
     float trans = sqrtf(dx * dx + dy * dy);
 
-    // Noise standard deviations.
-    float sig_rot   = sqrtf(a1 * dtheta * dtheta + a2 * trans * trans);
-    float sig_trans = sqrtf(a3 * trans * trans + a4 * dtheta * dtheta);
+    // ─── Noise standard deviations (Probabilistic Robotics) ───
+    float sig_rot   = sqrtf(a1 * dtheta * dtheta + a2 * trans * trans);    // rotation noise depends on rotation and translation
+    float sig_trans = sqrtf(a3 * trans * trans + a4 * dtheta * dtheta);    // translation noise depends on translation and rotation
 
-    // Clamp minimum noise to avoid degenerate distributions.
+    // Clamp to avoid zero variance (degenerate case)
     sig_rot   = fmaxf(sig_rot, 1e-6f);
     sig_trans = fmaxf(sig_trans, 1e-6f);
 
-    // Sample noise.
-    float rot_noise     = curand_normal(&local_rng) * sig_rot;
-    float trans_x_noise = curand_normal(&local_rng) * sig_trans;
-    float trans_y_noise = curand_normal(&local_rng) * sig_trans * 0.1f;
-    float rot2_noise    = curand_normal(&local_rng) * sig_rot * 0.5f;
+    // ─── Sample Gaussian noise ───
+    float rot_noise     = curand_normal(&local_rng) * sig_rot;          // First rotation noise (mainly affects orientation)
+    float trans_x_noise = curand_normal(&local_rng) * sig_trans;        // First translation noise (mainly affects x)
+    float trans_y_noise = curand_normal(&local_rng) * sig_trans * 0.1f; // Lateral translation noise (smaller, affects y)
+    float rot2_noise    = curand_normal(&local_rng) * sig_rot * 0.5f;   // Second rotation noise (smaller, accounts for additional uncertainty)
 
-    // Noisy delta in robot frame.
+    // ─── Apply noise to odometry delta ───
     float noisy_dx = dx + trans_x_noise;
     float noisy_dy = dy + trans_y_noise;
     float noisy_dt = dtheta + rot_noise + rot2_noise;
 
-    // Transform to world frame.
+    // ─── Transform robot-frame delta to world frame ───
     float theta = particles[i * 3 + 2];
     float ct    = cosf(theta);
     float st    = sinf(theta);
 
-    particles[i * 3 + 0] += noisy_dx * ct - noisy_dy * st;
-    particles[i * 3 + 1] += noisy_dx * st + noisy_dy * ct;
-    particles[i * 3 + 2] += noisy_dt;
+    // Rotation matrix: [cos -sin; sin cos] * [dx; dy]
+    particles[i * 3 + 0] += noisy_dx * ct - noisy_dy * st;  // Update x
+    particles[i * 3 + 1] += noisy_dx * st + noisy_dy * ct;  // Update y
+    particles[i * 3 + 2] += noisy_dt;                       // Update θ
 
     // Normalise angle to [-π, π].
     float a = particles[i * 3 + 2];
     particles[i * 3 + 2] = atan2f(sinf(a), cosf(a));
 
+    // Save RNG state back for next call
     rng[i] = local_rng;
 }
 

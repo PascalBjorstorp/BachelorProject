@@ -69,6 +69,11 @@ private:
     double update_min_a_ = 0.001;
     double max_scan_age_ = 0.05;
 
+    // Slip-aware noise scaling
+    double slip_angular_threshold_ = 1.0;  // rad/s
+    double slip_noise_multiplier_ = 2.0;
+    rclcpp::Time last_scan_time_;          // For dt calculation
+
     // Prediction baseline (reset on reinit)
     bool prediction_baseline_ready_ = false;
     double pred_last_x_ = 0;
