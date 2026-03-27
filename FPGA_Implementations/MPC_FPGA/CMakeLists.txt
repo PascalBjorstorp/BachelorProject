@@ -5,12 +5,10 @@
 # Project Structure:
 #   include/           - FPGA MPC headers (HLS types, fixed-point math)
 #   src/               - FPGA MPC core (HLS-compatible C sources)
-#   sim/               - ROS2 integration for simulation (C-sim of FPGA)
 #   testbench/         - Standalone tests
 #
 # Build Targets:
 #   mpc_fpga_core      - Core FPGA MPC library (pure C, no ROS)
-#   mpc_fpga_node      - ROS2 node for simulator integration
 #
 # The FPGA sources are compiled as regular C for software simulation.
 # HLS pragmas are ignored by GCC (-Wno-unknown-pragmas).
