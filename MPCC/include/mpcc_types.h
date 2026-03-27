@@ -97,6 +97,14 @@ typedef struct
 
 } VehicleState_t;
 
+/* Short aliases for VehicleState_t fields */
+#define pos_x     position_x_meters
+#define pos_y     position_y_meters
+#define heading   heading_angle_radians
+#define long_vel  longitudinal_velocity_meters_per_second
+#define lat_vel   lateral_velocity_meters_per_second
+#define yaw_rate  yaw_rate_radians_per_second
+
 /*===========================================================================
  * F1/10th Default Vehicle Parameters
  *===========================================================================*/
@@ -421,8 +429,23 @@ typedef struct
     /*--- Frenet tracking weights ---*/
 
     /** Lateral deviation weight (q_n).
-     *  Penalizes n^2 — keeps car on the racing line. */
+     *  Penalizes n^2 — keeps car on the racing line.
+     *  Optional: set to 0 when using weight_contouring instead. */
     fixed_point_t weight_n;
+
+    /** Contouring error weight (q_c).
+     *  Penalizes e_c^2, the true perpendicular error from path at
+     *  the virtual arc parameter s, computed in Cartesian:
+     *    e_c = sin(phi(s))*(X - gamma_x(s)) - cos(phi(s))*(Y - gamma_y(s))
+     *  Set to 0 to use the Frenet n approximation instead. */
+    fixed_point_t weight_contouring;
+
+    /** Lag error weight (q_l).
+     *  Penalizes e_l^2, the tangential distance between the vehicle
+     *  and the reference point at virtual parameter s:
+     *    e_l = -cos(phi(s))*(X - gamma_x(s)) - sin(phi(s))*(Y - gamma_y(s))
+     *  Keeps s from running too far ahead of the vehicle. */
+    fixed_point_t weight_lag;
 
     /** Heading error weight (q_alpha).
      *  Penalizes alpha^2 — keeps car aligned with path tangent. */
@@ -476,6 +499,12 @@ typedef struct
 
     /** Terminal lateral deviation penalty */
     fixed_point_t weight_n_terminal;
+
+    /** Terminal contouring error penalty */
+    fixed_point_t weight_contouring_terminal;
+
+    /** Terminal lag error penalty */
+    fixed_point_t weight_lag_terminal;
 
     /** Terminal heading error penalty */
     fixed_point_t weight_alpha_terminal;
@@ -576,6 +605,16 @@ typedef struct
     /** Final ADMM dual residual rho * ||w_new - w_old|| */
     fixed_point_t dual_residual;
 
+    /** Final adapted ADMM rho values used by this solve */
+    fixed_point_t rho_final;
+    fixed_point_t rho_u_final;
+
+    /** Number of adaptive rho updates during solve */
+    uint16_t adaptive_rho_updates;
+
+    /** Number of numeric clipping events during solve */
+    uint32_t numeric_clip_count;
+
     /** Final cost function value */
     fixed_point_t cost;
 
@@ -666,8 +705,15 @@ typedef struct
 
 /*--- Frenet tracking weights ---*/
 
-/** Lateral deviation penalty (aligned-dynamics sweep best). */
-#define MPCC_DEFAULT_WEIGHT_N         FP_CONST(50.0)
+/** Lateral deviation penalty (Frenet n approximation, optional).
+ *  Set to 0 when using MPCC_DEFAULT_WEIGHT_CONTOURING instead. */
+#define MPCC_DEFAULT_WEIGHT_N         FP_CONST(0.0)
+
+/** Contouring error penalty (real Cartesian-based). */
+#define MPCC_DEFAULT_WEIGHT_CONTOURING FP_CONST(50.0)
+
+/** Lag error penalty (real Cartesian-based). */
+#define MPCC_DEFAULT_WEIGHT_LAG       FP_CONST(100.0)
 
 /** Heading error: penalizes deviation from path tangent angle. */
 #define MPCC_DEFAULT_WEIGHT_ALPHA     FP_CONST(20.0)
@@ -692,8 +738,10 @@ typedef struct
 #define MPCC_DEFAULT_WEIGHT_V_THETA_RATE  FP_CONST(0.1)
 
 /*--- Terminal weights ---*/
-#define MPCC_DEFAULT_WEIGHT_N_TERMINAL       FP_CONST(100.0)
-#define MPCC_DEFAULT_WEIGHT_ALPHA_TERMINAL   FP_CONST(10.0)
+#define MPCC_DEFAULT_WEIGHT_N_TERMINAL              FP_CONST(0.0)
+#define MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL     FP_CONST(100.0)
+#define MPCC_DEFAULT_WEIGHT_LAG_TERMINAL            FP_CONST(200.0)
+#define MPCC_DEFAULT_WEIGHT_ALPHA_TERMINAL          FP_CONST(10.0)
 #define MPCC_DEFAULT_WEIGHT_PROGRESS_TERMINAL FP_CONST(5.0)
 
 /*--- Obstacle avoidance ---*/
@@ -702,8 +750,8 @@ typedef struct
 
 /*--- ADMM solver (tuned via sweep) ---*/
 #define MPCC_DEFAULT_ADMM_RHO         FP_CONST(1.218171)
-#define MPCC_DEFAULT_ADMM_MAX_ITER    100
-#define MPCC_DEFAULT_ADMM_TOLERANCE   FP_CONST(0.014462)
+#define MPCC_DEFAULT_ADMM_MAX_ITER    200
+#define MPCC_DEFAULT_ADMM_TOLERANCE   FP_CONST(0.05)
 
 /*--- Track half-width (default if per-stage not set) ---*/
 #define MPCC_DEFAULT_N_MAX            FP_CONST(0.5)

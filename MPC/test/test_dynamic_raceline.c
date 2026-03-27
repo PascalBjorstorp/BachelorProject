@@ -5,11 +5,10 @@
  * Variant of test_sim_drive.c that simulates overtaking scenarios:
  *   - Raceline shifts laterally mid-race (smooth ramps)
  *   - Wall constraints tighten at specific waypoints (nearby car)
- *   - Runs multiple configurations: WALL_END × WALL_SOFT_K
+ *   - Runs multiple horizon configurations via WALL_END
  *
  * Configurations are controlled via environment variables:
  *   WALL_END    — last horizon step with wall constraint (default 5)
- *   WALL_SOFT_K — wall soft stiffness, 0 = hard (default 500)
  *   NO_SHIFT    — if set to "1", disable raceline shifts (baseline)
  *
  * Compile:
@@ -21,10 +20,8 @@
  *       -o test_dynamic -lm
  *
  * Run:
- *   WALL_END=5  WALL_SOFT_K=500 ./test_dynamic   # default soft, 5 steps
- *   WALL_END=20 WALL_SOFT_K=500 ./test_dynamic   # full horizon soft
- *   WALL_END=5  WALL_SOFT_K=0   ./test_dynamic   # hard, 5 steps
- *   WALL_END=20 WALL_SOFT_K=0   ./test_dynamic   # full horizon hard
+ *   WALL_END=5  ./test_dynamic
+ *   WALL_END=20 ./test_dynamic
  */
 
 #define _USE_MATH_DEFINES
@@ -40,7 +37,6 @@
 
 #include "mpc.h"
 #include "mpc_types.h"
-#include "fp_math.h"
 #include "vehicle_model.h"
 #include "riccati_solver.h"
 
@@ -108,11 +104,12 @@ static int load_raceline(void)
                        &wp->s, &wp->x, &wp->y, &wp->psi,
                        &wp->kappa, &wp->vx, &wp->ax,
                        &wp->left_bound, &wp->right_bound);
-        if (n >= 9) raceline_count++;
-        else if (n >= 6) {
-            wp->left_bound = 5.0;
-            wp->right_bound = 5.0;
+        if (n == 9) {
             raceline_count++;
+        } else if (n > 0) {
+            fprintf(stderr, "ERROR: Raceline rows must include wall bounds (9 columns).\n");
+            fclose(f);
+            return 0;
         }
     }
     fclose(f);
@@ -228,19 +225,19 @@ static int find_closest_waypoint(double px, double py, double heading)
 static FrenetState_t vehicle_to_frenet(const VehicleState_t *v, int wp)
 {
     FrenetState_t f;
-    double px  = FP_TO_DOUBLE(v->position_x_meters);
-    double py  = FP_TO_DOUBLE(v->position_y_meters);
-    double psi = FP_TO_DOUBLE(v->heading_angle_radians);
+    double px  = (double)(v->pos_x);
+    double py  = (double)(v->pos_y);
+    double psi = (double)(v->heading);
     double dx  = px - raceline[wp].x;
     double dy  = py - raceline[wp].y;
     double path_psi = raceline[wp].psi;
     double lat_err  = -dx * sin(path_psi) + dy * cos(path_psi);
     double hdg_err  = wrap_angle(psi - path_psi);
-    f.lateral_error_meters                      = DOUBLE_TO_FP(lat_err);
-    f.heading_error_radians                     = DOUBLE_TO_FP(hdg_err);
-    f.longitudinal_velocity_meters_per_second   = v->longitudinal_velocity_meters_per_second;
-    f.lateral_velocity_meters_per_second        = v->lateral_velocity_meters_per_second;
-    f.yaw_rate_radians_per_second               = v->yaw_rate_radians_per_second;
+    f.flat_error                      = (float)(lat_err);
+    f.fhead_error                     = (float)(hdg_err);
+    f.flong_vel   = v->long_vel;
+    f.flat_vel        = v->lat_vel;
+    f.fyaw_rate               = v->yaw_rate;
     return f;
 }
 
@@ -265,20 +262,18 @@ static void build_reference_dynamic(int closest, double actual_vx,
         int wp   = (closest + (step + 1) * wp_advance) % raceline_count;
 
         /* Reference lateral error = the offset (shift the target line) */
-        ref[step].reference_lateral_error_meters    = DOUBLE_TO_FP(lateral_offset);
-        ref[step].reference_heading_error_radians   = 0;
-        ref[step].reference_velocity_meters_per_second =
-            DOUBLE_TO_FP(raceline[base].vx);
-        ref[step].reference_lateral_velocity_meters_per_second = 0;
+        ref[step].reference_lateral_error    = (float)(lateral_offset);
+        ref[step].reference_heading_error   = 0;
+        ref[step].reference_velocity =
+            (float)(raceline[base].vx);
+        ref[step].reference_lateral_velocity = 0;
 
         double kappa = raceline[wp].kappa;
         double v_wp  = raceline[base].vx;
-        ref[step].reference_yaw_rate_radians_per_second =
-            DOUBLE_TO_FP(kappa * v_wp);
-        ref[step].reference_acceleration_meters_per_second_squared =
-            DOUBLE_TO_FP(raceline[base].ax);
-        ref[step].path_curvature_radians_per_meter =
-            DOUBLE_TO_FP(raceline[wp].kappa);
+        ref[step].reference_yaw_rate =
+            (float)(kappa * v_wp);
+        ref[step].path_curvature =
+            (float)(raceline[wp].kappa);
 
         /* Start from CSV wall bounds */
         double lw = raceline[wp].left_bound;
@@ -297,8 +292,8 @@ static void build_reference_dynamic(int closest, double actual_vx,
         if (lw < MIN_WALL_DISTANCE) lw = MIN_WALL_DISTANCE;
         if (rw < MIN_WALL_DISTANCE) rw = MIN_WALL_DISTANCE;
 
-        ref[step].left_wall_bound_meters  = DOUBLE_TO_FP(lw);
-        ref[step].right_wall_bound_meters = DOUBLE_TO_FP(rw);
+        ref[step].left_wall_bound  = (float)(lw);
+        ref[step].right_wall_bound = (float)(rw);
     }
 }
 
@@ -316,9 +311,7 @@ int main(void)
     const double cross_scale = SIM_DT / mpc_prediction_dt;
 
     const char *wall_end_env  = getenv("WALL_END");
-    const char *wall_soft_env = getenv("WALL_SOFT_K");
     int cfg_wall_end    = wall_end_env  ? atoi(wall_end_env)  : 5;
-    int cfg_wall_soft_k = wall_soft_env ? atoi(wall_soft_env) : 500;
 
     const char *no_shift_env = getenv("NO_SHIFT");
     int shift_enabled = !(no_shift_env && atoi(no_shift_env));
@@ -332,8 +325,6 @@ int main(void)
     printf("  Duration:    %.0fs at dt=%.4fs (%d steps, %.0fHz)\n",
            SIM_DURATION, SIM_DT, SIM_STEPS, 1.0 / SIM_DT);
     printf("  WALL_END:    %d\n", cfg_wall_end);
-    printf("  WALL_SOFT_K: %d%s\n", cfg_wall_soft_k,
-           cfg_wall_soft_k == 0 ? " (HARD)" : " (SOFT)");
     printf("  Shift magnitude: %.2fm\n", shift_magnitude);
     printf("  Raceline shift: %s\n", shift_enabled ? "ENABLED" : "DISABLED");
     printf("  Obstacle zones: wp 200-300 (right -0.4m), wp 700-800 (left -0.3m)\n");
@@ -347,36 +338,36 @@ int main(void)
 
     MpcConfiguration_t cfg = mpc_get_configuration();
     cfg.prediction_horizon_steps = MPC_HORIZON;
-    cfg.cross_call_rate_scale = FP_CONST(cross_scale);
+    cfg.cross_call_rate_scale = (float)(cross_scale);
 
     /* Tuned weights (same as test_sim_drive defaults, overridable) */
     const char *env;
-    cfg.weight_lateral_error       = FP_CONST((env = getenv("Q_LAT"))       ? atof(env) : 125.0);
-    cfg.weight_heading_error       = FP_CONST((env = getenv("Q_HDG"))       ? atof(env) : 300.0);
-    cfg.weight_velocity            = FP_CONST((env = getenv("Q_VEL"))       ? atof(env) : 30.0);
-    cfg.weight_lateral_velocity    = FP_CONST((env = getenv("Q_LAT_VEL"))   ? atof(env) : 60.0);
-    cfg.weight_yaw_rate            = FP_CONST((env = getenv("Q_YAW"))       ? atof(env) : 20.0);
-    cfg.weight_steering_effort     = FP_CONST((env = getenv("R_STEER"))     ? atof(env) : 0.35);
-    cfg.weight_acceleration_effort = FP_CONST((env = getenv("R_ACCEL"))     ? atof(env) : 0.01);
-    cfg.weight_steering_rate       = FP_CONST((env = getenv("W_JERK"))      ? atof(env) : 0.5);
-    cfg.weight_acceleration_rate   = FP_CONST((env = getenv("W_ACCEL_RATE"))? atof(env) : 0.01);
+    cfg.weight_lateral_error       = (float)((env = getenv("Q_LAT"))       ? atof(env) : 125.0);
+    cfg.weight_heading_error       = (float)((env = getenv("Q_HDG"))       ? atof(env) : 300.0);
+    cfg.weight_velocity            = (float)((env = getenv("Q_VEL"))       ? atof(env) : 30.0);
+    cfg.weight_lateral_velocity    = (float)((env = getenv("Q_LAT_VEL"))   ? atof(env) : 60.0);
+    cfg.weight_yaw_rate            = (float)((env = getenv("Q_YAW"))       ? atof(env) : 20.0);
+    cfg.weight_steering_effort     = (float)((env = getenv("R_STEER"))     ? atof(env) : 0.35);
+    cfg.weight_acceleration_effort = (float)((env = getenv("R_ACCEL"))     ? atof(env) : 0.01);
+    cfg.weight_steering_rate       = (float)((env = getenv("W_JERK"))      ? atof(env) : 0.5);
+    cfg.weight_acceleration_rate   = (float)((env = getenv("W_ACCEL_RATE"))? atof(env) : 0.01);
     mpc_set_configuration(&cfg);
 
     printf("  Weights: Q_lat=%.1f Q_hdg=%.1f Q_vel=%.1f R_steer=%.2f R_accel=%.2f\n",
-           FP_TO_DOUBLE(cfg.weight_lateral_error),
-           FP_TO_DOUBLE(cfg.weight_heading_error),
-           FP_TO_DOUBLE(cfg.weight_velocity),
-           FP_TO_DOUBLE(cfg.weight_steering_effort),
-           FP_TO_DOUBLE(cfg.weight_acceleration_effort));
+           (double)(cfg.weight_lateral_error),
+           (double)(cfg.weight_heading_error),
+           (double)(cfg.weight_velocity),
+           (double)(cfg.weight_steering_effort),
+           (double)(cfg.weight_acceleration_effort));
 
     /* ---- Spawn at raceline[0] ---- */
     VehicleState_t state;
-    state.position_x_meters                       = DOUBLE_TO_FP(raceline[0].x);
-    state.position_y_meters                       = DOUBLE_TO_FP(raceline[0].y);
-    state.heading_angle_radians                    = DOUBLE_TO_FP(raceline[0].psi);
-    state.longitudinal_velocity_meters_per_second  = 0;
-    state.lateral_velocity_meters_per_second       = 0;
-    state.yaw_rate_radians_per_second              = 0;
+    state.pos_x                       = (float)(raceline[0].x);
+    state.pos_y                       = (float)(raceline[0].y);
+    state.heading                    = (float)(raceline[0].psi);
+    state.long_vel  = 0;
+    state.lat_vel       = 0;
+    state.yaw_rate              = 0;
 
     /* ---- Tracking metrics ---- */
     double max_lat_err = 0, sum_lat_err = 0;
@@ -408,18 +399,18 @@ int main(void)
 
     for (int step = 0; step < SIM_STEPS; step++) {
         double t  = step * SIM_DT;
-        double px  = FP_TO_DOUBLE(state.position_x_meters);
-        double py  = FP_TO_DOUBLE(state.position_y_meters);
-        double psi = FP_TO_DOUBLE(state.heading_angle_radians);
-        double vx  = FP_TO_DOUBLE(state.longitudinal_velocity_meters_per_second);
+        double px  = (double)(state.pos_x);
+        double py  = (double)(state.pos_y);
+        double psi = (double)(state.heading);
+        double vx  = (double)(state.long_vel);
 
         if (vx > max_vx) max_vx = vx;
 
         int closest = find_closest_waypoint(px, py, psi);
 
         FrenetState_t frenet = vehicle_to_frenet(&state, closest);
-        double e_y   = FP_TO_DOUBLE(frenet.lateral_error_meters);
-        double e_psi = FP_TO_DOUBLE(frenet.heading_error_radians);
+        double e_y   = (double)(frenet.flat_error);
+        double e_psi = (double)(frenet.fhead_error);
 
         /* Compute current lateral offset */
         double lateral_offset = shift_enabled ? get_raceline_offset(t) : 0.0;
@@ -454,8 +445,8 @@ int main(void)
         /* Feed realized steering to MPC */
         {
             ControlInput_t actual_ctrl;
-            actual_ctrl.steering_angle_radians = DOUBLE_TO_FP(actual_steer);
-            actual_ctrl.acceleration_meters_per_second_squared = DOUBLE_TO_FP(cmd_accel);
+            actual_ctrl.steer_ang = (float)(actual_steer);
+            actual_ctrl.long_acc = (float)(cmd_accel);
             mpc_set_actual_previous_control(&actual_ctrl);
         }
 
@@ -482,9 +473,9 @@ int main(void)
                 total_solve_us += solve_us;
                 if (solve_us > max_solve_us) max_solve_us = solve_us;
 
-                steer     = FP_TO_DOUBLE(result.optimal_control.steering_angle_radians);
-                accel_cmd = FP_TO_DOUBLE(
-                    result.optimal_control.acceleration_meters_per_second_squared);
+                steer     = (double)(result.optimal_control.steer_ang);
+                accel_cmd = (double)(
+                    result.optimal_control.long_acc);
                 iter = result.iterations_used;
                 total_iterations += iter;
                 if (iter > max_iter_single) max_iter_single = iter;
@@ -692,18 +683,18 @@ int main(void)
             st_psi_dot = sn[5];
             st_beta    = sn[6];
 
-            state.position_x_meters =
-                DOUBLE_TO_FP(sn[0]);
-            state.position_y_meters =
-                DOUBLE_TO_FP(sn[1]);
-            state.heading_angle_radians =
-                DOUBLE_TO_FP(sn[4]);
-            state.longitudinal_velocity_meters_per_second =
-                DOUBLE_TO_FP(sn[3] * cos(sn[6]));
-            state.lateral_velocity_meters_per_second =
-                DOUBLE_TO_FP(sn[3] * sin(sn[6]));
-            state.yaw_rate_radians_per_second =
-                DOUBLE_TO_FP(sn[5]);
+            state.pos_x =
+                (float)(sn[0]);
+            state.pos_y =
+                (float)(sn[1]);
+            state.heading =
+                (float)(sn[4]);
+            state.long_vel =
+                (float)(sn[3] * cos(sn[6]));
+            state.lat_vel =
+                (float)(sn[3] * sin(sn[6]));
+            state.yaw_rate =
+                (float)(sn[5]);
 
             actual_steer = st_delta;
 
@@ -732,8 +723,8 @@ int main(void)
 
     printf("\n");
     printf("============================================================\n");
-    printf("  Results: WALL_END=%d  WALL_SOFT_K=%d  Shift=%s\n",
-           cfg_wall_end, cfg_wall_soft_k,
+        printf("  Results: WALL_END=%d  Shift=%s\n",
+            cfg_wall_end,
            shift_enabled ? "ON" : "OFF");
     printf("============================================================\n");
     printf("  Completed:          %d / %d steps (%.1fs / %.1fs)\n",
@@ -767,8 +758,8 @@ int main(void)
     printf("  Total solve time:    %.1f ms\n", total_solve_us / 1000.0);
 
     /* Machine-readable CSV line */
-    printf("\nCSV_DYNAMIC,%d,%d,%s,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%d,%.1f,%.1f,%d\n",
-           cfg_wall_end, cfg_wall_soft_k,
+        printf("\nCSV_DYNAMIC,%d,%s,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%d,%.1f,%.1f,%d\n",
+            cfg_wall_end,
            shift_enabled ? "ON" : "OFF",
            wall_collisions, convergence_failures,
            max_lat_err, avg_lat, max_hdg_err, avg_hdg,

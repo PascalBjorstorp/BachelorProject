@@ -226,19 +226,18 @@ static void odom_callback(const void *msg_in)
     double omega   = msg->twist.twist.angular.z;
 
     /* Pack into VehicleState (x, y, psi, vx, vy, omega) */
-    current_vehicle_state.position_x_meters     = float_to_fp((float)X);
-    current_vehicle_state.position_y_meters     = float_to_fp((float)Y);
-    current_vehicle_state.heading_angle_radians = float_to_fp((float)psi);
-    current_vehicle_state.longitudinal_velocity_meters_per_second = float_to_fp((float)vx_body);
-    current_vehicle_state.lateral_velocity_meters_per_second      = float_to_fp((float)vy_body);
-    current_vehicle_state.yaw_rate_radians_per_second             = float_to_fp((float)omega);
+    current_vehicle_state.pos_x     = float_to_fp((float)X);
+    current_vehicle_state.pos_y     = float_to_fp((float)Y);
+    current_vehicle_state.heading = float_to_fp((float)psi);
+    current_vehicle_state.long_vel = float_to_fp((float)vx_body);
+    current_vehicle_state.lat_vel      = float_to_fp((float)vy_body);
+    current_vehicle_state.yaw_rate             = float_to_fp((float)omega);
 
     state_valid = 1;
 }
 
 /* ── Control Timer Callback ──────────────────────────────────────────────── */
 static uint32_t solve_count = 0;
-static int startup_ramp_steps = -1; /* from env MPCC_STARTUP_RAMP_STEPS, default 40 */
 
 static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
 {
@@ -260,74 +259,11 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
 
     solve_count++;
 
-    if (startup_ramp_steps < 0) {
-        const char *v = getenv("MPCC_STARTUP_RAMP_STEPS");
-        startup_ramp_steps = v ? atoi(v) : 40;
-        if (startup_ramp_steps < 0) startup_ramp_steps = 0;
-    }
-
     float a_x_cmd   = fp_to_float(result.optimal_control.a_x);
     float delta_cmd  = fp_to_float(result.optimal_control.delta);
     float v_theta_cmd = fp_to_float(result.optimal_control.v_theta);
 
-    /* ── Startup ramp: gently increase control authority ────────────── */
-    if (startup_ramp_steps > 0 && solve_count <= (uint32_t)startup_ramp_steps) {
-        float ramp = (float)solve_count / (float)startup_ramp_steps;
-        /* Accel: ramp from 1.0 → 7.0 m/s² over 2 seconds */
-        float max_ax = 1.0f + 6.0f * ramp;
-        if (a_x_cmd >  max_ax) a_x_cmd =  max_ax;
-        if (a_x_cmd < -max_ax) a_x_cmd = -max_ax;
-        /* Steer: ramp from 0.1 → 0.43 rad over 2 seconds */
-        float max_d = 0.1f + 0.33f * ramp;
-        if (delta_cmd >  max_d) delta_cmd =  max_d;
-        if (delta_cmd < -max_d) delta_cmd = -max_d;
-    }
-
-    /* ── If solver didn't converge, mpcc.c already falls back to the
-     *    shifted warm-start control (last good plan). Just cap accel
-     *    for safety — steering from the warm-start is trustworthy. ── */
-    if (status != MPCC_STATUS_SUCCESS) {
-        if (a_x_cmd >  3.0f) a_x_cmd =  3.0f;
-        if (a_x_cmd < -3.0f) a_x_cmd = -3.0f;
-    }
-
-    /* ── Gentle correction: limit speed when far from raceline ────── */
-    /* Only active until the car joins the raceline for the first time.
-     * Prevents building dangerous momentum during initial transient.  */
-    {
-        static int joined_raceline = 0;
-        float n_abs = fp_to_float(mpcc_state.n);
-        if (n_abs < 0.0f) n_abs = -n_abs;
-
-        if (n_abs < 0.15f) joined_raceline = 1;
-
-        if (!joined_raceline && n_abs > 0.15f) {
-            float vx_now = fp_to_float(mpcc_state.vx);
-            /* Target max speed scales with proximity to raceline:
-             *   |n| >= 0.5  →  max_vx = 1.0 m/s  (crawl)
-             *   |n|  = 0.3  →  max_vx = 2.2 m/s
-             *   |n| <= 0.15 →  no limit from here                    */
-            float prox = 1.0f - n_abs / 0.5f;
-            if (prox < 0.0f) prox = 0.0f;
-            float max_vx = 1.0f + 3.0f * prox;
-
-            if (vx_now > max_vx) {
-                if (a_x_cmd > 0.0f) a_x_cmd = 0.0f;
-            } else {
-                if (a_x_cmd > 1.0f) a_x_cmd = 1.0f;
-            }
-        }
-    }
-
-    /* Minimum acceleration: prevent car from nearly stopping.
-     * At very low speed the optimizer can't plan turns effectively. */
-    {
-        float vx_now = fp_to_float(mpcc_state.vx);
-        if (vx_now < 1.5f && a_x_cmd < 0.5f)
-            a_x_cmd = 0.5f;
-    }
-
-    /* Diagnostic: show state + ACTUAL commands sent (after ramp/clamp) */
+    /* Diagnostic: show state + actual commands sent */
     if (solve_count <= 20 || (solve_count % 10 == 0)) {
         fprintf(stderr,
             "[MPCC %3u] s=%.2f n=%.3f a=%.3f vx=%.2f | "
@@ -377,6 +313,8 @@ int main(int argc, const char *argv[])
 
         const char *v;
         if ((v = getenv("Q_N")))             cfg.weight_n          = float_to_fp((float)atof(v));
+        if ((v = getenv("Q_CONTOURING")))    cfg.weight_contouring = float_to_fp((float)atof(v));
+        if ((v = getenv("Q_LAG")))           cfg.weight_lag        = float_to_fp((float)atof(v));
         if ((v = getenv("Q_ALPHA")))         cfg.weight_alpha      = float_to_fp((float)atof(v));
         if ((v = getenv("Q_PROGRESS")))      cfg.weight_progress   = float_to_fp((float)atof(v));
         if ((v = getenv("Q_VX")))            cfg.weight_vx         = float_to_fp((float)atof(v));
@@ -390,6 +328,8 @@ int main(int argc, const char *argv[])
         if ((v = getenv("W_AX_RATE")))       cfg.weight_ax_rate    = float_to_fp((float)atof(v));
         if ((v = getenv("W_VTHETA_RATE")))   cfg.weight_v_theta_rate = float_to_fp((float)atof(v));
         if ((v = getenv("Q_N_TERM")))        cfg.weight_n_terminal = float_to_fp((float)atof(v));
+        if ((v = getenv("Q_CONTOURING_TERM"))) cfg.weight_contouring_terminal = float_to_fp((float)atof(v));
+        if ((v = getenv("Q_LAG_TERM")))      cfg.weight_lag_terminal = float_to_fp((float)atof(v));
         if ((v = getenv("Q_ALPHA_TERM")))    cfg.weight_alpha_terminal = float_to_fp((float)atof(v));
         if ((v = getenv("Q_PROGRESS_TERM"))) cfg.weight_progress_terminal = float_to_fp((float)atof(v));
         if ((v = getenv("ADMM_RHO")))        cfg.admm_rho          = float_to_fp((float)atof(v));
@@ -399,14 +339,21 @@ int main(int argc, const char *argv[])
         if ((v = getenv("DT")))              cfg.dt                = float_to_fp((float)atof(v));
         if ((v = getenv("V_THETA_MAX")))     cfg.v_theta_max       = float_to_fp((float)atof(v));
         if ((v = getenv("V_THETA_MIN")))     cfg.v_theta_min       = float_to_fp((float)atof(v));
+        if ((v = getenv("MU")))              cfg.mu                = float_to_fp((float)atof(v));
+        if ((v = getenv("C_SF")))            cfg.C_Sf              = float_to_fp((float)atof(v));
+        if ((v = getenv("C_SR")))            cfg.C_Sr              = float_to_fp((float)atof(v));
+        if ((v = getenv("AX_MAX")))          cfg.ax_max            = float_to_fp((float)atof(v));
+        if ((v = getenv("AX_MIN")))          cfg.ax_min            = float_to_fp((float)atof(v));
 
         /* Apply the possibly-modified config */
         mpcc_set_configuration(&cfg);
 
-        printf("[MPCC] Config: N=%d dt=%.3f Q_n=%.1f Q_alpha=%.1f Q_prog=%.1f "
-               "R_delta=%.2f W_drate=%.1f ADMM_rho=%.2f\n",
+        printf("[MPCC] Config: N=%d dt=%.3f Q_n=%.1f Q_c=%.1f Q_l=%.1f Q_alpha=%.1f "
+               "Q_prog=%.1f R_delta=%.2f W_drate=%.1f ADMM_rho=%.2f\n",
                cfg.horizon_steps, fp_to_float(cfg.dt),
-               fp_to_float(cfg.weight_n), fp_to_float(cfg.weight_alpha),
+               fp_to_float(cfg.weight_n),
+               fp_to_float(cfg.weight_contouring), fp_to_float(cfg.weight_lag),
+               fp_to_float(cfg.weight_alpha),
                fp_to_float(cfg.weight_progress),
                fp_to_float(cfg.weight_delta), fp_to_float(cfg.weight_delta_rate),
                fp_to_float(cfg.admm_rho));

@@ -97,9 +97,12 @@ void mpcc_linearize_dynamics(
     fixed_point_t dn_dvx    = sin_a;
     fixed_point_t dn_dvy    = cos_a;
 
-    /* --- Tire forces and Jacobians (rows 3-5), aligned with MPC/MPC_FPGA --- */
-    fixed_point_t vx_safe = state->vx;
-    if (fp_abs(vx_safe) < FP_CONST(0.5)) vx_safe = FP_CONST(0.5);
+    /* --- Tire forces and Jacobians (rows 3-5) ---
+     * Use minimum vx of 0.5 m/s for slip angle calculations.
+     * Lower thresholds cause Riccati instability at high speeds due to
+     * large tire Jacobian eigenvalues in corners. */
+    fixed_point_t vx_abs = fp_abs(state->vx);
+    fixed_point_t vx_safe = (vx_abs < FP_CONST(0.5)) ? FP_CONST(0.5) : vx_abs;
     fixed_point_t inv_vx = fp_div(FP_ONE, vx_safe);
     fixed_point_t cos_delta = fp_cos(control->delta);
     fixed_point_t sin_delta = fp_sin(control->delta);
@@ -184,17 +187,17 @@ void mpcc_linearize_dynamics(
     /* Row 2 (alpha): dalpha/dt = omega - kappa*v_theta */
     sys->A[2][5] = fp_add(sys->A[2][5], dt); /* da/domega = 1 */
 
-    /* Row 3 (vx): full model */
+    /* Row 3 (vx): full tire model */
     sys->A[3][3] = fp_add(sys->A[3][3], fp_mul(dt, dvx_dvx));
     sys->A[3][4] = fp_add(sys->A[3][4], fp_mul(dt, dvx_dvy));
     sys->A[3][5] = fp_add(sys->A[3][5], fp_mul(dt, dvx_domega));
 
-    /* Row 4 (vy): linear tire */
+    /* Row 4 (vy): full tire model */
     sys->A[4][3] = fp_add(sys->A[4][3], fp_mul(dt, dvy_dvx));
     sys->A[4][4] = fp_add(sys->A[4][4], fp_mul(dt, dvy_dvy));
     sys->A[4][5] = fp_add(sys->A[4][5], fp_mul(dt, dvy_domega));
 
-    /* Row 5 (omega): linear tire */
+    /* Row 5 (omega): full tire model */
     sys->A[5][3] = fp_add(sys->A[5][3], fp_mul(dt, domega_dvx));
     sys->A[5][4] = fp_add(sys->A[5][4], fp_mul(dt, domega_dvy));
     sys->A[5][5] = fp_add(sys->A[5][5], fp_mul(dt, domega_domega));

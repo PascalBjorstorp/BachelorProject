@@ -55,6 +55,23 @@ def launch_setup(context, *args, **kwargs):
     )
     with open(config, 'r') as config_file:
         config_dict = yaml.safe_load(config_file)
+
+    map_path_override = os.environ.get('GYM_MAP_PATH', '').strip()
+    if map_path_override:
+        config_dict['bridge']['ros__parameters']['map_path'] = map_path_override
+        print(f'[gym_bridge] map_path override from env: {map_path_override}')
+
+    map_img_ext_override = os.environ.get('GYM_MAP_IMG_EXT', '').strip()
+    if map_img_ext_override:
+        config_dict['bridge']['ros__parameters']['map_img_ext'] = map_img_ext_override
+        print(f'[gym_bridge] map_img_ext override from env: {map_img_ext_override}')
+
+    for key, env_name in (('sx', 'GYM_SX'), ('sy', 'GYM_SY'), ('stheta', 'GYM_STHETA')):
+        value = os.environ.get(env_name, '').strip()
+        if value:
+            config_dict['bridge']['ros__parameters'][key] = float(value)
+            print(f'[gym_bridge] {key} override from env: {value}')
+
     has_opp = config_dict['bridge']['ros__parameters']['num_agent'] > 1
     use_sim_time = config_dict['bridge']['ros__parameters']['use_sim_time']
     
@@ -77,6 +94,10 @@ def launch_setup(context, *args, **kwargs):
             'use_sim_time_bridge': use_sim_time,
             'tf_frame_id': tf_frame_id,
             'odom_frame_id': odom_frame_id,
+            'map_path': config_dict['bridge']['ros__parameters']['map_path'],
+            'sx': config_dict['bridge']['ros__parameters']['sx'],
+            'sy': config_dict['bridge']['ros__parameters']['sy'],
+            'stheta': config_dict['bridge']['ros__parameters']['stheta'],
         }],
     )
     nodes.append(bridge_node)
