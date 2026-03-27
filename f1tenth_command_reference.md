@@ -88,8 +88,7 @@ ros2 launch f1tenth_localization cpp_localization.launch.py
 ### Terminal 3 — Pure Pursuit Controller (on Jetson)
 ```bash
 ros2 launch f1tenth_control pure_pursuit_launch.py \
-  trajectory_file:=/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv \
-  max_speed:=3.0 \
+  max_speed:=3.0
 ```
 
 ### Terminal 3 — Model Predictive Control (on Jetson)
