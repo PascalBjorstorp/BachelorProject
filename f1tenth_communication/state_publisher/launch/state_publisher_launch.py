@@ -1,6 +1,6 @@
 """
 Launch state publisher node for MPC communication.
-Runs on Jetson to publish vehicle state + waypoint index.
+Runs on Jetson to publish vehicle state + streamed MPC references.
 """
 
 from ament_index_python.packages import get_package_share_directory
@@ -13,6 +13,11 @@ from launch_ros.substitutions import FindPackageShare
 import os
 
 def generate_launch_description():
+    """
+    @brief Build launch description for the Jetson state publisher node.
+
+    @return LaunchDescription with trajectory argument and configured node action.
+    """
     # Use params file from config directory
     params_file = PathJoinSubstitution([
         FindPackageShare('state_publisher'),

@@ -15,7 +15,6 @@
  */
 
 #include "common/types.hpp"
-#include "common/math_utils.hpp"
 #include <vector>
 #include <string>
 #include <fstream>
@@ -31,19 +30,19 @@ namespace f1tenth_control {
  */
 struct StanleyConfig {
     // Gain parameters
-    double k_e{2.5};                // Cross-track error gain
-    double k_h{1.0};                // Heading error gain (typically 1.0)
-    double k_s{1.0};                // Softening constant for low speed (prevents division by zero)
-    double k_d{0.1};                // Damping gain (reduces oscillation using angular velocity)
+    double k_e{1.9203};             // Cross-track error gain
+    double k_h{1.1991};             // Heading error gain
+    double k_s{1.1759};             // Softening constant for low speed
+    double k_d{0.1429};             // Damping gain (reduces oscillation using angular velocity)
     
     // Speed control
-    double max_speed{15.0};         // [m/s] Maximum speed
-    double min_speed{1.0};          // [m/s] Minimum speed
-    double speed_gain{1.0};         // Multiplier for trajectory target speed
+    double max_speed{3.5902};       // [m/s] Maximum speed
+    double min_speed{1.5};          // [m/s] Minimum speed
+    double speed_gain{1.2986};      // Multiplier for trajectory target speed
     
     // Steering limits
     double max_steering{0.4189};    // [rad] Maximum steering angle (~24°)
-    double max_steering_rate{0.5};  // [rad/s] Maximum steering rate (prevents sudden changes)
+    double max_steering_rate{2.8175};  // [rad/s] Maximum steering rate
     
     // Vehicle parameters
     double wheelbase{0.3302};       // [m] Distance between axles
@@ -53,10 +52,10 @@ struct StanleyConfig {
     
     // Feedforward
     bool use_feedforward{true};     // Use trajectory curvature for feedforward steering
-    double feedforward_gain{1.0};   // Feedforward curvature gain
+    double feedforward_gain{1.6};   // Feedforward curvature gain
     
     // Speed adaptation
-    double curvature_speed_factor{0.8}; // Speed reduction based on path curvature
+    double curvature_speed_factor{1.1939}; // Speed reduction based on path curvature
     
     // Control rate (for steering rate limiting)
     double control_rate{200.0};         // [Hz] Control loop frequency
@@ -107,9 +106,9 @@ struct StanleyOutput {
 class Stanley {
 public:
     /**
-        * @brief Construct a Stanley controller using caller-provided configuration.
-        * @param config Initial Stanley tuning and limit parameters.
-        * @return None.
+     * @brief Construct a Stanley controller using caller-provided configuration.
+     * @param config Initial Stanley tuning and limit parameters.
+     * @return None.
      */
     explicit Stanley(const StanleyConfig& config);
     
@@ -155,9 +154,9 @@ public:
     
     /**
      * @brief Report whether controller has enough path data to operate.
-     * @return True when trajectory storage is non-empty.
+     * @return True when trajectory storage contains at least three waypoints.
      */
-    bool hasTrajectory() const { return !trajectory_.empty(); }
+    bool hasTrajectory() const { return trajectory_.size() >= 3; }
     
     /**
      * @brief Compute cumulative path length for reporting and validation.
@@ -187,15 +186,6 @@ private:
      * @return Signed cross-track error in meters.
      */
     double computeCrossTrackError(const Point2D& front_axle_pos, size_t closest_idx);
-    
-    /**
-     * @brief Normalize angular differences for stable control arithmetic.
-     * @param angle Raw angle value in radians.
-     * @return Angle wrapped to canonical interval [-pi, pi].
-     */
-    static double normalizeAngle(double angle) {
-        return math::normalizeAngle(angle);
-    }
 };
 
 }  // namespace f1tenth_control

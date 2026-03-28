@@ -1,6 +1,5 @@
 #include "nodes/pure_pursuit_node.hpp"
 
-
 namespace f1tenth_control {
 
 PurePursuitNode::PurePursuitNode(const rclcpp::NodeOptions& options)
@@ -47,12 +46,6 @@ PurePursuitNode::PurePursuitNode(const rclcpp::NodeOptions& options)
     drive_pub_ = create_publisher<ackermann_msgs::msg::AckermannDriveStamped>(
         "/drive", 10
     );
-    
-    if (publish_visualization_) {
-        viz_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
-            "/pp_viz", 10
-        );
-    }
     
     // Setup parameter callback
     param_callback_handle_ = add_on_set_parameters_callback(
@@ -111,7 +104,6 @@ void PurePursuitNode::declareParameters() {
     declare_parameter("wheelbase", 0.324);
     
     // Misc
-    declare_parameter("publish_visualization", true);
     declare_parameter("pose_topic", std::string("/ekf_pose"));
     declare_parameter("pose_timeout_s", 0.1);
     declare_parameter("odom_timeout_s", 0.2);
@@ -151,7 +143,6 @@ void PurePursuitNode::loadParameters() {
     config_.max_steering = std::max(1e-3, get_parameter("max_steering").as_double());
     config_.wheelbase = std::max(1e-3, get_parameter("wheelbase").as_double());
     
-    publish_visualization_ = get_parameter("publish_visualization").as_bool();
     pose_topic_ = get_parameter("pose_topic").as_string();
     pose_timeout_s_ = std::max(0.01, get_parameter("pose_timeout_s").as_double());
     odom_timeout_s_ = std::max(0.01, get_parameter("odom_timeout_s").as_double());
@@ -505,8 +496,8 @@ void PurePursuitNode::localRacelineCallback(const nav_msgs::msg::Path::SharedPtr
         if (ds > 1e-6) {
             double dtheta = new_traj[i + 1].heading - new_traj[i - 1].heading;
             // Normalize to [-pi, pi]
-            while (dtheta > M_PI) dtheta -= 2.0 * M_PI;
-            while (dtheta < -M_PI) dtheta += 2.0 * M_PI;
+            while (dtheta > constants::PI) dtheta -= 2.0 * constants::PI;
+            while (dtheta < -constants::PI) dtheta += 2.0 * constants::PI;
             new_traj[i].curvature = dtheta / ds;
         }
     }
@@ -657,10 +648,6 @@ void PurePursuitNode::controlLoop() {
         }
         
         publishDriveCommand(cmd_steer, cmd_speed);
-        
-        if (publish_visualization_) {
-            publishLookaheadMarker(output);
-        }
     } else {
         RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, 
                             "Invalid Pure Pursuit output");
@@ -683,33 +670,6 @@ void PurePursuitNode::publishDriveCommand(double steering, double speed) {
     msg.drive.speed = speed;
     drive_pub_->publish(msg);
 }
-
-void PurePursuitNode::publishLookaheadMarker(const PurePursuitOutput& output) {
-    visualization_msgs::msg::MarkerArray markers;
-    
-    visualization_msgs::msg::Marker target_marker;
-    target_marker.header.stamp = now();
-    target_marker.header.frame_id = "map";
-    target_marker.ns = "pure_pursuit";
-    target_marker.id = 0;
-    target_marker.type = visualization_msgs::msg::Marker::SPHERE;
-    target_marker.action = visualization_msgs::msg::Marker::ADD;
-    target_marker.pose.position.x = output.target_point.x;
-    target_marker.pose.position.y = output.target_point.y;
-    target_marker.pose.position.z = 0.1;
-    target_marker.scale.x = 0.3;
-    target_marker.scale.y = 0.3;
-    target_marker.scale.z = 0.3;
-    target_marker.color.r = 0.0;
-    target_marker.color.g = 1.0;
-    target_marker.color.b = 0.0;
-    target_marker.color.a = 0.8;
-    markers.markers.push_back(target_marker);
-    
-    viz_pub_->publish(markers);
-}
-
-
 
 }  // namespace f1tenth_control
 

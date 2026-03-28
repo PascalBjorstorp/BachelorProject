@@ -1,6 +1,5 @@
-#include "f1tenth_control/nodes/stanley_node.hpp"
-#include <tf2/utils.h>
-#include <geometry_msgs/msg/pose_stamped.hpp>
+#include "nodes/stanley_node.hpp"
+
 
 namespace f1tenth_control {
 
@@ -45,14 +44,6 @@ StanleyNode::StanleyNode(const rclcpp::NodeOptions& options)
         "/drive", 10
     );
     
-    if (publish_visualization_) {
-        viz_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>("/stanley_viz", 10);
-        path_pub_ = create_publisher<nav_msgs::msg::Path>(
-            "/stanley_path", rclcpp::QoS(1).transient_local()
-        );
-        publishTrajectoryPath();
-    }
-    
     // Setup control timer
     auto period = std::chrono::duration<double>(1.0 / control_rate_);
     control_timer_ = create_wall_timer(
@@ -81,33 +72,32 @@ void StanleyNode::declareParameters() {
     declare_parameter("trajectory_file", "");
     
     // Stanley gains
-    declare_parameter("k_e", 2.5);           // Cross-track error gain
-    declare_parameter("k_h", 1.0);           // Heading error gain
-    declare_parameter("k_s", 1.0);           // Softening constant
-    declare_parameter("k_d", 0.1);           // Damping gain (suppresses oscillation)
+    declare_parameter("k_e", 1.9203);        // Cross-track error gain
+    declare_parameter("k_h", 1.1991);        // Heading error gain
+    declare_parameter("k_s", 1.1759);        // Softening constant
+    declare_parameter("k_d", 0.1429);        // Damping gain (suppresses oscillation)
     
     // Feedforward
     declare_parameter("use_feedforward", true);
-    declare_parameter("feedforward_gain", 1.0);
+    declare_parameter("feedforward_gain", 1.6);
     
     // Speed
-    declare_parameter("max_speed", 15.0);
-    declare_parameter("min_speed", 1.0);
-    declare_parameter("speed_gain", 1.0);
+    declare_parameter("max_speed", 3.5902);
+    declare_parameter("min_speed", 1.5);
+    declare_parameter("speed_gain", 1.2986);
     
     // Steering
     declare_parameter("max_steering", 0.4189);
-    declare_parameter("max_steering_rate", 1.5);  // [rad/s] Tighter rate limit to reduce oscillation
+    declare_parameter("max_steering_rate", 2.8175);
     
     // Vehicle
     declare_parameter("wheelbase", 0.3302);
     
     // Stability
-    declare_parameter("curvature_speed_factor", 0.8);
+    declare_parameter("curvature_speed_factor", 1.1939);
     
     // Misc
-    declare_parameter("publish_visualization", true);
-    declare_parameter("control_rate", 50.0);
+    declare_parameter("control_rate", 200.0);
 }
 
 void StanleyNode::loadParameters() {
@@ -129,8 +119,7 @@ void StanleyNode::loadParameters() {
     config_.max_steering_rate = get_parameter("max_steering_rate").as_double();
     config_.wheelbase = get_parameter("wheelbase").as_double();
     config_.curvature_speed_factor = get_parameter("curvature_speed_factor").as_double();
-    
-    publish_visualization_ = get_parameter("publish_visualization").as_bool();
+
     control_rate_ = get_parameter("control_rate").as_double();
     config_.control_rate = control_rate_;  // Pass control rate to algorithm for rate limiting
 }
@@ -140,6 +129,9 @@ rcl_interfaces::msg::SetParametersResult StanleyNode::parametersCallback(
 {
     rcl_interfaces::msg::SetParametersResult result;
     result.successful = true;
+
+    double updated_control_rate = control_rate_;
+    bool control_rate_changed = false;
     
     for (const auto& param : parameters) {
         if (param.get_name() == "k_e") {
@@ -148,6 +140,8 @@ rcl_interfaces::msg::SetParametersResult StanleyNode::parametersCallback(
             config_.k_h = param.as_double();
         } else if (param.get_name() == "k_s") {
             config_.k_s = param.as_double();
+        } else if (param.get_name() == "k_d") {
+            config_.k_d = param.as_double();
         } else if (param.get_name() == "use_feedforward") {
             config_.use_feedforward = param.as_bool();
         } else if (param.get_name() == "feedforward_gain") {
@@ -158,15 +152,49 @@ rcl_interfaces::msg::SetParametersResult StanleyNode::parametersCallback(
             config_.min_speed = param.as_double();
         } else if (param.get_name() == "speed_gain") {
             config_.speed_gain = param.as_double();
+        } else if (param.get_name() == "max_steering") {
+            config_.max_steering = param.as_double();
+        } else if (param.get_name() == "max_steering_rate") {
+            config_.max_steering_rate = param.as_double();
+        } else if (param.get_name() == "wheelbase") {
+            config_.wheelbase = param.as_double();
         } else if (param.get_name() == "curvature_speed_factor") {
             config_.curvature_speed_factor = param.as_double();
+        } else if (param.get_name() == "control_rate") {
+            updated_control_rate = param.as_double();
+            control_rate_changed = true;
         }
+    }
+
+    if (!std::isfinite(updated_control_rate) || updated_control_rate <= 0.0) {
+        result.successful = false;
+        result.reason = "control_rate must be finite and > 0";
+        return result;
+    }
+
+    if (control_rate_changed) {
+        control_rate_ = updated_control_rate;
+        config_.control_rate = control_rate_;
+
+        if (control_timer_) {
+            control_timer_->cancel();
+        }
+
+        auto period = std::chrono::duration<double>(1.0 / control_rate_);
+        control_timer_ = create_wall_timer(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(period),
+            std::bind(&StanleyNode::controlLoop, this)
+        );
     }
     
     if (controller_) {
         controller_->setConfig(config_);
-        RCLCPP_INFO(get_logger(), "Parameters updated: k_e=%.2f, k_h=%.2f, k_s=%.2f, max_speed=%.1f",
-                    config_.k_e, config_.k_h, config_.k_s, config_.max_speed);
+        RCLCPP_INFO(
+            get_logger(),
+            "Parameters updated: k_e=%.2f k_h=%.2f k_s=%.2f k_d=%.2f vmax=%.1f rate=%.1fHz",
+            config_.k_e, config_.k_h, config_.k_s, config_.k_d,
+            config_.max_speed, config_.control_rate
+        );
     }
     
     return result;
@@ -217,9 +245,10 @@ void StanleyNode::controlLoop() {
         return;
     }
     
-    // Compact status output every 5 seconds
+    // Compact status output roughly every 5 seconds.
     static int debug_counter = 0;
-    if (++debug_counter >= 1000) {  // At 200 Hz, print every 5 seconds
+    const int debug_period_ticks = std::max(1, static_cast<int>(control_rate_ * 5.0));
+    if (++debug_counter >= debug_period_ticks) {
         debug_counter = 0;
         double avg_cte = (cte_count_ > 0) ? total_cte_ / cte_count_ : 0.0;
         RCLCPP_INFO(get_logger(), 
@@ -245,94 +274,6 @@ void StanleyNode::controlLoop() {
     // Update metrics
     updateMetrics(output);
     checkLapCompletion(output.closest_idx);
-    
-    // Publish visualization
-    if (publish_visualization_) {
-        publishVisualization(output);
-    }
-}
-
-void StanleyNode::publishVisualization(const StanleyOutput& output) {
-    visualization_msgs::msg::MarkerArray markers;
-    
-    // Marker for closest point on trajectory
-    visualization_msgs::msg::Marker closest_marker;
-    closest_marker.header.frame_id = "map";
-    closest_marker.header.stamp = now();
-    closest_marker.ns = "stanley";
-    closest_marker.id = 0;
-    closest_marker.type = visualization_msgs::msg::Marker::SPHERE;
-    closest_marker.action = visualization_msgs::msg::Marker::ADD;
-    
-    const auto& trajectory = controller_->getTrajectory();
-    if (output.closest_idx < trajectory.size()) {
-        closest_marker.pose.position.x = trajectory[output.closest_idx].x;
-        closest_marker.pose.position.y = trajectory[output.closest_idx].y;
-        closest_marker.pose.position.z = 0.1;
-    }
-    closest_marker.scale.x = 0.2;
-    closest_marker.scale.y = 0.2;
-    closest_marker.scale.z = 0.2;
-    closest_marker.color.r = 0.0;
-    closest_marker.color.g = 1.0;
-    closest_marker.color.b = 0.0;
-    closest_marker.color.a = 1.0;
-    markers.markers.push_back(closest_marker);
-    
-    // Text marker for debug info
-    visualization_msgs::msg::Marker text_marker;
-    text_marker.header.frame_id = "map";
-    text_marker.header.stamp = now();
-    text_marker.ns = "stanley";
-    text_marker.id = 1;
-    text_marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
-    text_marker.action = visualization_msgs::msg::Marker::ADD;
-    text_marker.pose.position.x = current_state_.pose.x;
-    text_marker.pose.position.y = current_state_.pose.y + 1.0;
-    text_marker.pose.position.z = 1.0;
-    text_marker.scale.z = 0.3;
-    
-    char buf[256];
-    snprintf(buf, sizeof(buf), 
-             "CTE: %.3fm  HE: %.1f°\nFF: %.3f  Steer: %.1f°\nSpeed: %.1f m/s",
-             output.cross_track_error,
-             output.heading_error * 180.0 / M_PI,
-             output.feedforward_steering,
-             output.steering_angle * 180.0 / M_PI,
-             output.target_speed);
-    text_marker.text = buf;
-    text_marker.color.r = 1.0;
-    text_marker.color.g = 1.0;
-    text_marker.color.b = 1.0;
-    text_marker.color.a = 1.0;
-    markers.markers.push_back(text_marker);
-    
-    viz_pub_->publish(markers);
-}
-
-void StanleyNode::publishTrajectoryPath() {
-    nav_msgs::msg::Path path_msg;
-    path_msg.header.frame_id = "map";
-    path_msg.header.stamp = now();
-    
-    for (const auto& pt : controller_->getTrajectory()) {
-        geometry_msgs::msg::PoseStamped pose;
-        pose.header = path_msg.header;
-        pose.pose.position.x = pt.x;
-        pose.pose.position.y = pt.y;
-        pose.pose.position.z = 0.0;
-        
-        tf2::Quaternion q;
-        q.setRPY(0, 0, pt.heading);
-        pose.pose.orientation.x = q.x();
-        pose.pose.orientation.y = q.y();
-        pose.pose.orientation.z = q.z();
-        pose.pose.orientation.w = q.w();
-        
-        path_msg.poses.push_back(pose);
-    }
-    
-    path_pub_->publish(path_msg);
 }
 
 void StanleyNode::updateMetrics(const StanleyOutput& output) {

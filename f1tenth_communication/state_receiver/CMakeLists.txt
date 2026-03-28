@@ -33,10 +33,6 @@ install(TARGETS mpc_receiver_node DESTINATION lib/${PROJECT_NAME})
 # ===========================================================================
 # Install
 # ===========================================================================
-install(TARGETS
-  DESTINATION lib/${PROJECT_NAME}
-)
-
 install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
   OPTIONAL

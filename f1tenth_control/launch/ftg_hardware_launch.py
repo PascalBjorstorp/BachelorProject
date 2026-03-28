@@ -27,17 +27,7 @@ from launch_ros.descriptions import ComposableNode
 
 
 def generate_launch_description():
-    """Inputs:
-    - None.
-
-    Purpose:
-    - Build FTG hardware launch graph with composable-node container wiring,
-        parameter arguments, and topic remappings.
-
-    Outputs:
-    - Returns launch.LaunchDescription containing arguments, startup log action,
-        and FTG component container action.
-    """
+    """Build and return the FTG hardware launch description."""
     # Get package share directory
     pkg_share = get_package_share_directory('f1tenth_control')
 

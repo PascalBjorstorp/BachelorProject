@@ -1,3 +1,12 @@
+/**
+ * @file udp_control_bridge.cpp
+ * @brief Jetson-side UDP control receiver and ROS drive publisher.
+ * @details Receives control packets from Ultra96, validates packet integrity,
+ *          publishes Ackermann commands, and enforces watchdog stop behavior.
+ * @dependencies rclcpp, ackermann_msgs, state_transport_udp/state_packet.hpp,
+ *               POSIX sockets
+ */
+
 #include <rclcpp/rclcpp.hpp>
 #include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
 
@@ -19,12 +28,21 @@ namespace state_transport_udp {
 
 static constexpr int32_t FP_SCALE = 65536;
 
+/**
+ * @brief Convert Q16.16 fixed-point value to float.
+ * @param fp Fixed-point input value.
+ * @return Floating-point representation of `fp`.
+ */
 inline float fp_to_float(int32_t fp) {
     return static_cast<float>(fp) / static_cast<float>(FP_SCALE);
 }
 
 class UdpControlBridge : public rclcpp::Node {
 public:
+    /**
+     * @brief Construct UDP control bridge and initialize socket + timers.
+     * @return None
+     */
     UdpControlBridge() : Node("udp_control_bridge") {
         declare_parameter<std::string>("drive_topic", "/drive");
         declare_parameter<int>("listen_port", 49001);
@@ -78,6 +96,10 @@ public:
                     drive_topic.c_str());
     }
 
+    /**
+     * @brief Destroy bridge and close UDP socket.
+     * @return None
+     */
     ~UdpControlBridge() override {
         if (sock_fd_ >= 0) {
             ::close(sock_fd_);
@@ -86,12 +108,20 @@ public:
     }
 
 private:
+    /**
+     * @brief Get monotonic timestamp in nanoseconds.
+     * @return Monotonic time in nanoseconds.
+     */
     uint64_t monotonicNowNs() const {
         return static_cast<uint64_t>(
             std::chrono::duration_cast<std::chrono::nanoseconds>(
                 std::chrono::steady_clock::now().time_since_epoch()).count());
     }
 
+    /**
+     * @brief Poll UDP socket and process all available control packets.
+     * @return None
+     */
     void pollSocket() {
         ControlPacket packet{};
         sockaddr_in peer_addr{};
@@ -143,6 +173,11 @@ private:
         }
     }
 
+    /**
+     * @brief Decode validated control packet and publish ROS drive command.
+     * @param packet Validated control packet payload.
+     * @return None
+     */
     void handleControlPacket(const ControlPacket& packet) {
         const float steering = std::clamp(fp_to_float(packet.steering_fp), -max_steering_, max_steering_);
         const float speed = std::clamp(fp_to_float(packet.speed_fp), 0.0f, max_velocity_);
@@ -186,6 +221,10 @@ private:
         }
     }
 
+    /**
+     * @brief Publish stop command if control packets time out.
+     * @return None 
+     */
     void watchdogTick() {
         if (packet_count_ == 0) {
             return;
@@ -228,6 +267,12 @@ private:
 
 }  // namespace state_transport_udp
 
+/**
+ * @brief Entry point for UDP control bridge process.
+ * @param argc Argument count from process invocation.
+ * @param argv Argument vector from process invocation.
+ * @return Process exit code (0 on normal shutdown).
+ */
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<state_transport_udp::UdpControlBridge>();

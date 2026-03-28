@@ -1,22 +1,10 @@
 #include "common/math_utils.hpp"
 #include <algorithm>
 
-/**
- * @file math_utils.cpp
- * @brief Implementation of non-inline math utilities.
- * @details Only medianFilter lives here; all other utilities are inline in the header.
- * @dependencies math_utils.hpp, <algorithm>
- */
 
 namespace f1tenth_control {
 namespace math {
 
-/**
- * @brief Reduce impulsive noise while preserving edge-like structure in sampled data.
- * @param data Input scalar sequence.
- * @param window_size Sliding window width used for median filtering.
- * @return Filtered sequence with same length as input.
- */
 std::vector<double> medianFilter(const std::vector<double>& data, size_t window_size) {
     if (data.empty()) return {};
     if (window_size <= 1) return data;

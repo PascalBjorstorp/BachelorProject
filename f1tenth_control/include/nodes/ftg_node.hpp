@@ -4,11 +4,11 @@
 /**
  * @file ftg_node.hpp
  * @brief ROS2 node wrapper for the Follow-The-Gap reactive controller.
- * @details Manages scan-driven control loop, visualization rate throttling,
- *          stuck/recovery state machine, and long-horizon performance metrics.
+ * @details Manages scan-driven control loop, stuck/recovery state machine,
+ *          and long-horizon performance metrics.
  *          Uses composable node architecture with zero-copy intra-process comms.
- *          Visualization is published at VIZ_RATE_HZ independent of control rate.
- * @dependencies follow_the_gap.hpp, rclcpp, sensor_msgs, nav_msgs, ackermann_msgs, visualization_msgs, std_msgs, memory, mutex, deque, chrono
+ * @dependencies follow_the_gap.hpp, rclcpp, sensor_msgs, nav_msgs,
+ *               ackermann_msgs, std_msgs, memory, mutex, deque, chrono
  */
 #include "algorithms/follow_the_gap.hpp"
 
@@ -17,7 +17,6 @@
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
-#include <visualization_msgs/msg/marker_array.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <tf2/utils.h>
 
@@ -36,7 +35,6 @@ namespace f1tenth_control {
  * This node:
  * - Subscribes to /scan (LiDAR) and /odom (odometry)
  * - Publishes drive commands to /drive
- * - Optionally publishes visualization markers
  * - Supports dynamic parameter reconfiguration
  */
 class FTGNode : public rclcpp::Node {
@@ -56,18 +54,9 @@ private:
     VehicleState current_state_;            // Latest vehicle state from odometry
     std::mutex state_mutex_;                // Protects access to current_state_
     bool enabled_{true};                    // Whether autonomous control is enabled
-    std::string laser_frame_id_{"laser"};   // Frame ID for visualization markers
     
     // Steering smoothing
     double last_steering_{0.0}; // Last steering angle for rate limiting and smoothing
-    
-    // Visualization throttling — decoupled from scan callback
-    rclcpp::TimerBase::SharedPtr viz_timer_;
-    FTGOutput latest_output_;                   // Cached for viz timer
-    ProcessedScan latest_scan_;                 // Cached for viz timer
-    std::mutex viz_mutex_;                      // Protects latest_output_ / latest_scan_
-    bool viz_data_ready_{false};                // Flag: new data available for viz
-    static constexpr double VIZ_RATE_HZ = 10.0; // Max viz publish rate
     
     // Recovery state
     int stuck_counter_{0};                          // Counter for how many cycles we've been "stuck" (obstacle too close)
@@ -113,14 +102,13 @@ private:
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr enable_sub_;       // Subscription for enable/disable commands
     
     rclcpp::Publisher<ackermann_msgs::msg::AckermannDriveStamped>::SharedPtr drive_pub_;    // Publisher for drive commands
-    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_pub_;            // Publisher for visualization markers
     
     // Parameters
 
     /**
      * @brief Declare ROS parameters for FTGNode.
      * This function registers all parameters with the ROS parameter server, including defaults.
-     * Parameters include vehicle dimensions, control gains, speed limits, and visualization options.
+      * Parameters include vehicle dimensions, control gains, speed limits, and LiDAR processing options.
      */
     void declareParameters();
 
@@ -169,12 +157,6 @@ private:
      */
     void enableCallback(const std_msgs::msg::Bool::ConstSharedPtr msg);
 
-    /**
-     * @brief Timer callback for visualization publishing.
-     * @return None
-     */
-    void vizTimerCallback();  // Throttled visualization publisher
-    
     // Publishing
 
     /**
@@ -185,110 +167,7 @@ private:
      */
     void publishDriveCommand(const DriveCommand& cmd);
 
-    /**
-     * @brief Publish visualization markers to RViz.
-     * This function constructs a MarkerArray message based on the latest FTG output and processed scan, and publishes it for visualization in RViz.
-     * @param output Latest FTGOutput containing command and gap information.
-     * @param scan Latest ProcessedScan containing scan metadata and validity masks.
-     * @return None
-     */
-    void publishVisualization(const FTGOutput& output, const ProcessedScan& scan);
-    
     // Helpers
-
-    /**
-     * @brief Create a visualization marker for a detected gap.
-     * This function constructs a Marker message that visually represents a detected gap in the LiDAR scan, with different styling if it's the selected gap.
-     * @param gap Gap descriptor containing indices and angles of the gap.
-     * @param scan ProcessedScan containing metadata for angle/range calculations.
-     * @param id Unique ID for the marker.
-     * @param selected Whether this gap is the currently selected one for navigation (affects styling).
-     * @return Configured Marker message representing the gap.
-     */
-    visualization_msgs::msg::Marker createGapMarker(
-        const Gap& gap, 
-        const ProcessedScan& scan,
-        int id, 
-        bool selected
-    );
-
-    /**
-     * @brief Create a visualization marker for the closest detected point.
-     * This function constructs a Marker message that represents the closest valid point detected in the LiDAR scan.
-     * @param scan ProcessedScan containing range and angle data.
-     * @param idx Index of the closest point in the scan.
-     * @param marker_id Unique ID for the marker.
-     * @return Configured Marker message representing the closest point.
-     */
-    visualization_msgs::msg::Marker createClosestPointMarker(
-        const ProcessedScan& scan,
-        size_t idx,
-        int marker_id
-    );
-
-    /**
-     * @brief Create a visualization marker for valid scan points.
-     * This function constructs a Marker message that represents all valid points in the LiDAR scan.
-     * @param scan ProcessedScan containing range and angle data.
-     * @param marker_id Unique ID for the marker.
-     * @return Configured Marker message representing the valid scan points.
-     */
-    visualization_msgs::msg::Marker createValidScanMarker(
-        const ProcessedScan& scan,
-        int marker_id
-    );
-
-    /**
-     * @brief Create a visualization marker for disparity-blocked scan points.
-     * This function constructs a Marker message that represents points in the LiDAR scan that are blocked by disparity safety logic.
-     * @param scan ProcessedScan containing range and angle data.
-     * @param marker_id Unique ID for the marker.
-     * @return Configured Marker message representing the disparity-blocked points.
-     */
-    visualization_msgs::msg::Marker createDisparityBlockedMarker(
-        const ProcessedScan& scan,
-        int marker_id
-    );
-
-    /**
-     * @brief Create a visualization marker for bubble-blocked scan points.
-     * This function constructs a Marker message that represents points in the LiDAR scan that are blocked by bubble safety logic.
-     * @param scan ProcessedScan containing range and angle data.
-     * @param marker_id Unique ID for the marker.
-     * @return Configured Marker message representing the bubble-blocked points.
-     */
-    visualization_msgs::msg::Marker createBubbleBlockedMarker(
-        const ProcessedScan& scan,
-        int marker_id
-    );
-
-    /**
-     * @brief Create a visualization marker for the deepest point in the selected gap.
-     * This function constructs a Marker message that represents the deepest point within the currently selected gap, which is often the steering target.
-     * @param gap Gap descriptor containing indices and angles of the gap.
-     * @param scan ProcessedScan containing metadata for angle/range calculations.
-     * @param marker_id Unique ID for the marker.
-     * @return Configured Marker message representing the deepest point in the selected gap.
-     */
-    visualization_msgs::msg::Marker createDeepestPointMarker(
-        const Gap& gap,
-        const ProcessedScan& scan,
-        int marker_id
-    );
-
-    /**
-     * @brief Create a visualization marker for the target point (steering target).
-     * This function constructs a Marker message that represents the target point that the vehicle is steering towards, which may be the deepest point in the selected gap or another computed target.
-     * @param gap Gap descriptor containing indices and angles of the gap.
-     * @param scan ProcessedScan containing metadata for angle/range calculations.
-     * @param marker_id Unique ID for the marker.
-     * @return Configured Marker message representing the steering target point.
-     */
-    visualization_msgs::msg::Marker createTargetPointMarker(
-        const Gap& gap,
-        const ProcessedScan& scan,
-        int marker_id
-    );
     
     // Performance tracking
 

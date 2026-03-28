@@ -1,3 +1,11 @@
+/**
+ * @file ultra96_udp_receiver.cpp
+ * @brief Ultra96-side UDP state receiver and FPGA MPC executor.
+ * @details Receives UDP state packets from Jetson, loads horizon/state into
+ *          FPGA registers, runs MPC compute, and sends UDP control packets back.
+ * @dependencies state_packet.hpp, mpc_fpga_interface.h, POSIX sockets, /dev/mem
+ */
+
 #include "state_transport_udp/state_packet.hpp"
 #include "mpc_fpga_interface.h"
 
@@ -23,18 +31,38 @@ static constexpr uint32_t AP_START = 0x01;
 static constexpr uint32_t AP_DONE = 0x02;
 static constexpr uint32_t AP_IDLE = 0x04;
 
+/**
+ * @brief Convert float to Q16.16 fixed-point integer.
+ * @param f Floating-point input value.
+ * @return Q16.16 fixed-point representation of `f`.
+ */
 inline int32_t float_to_fp(float f) {
     return static_cast<int32_t>(f * static_cast<float>(FP_SCALE));
 }
 
+/**
+ * @brief Convert Q16.16 fixed-point integer to float.
+ * @param fp Fixed-point input value.
+ * @return Floating-point representation of `fp`.
+ */
 inline float fp_to_float(int32_t fp) {
     return static_cast<float>(fp) / static_cast<float>(FP_SCALE);
 }
 
 class MpcFpgaInterface {
 public:
+    /**
+     * @brief Destroy interface and release mapped FPGA resources.
+     * @return None
+     */
     ~MpcFpgaInterface() { close_device(); }
 
+    /**
+     * @brief Initialize FPGA memory mapping through `/dev/mem`.
+     * @param base_addr Physical AXI base address for FPGA register block.
+     * @param map_size Size in bytes of memory region to map.
+     * @return true when mapping succeeds and interface is ready.
+     */
     bool initialize(uint32_t base_addr = MPC_FPGA_BASE_ADDR, size_t map_size = 0x10000) {
         base_addr_ = base_addr;
         map_size_ = map_size;
@@ -58,6 +86,10 @@ public:
         return true;
     }
 
+    /**
+     * @brief Close FPGA mapping and reset internal interface state.
+     * @return None
+     */
     void close_device() {
         if (fpga_base_ && fpga_base_ != MAP_FAILED) {
             ::munmap(fpga_base_, map_size_);
@@ -71,6 +103,13 @@ public:
         trajectory_loaded_ = false;
     }
 
+    /**
+     * @brief Load streamed horizon waypoints into FPGA waypoint memory.
+     * @param pkt Incoming state packet with horizon arrays.
+     * @param left_bound_fp Left track bound in Q16.16.
+     * @param right_bound_fp Right track bound in Q16.16.
+     * @return true when full waypoint load and commit complete successfully.
+     */
     bool load_horizon(const StatePacket& pkt, int32_t left_bound_fp, int32_t right_bound_fp) {
         if (!initialized_) {
             return false;
@@ -123,6 +162,15 @@ public:
         return true;
     }
 
+    /**
+     * @brief Run one FPGA MPC compute step from state packet input.
+     * @param pkt Incoming state packet with current vehicle state.
+     * @param out_steering_fp Output steering command in Q16.16.
+     * @param out_accel_fp Output acceleration command in Q16.16.
+     * @param out_status Output solver status flags.
+     * @param out_iterations Output solver iteration count.
+     * @return true when compute and output-readback succeed.
+     */
     bool compute(const StatePacket& pkt,
                  int32_t& out_steering_fp,
                  int32_t& out_accel_fp,
@@ -164,18 +212,34 @@ public:
     }
 
 private:
+    /**
+     * @brief Write value to mapped FPGA register offset.
+     * @param offset Register byte offset.
+     * @param value Value to write.
+     * @return None
+     */
     void write_reg(uint32_t offset, uint32_t value) {
         volatile uint32_t* reg = reinterpret_cast<volatile uint32_t*>(
             static_cast<volatile uint8_t*>(fpga_base_) + offset);
         *reg = value;
     }
 
+    /**
+     * @brief Read value from mapped FPGA register offset.
+     * @param offset Register byte offset.
+     * @return Register value read from mapped region.
+     */
     uint32_t read_reg(uint32_t offset) {
         volatile uint32_t* reg = reinterpret_cast<volatile uint32_t*>(
             static_cast<volatile uint8_t*>(fpga_base_) + offset);
         return *reg;
     }
 
+    /**
+     * @brief Wait for FPGA core idle state.
+     * @param timeout_cycles Maximum polling cycles.
+     * @return true when AP_IDLE is observed before timeout.
+     */
     bool wait_idle(int timeout_cycles) {
         while (timeout_cycles-- > 0) {
             if (read_reg(REG_AP_CTRL) & AP_IDLE) {
@@ -185,6 +249,11 @@ private:
         return false;
     }
 
+    /**
+     * @brief Wait for FPGA core done state.
+     * @param timeout_cycles Maximum polling cycles.
+     * @return true when AP_DONE is observed before timeout.
+     */
     bool wait_done(int timeout_cycles) {
         while (timeout_cycles-- > 0) {
             if (read_reg(REG_AP_CTRL) & AP_DONE) {
@@ -194,6 +263,11 @@ private:
         return false;
     }
 
+    /**
+     * @brief Wait for steering and acceleration output valid flags.
+     * @param timeout_cycles Maximum polling cycles.
+     * @return true when both valid flags are asserted.
+     */
     bool wait_output_valid(int timeout_cycles) {
         while (timeout_cycles-- > 0) {
             const uint32_t steer_vld = read_reg(REG_OUT_STEERING_VLD);
@@ -218,10 +292,19 @@ private:
 namespace {
 volatile sig_atomic_t g_running = 1;
 
+/**
+ * @brief Handle process termination signals.
+ * @param Unused signal number.
+ * @return None
+ */
 void signal_handler(int) {
     g_running = 0;
 }
 
+/**
+ * @brief Read monotonic clock in nanoseconds.
+ * @return Monotonic timestamp in nanoseconds.
+ */
 uint64_t monotonic_now_ns() {
     timespec ts{};
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
@@ -230,6 +313,12 @@ uint64_t monotonic_now_ns() {
 
 }  // namespace
 
+/**
+ * @brief Entry point for Ultra96 UDP receiver process.
+ * @param argc Argument count from process invocation.
+ * @param argv Argument vector from process invocation.
+ * @return Process exit code (0 on normal shutdown, non-zero on startup failure).
+ */
 int main(int argc, char** argv) {
     (void)argc;
     (void)argv;

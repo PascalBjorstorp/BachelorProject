@@ -26,7 +26,7 @@
  *
  * Transfer time: ~210 ns (vs ~1850 ns DDR path)
  *
- * Data format: Q16.16 fixed-point (int32_t)
+ * Data format: Q16.16 fixed-point (int32_t)        
  */
 
 #include <rclcpp/rclcpp.hpp>
@@ -68,10 +68,20 @@ namespace f1tenth_communication {
 
 static constexpr int32_t FP_SCALE = MPC_FPGA_Q16_SCALE_I32;
 
+/**
+ * @brief Convert Q16.16 fixed-point value to float.
+ * @param fp Fixed-point input value.
+ * @return Floating-point representation of `fp`.
+ */
 inline float fp_to_float(int32_t fp) {
     return static_cast<float>(fp) / static_cast<float>(FP_SCALE);
 }
 
+/**
+ * @brief Convert float to Q16.16 fixed-point value.
+ * @param f Floating-point input value.
+ * @return Q16.16 fixed-point integer representation of `f`.
+ */
 inline int32_t float_to_fp(float f) {
     return static_cast<int32_t>(f * static_cast<float>(FP_SCALE));
 }
@@ -93,8 +103,11 @@ public:
     MpcFpgaInterface& operator=(const MpcFpgaInterface&) = delete;
 
     /**
-     * Initialize FPGA and DMA interfaces.
-     * Maps: MPC IP registers, DMA controller registers, and DMA buffer.
+     * @brief Initialize FPGA control registers, DMA controller, and DMA buffer mapping.
+        * @param mpc_base_addr AXI-Lite base address of the MPC IP core.
+        * @param dma_base_addr AXI-Lite base address of the AXI DMA core.
+        * @param dma_buf_phys Physical base address of reserved DMA buffer memory.
+        * @return true when all mappings and DMA reset succeed.
      */
     bool initialize(uint32_t mpc_base_addr = MPC_FPGA_BASE_ADDR,
                     uint32_t dma_base_addr = AXI_DMA_BASE_ADDR,
@@ -162,6 +175,10 @@ public:
         return true;
     }
 
+    /**
+     * @brief Release mapped FPGA resources and close `/dev/mem` handle.
+     * @return None
+     */
     void close_device() {
         if (dma_buf_ && dma_buf_ != MAP_FAILED) {
             munmap(dma_buf_, DMA_BUFFER_BYTES);
@@ -182,13 +199,26 @@ public:
         initialized_ = false;
     }
 
+    /**
+     * @brief Check whether FPGA interface mappings are initialized.
+     * @return true when interface resources are ready for compute calls.
+     */
     bool is_ready() const { return initialized_; }
 
     /**
-     * Run one MPC compute cycle via AXI-Stream DMA.
-     * 
-     * Packs state + horizon into DMA buffer, transfers via DMA,
-     * waits for FPGA completion, reads outputs.
+     * @brief Execute one FPGA MPC compute cycle using AXI-Stream DMA transfer.
+     * @param e_y_fp Lateral error in Q16.16.
+     * @param e_psi_fp Heading error in Q16.16.
+     * @param vx_fp Longitudinal velocity in Q16.16.
+     * @param vy_fp Lateral velocity in Q16.16.
+     * @param omega_fp Yaw rate in Q16.16.
+     * @param steering_fp Current steering angle in Q16.16.
+     * @param msg Input message containing streamed horizon arrays.
+     * @param out_steering_fp Output steering command in Q16.16.
+     * @param out_accel_fp Output acceleration command in Q16.16.
+     * @param out_status Output solver status flags.
+     * @param out_iterations Output solver iteration count.
+     * @return true when DMA transfer and MPC compute complete successfully.
      */
     bool compute(int32_t e_y_fp, int32_t e_psi_fp,
                  int32_t vx_fp, int32_t vy_fp, int32_t omega_fp,
@@ -305,6 +335,10 @@ public:
         return true;
     }
 
+    /**
+     * @brief Read compute duration from latest successful FPGA call.
+     * @return Last compute time in nanoseconds, or negative on timeout/failure.
+     */
     int64_t get_last_compute_ns() const { return last_compute_ns_; }
 
 private:
@@ -319,12 +353,23 @@ private:
     int64_t  last_compute_ns_ = 0;
 
     // MPC IP register access
+    /**
+     * @brief Write value to MPC IP AXI-Lite register offset.
+     * @param offset Register byte offset.
+     * @param value Value to write.
+     * @return No direct return value. Performs memory-mapped write.
+     */
     void mpc_write(uint32_t offset, uint32_t value) {
         volatile uint32_t* reg = reinterpret_cast<volatile uint32_t*>(
             static_cast<volatile uint8_t*>(mpc_regs_) + offset);
         *reg = value;
     }
 
+    /**
+     * @brief Read value from MPC IP AXI-Lite register offset.
+     * @param offset Register byte offset.
+     * @return Register value read from memory-mapped address.
+     */
     uint32_t mpc_read(uint32_t offset) {
         volatile uint32_t* reg = reinterpret_cast<volatile uint32_t*>(
             static_cast<volatile uint8_t*>(mpc_regs_) + offset);
@@ -332,18 +377,33 @@ private:
     }
 
     // DMA register access
+    /**
+     * @brief Write value to DMA AXI-Lite register offset.
+     * @param offset Register byte offset.
+     * @param value Value to write.
+     * @return No direct return value. Performs memory-mapped write.
+     */
     void dma_write(uint32_t offset, uint32_t value) {
         volatile uint32_t* reg = reinterpret_cast<volatile uint32_t*>(
             static_cast<volatile uint8_t*>(dma_regs_) + offset);
         *reg = value;
     }
 
+    /**
+     * @brief Read value from DMA AXI-Lite register offset.
+     * @param offset Register byte offset.
+     * @return Register value read from memory-mapped address.
+     */
     uint32_t dma_read(uint32_t offset) {
         volatile uint32_t* reg = reinterpret_cast<volatile uint32_t*>(
             static_cast<volatile uint8_t*>(dma_regs_) + offset);
         return *reg;
     }
 
+    /**
+     * @brief Reset MM2S DMA channel and validate post-reset state.
+     * @return true when DMA reset completes without error flags.
+     */
     bool reset_dma() {
         // Reset MM2S channel
         dma_write(DMA_MM2S_CTRL, DMA_CTRL_RESET);
@@ -366,6 +426,11 @@ private:
         return true;
     }
 
+    /**
+     * @brief Poll DMA status until transfer completes or errors out.
+     * @param timeout_cycles Maximum polling iterations before timeout.
+     * @return true when DMA reports idle completion before timeout.
+     */
     bool wait_dma_complete(int timeout_cycles) {
         while (timeout_cycles-- > 0) {
             uint32_t status = dma_read(DMA_MM2S_STATUS);
@@ -383,6 +448,11 @@ private:
         return false;
     }
 
+    /**
+     * @brief Poll MPC control register for AP_DONE completion bit.
+     * @param timeout_cycles Maximum polling iterations before timeout.
+     * @return true when AP_DONE is observed before timeout.
+     */
     bool wait_mpc_done(int timeout_cycles) {
         while (timeout_cycles-- > 0) {
             if (mpc_read(REG_AP_CTRL) & AP_DONE) return true;
@@ -390,6 +460,11 @@ private:
         return false;
     }
 
+    /**
+     * @brief Poll output-valid flags for steering and acceleration outputs.
+     * @param timeout_cycles Maximum polling iterations before timeout.
+     * @return true when both output-valid flags are asserted.
+     */
     bool wait_output_valid(int timeout_cycles) {
         while (timeout_cycles-- > 0) {
             const uint32_t steer_vld = mpc_read(REG_OUT_STEERING_VLD);
@@ -399,6 +474,10 @@ private:
         return false;
     }
 
+    /**
+     * @brief Check Linux FPGA manager state for operational bitstream status.
+     * @return true when `/sys/class/fpga_manager/fpga0/state` equals `operating`.
+     */
     static bool is_fpga_operating() {
         std::ifstream f("/sys/class/fpga_manager/fpga0/state");
         if (!f.is_open()) return false;
@@ -414,6 +493,10 @@ private:
 
 class MpcReceiverFpgaNode : public rclcpp::Node {
 public:
+    /**
+     * @brief Construct receiver node, load parameters, and initialize FPGA interfaces.
+     * @return None
+     */
     MpcReceiverFpgaNode() : Node("mpc_receiver") {
         // --- Parameters ---
         declare_parameter("input_topic", "/mpc_state");
@@ -493,11 +576,20 @@ private:
         int32_t e_psi_fp;
     };
 
+    /**
+     * @brief Validate that required streamed horizon fields are present.
+     * @param msg Incoming MPC state message.
+     * @return true when horizon length is non-zero and velocity references exist.
+     */
     bool has_required_horizon_data(const f1tenth_msgs::msg::MpcState::SharedPtr& msg) const {
         return msg->horizon_length > 0 && !msg->ref_vx_fp.empty();
     }
 
-    // Compute first-point Frenet tracking errors for FPGA state input.
+    /**
+     * @brief Compute first-reference-point Frenet tracking errors.
+     * @param msg Incoming MPC state message.
+     * @return Q16.16 lateral and heading error pair.
+     */
     static FrenetErrorsFp compute_frenet_errors(const f1tenth_msgs::msg::MpcState::SharedPtr& msg) {
         const float x = fp_to_float(msg->x_fp);
         const float y = fp_to_float(msg->y_fp);
@@ -517,14 +609,25 @@ private:
         return FrenetErrorsFp{float_to_fp(e_y), float_to_fp(e_psi)};
     }
 
+    /**
+     * @brief Integrate acceleration command into target speed over MPC prediction dt.
+     * @param accel Acceleration command in m/s^2.
+     * @return Clamped target speed in m/s.
+     */
     float compute_target_speed(float accel) const {
         // Integrate over MPC prediction dt (lookahead step), independent of
         // callback/publish rate.
-        constexpr float kMpcPredictionStepSeconds = MPC_FPGA_PREDICTION_DT_S;
-        const float v_target = latest_vx_mps_ + accel * kMpcPredictionStepSeconds;
+        const float v_target = latest_vx_mps_ + accel * MPC_FPGA_PREDICTION_DT_S;
         return std::max(0.0f, std::min(v_target, max_velocity_));
     }
 
+    /**
+     * @brief Publish Ackermann drive command derived from solver outputs.
+     * @param steering Steering command in radians.
+     * @param speed Speed command in m/s.
+     * @param accel Acceleration command in m/s^2.
+     * @return None
+     */
     void publish_drive_command(float steering, float speed, float accel) {
         auto drive = ackermann_msgs::msg::AckermannDriveStamped();
         drive.header.stamp = now();
@@ -535,6 +638,18 @@ private:
         drive_pub_->publish(drive);
     }
 
+    /**
+     * @brief Update timing statistics and emit periodic diagnostic logs.
+     * @param msg Input MPC state message used for latency timestamping.
+     * @param t_start Callback start timestamp.
+     * @param t_end Callback end timestamp.
+     * @param steering Steering command in radians.
+     * @param speed Speed command in m/s.
+     * @param accel Acceleration command in m/s^2.
+     * @param status Solver status flags.
+     * @param iters Solver iteration count.
+     * @return None
+     */
     void update_timing_and_log(const f1tenth_msgs::msg::MpcState::SharedPtr& msg,
                                const std::chrono::high_resolution_clock::time_point& t_start,
                                const std::chrono::high_resolution_clock::time_point& t_end,
@@ -591,6 +706,11 @@ private:
     }
 
     // --- State callback -----------------------------------------------------
+    /**
+     * @brief Process incoming streamed state packet and run one FPGA control cycle.
+     * @param msg Incoming MPC state message.
+     * @return None
+     */
     void state_callback(const f1tenth_msgs::msg::MpcState::SharedPtr msg) {
         auto t_start = std::chrono::high_resolution_clock::now();
         last_msg_time_ = std::chrono::steady_clock::now();
@@ -668,6 +788,12 @@ private:
 
 }  // namespace f1tenth_communication
 
+/**
+ * @brief Entry point for the FPGA MPC receiver process.
+ * @param argc Argument count from process invocation.
+ * @param argv Argument vector from process invocation.
+ * @return Process exit code (0 on normal shutdown).
+ */
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<f1tenth_communication::MpcReceiverFpgaNode>();

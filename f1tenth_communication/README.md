@@ -1,55 +1,62 @@
-# F1/10th Communication
+# F1Tenth Communication
 
-Communication packages for Jetson ↔ Ultra96 data transfer.
+ROS2 communication stack for streaming vehicle state and MPC references from Jetson to Ultra96.
 
 ## Architecture
 
 ```
-┌──────────────────────────────────┐     ┌─────────────────────────────────┐
-│           JETSON                 │     │           ULTRA96               │
-│                                  │     │                                 │
-│  Localization → state_publisher  │────→│  mpc_receiver / pp_receiver     │
-│  (/odom)         (KD-tree)       │     │  (/mpc_state subscriber)        │
-│                  ↓               │     │  ↓                              │
-│              /mpc_state          │     │  Load streamed horizon to FPGA  │
-│              (MpcState.msg)      │     │  ↓                              │
-│              [Q16.16 fixed-pt]   │     │  MPC → /drive                   │
-└──────────────────────────────────┘     └─────────────────────────────────┘
+Jetson (state_publisher)                              Ultra96 (state_receiver)
+┌──────────────────────────────────────┐             ┌──────────────────────────────────────┐
+│ Sub: /ego_racecar/odom, /ekf_pose    │             │ Sub: /mpc_state (Best Effort QoS)    │
+│ Optional sub: /sensors/servo...      │             │ Init: /dev/mem + AXI-Lite + AXI DMA  │
+│                                      │             │                                      │
+│ KD-tree nearest + forward bias       │  MpcState   │ Pack state/horizon into DMA buffer   │
+│ Horizon extraction from trajectory   │────────────>│ Stream to FPGA MPC IP                │
+│ Q16.16 fixed-point conversion        │             │ Read steering/accel outputs          │
+│ Pub: /mpc_state                      │             │ Pub: /drive                          │
+└──────────────────────────────────────┘             └──────────────────────────────────────┘
 ```
 
 ## Packages
 
 ### f1tenth_msgs
 
-Custom ROS2 message definitions:
+Defines `MpcState.msg` for fixed-point transport.
 
-- **MpcState.msg** (Q16.16 Fixed-Point):
-  - `x_fp, y_fp, theta_fp, velocity_fp`: Vehicle state in Q16.16
-  - `waypoint_index`: Nearest waypoint index
-    - `horizon_length` + `ref_*_fp[10]`: Streaming MPC reference horizon
-  - `timestamp_ms`: For latency measurement
+Main payload groups:
+
+- Vehicle state (`x_fp`, `y_fp`, `theta_fp`, `velocity_fp`, `vy_fp`, `omega_fp`, `steering_angle_fp`)
+- First reference point for Frenet error (`ref_x_0_fp`, `ref_y_0_fp`, `ref_psi_0_fp`)
+- Horizon arrays (`horizon_length`, `ref_vx_fp`, `ref_kappa_fp`, `ref_left_bound_fp`, `ref_right_bound_fp`)
+
+All numeric payload fields are Q16.16 fixed-point (`int32`) except `horizon_length` (`uint32`).
 
 ### state_publisher (Jetson)
 
-ROS2 node that runs on **Jetson**:
-1. Loads trajectory CSV file
-2. Subscribes to `/ego_racecar/odom`
-3. Performs KD-tree lookup
-4. Publishes `MpcState` with Q16.16 fixed-point values
-5. Streams next N reference waypoints in each message
-6. Uses Best Effort QoS for low latency
+`state_publisher_node`:
+
+1. Loads a trajectory CSV.
+2. Caches odometry dynamics from `/ego_racecar/odom`.
+3. Triggers publish on each `/ekf_pose` message.
+4. Uses KD-tree nearest search plus configurable forward lookahead.
+5. Streams only the active MPC horizon in each `MpcState` message.
 
 ### state_receiver (Ultra96)
 
-ROS2 node that runs on **Ultra96**:
-1. Subscribes to `/mpc_state` (Best Effort QoS)
-2. Loads only the streamed horizon waypoints into FPGA BRAM each cycle
-3. Writes current vehicle state registers and runs FPGA MPC
-4. Publishes `/drive` commands
+`mpc_receiver_node`:
 
-## Setup
+1. Subscribes to `/mpc_state` with Best Effort QoS.
+2. Validates horizon payload lengths.
+3. Transfers packed data to FPGA via AXI DMA.
+4. Reads MPC outputs from AXI-Lite registers.
+5. Publishes `ackermann_msgs/AckermannDriveStamped` on `/drive`.
 
-### 1. Build all packages
+### state_transport_udp
+
+UDP bridge tooling for transport experiments and non-ROS links.
+Note: this folder currently includes `COLCON_IGNORE`, so it is excluded from normal colcon builds unless that file is removed.
+
+## Build
 
 ```bash
 cd ~/BachelorProject
@@ -57,61 +64,52 @@ colcon build --packages-select f1tenth_msgs state_publisher state_receiver
 source install/setup.bash
 ```
 
-### 2. Sync trajectory file
+## Run
 
-Ensure same trajectory CSV on both systems:
-```bash
-scp ~/BachelorProject/f1tenth_planning/trajectories/Spielberg_raceline.csv \
-    xilinx@192.168.50.182:~/trajectories/
-```
-
-### 3. Run on Jetson
+Start Jetson publisher:
 
 ```bash
 ros2 launch state_publisher state_publisher_launch.py
 ```
 
-### 4. Run on Ultra96
+Start Ultra96 receiver:
 
 ```bash
 ros2 launch state_receiver mpc_launch.py
 ```
 
-## Q16.16 Fixed-Point Format
+## Key Runtime Parameters
 
-Conversion:
+`state_publisher` defaults (see `state_publisher/config/params.yaml`):
+
+- `trajectory_file`: raceline CSV path
+- `odom_topic`: `/ego_racecar/odom`
+- `pose_topic`: `/ekf_pose`
+- `output_topic`: `/mpc_state`
+- `horizon`: expected to match FPGA horizon
+- `forward_lookahead`: forward waypoint candidate window
+
+`state_receiver` launch arguments (see `state_receiver/launch/mpc_launch.py`):
+
+- `input_topic` (default `/mpc_state`)
+- `drive_topic` (default `/drive`)
+
+Additional FPGA address and command-limit parameters are declared in `state_receiver/src/mpc_receiver.cpp`.
+
+## Q16.16 Fixed-Point Reference
+
 ```cpp
-// Float to Q16.16
-int32_t x_fp = static_cast<int32_t>(x * 65536.0);
+// Float -> Q16.16
+int32_t fp = static_cast<int32_t>(value * 65536.0);
 
-// Q16.16 to Float
-float x = static_cast<float>(x_fp) / 65536.0f;
-
-// Direct to FPGA (no conversion)
-int32_t fpga_x = msg->x_fp;  // Already Q16.16!
+// Q16.16 -> Float
+float value = static_cast<float>(fp) / 65536.0f;
 ```
 
-Range: ±32767.99998 with precision ~0.000015
+Approximate range: +/-32768 with step size 1/65536.
 
-## QoS Configuration
+## Latency Notes
 
-Both nodes use **Best Effort QoS** for lowest latency:
-```cpp
-auto qos = rclcpp::QoS(1)
-    .best_effort()
-    .durability_volatile();
-```
+Receiver-side latency is measured from ROS header timestamps (`msg->header.stamp`) rather than a dedicated timestamp payload field.
 
-## Latency Measurement
-
-The `timestamp_ms` field enables end-to-end latency measurement:
-```cpp
-auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-    std::chrono::system_clock::now().time_since_epoch()).count();
-double latency_ms = now_ms - msg->timestamp_ms;
-```
-
-Expected latencies:
-- KD-tree lookup: ~1-5 µs
-- Network + serialization: ~0.5-2 ms
-- Total: < 3 ms typical
+Practical latency depends on localization rate, network load, and FPGA compute time.

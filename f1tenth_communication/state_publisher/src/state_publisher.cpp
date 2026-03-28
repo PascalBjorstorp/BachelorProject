@@ -1,9 +1,10 @@
 /**
  * @file state_publisher.cpp
- * @brief ROS2 Node: Publishes vehicle state + waypoint index
- *
- * Runs on Jetson. Subscribes to localization, performs KD-tree lookup,
- * publishes MpcState for the Ultra96 MPC controller.
+ * @brief Publish vehicle state and streamed MPC references from Jetson.
+ * @details Builds a KD-tree from trajectory waypoints, receives pose/odometry,
+ *          and publishes Q16.16 `MpcState` packets for the Ultra96 receiver.
+ * @dependencies rclcpp, nav_msgs, geometry_msgs, std_msgs, f1tenth_msgs,
+ *               state_publisher/kdtree.hpp, mpc_fpga_constants.h
  */
 
 #include <rclcpp/rclcpp.hpp>
@@ -34,6 +35,10 @@ class StatePublisherNode : public rclcpp::Node {
 public:
     static constexpr size_t MAX_MPC_HORIZON = MPC_FPGA_HORIZON_STEPS;
 
+    /**
+     * @brief Construct and initialize the state publisher node.
+     * @return None
+     */
     StatePublisherNode() : Node("state_publisher") {
         // Parameters
         this->declare_parameter("trajectory_file", "");
@@ -190,6 +195,13 @@ private:
     bool has_odom_dynamics_ = false;
 
     // --- Odometry processing helpers ----------------------------------------
+    /**
+     * @brief Validate incoming odometry values before they are used.
+     * @param msg Incoming odometry message.
+     * @param x Extracted x position from the message.
+     * @param y Extracted y position from the message.
+     * @return true when message values are finite and within sanity limits.
+     */
     bool validate_odom_message(const nav_msgs::msg::Odometry::SharedPtr& msg,
                                double x,
                                double y) {
@@ -225,13 +237,25 @@ private:
         return true;
     }
 
-    // Convert quaternion to planar yaw.
+    /**
+     * @brief Convert quaternion orientation to planar yaw.
+        * @param qx Quaternion x component.
+        * @param qy Quaternion y component.
+        * @param qz Quaternion z component.
+        * @param qw Quaternion w component.
+        * @return Yaw angle in radians.
+     */
     static double quaternion_to_yaw(double qx, double qy, double qz, double qw) {
         return std::atan2(2.0 * (qw * qz + qx * qy),
                           1.0 - 2.0 * (qy * qy + qz * qz));
     }
 
-    // Prefer measured steering; fall back to bicycle-model estimate if needed.
+    /**
+     * @brief Compute steering angle from servo feedback or bicycle fallback.
+        * @param velocity Longitudinal velocity in m/s.
+        * @param omega Yaw rate in rad/s.
+        * @return Steering angle in radians.
+     */
     double compute_steering_angle(double velocity, double omega) const {
         if (!has_servo_feedback_ && std::abs(velocity) > 0.1) {
             return std::atan2(wheelbase_ * omega, velocity);
@@ -239,7 +263,14 @@ private:
         return current_steering_angle_;
     }
 
-    // Choose a forward waypoint near the geometric nearest index.
+    /**
+     * @brief Apply heading-aware forward bias to nearest waypoint selection.
+        * @param nearest_idx KD-tree nearest waypoint index.
+        * @param x Current vehicle x position.
+        * @param y Current vehicle y position.
+        * @param theta Current vehicle heading in radians.
+        * @return Forward-biased waypoint index for horizon generation.
+     */
     size_t apply_forward_bias(size_t nearest_idx, double x, double y, double theta) const {
         const double cos_theta = std::cos(theta);
         const double sin_theta = std::sin(theta);
@@ -266,7 +297,11 @@ private:
         return best_idx;
     }
 
-    // Convert floating-point values to Q16.16 for FPGA transport.
+    /**
+     * @brief Convert floating-point value to Q16.16 fixed-point representation.
+        * @param v Floating-point input value.
+        * @return Q16.16 fixed-point integer representation.
+     */
     static int32_t to_fixed_q16(double v) {
         constexpr double FP_SCALE = MPC_FPGA_Q16_SCALE_F64;
         if (!std::isfinite(v)) {
@@ -275,7 +310,12 @@ private:
         return static_cast<int32_t>(v >= 0.0 ? v * FP_SCALE + 0.5 : v * FP_SCALE - 0.5);
     }
 
-    // Fill only the horizon window needed by the receiver/FPGA.
+    /**
+     * @brief Populate streamed horizon reference fields in an outgoing message.
+        * @param mpc_state Output message to populate.
+        * @param waypoint_idx Starting waypoint index for the horizon window.
+        * @return No direct return value. Mutates `mpc_state` in place.
+     */
     void fill_horizon_references(f1tenth_msgs::msg::MpcState& mpc_state,
                                  size_t waypoint_idx) const {
         const size_t N = kdtree_.size();
@@ -307,6 +347,11 @@ private:
 
     // --- Trajectory I/O ------------------------------------------------------
     
+    /**
+     * @brief Load trajectory points from CSV and build KD-tree index.
+     * @param filepath Absolute or relative path to trajectory CSV file.
+     * @return true when trajectory was loaded and indexed successfully.
+     */
     bool load_trajectory(const std::string& filepath) {
         std::ifstream file(filepath);
         if (!file.is_open()) {
@@ -360,6 +405,11 @@ private:
         return true;
     }
     
+    /**
+     * @brief Cache latest odometry dynamics used by pose-triggered publishing.
+        * @param msg Incoming odometry message.
+        * @return None.
+     */
     void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
         last_odom_time_ = std::chrono::steady_clock::now();
         odom_received_ = true;
@@ -380,6 +430,11 @@ private:
         has_odom_dynamics_ = true;
     }
 
+    /**
+     * @brief Build and publish one MpcState packet for each incoming pose.
+        * @param msg Incoming pose message in map frame.
+        * @return None.
+     */
     void pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
         const double x = msg->pose.pose.position.x;
         const double y = msg->pose.pose.position.y;
@@ -438,6 +493,12 @@ private:
 
 } // namespace f1tenth_communication
 
+/**
+ * @brief Entry point for the state publisher process.
+ * @param argc Argument count from process invocation.
+ * @param argv Argument vector from process invocation.
+ * @return Process exit code (0 on normal shutdown).
+ */
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<f1tenth_communication::StatePublisherNode>();

@@ -4,10 +4,10 @@
   <name>state_receiver</name>
   <version>0.1.0</version>
   <description>
-    ROS2 node that receives vehicle state + waypoint index, extracts trajectory reference,
-    and prepares data for MPC controller. Runs on Ultra96.
+    ROS2 node that receives streamed MpcState horizon data and runs FPGA MPC
+    through AXI-DMA/AXI-Lite interfaces on Ultra96.
   </description>
-  <maintainer email="todo@example.com">Your Name</maintainer>
+  <maintainer email="akmun23@student.sdu.dk">Aksel Munksgaard-Ottosen</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

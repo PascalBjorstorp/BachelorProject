@@ -1,30 +1,16 @@
 #include "algorithms/stanley.hpp"
 
-/**
- * @file stanley.cpp
- * @brief Stanley controller algorithm implementation.
- * @details Implements trajectory loading, heading-aware closest-point search,
- *          cross-track error computation, and the full Stanley steering law.
- *          All functions are methods of the Stanley class declared in stanley.hpp.
- * @dependencies stanley.hpp
- */
+#include "common/math_utils.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <fstream>
+#include <limits>
+#include <sstream>
+
 
 namespace f1tenth_control {
-
-// Inputs:
-// - config: Initial Stanley controller configuration.
-// Purpose:
-// - Construct Stanley controller with caller-provided parameters.
-// Outputs:
-// - Initializes controller with provided config and empty trajectory state.
 Stanley::Stanley(const StanleyConfig& config) : config_(config) {}
-
-// Inputs:
-// - csv_path: Path to trajectory CSV file.
-// Purpose:
-// - Load trajectory points from file into controller state.
-// Outputs:
-// - Returns true when a valid trajectory has been loaded.
 bool Stanley::loadTrajectory(const std::string& csv_path) {
     std::ifstream file(csv_path);
     if (!file.is_open()) {
@@ -97,15 +83,13 @@ bool Stanley::loadTrajectory(const std::string& csv_path) {
     search_initialized_ = false;
     last_steering_ = 0.0;
     
-    return trajectory_.size() >= 3;
-}
+    if (trajectory_.size() < 3) {
+        trajectory_.clear();
+        return false;
+    }
 
-// Inputs:
-// - trajectory: Trajectory points supplied by caller.
-// Purpose:
-// - Replace currently loaded trajectory with in-memory reference path.
-// Outputs:
-// - Updates trajectory storage and resets search/filtering state.
+    return true;
+}
 void Stanley::setTrajectory(const std::vector<TrajectoryPoint>& trajectory) {
     trajectory_ = trajectory;
 
@@ -118,29 +102,18 @@ void Stanley::setTrajectory(const std::vector<TrajectoryPoint>& trajectory) {
         }
     }
 
+    if (trajectory_.size() < 3) {
+        trajectory_.clear();
+    }
+
     last_closest_idx_ = 0;
     search_initialized_ = false;
     last_steering_ = 0.0;
 }
-
-// Inputs:
-// - None.
-// Purpose:
-// - Report total arc-length represented by loaded trajectory.
-// Outputs:
-// - Returns trajectory length in meters, or 0 when no trajectory is loaded.
 double Stanley::getTrajectoryLength() const {
     if (trajectory_.empty()) return 0.0;
     return trajectory_.back().arc_length;
 }
-
-// Inputs:
-// - front_axle_pos: Vehicle front-axle position.
-// - vehicle_heading: Vehicle heading angle.
-// Purpose:
-// - Select closest trajectory index using distance + heading-consistency cost.
-// Outputs:
-// - Returns closest index and updates internal search anchor state.
 size_t Stanley::findClosestPoint(const Point2D& front_axle_pos, double vehicle_heading) {
     if (trajectory_.empty()) return 0;
     
@@ -148,17 +121,8 @@ size_t Stanley::findClosestPoint(const Point2D& front_axle_pos, double vehicle_h
     double min_cost = std::numeric_limits<double>::max();
     size_t closest_idx = last_closest_idx_;
     
-    // Heading weight: penalize points with wrong heading direction
+    // Penalize heading-opposed points to avoid latching to the wrong segment.
     constexpr double heading_weight = 2.0;
-
-    // Determine if trajectory can be treated as closed loop for seam-safe search.
-    bool closed_loop = false;
-    if (n > 2) {
-        const auto& first = trajectory_.front();
-        const auto& last = trajectory_.back();
-        const double seam_dist = math::distance(first.x, first.y, last.x, last.y);
-        closed_loop = seam_dist <= std::max(0.25, config_.position_tolerance);
-    }
     
     // Check if we need full search (first call or far from path)
     const double dist_to_last = math::distance(front_axle_pos.x, front_axle_pos.y,
@@ -170,7 +134,7 @@ size_t Stanley::findClosestPoint(const Point2D& front_axle_pos, double vehicle_h
         for (size_t i = 0; i < n; ++i) {
             const auto& pt = trajectory_[i];
             const double d = math::distance(front_axle_pos.x, front_axle_pos.y, pt.x, pt.y);
-            const double heading_diff = normalizeAngle(pt.heading - vehicle_heading);
+            const double heading_diff = math::normalizeAngle(pt.heading - vehicle_heading);
             const double cost = d + heading_weight * std::abs(heading_diff);
 
             if (cost < min_cost) {
@@ -178,8 +142,8 @@ size_t Stanley::findClosestPoint(const Point2D& front_axle_pos, double vehicle_h
                 closest_idx = i;
             }
         }
-    } else if (closed_loop) {
-        // Local wrap-around search around previous index for closed-loop tracks.
+    } else {
+        // Local wrap-around search around previous index for looped tracks.
         constexpr int search_radius = 100;
         const int n_i = static_cast<int>(n);
         const int center = static_cast<int>(last_closest_idx_);
@@ -193,24 +157,7 @@ size_t Stanley::findClosestPoint(const Point2D& front_axle_pos, double vehicle_h
 
             const auto& pt = trajectory_[i];
             const double d = math::distance(front_axle_pos.x, front_axle_pos.y, pt.x, pt.y);
-            const double heading_diff = normalizeAngle(pt.heading - vehicle_heading);
-            const double cost = d + heading_weight * std::abs(heading_diff);
-
-            if (cost < min_cost) {
-                min_cost = cost;
-                closest_idx = i;
-            }
-        }
-    } else {
-        // Local bounded search for open trajectories.
-        constexpr size_t search_radius = 100;
-        const size_t start_idx = (last_closest_idx_ > search_radius) ? last_closest_idx_ - search_radius : 0;
-        const size_t end_idx = std::min(last_closest_idx_ + search_radius, n - 1);
-
-        for (size_t i = start_idx; i <= end_idx; ++i) {
-            const auto& pt = trajectory_[i];
-            const double d = math::distance(front_axle_pos.x, front_axle_pos.y, pt.x, pt.y);
-            const double heading_diff = normalizeAngle(pt.heading - vehicle_heading);
+            const double heading_diff = math::normalizeAngle(pt.heading - vehicle_heading);
             const double cost = d + heading_weight * std::abs(heading_diff);
 
             if (cost < min_cost) {
@@ -224,14 +171,6 @@ size_t Stanley::findClosestPoint(const Point2D& front_axle_pos, double vehicle_h
     search_initialized_ = true;
     return closest_idx;
 }
-
-// Inputs:
-// - front_axle_pos: Vehicle front-axle position.
-// - closest_idx: Closest trajectory index.
-// Purpose:
-// - Compute signed lateral displacement from path tangent at closest waypoint.
-// Outputs:
-// - Returns signed cross-track error (positive when vehicle is left of path).
 double Stanley::computeCrossTrackError(const Point2D& front_axle_pos, size_t closest_idx) {
     const auto& closest_pt = trajectory_[closest_idx];
     
@@ -251,18 +190,11 @@ double Stanley::computeCrossTrackError(const Point2D& front_axle_pos, size_t clo
     
     return cross_track_error;
 }
-
-// Inputs:
-// - state: Current vehicle state.
-// Purpose:
-// - Execute one Stanley control cycle and compute steering/speed outputs.
-// Outputs:
-// - Returns StanleyOutput with command values and debug terms.
 StanleyOutput Stanley::compute(const VehicleState& state) {
     StanleyOutput output;
     output.valid = false;
     
-    if (trajectory_.empty()) {
+    if (!hasTrajectory()) {
         return output;
     }
     
@@ -275,15 +207,6 @@ StanleyOutput Stanley::compute(const VehicleState& state) {
     double vehicle_heading = state.pose.theta;
     double velocity = std::max(std::abs(state.velocity), 0.01);  // Prevent zero velocity issues
 
-    // Closed-loop detection for seam-aware preview handling.
-    bool closed_loop = false;
-    if (trajectory_.size() > 2) {
-        const auto& first = trajectory_.front();
-        const auto& last = trajectory_.back();
-        const double seam_dist = math::distance(first.x, first.y, last.x, last.y);
-        closed_loop = seam_dist <= std::max(0.25, config_.position_tolerance);
-    }
-    
     // Find closest point to front axle (heading-aware to prevent wrong segment matching)
     size_t closest_idx = findClosestPoint(front_axle_pos, vehicle_heading);
     const auto& closest_pt = trajectory_[closest_idx];
@@ -294,7 +217,7 @@ StanleyOutput Stanley::compute(const VehicleState& state) {
     
     // Compute heading error (desired - actual)
     double path_heading = closest_pt.heading;
-    double heading_error = normalizeAngle(path_heading - vehicle_heading);
+    double heading_error = math::normalizeAngle(path_heading - vehicle_heading);
     output.heading_error = heading_error;
     
     // === Stanley Steering Law with Velocity-Adaptive Gains ===
@@ -304,7 +227,8 @@ StanleyOutput Stanley::compute(const VehicleState& state) {
     // Velocity-adaptive heading gain: reduce at high speed to prevent overshoot
     // k_h_effective = k_h * (v_ref / max(v, v_ref))
     // where v_ref is a reference speed (around 5 m/s for F1Tenth)
-    const double v_ref = 5.0;  // Reference velocity for gain scheduling
+    // Reference speed where heading gain remains fully active.
+    const double v_ref = 5.0;
     double k_h_effective = config_.k_h * std::min(1.0, v_ref / velocity);
     
     // Term 1: Heading error correction (velocity-adaptive)
@@ -354,13 +278,11 @@ StanleyOutput Stanley::compute(const VehicleState& state) {
     
     // Look ahead for curvature and reduce speed before sharp turns
     double max_upcoming_curvature = std::abs(closest_pt.curvature);
-    const size_t lookahead_points = 30;  // Look ahead
+    // Preview horizon expressed in waypoints to detect upcoming tight turns.
+    const size_t lookahead_points = 30;
     for (size_t i = 1; i < lookahead_points; ++i) {
         size_t idx = closest_idx + i;
         if (idx >= trajectory_.size()) {
-            if (!closed_loop) {
-                break;
-            }
             idx %= trajectory_.size();
         }
         max_upcoming_curvature = std::max(max_upcoming_curvature, 

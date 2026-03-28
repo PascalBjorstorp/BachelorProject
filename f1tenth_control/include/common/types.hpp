@@ -22,6 +22,8 @@ namespace f1tenth_control {
 struct Point2D {
     double x{0.0};  // X coordinate
     double y{0.0};  // Y coordinate
+
+    Point2D() = default;
     
     /**
      * @brief Construct a 2D point.
@@ -73,6 +75,8 @@ struct Pose2D {
     double x{0.0};      // X coordinate
     double y{0.0};      // Y coordinate
     double theta{0.0};  // Heading in radians
+
+    Pose2D() = default;
     
     /**
      * @brief Construct a 2D pose.
@@ -105,6 +109,8 @@ struct VehicleState {
 struct DriveCommand {
     double speed{0.0};          // Target speed (m/s)
     double steering_angle{0.0}; // Target steering angle (rad)
+
+    DriveCommand() = default;
     
     /**
      * @brief Construct a drive command.
@@ -122,6 +128,8 @@ struct PolarPoint {
     double range{0.0};    // Distance in meters
     double angle{0.0};    // Angle in radians
     bool valid{true};     // Whether the measurement is valid
+
+    PolarPoint() = default;
 
     /**
      * @brief Construct a polar point.
@@ -222,6 +230,8 @@ struct TrajectoryPoint {
     double arc_length{0.0};                                         // [m] Distance along path
     double left_bound{std::numeric_limits<double>::infinity()};     // [m] Left corridor half-width
     double right_bound{std::numeric_limits<double>::infinity()};    // [m] Right corridor half-width
+
+    TrajectoryPoint() = default;
     
     /**
      * @brief Construct trajectory waypoint with full geometric and speed metadata.

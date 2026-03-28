@@ -8,7 +8,7 @@
  *          Applies command-side rate limiting on steering and acceleration.
  *          Supports online trajectory updates from a local planner topic.
  *          Soft-start ramp is applied after trajectory load.
- * @dependencies pure_pursuit.hpp, rclcpp, nav_msgs, ackermann_msgs, geometry_msgs, visualization_msgs, std_msgs
+ * @dependencies pure_pursuit.hpp, rclcpp, nav_msgs, ackermann_msgs, geometry_msgs, std_msgs
  */
 
 #include <rclcpp/rclcpp.hpp>
@@ -16,7 +16,6 @@
 #include <nav_msgs/msg/path.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
-#include <visualization_msgs/msg/marker_array.hpp>
 #include <std_msgs/msg/bool.hpp>
 
 #include "algorithms/pure_pursuit.hpp"
@@ -34,7 +33,6 @@ namespace f1tenth_control {
  * - Loads a pre-computed racing line trajectory from CSV
  * - Subscribes to /ekf_pose for vehicle state
  * - Publishes drive commands to /drive
- * - Optionally publishes visualization markers
  * - Supports dynamic parameter reconfiguration
  * 
  * Topics:
@@ -44,13 +42,11 @@ namespace f1tenth_control {
  *   
  *   Publications:
  *     - /drive (ackermann_msgs/AckermannDriveStamped): Control commands
- *     - /pp_viz (visualization_msgs/MarkerArray): Lookahead point visualization
  * 
  * @param trajectory_file Path to CSV trajectory file
  * @param min_lookahead Minimum lookahead distance [m]
  * @param max_lookahead Maximum lookahead distance [m]
  * @param lookahead_gain Velocity-proportional lookahead gain
- * @param publish_visualization Whether to publish debug markers
  * 
  */
 class PurePursuitNode : public rclcpp::Node {
@@ -81,7 +77,6 @@ private:
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr local_raceline_sub_;                   // Subscription for local raceline updates
     
     rclcpp::Publisher<ackermann_msgs::msg::AckermannDriveStamped>::SharedPtr drive_pub_;    // Publisher for drive commands
-    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_pub_;            // Publisher for visualization markers
     
     // Soft start
     rclcpp::Time soft_start_time_;          // Timestamp when soft start was initiated
@@ -94,7 +89,6 @@ private:
     // Parameters
     std::string trajectory_file_;           // Path to trajectory CSV file
     std::string pose_topic_{"/ekf_pose"};   // Topic for pose estimate messages
-    bool publish_visualization_{true};      // Whether to publish debug markers
     bool pose_received_{false};             // Whether a valid pose estimate has been received
     bool odom_received_{false};             // Whether a valid odometry message has been received
     rclcpp::Time last_pose_time_;           // Timestamp of the last received pose message
@@ -179,14 +173,6 @@ private:
      */
     void publishDriveCommand(double steering, double speed);
 
-    /**
-     * @brief Publish visualization markers for the lookahead point and other debug information.
-     * This function constructs a MarkerArray message containing markers that represent the lookahead point, the trajectory, and any other relevant debug information, and publishes it to the /pp_viz topic if visualization is enabled.
-     * @param output PurePursuitOutput containing information about the current control cycle, including the lookahead point and tracking errors.
-     * @return None.
-     */
-    void publishLookaheadMarker(const PurePursuitOutput& output);
-    
     // Helpers
 
     /**

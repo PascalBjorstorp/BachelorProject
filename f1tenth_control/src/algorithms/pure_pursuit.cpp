@@ -95,9 +95,22 @@ bool PurePursuit::loadTrajectory(const std::string& csv_path) {
         return false;
     }
 
-    trajectory_ = trajectory_;  // Ensure internal storage is updated with loaded trajectory
-
     return true;
+}
+
+void PurePursuit::setTrajectory(const std::vector<TrajectoryPoint>& trajectory) {
+    trajectory_ = trajectory;
+
+    if (trajectory_.size() > 2) {
+        const auto& first = trajectory_.front();
+        const auto& last = trajectory_.back();
+        const double seam_dist = math::distance(first.x, first.y, last.x, last.y);
+        if (seam_dist < 1e-4) {
+            trajectory_.pop_back();
+        }
+    }
+
+    last_closest_idx_ = 0;
 }
 
 double PurePursuit::getTrajectoryLength() const {
@@ -323,30 +336,15 @@ PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     // Guard against behind-target geometry which can yield near-straight steering.
     if (target_x_vehicle <= 0.0) {
         bool found_forward_target = false;
-        if (closed_loop) {
-            for (size_t step = 1; step < n; ++step) {
-                const size_t idx = (closest_idx + step) % n;
-                const Point2D candidate = targetToVehicleFrame(trajectory_[idx]);
-                if (candidate.x > 0.05) {
-                    target_idx = idx;
-                    target_pt = trajectory_[idx];
-                    target_x_vehicle = candidate.x;
-                    target_y_vehicle = candidate.y;
-                    found_forward_target = true;
-                    break;
-                }
-            }
-        } else {
-            for (size_t idx = closest_idx + 1; idx < n; ++idx) {
-                const Point2D candidate = targetToVehicleFrame(trajectory_[idx]);
-                if (candidate.x > 0.05) {
-                    target_idx = idx;
-                    target_pt = trajectory_[idx];
-                    target_x_vehicle = candidate.x;
-                    target_y_vehicle = candidate.y;
-                    found_forward_target = true;
-                    break;
-                }
+        for (size_t idx = closest_idx + 1; idx < n; ++idx) {
+            const Point2D candidate = targetToVehicleFrame(trajectory_[idx]);
+            if (candidate.x > 0.05) {
+                target_idx = idx;
+                target_pt = trajectory_[idx];
+                target_x_vehicle = candidate.x;
+                target_y_vehicle = candidate.y;
+                found_forward_target = true;
+                break;
             }
         }
 

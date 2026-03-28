@@ -17,17 +17,7 @@ from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
-    """Inputs:
-    - None.
-
-    Purpose:
-    - Build launch graph for Stanley controller running as a composable ROS2 node
-      with configurable gains and speed limits.
-
-    Outputs:
-    - Returns LaunchDescription with launch arguments and Stanley component
-      container action.
-    """
+    """Build and return the Stanley controller launch description."""
     # Get package directories
     f1tenth_control_share = get_package_share_directory('f1tenth_control')
 
@@ -91,38 +81,38 @@ def generate_launch_description():
     
     k_e_arg = DeclareLaunchArgument(
         'k_e',
-        default_value='6.0',  # Increased for tighter tracking
+        default_value='1.9203',
         description='Cross-track error gain (CTE term)'
     )
     
     k_h_arg = DeclareLaunchArgument(
         'k_h',
-        default_value='0.5',  # Conservative heading-term baseline
+        default_value='1.1991',
         description='Heading error gain (auto-reduces at high speed)'
     )
     
     k_s_arg = DeclareLaunchArgument(
         'k_s',
-        default_value='0.2',  # Lower = more responsive at speed
+        default_value='1.1759',
         description='Softening constant for CTE term denominator'
     )
     
     k_d_arg = DeclareLaunchArgument(
         'k_d',
-        default_value='0.04',  # Reduced damping - just enough to prevent sharp oscillation
+        default_value='0.1429',
         description='Damping gain (suppresses oscillation)'
     )
     
     # Speed settings
     max_speed_arg = DeclareLaunchArgument(
         'max_speed',
-        default_value='20.0',
+        default_value='3.5902',
         description='Maximum speed [m/s]'
     )
     
     speed_gain_arg = DeclareLaunchArgument(
         'speed_gain',
-        default_value='1.0',
+        default_value='1.2986',
         description='Multiplier for trajectory target speeds'
     )
     
@@ -144,15 +134,14 @@ def generate_launch_description():
                     'k_s': LaunchConfiguration('k_s'),
                     'k_d': LaunchConfiguration('k_d'),
                     'use_feedforward': True,
-                    'feedforward_gain': 1.0,
+                    'feedforward_gain': 1.6,
                     'max_speed': LaunchConfiguration('max_speed'),
-                    'min_speed': 1.0,
+                    'min_speed': 1.5,
                     'speed_gain': LaunchConfiguration('speed_gain'),
                     'max_steering': 0.4189,
-                    'max_steering_rate': 3.0,  # rad/s - allows responsive steering
+                    'max_steering_rate': 2.8175,
                     'wheelbase': 0.3302,
-                    'curvature_speed_factor': 0.5,
-                    'publish_visualization': True,
+                    'curvature_speed_factor': 1.1939,
                     'control_rate': 200.0,
                 }],
                 remappings=[

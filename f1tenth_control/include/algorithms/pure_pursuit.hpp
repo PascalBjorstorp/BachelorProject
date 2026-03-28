@@ -105,6 +105,13 @@ public:
      * @return True when parsing succeeds and internal trajectory storage is updated.
      */
     bool loadTrajectory(const std::string& csv_path);
+
+    /**
+     * @brief Replace the internal reference path from in-memory data.
+     * @param trajectory Ordered trajectory waypoints in world coordinates.
+     * @return None.
+     */
+    void setTrajectory(const std::vector<TrajectoryPoint>& trajectory);
     
     /**
      * @brief Compute steering and speed commands for the current vehicle state.

@@ -6,7 +6,7 @@ as a composable ROS2 node. Trajectory path defaults to f1tenth_planning share.
 
 Topics:
   Sub: /ego_racecar/odom, <pose_topic>, /pp_enable
-  Pub: /drive, /pp_viz
+  Pub: /drive
 
 Prerequisites:
   - f1tenth_planning package installed with trajectory CSV.
@@ -23,17 +23,7 @@ from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
-    """Inputs:
-    - None.
-
-    Purpose:
-    - Build launch graph for Pure Pursuit component container including trajectory
-        selection and runtime tuning arguments.
-
-    Outputs:
-    - Returns LaunchDescription with launch arguments and one composable
-        PurePursuitNode container action.
-    """
+    """Build and return the Pure Pursuit launch description."""
     # Get package directories
     f1tenth_control_share = get_package_share_directory('f1tenth_control')
     
@@ -72,7 +62,7 @@ def generate_launch_description():
     lookahead_gain_arg = DeclareLaunchArgument(
         'lookahead_gain',
         default_value='0.15',
-        description='Velocity-proportional lookahead gain'
+        description='Velocity-proportional lookahead gain. Lookahead = gain * speed + min, capped at max [m/(m/s)]'
     )
 
     max_speed_arg = DeclareLaunchArgument(
@@ -84,25 +74,25 @@ def generate_launch_description():
     cte_lookahead_weight_arg = DeclareLaunchArgument(
         'cte_lookahead_weight',
         default_value='1.0',
-        description='Weight on cross-track error in dynamic lookahead'
+        description='Weight on cross-track error in dynamic lookahead. Higher values increase lookahead in when CTE is large [unitless]'
     )
 
     cte_lookahead_gain_arg = DeclareLaunchArgument(
         'cte_lookahead_gain',
         default_value='0.05',
-        description='Lookahead reduction gain based on cross-track error [m/m]'
+        description='Lookahead reduction gain based on cross-track error. Higher values reduce lookahead when CTE is large [m/m]'
     )
 
     curvature_lookahead_gain_arg = DeclareLaunchArgument(
         'curvature_lookahead_gain',
         default_value='1.34',
-        description='Turn-radius-based lookahead limit factor [m·m] (L_max = gain/kappa)'
+        description='Turn-radius-based lookahead limit factor (L_max = gain/kappa). Higher values reduce lookahead in tight curves [m]'
     )
 
     curvature_speed_factor_arg = DeclareLaunchArgument(
         'curvature_speed_factor',
         default_value='0.10',
-        description='Curvature-based speed slowdown aggressiveness'
+        description='Curvature-based speed slowdown aggressiveness. Higher values result in more aggressive speed reduction in tight curves [unitless]'
     )
 
     curvature_speed_floor_ratio_arg = DeclareLaunchArgument(
@@ -114,7 +104,7 @@ def generate_launch_description():
     cte_speed_factor_arg = DeclareLaunchArgument(
         'cte_speed_factor',
         default_value='0.10',
-        description='CTE-based speed slowdown aggressiveness'
+        description='CTE-based speed slowdown aggressiveness. Higher values result in more aggressive speed reduction when CTE is large [unitless]'
     )
 
     cte_speed_floor_ratio_arg = DeclareLaunchArgument(
@@ -244,7 +234,6 @@ def generate_launch_description():
                     'max_steering_rate': LaunchConfiguration('max_steering_rate'),
                     'max_accel_cmd': LaunchConfiguration('max_accel_cmd'),
                     'max_decel_cmd': LaunchConfiguration('max_decel_cmd'),
-                    'publish_visualization': True,
                     'pose_topic': LaunchConfiguration('pose_topic'),
                     'pose_timeout_s': LaunchConfiguration('pose_timeout_s'),
                     'odom_timeout_s': LaunchConfiguration('odom_timeout_s'),

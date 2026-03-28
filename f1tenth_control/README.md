@@ -49,7 +49,6 @@ A reactive obstacle avoidance algorithm that:
 - Emergency braking for close obstacles
 - Preference for straight-ahead gaps (configurable)
 - Mapping mode for track boundary extraction
-- Real-time visualization support
 
 ## Usage
 
@@ -83,7 +82,6 @@ ros2 launch f1tenth_control ftg_hardware_launch.py mapping_mode:=true
 
 **Published:**
 - `/drive` (ackermann_msgs/AckermannDriveStamped) - Drive commands
-- `ftg/visualization` (visualization_msgs/MarkerArray) - RViz visualization
 
 ### Parameters
 
@@ -167,7 +165,7 @@ double i = f1tenth_control::math::lerp(a, b, t);
 5. Create config file and launch file
 
 The `LidarProcessor` and math utilities can be reused. For example:
-- `LidarProcessor::scanPointToCartesian()` for obstacle visualization
+- `LidarProcessor::scanPointToCartesian()` for obstacle coordinate transforms
 - `math::localToGlobal()` for waypoint transforms
 - `math::normalizeAngle()` for angle wrapping
 

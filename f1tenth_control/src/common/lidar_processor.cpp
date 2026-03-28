@@ -1,11 +1,5 @@
 #include "common/lidar_processor.hpp"
 
-/**
- * @file lidar_processor.cpp
- * @brief Implementation of generic LiDAR preprocessing utilities.
- * @details Implements methods for converting raw LiDAR scans into validated, filtered
- * @dependencies lidar_processor.hpp, math_utils.hpp, <cmath>, <limits>
- */
 
 namespace f1tenth_control {
 

@@ -1,29 +1,27 @@
 /**
- * @file test_sim_drive_pure_pursuit.cpp
- * @brief Closed-loop pure pursuit simulation and parameter sweep.
+ * @file test_sim_drive_stanley.cpp
+ * @brief Closed-loop Stanley simulation and parameter sweep.
  *
- * This executable mirrors the intent of MPC/test/test_sim_drive.c for the
- * pure pursuit controller. It loads a raceline CSV with wall bounds,
- * simulates a kinematic bicycle plant, detects wall collisions from left/right
- * track bounds, and sweeps controller parameters to maximize average speed
- * while completing a target number of laps.
+ * This executable mirrors the Pure Pursuit simulation harness and evaluates
+ * Stanley controller parameter candidates on a bounded raceline track model.
+ * The sweep searches for collision-free candidates that complete target laps
+ * while maximizing average speed with bounded tracking error.
  *
  * Build:
  *   colcon build --packages-select f1tenth_control --symlink-install
  *
  * Run:
- *   ./build/f1tenth_control/test_sim_drive_pure_pursuit
- *   ./build/f1tenth_control/test_sim_drive_pure_pursuit --iterations 320 --laps 3
- *   ./build/f1tenth_control/test_sim_drive_pure_pursuit --trajectory /abs/path/to/raceline.csv
+ *   ./build/f1tenth_control/test_sim_drive_stanley
+ *   ./build/f1tenth_control/test_sim_drive_stanley --iterations 260 --laps 3
+ *   ./build/f1tenth_control/test_sim_drive_stanley --trajectory /abs/path/to/raceline.csv
  */
 
-#include "algorithms/pure_pursuit.hpp"
+#include "algorithms/stanley.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdlib>
-#include <deque>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -36,34 +34,22 @@
 
 namespace {
 
-using f1tenth_control::PurePursuit;
-using f1tenth_control::PurePursuitConfig;
-using f1tenth_control::PurePursuitOutput;
+using f1tenth_control::Stanley;
+using f1tenth_control::StanleyConfig;
+using f1tenth_control::StanleyOutput;
 using f1tenth_control::TrajectoryPoint;
 using f1tenth_control::VehicleState;
 
-constexpr double kDefaultDt = 0.002;                  // 500 Hz simulation (finer for stability)
-constexpr double kMaxSimTime = 240.0;                // seconds
-constexpr double kSpeedTimeConstant = 0.30;          // seconds
-constexpr double kSteerTimeConstant = 0.10;          // seconds
-constexpr double kSteerCommandDelay = 0.06;          // seconds
-constexpr double kSpeedCommandDelay = 0.08;          // seconds
-constexpr double kSoftStartDuration = 2.0;           // seconds
-constexpr double kSoftStartSpeed = 1.0;              // m/s
-constexpr double kMaxSteeringRate = 2.8;             // rad/s
-constexpr double kMaxAccel = 4.0;                    // m/s^2
-constexpr double kMaxBrake = 6.0;                    // m/s^2
-constexpr double kMaxLateralAccel = 7.27;            // m/s^2 (mu*g from requested params)
-constexpr double kVehicleHalfWidth = 0.137;          // m
-constexpr double kBodySafetyMargin = 0.040;          // m
+constexpr double kDefaultDt = 0.005;             // 200 Hz simulation
+constexpr double kMaxSimTime = 260.0;            // seconds
+constexpr double kSpeedTimeConstant = 0.30;      // seconds
+constexpr double kSoftStartDuration = 2.0;       // seconds
+constexpr double kSoftStartSpeed = 1.0;          // m/s
+constexpr double kMaxAccel = 3.5;                // m/s^2
+constexpr double kMaxBrake = 5.0;                // m/s^2
+constexpr double kVehicleHalfWidth = 0.137;      // m
+constexpr double kBodySafetyMargin = 0.040;      // m
 constexpr size_t kClosestWindowMin = 30;
-
-// Enhanced dynamics model constants
-constexpr double kTireLagTimeConstant = 0.025;       // 25ms tire force build-up lag
-constexpr double kFrontGripRatio = 0.70;             // front axle gets 70% of grip
-constexpr double kRearGripRatio = 0.30;              // rear axle gets 30% of grip
-constexpr double kBrakeLoadTransferGain = 0.10;      // extra front grip per m/s^2 braking
-constexpr double kOversteerTendency = 0.15;          // rear-biased slip induces yaw
 
 struct WaypointWithBounds {
     TrajectoryPoint pt;
@@ -93,8 +79,7 @@ struct TrackProjection {
 };
 
 struct Candidate {
-    PurePursuitConfig config;
-    double max_speed{2.0};
+    StanleyConfig config;
 };
 
 struct EvaluatedCandidate {
@@ -108,8 +93,12 @@ double clampValue(double x, double lo, double hi) {
 }
 
 double normalizeAngle(double a) {
-    while (a > f1tenth_control::constants::PI) a -= 2.0 * f1tenth_control::constants::PI;
-    while (a < -f1tenth_control::constants::PI) a += 2.0 * f1tenth_control::constants::PI;
+    while (a > f1tenth_control::constants::PI) {
+        a -= 2.0 * f1tenth_control::constants::PI;
+    }
+    while (a < -f1tenth_control::constants::PI) {
+        a += 2.0 * f1tenth_control::constants::PI;
+    }
     return a;
 }
 
@@ -165,7 +154,7 @@ bool loadTrajectoryWithBounds(const std::string& csv_path,
         out.push_back(w);
     }
 
-    if (out.size() < 2) {
+    if (out.size() < 3) {
         return false;
     }
 
@@ -179,6 +168,23 @@ bool loadTrajectoryWithBounds(const std::string& csv_path,
                                out.front().pt.y - out.back().pt.y);
 
     return track_length > 1e-3;
+}
+
+std::string defaultTrajectoryPath() {
+    const std::vector<std::string> candidates = {
+        "f1tenth_planning/trajectories/hardware_raceline.csv",
+        "../f1tenth_planning/trajectories/hardware_raceline.csv",
+        "../../f1tenth_planning/trajectories/hardware_raceline.csv"
+    };
+
+    for (const auto& path : candidates) {
+        std::ifstream file(path);
+        if (file.good()) {
+            return path;
+        }
+    }
+
+    return candidates.front();
 }
 
 size_t findClosestIndex(const std::vector<WaypointWithBounds>& traj,
@@ -199,7 +205,8 @@ size_t findClosestIndex(const std::vector<WaypointWithBounds>& traj,
 
     for (int off = -static_cast<int>(window); off <= static_cast<int>(window); ++off) {
         const int idx_raw = static_cast<int>(last_idx) + off;
-        const int wrapped = (idx_raw % static_cast<int>(n) + static_cast<int>(n)) % static_cast<int>(n);
+        const int wrapped =
+            (idx_raw % static_cast<int>(n) + static_cast<int>(n)) % static_cast<int>(n);
         const size_t idx = static_cast<size_t>(wrapped);
 
         const double dx = traj[idx].pt.x - state.pose.x;
@@ -260,7 +267,7 @@ TrackProjection projectToTrack(const std::vector<WaypointWithBounds>& traj,
 
         if (d2 < best.dist2) {
             const double seg_len = std::sqrt(seg_len2);
-            const double nx = -vy / seg_len;  // Left normal of segment direction
+            const double nx = -vy / seg_len;
             const double ny = vx / seg_len;
 
             best.seg_idx = i;
@@ -327,41 +334,34 @@ SimMetrics runSimulation(const std::vector<WaypointWithBounds>& traj,
         return metrics;
     }
 
-    std::vector<TrajectoryPoint> pp_traj;
-    pp_traj.reserve(traj.size());
+    std::vector<TrajectoryPoint> st_traj;
+    st_traj.reserve(traj.size());
     for (const auto& w : traj) {
-        pp_traj.push_back(w.pt);
+        st_traj.push_back(w.pt);
     }
 
-    PurePursuit controller(candidate.config);
-    controller.setTrajectory(pp_traj);
+    Stanley controller(candidate.config);
+    controller.setTrajectory(st_traj);
 
     VehicleState state;
     state.pose.x = traj.front().pt.x;
     state.pose.y = traj.front().pt.y;
     state.pose.theta = traj.front().pt.heading;
     state.velocity = 0.0;
+    state.angular_velocity = 0.0;
 
     double steer_actual = 0.0;
-    double lateral_force_state = 0.0;  // first-order tire lag state
     size_t closest_idx = 0;
     double sum_cte_sq = 0.0;
     int cte_count = 0;
 
-    const size_t steer_delay_steps =
-        std::max<size_t>(1, static_cast<size_t>(std::round(kSteerCommandDelay / dt)));
-    const size_t speed_delay_steps =
-        std::max<size_t>(1, static_cast<size_t>(std::round(kSpeedCommandDelay / dt)));
-    std::deque<double> steer_cmd_delay(steer_delay_steps + 1, 0.0);
-    std::deque<double> speed_cmd_delay(speed_delay_steps + 1, state.velocity);
-
     for (double t = 0.0; t < kMaxSimTime; t += dt) {
-        const PurePursuitOutput output = controller.compute(state);
+        const StanleyOutput output = controller.compute(state);
         if (!output.valid) {
             break;
         }
 
-        const double speed_cmd = clampValue(output.target_speed, 0.0, candidate.max_speed);
+        const double speed_cmd = clampValue(output.target_speed, 0.0, candidate.config.max_speed);
         const double steer_cmd = clampValue(output.steering_angle,
                                             -candidate.config.max_steering,
                                             candidate.config.max_steering);
@@ -369,74 +369,27 @@ SimMetrics runSimulation(const std::vector<WaypointWithBounds>& traj,
         const double soft_speed_cmd =
             (t < kSoftStartDuration) ? std::min(speed_cmd, kSoftStartSpeed) : speed_cmd;
 
-        steer_cmd_delay.push_back(steer_cmd);
-        const double delayed_steer_cmd = steer_cmd_delay.front();
-        steer_cmd_delay.pop_front();
+        double accel_cmd = (soft_speed_cmd - state.velocity) / kSpeedTimeConstant;
+        accel_cmd = clampValue(accel_cmd, -kMaxBrake, kMaxAccel);
+        state.velocity = clampValue(state.velocity + accel_cmd * dt, 0.0, candidate.config.max_speed);
 
-        speed_cmd_delay.push_back(soft_speed_cmd);
-        const double delayed_speed_cmd = speed_cmd_delay.front();
-        speed_cmd_delay.pop_front();
-
-        double steer_rate_cmd = (delayed_steer_cmd - steer_actual) / kSteerTimeConstant;
-        steer_rate_cmd = clampValue(steer_rate_cmd, -kMaxSteeringRate, kMaxSteeringRate);
-        steer_actual += steer_rate_cmd * dt;
+        const double max_steer_delta = std::max(1e-6, candidate.config.max_steering_rate) * dt;
+        const double steer_delta = clampValue(steer_cmd - steer_actual, -max_steer_delta, max_steer_delta);
+        steer_actual += steer_delta;
         steer_actual = clampValue(steer_actual,
                                   -candidate.config.max_steering,
                                   candidate.config.max_steering);
 
-        double accel_cmd = (delayed_speed_cmd - state.velocity) / kSpeedTimeConstant;
-        accel_cmd = clampValue(accel_cmd, -kMaxBrake, kMaxAccel);
-        state.velocity += accel_cmd * dt;
-        state.velocity = clampValue(state.velocity, 0.0, candidate.max_speed);
-
-        // Enhanced dynamics: compute available grip considering load transfer
-        double effective_max_lat_accel = kMaxLateralAccel;
-        if (accel_cmd < 0.0) {
-            // Braking: weight shifts forward, increasing front grip
-            effective_max_lat_accel += kBrakeLoadTransferGain * std::abs(accel_cmd);
-        }
-
-        const double nominal_yaw_rate =
-            state.velocity * std::tan(steer_actual) / candidate.config.wheelbase;
-        const double nominal_lat_accel = std::abs(state.velocity * nominal_yaw_rate);
-        
-        // First-order tire force lag (τ=25ms)
-        const double target_lateral_force = nominal_lat_accel;
-        const double alpha = dt / (kTireLagTimeConstant + dt);
-        lateral_force_state = lateral_force_state + alpha * (target_lateral_force - lateral_force_state);
-        
-        // Grip saturation check with lagged force
-        double grip_scale = 1.0;
-        if (lateral_force_state > effective_max_lat_accel) {
-            grip_scale = effective_max_lat_accel / lateral_force_state;
-        }
-
-        // Front/rear grip distribution: rear-biased saturation causes oversteer
-        double yaw_rate = nominal_yaw_rate * grip_scale;
-        if (grip_scale < 0.999) {
-            // Rear saturates first → oversteer tendency (additional yaw in turn direction)
-            const double oversteer_yaw_delta = kOversteerTendency * (1.0 - grip_scale) * nominal_yaw_rate;
-            yaw_rate += oversteer_yaw_delta;
-        }
-        
-        state.angular_velocity = yaw_rate;
-        state.steering_angle = steer_actual;
-
+        const double wheelbase = std::max(1e-3, candidate.config.wheelbase);
+        const double yaw_rate = state.velocity * std::tan(steer_actual) / wheelbase;
         const double theta = state.pose.theta;
+
         state.pose.x += state.velocity * std::cos(theta) * dt;
         state.pose.y += state.velocity * std::sin(theta) * dt;
-
-        // Under high lateral demand, emulate understeer by drifting outward.
-        if (grip_scale < 0.999) {
-            const double slip_speed = state.velocity * (1.0 - grip_scale) * 0.5; // reduced drift
-            const double nx = -std::sin(theta);
-            const double ny = std::cos(theta);
-            const double outward_sign = (steer_actual >= 0.0) ? -1.0 : 1.0;
-            state.pose.x += outward_sign * nx * slip_speed * dt;
-            state.pose.y += outward_sign * ny * slip_speed * dt;
-        }
-
         state.pose.theta = normalizeAngle(theta + yaw_rate * dt);
+
+        state.angular_velocity = yaw_rate;
+        state.steering_angle = steer_actual;
 
         const size_t prev_idx = closest_idx;
         closest_idx = findClosestIndex(traj, state, closest_idx);
@@ -457,7 +410,9 @@ SimMetrics runSimulation(const std::vector<WaypointWithBounds>& traj,
             break;
         }
 
-        const double laps_f = (track_length > 1e-6) ? (metrics.traveled_distance / track_length) : 0.0;
+        const double laps_f = (track_length > 1e-6)
+                                ? (metrics.traveled_distance / track_length)
+                                : 0.0;
         metrics.laps_completed = static_cast<int>(std::floor(laps_f + 1e-6));
         if (metrics.laps_completed >= target_laps) {
             metrics.completed = true;
@@ -493,56 +448,63 @@ SimMetrics runSimulation(const std::vector<WaypointWithBounds>& traj,
 }
 
 double scoreCandidate(const SimMetrics& m) {
-    const double tracking_penalty = 2.5 * m.max_abs_cte + 1.5 * m.rms_cte;
+    const double tracking_penalty = 3.0 * m.max_abs_cte + 1.0 * m.rms_cte;
 
     if (m.completed && !m.collided) {
-        // Large feasibility bonus so any clean full-lap run dominates crashy runs.
-        return 1000.0 + 100.0 * m.avg_speed - 40.0 * tracking_penalty;
+        return 1000.0 + 240.0 * m.avg_speed - 35.0 * tracking_penalty;
     }
 
-    // For infeasible runs, prioritize how far it got before failure and tracking quality.
     const double progress_score = 300.0 * m.completion_ratio;
-    const double collision_penalty = m.collided ? 150.0 : 0.0;
+    const double collision_penalty = m.collided ? 160.0 : 0.0;
     return progress_score - 80.0 * tracking_penalty - collision_penalty;
 }
 
 Candidate launchLikeBaseline() {
     Candidate c;
-    c.config.min_lookahead = 0.48;
-    c.config.max_lookahead = 1.20;
-    c.config.lookahead_gain = 0.15;
-    c.config.cte_lookahead_weight = 1.0;
-    c.config.cte_lookahead_gain = 0.05;
-    c.config.curvature_lookahead_gain = 1.34;  // turn-radius based: L_max = 1.34/|kappa|
-    c.config.curvature_speed_factor = 0.10;
-    c.config.curvature_speed_floor_ratio = 0.43;
-    c.config.cte_speed_factor = 0.10;
-    c.config.cte_speed_floor_ratio = 0.50;
-    c.config.curvature_preview_factor = 1.2;
+    c.config.k_e = 2.394;
+    c.config.k_h = 1.057;
+    c.config.k_s = 0.685;
+    c.config.k_d = 0.069;
+    c.config.max_speed = 5.5;
+    c.config.min_speed = 0.5;
+    c.config.speed_gain = 1.443;
     c.config.max_steering = 0.4189;
-    c.config.wheelbase = 0.324;
+    c.config.max_steering_rate = 2.8175;
+    c.config.wheelbase = 0.3302;
     c.config.position_tolerance = 0.5;
-    c.max_speed = 5.5;
+    c.config.use_feedforward = true;
+    c.config.feedforward_gain = 1.412;
+    c.config.curvature_speed_factor = 0.2;
+    c.config.control_rate = 1.0 / kDefaultDt;
     return c;
 }
 
 Candidate conservativeSeed() {
     Candidate c;
-    c.config.min_lookahead = 0.20;
-    c.config.max_lookahead = 0.50;
-    c.config.lookahead_gain = 0.08;
-    c.config.cte_lookahead_weight = 1.0;
-    c.config.cte_lookahead_gain = 0.03;
-    c.config.curvature_lookahead_gain = 1.0;  // more aggressive shrink
-    c.config.curvature_speed_factor = 0.40;
-    c.config.curvature_speed_floor_ratio = 0.35;
-    c.config.cte_speed_factor = 0.80;
-    c.config.cte_speed_floor_ratio = 0.35;
-    c.config.curvature_preview_factor = 2.5;
+    c.config.k_e = 1.8;
+    c.config.k_h = 0.8;
+    c.config.k_s = 1.4;
+    c.config.k_d = 0.30;
+    c.config.max_speed = 2.2;
+    c.config.min_speed = 0.8;
+    c.config.speed_gain = 0.95;
     c.config.max_steering = 0.4189;
-    c.config.wheelbase = 0.324;
+    c.config.max_steering_rate = 2.2;
+    c.config.wheelbase = 0.3302;
     c.config.position_tolerance = 0.5;
-    c.max_speed = 2.5;
+    c.config.use_feedforward = true;
+    c.config.feedforward_gain = 0.9;
+    c.config.curvature_speed_factor = 1.2;
+    c.config.control_rate = 1.0 / kDefaultDt;
+    return c;
+}
+
+Candidate fallbackSafeSeed() {
+    Candidate c = conservativeSeed();
+    c.config.max_speed = 1.6;
+    c.config.speed_gain = 0.9;
+    c.config.k_d = 0.35;
+    c.config.curvature_speed_factor = 1.5;
     return c;
 }
 
@@ -550,23 +512,21 @@ Candidate sampleRandom(std::mt19937& rng) {
     std::uniform_real_distribution<double> u01(0.0, 1.0);
 
     Candidate c;
-    // Tighter lookahead ranges for sharp corners
-    c.config.min_lookahead = 0.15 + 0.25 * u01(rng);  // [0.15, 0.40]
-    c.config.max_lookahead = c.config.min_lookahead + 0.20 + 0.50 * u01(rng);  // min + [0.20, 0.70]
-    c.config.max_lookahead = std::min(c.config.max_lookahead, 1.20);
-    c.config.lookahead_gain = 0.05 + 0.12 * u01(rng);  // [0.05, 0.17]
-    c.config.cte_lookahead_weight = 1.0;
-    c.config.cte_lookahead_gain = 0.00 + 0.06 * u01(rng);  // [0, 0.06]
-    c.config.curvature_lookahead_gain = 0.4 + 1.2 * u01(rng);  // [0.4, 1.6] (turn radius based)
-    c.config.curvature_speed_factor = 0.15 + 0.50 * u01(rng);  // [0.15, 0.65]
-    c.config.curvature_speed_floor_ratio = 0.25 + 0.30 * u01(rng);  // [0.25, 0.55]
-    c.config.cte_speed_factor = 0.3 + 1.2 * u01(rng);  // [0.3, 1.5]
-    c.config.cte_speed_floor_ratio = 0.20 + 0.35 * u01(rng);  // [0.20, 0.55]
-    c.config.curvature_preview_factor = 1.5 + 1.5 * u01(rng);  // [1.5, 3.0]
+    c.config.k_e = 1.2 + 2.8 * u01(rng);
+    c.config.k_h = 0.5 + 0.9 * u01(rng);
+    c.config.k_s = 0.8 + 1.5 * u01(rng);
+    c.config.k_d = 0.05 + 0.45 * u01(rng);
+    c.config.max_speed = 1.8 + 2.8 * u01(rng);
+    c.config.min_speed = 0.6 + 0.6 * u01(rng);
+    c.config.speed_gain = 0.7 + 0.5 * u01(rng);
     c.config.max_steering = 0.4189;
-    c.config.wheelbase = 0.324;
+    c.config.max_steering_rate = 1.8 + 1.6 * u01(rng);
+    c.config.wheelbase = 0.3302;
     c.config.position_tolerance = 0.5;
-    c.max_speed = 3.0 + 3.0 * u01(rng);  // [3.0, 6.0]
+    c.config.use_feedforward = true;
+    c.config.feedforward_gain = 0.6 + 0.8 * u01(rng);
+    c.config.curvature_speed_factor = 0.7 + 1.4 * u01(rng);
+    c.config.control_rate = 1.0 / kDefaultDt;
     return c;
 }
 
@@ -574,21 +534,20 @@ Candidate sampleAround(const Candidate& base, std::mt19937& rng) {
     std::normal_distribution<double> n01(0.0, 1.0);
 
     Candidate c = base;
-    // Tighter perturbation ranges matching new parameter space
-    c.config.min_lookahead = clampValue(base.config.min_lookahead + 0.03 * n01(rng), 0.12, 0.50);
-    c.config.max_lookahead = clampValue(base.config.max_lookahead + 0.08 * n01(rng), 0.35, 1.20);
-    if (c.config.max_lookahead < c.config.min_lookahead + 0.15) {
-        c.config.max_lookahead = c.config.min_lookahead + 0.15;
-    }
-    c.config.lookahead_gain = clampValue(base.config.lookahead_gain + 0.015 * n01(rng), 0.03, 0.18);
-    c.config.cte_lookahead_gain = clampValue(base.config.cte_lookahead_gain + 0.010 * n01(rng), 0.0, 0.08);
-    c.config.curvature_lookahead_gain = clampValue(base.config.curvature_lookahead_gain + 0.15 * n01(rng), 0.3, 2.0);
-    c.config.curvature_speed_factor = clampValue(base.config.curvature_speed_factor + 0.06 * n01(rng), 0.10, 0.80);
-    c.config.curvature_speed_floor_ratio = clampValue(base.config.curvature_speed_floor_ratio + 0.04 * n01(rng), 0.20, 0.60);
-    c.config.cte_speed_factor = clampValue(base.config.cte_speed_factor + 0.15 * n01(rng), 0.1, 2.0);
-    c.config.cte_speed_floor_ratio = clampValue(base.config.cte_speed_floor_ratio + 0.04 * n01(rng), 0.15, 0.60);
-    c.config.curvature_preview_factor = clampValue(base.config.curvature_preview_factor + 0.20 * n01(rng), 1.2, 3.5);
-    c.max_speed = clampValue(base.max_speed + 0.25 * n01(rng), 2.5, 6.0);
+    c.config.k_e = clampValue(base.config.k_e + 0.25 * n01(rng), 0.8, 4.5);
+    c.config.k_h = clampValue(base.config.k_h + 0.10 * n01(rng), 0.3, 1.8);
+    c.config.k_s = clampValue(base.config.k_s + 0.20 * n01(rng), 0.4, 3.0);
+    c.config.k_d = clampValue(base.config.k_d + 0.05 * n01(rng), 0.0, 0.8);
+    c.config.max_speed = clampValue(base.config.max_speed + 0.25 * n01(rng), 1.2, 5.5);
+    c.config.min_speed = clampValue(base.config.min_speed + 0.08 * n01(rng), 0.2, 1.5);
+    c.config.speed_gain = clampValue(base.config.speed_gain + 0.08 * n01(rng), 0.4, 1.5);
+    c.config.max_steering_rate =
+        clampValue(base.config.max_steering_rate + 0.20 * n01(rng), 0.6, 4.0);
+    c.config.feedforward_gain =
+        clampValue(base.config.feedforward_gain + 0.08 * n01(rng), 0.2, 1.6);
+    c.config.curvature_speed_factor =
+        clampValue(base.config.curvature_speed_factor + 0.15 * n01(rng), 0.2, 2.5);
+    c.config.control_rate = 1.0 / kDefaultDt;
     return c;
 }
 
@@ -596,6 +555,7 @@ void printCandidate(const EvaluatedCandidate& e, size_t rank = 0) {
     if (rank > 0) {
         std::cout << "[TOP " << rank << "] ";
     }
+
     std::cout << std::fixed << std::setprecision(3)
               << "score=" << e.score
               << " avg_v=" << e.metrics.avg_speed
@@ -606,17 +566,15 @@ void printCandidate(const EvaluatedCandidate& e, size_t rank = 0) {
               << " t=" << e.metrics.sim_time
               << " cte_max=" << e.metrics.max_abs_cte
               << " cfg{"
-              << "vmax=" << e.candidate.max_speed
-              << ", minL=" << e.candidate.config.min_lookahead
-              << ", maxL=" << e.candidate.config.max_lookahead
-              << ", kL=" << e.candidate.config.lookahead_gain
-              << ", kCte=" << e.candidate.config.cte_lookahead_gain
-              << ", kCurvL=" << e.candidate.config.curvature_lookahead_gain
-              << ", kCurvV=" << e.candidate.config.curvature_speed_factor
-              << ", floor=" << e.candidate.config.curvature_speed_floor_ratio
-              << ", kCteV=" << e.candidate.config.cte_speed_factor
-              << ", cteFloor=" << e.candidate.config.cte_speed_floor_ratio
-              << ", preview=" << e.candidate.config.curvature_preview_factor
+              << "k_e=" << e.candidate.config.k_e
+              << ", k_h=" << e.candidate.config.k_h
+              << ", k_s=" << e.candidate.config.k_s
+              << ", k_d=" << e.candidate.config.k_d
+              << ", vmax=" << e.candidate.config.max_speed
+              << ", vmin=" << e.candidate.config.min_speed
+              << ", speed_gain=" << e.candidate.config.speed_gain
+              << ", ff=" << e.candidate.config.feedforward_gain
+              << ", k_curv_v=" << e.candidate.config.curvature_speed_factor
               << "}"
               << "\n";
 }
@@ -624,13 +582,11 @@ void printCandidate(const EvaluatedCandidate& e, size_t rank = 0) {
 }  // namespace
 
 int main(int argc, char** argv) {
-    std::string trajectory_path =
-        "/home/akselmo/Documents/GitHub/BachelorProject/f1tenth_planning/trajectories/hardware_raceline.csv";
-    int iterations = 260;
+    std::string trajectory_path = defaultTrajectoryPath();
+    int iterations = 240;
     int target_laps = 3;
     int seed = 42;
     bool verbose = false;
-    double fixed_max_speed = -1.0;
 
     for (int i = 1; i < argc; ++i) {
         const std::string arg(argv[i]);
@@ -642,17 +598,14 @@ int main(int argc, char** argv) {
             target_laps = std::max(1, std::atoi(argv[++i]));
         } else if (arg == "--seed" && i + 1 < argc) {
             seed = std::atoi(argv[++i]);
-        } else if (arg == "--fixed-max-speed" && i + 1 < argc) {
-            fixed_max_speed = std::max(0.1, std::atof(argv[++i]));
         } else if (arg == "--verbose") {
             verbose = true;
         } else if (arg == "--help") {
-            std::cout << "Usage: test_sim_drive_pure_pursuit [options]\n"
+            std::cout << "Usage: test_sim_drive_stanley [options]\n"
                       << "  --trajectory <csv_path>\n"
                       << "  --iterations <N>\n"
                       << "  --laps <N>\n"
                       << "  --seed <N>\n"
-                      << "  --fixed-max-speed <mps>\n"
                       << "  --verbose\n";
             return 0;
         }
@@ -666,76 +619,62 @@ int main(int argc, char** argv) {
     }
 
     std::cout << "Loaded " << trajectory.size() << " waypoints from " << trajectory_path
-              << " (track_length=" << std::fixed << std::setprecision(2) << track_length << " m)\n";
+              << " (track_length=" << std::fixed << std::setprecision(2)
+              << track_length << " m)\n";
     std::cout << "Sweep settings: iterations=" << iterations
               << " laps=" << target_laps
               << " seed=" << seed
               << " dt=" << kDefaultDt << "\n\n";
 
-    if (fixed_max_speed > 0.0) {
-        std::cout << "Using fixed max_speed=" << fixed_max_speed
-                  << " for all evaluated candidates\n\n";
-    }
-
     std::vector<EvaluatedCandidate> all;
-    all.reserve(static_cast<size_t>(iterations) + 8);
+    all.reserve(static_cast<size_t>(iterations) + 12);
 
     const Candidate baseline = launchLikeBaseline();
     const Candidate conservative = conservativeSeed();
-
-    Candidate baseline_effective = baseline;
-    Candidate conservative_effective = conservative;
-    if (fixed_max_speed > 0.0) {
-        baseline_effective.max_speed = fixed_max_speed;
-        conservative_effective.max_speed = fixed_max_speed;
-    }
-
-    SimMetrics baseline_metrics = runSimulation(
-        trajectory, track_length, baseline_effective, target_laps, kDefaultDt, verbose);
-    SimMetrics conservative_metrics = runSimulation(
-        trajectory, track_length, conservative_effective, target_laps, kDefaultDt, verbose);
+    const Candidate fallback = fallbackSafeSeed();
 
     EvaluatedCandidate best;
     best.score = -1e9;
-    Candidate best_completed_seed = conservative;
-    bool have_completed = false;
-    double best_completed_avg_speed = -1.0;
+
+    bool have_feasible = false;
+    EvaluatedCandidate best_feasible;
+    best_feasible.score = -1e9;
 
     auto evaluate = [&](const Candidate& candidate) {
-        Candidate effective = candidate;
-        if (fixed_max_speed > 0.0) {
-            effective.max_speed = fixed_max_speed;
-        }
-
         EvaluatedCandidate e;
-        e.candidate = effective;
-        e.metrics = runSimulation(trajectory, track_length, effective, target_laps, kDefaultDt, false);
+        e.candidate = candidate;
+        e.metrics = runSimulation(trajectory, track_length, candidate, target_laps, kDefaultDt, false);
         e.score = scoreCandidate(e.metrics);
         all.push_back(e);
 
         if (e.score > best.score) {
             best = e;
         }
+
         if (e.metrics.completed && !e.metrics.collided) {
-            if (!have_completed || e.metrics.avg_speed > best_completed_avg_speed) {
-                best_completed_seed = e.candidate;
-                best_completed_avg_speed = e.metrics.avg_speed;
+            if (!have_feasible || e.metrics.avg_speed > best_feasible.metrics.avg_speed) {
+                best_feasible = e;
             }
-            have_completed = true;
+            have_feasible = true;
         }
     };
 
     evaluate(baseline);
     evaluate(conservative);
+    evaluate(fallback);
 
     std::mt19937 rng(static_cast<std::mt19937::result_type>(seed));
     for (int i = 0; i < iterations; ++i) {
         evaluate(sampleRandom(rng));
     }
 
-    if (have_completed) {
+    if (have_feasible) {
         for (int i = 0; i < iterations / 2; ++i) {
-            evaluate(sampleAround(best_completed_seed, rng));
+            evaluate(sampleAround(best_feasible.candidate, rng));
+        }
+    } else {
+        for (int i = 0; i < iterations / 3; ++i) {
+            evaluate(sampleAround(fallback, rng));
         }
     }
 
@@ -757,15 +696,16 @@ int main(int argc, char** argv) {
 
     std::cout << "Baseline (launch-like defaults):\n";
     EvaluatedCandidate baseline_eval;
-    baseline_eval.candidate = baseline_effective;
-    baseline_eval.metrics = baseline_metrics;
+    baseline_eval.candidate = baseline;
+    baseline_eval.metrics = runSimulation(trajectory, track_length, baseline, target_laps, kDefaultDt, verbose);
     baseline_eval.score = scoreCandidate(baseline_eval.metrics);
     printCandidate(baseline_eval);
 
     std::cout << "Conservative seed:\n";
     EvaluatedCandidate conservative_eval;
-    conservative_eval.candidate = conservative_effective;
-    conservative_eval.metrics = conservative_metrics;
+    conservative_eval.candidate = conservative;
+    conservative_eval.metrics =
+        runSimulation(trajectory, track_length, conservative, target_laps, kDefaultDt, verbose);
     conservative_eval.score = scoreCandidate(conservative_eval.metrics);
     printCandidate(conservative_eval);
 
@@ -775,23 +715,29 @@ int main(int argc, char** argv) {
     }
 
     const EvaluatedCandidate& winner = all.front();
-    const bool have_feasible_winner = winner.metrics.completed && !winner.metrics.collided;
-    if (have_feasible_winner) {
+    const bool feasible_winner = winner.metrics.completed && !winner.metrics.collided;
+    if (feasible_winner) {
         std::cout << "\nRecommended parameters (best collision-free set):\n";
     } else {
         std::cout << "\nRecommended parameters (no collision-free set found; least-bad candidate):\n";
     }
+
     std::cout << std::fixed << std::setprecision(4)
-              << "  max_speed: " << winner.candidate.max_speed << "\n"
-              << "  min_lookahead: " << winner.candidate.config.min_lookahead << "\n"
-              << "  max_lookahead: " << winner.candidate.config.max_lookahead << "\n"
-              << "  lookahead_gain: " << winner.candidate.config.lookahead_gain << "\n"
-              << "  cte_lookahead_gain: " << winner.candidate.config.cte_lookahead_gain << "\n"
-              << "  curvature_lookahead_gain: " << winner.candidate.config.curvature_lookahead_gain << "\n"
+              << "  k_e: " << winner.candidate.config.k_e << "\n"
+              << "  k_h: " << winner.candidate.config.k_h << "\n"
+              << "  k_s: " << winner.candidate.config.k_s << "\n"
+              << "  k_d: " << winner.candidate.config.k_d << "\n"
+              << "  max_speed: " << winner.candidate.config.max_speed << "\n"
+              << "  min_speed: " << winner.candidate.config.min_speed << "\n"
+              << "  speed_gain: " << winner.candidate.config.speed_gain << "\n"
+              << "  feedforward_gain: " << winner.candidate.config.feedforward_gain << "\n"
               << "  curvature_speed_factor: " << winner.candidate.config.curvature_speed_factor << "\n"
-              << "  curvature_speed_floor_ratio: " << winner.candidate.config.curvature_speed_floor_ratio << "\n"
-              << "  cte_speed_factor: " << winner.candidate.config.cte_speed_factor << "\n"
-              << "  cte_speed_floor_ratio: " << winner.candidate.config.cte_speed_floor_ratio << "\n";
+              << "  max_steering_rate: " << winner.candidate.config.max_steering_rate << "\n";
+
+    if (!feasible_winner) {
+        std::cerr << "ERROR: Stanley sweep did not find a collision-free full-lap solution.\n";
+        return 2;
+    }
 
     return 0;
 }

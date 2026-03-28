@@ -1,3 +1,12 @@
+/**
+ * @file ros2_udp_sender.cpp
+ * @brief Jetson-side ROS2 to UDP state packet sender.
+ * @details Subscribes to pose/odometry topics, builds reference horizon from
+ *          trajectory, and transmits fixed-size state packets to Ultra96.
+ * @dependencies rclcpp, nav_msgs, geometry_msgs, std_msgs,
+ *               state_transport_udp/state_packet.hpp, POSIX sockets
+ */
+
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
@@ -47,6 +56,11 @@ struct KDNode {
 
 class KDTree {
 public:
+    /**
+     * @brief Build KD-tree index from waypoint coordinates.
+     * @param waypoints Waypoint vector to index.
+     * @return None
+     */
     void build(const std::vector<Waypoint>& waypoints) {
         waypoints_ = waypoints;
         nodes_.clear();
@@ -59,6 +73,12 @@ public:
         buildRecursive(0, nodes_.size(), 0);
     }
 
+    /**
+     * @brief Query nearest waypoint index for a 2D point.
+     * @param x Query x coordinate.
+     * @param y Query y coordinate.
+     * @return Index of nearest waypoint in stored waypoint array.
+     */
     size_t findNearest(double x, double y) const {
         if (nodes_.empty()) {
             return 0;
@@ -70,15 +90,31 @@ public:
         return nodes_[best_idx].index;
     }
 
+    /**
+     * @brief Access waypoint by index.
+     * @param idx Waypoint index in stored array.
+     * @return Constant reference to waypoint at `idx`.
+     */
     const Waypoint& getWaypoint(size_t idx) const {
         return waypoints_[idx];
     }
 
+    /**
+     * @brief Get number of stored waypoints.
+     * @return Current waypoint count.
+     */
     size_t size() const {
         return waypoints_.size();
     }
 
 private:
+    /**
+     * @brief Recursively partition KD-tree node array.
+     * @param start Inclusive start index.
+     * @param end Exclusive end index.
+     * @param depth Current recursion depth used for split axis.
+     * @return None
+     */
     void buildRecursive(size_t start, size_t end, int depth) {
         if (end - start <= 1) {
             return;
@@ -101,6 +137,17 @@ private:
         buildRecursive(mid + 1, end, depth + 1);
     }
 
+    /**
+     * @brief Recursively search nearest neighbor candidate in KD-tree.
+     * @param start Inclusive start index.
+     * @param end Exclusive end index.
+     * @param depth Current recursion depth used for split axis.
+     * @param x Query x coordinate.
+     * @param y Query y coordinate.
+     * @param best_idx In/out current best node index.
+     * @param best_dist In/out current best squared distance.
+     * @return None
+     */
     void searchRecursive(size_t start,
                          size_t end,
                          int depth,
@@ -146,6 +193,10 @@ private:
 
 class Ros2UdpSender : public rclcpp::Node {
 public:
+    /**
+     * @brief Construct ROS2-to-UDP sender node and initialize runtime interfaces.
+     * @return None
+     */
     Ros2UdpSender() : Node("ros2_udp_sender") {
         declare_parameter<std::string>("trajectory_file", "");
         declare_parameter<std::string>("odom_topic", "/ego_racecar/odom");
@@ -239,6 +290,10 @@ public:
                     dest_port);
     }
 
+    /**
+     * @brief Destroy sender node and close UDP socket.
+     * @return None
+     */
     ~Ros2UdpSender() override {
         if (sock_fd_ >= 0) {
             ::close(sock_fd_);
@@ -246,6 +301,11 @@ public:
     }
 
 private:
+    /**
+     * @brief Convert floating-point value to Q16.16 fixed-point.
+     * @param v Floating-point input value.
+     * @return Q16.16 integer representation of `v`.
+     */
     static int32_t toFp(double v) {
         constexpr double kScale = 65536.0;
         if (!std::isfinite(v)) {
@@ -254,6 +314,11 @@ private:
         return static_cast<int32_t>(v >= 0.0 ? v * kScale + 0.5 : v * kScale - 0.5);
     }
 
+    /**
+     * @brief Load trajectory CSV and build KD-tree plus spacing metadata.
+     * @param filepath Path to trajectory CSV file.
+     * @return true when trajectory data loads and validates successfully.
+     */
     bool loadTrajectory(const std::string& filepath) {
         std::ifstream file(filepath);
         if (!file.is_open()) {
@@ -304,6 +369,11 @@ private:
         return true;
     }
 
+    /**
+     * @brief Normalize angle to [-pi, pi] range.
+     * @param a Input angle in radians.
+     * @return Normalized angle in radians.
+     */
     static double normalizeAngle(double a) {
         constexpr double kPi = 3.14159265358979323846;
         while (a > kPi) {
@@ -315,11 +385,23 @@ private:
         return a;
     }
 
+    /**
+     * @brief Interpolate between two angles using shortest wrapped difference.
+     * @param a0 Start angle in radians.
+     * @param a1 End angle in radians.
+     * @param t Interpolation factor in [0, 1].
+     * @return Interpolated angle in radians.
+     */
     static double lerpAngle(double a0, double a1, double t) {
         const double d = normalizeAngle(a1 - a0);
         return normalizeAngle(a0 + d * t);
     }
 
+    /**
+     * @brief Sample trajectory at requested arc length with wrap-around interpolation.
+     * @param s_query Arc-length query in meters.
+     * @return Interpolated waypoint sample.
+     */
     Waypoint sampleByArcLength(double s_query) const {
         if (trajectory_.empty()) {
             return Waypoint{};
@@ -378,6 +460,11 @@ private:
         return out;
     }
 
+    /**
+     * @brief Update steering estimate from servo feedback topic.
+     * @param msg Incoming servo-position message.
+     * @return None
+     */
     void servoCallback(const std_msgs::msg::Float64::SharedPtr msg) {
         const double corrected = (msg->data - servo_offset_) / servo_gain_;
         const double abs_corr = std::abs(corrected);
@@ -395,6 +482,11 @@ private:
         has_servo_feedback_ = true;
     }
 
+    /**
+     * @brief Cache latest odometry dynamics used by pose-triggered sender path.
+     * @param msg Incoming odometry message.
+     * @return None
+     */
     void odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
         if (kdtree_.size() == 0) {
             return;
@@ -406,6 +498,11 @@ private:
         has_odom_dynamics_ = std::isfinite(latest_vx_) && std::isfinite(latest_vy_) && std::isfinite(latest_omega_);
     }
 
+    /**
+     * @brief Build and transmit one UDP state packet on each pose trigger.
+     * @param msg Incoming pose message.
+     * @return None
+     */
     void poseCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
         if (kdtree_.size() == 0) {
             return;
@@ -569,6 +666,12 @@ private:
 
 }  // namespace state_transport_udp
 
+/**
+ * @brief Entry point for ROS2 UDP sender process.
+ * @param argc Argument count from process invocation.
+ * @param argv Argument vector from process invocation.
+ * @return Process exit code (0 on normal shutdown).
+ */
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<state_transport_udp::Ros2UdpSender>();
