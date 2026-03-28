@@ -4,21 +4,14 @@
  * @details Implements KD-tree build and query routines used by state_publisher.
  *          Public and private function contracts are documented in kdtree.hpp.
  * @dependencies state_publisher/kdtree.hpp, algorithm, limits
- * @return Not applicable (file-level documentation block).
  */
 
-#include "state_publisher/kdtree.hpp"
-
+#include "kdtree.hpp"
 #include <algorithm>
 #include <limits>
 
 namespace f1tenth_communication {
 
-/**
- * @brief Build KD-tree nodes from waypoint coordinates.
- * @param waypoints Waypoint array used to initialize tree storage.
- * @return None
- */
 void KDTree::build(const std::vector<Waypoint>& waypoints) {
     waypoints_ = waypoints;
     nodes_.clear();
@@ -32,54 +25,37 @@ void KDTree::build(const std::vector<Waypoint>& waypoints) {
     build_recursive(0, nodes_.size(), 0);
 }
 
-/**
- * @brief Find nearest waypoint index for a query point.
- * @param x Query x coordinate.
- * @param y Query y coordinate.
- * @return Index of nearest waypoint in stored waypoint array.
- */
 std::size_t KDTree::find_nearest(double x, double y) const {
+    // Returns index 0 if tree is empty, caller should check size() before calling.
     if (nodes_.empty()) {
         return 0;
     }
 
+    // Search recursively for the nearest neighbor, tracking the best candidate.
     std::size_t best_idx = 0;
     double best_dist = std::numeric_limits<double>::max();
     search_recursive(0, nodes_.size(), 0, x, y, best_idx, best_dist);
     return nodes_[best_idx].index;
 }
 
-/**
- * @brief Access waypoint by index.
- * @param idx Waypoint index.
- * @return Constant reference to waypoint at `idx`.
- */
 const Waypoint& KDTree::get_waypoint(std::size_t idx) const {
     return waypoints_[idx];
 }
 
-/**
- * @brief Get number of stored waypoints.
- * @return Current waypoint count.
- */
 std::size_t KDTree::size() const {
     return waypoints_.size();
 }
 
-/**
- * @brief Recursively partition node array into balanced KD-tree layout.
- * @param start Inclusive start index.
- * @param end Exclusive end index.
- * @param depth Recursion depth used to pick split axis.
- * @return None
- */
 void KDTree::build_recursive(std::size_t start, std::size_t end, int depth) {
+    // Base case: no partition or single node is already a leaf.
     if (end - start <= 1) {
         return;
     }
 
+    // Select median index and partition nodes by alternating x/y dimensions.
     std::size_t mid = start + (end - start) / 2;
 
+    // Use nth_element to partition around the median without fully sorting.
     if (depth % 2 == 0) {
         std::nth_element(nodes_.begin() + start, nodes_.begin() + mid,
                          nodes_.begin() + end,
@@ -94,28 +70,20 @@ void KDTree::build_recursive(std::size_t start, std::size_t end, int depth) {
                          });
     }
 
+    // Recursively build left and right partitions.
     build_recursive(start, mid, depth + 1);
     build_recursive(mid + 1, end, depth + 1);
 }
 
-/**
- * @brief Recursively search KD-tree for nearest candidate.
- * @param start Inclusive start index.
- * @param end Exclusive end index.
- * @param depth Recursion depth used to pick split axis.
- * @param x Query x coordinate.
- * @param y Query y coordinate.
- * @param best_idx In/out best node index.
- * @param best_dist In/out best squared distance.
- * @return None
- */
 void KDTree::search_recursive(std::size_t start, std::size_t end, int depth,
                               double x, double y,
                               std::size_t& best_idx, double& best_dist) const {
+    // Base case: no nodes to search.
     if (start >= end) {
         return;
     }
 
+    // Check the median node at this partition level.
     std::size_t mid = start + (end - start) / 2;
     const KDNode& node = nodes_[mid];
 
@@ -124,6 +92,7 @@ void KDTree::search_recursive(std::size_t start, std::size_t end, int depth,
     const double dy = y - node.y;
     const double dist = dx * dx + dy * dy;
 
+    // Update best candidate if this node is closer.
     if (dist < best_dist) {
         best_dist = dist;
         best_idx = mid;
@@ -134,6 +103,7 @@ void KDTree::search_recursive(std::size_t start, std::size_t end, int depth,
     const double query_val = (depth % 2 == 0) ? x : y;
     const double diff = query_val - split_val;
 
+    // Search the side of the split that the query point is on first.
     if (diff < 0.0) {
         search_recursive(start, mid, depth + 1, x, y, best_idx, best_dist);
         if (diff * diff < best_dist) {

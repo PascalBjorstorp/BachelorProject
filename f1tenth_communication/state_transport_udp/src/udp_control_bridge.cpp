@@ -13,7 +13,6 @@
 #include "state_transport_udp/state_packet.hpp"
 
 #include <arpa/inet.h>
-#include <sys/socket.h>
 #include <unistd.h>
 #include <fcntl.h>
 

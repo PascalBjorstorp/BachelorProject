@@ -1,4 +1,12 @@
-"""Launch file for FPGA-only MPC receiver."""
+"""
+@file mpc_launch.py
+@brief Launch configuration for the FPGA-backed MPC receiver node.
+@details Declares launch-time topic arguments and starts the state receiver
+         node with those topic values passed as ROS parameters.
+@dependencies launch, launch.actions.DeclareLaunchArgument,
+              launch.substitutions.LaunchConfiguration,
+              launch_ros.actions.Node
+"""
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
@@ -9,7 +17,7 @@ from launch_ros.actions import Node
 def generate_launch_description():
     """
     @brief Build launch description for FPGA-backed MPC receiver node.
-
+    @param None.
     @return LaunchDescription with topic arguments and receiver node action.
     """
     drive_topic_arg = DeclareLaunchArgument(

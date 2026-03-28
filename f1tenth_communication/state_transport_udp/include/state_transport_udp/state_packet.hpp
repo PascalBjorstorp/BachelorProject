@@ -13,7 +13,6 @@
 #include <cstdint>
 #include <cstddef>
 #include "mpc_fpga_constants.h"
-
 namespace state_transport_udp {
 
 constexpr uint32_t PACKET_MAGIC = 0x53545550;  // 'STUP'

@@ -1,4 +1,8 @@
-# State Publisher Parameters
+# @file params.yaml
+# @brief Runtime parameters for state_publisher node.
+# @details Configures trajectory source, topic wiring, steering conversion,
+#          and streamed-horizon behavior for Jetson-side MPC state publishing.
+# @dependencies state_publisher/src/state_publisher.cpp
 state_publisher:
   ros__parameters:
     # Path to trajectory CSV file (comma-delimited)
@@ -7,6 +11,10 @@ state_publisher:
     
     # Input topic (localization output)
     odom_topic: "/ego_racecar/odom"
+
+    # Pose trigger topic in map frame.
+    # Each pose sample triggers one outgoing MpcState packet.
+    pose_topic: "/ekf_pose"
     
     # Output topic (MpcState message)
     output_topic: "/mpc_state"
@@ -31,6 +39,11 @@ state_publisher:
     # Forward-biased waypoint lookup: number of waypoints ahead of KD-tree
     # nearest to check.  Prevents selecting a waypoint behind the car at speed.
     forward_lookahead: 3
+
+    # Default lateral bounds used when trajectory CSV does not provide
+    # per-waypoint bound columns.
+    default_left_bound: 2.0
+    default_right_bound: 2.0
 
     # Number of reference waypoints to stream in each MpcState message.
     # Current FPGA bitstream expects fixed horizon=10.

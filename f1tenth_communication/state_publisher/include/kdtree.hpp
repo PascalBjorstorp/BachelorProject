@@ -6,7 +6,6 @@
  * @details Declares waypoint storage types and KD-tree query/build routines
  *          used by communication publisher paths.
  * @dependencies cstddef, vector
- * @return Not applicable (file-level documentation block).
  */
 
 #include <cstddef>
@@ -15,19 +14,19 @@
 namespace f1tenth_communication {
 
 struct Waypoint {
-    double s;       // Arc length along track
-    double x;       // Position X in map frame
-    double y;       // Position Y in map frame
-    double psi;     // Heading
-    double kappa;   // Curvature
-    double vx;      // Target speed
-    double left_bound;   // Left lateral bound [m]
-    double right_bound;  // Right lateral bound [m]
+    double s;           // Arc length along track
+    double x;           // Position X in map frame
+    double y;           // Position Y in map frame
+    double psi;         // Heading
+    double kappa;       // Curvature
+    double vx;          // Target speed
+    double left_bound;  // Left lateral bound [m]
+    double right_bound; // Right lateral bound [m]
 };
 
 struct KDNode {
-    double x;
-    double y;
+    double x;           // X coordinate for KD-tree partitioning
+    double y;           // Y coordinate for KD-tree partitioning
     std::size_t index;  // Index into the original waypoint array
 };
 
@@ -36,7 +35,7 @@ public:
     /**
      * @brief Build a KD-tree index from waypoint coordinates.
      * @param waypoints Waypoint set to index for nearest-neighbor lookup.
-        * @return No direct return value. Rebuilds internal node and waypoint storage.
+     * @return None.
      */
     void build(const std::vector<Waypoint>& waypoints);
 
@@ -83,7 +82,7 @@ private:
      * @param y Query Y coordinate.
      * @param best_idx In/out index of current best candidate in `nodes_`.
      * @param best_dist In/out best squared distance.
-     * @return None
+     * @return None.
      */
     void search_recursive(std::size_t start, std::size_t end, int depth,
                           double x, double y,

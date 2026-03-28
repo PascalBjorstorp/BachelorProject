@@ -38,7 +38,7 @@ All numeric payload fields are Q16.16 fixed-point (`int32`) except `horizon_leng
 1. Loads a trajectory CSV.
 2. Caches odometry dynamics from `/ego_racecar/odom`.
 3. Triggers publish on each `/ekf_pose` message.
-4. Uses KD-tree nearest search plus configurable forward lookahead.
+4. Uses KD-tree nearest search plus fixed forward lookahead (compile-time define).
 5. Streams only the active MPC horizon in each `MpcState` message.
 
 ### state_receiver (Ultra96)
@@ -86,15 +86,15 @@ ros2 launch state_receiver mpc_launch.py
 - `odom_topic`: `/ego_racecar/odom`
 - `pose_topic`: `/ekf_pose`
 - `output_topic`: `/mpc_state`
-- `horizon`: expected to match FPGA horizon
-- `forward_lookahead`: forward waypoint candidate window
+
+`horizon` and `forward_lookahead` are fixed by FPGA-aligned compile-time constants.
 
 `state_receiver` launch arguments (see `state_receiver/launch/mpc_launch.py`):
 
 - `input_topic` (default `/mpc_state`)
 - `drive_topic` (default `/drive`)
 
-Additional FPGA address and command-limit parameters are declared in `state_receiver/src/mpc_receiver.cpp`.
+FPGA address and command-limit constants are taken directly from compile-time defines in `mpc_fpga_interface.h`.
 
 ## Q16.16 Fixed-Point Reference
 
