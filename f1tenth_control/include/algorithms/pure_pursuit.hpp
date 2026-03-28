@@ -1,9 +1,26 @@
 #ifndef F1TENTH_CONTROL_PURE_PURSUIT_HPP_
 #define F1TENTH_CONTROL_PURE_PURSUIT_HPP_
 
-#include "f1tenth_control/common/types.hpp"
+/**
+ * @file pure_pursuit.hpp
+ * @brief Pure Pursuit path-following controller with adaptive speed regulation.
+ * @details Tracks a pre-loaded trajectory by selecting a velocity-proportional
+ *          lookahead target and computing Ackermann steering via the bicycle model.
+ *          Speed regulation combines curvature limits, cross-track error penalties,
+ *          lateral acceleration caps, and corridor-aware clearance scaling.
+ *          Steering law: delta = atan2(2 * L * sin(alpha), lookahead_dist).
+ * @dependencies types.hpp, <vector>, <string>
+ */
+
+#include "common/types.hpp"
+#include "common/math_utils.hpp"
 #include <vector>
 #include <string>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include <cmath>
+#include <limits>
 
 namespace f1tenth_control {
 
@@ -65,7 +82,6 @@ struct PurePursuitOutput {
 
 /**
  * @brief Pure Pursuit path-following controller.
- *
  * The controller selects a lookahead target on the active trajectory and
  * computes steering to arc toward that point. Speed is then regulated using
  * curvature, cross-track error, and corridor-aware limits.
@@ -89,13 +105,6 @@ public:
      * @return True when parsing succeeds and internal trajectory storage is updated.
      */
     bool loadTrajectory(const std::string& csv_path);
-    
-    /**
-     * @brief Replace the internal reference path from in-memory data.
-     * @param trajectory Ordered trajectory waypoints in world coordinates.
-     * @return None.
-     */
-    void setTrajectory(const std::vector<TrajectoryPoint>& trajectory);
     
     /**
      * @brief Compute steering and speed commands for the current vehicle state.
@@ -153,15 +162,10 @@ private:
      * @param idx1 Index of first trajectory point.
      * @param idx2 Index of second trajectory point.
      * @param t Interpolation factor between the two points.
+     *          t is expected to be in the range [0, 1].
      * @return Interpolated TrajectoryPoint in world coordinates.
      */
     TrajectoryPoint interpolate(size_t idx1, size_t idx2, double t) const;
-
-    /**
-     * @brief Determine whether index wrapping logic should be applied for target search.
-     * @return True when trajectory geometry indicates closed-loop tracking.
-     */
-    bool isTrajectoryClosed() const;
 };
 
 }  // namespace f1tenth_control

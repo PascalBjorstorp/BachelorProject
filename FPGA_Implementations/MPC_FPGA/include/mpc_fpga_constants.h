@@ -20,6 +20,14 @@
 #define MPC_FPGA_DMA_BYTES            (MPC_FPGA_DMA_BEATS * MPC_FPGA_STREAM_WORD_BYTES)
 
 /*===========================================================================
+ * Numeric Format Constants
+ *===========================================================================*/
+
+#define MPC_FPGA_Q16_SCALE_I32        65536
+#define MPC_FPGA_Q16_SCALE_F32        65536.0f
+#define MPC_FPGA_Q16_SCALE_F64        65536.0
+
+/*===========================================================================
  * Vehicle and Tire Constants (SI)
  *===========================================================================*/
 
@@ -45,5 +53,65 @@
  *===========================================================================*/
 
 #define MPC_FPGA_CONTROL_RATE_HZ      200.0f
+
+/*===========================================================================
+ * Communication Runtime Defaults (Jetson/Ultra96)
+ *===========================================================================*/
+
+#define MPC_FPGA_RECEIVER_LOG_PERIOD_MSGS    100
+
+#define MPC_FPGA_DMA_RESET_TIMEOUT_CYCLES    10000
+#define MPC_FPGA_DMA_TRANSFER_TIMEOUT_CYCLES 100000
+#define MPC_FPGA_MPC_DONE_TIMEOUT_CYCLES     200000
+#define MPC_FPGA_OUTPUT_VALID_TIMEOUT_CYCLES 50000
+
+#define MPC_FPGA_RAD_TO_DEG                  57.2957795f
+
+#define MPC_FPGA_PUBLISHER_FORWARD_LOOKAHEAD 3
+#define MPC_FPGA_PUBLISHER_ODOM_WATCHDOG_MS  500
+#define MPC_FPGA_PUBLISHER_DEBUG_LOG_PERIOD  50
+
+/*===========================================================================
+ * Solver Structure and Model Constants
+ *===========================================================================*/
+
+#define MPC_FPGA_MAX_ADMM_ITER        8
+#define MPC_FPGA_PREDICTION_DT_S      0.06f
+#define MPC_FPGA_PACEJKA_C_SHAPE      1.9f
+#define MPC_FPGA_MIN_STIFF_SCALE      0.1f
+
+/*===========================================================================
+ * MPC Cost Weights (FPGA profile)
+ *===========================================================================*/
+
+#define MPC_FPGA_W_LAT_ERROR          15774.935711f
+#define MPC_FPGA_W_HEADING            1229.435672f
+#define MPC_FPGA_W_VELOCITY           26.0f
+#define MPC_FPGA_W_LAT_VEL            48.350998f
+#define MPC_FPGA_W_YAW_RATE           22.0f
+#define MPC_FPGA_W_STEER_EFF          0.15f
+#define MPC_FPGA_W_ACCEL_EFF          0.01f
+#define MPC_FPGA_W_STEER_JERK         0.3f
+#define MPC_FPGA_W_ACCEL_RATE         0.1f
+#define MPC_FPGA_W_DELTA_ACT          0.347091f
+
+/*===========================================================================
+ * Solver and Constraint Limits (FPGA profile)
+ *===========================================================================*/
+
+#define MPC_FPGA_BIG_BOUND            100.0f
+#define MPC_FPGA_MIN_LIN_VEL_MPS      2.0f
+#define MPC_FPGA_STABILITY_LIMIT      0.9f
+#define MPC_FPGA_WALL_MARGIN_M        0.02f
+#define MPC_FPGA_WALL_START           1
+#define MPC_FPGA_WALL_STRIDE          1
+#define MPC_FPGA_WALL_END             10
+#define MPC_FPGA_V_SWITCH_MPS         7.319f
+#define MPC_FPGA_BOUND_THRESHOLD      100.0f
+#define MPC_FPGA_WP_ADVANCE_MAX       10
+
+#define MPC_FPGA_ADMM_RHO             25.435364f
+#define MPC_FPGA_ADMM_RHO_U           20.0f
+#define MPC_FPGA_ADMM_TOL             5.0f
 
 #endif /* MPC_FPGA_CONSTANTS_H */

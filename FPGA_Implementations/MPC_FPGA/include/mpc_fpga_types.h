@@ -36,7 +36,7 @@
 #define MPC_HORIZON     MPC_FPGA_HORIZON_STEPS
 
 /** Maximum ADMM iterations */
-#define MPC_MAX_ADMM_ITER 8
+#define MPC_MAX_ADMM_ITER MPC_FPGA_MAX_ADMM_ITER
 
 /*===========================================================================
  * HLS Resource Constraints
@@ -109,9 +109,9 @@
 #define VP_INV_MASS             FP_DIV(FP_ONE, VP_MASS)              /* 1/mass */
 #define VP_INV_IZ               FP_DIV(FP_ONE, VP_IZ)                /* 1/I_z */
 
-#define VP_C_SHAPE              FP_CONST(1.9)       /* Pacejka shape factor C for lateral slip */
+#define VP_C_SHAPE              FP_CONST(MPC_FPGA_PACEJKA_C_SHAPE)       /* Pacejka shape factor C for lateral slip */
 #define VP_INV_C_SHAPE          FP_DIV(FP_ONE, VP_C_SHAPE)
-#define MIN_STIFF_SCALE         FP_CONST(0.1)       /* Minimum stiffness scale to prevent singularities */
+#define MIN_STIFF_SCALE         FP_CONST(MPC_FPGA_MIN_STIFF_SCALE)       /* Minimum stiffness scale to prevent singularities */
 
 /*
  * Static normal loads and Pacejka D terms per axle:
@@ -155,22 +155,22 @@
  * MPC Default Cost Weights (tuned for F1/10th)
  *===========================================================================*/
 
-#define MPC_DT              FP_CONST(0.06)      /* 0.06s in Q16.16 */
+#define MPC_DT              FP_CONST(MPC_FPGA_PREDICTION_DT_S)      /* Prediction dt in Q16.16 */
 
 /* Precomputed dt*inv_mass and dt*inv_Iz */
 #define VP_DT_INV_MASS      FP_MUL(MPC_DT, VP_INV_MASS)     /* dt * (1/mass) */
 #define VP_DT_INV_IZ        FP_MUL(MPC_DT, VP_INV_IZ)       /* dt * (1/I_z) */
 
-#define MPC_W_LAT_ERROR     FP_CONST(15774.935711)
-#define MPC_W_HEADING       FP_CONST(1229.435672)
-#define MPC_W_VELOCITY      FP_CONST(26.0)
-#define MPC_W_LAT_VEL       FP_CONST(48.350998)
-#define MPC_W_YAW_RATE      FP_CONST(22.0)
-#define MPC_W_STEER_EFF     FP_CONST(0.15)
-#define MPC_W_ACCEL_EFF     FP_CONST(0.01)
-#define MPC_W_STEER_JERK    FP_CONST(0.3)
-#define MPC_W_ACCEL_RATE    FP_CONST(0.1)    
-#define MPC_W_DELTA_ACT     FP_CONST(0.347091)
+#define MPC_W_LAT_ERROR     FP_CONST(MPC_FPGA_W_LAT_ERROR)
+#define MPC_W_HEADING       FP_CONST(MPC_FPGA_W_HEADING)
+#define MPC_W_VELOCITY      FP_CONST(MPC_FPGA_W_VELOCITY)
+#define MPC_W_LAT_VEL       FP_CONST(MPC_FPGA_W_LAT_VEL)
+#define MPC_W_YAW_RATE      FP_CONST(MPC_FPGA_W_YAW_RATE)
+#define MPC_W_STEER_EFF     FP_CONST(MPC_FPGA_W_STEER_EFF)
+#define MPC_W_ACCEL_EFF     FP_CONST(MPC_FPGA_W_ACCEL_EFF)
+#define MPC_W_STEER_JERK    FP_CONST(MPC_FPGA_W_STEER_JERK)
+#define MPC_W_ACCEL_RATE    FP_CONST(MPC_FPGA_W_ACCEL_RATE)
+#define MPC_W_DELTA_ACT     FP_CONST(MPC_FPGA_W_DELTA_ACT)
 
 /* Control period for cross-call rate scaling.
  * Default control loop is 200 Hz => 0.005 s. */
@@ -207,21 +207,21 @@
  * Solver/Constraint Constants
  *===========================================================================*/
 
-#define BIG_BOUND           FP_CONST(100.0)
-#define MIN_LIN_VEL         FP_CONST(2.0)
-#define STABILITY_LIMIT_VAL FP_CONST(0.9)
-#define WALL_MARGIN         FP_CONST(0.02)
-#define WALL_START          1
-#define WALL_STRIDE         1
-#define WALL_END            10
-#define V_SWITCH            FP_CONST(7.319)
-#define BOUND_THRESHOLD     FP_CONST(100.0)
-#define WP_ADVANCE_MAX      10  
+#define BIG_BOUND           FP_CONST(MPC_FPGA_BIG_BOUND)
+#define MIN_LIN_VEL         FP_CONST(MPC_FPGA_MIN_LIN_VEL_MPS)
+#define STABILITY_LIMIT_VAL FP_CONST(MPC_FPGA_STABILITY_LIMIT)
+#define WALL_MARGIN         FP_CONST(MPC_FPGA_WALL_MARGIN_M)
+#define WALL_START          MPC_FPGA_WALL_START
+#define WALL_STRIDE         MPC_FPGA_WALL_STRIDE
+#define WALL_END            MPC_FPGA_WALL_END
+#define V_SWITCH            FP_CONST(MPC_FPGA_V_SWITCH_MPS)
+#define BOUND_THRESHOLD     FP_CONST(MPC_FPGA_BOUND_THRESHOLD)
+#define WP_ADVANCE_MAX      MPC_FPGA_WP_ADVANCE_MAX
 
 /* ADMM default parameters */
-#define ADMM_RHO_DEFAULT    FP_CONST(25.435364)
-#define ADMM_RHO_U_DEFAULT  FP_CONST(20.0)
-#define ADMM_TOL_DEFAULT    FP_CONST(5.0)
+#define ADMM_RHO_DEFAULT    FP_CONST(MPC_FPGA_ADMM_RHO)
+#define ADMM_RHO_U_DEFAULT  FP_CONST(MPC_FPGA_ADMM_RHO_U)
+#define ADMM_TOL_DEFAULT    FP_CONST(MPC_FPGA_ADMM_TOL)
 
 /*===========================================================================
  * Data Structures

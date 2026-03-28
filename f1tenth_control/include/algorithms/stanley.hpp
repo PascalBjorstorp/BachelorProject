@@ -1,10 +1,28 @@
 #ifndef F1TENTH_CONTROL_STANLEY_HPP_
 #define F1TENTH_CONTROL_STANLEY_HPP_
 
-#include "f1tenth_control/common/types.hpp"
-#include "f1tenth_control/common/math_utils.hpp"
+/**
+ * @file stanley.hpp
+ * @brief Stanley path-following controller with velocity-adaptive gain scheduling.
+ * @details Computes steering from: heading error correction + arctan CTE term +
+ *          curvature feedforward + angular velocity damping. All terms operate on
+ *          the vehicle front-axle position. Velocity-adaptive gain scheduling reduces
+ *          heading gain at high speed to prevent oscillation.
+ *          Full steering law:
+ *            delta = k_h_eff * theta_e + atan(-k_e * e / (k_s + v))
+ *                  + k_ff * kappa * L - k_d * omega
+ * @dependencies types.hpp, math_utils.hpp, <vector>, <string>, <fstream>, <sstream>, <algorithm>, <cmath>, <limits>
+ */
+
+#include "common/types.hpp"
+#include "common/math_utils.hpp"
 #include <vector>
 #include <string>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include <cmath>
+#include <limits>
 
 namespace f1tenth_control {
 

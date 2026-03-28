@@ -1,17 +1,29 @@
 #ifndef F1TENTH_CONTROL_LIDAR_PROCESSOR_HPP_
 #define F1TENTH_CONTROL_LIDAR_PROCESSOR_HPP_
 
-#include "f1tenth_control/common/types.hpp"
+/**
+ * @file lidar_processor.hpp
+ * @brief Generic LiDAR scan preprocessing shared across algorithms.
+ * @details Converts raw float range vectors into validated, filtered ProcessedScan
+ *          representations. Algorithm-specific processing (disparity extension,
+ *          safety bubbles) is deliberately excluded and belongs in the calling
+ *          algorithm class. Thread-safe for concurrent reads after construction;
+ *          setConfig() is not thread-safe.
+ * @dependencies types.hpp, math_utils.hpp, <vector>, <cmath> and <limits>
+ */
+
+#include "common/types.hpp"
+#include "common/math_utils.hpp"
 #include <vector>
+#include <cmath>
+#include <limits>
 
 namespace f1tenth_control {
 
 /**
  * @brief Configuration for LiDAR processing
  * 
- * Contains only generic preprocessing parameters.
- * Algorithm-specific parameters (gap detection, safety bubble, etc.)
- * should be in the respective algorithm's config.
+ * Contains generic preprocessing parameters.
  */
 struct LidarProcessorConfig {
     // Range filtering
@@ -31,62 +43,35 @@ struct LidarProcessorConfig {
  * @brief Generic LiDAR processing utilities
  * 
  * This class provides reusable LiDAR processing functions that can be used
- * by any algorithm (FTG, Pure Pursuit, obstacle detection, mapping, etc.)
- * 
- * Design principle: Only generic preprocessing here. Algorithm-specific
- * processing (gap detection, safety bubbles) belongs in the algorithm class.
+ * by any algorithm
  */
 class LidarProcessor {
 public:
     /**
-     * Inputs:
-     * - config: Preprocessing bounds and filtering settings.
-     *
-     * Purpose:
-     * - Construct reusable LiDAR preprocessing utility with deterministic defaults.
-     *
-     * Outputs:
-     * - Creates a processor instance ready for scan conversion and filtering.
+     * @brief Construct a LiDAR processor with specified configuration.
+     * @param config Preprocessing bounds and filtering settings.
      */
     explicit LidarProcessor(const LidarProcessorConfig& config = LidarProcessorConfig());
     
     /**
-     * Inputs:
-     * - config: New LiDAR preprocessing configuration.
-     *
-     * Purpose:
-     * - Update preprocessing behavior without reconstructing processor instance.
-     *
-     * Outputs:
-     * - Replaces active preprocessing configuration.
+     * @brief Update LiDAR preprocessing configuration at runtime.
+     * @param config New preprocessing settings to apply.
      */
     void setConfig(const LidarProcessorConfig& config);
 
     /**
-     * Inputs:
-     * - None.
-     *
-     * Purpose:
-     * - Expose current preprocessing configuration for diagnostics.
-     *
-     * Outputs:
-     * - Returns const reference to active LidarProcessorConfig.
+     * @brief Get current LiDAR preprocessing configuration.
+     * @return Const reference to active configuration.
      */
     const LidarProcessorConfig& getConfig() const { return config_; }
     
     /**
-     * Inputs:
-     * - ranges: Raw LiDAR range measurements.
-     * - angle_min: Minimum scan angle.
-     * - angle_max: Maximum scan angle.
-     * - angle_increment: Angular step between beams.
-     *
-     * Purpose:
-     * - Convert raw sensor ranges into filtered and validated scan representation
-     *   suitable for downstream control/planning algorithms.
-     *
-     * Outputs:
-     * - Returns ProcessedScan with clipped ranges, validity mask, and beam angles.
+     * @brief Process raw LiDAR scan into validated and filtered representation.
+     * @param ranges Raw LiDAR range measurements.
+     * @param angle_min Minimum angle of the scan.
+     * @param angle_max Maximum angle of the scan.
+     * @param angle_increment Angular step between beams.
+     * @return ProcessedScan with clipped ranges, validity mask, and beam angles.
      */
     ProcessedScan processScan(
         const std::vector<float>& ranges,
@@ -96,41 +81,26 @@ public:
     );
     
     /**
-     * Inputs:
-     * - scan: Preprocessed LiDAR scan with validity mask.
-     *
-     * Purpose:
-     * - Identify nearest valid obstacle/range sample in the current scan.
-     *
-     * Outputs:
-     * - Returns index of closest valid beam in scan arrays.
+     * @brief Find the index of the closest valid point in a processed LiDAR scan.
+     * @param scan Preprocessed LiDAR scan with validity mask.
+     * @return Index of the closest valid beam in the scan arrays.
      */
     size_t findClosestPoint(const ProcessedScan& scan);
-    
+
     /**
-     * Inputs:
-     * - scan: Preprocessed LiDAR scan.
-     * - index: Beam index to convert.
-     *
-     * Purpose:
-     * - Convert one polar scan sample into robot-frame Cartesian coordinates.
-     *
-     * Outputs:
-     * - Returns Point2D corresponding to selected beam.
+     * @brief Convert a polar scan point to Cartesian coordinates in robot frame.
+     * @param scan Preprocessed LiDAR scan containing angles and ranges.
+     * @param index Beam index to convert.
+     * @return Point2D corresponding to the selected beam.
      */
     Point2D scanPointToCartesian(const ProcessedScan& scan, size_t index);
     
     /**
-     * Inputs:
-     * - scan: Preprocessed LiDAR scan.
-     * - robot_pose: Vehicle pose used for frame transform to map/world frame.
-     * - timestamp: Time tag for output boundary points.
-     *
-     * Purpose:
-     * - Extract valid scan endpoints and project them into mapping frame.
-     *
-     * Outputs:
-     * - Returns boundary points with transformed coordinates and timestamp.
+     * @brief Extract boundary points from a processed LiDAR scan.
+     * @param scan Preprocessed LiDAR scan with validity and angle/range data.
+     * @param robot_pose Current pose of the robot for transforming points to map frame.
+     * @param timestamp Timestamp to associate with extracted boundary points.
+     * @return Vector of BoundaryPoint representing detected track boundaries.
      */
     std::vector<BoundaryPoint> extractBoundaryPoints(
         const ProcessedScan& scan,
@@ -142,26 +112,15 @@ private:
     LidarProcessorConfig config_;
     
     /**
-     * Inputs:
-     * - ranges: Range vector to smooth in place.
-     *
-     * Purpose:
-     * - Suppress isolated measurement spikes with local median filtering.
-     *
-     * Outputs:
-     * - Mutates input range vector with filtered values.
+     * @brief Apply median filter to a sequence of range measurements.
+     * @param ranges Input range vector to filter (in-place).
      */
     void applyMedianFilter(std::vector<double>& ranges);
     
     /**
-     * Inputs:
-     * - scan: Processed scan object to validate in place.
-     *
-     * Purpose:
-     * - Enforce configured range bounds and update validity indicators.
-     *
-     * Outputs:
-     * - Mutates scan ranges/flags to reflect validated clipping results.
+     * @brief Validate and clip range measurements based on configured limits.
+     * @param scan ProcessedScan to validate and modify in place.
+     * @return None (mutates scan.ranges and scan.valid).
      */
     void validateRanges(ProcessedScan& scan);
 };

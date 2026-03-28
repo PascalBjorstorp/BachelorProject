@@ -66,7 +66,7 @@ namespace f1tenth_communication {
  * Fixed-Point Helpers (Q16.16)
  *===========================================================================*/
 
-static constexpr int32_t FP_SCALE = 65536;
+static constexpr int32_t FP_SCALE = MPC_FPGA_Q16_SCALE_I32;
 
 inline float fp_to_float(int32_t fp) {
     return static_cast<float>(fp) / static_cast<float>(FP_SCALE);
@@ -266,7 +266,7 @@ public:
         dma_write(DMA_MM2S_LENGTH, DMA_BUFFER_BYTES);
 
         // --- Wait for DMA completion ---
-        if (!wait_dma_complete(100000)) {
+        if (!wait_dma_complete(MPC_FPGA_DMA_TRANSFER_TIMEOUT_CYCLES)) {
             fprintf(stderr, "MPC-FPGA: DMA transfer timeout\n");
             last_compute_ns_ = -1;
             return false;
@@ -274,7 +274,7 @@ public:
 
         // --- Wait for MPC compute completion ---
         // AP_DONE indicates MPC computation finished
-        if (!wait_mpc_done(200000)) {
+        if (!wait_mpc_done(MPC_FPGA_MPC_DONE_TIMEOUT_CYCLES)) {
             fprintf(stderr, "MPC-FPGA: MPC compute timeout (DMA OK)\n");
             reset_dma();  // Reset DMA to recover for next attempt
             last_compute_ns_ = -1;
@@ -286,7 +286,7 @@ public:
                           + (t1.tv_nsec - t0.tv_nsec);
 
         // Ensure output registers are marked valid before reading.
-        if (!wait_output_valid(50000)) {
+        if (!wait_output_valid(MPC_FPGA_OUTPUT_VALID_TIMEOUT_CYCLES)) {
             const uint32_t steer_vld = mpc_read(REG_OUT_STEERING_VLD);
             const uint32_t accel_vld = mpc_read(REG_OUT_ACCEL_VLD);
             fprintf(stderr,
@@ -349,7 +349,7 @@ private:
         dma_write(DMA_MM2S_CTRL, DMA_CTRL_RESET);
         
         // Wait for reset to complete (halted bit should clear)
-        int timeout = 10000;
+        int timeout = MPC_FPGA_DMA_RESET_TIMEOUT_CYCLES;
         while (timeout-- > 0) {
             uint32_t ctrl = dma_read(DMA_MM2S_CTRL);
             if (!(ctrl & DMA_CTRL_RESET)) break;
@@ -423,21 +423,17 @@ public:
         declare_parameter("dma_base_address",
                            static_cast<int64_t>(AXI_DMA_BASE_ADDR));
         declare_parameter("dma_buffer_phys_addr",
-                           static_cast<int64_t>(DMA_BUFFER_PHYS));
+                           static_cast<int64_t>(DMA_BUFFER_PHYS_ADDR));
 
         // Vehicle / controller
-        declare_parameter("max_steering", 0.4189);
-        declare_parameter("max_velocity", 20.0);
-
-        // Control interval for speed = vx + accel * dt
-        declare_parameter("control_dt", 0.04);  // [s] (default 50 Hz state rate)
+        declare_parameter("max_steering", static_cast<double>(MPC_FPGA_MAX_STEER_RAD));
+        declare_parameter("max_velocity", static_cast<double>(MPC_FPGA_MAX_VEL_MPS));
 
         // --- Read parameters ---
         auto input_topic     = get_parameter("input_topic").as_string();
         auto drive_topic     = get_parameter("drive_topic").as_string();
         max_steering_        = static_cast<float>(get_parameter("max_steering").as_double());
         max_velocity_        = static_cast<float>(get_parameter("max_velocity").as_double());
-        control_dt_          = static_cast<float>(get_parameter("control_dt").as_double());
 
         // --- Initialize FPGA + DMA (required) ---
         const uint32_t mpc_addr = static_cast<uint32_t>(
@@ -473,9 +469,8 @@ public:
 
 private:
     // --- Configurable limits -------------------------------------------------
-    float max_steering_   = 0.4189f;
-    float max_velocity_   = 20.0f;
-    float control_dt_     = 0.04f;   // Default control interval for speed integration [s]
+    float max_steering_   = MPC_FPGA_MAX_STEER_RAD;
+    float max_velocity_   = MPC_FPGA_MAX_VEL_MPS;
 
     // --- FPGA + ROS interfaces ----------------------------------------------
     MpcFpgaInterface    fpga_;
@@ -491,29 +486,12 @@ private:
     double   min_loop_us_ = std::numeric_limits<double>::infinity();
     double   max_loop_us_ = 0.0;
     std::chrono::steady_clock::time_point last_msg_time_ = std::chrono::steady_clock::now();
-    rclcpp::Time last_callback_time_;   // For computing actual elapsed dt
-    bool has_prev_callback_ = false;    // True after first callback
     float latest_vx_mps_ = 0.0f;
 
     struct FrenetErrorsFp {
         int32_t e_y_fp;
         int32_t e_psi_fp;
     };
-
-    // Compute elapsed dt from message timestamps; falls back to configured dt.
-    float compute_actual_dt(const rclcpp::Time& msg_time) {
-        float actual_dt = control_dt_;
-        if (has_prev_callback_) {
-            double dt_sec = (msg_time - last_callback_time_).seconds();
-            // Use measured dt only if it stays within [0.1 ms, 200 ms].
-            if (dt_sec > 0.0001 && dt_sec < 0.2) {
-                actual_dt = static_cast<float>(dt_sec);
-            }
-        }
-        last_callback_time_ = msg_time;
-        has_prev_callback_ = true;
-        return actual_dt;
-    }
 
     bool has_required_horizon_data(const f1tenth_msgs::msg::MpcState::SharedPtr& msg) const {
         return msg->horizon_length > 0 && !msg->ref_vx_fp.empty();
@@ -539,12 +517,10 @@ private:
         return FrenetErrorsFp{float_to_fp(e_y), float_to_fp(e_psi)};
     }
 
-    float compute_target_speed(float accel,
-                               float actual_dt) const {
-        (void)actual_dt;
-        // Match MPC/src/mpc_hardware_node.c behavior: integrate accel over
-        // one MPC prediction step rather than callback-period dt.
-        constexpr float kMpcPredictionStepSeconds = 0.04f;
+    float compute_target_speed(float accel) const {
+        // Integrate over MPC prediction dt (lookahead step), independent of
+        // callback/publish rate.
+        constexpr float kMpcPredictionStepSeconds = MPC_FPGA_PREDICTION_DT_S;
         const float v_target = latest_vx_mps_ + accel * kMpcPredictionStepSeconds;
         return std::max(0.0f, std::min(v_target, max_velocity_));
     }
@@ -585,7 +561,7 @@ private:
             latency_count_++;
         }
 
-        if (msg_count_ % 100 == 0) {
+        if (msg_count_ % MPC_FPGA_RECEIVER_LOG_PERIOD_MSGS == 0) {
             const double avg = (latency_count_ > 0)
                 ? (total_latency_ms_ / static_cast<double>(latency_count_))
                 : -1.0;
@@ -596,7 +572,7 @@ private:
                     "[FPGA] delta=%.1f deg  v=%.1f  a=%.1f | "
                     "Status=%u  Iter=%u | Total=%ld us  FPGA=%ld ns | "
                     "Loop us avg/min/max=%.1f/%.1f/%.1f | Lat %.1f ms (avg %.1f)",
-                    steering * 57.2958f, speed, accel,
+                    steering * MPC_FPGA_RAD_TO_DEG, speed, accel,
                     status, iters,
                     compute_us, fpga_ns,
                     avg_loop_us, min_loop_us_, max_loop_us_,
@@ -606,7 +582,7 @@ private:
                     "[FPGA] delta=%.1f deg  v=%.1f  a=%.1f | "
                     "Status=%u  Iter=%u | Total=%ld us  FPGA=%ld ns | "
                     "Loop us avg/min/max=%.1f/%.1f/%.1f | Lat N/A",
-                    steering * 57.2958f, speed, accel,
+                    steering * MPC_FPGA_RAD_TO_DEG, speed, accel,
                     status, iters,
                     compute_us, fpga_ns,
                     avg_loop_us, min_loop_us_, max_loop_us_);
@@ -619,10 +595,6 @@ private:
         auto t_start = std::chrono::high_resolution_clock::now();
         last_msg_time_ = std::chrono::steady_clock::now();
 
-        // 1) Update time base
-        const rclcpp::Time msg_time(msg->header.stamp);
-        const float actual_dt = compute_actual_dt(msg_time);
-
         float    steering = 0.0f;
         float    speed    = 0.0f;
         float    accel    = 0.0f;
@@ -632,7 +604,7 @@ private:
         int32_t out_steer_fp = 0;
         int32_t out_accel_fp = 0;
 
-        // 2) Validate inputs
+        // 1) Validate inputs
         if (!has_required_horizon_data(msg)) {
             RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
                 "No streamed waypoint data in message");
@@ -657,10 +629,10 @@ private:
         // use of latest vx sample in speed integration).
         latest_vx_mps_ = fp_to_float(msg->velocity_fp);
 
-        // 3) Build tracking errors
+        // 2) Build tracking errors
         const FrenetErrorsFp errors = compute_frenet_errors(msg);
 
-        // 4) Run MPC via DMA - packs state+horizon, transfers via AXI-Stream, computes
+        // 3) Run MPC via DMA - packs state+horizon, transfers via AXI-Stream, computes
         const bool ok = fpga_.compute(
             errors.e_y_fp, errors.e_psi_fp,
             msg->velocity_fp, msg->vy_fp, msg->omega_fp,
@@ -677,17 +649,17 @@ private:
         steering = fp_to_float(out_steer_fp);
         accel    = fp_to_float(out_accel_fp);
 
-        // 5) Post-process command
-        speed = compute_target_speed(accel, actual_dt);
+        // 4) Post-process command
+        speed = compute_target_speed(accel);
 
         // Clamp outputs
         steering = std::clamp(steering, -max_steering_, max_steering_);
         speed    = std::clamp(speed,    0.0f,           max_velocity_);
 
-        // 6) Publish command
+        // 5) Publish command
         publish_drive_command(steering, speed, accel);
 
-        // 7) Update timing stats and logs
+        // 6) Update timing stats and logs
         auto t_end = std::chrono::high_resolution_clock::now();
         update_timing_and_log(msg, t_start, t_end, steering, speed, accel, status, iters);
     }

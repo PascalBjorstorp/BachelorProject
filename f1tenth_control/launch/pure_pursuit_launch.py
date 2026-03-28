@@ -1,7 +1,16 @@
 """
 Launch file for Pure Pursuit path follower.
 
-This launches the Pure Pursuit node which follows a pre-computed racing line.
+Loads a pre-computed racing line and starts the Pure Pursuit controller
+as a composable ROS2 node. Trajectory path defaults to f1tenth_planning share.
+
+Topics:
+  Sub: /ego_racecar/odom, <pose_topic>, /pp_enable
+  Pub: /drive, /pp_viz
+
+Prerequisites:
+  - f1tenth_planning package installed with trajectory CSV.
+  - Localization stack publishing <pose_topic>.
 """
 
 import os
@@ -14,17 +23,17 @@ from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
-        """Inputs:
-        - None.
+    """Inputs:
+    - None.
 
-        Purpose:
-        - Build launch graph for Pure Pursuit component container including trajectory
-            selection and runtime tuning arguments.
+    Purpose:
+    - Build launch graph for Pure Pursuit component container including trajectory
+        selection and runtime tuning arguments.
 
-        Outputs:
-        - Returns LaunchDescription with launch arguments and one composable
-            PurePursuitNode container action.
-        """
+    Outputs:
+    - Returns LaunchDescription with launch arguments and one composable
+        PurePursuitNode container action.
+    """
     # Get package directories
     f1tenth_control_share = get_package_share_directory('f1tenth_control')
     

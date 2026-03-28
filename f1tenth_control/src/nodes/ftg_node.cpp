@@ -1,7 +1,4 @@
-#include "f1tenth_control/nodes/ftg_node.hpp"
-#include <rclcpp_components/register_node_macro.hpp>
-#include <tf2/utils.h>
-#include <algorithm>
+#include "nodes/ftg_node.hpp"
 
 namespace f1tenth_control {
 

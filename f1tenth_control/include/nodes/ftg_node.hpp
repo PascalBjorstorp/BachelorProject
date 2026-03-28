@@ -1,18 +1,32 @@
 #ifndef F1TENTH_CONTROL_FTG_NODE_HPP_
 #define F1TENTH_CONTROL_FTG_NODE_HPP_
 
+/**
+ * @file ftg_node.hpp
+ * @brief ROS2 node wrapper for the Follow-The-Gap reactive controller.
+ * @details Manages scan-driven control loop, visualization rate throttling,
+ *          stuck/recovery state machine, and long-horizon performance metrics.
+ *          Uses composable node architecture with zero-copy intra-process comms.
+ *          Visualization is published at VIZ_RATE_HZ independent of control rate.
+ * @dependencies follow_the_gap.hpp, rclcpp, sensor_msgs, nav_msgs, ackermann_msgs, visualization_msgs, std_msgs, memory, mutex, deque, chrono
+ */
+#include "algorithms/follow_the_gap.hpp"
+
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <std_msgs/msg/bool.hpp>
+#include <tf2/utils.h>
 
-#include "f1tenth_control/algorithms/follow_the_gap.hpp"
 #include <memory>
 #include <mutex>
 #include <deque>
 #include <chrono>
+#include <algorithm>
+
 
 namespace f1tenth_control {
 
@@ -27,216 +41,169 @@ namespace f1tenth_control {
  */
 class FTGNode : public rclcpp::Node {
 public:
-    /**
-     * Inputs:
-     * - options: ROS2 node construction options (namespace, parameters, intra-process settings).
-     *
-     * Purpose:
-     * - Construct ROS2 wrapper around Follow The Gap controller and wire subscriptions,
-     *   publishers, timers, and parameter callbacks.
-     *
-     * Outputs:
-     * - Creates an operational node instance ready to process scan/odom streams.
+    /** 
+     * @brief Construct a Follow The Gap node instance.
+     * @param options ROS2 node options for configuration and execution behavior.
      */
     explicit FTGNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
     // Algorithm
-    std::unique_ptr<FollowTheGap> ftg_;
-    FTGConfig config_;
-    
-    // State
-    VehicleState current_state_;
-    std::mutex state_mutex_;
-    bool enabled_{true};
-    std::string laser_frame_id_{"laser"};  // Frame ID for visualization markers
+    std::unique_ptr<FollowTheGap> ftg_; // Core FTG controller instance
+    FTGConfig config_;                  // Active configuration loaded from parameters
+
+    // State    
+    VehicleState current_state_;            // Latest vehicle state from odometry
+    std::mutex state_mutex_;                // Protects access to current_state_
+    bool enabled_{true};                    // Whether autonomous control is enabled
+    std::string laser_frame_id_{"laser"};   // Frame ID for visualization markers
     
     // Steering smoothing
-    double last_steering_{0.0};
+    double last_steering_{0.0}; // Last steering angle for rate limiting and smoothing
     
     // Visualization throttling — decoupled from scan callback
     rclcpp::TimerBase::SharedPtr viz_timer_;
-    FTGOutput latest_output_;        // Cached for viz timer
-    ProcessedScan latest_scan_;      // Cached for viz timer
-    std::mutex viz_mutex_;           // Protects latest_output_ / latest_scan_
-    bool viz_data_ready_{false};     // Flag: new data available for viz
-    static constexpr double VIZ_RATE_HZ = 10.0;  // Max viz publish rate
+    FTGOutput latest_output_;                   // Cached for viz timer
+    ProcessedScan latest_scan_;                 // Cached for viz timer
+    std::mutex viz_mutex_;                      // Protects latest_output_ / latest_scan_
+    bool viz_data_ready_{false};                // Flag: new data available for viz
+    static constexpr double VIZ_RATE_HZ = 10.0; // Max viz publish rate
     
     // Recovery state
-    int stuck_counter_{0};
-    int recovery_counter_{0};
-    bool in_recovery_mode_{false};
-    double recovery_steer_direction_{1.0};  // 1.0 = right, -1.0 = left
-    static constexpr int STUCK_THRESHOLD = 100;  // ~5 seconds at 20Hz LiDAR
-    static constexpr int RECOVERY_DURATION = 80;  // ~4 seconds of recovery
+    int stuck_counter_{0};                          // Counter for how many cycles we've been "stuck" (obstacle too close)
+    int recovery_counter_{0};                       // Counter for how long we've been in recovery mode
+    bool in_recovery_mode_{false};                  // Whether currently executing recovery maneuver
+    double recovery_steer_direction_{1.0};          // 1.0 = right, -1.0 = left
+    static constexpr int STUCK_THRESHOLD = 100;     // ~5 seconds at 20Hz LiDAR
+    static constexpr int RECOVERY_DURATION = 80;    // ~4 seconds of recovery
     
-    // Performance metrics
+    /**
+     * @brief Performance metrics tracking structure.
+     */
     struct PerformanceMetrics {
-        double total_distance{0.0};
-        double total_time{0.0};
-        double average_speed{0.0};
-        double steering_variance{0.0};
-        int emergency_stops{0};
-        int recovery_events{0};
-        double min_obstacle_dist{100.0};
-        bool crashed{false};
-        double start_x{0.0};
-        double start_y{0.0};
-        double last_x{0.0};
-        double last_y{0.0};
-        int lap_count{0};
-        double lap_time{0.0};
-        double last_lap_distance{0.0};  // Distance when last lap was counted (debounce)
-        bool was_near_start{true};      // Flag to track leaving/entering start zone
-        std::deque<double> steering_history;
-        std::deque<double> speed_history;
+        double total_distance{0.0};         // Total distance traveled, accumulated from odometry
+        double total_time{0.0};             // Total elapsed time since start
+        double average_speed{0.0};          // Average speed computed from distance/time
+        double steering_variance{0.0};      // Variance of steering angle, computed from history
+        int emergency_stops{0};             // Count of how many times emergency stop was triggered
+        int recovery_events{0};             // Count of how many recovery maneuvers were executed
+        double min_obstacle_dist{100.0};    // Minimum distance to obstacle observed during run    
+        bool crashed{false};                // Whether a crash condition was detected (obstacle too close)
+        double start_x{0.0};                // X coordinate of start position
+        double start_y{0.0};                // Y coordinate of start position
+        double last_x{0.0};                 // X coordinate of last known position
+        double last_y{0.0};                 // Y coordinate of last known position
+        int lap_count{0};                   // Count of completed laps
+        double lap_time{0.0};               // Time taken for the current lap
+        double last_lap_distance{0.0};      // Distance when last lap was counted (debounce)
+        bool was_near_start{true};          // Flag to track leaving/entering start zone
+        std::deque<double> steering_history;// History of recent steering angles for variance calculation
+        std::deque<double> speed_history;   // History of recent speeds for variance calculation
     };
-    PerformanceMetrics metrics_;
-    rclcpp::Time metrics_start_time_;
-    bool metrics_initialized_{false};
-    static constexpr double CRASH_THRESHOLD = 0.15;  // If obstacle closer than this, consider it crash
-    static constexpr int METRIC_HISTORY_SIZE = 100;
+
+    PerformanceMetrics metrics_;                    // Instance of performance metrics struct
+    rclcpp::Time metrics_start_time_;               // Time when metrics tracking started
+    bool metrics_initialized_{false};               // Whether initial metrics state has been set
+    static constexpr double CRASH_THRESHOLD = 0.15; // If obstacle closer than this, consider it crash
+    static constexpr int METRIC_HISTORY_SIZE = 100; // Number of recent samples to keep for variance calculations
     
     // ROS2 Communication
-    rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
-    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
-    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr enable_sub_;
+    rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_; // Subscription for LiDAR scans
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;     // Subscription for odometry
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr enable_sub_;       // Subscription for enable/disable commands
     
-    rclcpp::Publisher<ackermann_msgs::msg::AckermannDriveStamped>::SharedPtr drive_pub_;
-    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_pub_;
+    rclcpp::Publisher<ackermann_msgs::msg::AckermannDriveStamped>::SharedPtr drive_pub_;    // Publisher for drive commands
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_pub_;            // Publisher for visualization markers
     
     // Parameters
 
     /**
-     * Inputs:
-     * - None.
-     *
-     * Purpose:
-     * - Declare all node parameters and their defaults in ROS parameter server.
-     *
-     * Outputs:
-     * - Registers parameter keys for runtime overrides and dynamic updates.
+     * @brief Declare ROS parameters for FTGNode.
+     * This function registers all parameters with the ROS parameter server, including defaults.
+     * Parameters include vehicle dimensions, control gains, speed limits, and visualization options.
      */
     void declareParameters();
 
     /**
-     * Inputs:
-     * - None.
-     *
-     * Purpose:
-     * - Read currently declared parameter values into internal FTGConfig.
-     *
-     * Outputs:
-     * - Updates config_ to match ROS parameter state.
+     * @brief Load parameters from ROS parameter server into config struct.
+     * This function reads the current values of all relevant parameters and updates the internal config_ struct.
+     * It should be called at startup and whenever parameters are dynamically updated.
      */
     void loadParameters();
 
     /**
-     * Inputs:
-     * - parameters: Proposed runtime parameter updates.
-     *
-     * Purpose:
-     * - Validate and apply dynamic parameter changes.
-     *
-     * Outputs:
-     * - Returns SetParametersResult indicating acceptance/rejection.
+     * @brief Callback for dynamic parameter updates.
+     * This function is called whenever parameters are changed at runtime. It should validate and apply new parameter values.
+     * @param parameters Vector of parameters that were updated.
+     * @return SetParametersResult indicating success or failure of parameter update.
      */
     rcl_interfaces::msg::SetParametersResult parametersCallback(
         const std::vector<rclcpp::Parameter>& parameters
     );
-    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
+
+    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;   // Handle for parameter callback registration
     
     // Callbacks (ConstSharedPtr for zero-copy intra-process)
 
     /**
-     * Inputs:
-     * - msg: Incoming LiDAR scan message.
-     *
-     * Purpose:
-     * - Execute FTG control cycle using most recent odometry state.
-     *
-     * Outputs:
-     * - Publishes drive command and updates visualization/performance buffers.
+     * @brief Callback for incoming LiDAR scans.
+     * This function processes incoming LaserScan messages, runs the FTG algorithm, and publishes drive
+     * @param msg Incoming LaserScan message containing range and angle data.
+     * @return None
      */
     void scanCallback(const sensor_msgs::msg::LaserScan::ConstSharedPtr msg);
 
     /**
-     * Inputs:
-     * - msg: Incoming odometry message.
-     *
-     * Purpose:
-     * - Refresh internal vehicle state used by control computations.
-     *
-     * Outputs:
-     * - Updates current_state_ under mutex protection.
+     * @brief Callback for incoming odometry messages.
+     * This function updates the current vehicle state based on Odometry messages, which may be used for performance metrics and recovery logic.
+     * @param msg Incoming Odometry message containing pose and velocity information.
+     * @return None
      */
     void odomCallback(const nav_msgs::msg::Odometry::ConstSharedPtr msg);
 
     /**
-     * Inputs:
-     * - msg: Enable/disable command message.
-     *
-     * Purpose:
-     * - Gate autonomous FTG command generation from external supervision.
-     *
-     * Outputs:
-     * - Updates enabled_ flag and impacts subsequent control output behavior.
+     * @brief Callback for enable/disable commands.
+     * This function enables or disables autonomous control based on incoming Bool messages. When disabled, it should stop the vehicle safely.
+     * @param msg Incoming Bool message where true = enable control, false = disable control.
+     * @return None
      */
     void enableCallback(const std_msgs::msg::Bool::ConstSharedPtr msg);
 
     /**
-     * Inputs:
-     * - None (timer-driven).
-     *
-     * Purpose:
-     * - Publish cached visualization at bounded frequency independent of control loop.
-     *
-     * Outputs:
-     * - Emits visualization markers when new scan/output data is available.
+     * @brief Timer callback for visualization publishing.
+     * @return None
      */
     void vizTimerCallback();  // Throttled visualization publisher
     
     // Publishing
 
     /**
-     * Inputs:
-     * - cmd: Drive command generated by FTG algorithm.
-     *
-     * Purpose:
-     * - Convert internal command struct to ROS message and publish to actuator topic.
-     *
-     * Outputs:
-     * - Publishes AckermannDriveStamped on drive topic.
+     * @brief Publish drive command to /drive topic.
+     * This function converts a DriveCommand struct into an AckermannDriveStamped message and publishes it.
+     * @param cmd DriveCommand containing target speed and steering angle.
+     * @return None
      */
     void publishDriveCommand(const DriveCommand& cmd);
 
     /**
-     * Inputs:
-     * - output: FTG algorithm output payload.
-     * - scan: Processed scan used for algorithm step.
-     *
-     * Purpose:
-     * - Build and publish marker set for runtime introspection.
-     *
-     * Outputs:
-     * - Publishes MarkerArray on visualization topic.
+     * @brief Publish visualization markers to RViz.
+     * This function constructs a MarkerArray message based on the latest FTG output and processed scan, and publishes it for visualization in RViz.
+     * @param output Latest FTGOutput containing command and gap information.
+     * @param scan Latest ProcessedScan containing scan metadata and validity masks.
+     * @return None
      */
     void publishVisualization(const FTGOutput& output, const ProcessedScan& scan);
     
     // Helpers
 
     /**
-     * Inputs:
-     * - gap: Gap descriptor to visualize.
-     * - scan: Processed scan metadata.
-     * - id: Marker ID within namespace.
-     * - selected: Whether this gap is currently selected.
-     *
-     * Purpose:
-     * - Construct visualization marker for one candidate gap segment.
-     *
-     * Outputs:
-     * - Returns configured Marker object.
+     * @brief Create a visualization marker for a detected gap.
+     * This function constructs a Marker message that visually represents a detected gap in the LiDAR scan, with different styling if it's the selected gap.
+     * @param gap Gap descriptor containing indices and angles of the gap.
+     * @param scan ProcessedScan containing metadata for angle/range calculations.
+     * @param id Unique ID for the marker.
+     * @param selected Whether this gap is the currently selected one for navigation (affects styling).
+     * @return Configured Marker message representing the gap.
      */
     visualization_msgs::msg::Marker createGapMarker(
         const Gap& gap, 
@@ -246,16 +213,12 @@ private:
     );
 
     /**
-     * Inputs:
-     * - scan: Processed scan metadata.
-     * - idx: Beam index of closest point.
-     * - marker_id: Marker ID.
-     *
-     * Purpose:
-     * - Construct marker highlighting nearest obstacle sample.
-     *
-     * Outputs:
-     * - Returns configured Marker object.
+     * @brief Create a visualization marker for the closest detected point.
+     * This function constructs a Marker message that represents the closest valid point detected in the LiDAR scan.
+     * @param scan ProcessedScan containing range and angle data.
+     * @param idx Index of the closest point in the scan.
+     * @param marker_id Unique ID for the marker.
+     * @return Configured Marker message representing the closest point.
      */
     visualization_msgs::msg::Marker createClosestPointMarker(
         const ProcessedScan& scan,
@@ -264,15 +227,11 @@ private:
     );
 
     /**
-     * Inputs:
-     * - scan: Processed scan.
-     * - marker_id: Marker ID.
-     *
-     * Purpose:
-     * - Construct marker set representing valid scan points.
-     *
-     * Outputs:
-     * - Returns configured Marker object.
+     * @brief Create a visualization marker for valid scan points.
+     * This function constructs a Marker message that represents all valid points in the LiDAR scan.
+     * @param scan ProcessedScan containing range and angle data.
+     * @param marker_id Unique ID for the marker.
+     * @return Configured Marker message representing the valid scan points.
      */
     visualization_msgs::msg::Marker createValidScanMarker(
         const ProcessedScan& scan,
@@ -280,15 +239,11 @@ private:
     );
 
     /**
-     * Inputs:
-     * - scan: Processed scan.
-     * - marker_id: Marker ID.
-     *
-     * Purpose:
-     * - Construct marker set for points masked by disparity safety expansion.
-     *
-     * Outputs:
-     * - Returns configured Marker object.
+     * @brief Create a visualization marker for disparity-blocked scan points.
+     * This function constructs a Marker message that represents points in the LiDAR scan that are blocked by disparity safety logic.
+     * @param scan ProcessedScan containing range and angle data.
+     * @param marker_id Unique ID for the marker.
+     * @return Configured Marker message representing the disparity-blocked points.
      */
     visualization_msgs::msg::Marker createDisparityBlockedMarker(
         const ProcessedScan& scan,
@@ -296,15 +251,11 @@ private:
     );
 
     /**
-     * Inputs:
-     * - scan: Processed scan.
-     * - marker_id: Marker ID.
-     *
-     * Purpose:
-     * - Construct marker set for points masked by bubble safety logic.
-     *
-     * Outputs:
-     * - Returns configured Marker object.
+     * @brief Create a visualization marker for bubble-blocked scan points.
+     * This function constructs a Marker message that represents points in the LiDAR scan that are blocked by bubble safety logic.
+     * @param scan ProcessedScan containing range and angle data.
+     * @param marker_id Unique ID for the marker.
+     * @return Configured Marker message representing the bubble-blocked points.
      */
     visualization_msgs::msg::Marker createBubbleBlockedMarker(
         const ProcessedScan& scan,
@@ -312,16 +263,12 @@ private:
     );
 
     /**
-     * Inputs:
-     * - gap: Gap descriptor.
-     * - scan: Processed scan metadata.
-     * - marker_id: Marker ID.
-     *
-     * Purpose:
-     * - Construct marker for deepest beam inside chosen gap.
-     *
-     * Outputs:
-     * - Returns configured Marker object.
+     * @brief Create a visualization marker for the deepest point in the selected gap.
+     * This function constructs a Marker message that represents the deepest point within the currently selected gap, which is often the steering target.
+     * @param gap Gap descriptor containing indices and angles of the gap.
+     * @param scan ProcessedScan containing metadata for angle/range calculations.
+     * @param marker_id Unique ID for the marker.
+     * @return Configured Marker message representing the deepest point in the selected gap.
      */
     visualization_msgs::msg::Marker createDeepestPointMarker(
         const Gap& gap,
@@ -330,16 +277,12 @@ private:
     );
 
     /**
-     * Inputs:
-     * - gap: Gap descriptor.
-     * - scan: Processed scan metadata.
-     * - marker_id: Marker ID.
-     *
-     * Purpose:
-     * - Construct marker for steering target point derived from selected gap.
-     *
-     * Outputs:
-     * - Returns configured Marker object.
+     * @brief Create a visualization marker for the target point (steering target).
+     * This function constructs a Marker message that represents the target point that the vehicle is steering towards, which may be the deepest point in the selected gap or another computed target.
+     * @param gap Gap descriptor containing indices and angles of the gap.
+     * @param scan ProcessedScan containing metadata for angle/range calculations.
+     * @param marker_id Unique ID for the marker.
+     * @return Configured Marker message representing the steering target point.
      */
     visualization_msgs::msg::Marker createTargetPointMarker(
         const Gap& gap,
@@ -350,39 +293,25 @@ private:
     // Performance tracking
 
     /**
-     * Inputs:
-     * - output: FTG algorithm output for current cycle.
-     * - cmd: Published drive command.
-     *
-     * Purpose:
-     * - Update long-horizon runtime metrics for validation and regression tracking.
-     *
-     * Outputs:
-     * - Mutates metrics_ accumulators and event counters.
+     * @brief Update performance metrics based on latest output and command.
+     * This function updates the internal PerformanceMetrics struct with new data from the latest FTG output and the drive command that was issued, allowing for long-term performance tracking.
+     * @param output Latest FTGOutput containing command and gap information.
+     * @param cmd DriveCommand that was published based on the output.
+     * @return None
      */
     void updatePerformanceMetrics(const FTGOutput& output, const DriveCommand& cmd);
 
     /**
-     * Inputs:
-     * - None.
-     *
-     * Purpose:
-     * - Emit summarized performance metrics to logs.
-     *
-     * Outputs:
-     * - Writes metrics summary via ROS logging side effects.
+     * @brief Print a summary of performance metrics to the console.
+     * This function computes and prints a summary of the tracked performance metrics, such as total distance, average speed, steering variance, and any crash events.
+     * @return None
      */
     void printPerformanceSummary();
 
     /**
-     * Inputs:
-     * - None.
-     *
-     * Purpose:
-     * - Compute steering variability metric from bounded command history.
-     *
-     * Outputs:
-     * - Returns steering variance estimate.
+     * @brief Calculate the variance of recent steering angles.
+     * This function computes the variance of the steering angles stored in the steering_history deque, which can be used as a measure of control stability.
+     * @return Variance of recent steering angles.
      */
     double calculateSteeringVariance() const;
 };

@@ -1,6 +1,5 @@
-#include "f1tenth_control/nodes/pure_pursuit_node.hpp"
-#include <algorithm>
-#include <cmath>
+#include "nodes/pure_pursuit_node.hpp"
+
 
 namespace f1tenth_control {
 

@@ -4,7 +4,6 @@
 #include <array>
 #include <cstdint>
 #include <cstddef>
-
 #include "mpc_fpga_constants.h"
 
 namespace state_transport_udp {

@@ -1,9 +1,13 @@
-#include "f1tenth_control/algorithms/stanley.hpp"
-#include <fstream>
-#include <sstream>
-#include <algorithm>
-#include <cmath>
-#include <limits>
+#include "algorithms/stanley.hpp"
+
+/**
+ * @file stanley.cpp
+ * @brief Stanley controller algorithm implementation.
+ * @details Implements trajectory loading, heading-aware closest-point search,
+ *          cross-track error computation, and the full Stanley steering law.
+ *          All functions are methods of the Stanley class declared in stanley.hpp.
+ * @dependencies stanley.hpp
+ */
 
 namespace f1tenth_control {
 

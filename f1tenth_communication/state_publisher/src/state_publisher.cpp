@@ -41,7 +41,7 @@ public:
         this->declare_parameter("pose_topic", "/ekf_pose");
         this->declare_parameter("output_topic", "/mpc_state");
         this->declare_parameter("servo_topic", "/sensors/servo_position_command");
-        this->declare_parameter("wheelbase", 0.324);
+        this->declare_parameter("wheelbase", static_cast<double>(MPC_FPGA_WHEELBASE_M));
         // VESC servo → steering angle conversion
         // Forward: servo = gain * (c2·|δ|² + c1·|δ| + c0) + offset
         // Inverse: solve quadratic to recover δ from servo value
@@ -51,7 +51,7 @@ public:
         this->declare_parameter("steering_correction_c1", 0.918061);
         this->declare_parameter("steering_correction_c0", 0.001490);
         // Number of waypoints ahead of KD-tree nearest to check for forward bias
-        this->declare_parameter("forward_lookahead", 3);
+        this->declare_parameter("forward_lookahead", MPC_FPGA_PUBLISHER_FORWARD_LOOKAHEAD);
         this->declare_parameter("horizon", static_cast<int>(MAX_MPC_HORIZON));
         this->declare_parameter("default_left_bound", 2.0);
         this->declare_parameter("default_right_bound", 2.0);
@@ -139,12 +139,12 @@ public:
         
         // Odom timeout watchdog: warn if no odom received for 500ms
         odom_watchdog_timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(500),
+            std::chrono::milliseconds(MPC_FPGA_PUBLISHER_ODOM_WATCHDOG_MS),
             [this]() {
                 if (!odom_received_) return;  // Haven't received first message yet
                 auto elapsed_ms = std::chrono::duration<double, std::milli>(
                     std::chrono::steady_clock::now() - last_odom_time_).count();
-                if (elapsed_ms > 500.0) {
+                if (elapsed_ms > static_cast<double>(MPC_FPGA_PUBLISHER_ODOM_WATCHDOG_MS)) {
                     RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
                         "No odom received for %.0f ms — localization may be stalled", elapsed_ms);
                 }
@@ -268,7 +268,7 @@ private:
 
     // Convert floating-point values to Q16.16 for FPGA transport.
     static int32_t to_fixed_q16(double v) {
-        constexpr double FP_SCALE = 65536.0;
+        constexpr double FP_SCALE = MPC_FPGA_Q16_SCALE_F64;
         if (!std::isfinite(v)) {
             return 0;
         }
@@ -354,8 +354,8 @@ private:
         // Compute trajectory checksum for cross-node verification
         trajectory_hash_ = 0;
         for (const auto& wp : waypoints) {
-            trajectory_hash_ ^= static_cast<uint32_t>(wp.x * 65536.0)
-                              ^ (static_cast<uint32_t>(wp.y * 65536.0) << 16);
+            trajectory_hash_ ^= static_cast<uint32_t>(wp.x * MPC_FPGA_Q16_SCALE_F64)
+                              ^ (static_cast<uint32_t>(wp.y * MPC_FPGA_Q16_SCALE_F64) << 16);
         }
         return true;
     }
@@ -426,7 +426,7 @@ private:
         pub_->publish(mpc_state);
 
         static int count = 0;
-        if (++count % 50 == 0) {
+        if (++count % MPC_FPGA_PUBLISHER_DEBUG_LOG_PERIOD == 0) {
             auto lookup_us = std::chrono::duration_cast<std::chrono::microseconds>(
                 end_time - start_time).count();
             RCLCPP_DEBUG(this->get_logger(),

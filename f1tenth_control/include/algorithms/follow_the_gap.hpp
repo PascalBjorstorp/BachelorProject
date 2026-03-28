@@ -1,10 +1,25 @@
 #ifndef F1TENTH_CONTROL_FOLLOW_THE_GAP_HPP_
 #define F1TENTH_CONTROL_FOLLOW_THE_GAP_HPP_
 
-#include "f1tenth_control/common/types.hpp"
-#include "f1tenth_control/common/lidar_processor.hpp"
+/**
+ * @file follow_the_gap.hpp
+ * @brief Weighted free-space Follow-The-Gap reactive steering controller.
+ * @details Implements a reactive controller using LiDAR clearance
+ *          scoring. Does not require a pre-planned trajectory. Intended for
+ *          obstacle avoidance and gap-following in unknown or dynamic environments.
+ *          Algorithm state: last_steering_, smoothed_target_, first_compute_,
+ *          last_compute_time_. All LiDAR preprocessing is delegated to LidarProcessor.
+ * @dependencies types.hpp, lidar_processor.hpp, <chrono>, <vector>
+ */
+
+#include "common/types.hpp"
+#include "common/math_utils.hpp"
+#include "common/lidar_processor.hpp"
 #include <chrono>
 #include <vector>
+#include <cmath>
+#include <algorithm>
+#include <limits>
 
 namespace f1tenth_control {
 
@@ -34,6 +49,11 @@ struct FTGConfig {
     // -- Weighted free-space scoring ------------------------------------------
     double heading_weight{1.0};      // Exponential decay for non-forward dirs
     double score_power{2.0};         // Raise effective clearance to this power
+                                     // Squaring (power=2) emphasizes larger 
+                                     // clearances more than smaller ones, 
+                                     // creating sharper distinctions between 
+                                     // good and bad directions.
+
     double clearance_cone_scale{1.5};// Multiplier on car half-width for cone
     double min_score_range{0.3};     // Beams shorter than this get zero score (m)
 
@@ -115,6 +135,7 @@ public:
 
     /**
      * @brief Reset temporal controller state.
+     * @return None.
      */
     void reset();
 
@@ -130,6 +151,9 @@ private:
 
     /**
      * @brief Inflate scan around disparity edges for safety.
+     * This means that if a beam has a large jump in range compared
+     * to its neighbors, it is probably an edge of an obstacle.
+     * Therefore, a safety margin is applied by marking nearby beams as blocked.
      * @param scan Processed scan to modify in place.
      */
     void applyDisparityExtension(ProcessedScan& scan);
@@ -191,7 +215,7 @@ private:
      * @param dt Control time step.
      * @return Rate-limited steering command.
      */
-    double smoothSteering(double target, double last, double dt);
+    double rateLimitSteering(double target, double last, double dt);
 };
 
 }  // namespace f1tenth_control
