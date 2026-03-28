@@ -3,7 +3,6 @@
 #include <cmath>
 #include <algorithm>
 #include <limits>
-#include <numeric>
 #include <chrono>
 
 namespace f1tenth_control {
@@ -12,14 +11,32 @@ namespace f1tenth_control {
 // Construction / configuration
 // =====================================================================
 
+// Inputs:
+// - config: Initial FTG configuration including LiDAR preprocessing settings.
+// Purpose:
+// - Construct algorithm instance with synchronized local config and preprocessor state.
+// Outputs:
+// - Initializes FollowTheGap object ready for compute() calls.
 FollowTheGap::FollowTheGap(const FTGConfig& config)
     : config_(config), lidar_processor_(config.lidar_config), last_steering_(0.0) {}
 
+// Inputs:
+// - config: Updated FTG parameters.
+// Purpose:
+// - Apply runtime tuning changes without reconstructing algorithm instance.
+// Outputs:
+// - Updates local config and propagates LiDAR settings to processor.
 void FollowTheGap::setConfig(const FTGConfig& config) {
     config_ = config;
     lidar_processor_.setConfig(config.lidar_config);
 }
 
+// Inputs:
+// - None.
+// Purpose:
+// - Clear temporal smoothing/rate-limiter state.
+// Outputs:
+// - Resets internal state used across successive compute() cycles.
 void FollowTheGap::reset() {
     last_steering_ = 0.0;
     smoothed_target_ = 0.0;
@@ -30,13 +47,18 @@ void FollowTheGap::reset() {
 // Main compute
 // =====================================================================
 
+// Inputs:
+// - ranges: Raw LiDAR ranges.
+// - angle_min/angle_max/angle_increment: Scan angular metadata.
+// Purpose:
+// - Run one FTG control cycle from LiDAR scan to steering/speed command.
+// Outputs:
+// - Returns FTGOutput with command and diagnostics.
 FTGOutput FollowTheGap::compute(
     const std::vector<float>& ranges,
     double angle_min,
     double angle_max,
-    double angle_increment,
-    const Pose2D& current_pose,
-    double timestamp
+    double angle_increment
 ) {
     FTGOutput output;
 
@@ -138,13 +160,6 @@ FTGOutput FollowTheGap::compute(
 
     output.processed_scan = scan;
 
-    // --- Step 11: Mapping mode ---
-    if (config_.mapping_mode) {
-        output.boundary_points = lidar_processor_.extractBoundaryPoints(
-            scan, current_pose, timestamp
-        );
-    }
-
     return output;
 }
 
@@ -152,6 +167,12 @@ FTGOutput FollowTheGap::compute(
 // LiDAR safety processing
 // =====================================================================
 
+// Inputs:
+// - scan: Processed scan container to modify in place.
+// Purpose:
+// - Apply uniform safety shrink margin to valid ranges.
+// Outputs:
+// - Mutates scan ranges/validity to include conservative wall clearance.
 void FollowTheGap::applyWallMargin(ProcessedScan& scan) {
     if (config_.wall_margin <= 0.0) return;
     for (size_t i = 0; i < scan.filtered_ranges.size(); ++i) {
@@ -164,6 +185,12 @@ void FollowTheGap::applyWallMargin(ProcessedScan& scan) {
     }
 }
 
+// Inputs:
+// - scan: Processed scan container to modify in place.
+// Purpose:
+// - Extend obstacle disparities to avoid steering through narrow, unsafe openings.
+// Outputs:
+// - Mutates filtered_ranges and disparity_blocked flags.
 void FollowTheGap::applyDisparityExtension(ProcessedScan& scan) {
     if (scan.filtered_ranges.size() < 2) return;
 
@@ -226,6 +253,12 @@ void FollowTheGap::applyDisparityExtension(ProcessedScan& scan) {
 // Weighted free-space core
 // =====================================================================
 
+// Inputs:
+// - scan: Safety-processed LiDAR scan.
+// Purpose:
+// - Compute direction-wise effective drivable clearance accounting for vehicle width.
+// Outputs:
+// - Returns effective clearance profile per beam.
 std::vector<double> FollowTheGap::computeEffectiveClearance(const ProcessedScan& scan) {
     const size_t n = scan.filtered_ranges.size();
     std::vector<double> eff(n, 0.0);
@@ -274,6 +307,13 @@ std::vector<double> FollowTheGap::computeEffectiveClearance(const ProcessedScan&
     return eff;
 }
 
+// Inputs:
+// - scan: Safety-processed LiDAR scan with beam angles.
+// - eff_clearance: Effective clearance profile.
+// Purpose:
+// - Compute weighted-centroid steering target from clearance-weighted beam scores.
+// Outputs:
+// - Returns target angle in radians before smoothing/rate limiting.
 double FollowTheGap::computeTargetAngle(
     const ProcessedScan& scan,
     const std::vector<double>& eff_clearance
@@ -312,6 +352,12 @@ double FollowTheGap::computeTargetAngle(
 // Gap detection (visualisation only)
 // =====================================================================
 
+// Inputs:
+// - scan: Safety-processed LiDAR scan.
+// Purpose:
+// - Derive contiguous free-space segments for visualization/telemetry.
+// Outputs:
+// - Returns vector of detected gap descriptors.
 std::vector<Gap> FollowTheGap::findGapsForViz(const ProcessedScan& scan) {
     std::vector<Gap> gaps;
     if (scan.filtered_ranges.empty()) return gaps;
@@ -319,6 +365,7 @@ std::vector<Gap> FollowTheGap::findGapsForViz(const ProcessedScan& scan) {
     const auto& lidar_config = lidar_processor_.getConfig();
     bool in_gap = false;
     Gap current_gap;
+    size_t current_gap_count = 0;
 
     for (size_t i = 0; i < scan.filtered_ranges.size(); ++i) {
         double range = scan.filtered_ranges[i];
@@ -337,6 +384,7 @@ std::vector<Gap> FollowTheGap::findGapsForViz(const ProcessedScan& scan) {
             current_gap.deepest_idx = i;
             current_gap.deepest_range = range;
             current_gap.avg_range = range;
+            current_gap_count = 1;
         } else if (is_gap && in_gap) {
             current_gap.min_range = std::min(current_gap.min_range, range);
             if (range > current_gap.deepest_range) {
@@ -344,11 +392,16 @@ std::vector<Gap> FollowTheGap::findGapsForViz(const ProcessedScan& scan) {
                 current_gap.deepest_idx = i;
             }
             current_gap.max_range = std::max(current_gap.max_range, range);
+            current_gap.avg_range += range;
+            ++current_gap_count;
         } else if (!is_gap && in_gap) {
             in_gap = false;
             current_gap.end_idx = i - 1;
             current_gap.end_angle = scan.angles[i - 1];
             current_gap.angular_width = current_gap.end_angle - current_gap.start_angle;
+            if (current_gap_count > 0) {
+                current_gap.avg_range /= static_cast<double>(current_gap_count);
+            }
             if (current_gap.angular_width >= config_.min_gap_width) {
                 gaps.push_back(current_gap);
             }
@@ -359,6 +412,9 @@ std::vector<Gap> FollowTheGap::findGapsForViz(const ProcessedScan& scan) {
         current_gap.end_idx = scan.filtered_ranges.size() - 1;
         current_gap.end_angle = scan.angles.back();
         current_gap.angular_width = current_gap.end_angle - current_gap.start_angle;
+        if (current_gap_count > 0) {
+            current_gap.avg_range /= static_cast<double>(current_gap_count);
+        }
         if (current_gap.angular_width >= config_.min_gap_width) {
             gaps.push_back(current_gap);
         }
@@ -367,6 +423,12 @@ std::vector<Gap> FollowTheGap::findGapsForViz(const ProcessedScan& scan) {
     return gaps;
 }
 
+// Inputs:
+// - gaps: Candidate visualization gaps.
+// Purpose:
+// - Select representative gap for output compatibility/debugging.
+// Outputs:
+// - Returns best-scoring gap; default-constructed Gap when none exist.
 Gap FollowTheGap::findBestGapForViz(const std::vector<Gap>& gaps) {
     if (gaps.empty()) return Gap();
 
@@ -388,20 +450,39 @@ Gap FollowTheGap::findBestGapForViz(const std::vector<Gap>& gaps) {
 // Control
 // =====================================================================
 
+// Inputs:
+// - forward_clearance: Estimated drivable clearance ahead.
+// - steering_angle: Current steering command magnitude.
+// Purpose:
+// - Convert free-space and steering demand into bounded speed command.
+// Outputs:
+// - Returns speed command constrained by min/max speed limits.
 double FollowTheGap::calculateSpeed(double forward_clearance, double steering_angle) {
+    const double min_speed = std::min(config_.min_speed, config_.max_speed);
+    const double max_speed = std::max(config_.min_speed, config_.max_speed);
+    const double safe_full_range = std::max(config_.speed_full_range, 1e-6);
+    const double safe_max_steering = std::max(config_.max_steering, 1e-6);
+
     // Range factor: how far ahead is clear
-    double range_factor = math::clamp(forward_clearance / config_.speed_full_range, 0.0, 1.0);
+    double range_factor = math::clamp(forward_clearance / safe_full_range, 0.0, 1.0);
 
     // Steering factor: slow down when turning
     double abs_steer = std::abs(steering_angle);
-    double steer_factor = 1.0 - config_.steer_slowdown_gain * (abs_steer / config_.max_steering);
+    double steer_factor = 1.0 - config_.steer_slowdown_gain * (abs_steer / safe_max_steering);
     steer_factor = math::clamp(steer_factor, 0.3, 1.0);
 
-    double speed = config_.min_speed
-                 + (config_.max_speed - config_.min_speed) * range_factor * steer_factor;
-    return math::clamp(speed, config_.min_speed, config_.max_speed);
+    double speed = min_speed + (max_speed - min_speed) * range_factor * steer_factor;
+    return math::clamp(speed, min_speed, max_speed);
 }
 
+// Inputs:
+// - target: Desired steering angle before rate limiting.
+// - last: Previous steering command.
+// - dt: Control-cycle duration.
+// Purpose:
+// - Enforce steering slew-rate limits to improve actuator feasibility.
+// Outputs:
+// - Returns rate-limited steering command.
 double FollowTheGap::smoothSteering(double target, double last, double dt) {
     double max_change = config_.max_steering_rate * dt;
     double delta = target - last;

@@ -269,7 +269,7 @@ typedef struct
 #define F110_CG_HEIGHT_METERS 0.0703f
 
 /** Tire-road friction coefficient */
-#define F110_FRICTION_COEFFICIENT 0.787f
+#define F110_FRICTION_COEFFICIENT 0.745f
 
 /** Gravity acceleration */
 #define F110_GRAVITY_ACCELERATION_MS2 9.81f
@@ -305,10 +305,10 @@ typedef struct
 #define MIN_STIFF_SCALE 0.1f
 
 /** Front cornering stiffness [1/rad] */
-#define F110_FRONT_CORNERING_STIFFNESS (VP_C_ALPHA_F / (F110_FRICTION_COEFFICIENT * VP_D_FRONT))
+#define F110_FRONT_CORNERING_STIFFNESS (VP_C_ALPHA_F / VP_D_FRONT)
 
 /** Rear cornering stiffness [1/rad] */
-#define F110_REAR_CORNERING_STIFFNESS (VP_C_ALPHA_R / (F110_FRICTION_COEFFICIENT * VP_D_REAR))
+#define F110_REAR_CORNERING_STIFFNESS (VP_C_ALPHA_R / VP_D_REAR)
 
 
 

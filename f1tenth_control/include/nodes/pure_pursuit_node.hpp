@@ -43,6 +43,17 @@ namespace f1tenth_control {
  */
 class PurePursuitNode : public rclcpp::Node {
 public:
+    /**
+     * Inputs:
+     * - options: ROS2 node options controlling parameters and execution behavior.
+     *
+     * Purpose:
+     * - Construct ROS2 wrapper around Pure Pursuit controller and initialize runtime
+     *   subscriptions, publishers, timers, and parameter interfaces.
+     *
+     * Outputs:
+     * - Creates an operational node ready to receive state and publish drive commands.
+     */
     explicit PurePursuitNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
@@ -89,25 +100,146 @@ private:
     double max_accel_cmd_{3.0};
     double max_decel_cmd_{5.0};
     
+    /**
+     * Inputs:
+     * - None.
+     *
+     * Purpose:
+     * - Declare ROS parameters and defaults used by Pure Pursuit node.
+     *
+     * Outputs:
+     * - Registers parameter keys for startup and runtime overrides.
+     */
     void declareParameters();
+
+    /**
+     * Inputs:
+     * - None.
+     *
+     * Purpose:
+     * - Load active ROS parameter values into node/controller configuration.
+     *
+     * Outputs:
+     * - Updates config_ and node-local runtime parameter fields.
+     */
     void loadParameters();
+
+    /**
+     * Inputs:
+     * - parameters: Proposed parameter updates.
+     *
+     * Purpose:
+     * - Validate and apply runtime parameter changes.
+     *
+     * Outputs:
+     * - Returns parameter-set result indicating acceptance/rejection.
+     */
     rcl_interfaces::msg::SetParametersResult parametersCallback(
         const std::vector<rclcpp::Parameter>& parameters
     );
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
     
     // Callbacks
+
+    /**
+     * Inputs:
+     * - msg: Odometry message.
+     *
+     * Purpose:
+     * - Update velocity and fallback pose state from odometry stream.
+     *
+     * Outputs:
+     * - Mutates current_state_ and odometry freshness timestamps.
+     */
     void odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg);
+
+    /**
+     * Inputs:
+     * - msg: Pose estimate message.
+     *
+     * Purpose:
+     * - Update high-confidence pose used by trajectory tracking controller.
+     *
+     * Outputs:
+     * - Mutates current_state_.pose and pose freshness timestamps.
+     */
     void poseCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+
+    /**
+     * Inputs:
+     * - msg: Enable/disable command.
+     *
+     * Purpose:
+     * - Gate controller output based on external supervisory signal.
+     *
+     * Outputs:
+     * - Updates enabled_ state for control loop behavior.
+     */
     void enableCallback(const std_msgs::msg::Bool::SharedPtr msg);
+
+    /**
+     * Inputs:
+     * - msg: Path message representing local raceline.
+     *
+     * Purpose:
+     * - Refresh controller trajectory from online local planner updates.
+     *
+     * Outputs:
+     * - Updates controller trajectory and trajectory_loaded_ state.
+     */
     void localRacelineCallback(const nav_msgs::msg::Path::SharedPtr msg);
+
+    /**
+     * Inputs:
+     * - None (timer/event driven).
+     *
+     * Purpose:
+     * - Execute one control-cycle evaluation and command publication.
+     *
+     * Outputs:
+     * - Publishes drive commands and optional visualization side effects.
+     */
     void controlLoop();
     
     // Publishing
+
+    /**
+     * Inputs:
+     * - steering: Commanded steering angle.
+     * - speed: Commanded longitudinal speed.
+     *
+     * Purpose:
+     * - Convert controller outputs into Ackermann ROS message.
+     *
+     * Outputs:
+     * - Publishes AckermannDriveStamped drive command.
+     */
     void publishDriveCommand(double steering, double speed);
+
+    /**
+     * Inputs:
+     * - output: Pure Pursuit diagnostic output containing target/lookahead info.
+     *
+     * Purpose:
+     * - Publish marker visualization for controller target/debug interpretation.
+     *
+     * Outputs:
+     * - Publishes MarkerArray on visualization topic.
+     */
     void publishLookaheadMarker(const PurePursuitOutput& output);
     
     // Helpers
+
+    /**
+     * Inputs:
+     * - None.
+     *
+     * Purpose:
+     * - Load trajectory from configured trajectory file path.
+     *
+     * Outputs:
+     * - Returns true when controller trajectory is successfully loaded.
+     */
     bool loadTrajectory();
 };
 

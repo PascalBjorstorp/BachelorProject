@@ -27,13 +27,24 @@ from launch_ros.descriptions import ComposableNode
 
 
 def generate_launch_description():
+        """Inputs:
+        - None.
+
+        Purpose:
+        - Build FTG hardware launch graph with composable-node container wiring,
+            parameter arguments, and topic remappings.
+
+        Outputs:
+        - Returns launch.LaunchDescription containing arguments, startup log action,
+            and FTG component container action.
+        """
     # Get package share directory
     pkg_share = get_package_share_directory('f1tenth_control')
 
     # Default config path
     default_config_path = os.path.join(pkg_share, 'config', 'ftg_params.yaml')
 
-    # Verify config file exists at build time
+    # Verify config file exists at launch-time path resolution.
     if not os.path.exists(default_config_path):
         warnings.warn(
             'FTG configuration file not found at "%s". '
@@ -45,20 +56,14 @@ def generate_launch_description():
     # Declare launch arguments - conservative defaults for real hardware
     declare_max_speed = DeclareLaunchArgument(
         'max_speed',
-        default_value='3.0',  # Conservative for real hardware
-        description='Maximum speed in m/s (recommend starting low: 2-3 m/s)'
+        default_value='3.0',  # Hardware-focused default limit
+        description='Maximum speed in m/s used by FTG command limiting'
     )
 
     declare_min_speed = DeclareLaunchArgument(
         'min_speed',
         default_value='1.0',
         description='Minimum speed in m/s'
-    )
-
-    declare_mapping_mode = DeclareLaunchArgument(
-        'mapping_mode',
-        default_value='false',
-        description='Enable mapping mode for track boundary extraction'
     )
 
     declare_config_file = DeclareLaunchArgument(
@@ -78,7 +83,7 @@ def generate_launch_description():
             '  Min Speed: ', LaunchConfiguration('min_speed'), ' m/s\n',
             '\n',
             '  Topics:\n',
-            '    Subscribing: /scan, /odom\n',
+            '    Subscribing: /scan, /ego_racecar/odom\n',
             '    Publishing:  /drive\n',
             '\n',
             '  Controls:\n',
@@ -105,7 +110,6 @@ def generate_launch_description():
                     {
                         'max_speed': LaunchConfiguration('max_speed'),
                         'min_speed': LaunchConfiguration('min_speed'),
-                        'mapping_mode': LaunchConfiguration('mapping_mode'),
                     }
                 ],
                 remappings=[
@@ -123,7 +127,6 @@ def generate_launch_description():
     return LaunchDescription([
         declare_max_speed,
         declare_min_speed,
-        declare_mapping_mode,
         declare_config_file,
         startup_info,
         ftg_container,

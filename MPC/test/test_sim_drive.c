@@ -56,8 +56,8 @@
 #define SIM_DT_DEFAULT    0.005   /* Simulation time step = 5ms (200Hz) */
 #define MPC_DT_DEFAULT    0.005   /* MPC control interval = 5ms (200Hz) */
 #define SIM_DURATION      100.0  /* seconds */
-#define MPC_HORIZON       20
-#define MPC_REF_ENTRIES   20     /* Must match horizon */
+#define MPC_HORIZON       10
+#define MPC_REF_ENTRIES   10     /* Must match horizon */
 #define MAX_WAYPOINTS     2000
 #define MAX_STEERING      0.4189 /* rad — calibrated limit (with polynomial servo correction) */
 #define MAX_VELOCITY      20.0   /* m/s */
@@ -630,7 +630,7 @@ int main(void)
         int wall_hit = 0;
         if (e_y > (left_wall - VEHICLE_HALF_WIDTH - body_safety_margin))  { wall_hit = 1;  wall_collisions++; }
         if (e_y < -(right_wall - VEHICLE_HALF_WIDTH - body_safety_margin)){ wall_hit = -1; wall_collisions++; }
-        if (wall_hit && vx > 1.0) {
+        if (wall_hit) {
             printf("\n  !!! WALL CRASH: e_y = %.3f m (bound: %.3f) at step %d (t=%.2fs, wp=%d, v=%.1f) !!!\n",
                    e_y, wall_hit > 0 ? left_wall : right_wall, step, t, closest, vx);
             break;

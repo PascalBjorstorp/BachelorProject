@@ -3,14 +3,24 @@
 #include <sstream>
 #include <algorithm>
 #include <cmath>
-#include <stdexcept>
+#include <limits>
 
 namespace f1tenth_control {
 
-PurePursuit::PurePursuit() : config_() {}
-
+// Inputs:
+// - config: Initial controller configuration.
+// Purpose:
+// - Construct Pure Pursuit controller with caller-provided configuration.
+// Outputs:
+// - Initializes controller with empty trajectory and provided config.
 PurePursuit::PurePursuit(const PurePursuitConfig& config) : config_(config) {}
 
+// Inputs:
+// - csv_path: Path to trajectory CSV file.
+// Purpose:
+// - Load trajectory samples from disk into controller waypoint storage.
+// Outputs:
+// - Returns true when a valid trajectory with sufficient waypoints is loaded.
 bool PurePursuit::loadTrajectory(const std::string& csv_path) {
     std::ifstream file(csv_path);
     if (!file.is_open()) {
@@ -29,14 +39,20 @@ bool PurePursuit::loadTrajectory(const std::string& csv_path) {
         std::stringstream ss(line);
         std::string token;
         std::vector<double> values;
+        bool parse_failed = false;
         
         // Parse CSV: s_m, x_m, y_m, psi_rad, kappa_radpm, vx_mps, ax_mps2
         while (std::getline(ss, token, ',')) {
             try {
                 values.push_back(std::stod(token));
             } catch (...) {
-                continue;  // Skip malformed values
+                parse_failed = true;
+                break;
             }
+        }
+
+        if (parse_failed) {
+            continue;
         }
         
         if (values.size() >= 6) {
@@ -94,6 +110,12 @@ bool PurePursuit::loadTrajectory(const std::string& csv_path) {
     return true;
 }
 
+// Inputs:
+// - trajectory: Waypoint sequence to use as reference path.
+// Purpose:
+// - Replace currently loaded trajectory with in-memory trajectory data.
+// Outputs:
+// - Updates trajectory storage and closest-index search anchor.
 void PurePursuit::setTrajectory(const std::vector<TrajectoryPoint>& trajectory) {
     trajectory_ = trajectory;
 
@@ -109,11 +131,23 @@ void PurePursuit::setTrajectory(const std::vector<TrajectoryPoint>& trajectory) 
     last_closest_idx_ = 0;
 }
 
+// Inputs:
+// - None.
+// Purpose:
+// - Report total loaded trajectory arc-length span.
+// Outputs:
+// - Returns trajectory length in meters, or 0 when trajectory is empty.
 double PurePursuit::getTrajectoryLength() const {
     if (trajectory_.empty()) return 0.0;
     return trajectory_.back().arc_length;
 }
 
+// Inputs:
+// - None.
+// Purpose:
+// - Determine whether trajectory should be treated as closed-loop for index wrapping.
+// Outputs:
+// - Returns true when start/end points are sufficiently close.
 bool PurePursuit::isTrajectoryClosed() const {
     if (trajectory_.size() < 3) {
         return false;
@@ -126,6 +160,12 @@ bool PurePursuit::isTrajectoryClosed() const {
     return seam_dist <= closure_threshold;
 }
 
+// Inputs:
+// - position: Vehicle position in world frame.
+// Purpose:
+// - Find nearest trajectory index with heading-aware gating for robust tracking.
+// Outputs:
+// - Returns closest waypoint index and updates last_closest_idx_.
 size_t PurePursuit::findClosestPoint(const Point2D& position) {
     if (trajectory_.empty()) return 0;
     
@@ -143,7 +183,7 @@ size_t PurePursuit::findClosestPoint(const Point2D& position) {
         // Accept if heading difference is within ±90° of car heading
         double dh = trajectory_[idx].heading - current_heading_;
         dh = std::atan2(std::sin(dh), std::cos(dh));
-        return std::abs(dh) < M_PI_2;
+        return std::abs(dh) < (0.5 * constants::PI);
     };
     
     if (closed_loop) {
@@ -211,6 +251,13 @@ size_t PurePursuit::findClosestPoint(const Point2D& position) {
     return closest_idx;
 }
 
+// Inputs:
+// - idx1/idx2: Neighboring trajectory indices.
+// - t: Interpolation fraction in [0, 1].
+// Purpose:
+// - Produce continuous target state between discrete trajectory samples.
+// Outputs:
+// - Returns interpolated trajectory point.
 TrajectoryPoint PurePursuit::interpolate(size_t idx1, size_t idx2, double t) const {
     const auto& p1 = trajectory_[idx1];
     const auto& p2 = trajectory_[idx2];
@@ -229,6 +276,12 @@ TrajectoryPoint PurePursuit::interpolate(size_t idx1, size_t idx2, double t) con
     return result;
 }
 
+    // Inputs:
+    // - state: Current vehicle state.
+    // Purpose:
+    // - Execute one Pure Pursuit control cycle with adaptive lookahead and speed shaping.
+    // Outputs:
+    // - Returns steering/speed command and debug metadata in PurePursuitOutput.
 PurePursuitOutput PurePursuit::compute(const VehicleState& state) {
     PurePursuitOutput output;
     output.valid = false;

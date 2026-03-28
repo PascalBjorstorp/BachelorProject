@@ -5,7 +5,6 @@
 #include "f1tenth_control/common/math_utils.hpp"
 #include <vector>
 #include <string>
-#include <cmath>
 
 namespace f1tenth_control {
 
@@ -89,44 +88,62 @@ struct StanleyOutput {
  */
 class Stanley {
 public:
-    Stanley();
+    /**
+        * @brief Construct a Stanley controller using caller-provided configuration.
+        * @param config Initial Stanley tuning and limit parameters.
+        * @return None.
+     */
     explicit Stanley(const StanleyConfig& config);
     
     /**
-     * @brief Load trajectory from CSV file (TUM format)
+     * @brief Parse and store a track trajectory for Stanley path tracking.
+     * @param csv_path Path to trajectory CSV file in expected format.
+     * @return True when loading succeeds and trajectory storage is updated.
      */
     bool loadTrajectory(const std::string& csv_path);
     
     /**
-     * @brief Set trajectory directly
+     * @brief Replace trajectory data from an in-memory waypoint sequence.
+     * @param trajectory Ordered waypoints describing the reference path.
+     * @return None.
      */
     void setTrajectory(const std::vector<TrajectoryPoint>& trajectory);
     
     /**
-     * @brief Compute steering and speed commands
-     * @param state Current vehicle state (assumes rear axle position)
-     * @return Control output
+     * @brief Compute Stanley steering command and regulated target speed.
+     * @param state Current vehicle state (rear-axle pose convention).
+     * @return StanleyOutput with command values and diagnostic terms.
      */
     StanleyOutput compute(const VehicleState& state);
     
     /**
-     * @brief Update configuration
+     * @brief Update control gains and limits without rebuilding the object.
+     * @param config New Stanley configuration values.
+     * @return None.
      */
     void setConfig(const StanleyConfig& config) { config_ = config; }
+
+    /**
+     * @brief Expose active controller parameters for diagnostics.
+     * @return Const reference to current StanleyConfig.
+     */
     const StanleyConfig& getConfig() const { return config_; }
     
     /**
-     * @brief Get loaded trajectory
+     * @brief Provide read-only access to loaded trajectory waypoints.
+     * @return Const reference to internal trajectory vector.
      */
     const std::vector<TrajectoryPoint>& getTrajectory() const { return trajectory_; }
     
     /**
-     * @brief Check if trajectory is loaded
+     * @brief Report whether controller has enough path data to operate.
+     * @return True when trajectory storage is non-empty.
      */
     bool hasTrajectory() const { return !trajectory_.empty(); }
     
     /**
-     * @brief Get total trajectory length
+     * @brief Compute cumulative path length for reporting and validation.
+     * @return Total trajectory arc length in meters.
      */
     double getTrajectoryLength() const;
     
@@ -138,20 +155,25 @@ private:
     bool search_initialized_{false}; // True after first findClosestPoint call
     
     /**
-     * @brief Find closest point to front axle position (heading-aware)
-     * Uses both position and heading to find the correct track segment
+     * @brief Select the nearest path index while enforcing heading-consistent segment selection.
+     * @param front_axle_pos Vehicle front-axle position in world coordinates.
+     * @param vehicle_heading Current vehicle heading angle.
+     * @return Closest trajectory index used by control law computation.
      */
     size_t findClosestPoint(const Point2D& front_axle_pos, double vehicle_heading);
     
     /**
-     * @brief Compute cross-track error (signed)
-     * Positive = vehicle is to the left of path
-     * Negative = vehicle is to the right of path
+     * @brief Compute signed lateral displacement used by the Stanley correction term.
+     * @param front_axle_pos Vehicle front-axle position.
+     * @param closest_idx Reference trajectory index near current position.
+     * @return Signed cross-track error in meters.
      */
     double computeCrossTrackError(const Point2D& front_axle_pos, size_t closest_idx);
     
     /**
-     * @brief Normalize angle to [-pi, pi] (delegates to shared math utility)
+     * @brief Normalize angular differences for stable control arithmetic.
+     * @param angle Raw angle value in radians.
+     * @return Angle wrapped to canonical interval [-pi, pi].
      */
     static double normalizeAngle(double angle) {
         return math::normalizeAngle(angle);

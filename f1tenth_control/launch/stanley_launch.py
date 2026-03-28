@@ -17,19 +17,60 @@ from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
+    """Inputs:
+    - None.
+
+    Purpose:
+    - Build launch graph for Stanley controller running as a composable ROS2 node
+      with configurable gains and speed limits.
+
+    Outputs:
+    - Returns LaunchDescription with launch arguments and Stanley component
+      container action.
+    """
     # Get package directories
     f1tenth_control_share = get_package_share_directory('f1tenth_control')
-    
-    # Default trajectory path
-    workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(f1tenth_control_share)))
-    default_trajectory = os.path.join(
-        workspace_root, 'f1tenth_planning', 'trajectories', 'Spielberg_raceline.csv'
-    )
-    
-    if not os.path.exists(default_trajectory):
-        default_trajectory = os.path.expanduser(
-            '/ros2_ws/src/f1tenth_planning/trajectories/Spielberg_raceline.csv'
+
+    # Default trajectory path resolution:
+    # 1) Installed f1tenth_planning package share
+    # 2) Install-space fallback derived from current package location
+    # 3) Source-space fallback derived from workspace root
+    trajectory_candidates = []
+
+    try:
+        f1tenth_planning_share = get_package_share_directory('f1tenth_planning')
+        trajectory_candidates.append(
+            os.path.join(f1tenth_planning_share, 'trajectories', 'Spielberg_raceline.csv')
         )
+    except Exception:
+        pass
+
+    install_prefix = os.path.dirname(os.path.dirname(os.path.dirname(f1tenth_control_share)))
+    workspace_root = os.path.dirname(install_prefix)
+    trajectory_candidates.append(
+        os.path.join(
+            install_prefix,
+            'f1tenth_planning',
+            'share',
+            'f1tenth_planning',
+            'trajectories',
+            'Spielberg_raceline.csv',
+        )
+    )
+    trajectory_candidates.append(
+        os.path.join(
+            workspace_root,
+            'src',
+            'f1tenth_planning',
+            'trajectories',
+            'Spielberg_raceline.csv',
+        )
+    )
+
+    default_trajectory = next(
+        (candidate for candidate in trajectory_candidates if os.path.exists(candidate)),
+        trajectory_candidates[0],
+    )
     
     # Launch arguments
     trajectory_file_arg = DeclareLaunchArgument(
@@ -56,7 +97,7 @@ def generate_launch_description():
     
     k_h_arg = DeclareLaunchArgument(
         'k_h',
-        default_value='0.5',  # Increase for
+        default_value='0.5',  # Conservative heading-term baseline
         description='Heading error gain (auto-reduces at high speed)'
     )
     

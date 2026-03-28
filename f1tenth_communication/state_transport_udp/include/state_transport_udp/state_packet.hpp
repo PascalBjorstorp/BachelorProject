@@ -5,11 +5,13 @@
 #include <cstdint>
 #include <cstddef>
 
+#include "mpc_fpga_constants.h"
+
 namespace state_transport_udp {
 
 constexpr uint32_t PACKET_MAGIC = 0x53545550;  // 'STUP'
 constexpr uint16_t PACKET_VERSION = 1;
-constexpr size_t MPC_HORIZON = 20;
+constexpr size_t MPC_HORIZON = MPC_FPGA_HORIZON_STEPS;
 
 #pragma pack(push, 1)
 struct StatePacket {

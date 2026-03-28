@@ -4,6 +4,13 @@
 namespace f1tenth_control {
 namespace math {
 
+// Inputs:
+// - data: Input scalar sequence.
+// - window_size: Median filter window size.
+// Purpose:
+// - Suppress impulsive noise using sliding-window median filtering.
+// Outputs:
+// - Returns filtered sequence with same length as input.
 std::vector<double> medianFilter(const std::vector<double>& data, size_t window_size) {
     if (data.empty()) return {};
     if (window_size <= 1) return data;

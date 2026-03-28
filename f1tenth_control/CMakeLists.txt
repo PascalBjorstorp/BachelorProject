@@ -26,8 +26,10 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 
-# Include directories
-include_directories(include)
+set(F1TENTH_PUBLIC_INCLUDE_DIRS
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
 
 set(DEPENDENCIES
   rclcpp
@@ -106,6 +108,21 @@ add_library(stanley_node SHARED
 target_link_libraries(stanley_node stanley_algorithm)
 ament_target_dependencies(stanley_node ${DEPENDENCIES})
 rclcpp_components_register_nodes(stanley_node "f1tenth_control::StanleyNode")
+
+foreach(control_target
+  f1tenth_common
+  ftg_algorithm
+  pure_pursuit_algorithm
+  stanley_algorithm
+  ftg_node_component
+  pure_pursuit_node
+  stanley_node
+)
+  target_include_directories(${control_target}
+    PUBLIC
+      ${F1TENTH_PUBLIC_INCLUDE_DIRS}
+  )
+endforeach()
 
 # ===================
 # Install targets

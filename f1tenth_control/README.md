@@ -64,7 +64,7 @@ source install/setup.bash
 ### Running FTG
 
 ```bash
-# Hardware mode with default parameters
+# Hardware mode with launch defaults
 ros2 launch f1tenth_control ftg_hardware_launch.py
 
 # With custom speed
@@ -78,7 +78,7 @@ ros2 launch f1tenth_control ftg_hardware_launch.py mapping_mode:=true
 
 **Subscribed:**
 - `/scan` (sensor_msgs/LaserScan) - LiDAR scan data
-- `/odom` (nav_msgs/Odometry) - Vehicle odometry
+- `/ego_racecar/odom` (nav_msgs/Odometry) - Vehicle odometry (remapped into node topic `odom`)
 - `ftg/enable` (std_msgs/Bool) - Enable/disable the algorithm
 
 **Published:**
@@ -87,15 +87,18 @@ ros2 launch f1tenth_control ftg_hardware_launch.py mapping_mode:=true
 
 ### Parameters
 
-All parameters are configurable via `config/ftg_params.yaml` or launch arguments. Key parameters:
+All parameters are configurable via `config/ftg_params.yaml` or launch arguments.
+Values below are defaults from `ftg_params.yaml`. In `ftg_hardware_launch.py`, `max_speed` is overridden to `3.0` by default unless a launch argument overrides it.
+
+Key parameters:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `max_speed` | 8.0 | Maximum speed (m/s) |
+| `max_speed` | 2.0 | Maximum speed (m/s) |
 | `min_speed` | 1.0 | Minimum speed (m/s) |
-| `max_steering` | 0.4 | Max steering angle (rad) |
-| `emergency_brake_distance` | 0.3 | Emergency stop distance (m) |
-| `lidar.gap_threshold` | 3.0 | Minimum range for gap detection (m) |
+| `max_steering` | 0.4189 | Max steering angle (rad) |
+| `emergency_brake_distance` | 0.15 | Emergency stop distance (m) |
+| `gap_threshold` | 0.5 | Minimum range for gap detection (m) |
 | `mapping_mode` | false | Enable boundary point extraction |
 
 ### Dynamic Reconfiguration
@@ -104,7 +107,7 @@ Parameters can be changed at runtime:
 
 ```bash
 ros2 param set /ftg_node max_speed 2.0
-ros2 param set /ftg_node lidar.gap_threshold 2.5
+ros2 param set /ftg_node gap_threshold 0.8
 ```
 
 ## Reusable Components

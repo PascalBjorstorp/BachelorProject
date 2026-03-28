@@ -1,18 +1,36 @@
 #include "f1tenth_control/common/lidar_processor.hpp"
 #include "f1tenth_control/common/math_utils.hpp"
-#include <algorithm>
 #include <cmath>
 #include <limits>
 
 namespace f1tenth_control {
 
+// Inputs:
+// - config: LiDAR preprocessing configuration.
+// Purpose:
+// - Construct generic LiDAR processor with caller-provided settings.
+// Outputs:
+// - Initializes processor ready for processScan() calls.
 LidarProcessor::LidarProcessor(const LidarProcessorConfig& config)
     : config_(config) {}
 
+// Inputs:
+// - config: Updated LiDAR preprocessing configuration.
+// Purpose:
+// - Apply runtime configuration updates without reconstructing processor.
+// Outputs:
+// - Replaces active configuration used in subsequent processing.
 void LidarProcessor::setConfig(const LidarProcessorConfig& config) {
     config_ = config;
 }
 
+// Inputs:
+// - ranges: Raw LiDAR ranges.
+// - angle_min/angle_max/angle_increment: Scan angular metadata.
+// Purpose:
+// - Convert raw scan into filtered, clipped, and validity-tagged representation.
+// Outputs:
+// - Returns ProcessedScan structure for downstream algorithm use.
 ProcessedScan LidarProcessor::processScan(
     const std::vector<float>& ranges,
     double angle_min,
@@ -61,10 +79,22 @@ ProcessedScan LidarProcessor::processScan(
     return scan;
 }
 
+    // Inputs:
+    // - ranges: Range vector to filter in place.
+    // Purpose:
+    // - Apply median filtering for impulsive-noise suppression.
+    // Outputs:
+    // - Mutates ranges with median-filtered values.
 void LidarProcessor::applyMedianFilter(std::vector<double>& ranges) {
     ranges = math::medianFilter(ranges, config_.median_window_size);
 }
 
+    // Inputs:
+    // - scan: Processed scan to validate in place.
+    // Purpose:
+    // - Enforce finite values and configured range limits while updating validity mask.
+    // Outputs:
+    // - Mutates scan.filtered_ranges and scan.valid.
 void LidarProcessor::validateRanges(ProcessedScan& scan) {
     for (size_t i = 0; i < scan.filtered_ranges.size(); ++i) {
         double& range = scan.filtered_ranges[i];
@@ -78,6 +108,12 @@ void LidarProcessor::validateRanges(ProcessedScan& scan) {
     }
 }
 
+// Inputs:
+// - scan: Processed LiDAR scan.
+// Purpose:
+// - Locate nearest valid obstacle sample within configured angular sector.
+// Outputs:
+// - Returns index of closest valid point (0 when no valid points are found).
 size_t LidarProcessor::findClosestPoint(const ProcessedScan& scan) {
     if (scan.filtered_ranges.empty()) return 0;
     
@@ -99,6 +135,13 @@ size_t LidarProcessor::findClosestPoint(const ProcessedScan& scan) {
     return closest_idx;
 }
 
+    // Inputs:
+    // - scan: Processed LiDAR scan.
+    // - index: Beam index to convert.
+    // Purpose:
+    // - Convert one scan sample from polar to Cartesian robot-frame coordinates.
+    // Outputs:
+    // - Returns corresponding Point2D (origin when index is out of range).
 Point2D LidarProcessor::scanPointToCartesian(const ProcessedScan& scan, size_t index) {
     if (index >= scan.filtered_ranges.size()) {
         return Point2D();
@@ -110,6 +153,14 @@ Point2D LidarProcessor::scanPointToCartesian(const ProcessedScan& scan, size_t i
     return Point2D(range * std::cos(angle), range * std::sin(angle));
 }
 
+    // Inputs:
+    // - scan: Processed LiDAR scan.
+    // - robot_pose: Robot pose in global/map frame.
+    // - timestamp: Time tag assigned to extracted points.
+    // Purpose:
+    // - Project valid scan points into global frame for mapping/boundary extraction.
+    // Outputs:
+    // - Returns vector of BoundaryPoint records.
 std::vector<BoundaryPoint> LidarProcessor::extractBoundaryPoints(
     const ProcessedScan& scan,
     const Pose2D& robot_pose,

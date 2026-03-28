@@ -23,8 +23,8 @@ mpc_receiver:
     max_velocity: 12.0       # [m/s]
 
     # Control interval for speed integration: speed = vx + accel × dt
-    # Should match the state_publisher publish rate (default 50 Hz → 0.02 s)
-    control_dt: 0.02  # [s]
+    # Should match the state_publisher publish rate (default 200 Hz → 0.005 s)
+    control_dt: 0.005  # [s]
 
     # Safety watchdog: zero drive command if no state received within this timeout
     watchdog_timeout_ms: 100.0  # [ms]

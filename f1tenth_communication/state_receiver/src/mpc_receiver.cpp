@@ -12,7 +12,7 @@
  *   3. Map contiguous DMA buffer (reuses reserved memory at 0x70000000)
  *
  * Runtime (per MpcState message):
- *   1. Pack state + horizon into contiguous DMA buffer (336 bytes)
+ *   1. Pack state + horizon into contiguous DMA buffer (DMA_BUFFER_BYTES)
  *   2. Trigger MM2S DMA transfer to FPGA AXI-Stream input
  *   3. Wait for DMA + FPGA completion
  *   4. Read steering + accel from output registers
@@ -21,8 +21,8 @@
  * AXI-Stream Format (128-bit words):
  *   Beat 0: [e_y | e_psi | vx | vy]
  *   Beat 1: [omega | steering | horizon_length | reserved]
- *   Beat 2..20: [ref_vx[i] | ref_kappa[i] | ref_left[i] | ref_right[i]]
- *   Total: 21 beats × 16 bytes = 336 bytes
+ *   Beat 2..(1 + MPC_HORIZON): [ref_vx[i] | ref_kappa[i] | ref_left[i] | ref_right[i]]
+ *   Total: (2 + MPC_HORIZON) beats × 16 bytes = DMA_BUFFER_BYTES
  *
  * Transfer time: ~210 ns (vs ~1850 ns DDR path)
  *
@@ -49,52 +49,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-// MPC FPGA AXI-Lite register map and constants
-// NOTE: Addresses configured in Vivado block design (Address Editor)
-#define MPC_FPGA_BASE_ADDR      0xA0010000
-
-// AXI DMA IP base address
-#define AXI_DMA_BASE_ADDR       0xA0000000
-
-// MPC IP control registers (AXI-Lite)
-#define REG_AP_CTRL             0x000
-#define REG_GIE                 0x004
-#define REG_IER                 0x008
-#define REG_ISR                 0x00C
-
-// Output registers (AXI-Lite, from HLS)
-#define REG_OUT_STEERING        0x010
-#define REG_OUT_STEERING_VLD    0x014
-#define REG_OUT_ACCEL           0x020
-#define REG_OUT_ACCEL_VLD       0x024
-#define REG_OUT_STATUS          0x030
-#define REG_OUT_STATUS_VLD      0x034
-#define REG_OUT_ITERATIONS      0x040
-#define REG_OUT_ITERATIONS_VLD  0x044
-
-// AXI DMA MM2S (Memory-Mapped to Stream) control registers
-#define DMA_MM2S_CTRL           0x00    // MM2S Control register
-#define DMA_MM2S_STATUS         0x04    // MM2S Status register
-#define DMA_MM2S_SRC_LO         0x18    // MM2S Source Address (low 32 bits)
-#define DMA_MM2S_SRC_HI         0x1C    // MM2S Source Address (high 32 bits)
-#define DMA_MM2S_LENGTH         0x28    // MM2S Transfer Length
-
-// DMA control bits
-#define DMA_CTRL_RUN            0x0001  // Start DMA
-#define DMA_CTRL_RESET          0x0004  // Reset DMA channel
-#define DMA_STATUS_HALTED       0x0001  // DMA halted
-#define DMA_STATUS_IDLE         0x0002  // DMA idle (transfer complete)
-#define DMA_STATUS_ERR_INT      0x4000  // Error interrupt
-#define DMA_STATUS_ERR_SLV      0x0020  // Slave error
-#define DMA_STATUS_ERR_DEC      0x0040  // Decode error
-
-// MPC horizon parameters
-#define MPC_HORIZON             10
-#define DMA_BUFFER_BEATS        (2 + MPC_HORIZON)   // 21 beats
-#define DMA_BUFFER_BYTES        (DMA_BUFFER_BEATS * 16)  // 336 bytes
-
-// DMA buffer physical address (reuse reserved memory region)
-#define DMA_BUFFER_PHYS         0x70000000
+#include "mpc_fpga_interface.h"
 
 namespace f1tenth_communication {
 
@@ -122,14 +77,6 @@ inline int32_t float_to_fp(float f) {
 }
 
 /*===========================================================================
- * AP_CTRL bits (standard Vitis HLS AXI-Lite control)
- *===========================================================================*/
-
-static constexpr uint32_t AP_START = 0x01;
-static constexpr uint32_t AP_DONE  = 0x02;
-static constexpr uint32_t AP_IDLE  = 0x04;
-
-/*===========================================================================
  * MPC FPGA AXI-Lite Interface
  *
  * Communicates with the Riccati-ADMM MPC IP via:
@@ -151,7 +98,7 @@ public:
      */
     bool initialize(uint32_t mpc_base_addr = MPC_FPGA_BASE_ADDR,
                     uint32_t dma_base_addr = AXI_DMA_BASE_ADDR,
-                    uint64_t dma_buf_phys = DMA_BUFFER_PHYS) {
+                    uint64_t dma_buf_phys = DMA_BUFFER_PHYS_ADDR) {
         if (!is_fpga_operating()) {
             fprintf(stderr, "MPC-FPGA: fpga_manager state is not operating; refusing /dev/mem init\n");
             return false;

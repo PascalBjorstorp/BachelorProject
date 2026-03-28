@@ -14,6 +14,7 @@
 #endif
 
 #include "fp_math_hls.h"
+#include "mpc_fpga_constants.h"
 
 /*===========================================================================
  * MPC Dimension Constants
@@ -32,7 +33,7 @@
 #define MPC_NU          2
 
 /** Fixed prediction horizon */
-#define MPC_HORIZON     10
+#define MPC_HORIZON     MPC_FPGA_HORIZON_STEPS
 
 /** Maximum ADMM iterations */
 #define MPC_MAX_ADMM_ITER 8
@@ -84,22 +85,22 @@
  * Values can be found in f1tenth_parameters/vehicle_params.yaml
  *===========================================================================*/
 
-#define VP_WHEELBASE            FP_CONST(0.324)     /* Distance between front and rear axles */
-#define VP_LF                   FP_CONST(0.166)     /* Distance from CG to front axle */
-#define VP_LR                   FP_CONST(0.16)      /* Distance from CG to rear axle */
-#define VP_MASS                 FP_CONST(3.314)     /* Vehicle mass (kg) */
-#define VP_IZ                   FP_CONST(0.035)     /* Yaw moment of inertia (kg*m^2) */
-#define VP_CG_HEIGHT            FP_CONST(0.0703)    /* Center of gravity height (m) */
-#define VP_GRAVITY              FP_CONST(9.81)      /* Gravitational acceleration (m/s^2) */
-#define VP_MU                   FP_CONST(0.745)     /* Tire friction coefficient */
-#define VP_MAX_STEER            FP_CONST(0.4189)    /* Maximum steering angle (rad) */
-#define VP_MAX_VEL              FP_CONST(14.0)      /* Maximum velocity (m/s) */
-#define VP_MIN_VEL              FP_CONST(0.0)       /* Minimum velocity (m/s) */
-#define VP_MAX_ACCEL            FP_CONST(7.31)      /* Maximum acceleration (m/s^2) */
-#define VP_MIN_ACCEL            FP_CONST(-7.31)     /* Minimum acceleration (m/s^2) */
-#define VP_MAX_STEER_RATE       FP_CONST(2.849)     /* Maximum steering rate (rad/s) */
-#define VP_C_ALPHA_F_NRAD       FP_CONST(51.40)     /* Front tire cornering stiffness (N/rad) */
-#define VP_C_ALPHA_R_NRAD       FP_CONST(43.10)     /* Rear tire cornering stiffness (N/rad) */
+#define VP_WHEELBASE            FP_CONST(MPC_FPGA_WHEELBASE_M)     /* Distance between front and rear axles */
+#define VP_LF                   FP_CONST(MPC_FPGA_LF_M)            /* Distance from CG to front axle */
+#define VP_LR                   FP_CONST(MPC_FPGA_LR_M)            /* Distance from CG to rear axle */
+#define VP_MASS                 FP_CONST(MPC_FPGA_MASS_KG)         /* Vehicle mass (kg) */
+#define VP_IZ                   FP_CONST(MPC_FPGA_IZ_KGM2)         /* Yaw moment of inertia (kg*m^2) */
+#define VP_CG_HEIGHT            FP_CONST(MPC_FPGA_CG_HEIGHT_M)     /* Center of gravity height (m) */
+#define VP_GRAVITY              FP_CONST(MPC_FPGA_GRAVITY_MS2)     /* Gravitational acceleration (m/s^2) */
+#define VP_MU                   FP_CONST(MPC_FPGA_MU)              /* Tire friction coefficient */
+#define VP_MAX_STEER            FP_CONST(MPC_FPGA_MAX_STEER_RAD)   /* Maximum steering angle (rad) */
+#define VP_MAX_VEL              FP_CONST(MPC_FPGA_MAX_VEL_MPS)     /* Maximum velocity (m/s) */
+#define VP_MIN_VEL              FP_CONST(MPC_FPGA_MIN_VEL_MPS)     /* Minimum velocity (m/s) */
+#define VP_MAX_ACCEL            FP_MUL(VP_MU, VP_GRAVITY)  /* Maximum acceleration (m/s^2) = mu * g */
+#define VP_MIN_ACCEL            (-(VP_MAX_ACCEL))           /* Minimum acceleration (m/s^2) */
+#define VP_MAX_STEER_RATE       FP_CONST(MPC_FPGA_MAX_STEER_RATE_RADPS)   /* Maximum steering rate (rad/s) */
+#define VP_C_ALPHA_F_NRAD       FP_CONST(MPC_FPGA_C_ALPHA_F_N_PER_RAD)     /* Front tire cornering stiffness (N/rad) */
+#define VP_C_ALPHA_R_NRAD       FP_CONST(MPC_FPGA_C_ALPHA_R_N_PER_RAD)     /* Rear tire cornering stiffness (N/rad) */
 
 #define VP_INV_L                FP_DIV(FP_ONE, VP_WHEELBASE)         /* 1/L */
 #define VP_MG                   FP_MUL(VP_MASS, VP_GRAVITY)          /* mass * gravity */
@@ -173,7 +174,7 @@
 
 /* Control period for cross-call rate scaling.
  * Default control loop is 200 Hz => 0.005 s. */
-#define MPC_CONTROL_RATE_HZ     FP_CONST(200.0)
+#define MPC_CONTROL_RATE_HZ     FP_CONST(MPC_FPGA_CONTROL_RATE_HZ)
 #define MPC_CONTROL_DT          FP_DIV(FP_ONE, MPC_CONTROL_RATE_HZ)
 
 /* Cross-call rate scale = control_dt / prediction_dt. */

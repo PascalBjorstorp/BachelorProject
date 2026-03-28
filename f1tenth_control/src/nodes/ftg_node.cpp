@@ -63,7 +63,7 @@ FTGNode::FTGNode(const rclcpp::NodeOptions& options)
 void FTGNode::declareParameters() {
     // Vehicle parameters
     declare_parameter("wheelbase", 0.3302);
-    declare_parameter("car_width", 0.30);
+    declare_parameter("car_width", 0.273);
 
     // Speed control
     declare_parameter("max_speed", 2.0);
@@ -74,7 +74,7 @@ void FTGNode::declareParameters() {
     // Steering control
     declare_parameter("max_steering", 0.4189);
     declare_parameter("steering_gain", 1.0);
-    declare_parameter("max_steering_rate", 3.5);
+    declare_parameter("max_steering_rate", 2.8492);
     declare_parameter("target_ema_alpha", 0.35);
 
     // Weighted free-space scoring
@@ -99,10 +99,6 @@ void FTGNode::declareParameters() {
     declare_parameter("lidar.angle_max", 1.5708);
     declare_parameter("lidar.apply_median_filter", true);
     declare_parameter("lidar.median_window_size", 3);
-
-    // Mapping mode
-    declare_parameter("mapping_mode", false);
-    declare_parameter("mapping_sample_rate", 10.0);
 }
 
 void FTGNode::loadParameters() {
@@ -144,10 +140,6 @@ void FTGNode::loadParameters() {
     config_.lidar_config.angle_max = get_parameter("lidar.angle_max").as_double();
     config_.lidar_config.apply_median_filter = get_parameter("lidar.apply_median_filter").as_bool();
     config_.lidar_config.median_window_size = get_parameter("lidar.median_window_size").as_int();
-
-    // Mapping mode
-    config_.mapping_mode = get_parameter("mapping_mode").as_bool();
-    config_.mapping_sample_rate = get_parameter("mapping_sample_rate").as_double();
 }
 
 rcl_interfaces::msg::SetParametersResult FTGNode::parametersCallback(
@@ -177,23 +169,12 @@ void FTGNode::scanCallback(const sensor_msgs::msg::LaserScan::ConstSharedPtr msg
     // Store laser frame ID for visualization
     laser_frame_id_ = msg->header.frame_id;
     
-    // Get current pose from odometry
-    Pose2D current_pose;
-    double timestamp;
-    {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        current_pose = current_state_.pose;
-        timestamp = now().seconds();
-    }
-    
     // Run FTG algorithm
     FTGOutput output = ftg_->compute(
         msg->ranges,
         msg->angle_min,
         msg->angle_max,
-        msg->angle_increment,
-        current_pose,
-        timestamp
+        msg->angle_increment
     );
     
     // Steering smoothing is now handled internally by the FTG algorithm

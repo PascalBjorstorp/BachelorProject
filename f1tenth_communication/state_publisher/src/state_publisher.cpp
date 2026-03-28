@@ -13,6 +13,7 @@
 #include <f1tenth_msgs/msg/mpc_state.hpp>
 
 #include "state_publisher/kdtree.hpp"
+#include "mpc_fpga_constants.h"
 
 #include <fstream>
 #include <sstream>
@@ -31,7 +32,7 @@ namespace f1tenth_communication {
 
 class StatePublisherNode : public rclcpp::Node {
 public:
-    static constexpr size_t MAX_MPC_HORIZON = 10;
+    static constexpr size_t MAX_MPC_HORIZON = MPC_FPGA_HORIZON_STEPS;
 
     StatePublisherNode() : Node("state_publisher") {
         // Parameters

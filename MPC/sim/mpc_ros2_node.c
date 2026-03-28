@@ -369,7 +369,6 @@ static void build_reference_from_trajectory(int closest_index)
     const double mpc_dt = g_mpc_dt;
     double s_query = global_trajectory[closest_index].s_meters;
     double step_velocity = global_trajectory[closest_index].velocity_meters_per_second;
-    if (step_velocity < 3.0) step_velocity = 3.0;
     if (step_velocity > TRAJECTORY_MAXIMUM_VELOCITY) step_velocity = TRAJECTORY_MAXIMUM_VELOCITY;
 
     for (int step = 0; step < g_mpc_horizon; step++)
@@ -379,7 +378,6 @@ static void build_reference_from_trajectory(int closest_index)
         sample_waypoint_by_s(s_query, &wp);
 
         double traj_vel = wp.velocity_meters_per_second;
-        if (traj_vel < 3.0) traj_vel = 3.0;
         if (traj_vel > TRAJECTORY_MAXIMUM_VELOCITY) traj_vel = TRAJECTORY_MAXIMUM_VELOCITY;
         step_velocity = traj_vel;
 

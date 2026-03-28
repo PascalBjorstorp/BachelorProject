@@ -14,6 +14,17 @@ from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
+        """Inputs:
+        - None.
+
+        Purpose:
+        - Build launch graph for Pure Pursuit component container including trajectory
+            selection and runtime tuning arguments.
+
+        Outputs:
+        - Returns LaunchDescription with launch arguments and one composable
+            PurePursuitNode container action.
+        """
     # Get package directories
     f1tenth_control_share = get_package_share_directory('f1tenth_control')
     
@@ -237,41 +248,6 @@ def generate_launch_description():
             ),
         ],
         output='screen',
-        parameters=[{
-            'trajectory_file': LaunchConfiguration('trajectory_file'),
-            'min_lookahead': LaunchConfiguration('min_lookahead'),
-            'max_lookahead': LaunchConfiguration('max_lookahead'),
-            'lookahead_gain': LaunchConfiguration('lookahead_gain'),
-            'max_speed': LaunchConfiguration('max_speed'),
-            'cte_lookahead_weight': LaunchConfiguration('cte_lookahead_weight'),
-            'cte_lookahead_gain': LaunchConfiguration('cte_lookahead_gain'),
-            'curvature_lookahead_gain': LaunchConfiguration('curvature_lookahead_gain'),
-            'curvature_speed_factor': LaunchConfiguration('curvature_speed_factor'),
-            'curvature_speed_floor_ratio': LaunchConfiguration('curvature_speed_floor_ratio'),
-            'cte_speed_factor': LaunchConfiguration('cte_speed_factor'),
-            'cte_speed_floor_ratio': LaunchConfiguration('cte_speed_floor_ratio'),
-            'max_lateral_accel': LaunchConfiguration('max_lateral_accel'),
-            'min_regulated_speed': LaunchConfiguration('min_regulated_speed'),
-            'curvature_preview_factor': LaunchConfiguration('curvature_preview_factor'),
-            'vehicle_half_width': LaunchConfiguration('vehicle_half_width'),
-            'wall_safety_margin': LaunchConfiguration('wall_safety_margin'),
-            'corridor_half_width_ref': LaunchConfiguration('corridor_half_width_ref'),
-            'corridor_speed_floor_ratio': LaunchConfiguration('corridor_speed_floor_ratio'),
-            'corridor_lookahead_factor': LaunchConfiguration('corridor_lookahead_factor'),
-            'max_steering': 0.4189,
-            'wheelbase': 0.324,
-            'max_steering_rate': LaunchConfiguration('max_steering_rate'),
-            'max_accel_cmd': LaunchConfiguration('max_accel_cmd'),
-            'max_decel_cmd': LaunchConfiguration('max_decel_cmd'),
-            'publish_visualization': True,
-            'pose_topic': LaunchConfiguration('pose_topic'),
-            'pose_timeout_s': LaunchConfiguration('pose_timeout_s'),
-            'odom_timeout_s': LaunchConfiguration('odom_timeout_s'),
-        }],
-        remappings=[
-            ('/odom', '/ego_racecar/odom'),
-            ('/drive', '/drive'),
-        ]
     )
     
     return LaunchDescription([

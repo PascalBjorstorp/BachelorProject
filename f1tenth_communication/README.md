@@ -26,7 +26,7 @@ Custom ROS2 message definitions:
 - **MpcState.msg** (Q16.16 Fixed-Point):
   - `x_fp, y_fp, theta_fp, velocity_fp`: Vehicle state in Q16.16
   - `waypoint_index`: Nearest waypoint index
-    - `horizon_length` + `ref_*_fp[20]`: Streaming MPC reference horizon
+    - `horizon_length` + `ref_*_fp[10]`: Streaming MPC reference horizon
   - `timestamp_ms`: For latency measurement
 
 ### state_publisher (Jetson)

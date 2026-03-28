@@ -33,5 +33,5 @@ state_publisher:
     forward_lookahead: 3
 
     # Number of reference waypoints to stream in each MpcState message.
-    # Current FPGA bitstream expects fixed horizon=20.
-    horizon: 20
+    # Current FPGA bitstream expects fixed horizon=10.
+    horizon: 10
