@@ -24,7 +24,7 @@ ARM → DMA Buffer → AXI DMA → AXI-Stream → FPGA
 ## Step 1: Export and Synthesize New HLS IP
 
 ### 1.1 Update HLS Source
-The `mpc_fpga_top.c` has already been modified to use AXI-Stream input:
+The `mpc_fpga_top.cpp` source is compiled as C++ for HLS and exposes the AXI-stream top:
 
 ```c
 void mpc_fpga_top(
@@ -123,8 +123,8 @@ Open Address Editor tab and verify/assign addresses:
 
 | IP | Interface | Base Address | Size |
 |----|-----------|--------------|------|
-| `mpc_fpga_top` | `s_axi_ctrl` | `0xA0000000` | 64K |
-| `axi_dma` | `S_AXI_LITE` | `0xA0010000` | 64K |
+| `mpc_fpga_top` | `s_axi_ctrl` | `0xA0010000` | 64K |
+| `axi_dma` | `S_AXI_LITE` | `0xA0000000` | 64K |
 
 **DMA Memory Range:**
 - Ensure HP port can access `0x70000000 - 0x70000FFF` (DMA buffer)
@@ -157,7 +157,7 @@ Open Address Editor tab and verify/assign addresses:
 ┌─────────────────────────────────────┐     │   ┌───────┐   ┌──────────┐
 │           AXI DMA                   │     │   │ DMA   │   │  MPC IP  │
 │ ┌─────────────┐  ┌───────────────┐  │     │   │ ctrl  │   │  ctrl    │
-│ │ S_AXI_LITE  │◄─┤               │  │     │   │0xA001 │   │ 0xA000   │
+│ │ S_AXI_LITE  │◄─┤               │  │     │   │0xA000 │   │ 0xA001   │
 │ │  (control)  │  │               │  │     │   └───────┘   └──────────┘
 │ └─────────────┘  │               │  │     │
 │ ┌─────────────┐  │    MM2S       │  │     │
@@ -251,7 +251,7 @@ cd /home/xilinx
 ### 8.3 Verify Operation
 Expected log output:
 ```
-MPC-FPGA: Init OK - MPC@0xA0000000 (AP_CTRL=0x04), DMA@0xA0010000 (STATUS=0x02), Buffer@0x70000000
+MPC-FPGA: Init OK - MPC@0xA0010000 (AP_CTRL=0x04), DMA@0xA0000000 (STATUS=0x02), Buffer@0x70000000
 MPC Receiver [FPGA AXI-Stream] ready.  /mpc_state → /drive
 ```
 
@@ -283,7 +283,7 @@ MPC Receiver [FPGA AXI-Stream] ready.  /mpc_state → /drive
 
 ## Register Map Summary
 
-### MPC IP (0xA0000000)
+### MPC IP (0xA0010000)
 | Offset | Name | Access | Description |
 |--------|------|--------|-------------|
 | 0x00 | AP_CTRL | R/W | Control (bit0=START, bit1=DONE, bit2=IDLE) |
@@ -292,7 +292,7 @@ MPC Receiver [FPGA AXI-Stream] ready.  /mpc_state → /drive
 | 0x30 | out_status | R | Status code |
 | 0x40 | out_iterations | R | ADMM iterations used |
 
-### AXI DMA (0xA0010000)
+### AXI DMA (0xA0000000)
 | Offset | Name | Access | Description |
 |--------|------|--------|-------------|
 | 0x00 | MM2S_DMACR | R/W | MM2S Control (bit0=RUN, bit2=RESET) |

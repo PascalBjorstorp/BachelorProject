@@ -35,15 +35,13 @@
  *
  * Discretization: Forward Euler method
  *   state[k+1] = state[k] + dt * derivative[k]
- *
- * All calculations use fixed-point arithmetic for FPGA compatibility.
  */
 
 #ifndef VEHICLE_MODEL_H
 #define VEHICLE_MODEL_H
 
 #include "mpc_types.h"
-#include "fp_math.h"
+#include "util_math.h"
 
 
 /*===========================================================================
@@ -120,7 +118,7 @@ ControlInput_t vehicle_model_saturate_control(
 VehicleState_t vehicle_model_predict_next_state(
     const VehicleState_t *current_state,
     const ControlInput_t *control_input,
-    fixed_point_t time_step);
+    float time_step);
 
 /*===========================================================================
  * Trajectory Prediction (Multiple Steps)
@@ -143,7 +141,7 @@ VehicleState_t vehicle_model_predict_next_state(
 void vehicle_model_predict_trajectory(
     const VehicleState_t *initial_state,
     const ControlInput_t *control_sequence,
-    fixed_point_t time_step,
+    float time_step,
     uint16_t step_count,
     VehicleState_t *predicted_trajectory);
 
@@ -174,9 +172,9 @@ void vehicle_model_predict_trajectory(
 void vehicle_model_compute_linearization(
     const VehicleState_t *operating_state,
     const ControlInput_t *operating_control,
-    fixed_point_t time_step,
-    fixed_point_t state_matrix_A[6][6],
-    fixed_point_t input_matrix_B[6][2]);
+    float time_step,
+    float state_matrix_A[6][6],
+    float input_matrix_B[6][2]);
 
 /*===========================================================================
  * Frenet Frame Linearization
@@ -208,9 +206,9 @@ void vehicle_model_compute_linearization(
 void vehicle_model_compute_frenet_linearization(
     const FrenetState_t *frenet_state,
     const ControlInput_t *operating_control,
-    fixed_point_t time_step,
-    fixed_point_t path_curvature,
-    fixed_point_t state_matrix_A[FRENET_STATE_DIMENSION][FRENET_STATE_DIMENSION],
-    fixed_point_t input_matrix_B[FRENET_STATE_DIMENSION][2]);
+    float time_step,
+    float path_curvature,
+    float state_matrix_A[FRENET_STATE_DIMENSION][FRENET_STATE_DIMENSION],
+    float input_matrix_B[FRENET_STATE_DIMENSION][2]);
 
 #endif /* VEHICLE_MODEL_H */

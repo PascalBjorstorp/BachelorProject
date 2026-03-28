@@ -14,22 +14,34 @@ namespace f1tenth_control {
  */
 struct PurePursuitConfig {
     // Lookahead parameters
-    double min_lookahead{0.5};      // [m] Minimum lookahead distance
-    double max_lookahead{2.5};      // [m] Maximum lookahead distance (reduced to avoid early turn-in)
-    double lookahead_gain{0.15};    // Velocity-proportional gain: L = min_L + k*v (reduced)
+    double min_lookahead{0.48};      // [m] Minimum lookahead distance
+    double max_lookahead{1.20};      // [m] Maximum lookahead distance
+    double lookahead_gain{0.15};     // Velocity-proportional gain: L = min_L + k*v
     double cte_lookahead_weight{1.0}; // [unitless] Weight on |CTE| contribution
-    double cte_lookahead_gain{0.0}; // [m/m] Reduce lookahead with cross-track error
-    double curvature_lookahead_gain{0.0}; // [m/(1/m)] Reduce lookahead in high curvature
+    double cte_lookahead_gain{0.05}; // [m/m] Reduce lookahead with cross-track error
+    double curvature_lookahead_gain{1.34}; // [m·m] L_max = L_curv_gain / |κ| (turn-radius-based limit)
 
     // Speed control
-    double curvature_speed_factor{0.20}; // [unitless] Aggressiveness of curvature-based slowdown
-    double curvature_speed_floor_ratio{0.85}; // [0..1] Minimum speed ratio after slowdown
+    double curvature_speed_factor{0.10}; // [unitless] Aggressiveness of curvature-based slowdown
+    double curvature_speed_floor_ratio{0.43}; // [0..1] Minimum speed ratio after slowdown
+    double cte_speed_factor{0.10}; // [unitless] Slowdown gain based on |CTE|
+    double cte_speed_floor_ratio{0.50}; // [0..1] Minimum speed ratio from CTE slowdown
+    double max_lateral_accel{7.27}; // [m/s^2] Physics-aware cornering speed cap
+    double min_regulated_speed{0.30}; // [m/s] Lower bound after speed regulation
+    double curvature_preview_factor{1.2}; // [unitless] Preview N× lookahead for braking
+
+    // Footprint-aware corridor regulation
+    double vehicle_half_width{0.1365}; // [m] Half of physical car width
+    double wall_safety_margin{0.03}; // [m] Additional static wall clearance margin
+    double corridor_half_width_ref{0.25}; // [m] Reference usable half-width for full speed
+    double corridor_speed_floor_ratio{0.20}; // [0..1] Floor for corridor-based speed scaling
+    double corridor_lookahead_factor{2.0}; // [m/m] Additional lookahead allowed per usable half-width
     
     // Steering limits
     double max_steering{0.4189};    // [rad] Maximum steering angle (~24°)
     
     // Vehicle parameters
-    double wheelbase{0.3302};       // [m] Distance between axles
+    double wheelbase{0.324};        // [m] Distance between axles
     
     // Path tracking
     double position_tolerance{0.5}; // [m] Max deviation before re-finding closest point
@@ -126,17 +138,14 @@ private:
     size_t findClosestPoint(const Point2D& position);
     
     /**
-     * @brief Find lookahead target point
-     * @param closest_idx Index of closest waypoint
-     * @param lookahead_dist Desired lookahead distance
-     * @return Index of target waypoint
-     */
-    size_t findLookaheadTarget(size_t closest_idx, double lookahead_dist);
-    
-    /**
      * @brief Interpolate between two trajectory points
      */
     TrajectoryPoint interpolate(size_t idx1, size_t idx2, double t) const;
+
+    /**
+     * @brief Whether current trajectory should be treated as a closed loop.
+     */
+    bool isTrajectoryClosed() const;
 };
 
 }  // namespace f1tenth_control

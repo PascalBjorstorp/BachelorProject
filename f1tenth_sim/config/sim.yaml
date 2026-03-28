@@ -46,8 +46,8 @@ bridge:
     # map parameters
     # Map name (without extension). The bridge node resolves this to
     # <package_share>/maps/<map_path>.yaml at runtime.
-    map_path: 'my_track_map'
-    map_img_ext: '.pgm'
+    map_path: 'Spielberg_map'
+    map_img_ext: '.png'
 
     # car parameters and scale
     vehicle_params: 'f1tenth'
@@ -86,10 +86,10 @@ bridge:
     # opponent parameters
     num_agent: 1
 
-    # ego starting pose on map (my_track raceline[0] in map frame)
-    sx: 4.317150
-    sy: -4.834061
-    stheta: -3.034858
+    # ego starting pose on map (Spielberg raceline[0] in map frame)
+    sx: -69.343898
+    sy: 54.014155
+    stheta: 0.212219
 
     # opp starting pose on map
     sx1: -2.0

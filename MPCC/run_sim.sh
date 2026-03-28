@@ -22,7 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 DURATION_SECONDS="${1:-120}"
-TRAJECTORY_FILE="${2:-${ROOT_DIR}/f1tenth_planning/trajectories/Spielberg_raceline_optimized_wide.csv}"
+TRAJECTORY_FILE="${2:-${ROOT_DIR}/f1tenth_planning/trajectories/Spielberg_raceline.csv}"
 
 RUN_ID="$(date +%Y%m%d_%H%M%S)"
 LOG_DIR="${SCRIPT_DIR}/logs/run_${RUN_ID}"
@@ -63,7 +63,7 @@ echo "Duration: ${DURATION_SECONDS}s"
 # Step 1: Build the ROS2 package
 #===========================================================================
 echo ""
-echo "--- Building mpcc_f1_10th ROS2 package ---"
+echo "--- Building f1tenth_gym_ros + mpcc_f1_10th ROS2 packages ---"
 
 cd "${ROOT_DIR}"
 
@@ -72,8 +72,8 @@ set +u
 source /opt/ros/jazzy/setup.bash
 set -u
 
-# Build the mpcc_f1_10th package (pulls in MPC shared sources via CMake)
-colcon build --packages-select mpcc_f1_10th 2>&1 | tail -5
+# Build both gym and MPCC so run-time config in install/ is current.
+colcon build --packages-select f1tenth_gym_ros mpcc_f1_10th 2>&1 | tail -8
 
 # Re-source the workspace after build
 set +u
@@ -89,6 +89,81 @@ echo ""
 echo "--- Launching simulation ---"
 
 export PYTHONPATH="${ROOT_DIR}/f1tenth_sim:${ROOT_DIR}/f1tenth_sim/.venv/lib/python3.12/site-packages:${PYTHONPATH:-}"
+
+SIM_CFG_SOURCE="${ROOT_DIR}/f1tenth_sim/config/sim.yaml"
+yaml_number() {
+    local key="$1"
+    awk -v key="$key" '
+        $1 == key ":" {
+            v = $2
+            sub(/#.*/, "", v)
+            gsub(/[[:space:]]/, "", v)
+            gsub(/["\047]/, "", v)
+            print v
+            exit
+        }
+    ' "${SIM_CFG_SOURCE}" 2>/dev/null
+}
+
+SIM_MU="$(yaml_number vehicle_mu)"
+SIM_C_SF="$(yaml_number vehicle_C_Sf)"
+SIM_C_SR="$(yaml_number vehicle_C_Sr)"
+SIM_A_MAX="$(yaml_number vehicle_a_max)"
+SIM_MAP_PATH="$(yaml_number map_path)"
+SIM_MAP_IMG_EXT="$(yaml_number map_img_ext)"
+SIM_A_MIN=""
+if [[ -n "${SIM_A_MAX}" ]]; then
+    SIM_A_MIN="$(awk -v a="${SIM_A_MAX}" 'BEGIN{printf "%.6f", -a}')"
+fi
+
+TRAJ_SX="$(awk -F, 'NR==2 {gsub(/[[:space:]]/, "", $2); print $2; exit}' "${TRAJECTORY_FILE}" 2>/dev/null || true)"
+TRAJ_SY="$(awk -F, 'NR==2 {gsub(/[[:space:]]/, "", $3); print $3; exit}' "${TRAJECTORY_FILE}" 2>/dev/null || true)"
+TRAJ_STHETA="$(awk -F, 'NR==2 {gsub(/[[:space:]]/, "", $4); print $4; exit}' "${TRAJECTORY_FILE}" 2>/dev/null || true)"
+
+DEFAULT_GYM_MAP_PATH="${SIM_MAP_PATH:-my_track_map}"
+DEFAULT_GYM_MAP_IMG_EXT="${SIM_MAP_IMG_EXT:-.pgm}"
+if [[ "$(basename "${TRAJECTORY_FILE}")" == *"Spielberg"* ]]; then
+    DEFAULT_GYM_MAP_PATH="Spielberg_map"
+    DEFAULT_GYM_MAP_IMG_EXT=".png"
+fi
+
+# Match test_sim_drive defaults so ROS run is comparable.
+export HORIZON="${HORIZON:-15}"
+export DT="${DT:-0.05}"
+export Q_N="${Q_N:-50.0}"
+export Q_ALPHA="${Q_ALPHA:-20.0}"
+export Q_PROGRESS="${Q_PROGRESS:-1.0}"
+export Q_VX="${Q_VX:-2.0}"
+export VX_REF="${VX_REF:-12.0}"
+export Q_VY="${Q_VY:-10.0}"
+export Q_OMEGA="${Q_OMEGA:-0.1}"
+export R_DELTA="${R_DELTA:-1.0}"
+export R_AX="${R_AX:-0.01}"
+export R_VTHETA="${R_VTHETA:-0.5}"
+export W_DELTA_RATE="${W_DELTA_RATE:-10.0}"
+export W_AX_RATE="${W_AX_RATE:-0.1}"
+export W_VTHETA_RATE="${W_VTHETA_RATE:-0.1}"
+export Q_N_TERM="${Q_N_TERM:-100.0}"
+export Q_ALPHA_TERM="${Q_ALPHA_TERM:-10.0}"
+export Q_PROGRESS_TERM="${Q_PROGRESS_TERM:-5.0}"
+export ADMM_RHO="${ADMM_RHO:-1.218171}"
+export ADMM_MAX_ITER="${ADMM_MAX_ITER:-200}"
+export ADMM_TOL="${ADMM_TOL:-0.05}"
+export V_THETA_MAX="${V_THETA_MAX:-2.0}"
+export MU="${MU:-${SIM_MU:-0.745}}"
+export C_SF="${C_SF:-${SIM_C_SF:-4.297}}"
+export C_SR="${C_SR:-${SIM_C_SR:-3.473}}"
+export AX_MAX="${AX_MAX:-${SIM_A_MAX:-7.0}}"
+export AX_MIN="${AX_MIN:-${SIM_A_MIN:--10.0}}"
+export GYM_MAP_PATH="${GYM_MAP_PATH:-${DEFAULT_GYM_MAP_PATH}}"
+export GYM_MAP_IMG_EXT="${GYM_MAP_IMG_EXT:-${DEFAULT_GYM_MAP_IMG_EXT}}"
+export GYM_SX="${GYM_SX:-${TRAJ_SX:-4.317150}}"
+export GYM_SY="${GYM_SY:-${TRAJ_SY:--4.834061}}"
+export GYM_STHETA="${GYM_STHETA:-${TRAJ_STHETA:--3.034858}}"
+
+echo "Model sync: MU=${MU} C_SF=${C_SF} C_SR=${C_SR} AX_MAX=${AX_MAX} AX_MIN=${AX_MIN}"
+echo "Map override: GYM_MAP_PATH=${GYM_MAP_PATH} GYM_MAP_IMG_EXT=${GYM_MAP_IMG_EXT}"
+echo "Spawn override: GYM_SX=${GYM_SX} GYM_SY=${GYM_SY} GYM_STHETA=${GYM_STHETA}"
 
 echo "Launching gym_bridge..."
 ros2 launch f1tenth_gym_ros gym_bridge_launch.py >"${GYM_LOG}" 2>&1 &
@@ -116,6 +191,10 @@ while (( SECONDS < END_TIME )); do
         break
     fi
 
+    if [[ -n "${SIM_PID}" ]] && ! kill -0 "${SIM_PID}" 2>/dev/null; then
+        break
+    fi
+
     sleep 0.5
 done
 
@@ -124,6 +203,7 @@ done
 #===========================================================================
 LOG_DIR_ENV="${LOG_DIR}" python3 - <<'PY' > "${SUMMARY_LOG}"
 import os
+import re
 from pathlib import Path
 
 log_dir = Path(os.environ["LOG_DIR_ENV"])
@@ -137,15 +217,41 @@ def first_line(lines, token):
     return None, None
 
 first_collision_line, first_collision_text = first_line(gym, "Ego vehicle collision detected!")
-first_status2_line, first_status2_text = first_line(mpcc, "WARNING: Solver status=2")
-status2_count = sum("WARNING: Solver status=2" in line for line in mpcc)
-status0_count = sum("[MPCC] Control:" in line and "status=0" in line for line in mpcc)
+first_status2_line, first_status2_text = first_line(mpcc, "status=2")
+if first_status2_line is None:
+    first_status2_line, first_status2_text = first_line(mpcc, "status=3")
+
+status2_count = sum(("status=2" in line) or ("status=3" in line) for line in mpcc)
+status1_count = sum("status=1" in line for line in mpcc)
+status0_count = sum("status=0" in line for line in mpcc)
+
+clip_vals = []
+rho_update_vals = []
+for line in mpcc:
+    if "[MPCC] status=" not in line:
+        continue
+    m_clip = re.search(r"clip=(\d+)", line)
+    if m_clip:
+        clip_vals.append(int(m_clip.group(1)))
+    m_rupd = re.search(r"rho_upd=(\d+)", line)
+    if m_rupd:
+        rho_update_vals.append(int(m_rupd.group(1)))
+
+avg_clip = (sum(clip_vals) / len(clip_vals)) if clip_vals else 0.0
+max_clip = max(clip_vals) if clip_vals else 0
+avg_rho_updates = (sum(rho_update_vals) / len(rho_update_vals)) if rho_update_vals else 0.0
+max_rho_updates = max(rho_update_vals) if rho_update_vals else 0
 
 print(f"variant: MPCC (Contouring Control)")
 print(f"first_collision_line: {first_collision_line}")
 print(f"first_status2_line: {first_status2_line}")
 print(f"status2_count: {status2_count}")
+print(f"status1_count: {status1_count}")
 print(f"status0_count: {status0_count}")
+print(f"avg_clip: {avg_clip:.2f}")
+print(f"max_clip: {max_clip}")
+print(f"avg_rho_updates: {avg_rho_updates:.2f}")
+print(f"max_rho_updates: {max_rho_updates}")
 
 if first_collision_text:
     print(f"first_collision_text: {first_collision_text}")
@@ -177,6 +283,7 @@ fi
 # Extract stats from summary
 COLLISION_LINE=$(grep "^first_collision_line:" "${SUMMARY_LOG}" 2>/dev/null | cut -d' ' -f2)
 STATUS_OK=$(grep "^status0_count:" "${SUMMARY_LOG}" 2>/dev/null | cut -d' ' -f2)
+STATUS_MAX=$(grep "^status1_count:" "${SUMMARY_LOG}" 2>/dev/null | cut -d' ' -f2)
 STATUS_FAIL=$(grep "^status2_count:" "${SUMMARY_LOG}" 2>/dev/null | cut -d' ' -f2)
 
 if [[ "${COLLISION_SEEN}" -eq 1 ]]; then
@@ -185,6 +292,31 @@ else
     COLLISION_NOTE="No"
 fi
 
-echo "| ${RUN_ID} | ${DURATION_SECONDS}s | ${COLLISION_NOTE} | ${STATUS_OK:-0} | ${STATUS_FAIL:-0} | [log](logs/run_${RUN_ID}/) |" >> "${HISTORY_FILE}"
+RUN_ERROR=0
+ERROR_NOTE=""
+if grep -Eq "Caught exception in launch|Failed to load map" "${GYM_LOG}" 2>/dev/null; then
+    RUN_ERROR=1
+    ERROR_NOTE="launch_or_map_error"
+fi
+if [[ "${STATUS_OK:-0}" -eq 0 && "${STATUS_MAX:-0}" -eq 0 && "${STATUS_FAIL:-0}" -eq 0 ]]; then
+    RUN_ERROR=1
+    if [[ -n "${ERROR_NOTE}" ]]; then
+        ERROR_NOTE="${ERROR_NOTE},no_solver_samples"
+    else
+        ERROR_NOTE="no_solver_samples"
+    fi
+fi
+
+NOTES="[log](logs/run_${RUN_ID}/) st1=${STATUS_MAX:-0}"
+if [[ "${RUN_ERROR}" -eq 1 ]]; then
+    NOTES="${NOTES} err=${ERROR_NOTE}"
+fi
+
+echo "| ${RUN_ID} | ${DURATION_SECONDS}s | ${COLLISION_NOTE} | ${STATUS_OK:-0} | ${STATUS_FAIL:-0} | ${NOTES} |" >> "${HISTORY_FILE}"
 
 echo "History updated: ${HISTORY_FILE}"
+
+if [[ "${RUN_ERROR}" -eq 1 ]]; then
+    echo "Run error detected: ${ERROR_NOTE}" >&2
+    exit 1
+fi

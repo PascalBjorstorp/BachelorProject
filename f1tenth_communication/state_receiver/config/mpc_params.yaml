@@ -8,7 +8,8 @@ mpc_receiver:
     drive_topic: "/drive"
 
     # FPGA settings
-    fpga_base_address: 0xA0000000     # PL base addr (Vivado Address Editor)
+    mpc_base_address: 0xA0010000      # MPC AXI-Lite ctrl base addr (Vivado Address Editor)
+    dma_base_address: 0xA0000000      # AXI DMA S_AXI_LITE base addr
     # Bulk reference frame buffers (physical addresses in shared DDR/CMA)
     # These must point to writable, contiguous memory visible to both PS and PL.
     ref_vx_phys_addr: 0x70000000

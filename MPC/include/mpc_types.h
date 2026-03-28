@@ -13,45 +13,78 @@
  * Dynamic Bicycle Model States: [x, y, psi, v_x, v_y, omega]
  * Control Inputs: [delta, acceleration]
  *
- * All numerical values use Q16.16 fixed-point for FPGA compatibility.
  * Units: SI (meters, radians, seconds, Newtons)
  */
 
 #ifndef MPC_TYPES_H
 #define MPC_TYPES_H
 
-#include "fp_math.h"
+#include "util_math.h"
 #include <stdint.h>
+
+
+#define FRENET_STATE_DIMENSION 5
+
+/*===========================================================================
+ * Global MPC Constants
+ *===========================================================================*/
+
+#define MPC_TWO_PI (2.0 * M_PI)
+
+/* Timing */
+#define MPC_CONTROL_RATE_HZ 200.0f
+#define MPC_CONTROL_DT_SECONDS (1.0f / MPC_CONTROL_RATE_HZ)
+#define MPC_PREDICTION_DT_SECONDS 0.034f
+#define MPC_DEFAULT_CROSS_CALL_RATE_SCALE (MPC_CONTROL_DT_SECONDS / MPC_PREDICTION_DT_SECONDS)
+
+/* Default MPC weights */
+#define MPC_WEIGHT_LAT_ERROR_DEFAULT 4779.0f
+#define MPC_WEIGHT_HEADING_DEFAULT 762.129f
+#define MPC_WEIGHT_VELOCITY_DEFAULT 138.6f
+#define MPC_WEIGHT_LAT_VEL_DEFAULT 3.3f
+#define MPC_WEIGHT_YAW_RATE_DEFAULT 3.0f
+#define MPC_WEIGHT_STEER_EFFORT_DEFAULT 0.4f
+#define MPC_WEIGHT_ACCEL_EFFORT_DEFAULT 0.0108f
+#define MPC_WEIGHT_STEER_RATE_DEFAULT 0.3f
+#define MPC_WEIGHT_ACCEL_RATE_DEFAULT 0.095f
+#define MPC_WEIGHT_DELTA_ACTUAL_DEFAULT 0.5f
+#define MPC_EMA_ALPHA_DEFAULT 0.7f
+#define MPC_RICCATI_COST_FACTOR 2.0f
+
+/* Model and solver constants */
+#define MPC_STEERING_RATE_LIMIT 2.849f
+#define MPC_STEERING_FEEDFORWARD_CLAMP_FACTOR 0.5f
+#define MPC_BIG_BOUND 100.0f
+#define MPC_MIN_LINEARIZATION_VELOCITY 2.0f
+#define MPC_STABILITY_LIMIT 0.95f
+#define MPC_WALL_MARGIN_DEFAULT 0.0085f
+#define MPC_WALL_CONSTRAINT_START 1
+#define MPC_WALL_CONSTRAINT_STRIDE_DEFAULT 2
+#define MPC_WALL_CONSTRAINT_END_DEFAULT 10
+#define MPC_V_SWITCH 7.319f
+#define MPC_CONVERGENCE_TOLERANCE_DEFAULT 3.260281f
+#define MPC_MIN_SLIP_VELOCITY 0.5f
+#define MPC_WARMSTART_CURVATURE_RESET_THRESHOLD 0.5f
+#define MPC_ADMM_RHO_DEFAULT 50.0f
+#define MPC_ADMM_RHO_U_DEFAULT 12.0f
+#define MPC_ADMM_ALPHA_DEFAULT 1.4f
+
+/* Hardware/sim defaults */
+#define MPC_MIN_TRAJECTORY_SPEED_MPS 1.0
+
 
 /*===========================================================================
  * Vehicle State (Dynamic Bicycle Model)
  *===========================================================================
- * Represents the current state of the vehicle in the world frame.
- * Uses the 6-state dynamic bicycle model with tire dynamics.
- * This is the INPUT to the MPC solver (from localization or simulator).
- *
- * State vector ordering: [x, y, psi, v_x, v_y, omega]
  */
-
 typedef struct
 {
-    /** X position in world frame [meters] */
-    fixed_point_t position_x_meters;
-
-    /** Y position in world frame [meters] */
-    fixed_point_t position_y_meters;
-
-    /** Yaw angle (heading) relative to world X-axis [radians] */
-    fixed_point_t heading_angle_radians;
-
-    /** Longitudinal velocity in body frame [meters per second] */
-    fixed_point_t longitudinal_velocity_meters_per_second;
-
-    /** Lateral velocity in body frame [meters per second] */
-    fixed_point_t lateral_velocity_meters_per_second;
-
-    /** Yaw rate [radians per second] */
-    fixed_point_t yaw_rate_radians_per_second;
+    float pos_x;                /** X position in world frame [meters] */
+    float pos_y;                /** Y position in world frame [meters] */
+    float heading;              /** Yaw angle relative to world X-axis [radians] */
+    float long_vel;             /** Longitudinal velocity in body frame [meters per second] */
+    float lat_vel;              /** Lateral velocity in body frame [meters per second] */
+    float yaw_rate;             /** Yaw rate [radians per second] */
 
 } VehicleState_t;
 
@@ -59,56 +92,27 @@ typedef struct
  * Frenet Frame State (Path-Relative Coordinates)
  *===========================================================================
  * Represents the vehicle state relative to a reference path.
- * Used by the MPC solver for path-following with wall constraints.
- *
- * State vector ordering: [e_y, e_psi, v_x, v_y, omega]
- *
- * Advantages over global XY:
- *   - Lateral error (e_y) directly maps to "distance from path"
- *   - Wall constraints become simple bounds on e_y
- *   - Heading and position tracking work together naturally
- */
+ * State vector for frenet: [e_y, e_psi, v_x, v_y, omega]
+ * */
 
 typedef struct
 {
-    /** Lateral error: perpendicular distance from reference path [meters]
-     *  Positive = left of path, Negative = right of path */
-    fixed_point_t lateral_error_meters;
-
-    /** Heading error: vehicle heading minus path tangent heading [radians] */
-    fixed_point_t heading_error_radians;
-
-    /** Longitudinal velocity in body frame [meters per second] */
-    fixed_point_t longitudinal_velocity_meters_per_second;
-
-    /** Lateral velocity in body frame [meters per second] */
-    fixed_point_t lateral_velocity_meters_per_second;
-
-    /** Yaw rate [radians per second] */
-    fixed_point_t yaw_rate_radians_per_second;
+    float flat_error;           /** Lateral error [meters] */
+    float fhead_error;          /** Heading error [radians] */
+    float flong_vel;            /** Longitudinal velocity [meters per second] */
+    float flat_vel;             /** Lateral velocity [meters per second] */
+    float fyaw_rate;            /** Yaw rate [radians per second] */
 
 } FrenetState_t;
-
-/** Number of states in the Frenet vehicle model */
-#define FRENET_STATE_DIMENSION 5
 
 /*===========================================================================
  * Control Input
  ===========================================================================
- * The control signals computed by the MPC solver.
- * Steering angle is sent to the servo; motor torque is converted
- * to a motor command (current/duty) by the VESC controller.
- *
- * Control vector ordering: [delta, T_motor]
  */
-
 typedef struct
-{
-    /** Front wheel steering angle [radians] */
-    fixed_point_t steering_angle_radians;
-
-    /** Longitudinal acceleration command [m/s²] */
-    fixed_point_t acceleration_meters_per_second_squared;
+{   
+    float steer_ang;           /** Front wheel steering angle [radians] */
+    float long_acc;            /** Longitudinal acceleration command [m/s²] */
 
 } ControlInput_t;
 
@@ -121,85 +125,20 @@ typedef struct
 
 typedef struct
 {
-    /**
-     * Wheelbase: distance between front and rear axles [meters]
-     * Equal to l_f + l_r. Typical F1/10th value: ~0.33 m
-     */
-    fixed_point_t wheelbase_meters;
-
-    /**
-     * Distance from center of gravity to front axle [meters]
-     * Typical F1/10th value: 0.15875 m
-     */
-    fixed_point_t distance_cg_to_front_axle_meters;
-
-    /**
-     * Distance from center of gravity to rear axle [meters]
-     * Typical F1/10th value: 0.17145 m
-     */
-    fixed_point_t distance_cg_to_rear_axle_meters;
-
-    /**
-     * Height from center of gravity to ground [meters]
-     */
-    fixed_point_t height_cg_to_ground_meters;
-
-    /**
-     * Gravity acceleration [m/s²]
-     */
-    fixed_point_t gravity_acceleration_meters_per_second_squared;
-
-    /**
-     * Vehicle mass [kg]
-     * Typical F1/10th value: 3.314 kg
-     */
-    fixed_point_t vehicle_mass_kg;
-
-    /**
-     * Yaw moment of inertia [kg*m^2]
-     * Typical F1/10th value: 0.035 kg*m^2
-     */
-    fixed_point_t yaw_moment_of_inertia_kgm2;
-
-    /**
-     * Front tire cornering stiffness [1/rad]
-     * Pure tire property, force = mu * C_Sf * alpha * F_z.
-     * Typical F1/10th value: 3.053
-     */
-    fixed_point_t front_cornering_stiffness;
-
-    /**
-     * Rear tire cornering stiffness [1/rad]
-     * Pure tire property, force = mu * C_Sr * alpha * F_z.
-     * Typical F1/10th value: 5.282
-     */
-    fixed_point_t rear_cornering_stiffness;
-
-    /**
-     * Maximum steering angle magnitude [radians]
-     * Physical limit of the steering servo.
-     * Typical F1/10th value: ~0.42 rad (24 degrees)
-     */
-    fixed_point_t maximum_steering_angle_radians;
-
-    /**
-     * Maximum forward velocity [meters per second]
-     * Safe operating speed limit for state clamping.
-     * Typical F1/10th value: ~20.0 m/s
-     */
-    fixed_point_t maximum_velocity_meters_per_second;
-
-    /**
-     * Minimum velocity [meters per second]
-     * Typically 0 (no reverse). Used for state clamping.
-     */
-    fixed_point_t minimum_velocity_meters_per_second;
-
-    /** Maximum longitudinal acceleration [m/s²] */
-    fixed_point_t maximum_acceleration_meters_per_second_squared;
-
-    /** Minimum longitudinal acceleration (braking) [m/s²] */
-    fixed_point_t minimum_acceleration_meters_per_second_squared;
+    float wheelbase_meters;              /**Wheelbase [meters] */
+    float distance_cg_to_front_axle;     /**Distance from center of gravity to front axle [meters]*/
+    float distance_cg_to_rear_axle;      /**Distance from center of gravity to rear axle [meters] */
+    float height_cg_to_ground;           /**Height from center of gravity to ground [meters]*/
+    float gravity_acceleration;          /**Gravity acceleration [m/s²] */
+    float vehicle_mass;                  /**Vehicle mass [kg]*/
+    float yaw_moment_of_inertia;         /**Yaw moment of inertia [kg*m^2]*/
+    float front_cornering_stiffness;     /**Front tire cornering stiffness [1/rad] */
+    float rear_cornering_stiffness;      /**Rear tire cornering stiffness [1/rad] */
+    float max_steering_angle;            /**Maximum steering angle magnitude [radians]*/    
+    float max_velocity;                  /**Maximum forward velocity [meters per second]*/    
+    float minvelocity;                   /**Minimum velocity [meters per second]*/
+    float max_acceleration;              /** Maximum longitudinal acceleration [m/s²] */
+    float min_acceleration;              /** Minimum longitudinal acceleration (braking) [m/s²] */
 
 } VehicleParameters_t;
 
@@ -211,119 +150,54 @@ typedef struct
 
 typedef struct
 {
-    /**
-     * Prediction horizon: number of future time steps to consider.
-     * Longer horizon = better planning but more computation.
-     * Typical value: 10-20 steps
-     */
-    uint16_t prediction_horizon_steps;
+    
+    uint16_t prediction_horizon_steps;  /**Prediction horizon: number of future time steps to consider */
+    float time_step;                    /**Time step duration [seconds] */
 
-    /**
-     * Time step duration [seconds]
-     * Time between consecutive prediction steps.
-     * Typical value: 0.05-0.1 seconds (50-100 ms)
-     */
-    fixed_point_t time_step_seconds;
+    /*---------------------------------------------------------------------------
+     Cost function weights: 
+     ---------------------------------------------------------------------------*/
 
-    /*
-     * Cost function weights:
-     * Higher weight = more penalty for deviation from reference
-     */
+    
+    float weight_lateral_error;         /** Weight for lateral error tracking [Frenet] */
+    float weight_heading_error;         /** Weight for heading error tracking [Frenet] */
+    float weight_velocity;              /** Weight for longitudinal velocity tracking error */
+    float weight_lateral_velocity;      /** Weight for lateral velocity tracking error */
+    float weight_yaw_rate;              /** Weight for yaw rate tracking error */
+    float weight_steering_effort;       /** Weight for steering angle magnitude */
+    float weight_acceleration_effort;   /** Weight for motor torque magnitude */
+    float weight_steering_rate;         /** Weight for steering rate */
+    float weight_acceleration_rate;     /** Weight for acceleration rate **/
+    float weight_delta_actual;          /** Weight for steering centering state */
+    float cross_call_rate_scale;        /** Cross-call rate penalty scale factor.
+                                        * Scales the rate penalty between the current first control u[0]
+                                        * and the previous MPC output u_prev. */
 
-    /** Weight for lateral error (e_y) tracking [Frenet] */
-    fixed_point_t weight_lateral_error;
+    /*---------------------------------------------------------------------------
+    Solver convergence parameters
+    ---------------------------------------------------------------------------*/
 
-    /** Weight for heading error (e_psi) tracking [Frenet] */
-    fixed_point_t weight_heading_error;
-
-    /** Weight for longitudinal velocity tracking error */
-    fixed_point_t weight_velocity;
-
-    /** Weight for lateral velocity tracking error */
-    fixed_point_t weight_lateral_velocity;
-
-    /** Weight for yaw rate tracking error */
-    fixed_point_t weight_yaw_rate;
-
-    /** Weight for steering angle magnitude (penalizes large steering) */
-    fixed_point_t weight_steering_effort;
-
-    /** Weight for motor torque magnitude (penalizes large torque) */
-    fixed_point_t weight_acceleration_effort;
-
-    /** Weight for steering rate (penalizes jerky steering changes) */
-    fixed_point_t weight_steering_rate;
-
-    /** Weight for torque rate (penalizes jerky torque changes) */
-    fixed_point_t weight_acceleration_rate;
-
-    /** Cross-call rate penalty scale factor.
-     *
-     * Scales the rate penalty between the current first control u[0]
-     * and the previous MPC output u_prev. This accounts for the MPC
-     * being called at a different rate than the prediction time step dt.
-     *
-     * Set to FP_ONE (1.0) when MPC call interval ≈ dt (e.g., offline test).
-     * Set to dt_actual/dt_step (e.g., 0.1 for 5ms calls with 50ms dt).
-     *
-     * Without proper scaling, the cross-call rate penalty is too strong
-     * at high call frequencies, causing ping-pong oscillation.
-     */
-    fixed_point_t cross_call_rate_scale;
-
-    /*
-     * Solver convergence parameters
-     */
-
-    /** Maximum QP solver iterations */
-    uint16_t maximum_solver_iterations;
-
-    /** Convergence tolerance for solver */
-    fixed_point_t solver_convergence_tolerance;
+    uint16_t max_solver_iterations;      /** Maximum QP solver iterations */
+    float solver_convergence_tolerance;  /** Convergence tolerance for solver */
 
 } MpcConfiguration_t;
 
 /*===========================================================================
  * Reference Trajectory Point (Frenet Frame)
  *===========================================================================
- * Reference point for MPC path-following in Frenet coordinates.
- * For pure path following, lateral_error and heading_error refs are 0.
- * Curvature and wall bounds are properties of the path at this point.
- */
+*/
 
 typedef struct
 {
-    /** Reference lateral error [meters] (0 for path following) */
-    fixed_point_t reference_lateral_error_meters;
-
-    /** Reference heading error [radians] (0 for path following) */
-    fixed_point_t reference_heading_error_radians;
-
-    /** Target longitudinal velocity [meters per second] */
-    fixed_point_t reference_velocity_meters_per_second;
-
-    /** Target lateral velocity [meters per second] (typically 0) */
-    fixed_point_t reference_lateral_velocity_meters_per_second;
-
-    /** Target yaw rate [radians per second] */
-    fixed_point_t reference_yaw_rate_radians_per_second;
-
-    /** Target longitudinal acceleration [meters per second²]
-     *  Currently unused by solver (feedforward disabled). */
-    fixed_point_t reference_acceleration_meters_per_second_squared;
-
-    /** Path curvature at this point [radians per meter]
-     *  Used for Frenet frame linearization: e_psi_dot = omega - kappa * v_x
-     */
-    fixed_point_t path_curvature_radians_per_meter;
-
-    /** Maximum leftward deviation from path before hitting wall [meters]
-     *  Always positive. The car must satisfy: e_y <= left_wall_bound */
-    fixed_point_t left_wall_bound_meters;
-
-    /** Maximum rightward deviation from path before hitting wall [meters]
-     *  Always positive. The car must satisfy: e_y >= -right_wall_bound */
-    fixed_point_t right_wall_bound_meters;
+    float reference_lateral_error;       /** Reference lateral error [meters] */
+    float reference_heading_error;       /** Reference heading error [radians] */
+    float reference_velocity;            /** Target longitudinal velocity */    
+    float reference_lateral_velocity;    /** Target lateral velocity [meters per second] */
+    float reference_yaw_rate;            /** Target yaw rate [radians per second] */ 
+    float path_curvature;                /** Path curvature at this point [radians per meter]
+                                          *  Used for Frenet frame linearization: e_psi_dot = omega - kappa * v_x */
+    float left_wall_bound;               /** Maximum leftward deviation from path before hitting wall [meters] */
+    float right_wall_bound;              /** Maximum rightward deviation from path before hitting wall [meters]*/
 
 } TrajectoryReferencePoint_t;
 
@@ -333,17 +207,10 @@ typedef struct
 
 typedef enum
 {
-    /** Optimal solution found successfully */
-    MPC_STATUS_SUCCESS = 0,
-
-    /** Solver reached maximum iterations (solution may still be usable) */
-    MPC_STATUS_MAXIMUM_ITERATIONS_REACHED = 1,
-
-    /** No feasible solution exists for given constraints */
-    MPC_STATUS_INFEASIBLE = 2,
-
-    /** Solver encountered an error */
-    MPC_STATUS_ERROR = 3
+    MPC_STATUS_SUCCESS = 0,                      /** Optimal solution found successfully */
+    MPC_STATUS_MAXIMUM_ITERATIONS_REACHED = 1,   /** Solver reached maximum iterations */
+    MPC_STATUS_INFEASIBLE = 2,                   /** No feasible solution exists for given constraints */
+    MPC_STATUS_ERROR = 3                         /** Solver encountered an error */
 
 } MpcSolverStatus_t;
 
@@ -355,146 +222,145 @@ typedef enum
 
 typedef struct
 {
-    /** Solver termination status */
-    MpcSolverStatus_t solver_status;
-
-    /** Optimal control input for current time step */
-    ControlInput_t optimal_control;
-
-    /** Number of solver iterations used */
-    uint16_t iterations_used;
-
-    /** Final cost function value */
-    fixed_point_t final_cost;
-
-    /** Final dual residual (ADMM convergence metric) */
-    fixed_point_t dual_residual;
+    MpcSolverStatus_t solver_status;            /** Solver termination status */
+    ControlInput_t optimal_control;             /** Optimal control input for current time step */
+    uint16_t iterations_used;                   /** Number of solver iterations used */
+    float final_cost;                           /** Final cost function value */   
+    float dual_residual;                        /** Final dual residual (ADMM convergence metric) */
 
 } MpcSolverResult_t;
 
 /*===========================================================================
  * Default Parameters for F1/10th Vehicle
  *===========================================================================
- * Pre-computed fixed-point constants for F1/10th configuration.
- * Source: Measured on real F1/10th car (f1tenth_parameters/vehicle_params.yaml)
- * Simulation defaults replaced with physical measurements where available.
+ * Pre-computed constants for F1/10th configuration.
+ * Parameters are measured through testing and CAD schematics.
  */
 
 /*---------------------------------------------------------------------------
- * Core Kinematic Parameters (used by MPC)
+ * Core Kinematic Parameters
  *---------------------------------------------------------------------------*/
 
-/** F1/10th wheelbase: l_f + l_r = 0.166 + 0.16 = 0.326 m [CAD]
- *  Wheelbase test at 1.0 m/s gave 0.345 m (6.5% high due to understeer).
- *  CAD value 0.324 m is recommended (see report Section 5.6). */
-#define F110_DEFAULT_WHEELBASE_METERS \
-    FP_CONST(0.324)
+/** Vehicle wheelbase */
+#define F110_DEFAULT_WHEELBASE_METERS 0.324f
 
-/** F1/10th max steering: 0.4189 radians (~24.0 degrees) [CALIBRATED]
- *  With polynomial servo correction, servo saturates at ~0.42 rad.
- *  Reduced from 0.4282 to stay within corrected servo range. */
-#define F110_DEFAULT_MAXIMUM_STEERING_RADIANS \
-    FP_CONST(0.4189)
+/** Maximum steering angle */
+#define F110_DEFAULT_MAXIMUM_STEERING_RADIANS 0.4189f
 
-/** F1/10th max velocity: 20.0 meters per second (simulation limit)
- *  Real car measured 5.17 m/s (test) to ~10 m/s (higher cmd speed). */
-#define F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND \
-    FP_CONST(20.0)
+/** Maximum forward velocity */
+#define F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND 20.0f
 
-/** F1/10th minimum velocity: 0 m/s (no reverse) */
-#define F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND \
-    FP_CONST(0.0)
+/** Minimum forward velocity */
+#define F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND 0.0f
 
-/** Distance from CG to front axle: 0.166 meters [CAD] */
-#define F110_DIST_CG_TO_FRONT_AXLE_METERS \
-    FP_CONST(0.166)
+/** Distance from center of gravity to front axle */
+#define VEHICLE_CG_TO_FRONT_AXLE_M 0.166f
 
-/** Distance from CG to rear axle: 0.16 meters [CAD] */
-#define F110_DIST_CG_TO_REAR_AXLE_METERS \
-    FP_CONST(0.16)
+/** Distance from center of gravity to rear axle */
+#define VEHICLE_CG_TO_REAR_AXLE_M 0.16f
 
-/** Vehicle mass: 3.314 kg [MEASURED] */
-#define F110_VEHICLE_MASS_KG \
-    FP_CONST(3.314)
+/** Vehicle mass */
+#define F110_VEHICLE_MASS_KG 3.314f
 
-/** Yaw moment of inertia: 0.035 kg·m² [CAD] */
-#define F110_YAW_INERTIA_KGM2 \
-    FP_CONST(0.035)
+/** Yaw moment of inertia */
+#define F110_YAW_INERTIA_KGM2 0.035f
 
-/** Center of gravity height: 0.0703 meters [CAD] */
-#define F110_CG_HEIGHT_METERS \
-    FP_CONST(0.0703)
+/** Center of gravity height */
+#define F110_CG_HEIGHT_METERS 0.0703f
 
-/** Tire-road friction coefficient [TESTED] mu = 0.745
- *  From all friction_test_20260226_* runs (steady-state lateral saturation). */
-#define F110_FRICTION_COEFFICIENT \
-    FP_CONST(0.745)
+/** Tire-road friction coefficient */
+#define F110_FRICTION_COEFFICIENT 0.787f
 
-/** Front cornering stiffness [1/rad] [TESTED]
- *  From test_cornering_stiffness.py, corrected for nonlinear servo mapping.
- *  Conversion: C_Sf = C_alpha_f / (mu * F_zf)
- *    F_zf = m*g*l_r/L = 3.314*9.81*0.160/0.324 = 16.05 N
- *    C_alpha_f = 51.4 → C_Sf = 51.4/(0.745*16.05) = 4.297  */
-#define F110_FRONT_CORNERING_STIFFNESS \
-     FP_CONST(4.297)
+/** Gravity acceleration */
+#define F110_GRAVITY_ACCELERATION_MS2 9.81f
 
-/** Rear cornering stiffness [1/rad] [TESTED]
- *  From test_cornering_stiffness.py, corrected for nonlinear servo mapping.
- *  Conversion: C_Sr = C_alpha_r / (mu * F_zr)
- *    F_zr = m*g*l_f/L = 3.314*9.81*0.166/0.324 = 16.66 N
- *    C_alpha_r = 43.1 → C_Sr = 43.1/(0.745*16.66) = 3.473  */
-#define F110_REAR_CORNERING_STIFFNESS \
-     FP_CONST(3.473)
+/** Maximum longitudinal acceleration */
+#define F110_DEFAULT_MAXIMUM_ACCELERATION_METERS_PER_SECOND2 (F110_FRICTION_COEFFICIENT * F110_GRAVITY_ACCELERATION_MS2)
 
-/** Maximum longitudinal acceleration [m/s²]
- *  From vehicle_params.yaml: max_accel = 7.31 m/s² [TESTED]
- *  Conservative friction bound: mu*g = 0.745 * 9.81 = 7.31 m/s² */
-#define F110_DEFAULT_MAX_ACCELERATION \
-    FP_CONST(7.31)
+/** Minimum longitudinal acceleration */
+#define F110_DEFAULT_MINIMUM_ACCELERATION_METERS_PER_SECOND2 (-F110_DEFAULT_MAXIMUM_ACCELERATION_METERS_PER_SECOND2)
 
-/** Minimum longitudinal acceleration (braking) [m/s²]
- *  From vehicle_params.yaml: max_decel = 7.31 m/s² [TESTED] */
-#define F110_DEFAULT_MIN_ACCELERATION \
-    FP_CONST(-7.31)
+/** Cornoring stiffness for front wheel */
+#define VP_C_ALPHA_F 51.40f
 
-/** Default yaw rate: 0 rad/s */
-#define F110_DEFAULT_YAW_RATE \
-    FP_CONST(0.0)
+/** Cornoring stiffness for rear wheel */
+#define VP_C_ALPHA_R 43.10f
 
-/** Gravity acceleration: 9.81 m/s² */
-#define F110_GRAVITY_ACCELERATION_MS2 \
-    FP_CONST(9.81)
+/** Normal force on front wheel */
+#define VP_NORM_LOAD_F (F110_VEHICLE_MASS_KG * F110_GRAVITY_ACCELERATION_MS2 * VEHICLE_CG_TO_REAR_AXLE_M / F110_DEFAULT_WHEELBASE_METERS)
+
+/** Normal force on rear wheel */
+#define VP_NORM_LOAD_R (F110_VEHICLE_MASS_KG * F110_GRAVITY_ACCELERATION_MS2 * VEHICLE_CG_TO_FRONT_AXLE_M / F110_DEFAULT_WHEELBASE_METERS)
+
+/** Peak force on front wheel D */
+#define VP_D_FRONT (F110_FRICTION_COEFFICIENT * VP_NORM_LOAD_F)
+
+/** Peak force on rear wheel D */
+#define VP_D_REAR (F110_FRICTION_COEFFICIENT * VP_NORM_LOAD_R)
+
+/** Shape factor C */
+#define VP_C_SHAPE 1.9f
+
+/** Scalar to prevent at low speeds */
+#define MIN_STIFF_SCALE 0.1f
+
+/** Front cornering stiffness [1/rad] */
+#define F110_FRONT_CORNERING_STIFFNESS (VP_C_ALPHA_F / (F110_FRICTION_COEFFICIENT * VP_D_FRONT))
+
+/** Rear cornering stiffness [1/rad] */
+#define F110_REAR_CORNERING_STIFFNESS (VP_C_ALPHA_R / (F110_FRICTION_COEFFICIENT * VP_D_REAR))
+
+
+
+/*=========================================================================== 
+ * Internal Constants
+ *===========================================================================*/
+
+ /** Frenet state dimension (e_y, e_psi, vx, vy, omega) */
+#define NX_FRENET 5
+
+/** Augmented state dimension:
+ *  [e_y, e_psi, vx, vy, omega, delta_actual, delta_rate_prev, accel_prev]
+ *  States 0-5 form the "dense block" in the Riccati pass (6x6).
+ *  States 6-7 are the "previous control" states (zero in A). */
+#define NX_AUG 8
+
+/** Index of delta_actual in the augmented state vector */
+#define IDX_DELTA_ACTUAL 5
+
+/** Index of delta_rate_prev in the augmented state vector */
+#define IDX_DRATE_PREV 6
+
+/** Index of accel_prev in the augmented state vector */
+#define IDX_ACCEL_PREV 7
+
+/** Dense block size in A matrix (Frenet + delta_actual) */
+#define NX_DENSE 6
+
+/** Control dimension (delta_rate, acceleration) */
+#define NU 2
 
 /*===========================================================================
  * Default MPC Configuration
  *===========================================================================*/
 
-/** Default prediction horizon: 20 steps */
-#define MPC_DEFAULT_PREDICTION_HORIZON 10
+/** Default prediction horizon */
+#define MPC_PREDICTION_HORIZON 10
 
-/** Default time step: 0.048 seconds (48 ms)
- *  Control rate = 200 Hz (5 ms per call).
- *  Prediction model uses 48ms steps: 9.6× the control step.
- *  Total lookahead = 20 × 0.048s = 0.96 seconds.
- *  The cross_call_rate_scale = 0.125 (5ms / 48ms).
- */
-#define MPC_DEFAULT_TIME_STEP_SECONDS \
-    FP_CONST(0.048)
+/** Default prediction time step */
+#define MPC_TIME_STEP_SECONDS MPC_PREDICTION_DT_SECONDS
 
-/** Default maximum solver iterations.
- *  FPGA target uses a tighter cap for deterministic worst-case latency.
- *  With warm-start and optimized tolerance (5.0), the solver converges
- *  in 1-2 iterations on average (max observed: 5). 8 provides margin. */
-#define MPC_DEFAULT_MAXIMUM_ITERATIONS 20
+/** Default maximum solver iterations */
+#define MPC_MAXIMUM_ITERATIONS 20
 
+/** Maximum number of waypoints in loaded trajectory */
+#define TRAJECTORY_MAXIMUM_WAYPOINTS 1000
 
-/** Default convergence tolerance: 5.0 — optimized for warm-start MPC
- *  With warm-start + rho=15 persistence, tolerance=5.0 gives ~1.1 avg
- *  iterations at 200Hz with excellent tracking (avg lat 0.106m).
- *  Higher tolerance exploits warm-start quality — solution changes little
- *  between consecutive calls, so coarse convergence suffices. */
-#define MPC_DEFAULT_CONVERGENCE_TOLERANCE \
-    FP_CONST(6.334361)
+/** Maximum reference velocity */
+#define TRAJECTORY_MAXIMUM_VELOCITY 20.0f
+
+/** Default convergence tolerance */
+#define MPC_CONVERGENCE_TOLERANCE MPC_CONVERGENCE_TOLERANCE_DEFAULT
 
 /**
  * Get the default MPC configuration (F1/10th tuned values).

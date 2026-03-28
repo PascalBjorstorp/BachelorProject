@@ -24,9 +24,9 @@ def generate_launch_description():
         from ament_index_python.packages import get_package_share_directory
         planning_dir = get_package_share_directory('f1tenth_planning')
         default_trajectory = os.path.join(
-            planning_dir, 'trajectories', 'Spielberg_raceline_optimized_wide.csv')
+            planning_dir, 'trajectories', 'Spielberg_raceline.csv')
     except Exception:
-        default_trajectory = '/ros2_ws/src/f1tenth_planning/trajectories/Spielberg_raceline_optimized_wide.csv'
+        default_trajectory = '/ros2_ws/src/f1tenth_planning/trajectories/Spielberg_raceline.csv'
 
     trajectory_arg = DeclareLaunchArgument(
         'trajectory_file',

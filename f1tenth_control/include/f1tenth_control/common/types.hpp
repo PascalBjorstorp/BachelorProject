@@ -137,10 +137,15 @@ struct TrajectoryPoint {
     double velocity{0.0};    // [m/s] Target velocity
     double curvature{0.0};   // [1/m] Path curvature
     double arc_length{0.0};  // [m] Distance along path
+    double left_bound{std::numeric_limits<double>::infinity()};   // [m] Left corridor half-width
+    double right_bound{std::numeric_limits<double>::infinity()};  // [m] Right corridor half-width
     
     TrajectoryPoint() = default;
-    TrajectoryPoint(double x_, double y_, double h, double v, double k, double s)
-        : x(x_), y(y_), heading(h), velocity(v), curvature(k), arc_length(s) {}
+        TrajectoryPoint(double x_, double y_, double h, double v, double k, double s,
+                                        double l = std::numeric_limits<double>::infinity(),
+                                        double r = std::numeric_limits<double>::infinity())
+                : x(x_), y(y_), heading(h), velocity(v), curvature(k), arc_length(s),
+                    left_bound(l), right_bound(r) {}
 };
 
 /**

@@ -363,7 +363,20 @@ void admm_solver_default_config(ADMMConfig_t *config)
     config->warm_start = 0;
     config->rho_u = 0;            /* 0 = use same rho as states */
     config->adaptive_rho = 1;     /* Enable adaptive rho by default */
-    config->alpha_relax = FP_CONST(1.0); /* Over-relaxation: 1.6 is typical sweet-spot */
+    config->alpha_relax = FP_CONST(1.5); /* Over-relaxation: 1.5 is a robust default */
+}
+
+static inline fixed_point_t sat_i64_to_i32_count(int64_t v, uint32_t *clip_counter)
+{
+    if (v > INT32_MAX) {
+        if (clip_counter) (*clip_counter)++;
+        return INT32_MAX;
+    }
+    if (v < INT32_MIN) {
+        if (clip_counter) (*clip_counter)++;
+        return INT32_MIN;
+    }
+    return (fixed_point_t)v;
 }
 
 /*===========================================================================
@@ -470,15 +483,9 @@ void riccati_backward_pass(
     /* Store P_N in workspace (saturate to int32) */
     for (int i = 0; i < MPCC_NX; i++) {
         for (int j = 0; j < MPCC_NX; j++) {
-            int64_t v = P[i][j];
-            if (v > INT32_MAX) v = INT32_MAX;
-            else if (v < INT32_MIN) v = INT32_MIN;
-            ws->P[N][i][j] = (fixed_point_t)v;
+            ws->P[N][i][j] = sat_i64_to_i32_count(P[i][j], &ws->numeric_clip_count);
         }
-        int64_t v = p[i];
-        if (v > INT32_MAX) v = INT32_MAX;
-        else if (v < INT32_MIN) v = INT32_MIN;
-        ws->p[N][i] = (fixed_point_t)v;
+        ws->p[N][i] = sat_i64_to_i32_count(p[i], &ws->numeric_clip_count);
     }
 
     /* Backward sweep: k = N-1 down to 0 */
@@ -555,9 +562,7 @@ void riccati_backward_pass(
                     raw += Si[i][a] * H[a][j];
                 int64_t val = -(raw >> FP_FRAC_BITS);
                 K64[i][j] = val;
-                if (val > INT32_MAX) val = INT32_MAX;
-                else if (val < INT32_MIN) val = INT32_MIN;
-                ws->K[k][i][j] = (fixed_point_t)val;
+                ws->K[k][i][j] = sat_i64_to_i32_count(val, &ws->numeric_clip_count);
             }
         }
 
@@ -582,9 +587,7 @@ void riccati_backward_pass(
             for (int a = 0; a < MPCC_NU; a++)
                 raw += Si[i][a] * (r_tilde[a] + Bts[a]);
             int64_t val = -(raw >> FP_FRAC_BITS);
-            if (val > INT32_MAX) val = INT32_MAX;
-            else if (val < INT32_MIN) val = INT32_MIN;
-            ws->kk[k][i] = (fixed_point_t)val;
+            ws->kk[k][i] = sat_i64_to_i32_count(val, &ws->numeric_clip_count);
         }
 
         /* Step 8: P_k = Q_tilde + A^T P A + H^T K
@@ -644,15 +647,9 @@ void riccati_backward_pass(
         /* Store P_k, p_k in workspace (saturate to int32) */
         for (int i = 0; i < MPCC_NX; i++) {
             for (int j = 0; j < MPCC_NX; j++) {
-                int64_t v = P[i][j];
-                if (v > INT32_MAX) v = INT32_MAX;
-                else if (v < INT32_MIN) v = INT32_MIN;
-                ws->P[k][i][j] = (fixed_point_t)v;
+                ws->P[k][i][j] = sat_i64_to_i32_count(P[i][j], &ws->numeric_clip_count);
             }
-            int64_t v = p[i];
-            if (v > INT32_MAX) v = INT32_MAX;
-            else if (v < INT32_MIN) v = INT32_MIN;
-            ws->p[k][i] = (fixed_point_t)v;
+            ws->p[k][i] = sat_i64_to_i32_count(p[i], &ws->numeric_clip_count);
         }
     }
 }
@@ -775,6 +772,7 @@ void admm_projection_step(
                 ws->w_x[k][MPCC_IDX_N] = val_n;
             }
         }
+
     }
 
     /* Project controls */
@@ -883,6 +881,9 @@ MPCCStatus_t admm_solver_solve(
         return MPCC_STATUS_ERROR;
     }
 
+    workspace->adaptive_rho_updates = 0;
+    workspace->numeric_clip_count = 0;
+
     /* Cold start: zero all ADMM variables, then smart-init */
     if (!config->warm_start)
     {
@@ -903,8 +904,18 @@ MPCCStatus_t admm_solver_solve(
         workspace->w_x[0][i] = problem->x0[i];
     }
 
-    fixed_point_t rho = config->rho;
-    fixed_point_t rho_u = config->rho_u > 0 ? config->rho_u : rho;
+    fixed_point_t rho;
+    fixed_point_t rho_u;
+
+    if (config->warm_start && workspace->rho_state > 0)
+        rho = workspace->rho_state;
+    else
+        rho = config->rho;
+
+    if (config->warm_start && workspace->rho_u_state > 0)
+        rho_u = workspace->rho_u_state;
+    else
+        rho_u = config->rho_u > 0 ? config->rho_u : rho;
 
     /* Cold start gets a higher initial rho for faster feasibility */
     if (!config->warm_start) {
@@ -948,9 +959,14 @@ MPCCStatus_t admm_solver_solve(
             }
         }
     }
+    else
+    {
+        /* Warm-start re-consensus against current constraints. */
+        admm_projection_step(problem, workspace);
+        memset(workspace->lambda_x[0], 0, sizeof(workspace->lambda_x[0]));
+    }
 
-    /* Over-relaxation:  only on warm starts (cold starts have large
-     * constraint violations that cause oscillation with α > 1). */
+    /* Over-relaxation only on warm starts. */
     fixed_point_t alpha_relax = config->warm_start ? config->alpha_relax : FP_ONE;
 
     /* === ADMM Iteration Loop === */
@@ -993,13 +1009,15 @@ MPCCStatus_t admm_solver_solve(
         }
 
         /*--- Adaptive rho: balance primal/dual convergence rates ---*/
-        if (config->adaptive_rho && iter > 0 && (iter & 3) == 0) {
-            /* Use division to avoid int32 overflow: prim_res/10 > dual_res */
+        if (config->adaptive_rho && iter > 0 && (iter & 1) == 0) {
             if (prim_res / 10 > dual_res &&
                 rho < FP_CONST(100.0)) {
                 rho = fp_mul(rho, FP_TWO);
                 if (rho_u < FP_CONST(100.0))
                     rho_u = fp_mul(rho_u, FP_TWO);
+                if (rho > FP_CONST(100.0)) rho = FP_CONST(100.0);
+                if (rho_u > FP_CONST(100.0)) rho_u = FP_CONST(100.0);
+                workspace->adaptive_rho_updates++;
                 /* Scale dual variables: lambda /= 2 (with rounding) */
                 for (uint16_t kk = 0; kk <= N; kk++)
                     for (int i = 0; i < MPCC_NX; i++)
@@ -1012,28 +1030,38 @@ MPCCStatus_t admm_solver_solve(
                 rho = fp_mul(rho, FP_HALF);
                 if (rho_u > FP_HALF)
                     rho_u = fp_mul(rho_u, FP_HALF);
+                if (rho < FP_HALF) rho = FP_HALF;
+                if (rho_u < FP_HALF) rho_u = FP_HALF;
+                workspace->adaptive_rho_updates++;
                 /* Scale dual variables: lambda *= 2 (with saturation) */
                 for (uint16_t kk = 0; kk <= N; kk++)
                     for (int i = 0; i < MPCC_NX; i++) {
                         int64_t v = (int64_t)workspace->lambda_x[kk][i] << 1;
-                        workspace->lambda_x[kk][i] = (v > INT32_MAX) ? INT32_MAX :
-                                                     (v < INT32_MIN) ? INT32_MIN : (fixed_point_t)v;
+                        workspace->lambda_x[kk][i] = sat_i64_to_i32_count(v, &workspace->numeric_clip_count);
                     }
                 for (uint16_t kk = 0; kk < N; kk++)
                     for (int i = 0; i < MPCC_NU; i++) {
                         int64_t v = (int64_t)workspace->lambda_u[kk][i] << 1;
-                        workspace->lambda_u[kk][i] = (v > INT32_MAX) ? INT32_MAX :
-                                                     (v < INT32_MIN) ? INT32_MIN : (fixed_point_t)v;
+                        workspace->lambda_u[kk][i] = sat_i64_to_i32_count(v, &workspace->numeric_clip_count);
                     }
             }
         }
     }
+
+    /* Recompute primal trajectory after ADMM loop so exported x_opt remains
+     * dynamics-consistent and suitable for warm-start linearization. */
+    riccati_backward_pass(problem, workspace, rho, rho_u);
+    riccati_forward_pass(problem, workspace);
 
     /* Extract solution */
     result->status = status;
     result->iterations = workspace->iterations;
     result->primal_residual = workspace->primal_residual;
     result->dual_residual = workspace->dual_residual;
+    result->rho_final = rho;
+    result->rho_u_final = rho_u;
+    result->adaptive_rho_updates = workspace->adaptive_rho_updates;
+    result->numeric_clip_count = workspace->numeric_clip_count;
 
     memcpy(result->x_opt, workspace->z_x,
            sizeof(fixed_point_t) * (N + 1) * MPCC_NX);
@@ -1042,6 +1070,10 @@ MPCCStatus_t admm_solver_solve(
      * unconstrained and may exceed control limits. */
     memcpy(result->u_opt, workspace->w_u,
            sizeof(fixed_point_t) * N * MPCC_NU);
+
+    /* Persist adapted penalties for the next warm-started solve. */
+    workspace->rho_state = rho;
+    workspace->rho_u_state = rho_u;
 
     return status;
 }

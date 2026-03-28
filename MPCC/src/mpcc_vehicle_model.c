@@ -97,22 +97,24 @@ void mpcc_linearize_dynamics(
     fixed_point_t dn_dvx    = sin_a;
     fixed_point_t dn_dvy    = cos_a;
 
-    /* --- Linear tire forces and Jacobians (rows 3-5) --- */
-    /* Floor at 1.5 m/s: below this, the C/(I_z*vx) Jacobian terms
-     * make the discrete A eigenvalues > 1, causing Riccati divergence
-     * in Q16.16 fixed-point.  At vx=0.5 → A[5][5]=-4.63 (unstable). */
-    fixed_point_t vx_safe = state->vx;
-    if (fp_abs(vx_safe) < FP_CONST(1.5)) vx_safe = FP_CONST(1.5);
+    /* --- Tire forces and Jacobians (rows 3-5) ---
+     * Use minimum vx of 0.5 m/s for slip angle calculations.
+     * Lower thresholds cause Riccati instability at high speeds due to
+     * large tire Jacobian eigenvalues in corners. */
+    fixed_point_t vx_abs = fp_abs(state->vx);
+    fixed_point_t vx_safe = (vx_abs < FP_CONST(0.5)) ? FP_CONST(0.5) : vx_abs;
     fixed_point_t inv_vx = fp_div(FP_ONE, vx_safe);
+    fixed_point_t cos_delta = fp_cos(control->delta);
+    fixed_point_t sin_delta = fp_sin(control->delta);
 
     fixed_point_t vy_plus_lf_w  = fp_add(state->vy, fp_mul(l_f, state->omega));
     fixed_point_t vy_minus_lr_w = fp_sub(state->vy, fp_mul(l_r, state->omega));
 
-    /* Slip angles at operating point */
-    fixed_point_t alpha_f = fp_sub(control->delta,
-                                   fp_mul(vy_plus_lf_w, inv_vx));
-    fixed_point_t alpha_r = fp_sub(0,
-                                   fp_mul(vy_minus_lr_w, inv_vx));
+    /* Slip angles at operating point (atan model like MPC/MPC_FPGA) */
+    fixed_point_t front_ratio = fp_mul(vy_plus_lf_w, inv_vx);
+    fixed_point_t rear_ratio  = fp_mul(vy_minus_lr_w, inv_vx);
+    fixed_point_t alpha_f = fp_sub(control->delta, fp_atan(front_ratio));
+    fixed_point_t alpha_r = fp_sub(0, fp_atan(rear_ratio));
 
     /* Forces at operating point */
     fixed_point_t F_yf = fp_mul(C_f, alpha_f);
@@ -120,36 +122,56 @@ void mpcc_linearize_dynamics(
 
     /* Precomputed denominators */
     fixed_point_t inv_m     = fp_div(FP_ONE, m);
-    fixed_point_t inv_mvx   = fp_mul(inv_m, inv_vx);
-    fixed_point_t inv_vx2   = fp_mul(inv_vx, inv_vx);
     fixed_point_t inv_Iz    = fp_div(FP_ONE, I_z);
-    fixed_point_t inv_Iz_vx = fp_mul(inv_Iz, inv_vx);
+    fixed_point_t vx2 = fp_mul(vx_safe, vx_safe);
+    fixed_point_t front_num2 = fp_mul(vy_plus_lf_w, vy_plus_lf_w);
+    fixed_point_t rear_num2  = fp_mul(vy_minus_lr_w, vy_minus_lr_w);
+    fixed_point_t D_f = fp_add(vx2, front_num2);
+    fixed_point_t D_r = fp_add(vx2, rear_num2);
+    if (D_f == 0) D_f = FP_ONE;
+    if (D_r == 0) D_r = FP_ONE;
+    fixed_point_t inv_D_f = fp_div(FP_ONE, D_f);
+    fixed_point_t inv_D_r = fp_div(FP_ONE, D_r);
 
-    fixed_point_t lf_Cf  = fp_mul(l_f, C_f);
-    fixed_point_t lr_Cr  = fp_mul(l_r, C_r);
-    fixed_point_t lf2_Cf = fp_mul(l_f, lf_Cf);
-    fixed_point_t lr2_Cr = fp_mul(l_r, lr_Cr);
+    fixed_point_t daf_dvx = fp_mul(vy_plus_lf_w, inv_D_f);
+    fixed_point_t daf_dvy = fp_sub(0, fp_mul(vx_safe, inv_D_f));
+    fixed_point_t daf_dom = fp_sub(0, fp_mul(fp_mul(l_f, vx_safe), inv_D_f));
+    fixed_point_t dar_dvx = fp_mul(vy_minus_lr_w, inv_D_r);
+    fixed_point_t dar_dvy = fp_sub(0, fp_mul(vx_safe, inv_D_r));
+    fixed_point_t dar_dom = fp_mul(fp_mul(l_r, vx_safe), inv_D_r);
 
-    /* Jacobian of dvy/dt = (F_yf + F_yr)/m - vx*omega */
-    fixed_point_t dvy_dvx = fp_sub(
-        fp_mul(inv_m, fp_mul(inv_vx2,
-            fp_add(fp_mul(C_f, vy_plus_lf_w), fp_mul(C_r, vy_minus_lr_w)))),
-        state->omega);
-    fixed_point_t dvy_dvy = fp_sub(0,
-        fp_mul(fp_add(C_f, C_r), inv_mvx));
-    fixed_point_t dvy_domega = fp_sub(
-        fp_sub(0, fp_mul(fp_sub(fp_mul(C_f, l_f), fp_mul(C_r, l_r)), inv_mvx)),
-        vx_safe);
-    fixed_point_t dvy_ddelta = fp_mul(C_f, inv_m);
+    fixed_point_t dFyf_dvx = fp_mul(C_f, daf_dvx);
+    fixed_point_t dFyf_dvy = fp_mul(C_f, daf_dvy);
+    fixed_point_t dFyf_dom = fp_mul(C_f, daf_dom);
+    fixed_point_t dFyf_dd = C_f;
+    fixed_point_t dFyr_dvx = fp_mul(C_r, dar_dvx);
+    fixed_point_t dFyr_dvy = fp_mul(C_r, dar_dvy);
+    fixed_point_t dFyr_dom = fp_mul(C_r, dar_dom);
 
-    /* Jacobian of domega/dt = (l_f*F_yf - l_r*F_yr) / I_z */
-    fixed_point_t domega_dvx = fp_mul(inv_Iz, fp_mul(inv_vx2,
-        fp_sub(fp_mul(lf_Cf, vy_plus_lf_w), fp_mul(lr_Cr, vy_minus_lr_w))));
-    fixed_point_t domega_dvy = fp_sub(0,
-        fp_mul(fp_sub(lf_Cf, lr_Cr), inv_Iz_vx));
-    fixed_point_t domega_domega = fp_sub(0,
-        fp_mul(fp_add(lf2_Cf, lr2_Cr), inv_Iz_vx));
-    fixed_point_t domega_ddelta = fp_mul(lf_Cf, inv_Iz);
+    /* Jacobians aligned with MPC/MPC_FPGA full model */
+    fixed_point_t dvx_dvx = fp_mul(fp_sub(0, fp_mul(dFyf_dvx, sin_delta)), inv_m);
+    fixed_point_t dvx_dvy = fp_add(fp_mul(fp_sub(0, fp_mul(dFyf_dvy, sin_delta)), inv_m),
+                                   state->omega);
+    fixed_point_t dvx_domega = fp_add(fp_mul(fp_sub(0, fp_mul(dFyf_dom, sin_delta)), inv_m),
+                                      state->vy);
+
+    fixed_point_t dvy_dvx = fp_mul(
+        fp_sub(fp_add(fp_mul(dFyf_dvx, cos_delta), dFyr_dvx), fp_mul(m, state->omega)),
+        inv_m);
+    fixed_point_t dvy_dvy = fp_mul(fp_add(fp_mul(dFyf_dvy, cos_delta), dFyr_dvy), inv_m);
+    fixed_point_t dvy_domega = fp_mul(
+        fp_sub(fp_add(fp_mul(dFyf_dom, cos_delta), dFyr_dom), fp_mul(m, vx_safe)),
+        inv_m);
+
+    fixed_point_t domega_dvx = fp_mul(
+        fp_sub(fp_mul(l_f, fp_mul(dFyf_dvx, cos_delta)), fp_mul(l_r, dFyr_dvx)),
+        inv_Iz);
+    fixed_point_t domega_dvy = fp_mul(
+        fp_sub(fp_mul(l_f, fp_mul(dFyf_dvy, cos_delta)), fp_mul(l_r, dFyr_dvy)),
+        inv_Iz);
+    fixed_point_t domega_domega = fp_mul(
+        fp_sub(fp_mul(l_f, fp_mul(dFyf_dom, cos_delta)), fp_mul(l_r, dFyr_dom)),
+        inv_Iz);
 
     /* === Build discrete-time A = I + dt * A_c === */
     for (int i = 0; i < MPCC_NX; i++)
@@ -165,14 +187,17 @@ void mpcc_linearize_dynamics(
     /* Row 2 (alpha): dalpha/dt = omega - kappa*v_theta */
     sys->A[2][5] = fp_add(sys->A[2][5], dt); /* da/domega = 1 */
 
-    /* Row 3 (vx): dvx/dt = a_x — no state dependency, identity row */
+    /* Row 3 (vx): full tire model */
+    sys->A[3][3] = fp_add(sys->A[3][3], fp_mul(dt, dvx_dvx));
+    sys->A[3][4] = fp_add(sys->A[3][4], fp_mul(dt, dvx_dvy));
+    sys->A[3][5] = fp_add(sys->A[3][5], fp_mul(dt, dvx_domega));
 
-    /* Row 4 (vy): linear tire */
+    /* Row 4 (vy): full tire model */
     sys->A[4][3] = fp_add(sys->A[4][3], fp_mul(dt, dvy_dvx));
     sys->A[4][4] = fp_add(sys->A[4][4], fp_mul(dt, dvy_dvy));
     sys->A[4][5] = fp_add(sys->A[4][5], fp_mul(dt, dvy_domega));
 
-    /* Row 5 (omega): linear tire */
+    /* Row 5 (omega): full tire model */
     sys->A[5][3] = fp_add(sys->A[5][3], fp_mul(dt, domega_dvx));
     sys->A[5][4] = fp_add(sys->A[5][4], fp_mul(dt, domega_dvy));
     sys->A[5][5] = fp_add(sys->A[5][5], fp_mul(dt, domega_domega));
@@ -204,11 +229,19 @@ void mpcc_linearize_dynamics(
     /* Row 3: dvx/dt = a_x */
     sys->B[3][MPCC_IDX_AX] = dt;
 
-    /* Row 4: dvy/ddelta = C_f/m */
-    sys->B[4][MPCC_IDX_DELTA] = fp_mul(dt, dvy_ddelta);
-
-    /* Row 5: domega/ddelta = l_f*C_f/I_z */
-    sys->B[5][MPCC_IDX_DELTA] = fp_mul(dt, domega_ddelta);
+    /* Steering couplings (full model) */
+    {
+        fixed_point_t dFyf_dd_sin = fp_mul(dFyf_dd, sin_delta);
+        fixed_point_t Fyf_cos = fp_mul(F_yf, cos_delta);
+        fixed_point_t dFyf_dd_cos = fp_mul(dFyf_dd, cos_delta);
+        fixed_point_t Fyf_sin = fp_mul(F_yf, sin_delta);
+        sys->B[3][MPCC_IDX_DELTA] = fp_mul(dt,
+            fp_mul(fp_sub(fp_sub(0, dFyf_dd_sin), Fyf_cos), inv_m));
+        sys->B[4][MPCC_IDX_DELTA] = fp_mul(dt,
+            fp_mul(fp_sub(dFyf_dd_cos, Fyf_sin), inv_m));
+        sys->B[5][MPCC_IDX_DELTA] = fp_mul(dt,
+            fp_mul(fp_mul(l_f, fp_sub(dFyf_dd_cos, Fyf_sin)), inv_Iz));
+    }
 
     /* === Affine term d = f(z_bar, u_bar) - A*z_bar - B*u_bar === */
     fixed_point_t z_next[MPCC_NX];
@@ -222,13 +255,16 @@ void mpcc_linearize_dynamics(
     z_next[2] = fp_add(state->alpha, fp_mul(dt, adot));
 
     /* Vehicle dynamics with linear tires (Forward Euler) */
-    fixed_point_t dvy_dt = fp_sub(
-        fp_mul(fp_add(F_yf, F_yr), inv_m),
-        fp_mul(vx_safe, state->omega));
+    fixed_point_t dvx_dt = fp_add(
+        fp_mul(fp_sub(0, fp_mul(F_yf, sin_delta)), inv_m),
+        fp_add(control->a_x, fp_mul(state->vy, state->omega)));
+    fixed_point_t dvy_dt = fp_mul(
+        fp_sub(fp_add(fp_mul(F_yf, cos_delta), F_yr), fp_mul(m, fp_mul(vx_safe, state->omega))),
+        inv_m);
     fixed_point_t domega_dt = fp_mul(
-        fp_sub(fp_mul(l_f, F_yf), fp_mul(l_r, F_yr)), inv_Iz);
+        fp_sub(fp_mul(l_f, fp_mul(F_yf, cos_delta)), fp_mul(l_r, F_yr)), inv_Iz);
 
-    z_next[3] = fp_add(state->vx, fp_mul(dt, control->a_x));
+    z_next[3] = fp_add(state->vx, fp_mul(dt, dvx_dt));
     z_next[4] = fp_add(state->vy, fp_mul(dt, dvy_dt));
     z_next[5] = fp_add(state->omega, fp_mul(dt, domega_dt));
 
@@ -239,7 +275,7 @@ void mpcc_linearize_dynamics(
         fp_add(fp_mul(state->vx, sin_psi), fp_mul(state->vy, cos_psi))));
     z_next[8] = fp_add(state->psi, fp_mul(dt, state->omega));
 
-    /* z_bar, u_bar as arrays */
+    /* z_bar, u_bar as arrays (9-state Lifted ODE) */
     fixed_point_t z_bar[MPCC_NX] = {
         state->s, state->n, state->alpha,
         state->vx, state->vy, state->omega,

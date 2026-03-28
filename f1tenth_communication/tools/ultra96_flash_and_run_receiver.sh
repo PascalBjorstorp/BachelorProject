@@ -15,9 +15,9 @@ DTBO_PATH="${DTBO_PATH:-/home/xilinx/mpc_ref_buffers.dtbo}"
 ROS_SETUP="${ROS_SETUP:-/home/xilinx/ros2_humble/install/setup.bash}"
 WS_SETUP="${WS_SETUP:-/home/xilinx/ros2_ws/install/setup.bash}"
 
-# MPC IP and DMA addresses (configure in Vivado)
-MPC_BASE="${MPC_BASE:-0xA0000000}"
-DMA_BASE="${DMA_BASE:-0xA0010000}"
+# MPC IP and DMA addresses (must match Vivado Address Editor)
+MPC_BASE="${MPC_BASE:-0xA0010000}"
+DMA_BASE="${DMA_BASE:-0xA0000000}"
 DMA_BUFFER="${DMA_BUFFER:-0x70000000}"
 MAX_VEL="${MAX_VEL:-20.0}"
 
@@ -68,9 +68,18 @@ if [[ -f /sys/class/fpga_manager/fpga0/state ]]; then
 fi
 
 echo "[4/4] Launching mpc_receiver_node (AXI-Stream DMA mode)"
+set +u  # Temporarily allow unbound variables for ROS setup scripts
 source "$ROS_SETUP"
 source "$WS_SETUP"
-exec sudo -E ros2 run state_receiver mpc_receiver_node --ros-args \
+set -u  # Re-enable unbound variable check
+
+# sudo -E doesn't preserve env reliably; pass all ROS2 env vars explicitly
+exec sudo PYTHONPATH="$PYTHONPATH" \
+          AMENT_PREFIX_PATH="$AMENT_PREFIX_PATH" \
+          LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+          ROS_DISTRO="$ROS_DISTRO" \
+          PATH="$PATH" \
+  ros2 run state_receiver mpc_receiver_node --ros-args \
   -p mpc_base_address:="$MPC_BASE" \
   -p dma_base_address:="$DMA_BASE" \
   -p dma_buffer_phys_addr:="$DMA_BUFFER" \

@@ -152,6 +152,10 @@ public:
             return false;
         }
 
+        if (!wait_output_valid(50000)) {
+            return false;
+        }
+
         out_steering_fp = static_cast<int32_t>(read_reg(REG_OUT_STEERING));
         out_accel_fp = static_cast<int32_t>(read_reg(REG_OUT_ACCEL));
         out_status = read_reg(REG_OUT_STATUS);
@@ -184,6 +188,17 @@ private:
     bool wait_done(int timeout_cycles) {
         while (timeout_cycles-- > 0) {
             if (read_reg(REG_AP_CTRL) & AP_DONE) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool wait_output_valid(int timeout_cycles) {
+        while (timeout_cycles-- > 0) {
+            const uint32_t steer_vld = read_reg(REG_OUT_STEERING_VLD);
+            const uint32_t accel_vld = read_reg(REG_OUT_ACCEL_VLD);
+            if ((steer_vld & 0x1u) && (accel_vld & 0x1u)) {
                 return true;
             }
         }

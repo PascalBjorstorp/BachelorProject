@@ -94,6 +94,6 @@ Typical solve time: ~200-500 µs per MPC call on Xavier NX.
 
 ## Trajectory Format
 
-CSV with columns: `s_m, x_m, y_m, psi_rad, kappa_radpm, vx_mps, ax_mps2[, left_bound, right_bound]`
+CSV with columns: `s_m, x_m, y_m, psi_rad, kappa_radpm, vx_mps, ax_mps2, left_bound, right_bound`
 
 Lines starting with `#` are treated as comments.

@@ -49,6 +49,7 @@ private:
     // Controller
     std::unique_ptr<PurePursuit> controller_;
     PurePursuitConfig config_;
+    std::mutex controller_mutex_;
     
     // State
     VehicleState current_state_;
@@ -68,15 +69,25 @@ private:
     // Soft start
     rclcpp::Time soft_start_time_;
     bool soft_start_initialized_{false};
+    double last_cmd_steering_{0.0};
+    double last_cmd_speed_{0.0};
+    bool cmd_history_initialized_{false};
+    rclcpp::Time last_cmd_time_;
     
     // Parameters
     std::string trajectory_file_;
     std::string pose_topic_{"/ekf_pose"};
     bool publish_visualization_{true};
     bool pose_received_{false};
+    bool odom_received_{false};
     rclcpp::Time last_pose_time_;
+    rclcpp::Time last_odom_time_;
     double pose_timeout_s_{0.1};
+    double odom_timeout_s_{0.2};
     double max_speed_{2.0};
+    double max_steering_rate_{2.8};
+    double max_accel_cmd_{3.0};
+    double max_decel_cmd_{5.0};
     
     void declareParameters();
     void loadParameters();

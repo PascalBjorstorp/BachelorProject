@@ -60,6 +60,11 @@ gpu_amcl_cpp:
     alpha3: 0.08    # translation → translation noise
     alpha4: 0.08    # rotation  → translation noise
 
+    # ---- Slip-aware noise scaling ----
+    # During aggressive turns, increase noise to account for tire slip
+    slip_angular_threshold: 1.0  # rad/s — angular velocity above which slip is assumed
+    slip_noise_multiplier: 2.0   # multiply alpha values by this during slip
+
     # ---- Sensor model (likelihood field, Prob. Robotics §6.4) ----
     max_beams: 270
     z_hit: 0.975
@@ -72,11 +77,6 @@ gpu_amcl_cpp:
     # ---- Resampling ----
     resample_threshold: 0.5  # resample when N_eff < threshold * N
 
-    # ---- Recovery ----
-    # Injects random particles when the filter detects degradation.
-    # Set to false for simulation (stable odom). Enable for real HW.
-    use_recovery: false
-
     # ---- Initial pose ----
     # Spielberg starting position (matches sim.yaml sx/sy/stheta).
     # Use RViz "2D Pose Estimate" tool to reinitialize if heading is wrong.
@@ -88,12 +88,10 @@ gpu_amcl_cpp:
     initial_cov_aa: 0.05
 
     # ---- Publishing ----
-    publish_rate: 40.0       # Hz (match LiDAR rate)
+    publish_rate: 40.0           # Hz — pose publish rate (match LiDAR rate)
+    cloud_publish_rate: 2.0      # Hz — particle cloud visualization rate (lower saves GPU bandwidth)
     transform_tolerance: 1.0
 
-    # ---- IMU fusion (inside motion model) ----
-    use_imu_rotation: false
-    imu_gyro_weight: 0.2
 
 
 # ────────────────────────────────────────────────────────────────
@@ -102,17 +100,15 @@ gpu_amcl_cpp:
 odom_fused:
   ros__parameters:
     # ---- Topics ----
-    odom_topic: "/ego_racecar/odom"
-    output_topic: "/odom_pose"
+    odom_topic: "/ego_racecar/odom"           # INPUT: Raw wheel odometry
+    output_topic: "/odom_pose"                # OUTPUT: PoseWithCovarianceStamped
 
     # ---- Frames ----
-    frame_id: "map"
-    child_frame_id: "ego_racecar/base_link"
+    frame_id: "odom"                           # Header frame_id for published pose
 
     # ---- Base covariances (metres² / rad²) ----
-    # SIM: 0.0005 (accurate odom)  |  REAL: 0.005–0.05 (noisy wheel odom)
-    base_cov_xy: 0.005
-    base_cov_theta: 0.005
+    base_cov_xy: 0.005                        # Variance for x and y
+    base_cov_theta: 0.005                     # Variance for yaw (theta)        
 
 
 # ────────────────────────────────────────────────────────────────
@@ -131,7 +127,7 @@ ekf_localization:
     base_frame: "ego_racecar/base_link"
 
     # ---- Rate ----
-    publish_rate: 200.0          # Hz  (increase later for odom-rate output)
+    publish_rate: 200.0          # Hz
 
     # ---- EKF tuning ----
     transform_tolerance: 0.0    # seconds into the future for TF
