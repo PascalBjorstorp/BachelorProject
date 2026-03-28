@@ -11,7 +11,8 @@ import os
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node
+from launch_ros.actions import ComposableNodeContainer
+from launch_ros.descriptions import ComposableNode
 from ament_index_python.packages import get_package_share_directory
 
 
@@ -84,34 +85,43 @@ def generate_launch_description():
         description='Multiplier for trajectory target speeds'
     )
     
-    # Stanley Node
-    stanley_node = Node(
-        package='f1tenth_control',
-        executable='stanley_node_exe',
-        name='stanley_node',
+    # Stanley component container
+    stanley_container = ComposableNodeContainer(
+        name='stanley_container',
+        namespace='',
+        package='rclcpp_components',
+        executable='component_container',
+        composable_node_descriptions=[
+            ComposableNode(
+                package='f1tenth_control',
+                plugin='f1tenth_control::StanleyNode',
+                name='stanley_node',
+                parameters=[{
+                    'trajectory_file': LaunchConfiguration('trajectory_file'),
+                    'k_e': LaunchConfiguration('k_e'),
+                    'k_h': LaunchConfiguration('k_h'),
+                    'k_s': LaunchConfiguration('k_s'),
+                    'k_d': LaunchConfiguration('k_d'),
+                    'use_feedforward': True,
+                    'feedforward_gain': 1.0,
+                    'max_speed': LaunchConfiguration('max_speed'),
+                    'min_speed': 1.0,
+                    'speed_gain': LaunchConfiguration('speed_gain'),
+                    'max_steering': 0.4189,
+                    'max_steering_rate': 3.0,  # rad/s - allows responsive steering
+                    'wheelbase': 0.3302,
+                    'curvature_speed_factor': 0.5,
+                    'publish_visualization': True,
+                    'control_rate': 200.0,
+                }],
+                remappings=[
+                    ('/odom', '/ego_racecar/odom'),
+                    ('/drive', '/drive'),
+                ],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            ),
+        ],
         output='screen',
-        parameters=[{
-            'trajectory_file': LaunchConfiguration('trajectory_file'),
-            'k_e': LaunchConfiguration('k_e'),
-            'k_h': LaunchConfiguration('k_h'),
-            'k_s': LaunchConfiguration('k_s'),
-            'k_d': LaunchConfiguration('k_d'),
-            'use_feedforward': True,
-            'feedforward_gain': 1.0,
-            'max_speed': LaunchConfiguration('max_speed'),
-            'min_speed': 1.0,
-            'speed_gain': LaunchConfiguration('speed_gain'),
-            'max_steering': 0.4189,
-            'max_steering_rate': 3.0,  # rad/s - allows responsive steering
-            'wheelbase': 0.3302,
-            'curvature_speed_factor': 0.5,
-            'publish_visualization': True,
-            'control_rate': 200.0,
-        }],
-        remappings=[
-            ('/odom', '/ego_racecar/odom'),
-            ('/drive', '/drive'),
-        ]
     )
     
     return LaunchDescription([
@@ -122,5 +132,5 @@ def generate_launch_description():
         k_d_arg,
         max_speed_arg,
         speed_gain_arg,
-        stanley_node,
+        stanley_container,
     ])

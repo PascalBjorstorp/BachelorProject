@@ -1,16 +1,15 @@
 cmake_minimum_required(VERSION 3.8)
 project(f1tenth_control)
 
-# Use C++17 for better performance and features
+# Use a consistent language standard for all package targets
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
 endif()
 
-# Compiler optimizations for Jetson Orin
+# Enable warnings and release-only optimization flags for supported compilers
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
-  # Release optimizations
-  set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -march=native")
+  add_compile_options($<$<CONFIG:Release>:-O3;-DNDEBUG>)
 endif()
 
 # Find dependencies
@@ -79,16 +78,7 @@ add_library(stanley_algorithm SHARED
 ament_target_dependencies(stanley_algorithm ${DEPENDENCIES})
 
 # ===================
-# FTG Node Executable
-# ===================
-add_executable(ftg_node
-  src/nodes/ftg_node.cpp
-)
-target_link_libraries(ftg_node ftg_algorithm f1tenth_common)
-ament_target_dependencies(ftg_node ${DEPENDENCIES})
-
-# ===================
-# FTG Node Component (composable, zero-copy intra-process)
+# FTG Node Component (standardized runtime path)
 # ===================
 add_library(ftg_node_component SHARED
   src/nodes/ftg_node.cpp
@@ -107,13 +97,6 @@ target_link_libraries(pure_pursuit_node pure_pursuit_algorithm)
 ament_target_dependencies(pure_pursuit_node ${DEPENDENCIES})
 rclcpp_components_register_nodes(pure_pursuit_node "f1tenth_control::PurePursuitNode")
 
-# Pure Pursuit Node Executable (standalone)
-add_executable(pure_pursuit_node_exe
-  src/nodes/pure_pursuit_node.cpp
-)
-target_link_libraries(pure_pursuit_node_exe pure_pursuit_algorithm)
-ament_target_dependencies(pure_pursuit_node_exe ${DEPENDENCIES})
-
 # ===================
 # Stanley Node Component
 # ===================
@@ -124,13 +107,6 @@ target_link_libraries(stanley_node stanley_algorithm)
 ament_target_dependencies(stanley_node ${DEPENDENCIES})
 rclcpp_components_register_nodes(stanley_node "f1tenth_control::StanleyNode")
 
-# Stanley Node Executable (standalone)
-add_executable(stanley_node_exe
-  src/nodes/stanley_node.cpp
-)
-target_link_libraries(stanley_node_exe stanley_algorithm)
-ament_target_dependencies(stanley_node_exe ${DEPENDENCIES})
-
 # ===================
 # Install targets
 # ===================
@@ -139,11 +115,6 @@ install(
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
-)
-
-install(
-  TARGETS ftg_node pure_pursuit_node_exe stanley_node_exe
-  DESTINATION lib/${PROJECT_NAME}
 )
 
 install(
@@ -161,8 +132,7 @@ install(
 # ===================
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
-  # Disable strict linting checks that are too pedantic for this project
-  # Only run essential linters: xmllint, cppcheck
+  # Keep lint checks focused on the subset currently used by this package.
   set(ament_cmake_copyright_FOUND TRUE)
   set(ament_cmake_cpplint_FOUND TRUE)
   set(ament_cmake_uncrustify_FOUND TRUE)

@@ -27,7 +27,6 @@ f1tenth_control/
 ├── config/                  # Configuration files
 │   └── ftg_params.yaml      # FTG parameters
 ├── launch/                  # Launch files
-│   ├── ftg_launch.py
 │   ├── ftg_hardware_launch.py
 │   ├── pure_pursuit_launch.py
 │   └── stanley_launch.py
@@ -65,14 +64,14 @@ source install/setup.bash
 ### Running FTG
 
 ```bash
-# With default parameters
-ros2 launch f1tenth_control ftg_launch.py
+# Hardware mode with default parameters
+ros2 launch f1tenth_control ftg_hardware_launch.py
 
 # With custom speed
-ros2 launch f1tenth_control ftg_launch.py max_speed:=3.0
+ros2 launch f1tenth_control ftg_hardware_launch.py max_speed:=3.0
 
 # With mapping mode enabled
-ros2 launch f1tenth_control ftg_launch.py mapping_mode:=true
+ros2 launch f1tenth_control ftg_hardware_launch.py mapping_mode:=true
 ```
 
 ### Topics
