@@ -38,12 +38,12 @@ __global__
 void kernel_normalize(float* __restrict__ w,
                       const float* __restrict__ d_sum,
                       int n) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= n) return;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;  // Global thread index
+    if (i >= n) return;                             // Tail guard
 
     float s = *d_sum;
     if (s > 0.0f) {
-        w[i] /= s;
+        w[i] *= __frcp_rn(s);
     } else {
         w[i] = 1.0f / static_cast<float>(n);
     }
@@ -73,12 +73,14 @@ void launch_gpu_normalize_weights(
         size_t cub_temp_bytes,
         int n,
         cudaStream_t stream) {
+    if (n <= 0) return;
+
     int block = 256;
     int grid  = (n + block - 1) / block;
 
     // Step 1: Find max log-weight (for numerical stability).
-    cub::DeviceReduce::Max(d_cub_temp, cub_temp_bytes,
-                           d_log_w, d_max_val, n, stream);
+    CUDA_CHECK(cub::DeviceReduce::Max(d_cub_temp, cub_temp_bytes,
+                                      d_log_w, d_max_val, n, stream));
 
     // Step 2: exp(log_w[i] - max) * old_w[i]
     kernel_exp_shift_mul<<<grid, block, 0, stream>>>(
@@ -86,8 +88,8 @@ void launch_gpu_normalize_weights(
     CUDA_CHECK(cudaGetLastError());
 
     // Step 3: Sum of unnormalised weights.
-    cub::DeviceReduce::Sum(d_cub_temp, cub_temp_bytes,
-                           d_scratch_w, d_sum_val, n, stream);
+    CUDA_CHECK(cub::DeviceReduce::Sum(d_cub_temp, cub_temp_bytes,
+                                      d_scratch_w, d_sum_val, n, stream));
 
     // Step 4: Normalize in-place.
     kernel_normalize<<<grid, block, 0, stream>>>(d_scratch_w, d_sum_val, n);
