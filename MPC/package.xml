@@ -5,22 +5,32 @@
   <version>1.0.0</version>
   <description>
     MPC Riccati-ADMM controller for F1/10th.
-    Uses float32 arithmetic with ADMM warm-starting.
-    8-state augmented Frenet model with steering rate control.
-    Targets: Jetson Xavier NX (CPU) and simulator (gym_bridge).
   </description>
-  <maintainer email="todo@todo.com">F1TENTH Team</maintainer>
+  <maintainer email="akmun23@student.sdu.dk">F1TENTH Team</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <depend>rcl</depend>
-  <depend>rclc</depend>
-  <depend>nav_msgs</depend>
-  <depend>ackermann_msgs</depend>
-  <depend>std_msgs</depend>
-  <depend>geometry_msgs</depend>
-  <depend>rcutils</depend>
+  <build_depend>rcl</build_depend>
+  <exec_depend>rcl</exec_depend>
+
+  <build_depend>rclc</build_depend>
+  <exec_depend>rclc</exec_depend>
+
+  <build_depend>nav_msgs</build_depend>
+  <exec_depend>nav_msgs</exec_depend>
+
+  <build_depend>ackermann_msgs</build_depend>
+  <exec_depend>ackermann_msgs</exec_depend>
+
+  <build_depend>std_msgs</build_depend>
+  <exec_depend>std_msgs</exec_depend>
+
+  <build_depend>geometry_msgs</build_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+
+  <build_depend>rcutils</build_depend>
+  <exec_depend>rcutils</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

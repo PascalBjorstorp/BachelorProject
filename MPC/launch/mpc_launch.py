@@ -28,7 +28,7 @@ def generate_launch_description():
 
     Returns:
         LaunchDescription containing the trajectory argument and
-        mpc_riccati_node action.
+        mpc_node action.
     """
 
     # Resolve default trajectory path from f1tenth_planning if available
@@ -49,8 +49,8 @@ def generate_launch_description():
 
     mpc_node = Node(
         package='mpc_riccati',
-        executable='mpc_riccati_node',
-        name='mpc_riccati_node',
+        executable='mpc_node',
+        name='mpc_node',
         output='screen',
         emulate_tty=True,
         arguments=[LaunchConfiguration('trajectory_file')],

@@ -1,8 +1,7 @@
 /**
  * @file mpc.h
- * @brief Model Predictive Control public API (Riccati-ADMM).
- * @details Main interface for the F1/10th MPC system using a non-condensed
- *          Riccati-ADMM formulation.
+ * @brief Riccati-ADMM Model Predictive Control public API.
+ * @details Main interface for the F1/10th MPC Riccati-ADMM implementation.
  * @dependencies mpc_types.h, vehicle_model.h, util_math.h
  */
 
@@ -12,6 +11,32 @@
 #include "mpc_types.h"
 #include "vehicle_model.h"
 #include "util_math.h"
+
+/*===========================================================================
+ * Configuration Helpers
+ *===========================================================================*/
+
+/**
+ * @brief Read a float environment variable with fallback.
+ * @param name Environment variable name to query.
+ * @param default_val Fallback value when the variable is absent or invalid.
+ * @return Parsed float value, or default_val when not available.
+ */
+float get_env_float(const char *name, float default_val);
+
+/**
+ * @brief Read an integer environment variable with fallback.
+ * @param name Environment variable name to query.
+ * @param default_val Fallback value when the variable is absent or invalid.
+ * @return Parsed integer value, or default_val when not available.
+ */
+int get_env_int(const char *name, int default_val);
+
+/**
+ * @brief Build the default MPC configuration and apply environment overrides.
+ * @return MpcConfiguration_t populated with runtime-ready default parameters.
+ */
+MpcConfiguration_t get_default_configuration(void);
 
 /*===========================================================================
  * MPC Initialization
@@ -25,11 +50,10 @@ void mpc_initialize(void);
 
 /**
  * @brief Initialize the MPC system with a caller-supplied configuration.
- * @param configuration Pointer to custom MPC configuration; must not be NULL.
+ * @param configuration Pointer to custom MPC configuration; NULL selects defaults.
  * @return None.
  */
-void mpc_initialize_with_configuration(
-    const MpcConfiguration_t *configuration);
+void mpc_initialize_with_configuration(const MpcConfiguration_t *configuration);
 
 /*===========================================================================
  * Control Computation
