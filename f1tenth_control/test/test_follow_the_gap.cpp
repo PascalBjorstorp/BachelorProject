@@ -21,7 +21,6 @@ protected:
         config_.max_steering_rate = 100.0;  // Very high for deterministic tests
         config_.target_ema_alpha = 1.0;     // No smoothing for deterministic tests
         config_.emergency_brake_distance = 0.3;
-        config_.mapping_mode = false;
 
         // Weighted free-space scoring
         config_.heading_weight = 1.0;
@@ -244,26 +243,6 @@ TEST_F(FollowTheGapTest, HandlesSinglePoint) {
     auto output = ftg_->compute(ranges, ANGLE_MIN, ANGLE_MAX, ANGLE_INC);
     // Single point: should not crash
     EXPECT_FALSE(output.processed_scan.filtered_ranges.empty());
-}
-
-// =====================================================================
-// Mapping mode tests
-// =====================================================================
-
-TEST_F(FollowTheGapTest, MappingModeDisabledByDefault) {
-    auto ranges = createOpenScan(NUM_POINTS);
-    auto output = ftg_->compute(ranges, ANGLE_MIN, ANGLE_MAX, ANGLE_INC);
-    EXPECT_TRUE(output.boundary_points.empty());
-}
-
-TEST_F(FollowTheGapTest, MappingModeExtractsBoundaryPoints) {
-    config_.mapping_mode = true;
-    ftg_->setConfig(config_);
-
-    auto ranges = createOpenScan(NUM_POINTS);
-    Pose2D pose(1.0, 2.0, 0.5);
-    auto output = ftg_->compute(ranges, ANGLE_MIN, ANGLE_MAX, ANGLE_INC, pose, 1.0);
-    EXPECT_FALSE(output.boundary_points.empty());
 }
 
 // =====================================================================

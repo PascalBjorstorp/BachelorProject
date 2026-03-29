@@ -3,12 +3,12 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/odometry.hpp>
-#include <nav_msgs/msg/path.hpp>
 #include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
-#include <visualization_msgs/msg/marker_array.hpp>
 #include <std_msgs/msg/bool.hpp>
+#include <tf2/utils.h>
 
-#include "f1tenth_control/algorithms/stanley.hpp"
+#include "algorithms/stanley.hpp"
+#include <memory>
 #include <mutex>
 
 namespace f1tenth_control {
@@ -18,26 +18,64 @@ namespace f1tenth_control {
  */
 class StanleyNode : public rclcpp::Node {
 public:
+    /**
+    * @brief Construct a Stanley controller ROS2 node.
+    * @param options ROS2 node options for component configuration.
+     */
     explicit StanleyNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
     
 private:
     // Parameters
+
+    /**
+     * @brief Declare node and controller parameters with default values.
+     */
     void declareParameters();
+
+    /**
+     * @brief Load declared parameters into runtime configuration.
+     */
     void loadParameters();
+
+    /**
+     * @brief Validate and apply runtime parameter updates.
+     * @param parameters Proposed parameter updates.
+     * @return Result that accepts or rejects the update transaction.
+     */
     rcl_interfaces::msg::SetParametersResult parametersCallback(
         const std::vector<rclcpp::Parameter>& parameters);
     
     // Callbacks
+
+    /**
+     * @brief Process odometry updates used by the Stanley controller.
+     * @param msg Incoming odometry message.
+     */
     void odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg);
+
+    /**
+     * @brief Enable or disable autonomous control output.
+     * @param msg Incoming enable flag.
+     */
     void enableCallback(const std_msgs::msg::Bool::SharedPtr msg);
+
+    /**
+     * @brief Execute one timer-driven control step and publish a drive command.
+     */
     void controlLoop();
     
-    // Visualization
-    void publishVisualization(const StanleyOutput& output);
-    void publishTrajectoryPath();
-    
     // Metrics
+
+    /**
+     * @brief Update controller performance metrics.
+     * @param output Latest Stanley controller output.
+     */
     void updateMetrics(const StanleyOutput& output);
+
+    /**
+     * @brief Detect and count lap transitions from trajectory index progress.
+     * @param current_idx Current nearest trajectory index.
+     */
     void checkLapCompletion(size_t current_idx);
     
     // Controller
@@ -48,8 +86,6 @@ private:
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr enable_sub_;
     rclcpp::Publisher<ackermann_msgs::msg::AckermannDriveStamped>::SharedPtr drive_pub_;
-    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_pub_;
-    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
     rclcpp::TimerBase::SharedPtr control_timer_;
     
     // Parameter callback handle
@@ -72,7 +108,6 @@ private:
     
     // Config
     std::string trajectory_file_;
-    bool publish_visualization_{true};
     double control_rate_{200.0};
 };
 

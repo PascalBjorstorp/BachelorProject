@@ -1,6 +1,6 @@
 /**
  * @file vehicle_model.h
- * @brief Dynamic Nonlinear Bicycle Model for F1/10th Vehicle
+ * @brief Dynamic nonlinear bicycle model for F1/10th vehicle.
  *
  * Provides vehicle dynamics prediction for Model Predictive Control.
  * Uses the dynamic bicycle model with linear tire forces and wheel
@@ -33,8 +33,10 @@
  *     F_yr = mu * C_Sr * alpha_r * F_zr
  *   Linearization uses a Pacejka-like model for tire force saturation.
  *
- * Discretization: Forward Euler method
- *   state[k+1] = state[k] + dt * derivative[k]
+ * Discretization:
+ *   - Pose states (x, y, psi): analytical SE(2) integration of constant body twist
+ *   - Body dynamic states (v_x, v_y, omega): forward Euler update
+ * @dependencies mpc_types.h, util_math.h
  */
 
 #ifndef VEHICLE_MODEL_H
@@ -42,78 +44,79 @@
 
 #include "mpc_types.h"
 #include "util_math.h"
-
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 /*===========================================================================
- * Model Initialization
+ * Shared Dynamics Helpers
  *===========================================================================*/
 
 /**
- * Initialize vehicle model with default F1/10th parameters.
- *
- * Default values:
- * - Wheelbase: 0.3302 m (l_f=0.15875, l_r=0.17145)
- * - Mass: 3.314 kg
- * - Yaw inertia: 0.035 kg*m^2
- * - Front cornering stiffness: 3.053 [1/rad]
- * - Rear cornering stiffness: 5.282 [1/rad]
- * - Max steering: 0.428 rad (~24.5 deg)
- * - Max velocity: 20.0 m/s
- * - Max motor torque: 22.9 N·m, Min: -24.1 N·m
- * - Wheel radius: 0.0545 m, Gear ratio: 11.82
- * - Drivetrain inertia: 2.223 kg·m²
+ * @brief Compute shared slip-angle intermediate terms at one operating point.
+ * @details Evaluates front/rear slip numerators, ratios, and slip angles with
+ *          a low-speed longitudinal-velocity floor for numerical conditioning.
+ * @param vx Longitudinal velocity in body frame [meters per second].
+ * @param vy Lateral velocity in body frame [meters per second].
+ * @param omega Yaw rate [radians per second].
+ * @param delta Front steering angle [radians].
+ * @param slip_terms Output shared slip-angle terms.
+ * @return None.
  */
-void vehicle_model_initialize(void);
+void vehicle_model_compute_slip_terms(
+    float vx,
+    float vy,
+    float omega,
+    float delta,
+    SlipTerms_t *slip_terms);
 
 /**
- * Initialize vehicle model with custom parameters.
- *
- * @param parameters  Pointer to custom vehicle parameter structure
+ * @brief Compute front and rear normal loads under longitudinal load transfer.
+ * @details Uses quasi-static load transfer with the configured vehicle geometry
+ *          and weight constants to estimate axle normal loads.
+ * @param longitudinal_force Longitudinal force applied at CG [newtons].
+ * @param front_normal_load Output front-axle normal load [newtons].
+ * @param rear_normal_load Output rear-axle normal load [newtons].
+ * @return None.
  */
-void vehicle_model_initialize_with_parameters(
-    const VehicleParameters_t *parameters);
-
-/**
- * Get current vehicle parameters.
- *
- * @return Copy of current vehicle parameter structure
- */
-VehicleParameters_t vehicle_model_get_parameters(void);
+void vehicle_model_compute_normal_loads(
+    float longitudinal_force,
+    float *front_normal_load,
+    float *rear_normal_load);
 
 /*===========================================================================
  * Control Input Saturation
  *===========================================================================*/
 
 /**
- * Clamp control inputs to physical vehicle limits.
+ * @brief Clamp control inputs to physical vehicle limits.
  *
  * Ensures:
  * - Steering angle within [-max_steering, +max_steering]
- * - Motor torque within [min_torque, max_torque]
+ * - Longitudinal acceleration within configured min/max bounds
  *
  * @param raw_control  Unconstrained control input
- * @return Constrained control input within physical limits
+ * @return Constrained control input within physical limits.
  */
-ControlInput_t vehicle_model_saturate_control(
-    const ControlInput_t *raw_control);
+ControlInput_t vehicle_model_saturate_control(const ControlInput_t *raw_control);
 
 /*===========================================================================
  * State Prediction (Single Step)
  *===========================================================================*/
 
 /**
- * Predict the next vehicle state using the dynamic bicycle model.
+ * @brief Predict the next vehicle state using the dynamic bicycle model.
  *
- * Uses Forward Euler integration:
- *   state[k+1] = state[k] + dt * f(state[k], control[k])
+ * Uses analytical pose integration for (x, y, psi) with constant body twist
+ * over the step, and Forward Euler for body dynamic states (v_x, v_y, omega).
  *
  * Includes tire force computation using linear tire model.
  * The control input is automatically saturated to physical limits.
  *
  * @param current_state   Current vehicle state (6 states)
  * @param control_input   Control input (steering, acceleration)
- * @param time_step       Time step duration [seconds] in fixed-point
- * @return Predicted state after time_step seconds
+ * @param time_step       Integration time step duration [seconds].
+ * @return Predicted state after time_step seconds.
  */
 VehicleState_t vehicle_model_predict_next_state(
     const VehicleState_t *current_state,
@@ -125,16 +128,17 @@ VehicleState_t vehicle_model_predict_next_state(
  *===========================================================================*/
 
 /**
- * Predict vehicle trajectory over multiple time steps.
+ * @brief Predict vehicle trajectory over multiple time steps.
  *
  * Useful for MPC prediction horizon computation.
  *
  * @param initial_state      Starting vehicle state
  * @param control_sequence   Array of control inputs (length = step_count)
- * @param time_step          Time between steps [seconds] in fixed-point
+ * @param time_step          Time between steps [seconds]
  * @param step_count         Number of prediction steps
  * @param predicted_trajectory  Output array (length = step_count + 1)
  *                              First element is initial_state
+ * @return None. Results are written to predicted_trajectory.
  *
  * @note predicted_trajectory must have space for (step_count + 1) states
  */
@@ -146,42 +150,35 @@ void vehicle_model_predict_trajectory(
     VehicleState_t *predicted_trajectory);
 
 /*===========================================================================
- * Model Linearization (for Linear MPC)
+ * Tire Linearization Helper
  *===========================================================================*/
 
 /**
- * Compute linearized state-space matrices at an operating point.
- *
- * Linearizes the nonlinear dynamic bicycle model around (state, control):
- *
- *   state[k+1] ≈ A × state[k] + B × control[k]
- *
- * Where:
- *   A = I + dt × (∂f/∂state)    [6×6 discrete state matrix]
- *   B = dt × (∂f/∂control)      [6×2 discrete input matrix]
- *
- * State ordering: [x, y, heading, v_x, v_y, omega]
- * Control ordering: [steering, acceleration]
- *
- * @param operating_state    State to linearize around
- * @param operating_control  Control to linearize around
- * @param time_step          Discretization time step [seconds]
- * @param state_matrix_A     Output: 6×6 state transition matrix
- * @param input_matrix_B     Output: 6×2 input matrix
+ * @brief Compute local effective lateral stiffness for a Pacejka-like tire law.
+ * @details Evaluates the nonlinear tire law at the operating slip angle and
+ *          returns the local slope dF_y/dalpha, clamped to a minimum
+ *          stiffness floor for numerical robustness near saturation.
+ * @param use_front_axle Set to 1 for front-axle constants, 0 for rear-axle constants.
+ * @param normal_load Tire normal load [newtons].
+ * @param slip_angle Operating slip angle [radians].
+ * @param effective_stiffness Output local stiffness dF_y/dalpha [newtons per radian].
+ * @param lateral_force Optional output lateral force at the operating point [newtons];
+ *                      pass NULL when the force value is not needed.
+ * @return None.
  */
-void vehicle_model_compute_linearization(
-    const VehicleState_t *operating_state,
-    const ControlInput_t *operating_control,
-    float time_step,
-    float state_matrix_A[6][6],
-    float input_matrix_B[6][2]);
+void vehicle_model_compute_effective_lateral_stiffness(
+     uint8_t use_front_axle,
+    float normal_load,
+    float slip_angle,
+    float *effective_stiffness,
+    float *lateral_force);
 
 /*===========================================================================
  * Frenet Frame Linearization
  *===========================================================================*/
 
 /**
- * Compute linearized Frenet-frame state-space matrices.
+ * @brief Compute linearized Frenet-frame state-space matrices.
  *
  * Frenet state: [e_y, e_psi, v_x, v_y, omega]
  *   e_y    = lateral error from reference path [meters]
@@ -202,13 +199,14 @@ void vehicle_model_compute_linearization(
  * @param path_curvature     Path curvature kappa at current point [rad/m]
  * @param state_matrix_A     Output: 5×5 Frenet state transition matrix
  * @param input_matrix_B     Output: 5×2 Frenet input matrix
+ * @return None. Matrices are written to state_matrix_A and input_matrix_B.
  */
 void vehicle_model_compute_frenet_linearization(
     const FrenetState_t *frenet_state,
     const ControlInput_t *operating_control,
     float time_step,
     float path_curvature,
-    float state_matrix_A[FRENET_STATE_DIMENSION][FRENET_STATE_DIMENSION],
-    float input_matrix_B[FRENET_STATE_DIMENSION][2]);
+    float state_matrix_A[NX_FRENET][NX_FRENET],
+    float input_matrix_B[NX_FRENET][2]);
 
 #endif /* VEHICLE_MODEL_H */

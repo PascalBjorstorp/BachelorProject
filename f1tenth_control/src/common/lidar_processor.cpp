@@ -1,8 +1,5 @@
-#include "f1tenth_control/common/lidar_processor.hpp"
-#include "f1tenth_control/common/math_utils.hpp"
-#include <algorithm>
-#include <cmath>
-#include <limits>
+#include "common/lidar_processor.hpp"
+
 
 namespace f1tenth_control {
 
@@ -70,26 +67,37 @@ void LidarProcessor::validateRanges(ProcessedScan& scan) {
         double& range = scan.filtered_ranges[i];
         
         if (!std::isfinite(range) || range < config_.range_min) {
+            // Min range is invalid - set to min and mark as invalid
             range = config_.range_min;
             scan.valid[i] = false;
         } else if (range > config_.range_max) {
+            // Max range is still set to valid, and is assumed to be an 
+            // obstacle at that distance. This allows algorithms to treat 
+            // out-of-range points as far obstacles rather than ignoring them.
             range = config_.range_max;
         }
     }
 }
 
 size_t LidarProcessor::findClosestPoint(const ProcessedScan& scan) {
+    // If no valid points, return 0
+    // TODO: This causes issues when no valid points are found
+    //       It will cause closest point to be index 0, even 
+    //       though no points are valid.
     if (scan.filtered_ranges.empty()) return 0;
     
+    // Find closest valid point within configured angular range
     size_t closest_idx = 0;
     double min_range = std::numeric_limits<double>::infinity();
     
+    // Loop through all beams and check validity and range
     for (size_t i = 0; i < scan.filtered_ranges.size(); ++i) {
         double angle = scan.angles[i];
+        // Skip if outside configured angular bounds
         if (angle < config_.angle_min || angle > config_.angle_max) {
             continue;
         }
-        
+        // Check if this point is valid and closer than current minimum
         if (scan.valid[i] && scan.filtered_ranges[i] < min_range) {
             min_range = scan.filtered_ranges[i];
             closest_idx = i;
@@ -99,11 +107,14 @@ size_t LidarProcessor::findClosestPoint(const ProcessedScan& scan) {
     return closest_idx;
 }
 
+   
 Point2D LidarProcessor::scanPointToCartesian(const ProcessedScan& scan, size_t index) {
+    // Check index bounds
     if (index >= scan.filtered_ranges.size()) {
-        return Point2D();
+        return Point2D(0, 0);  // Out of bounds index, return origin
     }
     
+    // Convert polar coordinates (range, angle) to Cartesian (x, y)
     double range = scan.filtered_ranges[index];
     double angle = scan.angles[index];
     
@@ -115,9 +126,11 @@ std::vector<BoundaryPoint> LidarProcessor::extractBoundaryPoints(
     const Pose2D& robot_pose,
     double timestamp
 ) {
+    // Reserve space for boundary points (worst case: all points are valid)
     std::vector<BoundaryPoint> boundary_points;
     boundary_points.reserve(scan.filtered_ranges.size());
     
+    // Loop through all beams and extract valid points within angular bounds
     for (size_t i = 0; i < scan.filtered_ranges.size(); ++i) {
         if (!scan.valid[i]) continue;
         
@@ -130,11 +143,12 @@ std::vector<BoundaryPoint> LidarProcessor::extractBoundaryPoints(
         // Transform to global/map frame
         Point2D global_point = math::localToGlobal(local_point, robot_pose);
         
+        // Create boundary point with metadata
         BoundaryPoint bp;
-        bp.position = global_point;
-        bp.timestamp = timestamp;
+        bp.position = global_point;     // Transformed position in map frame
+        bp.timestamp = timestamp;       // Time when this point was recorded
         bp.is_left_wall = (angle > 0);  // Positive angles are left side
-        bp.confidence = 1.0;  // Could be based on range or other factors
+        bp.confidence = 1.0;            // TODO: Could be based on range or other factors
         
         boundary_points.push_back(bp);
     }

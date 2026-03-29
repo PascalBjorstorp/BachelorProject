@@ -1,99 +1,106 @@
-# MPC Hardware — F1/10th Real-Time Controller
+# MPC Riccati-ADMM (ROS2 C)
 
-ROS2 C package implementing Model Predictive Control for the F1TENTH car,
-targeting the Jetson Xavier NX at 200 Hz.
+This package contains the Riccati-ADMM MPC controller core and ROS2 nodes used
+for both simulation and hardware execution in the F1TENTH stack.
 
-## Architecture
+## Package Overview
 
-The package uses the same Riccati-ADMM MPC core library as the simulation
-(`MPC_experimental`), but with the ROS2 node adapted for real hardware:
+Package name:
+- `mpc_riccati`
 
-- **MPC Core** (copied from `MPC_experimental`, unmodified):
-  - `fp_math.c/h` — Q16.16 fixed-point arithmetic
-  - `vehicle_model.c/h` — Dynamic bicycle model + Frenet linearization
-  - `riccati_solver.c/h` — Riccati-ADMM constrained LQR solver
-  - `mpc_riccati.c` — MPC controller using 8-state augmented Frenet model
-  - `mpc.h` — Public API
-  - `mpc_types.h` — Type definitions and default parameters
+Core library:
+- `src/mpc.c`
+- `src/riccati_solver.c`
+- `src/vehicle_model.c`
+- `src/util_math.c`
+- Public headers in `include/`
 
-- **Hardware Node** (`mpc_hardware_node.c`):
-  - Subscribes to `/odom` (VESC odometry via `nav_msgs/Odometry`)
-  - Publishes to `/drive` (via `ackermann_msgs/AckermannDriveStamped`)
-  - No simulation-specific code (collision, ground truth, visualization)
-  - Real-time optimized: `SCHED_FIFO`, CPU affinity, Best Effort QoS
-  - `CLOCK_MONOTONIC_RAW` for precise timing
+ROS2 nodes:
+- Simulator node: `sim/mpc_ros2_node.c` (executable: `mpc_node`)
+- Hardware node: `src/mpc_hardware_node.c` (executable: `mpc_hardware_node`)
 
-## 8-State Model
+Launch files:
+- Simulation: `launch/mpc_launch.py`
+- Hardware: `launch/mpc_hardware.launch.py`
 
-Augmented state: `[e_y, e_psi, vx, vy, omega, δ_actual, δ̇_prev, a_prev]`
+## Build
 
-Controls: `[δ̇ (steering rate), a (acceleration)]`
-
-The servo rate limit (±2.849 rad/s) is a direct box constraint on `u[0]`,
-handled natively by the ADMM projection step.
-
-## Building
+From workspace root:
 
 ```bash
-cd /path/to/workspace
-colcon build --packages-select mpc_hardware
+colcon build --packages-select mpc_riccati
 source install/setup.bash
 ```
 
-## Running
+## Run
+
+Simulation (gym bridge must already be running):
 
 ```bash
-# With a trajectory file:
-ros2 launch mpc_hardware mpc_hardware.launch.py \
-    trajectory_file:=/path/to/raceline.csv
-
-# With custom topics:
-ros2 launch mpc_hardware mpc_hardware.launch.py \
-    trajectory_file:=/path/to/raceline.csv \
-    odom_topic:=/odom \
-    drive_topic:=/drive \
-    speed_gain:=0.8
-
-# With verbose logging for debugging:
-ros2 launch mpc_hardware mpc_hardware.launch.py \
-    trajectory_file:=/path/to/raceline.csv \
-    verbose:=1
+ros2 launch mpc_riccati mpc_launch.py trajectory_file:=/path/to/trajectory.csv
 ```
 
-## Hardware Integration
-
-This node is designed to work with `bringup_launch.py` from `f1tenth_stack`:
-
-1. VESC driver publishes odometry on `/odom`
-2. This node subscribes to `/odom` and publishes to `/drive`
-3. `ackermann_mux` merges autonomous commands with joystick
-
-## Tuning
-
-MPC weights can be tuned at runtime via environment variables:
+Hardware:
 
 ```bash
-export MPC_W_LAT_ERROR=100.0    # Lateral error weight
-export MPC_W_HEADING=1000.0     # Heading error weight
-export MPC_W_VELOCITY=10.0      # Velocity tracking weight
-export MPC_W_STEER_RATE=3.0     # Steering jerk weight
-export MPC_W_STEER_EFFORT=0.35  # Steering rate effort weight
-export MPC_SPEED_GAIN=0.8       # Scale trajectory velocities
+ros2 launch mpc_riccati mpc_hardware.launch.py trajectory_file:=/path/to/trajectory.csv
 ```
 
-## Real-Time Performance
+Useful hardware launch arguments:
+- `odom_topic`
+- `drive_topic`
+- `servo_topic`
+- `imu_topic`
+- `pose_topic`
+- `verbose`
+- `watchdog_timeout`
 
-For best real-time performance on Jetson:
+## Runtime Configuration
 
-1. Run as root (or set `CAP_SYS_NICE`) for `SCHED_FIFO`
-2. Disable CPU frequency scaling: `sudo jetson_clocks`
-3. Set performance governor: `sudo nvpmodel -m 0`
-4. The node pins to CPU core 5 by default (big ARM core)
+The controller reads key tuning values from environment variables in the core
+MPC layer (`mpc.c`) and solve path (`riccati_solver.c`). Typical variables:
 
-Typical solve time: ~200-500 µs per MPC call on Xavier NX.
+- Weights: `Q_LAT`, `Q_HDG`, `Q_VEL`, `Q_LAT_VEL`, `Q_YAW`, `R_STEER`,
+  `R_ACCEL`, `W_JERK`, `W_ACCEL_RATE`
+- Solver: `RHO`, `RHO_U`, `ALPHA`, `TOL`, `MAX_ITER`
+- Horizon/timestep: `HORIZON`, `PRED_DT`
+- Wall handling: `WALL_END`, `WALL_STRIDE`, `WALL_MARGIN`
 
-## Trajectory Format
+Note:
+- The effective maximum horizon is bounded by compile-time array limits in
+  `include/mpc_types.h` (`PREDICTION_HORIZON`).
 
-CSV with columns: `s_m, x_m, y_m, psi_rad, kappa_radpm, vx_mps, ax_mps2, left_bound, right_bound`
+## Tests and Tuning
 
-Lines starting with `#` are treated as comments.
+Primary test/tuning files:
+- `test/test_sim_drive.c`
+- `test/tune_realistic_v2.py`
+
+Standalone test build example:
+
+```bash
+gcc -D_GNU_SOURCE -O3 -std=c99 -Wall -ffast-math \
+  -Wno-unused-variable -Wno-unused-but-set-variable \
+  -Iinclude test/test_sim_drive.c src/mpc.c src/riccati_solver.c \
+  src/vehicle_model.c src/util_math.c -o test_sim_drive -lm
+```
+
+Run tuner:
+
+```bash
+python3 test/tune_realistic_v2.py --objective tracker
+python3 test/tune_realistic_v2.py --objective fastest --jobs 8
+```
+
+Horizon sweep note:
+- Horizon is swept like any other parameter using:
+  `[10, 14, 18, 20, 22, 26, 30, 34, 40, 50]`.
+- Package default `PREDICTION_HORIZON` in `include/mpc_types.h` is set to 50,
+  so the sweep values above are effective without extra flags.
+
+Recent review updates in this package include:
+- Null/invalid-input hardening in solver and utility layers.
+- Shared trajectory waypoint type centralized in `include/mpc_types.h`.
+- Sim and hardware ROS nodes aligned to direct define usage for timing/horizon
+  paths where required.
+- Legacy dead paths and ineffective sweep ranges removed from test/tuning flow.

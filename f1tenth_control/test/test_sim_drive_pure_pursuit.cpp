@@ -17,7 +17,7 @@
  *   ./build/f1tenth_control/test_sim_drive_pure_pursuit --trajectory /abs/path/to/raceline.csv
  */
 
-#include "f1tenth_control/algorithms/pure_pursuit.hpp"
+#include "algorithms/pure_pursuit.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -108,8 +108,8 @@ double clampValue(double x, double lo, double hi) {
 }
 
 double normalizeAngle(double a) {
-    while (a > M_PI) a -= 2.0 * M_PI;
-    while (a < -M_PI) a += 2.0 * M_PI;
+    while (a > f1tenth_control::constants::PI) a -= 2.0 * f1tenth_control::constants::PI;
+    while (a < -f1tenth_control::constants::PI) a += 2.0 * f1tenth_control::constants::PI;
     return a;
 }
 

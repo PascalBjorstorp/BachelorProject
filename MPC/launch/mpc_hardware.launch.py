@@ -25,6 +25,17 @@ from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
+    """
+    Build the launch graph for the MPC hardware node.
+
+    Resolves the default trajectory path from f1tenth_planning package share,
+    declares configurable launch arguments for all runtime-tunable parameters,
+    and maps them to environment variables consumed by the C MPC node process.
+
+    Returns:
+        LaunchDescription containing all argument declarations, environment
+        variable setters, and the mpc_hardware_node action.
+    """
 
     # Default trajectory: look in f1tenth_planning's installed share directory
     default_trajectory = ''
@@ -85,56 +96,16 @@ def generate_launch_description():
         description='Map-frame pose topic (EKF-fused or raw AMCL)'
     )
 
-    speed_gain_arg = DeclareLaunchArgument(
-        'speed_gain',
-        default_value='1.0',
-        description='Speed gain applied to trajectory velocities (0.0-2.0)'
-    )
-
     verbose_arg = DeclareLaunchArgument(
         'verbose',
         default_value='0',
         description='Enable verbose logging (0=off, 1=on). Disable for real-time.'
     )
 
-    control_rate_arg = DeclareLaunchArgument(
-        'control_rate',
-        default_value='200',
-        description='MPC computation rate in Hz (10-1000)'
-    )
-
     watchdog_timeout_arg = DeclareLaunchArgument(
         'watchdog_timeout',
         default_value='0.5',
         description='Safety watchdog timeout in seconds'
-    )
-
-    servo_gain_arg = DeclareLaunchArgument(
-        'servo_gain',
-        default_value='-0.7284',
-        description='VESC steering_angle_to_servo_gain (calibrated)'
-    )
-
-    servo_offset_arg = DeclareLaunchArgument(
-        'servo_offset',
-        default_value='0.55',
-        description='VESC steering_angle_to_servo_offset'
-    )
-
-    steer_c2_arg = DeclareLaunchArgument(
-        'steering_correction_c2',
-        default_value='0.589566',
-        description='Steering nonlinearity correction c2 (calibrated 2026-03-12)'
-    )
-    steer_c1_arg = DeclareLaunchArgument(
-        'steering_correction_c1',
-        default_value='0.918061',
-        description='Steering nonlinearity correction c1'
-    )
-    steer_c0_arg = DeclareLaunchArgument(
-        'steering_correction_c0',
-        default_value='0.001490',
-        description='Steering nonlinearity correction c0'
     )
 
     # Set environment variables for the MPC node
@@ -162,43 +133,14 @@ def generate_launch_description():
         'MPC_AMCL_TOPIC',
         LaunchConfiguration('pose_topic')
     )
-    set_speed = SetEnvironmentVariable(
-        'MPC_SPEED_GAIN',
-        LaunchConfiguration('speed_gain')
-    )
     set_verbose = SetEnvironmentVariable(
         'MPC_VERBOSE',
         LaunchConfiguration('verbose')
-    )
-    set_rate = SetEnvironmentVariable(
-        'MPC_CONTROL_RATE',
-        LaunchConfiguration('control_rate')
     )
     set_watchdog = SetEnvironmentVariable(
         'MPC_WATCHDOG_TIMEOUT',
         LaunchConfiguration('watchdog_timeout')
     )
-    set_servo_gain = SetEnvironmentVariable(
-        'MPC_SERVO_GAIN',
-        LaunchConfiguration('servo_gain')
-    )
-    set_servo_offset = SetEnvironmentVariable(
-        'MPC_SERVO_OFFSET',
-        LaunchConfiguration('servo_offset')
-    )
-    set_steer_c2 = SetEnvironmentVariable(
-        'MPC_STEERING_CORRECTION_C2',
-        LaunchConfiguration('steering_correction_c2')
-    )
-    set_steer_c1 = SetEnvironmentVariable(
-        'MPC_STEERING_CORRECTION_C1',
-        LaunchConfiguration('steering_correction_c1')
-    )
-    set_steer_c0 = SetEnvironmentVariable(
-        'MPC_STEERING_CORRECTION_C0',
-        LaunchConfiguration('steering_correction_c0')
-    )
-
     # MPC hardware node
     mpc_node = Node(
         package='mpc_riccati',
@@ -217,29 +159,15 @@ def generate_launch_description():
         servo_topic_arg,
         imu_topic_arg,
         pose_topic_arg,
-        speed_gain_arg,
         verbose_arg,
-        control_rate_arg,
         watchdog_timeout_arg,
-        servo_gain_arg,
-        servo_offset_arg,
-        steer_c2_arg,
-        steer_c1_arg,
-        steer_c0_arg,
         set_trajectory,
         set_odom,
         set_drive,
         set_servo,
         set_imu,
         set_pose,
-        set_speed,
         set_verbose,
-        set_rate,
         set_watchdog,
-        set_servo_gain,
-        set_servo_offset,
-        set_steer_c2,
-        set_steer_c1,
-        set_steer_c0,
         mpc_node,
     ])

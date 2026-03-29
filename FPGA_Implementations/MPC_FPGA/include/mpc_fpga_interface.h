@@ -5,7 +5,7 @@
  * AXI-Lite + AXI-Stream register map for the MPC FPGA IP core.
  *
  * Data flow model (AXI-Stream DMA):
- *   1. CPU packs state + horizon into DMA buffer (336 bytes, 21 beats)
+ *   1. CPU packs state + horizon into DMA buffer (MPC_FPGA_DMA_BYTES bytes)
  *   2. AXI DMA streams data to FPGA via AXI-Stream (input_stream)
  *   3. FPGA computes MPC solution
  *   4. CPU reads output registers via AXI-Lite
@@ -13,7 +13,7 @@
  * AXI-Stream Format (128-bit words):
  *   Beat 0: [e_y | e_psi | vx | vy]
  *   Beat 1: [omega | steering | horizon_length | reserved]
- *   Beat 2..20: [ref_vx[i] | ref_kappa[i] | ref_left[i] | ref_right[i]]
+ *   Beat 2..(1 + MPC_FPGA_HORIZON_STEPS): [ref_vx[i] | ref_kappa[i] | ref_left[i] | ref_right[i]]
  *
  * Data format: all values are Q16.16 fixed-point (int32_t).
  *
@@ -25,6 +25,7 @@
 #define MPC_FPGA_INTERFACE_H
 
 #include <stdint.h>
+#include "mpc_fpga_constants.h"
 
 /*===========================================================================
  * Base Addresses (set in Vivado Address Editor)
@@ -88,9 +89,9 @@
  * MPC Configuration
  *===========================================================================*/
 
-#define MPC_HORIZON             10                          /* Prediction horizon (steps) */
-#define DMA_BUFFER_BEATS        MPC_HORIZON + 2             /* 2 header + reference beats */
-#define DMA_BUFFER_BYTES        DMA_BUFFER_BEATS * 16       /* 21 beats × 16 bytes */
+#define MPC_HORIZON             MPC_FPGA_HORIZON_STEPS      /* Prediction horizon (steps) */
+#define DMA_BUFFER_BEATS        MPC_FPGA_DMA_BEATS          /* 2 header + reference beats */
+#define DMA_BUFFER_BYTES        MPC_FPGA_DMA_BYTES          /* (MPC_HORIZON + 2) beats x 16 bytes */
 
 /*===========================================================================
  * Status Codes

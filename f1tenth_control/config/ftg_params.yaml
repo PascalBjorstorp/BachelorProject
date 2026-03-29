@@ -1,8 +1,7 @@
 # Weighted Free-Space Follow The Gap (FTG) Configuration
 # ======================================================
-# Replaces discrete gap-finding with continuous drivability scoring.
 # Steers toward the weighted centroid of all high-scoring directions,
-# naturally centring the car in corridors for smooth 1-2 m/s driving.
+# naturally centring the car in corridors and biasing toward straight paths.
 
 ftg_node:
   ros__parameters:
@@ -10,12 +9,13 @@ ftg_node:
     # Vehicle Parameters
     # ===================
     wheelbase: 0.3302        # Distance between front and rear axles (m)
-    car_width: 0.30          # Vehicle width for clearance cone (m)
+    car_width: 0.273         # Vehicle width for clearance cone (m), aligned with vehicle_params.yaml
 
     # ===================
     # Speed Control
     # ===================
     # Speed = min_speed + (max_speed - min_speed) * range_factor * steer_factor
+    # (range_factor and steer_factor are internal normalized terms computed in follow_the_gap.cpp)
     max_speed: 2.0           # Maximum allowed speed (m/s)
     min_speed: 1.0           # Minimum speed (m/s) - keeps car moving
     speed_full_range: 4.0    # Range (m) at which full speed is used
@@ -26,7 +26,7 @@ ftg_node:
     # ===================
     max_steering: 0.4189          # [rad] Maximum steering angle (~24 deg, calibrated)
     steering_gain: 1.0            # Proportional gain on target angle
-    max_steering_rate: 3.5        # [rad/s] Max steering change rate
+    max_steering_rate: 2.8492     # [rad/s] Max steering change rate, aligned with vehicle_params.yaml
     target_ema_alpha: 0.35        # EMA smoothing (lower = smoother, 1.0 = none)
 
     # ===================
@@ -34,15 +34,17 @@ ftg_node:
     # ===================
     # These control how the algorithm picks a steering direction.
     #
-    # heading_weight  - exponential decay for non-forward directions.
-    #                   Higher values bias toward going straight.
-    #                   0.5-1.0 = gentle bias, 2.0+ = very straight.
-    # score_power     - raise effective clearance to this power.
-    #                   Higher = sharper selection, lower = more averaging.
-    # clearance_cone_scale - multiplier on car half-width for the safety
-    #                        cone used to compute effective clearance.
-    #                        1.5 = 50% extra margin beyond car edge.
-    # min_score_range - beams shorter than this (m) are scored as zero.
+    # heading_weight        - exponential decay for non-forward directions.
+    #                         Higher values bias toward going straight.
+    #
+    # score_power           - raise effective clearance to this power.
+    #                         Higher = sharper selection, lower = more averaging.
+    #
+    # clearance_cone_scale  - multiplier on car half-width for the safety
+    #                         cone used to compute effective clearance.
+    #                         Higher values = more conservative (wider cone), lower = more aggressive (narrower cone).
+    #
+    # min_score_range       - beams shorter than this (m) are scored as zero.
     heading_weight: 1.0
     score_power: 2.0
     clearance_cone_scale: 1.5
@@ -72,8 +74,3 @@ ftg_node:
       apply_median_filter: true    # Median filter for noise reduction
       median_window_size: 3        # Window (must be odd)
 
-    # ===================
-    # Mapping Mode
-    # ===================
-    mapping_mode: false
-    mapping_sample_rate: 40.0

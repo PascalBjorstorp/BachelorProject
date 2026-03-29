@@ -20,6 +20,9 @@ find_package(ackermann_msgs REQUIRED)
 # MPC Riccati-ADMM — FPGA (mpc_receiver.cpp)
 # ===========================================================================
 add_executable(mpc_receiver_node src/mpc_receiver.cpp)
+target_include_directories(mpc_receiver_node PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../FPGA_Implementations/MPC_FPGA/include
+)
 ament_target_dependencies(mpc_receiver_node
   rclcpp
   f1tenth_msgs
@@ -30,10 +33,6 @@ install(TARGETS mpc_receiver_node DESTINATION lib/${PROJECT_NAME})
 # ===========================================================================
 # Install
 # ===========================================================================
-install(TARGETS
-  DESTINATION lib/${PROJECT_NAME}
-)
-
 install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
   OPTIONAL
