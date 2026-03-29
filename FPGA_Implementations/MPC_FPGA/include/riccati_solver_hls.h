@@ -1,8 +1,10 @@
 /**
  * @file riccati_solver_hls.h
- * @brief Riccati-ADMM Solver Interface for HLS
- *
- * Constrained LQR solver using ADMM with Riccati recursion.
+ * @brief Public interface for the HLS Riccati-ADMM solver core.
+ * @details Declares the constrained LQR solve entry point used by the
+ *          FPGA MPC pipeline. The implementation performs ADMM iterations
+ *          with Riccati recursion for the primal update.
+ * @dependencies mpc_fpga_types.h
  */
 
 #ifndef RICCATI_SOLVER_HLS_H
@@ -15,16 +17,15 @@ extern "C" {
 #endif
 
 /**
- * Solve constrained LQR via Riccati-ADMM (HLS-synthesizable).
- *
- * @param step_data   Per-step dynamics and cost (array of MPC_HORIZON)
- * @param terminal_Q  Terminal diagonal cost (length MPC_NX_AUG)
- * @param terminal_q  Terminal linear cost (length MPC_NX_AUG)
- * @param x0          Initial state (length MPC_NX_AUG)
- * @param config      ADMM configuration
- * @param admm_state  Warm-start state
- * @param solution    Output: optimal trajectories and status
- * @return Solver status
+ * @brief Solve constrained LQR using Riccati-ADMM.
+ * @param step_data Per-step dynamics, costs, and bounds array of length MPC_HORIZON.
+ * @param terminal_Q Terminal diagonal cost vector of length MPC_NX_AUG.
+ * @param terminal_q Terminal linear cost vector of length MPC_NX_AUG.
+ * @param x0 Initial augmented state vector of length MPC_NX_AUG.
+ * @param config ADMM configuration pointer.
+ * @param admm_state Warm-start and dual/primal history pointer.
+ * @param solution Output solution trajectories and solver diagnostics pointer.
+ * @return Solver status code.
  */
 MpcStatus_t riccati_admm_solve_hls(
     const StepData_t step_data[MPC_HORIZON],

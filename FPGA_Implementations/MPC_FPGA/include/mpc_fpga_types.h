@@ -1,15 +1,17 @@
 /**
  * @file mpc_fpga_types.h
- * @brief Types, constants, and data structures for HLS MPC solver
- *
- * Defines all types for the FPGA MPC Riccati-ADMM implementation.
- * Uses Q16.16 fixed-point arithmetic (int32_t with 64-bit intermediates).
+ * @brief Types, constants, and shared structures for the FPGA MPC solver.
+ * @details Defines dimensions, state indices, precomputed fixed-point
+ *          constants, and all data structures exchanged across the
+ *          vehicle-model, Riccati solver, and top-level integration units.
+ * @dependencies fp_math_hls.h, mpc_fpga_constants.h
  */
 
 #ifndef MPC_FPGA_TYPES_H
 #define MPC_FPGA_TYPES_H
 
 #ifndef MPC_HLS_TARGET
+/* Build flag used by downstream modules to enable HLS-specific branches. */
 #define MPC_HLS_TARGET
 #endif
 
@@ -34,6 +36,9 @@
 
 /** Fixed prediction horizon */
 #define MPC_HORIZON     MPC_FPGA_HORIZON_STEPS
+
+/** Horizon length used for loops that include terminal state k = N */
+#define MPC_HORIZON_PLUS_ONE (MPC_HORIZON + 1)
 
 /** Maximum ADMM iterations */
 #define MPC_MAX_ADMM_ITER MPC_FPGA_MAX_ADMM_ITER

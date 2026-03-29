@@ -1,6 +1,10 @@
 /**
  * @file test_fpga_sim_drive.c
  * @brief Closed-loop MPC simulation test for the FPGA HLS implementation
+ * @details Runs the scalar FPGA wrapper in a long-horizon closed-loop
+ *          simulation, using the same fixed-point interfaces as deployed
+ *          code paths, and checks tracking, safety, and timing metrics.
+ * @dependencies mpc_fpga_types.h, fp_math_hls.h, math.h, time.h
  *
  * Tests the FPGA top-level interface (mpc_fpga_top_scalar) in a 100-second
  * closed-loop simulation using a nonlinear single-track plant model.
