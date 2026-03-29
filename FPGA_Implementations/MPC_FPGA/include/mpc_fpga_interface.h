@@ -1,6 +1,10 @@
 /**
  * @file mpc_fpga_interface.h
  * @brief CPU <-> FPGA Interface for MPC Riccati-ADMM Solver
+ * @details Defines AXI-Lite register offsets, AXI DMA control registers,
+ *          stream framing constants, and status codes used by host software
+ *          to exchange MPC state and trajectory data with the FPGA IP core.
+ * @dependencies <stdint.h>, mpc_fpga_constants.h
  *
  * AXI-Lite + AXI-Stream register map for the MPC FPGA IP core.
  *

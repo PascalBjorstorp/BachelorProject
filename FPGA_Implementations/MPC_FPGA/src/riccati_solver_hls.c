@@ -1,11 +1,11 @@
 /**
  * @file riccati_solver_hls.c
  * @brief Riccati-ADMM Solver — HLS-Synthesizable Implementation
- *
- * Solves constrained LQR using ADMM with Riccati recursion.
- * Exploits the 8-state augmented formulation's sparsity:
- *   - Dense block: rows/cols 0-5 (Frenet + delta_actual)
- *   - Zero block: rows/cols 6-7 (previous controls)
+ * @details Solves constrained LQR using ADMM with Riccati recursion and
+ *          fixed-size matrices tailored for FPGA synthesis. The implementation
+ *          exploits the augmented-state sparsity pattern to reduce arithmetic
+ *          and memory pressure in backward and forward passes.
+ * @dependencies riccati_solver_hls.h, fp_math_hls.h
  */
 
 #include "../include/riccati_solver_hls.h"
@@ -25,7 +25,7 @@ static int64_t reciprocal_64(int64_t det)
 
     /* Handle sign: work with absolute value */
     int64_t sign = (det < 0) ? -1 : 1;
-    int64_t abs_det = (det < 0) ? -det : det;
+    int64_t abs_det = (det < 0) ? ((det == INT64_MIN) ? INT64_MAX : -det) : det;
 
     /* Initial guess via leading-zero count — single-cycle priority encoder.
      * For Q16.16 in int64_t: true 1/det ≈ 2^(32-p) where p = MSB position.
@@ -158,7 +158,7 @@ static void riccati_pass_hls(
 
     /* ===== Backward pass: k = N-1 down to 0 ===== */
     for (k = N - 1; k >= 0; k--) {
-#pragma HLS LOOP_TRIPCOUNT min=19 max=19
+#pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
 #pragma HLS LOOP_FLATTEN off
         const StepData_t *sd = &step_data[k];
         fixed_point_t A_local[MPC_NX_DENSE][MPC_NX_DENSE];
@@ -420,7 +420,7 @@ static void riccati_pass_hls(
     }
 
     for (k = 0; k < N; k++) {
-#pragma HLS LOOP_TRIPCOUNT min=19 max=19
+#pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
 #pragma HLS LOOP_FLATTEN off
         const StepData_t *sd = &step_data[k];
 
@@ -486,6 +486,17 @@ MpcStatus_t riccati_admm_solve_hls(
     AdmmState_t *admm_state,
     MpcSolution_t *solution)
 {
+    if (!step_data || !terminal_Q || !terminal_q || !x0 ||
+        !config || !admm_state || !solution) {
+        if (solution) {
+            solution->iterations = 0;
+            solution->primal_residual = 0;
+            solution->dual_residual = 0;
+            solution->status = MPC_STATUS_ERROR;
+        }
+        return MPC_STATUS_ERROR;
+    }
+
     const int nx = MPC_NX_AUG;
     const int nu = MPC_NU;
     const int N = MPC_HORIZON;
@@ -515,7 +526,7 @@ MpcStatus_t riccati_admm_solve_hls(
     int k, s, a;
 
     for (k = 0; k <= N; k++) {
-#pragma HLS LOOP_TRIPCOUNT min=20 max=20
+#pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON_PLUS_ONE max=MPC_HORIZON_PLUS_ONE
         const StepData_t *sd = (k < N) ? &step_data[k] : &step_data[N - 1];
         for (s = 0; s < nx; s++) {
 #pragma HLS UNROLL
@@ -567,7 +578,7 @@ MpcStatus_t riccati_admm_solve_hls(
 
         /* Initialize z from projection of unconstrained solution */
         for (k = 0; k <= N; k++) {
-    #pragma HLS LOOP_TRIPCOUNT min=20 max=20
+    #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON_PLUS_ONE max=MPC_HORIZON_PLUS_ONE
             const StepData_t *sd = (k < N) ? &step_data[k] : &step_data[N - 1];
             for (s = 0; s < nx; s++) {
 #pragma HLS UNROLL
@@ -578,7 +589,7 @@ MpcStatus_t riccati_admm_solve_hls(
             }
         }
         for (k = 0; k < N; k++) {
-    #pragma HLS LOOP_TRIPCOUNT min=19 max=19
+    #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
             for (a = 0; a < nu; a++) {
 #pragma HLS UNROLL
                 fixed_point_t val = solution->u[k][a];
@@ -590,7 +601,7 @@ MpcStatus_t riccati_admm_solve_hls(
 
         /* Initialize y (dual) from constraint violation */
         for (k = 0; k <= N; k++) {
-    #pragma HLS LOOP_TRIPCOUNT min=20 max=20
+    #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON_PLUS_ONE max=MPC_HORIZON_PLUS_ONE
             for (s = 0; s < nx; s++) {
 #pragma HLS UNROLL
                 if (x_is_con[k][s]) {
@@ -599,7 +610,7 @@ MpcStatus_t riccati_admm_solve_hls(
             }
         }
         for (k = 0; k < N; k++) {
-    #pragma HLS LOOP_TRIPCOUNT min=19 max=19
+    #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
             for (a = 0; a < nu; a++) {
 #pragma HLS UNROLL
                 y_u[k][a] = solution->u[k][a] - z_u[k][a];
@@ -631,7 +642,7 @@ MpcStatus_t riccati_admm_solve_hls(
         /* State z/y update with over-relaxation:
          * x_hat = alpha*x + (1-alpha)*z_old, alpha = 1.5. */
         for (k = 0; k <= N; k++) {
-    #pragma HLS LOOP_TRIPCOUNT min=20 max=20
+    #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON_PLUS_ONE max=MPC_HORIZON_PLUS_ONE
     #pragma HLS PIPELINE II=2
             const StepData_t *sd = (k < N) ? &step_data[k] : &step_data[N - 1];
             for (s = 0; s < nx; s++) {
@@ -674,7 +685,7 @@ MpcStatus_t riccati_admm_solve_hls(
 
         /* Control z/y update — dual residual computed inline (with over-relaxation) */
         for (k = 0; k < N; k++) {
-    #pragma HLS LOOP_TRIPCOUNT min=19 max=19
+    #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
 #pragma HLS PIPELINE II=1
             const StepData_t *sd = &step_data[k];
             for (a = 0; a < nu; a++) {
@@ -731,7 +742,7 @@ MpcStatus_t riccati_admm_solve_hls(
                 if (rho_u < FP_CONST(100.0))
                     rho_u = fp_mul(rho_u, FP_TWO);
                 for (k = 0; k <= N; k++) {
-#pragma HLS LOOP_TRIPCOUNT min=20 max=20
+#pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON_PLUS_ONE max=MPC_HORIZON_PLUS_ONE
 #pragma HLS PIPELINE II=1
                     for (s = 0; s < nx; s++) {
 #pragma HLS UNROLL
@@ -739,7 +750,7 @@ MpcStatus_t riccati_admm_solve_hls(
                     }
                 }
                 for (k = 0; k < N; k++) {
-#pragma HLS LOOP_TRIPCOUNT min=19 max=19
+#pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
 #pragma HLS PIPELINE II=1
                     for (a = 0; a < nu; a++) {
 #pragma HLS UNROLL
@@ -751,7 +762,7 @@ MpcStatus_t riccati_admm_solve_hls(
                 if (rho_u > FP_CONST(0.5))
                     rho_u = fp_mul(rho_u, FP_HALF);
                 for (k = 0; k <= N; k++) {
-#pragma HLS LOOP_TRIPCOUNT min=20 max=20
+#pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON_PLUS_ONE max=MPC_HORIZON_PLUS_ONE
 #pragma HLS PIPELINE II=1
                     for (s = 0; s < nx; s++) {
 #pragma HLS UNROLL
@@ -759,7 +770,7 @@ MpcStatus_t riccati_admm_solve_hls(
                     }
                 }
                 for (k = 0; k < N; k++) {
-#pragma HLS LOOP_TRIPCOUNT min=19 max=19
+#pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
 #pragma HLS PIPELINE II=1
                     for (a = 0; a < nu; a++) {
 #pragma HLS UNROLL

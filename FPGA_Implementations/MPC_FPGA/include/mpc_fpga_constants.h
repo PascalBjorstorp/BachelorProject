@@ -1,9 +1,10 @@
 /**
  * @file mpc_fpga_constants.h
  * @brief Shared constants for the FPGA MPC production path.
- *
- * This header is the single source of truth for constants that must stay
- * consistent across FPGA implementation code and communication nodes.
+ * @details Single source of truth for horizon sizing, DMA framing, numeric
+ *          scales, vehicle constants, and solver defaults that must remain
+ *          aligned across the FPGA implementation and host-side interfaces.
+ * @dependencies None
  */
 
 #ifndef MPC_FPGA_CONSTANTS_H

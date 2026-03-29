@@ -1,6 +1,10 @@
 /**
  * @file fp_math_hls.c
  * @brief Q16.16 fixed-point math kernels for HLS synthesis.
+ * @details Implements non-inline trigonometric and reciprocal kernels used by
+ *          the FPGA MPC pipeline. Arithmetic is performed in fixed-point with
+ *          deterministic iteration counts suited for synthesis scheduling.
+ * @dependencies fp_math_hls.h
  */
 
 #include "../include/fp_math_hls.h"
@@ -15,16 +19,11 @@
 #define INV_FACT_3          10923   /* 1/3! in Q16.16 */
 #define INV_FACT_4          2731    /* 1/4! */
 #define INV_FACT_5          546     /* 1/5! */
-#define INV_FACT_6          91      /* 1/6! */
-#define INV_FACT_7          13      /* 1/7! */
 
 /* atan polynomial coefficients */
 #define ATAN_COEF_3         21845   /* 1/3 */
 #define ATAN_COEF_5         13107   /* 1/5 */
 #define ATAN_COEF_7         9362    /* 1/7 */
-#define ATAN_COEF_9         7282    /* 1/9 */
-#define ATAN_COEF_11        5958    /* 1/11 */
-#define ATAN_COEF_13        5041    /* 1/13 */
 #define FP_HALF_CONST       32768   /* 0.5 */
 #define FP_ATAN_HALF        30386   /* atan(0.5) */
 #define FP_INV_TWO_PI       10430   /* 1/(2*pi) */
