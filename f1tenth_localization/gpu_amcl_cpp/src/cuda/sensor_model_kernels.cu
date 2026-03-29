@@ -30,12 +30,15 @@ void kernel_sensor_weights(const float* __restrict__ particles, int n,
     // for distance-field lookups. 270 beams × 4B × 2 arrays = ~2 KB.
     extern __shared__ float smem[];
     float* s_ranges = smem;
-    float* s_angles = &smem[num_ranges];
+    float* s_cos    = &smem[num_ranges];
+    float* s_sin    = &smem[2 * num_ranges];
     for (int j = threadIdx.x; j < num_ranges; j += blockDim.x) {
+        float a = angle_min + j * angle_inc;
         s_ranges[j] = ranges[j];
-        s_angles[j] = angle_min + j * angle_inc;  // precompute beam angles
+        s_cos[j]    = cosf(a);  // precompute beam cosines once per block
+        s_sin[j]    = sinf(a);  // precompute beam sines once per block
     }
-    __syncthreads();
+    __syncthreads(); // ensures all threads in the block see fully loaded arrays before using them.
 
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= n) return;
@@ -66,9 +69,12 @@ void kernel_sensor_weights(const float* __restrict__ particles, int n,
         // Skip invalid beams.
         if (r < 0.1f || r > laser_max) continue;
 
-        float beam_angle = s_angles[b] + ptheta;  // §8: precomputed angle
-        float ex = lx + r * cosf(beam_angle);
-        float ey = ly + r * sinf(beam_angle);
+        float cb = s_cos[b];
+        float sb = s_sin[b];
+        float beam_cos = cb * ct - sb * st;
+        float beam_sin = sb * ct + cb * st;
+        float ex = lx + r * beam_cos;
+        float ey = ly + r * beam_sin;
 
         // World → continuous map coordinates for bilinear interpolation.
         float fx = (ex - map_ox) / map_res - 0.5f;
@@ -134,8 +140,10 @@ void launch_sensor_weights(const float* particles, int n,
                            cudaStream_t stream) {
     int block = 256;
     int grid  = (n + block - 1) / block;
-    // §8: Shared memory for ranges + beam angles (2 arrays of num_ranges floats)
-    size_t smem_bytes = 2 * num_ranges * sizeof(float);
+    if (n <= 0 || num_ranges <= 0) return;
+
+    // §8: Shared memory for ranges + precomputed beam cos/sin (3 arrays of num_ranges floats)
+    size_t smem_bytes = 3 * num_ranges * sizeof(float);
     kernel_sensor_weights<<<grid, block, smem_bytes, stream>>>(
         particles, n,
         ranges, num_ranges, max_beams,

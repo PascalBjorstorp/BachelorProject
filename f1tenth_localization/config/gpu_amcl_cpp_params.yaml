@@ -42,8 +42,8 @@ gpu_amcl_cpp:
     # ---- Update thresholds (metres / radians) ----
     # How much the robot must move before we run a PF update.
     # Higher = fewer updates = less noise accumulation but less responsive.
-    update_min_d: 0.01
-    update_min_a: 0.01
+    update_min_d: 0.00
+    update_min_a: 0.00
 
     # ---- Scan freshness ----
     # Max age (seconds) of a scan before it's rejected as stale.

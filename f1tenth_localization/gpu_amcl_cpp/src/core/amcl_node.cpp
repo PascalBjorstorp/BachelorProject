@@ -252,8 +252,10 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     }
 
     // ── Guard 3: Skip stale scans ──
-    // If scan is older than max_scan_age_, it's outdated
-    auto age = (now() - msg->header.stamp).seconds();
+    // Convert scan stamp to the node clock type to avoid mixed clock-source math.
+    const auto clock_type = get_clock()->get_clock_type();
+    const rclcpp::Time scan_time(msg->header.stamp, clock_type);
+    auto age = (now() - scan_time).seconds();
     if (age > max_scan_age_) {
         processing_scan_ = false;
         return;
@@ -304,8 +306,10 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     // ═══════════════════════════════════════════════════════════
 
     // Slip-aware noise scaling: increase noise during aggressive turns
-    rclcpp::Time current_scan_time(msg->header.stamp);
-    double dt = (current_scan_time - last_scan_time_).seconds();
+    double dt = 0.0;
+    if (last_scan_time_.nanoseconds() != 0) {
+        dt = (scan_time - last_scan_time_).seconds();
+    }
     if (dt > 0.001 && dt < 1.0) {  // Valid dt range
         double angular_velocity = std::abs(dtheta) / dt;
         if (angular_velocity > slip_angular_threshold_) {
@@ -314,7 +318,7 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
             pf_.motion_model().reset_noise_multiplier();
         }
     }
-    last_scan_time_ = current_scan_time;
+    last_scan_time_ = scan_time;
 
     pf_.predict(dx_robot, dy_robot, static_cast<float>(dtheta)); 
 

@@ -2,9 +2,9 @@
  * @file resampling_kernels.cu
  * @brief CUDA kernels for low-variance systematic resampling.
  *
- * 1. Inclusive prefix-sum of weights  — CUB DeviceScan  (§2).
+ * 1. Inclusive prefix-sum of weights  — CUB DeviceScan.
  * 2. Systematic resampling using a single random offset.
- * 3. Sum-of-squares reduction for N_eff — CUB DeviceReduce (§2).
+ * 3. Sum-of-squares reduction for N_eff — CUB DeviceReduce.
  */
 
 #include "gpu_amcl_cpp/helpers/cuda_utils.hpp"
@@ -13,7 +13,7 @@
 
 namespace gpu_amcl_cpp {
 
-// ─── §2: CUB-based inclusive prefix-sum ─────────────────────────────
+// ─── CUB-based inclusive prefix-sum ─────────────────────────────
 // Replaces single-thread O(N) sequential scan with CUB's work-efficient
 // parallel scan (~10-15× faster for N=5000).
 
@@ -81,7 +81,7 @@ void launch_systematic_resample(const float* cumsum,
     CUDA_CHECK(cudaGetLastError());
 }
 
-// ─── §2: CUB-based sum of squared weights (for N_eff) ──────────────
+// ─── CUB-based sum of squared weights (for N_eff) ──────────────
 // Uses TransformInputIterator to fuse the square operation with the
 // reduction — no temporary buffer needed for squared values.
 
