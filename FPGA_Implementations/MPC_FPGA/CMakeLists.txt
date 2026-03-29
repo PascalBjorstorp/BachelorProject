@@ -8,7 +8,7 @@
 #   testbench/         - Standalone tests
 #
 # Build Targets:
-#   mpc_fpga_core      - Core FPGA MPC library (pure C, no ROS)
+#   mpc_fpga_core      - Core FPGA MPC library
 #
 # The FPGA sources are compiled as regular C for software simulation.
 # HLS pragmas are ignored by GCC (-Wno-unknown-pragmas).
@@ -16,7 +16,7 @@
 #===========================================================================
 
 cmake_minimum_required(VERSION 3.16)
-project(mpc_fpga C)
+project(MPC_FPGA C CXX)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -26,7 +26,7 @@ if(NOT MSVC)
 endif()
 
 #===========================================================================
-# MPC FPGA Core Library (Pure C, No ROS Dependencies)
+# MPC FPGA Core Library - HLS-Compatible C Sources
 #===========================================================================
 # These are the HLS sources compiled as regular C for software simulation.
 # HLS pragmas (#pragma HLS ...) are silently ignored by GCC.
@@ -48,3 +48,13 @@ target_include_directories(mpc_fpga_core
 )
 
 target_link_libraries(mpc_fpga_core PUBLIC m)
+
+install(TARGETS mpc_fpga_core
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin
+)
+
+install(DIRECTORY include/
+    DESTINATION include
+)

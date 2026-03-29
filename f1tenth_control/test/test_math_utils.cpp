@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
-#include "f1tenth_control/common/math_utils.hpp"
-#include "f1tenth_control/common/types.hpp"
+#include "common/math_utils.hpp"
+#include "common/types.hpp"
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -35,18 +36,18 @@ TEST(MathUtilsTest, NormalizeAngleLargeNegative) {
 // ===================
 
 TEST(MathUtilsTest, ClampWithinRange) {
-    EXPECT_EQ(clamp(5, 0, 10), 5);
-    EXPECT_NEAR(clamp(0.5, 0.0, 1.0), 0.5, 1e-9);
+    EXPECT_EQ(std::clamp(5, 0, 10), 5);
+    EXPECT_NEAR(std::clamp(0.5, 0.0, 1.0), 0.5, 1e-9);
 }
 
 TEST(MathUtilsTest, ClampBelowMin) {
-    EXPECT_EQ(clamp(-5, 0, 10), 0);
-    EXPECT_NEAR(clamp(-0.5, 0.0, 1.0), 0.0, 1e-9);
+    EXPECT_EQ(std::clamp(-5, 0, 10), 0);
+    EXPECT_NEAR(std::clamp(-0.5, 0.0, 1.0), 0.0, 1e-9);
 }
 
 TEST(MathUtilsTest, ClampAboveMax) {
-    EXPECT_EQ(clamp(15, 0, 10), 10);
-    EXPECT_NEAR(clamp(1.5, 0.0, 1.0), 1.0, 1e-9);
+    EXPECT_EQ(std::clamp(15, 0, 10), 10);
+    EXPECT_NEAR(std::clamp(1.5, 0.0, 1.0), 1.0, 1e-9);
 }
 
 // ===================

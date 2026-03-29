@@ -54,7 +54,7 @@ void riccati_admm_state_init(RiccatiAdmmState_t *state)
  *===========================================================================*/
 
 int riccati_invert_2x2(
-    const float S[2][2],
+    float S[2][2],
     float Si[2][2])
 {
     float det = S[0][0] * S[1][1] - S[0][1] * S[1][0];

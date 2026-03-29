@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include "f1tenth_control/algorithms/follow_the_gap.hpp"
-#include "f1tenth_control/common/types.hpp"
+#include "algorithms/follow_the_gap.hpp"
+#include "common/types.hpp"
 #include <cmath>
 #include <vector>
 

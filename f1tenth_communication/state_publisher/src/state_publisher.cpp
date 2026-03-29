@@ -14,7 +14,7 @@
 #include <f1tenth_msgs/msg/mpc_state.hpp>
 
 #include "mpc_fpga_constants.h"
-#include "state_publisher/kdtree.hpp"
+#include "kdtree.hpp"
 
 #include <fstream>
 #include <sstream>

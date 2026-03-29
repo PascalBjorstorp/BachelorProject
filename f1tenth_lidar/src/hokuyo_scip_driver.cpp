@@ -189,6 +189,7 @@ void HokuyoScipDriver::parse_sensor_params(const std::string & response)
       line.pop_back();
 
     auto value_of = [&](const std::string & prefix) -> int {
+      if (line.rfind(prefix, 0) != 0) return -1;
       auto pos = line.find(':');
       if (pos == std::string::npos) return -1;
       auto semi = line.find(';', pos);

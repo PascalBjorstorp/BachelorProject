@@ -39,7 +39,7 @@
  * @return 0 on success, -1 when the matrix is singular or near-singular.
  */
 int riccati_invert_2x2(
-    const float S[2][2],
+    float S[2][2],
     float Si[2][2]);
 
 /**

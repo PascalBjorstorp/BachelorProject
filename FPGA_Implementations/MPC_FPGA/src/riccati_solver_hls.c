@@ -60,7 +60,7 @@ static int64_t reciprocal_64(int64_t det)
  * 2x2 Matrix Inverse (for S = R + B^T P B)
  *===========================================================================*/
 
-static int invert_2x2_hls(const int64_t S[2][2], int64_t Si[2][2])
+static int invert_2x2_hls(int64_t S[2][2], int64_t Si[2][2])
 {
 #pragma HLS INLINE
 #pragma HLS ALLOCATION operation instances=sdiv limit=1

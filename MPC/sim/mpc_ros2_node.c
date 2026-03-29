@@ -590,7 +590,14 @@ void odometry_subscription_callback(const void *message_in)
         global_drive_message_buffer.drive.speed =
             global_control_command.long_acc;
 
-        rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);
+        rcl_ret_t pub_rc =
+            rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);
+        if (pub_rc != RCL_RET_OK)
+        {
+            fprintf(stderr, "[ROS2] WARNING: failed to publish /drive: %s\n",
+                    rcl_get_error_string().str);
+            rcl_reset_error();
+        }
     }
 }
 
