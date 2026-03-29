@@ -19,7 +19,17 @@ import os
 
 
 def generate_launch_description():
-    """Generate launch description for MPC Riccati-ADMM node."""
+    """
+    Build the launch graph for the MPC simulator node.
+
+    Resolves the default trajectory from the f1tenth_planning package share,
+    falls back to a hardcoded workspace path when the package is unavailable,
+    and launches the Riccati-ADMM MPC node against the F1/10th gym simulator.
+
+    Returns:
+        LaunchDescription containing the trajectory argument and
+        mpc_riccati_node action.
+    """
 
     # Resolve default trajectory path from f1tenth_planning if available
     try:
@@ -28,6 +38,8 @@ def generate_launch_description():
         default_trajectory = os.path.join(
             planning_dir, 'trajectories', 'Spielberg_raceline.csv')
     except Exception:
+        # DEPLOYMENT NOTE: This hardcoded fallback path assumes a specific workspace
+        # layout. Override via the trajectory_file launch argument.
         default_trajectory = '/ros2_ws/src/f1tenth_planning/trajectories/Spielberg_raceline.csv'
 
     trajectory_arg = DeclareLaunchArgument(

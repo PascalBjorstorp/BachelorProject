@@ -5,6 +5,9 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 if(NOT MSVC)
+    # -ffast-math: enables aggressive floating-point optimizations (reassociation,
+    # reciprocal approximation). Acceptable for this embedded control context where
+    # strict IEEE 754 compliance is not required. Disable for debugging NaN issues.
     add_compile_options(-Wall -Wextra -Wpedantic -O3 -ffast-math)
 endif()
 
@@ -28,6 +31,8 @@ target_link_libraries(mpc_riccati_core PUBLIC m)
 # ===========================================================================
 find_package(ament_cmake QUIET)
 
+# Build ROS2 node executables only when inside a ROS2 workspace.
+# The core library (mpc_riccati_core) builds standalone without ROS.
 if(ament_cmake_FOUND)
     find_package(rclc REQUIRED)
     find_package(rcl REQUIRED)

@@ -1,6 +1,6 @@
 /**
  * @file vehicle_model.h
- * @brief Dynamic Nonlinear Bicycle Model for F1/10th Vehicle
+ * @brief Dynamic nonlinear bicycle model for F1/10th vehicle.
  *
  * Provides vehicle dynamics prediction for Model Predictive Control.
  * Uses the dynamic bicycle model with linear tire forces and wheel
@@ -35,6 +35,7 @@
  *
  * Discretization: Forward Euler method
  *   state[k+1] = state[k] + dt * derivative[k]
+ * @dependencies mpc_types.h, util_math.h
  */
 
 #ifndef VEHICLE_MODEL_H
@@ -49,10 +50,11 @@
  *===========================================================================*/
 
 /**
- * Initialize vehicle model with default F1/10th parameters.
+ * @brief Initialize vehicle model with default F1/10th parameters.
  *
  * Default values:
- * - Wheelbase: 0.3302 m (l_f=0.15875, l_r=0.17145)
+ * - Wheelbase: 0.324 m (matches F110_DEFAULT_WHEELBASE_METERS)
+ *   CG-to-front: 0.166 m, CG-to-rear: 0.16 m
  * - Mass: 3.314 kg
  * - Yaw inertia: 0.035 kg*m^2
  * - Front cornering stiffness: 3.053 [1/rad]
@@ -62,13 +64,14 @@
  * - Max motor torque: 22.9 N·m, Min: -24.1 N·m
  * - Wheel radius: 0.0545 m, Gear ratio: 11.82
  * - Drivetrain inertia: 2.223 kg·m²
+ * @return None.
  */
 void vehicle_model_initialize(void);
 
 /**
- * Initialize vehicle model with custom parameters.
- *
- * @param parameters  Pointer to custom vehicle parameter structure
+ * @brief Initialize the vehicle model with caller-supplied physical parameters.
+ * @param parameters Pointer to VehicleParameters_t describing the vehicle; must not be NULL.
+ * @return None.
  */
 void vehicle_model_initialize_with_parameters(
     const VehicleParameters_t *parameters);
@@ -112,7 +115,7 @@ ControlInput_t vehicle_model_saturate_control(
  *
  * @param current_state   Current vehicle state (6 states)
  * @param control_input   Control input (steering, acceleration)
- * @param time_step       Time step duration [seconds] in fixed-point
+ * @param time_step       Integration time step duration [seconds].
  * @return Predicted state after time_step seconds
  */
 VehicleState_t vehicle_model_predict_next_state(
@@ -131,10 +134,11 @@ VehicleState_t vehicle_model_predict_next_state(
  *
  * @param initial_state      Starting vehicle state
  * @param control_sequence   Array of control inputs (length = step_count)
- * @param time_step          Time between steps [seconds] in fixed-point
+ * @param time_step          Time between steps [seconds]
  * @param step_count         Number of prediction steps
  * @param predicted_trajectory  Output array (length = step_count + 1)
  *                              First element is initial_state
+ * @return None. Results are written to predicted_trajectory.
  *
  * @note predicted_trajectory must have space for (step_count + 1) states
  */
@@ -168,6 +172,7 @@ void vehicle_model_predict_trajectory(
  * @param time_step          Discretization time step [seconds]
  * @param state_matrix_A     Output: 6×6 state transition matrix
  * @param input_matrix_B     Output: 6×2 input matrix
+ * @return None. Matrices are written to state_matrix_A and input_matrix_B.
  */
 void vehicle_model_compute_linearization(
     const VehicleState_t *operating_state,
@@ -202,6 +207,7 @@ void vehicle_model_compute_linearization(
  * @param path_curvature     Path curvature kappa at current point [rad/m]
  * @param state_matrix_A     Output: 5×5 Frenet state transition matrix
  * @param input_matrix_B     Output: 5×2 Frenet input matrix
+ * @return None. Matrices are written to state_matrix_A and input_matrix_B.
  */
 void vehicle_model_compute_frenet_linearization(
     const FrenetState_t *frenet_state,

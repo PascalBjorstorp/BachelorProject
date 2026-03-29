@@ -1,6 +1,9 @@
 /**
  * @file mpc_hardware_node.c
  * @brief MPC Riccati-ADMM ROS2 Node for F1/10th Real Hardware
+ * @details Production ROS2 node for the F1TENTH car running on Jetson Xavier
+ *          NX. Uses the same MPC core library as simulation but optimized for
+ *          real-time embedded execution and hardware feedback integration.
  *
  * Production ROS2 node for the F1TENTH car running on Jetson Xavier NX.
  * Uses the same MPC core library (Riccati-ADMM solver) as the simulation
@@ -24,6 +27,9 @@
  * MPC solver. Nothing in this file may alter, clamp, bias, or post-process
  * the control output returned by mpc_compute_optimal_control(). All tuning
  * and constraint handling lives inside the solver.
+ * @dependencies mpc.h, mpc_types.h, util_math.h, vehicle_model.h,
+ *               rclc, rcl, nav_msgs, ackermann_msgs, std_msgs, geometry_msgs,
+ *               <yaml.h>, <sched.h>, <sys/stat.h>
  */
 
 #ifndef _GNU_SOURCE
@@ -248,6 +254,10 @@ static double g_control_dt = MPC_CONTROL_DT_SECONDS;
  * Signal Handler for Graceful Shutdown
  *===========================================================================*/
 
+/* Handle process termination signals by requesting ROS shutdown.
+ * Parameter: sig is the received POSIX signal number.
+ * Side effect: sets global shutdown flag and attempts rcl_shutdown. */
+
 static void signal_handler(int sig)
 {
     (void)sig;
@@ -262,13 +272,9 @@ static void signal_handler(int sig)
  * Real-Time Setup (Jetson Xavier NX)
  *===========================================================================*/
 
-/**
- * @brief Attempt to set real-time scheduling and CPU affinity.
- *
- * Tries SCHED_FIFO with priority 49 (below kernel threads).
- * Falls back silently if not running as root.
- * Pins to CPU core 5 on Jetson (6-core Denver/A57).
- */
+/* Attempt to configure real-time scheduling and CPU affinity.
+ * Side effects: requests SCHED_FIFO and pins the process to a preferred
+ * core, with non-fatal fallbacks when permissions or topology differ. */
 static void setup_realtime_scheduling(void)
 {
     /* Try SCHED_FIFO for real-time priority */
@@ -319,12 +325,9 @@ static void setup_realtime_scheduling(void)
 static double g_avg_waypoint_spacing = 0.346;
 static double g_track_length_meters = 0.0;
 
-/**
- * @brief Load trajectory from CSV file.
- *
- * CSV format (TUM compatible):
- *   # s_m,x_m,y_m,psi_rad,kappa_radpm,vx_mps,ax_mps2,left_bound,right_bound
- */
+/* Load trajectory waypoints from a TUM-format CSV file.
+ * Parameter: file_path is the filesystem path to the raceline CSV.
+ * Returns 1 on successful parse with at least one waypoint, otherwise 0. */
 static int load_trajectory_from_csv(const char *file_path)
 {
     FILE *csv_file = fopen(file_path, "r");
@@ -447,14 +450,9 @@ static int load_trajectory_from_csv(const char *file_path)
  * Waypoint Search
  *===========================================================================*/
 
-/**
- * @brief Find the closest trajectory waypoint to a position.
- *
- * Forward-biased local search from the last known position.
- * Uses a wide search window (200 ahead, 20 behind) to handle
- * high-speed driving and track loop-around, then caches the result
- * for efficient subsequent lookups.
- */
+/* Find the closest waypoint index to the vehicle pose.
+ * Parameters: position_x/position_y in meters, vehicle_heading in radians.
+ * Returns selected waypoint index and updates the rolling search anchor. */
 static int find_closest_waypoint(double position_x, double position_y, double vehicle_heading)
 {
     if (global_trajectory_count == 0)
@@ -498,6 +496,9 @@ static int find_closest_waypoint(double position_x, double position_y, double ve
     return best_index;
 }
 
+/* Wrap arc-length coordinate to the closed-track interval.
+ * Parameter: s is the query arc length in meters.
+ * Returns wrapped s when track length is available. */
 static double wrap_track_s(double s)
 {
     if (g_track_length_meters <= 1e-6)
@@ -509,6 +510,9 @@ static double wrap_track_s(double s)
     return s;
 }
 
+/* Interpolate a waypoint at a requested arc length.
+ * Parameters: s_query in meters, out destination waypoint pointer.
+ * Side effect: writes interpolated fields to *out when inputs are valid. */
 static void sample_waypoint_by_s(double s_query, TrajectoryWaypoint_t *out)
 {
     if (out == NULL || global_trajectory_count == 0)
@@ -574,12 +578,9 @@ static void sample_waypoint_by_s(double s_query, TrajectoryWaypoint_t *out)
  * Reference Trajectory Builder
  *===========================================================================*/
 
-/**
- * @brief Build MPC reference trajectory from loaded waypoints (Frenet frame).
- *
- * Frenet references: lateral and heading error are zero (follow the path).
- * Each prediction step maps to the waypoint at the expected travel distance.
- */
+/* Build the MPC horizon reference sequence from loaded trajectory waypoints.
+ * Parameter: closest_index is the nearest waypoint index to current pose.
+ * Side effect: fills global_reference_trajectory for one solver call. */
 static void build_reference_from_trajectory(int closest_index)
 {
     const double mpc_dt = MPC_TIME_STEP_SECONDS;
@@ -620,6 +621,9 @@ static void build_reference_from_trajectory(int closest_index)
  * Helper Functions
  *===========================================================================*/
 
+/* Convert quaternion orientation to yaw angle in radians.
+ * Parameters: qx/qy/qz/qw are quaternion components.
+ * Returns yaw in radians in the global frame. */
 static double quaternion_to_yaw_angle(double qx, double qy, double qz, double qw)
 {
     double siny_cosp = 2.0 * (qw * qz + qx * qy);
@@ -627,6 +631,9 @@ static double quaternion_to_yaw_angle(double qx, double qy, double qz, double qw
     return atan2(siny_cosp, cosy_cosp);
 }
 
+/* Pre-allocate ROSIDL string storage to avoid runtime allocations.
+ * Parameters: str destination string object, capacity in bytes.
+ * Returns 1 on successful allocation, otherwise 0. */
 static int preallocate_rosidl_string(rosidl_runtime_c__String *str, size_t capacity)
 {
     if (str == NULL || capacity <= 1) return 0;
@@ -640,6 +647,9 @@ static int preallocate_rosidl_string(rosidl_runtime_c__String *str, size_t capac
     return 1;
 }
 
+/* Copy C-string data into a pre-allocated ROSIDL string safely.
+ * Parameters: str destination ROSIDL string, value source C string.
+ * Side effect: updates str data buffer and size with bounded copy. */
 static void set_rosidl_string(rosidl_runtime_c__String *str, const char *value)
 {
     if (str == NULL || str->data == NULL || value == NULL) return;
@@ -650,7 +660,9 @@ static void set_rosidl_string(rosidl_runtime_c__String *str, const char *value)
     str->size = length;
 }
 
-/** Get elapsed time in seconds between two timespec values */
+/* Compute elapsed wall-clock time between two timespec samples.
+ * Parameters: a start time, b end time.
+ * Returns elapsed seconds as a floating-point value. */
 static double timespec_diff_sec(struct timespec *a, struct timespec *b)
 {
     return (double)(b->tv_sec - a->tv_sec) +
@@ -661,13 +673,10 @@ static double timespec_diff_sec(struct timespec *a, struct timespec *b)
  * Frenet State Conversion
  *===========================================================================*/
 
-/**
- * @brief Convert global vehicle state to Frenet (path-relative) state.
- *
- * Projects the car position onto the segment between closest and closest+1
- * waypoints, then interpolates path position and heading at the projection
- * point. Provides smooth Frenet state feedback to the MPC.
- */
+/* Convert global pose/velocity into Frenet tracking-error state.
+ * Parameters: car_x/car_y [m], car_heading [rad], closest waypoint index,
+ * frenet_out destination pointer.
+ * Side effect: writes solver input state into *frenet_out. */
 static void convert_to_frenet_state(
     double car_x, double car_y, double car_heading,
     int closest_index,
@@ -747,6 +756,10 @@ static void convert_to_frenet_state(
  * ROS2 Callback: Odometry Subscription (non-blocking, just stores state)
  *===========================================================================*/
 
+/* Handle odometry messages and update the latest velocity/pose cache.
+ * Parameter: message_in points to nav_msgs/Odometry data.
+ * Side effect: updates global vehicle state and watchdog timestamp. */
+
 void odometry_subscription_callback(const void *message_in)
 {
     if (message_in == NULL) return;
@@ -803,6 +816,10 @@ void odometry_subscription_callback(const void *message_in)
 /*===========================================================================
  * ROS2 Callback: Servo Feedback Subscription
  *===========================================================================*/
+
+/* Handle servo feedback messages and estimate actual steering angle.
+ * Parameter: message_in points to std_msgs/Float64 servo payload.
+ * Side effect: updates global_actual_steering_angle and feedback-valid flag. */
 
 void servo_feedback_callback(const void *message_in)
 {
@@ -867,6 +884,10 @@ void servo_feedback_callback(const void *message_in)
  * ROS2 Callback: IMU Filtered Angular Velocity
  *===========================================================================*/
 
+/* Handle filtered IMU yaw-rate updates for MPC state estimation.
+ * Parameter: message_in points to std_msgs/Float64 yaw-rate payload.
+ * Side effect: updates IMU yaw-rate cache used by odometry callback. */
+
 void imu_callback(const void *message_in)
 {
     if (message_in == NULL) return;
@@ -887,6 +908,11 @@ void imu_callback(const void *message_in)
  * when position comes from here rather than from raw wheel odometry.
  * Default source: /ekf_pose (EKF fuses odom + AMCL for smooth updates).
  *===========================================================================*/
+
+/* Handle map-frame pose updates, run MPC, and publish drive commands.
+ * Parameter: message_in points to PoseWithCovarianceStamped payload.
+ * Side effects: updates Frenet state, invokes solver, writes and publishes
+ * global drive command, and updates telemetry counters. */
 void amcl_pose_callback(const void *message_in)
 {
     if (message_in == NULL) return;
@@ -1157,6 +1183,9 @@ int main(int argc, char *argv[])
 
     /* Runtime parameters from environment */
     {
+        /* SECURITY: Environment variables are taken as-is. Caller is
+         * responsible for providing valid numeric values; strtof/strtol/atof
+         * return zero on invalid input and may silently fall back. */
         const char *env_val;
         if ((env_val = getenv("MPC_SPEED_GAIN")) != NULL)
         {
@@ -1204,6 +1233,8 @@ int main(int argc, char *argv[])
     }
 
     {
+        /* SECURITY: Environment variable is trusted deployment input.
+         * Log path must come from controlled local configuration sources. */
         const char *log_path = getenv("MPC_SOLVER_LOG");
         char default_log_path[256];
 
@@ -1279,6 +1310,8 @@ int main(int argc, char *argv[])
     }
     else
     {
+        /* SECURITY: Environment variable path is accepted as trusted local
+         * deployment configuration and is not sanitized by this node. */
         const char *env_val = getenv("MPC_TRAJECTORY_FILE");
         if (env_val != NULL)
             g_trajectory_file = env_val;

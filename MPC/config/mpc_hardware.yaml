@@ -10,24 +10,32 @@ mpc_hardware_node:
     servo_topic: "/sensors/servo_position_command"      # VESC servo feedback topic
     imu_topic: "/imu/filtered_angular_velocity"         # Filtered yaw rate topic
 
-    # Trajectory file (absolute path on the Jetson)
-    trajectory_file: "/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv"           # Set via launch file or MPC_TRAJECTORY_FILE env
+    # DEPLOYMENT NOTE: This absolute path is specific to the Jetson filesystem layout.
+    # Override at launch time via 'trajectory_file' launch argument or MPC_TRAJECTORY_FILE env var.
+    trajectory_file: "/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv"
 
-    # Speed control
-    speed_gain: 1.0               # Scale factor for trajectory velocities (0.0-2.0)
+    # Multiplier applied to raceline velocities; values below 1.0 reduce top
+    # speed for safety during testing, while 1.0 tracks the optimized raceline.
+    speed_gain: 1.0
     max_velocity: 20.0            # Maximum reference velocity [m/s]
 
-    # Timer-driven control rate
-    control_rate_hz: 200.0        # MPC computation rate [Hz]
+    # Sets how often MPC commands are recomputed. Keep aligned with actuator
+    # update cadence to avoid stale commands and oscillatory behavior.
+    control_rate_hz: 200.0
 
-    # Safety watchdog
-    watchdog_timeout_sec: 0.2     # Zero command if no odom for this long [seconds]
+    # Defines how quickly control is zeroed when odometry stops arriving; lower
+    # values favor fail-safe behavior, higher values tolerate brief dropouts.
+    watchdog_timeout_sec: 0.2
 
     # VESC servo conversion parameters
     # Forward: servo = gain * (c2·|δ|² + c1·|δ| + c0) + offset
     # Inverse: solve quadratic to recover δ from servo position
-    steering_to_servo_gain: -0.7284   # VESC steering_angle_to_servo_gain [calibrated]
-    steering_to_servo_offset: 0.55    # VESC steering_angle_to_servo_offset
+    # Gain maps steering angle to VESC servo units and preserves calibrated
+    # steering sensitivity for this chassis/servo combination.
+    steering_to_servo_gain: -0.7284
+    # Offset centers steering in servo command space so zero steering aligns
+    # with straight-line driving on the physical platform.
+    steering_to_servo_offset: 0.55
     steering_correction_c2: 0.589566  # Polynomial correction (calibrated 2026-03-12)
     steering_correction_c1: 0.918061
     steering_correction_c0: 0.001490
@@ -44,5 +52,6 @@ mpc_hardware_node:
     # MPC_W_DELTA_ACTUAL: steering centering state weight
     # MPC_CROSS_CALL_SCALE: cross-call rate penalty scale
 
-    # Logging
-    verbose: false                # Enable verbose console output (disable for RT)
+    # Enables additional diagnostics for bring-up and tuning; keep disabled
+    # during real-time driving to minimize console and scheduling overhead.
+    verbose: false

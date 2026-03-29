@@ -1,9 +1,8 @@
 /**
  * @file mpc_riccati.c
- * @brief MPC Implementation using Riccati-ADMM (Non-Condensed Formulation)
- *
- * Alternative MPC controller that uses the Riccati-ADMM sparse solver
- * instead of the condensed QP approach. Key differences:
+ * @brief MPC implementation using Riccati-ADMM (non-condensed formulation).
+ * @details Alternative MPC controller that uses the Riccati-ADMM sparse solver
+ *          instead of the condensed QP approach. Key differences:
  *
  * 1. No Hessian condensing — state variables remain explicit decision
  *    variables, enabling O(N) per-iteration cost via Riccati recursion.
@@ -16,6 +15,8 @@
  *    handled naturally by ADMM's projection step.
  *
  * All arithmetic uses native float operations on CPU.
+ * @dependencies mpc.h, util_math.h, riccati_solver.h, vehicle_model.h,
+ *               mpc_types.h, <string.h>, <stdio.h>, <stdlib.h>
  */
 
 #include "mpc.h"
@@ -28,10 +29,12 @@
 #include <stdlib.h>
 
 
-/*==========================================================================
-* Helper function
-*===========================================================================*/
+/*===========================================================================
+ * Helper functions
+ *===========================================================================*/
 
+/* Read a float environment variable, returning default_val if the variable
+ * is not set or cannot be parsed. */
 static float get_env_float(const char *name, float default_val)
 {
     const char *env = getenv(name);
@@ -39,6 +42,8 @@ static float get_env_float(const char *name, float default_val)
 }
 
 
+/* Read a float environment variable into *out and return 1 if the variable
+ * is set, or return 0 and leave *out unchanged if it is absent. */
 static int get_env_float_if_exists(const char *name, float *out)
 {
     const char *env = getenv(name);
@@ -49,12 +54,15 @@ static int get_env_float_if_exists(const char *name, float *out)
     return 0;
 }
 
+/* Read an integer environment variable, returning default_val if absent. */
 static int get_env_int(const char *name, int default_val)
 {
     const char *env = getenv(name);
     return env ? (int)strtol(env, NULL, 10) : default_val;
 }
 
+/* Read an integer environment variable into *out and return 1 if set,
+ * or return 0 and leave *out unchanged if absent. */
 static int get_env_int_if_exists(const char *name, int *out)
 {
     const char *env = getenv(name);
@@ -113,8 +121,6 @@ MpcConfiguration_t get_default_configuration(void)
 
 
     /* Environment variable overrides */
-
-    /* --- Environment overrides --- */
     cfg.weight_lateral_error    = get_env_float("MPC_W_LAT_ERROR", cfg.weight_lateral_error);
     cfg.weight_heading_error    = get_env_float("MPC_W_HEADING", cfg.weight_heading_error);
     cfg.weight_velocity         = get_env_float("MPC_W_VELOCITY", cfg.weight_velocity);
@@ -199,37 +205,43 @@ void mpc_reset(void)
  * Riccati-ADMM specific implementation
  *===========================================================================*/
 
+/* Initialize MPC module state to defaults and prepare the vehicle model
+ * and ADMM warm-start buffers for the first solve cycle. */
 static void mpc_riccati_initialize(void)
 {
     config = get_default_configuration();
     vehicle_model_initialize();
-    prev_control.steer_ang = 0;
-    prev_control.long_acc = 0;
-    actual_steering_angle = 0;
+    prev_control.steer_ang = 0.0f;
+    prev_control.long_acc = 0.0f;
+    actual_steering_angle = 0.0f;
     riccati_admm_state_init(&admm_state);
-    warm_start_prev_curvature = 0;
+    warm_start_prev_curvature = 0.0f;
     initialized = 1;
 }
 
+/* Initialize MPC module with a caller-supplied configuration.
+ * Falls back to default configuration when cfg is NULL. */
 static void mpc_riccati_initialize_with_configuration(const MpcConfiguration_t *cfg)
 {
     config = cfg ? *cfg : get_default_configuration();
     vehicle_model_initialize();
-    prev_control.steer_ang = 0;
-    prev_control.long_acc = 0;
-    actual_steering_angle = 0;
+    prev_control.steer_ang = 0.0f;
+    prev_control.long_acc = 0.0f;
+    actual_steering_angle = 0.0f;
     riccati_admm_state_init(&admm_state);
-    warm_start_prev_curvature = 0;
+    warm_start_prev_curvature = 0.0f;
     initialized = 1;
 }
 
+/* Reset all inter-cycle state (previous control, servo position, warm-start)
+ * without altering the active configuration or vehicle model parameters. */
 static void mpc_riccati_reset(void)
 {
-    prev_control.steer_ang = 0;
-    prev_control.long_acc = 0;
-    actual_steering_angle = 0;
+    prev_control.steer_ang = 0.0f;
+    prev_control.long_acc = 0.0f;
+    actual_steering_angle = 0.0f;
     riccati_admm_state_init(&admm_state);
-    warm_start_prev_curvature = 0;
+    warm_start_prev_curvature = 0.0f;
 }
 
 void mpc_set_actual_previous_control(const ControlInput_t *actual)
@@ -261,7 +273,7 @@ static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
     FrenetState_t filtered_state = *current_frenet_state;
     {
         static float ema_alpha = MPC_EMA_ALPHA_DEFAULT;
-        static int initialized = 0;
+        static int ema_initialized = 0;
         static int alpha_cached = 0;
         static FrenetState_t prev_filtered;
 
@@ -272,9 +284,9 @@ static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
             alpha_cached = 1;
         }
 
-        if (!initialized) {
+        if (!ema_initialized) {
             prev_filtered = *current_frenet_state;
-            initialized = 1;
+            ema_initialized = 1;
         }
 
         if (ema_alpha < 1.0f) {
@@ -402,8 +414,11 @@ static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
             A_step, B_step);
 
         /* Stabilize fast dynamics (omega row = 4) per stage */
+        /* Clamp the yaw-rate row's self-coupling coefficient to the stability
+         * boundary to prevent discrete-time instability in the fast lateral
+         * dynamics at large time steps. */
         {
-            int row = 4;
+            int row = 4;  /* Yaw-rate row (omega) in the 5-state Frenet model */
             float abs_aii = fabsf(A_step[row][row]);
             if (abs_aii > MPC_STABILITY_LIMIT) {
                 float target = (A_step[row][row] < 0)
@@ -547,7 +562,6 @@ static MpcSolverStatus_t mpc_riccati_compute_optimal_control(
             wall_end = env_wall_end;
             wall_margin = env_wall_margin;
             wall_stride = env_wall_stride;
-            if (wall_stride < 1) wall_stride = 1;
         }
 
         /* e_y: wall constraints (near-term: steps START..END, every STRIDE) */

@@ -1,9 +1,8 @@
 /**
  * @file riccati_solver.c
  * @brief Riccati-ADMM Solver Implementation (Native Float32)
- *
- * Solves constrained LQR using ADMM with Riccati recursion for the
- * unconstrained sub-problem. Each ADMM iteration is O(N × nx³).
+ * @details Solves constrained LQR using ADMM with Riccati recursion for the
+ *          unconstrained sub-problem. Each ADMM iteration is O(N × nx^3).
  *
  * Riccati backward pass (per step):
  *   M    = B^T P_{k+1}           (nu×nx)
@@ -26,6 +25,7 @@
  *   4. Check convergence
  *
  * All operations use native float32 arithmetic.
+ * @dependencies riccati_solver.h, <string.h>, <stdio.h>, <math.h>
  */
 
 #include "riccati_solver.h"
@@ -60,6 +60,9 @@ void riccati_admm_state_init(RiccatiAdmmState_t *state)
  * 2x2 Matrix Inverse (for S = R + B^T P B)
  *===========================================================================*/
 
+/* Compute the analytical inverse of a 2×2 matrix.
+ * Returns 0 on success, -1 if the matrix is singular or near-singular.
+ * When singular, the caller must provide a diagonal fallback. */
 static int invert_2x2(
     const float S[2][2],
     float Si[2][2])
@@ -83,6 +86,18 @@ static int invert_2x2(
 /*===========================================================================
  * Riccati Backward + Forward Pass
  *===========================================================================*/
+
+/* Execute one complete Riccati backward-forward pass with ADMM-augmented costs.
+ *
+ * Backward pass: computes feedback gains K[k] and feedforward terms kk[k]
+ * by propagating the value function from the terminal condition to k=0.
+ *
+ * Forward pass: rolls out the state and control trajectories from x0
+ * using the computed gains.
+ *
+ * ADMM augmentation adds rho to constrained state costs and rho_u to all
+ * control costs, shifting the unconstrained optimum toward the current
+ * ADMM projection (z_x, z_u) corrected by dual variables (y_x, y_u). */
 
 static inline void riccati_pass(
     const RiccatiStepData_t * restrict step_data,
@@ -155,6 +170,9 @@ static inline void riccati_pass(
         float M[RICCATI_MAX_NU][RICCATI_MAX_NX];
         for (int j = 0; j < nx; j++) {
             float s0 = 0.0f, s1 = 0.0f;
+            /* Sparse B structure: only rows 2..5 couple into both controls.
+             * Rows 6 and 7 are identity channels handled explicitly below
+             * via +P[6][j] and +P[7][j]. */
             for (int s = 2; s < 6; s++) {
                 s0 += sd->B[s][0] * P[s][j];
                 s1 += sd->B[s][1] * P[s][j];
@@ -166,6 +184,8 @@ static inline void riccati_pass(
         /* Step 2: S = R_aug + M*B (nu x nu) */
         float S[2][2];
         S[0][0] = R_aug[0]; S[0][1] = 0.0f; S[1][0] = 0.0f; S[1][1] = R_aug[1];
+        /* Same sparse pattern as above: rows 2..5 carry dense coupling,
+         * while rows 6..7 are injected as identity-channel terms below. */
         for (int s = 2; s < 6; s++) {
             S[0][0] += M[0][s] * sd->B[s][0];
             S[0][1] += M[0][s] * sd->B[s][1];
@@ -189,6 +209,8 @@ static inline void riccati_pass(
         /* Step 4: G = M*A + N^T (nu x nx) */
         float G[RICCATI_MAX_NU][RICCATI_MAX_NX];
         for (int a = 0; a < nu; a++) {
+            /* A has a dense 6x6 leading block and zero columns 6..7.
+             * The final two G columns therefore come only from N^T. */
             for (int j = 0; j < 6; j++) {
                 float sum = sd->N[j][a];  /* N^T[a][j] = N[j][a] */
                 for (int s = 0; s < 6; s++) {
@@ -595,6 +617,8 @@ RiccatiStatus_t riccati_admm_solve(
     admm_state->initialized = 1;
 
     /* Output feasible controls: z_u is the ADMM projection */
+    /* Return the ADMM projection z_u (not the primal u) as the feasible control,
+     * because z_u is guaranteed to satisfy box constraints whereas u may not be. */
     memcpy(solution->u, z_u, sizeof(admm_state->z_u));
 
     solution->status = status;

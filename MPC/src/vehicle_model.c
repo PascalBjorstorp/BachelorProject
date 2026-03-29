@@ -1,10 +1,10 @@
 /**
  * @file vehicle_model.c
- * @brief Dynamic Nonlinear Bicycle Model Implementation
- *
- * Implements the dynamic bicycle model with direct acceleration input
- * for F1/10th vehicle dynamics. The MPC commands an acceleration that
- * the VESC motor controller enforces, so F_x = m * a_cmd directly.
+ * @brief Dynamic nonlinear bicycle model implementation.
+ * @details Implements the dynamic bicycle model with direct acceleration
+ *          input for F1/10th vehicle dynamics. The MPC commands an
+ *          acceleration that the VESC motor controller enforces, so
+ *          F_x = m * a_cmd directly.
  *
  * The linearization uses a Pacejka-like tire model for nonlinear
  * tire force saturation (lateral), while the forward prediction
@@ -35,6 +35,7 @@
  * The linearization (compute_linearization) uses a Pacejka-like model
  * for the effective tire stiffness (dFy/dalpha), providing realistic
  * tire force saturation at high slip angles.
+ * @dependencies vehicle_model.h, <stdio.h>, <string.h>, <stdlib.h>
  */
 
 #include "vehicle_model.h"
@@ -46,10 +47,10 @@
  * Module State (Vehicle Parameters)
  *===========================================================================*/
 
-/** Current vehicle parameters (initialized by vehicle_model_initialize) */
+/* Current vehicle parameters (initialized by vehicle_model_initialize). */
 static VehicleParameters_t stored_vehicle_parameters;
 
-/** Canonical default vehicle parameters used for initialization. */
+/* Canonical default vehicle parameters used for initialization. */
 static const VehicleParameters_t default_vehicle_parameters = {
     .wheelbase_meters = F110_DEFAULT_WHEELBASE_METERS,
     .distance_cg_to_front_axle = VEHICLE_CG_TO_FRONT_AXLE_M,
@@ -60,17 +61,18 @@ static const VehicleParameters_t default_vehicle_parameters = {
     .rear_cornering_stiffness = F110_REAR_CORNERING_STIFFNESS,
     .max_steering_angle = F110_DEFAULT_MAXIMUM_STEERING_RADIANS,
     .max_velocity = F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND,
-    .minvelocity = F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND,
+    .min_velocity = F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND,
     .max_acceleration = F110_DEFAULT_MAXIMUM_ACCELERATION_METERS_PER_SECOND2,
     .min_acceleration = F110_DEFAULT_MINIMUM_ACCELERATION_METERS_PER_SECOND2,
     .height_cg_to_ground = F110_CG_HEIGHT_METERS,
     .gravity_acceleration = F110_GRAVITY_ACCELERATION_MS2,
 };
 
-/** Flag indicating if model has been initialized */
+/* Boolean flag (0 = uninitialized, 1 = ready) indicating whether
+ * vehicle_model_initialize() has been called at least once. */
 static uint8_t model_is_initialized = 0;
 
-/** Cached reciprocals of constant parameters for repeated linearizations. */
+/* Cached reciprocals of constant parameters for repeated linearizations. */
 static float cached_inv_mass = 0;   /* 1 / vehicle_mass_kg */
 static float cached_inv_Iz   = 0;   /* 1 / yaw_moment_of_inertia */
 static float cached_inv_L_wb = 0;   /* 1 / wheelbase */
@@ -79,7 +81,7 @@ static float cached_inv_L_wb = 0;   /* 1 / wheelbase */
  * Initialization Functions
  *===========================================================================*/
 
-/** Recompute cached reciprocals after any parameter change. */
+/* Recompute cached reciprocals after any parameter change. */
 static void recompute_cached_reciprocals(void)
 {
     cached_inv_mass = util_recip(stored_vehicle_parameters.vehicle_mass);
@@ -292,7 +294,7 @@ VehicleState_t vehicle_model_predict_next_state(
     /* Clamp longitudinal velocity to [min, max] */
     next_state.long_vel = util_clamp(
         next_state.long_vel,
-        stored_vehicle_parameters.minvelocity,
+        stored_vehicle_parameters.min_velocity,
         stored_vehicle_parameters.max_velocity);
 
     /* Normalize heading to principal angle domain. */

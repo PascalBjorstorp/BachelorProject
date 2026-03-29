@@ -1,3 +1,11 @@
+/**
+ * @file util_math.c
+ * @brief Implementation of non-inline math utility functions.
+ * @details Implements matrix-vector multiplication, scaled vector addition,
+ *          and constraint violation checking declared in util_math.h.
+ *          Inline utilities are defined entirely in the header.
+ * @dependencies util_math.h, <string.h>, <stdint.h>
+ */
 #include "util_math.h"
 #include <string.h>
 #include <stdint.h>
@@ -43,7 +51,7 @@ void util_symmetric_mat_vec_mul(
     }
 
     
-/** Statically set workspace to keep within bounds. */
+    /* Workspace sized to the configured maximum to avoid variable-length arrays. */
     float accum[QP_MAXIMUM_VARIABLES];
     for (uint16_t ai = 0; ai < n && ai < QP_MAXIMUM_VARIABLES; ai++)
         accum[ai] = 0.0f;
@@ -103,9 +111,8 @@ void util_vec_add_scaled(
     }
 }
 
-/* Maximum positive value of (A*x - b). 
- * Negative values are treated as zero. */
-
+/* Compute the worst-case constraint violation across all rows.
+ * Rows that are satisfied (non-positive residual) contribute zero. */
 float util_max_violation(
     const float *A,
     const float *x,

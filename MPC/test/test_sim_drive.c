@@ -1,6 +1,9 @@
 /**
  * @file test_sim_drive.c
  * @brief Realistic 60-second MPC simulation on Spielberg raceline
+ * @details Runs closed-loop simulation of the Riccati-ADMM controller with
+ *          configurable physics/control rates and optional realistic effects
+ *          (noise, delay, nonlinear tire saturation, drivetrain drag).
  *
  * Tests the Riccati-ADMM MPC controller in a closed-loop simulation:
  *   - SIM_DT = sim physics step (default 5ms = 200Hz, configurable via env)
@@ -21,8 +24,10 @@
  *   gcc -D_GNU_SOURCE -O3 -std=c99 -Wall -ffast-math \
  *       -Wno-unused-variable -Wno-unused-but-set-variable \
  *       -Iinclude test/test_sim_drive.c src/mpc_riccati.c \
- *       src/riccati_solver.c src/vehicle_model.c src/fp_math.c \
+ *       src/riccati_solver.c src/vehicle_model.c src/util_math.c \
  *       -o test_sim_drive -lm
+ * @dependencies mpc.h, mpc_types.h, vehicle_model.h, riccati_solver.h,
+ *               <stdio.h>, <stdlib.h>, <string.h>, <math.h>, <time.h>
  */
 
 #define _USE_MATH_DEFINES
@@ -53,8 +58,13 @@
  * Configuration
  *===========================================================================*/
 
-#define SIM_DT_DEFAULT    0.005   /* Simulation time step = 5ms (200Hz) */
-#define MPC_DT_DEFAULT    0.005   /* MPC control interval = 5ms (200Hz) */
+/* Default simulation physics integration step; a finer step improves
+ * continuous-time accuracy but increases total compute time. */
+#define SIM_DT_DEFAULT    0.005
+
+/* Default MPC re-computation interval; should match the hardware control rate
+ * for faithful simulation of the deployed system. */
+#define MPC_DT_DEFAULT    0.005
 #define SIM_DURATION      100.0  /* seconds */
 #define MPC_HORIZON       10
 #define MPC_REF_ENTRIES   10     /* Must match horizon */
@@ -107,6 +117,9 @@ static int raceline_count = 0;
 static double g_mpc_prediction_dt = 0.04;  /* Set from PRED_DT env or default */
 static double g_track_length_m = 0.0;
 
+/* Load raceline waypoints from an environment path or known fallback paths.
+ * Side effect: fills global raceline buffer and track-length metadata.
+ * Returns non-zero when at least one waypoint is parsed successfully. */
 static int load_raceline(void)
 {
     raceline_count = 0;
@@ -212,6 +225,9 @@ static int load_raceline(void)
  * Helpers
  *===========================================================================*/
 
+/* Wrap heading angle to the principal interval [-pi, pi].
+ * Parameter: a is heading angle in radians.
+ * Returns wrapped angle in radians. */
 static double wrap_angle(double a)
 {
     while (a > M_PI) a -= 2.0 * M_PI;
@@ -221,6 +237,9 @@ static double wrap_angle(double a)
 
 static int last_closest = 0;
 
+/* Find nearest raceline waypoint to the vehicle pose.
+ * Parameters: px/py in meters and heading in radians.
+ * Returns nearest waypoint index and updates cached index for next query. */
 static int find_closest_waypoint(double px, double py, double heading)
 {
     if (raceline_count == 0) return 0;
@@ -249,6 +268,9 @@ static int find_closest_waypoint(double px, double py, double heading)
     return best;
 }
 
+/* Convert world-frame vehicle state to Frenet tracking state at waypoint wp.
+ * Parameters: v points to vehicle state, wp is waypoint index.
+ * Returns FrenetState_t with lateral/heading error and body velocities. */
 static FrenetState_t vehicle_to_frenet(const VehicleState_t *v, int wp)
 {
     FrenetState_t f;
@@ -268,6 +290,9 @@ static FrenetState_t vehicle_to_frenet(const VehicleState_t *v, int wp)
     return f;
 }
 
+/* Wrap arc-length coordinate for closed-loop track interpolation.
+ * Parameter: s is arc length in meters.
+ * Returns wrapped arc length in meters. */
 static double wrap_track_s(double s)
 {
     if (g_track_length_m <= 1e-6 || raceline_count <= 1) return s;
@@ -277,6 +302,9 @@ static double wrap_track_s(double s)
     return s;
 }
 
+/* Interpolate raceline waypoint values at requested arc length.
+ * Parameter: s_query is arc length in meters.
+ * Returns interpolated waypoint sample. */
 static Waypoint_t sample_raceline_by_s(double s_query)
 {
     if (raceline_count <= 0) {
@@ -328,6 +356,9 @@ static Waypoint_t sample_raceline_by_s(double s_query)
     return out;
 }
 
+/* Build horizon reference trajectory for the MPC from raceline samples.
+ * Parameters: closest waypoint index, actual_vx in m/s, output ref array.
+ * Side effect: writes MPC reference entries into ref[0..MPC_REF_ENTRIES-1]. */
 static void build_reference(int closest, double actual_vx, TrajectoryReferencePoint_t *ref)
 {
     (void)actual_vx;
@@ -398,6 +429,9 @@ static void build_reference(int closest, double actual_vx, TrajectoryReferencePo
 
 static int tests_passed = 0, tests_failed = 0;
 
+/* Record test assertion result and print pass/fail status line.
+ * Parameters: name is assertion label, cond is boolean predicate.
+ * Side effect: increments global pass/fail counters. */
 static void check(const char *name, int cond)
 {
     if (cond) { tests_passed++; printf("  [PASS] %s\n", name); }
@@ -405,6 +439,8 @@ static void check(const char *name, int cond)
 }
 
 /* Box-Muller Gaussian random number generator (for sensor noise) */
+/* Generate one approximately normal-distributed random sample.
+ * Returns N(0,1) sample using Box-Muller transform. */
 static double randn(void)
 {
     double u1 = ((double)rand() + 1.0) / ((double)RAND_MAX + 2.0);

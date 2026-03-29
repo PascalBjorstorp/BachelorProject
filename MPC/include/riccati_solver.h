@@ -1,6 +1,6 @@
 /**
  * @file riccati_solver.h
- * @brief Riccati-ADMM Solver for Non-Condensed MPC (Fixed-Point)
+ * @brief Riccati-ADMM solver for non-condensed MPC.
  *
  * Solves the constrained linear-quadratic optimal control problem:
  *
@@ -16,6 +16,7 @@
  * where the state is augmented with previous control inputs.
  *
  * All arithmetic uses native float operations.
+ * @dependencies mpc_types.h, util_math.h, <stdint.h>
  */
 
 #ifndef RICCATI_SOLVER_H
@@ -208,13 +209,22 @@ typedef struct
  *===========================================================================*/
 
 /**
- * Initialize Riccati-ADMM configuration with default values.
- * Default: rho=10.0, tolerance=0.01, max_iterations=30
+ * @brief Populate a RiccatiAdmmConfig_t with conservative default solver settings.
+ * @details Default values: rho = MPC_ADMM_RHO_DEFAULT,
+ *          tolerance = MPC_CONVERGENCE_TOLERANCE_DEFAULT,
+ *          max_iterations = 200, adaptive_rho = enabled,
+ *          alpha = MPC_ADMM_ALPHA_DEFAULT.
+ * @param config Pointer to configuration structure to initialize; must not be NULL.
+ * @return None.
  */
 void riccati_admm_config_init(RiccatiAdmmConfig_t *config);
 
 /**
- * Initialize ADMM state (clear warm-start data).
+ * @brief Zero all ADMM warm-start buffers and mark the state as uninitialized.
+ * @details Call before the first solve, and whenever the problem changes enough
+ *          to make the previous warm-start invalid (e.g. large curvature jump).
+ * @param state Pointer to ADMM state to clear; must not be NULL.
+ * @return None.
  */
 void riccati_admm_state_init(RiccatiAdmmState_t *state);
 

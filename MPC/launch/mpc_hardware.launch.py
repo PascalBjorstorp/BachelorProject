@@ -25,6 +25,17 @@ from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
+    """
+    Build the launch graph for the MPC hardware node.
+
+    Resolves the default trajectory path from f1tenth_planning package share,
+    declares configurable launch arguments for all runtime-tunable parameters,
+    and maps them to environment variables consumed by the C MPC node process.
+
+    Returns:
+        LaunchDescription containing all argument declarations, environment
+        variable setters, and the mpc_hardware_node action.
+    """
 
     # Default trajectory: look in f1tenth_planning's installed share directory
     default_trajectory = ''

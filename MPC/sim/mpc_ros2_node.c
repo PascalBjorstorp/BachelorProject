@@ -3,6 +3,10 @@
 /**
  * @file mpc_ros2_node.c
  * @brief MPC Riccati-ADMM ROS2 Node for F1/10th Simulator Integration
+ * @details Implements a ROS2 bridge node using rclc for Jazzy. The node
+ *          subscribes to simulator odometry/collision topics, converts state
+ *          to the solver's Frenet representation, runs the Riccati-ADMM MPC,
+ *          and publishes direct control commands without post-processing.
  *
  * Implements ROS2 node using rclc (C client library) for Jazzy.
  * Subscribes to odometry, runs the Riccati-ADMM MPC solver,
@@ -19,6 +23,8 @@
  *   Publish:   /drive          (ackermann_msgs/AckermannDriveStamped)
  *              /mpc/reference_path   (nav_msgs/Path)
  *              /mpc/trajectory_path  (nav_msgs/Path)
+ * @dependencies mpc.h, mpc_types.h, util_math.h, vehicle_model.h,
+ *               rclc, rcl, nav_msgs, ackermann_msgs, geometry_msgs, std_msgs
  */
 
 #include <stdio.h>
@@ -67,6 +73,9 @@ static double g_mpc_dt      = MPC_DEFAULT_DT;
 #define ODOMETRY_CALLBACK_DIVIDER_DEFAULT 1
 
 /** Maximum number of waypoints in loaded trajectory */
+/* NOTE: This redefines TRAJECTORY_MAXIMUM_WAYPOINTS from mpc_types.h (1000).
+ * The sim node uses a larger buffer to accommodate longer tracks. The two
+ * definitions must be kept in sync or unified into a shared header. */
 #define TRAJECTORY_MAXIMUM_WAYPOINTS 2000
 
 /** Maximum reference velocity [m/s] */
@@ -127,15 +136,9 @@ static TrajectoryReferencePoint_t global_reference_trajectory[MPC_MAX_HORIZON_ST
  * Trajectory Loading (CSV from f1tenth_planning)
  *===========================================================================*/
 
-/**
- * @brief Load trajectory from CSV file.
- *
- * CSV format (TUM compatible):
- *   # s_m,x_m,y_m,psi_rad,kappa_radpm,vx_mps,ax_mps2,left_bound,right_bound
- *
- * @param file_path  Path to the CSV trajectory file
- * @return 1 on success, 0 on failure
- */
+/* Load trajectory waypoints from CSV into the global ring-track buffer.
+ * Parameters: file_path is a filesystem path to a TUM-format raceline CSV.
+ * Returns 1 on successful parse with at least one waypoint, otherwise 0. */
 static int load_trajectory_from_csv(const char *file_path)
 {
     FILE *csv_file = fopen(file_path, "r");
@@ -241,14 +244,9 @@ static int load_trajectory_from_csv(const char *file_path)
  * Waypoint Search
  *===========================================================================*/
 
-/**
- * @brief Find the closest trajectory waypoint to a position.
- *
- * Forward-biased local search from the last known position.
- * Searches a window of 50 waypoints ahead and 3 behind to prevent
- * backward jumps that cause Frenet frame discontinuities.
- * Among equidistant candidates, prefers the one ahead of the vehicle.
- */
+/* Find the closest waypoint index to the current vehicle pose.
+ * Parameters: position_x/position_y in meters, vehicle_heading in radians.
+ * Returns the selected waypoint index and updates the cached search anchor. */
 static int find_closest_waypoint(double position_x, double position_y, double vehicle_heading)
 {
     if (global_trajectory_count == 0)
@@ -287,6 +285,9 @@ static int find_closest_waypoint(double position_x, double position_y, double ve
     return best_index;
 }
 
+/* Wrap arc length to the closed-track domain used by the loaded trajectory.
+ * Parameter: s in meters along track coordinate.
+ * Returns wrapped s in meters when track length is known. */
 static double wrap_track_s(double s)
 {
     if (global_track_length_meters <= 1e-6)
@@ -298,6 +299,9 @@ static double wrap_track_s(double s)
     return s;
 }
 
+/* Interpolate a waypoint sample at a query arc length.
+ * Parameters: s_query in meters, out points to destination waypoint struct.
+ * Side effect: writes interpolated state into *out when inputs are valid. */
 static void sample_waypoint_by_s(double s_query, TrajectoryWaypoint_t *out)
 {
     if (out == NULL || global_trajectory_count == 0)
@@ -357,13 +361,9 @@ static void sample_waypoint_by_s(double s_query, TrajectoryWaypoint_t *out)
  * Reference Trajectory Builder
  *===========================================================================*/
 
-/**
- * @brief Build MPC reference trajectory from loaded waypoints (Frenet frame).
- *path_curvature
- * Frenet references: lateral and heading error are zero (follow the path).
- * Each prediction step maps to the waypoint at the expected travel distance
- * based on the reference velocity.
- */
+/* Build the per-step MPC Frenet reference sequence from the raceline.
+ * Parameter: closest_index is the nearest waypoint index to the vehicle.
+ * Side effect: fills global_reference_trajectory for the active horizon. */
 static void build_reference_from_trajectory(int closest_index)
 {
     const double mpc_dt = g_mpc_dt;
@@ -400,6 +400,9 @@ static void build_reference_from_trajectory(int closest_index)
  * Helper Functions
  *===========================================================================*/
 
+/* Convert a quaternion orientation to yaw angle in radians.
+ * Parameters: qx/qy/qz/qw are unit quaternion components.
+ * Returns yaw angle in radians in the world frame. */
 static double quaternion_to_yaw_angle(double qx, double qy, double qz, double qw)
 {
     double siny_cosp = 2.0 * (qw * qz + qx * qy);
@@ -407,6 +410,9 @@ static double quaternion_to_yaw_angle(double qx, double qy, double qz, double qw
     return atan2(siny_cosp, cosy_cosp);
 }
 
+/* Convert yaw angle to quaternion representation with zero roll/pitch.
+ * Parameters: yaw in radians, q points to destination quaternion.
+ * Side effect: writes quaternion components into *q when q is non-null. */
 static void yaw_to_quaternion(double yaw, geometry_msgs__msg__Quaternion *q)
 {
     if (q == NULL) return;
@@ -417,6 +423,9 @@ static void yaw_to_quaternion(double yaw, geometry_msgs__msg__Quaternion *q)
     q->w = cos(half);
 }
 
+/* Pre-allocate a ROSIDL string buffer to avoid heap churn in callbacks.
+ * Parameters: str points to the target string object, capacity in bytes.
+ * Returns 1 on success, otherwise 0. */
 static int preallocate_rosidl_string(rosidl_runtime_c__String *str, size_t capacity)
 {
     if (str == NULL || capacity <= 1) return 0;
@@ -430,6 +439,9 @@ static int preallocate_rosidl_string(rosidl_runtime_c__String *str, size_t capac
     return 1;
 }
 
+/* Copy a C string into a pre-allocated ROSIDL string with truncation safety.
+ * Parameters: str destination ROSIDL string, value source C string.
+ * Side effect: updates str->data and str->size when inputs are valid. */
 static void set_rosidl_string(rosidl_runtime_c__String *str, const char *value)
 {
     if (str == NULL || str->data == NULL || value == NULL) return;
@@ -444,18 +456,10 @@ static void set_rosidl_string(rosidl_runtime_c__String *str, const char *value)
  * Frenet State Conversion
  *===========================================================================*/
 
-/**
- * @brief Convert global vehicle state to Frenet (path-relative) state.
- *
- * Projects the car position onto the segment between closest and closest+1
- * waypoints, then interpolates path position and heading at the projection
- * point. This eliminates discontinuous jumps when the closest waypoint index
- * changes, providing smooth Frenet state feedback to the MPC.
- *
- * e_y   = signed perpendicular distance (positive = left of path)
- * e_psi = heading error (vehicle heading - interpolated path tangent)
- * v_x, v_y, omega copied from body-frame state unchanged.
- */
+/* Convert map-frame vehicle pose/velocity into Frenet tracking errors.
+ * Parameters: car_x/car_y [m], car_heading [rad], closest_index waypoint id,
+ * frenet_out destination structure.
+ * Side effect: writes path-relative state used by the MPC solver. */
 static void convert_to_frenet_state(
     double car_x, double car_y, double car_heading,
     int closest_index,
@@ -514,6 +518,9 @@ static void convert_to_frenet_state(
  * ROS2 Callback: Odometry Subscription
  *===========================================================================*/
 
+/* Handle odometry updates from the simulator and publish the current command.
+ * Parameters: message_in points to nav_msgs/Odometry payload.
+ * Side effect: updates global vehicle state and publishes /drive command. */
 void odometry_subscription_callback(const void *message_in)
 {
     if (message_in == NULL)
@@ -566,6 +573,9 @@ void odometry_subscription_callback(const void *message_in)
  * ROS2 Callback: Collision Subscription
  *===========================================================================*/
 
+/* Handle collision events and trigger orderly ROS shutdown.
+ * Parameters: message_in points to std_msgs/Bool payload.
+ * Side effect: requests node shutdown and raises SIGINT fallback on failure. */
 void collision_subscription_callback(const void *message_in)
 {
     if (message_in == NULL) return;
@@ -664,6 +674,9 @@ int main(int argc, char *argv[])
     const char *trajectory_file = NULL;
     if (argc >= 2)
     {
+        /* SECURITY: trajectory_file is taken from argv[1] without sanitization.
+         * This is acceptable for a controlled ROS2 deployment environment, but
+         * the path should not be derived from network input or untrusted sources. */
         trajectory_file = argv[1];
     }
     else
