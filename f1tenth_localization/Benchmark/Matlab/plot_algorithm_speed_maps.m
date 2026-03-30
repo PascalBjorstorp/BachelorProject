@@ -20,6 +20,21 @@ bagsRoot = fullfile(repoRoot, 'bags');
 % Default raceline CSV (used if a run does not set racelineCsv).
 defaultRacelineCsv = fullfile(bagsRoot, 'Raceline', 'my_track_raceline_20_03.csv');
 
+% Keep data from [drive detected + startDelayAfterDriveSeconds] and
+% until [last active drive command - endTrimBeforeStopSeconds].
+startDelayAfterDriveSeconds = 3.0;
+endTrimBeforeStopSeconds = 1.0;
+
+% Drive command threshold used to detect active driving.
+driveCommandThreshold = 1e-3;
+
+% Lap detection settings (for full-lap-only metrics).
+lapGateHalfLengthM = 2.0;
+minLapTimeSeconds = 5.0;
+
+% Display trajectory start/end markers on plots.
+showStartEndMarkers = false;
+
 % Add one entry per run/algorithm.
 runs = [ ...
     struct('algorithm', 'MPC', 'bagName', 'MPC_SPEEDTEST_8_laps', 'racelineCsv', ''), ...
@@ -37,11 +52,13 @@ results = struct( ...
     'algorithm', {}, ...
     'bagName', {}, ...
     'bagPath', {}, ...
-    'lapTimeS', {}, ...
-    'distanceM', {}, ...
+    'lapCount', {}, ...
+    'lapMeanS', {}, ...
+    'lapBestS', {}, ...
     'speedMean', {}, ...
-    'speedP95', {}, ...
     'speedMax', {}, ...
+    'devMean', {}, ...
+    'devMax', {}, ...
     'mapData', {}, ...
     'racelineXY', {}, ...
     'trajX', {}, ...
@@ -72,6 +89,7 @@ for i = 1:numel(runs)
     ekfTopic = pickTopic(allTopics, '/ekf_pose', 'ekf_pose');
     odomTopic = pickTopic(allTopics, '/ego_racecar/odom', 'odom');
     mapTopic = pickTopic(allTopics, '/map', 'map');
+    cmdTopic = pickDriveCommandTopic(allTopics);
 
     if isempty(ekfTopic)
         warning('No ekf pose topic found in %s', cfg.bagName);
@@ -85,12 +103,19 @@ for i = 1:numel(runs)
     ekfMsgs = readMessages(select(bag, 'Topic', ekfTopic));
     odomMsgs = readMessages(select(bag, 'Topic', odomTopic));
     mapMsgs = {};
+    cmdSel = [];
+    cmdMsgs = {};
     if ~isempty(mapTopic)
         mapMsgs = readMessages(select(bag, 'Topic', mapTopic));
+    end
+    if ~isempty(cmdTopic)
+        cmdSel = select(bag, 'Topic', cmdTopic);
+        cmdMsgs = readMessages(cmdSel);
     end
 
     [tEkf, xyEkf] = extractXYSeries(ekfMsgs);
     [tOdom, speedOdom] = extractOdomSpeedSeries(odomMsgs);
+    [tCmd, speedCmd] = extractDriveCommandSpeedSeries(cmdMsgs, cmdSel);
 
     if numel(tEkf) < 2 || numel(tOdom) < 2
         warning('Not enough ekf/odom data in %s', cfg.bagName);
@@ -108,10 +133,43 @@ for i = 1:numel(runs)
         continue;
     end
 
-    dt = diff(tEkf);
-    dt(dt <= 0 | ~isfinite(dt)) = 0;
-    lapTimeS = tEkf(end) - tEkf(1);
-    distanceM = sum(speedAtEkf(1:end-1) .* dt);
+    tCmdForWindow = tCmd;
+    tEkfForWindow = tEkf;
+    if ~isempty(tCmdForWindow) && ~isempty(tEkfForWindow)
+        if abs(tEkfForWindow(1) - tCmdForWindow(1)) > 1e3
+            tCmdForWindow = tCmdForWindow - tCmdForWindow(1);
+            tEkfForWindow = tEkfForWindow - tEkfForWindow(1);
+        end
+    end
+
+    [tWindowStart, tWindowEnd, hasDriveWindow] = computeDriveWindow( ...
+        tCmdForWindow, speedCmd, startDelayAfterDriveSeconds, endTrimBeforeStopSeconds, driveCommandThreshold);
+
+    if hasDriveWindow
+        keep = tEkfForWindow >= tWindowStart & tEkfForWindow <= tWindowEnd;
+        if nnz(keep) < 2
+            % Fallback: use full command stream bounds if active-window bounds are too tight.
+            if numel(tCmdForWindow) >= 2
+                tFallbackStart = tCmdForWindow(1) + max(0, startDelayAfterDriveSeconds);
+                tFallbackEnd = tCmdForWindow(end) - max(0, endTrimBeforeStopSeconds);
+                keepFallback = tEkfForWindow >= tFallbackStart & tEkfForWindow <= tFallbackEnd;
+                if nnz(keepFallback) >= 2
+                    keep = keepFallback;
+                else
+                    warning('Drive window leaves too few samples in %s; using untrimmed aligned data.', cfg.bagName);
+                    keep = true(size(tEkf));
+                end
+            else
+                warning('Drive window leaves too few samples in %s; using untrimmed aligned data.', cfg.bagName);
+                keep = true(size(tEkf));
+            end
+        end
+        tEkf = tEkf(keep);
+        xyEkf = xyEkf(keep, :);
+        speedAtEkf = speedAtEkf(keep);
+    else
+        warning('No active drive window found in %s; using untrimmed aligned data.', cfg.bagName);
+    end
 
     raceCsv = cfg.racelineCsv;
     if isempty(raceCsv)
@@ -119,20 +177,41 @@ for i = 1:numel(runs)
     end
     racelineXY = loadRacelineXY(raceCsv);
 
+    [lapDurS, lapCrossingsS] = detectFullLapDurations( ...
+        tEkf, xyEkf(:, 1), xyEkf(:, 2), racelineXY, lapGateHalfLengthM, minLapTimeSeconds);
+
+    if isempty(lapDurS)
+        warning('No full laps detected in %s after trimming.', cfg.bagName);
+        continue;
+    end
+
+    keepFullLaps = tEkf >= lapCrossingsS(1) & tEkf <= lapCrossingsS(end);
+    if nnz(keepFullLaps) < 2
+        warning('Full-lap window leaves too few samples in %s', cfg.bagName);
+        continue;
+    end
+    tEkf = tEkf(keepFullLaps);
+    xyEkf = xyEkf(keepFullLaps, :);
+    speedAtEkf = speedAtEkf(keepFullLaps);
+
     mapData = [];
     if ~isempty(mapMsgs)
         mapData = decodeOccupancyGridMsg(mapMsgs{end});
     end
 
+    trajDev = computeDeviationToRaceline(xyEkf(:, 1), xyEkf(:, 2), racelineXY);
+
     r = struct();
     r.algorithm = cfg.algorithm;
     r.bagName = cfg.bagName;
     r.bagPath = bagPath;
-    r.lapTimeS = lapTimeS;
-    r.distanceM = distanceM;
+    r.lapCount = numel(lapDurS);
+    r.lapMeanS = mean(lapDurS);
+    r.lapBestS = min(lapDurS);
     r.speedMean = mean(speedAtEkf, 'omitnan');
-    r.speedP95 = prctile(speedAtEkf, 95);
     r.speedMax = max(speedAtEkf);
+    r.devMean = mean(trajDev, 'omitnan');
+    r.devMax = max(trajDev);
     r.mapData = mapData;
     r.racelineXY = racelineXY;
     r.trajX = xyEkf(:, 1);
@@ -181,15 +260,19 @@ for i = 1:numel(results)
 
     colormap(gca, speedCmap);
 
-    plot(results(i).trajX(1), results(i).trajY(1), 'go', 'MarkerFaceColor', 'g', ...
-        'DisplayName', 'start');
-    plot(results(i).trajX(end), results(i).trajY(end), 'ro', 'MarkerFaceColor', 'r', ...
-        'DisplayName', 'end');
+    if showStartEndMarkers
+        plot(results(i).trajX(1), results(i).trajY(1), 'go', 'MarkerFaceColor', 'g', ...
+            'DisplayName', 'start');
+        plot(results(i).trajX(end), results(i).trajY(end), 'ro', 'MarkerFaceColor', 'r', ...
+            'DisplayName', 'end');
+    end
 
     caxis([cMin, cMax]);
     set(gca, 'XTick', [], 'YTick', []);
     addScaleBarBelowAxes(fig, gca, 1.0, '1 m');
-    title(sprintf('%s | %s', results(i).algorithm, results(i).bagName), 'Interpreter', 'none');
+    title(sprintf('%s | %s | laps %d | best %.3f s', ...
+        results(i).algorithm, results(i).bagName, results(i).lapCount, results(i).lapBestS), ...
+        'Interpreter', 'none');
     hold off;
 end
 
@@ -200,14 +283,18 @@ cb.Label.String = 'Speed [m/s]';
 %% Combined summary table for all algorithms
 alg = cellstr(string({results.algorithm})');
 bag = cellstr(string({results.bagName})');
-lap = [results.lapTimeS]';
-dist = [results.distanceM]';
+lapCount = [results.lapCount]';
+lapMean = [results.lapMeanS]';
+lapBest = [results.lapBestS]';
 vMean = [results.speedMean]';
-vP95 = [results.speedP95]';
 vMax = [results.speedMax]';
+devMean = [results.devMean]';
+devMax = [results.devMax]';
 
-summaryT = table(alg, bag, lap, dist, vMean, vP95, vMax, ...
-    'VariableNames', {'Algorithm', 'BagName', 'LapTime_s', 'Distance_m', 'SpeedMean_mps', 'SpeedP95_mps', 'SpeedMax_mps'});
+summaryT = table(alg, bag, lapCount, lapMean, lapBest, vMean, vMax, devMean, devMax, ...
+    'VariableNames', {'Algorithm', 'BagName', 'LapCount', 'LapMean_s', 'LapBest_s', ...
+    'SpeedMean_mps', 'SpeedMax_mps', ...
+    'DevMean_m', 'DevMax_m'});
 
 disp(' ');
 disp('=== Combined Summary Across Algorithms ===');
@@ -247,6 +334,26 @@ idx = contains(lower(allTopics), lower(fallbackContains));
 if any(idx)
     topic = char(allTopics(find(idx, 1, 'first')));
 end
+end
+
+function topic = pickDriveCommandTopic(allTopics)
+% Prefer built-in message types to avoid custom-message dependencies.
+topic = pickTopic(allTopics, '/commands/motor/speed', 'commands/motor/speed');
+if ~isempty(topic)
+    return;
+end
+
+topic = pickTopic(allTopics, '/ackermann_cmd', 'ackermann_cmd');
+if ~isempty(topic)
+    return;
+end
+
+topic = pickTopic(allTopics, '/drive', 'drive');
+if ~isempty(topic)
+    return;
+end
+
+topic = pickTopic(allTopics, '/teleop', 'teleop');
 end
 
 function [t, xy] = extractXYSeries(msgs)
@@ -303,6 +410,220 @@ speed = speed(valid);
 speed = speed(idx);
 [t, iUnique] = unique(t);
 speed = speed(iUnique);
+end
+
+function [t, speedCmd] = extractDriveCommandSpeedSeries(msgs, sel)
+n = numel(msgs);
+t = zeros(n, 1);
+speedCmd = nan(n, 1);
+
+msgList = [];
+if nargin >= 2 && ~isempty(sel)
+    msgList = sel.MessageList;
+end
+
+for k = 1:n
+    m = msgs{k};
+    if ~isstruct(m)
+        m = struct(m);
+    end
+
+    tHeader = extractHeaderTime(m, NaN);
+    if isfinite(tHeader)
+        t(k) = tHeader;
+    else
+        t(k) = extractSelectionTime(msgList, k);
+    end
+
+    if ~isfinite(t(k))
+        t(k) = k;
+    end
+
+    [vCmd, ok] = extractDriveCommandSpeed(m);
+    if ok
+        speedCmd(k) = vCmd;
+    end
+end
+
+valid = isfinite(t) & isfinite(speedCmd);
+t = t(valid);
+speedCmd = speedCmd(valid);
+
+[t, idx] = sort(t);
+speedCmd = speedCmd(idx);
+[t, iUnique] = unique(t);
+speedCmd = speedCmd(iUnique);
+end
+
+function [tStart, tEnd, ok] = computeDriveWindow(tCmd, speedCmd, startDelayS, endTrimS, speedThresh)
+tStart = NaN;
+tEnd = NaN;
+ok = false;
+
+if isempty(tCmd) || isempty(speedCmd)
+    return;
+end
+
+active = isfinite(speedCmd) & abs(speedCmd) > speedThresh;
+if any(active)
+    tFirstActive = tCmd(find(active, 1, 'first'));
+    tLastActive = tCmd(find(active, 1, 'last'));
+else
+    % Fallback when all commands are near zero: use command-stream bounds.
+    tFirstActive = tCmd(1);
+    tLastActive = tCmd(end);
+end
+
+tStart = tFirstActive + max(0, startDelayS);
+tEnd = tLastActive - max(0, endTrimS);
+
+if ~isfinite(tStart) || ~isfinite(tEnd) || tEnd <= tStart
+    ok = false;
+    return;
+end
+
+ok = true;
+end
+
+function [lapDurS, crossingTimes] = detectFullLapDurations(t, x, y, racelineXY, gateHalfLengthM, minLapTimeS)
+lapDurS = [];
+crossingTimes = [];
+
+if numel(t) < 3 || isempty(racelineXY) || size(racelineXY, 1) < 2
+    return;
+end
+
+p0 = racelineXY(1, :);
+p1 = racelineXY(2, :);
+dirVec = p1 - p0;
+dirNorm = hypot(dirVec(1), dirVec(2));
+if dirNorm <= 1e-9
+    return;
+end
+
+tangent = dirVec / dirNorm;
+normal = [-tangent(2), tangent(1)];
+
+dx = x - p0(1);
+dy = y - p0(2);
+along = dx * tangent(1) + dy * tangent(2);
+lat = dx * normal(1) + dy * normal(2);
+
+crossT = [];
+crossDir = [];
+for i = 1:(numel(t) - 1)
+    if ~isfinite(lat(i)) || ~isfinite(lat(i + 1)) || ~isfinite(t(i)) || ~isfinite(t(i + 1))
+        continue;
+    end
+
+    alongMid = 0.5 * (along(i) + along(i + 1));
+    if abs(alongMid) > gateHalfLengthM
+        continue;
+    end
+
+    crossing = false;
+    alpha = 0.0;
+    if lat(i) == 0
+        crossing = true;
+        alpha = 0.0;
+    elseif lat(i + 1) == 0
+        crossing = true;
+        alpha = 1.0;
+    elseif (lat(i) < 0 && lat(i + 1) > 0) || (lat(i) > 0 && lat(i + 1) < 0)
+        crossing = true;
+        alpha = lat(i) / (lat(i) - lat(i + 1));
+    end
+
+    if ~crossing
+        continue;
+    end
+
+    tCross = t(i) + alpha * (t(i + 1) - t(i));
+    if ~isfinite(tCross)
+        continue;
+    end
+
+    crossT(end + 1, 1) = tCross; %#ok<AGROW>
+    crossDir(end + 1, 1) = sign(lat(i + 1) - lat(i)); %#ok<AGROW>
+end
+
+if numel(crossT) < 2
+    return;
+end
+
+nonZeroDir = crossDir(crossDir ~= 0);
+if isempty(nonZeroDir)
+    return;
+end
+
+dominantDir = mode(nonZeroDir);
+crossT = crossT(crossDir == dominantDir);
+if numel(crossT) < 2
+    return;
+end
+
+crossingTimes = crossT(1);
+for i = 2:numel(crossT)
+    if crossT(i) - crossingTimes(end) >= minLapTimeS
+        crossingTimes(end + 1, 1) = crossT(i); %#ok<AGROW>
+    end
+end
+
+if numel(crossingTimes) < 2
+    crossingTimes = [];
+    return;
+end
+
+lapDurS = diff(crossingTimes);
+valid = isfinite(lapDurS) & lapDurS > 0;
+lapDurS = lapDurS(valid);
+if isempty(lapDurS)
+    crossingTimes = [];
+end
+end
+
+function t = extractSelectionTime(msgList, idx)
+t = NaN;
+if isempty(msgList) || idx < 1 || idx > height(msgList)
+    return;
+end
+
+vars = string(msgList.Properties.VariableNames);
+idxTs = find(strcmpi(vars, 'Timestamp'), 1, 'first');
+idxTime = find(strcmpi(vars, 'Time'), 1, 'first');
+
+if ~isempty(idxTs)
+    v = msgList{idx, idxTs};
+elseif ~isempty(idxTime)
+    v = msgList{idx, idxTime};
+else
+    return;
+end
+
+if isa(v, 'duration')
+    t = seconds(v);
+    return;
+end
+
+if isa(v, 'datetime')
+    t = posixtime(v);
+    return;
+end
+
+if iscell(v)
+    v = v{1};
+end
+
+v = double(v);
+if ~isfinite(v)
+    return;
+end
+
+if v > 1e12
+    t = v * 1e-9;
+else
+    t = v;
+end
 end
 
 function out = decodeOccupancyGridMsg(msg)
@@ -548,6 +869,37 @@ vy = double(vyv);
 ok = true;
 end
 
+function [vCmd, ok] = extractDriveCommandSpeed(m)
+ok = false;
+vCmd = NaN;
+
+% std_msgs/msg/Float64 style command topic.
+[dataVal, hasData] = getNumericFieldIgnoreCase(m, 'data');
+if hasData && isfinite(dataVal)
+    vCmd = double(dataVal);
+    ok = true;
+    return;
+end
+
+% ackermann_msgs/msg/AckermannDriveStamped style command topic.
+[drive, hasDrive] = getFieldIgnoreCase(m, 'drive');
+if hasDrive && isstruct(drive)
+    [speedVal, hasSpeed] = getNumericFieldIgnoreCase(drive, 'speed');
+    if hasSpeed && isfinite(speedVal)
+        vCmd = double(speedVal);
+        ok = true;
+        return;
+    end
+end
+
+% Fallback for flat speed field naming.
+[speedVal, hasSpeed] = getNumericFieldIgnoreCase(m, 'speed');
+if hasSpeed && isfinite(speedVal)
+    vCmd = double(speedVal);
+    ok = true;
+end
+end
+
 function [value, found] = getFieldIgnoreCase(s, name)
 value = [];
 found = false;
@@ -568,5 +920,20 @@ if found
     value = double(v);
 else
     value = NaN;
+end
+end
+
+function dev = computeDeviationToRaceline(trajX, trajY, racelineXY)
+n = numel(trajX);
+dev = nan(n, 1);
+
+if isempty(racelineXY) || n == 0
+    return;
+end
+
+for i = 1:n
+    dx = racelineXY(:, 1) - trajX(i);
+    dy = racelineXY(:, 2) - trajY(i);
+    dev(i) = sqrt(min(dx .* dx + dy .* dy));
 end
 end
