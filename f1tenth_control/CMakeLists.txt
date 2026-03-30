@@ -9,7 +9,7 @@ endif()
 # Enable warnings and release-only optimization flags for supported compilers
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
-  add_compile_options($<$<CONFIG:Release>:-O3;-DNDEBUG>)
+  add_compile_options("$<$<CONFIG:Release>:-O3>")
 endif()
 
 # Find dependencies

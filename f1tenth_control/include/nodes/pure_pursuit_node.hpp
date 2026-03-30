@@ -81,6 +81,8 @@ private:
     // Soft start
     rclcpp::Time soft_start_time_;          // Timestamp when soft start was initiated
     bool soft_start_initialized_{false};    // Whether the soft start timer has been initialized
+    double soft_start_distance_traveled_{0.0};  // Distance tracked during soft-start phase [m]
+    Point2D last_position_{};               // Last pose sample used for soft-start distance integration
     double last_cmd_steering_{0.0};         // Last commanded steering angle for rate limiting
     double last_cmd_speed_{0.0};            // Last commanded speed for rate limiting
     bool cmd_history_initialized_{false};   // Whether the command history has been initialized for rate limiting

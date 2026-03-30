@@ -13,6 +13,8 @@
 
 #include <stdint.h>
 #include <math.h>
+#include <string.h>
+#include <stdint.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -94,6 +96,8 @@ static inline float util_sqrt(float x)  { return sqrtf(fabsf(x)); }
 
 /**
  * @brief Multiply a dense row-major matrix by a column vector.
+ * @details Returns without writing output when any pointer is NULL or when
+ *          rows/cols are zero.
  * @param matrix Pointer to row-major matrix data [rows × cols floats].
  * @param vec Input column vector [cols floats].
  * @param result Output vector [rows floats]; must not alias matrix or vec.
@@ -111,7 +115,8 @@ void util_mat_vec_mul(
 /**
  * @brief Multiply a symmetric square matrix by a vector using 2x2 block tiling.
  * @details Exploits symmetry to halve memory accesses for even-dimension matrices.
- *          Falls back to the generic multiply for odd dimensions.
+ *          Falls back to the generic multiply for odd dimensions or dimensions
+ *          larger than QP_MAXIMUM_VARIABLES.
  * @param matrix Pointer to the upper-triangular-accessible symmetric matrix [n x n].
  * @param vec Input vector [n floats].
  * @param result Output vector [n floats]; must not alias matrix or vec.
@@ -126,6 +131,7 @@ void util_symmetric_mat_vec_mul(
 
 /**
  * @brief Compute the scaled vector sum result[i] = a[i] + scalar * b[i].
+ * @details Returns without writing output when any pointer is NULL or len is zero.
  * @param a First operand vector [len floats].
  * @param b Second operand vector [len floats].
  * @param scalar Scale factor applied to b before addition.
@@ -142,6 +148,7 @@ void util_vec_add_scaled(
 
 /**
  * @brief Compute the maximum positive constraint violation of A*x <= b.
+ * @details Returns zero when inputs are NULL or dimensions are zero.
  * @param A Constraint matrix [constraints x vars], row-major.
  * @param x Primal variable vector [vars floats].
  * @param b Right-hand side vector [constraints floats].
