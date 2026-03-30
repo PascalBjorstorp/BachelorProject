@@ -9,6 +9,9 @@ Change matlab plot for the speed bags to exclude the first 3 seconds atleast to 
 
 Change matlab plot for the speed bags to not place start and stop positions
 
+Change matlab plot to also include deviation from line
+
+
 # Scan splitter
 Make scan splitter actually work better and more robust in terms of spotting obstacles
 
@@ -22,3 +25,13 @@ Make the pipeline monitor track CPU per core usage properly. Maybe even track pr
 
 # System ændringer 
 Flyt lidar ned i system mappen
+
+# Launch file
+Lav en launch fil der kører alt og at man  kan vælge imellem controllere
+
+# Generelt
+Tilføj briefs over alt og fix de stedder den både er i cpp og hpp
+
+Kig på call back groups i forhold til bedre perfomance / mere sikkert ved multi threading
+
+Sæt publishers og subscribers ind i en yaml så de er ens overalt
