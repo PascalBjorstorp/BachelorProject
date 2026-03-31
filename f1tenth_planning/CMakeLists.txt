@@ -38,6 +38,7 @@ install(DIRECTORY
 # Install trajectory outputs
 install(DIRECTORY
   trajectories
+  maps
   DESTINATION share/${PROJECT_NAME}
 )
 
