@@ -16,17 +16,17 @@ Output CSV format (7 or 9 columns):
 
 Usage:
     # Full pipeline from a map file
-    python3 optimize_trajectory.py --map f1tenth_sim/maps/Spielberg_map.yaml
-    python3 optimize_trajectory.py --map f1tenth_sim/maps/my_track_map.yaml --max-speed 8.0
+    python3 optimize_trajectory.py --map f1tenth_planning/maps/Spielberg_map.yaml
+    python3 optimize_trajectory.py --map f1tenth_planning/maps/my_track_map.yaml --max-speed 8.0
 
     # With wall distances (enables 9-col output)
-    python3 optimize_trajectory.py --map f1tenth_sim/maps/my_track_map.yaml --with-walls
+    python3 optimize_trajectory.py --map f1tenth_planning/maps/my_track_map.yaml --with-walls
 
     # Skip extraction if TUM track CSV already exists
-    python3 optimize_trajectory.py --map f1tenth_sim/maps/Spielberg_map.yaml --skip-extract
+    python3 optimize_trajectory.py --map f1tenth_planning/maps/Spielberg_map.yaml --skip-extract
 
     # Skip both extraction and optimization (re-convert only)
-    python3 optimize_trajectory.py --map f1tenth_sim/maps/Spielberg_map.yaml --skip-extract --skip-optimize
+    python3 optimize_trajectory.py --map f1tenth_planning/maps/Spielberg_map.yaml --skip-extract --skip-optimize
 
 Requirements:
     pip install numpy opencv-python scipy pyyaml
@@ -80,10 +80,10 @@ def thin_binary_mask(binary_mask):
 # =============================================================================
 
 def find_workspace_root():
-    """Walk up from this script to find the workspace root (contains f1tenth_sim/)."""
+    """Walk up from this script to find the workspace root (contains f1tenth_planning/)."""
     d = os.path.dirname(os.path.abspath(__file__))
     for _ in range(10):
-        if os.path.isdir(os.path.join(d, 'f1tenth_sim')):
+        if os.path.isdir(os.path.join(d, 'f1tenth_planning')):
             return d
         d = os.path.dirname(d)
     return None
@@ -1089,7 +1089,7 @@ def main():
     if not workspace:
         print(
             "ERROR: Could not find workspace root "
-            "(no f1tenth_sim/ found)"
+            "(no f1tenth_planning/ found)"
         )
         sys.exit(1)
 
@@ -1106,7 +1106,7 @@ def main():
 
     parser.add_argument(
         '--map', '-m', default=None,
-        help='Path to map .yaml file (default: auto-detect my_track_map.yaml in f1tenth_sim/maps/)',
+        help='Path to map .yaml file (default: auto-detect my_track_map.yaml in f1tenth_planning/maps/)',
     )
     parser.add_argument(
         '--track-name', '-t', default=None,
@@ -1162,7 +1162,7 @@ def main():
         help='Track direction: auto-detect from winding order, or force cw/ccw (default: cw)',
     )
     parser.add_argument(
-        '--smooth-factor', type=float, default=5.0,
+        '--smooth-factor', type=float, default=2.0,
         help='Spline smoothing factor s_reg for TUM optimizer (default: 2.0). '
              'Lower values preserve centerline shape better; higher values smooth more. '
              '0 = exact interpolation (safest but slowest), 2 = good balance for small tracks.',
@@ -1177,7 +1177,7 @@ def main():
 
     # Auto-detect map if not specified
     if args.map is None:
-        default_map = os.path.join(workspace, 'f1tenth_sim', 'maps', 'my_track_map.yaml')
+        default_map = os.path.join(workspace, 'f1tenth_planning', 'maps', 'my_track_map.yaml')
         if os.path.exists(default_map):
             args.map = default_map
         else:

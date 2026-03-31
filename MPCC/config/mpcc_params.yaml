@@ -22,10 +22,8 @@ mpcc_node:
     # weight_lag: penalizes real lag error e_l^2 (Cartesian-based)
     # weight_alpha: penalizes heading error (alpha^2) from path tangent
     # weight_progress: reward for forward progress (-q_s * v_theta)
-    weight_n: 0.0              # set to 0 when using real contouring error
     weight_contouring: 1000.0  # real contouring error (perpendicular to path at s)
-    weight_lag: 700.0          # real lag error (tangential distance at s)
-    weight_alpha: 20.0
+    weight_lag: 500.0          # real lag error (tangential distance at s)
     weight_progress: 5.0
 
     # --- State Regularization (tuned via iterative sweep) ---
@@ -45,10 +43,8 @@ mpcc_node:
     weight_v_theta_rate: 0.1   # progress acceleration rate
 
     # --- Terminal Cost ---
-    weight_n_terminal: 0.0
     weight_contouring_terminal: 450.0
     weight_lag_terminal: 950.0
-    weight_alpha_terminal: 10.0
     weight_progress_terminal: 5.0
 
     # --- Obstacle Avoidance ---

@@ -443,6 +443,16 @@ typedef struct
     /** Minimum virtual progress speed [m/s] (typically 0) */
     fixed_point_t v_theta_min;
 
+    /*--- Cross-call rate scaling ---*/
+
+    /** Scale factor for rate penalties at step 0.
+     *  Compensates for the mismatch between the control callback rate
+     *  (~200 Hz) and the prediction dt (e.g. 35 ms).  Without this,
+     *  rate penalties on the first prediction step are ~7x too strong
+     *  because the real inter-call interval is much shorter than dt.
+     *  Value: control_dt / prediction_dt  (e.g. 0.005/0.035 ≈ 0.143). */
+    fixed_point_t cross_call_rate_scale;
+
 } MPCCConfiguration_t;
 
 /*===========================================================================
@@ -614,6 +624,10 @@ typedef struct
 #define MPCC_DEFAULT_WEIGHT_AX_RATE       FP_CONST(0.1)
 #define MPCC_DEFAULT_WEIGHT_V_THETA_RATE  FP_CONST(0.1)
 
+/*--- Cross-call rate scaling (control_dt / prediction_dt) ---*/
+#define MPCC_CONTROL_RATE_HZ              200.0
+#define MPCC_DEFAULT_CROSS_CALL_SCALE     FP_CONST(0.1429)
+
 /*--- Terminal weights ---*/
 #define MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL     FP_CONST(450.0)
 #define MPCC_DEFAULT_WEIGHT_LAG_TERMINAL            FP_CONST(950.0)
@@ -638,7 +652,7 @@ typedef struct
 #define MPCC_DEFAULT_C_SR             F110_NORMALIZED_CORNERING_STIFFNESS_REAR
 
 /*--- Acceleration bounds ---*/
-#define MPCC_DEFAULT_AX_MAX           FP_CONST(7.0)
+#define MPCC_DEFAULT_AX_MAX           FP_CONST(8.0)
 #define MPCC_DEFAULT_AX_MIN           FP_CONST(-10.0)
 
 /*--- Virtual progress speed bounds (tuned via iterative sweep) ---*/
