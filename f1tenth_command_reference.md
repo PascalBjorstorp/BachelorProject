@@ -34,11 +34,11 @@ ros2 launch f1tenth_control ftg_hardware_launch.py max_speed:=2.0 mapping_mode:=
 ### Terminal 4 - Save the Map 
 ```bash
 ros2 run nav2_map_server map_saver_cli \
-  -f ~/BachelorProject/f1tenth_sim/maps/my_track_map \
+  -f ~/BachelorProject/f1tenth_planning/maps/my_track_map \
   --ros-args -p save_map_timeout:=10000.0 -p map_subscribe_transient_local:=true
 ```
 
-> This saves `my_track_map.yaml` + `my_track_map.pgm` into `f1tenth_sim/maps`.  
+> This saves `my_track_map.yaml` + `my_track_map.pgm` into `f1tenth_planning/maps`.  
 ---
 
 ## PHASE 2: Generate Racing Line from the SLAM Map
