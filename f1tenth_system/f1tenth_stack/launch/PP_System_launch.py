@@ -10,10 +10,21 @@ Behavior:
 """
 
 import os
+import signal
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, LogInfo, TimerAction
+from launch.actions import (
+    DeclareLaunchArgument,
+    EmitEvent,
+    IncludeLaunchDescription,
+    LogInfo,
+    RegisterEventHandler,
+    TimerAction,
+)
+from launch.event_handlers import OnShutdown
+from launch.events import matches_action
+from launch.events.process import SignalProcess
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import ComposableNodeContainer
@@ -261,6 +272,26 @@ def generate_launch_description():
         ],
     )
 
+    ordered_shutdown = RegisterEventHandler(
+        OnShutdown(
+            on_shutdown=[
+                LogInfo(msg='Ctrl+C detected: stopping Pure Pursuit first...'),
+                EmitEvent(
+                    event=SignalProcess(
+                        signal_number=signal.SIGINT,
+                        process_matcher=matches_action(pure_pursuit_container),
+                    )
+                ),
+                TimerAction(
+                    period=1.0,
+                    actions=[
+                        LogInfo(msg='Continuing shutdown of remaining system nodes...'),
+                    ],
+                ),
+            ]
+        )
+    )
+
     return LaunchDescription([
         trajectory_file_arg,
         min_lookahead_arg,
@@ -288,6 +319,7 @@ def generate_launch_description():
         pose_topic_arg,
         pose_timeout_arg,
         odom_timeout_arg,
+        ordered_shutdown,
         system_include,
         delayed_pure_pursuit,
     ])
