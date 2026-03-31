@@ -1,22 +1,11 @@
 """
-Launch file for the C++ GPU AMCL localization stack.
 
-Launches three nodes:
-  1. gpu_amcl_cpp      — GPU particle-filter AMCL (40 Hz, subscribes to /scan_walls)
-  2. odom_fused        — IMU + wheel odom fusion (200 Hz)
-  3. ekf_localization  — EKF sensor fusion + TF broadcast
-
-The map_server is expected to be running from bringup_launch.py.
-The scan splitter (/scan → /scan_walls) is expected to be running
-from the bringup_launch.py driver stack.
-
-All parameters are loaded from config/gpu_amcl_cpp_params.yaml.
 """
 
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, LogInfo, TimerAction
 from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -43,37 +32,63 @@ def generate_launch_description():
     # ── Default map path ──
     default_map = os.path.join(sim_pkg_dir, 'maps', 'my_track_map.yaml')
 
-
-    use_teleop = LaunchConfiguration('use_teleop')
-    use_lidar = LaunchConfiguration('use_lidar')
-    mapping_mode = LaunchConfiguration('mapping_mode')
+    # --------------- Launch argument variables ----------
+    localization_params_file_arg = LaunchConfiguration('localization_params_file')
+    use_sim_time_arg = LaunchConfiguration('use_sim_time')
+    vesc_config_arg = LaunchConfiguration('vesc_config')
+    mux_config_arg = LaunchConfiguration('mux_config')
+    use_lidar_arg = LaunchConfiguration('use_lidar')
+    mapping_mode_arg = LaunchConfiguration('mapping_mode')
+    trajectory_file_arg = LaunchConfiguration('trajectory_file')
+    map_file_arg = LaunchConfiguration('map_file')
 
     return LaunchDescription([
-        # ------------------------------- LOCALIZATION NODES -------------------------------
 
         # ── Arguments ──────────────────────────────────────────────
-        DeclareLaunchArgument(
-            'localization params_file',
-            default_value=localization_params_file,
-            description='Path to the unified YAML parameter file for the localization stack'),
+        DeclareLaunchArgument(  'localization_params_file',
+                                default_value=localization_params_file,
+                                description='Path to the unified YAML parameter file for the localization stack'),
 
-        DeclareLaunchArgument(
-            'use_sim_time',
-            default_value='false',
-            description='Use /clock for simulation time'),
+        DeclareLaunchArgument(  'use_sim_time',
+                                default_value='false',
+                                description='Use /clock for simulation time'),
 
-        # NOTE: map_server is now launched from bringup_launch.py
-        # so the map is available before localization starts.
+        DeclareLaunchArgument(  'vesc_config', 
+                                default_value=vesc_config,
+                                description='Path to VESC configuration file'),
+        
+        DeclareLaunchArgument(  'mux_config', 
+                                default_value=mux_config,
+                                description='Path to ackermann_mux configuration file'),
+        
+        DeclareLaunchArgument(  'use_lidar', 
+                                default_value='true',
+                                description='Launch LiDAR driver (Hokuyo SCIP 2.0, 40 Hz)'),
+        
+        DeclareLaunchArgument(  'mapping_mode', 
+                                default_value='false',
+                                description='Mapping mode: 270 beams @ 20 Hz, no scan splitter or lateral planner'),
+        
+        DeclareLaunchArgument(  'trajectory_file', 
+                                default_value='__from_yaml__',
+                                description='Optional override for lateral planner trajectory_file (default: YAML value)'),
+        
+        DeclareLaunchArgument(  'map_file', 
+                                default_value=default_map,
+                                description='Path to the map YAML file for map_server'),
 
-        # ── Odom fusion node (must start first) ───────────────────
+
+        # ------------------------------- LOCALIZATION NODES -------------------------------
+
+        # ── Odom fusion node ───────────────────
         Node(
             package='f1tenth_localization',
             executable='odom_fused_node',
             name='odom_fused',
             output='screen',
             parameters=[
-                LaunchConfiguration('localization params_file'),
-                {'use_sim_time': LaunchConfiguration('use_sim_time')},
+                localization_params_file_arg,
+                {'use_sim_time': use_sim_time_arg},
             ],
         ),
 
@@ -84,8 +99,8 @@ def generate_launch_description():
             name='gpu_amcl_cpp',
             output='screen',
             parameters=[
-                LaunchConfiguration('localization params_file'),
-                {'use_sim_time': LaunchConfiguration('use_sim_time')},
+                localization_params_file_arg,
+                {'use_sim_time': use_sim_time_arg},
             ],
         ),
 
@@ -96,38 +111,19 @@ def generate_launch_description():
             name='ekf_localization',
             output='screen',
             parameters=[
-                LaunchConfiguration('localization params_file'),
-                {'use_sim_time': LaunchConfiguration('use_sim_time')},
+                localization_params_file_arg,
+                {'use_sim_time': use_sim_time_arg},
             ],
         ),
 
 
 
         # ------------------------------- Delay before bringup ------------------------
-        DeclareLaunchArgument(
-            'bringup_delay_sec',
-            default_value='2.0',
-            description='Delay before bringup starts (seconds)',
+        TimerAction(
+            period=2.0,
+            actions=[LogInfo(msg='Bringup delay elapsed.')],
         ),
         # ------------------------------- BRINGUP NODES -------------------------------
-
-        DeclareLaunchArgument('vesc_config', default_value=vesc_config,
-                              description='Path to VESC configuration file'),
-        DeclareLaunchArgument('mux_config', default_value=mux_config,
-                              description='Path to ackermann_mux configuration file'),
-        DeclareLaunchArgument('use_teleop', default_value='true',
-                              description='Launch joystick teleop and mux'),
-        DeclareLaunchArgument('use_lidar', default_value='true',
-                              description='Launch LiDAR driver (Hokuyo SCIP 2.0, 40 Hz)'),
-        DeclareLaunchArgument('mapping_mode', default_value='false',
-                              description='Mapping mode: 270 beams @ 20 Hz, no scan splitter or lateral planner'),
-        DeclareLaunchArgument('trajectory_file', default_value='__from_yaml__',
-                      description='Optional override for lateral planner trajectory_file (default: YAML value)'),
-        DeclareLaunchArgument('map_file', default_value=default_map,
-                              description='Path to the map YAML file for map_server'),
-        DeclareLaunchArgument('use_sim_time', default_value='false',
-                              description='Use /clock for simulation time'),
-
 
         # ══════════════════════
         #  Map Server (always)
@@ -141,8 +137,8 @@ def generate_launch_description():
             namespace='/',
             output='screen',
             parameters=[{
-                'use_sim_time': LaunchConfiguration('use_sim_time'),
-                'yaml_filename': LaunchConfiguration('map_file'),
+                'use_sim_time': use_sim_time_arg,
+                'yaml_filename': map_file_arg,
             }],
         ),
 
@@ -152,7 +148,7 @@ def generate_launch_description():
             name='lifecycle_manager_map',
             output='screen',
             parameters=[{
-                'use_sim_time': LaunchConfiguration('use_sim_time'),
+                'use_sim_time': use_sim_time_arg,
                 'autostart': True,
                 'node_names': ['map_server'],
                 'bond_timeout': 0.0,
@@ -171,21 +167,21 @@ def generate_launch_description():
                     package='vesc_driver',
                     plugin='vesc_driver::VescDriver',
                     name='vesc_driver_node',
-                    parameters=[LaunchConfiguration('vesc_config')],
+                    parameters=[vesc_config_arg],
                     extra_arguments=[{'use_intra_process_comms': True}],
                 ),
                 ComposableNode(
                     package='vesc_ackermann',
                     plugin='vesc_ackermann::VescToOdom',
                     name='vesc_to_odom_node',
-                    parameters=[LaunchConfiguration('vesc_config')],
+                    parameters=[vesc_config_arg],
                     extra_arguments=[{'use_intra_process_comms': True}],
                 ),
                 ComposableNode(
                     package='vesc_ackermann',
                     plugin='vesc_ackermann::AckermannToVesc',
                     name='ackermann_to_vesc_node',
-                    parameters=[LaunchConfiguration('vesc_config')],
+                    parameters=[vesc_config_arg],
                     extra_arguments=[{'use_intra_process_comms': True}],
                 ),
             ],
@@ -199,8 +195,7 @@ def generate_launch_description():
             package='ackermann_mux',
             executable='ackermann_mux',
             name='ackermann_mux',
-            parameters=[LaunchConfiguration('mux_config')],
-            condition=IfCondition(use_teleop),
+            parameters=[mux_config_arg],
         ),
 
 
@@ -215,7 +210,8 @@ def generate_launch_description():
             output='screen',
             parameters=[hokuyo_config, {'skip': 0}],
             condition=IfCondition(PythonExpression([
-                "'", use_lidar, "' == 'true' and '", mapping_mode, "' != 'true'"
+            "'", use_lidar_arg, "' == 'true' and '",
+            mapping_mode_arg, "' != 'true'"
             ])),
         ),
         # Mapping mode: 1080 beams @ 40 Hz (cluster=1, skip=0 — full resolution)
@@ -226,7 +222,8 @@ def generate_launch_description():
             output='screen',
             parameters=[hokuyo_config, {'skip': 0, 'cluster': 1}],
             condition=IfCondition(PythonExpression([
-                "'", use_lidar, "' == 'true' and '", mapping_mode, "' == 'true'"
+                "'", use_lidar_arg, "' == 'true' and '",
+                mapping_mode_arg, "' == 'true'"
             ])),
         ),
 
@@ -238,7 +235,7 @@ def generate_launch_description():
             PythonLaunchDescriptionSource(
                 os.path.join(lidar_pkg_dir, 'launch', 'scan_splitter.launch.py')
             ),
-            condition=UnlessCondition(mapping_mode),
+            condition=UnlessCondition(mapping_mode_arg),
         ),
 
         # ══════════════════════
@@ -250,9 +247,9 @@ def generate_launch_description():
                 os.path.join(lateral_planner_pkg_dir, 'launch', 'lateral_planner.launch.py')
             ),
             launch_arguments={
-                'trajectory_file': LaunchConfiguration('trajectory_file'),
+                'trajectory_file': trajectory_file_arg,
             }.items(),
-            condition=UnlessCondition(mapping_mode),
+            condition=UnlessCondition(mapping_mode_arg),
         ),
 
         # ══════════════════════
@@ -284,7 +281,7 @@ def generate_launch_description():
             executable='static_transform_publisher',
             name='static_baselink_to_imu',
             arguments=[
-                '--x', '0.0',
+                '--x', '0.11',
                 '--y', '0.0',
                 '--z', '0.0',
                 '--roll', '0.0',
