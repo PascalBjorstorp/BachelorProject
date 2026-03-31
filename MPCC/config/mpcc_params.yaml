@@ -14,7 +14,7 @@ mpcc_node:
 
     # --- Prediction Horizon (tuned via iterative sweep, Hardware) ---
     horizon_steps: 7
-    dt: 0.0293            # [seconds] time step between prediction stages
+    dt: 0.035             # [seconds] time step between prediction stages
 
     # --- Frenet Tracking Weights ---
     # weight_n: penalizes lateral deviation (n^2) from path (Frenet approx, optional)
@@ -23,10 +23,10 @@ mpcc_node:
     # weight_alpha: penalizes heading error (alpha^2) from path tangent
     # weight_progress: reward for forward progress (-q_s * v_theta)
     weight_n: 0.0              # set to 0 when using real contouring error
-    weight_contouring: 1700.0  # real contouring error (perpendicular to path at s)
-    weight_lag: 350.0          # real lag error (tangential distance at s)
+    weight_contouring: 1000.0  # real contouring error (perpendicular to path at s)
+    weight_lag: 700.0          # real lag error (tangential distance at s)
     weight_alpha: 20.0
-    weight_progress: 0.730622
+    weight_progress: 5.0
 
     # --- State Regularization (tuned via iterative sweep) ---
     weight_vx: 0.0        # velocity tracking disabled (pure progress mode)
@@ -67,7 +67,7 @@ mpcc_node:
     vx_max: 20.0          # [m/s] max longitudinal velocity
     vx_min: 0.0           # [m/s] min longitudinal velocity
     n_max: 0.5            # [m] default track half-width
-    v_theta_max: 5.75     # [m/s] max progress rate
+    v_theta_max: 8.0      # [m/s] max progress rate
 
     # --- Tire Parameters ---
     mu: 0.745             # [-] road-tire friction coefficient

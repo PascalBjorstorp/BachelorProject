@@ -32,7 +32,7 @@ def _resolve_default_trajectory() -> str:
         planning_share = get_package_share_directory("f1tenth_planning")
         candidates.extend(
             [
-                os.path.join(planning_share, "trajectories", "my_track_raceline.csv")
+                os.path.join(planning_share, "trajectories", "my_track_raceline.csv"),
             ]
         )
     except Exception:
@@ -44,7 +44,6 @@ def _resolve_default_trajectory() -> str:
     candidates.extend(
         [
             os.path.join(workspace_root, "f1tenth_planning", "trajectories", "my_track_raceline.csv"),
-            "/ros2_ws/src/f1tenth_planning/trajectories/hardware_raceline.csv",
             "/ros2_ws/src/f1tenth_planning/trajectories/my_track_raceline.csv",
         ]
     )

@@ -87,9 +87,9 @@ HARDWARE_RACELINES = {
 
 HARDWARE_BASE = {
     # Tracking — Liniger MPCC contouring/lag errors (tuned via iterative sweep)
-    "Q_CONTOURING":     1700.0,
-    "Q_LAG":            350.0,
-    "Q_PROGRESS":       0.730622,
+    "Q_CONTOURING":     1000.0,
+    "Q_LAG":            700.0,
+    "Q_PROGRESS":       5.0,
     # State regularization
     "Q_VX":             0,
     "VX_REF":           5.0,
@@ -113,8 +113,8 @@ HARDWARE_BASE = {
     "ADMM_TOL":         0.05,
     # Horizon
     "HORIZON":          7,
-    "DT":               0.0293,
-    "V_THETA_MAX":      5.75,
+    "DT":               0.035,
+    "V_THETA_MAX":      8.0,
 }
 
 # ─── Active config (set by mode selection in main()) ─────────────────────────
