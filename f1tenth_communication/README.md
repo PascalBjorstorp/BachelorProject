@@ -53,8 +53,9 @@ All numeric payload fields are Q16.16 fixed-point (`int32`) except `horizon_leng
 
 ### state_transport_udp
 
-UDP bridge tooling for transport experiments and non-ROS links.
-Note: this folder currently includes `COLCON_IGNORE`, so it is excluded from normal colcon builds unless that file is removed.
+UDP bridge package for transport experiments and non-ROS links.
+It now builds as a normal ROS2 package (`state_transport_udp`) and uses the
+same DMA-backed MPC interface contract as `state_receiver`.
 
 ## Build
 

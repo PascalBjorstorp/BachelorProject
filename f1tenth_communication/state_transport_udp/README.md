@@ -1,51 +1,77 @@
 # state_transport_udp
 
-Standalone UDP transport package for Jetson <-> Ultra96 state streaming.
+UDP transport package for Jetson <-> Ultra96 MPC streaming.
 
 ## Binaries
 
 - ros2_udp_sender
   - ROS2 node (Jetson side)
-  - Subscribes to odom, builds MPC horizon from trajectory, and sends fixed-size UDP packets
+  - Subscribes to odom + pose, builds streamed horizon from trajectory, and sends fixed-size UDP packets.
 - ultra96_udp_receiver
-  - Non-ROS process (Ultra96 side)
-  - Receives UDP packets, validates CRC, runs FPGA compute, and sends control UDP response
+  - Ultra96 executable (no ROS topics)
+  - Receives UDP state packets, computes Frenet errors, runs AXI-DMA/AXI-Lite MPC compute, and sends UDP control response.
 - udp_control_bridge
   - ROS2 node (Jetson side)
-  - Receives control UDP packets and publishes Ackermann commands to /drive
+  - Receives control UDP packets and publishes Ackermann commands to /drive.
+
+## Packet Contract
+
+StatePacket mirrors the active MpcState contract used by the ROS transport path:
+
+- Vehicle state: x/y/theta/vx/vy/omega/steering (Q16.16)
+- First reference point for Frenet error: ref_x_0/ref_y_0/ref_psi_0 (Q16.16)
+- Horizon arrays: ref_vx/ref_kappa/ref_left_bound/ref_right_bound
+
+ControlPacket returns steering/speed/accel plus solver status and timing.
 
 ## Build
 
+```bash
 colcon build --packages-select state_transport_udp
+source install/setup.bash
+```
 
 ## Run
 
-Jetson:
-ros2 run state_transport_udp ros2_udp_sender --ros-args --params-file <path_to_sender.yaml>
+Jetson sender:
 
-Jetson (control return path):
-ros2 run state_transport_udp udp_control_bridge --ros-args --params-file <path_to_control_bridge.yaml>
+```bash
+ros2 run state_transport_udp ros2_udp_sender
+```
 
-Ultra96:
+Jetson control bridge:
+
+```bash
+ros2 run state_transport_udp udp_control_bridge
+```
+
+Ultra96 receiver:
+
+```bash
+UDP_STATE_PORT=49000 \
+UDP_CONTROL_PORT=49001 \
+MPC_BASE_ADDR=0xA0010000 \
+DMA_BASE_ADDR=0xA0000000 \
+DMA_BUFFER_PHYS_ADDR=0x70000000 \
 ros2 run state_transport_udp ultra96_udp_receiver
+```
 
-The Ultra96 process does not publish ROS2 topics.
+Optional overrides without YAML:
 
-## End-to-end loop
+```bash
+ros2 run state_transport_udp ros2_udp_sender --ros-args \
+  -p trajectory_file:=/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv \
+  -p dest_ip:=10.23.0.120
+```
 
-1. Jetson ros2_udp_sender subscribes to odom, computes nearest waypoint + horizon from trajectory, and sends StatePacket to Ultra96:49000.
-   - The sender uses KD-tree nearest lookup plus heading-based forward bias.
-   - This keeps lookup latency stable with larger trajectories while avoiding
-     behind-vehicle waypoint picks during fast motion.
-2. Ultra96 ultra96_udp_receiver validates CRC, loads horizon to FPGA, computes control, sends ControlPacket to Jetson:49001.
+## End-to-End Loop
+
+1. Jetson ros2_udp_sender sends StatePacket to Ultra96:49000.
+2. Ultra96 receiver validates CRC, runs DMA-backed MPC solve, sends ControlPacket to Jetson:49001.
 3. Jetson udp_control_bridge validates CRC and publishes /drive.
 
-## Timing instrumentation
+## Timing Fields
 
-- UDP loop timing:
-  - sender_mono_ns: Jetson monotonic timestamp set when state packet is sent
-  - ultra_process_us: Ultra96 processing time from packet receive to control packet send
-  - udp_control_bridge computes end-to-end RTT on Jetson using sender_mono_ns echo
-
-- ROS2 loop timing:
-  - Existing ROS2 path timing is in state_receiver/src/mpc_receiver.cpp (latency and compute logs).
+- sender_mono_ns: Jetson monotonic timestamp echoed through control response.
+- ultra_process_us: Ultra96 processing time from packet receive to control send.
+- udp_control_bridge computes RTT from sender_mono_ns on Jetson.

@@ -1,34 +1,33 @@
 /**
  * @file ultra96_udp_receiver.cpp
- * @brief Ultra96-side UDP state receiver and FPGA MPC executor.
- * @details Receives UDP state packets from Jetson, loads horizon/state into
- *          FPGA registers, runs MPC compute, and sends UDP control packets back.
- * @dependencies state_packet.hpp, mpc_fpga_interface.h, POSIX sockets, /dev/mem
+ * @brief Ultra96 UDP state receiver and FPGA MPC executor.
+ * @details Receives UDP state packets from Jetson, computes Frenet errors,
+ *          streams state+horizon through AXI DMA, and sends control packets back.
  */
 
 #include "state_transport_udp/state_packet.hpp"
 #include "mpc_fpga_interface.h"
 
 #include <arpa/inet.h>
+#include <fcntl.h>
+#include <sys/mman.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <fcntl.h>
 
 #include <algorithm>
 #include <cerrno>
+#include <cmath>
 #include <csignal>
 #include <cstdint>
 #include <cstdio>
-#include <ctime>
+#include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <string>
 
 namespace state_transport_udp {
 
 static constexpr int32_t FP_SCALE = 65536;
-static constexpr uint32_t AP_START = 0x01;
-static constexpr uint32_t AP_DONE = 0x02;
-static constexpr uint32_t AP_IDLE = 0x04;
 
 /**
  * @brief Convert float to Q16.16 fixed-point integer.
@@ -48,36 +47,72 @@ inline float fp_to_float(int32_t fp) {
     return static_cast<float>(fp) / static_cast<float>(FP_SCALE);
 }
 
+/**
+ * @brief AXI-Lite + AXI-DMA interface for one-shot MPC solves from UDP packets.
+ */
 class MpcFpgaInterface {
 public:
+    MpcFpgaInterface() = default;
+
     /**
      * @brief Destroy interface and release mapped FPGA resources.
      * @return None
      */
     ~MpcFpgaInterface() { close_device(); }
 
-    /**
-     * @brief Initialize FPGA memory mapping through `/dev/mem`.
-     * @param base_addr Physical AXI base address for FPGA register block.
-     * @param map_size Size in bytes of memory region to map.
-     * @return true when mapping succeeds and interface is ready.
-     */
-    bool initialize(uint32_t base_addr = MPC_FPGA_BASE_ADDR, size_t map_size = 0x10000) {
-        base_addr_ = base_addr;
-        map_size_ = map_size;
+    MpcFpgaInterface(const MpcFpgaInterface&) = delete;
+    MpcFpgaInterface& operator=(const MpcFpgaInterface&) = delete;
 
-        mem_fd_ = ::open("/dev/mem", O_RDWR | O_SYNC);
-        if (mem_fd_ < 0) {
-            std::fprintf(stderr, "MPC-FPGA: open /dev/mem failed: %s\n", std::strerror(errno));
+    /**
+     * @brief Initialize all /dev/mem mappings required for DMA-backed MPC compute.
+     * @param mpc_base_addr AXI-Lite base for MPC IP.
+     * @param dma_base_addr AXI-Lite base for DMA IP.
+     * @param dma_buf_phys Physical base address for reserved DMA source buffer.
+     * @return true on successful initialization.
+     */
+    bool initialize(uint32_t mpc_base_addr, uint32_t dma_base_addr, uint64_t dma_buf_phys) {
+        if (!is_fpga_operating()) {
+            std::fprintf(stderr, "UDP-FPGA: fpga_manager state is not operating\n");
             return false;
         }
 
-        fpga_base_ = ::mmap(nullptr, map_size_, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd_, base_addr_);
-        if (fpga_base_ == MAP_FAILED) {
-            std::fprintf(stderr, "MPC-FPGA: mmap failed: %s\n", std::strerror(errno));
-            ::close(mem_fd_);
-            mem_fd_ = -1;
-            fpga_base_ = nullptr;
+        mpc_base_addr_ = mpc_base_addr;
+        dma_base_addr_ = dma_base_addr;
+        dma_buf_phys_ = dma_buf_phys;
+
+        mem_fd_ = ::open("/dev/mem", O_RDWR | O_SYNC);
+        if (mem_fd_ < 0) {
+            std::fprintf(stderr, "UDP-FPGA: open /dev/mem failed: %s\n", std::strerror(errno));
+            return false;
+        }
+
+        mpc_regs_ = ::mmap(nullptr, 0x1000, PROT_READ | PROT_WRITE,
+                           MAP_SHARED, mem_fd_, mpc_base_addr_);
+        if (mpc_regs_ == MAP_FAILED) {
+            std::fprintf(stderr, "UDP-FPGA: mmap MPC regs failed: %s\n", std::strerror(errno));
+            close_device();
+            return false;
+        }
+
+        dma_regs_ = ::mmap(nullptr, 0x1000, PROT_READ | PROT_WRITE,
+                           MAP_SHARED, mem_fd_, dma_base_addr_);
+        if (dma_regs_ == MAP_FAILED) {
+            std::fprintf(stderr, "UDP-FPGA: mmap DMA regs failed: %s\n", std::strerror(errno));
+            close_device();
+            return false;
+        }
+
+        dma_buf_ = ::mmap(nullptr, DMA_BUFFER_BYTES, PROT_READ | PROT_WRITE,
+                          MAP_SHARED, mem_fd_, static_cast<off_t>(dma_buf_phys_));
+        if (dma_buf_ == MAP_FAILED) {
+            std::fprintf(stderr, "UDP-FPGA: mmap DMA buffer failed: %s\n", std::strerror(errno));
+            close_device();
+            return false;
+        }
+
+        if (!reset_dma()) {
+            std::fprintf(stderr, "UDP-FPGA: DMA reset failed\n");
+            close_device();
             return false;
         }
 
@@ -86,191 +121,214 @@ public:
     }
 
     /**
-     * @brief Close FPGA mapping and reset internal interface state.
-     * @return None
+     * @brief Unmap all mapped regions and close /dev/mem.
      */
     void close_device() {
-        if (fpga_base_ && fpga_base_ != MAP_FAILED) {
-            ::munmap(fpga_base_, map_size_);
-            fpga_base_ = nullptr;
+        if (dma_buf_ && dma_buf_ != MAP_FAILED) {
+            ::munmap(dma_buf_, DMA_BUFFER_BYTES);
+            dma_buf_ = nullptr;
+        }
+        if (dma_regs_ && dma_regs_ != MAP_FAILED) {
+            ::munmap(dma_regs_, 0x1000);
+            dma_regs_ = nullptr;
+        }
+        if (mpc_regs_ && mpc_regs_ != MAP_FAILED) {
+            ::munmap(mpc_regs_, 0x1000);
+            mpc_regs_ = nullptr;
         }
         if (mem_fd_ >= 0) {
             ::close(mem_fd_);
             mem_fd_ = -1;
         }
         initialized_ = false;
-        trajectory_loaded_ = false;
     }
 
     /**
-     * @brief Load streamed horizon waypoints into FPGA waypoint memory.
-     * @param pkt Incoming state packet with horizon arrays.
-     * @param left_bound_fp Left track bound in Q16.16.
-     * @param right_bound_fp Right track bound in Q16.16.
-     * @return true when full waypoint load and commit complete successfully.
+     * @brief Run one DMA-fed MPC compute call from current Frenet errors and horizon packet.
+     * @return true when DMA transfer, solver run, and output readback succeed.
      */
-    bool load_horizon(const StatePacket& pkt, int32_t left_bound_fp, int32_t right_bound_fp) {
-        if (!initialized_) {
-            return false;
-        }
-
-        const size_t count = std::min(static_cast<size_t>(pkt.horizon_length), MPC_HORIZON);
-        if (count == 0) {
-            return false;
-        }
-
-        for (size_t i = 0; i < count; ++i) {
-            if (!wait_idle(50000)) {
-                return false;
-            }
-
-            write_reg(REG_MODE, 1);
-            write_reg(REG_WP_INDEX, static_cast<uint32_t>(i));
-            write_reg(REG_WP_X, static_cast<uint32_t>(pkt.ref_x_fp[i]));
-            write_reg(REG_WP_Y, static_cast<uint32_t>(pkt.ref_y_fp[i]));
-            write_reg(REG_WP_PSI, static_cast<uint32_t>(pkt.ref_psi_fp[i]));
-            write_reg(REG_WP_VX, static_cast<uint32_t>(pkt.ref_vx_fp[i]));
-            write_reg(REG_WP_KAPPA, static_cast<uint32_t>(pkt.ref_kappa_fp[i]));
-            write_reg(REG_WP_AX, static_cast<uint32_t>(pkt.ref_ax_fp[i]));
-            write_reg(REG_WP_LEFT_BOUND, static_cast<uint32_t>(left_bound_fp));
-            write_reg(REG_WP_RIGHT_BOUND, static_cast<uint32_t>(right_bound_fp));
-            write_reg(REG_WP_TOTAL, static_cast<uint32_t>(count));
-            __sync_synchronize();
-
-            write_reg(REG_AP_CTRL, AP_START);
-            if (!wait_done(100000)) {
-                return false;
-            }
-        }
-
-        if (!wait_idle(50000)) {
-            return false;
-        }
-        write_reg(REG_MODE, 2);
-        write_reg(REG_WP_TOTAL, static_cast<uint32_t>(count));
-        __sync_synchronize();
-        write_reg(REG_AP_CTRL, AP_START);
-        if (!wait_done(100000)) {
-            return false;
-        }
-
-        write_reg(REG_MODE, 0);
-        __sync_synchronize();
-
-        trajectory_loaded_ = true;
-        return true;
-    }
-
-    /**
-     * @brief Run one FPGA MPC compute step from state packet input.
-     * @param pkt Incoming state packet with current vehicle state.
-     * @param out_steering_fp Output steering command in Q16.16.
-     * @param out_accel_fp Output acceleration command in Q16.16.
-     * @param out_status Output solver status flags.
-     * @param out_iterations Output solver iteration count.
-     * @return true when compute and output-readback succeed.
-     */
-    bool compute(const StatePacket& pkt,
+    bool compute(int32_t e_y_fp,
+                 int32_t e_psi_fp,
+                 int32_t vx_fp,
+                 int32_t vy_fp,
+                 int32_t omega_fp,
+                 int32_t steering_fp,
+                 const StatePacket& packet,
                  int32_t& out_steering_fp,
                  int32_t& out_accel_fp,
                  uint32_t& out_status,
                  uint32_t& out_iterations) {
-        if (!initialized_ || !trajectory_loaded_) {
+        if (!initialized_) {
             return false;
         }
 
-        if (!wait_idle(10000)) {
+        const size_t horizon = std::min(static_cast<size_t>(packet.horizon_length),
+                                        static_cast<size_t>(MPC_HORIZON));
+        if (horizon == 0) {
             return false;
         }
 
-        write_reg(REG_MODE, 0);
-        write_reg(REG_ST_X, static_cast<uint32_t>(pkt.x_fp));
-        write_reg(REG_ST_Y, static_cast<uint32_t>(pkt.y_fp));
-        write_reg(REG_ST_THETA, static_cast<uint32_t>(pkt.theta_fp));
-        write_reg(REG_ST_VX, static_cast<uint32_t>(pkt.velocity_fp));
-        write_reg(REG_ST_VY, static_cast<uint32_t>(pkt.vy_fp));
-        write_reg(REG_ST_OMEGA, static_cast<uint32_t>(pkt.omega_fp));
-        write_reg(REG_ST_STEERING, static_cast<uint32_t>(pkt.steering_angle_fp));
-        write_reg(REG_ST_WP_IDX, pkt.waypoint_index);
+        volatile uint32_t* buf = static_cast<volatile uint32_t*>(dma_buf_);
+
+        // Beat 0: [e_y | e_psi | vx | vy]
+        buf[0] = static_cast<uint32_t>(e_y_fp);
+        buf[1] = static_cast<uint32_t>(e_psi_fp);
+        buf[2] = static_cast<uint32_t>(vx_fp);
+        buf[3] = static_cast<uint32_t>(vy_fp);
+
+        // Beat 1: [omega | steering | horizon_length | reserved]
+        buf[4] = static_cast<uint32_t>(omega_fp);
+        buf[5] = static_cast<uint32_t>(steering_fp);
+        buf[6] = static_cast<uint32_t>(horizon);
+        buf[7] = 0;
+
+        // Beats 2..: [ref_vx | ref_kappa | ref_left | ref_right]
+        for (size_t i = 0; i < MPC_HORIZON; ++i) {
+            const size_t base = 8 + (i * 4);
+            if (i < horizon) {
+                buf[base + 0] = static_cast<uint32_t>(packet.ref_vx_fp[i]);
+                buf[base + 1] = static_cast<uint32_t>(packet.ref_kappa_fp[i]);
+                buf[base + 2] = static_cast<uint32_t>(packet.ref_left_bound_fp[i]);
+                buf[base + 3] = static_cast<uint32_t>(packet.ref_right_bound_fp[i]);
+            } else {
+                buf[base + 0] = 0;
+                buf[base + 1] = 0;
+                buf[base + 2] = 0;
+                buf[base + 3] = 0;
+            }
+        }
+
         __sync_synchronize();
 
-        write_reg(REG_AP_CTRL, AP_START);
-        if (!wait_done(200000)) {
+        // Clear stale interrupt bits before start.
+        const uint32_t isr = mpc_read(REG_ISR);
+        if (isr) {
+            mpc_write(REG_ISR, isr);
+        }
+
+        mpc_write(REG_AP_CTRL, AP_START);
+
+        dma_write(DMA_MM2S_SRC_LO, static_cast<uint32_t>(dma_buf_phys_ & 0xFFFFFFFFULL));
+        dma_write(DMA_MM2S_SRC_HI, static_cast<uint32_t>(dma_buf_phys_ >> 32));
+        dma_write(DMA_MM2S_CTRL, DMA_CTRL_RUN);
+        __sync_synchronize();
+        dma_write(DMA_MM2S_LENGTH, DMA_BUFFER_BYTES);
+
+        if (!wait_dma_complete(MPC_FPGA_DMA_TRANSFER_TIMEOUT_CYCLES)) {
+            std::fprintf(stderr, "UDP-FPGA: DMA transfer timeout\n");
             return false;
         }
 
-        if (!wait_output_valid(50000)) {
+        if (!wait_mpc_done(MPC_FPGA_MPC_DONE_TIMEOUT_CYCLES)) {
+            std::fprintf(stderr, "UDP-FPGA: MPC done timeout\n");
+            reset_dma();
             return false;
         }
 
-        out_steering_fp = static_cast<int32_t>(read_reg(REG_OUT_STEERING));
-        out_accel_fp = static_cast<int32_t>(read_reg(REG_OUT_ACCEL));
-        out_status = read_reg(REG_OUT_STATUS);
-        out_iterations = read_reg(REG_OUT_ITERATIONS);
+        if (!wait_output_valid(MPC_FPGA_OUTPUT_VALID_TIMEOUT_CYCLES)) {
+            std::fprintf(stderr, "UDP-FPGA: output valid timeout\n");
+            return false;
+        }
+
+        out_steering_fp = static_cast<int32_t>(mpc_read(REG_OUT_STEERING));
+        out_accel_fp = static_cast<int32_t>(mpc_read(REG_OUT_ACCEL));
+        out_status = mpc_read(REG_OUT_STATUS);
+        out_iterations = mpc_read(REG_OUT_ITERATIONS);
         return true;
     }
 
 private:
-    /**
-     * @brief Write value to mapped FPGA register offset.
-     * @param offset Register byte offset.
-     * @param value Value to write.
-     * @return None
-     */
-    void write_reg(uint32_t offset, uint32_t value) {
+    int mem_fd_{-1};
+    void* mpc_regs_{nullptr};
+    void* dma_regs_{nullptr};
+    void* dma_buf_{nullptr};
+    uint32_t mpc_base_addr_{0};
+    uint32_t dma_base_addr_{0};
+    uint64_t dma_buf_phys_{0};
+    bool initialized_{false};
+
+    /** @brief Write MPC AXI-Lite register. */
+    void mpc_write(uint32_t offset, uint32_t value) {
         volatile uint32_t* reg = reinterpret_cast<volatile uint32_t*>(
-            static_cast<volatile uint8_t*>(fpga_base_) + offset);
+            static_cast<volatile uint8_t*>(mpc_regs_) + offset);
         *reg = value;
     }
 
-    /**
-     * @brief Read value from mapped FPGA register offset.
-     * @param offset Register byte offset.
-     * @return Register value read from mapped region.
-     */
-    uint32_t read_reg(uint32_t offset) {
+    /** @brief Read MPC AXI-Lite register. */
+    uint32_t mpc_read(uint32_t offset) const {
         volatile uint32_t* reg = reinterpret_cast<volatile uint32_t*>(
-            static_cast<volatile uint8_t*>(fpga_base_) + offset);
+            static_cast<volatile uint8_t*>(mpc_regs_) + offset);
         return *reg;
     }
 
-    /**
-     * @brief Wait for FPGA core idle state.
-     * @param timeout_cycles Maximum polling cycles.
-     * @return true when AP_IDLE is observed before timeout.
-     */
-    bool wait_idle(int timeout_cycles) {
+    /** @brief Write DMA AXI-Lite register. */
+    void dma_write(uint32_t offset, uint32_t value) {
+        volatile uint32_t* reg = reinterpret_cast<volatile uint32_t*>(
+            static_cast<volatile uint8_t*>(dma_regs_) + offset);
+        *reg = value;
+    }
+
+    /** @brief Read DMA AXI-Lite register. */
+    uint32_t dma_read(uint32_t offset) const {
+        volatile uint32_t* reg = reinterpret_cast<volatile uint32_t*>(
+            static_cast<volatile uint8_t*>(dma_regs_) + offset);
+        return *reg;
+    }
+
+    /** @brief Reset MM2S channel and validate status. */
+    bool reset_dma() {
+        dma_write(DMA_MM2S_CTRL, DMA_CTRL_RESET);
+
+        int timeout = MPC_FPGA_DMA_RESET_TIMEOUT_CYCLES;
+        while (timeout-- > 0) {
+            const uint32_t ctrl = dma_read(DMA_MM2S_CTRL);
+            if (!(ctrl & DMA_CTRL_RESET)) {
+                break;
+            }
+        }
+        if (timeout <= 0) {
+            return false;
+        }
+
+        const uint32_t status = dma_read(DMA_MM2S_STATUS);
+        if (status & (DMA_STATUS_ERR_INT | DMA_STATUS_ERR_SLV | DMA_STATUS_ERR_DEC)) {
+            std::fprintf(stderr, "UDP-FPGA: DMA error flags after reset: 0x%08X\n", status);
+            return false;
+        }
+        return true;
+    }
+
+    /** @brief Wait until DMA transfer completes or fails. */
+    bool wait_dma_complete(int timeout_cycles) {
         while (timeout_cycles-- > 0) {
-            if (read_reg(REG_AP_CTRL) & AP_IDLE) {
+            const uint32_t status = dma_read(DMA_MM2S_STATUS);
+            if (status & (DMA_STATUS_ERR_INT | DMA_STATUS_ERR_SLV | DMA_STATUS_ERR_DEC)) {
+                std::fprintf(stderr, "UDP-FPGA: DMA error status=0x%08X\n", status);
+                reset_dma();
+                return false;
+            }
+            if (status & DMA_STATUS_IDLE) {
                 return true;
             }
         }
         return false;
     }
 
-    /**
-     * @brief Wait for FPGA core done state.
-     * @param timeout_cycles Maximum polling cycles.
-     * @return true when AP_DONE is observed before timeout.
-     */
-    bool wait_done(int timeout_cycles) {
+    /** @brief Wait until AP_DONE is observed. */
+    bool wait_mpc_done(int timeout_cycles) const {
         while (timeout_cycles-- > 0) {
-            if (read_reg(REG_AP_CTRL) & AP_DONE) {
+            if (mpc_read(REG_AP_CTRL) & AP_DONE) {
                 return true;
             }
         }
         return false;
     }
 
-    /**
-     * @brief Wait for steering and acceleration output valid flags.
-     * @param timeout_cycles Maximum polling cycles.
-     * @return true when both valid flags are asserted.
-     */
-    bool wait_output_valid(int timeout_cycles) {
+    /** @brief Wait until steering and accel outputs are valid. */
+    bool wait_output_valid(int timeout_cycles) const {
         while (timeout_cycles-- > 0) {
-            const uint32_t steer_vld = read_reg(REG_OUT_STEERING_VLD);
-            const uint32_t accel_vld = read_reg(REG_OUT_ACCEL_VLD);
+            const uint32_t steer_vld = mpc_read(REG_OUT_STEERING_VLD);
+            const uint32_t accel_vld = mpc_read(REG_OUT_ACCEL_VLD);
             if ((steer_vld & 0x1u) && (accel_vld & 0x1u)) {
                 return true;
             }
@@ -278,45 +336,96 @@ private:
         return false;
     }
 
-    int mem_fd_{-1};
-    void* fpga_base_{nullptr};
-    uint32_t base_addr_{0};
-    size_t map_size_{0};
-    bool initialized_{false};
-    bool trajectory_loaded_{false};
+    /** @brief Check FPGA manager state before allowing /dev/mem access. */
+    static bool is_fpga_operating() {
+        std::ifstream f("/sys/class/fpga_manager/fpga0/state");
+        if (!f.is_open()) {
+            return false;
+        }
+        std::string state;
+        std::getline(f, state);
+        return state == "operating";
+    }
 };
 
 }  // namespace state_transport_udp
 
 namespace {
+
 volatile sig_atomic_t g_running = 1;
 
-/**
- * @brief Handle process termination signals.
- * @param Unused signal number.
- * @return None
- */
+/** @brief Handle termination signals and request clean shutdown. */
 void signal_handler(int) {
     g_running = 0;
 }
 
-/**
- * @brief Read monotonic clock in nanoseconds.
- * @return Monotonic timestamp in nanoseconds.
- */
+/** @brief Return monotonic raw timestamp in nanoseconds. */
 uint64_t monotonic_now_ns() {
     timespec ts{};
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
     return static_cast<uint64_t>(ts.tv_sec) * 1000000000ull + static_cast<uint64_t>(ts.tv_nsec);
 }
 
+/** @brief Read uint32 environment variable with fallback default. */
+uint32_t env_u32(const char* name, uint32_t fallback) {
+    const char* raw = std::getenv(name);
+    if (!raw || !*raw) {
+        return fallback;
+    }
+    return static_cast<uint32_t>(std::strtoul(raw, nullptr, 0));
+}
+
+/** @brief Read uint64 environment variable with fallback default. */
+uint64_t env_u64(const char* name, uint64_t fallback) {
+    const char* raw = std::getenv(name);
+    if (!raw || !*raw) {
+        return fallback;
+    }
+    return static_cast<uint64_t>(std::strtoull(raw, nullptr, 0));
+}
+
+/** @brief Read float environment variable with fallback default. */
+float env_f32(const char* name, float fallback) {
+    const char* raw = std::getenv(name);
+    if (!raw || !*raw) {
+        return fallback;
+    }
+    return std::strtof(raw, nullptr);
+}
+
+/**
+ * @brief Compute Frenet tracking errors from packet state and first reference point.
+ */
+void compute_frenet_errors(const state_transport_udp::StatePacket& packet,
+                          int32_t& out_e_y_fp,
+                          int32_t& out_e_psi_fp) {
+    const float x = state_transport_udp::fp_to_float(packet.x_fp);
+    const float y = state_transport_udp::fp_to_float(packet.y_fp);
+    const float theta = state_transport_udp::fp_to_float(packet.theta_fp);
+    const float wx = state_transport_udp::fp_to_float(packet.ref_x_0_fp);
+    const float wy = state_transport_udp::fp_to_float(packet.ref_y_0_fp);
+    const float wpsi = state_transport_udp::fp_to_float(packet.ref_psi_0_fp);
+
+    const float dx = x - wx;
+    const float dy = y - wy;
+    const float e_y = -std::sin(wpsi) * dx + std::cos(wpsi) * dy;
+
+    float e_psi = theta - wpsi;
+    while (e_psi > static_cast<float>(M_PI)) {
+        e_psi -= 2.0f * static_cast<float>(M_PI);
+    }
+    while (e_psi < -static_cast<float>(M_PI)) {
+        e_psi += 2.0f * static_cast<float>(M_PI);
+    }
+
+    out_e_y_fp = state_transport_udp::float_to_fp(e_y);
+    out_e_psi_fp = state_transport_udp::float_to_fp(e_psi);
+}
+
 }  // namespace
 
 /**
  * @brief Entry point for Ultra96 UDP receiver process.
- * @param argc Argument count from process invocation.
- * @param argv Argument vector from process invocation.
- * @return Process exit code (0 on normal shutdown, non-zero on startup failure).
  */
 int main(int argc, char** argv) {
     (void)argc;
@@ -325,13 +434,14 @@ int main(int argc, char** argv) {
     std::signal(SIGINT, signal_handler);
     std::signal(SIGTERM, signal_handler);
 
-    constexpr uint16_t kStatePort = 49000;
-    constexpr uint16_t kControlPort = 49001;
-    constexpr float kControlDt = 0.02f;
-    constexpr float kMaxVelocity = 12.0f;
+    const uint16_t state_port = static_cast<uint16_t>(env_u32("UDP_STATE_PORT", 49000));
+    const uint16_t control_port = static_cast<uint16_t>(env_u32("UDP_CONTROL_PORT", 49001));
+    const float control_dt = env_f32("UDP_CONTROL_DT_S", static_cast<float>(MPC_FPGA_PREDICTION_DT_S));
+    const float max_velocity = env_f32("UDP_MAX_VEL_MPS", static_cast<float>(MPC_FPGA_MAX_VEL_MPS));
 
-    const int32_t left_bound_fp = state_transport_udp::float_to_fp(2.0f);
-    const int32_t right_bound_fp = state_transport_udp::float_to_fp(2.0f);
+    const uint32_t mpc_base_addr = env_u32("MPC_BASE_ADDR", static_cast<uint32_t>(MPC_FPGA_BASE_ADDR));
+    const uint32_t dma_base_addr = env_u32("DMA_BASE_ADDR", static_cast<uint32_t>(AXI_DMA_BASE_ADDR));
+    const uint64_t dma_buffer_phys = env_u64("DMA_BUFFER_PHYS_ADDR", static_cast<uint64_t>(DMA_BUFFER_PHYS_ADDR));
 
     int rx_fd = ::socket(AF_INET, SOCK_DGRAM, 0);
     if (rx_fd < 0) {
@@ -348,28 +458,32 @@ int main(int argc, char** argv) {
 
     sockaddr_in bind_addr{};
     bind_addr.sin_family = AF_INET;
-    bind_addr.sin_port = htons(kStatePort);
+    bind_addr.sin_port = htons(state_port);
     bind_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
     if (::bind(rx_fd, reinterpret_cast<const sockaddr*>(&bind_addr), sizeof(bind_addr)) < 0) {
-        std::fprintf(stderr, "UDP bind failed on %u: %s\n", kStatePort, std::strerror(errno));
+        std::fprintf(stderr, "UDP bind failed on %u: %s\n", state_port, std::strerror(errno));
         ::close(rx_fd);
         ::close(tx_fd);
         return 1;
     }
 
     state_transport_udp::MpcFpgaInterface fpga;
-    if (!fpga.initialize(MPC_FPGA_BASE_ADDR)) {
-        std::fprintf(stderr, "Failed to initialize FPGA interface\n");
+    if (!fpga.initialize(mpc_base_addr, dma_base_addr, dma_buffer_phys)) {
+        std::fprintf(stderr, "Failed to initialize FPGA DMA interface\n");
         ::close(rx_fd);
         ::close(tx_fd);
         return 1;
     }
 
-    std::fprintf(stdout, "Ultra96 UDP receiver listening on port %u\n", kStatePort);
+    std::fprintf(stdout,
+                 "Ultra96 UDP receiver listening on %u (control return %u)\n",
+                 state_port,
+                 control_port);
 
     uint32_t last_seq = 0;
     bool have_seq = false;
+    uint64_t packet_count = 0;
 
     while (g_running) {
         const uint64_t ultra_rx_start_ns = monotonic_now_ns();
@@ -422,24 +536,34 @@ int main(int argc, char** argv) {
         have_seq = true;
         last_seq = packet.sequence;
 
-        if (!fpga.load_horizon(packet, left_bound_fp, right_bound_fp)) {
-            std::fprintf(stderr, "FPGA load_horizon failed\n");
-            continue;
-        }
+        int32_t e_y_fp = 0;
+        int32_t e_psi_fp = 0;
+        compute_frenet_errors(packet, e_y_fp, e_psi_fp);
 
         int32_t out_steering_fp = 0;
         int32_t out_accel_fp = 0;
         uint32_t out_status = 0;
         uint32_t out_iterations = 0;
-        if (!fpga.compute(packet, out_steering_fp, out_accel_fp, out_status, out_iterations)) {
+
+        if (!fpga.compute(e_y_fp,
+                          e_psi_fp,
+                          packet.velocity_fp,
+                          packet.vy_fp,
+                          packet.omega_fp,
+                          packet.steering_angle_fp,
+                          packet,
+                          out_steering_fp,
+                          out_accel_fp,
+                          out_status,
+                          out_iterations)) {
             std::fprintf(stderr, "FPGA compute failed\n");
             continue;
         }
 
         const float vx = state_transport_udp::fp_to_float(packet.velocity_fp);
         const float accel = state_transport_udp::fp_to_float(out_accel_fp);
-        float speed = vx + accel * kControlDt;
-        speed = std::clamp(speed, 0.0f, kMaxVelocity);
+        float speed = vx + accel * control_dt;
+        speed = std::clamp(speed, 0.0f, max_velocity);
 
         state_transport_udp::ControlPacket ctrl{};
         ctrl.magic = state_transport_udp::PACKET_MAGIC;
@@ -464,7 +588,7 @@ int main(int argc, char** argv) {
 
         sockaddr_in control_dest_addr{};
         control_dest_addr.sin_family = AF_INET;
-        control_dest_addr.sin_port = htons(kControlPort);
+        control_dest_addr.sin_port = htons(control_port);
         control_dest_addr.sin_addr = peer_addr.sin_addr;
 
         const ssize_t sent = ::sendto(
@@ -477,17 +601,20 @@ int main(int argc, char** argv) {
 
         if (sent != static_cast<ssize_t>(sizeof(ctrl))) {
             std::fprintf(stderr, "Control UDP send failed/short: %ld\n", static_cast<long>(sent));
+            continue;
         }
 
-        std::fprintf(stdout,
-                     "RX seq=%u wp=%u -> steer_fp=%d speed_fp=%d status=%u iters=%u proc=%u us\n",
-                     packet.sequence,
-                     packet.waypoint_index,
-                     ctrl.steering_fp,
-                     ctrl.speed_fp,
-                     ctrl.solver_status,
-                     ctrl.solver_iterations,
-                     ctrl.ultra_process_us);
+        packet_count++;
+        if (packet_count % 100 == 0) {
+            std::fprintf(stdout,
+                         "UDP RX seq=%u -> steer_fp=%d speed_fp=%d status=%u iters=%u proc=%u us\n",
+                         packet.sequence,
+                         ctrl.steering_fp,
+                         ctrl.speed_fp,
+                         ctrl.solver_status,
+                         ctrl.solver_iterations,
+                         ctrl.ultra_process_us);
+        }
     }
 
     ::close(rx_fd);

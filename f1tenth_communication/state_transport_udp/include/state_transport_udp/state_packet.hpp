@@ -34,18 +34,18 @@ struct StatePacket {
     int32_t velocity_fp;
     int32_t vy_fp;
     int32_t omega_fp;
-    int32_t wheel_speed_fp;
     int32_t steering_angle_fp;
 
-    uint32_t waypoint_index;
+    int32_t ref_x_0_fp;
+    int32_t ref_y_0_fp;
+    int32_t ref_psi_0_fp;
+
     uint32_t horizon_length;
 
-    std::array<int32_t, MPC_HORIZON> ref_x_fp;
-    std::array<int32_t, MPC_HORIZON> ref_y_fp;
-    std::array<int32_t, MPC_HORIZON> ref_psi_fp;
     std::array<int32_t, MPC_HORIZON> ref_vx_fp;
     std::array<int32_t, MPC_HORIZON> ref_kappa_fp;
-    std::array<int32_t, MPC_HORIZON> ref_ax_fp;
+    std::array<int32_t, MPC_HORIZON> ref_left_bound_fp;
+    std::array<int32_t, MPC_HORIZON> ref_right_bound_fp;
 
     uint32_t crc32;
 };

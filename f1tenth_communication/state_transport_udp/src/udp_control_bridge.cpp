@@ -45,14 +45,10 @@ public:
     UdpControlBridge() : Node("udp_control_bridge") {
         declare_parameter<std::string>("drive_topic", "/drive");
         declare_parameter<int>("listen_port", 49001);
-        declare_parameter<double>("max_steering", 0.4189);
-        declare_parameter<double>("max_velocity", 12.0);
         declare_parameter<double>("watchdog_timeout_ms", 100.0);
 
         const std::string drive_topic = get_parameter("drive_topic").as_string();
         const int listen_port = get_parameter("listen_port").as_int();
-        max_steering_ = static_cast<float>(get_parameter("max_steering").as_double());
-        max_velocity_ = static_cast<float>(get_parameter("max_velocity").as_double());
         const double watchdog_ms = get_parameter("watchdog_timeout_ms").as_double();
 
         drive_pub_ = create_publisher<ackermann_msgs::msg::AckermannDriveStamped>(
@@ -178,8 +174,14 @@ private:
      * @return None
      */
     void handleControlPacket(const ControlPacket& packet) {
-        const float steering = std::clamp(fp_to_float(packet.steering_fp), -max_steering_, max_steering_);
-        const float speed = std::clamp(fp_to_float(packet.speed_fp), 0.0f, max_velocity_);
+        const float steering = std::clamp(
+            fp_to_float(packet.steering_fp),
+            -static_cast<float>(MPC_FPGA_MAX_STEER_RAD),
+            static_cast<float>(MPC_FPGA_MAX_STEER_RAD));
+        const float speed = std::clamp(
+            fp_to_float(packet.speed_fp),
+            0.0f,
+            static_cast<float>(MPC_FPGA_MAX_VEL_MPS));
         const float accel = fp_to_float(packet.accel_fp);
 
         auto drive = ackermann_msgs::msg::AckermannDriveStamped();
@@ -250,8 +252,6 @@ private:
     }
 
     int sock_fd_{-1};
-    float max_steering_{0.4189f};
-    float max_velocity_{12.0f};
     uint64_t packet_count_{0};
     double total_rtt_ms_{0.0};
     double total_ultra_us_{0.0};

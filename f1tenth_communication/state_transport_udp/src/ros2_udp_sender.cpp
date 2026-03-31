@@ -45,6 +45,8 @@ struct Waypoint {
     double kappa;
     double vx;
     double ax;
+    double left_bound;
+    double right_bound;
 };
 
 struct KDNode {
@@ -197,22 +199,17 @@ public:
      * @return None
      */
     Ros2UdpSender() : Node("ros2_udp_sender") {
-        declare_parameter<std::string>("trajectory_file", "");
+        declare_parameter<std::string>(
+            "trajectory_file",
+            "/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv");
         declare_parameter<std::string>("odom_topic", "/ego_racecar/odom");
         declare_parameter<std::string>("pose_topic", "/ekf_pose");
         declare_parameter<std::string>("servo_topic", "/sensors/servo_position_command");
-        declare_parameter<double>("wheelbase", 0.324);
-        declare_parameter<double>("servo_gain", -0.7284);
-        declare_parameter<double>("servo_offset", 0.55);
-        declare_parameter<double>("steering_correction_c2", 0.589566);
-        declare_parameter<double>("steering_correction_c1", 0.918061);
-        declare_parameter<double>("steering_correction_c0", 0.001490);
-        declare_parameter<int>("forward_lookahead", 3);
         declare_parameter<int>("horizon", static_cast<int>(MPC_HORIZON));
         declare_parameter<bool>("interpolate_horizon", true);
         declare_parameter<double>("horizon_step_m", 0.0);
 
-        declare_parameter<std::string>("dest_ip", "192.168.50.182");
+        declare_parameter<std::string>("dest_ip", "10.23.0.120");
         declare_parameter<int>("dest_port", 49000);
 
         const std::string trajectory_file = get_parameter("trajectory_file").as_string();
@@ -222,13 +219,6 @@ public:
         const std::string dest_ip = get_parameter("dest_ip").as_string();
         const int dest_port = get_parameter("dest_port").as_int();
 
-        wheelbase_ = get_parameter("wheelbase").as_double();
-        servo_gain_ = get_parameter("servo_gain").as_double();
-        servo_offset_ = get_parameter("servo_offset").as_double();
-        steer_c2_ = get_parameter("steering_correction_c2").as_double();
-        steer_c1_ = get_parameter("steering_correction_c1").as_double();
-        steer_c0_ = get_parameter("steering_correction_c0").as_double();
-        forward_lookahead_ = static_cast<int>(get_parameter("forward_lookahead").as_int());
         interpolate_horizon_ = get_parameter("interpolate_horizon").as_bool();
         horizon_step_m_ = get_parameter("horizon_step_m").as_double();
         const int horizon_param = get_parameter("horizon").as_int();
@@ -330,15 +320,35 @@ private:
         while (std::getline(file, line)) {
             std::stringstream ss(line);
             std::string token;
-            Waypoint wp{};
+            std::vector<double> cols;
+            while (std::getline(ss, token, ',')) {
+                if (token.empty()) {
+                    continue;
+                }
+                cols.push_back(std::stod(token));
+            }
 
-            std::getline(ss, token, ','); wp.s = std::stod(token);
-            std::getline(ss, token, ','); wp.x = std::stod(token);
-            std::getline(ss, token, ','); wp.y = std::stod(token);
-            std::getline(ss, token, ','); wp.psi = std::stod(token);
-            std::getline(ss, token, ','); wp.kappa = std::stod(token);
-            std::getline(ss, token, ','); wp.vx = std::stod(token);
-            std::getline(ss, token, ','); wp.ax = std::stod(token);
+            if (cols.size() < 7) {
+                continue;
+            }
+
+            if (cols.size() < 9) {
+                RCLCPP_ERROR(get_logger(),
+                             "Trajectory row missing left/right bounds. Expected columns: "
+                             "s,x,y,psi,kappa,vx,ax,left_bound,right_bound");
+                return false;
+            }
+
+            Waypoint wp{};
+            wp.s = cols[0];
+            wp.x = cols[1];
+            wp.y = cols[2];
+            wp.psi = cols[3];
+            wp.kappa = cols[4];
+            wp.vx = cols[5];
+            wp.ax = cols[6];
+            wp.left_bound = cols[7];
+            wp.right_bound = cols[8];
 
             waypoints.push_back(wp);
         }
@@ -440,6 +450,8 @@ private:
             out.kappa = w0.kappa + (w1.kappa - w0.kappa) * t;
             out.vx = w0.vx + (w1.vx - w0.vx) * t;
             out.ax = w0.ax + (w1.ax - w0.ax) * t;
+            out.left_bound = w0.left_bound + (w1.left_bound - w0.left_bound) * t;
+            out.right_bound = w0.right_bound + (w1.right_bound - w0.right_bound) * t;
             return out;
         }
 
@@ -456,6 +468,8 @@ private:
         out.kappa = w0.kappa + (w1.kappa - w0.kappa) * t;
         out.vx = w0.vx + (w1.vx - w0.vx) * t;
         out.ax = w0.ax + (w1.ax - w0.ax) * t;
+        out.left_bound = w0.left_bound + (w1.left_bound - w0.left_bound) * t;
+        out.right_bound = w0.right_bound + (w1.right_bound - w0.right_bound) * t;
         return out;
     }
 
@@ -465,12 +479,20 @@ private:
      * @return None
      */
     void servoCallback(const std_msgs::msg::Float64::SharedPtr msg) {
-        const double corrected = (msg->data - servo_offset_) / servo_gain_;
+        const double corrected =
+            (msg->data - static_cast<double>(MPC_FPGA_SERVO_OFFSET)) /
+            static_cast<double>(MPC_FPGA_SERVO_GAIN);
         const double abs_corr = std::abs(corrected);
-        if (steer_c2_ != 0.0) {
-            const double disc = steer_c1_ * steer_c1_ - 4.0 * steer_c2_ * (steer_c0_ - abs_corr);
+        if (static_cast<double>(MPC_FPGA_STEER_CORRECTION_C2) != 0.0) {
+            const double disc =
+                static_cast<double>(MPC_FPGA_STEER_CORRECTION_C1) *
+                    static_cast<double>(MPC_FPGA_STEER_CORRECTION_C1) -
+                4.0 * static_cast<double>(MPC_FPGA_STEER_CORRECTION_C2) *
+                    (static_cast<double>(MPC_FPGA_STEER_CORRECTION_C0) - abs_corr);
             if (disc >= 0.0) {
-                const double t = (-steer_c1_ + std::sqrt(disc)) / (2.0 * steer_c2_);
+                const double t =
+                    (-static_cast<double>(MPC_FPGA_STEER_CORRECTION_C1) + std::sqrt(disc)) /
+                    (2.0 * static_cast<double>(MPC_FPGA_STEER_CORRECTION_C2));
                 current_steering_angle_ = std::copysign(t, corrected);
             } else {
                 current_steering_angle_ = corrected;
@@ -532,12 +554,9 @@ private:
         const double vy = latest_vy_;
         const double omega = latest_omega_;
 
-        constexpr double kWheelRadius = 0.0545;
-        const double wheel_speed = (vx > 0.01) ? (vx / kWheelRadius) : 0.0;
-
         double steering_angle = current_steering_angle_;
         if (!has_servo_feedback_ && std::abs(vx) > 0.1) {
-            steering_angle = std::atan2(wheelbase_ * omega, vx);
+            steering_angle = std::atan2(static_cast<double>(MPC_FPGA_WHEELBASE_M) * omega, vx);
         }
 
         // Choose nearest waypoint, then bias forward using heading projection
@@ -550,7 +569,7 @@ private:
             size_t best_idx = waypoint_idx;
             double best_dist = std::numeric_limits<double>::max();
 
-            for (int i = 0; i <= forward_lookahead_; ++i) {
+            for (int i = 0; i <= MPC_FPGA_PUBLISHER_FORWARD_LOOKAHEAD; ++i) {
                 const size_t check_idx = (waypoint_idx + static_cast<size_t>(i)) % n;
                 const auto& wp = kdtree_.getWaypoint(check_idx);
                 const double dx_wp = wp.x - x;
@@ -585,33 +604,33 @@ private:
         packet.velocity_fp = toFp(vx);
         packet.vy_fp = toFp(vy);
         packet.omega_fp = toFp(omega);
-        packet.wheel_speed_fp = toFp(wheel_speed);
         packet.steering_angle_fp = toFp(steering_angle);
-        packet.waypoint_index = static_cast<uint32_t>(waypoint_idx);
+
+        const auto& wp0 = kdtree_.getWaypoint(waypoint_idx);
+        packet.ref_x_0_fp = toFp(wp0.x);
+        packet.ref_y_0_fp = toFp(wp0.y);
+        packet.ref_psi_0_fp = toFp(wp0.psi);
+
         packet.horizon_length = static_cast<uint32_t>(MPC_HORIZON);
 
         if (interpolate_horizon_ && !trajectory_.empty()) {
             const double base_s = kdtree_.getWaypoint(waypoint_idx).s;
             for (size_t i = 0; i < MPC_HORIZON; ++i) {
                 const Waypoint wp = sampleByArcLength(base_s + horizon_step_m_ * static_cast<double>(i));
-                packet.ref_x_fp[i] = toFp(wp.x);
-                packet.ref_y_fp[i] = toFp(wp.y);
-                packet.ref_psi_fp[i] = toFp(wp.psi);
                 packet.ref_vx_fp[i] = toFp(wp.vx);
                 packet.ref_kappa_fp[i] = toFp(wp.kappa);
-                packet.ref_ax_fp[i] = toFp(wp.ax);
+                packet.ref_left_bound_fp[i] = toFp(wp.left_bound);
+                packet.ref_right_bound_fp[i] = toFp(wp.right_bound);
             }
         } else {
             const size_t n = kdtree_.size();
             for (size_t i = 0; i < MPC_HORIZON; ++i) {
                 const size_t idx = (waypoint_idx + i) % n;
                 const auto& wp = kdtree_.getWaypoint(idx);
-                packet.ref_x_fp[i] = toFp(wp.x);
-                packet.ref_y_fp[i] = toFp(wp.y);
-                packet.ref_psi_fp[i] = toFp(wp.psi);
                 packet.ref_vx_fp[i] = toFp(wp.vx);
                 packet.ref_kappa_fp[i] = toFp(wp.kappa);
-                packet.ref_ax_fp[i] = toFp(wp.ax);
+                packet.ref_left_bound_fp[i] = toFp(wp.left_bound);
+                packet.ref_right_bound_fp[i] = toFp(wp.right_bound);
             }
         }
 
@@ -639,13 +658,6 @@ private:
 
     double current_steering_angle_{0.0};
     bool has_servo_feedback_{false};
-    double wheelbase_{0.324};
-    double servo_gain_{-0.7284};
-    double servo_offset_{0.55};
-    double steer_c2_{0.589566};
-    double steer_c1_{0.918061};
-    double steer_c0_{0.001490};
-    int forward_lookahead_{3};
     bool interpolate_horizon_{true};
     double horizon_step_m_{0.0};
     double total_length_m_{0.0};
