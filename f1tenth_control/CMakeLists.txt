@@ -177,6 +177,11 @@ if(BUILD_TESTING)
   add_executable(test_sim_drive_pure_pursuit test/test_sim_drive_pure_pursuit.cpp)
   target_link_libraries(test_sim_drive_pure_pursuit pure_pursuit_algorithm)
   ament_target_dependencies(test_sim_drive_pure_pursuit ${DEPENDENCIES})
+
+  # Stanley closed-loop simulation sweep (standalone executable)
+  add_executable(test_sim_drive_stanley test/test_sim_drive_stanley.cpp)
+  target_link_libraries(test_sim_drive_stanley stanley_algorithm)
+  ament_target_dependencies(test_sim_drive_stanley ${DEPENDENCIES})
 endif()
 
 # Export
