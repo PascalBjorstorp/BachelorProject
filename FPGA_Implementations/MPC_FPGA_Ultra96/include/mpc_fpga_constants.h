@@ -72,12 +72,18 @@
 #define MPC_FPGA_PUBLISHER_ODOM_WATCHDOG_MS  500
 #define MPC_FPGA_PUBLISHER_DEBUG_LOG_PERIOD  50
 
+#define MPC_FPGA_SERVO_GAIN                 -0.7284f
+#define MPC_FPGA_SERVO_OFFSET                0.55f
+#define MPC_FPGA_STEER_CORRECTION_C2         0.589566f
+#define MPC_FPGA_STEER_CORRECTION_C1         0.918061f
+#define MPC_FPGA_STEER_CORRECTION_C0         0.001490f
+
 /*===========================================================================
  * Solver Structure and Model Constants
  *===========================================================================*/
 
 #define MPC_FPGA_MAX_ADMM_ITER        10
-#define MPC_FPGA_PREDICTION_DT_S      0.04f
+#define MPC_FPGA_PREDICTION_DT_S      0.03f
 #define MPC_FPGA_PACEJKA_C_SHAPE      1.9f
 #define MPC_FPGA_MIN_STIFF_SCALE      0.1f
 
@@ -85,15 +91,15 @@
  * MPC Cost Weights (FPGA profile)
  *===========================================================================*/
 
-#define MPC_FPGA_W_LAT_ERROR             9624.862036f
-#define MPC_FPGA_W_HEADING               401.74426f
+#define MPC_FPGA_W_LAT_ERROR             155000.0f
+#define MPC_FPGA_W_HEADING               350.0f
 #define MPC_FPGA_W_VELOCITY              220.0f
 #define MPC_FPGA_W_LAT_VEL               24.0f
-#define MPC_FPGA_W_YAW_RATE              19.0f
-#define MPC_FPGA_W_STEER_EFF             0.05525f
-#define MPC_FPGA_W_ACCEL_EFF             0.096f
+#define MPC_FPGA_W_YAW_RATE              19.238172f
+#define MPC_FPGA_W_STEER_EFF             0.05f
+#define MPC_FPGA_W_ACCEL_EFF             0.01f
 #define MPC_FPGA_W_STEER_JERK            0.005f
-#define MPC_FPGA_W_ACCEL_RATE            0.1f
+#define MPC_FPGA_W_ACCEL_RATE            0.08f
 #define MPC_FPGA_W_DELTA_ACT             0.1f
 
 /*===========================================================================
@@ -112,7 +118,7 @@
 #define MPC_FPGA_WP_ADVANCE_MAX       10
 
 #define MPC_FPGA_ADMM_RHO                32.0f
-#define MPC_FPGA_ADMM_RHO_U              20.0f
-#define MPC_FPGA_ADMM_TOL                5.5f
+#define MPC_FPGA_ADMM_RHO_U              24.8f
+#define MPC_FPGA_ADMM_TOL                5.0f
 
 #endif /* MPC_FPGA_CONSTANTS_H */

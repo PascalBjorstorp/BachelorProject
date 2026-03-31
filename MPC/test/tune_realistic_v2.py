@@ -14,7 +14,7 @@ Usage:
     python3 test/tune_realistic_v2.py --objective tracker    # Optimize for tracking (default)
     python3 test/tune_realistic_v2.py --raceline my_track_raceline.csv
 
-The sweep runs 7 phases:
+The sweep runs 8 phases:
     Phase 1: One-at-a-time parameter sensitivity
     Phase 2: Primary grid (Q_LAT x Q_HDG x Q_VEL x HORIZON x PRED_DT)
     Phase 3: (Skipped for Hardware - wall margin is fixed)
@@ -22,8 +22,11 @@ The sweep runs 7 phases:
     Phase 5: Solver parameters (RHO x RHO_U x ALPHA x TOL)
     Phase 6: Fine-tuning around best config
     Phase 7: Random neighbor exploration
+    Phase 8: Random exploitation around branch best
 
-Top 10 configurations cascade to subsequent phases for thorough exploration.
+Top 10 configurations from Phase 2 are screened with a smaller Phase 4 sweep.
+The single global-best configuration is then optimized through Phases 5-8 for
+10 consecutive passes.
 """
 
 import subprocess
@@ -45,7 +48,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
 TRAJ_DIR = os.path.join(os.path.dirname(PROJECT_DIR), "f1tenth_planning", "trajectories")
 
-HORIZON_SWEEP_VALUES = [10, 14, 18, 20, 22, 26, 30, 34, 40, 50]
+HORIZON_SWEEP_VALUES = [8, 10, 12, 14, 16, 18, 20, 22, 26, 30]
 HORIZON_LIMIT = 50
 
 # ==============================================================================
@@ -103,8 +106,8 @@ PHASE2_VALUES = {
     # HORIZON: prediction horizon steps
     "HORIZON": HORIZON_SWEEP_VALUES,
     
-    # PRED_DT: prediction timestep (10 values)
-    "PRED_DT": [0.04, 0.045, 0.05, 0.055, 0.06, 0.065, 0.07, 0.075, 0.08, 0.09],
+    # PRED_DT: keep dense coverage around low-latency values that showed best yield.
+    "PRED_DT": [0.034, 0.036, 0.038, 0.04, 0.045, 0.05, 0.055, 0.06, 0.065, 0.07],
 }
 
 # ==============================================================================
@@ -125,7 +128,7 @@ FULL_SWEEP_VALUES = {
     "RHO":          [16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 80],
     "RHO_U":        [6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 32],
     "ALPHA":        [0.80, 0.85, 0.90, 0.93, 0.97, 1.0, 1.05, 1.1, 1.2, 1.3, 1.5, 1.8],
-    "PRED_DT":      [0.035, 0.04, 0.045, 0.05, 0.055, 0.06, 0.065, 0.07, 0.075, 0.08, 0.09, 0.1],
+    "PRED_DT":      [0.032, 0.034, 0.036, 0.038, 0.04, 0.045, 0.05, 0.055, 0.06, 0.065, 0.07, 0.075],
     "TOL":          [3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 7.0],
 }
 
@@ -135,12 +138,12 @@ FULL_SWEEP_VALUES = {
 # ==============================================================================
 
 PHASE4_VALUES = {
-    "Q_LAT_VEL":    [10, 15, 20, 24, 28, 32, 36, 42],
-    "Q_YAW":        [12, 16, 20, 22, 26, 30, 34, 40],
-    "R_STEER":      [0.18, 0.22, 0.26, 0.30, 0.34, 0.38, 0.42],
-    "W_JERK":       [0.01, 0.02, 0.03, 0.05, 0.08, 0.12, 0.2],
-    "R_ACCEL":      [0.006, 0.008, 0.01, 0.012, 0.015],
-    "W_ACCEL_RATE": [0.06, 0.08, 0.1, 0.12, 0.15],
+    "Q_LAT_VEL":    [15, 20, 24, 28, 32],
+    "Q_YAW":        [16, 20, 22, 26, 30],
+    "R_STEER":      [0.22, 0.26, 0.30, 0.34, 0.38],
+    "W_JERK":       [0.01, 0.02, 0.03, 0.05, 0.08],
+    "R_ACCEL":      [0.008, 0.01, 0.012, 0.015],
+    "W_ACCEL_RATE": [0.08, 0.1, 0.12, 0.15],
 }
 
 # ==============================================================================
@@ -204,6 +207,50 @@ RANDOM_PROFILES = {
             "ALPHA": [0.93, 1.0, 1.1, 1.2, 1.3],
         },
     },
+    "tracker_exploit": {
+        "num_perturb_range": (2, 4),
+        "default_multipliers": [0.95, 0.98, 1.0, 1.02, 1.05],
+        "param_multipliers": {
+            "Q_LAT": [0.96, 0.99, 1.0, 1.02, 1.05],
+            "Q_HDG": [0.96, 0.99, 1.0, 1.02, 1.05],
+            "Q_VEL": [0.97, 1.0, 1.03, 1.06],
+            "Q_LAT_VEL": [0.9, 0.97, 1.0, 1.05, 1.1],
+            "Q_YAW": [0.9, 0.97, 1.0, 1.05, 1.1],
+            "R_STEER": [0.92, 0.98, 1.0, 1.05, 1.1],
+            "R_ACCEL": [0.9, 0.97, 1.0, 1.05, 1.1],
+            "W_JERK": [0.9, 0.97, 1.0, 1.05, 1.1],
+            "W_ACCEL_RATE": [0.9, 0.97, 1.0, 1.05, 1.1],
+            "RHO": [0.9, 0.97, 1.0, 1.06, 1.12],
+            "RHO_U": [0.9, 0.97, 1.0, 1.06, 1.12],
+        },
+        "discrete": {
+            "HORIZON": HORIZON_SWEEP_VALUES,
+            "PRED_DT": [0.034, 0.036, 0.038, 0.04, 0.045, 0.05],
+            "ALPHA": [0.9, 0.93, 1.0, 1.1],
+        },
+    },
+    "fastest_exploit": {
+        "num_perturb_range": (2, 4),
+        "default_multipliers": [0.96, 0.99, 1.0, 1.03, 1.07],
+        "param_multipliers": {
+            "Q_LAT": [0.96, 0.99, 1.0, 1.03, 1.07],
+            "Q_HDG": [0.96, 0.99, 1.0, 1.03, 1.07],
+            "Q_VEL": [0.99, 1.0, 1.03, 1.06, 1.1],
+            "Q_LAT_VEL": [0.92, 0.98, 1.0, 1.05, 1.1],
+            "Q_YAW": [0.92, 0.98, 1.0, 1.05, 1.1],
+            "R_STEER": [0.94, 0.99, 1.0, 1.04, 1.08],
+            "R_ACCEL": [0.9, 0.97, 1.0, 1.05, 1.1],
+            "W_JERK": [0.9, 0.97, 1.0, 1.05, 1.1],
+            "W_ACCEL_RATE": [0.9, 0.97, 1.0, 1.05, 1.1],
+            "RHO": [0.9, 0.97, 1.0, 1.06, 1.12],
+            "RHO_U": [0.9, 0.97, 1.0, 1.06, 1.12],
+        },
+        "discrete": {
+            "HORIZON": HORIZON_SWEEP_VALUES,
+            "PRED_DT": [0.034, 0.036, 0.038, 0.04, 0.045],
+            "ALPHA": [0.93, 1.0, 1.1, 1.2],
+        },
+    },
 }
 
 # ==============================================================================
@@ -214,6 +261,9 @@ INT_PARAMS = {"HORIZON", "WALL_END", "WALL_STRIDE", "MAX_ITER"}
 
 CASCADE_TOP_N = 10  # Always cascade top 10 to next phases
 SEED = 42           # Fixed seed for reproducibility
+GLOBAL_OPTIMIZATION_PASSES = 10
+PHASE7_RANDOM_COUNT = {"tracker": 3600, "fastest": 4400}
+PHASE8_RANDOM_COUNT = {"tracker": 1800, "fastest": 2400}
 
 # Keep summary print order aligned with swept define order in mpc_types.h.
 MPC_TYPES_PRINT_ORDER = (
@@ -541,11 +591,13 @@ def gen_fine_tuning(best_weights: dict) -> list:
     return combos
 
 
-def gen_random_neighbors(best_weights: dict, n: int, objective: str) -> list:
-    """Phase 7: Random perturbations around best config."""
+def gen_random_neighbors(best_weights: dict, n: int, objective: str,
+                         profile_override: str = None, seed_offset: int = 0) -> list:
+    """Generate random perturbations around best config for exploration/exploitation phases."""
     combos = []
-    rng = random.Random(SEED)
-    profile = RANDOM_PROFILES.get(objective, RANDOM_PROFILES["tracker"])
+    rng = random.Random(SEED + seed_offset)
+    profile_name = profile_override if profile_override else objective
+    profile = RANDOM_PROFILES.get(profile_name, RANDOM_PROFILES["tracker"])
     
     discrete = profile.get("discrete", {})
     param_multipliers = profile.get("param_multipliers", {})
@@ -882,6 +934,9 @@ def main():
     print(f"  Workers:     {num_workers}")
     print(f"  Objective:   {objective}")
     print(f"  Cascade:     top {CASCADE_TOP_N}")
+    print(f"  Global passes (P5-P8): {GLOBAL_OPTIMIZATION_PASSES}")
+    print(f"  Phase7 random: {PHASE7_RANDOM_COUNT.get(objective, 3600)}")
+    print(f"  Phase8 random: {PHASE8_RANDOM_COUNT.get(objective, 1800)}")
     print(f"  Horizon sweep: {HORIZON_SWEEP_VALUES}")
     print(f"  Raceline:    {RACELINE_PATH}")
     print(f"  Raceline tag:{RACELINE_TAG}")
@@ -959,61 +1014,94 @@ def main():
     if not top_configs:
         top_configs = [dict(BASE)]
     
-    # ========== PHASES 3-8: Cascade from top configs ==========
+    # ========== PHASES 3-8 ==========
+    # Phase 3 is skipped for hardware map mode (fixed wall margin).
+    print("\n  Phase 3: Skipped (wall margin is fixed for hardware)")
+
+    # Phase 4: run a reduced seed sweep for each top Phase-2 configuration.
+    print(f"\n{'='*80}")
+    print(f"Phase 4 seed screening from top {len(top_configs)} Phase-2 configs")
+    print(f"{'='*80}")
+
     for ci, cascade_base in enumerate(top_configs):
         print(f"\n{'#'*80}")
-        print(f"# CASCADE BRANCH {ci+1}/{len(top_configs)}")
+        print(f"# PHASE 4 SEED {ci+1}/{len(top_configs)}")
         print(f"{'#'*80}")
-        
-        # Update BASE for this branch
+
         update_base(cascade_base)
-        
-        # Phase 3: Skipped for Hardware (wall margin fixed)
-        print("\n  Phase 3: Skipped (wall margin is fixed for hardware)")
-        
-        # Phase 4: Secondary grid
-        p, f = run_phase(f"Phase 4: Secondary grid [branch {ci+1}]",
+        p, f = run_phase(f"Phase 4: Secondary grid [seed {ci+1}/{len(top_configs)}]",
                          gen_secondary_grid(), binary, results, t0,
                          num_workers, csv_writer, objective)
         total_p += p
         total_f += f
-        
-        # Update to best so far
-        top = get_top_n_params(results, n=1)
-        if top:
-            update_base(top[0])
-        
-        # Phase 5: Solver grid
-        p, f = run_phase(f"Phase 5: Solver parameters [branch {ci+1}]",
+
+    # Promote one global best after seed screening.
+    best = get_top_n_params(results, n=1)
+    if best:
+        update_base(best[0])
+
+    # Global optimization loop: repeatedly refine one global-best candidate.
+    for pi in range(GLOBAL_OPTIMIZATION_PASSES):
+        print(f"\n{'#'*80}")
+        print(f"# GLOBAL OPTIMIZATION PASS {pi+1}/{GLOBAL_OPTIMIZATION_PASSES}")
+        print(f"{'#'*80}")
+
+        # Phase 5: solver parameter sweep
+        p, f = run_phase(f"Phase 5: Solver parameters [pass {pi+1}/{GLOBAL_OPTIMIZATION_PASSES}]",
                          gen_solver_grid(), binary, results, t0,
                          num_workers, csv_writer, objective)
         total_p += p
         total_f += f
-        
-        # Update to best
+
         top = get_top_n_params(results, n=1)
         if top:
             update_base(top[0])
-        
-        # Phase 6: Fine-tuning
+
+        # Phase 6: fine tuning around current global best
         best = get_top_n_params(results, n=1)
         if best:
-            p, f = run_phase(f"Phase 6: Fine-tuning [branch {ci+1}]",
+            p, f = run_phase(f"Phase 6: Fine-tuning [pass {pi+1}/{GLOBAL_OPTIMIZATION_PASSES}]",
                              gen_fine_tuning(best[0]), binary, results, t0,
                              num_workers, csv_writer, objective)
             total_p += p
             total_f += f
-        
-        # Phase 7: Random neighbors
+
+            top = get_top_n_params(results, n=1)
+            if top:
+                update_base(top[0])
+
+        # Phase 7: random exploration around global best
         best = get_top_n_params(results, n=1)
         if best:
-            n_random = 3500 if objective == "fastest" else 3000
-            p, f = run_phase(f"Phase 7: Random neighbors ({n_random}) [branch {ci+1}]",
-                             gen_random_neighbors(best[0], n_random, objective),
+            n_random = PHASE7_RANDOM_COUNT.get(objective, 3600)
+            p, f = run_phase(f"Phase 7: Random neighbors ({n_random}) [pass {pi+1}/{GLOBAL_OPTIMIZATION_PASSES}]",
+                             gen_random_neighbors(best[0], n_random, objective,
+                                                  seed_offset=7000 + pi),
                              binary, results, t0,
                              num_workers, csv_writer, objective)
             total_p += p
             total_f += f
+
+            top = get_top_n_params(results, n=1)
+            if top:
+                update_base(top[0])
+
+        # Phase 8: random exploitation around updated global best
+        best = get_top_n_params(results, n=1)
+        if best:
+            n_random = PHASE8_RANDOM_COUNT.get(objective, 1800)
+            p, f = run_phase(f"Phase 8: Random exploitation ({n_random}) [pass {pi+1}/{GLOBAL_OPTIMIZATION_PASSES}]",
+                             gen_random_neighbors(best[0], n_random, objective,
+                                                  profile_override=f"{objective}_exploit",
+                                                  seed_offset=9000 + pi),
+                             binary, results, t0,
+                             num_workers, csv_writer, objective)
+            total_p += p
+            total_f += f
+
+            top = get_top_n_params(results, n=1)
+            if top:
+                update_base(top[0])
     
     # ========== FINAL RESULTS ==========
     results.sort(key=lambda x: x.get("score", 999999.0))

@@ -1,29 +1,30 @@
 #!/usr/bin/env python3
 """
-FPGA MPC Weight Tuning Script — Spielberg Realistic Sweep
-=========================================================
-Systematically tests parameter combinations for the FPGA Riccati-ADMM MPC
-using the same realistic Spielberg workflow as the CPU tuning flow.
-Since FPGA uses compile-time constants, this script modifies the centralized
-constants header (mpc_fpga_constants.h), recompiles, runs the test, and
-collects results.
+FPGA MPC Weight Tuning for Hardware Map (Realistic FPGA Sweep)
+==============================================================
+Systematically sweeps MPC weights, horizons, and solver parameters on the FPGA
+using a hardware-oriented workflow aligned with the CPU realistic tuner
+(tune_realistic_v2.py).
 
-Sweep parameters:
-    - dt (prediction timestep): affects horizon spacing and model discretization
-  - N  (horizon steps): affects how many prediction steps (array sizes)
-  - WALL_END, WALL_MARGIN: wall constraint parameters
-  - Q_LAT, Q_HDG, Q_VEL, Q_LAT_VEL, Q_YAW: state tracking weights
-  - R_STEER, W_JERK, W_ACCEL_RATE, W_DELTA_ACT: control weights
-  - ADMM_RHO, ADMM_RHO_U: solver parameters
+Since FPGA uses compile-time constants, this script modifies the centralized
+constants header (mpc_fpga_constants.h), recompiles, runs the test, and collects results.
+
+The sweep runs 7 phases:
+    Phase 1: One-at-a-time parameter sensitivity
+    Phase 2: Primary grid (Q_LAT x Q_HDG x Q_VEL x N x dt)
+    Phase 3: (Skipped for Hardware - wall margin is fixed)
+    Phase 4: Secondary grid (Q_LAT_VEL x Q_YAW x R_STEER x W_JERK x R_ACCEL x W_ACCEL_RATE)
+    Phase 5: Solver parameters (ADMM_RHO x ADMM_RHO_U x ADMM_TOL)
+    Phase 6: Fine-tuning around best config
+    Phase 7: Random neighbor exploration
+
+Top 1 configuration cascades to subsequent phases (CASCADE_TOP_N=1).
 
 Usage:
-    python3 fpga_tune_weights.py Spielberg         # Full Spielberg sweep (default)
-    python3 fpga_tune_weights.py Hardware          # Full Hardware-map sweep
-    python3 fpga_tune_weights.py --quick             # Quick sweep
-    python3 fpga_tune_weights.py --raceline spielberg # Sweep specific Spielberg raceline
-    python3 fpga_tune_weights.py --all-racelines     # Sweep all racelines sequentially
-    python3 fpga_tune_weights.py --phase 1           # Phase 1 only (dt × N × WALL)
-    python3 fpga_tune_weights.py --single dt=0.05 N=20 Q_VEL=80   # Single test
+    python3 fpga_tune_weights.py                # Full Hardware sweep (default)
+    python3 fpga_tune_weights.py --jobs 8       # Use 8 parallel workers
+    python3 fpga_tune_weights.py --objective tracker  # Optimize for tracking (default)
+    python3 fpga_tune_weights.py --raceline my_track_raceline.csv
 """
 
 import subprocess
@@ -33,14 +34,17 @@ import csv
 import re
 import shutil
 import time
-import itertools
 import random
+import hashlib
+import itertools
+import multiprocessing
 from datetime import datetime
 from pathlib import Path
-from concurrent.futures import ProcessPoolExecutor, as_completed
-import multiprocessing
+from concurrent.futures import ProcessPoolExecutor, wait, FIRST_COMPLETED
 
-# ─── Project layout ──────────────────────────────────────────────────────────
+# ==============================================================================
+# PROJECT LAYOUT
+# ==============================================================================
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
 HEADER = PROJECT_DIR / "include" / "mpc_fpga_constants.h"
@@ -53,106 +57,187 @@ C_SRC_FILES = [
     "src/vehicle_model_hls.c",
     "src/fp_math_hls.c",
 ]
-CPP_SRC_FILES = [
-    "src/mpc_fpga_top.cpp",
-]
+CPP_SRC_FILES = ["src/mpc_fpga_top.cpp"]
 BINARY = PROJECT_DIR / "test_fpga_tune"
 C_FLAGS = ["-D_GNU_SOURCE", "-O2", "-std=c99", "-Wall", "-Wno-unknown-pragmas"]
 CXX_FLAGS = ["-D_GNU_SOURCE", "-O2", "-Wall", "-Wno-unknown-pragmas"]
 
-# Parallel worker scratch area (created only when --jobs > 1)
+# Parallel worker scratch area
 WORKER_ROOT = PROJECT_DIR / ".fpga_tune_workers"
 _WORKER_CTX = None
 
-# ─── Mode-specific racelines (aligned with CPU realistic tuner) ─────────────
+HORIZON_SWEEP_VALUES = [8, 10, 12, 14, 16, 20, 24, 30, 40, 50]
+
+# ==============================================================================
+# HARDWARE MAP CONFIGURATION
+# ==============================================================================
 WORKSPACE_ROOT = PROJECT_DIR.parent.parent  # BachelorProject/
 TRAJ_DIR = WORKSPACE_ROOT / "f1tenth_planning" / "trajectories"
-SPIELBERG_RACELINES = {
-    "spielberg": str(TRAJ_DIR / "Spielberg_raceline_current.csv"),
-}
-HARDWARE_RACELINES = {
-    "hardware": str(TRAJ_DIR / "hardware_raceline.csv"),
-}
-HARDWARE_MAP_YAML = str(WORKSPACE_ROOT / "f1tenth_sim" / "maps" / "hardware_map.yaml")
 
-# Per-raceline WALL_MARGIN defaults (matching CPU realistic sweeps)
-SPIELBERG_PER_RACELINE_WM = {
-    "spielberg": 0.20,
-}
-HARDWARE_PER_RACELINE_WM = {
-    "hardware": 0.02,
-}
+DEFAULT_RACELINE_NAME = "my_track_raceline.csv"
+RACELINE_PATH = TRAJ_DIR / DEFAULT_RACELINE_NAME
+RACELINE_TAG = "my_track"
+HARDWARE_MAP_YAML = str(WORKSPACE_ROOT / "f1tenth_sim" / "maps" / "my_track_map.yaml")
+BODY_SAFETY_MARGIN_DEFAULT = "0.00"
+WALL_MARGIN = 0.20
 
-# ─── Current baseline (synced with CPU realistic sweep results) ─────────────
-SPIELBERG_BASE_PARAMS = {
-    # Structural / timing
+# ==============================================================================
+# BEST CONFIGURATION — Starting point for all sweeps (USER'S FPGA-TUNED BASELINE)
+# ==============================================================================
+BASE_CONFIG = {
+    # Structural / timing (user's best FPGA config)
     "dt":               0.04,
-    "N":                20,
-    "MAX_ADMM_ITER":    20,
-    # Wall constraints
-    "WALL_START":       1,
-    "WALL_STRIDE":      1,
-    "WALL_END":         18,
-    "WALL_MARGIN":      0.15,
-    # State weights
-    "Q_LAT":            340.0,
-    "Q_HDG":            1000.0,
-    "Q_VEL":            26.0,
-    "Q_LAT_VEL":        69.0,
-    "Q_YAW":            22.0,
-    # Control weights
-    "R_STEER":          0.15,
-    "R_ACCEL":          0.01,
-    "W_JERK":           0.3,
-    "W_ACCEL_RATE":     0.1,
-    "W_DELTA_ACT":      0.53,
-    # Solver
-    "ADMM_RHO":         50.0,
-    "ADMM_RHO_U":       26.6,
-    "ADMM_TOL":         5.0,
-    # Model/constraint limits
-    "MIN_LIN_VEL":      2.0,
-    "WP_ADVANCE_MAX":   10,
-    "STABILITY_LIMIT":  0.95,
-    # Fixed physical tire model constant for F1TENTH rubber tires.
-    # Kept as a baseline parameter for single-run overrides, but not swept.
-    "C_SHAPE":         1.9,
-}
-
-HARDWARE_BASE_PARAMS = {
-    # Structural / timing
-    "dt":               0.06,
     "N":                10,
     "MAX_ADMM_ITER":    20,
-    # Wall constraints
+    # Wall constraints (canonical: WALL_END = HORIZON, WALL_START = 1, WALL_STRIDE = 1)
     "WALL_START":       1,
     "WALL_STRIDE":      1,
-    "WALL_END":         30,
-    "WALL_MARGIN":      0.02,
-    # State weights
-    "Q_LAT":            15774.935711,
-    "Q_HDG":            1229.435672,
-    "Q_VEL":            26.0,
-    "Q_LAT_VEL":        48.350998,
-    "Q_YAW":            22.0,
+    "WALL_END":         10,  # Will be derived as N during apply_params
+    "WALL_MARGIN":      0.20,
+    # State weights (user's best FPGA values)
+    "Q_LAT":            9624.862036,
+    "Q_HDG":            401.74426,
+    "Q_VEL":            160.0,
+    "Q_LAT_VEL":        24.0,
+    "Q_YAW":            19.238172,
     # Control weights
-    "R_STEER":          0.15,
+    "R_STEER":          0.05,
     "R_ACCEL":          0.01,
-    "W_JERK":           0.3,
-    "W_ACCEL_RATE":     0.1,
-    "W_DELTA_ACT":      0.347091,
-    # Solver
-    "ADMM_RHO":         25.435364,
-    "ADMM_RHO_U":       20.0,
+    "W_JERK":           0.005,
+    "W_ACCEL_RATE":     0.08,
+    "W_DELTA_ACT":      0.1,
+    # Solver (user's best FPGA)
+    "ADMM_RHO":         32.0,
+    "ADMM_RHO_U":       24.800802,
     "ADMM_TOL":         5.0,
     # Model/constraint limits
-    "MIN_LIN_VEL":      2.0,
+    "MIN_LIN_VEL":      1.0,
     "WP_ADVANCE_MAX":   10,
-    "STABILITY_LIMIT":  0.9,
-    "C_SHAPE":         1.9,
+    "STABILITY_LIMIT":  0.95,
+    "C_SHAPE":          1.9,
 }
 
-# Map parameter names → header #define names
+# ==============================================================================
+# SWEEP VALUE RANGES — PHASE 2 (Primary Grid)
+# ==============================================================================
+PHASE2_VALUES = {
+    # dt: broaden around observed successful 0.04 while keeping lower-latency candidates.
+    "dt": [0.03, 0.033, 0.035, 0.038, 0.04, 0.042, 0.045, 0.05, 0.055, 0.06],
+    # N: match CPU tuner option count while still anchored on successful N=10.
+    "N": HORIZON_SWEEP_VALUES,
+    # Q_LAT: successful pocket around 9.6k plus higher stable region seen in top rows.
+    "Q_LAT": [8500, 9500, 10500, 11500, 12500, 14000, 15500, 17000, 18500, 20000],
+    # Q_HDG: successful core near 401/650 with wider coverage for interaction effects.
+    "Q_HDG": [350, 400, 500, 600, 650, 700, 800, 900, 1000, 1200],
+    # Q_VEL: successful core near 160 with aggressive candidates up to 220.
+    "Q_VEL": [100, 120, 140, 150, 160, 170, 180, 190, 200, 220],
+}
+
+# ==============================================================================
+# SWEEP VALUE RANGES — ALL PARAMETERS (for one-at-a-time and fine-tuning)
+# ==============================================================================
+FULL_SWEEP_VALUES = {
+    "Q_LAT":        [7000, 8000, 9000, 9625, 10500, 11500, 12500, 13500, 14500, 15500, 16500, 18000, 20000, 22000],
+    "Q_HDG":        [250, 300, 350, 400, 450, 500, 600, 650, 700, 800, 900, 1000, 1100, 1200],
+    "Q_VEL":        [80, 100, 120, 130, 140, 150, 160, 170, 180, 190, 200, 220, 240, 260],
+    "Q_LAT_VEL":    [8, 10, 12, 15, 18, 20, 24, 28, 32, 36, 40, 48],
+    "Q_YAW":        [8, 10, 12, 15, 18, 20, 22, 24, 26, 30, 34, 40],
+    "R_STEER":      [0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20],
+    "R_ACCEL":      [0.004, 0.006, 0.008, 0.009, 0.01, 0.011, 0.012, 0.014, 0.016, 0.02],
+    "W_JERK":       [0.002, 0.005, 0.01, 0.015, 0.02, 0.03, 0.04, 0.05, 0.07, 0.1, 0.15, 0.2, 0.3],
+    "W_ACCEL_RATE": [0.04, 0.06, 0.08, 0.09, 0.1, 0.11, 0.12, 0.14, 0.16, 0.2],
+    "W_DELTA_ACT":  [0.04, 0.05, 0.06, 0.07, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18],
+    "dt":           [0.028, 0.03, 0.033, 0.035, 0.038, 0.04, 0.045, 0.05, 0.055, 0.06, 0.065, 0.07],
+    "N":            HORIZON_SWEEP_VALUES,
+    "ADMM_RHO":     [16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 80],
+    "ADMM_RHO_U":   [6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 32],
+    "ADMM_TOL":     [3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 7.0],
+}
+
+# ==============================================================================
+# PHASE 4: Secondary Grid Values (~1600 configs)
+# Q_LAT_VEL x Q_YAW x R_STEER x W_JERK x R_ACCEL x W_ACCEL_RATE
+# ==============================================================================
+PHASE4_VALUES = {
+    "Q_LAT_VEL":    [15, 20, 24, 28, 32],
+    "Q_YAW":        [16, 20, 22, 26, 30],
+    "R_STEER":      [0.04, 0.05, 0.06, 0.08, 0.10],
+    "W_JERK":       [0.005, 0.01, 0.02, 0.03, 0.05],
+    "R_ACCEL":      [0.008, 0.01, 0.012, 0.015],
+    "W_ACCEL_RATE": [0.06, 0.08, 0.10, 0.12],
+}
+
+# ==============================================================================
+# PHASE 5: Solver Grid Values (~1000 configs)
+# ADMM_RHO x ADMM_RHO_U x ADMM_TOL
+# ==============================================================================
+PHASE5_VALUES = {
+    "ADMM_RHO":     [20, 28, 32, 40, 50, 64, 80],
+    "ADMM_RHO_U":   [8, 12, 16, 20, 24, 28],
+    "ADMM_TOL":     [3.5, 4.0, 4.5, 5.0, 5.5, 6.0],
+}
+
+# ==============================================================================
+# RANDOM NEIGHBOR PROFILES
+# ==============================================================================
+RANDOM_PROFILES = {
+    "tracker": {
+        "num_perturb_range": (3, 6),
+        "default_multipliers": [0.85, 0.95, 1.0, 1.1, 1.2],
+        "param_multipliers": {
+            "Q_LAT": [0.9, 0.97, 1.0, 1.08, 1.18],
+            "Q_HDG": [0.9, 0.97, 1.0, 1.08, 1.18],
+            "Q_VEL": [0.9, 0.95, 1.0, 1.05, 1.1],
+            "Q_LAT_VEL": [0.75, 0.9, 1.0, 1.15, 1.3],
+            "Q_YAW": [0.75, 0.9, 1.0, 1.15, 1.3],
+            "R_STEER": [0.85, 0.95, 1.0, 1.15, 1.3],
+            "R_ACCEL": [0.7, 0.85, 1.0, 1.2, 1.4],
+            "W_JERK": [0.85, 0.95, 1.0, 1.15, 1.3],
+            "W_ACCEL_RATE": [0.7, 0.85, 1.0, 1.2, 1.4],
+            "W_DELTA_ACT": [0.75, 0.9, 1.0, 1.2, 1.35],
+            "ADMM_RHO": [0.75, 0.9, 1.0, 1.15, 1.35],
+            "ADMM_RHO_U": [0.75, 0.9, 1.0, 1.15, 1.35],
+        },
+        "discrete": {
+            "N": HORIZON_SWEEP_VALUES,
+            "dt": [0.03, 0.033, 0.035, 0.038, 0.04, 0.045, 0.05, 0.055],
+            "ADMM_TOL": [3.5, 4.0, 4.5, 5.0, 5.5, 6.0],
+        },
+    },
+    "fastest": {
+        "num_perturb_range": (3, 7),
+        "default_multipliers": [0.9, 0.97, 1.0, 1.06, 1.12],
+        "param_multipliers": {
+            "Q_LAT": [0.9, 0.97, 1.0, 1.06, 1.12],
+            "Q_HDG": [0.9, 0.97, 1.0, 1.06, 1.12],
+            "Q_VEL": [0.97, 1.0, 1.05, 1.1, 1.15, 1.2, 1.3],
+            "Q_LAT_VEL": [0.85, 0.95, 1.0, 1.1, 1.2],
+            "Q_YAW": [0.7, 0.85, 1.0, 1.1, 1.2],
+            "R_STEER": [0.9, 0.97, 1.0, 1.08, 1.15],
+            "R_ACCEL": [0.8, 0.9, 1.0, 1.15, 1.3],
+            "W_JERK": [0.85, 0.95, 1.0, 1.1, 1.2],
+            "W_ACCEL_RATE": [0.8, 0.9, 1.0, 1.15, 1.3],
+            "W_DELTA_ACT": [0.85, 0.95, 1.0, 1.12, 1.25],
+            "ADMM_RHO": [0.85, 0.95, 1.0, 1.1, 1.2],
+            "ADMM_RHO_U": [0.85, 0.95, 1.0, 1.1, 1.2],
+        },
+        "discrete": {
+            "N": HORIZON_SWEEP_VALUES,
+            "dt": [0.03, 0.033, 0.035, 0.038, 0.04, 0.045, 0.05],
+            "ADMM_TOL": [3.5, 4.0, 4.5, 5.0, 5.5],
+        },
+    },
+}
+
+# ==============================================================================
+# CONSTANTS
+# ==============================================================================
+INT_PARAMS = {"N", "WALL_END", "WALL_STRIDE", "WALL_START", "MAX_ADMM_ITER", "WP_ADVANCE_MAX"}
+
+CASCADE_TOP_N = 1  # User specified: follow 1 best config through phases
+SEED = 42           # Reproducible randomness
+
+# Parameter → header #define mapping
 PARAM_TO_DEFINE = {
     "dt":               "MPC_FPGA_PREDICTION_DT_S",
     "N":                "MPC_FPGA_HORIZON_STEPS",
@@ -179,158 +264,121 @@ PARAM_TO_DEFINE = {
     "STABILITY_LIMIT":  "MPC_FPGA_STABILITY_LIMIT",
 }
 
-# ─── Sweep ranges (THOROUGH) ─────────────────────────────────────────────────
-SPIELBERG_FULL_VALUES = {
-    # Structural / timing
-    "dt":               [0.02, 0.025, 0.030, 0.035, 0.040, 0.050, 0.060, 0.075, 0.08, 0.1],
-    "N":                [16, 18, 20, 22, 24, 26, 28, 30, 35, 40],
-    "MAX_ADMM_ITER":    [5, 8, 10, 15, 20, 30],
-    # Wall constraints
-    "WALL_START":       [0, 1, 2, 3],
-    "WALL_STRIDE":      [1, 2, 3, 4],
-    "WALL_END":         [5, 8, 10, 12, 15, 16, 18, 20, 22, 24, 28],
-    "WALL_MARGIN":      [0.00, 0.05, 0.10, 0.15, 0.20, 0.30, 0.35, 0.40, 0.45, 0.50, 0.70],
-    # State weights (denser around new best: Q_LAT=340, Q_VEL=26)
-    "Q_LAT":            [50, 100, 150, 200, 250, 300, 320, 340, 350, 360, 380, 400, 450, 500, 550, 600, 700, 800, 1000],
-    "Q_HDG":            [100, 180, 200, 300, 400, 600, 800, 900, 1000, 1200, 1500, 2000, 3000],
-    "Q_VEL":            [4, 6, 8, 10, 15, 20, 22, 24, 25, 26, 28, 30, 35, 50, 80, 100, 150],
-    "Q_LAT_VEL":        [10, 15, 20, 30, 40, 45, 55, 60, 80, 100, 120, 150],
-    "Q_YAW":            [1, 5, 10, 15, 18, 20, 22, 30, 40, 60, 100],
-    # Control weights
-    "R_STEER":          [0.04, 0.06, 0.08, 0.09, 0.10, 0.12, 0.15, 0.18, 0.20, 0.30, 0.50, 1.0],
-    "W_JERK":           [0.05, 0.08, 0.1, 0.14, 0.2, 0.3, 0.5, 1.0, 2.0, 5.0],
-    "W_ACCEL_RATE":     [0.01, 0.05, 0.08, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0],
-    "W_DELTA_ACT":      [0.05, 0.1, 0.2, 0.5, 1.0, 2.0],
-    # Solver (more granular around current best)
-    "ADMM_RHO":         [10, 15, 20, 25, 30, 40, 50, 60, 70, 80],
-    "ADMM_RHO_U":       [5, 10, 15, 20, 25, 30, 40, 50],
-    "ADMM_TOL":         [1.0, 3.0, 5.0, 10.0, 20.0],
-    # Model limits (kept constant for all tests)
-    "MIN_LIN_VEL":      [2.0],
-    "WP_ADVANCE_MAX":   [10],
-    "STABILITY_LIMIT":  [0.85, 0.90, 0.95, 1.0],
-}
+# Ordered printing (match mpc_types.h order for consistency)
+MPC_TYPES_PRINT_ORDER = (
+    "Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW",
+    "R_STEER", "R_ACCEL", "W_JERK", "W_ACCEL_RATE",
+    "dt", "N", "MAX_ADMM_ITER", "WALL_MARGIN",
+    "ADMM_TOL", "ADMM_RHO", "ADMM_RHO_U",
+    "WALL_END", "WALL_STRIDE", "WALL_START",
+)
 
-SPIELBERG_QUICK_VALUES = {
-    "dt":               [0.03, 0.035, 0.040, 0.050],
-    "N":                [18, 20, 24, 30],
-    "MAX_ADMM_ITER":    [10, 20],
-    "WALL_START":       [1],
-    "WALL_STRIDE":      [1, 2],
-    "WALL_END":         [12, 16, 18, 22],
-    "WALL_MARGIN":      [0.10, 0.15, 0.20, 0.40],
-    "Q_LAT":            [200, 300, 340, 400, 500],
-    "Q_HDG":            [400, 700, 1000, 1500],
-    "Q_VEL":            [15, 22, 26, 30, 50],
-    "Q_LAT_VEL":        [30, 60, 69, 100],
-    "Q_YAW":            [10, 22, 40],
-    "R_STEER":          [0.10, 0.15, 0.25],
-    "W_JERK":           [0.1, 0.3, 0.5],
-    "W_ACCEL_RATE":     [0.05, 0.1, 0.3],
-    "W_DELTA_ACT":      [0.1, 0.5, 1.0],
-    "ADMM_RHO":         [20, 30, 50],
-    "ADMM_RHO_U":       [10, 20, 30],
-    "ADMM_TOL":         [3.0, 5.0],
-    "MIN_LIN_VEL":      [2.0],
-    "WP_ADVANCE_MAX":   [10],
-    "STABILITY_LIMIT":  [0.95],
-}
+# Working copy of base config (modified during cascade)
+BASE = {}
 
-HARDWARE_FULL_VALUES = {
-    # Structural / timing
-    "dt":               [0.03, 0.035, 0.04, 0.045, 0.05, 0.055, 0.06, 0.065, 0.07],
-    "N":                [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
-    "MAX_ADMM_ITER":    [10, 15, 20, 30],
-    # Wall constraints
-    "WALL_START":       [1],
-    "WALL_STRIDE":      [1],
-    "WALL_END":         [30],
-    "WALL_MARGIN":      [0.01, 0.012, 0.014, 0.016, 0.018, 0.02, 0.022, 0.024, 0.026, 0.028, 0.03, 0.035],
-    # State weights
-    "Q_LAT":            [5000, 6000, 7000, 7500, 8000, 8500, 9000, 9500, 10000, 10500, 11000, 12000, 13000, 14000, 15000, 16000, 17000, 18000],
-    "Q_HDG":            [400, 500, 600, 650, 700, 750, 800, 850, 900, 950, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1800],
-    "Q_VEL":            [12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 35, 40],
-    "Q_LAT_VEL":        [40, 50, 60, 69, 80, 90],
-    "Q_YAW":            [15, 18, 20, 22, 25, 30],
-    # Control weights
-    "R_STEER":          [0.08, 0.10, 0.12, 0.15, 0.17, 0.20, 0.22, 0.25],
-    "W_JERK":           [0.2, 0.25, 0.3, 0.35, 0.4, 0.5, 0.6],
-    "W_ACCEL_RATE":     [0.08, 0.1, 0.12, 0.14, 0.16],
-    "W_DELTA_ACT":      [0.35, 0.45, 0.53, 0.6, 0.7],
-    # Solver
-    "ADMM_RHO":         [10, 12, 15, 18, 20, 25, 30],
-    "ADMM_RHO_U":       [8, 10, 12, 15, 18, 20, 25],
-    "ADMM_TOL":         [3.0, 5.0, 8.0],
-    # Model limits (kept constant for all tests)
-    "MIN_LIN_VEL":      [2.0],
-    "WP_ADVANCE_MAX":   [10],
-    "STABILITY_LIMIT":  [0.90, 0.95, 1.0],
-}
+# ==============================================================================
+# UTILITY FUNCTIONS
+# ==============================================================================
 
-HARDWARE_QUICK_VALUES = {
-    "dt":               [0.05, 0.06, 0.08],
-    "N":                [8, 10, 12, 15, 20, 22, 24],
-    "MAX_ADMM_ITER":    [10, 20],
-    "WALL_START":       [1],
-    "WALL_STRIDE":      [1],
-    "WALL_END":         [30],
-    "WALL_MARGIN":      [0.00, 0.02, 0.05, 0.10, 0.15, 0.30],
-    "Q_LAT":            [9000, 10000, 11000, 13000, 15000],
-    "Q_HDG":            [400, 500, 600, 700, 800],
-    "Q_VEL":            [12, 15, 18, 22, 26],
-    "Q_LAT_VEL":        [20, 50, 69, 100],
-    "Q_YAW":            [10, 15, 22, 30],
-    "R_STEER":          [0.05, 0.10, 0.15, 0.20, 0.40],
-    "W_JERK":           [0.1, 0.3, 0.5],
-    "W_ACCEL_RATE":     [0.05, 0.1, 0.3],
-    "W_DELTA_ACT":      [0.1, 0.5, 1.0],
-    "ADMM_RHO":         [20, 30, 32, 50],
-    "ADMM_RHO_U":       [15, 20, 25, 30],
-    "ADMM_TOL":         [3.0, 5.0],
-    "MIN_LIN_VEL":      [2.0],
-    "WP_ADVANCE_MAX":   [10],
-    "STABILITY_LIMIT":  [0.95],
-}
-
-ACTIVE_MODE = "Spielberg"
-BASE_PARAMS = dict(SPIELBERG_BASE_PARAMS)
-CASCADE_TOP_N = 1
-ACTIVE_SWEEP_KEYS = set()
+def infer_raceline_tag(path: str) -> str:
+    """Create a compact label for CSV rows."""
+    stem = os.path.splitext(os.path.basename(path))[0]
+    if stem.endswith("_raceline"):
+        stem = stem[: -len("_raceline")]
+    return stem or "unknown"
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  Header file modification
-# ═══════════════════════════════════════════════════════════════════════════════
+def resolve_raceline_path(path_arg: str) -> str:
+    """Resolve raceline path argument to absolute path."""
+    if os.path.isabs(path_arg):
+        return path_arg
+
+    traj_candidate = TRAJ_DIR / path_arg
+    if traj_candidate.exists():
+        return str(traj_candidate.resolve())
+
+    proj_candidate = PROJECT_DIR / path_arg
+    return str(proj_candidate.resolve())
+
+
+def iter_ordered_base_keys():
+    """Yield BASE keys in mpc_types.h-inspired order."""
+    seen = set()
+    for key in MPC_TYPES_PRINT_ORDER:
+        if key in BASE:
+            seen.add(key)
+            yield key
+    for key in BASE.keys():
+        if key not in seen:
+            yield key
+
+
+def canonicalize_params(params: dict) -> dict:
+    """Normalize params to the values MPC actually receives."""
+    out = dict(params)
+    
+    # Hardware policy: WALL_END = HORIZON (N), WALL_START = 1, WALL_STRIDE = 1
+    n = int(float(out.get("N", BASE.get("N", 10))))
+    n = max(2, n)
+    out["N"] = n
+    out["WALL_END"] = n
+    out["WALL_START"] = 1
+    out["WALL_STRIDE"] = 1
+    out["WALL_MARGIN"] = float(WALL_MARGIN)
+    
+    # Integer params
+    for k in INT_PARAMS:
+        if k in out:
+            out[k] = int(float(out[k]))
+    
+    return out
+
+
+def is_valid_config(params: dict) -> bool:
+    """Check if configuration is valid."""
+    n = int(params.get("N", BASE.get("N", 10)))
+    if n < 2 or n > 50:
+        return False
+    return True
+
+
+def config_hash(params: dict) -> str:
+    """Create unique hash for config to avoid duplicates."""
+    eff = canonicalize_params(params)
+    key = tuple(sorted((k, round(v, 4) if isinstance(v, float) else v)
+                       for k, v in eff.items()))
+    return hashlib.md5(str(key).encode()).hexdigest()[:12]
+
+
+# ==============================================================================
+# HEADER FILE MODIFICATION
+# ==============================================================================
 
 def set_header_param(header_text: str, param: str, value) -> str:
-    """Modify a #define in the header text. Returns modified text."""
+    """Modify a #define in header text."""
     define_name = PARAM_TO_DEFINE[param]
-
+    
     def as_float_literal(v) -> str:
         txt = f"{float(v):.12g}"
         if "e" not in txt and "E" not in txt and "." not in txt:
             txt += ".0"
         return txt + "f"
 
-    if param in ("N", "MAX_ADMM_ITER", "WALL_END", "WALL_START",
-                   "WALL_STRIDE", "WP_ADVANCE_MAX"):
-        # Integer defines
+    if param in INT_PARAMS:
         pattern = rf"#define\s+{define_name}\s+\d+"
         replacement = f"#define {define_name:<24s} {int(value)}"
         return re.sub(pattern, replacement, header_text)
-
     else:
-        # Float constants in centralized header use plain literals with f suffix.
         pattern = rf"#define\s+{define_name}\s+[-+0-9.eEfF]+"
         replacement = f"#define {define_name:<32s} {as_float_literal(value)}"
         return re.sub(pattern, replacement, header_text)
 
 
-def apply_params(params: dict, header_path: Path = HEADER, header_bak_path: Path = HEADER_BAK,
+def apply_params(params: dict, header_path = HEADER, header_bak_path = HEADER_BAK, 
                  base_params: dict = None):
     """Write modified header with given parameters."""
     if base_params is None:
-        base_params = BASE_PARAMS
+        base_params = BASE_CONFIG
 
     header_text = header_bak_path.read_text()
 
@@ -338,28 +386,21 @@ def apply_params(params: dict, header_path: Path = HEADER, header_bak_path: Path
         if param in PARAM_TO_DEFINE:
             header_text = set_header_param(header_text, param, value)
 
-    # Ensure WALL_END doesn't exceed N-1
-    n = int(params.get("N", base_params["N"]))
-    we = int(params.get("WALL_END", base_params["WALL_END"]))
-    if we >= n:
-        we = n - 2
-        header_text = set_header_param(header_text, "WALL_END", we)
-
-    # Ensure WALL_START < WALL_END
-    ws = int(params.get("WALL_START", base_params["WALL_START"]))
-    if ws >= we:
-        ws = max(0, we - 1)
-        header_text = set_header_param(header_text, "WALL_START", ws)
+    # Hardware policy: fixed wall geometry derived from horizon
+    n = max(2, int(params.get("N", base_params["N"])))
+    header_text = set_header_param(header_text, "WALL_START", 1)
+    header_text = set_header_param(header_text, "WALL_STRIDE", 1)
+    header_text = set_header_param(header_text, "WALL_END", n)
 
     header_path.write_text(header_text)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  Compile & Run
-# ═══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
+# COMPILE & RUN
+# ==============================================================================
 
-def compile_test(project_dir: Path = PROJECT_DIR, binary_path: Path = BINARY) -> bool:
-    """Compile the test binary. Returns True on success."""
+def compile_test(project_dir = PROJECT_DIR, binary_path = BINARY) -> bool:
+    """Compile test binary."""
     include_flag = f"-I{project_dir / 'include'}"
     build_dir = project_dir / ".fpga_tune_build"
     build_dir.mkdir(parents=True, exist_ok=True)
@@ -371,7 +412,7 @@ def compile_test(project_dir: Path = PROJECT_DIR, binary_path: Path = BINARY) ->
         cmd = ["gcc"] + C_FLAGS + [include_flag, "-c", str(src), "-o", str(obj)]
         result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(project_dir))
         if result.returncode != 0:
-            print(f"Compile failed for {src}")
+            print(f"Compile failed: {src}")
             if result.stderr:
                 print(result.stderr.splitlines()[-1])
             return False
@@ -383,7 +424,7 @@ def compile_test(project_dir: Path = PROJECT_DIR, binary_path: Path = BINARY) ->
         cmd = ["g++"] + CXX_FLAGS + [include_flag, "-x", "c++", "-c", str(src), "-o", str(obj)]
         result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(project_dir))
         if result.returncode != 0:
-            print(f"Compile failed for {src}")
+            print(f"Compile failed: {src}")
             if result.stderr:
                 print(result.stderr.splitlines()[-1])
             return False
@@ -391,20 +432,25 @@ def compile_test(project_dir: Path = PROJECT_DIR, binary_path: Path = BINARY) ->
 
     link_cmd = ["g++"] + obj_files + ["-o", str(binary_path), "-lm"]
     link_result = subprocess.run(link_cmd, capture_output=True, text=True, cwd=str(project_dir))
-    if link_result.returncode != 0:
-        print("Link failed for test binary")
-        if link_result.stderr:
-            print(link_result.stderr.splitlines()[-1])
+    
+    # Set execute permission on binary after linking
+    if link_result.returncode == 0:
+        import stat
+        binary_path.chmod(binary_path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    
     return link_result.returncode == 0
 
 
 def run_test(params: dict, raceline: str = None,
-             project_dir: Path = PROJECT_DIR,
-             header_path: Path = HEADER,
-             header_bak_path: Path = HEADER_BAK,
-             binary_path: Path = BINARY,
+             project_dir = PROJECT_DIR,
+             header_path = HEADER,
+             header_bak_path = HEADER_BAK,
+             binary_path = BINARY,
              base_params: dict = None) -> dict:
     """Apply params, compile, run, return parsed results."""
+    if base_params is None:
+        base_params = BASE_CONFIG
+
     apply_params(params, header_path=header_path, header_bak_path=header_bak_path,
                  base_params=base_params)
 
@@ -418,30 +464,23 @@ def run_test(params: dict, raceline: str = None,
     env["REALISTIC_DRIVE"] = "1"
     env["REALISTIC_DELAY"] = "1"
     env["REALISTIC_NOISE"] = "1"
+    env["MAP_YAML"] = HARDWARE_MAP_YAML
+    env["BODY_SAFETY_MARGIN"] = BODY_SAFETY_MARGIN_DEFAULT
+    env["BODY_SAFETY_MARGIN_M"] = BODY_SAFETY_MARGIN_DEFAULT
 
     if raceline:
-        # Keep both names for compatibility with different test binaries.
         env["RACELINE"] = str(raceline)
         env["RACELINE_PATH"] = str(raceline)
 
-    if ACTIVE_MODE == "Hardware":
-        env["MAP_YAML"] = HARDWARE_MAP_YAML
-        # Hardware map uses tighter corridors; use a less conservative
-        # body inflation than gym defaults for fair map-body checks.
-        env["BODY_SAFETY_MARGIN_M"] = "0.02"
-
-    cmd = [str(binary_path)]
-
     try:
         result = subprocess.run(
-            cmd,
+            [str(binary_path)],
             capture_output=True, text=True, timeout=180, env=env,
             cwd=str(project_dir)
         )
     except subprocess.TimeoutExpired:
         return {"status": "TIMEOUT", "passed": 0, "failed": 6}
 
-    # Parse CSV line
     for line in result.stdout.splitlines():
         if line.startswith("CSV,"):
             parts = line.split(",")
@@ -462,50 +501,65 @@ def run_test(params: dict, raceline: str = None,
                     "max_vel_err": float(parts[12]) if len(parts) > 12 else 12.0,
                     "avg_vel_err": float(parts[13]) if len(parts) > 13 else 5.0,
                     "avg_iters": float(parts[14]) if len(parts) > 14 else 0.0,
+                    "avg_vx": float(parts[15]) if len(parts) > 15 else 0.0,
                 }
             except (IndexError, ValueError):
                 pass
 
-    return {"status": "NO_CSV", "passed": 0, "failed": 6}
+    if result.returncode != 0:
+        return {"status": "EXIT_FAIL", "return_code": result.returncode, "passed": 0, "failed": 6}
+    return {"status": "NO_CSV", "return_code": result.returncode, "passed": 0, "failed": 6}
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  Scoring
-# ═══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
+# SCORING
+# ==============================================================================
 
-def compute_score(r: dict) -> float:
-    """Composite score (lower = better)."""
-    if r["status"] != "OK":
-        return 999.0
+def is_safe_result(r: dict) -> bool:
+    """True when run is valid and collision-free."""
+    return r.get("status") == "OK" and int(r.get("wall_collisions", 999)) == 0
 
-    if r["wall_collisions"] > 0:
-        return 500.0 + r["wall_collisions"] * 100.0
 
-    if ACTIVE_MODE == "Hardware":
-        tracking = (
-            r["avg_lat_err"] * 50.0 +
-            r["avg_vel_err"] * 20.0 +
-            r["max_lat_err"] * 10.0 +
-            r["avg_hdg_err"] * 15.0
-        )
-        # Match tracker intent: sub-5 m/s is not a hard fail, only a soft penalty.
-        velocity_penalty = max(0, 5.0 - r["max_vx"]) * 4.0
-        failure_penalty = r.get("failed", 0) * 5.0
-        solver = r.get("avg_iters", 0) * 0.2 + r["avg_solve_us"] * 0.001
-        return round(tracking + velocity_penalty + failure_penalty + solver, 3)
+def compute_tracker_score(r: dict) -> float:
+    """Tracker score: minimize trajectory-following errors (lower is better)."""
+    if not is_safe_result(r):
+        if r.get("status") != "OK":
+            return 5000.0
+        return 2000.0 + 100.0 * float(r.get("wall_collisions", 0))
 
-    score = (
-        max(0, 12.0 - r["max_vx"]) * 15.0 +
-        max(0, 60 - r["time_above_5ms"]) * 2.0 +
-        r["avg_lat_err"] * 5.0 +
-        r["max_lat_err"] * 1.0 +
-        r["avg_vel_err"] * 5.0 +
-        r["avg_hdg_err"] * 2.0 +
-        r.get("avg_iters", 0) * 0.3 +
-        r["avg_solve_us"] * 0.002
+    tracking = (
+        r["avg_lat_err"] * 80.0 +
+        r["max_lat_err"] * 15.0 +
+        r["avg_hdg_err"] * 35.0 +
+        r["max_hdg_err"] * 8.0 +
+        r["avg_vel_err"] * 40.0 +
+        r["max_vel_err"] * 4.0
     )
-    return round(score, 3)
+    solver = r.get("avg_iters", 0) * 0.2 + r["avg_solve_us"] * 0.001
+    return round(tracking + solver, 3)
 
+
+def compute_fastest_score(r: dict) -> float:
+    """Fastest score: maximize average speed while staying collision-free."""
+    if not is_safe_result(r):
+        if r.get("status") != "OK":
+            return 5000.0
+        return 2000.0 + 100.0 * float(r.get("wall_collisions", 0))
+
+    return round(-r.get("avg_vx", 0.0), 6)
+
+
+def apply_scores(r: dict, objective: str) -> dict:
+    """Attach scores to result row."""
+    r["tracker_score"] = compute_tracker_score(r)
+    r["fastest_score"] = compute_fastest_score(r)
+    r["score"] = r["tracker_score"] if objective == "tracker" else r["fastest_score"]
+    return r
+
+
+# ==============================================================================
+# WORKER SETUP (for parallel)
+# ==============================================================================
 
 def _setup_worker_context() -> dict:
     """Create one isolated workspace per process for safe parallel compilation."""
@@ -536,754 +590,564 @@ def _setup_worker_context() -> dict:
     return _WORKER_CTX
 
 
-def _run_single_parallel(job):
-    """Worker entrypoint: run one config in an isolated per-process copy."""
-    label, params, raceline = job
+def _run_single(args):
+    """Worker: run one test and return scored result."""
+    label, params, raceline, objective, base_params = args
     ctx = _setup_worker_context()
-    r = run_test(
-        params,
-        raceline=raceline,
-        project_dir=ctx["project_dir"],
-        header_path=ctx["header"],
-        header_bak_path=ctx["header_bak"],
-        binary_path=ctx["binary"],
-        base_params=BASE_PARAMS,
-    )
+    r = run_test(params, raceline=raceline, 
+                 project_dir=ctx["project_dir"],
+                 header_path=ctx["header"],
+                 header_bak_path=ctx["header_bak"],
+                 binary_path=ctx["binary"],
+                 base_params=base_params)
+    r = apply_scores(r, objective)
     r["label"] = label
-    r["score"] = compute_score(r)
-    r["params"] = dict(params)
+    r.update(canonicalize_params(params))
     return r
 
 
-class IncrementalCSV:
-    """Appends results after each test for crash/interruption safety."""
+# ==============================================================================
+# CSV WRITER
+# ==============================================================================
 
-    def __init__(self, filepath: Path, fieldnames: list[str]):
+class IncrementalCSV:
+    """Appends results to CSV file after each test for crash safety."""
+
+    def __init__(self, filepath, fieldnames):
         self.filepath = filepath
         self.fieldnames = fieldnames
-        self.header_written = False
+        self._header_written = False
 
-    def write_row(self, row: dict):
-        mode = "a" if self.header_written else "w"
-        with self.filepath.open(mode, newline="") as f:
+    def write_row(self, row):
+        mode = "a" if self._header_written else "w"
+        with open(self.filepath, mode, newline="") as f:
             writer = csv.DictWriter(f, fieldnames=self.fieldnames, extrasaction="ignore")
-            if not self.header_written:
+            if not self._header_written:
                 writer.writeheader()
-                self.header_written = True
+                self._header_written = True
             writer.writerow(row)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  Combination generators
-# ═══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
+# CONFIG GENERATORS
+# ==============================================================================
 
-def gen_structural_sweep(values, base_params=None):
-    """Phase 1a: dt × N × WALL_END × WALL_MARGIN (core structural).
-    WALL_START and WALL_STRIDE deferred to Phase 1b."""
-    if base_params is None:
-        base_params = BASE_PARAMS
-    combos = []
-    for dt in values.get("dt", [base_params["dt"]]):
-        for n in values.get("N", [base_params["N"]]):
-            for we in values.get("WALL_END", [base_params["WALL_END"]]):
-                if we >= n:
-                    continue
-                for wm in values.get("WALL_MARGIN", [base_params["WALL_MARGIN"]]):
-                    p = dict(base_params)
-                    p["dt"] = dt
-                    p["N"] = n
-                    p["WALL_END"] = we
-                    p["WALL_MARGIN"] = wm
-                    label = f"dt={dt}+N={n}+WE={we}+WM={wm}"
-                    combos.append((label, p))
+def gen_one_at_a_time() -> list:
+    """Phase 1: Vary each parameter one at a time from baseline."""
+    combos = [("BASELINE", dict(BASE))]
+
+    for name, values in FULL_SWEEP_VALUES.items():
+        for v in values:
+            if abs(v - BASE.get(name, -999)) < 1e-6:
+                continue
+            w = dict(BASE)
+            w[name] = v
+            if is_valid_config(w):
+                combos.append((f"{name}={v}", w))
+
     return combos
 
 
-def gen_wall_detail_sweep(best_structural, values):
-    """Phase 1b: WALL_START × WALL_STRIDE on best structural."""
+def gen_primary_grid() -> list:
+    """Phase 2: Primary grid sweep."""
     combos = []
-    n = int(best_structural.get("N", BASE_PARAMS["N"]))
-    we = int(best_structural.get("WALL_END", BASE_PARAMS["WALL_END"]))
-    for ws in values.get("WALL_START", [BASE_PARAMS["WALL_START"]]):
-        if ws >= we:
+
+    for dt in PHASE2_VALUES["dt"]:
+        for n in PHASE2_VALUES["N"]:
+            for ql in PHASE2_VALUES["Q_LAT"]:
+                for qh in PHASE2_VALUES["Q_HDG"]:
+                    for qv in PHASE2_VALUES["Q_VEL"]:
+                        w = dict(BASE)
+                        w["dt"] = dt
+                        w["N"] = n
+                        w["Q_LAT"] = ql
+                        w["Q_HDG"] = qh
+                        w["Q_VEL"] = qv
+
+                        if is_valid_config(w):
+                            combos.append((f"dt={dt}+N={n}+QL={ql}+QH={qh}+QV={qv}", w))
+
+    return combos
+
+
+def gen_secondary_grid() -> list:
+    """Phase 4: Secondary parameters grid."""
+    combos = []
+
+    for qlv in PHASE4_VALUES["Q_LAT_VEL"]:
+        for qy in PHASE4_VALUES["Q_YAW"]:
+            for rs in PHASE4_VALUES["R_STEER"]:
+                for wj in PHASE4_VALUES["W_JERK"]:
+                    for ra in PHASE4_VALUES["R_ACCEL"]:
+                        for war in PHASE4_VALUES["W_ACCEL_RATE"]:
+                            w = dict(BASE)
+                            w["Q_LAT_VEL"] = qlv
+                            w["Q_YAW"] = qy
+                            w["R_STEER"] = rs
+                            w["W_JERK"] = wj
+                            w["R_ACCEL"] = ra
+                            w["W_ACCEL_RATE"] = war
+                            combos.append((f"QLV={qlv}+QY={qy}+RS={rs}+WJ={wj}+RA={ra}+WAR={war}", w))
+
+    return combos
+
+
+def gen_solver_grid() -> list:
+    """Phase 5: Solver parameters grid."""
+    combos = []
+
+    for rho in PHASE5_VALUES["ADMM_RHO"]:
+        for rho_u in PHASE5_VALUES["ADMM_RHO_U"]:
+            for tol in PHASE5_VALUES["ADMM_TOL"]:
+                w = dict(BASE)
+                w["ADMM_RHO"] = rho
+                w["ADMM_RHO_U"] = rho_u
+                w["ADMM_TOL"] = tol
+                combos.append((f"rho={rho}+ru={rho_u}+tol={tol}", w))
+
+    return combos
+
+
+def gen_fine_tuning(best_weights: dict) -> list:
+    """Phase 6: Fine-tuning around best config."""
+    combos = []
+    pct_range = (0.80, 0.85, 0.90, 0.92, 0.95, 0.97, 1.03, 1.05, 1.08, 1.10, 1.15, 1.20)
+    skip = {"MAX_ADMM_ITER", "N", "WALL_STRIDE", "WALL_END", "WALL_MARGIN"}
+
+    for name, base_val in best_weights.items():
+        if base_val == 0 or name in skip:
             continue
-        for wst in values.get("WALL_STRIDE", [BASE_PARAMS["WALL_STRIDE"]]):
-            p = dict(best_structural)
-            p["WALL_START"] = ws
-            p["WALL_STRIDE"] = wst
-            label = f"bestStruct+WS={ws}+WST={wst}"
-            combos.append((label, p))
-    return combos
-
-
-def gen_primary_sweep(best_structural, values):
-    """Phase 2: Q_LAT × Q_HDG × Q_VEL grid on best structural."""
-    combos = []
-    for ql in values.get("Q_LAT", [BASE_PARAMS["Q_LAT"]]):
-        for qh in values.get("Q_HDG", [BASE_PARAMS["Q_HDG"]]):
-            for qv in values.get("Q_VEL", [BASE_PARAMS["Q_VEL"]]):
-                p = dict(best_structural)
-                p["Q_LAT"] = ql
-                p["Q_HDG"] = qh
-                p["Q_VEL"] = qv
-                label = f"QL={ql}+QH={qh}+QV={qv}"
-                combos.append((label, p))
-    return combos
-
-
-def gen_secondary_sweep(best_primary, values):
-    """Phase 3: One-at-a-time sweep of secondary weights."""
-    combos = []
-    secondary = ["Q_LAT_VEL", "Q_YAW", "R_STEER", "R_ACCEL", "W_JERK",
-                  "W_ACCEL_RATE", "W_DELTA_ACT", "STABILITY_LIMIT"]
-
-    for wname in secondary:
-        for v in values.get(wname, [best_primary.get(wname, BASE_PARAMS[wname])]):
-            p = dict(best_primary)
-            p[wname] = v
-            label = f"best+{wname}={v}"
-            combos.append((label, p))
-
-    # Pairwise combos for R_STEER × W_JERK (most coupled)
-    for rs in values.get("R_STEER", [BASE_PARAMS["R_STEER"]]):
-        for wj in values.get("W_JERK", [BASE_PARAMS["W_JERK"]]):
-            p = dict(best_primary)
-            p["R_STEER"] = rs
-            p["W_JERK"] = wj
-            label = f"best+RS={rs}+WJ={wj}"
-            combos.append((label, p))
-
-    return combos
-
-
-def gen_solver_sweep(best_so_far, values):
-    """Phase 4: ADMM solver parameters."""
-    combos = []
-    # One-at-a-time for all solver params
-    solver_params = ["ADMM_RHO", "ADMM_RHO_U", "ADMM_TOL", "MAX_ADMM_ITER"]
-    for sp in solver_params:
-        for v in values.get(sp, [best_so_far.get(sp, BASE_PARAMS[sp])]):
-            p = dict(best_so_far)
-            p[sp] = v
-            label = f"best+{sp}={v}"
-            combos.append((label, p))
-
-    # Pairwise RHO × RHO_U
-    for rho in values.get("ADMM_RHO", [BASE_PARAMS["ADMM_RHO"]]):
-        for rho_u in values.get("ADMM_RHO_U", [BASE_PARAMS["ADMM_RHO_U"]]):
-            p = dict(best_so_far)
-            p["ADMM_RHO"] = rho
-            p["ADMM_RHO_U"] = rho_u
-            label = f"best+rho={rho}+rho_u={rho_u}"
-            combos.append((label, p))
-
-    return combos
-
-
-def gen_fine_tune(best_params):
-    """Phase 5: ±5%, ±10%, ±25%, ±50% around best."""
-    combos = []
-    perturbations = [0.50, 0.75, 0.90, 0.95, 1.05, 1.10, 1.25, 1.50]
-    tunable = ["Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW",
-               "R_STEER", "W_JERK", "W_DELTA_ACT", "WALL_MARGIN"]
-
-    for wname in tunable:
-        base_val = best_params.get(wname, BASE_PARAMS[wname])
-        if base_val == 0:
-            continue
-        for mult in perturbations:
+        for mult in pct_range:
             new_val = round(base_val * mult, 6)
-            p = dict(best_params)
-            p[wname] = new_val
+            if name in INT_PARAMS:
+                new_val = int(new_val)
+
+            w = dict(best_weights)
+            w[name] = new_val
             pct = int((mult - 1.0) * 100)
             sign = "+" if pct >= 0 else ""
-            label = f"FT:{wname}{sign}{pct}%={new_val}"
-            combos.append((label, p))
-
-    # Pairwise ±10% for primary weights
-    primary = ["Q_LAT", "Q_HDG", "Q_VEL"]
-    for w1, w2 in itertools.combinations(primary, 2):
-        for m1 in [0.90, 1.10]:
-            for m2 in [0.90, 1.10]:
-                p = dict(best_params)
-                p[w1] = round(best_params[w1] * m1, 2)
-                p[w2] = round(best_params[w2] * m2, 2)
-                p1 = "+10%" if m1 > 1 else "-10%"
-                p2 = "+10%" if m2 > 1 else "-10%"
-                label = f"FT:{w1}{p1}+{w2}{p2}"
-                combos.append((label, p))
+            combos.append((f"FT:{name}{sign}{pct}%", w))
 
     return combos
 
 
-def deduplicate(combos):
-    """Remove duplicate parameter combinations."""
+def gen_random_neighbors(best_weights: dict, n: int, objective: str) -> list:
+    """Phase 7: Random perturbations around best config."""
+    combos = []
+    rng = random.Random(SEED)
+    profile = RANDOM_PROFILES.get(objective, RANDOM_PROFILES["tracker"])
+
+    discrete = profile.get("discrete", {})
+    param_multipliers = profile.get("param_multipliers", {})
+    default_multipliers = profile.get("default_multipliers", [0.85, 0.95, 1.0, 1.1, 1.2])
+    min_perturb, max_perturb = profile.get("num_perturb_range", (2, 4))
+
+    tune_params = [k for k in best_weights.keys()
+                   if k not in ("MAX_ADMM_ITER", "WALL_END", "WALL_STRIDE", "WALL_MARGIN")
+                   and best_weights[k] != 0]
+
+    i = 0
+    attempts = 0
+    max_attempts = max(100, n * 20)
+
+    while i < n and attempts < max_attempts:
+        attempts += 1
+        w = dict(best_weights)
+        num_perturb = rng.randint(min_perturb, min(max_perturb, len(tune_params)))
+        params_to_perturb = rng.sample(tune_params, num_perturb)
+
+        for name in params_to_perturb:
+            if name in discrete:
+                w[name] = rng.choice(discrete[name])
+            else:
+                mult = rng.choice(param_multipliers.get(name, default_multipliers))
+                w[name] = round(w[name] * mult, 6)
+
+            if name in INT_PARAMS:
+                w[name] = int(float(w[name]))
+                if name == "N":
+                    w[name] = max(2, min(50, w[name]))
+
+        if is_valid_config(w):
+            combos.append((f"RND_{i}", w))
+            i += 1
+
+    return combos
+
+
+# ==============================================================================
+# DEDUPLICATION
+# ==============================================================================
+
+def deduplicate(combos: list) -> list:
+    """Remove duplicate configurations."""
     seen = set()
     unique = []
+
     for label, params in combos:
-        key = tuple(sorted((k, round(v, 6) if isinstance(v, float) else v)
-                           for k, v in params.items()))
+        key = config_hash(params)
         if key not in seen:
             seen.add(key)
             unique.append((label, params))
+
     return unique
 
 
-def top_n_param_sets(results, n, base_params):
-    """Return up to N unique best parameter dictionaries."""
-    if n <= 1:
-        return [find_best_params(results, base_params)]
+# ==============================================================================
+# PHASE RUNNER
+# ==============================================================================
 
-    ranked = sorted(results, key=lambda r: r.get("score", 999))
-    out = []
-    seen = set()
-    for r in ranked:
-        p = r.get("params", {})
-        if not p:
-            continue
-        key = param_key(p)
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(dict(p))
-        if len(out) >= n:
-            break
+def run_phase(phase_name: str, combos: list, results: list,
+              t0: float, num_workers: int, csv_writer, objective: str) -> tuple:
+    """Run a sweep phase. Returns (passed, failed)."""
+    combos = deduplicate(combos)
 
-    if not out:
-        out.append(dict(base_params))
-    return out
+    if not combos:
+        print(f"  ({phase_name}: empty, skipping)")
+        return 0, 0
 
-
-def filter_supported_sweep_values(values: dict, header_text: str) -> dict:
-    """Drop sweep keys that are not patchable by the active header."""
-    filtered = {}
-    dropped = []
-
-    for name, vals in values.items():
-        define_name = PARAM_TO_DEFINE.get(name)
-        if define_name is None:
-            filtered[name] = vals
-            continue
-
-        if re.search(rf"#define\s+{re.escape(define_name)}\b", header_text):
-            filtered[name] = vals
-        else:
-            dropped.append(name)
-
-    if dropped:
-        print("WARNING: Ignoring unsupported sweep parameters:", ", ".join(sorted(dropped)))
-    return filtered
-
-
-def preflight_validate(mode: str, racelines_to_test: list[tuple[str, str]]):
-    """Validate sweep wiring before starting a long run."""
-    required_files = [HEADER] + [PROJECT_DIR / s for s in C_SRC_FILES + CPP_SRC_FILES]
-    missing = [str(p) for p in required_files if not p.exists()]
-    if missing:
-        raise RuntimeError("Missing required source/header files:\n  " + "\n  ".join(missing))
-
-    for rl_name, rl_path in racelines_to_test:
-        if not Path(rl_path).exists():
-            raise RuntimeError(f"Raceline '{rl_name}' not found: {rl_path}")
-
-    if mode == "Hardware" and not Path(HARDWARE_MAP_YAML).exists():
-        raise RuntimeError(f"Hardware map yaml not found: {HARDWARE_MAP_YAML}")
-
-    # Fast compile + one baseline run to catch bad wiring early.
-    probe_raceline = racelines_to_test[0][1] if racelines_to_test else None
-    baseline = run_test(dict(BASE_PARAMS), raceline=probe_raceline)
-    if baseline.get("status") in ("COMPILE_FAIL", "NO_CSV", "TIMEOUT"):
-        raise RuntimeError(
-            "Preflight baseline failed "
-            f"(status={baseline.get('status')}). Fix sweep/sim wiring before long runs."
-        )
-
-
-def gen_random_neighbors(best_params, n_samples=150):
-    """Phase 6: Random perturbations around the best config.
-    Each sample randomly perturbs 2-5 parameters by ±5-40%."""
-    random.seed(42)
-    combos = []
-    tunable = ["Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW",
-               "R_STEER", "W_JERK", "W_ACCEL_RATE", "W_DELTA_ACT",
-               "WALL_MARGIN", "ADMM_RHO", "ADMM_RHO_U"]
-
-    for i in range(n_samples):
-        p = dict(best_params)
-        n_perturb = random.randint(2, 5)
-        chosen = random.sample(tunable, min(n_perturb, len(tunable)))
-        parts = []
-        for wname in chosen:
-            base_val = best_params.get(wname, BASE_PARAMS[wname])
-            if base_val == 0:
-                continue
-            mult = random.uniform(0.60, 1.40)
-            new_val = round(base_val * mult, 6)
-            if new_val <= 0:
-                new_val = round(base_val * 0.5, 6)
-            p[wname] = new_val
-            parts.append(f"{wname}={new_val:.3g}")
-        label = f"RND{i+1}:" + "+".join(parts[:3])
-        combos.append((label, p))
-
-    return combos
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  Main
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def main():
-    global ACTIVE_MODE, BASE_PARAMS, CASCADE_TOP_N, ACTIVE_SWEEP_KEYS
-
-    mode = "Spielberg"
-    for arg in sys.argv[1:]:
-        if arg in ("Spielberg", "spielberg"):
-            mode = "Spielberg"
-        elif arg in ("Hardware", "hardware"):
-            mode = "Hardware"
-
-    quick = "--quick" in sys.argv
-    phase_only = None
-    raceline_name = None
-    num_workers = 1
-    cascade_top = 1
-    for i, arg in enumerate(sys.argv):
-        if arg == "--phase" and i + 1 < len(sys.argv):
-            phase_only = int(sys.argv[i + 1])
-        if arg == "--raceline" and i + 1 < len(sys.argv):
-            raceline_name = sys.argv[i + 1]
-        if arg == "--jobs" and i + 1 < len(sys.argv):
-            num_workers = int(sys.argv[i + 1])
-        if arg == "-j" and i + 1 < len(sys.argv):
-            num_workers = int(sys.argv[i + 1])
-        if arg == "--cascade-top" and i + 1 < len(sys.argv):
-            cascade_top = int(sys.argv[i + 1])
-    single = "--single" in sys.argv
-    all_racelines = "--all-racelines" in sys.argv
-
-    if num_workers <= 0:
-        num_workers = multiprocessing.cpu_count()
-    CASCADE_TOP_N = max(1, cascade_top)
-
-    ACTIVE_MODE = mode
-    if mode == "Hardware":
-        BASE_PARAMS = dict(HARDWARE_BASE_PARAMS)
-        full_values_mode = HARDWARE_FULL_VALUES
-        quick_values_mode = HARDWARE_QUICK_VALUES
-        racelines_mode = HARDWARE_RACELINES
-        per_raceline_wm_mode = HARDWARE_PER_RACELINE_WM
-    else:
-        BASE_PARAMS = dict(SPIELBERG_BASE_PARAMS)
-        full_values_mode = SPIELBERG_FULL_VALUES
-        quick_values_mode = SPIELBERG_QUICK_VALUES
-        racelines_mode = SPIELBERG_RACELINES
-        per_raceline_wm_mode = SPIELBERG_PER_RACELINE_WM
-
-    os.chdir(str(PROJECT_DIR))
-
-    # Resolve raceline path
-    raceline_path = None
-    if raceline_name:
-        if raceline_name in racelines_mode:
-            raceline_path = racelines_mode[raceline_name]
-        elif os.path.isfile(raceline_name):
-            raceline_path = raceline_name
-        else:
-            print(f"ERROR: Unknown raceline '{raceline_name}'. "
-                  f"Available: {', '.join(racelines_mode.keys())}")
-            return 1
-
-    # Backup header
-    if not HEADER_BAK.exists():
-        shutil.copy2(HEADER, HEADER_BAK)
-    else:
-        # Ensure we have a clean backup
-        pass
-
-    try:
-        header_for_filter = HEADER_BAK.read_text() if HEADER_BAK.exists() else HEADER.read_text()
-        raw_values = quick_values_mode if quick else full_values_mode
-        values = filter_supported_sweep_values(raw_values, header_for_filter)
-        ACTIVE_SWEEP_KEYS = set(values.keys())
-
-        print(f"Workers: {num_workers} ({'sequential' if num_workers == 1 else 'parallel'})")
-        print(f"Mode: {mode}")
-        print(f"Objective: tracker")
-        print(f"Cascade top-N: {CASCADE_TOP_N}")
-
-        if single:
-            params = dict(BASE_PARAMS)
-            for arg in sys.argv:
-                if "=" in arg and not arg.startswith("--"):
-                    k, v = arg.split("=", 1)
-                    if k in BASE_PARAMS:
-                        params[k] = float(v) if "." in v else int(v)
-            print(f"Testing: { {k: v for k, v in params.items() if v != BASE_PARAMS.get(k)} }")
-            r = run_test(params, raceline=raceline_path)
-            score = compute_score(r)
-            print(f"Result: {r}")
-            print(f"Score:  {score}")
-            return
-
-        available_racelines = {}
-        for tag, path in racelines_mode.items():
-            if os.path.exists(path):
-                available_racelines[tag] = path
-                print(f"Raceline [{tag}]: {path}")
-            else:
-                print(f"Raceline [{tag}]: NOT FOUND ({path})")
-
-        if not available_racelines:
-            raise RuntimeError("No racelines found for selected mode")
-
-        # If --all-racelines, iterate over all available racelines
-        if all_racelines:
-            racelines_to_test = list(available_racelines.items())
-        elif raceline_name:
-            if raceline_name in available_racelines:
-                racelines_to_test = [(raceline_name, available_racelines[raceline_name])]
-            elif raceline_path and os.path.exists(raceline_path):
-                racelines_to_test = [(raceline_name, raceline_path)]
-            else:
-                raise RuntimeError(f"Requested raceline not found: {raceline_name}")
-        else:
-            if mode == "Hardware":
-                racelines_to_test = [("hardware", available_racelines["hardware"])]
-            else:
-                racelines_to_test = [("spielberg", available_racelines["spielberg"])]
-
-        preflight_validate(mode, racelines_to_test)
-
-        for rl_name, rl_path in racelines_to_test:
-            print(f"\n{'#'*80}")
-            print(f"# RACELINE: {rl_name}")
-            print(f"{'#'*80}")
-
-            # Override WALL_MARGIN baseline for this raceline
-            sweep_base = dict(BASE_PARAMS)
-            if rl_name in per_raceline_wm_mode:
-                sweep_base["WALL_MARGIN"] = per_raceline_wm_mode[rl_name]
-
-            run_sweep(values, phase_only, quick, rl_path, rl_name, sweep_base, num_workers, CASCADE_TOP_N)
-
-    finally:
-        # Restore original header
-        if HEADER_BAK.exists():
-            shutil.copy2(HEADER_BAK, HEADER)
-            HEADER_BAK.unlink()
-        if BINARY.exists():
-            BINARY.unlink()
-        if WORKER_ROOT.exists():
-            shutil.rmtree(WORKER_ROOT, ignore_errors=True)
-
-
-def run_sweep(values, phase_only, quick, raceline_path, raceline_name, base_params,
-              num_workers=1, cascade_top=1):
-    """Run a full multi-phase sweep for one raceline."""
-    all_results = []
-    t0 = time.time()
-
-    mode = "QUICK" if quick else "EXHAUSTIVE"
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    results_dir = PROJECT_DIR / "testbench" / "tuning_results"
-    results_dir.mkdir(parents=True, exist_ok=True)
-    outfile = results_dir / f"fpga_tuning_{ACTIVE_MODE.lower()}_{raceline_name}_{timestamp}.csv"
-    sorted_outfile = results_dir / f"fpga_tuning_{ACTIVE_MODE.lower()}_{raceline_name}_{timestamp}_sorted.csv"
-
-    fieldnames = ["label", "phase", "raceline", "score", "passed", "failed",
-                  "max_lat_err", "avg_lat_err", "max_hdg_err", "avg_hdg_err",
-                  "max_vx", "avg_vel_err", "max_vel_err", "avg_solve_us",
-                  "max_solve_us", "wall_collisions", "time_above_5ms",
-                  "avg_iters", "status"] + sorted(PARAM_TO_DEFINE.keys())
-    csv_writer = IncrementalCSV(outfile, fieldnames)
-
+    total = len(combos)
     print(f"\n{'='*80}")
-    print(f"FPGA MPC Parameter Tuning — {mode} — raceline={raceline_name}")
-    print(f"Results (incremental): {outfile}")
+    print(f"{phase_name} - {total} configurations ({num_workers} workers)")
     print(f"{'='*80}")
 
-    rl = raceline_path
-
-    # ─── Phase 1a: Structural (dt × N × WALL_END × WALL_MARGIN) ────
-    if phase_only is None or phase_only == 1:
-        combos = gen_structural_sweep(values, base_params)
-        combos = deduplicate(combos)
-        print(f"\n--- Phase 1a: Structural sweep ({len(combos)} configs) ---")
-        phase_results = run_phase("Phase 1a", combos, all_results, t0, rl,
-                                  num_workers=num_workers, raceline_label=raceline_name,
-                                  csv_writer=csv_writer)
-        all_results.extend(phase_results)
-        print_top(phase_results, "Phase 1a")
-
-        # Phase 1b: WALL_START × WALL_STRIDE on best structural
-        best_struct = find_best_params(all_results, base_params)
-        combos_b = gen_wall_detail_sweep(best_struct, values)
-        combos_b = deduplicate(combos_b)
-        tested = get_tested_keys(all_results)
-        combos_b = [(l, p) for l, p in combos_b if param_key(p) not in tested]
-        if combos_b:
-            print(f"\n--- Phase 1b: Wall detail ({len(combos_b)} configs) ---")
-            phase_results_b = run_phase("Phase 1b", combos_b, all_results, t0, rl,
-                                        num_workers=num_workers, raceline_label=raceline_name,
-                                        csv_writer=csv_writer)
-            all_results.extend(phase_results_b)
-            print_top(phase_results_b, "Phase 1b")
-
-    # Find best structural
-    best_struct = find_best_params(all_results, base_params)
-    print(f"\nBest structural: dt={best_struct.get('dt')}, "
-          f"N={best_struct.get('N')}, "
-          f"WE={best_struct.get('WALL_END')}, "
-          f"WM={best_struct.get('WALL_MARGIN')}, "
-          f"WS={best_struct.get('WALL_START')}, "
-          f"WST={best_struct.get('WALL_STRIDE')}")
-
-    # ─── Phase 2: Primary weights ───────────────────────────────────
-    if phase_only is None or phase_only == 2:
-        combos = gen_primary_sweep(best_struct, values)
-        combos = deduplicate(combos)
-        print(f"\n--- Phase 2: Primary weights ({len(combos)} configs) ---")
-        phase_results = run_phase("Phase 2", combos, all_results, t0, rl,
-                                  num_workers=num_workers, raceline_label=raceline_name,
-                                  csv_writer=csv_writer)
-        all_results.extend(phase_results)
-        print_top(phase_results, "Phase 2")
-
-    best_primary = find_best_params(all_results, base_params)
-    branches = [best_primary]
-    if phase_only is None and cascade_top > 1:
-        branches = top_n_param_sets(all_results, cascade_top, base_params)
-
-    for branch_idx, branch_base in enumerate(branches, start=1):
-        branch_tag = f"[branch {branch_idx}/{len(branches)}]" if len(branches) > 1 else ""
-        current_best = dict(branch_base)
-
-        if len(branches) > 1:
-            print(f"\n>>> CASCADE {branch_tag} <<<")
-
-        # ─── Phase 3: Secondary weights ─────────────────────────────
-        if phase_only is None or phase_only == 3:
-            combos = gen_secondary_sweep(current_best, values)
-            combos = deduplicate(combos)
-            print(f"\n--- Phase 3 {branch_tag}: Secondary weights ({len(combos)} configs) ---")
-            phase_results = run_phase(f"Phase 3 {branch_tag}".strip(), combos, all_results, t0, rl,
-                                      num_workers=num_workers, raceline_label=raceline_name,
-                                      csv_writer=csv_writer)
-            all_results.extend(phase_results)
-            print_top(phase_results, f"Phase 3 {branch_tag}".strip())
-            current_best = find_best_params(all_results, base_params)
-
-        # ─── Phase 4: ADMM solver ───────────────────────────────────
-        if phase_only is None or phase_only == 4:
-            combos = gen_solver_sweep(current_best, values)
-            combos = deduplicate(combos)
-            print(f"\n--- Phase 4 {branch_tag}: ADMM parameters ({len(combos)} configs) ---")
-            phase_results = run_phase(f"Phase 4 {branch_tag}".strip(), combos, all_results, t0, rl,
-                                      num_workers=num_workers, raceline_label=raceline_name,
-                                      csv_writer=csv_writer)
-            all_results.extend(phase_results)
-            print_top(phase_results, f"Phase 4 {branch_tag}".strip())
-            current_best = find_best_params(all_results, base_params)
-
-        # ─── Phase 5: Fine-tuning ───────────────────────────────────
-        if phase_only is None or phase_only == 5:
-            combos = gen_fine_tune(current_best)
-            combos = deduplicate(combos)
-            tested = get_tested_keys(all_results)
-            combos = [(l, p) for l, p in combos if param_key(p) not in tested]
-            print(f"\n--- Phase 5 {branch_tag}: Fine-tuning ({len(combos)} configs) ---")
-            phase_results = run_phase(f"Phase 5 {branch_tag}".strip(), combos, all_results, t0, rl,
-                                      num_workers=num_workers, raceline_label=raceline_name,
-                                      csv_writer=csv_writer)
-            all_results.extend(phase_results)
-            print_top(phase_results, f"Phase 5 {branch_tag}".strip())
-            current_best = find_best_params(all_results, base_params)
-
-        # ─── Phase 6: Random neighbors ──────────────────────────────
-        if phase_only is None or phase_only == 6:
-            n_random = 600 if not quick else 60
-            combos = gen_random_neighbors(current_best, n_random)
-            combos = deduplicate(combos)
-            tested = get_tested_keys(all_results)
-            combos = [(l, p) for l, p in combos if param_key(p) not in tested]
-            print(f"\n--- Phase 6 {branch_tag}: Random neighbors ({len(combos)} configs) ---")
-            phase_results = run_phase(f"Phase 6 {branch_tag}".strip(), combos, all_results, t0, rl,
-                                      num_workers=num_workers, raceline_label=raceline_name,
-                                      csv_writer=csv_writer)
-            all_results.extend(phase_results)
-            print_top(phase_results, f"Phase 6 {branch_tag}".strip())
-
-    # ─── Final report ───────────────────────────────────────────────
-    elapsed = time.time() - t0
-    save_results(all_results, sorted_outfile)
-
-    print(f"\n{'='*80}")
-    print(f"[{raceline_name}] Completed {len(all_results)} tests in {elapsed:.1f}s")
-    print(f"Incremental results: {outfile}")
-    print(f"Sorted results:      {sorted_outfile}")
-    print(f"{'='*80}")
-
-    print_top(all_results, f"OVERALL ({raceline_name})", n=30)
-
-    best_final = find_best_params(all_results, base_params)
-    print(f"\n--- Best Configuration ({raceline_name}) ---")
-    for k, v in sorted(best_final.items()):
-        if k in PARAM_TO_DEFINE:
-            base = base_params.get(k)
-            marker = " ←CHANGED" if base is not None and abs(v - base) > 1e-6 else ""
-            print(f"  {k:16s} = {v}{marker}")
-
-
-def _flatten_result_row(result: dict) -> dict:
-    row = dict(result)
-    for k, v in result.get("params", {}).items():
-        row[k] = v
-    return row
-
-
-def run_phase(phase_name, combos, previous_results, t0,
-              raceline=None, num_workers=1, raceline_label="", csv_writer=None):
-    """Run all combos, print progress, return results."""
-    results = []
-    tested = get_tested_keys(previous_results)
-    pending = [(l, p) for l, p in combos if param_key(p) not in tested]
-    total = len(pending)
-
-    if total == 0:
-        return results
-
-    if num_workers > 1 and not WORKER_ROOT.exists():
-        WORKER_ROOT.mkdir(parents=True, exist_ok=True)
+    passed = failed = 0
 
     if num_workers <= 1:
-        for i, (label, params) in enumerate(pending):
+        # Sequential
+        for i, (label, params) in enumerate(combos):
             elapsed = time.time() - t0
-            rate = max((len(previous_results) + len(results) + 1) / max(elapsed, 0.01), 0.1)
-            eta = (total - i - 1) / rate
-            print(f"[{i+1:4d}/{total}] {label:55s} ", end="", flush=True)
+            rate = max(len(results), 1) / max(elapsed, 0.01)
+            eta = (total - i - 1) / max(rate, 0.01)
+            print(f"  [{i+1:4d}/{total}] {label:55s} ", end="", flush=True)
 
-            r = run_test(params, raceline=raceline, base_params=BASE_PARAMS)
-            score = compute_score(r)
+            r = run_test(params, raceline=str(RACELINE_PATH), base_params=BASE)
+            r = apply_scores(r, objective)
             r["label"] = label
-            r["score"] = score
-            r["params"] = dict(params)
-            r["phase"] = phase_name
-            r["raceline"] = raceline_label or "default"
+            r.update(canonicalize_params(params))
             results.append(r)
+
             if csv_writer:
-                csv_writer.write_row(_flatten_result_row(r))
+                csv_writer.write_row(r)
 
             if r["status"] != "OK":
-                print(f"  → {r['status']}  (ETA {eta:.0f}s)")
-            elif r["wall_collisions"] > 0:
-                print(f"  → wc={r['wall_collisions']}  t5={r['time_above_5ms']:.0f}s  "
+                failed += 1
+                print(f"FAIL  (ETA {eta:.0f}s)")
+            elif not is_safe_result(r):
+                failed += 1
+                print(f"unsafe wc={r.get('wall_collisions', '?')}  (ETA {eta:.0f}s)")
+            else:
+                passed += 1
+                print(f"sc={r['score']:7.2f}  avx={r.get('avg_vx', 0.0):.2f}  "
                       f"lat={r['avg_lat_err']:.3f}  (ETA {eta:.0f}s)")
-            else:
-                tf = f"  tf={r.get('failed', 0)}" if r.get("failed", 0) > 0 else ""
-                print(f"  → PASS sc={score:.2f}  t5={r['time_above_5ms']:.0f}s  "
-                      f"vmax={r['max_vx']:.1f}  lat={r['avg_lat_err']:.3f}{tf}  (ETA {eta:.0f}s)")
-        return results
+    else:
+        # Parallel
+        done_count = 0
+        with ProcessPoolExecutor(max_workers=num_workers) as executor:
+            it = ((label, params, str(RACELINE_PATH), objective, BASE) for label, params in combos)
+            max_in_flight = max(num_workers * 4, num_workers + 2)
+            futures = set()
 
-    jobs = [(label, params, raceline) for label, params in pending]
-    done = 0
-    with ProcessPoolExecutor(max_workers=num_workers) as executor:
-        futures = [executor.submit(_run_single_parallel, job) for job in jobs]
-        for fut in as_completed(futures):
-            done += 1
-            r = fut.result()
-            r["phase"] = phase_name
-            r["raceline"] = raceline_label or "default"
-            results.append(r)
-            if csv_writer:
-                csv_writer.write_row(_flatten_result_row(r))
+            for _ in range(min(total, max_in_flight)):
+                try:
+                    futures.add(executor.submit(_run_single, next(it)))
+                except StopIteration:
+                    break
 
-            elapsed = time.time() - t0
-            rate = max((len(previous_results) + done) / max(elapsed, 0.01), 0.1)
-            eta = (total - done) / rate
+            while futures:
+                done, futures = wait(futures, return_when=FIRST_COMPLETED)
+                for future in done:
+                    try:
+                        futures.add(executor.submit(_run_single, next(it)))
+                    except StopIteration:
+                        pass
 
-            if r["status"] != "OK":
-                print(f"[{done:4d}/{total}] {r['label']:55s}   → {r['status']}  (ETA {eta:.0f}s)")
-            elif r["wall_collisions"] > 0:
-                print(f"[{done:4d}/{total}] {r['label']:55s}   → wc={r['wall_collisions']}  "
-                      f"t5={r['time_above_5ms']:.0f}s  lat={r['avg_lat_err']:.3f}  (ETA {eta:.0f}s)")
-            else:
-                tf = f"  tf={r.get('failed', 0)}" if r.get("failed", 0) > 0 else ""
-                print(f"[{done:4d}/{total}] {r['label']:55s}   → PASS sc={r['score']:.2f}  "
-                      f"t5={r['time_above_5ms']:.0f}s  vmax={r['max_vx']:.1f}  "
-                      f"lat={r['avg_lat_err']:.3f}{tf}  (ETA {eta:.0f}s)")
+                    done_count += 1
+                    r = future.result()
+                    results.append(r)
 
-    return results
+                    if csv_writer:
+                        csv_writer.write_row(r)
 
+                    elapsed = time.time() - t0
+                    rate = max(done_count, 1) / max(elapsed, 0.01)
+                    eta = (total - done_count) / max(rate, 0.01)
 
-def find_best_params(results, base_params=None):
-    """Return the params of the best result."""
-    if base_params is None:
-        base_params = BASE_PARAMS
-    if not results:
-        return dict(base_params)
-    best = min(results, key=lambda r: r.get("score", 999))
-    return best.get("params", dict(base_params))
+                    if r["status"] != "OK":
+                        failed += 1
+                        print(f"  [{done_count:4d}/{total}] {r['label']:55s} FAIL  (ETA {eta:.0f}s)")
+                    elif not is_safe_result(r):
+                        failed += 1
+                        print(f"  [{done_count:4d}/{total}] {r['label']:55s} "
+                              f"unsafe wc={r.get('wall_collisions', '?')}  (ETA {eta:.0f}s)")
+                    else:
+                        passed += 1
+                        print(f"  [{done_count:4d}/{total}] {r['label']:55s} "
+                              f"sc={r['score']:7.2f}  avx={r.get('avg_vx', 0.0):.2f}  "
+                              f"lat={r['avg_lat_err']:.3f}  (ETA {eta:.0f}s)")
 
-
-def param_key(params):
-    """Create a hashable key for a parameter set."""
-    return tuple(sorted((k, round(v, 6) if isinstance(v, float) else v)
-                        for k, v in params.items() if k in PARAM_TO_DEFINE))
+    return passed, failed
 
 
-def get_tested_keys(results):
-    """Get set of already-tested parameter keys."""
-    keys = set()
-    for r in results:
-        p = r.get("params", {})
-        if p:
-            keys.add(param_key(p))
-    return keys
+# ==============================================================================
+# RESULT HELPERS
+# ==============================================================================
+
+def get_top_n_params(results: list, n: int = CASCADE_TOP_N) -> list:
+    """Return list of up to N best params dicts."""
+    safe = [r for r in results if is_safe_result(r)]
+
+    if not safe:
+        unsafe = sorted(results, key=lambda x: (
+            0 if x.get("status") == "OK" else 1,
+            x.get("wall_collisions", 999),
+            x.get("score", 99999)
+        ))
+        safe = unsafe[:n] if unsafe else []
+        if safe:
+            print("  WARNING: No safe candidates yet; using least-bad configs for cascade.")
+    else:
+        safe.sort(key=lambda x: x.get("score", 999999.0))
+
+    seen = set()
+    unique = []
+    for r in safe:
+        key = config_hash({k: r.get(k, BASE[k]) for k in BASE.keys()})
+        if key not in seen:
+            seen.add(key)
+            params = {k: r.get(k, BASE[k]) for k in BASE.keys()}
+            unique.append((r, params))
+        if len(unique) >= n:
+            break
+
+    if unique:
+        for i, (r, _) in enumerate(unique):
+            print(f"  Top-{i+1}: {r['label'][:50]} "
+                  f"(score={r.get('score', 0.0):.2f}, avx={r.get('avg_vx', 0):.2f})")
+
+    return [p for _, p in unique]
 
 
-def print_top(results, phase_name, n=10):
-    """Print top N results from this phase."""
-    passing = [r for r in results if r.get("score", 999) < 500]
-    best = sorted(results, key=lambda r: (r.get("score", 999),
-                                          r.get("wall_collisions", 99),
-                                          -r.get("time_above_5ms", 0)))
-
-    print(f"\n  Top {min(n, len(best))} — {phase_name}:")
-    fmt = "  {:<4} {:<55} {:>7} {:>5} {:>5} {:>6} {:>6}"
-    print(fmt.format("Rank", "Label", "Score", "T>5s", "WC", "AvgLat", "MaxVx"))
-    for i, r in enumerate(best[:n]):
-        print(fmt.format(
-            i+1, r['label'][:55],
-            f"{r.get('score', 999):.1f}",
-            f"{r.get('time_above_5ms', 0):.0f}",
-            str(r.get('wall_collisions', '?')),
-            f"{r.get('avg_lat_err', 0):.3f}",
-            f"{r.get('max_vx', 0):.1f}"))
-
-    if passing:
-        print(f"\n  *** {len(passing)} configs passed without wall collisions ***")
+def update_base(new_params: dict):
+    """Update BASE dict with new values."""
+    if new_params:
+        for k in BASE:
+            if k in new_params:
+                BASE[k] = new_params[k]
 
 
-def save_results(results, outfile):
-    """Save all results to CSV."""
-    if not results:
-        return
+# ==============================================================================
+# MAIN
+# ==============================================================================
 
-    fieldnames = ["label", "phase", "raceline", "score", "passed", "failed",
-                  "max_lat_err", "avg_lat_err", "max_hdg_err", "avg_hdg_err",
-                  "max_vx", "avg_vel_err", "max_vel_err",
-                  "avg_solve_us", "max_solve_us",
-                  "wall_collisions", "time_above_5ms", "avg_iters", "status"]
-    # Add all tunable params
-    for k in sorted(PARAM_TO_DEFINE.keys()):
-        fieldnames.append(k)
+def main():
+    global BASE, RACELINE_PATH, RACELINE_TAG
 
-    with open(outfile, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-        writer.writeheader()
-        for r in sorted(results, key=lambda x: x.get("score", 999)):
-            writer.writerow(_flatten_result_row(r))
+    # Parse arguments
+    num_workers = multiprocessing.cpu_count()
+    objective = "tracker"
+    raceline_override = None
+
+    for i, arg in enumerate(sys.argv[1:]):
+        if arg in ("--jobs", "-j") and i + 1 < len(sys.argv) - 1:
+            try:
+                num_workers = int(sys.argv[i + 2])
+            except ValueError:
+                num_workers = multiprocessing.cpu_count()
+            if num_workers <= 0:
+                num_workers = multiprocessing.cpu_count()
+        if arg == "--objective" and i + 1 < len(sys.argv) - 1:
+            objective = sys.argv[i + 2].strip().lower()
+        if arg == "--raceline" and i + 1 < len(sys.argv) - 1:
+            raceline_override = sys.argv[i + 2].strip()
+
+    if objective not in ("tracker", "fastest"):
+        print("ERROR: --objective must be 'tracker' or 'fastest'")
+        sys.exit(1)
+
+    if raceline_override:
+        RACELINE_PATH = resolve_raceline_path(raceline_override)
+    else:
+        RACELINE_PATH = str(RACELINE_PATH.resolve())
+    RACELINE_TAG = infer_raceline_tag(RACELINE_PATH)
+
+    # Initialize BASE with user's best config
+    BASE.update(BASE_CONFIG)
+
+    print(f"\n{'='*80}")
+    print("FPGA MPC Weight Tuning - Hardware Map (7-Phase Cascade)")
+    print(f"{'='*80}")
+    print(f"  Workers:     {num_workers}")
+    print(f"  Objective:   {objective}")
+    print(f"  Cascade:     top {CASCADE_TOP_N}")
+    print(f"  Raceline:    {RACELINE_PATH}")
+    print(f"  Raceline tag:{RACELINE_TAG}")
+
+    os.chdir(PROJECT_DIR)
+
+    # Backup and build
+    if not HEADER_BAK.exists():
+        shutil.copy2(HEADER, HEADER_BAK)
+        print("  Created header backup")
+
+    print("\nBuilding test binary...")
+    if not compile_test():
+        print("BUILD FAILED")
+        sys.exit(1)
+    print("  Build OK")
+
+    if not Path(RACELINE_PATH).exists():
+        print(f"ERROR: Raceline not found: {RACELINE_PATH}")
+        sys.exit(1)
+
+    # Setup
+    results = []
+    t0 = time.time()
+    total_p = total_f = 0
+
+    # CSV writer
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    outfile = f"tuning_results/fpga_tuning_hardware_{objective}_{timestamp}.csv"
+    Path("tuning_results").mkdir(exist_ok=True)
+    fieldnames = (
+        ["label", "score", "tracker_score", "fastest_score",
+         "passed", "failed", "max_lat_err", "avg_lat_err",
+         "max_hdg_err", "avg_hdg_err", "max_vx", "avg_vx",
+         "avg_vel_err", "max_vel_err", "avg_solve_us", "max_solve_us",
+         "wall_collisions", "time_above_5ms", "avg_iters", "status"]
+        + list(BASE.keys())
+    )
+    csv_writer = IncrementalCSV(outfile, fieldnames)
+    print(f"  Results: {outfile}\n")
+
+    # ========== PHASE 1: One-at-a-time ==========
+    p, f = run_phase("Phase 1: One-at-a-time sensitivity",
+                     gen_one_at_a_time(), results, t0,
+                     num_workers, csv_writer, objective)
+    total_p += p
+    total_f += f
+
+    # ========== PHASE 2: Primary grid ==========
+    combos = gen_primary_grid()
+    print(f"\n  Phase 2 will test {len(combos):,} configurations")
+    p, f = run_phase("Phase 2: Primary grid (dt x N x Q_LAT x Q_HDG x Q_VEL)",
+                     combos, results, t0,
+                     num_workers, csv_writer, objective)
+    total_p += p
+    total_f += f
+
+    # Get top N for cascade
+    print("\n  Selecting top configs for cascade...")
+    top_configs = get_top_n_params(results)
+    if not top_configs:
+        top_configs = [dict(BASE)]
+
+    # ========== PHASES 3-7: Cascade from top configs ==========
+    for ci, cascade_base in enumerate(top_configs):
+        print(f"\n{'#'*80}")
+        print(f"# CASCADE BRANCH {ci+1}/{len(top_configs)}")
+        print(f"{'#'*80}")
+
+        update_base(cascade_base)
+
+        # Phase 3: Skipped (wall margin fixed)
+        print("\n  Phase 3: Skipped (wall margin is fixed for hardware)")
+
+        # Phase 4: Secondary grid
+        p, f = run_phase(f"Phase 4: Secondary grid [branch {ci+1}]",
+                         gen_secondary_grid(), results, t0,
+                         num_workers, csv_writer, objective)
+        total_p += p
+        total_f += f
+
+        # Update to best
+        top = get_top_n_params(results, n=1)
+        if top:
+            update_base(top[0])
+
+        # Phase 5: Solver grid
+        p, f = run_phase(f"Phase 5: Solver parameters [branch {ci+1}]",
+                         gen_solver_grid(), results, t0,
+                         num_workers, csv_writer, objective)
+        total_p += p
+        total_f += f
+
+        # Update to best
+        top = get_top_n_params(results, n=1)
+        if top:
+            update_base(top[0])
+
+        # Phase 6: Fine-tuning
+        best = get_top_n_params(results, n=1)
+        if best:
+            p, f = run_phase(f"Phase 6: Fine-tuning [branch {ci+1}]",
+                             gen_fine_tuning(best[0]), results, t0,
+                             num_workers, csv_writer, objective)
+            total_p += p
+            total_f += f
+
+        # Phase 7: Random neighbors
+        best = get_top_n_params(results, n=1)
+        if best:
+            n_random = 2000
+            p, f = run_phase(f"Phase 7: Random neighbors ({n_random}) [branch {ci+1}]",
+                             gen_random_neighbors(best[0], n_random, objective),
+                             results, t0,
+                             num_workers, csv_writer, objective)
+            total_p += p
+            total_f += f
+
+    # ========== FINAL RESULTS ==========
+    results.sort(key=lambda x: x.get("score", 999999.0))
+    elapsed = time.time() - t0
+
+    print(f"\n{'='*80}")
+    print(f"COMPLETED {len(results):,} tests in {elapsed:.1f}s ({elapsed/60:.1f} min)")
+    print(f"  Passed: {total_p}  Failed: {total_f}")
+    print(f"{'='*80}")
+
+    # Write sorted results
+    sorted_file = outfile.replace(".csv", "_sorted.csv")
+    if results:
+        with open(sorted_file, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(results)
+        print(f"Results: {sorted_file}")
+
+    # Show top results
+    safe = [r for r in results if is_safe_result(r)]
+    if safe:
+        print(f"\n{'='*80}")
+        print(f"TOP 20 RESULTS ({objective} objective)")
+        print(f"{'='*80}")
+
+        fmt = "{:<4} {:<45} {:>8} {:>6} {:>6} {:>6} {:>3}"
+        print(fmt.format("Rank", "Label", "Score", "AvgVx", "AvgLat", "AvgVE", "WC"))
+        print("-" * 90)
+
+        top = sorted(safe, key=lambda x: x.get("score", 999999.0))[:20]
+        for i, r in enumerate(top):
+            print(fmt.format(
+                i+1,
+                r['label'][:45],
+                f"{r.get('score', 0.0):.2f}",
+                f"{r.get('avg_vx', 0.0):.2f}",
+                f"{r['avg_lat_err']:.4f}",
+                f"{r['avg_vel_err']:.2f}",
+                f"{r.get('wall_collisions', '-')}"
+            ))
+
+        best = top[0]
+        print(f"\nBEST CONFIGURATION:")
+        print(f"  Score: {best.get('score', 0.0):.2f}")
+        print(f"  Avg velocity: {best.get('avg_vx', 0.0):.2f} m/s")
+        print(f"  Avg lat err: {best['avg_lat_err']:.4f} m")
+        print(f"  ---")
+        for k in iter_ordered_base_keys():
+            print(f"  {k:15s} = {best.get(k, BASE[k])}")
+
+    return 0
 
 
 if __name__ == "__main__":
