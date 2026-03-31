@@ -99,7 +99,6 @@ def generate_launch_description():
     cte_speed_floor_ratio_arg = DeclareLaunchArgument(
         'cte_speed_floor_ratio',
         default_value='0.50',
-        default_value='0.37',
         description='Minimum speed ratio after CTE slowdown [0..1]'
     )
 

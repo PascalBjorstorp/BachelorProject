@@ -46,7 +46,7 @@ void ParticleFilter::init(const Config& pf_cfg,
     d_scratch_w_.allocate(cfg_.max_particles);
 
     // Pre-allocate range buffer based on max_beams config
-    max_ranges_ = sm_cfg.max_beams;
+    max_ranges_ = sm_cfg.max_beams + 1;
     d_ranges_.allocate(max_ranges_);
 
     // CUB temp storage for GPU reductions
