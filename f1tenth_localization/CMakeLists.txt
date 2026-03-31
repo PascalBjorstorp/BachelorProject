@@ -173,20 +173,20 @@ endif()
 #  Pipeline Latency Monitor (CPU-only, no CUDA dependency)
 # ================================================================
 add_executable(pipeline_latency_monitor
-  gpu_amcl_cpp/src/core/pipeline_latency_monitor.cpp
+  src/core/pipeline_latency_monitor.cpp
 )
 target_include_directories(pipeline_latency_monitor PUBLIC
-  gpu_amcl_cpp/include
+  include
 )
 ament_target_dependencies(pipeline_latency_monitor
   rclcpp sensor_msgs geometry_msgs ackermann_msgs
 )
 
 add_executable(performance_monitor_cpp
-  gpu_amcl_cpp/src/core/performance_monitor.cpp
+  src/core/performance_monitor.cpp
 )
 target_include_directories(performance_monitor_cpp PUBLIC
-  gpu_amcl_cpp/include
+  include
 )
 ament_target_dependencies(performance_monitor_cpp
   rclcpp
@@ -201,14 +201,27 @@ install(TARGETS
 # ================================================================
 #  Python gpu_amcl (existing)
 # ================================================================
-# Install gpu_amcl Python module (importable as 'gpu_amcl')
-ament_python_install_package(gpu_amcl)
+# Install gpu_amcl Python module (importable as 'gpu_amcl') if present
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/gpu_amcl/__init__.py")
+  ament_python_install_package(gpu_amcl)
+else()
+  message(STATUS "gpu_amcl package missing __init__.py; skipping ament_python_install_package(gpu_amcl)")
+endif()
 
-# Install Python scripts as executables
-install(PROGRAMS
+# Install Python scripts as executables (skip optional legacy node if absent)
+set(LOCALIZATION_PYTHON_SCRIPTS
   Benchmark/localization_benchmark.py
   Benchmark/JetsonFiles/odom_tf_publisher.py
-  gpu_amcl/scripts/gpu_amcl_node.py
+)
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/gpu_amcl/scripts/gpu_amcl_node.py")
+  list(APPEND LOCALIZATION_PYTHON_SCRIPTS gpu_amcl/scripts/gpu_amcl_node.py)
+else()
+  message(STATUS "gpu_amcl/scripts/gpu_amcl_node.py not found; skipping install")
+endif()
+
+install(PROGRAMS
+  ${LOCALIZATION_PYTHON_SCRIPTS}
   DESTINATION lib/${PROJECT_NAME}
 )
 
