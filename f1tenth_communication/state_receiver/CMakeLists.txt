@@ -21,7 +21,7 @@ find_package(ackermann_msgs REQUIRED)
 # ===========================================================================
 add_executable(mpc_receiver_node src/mpc_receiver.cpp)
 target_include_directories(mpc_receiver_node PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../FPGA_Implementations/MPC_FPGA/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../FPGA_Implementations/MPC_FPGA_Ultra96/include
 )
 ament_target_dependencies(mpc_receiver_node
   rclcpp

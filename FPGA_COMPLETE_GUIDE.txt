@@ -31,13 +31,13 @@ scp -r /home/f1tenth/BachelorProject/f1tenth_communication/state_receiver xilinx
 # and with the documented layout (~ros2_ws/src/state_receiver) this resolves to:
 #   ~/ros2_ws/FPGA_Implementations/MPC_FPGA/include
 ssh xilinx@10.23.0.120 "mkdir -p /home/xilinx/ros2_ws/FPGA_Implementations/MPC_FPGA"
-scp -r /home/f1tenth/BachelorProject/FPGA_Implementations/MPC_FPGA/include xilinx@10.23.0.120:/home/xilinx/ros2_ws/FPGA_Implementations/MPC_FPGA/
+scp -r /home/f1tenth/BachelorProject/FPGA_Implementations/MPC_FPGA_Ultra96/include xilinx@10.23.0.120:/home/xilinx/ros2_ws/FPGA_Implementations/MPC_FPGA/
 
 # Step 4: Copy tools directory
 scp -r /home/f1tenth/BachelorProject/f1tenth_communication/tools xilinx@10.23.0.120:/home/xilinx/
 
 # Step 5: Copy device tree overlay
-scp /home/f1tenth/BachelorProject/FPGA_Implementations/MPC_FPGA/docs/mpc_ref_buffers.dtbo xilinx@10.23.0.120:/home/xilinx/
+scp /home/f1tenth/BachelorProject/FPGA_Implementations/MPC_FPGA_Ultra96/docs/mpc_ref_buffers.dtbo xilinx@10.23.0.120:/home/xilinx/
 
 # Step 6: Copy XSA file (if updated)
 scp /home/f1tenth/BachelorProject/Ultra96_MPC/mpc_design_wrapper.xsa xilinx@10.23.0.120:/home/xilinx/MPC_FPGA/
@@ -50,15 +50,11 @@ scp /home/f1tenth/BachelorProject/Ultra96_MPC/mpc_design_wrapper.xsa xilinx@10.2
 ssh xilinx@10.23.0.120
 # Password: xilinx
 
-# Step 8: Remove old duplicate packages (if they exist)
-rm -rf ~/ros2_ws/src/f1tenth_msgs
-rm -rf ~/ros2_ws/src/state_receiver
-
-# Step 9: Check structure
+# Step 8: Check structure
 ls ~/ros2_ws/src/
 # Should show the packages in f1tenth_communication/ or directly
 
-# Step 10: Build ROS packages
+# Step 9: Build ROS packages
 cd ~/ros2_ws
 source /home/xilinx/ros2_humble/install/setup.bash
 colcon build --packages-select f1tenth_msgs state_receiver
@@ -67,7 +63,7 @@ colcon build --packages-select f1tenth_msgs state_receiver
 # PART 4: PROGRAM FPGA AND VERIFY ADDRESSES
 # =============================================
 
-# Step 11: Program FPGA (this worked!)
+# Step 10: Program FPGA (this worked!)
 XSA_PATH="/home/xilinx/MPC_FPGA/mpc_design_wrapper.xsa"
 sudo -E python3 - <<PY
 from pynq import Overlay
@@ -75,11 +71,11 @@ Overlay("$XSA_PATH", download=True)
 print("PL programmed from XSA")
 PY
 
-# Step 12: Verify FPGA state
+# Step 11: Verify FPGA state
 cat /sys/class/fpga_manager/fpga0/state
 # Should show: "operating"
 
-# Step 13: Verify addresses are accessible
+# Step 12: Verify addresses are accessible
 sudo python3 << 'EOF'
 import mmap
 import os
@@ -104,10 +100,10 @@ EOF
 # PART 5: RUN MPC RECEIVER (on Ultra96)
 # =============================================
 
-# Step 14: Make scripts executable
+# Step 13: Make scripts executable
 chmod +x ~/tools/*.sh
 
-# Step 15: Run the MPC receiver script
+# Step 14: Run the MPC receiver script
 cd /home/xilinx
 ./tools/ultra96_flash_and_run_receiver.sh
 
@@ -136,7 +132,7 @@ sudo -E bash -c "
 # PART 6: RUN STATE PUBLISHER (on Jetson)
 # =============================================
 
-# Step 16: In a new terminal on Jetson
+# Step 15: In a new terminal on Jetson
 cd /home/f1tenth/BachelorProject
 source install/setup.bash
 ros2 launch state_publisher state_publisher_launch.py
@@ -173,10 +169,10 @@ sudo -E /usr/local/share/pynq-venv/bin/python3 -c "from pynq import Overlay; Ove
 # - Missing/corrupted files in /boot or rootfs
 # - FAT "dirty bit" warnings
 
-# Step 17: Power off Ultra96, remove SD card, insert into Linux host
+# Step 16: Power off Ultra96, remove SD card, insert into Linux host
 # IMPORTANT: Never run fsck on mounted partitions.
 
-# Step 18: Confirm device is /dev/sda in your fixed setup
+# Step 17: Confirm device is /dev/sda in your fixed setup
 lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINT,LABEL
 
 # This guide assumes your fixed setup:
@@ -184,7 +180,7 @@ lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINT,LABEL
 #   /dev/sda2 = rootfs (ext4)
 #   /dev/sda  = full SD device
 
-# Step 19: Unmount all SD partitions
+# Step 18: Unmount all SD partitions
 sudo umount /dev/sda1 2>/dev/null || true
 sudo umount /dev/sda2 2>/dev/null || true
 
@@ -192,13 +188,13 @@ sudo umount /dev/sda2 2>/dev/null || true
 sudo fsck.vfat -vn /dev/sda1
 sudo e2fsck -fn /dev/sda2
 
-# Step 20: Repair boot partition (FAT)
+# Step 19: Repair boot partition (FAT)
 sudo fsck.vfat -a /dev/sda1
 
-# Step 21: Repair root filesystem (ext4)
+# Step 20: Repair root filesystem (ext4)
 sudo e2fsck -f -y /dev/sda2
 
-# Step 22: Re-check that both partitions are clean
+# Step 21: Re-check that both partitions are clean
 sudo fsck.vfat -vn /dev/sda1
 sudo e2fsck -fn /dev/sda2
 # Expected: no remaining filesystem errors.
@@ -206,7 +202,7 @@ sudo e2fsck -fn /dev/sda2
 # Optional (if corruption repeats): check media health (slow)
 sudo badblocks -sv /dev/sda
 
-# Step 23: Mount and verify key files still exist
+# Step 22: Mount and verify key files still exist
 sudo mkdir -p /mnt/sdboot /mnt/sdroot
 sudo mount /dev/sda1 /mnt/sdboot
 sudo mount /dev/sda2 /mnt/sdroot
@@ -215,7 +211,7 @@ ls /mnt/sdroot/home/xilinx
 sudo umount /mnt/sdboot
 sudo umount /mnt/sdroot
 
-# Step 24: Reinsert SD card and boot Ultra96
+# Step 23: Reinsert SD card and boot Ultra96
 # If boot still fails repeatedly, reflash the SD image and recopy project files.
 
 # PREVENTION: Always clean shutdown before removing power
