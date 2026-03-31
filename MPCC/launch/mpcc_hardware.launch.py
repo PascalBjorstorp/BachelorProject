@@ -44,7 +44,6 @@ def _resolve_default_trajectory() -> str:
     candidates.extend(
         [
             os.path.join(workspace_root, "f1tenth_planning", "trajectories", "my_track_raceline.csv"),
-            "/ros2_ws/src/f1tenth_planning/trajectories/my_track_raceline.csv",
         ]
     )
 
