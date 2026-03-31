@@ -287,26 +287,26 @@ void mpc_compute_hls(
     /* ---------------------------------------------------------------
      * Step 3: Terminal cost
      * --------------------------------------------------------------- */
-    fixed_point_t terminal_Q[MPC_NX_AUG];
-    fixed_point_t terminal_q[MPC_NX_AUG];
+    fixed_point_t terminal_q_diag[MPC_NX_AUG];
+    fixed_point_t terminal_q_linear[MPC_NX_AUG];
     for (i = 0; i < MPC_NX_AUG; i++) {
 #pragma HLS UNROLL
-        terminal_Q[i] = 0;
-        terminal_q[i] = 0;
+        terminal_q_diag[i] = 0;
+        terminal_q_linear[i] = 0;
     }
 
-    terminal_Q[0] = MPC_Q2_LAT_ERROR;
-    terminal_Q[1] = MPC_Q2_HEADING;
-    terminal_Q[2] = MPC_Q2_VELOCITY;
-    terminal_Q[3] = MPC_Q2_LAT_VEL;
-    terminal_Q[4] = MPC_Q2_YAW_RATE;
-    terminal_Q[IDX_DELTA_ACT] = MPC_Q2_DELTA_ACT;
+    terminal_q_diag[0] = MPC_Q2_LAT_ERROR;
+    terminal_q_diag[1] = MPC_Q2_HEADING;
+    terminal_q_diag[2] = MPC_Q2_VELOCITY;
+    terminal_q_diag[3] = MPC_Q2_LAT_VEL;
+    terminal_q_diag[4] = MPC_Q2_YAW_RATE;
+    terminal_q_diag[IDX_DELTA_ACT] = MPC_Q2_DELTA_ACT;
 
     if (N > 0) {
-        terminal_q[2] = fp_neg(fp_mul(terminal_Q[2], ref[N-1].velocity));
+        terminal_q_linear[2] = fp_neg(fp_mul(terminal_q_diag[2], ref[N-1].velocity));
         fixed_point_t kN = ref[N-1].kappa;
         fixed_point_t dff_N = fp_mul(VP_WHEELBASE, kN);  /* atan(x)≈x */
-        terminal_q[IDX_DELTA_ACT] = fp_neg(fp_mul(terminal_Q[IDX_DELTA_ACT], dff_N));
+        terminal_q_linear[IDX_DELTA_ACT] = fp_neg(fp_mul(terminal_q_diag[IDX_DELTA_ACT], dff_N));
     }
 
     /* ---------------------------------------------------------------
@@ -365,7 +365,7 @@ void mpc_compute_hls(
     }
 
     MpcStatus_t rstatus = riccati_admm_solve_hls(
-        step_data, terminal_Q, terminal_q, x0,
+        step_data, terminal_q_diag, terminal_q_linear, x0,
         &solver_cfg, admm_state, &sol);
 
     /* ---------------------------------------------------------------

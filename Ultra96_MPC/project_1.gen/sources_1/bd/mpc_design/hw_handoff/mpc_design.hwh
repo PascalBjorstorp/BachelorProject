@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
-<EDKSYSTEM EDWVERSION="1.2" TIMESTAMP="Sun Mar 29 22:23:57 2026" VIVADOVERSION="2025.1">
+<EDKSYSTEM EDWVERSION="1.2" TIMESTAMP="Tue Mar 31 19:03:19 2026" VIVADOVERSION="2025.1">
 
   <SYSTEMINFO ARCH="zynquplus" BOARD="avnet.com:ultra96v2:part0:1.2" DEVICE="xczu3eg" NAME="mpc_design" PACKAGE="sbva484" SPEEDGRADE="-1"/>
 
@@ -897,7 +897,7 @@
             <CONNECTION INSTANCE="rst_ps8_0_99M" PORT="peripheral_aresetn"/>
           </CONNECTIONS>
         </PORT>
-        <PORT CLKFREQUENCY="100000000" DIR="I" NAME="m_axi_mm2s_aclk" SIGIS="clk" SIGNAME="zynq_ultra_ps_e_0_pl_clk0">
+        <PORT CLKFREQUENCY="78643326" DIR="I" NAME="m_axi_mm2s_aclk" SIGIS="clk" SIGNAME="zynq_ultra_ps_e_0_pl_clk0">
           <CONNECTIONS>
             <CONNECTION INSTANCE="zynq_ultra_ps_e_0" PORT="pl_clk0"/>
           </CONNECTIONS>
@@ -969,27 +969,27 @@
         </PORT>
         <PORT DIR="O" LEFT="127" NAME="m_axis_mm2s_tdata" RIGHT="0" SIGIS="undef" SIGNAME="axi_dma_0_m_axis_mm2s_tdata">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="input_stream_TDATA"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="input_stream_TDATA"/>
           </CONNECTIONS>
         </PORT>
         <PORT DIR="O" LEFT="15" NAME="m_axis_mm2s_tkeep" RIGHT="0" SIGIS="undef" SIGNAME="axi_dma_0_m_axis_mm2s_tkeep">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="input_stream_TKEEP"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="input_stream_TKEEP"/>
           </CONNECTIONS>
         </PORT>
         <PORT DIR="O" NAME="m_axis_mm2s_tlast" SIGIS="undef" SIGNAME="axi_dma_0_m_axis_mm2s_tlast">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="input_stream_TLAST"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="input_stream_TLAST"/>
           </CONNECTIONS>
         </PORT>
         <PORT DIR="I" NAME="m_axis_mm2s_tready" SIGIS="undef" SIGNAME="axi_dma_0_m_axis_mm2s_tready">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="input_stream_TREADY"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="input_stream_TREADY"/>
           </CONNECTIONS>
         </PORT>
         <PORT DIR="O" NAME="m_axis_mm2s_tvalid" SIGIS="undef" SIGNAME="axi_dma_0_m_axis_mm2s_tvalid">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="input_stream_TVALID"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="input_stream_TVALID"/>
           </CONNECTIONS>
         </PORT>
         <PORT DIR="O" NAME="mm2s_introut" SENSITIVITY="LEVEL_HIGH" SIGIS="INTERRUPT" SIGNAME="axi_dma_0_mm2s_introut">
@@ -998,7 +998,7 @@
           </CONNECTIONS>
         </PORT>
         <PORT DIR="O" NAME="mm2s_prmry_reset_out_n" POLARITY="ACTIVE_LOW" SIGIS="rst"/>
-        <PORT CLKFREQUENCY="100000000" DIR="I" NAME="s_axi_lite_aclk" SIGIS="clk" SIGNAME="zynq_ultra_ps_e_0_pl_clk0">
+        <PORT CLKFREQUENCY="78643326" DIR="I" NAME="s_axi_lite_aclk" SIGIS="clk" SIGNAME="zynq_ultra_ps_e_0_pl_clk0">
           <CONNECTIONS>
             <CONNECTION INSTANCE="zynq_ultra_ps_e_0" PORT="pl_clk0"/>
           </CONNECTIONS>
@@ -1092,7 +1092,7 @@
           <PARAMETER NAME="BUSER_WIDTH" VALUE="0"/>
           <PARAMETER NAME="CLK_DOMAIN" VALUE="mpc_design_zynq_ultra_ps_e_0_1_pl_clk0"/>
           <PARAMETER NAME="DATA_WIDTH" VALUE="32"/>
-          <PARAMETER NAME="FREQ_HZ" VALUE="100000000"/>
+          <PARAMETER NAME="FREQ_HZ" VALUE="78643326"/>
           <PARAMETER NAME="HAS_BRESP" VALUE="1"/>
           <PARAMETER NAME="HAS_BURST" VALUE="0"/>
           <PARAMETER NAME="HAS_CACHE" VALUE="0"/>
@@ -1143,7 +1143,7 @@
           <PARAMETER NAME="BUSER_WIDTH" VALUE="0"/>
           <PARAMETER NAME="CLK_DOMAIN" VALUE="mpc_design_zynq_ultra_ps_e_0_1_pl_clk0"/>
           <PARAMETER NAME="DATA_WIDTH" VALUE="128"/>
-          <PARAMETER NAME="FREQ_HZ" VALUE="100000000"/>
+          <PARAMETER NAME="FREQ_HZ" VALUE="78643326"/>
           <PARAMETER NAME="HAS_BRESP" VALUE="0"/>
           <PARAMETER NAME="HAS_BURST" VALUE="0"/>
           <PARAMETER NAME="HAS_CACHE" VALUE="1"/>
@@ -1186,7 +1186,7 @@
         </BUSINTERFACE>
         <BUSINTERFACE BUSNAME="axi_dma_0_M_AXIS_MM2S" NAME="M_AXIS_MM2S" TYPE="INITIATOR" VLNV="xilinx.com:interface:axis:1.0">
           <PARAMETER NAME="CLK_DOMAIN" VALUE="mpc_design_zynq_ultra_ps_e_0_1_pl_clk0"/>
-          <PARAMETER NAME="FREQ_HZ" VALUE="100000000"/>
+          <PARAMETER NAME="FREQ_HZ" VALUE="78643326"/>
           <PARAMETER NAME="HAS_TKEEP" VALUE="1"/>
           <PARAMETER NAME="HAS_TLAST" VALUE="1"/>
           <PARAMETER NAME="HAS_TREADY" VALUE="1"/>
@@ -1212,7 +1212,7 @@
       </MEMORYMAP>
       <PERIPHERALS>
         <PERIPHERAL INSTANCE="zynq_ultra_ps_e_0"/>
-        <PERIPHERAL INSTANCE="mpc_fpga_top_0"/>
+        <PERIPHERAL INSTANCE="mpc_fpga_top_1"/>
       </PERIPHERALS>
     </MODULE>
     <MODULE COREREVISION="0" FULLNAME="/ilconcat_0" HWVERSION="2.0" INSTANCE="ilconcat_0" IPTYPE="PERIPHERAL" IS_ENABLE="1" MODCLASS="PERIPHERAL" MODTYPE="xlconcat" VLNV="xilinx.com:ip:xlconcat:2.0">
@@ -1357,9 +1357,9 @@
             <CONNECTION INSTANCE="axi_dma_0" PORT="mm2s_introut"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="I" LEFT="0" NAME="In1" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_0_interrupt">
+        <PORT DIR="I" LEFT="0" NAME="In1" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_1_interrupt">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="interrupt"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="interrupt"/>
           </CONNECTIONS>
         </PORT>
         <PORT DIR="O" LEFT="1" NAME="dout" RIGHT="0" SIGIS="undef" SIGNAME="ilconcat_0_dout">
@@ -1370,7 +1370,7 @@
       </PORTS>
       <BUSINTERFACES/>
     </MODULE>
-    <MODULE COREREVISION="2114542761" FULLNAME="/mpc_fpga_top_0" HWVERSION="1.0" INSTANCE="mpc_fpga_top_0" IPTYPE="PERIPHERAL" IS_ENABLE="1" MODCLASS="PERIPHERAL" MODTYPE="mpc_fpga_top" VLNV="f1tenth:mpc:mpc_fpga_top:1.0">
+    <MODULE COREREVISION="2114545437" FULLNAME="/mpc_fpga_top_1" HWVERSION="1.0" INSTANCE="mpc_fpga_top_1" IPTYPE="PERIPHERAL" IS_ENABLE="1" MODCLASS="PERIPHERAL" MODTYPE="mpc_fpga_top" VLNV="f1tenth:mpc:mpc_fpga_top:1.0">
       <DOCUMENTS/>
       <ADDRESSBLOCKS>
         <ADDRESSBLOCK ACCESS="read-write" INTERFACE="s_axi_ctrl" NAME="Reg" RANGE="65536" USAGE="register">
@@ -1791,7 +1791,7 @@
       <PARAMETERS>
         <PARAMETER NAME="C_S_AXI_CTRL_ADDR_WIDTH" VALUE="7"/>
         <PARAMETER NAME="C_S_AXI_CTRL_DATA_WIDTH" VALUE="32"/>
-        <PARAMETER NAME="Component_Name" VALUE="mpc_design_mpc_fpga_top_0_2"/>
+        <PARAMETER NAME="Component_Name" VALUE="mpc_design_mpc_fpga_top_1_0"/>
         <PARAMETER NAME="II" VALUE="6 ~ 39276"/>
         <PARAMETER NAME="clk_period" VALUE="10"/>
         <PARAMETER NAME="combinational" VALUE="0"/>
@@ -1802,7 +1802,7 @@
         <PARAMETER NAME="C_S_AXI_CTRL_HIGHADDR" VALUE="0xA001FFFF"/>
       </PARAMETERS>
       <PORTS>
-        <PORT CLKFREQUENCY="100000000" DIR="I" NAME="ap_clk" SIGIS="clk" SIGNAME="zynq_ultra_ps_e_0_pl_clk0">
+        <PORT CLKFREQUENCY="78643326" DIR="I" NAME="ap_clk" SIGIS="clk" SIGNAME="zynq_ultra_ps_e_0_pl_clk0">
           <CONNECTIONS>
             <CONNECTION INSTANCE="zynq_ultra_ps_e_0" PORT="pl_clk0"/>
           </CONNECTIONS>
@@ -1837,92 +1837,92 @@
             <CONNECTION INSTANCE="axi_dma_0" PORT="m_axis_mm2s_tvalid"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="O" NAME="interrupt" SENSITIVITY="LEVEL_HIGH" SIGIS="INTERRUPT" SIGNAME="mpc_fpga_top_0_interrupt">
+        <PORT DIR="O" NAME="interrupt" SENSITIVITY="LEVEL_HIGH" SIGIS="INTERRUPT" SIGNAME="mpc_fpga_top_1_interrupt">
           <CONNECTIONS>
             <CONNECTION INSTANCE="ilconcat_0" PORT="In1"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="I" LEFT="6" NAME="s_axi_ctrl_ARADDR" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_ARADDR">
+        <PORT DIR="I" LEFT="6" NAME="s_axi_ctrl_ARADDR" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_ARADDR">
           <CONNECTIONS>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="M01_AXI_araddr"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="O" NAME="s_axi_ctrl_ARREADY" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_ARREADY">
+        <PORT DIR="O" NAME="s_axi_ctrl_ARREADY" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_ARREADY">
           <CONNECTIONS>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="M01_AXI_arready"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="I" NAME="s_axi_ctrl_ARVALID" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_ARVALID">
+        <PORT DIR="I" NAME="s_axi_ctrl_ARVALID" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_ARVALID">
           <CONNECTIONS>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="M01_AXI_arvalid"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="I" LEFT="6" NAME="s_axi_ctrl_AWADDR" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_AWADDR">
+        <PORT DIR="I" LEFT="6" NAME="s_axi_ctrl_AWADDR" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_AWADDR">
           <CONNECTIONS>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="M01_AXI_awaddr"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="O" NAME="s_axi_ctrl_AWREADY" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_AWREADY">
+        <PORT DIR="O" NAME="s_axi_ctrl_AWREADY" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_AWREADY">
           <CONNECTIONS>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="M01_AXI_awready"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="I" NAME="s_axi_ctrl_AWVALID" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_AWVALID">
+        <PORT DIR="I" NAME="s_axi_ctrl_AWVALID" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_AWVALID">
           <CONNECTIONS>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="M01_AXI_awvalid"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="I" NAME="s_axi_ctrl_BREADY" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_BREADY">
+        <PORT DIR="I" NAME="s_axi_ctrl_BREADY" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_BREADY">
           <CONNECTIONS>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="M01_AXI_bready"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="O" LEFT="1" NAME="s_axi_ctrl_BRESP" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_BRESP">
+        <PORT DIR="O" LEFT="1" NAME="s_axi_ctrl_BRESP" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_BRESP">
           <CONNECTIONS>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="M01_AXI_bresp"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="O" NAME="s_axi_ctrl_BVALID" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_BVALID">
+        <PORT DIR="O" NAME="s_axi_ctrl_BVALID" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_BVALID">
           <CONNECTIONS>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="M01_AXI_bvalid"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="O" LEFT="31" NAME="s_axi_ctrl_RDATA" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_RDATA">
+        <PORT DIR="O" LEFT="31" NAME="s_axi_ctrl_RDATA" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_RDATA">
           <CONNECTIONS>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="M01_AXI_rdata"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="I" NAME="s_axi_ctrl_RREADY" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_RREADY">
+        <PORT DIR="I" NAME="s_axi_ctrl_RREADY" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_RREADY">
           <CONNECTIONS>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="M01_AXI_rready"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="O" LEFT="1" NAME="s_axi_ctrl_RRESP" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_RRESP">
+        <PORT DIR="O" LEFT="1" NAME="s_axi_ctrl_RRESP" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_RRESP">
           <CONNECTIONS>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="M01_AXI_rresp"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="O" NAME="s_axi_ctrl_RVALID" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_RVALID">
+        <PORT DIR="O" NAME="s_axi_ctrl_RVALID" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_RVALID">
           <CONNECTIONS>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="M01_AXI_rvalid"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="I" LEFT="31" NAME="s_axi_ctrl_WDATA" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_WDATA">
+        <PORT DIR="I" LEFT="31" NAME="s_axi_ctrl_WDATA" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_WDATA">
           <CONNECTIONS>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="M01_AXI_wdata"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="O" NAME="s_axi_ctrl_WREADY" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_WREADY">
+        <PORT DIR="O" NAME="s_axi_ctrl_WREADY" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_WREADY">
           <CONNECTIONS>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="M01_AXI_wready"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="I" LEFT="3" NAME="s_axi_ctrl_WSTRB" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_WSTRB">
+        <PORT DIR="I" LEFT="3" NAME="s_axi_ctrl_WSTRB" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_WSTRB">
           <CONNECTIONS>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="M01_AXI_wstrb"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="I" NAME="s_axi_ctrl_WVALID" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_WVALID">
+        <PORT DIR="I" NAME="s_axi_ctrl_WVALID" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_WVALID">
           <CONNECTIONS>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="M01_AXI_wvalid"/>
           </CONNECTIONS>
@@ -1936,7 +1936,7 @@
           <PARAMETER NAME="BUSER_WIDTH" VALUE="0"/>
           <PARAMETER NAME="CLK_DOMAIN" VALUE="mpc_design_zynq_ultra_ps_e_0_1_pl_clk0"/>
           <PARAMETER NAME="DATA_WIDTH" VALUE="32"/>
-          <PARAMETER NAME="FREQ_HZ" VALUE="100000000"/>
+          <PARAMETER NAME="FREQ_HZ" VALUE="78643326"/>
           <PARAMETER NAME="HAS_BRESP" VALUE="1"/>
           <PARAMETER NAME="HAS_BURST" VALUE="0"/>
           <PARAMETER NAME="HAS_CACHE" VALUE="0"/>
@@ -1983,7 +1983,7 @@
         </BUSINTERFACE>
         <BUSINTERFACE BUSNAME="axi_dma_0_M_AXIS_MM2S" NAME="input_stream" TYPE="TARGET" VLNV="xilinx.com:interface:axis:1.0">
           <PARAMETER NAME="CLK_DOMAIN" VALUE="mpc_design_zynq_ultra_ps_e_0_1_pl_clk0"/>
-          <PARAMETER NAME="FREQ_HZ" VALUE="100000000"/>
+          <PARAMETER NAME="FREQ_HZ" VALUE="78643326"/>
           <PARAMETER NAME="HAS_TKEEP" VALUE="1"/>
           <PARAMETER NAME="HAS_TLAST" VALUE="1"/>
           <PARAMETER NAME="HAS_TREADY" VALUE="1"/>
@@ -2041,11 +2041,11 @@
             <CONNECTION INSTANCE="axi_dma_0" PORT="axi_resetn"/>
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="aresetn"/>
             <CONNECTION INSTANCE="smartconnect_data" PORT="aresetn"/>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="ap_rst_n"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="ap_rst_n"/>
           </CONNECTIONS>
         </PORT>
         <PORT DIR="O" LEFT="0" NAME="peripheral_reset" POLARITY="ACTIVE_HIGH" RIGHT="0" SIGIS="rst"/>
-        <PORT CLKFREQUENCY="100000000" DIR="I" NAME="slowest_sync_clk" SIGIS="clk" SIGNAME="zynq_ultra_ps_e_0_pl_clk0">
+        <PORT CLKFREQUENCY="78643326" DIR="I" NAME="slowest_sync_clk" SIGIS="clk" SIGNAME="zynq_ultra_ps_e_0_pl_clk0">
           <CONNECTIONS>
             <CONNECTION INSTANCE="zynq_ultra_ps_e_0" PORT="pl_clk0"/>
           </CONNECTIONS>
@@ -2149,89 +2149,89 @@
             <CONNECTION INSTANCE="axi_dma_0" PORT="s_axi_lite_wvalid"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="O" LEFT="6" NAME="M01_AXI_araddr" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_ARADDR">
+        <PORT DIR="O" LEFT="6" NAME="M01_AXI_araddr" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_ARADDR">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="s_axi_ctrl_ARADDR"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="s_axi_ctrl_ARADDR"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="I" NAME="M01_AXI_arready" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_ARREADY">
+        <PORT DIR="I" NAME="M01_AXI_arready" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_ARREADY">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="s_axi_ctrl_ARREADY"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="s_axi_ctrl_ARREADY"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="O" NAME="M01_AXI_arvalid" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_ARVALID">
+        <PORT DIR="O" NAME="M01_AXI_arvalid" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_ARVALID">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="s_axi_ctrl_ARVALID"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="s_axi_ctrl_ARVALID"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="O" LEFT="6" NAME="M01_AXI_awaddr" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_AWADDR">
+        <PORT DIR="O" LEFT="6" NAME="M01_AXI_awaddr" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_AWADDR">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="s_axi_ctrl_AWADDR"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="s_axi_ctrl_AWADDR"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="I" NAME="M01_AXI_awready" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_AWREADY">
+        <PORT DIR="I" NAME="M01_AXI_awready" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_AWREADY">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="s_axi_ctrl_AWREADY"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="s_axi_ctrl_AWREADY"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="O" NAME="M01_AXI_awvalid" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_AWVALID">
+        <PORT DIR="O" NAME="M01_AXI_awvalid" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_AWVALID">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="s_axi_ctrl_AWVALID"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="s_axi_ctrl_AWVALID"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="O" NAME="M01_AXI_bready" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_BREADY">
+        <PORT DIR="O" NAME="M01_AXI_bready" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_BREADY">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="s_axi_ctrl_BREADY"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="s_axi_ctrl_BREADY"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="I" LEFT="1" NAME="M01_AXI_bresp" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_BRESP">
+        <PORT DIR="I" LEFT="1" NAME="M01_AXI_bresp" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_BRESP">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="s_axi_ctrl_BRESP"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="s_axi_ctrl_BRESP"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="I" NAME="M01_AXI_bvalid" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_BVALID">
+        <PORT DIR="I" NAME="M01_AXI_bvalid" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_BVALID">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="s_axi_ctrl_BVALID"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="s_axi_ctrl_BVALID"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="I" LEFT="31" NAME="M01_AXI_rdata" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_RDATA">
+        <PORT DIR="I" LEFT="31" NAME="M01_AXI_rdata" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_RDATA">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="s_axi_ctrl_RDATA"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="s_axi_ctrl_RDATA"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="O" NAME="M01_AXI_rready" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_RREADY">
+        <PORT DIR="O" NAME="M01_AXI_rready" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_RREADY">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="s_axi_ctrl_RREADY"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="s_axi_ctrl_RREADY"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="I" LEFT="1" NAME="M01_AXI_rresp" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_RRESP">
+        <PORT DIR="I" LEFT="1" NAME="M01_AXI_rresp" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_RRESP">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="s_axi_ctrl_RRESP"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="s_axi_ctrl_RRESP"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="I" NAME="M01_AXI_rvalid" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_RVALID">
+        <PORT DIR="I" NAME="M01_AXI_rvalid" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_RVALID">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="s_axi_ctrl_RVALID"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="s_axi_ctrl_RVALID"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="O" LEFT="31" NAME="M01_AXI_wdata" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_WDATA">
+        <PORT DIR="O" LEFT="31" NAME="M01_AXI_wdata" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_WDATA">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="s_axi_ctrl_WDATA"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="s_axi_ctrl_WDATA"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="I" NAME="M01_AXI_wready" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_WREADY">
+        <PORT DIR="I" NAME="M01_AXI_wready" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_WREADY">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="s_axi_ctrl_WREADY"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="s_axi_ctrl_WREADY"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="O" LEFT="3" NAME="M01_AXI_wstrb" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_WSTRB">
+        <PORT DIR="O" LEFT="3" NAME="M01_AXI_wstrb" RIGHT="0" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_WSTRB">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="s_axi_ctrl_WSTRB"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="s_axi_ctrl_WSTRB"/>
           </CONNECTIONS>
         </PORT>
-        <PORT DIR="O" NAME="M01_AXI_wvalid" SIGIS="undef" SIGNAME="mpc_fpga_top_0_s_axi_ctrl_WVALID">
+        <PORT DIR="O" NAME="M01_AXI_wvalid" SIGIS="undef" SIGNAME="mpc_fpga_top_1_s_axi_ctrl_WVALID">
           <CONNECTIONS>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="s_axi_ctrl_WVALID"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="s_axi_ctrl_WVALID"/>
           </CONNECTIONS>
         </PORT>
         <PORT DIR="I" LEFT="39" NAME="S00_AXI_araddr" RIGHT="0" SIGIS="undef" SIGNAME="smartconnect_ctrl_S00_AXI_araddr">
@@ -2429,7 +2429,7 @@
             <CONNECTION INSTANCE="zynq_ultra_ps_e_0" PORT="maxigp0_wvalid"/>
           </CONNECTIONS>
         </PORT>
-        <PORT CLKFREQUENCY="100000000" DIR="I" NAME="aclk" SIGIS="clk" SIGNAME="zynq_ultra_ps_e_0_pl_clk0">
+        <PORT CLKFREQUENCY="78643326" DIR="I" NAME="aclk" SIGIS="clk" SIGNAME="zynq_ultra_ps_e_0_pl_clk0">
           <CONNECTIONS>
             <CONNECTION INSTANCE="zynq_ultra_ps_e_0" PORT="pl_clk0"/>
           </CONNECTIONS>
@@ -2448,7 +2448,7 @@
           <PARAMETER NAME="BUSER_WIDTH" VALUE="0"/>
           <PARAMETER NAME="CLK_DOMAIN" VALUE="mpc_design_zynq_ultra_ps_e_0_1_pl_clk0"/>
           <PARAMETER NAME="DATA_WIDTH" VALUE="32"/>
-          <PARAMETER NAME="FREQ_HZ" VALUE="100000000"/>
+          <PARAMETER NAME="FREQ_HZ" VALUE="78643326"/>
           <PARAMETER NAME="HAS_BRESP" VALUE="1"/>
           <PARAMETER NAME="HAS_BURST" VALUE="1"/>
           <PARAMETER NAME="HAS_CACHE" VALUE="1"/>
@@ -2522,7 +2522,7 @@
           <PARAMETER NAME="BUSER_WIDTH" VALUE="0"/>
           <PARAMETER NAME="CLK_DOMAIN" VALUE="mpc_design_zynq_ultra_ps_e_0_1_pl_clk0"/>
           <PARAMETER NAME="DATA_WIDTH" VALUE="32"/>
-          <PARAMETER NAME="FREQ_HZ" VALUE="100000000"/>
+          <PARAMETER NAME="FREQ_HZ" VALUE="78643326"/>
           <PARAMETER NAME="HAS_BRESP" VALUE="1"/>
           <PARAMETER NAME="HAS_BURST" VALUE="0"/>
           <PARAMETER NAME="HAS_CACHE" VALUE="0"/>
@@ -2573,7 +2573,7 @@
           <PARAMETER NAME="BUSER_WIDTH" VALUE="0"/>
           <PARAMETER NAME="CLK_DOMAIN" VALUE="mpc_design_zynq_ultra_ps_e_0_1_pl_clk0"/>
           <PARAMETER NAME="DATA_WIDTH" VALUE="32"/>
-          <PARAMETER NAME="FREQ_HZ" VALUE="100000000"/>
+          <PARAMETER NAME="FREQ_HZ" VALUE="78643326"/>
           <PARAMETER NAME="HAS_BRESP" VALUE="1"/>
           <PARAMETER NAME="HAS_BURST" VALUE="0"/>
           <PARAMETER NAME="HAS_CACHE" VALUE="0"/>
@@ -2776,7 +2776,7 @@
             <CONNECTION INSTANCE="axi_dma_0" PORT="m_axi_mm2s_rvalid"/>
           </CONNECTIONS>
         </PORT>
-        <PORT CLKFREQUENCY="100000000" DIR="I" NAME="aclk" SIGIS="clk" SIGNAME="zynq_ultra_ps_e_0_pl_clk0">
+        <PORT CLKFREQUENCY="78643326" DIR="I" NAME="aclk" SIGIS="clk" SIGNAME="zynq_ultra_ps_e_0_pl_clk0">
           <CONNECTIONS>
             <CONNECTION INSTANCE="zynq_ultra_ps_e_0" PORT="pl_clk0"/>
           </CONNECTIONS>
@@ -2795,7 +2795,7 @@
           <PARAMETER NAME="BUSER_WIDTH" VALUE="0"/>
           <PARAMETER NAME="CLK_DOMAIN" VALUE="mpc_design_zynq_ultra_ps_e_0_1_pl_clk0"/>
           <PARAMETER NAME="DATA_WIDTH" VALUE="128"/>
-          <PARAMETER NAME="FREQ_HZ" VALUE="100000000"/>
+          <PARAMETER NAME="FREQ_HZ" VALUE="78643326"/>
           <PARAMETER NAME="HAS_BRESP" VALUE="0"/>
           <PARAMETER NAME="HAS_BURST" VALUE="0"/>
           <PARAMETER NAME="HAS_CACHE" VALUE="1"/>
@@ -2843,7 +2843,7 @@
           <PARAMETER NAME="BUSER_WIDTH" VALUE="0"/>
           <PARAMETER NAME="CLK_DOMAIN" VALUE="mpc_design_zynq_ultra_ps_e_0_1_pl_clk0"/>
           <PARAMETER NAME="DATA_WIDTH" VALUE="128"/>
-          <PARAMETER NAME="FREQ_HZ" VALUE="100000000"/>
+          <PARAMETER NAME="FREQ_HZ" VALUE="78643326"/>
           <PARAMETER NAME="HAS_BRESP" VALUE="0"/>
           <PARAMETER NAME="HAS_BURST" VALUE="1"/>
           <PARAMETER NAME="HAS_CACHE" VALUE="1"/>
@@ -3612,10 +3612,10 @@
         <PARAMETER NAME="PSU__CRL_APB__CAN1_REF_CTRL__DIVISOR1" VALUE="1"/>
         <PARAMETER NAME="PSU__CRL_APB__CAN1_REF_CTRL__FREQMHZ" VALUE="100"/>
         <PARAMETER NAME="PSU__CRL_APB__CAN1_REF_CTRL__SRCSEL" VALUE="IOPLL"/>
-        <PARAMETER NAME="PSU__CRL_APB__CPU_R5_CTRL__ACT_FREQMHZ" VALUE="500.000000"/>
+        <PARAMETER NAME="PSU__CRL_APB__CPU_R5_CTRL__ACT_FREQMHZ" VALUE="393.216644"/>
         <PARAMETER NAME="PSU__CRL_APB__CPU_R5_CTRL__DIVISOR0" VALUE="3"/>
         <PARAMETER NAME="PSU__CRL_APB__CPU_R5_CTRL__FREQMHZ" VALUE="500"/>
-        <PARAMETER NAME="PSU__CRL_APB__CPU_R5_CTRL__SRCSEL" VALUE="IOPLL"/>
+        <PARAMETER NAME="PSU__CRL_APB__CPU_R5_CTRL__SRCSEL" VALUE="RPLL"/>
         <PARAMETER NAME="PSU__CRL_APB__CSU_PLL_CTRL__ACT_FREQMHZ" VALUE="500"/>
         <PARAMETER NAME="PSU__CRL_APB__CSU_PLL_CTRL__DIVISOR0" VALUE="4"/>
         <PARAMETER NAME="PSU__CRL_APB__CSU_PLL_CTRL__FREQMHZ" VALUE="400"/>
@@ -3698,11 +3698,11 @@
         <PARAMETER NAME="PSU__CRL_APB__PCAP_CTRL__DIVISOR0" VALUE="8"/>
         <PARAMETER NAME="PSU__CRL_APB__PCAP_CTRL__FREQMHZ" VALUE="200"/>
         <PARAMETER NAME="PSU__CRL_APB__PCAP_CTRL__SRCSEL" VALUE="IOPLL"/>
-        <PARAMETER NAME="PSU__CRL_APB__PL0_REF_CTRL__ACT_FREQMHZ" VALUE="100.000000"/>
+        <PARAMETER NAME="PSU__CRL_APB__PL0_REF_CTRL__ACT_FREQMHZ" VALUE="78.643326"/>
         <PARAMETER NAME="PSU__CRL_APB__PL0_REF_CTRL__DIVISOR0" VALUE="15"/>
         <PARAMETER NAME="PSU__CRL_APB__PL0_REF_CTRL__DIVISOR1" VALUE="1"/>
         <PARAMETER NAME="PSU__CRL_APB__PL0_REF_CTRL__FREQMHZ" VALUE="100"/>
-        <PARAMETER NAME="PSU__CRL_APB__PL0_REF_CTRL__SRCSEL" VALUE="IOPLL"/>
+        <PARAMETER NAME="PSU__CRL_APB__PL0_REF_CTRL__SRCSEL" VALUE="RPLL"/>
         <PARAMETER NAME="PSU__CRL_APB__PL1_REF_CTRL__ACT_FREQMHZ" VALUE="24.999975"/>
         <PARAMETER NAME="PSU__CRL_APB__PL1_REF_CTRL__DIVISOR0" VALUE="15"/>
         <PARAMETER NAME="PSU__CRL_APB__PL1_REF_CTRL__DIVISOR1" VALUE="4"/>
@@ -4184,7 +4184,7 @@
         <PARAMETER NAME="PSU__MAXIGP1__DATA_WIDTH" VALUE="128"/>
         <PARAMETER NAME="PSU__MAXIGP2__DATA_WIDTH" VALUE="32"/>
         <PARAMETER NAME="PSU__M_AXI_GP0_SUPPORTS_NARROW_BURST" VALUE="1"/>
-        <PARAMETER NAME="PSU__M_AXI_GP0__FREQMHZ" VALUE="100.0"/>
+        <PARAMETER NAME="PSU__M_AXI_GP0__FREQMHZ" VALUE="78.643326"/>
         <PARAMETER NAME="PSU__M_AXI_GP1_SUPPORTS_NARROW_BURST" VALUE="1"/>
         <PARAMETER NAME="PSU__M_AXI_GP1__FREQMHZ" VALUE="100.0"/>
         <PARAMETER NAME="PSU__M_AXI_GP2_SUPPORTS_NARROW_BURST" VALUE="1"/>
@@ -4480,7 +4480,7 @@
         <PARAMETER NAME="PSU__SWDT1__RESET__IO" VALUE="&lt;Select>"/>
         <PARAMETER NAME="PSU__S_AXI_GP0__FREQMHZ" VALUE="10"/>
         <PARAMETER NAME="PSU__S_AXI_GP1__FREQMHZ" VALUE="10"/>
-        <PARAMETER NAME="PSU__S_AXI_GP2__FREQMHZ" VALUE="100.0"/>
+        <PARAMETER NAME="PSU__S_AXI_GP2__FREQMHZ" VALUE="78.643326"/>
         <PARAMETER NAME="PSU__S_AXI_GP3__FREQMHZ" VALUE="10"/>
         <PARAMETER NAME="PSU__S_AXI_GP4__FREQMHZ" VALUE="10"/>
         <PARAMETER NAME="PSU__S_AXI_GP5__FREQMHZ" VALUE="10"/>
@@ -4826,12 +4826,12 @@
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="S00_AXI_wvalid"/>
           </CONNECTIONS>
         </PORT>
-        <PORT CLKFREQUENCY="100000000" DIR="I" NAME="maxihpm0_fpd_aclk" SIGIS="clk" SIGNAME="zynq_ultra_ps_e_0_pl_clk0">
+        <PORT CLKFREQUENCY="78643326" DIR="I" NAME="maxihpm0_fpd_aclk" SIGIS="clk" SIGNAME="zynq_ultra_ps_e_0_pl_clk0">
           <CONNECTIONS>
             <CONNECTION INSTANCE="zynq_ultra_ps_e_0" PORT="pl_clk0"/>
           </CONNECTIONS>
         </PORT>
-        <PORT CLKFREQUENCY="100000000" DIR="O" NAME="pl_clk0" SIGIS="clk" SIGNAME="zynq_ultra_ps_e_0_pl_clk0">
+        <PORT CLKFREQUENCY="78643326" DIR="O" NAME="pl_clk0" SIGIS="clk" SIGNAME="zynq_ultra_ps_e_0_pl_clk0">
           <CONNECTIONS>
             <CONNECTION INSTANCE="axi_dma_0" PORT="m_axi_mm2s_aclk"/>
             <CONNECTION INSTANCE="smartconnect_data" PORT="aclk"/>
@@ -4840,7 +4840,7 @@
             <CONNECTION INSTANCE="smartconnect_ctrl" PORT="aclk"/>
             <CONNECTION INSTANCE="zynq_ultra_ps_e_0" PORT="maxihpm0_fpd_aclk"/>
             <CONNECTION INSTANCE="zynq_ultra_ps_e_0" PORT="saxihp0_fpd_aclk"/>
-            <CONNECTION INSTANCE="mpc_fpga_top_0" PORT="ap_clk"/>
+            <CONNECTION INSTANCE="mpc_fpga_top_1" PORT="ap_clk"/>
           </CONNECTIONS>
         </PORT>
         <PORT DIR="I" LEFT="1" NAME="pl_ps_irq0" RIGHT="0" SENSITIVITY="LEVEL_HIGH:LEVEL_HIGH" SIGIS="INTERRUPT" SIGNAME="ilconcat_0_dout">
@@ -4928,7 +4928,7 @@
             <CONNECTION INSTANCE="smartconnect_data" PORT="M00_AXI_rvalid"/>
           </CONNECTIONS>
         </PORT>
-        <PORT CLKFREQUENCY="100000000" DIR="I" NAME="saxihp0_fpd_aclk" SIGIS="clk" SIGNAME="zynq_ultra_ps_e_0_pl_clk0">
+        <PORT CLKFREQUENCY="78643326" DIR="I" NAME="saxihp0_fpd_aclk" SIGIS="clk" SIGNAME="zynq_ultra_ps_e_0_pl_clk0">
           <CONNECTIONS>
             <CONNECTION INSTANCE="zynq_ultra_ps_e_0" PORT="pl_clk0"/>
           </CONNECTIONS>
@@ -4942,7 +4942,7 @@
           <PARAMETER NAME="BUSER_WIDTH" VALUE="0"/>
           <PARAMETER NAME="CLK_DOMAIN" VALUE="mpc_design_zynq_ultra_ps_e_0_1_pl_clk0"/>
           <PARAMETER NAME="DATA_WIDTH" VALUE="32"/>
-          <PARAMETER NAME="FREQ_HZ" VALUE="100000000"/>
+          <PARAMETER NAME="FREQ_HZ" VALUE="78643326"/>
           <PARAMETER NAME="HAS_BRESP" VALUE="1"/>
           <PARAMETER NAME="HAS_BURST" VALUE="1"/>
           <PARAMETER NAME="HAS_CACHE" VALUE="1"/>
@@ -5016,7 +5016,7 @@
           <PARAMETER NAME="BUSER_WIDTH" VALUE="0"/>
           <PARAMETER NAME="CLK_DOMAIN" VALUE="mpc_design_zynq_ultra_ps_e_0_1_pl_clk0"/>
           <PARAMETER NAME="DATA_WIDTH" VALUE="128"/>
-          <PARAMETER NAME="FREQ_HZ" VALUE="100000000"/>
+          <PARAMETER NAME="FREQ_HZ" VALUE="78643326"/>
           <PARAMETER NAME="HAS_BRESP" VALUE="1"/>
           <PARAMETER NAME="HAS_BURST" VALUE="1"/>
           <PARAMETER NAME="HAS_CACHE" VALUE="1"/>
@@ -5062,11 +5062,11 @@
       </BUSINTERFACES>
       <MEMORYMAP>
         <MEMRANGE ADDRESSBLOCK="Reg" BASENAME="C_BASEADDR" BASEVALUE="0xA0000000" HIGHNAME="C_HIGHADDR" HIGHVALUE="0xA000FFFF" INSTANCE="axi_dma_0" IS_DATA="TRUE" IS_INSTRUCTION="TRUE" MASTERBUSINTERFACE="M_AXI_HPM0_FPD" MEMTYPE="REGISTER" SLAVEBUSINTERFACE="S_AXI_LITE"/>
-        <MEMRANGE ADDRESSBLOCK="Reg" BASENAME="C_S_AXI_CTRL_BASEADDR" BASEVALUE="0xA0010000" HIGHNAME="C_S_AXI_CTRL_HIGHADDR" HIGHVALUE="0xA001FFFF" INSTANCE="mpc_fpga_top_0" IS_DATA="TRUE" IS_INSTRUCTION="TRUE" MASTERBUSINTERFACE="M_AXI_HPM0_FPD" MEMTYPE="REGISTER" SLAVEBUSINTERFACE="s_axi_ctrl"/>
+        <MEMRANGE ADDRESSBLOCK="Reg" BASENAME="C_S_AXI_CTRL_BASEADDR" BASEVALUE="0xA0010000" HIGHNAME="C_S_AXI_CTRL_HIGHADDR" HIGHVALUE="0xA001FFFF" INSTANCE="mpc_fpga_top_1" IS_DATA="TRUE" IS_INSTRUCTION="TRUE" MASTERBUSINTERFACE="M_AXI_HPM0_FPD" MEMTYPE="REGISTER" SLAVEBUSINTERFACE="s_axi_ctrl"/>
       </MEMORYMAP>
       <PERIPHERALS>
         <PERIPHERAL INSTANCE="axi_dma_0"/>
-        <PERIPHERAL INSTANCE="mpc_fpga_top_0"/>
+        <PERIPHERAL INSTANCE="mpc_fpga_top_1"/>
       </PERIPHERALS>
     </MODULE>
   </MODULES>

@@ -19,8 +19,8 @@ extern "C" {
 /**
  * @brief Solve constrained LQR using Riccati-ADMM.
  * @param step_data Per-step dynamics, costs, and bounds array of length MPC_HORIZON.
- * @param terminal_Q Terminal diagonal cost vector of length MPC_NX_AUG.
- * @param terminal_q Terminal linear cost vector of length MPC_NX_AUG.
+ * @param terminal_q_diag Terminal diagonal cost vector of length MPC_NX_AUG.
+ * @param terminal_q_linear Terminal linear cost vector of length MPC_NX_AUG.
  * @param x0 Initial augmented state vector of length MPC_NX_AUG.
  * @param config ADMM configuration pointer.
  * @param admm_state Warm-start and dual/primal history pointer.
@@ -29,8 +29,8 @@ extern "C" {
  */
 MpcStatus_t riccati_admm_solve_hls(
     const StepData_t step_data[MPC_HORIZON],
-    const fixed_point_t terminal_Q[MPC_NX_AUG],
-    const fixed_point_t terminal_q[MPC_NX_AUG],
+    const fixed_point_t terminal_q_diag[MPC_NX_AUG],
+    const fixed_point_t terminal_q_linear[MPC_NX_AUG],
     const fixed_point_t x0[MPC_NX_AUG],
     const AdmmConfig_t *config,
     AdmmState_t *admm_state,

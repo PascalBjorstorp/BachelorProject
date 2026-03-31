@@ -12,6 +12,7 @@ Usage:
     python3 test/tune_realistic_v2.py -j 4                   # Use 4 workers
     python3 test/tune_realistic_v2.py --objective fastest    # Optimize for speed
     python3 test/tune_realistic_v2.py --objective tracker    # Optimize for tracking (default)
+    python3 test/tune_realistic_v2.py --raceline my_track_raceline.csv
 
 The sweep runs 7 phases:
     Phase 1: One-at-a-time parameter sensitivity
@@ -51,7 +52,9 @@ HORIZON_LIMIT = 50
 # HARDWARE MAP CONFIGURATION
 # ==============================================================================
 
-RACELINE_PATH = os.path.join(TRAJ_DIR, "my_track_raceline.csv")
+DEFAULT_RACELINE_NAME = "my_track_raceline.csv"
+RACELINE_PATH = os.path.join(TRAJ_DIR, DEFAULT_RACELINE_NAME)
+RACELINE_TAG = "my_track"
 WALL_MARGIN = 0.20
 
 # Base configuration - starting point for all sweeps
@@ -223,6 +226,29 @@ MPC_TYPES_PRINT_ORDER = (
 
 # Working copy of base config (modified during cascade)
 BASE = {}
+
+
+def infer_raceline_tag(path: str) -> str:
+    """Create a compact label for CSV rows/reports from raceline filename."""
+    stem = os.path.splitext(os.path.basename(path))[0]
+    if stem.endswith("_raceline"):
+        stem = stem[: -len("_raceline")]
+    return stem or "unknown"
+
+
+def resolve_raceline_path(path_arg: str) -> str:
+    """Resolve raceline path argument to an absolute path."""
+    if os.path.isabs(path_arg):
+        return path_arg
+
+    # First treat as a trajectory filename under f1tenth_planning/trajectories.
+    traj_candidate = os.path.join(TRAJ_DIR, path_arg)
+    if os.path.exists(traj_candidate):
+        return os.path.abspath(traj_candidate)
+
+    # Fallback: resolve relative to the MPC project directory.
+    proj_candidate = os.path.join(PROJECT_DIR, path_arg)
+    return os.path.abspath(proj_candidate)
 
 
 def iter_ordered_base_keys():
@@ -610,7 +636,7 @@ def _run_single(args):
     r = apply_scores(r, objective)
     r["label"] = label
     r["phase"] = phase_name
-    r["raceline"] = "hardware"
+    r["raceline"] = RACELINE_TAG
     r.update(canonicalize_params(params))
     return r
 
@@ -647,7 +673,7 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
             r = apply_scores(r, objective)
             r["label"] = label
             r["phase"] = phase_name
-            r["raceline"] = "hardware"
+            r["raceline"] = RACELINE_TAG
             r.update(canonicalize_params(params))
             results.append(r)
             
@@ -814,11 +840,12 @@ def update_base(new_params: dict):
 # ==============================================================================
 
 def main():
-    global BASE
+    global BASE, RACELINE_PATH, RACELINE_TAG
     
     # Parse arguments
     num_workers = multiprocessing.cpu_count()  # Default to max workers
     objective = "tracker"
+    raceline_override = None
     
     for i, arg in enumerate(sys.argv):
         if arg in ("--jobs", "-j") and i + 1 < len(sys.argv):
@@ -831,10 +858,18 @@ def main():
                 num_workers = multiprocessing.cpu_count()
         if arg == "--objective" and i + 1 < len(sys.argv):
             objective = sys.argv[i + 1].strip().lower()
+        if arg == "--raceline" and i + 1 < len(sys.argv):
+            raceline_override = sys.argv[i + 1].strip()
     
     if objective not in ("tracker", "fastest"):
         print("ERROR: --objective must be 'tracker' or 'fastest'")
         sys.exit(1)
+
+    if raceline_override:
+        RACELINE_PATH = resolve_raceline_path(raceline_override)
+    else:
+        RACELINE_PATH = os.path.abspath(RACELINE_PATH)
+    RACELINE_TAG = infer_raceline_tag(RACELINE_PATH)
     
     # Initialize BASE config
     BASE.update(BASE_CONFIG)
@@ -849,6 +884,7 @@ def main():
     print(f"  Cascade:     top {CASCADE_TOP_N}")
     print(f"  Horizon sweep: {HORIZON_SWEEP_VALUES}")
     print(f"  Raceline:    {RACELINE_PATH}")
+    print(f"  Raceline tag:{RACELINE_TAG}")
     
     os.chdir(PROJECT_DIR)
     

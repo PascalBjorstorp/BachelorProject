@@ -172,9 +172,9 @@ bool loadTrajectoryWithBounds(const std::string& csv_path,
 
 std::string defaultTrajectoryPath() {
     const std::vector<std::string> candidates = {
-        "f1tenth_planning/trajectories/hardware_raceline.csv",
-        "../f1tenth_planning/trajectories/hardware_raceline.csv",
-        "../../f1tenth_planning/trajectories/hardware_raceline.csv"
+        "f1tenth_planning/trajectories/my_track_raceline.csv",
+        "../f1tenth_planning/trajectories/my_track_raceline.csv",
+        "../../f1tenth_planning/trajectories/my_track_raceline.csv"
     };
 
     for (const auto& path : candidates) {
@@ -465,9 +465,9 @@ Candidate launchLikeBaseline() {
     c.config.k_h = 1.057;
     c.config.k_s = 0.685;
     c.config.k_d = 0.069;
-    c.config.max_speed = 5.5;
+    c.config.max_speed = 10.0;
     c.config.min_speed = 0.5;
-    c.config.speed_gain = 1.443;
+    c.config.speed_gain = 1.0;
     c.config.max_steering = 0.4189;
     c.config.max_steering_rate = 2.8175;
     c.config.wheelbase = 0.3302;
