@@ -39,28 +39,28 @@
 #define CROSS_CALL_RATE_SCALE (CONTROL_DT_SECONDS / PREDICTION_DT_SECONDS) /* Normalizes first-step rate penalties across sample times. */
 
 /* Default MPC objective weights */
-#define WEIGHT_LAT_ERROR 3400.0f                         /* Penalizes lateral tracking deviation from the reference path. */
-#define WEIGHT_HEADING 620.0f                          /* Penalizes heading misalignment relative to path tangent. */
-#define WEIGHT_VELOCITY 84.0f                           /* Penalizes deviation from target longitudinal speed profile. */
-#define WEIGHT_LAT_VEL 5.164f                              /* Penalizes lateral velocity to suppress side-slip growth. */
-#define WEIGHT_YAW_RATE 7.51f                             /* Penalizes yaw-rate mismatch against reference curvature dynamics. */
-#define WEIGHT_STEER_EFFORT 0.32f                         /* Penalizes steering-rate effort to limit aggressive steering actuation. */
-#define WEIGHT_ACCEL_EFFORT 0.009f                      /* Penalizes longitudinal acceleration effort to smooth throttle/brake usage. */
-#define WEIGHT_STEER_RATE 0.018f                           /* Penalizes steering-rate change to reduce steering jerk. */
-#define WEIGHT_ACCEL_RATE 0.24696f                         /* Penalizes acceleration change to reduce longitudinal jerk. */
-#define WEIGHT_DELTA_ACTUAL 0.5f                         /* Penalizes steering-state bias away from curvature feedforward. */
+#define WEIGHT_LAT_ERROR 7000.0f                         /* Penalizes lateral tracking deviation from the reference path. */
+#define WEIGHT_HEADING 400.0f                          /* Penalizes heading misalignment relative to path tangent. */
+#define WEIGHT_VELOCITY 200.0f                           /* Penalizes deviation from target longitudinal speed profile. */
+#define WEIGHT_LAT_VEL 24.0f                              /* Penalizes lateral velocity to suppress side-slip growth. */
+#define WEIGHT_YAW_RATE 22.0f                             /* Penalizes yaw-rate mismatch against reference curvature dynamics. */
+#define WEIGHT_STEER_EFFORT 0.3f                         /* Penalizes steering-rate effort to limit aggressive steering actuation. */
+#define WEIGHT_ACCEL_EFFORT 0.01f                      /* Penalizes longitudinal acceleration effort to smooth throttle/brake usage. */
+#define WEIGHT_STEER_RATE 0.03f                           /* Penalizes steering-rate change to reduce steering jerk. */
+#define WEIGHT_ACCEL_RATE 0.1f                         /* Penalizes acceleration change to reduce longitudinal jerk. */
+#define WEIGHT_DELTA_ACTUAL 0.03f                         /* Penalizes steering-state bias away from curvature feedforward. */
 
 /* Other swept MPC defaults */
-#ifndef PREDICTION_HORIZON
-#define PREDICTION_HORIZON 25                            /* Default maximum number of prediction stages used by the controller. */
-#endif
-#define TIME_STEP_SECONDS 0.0475f                         /* Default model integration period per horizon stage. */
 #define MAX_ITERATIONS 20                                /* Default solver iteration budget per control update. */
 #define WALL_MARGIN 0.2f                                 /* Safety offset subtracted from both wall boundaries. */
-#define CONVERGENCE_TOLERANCE 6.2f                  /* Residual threshold used to declare solver convergence. */
-#define ADMM_RHO 56.0f                                   /* Primary ADMM penalty balancing feasibility and optimality progress. */
-#define ADMM_RHO_U 24.0f                                 /* ADMM penalty applied to control-variable projection terms. */
-#define ADMM_ALPHA 1.15f                                  /* ADMM relaxation parameter controlling over-relaxed updates. */
+#define ADMM_RHO 32.0f                                   /* Primary ADMM penalty balancing feasibility and optimality progress. */
+#define ADMM_RHO_U 20.0f                                 /* ADMM penalty applied to control-variable projection terms. */
+#define ADMM_ALPHA 0.93f                                  /* ADMM relaxation parameter controlling over-relaxed updates. */
+#define CONVERGENCE_TOLERANCE 5.0f                  /* Residual threshold used to declare solver convergence. */
+#ifndef PREDICTION_HORIZON
+#define PREDICTION_HORIZON 10                            /* Default maximum number of prediction stages used by the controller. */
+#endif
+#define TIME_STEP_SECONDS 0.04f                         /* Default model integration period per horizon stage. */
 
 /* Solver and model safeguards */
 #define RICCATI_COST_FACTOR 2.0f                         /* Global scaling factor applied to stage and terminal costs. */
