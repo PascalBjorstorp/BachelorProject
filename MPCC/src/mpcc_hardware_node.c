@@ -476,9 +476,9 @@ static void pose_callback(const void *msg_in)
     }
 
     double v_cmd = g_latest_vx_mps + (double)a_x_cmd * g_solver_dt_sec;
-    if (v_cmd < 0.0)
+    if (v_cmd < 1.0)
     {
-        v_cmd = 0.0;
+        v_cmd = 1.0;
     }
     /* Apply minimum velocity floor only when the solver wants to accelerate,
      * so the car can still brake/stop when the solver commands a_x < 0. */
