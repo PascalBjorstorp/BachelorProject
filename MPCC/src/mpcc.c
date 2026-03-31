@@ -129,6 +129,9 @@ static MPCCConfiguration_t get_default_config(void)
     cfg.C_Sf = MPCC_DEFAULT_C_SF;
     cfg.C_Sr = MPCC_DEFAULT_C_SR;
 
+    /* Cross-call rate scaling */
+    cfg.cross_call_rate_scale = MPCC_DEFAULT_CROSS_CALL_SCALE;
+
     return cfg;
 }
 
@@ -517,7 +520,8 @@ MPCCState_t mpcc_state_from_vehicle_state(
  */
 static void build_stage_cost(
     MPCCStageCost_t *cost,
-    uint8_t is_terminal)
+    uint8_t is_terminal,
+    uint16_t step_k)
 {
     memset(cost, 0, sizeof(*cost));
 
@@ -553,12 +557,25 @@ static void build_stage_cost(
         fixed_point_t q_progress = config.weight_progress;
         cost->r[MPCC_IDX_VTHETA] = fp_sub(0, q_progress); /* negative = reward */
 
+        /* Rate weights: on step 0 scale by cross_call_rate_scale to
+         * compensate for the control callback running faster than the
+         * prediction dt (e.g. 200 Hz vs 35 ms → scale ≈ 0.143). */
+        fixed_point_t w_dr = config.weight_delta_rate;
+        fixed_point_t w_ar = config.weight_ax_rate;
+        fixed_point_t w_vr = config.weight_v_theta_rate;
+        if (step_k == 0)
+        {
+            w_dr = fp_mul(w_dr, config.cross_call_rate_scale);
+            w_ar = fp_mul(w_ar, config.cross_call_rate_scale);
+            w_vr = fp_mul(w_vr, config.cross_call_rate_scale);
+        }
+
         cost->R[MPCC_IDX_DELTA][MPCC_IDX_DELTA] =
-            fp_add(config.weight_delta, config.weight_delta_rate);
+            fp_add(config.weight_delta, w_dr);
         cost->R[MPCC_IDX_AX][MPCC_IDX_AX] =
-            fp_add(config.weight_ax, config.weight_ax_rate);
+            fp_add(config.weight_ax, w_ar);
         cost->R[MPCC_IDX_VTHETA][MPCC_IDX_VTHETA] =
-            fp_add(config.weight_v_theta, config.weight_v_theta_rate);
+            fp_add(config.weight_v_theta, w_vr);
     }
 }
 
@@ -756,7 +773,7 @@ static void build_qp_problem(
                           config.dt, &config, &qp->dynamics[k]);
 
         /* Build stage cost */
-        build_stage_cost(&qp->stage_cost[k], 0);
+        build_stage_cost(&qp->stage_cost[k], 0, k);
 
         /* Add real contouring/lag error cost (linearized at operating point) */
         add_contouring_lag_cost(&qp->stage_cost[k], &z_bar, &path_pt,
@@ -782,7 +799,8 @@ static void build_qp_problem(
          * Add the linear cross-term: r[i] += -2 * weight_rate * u_ref[i].
          * u_ref comes from shifted warm-start (or zero for cold start).
          * This creates proper rate penalization that allows steady-state
-         * steering without penalty but penalizes oscillation. */
+         * steering without penalty but penalizes oscillation.
+         * At step 0: scale rate weights by cross_call_rate_scale. */
         {
             MPCCControl_t u_ref;
             if (warm_start_available)
@@ -793,20 +811,30 @@ static void build_qp_problem(
                 u_ref.v_theta = FP_CONST(1.0);
             }
 
+            fixed_point_t w_dr = config.weight_delta_rate;
+            fixed_point_t w_ar = config.weight_ax_rate;
+            fixed_point_t w_vr = config.weight_v_theta_rate;
+            if (k == 0)
+            {
+                w_dr = fp_mul(w_dr, config.cross_call_rate_scale);
+                w_ar = fp_mul(w_ar, config.cross_call_rate_scale);
+                w_vr = fp_mul(w_vr, config.cross_call_rate_scale);
+            }
+
             qp->stage_cost[k].r[MPCC_IDX_DELTA] = fp_sub(
                 qp->stage_cost[k].r[MPCC_IDX_DELTA],
                 fp_mul(FP_CONST(2.0),
-                    fp_mul(config.weight_delta_rate, u_ref.delta)));
+                    fp_mul(w_dr, u_ref.delta)));
 
             qp->stage_cost[k].r[MPCC_IDX_AX] = fp_sub(
                 qp->stage_cost[k].r[MPCC_IDX_AX],
                 fp_mul(FP_CONST(2.0),
-                    fp_mul(config.weight_ax_rate, u_ref.a_x)));
+                    fp_mul(w_ar, u_ref.a_x)));
 
             qp->stage_cost[k].r[MPCC_IDX_VTHETA] = fp_sub(
                 qp->stage_cost[k].r[MPCC_IDX_VTHETA],
                 fp_mul(FP_CONST(2.0),
-                    fp_mul(config.weight_v_theta_rate, u_ref.v_theta)));
+                    fp_mul(w_vr, u_ref.v_theta)));
         }
 
         /* Per-stage track bounds on n */
@@ -832,7 +860,7 @@ static void build_qp_problem(
         qp->track_right[N] = path_pt.right_bound;
 
         /* Terminal cost — also override vx_ref so terminal matches stage vx targets */
-        build_stage_cost(&qp->terminal_cost, 1);
+        build_stage_cost(&qp->terminal_cost, 1, N);
 
         /* Add real contouring/lag error cost at terminal stage */
         add_contouring_lag_cost(&qp->terminal_cost, &z_bar, &path_pt,

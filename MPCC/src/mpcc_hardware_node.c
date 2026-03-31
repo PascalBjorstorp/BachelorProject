@@ -55,6 +55,7 @@ static int g_verbose = 0;
 /* Solver-derived values used to map MPCC acceleration to a velocity command. */
 static double g_solver_dt_sec = 0.05;
 static double g_vx_max_mps = 8.0;
+static double g_vx_min_cmd = 1.0;  /* Minimum velocity command [m/s] */
 
 /* Hardware safety: clamp acceleration to prevent violent braking */
 static double g_ax_min_hardware = -3.0;
@@ -90,6 +91,10 @@ static double g_latest_vy_mps = 0.0;
 static double g_latest_omega = 0.0;
 static struct timespec g_last_odom_time = {0, 0};
 static uint32_t g_solve_count = 0;
+
+/* Measured control loop timing for cross-call scaling */
+static struct timespec g_prev_solve_time = {0, 0};
+static double g_control_dt_filtered = 0.005;  /* Initial guess: 200 Hz */
 
 /* Servo feedback tracking */
 static double g_actual_steering_angle = 0.0;
@@ -416,6 +421,29 @@ static void pose_callback(const void *msg_in)
     MPCCState_t mpcc_state = mpcc_state_from_vehicle_state(&g_vehicle_state, g_current_s);
     g_current_s = mpcc_state.s;
 
+    /* Measure actual control loop dt and update cross-call rate scale */
+    {
+        struct timespec solve_now;
+        clock_gettime(CLOCK_MONOTONIC, &solve_now);
+        if (g_prev_solve_time.tv_sec != 0 || g_prev_solve_time.tv_nsec != 0)
+        {
+            double dt_actual = timespec_diff_sec(&g_prev_solve_time, &solve_now);
+            if (dt_actual > 0.0005 && dt_actual < 0.5)  /* sanity: 2 Hz–2 kHz */
+            {
+                g_control_dt_filtered = 0.9 * g_control_dt_filtered + 0.1 * dt_actual;
+                double prediction_dt = (double)g_solver_dt_sec;
+                if (prediction_dt > 0.0)
+                {
+                    MPCCConfiguration_t cfg = mpcc_get_configuration();
+                    cfg.cross_call_rate_scale = float_to_fp(
+                        (float)(g_control_dt_filtered / prediction_dt));
+                    mpcc_set_configuration(&cfg);
+                }
+            }
+        }
+        g_prev_solve_time = solve_now;
+    }
+
     MPCCResult_t result;
     const MPCCStatus_t status = mpcc_compute_control(&mpcc_state, &result);
 
@@ -451,6 +479,12 @@ static void pose_callback(const void *msg_in)
     if (v_cmd < 0.0)
     {
         v_cmd = 0.0;
+    }
+    /* Apply minimum velocity floor only when the solver wants to accelerate,
+     * so the car can still brake/stop when the solver commands a_x < 0. */
+    if (a_x_cmd >= 0.0f && v_cmd < g_vx_min_cmd)
+    {
+        v_cmd = g_vx_min_cmd;
     }
     if (v_cmd > g_vx_max_mps)
     {
@@ -608,6 +642,15 @@ static void read_runtime_environment(void)
     {
         g_trajectory_file = value;
     }
+
+    if ((value = getenv("MPCC_VX_MIN_CMD")) != NULL)
+    {
+        const double val = atof(value);
+        if (val >= 0.0 && val <= 5.0)
+        {
+            g_vx_min_cmd = val;
+        }
+    }
 }
 
 static void configure_mpcc_from_environment(void)
@@ -649,7 +692,21 @@ static void configure_mpcc_from_environment(void)
     if ((v = getenv("AX_MAX")) != NULL) cfg.ax_max = float_to_fp((float)atof(v));
     if ((v = getenv("AX_MIN")) != NULL) cfg.ax_min = float_to_fp((float)atof(v));
 
+    if ((v = getenv("MPCC_CROSS_CALL_SCALE")) != NULL)
+        cfg.cross_call_rate_scale = float_to_fp((float)atof(v));
+
     mpcc_set_configuration(&cfg);
+
+    /* If the user hasn't explicitly set the cross-call scale, auto-compute
+     * from control rate and the (possibly overridden) prediction dt. */
+    if (getenv("MPCC_CROSS_CALL_SCALE") == NULL)
+    {
+        float dt = fp_to_float(cfg.dt);
+        if (dt > 0.0f)
+            cfg.cross_call_rate_scale = float_to_fp(
+                (float)(1.0 / (MPCC_CONTROL_RATE_HZ * (double)dt)));
+        mpcc_set_configuration(&cfg);
+    }
 
     g_solver_dt_sec = fp_to_float(cfg.dt);
     if (g_solver_dt_sec <= 0.0)
@@ -663,14 +720,15 @@ static void configure_mpcc_from_environment(void)
         g_vx_max_mps = 8.0;
     }
 
-    printf("[MPCC] Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_prog=%.1f R_delta=%.2f ax_min_hw=%.1f\n",
+    printf("[MPCC] Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_prog=%.1f R_delta=%.2f ax_min_hw=%.1f cross_call=%.4f\n",
            cfg.horizon_steps,
            fp_to_float(cfg.dt),
            fp_to_float(cfg.weight_contouring),
            fp_to_float(cfg.weight_lag),
            fp_to_float(cfg.weight_progress),
            fp_to_float(cfg.weight_delta),
-           g_ax_min_hardware);
+           g_ax_min_hardware,
+           fp_to_float(cfg.cross_call_rate_scale));
 }
 
 static const char *autodetect_trajectory_file(void)

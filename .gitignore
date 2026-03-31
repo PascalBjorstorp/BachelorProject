@@ -297,3 +297,5 @@ MPC/test_sim_drive
 
 
 # Ignore ROS2 bag database files
+MPCC/tuning_results/tuning_hardware_20260331_125638.csv
+MPCC/tuning_results/tuning_hardware_20260331_125638.csv
