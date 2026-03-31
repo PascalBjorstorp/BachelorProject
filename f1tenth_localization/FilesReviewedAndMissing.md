@@ -15,6 +15,9 @@
 - [x] `gpu_amcl_cpp/include/gpu_amcl_cpp/core/sensor_model.hpp` - Sensor model header
 - [x] `gpu_amcl_cpp/src/core/resampling.cpp` - Systematic resampling
 - [x] `gpu_amcl_cpp/include/gpu_amcl_cpp/core/resampling.hpp` - Resampling header
+- [x] `gpu_amcl_cpp/src/core/ekf_node.cpp` - EKF sensor fusion node
+- [x] `gpu_amcl_cpp/include/gpu_amcl_cpp/core/ekf_node.hpp`
+
 
 ### CUDA Kernels
 - [x] `gpu_amcl_cpp/src/cuda/motion_model_kernels.cu` - Motion model GPU kernels
@@ -27,22 +30,23 @@
 - [x] `config/gpu_amcl_cpp_params.yaml` - All ROS parameters
 - [x] `launch/cpp_localization.launch.py` - Launch file
 
+
+### Helpers
+- [x] `gpu_amcl_cpp/include/gpu_amcl_cpp/helpers/cuda_utils.hpp` - CUDA wrappers
+- [x] `gpu_amcl_cpp/include/gpu_amcl_cpp/helpers/map_utils.hpp`
+- [x] `gpu_amcl_cpp/src/helpers/map_utils.cpp` - Map processing (distance field)
+- [x] `gpu_amcl_cpp/include/gpu_amcl_cpp/helpers/math_utils.hpp` - Math utilities
+
 ---
 
 ## Files Still To Review
 
 ### Core (C++)
-- [ ] `gpu_amcl_cpp/src/core/ekf_node.cpp` - EKF sensor fusion node
-- [ ] `gpu_amcl_cpp/include/gpu_amcl_cpp/core/ekf_node.hpp`
 
 ### CUDA Kernels
 
 
 ### Helpers
-- [ ] `gpu_amcl_cpp/src/helpers/map_utils.cpp` - Map processing (distance field)
-- [ ] `gpu_amcl_cpp/include/gpu_amcl_cpp/helpers/map_utils.hpp`
-- [ ] `gpu_amcl_cpp/include/gpu_amcl_cpp/helpers/cuda_utils.hpp` - CUDA wrappers
-- [ ] `gpu_amcl_cpp/include/gpu_amcl_cpp/helpers/math_utils.hpp` - Math utilities
 
 ---
 

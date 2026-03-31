@@ -24,6 +24,11 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DURATION_SECONDS="${1:-120}"
 TRAJECTORY_FILE="${2:-${ROOT_DIR}/f1tenth_planning/trajectories/Spielberg_raceline.csv}"
 
+# Resolve to absolute path so ROS2 nodes can find it regardless of cwd
+if [[ "${TRAJECTORY_FILE}" != /* ]]; then
+    TRAJECTORY_FILE="$(cd "$(dirname "${TRAJECTORY_FILE}")" && pwd)/$(basename "${TRAJECTORY_FILE}")"
+fi
+
 RUN_ID="$(date +%Y%m%d_%H%M%S)"
 LOG_DIR="${SCRIPT_DIR}/logs/run_${RUN_ID}"
 mkdir -p "${LOG_DIR}"
@@ -122,9 +127,13 @@ TRAJ_STHETA="$(awk -F, 'NR==2 {gsub(/[[:space:]]/, "", $4); print $4; exit}' "${
 
 DEFAULT_GYM_MAP_PATH="${SIM_MAP_PATH:-my_track_map}"
 DEFAULT_GYM_MAP_IMG_EXT="${SIM_MAP_IMG_EXT:-.pgm}"
-if [[ "$(basename "${TRAJECTORY_FILE}")" == *"Spielberg"* ]]; then
+TRAJ_BASENAME="$(basename "${TRAJECTORY_FILE}")"
+if [[ "${TRAJ_BASENAME}" == *"Spielberg"* ]]; then
     DEFAULT_GYM_MAP_PATH="Spielberg_map"
     DEFAULT_GYM_MAP_IMG_EXT=".png"
+elif [[ "${TRAJ_BASENAME}" == *"hardware"* ]]; then
+    DEFAULT_GYM_MAP_PATH="hardware_map"
+    DEFAULT_GYM_MAP_IMG_EXT=".pgm"
 fi
 
 # Match test_sim_drive defaults so ROS run is comparable.

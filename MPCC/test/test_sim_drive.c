@@ -1,7 +1,7 @@
 /*******************************************************************************
  * test_sim_drive.c — Realistic closed-loop MPCC simulation on raceline
  *
- * Tests the MPCC controller (Lifted ODE, ADMM+Riccati) in closed-loop:
+ * Tests the MPCC controller (Global Frame, ADMM+Riccati) in closed-loop:
  *   - Gym-matching nonlinear single-track vehicle model (RK4)
  *   - Raceline CSV loading with track bounds
  *   - Environment-variable overrides for all MPCC weights (for tuning scripts)
@@ -17,6 +17,7 @@
  *       -o test_sim_drive -lm
  ******************************************************************************/
 
+#define _GNU_SOURCE
 #define _USE_MATH_DEFINES
 #include <stdio.h>
 #include <stdlib.h>
@@ -275,11 +276,9 @@ int main(void)
     cfg.horizon_steps     = env_int("HORIZON", 15);
     cfg.dt                = FP_CONST(env_double("DT", 0.05));
 
-    /* Frenet tracking */
-    cfg.weight_n          = FP_CONST(env_double("Q_N", 0.0));
+    /* Contouring tracking */
     cfg.weight_contouring = FP_CONST(env_double("Q_CONTOURING", 50.0));
     cfg.weight_lag        = FP_CONST(env_double("Q_LAG", 100.0));
-    cfg.weight_alpha      = FP_CONST(env_double("Q_ALPHA", 20.0));
     cfg.weight_progress   = FP_CONST(env_double("Q_PROGRESS", 1.0));
 
     /* State regularization */
@@ -299,10 +298,8 @@ int main(void)
     cfg.weight_v_theta_rate = FP_CONST(env_double("W_VTHETA_RATE", 0.1));
 
     /* Terminal */
-    cfg.weight_n_terminal       = FP_CONST(env_double("Q_N_TERM", 0.0));
     cfg.weight_contouring_terminal = FP_CONST(env_double("Q_CONTOURING_TERM", 100.0));
     cfg.weight_lag_terminal     = FP_CONST(env_double("Q_LAG_TERM", 200.0));
-    cfg.weight_alpha_terminal   = FP_CONST(env_double("Q_ALPHA_TERM", 10.0));
     cfg.weight_progress_terminal = FP_CONST(env_double("Q_PROGRESS_TERM", 5.0));
 
     /* Obstacle */
@@ -320,7 +317,6 @@ int main(void)
     cfg.ax_min    = FP_CONST(env_double("AX_MIN", -10.0));
     cfg.vx_max    = FP_CONST(env_double("VX_MAX", 20.0));
     cfg.vx_min    = FP_CONST(env_double("VX_MIN", 0.0));
-    cfg.n_max     = FP_CONST(env_double("N_MAX", 0.5));
     cfg.v_theta_max = FP_CONST(env_double("V_THETA_MAX", 2.0));
     cfg.v_theta_min = FP_CONST(env_double("V_THETA_MIN", 0.0));
 
@@ -330,11 +326,9 @@ int main(void)
     cfg.C_Sr = FP_CONST(env_double("C_SR", 3.473));
 
     if (verbose) {
-        printf("  Config: N=%d dt=%.3f Q_n=%.1f Q_c=%.1f Q_l=%.1f Q_alpha=%.1f Q_prog=%.1f\n",
+        printf("  Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_prog=%.1f\n",
                cfg.horizon_steps, fp_to_float(cfg.dt),
-               fp_to_float(cfg.weight_n),
                fp_to_float(cfg.weight_contouring), fp_to_float(cfg.weight_lag),
-               fp_to_float(cfg.weight_alpha),
                fp_to_float(cfg.weight_progress));
         printf("  Q_vx=%.1f vx_ref=%.1f R_delta=%.2f R_ax=%.3f R_vt=%.2f\n",
                fp_to_float(cfg.weight_vx), fp_to_float(cfg.vx_ref),

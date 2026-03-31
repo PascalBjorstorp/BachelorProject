@@ -1,0 +1,172 @@
+MPCC Global Frame Migration Checklist
+======================================
+Goal: Remove Frenet states (n, alpha) and move to 7-state Liniger MPCC
+Old state [9]: [s, n, alpha, vx, vy, omega, X, Y, psi]
+New state [7]: [s, vx, vy, omega, X, Y, psi]
+Controls [3]: [delta, a_x, v_theta] (unchanged)
+
+Contouring/lag errors use global (X, Y) + virtual parameter s (Liniger 2015).
+
+================================================================================
+FILE 1: include/mpcc_types.h |FINISHED|
+================================================================================
+[ ] Change MPCC_NX from 9 to 7
+[ ] Remove MPCC_IDX_N (was 1) and MPCC_IDX_ALPHA (was 2)
+[ ] Renumber state indices:
+      MPCC_IDX_S     = 0  (arc-length / virtual progress)
+      MPCC_IDX_VX    = 1  (longitudinal velocity)
+      MPCC_IDX_VY    = 2  (lateral velocity)
+      MPCC_IDX_OMEGA = 3  (yaw rate)
+      MPCC_IDX_X     = 4  (global X)
+      MPCC_IDX_Y     = 5  (global Y)
+      MPCC_IDX_PSI   = 6  (global heading)
+[ ] Remove MPCC_N_FRENET define (no longer relevant)
+[ ] Remove 'n' and 'alpha' fields from MPCCState_t struct
+[ ] Optionally remove weight_n, weight_alpha, weight_n_terminal,
+    weight_alpha_terminal from MPCCConfiguration_t (or keep unused)
+[ ] Remove n_max from config if track constraints are handled differently
+
+================================================================================
+FILE 2: src/mpcc_vehicle_model.c  (Dynamics Linearization)
+================================================================================
+[ ] Remove row 1 (dn/dt = vx*sin(alpha) + vy*cos(alpha))
+[ ] Remove row 2 (dalpha/dt = omega - kappa * v_theta)
+[ ] Remove all Frenet kinematic variables: sin_a, cos_a, v_proj, v_perp,
+    dn_dalpha, dn_dvx, dn_dvy
+[ ] New row layout for A (7x7) and B (7x3):
+      Row 0 (s):     ds/dt = v_theta          → B[0][VTHETA] = dt
+      Row 1 (vx):    dvx/dt = a_x + tire      → B[1][AX] = dt, tire Jacobians
+      Row 2 (vy):    dvy/dt = tire - vx*omega  → tire Jacobians + delta coupling
+      Row 3 (omega): domega/dt = tire moments  → tire Jacobians + delta coupling
+      Row 4 (X):     dX/dt = vx*cos(psi) - vy*sin(psi)
+      Row 5 (Y):     dY/dt = vx*sin(psi) + vy*cos(psi)
+      Row 6 (psi):   dpsi/dt = omega
+[ ] Update A matrix: I + dt*A_c (7x7)
+[ ] Update B matrix: dt*B_c (7x3)
+      B[0][VTHETA] = dt
+      B[1][AX] = dt
+      B[1][DELTA] = dt * (-dFyf_dd*sin(delta) - Fyf*cos(delta)) / m
+      B[2][DELTA] = dt * (dFyf_dd*cos(delta) - Fyf*sin(delta)) / m
+      B[3][DELTA] = dt * lf * (dFyf_dd*cos(delta) - Fyf*sin(delta)) / Iz
+[ ] Update affine term d = f(z_bar, u_bar) - A*z_bar - B*u_bar
+      z_next[0] = s + dt * v_theta
+      z_next[1] = vx + dt * (a_x + (-Fyf*sin(delta))/m + vy*omega)
+      z_next[2] = vy + dt * ((Fyf*cos(delta) + Fyr)/m - vx*omega)
+      z_next[3] = omega + dt * (lf*Fyf*cos(delta) - lr*Fyr)/Iz
+      z_next[4] = X + dt * (vx*cos(psi) - vy*sin(psi))
+      z_next[5] = Y + dt * (vx*sin(psi) + vy*cos(psi))
+      z_next[6] = psi + dt * omega
+[ ] Update z_bar array in affine term from 9 to 7 elements
+
+================================================================================
+FILE 3: src/mpcc.c  (Cost, QP construction, state management)
+================================================================================
+
+--- build_stage_cost() ---
+[ ] Remove Q[MPCC_IDX_N][MPCC_IDX_N] = weight_n / weight_n_terminal
+[ ] Remove Q[MPCC_IDX_ALPHA][MPCC_IDX_ALPHA] = weight_alpha / weight_alpha_terminal
+[ ] Update all remaining MPCC_IDX_* references to new numbering
+    (VX is now 1, VY is 2, OMEGA is 3, etc.)
+
+--- add_contouring_lag_cost() ---
+[ ] This already uses MPCC_IDX_S, MPCC_IDX_X, MPCC_IDX_Y — just update indices
+[ ] Remove z_bar->n and z_bar->alpha from x_bar array
+[ ] x_bar should be [s, vx, vy, omega, X, Y, psi]
+
+--- build_qp_problem() ---
+[ ] Remove: qp->x0[MPCC_IDX_N] = x0->n
+[ ] Remove: qp->x0[MPCC_IDX_ALPHA] = x0->alpha
+[ ] Remove: n_max bounds (qp->x_lower/upper for N index)
+[ ] Update all x0 index assignments to new numbering
+[ ] Track bounds: decide how to handle without n state
+    Option A: Constrain contouring error |e_c| <= track_width (inequality on s,X,Y)
+    Option B: Compute n from (s,X,Y) per stage for constraints only
+    Option C: Rely on contouring cost only (no hard constraint)
+
+--- state_to_array() / array_to_state() ---
+[ ] Remove n, alpha entries
+[ ] New mapping:
+      arr[0] = s, arr[1] = vx, arr[2] = vy, arr[3] = omega
+      arr[4] = X, arr[5] = Y, arr[6] = psi
+
+--- mpcc_state_from_vehicle_state() ---
+[ ] Remove computation of st.n (lateral distance)
+[ ] Remove computation of st.alpha (heading error)
+[ ] Keep s projection (still needed for virtual progress)
+
+--- mpcc_compute_progress_rate() ---
+[ ] Remove n*kappa denominator (no longer have n in state)
+[ ] Simplify to: ds/dt = (vx*cos(alpha) - vy*sin(alpha))
+    But without alpha, need to compute from psi and phi(s):
+      alpha = psi - phi(s)
+    Or pass it as argument
+
+--- shift_warm_start() ---
+[ ] Should work automatically with new state size
+
+--- mpcc_compute_control() ---
+[ ] Update debug prints to remove n references
+[ ] Update predicted_states printing
+
+================================================================================
+FILE 4: src/qp_solver_mpcc.c  (ADMM + Riccati solver)
+================================================================================
+[ ] Remove x_constrained[MPCC_IDX_N] = 1
+[ ] Remove per-stage N clamping in ADMM z-update (track bound projection)
+[ ] All matrix operations should auto-resize via MPCC_NX
+[ ] If track constraints are reformulated as linear inequalities on (s,X,Y),
+    add those to the constraint handling
+
+================================================================================
+FILE 5: sim/mpcc_ros2_node.c  (ROS2 node)
+================================================================================
+[ ] Remove references to mpcc_state.n in logging (line ~273)
+[ ] Remove references to mpcc_state.alpha in logging (line ~274)
+[ ] Update any state publishing to reflect 7-state vector
+
+================================================================================
+FILE 6: test/test_sim_drive.c  (Standalone simulation)
+================================================================================
+[ ] No direct MPCC_IDX references, but check logging/printing
+[ ] The mpcc_state_from_vehicle_state call still works (just returns fewer fields)
+
+================================================================================
+FILE 7: test/test_matrix_print.c
+================================================================================
+[ ] Update test cost setup to use new indices
+[ ] Remove N and ALPHA weight assignments
+
+================================================================================
+FILE 8: test/test_admm_riccati.c
+================================================================================
+[ ] Update test QP fixtures to use 7-state vectors
+[ ] All NX-sized arrays/matrices will auto-resize
+
+================================================================================
+FILE 9: include/qp_solver_mpcc.h
+================================================================================
+[ ] Update comments referencing "NX = 9" to "NX = 7"
+[ ] Track bound fields (track_left, track_right) may need removal or repurposing
+
+================================================================================
+DESIGN DECISIONS TO MAKE:
+================================================================================
+1. Track width constraints:
+   [ ] Choose Option A, B, or C (see FILE 3 build_qp_problem section)
+
+2. Config cleanup:
+   [ ] Keep or remove Q_N, Q_ALPHA, Q_N_TERM, Q_ALPHA_TERM from config/env vars
+
+3. Tune script (test/tune_mpcc.py):
+   [ ] Remove Q_N, Q_ALPHA from sweep parameters
+   [ ] Adjust scoring since n-based metrics won't exist
+
+================================================================================
+VERIFICATION AFTER CHANGES:
+================================================================================
+[ ] Rebuild: cd MPCC && mkdir -p build && cd build && cmake .. && make
+[ ] Run test_sim_drive with VERBOSE=1 to verify solver produces controls
+[ ] Check that contouring/lag errors are computed correctly
+[ ] Verify car moves (vx > 0) and tracks the path
+[ ] Run tune_mpcc.py for a quick sweep to validate
+[ ] Test on ROS2 sim (run_sim.sh)

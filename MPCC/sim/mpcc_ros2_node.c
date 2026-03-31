@@ -274,13 +274,14 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
     /* Diagnostic: show state + actual commands sent */
     if (solve_count <= 20 || (solve_count % 10 == 0)) {
         fprintf(stderr,
-            "[MPCC %3u] s=%.2f n=%.3f a=%.3f vx=%.2f | "
+            "[MPCC %3u] s=%.2f vx=%.2f X=%.2f Y=%.2f psi=%.3f | "
             "d=%.4f ax=%.3f vt=%.3f | st=%d it=%u\n",
             solve_count,
             fp_to_float(mpcc_state.s),
-            fp_to_float(mpcc_state.n),
-            fp_to_float(mpcc_state.alpha),
             fp_to_float(mpcc_state.vx),
+            fp_to_float(mpcc_state.X),
+            fp_to_float(mpcc_state.Y),
+            fp_to_float(mpcc_state.psi),
             delta_cmd, a_x_cmd, v_theta_cmd,
             (int)status, result.admm_iterations);
         fflush(stderr);
@@ -327,10 +328,8 @@ int main(int argc, const char *argv[])
         MPCCConfiguration_t cfg = mpcc_get_configuration();
 
         const char *v;
-        if ((v = getenv("Q_N")))             cfg.weight_n          = float_to_fp((float)atof(v));
         if ((v = getenv("Q_CONTOURING")))    cfg.weight_contouring = float_to_fp((float)atof(v));
         if ((v = getenv("Q_LAG")))           cfg.weight_lag        = float_to_fp((float)atof(v));
-        if ((v = getenv("Q_ALPHA")))         cfg.weight_alpha      = float_to_fp((float)atof(v));
         if ((v = getenv("Q_PROGRESS")))      cfg.weight_progress   = float_to_fp((float)atof(v));
         if ((v = getenv("Q_VX")))            cfg.weight_vx         = float_to_fp((float)atof(v));
         if ((v = getenv("VX_REF")))          cfg.vx_ref            = float_to_fp((float)atof(v));
@@ -342,10 +341,8 @@ int main(int argc, const char *argv[])
         if ((v = getenv("W_DELTA_RATE")))    cfg.weight_delta_rate = float_to_fp((float)atof(v));
         if ((v = getenv("W_AX_RATE")))       cfg.weight_ax_rate    = float_to_fp((float)atof(v));
         if ((v = getenv("W_VTHETA_RATE")))   cfg.weight_v_theta_rate = float_to_fp((float)atof(v));
-        if ((v = getenv("Q_N_TERM")))        cfg.weight_n_terminal = float_to_fp((float)atof(v));
         if ((v = getenv("Q_CONTOURING_TERM"))) cfg.weight_contouring_terminal = float_to_fp((float)atof(v));
         if ((v = getenv("Q_LAG_TERM")))      cfg.weight_lag_terminal = float_to_fp((float)atof(v));
-        if ((v = getenv("Q_ALPHA_TERM")))    cfg.weight_alpha_terminal = float_to_fp((float)atof(v));
         if ((v = getenv("Q_PROGRESS_TERM"))) cfg.weight_progress_terminal = float_to_fp((float)atof(v));
         if ((v = getenv("ADMM_RHO")))        cfg.admm_rho          = float_to_fp((float)atof(v));
         if ((v = getenv("ADMM_MAX_ITER")))   cfg.admm_max_iterations = (uint16_t)atoi(v);
@@ -363,12 +360,10 @@ int main(int argc, const char *argv[])
         /* Apply the possibly-modified config */
         mpcc_set_configuration(&cfg);
 
-        printf("[MPCC] Config: N=%d dt=%.3f Q_n=%.1f Q_c=%.1f Q_l=%.1f Q_alpha=%.1f "
+        printf("[MPCC] Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f "
                "Q_prog=%.1f R_delta=%.2f W_drate=%.1f ADMM_rho=%.2f\n",
                cfg.horizon_steps, fp_to_float(cfg.dt),
-               fp_to_float(cfg.weight_n),
                fp_to_float(cfg.weight_contouring), fp_to_float(cfg.weight_lag),
-               fp_to_float(cfg.weight_alpha),
                fp_to_float(cfg.weight_progress),
                fp_to_float(cfg.weight_delta), fp_to_float(cfg.weight_delta_rate),
                fp_to_float(cfg.admm_rho));

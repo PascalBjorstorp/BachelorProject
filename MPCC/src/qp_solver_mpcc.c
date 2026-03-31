@@ -460,7 +460,6 @@ void riccati_backward_pass(
         x_constrained[i] = (problem->x_upper[i] < MPCC_BOUND_THRESHOLD ||
                             problem->x_lower[i] > -MPCC_BOUND_THRESHOLD);
     }
-    x_constrained[MPCC_IDX_N] = 1;
 
     /* Rolling value function in int64 for precision across backward sweep */
     int64_t P[MPCC_NX][MPCC_NX];
@@ -757,21 +756,6 @@ void admm_projection_step(
             ws->w_x[k][i] = val;
         }
 
-        /* Override n bounds with per-stage track bounds */
-        {
-            fixed_point_t val_n = fp_add(ws->z_x[k][MPCC_IDX_N],
-                                          ws->lambda_x[k][MPCC_IDX_N]);
-            fixed_point_t n_lb = fp_sub(0, problem->track_right[k]);
-            fixed_point_t n_ub = problem->track_left[k];
-
-            /* Use per-stage if set; fall back to global otherwise */
-            if (n_ub > 0 || n_lb < 0)
-            {
-                if (val_n < n_lb) val_n = n_lb;
-                if (val_n > n_ub) val_n = n_ub;
-                ws->w_x[k][MPCC_IDX_N] = val_n;
-            }
-        }
 
     }
 

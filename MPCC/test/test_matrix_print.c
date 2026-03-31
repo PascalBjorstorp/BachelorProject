@@ -23,12 +23,12 @@
 /* ── State/Control names for readable output ─────────────────────────── */
 
 static const char *state_names[MPCC_NX] = {
-    "s    ", "n    ", "alpha", "vx   ", "vy   ",
+    "s    ", "vx   ", "vy   ",
     "omega", "X    ", "Y    ", "psi  "
 };
 
 static const char *ctrl_names[MPCC_NU] = {
-    "delta", "a_x  "
+    "delta", "a_x  ", "v_th "
 };
 
 /* ── Print a NX×NX matrix with labels ─────────────────────────────────── */
@@ -198,11 +198,9 @@ static void build_cost_from_defaults(MPCCStageCost_t *cost, int is_terminal)
 
     /* Quadratic state costs (diagonal) */
     if (is_terminal) {
-        cost->Q[MPCC_IDX_N][MPCC_IDX_N] = MPCC_DEFAULT_WEIGHT_N_TERMINAL;
-        cost->Q[MPCC_IDX_ALPHA][MPCC_IDX_ALPHA] = MPCC_DEFAULT_WEIGHT_ALPHA_TERMINAL;
+        /* No n/alpha in 7-state model */
     } else {
-        cost->Q[MPCC_IDX_N][MPCC_IDX_N] = MPCC_DEFAULT_WEIGHT_N;
-        cost->Q[MPCC_IDX_ALPHA][MPCC_IDX_ALPHA] = MPCC_DEFAULT_WEIGHT_ALPHA;
+        /* No n/alpha in 7-state model */
     }
 
     /* State regularization */
@@ -236,7 +234,7 @@ int main(void)
 {
     printf("============================================================\n");
     printf("  MPCC Cost Matrix Inspector\n");
-    printf("  NX=%d  NU=%d  (Lifted ODE: Frenet + Cartesian)\n", MPCC_NX, MPCC_NU);
+    printf("  NX=%d  NU=%d  (Global Frame: 7-state Liniger MPCC)\n", MPCC_NX, MPCC_NU);
     printf("============================================================\n");
 
     /* --- Stage cost (running cost at k=0..N-1) --- */
@@ -276,9 +274,7 @@ int main(void)
         x_lower[i] = FP_CONST(-1000.0);
         x_upper[i] = FP_CONST(1000.0);
     }
-    /* Tight bounds on n, vx */
-    x_upper[MPCC_IDX_N] = FP_CONST(0.5);
-    x_lower[MPCC_IDX_N] = FP_CONST(-0.5);
+    /* Tight bounds on vx */
     x_upper[MPCC_IDX_VX] = FP_CONST(8.0);
     x_lower[MPCC_IDX_VX] = FP_CONST(0.5);
 
@@ -292,7 +288,6 @@ int main(void)
                state_names[i], lb, ub,
                constrained ? "<-- CONSTRAINED (rho added)" : "unconstrained");
     }
-    printf("    n forced constrained (track bounds always active)\n");
 
     /* Build Q_tilde with selective augmentation */
     fixed_point_t Q_tilde[MPCC_NX][MPCC_NX];
@@ -300,7 +295,6 @@ int main(void)
     for (int i = 0; i < MPCC_NX; i++) {
         int constrained = (fp_to_float(x_upper[i]) < 100.0f ||
                            fp_to_float(x_lower[i]) > -100.0f);
-        if (i == MPCC_IDX_N) constrained = 1; /* forced */
         if (constrained) {
             Q_tilde[i][i] = fp_add(Q_tilde[i][i], rho_default);
         }
@@ -322,7 +316,6 @@ int main(void)
         float qt_val = fp_to_float(Q_tilde[i][i]);
         int constrained = (fp_to_float(x_upper[i]) < 100.0f ||
                            fp_to_float(x_lower[i]) > -100.0f);
-        if (i == MPCC_IDX_N) constrained = 1;
         printf("  %-10s  %10.4f  %10.4f  %10s\n",
                state_names[i], q_val, qt_val,
                constrained ? "YES" : "no");
