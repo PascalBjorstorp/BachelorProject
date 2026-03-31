@@ -48,6 +48,7 @@ find_package(rcutils REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(ackermann_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 
 #===========================================================================
 # MPCC Core Library (FPGA-Compatible, No ROS Dependencies)
@@ -97,12 +98,25 @@ target_compile_definitions(mpcc_core PRIVATE MPCC_DEBUG_PRINT)
 
 add_executable(mpcc_node sim/mpcc_ros2_node.c)
 
+add_executable(mpcc_hardware_node src/mpcc_hardware_node.c)
+
 target_link_libraries(mpcc_node
     mpcc_core
     m  # Math library for atan2 in quaternion conversion
 )
 
+target_link_libraries(mpcc_hardware_node
+    mpcc_core
+    m
+)
+
 target_include_directories(mpcc_node
+    PRIVATE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${MPC_DIR}/include>
+)
+
+target_include_directories(mpcc_hardware_node
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<BUILD_INTERFACE:${MPC_DIR}/include>
@@ -115,6 +129,17 @@ ament_target_dependencies(mpcc_node
     nav_msgs
     geometry_msgs
     ackermann_msgs
+    std_msgs
+)
+
+ament_target_dependencies(mpcc_hardware_node
+    rclc
+    rcl
+    rcutils
+    nav_msgs
+    geometry_msgs
+    ackermann_msgs
+    std_msgs
 )
 
 #===========================================================================
@@ -149,7 +174,7 @@ endif()
 # Installation
 #===========================================================================
 
-install(TARGETS mpcc_node
+install(TARGETS mpcc_node mpcc_hardware_node
     DESTINATION lib/${PROJECT_NAME}
 )
 

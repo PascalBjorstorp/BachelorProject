@@ -18,7 +18,7 @@ repoRoot = char(java.io.File(fullfile(scriptDir, '..', '..', '..')).getCanonical
 bagsRoot = fullfile(repoRoot, 'bags');
 
 % Default raceline CSV (used if a run does not set racelineCsv).
-defaultRacelineCsv = fullfile(bagsRoot, 'Raceline', 'my_track_raceline_20_03.csv');
+defaultRacelineCsv = fullfile(bagsRoot, 'Raceline', 'my_track_raceline_31_03.csv');
 
 % Keep data from [drive detected + startDelayAfterDriveSeconds] and
 % until [last active drive command - endTrimBeforeStopSeconds].
@@ -36,11 +36,15 @@ minLapTimeSeconds = 5.0;
 showStartEndMarkers = false;
 
 % Add one entry per run/algorithm.
+
 runs = [ ...
     struct('algorithm', 'MPC', 'bagName', 'MPC_SPEEDTEST_8_laps', 'racelineCsv', ''), ...
     struct('algorithm', 'Pure Pursuit', 'bagName', 'PP_SPEEDTEST3_8_laps', 'racelineCsv', ''), ...
     struct('algorithm', 'Pure Pursuit', 'bagName', 'PP_SPEEDTEST4_8_laps', 'racelineCsv', ''), ...
     ];
+
+runs = [ ...
+    struct('algorithm', 'MPC', 'bagName', 'MPCTestNoSweepNewMap', 'racelineCsv', '')];
 
 %% Validate configuration
 if isempty(runs)
