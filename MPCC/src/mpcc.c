@@ -1,34 +1,32 @@
 /**
  * @file mpcc.c
  * @brief Model Predictive Contouring Control — Implementation
- *        (Lifted ODE: Frenet primary + Cartesian redundant)
+ *        (Global Frame: 7-state Liniger MPCC with Pacejka tires)
  *
- * Implements the MPCC controller using the Lifted ODE formulation:
+ * Implements the MPCC controller using the global-frame formulation:
+ *
+ * State [7]: [s, vx, vy, omega, X, Y, psi]
+ * Control [3]: [delta, a_x, v_theta]
  *
  * Algorithm (each control cycle):
  *   1. Warm-start: shift previous solution by one time step
  *   2. For each stage k = 0..N-1:
  *      a. Interpolate path at predicted s to get kappa(s), phi(s)
- *      b. Linearize Lifted ODE (Frenet + Cartesian) dynamics
- *      c. Build stage cost (n/alpha penalties, progress reward)
- *      d. Set per-stage track bounds on n from path
+ *      b. Linearize dynamics (Pacejka tires, global frame)
+ *      c. Build stage cost (contouring/lag errors, progress reward)
+ *      d. Set per-stage track bounds from path
  *      e. Linearize obstacle constraints (if active)
  *   3. Solve multistage QP via ADMM + Riccati
  *   4. Extract first control input
  *
- * Frenet dynamics linearization:
- *   The 10-state Lifted ODE is linearized via Forward Euler + Jacobians:
- *
- *   Frenet block (7x7 + 7x2):
- *     ds/dt      = (vx*cos(alpha) - vy*sin(alpha)) / (1 - n*kappa)
- *     dn/dt      = vx*sin(alpha) + vy*cos(alpha)
- *     dalpha/dt  = omega - kappa * ds/dt
- *     [vx, vy, omega] dynamics with linear tires
- *
- *   Cartesian block (3x7 coupling + 3x3):
- *     dX/dt  = vx*cos(psi) - vy*sin(psi)
- *     dY/dt  = vx*sin(psi) + vy*cos(psi)
- *     dpsi/dt= omega
+ * Dynamics:
+ *   ds/dt     = v_theta                         (virtual progress control)
+ *   dvx/dt    = (-F_yf*sin(d) + F_x) / m + vy*omega
+ *   dvy/dt    = (F_yf*cos(d) + F_yr) / m - vx*omega
+ *   domega/dt = (l_f*F_yf*cos(d) - l_r*F_yr) / I_z
+ *   dX/dt     = vx*cos(psi) - vy*sin(psi)
+ *   dY/dt     = vx*sin(psi) + vy*cos(psi)
+ *   dpsi/dt   = omega
  *
  * All arithmetic uses Q16.16 fixed-point for FPGA compatibility.
  */
@@ -83,10 +81,8 @@ static MPCCConfiguration_t get_default_config(void)
     cfg.dt = MPCC_DEFAULT_DT;
 
     /* Frenet tracking */
-    cfg.weight_n = MPCC_DEFAULT_WEIGHT_N;
     cfg.weight_contouring = MPCC_DEFAULT_WEIGHT_CONTOURING;
     cfg.weight_lag = MPCC_DEFAULT_WEIGHT_LAG;
-    cfg.weight_alpha = MPCC_DEFAULT_WEIGHT_ALPHA;
     cfg.weight_progress = MPCC_DEFAULT_WEIGHT_PROGRESS;
 
     /* State regularization */
@@ -106,10 +102,8 @@ static MPCCConfiguration_t get_default_config(void)
     cfg.weight_v_theta_rate = MPCC_DEFAULT_WEIGHT_V_THETA_RATE;
 
     /* Terminal */
-    cfg.weight_n_terminal = MPCC_DEFAULT_WEIGHT_N_TERMINAL;
     cfg.weight_contouring_terminal = MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL;
     cfg.weight_lag_terminal = MPCC_DEFAULT_WEIGHT_LAG_TERMINAL;
-    cfg.weight_alpha_terminal = MPCC_DEFAULT_WEIGHT_ALPHA_TERMINAL;
     cfg.weight_progress_terminal = MPCC_DEFAULT_WEIGHT_PROGRESS_TERMINAL;
 
     /* Obstacle avoidance */
@@ -127,7 +121,6 @@ static MPCCConfiguration_t get_default_config(void)
     cfg.ax_min = MPCC_DEFAULT_AX_MIN;
     cfg.vx_max = F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND;
     cfg.vx_min = F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND;
-    cfg.n_max = MPCC_DEFAULT_N_MAX;
     cfg.v_theta_max = MPCC_DEFAULT_V_THETA_MAX;
     cfg.v_theta_min = MPCC_DEFAULT_V_THETA_MIN;
 
@@ -200,13 +193,8 @@ void mpcc_set_reference_path(const MPCCReferencePath_t *path)
 }
 
 /*===========================================================================
- * Obstacle Management
+ * Obstacles
  *===========================================================================*/
-
-void mpcc_set_obstacles(const MPCCObstacleSet_t *obstacles)
-{
-    obstacle_set = *obstacles;
-}
 
 void mpcc_clear_obstacles(void)
 {
@@ -229,7 +217,6 @@ void mpcc_obstacle_compute_sigma_inv(MPCCObstacle_t *obs)
     fixed_point_t s2 = fp_mul(s, s);
     fixed_point_t cs = fp_mul(c, s);
 
-    /* 1/a^2 and 1/b^2 */
     fixed_point_t ia2 = fp_div(FP_ONE, fp_mul(obs->a, obs->a));
     fixed_point_t ib2 = fp_div(FP_ONE, fp_mul(obs->b, obs->b));
 
@@ -477,116 +464,53 @@ static fixed_point_t mpcc_project_s_on_segment(
 }
 
 /*===========================================================================
- * Frenet-Cartesian Conversion
+ * Vehicle State → MPCC State Conversion
  *===========================================================================*/
-
-void mpcc_frenet_to_cartesian(
-    fixed_point_t s,
-    fixed_point_t n,
-    fixed_point_t alpha,
-    fixed_point_t *X,
-    fixed_point_t *Y,
-    fixed_point_t *psi)
-{
-    /* Inverse Frenet transform:
-     *   X   = gamma_x(s) - n * sin(phi_gamma(s))
-     *   Y   = gamma_y(s) + n * cos(phi_gamma(s))
-     *   psi = phi_gamma(s) + alpha
-     */
-    MPCCPathPoint_t pt;
-    mpcc_path_interpolate(&ref_path, s, &pt);
-
-    fixed_point_t sin_phi = fp_sin(pt.phi_ref);
-    fixed_point_t cos_phi = fp_cos(pt.phi_ref);
-
-    *X = fp_sub(pt.x_ref, fp_mul(n, sin_phi));
-    *Y = fp_add(pt.y_ref, fp_mul(n, cos_phi));
-    *psi = fp_add(pt.phi_ref, alpha);
-}
 
 MPCCState_t mpcc_state_from_vehicle_state(
     const VehicleState_t *vs,
     fixed_point_t s_hint)
 {
-    /* Use module-level last_closest_idx — reset via mpcc_set_reference_path/mpcc_reset */
+    (void)s_hint;
     MPCCState_t st;
     memset(&st, 0, sizeof(st));
 
-    /* Copy Cartesian states directly */
-    st.X = vs->pos_x;
-    st.Y = vs->pos_y;
-    st.psi = vs->heading;
-    st.vx = vs->long_vel;
-    st.vy = vs->lat_vel;
+    /* Copy Cartesian/body-frame states directly */
+    st.X     = vs->pos_x;
+    st.Y     = vs->pos_y;
+    st.psi   = vs->heading;
+    st.vx    = vs->long_vel;
+    st.vy    = vs->lat_vel;
     st.omega = vs->yaw_rate;
-    /* omega_w removed — not needed with a_x control */
 
-    /* Compute Frenet states from Cartesian + path.
-     * Use continuity-preserving local search around s_hint to avoid
-     * jumps between nearby segments in hairpins/self-near track regions. */
-    /* MPC-style closest waypoint search: forward-biased + heading penalty */
+    /* Compute s via forward-biased closest-waypoint search + segment projection */
     {
         if (last_closest_idx >= ref_path.num_points) last_closest_idx = 0;
         uint16_t idx0 = mpcc_find_closest_index_forward_biased(
             &ref_path, st.X, st.Y, st.psi, last_closest_idx);
         uint16_t idx1 = (uint16_t)(idx0 + 1);
-        if (idx1 >= ref_path.num_points) idx1 = ref_path.is_closed ? 0 : (ref_path.num_points - 1);
+        if (idx1 >= ref_path.num_points)
+            idx1 = ref_path.is_closed ? 0 : (ref_path.num_points - 1);
         last_closest_idx = idx0;
         st.s = mpcc_project_s_on_segment(&ref_path, idx0, idx1, st.X, st.Y);
     }
 
-    /* Interpolate path at s */
-    MPCCPathPoint_t pt;
-    mpcc_path_interpolate(&ref_path, st.s, &pt);
-
-    /* n: signed lateral distance */
-    fixed_point_t dx = fp_sub(st.X, pt.x_ref);
-    fixed_point_t dy = fp_sub(st.Y, pt.y_ref);
-    fixed_point_t sin_phi = fp_sin(pt.phi_ref);
-    fixed_point_t cos_phi = fp_cos(pt.phi_ref);
-    st.n = fp_add(fp_mul(fp_sub(0, sin_phi), dx), fp_mul(cos_phi, dy));
-
-    /* alpha: heading error */
-    st.alpha = fp_normalize_angle(fp_sub(st.psi, pt.phi_ref));
-
     return st;
 }
 
-fixed_point_t mpcc_compute_progress_rate(
-    const MPCCState_t *state,
-    fixed_point_t kappa)
-{
-    /* ds/dt = (vx*cos(alpha) - vy*sin(alpha)) / (1 - n*kappa) */
-    fixed_point_t cos_a = fp_cos(state->alpha);
-    fixed_point_t sin_a = fp_sin(state->alpha);
-
-    fixed_point_t v_proj = fp_sub(
-        fp_mul(state->vx, cos_a),
-        fp_mul(state->vy, sin_a));
-
-    fixed_point_t denom = fp_sub(FP_ONE, fp_mul(state->n, kappa));
-
-    /* Guard against division by zero (n*kappa ~ 1 means singularity) */
-    if (denom == 0)
-        denom = FP_CONST(0.001);
-
-    return fp_div(v_proj, denom);
-}
-
-
 /*===========================================================================
- * Cost Construction (Lifted ODE)
+ * Cost Construction (Global Frame MPCC)
  *===========================================================================*/
 
 /**
- * Build stage cost matrices for the Lifted ODE formulation.
+ * Build stage cost matrices for the global-frame MPCC formulation.
  *
  * Cost at each stage:
- *   l_k = q_n * n^2 + q_alpha * alpha^2
+ *   l_k = q_c * e_c^2 + q_l * e_l^2  (contouring/lag, added separately)
  *       + q_vy * vy^2 + q_omega * omega^2
  *       + q_vx * (vx - vx_ref)^2
- *       - q_s * s                  (linear progress reward)
- *       + u^T R u                  (control effort)
+ *       - q_s * v_theta             (linear progress reward on control)
+ *       + u^T R u                   (control effort)
  *
  * @param stage_cost  Output cost structure
  * @param is_terminal  Whether this is the terminal stage (N)
@@ -600,16 +524,6 @@ static void build_stage_cost(
     /* Quadratic state costs (diagonal).
      * Note: contouring/lag error Q contributions are added separately
      * in add_contouring_lag_cost() since they depend on the operating point. */
-    if (is_terminal)
-    {
-        cost->Q[MPCC_IDX_N][MPCC_IDX_N] = config.weight_n_terminal;
-        cost->Q[MPCC_IDX_ALPHA][MPCC_IDX_ALPHA] = config.weight_alpha_terminal;
-    }
-    else
-    {
-        cost->Q[MPCC_IDX_N][MPCC_IDX_N] = config.weight_n;
-        cost->Q[MPCC_IDX_ALPHA][MPCC_IDX_ALPHA] = config.weight_alpha;
-    }
 
     /* State regularization (same for running and terminal) */
     cost->Q[MPCC_IDX_VY][MPCC_IDX_VY] = config.weight_vy;
@@ -716,7 +630,7 @@ static void add_contouring_lag_cost(
 
     /* Constant terms: d = e_bar - g^T * x_bar */
     fixed_point_t x_bar[MPCC_NX] = {
-        z_bar->s, z_bar->n, z_bar->alpha,
+        z_bar->s,
         z_bar->vx, z_bar->vy, z_bar->omega,
         z_bar->X, z_bar->Y, z_bar->psi
     };
@@ -774,8 +688,6 @@ static void build_qp_problem(
 
     /* Set initial state */
     qp->x0[MPCC_IDX_S]       = x0->s;
-    qp->x0[MPCC_IDX_N]       = x0->n;
-    qp->x0[MPCC_IDX_ALPHA]   = x0->alpha;
     qp->x0[MPCC_IDX_VX]      = x0->vx;
     qp->x0[MPCC_IDX_VY]      = x0->vy;
     qp->x0[MPCC_IDX_OMEGA]   = x0->omega;
@@ -795,10 +707,6 @@ static void build_qp_problem(
 
     /* s: must be non-negative */
     qp->x_lower[MPCC_IDX_S] = 0;
-
-    /* n: bounded by track width (default, overridden per-stage below) */
-    qp->x_lower[MPCC_IDX_N] = fp_sub(0, config.n_max);
-    qp->x_upper[MPCC_IDX_N] = config.n_max;
 
     /* vx: bounded */
     qp->x_lower[MPCC_IDX_VX] = config.vx_min;
@@ -998,16 +906,16 @@ static void shift_warm_start(void)
 
 static void state_to_array(const MPCCState_t *st, fixed_point_t arr[MPCC_NX])
 {
-    arr[0] = st->s;     arr[1] = st->n;      arr[2] = st->alpha;
-    arr[3] = st->vx;    arr[4] = st->vy;     arr[5] = st->omega;
-    arr[6] = st->X;     arr[7] = st->Y;      arr[8] = st->psi;
+    arr[0] = st->s;     arr[1] = st->vx;     arr[2] = st->vy;
+    arr[3] = st->omega;  arr[4] = st->X;     arr[5] = st->Y;
+    arr[6] = st->psi;
 }
 
 static void array_to_state(const fixed_point_t arr[MPCC_NX], MPCCState_t *st)
 {
-    st->s = arr[0];     st->n = arr[1];       st->alpha = arr[2];
-    st->vx = arr[3];    st->vy = arr[4];      st->omega = arr[5];
-    st->X = arr[6];     st->Y = arr[7];       st->psi = arr[8];
+    st->s = arr[0];     st->vx = arr[1];      st->vy = arr[2];
+    st->omega = arr[3];  st->X = arr[4];      st->Y = arr[5];
+    st->psi = arr[6];
 }
 
 /*===========================================================================
@@ -1054,31 +962,30 @@ MPCCStatus_t mpcc_compute_control(
 #ifdef MPCC_DEBUG_PRINT
     {
         /* Print B matrix coupling for steering at k=0 */
-        printf("  [DBG-QP] k=0 B[1][δ]=%.6f B[4][δ]=%.6f B[5][δ]=%.6f B[0][vθ]=%.6f B[2][vθ]=%.6f B[3][ax]=%.6f\n",
+        printf("  [DBG-QP] k=0 B[1][δ]=%.6f B[2][δ]=%.6f B[3][δ]=%.6f B[0][vθ]=%.6f B[1][ax]=%.6f\n",
                FP_TO_DOUBLE(qp_problem.dynamics[0].B[1][0]),
-               FP_TO_DOUBLE(qp_problem.dynamics[0].B[4][0]),
-               FP_TO_DOUBLE(qp_problem.dynamics[0].B[5][0]),
+               FP_TO_DOUBLE(qp_problem.dynamics[0].B[2][0]),
+               FP_TO_DOUBLE(qp_problem.dynamics[0].B[3][0]),
                FP_TO_DOUBLE(qp_problem.dynamics[0].B[0][2]),
-               FP_TO_DOUBLE(qp_problem.dynamics[0].B[2][2]),
-               FP_TO_DOUBLE(qp_problem.dynamics[0].B[3][1]));
+               FP_TO_DOUBLE(qp_problem.dynamics[0].B[1][1]));
         /* Print key A matrix entries at k=0 */
-        printf("  [DBG-QP] k=0 A[1][2]=%.4f A[1][3]=%.4f A[1][4]=%.4f A[2][5]=%.4f\n",
+        printf("  [DBG-QP] k=0 A[1][1]=%.4f A[1][2]=%.4f A[1][3]=%.4f A[6][3]=%.4f\n",
+               FP_TO_DOUBLE(qp_problem.dynamics[0].A[1][1]),
                FP_TO_DOUBLE(qp_problem.dynamics[0].A[1][2]),
                FP_TO_DOUBLE(qp_problem.dynamics[0].A[1][3]),
-               FP_TO_DOUBLE(qp_problem.dynamics[0].A[1][4]),
-               FP_TO_DOUBLE(qp_problem.dynamics[0].A[2][5]));
-        /* Print affine term d[1] (n offset) */
+               FP_TO_DOUBLE(qp_problem.dynamics[0].A[6][3]));
+        /* Print affine term d */
         printf("  [DBG-QP] k=0 d[0]=%.4f d[1]=%.4f d[2]=%.4f d[3]=%.4f\n",
                FP_TO_DOUBLE(qp_problem.dynamics[0].d[0]),
                FP_TO_DOUBLE(qp_problem.dynamics[0].d[1]),
                FP_TO_DOUBLE(qp_problem.dynamics[0].d[2]),
                FP_TO_DOUBLE(qp_problem.dynamics[0].d[3]));
         /* Print cost weights */
-        printf("  [DBG-QP] Q[n]=%.1f Q[α]=%.1f Q[vx]=%.1f q[vx]=%.1f R[δ]=%.1f R[ax]=%.1f r[vθ]=%.1f\n",
+        printf("  [DBG-QP] Q[vx]=%.1f Q[vy]=%.1f Q[ω]=%.1f q[vx]=%.1f R[δ]=%.1f R[ax]=%.1f r[vθ]=%.1f\n",
                FP_TO_DOUBLE(qp_problem.stage_cost[0].Q[1][1]),
                FP_TO_DOUBLE(qp_problem.stage_cost[0].Q[2][2]),
                FP_TO_DOUBLE(qp_problem.stage_cost[0].Q[3][3]),
-               FP_TO_DOUBLE(qp_problem.stage_cost[0].q[3]),
+               FP_TO_DOUBLE(qp_problem.stage_cost[0].q[1]),
                FP_TO_DOUBLE(qp_problem.stage_cost[0].R[0][0]),
                FP_TO_DOUBLE(qp_problem.stage_cost[0].R[1][1]),
                FP_TO_DOUBLE(qp_problem.stage_cost[0].r[2]));
@@ -1088,18 +995,18 @@ MPCCStatus_t mpcc_compute_control(
                FP_TO_DOUBLE(qp_problem.stage_cost[0].r[1]),
                FP_TO_DOUBLE(qp_problem.stage_cost[0].r[2]));
         /* Print track bounds */
-        printf("  [DBG-QP] track_left[0]=%.2f track_right[0]=%.2f  n_bound_global=%.2f\n",
+        printf("  [DBG-QP] track_left[0]=%.2f track_right[0]=%.2f\n",
                FP_TO_DOUBLE(qp_problem.track_left[0]),
-               FP_TO_DOUBLE(qp_problem.track_right[0]),
-               FP_TO_DOUBLE(qp_problem.x_upper[1]));
+               FP_TO_DOUBLE(qp_problem.track_right[0]));
         /* Print initial state */
-        printf("  [DBG-QP] x0: s=%.3f n=%.4f α=%.4f vx=%.3f vy=%.4f ω=%.4f\n",
+        printf("  [DBG-QP] x0: s=%.3f vx=%.3f vy=%.4f ω=%.4f X=%.2f Y=%.2f ψ=%.3f\n",
                FP_TO_DOUBLE(qp_problem.x0[0]),
                FP_TO_DOUBLE(qp_problem.x0[1]),
                FP_TO_DOUBLE(qp_problem.x0[2]),
                FP_TO_DOUBLE(qp_problem.x0[3]),
                FP_TO_DOUBLE(qp_problem.x0[4]),
-               FP_TO_DOUBLE(qp_problem.x0[5]));
+               FP_TO_DOUBLE(qp_problem.x0[5]),
+               FP_TO_DOUBLE(qp_problem.x0[6]));
     }
 #endif
 
@@ -1170,7 +1077,7 @@ MPCCStatus_t mpcc_compute_control(
 #ifdef MPCC_DEBUG_PRINT
         printf("[MPCC] status=%d  iter=%u  prim=%.4f  dual=%.4f  "
             "rho=%.3f  rho_u=%.3f  rho_upd=%u  clip=%u  "
-            "delta=%.3f  a_x=%.3f  v_theta=%.3f  s=%.2f  n=%.3f\n",
+            "delta=%.3f  a_x=%.3f  v_theta=%.3f  s=%.2f  vx=%.3f\n",
            status, admm_result.iterations,
            FP_TO_DOUBLE(admm_result.primal_residual),
            FP_TO_DOUBLE(admm_result.dual_residual),
@@ -1182,15 +1089,12 @@ MPCCStatus_t mpcc_compute_control(
            FP_TO_DOUBLE(result->optimal_control.a_x),
            FP_TO_DOUBLE(result->optimal_control.v_theta),
            FP_TO_DOUBLE(result->predicted_states[0].s),
-           FP_TO_DOUBLE(result->predicted_states[0].n));
-    /* Print predicted trajectory: n, vx, delta for first 5 stages */
+           FP_TO_DOUBLE(result->predicted_states[0].vx));
+    /* Print predicted trajectory: vx, delta for first 5 stages */
     {
         uint16_t N = config.horizon_steps;
         uint16_t print_n = N < 5 ? N : 5;
-        printf("  [Traj] n: ");
-        for (uint16_t k = 0; k <= print_n; k++)
-            printf("%.4f ", FP_TO_DOUBLE(result->predicted_states[k].n));
-        printf("\n  [Traj] vx: ");
+        printf("  [Traj] vx: ");
         for (uint16_t k = 0; k <= print_n; k++)
             printf("%.3f ", FP_TO_DOUBLE(result->predicted_states[k].vx));
         printf("\n  [Traj] δ: ");
@@ -1200,18 +1104,19 @@ MPCCStatus_t mpcc_compute_control(
         for (uint16_t k = 0; k < print_n; k++)
             printf("%.4f ", FP_TO_DOUBLE(result->predicted_controls[k].a_x));
         printf("\n");
-        /* Print Riccati K gains at k=0 for steering → lateral states */
-        printf("  [K] K[δ,s]=%.6f K[δ,n]=%.6f K[δ,α]=%.6f K[δ,vx]=%.6f K[δ,vy]=%.6f K[δ,ω]=%.6f\n",
+        /* Print Riccati K gains at k=0 for steering → states */
+        printf("  [K] K[δ,s]=%.6f K[δ,vx]=%.6f K[δ,vy]=%.6f K[δ,ω]=%.6f K[δ,X]=%.6f K[δ,Y]=%.6f K[δ,ψ]=%.6f\n",
                FP_TO_DOUBLE(admm_workspace.K[0][0][0]),
                FP_TO_DOUBLE(admm_workspace.K[0][0][1]),
                FP_TO_DOUBLE(admm_workspace.K[0][0][2]),
                FP_TO_DOUBLE(admm_workspace.K[0][0][3]),
                FP_TO_DOUBLE(admm_workspace.K[0][0][4]),
-               FP_TO_DOUBLE(admm_workspace.K[0][0][5]));
-        printf("  [K] K[ax,s]=%.6f K[ax,n]=%.6f K[ax,vx]=%.6f\n",
+               FP_TO_DOUBLE(admm_workspace.K[0][0][5]),
+               FP_TO_DOUBLE(admm_workspace.K[0][0][6]));
+        printf("  [K] K[ax,s]=%.6f K[ax,vx]=%.6f K[ax,vy]=%.6f\n",
                FP_TO_DOUBLE(admm_workspace.K[0][1][0]),
                FP_TO_DOUBLE(admm_workspace.K[0][1][1]),
-               FP_TO_DOUBLE(admm_workspace.K[0][1][3]));
+               FP_TO_DOUBLE(admm_workspace.K[0][1][2]));
         printf("  [K] kk[δ]=%.6f kk[ax]=%.6f kk[vθ]=%.6f\n",
                FP_TO_DOUBLE(admm_workspace.kk[0][0]),
                FP_TO_DOUBLE(admm_workspace.kk[0][1]),
