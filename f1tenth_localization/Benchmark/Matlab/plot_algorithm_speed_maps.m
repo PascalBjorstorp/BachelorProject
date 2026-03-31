@@ -44,7 +44,7 @@ runs = [ ...
     ];
 
 runs = [ ...
-    struct('algorithm', 'MPC', 'bagName', 'MPCTestNoSweepNewMap', 'racelineCsv', '')];
+    struct('algorithm', 'MPC', 'bagName', 'MPCTestSweepNewMap', 'racelineCsv', '')];
 
 %% Validate configuration
 if isempty(runs)

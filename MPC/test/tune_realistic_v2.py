@@ -51,7 +51,7 @@ HORIZON_LIMIT = 50
 # HARDWARE MAP CONFIGURATION
 # ==============================================================================
 
-RACELINE_PATH = os.path.join(TRAJ_DIR, "hardware_raceline.csv")
+RACELINE_PATH = os.path.join(TRAJ_DIR, "my_track_raceline.csv")
 WALL_MARGIN = 0.20
 
 # Base configuration - starting point for all sweeps
