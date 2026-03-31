@@ -229,6 +229,27 @@ Ultra96_MPC/project_1.gen/sources_1/bd/mpc_design/*
 Ultra96_MPC/project_1.gen/sources_1/bd/mpc_design/hw_handoff/*
 !Ultra96_MPC/project_1.gen/sources_1/bd/mpc_design/hw_handoff/mpc_design.hwh
 
+KriaKV260_MPC/
+!KriaKV260_MPC/
+KriaKV260_MPC/*
+!KriaKV260_MPC/mpc_design_wrapper.xsa
+!KriaKV260_MPC/project_1.runs/
+KriaKV260_MPC/project_1.runs/*
+!KriaKV260_MPC/project_1.runs/impl_1/
+KriaKV260_MPC/project_1.runs/impl_1/*
+!KriaKV260_MPC/project_1.runs/impl_1/mpc_design_wrapper.bit
+!KriaKV260_MPC/project_1.gen/
+KriaKV260_MPC/project_1.gen/*
+!KriaKV260_MPC/project_1.gen/sources_1/
+KriaKV260_MPC/project_1.gen/sources_1/*
+!KriaKV260_MPC/project_1.gen/sources_1/bd/
+KriaKV260_MPC/project_1.gen/sources_1/bd/*
+!KriaKV260_MPC/project_1.gen/sources_1/bd/mpc_design/
+KriaKV260_MPC/project_1.gen/sources_1/bd/mpc_design/*
+!KriaKV260_MPC/project_1.gen/sources_1/bd/mpc_design/hw_handoff/
+KriaKV260_MPC/project_1.gen/sources_1/bd/mpc_design/hw_handoff/*
+!KriaKV260_MPC/project_1.gen/sources_1/bd/mpc_design/hw_handoff/mpc_design.hwh
+
 # Vivado journal and log files
 *.jou
 vivado*.log
@@ -252,9 +273,14 @@ FPGA/docs/*
 MPC/build_test/*
 MPC/build_local/*
 MPC/logs/*
-FPGA_Implementations/MPC_FPGA/build_test/*
-FPGA_Implementations/MPC_FPGA/build_local/*
-FPGA_Implementations/MPC_FPGA/logs/*
+FPGA_Implementations/MPC_FPGA_Kria/build_test/*
+FPGA_Implementations/MPC_FPGA_Kria/build_local/*
+FPGA_Implementations/MPC_FPGA_Kria/logs/*
+FPGA_Implementations/MPC_FPGA_Kria/docs/*
+FPGA_Implementations/MPC_FPGA_Ultra96/build_test/*
+FPGA_Implementations/MPC_FPGA_Ultra96/build_local/*
+FPGA_Implementations/MPC_FPGA_Ultra96/logs/*
+FPGA_Implementations/MPC_FPGA_Ultra96/docs/*
 MPC_legacy/*
 *.tcl
 # =============================================
