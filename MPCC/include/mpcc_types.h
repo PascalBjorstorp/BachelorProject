@@ -585,18 +585,18 @@ typedef struct
 
 /*--- Horizon (tuned via iterative sweep, Hardware mode) ---*/
 #define MPCC_DEFAULT_HORIZON          7
-#define MPCC_DEFAULT_DT               FP_CONST(0.0293)
+#define MPCC_DEFAULT_DT               FP_CONST(0.035)
 
 /*--- Contouring tracking weights ---*/
 
 /** Contouring error penalty (Cartesian-based). */
-#define MPCC_DEFAULT_WEIGHT_CONTOURING FP_CONST(1700.0)
+#define MPCC_DEFAULT_WEIGHT_CONTOURING FP_CONST(1000.0)
 
 /** Lag error penalty (real Cartesian-based). */
-#define MPCC_DEFAULT_WEIGHT_LAG       FP_CONST(350.0)
+#define MPCC_DEFAULT_WEIGHT_LAG       FP_CONST(700.0)
 
 /** Progress reward (tuned for velocity maximization). */
-#define MPCC_DEFAULT_WEIGHT_PROGRESS  FP_CONST(0.730622)
+#define MPCC_DEFAULT_WEIGHT_PROGRESS  FP_CONST(5.0)
 
 /*--- State regularization ---*/
 #define MPCC_DEFAULT_WEIGHT_VX        FP_CONST(0.0)
@@ -642,7 +642,7 @@ typedef struct
 #define MPCC_DEFAULT_AX_MIN           FP_CONST(-10.0)
 
 /*--- Virtual progress speed bounds (tuned via iterative sweep) ---*/
-#define MPCC_DEFAULT_V_THETA_MAX      FP_CONST(5.75)
+#define MPCC_DEFAULT_V_THETA_MAX      FP_CONST(8.0)
 #define MPCC_DEFAULT_V_THETA_MIN      FP_CONST(0.0)
 
 #endif /* MPCC_TYPES_H */
