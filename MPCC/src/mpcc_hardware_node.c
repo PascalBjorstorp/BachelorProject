@@ -448,9 +448,9 @@ static void pose_callback(const void *msg_in)
     }
 
     double v_cmd = g_latest_vx_mps + (double)a_x_cmd * g_solver_dt_sec;
-    if (v_cmd < 0.0)
+    if (v_cmd < 1.0)
     {
-        v_cmd = 0.0;
+        v_cmd = 1.0;
     }
     if (v_cmd > g_vx_max_mps)
     {

@@ -37,7 +37,6 @@ from launch_ros.descriptions import ComposableNode
 def generate_launch_description():
     pkg_share = get_package_share_directory('f1tenth_stack')
     lidar_pkg_share = get_package_share_directory('f1tenth_lidar')
-    sim_pkg_share = get_package_share_directory('f1tenth_sim')
 
     # ── Config file paths ──
     joy_teleop_config = os.path.join(pkg_share, 'config', 'joy_teleop.yaml')
@@ -51,7 +50,8 @@ def generate_launch_description():
     lateral_planner_pkg_dir = get_package_share_directory('f1tenth_lateral_planner')
 
     # ── Default map path ──
-    default_map = os.path.join(sim_pkg_share, 'maps', 'my_track_map.yaml')
+    workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(pkg_share))))
+    default_map = os.path.join(workspace_root, 'f1tenth_sim', 'maps', 'my_track_map.yaml')
 
     # ── Launch arguments ──
     ld = LaunchDescription([
