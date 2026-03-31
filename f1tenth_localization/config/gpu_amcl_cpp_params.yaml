@@ -20,13 +20,13 @@ gpu_amcl_cpp:
     # ---- Particles ----
     num_particles: 1000
     min_particles: 1000
-    max_particles: 10000
+    max_particles: 1000
 
     # ---- KLD adaptive sampling ----
     # Dynamically adjusts particle count based on distribution spread.
     # When converged (tight cluster), uses fewer particles → saves GPU time.
     # When uncertain (spread out), uses more particles → better coverage.
-    use_kld_sampling: true
+    use_kld_sampling: false
     kld_epsilon: 0.05          # KL-divergence error bound (smaller → more particles)
     kld_z: 2.33                # Quantile: 2.33 = 99%, 1.96 = 95%
 
@@ -42,8 +42,8 @@ gpu_amcl_cpp:
     # ---- Update thresholds (metres / radians) ----
     # How much the robot must move before we run a PF update.
     # Higher = fewer updates = less noise accumulation but less responsive.
-    update_min_d: 0.01
-    update_min_a: 0.01
+    update_min_d: 0.00
+    update_min_a: 0.00
 
     # ---- Scan freshness ----
     # Max age (seconds) of a scan before it's rejected as stale.
@@ -59,6 +59,11 @@ gpu_amcl_cpp:
     alpha2: 0.08    # translation → rotation  noise
     alpha3: 0.08    # translation → translation noise
     alpha4: 0.08    # rotation  → translation noise
+
+    # ---- Slip-aware noise scaling ----
+    # During aggressive turns, increase noise to account for tire slip
+    slip_angular_threshold: 1.0  # rad/s — angular velocity above which slip is assumed
+    slip_noise_multiplier: 2.0   # multiply alpha values by this during slip
 
     # ---- Sensor model (likelihood field, Prob. Robotics §6.4) ----
     max_beams: 270
@@ -83,7 +88,8 @@ gpu_amcl_cpp:
     initial_cov_aa: 0.05
 
     # ---- Publishing ----
-    publish_rate: 40.0       # Hz (match LiDAR rate)
+    publish_rate: 40.0           # Hz — pose publish rate (match LiDAR rate)
+    cloud_publish_rate: 2.0      # Hz — particle cloud visualization rate (lower saves GPU bandwidth)
     transform_tolerance: 1.0
 
 

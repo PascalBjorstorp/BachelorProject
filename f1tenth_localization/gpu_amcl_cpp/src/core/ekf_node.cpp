@@ -5,6 +5,7 @@
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <chrono>
 #include <cmath>
+#include <Eigen/Cholesky>
 
 using namespace std::chrono_literals;
 
@@ -51,6 +52,7 @@ void EkfNode::declare_all_parameters() {
 
     declare_parameter<double>("transform_tolerance", 0.1);
     declare_parameter<double>("process_noise_scale", 1.0);
+    declare_parameter<int>("odom_history_max_size", 500);
 }
 
 void EkfNode::load_parameters() {
@@ -62,22 +64,77 @@ void EkfNode::load_parameters() {
     base_frame_          = get_parameter("base_frame").as_string();
     transform_tolerance_ = get_parameter("transform_tolerance").as_double();
     process_noise_scale_ = get_parameter("process_noise_scale").as_double();
+    const int64_t odom_history_size_param =
+        get_parameter("odom_history_max_size").as_int();
+    odom_history_max_size_ = static_cast<size_t>(
+        std::max<int64_t>(2, odom_history_size_param));
+}
+
+void EkfNode::push_odom_sample(const rclcpp::Time& stamp,
+                               const Eigen::Vector3d& pose) {
+    odom_history_.push_back({stamp, pose[0], pose[1], pose[2]});
+
+    while (odom_history_.size() > odom_history_max_size_) {
+        odom_history_.pop_front();
+    }
+}
+
+bool EkfNode::interpolate_odom_pose(const rclcpp::Time& stamp,
+                                    Eigen::Vector3d& odom_pose_out) const {
+    if (odom_history_.empty()) {
+        return false;
+    }
+
+    const auto& first = odom_history_.front();
+    if (stamp <= first.stamp) {
+        odom_pose_out << first.x, first.y, first.theta;
+        return true;
+    }
+
+    const auto& last = odom_history_.back();
+    if (stamp >= last.stamp) {
+        odom_pose_out << last.x, last.y, last.theta;
+        return true;
+    }
+
+    for (size_t i = 1; i < odom_history_.size(); ++i) {
+        const auto& a = odom_history_[i - 1];
+        const auto& b = odom_history_[i];
+
+        if (stamp <= b.stamp) {
+            const double dt = (b.stamp - a.stamp).seconds();
+            if (dt <= 1e-9) {
+                odom_pose_out << b.x, b.y, b.theta;
+                return true;
+            }
+
+            const double t = (stamp - a.stamp).seconds() / dt;
+            odom_pose_out[0] = a.x + t * (b.x - a.x);
+            odom_pose_out[1] = a.y + t * (b.y - a.y);
+
+            const double dtheta = math_utils::angle_diff(b.theta, a.theta);
+            odom_pose_out[2] = math_utils::normalize_angle(a.theta + t * dtheta);
+            return true;
+        }
+    }
+
+    return false;
 }
 
 // ─── EKF Prediction ─────────────────────────────────────────────────
 void EkfNode::predict(const Eigen::Vector3d& delta,
                       const Eigen::Matrix3d& Q) {
-    // State prediction: compose SE(2) delta.
-    state_ = math_utils::se2_compose(state_, delta);
-
-    // Jacobian of the motion model w.r.t. state.
-    // f(x, u) = x ⊕ u  →  df/dx = I + ...
-    double c = std::cos(state_[2]);
-    double s = std::sin(state_[2]);
+    // Linearize around the pre-update heading.
+    double theta = state_[2];
+    double c = std::cos(theta);
+    double s = std::sin(theta);
 
     Eigen::Matrix3d F = Eigen::Matrix3d::Identity();
     F(0, 2) = -delta[0] * s - delta[1] * c;
     F(1, 2) =  delta[0] * c - delta[1] * s;
+
+    // State prediction: compose SE(2) delta.
+    state_ = math_utils::se2_compose(state_, delta);
 
     // Covariance prediction.
     P_ = F * P_ * F.transpose() + process_noise_scale_ * Q;
@@ -98,8 +155,9 @@ void EkfNode::correct(const Eigen::Vector3d& z,
     // Innovation covariance.
     Eigen::Matrix3d S = H * P_ * H.transpose() + R;
 
-    // Kalman gain.
-    Eigen::Matrix3d K = P_ * H.transpose() * S.inverse();
+    // Kalman gain via linear solve (more stable than explicit inverse).
+    Eigen::Matrix3d PHt = P_ * H.transpose();
+    Eigen::Matrix3d K = S.ldlt().solve(PHt.transpose()).transpose();
 
     // State update.
     Eigen::Vector3d dx = K * y;
@@ -116,9 +174,11 @@ void EkfNode::correct(const Eigen::Vector3d& z,
 // ─── Odom callback (prediction source) ─────────────────────────────
 void EkfNode::odom_callback(
     const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
-    std::lock_guard<std::mutex> lock(state_mutex_);
+    std::unique_lock<std::mutex> lock(state_mutex_);
 
+    const rclcpp::Time odom_stamp(msg->header.stamp);
     Eigen::Vector3d odom_pose = math_utils::pose_to_vec(msg->pose.pose);
+    push_odom_sample(odom_stamp, odom_pose);
 
     if (!odom_received_) {
         prev_odom_     = odom_pose;
@@ -150,13 +210,16 @@ void EkfNode::odom_callback(
     Q(2, 2) = std::max(Q(2, 2), 1e-6);
 
     predict(delta, Q);
-    publish_and_broadcast();   // Publish immediately after prediction (§10.2)
+    lock.unlock();
+    publish_and_broadcast(odom_stamp);   // Publish immediately after prediction (§10.2)
 }
 
 // ─── AMCL callback (correction source) ─────────────────────────────
 void EkfNode::amcl_callback(
     const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
-    std::lock_guard<std::mutex> lock(state_mutex_);
+    std::unique_lock<std::mutex> lock(state_mutex_);
+
+    const rclcpp::Time amcl_stamp(msg->header.stamp);
 
     if (!initialized_) {
         state_       = math_utils::pose_to_vec(msg->pose.pose);
@@ -180,20 +243,32 @@ void EkfNode::amcl_callback(
     R(2, 2) = std::max(R(2, 2), 1e-6);
 
     correct(z, R);
-    publish_and_broadcast();   // Publish immediately after correction (§10.2)
+    lock.unlock();
+    publish_and_broadcast(amcl_stamp);   // Publish immediately after correction (§10.2)
 }
 
-// ─── Event-driven publish (called from callbacks that hold state_mutex_) ──
-void EkfNode::publish_and_broadcast() {
-    if (!initialized_) return;
+// ─── Event-driven publish ───────────────────────────────────────────
+void EkfNode::publish_and_broadcast(const rclcpp::Time& stamp) {
+    Eigen::Vector3d state;
+    Eigen::Matrix3d P;
+    Eigen::Vector3d odom_base;
 
-    // Caller already holds state_mutex_ — read state directly.
-    Eigen::Vector3d state = state_;
-    Eigen::Matrix3d P     = P_;
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        if (!initialized_) {
+            return;
+        }
+
+        state = state_;
+        P = P_;
+        if (!interpolate_odom_pose(stamp, odom_base)) {
+            odom_base = prev_odom_;
+        }
+    }
 
     // ── Publish PoseWithCovarianceStamped ─────────────────────────
     auto msg = geometry_msgs::msg::PoseWithCovarianceStamped();
-    msg.header.stamp    = now();
+    msg.header.stamp    = stamp;
     msg.header.frame_id = global_frame_;
     msg.pose.pose       = math_utils::vec_to_pose(state);
 
@@ -206,20 +281,16 @@ void EkfNode::publish_and_broadcast() {
     pose_pub_->publish(msg);
 
     // ── Broadcast map → odom TF ──────────────────────────────────
-    broadcast_tf(msg.header.stamp);
+    broadcast_tf(msg.header.stamp, state, odom_base);
 }
 
-// ─── TF broadcasting (caller holds state_mutex_) ────────────────────
-void EkfNode::broadcast_tf(const rclcpp::Time& stamp) {
-    // state_ IS the map → base_link pose.
-    // prev_odom_ IS the odom → base_link pose (from the odom topic).
-
-    // Caller already holds state_mutex_ — read directly.
-    Eigen::Vector3d odom_base = prev_odom_;
-
+// ─── TF broadcasting ────────────────────────────────────────────────
+void EkfNode::broadcast_tf(const rclcpp::Time& stamp,
+                           const Eigen::Vector3d& map_base,
+                           const Eigen::Vector3d& odom_base) {
     // map → odom = map→base ∘ (odom→base)⁻¹
     Eigen::Vector3d map_odom = math_utils::se2_compose(
-        state_, math_utils::se2_inverse(odom_base));
+        map_base, math_utils::se2_inverse(odom_base));
 
     geometry_msgs::msg::TransformStamped tf;
     tf.header.stamp = stamp + rclcpp::Duration::from_seconds(

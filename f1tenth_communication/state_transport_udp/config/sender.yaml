@@ -10,7 +10,7 @@ ros2_udp_sender:
     steering_correction_c1: 0.918061
     steering_correction_c0: 0.001490
     forward_lookahead: 3
-    horizon: 20
+    horizon: 10
     interpolate_horizon: true
     horizon_step_m: 0.0
     dest_ip: "192.168.50.182"

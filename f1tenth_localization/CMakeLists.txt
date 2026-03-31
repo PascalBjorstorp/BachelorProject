@@ -2,7 +2,11 @@ cmake_minimum_required(VERSION 3.18)
 project(f1tenth_localization LANGUAGES CXX)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic -O2)
+  add_compile_options(
+    $<$<COMPILE_LANGUAGE:CXX>:-Wall>
+    $<$<COMPILE_LANGUAGE:CXX>:-Wextra>
+    $<$<COMPILE_LANGUAGE:CXX>:-Wpedantic>
+  )
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
@@ -54,7 +58,13 @@ if(HAS_CUDA)
     gpu_amcl_cpp/src/cuda/sensor_model_kernels.cu
     gpu_amcl_cpp/src/cuda/resampling_kernels.cu
     gpu_amcl_cpp/src/cuda/weight_kernels.cu
+    gpu_amcl_cpp/src/cuda/estimate_kernels.cu
   )
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(gpu_amcl_cuda PRIVATE
+      $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wno-pedantic>
+    )
+  endif()
   target_include_directories(gpu_amcl_cuda PUBLIC
     gpu_amcl_cpp/include
   )

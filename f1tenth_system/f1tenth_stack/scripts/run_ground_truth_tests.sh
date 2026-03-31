@@ -8,9 +8,17 @@ WORKSPACE_ROOT="/home/f1tenth/BachelorProject"
 TRAJECTORY_FILE="${WORKSPACE_ROOT}/f1tenth_planning/trajectories/my_track_raceline.csv"
 TF_POSE_PUBLISHER="${WORKSPACE_ROOT}/f1tenth_localization/launch/tf_pose_publisher.py"
 
-LOOKAHEAD_MIN="1.0"
-LOOKAHEAD_MAX="2.0"
-LOOKAHEAD_GAIN="0.10"
+LOOKAHEAD_MIN="0.30"
+LOOKAHEAD_MAX="0.60"
+LOOKAHEAD_GAIN="0.08"
+CTE_LOOKAHEAD_WEIGHT="1.50"
+CTE_LOOKAHEAD_GAIN="0.05"
+CURVATURE_LOOKAHEAD_GAIN="0.05"
+CURVATURE_SPEED_FACTOR="1.20"
+CURVATURE_SPEED_FLOOR_RATIO="0.12"
+CTE_SPEED_FACTOR="2.50"
+CTE_SPEED_FLOOR_RATIO="0.25"
+ODOM_TIMEOUT_S="0.20"
 RUN_DURATION_SEC=38
 SPEEDS=("1.0" "1.5" "2.0")
 RUNS_PER_SPEED=3
@@ -131,6 +139,14 @@ echo "Manage core stack: ${MANAGE_CORE}"
 echo "Restart core each run: ${RESTART_CORE_EACH_RUN}"
 echo "=========================================="
 
+if [[ "${MANAGE_CORE}" == "true" ]]; then
+  if ! declare -F start_core_stack >/dev/null 2>&1 || ! declare -F stop_core_stack >/dev/null 2>&1; then
+    echo "[error] MANAGE_CORE=true requires start_core_stack/stop_core_stack helpers, but they are not defined in this script."
+    echo "        Define them or run with MANAGE_CORE=false."
+    exit 1
+  fi
+fi
+
 if [[ ! -f "${TRAJECTORY_FILE}" ]]; then
   echo "[error] Trajectory file missing: ${TRAJECTORY_FILE}"
   exit 1
@@ -208,7 +224,15 @@ for speed in "${SPEEDS[@]}"; do
         max_speed:="${speed}" \
         min_lookahead:="${LOOKAHEAD_MIN}" \
         max_lookahead:="${LOOKAHEAD_MAX}" \
-        lookahead_gain:="${LOOKAHEAD_GAIN}"
+        lookahead_gain:="${LOOKAHEAD_GAIN}" \
+        cte_lookahead_weight:="${CTE_LOOKAHEAD_WEIGHT}" \
+        cte_lookahead_gain:="${CTE_LOOKAHEAD_GAIN}" \
+        curvature_lookahead_gain:="${CURVATURE_LOOKAHEAD_GAIN}" \
+        curvature_speed_factor:="${CURVATURE_SPEED_FACTOR}" \
+        curvature_speed_floor_ratio:="${CURVATURE_SPEED_FLOOR_RATIO}" \
+        cte_speed_factor:="${CTE_SPEED_FACTOR}" \
+        cte_speed_floor_ratio:="${CTE_SPEED_FLOOR_RATIO}" \
+        odom_timeout_s:="${ODOM_TIMEOUT_S}"
 
     echo "Driving for ${RUN_DURATION_SEC}s..."
     set_pp_enable true

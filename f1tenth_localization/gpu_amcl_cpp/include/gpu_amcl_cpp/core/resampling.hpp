@@ -63,26 +63,23 @@ public:
     double effective_sample_size(const float* d_weights, int n,
                                  cudaStream_t stream = nullptr);
 
-    /// Ensure buffers are large enough for `n`.
-    void ensure_capacity(int n);
-
 private:
     DeviceBuffer<float> d_cumsum_;
     DeviceBuffer<float> d_new_particles_;
     DeviceBuffer<float> d_scratch_;  ///< for reduction results (1 float)
     int                 capacity_ = 0;
 
-    // §2: CUB temp storage for DeviceScan::InclusiveSum
+    // CUB temp storage for DeviceScan::InclusiveSum
     DeviceBuffer<uint8_t> d_scan_temp_;
     size_t                scan_temp_bytes_ = 0;
 
-    // §2: CUB temp storage for DeviceReduce::Sum (sum-of-squares)
+    // CUB temp storage for DeviceReduce::Sum (sum-of-squares)
     DeviceBuffer<uint8_t> d_sumsq_temp_;
     size_t                sumsq_temp_bytes_ = 0;
 };
 
 // ─── CUDA kernel declarations (defined in .cu) ─────────────────────
-// §2: CUB temp-storage size queries
+// CUB temp-storage size queries
 size_t query_scan_temp_bytes(int n);
 size_t query_sumsq_temp_bytes(int n);
 

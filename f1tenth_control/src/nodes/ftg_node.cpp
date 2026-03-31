@@ -1,7 +1,5 @@
-#include "f1tenth_control/nodes/ftg_node.hpp"
-#include <rclcpp_components/register_node_macro.hpp>
-#include <tf2/utils.h>
-#include <algorithm>
+#include "nodes/ftg_node.hpp"
+
 
 namespace f1tenth_control {
 
@@ -45,25 +43,15 @@ FTGNode::FTGNode(const rclcpp::NodeOptions& options)
         "drive", reliable_qos
     );
     
-    viz_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
-        "ftg/visualization", reliable_qos
-    );
-    
-    // Visualization timer — decoupled from scan callback to prevent blocking
-    viz_timer_ = create_wall_timer(
-        std::chrono::milliseconds(static_cast<int>(1000.0 / VIZ_RATE_HZ)),
-        std::bind(&FTGNode::vizTimerCallback, this)
-    );
-    
     RCLCPP_INFO(get_logger(), "FTG Node initialized");
     RCLCPP_INFO(get_logger(), "  Subscribing to: scan, odom");
-    RCLCPP_INFO(get_logger(), "  Publishing to: drive, ftg/visualization");
+    RCLCPP_INFO(get_logger(), "  Publishing to: drive");
 }
 
 void FTGNode::declareParameters() {
     // Vehicle parameters
     declare_parameter("wheelbase", 0.3302);
-    declare_parameter("car_width", 0.30);
+    declare_parameter("car_width", 0.273);
 
     // Speed control
     declare_parameter("max_speed", 2.0);
@@ -74,7 +62,7 @@ void FTGNode::declareParameters() {
     // Steering control
     declare_parameter("max_steering", 0.4189);
     declare_parameter("steering_gain", 1.0);
-    declare_parameter("max_steering_rate", 3.5);
+    declare_parameter("max_steering_rate", 2.8492);
     declare_parameter("target_ema_alpha", 0.35);
 
     // Weighted free-space scoring
@@ -99,10 +87,6 @@ void FTGNode::declareParameters() {
     declare_parameter("lidar.angle_max", 1.5708);
     declare_parameter("lidar.apply_median_filter", true);
     declare_parameter("lidar.median_window_size", 3);
-
-    // Mapping mode
-    declare_parameter("mapping_mode", false);
-    declare_parameter("mapping_sample_rate", 10.0);
 }
 
 void FTGNode::loadParameters() {
@@ -144,15 +128,10 @@ void FTGNode::loadParameters() {
     config_.lidar_config.angle_max = get_parameter("lidar.angle_max").as_double();
     config_.lidar_config.apply_median_filter = get_parameter("lidar.apply_median_filter").as_bool();
     config_.lidar_config.median_window_size = get_parameter("lidar.median_window_size").as_int();
-
-    // Mapping mode
-    config_.mapping_mode = get_parameter("mapping_mode").as_bool();
-    config_.mapping_sample_rate = get_parameter("mapping_sample_rate").as_double();
 }
 
 rcl_interfaces::msg::SetParametersResult FTGNode::parametersCallback(
-    const std::vector<rclcpp::Parameter>& parameters
-) {
+    const std::vector<rclcpp::Parameter>& parameters) {
     rcl_interfaces::msg::SetParametersResult result;
     result.successful = true;
     
@@ -174,26 +153,12 @@ void FTGNode::scanCallback(const sensor_msgs::msg::LaserScan::ConstSharedPtr msg
         return;
     }
     
-    // Store laser frame ID for visualization
-    laser_frame_id_ = msg->header.frame_id;
-    
-    // Get current pose from odometry
-    Pose2D current_pose;
-    double timestamp;
-    {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        current_pose = current_state_.pose;
-        timestamp = now().seconds();
-    }
-    
     // Run FTG algorithm
     FTGOutput output = ftg_->compute(
         msg->ranges,
         msg->angle_min,
         msg->angle_max,
-        msg->angle_increment,
-        current_pose,
-        timestamp
+        msg->angle_increment
     );
     
     // Steering smoothing is now handled internally by the FTG algorithm
@@ -205,14 +170,6 @@ void FTGNode::scanCallback(const sensor_msgs::msg::LaserScan::ConstSharedPtr msg
     
     // Update performance metrics
     updatePerformanceMetrics(output, output.command);
-    
-    // Cache output for throttled visualization (non-blocking)
-    {
-        std::lock_guard<std::mutex> lock(viz_mutex_);
-        latest_output_ = output;
-        latest_scan_ = output.processed_scan;
-        viz_data_ready_ = true;
-    }
     
     // Performance logging (throttled to reduce overhead)
     RCLCPP_DEBUG_THROTTLE(get_logger(), *get_clock(), 2000,
@@ -264,24 +221,6 @@ void FTGNode::enableCallback(const std_msgs::msg::Bool::ConstSharedPtr msg) {
     }
 }
 
-void FTGNode::vizTimerCallback() {
-    // Only publish if someone is listening and we have data
-    if (viz_pub_->get_subscription_count() == 0 || !viz_data_ready_) {
-        return;
-    }
-    
-    FTGOutput output;
-    ProcessedScan scan;
-    {
-        std::lock_guard<std::mutex> lock(viz_mutex_);
-        output = latest_output_;
-        scan = latest_scan_;
-        viz_data_ready_ = false;
-    }
-    
-    publishVisualization(output, scan);
-}
-
 void FTGNode::publishDriveCommand(const DriveCommand& cmd) {
     auto drive_msg = ackermann_msgs::msg::AckermannDriveStamped();
     drive_msg.header.stamp = now();
@@ -290,348 +229,6 @@ void FTGNode::publishDriveCommand(const DriveCommand& cmd) {
     drive_msg.drive.steering_angle = cmd.steering_angle;
     
     drive_pub_->publish(drive_msg);
-}
-
-void FTGNode::publishVisualization(const FTGOutput& output, const ProcessedScan& scan) {
-    // Guard: don't publish if scan data is empty (not yet initialized)
-    if (scan.filtered_ranges.empty() || scan.angles.empty()) {
-        return;
-    }
-    
-    visualization_msgs::msg::MarkerArray marker_array;
-    
-    int id = 0;
-    
-    // 1. Visualize ALL valid scan points as point cloud
-    auto valid_marker = createValidScanMarker(scan, id++);
-    if (!valid_marker.points.empty()) {
-        marker_array.markers.push_back(std::move(valid_marker));
-    }
-    
-    // 2. Visualize disparity-blocked points (purple)
-    auto disp_marker = createDisparityBlockedMarker(scan, id++);
-    if (!disp_marker.points.empty()) {
-        marker_array.markers.push_back(std::move(disp_marker));
-    }
-    
-    // 3. Visualize bubble-blocked points (orange)
-    auto bubble_marker = createBubbleBlockedMarker(scan, id++);
-    if (!bubble_marker.points.empty()) {
-        marker_array.markers.push_back(std::move(bubble_marker));
-    }
-    
-    // 4. Visualize all gaps
-    for (size_t i = 0; i < output.all_gaps.size(); ++i) {
-        bool is_selected =
-            (output.all_gaps[i].start_idx == output.selected_gap.start_idx &&
-             output.all_gaps[i].end_idx == output.selected_gap.end_idx);
-        auto gap_marker = createGapMarker(output.all_gaps[i], scan, id++, is_selected);
-        if (!gap_marker.points.empty()) {
-            marker_array.markers.push_back(std::move(gap_marker));
-        }
-    }
-    
-    // 5. Visualize closest point
-    if (output.closest_point_idx < scan.filtered_ranges.size()) {
-        marker_array.markers.push_back(
-            createClosestPointMarker(scan, output.closest_point_idx, id++)
-        );
-    }
-    
-    // 6. Visualize deepest point in selected gap (yellow sphere)
-    if (!output.emergency_stop && output.selected_gap.deepest_idx < scan.angles.size()) {
-        marker_array.markers.push_back(
-            createDeepestPointMarker(output.selected_gap, scan, id++)
-        );
-    }
-    
-    // 7. Visualize target point (where we're steering toward)
-    if (!output.emergency_stop && output.selected_gap.deepest_idx < scan.filtered_ranges.size()) {
-        marker_array.markers.push_back(
-            createTargetPointMarker(output.selected_gap, scan, id++)
-        );
-    }
-    
-    if (!marker_array.markers.empty()) {
-        viz_pub_->publish(marker_array);
-    }
-}
-
-visualization_msgs::msg::Marker FTGNode::createGapMarker(
-    const Gap& gap,
-    const ProcessedScan& scan,
-    int id,
-    bool selected
-) {
-    visualization_msgs::msg::Marker marker;
-    marker.header.stamp = now();
-    marker.header.frame_id = laser_frame_id_;
-    marker.ns = "gaps";
-    marker.id = id;
-    marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
-    marker.action = visualization_msgs::msg::Marker::ADD;
-    
-    // Color: green for selected, blue for others
-    if (selected) {
-        marker.color.r = 0.0;
-        marker.color.g = 1.0;
-        marker.color.b = 0.0;
-        marker.color.a = 1.0;
-        marker.scale.x = 0.05;  // Thicker line for selected
-    } else {
-        marker.color.r = 0.0;
-        marker.color.g = 0.5;
-        marker.color.b = 1.0;
-        marker.color.a = 0.5;
-        marker.scale.x = 0.02;
-    }
-    
-    // Create arc showing the gap
-    for (size_t i = gap.start_idx; i <= gap.end_idx; ++i) {
-        geometry_msgs::msg::Point p;
-        double range = scan.filtered_ranges[i];
-        double angle = scan.angles[i];
-        p.x = range * std::cos(angle);
-        p.y = range * std::sin(angle);
-        p.z = 0.0;
-        marker.points.push_back(p);
-    }
-    
-    marker.lifetime = rclcpp::Duration::from_seconds(0.1);
-    
-    return marker;
-}
-
-visualization_msgs::msg::Marker FTGNode::createClosestPointMarker(
-    const ProcessedScan& scan,
-    size_t idx,
-    int marker_id
-) {
-    visualization_msgs::msg::Marker marker;
-    marker.header.stamp = now();
-    marker.header.frame_id = laser_frame_id_;
-    marker.ns = "closest_point";
-    marker.id = marker_id;
-    marker.type = visualization_msgs::msg::Marker::SPHERE;
-    marker.action = visualization_msgs::msg::Marker::ADD;
-    
-    double range = scan.filtered_ranges[idx];
-    double angle = scan.angles[idx];
-    
-    marker.pose.position.x = range * std::cos(angle);
-    marker.pose.position.y = range * std::sin(angle);
-    marker.pose.position.z = 0.0;
-    marker.pose.orientation.w = 1.0;
-    
-    marker.scale.x = 0.15;
-    marker.scale.y = 0.15;
-    marker.scale.z = 0.15;
-    
-    marker.color.r = 1.0;
-    marker.color.g = 0.0;
-    marker.color.b = 0.0;
-    marker.color.a = 1.0;
-    
-    marker.lifetime = rclcpp::Duration::from_seconds(0.1);
-    
-    return marker;
-}
-
-visualization_msgs::msg::Marker FTGNode::createValidScanMarker(
-    const ProcessedScan& scan,
-    int marker_id
-) {
-    visualization_msgs::msg::Marker marker;
-    marker.header.stamp = now();
-    marker.header.frame_id = laser_frame_id_;
-    marker.ns = "valid_scan";
-    marker.id = marker_id;
-    marker.type = visualization_msgs::msg::Marker::POINTS;
-    marker.action = visualization_msgs::msg::Marker::ADD;
-    
-    marker.scale.x = 0.05;  // Point size
-    marker.scale.y = 0.05;
-    
-    // Green points for valid readings
-    marker.color.r = 0.0;
-    marker.color.g = 1.0;
-    marker.color.b = 0.0;
-    marker.color.a = 0.8;
-    
-    for (size_t i = 0; i < scan.filtered_ranges.size(); ++i) {
-        if (scan.valid[i] && scan.filtered_ranges[i] > config_.gap_threshold) {
-            geometry_msgs::msg::Point p;
-            double range = scan.filtered_ranges[i];
-            double angle = scan.angles[i];
-            p.x = range * std::cos(angle);
-            p.y = range * std::sin(angle);
-            p.z = 0.0;
-            marker.points.push_back(p);
-        }
-    }
-    
-    marker.lifetime = rclcpp::Duration::from_seconds(0.1);
-    return marker;
-}
-
-visualization_msgs::msg::Marker FTGNode::createDisparityBlockedMarker(
-    const ProcessedScan& scan,
-    int marker_id
-) {
-    visualization_msgs::msg::Marker marker;
-    marker.header.stamp = now();
-    marker.header.frame_id = laser_frame_id_;
-    marker.ns = "disparity_blocked";
-    marker.id = marker_id;
-    marker.type = visualization_msgs::msg::Marker::POINTS;
-    marker.action = visualization_msgs::msg::Marker::ADD;
-    
-    marker.scale.x = 0.06;
-    marker.scale.y = 0.06;
-    
-    // Purple points for disparity-blocked readings
-    marker.color.r = 0.8;
-    marker.color.g = 0.0;
-    marker.color.b = 1.0;
-    marker.color.a = 0.8;
-    
-    // Safety check: ensure arrays have matching sizes
-    size_t count = std::min({scan.disparity_blocked.size(), scan.ranges.size(), scan.angles.size()});
-    for (size_t i = 0; i < count; ++i) {
-        if (scan.disparity_blocked[i]) {
-            geometry_msgs::msg::Point p;
-            // Use original range to show where the point actually was
-            double range = scan.ranges[i];
-            double angle = scan.angles[i];
-            p.x = range * std::cos(angle);
-            p.y = range * std::sin(angle);
-            p.z = 0.0;
-            marker.points.push_back(p);
-        }
-    }
-    
-    marker.lifetime = rclcpp::Duration::from_seconds(0.1);
-    return marker;
-}
-
-visualization_msgs::msg::Marker FTGNode::createBubbleBlockedMarker(
-    const ProcessedScan& scan,
-    int marker_id
-) {
-    visualization_msgs::msg::Marker marker;
-    marker.header.stamp = now();
-    marker.header.frame_id = laser_frame_id_;
-    marker.ns = "bubble_blocked";
-    marker.id = marker_id;
-    marker.type = visualization_msgs::msg::Marker::POINTS;
-    marker.action = visualization_msgs::msg::Marker::ADD;
-    
-    marker.scale.x = 0.08;
-    marker.scale.y = 0.08;
-    
-    // Orange points for bubble-blocked readings
-    marker.color.r = 1.0;
-    marker.color.g = 0.5;
-    marker.color.b = 0.0;
-    marker.color.a = 0.9;
-    
-    // Safety check: ensure arrays have matching sizes
-    size_t count = std::min({scan.bubble_blocked.size(), scan.ranges.size(), scan.angles.size()});
-    for (size_t i = 0; i < count; ++i) {
-        if (scan.bubble_blocked[i]) {
-            geometry_msgs::msg::Point p;
-            // Use original range to show where the point actually was
-            double range = scan.ranges[i];
-            double angle = scan.angles[i];
-            p.x = range * std::cos(angle);
-            p.y = range * std::sin(angle);
-            p.z = 0.0;
-            marker.points.push_back(p);
-        }
-    }
-    
-    marker.lifetime = rclcpp::Duration::from_seconds(0.1);
-    return marker;
-}
-
-visualization_msgs::msg::Marker FTGNode::createDeepestPointMarker(
-    const Gap& gap,
-    const ProcessedScan& scan,
-    int marker_id
-) {
-    visualization_msgs::msg::Marker marker;
-    marker.header.stamp = now();
-    marker.header.frame_id = laser_frame_id_;
-    marker.ns = "deepest_point";
-    marker.id = marker_id;
-    marker.type = visualization_msgs::msg::Marker::SPHERE;
-    marker.action = visualization_msgs::msg::Marker::ADD;
-    
-    // Position at the deepest point in the gap
-    double range = gap.deepest_range;
-    double angle = scan.angles[gap.deepest_idx];
-    
-    marker.pose.position.x = range * std::cos(angle);
-    marker.pose.position.y = range * std::sin(angle);
-    marker.pose.position.z = 0.0;
-    marker.pose.orientation.w = 1.0;
-    
-    marker.scale.x = 0.25;  // Larger sphere
-    marker.scale.y = 0.25;
-    marker.scale.z = 0.25;
-    
-    // Yellow for deepest point
-    marker.color.r = 1.0;
-    marker.color.g = 1.0;
-    marker.color.b = 0.0;
-    marker.color.a = 1.0;
-    
-    marker.lifetime = rclcpp::Duration::from_seconds(0.1);
-    return marker;
-}
-
-visualization_msgs::msg::Marker FTGNode::createTargetPointMarker(
-    const Gap& gap,
-    const ProcessedScan& scan,
-    int marker_id
-) {
-    visualization_msgs::msg::Marker marker;
-    marker.header.stamp = now();
-    marker.header.frame_id = laser_frame_id_;
-    marker.ns = "target_point";
-    marker.id = marker_id;
-    marker.type = visualization_msgs::msg::Marker::ARROW;
-    marker.action = visualization_msgs::msg::Marker::ADD;
-    
-    // Target is the deepest point in the gap
-    double target_angle = scan.angles[gap.deepest_idx];
-    
-    // Arrow from origin to target
-    geometry_msgs::msg::Point start, end;
-    start.x = 0.0;
-    start.y = 0.0;
-    start.z = 0.0;
-    
-    double target_range = scan.filtered_ranges[gap.deepest_idx];
-    end.x = target_range * std::cos(target_angle);
-    end.y = target_range * std::sin(target_angle);
-    end.z = 0.0;
-    
-    marker.points.push_back(start);
-    marker.points.push_back(end);
-    
-    marker.scale.x = 0.08;  // Arrow shaft diameter
-    marker.scale.y = 0.15;  // Arrow head diameter
-    marker.scale.z = 0.1;   // Arrow head length
-    
-    // Bright cyan for target
-    marker.color.r = 0.0;
-    marker.color.g = 1.0;
-    marker.color.b = 1.0;
-    marker.color.a = 1.0;
-    
-    marker.lifetime = rclcpp::Duration::from_seconds(0.1);
-    return marker;
 }
 
 void FTGNode::updatePerformanceMetrics(const FTGOutput& output, const DriveCommand& cmd) {

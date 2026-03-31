@@ -22,8 +22,8 @@ public:
 
     MotionModel() = default;
 
-    /// Initialise CUDA resources for `num_particles` particles.
-    void init(int num_particles, const Config& cfg, unsigned long long seed = 42);
+    /// Initialise CUDA resources for up to `max_particles` particles.
+    void init(int max_particles, const Config& cfg, unsigned long long seed = 42);
 
     /**
      * @brief Apply motion model to all particles on GPU.
@@ -43,16 +43,12 @@ public:
     void set_noise_multiplier(double mult) { noise_mult_ = mult; }
     void reset_noise_multiplier()          { noise_mult_ = 1.0; }
 
-    /// Reallocate if particle count changed (KLD).
-    void ensure_capacity(int n);
-
     Config& config() { return cfg_; }
 
 private:
     Config                    cfg_;
     double                    noise_mult_ = 1.0;
     DeviceBuffer<curandState> d_rng_states_;
-    int                       capacity_ = 0;
 };
 
 // ─── CUDA kernel declarations (defined in .cu) ─────────────────────

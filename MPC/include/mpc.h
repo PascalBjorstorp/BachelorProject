@@ -1,22 +1,8 @@
 /**
  * @file mpc.h
- * @brief Model Predictive Control Public API (Riccati-ADMM)
- *
- * Main interface for the F1/10th MPC system using Riccati-ADMM solver.
- * This is a non-condensed formulation where the Riccati recursion solves
- * the unconstrained LQR sub-problem in O(N) per ADMM iteration, and ADMM
- * handles box constraints on states (walls) and controls (actuator limits).
- *
- * Usage:
- *   1. Initialize: mpc_initialize() or mpc_initialize_with_configuration()
- *   2. Each control cycle:
- *      - Get current state from localization
- *      - Build reference trajectory
- *      - Call mpc_compute_optimal_control()
- *      - Apply returned control to vehicle (no post-processing needed)
- *
- * Platform-independent (no ROS dependencies).
- * All arithmetic uses Q16.16 fixed-point for FPGA compatibility.
+ * @brief Riccati-ADMM Model Predictive Control public API.
+ * @details Main interface for the F1/10th MPC Riccati-ADMM implementation.
+ * @dependencies mpc_types.h, vehicle_model.h, util_math.h
  */
 
 #ifndef MPC_H
@@ -27,37 +13,62 @@
 #include "util_math.h"
 
 /*===========================================================================
+ * Configuration Helpers
+ *===========================================================================*/
+
+/**
+ * @brief Read a float environment variable with fallback.
+ * @param name Environment variable name to query.
+ * @param default_val Fallback value when the variable is absent or invalid.
+ * @return Parsed float value, or default_val when not available.
+ */
+float get_env_float(const char *name, float default_val);
+
+/**
+ * @brief Read an integer environment variable with fallback.
+ * @param name Environment variable name to query.
+ * @param default_val Fallback value when the variable is absent or invalid.
+ * @return Parsed integer value, or default_val when not available.
+ */
+int get_env_int(const char *name, int default_val);
+
+/**
+ * @brief Build the default MPC configuration and apply environment overrides.
+ * @return MpcConfiguration_t populated with runtime-ready default parameters.
+ */
+MpcConfiguration_t get_default_configuration(void);
+
+/*===========================================================================
  * MPC Initialization
  *===========================================================================*/
 
 /**
- * Initialize MPC with default configuration.
+ * @brief Initialize the MPC system with default F1/10th configuration.
+ * @return None.
  */
 void mpc_initialize(void);
 
 /**
- * Initialize MPC with custom configuration.
- *
- * @param configuration  Pointer to custom MPC configuration
+ * @brief Initialize the MPC system with a caller-supplied configuration.
+ * @param configuration Pointer to custom MPC configuration; NULL selects defaults.
+ * @return None.
  */
-void mpc_initialize_with_configuration(
-    const MpcConfiguration_t *configuration);
+void mpc_initialize_with_configuration(const MpcConfiguration_t *configuration);
 
 /*===========================================================================
  * Control Computation
  *===========================================================================*/
 
 /**
- * Compute optimal control for current vehicle state (Frenet frame).
- *
- * This is the main MPC function called each control cycle.
- * The state is expressed in Frenet (path-relative) coordinates.
- * Output is the direct MPC solution — no bias, clamp, or post-processing.
- *
- * @param current_frenet_state   Current state in Frenet frame
- * @param reference_trajectory   Array of reference points (length >= horizon)
- * @param result                 Output: optimal control and solver status
- * @return Solver status code
+ * @brief Compute optimal control for current vehicle state (Frenet frame).
+ * @param current_frenet_state Current state in Frenet frame.
+ * @param reference_trajectory Array of reference points (length >= horizon).
+ * @param result Output: optimal control and solver status.
+ * @return Solver status code indicating convergence result.
+ *         MPC_STATUS_SUCCESS when an optimal solution is found;
+ *         MPC_STATUS_MAXIMUM_ITERATIONS_REACHED when iteration budget is exhausted
+ *         but result->optimal_control still contains the best available control;
+ *         MPC_STATUS_ERROR on NULL input or unrecoverable failure.
  */
 MpcSolverStatus_t mpc_compute_optimal_control(
     const FrenetState_t *current_frenet_state,
@@ -69,35 +80,35 @@ MpcSolverStatus_t mpc_compute_optimal_control(
  *===========================================================================*/
 
 /**
- * Get current MPC configuration.
- *
- * @return Copy of current configuration structure
+ * @brief Retrieve a copy of the active MPC configuration.
+ * @return Copy of the current MpcConfiguration_t; all fields reflect the
+ *         most recently applied configuration.
  */
 MpcConfiguration_t mpc_get_configuration(void);
 
 /**
- * Update MPC configuration.
- *
- * @param configuration  New configuration to apply
+ * @brief Replace the active MPC configuration.
+ * @param configuration Pointer to new configuration; call is a no-op if NULL.
+ * @return None.
  */
 void mpc_set_configuration(const MpcConfiguration_t *configuration);
 
 /**
- * Reset MPC solver state (clears warm-start data).
+ * @brief Clear solver warm-start state and reset previous-control memory.
+ * @details Forces the next solve to start from a cold initial condition.
+ *          Does not change the active configuration or vehicle parameters.
+ * @return None.
  */
 void mpc_reset(void);
 
 /**
- * Feed back the actual (hardware-measured) previous control.
- *
- * When actuator dynamics (e.g. servo rate limits) cause the realized
- * control to differ from the MPC command, call this function BEFORE
- * the next mpc_compute_optimal_control() so the MPC's delta_prev /
- * accel_prev states match reality.  If not called, the MPC uses its
- * own previous command as delta_prev (correct when there is no
- * actuator lag).
- *
- * @param actual  The control actually applied to the plant.
+ * @brief Feed back the hardware-measured previous control for actuator lag compensation.
+ * @details When servo rate limits cause the realized steering to differ from
+ *          the MPC command, call this before mpc_compute_optimal_control() to
+ *          synchronize the MPC's delta_actual state with physical reality.
+ *          If not called, the MPC assumes its own previous command was applied.
+ * @param actual Pointer to the control actually applied to the vehicle; no-op if NULL.
+ * @return None.
  */
 void mpc_set_actual_previous_control(const ControlInput_t *actual);
 

@@ -26,6 +26,32 @@ void launch_gpu_normalize_weights(
         int n,
         cudaStream_t stream);
 
+// ─── GPU-side pose estimation (compute mean + covariance on GPU) ─────
+// Forward declarations for estimate kernels
+size_t query_estimate_mean_temp_bytes(int n);
+size_t query_estimate_cov_temp_bytes(int n);
+
+void launch_gpu_compute_mean(
+    const float* d_particles,
+    const float* d_weights,
+    void* d_mean_contrib,        // MeanAccum[n]
+    void* d_mean_result,         // MeanAccum[1]
+    void* d_temp,
+    size_t temp_bytes,
+    int n,
+    cudaStream_t stream);
+
+void launch_gpu_compute_covariance(
+    const float* d_particles,
+    const float* d_weights,
+    float mean_x, float mean_y, float mean_theta,
+    void* d_cov_contrib,         // CovAccum[n]
+    void* d_cov_result,          // CovAccum[1]
+    void* d_temp,
+    size_t temp_bytes,
+    int n,
+    cudaStream_t stream);
+
 /**
  * @brief Pose estimate with 3×3 covariance [x, y, θ].
  */
@@ -138,6 +164,14 @@ private:
     float* d_max_val_ = nullptr;             // Device scalars
     float* d_sum_val_ = nullptr;
 
+    // GPU-side estimate computation buffers
+    void* d_mean_contrib_ = nullptr;         // MeanAccum[max_particles]
+    void* d_mean_result_ = nullptr;          // MeanAccum[1] pinned
+    void* d_cov_contrib_ = nullptr;          // CovAccum[max_particles]
+    void* d_cov_result_ = nullptr;           // CovAccum[1] pinned
+    void* d_est_temp_ = nullptr;             // CUB temp for estimate reductions
+    size_t est_temp_bytes_ = 0;
+
     // Pinned memory for async GPU↔CPU transfers
     float* h_ranges_pinned_ = nullptr;       // Input: ranges CPU→GPU
     float* h_particles_pinned_ = nullptr;    // Output: particles GPU→CPU
@@ -147,6 +181,10 @@ private:
     int max_ranges_ = 0;                     // Allocated range buffer capacity
 
     std::mt19937 rng_{42};                   // For reinitialize() Gaussian sampling
+
+    // Pre-allocated buffers for get_estimate() (avoid per-call allocation)
+    std::vector<double> est_angles_;         // Particle angles for circular mean
+    std::vector<double> est_weights_;        // Particle weights as double
 };
 
 }  // namespace gpu_amcl_cpp

@@ -27,7 +27,6 @@ f1tenth_control/
 ├── config/                  # Configuration files
 │   └── ftg_params.yaml      # FTG parameters
 ├── launch/                  # Launch files
-│   ├── ftg_launch.py
 │   ├── ftg_hardware_launch.py
 │   ├── pure_pursuit_launch.py
 │   └── stanley_launch.py
@@ -50,7 +49,6 @@ A reactive obstacle avoidance algorithm that:
 - Emergency braking for close obstacles
 - Preference for straight-ahead gaps (configurable)
 - Mapping mode for track boundary extraction
-- Real-time visualization support
 
 ## Usage
 
@@ -65,38 +63,40 @@ source install/setup.bash
 ### Running FTG
 
 ```bash
-# With default parameters
-ros2 launch f1tenth_control ftg_launch.py
+# Hardware mode with launch defaults
+ros2 launch f1tenth_control ftg_hardware_launch.py
 
 # With custom speed
-ros2 launch f1tenth_control ftg_launch.py max_speed:=3.0
+ros2 launch f1tenth_control ftg_hardware_launch.py max_speed:=3.0
 
 # With mapping mode enabled
-ros2 launch f1tenth_control ftg_launch.py mapping_mode:=true
+ros2 launch f1tenth_control ftg_hardware_launch.py mapping_mode:=true
 ```
 
 ### Topics
 
 **Subscribed:**
 - `/scan` (sensor_msgs/LaserScan) - LiDAR scan data
-- `/odom` (nav_msgs/Odometry) - Vehicle odometry
+- `/ego_racecar/odom` (nav_msgs/Odometry) - Vehicle odometry (remapped into node topic `odom`)
 - `ftg/enable` (std_msgs/Bool) - Enable/disable the algorithm
 
 **Published:**
 - `/drive` (ackermann_msgs/AckermannDriveStamped) - Drive commands
-- `ftg/visualization` (visualization_msgs/MarkerArray) - RViz visualization
 
 ### Parameters
 
-All parameters are configurable via `config/ftg_params.yaml` or launch arguments. Key parameters:
+All parameters are configurable via `config/ftg_params.yaml` or launch arguments.
+Values below are defaults from `ftg_params.yaml`. In `ftg_hardware_launch.py`, `max_speed` is overridden to `3.0` by default unless a launch argument overrides it.
+
+Key parameters:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `max_speed` | 8.0 | Maximum speed (m/s) |
+| `max_speed` | 2.0 | Maximum speed (m/s) |
 | `min_speed` | 1.0 | Minimum speed (m/s) |
-| `max_steering` | 0.4 | Max steering angle (rad) |
-| `emergency_brake_distance` | 0.3 | Emergency stop distance (m) |
-| `lidar.gap_threshold` | 3.0 | Minimum range for gap detection (m) |
+| `max_steering` | 0.4189 | Max steering angle (rad) |
+| `emergency_brake_distance` | 0.15 | Emergency stop distance (m) |
+| `gap_threshold` | 0.5 | Minimum range for gap detection (m) |
 | `mapping_mode` | false | Enable boundary point extraction |
 
 ### Dynamic Reconfiguration
@@ -105,7 +105,7 @@ Parameters can be changed at runtime:
 
 ```bash
 ros2 param set /ftg_node max_speed 2.0
-ros2 param set /ftg_node lidar.gap_threshold 2.5
+ros2 param set /ftg_node gap_threshold 0.8
 ```
 
 ## Reusable Components
@@ -165,7 +165,7 @@ double i = f1tenth_control::math::lerp(a, b, t);
 5. Create config file and launch file
 
 The `LidarProcessor` and math utilities can be reused. For example:
-- `LidarProcessor::scanPointToCartesian()` for obstacle visualization
+- `LidarProcessor::scanPointToCartesian()` for obstacle coordinate transforms
 - `math::localToGlobal()` for waypoint transforms
 - `math::normalizeAngle()` for angle wrapping
 

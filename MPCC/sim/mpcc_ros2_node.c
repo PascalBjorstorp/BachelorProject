@@ -9,6 +9,7 @@
  ******************************************************************************/
 
 #include <rcl/rcl.h>
+#include <rcl/error_handling.h>
 #include <rclc/rclc.h>
 #include <rclc/executor.h>
 #include <nav_msgs/msg/odometry.h>
@@ -16,6 +17,7 @@
 #include <ackermann_msgs/msg/ackermann_drive_stamped.h>
 #include <std_msgs/msg/float64_multi_array.h>
 #include <geometry_msgs/msg/pose_array.h>
+#include <geometry_msgs/msg/pose_stamped.h>
 
 #include <stdio.h>
 #include <math.h>
@@ -39,7 +41,6 @@ static rcl_timer_t          control_timer;
 
 static nav_msgs__msg__Odometry                          odom_msg;
 static ackermann_msgs__msg__AckermannDriveStamped       drive_msg;
-static geometry_msgs__msg__PoseArray                     pred_msg;
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
@@ -193,7 +194,14 @@ static void publish_raceline(const MPCCReferencePath_t *path)
     path_msg.poses.size = n;
     path_msg.poses.capacity = n;
 
-    rcl_publish(&raceline_pub, &path_msg, NULL);
+    {
+        const rcl_ret_t rc = rcl_publish(&raceline_pub, &path_msg, NULL);
+        if (rc != RCL_RET_OK) {
+            fprintf(stderr, "[MPCC] WARNING: failed to publish /mpcc/raceline: %s\n",
+                    rcl_get_error_string().str);
+            rcl_reset_error();
+        }
+    }
     printf("[MPCC] Published racing line (%d points) to /mpcc/raceline\n", n);
 
     /* Cleanup: free individual frame_id strings, then poses array */
@@ -291,7 +299,14 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
     drive_msg.drive.acceleration  = a_x_cmd;
     drive_msg.drive.jerk          = 0.0f;
 
-    rcl_publish(&drive_pub, &drive_msg, NULL);
+    {
+        const rcl_ret_t rc = rcl_publish(&drive_pub, &drive_msg, NULL);
+        if (rc != RCL_RET_OK) {
+            fprintf(stderr, "[MPCC] WARNING: failed to publish /drive: %s\n",
+                    rcl_get_error_string().str);
+            rcl_reset_error();
+        }
+    }
 }
 
 /* ── Main ────────────────────────────────────────────────────────────────── */
@@ -383,10 +398,15 @@ int main(int argc, const char *argv[])
         pub_opts.qos.durability = RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL;
         pub_opts.qos.depth = 1;
         pub_opts.qos.reliability = RMW_QOS_POLICY_RELIABILITY_RELIABLE;
-        rcl_publisher_init(
+        rcl_ret_t rc = rcl_publisher_init(
             &raceline_pub, &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(nav_msgs, msg, Path),
             "/mpcc/raceline", &pub_opts);
+        if (rc != RCL_RET_OK) {
+            fprintf(stderr, "[MPCC] WARNING: failed to init /mpcc/raceline publisher: %s\n",
+                rcl_get_error_string().str);
+            rcl_reset_error();
+        }
     }
 
     /* Publish raceline once (transient_local keeps it available to rviz) */
@@ -453,13 +473,55 @@ int main(int argc, const char *argv[])
     rclc_executor_spin(&executor);
 
     /* Cleanup */
-    rcl_subscription_fini(&odom_sub, &node);
-    rcl_publisher_fini(&drive_pub, &node);
-    rcl_publisher_fini(&predicted_path_pub, &node);
-    rcl_publisher_fini(&raceline_pub, &node);
-    rcl_timer_fini(&control_timer);
+    {
+        rcl_ret_t rc = rcl_subscription_fini(&odom_sub, &node);
+        if (rc != RCL_RET_OK) {
+            fprintf(stderr, "[MPCC] WARNING: rcl_subscription_fini failed: %s\n",
+                    rcl_get_error_string().str);
+            rcl_reset_error();
+        }
+    }
+    {
+        rcl_ret_t rc = rcl_publisher_fini(&drive_pub, &node);
+        if (rc != RCL_RET_OK) {
+            fprintf(stderr, "[MPCC] WARNING: rcl_publisher_fini(drive) failed: %s\n",
+                    rcl_get_error_string().str);
+            rcl_reset_error();
+        }
+    }
+    {
+        rcl_ret_t rc = rcl_publisher_fini(&predicted_path_pub, &node);
+        if (rc != RCL_RET_OK) {
+            fprintf(stderr, "[MPCC] WARNING: rcl_publisher_fini(predicted_path) failed: %s\n",
+                    rcl_get_error_string().str);
+            rcl_reset_error();
+        }
+    }
+    {
+        rcl_ret_t rc = rcl_publisher_fini(&raceline_pub, &node);
+        if (rc != RCL_RET_OK) {
+            fprintf(stderr, "[MPCC] WARNING: rcl_publisher_fini(raceline) failed: %s\n",
+                    rcl_get_error_string().str);
+            rcl_reset_error();
+        }
+    }
+    {
+        rcl_ret_t rc = rcl_timer_fini(&control_timer);
+        if (rc != RCL_RET_OK) {
+            fprintf(stderr, "[MPCC] WARNING: rcl_timer_fini failed: %s\n",
+                    rcl_get_error_string().str);
+            rcl_reset_error();
+        }
+    }
     rclc_executor_fini(&executor);
-    rcl_node_fini(&node);
+    {
+        rcl_ret_t rc = rcl_node_fini(&node);
+        if (rc != RCL_RET_OK) {
+            fprintf(stderr, "[MPCC] WARNING: rcl_node_fini failed: %s\n",
+                    rcl_get_error_string().str);
+            rcl_reset_error();
+        }
+    }
     rclc_support_fini(&support);
 
     return 0;

@@ -10,41 +10,25 @@ void Resampler::init(int max_particles) {
     d_new_particles_.allocate(max_particles * 3);
     d_scratch_.allocate(1);  // for reduction results
 
-    // §2: Allocate CUB temp storage for InclusiveSum
+    // Allocate CUB temp storage for InclusiveSum
     scan_temp_bytes_ = query_scan_temp_bytes(max_particles);
     d_scan_temp_.allocate(scan_temp_bytes_);
 
-    // §2: Allocate CUB temp storage for sum-of-squares (DeviceReduce::Sum)
+    // Allocate CUB temp storage for sum-of-squares (DeviceReduce::Sum)
     sumsq_temp_bytes_ = query_sumsq_temp_bytes(max_particles);
     d_sumsq_temp_.allocate(sumsq_temp_bytes_);
-}
-
-void Resampler::ensure_capacity(int n) {
-    if (n <= capacity_) return;
-    capacity_ = n;
-    d_cumsum_.allocate(n);
-    d_new_particles_.allocate(n * 3);
-
-    // §2: Reallocate CUB temp storage for larger N
-    size_t new_scan = query_scan_temp_bytes(n);
-    if (new_scan > scan_temp_bytes_) {
-        scan_temp_bytes_ = new_scan;
-        d_scan_temp_.allocate(scan_temp_bytes_);
-    }
-    size_t new_sumsq = query_sumsq_temp_bytes(n);
-    if (new_sumsq > sumsq_temp_bytes_) {
-        sumsq_temp_bytes_ = new_sumsq;
-        d_sumsq_temp_.allocate(sumsq_temp_bytes_);
-    }
 }
 
 int Resampler::resample(float* d_particles, float* d_weights,
                         int n, int target_n,
                         cudaStream_t stream) {
     int new_n = (target_n > 0) ? target_n : n;
-    ensure_capacity(std::max(n, new_n));
+    if (n > capacity_ || new_n > capacity_) {
+        throw std::runtime_error(
+            "Resampler capacity exceeded; increase max_particles in init().");
+    }
 
-    // 1. Inclusive prefix-sum of weights (§2: CUB DeviceScan).
+    // 1. Inclusive prefix-sum of weights CUB DeviceScan.
     launch_inclusive_scan(d_weights, d_cumsum_.ptr(), n,
                          d_scan_temp_.ptr(), scan_temp_bytes_, stream);
 
@@ -74,9 +58,12 @@ int Resampler::resample_to(const float* d_particles, float* d_weights,
                            int n, int target_n,
                            cudaStream_t stream) {
     int new_n = (target_n > 0) ? target_n : n;
-    ensure_capacity(std::max(n, new_n));
+    if (n > capacity_ || new_n > capacity_) {
+        throw std::runtime_error(
+            "Resampler capacity exceeded; increase max_particles in init().");
+    }
 
-    // 1. Inclusive prefix-sum of weights (§2: CUB DeviceScan).
+    // 1. Inclusive prefix-sum of weights CUB DeviceScan.
     launch_inclusive_scan(d_weights, d_cumsum_.ptr(), n,
                          d_scan_temp_.ptr(), scan_temp_bytes_, stream);
 
@@ -92,7 +79,7 @@ int Resampler::resample_to(const float* d_particles, float* d_weights,
         d_out_particles, d_weights,
         n, new_n, r, stream);
 
-    // §5: No D→D copy needed — caller swaps pointers (double-buffer).
+    // No D→D copy needed — caller swaps pointers (double-buffer).
     // Still need sync so weights (1/n) are visible before next step.
     CUDA_CHECK(cudaStreamSynchronize(stream));
     return new_n;
@@ -100,7 +87,7 @@ int Resampler::resample_to(const float* d_particles, float* d_weights,
 
 double Resampler::effective_sample_size(const float* d_weights, int n,
                                         cudaStream_t stream) {
-    // §2: CUB DeviceReduce::Sum with TransformInputIterator (square + sum)
+    // CUB DeviceReduce::Sum with TransformInputIterator (square + sum)
     double sum_sq = launch_sum_sq_weights(d_weights, n,
                                           d_scratch_.ptr(),
                                           d_sumsq_temp_.ptr(),

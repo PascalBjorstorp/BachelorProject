@@ -1,36 +1,18 @@
 /**
  * @file vehicle_model_hls.c
  * @brief Frenet-Frame Vehicle Model Linearization for HLS
- *
- * Computes the 5x5 Frenet A matrix and 5x2 B matrix for the MPC.
- * Uses fixed-point vehicle dynamics terms with load transfer,
- * slip-angle sensitivities, and Pacejka-like stiffness shaping.
- * All vehicle parameters are compile-time constants.
- *
- * Frenet state: [e_y, e_psi, v_x, v_y, omega]
- * Control: [delta (steering angle), acceleration]
+ * @details Computes the 5x5 Frenet A matrix and 5x2 B matrix used by the
+ *          fixed-horizon FPGA MPC controller. The model includes load
+ *          transfer, slip-angle Jacobians, and Pacejka-inspired effective
+ *          stiffness scaling with fixed-point arithmetic.
+ * @dependencies fp_math_hls.h, mpc_fpga_types.h
  */
 
 #include "../include/fp_math_hls.h"
 #include "../include/mpc_fpga_types.h"
 
-/**
- * Compute Frenet-frame linearization matrices.
- *
- * Combines global linearization rows 3-5 (body dynamics) with
- * Frenet kinematic rows 0-1, using compile-time vehicle parameters.
- * Uses fixed-point approximations selected for HLS resource efficiency.
- *
- * @param vx     Longitudinal velocity (>= MIN_LIN_VEL expected)
- * @param vy     Lateral velocity
- * @param omega  Yaw rate
- * @param delta  Operating steering angle (feedforward)
- * @param a_cmd  Operating acceleration (for load transfer)
- * @param kappa  Path curvature at this point
- * @param dt     Time step
- * @param A_fr   Output: 5x5 Frenet state transition matrix
- * @param B_fr   Output: 5x2 Frenet input matrix
- **/
+/* HLS-tuned multiply wrapper used in model hot paths to preserve
+ * predictable operator binding and latency. */
 static fixed_point_t fp_mul_vm(fixed_point_t a, fixed_point_t b) {
 #pragma HLS INLINE off
 #pragma HLS LATENCY min=3 max=3
@@ -39,6 +21,19 @@ static fixed_point_t fp_mul_vm(fixed_point_t a, fixed_point_t b) {
     return (fixed_point_t)(product >> FP_FRAC_BITS);
 }
 
+/**
+ * @brief Compute Frenet-frame linearized dynamics matrices.
+ * @param vx Operating-point longitudinal velocity (expected >= MIN_LIN_VEL).
+ * @param vy Operating-point lateral velocity.
+ * @param omega Operating-point yaw rate.
+ * @param delta Operating-point steering angle.
+ * @param a_cmd Operating-point longitudinal acceleration.
+ * @param kappa Path curvature at the linearization point.
+ * @param dt Discretization step.
+ * @param A_fr Output 5x5 Frenet state transition matrix.
+ * @param B_fr Output 5x2 input matrix.
+ * @return None.
+ */
 void compute_frenet_AB_hls(
     fixed_point_t vx, fixed_point_t vy, fixed_point_t omega,
     fixed_point_t delta, fixed_point_t a_cmd,
@@ -276,6 +271,7 @@ void compute_frenet_AB_hls(
  * @param accel_in   Raw acceleration [m/s^2]
  * @param steer_out  Clamped steering
  * @param accel_out  Clamped acceleration
+ * @return None.
  */
 void saturate_control_hls(
     fixed_point_t steer_in, fixed_point_t accel_in,
