@@ -64,16 +64,17 @@ fixed_point_t fp_normalize_angle(fixed_point_t angle)
 }
 
 /*===========================================================================
- * Reciprocal: 1/x (Newton-Raphson, Fully Unrolled, Pipelined)
+ * Reciprocal: 1/x (Newton-Raphson, Resource-Optimized)
  *
- * Optimization: Fully unrolled 3-iteration Newton-Raphson with explicit
- * DSP binding and 3-cycle multiply latency for timing closure at higher clocks.
+ * Optimization: 3-iteration Newton-Raphson with explicit DSP binding
+ * and 4-cycle latency for timing closure at higher clocks.
  *===========================================================================*/
 
 fixed_point_t fp_recip(fixed_point_t x)
 {
 #pragma HLS INLINE off
-#pragma HLS PIPELINE II=1
+#pragma HLS PIPELINE II=MPC_HLS_RECIP_II
+#pragma HLS ALLOCATION operation instances=mul limit=6
 
     if (x == 0) return 0;
 
@@ -89,31 +90,25 @@ fixed_point_t fp_recip(fixed_point_t x)
     fixed_point_t est = (fixed_point_t)(1 << lead_zeros);
 
     /* Newton-Raphson: est = est + est*(1 - x*est)
-     * Fully unrolled with explicit multiply binding for timing closure.
+     * 3 iterations with explicit multiply binding for timing closure.
      */
 
     /* Iteration 1 */
     int64_t prod1 = (int64_t)abs_x * (int64_t)est;
-#pragma HLS BIND_OP variable=prod1 op=mul impl=dsp latency=3
     fixed_point_t corr1 = FP_ONE - (fixed_point_t)(prod1 >> FP_FRAC_BITS);
     int64_t adj1 = (int64_t)est * (int64_t)corr1;
-#pragma HLS BIND_OP variable=adj1 op=mul impl=dsp latency=3
     fixed_point_t est1 = est + (fixed_point_t)(adj1 >> FP_FRAC_BITS);
 
     /* Iteration 2 */
     int64_t prod2 = (int64_t)abs_x * (int64_t)est1;
-#pragma HLS BIND_OP variable=prod2 op=mul impl=dsp latency=3
     fixed_point_t corr2 = FP_ONE - (fixed_point_t)(prod2 >> FP_FRAC_BITS);
     int64_t adj2 = (int64_t)est1 * (int64_t)corr2;
-#pragma HLS BIND_OP variable=adj2 op=mul impl=dsp latency=3
     fixed_point_t est2 = est1 + (fixed_point_t)(adj2 >> FP_FRAC_BITS);
 
     /* Iteration 3 (final) */
     int64_t prod3 = (int64_t)abs_x * (int64_t)est2;
-#pragma HLS BIND_OP variable=prod3 op=mul impl=dsp latency=3
     fixed_point_t corr3 = FP_ONE - (fixed_point_t)(prod3 >> FP_FRAC_BITS);
     int64_t adj3 = (int64_t)est2 * (int64_t)corr3;
-#pragma HLS BIND_OP variable=adj3 op=mul impl=dsp latency=3
     fixed_point_t est_final = est2 + (fixed_point_t)(adj3 >> FP_FRAC_BITS);
 
     return (sign < 0) ? fp_neg(est_final) : est_final;

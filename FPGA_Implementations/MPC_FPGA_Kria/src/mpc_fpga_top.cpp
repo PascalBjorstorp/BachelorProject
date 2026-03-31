@@ -72,11 +72,12 @@ static void mpc_fpga_compute_core(
     static MpcPersistState_t persist;
     static int initialized = 0;
 #pragma HLS BIND_STORAGE variable=admm_state type=ram_2p impl=bram
-#pragma HLS BIND_STORAGE variable=persist type=ram_1p impl=lutram
 
+#ifndef MPC_HLS_BUILD
     if (!out_steering || !out_accel || !out_status || !out_iters) {
         return;
     }
+#endif
 
     if (!initialized) {
         persist.prev_steer_rate = 0;
@@ -140,9 +141,11 @@ void mpc_fpga_top(
 #pragma HLS INTERFACE s_axilite port=out_status bundle=ctrl
 #pragma HLS INTERFACE s_axilite port=out_iters bundle=ctrl
 
+#ifndef MPC_HLS_BUILD
     if (!out_steering || !out_accel || !out_status || !out_iters) {
         return;
     }
+#endif
 
     /* Beat 0: [e_y | e_psi | vx | vy] */
     stream_word_t d0 = input_stream.read().data;

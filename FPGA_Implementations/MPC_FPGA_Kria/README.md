@@ -71,6 +71,12 @@ MPC_FPGA_Kria/
 source /tools/Xilinx/2025.1/Vitis/settings64.sh
 ```
 
+or 
+
+```bash
+vivado_env
+```
+
 ### Synthesis (default run mode)
 
 ```bash
@@ -107,28 +113,72 @@ HLS_RUN_MODE=export vitis-run --mode hls --tcl scripts/run_hls.tcl
 
 The exported IP can then be imported into Vivado IP Catalog.
 
-### Aggressive Kria HLS Sweep
+### Best Low-Latency Kria Profile (Validated)
 
-Use the provided profile sweep to compare timing/latency across multiple
-synthesis settings and pragma knob combinations (II and unroll factors):
+Use this profile to reproduce the current best latency/frequency point found in this workspace:
 
 ```bash
 cd FPGA_Implementations/MPC_FPGA_Kria
 source /tools/Xilinx/2025.1/Vitis/settings64.sh
-./scripts/sweep_hls_profiles.sh
+
+HLS_RUN_MODE=synth \
+HLS_CLOCK_PERIOD_NS=5 \
+HLS_CLOCK_UNCERTAINTY_PCT=5% \
+HLS_PIPELINE_LOOPS=16 \
+HLS_RECIP_II=4 \
+HLS_STATE_UPDATE_II=4 \
+HLS_UNROLL_GMA_FACTOR=6 \
+HLS_UNROLL_PA_FACTOR=6 \
+HLS_UNROLL_ATPA_FACTOR=3 \
+HLS_UNROLL_SYM_FACTOR=1 \
+HLS_UNROLL_FORWARD_FACTOR=4 \
+HLS_UNROLL_STATE_FACTOR=1 \
+HLS_RICCATI_MUL_LIMIT=6 \
+HLS_K_PARTITION_MODE=0 \
+HLS_K_PARTITION_FACTOR=4 \
+vitis-run --mode hls --tcl scripts/run_hls.tcl
 ```
 
-Outputs:
-- CSV summary: `logs/hls_sweep/hls_sweep_summary.csv`
-- Per-profile reports: `logs/hls_sweep/*_mpc_fpga_top_csynth.rpt`
+Validated synthesis result for this profile:
+- Estimated Fmax: 214.59 MHz
+- Top latency: 24,372 cycles
+- Estimated runtime from cycles/Fmax: 113.575 us
 
-To rank profiles by fastest real-time speed (max latency) with resource usage as
-tie-breakers:
+Targeted exploration note:
+- Additional sweeps were run to trade more resources for fewer cycles.
+- Structural refinement applied: packed state-constraint bitmask (`x_con_mask`) in ADMM loops.
+- None of the tested alternatives beat this profile while keeping robust timing margin above 200 MHz.
+- Sweep logs:
+    - `logs/hls_targeted_sweep.csv`
+    - `logs/hls_targeted_sweep_phase2.csv`
+    - `logs/hls_targeted_sweep_phase3.csv`
+
+Export the same profile for Vivado IP integration:
 
 ```bash
 cd FPGA_Implementations/MPC_FPGA_Kria
-./scripts/rank_hls_sweep.py
+source /tools/Xilinx/2025.1/Vitis/settings64.sh
+
+HLS_RUN_MODE=export \
+HLS_CLOCK_PERIOD_NS=5 \
+HLS_CLOCK_UNCERTAINTY_PCT=5% \
+HLS_PIPELINE_LOOPS=16 \
+HLS_RECIP_II=4 \
+HLS_STATE_UPDATE_II=4 \
+HLS_UNROLL_GMA_FACTOR=6 \
+HLS_UNROLL_PA_FACTOR=6 \
+HLS_UNROLL_ATPA_FACTOR=3 \
+HLS_UNROLL_SYM_FACTOR=1 \
+HLS_UNROLL_FORWARD_FACTOR=4 \
+HLS_UNROLL_STATE_FACTOR=1 \
+HLS_RICCATI_MUL_LIMIT=6 \
+HLS_K_PARTITION_MODE=0 \
+HLS_K_PARTITION_FACTOR=4 \
+vitis-run --mode hls --tcl scripts/run_hls.tcl
 ```
+
+Exported IP package (latest run):
+- `mpc_fpga_hls/kria_kv260/impl/ip/f1tenth_mpc_mpc_fpga_top_1_0.zip`
 
 ### GCC Testbench (quick validation)
 
@@ -225,40 +275,5 @@ use generated reports as the source of truth.*
 | Worst case | 50 (max) | ~8 ms |
 
 All cases well within the 5 ms control period (200 Hz).
-
-## Conversion Notes
-
-### Changes from MPC_experimental
-
-1. **No dynamic memory**: All arrays statically sized
-2. **No globals**: Persistent state via `static` locals in top function
-3. **No stdio/stdlib/string.h**: Removed all C library deps from synthesized code
-4. **Compile-time vehicle params**: F1/10th constants enable propagation
-5. **Real-hardware physics**: Full atan slip angles, Pacejka tire saturation,
-   cos(δ)/sin(δ) force resolution. No simulation-matching simplifications.
-6. **Frenet on ARM**: Top-level consumes precomputed Frenet errors
-7. **Sparsity preserved**: 6×6 dense block + identity rows 6–7
-8. **Division-free critical path**: fp_atan uses fp_recip (Newton-Raphson)
-
-### HLS Optimizations Applied
-
-- `INTERFACE s_axilite` on all top-function ports
-- `PIPELINE II=1` on inner matrix-operation loops
-- `LOOP_TRIPCOUNT` on all loops for report accuracy
-- `ARRAY_PARTITION` on K gains, P matrix (dim=1 + dim=2), M, G, PA arrays
-- `BIND_OP impl=dsp` on critical multiplications
-- `INLINE` on small helper functions and vehicle model
-- **z_old elimination**: Dual residual computed inline during z-update,
-  saving ~4KB BRAM and eliminating copy loop per ADMM iteration
-- **memset elimination**: All zero-fills use explicit HLS-friendly loops
-- **fp_atan division-free**: All divisions replaced with fp_recip (multiply-only)
-
-## Tuning
-
-MPC weights are `#define` constants in `include/mpc_fpga_types.h`. To retune:
-
-1. Edit weight values (e.g., `MPC_W_LAT_ERROR`, `MPC_W_HEADING`)
-2. Re-run synthesis: `HLS_RUN_MODE=synth vitis-run --mode hls --tcl scripts/run_hls.tcl`
-3. Re-export IP
 
 For runtime-tunable weights, add AXI-Lite registers (increases resource usage).

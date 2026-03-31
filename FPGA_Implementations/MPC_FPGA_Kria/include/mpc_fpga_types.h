@@ -44,6 +44,22 @@
 #define MPC_MAX_ADMM_ITER MPC_FPGA_MAX_ADMM_ITER
 
 /*===========================================================================
+ * HLS Resource Constraints (override via compile flags)
+ *===========================================================================*/
+
+#ifndef MPC_HLS_MUL_LIMIT
+#define MPC_HLS_MUL_LIMIT 4
+#endif
+
+#ifndef MPC_HLS_RICCATI_MUL_LIMIT
+#define MPC_HLS_RICCATI_MUL_LIMIT 6
+#endif
+
+#ifndef MPC_HLS_VEHICLE_MUL_LIMIT
+#define MPC_HLS_VEHICLE_MUL_LIMIT 4
+#endif
+
+/*===========================================================================
  * Augmented State Indices
  *===========================================================================*/
 

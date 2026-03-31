@@ -11,13 +11,14 @@
 #include "../include/fp_math_hls.h"
 #include "../include/mpc_fpga_types.h"
 
-/* HLS-tuned multiply wrapper used in model hot paths to preserve
- * predictable operator binding and latency. */
+/* HLS-tuned multiply wrapper used in model hot paths.
+ * Uses DSP with 4-cycle latency for timing closure at higher clocks.
+ * INLINE off ensures controlled instantiation count. */
 static fixed_point_t fp_mul_vm(fixed_point_t a, fixed_point_t b) {
 #pragma HLS INLINE off
-#pragma HLS LATENCY min=3 max=3
+#pragma HLS LATENCY min=4 max=4
+#pragma HLS PIPELINE II=1
     int64_t product = (int64_t)a * (int64_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency=3
     return (fixed_point_t)(product >> FP_FRAC_BITS);
 }
 
@@ -41,8 +42,10 @@ void compute_frenet_AB_hls(
     fixed_point_t A_fr[MPC_NX_FRENET][MPC_NX_FRENET],
     fixed_point_t B_fr[MPC_NX_FRENET][MPC_NU])
 {
-/* Keep this function as a separate scheduled block. */
+/* Keep this function as a separate scheduled block.
+ * Limit DSP allocation to reuse multipliers across operations. */
 #pragma HLS INLINE off
+#pragma HLS ALLOCATION operation instances=mul limit=16
 
     /* Velocity floor for numerical stability */
     fixed_point_t vx_safe = (vx > FP_CONST(0.5)) ? vx : FP_CONST(0.5);

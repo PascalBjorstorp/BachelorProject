@@ -78,7 +78,6 @@ static inline fixed_point_t fp_sub(fixed_point_t a, fixed_point_t b)
 static inline fixed_point_t fp_mul(fixed_point_t a, fixed_point_t b)
 {
     int64_t product = (int64_t)a * (int64_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency=3
     return (fixed_point_t)(product >> FP_FRAC_BITS);
 }
 

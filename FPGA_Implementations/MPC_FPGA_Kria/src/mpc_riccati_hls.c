@@ -54,6 +54,7 @@ void mpc_compute_hls(
     int *out_status,
     int *out_iters)
 {
+#ifndef MPC_HLS_TARGET
     if (!ref || !persist || !admm_state ||
         !out_steering || !out_accel || !out_status || !out_iters) {
         if (out_steering) *out_steering = 0;
@@ -62,6 +63,7 @@ void mpc_compute_hls(
         if (out_iters) *out_iters = 0;
         return;
     }
+#endif
 
     const int N = MPC_HORIZON;
     fixed_point_t dt = MPC_DT;

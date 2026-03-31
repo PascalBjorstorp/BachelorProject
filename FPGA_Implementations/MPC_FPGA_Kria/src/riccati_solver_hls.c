@@ -15,7 +15,7 @@
  * For maximum speed with unlimited resources, set all unroll factors to
  * complete (6) and partition modes to complete (0). */
 #ifndef MPC_HLS_RECIP_II
-#define MPC_HLS_RECIP_II 1
+#define MPC_HLS_RECIP_II 2
 #endif
 
 #ifndef MPC_HLS_STATE_UPDATE_II
@@ -32,6 +32,10 @@
 
 #ifndef MPC_HLS_UNROLL_ATPA_FACTOR
 #define MPC_HLS_UNROLL_ATPA_FACTOR 6
+#endif
+
+#ifndef MPC_HLS_UNROLL_SYM_FACTOR
+#define MPC_HLS_UNROLL_SYM_FACTOR 1
 #endif
 
 #ifndef MPC_HLS_UNROLL_FORWARD_FACTOR
@@ -51,20 +55,19 @@
 #endif
 
 /*===========================================================================
- * 64-bit Reciprocal: 1/det via Newton-Raphson (Fully Unrolled, Pipelined)
+ * 64-bit Reciprocal: 1/det via Newton-Raphson (Resource-Optimized)
  *
  * Input:  det in Q16.16 (int64_t)
  * Output: 1/det in Q16.16 (int64_t)
  *
- * Optimization: Fully unrolled 4-iteration Newton-Raphson with explicit
- * pipelining to break timing-critical paths. Uses DSP binding for all
- * 64-bit multiplies with 4-cycle latency for timing closure at higher clocks.
+ * Optimization: Reduced to 3 iterations with DSP allocation limit.
+ * Uses 4-cycle latency for timing closure at higher clocks.
  *===========================================================================*/
 
 static int64_t reciprocal_64(int64_t det)
 {
 #pragma HLS INLINE
-#pragma HLS PIPELINE II=1
+#pragma HLS ALLOCATION operation instances=mul limit=6
 
     if (det == 0) return 0;
 
@@ -83,44 +86,26 @@ static int64_t reciprocal_64(int64_t det)
     int64_t est = (int64_t)1 << lead_zeros;
 
     /* Newton-Raphson: x_{n+1} = x_n + x_n * (1 - det * x_n)
-     * CLZ gives ~1-bit initial guess (power-of-2 underestimate),
-     * each NR iteration doubles bits → 1→2→4→8→16 after 4 iter.
-     * 4 iterations sufficient for < 1 LSB error in Q16.16.
-     *
-     * Fully unrolled with explicit multiply binding for timing closure.
+     * 3 iterations sufficient for practical accuracy in Q16.16.
      */
 
     /* Iteration 1 */
     int64_t prod1 = abs_det * est;
-#pragma HLS BIND_OP variable=prod1 op=mul impl=dsp latency=4
     int64_t corr1 = (int64_t)FP_ONE - (prod1 >> FP_FRAC_BITS);
     int64_t adj1 = est * corr1;
-#pragma HLS BIND_OP variable=adj1 op=mul impl=dsp latency=4
     int64_t est1 = est + (adj1 >> FP_FRAC_BITS);
 
     /* Iteration 2 */
     int64_t prod2 = abs_det * est1;
-#pragma HLS BIND_OP variable=prod2 op=mul impl=dsp latency=4
     int64_t corr2 = (int64_t)FP_ONE - (prod2 >> FP_FRAC_BITS);
     int64_t adj2 = est1 * corr2;
-#pragma HLS BIND_OP variable=adj2 op=mul impl=dsp latency=4
     int64_t est2 = est1 + (adj2 >> FP_FRAC_BITS);
 
-    /* Iteration 3 */
+    /* Iteration 3 (final) */
     int64_t prod3 = abs_det * est2;
-#pragma HLS BIND_OP variable=prod3 op=mul impl=dsp latency=4
     int64_t corr3 = (int64_t)FP_ONE - (prod3 >> FP_FRAC_BITS);
     int64_t adj3 = est2 * corr3;
-#pragma HLS BIND_OP variable=adj3 op=mul impl=dsp latency=4
-    int64_t est3 = est2 + (adj3 >> FP_FRAC_BITS);
-
-    /* Iteration 4 (final) */
-    int64_t prod4 = abs_det * est3;
-#pragma HLS BIND_OP variable=prod4 op=mul impl=dsp latency=4
-    int64_t corr4 = (int64_t)FP_ONE - (prod4 >> FP_FRAC_BITS);
-    int64_t adj4 = est3 * corr4;
-#pragma HLS BIND_OP variable=adj4 op=mul impl=dsp latency=4
-    int64_t est_final = est3 + (adj4 >> FP_FRAC_BITS);
+    int64_t est_final = est2 + (adj3 >> FP_FRAC_BITS);
 
     return (sign < 0) ? -est_final : est_final;
 }
@@ -132,6 +117,7 @@ static int64_t reciprocal_64(int64_t det)
 static int invert_2x2_hls(int64_t S[2][2], int64_t Si[2][2])
 {
 #pragma HLS INLINE
+#pragma HLS ALLOCATION operation instances=mul limit=4
     int64_t det = ((S[0][0] * S[1][1]) >> FP_FRAC_BITS)
                - ((S[0][1] * S[1][0]) >> FP_FRAC_BITS);
 
@@ -197,7 +183,8 @@ static void riccati_pass_hls(
     /* Value function P (nx x nx) and p (nx x 1) in int64 */
     int64_t P[MPC_NX_AUG][MPC_NX_AUG];
     int64_t p[MPC_NX_AUG];
-#pragma HLS ARRAY_PARTITION variable=P cyclic factor=8 dim=1
+#pragma HLS ARRAY_PARTITION variable=P complete dim=0
+#pragma HLS ARRAY_PARTITION variable=p complete dim=0
 
     /* Initialize terminal cost: P_N = Q_N [+ rho*I if constrained] */
     int s, i, j, a, b, k;
@@ -246,6 +233,10 @@ static void riccati_pass_hls(
         int64_t q_aug[MPC_NX_AUG];
         int64_t R_aug[MPC_NU];
         int64_t r_aug[MPC_NU];
+#pragma HLS ARRAY_PARTITION variable=Q_aug complete dim=0
+#pragma HLS ARRAY_PARTITION variable=q_aug complete dim=0
+#pragma HLS ARRAY_PARTITION variable=R_aug complete dim=0
+#pragma HLS ARRAY_PARTITION variable=r_aug complete dim=0
 
         for (s = 0; s < nx; s++) {
 #pragma HLS UNROLL
@@ -267,17 +258,18 @@ static void riccati_pass_hls(
                      - (((int64_t)rho_u * ((int64_t)z_u[k][a] - (int64_t)y_u[k][a])) >> FP_FRAC_BITS);
         }
 
+        const fixed_point_t b50 = sd->B[5][0];
+        const fixed_point_t b21 = sd->B[2][1];
+
         /* Step 1: M = B^T * P (nu x nx) — B col-0 sparsity: B[2..4][0]=0, only B[5][0]=dt */
         fixed_point_t M[MPC_NU][MPC_NX_AUG];
 #pragma HLS ARRAY_PARTITION variable=M complete dim=0
         for (j = 0; j < nx; j++) {
 #pragma HLS PIPELINE II=1
             /* Col 0: only B[5][0] nonzero */
-            int64_t s0 = (int64_t)sd->B[5][0] * P[5][j];
-#pragma HLS BIND_OP variable=s0 op=mul impl=dsp latency=3
+            int64_t s0 = (int64_t)b50 * P[5][j];
             /* Col 1: only B[2][1] = dt is nonzero */
-            int64_t s1 = (int64_t)sd->B[2][1] * P[2][j];
-#pragma HLS BIND_OP variable=s1 op=mul impl=dsp latency=3
+            int64_t s1 = (int64_t)b21 * P[2][j];
             int64_t m0 = (s0 >> FP_FRAC_BITS) + P[6][j];
             int64_t m1 = (s1 >> FP_FRAC_BITS) + P[7][j];
             if (m0 > INT32_MAX) m0 = INT32_MAX;
@@ -293,15 +285,11 @@ static void riccati_pass_hls(
 #pragma HLS ARRAY_PARTITION variable=S complete dim=0
         {
             /* Col 0: only B[5][0] */
-            int64_t s00 = M[0][5] * (int64_t)sd->B[5][0];
-#pragma HLS BIND_OP variable=s00 op=mul impl=dsp latency=3
-            int64_t s10 = M[1][5] * (int64_t)sd->B[5][0];
-#pragma HLS BIND_OP variable=s10 op=mul impl=dsp latency=3
+            int64_t s00 = M[0][5] * (int64_t)b50;
+            int64_t s10 = M[1][5] * (int64_t)b50;
             /* Col 1: only B[2][1] = dt is nonzero */
-            int64_t s01 = M[0][2] * (int64_t)sd->B[2][1];
-#pragma HLS BIND_OP variable=s01 op=mul impl=dsp latency=3
-            int64_t s11 = M[1][2] * (int64_t)sd->B[2][1];
-#pragma HLS BIND_OP variable=s11 op=mul impl=dsp latency=3
+            int64_t s01 = M[0][2] * (int64_t)b21;
+            int64_t s11 = M[1][2] * (int64_t)b21;
             S[0][0] = R_aug[0] + (s00 >> FP_FRAC_BITS) + M[0][6];
             S[0][1] = (s01 >> FP_FRAC_BITS) + M[0][7];
             S[1][0] = (s10 >> FP_FRAC_BITS) + M[1][6];
@@ -330,8 +318,9 @@ static void riccati_pass_hls(
 #pragma HLS UNROLL
                 int64_t sum = 0;
                 for (s = 0; s < 6; s++) {
-#pragma HLS UNROLL
+#pragma HLS UNROLL factor=MPC_HLS_UNROLL_GMA_FACTOR
                     int64_t gma_prod = M[a][s] * (int64_t)A_local[s][j];
+#pragma HLS BIND_OP variable=gma_prod op=mul impl=dsp latency=3
                     sum += gma_prod;
                 }
                 int64_t g_val = (int64_t)sd->N_cross[j][a] + (sum >> FP_FRAC_BITS);
@@ -353,6 +342,7 @@ static void riccati_pass_hls(
                 for (b = 0; b < nu; b++) {
 #pragma HLS UNROLL
                     int64_t k_prod = Si[a][b] * G[b][j];
+#pragma HLS BIND_OP variable=k_prod op=mul impl=dsp latency=3
                     val += k_prod;
                 }
                 val = -(val >> FP_FRAC_BITS);
@@ -367,11 +357,9 @@ static void riccati_pass_hls(
 #pragma HLS ARRAY_PARTITION variable=Bp complete dim=0
         {
             /* Col 0: only B[5][0] nonzero */
-            int64_t bp0 = (int64_t)sd->B[5][0] * p[5];
-#pragma HLS BIND_OP variable=bp0 op=mul impl=dsp latency=3
+            int64_t bp0 = (int64_t)b50 * p[5];
             /* Col 1: only B[2][1] = dt is nonzero */
-            int64_t bp1 = (int64_t)sd->B[2][1] * p[2];
-#pragma HLS BIND_OP variable=bp1 op=mul impl=dsp latency=3
+            int64_t bp1 = (int64_t)b21 * p[2];
             Bp[0] = (bp0 >> FP_FRAC_BITS) + p[6];
             Bp[1] = (bp1 >> FP_FRAC_BITS) + p[7];
         }
@@ -381,7 +369,9 @@ static void riccati_pass_hls(
             int64_t val = 0;
             for (b = 0; b < nu; b++) {
 #pragma HLS UNROLL
-                val += Si[a][b] * (r_aug[b] + Bp[b]);
+                int64_t kk_prod = Si[a][b] * (r_aug[b] + Bp[b]);
+#pragma HLS BIND_OP variable=kk_prod op=mul impl=dsp latency=3
+                val += kk_prod;
             }
             val = -(val >> FP_FRAC_BITS);
             if (val > INT32_MAX) val = INT32_MAX;
@@ -401,15 +391,16 @@ static void riccati_pass_hls(
 #pragma HLS UNROLL
             PA[i][0] = P[i][0];
         }
-        /* Cols 1-5: full inner product — fully unrolled for max parallelism */
+        /* Cols 1-5: full inner product — partially unrolled for DSP reuse */
         for (i = 0; i < 6; i++) {
-#pragma HLS UNROLL
+#pragma HLS UNROLL factor=2
             for (j = 1; j < 6; j++) {
-#pragma HLS UNROLL
+#pragma HLS UNROLL factor=2
                 int64_t sum = 0;
                 for (s = 0; s < 6; s++) {
-#pragma HLS UNROLL
-                    int64_t pa_prod = P[i][s] * (int64_t)sd->A[s][j];
+#pragma HLS UNROLL factor=MPC_HLS_UNROLL_PA_FACTOR
+                    int64_t pa_prod = P[i][s] * (int64_t)A_local[s][j];
+#pragma HLS BIND_OP variable=pa_prod op=mul impl=dsp latency=3
                     sum += pa_prod;
                 }
                 PA[i][j] = sum >> FP_FRAC_BITS;
@@ -423,20 +414,26 @@ static void riccati_pass_hls(
             static const int sym_i[21] = {0,0,0,0,0,0, 1,1,1,1,1, 2,2,2,2, 3,3,3, 4,4, 5};
             static const int sym_j[21] = {0,1,2,3,4,5, 1,2,3,4,5, 2,3,4,5, 3,4,5, 4,5, 5};
             for (int idx = 0; idx < 21; idx++) {
-#pragma HLS UNROLL
+#if MPC_HLS_UNROLL_SYM_FACTOR > 1
+#pragma HLS UNROLL factor=MPC_HLS_UNROLL_SYM_FACTOR
+#else
+#pragma HLS PIPELINE II=1
+#endif
                 int ii = sym_i[idx];
                 int jj = sym_j[idx];
                 int64_t sum = 0;
                 /* A^T * PA: A_local in registers */
                 for (s = 0; s < 6; s++) {
-#pragma HLS UNROLL
+#pragma HLS UNROLL factor=MPC_HLS_UNROLL_ATPA_FACTOR
                     int64_t atpa_prod = (int64_t)A_local[s][ii] * PA[s][jj];
+#pragma HLS BIND_OP variable=atpa_prod op=mul impl=dsp latency=3
                     sum += atpa_prod;
                 }
                 /* G^T * K contribution */
                 for (a = 0; a < nu; a++) {
 #pragma HLS UNROLL
                     int64_t gtk_prod = G[a][ii] * (int64_t)K[k][a][jj];
+#pragma HLS BIND_OP variable=gtk_prod op=mul impl=dsp latency=3
                     sum += gtk_prod;
                 }
                 int64_t val = ((ii == jj) ? Q_aug[ii] : 0) + (sum >> FP_FRAC_BITS);
@@ -451,7 +448,9 @@ static void riccati_pass_hls(
                 int64_t sum = 0;
                 for (a = 0; a < nu; a++) {
 #pragma HLS UNROLL
-                    sum += G[a][i] * (int64_t)K[k][a][j];
+                    int64_t gk_prod = G[a][i] * (int64_t)K[k][a][j];
+#pragma HLS BIND_OP variable=gk_prod op=mul impl=dsp latency=3
+                    sum += gk_prod;
                 }
                 P[i][j] = sum >> FP_FRAC_BITS;
             }
@@ -468,6 +467,7 @@ static void riccati_pass_hls(
 
         /* Step 8: p_new = q_aug + A^T*p + G^T*kk */
         int64_t p_new[MPC_NX_AUG];
+#pragma HLS ARRAY_PARTITION variable=p_new complete dim=0
         for (i = 0; i < 6; i++) {
     #pragma HLS PIPELINE II=1
             int64_t Atp = 0;
@@ -492,7 +492,10 @@ static void riccati_pass_hls(
             }
             p_new[i] = q_aug[i] + (Gtk >> FP_FRAC_BITS);
         }
-        for (i = 0; i < nx; i++) p[i] = p_new[i];
+        for (i = 0; i < nx; i++) {
+#pragma HLS UNROLL
+            p[i] = p_new[i];
+        }
 
     } /* end backward pass */
 
@@ -569,6 +572,7 @@ MpcStatus_t riccati_admm_solve_hls(
     AdmmState_t *admm_state,
     MpcSolution_t *solution)
 {
+#ifndef MPC_HLS_TARGET
     if (!step_data || !terminal_Q || !terminal_q || !x0 ||
         !config || !admm_state || !solution) {
         if (solution) {
@@ -579,6 +583,7 @@ MpcStatus_t riccati_admm_solve_hls(
         }
         return MPC_STATUS_ERROR;
     }
+#endif
 
     const int nx = MPC_NX_AUG;
     const int nu = MPC_NU;
@@ -604,18 +609,21 @@ MpcStatus_t riccati_admm_solve_hls(
 #pragma HLS ARRAY_PARTITION variable=y_u complete dim=2
 
     /* Precompute constrained flags */
-    uint8_t x_is_con[MPC_HORIZON + 1][MPC_NX_AUG];
-#pragma HLS ARRAY_PARTITION variable=x_is_con complete dim=2
+    uint8_t x_con_mask[MPC_HORIZON + 1];
+#pragma HLS ARRAY_PARTITION variable=x_con_mask complete dim=1
     int k, s, a;
 
     for (k = 0; k <= N; k++) {
 #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON_PLUS_ONE max=MPC_HORIZON_PLUS_ONE
         const StepData_t *sd = (k < N) ? &step_data[k] : &step_data[N - 1];
+        uint8_t mask = 0;
         for (s = 0; s < nx; s++) {
 #pragma HLS UNROLL
-            x_is_con[k][s] = (sd->x_ub[s] < BOUND_THRESHOLD ||
-                               sd->x_lb[s] > -BOUND_THRESHOLD);
+            uint8_t is_con = (sd->x_ub[s] < BOUND_THRESHOLD ||
+                              sd->x_lb[s] > -BOUND_THRESHOLD) ? 1 : 0;
+            mask |= (uint8_t)(is_con << s);
         }
+        x_con_mask[k] = mask;
     }
 
     if (admm_state->initialized) {
@@ -664,7 +672,7 @@ MpcStatus_t riccati_admm_solve_hls(
     #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON_PLUS_ONE max=MPC_HORIZON_PLUS_ONE
             const StepData_t *sd = (k < N) ? &step_data[k] : &step_data[N - 1];
             for (s = 0; s < nx; s++) {
-#pragma HLS UNROLL
+#pragma HLS PIPELINE II=1
                 fixed_point_t val = solution->x[k][s];
                 if (val < sd->x_lb[s]) val = sd->x_lb[s];
                 if (val > sd->x_ub[s]) val = sd->x_ub[s];
@@ -685,9 +693,10 @@ MpcStatus_t riccati_admm_solve_hls(
         /* Initialize y (dual) from constraint violation */
         for (k = 0; k <= N; k++) {
     #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON_PLUS_ONE max=MPC_HORIZON_PLUS_ONE
+            uint8_t mask = x_con_mask[k];
             for (s = 0; s < nx; s++) {
 #pragma HLS UNROLL
-                if (x_is_con[k][s]) {
+                if ((mask >> s) & 1U) {
                     y_x[k][s] = solution->x[k][s] - z_x[k][s];
                 }
             }
@@ -728,9 +737,10 @@ MpcStatus_t riccati_admm_solve_hls(
     #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON_PLUS_ONE max=MPC_HORIZON_PLUS_ONE
     #pragma HLS PIPELINE II=MPC_HLS_STATE_UPDATE_II
             const StepData_t *sd = (k < N) ? &step_data[k] : &step_data[N - 1];
+            uint8_t mask = x_con_mask[k];
             for (s = 0; s < nx; s++) {
 #pragma HLS UNROLL factor=MPC_HLS_UNROLL_STATE_FACTOR
-                if (x_is_con[k][s]) {
+                if ((mask >> s) & 1U) {
                     fixed_point_t x_val = solution->x[k][s];
                     /* x_hat = x + (alpha-1)*(x - z_old), alpha=1.5 */
                     int64_t diff_x = (int64_t)x_val - (int64_t)z_x[k][s];
