@@ -39,23 +39,38 @@
 /* -------------------------------------------------------------------------- */
 
 #define MPCC_DEFAULT_CONTROL_PERIOD_MS 50U
-#define MPCC_EXECUTOR_HANDLES 4
+#define MPCC_EXECUTOR_HANDLES 5
 
 static const char *g_odom_topic = "/ego_racecar/odom";
 static const char *g_pose_topic = "/ekf_pose";
 static const char *g_imu_topic = "/imu/filtered_angular_velocity";
+static const char *g_servo_topic = "/sensors/servo_position_command";
 static const char *g_drive_topic = "/drive";
 
 static const char *g_trajectory_file = NULL;
 
-static unsigned int g_control_period_ms = MPCC_DEFAULT_CONTROL_PERIOD_MS;
-static int g_control_period_overridden = 0;
 static double g_watchdog_timeout_sec = 0.5;
 static int g_verbose = 0;
 
 /* Solver-derived values used to map MPCC acceleration to a velocity command. */
 static double g_solver_dt_sec = 0.05;
 static double g_vx_max_mps = 8.0;
+
+/* Hardware safety: clamp acceleration to prevent violent braking */
+static double g_ax_min_hardware = -3.0;
+
+/* -------------------------------------------------------------------------- */
+/* VESC Servo Conversion Parameters                                            */
+/* -------------------------------------------------------------------------- */
+/* Forward (angle -> servo): servo_val = gain * corrected + offset
+ * where corrected = c2*|d|^2 + c1*|d| + c0 (sign-preserved)
+ * Inverse: solve quadratic to recover d from servo_val */
+#define STEERING_TO_SERVO_GAIN   (-0.7284)
+#define STEERING_TO_SERVO_OFFSET 0.55
+#define STEERING_CORRECTION_C2   0.589566
+#define STEERING_CORRECTION_C1   0.918061
+#define STEERING_CORRECTION_C0   0.001490
+#define STEERING_RATE_LIMIT      2.849
 
 /* -------------------------------------------------------------------------- */
 /* Global State                                                                */
@@ -71,24 +86,35 @@ static int g_have_pose = 0;
 static int g_using_map_pose = 0;
 
 static double g_latest_vx_mps = 0.0;
+static double g_latest_vy_mps = 0.0;
+static double g_latest_omega = 0.0;
 static struct timespec g_last_odom_time = {0, 0};
 static uint32_t g_solve_count = 0;
+
+/* Servo feedback tracking */
+static double g_actual_steering_angle = 0.0;
+static int g_use_steering_feedback = 0;
+
+/* Previous control command (kept on solver failure) */
+static float g_prev_delta_cmd = 0.0f;
+static float g_prev_speed_cmd = 0.0f;
+static float g_prev_ax_cmd = 0.0f;
 
 /* ROS entities */
 static rcl_subscription_t g_odom_sub;
 static rcl_subscription_t g_pose_sub;
 static rcl_subscription_t g_imu_sub;
+static rcl_subscription_t g_servo_sub;
 
 static rcl_publisher_t g_drive_pub;
 static rcl_publisher_t g_predicted_path_pub;
 static rcl_publisher_t g_raceline_pub;
 
-static rcl_timer_t g_control_timer;
-
 /* Message buffers */
 static nav_msgs__msg__Odometry g_odom_msg;
 static geometry_msgs__msg__PoseWithCovarianceStamped g_pose_msg;
 static std_msgs__msg__Float64 g_imu_msg;
+static std_msgs__msg__Float64 g_servo_msg;
 static ackermann_msgs__msg__AckermannDriveStamped g_drive_msg;
 
 /* -------------------------------------------------------------------------- */
@@ -107,22 +133,6 @@ static double timespec_diff_sec(const struct timespec *start,
 {
     return (double)(end->tv_sec - start->tv_sec)
          + (double)(end->tv_nsec - start->tv_nsec) * 1e-9;
-}
-
-static int parse_uint_env(const char *value, unsigned int *out)
-{
-    char *endptr = NULL;
-    unsigned long parsed = strtoul(value, &endptr, 10);
-    if (endptr == value || *endptr != '\0')
-    {
-        return 0;
-    }
-    if (parsed == 0UL || parsed > 2000UL)
-    {
-        return 0;
-    }
-    *out = (unsigned int)parsed;
-    return 1;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -340,6 +350,8 @@ static void odom_callback(const void *msg_in)
     g_vehicle_state.yaw_rate = float_to_fp((float)omega);
 
     g_latest_vx_mps = vx;
+    g_latest_vy_mps = vy;
+    g_latest_omega = omega;
     g_have_odom = 1;
 
     clock_gettime(CLOCK_MONOTONIC, &g_last_odom_time);
@@ -373,48 +385,15 @@ static void pose_callback(const void *msg_in)
     }
 
     g_have_pose = 1;
-}
 
-static void imu_callback(const void *msg_in)
-{
-    if (msg_in == NULL)
+    /* ------- EKF-driven control: run solver on every new pose ------- */
+
+    if (!g_have_reference || !g_have_odom)
     {
         return;
     }
 
-    const std_msgs__msg__Float64 *msg = (const std_msgs__msg__Float64 *)msg_in;
-    g_vehicle_state.yaw_rate = float_to_fp((float)msg->data);
-}
-
-static void publish_zero_command(void)
-{
-    g_drive_msg.drive.steering_angle = 0.0f;
-    g_drive_msg.drive.steering_angle_velocity = 0.0f;
-    g_drive_msg.drive.speed = 0.0f;
-    g_drive_msg.drive.acceleration = 0.0f;
-    g_drive_msg.drive.jerk = 0.0f;
-
-    {
-        const rcl_ret_t rc = rcl_publish(&g_drive_pub, &g_drive_msg, NULL);
-        if (rc != RCL_RET_OK)
-        {
-            fprintf(stderr, "[MPCC] WARNING: failed to publish stop command: %s\n",
-                    rcl_get_error_string().str);
-            rcl_reset_error();
-        }
-    }
-}
-
-static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
-{
-    (void)timer;
-    (void)last_call;
-
-    if (!g_have_reference || !g_have_odom || !g_have_pose)
-    {
-        return;
-    }
-
+    /* Watchdog: check for stale odometry */
     {
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
@@ -426,7 +405,10 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
             {
                 printf("[MPCC] WATCHDOG: stale odometry, publishing zero command\n");
             }
-            publish_zero_command();
+            g_drive_msg.drive.steering_angle = 0.0f;
+            g_drive_msg.drive.speed = 0.0f;
+            g_drive_msg.drive.acceleration = 0.0f;
+            { rcl_ret_t rc_ = rcl_publish(&g_drive_pub, &g_drive_msg, NULL); (void)rc_; }
             return;
         }
     }
@@ -444,16 +426,26 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
         if (g_verbose || g_solve_count <= 20 || (g_solve_count % 10U) == 0U)
         {
             fprintf(stderr,
-                    "[MPCC %3u] solver failed (status=%d), publishing zero command\n",
-                    g_solve_count, (int)status);
+                    "[MPCC %3u] solver failed (status=%d), keeping previous command (d=%.3f v=%.2f)\n",
+                    g_solve_count, (int)status, g_prev_delta_cmd, g_prev_speed_cmd);
         }
-        publish_zero_command();
+        /* Keep the previous command instead of commanding zero */
+        g_drive_msg.drive.steering_angle = g_prev_delta_cmd;
+        g_drive_msg.drive.speed = g_prev_speed_cmd;
+        g_drive_msg.drive.acceleration = g_prev_ax_cmd;
+        { rcl_ret_t rc_ = rcl_publish(&g_drive_pub, &g_drive_msg, NULL); (void)rc_; }
         return;
     }
 
-    const float a_x_cmd = fp_to_float(result.optimal_control.a_x);
+    float a_x_cmd = fp_to_float(result.optimal_control.a_x);
     const float delta_cmd = fp_to_float(result.optimal_control.delta);
     const float v_theta_cmd = fp_to_float(result.optimal_control.v_theta);
+
+    /* Clamp acceleration for hardware safety */
+    if (a_x_cmd < (float)g_ax_min_hardware)
+    {
+        a_x_cmd = (float)g_ax_min_hardware;
+    }
 
     double v_cmd = g_latest_vx_mps + (double)a_x_cmd * g_solver_dt_sec;
     if (v_cmd < 0.0)
@@ -464,6 +456,11 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
     {
         v_cmd = g_vx_max_mps;
     }
+
+    /* Store for next iteration (keep-prev on failure) */
+    g_prev_delta_cmd = delta_cmd;
+    g_prev_speed_cmd = (float)v_cmd;
+    g_prev_ax_cmd = a_x_cmd;
 
     g_drive_msg.header.stamp.sec = 0;
     g_drive_msg.header.stamp.nanosec = 0;
@@ -504,6 +501,52 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
 }
 
 /* -------------------------------------------------------------------------- */
+/* IMU & Servo Callbacks                                                       */
+/* -------------------------------------------------------------------------- */
+
+static void imu_callback(const void *msg_in)
+{
+    if (msg_in == NULL)
+    {
+        return;
+    }
+
+    const std_msgs__msg__Float64 *msg = (const std_msgs__msg__Float64 *)msg_in;
+    g_vehicle_state.yaw_rate = float_to_fp((float)msg->data);
+}
+
+static void servo_callback(const void *msg_in)
+{
+    if (msg_in == NULL)
+    {
+        return;
+    }
+
+    const std_msgs__msg__Float64 *msg = (const std_msgs__msg__Float64 *)msg_in;
+    const double servo_val = msg->data;
+
+    /* Invert the forward mapping: servo_val = GAIN * corrected_angle + OFFSET
+     * => corrected_angle = (servo_val - OFFSET) / GAIN */
+    const double corrected = (servo_val - STEERING_TO_SERVO_OFFSET) / STEERING_TO_SERVO_GAIN;
+
+    /* Invert the polynomial correction: corrected = C2*|d|^2 + C1*|d| + C0
+     * Solve quadratic: C2*a^2 + C1*a + (C0 - |corrected|) = 0
+     * where a = |d|  */
+    const double abs_corrected = fabs(corrected);
+    const double discriminant =
+        STEERING_CORRECTION_C1 * STEERING_CORRECTION_C1
+        - 4.0 * STEERING_CORRECTION_C2 * (STEERING_CORRECTION_C0 - abs_corrected);
+
+    if (discriminant >= 0.0)
+    {
+        const double abs_delta =
+            (-STEERING_CORRECTION_C1 + sqrt(discriminant)) / (2.0 * STEERING_CORRECTION_C2);
+        g_actual_steering_angle = (corrected >= 0.0) ? abs_delta : -abs_delta;
+        g_use_steering_feedback = 1;
+    }
+}
+
+/* -------------------------------------------------------------------------- */
 /* Runtime Setup                                                               */
 /* -------------------------------------------------------------------------- */
 
@@ -533,13 +576,17 @@ static void read_runtime_environment(void)
         g_pose_topic = value;
     }
 
-    if ((value = getenv("MPCC_CONTROL_PERIOD_MS")) != NULL)
+    if ((value = getenv("MPCC_SERVO_TOPIC")) != NULL && value[0] != '\0')
     {
-        unsigned int parsed = 0;
-        if (parse_uint_env(value, &parsed))
+        g_servo_topic = value;
+    }
+
+    if ((value = getenv("MPCC_AX_MIN_HARDWARE")) != NULL)
+    {
+        const double val = atof(value);
+        if (val < 0.0 && val >= -20.0)
         {
-            g_control_period_ms = parsed;
-            g_control_period_overridden = 1;
+            g_ax_min_hardware = val;
         }
     }
 
@@ -616,22 +663,14 @@ static void configure_mpcc_from_environment(void)
         g_vx_max_mps = 8.0;
     }
 
-    if (!g_control_period_overridden)
-    {
-        const unsigned int dt_ms = (unsigned int)lround(g_solver_dt_sec * 1000.0);
-        if (dt_ms > 0U)
-        {
-            g_control_period_ms = dt_ms;
-        }
-    }
-
-    printf("[MPCC] Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_prog=%.1f R_delta=%.2f\n",
+    printf("[MPCC] Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_prog=%.1f R_delta=%.2f ax_min_hw=%.1f\n",
            cfg.horizon_steps,
            fp_to_float(cfg.dt),
            fp_to_float(cfg.weight_contouring),
            fp_to_float(cfg.weight_lag),
            fp_to_float(cfg.weight_progress),
-           fp_to_float(cfg.weight_delta));
+           fp_to_float(cfg.weight_delta),
+           g_ax_min_hardware);
 }
 
 static const char *autodetect_trajectory_file(void)
@@ -697,10 +736,10 @@ int main(int argc, const char *argv[])
     mpcc_set_reference_path(&g_reference_path);
     g_have_reference = 1;
 
-    printf("[MPCC] Hardware topics: odom=%s pose=%s imu=%s drive=%s\n",
-           g_odom_topic, g_pose_topic, g_imu_topic, g_drive_topic);
-    printf("[MPCC] Control period: %u ms | watchdog: %.0f ms | trajectory: %s\n",
-           g_control_period_ms, g_watchdog_timeout_sec * 1000.0, g_trajectory_file);
+    printf("[MPCC] Hardware topics: odom=%s pose=%s imu=%s servo=%s drive=%s\n",
+           g_odom_topic, g_pose_topic, g_imu_topic, g_servo_topic, g_drive_topic);
+    printf("[MPCC] EKF-driven mode | watchdog: %.0f ms | ax_min_hw: %.1f | trajectory: %s\n",
+           g_watchdog_timeout_sec * 1000.0, g_ax_min_hardware, g_trajectory_file);
 
     rcl_allocator_t allocator = rcl_get_default_allocator();
 
@@ -774,6 +813,21 @@ int main(int argc, const char *argv[])
         return 1;
     }
 
+    int g_servo_sub_ok = 0;
+    if (rclc_subscription_init_default(
+            &g_servo_sub,
+            &node,
+            ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float64),
+            g_servo_topic) != RCL_RET_OK)
+    {
+        fprintf(stderr, "[MPCC] WARNING: servo subscription init failed (steering feedback disabled)\n");
+        rcl_reset_error();
+    }
+    else
+    {
+        g_servo_sub_ok = 1;
+    }
+
     if (rclc_publisher_init_default(
             &g_drive_pub,
             &node,
@@ -794,20 +848,11 @@ int main(int argc, const char *argv[])
         rcl_reset_error();
     }
 
-    if (rclc_timer_init_default(
-            &g_control_timer,
-            &support,
-            RCL_MS_TO_NS(g_control_period_ms),
-            control_timer_callback) != RCL_RET_OK)
-    {
-        fprintf(stderr, "[MPCC] FATAL: control timer init failed\n");
-        return 1;
-    }
-
     /* Initialize message buffers used by the executor. */
     nav_msgs__msg__Odometry__init(&g_odom_msg);
     geometry_msgs__msg__PoseWithCovarianceStamped__init(&g_pose_msg);
     std_msgs__msg__Float64__init(&g_imu_msg);
+    std_msgs__msg__Float64__init(&g_servo_msg);
     ackermann_msgs__msg__AckermannDriveStamped__init(&g_drive_msg);
 
     {
@@ -893,10 +938,19 @@ int main(int argc, const char *argv[])
         return 1;
     }
 
-    if (rclc_executor_add_timer(&executor, &g_control_timer) != RCL_RET_OK)
+    if (g_servo_sub_ok)
     {
-        fprintf(stderr, "[MPCC] FATAL: add control timer failed\n");
-        return 1;
+        if (rclc_executor_add_subscription(
+                &executor,
+                &g_servo_sub,
+                &g_servo_msg,
+                &servo_callback,
+                ON_NEW_DATA) != RCL_RET_OK)
+        {
+            fprintf(stderr, "[MPCC] WARNING: add servo subscription failed (steering feedback disabled)\n");
+            rcl_reset_error();
+            g_servo_sub_ok = 0;
+        }
     }
 
     printf("[MPCC] Spinning hardware node...\n");
@@ -908,10 +962,10 @@ int main(int argc, const char *argv[])
         rc_cleanup = rcl_subscription_fini(&g_odom_sub, &node);
         rc_cleanup = rcl_subscription_fini(&g_pose_sub, &node);
         rc_cleanup = rcl_subscription_fini(&g_imu_sub, &node);
+        rc_cleanup = rcl_subscription_fini(&g_servo_sub, &node);
         rc_cleanup = rcl_publisher_fini(&g_drive_pub, &node);
         rc_cleanup = rcl_publisher_fini(&g_predicted_path_pub, &node);
         rc_cleanup = rcl_publisher_fini(&g_raceline_pub, &node);
-        rc_cleanup = rcl_timer_fini(&g_control_timer);
         (void)rc_cleanup;
     }
 
