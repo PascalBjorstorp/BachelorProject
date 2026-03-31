@@ -21,6 +21,7 @@ def generate_launch_description():
     lateral_planner_pkg_dir = get_package_share_directory('f1tenth_lateral_planner')
     lidar_pkg_dir = get_package_share_directory('f1tenth_lidar')
     stack_pkg_dir = get_package_share_directory('f1tenth_stack')
+    planner_pkg_dir = get_package_share_directory('f1tenth_planning')
 
     # ── YAML file paths ──  
     localization_params_file = os.path.join(localization_pkg_dir, 'config', 'gpu_amcl_cpp_params.yaml')
@@ -30,8 +31,7 @@ def generate_launch_description():
     mux_config = os.path.join(stack_pkg_dir, 'config', 'mux.yaml')
     hokuyo_config = os.path.join(lidar_pkg_dir, 'config', 'hokuyo_ust10lx.yaml')
     # ── Default map path ──
-    workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(stack_pkg_dir))))
-    default_map = os.path.join(workspace_root, 'f1tenth_sim', 'maps', 'my_track_map.yaml')
+    default_map = os.path.join(planner_pkg_dir, 'maps', 'my_track_map.yaml')
 
     # --------------- Launch argument variables ----------
     localization_params_file_arg = LaunchConfiguration('localization_params_file')
