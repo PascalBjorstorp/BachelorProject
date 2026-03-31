@@ -1,48 +1,40 @@
 /**
  * @file mpcc_types.h
  * @brief Type Definitions for Model Predictive Contouring Control
- *        — Lifted ODE Formulation (Frenet + Cartesian)
  *
- * Based on: Reiter et al., "Frenet-Cartesian Model Representations for
- *           Automotive Obstacle Avoidance within Nonlinear MPC" (2023).
- *
- * Lifted ODE state (10):
- *   Frenet primary (7):  [s, n, alpha, vx, vy, omega, omega_w]
+ * 
+ *   Frenet primary (7):  [s, vx, vy, X, Y, psi, omega]
  *   Cartesian redundant (3): [X, Y, psi]
  *
  *   s       — arc-length position on reference path [m]
- *   n       — lateral deviation from path [m] (+ = left)
- *   alpha   — heading error: vehicle heading - path tangent [rad]
  *   vx      — longitudinal velocity (body frame) [m/s]
  *   vy      — lateral velocity (body frame) [m/s]
+ *   X       — global X position (world frame) [m]
+ *   Y       — global Y position (world frame) [m]
+ *   psi     — heading angle (yaw) in world frame [rad]
  *   omega   — yaw rate [rad/s]
- *   omega_w — wheel angular velocity [rad/s]
  *
- * Controls (2): [delta, T_motor]
+ * Controls (3): [delta, acceleration, virtual_progress]
  *   delta   — front wheel steering angle [rad]
- *   T_motor — motor torque [N*m]
+ *   acceleration — longitudinal acceleration  [m/s²]
+ *   virtual_progress — virtual progress control [m/s]
  *
- * Key advantages of Lifted ODE over standard MPCC:
- *   1. Track bounds are trivial box constraints on n
- *   3. Virtual progress control v_theta: ds/dt = v_theta decouples path
- *   4. Progress maximisation: reward ds/dt or terminal s_N
- *
- * Frenet dynamics:
+ * System dynamics:
  *   ds/dt      = (vx*cos(alpha) - vy*sin(alpha)) / (1 - n*kappa(s))
- *   dn/dt      = vx*sin(alpha) + vy*cos(alpha)
- *   dalpha/dt  = omega - kappa(s) * ds/dt
  *   dvx/dt     = (F_x - F_yf*sin(delta) + m*vy*omega) / m
  *   dvy/dt     = (F_yf*cos(delta) + F_yr - m*vx*omega) / m
+ *   dX/dt      = vx*cos(psi) - vy*sin(psi)
+ *   dY/dt      = vx*sin(psi) + vy*cos(psi)
+ *   dpsi/dt    = omega
  *   domega/dt  = (l_f*F_yf*cos(delta) - l_r*F_yr) / I_z
- *   domega_w/dt= (T_motor/G_ratio - F_x*R_w) / I_w
+ *   
  *
  * Cost:
- *   J = Sum_k [ q_n*n^2 + q_alpha*alpha^2 + q_vy*vy^2 + q_omega*omega^2
- *             - q_s * ds/dt_k                         progress reward
+ *   J = Sum_k [ q_ec*ec^2 + q_el*el^2 + q_vy*vy^2 + q_omega*omega^2
+ *             - q_progress * v_theta_k                progress reward
  *             + u^T R u  +  du^T Rd du ]              control
- *       + terminal terms
+ *             + terminal terms
  *
- * All numerical values use Q16.16 fixed-point for FPGA compatibility.
  * Units: SI (meters, radians, seconds, Newtons).
  */
 
@@ -68,111 +60,58 @@ static inline float fp_to_float(fixed_point_t x)
     return (float)x / (float)FP_ONE;
 }
 
-/* MPCC is self-contained — no dependency on MPC package.
- * VehicleState_t and F110 constants are defined locally below. */
-
 /*===========================================================================
  * Vehicle State (for input conversion from ROS/simulator)
  *===========================================================================*/
 
 typedef struct
 {
-    /** X position in world frame [meters] */
-    fixed_point_t position_x_meters;
-
-    /** Y position in world frame [meters] */
-    fixed_point_t position_y_meters;
-
-    /** Yaw angle (heading) relative to world X-axis [radians] */
-    fixed_point_t heading_angle_radians;
-
-    /** Longitudinal velocity in body frame [meters per second] */
-    fixed_point_t longitudinal_velocity_meters_per_second;
-
-    /** Lateral velocity in body frame [meters per second] */
-    fixed_point_t lateral_velocity_meters_per_second;
-
-    /** Yaw rate [radians per second] */
-    fixed_point_t yaw_rate_radians_per_second;
+    fixed_point_t pos_x;        /** X position in world frame [meters] */
+    fixed_point_t pos_y;        /** Y position in world frame [meters] */
+    fixed_point_t heading;      /** Yaw angle (heading) relative to world X-axis [radians] */
+    fixed_point_t long_vel;     /** Longitudinal velocity in body frame [meters per second] */
+    fixed_point_t lat_vel;      /** Lateral velocity in body frame [meters per second] */
+    fixed_point_t yaw_rate;     /** Yaw rate [radians per second] */
 
 } VehicleState_t;
 
-/* Short aliases for VehicleState_t fields */
-#define pos_x     position_x_meters
-#define pos_y     position_y_meters
-#define heading   heading_angle_radians
-#define long_vel  longitudinal_velocity_meters_per_second
-#define lat_vel   lateral_velocity_meters_per_second
-#define yaw_rate  yaw_rate_radians_per_second
 
 /*===========================================================================
  * F1/10th Default Vehicle Parameters
  *===========================================================================*/
 
-/** F1/10th max steering: 0.4189 radians (~24.0 degrees) */
-#define F110_DEFAULT_MAXIMUM_STEERING_RADIANS    FP_CONST(0.4189)
-
-/** F1/10th max velocity: 20.0 meters per second */
-#define F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND  FP_CONST(20.0)
-
-/** F1/10th minimum velocity: 0 m/s (no reverse) */
-#define F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND  FP_CONST(0.0)
-
-/** Distance from CG to front axle: 0.166 meters [CAD] */
-#define F110_DIST_CG_TO_FRONT_AXLE_METERS    FP_CONST(0.166)
-
-/** Distance from CG to rear axle: 0.16 meters [CAD] */
-#define F110_DIST_CG_TO_REAR_AXLE_METERS     FP_CONST(0.16)
-
-/** Vehicle mass: 3.314 kg [MEASURED] */
-#define F110_VEHICLE_MASS_KG                 FP_CONST(3.314)
-
-/** Yaw moment of inertia: 0.035 kg·m² [CAD] */
-#define F110_YAW_INERTIA_KGM2                FP_CONST(0.035)
-
-/** Center of gravity height: 0.0703 meters [CAD] */
-#define F110_CG_HEIGHT_METERS                FP_CONST(0.0703)
-
-/** Gravity acceleration: 9.81 m/s² */
-#define F110_GRAVITY_ACCELERATION_MS2        FP_CONST(9.81)
-
-/** Tire-road friction coefficient [TESTED] */
-#define F110_FRICTION_COEFFICIENT            FP_CONST(0.745)
-
-/** Normalized front cornering stiffness [1/rad] */
-#define F110_NORMALIZED_CORNERING_STIFFNESS_FRONT  FP_CONST(4.297)
-
-/** Normalized rear cornering stiffness [1/rad] */
-#define F110_NORMALIZED_CORNERING_STIFFNESS_REAR   FP_CONST(3.473)
+#define F110_DEFAULT_MAXIMUM_STEERING_RADIANS    FP_CONST(0.4189)           /** F1/10th max steering: 0.4189 radians (~24.0 degrees) */
+#define F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND  FP_CONST(20.0)     /** F1/10th max velocity: 20.0 meters per second */
+#define F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND  FP_CONST(0.0)      /** F1/10th min velocity: 0.0 meters per second */
+#define F110_DIST_CG_TO_FRONT_AXLE_METERS    FP_CONST(0.166)                /** Distance from CG to front axle: 0.166 meters [CAD] */
+#define F110_DIST_CG_TO_REAR_AXLE_METERS     FP_CONST(0.16)                /** Distance from CG to rear axle: 0.16 meters [CAD] */
+#define F110_VEHICLE_MASS_KG                 FP_CONST(3.314)               /** Vehicle mass: 3.314 kg [MEASURED] */
+#define F110_YAW_INERTIA_KGM2                FP_CONST(0.035)               /** Yaw moment of inertia: 0.035 kg·m² [CAD] */
+#define F110_CG_HEIGHT_METERS                FP_CONST(0.0703)              /** Center of gravity height: 0.0703 meters [CAD] */
+#define F110_GRAVITY_ACCELERATION_MS2        FP_CONST(9.81)                /** Gravity acceleration: 9.81 m/s² */
+#define F110_FRICTION_COEFFICIENT            FP_CONST(0.745)              /** Tire-road friction coefficient [TESTED] */
+#define F110_NORMALIZED_CORNERING_STIFFNESS_FRONT  FP_CONST(4.297)        /** Normalized front cornering stiffness [1/rad] */
+#define F110_NORMALIZED_CORNERING_STIFFNESS_REAR   FP_CONST(3.473)        /** Normalized rear cornering stiffness [1/rad] */
 
 /*===========================================================================
  * MPCC Problem Dimensions
  *===========================================================================*/
 
-/** Number of Lifted ODE states:
- *  Frenet (6): [s, n, alpha, vx, vy, omega]
- *  Cartesian (3): [X, Y, psi] (redundant, for obstacle avoidance)
- *  Total: 10 states (but using 9 for now: s,n,alpha,vx,vy,omega + X,Y,psi = 9)
- *  NOTE: We use 9 states since omega_w (wheel angular velocity) is omitted. */
-#define MPCC_NX 9
+/** State space: [s, vx, vy, omega, X, Y, psi] */
+#define MPCC_NX 7
 
 /** Number of controls: [delta, a_x, v_theta] */
 #define MPCC_NU 3
 
-/** Number of Frenet states (first 6 of MPCC state) */
-#define MPCC_N_FRENET 6
-
 
 /** State index constants for readability */
 #define MPCC_IDX_S       0   /**< arc-length progress */
-#define MPCC_IDX_N       1   /**< lateral deviation */
-#define MPCC_IDX_ALPHA   2   /**< heading error */
-#define MPCC_IDX_VX      3   /**< longitudinal velocity */
-#define MPCC_IDX_VY      4   /**< lateral velocity */
-#define MPCC_IDX_OMEGA   5   /**< yaw rate */
-#define MPCC_IDX_X       6   /**< global X position (Cartesian) */
-#define MPCC_IDX_Y       7   /**< global Y position (Cartesian) */
-#define MPCC_IDX_PSI     8   /**< global heading (Cartesian) */
+#define MPCC_IDX_VX      1   /**< longitudinal velocity */
+#define MPCC_IDX_VY      2   /**< lateral velocity */
+#define MPCC_IDX_OMEGA   3   /**< yaw rate */
+#define MPCC_IDX_X       4   /**< global X position */
+#define MPCC_IDX_Y       5   /**< global Y position */
+#define MPCC_IDX_PSI     6   /**< global heading */
 
 /** Control index constants */
 #define MPCC_IDX_DELTA   0   /**< steering angle */
@@ -195,45 +134,13 @@ typedef struct
 
 typedef struct
 {
-    /*--- Frenet states ---*/
-
-    /** Arc-length position along reference path [m].
-     *  Evolves from Frenet kinematics: ds/dt = v_proj / (1 - n*kappa(s)).
-     *  NOT a virtual variable — tied to actual vehicle position. */
-    fixed_point_t s;
-
-    /** Lateral deviation from reference path [m].
-     *  Positive = left of path.  Track bounds: n_left <= n <= n_right. */
-    fixed_point_t n;
-
-    /** Heading error: vehicle heading - path tangent angle [rad].
-     *  alpha = psi - phi_gamma(s).  Small when well-aligned. */
-    fixed_point_t alpha;
-
-    /** Longitudinal velocity in body frame [m/s] */
-    fixed_point_t vx;
-
-    /** Lateral velocity in body frame [m/s] */
-    fixed_point_t vy;
-
-    /** Yaw rate [rad/s] */
-    fixed_point_t omega;
-
-    /*--- Cartesian states (redundant, for obstacle avoidance) ---*/
-
-    /** Global X position [m].
-     *  Redundant — coupled to (s, n) via inverse Frenet transform:
-     *    X = gamma_x(s) - n*sin(phi_gamma(s))
-     *  Propagated by ODE: dX/dt = vx*cos(psi) - vy*sin(psi) */
-    fixed_point_t X;
-
-    /** Global Y position [m].
-     *  Y = gamma_y(s) + n*cos(phi_gamma(s)) */
-    fixed_point_t Y;
-
-    /** Global heading angle [rad].
-     *  psi = phi_gamma(s) + alpha.  Propagated by ODE: dpsi/dt = omega */
-    fixed_point_t psi;
+    fixed_point_t s;        /** Virtual variable  */
+    fixed_point_t vx;       /** Longitudinal velocity in body frame [m/s] */
+    fixed_point_t vy;       /** Lateral velocity in body frame [m/s] */
+    fixed_point_t omega;    /** Yaw rate [rad/s] */
+    fixed_point_t X;        /** Global X position [m]. */
+    fixed_point_t Y;        /** Global Y position [m].*/
+    fixed_point_t psi;      /** Global heading angle [rad].*/
 
 } MPCCState_t;
 
@@ -241,21 +148,15 @@ typedef struct
  * MPCC Control
  *===========================================================================*/
 /**
- * Vehicle controls augmented with virtual progress input.
- * The optimizer jointly determines physical controls (delta, a_x)
- * and the virtual progress rate v_theta = ds/dt.
+ * Vehicle controls augmented with virtual progress input [delta, a_x, v_theta].
+ * Virtual progress rate v_theta = ds/dt.
  */
 
 typedef struct
 {
-    /** Front wheel steering angle [rad] */
-    fixed_point_t delta;
-
-    /** Longitudinal acceleration [m/s^2] */
-    fixed_point_t a_x;
-
-    /** Virtual progress speed [m/s] — controls ds/dt along path */
-    fixed_point_t v_theta;
+    fixed_point_t delta;        /** Front wheel steering angle [rad] */
+    fixed_point_t a_x;          /** Longitudinal acceleration [m/s^2] */
+    fixed_point_t v_theta;      /** Virtual progress speed [m/s] — controls ds/dt along path */
 
 } MPCCControl_t;
 
@@ -390,13 +291,13 @@ typedef struct
 /*===========================================================================
  * MPCC Configuration
  *===========================================================================
- * All tunable parameters for the Lifted ODE MPCC controller.
+ * All tunable parameters for the Global Frame (7-state) MPCC controller.
  *
- * Weight tuning guide (Lifted ODE):
- *   - weight_n:        Penalizes lateral deviation (path following)
- *   - weight_alpha:    Penalizes heading error (alignment)
- *   - weight_progress: Rewards ds/dt (forward speed along path)
- *   - weight_obstacle: Penalty for violating obstacle constraints
+ * Weight tuning guide:
+ *   - weight_contouring: Penalizes Cartesian contouring error ec
+ *   - weight_lag:        Penalizes Cartesian lag error el
+ *   - weight_progress:   Rewards ds/dt (forward progress along path)
+ *   - weight_obstacle:   Penalty for violating obstacle constraints
  *   - Control rate weights: Higher = smoother, slower response
  *
  * ADMM tuning:
@@ -428,10 +329,6 @@ typedef struct
 
     /*--- Frenet tracking weights ---*/
 
-    /** Lateral deviation weight (q_n).
-     *  Penalizes n^2 — keeps car on the racing line.
-     *  Optional: set to 0 when using weight_contouring instead. */
-    fixed_point_t weight_n;
 
     /** Contouring error weight (q_c).
      *  Penalizes e_c^2, the true perpendicular error from path at
@@ -446,10 +343,6 @@ typedef struct
      *    e_l = -cos(phi(s))*(X - gamma_x(s)) - sin(phi(s))*(Y - gamma_y(s))
      *  Keeps s from running too far ahead of the vehicle. */
     fixed_point_t weight_lag;
-
-    /** Heading error weight (q_alpha).
-     *  Penalizes alpha^2 — keeps car aligned with path tangent. */
-    fixed_point_t weight_alpha;
 
     /** Progress weight (q_s).
      *  Reward for forward progress ds/dt. Higher = more aggressive.
@@ -497,17 +390,12 @@ typedef struct
 
     /*--- Terminal cost weights (stage N) ---*/
 
-    /** Terminal lateral deviation penalty */
-    fixed_point_t weight_n_terminal;
-
     /** Terminal contouring error penalty */
     fixed_point_t weight_contouring_terminal;
 
     /** Terminal lag error penalty */
     fixed_point_t weight_lag_terminal;
 
-    /** Terminal heading error penalty */
-    fixed_point_t weight_alpha_terminal;
 
     /** Terminal progress reward (on s_N) */
     fixed_point_t weight_progress_terminal;
@@ -548,10 +436,6 @@ typedef struct
 
     /** Minimum longitudinal velocity [m/s] */
     fixed_point_t vx_min;
-
-    /** Maximum lateral deviation [m].
-     *  Default track half-width if per-stage bounds not set. */
-    fixed_point_t n_max;
 
     /** Maximum virtual progress speed [m/s] */
     fixed_point_t v_theta_max;
@@ -699,64 +583,53 @@ typedef struct
  * Tuned for F1/10th autonomous racing at moderate speeds (~3-5 m/s).
  */
 
-/*--- Horizon (tuned on aligned dynamics sweep) ---*/
-#define MPCC_DEFAULT_HORIZON          10
-#define MPCC_DEFAULT_DT               FP_CONST(0.0425)
+/*--- Horizon (tuned via iterative sweep, Hardware mode) ---*/
+#define MPCC_DEFAULT_HORIZON          7
+#define MPCC_DEFAULT_DT               FP_CONST(0.0293)
 
-/*--- Frenet tracking weights ---*/
+/*--- Contouring tracking weights ---*/
 
-/** Lateral deviation penalty (Frenet n approximation, optional).
- *  Set to 0 when using MPCC_DEFAULT_WEIGHT_CONTOURING instead. */
-#define MPCC_DEFAULT_WEIGHT_N         FP_CONST(0.0)
-
-/** Contouring error penalty (real Cartesian-based). */
-#define MPCC_DEFAULT_WEIGHT_CONTOURING FP_CONST(50.0)
+/** Contouring error penalty (Cartesian-based). */
+#define MPCC_DEFAULT_WEIGHT_CONTOURING FP_CONST(1700.0)
 
 /** Lag error penalty (real Cartesian-based). */
-#define MPCC_DEFAULT_WEIGHT_LAG       FP_CONST(100.0)
+#define MPCC_DEFAULT_WEIGHT_LAG       FP_CONST(350.0)
 
-/** Heading error: penalizes deviation from path tangent angle. */
-#define MPCC_DEFAULT_WEIGHT_ALPHA     FP_CONST(20.0)
-
-/** Progress reward (reduced for stability on aligned dynamics). */
-#define MPCC_DEFAULT_WEIGHT_PROGRESS  FP_CONST(2.0)
+/** Progress reward (tuned for velocity maximization). */
+#define MPCC_DEFAULT_WEIGHT_PROGRESS  FP_CONST(0.730622)
 
 /*--- State regularization ---*/
 #define MPCC_DEFAULT_WEIGHT_VX        FP_CONST(0.0)
-#define MPCC_DEFAULT_VX_REF           FP_CONST(12.0)
-#define MPCC_DEFAULT_WEIGHT_VY        FP_CONST(10.0)
-#define MPCC_DEFAULT_WEIGHT_OMEGA     FP_CONST(0.1)
+#define MPCC_DEFAULT_VX_REF           FP_CONST(5.0)
+#define MPCC_DEFAULT_WEIGHT_VY        FP_CONST(3.5)
+#define MPCC_DEFAULT_WEIGHT_OMEGA     FP_CONST(0.7)
 
 /*--- Control effort ---*/
-#define MPCC_DEFAULT_WEIGHT_DELTA     FP_CONST(0.01)
-#define MPCC_DEFAULT_WEIGHT_AX        FP_CONST(0.01)
-#define MPCC_DEFAULT_WEIGHT_V_THETA   FP_CONST(0.5)
+#define MPCC_DEFAULT_WEIGHT_DELTA     FP_CONST(6.5)
+#define MPCC_DEFAULT_WEIGHT_AX        FP_CONST(0.014149)
+#define MPCC_DEFAULT_WEIGHT_V_THETA   FP_CONST(1.0)
 
 /*--- Control rate (smoothness) ---*/
-#define MPCC_DEFAULT_WEIGHT_DELTA_RATE    FP_CONST(0.1)
+#define MPCC_DEFAULT_WEIGHT_DELTA_RATE    FP_CONST(2.0)
 #define MPCC_DEFAULT_WEIGHT_AX_RATE       FP_CONST(0.1)
 #define MPCC_DEFAULT_WEIGHT_V_THETA_RATE  FP_CONST(0.1)
 
 /*--- Terminal weights ---*/
-#define MPCC_DEFAULT_WEIGHT_N_TERMINAL              FP_CONST(0.0)
-#define MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL     FP_CONST(100.0)
-#define MPCC_DEFAULT_WEIGHT_LAG_TERMINAL            FP_CONST(200.0)
-#define MPCC_DEFAULT_WEIGHT_ALPHA_TERMINAL          FP_CONST(10.0)
+#define MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL     FP_CONST(450.0)
+#define MPCC_DEFAULT_WEIGHT_LAG_TERMINAL            FP_CONST(950.0)
 #define MPCC_DEFAULT_WEIGHT_PROGRESS_TERMINAL FP_CONST(5.0)
 
 /*--- Obstacle avoidance ---*/
 #define MPCC_DEFAULT_WEIGHT_OBSTACLE  FP_CONST(1000.0)
 #define MPCC_DEFAULT_OBSTACLE_MARGIN  FP_CONST(0.1)
 
-/*--- ADMM solver (tuned via sweep) ---*/
-#define MPCC_DEFAULT_ADMM_RHO         FP_CONST(1.218171)
-#define MPCC_DEFAULT_ADMM_MAX_ITER    200
+/*--- ADMM solver (tuned via iterative sweep) ---*/
+#define MPCC_DEFAULT_ADMM_RHO         FP_CONST(17.0)
+#define MPCC_DEFAULT_ADMM_MAX_ITER    50
 #define MPCC_DEFAULT_ADMM_TOLERANCE   FP_CONST(0.05)
 
 /*--- Track half-width (default if per-stage not set) ---*/
-#define MPCC_DEFAULT_N_MAX            FP_CONST(0.5)
-
-/*--- Linear tire model ---*/
+/*--- Pacejka tire model ---*/
 /** Friction coefficient [-] — from test_friction.py */
 #define MPCC_DEFAULT_MU               F110_FRICTION_COEFFICIENT
 /** Front normalized cornering stiffness [1/rad] — typical F1/10th */
@@ -768,8 +641,8 @@ typedef struct
 #define MPCC_DEFAULT_AX_MAX           FP_CONST(7.0)
 #define MPCC_DEFAULT_AX_MIN           FP_CONST(-10.0)
 
-/*--- Virtual progress speed bounds (aligned-dynamics sweep) ---*/
-#define MPCC_DEFAULT_V_THETA_MAX      FP_CONST(2.0)
+/*--- Virtual progress speed bounds (tuned via iterative sweep) ---*/
+#define MPCC_DEFAULT_V_THETA_MAX      FP_CONST(5.75)
 #define MPCC_DEFAULT_V_THETA_MIN      FP_CONST(0.0)
 
 #endif /* MPCC_TYPES_H */

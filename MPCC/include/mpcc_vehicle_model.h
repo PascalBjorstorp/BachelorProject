@@ -12,6 +12,7 @@
 #define MPCC_VEHICLE_MODEL_H
 
 #include "mpcc_types.h"
+#include "fp_math_mpcc.h"
 
 /**
  * Linearize the Lifted ODE dynamics around (state, control).
@@ -19,7 +20,7 @@
  * Produces discrete-time A, B, d such that:
  *   x_{k+1} = A * x_k + B * u_k + d
  *
- * @param state    Operating-point state [s, n, alpha, vx, vy, omega, X, Y, psi]
+ * @param state    Operating-point state [s, vx, vy, omega, X, Y, psi]
  * @param control  Operating-point control [delta, a_x]
  * @param kappa    Path curvature at current s
  * @param dt       Time step (Q16.16)

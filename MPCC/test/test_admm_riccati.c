@@ -217,15 +217,15 @@ static void test_unconstrained_lqr(void)
  * ═══════════════════════════════════════════════════════════════════════════ */
 static void test_box_constrained_qp(void)
 {
-    printf("\n--- Test 3: Box-constrained QP (track bounds on n) ---\n");
+    printf("\n--- Test 3: Box-constrained QP (global bounds on vy) ---\n");
 
-    /* 2-step QP where control can steer n (state index 1).
-     * x0 has n=0, and we give B[MPCC_IDX_N][0] = dt so delta drives n.
-     * The unconstrained optimum would overshoot, but track bounds
-     * |n| <= 0.3 should be enforced by ADMM projection.
+    /* 2-step QP where control can steer vy (state index MPCC_IDX_VY).
+     * x0 has vy=0, and we give B[MPCC_IDX_VY][0] = dt so delta drives vy.
+     * The unconstrained optimum would overshoot, but global bounds
+     * |vy| <= 0.3 should be enforced by ADMM projection.
      *
-     * We add a negative linear term q[n] < 0 to push n large,
-     * so without constraints n would go to a large value. */
+     * We add a negative linear term q[vy] < 0 to push vy large,
+     * so without constraints vy would go to a large value. */
 
     static MPCCQPProblem_t qp;
     static ADMMWorkspace_t ws;
@@ -239,7 +239,7 @@ static void test_box_constrained_qp(void)
     qp.N = 2;
     fixed_point_t dt = float_to_fp(0.05f);
 
-    /* Initial state: all zero (n = 0) */
+    /* Initial state: all zero (vy = 0) */
     memset(qp.x0, 0, sizeof(qp.x0));
 
     for (int k = 0; k < 2; k++) {
@@ -247,8 +247,8 @@ static void test_box_constrained_qp(void)
         for (int i = 0; i < MPCC_NX; i++)
             qp.dynamics[k].A[i][i] = FP_ONE;
 
-        /* B[n][0] = dt  (steering drives lateral deviation) */
-        qp.dynamics[k].B[MPCC_IDX_N][0] = dt;
+        /* B[vy][0] = dt  (steering drives lateral velocity) */
+        qp.dynamics[k].B[MPCC_IDX_VY][0] = dt;
 
         /* Cost: penalize states, small control cost */
         for (int i = 0; i < MPCC_NX; i++)
@@ -256,26 +256,23 @@ static void test_box_constrained_qp(void)
         qp.stage_cost[k].R[0][0] = float_to_fp(0.01f);
         qp.stage_cost[k].R[1][1] = float_to_fp(0.01f);
 
-        /* Linear term: push n negative => pushes unconstrained n far */
-        qp.stage_cost[k].q[MPCC_IDX_N] = float_to_fp(-50.0f);
-
-        /* Track bounds: |n| <= 0.3 */
-        qp.track_left[k]  = float_to_fp(0.3f);
-        qp.track_right[k] = float_to_fp(0.3f);
+        /* Linear term: push vy negative => pushes unconstrained vy far */
+        qp.stage_cost[k].q[MPCC_IDX_VY] = float_to_fp(-50.0f);
     }
 
     /* Terminal cost */
     for (int i = 0; i < MPCC_NX; i++)
         qp.terminal_cost.Q[i][i] = float_to_fp(0.1f);
-    qp.terminal_cost.q[MPCC_IDX_N] = float_to_fp(-50.0f);
-    qp.track_left[2]  = float_to_fp(0.3f);
-    qp.track_right[2] = float_to_fp(0.3f);
+    qp.terminal_cost.q[MPCC_IDX_VY] = float_to_fp(-50.0f);
 
-    /* Wide global bounds */
+    /* Global bounds: tight on vy, wide on everything else */
     for (int i = 0; i < MPCC_NX; i++) {
         qp.x_lower[i] = float_to_fp(-100.0f);
         qp.x_upper[i] = float_to_fp( 100.0f);
     }
+    qp.x_lower[MPCC_IDX_VY] = float_to_fp(-0.3f);
+    qp.x_upper[MPCC_IDX_VY] = float_to_fp( 0.3f);
+
     for (int i = 0; i < MPCC_NU; i++) {
         qp.u_lower[i] = float_to_fp(-100.0f);
         qp.u_upper[i] = float_to_fp( 100.0f);
@@ -292,26 +289,26 @@ static void test_box_constrained_qp(void)
     MPCCStatus_t status = admm_solver_solve(&qp, &cfg, &ws, &result);
     printf("  Solver status: %d  iterations: %u\n", status, result.iterations);
 
-    /* Check: n values should be pushed toward bounds by ADMM.
+    /* Check: vy values should be pushed toward bounds by ADMM.
      * With limited iterations, the ADMM consensus may not fully
-     * enforce tight bounds, but n should at least be constrained
+     * enforce tight bounds, but vy should at least be constrained
      * significantly compared to the unconstrained optimum.
-     * Unconstrained, n would be ~250 (q_n=-50, Q_nn=0.1 -> n*≈250).
-     * We check n stays reasonable (< 2.0) showing ADMM is working. */
+     * Unconstrained, vy would be ~250 (q_vy=-50, Q_vy=0.1 -> vy*≈250).
+     * We check vy stays reasonable (< 2.0) showing ADMM is working. */
     int bounded = 1;
     for (int k = 0; k <= 2; k++) {
-        float n_k = fp_to_float(result.x_opt[k][MPCC_IDX_N]);
-        printf("  n[%d] = %.6f\n", k, n_k);
-        if (n_k > 2.0f || n_k < -2.0f) {
+        float vy_k = fp_to_float(result.x_opt[k][MPCC_IDX_VY]);
+        printf("  vy[%d] = %.6f\n", k, vy_k);
+        if (vy_k > 2.0f || vy_k < -2.0f) {
             bounded = 0;
         }
     }
     if (bounded) {
         tests_passed++;
-        printf(GREEN "  [PASS] ADMM constraining n (within reasonable range)\n" RESET);
+        printf(GREEN "  [PASS] ADMM constraining vy (within reasonable range)\n" RESET);
     } else {
         tests_failed++;
-        printf(RED   "  [FAIL] n unconstrained (ADMM not working)\n" RESET);
+        printf(RED   "  [FAIL] vy unconstrained (ADMM not working)\n" RESET);
     }
 }
 
@@ -326,14 +323,12 @@ static void test_mpcc_init(void)
 
     MPCCConfiguration_t cfg = mpcc_get_configuration();
 
-    assert_close("weight_n",        fp_to_float(cfg.weight_n),
-                 fp_to_float(MPCC_DEFAULT_WEIGHT_N), 0.01f);
-    assert_close("weight_alpha",    fp_to_float(cfg.weight_alpha),
-                 fp_to_float(MPCC_DEFAULT_WEIGHT_ALPHA), 0.01f);
+    assert_close("weight_contouring", fp_to_float(cfg.weight_contouring),
+                 fp_to_float(MPCC_DEFAULT_WEIGHT_CONTOURING), 0.01f);
+    assert_close("weight_lag",       fp_to_float(cfg.weight_lag),
+                 fp_to_float(MPCC_DEFAULT_WEIGHT_LAG), 0.01f);
     assert_close("weight_progress", fp_to_float(cfg.weight_progress),
                  fp_to_float(MPCC_DEFAULT_WEIGHT_PROGRESS), 0.01f);
-    assert_close("n_max",           fp_to_float(cfg.n_max),
-                 fp_to_float(MPCC_DEFAULT_N_MAX), 0.01f);
 
     /* No direct access to obstacle count with global module —
      * just verify configuration loaded correctly */

@@ -188,63 +188,23 @@ fixed_point_t mpcc_find_closest_s(
     fixed_point_t Y);
 
 /*===========================================================================
- * Frenet-Cartesian Conversion
+ * Vehicle State → MPCC State Conversion
  *===========================================================================*/
 
 /**
- * Convert VehicleState_t (Cartesian) to MPCCState_t (Lifted ODE).
+ * Convert VehicleState_t (Cartesian) to MPCCState_t (global-frame 7-state).
  *
- * Computes the Frenet components (s, n, alpha) from the Cartesian
- * vehicle state and the reference path. Also copies the Cartesian
- * states (X, Y, psi) directly.
+ * Copies body-frame velocities and Cartesian pose directly.
+ * Computes s via forward-biased closest-waypoint search on the reference path.
  *
  * Requires the reference path to be set.
  *
  * @param vehicle_state  Vehicle state from localization (Cartesian)
- * @param s_hint         Previous s estimate (for warm-start of search)
- * @return Lifted ODE state (Frenet + Cartesian)
+ * @param s_hint         Previous s estimate (unused, kept for API compat)
+ * @return Global-frame MPCC state [s, vx, vy, omega, X, Y, psi]
  */
 MPCCState_t mpcc_state_from_vehicle_state(
     const VehicleState_t *vehicle_state,
     fixed_point_t s_hint);
-
-/**
- * Compute the inverse Frenet transform (Frenet -> Cartesian).
- *
- * Given (s, n, alpha) and the reference path, compute (X, Y, psi):
- *   X   = gamma_x(s) - n * sin(phi_gamma(s))
- *   Y   = gamma_y(s) + n * cos(phi_gamma(s))
- *   psi = phi_gamma(s) + alpha
- *
- * Useful for initializing Cartesian states from Frenet, or
- * for consistency checks.
- *
- * @param s      Arc-length position [m]
- * @param n      Lateral deviation [m]
- * @param alpha  Heading error [rad]
- * @param X      Output: global X [m]
- * @param Y      Output: global Y [m]
- * @param psi    Output: global heading [rad]
- */
-void mpcc_frenet_to_cartesian(
-    fixed_point_t s,
-    fixed_point_t n,
-    fixed_point_t alpha,
-    fixed_point_t *X,
-    fixed_point_t *Y,
-    fixed_point_t *psi);
-
-/**
- * Compute progress rate ds/dt at the current state.
- *
- *   ds/dt = (vx*cos(alpha) - vy*sin(alpha)) / (1 - n*kappa(s))
- *
- * @param state  Current MPCC state
- * @param kappa  Path curvature at s
- * @return ds/dt in fixed-point [m/s]
- */
-fixed_point_t mpcc_compute_progress_rate(
-    const MPCCState_t *state,
-    fixed_point_t kappa);
 
 #endif /* MPCC_H */

@@ -40,3 +40,7 @@
 | 20260310_165352 | 60s | Yes (log line 71) | 0 | 0 | [log](logs/run_20260310_165352/) |
 | 20260311_132023 | 60s | Yes (log line 68) | 0 | 0 | [log](logs/run_20260311_132023/) |
 | 20260311_132112 | 60s | Yes (log line 68) | 0 | 0 | [log](logs/run_20260311_132112/) |
+| 20260330_214057 | 60s | No | 0 | 0 | [log](logs/run_20260330_214057/) st1=0 err=no_solver_samples |
+| 20260330_214116 | 60s | Yes (log line 76) | 0 | 0 | [log](logs/run_20260330_214116/) st1=198 |
+| 20260330_214401 | 120s | No | 0 | 0 | [log](logs/run_20260330_214401/) st1=0 err=launch_or_map_error,no_solver_samples |
+| 20260330_214437 | 120s | No | 0 | 0 | [log](logs/run_20260330_214437/) st1=0 err=launch_or_map_error,no_solver_samples |
