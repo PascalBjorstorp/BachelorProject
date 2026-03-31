@@ -23,7 +23,10 @@ add_executable(state_publisher_node
   src/state_publisher.cpp
   src/kdtree.cpp
 )
-target_include_directories(state_publisher_node PRIVATE include)
+target_include_directories(state_publisher_node PRIVATE
+  include
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../FPGA_Implementations/MPC_FPGA/include
+)
 ament_target_dependencies(state_publisher_node
   rclcpp
   std_msgs

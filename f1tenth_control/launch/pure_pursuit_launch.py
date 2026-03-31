@@ -1,18 +1,29 @@
 """
 Launch file for Pure Pursuit path follower.
 
-This launches the Pure Pursuit node which follows a pre-computed racing line.
+Loads a pre-computed racing line and starts the Pure Pursuit controller
+as a composable ROS2 node. Trajectory path defaults to f1tenth_planning share.
+
+Topics:
+  Sub: /ego_racecar/odom, <pose_topic>, /pp_enable
+  Pub: /drive
+
+Prerequisites:
+  - f1tenth_planning package installed with trajectory CSV.
+  - Localization stack publishing <pose_topic>.
 """
 
 import os
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node
+from launch_ros.actions import ComposableNodeContainer
+from launch_ros.descriptions import ComposableNode
 from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
+    """Build and return the Pure Pursuit launch description."""
     # Get package directories
     f1tenth_control_share = get_package_share_directory('f1tenth_control')
     
@@ -51,7 +62,7 @@ def generate_launch_description():
     lookahead_gain_arg = DeclareLaunchArgument(
         'lookahead_gain',
         default_value='0.15',
-        description='Velocity-proportional lookahead gain'
+        description='Velocity-proportional lookahead gain. Lookahead = gain * speed + min, capped at max [m/(m/s)]'
     )
 
     max_speed_arg = DeclareLaunchArgument(
@@ -63,25 +74,25 @@ def generate_launch_description():
     cte_lookahead_weight_arg = DeclareLaunchArgument(
         'cte_lookahead_weight',
         default_value='1.0',
-        description='Weight on cross-track error in dynamic lookahead'
+        description='Weight on cross-track error in dynamic lookahead. Higher values increase lookahead in when CTE is large [unitless]'
     )
 
     cte_lookahead_gain_arg = DeclareLaunchArgument(
         'cte_lookahead_gain',
         default_value='0.05',
-        description='Lookahead reduction gain based on cross-track error [m/m]'
+        description='Lookahead reduction gain based on cross-track error. Higher values reduce lookahead when CTE is large [m/m]'
     )
 
     curvature_lookahead_gain_arg = DeclareLaunchArgument(
         'curvature_lookahead_gain',
         default_value='1.34',
-        description='Turn-radius-based lookahead limit factor [m·m] (L_max = gain/kappa)'
+        description='Turn-radius-based lookahead limit factor (L_max = gain/kappa). Higher values reduce lookahead in tight curves [m]'
     )
 
     curvature_speed_factor_arg = DeclareLaunchArgument(
         'curvature_speed_factor',
         default_value='0.10',
-        description='Curvature-based speed slowdown aggressiveness'
+        description='Curvature-based speed slowdown aggressiveness. Higher values result in more aggressive speed reduction in tight curves [unitless]'
     )
 
     curvature_speed_floor_ratio_arg = DeclareLaunchArgument(
@@ -93,7 +104,7 @@ def generate_launch_description():
     cte_speed_factor_arg = DeclareLaunchArgument(
         'cte_speed_factor',
         default_value='0.10',
-        description='CTE-based speed slowdown aggressiveness'
+        description='CTE-based speed slowdown aggressiveness. Higher values result in more aggressive speed reduction when CTE is large [unitless]'
     )
 
     cte_speed_floor_ratio_arg = DeclareLaunchArgument(
@@ -116,7 +127,7 @@ def generate_launch_description():
 
     curvature_preview_factor_arg = DeclareLaunchArgument(
         'curvature_preview_factor',
-        default_value='2.0',
+        default_value='1.2',
         description='Preview distance multiplier for curvature-based braking'
     )
 
@@ -186,47 +197,55 @@ def generate_launch_description():
         description='Fail-safe timeout for stale odometry [s]'
     )
     
-    # Pure Pursuit Node
-    pure_pursuit_node = Node(
-        package='f1tenth_control',
-        executable='pure_pursuit_node_exe',
-        name='pure_pursuit_node',
+    # Pure Pursuit component container
+    pure_pursuit_container = ComposableNodeContainer(
+        name='pure_pursuit_container',
+        namespace='',
+        package='rclcpp_components',
+        executable='component_container',
+        composable_node_descriptions=[
+            ComposableNode(
+                package='f1tenth_control',
+                plugin='f1tenth_control::PurePursuitNode',
+                name='pure_pursuit_node',
+                parameters=[{
+                    'trajectory_file': LaunchConfiguration('trajectory_file'),
+                    'min_lookahead': LaunchConfiguration('min_lookahead'),
+                    'max_lookahead': LaunchConfiguration('max_lookahead'),
+                    'lookahead_gain': LaunchConfiguration('lookahead_gain'),
+                    'max_speed': LaunchConfiguration('max_speed'),
+                    'cte_lookahead_weight': LaunchConfiguration('cte_lookahead_weight'),
+                    'cte_lookahead_gain': LaunchConfiguration('cte_lookahead_gain'),
+                    'curvature_lookahead_gain': LaunchConfiguration('curvature_lookahead_gain'),
+                    'curvature_speed_factor': LaunchConfiguration('curvature_speed_factor'),
+                    'curvature_speed_floor_ratio': LaunchConfiguration('curvature_speed_floor_ratio'),
+                    'cte_speed_factor': LaunchConfiguration('cte_speed_factor'),
+                    'cte_speed_floor_ratio': LaunchConfiguration('cte_speed_floor_ratio'),
+                    'max_lateral_accel': LaunchConfiguration('max_lateral_accel'),
+                    'min_regulated_speed': LaunchConfiguration('min_regulated_speed'),
+                    'curvature_preview_factor': LaunchConfiguration('curvature_preview_factor'),
+                    'vehicle_half_width': LaunchConfiguration('vehicle_half_width'),
+                    'wall_safety_margin': LaunchConfiguration('wall_safety_margin'),
+                    'corridor_half_width_ref': LaunchConfiguration('corridor_half_width_ref'),
+                    'corridor_speed_floor_ratio': LaunchConfiguration('corridor_speed_floor_ratio'),
+                    'corridor_lookahead_factor': LaunchConfiguration('corridor_lookahead_factor'),
+                    'max_steering': 0.4189,
+                    'wheelbase': 0.324,
+                    'max_steering_rate': LaunchConfiguration('max_steering_rate'),
+                    'max_accel_cmd': LaunchConfiguration('max_accel_cmd'),
+                    'max_decel_cmd': LaunchConfiguration('max_decel_cmd'),
+                    'pose_topic': LaunchConfiguration('pose_topic'),
+                    'pose_timeout_s': LaunchConfiguration('pose_timeout_s'),
+                    'odom_timeout_s': LaunchConfiguration('odom_timeout_s'),
+                }],
+                remappings=[
+                    ('/odom', '/ego_racecar/odom'),
+                    ('/drive', '/drive'),
+                ],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            ),
+        ],
         output='screen',
-        parameters=[{
-            'trajectory_file': LaunchConfiguration('trajectory_file'),
-            'min_lookahead': LaunchConfiguration('min_lookahead'),
-            'max_lookahead': LaunchConfiguration('max_lookahead'),
-            'lookahead_gain': LaunchConfiguration('lookahead_gain'),
-            'max_speed': LaunchConfiguration('max_speed'),
-            'cte_lookahead_weight': LaunchConfiguration('cte_lookahead_weight'),
-            'cte_lookahead_gain': LaunchConfiguration('cte_lookahead_gain'),
-            'curvature_lookahead_gain': LaunchConfiguration('curvature_lookahead_gain'),
-            'curvature_speed_factor': LaunchConfiguration('curvature_speed_factor'),
-            'curvature_speed_floor_ratio': LaunchConfiguration('curvature_speed_floor_ratio'),
-            'cte_speed_factor': LaunchConfiguration('cte_speed_factor'),
-            'cte_speed_floor_ratio': LaunchConfiguration('cte_speed_floor_ratio'),
-            'max_lateral_accel': LaunchConfiguration('max_lateral_accel'),
-            'min_regulated_speed': LaunchConfiguration('min_regulated_speed'),
-            'curvature_preview_factor': LaunchConfiguration('curvature_preview_factor'),
-            'vehicle_half_width': LaunchConfiguration('vehicle_half_width'),
-            'wall_safety_margin': LaunchConfiguration('wall_safety_margin'),
-            'corridor_half_width_ref': LaunchConfiguration('corridor_half_width_ref'),
-            'corridor_speed_floor_ratio': LaunchConfiguration('corridor_speed_floor_ratio'),
-            'corridor_lookahead_factor': LaunchConfiguration('corridor_lookahead_factor'),
-            'max_steering': 0.4189,
-            'wheelbase': 0.324,
-            'max_steering_rate': LaunchConfiguration('max_steering_rate'),
-            'max_accel_cmd': LaunchConfiguration('max_accel_cmd'),
-            'max_decel_cmd': LaunchConfiguration('max_decel_cmd'),
-            'publish_visualization': True,
-            'pose_topic': LaunchConfiguration('pose_topic'),
-            'pose_timeout_s': LaunchConfiguration('pose_timeout_s'),
-            'odom_timeout_s': LaunchConfiguration('odom_timeout_s'),
-        }],
-        remappings=[
-            ('/odom', '/ego_racecar/odom'),
-            ('/drive', '/drive'),
-        ]
     )
     
     return LaunchDescription([
@@ -256,5 +275,5 @@ def generate_launch_description():
         pose_topic_arg,
         pose_timeout_arg,
         odom_timeout_arg,
-        pure_pursuit_node,
+        pure_pursuit_container,
     ])

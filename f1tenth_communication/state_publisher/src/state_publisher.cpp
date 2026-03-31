@@ -1,9 +1,10 @@
 /**
  * @file state_publisher.cpp
- * @brief ROS2 Node: Publishes vehicle state + waypoint index
- *
- * Runs on Jetson. Subscribes to localization, performs KD-tree lookup,
- * publishes MpcState for the Ultra96 MPC controller.
+ * @brief Publish vehicle state and streamed MPC references from Jetson.
+ * @details Builds a KD-tree from trajectory waypoints, receives pose/odometry,
+ *          and publishes Q16.16 `MpcState` packets for the Ultra96 receiver.
+ * @dependencies rclcpp, nav_msgs, geometry_msgs, std_msgs, f1tenth_msgs,
+ *               state_publisher/kdtree.hpp, mpc_fpga_constants.h
  */
 
 #include <rclcpp/rclcpp.hpp>
@@ -12,7 +13,8 @@
 #include <std_msgs/msg/float64.hpp>
 #include <f1tenth_msgs/msg/mpc_state.hpp>
 
-#include "state_publisher/kdtree.hpp"
+#include "mpc_fpga_constants.h"
+#include "kdtree.hpp"
 
 #include <fstream>
 #include <sstream>
@@ -29,10 +31,17 @@ namespace f1tenth_communication {
  * State Publisher Node
  *===========================================================================*/
 
+/**
+ * @brief ROS2 node that publishes current vehicle state and streamed MPC references.
+ * @details Loads trajectory waypoints into a KD-tree, tracks pose and odometry,
+ *          and publishes fixed-point `MpcState` packets for the FPGA receiver.
+ */
 class StatePublisherNode : public rclcpp::Node {
 public:
-    static constexpr size_t MAX_MPC_HORIZON = 10;
-
+    /**
+     * @brief Construct and initialize the state publisher node.
+     * @return None.
+     */
     StatePublisherNode() : Node("state_publisher") {
         // Parameters
         this->declare_parameter("trajectory_file", "");
@@ -40,43 +49,33 @@ public:
         this->declare_parameter("pose_topic", "/ekf_pose");
         this->declare_parameter("output_topic", "/mpc_state");
         this->declare_parameter("servo_topic", "/sensors/servo_position_command");
-        this->declare_parameter("wheelbase", 0.324);
-        // VESC servo → steering angle conversion
-        // Forward: servo = gain * (c2·|δ|² + c1·|δ| + c0) + offset
-        // Inverse: solve quadratic to recover δ from servo value
+        
+        // VESC servo to steering-angle conversion.
+        // Forward: servo = gain * (c2*|delta|^2 + c1*|delta| + c0) + offset.
+        // Inverse: solve the quadratic to recover delta from servo.
         this->declare_parameter("servo_gain", -0.7284);
         this->declare_parameter("servo_offset", 0.55);
         this->declare_parameter("steering_correction_c2", 0.589566);
         this->declare_parameter("steering_correction_c1", 0.918061);
         this->declare_parameter("steering_correction_c0", 0.001490);
-        // Number of waypoints ahead of KD-tree nearest to check for forward bias
-        this->declare_parameter("forward_lookahead", 3);
-        this->declare_parameter("horizon", static_cast<int>(MAX_MPC_HORIZON));
-        this->declare_parameter("default_left_bound", 2.0);
-        this->declare_parameter("default_right_bound", 2.0);
         
+        // Trajectory source
         std::string trajectory_file = this->get_parameter("trajectory_file").as_string();
+
+        // Topics
         std::string odom_topic = this->get_parameter("odom_topic").as_string();
         std::string pose_topic = this->get_parameter("pose_topic").as_string();
         std::string output_topic = this->get_parameter("output_topic").as_string();
         std::string servo_topic = this->get_parameter("servo_topic").as_string();
-        wheelbase_ = this->get_parameter("wheelbase").as_double();
+
+        // Load parameters into member variables.
         servo_gain_ = this->get_parameter("servo_gain").as_double();
         servo_offset_ = this->get_parameter("servo_offset").as_double();
         steer_c2_ = this->get_parameter("steering_correction_c2").as_double();
         steer_c1_ = this->get_parameter("steering_correction_c1").as_double();
         steer_c0_ = this->get_parameter("steering_correction_c0").as_double();
-        forward_lookahead_ = static_cast<int>(this->get_parameter("forward_lookahead").as_int());
-        const int horizon_param = this->get_parameter("horizon").as_int();
-        default_left_bound_ = this->get_parameter("default_left_bound").as_double();
-        default_right_bound_ = this->get_parameter("default_right_bound").as_double();
-        if (horizon_param != static_cast<int>(MAX_MPC_HORIZON)) {
-            RCLCPP_WARN(this->get_logger(),
-                "horizon=%d requested, but FPGA bitstream expects fixed MPC_HORIZON=%zu. Forcing %zu.",
-                horizon_param, MAX_MPC_HORIZON, MAX_MPC_HORIZON);
-        }
-        horizon_ = MAX_MPC_HORIZON;
-        
+
+        // Check that trajectory file isnt empty before proceeding.
         if (trajectory_file.empty()) {
             RCLCPP_ERROR(this->get_logger(), "No trajectory file specified!");
             return;
@@ -89,10 +88,11 @@ public:
             return;
         }
         
-        RCLCPP_INFO(this->get_logger(), "Loaded %zu waypoints from %s (hash=0x%08X)",
-                   kdtree_.size(), trajectory_file.c_str(), trajectory_hash_);
-            RCLCPP_INFO(this->get_logger(),
-                "Streaming mode: horizon-only (length=%zu)", horizon_);
+        RCLCPP_INFO(this->get_logger(), "Loaded %zu waypoints from %s",
+               kdtree_.size(), trajectory_file.c_str());
+        RCLCPP_INFO(this->get_logger(),
+            "Streaming mode: horizon-only (length=%zu)",
+            static_cast<size_t>(MPC_FPGA_HORIZON_STEPS));
         
         // Best Effort + volatile minimizes control latency under packet loss.
         auto qos = rclcpp::QoS(1)
@@ -138,12 +138,12 @@ public:
         
         // Odom timeout watchdog: warn if no odom received for 500ms
         odom_watchdog_timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(500),
+            std::chrono::milliseconds(MPC_FPGA_PUBLISHER_ODOM_WATCHDOG_MS),
             [this]() {
                 if (!odom_received_) return;  // Haven't received first message yet
                 auto elapsed_ms = std::chrono::duration<double, std::milli>(
                     std::chrono::steady_clock::now() - last_odom_time_).count();
-                if (elapsed_ms > 500.0) {
+                if (elapsed_ms > static_cast<double>(MPC_FPGA_PUBLISHER_ODOM_WATCHDOG_MS)) {
                     RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
                         "No odom received for %.0f ms — localization may be stalled", elapsed_ms);
                 }
@@ -157,38 +157,41 @@ public:
 private:
     // --- ROS interfaces ------------------------------------------------------
     KDTree kdtree_;
-    rclcpp::Publisher<f1tenth_msgs::msg::MpcState>::SharedPtr pub_;
-    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_;
-    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
-    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr servo_sub_;
+    rclcpp::Publisher<f1tenth_msgs::msg::MpcState>::SharedPtr pub_;                             // Publisher for fixed-point MPC state packets.
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_;                              // Subscription for odometry messages to extract velocity and yaw rate.
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;   // Subscription for EKF pose messages to trigger state packet publication.
+    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr servo_sub_;                         // Subscription for servo position feedback to compute actual steering angle.               
     
     // --- Runtime state -------------------------------------------------------
-    double current_steering_angle_ = 0.0;  // Steering angle [rad] (converted from servo value)
-    bool has_servo_feedback_ = false;
-    double wheelbase_ = 0.0;
-    double servo_gain_ = 0.0;
-    double servo_offset_ = 0.0;
-    double steer_c2_ = 0.0;
-    double steer_c1_ = 0.0;
-    double steer_c0_ = 0.0;
-    int forward_lookahead_ = 0;
-    size_t horizon_ = MAX_MPC_HORIZON;
-    uint32_t trajectory_hash_ = 0;   // Checksum for cross-node trajectory verification
-    double default_left_bound_ = 0.0;
-    double default_right_bound_ = 0.0;
+    double current_steering_angle_ = 0.0;                           // Steering angle [rad] 
+    bool has_servo_feedback_ = false;                               // Flag indicating if servo feedback has been received at least once.
+    double wheelbase_ = static_cast<double>(MPC_FPGA_WHEELBASE_M);  // Wheelbase of the vehicle in meters 
+    double servo_gain_ = 0.0;                                       // Gain for converting steering angle to servo command, used in inverse mapping.
+    double servo_offset_ = 0.0;                                     // Offset for converting steering angle to servo command, used in inverse mapping.
+    double steer_c2_ = 0.0;                                         // Quadratic correction term for steering angle mapping, used in inverse mapping to recover steering angle from servo feedback.
+    double steer_c1_ = 0.0;                                         // Linear correction term for steering angle mapping, used in inverse mapping to recover steering angle from servo feedback.
+    double steer_c0_ = 0.0;                                         // Constant correction term for steering angle mapping, used in inverse mapping to recover steering angle from servo feedback.
+    int forward_lookahead_ = MPC_FPGA_PUBLISHER_FORWARD_LOOKAHEAD;  // Number of waypoints to look ahead for forward-biased nearest neighbor search.
 
     // --- Watchdog state -----------------------------------------------------
-    rclcpp::TimerBase::SharedPtr odom_watchdog_timer_;
-    std::chrono::steady_clock::time_point last_odom_time_ = std::chrono::steady_clock::now();
-    bool odom_received_ = false;
+    rclcpp::TimerBase::SharedPtr odom_watchdog_timer_;                                          // Timer to check for odometry timeouts and emit warnings.
+    std::chrono::steady_clock::time_point last_odom_time_ = std::chrono::steady_clock::now();   // Timestamp of the last received odometry message, used for watchdog timeout checks.
+    bool odom_received_ = false;                                                                // Flag indicating if at least one odometry message has been received, used to suppress watchdog warnings until first message arrives.              
 
     // --- Cached dynamics from odometry -------------------------------------
-    double latest_velocity_ = 0.0;
-    double latest_vy_ = 0.0;
-    double latest_omega_ = 0.0;
-    bool has_odom_dynamics_ = false;
+    double latest_velocity_ = 0.0;      // Latest longitudinal velocity in m/s extracted from odometry messages, used for computing steering angle when servo feedback is unavailable.
+    double latest_vy_ = 0.0;            // Latest lateral velocity in m/s extracted from odometry messages, included in state packets for MPC tracking error computation.
+    double latest_omega_ = 0.0;         // Latest yaw rate in rad/s extracted from odometry messages, used for computing steering angle when servo feedback is unavailable and included in state packets for MPC tracking error computation.
+    bool has_odom_dynamics_ = false;    // Flag indicating if valid odometry dynamics have been received at least once, used to determine if velocity and yaw rate can be used for steering angle computation when servo feedback is unavailable.
 
     // --- Odometry processing helpers ----------------------------------------
+    /**
+     * @brief Validate incoming odometry values before they are used.
+     * @param msg Incoming odometry message.
+     * @param x Extracted x position from the message.
+     * @param y Extracted y position from the message.
+     * @return true when message values are finite and within sanity limits.
+     */
     bool validate_odom_message(const nav_msgs::msg::Odometry::SharedPtr& msg,
                                double x,
                                double y) {
@@ -200,6 +203,7 @@ private:
         const double vy = msg->twist.twist.linear.y;
         const double wz = msg->twist.twist.angular.z;
 
+        // Basic sanity checks to catch NaNs/Infs and unreasonable values before they propagate to MPC.
         auto ok = [](double v) { return std::isfinite(v); };
         if (!ok(x) || !ok(y) || !ok(qx) || !ok(qy) || !ok(qz) || !ok(qw) ||
             !ok(vx) || !ok(vy) || !ok(wz)) {
@@ -208,8 +212,9 @@ private:
             return false;
         }
 
-        constexpr double POS_LIMIT = 500.0;   // ±500 m
-        constexpr double VEL_LIMIT = 50.0;    // ±50 m/s
+        // Additional sanity limits to catch outliers (e.g. from EKF divergence) that could destabilize MPC.
+        constexpr double POS_LIMIT = 50.0;   // ±50 m
+        constexpr double VEL_LIMIT = 20.0;    // ±20 m/s
         if (std::abs(x) > POS_LIMIT || std::abs(y) > POS_LIMIT) {
             RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
                 "Dropping odom: position out of range (%.1f, %.1f)", x, y);
@@ -224,13 +229,25 @@ private:
         return true;
     }
 
-    // Convert quaternion to planar yaw.
+    /**
+     * @brief Convert quaternion orientation to planar yaw.
+     * @param qx Quaternion x component.
+     * @param qy Quaternion y component.
+     * @param qz Quaternion z component.
+     * @param qw Quaternion w component.
+     * @return Yaw angle in radians.
+     */
     static double quaternion_to_yaw(double qx, double qy, double qz, double qw) {
         return std::atan2(2.0 * (qw * qz + qx * qy),
                           1.0 - 2.0 * (qy * qy + qz * qz));
     }
 
-    // Prefer measured steering; fall back to bicycle-model estimate if needed.
+    /**
+     * @brief Compute steering angle from servo feedback or bicycle fallback.
+     * @param velocity Longitudinal velocity in m/s.
+     * @param omega Yaw rate in rad/s.
+     * @return Steering angle in radians.
+     */
     double compute_steering_angle(double velocity, double omega) const {
         if (!has_servo_feedback_ && std::abs(velocity) > 0.1) {
             return std::atan2(wheelbase_ * omega, velocity);
@@ -238,7 +255,14 @@ private:
         return current_steering_angle_;
     }
 
-    // Choose a forward waypoint near the geometric nearest index.
+    /**
+     * @brief Apply heading-aware forward bias to nearest waypoint selection.
+     * @param nearest_idx KD-tree nearest waypoint index.
+     * @param x Current vehicle x position.
+     * @param y Current vehicle y position.
+     * @param theta Current vehicle heading in radians.
+     * @return Forward-biased waypoint index for horizon generation.
+     */
     size_t apply_forward_bias(size_t nearest_idx, double x, double y, double theta) const {
         const double cos_theta = std::cos(theta);
         const double sin_theta = std::sin(theta);
@@ -246,6 +270,7 @@ private:
         size_t best_idx = nearest_idx;
         double best_dist = std::numeric_limits<double>::max();
 
+        // Search forward along the trajectory from the nearest index, checking up to forward_lookahead_ waypoints.
         for (int i = 0; i <= forward_lookahead_; ++i) {
             size_t check_idx = (nearest_idx + static_cast<size_t>(i)) % N;
             const auto& wp = kdtree_.get_waypoint(check_idx);
@@ -265,20 +290,29 @@ private:
         return best_idx;
     }
 
-    // Convert floating-point values to Q16.16 for FPGA transport.
+    /**
+     * @brief Convert floating-point value to Q16.16 fixed-point representation.
+     * @param v Floating-point input value.
+     * @return Q16.16 fixed-point integer representation.
+     */
     static int32_t to_fixed_q16(double v) {
-        constexpr double FP_SCALE = 65536.0;
+        constexpr double FP_SCALE = MPC_FPGA_Q16_SCALE_F64;
         if (!std::isfinite(v)) {
             return 0;
         }
         return static_cast<int32_t>(v >= 0.0 ? v * FP_SCALE + 0.5 : v * FP_SCALE - 0.5);
     }
 
-    // Fill only the horizon window needed by the receiver/FPGA.
+    /**
+     * @brief Populate streamed horizon reference fields in an outgoing message in place.
+     * @param mpc_state Output message to populate.
+     * @param waypoint_idx Starting waypoint index for the horizon window.
+     * @return None.
+     */
     void fill_horizon_references(f1tenth_msgs::msg::MpcState& mpc_state,
                                  size_t waypoint_idx) const {
         const size_t N = kdtree_.size();
-        const size_t stream_count = std::min(horizon_, N);
+        const size_t stream_count = std::min(static_cast<size_t>(MPC_FPGA_HORIZON_STEPS), N);
         mpc_state.horizon_length = static_cast<uint32_t>(stream_count);
 
         // First waypoint for Frenet error computation (ARM-side)
@@ -306,19 +340,28 @@ private:
 
     // --- Trajectory I/O ------------------------------------------------------
     
+    /**
+     * @brief Load trajectory points from CSV and build KD-tree index.
+     * @param filepath Absolute or relative path to trajectory CSV file.
+     * @return true when trajectory was loaded and indexed successfully.
+     */
     bool load_trajectory(const std::string& filepath) {
         std::ifstream file(filepath);
         if (!file.is_open()) {
             return false;
         }
         
+        // Expected CSV format (with header):
+        // s,x,y,psi,kappa,vx,ax,left_bound,right_bound
         std::vector<Waypoint> waypoints;
         std::string line;
+        size_t csv_line_number = 1;
         
         // Skip header
         std::getline(file, line);
         
         while (std::getline(file, line)) {
+            ++csv_line_number;
             std::stringstream ss(line);
             std::string token;
             Waypoint wp;
@@ -329,17 +372,19 @@ private:
             std::getline(ss, token, ','); wp.psi = std::stod(token);
             std::getline(ss, token, ','); wp.kappa = std::stod(token);
             std::getline(ss, token, ','); wp.vx = std::stod(token);
-            std::getline(ss, token, ',');  // Legacy ax column kept for CSV compatibility
-            wp.left_bound = default_left_bound_;
-            wp.right_bound = default_right_bound_;
-
-            // Optional bounds columns: left_bound,right_bound
-            if (std::getline(ss, token, ',')) {
-                if (!token.empty()) wp.left_bound = std::stod(token);
-                if (std::getline(ss, token, ',')) {
-                    if (!token.empty()) wp.right_bound = std::stod(token);
-                }
+            std::getline(ss, token, ','); 
+            if (!std::getline(ss, token, ',') || token.empty()) {
+                RCLCPP_ERROR(this->get_logger(),
+                    "Trajectory CSV missing required left_bound at line %zu", csv_line_number);
+                return false;
             }
+            wp.left_bound = std::stod(token);
+            if (!std::getline(ss, token, ',') || token.empty()) {
+                RCLCPP_ERROR(this->get_logger(),
+                    "Trajectory CSV missing required right_bound at line %zu", csv_line_number);
+                return false;
+            }
+            wp.right_bound = std::stod(token);
             
             waypoints.push_back(wp);
         }
@@ -350,15 +395,14 @@ private:
         
         kdtree_.build(waypoints);
 
-        // Compute trajectory checksum for cross-node verification
-        trajectory_hash_ = 0;
-        for (const auto& wp : waypoints) {
-            trajectory_hash_ ^= static_cast<uint32_t>(wp.x * 65536.0)
-                              ^ (static_cast<uint32_t>(wp.y * 65536.0) << 16);
-        }
         return true;
     }
     
+    /**
+     * @brief Cache latest odometry dynamics used by pose-triggered publishing.
+     * @param msg Incoming odometry message.
+     * @return None.
+     */
     void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
         last_odom_time_ = std::chrono::steady_clock::now();
         odom_received_ = true;
@@ -379,6 +423,11 @@ private:
         has_odom_dynamics_ = true;
     }
 
+    /**
+     * @brief Build and publish one MpcState packet for each incoming pose.
+     * @param msg Incoming pose message in map frame.
+     * @return None.
+     */
     void pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
         const double x = msg->pose.pose.position.x;
         const double y = msg->pose.pose.position.y;
@@ -387,6 +436,7 @@ private:
         const double qz = msg->pose.pose.orientation.z;
         const double qw = msg->pose.pose.orientation.w;
 
+        // Validate pose inputs before processing to avoid publishing bad state to MPC.
         auto ok = [](double v) { return std::isfinite(v); };
         if (!ok(x) || !ok(y) || !ok(qx) || !ok(qy) || !ok(qz) || !ok(qw)) {
             RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
@@ -399,17 +449,20 @@ private:
             return;
         }
 
+        // 1) Convert pose to state variables
         const double theta = quaternion_to_yaw(qx, qy, qz, qw);
         const double velocity = latest_velocity_;
         const double vy = latest_vy_;
         const double omega = latest_omega_;
         const double steering_angle = compute_steering_angle(velocity, omega);
 
+        // 2) Find nearest waypoint and apply forward bias based on heading.
         auto start_time = std::chrono::high_resolution_clock::now();
         size_t waypoint_idx = kdtree_.find_nearest(x, y);
         waypoint_idx = apply_forward_bias(waypoint_idx, x, y, theta);
         auto end_time = std::chrono::high_resolution_clock::now();
 
+        // 3) Build and publish MpcState message with fixed-point conversion and horizon references.
         auto mpc_state = f1tenth_msgs::msg::MpcState();
         mpc_state.header.stamp = msg->header.stamp;
         mpc_state.header.frame_id = "map";
@@ -422,10 +475,12 @@ private:
         mpc_state.steering_angle_fp = to_fixed_q16(steering_angle);
         fill_horizon_references(mpc_state, waypoint_idx);
 
+        // Publish the state message to the FPGA receiver.
         pub_->publish(mpc_state);
 
+        // Debug logging
         static int count = 0;
-        if (++count % 50 == 0) {
+        if (++count % MPC_FPGA_PUBLISHER_DEBUG_LOG_PERIOD == 0) {
             auto lookup_us = std::chrono::duration_cast<std::chrono::microseconds>(
                 end_time - start_time).count();
             RCLCPP_DEBUG(this->get_logger(),
@@ -437,6 +492,12 @@ private:
 
 } // namespace f1tenth_communication
 
+/**
+ * @brief Entry point for the state publisher process.
+ * @param argc Argument count from process invocation.
+ * @param argv Argument vector from process invocation.
+ * @return Process exit code (0 on normal shutdown).
+ */
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<f1tenth_communication::StatePublisherNode>();

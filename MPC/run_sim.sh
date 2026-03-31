@@ -47,7 +47,7 @@ cleanup() {
 
     pkill -f 'ros2 launch mpc_riccati mpc_launch.py' 2>/dev/null || true
     pkill -f 'ros2 launch f1tenth_gym_ros gym_bridge_launch.py' 2>/dev/null || true
-    pkill -f '/mpc_riccati/mpc_riccati_node' 2>/dev/null || true
+    pkill -f '/mpc_riccati/mpc_node' 2>/dev/null || true
     pkill -f '/f1tenth_gym_ros/gym_bridge' 2>/dev/null || true
     pkill -f 'rviz2.*gym_bridge.rviz' 2>/dev/null || true
     pkill -f 'lifecycle_manager_localization' 2>/dev/null || true

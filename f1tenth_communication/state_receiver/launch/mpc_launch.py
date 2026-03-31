@@ -1,26 +1,25 @@
 """
-Launch file for FPGA-only MPC receiver.
-
-Usage:
-    ros2 launch state_receiver mpc_launch.py
-
-Arguments:
-    drive_topic: Topic to publish drive commands (default: /drive)
-    input_topic: Topic to receive MPC state from (default: /mpc_state)
+@file mpc_launch.py
+@brief Launch configuration for the FPGA-backed MPC receiver node.
+@details Declares launch-time topic arguments and starts the state receiver
+         node with those topic values passed as ROS parameters.
+@dependencies launch, launch.actions.DeclareLaunchArgument,
+              launch.substitutions.LaunchConfiguration,
+              launch_ros.actions.Node
 """
 
-import os
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
-    pkg_share = get_package_share_directory('state_receiver')
-    default_config = os.path.join(pkg_share, 'config', 'mpc_params.yaml')
-
+    """
+    @brief Build launch description for FPGA-backed MPC receiver node.
+    @param None.
+    @return LaunchDescription with topic arguments and receiver node action.
+    """
     drive_topic_arg = DeclareLaunchArgument(
         'drive_topic',
         default_value='/drive',
@@ -39,7 +38,6 @@ def generate_launch_description():
         name='mpc_receiver',
         output='screen',
         parameters=[
-            default_config,
             {
                 'drive_topic': LaunchConfiguration('drive_topic'),
                 'input_topic': LaunchConfiguration('input_topic'),

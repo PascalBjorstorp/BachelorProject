@@ -4,10 +4,10 @@
   <name>state_publisher</name>
   <version>0.1.0</version>
   <description>
-    ROS2 node that publishes vehicle state + waypoint index for MPC.
-    Runs on Jetson, performs KD-tree lookup, publishes to Ultra96.
+    ROS2 node that publishes vehicle state and streamed MPC horizon references.
+    Runs on Jetson, performs KD-tree lookup, and publishes MpcState to Ultra96.
   </description>
-  <maintainer email="todo@example.com">Your Name</maintainer>
+  <maintainer email="akmun23@student.sdu.dk">Aksel Munksgaard-Ottosen</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

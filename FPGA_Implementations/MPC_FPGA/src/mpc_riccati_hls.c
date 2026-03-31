@@ -1,12 +1,10 @@
 /**
  * @file mpc_riccati_hls.c
  * @brief MPC Riccati-ADMM Compute Function — HLS-Synthesizable
- *
- * Builds the augmented 8-state QP from Frenet state and streamed
- * horizon references, then solves via Riccati-ADMM.
- *
- * Augmented state: [e_y, e_psi, vx, vy, omega, delta_actual, drate_prev, accel_prev]
- * Control: [delta_rate, acceleration]
+ * @details Builds the augmented 8-state QP from the current Frenet state and
+ *          fixed-horizon references, then solves via Riccati-ADMM and maps
+ *          solver outputs to saturated steering/acceleration commands.
+ * @dependencies fp_math_hls.h, riccati_solver_hls.h, mpc_fpga_types.h
  */
 
 #include "../include/fp_math_hls.h"
@@ -40,6 +38,7 @@ extern void saturate_control_hls(
  * @param out_accel     Output: acceleration command [m/s^2]
  * @param out_status    Output: 0=optimal, 1=max_iter, 2=error
  * @param out_iters     Output: ADMM iterations used
+ * @return None.
  */
 void mpc_compute_hls(
     fixed_point_t state_ey,
@@ -55,6 +54,15 @@ void mpc_compute_hls(
     int *out_status,
     int *out_iters)
 {
+    if (!ref || !persist || !admm_state ||
+        !out_steering || !out_accel || !out_status || !out_iters) {
+        if (out_steering) *out_steering = 0;
+        if (out_accel) *out_accel = 0;
+        if (out_status) *out_status = MPC_STATUS_ERROR;
+        if (out_iters) *out_iters = 0;
+        return;
+    }
+
     const int N = MPC_HORIZON;
     fixed_point_t dt = MPC_DT;
     int k, i, j;
@@ -74,7 +82,7 @@ void mpc_compute_hls(
     /* Zero only sparse fields that are not explicitly overwritten below. */
 
     for (k = 0; k < N; k++) {
-#pragma HLS LOOP_TRIPCOUNT min=20 max=20
+#pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
         StepData_t *sd = &step_data[k];
 
         /* Zero sparse blocks not explicitly written by the assignments below. */

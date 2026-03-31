@@ -11,37 +11,42 @@
 - [x] `gpu_amcl_cpp/include/gpu_amcl_cpp/core/particle_filter.hpp` - Particle filter header
 - [x] `gpu_amcl_cpp/src/core/motion_model.cpp` - Motion model (odom prediction)
 - [x] `gpu_amcl_cpp/include/gpu_amcl_cpp/core/motion_model.hpp`
+- [x] `gpu_amcl_cpp/src/core/sensor_model.cpp` - Sensor model (lidar likelihood)
+- [x] `gpu_amcl_cpp/include/gpu_amcl_cpp/core/sensor_model.hpp` - Sensor model header
+- [x] `gpu_amcl_cpp/src/core/resampling.cpp` - Systematic resampling
+- [x] `gpu_amcl_cpp/include/gpu_amcl_cpp/core/resampling.hpp` - Resampling header
+- [x] `gpu_amcl_cpp/src/core/ekf_node.cpp` - EKF sensor fusion node
+- [x] `gpu_amcl_cpp/include/gpu_amcl_cpp/core/ekf_node.hpp`
+
 
 ### CUDA Kernels
 - [x] `gpu_amcl_cpp/src/cuda/motion_model_kernels.cu` - Motion model GPU kernels
 - [x] `gpu_amcl_cpp/src/cuda/estimate_kernels.cu` - Pose estimation GPU kernels (NEW)
 - [x] `gpu_amcl_cpp/src/cuda/sensor_model_kernels.cu` - Lidar ray casting on GPU
+- [x] `gpu_amcl_cpp/src/cuda/resampling_kernels.cu` - Systematic resampling on GPU
+- [x] `gpu_amcl_cpp/src/cuda/weight_kernels.cu` - Weight normalization on GPU
 
 ### Config
 - [x] `config/gpu_amcl_cpp_params.yaml` - All ROS parameters
 - [x] `launch/cpp_localization.launch.py` - Launch file
+
+
+### Helpers
+- [x] `gpu_amcl_cpp/include/gpu_amcl_cpp/helpers/cuda_utils.hpp` - CUDA wrappers
+- [x] `gpu_amcl_cpp/include/gpu_amcl_cpp/helpers/map_utils.hpp`
+- [x] `gpu_amcl_cpp/src/helpers/map_utils.cpp` - Map processing (distance field)
+- [x] `gpu_amcl_cpp/include/gpu_amcl_cpp/helpers/math_utils.hpp` - Math utilities
 
 ---
 
 ## Files Still To Review
 
 ### Core (C++)
-- [ ] `gpu_amcl_cpp/src/core/sensor_model.cpp` - Sensor model (lidar likelihood)
-- [ ] `gpu_amcl_cpp/include/gpu_amcl_cpp/core/sensor_model.hpp`
-- [ ] `gpu_amcl_cpp/src/core/resampling.cpp` - Systematic resampling
-- [ ] `gpu_amcl_cpp/include/gpu_amcl_cpp/core/resampling.hpp`
-- [ ] `gpu_amcl_cpp/src/core/ekf_node.cpp` - EKF sensor fusion node
-- [ ] `gpu_amcl_cpp/include/gpu_amcl_cpp/core/ekf_node.hpp`
 
 ### CUDA Kernels
-- [ ] `gpu_amcl_cpp/src/cuda/resampling_kernels.cu` - Systematic resampling on GPU
-- [ ] `gpu_amcl_cpp/src/cuda/weight_kernels.cu` - Weight normalization on GPU
+
 
 ### Helpers
-- [ ] `gpu_amcl_cpp/src/helpers/map_utils.cpp` - Map processing (distance field)
-- [ ] `gpu_amcl_cpp/include/gpu_amcl_cpp/helpers/map_utils.hpp`
-- [ ] `gpu_amcl_cpp/include/gpu_amcl_cpp/helpers/cuda_utils.hpp` - CUDA wrappers
-- [ ] `gpu_amcl_cpp/include/gpu_amcl_cpp/helpers/math_utils.hpp` - Math utilities
 
 ---
 
@@ -63,6 +68,8 @@ Removed particle recovery mechanism (not needed for stable odom):
 - `particle_filter.cpp` - GPU get_estimate() with CUDA kernels
 - `estimate_kernels.cu` - New file for mean/covariance on GPU
 - `compute_kld_target()` - Changed to pinned memory, reduced hash factor
+- `sensor_model_kernels.cu` - Precomputed beam `cos/sin` in shared memory to remove per-beam trig from the hot loop
+- `launch_sensor_weights()` - Added early return guard for `n <= 0 || num_ranges <= 0`
 
 ### Motion model
 - `Ensure capacity` - Removes since we just follow max_particles
@@ -96,6 +103,7 @@ Work style for this project:
 5) When making changes, state exactly what file(s) changed and why.
 6) Keep iterative progress visible and ask me what function/file to do next.
 7) When we finish a file and aggree it have been checked then update the file f1tenth_localization/FilesReviewedAndMissing.md
+8) Also remember to show the code that you are reviewing and give comments
 
 Interaction format:
 Use short progress updates while working.

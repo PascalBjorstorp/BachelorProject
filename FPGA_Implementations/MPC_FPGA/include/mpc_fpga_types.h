@@ -1,19 +1,22 @@
 /**
  * @file mpc_fpga_types.h
- * @brief Types, constants, and data structures for HLS MPC solver
- *
- * Defines all types for the FPGA MPC Riccati-ADMM implementation.
- * Uses Q16.16 fixed-point arithmetic (int32_t with 64-bit intermediates).
+ * @brief Types, constants, and shared structures for the FPGA MPC solver.
+ * @details Defines dimensions, state indices, precomputed fixed-point
+ *          constants, and all data structures exchanged across the
+ *          vehicle-model, Riccati solver, and top-level integration units.
+ * @dependencies fp_math_hls.h, mpc_fpga_constants.h
  */
 
 #ifndef MPC_FPGA_TYPES_H
 #define MPC_FPGA_TYPES_H
 
 #ifndef MPC_HLS_TARGET
+/* Build flag used by downstream modules to enable HLS-specific branches. */
 #define MPC_HLS_TARGET
 #endif
 
 #include "fp_math_hls.h"
+#include "mpc_fpga_constants.h"
 
 /*===========================================================================
  * MPC Dimension Constants
@@ -32,10 +35,13 @@
 #define MPC_NU          2
 
 /** Fixed prediction horizon */
-#define MPC_HORIZON     10
+#define MPC_HORIZON     MPC_FPGA_HORIZON_STEPS
+
+/** Horizon length used for loops that include terminal state k = N */
+#define MPC_HORIZON_PLUS_ONE (MPC_HORIZON + 1)
 
 /** Maximum ADMM iterations */
-#define MPC_MAX_ADMM_ITER 8
+#define MPC_MAX_ADMM_ITER MPC_FPGA_MAX_ADMM_ITER
 
 /*===========================================================================
  * HLS Resource Constraints
@@ -84,22 +90,22 @@
  * Values can be found in f1tenth_parameters/vehicle_params.yaml
  *===========================================================================*/
 
-#define VP_WHEELBASE            FP_CONST(0.324)     /* Distance between front and rear axles */
-#define VP_LF                   FP_CONST(0.166)     /* Distance from CG to front axle */
-#define VP_LR                   FP_CONST(0.16)      /* Distance from CG to rear axle */
-#define VP_MASS                 FP_CONST(3.314)     /* Vehicle mass (kg) */
-#define VP_IZ                   FP_CONST(0.035)     /* Yaw moment of inertia (kg*m^2) */
-#define VP_CG_HEIGHT            FP_CONST(0.0703)    /* Center of gravity height (m) */
-#define VP_GRAVITY              FP_CONST(9.81)      /* Gravitational acceleration (m/s^2) */
-#define VP_MU                   FP_CONST(0.745)     /* Tire friction coefficient */
-#define VP_MAX_STEER            FP_CONST(0.4189)    /* Maximum steering angle (rad) */
-#define VP_MAX_VEL              FP_CONST(14.0)      /* Maximum velocity (m/s) */
-#define VP_MIN_VEL              FP_CONST(0.0)       /* Minimum velocity (m/s) */
-#define VP_MAX_ACCEL            FP_CONST(7.31)      /* Maximum acceleration (m/s^2) */
-#define VP_MIN_ACCEL            FP_CONST(-7.31)     /* Minimum acceleration (m/s^2) */
-#define VP_MAX_STEER_RATE       FP_CONST(2.849)     /* Maximum steering rate (rad/s) */
-#define VP_C_ALPHA_F_NRAD       FP_CONST(51.40)     /* Front tire cornering stiffness (N/rad) */
-#define VP_C_ALPHA_R_NRAD       FP_CONST(43.10)     /* Rear tire cornering stiffness (N/rad) */
+#define VP_WHEELBASE            FP_CONST(MPC_FPGA_WHEELBASE_M)     /* Distance between front and rear axles */
+#define VP_LF                   FP_CONST(MPC_FPGA_LF_M)            /* Distance from CG to front axle */
+#define VP_LR                   FP_CONST(MPC_FPGA_LR_M)            /* Distance from CG to rear axle */
+#define VP_MASS                 FP_CONST(MPC_FPGA_MASS_KG)         /* Vehicle mass (kg) */
+#define VP_IZ                   FP_CONST(MPC_FPGA_IZ_KGM2)         /* Yaw moment of inertia (kg*m^2) */
+#define VP_CG_HEIGHT            FP_CONST(MPC_FPGA_CG_HEIGHT_M)     /* Center of gravity height (m) */
+#define VP_GRAVITY              FP_CONST(MPC_FPGA_GRAVITY_MS2)     /* Gravitational acceleration (m/s^2) */
+#define VP_MU                   FP_CONST(MPC_FPGA_MU)              /* Tire friction coefficient */
+#define VP_MAX_STEER            FP_CONST(MPC_FPGA_MAX_STEER_RAD)   /* Maximum steering angle (rad) */
+#define VP_MAX_VEL              FP_CONST(MPC_FPGA_MAX_VEL_MPS)     /* Maximum velocity (m/s) */
+#define VP_MIN_VEL              FP_CONST(MPC_FPGA_MIN_VEL_MPS)     /* Minimum velocity (m/s) */
+#define VP_MAX_ACCEL            FP_MUL(VP_MU, VP_GRAVITY)  /* Maximum acceleration (m/s^2) = mu * g */
+#define VP_MIN_ACCEL            (-(VP_MAX_ACCEL))           /* Minimum acceleration (m/s^2) */
+#define VP_MAX_STEER_RATE       FP_CONST(MPC_FPGA_MAX_STEER_RATE_RADPS)   /* Maximum steering rate (rad/s) */
+#define VP_C_ALPHA_F_NRAD       FP_CONST(MPC_FPGA_C_ALPHA_F_N_PER_RAD)     /* Front tire cornering stiffness (N/rad) */
+#define VP_C_ALPHA_R_NRAD       FP_CONST(MPC_FPGA_C_ALPHA_R_N_PER_RAD)     /* Rear tire cornering stiffness (N/rad) */
 
 #define VP_INV_L                FP_DIV(FP_ONE, VP_WHEELBASE)         /* 1/L */
 #define VP_MG                   FP_MUL(VP_MASS, VP_GRAVITY)          /* mass * gravity */
@@ -108,9 +114,9 @@
 #define VP_INV_MASS             FP_DIV(FP_ONE, VP_MASS)              /* 1/mass */
 #define VP_INV_IZ               FP_DIV(FP_ONE, VP_IZ)                /* 1/I_z */
 
-#define VP_C_SHAPE              FP_CONST(1.9)       /* Pacejka shape factor C for lateral slip */
+#define VP_C_SHAPE              FP_CONST(MPC_FPGA_PACEJKA_C_SHAPE)       /* Pacejka shape factor C for lateral slip */
 #define VP_INV_C_SHAPE          FP_DIV(FP_ONE, VP_C_SHAPE)
-#define MIN_STIFF_SCALE         FP_CONST(0.1)       /* Minimum stiffness scale to prevent singularities */
+#define MIN_STIFF_SCALE         FP_CONST(MPC_FPGA_MIN_STIFF_SCALE)       /* Minimum stiffness scale to prevent singularities */
 
 /*
  * Static normal loads and Pacejka D terms per axle:
@@ -154,26 +160,26 @@
  * MPC Default Cost Weights (tuned for F1/10th)
  *===========================================================================*/
 
-#define MPC_DT              FP_CONST(0.06)      /* 0.06s in Q16.16 */
+#define MPC_DT              FP_CONST(MPC_FPGA_PREDICTION_DT_S)      /* Prediction dt in Q16.16 */
 
 /* Precomputed dt*inv_mass and dt*inv_Iz */
 #define VP_DT_INV_MASS      FP_MUL(MPC_DT, VP_INV_MASS)     /* dt * (1/mass) */
 #define VP_DT_INV_IZ        FP_MUL(MPC_DT, VP_INV_IZ)       /* dt * (1/I_z) */
 
-#define MPC_W_LAT_ERROR     FP_CONST(15774.935711)
-#define MPC_W_HEADING       FP_CONST(1229.435672)
-#define MPC_W_VELOCITY      FP_CONST(26.0)
-#define MPC_W_LAT_VEL       FP_CONST(48.350998)
-#define MPC_W_YAW_RATE      FP_CONST(22.0)
-#define MPC_W_STEER_EFF     FP_CONST(0.15)
-#define MPC_W_ACCEL_EFF     FP_CONST(0.01)
-#define MPC_W_STEER_JERK    FP_CONST(0.3)
-#define MPC_W_ACCEL_RATE    FP_CONST(0.1)    
-#define MPC_W_DELTA_ACT     FP_CONST(0.347091)
+#define MPC_W_LAT_ERROR     FP_CONST(MPC_FPGA_W_LAT_ERROR)
+#define MPC_W_HEADING       FP_CONST(MPC_FPGA_W_HEADING)
+#define MPC_W_VELOCITY      FP_CONST(MPC_FPGA_W_VELOCITY)
+#define MPC_W_LAT_VEL       FP_CONST(MPC_FPGA_W_LAT_VEL)
+#define MPC_W_YAW_RATE      FP_CONST(MPC_FPGA_W_YAW_RATE)
+#define MPC_W_STEER_EFF     FP_CONST(MPC_FPGA_W_STEER_EFF)
+#define MPC_W_ACCEL_EFF     FP_CONST(MPC_FPGA_W_ACCEL_EFF)
+#define MPC_W_STEER_JERK    FP_CONST(MPC_FPGA_W_STEER_JERK)
+#define MPC_W_ACCEL_RATE    FP_CONST(MPC_FPGA_W_ACCEL_RATE)
+#define MPC_W_DELTA_ACT     FP_CONST(MPC_FPGA_W_DELTA_ACT)
 
 /* Control period for cross-call rate scaling.
  * Default control loop is 200 Hz => 0.005 s. */
-#define MPC_CONTROL_RATE_HZ     FP_CONST(200.0)
+#define MPC_CONTROL_RATE_HZ     FP_CONST(MPC_FPGA_CONTROL_RATE_HZ)
 #define MPC_CONTROL_DT          FP_DIV(FP_ONE, MPC_CONTROL_RATE_HZ)
 
 /* Cross-call rate scale = control_dt / prediction_dt. */
@@ -206,21 +212,21 @@
  * Solver/Constraint Constants
  *===========================================================================*/
 
-#define BIG_BOUND           FP_CONST(100.0)
-#define MIN_LIN_VEL         FP_CONST(2.0)
-#define STABILITY_LIMIT_VAL FP_CONST(0.9)
-#define WALL_MARGIN         FP_CONST(0.02)
-#define WALL_START          1
-#define WALL_STRIDE         1
-#define WALL_END            10
-#define V_SWITCH            FP_CONST(7.319)
-#define BOUND_THRESHOLD     FP_CONST(100.0)
-#define WP_ADVANCE_MAX      10  
+#define BIG_BOUND           FP_CONST(MPC_FPGA_BIG_BOUND)
+#define MIN_LIN_VEL         FP_CONST(MPC_FPGA_MIN_LIN_VEL_MPS)
+#define STABILITY_LIMIT_VAL FP_CONST(MPC_FPGA_STABILITY_LIMIT)
+#define WALL_MARGIN         FP_CONST(MPC_FPGA_WALL_MARGIN_M)
+#define WALL_START          MPC_FPGA_WALL_START
+#define WALL_STRIDE         MPC_FPGA_WALL_STRIDE
+#define WALL_END            MPC_FPGA_WALL_END
+#define V_SWITCH            FP_CONST(MPC_FPGA_V_SWITCH_MPS)
+#define BOUND_THRESHOLD     FP_CONST(MPC_FPGA_BOUND_THRESHOLD)
+#define WP_ADVANCE_MAX      MPC_FPGA_WP_ADVANCE_MAX
 
 /* ADMM default parameters */
-#define ADMM_RHO_DEFAULT    FP_CONST(25.435364)
-#define ADMM_RHO_U_DEFAULT  FP_CONST(20.0)
-#define ADMM_TOL_DEFAULT    FP_CONST(5.0)
+#define ADMM_RHO_DEFAULT    FP_CONST(MPC_FPGA_ADMM_RHO)
+#define ADMM_RHO_U_DEFAULT  FP_CONST(MPC_FPGA_ADMM_RHO_U)
+#define ADMM_TOL_DEFAULT    FP_CONST(MPC_FPGA_ADMM_TOL)
 
 /*===========================================================================
  * Data Structures

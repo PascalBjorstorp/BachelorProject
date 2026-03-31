@@ -1,15 +1,23 @@
 #ifndef STATE_TRANSPORT_UDP_STATE_PACKET_HPP_
 #define STATE_TRANSPORT_UDP_STATE_PACKET_HPP_
 
+/**
+ * @file state_packet.hpp
+ * @brief Packet definitions and checksum helpers for UDP state/control transport.
+ * @details Defines packed wire-format structs exchanged between Jetson and Ultra96
+ *          and utility helpers for checksum and layout validation.
+ * @dependencies array, cstdint, cstddef, mpc_fpga_constants.h
+ */
+
 #include <array>
 #include <cstdint>
 #include <cstddef>
-
+#include "mpc_fpga_constants.h"
 namespace state_transport_udp {
 
 constexpr uint32_t PACKET_MAGIC = 0x53545550;  // 'STUP'
 constexpr uint16_t PACKET_VERSION = 1;
-constexpr size_t MPC_HORIZON = 20;
+constexpr size_t MPC_HORIZON = MPC_FPGA_HORIZON_STEPS;
 
 #pragma pack(push, 1)
 struct StatePacket {
@@ -62,6 +70,12 @@ struct ControlPacket {
 };
 #pragma pack(pop)
 
+/**
+ * @brief Compute IEEE CRC32 checksum for a byte sequence.
+ * @param data Pointer to input byte buffer.
+ * @param len Number of bytes to include in the checksum.
+ * @return Computed CRC32 checksum value.
+ */
 inline uint32_t crc32_ieee(const uint8_t* data, size_t len) {
     uint32_t crc = 0xFFFFFFFFu;
     for (size_t i = 0; i < len; ++i) {
@@ -74,6 +88,10 @@ inline uint32_t crc32_ieee(const uint8_t* data, size_t len) {
     return ~crc;
 }
 
+/**
+ * @brief Validate packet struct size assumptions for UDP transport.
+ * @return true when `StatePacket` remains below transport size limit.
+ */
 inline bool is_packet_layout_valid() {
     return sizeof(StatePacket) < 2048;
 }

@@ -12,7 +12,11 @@ void SensorModel::init(const MapProcessor& map, const Config& cfg) {
 
     // Upload distance field to GPU.
     const auto& df = map.distance_field();
-    d_distance_field_.upload(df.data(), df.size());
+    try {
+        d_distance_field_.upload(df.data(), df.size());
+    } catch (const std::exception& e) {
+        throw std::runtime_error(std::string("SensorModel::init GPU upload failed: ") + e.what());
+    }
 }
 
 void SensorModel::compute_weights(const float* d_particles, int n,

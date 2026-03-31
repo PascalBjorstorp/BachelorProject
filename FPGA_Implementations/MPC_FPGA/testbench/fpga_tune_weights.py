@@ -4,8 +4,9 @@ FPGA MPC Weight Tuning Script — Spielberg Realistic Sweep
 =========================================================
 Systematically tests parameter combinations for the FPGA Riccati-ADMM MPC
 using the same realistic Spielberg workflow as the CPU tuning flow.
-Since FPGA uses compile-time constants, this script modifies the header
-file (mpc_fpga_types.h), recompiles, runs the test, and collects results.
+Since FPGA uses compile-time constants, this script modifies the centralized
+constants header (mpc_fpga_constants.h), recompiles, runs the test, and
+collects results.
 
 Sweep parameters:
     - dt (prediction timestep): affects horizon spacing and model discretization
@@ -42,7 +43,7 @@ import multiprocessing
 # ─── Project layout ──────────────────────────────────────────────────────────
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
-HEADER = PROJECT_DIR / "include" / "mpc_fpga_types.h"
+HEADER = PROJECT_DIR / "include" / "mpc_fpga_constants.h"
 HEADER_BAK = HEADER.with_suffix(".h.tuning_backup")
 
 C_SRC_FILES = [
@@ -153,29 +154,29 @@ HARDWARE_BASE_PARAMS = {
 
 # Map parameter names → header #define names
 PARAM_TO_DEFINE = {
-    "dt":               "MPC_DT",
-    "N":                "MPC_HORIZON",
-    "MAX_ADMM_ITER":    "MPC_MAX_ADMM_ITER",
-    "WALL_START":       "WALL_START",
-    "WALL_STRIDE":      "WALL_STRIDE",
-    "WALL_END":         "WALL_END",
-    "WALL_MARGIN":      "WALL_MARGIN",
-    "Q_LAT":            "MPC_W_LAT_ERROR",
-    "Q_HDG":            "MPC_W_HEADING",
-    "Q_VEL":            "MPC_W_VELOCITY",
-    "Q_LAT_VEL":        "MPC_W_LAT_VEL",
-    "Q_YAW":            "MPC_W_YAW_RATE",
-    "R_STEER":          "MPC_W_STEER_EFF",
-    "R_ACCEL":          "MPC_W_ACCEL_EFF",
-    "W_JERK":           "MPC_W_STEER_JERK",
-    "W_ACCEL_RATE":     "MPC_W_ACCEL_RATE",
-    "W_DELTA_ACT":      "MPC_W_DELTA_ACT",
-    "ADMM_RHO":         "ADMM_RHO_DEFAULT",
-    "ADMM_RHO_U":       "ADMM_RHO_U_DEFAULT",
-    "ADMM_TOL":         "ADMM_TOL_DEFAULT",
-    "MIN_LIN_VEL":      "MIN_LIN_VEL",
-    "WP_ADVANCE_MAX":   "WP_ADVANCE_MAX",
-    "STABILITY_LIMIT":  "STABILITY_LIMIT_VAL",
+    "dt":               "MPC_FPGA_PREDICTION_DT_S",
+    "N":                "MPC_FPGA_HORIZON_STEPS",
+    "MAX_ADMM_ITER":    "MPC_FPGA_MAX_ADMM_ITER",
+    "WALL_START":       "MPC_FPGA_WALL_START",
+    "WALL_STRIDE":      "MPC_FPGA_WALL_STRIDE",
+    "WALL_END":         "MPC_FPGA_WALL_END",
+    "WALL_MARGIN":      "MPC_FPGA_WALL_MARGIN_M",
+    "Q_LAT":            "MPC_FPGA_W_LAT_ERROR",
+    "Q_HDG":            "MPC_FPGA_W_HEADING",
+    "Q_VEL":            "MPC_FPGA_W_VELOCITY",
+    "Q_LAT_VEL":        "MPC_FPGA_W_LAT_VEL",
+    "Q_YAW":            "MPC_FPGA_W_YAW_RATE",
+    "R_STEER":          "MPC_FPGA_W_STEER_EFF",
+    "R_ACCEL":          "MPC_FPGA_W_ACCEL_EFF",
+    "W_JERK":           "MPC_FPGA_W_STEER_JERK",
+    "W_ACCEL_RATE":     "MPC_FPGA_W_ACCEL_RATE",
+    "W_DELTA_ACT":      "MPC_FPGA_W_DELTA_ACT",
+    "ADMM_RHO":         "MPC_FPGA_ADMM_RHO",
+    "ADMM_RHO_U":       "MPC_FPGA_ADMM_RHO_U",
+    "ADMM_TOL":         "MPC_FPGA_ADMM_TOL",
+    "MIN_LIN_VEL":      "MPC_FPGA_MIN_LIN_VEL_MPS",
+    "WP_ADVANCE_MAX":   "MPC_FPGA_WP_ADVANCE_MAX",
+    "STABILITY_LIMIT":  "MPC_FPGA_STABILITY_LIMIT",
 }
 
 # ─── Sweep ranges (THOROUGH) ─────────────────────────────────────────────────
@@ -305,14 +306,13 @@ def set_header_param(header_text: str, param: str, value) -> str:
     """Modify a #define in the header text. Returns modified text."""
     define_name = PARAM_TO_DEFINE[param]
 
-    if param == "dt":
-        # MPC_DT is in Q16.16 fixed-point
-        fp_val = round(value * 65536)
-        pattern = r"#define\s+MPC_DT\s+.*"
-        replacement = f"#define MPC_DT              ((fixed_point_t){fp_val})   /* {value}s in Q16.16 */"
-        return re.sub(pattern, replacement, header_text)
+    def as_float_literal(v) -> str:
+        txt = f"{float(v):.12g}"
+        if "e" not in txt and "E" not in txt and "." not in txt:
+            txt += ".0"
+        return txt + "f"
 
-    elif param in ("N", "MAX_ADMM_ITER", "WALL_END", "WALL_START",
+    if param in ("N", "MAX_ADMM_ITER", "WALL_END", "WALL_START",
                    "WALL_STRIDE", "WP_ADVANCE_MAX"):
         # Integer defines
         pattern = rf"#define\s+{define_name}\s+\d+"
@@ -320,9 +320,9 @@ def set_header_param(header_text: str, param: str, value) -> str:
         return re.sub(pattern, replacement, header_text)
 
     else:
-        # Float value → FP_CONST(x)
-        pattern = rf"#define\s+{define_name}\s+FP_CONST\([^)]+\)"
-        replacement = f"#define {define_name:<24s} FP_CONST({value})"
+        # Float constants in centralized header use plain literals with f suffix.
+        pattern = rf"#define\s+{define_name}\s+[-+0-9.eEfF]+"
+        replacement = f"#define {define_name:<32s} {as_float_literal(value)}"
         return re.sub(pattern, replacement, header_text)
 
 
@@ -522,7 +522,7 @@ def _setup_worker_context() -> dict:
     for rel in ("include", "src", "testbench"):
         shutil.copytree(PROJECT_DIR / rel, worker_dir / rel)
 
-    header = worker_dir / "include" / "mpc_fpga_types.h"
+    header = worker_dir / "include" / "mpc_fpga_constants.h"
     header_bak = header.with_suffix(".h.tuning_backup")
     shutil.copy2(header, header_bak)
     binary = worker_dir / "test_fpga_tune"

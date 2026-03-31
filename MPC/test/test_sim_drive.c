@@ -1,6 +1,9 @@
 /**
  * @file test_sim_drive.c
- * @brief Realistic 60-second MPC simulation on Spielberg raceline
+ * @brief Realistic MPC simulation on Spielberg raceline
+ * @details Runs closed-loop simulation of the Riccati-ADMM controller with
+ *          configurable physics/control rates and optional realistic effects
+ *          (noise, delay, nonlinear tire saturation, drivetrain drag).
  *
  * Tests the Riccati-ADMM MPC controller in a closed-loop simulation:
  *   - SIM_DT = sim physics step (default 5ms = 200Hz, configurable via env)
@@ -20,9 +23,11 @@
  *   cd MPC
  *   gcc -D_GNU_SOURCE -O3 -std=c99 -Wall -ffast-math \
  *       -Wno-unused-variable -Wno-unused-but-set-variable \
- *       -Iinclude test/test_sim_drive.c src/mpc_riccati.c \
- *       src/riccati_solver.c src/vehicle_model.c src/fp_math.c \
+ *       -Iinclude test/test_sim_drive.c src/mpc.c \
+ *       src/riccati_solver.c src/vehicle_model.c src/util_math.c \
  *       -o test_sim_drive -lm
+ * @dependencies mpc.h, mpc_types.h, vehicle_model.h,
+ *               <stdio.h>, <stdlib.h>, <string.h>, <math.h>, <time.h>
  */
 
 #define _USE_MATH_DEFINES
@@ -39,32 +44,25 @@
 #include "mpc.h"
 #include "mpc_types.h"
 #include "vehicle_model.h"
-#include "riccati_solver.h"
-
-/* Portability: some systems (e.g. Windows) don't define CLOCK_MONOTONIC_RAW.
- * Provide a safe fallback to CLOCK_MONOTONIC when RAW is unavailable. */
-#ifndef CLOCK_MONOTONIC_RAW
-#ifdef CLOCK_MONOTONIC
-#define CLOCK_MONOTONIC_RAW CLOCK_MONOTONIC
-#endif
-#endif
 
 /*===========================================================================
  * Configuration
  *===========================================================================*/
 
-#define SIM_DT_DEFAULT    0.005   /* Simulation time step = 5ms (200Hz) */
-#define MPC_DT_DEFAULT    0.005   /* MPC control interval = 5ms (200Hz) */
+/* Default simulation physics integration step; a finer step improves
+ * continuous-time accuracy but increases total compute time. */
+#define SIM_DT_DEFAULT    0.005
+
+/* Default MPC re-computation interval; should match the hardware control rate
+ * for faithful simulation of the deployed system. */
+#define MPC_DT_DEFAULT    0.005
 #define SIM_DURATION      100.0  /* seconds */
-#define MPC_HORIZON       20
-#define MPC_REF_ENTRIES   20     /* Must match horizon */
 #define MAX_WAYPOINTS     2000
 #define MAX_STEERING      0.4189 /* rad — calibrated limit (with polynomial servo correction) */
 #define MAX_VELOCITY      20.0   /* m/s */
 #define PHYSICAL_MAX_ACCEL 7.31  /* m/s² — bounded by mu*g */
 
 /* Trajectory pre-processing (matching gym_bridge ROS2 node exactly) */
-#define TRAJECTORY_SPEED_GAIN     1.0
 #define TRAJECTORY_MAX_VELOCITY   20.0
 #define VEHICLE_HALF_WIDTH        0.137   /* meters — for body-edge collision */
 #define DEFAULT_BODY_SAFETY_MARGIN 0.06   /* extra margin: gym bitmap is stricter */
@@ -104,9 +102,12 @@ typedef struct {
 
 static Waypoint_t raceline[MAX_WAYPOINTS];
 static int raceline_count = 0;
-static double g_mpc_prediction_dt = 0.04;  /* Set from PRED_DT env or default */
+static double g_mpc_prediction_dt = TIME_STEP_SECONDS;  /* Set from PRED_DT env or default */
 static double g_track_length_m = 0.0;
 
+/* Load raceline waypoints from an environment path or known fallback paths.
+ * Side effect: fills global raceline buffer and track-length metadata.
+ * Returns non-zero when at least one waypoint is parsed successfully. */
 static int load_raceline(void)
 {
     raceline_count = 0;
@@ -212,6 +213,9 @@ static int load_raceline(void)
  * Helpers
  *===========================================================================*/
 
+/* Wrap heading angle to the principal interval [-pi, pi].
+ * Parameter: a is heading angle in radians.
+ * Returns wrapped angle in radians. */
 static double wrap_angle(double a)
 {
     while (a > M_PI) a -= 2.0 * M_PI;
@@ -221,6 +225,9 @@ static double wrap_angle(double a)
 
 static int last_closest = 0;
 
+/* Find nearest raceline waypoint to the vehicle pose.
+ * Parameters: px/py in meters and heading in radians.
+ * Returns nearest waypoint index and updates cached index for next query. */
 static int find_closest_waypoint(double px, double py, double heading)
 {
     if (raceline_count == 0) return 0;
@@ -249,6 +256,9 @@ static int find_closest_waypoint(double px, double py, double heading)
     return best;
 }
 
+/* Convert world-frame vehicle state to Frenet tracking state at waypoint wp.
+ * Parameters: v points to vehicle state, wp is waypoint index.
+ * Returns FrenetState_t with lateral/heading error and body velocities. */
 static FrenetState_t vehicle_to_frenet(const VehicleState_t *v, int wp)
 {
     FrenetState_t f;
@@ -268,6 +278,9 @@ static FrenetState_t vehicle_to_frenet(const VehicleState_t *v, int wp)
     return f;
 }
 
+/* Wrap arc-length coordinate for closed-loop track interpolation.
+ * Parameter: s is arc length in meters.
+ * Returns wrapped arc length in meters. */
 static double wrap_track_s(double s)
 {
     if (g_track_length_m <= 1e-6 || raceline_count <= 1) return s;
@@ -277,6 +290,9 @@ static double wrap_track_s(double s)
     return s;
 }
 
+/* Interpolate raceline waypoint values at requested arc length.
+ * Parameter: s_query is arc length in meters.
+ * Returns interpolated waypoint sample. */
 static Waypoint_t sample_raceline_by_s(double s_query)
 {
     if (raceline_count <= 0) {
@@ -328,9 +344,15 @@ static Waypoint_t sample_raceline_by_s(double s_query)
     return out;
 }
 
-static void build_reference(int closest, double actual_vx, TrajectoryReferencePoint_t *ref)
+/* Build horizon reference trajectory for the MPC from raceline samples.
+ * Parameters: closest waypoint index, horizon steps, output ref array.
+ * Side effect: writes MPC reference entries into ref[0..horizon_steps-1]. */
+static void build_reference(int closest, int horizon_steps, TrajectoryReferencePoint_t *ref)
 {
-    (void)actual_vx;
+    if (ref == NULL) return;
+    if (horizon_steps < 1) return;
+    if (horizon_steps > PREDICTION_HORIZON) horizon_steps = PREDICTION_HORIZON;
+
     double s_query = raceline[closest].s;
     double step_velocity = fabs(raceline[closest].vx);
     if (step_velocity < 1.0) step_velocity = 1.0;
@@ -351,7 +373,7 @@ static void build_reference(int closest, double actual_vx, TrajectoryReferencePo
         if (al) a_lat_max = atof(al);
     }
 
-    for (int step = 0; step < MPC_REF_ENTRIES; step++) {
+    for (int step = 0; step < horizon_steps; step++) {
         s_query += step_velocity * g_mpc_prediction_dt;
         Waypoint_t wp = sample_raceline_by_s(s_query);
 
@@ -398,6 +420,9 @@ static void build_reference(int closest, double actual_vx, TrajectoryReferencePo
 
 static int tests_passed = 0, tests_failed = 0;
 
+/* Record test assertion result and print pass/fail status line.
+ * Parameters: name is assertion label, cond is boolean predicate.
+ * Side effect: increments global pass/fail counters. */
 static void check(const char *name, int cond)
 {
     if (cond) { tests_passed++; printf("  [PASS] %s\n", name); }
@@ -405,6 +430,8 @@ static void check(const char *name, int cond)
 }
 
 /* Box-Muller Gaussian random number generator (for sensor noise) */
+/* Generate one approximately normal-distributed random sample.
+ * Returns N(0,1) sample using Box-Muller transform. */
 static double randn(void)
 {
     double u1 = ((double)rand() + 1.0) / ((double)RAND_MAX + 2.0);
@@ -421,13 +448,21 @@ int main(void)
      * Higher SIM_DT frequencies (e.g. 1000Hz) better approximate continuous
      * dynamics while keeping MPC at a fixed rate (e.g. 200Hz). */
     const char *dt_env = getenv("SIM_DT");
-    const double SIM_DT = dt_env ? atof(dt_env) : SIM_DT_DEFAULT;
+    const double sim_dt_raw = dt_env ? atof(dt_env) : SIM_DT_DEFAULT;
+    const double SIM_DT = (sim_dt_raw > 1e-6) ? sim_dt_raw : SIM_DT_DEFAULT;
+
     const char *mpc_dt_env = getenv("MPC_DT");
-    const double MPC_DT = mpc_dt_env ? atof(mpc_dt_env) : MPC_DT_DEFAULT;
-    const int MPC_CALL_INTERVAL = (int)(MPC_DT / SIM_DT + 0.5);
+    const double mpc_dt_raw = mpc_dt_env ? atof(mpc_dt_env) : MPC_DT_DEFAULT;
+    const double MPC_DT = (mpc_dt_raw > 1e-6) ? mpc_dt_raw : MPC_DT_DEFAULT;
+
+    int mpc_call_interval = (int)(MPC_DT / SIM_DT + 0.5);
+    if (mpc_call_interval < 1) mpc_call_interval = 1;
+    const int MPC_CALL_INTERVAL = mpc_call_interval;
     const int SIM_STEPS = (int)(SIM_DURATION / SIM_DT);
+
     const char *pred_dt_env = getenv("PRED_DT");
-    g_mpc_prediction_dt = pred_dt_env ? atof(pred_dt_env) : 0.04;
+    const double pred_dt_raw = pred_dt_env ? atof(pred_dt_env) : TIME_STEP_SECONDS;
+    g_mpc_prediction_dt = (pred_dt_raw > 1e-6) ? pred_dt_raw : TIME_STEP_SECONDS;
     const double cross_scale = MPC_DT / g_mpc_prediction_dt;
 
     /* Body safety margin: extra buffer beyond VEHICLE_HALF_WIDTH for wall checks.
@@ -477,22 +512,18 @@ int main(void)
     mpc_initialize();
     mpc_reset();
 
-    /* Configure horizon and weights.
-     * For realistic modes, use a shorter horizon (N=19) to improve solver
-     * convergence in tight corridors. With delay, the shorter horizon
-     * reduces the "prediction vs reality" mismatch. With drivetrain,
-     * it prevents lateral drift in narrow sections. */
+    /* Configure horizon and weights. Horizon must respect compile-time limits. */
     MpcConfiguration_t cfg = mpc_get_configuration();
-    int horizon = MPC_HORIZON;
-    if (realistic_mode) horizon = 19;
+    int horizon = PREDICTION_HORIZON;
     if (getenv("HORIZON")) horizon = atoi(getenv("HORIZON"));
-    cfg.prediction_horizon_steps = horizon;
+    if (horizon < 1) horizon = 1;
+    if (horizon > PREDICTION_HORIZON) horizon = PREDICTION_HORIZON;
+    cfg.prediction_horizon_steps = (uint16_t)horizon;
     /* Prediction time step: propagate PRED_DT to solver's dynamics model */
     cfg.time_step = (float)(g_mpc_prediction_dt);
     /* cross_call_rate_scale: ratio of control interval to prediction dt */
     cfg.cross_call_rate_scale = (float)(cross_scale);
-    /* Tuned weights — overridable via environment variables for tuning script.
-     * See tune_weights.py for automated grid search. */
+    /* Tuned weights — overridable via environment variables for tuning script. */
     const char *env;
     cfg.weight_lateral_error          = (float)((env = getenv("Q_LAT"))       ? atof(env) : 340.0);
     cfg.weight_heading_error          = (float)((env = getenv("Q_HDG"))       ? atof(env) : 1000.0);
@@ -554,11 +585,12 @@ int main(void)
     long total_iterations = 0;
     int max_iter_single = 0;
     double total_solve_us = 0.0, max_solve_us = 0.0;
-    struct timespec ts0, ts1;
+    clock_t ts0_clk, ts1_clk;
 
     /* Held MPC commands (zero-order hold between 20Hz MPC calls) */
     double cmd_steer = 0.0;
     double cmd_accel = 0.0;
+    int steps_executed = 0;
 
     /* MPC computation delay buffer (realistic mode only):
      * Control computed from state at time t is applied at time t+dt. */
@@ -571,6 +603,7 @@ int main(void)
     }
 
     for (int step = 0; step < SIM_STEPS; step++) {
+        steps_executed = step + 1;
         double t = step * SIM_DT;
         double px = (double)(state.pos_x);
         double py = (double)(state.pos_y);
@@ -630,13 +663,13 @@ int main(void)
         int wall_hit = 0;
         if (e_y > (left_wall - VEHICLE_HALF_WIDTH - body_safety_margin))  { wall_hit = 1;  wall_collisions++; }
         if (e_y < -(right_wall - VEHICLE_HALF_WIDTH - body_safety_margin)){ wall_hit = -1; wall_collisions++; }
-        if (wall_hit && vx > 1.0) {
+        if (wall_hit) {
             printf("\n  !!! WALL CRASH: e_y = %.3f m (bound: %.3f) at step %d (t=%.2fs, wp=%d, v=%.1f) !!!\n",
                    e_y, wall_hit > 0 ? left_wall : right_wall, step, t, closest, vx);
             break;
         }
 
-        /* Call MPC at 200Hz (every step) */
+        /* Recompute MPC at the configured control interval. */
         double steer = cmd_steer;
         double accel_cmd = cmd_accel;
         int iter = 0;
@@ -653,16 +686,18 @@ int main(void)
 
         if (step % MPC_CALL_INTERVAL == 0) {
             /* Build reference */
-            TrajectoryReferencePoint_t ref[MPC_REF_ENTRIES];
-            build_reference(closest, vx, ref);
+            TrajectoryReferencePoint_t ref[PREDICTION_HORIZON];
+            build_reference(closest, cfg.prediction_horizon_steps, ref);
 
             /* Always call MPC — no low-speed guard */
             MpcSolverResult_t result;
-            clock_gettime(CLOCK_MONOTONIC_RAW, &ts0);
+            ts0_clk = clock();
             MpcSolverStatus_t status = mpc_compute_optimal_control(&frenet_for_mpc, ref, &result);
-            clock_gettime(CLOCK_MONOTONIC_RAW, &ts1);
-            double solve_us = (ts1.tv_sec - ts0.tv_sec) * 1e6
-                            + (ts1.tv_nsec - ts0.tv_nsec) / 1e3;
+            ts1_clk = clock();
+            double solve_us = 0.0;
+            if (ts0_clk != (clock_t)-1 && ts1_clk != (clock_t)-1) {
+                solve_us = (double)(ts1_clk - ts0_clk) * 1e6 / CLOCKS_PER_SEC;
+            }
             total_solve_us += solve_us;
             if (solve_us > max_solve_us) max_solve_us = solve_us;
             steer = (double)(result.optimal_control.steer_ang);
@@ -737,15 +772,15 @@ int main(void)
          * Vehicle params from measured data (sim.yaml / vehicle_params.yaml). */
         {
             /* Vehicle parameters matching gym config */
-            static const double mu = 0.745, mass = 3.314, Iz = 0.035;
-            static const double C_Sf = 4.297, C_Sr = 3.473;
-            static const double lf = 0.166, lr = 0.16, h_cg = 0.0703;
-            static const double g_acc = 9.81;
-            static const double sv_max = 2.8492;  /* max steering velocity */
-            static const double s_max = 0.4189;   /* max steering angle (calibrated) */
-            static const double v_switch = 7.319;
-            static const double v_min = 0.0, v_max = 20.0;
-            static const double lwb = lf + lr;
+            const double mu = 0.745, mass = 3.314, Iz = 0.035;
+            const double C_Sf = 4.297, C_Sr = 3.473;
+            const double lf = 0.166, lr = 0.16, h_cg = 0.0703;
+            const double g_acc = 9.81;
+            const double sv_max = 2.8492;  /* max steering velocity */
+            const double s_max = 0.4189;   /* max steering angle (calibrated) */
+            const double v_switch = 7.319;
+            const double v_min = 0.0, v_max = 20.0;
+            const double lwb = 0.326;  /* lf + lr */
 
             /* Persistent ST state variables (first call initializes from vehicle state) */
             static double st_delta = 0.0;
@@ -976,11 +1011,14 @@ int main(void)
     }
 
     /* Summary */
-    double avg_lat = sum_lat_err / SIM_STEPS;
-    double avg_hdg = sum_hdg_err / SIM_STEPS;
-    double avg_vel = sum_vel_err / SIM_STEPS;
-    double avg_vx = sum_vx / SIM_STEPS;
-    printf("\n  === Results (%.0f seconds, Riccati-ADMM, 200Hz MPC) ===\n", SIM_DURATION);
+    const int metric_steps = (steps_executed > 0) ? steps_executed : 1;
+    const double simulated_time = metric_steps * SIM_DT;
+    double avg_lat = sum_lat_err / metric_steps;
+    double avg_hdg = sum_hdg_err / metric_steps;
+    double avg_vel = sum_vel_err / metric_steps;
+    double avg_vx = sum_vx / metric_steps;
+    printf("\n  === Results (%.1f seconds, Riccati-ADMM, %.0fHz MPC) ===\n",
+           simulated_time, 1.0 / MPC_DT);
     printf("  Solver success:     %d / %d (%.1f%%)\n", solver_ok, solver_calls,
            100.0*solver_ok/(solver_calls > 0 ? solver_calls : 1));
     printf("  Max velocity:       %.2f m/s\n", max_vx);
@@ -995,7 +1033,8 @@ int main(void)
     printf("  Steer reversals:    %d\n", steer_reversals);
     printf("  Wall collisions:    %d\n", wall_collisions);
     printf("  Time above 5 m/s:   %.1f / %.1f s (%.0f%%)\n",
-           time_above_5ms, SIM_DURATION, 100*time_above_5ms/SIM_DURATION);
+           time_above_5ms, simulated_time,
+           (simulated_time > 0.0) ? (100*time_above_5ms/simulated_time) : 0.0);
     printf("\n  --- Solver Performance ---\n");
     int mpc_calls = solver_calls;
     double avg_iters = (mpc_calls > 0) ? (double)total_iterations / mpc_calls : 0;
@@ -1022,10 +1061,10 @@ int main(void)
         snprintf(speed_msg, sizeof(speed_msg),
                  "Reaches driving speed (>5 m/s for >%.0f%% of time, realistic)",
                  speed_threshold * 100);
-        check(speed_msg, time_above_5ms > SIM_DURATION * speed_threshold);
+        check(speed_msg, time_above_5ms > simulated_time * speed_threshold);
     } else {
         check("Reaches driving speed (>5 m/s for >50% of time)",
-              time_above_5ms > SIM_DURATION * 0.5);
+              time_above_5ms > simulated_time * 0.5);
     }
 
     printf("\n=== RESULTS: %d passed, %d failed ===\n", tests_passed, tests_failed);

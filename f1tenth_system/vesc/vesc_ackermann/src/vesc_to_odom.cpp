@@ -56,7 +56,7 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   use_servo_cmd_(true),
   use_imu_(false),
   publish_tf_(false),
-  integration_method_("euler"),
+  integration_method_("analytical"),
   x_(0.0),
   y_(0.0),
   yaw_(0.0),
@@ -115,10 +115,10 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
     integration_method_ != "analytical")
   {
     RCLCPP_WARN(get_logger(),
-      "Invalid integration_method '%s'. Using 'euler' as default. "
+      "Invalid integration_method '%s'. Using 'analytical' as default. "
       "Valid options: 'euler', 'trapezoidal', 'analytical'",
       integration_method_.c_str());
-    integration_method_ = "euler";
+    integration_method_ = "analytical";
   }
 
   RCLCPP_INFO(get_logger(), "Using '%s' integration method for odometry",

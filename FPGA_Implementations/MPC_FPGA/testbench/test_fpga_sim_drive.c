@@ -1,6 +1,10 @@
 /**
  * @file test_fpga_sim_drive.c
  * @brief Closed-loop MPC simulation test for the FPGA HLS implementation
+ * @details Runs the scalar FPGA wrapper in a long-horizon closed-loop
+ *          simulation, using the same fixed-point interfaces as deployed
+ *          code paths, and checks tracking, safety, and timing metrics.
+ * @dependencies mpc_fpga_types.h, fp_math_hls.h, math.h, time.h
  *
  * Tests the FPGA top-level interface (mpc_fpga_top_scalar) in a 100-second
  * closed-loop simulation using a nonlinear single-track plant model.
@@ -79,14 +83,14 @@ extern void mpc_fpga_top_scalar(
 
 #define SIM_STEPS         ((int)(SIM_DURATION / SIM_DT))
 #define MAX_WAYPOINTS     2000
-#define MAX_STEERING      0.4189  /* rad (calibrated with polynomial servo correction) */
-#define MAX_VELOCITY      20.0    /* m/s */
-#define PHYSICAL_MAX_ACCEL 7.31   /* m/s^2 */
+#define MAX_STEERING      MPC_FPGA_MAX_STEER_RAD  /* rad (calibrated with polynomial servo correction) */
+#define MAX_VELOCITY      MPC_FPGA_MAX_VEL_MPS    /* m/s */
+#define PHYSICAL_MAX_ACCEL FP_TO_DOUBLE(VP_MAX_ACCEL)   /* m/s^2, follows mu * g */
 #define MPC_CALL_INTERVAL 1       /* Call MPC every sim step = 5ms = 200Hz (matches CPU test) */
 
 /* Trajectory pre-processing (matching gym_bridge ROS2 node exactly) */
 #define TRAJECTORY_SPEED_GAIN     1.0
-#define TRAJECTORY_MAX_VELOCITY   20.0
+#define TRAJECTORY_MAX_VELOCITY   MPC_FPGA_MAX_VEL_MPS
 #define VEHICLE_HALF_WIDTH        0.137   /* meters — for body-edge collision */
 #define BODY_SAFETY_MARGIN        0.06    /* extra margin: gym bitmap is stricter */
 #define STEER_BUFFER_SIZE         2       /* 0 = disabled; 2 = gym-matching delay  */
@@ -822,10 +826,6 @@ int main(int argc, char *argv[])
     int wall_left_hits = 0;
     int wall_right_hits = 0;
     int wall_map_hits = 0;
-    int wall_map_hits_ignored = 0;
-    int wall_hit_streak = 0;
-    const int collision_grace_steps = realistic_mode ? 20 : 0;
-    const double collision_count_min_vx = 1.0;
     int solver_ok = 0, solver_calls = 0;
     int status_optimal = 0;
     int status_max_iter = 0;
@@ -912,10 +912,6 @@ int main(int argc, char *argv[])
         int left_hit = (e_y > (left_wall - collision_margin));
         int right_hit = (e_y < -(right_wall - collision_margin));
         int map_hit = map_body_collision(state.x, state.y, state.theta);
-        double corridor_half_width = fmin(left_wall, right_wall) - collision_margin;
-        if (corridor_half_width < 0.0) corridor_half_width = 0.0;
-        int near_corridor_edge = (fabs(e_y) > 0.85 * corridor_half_width);
-        int map_hit_effective = map_hit && (near_corridor_edge || corridor_half_width < 0.02);
 
         if (left_hit) {
             wall_hit = 1;
@@ -928,26 +924,18 @@ int main(int argc, char *argv[])
         if (map_hit) {
             wall_hit = (wall_hit == 0) ? 2 : wall_hit;
             wall_map_hits++;
-            if (!map_hit_effective) {
-                wall_map_hits_ignored++;
-            }
         }
 
-        int collision_this_step = (left_hit || right_hit || map_hit_effective);
-        if (step >= collision_grace_steps && state.vx > collision_count_min_vx) {
-            if (collision_this_step) {
-                wall_hit_streak++;
-            } else {
-                wall_hit_streak = 0;
-            }
-        } else {
-            wall_hit_streak = 0;
-        }
-
-        if (wall_hit && wall_hit_streak >= 3) {
+        int collision_this_step = (left_hit || right_hit || map_hit);
+        if (collision_this_step) {
             wall_collisions++;
-            printf("\n  !!! WALL CRASH: e_y = %.3f m (bound: %.3f) at step %d (t=%.2fs, wp=%d, v=%.1f) !!!\n",
-                   e_y, wall_hit > 0 ? left_wall : right_wall, step, t, closest, state.vx);
+            if (map_hit && !left_hit && !right_hit) {
+                printf("\n  !!! WALL CRASH (MAP): e_y = %.3f m at step %d (t=%.2fs, wp=%d, v=%.1f) !!!\n",
+                       e_y, step, t, closest, state.vx);
+            } else {
+                printf("\n  !!! WALL CRASH: e_y = %.3f m (bound: %.3f) at step %d (t=%.2fs, wp=%d, v=%.1f) !!!\n",
+                       e_y, wall_hit > 0 ? left_wall : right_wall, step, t, closest, state.vx);
+            }
             break;
         }
 
@@ -1115,7 +1103,6 @@ int main(int argc, char *argv[])
     printf("    - left bound hits: %d\n", wall_left_hits);
     printf("    - right bound hits:%d\n", wall_right_hits);
     printf("    - map body hits:   %d\n", wall_map_hits);
-    printf("    - map hits ignored:%d\n", wall_map_hits_ignored);
     printf("  Time above 5 m/s:   %.1f / %.1f s (%.0f%%)\n",
            time_above_5ms, SIM_DURATION, 100 * time_above_5ms / SIM_DURATION);
     printf("\n  --- Solver Performance ---\n");

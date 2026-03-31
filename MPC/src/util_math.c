@@ -1,12 +1,17 @@
+/**
+ * @file util_math.c
+ * @brief Implementation of non-inline math utility functions.
+ * @details Implements matrix-vector multiplication, scaled vector addition,
+ *          and constraint violation checking declared in util_math.h.
+ *          Inline utilities are defined entirely in the header.
+ * @dependencies util_math.h, <string.h>, <stdint.h>
+ */
 #include "util_math.h"
-#include <string.h>
-#include <stdint.h>
 
 /*===========================================================================
  * Matrix-Vector Operations
  *===========================================================================*/
 
-/* Dense row-major matrix-vector multiply. */
 void util_mat_vec_mul(
     const float *matrix,
     const float *vec,
@@ -14,6 +19,12 @@ void util_mat_vec_mul(
     uint16_t rows,
     uint16_t cols)
 {
+    // Return without writing output when any pointer is NULL or when rows/cols are zero.
+    if (!matrix || !vec || !result || rows == 0 || cols == 0)
+    {
+        return;
+    }
+
     for (uint16_t r = 0; r < rows; r++)
     {
         float sum = 0.0f;
@@ -25,25 +36,25 @@ void util_mat_vec_mul(
     }
 }
 
-/*
- * Symmetric dense matrix-vector multiply using 2x2 blocking when n is even.
- */
-
 void util_symmetric_mat_vec_mul(
     const float *matrix,
     const float *vec,
     float *result,
     uint16_t n)
 {
-    /* Fallback to generic multiplication when n is odd. */
-    if (n & 1)
+    if (!matrix || !vec || !result || n == 0)
+    {
+        return;
+    }
+
+    /* Fallback to generic multiplication when n is odd or exceeds scratch size. */
+    if ((n & 1) || (n > QP_MAXIMUM_VARIABLES))
     {
         util_mat_vec_mul(matrix, vec, result, n, n);
         return;
     }
 
-    
-/** Statically set workspace to keep within bounds. */
+    /* Workspace sized to the configured maximum to avoid variable-length arrays. */
     float accum[QP_MAXIMUM_VARIABLES];
     for (uint16_t ai = 0; ai < n && ai < QP_MAXIMUM_VARIABLES; ai++)
         accum[ai] = 0.0f;
@@ -89,7 +100,6 @@ void util_symmetric_mat_vec_mul(
         result[i] = accum[i];
 }
 
-/* Elementwise a + scalar*b. */
 void util_vec_add_scaled(
     const float *a,
     const float *b,
@@ -97,14 +107,16 @@ void util_vec_add_scaled(
     float *result,
     uint16_t len)
 {
+    if (!a || !b || !result || len == 0)
+    {
+        return;
+    }
+
     for (uint16_t i = 0; i < len; i++)
     {
         result[i] = a[i] + scalar * b[i];
     }
 }
-
-/* Maximum positive value of (A*x - b). 
- * Negative values are treated as zero. */
 
 float util_max_violation(
     const float *A,
@@ -113,6 +125,11 @@ float util_max_violation(
     uint16_t constraints,
     uint16_t vars)
 {
+    if (!A || !x || !b || constraints == 0 || vars == 0)
+    {
+        return 0.0f;
+    }
+
     float max_viol = 0.0f;
     for (uint16_t ci = 0; ci < constraints; ci++)
     {

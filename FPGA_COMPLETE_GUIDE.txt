@@ -26,6 +26,13 @@ ping -c 3 10.23.0.120
 scp -r /home/f1tenth/BachelorProject/f1tenth_communication/f1tenth_msgs xilinx@10.23.0.120:/home/xilinx/ros2_ws/src/
 scp -r /home/f1tenth/BachelorProject/f1tenth_communication/state_receiver xilinx@10.23.0.120:/home/xilinx/ros2_ws/src/
 
+# Step 3b: Copy centralized FPGA constants/headers used by state_receiver
+# state_receiver includes ../../FPGA_Implementations/MPC_FPGA/include from its package path,
+# and with the documented layout (~ros2_ws/src/state_receiver) this resolves to:
+#   ~/ros2_ws/FPGA_Implementations/MPC_FPGA/include
+ssh xilinx@10.23.0.120 "mkdir -p /home/xilinx/ros2_ws/FPGA_Implementations/MPC_FPGA"
+scp -r /home/f1tenth/BachelorProject/FPGA_Implementations/MPC_FPGA/include xilinx@10.23.0.120:/home/xilinx/ros2_ws/FPGA_Implementations/MPC_FPGA/
+
 # Step 4: Copy tools directory
 scp -r /home/f1tenth/BachelorProject/f1tenth_communication/tools xilinx@10.23.0.120:/home/xilinx/
 
