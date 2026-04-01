@@ -15,8 +15,9 @@ close all;
 
 if nargin < 1 || isempty(csvDir)
     scriptDir = fileparts(mfilename('fullpath'));
-    folderSelected = 'MPC_FPGA';
-    csvDir = fullfile(scriptDir, 'csv', folderSelected);
+    %folderSelected = 'MPC_FPGA';
+    %csvDir = fullfile(scriptDir, 'csv', folderSelected);
+    csvDir = fullfile(scriptDir, 'csv');
 end
 
 
@@ -569,17 +570,34 @@ if hasNodeProcessCpu
         cmap = lines(topK);
         for i = 1:topK
             idx = (nodeNames == topNodes(i));
-            plot(tNodeValid(idx), nodeCpu(idx), '.', 'Color', cmap(i,:), 'MarkerSize', 7);
+            tVals = tNodeValid(idx);
+            yVals = nodeCpu(idx);
+
+            [tVals, order] = sort(tVals);
+            yVals = yVals(order);
+
+            if numel(yVals) >= 3
+                dt = median(diff(tVals));
+                if ~isfinite(dt) || dt <= 0
+                    dt = 0.2;
+                end
+                smoothWin = max(3, round(1.0 / dt));  % ~1 second smoothing
+                ySmooth = movmean(yVals, smoothWin, 'omitnan');
+            else
+                ySmooth = yVals;
+            end
+
+            plot(tVals, ySmooth, '-', 'Color', cmap(i,:), 'LineWidth', 1.4);
         end
         hold off;
         grid on;
         ylabel('CPU [%]');
-        title('ROS node CPU over time (top nodes by mean)');
+        title('ROS node CPU over time (top nodes by mean, smoothed)');
         ylim([0, 100]);
         legend(cellstr(topNodes), 'Location', 'eastoutside');
 
-        allVals = [];
-        allGrp = strings(0, 1);
+        nodeMeanTop = nan(topK, 1);
+        nodeP95Top = nan(topK, 1);
         for i = 1:topK
             idx = (nodeNames == topNodes(i));
             vals = nodeCpu(idx);
@@ -588,20 +606,23 @@ if hasNodeProcessCpu
                 continue;
             end
 
-            allVals = [allVals; vals]; %#ok<AGROW>
-            allGrp = [allGrp; repmat(topNodes(i), numel(vals), 1)]; %#ok<AGROW>
+            nodeMeanTop(i) = mean(vals);
+            nodeP95Top(i) = prctile(vals, 95);
         end
 
         nexttile;
-        if isempty(allVals)
+        if all(isnan(nodeMeanTop))
             axis off;
             text(0.1, 0.5, 'No per-node CPU samples available', 'FontSize', 11);
         else
-            boxplot(allVals, cellstr(allGrp), 'Whisker', 1.5, 'Symbol', '');
+            bar([nodeMeanTop, nodeP95Top], 'grouped');
             grid on;
             ylabel('CPU [%]');
             xlabel('Node');
-            title('Per-node CPU distribution (top nodes by mean)');
+            title('Per-node CPU summary (mean and P95)');
+            legend('Mean', 'P95', 'Location', 'best');
+            xticks(1:topK);
+            xticklabels(cellstr(topNodes));
             xtickangle(20);
             ylim([0, 100]);
         end
