@@ -23,6 +23,8 @@
 
 - [ ] Ændrer så den ikke tjekker på drive men på commands/motor_speed/ (Eller hvad den nu hedder)
 
+- [ ] Lav så pipeline monitor holder styr på at den scan der kommer ind matcher med den drive commando der bliver genereret ud fra den
+
 ## System ændringer [ 1 / 1]
 - [X] Flyt lidar ned i system mappen
 
