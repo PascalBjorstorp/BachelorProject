@@ -11,10 +11,11 @@ close all;
 %   SystemUsageShort.csv (optional, includes gpu_percent when available)
 %   SystemUsageLong.csv (optional, includes gpu_percent when available)
 %   SystemUsagePerCore.csv (optional)
+%   SystemUsageNodeProcesses.csv (optional, per-ROS-node CPU usage)
 
 if nargin < 1 || isempty(csvDir)
     scriptDir = fileparts(mfilename('fullpath'));
-    folderSelected = 'MPC_CPU';
+    folderSelected = 'MPC_FPGA';
     csvDir = fullfile(scriptDir, 'csv', folderSelected);
 end
 
@@ -24,6 +25,7 @@ shortCpuFile = fullfile(csvDir, 'SystemUsageShort.csv');
 longCpuFile = fullfile(csvDir, 'SystemUsageLong.csv');
 perCoreCpuFile = fullfile(csvDir, 'SystemUsagePerCore.csv');
 gpuUsageFile = fullfile(csvDir, 'SystemUsageGpu.csv');
+nodeProcessCpuFile = fullfile(csvDir, 'SystemUsageNodeProcesses.csv');
 
 fprintf('Using pipeline CSV: %s\n', pipelineFile);
 
@@ -40,10 +42,12 @@ assertHasColumns(Tp, requiredPipeline, 'Pipeline CSV');
 hasCpuWindows = isfile(shortCpuFile) && isfile(longCpuFile);
 hasPerCoreCpu = isfile(perCoreCpuFile);
 hasGpuShort = isfile(gpuUsageFile);
+hasNodeProcessCpu = isfile(nodeProcessCpuFile);
 Tshort = table();
 Tlong = table();
 Tcore = table();
 Tgpu = table();
+Tnode = table();
 shortCpu = [];
 longCpu = [];
 shortGpu = [];
@@ -102,6 +106,20 @@ else
     end
 end
 
+if hasNodeProcessCpu
+    fprintf('Using node-process CPU CSV: %s\n', nodeProcessCpuFile);
+    Tnode = readtable(nodeProcessCpuFile, 'VariableNamingRule', 'preserve');
+    assertHasColumns(Tnode, {'monotonic_time_ns','node_name','pid','cpu_percent'}, 'Node Process CPU CSV');
+
+    if height(Tnode) == 0
+        fprintf('Node-process CPU CSV is empty. Skipping per-node CPU figure.\n');
+        hasNodeProcessCpu = false;
+    end
+else
+    fprintf('Node-process CPU CSV not found. Expected:\n');
+    fprintf('  %s\n', nodeProcessCpuFile);
+end
+
 if hasPerCoreCpu
     fprintf('Using per-core CPU CSV: %s\n', perCoreCpuFile);
     Tcore = readtable(perCoreCpuFile, 'VariableNamingRule', 'preserve');
@@ -148,6 +166,12 @@ if hasGpuShort
     end
 else
     tGpu = [];
+end
+
+if hasNodeProcessCpu
+    tNode = (double(Tnode.monotonic_time_ns) - double(Tnode.monotonic_time_ns(1))) * 1e-9;
+else
+    tNode = [];
 end
 
 hasPipeline = height(Tp) > 0;
@@ -515,6 +539,86 @@ if hasCpuWindows && hasGpuShort
     xticks(0:(phaseBinAlignSec * 1e3):(phaseCycleAlignSec * 1e3));
     ylim([0, 100]);
     legend('CPU mean', 'GPU mean', 'Location', 'best');
+end
+
+%% Figure 9: Per-node CPU usage (optional)
+if hasNodeProcessCpu
+    nodeNames = string(Tnode.node_name);
+    nodeCpu = double(Tnode.cpu_percent);
+    nodePid = double(Tnode.pid);
+
+    validNode = isfinite(nodeCpu) & (nodeCpu >= 0) & strlength(nodeNames) > 0;
+    nodeNames = nodeNames(validNode);
+    nodeCpu = nodeCpu(validNode);
+    nodePid = nodePid(validNode);
+    tNodeValid = tNode(validNode);
+
+    if ~isempty(nodeCpu)
+        [uniqueNodes, ~, nodeIdx] = unique(nodeNames, 'stable');
+        nodeMean = accumarray(nodeIdx, nodeCpu, [], @mean, NaN);
+        [~, sortIdx] = sort(nodeMean, 'descend');
+
+        topK = min(8, numel(uniqueNodes));
+        topNodes = uniqueNodes(sortIdx(1:topK));
+
+        figure('Name', 'Per-Node CPU', 'Color', 'w');
+        tiledlayout(2,1, 'Padding', 'compact', 'TileSpacing', 'compact');
+
+        nexttile;
+        hold on;
+        cmap = lines(topK);
+        for i = 1:topK
+            idx = (nodeNames == topNodes(i));
+            plot(tNodeValid(idx), nodeCpu(idx), '.', 'Color', cmap(i,:), 'MarkerSize', 7);
+        end
+        hold off;
+        grid on;
+        ylabel('CPU [%]');
+        title('ROS node CPU over time (top nodes by mean)');
+        ylim([0, max(100, prctile(nodeCpu, 99.5) * 1.2)]);
+        legend(cellstr(topNodes), 'Location', 'eastoutside');
+
+        allVals = [];
+        allGrp = strings(0, 1);
+        for i = 1:topK
+            idx = (nodeNames == topNodes(i));
+            vals = nodeCpu(idx);
+            vals = vals(isfinite(vals));
+            if isempty(vals)
+                continue;
+            end
+
+            allVals = [allVals; vals]; %#ok<AGROW>
+            allGrp = [allGrp; repmat(topNodes(i), numel(vals), 1)]; %#ok<AGROW>
+        end
+
+        nexttile;
+        if isempty(allVals)
+            axis off;
+            text(0.1, 0.5, 'No per-node CPU samples available', 'FontSize', 11);
+        else
+            boxplot(allVals, cellstr(allGrp), 'Whisker', 1.5, 'Symbol', '');
+            grid on;
+            ylabel('CPU [%]');
+            xlabel('Node');
+            title('Per-node CPU distribution (top nodes by mean)');
+            xtickangle(20);
+            ylim([0, max(100, prctile(allVals, 99.5) * 1.2)]);
+        end
+
+        fprintf('\nPer-node CPU summary (top %d by mean)\n', topK);
+        for i = 1:topK
+            idx = (nodeNames == topNodes(i));
+            vals = nodeCpu(idx);
+            vals = vals(isfinite(vals));
+            if isempty(vals)
+                continue;
+            end
+            pids = unique(nodePid(idx));
+            fprintf('%-28s : mean=%8.3f %%   p95=%8.3f %%   p99=%8.3f %%   pids=%d\n', ...
+                char(topNodes(i)), mean(vals), prctile(vals, 95), prctile(vals, 99), numel(pids));
+        end
+    end
 end
 
 %% Stats summary

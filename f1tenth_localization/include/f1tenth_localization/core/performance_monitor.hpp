@@ -48,6 +48,19 @@ private:
     std::vector<CpuTimes> cores;
   };
 
+  struct ProcessCpuTimes
+  {
+    uint64_t utime_ticks{0};
+    uint64_t stime_ticks{0};
+    uint64_t starttime_ticks{0};
+  };
+
+  struct RosProcess
+  {
+    int pid{0};
+    std::string node_name;
+  };
+
   enum class GpuSource
   {
     none,
@@ -61,6 +74,11 @@ private:
   double read_gpu_percent() const;
   double read_gpu_percent_from_sysfs() const;
   double read_gpu_percent_from_nvidia_smi() const;
+  std::vector<RosProcess> discover_ros_processes() const;
+  bool read_process_cpu_times(int pid, ProcessCpuTimes & times) const;
+  static std::vector<std::string> read_cmdline_tokens(int pid);
+  static std::string extract_ros_node_name(const std::vector<std::string> & tokens);
+  static std::string basename_from_path(const std::string & path);
   double compute_cpu_usage(const CpuTimes & current, double previous_usage);
   std::vector<double> compute_per_core_usage(
     const std::vector<CpuTimes> & current,
@@ -68,12 +86,15 @@ private:
 
   void sampling_loop();
   void gpu_loop();
+  void process_loop();
   void logging_loop();
   void print_status();
 
   std::string output_dir_;
   double cpu_sample_hz_{200.0};
   double gpu_sample_hz_{10.0};
+  double node_process_sample_hz_{5.0};
+  double node_process_discovery_hz_{1.0};
   double csv_log_hz_{200.0};
   double long_csv_log_hz_{1.0};
   double print_hz_{1.0};
@@ -90,6 +111,8 @@ private:
   std::string per_core_csv_path_;
   std::ofstream gpu_csv_file_;
   std::string gpu_csv_path_;
+  std::ofstream node_process_csv_file_;
+  std::string node_process_csv_path_;
 
   std::mutex data_mutex_;
   RollingWindow long_window_;
@@ -106,6 +129,7 @@ private:
   std::atomic<bool> running_{false};
   std::thread sampler_thread_;
   std::thread gpu_thread_;
+  std::thread process_thread_;
   std::thread logger_thread_;
   rclcpp::TimerBase::SharedPtr status_timer_;
 };
