@@ -25,6 +25,7 @@ ping -c 3 10.23.0.120
 # Step 3: Copy ROS packages
 scp -r /home/f1tenth/BachelorProject/f1tenth_communication/f1tenth_msgs xilinx@10.23.0.120:/home/xilinx/ros2_ws/src/
 scp -r /home/f1tenth/BachelorProject/f1tenth_communication/state_receiver xilinx@10.23.0.120:/home/xilinx/ros2_ws/src/
+scp -r /home/f1tenth/BachelorProject/f1tenth_communication/state_transport_udp xilinx@10.23.0.120:/home/xilinx/ros2_ws/src/
 
 # Step 3b: Copy centralized FPGA constants/headers used by state_receiver
 # state_receiver includes ../../FPGA_Implementations/MPC_FPGA/include from its package path,
@@ -57,7 +58,7 @@ ls ~/ros2_ws/src/
 # Step 9: Build ROS packages
 cd ~/ros2_ws
 source /home/xilinx/ros2_humble/install/setup.bash
-colcon build --packages-select f1tenth_msgs state_receiver
+colcon build --packages-select f1tenth_msgs state_receiver state_transport_udp
 
 # =============================================
 # PART 4: PROGRAM FPGA AND VERIFY ADDRESSES
@@ -97,7 +98,7 @@ EOF
 # MPC AP_CTRL: 0x00000004 (idle - OK)
 
 # =============================================
-# PART 5: RUN MPC RECEIVER (on Ultra96)
+# PART 5: RUN ULTRA96 RECEIVER (CHOOSE TRANSPORT)
 # =============================================
 
 # Step 13: Make scripts executable
@@ -106,6 +107,10 @@ chmod +x ~/tools/*.sh
 # Step 14: Run the MPC receiver script
 cd /home/xilinx
 ./tools/ultra96_flash_and_run_receiver.sh
+
+# ---------------------------------------------
+# Option A: ROS transport (state_receiver)
+# ---------------------------------------------
 
 # OR run manually step-by-step:
 
@@ -128,14 +133,49 @@ sudo -E bash -c "
     -p max_velocity:=20.0
 "
 
+# ---------------------------------------------
+# Option B: UDP transport (state_transport_udp)
+# ---------------------------------------------
+
+# One-shot script (overlay + bitstream + UDP receiver)
+cd /home/xilinx
+./tools/ultra96_flash_and_run_udp_receiver.sh
+
+# Optional manual launch with explicit runtime parameters:
+source /home/xilinx/ros2_humble/install/setup.bash || true
+source /home/xilinx/ros2_ws/install/setup.bash
+
+sudo -E env \
+  UDP_STATE_PORT=49000 \
+  UDP_CONTROL_PORT=49001 \
+  UDP_CONTROL_DT_S=0.04 \
+  UDP_MAX_VEL_MPS=20.0 \
+  MPC_BASE_ADDR=0xA0010000 \
+  DMA_BASE_ADDR=0xA0000000 \
+  DMA_BUFFER_PHYS_ADDR=0x70000000 \
+  ros2 run state_transport_udp ultra96_udp_receiver
+
 # =============================================
-# PART 6: RUN STATE PUBLISHER (on Jetson)
+# PART 6: RUN JETSON SIDE (CHOOSE TRANSPORT)
 # =============================================
 
-# Step 15: In a new terminal on Jetson
+# Step 15A: ROS transport on Jetson (state_publisher -> /mpc_state)
 cd /home/f1tenth/BachelorProject
 source install/setup.bash
 ros2 launch state_publisher state_publisher_launch.py
+
+# Step 15B: UDP transport on Jetson (ros2_udp_sender + udp_control_bridge)
+# Terminal 1: drive bridge (/udp -> /drive)
+cd /home/f1tenth/BachelorProject
+source install/setup.bash
+ros2 run state_transport_udp udp_control_bridge
+
+# Terminal 2: state sender (/odom+/ekf_pose -> UDP)
+cd /home/f1tenth/BachelorProject
+source install/setup.bash
+ros2 run state_transport_udp ros2_udp_sender --ros-args \
+  -p trajectory_file:=/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv \
+  -p dest_ip:=10.23.0.120
 
 # =============================================
 # VERIFIED ADDRESSES (from Vivado .hwh):
