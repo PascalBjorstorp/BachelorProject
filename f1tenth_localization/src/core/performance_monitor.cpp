@@ -3,8 +3,11 @@
 #include "SystemMonitor.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <iomanip>
 #include <sstream>
@@ -13,20 +16,23 @@
 namespace f1tenth_localization
 {
 
-void PerformanceMonitor::RollingWindow::configure(size_t count)
+void PerformanceMonitor::RollingWindow::configure(double window_sec)
 {
-  max_samples = std::max<size_t>(1, count);
+  const auto seconds = std::chrono::duration<double>(std::max(1e-6, window_sec));
+  horizon = std::chrono::duration_cast<std::chrono::steady_clock::duration>(seconds);
   samples.clear();
   sum = 0.0;
 }
 
-void PerformanceMonitor::RollingWindow::push(double value)
+void PerformanceMonitor::RollingWindow::push(
+  const std::chrono::steady_clock::time_point & stamp,
+  double value)
 {
-  samples.push_back(value);
+  samples.emplace_back(stamp, value);
   sum += value;
 
-  while (samples.size() > max_samples) {
-    sum -= samples.front();
+  while (!samples.empty() && (stamp - samples.front().first) > horizon) {
+    sum -= samples.front().second;
     samples.pop_front();
   }
 }
@@ -44,17 +50,19 @@ PerformanceMonitor::PerformanceMonitor(const rclcpp::NodeOptions & options)
 {
   output_dir_ = system_monitor_config::kOutputDir;
   cpu_sample_hz_ = system_monitor_config::kCpuSampleHz;
+  gpu_sample_hz_ = system_monitor_config::kGpuSampleHz;
   csv_log_hz_ = system_monitor_config::kShortCsvLogHz;
   long_csv_log_hz_ = system_monitor_config::kLongCsvLogHz;
   print_hz_ = system_monitor_config::kPrintHz;
   rolling_window_long_sec_ = system_monitor_config::kRollingWindowLongSec;
   rolling_window_short_sec_ = system_monitor_config::kRollingWindowShortSec;
 
-  const size_t long_samples = static_cast<size_t>(std::ceil(rolling_window_long_sec_ * cpu_sample_hz_));
-  const size_t short_samples = static_cast<size_t>(std::ceil(rolling_window_short_sec_ * cpu_sample_hz_));
+  if (gpu_sample_hz_ <= 0.0) {
+    gpu_sample_hz_ = cpu_sample_hz_;
+  }
 
-  long_window_.configure(long_samples);
-  short_window_.configure(short_samples);
+  long_window_.configure(rolling_window_long_sec_);
+  short_window_.configure(rolling_window_short_sec_);
 
   const auto initial_snapshot = read_cpu_snapshot();
   if (!initial_snapshot.cores.empty()) {
@@ -63,10 +71,15 @@ PerformanceMonitor::PerformanceMonitor(const rclcpp::NodeOptions & options)
     latest_per_core_cpu_percent_.assign(1, 0.0);
   }
 
+  initialize_gpu_source();
+
   initialize_csv();
 
   running_.store(true);
   sampler_thread_ = std::thread(&PerformanceMonitor::sampling_loop, this);
+  if (gpu_source_ != GpuSource::none) {
+    gpu_thread_ = std::thread(&PerformanceMonitor::gpu_loop, this);
+  }
   logger_thread_ = std::thread(&PerformanceMonitor::logging_loop, this);
 
   const auto print_period = std::chrono::duration<double>(1.0 / print_hz_);
@@ -84,6 +97,9 @@ PerformanceMonitor::~PerformanceMonitor()
   if (sampler_thread_.joinable()) {
     sampler_thread_.join();
   }
+  if (gpu_thread_.joinable()) {
+    gpu_thread_.join();
+  }
   if (logger_thread_.joinable()) {
     logger_thread_.join();
   }
@@ -100,6 +116,10 @@ PerformanceMonitor::~PerformanceMonitor()
     per_core_csv_file_.flush();
     per_core_csv_file_.close();
   }
+  if (gpu_csv_file_.is_open()) {
+    gpu_csv_file_.flush();
+    gpu_csv_file_.close();
+  }
 }
 
 void PerformanceMonitor::initialize_csv()
@@ -112,6 +132,8 @@ void PerformanceMonitor::initialize_csv()
     std::filesystem::path(output_dir_) / system_monitor_config::kShortCsvFileName).string();
   per_core_csv_path_ = (
     std::filesystem::path(output_dir_) / system_monitor_config::kPerCoreCsvFileName).string();
+  gpu_csv_path_ = (
+    std::filesystem::path(output_dir_) / system_monitor_config::kGpuCsvFileName).string();
 
   long_csv_file_.open(long_csv_path_, std::ios::out | std::ios::trunc);
   if (!long_csv_file_.is_open()) {
@@ -127,10 +149,15 @@ void PerformanceMonitor::initialize_csv()
     throw std::runtime_error("Failed to open per-core CPU CSV output file");
   }
 
-  long_csv_file_ << "monotonic_time_ns,ros_time_sec,ros_time_nsec,cpu_long_window_percent\n";
+  gpu_csv_file_.open(gpu_csv_path_, std::ios::out | std::ios::trunc);
+  if (!gpu_csv_file_.is_open()) {
+    throw std::runtime_error("Failed to open GPU CSV output file");
+  }
+
+  long_csv_file_ << "monotonic_time_ns,ros_time_sec,ros_time_nsec,cpu_long_window_percent,gpu_percent\n";
   long_csv_file_.flush();
 
-  short_csv_file_ << "monotonic_time_ns,ros_time_sec,ros_time_nsec,cpu_short_window_percent\n";
+  short_csv_file_ << "monotonic_time_ns,ros_time_sec,ros_time_nsec,cpu_short_window_percent,gpu_percent\n";
   short_csv_file_.flush();
 
   per_core_csv_file_ << "monotonic_time_ns,ros_time_sec,ros_time_nsec";
@@ -139,6 +166,104 @@ void PerformanceMonitor::initialize_csv()
   }
   per_core_csv_file_ << "\n";
   per_core_csv_file_.flush();
+
+  gpu_csv_file_ << "monotonic_time_ns,ros_time_sec,ros_time_nsec,gpu_percent\n";
+  gpu_csv_file_.flush();
+}
+
+void PerformanceMonitor::initialize_gpu_source()
+{
+  static constexpr std::array<const char *, 8> kJetsonGpuPaths = {
+    "/sys/devices/gpu.0/load",
+    "/sys/devices/platform/gpu.0/load",
+    "/sys/devices/17000000.ga10b/load",
+    "/sys/devices/platform/17000000.ga10b/load",
+    "/sys/class/devfreq/17000000.ga10b/load",
+    "/sys/devices/17000000.gv11b/load",
+    "/sys/devices/platform/17000000.gv11b/load",
+    "/sys/class/devfreq/17000000.gv11b/load"
+  };
+
+  for (const auto * path : kJetsonGpuPaths) {
+    if (std::filesystem::exists(path)) {
+      gpu_source_ = GpuSource::sysfs;
+      gpu_load_path_ = path;
+      return;
+    }
+  }
+
+  if (std::system("command -v nvidia-smi > /dev/null 2>&1") == 0) {
+    gpu_source_ = GpuSource::nvidia_smi;
+    return;
+  }
+
+  gpu_source_ = GpuSource::none;
+}
+
+double PerformanceMonitor::read_gpu_percent() const
+{
+  switch (gpu_source_) {
+    case GpuSource::sysfs:
+      return read_gpu_percent_from_sysfs();
+    case GpuSource::nvidia_smi:
+      return read_gpu_percent_from_nvidia_smi();
+    case GpuSource::none:
+    default:
+      return 0.0;
+  }
+}
+
+double PerformanceMonitor::read_gpu_percent_from_sysfs() const
+{
+  if (gpu_load_path_.empty()) {
+    return 0.0;
+  }
+
+  std::ifstream gpu_file(gpu_load_path_);
+  if (!gpu_file.is_open()) {
+    return 0.0;
+  }
+
+  double raw = 0.0;
+  gpu_file >> raw;
+  if (!gpu_file.good() && !gpu_file.eof()) {
+    return 0.0;
+  }
+
+  if (raw > 100.0) {
+    raw /= 10.0;
+  }
+  return std::clamp(raw, 0.0, 100.0);
+}
+
+double PerformanceMonitor::read_gpu_percent_from_nvidia_smi() const
+{
+  FILE * pipe = popen(
+    "nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null",
+    "r");
+  if (pipe == nullptr) {
+    return 0.0;
+  }
+
+  char buffer[256];
+  double sum = 0.0;
+  size_t count = 0;
+  while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+    try {
+      const double value = std::stod(std::string(buffer));
+      sum += value;
+      ++count;
+    } catch (...) {
+      continue;
+    }
+  }
+  pclose(pipe);
+
+  if (count == 0) {
+    return 0.0;
+  }
+
+  return std::clamp(sum / static_cast<double>(count), 0.0, 100.0);
 }
 
 PerformanceMonitor::CpuSnapshot PerformanceMonitor::read_cpu_snapshot() const
@@ -315,8 +440,8 @@ void PerformanceMonitor::sampling_loop()
         cached_per_core = compute_per_core_usage(snapshot.cores, cached_per_core);
       }
 
-      long_window_.push(cached_usage);
-      short_window_.push(cached_usage);
+      long_window_.push(now, cached_usage);
+      short_window_.push(now, cached_usage);
 
       {
         std::lock_guard<std::mutex> lock(data_mutex_);
@@ -326,6 +451,60 @@ void PerformanceMonitor::sampling_loop()
       }
 
       advance_tick(next_tick, sample_step, now);
+    }
+
+    std::this_thread::sleep_until(next_tick);
+  }
+}
+
+void PerformanceMonitor::gpu_loop()
+{
+  const auto period = std::chrono::duration<double>(1.0 / gpu_sample_hz_);
+  const auto min_step = std::chrono::steady_clock::duration(1);
+  auto gpu_step = std::max(
+    min_step,
+    std::chrono::duration_cast<std::chrono::steady_clock::duration>(period));
+
+  if (gpu_source_ == GpuSource::nvidia_smi) {
+    const auto nvidia_smi_min_step =
+      std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::milliseconds(50));
+    gpu_step = std::max(gpu_step, nvidia_smi_min_step);
+  }
+
+  const auto gpu_step_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(gpu_step).count();
+  auto next_tick = std::chrono::steady_clock::now();
+
+  auto advance_tick = [](std::chrono::steady_clock::time_point & tick,
+      const std::chrono::steady_clock::duration & step,
+      const std::chrono::steady_clock::time_point & now) {
+      do {
+        tick += step;
+      } while (tick <= now);
+    };
+
+  while (running_.load()) {
+    const auto now = std::chrono::steady_clock::now();
+
+    if (now >= next_tick) {
+      const auto lag_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now - next_tick).count();
+      if (lag_ns > gpu_step_ns) {
+        const long long missed_ticks = gpu_step_ns > 0 ? (lag_ns / gpu_step_ns) : 0;
+        RCLCPP_ERROR_THROTTLE(
+          get_logger(),
+          *get_clock(),
+          2000,
+          "GPU loop lag: %.3f ms behind schedule (missed %lld ticks).",
+          static_cast<double>(lag_ns) / 1e6,
+          missed_ticks);
+      }
+
+      const double gpu = read_gpu_percent();
+      {
+        std::lock_guard<std::mutex> lock(data_mutex_);
+        latest_gpu_percent_ = gpu;
+      }
+
+      advance_tick(next_tick, gpu_step, now);
     }
 
     std::this_thread::sleep_until(next_tick);
@@ -407,11 +586,13 @@ void PerformanceMonitor::logging_loop()
 
       double long_cpu = 0.0;
       double short_cpu = 0.0;
+      double gpu = 0.0;
       std::vector<double> per_core_cpu;
       {
         std::lock_guard<std::mutex> lock(data_mutex_);
         long_cpu = latest_long_cpu_percent_;
         short_cpu = latest_short_cpu_percent_;
+        gpu = latest_gpu_percent_;
         per_core_cpu = latest_per_core_cpu_percent_;
       }
 
@@ -420,7 +601,8 @@ void PerformanceMonitor::logging_loop()
                        << ros_sec << ','
                        << ros_nsec << ','
                        << std::fixed << std::setprecision(3)
-                       << long_cpu << '\n';
+                       << long_cpu << ','
+                       << gpu << '\n';
       }
 
       if (write_short) {
@@ -428,7 +610,14 @@ void PerformanceMonitor::logging_loop()
                         << ros_sec << ','
                         << ros_nsec << ','
                         << std::fixed << std::setprecision(3)
-                        << short_cpu << '\n';
+                        << short_cpu << ','
+                        << gpu << '\n';
+
+        gpu_csv_file_ << monotonic_ns << ','
+                      << ros_sec << ','
+                      << ros_nsec << ','
+                      << std::fixed << std::setprecision(3)
+                      << gpu << '\n';
 
         per_core_csv_file_ << monotonic_ns << ','
                            << ros_sec << ','
@@ -443,6 +632,7 @@ void PerformanceMonitor::logging_loop()
         long_csv_file_.flush();
         short_csv_file_.flush();
         per_core_csv_file_.flush();
+        gpu_csv_file_.flush();
       }
     }
 
@@ -455,20 +645,23 @@ void PerformanceMonitor::print_status()
 {
   double long_cpu = 0.0;
   double short_cpu = 0.0;
+  double gpu = 0.0;
 
   {
     std::lock_guard<std::mutex> lock(data_mutex_);
     long_cpu = latest_long_cpu_percent_;
     short_cpu = latest_short_cpu_percent_;
+    gpu = latest_gpu_percent_;
   }
 
   RCLCPP_INFO(
     get_logger(),
-    "CPU usage: long(%.3fs)=%.1f%% | short(%.6fs)=%.1f%%",
+    "CPU usage: long(%.3fs)=%.1f%% | short(%.6fs)=%.1f%% | gpu=%.1f%%",
     rolling_window_long_sec_,
     long_cpu,
     rolling_window_short_sec_,
-    short_cpu);
+    short_cpu,
+    gpu);
 }
 
 }  // namespace f1tenth_localization
