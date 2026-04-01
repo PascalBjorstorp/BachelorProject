@@ -14,10 +14,12 @@ close all;
 
 if nargin < 1 || isempty(csvDir)
     scriptDir = fileparts(mfilename('fullpath'));
-    csvDir = fullfile(scriptDir, 'csv');
+    folderSelected = 'MPC_CPU';
+    csvDir = fullfile(scriptDir, 'csv', folderSelected);
 end
 
-pipelineFile = latestFileAny(csvDir, {'pipeline_latency_*.csv', 'Pipeline_*.csv'});
+
+pipelineFile = latestFileAny(csvDir, {'pipeline_*.csv'});
 shortCpuFile = fullfile(csvDir, 'SystemUsageShort.csv');
 longCpuFile = fullfile(csvDir, 'SystemUsageLong.csv');
 perCoreCpuFile = fullfile(csvDir, 'SystemUsagePerCore.csv');
@@ -223,30 +225,39 @@ if hasPipeline
         axis off; text(0.1,0.5,'No scan->drive column','FontSize',11);
     end
 
-    %% Figure 2: End-to-end histogram
+    %% Figure 2: Combined histograms (scan->ekf on top, scan->drive below)
+    scan2ekfValid = scan2ekf(isfinite(scan2ekf) & scan2ekf >= 0);
+
     if hasS2D
         s2dValid = s2dPlot(~isnan(s2dPlot));
     else
         s2dValid = [];
     end
 
-    if isempty(s2dValid)
-        s2dValid = double(Tp.scan_to_ekf_ms);
-        histTitle = 'Histogram: scan->ekf';
-        xlab = 'scan->ekf [ms]';
-    else
-        histTitle = 'Histogram: scan->drive';
-        xlab = 'scan->drive [ms]';
+    figure('Name', 'Latency Histograms', 'Color', 'w');
+    tiledlayout(2,1, 'Padding', 'compact', 'TileSpacing', 'compact');
+
+    nexttile;
+    histogram(scan2ekfValid, 80);
+    grid on;
+    title('Histogram: scan->ekf');
+    xlabel('scan->ekf [ms]');
+    ylabel('Count');
+    if ~isempty(scan2ekfValid)
+        xlim([0, max(5, prctile(scan2ekfValid, 99.5))]);
     end
 
-    figure('Name', 'Latency Histogram', 'Color', 'w');
-    histogram(s2dValid, 80);
-    grid on;
-    title(histTitle);
-    xlabel(xlab);
-    ylabel('Count');
+    nexttile;
     if ~isempty(s2dValid)
+        histogram(s2dValid, 80);
+        grid on;
+        title('Histogram: scan->drive');
+        xlabel('scan->drive [ms]');
+        ylabel('Count');
         xlim([0, max(5, prctile(s2dValid, 99.5))]);
+    else
+        axis off;
+        text(0.1, 0.5, 'No scan->drive data available', 'FontSize', 11);
     end
 
     %% Figure 3: Boxplot with six timing metrics
