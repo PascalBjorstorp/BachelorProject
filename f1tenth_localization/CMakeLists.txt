@@ -187,6 +187,7 @@ add_executable(performance_monitor_cpp
 )
 target_include_directories(performance_monitor_cpp PUBLIC
   include
+  config
 )
 ament_target_dependencies(performance_monitor_cpp
   rclcpp

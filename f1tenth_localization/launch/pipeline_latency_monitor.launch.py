@@ -7,18 +7,16 @@ localization pipeline:
 
 Prints a summary to the terminal at ~1 Hz (configurable via print_every).
 Also logs per-cycle latency samples to CSV (configurable via launch args).
-Optionally launches performance_monitor_cpp for CPU/GPU logging.
+Also launches performance_monitor_cpp for CPU logging.
 
 Usage:
   ros2 launch f1tenth_localization pipeline_latency_monitor.launch.py
   ros2 launch f1tenth_localization pipeline_latency_monitor.launch.py print_every:=20
     ros2 launch f1tenth_localization pipeline_latency_monitor.launch.py log_to_csv:=true csv_output_dir:=/tmp/f1tenth_latency
-        ros2 launch f1tenth_localization pipeline_latency_monitor.launch.py enable_system_monitor:=true system_high_rate_hz:=100.0
 """
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -51,37 +49,6 @@ def generate_launch_description():
             default_value='f1tenth_localization/Benchmark/Matlab/csv',
             description='Directory where latency CSV file is written'),
 
-        # -------------------- Performance Monitor --------------------
-        DeclareLaunchArgument(
-            'enable_system_monitor',
-            default_value='true',
-            description='Launch performance_monitor_cpp for CPU/GPU logging'),
-
-        DeclareLaunchArgument(
-            'system_output_dir',
-            default_value='f1tenth_localization/Benchmark/Matlab/csv',
-            description='Directory where performance monitor CSV files are written'),
-
-        DeclareLaunchArgument(
-            'system_high_rate_hz',
-            default_value='100.0',
-            description='Sampling loop frequency for performance_monitor_cpp'),
-
-        DeclareLaunchArgument(
-            'system_cpu_update_hz',
-            default_value='20.0',
-            description='CPU usage estimation update frequency for performance_monitor_cpp'),
-
-        DeclareLaunchArgument(
-            'system_gpu_update_hz',
-            default_value='10.0',
-            description='GPU usage update frequency for performance_monitor_cpp'),
-
-        DeclareLaunchArgument(
-            'system_log_rate_hz',
-            default_value='50.0',
-            description='CSV logging frequency for performance_monitor_cpp'),
-
         Node(
             package='f1tenth_localization',
             executable='pipeline_latency_monitor',
@@ -105,14 +72,5 @@ def generate_launch_description():
             executable='performance_monitor_cpp',
             name='performance_monitor',
             output='screen',
-            condition=IfCondition(LaunchConfiguration('enable_system_monitor')),
-            parameters=[{
-                'output_dir': LaunchConfiguration('system_output_dir'),
-                'high_rate_sample_hz': LaunchConfiguration('system_high_rate_hz'),
-                'cpu_usage_update_hz': LaunchConfiguration('system_cpu_update_hz'),
-                'gpu_usage_update_hz': LaunchConfiguration('system_gpu_update_hz'),
-                'log_rate_hz': LaunchConfiguration('system_log_rate_hz'),
-                'print_rate_hz': 1.0,
-            }],
         ),
     ])

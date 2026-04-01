@@ -1,7 +1,9 @@
-// Copyright (c) 2026 Pascal — MIT License
+// Copyright (c) 2026 Pascal - MIT License
 #pragma once
 
 #include <atomic>
+#include <cstdint>
+#include <deque>
 #include <fstream>
 #include <mutex>
 #include <string>
@@ -26,44 +28,60 @@ private:
     uint64_t total{0};
   };
 
-  void initialize_csv();
-  void initialize_gpu_path();
+  struct RollingWindow
+  {
+    std::deque<double> samples;
+    size_t max_samples{1};
+    double sum{0.0};
 
-  CpuTimes read_aggregate_cpu_times() const;
-  std::vector<CpuTimes> read_cpu_times() const;
-  double compute_aggregate_usage(const CpuTimes & current, double previous_usage);
+    void configure(size_t count);
+    void push(double value);
+    double average() const;
+  };
+
+  struct CpuSnapshot
+  {
+    CpuTimes aggregate;
+    bool has_aggregate{false};
+    std::vector<CpuTimes> cores;
+  };
+
+  void initialize_csv();
+  CpuSnapshot read_cpu_snapshot() const;
+  double compute_cpu_usage(const CpuTimes & current, double previous_usage);
   std::vector<double> compute_per_core_usage(
     const std::vector<CpuTimes> & current,
     const std::vector<double> & previous_usage);
-  double read_gpu_percent() const;
 
   void sampling_loop();
   void logging_loop();
   void print_status();
 
   std::string output_dir_;
-  double high_rate_sample_hz_{100.0};
-  double print_rate_hz_{1.0};
-  double cpu_usage_update_hz_{20.0};
-  double gpu_usage_update_hz_{10.0};
-  double log_rate_hz_{50.0};
+  double cpu_sample_hz_{200.0};
+  double csv_log_hz_{200.0};
+  double long_csv_log_hz_{1.0};
+  double print_hz_{1.0};
+  double rolling_window_long_sec_{1.0};
+  double rolling_window_short_sec_{0.005};
 
-  size_t num_cores_{1};
-  std::string gpu_load_path_;
-
-  std::ofstream csv_file_;
-  std::string csv_path_;
-  size_t flush_counter_{0};
+  std::ofstream long_csv_file_;
+  std::string long_csv_path_;
+  std::ofstream short_csv_file_;
+  std::string short_csv_path_;
+  std::ofstream per_core_csv_file_;
+  std::string per_core_csv_path_;
 
   std::mutex data_mutex_;
-  bool aggregate_cpu_initialized_{false};
-  bool per_core_cpu_initialized_{false};
-  CpuTimes prev_cpu_aggregate_;
-  std::vector<CpuTimes> prev_cpu_times_;
-  double latest_aggregate_usage_{0.0};
-  std::vector<double> latest_core_usage_;
-  double latest_gpu_percent_{0.0};
-  bool warned_cpu_core_count_change_{false};
+  RollingWindow long_window_;
+  RollingWindow short_window_;
+  CpuTimes prev_cpu_times_;
+  bool cpu_initialized_{false};
+  std::vector<CpuTimes> prev_core_times_;
+  bool per_core_initialized_{false};
+  double latest_long_cpu_percent_{0.0};
+  double latest_short_cpu_percent_{0.0};
+  std::vector<double> latest_per_core_cpu_percent_;
 
   std::atomic<bool> running_{false};
   std::thread sampler_thread_;
