@@ -52,15 +52,17 @@ HEADER_BAK = HEADER.with_suffix(".h.tuning_backup")
 
 C_SRC_FILES = [
     "testbench/test_fpga_sim_drive.c",
-    "src/riccati_solver_hls.c",
-    "src/mpc_riccati_hls.c",
-    "src/vehicle_model_hls.c",
-    "src/fp_math_hls.c",
 ]
-CPP_SRC_FILES = ["src/mpc_fpga_top.cpp"]
+CPP_SRC_FILES = [
+    "src/riccati_solver_hls.cpp",
+    "src/mpc_riccati_hls.cpp",
+    "src/vehicle_model_hls.cpp",
+    "src/fp_math_hls.cpp",
+    "src/mpc_fpga_top.cpp",
+]
 BINARY = PROJECT_DIR / "test_fpga_tune"
 C_FLAGS = ["-D_GNU_SOURCE", "-O2", "-std=c99", "-Wall", "-Wno-unknown-pragmas"]
-CXX_FLAGS = ["-D_GNU_SOURCE", "-O2", "-Wall", "-Wno-unknown-pragmas"]
+CXX_FLAGS = ["-D_GNU_SOURCE", "-O2", "-std=c++17", "-Wall", "-Wno-unknown-pragmas"]
 
 # Parallel worker scratch area
 WORKER_ROOT = PROJECT_DIR / ".fpga_tune_workers"

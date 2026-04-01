@@ -57,13 +57,13 @@
  *  Higher default to reduce cycle count in matrix-heavy backward/forward passes.
  *  Override at compile time: -DMPC_HLS_RICCATI_MUL_LIMIT=N */
 #ifndef MPC_HLS_RICCATI_MUL_LIMIT
-#define MPC_HLS_RICCATI_MUL_LIMIT 6
+#define MPC_HLS_RICCATI_MUL_LIMIT 4
 #endif
 
 /** Vehicle model multiplier budget.
  *  Override at compile time: -DMPC_HLS_VEHICLE_MUL_LIMIT=N */
 #ifndef MPC_HLS_VEHICLE_MUL_LIMIT
-#define MPC_HLS_VEHICLE_MUL_LIMIT 4
+#define MPC_HLS_VEHICLE_MUL_LIMIT 2
 #endif
 
 /*===========================================================================

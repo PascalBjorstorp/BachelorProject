@@ -200,6 +200,13 @@ public:
 
         __sync_synchronize();
 
+        // Clear stale completion/valid flags from the previous transaction.
+        (void)mpc_read(REG_AP_CTRL);
+        (void)mpc_read(REG_OUT_STEERING_VLD);
+        (void)mpc_read(REG_OUT_ACCEL_VLD);
+        (void)mpc_read(REG_OUT_STATUS_VLD);
+        (void)mpc_read(REG_OUT_ITERATIONS_VLD);
+
         // Clear stale interrupt bits before start.
         const uint32_t isr = mpc_read(REG_ISR);
         if (isr) {
@@ -326,10 +333,16 @@ private:
 
     /** @brief Wait until steering and accel outputs are valid. */
     bool wait_output_valid(int timeout_cycles) const {
+        bool steer_seen = false;
+        bool accel_seen = false;
         while (timeout_cycles-- > 0) {
-            const uint32_t steer_vld = mpc_read(REG_OUT_STEERING_VLD);
-            const uint32_t accel_vld = mpc_read(REG_OUT_ACCEL_VLD);
-            if ((steer_vld & 0x1u) && (accel_vld & 0x1u)) {
+            if (!steer_seen) {
+                steer_seen = (mpc_read(REG_OUT_STEERING_VLD) & 0x1u) != 0u;
+            }
+            if (!accel_seen) {
+                accel_seen = (mpc_read(REG_OUT_ACCEL_VLD) & 0x1u) != 0u;
+            }
+            if (steer_seen && accel_seen) {
                 return true;
             }
         }

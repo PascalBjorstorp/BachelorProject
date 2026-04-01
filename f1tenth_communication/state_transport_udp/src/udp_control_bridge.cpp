@@ -83,7 +83,7 @@ public:
 
         watchdog_timer_ = create_wall_timer(
             std::chrono::milliseconds(static_cast<int>(watchdog_ms)),
-            std::bind(&UdpControlBridge::watchdogTick, this));
+            std::bind(&UdpControlBridge::watchdogTick, this));avg_ultra_us
 
         RCLCPP_INFO(get_logger(),
                     "UDP control bridge ready: listening on %d, publishing %s",

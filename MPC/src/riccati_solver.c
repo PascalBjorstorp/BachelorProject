@@ -124,27 +124,27 @@ void riccati_solver_pass(
         const RiccatiStepData_t *sd = &step_data[k];
 
         /* Augmented costs */
-        float Q_aug[RICCATI_MAX_NX];
-        float q_aug[RICCATI_MAX_NX];
-        float R_aug[RICCATI_MAX_NU];
-        float r_aug[RICCATI_MAX_NU];
+        float q_aug_diag[RICCATI_MAX_NX];
+        float q_aug_linear[RICCATI_MAX_NX];
+        float r_aug_diag[RICCATI_MAX_NU];
+        float r_aug_linear[RICCATI_MAX_NU];
 
         // Add ADMM penalty to stage cost for constrained state channels
         for (int s = 0; s < nx; s++) {
             int is_constrained = (sd->x_ub[s] < BIG_BOUND ||
                                   sd->x_lb[s] > -BIG_BOUND);
             if (is_constrained) {
-                Q_aug[s] = sd->Q_diag[s] + rho;
-                q_aug[s] = sd->q[s] - rho * (z_x[k][s] - y_x[k][s]);
+                q_aug_diag[s] = sd->Q_diag[s] + rho;
+                q_aug_linear[s] = sd->q[s] - rho * (z_x[k][s] - y_x[k][s]);
             } else {
-                Q_aug[s] = sd->Q_diag[s];
-                q_aug[s] = sd->q[s];
+                q_aug_diag[s] = sd->Q_diag[s];
+                q_aug_linear[s] = sd->q[s];
             }
         }
         // Add ADMM penalty to control cost for all control channels
         for (int a = 0; a < nu; a++) {
-            R_aug[a] = sd->R_diag[a] + rho_u;
-            r_aug[a] = sd->r[a] - rho_u * (z_u[k][a] - y_u[k][a]);
+            r_aug_diag[a] = sd->R_diag[a] + rho_u;
+            r_aug_linear[a] = sd->r[a] - rho_u * (z_u[k][a] - y_u[k][a]);
         }
 
         /* Step 1: M = B^T P (nu x nx) */
@@ -165,7 +165,7 @@ void riccati_solver_pass(
 
         /* Step 2: S = R_aug + M*B (nu x nu) */
         float S[2][2];
-        S[0][0] = R_aug[0]; S[0][1] = 0.0f; S[1][0] = 0.0f; S[1][1] = R_aug[1];
+        S[0][0] = r_aug_diag[0]; S[0][1] = 0.0f; S[1][0] = 0.0f; S[1][1] = r_aug_diag[1];
         /* Same pattern as above across
          * [IDX_SPARSE_B_FIRST_ROW, IDX_DRATE_PREV),
          * with identity-channel terms injected below for rows 6 and 7. */
@@ -256,7 +256,7 @@ void riccati_solver_pass(
         /* Dense block: rows 0..5, cols 0..5 */
         for (int i = 0; i < NX_DENSE; i++) {
             for (int j = 0; j < NX_DENSE; j++) {
-                float sum = (i == j) ? Q_aug[i] : 0.0f;
+                float sum = (i == j) ? q_aug_diag[i] : 0.0f;
                 for (int s = 0; s < NX_DENSE; s++) {
                     sum += sd->A[s][i] * PA[s][j];
                 }
@@ -276,7 +276,7 @@ void riccati_solver_pass(
         /* Rows 6,7: A^T rows 6,7 zero, only G^T*K + Q_diag */
         for (int i = IDX_DRATE_PREV; i < nx; i++) {
             for (int j = 0; j < nx; j++) {
-                float sum = (i == j) ? Q_aug[i] : 0.0f;
+                float sum = (i == j) ? q_aug_diag[i] : 0.0f;
                 for (int a = 0; a < nu; a++) {
                     sum += G[a][i] * K[k][a][j];
                 }
@@ -284,7 +284,7 @@ void riccati_solver_pass(
             }
         }
 
-        /* Step 8: p_k = q_aug + A^T p_{k+1} + G^T kk (nx x 1) */
+        /* Step 8: p_k = q_aug_linear + A^T p_{k+1} + G^T kk (nx x 1) */
         float Atp_vec[NX_DENSE];
         for (int i = 0; i < NX_DENSE; i++) {
             float Atp = 0.0f;
@@ -298,14 +298,14 @@ void riccati_solver_pass(
             for (int a = 0; a < nu; a++) {
                 Gtk += G[a][i] * kk[k][a];
             }
-            p[i] = q_aug[i] + Atp_vec[i] + Gtk;
+            p[i] = q_aug_linear[i] + Atp_vec[i] + Gtk;
         }
         for (int i = IDX_DRATE_PREV; i < nx; i++) {
             float Gtk = 0.0f;
             for (int a = 0; a < nu; a++) {
                 Gtk += G[a][i] * kk[k][a];
             }
-            p[i] = q_aug[i] + Gtk;
+            p[i] = q_aug_linear[i] + Gtk;
         }
     }
 
