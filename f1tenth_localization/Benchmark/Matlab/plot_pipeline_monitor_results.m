@@ -251,12 +251,17 @@ if hasPipeline
     end
 
     %% Figure 2: Combined histograms (scan->ekf on top, scan->drive below)
-    scan2ekfValid = scan2ekf(isfinite(scan2ekf) & scan2ekf >= 0);
+    scan2ekfAllValid = scan2ekf(isfinite(scan2ekf) & scan2ekf >= 0);
 
     if hasS2D
+        driveMatchedMask = isfinite(scan2ekf) & (scan2ekf >= 0) & ~isnan(s2dPlot);
+        scan2ekfValid = scan2ekf(driveMatchedMask);
         s2dValid = s2dPlot(~isnan(s2dPlot));
+        droppedUnmatched = max(0, numel(scan2ekfAllValid) - numel(scan2ekfValid));
     else
+        scan2ekfValid = scan2ekfAllValid;
         s2dValid = [];
+        droppedUnmatched = 0;
     end
 
     figure('Name', 'Latency Histograms', 'Color', 'w');
@@ -265,7 +270,11 @@ if hasPipeline
     nexttile;
     histogram(scan2ekfValid, 80);
     grid on;
-    title('Histogram: scan->ekf');
+    if hasS2D
+        title(sprintf('Histogram: scan->ekf (drive-matched, dropped %d unmatched)', droppedUnmatched));
+    else
+        title('Histogram: scan->ekf');
+    end
     xlabel('scan->ekf [ms]');
     ylabel('Count');
     if ~isempty(scan2ekfValid)
@@ -568,6 +577,8 @@ if hasNodeProcessCpu
         nexttile;
         hold on;
         cmap = lines(topK);
+        lineHandles = gobjects(0);
+        lineLabels = cell(0, 1);
         for i = 1:topK
             idx = (nodeNames == topNodes(i));
             tVals = tNodeValid(idx);
@@ -587,14 +598,26 @@ if hasNodeProcessCpu
                 ySmooth = yVals;
             end
 
-            plot(tVals, ySmooth, '-', 'Color', cmap(i,:), 'LineWidth', 1.4);
+            h = plot(tVals, ySmooth, '-', 'Color', cmap(i,:), 'LineWidth', 1.4);
+            lineHandles(end + 1) = h; %#ok<AGROW>
+            lineLabels{end + 1} = char(topNodes(i)); %#ok<AGROW>
         end
+
+        nodeTimeNs = double(Tnode.monotonic_time_ns(validNode));
+        [uniqueNodeTimeNs, ~, timeIdx] = unique(nodeTimeNs, 'stable');
+        trackedRosTotal = accumarray(timeIdx, nodeCpu, [], @sum, NaN);
+        trackedRosTime = (uniqueNodeTimeNs - uniqueNodeTimeNs(1)) * 1e-9;
+
+        hTotal = plot(trackedRosTime, trackedRosTotal, 'k--', 'LineWidth', 1.8);
+        lineHandles(end + 1) = hTotal; %#ok<AGROW>
+        lineLabels{end + 1} = 'tracked_ros_total'; %#ok<AGROW>
+
         hold off;
         grid on;
         ylabel('CPU [%]');
         title('ROS node CPU over time (top nodes by mean, smoothed)');
         ylim([0, 100]);
-        legend(cellstr(topNodes), 'Location', 'eastoutside');
+        legend(lineHandles, lineLabels, 'Location', 'eastoutside');
 
         nodeMeanTop = nan(topK, 1);
         nodeP95Top = nan(topK, 1);
@@ -639,28 +662,35 @@ if hasNodeProcessCpu
             fprintf('%-28s : mean=%8.3f %%   p95=%8.3f %%   p99=%8.3f %%   pids=%d\n', ...
                 char(topNodes(i)), mean(vals), prctile(vals, 95), prctile(vals, 99), numel(pids));
         end
+
+        trackedRosValid = trackedRosTotal(isfinite(trackedRosTotal));
+        if ~isempty(trackedRosValid)
+            fprintf('%-28s : mean=%8.3f %%   p95=%8.3f %%   p99=%8.3f %%\n', ...
+                'tracked_ros_total', mean(trackedRosValid), ...
+                prctile(trackedRosValid, 95), prctile(trackedRosValid, 99));
+        end
     end
 end
 
 %% Stats summary
 if hasPipeline
     fprintf('\nLatency summary\n');
-    printStats('scan->scan_{walls}', scan2walls);
-    printStats('scan_{walls}->amcl', walls2amcl);
-    printStats('amcl->ekf', amcl2ekf);
-    printStats('scan->ekf', scan2ekf);
+    printStats('scan->scan_{walls}', scan2walls, 'ms');
+    printStats('scan_{walls}->amcl', walls2amcl, 'ms');
+    printStats('amcl->ekf', amcl2ekf, 'ms');
+    printStats('scan->ekf', scan2ekf, 'ms');
     if hasE2D
-        printStats('ekf->drive', e2dPlot);
+        printStats('ekf->drive', e2dPlot, 'ms');
     end
     if hasS2D
-        printStats('scan->drive', s2dPlot);
+        printStats('scan->drive', s2dPlot, 'ms');
     end
 end
 
 if hasCpuWindows
     fprintf('\nCPU window summary\n');
-    printStats('cpu_short_window', shortCpu);
-    printStats('cpu_long_window', longCpu);
+    printStats('cpu_short_window', shortCpu, '%');
+    printStats('cpu_long_window', longCpu, '%');
 
     fprintf('\nShort CPU phase summary (25ms cycle, 5ms bins)\n');
     for b = 1:numel(phaseMean)
@@ -673,10 +703,10 @@ end
 if hasGpuShort || hasGpuLong
     fprintf('\nGPU summary\n');
     if hasGpuShort
-        printStats('gpu_short_window', shortGpu);
+        printStats('gpu_short_window', shortGpu, '%');
     end
     if hasGpuLong
-        printStats('gpu_long_window', longGpu);
+        printStats('gpu_long_window', longGpu, '%');
     end
 end
 
@@ -722,7 +752,11 @@ for i = 1:numel(required)
 end
 end
 
-function printStats(name, data)
+function printStats(name, data, unit)
+if nargin < 3 || isempty(unit)
+    unit = 'ms';
+end
+
 data = double(data);
 data = data(~isnan(data));
 if isempty(data)
@@ -731,8 +765,8 @@ if isempty(data)
 end
 p95 = prctile(data, 95);
 p99 = prctile(data, 99);
-fprintf('%-18s : mean=%8.3f ms   std=%8.3f   p95=%8.3f   p99=%8.3f\n', ...
-    name, mean(data), std(data), p95, p99);
+fprintf('%-18s : mean=%8.3f %s   std=%8.3f   p95=%8.3f   p99=%8.3f\n', ...
+    name, mean(data), unit, std(data), p95, p99);
 end
 
 function plotLatencyTrace(t, y, titleText, color)
