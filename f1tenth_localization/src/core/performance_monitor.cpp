@@ -802,7 +802,8 @@ void PerformanceMonitor::process_loop()
   const long ticks_per_second_raw = ::sysconf(_SC_CLK_TCK);
   const double ticks_per_second = ticks_per_second_raw > 0 ? static_cast<double>(ticks_per_second_raw) : 100.0;
   const unsigned int cpu_count_raw = std::thread::hardware_concurrency();
-  const double max_cpu_percent = 100.0 * static_cast<double>(std::max(1u, cpu_count_raw));
+  const double cpu_count = static_cast<double>(std::max(1u, cpu_count_raw));
+  const double max_cpu_percent = 100.0;
 
   struct PrevSample
   {
@@ -877,7 +878,8 @@ void PerformanceMonitor::process_loop()
             if (curr_ticks >= prev_ticks) {
               const uint64_t delta_ticks = curr_ticks - prev_ticks;
               const double cpu_seconds = static_cast<double>(delta_ticks) / ticks_per_second;
-              cpu_percent = std::clamp((cpu_seconds / elapsed_sec) * 100.0, 0.0, max_cpu_percent);
+                const double cpu_percent_all_cores = (cpu_seconds / elapsed_sec) * 100.0;
+                cpu_percent = std::clamp(cpu_percent_all_cores / cpu_count, 0.0, max_cpu_percent);
             }
           }
         }

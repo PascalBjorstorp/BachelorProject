@@ -575,7 +575,7 @@ if hasNodeProcessCpu
         grid on;
         ylabel('CPU [%]');
         title('ROS node CPU over time (top nodes by mean)');
-        ylim([0, max(100, prctile(nodeCpu, 99.5) * 1.2)]);
+        ylim([0, 100]);
         legend(cellstr(topNodes), 'Location', 'eastoutside');
 
         allVals = [];
@@ -603,7 +603,7 @@ if hasNodeProcessCpu
             xlabel('Node');
             title('Per-node CPU distribution (top nodes by mean)');
             xtickangle(20);
-            ylim([0, max(100, prctile(allVals, 99.5) * 1.2)]);
+            ylim([0, 100]);
         end
 
         fprintf('\nPer-node CPU summary (top %d by mean)\n', topK);
