@@ -8,8 +8,8 @@ close all;
 %
 % The script looks for:
 %   newest pipeline_latency_*.csv (fallback Pipeline_*.csv)
-%   SystemUsageShort.csv (optional)
-%   SystemUsageLong.csv (optional)
+%   SystemUsageShort.csv (optional, includes gpu_percent when available)
+%   SystemUsageLong.csv (optional, includes gpu_percent when available)
 %   SystemUsagePerCore.csv (optional)
 
 if nargin < 1 || isempty(csvDir)
@@ -21,6 +21,7 @@ pipelineFile = latestFileAny(csvDir, {'pipeline_latency_*.csv', 'Pipeline_*.csv'
 shortCpuFile = fullfile(csvDir, 'SystemUsageShort.csv');
 longCpuFile = fullfile(csvDir, 'SystemUsageLong.csv');
 perCoreCpuFile = fullfile(csvDir, 'SystemUsagePerCore.csv');
+gpuUsageFile = fullfile(csvDir, 'SystemUsageGpu.csv');
 
 fprintf('Using pipeline CSV: %s\n', pipelineFile);
 
@@ -36,11 +37,16 @@ assertHasColumns(Tp, requiredPipeline, 'Pipeline CSV');
 
 hasCpuWindows = isfile(shortCpuFile) && isfile(longCpuFile);
 hasPerCoreCpu = isfile(perCoreCpuFile);
+hasGpuShort = isfile(gpuUsageFile);
 Tshort = table();
 Tlong = table();
 Tcore = table();
+Tgpu = table();
 shortCpu = [];
 longCpu = [];
+shortGpu = [];
+longGpu = [];
+hasGpuLong = false;
 coreCpu = [];
 coreNames = {};
 
@@ -60,12 +66,38 @@ if hasCpuWindows
     else
         shortCpu = double(Tshort.cpu_short_window_percent);
         longCpu = double(Tlong.cpu_long_window_percent);
+
+        hasGpuLong = ismember('gpu_percent', Tlong.Properties.VariableNames);
+        if hasGpuLong
+            longGpu = double(Tlong.gpu_percent);
+        end
     end
 else
     fprintf('CPU window CSVs not found. Expected:\n');
     fprintf('  %s\n', shortCpuFile);
     fprintf('  %s\n', longCpuFile);
     fprintf('Proceeding with pipeline latency plots only.\n');
+end
+
+if hasGpuShort
+    fprintf('Using GPU CSV: %s\n', gpuUsageFile);
+    Tgpu = readtable(gpuUsageFile, 'VariableNamingRule', 'preserve');
+    assertHasColumns(Tgpu, {'monotonic_time_ns','gpu_percent'}, 'GPU CSV');
+
+    if height(Tgpu) == 0
+        fprintf('GPU CSV is empty. Skipping GPU short-rate plots.\n');
+        hasGpuShort = false;
+    else
+        shortGpu = double(Tgpu.gpu_percent);
+    end
+else
+    fprintf('GPU CSV not found. Expected:\n');
+    fprintf('  %s\n', gpuUsageFile);
+    if hasCpuWindows && ismember('gpu_percent', Tshort.Properties.VariableNames)
+        fprintf('Falling back to gpu_percent in short CPU CSV.\n');
+        hasGpuShort = true;
+        shortGpu = double(Tshort.gpu_percent);
+    end
 end
 
 if hasPerCoreCpu
@@ -104,6 +136,16 @@ if hasPerCoreCpu
     tCore = (double(Tcore.monotonic_time_ns) - double(Tcore.monotonic_time_ns(1))) * 1e-9;
 else
     tCore = [];
+end
+
+if hasGpuShort
+    if height(Tgpu) > 0
+        tGpu = (double(Tgpu.monotonic_time_ns) - double(Tgpu.monotonic_time_ns(1))) * 1e-9;
+    else
+        tGpu = tShort;
+    end
+else
+    tGpu = [];
 end
 
 hasPipeline = height(Tp) > 0;
@@ -375,6 +417,95 @@ if hasPerCoreCpu
     grid on;
 end
 
+%% Figure 7: GPU windows over time (optional)
+if hasGpuShort || hasGpuLong
+    figure('Name', 'GPU Windows', 'Color', 'w');
+    if hasGpuLong
+        tiledlayout(2,1, 'Padding', 'compact', 'TileSpacing', 'compact');
+    else
+        tiledlayout(1,1, 'Padding', 'compact', 'TileSpacing', 'compact');
+    end
+
+    nexttile;
+    plot(tGpu, shortGpu, 'Color', [0.49 0.18 0.56], 'LineWidth', 0.8);
+    grid on;
+    ylabel('GPU [%]');
+    title('Short-rate GPU usage');
+    ylim([0, 100]);
+    if ~hasGpuLong
+        xlabel('Time [s]');
+    end
+
+    if hasGpuLong
+        nexttile;
+        stairs(tLong, longGpu, 'Color', [0.47 0.67 0.19], 'LineWidth', 1.4);
+        grid on;
+        xlabel('Time [s]');
+        ylabel('GPU [%]');
+        title('Long window GPU (1 Hz log cadence)');
+        ylim([0, 100]);
+    end
+end
+
+%% Figure 8: CPU vs GPU alignment and phase comparison (optional)
+if hasCpuWindows && hasGpuShort
+    gpuAligned = interp1(tGpu, shortGpu, tShort, 'linear', 'extrap');
+
+    phaseCycleAlignSec = 0.025;
+    phaseBinAlignSec = 0.005;
+    phaseAlignSec = mod(tShort, phaseCycleAlignSec);
+    phaseAlignEdgesSec = 0:phaseBinAlignSec:phaseCycleAlignSec;
+    [~, ~, phaseAlignIdx] = histcounts(phaseAlignSec, phaseAlignEdgesSec);
+
+    nAlignBins = numel(phaseAlignEdgesSec) - 1;
+    phaseAlignCentersSec = phaseAlignEdgesSec(1:end-1) + (phaseBinAlignSec / 2);
+    cpuAlignMean = nan(nAlignBins, 1);
+    gpuAlignMean = nan(nAlignBins, 1);
+
+    for b = 1:nAlignBins
+        cpuVals = shortCpu(phaseAlignIdx == b);
+        gpuVals = gpuAligned(phaseAlignIdx == b);
+
+        cpuVals = cpuVals(isfinite(cpuVals));
+        gpuVals = gpuVals(isfinite(gpuVals));
+
+        if ~isempty(cpuVals)
+            cpuAlignMean(b) = mean(cpuVals);
+        end
+        if ~isempty(gpuVals)
+            gpuAlignMean(b) = mean(gpuVals);
+        end
+    end
+
+    figure('Name', 'CPU-GPU Alignment (25ms)', 'Color', 'w');
+    tiledlayout(2,1, 'Padding', 'compact', 'TileSpacing', 'compact');
+
+    nexttile;
+    plot(tShort, shortCpu, 'Color', [0.00 0.45 0.74], 'LineWidth', 0.8);
+    hold on;
+    plot(tShort, gpuAligned, 'Color', [0.49 0.18 0.56], 'LineWidth', 0.8);
+    hold off;
+    grid on;
+    xlabel('Time [s]');
+    ylabel('Utilization [%]');
+    title('Short-rate aligned CPU and GPU');
+    ylim([0, 100]);
+    legend('CPU short', 'GPU', 'Location', 'best');
+
+    nexttile;
+    plot(phaseAlignCentersSec * 1e3, cpuAlignMean, '-o', 'Color', [0.00 0.45 0.74], 'LineWidth', 1.4);
+    hold on;
+    plot(phaseAlignCentersSec * 1e3, gpuAlignMean, '-s', 'Color', [0.49 0.18 0.56], 'LineWidth', 1.4);
+    hold off;
+    grid on;
+    xlabel('Phase in 25ms cycle [ms]');
+    ylabel('Mean utilization [%]');
+    title('CPU vs GPU mean by 5ms phase bin');
+    xticks(0:(phaseBinAlignSec * 1e3):(phaseCycleAlignSec * 1e3));
+    ylim([0, 100]);
+    legend('CPU mean', 'GPU mean', 'Location', 'best');
+end
+
 %% Stats summary
 if hasPipeline
     fprintf('\nLatency summary\n');
@@ -400,6 +531,16 @@ if hasCpuWindows
         fprintf('phase [%5.1f,%5.1f) ms : mean=%8.3f  p95=%8.3f  n=%d\n', ...
             phaseEdgesSec(b) * 1e3, phaseEdgesSec(b + 1) * 1e3, ...
             phaseMean(b), phaseP95(b), phaseCount(b));
+    end
+end
+
+if hasGpuShort || hasGpuLong
+    fprintf('\nGPU summary\n');
+    if hasGpuShort
+        printStats('gpu_short_window', shortGpu);
+    end
+    if hasGpuLong
+        printStats('gpu_long_window', longGpu);
     end
 end
 
