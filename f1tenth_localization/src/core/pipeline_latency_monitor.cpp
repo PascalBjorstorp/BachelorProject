@@ -149,33 +149,59 @@ void PipelineLatencyMonitor::amcl_callback(
   auto it = entries_.find(key);
   if (it == entries_.end()) return;  // no matching scan
 
+  if (it->second.has_amcl) {
+    return;
+  }
+
   it->second.amcl_recv_ns = recv;
   it->second.has_amcl = true;
 
-  // Remember this key so EKF callback can match to it
-  last_amcl_key_ = key;
+  pending_ekf_keys_.push_back(key);
+  if (pending_ekf_keys_.size() > 2000) {
+    pending_ekf_keys_.erase(pending_ekf_keys_.begin(), pending_ekf_keys_.begin() + 1000);
+  }
 }
 
 void PipelineLatencyMonitor::ekf_callback(
-  const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr & /*msg*/)
+  const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr & msg)
 {
   const double recv = wall_ns();
+  const int64_t ekf_key = stamp_to_key(msg->header.stamp);
 
   std::lock_guard<std::mutex> lk(mutex_);
-  if (last_amcl_key_ == 0) return;
 
-  auto it = entries_.find(last_amcl_key_);
-  if (it == entries_.end()) return;
-  if (!it->second.has_amcl) return;  // safety
-  if (it->second.has_ekf) return;    // already matched
+  auto mark_ekf = [this, recv](int64_t key) {
+      auto it = entries_.find(key);
+      if (it == entries_.end()) {
+        return false;
+      }
+      if (!it->second.has_scan || !it->second.has_amcl || it->second.has_ekf) {
+        return false;
+      }
 
-  it->second.ekf_recv_ns = recv;
-  it->second.has_ekf = true;
+      it->second.ekf_recv_ns = recv;
+      it->second.has_ekf = true;
 
-  // Keep this completed pipeline entry pending until matching drive arrives.
-  pending_drive_entries_.push_back(PendingDriveEntry{last_amcl_key_, recv});
-  if (pending_drive_entries_.size() > 2000) {
-    pending_drive_entries_.erase(pending_drive_entries_.begin(), pending_drive_entries_.begin() + 1000);
+      pending_drive_entries_.push_back(PendingDriveEntry{key, recv});
+      if (pending_drive_entries_.size() > 2000) {
+        pending_drive_entries_.erase(
+          pending_drive_entries_.begin(), pending_drive_entries_.begin() + 1000);
+      }
+      return true;
+    };
+
+  // Prefer exact stamp key if EKF preserves input stamp.
+  if (ekf_key > 0 && mark_ekf(ekf_key)) {
+    return;
+  }
+
+  // Fallback for EKF outputs that overwrite stamps: consume oldest AMCL-ready key.
+  while (!pending_ekf_keys_.empty()) {
+    const int64_t key = pending_ekf_keys_.front();
+    pending_ekf_keys_.pop_front();
+    if (mark_ekf(key)) {
+      return;
+    }
   }
 }
 

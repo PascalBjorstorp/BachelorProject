@@ -11,17 +11,22 @@ close all;
 %   SystemUsageShort.csv (optional, includes gpu_percent when available)
 %   SystemUsageLong.csv (optional, includes gpu_percent when available)
 %   SystemUsagePerCore.csv (optional)
+%   SystemUsageNodeProcesses.csv (optional, per-ROS-node CPU usage)
 
 if nargin < 1 || isempty(csvDir)
     scriptDir = fileparts(mfilename('fullpath'));
+    %folderSelected = 'MPC_FPGA';
+    %csvDir = fullfile(scriptDir, 'csv', folderSelected);
     csvDir = fullfile(scriptDir, 'csv');
 end
 
-pipelineFile = latestFileAny(csvDir, {'pipeline_latency_*.csv', 'Pipeline_*.csv'});
+
+pipelineFile = latestFileAny(csvDir, {'pipeline_*.csv'});
 shortCpuFile = fullfile(csvDir, 'SystemUsageShort.csv');
 longCpuFile = fullfile(csvDir, 'SystemUsageLong.csv');
 perCoreCpuFile = fullfile(csvDir, 'SystemUsagePerCore.csv');
 gpuUsageFile = fullfile(csvDir, 'SystemUsageGpu.csv');
+nodeProcessCpuFile = fullfile(csvDir, 'SystemUsageNodeProcesses.csv');
 
 fprintf('Using pipeline CSV: %s\n', pipelineFile);
 
@@ -38,10 +43,12 @@ assertHasColumns(Tp, requiredPipeline, 'Pipeline CSV');
 hasCpuWindows = isfile(shortCpuFile) && isfile(longCpuFile);
 hasPerCoreCpu = isfile(perCoreCpuFile);
 hasGpuShort = isfile(gpuUsageFile);
+hasNodeProcessCpu = isfile(nodeProcessCpuFile);
 Tshort = table();
 Tlong = table();
 Tcore = table();
 Tgpu = table();
+Tnode = table();
 shortCpu = [];
 longCpu = [];
 shortGpu = [];
@@ -100,6 +107,20 @@ else
     end
 end
 
+if hasNodeProcessCpu
+    fprintf('Using node-process CPU CSV: %s\n', nodeProcessCpuFile);
+    Tnode = readtable(nodeProcessCpuFile, 'VariableNamingRule', 'preserve');
+    assertHasColumns(Tnode, {'monotonic_time_ns','node_name','pid','cpu_percent'}, 'Node Process CPU CSV');
+
+    if height(Tnode) == 0
+        fprintf('Node-process CPU CSV is empty. Skipping per-node CPU figure.\n');
+        hasNodeProcessCpu = false;
+    end
+else
+    fprintf('Node-process CPU CSV not found. Expected:\n');
+    fprintf('  %s\n', nodeProcessCpuFile);
+end
+
 if hasPerCoreCpu
     fprintf('Using per-core CPU CSV: %s\n', perCoreCpuFile);
     Tcore = readtable(perCoreCpuFile, 'VariableNamingRule', 'preserve');
@@ -146,6 +167,12 @@ if hasGpuShort
     end
 else
     tGpu = [];
+end
+
+if hasNodeProcessCpu
+    tNode = (double(Tnode.monotonic_time_ns) - double(Tnode.monotonic_time_ns(1))) * 1e-9;
+else
+    tNode = [];
 end
 
 hasPipeline = height(Tp) > 0;
@@ -223,30 +250,48 @@ if hasPipeline
         axis off; text(0.1,0.5,'No scan->drive column','FontSize',11);
     end
 
-    %% Figure 2: End-to-end histogram
+    %% Figure 2: Combined histograms (scan->ekf on top, scan->drive below)
+    scan2ekfAllValid = scan2ekf(isfinite(scan2ekf) & scan2ekf >= 0);
+
     if hasS2D
+        driveMatchedMask = isfinite(scan2ekf) & (scan2ekf >= 0) & ~isnan(s2dPlot);
+        scan2ekfValid = scan2ekf(driveMatchedMask);
         s2dValid = s2dPlot(~isnan(s2dPlot));
+        droppedUnmatched = max(0, numel(scan2ekfAllValid) - numel(scan2ekfValid));
     else
+        scan2ekfValid = scan2ekfAllValid;
         s2dValid = [];
+        droppedUnmatched = 0;
     end
 
-    if isempty(s2dValid)
-        s2dValid = double(Tp.scan_to_ekf_ms);
-        histTitle = 'Histogram: scan->ekf';
-        xlab = 'scan->ekf [ms]';
-    else
-        histTitle = 'Histogram: scan->drive';
-        xlab = 'scan->drive [ms]';
-    end
+    figure('Name', 'Latency Histograms', 'Color', 'w');
+    tiledlayout(2,1, 'Padding', 'compact', 'TileSpacing', 'compact');
 
-    figure('Name', 'Latency Histogram', 'Color', 'w');
-    histogram(s2dValid, 80);
+    nexttile;
+    histogram(scan2ekfValid, 80);
     grid on;
-    title(histTitle);
-    xlabel(xlab);
+    if hasS2D
+        title(sprintf('Histogram: scan->ekf (drive-matched, dropped %d unmatched)', droppedUnmatched));
+    else
+        title('Histogram: scan->ekf');
+    end
+    xlabel('scan->ekf [ms]');
     ylabel('Count');
+    if ~isempty(scan2ekfValid)
+        xlim([0, max(5, prctile(scan2ekfValid, 99.5))]);
+    end
+
+    nexttile;
     if ~isempty(s2dValid)
+        histogram(s2dValid, 80);
+        grid on;
+        title('Histogram: scan->drive');
+        xlabel('scan->drive [ms]');
+        ylabel('Count');
         xlim([0, max(5, prctile(s2dValid, 99.5))]);
+    else
+        axis off;
+        text(0.1, 0.5, 'No scan->drive data available', 'FontSize', 11);
     end
 
     %% Figure 3: Boxplot with six timing metrics
@@ -506,25 +551,146 @@ if hasCpuWindows && hasGpuShort
     legend('CPU mean', 'GPU mean', 'Location', 'best');
 end
 
+%% Figure 9: Per-node CPU usage (optional)
+if hasNodeProcessCpu
+    nodeNames = string(Tnode.node_name);
+    nodeCpu = double(Tnode.cpu_percent);
+    nodePid = double(Tnode.pid);
+
+    validNode = isfinite(nodeCpu) & (nodeCpu >= 0) & strlength(nodeNames) > 0;
+    nodeNames = nodeNames(validNode);
+    nodeCpu = nodeCpu(validNode);
+    nodePid = nodePid(validNode);
+    tNodeValid = tNode(validNode);
+
+    if ~isempty(nodeCpu)
+        [uniqueNodes, ~, nodeIdx] = unique(nodeNames, 'stable');
+        nodeMean = accumarray(nodeIdx, nodeCpu, [], @mean, NaN);
+        [~, sortIdx] = sort(nodeMean, 'descend');
+
+        topK = min(8, numel(uniqueNodes));
+        topNodes = uniqueNodes(sortIdx(1:topK));
+
+        figure('Name', 'Per-Node CPU', 'Color', 'w');
+        tiledlayout(2,1, 'Padding', 'compact', 'TileSpacing', 'compact');
+
+        nexttile;
+        hold on;
+        cmap = lines(topK);
+        lineHandles = gobjects(0);
+        lineLabels = cell(0, 1);
+        for i = 1:topK
+            idx = (nodeNames == topNodes(i));
+            tVals = tNodeValid(idx);
+            yVals = nodeCpu(idx);
+
+            [tVals, order] = sort(tVals);
+            yVals = yVals(order);
+
+            if numel(yVals) >= 3
+                dt = median(diff(tVals));
+                if ~isfinite(dt) || dt <= 0
+                    dt = 0.2;
+                end
+                smoothWin = max(3, round(1.0 / dt));  % ~1 second smoothing
+                ySmooth = movmean(yVals, smoothWin, 'omitnan');
+            else
+                ySmooth = yVals;
+            end
+
+            h = plot(tVals, ySmooth, '-', 'Color', cmap(i,:), 'LineWidth', 1.4);
+            lineHandles(end + 1) = h; %#ok<AGROW>
+            lineLabels{end + 1} = char(topNodes(i)); %#ok<AGROW>
+        end
+
+        nodeTimeNs = double(Tnode.monotonic_time_ns(validNode));
+        [uniqueNodeTimeNs, ~, timeIdx] = unique(nodeTimeNs, 'stable');
+        trackedRosTotal = accumarray(timeIdx, nodeCpu, [], @sum, NaN);
+        trackedRosTime = (uniqueNodeTimeNs - uniqueNodeTimeNs(1)) * 1e-9;
+
+        hTotal = plot(trackedRosTime, trackedRosTotal, 'k--', 'LineWidth', 1.8);
+        lineHandles(end + 1) = hTotal; %#ok<AGROW>
+        lineLabels{end + 1} = 'tracked_ros_total'; %#ok<AGROW>
+
+        hold off;
+        grid on;
+        ylabel('CPU [%]');
+        title('ROS node CPU over time (top nodes by mean, smoothed)');
+        ylim([0, 100]);
+        legend(lineHandles, lineLabels, 'Location', 'eastoutside');
+
+        nodeMeanTop = nan(topK, 1);
+        nodeP95Top = nan(topK, 1);
+        for i = 1:topK
+            idx = (nodeNames == topNodes(i));
+            vals = nodeCpu(idx);
+            vals = vals(isfinite(vals));
+            if isempty(vals)
+                continue;
+            end
+
+            nodeMeanTop(i) = mean(vals);
+            nodeP95Top(i) = prctile(vals, 95);
+        end
+
+        nexttile;
+        if all(isnan(nodeMeanTop))
+            axis off;
+            text(0.1, 0.5, 'No per-node CPU samples available', 'FontSize', 11);
+        else
+            bar([nodeMeanTop, nodeP95Top], 'grouped');
+            grid on;
+            ylabel('CPU [%]');
+            xlabel('Node');
+            title('Per-node CPU summary (mean and P95)');
+            legend('Mean', 'P95', 'Location', 'best');
+            xticks(1:topK);
+            xticklabels(cellstr(topNodes));
+            xtickangle(20);
+            ylim([0, 100]);
+        end
+
+        fprintf('\nPer-node CPU summary (top %d by mean)\n', topK);
+        for i = 1:topK
+            idx = (nodeNames == topNodes(i));
+            vals = nodeCpu(idx);
+            vals = vals(isfinite(vals));
+            if isempty(vals)
+                continue;
+            end
+            pids = unique(nodePid(idx));
+            fprintf('%-28s : mean=%8.3f %%   p95=%8.3f %%   p99=%8.3f %%   pids=%d\n', ...
+                char(topNodes(i)), mean(vals), prctile(vals, 95), prctile(vals, 99), numel(pids));
+        end
+
+        trackedRosValid = trackedRosTotal(isfinite(trackedRosTotal));
+        if ~isempty(trackedRosValid)
+            fprintf('%-28s : mean=%8.3f %%   p95=%8.3f %%   p99=%8.3f %%\n', ...
+                'tracked_ros_total', mean(trackedRosValid), ...
+                prctile(trackedRosValid, 95), prctile(trackedRosValid, 99));
+        end
+    end
+end
+
 %% Stats summary
 if hasPipeline
     fprintf('\nLatency summary\n');
-    printStats('scan->scan_{walls}', scan2walls);
-    printStats('scan_{walls}->amcl', walls2amcl);
-    printStats('amcl->ekf', amcl2ekf);
-    printStats('scan->ekf', scan2ekf);
+    printStats('scan->scan_{walls}', scan2walls, 'ms');
+    printStats('scan_{walls}->amcl', walls2amcl, 'ms');
+    printStats('amcl->ekf', amcl2ekf, 'ms');
+    printStats('scan->ekf', scan2ekf, 'ms');
     if hasE2D
-        printStats('ekf->drive', e2dPlot);
+        printStats('ekf->drive', e2dPlot, 'ms');
     end
     if hasS2D
-        printStats('scan->drive', s2dPlot);
+        printStats('scan->drive', s2dPlot, 'ms');
     end
 end
 
 if hasCpuWindows
     fprintf('\nCPU window summary\n');
-    printStats('cpu_short_window', shortCpu);
-    printStats('cpu_long_window', longCpu);
+    printStats('cpu_short_window', shortCpu, '%');
+    printStats('cpu_long_window', longCpu, '%');
 
     fprintf('\nShort CPU phase summary (25ms cycle, 5ms bins)\n');
     for b = 1:numel(phaseMean)
@@ -537,10 +703,10 @@ end
 if hasGpuShort || hasGpuLong
     fprintf('\nGPU summary\n');
     if hasGpuShort
-        printStats('gpu_short_window', shortGpu);
+        printStats('gpu_short_window', shortGpu, '%');
     end
     if hasGpuLong
-        printStats('gpu_long_window', longGpu);
+        printStats('gpu_long_window', longGpu, '%');
     end
 end
 
@@ -586,7 +752,11 @@ for i = 1:numel(required)
 end
 end
 
-function printStats(name, data)
+function printStats(name, data, unit)
+if nargin < 3 || isempty(unit)
+    unit = 'ms';
+end
+
 data = double(data);
 data = data(~isnan(data));
 if isempty(data)
@@ -595,8 +765,8 @@ if isempty(data)
 end
 p95 = prctile(data, 95);
 p99 = prctile(data, 99);
-fprintf('%-18s : mean=%8.3f ms   std=%8.3f   p95=%8.3f   p99=%8.3f\n', ...
-    name, mean(data), std(data), p95, p99);
+fprintf('%-18s : mean=%8.3f %s   std=%8.3f   p95=%8.3f   p99=%8.3f\n', ...
+    name, mean(data), unit, std(data), p95, p99);
 end
 
 function plotLatencyTrace(t, y, titleText, color)

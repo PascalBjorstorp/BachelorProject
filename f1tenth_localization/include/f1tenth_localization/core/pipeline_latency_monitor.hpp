@@ -6,6 +6,7 @@
 #include <string>
 #include <mutex>
 #include <fstream>
+#include <deque>
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
@@ -76,8 +77,8 @@ private:
   std::mutex mutex_;
   std::unordered_map<int64_t, PipelineEntry> entries_;
 
-  // For EKF matching: last AMCL stamp that we're waiting for EKF on
-  int64_t last_amcl_key_{0};
+  // AMCL-complete entries waiting for EKF in arrival order.
+  std::deque<int64_t> pending_ekf_keys_;
 
   // Configurable topics
   std::string scan_topic_;
