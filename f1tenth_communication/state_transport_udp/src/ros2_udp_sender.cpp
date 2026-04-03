@@ -268,6 +268,10 @@ public:
                 std::bind(&Ros2UdpSender::servoCallback, this, std::placeholders::_1));
         }
 
+        startup_diag_timer_ = create_wall_timer(
+            std::chrono::seconds(1),
+            std::bind(&Ros2UdpSender::startupDiagnostics, this));
+
         RCLCPP_INFO(get_logger(),
                 "ROS2->UDP sender ready: odom cache=%s pose trigger=%s traj_points=%zu interp=%s step=%.3f -> %s:%d",
                     odom_topic.c_str(),
@@ -407,6 +411,28 @@ private:
     }
 
     /**
+     * @brief Periodic startup diagnostics until first UDP packet is sent.
+     * @return None
+     */
+    void startupDiagnostics() {
+        if (sequence_ > 0) {
+            startup_diag_timer_->cancel();
+            return;
+        }
+
+        if (!has_odom_dynamics_) {
+            RCLCPP_WARN(get_logger(),
+                        "UDP sender waiting: no valid odom dynamics yet on odom_topic");
+            return;
+        }
+
+        if (!has_pose_topic_sample_) {
+            RCLCPP_WARN(get_logger(),
+                        "UDP sender waiting: pose_topic has not produced a sample yet");
+        }
+    }
+
+    /**
      * @brief Sample trajectory at requested arc length with wrap-around interpolation.
      * @param s_query Arc-length query in meters.
      * @return Interpolated waypoint sample.
@@ -520,11 +546,21 @@ private:
     }
 
     /**
-     * @brief Build and transmit one UDP state packet on each pose trigger.
-     * @param msg Incoming pose message.
+     * @brief Build and transmit one UDP state packet using supplied pose + cached dynamics.
+     * @param x Global x position in meters.
+     * @param y Global y position in meters.
+     * @param qx Quaternion x component.
+     * @param qy Quaternion y component.
+     * @param qz Quaternion z component.
+     * @param qw Quaternion w component.
      * @return None
      */
-    void poseCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+    void sendStatePacket(double x,
+                         double y,
+                         double qx,
+                         double qy,
+                         double qz,
+                         double qw) {
         if (kdtree_.size() == 0) {
             return;
         }
@@ -534,16 +570,10 @@ private:
             return;
         }
 
-        const double x = msg->pose.pose.position.x;
-        const double y = msg->pose.pose.position.y;
-        const double qx = msg->pose.pose.orientation.x;
-        const double qy = msg->pose.pose.orientation.y;
-        const double qz = msg->pose.pose.orientation.z;
-        const double qw = msg->pose.pose.orientation.w;
         if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(qx) ||
             !std::isfinite(qy) || !std::isfinite(qz) || !std::isfinite(qw)) {
             RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                                 "Skipping UDP send: invalid ekf_pose values");
+                                 "Skipping UDP send: invalid pose values");
             return;
         }
 
@@ -652,6 +682,21 @@ private:
         }
     }
 
+    /**
+     * @brief Build and transmit one UDP state packet on each pose trigger.
+     * @param msg Incoming pose message.
+     * @return None
+     */
+    void poseCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+        has_pose_topic_sample_ = true;
+        sendStatePacket(msg->pose.pose.position.x,
+                        msg->pose.pose.position.y,
+                        msg->pose.pose.orientation.x,
+                        msg->pose.pose.orientation.y,
+                        msg->pose.pose.orientation.z,
+                        msg->pose.pose.orientation.w);
+    }
+
     int sock_fd_{-1};
     sockaddr_in dest_addr_{};
     uint32_t sequence_{0};
@@ -668,11 +713,13 @@ private:
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
     rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr servo_sub_;
+    rclcpp::TimerBase::SharedPtr startup_diag_timer_;
 
     double latest_vx_{0.0};
     double latest_vy_{0.0};
     double latest_omega_{0.0};
     bool has_odom_dynamics_{false};
+    bool has_pose_topic_sample_{false};
 };
 
 }  // namespace state_transport_udp

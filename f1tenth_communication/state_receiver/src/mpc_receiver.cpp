@@ -205,10 +205,15 @@ public:
                  const f1tenth_msgs::msg::MpcState& msg,
                  int32_t& out_steering_fp, int32_t& out_accel_fp,
                  uint32_t& out_status, uint32_t& out_iterations) {
-        // Check if FPGA is ready before attempting compute
-        if (!is_fpga_operating()) return false;
         // Check if interface is initialized before attempting compute
         if (!initialized_) return false;
+
+        // Confirm Linux FPGA manager operating state once per process lifetime,
+        // instead of doing file I/O on every callback.
+        if (!fpga_operating_confirmed_) {
+            if (!is_fpga_operating()) return false;
+            fpga_operating_confirmed_ = true;
+        }
 
         // Validate horizon length before proceeding with packing and transfer
         const size_t horizon = std::min(static_cast<size_t>(msg.horizon_length),
@@ -251,6 +256,13 @@ public:
         
         // Memory barrier to ensure all buffer writes are visible
         __sync_synchronize();
+
+        // Clear stale completion/valid flags from the previous transaction.
+        (void)mpc_read(REG_AP_CTRL);
+        (void)mpc_read(REG_OUT_STEERING_VLD);
+        (void)mpc_read(REG_OUT_ACCEL_VLD);
+        (void)mpc_read(REG_OUT_STATUS_VLD);
+        (void)mpc_read(REG_OUT_ITERATIONS_VLD);
 
         // --- Measure compute time ---
         struct timespec t0, t1;
@@ -334,6 +346,7 @@ private:
     uint32_t dma_base_addr_ = 0;        // Base address for AXI DMA controller registers
     uint64_t dma_buf_phys_  = 0;        // DMA buffer physical address
     bool     initialized_   = false;    // Flag indicating successful initialization
+    bool     fpga_operating_confirmed_ = false; // Cached FPGA manager operating state.
     int64_t  last_compute_ns_ = 0;      // Stores duration of last successful compute call in nanoseconds; negative if last call failed or timed out.
 
     // MPC IP register access
@@ -450,10 +463,16 @@ private:
      * @return true when both output-valid flags are asserted.
      */
     bool wait_output_valid(int timeout_cycles) {
+        bool steer_seen = false;
+        bool accel_seen = false;
         while (timeout_cycles-- > 0) {
-            const uint32_t steer_vld = mpc_read(REG_OUT_STEERING_VLD);
-            const uint32_t accel_vld = mpc_read(REG_OUT_ACCEL_VLD);
-            if ((steer_vld & 0x1u) && (accel_vld & 0x1u)) return true;
+            if (!steer_seen) {
+                steer_seen = (mpc_read(REG_OUT_STEERING_VLD) & 0x1u) != 0u;
+            }
+            if (!accel_seen) {
+                accel_seen = (mpc_read(REG_OUT_ACCEL_VLD) & 0x1u) != 0u;
+            }
+            if (steer_seen && accel_seen) return true;
         }
         return false;
     }
@@ -505,11 +524,13 @@ public:
             mpc_addr, dma_addr, (unsigned long)dma_buf_phys);
 
         // --- Create publisher & subscriber ---
-        // Use SystemDefaultsQoS (Reliable) to match ackermann_mux subscriber
-        drive_pub_ = create_publisher<ackermann_msgs::msg::AckermannDriveStamped>(
-            drive_topic, rclcpp::SystemDefaultsQoS());
+        // Use SystemDefaultsQoS (Reliable) to match ackermann_mux subscriber.
+        drive_pub_ = create_publisher<ackermann_msgs::msg::AckermannDriveStamped>
+            (drive_topic, rclcpp::SystemDefaultsQoS());
 
+        // Input state stream should stay Best Effort to minimize latency.
         auto qos = rclcpp::QoS(1).best_effort().durability_volatile();
+
         sub_ = create_subscription<f1tenth_msgs::msg::MpcState>(
             input_topic, qos,
             std::bind(&MpcReceiverFpgaNode::state_callback, this,
@@ -534,6 +555,11 @@ private:
     // --- Runtime statistics/state -------------------------------------------
     uint64_t msg_count_       = 0;                                                          // Total number of messages processed (for diagnostics)
     uint64_t latency_count_   = 0;                                                          // Number of messages with valid latency measurements (for diagnostics)
+    uint64_t rx_count_        = 0;                                                          // Total number of /mpc_state messages received
+    uint64_t pub_count_       = 0;                                                          // Total number of /drive messages published
+    uint64_t drop_no_horizon_ = 0;                                                          // Count of messages dropped due to missing horizon data
+    uint64_t drop_bad_arrays_ = 0;                                                          // Count of messages dropped due to invalid horizon array sizes
+    uint64_t drop_compute_    = 0;                                                          // Count of messages dropped due to FPGA compute failure
     double   total_latency_ms_ = 0.0;                                                       // Cumulative latency in milliseconds (for diagnostics)
     double   total_loop_us_ = 0.0;                                                          // Cumulative compute loop time in microseconds (for diagnostics)
     double   min_loop_us_ = std::numeric_limits<double>::infinity();                        // Minimum compute loop time observed in microseconds (for diagnostics)
@@ -628,6 +654,8 @@ private:
     void update_timing_and_log(const f1tenth_msgs::msg::MpcState::SharedPtr& msg,
                                const std::chrono::high_resolution_clock::time_point& t_start,
                                const std::chrono::high_resolution_clock::time_point& t_end,
+                               float e_y_m,
+                               float e_psi_rad,
                                float steering,
                                float speed,
                                float accel,
@@ -662,23 +690,29 @@ private:
             const int64_t fpga_ns = fpga_.get_last_compute_ns();
             if (latency_ms >= 0.0 && avg >= 0.0) {
                 RCLCPP_INFO(get_logger(),
-                    "[FPGA] delta=%.1f deg  v=%.1f  a=%.1f | "
+                    "[FPGA] ey=%.3f m epsi=%.1f deg delta=%.1f deg  v=%.1f  a=%.1f | "
                     "Status=%u  Iter=%u | Total=%ld us  FPGA=%ld ns | "
-                    "Loop us avg/min/max=%.1f/%.1f/%.1f | Lat %.1f ms (avg %.1f)",
+                    "Loop us avg/min/max=%.1f/%.1f/%.1f | Lat %.1f ms (avg %.1f) | rx=%lu pub=%lu drop(h=%lu a=%lu c=%lu)",
+                    e_y_m,
+                    e_psi_rad * MPC_FPGA_RAD_TO_DEG,
                     steering * MPC_FPGA_RAD_TO_DEG, speed, accel,
                     status, iters,
                     compute_us, fpga_ns,
                     avg_loop_us, min_loop_us_, max_loop_us_,
-                    latency_ms, avg);
+                    latency_ms, avg,
+                    rx_count_, pub_count_, drop_no_horizon_, drop_bad_arrays_, drop_compute_);
             } else {
                 RCLCPP_INFO(get_logger(),
-                    "[FPGA] delta=%.1f deg  v=%.1f  a=%.1f | "
+                    "[FPGA] ey=%.3f m epsi=%.1f deg delta=%.1f deg  v=%.1f  a=%.1f | "
                     "Status=%u  Iter=%u | Total=%ld us  FPGA=%ld ns | "
-                    "Loop us avg/min/max=%.1f/%.1f/%.1f | Lat N/A",
+                    "Loop us avg/min/max=%.1f/%.1f/%.1f | Lat N/A | rx=%lu pub=%lu drop(h=%lu a=%lu c=%lu)",
+                    e_y_m,
+                    e_psi_rad * MPC_FPGA_RAD_TO_DEG,
                     steering * MPC_FPGA_RAD_TO_DEG, speed, accel,
                     status, iters,
                     compute_us, fpga_ns,
-                    avg_loop_us, min_loop_us_, max_loop_us_);
+                    avg_loop_us, min_loop_us_, max_loop_us_,
+                    rx_count_, pub_count_, drop_no_horizon_, drop_bad_arrays_, drop_compute_);
             }
         }
     }
@@ -692,6 +726,7 @@ private:
     void state_callback(const f1tenth_msgs::msg::MpcState::SharedPtr msg) {
         auto t_start = std::chrono::high_resolution_clock::now();
         last_msg_time_ = std::chrono::steady_clock::now();
+        rx_count_++;
 
         float    steering = 0.0f;
         float    speed    = 0.0f;
@@ -704,6 +739,7 @@ private:
 
         // 1) Validate inputs
         if (!has_required_horizon_data(msg)) {
+            drop_no_horizon_++;
             RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
                 "No streamed waypoint data in message");
             return;
@@ -716,6 +752,7 @@ private:
             msg->ref_kappa_fp.size() < horizon ||
             msg->ref_left_bound_fp.size() < horizon ||
             msg->ref_right_bound_fp.size() < horizon) {
+            drop_bad_arrays_++;
             RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
                 "Horizon data arrays too small for horizon_length=%zu, got sizes: vx=%zu kappa=%zu left=%zu right=%zu",
                 horizon, msg->ref_vx_fp.size(), msg->ref_kappa_fp.size(),
@@ -729,6 +766,8 @@ private:
 
         // 2) Build tracking errors
         const FrenetErrorsFp errors = compute_frenet_errors(msg);
+        const float e_y_m = fp_to_float(errors.e_y_fp);
+        const float e_psi_rad = fp_to_float(errors.e_psi_fp);
 
         // 3) Run MPC via DMA - packs state+horizon, transfers via AXI-Stream, computes
         const bool ok = fpga_.compute(
@@ -740,6 +779,7 @@ private:
 
         // Check for compute success (includes DMA transfer and MPC completion)
         if (!ok) {
+            drop_compute_++;
             RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
                 "FPGA DMA/compute failed");
             return;
@@ -757,10 +797,17 @@ private:
 
         // 5) Publish command
         publish_drive_command(steering, speed, accel);
+        pub_count_++;
+        if (pub_count_ == 1) {
+            RCLCPP_INFO(get_logger(),
+                "First /drive published after rx=%lu messages (drops: horizon=%lu arrays=%lu compute=%lu)",
+                rx_count_, drop_no_horizon_, drop_bad_arrays_, drop_compute_);
+        }
 
         // 6) Update timing stats and logs
         auto t_end = std::chrono::high_resolution_clock::now();
-        update_timing_and_log(msg, t_start, t_end, steering, speed, accel, status, iters);
+        update_timing_and_log(msg, t_start, t_end, e_y_m, e_psi_rad,
+                              steering, speed, accel, status, iters);
     }
 
 };
