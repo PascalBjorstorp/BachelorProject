@@ -260,7 +260,7 @@ void ScanSplitterNode::scan_callback(
   // Walls scan keeps only wall beams; obstacles scan keeps only obstacle beams.
   for (size_t i = 0; i < n; ++i) {
     if (is_obstacle_[i]) {
-      wall_ranges_[i] = INF;
+      wall_ranges_[i] = ranges[i];
       obstacle_ranges_[i] = ranges[i];
     } else {
       wall_ranges_[i] = ranges[i];
