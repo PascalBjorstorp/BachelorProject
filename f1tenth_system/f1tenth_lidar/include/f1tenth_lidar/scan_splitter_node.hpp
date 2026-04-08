@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "scan_splitter_config.hpp"
+
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
@@ -38,10 +40,10 @@ private:
 
   // ── Helpers ────────────────────────────────────────────────────────
   /**
-   * Compute the Euclidean distance transform of a binary occupancy grid
-   * using a BFS (exact for 8-connectivity, then convert cell count → metres).
-   * Actually uses a proper two-pass O(n) squared-distance transform for
-   * better accuracy.
+    * Compute map distance-to-wall (in metres) from a binary occupancy grid
+    * using 8-connected Dijkstra propagation from occupied cells.
+    *
+    * Distances are metric (already in metres), suitable for thresholding.
    */
   void compute_distance_field(const nav_msgs::msg::OccupancyGrid & grid);
 
@@ -54,16 +56,15 @@ private:
   void filter_clusters(std::vector<bool> & mask, int min_size, int max_gap) const;
 
   // ── Parameters ─────────────────────────────────────────────────────
-  bool   enable_splitting_{true};
-  double obstacle_threshold_{0.1};
-  int    min_cluster_size_{3};
-  int    max_cluster_gap_beams_{0};
-  std::string scan_topic_{"/scan"};
-  std::string walls_topic_{"/scan_walls"};
-  std::string obstacles_topic_{"/scan_obstacles"};
-  std::string robot_frame_{"ego_racecar/base_link"};
-  std::string laser_frame_{"ego_racecar/laser"};
-  std::string map_frame_{"map"};
+  bool   enable_splitting_{SCAN_SPLITTER_ENABLE_SPLITTING};
+  double obstacle_threshold_{SCAN_SPLITTER_OBSTACLE_THRESHOLD_M};
+  int    min_cluster_size_{SCAN_SPLITTER_MIN_CLUSTER_SIZE};
+  int    max_cluster_gap_beams_{SCAN_SPLITTER_MAX_CLUSTER_GAP_BEAMS};
+  std::string scan_topic_{SCAN_SPLITTER_SCAN_TOPIC};
+  std::string walls_topic_{SCAN_SPLITTER_WALLS_TOPIC};
+  std::string obstacles_topic_{SCAN_SPLITTER_OBSTACLES_TOPIC};
+  std::string laser_frame_{SCAN_SPLITTER_LASER_FRAME};
+  std::string map_frame_{SCAN_SPLITTER_MAP_FRAME};
 
   // ── Map state ──────────────────────────────────────────────────────
   bool   map_ready_{false};
@@ -76,9 +77,6 @@ private:
 
   // ── Pre-allocated work buffers (avoid per-callback heap alloc) ────
   std::vector<float> angles_;
-  std::vector<float> world_angles_;
-  std::vector<float> endpoints_x_;
-  std::vector<float> endpoints_y_;
   std::vector<bool>  is_obstacle_;
   std::vector<float> wall_ranges_;
   std::vector<float> obstacle_ranges_;

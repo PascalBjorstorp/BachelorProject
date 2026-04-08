@@ -12,11 +12,13 @@
 
 - [X] Change matlab plot to also include deviation from line
 
-## Scan splitter [0 / 1]
-- [ ] Make scan splitter actually work better and more robust in terms of spotting obstacles
+## Scan splitter [1 / 1]
+- [X] Make scan splitter actually work better and more robust in terms of spotting obstacles
 
-## Lateral planner [0 / 1]
-- [ ] Make lateral planner work with the new map so it doesn't create random routes
+## Lateral planner [1 / 2]
+- [X] Make lateral planner work with the new map so it doesn't create random routes
+
+- [ ] Make it work with dynamic obstacles and not just static ones
 
 ## Pipeline and benchmark testing [0 / 2]
 - [ ] Make the pipeline monitor track CPU per core usage properly. Maybe even track pr process
@@ -28,8 +30,9 @@
 ## System ændringer [ 1 / 1]
 - [X] Flyt lidar ned i system mappen
 
-## Launch file [0 / 1]
-- [ ] Lav en launch fil der kører alt og at man  kan vælge imellem controllere
+## Launch file [1 / 1]
+- [SCRAPPED] Lav en launch fil der kører alt og at man  kan vælge imellem controllere
+	Det gav ikke mening siden den ikke kan stoppe controlleren med det samme
 
 ## Generelt [0 / 3]
 - [ ] Tilføj briefs over alt og fix de stedder den både er i cpp og hpp
@@ -37,3 +40,22 @@
 - [ ] Kig på call back groups i forhold til bedre perfomance / mere sikkert ved multi threading
 
 - [ ] Sæt publishers og subscribers ind i en yaml så de er ens overalt
+
+
+## Rapport [0 / 2]
+
+### Skrivning [0 / 1]
+- [ ] Undersøg GMCL som et muligt emne i rapporten.
+
+### Test [0 / 1]
+- [ ] Lav en figur, hvor AMCL sammenlignes med Cartographer, Nav2 AMCL og MCL.
+
+Sammenligningskriterier:
+- Position offset
+- Vinkel offset
+- Evt. plot af spredning over tid
+- Beregningstid
+
+
+## Kilder
+file:///sensors-25-02471-v3%20(1).pdf

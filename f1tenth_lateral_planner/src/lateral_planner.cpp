@@ -8,24 +8,29 @@
 
 namespace f1tenth_lateral_planner
 {
+namespace
+{
+constexpr int kMinClusterPoints = 3;
+}  // namespace
 
-// ═════════════════════════════════════════════════════════════════════
+// =============================================================
 //  Construction
-// ═════════════════════════════════════════════════════════════════════
+// =============================================================
 
 LateralPlanner::LateralPlanner(rclcpp::Logger logger, const Parameters & params)
 : logger_(logger), params_(params)
 {
 }
 
-// ═════════════════════════════════════════════════════════════════════
+// =============================================================
 //  Raceline I/O
-// ═════════════════════════════════════════════════════════════════════
+// =============================================================
 
 bool LateralPlanner::loadTrajectory(const std::string & csv_path)
 {
   waypoints_.clear();
   modified_raceline_.clear();
+  resetAvoidance();
 
   std::ifstream file(csv_path);
   if (!file.is_open()) {
@@ -34,6 +39,9 @@ bool LateralPlanner::loadTrajectory(const std::string & csv_path)
   }
 
   std::string line;
+  double prev_s = -std::numeric_limits<double>::infinity();
+  bool warned_non_monotonic = false;
+
   while (std::getline(file, line)) {
     if (line.empty() || line[0] == '#') {
       continue;
@@ -47,36 +55,65 @@ bool LateralPlanner::loadTrajectory(const std::string & csv_path)
       try {
         values.push_back(std::stod(token));
       } catch (...) {
+        values.clear();
         break;
       }
     }
 
-    if (values.size() >= 7) {
-      Waypoint wp;
-      wp.s     = values[0];
-      wp.x     = values[1];
-      wp.y     = values[2];
-      wp.psi   = values[3];
-      wp.kappa = values[4];
-      wp.vx    = values[5];
-      wp.ax    = values[6];
-      waypoints_.push_back(wp);
+    if (values.size() < 9) {
+      continue;
     }
+
+    Waypoint wp;
+    wp.s     = values[0];
+    wp.x     = values[1];
+    wp.y     = values[2];
+    wp.psi   = values[3];
+    wp.kappa = values[4];
+    wp.vx    = values[5];
+    wp.ax    = values[6];
+    wp.d_left = values[7];
+    wp.d_right = values[8];
+
+    if (!std::isfinite(wp.s) || !std::isfinite(wp.x) || !std::isfinite(wp.y) ||
+        !std::isfinite(wp.psi) || !std::isfinite(wp.kappa) ||
+      !std::isfinite(wp.vx) || !std::isfinite(wp.ax) ||
+      !std::isfinite(wp.d_left) || !std::isfinite(wp.d_right))
+    {
+      continue;
+    }
+
+    wp.d_left = std::max(0.0, wp.d_left);
+    wp.d_right = std::max(0.0, wp.d_right);
+
+    if (wp.s < prev_s) {
+      if (!warned_non_monotonic) {
+        RCLCPP_WARN(logger_, "Trajectory s is not monotonic; dropping non-monotonic rows");
+        warned_non_monotonic = true;
+      }
+      continue;
+    }
+
+    prev_s = wp.s;
+    waypoints_.push_back(wp);
   }
 
-  // Start with an unmodified copy
+  if (waypoints_.size() < 2) {
+    RCLCPP_ERROR(logger_, "Trajectory invalid: need at least 2 waypoints");
+    waypoints_.clear();
+    return false;
+  }
+
   modified_raceline_ = waypoints_;
 
   RCLCPP_INFO(logger_, "Loaded %zu waypoints from %s", waypoints_.size(), csv_path.c_str());
-  if (!waypoints_.empty()) {
-    RCLCPP_INFO(logger_, "  Track length: %.1f m", waypoints_.back().s);
-  }
-  return !waypoints_.empty();
+  RCLCPP_INFO(logger_, "  Track length: %.2f m", waypoints_.back().s);
+  return true;
 }
 
-// ═════════════════════════════════════════════════════════════════════
+// =============================================================
 //  State updates
-// ═════════════════════════════════════════════════════════════════════
+// =============================================================
 
 void LateralPlanner::updateRobotPose(double x, double y, double yaw)
 {
@@ -87,7 +124,9 @@ void LateralPlanner::updateRobotPose(double x, double y, double yaw)
 
 void LateralPlanner::updateSpeed(double speed)
 {
-  current_speed_ = speed;
+  if (std::isfinite(speed)) {
+    current_speed_ = std::max(0.0, speed);
+  }
 }
 
 void LateralPlanner::processObstacleScan(
@@ -96,78 +135,114 @@ void LateralPlanner::processObstacleScan(
   float range_min, float range_max,
   double laser_x, double laser_y, double laser_yaw)
 {
-  std::vector<double> xs, ys;
+  struct Cluster
+  {
+    int count = 0;
+    double sum_x = 0.0;
+    double sum_y = 0.0;
+  };
+
+  std::vector<Cluster> clusters;
+  Cluster current;
+  bool in_cluster = false;
+
+  auto flush_cluster = [&]() {
+    if (in_cluster && current.count >= kMinClusterPoints) {
+      clusters.push_back(current);
+    }
+    current = Cluster{};
+    in_cluster = false;
+  };
 
   for (size_t i = 0; i < ranges.size(); ++i) {
-    float r = ranges[i];
-    if (!std::isfinite(r) || r <= range_min || r >= range_max) {
+    const float r = ranges[i];
+    const bool valid = std::isfinite(r) && r > range_min && r < range_max;
+
+    if (!valid) {
+      flush_cluster();
       continue;
     }
 
-    double angle = static_cast<double>(angle_min) +
-                   static_cast<double>(i) * static_cast<double>(angle_increment);
-    double world_angle = angle + laser_yaw;
+    const double beam_angle = static_cast<double>(angle_min) +
+      static_cast<double>(i) * static_cast<double>(angle_increment);
+    const double world_angle = beam_angle + laser_yaw;
+    const double px = laser_x + static_cast<double>(r) * std::cos(world_angle);
+    const double py = laser_y + static_cast<double>(r) * std::sin(world_angle);
 
-    xs.push_back(laser_x + r * std::cos(world_angle));
-    ys.push_back(laser_y + r * std::sin(world_angle));
+    if (!in_cluster) {
+      in_cluster = true;
+    }
+
+    ++current.count;
+    current.sum_x += px;
+    current.sum_y += py;
   }
+  flush_cluster();
 
-  if (xs.empty()) {
+  if (clusters.empty()) {
     clearOpponent();
     return;
   }
 
-  // Compute centroid
-  double cx = 0.0, cy = 0.0;
-  for (size_t i = 0; i < xs.size(); ++i) {
-    cx += xs[i];
-    cy += ys[i];
-  }
-  cx /= static_cast<double>(xs.size());
-  cy /= static_cast<double>(ys.size());
-
-  // Estimate width
-  double first_angle = 0.0, last_angle = 0.0;
-  double mean_range = 0.0;
-  size_t count = 0;
-  for (size_t i = 0; i < ranges.size(); ++i) {
-    float r = ranges[i];
-    if (!std::isfinite(r) || r <= range_min || r >= range_max) {
+  size_t best_idx = 0;
+  for (size_t i = 1; i < clusters.size(); ++i) {
+    const Cluster & a = clusters[i];
+    const Cluster & b = clusters[best_idx];
+    if (a.count > b.count) {
+      best_idx = i;
       continue;
     }
-    double angle = static_cast<double>(angle_min) +
-                   static_cast<double>(i) * static_cast<double>(angle_increment) +
-                   laser_yaw;
-    if (count == 0) first_angle = angle;
-    last_angle = angle;
-    mean_range += r;
-    ++count;
-  }
-  mean_range /= static_cast<double>(count);
-  double width = std::abs(last_angle - first_angle) * mean_range;
-  width = std::max(width, 0.15);
 
-  opponent_.x        = cx;
-  opponent_.y        = cy;
-  opponent_.width    = width;
+    if (a.count == b.count) {
+      const double a_cx = a.sum_x / static_cast<double>(a.count);
+      const double a_cy = a.sum_y / static_cast<double>(a.count);
+      const double b_cx = b.sum_x / static_cast<double>(b.count);
+      const double b_cy = b.sum_y / static_cast<double>(b.count);
+      const double a_dx = a_cx - laser_x;
+      const double a_dy = a_cy - laser_y;
+      const double b_dx = b_cx - laser_x;
+      const double b_dy = b_cy - laser_y;
+      const double a_dist2 = a_dx * a_dx + a_dy * a_dy;
+      const double b_dist2 = b_dx * b_dx + b_dy * b_dy;
+      if (a_dist2 < b_dist2) {
+        best_idx = i;
+      }
+    }
+  }
+
+  const Cluster & best = clusters[best_idx];
+  const double inv_count = 1.0 / static_cast<double>(best.count);
+  const double cx = best.sum_x * inv_count;
+  const double cy = best.sum_y * inv_count;
+
+  double opponent_yaw = robot_.yaw;
+  if (!waypoints_.empty()) {
+    const size_t back_idx = closestWaypoint(cx, cy);
+    opponent_yaw = waypoints_[back_idx].psi;
+  }
+  const double half_length = 0.5 * params_.opponent_length_m;
+
+  opponent_.back_x   = cx;
+  opponent_.back_y   = cy;
+  opponent_.yaw      = opponent_yaw;
+  opponent_.x        = cx + half_length * std::cos(opponent_yaw);
+  opponent_.y        = cy + half_length * std::sin(opponent_yaw);
+  opponent_.width    = params_.car_width_m;
+  opponent_.length   = params_.opponent_length_m;
   opponent_.detected = true;
 }
 
 void LateralPlanner::clearOpponent()
 {
   opponent_.detected = false;
-  // If opponent disappears, unlock the avoidance path
   if (avoidance_active_) {
-    RCLCPP_INFO(logger_, "Opponent lost — returning to original raceline");
-    avoidance_active_ = false;
-    committed_side_   = 0.0;
-    modified_raceline_ = waypoints_;
+    resetAvoidance();
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════
-//  Planning — top-level
-// ═════════════════════════════════════════════════════════════════════
+// =============================================================
+//  Planning - top-level
+// =============================================================
 
 std::vector<Waypoint> LateralPlanner::computePath()
 {
@@ -175,64 +250,71 @@ std::vector<Waypoint> LateralPlanner::computePath()
     return {};
   }
 
+  if (modified_raceline_.size() != waypoints_.size()) {
+    modified_raceline_ = waypoints_;
+  }
+
   if (!opponent_.detected) {
-    // No obstacle → use original raceline
     if (avoidance_active_) {
-      avoidance_active_ = false;
-      committed_side_ = 0.0;
-      modified_raceline_ = waypoints_;
+      resetAvoidance();
     }
     return extractSegment();
   }
 
-  // ── Opponent detected ──────────────────────────────────────────
+  const size_t car_idx = closestWaypoint(robot_.x, robot_.y);
+  const size_t opp_idx = closestWaypoint(opponent_.x, opponent_.y);
 
-  // Check if we should unlock (car has passed opponent)
-  if (avoidance_active_ && hasPassedOpponent()) {
-    RCLCPP_INFO(logger_, "Passed opponent — returning to original raceline");
-    avoidance_active_ = false;
-    committed_side_ = 0.0;
-    modified_raceline_ = waypoints_;
+  double forward_dist = 0.0;
+  double lateral_offset = 0.0;
+  const bool collision_predicted = isCollisionPredicted(
+    car_idx, opp_idx, &forward_dist, &lateral_offset);
+
+  if (!collision_predicted) {
+    if (avoidance_active_) {
+      const double horizon = std::max(
+        params_.min_window_m,
+        std::max(current_speed_, 0.0) * params_.window_time_s) +
+        2.0 * params_.pass_complete_margin;
+      if (hasPassedOpponent() || forward_dist > horizon) {
+        resetAvoidance();
+      }
+    }
+
+    if (avoidance_active_) {
+      return extractSegmentFromModified();
+    }
     return extractSegment();
   }
 
-  // Distance check — don't plan if too close (and not already locked)
-  double dx = opponent_.x - robot_.x;
-  double dy = opponent_.y - robot_.y;
-  double dist = std::sqrt(dx * dx + dy * dy);
-  if (dist < params_.min_replan_dist_m && !avoidance_active_) {
-    return extractSegmentFromModified();
-  }
-
-  // If avoidance is already active and opponent hasn't moved much, keep locked path
+  // If collision remains and the opponent is still near its committed state,
+  // keep the locked path to avoid frame-to-frame jitter.
   if (avoidance_active_ && !hasOpponentMoved()) {
     return extractSegmentFromModified();
   }
 
-  // Build (or rebuild) the avoidance path
   buildAvoidancePath();
   return extractSegmentFromModified();
 }
 
-// ═════════════════════════════════════════════════════════════════════
+// =============================================================
 //  Segment extraction (with wraparound for closed tracks)
-// ═════════════════════════════════════════════════════════════════════
+// =============================================================
 
 std::vector<Waypoint> LateralPlanner::extractSegment() const
 {
   const size_t n = waypoints_.size();
-  if (n == 0) return {};
+  if (n == 0) {
+    return {};
+  }
 
-  const size_t robot_idx = closestWaypoint(robot_.x, robot_.y);
-  const size_t behind = static_cast<size_t>(params_.lookbehind_points);
+  const size_t robot_idx = closestWaypointInPath(modified_raceline_, robot_.x, robot_.y);
   const size_t ahead  = static_cast<size_t>(params_.lookahead_points);
 
   std::vector<Waypoint> result;
-  result.reserve(behind + ahead);
+  result.reserve(ahead);
 
-  for (size_t k = 0; k < behind + ahead; ++k) {
-    // Wraparound index: start from (robot_idx - behind), modulo n
-    size_t idx = (robot_idx + n - behind + k) % n;
+  for (size_t k = 0; k < ahead; ++k) {
+    const size_t idx = (robot_idx + k) % n;
     result.push_back(waypoints_[idx]);
   }
 
@@ -242,257 +324,461 @@ std::vector<Waypoint> LateralPlanner::extractSegment() const
 std::vector<Waypoint> LateralPlanner::extractSegmentFromModified() const
 {
   const size_t n = modified_raceline_.size();
-  if (n == 0) return {};
+  if (n == 0) {
+    return {};
+  }
 
   const size_t robot_idx = closestWaypoint(robot_.x, robot_.y);
-  const size_t behind = static_cast<size_t>(params_.lookbehind_points);
   const size_t ahead  = static_cast<size_t>(params_.lookahead_points);
 
   std::vector<Waypoint> result;
-  result.reserve(behind + ahead);
+  result.reserve(ahead);
 
-  for (size_t k = 0; k < behind + ahead; ++k) {
-    size_t idx = (robot_idx + n - behind + k) % n;
+  for (size_t k = 0; k < ahead; ++k) {
+    const size_t idx = (robot_idx + k) % n;
     result.push_back(modified_raceline_[idx]);
   }
 
   return result;
 }
 
-// ═════════════════════════════════════════════════════════════════════
-//  Avoidance path building — called once per detection, then locked
-// ═════════════════════════════════════════════════════════════════════
+// =============================================================
+//  Avoidance path building - collision-driven arc shift
+// =============================================================
 
 void LateralPlanner::buildAvoidancePath()
 {
-  // Start from the pristine original raceline
-  modified_raceline_ = waypoints_;
-
-  // Project opponent and car onto raceline
-  size_t opp_idx = closestWaypoint(opponent_.x, opponent_.y);
-  const Waypoint & opp_wp = waypoints_[opp_idx];
-  size_t car_idx = closestWaypoint(robot_.x, robot_.y);
-  const Waypoint & car_wp = waypoints_[car_idx];
-
-  // Decide passing side — if already committed, keep that side
-  double pass_dir;
-  if (committed_side_ != 0.0) {
-    // Check if the committed side is still safe:
-    // Opponent lateral offset relative to the raceline
-    double dx = opponent_.x - opp_wp.x;
-    double dy = opponent_.y - opp_wp.y;
-    double normal_angle = opp_wp.psi + M_PI / 2.0;
-    double opp_lateral = dx * std::cos(normal_angle) + dy * std::sin(normal_angle);
-
-    // If opponent has moved to block our committed side, switch
-    // (opponent is on the same side we want to pass on)
-    bool blocked = (committed_side_ > 0.0 && opp_lateral < -0.3) ||
-                   (committed_side_ < 0.0 && opp_lateral > 0.3);
-    if (blocked) {
-      pass_dir = -committed_side_;  // switch to the other side
-      RCLCPP_WARN(logger_, "Committed side blocked — switching to %.0f", pass_dir);
-    } else {
-      pass_dir = committed_side_;  // keep committed side
-    }
-  } else {
-    pass_dir = decidePassingSide(opp_idx);
+  if (waypoints_.empty()) {
+    return;
   }
 
-  double shift_mag = computeShiftMagnitude(opp_idx);
-  double d_max = pass_dir * shift_mag;
+  modified_raceline_ = waypoints_;
 
-  // Lead distance: from car to opponent
-  double total_s = waypoints_.back().s;
-  double dist_to_opp = opp_wp.s - car_wp.s;
-  if (dist_to_opp < 0.0) dist_to_opp += total_s;  // wraparound
+  const size_t opp_idx = closestWaypoint(opponent_.x, opponent_.y);
+  const size_t car_idx = closestWaypoint(robot_.x, robot_.y);
+  const Waypoint & opp_wp = waypoints_[opp_idx];
+  const Waypoint & car_wp = waypoints_[car_idx];
 
-  // Shift starts at the car's position → path starts on the raceline
-  double s_start = car_wp.s;
-  double lead_dist = dist_to_opp;
+  const double pass_dir = decidePassingSide(opp_idx);
 
-  // Trail distance after the opponent
-  double speed_trail = current_speed_ * params_.window_time_s;
-  double trail_dist = std::max(params_.min_window_m * 0.3, speed_trail);
-  double s_end = opp_wp.s + trail_dist;
+  // No feasible side available: keep original line and wait behind opponent.
+  if (pass_dir == 0.0) {
+    resetAvoidance();
+    RCLCPP_WARN(logger_, "No feasible passing side available; holding behind opponent");
+    return;
+  }
 
-  RCLCPP_INFO(logger_,
-    "Avoidance: side=%.0f, shift=%.2fm, lead=%.1fm, trail=%.1fm",
-    pass_dir, shift_mag, lead_dist, trail_dist);
+  const double shift_mag = computeShiftMagnitude(opp_idx);
+  if (shift_mag <= 1e-3) {
+    resetAvoidance();
+    return;
+  }
 
-  // Apply the shift to modified_raceline_
+  const double d_max = pass_dir * shift_mag;
+
+  const double window_dist = std::max(
+    params_.min_window_m,
+    std::max(current_speed_, 0.0) * params_.window_time_s);
+  const double lead_ratio = std::clamp(params_.window_lead_ratio, 0.1, 0.9);
+
+  double lead_dist = std::max(0.75, window_dist * lead_ratio);
+  const double trail_dist = std::max(0.75, window_dist * (1.0 - lead_ratio));
+
+  // Keep a full lead window even when the opponent is close so the path can
+  // already be shifted at the current car position (instead of shifting too late).
+  const double car_to_opp = wrapForwardDistance(car_wp.s, opp_wp.s);
+  if (car_to_opp < 0.2) {
+    lead_dist = std::max(lead_dist, 0.2);
+  }
+
+  const double s_start = opp_wp.s - lead_dist;
+  const double s_end   = opp_wp.s + trail_dist;
+
   applyLateralShift(s_start, opp_wp.s, s_end, d_max);
 
-  // Lock in the avoidance state
   avoidance_active_  = true;
   committed_side_    = pass_dir;
   committed_opp_idx_ = opp_idx;
   committed_opp_x_   = opponent_.x;
   committed_opp_y_   = opponent_.y;
+
+  RCLCPP_INFO(logger_,
+    "Avoidance locked: side=%.0f shift=%.2fm lead=%.2fm trail=%.2fm",
+    pass_dir, shift_mag, lead_dist, trail_dist);
 }
 
-// ═════════════════════════════════════════════════════════════════════
-//  Lateral shift — piecewise half-cosine (peak at opponent)
-// ═════════════════════════════════════════════════════════════════════
+// =============================================================
+//  Lateral shift - piecewise half-cosine (arc out and back)
+// =============================================================
 
 void LateralPlanner::applyLateralShift(
   double s_start, double opp_s, double s_end, double d_max)
 {
-  const double total_s = waypoints_.back().s;
+  if (waypoints_.empty()) {
+    return;
+  }
 
-  // Compute lead/trail distances with wraparound normalization
-  double lead_dist  = opp_s - s_start;
-  if (lead_dist < 0.0) lead_dist += total_s;
-  double trail_dist = s_end - opp_s;
-  if (trail_dist < 0.0) trail_dist += total_s;
-  double window_len = lead_dist + trail_dist;
-  size_t affected = 0;
+  const double total_s = waypoints_.back().s;
+  if (total_s <= 0.0) {
+    return;
+  }
+
+  const double lead_dist = wrapForwardDistance(s_start, opp_s);
+  const double trail_dist = wrapForwardDistance(opp_s, s_end);
+  const double window_len = lead_dist + trail_dist;
+
+  if (window_len <= 1e-6) {
+    return;
+  }
+
+  const double wall_limit = std::abs(params_.max_lateral_shift_m);
 
   for (size_t i = 0; i < modified_raceline_.size(); ++i) {
     const Waypoint & orig = waypoints_[i];
+    Waypoint shifted = orig;
 
-    // Compute arc-length distance from s_start, handling wraparound
-    double s_rel = orig.s - s_start;
-    // Normalize to [0, total_s)
-    while (s_rel < 0.0)      s_rel += total_s;
-    while (s_rel >= total_s)  s_rel -= total_s;
-
+    const double s_rel = wrapForwardDistance(s_start, orig.s);
     double offset = 0.0;
-    if (s_rel >= 0.0 && s_rel <= window_len && window_len > 0.0) {
-      if (s_rel <= lead_dist && lead_dist > 0.0) {
-        // Ramp-up phase: 0 → d_max using half-cosine
+
+    if (s_rel <= window_len) {
+      if (s_rel <= lead_dist && lead_dist > 1e-6) {
         offset = d_max * 0.5 * (1.0 - std::cos(M_PI * s_rel / lead_dist));
-      } else if (trail_dist > 0.0) {
-        // Ramp-down phase: d_max → 0 using half-cosine
-        double t = s_rel - lead_dist;
+      } else if (trail_dist > 1e-6) {
+        const double t = s_rel - lead_dist;
         offset = d_max * 0.5 * (1.0 + std::cos(M_PI * t / trail_dist));
       }
 
-      // Per-waypoint wall clamp: keep |offset| within wall limit
-      double wall_limit = maxAllowedShift();
       if (std::abs(offset) > wall_limit) {
         offset = std::copysign(wall_limit, offset);
       }
-
-      ++affected;
     }
 
-    // Shift perpendicular to heading
-    double normal = orig.psi + M_PI / 2.0;
-    modified_raceline_[i].x = orig.x + offset * std::cos(normal);
-    modified_raceline_[i].y = orig.y + offset * std::sin(normal);
+    const double normal = orig.psi + M_PI / 2.0;
+    shifted.x = orig.x + offset * std::cos(normal);
+    shifted.y = orig.y + offset * std::sin(normal);
 
-    // Reduce velocity in shifted sections
-    if (params_.max_lateral_shift_m > 0.0 && std::abs(offset) > 0.001) {
-      double speed_scale = 1.0 - 0.2 * std::abs(offset / params_.max_lateral_shift_m);
-      modified_raceline_[i].vx = orig.vx * speed_scale;
+    modified_raceline_[i] = shifted;
+  }
+
+  // Recompute heading and curvature so geometry is self-consistent.
+  const size_t n = modified_raceline_.size();
+  if (n >= 3) {
+    for (size_t i = 0; i < n; ++i) {
+      const Waypoint & prev = modified_raceline_[(i + n - 1) % n];
+      Waypoint & curr = modified_raceline_[i];
+      const Waypoint & next = modified_raceline_[(i + 1) % n];
+
+      const double dx = next.x - prev.x;
+      const double dy = next.y - prev.y;
+      if (std::hypot(dx, dy) > 1e-6) {
+        curr.psi = std::atan2(dy, dx);
+      }
+
+      const double psi_prev = std::atan2(curr.y - prev.y, curr.x - prev.x);
+      const double psi_next = std::atan2(next.y - curr.y, next.x - curr.x);
+      const double dpsi = std::atan2(
+        std::sin(psi_next - psi_prev),
+        std::cos(psi_next - psi_prev));
+      const double ds_prev = std::hypot(curr.x - prev.x, curr.y - prev.y);
+      const double ds_next = std::hypot(next.x - curr.x, next.y - curr.y);
+      const double ds = std::max(0.5 * (ds_prev + ds_next), 1e-3);
+      curr.kappa = dpsi / ds;
     }
   }
 
-  RCLCPP_INFO(logger_, "Shifted %zu waypoints (lead=%.1fm, trail=%.1fm)",
-              affected, lead_dist, trail_dist);
+  // Update wall distances from lateral shift in the original raceline-normal frame.
+  for (size_t i = 0; i < n; ++i) {
+    const Waypoint & orig = waypoints_[i];
+    Waypoint & curr = modified_raceline_[i];
+
+    const double orig_normal = orig.psi + M_PI / 2.0;
+    const double orig_nx = std::cos(orig_normal);
+    const double orig_ny = std::sin(orig_normal);
+    const double path_lateral =
+      (curr.x - orig.x) * orig_nx + (curr.y - orig.y) * orig_ny;
+
+    // Positive path_lateral means shifted left in the orig-normal frame.
+    curr.d_left = std::max(0.0, orig.d_left - path_lateral);
+    curr.d_right = std::max(0.0, orig.d_right + path_lateral);
+  }
 }
 
-// ═════════════════════════════════════════════════════════════════════
+// =============================================================
 //  Side decision and shift magnitude
-// ═════════════════════════════════════════════════════════════════════
+// =============================================================
 
 double LateralPlanner::decidePassingSide(size_t opp_idx) const
 {
-  const Waypoint & opp_wp = waypoints_[opp_idx];
-
-  double dx = opponent_.x - opp_wp.x;
-  double dy = opponent_.y - opp_wp.y;
-  double normal_angle = opp_wp.psi + M_PI / 2.0;
-  double opp_lateral = dx * std::cos(normal_angle) + dy * std::sin(normal_angle);
-
-  // Maximum shift we can achieve (wall limit)
-  double wall_limit = maxAllowedShift();
-
-  // Needed shift = half opponent + safety + how far it is off-centre
-  double needed = opponent_.width / 2.0 + params_.safety_margin_m + std::abs(opp_lateral);
-
-  // Preferred side: opposite to opponent's lateral offset
-  double preferred = (opp_lateral > 0.0) ? -1.0 : 1.0;
-
-  // If the preferred side has enough room, use it
-  if (needed <= wall_limit) {
-    return preferred;
+  if (opp_idx >= waypoints_.size()) {
+    return (committed_side_ != 0.0) ? committed_side_ : 1.0;
   }
 
-  // Not enough room on preferred side — try the other side
-  // (other side only needs to clear the opponent's extent on that side)
-  RCLCPP_WARN(logger_,
-    "Preferred side (%.0f) needs %.2fm but wall allows %.2fm — trying other side",
-    preferred, needed, wall_limit);
-  return -preferred;
-}
+  const Waypoint & opp_wp = waypoints_[opp_idx];
+  const double opp_lateral = lateralOffsetAtWaypoint(opp_idx, opponent_.x, opponent_.y);
+  const double inflated_tolerance =
+    params_.clearance_tolerance_m * std::max(1.0, params_.planning_tolerance_scale);
 
-double LateralPlanner::maxAllowedShift() const
-{
-  // Max offset from raceline before hitting the wall
-  // track_half_width - half car width - wall safety
-  return std::max(
-    params_.track_half_width_m - params_.car_width_m / 2.0 - params_.wall_safety_margin_m,
+  const double clearance =
+    params_.car_width_m / 2.0 +
+    params_.car_width_m / 2.0 +
+    inflated_tolerance;
+
+  const double left_limit = std::max(
+    opp_wp.d_left - params_.car_width_m / 2.0 - inflated_tolerance,
     0.05);
+  const double right_limit = std::max(
+    opp_wp.d_right - params_.car_width_m / 2.0 - inflated_tolerance,
+    0.05);
+
+  const double needed_left = std::abs(opp_lateral + clearance);
+  const double needed_right = std::abs(opp_lateral - clearance);
+  const bool left_feasible = left_limit >= needed_left;
+  const bool right_feasible = right_limit >= needed_right;
+
+  // Bias toward currently committed side, but never force it.
+  if (committed_side_ > 0.0) {
+    if (left_feasible) {
+      return 1.0;
+    }
+    if (right_feasible) {
+      return -1.0;
+    }
+    return 0.0;
+  }
+  if (committed_side_ < 0.0) {
+    if (right_feasible) {
+      return -1.0;
+    }
+    if (left_feasible) {
+      return 1.0;
+    }
+    return 0.0;
+  }
+
+  if (left_feasible && !right_feasible) {
+    return 1.0;
+  }
+  if (right_feasible && !left_feasible) {
+    return -1.0;
+  }
+  if (left_feasible && right_feasible) {
+    // If both are feasible, prefer the side opposite the opponent offset.
+    return (opp_lateral >= 0.0) ? -1.0 : 1.0;
+  }
+
+  // Neither side is fully feasible: do not attempt an unsafe overtake.
+  return 0.0;
 }
 
 double LateralPlanner::computeShiftMagnitude(size_t opp_idx) const
 {
+  if (opp_idx >= waypoints_.size()) {
+    return 0.0;
+  }
+
+  const double pass_dir = decidePassingSide(opp_idx);
+  if (pass_dir == 0.0) {
+    return 0.0;
+  }
+  const double opp_lateral = lateralOffsetAtWaypoint(opp_idx, opponent_.x, opponent_.y);
   const Waypoint & opp_wp = waypoints_[opp_idx];
+  const double inflated_tolerance =
+    params_.clearance_tolerance_m * std::max(1.0, params_.planning_tolerance_scale);
+  const double wall_margin = params_.clearance_tolerance_m;
 
-  double dx = opponent_.x - opp_wp.x;
-  double dy = opponent_.y - opp_wp.y;
-  double normal_angle = opp_wp.psi + M_PI / 2.0;
-  double opp_lateral = dx * std::cos(normal_angle) + dy * std::sin(normal_angle);
+  const double clearance =
+    params_.car_width_m / 2.0 +
+    params_.car_width_m / 2.0 +
+    inflated_tolerance;
 
-  double shift = opponent_.width / 2.0 + params_.safety_margin_m + std::abs(opp_lateral);
+  // Desired shifted lane center in raceline-normal coordinates.
+  const double target_lateral = opp_lateral + pass_dir * clearance;
+  const double required_shift = std::abs(target_lateral);
 
-  // Clamp to the lesser of user max and wall-limited max
-  double wall_limit = maxAllowedShift();
-  return std::min({shift, params_.max_lateral_shift_m, wall_limit});
+  const double left_limit = std::max(
+    opp_wp.d_left - params_.car_width_m / 2.0 - wall_margin,
+    0.05);
+  const double right_limit = std::max(
+    opp_wp.d_right - params_.car_width_m / 2.0 - wall_margin,
+    0.05);
+  const double directional_limit = (pass_dir >= 0.0) ? left_limit : right_limit;
+
+  return std::min({required_shift, std::abs(params_.max_lateral_shift_m), directional_limit});
 }
 
-// ═════════════════════════════════════════════════════════════════════
-//  Lock management
-// ═════════════════════════════════════════════════════════════════════
+// =============================================================
+//  Avoidance state helpers
+// =============================================================
+
+double LateralPlanner::wrapForwardDistance(double s_from, double s_to) const
+{
+  if (waypoints_.empty()) {
+    return 0.0;
+  }
+
+  const double total_s = waypoints_.back().s;
+  if (total_s <= 0.0) {
+    return 0.0;
+  }
+
+  double d = std::fmod(s_to - s_from, total_s);
+  if (d < 0.0) {
+    d += total_s;
+  }
+  return d;
+}
+
+double LateralPlanner::lateralOffsetAtWaypoint(size_t idx, double x, double y) const
+{
+  if (waypoints_.empty()) {
+    return 0.0;
+  }
+
+  if (idx >= waypoints_.size()) {
+    idx = waypoints_.size() - 1;
+  }
+
+  const Waypoint & wp = waypoints_[idx];
+  const double normal = wp.psi + M_PI / 2.0;
+  const double dx = x - wp.x;
+  const double dy = y - wp.y;
+  return dx * std::cos(normal) + dy * std::sin(normal);
+}
+
+bool LateralPlanner::isCollisionPredicted(
+  size_t car_idx, size_t opp_idx,
+  double * forward_dist,
+  double * lateral_offset) const
+{
+  if (waypoints_.empty()) {
+    return false;
+  }
+
+  if (car_idx >= waypoints_.size() || opp_idx >= waypoints_.size()) {
+    return false;
+  }
+
+  const Waypoint & car_wp = waypoints_[car_idx];
+  const Waypoint & opp_wp = waypoints_[opp_idx];
+  const double total_s = waypoints_.back().s;
+  if (total_s <= 0.0) {
+    return false;
+  }
+
+  const double forward = wrapForwardDistance(car_wp.s, opp_wp.s);
+  if (forward_dist != nullptr) {
+    *forward_dist = forward;
+  }
+
+  // Ignore opponents behind us (would require > half lap forward distance).
+  if (forward > total_s * 0.5) {
+    return false;
+  }
+
+  const double horizon = std::max(
+    params_.min_window_m,
+    std::max(current_speed_, 0.0) * params_.window_time_s) +
+    params_.pass_complete_margin + 0.5 * params_.opponent_length_m;
+  if (forward > horizon) {
+    return false;
+  }
+
+  const double lat = lateralOffsetAtWaypoint(opp_idx, opponent_.x, opponent_.y);
+  if (lateral_offset != nullptr) {
+    *lateral_offset = lat;
+  }
+
+  const double collision_corridor =
+    params_.car_width_m / 2.0 +
+    params_.car_width_m / 2.0 +
+    params_.clearance_tolerance_m * std::max(1.0, params_.planning_tolerance_scale);
+
+  return std::abs(lat) <= collision_corridor;
+}
+
+void LateralPlanner::resetAvoidance()
+{
+  avoidance_active_  = false;
+  committed_side_    = 0.0;
+  committed_opp_idx_ = 0;
+  committed_opp_x_   = 0.0;
+  committed_opp_y_   = 0.0;
+  modified_raceline_ = waypoints_;
+}
 
 bool LateralPlanner::hasPassedOpponent() const
 {
-  size_t robot_idx = closestWaypoint(robot_.x, robot_.y);
-  double robot_s   = waypoints_[robot_idx].s;
-  double opp_s     = waypoints_[committed_opp_idx_].s;
+  if (!avoidance_active_ || waypoints_.empty() || committed_opp_idx_ >= waypoints_.size()) {
+    return false;
+  }
 
-  double delta_s = robot_s - opp_s;
+  const double total_s = waypoints_.back().s;
+  if (total_s <= 0.0) {
+    return false;
+  }
 
-  // Handle wraparound (closed track)
-  double total_s = waypoints_.back().s;
-  if (delta_s < -total_s / 2.0) delta_s += total_s;
-  if (delta_s >  total_s / 2.0) delta_s -= total_s;
+  const size_t robot_idx = closestWaypoint(robot_.x, robot_.y);
+  const double opp_s = waypoints_[committed_opp_idx_].s;
+  const double robot_s = waypoints_[robot_idx].s;
+  const double forward_from_opp = wrapForwardDistance(opp_s, robot_s);
 
-  return delta_s > params_.pass_complete_margin;
+  // Passed if robot is ahead by margin, but not a full-loop wraparound artifact.
+  return forward_from_opp > params_.pass_complete_margin &&
+         forward_from_opp < total_s * 0.5;
 }
 
 bool LateralPlanner::hasOpponentMoved() const
 {
-  double dx = opponent_.x - committed_opp_x_;
-  double dy = opponent_.y - committed_opp_y_;
-  double dist = std::sqrt(dx * dx + dy * dy);
-  return dist > params_.opponent_move_thresh;
+  if (!opponent_.detected) {
+    return true;
+  }
+
+  if (modified_raceline_.empty()) {
+    return true;
+  }
+
+  // Hysteresis: only trigger replan when opponent intrudes close to current
+  // committed line (or moves a lot globally), which avoids jitter.
+  const size_t idx = closestWaypoint(opponent_.x, opponent_.y);
+  if (idx >= modified_raceline_.size()) {
+    return true;
+  }
+
+  const Waypoint & line_wp = modified_raceline_[idx];
+  const double normal = line_wp.psi + M_PI / 2.0;
+  const double lat_to_line = std::abs(
+    (opponent_.x - line_wp.x) * std::cos(normal) +
+    (opponent_.y - line_wp.y) * std::sin(normal));
+  const double replan_band =
+    params_.car_width_m / 2.0 +
+    params_.car_width_m / 2.0 +
+    params_.clearance_tolerance_m;
+  if (lat_to_line <= replan_band) {
+    return true;
+  }
+
+  return false;
 }
 
-// ═════════════════════════════════════════════════════════════════════
+// =============================================================
 //  Helpers
-// ═════════════════════════════════════════════════════════════════════
+// =============================================================
 
-size_t LateralPlanner::closestWaypoint(double x, double y) const
+size_t LateralPlanner::closestWaypointInPath(
+  const std::vector<Waypoint> & path,
+  double x, double y) const
 {
+  if (path.empty()) {
+    return 0;
+  }
+
   size_t best = 0;
   double best_dist = std::numeric_limits<double>::max();
 
-  for (size_t i = 0; i < waypoints_.size(); ++i) {
-    double dx = waypoints_[i].x - x;
-    double dy = waypoints_[i].y - y;
-    double d2 = dx * dx + dy * dy;
+  for (size_t i = 0; i < path.size(); ++i) {
+    const double dx = path[i].x - x;
+    const double dy = path[i].y - y;
+    const double d2 = dx * dx + dy * dy;
     if (d2 < best_dist) {
       best_dist = d2;
       best = i;
@@ -500,6 +786,11 @@ size_t LateralPlanner::closestWaypoint(double x, double y) const
   }
 
   return best;
+}
+
+size_t LateralPlanner::closestWaypoint(double x, double y) const
+{
+  return closestWaypointInPath(waypoints_, x, y);
 }
 
 }  // namespace f1tenth_lateral_planner

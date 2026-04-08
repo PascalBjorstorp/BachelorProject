@@ -2,7 +2,6 @@
 
 #include <string>
 #include <vector>
-#include <optional>
 #include <cmath>
 
 #include <rclcpp/rclcpp.hpp>
@@ -11,7 +10,6 @@
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
-#include <std_msgs/msg/bool.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 
@@ -32,14 +30,20 @@ struct Waypoint
   double kappa = 0.0;   ///< Curvature [1/m]
   double vx    = 0.0;   ///< Velocity [m/s]
   double ax    = 0.0;   ///< Acceleration [m/s²]
+  double d_left  = 0.0; ///< Distance to left wall [m]
+  double d_right = 0.0; ///< Distance to right wall [m]
 };
 
 /// Detected opponent position and geometry.
 struct OpponentState
 {
-  double x       = 0.0;
-  double y       = 0.0;
-  double width   = 0.3;   ///< Estimated width [m]
+  double x       = 0.0;   ///< Body center x [m]
+  double y       = 0.0;   ///< Body center y [m]
+  double back_x  = 0.0;   ///< Detected rear-point x [m]
+  double back_y  = 0.0;   ///< Detected rear-point y [m]
+  double yaw     = 0.0;   ///< Body heading [rad]
+  double width   = 0.3;   ///< Fixed body width [m]
+  double length  = 0.5;   ///< Fixed body length [m]
   bool   detected = false;
 };
 
@@ -71,19 +75,16 @@ public:
 
   struct Parameters
   {
-    double safety_margin_m       = 0.3;
     double min_window_m          = 3.0;
     double window_time_s         = 0.8;
     double max_lateral_shift_m   = 0.8;
-    double min_replan_dist_m     = 1.0;
     int    lookahead_points      = 80;   ///< Waypoints to publish ahead
-    int    lookbehind_points     = 5;    ///< Waypoints to publish behind
-    double opponent_move_thresh  = 0.5;  ///< Recompute if opponent moved more than this [m]
     double pass_complete_margin  = 2.0;  ///< Car must be this far past opponent to unlock [m]
     double window_lead_ratio     = 0.7;  ///< Fraction of window before the opponent [0..1]
+    double opponent_length_m     = 0.58; ///< Known opponent length [m]
+    double clearance_tolerance_m = 0.15; ///< Extra clearance to walls/opponent [m]
+    double planning_tolerance_scale = 2.0;  ///< Multiplier for line-generation tolerance
     double car_width_m           = 0.31; ///< Own car width [m]
-    double wall_safety_margin_m  = 0.15; ///< Min distance from path edge to wall [m]
-    double track_half_width_m    = 1.5;  ///< Approx half-width of track from raceline [m]
   };
 
   explicit LateralPlanner(rclcpp::Logger logger, const Parameters & params);
@@ -120,6 +121,7 @@ public:
 private:
   // ── Helpers ───────────────────────────────────────────────────────
 
+  size_t closestWaypointInPath(const std::vector<Waypoint> & path, double x, double y) const;
   size_t closestWaypoint(double x, double y) const;
   std::vector<Waypoint> extractSegment() const;
   std::vector<Waypoint> extractSegmentFromModified() const;
@@ -138,8 +140,20 @@ private:
   /// Compute the required shift magnitude (clamped to wall clearance).
   double computeShiftMagnitude(size_t opp_idx) const;
 
-  /// Max lateral offset allowed before hitting the wall.
-  double maxAllowedShift() const;
+  /// Forward arc distance from s_from to s_to on a closed track [m].
+  double wrapForwardDistance(double s_from, double s_to) const;
+
+  /// Signed opponent lateral offset relative to waypoint tangent normal [m].
+  double lateralOffsetAtWaypoint(size_t idx, double x, double y) const;
+
+  /// Collision predicate between current raceline and detected opponent.
+  bool isCollisionPredicted(
+    size_t car_idx, size_t opp_idx,
+    double * forward_dist = nullptr,
+    double * lateral_offset = nullptr) const;
+
+  /// Reset all avoidance state and return to original raceline.
+  void resetAvoidance();
 
   /// Check if the car has passed the opponent and the path can be unlocked.
   bool hasPassedOpponent() const;

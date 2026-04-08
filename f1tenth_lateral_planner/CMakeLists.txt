@@ -10,6 +10,7 @@ endif()
 
 # ── Dependencies ─────────────────────────────────────────────────────
 find_package(ament_cmake REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
@@ -20,6 +21,7 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2 REQUIRED)
 
 set(DEPS
+  ament_index_cpp
   rclcpp
   nav_msgs
   sensor_msgs
@@ -43,6 +45,10 @@ ament_target_dependencies(lateral_planner_lib ${DEPS})
 # ── Executable: ROS2 node ────────────────────────────────────────────
 add_executable(lateral_planner_node
   src/lateral_planner_node.cpp
+)
+target_include_directories(lateral_planner_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/config>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../f1tenth_system/SystemConfig>
 )
 target_link_libraries(lateral_planner_node lateral_planner_lib)
 ament_target_dependencies(lateral_planner_node ${DEPS})

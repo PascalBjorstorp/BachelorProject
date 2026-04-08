@@ -1,20 +1,27 @@
 #include <memory>
 #include <string>
 #include <cmath>
+#include <mutex>
+#include <exception>
+#include <algorithm>
 
 #include <rclcpp/rclcpp.hpp>
+#include <ament_index_cpp/get_package_share_directory.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/point.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
-#include <std_msgs/msg/bool.hpp>
 #include <std_msgs/msg/color_rgba.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 
 #include "f1tenth_lateral_planner/lateral_planner.hpp"
+#include "frames.h"
+#include "topics.h"
+#include "lateral_planner_config.hpp"
 
 namespace f1tenth_lateral_planner
 {
@@ -27,6 +34,28 @@ static double yawFromQuaternion(const geometry_msgs::msg::Quaternion & q)
     1.0 - 2.0 * (q.y * q.y + q.z * q.z));
 }
 
+/// Resolve trajectory path from compile-time config.
+static std::string resolveTrajectoryFile(rclcpp::Logger logger)
+{
+  const std::string configured_path = TRAJECTORY_FILE;
+  if (!configured_path.empty()) {
+    return configured_path;
+  }
+
+  try {
+    const std::string planning_share_dir =
+      ament_index_cpp::get_package_share_directory(TRAJECTORY_PACKAGE);
+    return planning_share_dir + "/" + TRAJECTORY_REL_PATH;
+  } catch (const std::exception & ex) {
+    RCLCPP_WARN(
+      logger,
+      "Failed to resolve default trajectory from package '%s': %s",
+      TRAJECTORY_PACKAGE,
+      ex.what());
+    return "";
+  }
+}
+
 // ═════════════════════════════════════════════════════════════════════
 //  ROS2 Node
 // ═════════════════════════════════════════════════════════════════════
@@ -37,7 +66,6 @@ public:
   LateralPlannerNode()
   : Node("lateral_planner_node")
   {
-    declareParameters();
     initPlanner();
     setupSubscribers();
     setupPublishers();
@@ -48,69 +76,37 @@ public:
   }
 
 private:
-  // ── Parameter declaration ─────────────────────────────────────────
-
-  void declareParameters()
-  {
-    declare_parameter("trajectory_file", std::string(""));
-    declare_parameter("safety_margin_m", 0.3);
-    declare_parameter("min_window_m", 3.0);
-    declare_parameter("window_time_s", 0.8);
-    declare_parameter("max_lateral_shift_m", 0.8);
-    declare_parameter("min_replan_dist_m", 1.0);
-    declare_parameter("lookahead_points", 80);
-    declare_parameter("lookbehind_points", 5);
-    declare_parameter("opponent_move_thresh", 0.5);
-    declare_parameter("pass_complete_margin", 2.0);
-    declare_parameter("window_lead_ratio", 0.7);
-    declare_parameter("car_width_m", 0.31);
-    declare_parameter("wall_safety_margin_m", 0.15);
-    declare_parameter("track_half_width_m", 1.5);
-    declare_parameter("publish_rate_hz", 40.0);
-    declare_parameter("enabled", true);
-    declare_parameter("map_frame", std::string("map"));
-    declare_parameter("base_frame", std::string("ego_racecar/base_link"));
-    declare_parameter("laser_frame", std::string("ego_racecar/laser"));
-    declare_parameter("obstacles_topic", std::string("/scan_obstacles"));
-    declare_parameter("odom_topic", std::string("/odom"));
-    declare_parameter("raceline_topic", std::string("/local_raceline"));
-    declare_parameter("enable_topic", std::string("/lateral_planner_enable"));
-  }
-
   // ── Planner initialization ────────────────────────────────────────
 
   void initPlanner()
   {
     LateralPlanner::Parameters params;
-    params.safety_margin_m     = get_parameter("safety_margin_m").as_double();
-    params.min_window_m        = get_parameter("min_window_m").as_double();
-    params.window_time_s       = get_parameter("window_time_s").as_double();
-    params.max_lateral_shift_m = get_parameter("max_lateral_shift_m").as_double();
-    params.min_replan_dist_m   = get_parameter("min_replan_dist_m").as_double();
-    params.lookahead_points      = get_parameter("lookahead_points").as_int();
-    params.lookbehind_points     = get_parameter("lookbehind_points").as_int();
-    params.opponent_move_thresh  = get_parameter("opponent_move_thresh").as_double();
-    params.pass_complete_margin  = get_parameter("pass_complete_margin").as_double();
-    params.window_lead_ratio     = get_parameter("window_lead_ratio").as_double();
-    params.car_width_m           = get_parameter("car_width_m").as_double();
-    params.wall_safety_margin_m  = get_parameter("wall_safety_margin_m").as_double();
-    params.track_half_width_m    = get_parameter("track_half_width_m").as_double();
+    params.min_window_m          = MIN_WINDOW_M;
+    params.window_time_s         = WINDOW_TIME_S;
+    params.max_lateral_shift_m   = MAX_LATERAL_SHIFT_M;
+    params.lookahead_points      = LOOKAHEAD_POINTS;
+    params.pass_complete_margin  = PASS_COMPLETE_MARGIN_M;
+    params.window_lead_ratio     = WINDOW_LEAD_RATIO;
+    params.opponent_length_m     = OPPONENT_LENGTH_M;
+    params.clearance_tolerance_m = CLEARANCE_TOLERANCE_M;
+    params.planning_tolerance_scale = PLANNING_TOLERANCE_SCALE;
+    params.car_width_m           = CAR_WIDTH_M;
 
     planner_ = std::make_unique<LateralPlanner>(get_logger(), params);
 
     // Load the trajectory CSV
-    std::string traj_file = get_parameter("trajectory_file").as_string();
+    const std::string traj_file = resolveTrajectoryFile(get_logger());
     if (!traj_file.empty()) {
       planner_->loadTrajectory(traj_file);
+      RCLCPP_INFO(get_logger(), "  Trajectory: %s", traj_file.c_str());
     } else {
-      RCLCPP_WARN(get_logger(), "No trajectory_file specified");
+      RCLCPP_WARN(get_logger(), "No trajectory path configured in lateral_planner_config.hpp");
     }
 
-    enabled_    = get_parameter("enabled").as_bool();
-    RCLCPP_INFO(get_logger(), "  Avoidance enabled: %s", enabled_ ? "true" : "false");
-    map_frame_  = get_parameter("map_frame").as_string();
-    base_frame_ = get_parameter("base_frame").as_string();
-    laser_frame_ = get_parameter("laser_frame").as_string();
+    RCLCPP_INFO(get_logger(), "  Avoidance enabled: true");
+    map_frame_  = FRAME_MAP;
+    base_frame_ = FRAME_BASE_LINK;
+    laser_frame_ = FRAME_LASER;
   }
 
   // ── Subscribers ───────────────────────────────────────────────────
@@ -126,31 +122,26 @@ private:
       .reliability(rclcpp::ReliabilityPolicy::BestEffort)
       .durability(rclcpp::DurabilityPolicy::Volatile);
 
-    std::string obstacles_topic = get_parameter("obstacles_topic").as_string();
     obstacle_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
-      obstacles_topic, sensor_qos,
+      TOPIC_SCAN_OBSTACLES, sensor_qos,
       std::bind(&LateralPlannerNode::obstacleCallback, this, std::placeholders::_1));
 
     // Odometry
-    std::string odom_topic = get_parameter("odom_topic").as_string();
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
-      odom_topic, 10,
+      TOPIC_EGO_ODOM, 10,
       std::bind(&LateralPlannerNode::odomCallback, this, std::placeholders::_1));
 
-    // Enable/disable
-    std::string enable_topic = get_parameter("enable_topic").as_string();
-    enable_sub_ = create_subscription<std_msgs::msg::Bool>(
-      enable_topic, 10,
-      std::bind(&LateralPlannerNode::enableCallback, this, std::placeholders::_1));
   }
 
   // ── Publishers ────────────────────────────────────────────────────
 
   void setupPublishers()
   {
-    std::string raceline_topic = get_parameter("raceline_topic").as_string();
+    const std::string raceline_topic = TOPIC_LOCAL_RACELINE;
     raceline_pub_ = create_publisher<nav_msgs::msg::Path>(raceline_topic, 10);
     raceline_viz_pub_ = create_publisher<nav_msgs::msg::Path>(raceline_topic + "_viz", 10);
+    wall_distance_marker_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
+      raceline_topic + "_wall_distance_markers", 10);
     marker_pub_   = create_publisher<visualization_msgs::msg::MarkerArray>("/opponent_marker", 10);
   }
 
@@ -158,7 +149,11 @@ private:
 
   void setupTimer()
   {
-    double rate = get_parameter("publish_rate_hz").as_double();
+    double rate = PUBLISH_RATE_HZ;
+    if (rate <= 0.0) {
+      RCLCPP_WARN(get_logger(), "Invalid PUBLISH_RATE_HZ (%.3f), using 40.0", rate);
+      rate = 40.0;
+    }
     auto period = std::chrono::duration<double>(1.0 / rate);
     timer_ = create_wall_timer(
       std::chrono::duration_cast<std::chrono::nanoseconds>(period),
@@ -171,29 +166,18 @@ private:
   {
     double vx = msg->twist.twist.linear.x;
     double vy = msg->twist.twist.linear.y;
+    std::lock_guard<std::mutex> lock(planner_mutex_);
     planner_->updateSpeed(std::sqrt(vx * vx + vy * vy));
-  }
-
-  void enableCallback(const std_msgs::msg::Bool::SharedPtr msg)
-  {
-    enabled_ = msg->data;
-    RCLCPP_INFO(get_logger(), "Lateral planner %s",
-                enabled_ ? "enabled" : "disabled");
   }
 
   void obstacleCallback(const sensor_msgs::msg::LaserScan::SharedPtr scan)
   {
-    // Skip obstacle processing when planner is disabled (passthrough mode)
-    if (!enabled_) {
-      return;
-    }
-
     // Look up laser pose in map frame
     geometry_msgs::msg::TransformStamped tf;
     try {
       tf = tf_buffer_->lookupTransform(
         map_frame_, laser_frame_,
-        tf2::TimePointZero,
+        rclcpp::Time(scan->header.stamp),
         tf2::durationFromSec(0.02));
     } catch (const tf2::TransformException & ex) {
       RCLCPP_DEBUG(get_logger(), "TF lookup failed: %s", ex.what());
@@ -204,6 +188,7 @@ private:
     double ly  = tf.transform.translation.y;
     double lyaw = yawFromQuaternion(tf.transform.rotation);
 
+    std::lock_guard<std::mutex> lock(planner_mutex_);
     planner_->processObstacleScan(
       scan->ranges,
       scan->angle_min, scan->angle_increment,
@@ -215,8 +200,11 @@ private:
 
   void planLoop()
   {
-    if (planner_->waypointCount() == 0) {
-      return;
+    {
+      std::lock_guard<std::mutex> lock(planner_mutex_);
+      if (planner_->waypointCount() == 0) {
+        return;
+      }
     }
 
     // Update robot pose from TF
@@ -224,18 +212,20 @@ private:
       return;
     }
 
-    // Compute path (handles both normal and avoidance cases)
-    // When disabled, obstacle processing is skipped so computePath()
-    // always sees no opponent and returns the original raceline.
-    auto path_waypoints = planner_->computePath();
+    std::vector<Waypoint> path_waypoints;
+    OpponentState opponent_snapshot;
+    {
+      // Compute path (handles both normal and avoidance cases).
+      std::lock_guard<std::mutex> lock(planner_mutex_);
+      path_waypoints = planner_->computePath();
+      opponent_snapshot = planner_->opponent();
+    }
 
     // Publish controller path (velocity in z) and visualization path (z=0)
     publishPath(path_waypoints);
     publishPathViz(path_waypoints);
-
-    if (enabled_) {
-      publishOpponentMarker(planner_->opponent().detected);
-    }
+    publishWallDistanceMarkers(path_waypoints, opponent_snapshot);
+    publishOpponentMarker(opponent_snapshot);
   }
 
   // ── TF pose update ────────────────────────────────────────────────
@@ -256,6 +246,8 @@ private:
     double x   = tf.transform.translation.x;
     double y   = tf.transform.translation.y;
     double yaw = yawFromQuaternion(tf.transform.rotation);
+
+    std::lock_guard<std::mutex> lock(planner_mutex_);
     planner_->updateRobotPose(x, y, yaw);
     return true;
   }
@@ -305,42 +297,227 @@ private:
     raceline_viz_pub_->publish(path_msg);
   }
 
-  void publishOpponentMarker(bool detected)
+  /// Publish per-waypoint line segments to left/right wall distances for RViz.
+  void publishWallDistanceMarkers(
+    const std::vector<Waypoint> & waypoints,
+    const OpponentState & opponent)
   {
     visualization_msgs::msg::MarkerArray markers;
-    visualization_msgs::msg::Marker marker;
+    const auto & reference_waypoints = planner_->waypoints();
 
-    marker.header.stamp    = now();
-    marker.header.frame_id = map_frame_;
-    marker.ns   = "opponent";
-    marker.id   = 0;
-    marker.type = visualization_msgs::msg::Marker::CYLINDER;
-
-    if (detected) {
-      const auto & opp = planner_->opponent();
+    auto make_base_marker = [&](int id, float r, float g, float b) {
+      visualization_msgs::msg::Marker marker;
+      marker.header.stamp = now();
+      marker.header.frame_id = map_frame_;
+      marker.ns = "wall_distance";
+      marker.id = id;
+      marker.type = visualization_msgs::msg::Marker::LINE_LIST;
       marker.action = visualization_msgs::msg::Marker::ADD;
-      marker.pose.position.x = opp.x;
-      marker.pose.position.y = opp.y;
-      marker.pose.position.z = 0.1;
-      marker.scale.x = opp.width;
-      marker.scale.y = opp.width;
-      marker.scale.z = 0.2;
-      marker.color.r = 1.0f;
-      marker.color.g = 0.0f;
-      marker.color.b = 0.0f;
-      marker.color.a = 0.8f;
-    } else {
-      marker.action = visualization_msgs::msg::Marker::DELETE;
+      marker.scale.x = 0.015;
+      marker.color.r = r;
+      marker.color.g = g;
+      marker.color.b = b;
+      marker.color.a = 0.85f;
+      return marker;
+    };
+
+    auto left_marker = make_base_marker(0, 0.1f, 0.9f, 0.2f);
+    auto right_marker = make_base_marker(1, 0.2f, 0.5f, 1.0f);
+    left_marker.points.reserve(waypoints.size() * 2);
+    right_marker.points.reserve(waypoints.size() * 2);
+
+    auto clipToOpponentBody = [&](const geometry_msgs::msg::Point & start,
+                                  geometry_msgs::msg::Point * end) {
+      if (!opponent.detected || end == nullptr) {
+        return;
+      }
+
+      const double half_len = std::max(0.5 * opponent.length, 0.05);
+      const double half_wid = std::max(0.5 * opponent.width, 0.05);
+      const double c = std::cos(opponent.yaw);
+      const double s = std::sin(opponent.yaw);
+
+      auto to_local = [&](double wx, double wy, double & lx, double & ly) {
+        const double dx = wx - opponent.x;
+        const double dy = wy - opponent.y;
+        lx = dx * c + dy * s;
+        ly = -dx * s + dy * c;
+      };
+
+      auto to_world = [&](double lx, double ly, double & wx, double & wy) {
+        wx = opponent.x + lx * c - ly * s;
+        wy = opponent.y + lx * s + ly * c;
+      };
+
+      double x0 = 0.0;
+      double y0 = 0.0;
+      double x1 = 0.0;
+      double y1 = 0.0;
+      to_local(start.x, start.y, x0, y0);
+      to_local(end->x, end->y, x1, y1);
+
+      const double dx = x1 - x0;
+      const double dy = y1 - y0;
+      double t_min = 0.0;
+      double t_max = 1.0;
+
+      auto clip_axis = [&](double p0, double d, double min_v, double max_v) -> bool {
+        if (std::abs(d) < 1e-9) {
+          return p0 >= min_v && p0 <= max_v;
+        }
+        double t1 = (min_v - p0) / d;
+        double t2 = (max_v - p0) / d;
+        if (t1 > t2) {
+          std::swap(t1, t2);
+        }
+        t_min = std::max(t_min, t1);
+        t_max = std::min(t_max, t2);
+        return t_min <= t_max;
+      };
+
+      if (!clip_axis(x0, dx, -half_len, half_len) ||
+          !clip_axis(y0, dy, -half_wid, half_wid))
+      {
+        return;
+      }
+
+      if (t_max < 0.0 || t_min > 1.0) {
+        return;
+      }
+
+      const double t_hit = std::clamp(t_min, 0.0, 1.0);
+      if (t_hit >= 1.0) {
+        return;
+      }
+
+      const double seg_len = std::hypot(dx, dy);
+      const double backoff_t = (seg_len > 1e-6) ? (0.01 / seg_len) : 0.0;
+      const double t_clip = std::max(0.0, t_hit - backoff_t);
+
+      double clip_x = 0.0;
+      double clip_y = 0.0;
+      to_world(x0 + t_clip * dx, y0 + t_clip * dy, clip_x, clip_y);
+      end->x = clip_x;
+      end->y = clip_y;
+    };
+
+    auto nearestReferenceByS = [&](double s) -> const Waypoint * {
+      if (reference_waypoints.empty()) {
+        return nullptr;
+      }
+
+      auto it = std::lower_bound(
+        reference_waypoints.begin(), reference_waypoints.end(), s,
+        [](const Waypoint & candidate, double value) {
+          return candidate.s < value;
+        });
+
+      if (it == reference_waypoints.begin()) {
+        return &(*it);
+      }
+      if (it == reference_waypoints.end()) {
+        return &reference_waypoints.back();
+      }
+
+      const Waypoint & hi = *it;
+      const Waypoint & lo = *(it - 1);
+      return (std::abs(hi.s - s) < std::abs(s - lo.s)) ? &hi : &lo;
+    };
+
+    for (const auto & wp : waypoints) {
+      const Waypoint * ref_wp = nearestReferenceByS(wp.s);
+      const double normal = (ref_wp != nullptr ? ref_wp->psi : wp.psi) + M_PI / 2.0;
+      const double nx = std::cos(normal);
+      const double ny = std::sin(normal);
+      const double d_left = std::clamp(wp.d_left, 0.0, 10.0);
+      const double d_right = std::clamp(wp.d_right, 0.0, 10.0);
+
+      geometry_msgs::msg::Point center;
+      center.x = wp.x;
+      center.y = wp.y;
+      center.z = 0.02;
+
+      geometry_msgs::msg::Point left;
+      left.x = wp.x + d_left * nx;
+      left.y = wp.y + d_left * ny;
+      left.z = 0.02;
+
+      geometry_msgs::msg::Point right;
+      right.x = wp.x - d_right * nx;
+      right.y = wp.y - d_right * ny;
+      right.z = 0.02;
+
+      clipToOpponentBody(center, &left);
+      clipToOpponentBody(center, &right);
+
+      left_marker.points.push_back(center);
+      left_marker.points.push_back(left);
+      right_marker.points.push_back(center);
+      right_marker.points.push_back(right);
     }
 
-    markers.markers.push_back(marker);
+    markers.markers.push_back(left_marker);
+    markers.markers.push_back(right_marker);
+    wall_distance_marker_pub_->publish(markers);
+  }
+
+  void publishOpponentMarker(const OpponentState & opponent)
+  {
+    visualization_msgs::msg::MarkerArray markers;
+    visualization_msgs::msg::Marker body;
+    visualization_msgs::msg::Marker rear_point;
+
+    body.header.stamp = now();
+    body.header.frame_id = map_frame_;
+    body.ns = "opponent";
+    body.id = 0;
+    body.type = visualization_msgs::msg::Marker::CUBE;
+
+    rear_point.header = body.header;
+    rear_point.ns = "opponent";
+    rear_point.id = 1;
+    rear_point.type = visualization_msgs::msg::Marker::SPHERE;
+
+    if (opponent.detected) {
+      body.action = visualization_msgs::msg::Marker::ADD;
+      body.pose.position.x = opponent.x;
+      body.pose.position.y = opponent.y;
+      body.pose.position.z = 0.1;
+      body.pose.orientation.z = std::sin(opponent.yaw * 0.5);
+      body.pose.orientation.w = std::cos(opponent.yaw * 0.5);
+      body.scale.x = opponent.length;
+      body.scale.y = opponent.width;
+      body.scale.z = 0.2;
+      body.color.r = 1.0f;
+      body.color.g = 0.0f;
+      body.color.b = 0.0f;
+      body.color.a = 0.8f;
+
+      rear_point.action = visualization_msgs::msg::Marker::ADD;
+      rear_point.pose.position.x = opponent.back_x;
+      rear_point.pose.position.y = opponent.back_y;
+      rear_point.pose.position.z = 0.12;
+      rear_point.scale.x = 0.08;
+      rear_point.scale.y = 0.08;
+      rear_point.scale.z = 0.08;
+      rear_point.color.r = 1.0f;
+      rear_point.color.g = 1.0f;
+      rear_point.color.b = 0.0f;
+      rear_point.color.a = 0.9f;
+    } else {
+      body.action = visualization_msgs::msg::Marker::DELETE;
+      rear_point.action = visualization_msgs::msg::Marker::DELETE;
+    }
+
+    markers.markers.push_back(body);
+    markers.markers.push_back(rear_point);
     marker_pub_->publish(markers);
   }
 
   // ── Members ───────────────────────────────────────────────────────
 
   std::unique_ptr<LateralPlanner> planner_;
-  bool enabled_ = true;
+  std::mutex planner_mutex_;
 
   // Frame IDs
   std::string map_frame_;
@@ -354,11 +531,11 @@ private:
   // Subscribers
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr obstacle_sub_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr     odom_sub_;
-  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr         enable_sub_;
 
   // Publishers
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr                raceline_pub_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr                raceline_viz_pub_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr wall_distance_marker_pub_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_;
 
   // Timer

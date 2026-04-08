@@ -76,19 +76,11 @@ def generate_launch_description():
             default_value=default_trajectory,
             description='Path to global raceline CSV for lateral planner'),
 
-        DeclareLaunchArgument(
-            'obstacle_threshold',
-            default_value='0.3',
-            description='Wall-distance threshold for scan splitter [m]'),
-
         # ── Scan splitter (/scan → /scan_walls + /scan_obstacles) ─
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 os.path.join(lidar_pkg, 'launch', 'scan_splitter.launch.py')
             ),
-            launch_arguments={
-                'obstacle_threshold': LaunchConfiguration('obstacle_threshold'),
-            }.items(),
         ),
 
         # ── Lateral planner ───────────────────────────────────────

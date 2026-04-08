@@ -6,6 +6,7 @@
 #include <queue>
 #include <algorithm>
 #include <chrono>
+#include <functional>
 
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <std_msgs/msg/float64.hpp>
@@ -21,29 +22,7 @@ namespace f1tenth_lidar
 ScanSplitterNode::ScanSplitterNode(const rclcpp::NodeOptions & options)
 : Node("scan_splitter_node", options)
 {
-  // ── Declare parameters ────────────────────────────────────────────
-  this->declare_parameter("enable_splitting", true);
-  this->declare_parameter("obstacle_threshold_m", 0.05);
-  this->declare_parameter("min_cluster_size", 1);
-  this->declare_parameter("max_cluster_gap_beams", 0);
-  this->declare_parameter("scan_topic", std::string("/scan"));
-  this->declare_parameter("walls_topic", std::string("/scan_walls"));
-  this->declare_parameter("obstacles_topic", std::string("/scan_obstacles"));
-  this->declare_parameter("robot_frame", std::string("ego_racecar/base_link"));
-  this->declare_parameter("laser_frame", std::string("ego_racecar/laser"));
-  this->declare_parameter("map_frame", std::string("map"));
-
-  // ── Read parameters ───────────────────────────────────────────────
-  enable_splitting_   = this->get_parameter("enable_splitting").as_bool();
-  obstacle_threshold_ = this->get_parameter("obstacle_threshold_m").as_double();
-  min_cluster_size_   = this->get_parameter("min_cluster_size").as_int();
-  max_cluster_gap_beams_ = this->get_parameter("max_cluster_gap_beams").as_int();
-  scan_topic_         = this->get_parameter("scan_topic").as_string();
-  walls_topic_        = this->get_parameter("walls_topic").as_string();
-  obstacles_topic_    = this->get_parameter("obstacles_topic").as_string();
-  robot_frame_        = this->get_parameter("robot_frame").as_string();
-  laser_frame_        = this->get_parameter("laser_frame").as_string();
-  map_frame_          = this->get_parameter("map_frame").as_string();
+  // Configuration comes from compile-time defines in scan_splitter_config.hpp.
 
   // ── TF ────────────────────────────────────────────────────────────
   tf_buffer_   = std::make_shared<tf2_ros::Buffer>(this->get_clock());
@@ -54,7 +33,7 @@ ScanSplitterNode::ScanSplitterNode(const rclcpp::NodeOptions & options)
   rclcpp::QoS map_qos(1);
   map_qos.reliable().transient_local();
   map_sub_ = this->create_subscription<nav_msgs::msg::OccupancyGrid>(
-    "/map", map_qos,
+    SCAN_SPLITTER_MAP_TOPIC, map_qos,
     std::bind(&ScanSplitterNode::map_callback, this, std::placeholders::_1));
 
   // Scan: BEST_EFFORT sensor QoS for lowest latency
@@ -87,7 +66,7 @@ ScanSplitterNode::ScanSplitterNode(const rclcpp::NodeOptions & options)
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-//  Map handling — precompute distance field with BFS
+//  Map handling — precompute metric distance field with Dijkstra
 // ────────────────────────────────────────────────────────────────────────────
 
 void ScanSplitterNode::compute_distance_field(
@@ -98,51 +77,51 @@ void ScanSplitterNode::compute_distance_field(
   const float res = static_cast<float>(grid.info.resolution);
   const auto & data = grid.data;
 
-  // squared-distance field in cell units (INT_MAX = unvisited)
-  std::vector<int> sq_dist(w * h, std::numeric_limits<int>::max());
-  std::queue<int> bfs;
+  // Distances are stored directly in metres.
+  std::vector<float> dist_m(w * h, std::numeric_limits<float>::infinity());
+  using QueueItem = std::pair<float, int>;  // (distance_m, flat_index)
+  std::priority_queue<QueueItem, std::vector<QueueItem>, std::greater<QueueItem>> pq;
 
-  // Seed: every occupied cell (value >= 50) has distance 0
+  // Seed: occupied cells (value >= 50) have distance 0.
+  // Unknown cells are treated as free to avoid overly conservative wall distances.
   for (int i = 0; i < w * h; ++i) {
     int8_t v = static_cast<int8_t>(data[i]);
-    if (v >= 50 || v < 0) {        // occupied or unknown → treat as wall
-      sq_dist[i] = 0;
-      bfs.push(i);
+    if (v >= 50) {
+      dist_m[i] = 0.0f;
+      pq.emplace(0.0f, i);
     }
   }
 
-  // 8-connected BFS (Chamfer-style); not perfectly Euclidean but very fast
-  // and accurate enough for a threshold test.
-  // Directions: 4 cardinal (cost² = 1) + 4 diagonal (cost² = 2)
+  // 8-connected propagation with metric edge costs.
   static constexpr int dx8[8] = {1, -1, 0, 0, 1, 1, -1, -1};
   static constexpr int dy8[8] = {0, 0, 1, -1, 1, -1, 1, -1};
-  static constexpr int cost2[8] = {1, 1, 1, 1, 2, 2, 2, 2};
+  const float diag_cost = std::sqrt(2.0f) * res;
+  const float step_cost[8] = {res, res, res, res, diag_cost, diag_cost, diag_cost, diag_cost};
 
-  while (!bfs.empty()) {
-    const int idx = bfs.front();
-    bfs.pop();
+  while (!pq.empty()) {
+    const auto [cur_dist, idx] = pq.top();
+    pq.pop();
+    if (cur_dist > dist_m[idx]) {
+      continue;
+    }
+
     const int cx = idx % w;
     const int cy = idx / w;
-    const int cur_d2 = sq_dist[idx];
 
     for (int d = 0; d < 8; ++d) {
       const int nx = cx + dx8[d];
       const int ny = cy + dy8[d];
       if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
       const int nidx = ny * w + nx;
-      const int new_d2 = cur_d2 + cost2[d];
-      if (new_d2 < sq_dist[nidx]) {
-        sq_dist[nidx] = new_d2;
-        bfs.push(nidx);
+      const float new_dist = cur_dist + step_cost[d];
+      if (new_dist < dist_m[nidx]) {
+        dist_m[nidx] = new_dist;
+        pq.emplace(new_dist, nidx);
       }
     }
   }
 
-  // Convert squared-cell-distance → metres
-  distance_field_.resize(w * h);
-  for (int i = 0; i < w * h; ++i) {
-    distance_field_[i] = std::sqrt(static_cast<float>(sq_dist[i])) * res;
-  }
+  distance_field_ = std::move(dist_m);
 }
 
 void ScanSplitterNode::map_callback(
@@ -184,6 +163,10 @@ void ScanSplitterNode::scan_callback(
 
   if (!map_ready_) {
     walls_pub_->publish(*scan);
+
+    auto empty = *scan;
+    empty.ranges.assign(n, INF);
+    obstacles_pub_->publish(empty);
     return;
   }
 
@@ -197,6 +180,10 @@ void ScanSplitterNode::scan_callback(
     RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
       "TF lookup failed: %s — passing through raw scan", ex.what());
     walls_pub_->publish(*scan);
+
+    auto empty = *scan;
+    empty.ranges.assign(n, INF);
+    obstacles_pub_->publish(empty);
     return;
   }
 
@@ -210,9 +197,6 @@ void ScanSplitterNode::scan_callback(
   // ── Resize work buffers (no-op after first call with same size) ──
   if (angles_.size() != n) {
     angles_.resize(n);
-    world_angles_.resize(n);
-    endpoints_x_.resize(n);
-    endpoints_y_.resize(n);
     is_obstacle_.resize(n);
     wall_ranges_.resize(n);
     obstacle_ranges_.resize(n);
@@ -254,9 +238,10 @@ void ScanSplitterNode::scan_callback(
     int px = static_cast<int>((ex - ox) * inv_res);
     int py = static_cast<int>((ey - oy) * inv_res);
 
-    // Clamp
-    px = std::clamp(px, 0, w - 1);
-    py = std::clamp(py, 0, h - 1);
+    // Ignore beams whose endpoints lie outside map bounds.
+    if (px < 0 || px >= w || py < 0 || py >= h) {
+      continue;
+    }
 
     // Distance-field lookup
     const float dist_to_wall = df[py * w + px];
@@ -272,14 +257,15 @@ void ScanSplitterNode::scan_callback(
   }
 
   // ── Build output scans ────────────────────────────────────────────
-  // Walls scan: obstacle beams → inf
+  // Walls scan keeps only wall beams; obstacles scan keeps only obstacle beams.
   for (size_t i = 0; i < n; ++i) {
-    wall_ranges_[i] = is_obstacle_[i] ? INF : ranges[i];
-  }
-
-  // Obstacles scan: wall beams → inf
-  for (size_t i = 0; i < n; ++i) {
-    obstacle_ranges_[i] = is_obstacle_[i] ? ranges[i] : INF;
+    if (is_obstacle_[i]) {
+      wall_ranges_[i] = INF;
+      obstacle_ranges_[i] = ranges[i];
+    } else {
+      wall_ranges_[i] = ranges[i];
+      obstacle_ranges_[i] = INF;
+    }
   }
 
   // ── Publish ───────────────────────────────────────────────────────

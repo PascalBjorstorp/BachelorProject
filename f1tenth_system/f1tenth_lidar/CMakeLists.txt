@@ -24,6 +24,7 @@ add_executable(scan_splitter_node
 )
 target_include_directories(scan_splitter_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/config>
   $<INSTALL_INTERFACE:include>
 )
 ament_target_dependencies(scan_splitter_node
