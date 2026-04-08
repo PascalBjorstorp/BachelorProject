@@ -41,7 +41,6 @@ def generate_launch_description():
     use_teleop_arg = LaunchConfiguration('use_teleop')
     use_lidar_arg = LaunchConfiguration('use_lidar')
     mapping_mode_arg = LaunchConfiguration('mapping_mode')
-    trajectory_file_arg = LaunchConfiguration('trajectory_file')
     map_file_arg = LaunchConfiguration('map_file')
     bringup_delay_sec_arg = LaunchConfiguration('bringup_delay_sec')
 
@@ -79,10 +78,6 @@ def generate_launch_description():
         DeclareLaunchArgument(  'mapping_mode', 
                                 default_value='false',
                                 description='Mapping mode: 270 beams @ 20 Hz, no scan splitter or lateral planner'),
-        
-        DeclareLaunchArgument(  'trajectory_file', 
-                                default_value='__from_yaml__',
-                                description='Optional override for lateral planner trajectory_file (default: YAML value)'),
         
         DeclareLaunchArgument(  'map_file', 
                                 default_value=default_map,
@@ -279,9 +274,6 @@ def generate_launch_description():
                     PythonLaunchDescriptionSource(
                         os.path.join(lateral_planner_pkg_dir, 'launch', 'lateral_planner.launch.py')
                     ),
-                    launch_arguments={
-                        'trajectory_file': trajectory_file_arg,
-                    }.items(),
                     condition=UnlessCondition(mapping_mode_arg),
                 ),
 
