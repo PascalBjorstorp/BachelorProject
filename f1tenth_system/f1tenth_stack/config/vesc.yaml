@@ -75,8 +75,25 @@ vesc_to_odom_node:
     # Use IMU for yaw estimation (recommended)
     use_imu: true
     
-    # Use servo command instead of actual steering feedback
-    use_servo_cmd_to_calc_angular_velocity: false
+    # Keep steering-model yaw available and enable adaptive IMU takeover on slip.
+    # This lets the model run normally and only switches to IMU when glide/slip
+    # indicators are high.
+    use_servo_cmd_to_calc_angular_velocity: true
+    adaptive_imu_takeover: true
+
+    # Slip detection thresholds for adaptive IMU takeover
+    # takeover enters when all are exceeded; exits with hysteresis scaling.
+    slip_min_speed: 1.5
+    slip_lateral_accel_threshold: 2.5
+    slip_yaw_rate_diff_threshold: 0.45
+    slip_hysteresis_factor: 0.6
+
+    # During active slip takeover, estimate body-frame lateral velocity from IMU
+    # and use it in x/y propagation.
+    use_imu_lateral_velocity: true
+    imu_lateral_accel_alpha: 0.25
+    imu_lateral_velocity_decay: 1.2
+    imu_lateral_velocity_max: 2.0
     
     # Car wheelbase (meters) - measure your car!
     wheelbase: 0.324
