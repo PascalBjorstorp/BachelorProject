@@ -541,8 +541,7 @@ static void build_stage_cost(
     if (config.weight_vx > 0)
     {
         cost->Q[MPCC_IDX_VX][MPCC_IDX_VX] = config.weight_vx;
-        cost->q[MPCC_IDX_VX] = fp_sub(0,
-            fp_mul(FP_CONST(2.0), fp_mul(config.weight_vx, config.vx_ref)));
+        cost->q[MPCC_IDX_VX] = -(2.0f * config.weight_vx * config.vx_ref);
     }
 
     /* Progress reward: -q_theta * v_theta (linear term on v_theta control).
@@ -550,14 +549,14 @@ static void build_stage_cost(
     if (is_terminal)
     {
         float q_s = config.weight_progress_terminal;
-        cost->q[MPCC_IDX_S] = fp_sub(0, q_s); /* negative = reward */
+        cost->q[MPCC_IDX_S] = (0 - q_s); /* negative = reward */
     }
 
     /* Control costs (not used for terminal stage) */
     if (!is_terminal)
     {
         float q_progress = config.weight_progress;
-        cost->r[MPCC_IDX_VTHETA] = fp_sub(0, q_progress); /* negative = reward */
+        cost->r[MPCC_IDX_VTHETA] = (0 - q_progress); /* negative = reward */
 
         /* Rate weights: on step 0 scale by cross_call_rate_scale to
          * compensate for the control callback running faster than the
@@ -573,11 +572,11 @@ static void build_stage_cost(
         }
 
         cost->R[MPCC_IDX_DELTA][MPCC_IDX_DELTA] =
-            fp_add(config.weight_delta, w_dr);
+            (config.weight_delta + w_dr);
         cost->R[MPCC_IDX_AX][MPCC_IDX_AX] =
-            fp_add(config.weight_ax, w_ar);
+            (config.weight_ax + w_ar);
         cost->R[MPCC_IDX_VTHETA][MPCC_IDX_VTHETA] =
-            fp_add(config.weight_v_theta, w_vr);
+            (config.weight_v_theta + w_vr);
     }
 }
 
@@ -621,17 +620,17 @@ static void add_contouring_lag_cost(
     if (q_c == 0 && q_l == 0) return;
 
     /* Path quantities at operating point */
-    float sin_phi = fp_sin(path_pt->phi_ref);
-    float cos_phi = fp_cos(path_pt->phi_ref);
+    float sin_phi = sinf(path_pt->phi_ref);
+    float cos_phi = cosf(path_pt->phi_ref);
     float kappa   = path_pt->kappa_ref;
 
     /* Position error in global frame */
-    float dX = fp_sub(z_bar->X, path_pt->x_ref);
-    float dY = fp_sub(z_bar->Y, path_pt->y_ref);
+    float dX = (z_bar->X - path_pt->x_ref);
+    float dY = (z_bar->Y - path_pt->y_ref);
 
     /* Errors at operating point */
-    float e_c_bar = fp_sub(fp_mul(sin_phi, dX), fp_mul(cos_phi, dY));
-    float e_l_bar = fp_sub(0, fp_add(fp_mul(cos_phi, dX), fp_mul(sin_phi, dY)));
+    float e_c_bar = sin_phi * dX - cos_phi * dY;
+    float e_l_bar = -(cos_phi * dX + sin_phi * dY);
 
     /* Gradient vectors (only s, X, Y components are nonzero) */
     float g_c[MPCC_NX];
@@ -639,13 +638,13 @@ static void add_contouring_lag_cost(
     memset(g_c, 0, sizeof(g_c));
     memset(g_l, 0, sizeof(g_l));
 
-    g_c[MPCC_IDX_S] = fp_sub(0, fp_mul(kappa, e_l_bar));  /* -kappa * e_l */
+    g_c[MPCC_IDX_S] = (0 - (kappa * e_l_bar));  /* -kappa * e_l */
     g_c[MPCC_IDX_X] = sin_phi;
-    g_c[MPCC_IDX_Y] = fp_sub(0, cos_phi);                 /* -cos(phi) */
+    g_c[MPCC_IDX_Y] = (0 - cos_phi);                 /* -cos(phi) */
 
-    g_l[MPCC_IDX_S] = fp_add(fp_mul(kappa, e_c_bar), FP_ONE);  /* kappa * e_c + 1 */
-    g_l[MPCC_IDX_X] = fp_sub(0, cos_phi);                      /* -cos(phi) */
-    g_l[MPCC_IDX_Y] = fp_sub(0, sin_phi);                      /* -sin(phi) */
+    g_l[MPCC_IDX_S] = ((kappa + e_c_bar) * 1.0f);  /* kappa * e_c + 1 */
+    g_l[MPCC_IDX_X] = (0 - cos_phi);                      /* -cos(phi) */
+    g_l[MPCC_IDX_Y] = (0 - sin_phi);                      /* -sin(phi) */
 
     /* Constant terms: d = e_bar - g^T * x_bar */
     float x_bar[MPCC_NX] = {
@@ -655,14 +654,14 @@ static void add_contouring_lag_cost(
     };
 
     /* d_c = e_c_bar - g_c^T * x_bar */
-    int64_t gc_xbar = 0;
-    int64_t gl_xbar = 0;
+    float gc_xbar = 0.0f;
+    float gl_xbar = 0.0f;
     for (int i = 0; i < MPCC_NX; i++) {
-        gc_xbar += (int64_t)g_c[i] * (int64_t)x_bar[i];
-        gl_xbar += (int64_t)g_l[i] * (int64_t)x_bar[i];
+        gc_xbar += g_c[i] * x_bar[i];
+        gl_xbar += g_l[i] * x_bar[i];
     }
-    float d_c = fp_sub(e_c_bar, (float)(gc_xbar >> FP_FRAC_BITS));
-    float d_l = fp_sub(e_l_bar, (float)(gl_xbar >> FP_FRAC_BITS));
+    float d_c = e_c_bar - gc_xbar;
+    float d_l = e_l_bar - gl_xbar;
 
     /* Add to Q matrix:  Q += 2*(q_c * g_c * g_c^T + q_l * g_l * g_l^T)
      * (factor 2 because cost form is 0.5 * x^T Q x) */
@@ -670,24 +669,18 @@ static void add_contouring_lag_cost(
         if (g_c[i] == 0 && g_l[i] == 0) continue;
         for (int j = 0; j < MPCC_NX; j++) {
             if (g_c[j] == 0 && g_l[j] == 0) continue;
-            int64_t qc_gi_gj = (int64_t)q_c * (int64_t)g_c[i] >> FP_FRAC_BITS;
-            qc_gi_gj = qc_gi_gj * (int64_t)g_c[j] >> FP_FRAC_BITS;
-            int64_t ql_gi_gj = (int64_t)q_l * (int64_t)g_l[i] >> FP_FRAC_BITS;
-            ql_gi_gj = ql_gi_gj * (int64_t)g_l[j] >> FP_FRAC_BITS;
-            float contrib = (float)((qc_gi_gj + ql_gi_gj) * 2);
-            cost->Q[i][j] = fp_add(cost->Q[i][j], contrib);
+            float qc_gi_gj = q_c * g_c[i] * g_c[j];
+            float ql_gi_gj = q_l * g_l[i] * g_l[j];
+            cost->Q[i][j] += 2.0f * (qc_gi_gj + ql_gi_gj);
         }
     }
 
     /* Add to q vector:  q += 2*(q_c * d_c * g_c + q_l * d_l * g_l) */
     for (int i = 0; i < MPCC_NX; i++) {
         if (g_c[i] == 0 && g_l[i] == 0) continue;
-        int64_t qc_dc_gi = (int64_t)q_c * (int64_t)d_c >> FP_FRAC_BITS;
-        qc_dc_gi = qc_dc_gi * (int64_t)g_c[i] >> FP_FRAC_BITS;
-        int64_t ql_dl_gi = (int64_t)q_l * (int64_t)d_l >> FP_FRAC_BITS;
-        ql_dl_gi = ql_dl_gi * (int64_t)g_l[i] >> FP_FRAC_BITS;
-        float contrib = (float)((qc_dc_gi + ql_dl_gi) * 2);
-        cost->q[i] = fp_add(cost->q[i], contrib);
+        float qc_dc_gi = q_c * d_c * g_c[i];
+        float ql_dl_gi = q_l * d_l * g_l[i];
+        cost->q[i] += 2.0f * (qc_dc_gi + ql_dl_gi);
     }
 }
 
@@ -717,10 +710,10 @@ static void build_qp_problem(
     /* --- Global box constraints --- */
 
     /* State bounds (use large values for unbounded) */
-    float big = FP_CONST(1000.0);
+    float big = 1000.0f;
     for (int i = 0; i < MPCC_NX; i++)
     {
-        qp->x_lower[i] = fp_sub(0, big);
+        qp->x_lower[i] = (0 - big);
         qp->x_upper[i] = big;
     }
 
@@ -732,7 +725,7 @@ static void build_qp_problem(
     qp->x_upper[MPCC_IDX_VX] = config.vx_max;
 
     /* Control bounds */
-    qp->u_lower[MPCC_IDX_DELTA] = fp_sub(0, config.delta_max);
+    qp->u_lower[MPCC_IDX_DELTA] = (0 - config.delta_max);
     qp->u_upper[MPCC_IDX_DELTA] = config.delta_max;
     qp->u_lower[MPCC_IDX_AX] = config.ax_min;
     qp->u_upper[MPCC_IDX_AX] = config.ax_max;
@@ -750,7 +743,7 @@ static void build_qp_problem(
     else {
         u_bar.delta = 0;
         u_bar.a_x = 0;
-        u_bar.v_theta = FP_CONST(1.0);
+        u_bar.v_theta = 1.0f;
     }
 
     for (uint16_t k = 0; k < N; k++)
@@ -771,7 +764,7 @@ static void build_qp_problem(
         mpcc_path_interpolate(&ref_path, z_bar.s, &path_pt);
 
         /* Linearize dynamics */
-        mpcc_linearize_dynamics(&z_bar, &u_bar, path_pt.kappa_ref,
+        mpcc_linearize_dynamics(&z_bar, &u_bar,
                           config.dt, &config, &qp->dynamics[k]);
 
         /* Build stage cost */
@@ -784,14 +777,13 @@ static void build_qp_problem(
         /* Override vx_ref with the per-stage value from the raceline velocity
          * profile so the solver naturally slows before turns. */
         if (path_pt.vx_ref > 0 && config.weight_vx > 0) {
-            qp->stage_cost[k].q[MPCC_IDX_VX] = fp_sub(0,
-                fp_mul(FP_CONST(2.0), fp_mul(config.weight_vx, path_pt.vx_ref)));
+            qp->stage_cost[k].q[MPCC_IDX_VX] = -(2.0f * config.weight_vx * path_pt.vx_ref);
 #ifdef MPCC_DEBUG_PRINT
             if (k == 0) {
                 printf("  [QP] s_bar=%.2f vx_ref=%.3f q_vx=%.1f Q_vx=%.1f\n",
-                       FP_TO_DOUBLE(z_bar.s), FP_TO_DOUBLE(path_pt.vx_ref),
-                       FP_TO_DOUBLE(qp->stage_cost[k].q[MPCC_IDX_VX]),
-                       FP_TO_DOUBLE(qp->stage_cost[k].Q[MPCC_IDX_VX][MPCC_IDX_VX]));
+                       (double)(z_bar.s), (double)(path_pt.vx_ref),
+                       (double)(qp->stage_cost[k].q[MPCC_IDX_VX]),
+                       (double)(qp->stage_cost[k].Q[MPCC_IDX_VX][MPCC_IDX_VX]));
             }
 #endif
         }
@@ -810,7 +802,7 @@ static void build_qp_problem(
             else {
                 u_ref.delta = 0;
                 u_ref.a_x = 0;
-                u_ref.v_theta = FP_CONST(1.0);
+                u_ref.v_theta = 1.0f;
             }
 
             float w_dr = config.weight_delta_rate;
@@ -818,25 +810,22 @@ static void build_qp_problem(
             float w_vr = config.weight_v_theta_rate;
             if (k == 0)
             {
-                w_dr = fp_mul(w_dr, config.cross_call_rate_scale);
-                w_ar = fp_mul(w_ar, config.cross_call_rate_scale);
-                w_vr = fp_mul(w_vr, config.cross_call_rate_scale);
+                w_dr = (w_dr * config.cross_call_rate_scale);
+                w_ar = (w_ar * config.cross_call_rate_scale);
+                w_vr = (w_vr * config.cross_call_rate_scale);
             }
 
-            qp->stage_cost[k].r[MPCC_IDX_DELTA] = fp_sub(
-                qp->stage_cost[k].r[MPCC_IDX_DELTA],
-                fp_mul(FP_CONST(2.0),
-                    fp_mul(w_dr, u_ref.delta)));
+            qp->stage_cost[k].r[MPCC_IDX_DELTA] =
+                qp->stage_cost[k].r[MPCC_IDX_DELTA]
+                - 2.0f * w_dr * u_ref.delta;
 
-            qp->stage_cost[k].r[MPCC_IDX_AX] = fp_sub(
-                qp->stage_cost[k].r[MPCC_IDX_AX],
-                fp_mul(FP_CONST(2.0),
-                    fp_mul(w_ar, u_ref.a_x)));
+            qp->stage_cost[k].r[MPCC_IDX_AX] =
+                qp->stage_cost[k].r[MPCC_IDX_AX]
+                - 2.0f * w_ar * u_ref.a_x;
 
-            qp->stage_cost[k].r[MPCC_IDX_VTHETA] = fp_sub(
-                qp->stage_cost[k].r[MPCC_IDX_VTHETA],
-                fp_mul(FP_CONST(2.0),
-                    fp_mul(w_vr, u_ref.v_theta)));
+            qp->stage_cost[k].r[MPCC_IDX_VTHETA] =
+                qp->stage_cost[k].r[MPCC_IDX_VTHETA]
+                - 2.0f * w_vr * u_ref.v_theta;
         }
 
         /* Per-stage track bounds on n */
@@ -870,8 +859,7 @@ static void build_qp_problem(
                                 config.weight_lag_terminal);
 
         if (path_pt.vx_ref > 0 && config.weight_vx > 0) {
-            qp->terminal_cost.q[MPCC_IDX_VX] = fp_sub(0,
-                fp_mul(FP_CONST(2.0), fp_mul(config.weight_vx, path_pt.vx_ref)));
+            qp->terminal_cost.q[MPCC_IDX_VX] = -(2.0f * config.weight_vx * path_pt.vx_ref);
         }
     }
 }
@@ -972,7 +960,7 @@ MPCCStatus_t mpcc_compute_control(
     }
 
     /* Warm-start: shift previous solution forward */
-    MPCCControl_t fallback_control = {0, 0, FP_CONST(1.0)};
+    MPCCControl_t fallback_control = {0, 0, 1.0f};
     if (warm_start_available)
     {
         shift_warm_start();
@@ -993,50 +981,50 @@ MPCCStatus_t mpcc_compute_control(
     {
         /* Print B matrix coupling for steering at k=0 */
         printf("  [DBG-QP] k=0 B[1][δ]=%.6f B[2][δ]=%.6f B[3][δ]=%.6f B[0][vθ]=%.6f B[1][ax]=%.6f\n",
-               FP_TO_DOUBLE(qp_problem.dynamics[0].B[1][0]),
-               FP_TO_DOUBLE(qp_problem.dynamics[0].B[2][0]),
-               FP_TO_DOUBLE(qp_problem.dynamics[0].B[3][0]),
-               FP_TO_DOUBLE(qp_problem.dynamics[0].B[0][2]),
-               FP_TO_DOUBLE(qp_problem.dynamics[0].B[1][1]));
+               (double)(qp_problem.dynamics[0].B[1][0]),
+               (double)(qp_problem.dynamics[0].B[2][0]),
+               (double)(qp_problem.dynamics[0].B[3][0]),
+               (double)(qp_problem.dynamics[0].B[0][2]),
+               (double)(qp_problem.dynamics[0].B[1][1]));
         /* Print key A matrix entries at k=0 */
         printf("  [DBG-QP] k=0 A[1][1]=%.4f A[1][2]=%.4f A[1][3]=%.4f A[6][3]=%.4f\n",
-               FP_TO_DOUBLE(qp_problem.dynamics[0].A[1][1]),
-               FP_TO_DOUBLE(qp_problem.dynamics[0].A[1][2]),
-               FP_TO_DOUBLE(qp_problem.dynamics[0].A[1][3]),
-               FP_TO_DOUBLE(qp_problem.dynamics[0].A[6][3]));
+               (double)(qp_problem.dynamics[0].A[1][1]),
+               (double)(qp_problem.dynamics[0].A[1][2]),
+               (double)(qp_problem.dynamics[0].A[1][3]),
+               (double)(qp_problem.dynamics[0].A[6][3]));
         /* Print affine term d */
         printf("  [DBG-QP] k=0 d[0]=%.4f d[1]=%.4f d[2]=%.4f d[3]=%.4f\n",
-               FP_TO_DOUBLE(qp_problem.dynamics[0].d[0]),
-               FP_TO_DOUBLE(qp_problem.dynamics[0].d[1]),
-               FP_TO_DOUBLE(qp_problem.dynamics[0].d[2]),
-               FP_TO_DOUBLE(qp_problem.dynamics[0].d[3]));
+               (double)(qp_problem.dynamics[0].d[0]),
+               (double)(qp_problem.dynamics[0].d[1]),
+               (double)(qp_problem.dynamics[0].d[2]),
+               (double)(qp_problem.dynamics[0].d[3]));
         /* Print cost weights */
         printf("  [DBG-QP] Q[vx]=%.1f Q[vy]=%.1f Q[ω]=%.1f q[vx]=%.1f R[δ]=%.1f R[ax]=%.1f r[vθ]=%.1f\n",
-               FP_TO_DOUBLE(qp_problem.stage_cost[0].Q[1][1]),
-               FP_TO_DOUBLE(qp_problem.stage_cost[0].Q[2][2]),
-               FP_TO_DOUBLE(qp_problem.stage_cost[0].Q[3][3]),
-               FP_TO_DOUBLE(qp_problem.stage_cost[0].q[1]),
-               FP_TO_DOUBLE(qp_problem.stage_cost[0].R[0][0]),
-               FP_TO_DOUBLE(qp_problem.stage_cost[0].R[1][1]),
-               FP_TO_DOUBLE(qp_problem.stage_cost[0].r[2]));
+               (double)(qp_problem.stage_cost[0].Q[1][1]),
+               (double)(qp_problem.stage_cost[0].Q[2][2]),
+               (double)(qp_problem.stage_cost[0].Q[3][3]),
+               (double)(qp_problem.stage_cost[0].q[1]),
+               (double)(qp_problem.stage_cost[0].R[0][0]),
+               (double)(qp_problem.stage_cost[0].R[1][1]),
+               (double)(qp_problem.stage_cost[0].r[2]));
         /* Print rate penalty linear terms (r values) */
         printf("  [DBG-QP] r[δ]=%.4f r[ax]=%.4f r[vθ]=%.4f\n",
-               FP_TO_DOUBLE(qp_problem.stage_cost[0].r[0]),
-               FP_TO_DOUBLE(qp_problem.stage_cost[0].r[1]),
-               FP_TO_DOUBLE(qp_problem.stage_cost[0].r[2]));
+               (double)(qp_problem.stage_cost[0].r[0]),
+               (double)(qp_problem.stage_cost[0].r[1]),
+               (double)(qp_problem.stage_cost[0].r[2]));
         /* Print track bounds */
         printf("  [DBG-QP] track_left[0]=%.2f track_right[0]=%.2f\n",
-               FP_TO_DOUBLE(qp_problem.track_left[0]),
-               FP_TO_DOUBLE(qp_problem.track_right[0]));
+               (double)(qp_problem.track_left[0]),
+               (double)(qp_problem.track_right[0]));
         /* Print initial state */
         printf("  [DBG-QP] x0: s=%.3f vx=%.3f vy=%.4f ω=%.4f X=%.2f Y=%.2f ψ=%.3f\n",
-               FP_TO_DOUBLE(qp_problem.x0[0]),
-               FP_TO_DOUBLE(qp_problem.x0[1]),
-               FP_TO_DOUBLE(qp_problem.x0[2]),
-               FP_TO_DOUBLE(qp_problem.x0[3]),
-               FP_TO_DOUBLE(qp_problem.x0[4]),
-               FP_TO_DOUBLE(qp_problem.x0[5]),
-               FP_TO_DOUBLE(qp_problem.x0[6]));
+               (double)(qp_problem.x0[0]),
+               (double)(qp_problem.x0[1]),
+               (double)(qp_problem.x0[2]),
+               (double)(qp_problem.x0[3]),
+               (double)(qp_problem.x0[4]),
+               (double)(qp_problem.x0[5]),
+               (double)(qp_problem.x0[6]));
     }
 #endif
 
@@ -1109,48 +1097,48 @@ MPCCStatus_t mpcc_compute_control(
             "rho=%.3f  rho_u=%.3f  rho_upd=%u  clip=%u  "
             "delta=%.3f  a_x=%.3f  v_theta=%.3f  s=%.2f  vx=%.3f\n",
            status, admm_result.iterations,
-           FP_TO_DOUBLE(admm_result.primal_residual),
-           FP_TO_DOUBLE(admm_result.dual_residual),
-            FP_TO_DOUBLE(admm_result.rho_final),
-            FP_TO_DOUBLE(admm_result.rho_u_final),
+           (double)(admm_result.primal_residual),
+           (double)(admm_result.dual_residual),
+            (double)(admm_result.rho_final),
+            (double)(admm_result.rho_u_final),
             admm_result.adaptive_rho_updates,
             admm_result.numeric_clip_count,
-           FP_TO_DOUBLE(result->optimal_control.delta),
-           FP_TO_DOUBLE(result->optimal_control.a_x),
-           FP_TO_DOUBLE(result->optimal_control.v_theta),
-           FP_TO_DOUBLE(result->predicted_states[0].s),
-           FP_TO_DOUBLE(result->predicted_states[0].vx));
+           (double)(result->optimal_control.delta),
+           (double)(result->optimal_control.a_x),
+           (double)(result->optimal_control.v_theta),
+           (double)(result->predicted_states[0].s),
+           (double)(result->predicted_states[0].vx));
     /* Print predicted trajectory: vx, delta for first 5 stages */
     {
         uint16_t N = config.horizon_steps;
         uint16_t print_n = N < 5 ? N : 5;
         printf("  [Traj] vx: ");
         for (uint16_t k = 0; k <= print_n; k++)
-            printf("%.3f ", FP_TO_DOUBLE(result->predicted_states[k].vx));
+            printf("%.3f ", (double)(result->predicted_states[k].vx));
         printf("\n  [Traj] δ: ");
         for (uint16_t k = 0; k < print_n; k++)
-            printf("%.4f ", FP_TO_DOUBLE(result->predicted_controls[k].delta));
+            printf("%.4f ", (double)(result->predicted_controls[k].delta));
         printf("\n  [Traj] ax: ");
         for (uint16_t k = 0; k < print_n; k++)
-            printf("%.4f ", FP_TO_DOUBLE(result->predicted_controls[k].a_x));
+            printf("%.4f ", (double)(result->predicted_controls[k].a_x));
         printf("\n");
         /* Print Riccati K gains at k=0 for steering → states */
         printf("  [K] K[δ,s]=%.6f K[δ,vx]=%.6f K[δ,vy]=%.6f K[δ,ω]=%.6f K[δ,X]=%.6f K[δ,Y]=%.6f K[δ,ψ]=%.6f\n",
-               FP_TO_DOUBLE(admm_workspace.K[0][0][0]),
-               FP_TO_DOUBLE(admm_workspace.K[0][0][1]),
-               FP_TO_DOUBLE(admm_workspace.K[0][0][2]),
-               FP_TO_DOUBLE(admm_workspace.K[0][0][3]),
-               FP_TO_DOUBLE(admm_workspace.K[0][0][4]),
-               FP_TO_DOUBLE(admm_workspace.K[0][0][5]),
-               FP_TO_DOUBLE(admm_workspace.K[0][0][6]));
+               (double)(admm_workspace.K[0][0][0]),
+               (double)(admm_workspace.K[0][0][1]),
+               (double)(admm_workspace.K[0][0][2]),
+               (double)(admm_workspace.K[0][0][3]),
+               (double)(admm_workspace.K[0][0][4]),
+               (double)(admm_workspace.K[0][0][5]),
+               (double)(admm_workspace.K[0][0][6]));
         printf("  [K] K[ax,s]=%.6f K[ax,vx]=%.6f K[ax,vy]=%.6f\n",
-               FP_TO_DOUBLE(admm_workspace.K[0][1][0]),
-               FP_TO_DOUBLE(admm_workspace.K[0][1][1]),
-               FP_TO_DOUBLE(admm_workspace.K[0][1][2]));
+               (double)(admm_workspace.K[0][1][0]),
+               (double)(admm_workspace.K[0][1][1]),
+               (double)(admm_workspace.K[0][1][2]));
         printf("  [K] kk[δ]=%.6f kk[ax]=%.6f kk[vθ]=%.6f\n",
-               FP_TO_DOUBLE(admm_workspace.kk[0][0]),
-               FP_TO_DOUBLE(admm_workspace.kk[0][1]),
-               FP_TO_DOUBLE(admm_workspace.kk[0][2]));
+               (double)(admm_workspace.kk[0][0]),
+               (double)(admm_workspace.kk[0][1]),
+               (double)(admm_workspace.kk[0][2]));
     }
 #endif
 

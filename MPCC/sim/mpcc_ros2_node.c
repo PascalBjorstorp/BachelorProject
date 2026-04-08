@@ -29,7 +29,7 @@
 
 /* ── Globals ─────────────────────────────────────────────────────────────── */
 static VehicleState_t   current_vehicle_state;
-static fixed_point_t    current_s;          /* arc-length hint for warm-start */
+static float    current_s;          /* arc-length hint for warm-start */
 static int              state_valid = 0;
 
 /* ROS objects */
@@ -99,12 +99,12 @@ static int load_trajectory_csv(const char *file_path, MPCCReferencePath_t *path)
         if (n < 5) continue;
 
         MPCCPathPoint_t *pt = &path->points[path->num_points];
-        pt->s_ref       = float_to_fp((float)s);
-        pt->x_ref       = float_to_fp((float)x);
-        pt->y_ref       = float_to_fp((float)y);
-        pt->phi_ref     = float_to_fp((float)psi);
-        pt->kappa_ref   = float_to_fp((float)kappa);
-        pt->vx_ref      = (n >= 6) ? float_to_fp((float)vx) : FP_CONST(3.0);
+        pt->s_ref       = (float)s;
+        pt->x_ref       = (float)x;
+        pt->y_ref       = (float)y;
+        pt->phi_ref     = (float)psi;
+        pt->kappa_ref   = (float)kappa;
+        pt->vx_ref      = (n >= 6) ? (float)vx : 3.0f;
         /* Subtract car half-width so n bounds keep the body inside the track */
         #define CAR_HALF_WIDTH 0.155f  /* F1/10th ~0.31m wide */
         if (n >= 9) {
@@ -112,11 +112,11 @@ static int load_trajectory_csv(const char *file_path, MPCCReferencePath_t *path)
             float rb = (float)d_right - CAR_HALF_WIDTH;
             if (lb < 0.05f) lb = 0.05f; /* minimum 5cm */
             if (rb < 0.05f) rb = 0.05f;
-            pt->left_bound  = float_to_fp(lb);
-            pt->right_bound = float_to_fp(rb);
+            pt->left_bound  = lb;
+            pt->right_bound = rb;
         } else {
-            pt->left_bound  = FP_CONST(0.5);
-            pt->right_bound = FP_CONST(0.5);
+            pt->left_bound  = 0.5f;
+            pt->right_bound = 0.5f;
         }
 
         path->num_points++;
@@ -136,7 +136,7 @@ static int load_trajectory_csv(const char *file_path, MPCCReferencePath_t *path)
     path->is_closed = 1;
 
     printf("[MPCC] Loaded %d path points from %s (total length: %.1f m)\n",
-           path->num_points, file_path, fp_to_float(path->total_length));
+           path->num_points, file_path, path->total_length);
 
     return 1;
 }
@@ -177,9 +177,9 @@ static void publish_raceline(const MPCCReferencePath_t *path)
             poses[i].header.frame_id.size = 3;
             poses[i].header.frame_id.capacity = 8;
         }
-        float x = fp_to_float(path->points[i].x_ref);
-        float y = fp_to_float(path->points[i].y_ref);
-        float phi = fp_to_float(path->points[i].phi_ref);
+        float x = path->points[i].x_ref;
+        float y = path->points[i].y_ref;
+        float phi = path->points[i].phi_ref;
         poses[i].pose.position.x = x;
         poses[i].pose.position.y = y;
         poses[i].pose.position.z = 0.0;
@@ -234,12 +234,12 @@ static void odom_callback(const void *msg_in)
     double omega   = msg->twist.twist.angular.z;
 
     /* Pack into VehicleState (x, y, psi, vx, vy, omega) */
-    current_vehicle_state.pos_x     = float_to_fp((float)X);
-    current_vehicle_state.pos_y     = float_to_fp((float)Y);
-    current_vehicle_state.heading = float_to_fp((float)psi);
-    current_vehicle_state.long_vel = float_to_fp((float)vx_body);
-    current_vehicle_state.lat_vel      = float_to_fp((float)vy_body);
-    current_vehicle_state.yaw_rate             = float_to_fp((float)omega);
+    current_vehicle_state.pos_x     = (float)X;
+    current_vehicle_state.pos_y     = (float)Y;
+    current_vehicle_state.heading = (float)psi;
+    current_vehicle_state.long_vel = (float)vx_body;
+    current_vehicle_state.lat_vel      = (float)vy_body;
+    current_vehicle_state.yaw_rate             = (float)omega;
 
     state_valid = 1;
 }
@@ -267,9 +267,9 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
 
     solve_count++;
 
-    float a_x_cmd   = fp_to_float(result.optimal_control.a_x);
-    float delta_cmd  = fp_to_float(result.optimal_control.delta);
-    float v_theta_cmd = fp_to_float(result.optimal_control.v_theta);
+    float a_x_cmd   = result.optimal_control.a_x;
+    float delta_cmd  = result.optimal_control.delta;
+    float v_theta_cmd = result.optimal_control.v_theta;
 
     /* Diagnostic: show state + actual commands sent */
     if (solve_count <= 20 || (solve_count % 10 == 0)) {
@@ -277,11 +277,11 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
             "[MPCC %3u] s=%.2f vx=%.2f X=%.2f Y=%.2f psi=%.3f | "
             "d=%.4f ax=%.3f vt=%.3f | st=%d it=%u\n",
             solve_count,
-            fp_to_float(mpcc_state.s),
-            fp_to_float(mpcc_state.vx),
-            fp_to_float(mpcc_state.X),
-            fp_to_float(mpcc_state.Y),
-            fp_to_float(mpcc_state.psi),
+            mpcc_state.s,
+            mpcc_state.vx,
+            mpcc_state.X,
+            mpcc_state.Y,
+            mpcc_state.psi,
             delta_cmd, a_x_cmd, v_theta_cmd,
             (int)status, result.admm_iterations);
         fflush(stderr);
@@ -328,45 +328,45 @@ int main(int argc, const char *argv[])
         MPCCConfiguration_t cfg = mpcc_get_configuration();
 
         const char *v;
-        if ((v = getenv("Q_CONTOURING")))    cfg.weight_contouring = float_to_fp((float)atof(v));
-        if ((v = getenv("Q_LAG")))           cfg.weight_lag        = float_to_fp((float)atof(v));
-        if ((v = getenv("Q_PROGRESS")))      cfg.weight_progress   = float_to_fp((float)atof(v));
-        if ((v = getenv("Q_VX")))            cfg.weight_vx         = float_to_fp((float)atof(v));
-        if ((v = getenv("VX_REF")))          cfg.vx_ref            = float_to_fp((float)atof(v));
-        if ((v = getenv("Q_VY")))            cfg.weight_vy         = float_to_fp((float)atof(v));
-        if ((v = getenv("Q_OMEGA")))         cfg.weight_omega      = float_to_fp((float)atof(v));
-        if ((v = getenv("R_DELTA")))         cfg.weight_delta      = float_to_fp((float)atof(v));
-        if ((v = getenv("R_AX")))            cfg.weight_ax         = float_to_fp((float)atof(v));
-        if ((v = getenv("R_VTHETA")))        cfg.weight_v_theta    = float_to_fp((float)atof(v));
-        if ((v = getenv("W_DELTA_RATE")))    cfg.weight_delta_rate = float_to_fp((float)atof(v));
-        if ((v = getenv("W_AX_RATE")))       cfg.weight_ax_rate    = float_to_fp((float)atof(v));
-        if ((v = getenv("W_VTHETA_RATE")))   cfg.weight_v_theta_rate = float_to_fp((float)atof(v));
-        if ((v = getenv("Q_CONTOURING_TERM"))) cfg.weight_contouring_terminal = float_to_fp((float)atof(v));
-        if ((v = getenv("Q_LAG_TERM")))      cfg.weight_lag_terminal = float_to_fp((float)atof(v));
-        if ((v = getenv("Q_PROGRESS_TERM"))) cfg.weight_progress_terminal = float_to_fp((float)atof(v));
-        if ((v = getenv("ADMM_RHO")))        cfg.admm_rho          = float_to_fp((float)atof(v));
+        if ((v = getenv("Q_CONTOURING")))    cfg.weight_contouring = (float)atof(v);
+        if ((v = getenv("Q_LAG")))           cfg.weight_lag        = (float)atof(v);
+        if ((v = getenv("Q_PROGRESS")))      cfg.weight_progress   = (float)atof(v);
+        if ((v = getenv("Q_VX")))            cfg.weight_vx         = (float)atof(v);
+        if ((v = getenv("VX_REF")))          cfg.vx_ref            = (float)atof(v);
+        if ((v = getenv("Q_VY")))            cfg.weight_vy         = (float)atof(v);
+        if ((v = getenv("Q_OMEGA")))         cfg.weight_omega      = (float)atof(v);
+        if ((v = getenv("R_DELTA")))         cfg.weight_delta      = (float)atof(v);
+        if ((v = getenv("R_AX")))            cfg.weight_ax         = (float)atof(v);
+        if ((v = getenv("R_VTHETA")))        cfg.weight_v_theta    = (float)atof(v);
+        if ((v = getenv("W_DELTA_RATE")))    cfg.weight_delta_rate = (float)atof(v);
+        if ((v = getenv("W_AX_RATE")))       cfg.weight_ax_rate    = (float)atof(v);
+        if ((v = getenv("W_VTHETA_RATE")))   cfg.weight_v_theta_rate = (float)atof(v);
+        if ((v = getenv("Q_CONTOURING_TERM"))) cfg.weight_contouring_terminal = (float)atof(v);
+        if ((v = getenv("Q_LAG_TERM")))      cfg.weight_lag_terminal = (float)atof(v);
+        if ((v = getenv("Q_PROGRESS_TERM"))) cfg.weight_progress_terminal = (float)atof(v);
+        if ((v = getenv("ADMM_RHO")))        cfg.admm_rho          = (float)atof(v);
         if ((v = getenv("ADMM_MAX_ITER")))   cfg.admm_max_iterations = (uint16_t)atoi(v);
-        if ((v = getenv("ADMM_TOL")))        cfg.admm_tolerance    = float_to_fp((float)atof(v));
+        if ((v = getenv("ADMM_TOL")))        cfg.admm_tolerance    = (float)atof(v);
         if ((v = getenv("HORIZON")))         cfg.horizon_steps     = (uint16_t)atoi(v);
-        if ((v = getenv("DT")))              cfg.dt                = float_to_fp((float)atof(v));
-        if ((v = getenv("V_THETA_MAX")))     cfg.v_theta_max       = float_to_fp((float)atof(v));
-        if ((v = getenv("V_THETA_MIN")))     cfg.v_theta_min       = float_to_fp((float)atof(v));
-        if ((v = getenv("MU")))              cfg.mu                = float_to_fp((float)atof(v));
-        if ((v = getenv("C_SF")))            cfg.C_Sf              = float_to_fp((float)atof(v));
-        if ((v = getenv("C_SR")))            cfg.C_Sr              = float_to_fp((float)atof(v));
-        if ((v = getenv("AX_MAX")))          cfg.ax_max            = float_to_fp((float)atof(v));
-        if ((v = getenv("AX_MIN")))          cfg.ax_min            = float_to_fp((float)atof(v));
+        if ((v = getenv("DT")))              cfg.dt                = (float)atof(v);
+        if ((v = getenv("V_THETA_MAX")))     cfg.v_theta_max       = (float)atof(v);
+        if ((v = getenv("V_THETA_MIN")))     cfg.v_theta_min       = (float)atof(v);
+        if ((v = getenv("MU")))              cfg.mu                = (float)atof(v);
+        if ((v = getenv("C_SF")))            cfg.C_Sf              = (float)atof(v);
+        if ((v = getenv("C_SR")))            cfg.C_Sr              = (float)atof(v);
+        if ((v = getenv("AX_MAX")))          cfg.ax_max            = (float)atof(v);
+        if ((v = getenv("AX_MIN")))          cfg.ax_min            = (float)atof(v);
 
         /* Apply the possibly-modified config */
         mpcc_set_configuration(&cfg);
 
         printf("[MPCC] Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f "
                "Q_prog=%.1f R_delta=%.2f W_drate=%.1f ADMM_rho=%.2f\n",
-               cfg.horizon_steps, fp_to_float(cfg.dt),
-               fp_to_float(cfg.weight_contouring), fp_to_float(cfg.weight_lag),
-               fp_to_float(cfg.weight_progress),
-               fp_to_float(cfg.weight_delta), fp_to_float(cfg.weight_delta_rate),
-               fp_to_float(cfg.admm_rho));
+               cfg.horizon_steps, cfg.dt,
+               cfg.weight_contouring, cfg.weight_lag,
+               cfg.weight_progress,
+               cfg.weight_delta, cfg.weight_delta_rate,
+               cfg.admm_rho);
     }
     current_s = 0;
 

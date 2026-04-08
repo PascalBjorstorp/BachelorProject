@@ -13,7 +13,6 @@
  *       -Iinclude -I../MPC/include \
  *       test/test_sim_drive.c \
  *       src/mpcc.c src/mpcc_vehicle_model.c src/qp_solver_mpcc.c \
- *       src/fp_math_mpcc.c \
  *       -o test_sim_drive -lm
  ******************************************************************************/
 
@@ -43,16 +42,16 @@
  * Configuration
  *===========================================================================*/
 
-#define SIM_DT_DEFAULT    0.005   /* 200 Hz physics */
-#define MPCC_DT_DEFAULT   0.050   /* 20 Hz MPCC (matches ROS2 node timer) */
-#define SIM_DURATION      60.0    /* seconds */
+#define SIM_DT_DEFAULT    0.005f   /* 200 Hz physics */
+#define MPCC_DT_DEFAULT   0.050f   /* 20 Hz MPCC (matches ROS2 node timer) */
+#define SIM_DURATION      60.0f    /* seconds */
 #define MAX_WAYPOINTS     2000
-#define MAX_STEERING      0.4189  /* rad */
-#define MAX_VELOCITY      20.0    /* m/s */
-#define PHYSICAL_MAX_ACCEL 7.31   /* m/s² */
+#define MAX_STEERING      0.4189f  /* rad */
+#define MAX_VELOCITY      20.0f    /* m/s */
+#define PHYSICAL_MAX_ACCEL 7.31f   /* m/s² */
 
 #define VEHICLE_HALF_WIDTH        0.155f  /* meters (F1/10th body half-width) */
-#define DEFAULT_BODY_SAFETY_MARGIN 0.06
+#define DEFAULT_BODY_SAFETY_MARGIN 0.06f
 #define STEER_BUFFER_SIZE         2
 
 /*===========================================================================
@@ -188,20 +187,20 @@ static int build_reference_path(void)
     g_ref_path.num_points = 0;
     for (int i = 0; i < raceline_count && i < MPCC_MAX_PATH_POINTS; i++) {
         MPCCPathPoint_t *pt = &g_ref_path.points[i];
-        pt->s_ref     = float_to_fp((float)raceline[i].s);
-        pt->x_ref     = float_to_fp((float)raceline[i].x);
-        pt->y_ref     = float_to_fp((float)raceline[i].y);
-        pt->phi_ref   = float_to_fp((float)raceline[i].psi);
-        pt->kappa_ref = float_to_fp((float)raceline[i].kappa);
-        pt->vx_ref    = float_to_fp((float)raceline[i].vx);
+        pt->s_ref     = (float)raceline[i].s;
+        pt->x_ref     = (float)raceline[i].x;
+        pt->y_ref     = (float)raceline[i].y;
+        pt->phi_ref   = (float)raceline[i].psi;
+        pt->kappa_ref = (float)raceline[i].kappa;
+        pt->vx_ref    = (float)raceline[i].vx;
 
         /* Subtract car half-width so n bounds keep body inside track */
         float lb = (float)raceline[i].left_bound  - VEHICLE_HALF_WIDTH;
         float rb = (float)raceline[i].right_bound - VEHICLE_HALF_WIDTH;
         if (lb < 0.05f) lb = 0.05f;
         if (rb < 0.05f) rb = 0.05f;
-        pt->left_bound  = float_to_fp(lb);
-        pt->right_bound = float_to_fp(rb);
+        pt->left_bound  = lb;
+        pt->right_bound = rb;
 
         g_ref_path.num_points++;
     }
@@ -210,7 +209,7 @@ static int build_reference_path(void)
     g_ref_path.is_closed = 1;
 
     printf("[MPCC] Built reference path: %d points, length %.1f m\n",
-           g_ref_path.num_points, fp_to_float(g_ref_path.total_length));
+           g_ref_path.num_points, g_ref_path.total_length);
     return 1;
 }
 
@@ -274,69 +273,69 @@ int main(void)
 
     /* Horizon (longer for better corner anticipation) */
     cfg.horizon_steps     = env_int("HORIZON", 15);
-    cfg.dt                = FP_CONST(env_double("DT", 0.05));
+    cfg.dt                = env_double("DT", 0.05f);
 
     /* Contouring tracking */
-    cfg.weight_contouring = FP_CONST(env_double("Q_CONTOURING", 50.0));
-    cfg.weight_lag        = FP_CONST(env_double("Q_LAG", 100.0));
-    cfg.weight_progress   = FP_CONST(env_double("Q_PROGRESS", 1.0));
+    cfg.weight_contouring = env_double("Q_CONTOURING", 50.0f);
+    cfg.weight_lag        = env_double("Q_LAG", 100.0f);
+    cfg.weight_progress   = env_double("Q_PROGRESS", 1.0f);
 
     /* State regularization */
-    cfg.weight_vx         = FP_CONST(env_double("Q_VX", 2.0));  /* Moderate velocity tracking */
-    cfg.vx_ref            = FP_CONST(env_double("VX_REF", 12.0));
-    cfg.weight_vy         = FP_CONST(env_double("Q_VY", 10.0));
-    cfg.weight_omega      = FP_CONST(env_double("Q_OMEGA", 0.1));
+    cfg.weight_vx         = env_double("Q_VX", 2.0f);  /* Moderate velocity tracking */
+    cfg.vx_ref            = env_double("VX_REF", 12.0f);
+    cfg.weight_vy         = env_double("Q_VY", 10.0f);
+    cfg.weight_omega      = env_double("Q_OMEGA", 0.1f);
 
     /* Control effort (increased for smoother control) */
-    cfg.weight_delta      = FP_CONST(env_double("R_DELTA", 1.0));
-    cfg.weight_ax         = FP_CONST(env_double("R_AX", 0.01));
-    cfg.weight_v_theta    = FP_CONST(env_double("R_VTHETA", 0.5));
+    cfg.weight_delta      = env_double("R_DELTA", 1.0f);
+    cfg.weight_ax         = env_double("R_AX", 0.01f);
+    cfg.weight_v_theta    = env_double("R_VTHETA", 0.5f);
 
     /* Control rate (high rate penalty to eliminate oscillation) */
-    cfg.weight_delta_rate   = FP_CONST(env_double("W_DELTA_RATE", 10.0));
-    cfg.weight_ax_rate      = FP_CONST(env_double("W_AX_RATE", 0.1));
-    cfg.weight_v_theta_rate = FP_CONST(env_double("W_VTHETA_RATE", 0.1));
+    cfg.weight_delta_rate   = env_double("W_DELTA_RATE", 10.0f);
+    cfg.weight_ax_rate      = env_double("W_AX_RATE", 0.1f);
+    cfg.weight_v_theta_rate = env_double("W_VTHETA_RATE", 0.1f);
 
     /* Terminal */
-    cfg.weight_contouring_terminal = FP_CONST(env_double("Q_CONTOURING_TERM", 100.0));
-    cfg.weight_lag_terminal     = FP_CONST(env_double("Q_LAG_TERM", 200.0));
-    cfg.weight_progress_terminal = FP_CONST(env_double("Q_PROGRESS_TERM", 5.0));
+    cfg.weight_contouring_terminal = env_double("Q_CONTOURING_TERM", 100.0f);
+    cfg.weight_lag_terminal     = env_double("Q_LAG_TERM", 200.0f);
+    cfg.weight_progress_terminal = env_double("Q_PROGRESS_TERM", 5.0f);
 
     /* Obstacle */
-    cfg.weight_obstacle   = FP_CONST(env_double("W_OBSTACLE", 1000.0));
-    cfg.obstacle_margin   = FP_CONST(env_double("OBSTACLE_MARGIN", 0.1));
+    cfg.weight_obstacle   = env_double("W_OBSTACLE", 1000.0f);
+    cfg.obstacle_margin   = env_double("OBSTACLE_MARGIN", 0.1f);
 
     /* ADMM solver (tuned via sweep) */
-    cfg.admm_rho            = FP_CONST(env_double("ADMM_RHO", 1.218171));
+    cfg.admm_rho            = env_double("ADMM_RHO", 1.218171f);
     cfg.admm_max_iterations = env_int("ADMM_MAX_ITER", 200);
-    cfg.admm_tolerance      = FP_CONST(env_double("ADMM_TOL", 0.05));
+    cfg.admm_tolerance      = env_double("ADMM_TOL", 0.05f);
 
     /* Constraint bounds */
-    cfg.delta_max = FP_CONST(env_double("DELTA_MAX", 0.4189));
-    cfg.ax_max    = FP_CONST(env_double("AX_MAX", 7.0));
-    cfg.ax_min    = FP_CONST(env_double("AX_MIN", -10.0));
-    cfg.vx_max    = FP_CONST(env_double("VX_MAX", 20.0));
-    cfg.vx_min    = FP_CONST(env_double("VX_MIN", 0.0));
-    cfg.v_theta_max = FP_CONST(env_double("V_THETA_MAX", 2.0));
-    cfg.v_theta_min = FP_CONST(env_double("V_THETA_MIN", 0.0));
+    cfg.delta_max = env_double("DELTA_MAX", 0.4189f);
+    cfg.ax_max    = env_double("AX_MAX", 7.0f);
+    cfg.ax_min    = env_double("AX_MIN", -10.0f);
+    cfg.vx_max    = env_double("VX_MAX", 20.0f);
+    cfg.vx_min    = env_double("VX_MIN", 0.0f);
+    cfg.v_theta_max = env_double("V_THETA_MAX", 2.0f);
+    cfg.v_theta_min = env_double("V_THETA_MIN", 0.0f);
 
     /* Tire parameters */
-    cfg.mu   = FP_CONST(env_double("MU", 0.745));
-    cfg.C_Sf = FP_CONST(env_double("C_SF", 4.297));
-    cfg.C_Sr = FP_CONST(env_double("C_SR", 3.473));
+    cfg.mu   = env_double("MU", 0.745f);
+    cfg.C_Sf = env_double("C_SF", 4.297f);
+    cfg.C_Sr = env_double("C_SR", 3.473f);
 
     if (verbose) {
         printf("  Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_prog=%.1f\n",
-               cfg.horizon_steps, fp_to_float(cfg.dt),
-               fp_to_float(cfg.weight_contouring), fp_to_float(cfg.weight_lag),
-               fp_to_float(cfg.weight_progress));
+               cfg.horizon_steps, cfg.dt,
+               cfg.weight_contouring, cfg.weight_lag,
+               cfg.weight_progress);
         printf("  Q_vx=%.1f vx_ref=%.1f R_delta=%.2f R_ax=%.3f R_vt=%.2f\n",
-               fp_to_float(cfg.weight_vx), fp_to_float(cfg.vx_ref),
-               fp_to_float(cfg.weight_delta), fp_to_float(cfg.weight_ax),
-               fp_to_float(cfg.weight_v_theta));
+               cfg.weight_vx, cfg.vx_ref,
+               cfg.weight_delta, cfg.weight_ax,
+               cfg.weight_v_theta);
         printf("  ADMM: rho=%.2f max_iter=%d tol=%.4f\n",
-               fp_to_float(cfg.admm_rho), cfg.admm_max_iterations,
-               fp_to_float(cfg.admm_tolerance));
+               cfg.admm_rho, cfg.admm_max_iterations,
+               cfg.admm_tolerance);
     }
 
     /* Initialize MPCC with custom config */
@@ -357,9 +356,9 @@ int main(void)
     /* ── Spawn at raceline[0] from standstill ─────────────────────────────── */
     /* Standstill startup validates that MPCC can launch cleanly from 0 m/s. */
     VehicleState_t state;
-    state.pos_x = DOUBLE_TO_FP(raceline[0].x);
-    state.pos_y = DOUBLE_TO_FP(raceline[0].y);
-    state.heading = DOUBLE_TO_FP(raceline[0].psi);
+    state.pos_x = (raceline[0].x);
+    state.pos_y = (raceline[0].y);
+    state.heading = (raceline[0].psi);
     state.long_vel = 0;
     state.lat_vel = 0;
     state.yaw_rate = 0;
@@ -393,7 +392,7 @@ int main(void)
     /* Held MPCC commands (zero-order hold between MPCC calls) */
     double cmd_steer = 0.0;
     double cmd_accel = 0.0;
-    fixed_point_t current_s = 0;
+    float current_s = 0;
 
     /* ST model persistent state */
     double st_delta = 0.0;
@@ -411,10 +410,10 @@ int main(void)
 
     for (int step = 0; step < SIM_STEPS; step++) {
         double t = step * SIM_DT;
-        double px = FP_TO_DOUBLE(state.pos_x);
-        double py = FP_TO_DOUBLE(state.pos_y);
-        double psi = FP_TO_DOUBLE(state.heading);
-        double vx = FP_TO_DOUBLE(state.long_vel);
+        double px = (double)(state.pos_x);
+        double py = (double)(state.pos_y);
+        double psi = (double)(state.heading);
+        double vx = (double)(state.long_vel);
 
         if (!isfinite(px) || !isfinite(py) || !isfinite(psi) || !isfinite(vx)) {
             numerical_failures++;
@@ -467,8 +466,8 @@ int main(void)
             total_solve_us += solve_us;
             if (solve_us > max_solve_us) max_solve_us = solve_us;
 
-            steer = (double)fp_to_float(result.optimal_control.delta);
-            accel_cmd = (double)fp_to_float(result.optimal_control.a_x);
+            steer = (double)result.optimal_control.delta;
+            accel_cmd = (double)result.optimal_control.a_x;
             iter = result.admm_iterations;
             status_val = (int)status;
 
@@ -480,8 +479,8 @@ int main(void)
 
             total_adaptive_updates += result.adaptive_rho_updates;
             total_clip_events += result.numeric_clip_count;
-            sum_rho += FP_TO_DOUBLE(result.rho_final);
-            sum_rho_u += FP_TO_DOUBLE(result.rho_u_final);
+            sum_rho += (double)(result.rho_final);
+            sum_rho_u += (double)(result.rho_u_final);
 
             cmd_steer = steer;
             cmd_accel = accel_cmd;
@@ -607,9 +606,9 @@ int main(void)
                 } \
             } while(0)
 
-            double true_px = FP_TO_DOUBLE(state.pos_x);
-            double true_py = FP_TO_DOUBLE(state.pos_y);
-            double true_psi = FP_TO_DOUBLE(state.heading);
+            double true_px = (double)(state.pos_x);
+            double true_py = (double)(state.pos_y);
+            double true_psi = (double)(state.heading);
             double s0[7] = {true_px, true_py, st_delta, st_V, true_psi, st_psi_dot, st_beta};
 
             double k1[7], k2[7], k3[7], k4[7];
@@ -654,12 +653,12 @@ int main(void)
             st_psi_dot = sn[5];
             st_beta = sn[6];
 
-            state.pos_x = DOUBLE_TO_FP(sn[0]);
-            state.pos_y = DOUBLE_TO_FP(sn[1]);
-            state.heading = DOUBLE_TO_FP(sn[4]);
-            state.long_vel = DOUBLE_TO_FP(sn[3] * cos(sn[6]));
-            state.lat_vel = DOUBLE_TO_FP(sn[3] * sin(sn[6]));
-            state.yaw_rate = DOUBLE_TO_FP(sn[5]);
+            state.pos_x = (sn[0]);
+            state.pos_y = (sn[1]);
+            state.heading = (sn[4]);
+            state.long_vel = (sn[3] * cos(sn[6]));
+            state.lat_vel = (sn[3] * sin(sn[6]));
+            state.yaw_rate = (sn[5]);
 
             actual_steer = st_delta;
 

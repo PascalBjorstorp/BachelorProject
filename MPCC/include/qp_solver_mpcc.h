@@ -78,26 +78,26 @@ typedef struct
     /*--- Global box constraints ---*/
 
     /** State lower bounds (default, applied at all stages) */
-    fixed_point_t x_lower[MPCC_NX];
+    float x_lower[MPCC_NX];
 
     /** State upper bounds (default, applied at all stages) */
-    fixed_point_t x_upper[MPCC_NX];
+    float x_upper[MPCC_NX];
 
     /** Control lower bounds */
-    fixed_point_t u_lower[MPCC_NU];
+    float u_lower[MPCC_NU];
 
     /** Control upper bounds */
-    fixed_point_t u_upper[MPCC_NU];
+    float u_upper[MPCC_NU];
 
     /*--- Per-stage track bounds on n (state index 1) ---*/
 
     /** Left track boundary at each stage [m] (positive value).
      *  Constraint: n_k <= track_left[k] */
-    fixed_point_t track_left[MPCC_MAX_HORIZON + 1];
+    float track_left[MPCC_MAX_HORIZON + 1];
 
     /** Right track boundary at each stage [m] (positive value).
      *  Constraint: n_k >= -track_right[k] */
-    fixed_point_t track_right[MPCC_MAX_HORIZON + 1];
+    float track_right[MPCC_MAX_HORIZON + 1];
 
     /*--- Problem size ---*/
 
@@ -107,7 +107,7 @@ typedef struct
     /*--- Initial condition ---*/
 
     /** Fixed initial state x_0 (equality constraint) */
-    fixed_point_t x0[MPCC_NX];
+    float x0[MPCC_NX];
 
 } MPCCQPProblem_t;
 
@@ -119,16 +119,16 @@ typedef struct
 {
     /** ADMM penalty parameter (rho).
      *  Typical range: 0.1 to 10.0 */
-    fixed_point_t rho;
+    float rho;
 
     /** Maximum number of ADMM iterations (20-100 for real-time) */
     uint16_t max_iterations;
 
     /** Primal residual tolerance */
-    fixed_point_t eps_primal;
+    float eps_primal;
 
     /** Dual residual tolerance */
-    fixed_point_t eps_dual;
+    float eps_dual;
 
     /** Use warm start from previous ADMM solution */
     uint8_t warm_start;
@@ -138,7 +138,7 @@ typedef struct
      *  while states don't (or vice versa). Different penalties allow
      *  the solver to converge faster on both fronts.
      *  Set to 0 to fall back to using the same rho as states. */
-    fixed_point_t rho_u;
+    float rho_u;
 
     /** Enable adaptive rho scaling (1=enabled, 0=fixed rho).
      *  When enabled, rho is doubled if primal_res > 10*dual_res
@@ -148,9 +148,9 @@ typedef struct
 
     /** Over-relaxation parameter alpha in (1.0, 2.0).
      *  Standard ADMM uses alpha=1.0. Values 1.5-1.7 typically reduce
-     *  iteration count by 30-50%. Set to FP_CONST(1.0) to disable.
+     *  iteration count by 30-50%. Set to 1.0f to disable.
      *  FPGA-friendly: one extra multiply per variable per iteration. */
-    fixed_point_t alpha_relax;
+    float alpha_relax;
 
 } ADMMConfig_t;
 
@@ -169,43 +169,43 @@ typedef struct
 typedef struct
 {
     /*--- ADMM primal variables (z): output of Riccati solve ---*/
-    fixed_point_t z_x[MPCC_MAX_HORIZON + 1][MPCC_NX];
-    fixed_point_t z_u[MPCC_MAX_HORIZON][MPCC_NU];
+    float z_x[MPCC_MAX_HORIZON + 1][MPCC_NX];
+    float z_u[MPCC_MAX_HORIZON][MPCC_NU];
 
     /*--- ADMM copy variables (w): output of box projection ---*/
-    fixed_point_t w_x[MPCC_MAX_HORIZON + 1][MPCC_NX];
-    fixed_point_t w_u[MPCC_MAX_HORIZON][MPCC_NU];
+    float w_x[MPCC_MAX_HORIZON + 1][MPCC_NX];
+    float w_u[MPCC_MAX_HORIZON][MPCC_NU];
 
     /*--- ADMM dual variables (lambda): scaled form (lambda/rho) ---*/
-    fixed_point_t lambda_x[MPCC_MAX_HORIZON + 1][MPCC_NX];
-    fixed_point_t lambda_u[MPCC_MAX_HORIZON][MPCC_NU];
+    float lambda_x[MPCC_MAX_HORIZON + 1][MPCC_NX];
+    float lambda_u[MPCC_MAX_HORIZON][MPCC_NU];
 
     /*--- Riccati backward pass: cost-to-go ---*/
     /** P_k: value function Hessian (NX x NX) at each stage */
-    fixed_point_t P[MPCC_MAX_HORIZON + 1][MPCC_NX][MPCC_NX];
+    float P[MPCC_MAX_HORIZON + 1][MPCC_NX][MPCC_NX];
     /** p_k: value function gradient (NX) at each stage */
-    fixed_point_t p[MPCC_MAX_HORIZON + 1][MPCC_NX];
+    float p[MPCC_MAX_HORIZON + 1][MPCC_NX];
 
     /*--- Riccati gains ---*/
     /** K_k: feedback gain matrix (NU x NX) at each stage */
-    fixed_point_t K[MPCC_MAX_HORIZON][MPCC_NU][MPCC_NX];
+    float K[MPCC_MAX_HORIZON][MPCC_NU][MPCC_NX];
     /** kk_k: feedforward term (NU) at each stage */
-    fixed_point_t kk[MPCC_MAX_HORIZON][MPCC_NU];
+    float kk[MPCC_MAX_HORIZON][MPCC_NU];
 
     /*--- Previous w for dual residual computation ---*/
-    fixed_point_t w_x_prev[MPCC_MAX_HORIZON + 1][MPCC_NX];
-    fixed_point_t w_u_prev[MPCC_MAX_HORIZON][MPCC_NU];
+    float w_x_prev[MPCC_MAX_HORIZON + 1][MPCC_NX];
+    float w_u_prev[MPCC_MAX_HORIZON][MPCC_NU];
 
     /*--- Diagnostics ---*/
-    fixed_point_t primal_residual;
-    fixed_point_t dual_residual;
+    float primal_residual;
+    float dual_residual;
     uint16_t iterations;
     uint16_t adaptive_rho_updates;
     uint32_t numeric_clip_count;
 
     /* Persisted adaptive penalties for warm-started solves */
-    fixed_point_t rho_state;
-    fixed_point_t rho_u_state;
+    float rho_state;
+    float rho_u_state;
 
 } ADMMWorkspace_t;
 
@@ -222,14 +222,14 @@ typedef struct
     uint16_t iterations;
 
     /** Final primal residual ||z - w|| */
-    fixed_point_t primal_residual;
+    float primal_residual;
 
     /** Final dual residual rho * ||w_new - w_old|| */
-    fixed_point_t dual_residual;
+    float dual_residual;
 
     /** Final adapted rho values used by this solve */
-    fixed_point_t rho_final;
-    fixed_point_t rho_u_final;
+    float rho_final;
+    float rho_u_final;
 
     /** Number of adaptive rho updates during this solve */
     uint16_t adaptive_rho_updates;
@@ -238,10 +238,10 @@ typedef struct
     uint32_t numeric_clip_count;
 
     /** Optimal state trajectory */
-    fixed_point_t x_opt[MPCC_MAX_HORIZON + 1][MPCC_NX];
+    float x_opt[MPCC_MAX_HORIZON + 1][MPCC_NX];
 
     /** Optimal control sequence */
-    fixed_point_t u_opt[MPCC_MAX_HORIZON][MPCC_NU];
+    float u_opt[MPCC_MAX_HORIZON][MPCC_NU];
 
 } ADMMResult_t;
 
@@ -295,8 +295,8 @@ MPCCStatus_t admm_solver_solve(
 void riccati_backward_pass(
     const MPCCQPProblem_t *problem,
     ADMMWorkspace_t *workspace,
-    fixed_point_t rho,
-    fixed_point_t rho_u);
+    float rho,
+    float rho_u);
 
 /**
  * Riccati forward pass: compute optimal z_x, z_u.
@@ -325,11 +325,11 @@ void admm_dual_update(
  */
 void admm_compute_residuals(
     const ADMMWorkspace_t *workspace,
-    fixed_point_t rho,
-    fixed_point_t rho_u,
+    float rho,
+    float rho_u,
     uint16_t N,
-    fixed_point_t *primal_res,
-    fixed_point_t *dual_res);
+    float *primal_res,
+    float *dual_res);
 
 /*===========================================================================
  * Small Matrix Helpers
@@ -347,7 +347,7 @@ void admm_compute_residuals(
  * @return 0 on success, -1 if matrix is singular
  */
 int mat_nu_inverse(
-    const fixed_point_t mat[MPCC_NU][MPCC_NU],
-    fixed_point_t inv[MPCC_NU][MPCC_NU]);
+    const float mat[MPCC_NU][MPCC_NU],
+    float inv[MPCC_NU][MPCC_NU]);
 
 #endif /* QP_SOLVER_MPCC_H */

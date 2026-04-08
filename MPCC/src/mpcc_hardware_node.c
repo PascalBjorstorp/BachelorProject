@@ -78,7 +78,7 @@ static double g_ax_min_hardware = -3.0;
 /* -------------------------------------------------------------------------- */
 
 static VehicleState_t g_vehicle_state;
-static fixed_point_t g_current_s = 0;
+static float g_current_s = 0;
 static MPCCReferencePath_t g_reference_path;
 
 static int g_have_reference = 0;
@@ -184,12 +184,12 @@ static int load_trajectory_csv(const char *file_path, MPCCReferencePath_t *path)
         }
 
         MPCCPathPoint_t *pt = &path->points[path->num_points];
-        pt->s_ref = float_to_fp((float)s);
-        pt->x_ref = float_to_fp((float)x);
-        pt->y_ref = float_to_fp((float)y);
-        pt->phi_ref = float_to_fp((float)psi);
-        pt->kappa_ref = float_to_fp((float)kappa);
-        pt->vx_ref = (parsed >= 6) ? float_to_fp((float)vx) : FP_CONST(3.0);
+        pt->s_ref = (float)s;
+        pt->x_ref = (float)x;
+        pt->y_ref = (float)y;
+        pt->phi_ref = (float)psi;
+        pt->kappa_ref = (float)kappa;
+        pt->vx_ref = (parsed >= 6) ? (float)vx : 3.0f;
 
         {
             const float car_half_width = 0.155f;
@@ -199,13 +199,13 @@ static int load_trajectory_csv(const char *file_path, MPCCReferencePath_t *path)
                 float right_bound = (float)d_right - car_half_width;
                 if (left_bound < 0.05f) left_bound = 0.05f;
                 if (right_bound < 0.05f) right_bound = 0.05f;
-                pt->left_bound = float_to_fp(left_bound);
-                pt->right_bound = float_to_fp(right_bound);
+                pt->left_bound = left_bound;
+                pt->right_bound = right_bound;
             }
             else
             {
-                pt->left_bound = FP_CONST(0.5);
-                pt->right_bound = FP_CONST(0.5);
+                pt->left_bound = 0.5f;
+                pt->right_bound = 0.5f;
             }
         }
 
@@ -226,7 +226,7 @@ static int load_trajectory_csv(const char *file_path, MPCCReferencePath_t *path)
     path->is_closed = 1;
 
     printf("[MPCC] Loaded %d points from %s (track length %.1f m)\n",
-           path->num_points, file_path, fp_to_float(path->total_length));
+           path->num_points, file_path, path->total_length);
 
     return 1;
 }
@@ -275,9 +275,9 @@ static void publish_raceline(const MPCCReferencePath_t *path)
             poses[i].header.frame_id.capacity = 8;
         }
 
-        const float x = fp_to_float(path->points[i].x_ref);
-        const float y = fp_to_float(path->points[i].y_ref);
-        const float psi = fp_to_float(path->points[i].phi_ref);
+        const float x = path->points[i].x_ref;
+        const float y = path->points[i].y_ref;
+        const float psi = path->points[i].phi_ref;
 
         poses[i].pose.position.x = x;
         poses[i].pose.position.y = y;
@@ -344,15 +344,15 @@ static void odom_callback(const void *msg_in)
 
     if (!g_using_map_pose)
     {
-        g_vehicle_state.pos_x = float_to_fp((float)x);
-        g_vehicle_state.pos_y = float_to_fp((float)y);
-        g_vehicle_state.heading = float_to_fp((float)heading);
+        g_vehicle_state.pos_x = (float)x;
+        g_vehicle_state.pos_y = (float)y;
+        g_vehicle_state.heading = (float)heading;
         g_have_pose = 1;
     }
 
-    g_vehicle_state.long_vel = float_to_fp((float)vx);
-    g_vehicle_state.lat_vel = float_to_fp((float)vy);
-    g_vehicle_state.yaw_rate = float_to_fp((float)omega);
+    g_vehicle_state.long_vel = (float)vx;
+    g_vehicle_state.lat_vel = (float)vy;
+    g_vehicle_state.yaw_rate = (float)omega;
 
     g_latest_vx_mps = vx;
     g_latest_vy_mps = vy;
@@ -378,9 +378,9 @@ static void pose_callback(const void *msg_in)
         msg->pose.pose.orientation.z,
         msg->pose.pose.orientation.w);
 
-    g_vehicle_state.pos_x = float_to_fp((float)msg->pose.pose.position.x);
-    g_vehicle_state.pos_y = float_to_fp((float)msg->pose.pose.position.y);
-    g_vehicle_state.heading = float_to_fp((float)heading);
+    g_vehicle_state.pos_x = (float)msg->pose.pose.position.x;
+    g_vehicle_state.pos_y = (float)msg->pose.pose.position.y;
+    g_vehicle_state.heading = (float)heading;
 
     if (!g_using_map_pose)
     {
@@ -435,8 +435,8 @@ static void pose_callback(const void *msg_in)
                 if (prediction_dt > 0.0)
                 {
                     MPCCConfiguration_t cfg = mpcc_get_configuration();
-                    cfg.cross_call_rate_scale = float_to_fp(
-                        (float)(g_control_dt_filtered / prediction_dt));
+                    cfg.cross_call_rate_scale =
+                        (float)(g_control_dt_filtered / prediction_dt);
                     mpcc_set_configuration(&cfg);
                 }
             }
@@ -465,9 +465,9 @@ static void pose_callback(const void *msg_in)
         return;
     }
 
-    float a_x_cmd = fp_to_float(result.optimal_control.a_x);
-    const float delta_cmd = fp_to_float(result.optimal_control.delta);
-    const float v_theta_cmd = fp_to_float(result.optimal_control.v_theta);
+    float a_x_cmd = result.optimal_control.a_x;
+    const float delta_cmd = result.optimal_control.delta;
+    const float v_theta_cmd = result.optimal_control.v_theta;
 
     /* Clamp acceleration for hardware safety */
     if (a_x_cmd < (float)g_ax_min_hardware)
@@ -519,11 +519,11 @@ static void pose_callback(const void *msg_in)
         fprintf(stderr,
                 "[MPCC %3u] s=%.2f x=%.2f y=%.2f psi=%.2f vx=%.2f | d=%.4f ax=%.3f vt=%.3f vcmd=%.2f | st=%d it=%u\n",
                 g_solve_count,
-                fp_to_float(mpcc_state.s),
-                fp_to_float(mpcc_state.X),
-                fp_to_float(mpcc_state.Y),
-                fp_to_float(mpcc_state.psi),
-                fp_to_float(mpcc_state.vx),
+                mpcc_state.s,
+                mpcc_state.X,
+                mpcc_state.Y,
+                mpcc_state.psi,
+                mpcc_state.vx,
                 delta_cmd,
                 a_x_cmd,
                 v_theta_cmd,
@@ -546,7 +546,7 @@ static void imu_callback(const void *msg_in)
     }
 
     const std_msgs__msg__Float64 *msg = (const std_msgs__msg__Float64 *)msg_in;
-    g_vehicle_state.yaw_rate = float_to_fp((float)msg->data);
+    g_vehicle_state.yaw_rate = (float)msg->data;
 }
 
 static void servo_callback(const void *msg_in)
@@ -659,41 +659,41 @@ static void configure_mpcc_from_environment(void)
     MPCCConfiguration_t cfg = mpcc_get_configuration();
 
     const char *v;
-    if ((v = getenv("Q_N")) != NULL) cfg.weight_contouring = float_to_fp((float)atof(v));
-    if ((v = getenv("Q_CONTOURING")) != NULL) cfg.weight_contouring = float_to_fp((float)atof(v));
-    if ((v = getenv("Q_LAG")) != NULL) cfg.weight_lag = float_to_fp((float)atof(v));
-    if ((v = getenv("Q_ALPHA")) != NULL) cfg.weight_lag = float_to_fp((float)atof(v));
-    if ((v = getenv("Q_PROGRESS")) != NULL) cfg.weight_progress = float_to_fp((float)atof(v));
-    if ((v = getenv("Q_VX")) != NULL) cfg.weight_vx = float_to_fp((float)atof(v));
-    if ((v = getenv("VX_REF")) != NULL) cfg.vx_ref = float_to_fp((float)atof(v));
-    if ((v = getenv("Q_VY")) != NULL) cfg.weight_vy = float_to_fp((float)atof(v));
-    if ((v = getenv("Q_OMEGA")) != NULL) cfg.weight_omega = float_to_fp((float)atof(v));
-    if ((v = getenv("R_DELTA")) != NULL) cfg.weight_delta = float_to_fp((float)atof(v));
-    if ((v = getenv("R_AX")) != NULL) cfg.weight_ax = float_to_fp((float)atof(v));
-    if ((v = getenv("R_VTHETA")) != NULL) cfg.weight_v_theta = float_to_fp((float)atof(v));
-    if ((v = getenv("W_DELTA_RATE")) != NULL) cfg.weight_delta_rate = float_to_fp((float)atof(v));
-    if ((v = getenv("W_AX_RATE")) != NULL) cfg.weight_ax_rate = float_to_fp((float)atof(v));
-    if ((v = getenv("W_VTHETA_RATE")) != NULL) cfg.weight_v_theta_rate = float_to_fp((float)atof(v));
-    if ((v = getenv("Q_N_TERM")) != NULL) cfg.weight_contouring_terminal = float_to_fp((float)atof(v));
-    if ((v = getenv("Q_CONTOURING_TERM")) != NULL) cfg.weight_contouring_terminal = float_to_fp((float)atof(v));
-    if ((v = getenv("Q_LAG_TERM")) != NULL) cfg.weight_lag_terminal = float_to_fp((float)atof(v));
-    if ((v = getenv("Q_ALPHA_TERM")) != NULL) cfg.weight_lag_terminal = float_to_fp((float)atof(v));
-    if ((v = getenv("Q_PROGRESS_TERM")) != NULL) cfg.weight_progress_terminal = float_to_fp((float)atof(v));
-    if ((v = getenv("ADMM_RHO")) != NULL) cfg.admm_rho = float_to_fp((float)atof(v));
+    if ((v = getenv("Q_N")) != NULL) cfg.weight_contouring = (float)atof(v);
+    if ((v = getenv("Q_CONTOURING")) != NULL) cfg.weight_contouring = (float)atof(v);
+    if ((v = getenv("Q_LAG")) != NULL) cfg.weight_lag = (float)atof(v);
+    if ((v = getenv("Q_ALPHA")) != NULL) cfg.weight_lag = (float)atof(v);
+    if ((v = getenv("Q_PROGRESS")) != NULL) cfg.weight_progress = (float)atof(v);
+    if ((v = getenv("Q_VX")) != NULL) cfg.weight_vx = (float)atof(v);
+    if ((v = getenv("VX_REF")) != NULL) cfg.vx_ref = (float)atof(v);
+    if ((v = getenv("Q_VY")) != NULL) cfg.weight_vy = (float)atof(v);
+    if ((v = getenv("Q_OMEGA")) != NULL) cfg.weight_omega = (float)atof(v);
+    if ((v = getenv("R_DELTA")) != NULL) cfg.weight_delta = (float)atof(v);
+    if ((v = getenv("R_AX")) != NULL) cfg.weight_ax = (float)atof(v);
+    if ((v = getenv("R_VTHETA")) != NULL) cfg.weight_v_theta = (float)atof(v);
+    if ((v = getenv("W_DELTA_RATE")) != NULL) cfg.weight_delta_rate = (float)atof(v);
+    if ((v = getenv("W_AX_RATE")) != NULL) cfg.weight_ax_rate = (float)atof(v);
+    if ((v = getenv("W_VTHETA_RATE")) != NULL) cfg.weight_v_theta_rate = (float)atof(v);
+    if ((v = getenv("Q_N_TERM")) != NULL) cfg.weight_contouring_terminal = (float)atof(v);
+    if ((v = getenv("Q_CONTOURING_TERM")) != NULL) cfg.weight_contouring_terminal = (float)atof(v);
+    if ((v = getenv("Q_LAG_TERM")) != NULL) cfg.weight_lag_terminal = (float)atof(v);
+    if ((v = getenv("Q_ALPHA_TERM")) != NULL) cfg.weight_lag_terminal = (float)atof(v);
+    if ((v = getenv("Q_PROGRESS_TERM")) != NULL) cfg.weight_progress_terminal = (float)atof(v);
+    if ((v = getenv("ADMM_RHO")) != NULL) cfg.admm_rho = (float)atof(v);
     if ((v = getenv("ADMM_MAX_ITER")) != NULL) cfg.admm_max_iterations = (uint16_t)atoi(v);
-    if ((v = getenv("ADMM_TOL")) != NULL) cfg.admm_tolerance = float_to_fp((float)atof(v));
+    if ((v = getenv("ADMM_TOL")) != NULL) cfg.admm_tolerance = (float)atof(v);
     if ((v = getenv("HORIZON")) != NULL) cfg.horizon_steps = (uint16_t)atoi(v);
-    if ((v = getenv("DT")) != NULL) cfg.dt = float_to_fp((float)atof(v));
-    if ((v = getenv("V_THETA_MAX")) != NULL) cfg.v_theta_max = float_to_fp((float)atof(v));
-    if ((v = getenv("V_THETA_MIN")) != NULL) cfg.v_theta_min = float_to_fp((float)atof(v));
-    if ((v = getenv("MU")) != NULL) cfg.mu = float_to_fp((float)atof(v));
-    if ((v = getenv("C_SF")) != NULL) cfg.C_Sf = float_to_fp((float)atof(v));
-    if ((v = getenv("C_SR")) != NULL) cfg.C_Sr = float_to_fp((float)atof(v));
-    if ((v = getenv("AX_MAX")) != NULL) cfg.ax_max = float_to_fp((float)atof(v));
-    if ((v = getenv("AX_MIN")) != NULL) cfg.ax_min = float_to_fp((float)atof(v));
+    if ((v = getenv("DT")) != NULL) cfg.dt = (float)atof(v);
+    if ((v = getenv("V_THETA_MAX")) != NULL) cfg.v_theta_max = (float)atof(v);
+    if ((v = getenv("V_THETA_MIN")) != NULL) cfg.v_theta_min = (float)atof(v);
+    if ((v = getenv("MU")) != NULL) cfg.mu = (float)atof(v);
+    if ((v = getenv("C_SF")) != NULL) cfg.C_Sf = (float)atof(v);
+    if ((v = getenv("C_SR")) != NULL) cfg.C_Sr = (float)atof(v);
+    if ((v = getenv("AX_MAX")) != NULL) cfg.ax_max = (float)atof(v);
+    if ((v = getenv("AX_MIN")) != NULL) cfg.ax_min = (float)atof(v);
 
     if ((v = getenv("MPCC_CROSS_CALL_SCALE")) != NULL)
-        cfg.cross_call_rate_scale = float_to_fp((float)atof(v));
+        cfg.cross_call_rate_scale = (float)atof(v);
 
     mpcc_set_configuration(&cfg);
 
@@ -701,20 +701,20 @@ static void configure_mpcc_from_environment(void)
      * from control rate and the (possibly overridden) prediction dt. */
     if (getenv("MPCC_CROSS_CALL_SCALE") == NULL)
     {
-        float dt = fp_to_float(cfg.dt);
+        float dt = cfg.dt;
         if (dt > 0.0f)
-            cfg.cross_call_rate_scale = float_to_fp(
-                (float)(1.0 / (MPCC_CONTROL_RATE_HZ * (double)dt)));
+            cfg.cross_call_rate_scale =
+                (float)(1.0 / (MPCC_CONTROL_RATE_HZ * (double)dt));
         mpcc_set_configuration(&cfg);
     }
 
-    g_solver_dt_sec = fp_to_float(cfg.dt);
+    g_solver_dt_sec = cfg.dt;
     if (g_solver_dt_sec <= 0.0)
     {
         g_solver_dt_sec = 0.05;
     }
 
-    g_vx_max_mps = fp_to_float(cfg.vx_max);
+    g_vx_max_mps = cfg.vx_max;
     if (g_vx_max_mps <= 0.0)
     {
         g_vx_max_mps = 8.0;
@@ -722,13 +722,13 @@ static void configure_mpcc_from_environment(void)
 
     printf("[MPCC] Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_prog=%.1f R_delta=%.2f ax_min_hw=%.1f cross_call=%.4f\n",
            cfg.horizon_steps,
-           fp_to_float(cfg.dt),
-           fp_to_float(cfg.weight_contouring),
-           fp_to_float(cfg.weight_lag),
-           fp_to_float(cfg.weight_progress),
-           fp_to_float(cfg.weight_delta),
+           cfg.dt,
+           cfg.weight_contouring,
+           cfg.weight_lag,
+           cfg.weight_progress,
+           cfg.weight_delta,
            g_ax_min_hardware,
-           fp_to_float(cfg.cross_call_rate_scale));
+           cfg.cross_call_rate_scale);
 }
 
 static const char *autodetect_trajectory_file(void)

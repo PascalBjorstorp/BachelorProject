@@ -34,7 +34,7 @@ static const char *ctrl_names[MPCC_NU] = {
 /* ── Print a NX×NX matrix with labels ─────────────────────────────────── */
 
 static void print_Q_matrix(const char *title,
-                           const fixed_point_t Q[MPCC_NX][MPCC_NX])
+                           const float Q[MPCC_NX][MPCC_NX])
 {
     printf("\n%s (NX=%d x NX=%d):\n", title, MPCC_NX, MPCC_NX);
 
@@ -59,7 +59,7 @@ static void print_Q_matrix(const char *title,
     for (int i = 0; i < MPCC_NX; i++) {
         printf("  %s |", state_names[i]);
         for (int j = 0; j < MPCC_NX; j++) {
-            float val = fp_to_float(Q[i][j]);
+            float val = Q[i][j];
             if (i != j && fabsf(val) > 1e-6f) {
                 /* Highlight non-zero off-diagonal with asterisk */
                 printf(" %8.4f*", val);
@@ -87,7 +87,7 @@ static void print_Q_matrix(const char *title,
 /* ── Print a NU×NU matrix with labels ─────────────────────────────────── */
 
 static void print_R_matrix(const char *title,
-                           const fixed_point_t R[MPCC_NU][MPCC_NU])
+                           const float R[MPCC_NU][MPCC_NU])
 {
     printf("\n%s (NU=%d x NU=%d):\n", title, MPCC_NU, MPCC_NU);
 
@@ -105,7 +105,7 @@ static void print_R_matrix(const char *title,
     for (int i = 0; i < MPCC_NU; i++) {
         printf("  %s |", ctrl_names[i]);
         for (int j = 0; j < MPCC_NU; j++) {
-            float val = fp_to_float(R[i][j]);
+            float val = R[i][j];
             if (i != j && fabsf(val) > 1e-6f) {
                 printf(" %8.4f*", val);
                 off_diag_count++;
@@ -125,11 +125,11 @@ static void print_R_matrix(const char *title,
 /* ── Print linear cost vectors ───────────────────────────────────────── */
 
 static void print_q_vector(const char *title,
-                           const fixed_point_t q[MPCC_NX])
+                           const float q[MPCC_NX])
 {
     printf("\n%s (NX=%d):\n", title, MPCC_NX);
     for (int i = 0; i < MPCC_NX; i++) {
-        float val = fp_to_float(q[i]);
+        float val = q[i];
         if (fabsf(val) > 1e-6f) {
             printf("  q[%s] = %10.6f  <-- active\n", state_names[i], val);
         } else {
@@ -139,11 +139,11 @@ static void print_q_vector(const char *title,
 }
 
 static void print_r_vector(const char *title,
-                           const fixed_point_t r[MPCC_NU])
+                           const float r[MPCC_NU])
 {
     printf("\n%s (NU=%d):\n", title, MPCC_NU);
     for (int i = 0; i < MPCC_NU; i++) {
-        float val = fp_to_float(r[i]);
+        float val = r[i];
         if (fabsf(val) > 1e-6f) {
             printf("  r[%s] = %10.6f  <-- active\n", ctrl_names[i], val);
         } else {
@@ -155,7 +155,7 @@ static void print_r_vector(const char *title,
 /* ── Print S cross-term (NU×NX) ──────────────────────────────────────── */
 
 static void print_S_matrix(const char *title,
-                           const fixed_point_t S[MPCC_NU][MPCC_NX])
+                           const float S[MPCC_NU][MPCC_NX])
 {
     printf("\n%s (NU=%d x NX=%d):\n", title, MPCC_NU, MPCC_NX);
 
@@ -173,7 +173,7 @@ static void print_S_matrix(const char *title,
     for (int i = 0; i < MPCC_NU; i++) {
         printf("  %s |", ctrl_names[i]);
         for (int j = 0; j < MPCC_NX; j++) {
-            float val = fp_to_float(S[i][j]);
+            float val = S[i][j];
             if (fabsf(val) > 1e-6f) {
                 printf(" %8.4f*", val);
                 nonzero++;
@@ -210,22 +210,20 @@ static void build_cost_from_defaults(MPCCStageCost_t *cost, int is_terminal)
     /* Velocity tracking */
     if (MPCC_DEFAULT_WEIGHT_VX > 0) {
         cost->Q[MPCC_IDX_VX][MPCC_IDX_VX] = MPCC_DEFAULT_WEIGHT_VX;
-        cost->q[MPCC_IDX_VX] = fp_sub(0,
-            fp_mul(FP_CONST(2.0), fp_mul(MPCC_DEFAULT_WEIGHT_VX,
-                                         MPCC_DEFAULT_VX_REF)));
+        cost->q[MPCC_IDX_VX] = -(2.0f * MPCC_DEFAULT_WEIGHT_VX * MPCC_DEFAULT_VX_REF);
     }
 
     /* Progress reward */
-    fixed_point_t q_s = is_terminal ?
+    float q_s = is_terminal ?
         MPCC_DEFAULT_WEIGHT_PROGRESS_TERMINAL : MPCC_DEFAULT_WEIGHT_PROGRESS;
-    cost->q[MPCC_IDX_S] = fp_sub(0, q_s);
+    cost->q[MPCC_IDX_S] = (0 - q_s);
 
     /* Control costs */
     if (!is_terminal) {
         cost->R[MPCC_IDX_DELTA][MPCC_IDX_DELTA] =
-            fp_add(MPCC_DEFAULT_WEIGHT_DELTA, MPCC_DEFAULT_WEIGHT_DELTA_RATE);
+            (MPCC_DEFAULT_WEIGHT_DELTA + MPCC_DEFAULT_WEIGHT_DELTA_RATE);
         cost->R[MPCC_IDX_AX][MPCC_IDX_AX] =
-            fp_add(MPCC_DEFAULT_WEIGHT_AX, MPCC_DEFAULT_WEIGHT_AX_RATE);
+            (MPCC_DEFAULT_WEIGHT_AX + MPCC_DEFAULT_WEIGHT_AX_RATE);
     }
 }
 
@@ -268,21 +266,21 @@ int main(void)
     printf("████████████████████████████████████████████████████████████\n");
 
     /* Simulate selective augmentation */
-    fixed_point_t rho_default = MPCC_DEFAULT_ADMM_RHO;
-    fixed_point_t x_lower[MPCC_NX], x_upper[MPCC_NX];
+    float rho_default = MPCC_DEFAULT_ADMM_RHO;
+    float x_lower[MPCC_NX], x_upper[MPCC_NX];
     for (int i = 0; i < MPCC_NX; i++) {
-        x_lower[i] = FP_CONST(-1000.0);
-        x_upper[i] = FP_CONST(1000.0);
+        x_lower[i] = -1000.0f;
+        x_upper[i] = 1000.0f;
     }
     /* Tight bounds on vx */
-    x_upper[MPCC_IDX_VX] = FP_CONST(8.0);
-    x_lower[MPCC_IDX_VX] = FP_CONST(0.5);
+    x_upper[MPCC_IDX_VX] = 8.0f;
+    x_lower[MPCC_IDX_VX] = 0.5f;
 
-    printf("\n  Default rho = %.2f\n", fp_to_float(rho_default));
+    printf("\n  Default rho = %.2f\n", rho_default);
     printf("  Global bounds (constrained if |bound| < 100):\n");
     for (int i = 0; i < MPCC_NX; i++) {
-        float lb = fp_to_float(x_lower[i]);
-        float ub = fp_to_float(x_upper[i]);
+        float lb = x_lower[i];
+        float ub = x_upper[i];
         int constrained = (ub < 100.0f || lb > -100.0f);
         printf("    %s:  [%8.2f, %8.2f]  %s\n",
                state_names[i], lb, ub,
@@ -290,13 +288,13 @@ int main(void)
     }
 
     /* Build Q_tilde with selective augmentation */
-    fixed_point_t Q_tilde[MPCC_NX][MPCC_NX];
+    float Q_tilde[MPCC_NX][MPCC_NX];
     memcpy(Q_tilde, stage.Q, sizeof(Q_tilde));
     for (int i = 0; i < MPCC_NX; i++) {
-        int constrained = (fp_to_float(x_upper[i]) < 100.0f ||
-                           fp_to_float(x_lower[i]) > -100.0f);
+        int constrained = (x_upper[i] < 100.0f ||
+                           x_lower[i] > -100.0f);
         if (constrained) {
-            Q_tilde[i][i] = fp_add(Q_tilde[i][i], rho_default);
+            Q_tilde[i][i] = (Q_tilde[i][i] + rho_default);
         }
     }
 
@@ -312,10 +310,10 @@ int main(void)
     printf("  %-10s  %10s  %10s  %10s\n",
            "----------", "----------", "----------", "----------");
     for (int i = 0; i < MPCC_NX; i++) {
-        float q_val = fp_to_float(stage.Q[i][i]);
-        float qt_val = fp_to_float(Q_tilde[i][i]);
-        int constrained = (fp_to_float(x_upper[i]) < 100.0f ||
-                           fp_to_float(x_lower[i]) > -100.0f);
+        float q_val = stage.Q[i][i];
+        float qt_val = Q_tilde[i][i];
+        int constrained = (x_upper[i] < 100.0f ||
+                           x_lower[i] > -100.0f);
         printf("  %-10s  %10.4f  %10.4f  %10s\n",
                state_names[i], q_val, qt_val,
                constrained ? "YES" : "no");
@@ -325,7 +323,7 @@ int main(void)
     printf("  %-10s  %10s\n", "Control", "R[i][i]");
     printf("  %-10s  %10s\n", "----------", "----------");
     for (int i = 0; i < MPCC_NU; i++) {
-        printf("  %-10s  %10.4f\n", ctrl_names[i], fp_to_float(stage.R[i][i]));
+        printf("  %-10s  %10.4f\n", ctrl_names[i], stage.R[i][i]);
     }
 
     printf("\n============================================================\n");

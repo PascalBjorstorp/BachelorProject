@@ -40,24 +40,14 @@
 #ifndef MPCC_TYPES_H
 #define MPCC_TYPES_H
 
-#include "fp_math_mpcc.h"
+#include <math.h>
+#include <float.h>
 #include <stdint.h>
+#include <string.h>
 
-/*===========================================================================
- * Convenience float <-> fixed-point conversion
- *===========================================================================*/
-
-/** Convert a float to Q16.16 fixed-point at runtime */
-static inline fixed_point_t float_to_fp(float f)
-{
-    return (fixed_point_t)(f * (float)FP_ONE);
-}
-
-/** Convert Q16.16 fixed-point to float at runtime */
-static inline float fp_to_float(fixed_point_t x)
-{
-    return (float)x / (float)FP_ONE;
-}
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 /*===========================================================================
  * Vehicle State (for input conversion from ROS/simulator)
@@ -65,12 +55,12 @@ static inline float fp_to_float(fixed_point_t x)
 
 typedef struct
 {
-    fixed_point_t pos_x;        /** X position in world frame [meters] */
-    fixed_point_t pos_y;        /** Y position in world frame [meters] */
-    fixed_point_t heading;      /** Yaw angle (heading) relative to world X-axis [radians] */
-    fixed_point_t long_vel;     /** Longitudinal velocity in body frame [meters per second] */
-    fixed_point_t lat_vel;      /** Lateral velocity in body frame [meters per second] */
-    fixed_point_t yaw_rate;     /** Yaw rate [radians per second] */
+    float pos_x;        /** X position in world frame [meters] */
+    float pos_y;        /** Y position in world frame [meters] */
+    float heading;      /** Yaw angle (heading) relative to world X-axis [radians] */
+    float long_vel;     /** Longitudinal velocity in body frame [meters per second] */
+    float lat_vel;      /** Lateral velocity in body frame [meters per second] */
+    float yaw_rate;     /** Yaw rate [radians per second] */
 
 } VehicleState_t;
 
@@ -79,18 +69,18 @@ typedef struct
  * F1/10th Default Vehicle Parameters
  *===========================================================================*/
 
-#define F110_DEFAULT_MAXIMUM_STEERING_RADIANS    FP_CONST(0.4189)           /** F1/10th max steering: 0.4189 radians (~24.0 degrees) */
-#define F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND  FP_CONST(20.0)     /** F1/10th max velocity: 20.0 meters per second */
-#define F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND  FP_CONST(0.0)      /** F1/10th min velocity: 0.0 meters per second */
-#define F110_DIST_CG_TO_FRONT_AXLE_METERS    FP_CONST(0.166)                /** Distance from CG to front axle: 0.166 meters [CAD] */
-#define F110_DIST_CG_TO_REAR_AXLE_METERS     FP_CONST(0.16)                /** Distance from CG to rear axle: 0.16 meters [CAD] */
-#define F110_VEHICLE_MASS_KG                 FP_CONST(3.314)               /** Vehicle mass: 3.314 kg [MEASURED] */
-#define F110_YAW_INERTIA_KGM2                FP_CONST(0.035)               /** Yaw moment of inertia: 0.035 kg·m² [CAD] */
-#define F110_CG_HEIGHT_METERS                FP_CONST(0.0703)              /** Center of gravity height: 0.0703 meters [CAD] */
-#define F110_GRAVITY_ACCELERATION_MS2        FP_CONST(9.81)                /** Gravity acceleration: 9.81 m/s² */
-#define F110_FRICTION_COEFFICIENT            FP_CONST(0.745)              /** Tire-road friction coefficient [TESTED] */
-#define F110_NORMALIZED_CORNERING_STIFFNESS_FRONT  FP_CONST(4.297)        /** Normalized front cornering stiffness [1/rad] */
-#define F110_NORMALIZED_CORNERING_STIFFNESS_REAR   FP_CONST(3.473)        /** Normalized rear cornering stiffness [1/rad] */
+#define F110_DEFAULT_MAXIMUM_STEERING_RADIANS    0.4189f           /** F1/10th max steering: 0.4189 radians (~24.0 degrees) */
+#define F110_DEFAULT_MAXIMUM_VELOCITY_METERS_PER_SECOND  20.0f     /** F1/10th max velocity: 20.0 meters per second */
+#define F110_DEFAULT_MINIMUM_VELOCITY_METERS_PER_SECOND  0.0f      /** F1/10th min velocity: 0.0 meters per second */
+#define F110_DIST_CG_TO_FRONT_AXLE_METERS    0.166f                /** Distance from CG to front axle: 0.166 meters [CAD] */
+#define F110_DIST_CG_TO_REAR_AXLE_METERS     0.16f                /** Distance from CG to rear axle: 0.16 meters [CAD] */
+#define F110_VEHICLE_MASS_KG                 3.314f               /** Vehicle mass: 3.314 kg [MEASURED] */
+#define F110_YAW_INERTIA_KGM2                0.035f               /** Yaw moment of inertia: 0.035 kg·m² [CAD] */
+#define F110_CG_HEIGHT_METERS                0.0703f              /** Center of gravity height: 0.0703 meters [CAD] */
+#define F110_GRAVITY_ACCELERATION_MS2        9.81f                /** Gravity acceleration: 9.81 m/s² */
+#define F110_FRICTION_COEFFICIENT            0.745f              /** Tire-road friction coefficient [TESTED] */
+#define F110_NORMALIZED_CORNERING_STIFFNESS_FRONT  4.297f        /** Normalized front cornering stiffness [1/rad] */
+#define F110_NORMALIZED_CORNERING_STIFFNESS_REAR   3.473f        /** Normalized rear cornering stiffness [1/rad] */
 
 /*===========================================================================
  * MPCC Problem Dimensions
@@ -128,13 +118,13 @@ typedef struct
 
 typedef struct
 {
-    fixed_point_t s;        /** Virtual variable  */
-    fixed_point_t vx;       /** Longitudinal velocity in body frame [m/s] */
-    fixed_point_t vy;       /** Lateral velocity in body frame [m/s] */
-    fixed_point_t omega;    /** Yaw rate [rad/s] */
-    fixed_point_t X;        /** Global X position [m]. */
-    fixed_point_t Y;        /** Global Y position [m].*/
-    fixed_point_t psi;      /** Global heading angle [rad].*/
+    float s;        /** Virtual variable  */
+    float vx;       /** Longitudinal velocity in body frame [m/s] */
+    float vy;       /** Lateral velocity in body frame [m/s] */
+    float omega;    /** Yaw rate [rad/s] */
+    float X;        /** Global X position [m]. */
+    float Y;        /** Global Y position [m].*/
+    float psi;      /** Global heading angle [rad].*/
 
 } MPCCState_t;
 
@@ -148,9 +138,9 @@ typedef struct
 
 typedef struct
 {
-    fixed_point_t delta;        /** Front wheel steering angle [rad] */
-    fixed_point_t a_x;          /** Longitudinal acceleration [m/s^2] */
-    fixed_point_t v_theta;      /** Virtual progress speed [m/s] — controls ds/dt along path */
+    float delta;        /** Front wheel steering angle [rad] */
+    float a_x;          /** Longitudinal acceleration [m/s^2] */
+    float v_theta;      /** Virtual progress speed [m/s] — controls ds/dt along path */
 
 } MPCCControl_t;
 
@@ -168,36 +158,36 @@ typedef struct
 typedef struct
 {
     /** Reference X position [m] (in world frame) */
-    fixed_point_t x_ref;
+    float x_ref;
 
     /** Reference Y position [m] (in world frame) */
-    fixed_point_t y_ref;
+    float y_ref;
 
     /** Reference tangent angle [rad].
      *  phi_gamma(s) = direction the path is heading at this point. */
-    fixed_point_t phi_ref;
+    float phi_ref;
 
     /** Reference curvature [1/m].
      *  kappa(s) = dphi/ds.  Positive = turning left.
      *  Critical for Frenet dynamics (appears in ds/dt and dalpha/dt). */
-    fixed_point_t kappa_ref;
+    float kappa_ref;
 
     /** Arc-length parameter at this waypoint [m].
      *  Monotonically increasing along the path. */
-    fixed_point_t s_ref;
+    float s_ref;
 
     /** Reference longitudinal velocity at this waypoint [m/s].
      *  From the raceline optimiser's velocity profile.
      *  Used as per-stage vx_ref in the QP cost. */
-    fixed_point_t vx_ref;
+    float vx_ref;
 
     /** Maximum leftward deviation from centerline [m] (positive).
      *  Track constraint: n <= left_bound */
-    fixed_point_t left_bound;
+    float left_bound;
 
     /** Maximum rightward deviation from centerline [m] (positive).
      *  Track constraint: n >= -right_bound */
-    fixed_point_t right_bound;
+    float right_bound;
 
 } MPCCPathPoint_t;
 
@@ -217,7 +207,7 @@ typedef struct
     uint16_t num_points;
 
     /** Total arc length of the path [m] */
-    fixed_point_t total_length;
+    float total_length;
 
     /** Whether the path forms a closed loop */
     uint8_t is_closed;
@@ -247,25 +237,25 @@ typedef struct
 typedef struct
 {
     /** Obstacle center X [m] (global frame) */
-    fixed_point_t cx;
+    float cx;
 
     /** Obstacle center Y [m] (global frame) */
-    fixed_point_t cy;
+    float cy;
 
     /** Semi-axis along primary direction [m] (includes ego radius) */
-    fixed_point_t a;
+    float a;
 
     /** Semi-axis along secondary direction [m] (includes ego radius) */
-    fixed_point_t b;
+    float b;
 
     /** Orientation of the ellipse [rad] (angle of primary axis) */
-    fixed_point_t phi;
+    float phi;
 
     /** Precomputed inverse shape matrix Sigma_inv (symmetric 2x2):
      *    Sigma_inv[0][0] = cos^2(phi)/a^2 + sin^2(phi)/b^2
      *    Sigma_inv[0][1] = Sigma_inv[1][0] = (1/a^2 - 1/b^2)*sin(phi)*cos(phi)
      *    Sigma_inv[1][1] = sin^2(phi)/a^2 + cos^2(phi)/b^2  */
-    fixed_point_t Sigma_inv[2][2];
+    float Sigma_inv[2][2];
 
     /** Whether this obstacle slot is active */
     uint8_t active;
@@ -308,18 +298,18 @@ typedef struct
     uint16_t horizon_steps;
 
     /** Time step between prediction stages [s] */
-    fixed_point_t dt;
+    float dt;
 
     /*--- Linear tire model parameters ---*/
 
     /** Road-tire friction coefficient [-] */
-    fixed_point_t mu;
+    float mu;
 
     /** Front normalized cornering stiffness [1/rad] (dimensionless) */
-    fixed_point_t C_Sf;
+    float C_Sf;
 
     /** Rear normalized cornering stiffness [1/rad] (dimensionless) */
-    fixed_point_t C_Sr;
+    float C_Sr;
 
     /*--- Frenet tracking weights ---*/
 
@@ -329,113 +319,113 @@ typedef struct
      *  the virtual arc parameter s, computed in Cartesian:
      *    e_c = sin(phi(s))*(X - gamma_x(s)) - cos(phi(s))*(Y - gamma_y(s))
      *  Set to 0 to use the Frenet n approximation instead. */
-    fixed_point_t weight_contouring;
+    float weight_contouring;
 
     /** Lag error weight (q_l).
      *  Penalizes e_l^2, the tangential distance between the vehicle
      *  and the reference point at virtual parameter s:
      *    e_l = -cos(phi(s))*(X - gamma_x(s)) - sin(phi(s))*(Y - gamma_y(s))
      *  Keeps s from running too far ahead of the vehicle. */
-    fixed_point_t weight_lag;
+    float weight_lag;
 
     /** Progress weight (q_s).
      *  Reward for forward progress ds/dt. Higher = more aggressive.
      *  Applied as linear cost: -q_s on s-component. */
-    fixed_point_t weight_progress;
+    float weight_progress;
 
     /*--- State regularization weights ---*/
 
     /** Longitudinal velocity tracking weight.
      *  Optional: penalizes (vx - v_ref)^2. Set to 0 for pure progress. */
-    fixed_point_t weight_vx;
+    float weight_vx;
 
     /** Velocity reference for vx tracking [m/s].
      *  Only used if weight_vx > 0. */
-    fixed_point_t vx_ref;
+    float vx_ref;
 
     /** Lateral velocity penalty (anti-drift) */
-    fixed_point_t weight_vy;
+    float weight_vy;
 
     /** Yaw rate penalty */
-    fixed_point_t weight_omega;
+    float weight_omega;
 
     /*--- Control effort weights (R matrix diagonal) ---*/
 
     /** Steering angle effort penalty */
-    fixed_point_t weight_delta;
+    float weight_delta;
 
     /** Longitudinal acceleration effort penalty */
-    fixed_point_t weight_ax;
+    float weight_ax;
 
     /** Virtual progress speed effort penalty.
      *  Regularizes v_theta to prevent large spikes. */
-    fixed_point_t weight_v_theta;
+    float weight_v_theta;
 
     /*--- Control rate weights (Rd matrix, smoothness) ---*/
 
     /** Steering rate penalty (d_delta = delta_k - delta_{k-1}) */
-    fixed_point_t weight_delta_rate;
+    float weight_delta_rate;
 
     /** Acceleration rate penalty */
-    fixed_point_t weight_ax_rate;
+    float weight_ax_rate;
 
     /** Virtual progress speed rate penalty */
-    fixed_point_t weight_v_theta_rate;
+    float weight_v_theta_rate;
 
     /*--- Terminal cost weights (stage N) ---*/
 
     /** Terminal contouring error penalty */
-    fixed_point_t weight_contouring_terminal;
+    float weight_contouring_terminal;
 
     /** Terminal lag error penalty */
-    fixed_point_t weight_lag_terminal;
+    float weight_lag_terminal;
 
 
     /** Terminal progress reward (on s_N) */
-    fixed_point_t weight_progress_terminal;
+    float weight_progress_terminal;
 
     /*--- Obstacle avoidance ---*/
 
     /** Obstacle constraint violation penalty (soft constraint).
      *  Used as a relaxation weight in the ADMM projection. */
-    fixed_point_t weight_obstacle;
+    float weight_obstacle;
 
     /** Safety margin added to obstacle ellipses [m] */
-    fixed_point_t obstacle_margin;
+    float obstacle_margin;
 
     /*--- ADMM solver parameters ---*/
 
     /** ADMM penalty parameter (rho) */
-    fixed_point_t admm_rho;
+    float admm_rho;
 
     /** Maximum ADMM iterations */
     uint16_t admm_max_iterations;
 
     /** Convergence tolerance for primal and dual residuals */
-    fixed_point_t admm_tolerance;
+    float admm_tolerance;
 
     /*--- Constraint bounds ---*/
 
     /** Maximum steering angle [rad] (symmetric: +/- delta_max) */
-    fixed_point_t delta_max;
+    float delta_max;
 
     /** Maximum longitudinal acceleration [m/s^2] */
-    fixed_point_t ax_max;
+    float ax_max;
 
     /** Minimum longitudinal acceleration (braking) [m/s^2] (negative) */
-    fixed_point_t ax_min;
+    float ax_min;
 
     /** Maximum longitudinal velocity [m/s] */
-    fixed_point_t vx_max;
+    float vx_max;
 
     /** Minimum longitudinal velocity [m/s] */
-    fixed_point_t vx_min;
+    float vx_min;
 
     /** Maximum virtual progress speed [m/s] */
-    fixed_point_t v_theta_max;
+    float v_theta_max;
 
     /** Minimum virtual progress speed [m/s] (typically 0) */
-    fixed_point_t v_theta_min;
+    float v_theta_min;
 
     /*--- Cross-call rate scaling ---*/
 
@@ -445,7 +435,7 @@ typedef struct
      *  rate penalties on the first prediction step are ~7x too strong
      *  because the real inter-call interval is much shorter than dt.
      *  Value: control_dt / prediction_dt  (e.g. 0.005/0.035 ≈ 0.143). */
-    fixed_point_t cross_call_rate_scale;
+    float cross_call_rate_scale;
 
 } MPCCConfiguration_t;
 
@@ -519,13 +509,13 @@ typedef struct
 typedef struct
 {
     /** Discrete state transition matrix (NX x NX = 10x10) */
-    fixed_point_t A[MPCC_NX][MPCC_NX];
+    float A[MPCC_NX][MPCC_NX];
 
     /** Discrete input matrix (NX x NU = 10x2) */
-    fixed_point_t B[MPCC_NX][MPCC_NU];
+    float B[MPCC_NX][MPCC_NU];
 
     /** Affine term / linearization residual (NX = 10) */
-    fixed_point_t d[MPCC_NX];
+    float d[MPCC_NX];
 
 } MPCCLinearSystem_t;
 
