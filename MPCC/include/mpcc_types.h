@@ -3,20 +3,19 @@
  * @brief Type Definitions for Model Predictive Contouring Control
  *
  * 
- *   Frenet primary (7):  [s, vx, vy, X, Y, psi, omega]
- *   Cartesian redundant (3): [X, Y, psi]
+ *   Global frame primary (7):  [s, vx, vy, omega, X, Y, psi]
  *
  *   s       — arc-length position on reference path [m]
- *   vx      — longitudinal velocity (body frame) [m/s]
- *   vy      — lateral velocity (body frame) [m/s]
- *   X       — global X position (world frame) [m]
- *   Y       — global Y position (world frame) [m]
- *   psi     — heading angle (yaw) in world frame [rad]
+ *   vx      — longitudinal velocity  [m/s]
+ *   vy      — lateral velocity   [m/s]
  *   omega   — yaw rate [rad/s]
+ *   X       — global X position  [m]
+ *   Y       — global Y position  [m]
+ *   psi     — heading angle (yaw) [rad]
  *
  * Controls (3): [delta, acceleration, virtual_progress]
- *   delta   — front wheel steering angle [rad]
- *   acceleration — longitudinal acceleration  [m/s²]
+ *   delta            — front wheel steering angle [rad]
+ *   acceleration     — longitudinal acceleration  [m/s²]
  *   virtual_progress — virtual progress control [m/s]
  *
  * System dynamics:
@@ -97,36 +96,31 @@ typedef struct
  * MPCC Problem Dimensions
  *===========================================================================*/
 
-/** State space: [s, vx, vy, omega, X, Y, psi] */
-#define MPCC_NX 7
 
-/** Number of controls: [delta, a_x, v_theta] */
-#define MPCC_NU 3
+#define MPCC_NX 7                   /** State space: [s, vx, vy, omega, X, Y, psi] */
+
+
+#define MPCC_NU 3                   /** Number of controls: [delta, a_x, v_theta] */
 
 
 /** State index constants for readability */
-#define MPCC_IDX_S       0   /**< arc-length progress */
-#define MPCC_IDX_VX      1   /**< longitudinal velocity */
-#define MPCC_IDX_VY      2   /**< lateral velocity */
-#define MPCC_IDX_OMEGA   3   /**< yaw rate */
-#define MPCC_IDX_X       4   /**< global X position */
-#define MPCC_IDX_Y       5   /**< global Y position */
-#define MPCC_IDX_PSI     6   /**< global heading */
+#define MPCC_IDX_S       0          /**< arc-length progress */
+#define MPCC_IDX_VX      1          /**< longitudinal velocity */
+#define MPCC_IDX_VY      2          /**< lateral velocity */
+#define MPCC_IDX_OMEGA   3          /**< yaw rate */
+#define MPCC_IDX_X       4          /**< global X position */
+#define MPCC_IDX_Y       5          /**< global Y position */
+#define MPCC_IDX_PSI     6          /**< global heading */
 
 /** Control index constants */
-#define MPCC_IDX_DELTA   0   /**< steering angle */
-#define MPCC_IDX_AX      1   /**< longitudinal acceleration */
-#define MPCC_IDX_VTHETA  2   /**< virtual progress speed ds/dt */
+#define MPCC_IDX_DELTA   0          /**< steering angle */
+#define MPCC_IDX_AX      1          /**< longitudinal acceleration */
+#define MPCC_IDX_VTHETA  2          /**< virtual progress speed ds/dt */
 
-/** Maximum prediction horizon steps.*/
-#define MPCC_MAX_HORIZON 20
 
-/** Maximum number of reference path waypoints.*/
-
-#define MPCC_MAX_PATH_POINTS 500
-
-/** Maximum number of obstacles that can be tracked simultaneously */
-#define MPCC_MAX_OBSTACLES 10
+#define MPCC_MAX_HORIZON 20         /** Maximum prediction horizon steps.*/
+#define MPCC_MAX_PATH_POINTS 500    /** Maximum number of reference path waypoints.*/
+#define MPCC_MAX_OBSTACLES 10       /** Maximum number of obstacles that can be tracked simultaneously */
 
 /*===========================================================================
  * MPCC ODE State
@@ -225,7 +219,7 @@ typedef struct
     /** Total arc length of the path [m] */
     fixed_point_t total_length;
 
-    /** Whether the path forms a closed loop (for s wrapping) */
+    /** Whether the path forms a closed loop */
     uint8_t is_closed;
 
 } MPCCReferencePath_t;
@@ -483,42 +477,23 @@ typedef enum
 
 typedef struct
 {
-    /** Solver termination status */
-    MPCCStatus_t status;
+    MPCCStatus_t status;                /** Solver termination status */
+    MPCCControl_t optimal_control;      /** Optimal control input for current time step.
+                                         *  Apply optimal_control.delta and acceleration */
+    uint16_t admm_iterations;           /** Number of ADMM iterations used */
+    float primal_residual;              /** Final ADMM primal residual ||z - w|| */
+    float dual_residual;                /** Final ADMM dual residual rho * ||w_new - w_old|| */
+    float rho_final;                    /** Final adapted ADMM rho values used by this solve */
+    float rho_u_final;                  /** Final adapted ADMM rho_u values used by this solve */
+    uint16_t adaptive_rho_updates;      /** Number of adaptive rho updates during solve */
+    uint32_t numeric_clip_count;        /** Number of numeric clipping events during solve */    
+    float cost;                         /** Final cost function value */
 
-    /** Optimal control input for current time step.
-     *  Apply optimal_control.delta and .T_motor to the vehicle. */
-    MPCCControl_t optimal_control;
-
-    /** Number of ADMM iterations used */
-    uint16_t admm_iterations;
-
-    /** Final ADMM primal residual ||z - w|| */
-    fixed_point_t primal_residual;
-
-    /** Final ADMM dual residual rho * ||w_new - w_old|| */
-    fixed_point_t dual_residual;
-
-    /** Final adapted ADMM rho values used by this solve */
-    fixed_point_t rho_final;
-    fixed_point_t rho_u_final;
-
-    /** Number of adaptive rho updates during solve */
-    uint16_t adaptive_rho_updates;
-
-    /** Number of numeric clipping events during solve */
-    uint32_t numeric_clip_count;
-
-    /** Final cost function value */
-    fixed_point_t cost;
-
-    /** Predicted state trajectory (length = horizon + 1).
-     *  predicted_states[0] = current state.
-     *  Contains both Frenet and Cartesian views for visualization. */
-    MPCCState_t predicted_states[MPCC_MAX_HORIZON + 1];
-
-    /** Predicted control sequence (length = horizon) */
-    MPCCControl_t predicted_controls[MPCC_MAX_HORIZON];
+   
+    MPCCState_t predicted_states[MPCC_MAX_HORIZON + 1];     /** Predicted state trajectory (length = horizon + 1).
+                                                             *  predicted_states[0] = current state.
+                                                             *  Contains Cartesian views for visualization. */
+    MPCCControl_t predicted_controls[MPCC_MAX_HORIZON];     /** Predicted control sequence (length = horizon) */
 
 } MPCCResult_t;
 
@@ -560,103 +535,81 @@ typedef struct
  * Quadratic cost at each stage:
  *   l_k(z, u) = 0.5 z^T Q_k z + q_k^T z + 0.5 u^T R_k u + r_k^T u
  *
- * Q_k incorporates Frenet penalties (on n, alpha) + state regularization.
+ * Q_k incorporates state regularization.
  * R_k incorporates control effort + control rate penalties.
  * q_k contains the linear progress reward (-q_s on s-component).
- * S_k is the cross term (usually zero).
+ * S_k is the cross term.
  */
 
 typedef struct
 {
-    /** Quadratic state cost (NX x NX = 10x10). Symmetric PSD. */
-    fixed_point_t Q[MPCC_NX][MPCC_NX];
-
-    /** Quadratic control cost (NU x NU = 2x2). Symmetric PD. */
-    fixed_point_t R[MPCC_NU][MPCC_NU];
-
-    /** Cross term (NU x NX = 2x10). Usually zero. */
-    fixed_point_t S[MPCC_NU][MPCC_NX];
-
-    /** Linear state cost (NX = 10).
-     *  q[MPCC_IDX_S] = -weight_progress (reward forward progress). */
-    fixed_point_t q[MPCC_NX];
-
-    /** Linear control cost (NU = 2) */
-    fixed_point_t r[MPCC_NU];
+    float Q[MPCC_NX][MPCC_NX];      /** Quadratic state cost (NX x NX = 7x7). Symmetric PSD. */
+    float R[MPCC_NU][MPCC_NU];      /** Quadratic control cost (NU x NU = 3x3). Symmetric PD. */
+    float S[MPCC_NU][MPCC_NX];      /** Cross term (NU x NX = 3x7). */
+    float q[MPCC_NX];               /** Linear state cost (NX = 7).
+                                     *  q[MPCC_IDX_S] = -weight_progress. */
+    float r[MPCC_NU];               /** Linear control cost (NU = 3) */
 
 } MPCCStageCost_t;
 
 /*===========================================================================
  * Default MPCC Parameters
- *===========================================================================
- * Pre-computed fixed-point constants for default MPCC configuration.
- * Tuned for F1/10th autonomous racing at moderate speeds (~3-5 m/s).
- */
+ *===========================================================================*/
 
 /*--- Horizon (tuned via iterative sweep, Hardware mode) ---*/
-#define MPCC_DEFAULT_HORIZON          7
-#define MPCC_DEFAULT_DT               FP_CONST(0.035)
+#define MPCC_DEFAULT_HORIZON          7                             /** Horizon look ahead. */
+#define MPCC_DEFAULT_DT               (0.035f)                      /** Time step between prediction stages [s]. */
 
 /*--- Contouring tracking weights ---*/
-
-/** Contouring error penalty (Cartesian-based). */
-#define MPCC_DEFAULT_WEIGHT_CONTOURING FP_CONST(1000.0)
-
-/** Lag error penalty (real Cartesian-based). */
-#define MPCC_DEFAULT_WEIGHT_LAG       FP_CONST(700.0)
-
-/** Progress reward (tuned for velocity maximization). */
-#define MPCC_DEFAULT_WEIGHT_PROGRESS  FP_CONST(5.0)
+#define MPCC_DEFAULT_WEIGHT_CONTOURING (1000.0f)                    /** Contouring error penalty. */
+#define MPCC_DEFAULT_WEIGHT_LAG       (700.0f)                      /** Lag error penalty. */   
+#define MPCC_DEFAULT_WEIGHT_PROGRESS  (5.0f)                        /** Progress reward. */
 
 /*--- State regularization ---*/
-#define MPCC_DEFAULT_WEIGHT_VX        FP_CONST(0.0)
-#define MPCC_DEFAULT_VX_REF           FP_CONST(5.0)
-#define MPCC_DEFAULT_WEIGHT_VY        FP_CONST(3.5)
-#define MPCC_DEFAULT_WEIGHT_OMEGA     FP_CONST(0.7)
+#define MPCC_DEFAULT_WEIGHT_VX        (0.0f)                        /** Longitudinal velocity tracking weight.*/
+#define MPCC_DEFAULT_VX_REF           (5.0f)                        /** Reference velocity for longitudinal velocity tracking [m/s]. */
+#define MPCC_DEFAULT_WEIGHT_VY        (3.5f)                        /** Lateral velocity tracking weight. */
+#define MPCC_DEFAULT_WEIGHT_OMEGA     (0.7f)                        /** Yaw rate tracking weight. */
 
 /*--- Control effort ---*/
-#define MPCC_DEFAULT_WEIGHT_DELTA     FP_CONST(6.5)
-#define MPCC_DEFAULT_WEIGHT_AX        FP_CONST(0.014149)
-#define MPCC_DEFAULT_WEIGHT_V_THETA   FP_CONST(1.0)
+#define MPCC_DEFAULT_WEIGHT_DELTA     (6.5f)                        /** Steering angle effort penalty. */
+#define MPCC_DEFAULT_WEIGHT_AX        (0.014149f)                   /** Longitudinal acceleration effort penalty. */
+#define MPCC_DEFAULT_WEIGHT_V_THETA   (1.0f)                        /** Virtual progress speed effort penalty. */
 
 /*--- Control rate (smoothness) ---*/
-#define MPCC_DEFAULT_WEIGHT_DELTA_RATE    FP_CONST(2.0)
-#define MPCC_DEFAULT_WEIGHT_AX_RATE       FP_CONST(0.1)
-#define MPCC_DEFAULT_WEIGHT_V_THETA_RATE  FP_CONST(0.1)
+#define MPCC_DEFAULT_WEIGHT_DELTA_RATE    (2.0f)                     /** Steering rate penalty. */
+#define MPCC_DEFAULT_WEIGHT_AX_RATE       (0.1f)                     /** Longitudinal acceleration rate penalty. */
+#define MPCC_DEFAULT_WEIGHT_V_THETA_RATE  (0.1f)                     /** Virtual progress speed rate penalty. */
 
 /*--- Cross-call rate scaling (control_dt / prediction_dt) ---*/
-#define MPCC_CONTROL_RATE_HZ              200.0
-#define MPCC_DEFAULT_CROSS_CALL_SCALE     FP_CONST(0.1429)
+#define MPCC_CONTROL_RATE_HZ              (200.0f)                   /** Control callback rate in Hz. Used to compute cross-call rate scaling. */
+#define MPCC_DEFAULT_CROSS_CALL_SCALE     (0.1429f)                  /** Scale factor for control rate penalties at step 0. */
 
 /*--- Terminal weights ---*/
-#define MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL     FP_CONST(450.0)
-#define MPCC_DEFAULT_WEIGHT_LAG_TERMINAL            FP_CONST(950.0)
-#define MPCC_DEFAULT_WEIGHT_PROGRESS_TERMINAL FP_CONST(5.0)
+#define MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL     (450.0f)        /** Terminal contouring error penalty. */
+#define MPCC_DEFAULT_WEIGHT_LAG_TERMINAL            (950.0f)        /** Terminal lag error penalty. */
+#define MPCC_DEFAULT_WEIGHT_PROGRESS_TERMINAL       (5.0f)          /** Terminal progress reward. */
 
 /*--- Obstacle avoidance ---*/
-#define MPCC_DEFAULT_WEIGHT_OBSTACLE  FP_CONST(1000.0)
-#define MPCC_DEFAULT_OBSTACLE_MARGIN  FP_CONST(0.1)
+#define MPCC_DEFAULT_WEIGHT_OBSTACLE  (1000.0f)                     /** Obstacle avoidance penalty. */
+#define MPCC_DEFAULT_OBSTACLE_MARGIN  (0.1f)                        /** Minimum distance to obstacles [m]. */
 
 /*--- ADMM solver (tuned via iterative sweep) ---*/
-#define MPCC_DEFAULT_ADMM_RHO         FP_CONST(17.0)
-#define MPCC_DEFAULT_ADMM_MAX_ITER    50
-#define MPCC_DEFAULT_ADMM_TOLERANCE   FP_CONST(0.05)
+#define MPCC_DEFAULT_ADMM_RHO         (17.0f)                       /** ADMM penalty parameter. */
+#define MPCC_DEFAULT_ADMM_MAX_ITER    50                            /** Maximum ADMM iterations. */
+#define MPCC_DEFAULT_ADMM_TOLERANCE   (0.05f)                       /** ADMM convergence tolerance. */
 
-/*--- Track half-width (default if per-stage not set) ---*/
 /*--- Pacejka tire model ---*/
-/** Friction coefficient [-] — from test_friction.py */
-#define MPCC_DEFAULT_MU               F110_FRICTION_COEFFICIENT
-/** Front normalized cornering stiffness [1/rad] — typical F1/10th */
-#define MPCC_DEFAULT_C_SF             F110_NORMALIZED_CORNERING_STIFFNESS_FRONT
-/** Rear normalized cornering stiffness [1/rad] — typical F1/10th */
-#define MPCC_DEFAULT_C_SR             F110_NORMALIZED_CORNERING_STIFFNESS_REAR
+#define MPCC_DEFAULT_MU       F110_FRICTION_COEFFICIENT                  /** Friction coefficient for tire model. */
+#define MPCC_DEFAULT_C_SF     F110_NORMALIZED_CORNERING_STIFFNESS_FRONT  /** Front normalized cornering stiffness [1/rad] */
+#define MPCC_DEFAULT_C_SR     F110_NORMALIZED_CORNERING_STIFFNESS_REAR   /** Rear normalized cornering stiffness [1/rad] */
 
 /*--- Acceleration bounds ---*/
-#define MPCC_DEFAULT_AX_MAX           FP_CONST(8.0)
-#define MPCC_DEFAULT_AX_MIN           FP_CONST(-10.0)
+#define MPCC_DEFAULT_AX_MAX           (8.0f)                        /** Maximum Acceleration bound */
+#define MPCC_DEFAULT_AX_MIN           (-10.0f)                      /** Minimum Acceleration bound (negative = breaking)*/
 
-/*--- Virtual progress speed bounds (tuned via iterative sweep) ---*/
-#define MPCC_DEFAULT_V_THETA_MAX      FP_CONST(8.0)
-#define MPCC_DEFAULT_V_THETA_MIN      FP_CONST(0.0)
+/*--- Virtual progress speed bounds ---*/
+#define MPCC_DEFAULT_V_THETA_MAX      (8.0f)                        /** Maximum virtual progress bound */
+#define MPCC_DEFAULT_V_THETA_MIN      (0.0f)                        /** Minimum virtual progress bound */
 
 #endif /* MPCC_TYPES_H */

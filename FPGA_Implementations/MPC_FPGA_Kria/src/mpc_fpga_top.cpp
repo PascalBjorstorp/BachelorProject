@@ -31,7 +31,7 @@ typedef ap_uint<128> stream_word_t;
 typedef hls::axis<stream_word_t, 0, 0, 0> axis_word_t;
 #endif
 
-/* Declare the MPC solver core (implemented in mpc_riccati_hls.c) */
+/* Declare the MPC solver core (implemented in mpc_riccati_hls.cpp) */
 extern "C" void mpc_compute_hls(
     fixed_point_t state_ey,
     fixed_point_t state_epsi,
@@ -140,6 +140,7 @@ void mpc_fpga_top(
 #pragma HLS INTERFACE s_axilite port=out_accel bundle=ctrl
 #pragma HLS INTERFACE s_axilite port=out_status bundle=ctrl
 #pragma HLS INTERFACE s_axilite port=out_iters bundle=ctrl
+#pragma HLS ALLOCATION operation instances=div limit=0
 
 #ifndef MPC_HLS_BUILD
     if (!out_steering || !out_accel || !out_status || !out_iters) {

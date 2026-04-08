@@ -8,13 +8,13 @@
  *   - Machine-readable CSV output for automated tuning (MPCC_TUNING_CSV=1)
  *
  * Build (standalone, from MPCC/):
-    gcc -D_GNU_SOURCE -O3 -std=c99 -Wall -ffast-math \
-        -Wno-unused-variable -Wno-unused-but-set-variable \
-        -Iinclude -I../MPC/include \
-        test/test_sim_drive.c \
-        src/mpcc.c src/mpcc_vehicle_model.c src/qp_solver_mpcc.c \
-        src/fp_math_mpcc.c \
-        -o test_sim_drive -lm
+ *   gcc -D_GNU_SOURCE -O3 -std=c99 -Wall -ffast-math \
+ *       -Wno-unused-variable -Wno-unused-but-set-variable \
+ *       -Iinclude -I../MPC/include \
+ *       test/test_sim_drive.c \
+ *       src/mpcc.c src/mpcc_vehicle_model.c src/qp_solver_mpcc.c \
+ *       src/fp_math_mpcc.c \
+ *       -o test_sim_drive -lm
  ******************************************************************************/
 
 #define _GNU_SOURCE

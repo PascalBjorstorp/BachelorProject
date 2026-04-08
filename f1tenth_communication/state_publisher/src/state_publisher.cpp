@@ -50,15 +50,6 @@ public:
         this->declare_parameter("output_topic", "/mpc_state");
         this->declare_parameter("servo_topic", "/sensors/servo_position_command");
         
-        // VESC servo to steering-angle conversion.
-        // Forward: servo = gain * (c2*|delta|^2 + c1*|delta| + c0) + offset.
-        // Inverse: solve the quadratic to recover delta from servo.
-        this->declare_parameter("servo_gain", -0.7284);
-        this->declare_parameter("servo_offset", 0.55);
-        this->declare_parameter("steering_correction_c2", 0.589566);
-        this->declare_parameter("steering_correction_c1", 0.918061);
-        this->declare_parameter("steering_correction_c0", 0.001490);
-        
         // Trajectory source
         std::string trajectory_file = this->get_parameter("trajectory_file").as_string();
 
@@ -68,14 +59,7 @@ public:
         std::string output_topic = this->get_parameter("output_topic").as_string();
         std::string servo_topic = this->get_parameter("servo_topic").as_string();
 
-        // Load parameters into member variables.
-        servo_gain_ = this->get_parameter("servo_gain").as_double();
-        servo_offset_ = this->get_parameter("servo_offset").as_double();
-        steer_c2_ = this->get_parameter("steering_correction_c2").as_double();
-        steer_c1_ = this->get_parameter("steering_correction_c1").as_double();
-        steer_c0_ = this->get_parameter("steering_correction_c0").as_double();
-
-        // Check that trajectory file isnt empty before proceeding.
+        // Check that trajectory file isn't empty before proceeding.
         if (trajectory_file.empty()) {
             RCLCPP_ERROR(this->get_logger(), "No trajectory file specified!");
             return;
@@ -83,7 +67,7 @@ public:
         
         // Load trajectory
         if (!load_trajectory(trajectory_file)) {
-            RCLCPP_ERROR(this->get_logger(), "Failed to load trajectory from: %s", 
+            RCLCPP_ERROR(this->get_logger(), "Failed to load trajectory from: %s",
                         trajectory_file.c_str());
             return;
         }
@@ -116,14 +100,14 @@ public:
                 servo_topic, qos,
                 [this](const std_msgs::msg::Float64::SharedPtr msg) {
                     // Recover steering angle from calibrated VESC servo mapping.
-                    double corrected = (msg->data - servo_offset_) / servo_gain_;
+                    double corrected = (msg->data - MPC_FPGA_SERVO_OFFSET) / MPC_FPGA_SERVO_GAIN;
                     double abs_corr = std::abs(corrected);
-                    if (steer_c2_ != 0.0) {
-                        double disc = steer_c1_ * steer_c1_
-                                    - 4.0 * steer_c2_ * (steer_c0_ - abs_corr);
+                    if (MPC_FPGA_STEER_CORRECTION_C2 != 0.0) {
+                        double disc = MPC_FPGA_STEER_CORRECTION_C1 * MPC_FPGA_STEER_CORRECTION_C1
+                                    - 4.0 * MPC_FPGA_STEER_CORRECTION_C2 * (MPC_FPGA_STEER_CORRECTION_C0 - abs_corr);
                         if (disc >= 0.0) {
-                            double t = (-steer_c1_ + std::sqrt(disc))
-                                     / (2.0 * steer_c2_);
+                            double t = (-MPC_FPGA_STEER_CORRECTION_C1 + std::sqrt(disc))
+                                     / (2.0 * MPC_FPGA_STEER_CORRECTION_C2);
                             current_steering_angle_ = std::copysign(t, corrected);
                         } else {
                             current_steering_angle_ = corrected;
@@ -149,9 +133,27 @@ public:
                 }
             });
 
+        startup_diag_timer_ = this->create_wall_timer(
+            std::chrono::seconds(1),
+            [this]() {
+                if (published_count_ > 0) {
+                    startup_diag_timer_->cancel();
+                    return;
+                }
+                if (!pose_received_) {
+                    RCLCPP_WARN(this->get_logger(),
+                        "State publisher waiting: no pose sample received on pose_topic yet");
+                }
+                if (!has_odom_dynamics_) {
+                    RCLCPP_WARN(this->get_logger(),
+                        "State publisher waiting: no valid odom dynamics sample yet");
+                }
+            });
+
         RCLCPP_INFO(this->get_logger(),
                 "State publisher ready (Best Effort QoS). Odom cache: %s, pose trigger: %s, publishing: %s",
                 odom_topic.c_str(), pose_topic.c_str(), output_topic.c_str());
+        RCLCPP_INFO(this->get_logger(), "Forward waypoint lookahead: %d", MPC_FPGA_PUBLISHER_FORWARD_LOOKAHEAD);
     }
     
 private:
@@ -165,16 +167,10 @@ private:
     // --- Runtime state -------------------------------------------------------
     double current_steering_angle_ = 0.0;                           // Steering angle [rad] 
     bool has_servo_feedback_ = false;                               // Flag indicating if servo feedback has been received at least once.
-    double wheelbase_ = static_cast<double>(MPC_FPGA_WHEELBASE_M);  // Wheelbase of the vehicle in meters 
-    double servo_gain_ = 0.0;                                       // Gain for converting steering angle to servo command, used in inverse mapping.
-    double servo_offset_ = 0.0;                                     // Offset for converting steering angle to servo command, used in inverse mapping.
-    double steer_c2_ = 0.0;                                         // Quadratic correction term for steering angle mapping, used in inverse mapping to recover steering angle from servo feedback.
-    double steer_c1_ = 0.0;                                         // Linear correction term for steering angle mapping, used in inverse mapping to recover steering angle from servo feedback.
-    double steer_c0_ = 0.0;                                         // Constant correction term for steering angle mapping, used in inverse mapping to recover steering angle from servo feedback.
-    int forward_lookahead_ = MPC_FPGA_PUBLISHER_FORWARD_LOOKAHEAD;  // Number of waypoints to look ahead for forward-biased nearest neighbor search.
 
     // --- Watchdog state -----------------------------------------------------
     rclcpp::TimerBase::SharedPtr odom_watchdog_timer_;                                          // Timer to check for odometry timeouts and emit warnings.
+    rclcpp::TimerBase::SharedPtr startup_diag_timer_;                                            // Timer to report startup dependencies until first publish.
     std::chrono::steady_clock::time_point last_odom_time_ = std::chrono::steady_clock::now();   // Timestamp of the last received odometry message, used for watchdog timeout checks.
     bool odom_received_ = false;                                                                // Flag indicating if at least one odometry message has been received, used to suppress watchdog warnings until first message arrives.              
 
@@ -183,6 +179,8 @@ private:
     double latest_vy_ = 0.0;            // Latest lateral velocity in m/s extracted from odometry messages, included in state packets for MPC tracking error computation.
     double latest_omega_ = 0.0;         // Latest yaw rate in rad/s extracted from odometry messages, used for computing steering angle when servo feedback is unavailable and included in state packets for MPC tracking error computation.
     bool has_odom_dynamics_ = false;    // Flag indicating if valid odometry dynamics have been received at least once, used to determine if velocity and yaw rate can be used for steering angle computation when servo feedback is unavailable.
+    bool pose_received_ = false;        // Flag indicating if at least one pose message has been received.
+    uint64_t published_count_ = 0;      // Number of MpcState messages published.
 
     // --- Odometry processing helpers ----------------------------------------
     /**
@@ -250,7 +248,7 @@ private:
      */
     double compute_steering_angle(double velocity, double omega) const {
         if (!has_servo_feedback_ && std::abs(velocity) > 0.1) {
-            return std::atan2(wheelbase_ * omega, velocity);
+            return std::atan2(static_cast<double>(MPC_FPGA_WHEELBASE_M) * omega, velocity);
         }
         return current_steering_angle_;
     }
@@ -270,8 +268,9 @@ private:
         size_t best_idx = nearest_idx;
         double best_dist = std::numeric_limits<double>::max();
 
-        // Search forward along the trajectory from the nearest index, checking up to forward_lookahead_ waypoints.
-        for (int i = 0; i <= forward_lookahead_; ++i) {
+        // Search forward along the trajectory from the nearest index,
+        // checking up to MPC_FPGA_PUBLISHER_FORWARD_LOOKAHEAD waypoints.
+        for (int i = 0; i <= MPC_FPGA_PUBLISHER_FORWARD_LOOKAHEAD; ++i) {
             size_t check_idx = (nearest_idx + static_cast<size_t>(i)) % N;
             const auto& wp = kdtree_.get_waypoint(check_idx);
             double dx_wp = wp.x - x;
@@ -372,7 +371,7 @@ private:
             std::getline(ss, token, ','); wp.psi = std::stod(token);
             std::getline(ss, token, ','); wp.kappa = std::stod(token);
             std::getline(ss, token, ','); wp.vx = std::stod(token);
-            std::getline(ss, token, ','); 
+            std::getline(ss, token, ',');
             if (!std::getline(ss, token, ',') || token.empty()) {
                 RCLCPP_ERROR(this->get_logger(),
                     "Trajectory CSV missing required left_bound at line %zu", csv_line_number);
@@ -429,6 +428,14 @@ private:
      * @return None.
      */
     void pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+        pose_received_ = true;
+
+        if (pub_->get_subscription_count() == 0) {
+            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                "Skipping publish: waiting for /mpc_state subscriber discovery");
+            return;
+        }
+
         const double x = msg->pose.pose.position.x;
         const double y = msg->pose.pose.position.y;
         const double qx = msg->pose.pose.orientation.x;
@@ -477,6 +484,7 @@ private:
 
         // Publish the state message to the FPGA receiver.
         pub_->publish(mpc_state);
+        published_count_++;
 
         // Debug logging
         static int count = 0;

@@ -14,6 +14,14 @@
 #include <stdint.h>
 #include <limits.h>
 
+#ifdef __cplusplus
+#include "fp_types_hls.hpp"
+#endif
+
+#ifndef MPC_HLS_AP_CORE_ARITH
+#define MPC_HLS_AP_CORE_ARITH 0
+#endif
+
 /*===========================================================================
  * Fixed-Point Type and Constants (Q16.16)
  *===========================================================================*/
@@ -77,8 +85,12 @@ static inline fixed_point_t fp_sub(fixed_point_t a, fixed_point_t b)
  */
 static inline fixed_point_t fp_mul(fixed_point_t a, fixed_point_t b)
 {
+#if (MPC_HLS_AP_CORE_ARITH == 1) && defined(MPC_USE_AP_FIXED) && defined(__cplusplus)
+    return fp_q16_mul_backend(a, b);
+#else
     int64_t product = (int64_t)a * (int64_t)b;
     return (fixed_point_t)(product >> FP_FRAC_BITS);
+#endif
 }
 
 /**
@@ -89,9 +101,13 @@ static inline fixed_point_t fp_mul(fixed_point_t a, fixed_point_t b)
  */
 static inline fixed_point_t fp_div(fixed_point_t a, fixed_point_t b)
 {
+#if (MPC_HLS_AP_CORE_ARITH == 1) && defined(MPC_USE_AP_FIXED) && defined(__cplusplus)
+    return fp_q16_div_backend(a, b);
+#else
     /* Return 0 for undefined divisions to avoid divide-by-zero hardware paths. */
     if (a == 0 || b == 0) return 0;
     return (fixed_point_t)(((int64_t)a << FP_FRAC_BITS) / b);
+#endif
 }
 
 /**

@@ -139,11 +139,14 @@ void mpc_fpga_top(
 #pragma HLS INTERFACE s_axilite port=out_accel bundle=ctrl
 #pragma HLS INTERFACE s_axilite port=out_status bundle=ctrl
 #pragma HLS INTERFACE s_axilite port=out_iters bundle=ctrl
+#pragma HLS ALLOCATION operation instances=div limit=0
 #pragma HLS ALLOCATION operation instances=mul limit=2
 
+#ifndef MPC_HLS_BUILD
     if (!out_steering || !out_accel || !out_status || !out_iters) {
         return;
     }
+#endif
 
     /* Beat 0: [e_y | e_psi | vx | vy] */
     stream_word_t d0 = input_stream.read().data;

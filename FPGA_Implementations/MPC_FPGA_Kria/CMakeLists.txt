@@ -1,4 +1,4 @@
-#===========================================================================
+FPGA_Implementations/MPC_FPGA_Ultra96/testbench#===========================================================================
 # MPC FPGA (HLS) — CMake Build Configuration
 #===========================================================================
 #
@@ -32,10 +32,10 @@ endif()
 # HLS pragmas (#pragma HLS ...) are silently ignored by GCC.
 
 set(MPC_FPGA_CORE_SOURCES
-    src/fp_math_hls.c
-    src/vehicle_model_hls.c
-    src/riccati_solver_hls.c
-    src/mpc_riccati_hls.c
+    src/fp_math_hls.cpp
+    src/vehicle_model_hls.cpp
+    src/riccati_solver_hls.cpp
+    src/mpc_riccati_hls.cpp
     src/mpc_fpga_top.cpp
 )
 

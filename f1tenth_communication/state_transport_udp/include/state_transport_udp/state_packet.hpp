@@ -21,52 +21,52 @@ constexpr size_t MPC_HORIZON = MPC_FPGA_HORIZON_STEPS;
 
 #pragma pack(push, 1)
 struct StatePacket {
-    uint32_t magic;
-    uint16_t version;
-    uint16_t flags;
-    uint32_t sequence;
-    uint32_t sender_time_ms;
-    uint64_t sender_mono_ns;
+    uint32_t magic;            // Packet magic for quick framing/validation.
+    uint16_t version;          // Wire-format version.
+    uint16_t flags;            // Reserved transport flags.
+    uint32_t sequence;         // Monotonic packet sequence from sender.
+    uint32_t sender_time_ms;   // Sender wall-clock timestamp (ms, wrap-safe).
+    uint64_t sender_mono_ns;   // Sender monotonic timestamp for RTT measurement.
 
-    int32_t x_fp;
-    int32_t y_fp;
-    int32_t theta_fp;
-    int32_t velocity_fp;
-    int32_t vy_fp;
-    int32_t omega_fp;
-    int32_t steering_angle_fp;
+    int32_t x_fp;              // Vehicle x [m], Q16.16.
+    int32_t y_fp;              // Vehicle y [m], Q16.16.
+    int32_t theta_fp;          // Vehicle yaw [rad], Q16.16.
+    int32_t velocity_fp;       // Longitudinal speed vx [m/s], Q16.16.
+    int32_t vy_fp;             // Lateral speed vy [m/s], Q16.16.
+    int32_t omega_fp;          // Yaw rate [rad/s], Q16.16.
+    int32_t steering_angle_fp; // Current steering angle [rad], Q16.16.
 
-    int32_t ref_x_0_fp;
-    int32_t ref_y_0_fp;
-    int32_t ref_psi_0_fp;
+    int32_t ref_x_0_fp;        // First reference point x [m], Q16.16.
+    int32_t ref_y_0_fp;        // First reference point y [m], Q16.16.
+    int32_t ref_psi_0_fp;      // First reference heading [rad], Q16.16.
 
-    uint32_t horizon_length;
+    uint32_t horizon_length;   // Number of valid horizon entries in arrays below.
 
-    std::array<int32_t, MPC_HORIZON> ref_vx_fp;
-    std::array<int32_t, MPC_HORIZON> ref_kappa_fp;
-    std::array<int32_t, MPC_HORIZON> ref_left_bound_fp;
-    std::array<int32_t, MPC_HORIZON> ref_right_bound_fp;
+    std::array<int32_t, MPC_HORIZON> ref_vx_fp;          // Horizon target speed [m/s], Q16.16.
+    std::array<int32_t, MPC_HORIZON> ref_kappa_fp;       // Horizon curvature [rad/m], Q16.16.
+    std::array<int32_t, MPC_HORIZON> ref_left_bound_fp;  // Left wall bound [m], Q16.16.
+    std::array<int32_t, MPC_HORIZON> ref_right_bound_fp; // Right wall bound [m], Q16.16.
 
-    uint32_t crc32;
+    uint32_t crc32;            // IEEE CRC32 over packet bytes with this field zeroed.
 };
 
 struct ControlPacket {
-    uint32_t magic;
-    uint16_t version;
-    uint16_t flags;
-    uint32_t sequence;
-    uint32_t receiver_time_ms;
-    uint64_t sender_mono_ns;
+    uint32_t magic;            // Packet magic for quick framing/validation.
+    uint16_t version;          // Wire-format version.
+    uint16_t flags;            // Transport/diagnostic flags.
+    uint32_t sequence;         // Echoed sequence from matching StatePacket.
+    uint32_t receiver_time_ms; // Receiver wall-clock timestamp (ms, wrap-safe).
+    uint64_t sender_mono_ns;   // Echoed sender monotonic timestamp for RTT computation.
 
-    int32_t steering_fp;
-    int32_t speed_fp;
-    int32_t accel_fp;
-    uint32_t solver_status;
-    uint32_t solver_iterations;
-    uint32_t ultra_process_us;
-    uint32_t reserved;
+    int32_t steering_fp;       // Steering command [rad], Q16.16.
+    int32_t speed_fp;          // Speed command [m/s], Q16.16.
+    int32_t accel_fp;          // Acceleration command [m/s^2], Q16.16.
+    uint32_t solver_status;    // Solver status code.
+    uint32_t solver_iterations;// Solver iterations for this cycle.
+    uint32_t ultra_process_us; // Ultra-side processing duration [us].
+    uint32_t reserved;         // Reserved for future metadata.
 
-    uint32_t crc32;
+    uint32_t crc32;            // IEEE CRC32 over packet bytes with this field zeroed.
 };
 #pragma pack(pop)
 

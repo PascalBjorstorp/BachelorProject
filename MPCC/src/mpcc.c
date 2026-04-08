@@ -30,11 +30,15 @@
  *
  * All arithmetic uses Q16.16 fixed-point for FPGA compatibility.
  */
+#define _GNU_SOURCE
 
+#include <math.h>
+#include "mpcc_types.h"
 #include "mpcc.h"
 #include "mpcc_vehicle_model.h"
 #include "qp_solver_mpcc.h"
 #include <string.h>
+
 
 #ifdef MPCC_DEBUG_PRINT
 #include <stdio.h>
@@ -64,7 +68,7 @@ static MPCCControl_t prev_control;
 static ADMMWorkspace_t admm_workspace;
 static ADMMConfig_t admm_config;
 
-/** QP problem structure (reused each call) */
+/** QP problem structure */
 static MPCCQPProblem_t qp_problem;
 
 /*===========================================================================
@@ -214,19 +218,19 @@ void mpcc_obstacle_compute_sigma_inv(MPCCObstacle_t *obs)
      *   Sigma_inv[1][0] = Sigma_inv[0][1]
      *   Sigma_inv[1][1] = s^2*ia2 + c^2*ib2
      */
-    fixed_point_t c = fp_cos(obs->phi);
-    fixed_point_t s = fp_sin(obs->phi);
-    fixed_point_t c2 = fp_mul(c, c);
-    fixed_point_t s2 = fp_mul(s, s);
-    fixed_point_t cs = fp_mul(c, s);
+    float c = cosf(obs->phi);
+    float s = sinf(obs->phi);
+    float c2 = c * c;
+    float s2 = s * s;
+    float cs = c * s;
 
-    fixed_point_t ia2 = fp_div(FP_ONE, fp_mul(obs->a, obs->a));
-    fixed_point_t ib2 = fp_div(FP_ONE, fp_mul(obs->b, obs->b));
+    float ia2 = 1.0f / (obs->a * obs->a);
+    float ib2 = 1.0f / (obs->b * obs->b);
 
-    obs->Sigma_inv[0][0] = fp_add(fp_mul(c2, ia2), fp_mul(s2, ib2));
-    obs->Sigma_inv[0][1] = fp_mul(cs, fp_sub(ia2, ib2));
+    obs->Sigma_inv[0][0] = (c2 * ia2) + (s2 * ib2);
+    obs->Sigma_inv[0][1] = cs * (ia2 - ib2);
     obs->Sigma_inv[1][0] = obs->Sigma_inv[0][1];
-    obs->Sigma_inv[1][1] = fp_add(fp_mul(s2, ia2), fp_mul(c2, ib2));
+    obs->Sigma_inv[1][1] = (s2 * ia2) + (c2 * ib2);
 }
 
 /*===========================================================================
@@ -234,18 +238,18 @@ void mpcc_obstacle_compute_sigma_inv(MPCCObstacle_t *obs)
  *===========================================================================*/
 
 /** Wrap s to [0, total_length) for closed paths. */
-static fixed_point_t wrap_s(fixed_point_t s, fixed_point_t total_length)
+static float wrap_s(float s, float total_length)
 {
     while (s >= total_length)
-        s = fp_sub(s, total_length);
+        s = s - total_length;
     while (s < 0)
-        s = fp_add(s, total_length);
+        s = s - total_length;
     return s;
 }
 
 void mpcc_path_interpolate(
     const MPCCReferencePath_t *path,
-    fixed_point_t s,
+    float s,
     MPCCPathPoint_t *result)
 {
     if (path->num_points < 2) {
@@ -254,14 +258,14 @@ void mpcc_path_interpolate(
     }
 
     /* Clamp s to valid range */
-    fixed_point_t s_min = path->points[0].s_ref;
-    fixed_point_t s_max = path->points[path->num_points - 1].s_ref;
+    float s_min = path->points[0].s_ref;
+    float s_max = path->points[path->num_points - 1].s_ref;
 
     if (path->is_closed && s_max > s_min) {
         /* Wrap s into [s_min, s_max) for closed paths */
-        fixed_point_t len = fp_sub(s_max, s_min);
-        while (s > s_max) s = fp_sub(s, len);
-        while (s < s_min) s = fp_add(s, len);
+        float len = s_max - s_min;
+        while (s > s_max) s = s - len;
+        while (s < s_min) s = s + len;
     } else {
         if (s <= s_min) { *result = path->points[0]; result->s_ref = s; return; }
         if (s >= s_max) { *result = path->points[path->num_points - 1]; result->s_ref = s; return; }
@@ -282,49 +286,47 @@ void mpcc_path_interpolate(
     const MPCCPathPoint_t *p1 = &path->points[hi];
 
     /* Interpolation parameter t = (s - s0) / (s1 - s0) */
-    fixed_point_t ds = fp_sub(p1->s_ref, p0->s_ref);
-    fixed_point_t t;
+    float ds = p1->s_ref - p0->s_ref;
+    float t;
     if (ds <= 0) {
         t = 0;
     } else {
-        t = fp_div(fp_sub(s, p0->s_ref), ds);
+        t = (s - p0->s_ref)/ ds;
     }
-    fixed_point_t one_minus_t = fp_sub(FP_ONE, t);
+    float one_minus_t = 1.0f - t;
 
     /* Linear interpolation: result = (1-t)*p0 + t*p1 */
-    result->x_ref       = fp_add(fp_mul(one_minus_t, p0->x_ref),       fp_mul(t, p1->x_ref));
-    result->y_ref       = fp_add(fp_mul(one_minus_t, p0->y_ref),       fp_mul(t, p1->y_ref));
-    result->kappa_ref   = fp_add(fp_mul(one_minus_t, p0->kappa_ref),   fp_mul(t, p1->kappa_ref));
-    result->left_bound  = fp_add(fp_mul(one_minus_t, p0->left_bound),  fp_mul(t, p1->left_bound));
-    result->right_bound = fp_add(fp_mul(one_minus_t, p0->right_bound), fp_mul(t, p1->right_bound));
-    result->vx_ref      = fp_add(fp_mul(one_minus_t, p0->vx_ref),     fp_mul(t, p1->vx_ref));
+    result->x_ref       = (one_minus_t* p0->x_ref) + (t * p1->x_ref);
+    result->y_ref       = (one_minus_t * p0->y_ref) + (t * p1->y_ref);
+    result->kappa_ref   = (one_minus_t * p0->kappa_ref) + (t * p1->kappa_ref);
+    result->left_bound  = (one_minus_t * p0->left_bound) +  (t * p1->left_bound);
+    result->right_bound = (one_minus_t * p0->right_bound) + (t * p1->right_bound);
+    result->vx_ref      = (one_minus_t * p0->vx_ref) + (t * p1->vx_ref);
     result->s_ref       = s;
 
     /* Angle interpolation: handle wrapping for phi_ref */
-    fixed_point_t dphi = fp_normalize_angle(fp_sub(p1->phi_ref, p0->phi_ref));
-    result->phi_ref = fp_normalize_angle(fp_add(p0->phi_ref, fp_mul(t, dphi)));
+    float dphi = remainderf(p1->phi_ref - p0->phi_ref, 2.0f * (float)M_PI);
+    result->phi_ref = remainderf(p0->phi_ref + (t * dphi), 2.0f * (float)M_PI);
 }
 
 /*===========================================================================
  * Find Closest s
  *===========================================================================*/
 
-fixed_point_t mpcc_find_closest_s(
+float mpcc_find_closest_s(
     const MPCCReferencePath_t *path,
-    fixed_point_t X,
-    fixed_point_t Y)
+    float X,
+    float Y)
 {
-    if (path->num_points < 1) return 0;
+    if (path->num_points < 1) return 0.0f;
 
-    /* Brute-force closest-point search.
-     * Use int64 for distance-squared to avoid Q16.16 overflow. */
-    int64_t best_dist_sq = INT64_MAX;
+    float best_dist_sq = __FLT_MAX__;
     uint16_t best_idx = 0;
 
     for (uint16_t i = 0; i < path->num_points; i++) {
-        int64_t dx = (int64_t)X - (int64_t)path->points[i].x_ref;
-        int64_t dy = (int64_t)Y - (int64_t)path->points[i].y_ref;
-        int64_t dist_sq = dx * dx + dy * dy;  /* Q32.32, but only need relative comparison */
+        float dx = X - path->points[i].x_ref;
+        float dy = Y - path->points[i].y_ref;
+        float dist_sq = dx * dx + dy * dy; 
         if (dist_sq < best_dist_sq) {
             best_dist_sq = dist_sq;
             best_idx = i;
@@ -335,23 +337,23 @@ fixed_point_t mpcc_find_closest_s(
 }
 
 /* Find closest s near a hint to preserve longitudinal continuity. */
-static fixed_point_t mpcc_find_closest_s_with_hint(
+static float mpcc_find_closest_s_with_hint(
     const MPCCReferencePath_t *path,
-    fixed_point_t X,
-    fixed_point_t Y,
-    fixed_point_t s_hint)
+    float X,
+    float Y,
+    float s_hint)
 {
     if (path->num_points < 1) return 0;
     if (path->num_points < 8 || s_hint <= 0)
         return mpcc_find_closest_s(path, X, Y);
 
-    fixed_point_t s_min = path->points[0].s_ref;
-    fixed_point_t s_max = path->points[path->num_points - 1].s_ref;
-    fixed_point_t s_query = s_hint;
+    float s_min = path->points[0].s_ref;
+    float s_max = path->points[path->num_points - 1].s_ref;
+    float s_query = s_hint;
     if (path->is_closed && s_max > s_min) {
-        fixed_point_t len = fp_sub(s_max, s_min);
-        while (s_query > s_max) s_query = fp_sub(s_query, len);
-        while (s_query < s_min) s_query = fp_add(s_query, len);
+        float len = s_max - s_min;
+        while (s_query > s_max) s_query = s_query - len;
+        while (s_query < s_min) s_query = s_query - len;
     }
 
     uint16_t lo = 0;
@@ -364,7 +366,7 @@ static fixed_point_t mpcc_find_closest_s_with_hint(
     uint16_t center = lo;
 
     const int window = 80;
-    int64_t best_dist_sq = INT64_MAX;
+    float best_dist_sq = __FLT_MAX__;
     uint16_t best_idx = center;
     for (int off = -window; off <= window; off++) {
         int idx = (int)center + off;
@@ -374,9 +376,9 @@ static fixed_point_t mpcc_find_closest_s_with_hint(
         } else {
             if (idx < 0 || idx >= (int)path->num_points) continue;
         }
-        int64_t dx = (int64_t)X - (int64_t)path->points[idx].x_ref;
-        int64_t dy = (int64_t)Y - (int64_t)path->points[idx].y_ref;
-        int64_t dist_sq = dx * dx + dy * dy;
+        float dx = X - path->points[idx].x_ref;
+        float dy = Y - path->points[idx].y_ref;
+        float dist_sq = dx * dx + dy * dy;
         if (dist_sq < best_dist_sq) {
             best_dist_sq = dist_sq;
             best_idx = (uint16_t)idx;
@@ -385,8 +387,8 @@ static fixed_point_t mpcc_find_closest_s_with_hint(
 
     /* Local search failed (far from path): fall back to global search. */
     {
-        int64_t max_dist = (int64_t)FP_CONST(3.0);
-        int64_t max_dist_sq = max_dist * max_dist;
+        float max_dist = 3.0f;
+        float max_dist_sq = max_dist * max_dist;
         if (best_dist_sq > max_dist_sq)
             return mpcc_find_closest_s(path, X, Y);
     }
@@ -397,9 +399,9 @@ static fixed_point_t mpcc_find_closest_s_with_hint(
 /* MPC-style forward-biased closest-waypoint search with heading penalty. */
 static uint16_t mpcc_find_closest_index_forward_biased(
     const MPCCReferencePath_t *path,
-    fixed_point_t X,
-    fixed_point_t Y,
-    fixed_point_t psi,
+    float X,
+    float Y,
+    float psi,
     uint16_t start_idx)
 {
     if (path->num_points == 0) return 0;
@@ -407,11 +409,11 @@ static uint16_t mpcc_find_closest_index_forward_biased(
     const int search_forward = 200;
     const int search_backward = 100; /* Increased for recovery after segment loss */
     uint16_t best_idx = start_idx;
-    int64_t best_score = INT64_MAX;
+    float best_score = __FLT_MAX__;
 
-    fixed_point_t veh_dx = fp_cos(psi);
-    fixed_point_t veh_dy = fp_sin(psi);
-    fixed_point_t behind_penalty = FP_CONST(2.0);
+    float veh_dx = cosf(psi);
+    float veh_dy = sinf(psi);
+    float behind_penalty = 2.0f;
 
     for (int off = -search_backward; off < search_forward; off++) {
         int idx = (int)start_idx + off;
@@ -422,13 +424,13 @@ static uint16_t mpcc_find_closest_index_forward_biased(
             if (idx < 0 || idx >= (int)path->num_points) continue;
         }
 
-        fixed_point_t dx = fp_sub(path->points[idx].x_ref, X);
-        fixed_point_t dy = fp_sub(path->points[idx].y_ref, Y);
+        float dx = path->points[idx].x_ref - X;
+        float dy = path->points[idx].y_ref- Y;
 
-        int64_t dist_sq = (int64_t)dx * (int64_t)dx + (int64_t)dy * (int64_t)dy;
-        fixed_point_t dot = fp_add(fp_mul(dx, veh_dx), fp_mul(dy, veh_dy));
-        int64_t score = dist_sq;
-        if (dot < 0) score += ((int64_t)behind_penalty * (int64_t)behind_penalty);
+        float dist_sq = dx * dx + dy * dy;
+        float dot = (dx * veh_dx) + (dy * veh_dy);
+        float score = dist_sq;
+        if (dot < 0) score += behind_penalty * behind_penalty;
 
         if (score < best_score) {
             best_score = score;
@@ -439,31 +441,31 @@ static uint16_t mpcc_find_closest_index_forward_biased(
 }
 
 /* Project onto segment [idx0, idx1] like MPC does, then compute s on segment. */
-static fixed_point_t mpcc_project_s_on_segment(
+static float mpcc_project_s_on_segment(
     const MPCCReferencePath_t *path,
     uint16_t idx0,
     uint16_t idx1,
-    fixed_point_t X,
-    fixed_point_t Y)
+    float X,
+    float Y)
 {
     const MPCCPathPoint_t *p0 = &path->points[idx0];
     const MPCCPathPoint_t *p1 = &path->points[idx1];
 
-    fixed_point_t ax = p0->x_ref, ay = p0->y_ref;
-    fixed_point_t bx = p1->x_ref, by = p1->y_ref;
-    fixed_point_t abx = fp_sub(bx, ax);
-    fixed_point_t aby = fp_sub(by, ay);
-    fixed_point_t apx = fp_sub(X, ax);
-    fixed_point_t apy = fp_sub(Y, ay);
-    fixed_point_t ab_len2 = fp_add(fp_mul(abx, abx), fp_mul(aby, aby));
+    float ax = p0->x_ref, ay = p0->y_ref;
+    float bx = p1->x_ref, by = p1->y_ref;
+    float abx = bx - ax;
+    float aby = by - ay;
+    float apx = X - ax;
+    float apy = Y - ay;
+    float ab_len2 = (abx * abx) + (aby * aby);
 
-    fixed_point_t t = 0;
-    if (ab_len2 > FP_CONST(1e-9))
-        t = fp_div(fp_add(fp_mul(apx, abx), fp_mul(apy, aby)), ab_len2);
+    float t = 0;
+    if (ab_len2 > 1e-9f)
+        t = ((apx * abx) + (apy * aby)) / ab_len2;
     if (t < 0) t = 0;
-    if (t > FP_ONE) t = FP_ONE;
+    if (t > 1.0f) t = 1.0f;
 
-    return fp_add(p0->s_ref, fp_mul(t, fp_sub(p1->s_ref, p0->s_ref)));
+    return p0->s_ref + (t * (p1->s_ref - p0->s_ref));
 }
 
 /*===========================================================================
@@ -472,7 +474,7 @@ static fixed_point_t mpcc_project_s_on_segment(
 
 MPCCState_t mpcc_state_from_vehicle_state(
     const VehicleState_t *vs,
-    fixed_point_t s_hint)
+    float s_hint)
 {
     (void)s_hint;
     MPCCState_t st;
@@ -547,27 +549,27 @@ static void build_stage_cost(
      * Terminal stage: still reward being far along via linear cost on s. */
     if (is_terminal)
     {
-        fixed_point_t q_s = config.weight_progress_terminal;
+        float q_s = config.weight_progress_terminal;
         cost->q[MPCC_IDX_S] = fp_sub(0, q_s); /* negative = reward */
     }
 
     /* Control costs (not used for terminal stage) */
     if (!is_terminal)
     {
-        fixed_point_t q_progress = config.weight_progress;
+        float q_progress = config.weight_progress;
         cost->r[MPCC_IDX_VTHETA] = fp_sub(0, q_progress); /* negative = reward */
 
         /* Rate weights: on step 0 scale by cross_call_rate_scale to
          * compensate for the control callback running faster than the
-         * prediction dt (e.g. 200 Hz vs 35 ms → scale ≈ 0.143). */
-        fixed_point_t w_dr = config.weight_delta_rate;
-        fixed_point_t w_ar = config.weight_ax_rate;
-        fixed_point_t w_vr = config.weight_v_theta_rate;
+         * prediction dt. */
+        float w_dr = config.weight_delta_rate;
+        float w_ar = config.weight_ax_rate;
+        float w_vr = config.weight_v_theta_rate;
         if (step_k == 0)
         {
-            w_dr = fp_mul(w_dr, config.cross_call_rate_scale);
-            w_ar = fp_mul(w_ar, config.cross_call_rate_scale);
-            w_vr = fp_mul(w_vr, config.cross_call_rate_scale);
+            w_dr = w_dr * config.cross_call_rate_scale;
+            w_ar = w_ar * config.cross_call_rate_scale;
+            w_vr = w_vr * config.cross_call_rate_scale;
         }
 
         cost->R[MPCC_IDX_DELTA][MPCC_IDX_DELTA] =
@@ -613,27 +615,27 @@ static void add_contouring_lag_cost(
     MPCCStageCost_t *cost,
     const MPCCState_t *z_bar,
     const MPCCPathPoint_t *path_pt,
-    fixed_point_t q_c,
-    fixed_point_t q_l)
+    float q_c,
+    float q_l)
 {
     if (q_c == 0 && q_l == 0) return;
 
     /* Path quantities at operating point */
-    fixed_point_t sin_phi = fp_sin(path_pt->phi_ref);
-    fixed_point_t cos_phi = fp_cos(path_pt->phi_ref);
-    fixed_point_t kappa   = path_pt->kappa_ref;
+    float sin_phi = fp_sin(path_pt->phi_ref);
+    float cos_phi = fp_cos(path_pt->phi_ref);
+    float kappa   = path_pt->kappa_ref;
 
     /* Position error in global frame */
-    fixed_point_t dX = fp_sub(z_bar->X, path_pt->x_ref);
-    fixed_point_t dY = fp_sub(z_bar->Y, path_pt->y_ref);
+    float dX = fp_sub(z_bar->X, path_pt->x_ref);
+    float dY = fp_sub(z_bar->Y, path_pt->y_ref);
 
     /* Errors at operating point */
-    fixed_point_t e_c_bar = fp_sub(fp_mul(sin_phi, dX), fp_mul(cos_phi, dY));
-    fixed_point_t e_l_bar = fp_sub(0, fp_add(fp_mul(cos_phi, dX), fp_mul(sin_phi, dY)));
+    float e_c_bar = fp_sub(fp_mul(sin_phi, dX), fp_mul(cos_phi, dY));
+    float e_l_bar = fp_sub(0, fp_add(fp_mul(cos_phi, dX), fp_mul(sin_phi, dY)));
 
     /* Gradient vectors (only s, X, Y components are nonzero) */
-    fixed_point_t g_c[MPCC_NX];
-    fixed_point_t g_l[MPCC_NX];
+    float g_c[MPCC_NX];
+    float g_l[MPCC_NX];
     memset(g_c, 0, sizeof(g_c));
     memset(g_l, 0, sizeof(g_l));
 
@@ -646,7 +648,7 @@ static void add_contouring_lag_cost(
     g_l[MPCC_IDX_Y] = fp_sub(0, sin_phi);                      /* -sin(phi) */
 
     /* Constant terms: d = e_bar - g^T * x_bar */
-    fixed_point_t x_bar[MPCC_NX] = {
+    float x_bar[MPCC_NX] = {
         z_bar->s,
         z_bar->vx, z_bar->vy, z_bar->omega,
         z_bar->X, z_bar->Y, z_bar->psi
@@ -659,8 +661,8 @@ static void add_contouring_lag_cost(
         gc_xbar += (int64_t)g_c[i] * (int64_t)x_bar[i];
         gl_xbar += (int64_t)g_l[i] * (int64_t)x_bar[i];
     }
-    fixed_point_t d_c = fp_sub(e_c_bar, (fixed_point_t)(gc_xbar >> FP_FRAC_BITS));
-    fixed_point_t d_l = fp_sub(e_l_bar, (fixed_point_t)(gl_xbar >> FP_FRAC_BITS));
+    float d_c = fp_sub(e_c_bar, (float)(gc_xbar >> FP_FRAC_BITS));
+    float d_l = fp_sub(e_l_bar, (float)(gl_xbar >> FP_FRAC_BITS));
 
     /* Add to Q matrix:  Q += 2*(q_c * g_c * g_c^T + q_l * g_l * g_l^T)
      * (factor 2 because cost form is 0.5 * x^T Q x) */
@@ -672,7 +674,7 @@ static void add_contouring_lag_cost(
             qc_gi_gj = qc_gi_gj * (int64_t)g_c[j] >> FP_FRAC_BITS;
             int64_t ql_gi_gj = (int64_t)q_l * (int64_t)g_l[i] >> FP_FRAC_BITS;
             ql_gi_gj = ql_gi_gj * (int64_t)g_l[j] >> FP_FRAC_BITS;
-            fixed_point_t contrib = (fixed_point_t)((qc_gi_gj + ql_gi_gj) * 2);
+            float contrib = (float)((qc_gi_gj + ql_gi_gj) * 2);
             cost->Q[i][j] = fp_add(cost->Q[i][j], contrib);
         }
     }
@@ -684,7 +686,7 @@ static void add_contouring_lag_cost(
         qc_dc_gi = qc_dc_gi * (int64_t)g_c[i] >> FP_FRAC_BITS;
         int64_t ql_dl_gi = (int64_t)q_l * (int64_t)d_l >> FP_FRAC_BITS;
         ql_dl_gi = ql_dl_gi * (int64_t)g_l[i] >> FP_FRAC_BITS;
-        fixed_point_t contrib = (fixed_point_t)((qc_dc_gi + ql_dl_gi) * 2);
+        float contrib = (float)((qc_dc_gi + ql_dl_gi) * 2);
         cost->q[i] = fp_add(cost->q[i], contrib);
     }
 }
@@ -715,7 +717,7 @@ static void build_qp_problem(
     /* --- Global box constraints --- */
 
     /* State bounds (use large values for unbounded) */
-    fixed_point_t big = FP_CONST(1000.0);
+    float big = FP_CONST(1000.0);
     for (int i = 0; i < MPCC_NX; i++)
     {
         qp->x_lower[i] = fp_sub(0, big);
@@ -811,9 +813,9 @@ static void build_qp_problem(
                 u_ref.v_theta = FP_CONST(1.0);
             }
 
-            fixed_point_t w_dr = config.weight_delta_rate;
-            fixed_point_t w_ar = config.weight_ax_rate;
-            fixed_point_t w_vr = config.weight_v_theta_rate;
+            float w_dr = config.weight_delta_rate;
+            float w_ar = config.weight_ax_rate;
+            float w_vr = config.weight_v_theta_rate;
             if (k == 0)
             {
                 w_dr = fp_mul(w_dr, config.cross_call_rate_scale);
@@ -878,7 +880,7 @@ static void build_qp_problem(
  * Warm Start Management
  *===========================================================================*/
 
-static void state_to_array(const MPCCState_t *st, fixed_point_t arr[MPCC_NX]);
+static void state_to_array(const MPCCState_t *st, float arr[MPCC_NX]);
 
 static void shift_warm_start(void)
 {
@@ -900,7 +902,7 @@ static void shift_warm_start(void)
     {
         state_to_array(&prev_predicted_states[k], admm_workspace.z_x[k]);
         memcpy(admm_workspace.w_x[k], admm_workspace.z_x[k],
-               sizeof(fixed_point_t) * MPCC_NX);
+               sizeof(float) * MPCC_NX);
     }
     for (uint16_t k = 0; k < N; k++)
     {
@@ -908,7 +910,7 @@ static void shift_warm_start(void)
         admm_workspace.z_u[k][MPCC_IDX_AX]    = prev_predicted_controls[k].a_x;
         admm_workspace.z_u[k][MPCC_IDX_VTHETA] = prev_predicted_controls[k].v_theta;
         memcpy(admm_workspace.w_u[k], admm_workspace.z_u[k],
-               sizeof(fixed_point_t) * MPCC_NU);
+               sizeof(float) * MPCC_NU);
     }
 
     /* Shift dual variables (lambda) forward to preserve ADMM convergence
@@ -916,10 +918,10 @@ static void shift_warm_start(void)
      * accumulated constraint-violation information to converge properly. */
     for (uint16_t k = 0; k < N; k++) {
         memcpy(admm_workspace.lambda_x[k], admm_workspace.lambda_x[k + 1],
-               sizeof(fixed_point_t) * MPCC_NX);
+               sizeof(float) * MPCC_NX);
         if (k + 1 < N)
             memcpy(admm_workspace.lambda_u[k], admm_workspace.lambda_u[k + 1],
-                   sizeof(fixed_point_t) * MPCC_NU);
+                   sizeof(float) * MPCC_NU);
     }
     /* k=0 state is hard-fixed to x0 each solve; reset its dual row. */
     memset(admm_workspace.lambda_x[0], 0, sizeof(admm_workspace.lambda_x[0]));
@@ -932,14 +934,14 @@ static void shift_warm_start(void)
  * State Pack/Unpack Helpers
  *===========================================================================*/
 
-static void state_to_array(const MPCCState_t *st, fixed_point_t arr[MPCC_NX])
+static void state_to_array(const MPCCState_t *st, float arr[MPCC_NX])
 {
     arr[0] = st->s;     arr[1] = st->vx;     arr[2] = st->vy;
     arr[3] = st->omega;  arr[4] = st->X;     arr[5] = st->Y;
     arr[6] = st->psi;
 }
 
-static void array_to_state(const fixed_point_t arr[MPCC_NX], MPCCState_t *st)
+static void array_to_state(const float arr[MPCC_NX], MPCCState_t *st)
 {
     st->s = arr[0];     st->vx = arr[1];      st->vy = arr[2];
     st->omega = arr[3];  st->X = arr[4];      st->Y = arr[5];

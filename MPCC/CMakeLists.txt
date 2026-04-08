@@ -68,7 +68,6 @@ set(MPCC_CORE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/mpcc.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/mpcc_vehicle_model.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/qp_solver_mpcc.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/fp_math_mpcc.c
 )
 
 add_library(mpcc_core STATIC ${MPCC_CORE_SOURCES})

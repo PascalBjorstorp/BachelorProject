@@ -200,6 +200,13 @@ public:
 
         __sync_synchronize();
 
+        // Clear stale completion/valid flags from the previous transaction.
+        (void)mpc_read(REG_AP_CTRL);
+        (void)mpc_read(REG_OUT_STEERING_VLD);
+        (void)mpc_read(REG_OUT_ACCEL_VLD);
+        (void)mpc_read(REG_OUT_STATUS_VLD);
+        (void)mpc_read(REG_OUT_ITERATIONS_VLD);
+
         // Clear stale interrupt bits before start.
         const uint32_t isr = mpc_read(REG_ISR);
         if (isr) {
@@ -326,10 +333,16 @@ private:
 
     /** @brief Wait until steering and accel outputs are valid. */
     bool wait_output_valid(int timeout_cycles) const {
+        bool steer_seen = false;
+        bool accel_seen = false;
         while (timeout_cycles-- > 0) {
-            const uint32_t steer_vld = mpc_read(REG_OUT_STEERING_VLD);
-            const uint32_t accel_vld = mpc_read(REG_OUT_ACCEL_VLD);
-            if ((steer_vld & 0x1u) && (accel_vld & 0x1u)) {
+            if (!steer_seen) {
+                steer_seen = (mpc_read(REG_OUT_STEERING_VLD) & 0x1u) != 0u;
+            }
+            if (!accel_seen) {
+                accel_seen = (mpc_read(REG_OUT_ACCEL_VLD) & 0x1u) != 0u;
+            }
+            if (steer_seen && accel_seen) {
                 return true;
             }
         }
@@ -443,6 +456,7 @@ int main(int argc, char** argv) {
     const uint32_t dma_base_addr = env_u32("DMA_BASE_ADDR", static_cast<uint32_t>(AXI_DMA_BASE_ADDR));
     const uint64_t dma_buffer_phys = env_u64("DMA_BUFFER_PHYS_ADDR", static_cast<uint64_t>(DMA_BUFFER_PHYS_ADDR));
 
+    // Create and bind UDP socket for receiving state packets and sending control packets.
     int rx_fd = ::socket(AF_INET, SOCK_DGRAM, 0);
     if (rx_fd < 0) {
         std::fprintf(stderr, "UDP receiver socket creation failed: %s\n", std::strerror(errno));
@@ -486,7 +500,6 @@ int main(int argc, char** argv) {
     uint64_t packet_count = 0;
 
     while (g_running) {
-        const uint64_t ultra_rx_start_ns = monotonic_now_ns();
         state_transport_udp::StatePacket packet{};
         sockaddr_in peer_addr{};
         socklen_t peer_len = sizeof(peer_addr);
@@ -539,6 +552,7 @@ int main(int argc, char** argv) {
         int32_t e_y_fp = 0;
         int32_t e_psi_fp = 0;
         compute_frenet_errors(packet, e_y_fp, e_psi_fp);
+        const uint64_t ultra_rx_start_ns = monotonic_now_ns();
 
         int32_t out_steering_fp = 0;
         int32_t out_accel_fp = 0;
@@ -605,7 +619,7 @@ int main(int argc, char** argv) {
         }
 
         packet_count++;
-        if (packet_count % 100 == 0) {
+        if (packet_count == 1 || packet_count % 100 == 0) {
             std::fprintf(stdout,
                          "UDP RX seq=%u -> steer_fp=%d speed_fp=%d status=%u iters=%u proc=%u us\n",
                          packet.sequence,

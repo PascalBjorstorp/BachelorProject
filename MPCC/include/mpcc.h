@@ -169,7 +169,7 @@ void mpcc_reset(void);
  */
 void mpcc_path_interpolate(
     const MPCCReferencePath_t *path,
-    fixed_point_t s,
+    float s,
     MPCCPathPoint_t *result);
 
 /**
@@ -182,10 +182,10 @@ void mpcc_path_interpolate(
  * @param Y     Vehicle Y position [m]
  * @return Estimated s at the closest path point
  */
-fixed_point_t mpcc_find_closest_s(
+float mpcc_find_closest_s(
     const MPCCReferencePath_t *path,
-    fixed_point_t X,
-    fixed_point_t Y);
+    float X,
+    float Y);
 
 /*===========================================================================
  * Vehicle State → MPCC State Conversion
@@ -205,6 +205,6 @@ fixed_point_t mpcc_find_closest_s(
  */
 MPCCState_t mpcc_state_from_vehicle_state(
     const VehicleState_t *vehicle_state,
-    fixed_point_t s_hint);
+    float s_hint);
 
 #endif /* MPCC_H */
