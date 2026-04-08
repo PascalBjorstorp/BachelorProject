@@ -232,7 +232,7 @@ void riccati_solver_pass(
         for (int a = 0; a < nu; a++) {
             float val = 0.0f;
             for (int b = 0; b < nu; b++) {
-                val += Si[a][b] * (r_aug[b] + Bp[b]);
+                val += Si[a][b] * (r_aug_linear[b] + Bp[b]);
             }
             kk[k][a] = -val;
         }
