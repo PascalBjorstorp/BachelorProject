@@ -31,3 +31,8 @@
 
 // Node behavior
 #define PUBLISH_RATE_HZ 40.0
+
+// Obstacle behavior
+// true  -> obstacle avoidance enabled
+// false -> publish baseline raceline segment without lateral obstacle offsets
+#define LATERAL_PLANNER_ENABLE_AVOIDANCE true

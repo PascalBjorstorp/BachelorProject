@@ -66,6 +66,9 @@ public:
   LateralPlannerNode()
   : Node("lateral_planner_node")
   {
+    avoidance_enabled_ = declare_parameter<bool>(
+      "avoidance_enabled", LATERAL_PLANNER_ENABLE_AVOIDANCE);
+
     initPlanner();
     setupSubscribers();
     setupPublishers();
@@ -103,7 +106,7 @@ private:
       RCLCPP_WARN(get_logger(), "No trajectory path configured in lateral_planner_config.hpp");
     }
 
-    RCLCPP_INFO(get_logger(), "  Avoidance enabled: true");
+    RCLCPP_INFO(get_logger(), "  Avoidance enabled: %s", avoidance_enabled_ ? "true" : "false");
     map_frame_  = FRAME_MAP;
     base_frame_ = FRAME_BASE_LINK;
     laser_frame_ = FRAME_LASER;
@@ -122,9 +125,16 @@ private:
       .reliability(rclcpp::ReliabilityPolicy::BestEffort)
       .durability(rclcpp::DurabilityPolicy::Volatile);
 
-    obstacle_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
-      TOPIC_SCAN_OBSTACLES, sensor_qos,
-      std::bind(&LateralPlannerNode::obstacleCallback, this, std::placeholders::_1));
+    if (avoidance_enabled_) {
+      obstacle_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
+        TOPIC_SCAN_OBSTACLES, sensor_qos,
+        std::bind(&LateralPlannerNode::obstacleCallback, this, std::placeholders::_1));
+    } else {
+      RCLCPP_INFO(
+        get_logger(),
+        "Obstacle avoidance disabled; publishing baseline raceline on %s",
+        TOPIC_LOCAL_RACELINE);
+    }
 
     // Odometry
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
@@ -172,6 +182,10 @@ private:
 
   void obstacleCallback(const sensor_msgs::msg::LaserScan::SharedPtr scan)
   {
+    if (!avoidance_enabled_) {
+      return;
+    }
+
     // Look up laser pose in map frame
     geometry_msgs::msg::TransformStamped tf;
     try {
@@ -217,6 +231,9 @@ private:
     {
       // Compute path (handles both normal and avoidance cases).
       std::lock_guard<std::mutex> lock(planner_mutex_);
+      if (!avoidance_enabled_) {
+        planner_->clearOpponent();
+      }
       path_waypoints = planner_->computePath();
       opponent_snapshot = planner_->opponent();
     }
@@ -518,6 +535,7 @@ private:
 
   std::unique_ptr<LateralPlanner> planner_;
   std::mutex planner_mutex_;
+  bool avoidance_enabled_{true};
 
   // Frame IDs
   std::string map_frame_;
