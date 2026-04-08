@@ -48,51 +48,51 @@ static void test_3x3_inverse(void)
 {
     printf("\n--- Test 1: 3x3 Matrix Inverse ---\n");
 
-    fixed_point_t A[MPCC_NU][MPCC_NU];
-    fixed_point_t Ainv[MPCC_NU][MPCC_NU];
+    float A[MPCC_NU][MPCC_NU];
+    float Ainv[MPCC_NU][MPCC_NU];
 
     /* A = [4  3  1]
      *     [3  5  2]
      *     [1  2  6]
      * det = 4*(30-4) - 3*(18-2) + 1*(6-5) = 104 - 48 + 1 = 57 */
-    A[0][0] = float_to_fp(4.0f);
-    A[0][1] = float_to_fp(3.0f);
-    A[0][2] = float_to_fp(1.0f);
-    A[1][0] = float_to_fp(3.0f);
-    A[1][1] = float_to_fp(5.0f);
-    A[1][2] = float_to_fp(2.0f);
-    A[2][0] = float_to_fp(1.0f);
-    A[2][1] = float_to_fp(2.0f);
-    A[2][2] = float_to_fp(6.0f);
+    A[0][0] = 4.0f;
+    A[0][1] = 3.0f;
+    A[0][2] = 1.0f;
+    A[1][0] = 3.0f;
+    A[1][1] = 5.0f;
+    A[1][2] = 2.0f;
+    A[2][0] = 1.0f;
+    A[2][1] = 2.0f;
+    A[2][2] = 6.0f;
 
-    int ret = mat_nu_inverse((const fixed_point_t (*)[MPCC_NU])A, Ainv);
+    int ret = mat_nu_inverse((const float (*)[MPCC_NU])A, Ainv);
     printf("  mat_nu_inverse returned: %d\n", ret);
 
     /* Expected (cofactor/det):
      * inv = (1/57) * [ 26 -16  1 ]
      *                [-16  23 -5 ]
      *                [  1  -5 11 ] */
-    assert_close("Ainv[0][0]", fp_to_float(Ainv[0][0]),  26.0f / 57.0f, 0.02f);
-    assert_close("Ainv[0][1]", fp_to_float(Ainv[0][1]), -16.0f / 57.0f, 0.02f);
-    assert_close("Ainv[0][2]", fp_to_float(Ainv[0][2]),   1.0f / 57.0f, 0.02f);
-    assert_close("Ainv[1][0]", fp_to_float(Ainv[1][0]), -16.0f / 57.0f, 0.02f);
-    assert_close("Ainv[1][1]", fp_to_float(Ainv[1][1]),  23.0f / 57.0f, 0.02f);
-    assert_close("Ainv[1][2]", fp_to_float(Ainv[1][2]),  -5.0f / 57.0f, 0.02f);
-    assert_close("Ainv[2][0]", fp_to_float(Ainv[2][0]),   1.0f / 57.0f, 0.02f);
-    assert_close("Ainv[2][1]", fp_to_float(Ainv[2][1]),  -5.0f / 57.0f, 0.02f);
-    assert_close("Ainv[2][2]", fp_to_float(Ainv[2][2]),  11.0f / 57.0f, 0.02f);
+    assert_close("Ainv[0][0]", Ainv[0][0],  26.0f / 57.0f, 0.02f);
+    assert_close("Ainv[0][1]", Ainv[0][1], -16.0f / 57.0f, 0.02f);
+    assert_close("Ainv[0][2]", Ainv[0][2],   1.0f / 57.0f, 0.02f);
+    assert_close("Ainv[1][0]", Ainv[1][0], -16.0f / 57.0f, 0.02f);
+    assert_close("Ainv[1][1]", Ainv[1][1],  23.0f / 57.0f, 0.02f);
+    assert_close("Ainv[1][2]", Ainv[1][2],  -5.0f / 57.0f, 0.02f);
+    assert_close("Ainv[2][0]", Ainv[2][0],   1.0f / 57.0f, 0.02f);
+    assert_close("Ainv[2][1]", Ainv[2][1],  -5.0f / 57.0f, 0.02f);
+    assert_close("Ainv[2][2]", Ainv[2][2],  11.0f / 57.0f, 0.02f);
 
     /* Verify A * Ainv ~ I */
     for (int i = 0; i < MPCC_NU; i++) {
         for (int j = 0; j < MPCC_NU; j++) {
-            fixed_point_t sum = 0;
+            float sum = 0;
             for (int k = 0; k < MPCC_NU; k++) {
-                sum += fp_mul(A[i][k], Ainv[k][j]);
+                sum += (A[i][k] * Ainv[k][j]);
             }
             float expected = (i == j) ? 1.0f : 0.0f;
             char label[64];
             snprintf(label, sizeof(label), "(A*Ainv)[%d][%d]", i, j);
-            assert_close(label, fp_to_float(sum), expected, 0.02f);
+            assert_close(label, sum, expected, 0.02f);
         }
     }
 }
@@ -128,10 +128,10 @@ static void test_unconstrained_lqr(void)
     qp.N = N;
 
     /* Initial state */
-    qp.x0[0] = float_to_fp(1.0f);
+    qp.x0[0] = 1.0f;
     for (int i = 1; i < MPCC_NX; i++) qp.x0[i] = 0;
 
-    fixed_point_t dt = float_to_fp(0.05f);
+    float dt = 0.05f;
 
     for (int k = 0; k < N; k++) {
         MPCCLinearSystem_t *dyn = &qp.dynamics[k];
@@ -139,7 +139,7 @@ static void test_unconstrained_lqr(void)
 
         /* A = I */
         for (int i = 0; i < MPCC_NX; i++)
-            dyn->A[i][i] = FP_ONE;
+            dyn->A[i][i] = 1.0f;
         /* A[0][1] = dt */
         dyn->A[0][1] = dt;
 
@@ -149,38 +149,38 @@ static void test_unconstrained_lqr(void)
         /* d = 0 (already zeroed) */
 
         /* Q: state 0 weight = 1.0 */
-        cost->Q[0][0] = FP_ONE;
+        cost->Q[0][0] = 1.0f;
 
         /* R: both controls = 0.1 */
-        cost->R[0][0] = float_to_fp(0.1f);
-        cost->R[1][1] = float_to_fp(0.1f);
+        cost->R[0][0] = 0.1f;
+        cost->R[1][1] = 0.1f;
 
         /* Wide bounds (unconstrained) */
-        qp.track_left[k]  = float_to_fp(100.0f);
-        qp.track_right[k] = float_to_fp(100.0f);
+        qp.track_left[k]  = 100.0f;
+        qp.track_right[k] = 100.0f;
     }
 
     /* Terminal cost: same as stage */
-    qp.terminal_cost.Q[0][0] = FP_ONE;
-    qp.track_left[N]  = float_to_fp(100.0f);
-    qp.track_right[N] = float_to_fp(100.0f);
+    qp.terminal_cost.Q[0][0] = 1.0f;
+    qp.track_left[N]  = 100.0f;
+    qp.track_right[N] = 100.0f;
 
     /* Wide global bounds */
     for (int i = 0; i < MPCC_NX; i++) {
-        qp.x_lower[i] = float_to_fp(-1000.0f);
-        qp.x_upper[i] = float_to_fp( 1000.0f);
+        qp.x_lower[i] = -1000.0f;
+        qp.x_upper[i] =  1000.0f;
     }
     for (int i = 0; i < MPCC_NU; i++) {
-        qp.u_lower[i] = float_to_fp(-1000.0f);
-        qp.u_upper[i] = float_to_fp( 1000.0f);
+        qp.u_lower[i] = -1000.0f;
+        qp.u_upper[i] =  1000.0f;
     }
 
     /* ADMM config */
     admm_solver_default_config(&cfg);
-    cfg.rho = FP_ONE;
+    cfg.rho = 1.0f;
     cfg.max_iterations = 50;
-    cfg.eps_primal = float_to_fp(0.001f);
-    cfg.eps_dual   = float_to_fp(0.001f);
+    cfg.eps_primal = 0.001f;
+    cfg.eps_dual   = 0.001f;
 
     admm_solver_initialize(&ws);
     MPCCStatus_t status = admm_solver_solve(&qp, &cfg, &ws, &result);
@@ -190,7 +190,7 @@ static void test_unconstrained_lqr(void)
      * which after 2 steps will move position toward zero).
      * With double integrator: x[k+1]=x[k]+dt*v[k], v[k+1]=v[k]+dt*u[k]
      * u[0] acts on v, then v acts on x. So x barely changes at k=1. */
-    float u0 = fp_to_float(result.u_opt[0][0]);
+    float u0 = result.u_opt[0][0];
     printf("  u[0][0] = %.6f (expect < 0)\n", u0);
     if (u0 < 0.0f) {
         tests_passed++;
@@ -201,7 +201,7 @@ static void test_unconstrained_lqr(void)
     }
 
     /* Check: velocity at k=1 should be negative (heading back toward zero) */
-    float v1 = fp_to_float(result.x_opt[1][1]);
+    float v1 = result.x_opt[1][1];
     printf("  x[1][1] (velocity) = %.6f (expect < 0)\n", v1);
     if (v1 < 0.0f) {
         tests_passed++;
@@ -237,7 +237,7 @@ static void test_box_constrained_qp(void)
     memset(&result, 0, sizeof(result));
 
     qp.N = 2;
-    fixed_point_t dt = float_to_fp(0.05f);
+    float dt = 0.05f;
 
     /* Initial state: all zero (vy = 0) */
     memset(qp.x0, 0, sizeof(qp.x0));
@@ -245,45 +245,45 @@ static void test_box_constrained_qp(void)
     for (int k = 0; k < 2; k++) {
         /* Identity dynamics */
         for (int i = 0; i < MPCC_NX; i++)
-            qp.dynamics[k].A[i][i] = FP_ONE;
+            qp.dynamics[k].A[i][i] = 1.0f;
 
         /* B[vy][0] = dt  (steering drives lateral velocity) */
         qp.dynamics[k].B[MPCC_IDX_VY][0] = dt;
 
         /* Cost: penalize states, small control cost */
         for (int i = 0; i < MPCC_NX; i++)
-            qp.stage_cost[k].Q[i][i] = float_to_fp(0.1f);
-        qp.stage_cost[k].R[0][0] = float_to_fp(0.01f);
-        qp.stage_cost[k].R[1][1] = float_to_fp(0.01f);
+            qp.stage_cost[k].Q[i][i] = 0.1f;
+        qp.stage_cost[k].R[0][0] = 0.01f;
+        qp.stage_cost[k].R[1][1] = 0.01f;
 
         /* Linear term: push vy negative => pushes unconstrained vy far */
-        qp.stage_cost[k].q[MPCC_IDX_VY] = float_to_fp(-50.0f);
+        qp.stage_cost[k].q[MPCC_IDX_VY] = -50.0f;
     }
 
     /* Terminal cost */
     for (int i = 0; i < MPCC_NX; i++)
-        qp.terminal_cost.Q[i][i] = float_to_fp(0.1f);
-    qp.terminal_cost.q[MPCC_IDX_VY] = float_to_fp(-50.0f);
+        qp.terminal_cost.Q[i][i] = 0.1f;
+    qp.terminal_cost.q[MPCC_IDX_VY] = -50.0f;
 
     /* Global bounds: tight on vy, wide on everything else */
     for (int i = 0; i < MPCC_NX; i++) {
-        qp.x_lower[i] = float_to_fp(-100.0f);
-        qp.x_upper[i] = float_to_fp( 100.0f);
+        qp.x_lower[i] = -100.0f;
+        qp.x_upper[i] =  100.0f;
     }
-    qp.x_lower[MPCC_IDX_VY] = float_to_fp(-0.3f);
-    qp.x_upper[MPCC_IDX_VY] = float_to_fp( 0.3f);
+    qp.x_lower[MPCC_IDX_VY] = -0.3f;
+    qp.x_upper[MPCC_IDX_VY] =  0.3f;
 
     for (int i = 0; i < MPCC_NU; i++) {
-        qp.u_lower[i] = float_to_fp(-100.0f);
-        qp.u_upper[i] = float_to_fp( 100.0f);
+        qp.u_lower[i] = -100.0f;
+        qp.u_upper[i] =  100.0f;
     }
 
     /* ADMM config */
     admm_solver_default_config(&cfg);
-    cfg.rho = float_to_fp(10.0f);
+    cfg.rho = 10.0f;
     cfg.max_iterations = 200;
-    cfg.eps_primal = float_to_fp(0.01f);
-    cfg.eps_dual   = float_to_fp(0.01f);
+    cfg.eps_primal = 0.01f;
+    cfg.eps_dual   = 0.01f;
 
     admm_solver_initialize(&ws);
     MPCCStatus_t status = admm_solver_solve(&qp, &cfg, &ws, &result);
@@ -297,7 +297,7 @@ static void test_box_constrained_qp(void)
      * We check vy stays reasonable (< 2.0) showing ADMM is working. */
     int bounded = 1;
     for (int k = 0; k <= 2; k++) {
-        float vy_k = fp_to_float(result.x_opt[k][MPCC_IDX_VY]);
+        float vy_k = result.x_opt[k][MPCC_IDX_VY];
         printf("  vy[%d] = %.6f\n", k, vy_k);
         if (vy_k > 2.0f || vy_k < -2.0f) {
             bounded = 0;
@@ -323,12 +323,12 @@ static void test_mpcc_init(void)
 
     MPCCConfiguration_t cfg = mpcc_get_configuration();
 
-    assert_close("weight_contouring", fp_to_float(cfg.weight_contouring),
-                 fp_to_float(MPCC_DEFAULT_WEIGHT_CONTOURING), 0.01f);
-    assert_close("weight_lag",       fp_to_float(cfg.weight_lag),
-                 fp_to_float(MPCC_DEFAULT_WEIGHT_LAG), 0.01f);
-    assert_close("weight_progress", fp_to_float(cfg.weight_progress),
-                 fp_to_float(MPCC_DEFAULT_WEIGHT_PROGRESS), 0.01f);
+    assert_close("weight_contouring", cfg.weight_contouring,
+                 MPCC_DEFAULT_WEIGHT_CONTOURING, 0.01f);
+    assert_close("weight_lag",       cfg.weight_lag,
+                 MPCC_DEFAULT_WEIGHT_LAG, 0.01f);
+    assert_close("weight_progress", cfg.weight_progress,
+                 MPCC_DEFAULT_WEIGHT_PROGRESS, 0.01f);
 
     /* No direct access to obstacle count with global module —
      * just verify configuration loaded correctly */
@@ -344,10 +344,10 @@ static void test_obstacle_sigma_inv(void)
     printf("\n--- Test 5: Obstacle Sigma_inv Computation ---\n");
 
     MPCCObstacle_t obs;
-    obs.cx = float_to_fp(1.0f);
-    obs.cy = float_to_fp(2.0f);
-    obs.a  = float_to_fp(0.5f);   /* semi-axis x */
-    obs.b  = float_to_fp(0.3f);   /* semi-axis y */
+    obs.cx = 1.0f;
+    obs.cy = 2.0f;
+    obs.a  = 0.5f;   /* semi-axis x */
+    obs.b  = 0.3f;   /* semi-axis y */
     obs.phi = 0;                    /* no rotation */
     obs.active = 1;
 
@@ -355,13 +355,13 @@ static void test_obstacle_sigma_inv(void)
 
     /* Sigma_inv = R(-phi) * diag(1/a^2, 1/b^2) * R(phi)
      * With phi=0: Sigma_inv = diag(1/0.25, 1/0.09) = diag(4, 11.11) */
-    assert_close("Sigma_inv[0][0]", fp_to_float(obs.Sigma_inv[0][0]),
+    assert_close("Sigma_inv[0][0]", obs.Sigma_inv[0][0],
                  4.0f, 0.1f);
-    assert_close("Sigma_inv[0][1]", fp_to_float(obs.Sigma_inv[0][1]),
+    assert_close("Sigma_inv[0][1]", obs.Sigma_inv[0][1],
                  0.0f, 0.1f);
-    assert_close("Sigma_inv[1][0]", fp_to_float(obs.Sigma_inv[1][0]),
+    assert_close("Sigma_inv[1][0]", obs.Sigma_inv[1][0],
                  0.0f, 0.1f);
-    assert_close("Sigma_inv[1][1]", fp_to_float(obs.Sigma_inv[1][1]),
+    assert_close("Sigma_inv[1][1]", obs.Sigma_inv[1][1],
                  1.0f / 0.09f, 0.2f);
 }
 

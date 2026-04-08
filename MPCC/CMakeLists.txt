@@ -61,7 +61,6 @@ find_package(std_msgs REQUIRED)
 #   mpcc.c                - Main MPCC controller (QP construction, cost)
 #   mpcc_vehicle_model.c  - Dynamics linearization (Lifted ODE, linear tires)
 #   qp_solver_mpcc.c      - ADMM + Riccati QP solver
-#   fp_math_mpcc.c        - Q16.16 fixed-point arithmetic (self-contained)
 #
 
 set(MPCC_CORE_SOURCES
