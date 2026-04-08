@@ -782,6 +782,7 @@ void LateralPlanner::updateMergeBackPath()
 
   const double progress = mergeBackProgress();
   const double blend = 0.5 * (1.0 - std::cos(M_PI * progress));
+  const double speed_factor = std::max(params_.merge_back_speed_factor, 0.0);
 
   if (modified_raceline_.size() != waypoints_.size()) {
     modified_raceline_.resize(waypoints_.size());
@@ -801,7 +802,7 @@ void LateralPlanner::updateMergeBackPath()
     merged.psi = from.psi + blend * dpsi;
 
     merged.kappa = from.kappa + blend * (base.kappa - from.kappa);
-    merged.vx = from.vx + blend * (base.vx - from.vx);
+    merged.vx = (from.vx + blend * (base.vx - from.vx)) * speed_factor;
     merged.ax = from.ax + blend * (base.ax - from.ax);
     merged.d_left = from.d_left + blend * (base.d_left - from.d_left);
     merged.d_right = from.d_right + blend * (base.d_right - from.d_right);

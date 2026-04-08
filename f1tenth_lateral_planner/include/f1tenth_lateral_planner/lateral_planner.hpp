@@ -85,6 +85,7 @@ public:
     double clearance_tolerance_m = 0.15; ///< Extra clearance to walls/opponent [m]
     double planning_tolerance_scale = 2.0;  ///< Multiplier for line-generation tolerance
     double car_width_m           = 0.31; ///< Own car width [m]
+    double merge_back_speed_factor = 0.9;  ///< Speed scaling while merging back to baseline
   };
 
   explicit LateralPlanner(rclcpp::Logger logger, const Parameters & params);

@@ -94,6 +94,7 @@ private:
     params.clearance_tolerance_m = CLEARANCE_TOLERANCE_M;
     params.planning_tolerance_scale = PLANNING_TOLERANCE_SCALE;
     params.car_width_m           = CAR_WIDTH_M;
+    params.merge_back_speed_factor = MERGE_BACK_SPEED_FACTOR;
 
     planner_ = std::make_unique<LateralPlanner>(get_logger(), params);
 
