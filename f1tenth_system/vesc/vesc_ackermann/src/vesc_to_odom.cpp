@@ -64,9 +64,7 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   imu_yaw_offset_(0.0),
   imu_initialized_(false),
   adaptive_imu_takeover_(false),
-  slip_min_speed_(1.5),
   slip_lateral_accel_threshold_(2.5),
-  slip_yaw_rate_diff_threshold_(0.45),
   slip_hysteresis_factor_(0.6),
   imu_takeover_active_(false),
   takeover_reason_("none"),
@@ -89,11 +87,8 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   use_imu_ = declare_parameter("use_imu", use_imu_);
   integration_method_ = declare_parameter("integration_method", integration_method_);
   adaptive_imu_takeover_ = declare_parameter("adaptive_imu_takeover", adaptive_imu_takeover_);
-  slip_min_speed_ = declare_parameter("slip_min_speed", slip_min_speed_);
   slip_lateral_accel_threshold_ = declare_parameter(
     "slip_lateral_accel_threshold", slip_lateral_accel_threshold_);
-  slip_yaw_rate_diff_threshold_ = declare_parameter(
-    "slip_yaw_rate_diff_threshold", slip_yaw_rate_diff_threshold_);
   slip_hysteresis_factor_ = declare_parameter("slip_hysteresis_factor", slip_hysteresis_factor_);
   use_imu_lateral_velocity_ = declare_parameter(
     "use_imu_lateral_velocity", use_imu_lateral_velocity_);
@@ -143,25 +138,11 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
     slip_hysteresis_factor_ = 0.6;
   }
 
-  if (slip_min_speed_ < 0.0) {
-    RCLCPP_WARN(get_logger(),
-      "Invalid slip_min_speed %.3f. Using default 1.5 (must be >= 0).",
-      slip_min_speed_);
-    slip_min_speed_ = 1.5;
-  }
-
   if (slip_lateral_accel_threshold_ <= 0.0) {
     RCLCPP_WARN(get_logger(),
       "Invalid slip_lateral_accel_threshold %.3f. Using default 2.5 (must be > 0).",
       slip_lateral_accel_threshold_);
     slip_lateral_accel_threshold_ = 2.5;
-  }
-
-  if (slip_yaw_rate_diff_threshold_ <= 0.0) {
-    RCLCPP_WARN(get_logger(),
-      "Invalid slip_yaw_rate_diff_threshold %.3f. Using default 0.45 (must be > 0).",
-      slip_yaw_rate_diff_threshold_);
-    slip_yaw_rate_diff_threshold_ = 0.45;
   }
 
   if (imu_lateral_accel_alpha_ < 0.0 || imu_lateral_accel_alpha_ > 1.0) {
@@ -307,19 +288,13 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     use_imu_this_step = true;
   } else if (can_use_imu && can_use_model) {
     if (adaptive_imu_takeover_) {
-      const double abs_speed = std::fabs(current_speed);
       const double abs_lateral_accel = std::fabs(last_imu_->linear_acceleration.y);
-      const double abs_yaw_rate_diff = std::fabs(imu_angular_velocity - model_angular_velocity);
 
       const bool enter_takeover =
-        abs_speed > slip_min_speed_ &&
-        abs_lateral_accel > slip_lateral_accel_threshold_ &&
-        abs_yaw_rate_diff > slip_yaw_rate_diff_threshold_;
+        abs_lateral_accel > slip_lateral_accel_threshold_;
 
       const bool exit_takeover =
-        abs_speed < (slip_min_speed_ * slip_hysteresis_factor_) ||
-        (abs_lateral_accel < (slip_lateral_accel_threshold_ * slip_hysteresis_factor_) &&
-        abs_yaw_rate_diff < (slip_yaw_rate_diff_threshold_ * slip_hysteresis_factor_));
+        abs_lateral_accel < (slip_lateral_accel_threshold_ * slip_hysteresis_factor_);
 
       const bool previous_takeover_state = imu_takeover_active_;
       if (!imu_takeover_active_ && enter_takeover) {
@@ -329,32 +304,22 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
       }
 
       if (imu_takeover_active_ != previous_takeover_state) {
-          if (imu_takeover_active_) {
-            const double lateral_norm = abs_lateral_accel / slip_lateral_accel_threshold_;
-            const double yaw_norm = abs_yaw_rate_diff / slip_yaw_rate_diff_threshold_;
-            takeover_reason_ = lateral_norm >= yaw_norm ? "lateral slip" : "other slip";
-
-            RCLCPP_INFO(get_logger(),
-              "Adaptive IMU takeover ON due to %s (|v|=%.2f, |a_y|=%.2f, |domega|=%.2f)",
-              takeover_reason_.c_str(),
-              abs_speed,
-              abs_lateral_accel,
-              abs_yaw_rate_diff);
-          } else {
-            const bool speed_recovered = abs_speed < (slip_min_speed_ * slip_hysteresis_factor_);
-            const char * exit_reason = speed_recovered ?
-              "speed below hysteresis threshold" : "slip indicators recovered";
-
-            RCLCPP_INFO(get_logger(),
-              "Adaptive IMU takeover OFF (entered due to %s, exit: %s, "
-              "|v|=%.2f, |a_y|=%.2f, |domega|=%.2f)",
-              takeover_reason_.c_str(),
-              exit_reason,
-              abs_speed,
-              abs_lateral_accel,
-              abs_yaw_rate_diff);
-            takeover_reason_ = "none";
-          }
+        if (imu_takeover_active_) {
+          takeover_reason_ = "lateral slip";
+          RCLCPP_INFO(get_logger(),
+            "Adaptive IMU takeover ON due to %s (|a_y|=%.2f, threshold=%.2f)",
+            takeover_reason_.c_str(),
+            abs_lateral_accel,
+            slip_lateral_accel_threshold_);
+        } else {
+          RCLCPP_INFO(get_logger(),
+            "Adaptive IMU takeover OFF (entered due to %s, exit: lateral acceleration recovered, "
+            "|a_y|=%.2f, exit_threshold=%.2f)",
+            takeover_reason_.c_str(),
+            abs_lateral_accel,
+            slip_lateral_accel_threshold_ * slip_hysteresis_factor_);
+          takeover_reason_ = "none";
+        }
       }
       use_imu_this_step = imu_takeover_active_;
     } else {

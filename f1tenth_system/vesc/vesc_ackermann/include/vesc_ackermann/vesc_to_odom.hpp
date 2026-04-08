@@ -86,9 +86,7 @@ private:
 
   // Adaptive IMU takeover (for lateral slip/glide handling)
   bool adaptive_imu_takeover_;         ///< If true, switch to IMU yaw only during detected slip
-  double slip_min_speed_;              ///< Minimum speed (m/s) before slip detection is active
   double slip_lateral_accel_threshold_;  ///< |a_y| threshold (m/s^2) for slip detection
-  double slip_yaw_rate_diff_threshold_;  ///< |omega_imu - omega_model| threshold (rad/s)
   double slip_hysteresis_factor_;      ///< Exit threshold scale in (0, 1)
   bool imu_takeover_active_;           ///< Current adaptive takeover state
   std::string takeover_reason_;        ///< Reason label for current/last takeover state
