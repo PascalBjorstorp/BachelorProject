@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <math.h>
 #include <time.h>
 #include <signal.h>
@@ -698,6 +699,36 @@ static void set_rosidl_string(rosidl_runtime_c__String *str, const char *value){
 static double timespec_diff_sec(struct timespec *a, struct timespec *b){
     return (double)(b->tv_sec - a->tv_sec) +
            (double)(b->tv_nsec - a->tv_nsec) / 1e9;
+}
+
+/**
+ * @brief Parse common text boolean forms (1/0, true/false, yes/no, on/off).
+ * @param text Input C-string.
+ * @param default_value Fallback when text is NULL or unrecognized.
+ * @return 1 for true, 0 for false.
+ */
+static int parse_bool_text(const char *text, int default_value)
+{
+    if (text == NULL || text[0] == '\0')
+    {
+        return default_value;
+    }
+
+    if (strcmp(text, "1") == 0) return 1;
+    if (strcmp(text, "0") == 0) return 0;
+
+    const char c0 = (char)tolower((unsigned char)text[0]);
+    if (c0 == 't' || c0 == 'y') return 1; /* true / yes */
+    if (c0 == 'f' || c0 == 'n') return 0; /* false / no */
+
+    if (c0 == 'o')
+    {
+        const char c1 = (char)tolower((unsigned char)text[1]);
+        if (c1 == 'n') return 1;
+        if (c1 == 'f') return 0;
+    }
+
+    return default_value;
 }
 
 /*===========================================================================
@@ -1402,7 +1433,7 @@ int main(int argc, char *argv[])
         if ((env_val = getenv("MPC_LOCAL_RACELINE_TOPIC")) != NULL)
             g_local_raceline_topic = env_val;
         if ((env_val = getenv("MPC_USE_LOCAL_RACELINE")) != NULL)
-            g_use_local_raceline = (atoi(env_val) != 0);
+            g_use_local_raceline = parse_bool_text(env_val, g_use_local_raceline);
     }
 
     {
@@ -1488,9 +1519,27 @@ int main(int argc, char *argv[])
          */
         if (argc >= 2)
         {
-            g_trajectory_file = argv[1];
+            for (int i = 1; i < argc; i++)
+            {
+                const char *arg = argv[i];
+                if (arg == NULL || arg[0] == '\0')
+                {
+                    continue;
+                }
+                if (arg[0] == '-')
+                {
+                    if (strcmp(arg, "--ros-args") == 0)
+                    {
+                        break;
+                    }
+                    continue;
+                }
+                g_trajectory_file = arg;
+                break;
+            }
         }
-        else
+
+        if (g_trajectory_file == NULL)
         {
             /* SECURITY: Environment variable path is accepted as trusted local
              * deployment configuration and is not sanitized by this node. */
