@@ -28,7 +28,7 @@
 
 // Post-overtake merge behavior
 // Multiplies waypoint vx while merging back to baseline (0.9 => 10% slower)
-#define MERGE_BACK_SPEED_FACTOR 0.8
+#define MERGE_BACK_SPEED_FACTOR 1.0
 
 // Published path extent
 #define LOOKAHEAD_POINTS 80
