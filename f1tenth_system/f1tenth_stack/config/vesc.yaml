@@ -75,7 +75,6 @@ vesc_to_odom_node:
     # Lower = more filtering (smoother but slower)
     # Higher = less filtering (faster but noisier)
     imu_angular_velocity_alpha: 0.45
-
     # Slip detector thresholds using |a_y_measured - v_x * r_model| [m/s^2]
     # Enter should be greater than exit (hysteresis).
     slip_accel_enter: 3.0
@@ -103,7 +102,7 @@ vesc_to_odom_node:
     # Slip-angle blending limits.
     beta_max_rad: 0.8
     kinematic_beta_ratio: 0.5
-    
+
     # Odometry covariance scalars used by vesc_to_odom
     # Units: x/y in m^2, yaw in rad^2
     odom_x_covariance: 0.2

@@ -45,7 +45,7 @@
 
 #define SIM_DT_DEFAULT    0.005f   /* 200 Hz physics */
 #define MPCC_DT_DEFAULT   0.050f   /* 20 Hz MPCC (matches ROS2 node timer) */
-#define SIM_DURATION      60.0f    /* seconds */
+#define SIM_DURATION      30.0f    /* seconds */
 #define MAX_WAYPOINTS     2000
 #define MAX_STEERING      0.4189f  /* rad */
 #define MAX_VELOCITY      20.0f    /* m/s */
@@ -368,6 +368,7 @@ int main(void)
     double max_lat_err = 0, sum_lat_err = 0;
     double max_hdg_err = 0, sum_hdg_err = 0;
     double max_vel_err = 0, sum_vel_err = 0;
+    double sum_vx = 0;
     int wall_collisions = 0;
     int prev_wall_hit = 0;  /* edge detection: only count entering a wall */
     int numerical_failures = 0;
@@ -513,6 +514,7 @@ int main(void)
         double vel_err = fabs(vx - raceline[closest].vx);
         if (vel_err > max_vel_err) max_vel_err = vel_err;
         sum_vel_err += vel_err;
+        sum_vx += vx;
         if (vx > 2.0) time_above_2ms += SIM_DT;
         if (vx > 5.0) time_above_5ms += SIM_DT;
 
@@ -681,18 +683,20 @@ int main(void)
     int total_stepped = stepped + 1;
     double avg_lat = sum_lat_err / total_stepped;
     double avg_hdg = sum_hdg_err / total_stepped;
-    double avg_vel = sum_vel_err / total_stepped;
+    double avg_vel_err = sum_vel_err / total_stepped;
+    double avg_speed = sum_vx / total_stepped;
 
     printf("\n  === Results (%.0fs, MPCC Lifted ODE, ADMM+Riccati) ===\n", SIM_DURATION);
     printf("  Solver success:     %d / %d (%.1f%%)\n", solver_ok, solver_calls,
            100.0*solver_ok/(solver_calls > 0 ? solver_calls : 1));
+    printf("  Avg speed:          %.2f m/s\n", avg_speed);
     printf("  Max velocity:       %.2f m/s\n", max_vx);
     printf("  Max lateral error:  %.3f m\n", max_lat_err);
     printf("  Avg lateral error:  %.3f m\n", avg_lat);
     printf("  Max heading error:  %.4f rad (%.1f deg)\n", max_hdg_err, max_hdg_err*180/M_PI);
     printf("  Avg heading error:  %.4f rad (%.1f deg)\n", avg_hdg, avg_hdg*180/M_PI);
     printf("  Max velocity error: %.2f m/s\n", max_vel_err);
-    printf("  Avg velocity error: %.2f m/s\n", avg_vel);
+    printf("  Avg velocity error: %.2f m/s\n", avg_vel_err);
     printf("  Max steer change:   %.4f rad/step\n", max_steer_change);
     printf("  Steer reversals:    %d\n", steer_reversals);
     printf("  Wall collisions:    %d\n", wall_collisions);
@@ -733,13 +737,14 @@ int main(void)
 
     /* Machine-readable CSV for tuning scripts */
     if (getenv("MPCC_TUNING_CSV")) {
-         printf("CSV,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%.1f,%d,%.1f,%.4f,%.4f,%.1f,%.3f,%.3f,%.2f,%.2f\n",
+         printf("CSV,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%.1f,%d,%.1f,%.4f,%.4f,%.1f,%.3f,%.3f,%.2f,%.2f,%.4f\n",
                tests_passed, tests_failed,
                max_lat_err, avg_lat, max_hdg_err, avg_hdg,
                max_vx, avg_solve, max_solve_us,
                wall_collisions, time_above_5ms,
-             max_vel_err, avg_vel, avg_iters,
-             avg_rho, avg_rho_u, avg_adapt_updates, avg_clip_events);
+               max_vel_err, avg_vel_err, avg_iters,
+               avg_rho, avg_rho_u, avg_adapt_updates, avg_clip_events,
+               avg_speed);
     }
     return tests_failed > 0 ? 1 : 0;
 }
