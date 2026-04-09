@@ -68,58 +68,39 @@ vesc_to_odom_node:
   ros__parameters:
     odom_frame: ego_racecar/odom
     base_frame: ego_racecar/base_link
-    
-    # Publish ego_racecar/odom -> ego_racecar/base_link TF
-    publish_tf: true
-    
-    # Use IMU for yaw estimation (recommended)
-    use_imu: true
-    
-    # Keep steering-model yaw available and enable adaptive IMU takeover on slip.
-    # This lets the model run normally and only switches to IMU when glide/slip
-    # indicators are high.
-    use_servo_cmd_to_calc_angular_velocity: true
-    adaptive_imu_takeover: true
-
-    # Slip detection thresholds for adaptive IMU takeover
-    # takeover enters on high lateral acceleration and exits with hysteresis.
-    slip_lateral_accel_threshold: 2.5
-    slip_hysteresis_factor: 0.6
-
-    # During active slip takeover, estimate body-frame lateral velocity from IMU
-    # and use it in x/y propagation.
-    use_imu_lateral_velocity: true
-    imu_lateral_accel_alpha: 0.25
-    imu_lateral_velocity_decay: 1.2
-    imu_lateral_velocity_max: 2.0
-    
-    # Car wheelbase (meters) - measure your car!
-    wheelbase: 0.324
-    
-    # Integration method for odometry:
-    # "euler": Simple first-order (fastest, least accurate)
-    # "trapezoidal": Second-order, good for varying speed
-    # "analytical": Exact for constant velocity circular arc
-    integration_method: "analytical"
+    speed_deadband: 0.15
+    max_dt_sec: 1.0
     
     # IMU angular velocity low-pass filter coefficient (0.0 to 1.0)
     # Lower = more filtering (smoother but slower)
     # Higher = less filtering (faster but noisier)
-    imu_angular_velocity_alpha: 0.3
-    
-    # Odometry covariances (tune for EKF fusion)
-    pose_covariance: [0.001, 0.0, 0.0, 0.0, 0.0, 0.0,
-                      0.0, 0.001, 0.0, 0.0, 0.0, 0.0,
-                      0.0, 0.0, 1000000.0, 0.0, 0.0, 0.0,
-                      0.0, 0.0, 0.0, 1000000.0, 0.0, 0.0,
-                      0.0, 0.0, 0.0, 0.0, 1000000.0, 0.0,
-                      0.0, 0.0, 0.0, 0.0, 0.0, 0.03]
-    twist_covariance: [0.001, 0.0, 0.0, 0.0, 0.0, 0.0,
-                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                       0.0, 0.0, 0.0, 0.0, 0.0, 0.03]
+    imu_angular_velocity_alpha: 0.45
+    # Slip detector thresholds using |a_y_measured - v_x * r_model| [m/s^2]
+    # Enter should be greater than exit (hysteresis).
+    slip_accel_enter: 1.8
+    slip_accel_exit: 1.0
+
+    # Inflate odometry covariance while slipping so localization trusts map fixes more.
+    slip_xy_covariance_scale: 6.0
+    slip_yaw_covariance_scale: 10.0
+
+    # Online gyro-bias adaptation (active in low-slip, well-modeled motion).
+    gyro_bias_alpha: 0.02
+
+    # IMU lateral-velocity estimator for drift/slip compensation.
+    imu_lateral_accel_alpha: 0.35
+    imu_lateral_velocity_decay: 1.5
+    imu_lateral_velocity_max: 3.0
+
+    # Slip-angle blending limits.
+    beta_max_rad: 0.8
+    kinematic_beta_ratio: 0.5
+
+    # Odometry covariance scalars used by vesc_to_odom
+    # Units: x/y in m^2, yaw in rad^2
+    odom_x_covariance: 0.2
+    odom_y_covariance: 0.2
+    odom_yaw_covariance: 0.4
 
 # ===================
 # Ackermann to VESC Config
