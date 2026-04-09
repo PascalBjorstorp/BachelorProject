@@ -3,11 +3,11 @@
 # MPCC/run_sim.sh — Launch MPCC (Contouring Control) with F1/10th simulator
 #
 # Usage:
-#   ./run_sim.sh [DURATION_SECONDS] [TRAJECTORY_FILE]
+#   ./MPCC/run_sim.sh 120 f1tenth_planning/trajectories/my_track_raceline.csv
 #
 # Defaults:
 #   DURATION_SECONDS = 120
-#   TRAJECTORY_FILE  = f1tenth_planning/trajectories/Spielberg_raceline.csv
+#   TRAJECTORY_FILE  = f1tenth_planning/trajectories/my_track_raceline.csv
 #
 # This script:
 #   1. Rebuilds the mpcc_f1_10th package via colcon
@@ -140,28 +140,28 @@ elif [[ "${TRAJ_BASENAME}" == *"hardware"* ]]; then
 fi
 
 # Match tune_mpcc.py BASE_CONFIG so ROS run is comparable.
-export HORIZON="${HORIZON:-12}"
-export DT="${DT:-0.06}"
-export Q_CONTOURING="${Q_CONTOURING:-200.0}"
-export Q_LAG="${Q_LAG:-1000.0}"
-export Q_PROGRESS="${Q_PROGRESS:-5.0}"
+export HORIZON="${HORIZON:-5}"
+export DT="${DT:-0.02205}"
+export Q_CONTOURING="${Q_CONTOURING:-3070.625}"
+export Q_LAG="${Q_LAG:-549.932291}"
+export Q_PROGRESS="${Q_PROGRESS:-12.31296}"
 export Q_VX="${Q_VX:-0.0}"
-export VX_REF="${VX_REF:-5.0}"
-export Q_VY="${Q_VY:-3.5}"
-export Q_OMEGA="${Q_OMEGA:-0.7}"
-export R_DELTA="${R_DELTA:-6.5}"
-export R_AX="${R_AX:-0.014149}"
-export R_VTHETA="${R_VTHETA:-1.0}"
-export W_DELTA_RATE="${W_DELTA_RATE:-2.0}"
-export W_AX_RATE="${W_AX_RATE:-0.1}"
-export W_VTHETA_RATE="${W_VTHETA_RATE:-0.1}"
-export Q_CONTOURING_TERM="${Q_CONTOURING_TERM:-450.0}"
-export Q_LAG_TERM="${Q_LAG_TERM:-950.0}"
-export Q_PROGRESS_TERM="${Q_PROGRESS_TERM:-5.0}"
-export ADMM_RHO="${ADMM_RHO:-17.0}"
-export ADMM_MAX_ITER="${ADMM_MAX_ITER:-50}"
-export ADMM_TOL="${ADMM_TOL:-0.05}"
-export V_THETA_MAX="${V_THETA_MAX:-8.0}"
+export VX_REF="${VX_REF:-4.08}"
+export Q_VY="${Q_VY:-4.41}"
+export Q_OMEGA="${Q_OMEGA:-0.194481}"
+export R_DELTA="${R_DELTA:-13.5}"
+export R_AX="${R_AX:-0.013716}"
+export R_VTHETA="${R_VTHETA:-1.1232}"
+export W_DELTA_RATE="${W_DELTA_RATE:-0.9405}"
+export W_AX_RATE="${W_AX_RATE:-0.101821}"
+export W_VTHETA_RATE="${W_VTHETA_RATE:-0.126}"
+export Q_CONTOURING_TERM="${Q_CONTOURING_TERM:-493.7625}"
+export Q_LAG_TERM="${Q_LAG_TERM:-1140.0}"
+export Q_PROGRESS_TERM="${Q_PROGRESS_TERM:-5.564503}"
+export ADMM_RHO="${ADMM_RHO:-53.0}"
+export ADMM_MAX_ITER="${ADMM_MAX_ITER:-30}"
+export ADMM_TOL="${ADMM_TOL:-0.0605}"
+export V_THETA_MAX="${V_THETA_MAX:-7.176}"
 export MU="${MU:-${SIM_MU:-0.745}}"
 export C_SF="${C_SF:-${SIM_C_SF:-4.297}}"
 export C_SR="${C_SR:-${SIM_C_SR:-3.473}}"

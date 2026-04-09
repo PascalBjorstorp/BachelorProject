@@ -262,10 +262,14 @@ void mpcc_path_interpolate(
     float s_max = path->points[path->num_points - 1].s_ref;
 
     if (path->is_closed && s_max > s_min) {
-        /* Wrap s into [s_min, s_max) for closed paths */
+        /* Wrap s into [s_min, s_max) for closed paths.
+         * Use fmodf instead of a while-loop to avoid O(n) iterations
+         * when s is very large (e.g. from non-convergent ADMM z_x). */
         float len = s_max - s_min;
-        while (s > s_max) s = s - len;
-        while (s < s_min) s = s + len;
+        s = s - s_min;
+        s = fmodf(s, len);
+        if (s < 0) s += len;
+        s = s + s_min;
     } else {
         if (s <= s_min) { *result = path->points[0]; result->s_ref = s; return; }
         if (s >= s_max) { *result = path->points[path->num_points - 1]; result->s_ref = s; return; }

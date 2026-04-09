@@ -547,47 +547,47 @@ typedef struct
  *===========================================================================*/
 
 /*--- Horizon (tuned via iterative sweep, Hardware mode) ---*/
-#define MPCC_DEFAULT_HORIZON          12                            /** Horizon look ahead. */
-#define MPCC_DEFAULT_DT               (0.06f)                       /** Time step between prediction stages [s]. */
+#define MPCC_DEFAULT_HORIZON          5                             /** Horizon look ahead. */
+#define MPCC_DEFAULT_DT               (0.02205f)                    /** Time step between prediction stages [s]. */
 
 /*--- Contouring tracking weights ---*/
-#define MPCC_DEFAULT_WEIGHT_CONTOURING (200.0f)                     /** Contouring error penalty. */
-#define MPCC_DEFAULT_WEIGHT_LAG       (1000.0f)                     /** Lag error penalty. */   
-#define MPCC_DEFAULT_WEIGHT_PROGRESS  (5.0f)                        /** Progress reward. */
+#define MPCC_DEFAULT_WEIGHT_CONTOURING (3070.625f)                  /** Contouring error penalty. */
+#define MPCC_DEFAULT_WEIGHT_LAG       (549.932291f)                 /** Lag error penalty. */   
+#define MPCC_DEFAULT_WEIGHT_PROGRESS  (12.31296f)                   /** Progress reward. */
 
 /*--- State regularization ---*/
 #define MPCC_DEFAULT_WEIGHT_VX        (0.0f)                        /** Longitudinal velocity tracking weight.*/
-#define MPCC_DEFAULT_VX_REF           (5.0f)                        /** Reference velocity for longitudinal velocity tracking [m/s]. */
-#define MPCC_DEFAULT_WEIGHT_VY        (3.5f)                        /** Lateral velocity tracking weight. */
-#define MPCC_DEFAULT_WEIGHT_OMEGA     (0.7f)                        /** Yaw rate tracking weight. */
+#define MPCC_DEFAULT_VX_REF           (4.08f)                       /** Reference velocity for longitudinal velocity tracking [m/s]. */
+#define MPCC_DEFAULT_WEIGHT_VY        (4.41f)                       /** Lateral velocity tracking weight. */
+#define MPCC_DEFAULT_WEIGHT_OMEGA     (0.194481f)                   /** Yaw rate tracking weight. */
 
 /*--- Control effort ---*/
-#define MPCC_DEFAULT_WEIGHT_DELTA     (6.5f)                        /** Steering angle effort penalty. */
-#define MPCC_DEFAULT_WEIGHT_AX        (0.014149f)                   /** Longitudinal acceleration effort penalty. */
-#define MPCC_DEFAULT_WEIGHT_V_THETA   (1.0f)                        /** Virtual progress speed effort penalty. */
+#define MPCC_DEFAULT_WEIGHT_DELTA     (13.5f)                       /** Steering angle effort penalty. */
+#define MPCC_DEFAULT_WEIGHT_AX        (0.013716f)                   /** Longitudinal acceleration effort penalty. */
+#define MPCC_DEFAULT_WEIGHT_V_THETA   (1.1232f)                     /** Virtual progress speed effort penalty. */
 
 /*--- Control rate (smoothness) ---*/
-#define MPCC_DEFAULT_WEIGHT_DELTA_RATE    (2.0f)                     /** Steering rate penalty. */
-#define MPCC_DEFAULT_WEIGHT_AX_RATE       (0.1f)                     /** Longitudinal acceleration rate penalty. */
-#define MPCC_DEFAULT_WEIGHT_V_THETA_RATE  (0.1f)                     /** Virtual progress speed rate penalty. */
+#define MPCC_DEFAULT_WEIGHT_DELTA_RATE    (0.9405f)                   /** Steering rate penalty. */
+#define MPCC_DEFAULT_WEIGHT_AX_RATE       (0.101821f)                 /** Longitudinal acceleration rate penalty. */
+#define MPCC_DEFAULT_WEIGHT_V_THETA_RATE  (0.126f)                    /** Virtual progress speed rate penalty. */
 
 /*--- Cross-call rate scaling (control_dt / prediction_dt) ---*/
 #define MPCC_CONTROL_RATE_HZ              (200.0f)                   /** Control callback rate in Hz. Used to compute cross-call rate scaling. */
 #define MPCC_DEFAULT_CROSS_CALL_SCALE     (0.1429f)                  /** Scale factor for control rate penalties at step 0. */
 
 /*--- Terminal weights ---*/
-#define MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL     (450.0f)        /** Terminal contouring error penalty. */
-#define MPCC_DEFAULT_WEIGHT_LAG_TERMINAL            (950.0f)        /** Terminal lag error penalty. */
-#define MPCC_DEFAULT_WEIGHT_PROGRESS_TERMINAL       (5.0f)          /** Terminal progress reward. */
+#define MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL     (493.7625f)     /** Terminal contouring error penalty. */
+#define MPCC_DEFAULT_WEIGHT_LAG_TERMINAL            (1140.0f)       /** Terminal lag error penalty. */
+#define MPCC_DEFAULT_WEIGHT_PROGRESS_TERMINAL       (5.564503f)     /** Terminal progress reward. */
 
 /*--- Obstacle avoidance ---*/
 #define MPCC_DEFAULT_WEIGHT_OBSTACLE  (1000.0f)                     /** Obstacle avoidance penalty. */
 #define MPCC_DEFAULT_OBSTACLE_MARGIN  (0.1f)                        /** Minimum distance to obstacles [m]. */
 
 /*--- ADMM solver (tuned via iterative sweep) ---*/
-#define MPCC_DEFAULT_ADMM_RHO         (17.0f)                       /** ADMM penalty parameter. */
-#define MPCC_DEFAULT_ADMM_MAX_ITER    50                            /** Maximum ADMM iterations. */
-#define MPCC_DEFAULT_ADMM_TOLERANCE   (0.05f)                       /** ADMM convergence tolerance. */
+#define MPCC_DEFAULT_ADMM_RHO         (53.0f)                       /** ADMM penalty parameter. */
+#define MPCC_DEFAULT_ADMM_MAX_ITER    30                            /** Maximum ADMM iterations. */
+#define MPCC_DEFAULT_ADMM_TOLERANCE   (0.0605f)                     /** ADMM convergence tolerance. */
 
 /*--- Pacejka tire model ---*/
 #define MPCC_DEFAULT_MU       F110_FRICTION_COEFFICIENT                  /** Friction coefficient for tire model. */
@@ -599,7 +599,7 @@ typedef struct
 #define MPCC_DEFAULT_AX_MIN           (-10.0f)                      /** Minimum Acceleration bound (negative = breaking)*/
 
 /*--- Virtual progress speed bounds ---*/
-#define MPCC_DEFAULT_V_THETA_MAX      (8.0f)                        /** Maximum virtual progress bound */
+#define MPCC_DEFAULT_V_THETA_MAX      (7.176f)                      /** Maximum virtual progress bound */
 #define MPCC_DEFAULT_V_THETA_MIN      (0.0f)                        /** Minimum virtual progress bound */
 
 #endif /* MPCC_TYPES_H */

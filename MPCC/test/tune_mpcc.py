@@ -59,34 +59,34 @@ RACELINE_TAG = "my_track"
 # Base configuration — starting point for all sweeps (tuned for hardware map)
 BASE_CONFIG = {
     # Contouring tracking
-    "Q_CONTOURING":      200.0,
-    "Q_LAG":             1000.0,
-    "Q_PROGRESS":        5.0,
+    "Q_CONTOURING":      3070.625,
+    "Q_LAG":             549.932291,
+    "Q_PROGRESS":        12.31296,
     # State regularization (Q_VX/VX_REF fixed — pure MPCC determines speed via progress cost)
     "Q_VX":              0.0,
-    "VX_REF":            5.0,
-    "Q_VY":              3.5,
-    "Q_OMEGA":           0.7,
+    "VX_REF":            4.08,
+    "Q_VY":              4.41,
+    "Q_OMEGA":           0.194481,
     # Control effort (R_AX/W_AX_RATE fixed — minimal impact on MPCC behavior)
-    "R_DELTA":           6.5,
-    "R_AX":              0.014149,
-    "R_VTHETA":          1.0,
+    "R_DELTA":           13.5,
+    "R_AX":              0.013716,
+    "R_VTHETA":          1.1232,
     # Control rate
-    "W_DELTA_RATE":      2.0,
-    "W_AX_RATE":         0.1,
-    "W_VTHETA_RATE":     0.1,
+    "W_DELTA_RATE":      0.9405,
+    "W_AX_RATE":         0.101821,
+    "W_VTHETA_RATE":     0.126,
     # Terminal
-    "Q_CONTOURING_TERM": 450.0,
-    "Q_LAG_TERM":        950.0,
-    "Q_PROGRESS_TERM":   5.0,
+    "Q_CONTOURING_TERM": 493.7625,
+    "Q_LAG_TERM":        1140.0,
+    "Q_PROGRESS_TERM":   5.564503,
     # ADMM solver
-    "ADMM_RHO":          17.0,
-    "ADMM_MAX_ITER":     50,
-    "ADMM_TOL":          0.05,
+    "ADMM_RHO":          53.0,
+    "ADMM_MAX_ITER":     30,
+    "ADMM_TOL":          0.0605,
     # Horizon
-    "HORIZON":           12,
-    "DT":                0.06,
-    "V_THETA_MAX":       8.0,
+    "HORIZON":           5,
+    "DT":                0.02205,
+    "V_THETA_MAX":       7.176,
 }
 
 # Override base for racer objective (push speed harder)
@@ -356,7 +356,7 @@ def run_test(params: dict, binary: str) -> dict:
 
     try:
         result = subprocess.run(
-            [binary], capture_output=True, text=True, timeout=600, env=env
+            [binary], capture_output=True, text=True, timeout=120, env=env
         )
     except subprocess.TimeoutExpired:
         return {"status": "TIMEOUT", "passed": 0, "failed": 6}
@@ -383,12 +383,13 @@ def run_test(params: dict, binary: str) -> dict:
                     "wall_collisions": int(parts[10]),
                     "time_above_5ms": float(parts[11]),
                     "max_vel_err": float(parts[12]) if len(parts) > 12 else 0.0,
-                    "avg_vel": float(parts[13]) if len(parts) > 13 else 0.0,
+                    "avg_vel_err": float(parts[13]) if len(parts) > 13 else 0.0,
                     "avg_iters": float(parts[14]) if len(parts) > 14 else 0.0,
                     "avg_rho": float(parts[15]) if len(parts) > 15 else 0.0,
                     "avg_rho_u": float(parts[16]) if len(parts) > 16 else 0.0,
                     "avg_adapt_updates": float(parts[17]) if len(parts) > 17 else 0.0,
                     "avg_clip_events": float(parts[18]) if len(parts) > 18 else 0.0,
+                    "avg_speed": float(parts[19]) if len(parts) > 19 else 0.0,
                 }
             except (IndexError, ValueError):
                 pass
@@ -444,7 +445,7 @@ def compute_racer_score(r: dict) -> float:
             return 5000.0
         return 2000.0 + 100.0 * float(r.get("wall_collisions", 0))
 
-    return round(-r.get("avg_vel", 0.0), 6)
+    return round(-r.get("avg_speed", 0.0), 6)
 
 
 def apply_scores(r: dict, objective: str) -> dict:
@@ -747,7 +748,7 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
                       f"(ETA {eta:.0f}s)")
             else:
                 passed += 1
-                print(f"sc={r['score']:7.2f}  avgv={r.get('avg_vel', 0.0):.2f}"
+                print(f"sc={r['score']:7.2f}  avgv={r.get('avg_speed', 0.0):.2f}"
                       f"  ec={r['avg_contouring_err']:.3f}  (ETA {eta:.0f}s)")
     else:
         done_count = 0
@@ -797,7 +798,7 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
                         print(f"  [{done_count:4d}/{total}] "
                               f"{r['label']:55s} "
                               f"sc={r['score']:7.2f}  "
-                              f"avgv={r.get('avg_vel', 0.0):.2f}  "
+                              f"avgv={r.get('avg_speed', 0.0):.2f}  "
                               f"ec={r['avg_contouring_err']:.3f}  "
                               f"(ETA {eta:.0f}s)")
 
@@ -812,7 +813,9 @@ def sanity_check_params(binary: str):
     """Verify key swept parameters actually affect output."""
     print("\nRunning parameter effect sanity check...")
 
+    print("  [1/5] Running baseline...", end=" ", flush=True)
     baseline = run_test(dict(BASE), binary)
+    print(f"status={baseline.get('status')}")
     baseline_sig = (
         baseline.get("status"),
         round(baseline.get("avg_contouring_err", 0.0), 4),
@@ -828,11 +831,13 @@ def sanity_check_params(binary: str):
     ]
 
     ineffective = []
-    for name, new_val in probes:
+    for i, (name, new_val) in enumerate(probes, 2):
+        print(f"  [{i}/5] Probing {name}={new_val}...", end=" ", flush=True)
         p = dict(BASE)
         p[name] = new_val
 
         rr = run_test(p, binary)
+        print(f"status={rr.get('status')}")
         sig = (
             rr.get("status"),
             round(rr.get("avg_contouring_err", 0.0), 4),
@@ -886,7 +891,7 @@ def get_top_n_params(results: list, n: int = CASCADE_TOP_N) -> list:
         for i, (r, _) in enumerate(unique):
             print(f"  Top-{i+1}: {r['label'][:50]} "
                   f"(score={r.get('score', 0.0):.2f}, "
-                  f"avgv={r.get('avg_vel', 0):.2f})")
+                  f"avgv={r.get('avg_speed', 0):.2f})")
 
     return [p for _, p in unique]
 
@@ -1001,8 +1006,8 @@ def main():
     fieldnames = (
         ["label", "phase", "raceline", "score", "tracker_score", "racer_score",
          "passed", "failed", "max_contouring_err", "avg_contouring_err",
-         "max_heading_err", "avg_heading_err", "max_vx", "avg_vel",
-         "max_vel_err", "avg_solve_us", "max_solve_us",
+         "max_heading_err", "avg_heading_err", "max_vx", "avg_speed",
+         "avg_vel_err", "max_vel_err", "avg_solve_us", "max_solve_us",
          "wall_collisions", "time_above_5ms", "avg_iters",
          "avg_rho", "avg_rho_u", "avg_adapt_updates", "avg_clip_events",
          "status", "return_code"]
@@ -1159,7 +1164,7 @@ def main():
 
         fmt = ("{:<4} {:<45} {:>8} {:>6} {:>6} {:>6} {:>6} "
                "{:>6} {:>6} {:>3}")
-        print(fmt.format("Rank", "Label", "Score", "AvgV", "MaxVx",
+        print(fmt.format("Rank", "Label", "Score", "AvgSpd", "MaxVx",
                           "AvgEc", "QC", "QL", "QP", "WC"))
         print("-" * 105)
 
@@ -1169,7 +1174,7 @@ def main():
                 i+1,
                 r['label'][:45],
                 f"{r.get('score', 0.0):.2f}",
-                f"{r.get('avg_vel', 0.0):.2f}",
+                f"{r.get('avg_speed', 0.0):.2f}",
                 f"{r['max_vx']:.1f}",
                 f"{r['avg_contouring_err']:.4f}",
                 f"{r.get('Q_CONTOURING', '-')}",
@@ -1181,7 +1186,7 @@ def main():
         best = top[0]
         print(f"\nBEST CONFIGURATION:")
         print(f"  Score:        {best.get('score', 0.0):.2f}")
-        print(f"  Avg velocity: {best.get('avg_vel', 0.0):.2f} m/s")
+        print(f"  Avg speed:    {best.get('avg_speed', 0.0):.2f} m/s")
         print(f"  Max velocity: {best.get('max_vx', 0.0):.2f} m/s")
         print(f"  Avg contouring err: {best['avg_contouring_err']:.4f} m")
         print(f"  Walls:        {best['wall_collisions']}")

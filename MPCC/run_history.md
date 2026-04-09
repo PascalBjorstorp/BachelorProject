@@ -45,3 +45,5 @@
 | 20260330_214401 | 120s | No | 0 | 0 | [log](logs/run_20260330_214401/) st1=0 err=launch_or_map_error,no_solver_samples |
 | 20260330_214437 | 120s | No | 0 | 0 | [log](logs/run_20260330_214437/) st1=0 err=launch_or_map_error,no_solver_samples |
 | 20260409_113624 | 120s | No | 41 | 0 | [log](logs/run_20260409_113624/) st1=2339 |
+| 20260409_120902 | 120s | Yes (log line 73) | 7 | 0 | [log](logs/run_20260409_120902/) st1=38 |
+| 20260409_120930 | 120s | Yes (log line 73) | 0 | 0 | [log](logs/run_20260409_120930/) st1=26 |

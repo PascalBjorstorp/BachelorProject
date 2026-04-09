@@ -852,10 +852,10 @@ MPCCStatus_t admm_solver_solve(
     else
         rho_u = config->rho_u > 0 ? config->rho_u : rho;
 
-    /* Cold start gets a higher initial rho for faster feasibility */
+    /* Cold start uses the configured rho (not adapted) */
     if (!config->warm_start) {
-        rho   = 10.0f;
-        rho_u = 10.0f;
+        rho   = config->rho > 0 ? config->rho : 10.0f;
+        rho_u = rho;
     }
     MPCCStatus_t status = MPCC_STATUS_MAX_ITERATIONS;
 
