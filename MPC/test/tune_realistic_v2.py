@@ -592,7 +592,7 @@ def gen_fine_tuning(best_weights: dict) -> list:
 
 
 def gen_random_neighbors(best_weights: dict, n: int, objective: str,
-                         profile_override: str = None, seed_offset: int = 0) -> list:
+                         profile_override: str = None, seed_offset: int = 0) -> list: # type: ignore
     """Generate random perturbations around best config for exploration/exploitation phases."""
     combos = []
     rng = random.Random(SEED + seed_offset)

@@ -595,7 +595,7 @@ def gen_fine_tuning(best_weights: dict) -> list:
 
 
 def gen_random_neighbors(best_weights: dict, n: int, objective: str,
-                         profile_override: str = None,
+                         profile_override: str | None = None,
                          seed_offset: int = 0) -> list:
     """Generate random perturbations around best config."""
     combos = []

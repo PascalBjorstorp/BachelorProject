@@ -22,7 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 DURATION_SECONDS="${1:-120}"
-TRAJECTORY_FILE="${2:-${ROOT_DIR}/f1tenth_planning/trajectories/Spielberg_raceline.csv}"
+TRAJECTORY_FILE="${2:-${ROOT_DIR}/f1tenth_planning/trajectories/my_track_raceline.csv}"
 
 # Resolve to absolute path so ROS2 nodes can find it regardless of cwd
 if [[ "${TRAJECTORY_FILE}" != /* ]]; then
@@ -128,7 +128,10 @@ TRAJ_STHETA="$(awk -F, 'NR==2 {gsub(/[[:space:]]/, "", $4); print $4; exit}' "${
 DEFAULT_GYM_MAP_PATH="${SIM_MAP_PATH:-my_track_map}"
 DEFAULT_GYM_MAP_IMG_EXT="${SIM_MAP_IMG_EXT:-.pgm}"
 TRAJ_BASENAME="$(basename "${TRAJECTORY_FILE}")"
-if [[ "${TRAJ_BASENAME}" == *"Spielberg"* ]]; then
+if [[ "${TRAJ_BASENAME}" == *"my_track"* ]]; then
+    DEFAULT_GYM_MAP_PATH="my_track_map"
+    DEFAULT_GYM_MAP_IMG_EXT=".pgm"
+elif [[ "${TRAJ_BASENAME}" == *"Spielberg"* ]]; then
     DEFAULT_GYM_MAP_PATH="Spielberg_map"
     DEFAULT_GYM_MAP_IMG_EXT=".png"
 elif [[ "${TRAJ_BASENAME}" == *"hardware"* ]]; then
@@ -136,29 +139,29 @@ elif [[ "${TRAJ_BASENAME}" == *"hardware"* ]]; then
     DEFAULT_GYM_MAP_IMG_EXT=".pgm"
 fi
 
-# Match test_sim_drive defaults so ROS run is comparable.
-export HORIZON="${HORIZON:-15}"
-export DT="${DT:-0.05}"
-export Q_N="${Q_N:-50.0}"
-export Q_ALPHA="${Q_ALPHA:-20.0}"
-export Q_PROGRESS="${Q_PROGRESS:-1.0}"
-export Q_VX="${Q_VX:-2.0}"
-export VX_REF="${VX_REF:-12.0}"
-export Q_VY="${Q_VY:-10.0}"
-export Q_OMEGA="${Q_OMEGA:-0.1}"
-export R_DELTA="${R_DELTA:-1.0}"
-export R_AX="${R_AX:-0.01}"
-export R_VTHETA="${R_VTHETA:-0.5}"
-export W_DELTA_RATE="${W_DELTA_RATE:-10.0}"
+# Match tune_mpcc.py BASE_CONFIG so ROS run is comparable.
+export HORIZON="${HORIZON:-7}"
+export DT="${DT:-0.035}"
+export Q_CONTOURING="${Q_CONTOURING:-1000.0}"
+export Q_LAG="${Q_LAG:-700.0}"
+export Q_PROGRESS="${Q_PROGRESS:-5.0}"
+export Q_VX="${Q_VX:-0.0}"
+export VX_REF="${VX_REF:-5.0}"
+export Q_VY="${Q_VY:-3.5}"
+export Q_OMEGA="${Q_OMEGA:-0.7}"
+export R_DELTA="${R_DELTA:-6.5}"
+export R_AX="${R_AX:-0.014149}"
+export R_VTHETA="${R_VTHETA:-1.0}"
+export W_DELTA_RATE="${W_DELTA_RATE:-2.0}"
 export W_AX_RATE="${W_AX_RATE:-0.1}"
 export W_VTHETA_RATE="${W_VTHETA_RATE:-0.1}"
-export Q_N_TERM="${Q_N_TERM:-100.0}"
-export Q_ALPHA_TERM="${Q_ALPHA_TERM:-10.0}"
+export Q_CONTOURING_TERM="${Q_CONTOURING_TERM:-450.0}"
+export Q_LAG_TERM="${Q_LAG_TERM:-950.0}"
 export Q_PROGRESS_TERM="${Q_PROGRESS_TERM:-5.0}"
-export ADMM_RHO="${ADMM_RHO:-1.218171}"
-export ADMM_MAX_ITER="${ADMM_MAX_ITER:-200}"
+export ADMM_RHO="${ADMM_RHO:-17.0}"
+export ADMM_MAX_ITER="${ADMM_MAX_ITER:-50}"
 export ADMM_TOL="${ADMM_TOL:-0.05}"
-export V_THETA_MAX="${V_THETA_MAX:-2.0}"
+export V_THETA_MAX="${V_THETA_MAX:-8.0}"
 export MU="${MU:-${SIM_MU:-0.745}}"
 export C_SF="${C_SF:-${SIM_C_SF:-4.297}}"
 export C_SR="${C_SR:-${SIM_C_SR:-3.473}}"
