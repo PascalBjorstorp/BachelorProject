@@ -21,6 +21,7 @@
  *   Subscribe: /ego_racecar/odom       (nav_msgs/Odometry)     — VESC odometry [QoS(10)]
  *   Subscribe: /sensors/servo_position_command (std_msgs/Float64) — servo fb [QoS(10)]
  *   Subscribe: /imu/filtered_angular_velocity (std_msgs/Float64)  — filtered yaw [QoS(10)]
+ *   Subscribe: /local_raceline         (nav_msgs/Path)         — lateral planner reference [QoS(10)]
  *   Publish:   /drive                  (ackermann_msgs/AckermannDriveStamped) — mux [QoS(10)]
  *
  * @dependencies mpc.h, mpc_types.h, util_math.h, vehicle_model.h,
@@ -35,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <math.h>
 #include <time.h>
 #include <signal.h>
@@ -55,6 +57,7 @@
 
 /* ROS2 Message Types */
 #include "nav_msgs/msg/odometry.h"
+#include "nav_msgs/msg/path.h"
 #include "ackermann_msgs/msg/ackermann_drive_stamped.h"
 #include "std_msgs/msg/float64.h"
 #include "geometry_msgs/msg/pose_with_covariance_stamped.h"
@@ -76,15 +79,19 @@ static const char *g_drive_topic = "/drive";
 static const char *g_servo_topic = "/sensors/servo_position_command";
 static const char *g_imu_topic = "/imu/filtered_angular_velocity";
 static const char *g_amcl_pose_topic = "/ekf_pose";
+static const char *g_local_raceline_topic = "/local_raceline";
 static const char *g_trajectory_file = NULL;
+static int g_use_local_raceline = 1;
+static int g_local_raceline_received = 0;
+static int g_local_raceline_wait_logged = 0;
 
 /** Enable verbose logging (disabled by default for real-time performance) */
 static int g_verbose = 0;
 
-/** Set to 1 once the first /amcl_pose message has been received.
+/** Set to 1 once the first map-frame pose message has been received.
  *  When enabled, position/heading come from the map frame (AMCL)
- *  rather than the odom frame.  The trajectory CSV is in map frame,
- *  so Frenet errors are only correct when this flag is set. */
+ *  rather than the odom frame.  The active reference path is expected
+ *  in map frame, so Frenet errors are only correct when this flag is set. */
 static int g_amcl_received = 0;
 
 /** Flag for new EKF pose message */
@@ -140,6 +147,7 @@ static std_msgs__msg__Float64 global_servo_message_buffer;
 static std_msgs__msg__Float64 global_imu_message_buffer;
 static ackermann_msgs__msg__AckermannDriveStamped global_drive_message_buffer;
 static geometry_msgs__msg__PoseWithCovarianceStamped global_amcl_pose_buffer;
+static nav_msgs__msg__Path global_local_raceline_buffer;
 
 static TrajectoryReferencePoint_t global_reference_trajectory[PREDICTION_HORIZON];
 
@@ -212,8 +220,8 @@ static void ensure_parent_directories(const char *filepath)
     }
 }
 
-/** Number of executor handles: 4 subscriptions (no timer) */
-#define EXECUTOR_NUM_HANDLES 4
+/** Number of executor handles: 5 subscriptions (no timer) */
+#define EXECUTOR_NUM_HANDLES 5
 
 /*===========================================================================
  * Signal Handler for Graceful Shutdown
@@ -480,6 +488,18 @@ static double wrap_track_s(double s)
 }
 
 /**
+ * @brief Wrap heading difference into [-pi, pi].
+ * @param angle Angle in radians.
+ * @return Wrapped angle in radians.
+ */
+static double wrap_angle_pi(double angle)
+{
+    while (angle > M_PI) angle -= TWO_PI;
+    while (angle < -M_PI) angle += TWO_PI;
+    return angle;
+}
+
+/**
  * @brief Interpolate a trajectory waypoint at an arbitrary arc-length position.
  * @param s_query Query arc-length coordinate in meters.
  * @param out Destination waypoint pointer.
@@ -585,6 +605,40 @@ static void build_reference_from_trajectory(int closest_index)
     }
 }
 
+/**
+ * @brief Build MPC reference directly from latest local raceline topic points.
+ * @return None.
+ */
+static void build_reference_from_local_raceline(void)
+{
+    if (global_trajectory_count <= 0)
+    {
+        return;
+    }
+
+    for (int step = 0; step < PREDICTION_HORIZON; step++)
+    {
+        int idx = step;
+        if (idx >= global_trajectory_count)
+        {
+            idx = global_trajectory_count - 1;
+        }
+
+        const TrajectoryWaypoint_t *wp = &global_trajectory[idx];
+        const double traj_vel = wp->velocity_meters_per_second;
+
+        global_reference_trajectory[step].reference_lateral_error = 0;
+        global_reference_trajectory[step].reference_heading_error = 0;
+        global_reference_trajectory[step].path_curvature = wp->curvature_radians_per_meter;
+        global_reference_trajectory[step].left_wall_bound = wp->left_bound_meters;
+        global_reference_trajectory[step].right_wall_bound = wp->right_bound_meters;
+        global_reference_trajectory[step].reference_velocity = traj_vel;
+        global_reference_trajectory[step].reference_lateral_velocity = 0;
+        global_reference_trajectory[step].reference_yaw_rate =
+            wp->curvature_radians_per_meter * traj_vel;
+    }
+}
+
 /*===========================================================================
  * Helper Functions
  *===========================================================================*/
@@ -645,6 +699,36 @@ static void set_rosidl_string(rosidl_runtime_c__String *str, const char *value){
 static double timespec_diff_sec(struct timespec *a, struct timespec *b){
     return (double)(b->tv_sec - a->tv_sec) +
            (double)(b->tv_nsec - a->tv_nsec) / 1e9;
+}
+
+/**
+ * @brief Parse common text boolean forms (1/0, true/false, yes/no, on/off).
+ * @param text Input C-string.
+ * @param default_value Fallback when text is NULL or unrecognized.
+ * @return 1 for true, 0 for false.
+ */
+static int parse_bool_text(const char *text, int default_value)
+{
+    if (text == NULL || text[0] == '\0')
+    {
+        return default_value;
+    }
+
+    if (strcmp(text, "1") == 0) return 1;
+    if (strcmp(text, "0") == 0) return 0;
+
+    const char c0 = (char)tolower((unsigned char)text[0]);
+    if (c0 == 't' || c0 == 'y') return 1; /* true / yes */
+    if (c0 == 'f' || c0 == 'n') return 0; /* false / no */
+
+    if (c0 == 'o')
+    {
+        const char c1 = (char)tolower((unsigned char)text[1]);
+        if (c1 == 'n') return 1;
+        if (c1 == 'f') return 0;
+    }
+
+    return default_value;
 }
 
 /*===========================================================================
@@ -734,6 +818,135 @@ static void convert_to_frenet_state(
  */
 
 /*===========================================================================
+ * ROS2 Callback: Local Raceline Path Subscription
+ *===========================================================================*/
+
+/**
+ * @brief Convert local raceline path into MPC trajectory waypoints.
+ * @param message_in Pointer to nav_msgs/Path message.
+ * @return None.
+ */
+void local_raceline_callback(const void *message_in)
+{
+    if (!g_use_local_raceline) return;
+    if (message_in == NULL) return;
+
+    const nav_msgs__msg__Path *msg =
+        (const nav_msgs__msg__Path *)message_in;
+
+    if (msg->poses.size < 2)
+    {
+        return;
+    }
+
+    size_t waypoint_count = msg->poses.size;
+    if (waypoint_count > TRAJECTORY_MAXIMUM_WAYPOINTS)
+    {
+        waypoint_count = TRAJECTORY_MAXIMUM_WAYPOINTS;
+    }
+
+    double cumulative_s = 0.0;
+    double prev_x = 0.0;
+    double prev_y = 0.0;
+
+    for (size_t i = 0; i < waypoint_count; i++)
+    {
+        const geometry_msgs__msg__PoseStamped *pose = &msg->poses.data[i];
+        TrajectoryWaypoint_t *wp = &global_trajectory[i];
+
+        const double x = pose->pose.position.x;
+        const double y = pose->pose.position.y;
+
+        if (i > 0)
+        {
+            cumulative_s += hypot(x - prev_x, y - prev_y);
+        }
+
+        wp->s_meters = cumulative_s;
+        wp->x_meters = x;
+        wp->y_meters = y;
+
+        double v_ref = fabs(pose->pose.position.z);
+        if (!isfinite(v_ref) || v_ref < MIN_TRAJECTORY_SPEED_MPS)
+        {
+            v_ref = MIN_TRAJECTORY_SPEED_MPS;
+        }
+        if (v_ref > TRAJECTORY_MAXIMUM_VELOCITY)
+        {
+            v_ref = TRAJECTORY_MAXIMUM_VELOCITY;
+        }
+        wp->velocity_meters_per_second = v_ref;
+
+        wp->left_bound_meters = BIG_BOUND;
+        wp->right_bound_meters = BIG_BOUND;
+        wp->heading_radians = 0.0;
+        wp->curvature_radians_per_meter = 0.0;
+        wp->sin_heading = 0.0;
+        wp->cos_heading = 1.0;
+
+        prev_x = x;
+        prev_y = y;
+    }
+
+    for (size_t i = 0; i < waypoint_count; i++)
+    {
+        size_t i_prev = (i == 0) ? 0 : (i - 1);
+        size_t i_next = (i + 1 < waypoint_count) ? (i + 1) : (waypoint_count - 1);
+
+        const double dx = global_trajectory[i_next].x_meters - global_trajectory[i_prev].x_meters;
+        const double dy = global_trajectory[i_next].y_meters - global_trajectory[i_prev].y_meters;
+
+        double heading = 0.0;
+        if ((dx * dx + dy * dy) > 1e-12)
+        {
+            heading = atan2(dy, dx);
+        }
+        else if (i > 0)
+        {
+            heading = global_trajectory[i - 1].heading_radians;
+        }
+
+        global_trajectory[i].heading_radians = heading;
+        global_trajectory[i].sin_heading = sin(heading);
+        global_trajectory[i].cos_heading = cos(heading);
+    }
+
+    if (waypoint_count >= 3)
+    {
+        for (size_t i = 1; i + 1 < waypoint_count; i++)
+        {
+            const double dpsi = wrap_angle_pi(
+                global_trajectory[i + 1].heading_radians -
+                global_trajectory[i - 1].heading_radians);
+            const double ds = global_trajectory[i + 1].s_meters - global_trajectory[i - 1].s_meters;
+            const double ds_safe = (ds > 1e-6) ? ds : 1e-6;
+            global_trajectory[i].curvature_radians_per_meter = dpsi / ds_safe;
+        }
+
+        global_trajectory[0].curvature_radians_per_meter =
+            global_trajectory[1].curvature_radians_per_meter;
+        global_trajectory[waypoint_count - 1].curvature_radians_per_meter =
+            global_trajectory[waypoint_count - 2].curvature_radians_per_meter;
+    }
+
+    global_trajectory_count = (int)waypoint_count;
+    global_last_closest_index = 0;
+    g_track_length_meters =
+        (waypoint_count > 1)
+        ? (global_trajectory[waypoint_count - 1].s_meters - global_trajectory[0].s_meters)
+        : 0.0;
+
+    g_local_raceline_received = 1;
+    g_local_raceline_wait_logged = 0;
+
+    if (g_verbose)
+    {
+        printf("[MPC] Local raceline updated: %zu waypoints, length=%.2f m\n",
+               waypoint_count, g_track_length_meters);
+    }
+}
+
+/*===========================================================================
  * ROS2 Callback: Odometry Subscription (non-blocking, just stores state)
  *===========================================================================*/
 
@@ -780,7 +993,7 @@ void odometry_subscription_callback(const void *message_in)
     /* Cache velocity for the timer callback.
      * Position/heading are only taken from odom when AMCL is not available.
      * When AMCL is running the amcl_pose_callback keeps them updated in the
-     * map frame, which is the same frame as the trajectory CSV. */
+    * map frame, which is the same frame as the reference path. */
     if (!g_amcl_received) {
         g_latest_pos_x = pos_x;
         g_latest_pos_y = pos_y;
@@ -891,7 +1104,7 @@ void imu_callback(const void *message_in)
  *===========================================================================
  * Receives the map-frame position from the EKF and runs the MPC solver.
  * MPC only executes when a new EKF pose message arrives (event-driven).
- * The trajectory CSV is in map frame, so Frenet errors are only meaningful
+ * The reference path is in map frame, so Frenet errors are only meaningful
  * when position comes from here rather than from raw wheel odometry.
  * Default source: /ekf_pose (EKF fuses odom + AMCL for smooth updates).
  *===========================================================================*/
@@ -939,6 +1152,17 @@ void amcl_pose_callback(const void *message_in)
         return;
     }
 
+    if (g_use_local_raceline && (!g_local_raceline_received || global_trajectory_count < 2))
+    {
+        if (!g_local_raceline_wait_logged)
+        {
+            printf("[MPC] Waiting for local raceline on %s before enabling control\n",
+                   g_local_raceline_topic);
+            g_local_raceline_wait_logged = 1;
+        }
+        return;
+    }
+
     /* Safety watchdog: check if odometry velocity is stale */
     {
         struct timespec now;
@@ -969,10 +1193,19 @@ void amcl_pose_callback(const void *message_in)
         printf("[MPC] State: x=%.2f y=%.2f th=%.2f vx=%.2f vy=%.2f w=%.2f\n",
                pos_x, pos_y, heading, g_latest_vx, g_latest_vy, g_latest_omega);
     }
-    if (global_trajectory_count > 0)
+    if (global_trajectory_count > 1)
     {
-        closest = find_closest_waypoint(pos_x, pos_y, heading);
-        build_reference_from_trajectory(closest);
+        if (g_use_local_raceline)
+        {
+            closest = 0;
+            build_reference_from_local_raceline();
+        }
+        else
+        {
+            closest = find_closest_waypoint(pos_x, pos_y, heading);
+            build_reference_from_trajectory(closest);
+        }
+
         convert_to_frenet_state(pos_x, pos_y, heading, closest, &global_frenet_state);
 
         ey = global_frenet_state.flat_error;
@@ -1197,6 +1430,10 @@ int main(int argc, char *argv[])
         }
         if ((env_val = getenv("MPC_AMCL_TOPIC")) != NULL)
             g_amcl_pose_topic = env_val;
+        if ((env_val = getenv("MPC_LOCAL_RACELINE_TOPIC")) != NULL)
+            g_local_raceline_topic = env_val;
+        if ((env_val = getenv("MPC_USE_LOCAL_RACELINE")) != NULL)
+            g_use_local_raceline = parse_bool_text(env_val, g_use_local_raceline);
     }
 
     {
@@ -1248,6 +1485,11 @@ int main(int argc, char *argv[])
     printf("[MPC] IMU yaw rate: %s\n", g_imu_topic);
     printf("[MPC] Watchdog timeout: %.0f ms\n", g_watchdog_timeout_sec * 1000.0);
     printf("[MPC] Map-frame pose topic: %s\n", g_amcl_pose_topic);
+    printf("[MPC] Local raceline mode: %s\n", g_use_local_raceline ? "enabled" : "disabled");
+    if (g_use_local_raceline)
+    {
+        printf("[MPC] Local raceline topic: %s\n", g_local_raceline_topic);
+    }
     printf("[MPC] Verbose=%d\n", g_verbose);
 
     {
@@ -1263,60 +1505,86 @@ int main(int argc, char *argv[])
                cfg.weight_steering_effort);
     }
 
-    /* Load trajectory — search order:
-     *   1. Command-line argument: ./mpc_hardware_node /path/to/raceline.csv
-     *   2. Environment variable:  MPC_TRAJECTORY_FILE=/path/to/raceline.csv
-     *   3. Default search paths (relative to cwd and common install locations)
-     */
-    if (argc >= 2)
+    if (g_use_local_raceline)
     {
-        g_trajectory_file = argv[1];
+        printf("[MPC] Reference source: %s (nav_msgs/Path)\n", g_local_raceline_topic);
+        printf("[MPC] Waiting for first local raceline message before running control\n");
     }
     else
     {
-        /* SECURITY: Environment variable path is accepted as trusted local
-         * deployment configuration and is not sanitized by this node. */
-        const char *env_val = getenv("MPC_TRAJECTORY_FILE");
-        if (env_val != NULL)
-            g_trajectory_file = env_val;
-    }
-
-    /* If no explicit path given, try common relative/absolute locations */
-    if (g_trajectory_file == NULL || strlen(g_trajectory_file) == 0)
-    {
-        static const char *search_paths[] = {
-            "my_track_raceline.csv",
-            "trajectories/my_track_raceline.csv",
-            "f1tenth_planning/trajectories/my_track_raceline.csv",
-            "../f1tenth_planning/trajectories/my_track_raceline.csv",
-            "../trajectories/my_track_raceline.csv",
-            NULL
-        };
-        for (int i = 0; search_paths[i] != NULL; i++)
+        /* Load trajectory — search order:
+         *   1. Command-line argument: ./mpc_hardware_node /path/to/raceline.csv
+         *   2. Environment variable:  MPC_TRAJECTORY_FILE=/path/to/raceline.csv
+         *   3. Default search paths (relative to cwd and common install locations)
+         */
+        if (argc >= 2)
         {
-            FILE *test = fopen(search_paths[i], "r");
-            if (test != NULL)
+            for (int i = 1; i < argc; i++)
             {
-                fclose(test);
-                g_trajectory_file = search_paths[i];
-                printf("[MPC] Auto-found trajectory: %s\n", g_trajectory_file);
+                const char *arg = argv[i];
+                if (arg == NULL || arg[0] == '\0')
+                {
+                    continue;
+                }
+                if (arg[0] == '-')
+                {
+                    if (strcmp(arg, "--ros-args") == 0)
+                    {
+                        break;
+                    }
+                    continue;
+                }
+                g_trajectory_file = arg;
                 break;
             }
         }
-    }
 
-    if (g_trajectory_file != NULL && strlen(g_trajectory_file) > 0)
-    {
-        if (load_trajectory_from_csv(g_trajectory_file))
-            printf("[MPC] Trajectory loaded successfully\n");
+        if (g_trajectory_file == NULL)
+        {
+            /* SECURITY: Environment variable path is accepted as trusted local
+             * deployment configuration and is not sanitized by this node. */
+            const char *env_val = getenv("MPC_TRAJECTORY_FILE");
+            if (env_val != NULL)
+                g_trajectory_file = env_val;
+        }
+
+        /* If no explicit path given, try common relative/absolute locations */
+        if (g_trajectory_file == NULL || strlen(g_trajectory_file) == 0)
+        {
+            static const char *search_paths[] = {
+                "my_track_raceline.csv",
+                "trajectories/my_track_raceline.csv",
+                "f1tenth_planning/trajectories/my_track_raceline.csv",
+                "../f1tenth_planning/trajectories/my_track_raceline.csv",
+                "../trajectories/my_track_raceline.csv",
+                NULL
+            };
+            for (int i = 0; search_paths[i] != NULL; i++)
+            {
+                FILE *test = fopen(search_paths[i], "r");
+                if (test != NULL)
+                {
+                    fclose(test);
+                    g_trajectory_file = search_paths[i];
+                    printf("[MPC] Auto-found trajectory: %s\n", g_trajectory_file);
+                    break;
+                }
+            }
+        }
+
+        if (g_trajectory_file != NULL && strlen(g_trajectory_file) > 0)
+        {
+            if (load_trajectory_from_csv(g_trajectory_file))
+                printf("[MPC] Trajectory loaded successfully\n");
+            else
+                printf("[MPC] WARNING: Failed to load trajectory, using straight-line fallback\n");
+        }
         else
-            printf("[MPC] WARNING: Failed to load trajectory, using straight-line fallback\n");
-    }
-    else
-    {
-        printf("[MPC] WARNING: No trajectory file specified. Use arg or MPC_TRAJECTORY_FILE env.\n");
-        printf("[MPC] Searched: my_track_raceline.csv, trajectories/, f1tenth_planning/trajectories/, ../f1tenth_planning/trajectories/\n");
-        printf("[MPC] Using straight-line fallback.\n");
+        {
+            printf("[MPC] WARNING: No trajectory file specified. Use arg or MPC_TRAJECTORY_FILE env.\n");
+            printf("[MPC] Searched: my_track_raceline.csv, trajectories/, f1tenth_planning/trajectories/, ../f1tenth_planning/trajectories/\n");
+            printf("[MPC] Using straight-line fallback.\n");
+        }
     }
 
     /* Initialize ROS2 */
@@ -1430,6 +1698,21 @@ int main(int argc, char *argv[])
         printf("[ROS2] Subscribed to %s (Reliable, KeepLast(10))\n", g_amcl_pose_topic);
     }
 
+    /* ===== Subscription 5: Local raceline path (nav_msgs/Path) ===== */
+    rcl_subscription_t local_raceline_sub = rcl_get_zero_initialized_subscription();
+    rcl_subscription_options_t local_raceline_sub_opts = rcl_subscription_get_default_options();
+    local_raceline_sub_opts.qos = qos_reliable_10;
+
+    rc = rcl_subscription_init(&local_raceline_sub, &node,
+        ROSIDL_GET_MSG_TYPE_SUPPORT(nav_msgs, msg, Path),
+        g_local_raceline_topic, &local_raceline_sub_opts);
+    if (rc != RCL_RET_OK)
+    {
+        fprintf(stderr, "[ROS2] ERROR: local raceline subscription: %s\n", rcl_get_error_string().str);
+        return 1;
+    }
+    printf("[ROS2] Subscribed to %s (Reliable, KeepLast(10))\n", g_local_raceline_topic);
+
     /* ===== Publisher: /drive (ackermann_msgs/AckermannDriveStamped) ===== */
     rcl_publisher_options_t pub_opts = rcl_publisher_get_default_options();
     pub_opts.qos = qos_reliable_10;
@@ -1457,6 +1740,7 @@ int main(int argc, char *argv[])
     std_msgs__msg__Float64__init(&global_servo_message_buffer);
     std_msgs__msg__Float64__init(&global_imu_message_buffer);
     geometry_msgs__msg__PoseWithCovarianceStamped__init(&global_amcl_pose_buffer);
+    nav_msgs__msg__Path__init(&global_local_raceline_buffer);
 
     ackermann_msgs__msg__AckermannDriveStamped__init(&global_drive_message_buffer);
     if (!preallocate_rosidl_string(&global_drive_message_buffer.header.frame_id, 64))
@@ -1466,7 +1750,7 @@ int main(int argc, char *argv[])
     }
     set_rosidl_string(&global_drive_message_buffer.header.frame_id, "base_link");
 
-    /* Executor: 4 subscriptions (odom, servo, imu, ekf_pose) */
+    /* Executor: 5 subscriptions (odom, servo, imu, ekf_pose, local_raceline) */
     rcl_allocator_t alloc = rcl_get_default_allocator();
     rclc_executor_t executor = rclc_executor_get_zero_initialized_executor();
 
@@ -1513,9 +1797,26 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    printf("[ROS2] Executor ready (4 subs, MPC driven by %s)\n", g_amcl_pose_topic);
-    printf("\n[MPC] Spinning... (waiting for EKF pose on %s and odometry on %s)\n\n",
-           g_amcl_pose_topic, g_odom_topic);
+    /* Add local raceline subscription */
+    rc = rclc_executor_add_subscription(&executor, &local_raceline_sub,
+        &global_local_raceline_buffer, &local_raceline_callback, ON_NEW_DATA);
+    if (rc != RCL_RET_OK)
+    {
+        fprintf(stderr, "[ROS2] ERROR: add local raceline sub failed\n");
+        return 1;
+    }
+
+    printf("[ROS2] Executor ready (5 subs, MPC driven by %s)\n", g_amcl_pose_topic);
+    if (g_use_local_raceline)
+    {
+        printf("\n[MPC] Spinning... (waiting for EKF pose on %s, odometry on %s, and local raceline on %s)\n\n",
+               g_amcl_pose_topic, g_odom_topic, g_local_raceline_topic);
+    }
+    else
+    {
+        printf("\n[MPC] Spinning... (waiting for EKF pose on %s and odometry on %s)\n\n",
+               g_amcl_pose_topic, g_odom_topic);
+    }
 
     rclc_executor_spin(&executor);
 
@@ -1532,11 +1833,13 @@ int main(int argc, char *argv[])
     std_msgs__msg__Float64__fini(&global_servo_message_buffer);
     std_msgs__msg__Float64__fini(&global_imu_message_buffer);
     ackermann_msgs__msg__AckermannDriveStamped__fini(&global_drive_message_buffer);
+    nav_msgs__msg__Path__fini(&global_local_raceline_buffer);
     rcl_ret_t cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&odom_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&servo_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&imu_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&amcl_sub, &node); (void)cleanup_rc;
+    cleanup_rc = rcl_subscription_fini(&local_raceline_sub, &node); (void)cleanup_rc;
     geometry_msgs__msg__PoseWithCovarianceStamped__fini(&global_amcl_pose_buffer);
     cleanup_rc = rcl_publisher_fini(&global_control_publisher, &node); (void)cleanup_rc;
     cleanup_rc = rcl_node_fini(&node); (void)cleanup_rc;

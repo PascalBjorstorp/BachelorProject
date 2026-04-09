@@ -55,52 +55,103 @@ public:
   explicit VescToOdom(const rclcpp::NodeOptions & options);
 
 private:
-  // ROS parameters
-  std::string odom_frame_;
-  std::string base_frame_;
-  /** State message does not report servo position, so use the command instead */
-  bool use_servo_cmd_;
-  bool use_imu_;
-  // conversion gain and offset
-  double speed_to_erpm_gain_, speed_to_erpm_offset_;
-  double steering_to_servo_gain_, steering_to_servo_offset_;
-  double steering_correction_c2_, steering_correction_c1_, steering_correction_c0_;
-  double wheelbase_;
-  bool publish_tf_;
-  std::string integration_method_;  ///< Integration method: "euler", "trapezoidal", "analytical"
+  static double normalizeAngle(double angle);
 
-  // Odometry covariance parameters
-  double odom_x_covariance_;    ///< x position covariance
-  double odom_y_covariance_;    ///< y position covariance
-  double odom_yaw_covariance_;  ///< yaw covariance
+  // Frames and conversion
+  std::string odom_frame_{"ego_racecar/odom"};
+  std::string base_frame_{"ego_racecar/base_link"};
+  double speed_to_erpm_gain_{0.0};
+  double speed_to_erpm_offset_{0.0};
+  double speed_deadband_{0.15};
+  double max_dt_sec_{1.0};
 
-  // odometry state
-  double x_, y_, yaw_;
-  Float64::SharedPtr last_servo_cmd_;  ///< Last servo position commanded value
-  VescStateStamped::SharedPtr last_state_;  ///< Last received state message
-  sensor_msgs::msg::Imu::SharedPtr last_imu_;  ///< Last received IMU message
+  // Steering model parameters
+  double steering_to_servo_gain_{0.0};
+  double steering_to_servo_offset_{0.0};
+  double steering_correction_c2_{0.0};
+  double steering_correction_c1_{1.0};
+  double steering_correction_c0_{0.0};
+  double wheelbase_{0.33};
 
-  // IMU initialization
-  double initial_imu_yaw_;  ///< Initial IMU yaw for offset calibration
-  bool imu_initialized_;    ///< Flag to check if IMU has been initialized
+  // Dynamic bicycle model parameters
+  bool use_dynamic_bicycle_model_{true};
+  double vehicle_mass_{3.314};
+  double vehicle_Iz_{0.035};
+  double l_f_{0.166};
+  double l_r_{0.16};
+  double c_alpha_f_{51.4};
+  double c_alpha_r_{43.1};
+  double dynamic_model_min_speed_{1.0};
 
-  // Low-pass filter for IMU angular velocity
-  double imu_angular_velocity_alpha_;  ///< Low-pass filter coefficient (0-1)
-  double filtered_angular_velocity_;   ///< Filtered angular velocity value
-  bool angular_velocity_filter_initialized_;  ///< Flag to check if filter has been initialized
+  // Base covariance
+  double odom_x_covariance_{0.2};
+  double odom_y_covariance_{0.2};
+  double odom_yaw_covariance_{0.4};
 
-  // ROS services
+  // Slip-aware covariance scaling
+  double slip_xy_covariance_scale_{6.0};
+  double slip_yaw_covariance_scale_{10.0};
+
+  // Slip detection thresholds (m/s^2)
+  double slip_accel_enter_{1.8};
+  double slip_accel_exit_{1.0};
+  bool slip_active_{false};
+  double slip_min_speed_{1.2};
+
+  // Slip indicator filtering and dwell hysteresis
+  double slip_indicator_alpha_{0.2};
+  double filtered_slip_indicator_{0.0};
+  bool slip_indicator_initialized_{false};
+  bool slip_use_lateral_accel_{false};
+  double slip_accel_clip_{6.0};
+  double slip_yaw_rate_weight_{3.0};
+  double slip_enter_hold_sec_{0.10};
+  double slip_exit_hold_sec_{0.20};
+  double slip_enter_timer_{0.0};
+  double slip_exit_timer_{0.0};
+
+  // IMU filtering
+  double imu_angular_velocity_alpha_{0.45};
+  double filtered_angular_velocity_{0.0};
+  bool angular_velocity_filter_initialized_{false};
+
+  // Gyro bias adaptation
+  double gyro_bias_{0.0};
+  double gyro_bias_alpha_{0.02};
+
+  // Lateral-velocity estimation from IMU
+  double imu_lateral_accel_alpha_{0.35};
+  double filtered_lateral_accel_{0.0};
+  bool lateral_accel_filter_initialized_{false};
+  double imu_lateral_velocity_{0.0};
+  double imu_lateral_velocity_decay_{1.5};
+  double imu_lateral_velocity_max_{3.0};
+
+  // Slip-angle handling
+  double beta_max_rad_{0.8};
+  double kinematic_beta_ratio_{0.5};
+
+  // State
+  double x_{0.0};
+  double y_{0.0};
+  double yaw_{0.0};
+  double yaw_rate_state_{0.0};
+  VescStateStamped::SharedPtr last_state_;
+  sensor_msgs::msg::Imu::SharedPtr last_imu_;
+  Float64::SharedPtr last_servo_cmd_;
+
+  // ROS I/O
   rclcpp::Publisher<Odometry>::SharedPtr odom_pub_;
   rclcpp::Publisher<Float64>::SharedPtr filtered_angular_velocity_pub_;
   rclcpp::Subscription<VescStateStamped>::SharedPtr vesc_state_sub_;
-  rclcpp::Subscription<Float64>::SharedPtr servo_sub_;
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
+  rclcpp::Subscription<Float64>::SharedPtr servo_sub_;
   std::unique_ptr<tf2_ros::TransformBroadcaster> tf_pub_;
 
-  // ROS callbacks
+  // Callbacks
   void vescStateCallback(const VescStateStamped::SharedPtr state);
-  void servoCmdCallback(const Float64::SharedPtr servo);
   void imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu);
+  void servoCmdCallback(const Float64::SharedPtr servo);
 };
 
 }  // namespace vesc_ackermann

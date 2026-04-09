@@ -3,11 +3,11 @@
 # MPCC/run_sim.sh — Launch MPCC (Contouring Control) with F1/10th simulator
 #
 # Usage:
-#   ./run_sim.sh [DURATION_SECONDS] [TRAJECTORY_FILE]
+#   ./MPCC/run_sim.sh 120 f1tenth_planning/trajectories/my_track_raceline.csv
 #
 # Defaults:
 #   DURATION_SECONDS = 120
-#   TRAJECTORY_FILE  = f1tenth_planning/trajectories/Spielberg_raceline.csv
+#   TRAJECTORY_FILE  = f1tenth_planning/trajectories/my_track_raceline.csv
 #
 # This script:
 #   1. Rebuilds the mpcc_f1_10th package via colcon
@@ -22,7 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 DURATION_SECONDS="${1:-120}"
-TRAJECTORY_FILE="${2:-${ROOT_DIR}/f1tenth_planning/trajectories/Spielberg_raceline.csv}"
+TRAJECTORY_FILE="${2:-${ROOT_DIR}/f1tenth_planning/trajectories/my_track_raceline.csv}"
 
 # Resolve to absolute path so ROS2 nodes can find it regardless of cwd
 if [[ "${TRAJECTORY_FILE}" != /* ]]; then
@@ -128,7 +128,10 @@ TRAJ_STHETA="$(awk -F, 'NR==2 {gsub(/[[:space:]]/, "", $4); print $4; exit}' "${
 DEFAULT_GYM_MAP_PATH="${SIM_MAP_PATH:-my_track_map}"
 DEFAULT_GYM_MAP_IMG_EXT="${SIM_MAP_IMG_EXT:-.pgm}"
 TRAJ_BASENAME="$(basename "${TRAJECTORY_FILE}")"
-if [[ "${TRAJ_BASENAME}" == *"Spielberg"* ]]; then
+if [[ "${TRAJ_BASENAME}" == *"my_track"* ]]; then
+    DEFAULT_GYM_MAP_PATH="my_track_map"
+    DEFAULT_GYM_MAP_IMG_EXT=".pgm"
+elif [[ "${TRAJ_BASENAME}" == *"Spielberg"* ]]; then
     DEFAULT_GYM_MAP_PATH="Spielberg_map"
     DEFAULT_GYM_MAP_IMG_EXT=".png"
 elif [[ "${TRAJ_BASENAME}" == *"hardware"* ]]; then
@@ -136,29 +139,29 @@ elif [[ "${TRAJ_BASENAME}" == *"hardware"* ]]; then
     DEFAULT_GYM_MAP_IMG_EXT=".pgm"
 fi
 
-# Match test_sim_drive defaults so ROS run is comparable.
-export HORIZON="${HORIZON:-15}"
-export DT="${DT:-0.05}"
-export Q_N="${Q_N:-50.0}"
-export Q_ALPHA="${Q_ALPHA:-20.0}"
-export Q_PROGRESS="${Q_PROGRESS:-1.0}"
-export Q_VX="${Q_VX:-2.0}"
-export VX_REF="${VX_REF:-12.0}"
-export Q_VY="${Q_VY:-10.0}"
-export Q_OMEGA="${Q_OMEGA:-0.1}"
-export R_DELTA="${R_DELTA:-1.0}"
-export R_AX="${R_AX:-0.01}"
-export R_VTHETA="${R_VTHETA:-0.5}"
-export W_DELTA_RATE="${W_DELTA_RATE:-10.0}"
-export W_AX_RATE="${W_AX_RATE:-0.1}"
-export W_VTHETA_RATE="${W_VTHETA_RATE:-0.1}"
-export Q_N_TERM="${Q_N_TERM:-100.0}"
-export Q_ALPHA_TERM="${Q_ALPHA_TERM:-10.0}"
-export Q_PROGRESS_TERM="${Q_PROGRESS_TERM:-5.0}"
-export ADMM_RHO="${ADMM_RHO:-1.218171}"
-export ADMM_MAX_ITER="${ADMM_MAX_ITER:-200}"
-export ADMM_TOL="${ADMM_TOL:-0.05}"
-export V_THETA_MAX="${V_THETA_MAX:-2.0}"
+# Match tune_mpcc.py BASE_CONFIG so ROS run is comparable.
+export HORIZON="${HORIZON:-7}"
+export DT="${DT:-0.02}"
+export Q_CONTOURING="${Q_CONTOURING:-2000.0}"
+export Q_LAG="${Q_LAG:-136.282905}"
+export Q_PROGRESS="${Q_PROGRESS:-9.04816}"
+export Q_VX="${Q_VX:-1.5}"
+export VX_REF="${VX_REF:-4.034304}"
+export Q_VY="${Q_VY:-1.5435}"
+export Q_OMEGA="${Q_OMEGA:-0.805}"
+export R_DELTA="${R_DELTA:-13.75}"
+export R_AX="${R_AX:-0.054864}"
+export R_VTHETA="${R_VTHETA:-1.1232}"
+export W_DELTA_RATE="${W_DELTA_RATE:-0.65}"
+export W_AX_RATE="${W_AX_RATE:-0.610926}"
+export W_VTHETA_RATE="${W_VTHETA_RATE:-0.126}"
+export Q_CONTOURING_TERM="${Q_CONTOURING_TERM:-493.7625}"
+export Q_LAG_TERM="${Q_LAG_TERM:-1072.17}"
+export Q_PROGRESS_TERM="${Q_PROGRESS_TERM:-5.564503}"
+export ADMM_RHO="${ADMM_RHO:-0.9}"
+export ADMM_MAX_ITER="${ADMM_MAX_ITER:-100}"
+export ADMM_TOL="${ADMM_TOL:-0.011449}"
+export V_THETA_MAX="${V_THETA_MAX:-6.24}"
 export MU="${MU:-${SIM_MU:-0.745}}"
 export C_SF="${C_SF:-${SIM_C_SF:-4.297}}"
 export C_SR="${C_SR:-${SIM_C_SR:-3.473}}"

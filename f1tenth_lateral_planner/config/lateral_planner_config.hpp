@@ -26,8 +26,17 @@
 #define MAX_LATERAL_SHIFT_M 0.8
 #define PASS_COMPLETE_MARGIN_M 2.0
 
+// Post-overtake merge behavior
+// Multiplies waypoint vx while merging back to baseline (0.9 => 10% slower)
+#define MERGE_BACK_SPEED_FACTOR 1.0
+
 // Published path extent
 #define LOOKAHEAD_POINTS 80
 
 // Node behavior
 #define PUBLISH_RATE_HZ 40.0
+
+// Obstacle behavior
+// true  -> obstacle avoidance enabled
+// false -> publish baseline raceline segment without lateral obstacle offsets
+#define LATERAL_PLANNER_ENABLE_AVOIDANCE true

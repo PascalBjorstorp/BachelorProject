@@ -85,6 +85,7 @@ public:
     double clearance_tolerance_m = 0.15; ///< Extra clearance to walls/opponent [m]
     double planning_tolerance_scale = 2.0;  ///< Multiplier for line-generation tolerance
     double car_width_m           = 0.31; ///< Own car width [m]
+    double merge_back_speed_factor = 0.9;  ///< Speed scaling while merging back to baseline
   };
 
   explicit LateralPlanner(rclcpp::Logger logger, const Parameters & params);
@@ -155,6 +156,15 @@ private:
   /// Reset all avoidance state and return to original raceline.
   void resetAvoidance();
 
+  /// Begin smooth blend from current modified line back to baseline raceline.
+  void startMergeBack();
+
+  /// Update modified raceline according to merge-back progress.
+  void updateMergeBackPath();
+
+  /// Progress of merge-back in [0, 1]. Returns 1 when not active.
+  double mergeBackProgress() const;
+
   /// Check if the car has passed the opponent and the path can be unlocked.
   bool hasPassedOpponent() const;
 
@@ -175,10 +185,15 @@ private:
   // ── Committed avoidance state ─────────────────────────────────────
 
   bool   avoidance_active_     = false;  ///< Is an avoidance path currently locked?
+  bool   merge_back_active_    = false;  ///< Is a merge back to baseline in progress?
   double committed_side_       = 0.0;    ///< +1 left, −1 right
   size_t committed_opp_idx_    = 0;      ///< Raceline index of opponent when locked
   double committed_opp_x_      = 0.0;    ///< Opponent position when locked
   double committed_opp_y_      = 0.0;
+
+  double               merge_start_s_   = 0.0;
+  double               merge_distance_m_ = 0.0;
+  std::vector<Waypoint> merge_from_raceline_;
 };
 
 }  // namespace f1tenth_lateral_planner

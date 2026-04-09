@@ -13,7 +13,6 @@
  *       -Iinclude -I../MPC/include \
  *       test/test_sim_drive.c \
  *       src/mpcc.c src/mpcc_vehicle_model.c src/qp_solver_mpcc.c \
- *       src/fp_math_mpcc.c \
  *       -o test_sim_drive -lm
  ******************************************************************************/
 
@@ -21,6 +20,7 @@
 #define _USE_MATH_DEFINES
 #include <stdio.h>
 #include <stdlib.h>
+
 #include <string.h>
 #include <math.h>
 #include <time.h>
@@ -43,16 +43,16 @@
  * Configuration
  *===========================================================================*/
 
-#define SIM_DT_DEFAULT    0.005   /* 200 Hz physics */
-#define MPCC_DT_DEFAULT   0.050   /* 20 Hz MPCC (matches ROS2 node timer) */
-#define SIM_DURATION      60.0    /* seconds */
+#define SIM_DT_DEFAULT    0.005f   /* 200 Hz physics */
+#define MPCC_DT_DEFAULT   0.050f   /* 20 Hz MPCC (matches ROS2 node timer) */
+#define SIM_DURATION      30.0f    /* seconds */
 #define MAX_WAYPOINTS     2000
-#define MAX_STEERING      0.4189  /* rad */
-#define MAX_VELOCITY      20.0    /* m/s */
-#define PHYSICAL_MAX_ACCEL 7.31   /* m/s² */
+#define MAX_STEERING      0.4189f  /* rad */
+#define MAX_VELOCITY      20.0f    /* m/s */
+#define PHYSICAL_MAX_ACCEL 7.31f   /* m/s² */
 
 #define VEHICLE_HALF_WIDTH        0.155f  /* meters (F1/10th body half-width) */
-#define DEFAULT_BODY_SAFETY_MARGIN 0.06
+#define DEFAULT_BODY_SAFETY_MARGIN 0.06f
 #define STEER_BUFFER_SIZE         2
 
 /*===========================================================================
@@ -188,20 +188,20 @@ static int build_reference_path(void)
     g_ref_path.num_points = 0;
     for (int i = 0; i < raceline_count && i < MPCC_MAX_PATH_POINTS; i++) {
         MPCCPathPoint_t *pt = &g_ref_path.points[i];
-        pt->s_ref     = float_to_fp((float)raceline[i].s);
-        pt->x_ref     = float_to_fp((float)raceline[i].x);
-        pt->y_ref     = float_to_fp((float)raceline[i].y);
-        pt->phi_ref   = float_to_fp((float)raceline[i].psi);
-        pt->kappa_ref = float_to_fp((float)raceline[i].kappa);
-        pt->vx_ref    = float_to_fp((float)raceline[i].vx);
+        pt->s_ref     = (float)raceline[i].s;
+        pt->x_ref     = (float)raceline[i].x;
+        pt->y_ref     = (float)raceline[i].y;
+        pt->phi_ref   = (float)raceline[i].psi;
+        pt->kappa_ref = (float)raceline[i].kappa;
+        pt->vx_ref    = (float)raceline[i].vx;
 
         /* Subtract car half-width so n bounds keep body inside track */
         float lb = (float)raceline[i].left_bound  - VEHICLE_HALF_WIDTH;
         float rb = (float)raceline[i].right_bound - VEHICLE_HALF_WIDTH;
         if (lb < 0.05f) lb = 0.05f;
         if (rb < 0.05f) rb = 0.05f;
-        pt->left_bound  = float_to_fp(lb);
-        pt->right_bound = float_to_fp(rb);
+        pt->left_bound  = lb;
+        pt->right_bound = rb;
 
         g_ref_path.num_points++;
     }
@@ -210,7 +210,7 @@ static int build_reference_path(void)
     g_ref_path.is_closed = 1;
 
     printf("[MPCC] Built reference path: %d points, length %.1f m\n",
-           g_ref_path.num_points, fp_to_float(g_ref_path.total_length));
+           g_ref_path.num_points, g_ref_path.total_length);
     return 1;
 }
 
@@ -272,71 +272,71 @@ int main(void)
     MPCCConfiguration_t cfg;
     memset(&cfg, 0, sizeof(cfg));
 
-    /* Horizon (longer for better corner anticipation) */
-    cfg.horizon_steps     = env_int("HORIZON", 15);
-    cfg.dt                = FP_CONST(env_double("DT", 0.05));
+    /* Horizon (tuned via sweep) */
+    cfg.horizon_steps     = env_int("HORIZON", 7);
+    cfg.dt                = env_double("DT", 0.02f);
 
     /* Contouring tracking */
-    cfg.weight_contouring = FP_CONST(env_double("Q_CONTOURING", 50.0));
-    cfg.weight_lag        = FP_CONST(env_double("Q_LAG", 100.0));
-    cfg.weight_progress   = FP_CONST(env_double("Q_PROGRESS", 1.0));
+    cfg.weight_contouring = env_double("Q_CONTOURING", 2000.0f);
+    cfg.weight_lag        = env_double("Q_LAG", 136.282905f);
+    cfg.weight_progress   = env_double("Q_PROGRESS", 9.04816f);
 
     /* State regularization */
-    cfg.weight_vx         = FP_CONST(env_double("Q_VX", 2.0));  /* Moderate velocity tracking */
-    cfg.vx_ref            = FP_CONST(env_double("VX_REF", 12.0));
-    cfg.weight_vy         = FP_CONST(env_double("Q_VY", 10.0));
-    cfg.weight_omega      = FP_CONST(env_double("Q_OMEGA", 0.1));
+    cfg.weight_vx         = env_double("Q_VX", 1.5f);
+    cfg.vx_ref            = env_double("VX_REF", 4.034304f);
+    cfg.weight_vy         = env_double("Q_VY", 1.5435f);
+    cfg.weight_omega      = env_double("Q_OMEGA", 0.805f);
 
-    /* Control effort (increased for smoother control) */
-    cfg.weight_delta      = FP_CONST(env_double("R_DELTA", 1.0));
-    cfg.weight_ax         = FP_CONST(env_double("R_AX", 0.01));
-    cfg.weight_v_theta    = FP_CONST(env_double("R_VTHETA", 0.5));
+    /* Control effort */
+    cfg.weight_delta      = env_double("R_DELTA", 13.75f);
+    cfg.weight_ax         = env_double("R_AX", 0.054864f);
+    cfg.weight_v_theta    = env_double("R_VTHETA", 1.1232f);
 
-    /* Control rate (high rate penalty to eliminate oscillation) */
-    cfg.weight_delta_rate   = FP_CONST(env_double("W_DELTA_RATE", 10.0));
-    cfg.weight_ax_rate      = FP_CONST(env_double("W_AX_RATE", 0.1));
-    cfg.weight_v_theta_rate = FP_CONST(env_double("W_VTHETA_RATE", 0.1));
+    /* Control rate */
+    cfg.weight_delta_rate   = env_double("W_DELTA_RATE", 0.65f);
+    cfg.weight_ax_rate      = env_double("W_AX_RATE", 0.610926f);
+    cfg.weight_v_theta_rate = env_double("W_VTHETA_RATE", 0.126f);
 
     /* Terminal */
-    cfg.weight_contouring_terminal = FP_CONST(env_double("Q_CONTOURING_TERM", 100.0));
-    cfg.weight_lag_terminal     = FP_CONST(env_double("Q_LAG_TERM", 200.0));
-    cfg.weight_progress_terminal = FP_CONST(env_double("Q_PROGRESS_TERM", 5.0));
+    cfg.weight_contouring_terminal = env_double("Q_CONTOURING_TERM", 493.7625f);
+    cfg.weight_lag_terminal     = env_double("Q_LAG_TERM", 1072.17f);
+    cfg.weight_progress_terminal = env_double("Q_PROGRESS_TERM", 5.564503f);
 
     /* Obstacle */
-    cfg.weight_obstacle   = FP_CONST(env_double("W_OBSTACLE", 1000.0));
-    cfg.obstacle_margin   = FP_CONST(env_double("OBSTACLE_MARGIN", 0.1));
+    cfg.weight_obstacle   = env_double("W_OBSTACLE", 1000.0f);
+    cfg.obstacle_margin   = env_double("OBSTACLE_MARGIN", 0.1f);
 
     /* ADMM solver (tuned via sweep) */
-    cfg.admm_rho            = FP_CONST(env_double("ADMM_RHO", 1.218171));
-    cfg.admm_max_iterations = env_int("ADMM_MAX_ITER", 200);
-    cfg.admm_tolerance      = FP_CONST(env_double("ADMM_TOL", 0.05));
+    cfg.admm_rho            = env_double("ADMM_RHO", 0.9f);
+    cfg.admm_max_iterations = env_int("ADMM_MAX_ITER", 100);
+    cfg.admm_tolerance      = env_double("ADMM_TOL", 0.011449f);
 
     /* Constraint bounds */
-    cfg.delta_max = FP_CONST(env_double("DELTA_MAX", 0.4189));
-    cfg.ax_max    = FP_CONST(env_double("AX_MAX", 7.0));
-    cfg.ax_min    = FP_CONST(env_double("AX_MIN", -10.0));
-    cfg.vx_max    = FP_CONST(env_double("VX_MAX", 20.0));
-    cfg.vx_min    = FP_CONST(env_double("VX_MIN", 0.0));
-    cfg.v_theta_max = FP_CONST(env_double("V_THETA_MAX", 2.0));
-    cfg.v_theta_min = FP_CONST(env_double("V_THETA_MIN", 0.0));
+    cfg.delta_max = env_double("DELTA_MAX", 0.4189f);
+    cfg.ax_max    = env_double("AX_MAX", 7.0f);
+    cfg.ax_min    = env_double("AX_MIN", -10.0f);
+    cfg.vx_max    = env_double("VX_MAX", 20.0f);
+    cfg.vx_min    = env_double("VX_MIN", 0.0f);
+    cfg.v_theta_max = env_double("V_THETA_MAX", 6.24f);
+    cfg.v_theta_min = env_double("V_THETA_MIN", 0.0f);
 
     /* Tire parameters */
-    cfg.mu   = FP_CONST(env_double("MU", 0.745));
-    cfg.C_Sf = FP_CONST(env_double("C_SF", 4.297));
-    cfg.C_Sr = FP_CONST(env_double("C_SR", 3.473));
+    cfg.mu   = env_double("MU", 0.745f);
+    cfg.C_Sf = env_double("C_SF", 4.297f);
+    cfg.C_Sr = env_double("C_SR", 3.473f);
 
     if (verbose) {
         printf("  Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_prog=%.1f\n",
-               cfg.horizon_steps, fp_to_float(cfg.dt),
-               fp_to_float(cfg.weight_contouring), fp_to_float(cfg.weight_lag),
-               fp_to_float(cfg.weight_progress));
+               cfg.horizon_steps, cfg.dt,
+               cfg.weight_contouring, cfg.weight_lag,
+               cfg.weight_progress);
         printf("  Q_vx=%.1f vx_ref=%.1f R_delta=%.2f R_ax=%.3f R_vt=%.2f\n",
-               fp_to_float(cfg.weight_vx), fp_to_float(cfg.vx_ref),
-               fp_to_float(cfg.weight_delta), fp_to_float(cfg.weight_ax),
-               fp_to_float(cfg.weight_v_theta));
+               cfg.weight_vx, cfg.vx_ref,
+               cfg.weight_delta, cfg.weight_ax,
+               cfg.weight_v_theta);
         printf("  ADMM: rho=%.2f max_iter=%d tol=%.4f\n",
-               fp_to_float(cfg.admm_rho), cfg.admm_max_iterations,
-               fp_to_float(cfg.admm_tolerance));
+               cfg.admm_rho, cfg.admm_max_iterations,
+               cfg.admm_tolerance);
     }
 
     /* Initialize MPCC with custom config */
@@ -357,9 +357,9 @@ int main(void)
     /* ── Spawn at raceline[0] from standstill ─────────────────────────────── */
     /* Standstill startup validates that MPCC can launch cleanly from 0 m/s. */
     VehicleState_t state;
-    state.pos_x = DOUBLE_TO_FP(raceline[0].x);
-    state.pos_y = DOUBLE_TO_FP(raceline[0].y);
-    state.heading = DOUBLE_TO_FP(raceline[0].psi);
+    state.pos_x = (raceline[0].x);
+    state.pos_y = (raceline[0].y);
+    state.heading = (raceline[0].psi);
     state.long_vel = 0;
     state.lat_vel = 0;
     state.yaw_rate = 0;
@@ -368,7 +368,9 @@ int main(void)
     double max_lat_err = 0, sum_lat_err = 0;
     double max_hdg_err = 0, sum_hdg_err = 0;
     double max_vel_err = 0, sum_vel_err = 0;
+    double sum_vx = 0;
     int wall_collisions = 0;
+    int prev_wall_hit = 0;  /* edge detection: only count entering a wall */
     int numerical_failures = 0;
     int solver_ok = 0, solver_calls = 0;
     double prev_steer = 0;
@@ -393,7 +395,7 @@ int main(void)
     /* Held MPCC commands (zero-order hold between MPCC calls) */
     double cmd_steer = 0.0;
     double cmd_accel = 0.0;
-    fixed_point_t current_s = 0;
+    float current_s = 0;
 
     /* ST model persistent state */
     double st_delta = 0.0;
@@ -411,10 +413,10 @@ int main(void)
 
     for (int step = 0; step < SIM_STEPS; step++) {
         double t = step * SIM_DT;
-        double px = FP_TO_DOUBLE(state.pos_x);
-        double py = FP_TO_DOUBLE(state.pos_y);
-        double psi = FP_TO_DOUBLE(state.heading);
-        double vx = FP_TO_DOUBLE(state.long_vel);
+        double px = (double)(state.pos_x);
+        double py = (double)(state.pos_y);
+        double psi = (double)(state.heading);
+        double vx = (double)(state.long_vel);
 
         if (!isfinite(px) || !isfinite(py) || !isfinite(psi) || !isfinite(vx)) {
             numerical_failures++;
@@ -434,16 +436,22 @@ int main(void)
         double e_y = -dx * sin(path_psi) + dy * cos(path_psi);
         double e_psi = wrap_angle(psi - path_psi);
 
-        /* Wall collision check (body-edge) */
+        /* Wall collision check (body-edge) — abort on first hit */
         double left_wall  = raceline[closest].left_bound;
         double right_wall = raceline[closest].right_bound;
         int wall_hit = 0;
-        if (e_y > (left_wall - VEHICLE_HALF_WIDTH - body_safety_margin))   { wall_hit = 1;  wall_collisions++; }
-        if (e_y < -(right_wall - VEHICLE_HALF_WIDTH - body_safety_margin)) { wall_hit = -1; wall_collisions++; }
-        if (wall_hit && vx > 1.0 && verbose) {
-            printf("\n  !!! WALL MARGIN EXCEEDED: e_y=%.3f (bound:%.3f) step=%d t=%.2f wp=%d v=%.1f !!!\n",
-                   e_y, wall_hit > 0 ? left_wall : right_wall, step, t, closest, vx);
+        if (e_y > (left_wall - VEHICLE_HALF_WIDTH - body_safety_margin))   { wall_hit = 1; }
+        if (e_y < -(right_wall - VEHICLE_HALF_WIDTH - body_safety_margin)) { wall_hit = -1; }
+        if (wall_hit && !prev_wall_hit) {
+            wall_collisions++;
+            if (verbose) {
+                printf("\n  !!! WALL COLLISION: e_y=%.3f (bound:%.3f) step=%d t=%.2f wp=%d v=%.1f — aborting !!!\n",
+                       e_y, wall_hit > 0 ? left_wall : right_wall, step, t, closest, vx);
+            }
+            stepped = step;
+            break;  /* single hit = failure, stop sim */
         }
+        prev_wall_hit = wall_hit;
 
         /* Call MPCC at configured rate */
         double steer = cmd_steer;
@@ -467,8 +475,8 @@ int main(void)
             total_solve_us += solve_us;
             if (solve_us > max_solve_us) max_solve_us = solve_us;
 
-            steer = (double)fp_to_float(result.optimal_control.delta);
-            accel_cmd = (double)fp_to_float(result.optimal_control.a_x);
+            steer = (double)result.optimal_control.delta;
+            accel_cmd = (double)result.optimal_control.a_x;
             iter = result.admm_iterations;
             status_val = (int)status;
 
@@ -480,8 +488,8 @@ int main(void)
 
             total_adaptive_updates += result.adaptive_rho_updates;
             total_clip_events += result.numeric_clip_count;
-            sum_rho += FP_TO_DOUBLE(result.rho_final);
-            sum_rho_u += FP_TO_DOUBLE(result.rho_u_final);
+            sum_rho += (double)(result.rho_final);
+            sum_rho_u += (double)(result.rho_u_final);
 
             cmd_steer = steer;
             cmd_accel = accel_cmd;
@@ -506,6 +514,7 @@ int main(void)
         double vel_err = fabs(vx - raceline[closest].vx);
         if (vel_err > max_vel_err) max_vel_err = vel_err;
         sum_vel_err += vel_err;
+        sum_vx += vx;
         if (vx > 2.0) time_above_2ms += SIM_DT;
         if (vx > 5.0) time_above_5ms += SIM_DT;
 
@@ -607,9 +616,9 @@ int main(void)
                 } \
             } while(0)
 
-            double true_px = FP_TO_DOUBLE(state.pos_x);
-            double true_py = FP_TO_DOUBLE(state.pos_y);
-            double true_psi = FP_TO_DOUBLE(state.heading);
+            double true_px = (double)(state.pos_x);
+            double true_py = (double)(state.pos_y);
+            double true_psi = (double)(state.heading);
             double s0[7] = {true_px, true_py, st_delta, st_V, true_psi, st_psi_dot, st_beta};
 
             double k1[7], k2[7], k3[7], k4[7];
@@ -654,12 +663,12 @@ int main(void)
             st_psi_dot = sn[5];
             st_beta = sn[6];
 
-            state.pos_x = DOUBLE_TO_FP(sn[0]);
-            state.pos_y = DOUBLE_TO_FP(sn[1]);
-            state.heading = DOUBLE_TO_FP(sn[4]);
-            state.long_vel = DOUBLE_TO_FP(sn[3] * cos(sn[6]));
-            state.lat_vel = DOUBLE_TO_FP(sn[3] * sin(sn[6]));
-            state.yaw_rate = DOUBLE_TO_FP(sn[5]);
+            state.pos_x = (sn[0]);
+            state.pos_y = (sn[1]);
+            state.heading = (sn[4]);
+            state.long_vel = (sn[3] * cos(sn[6]));
+            state.lat_vel = (sn[3] * sin(sn[6]));
+            state.yaw_rate = (sn[5]);
 
             actual_steer = st_delta;
 
@@ -674,18 +683,20 @@ int main(void)
     int total_stepped = stepped + 1;
     double avg_lat = sum_lat_err / total_stepped;
     double avg_hdg = sum_hdg_err / total_stepped;
-    double avg_vel = sum_vel_err / total_stepped;
+    double avg_vel_err = sum_vel_err / total_stepped;
+    double avg_speed = sum_vx / total_stepped;
 
     printf("\n  === Results (%.0fs, MPCC Lifted ODE, ADMM+Riccati) ===\n", SIM_DURATION);
     printf("  Solver success:     %d / %d (%.1f%%)\n", solver_ok, solver_calls,
            100.0*solver_ok/(solver_calls > 0 ? solver_calls : 1));
+    printf("  Avg speed:          %.2f m/s\n", avg_speed);
     printf("  Max velocity:       %.2f m/s\n", max_vx);
     printf("  Max lateral error:  %.3f m\n", max_lat_err);
     printf("  Avg lateral error:  %.3f m\n", avg_lat);
     printf("  Max heading error:  %.4f rad (%.1f deg)\n", max_hdg_err, max_hdg_err*180/M_PI);
     printf("  Avg heading error:  %.4f rad (%.1f deg)\n", avg_hdg, avg_hdg*180/M_PI);
     printf("  Max velocity error: %.2f m/s\n", max_vel_err);
-    printf("  Avg velocity error: %.2f m/s\n", avg_vel);
+    printf("  Avg velocity error: %.2f m/s\n", avg_vel_err);
     printf("  Max steer change:   %.4f rad/step\n", max_steer_change);
     printf("  Steer reversals:    %d\n", steer_reversals);
     printf("  Wall collisions:    %d\n", wall_collisions);
@@ -726,13 +737,14 @@ int main(void)
 
     /* Machine-readable CSV for tuning scripts */
     if (getenv("MPCC_TUNING_CSV")) {
-         printf("CSV,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%.1f,%d,%.1f,%.4f,%.4f,%.1f,%.3f,%.3f,%.2f,%.2f\n",
+         printf("CSV,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%.1f,%d,%.1f,%.4f,%.4f,%.1f,%.3f,%.3f,%.2f,%.2f,%.4f\n",
                tests_passed, tests_failed,
                max_lat_err, avg_lat, max_hdg_err, avg_hdg,
                max_vx, avg_solve, max_solve_us,
                wall_collisions, time_above_5ms,
-             max_vel_err, avg_vel, avg_iters,
-             avg_rho, avg_rho_u, avg_adapt_updates, avg_clip_events);
+               max_vel_err, avg_vel_err, avg_iters,
+               avg_rho, avg_rho_u, avg_adapt_updates, avg_clip_events,
+               avg_speed);
     }
     return tests_failed > 0 ? 1 : 0;
 }

@@ -235,8 +235,8 @@ void LateralPlanner::processObstacleScan(
 void LateralPlanner::clearOpponent()
 {
   opponent_.detected = false;
-  if (avoidance_active_) {
-    resetAvoidance();
+  if (avoidance_active_ && !merge_back_active_) {
+    startMergeBack();
   }
 }
 
@@ -255,8 +255,17 @@ std::vector<Waypoint> LateralPlanner::computePath()
   }
 
   if (!opponent_.detected) {
-    if (avoidance_active_) {
-      resetAvoidance();
+    if (avoidance_active_ && !merge_back_active_) {
+      startMergeBack();
+    }
+
+    if (merge_back_active_) {
+      updateMergeBackPath();
+      if (mergeBackProgress() >= 1.0) {
+        resetAvoidance();
+        return extractSegment();
+      }
+      return extractSegmentFromModified();
     }
     return extractSegment();
   }
@@ -276,8 +285,19 @@ std::vector<Waypoint> LateralPlanner::computePath()
         std::max(current_speed_, 0.0) * params_.window_time_s) +
         2.0 * params_.pass_complete_margin;
       if (hasPassedOpponent() || forward_dist > horizon) {
-        resetAvoidance();
+        if (!merge_back_active_) {
+          startMergeBack();
+        }
       }
+    }
+
+    if (merge_back_active_) {
+      updateMergeBackPath();
+      if (mergeBackProgress() >= 1.0) {
+        resetAvoidance();
+        return extractSegment();
+      }
+      return extractSegmentFromModified();
     }
 
     if (avoidance_active_) {
@@ -288,6 +308,11 @@ std::vector<Waypoint> LateralPlanner::computePath()
 
   // If collision remains and the opponent is still near its committed state,
   // keep the locked path to avoid frame-to-frame jitter.
+  if (merge_back_active_) {
+    merge_back_active_ = false;
+    merge_from_raceline_.clear();
+  }
+
   if (avoidance_active_ && !hasOpponentMoved()) {
     return extractSegmentFromModified();
   }
@@ -352,6 +377,8 @@ void LateralPlanner::buildAvoidancePath()
     return;
   }
 
+  merge_back_active_ = false;
+  merge_from_raceline_.clear();
   modified_raceline_ = waypoints_;
 
   const size_t opp_idx = closestWaypoint(opponent_.x, opponent_.y);
@@ -699,11 +726,101 @@ bool LateralPlanner::isCollisionPredicted(
 void LateralPlanner::resetAvoidance()
 {
   avoidance_active_  = false;
+  merge_back_active_ = false;
   committed_side_    = 0.0;
   committed_opp_idx_ = 0;
   committed_opp_x_   = 0.0;
   committed_opp_y_   = 0.0;
+  merge_start_s_     = 0.0;
+  merge_distance_m_  = 0.0;
+  merge_from_raceline_.clear();
   modified_raceline_ = waypoints_;
+}
+
+void LateralPlanner::startMergeBack()
+{
+  if (!avoidance_active_ || waypoints_.empty() || merge_back_active_) {
+    return;
+  }
+
+  if (modified_raceline_.size() != waypoints_.size()) {
+    modified_raceline_ = waypoints_;
+    return;
+  }
+
+  merge_back_active_ = true;
+  merge_from_raceline_ = modified_raceline_;
+
+  const size_t robot_idx = closestWaypoint(robot_.x, robot_.y);
+  merge_start_s_ = waypoints_[robot_idx].s;
+
+  merge_distance_m_ = std::max(
+    params_.min_window_m,
+    std::max(current_speed_, 0.0) * params_.window_time_s) +
+    params_.pass_complete_margin;
+
+  const double total_s = waypoints_.back().s;
+  if (total_s > 0.0) {
+    merge_distance_m_ = std::clamp(merge_distance_m_, 0.5, total_s);
+  } else {
+    merge_distance_m_ = std::max(merge_distance_m_, 0.5);
+  }
+
+  RCLCPP_INFO(logger_, "Merging back to baseline raceline over %.2f m", merge_distance_m_);
+}
+
+void LateralPlanner::updateMergeBackPath()
+{
+  if (!merge_back_active_) {
+    return;
+  }
+
+  if (waypoints_.empty() || merge_from_raceline_.size() != waypoints_.size()) {
+    resetAvoidance();
+    return;
+  }
+
+  const double progress = mergeBackProgress();
+  const double blend = 0.5 * (1.0 - std::cos(M_PI * progress));
+  const double speed_factor = std::max(params_.merge_back_speed_factor, 0.0);
+
+  if (modified_raceline_.size() != waypoints_.size()) {
+    modified_raceline_.resize(waypoints_.size());
+  }
+
+  for (size_t i = 0; i < waypoints_.size(); ++i) {
+    const Waypoint & from = merge_from_raceline_[i];
+    const Waypoint & base = waypoints_[i];
+
+    Waypoint merged = from;
+    merged.x = from.x + blend * (base.x - from.x);
+    merged.y = from.y + blend * (base.y - from.y);
+
+    const double dpsi = std::atan2(
+      std::sin(base.psi - from.psi),
+      std::cos(base.psi - from.psi));
+    merged.psi = from.psi + blend * dpsi;
+
+    merged.kappa = from.kappa + blend * (base.kappa - from.kappa);
+    merged.vx = (from.vx + blend * (base.vx - from.vx)) * speed_factor;
+    merged.ax = from.ax + blend * (base.ax - from.ax);
+    merged.d_left = from.d_left + blend * (base.d_left - from.d_left);
+    merged.d_right = from.d_right + blend * (base.d_right - from.d_right);
+
+    modified_raceline_[i] = merged;
+  }
+}
+
+double LateralPlanner::mergeBackProgress() const
+{
+  if (!merge_back_active_ || waypoints_.empty() || merge_distance_m_ <= 1e-6) {
+    return 1.0;
+  }
+
+  const size_t robot_idx = closestWaypoint(robot_.x, robot_.y);
+  const double robot_s = waypoints_[robot_idx].s;
+  const double traveled = wrapForwardDistance(merge_start_s_, robot_s);
+  return std::clamp(traveled / merge_distance_m_, 0.0, 1.0);
 }
 
 bool LateralPlanner::hasPassedOpponent() const
