@@ -85,6 +85,10 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   // Slip detection thresholds
   slip_accel_enter_ = declare_parameter("slip_accel_enter", slip_accel_enter_);
   slip_accel_exit_ = declare_parameter("slip_accel_exit", slip_accel_exit_);
+  slip_min_speed_ = declare_parameter("slip_min_speed", slip_min_speed_);
+  slip_indicator_alpha_ = declare_parameter("slip_indicator_alpha", slip_indicator_alpha_);
+  slip_enter_hold_sec_ = declare_parameter("slip_enter_hold_sec", slip_enter_hold_sec_);
+  slip_exit_hold_sec_ = declare_parameter("slip_exit_hold_sec", slip_exit_hold_sec_);
 
   // IMU filter + bias parameters
   imu_angular_velocity_alpha_ =
@@ -109,6 +113,30 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
       "slip_accel_enter (%.3f) <= slip_accel_exit (%.3f). Adjusting exit threshold.",
       slip_accel_enter_, slip_accel_exit_);
     slip_accel_exit_ = 0.5 * slip_accel_enter_;
+  }
+
+  if (slip_indicator_alpha_ < 0.0 || slip_indicator_alpha_ > 1.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "slip_indicator_alpha %.3f out of [0,1]. Using 0.2.",
+      slip_indicator_alpha_);
+    slip_indicator_alpha_ = 0.2;
+  }
+
+  if (slip_enter_hold_sec_ < 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "slip_enter_hold_sec %.3f < 0. Using 0.10.",
+      slip_enter_hold_sec_);
+    slip_enter_hold_sec_ = 0.10;
+  }
+
+  if (slip_exit_hold_sec_ < 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "slip_exit_hold_sec %.3f < 0. Using 0.20.",
+      slip_exit_hold_sec_);
+    slip_exit_hold_sec_ = 0.20;
   }
 
   if (std::fabs(speed_to_erpm_gain_) < kEpsilon) {
@@ -208,30 +236,63 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   // Slip indicator compares measured and model lateral acceleration.
   const double lateral_accel_measured = last_imu_->linear_acceleration.y;
   const double lateral_accel_model = current_speed * model_yaw_rate;
-  const double slip_indicator = std::fabs(lateral_accel_measured - lateral_accel_model);
+  const double slip_indicator_raw = std::fabs(lateral_accel_measured - lateral_accel_model);
 
-  if (!slip_active_ && slip_indicator > slip_accel_enter_) {
-    slip_active_ = true;
-    RCLCPP_INFO(
-      get_logger(),
-      "Slip mode ON (indicator=%.3f, enter=%.3f).",
-      slip_indicator, slip_accel_enter_);
-  } else if (slip_active_ && slip_indicator < slip_accel_exit_) {
+  if (!slip_indicator_initialized_) {
+    filtered_slip_indicator_ = slip_indicator_raw;
+    slip_indicator_initialized_ = true;
+  } else {
+    filtered_slip_indicator_ =
+      slip_indicator_alpha_ * slip_indicator_raw +
+      (1.0 - slip_indicator_alpha_) * filtered_slip_indicator_;
+  }
+
+  if (std::fabs(current_speed) < slip_min_speed_) {
+    slip_enter_timer_ = 0.0;
+    slip_exit_timer_ = 0.0;
     slip_active_ = false;
-    RCLCPP_INFO(
-      get_logger(),
-      "Slip mode OFF (indicator=%.3f, exit=%.3f).",
-      slip_indicator, slip_accel_exit_);
+  } else if (!slip_active_) {
+    if (filtered_slip_indicator_ > slip_accel_enter_) {
+      slip_enter_timer_ += dt_sec;
+    } else {
+      slip_enter_timer_ = 0.0;
+    }
+
+    if (slip_enter_timer_ >= slip_enter_hold_sec_) {
+      slip_active_ = true;
+      slip_enter_timer_ = 0.0;
+      slip_exit_timer_ = 0.0;
+      RCLCPP_INFO(
+        get_logger(),
+        "Slip mode ON (raw=%.3f, filtered=%.3f, enter=%.3f).",
+        slip_indicator_raw, filtered_slip_indicator_, slip_accel_enter_);
+    }
+  } else {
+    if (filtered_slip_indicator_ < slip_accel_exit_) {
+      slip_exit_timer_ += dt_sec;
+    } else {
+      slip_exit_timer_ = 0.0;
+    }
+
+    if (slip_exit_timer_ >= slip_exit_hold_sec_) {
+      slip_active_ = false;
+      slip_enter_timer_ = 0.0;
+      slip_exit_timer_ = 0.0;
+      RCLCPP_INFO(
+        get_logger(),
+        "Slip mode OFF (raw=%.3f, filtered=%.3f, exit=%.3f).",
+        slip_indicator_raw, filtered_slip_indicator_, slip_accel_exit_);
+    }
   }
 
   double slip_weight = std::clamp(
-    (slip_indicator - slip_accel_exit_) / (slip_accel_enter_ - slip_accel_exit_),
+    (filtered_slip_indicator_ - slip_accel_exit_) / (slip_accel_enter_ - slip_accel_exit_),
     0.0,
     1.0);
   if (!has_servo) {
     slip_weight = 1.0;
   }
-  if (std::fabs(current_speed) < 0.3) {
+  if (std::fabs(current_speed) < slip_min_speed_) {
     slip_weight = 0.0;
   }
 

@@ -86,6 +86,16 @@ private:
   double slip_accel_enter_{1.8};
   double slip_accel_exit_{1.0};
   bool slip_active_{false};
+  double slip_min_speed_{1.2};
+
+  // Slip indicator filtering and dwell hysteresis
+  double slip_indicator_alpha_{0.2};
+  double filtered_slip_indicator_{0.0};
+  bool slip_indicator_initialized_{false};
+  double slip_enter_hold_sec_{0.10};
+  double slip_exit_hold_sec_{0.20};
+  double slip_enter_timer_{0.0};
+  double slip_exit_timer_{0.0};
 
   // IMU filtering
   double imu_angular_velocity_alpha_{0.45};

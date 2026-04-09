@@ -35,7 +35,9 @@
 	Det gav ikke mening siden den ikke kan stoppe controlleren med det samme
 
 ## Vesc system [0 / 1]
- - [ ] Lav sådan så odom har EKF fusion med erp model based og IMU
+ - [ ] Prøv at bliv bedre til at detektere drifting
+		- Prøv med bedre model
+		- Prøv at bruge EKF til IMU og model
 
 
 ## Generelt [0 / 3]
