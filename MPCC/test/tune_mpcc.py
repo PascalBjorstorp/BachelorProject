@@ -59,34 +59,34 @@ RACELINE_TAG = "my_track"
 # Base configuration — starting point for all sweeps (tuned for hardware map)
 BASE_CONFIG = {
     # Contouring tracking
-    "Q_CONTOURING":      3070.625,
-    "Q_LAG":             549.932291,
-    "Q_PROGRESS":        12.31296,
-    # State regularization (Q_VX/VX_REF fixed — pure MPCC determines speed via progress cost)
-    "Q_VX":              0.0,
-    "VX_REF":            4.08,
-    "Q_VY":              4.41,
-    "Q_OMEGA":           0.194481,
-    # Control effort (R_AX/W_AX_RATE fixed — minimal impact on MPCC behavior)
-    "R_DELTA":           13.5,
-    "R_AX":              0.013716,
+    "Q_CONTOURING":      2000.0,
+    "Q_LAG":             136.282905,
+    "Q_PROGRESS":        9.04816,
+    # State regularization
+    "Q_VX":              1.5,
+    "VX_REF":            4.034304,
+    "Q_VY":              1.5435,
+    "Q_OMEGA":           0.805,
+    # Control effort
+    "R_DELTA":           13.75,
+    "R_AX":              0.054864,
     "R_VTHETA":          1.1232,
     # Control rate
-    "W_DELTA_RATE":      0.9405,
-    "W_AX_RATE":         0.101821,
+    "W_DELTA_RATE":      0.65,
+    "W_AX_RATE":         0.610926,
     "W_VTHETA_RATE":     0.126,
     # Terminal
     "Q_CONTOURING_TERM": 493.7625,
-    "Q_LAG_TERM":        1140.0,
+    "Q_LAG_TERM":        1072.17,
     "Q_PROGRESS_TERM":   5.564503,
     # ADMM solver
-    "ADMM_RHO":          53.0,
-    "ADMM_MAX_ITER":     30,
-    "ADMM_TOL":          0.0605,
+    "ADMM_RHO":          0.9,
+    "ADMM_MAX_ITER":     100,
+    "ADMM_TOL":          0.011449,
     # Horizon
-    "HORIZON":           5,
-    "DT":                0.02205,
-    "V_THETA_MAX":       7.176,
+    "HORIZON":           7,
+    "DT":                0.02,
+    "V_THETA_MAX":       6.24,
 }
 
 # Override base for racer objective (push speed harder)
@@ -130,6 +130,10 @@ FULL_SWEEP_VALUES = {
     "ADMM_MAX_ITER":     [30, 50, 100, 150, 200, 300],
     "ADMM_TOL":          [0.001, 0.005, 0.01, 0.03, 0.05, 0.1],
     "V_THETA_MAX":       [1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0],
+    "Q_VX":              [0.0, 0.5, 1.0, 3.0, 5.0, 10.0, 20.0, 50.0],
+    "VX_REF":            [2.0, 3.0, 4.0, 5.0, 6.0, 8.0],
+    "R_AX":              [0.001, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0],
+    "W_AX_RATE":         [0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0],
 }
 
 # ==============================================================================
@@ -168,11 +172,14 @@ RANDOM_PROFILES = {
             "Q_CONTOURING":  [0.85, 0.95, 1.0, 1.1, 1.2],
             "Q_LAG":         [0.85, 0.95, 1.0, 1.1, 1.2],
             "Q_PROGRESS":    [0.9, 1.0, 1.1, 1.2, 1.4, 1.6],
+            "Q_VX":          [0.0, 0.5, 1.0, 1.5, 2.0, 3.0],
             "Q_VY":          [0.7, 0.9, 1.0, 1.15, 1.3],
             "Q_OMEGA":       [0.7, 0.9, 1.0, 1.15, 1.3],
             "R_DELTA":       [0.8, 0.9, 1.0, 1.1, 1.25],
+            "R_AX":          [0.5, 0.8, 1.0, 1.3, 2.0, 5.0],
             "R_VTHETA":      [0.8, 0.9, 1.0, 1.15, 1.3],
             "W_DELTA_RATE":  [0.8, 0.9, 1.0, 1.15, 1.3],
+            "W_AX_RATE":     [0.5, 0.8, 1.0, 1.3, 2.0, 5.0],
             "W_VTHETA_RATE": [0.7, 0.85, 1.0, 1.2, 1.4],
             "ADMM_RHO":      [0.75, 0.9, 1.0, 1.15, 1.35],
             "V_THETA_MAX":   [0.8, 0.9, 1.0, 1.15, 1.3],
@@ -190,11 +197,14 @@ RANDOM_PROFILES = {
             "Q_CONTOURING":  [0.9, 0.97, 1.0, 1.08, 1.18],
             "Q_LAG":         [0.9, 0.97, 1.0, 1.08, 1.18],
             "Q_PROGRESS":    [0.85, 0.95, 1.0, 1.1, 1.2],
+            "Q_VX":          [0.0, 0.5, 1.0, 1.3, 2.0],
             "Q_VY":          [0.8, 0.9, 1.0, 1.15, 1.3],
             "Q_OMEGA":       [0.8, 0.9, 1.0, 1.15, 1.3],
             "R_DELTA":       [0.85, 0.95, 1.0, 1.1, 1.2],
+            "R_AX":          [0.5, 0.8, 1.0, 1.3, 2.0],
             "R_VTHETA":      [0.85, 0.95, 1.0, 1.1, 1.2],
             "W_DELTA_RATE":  [0.85, 0.95, 1.0, 1.1, 1.2],
+            "W_AX_RATE":     [0.5, 0.8, 1.0, 1.3, 2.0],
             "W_VTHETA_RATE": [0.7, 0.85, 1.0, 1.2, 1.4],
             "ADMM_RHO":      [0.85, 0.95, 1.0, 1.1, 1.2],
             "V_THETA_MAX":   [0.85, 0.95, 1.0, 1.1, 1.2],
@@ -212,11 +222,14 @@ RANDOM_PROFILES = {
             "Q_CONTOURING":  [0.96, 0.99, 1.0, 1.03, 1.07],
             "Q_LAG":         [0.96, 0.99, 1.0, 1.03, 1.07],
             "Q_PROGRESS":    [0.97, 1.0, 1.03, 1.06, 1.1],
+            "Q_VX":          [0.0, 0.7, 1.0, 1.2, 1.5],
             "Q_VY":          [0.92, 0.98, 1.0, 1.05, 1.1],
             "Q_OMEGA":       [0.92, 0.98, 1.0, 1.05, 1.1],
             "R_DELTA":       [0.94, 0.99, 1.0, 1.04, 1.08],
+            "R_AX":          [0.7, 0.9, 1.0, 1.2, 1.5],
             "R_VTHETA":      [0.94, 0.99, 1.0, 1.04, 1.08],
             "W_DELTA_RATE":  [0.92, 0.98, 1.0, 1.05, 1.1],
+            "W_AX_RATE":     [0.7, 0.9, 1.0, 1.2, 1.5],
             "W_VTHETA_RATE": [0.9, 0.97, 1.0, 1.05, 1.1],
             "ADMM_RHO":      [0.9, 0.97, 1.0, 1.06, 1.12],
             "V_THETA_MAX":   [0.94, 0.99, 1.0, 1.04, 1.08],
@@ -234,11 +247,14 @@ RANDOM_PROFILES = {
             "Q_CONTOURING":  [0.96, 0.99, 1.0, 1.02, 1.05],
             "Q_LAG":         [0.96, 0.99, 1.0, 1.02, 1.05],
             "Q_PROGRESS":    [0.95, 0.98, 1.0, 1.03, 1.06],
+            "Q_VX":          [0.0, 0.8, 1.0, 1.15, 1.3],
             "Q_VY":          [0.9, 0.97, 1.0, 1.05, 1.1],
             "Q_OMEGA":       [0.9, 0.97, 1.0, 1.05, 1.1],
             "R_DELTA":       [0.92, 0.98, 1.0, 1.05, 1.1],
+            "R_AX":          [0.8, 0.95, 1.0, 1.1, 1.3],
             "R_VTHETA":      [0.92, 0.98, 1.0, 1.05, 1.1],
             "W_DELTA_RATE":  [0.92, 0.98, 1.0, 1.05, 1.1],
+            "W_AX_RATE":     [0.8, 0.95, 1.0, 1.1, 1.3],
             "W_VTHETA_RATE": [0.9, 0.97, 1.0, 1.05, 1.1],
             "ADMM_RHO":      [0.92, 0.98, 1.0, 1.05, 1.1],
             "V_THETA_MAX":   [0.92, 0.98, 1.0, 1.05, 1.1],
@@ -558,7 +574,17 @@ def gen_fine_tuning(best_weights: dict) -> list:
 
     # Single parameter perturbations
     for name, base_val in best_weights.items():
-        if base_val == 0 or name in skip:
+        if name in skip:
+            continue
+        if base_val == 0:
+            # Zero-valued: try values from FULL_SWEEP_VALUES
+            if name in FULL_SWEEP_VALUES:
+                for sv in FULL_SWEEP_VALUES[name]:
+                    if sv == 0:
+                        continue
+                    w = dict(best_weights)
+                    w[name] = sv
+                    combos.append((f"FT:{name}={sv}", w))
             continue
         for mult in pct_range:
             new_val = round(base_val * mult, 6)
@@ -572,8 +598,8 @@ def gen_fine_tuning(best_weights: dict) -> list:
             combos.append((f"FT:{name}{sign}{pct}%", w))
 
     # Pairwise perturbations of key params
-    key_params = ["Q_CONTOURING", "Q_LAG", "Q_PROGRESS", "R_DELTA",
-                  "V_THETA_MAX", "ADMM_RHO", "W_DELTA_RATE", "DT"]
+    key_params = ["Q_CONTOURING", "Q_LAG", "Q_PROGRESS", "Q_VX", "R_DELTA",
+                  "R_AX", "V_THETA_MAX", "ADMM_RHO", "W_DELTA_RATE", "DT"]
     for w1, w2 in itertools.combinations(key_params, 2):
         v1 = best_weights.get(w1, 0)
         v2 = best_weights.get(w2, 0)
@@ -611,7 +637,7 @@ def gen_random_neighbors(best_weights: dict, n: int, objective: str,
     min_perturb, max_perturb = profile.get("num_perturb_range", (3, 6))
 
     tune_params = [k for k in best_weights.keys()
-                   if k not in ("ADMM_MAX_ITER",) and best_weights[k] != 0]
+                   if k not in ("ADMM_MAX_ITER",)]
 
     i = 0
     attempts = 0
@@ -627,6 +653,9 @@ def gen_random_neighbors(best_weights: dict, n: int, objective: str,
         for name in params_to_perturb:
             if name in discrete:
                 w[name] = rng.choice(discrete[name])
+            elif w[name] == 0 and name in FULL_SWEEP_VALUES:
+                # Zero-valued params: sample from sweep values instead of multiplying
+                w[name] = rng.choice(FULL_SWEEP_VALUES[name])
             else:
                 mult = rng.choice(param_multipliers.get(name,
                                                         default_multipliers))

@@ -272,44 +272,44 @@ int main(void)
     MPCCConfiguration_t cfg;
     memset(&cfg, 0, sizeof(cfg));
 
-    /* Horizon (longer for better corner anticipation) */
-    cfg.horizon_steps     = env_int("HORIZON", 15);
-    cfg.dt                = env_double("DT", 0.05f);
+    /* Horizon (tuned via sweep) */
+    cfg.horizon_steps     = env_int("HORIZON", 7);
+    cfg.dt                = env_double("DT", 0.02f);
 
     /* Contouring tracking */
-    cfg.weight_contouring = env_double("Q_CONTOURING", 50.0f);
-    cfg.weight_lag        = env_double("Q_LAG", 100.0f);
-    cfg.weight_progress   = env_double("Q_PROGRESS", 1.0f);
+    cfg.weight_contouring = env_double("Q_CONTOURING", 2000.0f);
+    cfg.weight_lag        = env_double("Q_LAG", 136.282905f);
+    cfg.weight_progress   = env_double("Q_PROGRESS", 9.04816f);
 
     /* State regularization */
-    cfg.weight_vx         = env_double("Q_VX", 2.0f);  /* Moderate velocity tracking */
-    cfg.vx_ref            = env_double("VX_REF", 12.0f);
-    cfg.weight_vy         = env_double("Q_VY", 10.0f);
-    cfg.weight_omega      = env_double("Q_OMEGA", 0.1f);
+    cfg.weight_vx         = env_double("Q_VX", 1.5f);
+    cfg.vx_ref            = env_double("VX_REF", 4.034304f);
+    cfg.weight_vy         = env_double("Q_VY", 1.5435f);
+    cfg.weight_omega      = env_double("Q_OMEGA", 0.805f);
 
-    /* Control effort (increased for smoother control) */
-    cfg.weight_delta      = env_double("R_DELTA", 1.0f);
-    cfg.weight_ax         = env_double("R_AX", 0.01f);
-    cfg.weight_v_theta    = env_double("R_VTHETA", 0.5f);
+    /* Control effort */
+    cfg.weight_delta      = env_double("R_DELTA", 13.75f);
+    cfg.weight_ax         = env_double("R_AX", 0.054864f);
+    cfg.weight_v_theta    = env_double("R_VTHETA", 1.1232f);
 
-    /* Control rate (high rate penalty to eliminate oscillation) */
-    cfg.weight_delta_rate   = env_double("W_DELTA_RATE", 10.0f);
-    cfg.weight_ax_rate      = env_double("W_AX_RATE", 0.1f);
-    cfg.weight_v_theta_rate = env_double("W_VTHETA_RATE", 0.1f);
+    /* Control rate */
+    cfg.weight_delta_rate   = env_double("W_DELTA_RATE", 0.65f);
+    cfg.weight_ax_rate      = env_double("W_AX_RATE", 0.610926f);
+    cfg.weight_v_theta_rate = env_double("W_VTHETA_RATE", 0.126f);
 
     /* Terminal */
-    cfg.weight_contouring_terminal = env_double("Q_CONTOURING_TERM", 100.0f);
-    cfg.weight_lag_terminal     = env_double("Q_LAG_TERM", 200.0f);
-    cfg.weight_progress_terminal = env_double("Q_PROGRESS_TERM", 5.0f);
+    cfg.weight_contouring_terminal = env_double("Q_CONTOURING_TERM", 493.7625f);
+    cfg.weight_lag_terminal     = env_double("Q_LAG_TERM", 1072.17f);
+    cfg.weight_progress_terminal = env_double("Q_PROGRESS_TERM", 5.564503f);
 
     /* Obstacle */
     cfg.weight_obstacle   = env_double("W_OBSTACLE", 1000.0f);
     cfg.obstacle_margin   = env_double("OBSTACLE_MARGIN", 0.1f);
 
     /* ADMM solver (tuned via sweep) */
-    cfg.admm_rho            = env_double("ADMM_RHO", 1.218171f);
-    cfg.admm_max_iterations = env_int("ADMM_MAX_ITER", 200);
-    cfg.admm_tolerance      = env_double("ADMM_TOL", 0.05f);
+    cfg.admm_rho            = env_double("ADMM_RHO", 0.9f);
+    cfg.admm_max_iterations = env_int("ADMM_MAX_ITER", 100);
+    cfg.admm_tolerance      = env_double("ADMM_TOL", 0.011449f);
 
     /* Constraint bounds */
     cfg.delta_max = env_double("DELTA_MAX", 0.4189f);
@@ -317,7 +317,7 @@ int main(void)
     cfg.ax_min    = env_double("AX_MIN", -10.0f);
     cfg.vx_max    = env_double("VX_MAX", 20.0f);
     cfg.vx_min    = env_double("VX_MIN", 0.0f);
-    cfg.v_theta_max = env_double("V_THETA_MAX", 2.0f);
+    cfg.v_theta_max = env_double("V_THETA_MAX", 6.24f);
     cfg.v_theta_min = env_double("V_THETA_MIN", 0.0f);
 
     /* Tire parameters */

@@ -736,6 +736,10 @@ static void build_qp_problem(
     qp->u_lower[MPCC_IDX_VTHETA] = config.v_theta_min;
     qp->u_upper[MPCC_IDX_VTHETA] = config.v_theta_max;
 
+    /* Friction circle: (mu * g)^2 for combined acceleration constraint */
+    float mu_g = config.mu * F110_GRAVITY_ACCELERATION_MS2;
+    qp->mu_g_sq = mu_g * mu_g;
+
     /* --- Build stages --- */
     /* TODO: Use warm-start trajectory as operating points.
      * For now, use the initial state propagated forward. */
@@ -835,6 +839,28 @@ static void build_qp_problem(
         /* Per-stage track bounds on n */
         qp->track_left[k] = path_pt.left_bound;
         qp->track_right[k] = path_pt.right_bound;
+
+        /* Per-stage friction circle: tighten a_x bound based on
+         * lateral acceleration at operating point.
+         * a_y = vx * omega,  |a_x| <= sqrt((mu*g)^2 - a_y^2) */
+        if (qp->mu_g_sq > 0.0f)
+        {
+            float vx_op = z_bar.vx;
+            float omega_op = z_bar.omega;
+            float a_y = vx_op * omega_op;
+            float a_y_sq = a_y * a_y;
+            float ax_box = config.ax_max;
+            if (a_y_sq < qp->mu_g_sq) {
+                float ax_fc = sqrtf(qp->mu_g_sq - a_y_sq);
+                qp->ax_lim_stage[k] = ax_fc < ax_box ? ax_fc : ax_box;
+            } else {
+                qp->ax_lim_stage[k] = 0.0f;
+            }
+        }
+        else
+        {
+            qp->ax_lim_stage[k] = config.ax_max;
+        }
 
         /* TODO: If obstacles are active, linearize ellipsoidal constraints
          * and add as softened penalty to the stage cost.
