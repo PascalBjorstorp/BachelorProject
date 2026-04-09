@@ -71,6 +71,18 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   steering_correction_c0_ = declare_parameter("steering_correction_c0", steering_correction_c0_);
   wheelbase_ = declare_parameter("wheelbase", wheelbase_);
 
+  // Dynamic bicycle model parameters
+  use_dynamic_bicycle_model_ =
+    declare_parameter("use_dynamic_bicycle_model", use_dynamic_bicycle_model_);
+  vehicle_mass_ = declare_parameter("vehicle_mass", vehicle_mass_);
+  vehicle_Iz_ = declare_parameter("vehicle_Iz", vehicle_Iz_);
+  l_f_ = declare_parameter("l_f", l_f_);
+  l_r_ = declare_parameter("l_r", l_r_);
+  c_alpha_f_ = declare_parameter("c_alpha_f", c_alpha_f_);
+  c_alpha_r_ = declare_parameter("c_alpha_r", c_alpha_r_);
+  dynamic_model_min_speed_ =
+    declare_parameter("dynamic_model_min_speed", dynamic_model_min_speed_);
+
   // Base covariance parameters
   odom_x_covariance_ = declare_parameter("odom_x_covariance", odom_x_covariance_);
   odom_y_covariance_ = declare_parameter("odom_y_covariance", odom_y_covariance_);
@@ -87,6 +99,11 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   slip_accel_exit_ = declare_parameter("slip_accel_exit", slip_accel_exit_);
   slip_min_speed_ = declare_parameter("slip_min_speed", slip_min_speed_);
   slip_indicator_alpha_ = declare_parameter("slip_indicator_alpha", slip_indicator_alpha_);
+  slip_use_lateral_accel_ =
+    declare_parameter("slip_use_lateral_accel", slip_use_lateral_accel_);
+  slip_accel_clip_ = declare_parameter("slip_accel_clip", slip_accel_clip_);
+  slip_yaw_rate_weight_ =
+    declare_parameter("slip_yaw_rate_weight", slip_yaw_rate_weight_);
   slip_enter_hold_sec_ = declare_parameter("slip_enter_hold_sec", slip_enter_hold_sec_);
   slip_exit_hold_sec_ = declare_parameter("slip_exit_hold_sec", slip_exit_hold_sec_);
 
@@ -123,6 +140,22 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
     slip_indicator_alpha_ = 0.2;
   }
 
+  if (slip_accel_clip_ <= 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "slip_accel_clip %.3f <= 0. Using 6.0.",
+      slip_accel_clip_);
+    slip_accel_clip_ = 6.0;
+  }
+
+  if (slip_yaw_rate_weight_ <= 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "slip_yaw_rate_weight %.3f <= 0. Using 3.0.",
+      slip_yaw_rate_weight_);
+    slip_yaw_rate_weight_ = 3.0;
+  }
+
   if (slip_enter_hold_sec_ < 0.0) {
     RCLCPP_WARN(
       get_logger(),
@@ -144,6 +177,16 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
       get_logger(),
       "speed_to_erpm_gain is %.6f. Odometry cannot convert ERPM to speed until this is set.",
       speed_to_erpm_gain_);
+  }
+
+  if (use_dynamic_bicycle_model_ &&
+    (vehicle_mass_ <= 0.0 || vehicle_Iz_ <= 0.0 || l_f_ <= 0.0 || l_r_ <= 0.0 ||
+    c_alpha_f_ <= 0.0 || c_alpha_r_ <= 0.0))
+  {
+    RCLCPP_WARN(
+      get_logger(),
+      "Dynamic bicycle model parameters invalid. Falling back to kinematic yaw model.");
+    use_dynamic_bicycle_model_ = false;
   }
 
   odom_pub_ = create_publisher<Odometry>("ego_racecar/odom", 10);
@@ -230,13 +273,39 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     model_yaw_rate = current_speed * std::tan(steering_angle) / wheelbase_;
   }
 
+  double model_lateral_velocity = imu_lateral_velocity_;
+  if (use_dynamic_bicycle_model_ && has_servo && std::fabs(current_speed) > dynamic_model_min_speed_) {
+    const double safe_vx =
+      std::copysign(std::max(std::fabs(current_speed), dynamic_model_min_speed_), current_speed);
+    const double alpha_f = steering_angle - (model_lateral_velocity + l_f_ * yaw_rate_state_) / safe_vx;
+    const double alpha_r = -(model_lateral_velocity - l_r_ * yaw_rate_state_) / safe_vx;
+
+    const double f_yf = c_alpha_f_ * alpha_f;
+    const double f_yr = c_alpha_r_ * alpha_r;
+
+    const double v_y_dot = (f_yf + f_yr) / vehicle_mass_ - safe_vx * yaw_rate_state_;
+    const double yaw_dot = (l_f_ * f_yf - l_r_ * f_yr) / vehicle_Iz_;
+
+    model_lateral_velocity += v_y_dot * dt_sec;
+    model_yaw_rate = yaw_rate_state_ + yaw_dot * dt_sec;
+  }
+
   // IMU yaw rate with online bias correction.
   const double imu_yaw_rate_raw = filtered_angular_velocity_;
 
-  // Slip indicator compares measured and model lateral acceleration.
+  // Slip indicator: yaw-rate residual (primary), optional clipped accel residual.
   const double lateral_accel_measured = last_imu_->linear_acceleration.y;
   const double lateral_accel_model = current_speed * model_yaw_rate;
-  const double slip_indicator_raw = std::fabs(lateral_accel_measured - lateral_accel_model);
+  const double lateral_accel_residual_abs =
+    std::fabs(lateral_accel_measured - lateral_accel_model);
+  const double yaw_rate_residual_abs =
+    std::fabs((imu_yaw_rate_raw - gyro_bias_) - model_yaw_rate);
+  const double yaw_indicator = slip_yaw_rate_weight_ * yaw_rate_residual_abs;
+
+  double slip_indicator_raw = yaw_indicator;
+  if (slip_use_lateral_accel_) {
+    slip_indicator_raw = std::max(yaw_indicator, std::min(lateral_accel_residual_abs, slip_accel_clip_));
+  }
 
   if (!slip_indicator_initialized_) {
     filtered_slip_indicator_ = slip_indicator_raw;
@@ -316,14 +385,23 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
       (1.0 - imu_lateral_accel_alpha_) * filtered_lateral_accel_;
   }
 
-  imu_lateral_velocity_ += filtered_lateral_accel_ * dt_sec;
+  double imu_lateral_velocity_estimate = imu_lateral_velocity_;
+  imu_lateral_velocity_estimate += filtered_lateral_accel_ * dt_sec;
   const double decay = std::max(0.0, 1.0 - imu_lateral_velocity_decay_ * dt_sec);
-  imu_lateral_velocity_ *= decay;
+  imu_lateral_velocity_estimate *= decay;
   if (std::fabs(current_speed) < 0.2) {
-    imu_lateral_velocity_ = 0.0;
+    imu_lateral_velocity_estimate = 0.0;
   }
-  imu_lateral_velocity_ = std::clamp(
-    imu_lateral_velocity_, -imu_lateral_velocity_max_, imu_lateral_velocity_max_);
+  imu_lateral_velocity_estimate = std::clamp(
+    imu_lateral_velocity_estimate, -imu_lateral_velocity_max_, imu_lateral_velocity_max_);
+
+  // Use dynamic bicycle lateral state in low-slip and IMU estimate in high-slip.
+  if (use_dynamic_bicycle_model_ && has_servo && std::fabs(current_speed) > dynamic_model_min_speed_) {
+    imu_lateral_velocity_ =
+      (1.0 - slip_weight) * model_lateral_velocity + slip_weight * imu_lateral_velocity_estimate;
+  } else {
+    imu_lateral_velocity_ = imu_lateral_velocity_estimate;
+  }
 
   // Blend kinematic and IMU slip-angle estimates.
   double beta_kinematic = 0.0;
@@ -337,6 +415,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
 
   // Integrate pose in the velocity direction (yaw + beta).
   yaw_ = normalizeAngle(yaw_ + current_yaw_rate * dt_sec);
+  yaw_rate_state_ = current_yaw_rate;
   const double heading = yaw_ + beta;
   x_ += current_speed * std::cos(heading) * dt_sec;
   y_ += current_speed * std::sin(heading) * dt_sec;
