@@ -80,9 +80,27 @@ private:
   VescStateStamped::SharedPtr last_state_;  ///< Last received state message
   sensor_msgs::msg::Imu::SharedPtr last_imu_;  ///< Last received IMU message
 
-  // IMU initialization
-  double initial_imu_yaw_;  ///< Initial IMU yaw for offset calibration
-  bool imu_initialized_;    ///< Flag to check if IMU has been initialized
+  // IMU yaw alignment (yaw = imu_yaw + imu_yaw_offset_)
+  double imu_yaw_offset_;  ///< Offset to keep IMU yaw aligned with odom yaw state
+  bool imu_initialized_;   ///< Flag to check if IMU has been initialized
+
+  // Adaptive IMU takeover (for lateral slip/glide handling)
+  bool adaptive_imu_takeover_;         ///< If true, switch to IMU yaw only during detected slip
+  double slip_lateral_accel_threshold_;  ///< |a_y| threshold (m/s^2) for slip detection
+  double slip_hysteresis_factor_;      ///< Exit threshold scale in (0, 1)
+  bool imu_takeover_active_;           ///< Current adaptive takeover state
+  std::string takeover_reason_;        ///< Reason label for current/last takeover state
+  bool using_imu_last_step_;           ///< Whether previous callback used IMU yaw path
+
+  // Optional IMU lateral-velocity correction during slip takeover
+  bool use_imu_lateral_velocity_;    ///< If true, estimate body-frame v_y from IMU during slip
+  double imu_lateral_accel_alpha_;   ///< Low-pass alpha for IMU lateral acceleration
+  double imu_lateral_velocity_decay_;  ///< Exponential decay rate for v_y estimate (1/s)
+  double imu_lateral_velocity_max_;  ///< Saturation limit for estimated body-frame v_y (m/s)
+
+  double filtered_lateral_accel_;      ///< Filtered IMU lateral acceleration (m/s^2)
+  bool lateral_accel_filter_initialized_;  ///< Filter init flag
+  double imu_lateral_velocity_;        ///< Estimated body-frame lateral velocity (m/s)
 
   // Low-pass filter for IMU angular velocity
   double imu_angular_velocity_alpha_;  ///< Low-pass filter coefficient (0-1)

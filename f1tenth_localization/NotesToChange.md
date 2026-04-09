@@ -34,12 +34,18 @@
 - [SCRAPPED] Lav en launch fil der kører alt og at man  kan vælge imellem controllere
 	Det gav ikke mening siden den ikke kan stoppe controlleren med det samme
 
+## Vesc system [0 / 1]
+ - [ ] Lav sådan så odom har EKF fusion med erp model based og IMU
+
+
 ## Generelt [0 / 3]
 - [ ] Tilføj briefs over alt og fix de stedder den både er i cpp og hpp
 
 - [ ] Kig på call back groups i forhold til bedre perfomance / mere sikkert ved multi threading
 
 - [ ] Sæt publishers og subscribers ind i en yaml så de er ens overalt
+
+- [ ] Kig på om jetson kan være permanent høj clock frekvens
 
 
 ## Rapport [0 / 2]
