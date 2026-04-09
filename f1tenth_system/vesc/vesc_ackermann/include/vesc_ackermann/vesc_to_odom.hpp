@@ -56,50 +56,39 @@ public:
 
 private:
   // ROS parameters
-  std::string odom_frame_;
-  std::string base_frame_;
-  /** State message does not report servo position, so use the command instead */
-  bool use_servo_cmd_;
-  bool use_imu_;
+  std::string odom_frame_{"ego_racecar/odom"};
+  std::string base_frame_{"base_link"};
   // conversion gain and offset
-  double speed_to_erpm_gain_, speed_to_erpm_offset_;
-  double steering_to_servo_gain_, steering_to_servo_offset_;
-  double steering_correction_c2_, steering_correction_c1_, steering_correction_c0_;
-  double wheelbase_;
-  bool publish_tf_;
-  std::string integration_method_;  ///< Integration method: "euler", "trapezoidal", "analytical"
+  double speed_to_erpm_gain_{0.0}, speed_to_erpm_offset_{0.0};
 
   // Odometry covariance parameters
-  double odom_x_covariance_;    ///< x position covariance
-  double odom_y_covariance_;    ///< y position covariance
-  double odom_yaw_covariance_;  ///< yaw covariance
+  double odom_x_covariance_{0.2};    ///< x position covariance
+  double odom_y_covariance_{0.2};    ///< y position covariance
+  double odom_yaw_covariance_{0.4};  ///< yaw covariance
 
   // odometry state
-  double x_, y_, yaw_;
-  Float64::SharedPtr last_servo_cmd_;  ///< Last servo position commanded value
+  double x_{0.0}, y_{0.0}, yaw_{0.0};
   VescStateStamped::SharedPtr last_state_;  ///< Last received state message
   sensor_msgs::msg::Imu::SharedPtr last_imu_;  ///< Last received IMU message
 
   // IMU initialization
-  double initial_imu_yaw_;  ///< Initial IMU yaw for offset calibration
-  bool imu_initialized_;    ///< Flag to check if IMU has been initialized
+  double initial_imu_yaw_{0.0};  ///< Initial IMU yaw for offset calibration
+  bool imu_initialized_{false};    ///< Flag to check if IMU has been initialized
 
   // Low-pass filter for IMU angular velocity
-  double imu_angular_velocity_alpha_;  ///< Low-pass filter coefficient (0-1)
-  double filtered_angular_velocity_;   ///< Filtered angular velocity value
-  bool angular_velocity_filter_initialized_;  ///< Flag to check if filter has been initialized
+  double imu_angular_velocity_alpha_{0.3};  ///< Low-pass filter coefficient (0-1)
+  double filtered_angular_velocity_{0.0};   ///< Filtered angular velocity value
+  bool angular_velocity_filter_initialized_{false};  ///< Flag to check if filter has been initialized
 
   // ROS services
   rclcpp::Publisher<Odometry>::SharedPtr odom_pub_;
   rclcpp::Publisher<Float64>::SharedPtr filtered_angular_velocity_pub_;
   rclcpp::Subscription<VescStateStamped>::SharedPtr vesc_state_sub_;
-  rclcpp::Subscription<Float64>::SharedPtr servo_sub_;
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
   std::unique_ptr<tf2_ros::TransformBroadcaster> tf_pub_;
 
   // ROS callbacks
   void vescStateCallback(const VescStateStamped::SharedPtr state);
-  void servoCmdCallback(const Float64::SharedPtr servo);
   void imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu);
 };
 

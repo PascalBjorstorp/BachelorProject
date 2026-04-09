@@ -69,42 +69,16 @@ vesc_to_odom_node:
     odom_frame: ego_racecar/odom
     base_frame: ego_racecar/base_link
     
-    # Publish ego_racecar/odom -> ego_racecar/base_link TF
-    publish_tf: true
-    
-    # Use IMU for yaw estimation (recommended)
-    use_imu: true
-    
-    # Use servo command instead of actual steering feedback
-    use_servo_cmd_to_calc_angular_velocity: false
-    
-    # Car wheelbase (meters) - measure your car!
-    wheelbase: 0.324
-    
-    # Integration method for odometry:
-    # "euler": Simple first-order (fastest, least accurate)
-    # "trapezoidal": Second-order, good for varying speed
-    # "analytical": Exact for constant velocity circular arc
-    integration_method: "analytical"
-    
     # IMU angular velocity low-pass filter coefficient (0.0 to 1.0)
     # Lower = more filtering (smoother but slower)
     # Higher = less filtering (faster but noisier)
-    imu_angular_velocity_alpha: 0.3
+    imu_angular_velocity_alpha: 0.45
     
-    # Odometry covariances (tune for EKF fusion)
-    pose_covariance: [0.001, 0.0, 0.0, 0.0, 0.0, 0.0,
-                      0.0, 0.001, 0.0, 0.0, 0.0, 0.0,
-                      0.0, 0.0, 1000000.0, 0.0, 0.0, 0.0,
-                      0.0, 0.0, 0.0, 1000000.0, 0.0, 0.0,
-                      0.0, 0.0, 0.0, 0.0, 1000000.0, 0.0,
-                      0.0, 0.0, 0.0, 0.0, 0.0, 0.03]
-    twist_covariance: [0.001, 0.0, 0.0, 0.0, 0.0, 0.0,
-                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                       0.0, 0.0, 0.0, 0.0, 0.0, 0.03]
+    # Odometry covariance scalars used by vesc_to_odom
+    # Units: x/y in m^2, yaw in rad^2
+    odom_x_covariance: 0.2
+    odom_y_covariance: 0.2
+    odom_yaw_covariance: 0.4
 
 # ===================
 # Ackermann to VESC Config
