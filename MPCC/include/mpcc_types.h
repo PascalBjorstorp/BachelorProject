@@ -547,12 +547,12 @@ typedef struct
  *===========================================================================*/
 
 /*--- Horizon (tuned via iterative sweep, Hardware mode) ---*/
-#define MPCC_DEFAULT_HORIZON          7                             /** Horizon look ahead. */
-#define MPCC_DEFAULT_DT               (0.035f)                      /** Time step between prediction stages [s]. */
+#define MPCC_DEFAULT_HORIZON          12                            /** Horizon look ahead. */
+#define MPCC_DEFAULT_DT               (0.06f)                       /** Time step between prediction stages [s]. */
 
 /*--- Contouring tracking weights ---*/
-#define MPCC_DEFAULT_WEIGHT_CONTOURING (1000.0f)                    /** Contouring error penalty. */
-#define MPCC_DEFAULT_WEIGHT_LAG       (700.0f)                      /** Lag error penalty. */   
+#define MPCC_DEFAULT_WEIGHT_CONTOURING (200.0f)                     /** Contouring error penalty. */
+#define MPCC_DEFAULT_WEIGHT_LAG       (1000.0f)                     /** Lag error penalty. */   
 #define MPCC_DEFAULT_WEIGHT_PROGRESS  (5.0f)                        /** Progress reward. */
 
 /*--- State regularization ---*/

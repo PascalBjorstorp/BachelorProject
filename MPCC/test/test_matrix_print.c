@@ -15,7 +15,6 @@
 #include <string.h>
 #include <math.h>
 
-#include "fp_math.h"
 #include "mpcc_types.h"
 #include "qp_solver_mpcc.h"
 #include "mpcc.h"

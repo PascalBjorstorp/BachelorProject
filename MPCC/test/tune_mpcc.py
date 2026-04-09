@@ -59,8 +59,8 @@ RACELINE_TAG = "my_track"
 # Base configuration — starting point for all sweeps (tuned for hardware map)
 BASE_CONFIG = {
     # Contouring tracking
-    "Q_CONTOURING":      1000.0,
-    "Q_LAG":             700.0,
+    "Q_CONTOURING":      200.0,
+    "Q_LAG":             1000.0,
     "Q_PROGRESS":        5.0,
     # State regularization (Q_VX/VX_REF fixed — pure MPCC determines speed via progress cost)
     "Q_VX":              0.0,
@@ -84,8 +84,8 @@ BASE_CONFIG = {
     "ADMM_MAX_ITER":     50,
     "ADMM_TOL":          0.05,
     # Horizon
-    "HORIZON":           7,
-    "DT":                0.035,
+    "HORIZON":           12,
+    "DT":                0.06,
     "V_THETA_MAX":       8.0,
 }
 
@@ -595,7 +595,7 @@ def gen_fine_tuning(best_weights: dict) -> list:
 
 
 def gen_random_neighbors(best_weights: dict, n: int, objective: str,
-                         profile_override: str = None,
+                         profile_override: str | None = None,
                          seed_offset: int = 0) -> list:
     """Generate random perturbations around best config."""
     combos = []

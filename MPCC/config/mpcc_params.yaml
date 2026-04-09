@@ -13,8 +13,8 @@ mpcc_node:
   ros__parameters:
 
     # --- Prediction Horizon (tuned via iterative sweep, Hardware) ---
-    horizon_steps: 7
-    dt: 0.035             # [seconds] time step between prediction stages
+    horizon_steps: 12
+    dt: 0.06              # [seconds] time step between prediction stages
 
     # --- Frenet Tracking Weights ---
     # weight_n: penalizes lateral deviation (n^2) from path (Frenet approx, optional)
@@ -22,8 +22,8 @@ mpcc_node:
     # weight_lag: penalizes real lag error e_l^2 (Cartesian-based)
     # weight_alpha: penalizes heading error (alpha^2) from path tangent
     # weight_progress: reward for forward progress (-q_s * v_theta)
-    weight_contouring: 1000.0  # real contouring error (perpendicular to path at s)
-    weight_lag: 500.0          # real lag error (tangential distance at s)
+    weight_contouring: 200.0   # real contouring error (perpendicular to path at s)
+    weight_lag: 1000.0         # real lag error (tangential distance at s)
     weight_progress: 5.0
 
     # --- State Regularization (tuned via iterative sweep) ---

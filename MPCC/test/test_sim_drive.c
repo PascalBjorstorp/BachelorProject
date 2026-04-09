@@ -20,6 +20,7 @@
 #define _USE_MATH_DEFINES
 #include <stdio.h>
 #include <stdlib.h>
+
 #include <string.h>
 #include <math.h>
 #include <time.h>
@@ -368,6 +369,7 @@ int main(void)
     double max_hdg_err = 0, sum_hdg_err = 0;
     double max_vel_err = 0, sum_vel_err = 0;
     int wall_collisions = 0;
+    int prev_wall_hit = 0;  /* edge detection: only count entering a wall */
     int numerical_failures = 0;
     int solver_ok = 0, solver_calls = 0;
     double prev_steer = 0;
@@ -433,16 +435,22 @@ int main(void)
         double e_y = -dx * sin(path_psi) + dy * cos(path_psi);
         double e_psi = wrap_angle(psi - path_psi);
 
-        /* Wall collision check (body-edge) */
+        /* Wall collision check (body-edge) — abort on first hit */
         double left_wall  = raceline[closest].left_bound;
         double right_wall = raceline[closest].right_bound;
         int wall_hit = 0;
-        if (e_y > (left_wall - VEHICLE_HALF_WIDTH - body_safety_margin))   { wall_hit = 1;  wall_collisions++; }
-        if (e_y < -(right_wall - VEHICLE_HALF_WIDTH - body_safety_margin)) { wall_hit = -1; wall_collisions++; }
-        if (wall_hit && vx > 1.0 && verbose) {
-            printf("\n  !!! WALL MARGIN EXCEEDED: e_y=%.3f (bound:%.3f) step=%d t=%.2f wp=%d v=%.1f !!!\n",
-                   e_y, wall_hit > 0 ? left_wall : right_wall, step, t, closest, vx);
+        if (e_y > (left_wall - VEHICLE_HALF_WIDTH - body_safety_margin))   { wall_hit = 1; }
+        if (e_y < -(right_wall - VEHICLE_HALF_WIDTH - body_safety_margin)) { wall_hit = -1; }
+        if (wall_hit && !prev_wall_hit) {
+            wall_collisions++;
+            if (verbose) {
+                printf("\n  !!! WALL COLLISION: e_y=%.3f (bound:%.3f) step=%d t=%.2f wp=%d v=%.1f — aborting !!!\n",
+                       e_y, wall_hit > 0 ? left_wall : right_wall, step, t, closest, vx);
+            }
+            stepped = step;
+            break;  /* single hit = failure, stop sim */
         }
+        prev_wall_hit = wall_hit;
 
         /* Call MPCC at configured rate */
         double steer = cmd_steer;

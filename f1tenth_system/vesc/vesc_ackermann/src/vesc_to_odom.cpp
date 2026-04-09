@@ -108,6 +108,57 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   // Use filtered IMU yaw rate (angular velocity around z-axis)
   const double current_angular_velocity = filtered_angular_velocity_;
 
+  const double imu_angular_velocity = filtered_angular_velocity_;
+  const bool can_use_model = use_servo_cmd_ && static_cast<bool>(last_servo_cmd_);
+  const bool can_use_imu = use_imu_ && static_cast<bool>(last_imu_);
+
+  bool use_imu_this_step = false;
+  if (can_use_imu && !can_use_model) {
+    use_imu_this_step = true;
+  } else if (can_use_imu && can_use_model) {
+    if (adaptive_imu_takeover_) {
+      const double abs_lateral_accel = std::fabs(last_imu_->linear_acceleration.y);
+
+      const bool enter_takeover =
+        abs_lateral_accel > slip_lateral_accel_threshold_;
+
+      const bool exit_takeover =
+        abs_lateral_accel < (slip_lateral_accel_threshold_ * slip_hysteresis_factor_);
+
+      const bool previous_takeover_state = imu_takeover_active_;
+      if (!imu_takeover_active_ && enter_takeover) {
+        imu_takeover_active_ = true;
+      } else if (imu_takeover_active_ && exit_takeover) {
+        imu_takeover_active_ = false;
+      }
+
+      if (imu_takeover_active_ != previous_takeover_state) {
+        if (imu_takeover_active_) {
+          takeover_reason_ = "lateral slip";
+          RCLCPP_INFO(get_logger(),
+            "Adaptive IMU takeover ON due to %s (|a_y|=%.2f, threshold=%.2f)",
+            takeover_reason_.c_str(),
+            abs_lateral_accel,
+            slip_lateral_accel_threshold_);
+        } else {
+          RCLCPP_INFO(get_logger(),
+            "Adaptive IMU takeover OFF (entered due to %s, exit: lateral acceleration recovered, "
+            "|a_y|=%.2f, exit_threshold=%.2f)",
+            takeover_reason_.c_str(),
+            abs_lateral_accel,
+            slip_lateral_accel_threshold_ * slip_hysteresis_factor_);
+          takeover_reason_ = "none";
+        }
+      }
+      use_imu_this_step = imu_takeover_active_;
+    } else {
+      use_imu_this_step = true;
+    }
+  }
+
+  const double current_angular_velocity = use_imu_this_step ?
+    imu_angular_velocity : model_angular_velocity;
+
   // use current state as last state if this is our first time here
   if (!last_state_) {
     last_state_ = state;
@@ -128,6 +179,35 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
       last_state_->header.stamp.sec, last_state_->header.stamp.nanosec);
     last_state_ = state;
     return;
+  }
+
+  const double dt_sec = dt.seconds();
+
+  if (can_use_imu) {
+    const double raw_lateral_accel = last_imu_->linear_acceleration.y;
+    if (!lateral_accel_filter_initialized_) {
+      filtered_lateral_accel_ = raw_lateral_accel;
+      lateral_accel_filter_initialized_ = true;
+    } else {
+      filtered_lateral_accel_ =
+        imu_lateral_accel_alpha_ * raw_lateral_accel +
+        (1.0 - imu_lateral_accel_alpha_) * filtered_lateral_accel_;
+    }
+
+    imu_lateral_velocity_ += filtered_lateral_accel_ * dt_sec;
+
+    const double decay_factor = std::max(0.0, 1.0 - imu_lateral_velocity_decay_ * dt_sec);
+    imu_lateral_velocity_ *= decay_factor;
+
+    if (std::fabs(current_speed) < 0.2) {
+      imu_lateral_velocity_ = 0.0;
+    }
+
+    imu_lateral_velocity_ = std::clamp(
+      imu_lateral_velocity_, -imu_lateral_velocity_max_, imu_lateral_velocity_max_);
+  } else {
+    imu_lateral_velocity_ = 0.0;
+    lateral_accel_filter_initialized_ = false;
   }
 
   // Update yaw first (needed for position integration)
@@ -209,7 +289,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
 
   // Velocity ("in the coordinate frame given by the child_frame_id")
   odom->twist.twist.linear.x = current_speed;
-  odom->twist.twist.linear.y = 0.0;
+  odom->twist.twist.linear.y = use_imu_lateral_velocity ? lateral_velocity_body : 0.0;
   odom->twist.twist.angular.z = current_angular_velocity;
 
   // Velocity uncertainty
