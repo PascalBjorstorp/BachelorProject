@@ -10,8 +10,8 @@ Usage:
     python3 test/tune_realistic_v2.py                        # Full sweep (all CPUs)
     python3 test/tune_realistic_v2.py --jobs 8               # Use 8 parallel workers
     python3 test/tune_realistic_v2.py -j 4                   # Use 4 workers
-    python3 test/tune_realistic_v2.py --objective fastest    # Optimize for speed
-    python3 test/tune_realistic_v2.py --objective tracker    # Optimize for tracking (default)
+    python3 test/tune_realistic_v2.py --objective fastest    # Speed-first + recovery scoring
+    python3 test/tune_realistic_v2.py --objective tracker    # Tracking-first scoring
     python3 test/tune_realistic_v2.py --raceline my_track_raceline.csv
 
 The sweep runs 8 phases:
@@ -23,6 +23,11 @@ The sweep runs 8 phases:
     Phase 6: Fine-tuning around best config
     Phase 7: Random neighbor exploration
     Phase 8: Random exploitation around branch best
+
+Each configuration is evaluated across multiple start scenarios:
+    1. A standard raceline launch to estimate lap pace
+    2. A left-offset recovery launch
+    3. A right-offset recovery launch
 
 Top 10 configurations from Phase 2 are screened with a smaller Phase 4 sweep.
 The single global-best configuration is then optimized through Phases 5-8 for
@@ -85,8 +90,14 @@ BASE_CONFIG = {
 
 # Override base for fastest objective
 FASTEST_BASE_OVERRIDES = {
-    "Q_VEL": 160.0,
-    "R_STEER": 0.25,
+    "Q_LAT": 3500.0,
+    "Q_HDG": 180.0,
+    "Q_VEL": 260.0,
+    "Q_LAT_VEL": 10.0,
+    "Q_YAW": 8.0,
+    "R_STEER": 0.38,
+    "W_JERK": 0.06,
+    "W_ACCEL_RATE": 0.08,
 }
 
 # ==============================================================================
@@ -107,6 +118,14 @@ PHASE2_VALUES = {
     "HORIZON": HORIZON_SWEEP_VALUES,
     
     # PRED_DT: keep dense coverage around low-latency values that showed best yield.
+    "PRED_DT": [0.034, 0.036, 0.038, 0.04, 0.045, 0.05, 0.055, 0.06, 0.065, 0.07],
+}
+
+PHASE2_VALUES_FASTEST = {
+    "Q_LAT": [1500, 2000, 2500, 3000, 3500, 4000, 5000, 6000, 7000, 8500],
+    "Q_HDG": [60, 90, 120, 150, 180, 220, 260, 320, 450, 650],
+    "Q_VEL": [120, 150, 180, 210, 240, 280, 320, 360, 420, 500],
+    "HORIZON": HORIZON_SWEEP_VALUES,
     "PRED_DT": [0.034, 0.036, 0.038, 0.04, 0.045, 0.05, 0.055, 0.06, 0.065, 0.07],
 }
 
@@ -132,6 +151,24 @@ FULL_SWEEP_VALUES = {
     "TOL":          [3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 7.0],
 }
 
+FULL_SWEEP_VALUES_FASTEST = {
+    "Q_LAT":        [1200, 1800, 2400, 3000, 3500, 4000, 5000, 6000, 7000, 8500, 10000, 12000],
+    "Q_HDG":        [40, 60, 90, 120, 150, 180, 220, 260, 320, 400, 500, 650, 800, 1000],
+    "Q_VEL":        [100, 130, 160, 190, 220, 250, 280, 320, 360, 420, 500],
+    "Q_LAT_VEL":    [4, 6, 8, 10, 12, 15, 18, 22, 28],
+    "Q_YAW":        [2, 4, 6, 8, 10, 14, 18, 22],
+    "R_STEER":      [0.18, 0.22, 0.26, 0.30, 0.35, 0.40, 0.50, 0.60, 0.75],
+    "R_ACCEL":      [0.004, 0.006, 0.008, 0.009, 0.01, 0.011, 0.012, 0.014, 0.016, 0.02],
+    "W_JERK":       [0.01, 0.02, 0.03, 0.05, 0.08, 0.12, 0.18, 0.25, 0.35, 0.5],
+    "W_ACCEL_RATE": [0.04, 0.06, 0.08, 0.09, 0.1, 0.11, 0.12, 0.14, 0.16, 0.2],
+    "HORIZON":      HORIZON_SWEEP_VALUES,
+    "RHO":          [16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 80],
+    "RHO_U":        [6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 32],
+    "ALPHA":        [0.80, 0.85, 0.90, 0.93, 0.97, 1.0, 1.05, 1.1, 1.2, 1.3, 1.5, 1.8],
+    "PRED_DT":      [0.032, 0.034, 0.036, 0.038, 0.04, 0.045, 0.05, 0.055, 0.06, 0.065, 0.07, 0.075],
+    "TOL":          [3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 7.0],
+}
+
 # ==============================================================================
 # PHASE 4: Secondary Grid Values (~2000 configs)
 # Q_LAT_VEL x Q_YAW x R_STEER x W_JERK x R_ACCEL x W_ACCEL_RATE
@@ -144,6 +181,15 @@ PHASE4_VALUES = {
     "W_JERK":       [0.01, 0.02, 0.03, 0.05, 0.08],
     "R_ACCEL":      [0.008, 0.01, 0.012, 0.015],
     "W_ACCEL_RATE": [0.08, 0.1, 0.12, 0.15],
+}
+
+PHASE4_VALUES_FASTEST = {
+    "Q_LAT_VEL":    [4, 8, 12, 16, 20],
+    "Q_YAW":        [2, 4, 6, 10, 14],
+    "R_STEER":      [0.26, 0.34, 0.42, 0.50, 0.62],
+    "W_JERK":       [0.02, 0.04, 0.06, 0.10, 0.16],
+    "R_ACCEL":      [0.008, 0.01, 0.012, 0.015],
+    "W_ACCEL_RATE": [0.06, 0.08, 0.1, 0.14],
 }
 
 # ==============================================================================
@@ -189,14 +235,14 @@ RANDOM_PROFILES = {
         "num_perturb_range": (3, 7),
         "default_multipliers": [0.9, 0.97, 1.0, 1.06, 1.12],
         "param_multipliers": {
-            "Q_LAT": [0.9, 0.97, 1.0, 1.06, 1.12],
-            "Q_HDG": [0.9, 0.97, 1.0, 1.06, 1.12],
-            "Q_VEL": [0.97, 1.0, 1.05, 1.1, 1.15, 1.2, 1.3],
-            "Q_LAT_VEL": [0.85, 0.95, 1.0, 1.1, 1.2],
-            "Q_YAW": [0.7, 0.85, 1.0, 1.1, 1.2],
-            "R_STEER": [0.9, 0.97, 1.0, 1.08, 1.15],
+            "Q_LAT": [0.75, 0.85, 0.95, 1.0, 1.08, 1.18],
+            "Q_HDG": [0.7, 0.85, 0.95, 1.0, 1.08, 1.18],
+            "Q_VEL": [0.95, 1.0, 1.05, 1.12, 1.2, 1.3, 1.4],
+            "Q_LAT_VEL": [0.6, 0.75, 0.9, 1.0, 1.1],
+            "Q_YAW": [0.5, 0.7, 0.85, 1.0, 1.1],
+            "R_STEER": [0.9, 0.97, 1.0, 1.08, 1.18, 1.3],
             "R_ACCEL": [0.8, 0.9, 1.0, 1.15, 1.3],
-            "W_JERK": [0.85, 0.95, 1.0, 1.1, 1.2],
+            "W_JERK": [0.8, 0.9, 1.0, 1.1, 1.25],
             "W_ACCEL_RATE": [0.8, 0.9, 1.0, 1.15, 1.3],
             "RHO": [0.85, 0.95, 1.0, 1.1, 1.2],
             "RHO_U": [0.85, 0.95, 1.0, 1.1, 1.2],
@@ -233,12 +279,12 @@ RANDOM_PROFILES = {
         "num_perturb_range": (2, 4),
         "default_multipliers": [0.96, 0.99, 1.0, 1.03, 1.07],
         "param_multipliers": {
-            "Q_LAT": [0.96, 0.99, 1.0, 1.03, 1.07],
-            "Q_HDG": [0.96, 0.99, 1.0, 1.03, 1.07],
-            "Q_VEL": [0.99, 1.0, 1.03, 1.06, 1.1],
-            "Q_LAT_VEL": [0.92, 0.98, 1.0, 1.05, 1.1],
-            "Q_YAW": [0.92, 0.98, 1.0, 1.05, 1.1],
-            "R_STEER": [0.94, 0.99, 1.0, 1.04, 1.08],
+            "Q_LAT": [0.9, 0.96, 0.99, 1.0, 1.03, 1.08],
+            "Q_HDG": [0.88, 0.95, 0.99, 1.0, 1.03, 1.08],
+            "Q_VEL": [0.98, 1.0, 1.03, 1.06, 1.1, 1.15],
+            "Q_LAT_VEL": [0.85, 0.94, 0.98, 1.0, 1.04, 1.1],
+            "Q_YAW": [0.82, 0.92, 0.98, 1.0, 1.04, 1.1],
+            "R_STEER": [0.92, 0.98, 1.0, 1.04, 1.1, 1.16],
             "R_ACCEL": [0.9, 0.97, 1.0, 1.05, 1.1],
             "W_JERK": [0.9, 0.97, 1.0, 1.05, 1.1],
             "W_ACCEL_RATE": [0.9, 0.97, 1.0, 1.05, 1.1],
@@ -258,6 +304,17 @@ RANDOM_PROFILES = {
 # ==============================================================================
 
 INT_PARAMS = {"HORIZON", "WALL_END", "WALL_STRIDE", "MAX_ITER"}
+
+SCENARIO_VEHICLE_HALF_WIDTH = 0.137
+SCENARIO_BODY_SAFETY_MARGIN = 0.06
+RACE_SCENARIO_DURATION = 75.0
+RECOVERY_SCENARIO_DURATION = 18.0
+RECOVERY_START_SPEED = 2.0
+
+TRACK_LENGTH_METERS = 0.0
+RACELINE_START_LEFT_BOUND = 0.0
+RACELINE_START_RIGHT_BOUND = 0.0
+EVAL_SCENARIOS = []
 
 CASCADE_TOP_N = 10  # Always cascade top 10 to next phases
 SEED = 42           # Fixed seed for reproducibility
@@ -299,6 +356,104 @@ def resolve_raceline_path(path_arg: str) -> str:
     # Fallback: resolve relative to the MPC project directory.
     proj_candidate = os.path.join(PROJECT_DIR, path_arg)
     return os.path.abspath(proj_candidate)
+
+
+def load_raceline_metadata(path: str) -> dict:
+    """Read track length and start corridor bounds from a raceline CSV."""
+    first = None
+    last = None
+
+    with open(path, newline="") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if not row or row[0].startswith("#"):
+                continue
+            try:
+                s = float(row[0])
+                left = float(row[7]) if len(row) > 7 else 5.0
+                right = float(row[8]) if len(row) > 8 else 5.0
+            except (ValueError, IndexError):
+                continue
+
+            sample = {"s": s, "left": left, "right": right}
+            if first is None:
+                first = sample
+            last = sample
+
+    if first is None or last is None:
+        raise RuntimeError(f"Could not parse raceline CSV: {path}")
+
+    track_length = max(0.0, last["s"] - first["s"])
+    return {
+        "track_length": track_length,
+        "start_left_bound": first["left"],
+        "start_right_bound": first["right"],
+    }
+
+
+def compute_recovery_offset(bound: float) -> float:
+    """Choose a moderate off-raceline start offset that stays inside the corridor."""
+    usable = float(bound) - SCENARIO_VEHICLE_HALF_WIDTH - SCENARIO_BODY_SAFETY_MARGIN
+    if usable <= 0.0:
+        return 0.0
+    return round(min(0.35, 0.45 * usable), 4)
+
+
+def build_eval_scenarios() -> list:
+    """Build deterministic evaluation scenarios for speed and recovery."""
+    left_offset = compute_recovery_offset(RACELINE_START_LEFT_BOUND)
+    right_offset = compute_recovery_offset(RACELINE_START_RIGHT_BOUND)
+
+    return [
+        {
+            "name": "race",
+            "weight": 0.70,
+            "seed_offset": 0,
+            "env": {
+                "SIM_DURATION": f"{RACE_SCENARIO_DURATION}",
+                "START_OFFSET_LAT": "0.0",
+                "START_HEADING_OFFSET": "0.0",
+                "START_SPEED": "0.0",
+            },
+        },
+        {
+            "name": "recover_left",
+            "weight": 0.15,
+            "seed_offset": 101,
+            "env": {
+                "SIM_DURATION": f"{RECOVERY_SCENARIO_DURATION}",
+                "START_OFFSET_LAT": f"{left_offset}",
+                "START_HEADING_OFFSET": "0.0",
+                "START_SPEED": f"{RECOVERY_START_SPEED}",
+            },
+        },
+        {
+            "name": "recover_right",
+            "weight": 0.15,
+            "seed_offset": 202,
+            "env": {
+                "SIM_DURATION": f"{RECOVERY_SCENARIO_DURATION}",
+                "START_OFFSET_LAT": f"{-right_offset}",
+                "START_HEADING_OFFSET": "0.0",
+                "START_SPEED": f"{RECOVERY_START_SPEED}",
+            },
+        },
+    ]
+
+
+def get_primary_grid_values(objective: str) -> dict:
+    """Return the Phase 2 sweep for the active objective."""
+    return PHASE2_VALUES_FASTEST if objective == "fastest" else PHASE2_VALUES
+
+
+def get_full_sweep_values(objective: str) -> dict:
+    """Return the broad sweep values for the active objective."""
+    return FULL_SWEEP_VALUES_FASTEST if objective == "fastest" else FULL_SWEEP_VALUES
+
+
+def get_secondary_grid_values(objective: str) -> dict:
+    """Return the Phase 4 sweep for the active objective."""
+    return PHASE4_VALUES_FASTEST if objective == "fastest" else PHASE4_VALUES
 
 
 def iter_ordered_base_keys():
@@ -356,36 +511,15 @@ def config_hash(params: dict) -> str:
 # TEST RUNNER
 # ==============================================================================
 
-def run_test(params: dict, binary: str, seed: int = SEED) -> dict:
-    """Run a single REALISTIC_SIM=1 test with given parameters."""
-    env = os.environ.copy()
-    env["MPC_TUNING_CSV"] = "1"
-    env["REALISTIC_SIM"] = "1"
-    env["WALL_SOFT_K"] = "0"
-    env["SIM_SEED"] = str(seed)
-    env["RACELINE_PATH"] = RACELINE_PATH
-    
-    effective_params = canonicalize_params(params)
-    for name, value in effective_params.items():
-        env[name] = str(value)
-    
-    try:
-        result = subprocess.run(
-            [binary], capture_output=True, text=True, timeout=600, env=env
-        )
-    except subprocess.TimeoutExpired:
-        return {"status": "TIMEOUT", "passed": 0, "failed": 6}
-    except FileNotFoundError:
-        print(f"ERROR: Binary '{binary}' not found.")
-        sys.exit(1)
-    
-    for line in result.stdout.splitlines():
+def parse_csv_result(stdout: str, return_code: int) -> dict:
+    """Parse the machine-readable summary emitted by test_sim_drive."""
+    for line in stdout.splitlines():
         if line.startswith("CSV,"):
             parts = line.split(",")
             try:
                 return {
                     "status": "OK",
-                    "return_code": result.returncode,
+                    "return_code": return_code,
                     "passed": int(parts[1]),
                     "failed": int(parts[2]),
                     "max_lat_err": float(parts[3]),
@@ -401,13 +535,157 @@ def run_test(params: dict, binary: str, seed: int = SEED) -> dict:
                     "avg_vel_err": float(parts[13]) if len(parts) > 13 else 5.0,
                     "avg_iters": float(parts[14]) if len(parts) > 14 else 0.0,
                     "avg_vx": float(parts[15]) if len(parts) > 15 else 0.0,
+                    "progress_m": float(parts[16]) if len(parts) > 16 else 0.0,
+                    "avg_progress_mps": float(parts[17]) if len(parts) > 17 else 0.0,
+                    "completed_laps": int(parts[18]) if len(parts) > 18 else 0,
+                    "avg_lap_time": float(parts[19]) if len(parts) > 19 else 0.0,
+                    "max_steer_change": float(parts[20]) if len(parts) > 20 else 0.0,
+                    "steer_reversals": int(parts[21]) if len(parts) > 21 else 0,
                 }
             except (IndexError, ValueError):
-                pass
+                break
+    return None
+
+
+def estimate_lap_time(r: dict) -> float:
+    """Estimate lap time from completed laps or from progress speed."""
+    if int(r.get("completed_laps", 0)) > 0 and float(r.get("avg_lap_time", 0.0)) > 0.0:
+        return float(r["avg_lap_time"])
+
+    avg_progress = float(r.get("avg_progress_mps", 0.0))
+    if TRACK_LENGTH_METERS > 1e-6 and avg_progress > 0.1:
+        return TRACK_LENGTH_METERS / avg_progress
+
+    return 999.0
+
+
+def is_safe_single_result(r: dict) -> bool:
+    """True when one scenario run is valid and collision-free."""
+    return r.get("status") == "OK" and int(r.get("wall_collisions", 999)) == 0
+
+
+def weighted_mean(rows: list, key: str) -> float:
+    """Weighted mean over scenario rows."""
+    total_weight = sum(float(r.get("scenario_weight", 0.0)) for r in rows)
+    if total_weight <= 0.0:
+        return 0.0
+    return sum(float(r.get(key, 0.0)) * float(r.get("scenario_weight", 0.0)) for r in rows) / total_weight
+
+
+def aggregate_scenario_results(scenario_results: list) -> dict:
+    """Collapse multiple scenario runs into one tuner-facing result row."""
+    total_weight = sum(float(r.get("scenario_weight", 0.0)) for r in scenario_results) or 1.0
+    first_bad_status = next((r.get("status") for r in scenario_results if r.get("status") != "OK"), "OK")
+    completed_rows = [
+        r for r in scenario_results
+        if int(r.get("completed_laps", 0)) > 0 and float(r.get("avg_lap_time", 0.0)) > 0.0
+    ]
+    lap_weight = sum(float(r.get("scenario_weight", 0.0)) for r in completed_rows)
+
+    aggregate = {
+        "status": first_bad_status,
+        "return_code": max(int(r.get("return_code", 0) or 0) for r in scenario_results),
+        "scenario_count": len(scenario_results),
+        "scenario_failures": sum(1 for r in scenario_results if not is_safe_single_result(r)),
+        "recovery_failures": sum(
+            1 for r in scenario_results
+            if r.get("scenario_name") != "race" and not is_safe_single_result(r)
+        ),
+        "main_failed": 1 if any(
+            r.get("scenario_name") == "race" and not is_safe_single_result(r)
+            for r in scenario_results
+        ) else 0,
+        "passed": sum(int(r.get("passed", 0)) for r in scenario_results),
+        "failed": sum(int(r.get("failed", 0)) for r in scenario_results),
+        "wall_collisions": sum(int(r.get("wall_collisions", 0)) for r in scenario_results),
+        "completed_laps": sum(int(r.get("completed_laps", 0)) for r in scenario_results),
+        "time_above_5ms": sum(float(r.get("time_above_5ms", 0.0)) * float(r.get("scenario_weight", 0.0))
+                               for r in scenario_results) / total_weight,
+        "max_lat_err": max(float(r.get("max_lat_err", 0.0)) for r in scenario_results),
+        "avg_lat_err": weighted_mean(scenario_results, "avg_lat_err"),
+        "max_hdg_err": max(float(r.get("max_hdg_err", 0.0)) for r in scenario_results),
+        "avg_hdg_err": weighted_mean(scenario_results, "avg_hdg_err"),
+        "max_vx": max(float(r.get("max_vx", 0.0)) for r in scenario_results),
+        "avg_vx": weighted_mean(scenario_results, "avg_vx"),
+        "max_vel_err": max(float(r.get("max_vel_err", 0.0)) for r in scenario_results),
+        "avg_vel_err": weighted_mean(scenario_results, "avg_vel_err"),
+        "avg_solve_us": weighted_mean(scenario_results, "avg_solve_us"),
+        "max_solve_us": max(float(r.get("max_solve_us", 0.0)) for r in scenario_results),
+        "avg_iters": weighted_mean(scenario_results, "avg_iters"),
+        "progress_m": weighted_mean(scenario_results, "progress_m"),
+        "avg_progress_mps": weighted_mean(scenario_results, "avg_progress_mps"),
+        "avg_lap_time": (
+            sum(float(r.get("avg_lap_time", 0.0)) * float(r.get("scenario_weight", 0.0))
+                for r in completed_rows) / lap_weight
+        ) if lap_weight > 0.0 else 0.0,
+        "lap_time_est": weighted_mean(scenario_results, "lap_time_est"),
+        "max_steer_change": max(float(r.get("max_steer_change", 0.0)) for r in scenario_results),
+        "steer_reversals": weighted_mean(scenario_results, "steer_reversals"),
+    }
+
+    for r in scenario_results:
+        prefix = f"scenario_{r['scenario_name']}_"
+        aggregate[f"{prefix}status"] = r.get("status", "UNKNOWN")
+        aggregate[f"{prefix}lap_time_est"] = float(r.get("lap_time_est", 999.0))
+        aggregate[f"{prefix}avg_progress_mps"] = float(r.get("avg_progress_mps", 0.0))
+        aggregate[f"{prefix}avg_lat_err"] = float(r.get("avg_lat_err", 0.0))
+        aggregate[f"{prefix}avg_vx"] = float(r.get("avg_vx", 0.0))
+        aggregate[f"{prefix}wall_collisions"] = int(r.get("wall_collisions", 0))
+
+    return aggregate
+
+
+def run_single_scenario(params: dict, binary: str, scenario: dict, seed: int) -> dict:
+    """Run one deterministic scenario for the current MPC configuration."""
+    env = os.environ.copy()
+    env["MPC_TUNING_CSV"] = "1"
+    env["REALISTIC_SIM"] = "1"
+    env["WALL_SOFT_K"] = "0"
+    env["SIM_SEED"] = str(seed + int(scenario.get("seed_offset", 0)))
+    env["RACELINE_PATH"] = RACELINE_PATH
     
-    if result.returncode != 0:
-        return {"status": "EXIT_FAIL", "return_code": result.returncode, "passed": 0, "failed": 6}
-    return {"status": "NO_CSV", "return_code": result.returncode, "passed": 0, "failed": 6}
+    effective_params = canonicalize_params(params)
+    for name, value in effective_params.items():
+        env[name] = str(value)
+
+    for name, value in scenario.get("env", {}).items():
+        env[name] = str(value)
+    
+    try:
+        result = subprocess.run(
+            [binary], capture_output=True, text=True, timeout=600, env=env
+        )
+    except subprocess.TimeoutExpired:
+        return {
+            "status": "TIMEOUT",
+            "passed": 0,
+            "failed": 6,
+            "return_code": -1,
+            "scenario_name": scenario["name"],
+            "scenario_weight": float(scenario["weight"]),
+            "lap_time_est": 999.0,
+        }
+    except FileNotFoundError:
+        print(f"ERROR: Binary '{binary}' not found.")
+        sys.exit(1)
+
+    parsed = parse_csv_result(result.stdout, result.returncode)
+    if parsed is None:
+        if result.returncode != 0:
+            parsed = {"status": "EXIT_FAIL", "return_code": result.returncode, "passed": 0, "failed": 6}
+        else:
+            parsed = {"status": "NO_CSV", "return_code": result.returncode, "passed": 0, "failed": 6}
+
+    parsed["scenario_name"] = scenario["name"]
+    parsed["scenario_weight"] = float(scenario["weight"])
+    parsed["lap_time_est"] = estimate_lap_time(parsed)
+    return parsed
+
+
+def run_test(params: dict, binary: str, seed: int = SEED) -> dict:
+    """Run all evaluation scenarios and return a single aggregate result."""
+    scenario_results = [run_single_scenario(params, binary, scenario, seed) for scenario in EVAL_SCENARIOS]
+    return aggregate_scenario_results(scenario_results)
 
 
 # ==============================================================================
@@ -416,7 +694,11 @@ def run_test(params: dict, binary: str, seed: int = SEED) -> dict:
 
 def is_safe_result(r: dict) -> bool:
     """True when run is valid and collision-free."""
-    return r.get("status") == "OK" and int(r.get("wall_collisions", 999)) == 0
+    return (
+        r.get("status") == "OK"
+        and int(r.get("wall_collisions", 999)) == 0
+        and int(r.get("scenario_failures", 999)) == 0
+    )
 
 
 def compute_tracker_score(r: dict) -> float:
@@ -424,28 +706,49 @@ def compute_tracker_score(r: dict) -> float:
     if not is_safe_result(r):
         if r.get("status") != "OK":
             return 5000.0
-        return 2000.0 + 100.0 * float(r.get("wall_collisions", 0))
+        return (
+            1200.0
+            + 250.0 * float(r.get("main_failed", 0))
+            + 120.0 * float(r.get("recovery_failures", 0))
+            + 40.0 * float(r.get("wall_collisions", 0))
+        )
     
     tracking = (
-        r["avg_lat_err"] * 80.0 +
-        r["max_lat_err"] * 15.0 +
-        r["avg_hdg_err"] * 35.0 +
-        r["max_hdg_err"] * 8.0 +
-        r["avg_vel_err"] * 40.0 +
-        r["max_vel_err"] * 4.0
+        r["avg_lat_err"] * 70.0 +
+        r["max_lat_err"] * 12.0 +
+        r["avg_hdg_err"] * 28.0 +
+        r["max_hdg_err"] * 6.0 +
+        r["avg_vel_err"] * 18.0 +
+        r["max_vel_err"] * 2.0 +
+        r.get("lap_time_est", 999.0) * 2.5
     )
-    solver = r.get("avg_iters", 0) * 0.2 + r["avg_solve_us"] * 0.001
+    solver = r.get("avg_iters", 0) * 0.2 + r["avg_solve_us"] * 0.0008
     return round(tracking + solver, 3)
 
 
 def compute_fastest_score(r: dict) -> float:
-    """Fastest score: maximize average speed while staying collision-free."""
+    """Fastest score: minimize lap-time estimate, then lightly break ties by stability."""
     if not is_safe_result(r):
         if r.get("status") != "OK":
             return 5000.0
-        return 2000.0 + 100.0 * float(r.get("wall_collisions", 0))
+        return round(
+            400.0
+            + 250.0 * float(r.get("main_failed", 0))
+            + 120.0 * float(r.get("recovery_failures", 0))
+            + 40.0 * float(r.get("wall_collisions", 0))
+            + min(float(r.get("lap_time_est", 999.0)), 300.0),
+            3,
+        )
     
-    return round(-r.get("avg_vx", 0.0), 6)
+    stability = (
+        r.get("avg_lat_err", 0.0) * 1.0 +
+        r.get("avg_hdg_err", 0.0) * 0.4 +
+        r.get("avg_vel_err", 0.0) * 0.08 +
+        r.get("max_steer_change", 0.0) * 0.05 +
+        r.get("steer_reversals", 0.0) * 0.015
+    )
+    solver = r.get("avg_solve_us", 0.0) * 0.0005 + r.get("avg_iters", 0.0) * 0.03
+    return round(r.get("lap_time_est", 999.0) + stability + solver, 6)
 
 
 def apply_scores(r: dict, objective: str) -> dict:
@@ -460,11 +763,11 @@ def apply_scores(r: dict, objective: str) -> dict:
 # CONFIG GENERATORS
 # ==============================================================================
 
-def gen_one_at_a_time() -> list:
+def gen_one_at_a_time(objective: str) -> list:
     """Phase 1: Vary each parameter one at a time from baseline."""
     combos = [("BASELINE", dict(BASE))]
     
-    for name, values in FULL_SWEEP_VALUES.items():
+    for name, values in get_full_sweep_values(objective).items():
         for v in values:
             if abs(v - BASE.get(name, -999)) < 1e-6:
                 continue
@@ -476,15 +779,16 @@ def gen_one_at_a_time() -> list:
     return combos
 
 
-def gen_primary_grid() -> list:
+def gen_primary_grid(objective: str) -> list:
     """Phase 2: Primary grid sweep."""
     combos = []
     
-    ql_vals = PHASE2_VALUES["Q_LAT"]
-    qh_vals = PHASE2_VALUES["Q_HDG"]
-    qv_vals = PHASE2_VALUES["Q_VEL"]
-    h_vals = PHASE2_VALUES["HORIZON"]
-    pd_vals = PHASE2_VALUES["PRED_DT"]
+    values = get_primary_grid_values(objective)
+    ql_vals = values["Q_LAT"]
+    qh_vals = values["Q_HDG"]
+    qv_vals = values["Q_VEL"]
+    h_vals = values["HORIZON"]
+    pd_vals = values["PRED_DT"]
     
     for ql, qh, qv, h, pd in itertools.product(ql_vals, qh_vals, qv_vals, h_vals, pd_vals):
         w = dict(BASE)
@@ -501,16 +805,17 @@ def gen_primary_grid() -> list:
     return combos
 
 
-def gen_secondary_grid() -> list:
+def gen_secondary_grid(objective: str) -> list:
     """Phase 4: Secondary parameters grid (includes R_ACCEL and W_ACCEL_RATE)."""
     combos = []
     
-    qlv_vals = PHASE4_VALUES["Q_LAT_VEL"]
-    qy_vals = PHASE4_VALUES["Q_YAW"]
-    rs_vals = PHASE4_VALUES["R_STEER"]
-    wj_vals = PHASE4_VALUES["W_JERK"]
-    ra_vals = PHASE4_VALUES["R_ACCEL"]
-    war_vals = PHASE4_VALUES["W_ACCEL_RATE"]
+    values = get_secondary_grid_values(objective)
+    qlv_vals = values["Q_LAT_VEL"]
+    qy_vals = values["Q_YAW"]
+    rs_vals = values["R_STEER"]
+    wj_vals = values["W_JERK"]
+    ra_vals = values["R_ACCEL"]
+    war_vals = values["W_ACCEL_RATE"]
     
     for qlv, qy, rs, wj, ra, war in itertools.product(
             qlv_vals, qy_vals, rs_vals, wj_vals, ra_vals, war_vals):
@@ -741,7 +1046,8 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
             else:
                 passed += 1
                 print(f"sc={r['score']:7.2f}  avx={r.get('avg_vx', 0.0):.2f}  "
-                      f"lat={r['avg_lat_err']:.3f}  (ETA {eta:.0f}s)")
+                      f"lap={r.get('lap_time_est', 0.0):.2f}s  "
+                      f"prog={r.get('avg_progress_mps', 0.0):.2f}  (ETA {eta:.0f}s)")
     else:
         # Parallel execution
         done_count = 0
@@ -786,7 +1092,8 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
                         passed += 1
                         print(f"  [{done_count:4d}/{total}] {r['label']:55s} "
                               f"sc={r['score']:7.2f}  avx={r.get('avg_vx', 0.0):.2f}  "
-                              f"lat={r['avg_lat_err']:.3f}  (ETA {eta:.0f}s)")
+                              f"lap={r.get('lap_time_est', 0.0):.2f}s  "
+                              f"prog={r.get('avg_progress_mps', 0.0):.2f}  (ETA {eta:.0f}s)")
     
     return passed, failed
 
@@ -874,7 +1181,9 @@ def get_top_n_params(results: list, n: int = CASCADE_TOP_N) -> list:
     if unique:
         for i, (r, _) in enumerate(unique):
             print(f"  Top-{i+1}: {r['label'][:50]} "
-                  f"(score={r.get('score', 0.0):.2f}, avx={r.get('avg_vx', 0):.2f})")
+                  f"(score={r.get('score', 0.0):.2f}, "
+                  f"lap={r.get('lap_time_est', 0.0):.2f}s, "
+                  f"prog={r.get('avg_progress_mps', 0.0):.2f})")
     
     return [p for _, p in unique]
 
@@ -893,10 +1202,11 @@ def update_base(new_params: dict):
 
 def main():
     global BASE, RACELINE_PATH, RACELINE_TAG
+    global TRACK_LENGTH_METERS, RACELINE_START_LEFT_BOUND, RACELINE_START_RIGHT_BOUND, EVAL_SCENARIOS
     
     # Parse arguments
     num_workers = multiprocessing.cpu_count()  # Default to max workers
-    objective = "tracker"
+    objective = "fastest"
     raceline_override = None
     
     for i, arg in enumerate(sys.argv):
@@ -922,6 +1232,16 @@ def main():
     else:
         RACELINE_PATH = os.path.abspath(RACELINE_PATH)
     RACELINE_TAG = infer_raceline_tag(RACELINE_PATH)
+
+    if not os.path.exists(RACELINE_PATH):
+        print(f"ERROR: Raceline not found: {RACELINE_PATH}")
+        sys.exit(1)
+
+    meta = load_raceline_metadata(RACELINE_PATH)
+    TRACK_LENGTH_METERS = meta["track_length"]
+    RACELINE_START_LEFT_BOUND = meta["start_left_bound"]
+    RACELINE_START_RIGHT_BOUND = meta["start_right_bound"]
+    EVAL_SCENARIOS = build_eval_scenarios()
     
     # Initialize BASE config
     BASE.update(BASE_CONFIG)
@@ -940,6 +1260,13 @@ def main():
     print(f"  Horizon sweep: {HORIZON_SWEEP_VALUES}")
     print(f"  Raceline:    {RACELINE_PATH}")
     print(f"  Raceline tag:{RACELINE_TAG}")
+    print(f"  Track length:{TRACK_LENGTH_METERS:.3f} m")
+    for scenario in EVAL_SCENARIOS:
+        print(f"  Scenario {scenario['name']:<12s}"
+              f" weight={scenario['weight']:.2f}"
+              f" dur={float(scenario['env'].get('SIM_DURATION', 0.0)):>5.1f}s"
+              f" lat={float(scenario['env'].get('START_OFFSET_LAT', 0.0)):>+5.2f}m"
+              f" v0={float(scenario['env'].get('START_SPEED', 0.0)):>4.1f}m/s")
     
     os.chdir(PROJECT_DIR)
     
@@ -965,11 +1292,6 @@ def main():
         sys.exit(1)
     print("  Build OK")
     
-    # Check raceline exists
-    if not os.path.exists(RACELINE_PATH):
-        print(f"ERROR: Raceline not found: {RACELINE_PATH}")
-        sys.exit(1)
-    
     # Run sanity check
     sanity_check_params(binary)
     
@@ -981,12 +1303,27 @@ def main():
     # CSV writer
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     outfile = f"test/tuning_hardware_{objective}_{timestamp}.csv"
+    scenario_fieldnames = []
+    for scenario in EVAL_SCENARIOS:
+        prefix = f"scenario_{scenario['name']}_"
+        scenario_fieldnames.extend([
+            f"{prefix}status",
+            f"{prefix}lap_time_est",
+            f"{prefix}avg_progress_mps",
+            f"{prefix}avg_lat_err",
+            f"{prefix}avg_vx",
+            f"{prefix}wall_collisions",
+        ])
     fieldnames = (
         ["label", "phase", "raceline", "score", "tracker_score", "fastest_score",
-         "passed", "failed", "max_lat_err", "avg_lat_err",
+         "passed", "failed", "scenario_count", "scenario_failures", "recovery_failures", "main_failed",
+         "lap_time_est", "completed_laps", "progress_m", "avg_progress_mps",
+         "max_steer_change", "steer_reversals",
+         "max_lat_err", "avg_lat_err",
          "max_hdg_err", "avg_hdg_err", "max_vx", "avg_vx",
          "avg_vel_err", "max_vel_err", "avg_solve_us", "max_solve_us",
-         "wall_collisions", "time_above_5ms", "avg_iters", "status", "return_code"]
+         "wall_collisions", "time_above_5ms", "avg_iters", "avg_lap_time", "status", "return_code"]
+        + scenario_fieldnames
         + list(BASE.keys())
     )
     csv_writer = IncrementalCSV(outfile, fieldnames)
@@ -994,13 +1331,13 @@ def main():
     
     # ========== PHASE 1: One-at-a-time ==========
     p, f = run_phase("Phase 1: One-at-a-time sensitivity",
-                     gen_one_at_a_time(), binary, results, t0,
+                     gen_one_at_a_time(objective), binary, results, t0,
                      num_workers, csv_writer, objective)
     total_p += p
     total_f += f
     
     # ========== PHASE 2: Primary grid ==========
-    combos = gen_primary_grid()
+    combos = gen_primary_grid(objective)
     print(f"\n  Phase 2 will test {len(combos):,} configurations")
     p, f = run_phase("Phase 2: Primary grid (Q_LAT x Q_HDG x Q_VEL x HORIZON x PRED_DT)",
                      combos, binary, results, t0,
@@ -1030,7 +1367,7 @@ def main():
 
         update_base(cascade_base)
         p, f = run_phase(f"Phase 4: Secondary grid [seed {ci+1}/{len(top_configs)}]",
-                         gen_secondary_grid(), binary, results, t0,
+                         gen_secondary_grid(objective), binary, results, t0,
                          num_workers, csv_writer, objective)
         total_p += p
         total_f += f
@@ -1128,8 +1465,8 @@ def main():
         print(f"TOP 20 RESULTS ({objective} objective)")
         print(f"{'='*80}")
         
-        fmt = "{:<4} {:<45} {:>8} {:>6} {:>6} {:>6} {:>3}"
-        print(fmt.format("Rank", "Label", "Score", "AvgVx", "AvgLat", "AvgVE", "WC"))
+        fmt = "{:<4} {:<45} {:>8} {:>7} {:>6} {:>6} {:>3}"
+        print(fmt.format("Rank", "Label", "Score", "Lap", "Prog", "AvgLat", "Rec"))
         print("-" * 90)
         
         top = sorted(safe, key=lambda x: x.get("score", 999999.0))[:20]
@@ -1138,15 +1475,17 @@ def main():
                 i+1,
                 r['label'][:45],
                 f"{r.get('score', 0.0):.2f}",
-                f"{r.get('avg_vx', 0.0):.2f}",
+                f"{r.get('lap_time_est', 0.0):.2f}",
+                f"{r.get('avg_progress_mps', 0.0):.2f}",
                 f"{r['avg_lat_err']:.4f}",
-                f"{r['avg_vel_err']:.2f}",
-                f"{r.get('wall_collisions', '-')}"
+                f"{r.get('recovery_failures', 0)}"
             ))
         
         best = top[0]
         print(f"\nBEST CONFIGURATION:")
         print(f"  Score: {best.get('score', 0.0):.2f}")
+        print(f"  Lap estimate: {best.get('lap_time_est', 0.0):.3f} s")
+        print(f"  Avg progress: {best.get('avg_progress_mps', 0.0):.2f} m/s")
         print(f"  Avg velocity: {best.get('avg_vx', 0.0):.2f} m/s")
         print(f"  Avg lat err: {best['avg_lat_err']:.4f} m")
         print(f"  ---")
