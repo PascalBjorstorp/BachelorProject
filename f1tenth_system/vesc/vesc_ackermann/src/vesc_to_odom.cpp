@@ -30,18 +30,13 @@
 
 #include "vesc_ackermann/vesc_to_odom.hpp"
 
-#include <tf2/LinearMath/Matrix3x3.h>
-#include <tf2/LinearMath/Quaternion.h>
-
 #include <algorithm>
 #include <cmath>
 #include <memory>
-#include <stdexcept>
 #include <string>
 
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include "rclcpp_components/register_node_macro.hpp"  // NOLINT
-#include <vesc_msgs/msg/vesc_state_stamped.hpp>
 
 namespace vesc_ackermann
 {
@@ -52,168 +47,267 @@ using std::placeholders::_1;
 using std_msgs::msg::Float64;
 using vesc_msgs::msg::VescStateStamped;
 
+namespace
+{
+constexpr double kEpsilon = 1e-9;
+}  // namespace
+
 VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
 : Node("vesc_to_odom_node", options)
 {
-  // get ROS parameters
+  // Frame and conversion parameters
   odom_frame_ = declare_parameter("odom_frame", odom_frame_);
   base_frame_ = declare_parameter("base_frame", base_frame_);
-  imu_angular_velocity_alpha_ = declare_parameter("imu_angular_velocity_alpha", imu_angular_velocity_alpha_);
+  speed_to_erpm_gain_ = declare_parameter("speed_to_erpm_gain", speed_to_erpm_gain_);
+  speed_to_erpm_offset_ = declare_parameter("speed_to_erpm_offset", speed_to_erpm_offset_);
+  speed_deadband_ = declare_parameter("speed_deadband", speed_deadband_);
+  max_dt_sec_ = declare_parameter("max_dt_sec", max_dt_sec_);
 
-  // Odometry covariance parameters
-  odom_x_covariance_ = declare_parameter("odom_x_covariance", 0.2);
-  odom_y_covariance_ = declare_parameter("odom_y_covariance", 0.2);
-  odom_yaw_covariance_ = declare_parameter("odom_yaw_covariance", 0.4);
+  // Steering model parameters
+  steering_to_servo_gain_ = declare_parameter("steering_angle_to_servo_gain", steering_to_servo_gain_);
+  steering_to_servo_offset_ = declare_parameter("steering_angle_to_servo_offset", steering_to_servo_offset_);
+  steering_correction_c2_ = declare_parameter("steering_correction_c2", steering_correction_c2_);
+  steering_correction_c1_ = declare_parameter("steering_correction_c1", steering_correction_c1_);
+  steering_correction_c0_ = declare_parameter("steering_correction_c0", steering_correction_c0_);
+  wheelbase_ = declare_parameter("wheelbase", wheelbase_);
 
-  declare_parameter<double>("speed_to_erpm_gain", 0.0);
-  declare_parameter<double>("speed_to_erpm_offset", 0.0);
+  // Base covariance parameters
+  odom_x_covariance_ = declare_parameter("odom_x_covariance", odom_x_covariance_);
+  odom_y_covariance_ = declare_parameter("odom_y_covariance", odom_y_covariance_);
+  odom_yaw_covariance_ = declare_parameter("odom_yaw_covariance", odom_yaw_covariance_);
 
-  speed_to_erpm_gain_ = get_parameter("speed_to_erpm_gain").get_value<double>();
-  speed_to_erpm_offset_ = get_parameter("speed_to_erpm_offset").get_value<double>();
+  // Slip-aware covariance inflation
+  slip_xy_covariance_scale_ =
+    declare_parameter("slip_xy_covariance_scale", slip_xy_covariance_scale_);
+  slip_yaw_covariance_scale_ =
+    declare_parameter("slip_yaw_covariance_scale", slip_yaw_covariance_scale_);
 
-  // create odom publisher
+  // Slip detection thresholds
+  slip_accel_enter_ = declare_parameter("slip_accel_enter", slip_accel_enter_);
+  slip_accel_exit_ = declare_parameter("slip_accel_exit", slip_accel_exit_);
+
+  // IMU filter + bias parameters
+  imu_angular_velocity_alpha_ =
+    declare_parameter("imu_angular_velocity_alpha", imu_angular_velocity_alpha_);
+  gyro_bias_alpha_ = declare_parameter("gyro_bias_alpha", gyro_bias_alpha_);
+
+  // Lateral velocity estimator parameters
+  imu_lateral_accel_alpha_ =
+    declare_parameter("imu_lateral_accel_alpha", imu_lateral_accel_alpha_);
+  imu_lateral_velocity_decay_ =
+    declare_parameter("imu_lateral_velocity_decay", imu_lateral_velocity_decay_);
+  imu_lateral_velocity_max_ =
+    declare_parameter("imu_lateral_velocity_max", imu_lateral_velocity_max_);
+
+  // Slip-angle parameters
+  beta_max_rad_ = declare_parameter("beta_max_rad", beta_max_rad_);
+  kinematic_beta_ratio_ = declare_parameter("kinematic_beta_ratio", kinematic_beta_ratio_);
+
+  if (slip_accel_enter_ <= slip_accel_exit_) {
+    RCLCPP_WARN(
+      get_logger(),
+      "slip_accel_enter (%.3f) <= slip_accel_exit (%.3f). Adjusting exit threshold.",
+      slip_accel_enter_, slip_accel_exit_);
+    slip_accel_exit_ = 0.5 * slip_accel_enter_;
+  }
+
+  if (std::fabs(speed_to_erpm_gain_) < kEpsilon) {
+    RCLCPP_WARN(
+      get_logger(),
+      "speed_to_erpm_gain is %.6f. Odometry cannot convert ERPM to speed until this is set.",
+      speed_to_erpm_gain_);
+  }
+
   odom_pub_ = create_publisher<Odometry>("ego_racecar/odom", 10);
-
-  // create filtered angular velocity publisher
   filtered_angular_velocity_pub_ = create_publisher<Float64>("imu/filtered_angular_velocity", 10);
-
-  // create tf broadcaster
   tf_pub_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
-  // subscribe to vesc state and IMU
   vesc_state_sub_ = create_subscription<VescStateStamped>(
     "sensors/core", 10, std::bind(&VescToOdom::vescStateCallback, this, _1));
-
   imu_sub_ = create_subscription<sensor_msgs::msg::Imu>(
     "sensors/imu/raw", 10, std::bind(&VescToOdom::imuCallback, this, _1));
+  servo_sub_ = create_subscription<Float64>(
+    "sensors/servo_position_command", 10, std::bind(&VescToOdom::servoCmdCallback, this, _1));
+
+  RCLCPP_INFO(
+    get_logger(),
+    "Slip-aware odom enabled: odom frame '%s', base frame '%s'.",
+    odom_frame_.c_str(), base_frame_.c_str());
 }
 
+double VescToOdom::normalizeAngle(double angle)
+{
+  while (angle > M_PI) {
+    angle -= 2.0 * M_PI;
+  }
+  while (angle < -M_PI) {
+    angle += 2.0 * M_PI;
+  }
+  return angle;
+}
 
 void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
 {
-  // check that we have IMU data
   if (!last_imu_) {
-    RCLCPP_INFO_ONCE(this->get_logger(), "Waiting for IMU message to calculate angular velocity.");
+    RCLCPP_INFO_ONCE(get_logger(), "Waiting for IMU to compute odometry.");
     return;
   }
 
-  // convert to engineering units
-  // Linear model: speed = (ERPM - offset) / gain
-  double erpm = state->state.speed;
-  double current_speed = (erpm - speed_to_erpm_offset_) / speed_to_erpm_gain_;
-  if (std::fabs(current_speed) < 0.15) {
+  if (!last_state_) {
+    last_state_ = state;
+    return;
+  }
+
+  const double dt_sec =
+    (rclcpp::Time(state->header.stamp) - rclcpp::Time(last_state_->header.stamp)).seconds();
+  if (dt_sec <= 0.0 || dt_sec > max_dt_sec_) {
+    RCLCPP_WARN(
+      get_logger(),
+      "Skipping odom update due to invalid dt=%.6f (max_dt_sec=%.3f).",
+      dt_sec, max_dt_sec_);
+    last_state_ = state;
+    return;
+  }
+
+  if (std::fabs(speed_to_erpm_gain_) < kEpsilon) {
+    RCLCPP_ERROR_THROTTLE(
+      get_logger(), *get_clock(), 2000,
+      "speed_to_erpm_gain is zero. Cannot compute odometry speed.");
+    last_state_ = state;
+    return;
+  }
+
+  // Wheel speed from ERPM calibration.
+  double current_speed = (state->state.speed - speed_to_erpm_offset_) / speed_to_erpm_gain_;
+  if (std::fabs(current_speed) < speed_deadband_) {
     current_speed = 0.0;
   }
 
-  // Use filtered IMU yaw rate (angular velocity around z-axis)
-  const double current_angular_velocity = filtered_angular_velocity_;
-
-  // use current state as last state if this is our first time here
-  if (!last_state_) {
-    last_state_ = state;
+  // Steering-derived model yaw rate.
+  const bool has_servo = static_cast<bool>(last_servo_cmd_);
+  double steering_angle = 0.0;
+  if (has_servo && std::fabs(steering_to_servo_gain_) > kEpsilon) {
+    const double raw_steering =
+      (last_servo_cmd_->data - steering_to_servo_offset_) / steering_to_servo_gain_;
+    const double abs_raw = std::fabs(raw_steering);
+    const double corrected_abs =
+      steering_correction_c2_ * abs_raw * abs_raw +
+      steering_correction_c1_ * abs_raw +
+      steering_correction_c0_;
+    steering_angle = std::copysign(corrected_abs, raw_steering);
   }
 
-  // calc elapsed time
-  auto dt = rclcpp::Time(state->header.stamp) - rclcpp::Time(last_state_->header.stamp);
-  const double dt_sec = dt.seconds();
-
-  // Check for abnormal dt (e.g., node restart, message dropout)
-  const double MAX_DT = 1.0;  // 1 second
-  if (dt_sec > MAX_DT || dt_sec < 0) {
-    RCLCPP_WARN(get_logger(),
-      "Abnormal dt detected: %.6f seconds. Skipping odometry update. "
-      "Current stamp: %d.%09d, Last stamp: %d.%09d",
-      dt_sec,
-      state->header.stamp.sec, state->header.stamp.nanosec,
-      last_state_->header.stamp.sec, last_state_->header.stamp.nanosec);
-    last_state_ = state;
-    return;
+  double model_yaw_rate = 0.0;
+  if (has_servo && std::fabs(wheelbase_) > kEpsilon) {
+    model_yaw_rate = current_speed * std::tan(steering_angle) / wheelbase_;
   }
 
-  // Update yaw first (needed for position integration)
-  double yaw_start = yaw_;
-  double yaw_end = yaw_;
+  // IMU yaw rate with online bias correction.
+  const double imu_yaw_rate_raw = filtered_angular_velocity_;
 
-  // Extract yaw from IMU quaternion
-  tf2::Quaternion q(
-    last_imu_->orientation.x,
-    last_imu_->orientation.y,
-    last_imu_->orientation.z,
-    last_imu_->orientation.w
-  );
-  tf2::Matrix3x3 m(q);
-  double roll, pitch, current_imu_yaw;
-  m.getRPY(roll, pitch, current_imu_yaw);
+  // Slip indicator compares measured and model lateral acceleration.
+  const double lateral_accel_measured = last_imu_->linear_acceleration.y;
+  const double lateral_accel_model = current_speed * model_yaw_rate;
+  const double slip_indicator = std::fabs(lateral_accel_measured - lateral_accel_model);
 
-  // Initialize IMU yaw offset on first IMU data
-  if (!imu_initialized_) {
-    initial_imu_yaw_ = current_imu_yaw;
-    imu_initialized_ = true;
-    RCLCPP_INFO(get_logger(), "IMU initialized with yaw offset: %.3f rad", initial_imu_yaw_);
+  if (!slip_active_ && slip_indicator > slip_accel_enter_) {
+    slip_active_ = true;
+    RCLCPP_INFO(
+      get_logger(),
+      "Slip mode ON (indicator=%.3f, enter=%.3f).",
+      slip_indicator, slip_accel_enter_);
+  } else if (slip_active_ && slip_indicator < slip_accel_exit_) {
+    slip_active_ = false;
+    RCLCPP_INFO(
+      get_logger(),
+      "Slip mode OFF (indicator=%.3f, exit=%.3f).",
+      slip_indicator, slip_accel_exit_);
   }
 
-  // Apply offset to make initial yaw = 0
-  yaw_end = current_imu_yaw - initial_imu_yaw_;
-  yaw_ = yaw_end;
+  double slip_weight = std::clamp(
+    (slip_indicator - slip_accel_exit_) / (slip_accel_enter_ - slip_accel_exit_),
+    0.0,
+    1.0);
+  if (!has_servo) {
+    slip_weight = 1.0;
+  }
+  if (std::fabs(current_speed) < 0.3) {
+    slip_weight = 0.0;
+  }
 
-  // Propagate odometry using analytical Ackermann integration
-  const double delta_yaw = yaw_end - yaw_start;
+  if (has_servo && slip_weight < 0.2 && std::fabs(current_speed) > 0.5) {
+    const double yaw_rate_error = imu_yaw_rate_raw - model_yaw_rate;
+    gyro_bias_ = (1.0 - gyro_bias_alpha_) * gyro_bias_ + gyro_bias_alpha_ * yaw_rate_error;
+  }
 
-  const double cos_start = cos(yaw_start);
-  const double sin_start = sin(yaw_start);
+  const double imu_yaw_rate = imu_yaw_rate_raw - gyro_bias_;
+  const double current_yaw_rate =
+    (1.0 - slip_weight) * model_yaw_rate + slip_weight * imu_yaw_rate;
 
-  if (std::fabs(delta_yaw) < 1e-6) {
-    // Nearly straight motion: use simple forward integration
-    x_ += current_speed * cos_start * dt_sec;
-    y_ += current_speed * sin_start * dt_sec;
+  // Lateral velocity estimate (high-slip helper) from IMU lateral acceleration residual.
+  const double lateral_accel_residual = lateral_accel_measured - current_speed * current_yaw_rate;
+  if (!lateral_accel_filter_initialized_) {
+    filtered_lateral_accel_ = lateral_accel_residual;
+    lateral_accel_filter_initialized_ = true;
   } else {
-    // Circular arc motion: exact solution for constant curvature
-    // Use actual delta_yaw to calculate turning radius (more accurate
-    // than using angular velocity)
-    const double actual_angular_velocity = delta_yaw / dt_sec;
-    const double turning_radius = current_speed / actual_angular_velocity;
-
-    const double sin_delta = sin(delta_yaw);
-    const double cos_delta = cos(delta_yaw);
-
-    // Calculate displacement in vehicle frame (arc geometry)
-    const double dx_vehicle = turning_radius * sin_delta;
-    const double dy_vehicle = turning_radius * (1.0 - cos_delta);
-
-    // Transform to global frame
-    x_ += dx_vehicle * cos_start - dy_vehicle * sin_start;
-    y_ += dx_vehicle * sin_start + dy_vehicle * cos_start;
+    filtered_lateral_accel_ =
+      imu_lateral_accel_alpha_ * lateral_accel_residual +
+      (1.0 - imu_lateral_accel_alpha_) * filtered_lateral_accel_;
   }
 
-  // save state for next time
+  imu_lateral_velocity_ += filtered_lateral_accel_ * dt_sec;
+  const double decay = std::max(0.0, 1.0 - imu_lateral_velocity_decay_ * dt_sec);
+  imu_lateral_velocity_ *= decay;
+  if (std::fabs(current_speed) < 0.2) {
+    imu_lateral_velocity_ = 0.0;
+  }
+  imu_lateral_velocity_ = std::clamp(
+    imu_lateral_velocity_, -imu_lateral_velocity_max_, imu_lateral_velocity_max_);
+
+  // Blend kinematic and IMU slip-angle estimates.
+  double beta_kinematic = 0.0;
+  if (has_servo) {
+    beta_kinematic = std::atan(kinematic_beta_ratio_ * std::tan(steering_angle));
+  }
+  const double beta_imu = std::atan2(imu_lateral_velocity_, std::max(0.4, std::fabs(current_speed)));
+  const double beta = std::clamp(
+    (1.0 - slip_weight) * beta_kinematic + slip_weight * beta_imu,
+    -beta_max_rad_, beta_max_rad_);
+
+  // Integrate pose in the velocity direction (yaw + beta).
+  yaw_ = normalizeAngle(yaw_ + current_yaw_rate * dt_sec);
+  const double heading = yaw_ + beta;
+  x_ += current_speed * std::cos(heading) * dt_sec;
+  y_ += current_speed * std::sin(heading) * dt_sec;
+
   last_state_ = state;
 
-  // publish odometry message (zero-copy via unique_ptr)
   auto odom = std::make_unique<Odometry>();
   odom->header.frame_id = odom_frame_;
   odom->header.stamp = state->header.stamp;
   odom->child_frame_id = base_frame_;
 
-  // Position
   odom->pose.pose.position.x = x_;
   odom->pose.pose.position.y = y_;
+  odom->pose.pose.position.z = 0.0;
   odom->pose.pose.orientation.x = 0.0;
   odom->pose.pose.orientation.y = 0.0;
-  odom->pose.pose.orientation.z = sin(yaw_ / 2.0);
-  odom->pose.pose.orientation.w = cos(yaw_ / 2.0);
+  odom->pose.pose.orientation.z = std::sin(yaw_ / 2.0);
+  odom->pose.pose.orientation.w = std::cos(yaw_ / 2.0);
 
-  // Position uncertainty - configurable via parameters
-  odom->pose.covariance[0] = odom_x_covariance_;     // x
-  odom->pose.covariance[7] = odom_y_covariance_;     // y
-  odom->pose.covariance[35] = odom_yaw_covariance_;  // yaw
+  const double xy_cov = odom_x_covariance_ *
+    (1.0 + slip_weight * (slip_xy_covariance_scale_ - 1.0));
+  const double yaw_cov = odom_yaw_covariance_ *
+    (1.0 + slip_weight * (slip_yaw_covariance_scale_ - 1.0));
 
-  // Velocity ("in the coordinate frame given by the child_frame_id")
+  odom->pose.covariance[0] = xy_cov;
+  odom->pose.covariance[7] = odom_y_covariance_ *
+    (1.0 + slip_weight * (slip_xy_covariance_scale_ - 1.0));
+  odom->pose.covariance[35] = yaw_cov;
+
   odom->twist.twist.linear.x = current_speed;
-  odom->twist.twist.linear.y = 0.0;
-  odom->twist.twist.angular.z = current_angular_velocity;
-
-  // Velocity uncertainty
-  /** @todo Think about velocity uncertainty */
+  odom->twist.twist.linear.y = imu_lateral_velocity_;
+  odom->twist.twist.angular.z = current_yaw_rate;
 
   TransformStamped tf;
   tf.header.frame_id = odom_frame_;
@@ -234,24 +328,24 @@ void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
 {
   last_imu_ = imu;
 
-  // Apply low-pass filter to angular velocity
-  double raw_angular_velocity = imu->angular_velocity.z;
-
+  const double raw_angular_velocity = imu->angular_velocity.z;
   if (!angular_velocity_filter_initialized_) {
-    // Initialize filter with first value
     filtered_angular_velocity_ = raw_angular_velocity;
     angular_velocity_filter_initialized_ = true;
   } else {
-    // Apply exponential moving average (low-pass filter)
-    // filtered = alpha * new + (1 - alpha) * old
-    filtered_angular_velocity_ = imu_angular_velocity_alpha_ * raw_angular_velocity +
+    filtered_angular_velocity_ =
+      imu_angular_velocity_alpha_ * raw_angular_velocity +
       (1.0 - imu_angular_velocity_alpha_) * filtered_angular_velocity_;
   }
 
-  // Publish filtered angular velocity
   auto filtered_msg = std::make_unique<Float64>();
   filtered_msg->data = filtered_angular_velocity_;
   filtered_angular_velocity_pub_->publish(std::move(filtered_msg));
+}
+
+void VescToOdom::servoCmdCallback(const Float64::SharedPtr servo)
+{
+  last_servo_cmd_ = servo;
 }
 
 }  // namespace vesc_ackermann
