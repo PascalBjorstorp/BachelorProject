@@ -73,6 +73,16 @@ private:
   double steering_correction_c0_{0.0};
   double wheelbase_{0.33};
 
+  // Dynamic bicycle model parameters
+  bool use_dynamic_bicycle_model_{true};
+  double vehicle_mass_{3.314};
+  double vehicle_Iz_{0.035};
+  double l_f_{0.166};
+  double l_r_{0.16};
+  double c_alpha_f_{51.4};
+  double c_alpha_r_{43.1};
+  double dynamic_model_min_speed_{1.0};
+
   // Base covariance
   double odom_x_covariance_{0.2};
   double odom_y_covariance_{0.2};
@@ -92,6 +102,9 @@ private:
   double slip_indicator_alpha_{0.2};
   double filtered_slip_indicator_{0.0};
   bool slip_indicator_initialized_{false};
+  bool slip_use_lateral_accel_{false};
+  double slip_accel_clip_{6.0};
+  double slip_yaw_rate_weight_{3.0};
   double slip_enter_hold_sec_{0.10};
   double slip_exit_hold_sec_{0.20};
   double slip_enter_timer_{0.0};
@@ -122,6 +135,7 @@ private:
   double x_{0.0};
   double y_{0.0};
   double yaw_{0.0};
+  double yaw_rate_state_{0.0};
   VescStateStamped::SharedPtr last_state_;
   sensor_msgs::msg::Imu::SharedPtr last_imu_;
   Float64::SharedPtr last_servo_cmd_;

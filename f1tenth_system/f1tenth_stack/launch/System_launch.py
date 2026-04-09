@@ -44,6 +44,7 @@ def generate_launch_description():
     lateral_planner_avoidance_enabled_arg = LaunchConfiguration('lateral_planner_avoidance_enabled')
     map_file_arg = LaunchConfiguration('map_file')
     bringup_delay_sec_arg = LaunchConfiguration('bringup_delay_sec')
+    use_dynamic_bicycle_model_arg = LaunchConfiguration('use_dynamic_bicycle_model')
 
     return LaunchDescription([
 
@@ -91,6 +92,11 @@ def generate_launch_description():
         DeclareLaunchArgument(  'bringup_delay_sec',
                     default_value='2.0',
                     description='Delay before bringup starts (seconds)'),
+
+        DeclareLaunchArgument(
+                'use_dynamic_bicycle_model',
+                default_value='true',
+                description='Enable dynamic bicycle model inside vesc_to_odom node'),
 
 
         # ------------------------------- LOCALIZATION NODES -------------------------------
@@ -190,7 +196,10 @@ def generate_launch_description():
                             package='vesc_ackermann',
                             plugin='vesc_ackermann::VescToOdom',
                             name='vesc_to_odom_node',
-                            parameters=[vesc_config_arg],
+                            parameters=[
+                                vesc_config_arg,
+                                {'use_dynamic_bicycle_model': use_dynamic_bicycle_model_arg},
+                            ],
                             extra_arguments=[{'use_intra_process_comms': True}],
                         ),
                         ComposableNode(

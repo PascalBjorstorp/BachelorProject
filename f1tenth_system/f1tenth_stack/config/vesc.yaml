@@ -84,8 +84,22 @@ vesc_to_odom_node:
     # Filter and dwell-time debounce for slip switching.
     # This prevents rapid ON/OFF chatter from IMU noise and transient spikes.
     slip_indicator_alpha: 0.2
-    slip_enter_hold_sec: 0.10
-    slip_exit_hold_sec: 0.20
+    # Yaw residual drives slip by default; enable accel term only if IMU linear accel is trustworthy.
+    slip_use_lateral_accel: false
+    slip_yaw_rate_weight: 3.0
+    slip_accel_clip: 6.0
+    slip_enter_hold_sec: 0.05
+    slip_exit_hold_sec: 0.12
+
+    # Dynamic bicycle model (linear tire model)
+    use_dynamic_bicycle_model: false
+    vehicle_mass: 3.314
+    vehicle_Iz: 0.035
+    l_f: 0.166
+    l_r: 0.160
+    c_alpha_f: 51.40
+    c_alpha_r: 43.10
+    dynamic_model_min_speed: 1.0
 
     # Inflate odometry covariance while slipping so localization trusts map fixes more.
     slip_xy_covariance_scale: 6.0
