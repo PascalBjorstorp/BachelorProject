@@ -140,10 +140,10 @@ elif [[ "${TRAJ_BASENAME}" == *"hardware"* ]]; then
 fi
 
 # Match tune_mpcc.py BASE_CONFIG so ROS run is comparable.
-export HORIZON="${HORIZON:-7}"
-export DT="${DT:-0.035}"
-export Q_CONTOURING="${Q_CONTOURING:-1000.0}"
-export Q_LAG="${Q_LAG:-700.0}"
+export HORIZON="${HORIZON:-12}"
+export DT="${DT:-0.06}"
+export Q_CONTOURING="${Q_CONTOURING:-200.0}"
+export Q_LAG="${Q_LAG:-1000.0}"
 export Q_PROGRESS="${Q_PROGRESS:-5.0}"
 export Q_VX="${Q_VX:-0.0}"
 export VX_REF="${VX_REF:-5.0}"

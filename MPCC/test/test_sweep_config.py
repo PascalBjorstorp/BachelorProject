@@ -32,8 +32,8 @@ TRAJ_DIR = os.path.join(PROJECT_DIR, "f1tenth_planning", "trajectories")
 
 # Must match tune_mpcc.py BASE_CONFIG
 BASE_CONFIG = {
-    "Q_CONTOURING":      1000.0,
-    "Q_LAG":             700.0,
+    "Q_CONTOURING":      200.0,
+    "Q_LAG":             1000.0,
     "Q_PROGRESS":        5.0,
     "Q_VX":              0.0,
     "VX_REF":            5.0,
@@ -51,8 +51,8 @@ BASE_CONFIG = {
     "ADMM_RHO":          17.0,
     "ADMM_MAX_ITER":     50,
     "ADMM_TOL":          0.05,
-    "HORIZON":           7,
-    "DT":                0.035,
+    "HORIZON":           12,
+    "DT":                0.06,
     "V_THETA_MAX":       8.0,
 }
 
