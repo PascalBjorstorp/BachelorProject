@@ -33,6 +33,11 @@ rclcpp_components_register_node(${PROJECT_NAME}
   EXECUTABLE vesc_to_odom_node
 )
 
+install(PROGRAMS
+  scripts/imu_3d_visualizer.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 #############
 ## Testing ##
 #############
