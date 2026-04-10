@@ -85,12 +85,21 @@ vesc_to_odom_node:
     imu_use_butterworth_filter: true
     imu_butterworth_gyro_cutoff_hz: 18.0
     imu_butterworth_lateral_accel_cutoff_hz: 12.0
+    imu_yaw_base_weight: 0.80
 
     # Slip detector thresholds using |a_y_measured - v_x * r_model| [m/s^2]
     # Enter should be greater than exit (hysteresis).
-    slip_accel_enter: 3.0
-    slip_accel_exit: 1.6
+    slip_accel_enter: 8.0
+    slip_accel_exit: 2.0
     slip_min_speed: 1.2
+
+    # Slip indicator source:
+    # - yaw_residual: weighted yaw-rate residual (default model-based mode)
+    # - lateral_accel: |a_y_measured - v_x * r_model|
+    # - lateral_velocity_error: |v_y_imu - v_y_model| (m/s)
+    slip_indicator_source: lateral_velocity_error
+    slip_lateral_velocity_enter: 0.70
+    slip_lateral_velocity_exit: 0.35
 
     # Filter and dwell-time debounce for slip switching.
     # This prevents rapid ON/OFF chatter from IMU noise and transient spikes.

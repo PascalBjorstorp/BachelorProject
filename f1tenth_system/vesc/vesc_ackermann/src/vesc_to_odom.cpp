@@ -97,6 +97,11 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   // Slip detection thresholds
   slip_accel_enter_ = declare_parameter("slip_accel_enter", slip_accel_enter_);
   slip_accel_exit_ = declare_parameter("slip_accel_exit", slip_accel_exit_);
+  slip_indicator_source_ = declare_parameter("slip_indicator_source", slip_indicator_source_);
+  slip_lateral_velocity_enter_ =
+    declare_parameter("slip_lateral_velocity_enter", slip_lateral_velocity_enter_);
+  slip_lateral_velocity_exit_ =
+    declare_parameter("slip_lateral_velocity_exit", slip_lateral_velocity_exit_);
   slip_min_speed_ = declare_parameter("slip_min_speed", slip_min_speed_);
   slip_indicator_alpha_ = declare_parameter("slip_indicator_alpha", slip_indicator_alpha_);
   slip_use_lateral_accel_ =
@@ -117,6 +122,8 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   imu_butterworth_lateral_accel_cutoff_hz_ =
     declare_parameter(
     "imu_butterworth_lateral_accel_cutoff_hz", imu_butterworth_lateral_accel_cutoff_hz_);
+  imu_yaw_base_weight_ =
+    declare_parameter("imu_yaw_base_weight", imu_yaw_base_weight_);
   gyro_bias_alpha_ = declare_parameter("gyro_bias_alpha", gyro_bias_alpha_);
   imu_startup_calibration_enabled_ =
     declare_parameter("imu_startup_calibration_enabled", imu_startup_calibration_enabled_);
@@ -143,6 +150,42 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
     slip_accel_exit_ = 0.5 * slip_accel_enter_;
   }
 
+  if (
+    slip_indicator_source_ != "yaw_residual" &&
+    slip_indicator_source_ != "lateral_accel" &&
+    slip_indicator_source_ != "lateral_velocity_error")
+  {
+    RCLCPP_WARN(
+      get_logger(),
+      "Invalid slip_indicator_source '%s'. Using 'yaw_residual'.",
+      slip_indicator_source_.c_str());
+    slip_indicator_source_ = "yaw_residual";
+  }
+
+  if (slip_lateral_velocity_enter_ <= 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "slip_lateral_velocity_enter %.3f <= 0. Using 0.7 m/s.",
+      slip_lateral_velocity_enter_);
+    slip_lateral_velocity_enter_ = 0.7;
+  }
+
+  if (slip_lateral_velocity_exit_ < 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "slip_lateral_velocity_exit %.3f < 0. Using 0.35 m/s.",
+      slip_lateral_velocity_exit_);
+    slip_lateral_velocity_exit_ = 0.35;
+  }
+
+  if (slip_lateral_velocity_enter_ <= slip_lateral_velocity_exit_) {
+    RCLCPP_WARN(
+      get_logger(),
+      "slip_lateral_velocity_enter (%.3f) <= slip_lateral_velocity_exit (%.3f). Adjusting exit threshold.",
+      slip_lateral_velocity_enter_, slip_lateral_velocity_exit_);
+    slip_lateral_velocity_exit_ = 0.5 * slip_lateral_velocity_enter_;
+  }
+
   if (slip_indicator_alpha_ < 0.0 || slip_indicator_alpha_ > 1.0) {
     RCLCPP_WARN(
       get_logger(),
@@ -165,6 +208,14 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
       "slip_yaw_rate_weight %.3f <= 0. Using 3.0.",
       slip_yaw_rate_weight_);
     slip_yaw_rate_weight_ = 3.0;
+  }
+
+  if (imu_yaw_base_weight_ < 0.0 || imu_yaw_base_weight_ > 1.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "imu_yaw_base_weight %.3f out of [0,1]. Clamping.",
+      imu_yaw_base_weight_);
+    imu_yaw_base_weight_ = std::clamp(imu_yaw_base_weight_, 0.0, 1.0);
   }
 
   if (slip_enter_hold_sec_ < 0.0) {
@@ -348,11 +399,22 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     std::fabs(lateral_accel_measured_for_slip - lateral_accel_model);
   const double yaw_rate_residual_abs =
     std::fabs((debiased_angular_velocity_z_raw_ - gyro_bias_) - model_yaw_rate);
+  const double lateral_velocity_error_abs = std::fabs(imu_lateral_velocity_ - model_lateral_velocity);
   const double yaw_indicator = slip_yaw_rate_weight_ * yaw_rate_residual_abs;
+  const double lateral_accel_indicator = std::min(lateral_accel_residual_abs, slip_accel_clip_);
 
   double slip_indicator_raw = yaw_indicator;
-  if (slip_use_lateral_accel_) {
-    slip_indicator_raw = std::max(yaw_indicator, std::min(lateral_accel_residual_abs, slip_accel_clip_));
+  double slip_enter_threshold = slip_accel_enter_;
+  double slip_exit_threshold = slip_accel_exit_;
+
+  if (slip_indicator_source_ == "lateral_accel") {
+    slip_indicator_raw = lateral_accel_indicator;
+  } else if (slip_indicator_source_ == "lateral_velocity_error") {
+    slip_indicator_raw = lateral_velocity_error_abs;
+    slip_enter_threshold = slip_lateral_velocity_enter_;
+    slip_exit_threshold = slip_lateral_velocity_exit_;
+  } else if (slip_use_lateral_accel_) {
+    slip_indicator_raw = std::max(yaw_indicator, lateral_accel_indicator);
   }
 
   if (!slip_indicator_initialized_) {
@@ -369,7 +431,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     slip_exit_timer_ = 0.0;
     slip_active_ = false;
   } else if (!slip_active_) {
-    if (filtered_slip_indicator_ > slip_accel_enter_) {
+    if (filtered_slip_indicator_ > slip_enter_threshold) {
       slip_enter_timer_ += dt_sec;
     } else {
       slip_enter_timer_ = 0.0;
@@ -382,10 +444,10 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
       RCLCPP_INFO(
         get_logger(),
         "Slip mode ON (raw=%.3f, filtered=%.3f, enter=%.3f).",
-        slip_indicator_raw, filtered_slip_indicator_, slip_accel_enter_);
+        slip_indicator_raw, filtered_slip_indicator_, slip_enter_threshold);
     }
   } else {
-    if (filtered_slip_indicator_ < slip_accel_exit_) {
+    if (filtered_slip_indicator_ < slip_exit_threshold) {
       slip_exit_timer_ += dt_sec;
     } else {
       slip_exit_timer_ = 0.0;
@@ -398,12 +460,14 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
       RCLCPP_INFO(
         get_logger(),
         "Slip mode OFF (raw=%.3f, filtered=%.3f, exit=%.3f).",
-        slip_indicator_raw, filtered_slip_indicator_, slip_accel_exit_);
+        slip_indicator_raw, filtered_slip_indicator_, slip_exit_threshold);
     }
   }
 
+  const double slip_threshold_delta =
+    std::max(slip_enter_threshold - slip_exit_threshold, kEpsilon);
   double slip_weight = std::clamp(
-    (filtered_slip_indicator_ - slip_accel_exit_) / (slip_accel_enter_ - slip_accel_exit_),
+    (filtered_slip_indicator_ - slip_exit_threshold) / slip_threshold_delta,
     0.0,
     1.0);
   if (!has_servo) {
@@ -419,8 +483,10 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   }
 
   const double imu_yaw_rate = imu_yaw_rate_raw - gyro_bias_;
+  const double imu_yaw_weight =
+    imu_yaw_base_weight_ + (1.0 - imu_yaw_base_weight_) * slip_weight;
   const double current_yaw_rate =
-    (1.0 - slip_weight) * model_yaw_rate + slip_weight * imu_yaw_rate;
+    (1.0 - imu_yaw_weight) * model_yaw_rate + imu_yaw_weight * imu_yaw_rate;
 
   // Lateral velocity estimate (high-slip helper) from IMU lateral acceleration residual.
   const double lateral_accel_residual = lateral_accel_measured - current_speed * current_yaw_rate;

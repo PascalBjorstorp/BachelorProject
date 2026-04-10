@@ -96,6 +96,9 @@ private:
   // Slip detection thresholds (m/s^2)
   double slip_accel_enter_{1.8};
   double slip_accel_exit_{1.0};
+  std::string slip_indicator_source_{"yaw_residual"};
+  double slip_lateral_velocity_enter_{0.7};
+  double slip_lateral_velocity_exit_{0.35};
   bool slip_active_{false};
   double slip_min_speed_{1.2};
 
@@ -116,6 +119,7 @@ private:
   bool imu_use_butterworth_filter_{true};
   double imu_butterworth_gyro_cutoff_hz_{18.0};
   double imu_butterworth_lateral_accel_cutoff_hz_{12.0};
+  double imu_yaw_base_weight_{0.8};
   double filtered_angular_velocity_{0.0};
   double filtered_linear_accel_y_{0.0};
   double debiased_angular_velocity_z_raw_{0.0};

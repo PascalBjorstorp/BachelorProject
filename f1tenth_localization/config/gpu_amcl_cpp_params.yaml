@@ -104,7 +104,7 @@ odom_fused:
     output_topic: "/odom_pose"                # OUTPUT: PoseWithCovarianceStamped
 
     # ---- Frames ----
-    frame_id: "odom"                           # Header frame_id for published pose
+    frame_id: "ego_racecar/odom"               # Header frame_id for published pose (must match odom_frame)
 
     # ---- Base covariances (metres² / rad²) ----
     base_cov_xy: 0.005                        # Variance for x and y
