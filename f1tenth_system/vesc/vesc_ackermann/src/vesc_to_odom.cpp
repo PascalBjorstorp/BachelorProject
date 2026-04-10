@@ -110,7 +110,18 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   // IMU filter + bias parameters
   imu_angular_velocity_alpha_ =
     declare_parameter("imu_angular_velocity_alpha", imu_angular_velocity_alpha_);
+  imu_use_butterworth_filter_ =
+    declare_parameter("imu_use_butterworth_filter", imu_use_butterworth_filter_);
+  imu_butterworth_gyro_cutoff_hz_ =
+    declare_parameter("imu_butterworth_gyro_cutoff_hz", imu_butterworth_gyro_cutoff_hz_);
+  imu_butterworth_lateral_accel_cutoff_hz_ =
+    declare_parameter(
+    "imu_butterworth_lateral_accel_cutoff_hz", imu_butterworth_lateral_accel_cutoff_hz_);
   gyro_bias_alpha_ = declare_parameter("gyro_bias_alpha", gyro_bias_alpha_);
+  imu_startup_calibration_enabled_ =
+    declare_parameter("imu_startup_calibration_enabled", imu_startup_calibration_enabled_);
+  imu_startup_calibration_duration_sec_ =
+    declare_parameter("imu_startup_calibration_duration_sec", imu_startup_calibration_duration_sec_);
 
   // Lateral velocity estimator parameters
   imu_lateral_accel_alpha_ =
@@ -177,6 +188,33 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
       get_logger(),
       "speed_to_erpm_gain is %.6f. Odometry cannot convert ERPM to speed until this is set.",
       speed_to_erpm_gain_);
+  }
+
+  if (imu_startup_calibration_enabled_ && imu_startup_calibration_duration_sec_ <= 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "imu_startup_calibration_duration_sec %.3f <= 0. Disabling startup IMU calibration.",
+      imu_startup_calibration_duration_sec_);
+    imu_startup_calibration_enabled_ = false;
+  }
+
+  if (imu_use_butterworth_filter_) {
+    if (imu_butterworth_gyro_cutoff_hz_ <= 0.0 ||
+      imu_butterworth_lateral_accel_cutoff_hz_ <= 0.0)
+    {
+      RCLCPP_WARN(
+        get_logger(),
+        "Butterworth cutoffs must be positive (gyro=%.3f, lat_accel=%.3f). Falling back to EMA.",
+        imu_butterworth_gyro_cutoff_hz_,
+        imu_butterworth_lateral_accel_cutoff_hz_);
+      imu_use_butterworth_filter_ = false;
+    } else {
+      RCLCPP_INFO(
+        get_logger(),
+        "IMU 2nd-order Butterworth enabled (gyro cutoff=%.2f Hz, linear-y cutoff=%.2f Hz).",
+        imu_butterworth_gyro_cutoff_hz_,
+        imu_butterworth_lateral_accel_cutoff_hz_);
+    }
   }
 
   if (use_dynamic_bicycle_model_ &&
@@ -254,6 +292,15 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     current_speed = 0.0;
   }
 
+  if (imu_startup_calibration_enabled_ && !imu_startup_calibration_done_) {
+    RCLCPP_INFO_THROTTLE(
+      get_logger(), *get_clock(), 2000,
+      "IMU startup calibration in progress. Holding odom output for %.2f seconds.",
+      imu_startup_calibration_duration_sec_);
+    last_state_ = state;
+    return;
+  }
+
   // Steering-derived model yaw rate.
   const bool has_servo = static_cast<bool>(last_servo_cmd_);
   double steering_angle = 0.0;
@@ -294,7 +341,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   const double imu_yaw_rate_raw = filtered_angular_velocity_;
 
   // Slip indicator: yaw-rate residual (primary), optional clipped accel residual.
-  const double lateral_accel_measured = last_imu_->linear_acceleration.y;
+  const double lateral_accel_measured = filtered_linear_accel_y_;
   const double lateral_accel_model = current_speed * model_yaw_rate;
   const double lateral_accel_residual_abs =
     std::fabs(lateral_accel_measured - lateral_accel_model);
@@ -465,14 +512,177 @@ void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
 {
   last_imu_ = imu;
 
-  const double raw_angular_velocity = imu->angular_velocity.z;
-  if (!angular_velocity_filter_initialized_) {
-    filtered_angular_velocity_ = raw_angular_velocity;
+  const bool has_valid_stamp =
+    (imu->header.stamp.sec != 0) || (imu->header.stamp.nanosec != 0);
+  const double sample_time_sec =
+    has_valid_stamp ? rclcpp::Time(imu->header.stamp).seconds() : now().seconds();
+
+  if (imu_startup_calibration_enabled_ && !imu_startup_calibration_done_) {
+    if (!imu_startup_calibration_started_) {
+      imu_startup_calibration_started_ = true;
+      imu_startup_calibration_start_sec_ = sample_time_sec;
+      imu_startup_calibration_sample_count_ = 0;
+      imu_startup_linear_accel_x_sum_ = 0.0;
+      imu_startup_linear_accel_y_sum_ = 0.0;
+      imu_startup_angular_velocity_z_sum_ = 0.0;
+      RCLCPP_INFO(
+        get_logger(),
+        "Starting IMU startup calibration for %.2f seconds. Keep the car stationary.",
+        imu_startup_calibration_duration_sec_);
+    }
+
+    imu_startup_linear_accel_x_sum_ += imu->linear_acceleration.x;
+    imu_startup_linear_accel_y_sum_ += imu->linear_acceleration.y;
+    imu_startup_angular_velocity_z_sum_ += imu->angular_velocity.z;
+    ++imu_startup_calibration_sample_count_;
+
+    const double elapsed_sec = sample_time_sec - imu_startup_calibration_start_sec_;
+    if (elapsed_sec >= imu_startup_calibration_duration_sec_ &&
+      imu_startup_calibration_sample_count_ > 0U)
+    {
+      const double inv_samples =
+        1.0 / static_cast<double>(std::max<std::size_t>(imu_startup_calibration_sample_count_, 1U));
+      imu_startup_linear_accel_x_bias_ = imu_startup_linear_accel_x_sum_ * inv_samples;
+      imu_startup_linear_accel_y_bias_ = imu_startup_linear_accel_y_sum_ * inv_samples;
+      imu_startup_angular_velocity_z_bias_ = imu_startup_angular_velocity_z_sum_ * inv_samples;
+      imu_startup_calibration_done_ = true;
+
+      RCLCPP_INFO(
+        get_logger(),
+        "IMU startup calibration done (%zu samples): accel_bias_x=%.6f, accel_bias_y=%.6f, gyro_bias_z=%.6f",
+        imu_startup_calibration_sample_count_,
+        imu_startup_linear_accel_x_bias_,
+        imu_startup_linear_accel_y_bias_,
+        imu_startup_angular_velocity_z_bias_);
+    }
+  }
+
+  double imu_dt_sec = 0.0;
+  if (imu_sample_time_initialized_) {
+    imu_dt_sec = sample_time_sec - last_imu_sample_time_sec_;
+    if (imu_dt_sec <= 0.0 || imu_dt_sec > max_dt_sec_) {
+      imu_dt_sec = 0.0;
+    }
+  }
+  imu_sample_time_initialized_ = true;
+  last_imu_sample_time_sec_ = sample_time_sec;
+
+  double current_gyro_z_bias = imu_startup_angular_velocity_z_bias_;
+  double current_linear_accel_y_bias = imu_startup_linear_accel_y_bias_;
+  if (imu_startup_calibration_enabled_ && !imu_startup_calibration_done_ &&
+    imu_startup_calibration_sample_count_ > 0U)
+  {
+    current_gyro_z_bias =
+      imu_startup_angular_velocity_z_sum_ /
+      static_cast<double>(imu_startup_calibration_sample_count_);
+    current_linear_accel_y_bias =
+      imu_startup_linear_accel_y_sum_ /
+      static_cast<double>(imu_startup_calibration_sample_count_);
+  }
+
+  const double raw_angular_velocity = imu->angular_velocity.z - current_gyro_z_bias;
+  const double raw_linear_accel_y = imu->linear_acceleration.y - current_linear_accel_y_bias;
+
+  auto apply_butterworth_lowpass =
+    [&](double input,
+    double cutoff_hz,
+    bool & filter_initialized,
+    double & x1,
+    double & x2,
+    double & y1,
+    double & y2,
+    double dt_sec) -> double
+    {
+      if (!filter_initialized) {
+        filter_initialized = true;
+        x1 = input;
+        x2 = input;
+        y1 = input;
+        y2 = input;
+        return input;
+      }
+
+      if (dt_sec <= 0.0 || cutoff_hz <= 0.0) {
+        x2 = x1;
+        x1 = input;
+        y2 = y1;
+        y1 = input;
+        return input;
+      }
+
+      const double sample_rate_hz = 1.0 / dt_sec;
+      const double max_cutoff_hz = 0.45 * sample_rate_hz;
+      if (max_cutoff_hz <= 0.0) {
+        x2 = x1;
+        x1 = input;
+        y2 = y1;
+        y1 = input;
+        return input;
+      }
+
+      const double limited_cutoff_hz = std::min(cutoff_hz, max_cutoff_hz);
+      const double q = std::sqrt(0.5);  // Butterworth Q = 1/sqrt(2)
+      const double omega = 2.0 * M_PI * limited_cutoff_hz / sample_rate_hz;
+      const double sin_omega = std::sin(omega);
+      const double cos_omega = std::cos(omega);
+      const double alpha = sin_omega / (2.0 * q);
+
+      double b0 = (1.0 - cos_omega) * 0.5;
+      double b1 = 1.0 - cos_omega;
+      double b2 = (1.0 - cos_omega) * 0.5;
+      double a0 = 1.0 + alpha;
+      double a1 = -2.0 * cos_omega;
+      double a2 = 1.0 - alpha;
+
+      const double a0_inv = 1.0 / a0;
+      b0 *= a0_inv;
+      b1 *= a0_inv;
+      b2 *= a0_inv;
+      a1 *= a0_inv;
+      a2 *= a0_inv;
+
+      const double output =
+        b0 * input + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+
+      x2 = x1;
+      x1 = input;
+      y2 = y1;
+      y1 = output;
+      return output;
+    };
+
+  if (imu_use_butterworth_filter_) {
+    filtered_angular_velocity_ = apply_butterworth_lowpass(
+      raw_angular_velocity,
+      imu_butterworth_gyro_cutoff_hz_,
+      gyro_biquad_initialized_,
+      gyro_biquad_x1_,
+      gyro_biquad_x2_,
+      gyro_biquad_y1_,
+      gyro_biquad_y2_,
+      imu_dt_sec);
+
+    filtered_linear_accel_y_ = apply_butterworth_lowpass(
+      raw_linear_accel_y,
+      imu_butterworth_lateral_accel_cutoff_hz_,
+      lateral_accel_y_biquad_initialized_,
+      lateral_accel_y_biquad_x1_,
+      lateral_accel_y_biquad_x2_,
+      lateral_accel_y_biquad_y1_,
+      lateral_accel_y_biquad_y2_,
+      imu_dt_sec);
+
     angular_velocity_filter_initialized_ = true;
   } else {
-    filtered_angular_velocity_ =
-      imu_angular_velocity_alpha_ * raw_angular_velocity +
-      (1.0 - imu_angular_velocity_alpha_) * filtered_angular_velocity_;
+    if (!angular_velocity_filter_initialized_) {
+      filtered_angular_velocity_ = raw_angular_velocity;
+      angular_velocity_filter_initialized_ = true;
+    } else {
+      filtered_angular_velocity_ =
+        imu_angular_velocity_alpha_ * raw_angular_velocity +
+        (1.0 - imu_angular_velocity_alpha_) * filtered_angular_velocity_;
+    }
+    filtered_linear_accel_y_ = raw_linear_accel_y;
   }
 
   auto filtered_msg = std::make_unique<Float64>();

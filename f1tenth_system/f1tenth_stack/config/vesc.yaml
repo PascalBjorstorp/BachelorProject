@@ -71,10 +71,21 @@ vesc_to_odom_node:
     speed_deadband: 0.15
     max_dt_sec: 1.0
     
-    # IMU angular velocity low-pass filter coefficient (0.0 to 1.0)
+    # Fallback IMU angular velocity low-pass coefficient (EMA, used only when Butterworth is disabled)
     # Lower = more filtering (smoother but slower)
     # Higher = less filtering (faster but noisier)
     imu_angular_velocity_alpha: 0.45
+
+    # Startup IMU bias calibration (car stationary): averages linear x/y and angular z.
+    imu_startup_calibration_enabled: true
+    imu_startup_calibration_duration_sec: 5.0
+
+    # 2nd-order Butterworth filtering at IMU rate.
+    # Keeps update rate high while attenuating sensor noise.
+    imu_use_butterworth_filter: true
+    imu_butterworth_gyro_cutoff_hz: 10.0
+    imu_butterworth_lateral_accel_cutoff_hz: 6.0
+
     # Slip detector thresholds using |a_y_measured - v_x * r_model| [m/s^2]
     # Enter should be greater than exit (hysteresis).
     slip_accel_enter: 3.0
