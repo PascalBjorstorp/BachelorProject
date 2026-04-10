@@ -244,8 +244,123 @@ static void odom_callback(const void *msg_in)
     state_valid = 1;
 }
 
+/* ── Raceline Subscription ────────────────────────────────────────────── */
+static rcl_subscription_t raceline_sub;
+static nav_msgs__msg__Path  raceline_msg;
+
+static void raceline_callback(const void *msg_in)
+{
+    const nav_msgs__msg__Path *msg = (const nav_msgs__msg__Path *)msg_in;
+
+    if (msg->poses.size < 2) {
+        fprintf(stderr, "[MPCC] WARNING: raceline with %zu points (need >= 2)\n",
+                msg->poses.size);
+        return;
+    }
+
+    MPCCReferencePath_t ref_path;
+    uint16_t n = (msg->poses.size > MPCC_MAX_PATH_POINTS)
+                  ? MPCC_MAX_PATH_POINTS : (uint16_t)msg->poses.size;
+    ref_path.num_points = n;
+
+    /* Extract x, y, heading, velocity from poses */
+    for (uint16_t i = 0; i < n; i++) {
+        const geometry_msgs__msg__PoseStamped *ps = &msg->poses.data[i];
+        ref_path.points[i].x_ref  = (float)ps->pose.position.x;
+        ref_path.points[i].y_ref  = (float)ps->pose.position.y;
+        ref_path.points[i].vx_ref = (float)ps->pose.position.z; /* velocity in z */
+        ref_path.points[i].phi_ref = (float)quat_to_yaw(
+            ps->pose.orientation.x, ps->pose.orientation.y,
+            ps->pose.orientation.z, ps->pose.orientation.w);
+        ref_path.points[i].left_bound  = 0.5f;
+        ref_path.points[i].right_bound = 0.5f;
+    }
+
+    /* Compute s from cumulative Euclidean distance */
+    ref_path.points[0].s_ref = 0.0f;
+    for (uint16_t i = 1; i < n; i++) {
+        float dx = ref_path.points[i].x_ref - ref_path.points[i - 1].x_ref;
+        float dy = ref_path.points[i].y_ref - ref_path.points[i - 1].y_ref;
+        ref_path.points[i].s_ref = ref_path.points[i - 1].s_ref
+                                   + sqrtf(dx * dx + dy * dy);
+    }
+
+    /* Curvature from heading central differences */
+    for (uint16_t i = 0; i < n; i++) {
+        uint16_t prev = (i == 0) ? 0 : i - 1;
+        uint16_t next = (i == n - 1) ? n - 1 : i + 1;
+        float ds = ref_path.points[next].s_ref - ref_path.points[prev].s_ref;
+        if (ds > 1e-6f) {
+            float dpsi = ref_path.points[next].phi_ref
+                       - ref_path.points[prev].phi_ref;
+            while (dpsi >  (float)M_PI) dpsi -= 2.0f * (float)M_PI;
+            while (dpsi < -(float)M_PI) dpsi += 2.0f * (float)M_PI;
+            ref_path.points[i].kappa_ref = dpsi / ds;
+        } else {
+            ref_path.points[i].kappa_ref = 0.0f;
+        }
+    }
+
+    ref_path.total_length = ref_path.points[n - 1].s_ref;
+    ref_path.is_closed = 1;
+
+    mpcc_set_reference_path(&ref_path);
+    printf("[MPCC] Updated raceline from topic (%d points, %.1f m)\n",
+           n, ref_path.total_length);
+
+    /* Re-publish processed raceline for rviz */
+    publish_raceline(&ref_path);
+}
+
 /* ── Control Timer Callback ──────────────────────────────────────────────── */
 static uint32_t solve_count = 0;
+
+/* Reusable predicted path message (pre-allocated) */
+static geometry_msgs__msg__PoseArray predicted_path_msg;
+static int predicted_path_msg_inited = 0;
+
+static void publish_predicted_path(const MPCCResult_t *result)
+{
+    MPCCConfiguration_t cfg = mpcc_get_configuration();
+    uint16_t n = cfg.horizon_steps + 1;  /* states[0..N] */
+    if (n > MPCC_MAX_HORIZON + 1) n = MPCC_MAX_HORIZON + 1;
+
+    if (!predicted_path_msg_inited) {
+        geometry_msgs__msg__PoseArray__init(&predicted_path_msg);
+        rcutils_allocator_t alloc = rcutils_get_default_allocator();
+        /* frame_id = "map" */
+        char *fid = (char *)alloc.allocate(8, alloc.state);
+        if (fid) {
+            memcpy(fid, "map", 4);
+            predicted_path_msg.header.frame_id.data = fid;
+            predicted_path_msg.header.frame_id.size = 3;
+            predicted_path_msg.header.frame_id.capacity = 8;
+        }
+        /* Pre-allocate poses array for max horizon */
+        geometry_msgs__msg__Pose *poses =
+            (geometry_msgs__msg__Pose *)alloc.allocate(
+                (MPCC_MAX_HORIZON + 1) * sizeof(geometry_msgs__msg__Pose),
+                alloc.state);
+        if (!poses) return;
+        predicted_path_msg.poses.data = poses;
+        predicted_path_msg.poses.capacity = MPCC_MAX_HORIZON + 1;
+        predicted_path_msg_inited = 1;
+    }
+
+    predicted_path_msg.poses.size = n;
+    for (uint16_t i = 0; i < n; i++) {
+        const MPCCState_t *st = &result->predicted_states[i];
+        predicted_path_msg.poses.data[i].position.x = st->X;
+        predicted_path_msg.poses.data[i].position.y = st->Y;
+        predicted_path_msg.poses.data[i].position.z = 0.0;
+        predicted_path_msg.poses.data[i].orientation.x = 0.0;
+        predicted_path_msg.poses.data[i].orientation.y = 0.0;
+        predicted_path_msg.poses.data[i].orientation.z = sin(st->psi * 0.5f);
+        predicted_path_msg.poses.data[i].orientation.w = cos(st->psi * 0.5f);
+    }
+
+    { rcl_ret_t rc_ = rcl_publish(&predicted_path_pub, &predicted_path_msg, NULL); (void)rc_; }
+}
 
 static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
 {
@@ -306,6 +421,11 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
                     rcl_get_error_string().str);
             rcl_reset_error();
         }
+    }
+
+    /* Publish predicted horizon path for visualization */
+    if (status == MPCC_STATUS_SUCCESS || status == MPCC_STATUS_MAX_ITERATIONS) {
+        publish_predicted_path(&result);
     }
 }
 
@@ -419,6 +539,25 @@ int main(int argc, const char *argv[])
         ROSIDL_GET_MSG_TYPE_SUPPORT(nav_msgs, msg, Odometry),
         "/ego_racecar/ground_truth");
 
+    /* ── Subscriber: raceline updates ────────────────────────────────── */
+    rclc_subscription_init_default(
+        &raceline_sub, &node,
+        ROSIDL_GET_MSG_TYPE_SUPPORT(nav_msgs, msg, Path),
+        "/local_raceline");
+
+    /* Initialize raceline message (pre-allocate poses for rclc) */
+    nav_msgs__msg__Path__init(&raceline_msg);
+    {
+        rcutils_allocator_t alloc = rcutils_get_default_allocator();
+        char *fid = (char *)alloc.allocate(64, alloc.state);
+        if (fid) { fid[0] = '\0'; raceline_msg.header.frame_id.data = fid;
+                    raceline_msg.header.frame_id.size = 0;
+                    raceline_msg.header.frame_id.capacity = 64; }
+        /* Pre-allocate poses array (each PoseStamped + its strings) */
+        geometry_msgs__msg__PoseStamped__Sequence__init(
+            &raceline_msg.poses, MPCC_MAX_PATH_POINTS);
+    }
+
     /* ── Publisher: drive command ─────────────────────────────────────── */
     rclc_publisher_init_default(
         &drive_pub, &node,
@@ -464,9 +603,11 @@ int main(int argc, const char *argv[])
 
     /* ── Executor ────────────────────────────────────────────────────── */
     rclc_executor_t executor;
-    rclc_executor_init(&executor, &support.context, 2, &allocator);
+    rclc_executor_init(&executor, &support.context, 3, &allocator);
     rclc_executor_add_subscription(&executor, &odom_sub, &odom_msg,
                                    &odom_callback, ON_NEW_DATA);
+    rclc_executor_add_subscription(&executor, &raceline_sub, &raceline_msg,
+                                   &raceline_callback, ON_NEW_DATA);
     rclc_executor_add_timer(&executor, &control_timer);
 
     /* Spin */
@@ -477,6 +618,14 @@ int main(int argc, const char *argv[])
         rcl_ret_t rc = rcl_subscription_fini(&odom_sub, &node);
         if (rc != RCL_RET_OK) {
             fprintf(stderr, "[MPCC] WARNING: rcl_subscription_fini failed: %s\n",
+                    rcl_get_error_string().str);
+            rcl_reset_error();
+        }
+    }
+    {
+        rcl_ret_t rc = rcl_subscription_fini(&raceline_sub, &node);
+        if (rc != RCL_RET_OK) {
+            fprintf(stderr, "[MPCC] WARNING: rcl_subscription_fini(raceline) failed: %s\n",
                     rcl_get_error_string().str);
             rcl_reset_error();
         }
