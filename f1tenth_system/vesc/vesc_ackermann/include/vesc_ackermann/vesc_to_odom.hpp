@@ -114,10 +114,12 @@ private:
   // IMU filtering
   double imu_angular_velocity_alpha_{0.45};  // fallback EMA if Butterworth is disabled
   bool imu_use_butterworth_filter_{true};
-  double imu_butterworth_gyro_cutoff_hz_{10.0};
-  double imu_butterworth_lateral_accel_cutoff_hz_{6.0};
+  double imu_butterworth_gyro_cutoff_hz_{18.0};
+  double imu_butterworth_lateral_accel_cutoff_hz_{12.0};
   double filtered_angular_velocity_{0.0};
   double filtered_linear_accel_y_{0.0};
+  double debiased_angular_velocity_z_raw_{0.0};
+  double debiased_linear_accel_y_raw_{0.0};
   bool angular_velocity_filter_initialized_{false};
   bool imu_sample_time_initialized_{false};
   double last_imu_sample_time_sec_{0.0};

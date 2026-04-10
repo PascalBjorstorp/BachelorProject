@@ -83,8 +83,8 @@ vesc_to_odom_node:
     # 2nd-order Butterworth filtering at IMU rate.
     # Keeps update rate high while attenuating sensor noise.
     imu_use_butterworth_filter: true
-    imu_butterworth_gyro_cutoff_hz: 10.0
-    imu_butterworth_lateral_accel_cutoff_hz: 6.0
+    imu_butterworth_gyro_cutoff_hz: 18.0
+    imu_butterworth_lateral_accel_cutoff_hz: 12.0
 
     # Slip detector thresholds using |a_y_measured - v_x * r_model| [m/s^2]
     # Enter should be greater than exit (hysteresis).

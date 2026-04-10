@@ -340,13 +340,14 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   // IMU yaw rate with online bias correction.
   const double imu_yaw_rate_raw = filtered_angular_velocity_;
 
-  // Slip indicator: yaw-rate residual (primary), optional clipped accel residual.
+  // Slip indicator uses fast de-biased IMU channels to keep slip response quick.
   const double lateral_accel_measured = filtered_linear_accel_y_;
+  const double lateral_accel_measured_for_slip = debiased_linear_accel_y_raw_;
   const double lateral_accel_model = current_speed * model_yaw_rate;
   const double lateral_accel_residual_abs =
-    std::fabs(lateral_accel_measured - lateral_accel_model);
+    std::fabs(lateral_accel_measured_for_slip - lateral_accel_model);
   const double yaw_rate_residual_abs =
-    std::fabs((imu_yaw_rate_raw - gyro_bias_) - model_yaw_rate);
+    std::fabs((debiased_angular_velocity_z_raw_ - gyro_bias_) - model_yaw_rate);
   const double yaw_indicator = slip_yaw_rate_weight_ * yaw_rate_residual_abs;
 
   double slip_indicator_raw = yaw_indicator;
@@ -582,6 +583,8 @@ void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
 
   const double raw_angular_velocity = imu->angular_velocity.z - current_gyro_z_bias;
   const double raw_linear_accel_y = imu->linear_acceleration.y - current_linear_accel_y_bias;
+  debiased_angular_velocity_z_raw_ = raw_angular_velocity;
+  debiased_linear_accel_y_raw_ = raw_linear_accel_y;
 
   auto apply_butterworth_lowpass =
     [&](double input,
