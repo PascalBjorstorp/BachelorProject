@@ -56,7 +56,7 @@
 /* Default MPC re-computation interval; should match the hardware control rate
  * for faithful simulation of the deployed system. */
 #define MPC_DT_DEFAULT    0.005
-#define SIM_DURATION      100.0  /* seconds */
+#define SIM_DURATION_DEFAULT 100.0  /* seconds */
 #define MAX_WAYPOINTS     2000
 #define MAX_STEERING      0.4189 /* rad — calibrated limit (with polynomial servo correction) */
 #define MAX_VELOCITY      20.0   /* m/s */
@@ -100,10 +100,26 @@ typedef struct {
     double left_bound, right_bound;
 } Waypoint_t;
 
+typedef struct {
+    double s;
+    double lateral_error;
+    double heading_error;
+} PathProjection_t;
+
 static Waypoint_t raceline[MAX_WAYPOINTS];
 static int raceline_count = 0;
 static double g_mpc_prediction_dt = TIME_STEP_SECONDS;  /* Set from PRED_DT env or default */
 static double g_track_length_m = 0.0;
+
+/* Read a double-valued environment override, falling back when unset/invalid. */
+static double get_env_double(const char *name, double fallback)
+{
+    const char *env = getenv(name);
+    if (env == NULL || env[0] == '\0') {
+        return fallback;
+    }
+    return atof(env);
+}
 
 /* Load raceline waypoints from an environment path or known fallback paths.
  * Side effect: fills global raceline buffer and track-length metadata.
@@ -259,25 +275,6 @@ static int find_closest_waypoint(double px, double py, double heading)
 /* Convert world-frame vehicle state to Frenet tracking state at waypoint wp.
  * Parameters: v points to vehicle state, wp is waypoint index.
  * Returns FrenetState_t with lateral/heading error and body velocities. */
-static FrenetState_t vehicle_to_frenet(const VehicleState_t *v, int wp)
-{
-    FrenetState_t f;
-    double px = (double)(v->pos_x);
-    double py = (double)(v->pos_y);
-    double psi = (double)(v->heading);
-    double dx = px - raceline[wp].x;
-    double dy = py - raceline[wp].y;
-    double path_psi = raceline[wp].psi;
-    double lat_err = -dx * sin(path_psi) + dy * cos(path_psi);
-    double hdg_err = wrap_angle(psi - path_psi);
-    f.flat_error = (float)(lat_err);
-    f.fhead_error = (float)(hdg_err);
-    f.flong_vel = v->long_vel;
-    f.flat_vel = v->lat_vel;
-    f.fyaw_rate = v->yaw_rate;
-    return f;
-}
-
 /* Wrap arc-length coordinate for closed-loop track interpolation.
  * Parameter: s is arc length in meters.
  * Returns wrapped arc length in meters. */
@@ -288,6 +285,81 @@ static double wrap_track_s(double s)
     while (s < s0) s += g_track_length_m;
     while (s >= s0 + g_track_length_m) s -= g_track_length_m;
     return s;
+}
+
+/* Project a pose to the local raceline segment used by the hardware node.
+ * Parameters: px/py/psi are world pose values, closest_index is the active
+ * nearest waypoint.
+ * Returns interpolated Frenet errors together with projected track arc length. */
+static PathProjection_t project_pose_to_raceline(
+    double px, double py, double psi, int closest_index)
+{
+    PathProjection_t out = {0};
+
+    if (raceline_count <= 0) return out;
+
+    int idx0 = closest_index;
+    if (idx0 < 0) idx0 = 0;
+    if (idx0 >= raceline_count) idx0 = raceline_count - 1;
+    int idx1 = (idx0 + 1) % raceline_count;
+
+    double ax = raceline[idx0].x;
+    double ay = raceline[idx0].y;
+    double bx = raceline[idx1].x;
+    double by = raceline[idx1].y;
+
+    double abx = bx - ax;
+    double aby = by - ay;
+    double apx = px - ax;
+    double apy = py - ay;
+    double ab_len2 = abx * abx + aby * aby;
+    double t = 0.0;
+    if (ab_len2 > 1e-12)
+        t = (apx * abx + apy * aby) / ab_len2;
+    if (t < 0.0) t = 0.0;
+    if (t > 1.0) t = 1.0;
+
+    double path_x = ax + t * abx;
+    double path_y = ay + t * aby;
+
+    double h0 = raceline[idx0].psi;
+    double h1 = raceline[idx1].psi;
+    double dh = h1 - h0;
+    while (dh > M_PI) dh -= TWO_PI;
+    while (dh < -M_PI) dh += TWO_PI;
+    double path_psi = wrap_angle(h0 + t * dh);
+
+    double dx = px - path_x;
+    double dy = py - path_y;
+    out.lateral_error = -dx * sin(path_psi) + dy * cos(path_psi);
+    out.heading_error = wrap_angle(psi - path_psi);
+
+    double s0 = raceline[idx0].s;
+    double s1 = raceline[idx1].s;
+    if (idx0 == raceline_count - 1 && g_track_length_m > 1e-6)
+        s1 += g_track_length_m;
+    out.s = s0 + t * (s1 - s0);
+    out.s = wrap_track_s(out.s);
+    return out;
+}
+
+/* Convert world-frame vehicle state to Frenet tracking state at waypoint wp.
+ * Parameters: v points to vehicle state, wp is waypoint index.
+ * Returns FrenetState_t with lateral/heading error and body velocities. */
+static FrenetState_t vehicle_to_frenet(const VehicleState_t *v, int wp)
+{
+    FrenetState_t f;
+    PathProjection_t proj = project_pose_to_raceline(
+        (double)(v->pos_x),
+        (double)(v->pos_y),
+        (double)(v->heading),
+        wp);
+    f.flat_error = (float)(proj.lateral_error);
+    f.fhead_error = (float)(proj.heading_error);
+    f.flong_vel = v->long_vel;
+    f.flat_vel = v->lat_vel;
+    f.fyaw_rate = v->yaw_rate;
+    return f;
 }
 
 /* Interpolate raceline waypoint values at requested arc length.
@@ -454,10 +526,14 @@ int main(void)
     const char *mpc_dt_env = getenv("MPC_DT");
     const double mpc_dt_raw = mpc_dt_env ? atof(mpc_dt_env) : MPC_DT_DEFAULT;
     const double MPC_DT = (mpc_dt_raw > 1e-6) ? mpc_dt_raw : MPC_DT_DEFAULT;
+    const double sim_duration = get_env_double("SIM_DURATION", SIM_DURATION);
 
     int mpc_call_interval = (int)(MPC_DT / SIM_DT + 0.5);
     if (mpc_call_interval < 1) mpc_call_interval = 1;
     const int MPC_CALL_INTERVAL = mpc_call_interval;
+    const char *sim_duration_env = getenv("SIM_DURATION");
+    const double sim_duration_raw = sim_duration_env ? atof(sim_duration_env) : SIM_DURATION_DEFAULT;
+    const double SIM_DURATION = (sim_duration_raw > 1e-3) ? sim_duration_raw : SIM_DURATION_DEFAULT;
     const int SIM_STEPS = (int)(SIM_DURATION / SIM_DT);
 
     const char *pred_dt_env = getenv("PRED_DT");
@@ -470,11 +546,16 @@ int main(void)
      * body-edge collision (more accurate for real hardware). */
     const char *bsm_env = getenv("BODY_SAFETY_MARGIN");
     const double body_safety_margin = bsm_env ? atof(bsm_env) : DEFAULT_BODY_SAFETY_MARGIN;
+    const double start_offset_lat = get_env_double("START_OFFSET_LAT", 0.0);
+    const double start_offset_x = get_env_double("START_OFFSET_X", 0.0);
+    const double start_offset_y = get_env_double("START_OFFSET_Y", 0.0);
+    const double start_heading_offset = get_env_double("START_HEADING_OFFSET", 0.0);
+    const double start_speed = get_env_double("START_SPEED", 0.0);
 
     const int verbose = getenv("VERBOSE") != NULL;
 
     printf("=== Spielberg Sim-Drive Test (Riccati-ADMM, %.0fs at dt=%.4fs = %d steps, %.0fHz) ===\n",
-           SIM_DURATION, SIM_DT, SIM_STEPS, 1.0/SIM_DT);
+           sim_duration, SIM_DT, SIM_STEPS, 1.0/SIM_DT);
     printf("    MPC rate: %.0fHz (every %d sim steps)\n",
            1.0/MPC_DT, MPC_CALL_INTERVAL);
 
@@ -504,9 +585,27 @@ int main(void)
     if (body_safety_margin != DEFAULT_BODY_SAFETY_MARGIN)
         printf("    BODY_SAFETY_MARGIN: %.3fm (default: %.3fm)\n",
                body_safety_margin, DEFAULT_BODY_SAFETY_MARGIN);
+    if (fabs(start_offset_lat) > 1e-9 || fabs(start_offset_x) > 1e-9 || fabs(start_offset_y) > 1e-9 ||
+        fabs(start_heading_offset) > 1e-9 || fabs(start_speed) > 1e-9) {
+        printf("    START override: lat=%+.3fm dx=%+.3fm dy=%+.3fm hdg=%+.3frad v0=%.2fm/s\n",
+               start_offset_lat, start_offset_x, start_offset_y, start_heading_offset, start_speed);
+    }
     printf("\n");
 
     if (!load_raceline()) return 1;
+
+    int start_index = 0;
+    const char *start_index_env = getenv("START_INDEX");
+    if (start_index_env) start_index = atoi(start_index_env);
+    if (start_index < 0) start_index = 0;
+    if (start_index >= raceline_count) start_index = raceline_count - 1;
+
+    const char *start_lat_env = getenv("START_OFFSET_LAT");
+    const char *start_hdg_env = getenv("START_HEADING_OFFSET");
+    const char *start_speed_env = getenv("START_SPEED");
+    const double start_offset_lat = start_lat_env ? atof(start_lat_env) : 0.0;
+    const double start_heading_offset = start_hdg_env ? atof(start_hdg_env) : 0.0;
+    const double start_speed = start_speed_env ? atof(start_speed_env) : 0.0;
 
     /* Initialize Riccati-ADMM MPC via the unified API */
     mpc_initialize();
@@ -552,14 +651,21 @@ int main(void)
                (double)(cfg.cross_call_rate_scale));
     }
 
-    /* Spawn at raceline[0] at standstill */
+    /* Spawn at raceline[0], optionally shifted laterally and with a custom initial speed. */
+    const double start_normal = raceline[0].psi + M_PI / 2.0;
     VehicleState_t state;
-    state.pos_x = (float)(raceline[0].x);
-    state.pos_y = (float)(raceline[0].y);
-    state.heading = (float)(raceline[0].psi);
-    state.long_vel = 0;
+    state.pos_x = (float)(raceline[0].x + start_offset_lat * cos(start_normal) + start_offset_x);
+    state.pos_y = (float)(raceline[0].y + start_offset_lat * sin(start_normal) + start_offset_y);
+    state.heading = (float)(wrap_angle(raceline[0].psi + start_heading_offset));
+    state.long_vel = (float)(start_speed);
     state.lat_vel = 0;
     state.yaw_rate = 0;
+    last_closest = start_index;
+
+    if (verbose || fabs(start_offset_lat) > 1e-6 || fabs(start_heading_offset) > 1e-6 || start_speed > 1e-6) {
+        printf("    Start state: idx=%d, lat_offset=%+.3fm, hdg_offset=%+.3frad, speed=%.2fm/s\n",
+               start_index, start_offset_lat, start_heading_offset, start_speed);
+    }
 
     /* Tracking metrics */
     double max_lat_err = 0, sum_lat_err = 0;
@@ -578,6 +684,16 @@ int main(void)
     double time_above_5ms = 0;
     double max_vx = 0;
     double sum_vx = 0;
+    double progress_m = 0.0;
+    double avg_progress_mps = 0.0;
+    double total_lap_time = 0.0;
+    double last_lap_cross_time = 0.0;
+    double unwrapped_s = 0.0;
+    double last_projected_s = 0.0;
+    double start_projected_s = 0.0;
+    double next_lap_marker_s = 0.0;
+    int completed_laps = 0;
+    int progress_initialized = 0;
 
     /* True (noise-free) state for wall checks and metrics.
      * Sensor noise should only affect MPC input, not ground-truth collision. */
@@ -609,9 +725,6 @@ int main(void)
         double py = (double)(state.pos_y);
         double psi = (double)(state.heading);
         double vx = (double)(state.long_vel);
-
-        if (vx > max_vx) max_vx = vx;
-        sum_vx += vx;
 
         int closest = find_closest_waypoint(px, py, psi);
 
@@ -654,8 +767,69 @@ int main(void)
         double true_psi = (double)(true_state.heading);
         int true_closest = realistic_noise ? find_closest_waypoint(true_px, true_py, true_psi) : closest;
         FrenetState_t true_frenet = realistic_noise ? vehicle_to_frenet(&true_state, true_closest) : frenet;
+        /* Ground-truth speed magnitude for robust metrics (frame/sign independent). */
+        const double speed_mps = hypot((double)(true_state.long_vel), (double)(true_state.lat_vel));
+        if (speed_mps > max_vx) max_vx = speed_mps;
+        sum_vx += speed_mps;
         double e_y = (double)(true_frenet.flat_error);
         double e_psi = (double)(true_frenet.fhead_error);
+        const double current_progress_s = raceline[true_closest].s;
+
+        if (!progress_initialized) {
+            prev_progress_s = current_progress_s;
+            progress_initialized = 1;
+        } else {
+            const double raw_delta = forward_track_delta(prev_progress_s, current_progress_s);
+            const double max_reasonable_step_progress = fmax(0.5, MAX_VELOCITY * SIM_DT * 2.0);
+            const double delta_progress = (raw_delta <= max_reasonable_step_progress) ? raw_delta : max_reasonable_step_progress;
+            const double progress_before = progress_m;
+            progress_m += delta_progress;
+            prev_progress_s = current_progress_s;
+
+            if (g_track_length_m > 1e-6) {
+                const int laps_after = (int)(progress_m / g_track_length_m);
+                while (completed_laps < laps_after) {
+                    const double lap_boundary = (completed_laps + 1) * g_track_length_m;
+                    const double progress_step = progress_m - progress_before;
+                    double lap_cross_time = t;
+                    if (progress_step > 1e-6) {
+                        const double frac = (lap_boundary - progress_before) / progress_step;
+                        const double clamped_frac = fmin(fmax(frac, 0.0), 1.0);
+                        lap_cross_time = (t - SIM_DT) + clamped_frac * SIM_DT;
+                    }
+                    const double lap_time = lap_cross_time - last_lap_cross_time;
+                    if (lap_time > 1e-3) {
+                        lap_time_sum += lap_time;
+                    }
+                    last_lap_cross_time = lap_cross_time;
+                    completed_laps++;
+                }
+            }
+        }
+
+        if (!progress_initialized) {
+            start_projected_s = true_proj.s;
+            last_projected_s = true_proj.s;
+            unwrapped_s = true_proj.s;
+            next_lap_marker_s = start_projected_s + g_track_length_m;
+            last_lap_cross_time = 0.0;
+            progress_initialized = 1;
+        } else {
+            double ds = true_proj.s - last_projected_s;
+            if (g_track_length_m > 1e-6) {
+                if (ds < -0.5 * g_track_length_m) ds += g_track_length_m;
+                else if (ds > 0.5 * g_track_length_m) ds -= g_track_length_m;
+            }
+            unwrapped_s += ds;
+            last_projected_s = true_proj.s;
+        }
+        progress_m = unwrapped_s - start_projected_s;
+        while (g_track_length_m > 1e-6 && unwrapped_s >= next_lap_marker_s) {
+            completed_laps++;
+            total_lap_time += (t - last_lap_cross_time);
+            last_lap_cross_time = t;
+            next_lap_marker_s += g_track_length_m;
+        }
 
         /* Wall collision check — body-edge, using TRUE state */
         double left_wall = raceline[true_closest].left_bound;
@@ -665,7 +839,7 @@ int main(void)
         if (e_y < -(right_wall - VEHICLE_HALF_WIDTH - body_safety_margin)){ wall_hit = -1; wall_collisions++; }
         if (wall_hit) {
             printf("\n  !!! WALL CRASH: e_y = %.3f m (bound: %.3f) at step %d (t=%.2fs, wp=%d, v=%.1f) !!!\n",
-                   e_y, wall_hit > 0 ? left_wall : right_wall, step, t, closest, vx);
+                   e_y, wall_hit > 0 ? left_wall : right_wall, step, t, closest, speed_mps);
             break;
         }
 
@@ -740,10 +914,10 @@ int main(void)
         sum_lat_err += fabs(e_y);
         if (fabs(e_psi) > max_hdg_err) max_hdg_err = fabs(e_psi);
         sum_hdg_err += fabs(e_psi);
-        double vel_err = fabs(vx - raceline[closest].vx);
+        double vel_err = fabs(speed_mps - raceline[closest].vx);
         if (vel_err > max_vel_err) max_vel_err = vel_err;
         sum_vel_err += vel_err;
-        if (vx > 5.0) time_above_5ms += SIM_DT;
+        if (speed_mps > 5.0) time_above_5ms += SIM_DT;
 
         double steer_change = actual_steer - prev_steer;
         if (fabs(steer_change) > fabs(max_steer_change)) max_steer_change = steer_change;
@@ -756,7 +930,7 @@ int main(void)
             int print_row = (step < 40) || (step % 20 == 0) || wall_hit || (fabs(e_y) > 0.8);
             if (print_row) {
                 printf("  %4d | %5.2f | %5.2f | %5.2f | %+.3f | %+.3f | %+.4f | %+.4f | %+.2f | %4d | %3d | %s\n",
-                       step, t, vx, raceline[closest].vx, e_y, e_psi, steer, actual_steer, accel_cmd, iter, closest,
+                       step, t, speed_mps, raceline[closest].vx, e_y, e_psi, steer, actual_steer, accel_cmd, iter, closest,
                        wall_hit > 0 ? "LEFT!" : (wall_hit < 0 ? "RIGHT!" : ""));
             }
         }
@@ -1017,6 +1191,8 @@ int main(void)
     double avg_hdg = sum_hdg_err / metric_steps;
     double avg_vel = sum_vel_err / metric_steps;
     double avg_vx = sum_vx / metric_steps;
+    avg_progress_mps = progress_m / simulated_time;
+    double avg_lap_time = (completed_laps > 0) ? (total_lap_time / completed_laps) : 0.0;
     printf("\n  === Results (%.1f seconds, Riccati-ADMM, %.0fHz MPC) ===\n",
            simulated_time, 1.0 / MPC_DT);
     printf("  Solver success:     %d / %d (%.1f%%)\n", solver_ok, solver_calls,
@@ -1029,8 +1205,17 @@ int main(void)
     printf("  Avg heading error:  %.4f rad (%.1f deg)\n", avg_hdg, avg_hdg*180/M_PI);
     printf("  Max velocity error: %.2f m/s\n", max_vel_err);
     printf("  Avg velocity error: %.2f m/s\n", avg_vel);
+    printf("  Track progress:     %.2f m (%.2f m/s)\n", progress_m, avg_progress_mps);
+    printf("  Completed laps:     %d\n", completed_laps);
+    if (completed_laps > 0)
+        printf("  Avg lap time:       %.3f s\n", avg_lap_time);
     printf("  Max steer change:   %.4f rad/step\n", max_steer_change);
     printf("  Steer reversals:    %d\n", steer_reversals);
+    printf("  Track progress:     %.2f m (%.2f m/s avg)\n", progress_m, avg_progress_mps);
+    printf("  Completed laps:     %d\n", completed_laps);
+    if (completed_laps > 0) {
+        printf("  Avg lap time:       %.2f s\n", avg_lap_time);
+    }
     printf("  Wall collisions:    %d\n", wall_collisions);
     printf("  Time above 5 m/s:   %.1f / %.1f s (%.0f%%)\n",
            time_above_5ms, simulated_time,
@@ -1071,12 +1256,14 @@ int main(void)
 
     /* Machine-readable CSV summary line for tuning scripts */
     if (getenv("MPC_TUNING_CSV")) {
-         printf("CSV,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%.1f,%d,%.1f,%.4f,%.4f,%.1f,%.4f\n",
-               tests_passed, tests_failed,
-               max_lat_err, avg_lat, max_hdg_err, avg_hdg,
-               max_vx, avg_solve, max_solve_us,
-               wall_collisions, time_above_5ms,
-             max_vel_err, avg_vel, avg_iters, avg_vx);
+         printf("CSV,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%.1f,%d,%.1f,%.4f,%.4f,%.1f,%.4f,%.4f,%.4f,%d,%.4f,%.4f,%d\n",
+            tests_passed, tests_failed,
+            max_lat_err, avg_lat, max_hdg_err, avg_hdg,
+            max_vx, avg_solve, max_solve_us,
+            wall_collisions, time_above_5ms,
+            max_vel_err, avg_vel, avg_iters, avg_vx,
+            progress_m, avg_progress_mps, completed_laps,
+            avg_lap_time, fabs(max_steer_change), steer_reversals);
     }
     return tests_failed > 0 ? 1 : 0;
 }

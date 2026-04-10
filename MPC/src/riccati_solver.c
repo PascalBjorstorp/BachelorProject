@@ -217,7 +217,7 @@ void riccati_solver_pass(
             }
         }
 
-        /* Step 6: kk = -S^{-1} (r_aug + B^T p) (nu x 1) */
+        /* Step 6: kk = -S^{-1} (r_aug_linear + B^T p) (nu x 1) */
         float Bp[RICCATI_MAX_NU];
         {
             float bp0 = 0.0f, bp1 = 0.0f;

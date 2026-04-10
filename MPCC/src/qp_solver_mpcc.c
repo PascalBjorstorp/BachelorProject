@@ -18,6 +18,7 @@
 
 #include "qp_solver_mpcc.h"
 #include <string.h>
+#include <math.h>
 
 #ifdef MPCC_DEBUG_PRINT
 #include <stdio.h>
@@ -721,6 +722,16 @@ void admm_projection_step(
             if (val > problem->u_upper[i])
                 val = problem->u_upper[i];
             ws->w_u[k][i] = val;
+        }
+
+        /* Friction circle: per-stage a_x bound from operating point.
+         * Computed in build_qp_problem from warm-start trajectory. */
+        if (problem->mu_g_sq > 0.0f)
+        {
+            float ax_lim = problem->ax_lim_stage[k];
+            float ax = ws->w_u[k][MPCC_IDX_AX];
+            if (ax > ax_lim)  ws->w_u[k][MPCC_IDX_AX] = ax_lim;
+            if (ax < -ax_lim) ws->w_u[k][MPCC_IDX_AX] = -ax_lim;
         }
     }
 }

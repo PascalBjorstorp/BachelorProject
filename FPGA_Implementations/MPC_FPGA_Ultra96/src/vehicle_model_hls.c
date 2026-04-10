@@ -21,6 +21,12 @@ static fixed_point_t fp_mul_vm(fixed_point_t a, fixed_point_t b) {
     return (fixed_point_t)(product >> FP_FRAC_BITS);
 }
 
+static fixed_point_t fp_atan_tire_vm(fixed_point_t x) {
+#pragma HLS INLINE off
+#pragma HLS PIPELINE II=1
+    return fp_atan_tire_approx(x);
+}
+
 /**
  * @brief Compute Frenet-frame linearized dynamics matrices.
  * @param vx Operating-point longitudinal velocity (expected >= MIN_LIN_VEL).
@@ -117,13 +123,13 @@ void compute_frenet_AB_hls(
     /* Slip angles at operating point */
     fixed_point_t front_ratio = fp_mul_vm(front_num, inv_vx);
     fixed_point_t rear_ratio  = fp_mul_vm(rear_num, inv_vx);
-    fixed_point_t alpha_f_op = fp_sub(delta, fp_atan_tire_approx(front_ratio));
-    fixed_point_t alpha_r_op = fp_neg(fp_atan_tire_approx(rear_ratio));
+    fixed_point_t alpha_f_op = fp_sub(delta, fp_atan_tire_vm(front_ratio));
+    fixed_point_t alpha_r_op = fp_neg(fp_atan_tire_vm(rear_ratio));
 
     /* Front tire — Pacejka effective stiffness (B_f precomputed) */
     fixed_point_t D_pac_f = fp_mul_vm(VP_MU, F_zf);
     fixed_point_t Ba_f = fp_mul_vm(VP_B_FRONT, alpha_f_op);
-    fixed_point_t inner_f = fp_mul_vm(VP_C_SHAPE, fp_atan_tire_approx(Ba_f));
+    fixed_point_t inner_f = fp_mul_vm(VP_C_SHAPE, fp_atan_tire_vm(Ba_f));
     fixed_point_t inner_f2 = fp_mul_vm(inner_f, inner_f);
     fixed_point_t cos_inner_f = fp_sub(FP_ONE, (inner_f2 >> 1));
     fixed_point_t ba_f2 = fp_mul_vm(Ba_f, Ba_f);
@@ -145,7 +151,7 @@ void compute_frenet_AB_hls(
     fixed_point_t B_r = VP_B_REAR;
     fixed_point_t D_pac_r = fp_mul_vm(VP_MU, F_zr);
     fixed_point_t Ba_r = fp_mul_vm(B_r, alpha_r_op);
-    fixed_point_t inner_r = fp_mul_vm(VP_C_SHAPE, fp_atan_tire_approx(Ba_r));
+    fixed_point_t inner_r = fp_mul_vm(VP_C_SHAPE, fp_atan_tire_vm(Ba_r));
     fixed_point_t inner_r2 = fp_mul_vm(inner_r, inner_r);
     fixed_point_t cos_inner_r = fp_sub(FP_ONE, (inner_r2 >> 1));
     fixed_point_t ba_r2 = fp_mul_vm(Ba_r, Ba_r);
@@ -175,9 +181,8 @@ void compute_frenet_AB_hls(
      * ================================================================ */
     int i, j;
     for (i = 0; i < MPC_NX_FRENET; i++) {
-#pragma HLS UNROLL
+#pragma HLS PIPELINE II=1
         for (j = 0; j < MPC_NX_FRENET; j++) {
-#pragma HLS UNROLL
             A_fr[i][j] = 0;
         }
         B_fr[i][0] = 0;

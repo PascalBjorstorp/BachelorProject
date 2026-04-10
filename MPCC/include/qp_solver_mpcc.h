@@ -99,6 +99,17 @@ typedef struct
      *  Constraint: n_k >= -track_right[k] */
     float track_right[MPCC_MAX_HORIZON + 1];
 
+    /*--- Friction circle ---*/
+
+    /** Squared friction limit (mu * g)^2 for combined acceleration constraint.
+     *  When > 0, per-stage a_x bounds are tightened based on operating point
+     *  lateral acceleration: ax_max_k = sqrt(mu_g_sq - ay_k^2). */
+    float mu_g_sq;
+
+    /** Per-stage upper bound on |a_x|, tightened by friction circle.
+     *  Computed from operating point lateral acceleration at each stage. */
+    float ax_lim_stage[MPCC_MAX_HORIZON];
+
     /*--- Problem size ---*/
 
     /** Prediction horizon length (0 < N <= MPCC_MAX_HORIZON) */
