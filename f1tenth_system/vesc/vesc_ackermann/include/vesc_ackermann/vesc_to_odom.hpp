@@ -34,6 +34,7 @@
 #include <tf2_ros/transform_broadcaster.h>
 
 #include <cstddef>
+#include <deque>
 #include <memory>
 #include <string>
 
@@ -178,6 +179,18 @@ private:
   VescStateStamped::SharedPtr last_state_;
   sensor_msgs::msg::Imu::SharedPtr last_imu_;
   Float64::SharedPtr last_servo_cmd_;
+
+  struct ImuSyncSample
+  {
+    rclcpp::Time stamp;
+    double filtered_angular_velocity{0.0};
+    double filtered_linear_accel_y{0.0};
+    double raw_angular_velocity{0.0};
+    double raw_linear_accel_y{0.0};
+  };
+  std::deque<ImuSyncSample> imu_history_;
+  int imu_history_max_samples_{400};
+  double imu_sync_tolerance_sec_{0.03};
 
   // ROS I/O
   rclcpp::Publisher<Odometry>::SharedPtr odom_pub_;

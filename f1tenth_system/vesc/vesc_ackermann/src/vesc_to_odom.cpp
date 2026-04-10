@@ -32,6 +32,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <string>
 
@@ -129,6 +130,10 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
     declare_parameter("imu_startup_calibration_enabled", imu_startup_calibration_enabled_);
   imu_startup_calibration_duration_sec_ =
     declare_parameter("imu_startup_calibration_duration_sec", imu_startup_calibration_duration_sec_);
+  imu_history_max_samples_ =
+    declare_parameter("imu_history_max_samples", imu_history_max_samples_);
+  imu_sync_tolerance_sec_ =
+    declare_parameter("imu_sync_tolerance_sec", imu_sync_tolerance_sec_);
 
   // Lateral velocity estimator parameters
   imu_lateral_accel_alpha_ =
@@ -216,6 +221,22 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
       "imu_yaw_base_weight %.3f out of [0,1]. Clamping.",
       imu_yaw_base_weight_);
     imu_yaw_base_weight_ = std::clamp(imu_yaw_base_weight_, 0.0, 1.0);
+  }
+
+  if (imu_history_max_samples_ < 5) {
+    RCLCPP_WARN(
+      get_logger(),
+      "imu_history_max_samples %d is too small. Using 400.",
+      imu_history_max_samples_);
+    imu_history_max_samples_ = 400;
+  }
+
+  if (imu_sync_tolerance_sec_ < 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "imu_sync_tolerance_sec %.3f < 0. Using 0.03.",
+      imu_sync_tolerance_sec_);
+    imu_sync_tolerance_sec_ = 0.03;
   }
 
   if (slip_enter_hold_sec_ < 0.0) {
@@ -388,17 +409,46 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     model_yaw_rate = yaw_rate_state_ + yaw_dot * dt_sec;
   }
 
-  // IMU yaw rate with online bias correction.
-  const double imu_yaw_rate_raw = filtered_angular_velocity_;
+  // Time-align IMU and VESC updates by using the nearest IMU sample to the VESC stamp.
+  double imu_yaw_rate_raw = filtered_angular_velocity_;
+  double lateral_accel_measured = filtered_linear_accel_y_;
+  double lateral_accel_measured_for_slip = debiased_linear_accel_y_raw_;
+  double yaw_rate_measured_for_slip = debiased_angular_velocity_z_raw_;
+
+  if (!imu_history_.empty()) {
+    const rclcpp::Time state_stamp(state->header.stamp);
+    const ImuSyncSample * nearest_sample = nullptr;
+    double nearest_abs_dt_sec = std::numeric_limits<double>::infinity();
+
+    for (const auto & sample : imu_history_) {
+      const double abs_dt_sec = std::fabs((state_stamp - sample.stamp).seconds());
+      if (abs_dt_sec < nearest_abs_dt_sec) {
+        nearest_abs_dt_sec = abs_dt_sec;
+        nearest_sample = &sample;
+      }
+    }
+
+    if (nearest_sample != nullptr) {
+      imu_yaw_rate_raw = nearest_sample->filtered_angular_velocity;
+      lateral_accel_measured = nearest_sample->filtered_linear_accel_y;
+      lateral_accel_measured_for_slip = nearest_sample->raw_linear_accel_y;
+      yaw_rate_measured_for_slip = nearest_sample->raw_angular_velocity;
+
+      if (nearest_abs_dt_sec > imu_sync_tolerance_sec_) {
+        RCLCPP_WARN_THROTTLE(
+          get_logger(), *get_clock(), 2000,
+          "IMU/VESC timestamp offset is %.4f s (tolerance %.4f s).",
+          nearest_abs_dt_sec, imu_sync_tolerance_sec_);
+      }
+    }
+  }
 
   // Slip indicator uses fast de-biased IMU channels to keep slip response quick.
-  const double lateral_accel_measured = filtered_linear_accel_y_;
-  const double lateral_accel_measured_for_slip = debiased_linear_accel_y_raw_;
   const double lateral_accel_model = current_speed * model_yaw_rate;
   const double lateral_accel_residual_abs =
     std::fabs(lateral_accel_measured_for_slip - lateral_accel_model);
   const double yaw_rate_residual_abs =
-    std::fabs((debiased_angular_velocity_z_raw_ - gyro_bias_) - model_yaw_rate);
+    std::fabs((yaw_rate_measured_for_slip - gyro_bias_) - model_yaw_rate);
   const double lateral_velocity_error_abs = std::fabs(imu_lateral_velocity_ - model_lateral_velocity);
   const double yaw_indicator = slip_yaw_rate_weight_ * yaw_rate_residual_abs;
   const double lateral_accel_indicator = std::min(lateral_accel_residual_abs, slip_accel_clip_);
@@ -527,10 +577,11 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     (1.0 - slip_weight) * beta_kinematic + slip_weight * beta_imu,
     -beta_max_rad_, beta_max_rad_);
 
-  // Integrate pose in the velocity direction (yaw + beta).
+  // Integrate pose with midpoint heading to reduce turn-rate integration error.
+  const double yaw_mid = normalizeAngle(yaw_ + 0.5 * current_yaw_rate * dt_sec);
   yaw_ = normalizeAngle(yaw_ + current_yaw_rate * dt_sec);
   yaw_rate_state_ = current_yaw_rate;
-  const double heading = yaw_ + beta;
+  const double heading = yaw_mid + beta;
   x_ += current_speed * std::cos(heading) * dt_sec;
   y_ += current_speed * std::sin(heading) * dt_sec;
 
@@ -581,8 +632,8 @@ void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
 
   const bool has_valid_stamp =
     (imu->header.stamp.sec != 0) || (imu->header.stamp.nanosec != 0);
-  const double sample_time_sec =
-    has_valid_stamp ? rclcpp::Time(imu->header.stamp).seconds() : now().seconds();
+  const rclcpp::Time sample_stamp = has_valid_stamp ? rclcpp::Time(imu->header.stamp) : now();
+  const double sample_time_sec = sample_stamp.seconds();
 
   if (imu_startup_calibration_enabled_ && !imu_startup_calibration_done_) {
     if (!imu_startup_calibration_started_) {
@@ -752,6 +803,17 @@ void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
         (1.0 - imu_angular_velocity_alpha_) * filtered_angular_velocity_;
     }
     filtered_linear_accel_y_ = raw_linear_accel_y;
+  }
+
+  ImuSyncSample sync_sample;
+  sync_sample.stamp = sample_stamp;
+  sync_sample.filtered_angular_velocity = filtered_angular_velocity_;
+  sync_sample.filtered_linear_accel_y = filtered_linear_accel_y_;
+  sync_sample.raw_angular_velocity = debiased_angular_velocity_z_raw_;
+  sync_sample.raw_linear_accel_y = debiased_linear_accel_y_raw_;
+  imu_history_.push_back(sync_sample);
+  while (static_cast<int>(imu_history_.size()) > imu_history_max_samples_) {
+    imu_history_.pop_front();
   }
 
   auto filtered_msg = std::make_unique<Float64>();

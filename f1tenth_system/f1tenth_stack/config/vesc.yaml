@@ -86,6 +86,8 @@ vesc_to_odom_node:
     imu_butterworth_gyro_cutoff_hz: 18.0
     imu_butterworth_lateral_accel_cutoff_hz: 12.0
     imu_yaw_base_weight: 0.80
+    imu_history_max_samples: 400
+    imu_sync_tolerance_sec: 0.03
 
     # Slip detector thresholds using |a_y_measured - v_x * r_model| [m/s^2]
     # Enter should be greater than exit (hysteresis).
@@ -112,7 +114,7 @@ vesc_to_odom_node:
     slip_exit_hold_sec: 0.12
 
     # Dynamic bicycle model (linear tire model)
-    use_dynamic_bicycle_model: false
+    use_dynamic_bicycle_model: true
     vehicle_mass: 3.314
     vehicle_Iz: 0.035
     l_f: 0.166

@@ -31,7 +31,7 @@ OdomNode::OdomNode(const rclcpp::NodeOptions& options)
 void OdomNode::declare_all_parameters() {
     declare_parameter<std::string>("odom_topic", "/ego_racecar/odom");
     declare_parameter<std::string>("output_topic", "/odom_pose");
-    declare_parameter<std::string>("frame_id", "odom");
+    declare_parameter<std::string>("frame_id", "ego_racecar/odom");
 
     declare_parameter<double>("base_cov_xy", base_cov_xy_);
     declare_parameter<double>("base_cov_theta", base_cov_theta_);
@@ -63,7 +63,7 @@ void OdomNode::publish_pose(const rclcpp::Time& stamp) {
     
     // Header
     out.header.stamp    = stamp;        // Preserve original odom timestamp
-    out.header.frame_id = frame_id_;    // From param → "odom"
+    out.header.frame_id = frame_id_;    // From param → "ego_racecar/odom"
     // Pose (position + orientation)
     out.pose.pose.position.x = odom_x_;
     out.pose.pose.position.y = odom_y_;
