@@ -45,6 +45,7 @@ def generate_launch_description():
     map_file_arg = LaunchConfiguration('map_file')
     bringup_delay_sec_arg = LaunchConfiguration('bringup_delay_sec')
     use_dynamic_bicycle_model_arg = LaunchConfiguration('use_dynamic_bicycle_model')
+    old_odom_arg = LaunchConfiguration('oldOdom')
 
     return LaunchDescription([
 
@@ -97,6 +98,11 @@ def generate_launch_description():
                 'use_dynamic_bicycle_model',
                 default_value='true',
                 description='Enable dynamic bicycle model inside vesc_to_odom node'),
+
+        DeclareLaunchArgument(
+            'oldOdom',
+            default_value='false',
+            description='Use legacy analytical vesc_to_odom implementation'),
 
 
         # ------------------------------- LOCALIZATION NODES -------------------------------
@@ -211,6 +217,39 @@ def generate_launch_description():
                         ),
                     ],
                     output='screen',
+                    condition=UnlessCondition(old_odom_arg),
+                ),
+
+                ComposableNodeContainer(
+                    name='vesc_container_old',
+                    namespace='',
+                    package='rclcpp_components',
+                    executable='component_container',
+                    composable_node_descriptions=[
+                        ComposableNode(
+                            package='vesc_driver',
+                            plugin='vesc_driver::VescDriver',
+                            name='vesc_driver_node',
+                            parameters=[vesc_config_arg],
+                            extra_arguments=[{'use_intra_process_comms': True}],
+                        ),
+                        ComposableNode(
+                            package='vesc_ackermann',
+                            plugin='vesc_ackermann::VescToOdomOld',
+                            name='vesc_to_odom_old_node',
+                            parameters=[vesc_config_arg],
+                            extra_arguments=[{'use_intra_process_comms': True}],
+                        ),
+                        ComposableNode(
+                            package='vesc_ackermann',
+                            plugin='vesc_ackermann::AckermannToVesc',
+                            name='ackermann_to_vesc_node',
+                            parameters=[vesc_config_arg],
+                            extra_arguments=[{'use_intra_process_comms': True}],
+                        ),
+                    ],
+                    output='screen',
+                    condition=IfCondition(old_odom_arg),
                 ),
 
                 # ══════════════════════
