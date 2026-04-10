@@ -111,6 +111,16 @@ static int raceline_count = 0;
 static double g_mpc_prediction_dt = TIME_STEP_SECONDS;  /* Set from PRED_DT env or default */
 static double g_track_length_m = 0.0;
 
+/* Read a double-valued environment override, falling back when unset/invalid. */
+static double get_env_double(const char *name, double fallback)
+{
+    const char *env = getenv(name);
+    if (env == NULL || env[0] == '\0') {
+        return fallback;
+    }
+    return atof(env);
+}
+
 /* Load raceline waypoints from an environment path or known fallback paths.
  * Side effect: fills global raceline buffer and track-length metadata.
  * Returns non-zero when at least one waypoint is parsed successfully. */
@@ -516,6 +526,7 @@ int main(void)
     const char *mpc_dt_env = getenv("MPC_DT");
     const double mpc_dt_raw = mpc_dt_env ? atof(mpc_dt_env) : MPC_DT_DEFAULT;
     const double MPC_DT = (mpc_dt_raw > 1e-6) ? mpc_dt_raw : MPC_DT_DEFAULT;
+    const double sim_duration = get_env_double("SIM_DURATION", SIM_DURATION);
 
     int mpc_call_interval = (int)(MPC_DT / SIM_DT + 0.5);
     if (mpc_call_interval < 1) mpc_call_interval = 1;
@@ -535,11 +546,16 @@ int main(void)
      * body-edge collision (more accurate for real hardware). */
     const char *bsm_env = getenv("BODY_SAFETY_MARGIN");
     const double body_safety_margin = bsm_env ? atof(bsm_env) : DEFAULT_BODY_SAFETY_MARGIN;
+    const double start_offset_lat = get_env_double("START_OFFSET_LAT", 0.0);
+    const double start_offset_x = get_env_double("START_OFFSET_X", 0.0);
+    const double start_offset_y = get_env_double("START_OFFSET_Y", 0.0);
+    const double start_heading_offset = get_env_double("START_HEADING_OFFSET", 0.0);
+    const double start_speed = get_env_double("START_SPEED", 0.0);
 
     const int verbose = getenv("VERBOSE") != NULL;
 
     printf("=== Spielberg Sim-Drive Test (Riccati-ADMM, %.0fs at dt=%.4fs = %d steps, %.0fHz) ===\n",
-           SIM_DURATION, SIM_DT, SIM_STEPS, 1.0/SIM_DT);
+           sim_duration, SIM_DT, SIM_STEPS, 1.0/SIM_DT);
     printf("    MPC rate: %.0fHz (every %d sim steps)\n",
            1.0/MPC_DT, MPC_CALL_INTERVAL);
 
@@ -569,6 +585,11 @@ int main(void)
     if (body_safety_margin != DEFAULT_BODY_SAFETY_MARGIN)
         printf("    BODY_SAFETY_MARGIN: %.3fm (default: %.3fm)\n",
                body_safety_margin, DEFAULT_BODY_SAFETY_MARGIN);
+    if (fabs(start_offset_lat) > 1e-9 || fabs(start_offset_x) > 1e-9 || fabs(start_offset_y) > 1e-9 ||
+        fabs(start_heading_offset) > 1e-9 || fabs(start_speed) > 1e-9) {
+        printf("    START override: lat=%+.3fm dx=%+.3fm dy=%+.3fm hdg=%+.3frad v0=%.2fm/s\n",
+               start_offset_lat, start_offset_x, start_offset_y, start_heading_offset, start_speed);
+    }
     printf("\n");
 
     if (!load_raceline()) return 1;
@@ -630,16 +651,12 @@ int main(void)
                (double)(cfg.cross_call_rate_scale));
     }
 
-    /* Spawn from a configurable offset relative to the raceline. */
+    /* Spawn at raceline[0], optionally shifted laterally and with a custom initial speed. */
+    const double start_normal = raceline[0].psi + M_PI / 2.0;
     VehicleState_t state;
-    {
-        double start_psi = raceline[start_index].psi;
-        double left_nx = -sin(start_psi);
-        double left_ny = cos(start_psi);
-        state.pos_x = (float)(raceline[start_index].x + start_offset_lat * left_nx);
-        state.pos_y = (float)(raceline[start_index].y + start_offset_lat * left_ny);
-        state.heading = (float)(wrap_angle(start_psi + start_heading_offset));
-    }
+    state.pos_x = (float)(raceline[0].x + start_offset_lat * cos(start_normal) + start_offset_x);
+    state.pos_y = (float)(raceline[0].y + start_offset_lat * sin(start_normal) + start_offset_y);
+    state.heading = (float)(wrap_angle(raceline[0].psi + start_heading_offset));
     state.long_vel = (float)(start_speed);
     state.lat_vel = 0;
     state.yaw_rate = 0;
@@ -709,9 +726,6 @@ int main(void)
         double psi = (double)(state.heading);
         double vx = (double)(state.long_vel);
 
-        if (vx > max_vx) max_vx = vx;
-        sum_vx += vx;
-
         int closest = find_closest_waypoint(px, py, psi);
 
         FrenetState_t frenet = vehicle_to_frenet(&state, closest);
@@ -753,11 +767,45 @@ int main(void)
         double true_psi = (double)(true_state.heading);
         int true_closest = realistic_noise ? find_closest_waypoint(true_px, true_py, true_psi) : closest;
         FrenetState_t true_frenet = realistic_noise ? vehicle_to_frenet(&true_state, true_closest) : frenet;
-        PathProjection_t true_proj = realistic_noise
-            ? project_pose_to_raceline(true_px, true_py, true_psi, true_closest)
-            : project_pose_to_raceline(px, py, psi, closest);
+        /* Ground-truth speed magnitude for robust metrics (frame/sign independent). */
+        const double speed_mps = hypot((double)(true_state.long_vel), (double)(true_state.lat_vel));
+        if (speed_mps > max_vx) max_vx = speed_mps;
+        sum_vx += speed_mps;
         double e_y = (double)(true_frenet.flat_error);
         double e_psi = (double)(true_frenet.fhead_error);
+        const double current_progress_s = raceline[true_closest].s;
+
+        if (!progress_initialized) {
+            prev_progress_s = current_progress_s;
+            progress_initialized = 1;
+        } else {
+            const double raw_delta = forward_track_delta(prev_progress_s, current_progress_s);
+            const double max_reasonable_step_progress = fmax(0.5, MAX_VELOCITY * SIM_DT * 2.0);
+            const double delta_progress = (raw_delta <= max_reasonable_step_progress) ? raw_delta : max_reasonable_step_progress;
+            const double progress_before = progress_m;
+            progress_m += delta_progress;
+            prev_progress_s = current_progress_s;
+
+            if (g_track_length_m > 1e-6) {
+                const int laps_after = (int)(progress_m / g_track_length_m);
+                while (completed_laps < laps_after) {
+                    const double lap_boundary = (completed_laps + 1) * g_track_length_m;
+                    const double progress_step = progress_m - progress_before;
+                    double lap_cross_time = t;
+                    if (progress_step > 1e-6) {
+                        const double frac = (lap_boundary - progress_before) / progress_step;
+                        const double clamped_frac = fmin(fmax(frac, 0.0), 1.0);
+                        lap_cross_time = (t - SIM_DT) + clamped_frac * SIM_DT;
+                    }
+                    const double lap_time = lap_cross_time - last_lap_cross_time;
+                    if (lap_time > 1e-3) {
+                        lap_time_sum += lap_time;
+                    }
+                    last_lap_cross_time = lap_cross_time;
+                    completed_laps++;
+                }
+            }
+        }
 
         if (!progress_initialized) {
             start_projected_s = true_proj.s;
@@ -791,7 +839,7 @@ int main(void)
         if (e_y < -(right_wall - VEHICLE_HALF_WIDTH - body_safety_margin)){ wall_hit = -1; wall_collisions++; }
         if (wall_hit) {
             printf("\n  !!! WALL CRASH: e_y = %.3f m (bound: %.3f) at step %d (t=%.2fs, wp=%d, v=%.1f) !!!\n",
-                   e_y, wall_hit > 0 ? left_wall : right_wall, step, t, closest, vx);
+                   e_y, wall_hit > 0 ? left_wall : right_wall, step, t, closest, speed_mps);
             break;
         }
 
@@ -866,10 +914,10 @@ int main(void)
         sum_lat_err += fabs(e_y);
         if (fabs(e_psi) > max_hdg_err) max_hdg_err = fabs(e_psi);
         sum_hdg_err += fabs(e_psi);
-        double vel_err = fabs(vx - raceline[closest].vx);
+        double vel_err = fabs(speed_mps - raceline[closest].vx);
         if (vel_err > max_vel_err) max_vel_err = vel_err;
         sum_vel_err += vel_err;
-        if (vx > 5.0) time_above_5ms += SIM_DT;
+        if (speed_mps > 5.0) time_above_5ms += SIM_DT;
 
         double steer_change = actual_steer - prev_steer;
         if (fabs(steer_change) > fabs(max_steer_change)) max_steer_change = steer_change;
@@ -882,7 +930,7 @@ int main(void)
             int print_row = (step < 40) || (step % 20 == 0) || wall_hit || (fabs(e_y) > 0.8);
             if (print_row) {
                 printf("  %4d | %5.2f | %5.2f | %5.2f | %+.3f | %+.3f | %+.4f | %+.4f | %+.2f | %4d | %3d | %s\n",
-                       step, t, vx, raceline[closest].vx, e_y, e_psi, steer, actual_steer, accel_cmd, iter, closest,
+                       step, t, speed_mps, raceline[closest].vx, e_y, e_psi, steer, actual_steer, accel_cmd, iter, closest,
                        wall_hit > 0 ? "LEFT!" : (wall_hit < 0 ? "RIGHT!" : ""));
             }
         }
@@ -1163,6 +1211,11 @@ int main(void)
         printf("  Avg lap time:       %.3f s\n", avg_lap_time);
     printf("  Max steer change:   %.4f rad/step\n", max_steer_change);
     printf("  Steer reversals:    %d\n", steer_reversals);
+    printf("  Track progress:     %.2f m (%.2f m/s avg)\n", progress_m, avg_progress_mps);
+    printf("  Completed laps:     %d\n", completed_laps);
+    if (completed_laps > 0) {
+        printf("  Avg lap time:       %.2f s\n", avg_lap_time);
+    }
     printf("  Wall collisions:    %d\n", wall_collisions);
     printf("  Time above 5 m/s:   %.1f / %.1f s (%.0f%%)\n",
            time_above_5ms, simulated_time,
@@ -1204,13 +1257,13 @@ int main(void)
     /* Machine-readable CSV summary line for tuning scripts */
     if (getenv("MPC_TUNING_CSV")) {
          printf("CSV,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%.1f,%d,%.1f,%.4f,%.4f,%.1f,%.4f,%.4f,%.4f,%d,%.4f,%.4f,%d\n",
-               tests_passed, tests_failed,
-               max_lat_err, avg_lat, max_hdg_err, avg_hdg,
-               max_vx, avg_solve, max_solve_us,
-               wall_collisions, time_above_5ms,
-             max_vel_err, avg_vel, avg_iters, avg_vx,
-             progress_m, avg_progress_mps, completed_laps,
-             avg_lap_time, fabs(max_steer_change), steer_reversals);
+            tests_passed, tests_failed,
+            max_lat_err, avg_lat, max_hdg_err, avg_hdg,
+            max_vx, avg_solve, max_solve_us,
+            wall_collisions, time_above_5ms,
+            max_vel_err, avg_vel, avg_iters, avg_vx,
+            progress_m, avg_progress_mps, completed_laps,
+            avg_lap_time, fabs(max_steer_change), steer_reversals);
     }
     return tests_failed > 0 ? 1 : 0;
 }
