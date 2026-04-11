@@ -148,6 +148,7 @@ private:
   // Startup IMU bias calibration (use only linear x/y and angular z)
   bool imu_startup_calibration_enabled_{true};
   double imu_startup_calibration_duration_sec_{5.0};
+  bool imu_startup_hold_odom_during_calibration_{false};
   bool imu_startup_calibration_started_{false};
   bool imu_startup_calibration_done_{false};
   double imu_startup_calibration_start_sec_{0.0};

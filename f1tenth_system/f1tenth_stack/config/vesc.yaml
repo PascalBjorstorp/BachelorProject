@@ -79,6 +79,7 @@ vesc_to_odom_node:
     # Startup IMU bias calibration (car stationary): averages linear x/y and angular z.
     imu_startup_calibration_enabled: true
     imu_startup_calibration_duration_sec: 5.0
+    imu_startup_hold_odom_during_calibration: false
 
     # 2nd-order Butterworth filtering at IMU rate.
     # Keeps update rate high while attenuating sensor noise.

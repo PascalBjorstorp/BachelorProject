@@ -130,6 +130,10 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
     declare_parameter("imu_startup_calibration_enabled", imu_startup_calibration_enabled_);
   imu_startup_calibration_duration_sec_ =
     declare_parameter("imu_startup_calibration_duration_sec", imu_startup_calibration_duration_sec_);
+  imu_startup_hold_odom_during_calibration_ =
+    declare_parameter(
+    "imu_startup_hold_odom_during_calibration",
+    imu_startup_hold_odom_during_calibration_);
   imu_history_max_samples_ =
     declare_parameter("imu_history_max_samples", imu_history_max_samples_);
   imu_sync_tolerance_sec_ =
@@ -364,7 +368,11 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     current_speed = 0.0;
   }
 
-  if (imu_startup_calibration_enabled_ && !imu_startup_calibration_done_) {
+  if (
+    imu_startup_calibration_enabled_ &&
+    imu_startup_hold_odom_during_calibration_ &&
+    !imu_startup_calibration_done_)
+  {
     RCLCPP_INFO_THROTTLE(
       get_logger(), *get_clock(), 2000,
       "IMU startup calibration in progress. Holding odom output for %.2f seconds.",
