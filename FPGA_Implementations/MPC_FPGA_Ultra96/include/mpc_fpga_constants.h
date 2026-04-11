@@ -121,7 +121,7 @@
 #define MPC_FPGA_WP_ADVANCE_MAX       10
 
 #define MPC_FPGA_ADMM_RHO                32.0f
-#define MPC_FPGA_ADMM_RHO_U              24.8f
+#define MPC_FPGA_ADMM_RHO_U              24.800802f
 #define MPC_FPGA_ADMM_TOL                5.0f
 
 #endif /* MPC_FPGA_CONSTANTS_H */
