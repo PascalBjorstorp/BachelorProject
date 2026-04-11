@@ -11,7 +11,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
-#include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
+#include <std_msgs/msg/float64.hpp>
 
 namespace f1tenth_localization
 {
@@ -57,10 +57,9 @@ private:
     const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr & msg);
   void ekf_callback(
     const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr & msg);
-  void drive_callback(
-    const ackermann_msgs::msg::AckermannDriveStamped::ConstSharedPtr & msg);
+  void command_callback(const std_msgs::msg::Float64::ConstSharedPtr & msg);
 
-  void try_report(int64_t key, double ekf_to_drive_ms = -1.0);
+  void try_report(int64_t key, double ekf_to_command_ms = -1.0);
   void cleanup_old_entries();
   void initialize_csv_logging();
   void write_csv_row(
@@ -69,7 +68,7 @@ private:
     double walls_to_amcl_ms,
     double amcl_to_ekf_ms,
     double scan_to_ekf_ms,
-    double ekf_to_drive_ms);
+    double ekf_to_command_ms);
 
   double wall_clock_ns() const;
   int64_t stamp_to_key(const builtin_interfaces::msg::Time & stamp) const;
@@ -85,8 +84,13 @@ private:
   std::string walls_topic_;
   std::string amcl_topic_;
   std::string ekf_topic_;
-  std::string drive_topic_;
-  double drive_match_max_ms_{20.0};
+  std::string command_topic_;
+  double command_match_max_ms_{20.0};
+  bool strict_mode_{false};
+
+  uint64_t strict_queue_overrun_count_{0};
+  uint64_t strict_stale_unmatched_count_{0};
+  uint64_t strict_command_without_pending_count_{0};
 
   // CSV logging
   bool log_to_csv_{true};
@@ -103,16 +107,16 @@ private:
   std::vector<double> acc_walls_to_amcl_;
   std::vector<double> acc_amcl_to_ekf_;
   std::vector<double> acc_scan_to_ekf_;
-  std::vector<double> acc_ekf_to_drive_;
-  std::vector<double> acc_scan_to_drive_;
+  std::vector<double> acc_ekf_to_command_;
+  std::vector<double> acc_scan_to_command_;
 
-  struct PendingDriveEntry {
+  struct PendingCommandEntry {
     int64_t key{0};
     double ekf_recv_ns{0.0};
   };
 
-  // EKF-complete pipeline entries waiting for corresponding drive command.
-  std::vector<PendingDriveEntry> pending_drive_entries_;
+  // EKF-complete pipeline entries waiting for corresponding motor command.
+  std::vector<PendingCommandEntry> pending_command_entries_;
 
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr walls_sub_;
@@ -120,7 +124,7 @@ private:
     geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr amcl_sub_;
   rclcpp::Subscription<
     geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr ekf_sub_;
-  rclcpp::Subscription<ackermann_msgs::msg::AckermannDriveStamped>::SharedPtr drive_sub_;
+  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr command_sub_;
 };
 
 }  // namespace f1tenth_localization
