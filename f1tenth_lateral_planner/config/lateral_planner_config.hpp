@@ -26,9 +26,15 @@
 #define MAX_LATERAL_SHIFT_M 0.8
 #define PASS_COMPLETE_MARGIN_M 2.0
 
-// Post-overtake merge behavior
-// Multiplies waypoint vx while merging back to baseline (0.9 => 10% slower)
-#define MERGE_BACK_SPEED_FACTOR 1.0
+// Curvature-aware speed regulation for modified raceline
+// Formula mirrors pure pursuit style:
+//   scale = 1 / (1 + factor * max_preview_curvature)
+// with a floor and a lateral-acceleration cap.
+#define CURVATURE_SPEED_FACTOR 0.10
+#define CURVATURE_SPEED_FLOOR_RATIO 0.43
+#define CURVATURE_SPEED_PREVIEW_POINTS 8
+#define MAX_LATERAL_ACCEL_MPS2 7.27
+#define MIN_REGULATED_SPEED_MPS 0.30
 
 // Published path extent
 #define LOOKAHEAD_POINTS 80

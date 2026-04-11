@@ -528,6 +528,8 @@ void LateralPlanner::applyLateralShift(
     curr.d_left = std::max(0.0, orig.d_left - path_lateral);
     curr.d_right = std::max(0.0, orig.d_right + path_lateral);
   }
+
+  updateRacelineSpeedsFromCurvature(modified_raceline_);
 }
 
 // =============================================================
@@ -782,7 +784,6 @@ void LateralPlanner::updateMergeBackPath()
 
   const double progress = mergeBackProgress();
   const double blend = 0.5 * (1.0 - std::cos(M_PI * progress));
-  const double speed_factor = std::max(params_.merge_back_speed_factor, 0.0);
 
   if (modified_raceline_.size() != waypoints_.size()) {
     modified_raceline_.resize(waypoints_.size());
@@ -802,12 +803,59 @@ void LateralPlanner::updateMergeBackPath()
     merged.psi = from.psi + blend * dpsi;
 
     merged.kappa = from.kappa + blend * (base.kappa - from.kappa);
-    merged.vx = (from.vx + blend * (base.vx - from.vx)) * speed_factor;
+    merged.vx = from.vx + blend * (base.vx - from.vx);
     merged.ax = from.ax + blend * (base.ax - from.ax);
     merged.d_left = from.d_left + blend * (base.d_left - from.d_left);
     merged.d_right = from.d_right + blend * (base.d_right - from.d_right);
 
     modified_raceline_[i] = merged;
+  }
+
+  updateRacelineSpeedsFromCurvature(modified_raceline_);
+}
+
+void LateralPlanner::updateRacelineSpeedsFromCurvature(std::vector<Waypoint> & path) const
+{
+  const size_t n = path.size();
+  if (n == 0) {
+    return;
+  }
+
+  const double curvature_factor = std::max(0.0, params_.curvature_speed_factor);
+  const double floor_ratio = std::clamp(params_.curvature_speed_floor_ratio, 0.0, 1.0);
+  const int preview_points = std::max(0, params_.speed_preview_points);
+  const double min_regulated = std::max(0.0, params_.min_regulated_speed);
+  const double max_lateral_accel = std::max(0.0, params_.max_lateral_accel);
+
+  for (size_t i = 0; i < n; ++i) {
+    const double nominal_vx = std::max(0.0, path[i].vx);
+    if (!std::isfinite(nominal_vx) || nominal_vx <= 0.0) {
+      path[i].vx = 0.0;
+      continue;
+    }
+
+    double max_preview_curvature = std::abs(path[i].kappa);
+    for (int j = 1; j <= preview_points; ++j) {
+      const size_t idx = (i + static_cast<size_t>(j)) % n;
+      max_preview_curvature = std::max(max_preview_curvature, std::abs(path[idx].kappa));
+    }
+
+    double speed_scale = 1.0;
+    if (curvature_factor > 0.0) {
+      speed_scale = 1.0 / (1.0 + curvature_factor * max_preview_curvature);
+      speed_scale = std::clamp(speed_scale, floor_ratio, 1.0);
+    }
+
+    double regulated_vx = nominal_vx * speed_scale;
+
+    // Lateral acceleration limit: v <= sqrt(a_lat_max / |kappa|).
+    if (max_lateral_accel > 1e-6 && max_preview_curvature > 1e-6) {
+      const double lateral_cap = std::sqrt(max_lateral_accel / max_preview_curvature);
+      regulated_vx = std::min(regulated_vx, lateral_cap);
+    }
+
+    const double lower_bound = std::min(min_regulated, nominal_vx);
+    path[i].vx = std::clamp(regulated_vx, lower_bound, nominal_vx);
   }
 }
 

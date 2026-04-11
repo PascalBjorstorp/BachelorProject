@@ -85,7 +85,11 @@ public:
     double clearance_tolerance_m = 0.15; ///< Extra clearance to walls/opponent [m]
     double planning_tolerance_scale = 2.0;  ///< Multiplier for line-generation tolerance
     double car_width_m           = 0.31; ///< Own car width [m]
-    double merge_back_speed_factor = 0.9;  ///< Speed scaling while merging back to baseline
+    double curvature_speed_factor = 0.10;     ///< Slowdown gain on preview curvature
+    double curvature_speed_floor_ratio = 0.43; ///< Min speed ratio after slowdown [0..1]
+    int speed_preview_points = 8;             ///< Curvature preview horizon in waypoints
+    double max_lateral_accel = 7.27;          ///< Physics cap for v^2*kappa [m/s^2]
+    double min_regulated_speed = 0.30;        ///< Lower bound when nominal speed is nonzero [m/s]
   };
 
   explicit LateralPlanner(rclcpp::Logger logger, const Parameters & params);
@@ -161,6 +165,9 @@ private:
 
   /// Update modified raceline according to merge-back progress.
   void updateMergeBackPath();
+
+  /// Apply curvature-aware speed limits to a path in-place.
+  void updateRacelineSpeedsFromCurvature(std::vector<Waypoint> & path) const;
 
   /// Progress of merge-back in [0, 1]. Returns 1 when not active.
   double mergeBackProgress() const;
