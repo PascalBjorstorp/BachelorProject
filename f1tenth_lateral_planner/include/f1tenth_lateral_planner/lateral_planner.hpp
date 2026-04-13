@@ -139,7 +139,7 @@ private:
   void applyLateralShift(
     double s_start, double opp_s, double s_end, double d_max);
 
-  /// Decide which side to pass (+1 = left, −1 = right).
+  /// Decide which side to pass (+1 = left, −1 = right), never 0.
   double decidePassingSide(size_t opp_idx) const;
 
   /// Compute the required shift magnitude (clamped to wall clearance).

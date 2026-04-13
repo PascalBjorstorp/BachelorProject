@@ -39,8 +39,6 @@ bool LateralPlanner::loadTrajectory(const std::string & csv_path)
   }
 
   std::string line;
-  double prev_s = -std::numeric_limits<double>::infinity();
-  bool warned_non_monotonic = false;
 
   while (std::getline(file, line)) {
     if (line.empty() || line[0] == '#') {
@@ -74,27 +72,6 @@ bool LateralPlanner::loadTrajectory(const std::string & csv_path)
     wp.ax    = values[6];
     wp.d_left = values[7];
     wp.d_right = values[8];
-
-    if (!std::isfinite(wp.s) || !std::isfinite(wp.x) || !std::isfinite(wp.y) ||
-        !std::isfinite(wp.psi) || !std::isfinite(wp.kappa) ||
-      !std::isfinite(wp.vx) || !std::isfinite(wp.ax) ||
-      !std::isfinite(wp.d_left) || !std::isfinite(wp.d_right))
-    {
-      continue;
-    }
-
-    wp.d_left = std::max(0.0, wp.d_left);
-    wp.d_right = std::max(0.0, wp.d_right);
-
-    if (wp.s < prev_s) {
-      if (!warned_non_monotonic) {
-        RCLCPP_WARN(logger_, "Trajectory s is not monotonic; dropping non-monotonic rows");
-        warned_non_monotonic = true;
-      }
-      continue;
-    }
-
-    prev_s = wp.s;
     waypoints_.push_back(wp);
   }
 
@@ -388,13 +365,6 @@ void LateralPlanner::buildAvoidancePath()
 
   const double pass_dir = decidePassingSide(opp_idx);
 
-  // No feasible side available: keep original line and wait behind opponent.
-  if (pass_dir == 0.0) {
-    resetAvoidance();
-    RCLCPP_WARN(logger_, "No feasible passing side available; holding behind opponent");
-    return;
-  }
-
   const double shift_mag = computeShiftMagnitude(opp_idx);
   if (shift_mag <= 1e-3) {
     resetAvoidance();
@@ -561,10 +531,12 @@ double LateralPlanner::decidePassingSide(size_t opp_idx) const
 
   const double needed_left = std::abs(opp_lateral + clearance);
   const double needed_right = std::abs(opp_lateral - clearance);
+  const double left_margin = left_limit - needed_left;
+  const double right_margin = right_limit - needed_right;
   const bool left_feasible = left_limit >= needed_left;
   const bool right_feasible = right_limit >= needed_right;
 
-  // Bias toward currently committed side, but never force it.
+  // Bias toward currently committed side if it remains feasible.
   if (committed_side_ > 0.0) {
     if (left_feasible) {
       return 1.0;
@@ -572,7 +544,6 @@ double LateralPlanner::decidePassingSide(size_t opp_idx) const
     if (right_feasible) {
       return -1.0;
     }
-    return 0.0;
   }
   if (committed_side_ < 0.0) {
     if (right_feasible) {
@@ -581,7 +552,6 @@ double LateralPlanner::decidePassingSide(size_t opp_idx) const
     if (left_feasible) {
       return 1.0;
     }
-    return 0.0;
   }
 
   if (left_feasible && !right_feasible) {
@@ -595,8 +565,17 @@ double LateralPlanner::decidePassingSide(size_t opp_idx) const
     return (opp_lateral >= 0.0) ? -1.0 : 1.0;
   }
 
-  // Neither side is fully feasible: do not attempt an unsafe overtake.
-  return 0.0;
+  // Conservative feasibility can fail under narrow margins; choose the side
+  // with the larger remaining clearance margin instead of returning "no path".
+  if (left_margin > right_margin) {
+    return 1.0;
+  }
+  if (right_margin > left_margin) {
+    return -1.0;
+  }
+
+  // Tie-breaker: pass opposite the opponent lateral offset.
+  return (opp_lateral >= 0.0) ? -1.0 : 1.0;
 }
 
 double LateralPlanner::computeShiftMagnitude(size_t opp_idx) const
@@ -606,9 +585,6 @@ double LateralPlanner::computeShiftMagnitude(size_t opp_idx) const
   }
 
   const double pass_dir = decidePassingSide(opp_idx);
-  if (pass_dir == 0.0) {
-    return 0.0;
-  }
   const double opp_lateral = lateralOffsetAtWaypoint(opp_idx, opponent_.x, opponent_.y);
   const Waypoint & opp_wp = waypoints_[opp_idx];
   const double inflated_tolerance =
