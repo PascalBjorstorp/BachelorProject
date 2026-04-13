@@ -110,15 +110,15 @@
 #define VP_C_ALPHA_F_NRAD       FP_QP_CONST(MPC_FPGA_C_ALPHA_F_N_PER_RAD)     /* Front tire cornering stiffness (N/rad) */
 #define VP_C_ALPHA_R_NRAD       FP_QP_CONST(MPC_FPGA_C_ALPHA_R_N_PER_RAD)     /* Rear tire cornering stiffness (N/rad) */
 
-#define VP_INV_L                fp_div(FP_ONE, VP_WHEELBASE)         /* 1/L */
+#define VP_INV_L                FP_QP_CONST(MPC_FPGA_INV_WHEELBASE)  /* 1/L */
 #define VP_MG                   fp_mul(VP_MASS, VP_GRAVITY)          /* mass * gravity */
 #define VP_MG_LR                fp_mul(VP_MG, VP_LR)                 /* mass * gravity * l_r */
 #define VP_MG_LF                fp_mul(VP_MG, VP_LF)                 /* mass * gravity * l_f */
-#define VP_INV_MASS             fp_div(FP_ONE, VP_MASS)              /* 1/mass */
-#define VP_INV_IZ               fp_div(FP_ONE, VP_IZ)                /* 1/I_z */
+#define VP_INV_MASS             FP_QP_CONST(MPC_FPGA_INV_MASS)       /* 1/mass */
+#define VP_INV_IZ               FP_QP_CONST(MPC_FPGA_INV_IZ)         /* 1/I_z */
 
 #define VP_C_SHAPE              FP_QP_CONST(MPC_FPGA_PACEJKA_C_SHAPE)       /* Pacejka shape factor C for lateral slip */
-#define VP_INV_C_SHAPE          fp_div(FP_ONE, VP_C_SHAPE)
+#define VP_INV_C_SHAPE          FP_QP_CONST(MPC_FPGA_INV_PACEJKA_C_SHAPE)
 #define MIN_STIFF_SCALE         FP_QP_CONST(MPC_FPGA_MIN_STIFF_SCALE)       /* Minimum stiffness scale to prevent singularities */
 
 /*
@@ -128,10 +128,10 @@
  * D_front  = mu * Fz_front
  * D_rear   = mu * Fz_rear
 */
-#define VP_FZ_FRONT             fp_div(VP_MG_LR, VP_WHEELBASE)
-#define VP_FZ_REAR              fp_div(VP_MG_LF, VP_WHEELBASE)
-#define VP_D_FRONT              fp_mul(VP_MU, VP_FZ_FRONT)
-#define VP_D_REAR               fp_mul(VP_MU, VP_FZ_REAR)
+#define VP_FZ_FRONT             FP_QP_CONST(MPC_FPGA_FZ_FRONT_N)
+#define VP_FZ_REAR              FP_QP_CONST(MPC_FPGA_FZ_REAR_N)
+#define VP_D_FRONT              FP_QP_CONST(MPC_FPGA_D_FRONT_N)
+#define VP_D_REAR               FP_QP_CONST(MPC_FPGA_D_REAR_N)
 
 /*
  * Normalize absolute cornering stiffness (N/rad) into model C_S terms ([1/rad]):
@@ -141,15 +141,15 @@
  * This is the exact normalization used by the linear tire form:
  *   Fy = mu * C_S * Fz * alpha.
  */
-#define VP_C_ALPHA_SF           fp_div(VP_C_ALPHA_F_NRAD, VP_D_FRONT)
-#define VP_C_ALPHA_SR           fp_div(VP_C_ALPHA_R_NRAD, VP_D_REAR) 
+#define VP_C_ALPHA_SF           FP_QP_CONST(MPC_FPGA_C_ALPHA_SF_NORM)
+#define VP_C_ALPHA_SR           FP_QP_CONST(MPC_FPGA_C_ALPHA_SR_NORM)
 
 /*
  * B factors for Pacejka nonlinearity: Fy = D * sin(C * atan(B * alpha)).
  * B appears inside atan(B*alpha), so it is required explicitly.
  */
-#define VP_B_FRONT              fp_div(VP_C_ALPHA_SF, VP_C_SHAPE)
-#define VP_B_REAR               fp_div(VP_C_ALPHA_SR, VP_C_SHAPE)
+#define VP_B_FRONT              FP_QP_CONST(MPC_FPGA_B_FRONT)
+#define VP_B_REAR               FP_QP_CONST(MPC_FPGA_B_REAR)
 
 /* C_shape * B aliases used in Jacobian terms (equal to C_alpha_S* by construction). */
 #define VP_CB_FRONT             (VP_C_ALPHA_SF)
@@ -176,7 +176,7 @@
 #define MPC_W_ACCEL_RATE    (mpc_rt_w_accel_rate)
 #define MPC_W_DELTA_ACT     (mpc_rt_w_delta_act)
 #else
-#define MPC_DT              FP_QP_CONST(MPC_FPGA_PREDICTION_DT_S)      /* Prediction dt in Q16.16 */
+#define MPC_DT              FP_QP_CONST(MPC_FPGA_PREDICTION_DT_S)     
 #define MPC_W_LAT_ERROR     FP_QP_CONST(MPC_FPGA_W_LAT_ERROR)
 #define MPC_W_HEADING       FP_QP_CONST(MPC_FPGA_W_HEADING)
 #define MPC_W_VELOCITY      FP_QP_CONST(MPC_FPGA_W_VELOCITY)
@@ -196,10 +196,14 @@
 /* Control period for cross-call rate scaling.
  * Default control loop is 200 Hz => 0.005 s. */
 #define MPC_CONTROL_RATE_HZ     FP_QP_CONST(MPC_FPGA_CONTROL_RATE_HZ)
+#ifdef MPC_RUNTIME_TUNE
 #define MPC_CONTROL_DT          fp_div(FP_ONE, MPC_CONTROL_RATE_HZ)
-
 /* Cross-call rate scale = control_dt / prediction_dt. */
 #define MPC_CROSS_CALL_SCALE    fp_div(MPC_CONTROL_DT, MPC_DT)
+#else
+#define MPC_CONTROL_DT          FP_QP_CONST(MPC_FPGA_CONTROL_DT_S)
+#define MPC_CROSS_CALL_SCALE    FP_QP_CONST(MPC_FPGA_CROSS_CALL_SCALE)
+#endif
 
 /* === Precomputed 2x weights for QP Hessian diagonal ===
  * All computed at compile time via integer arithmetic. */
@@ -217,8 +221,13 @@
 #define MPC_N2_ACCEL_RATE   (-((MPC_W_ACCEL_RATE) << 1))  
 
 /* Cross-call scaled variants for step 0 (scale = control_dt / prediction_dt) */
+#ifdef MPC_RUNTIME_TUNE
 #define MPC_W_STEER_JERK_CS fp_mul(MPC_W_STEER_JERK, MPC_CROSS_CALL_SCALE)
 #define MPC_W_ACCEL_RATE_CS fp_mul(MPC_W_ACCEL_RATE, MPC_CROSS_CALL_SCALE)
+#else
+#define MPC_W_STEER_JERK_CS FP_QP_CONST(MPC_FPGA_W_STEER_JERK_CS)
+#define MPC_W_ACCEL_RATE_CS FP_QP_CONST(MPC_FPGA_W_ACCEL_RATE_CS)
+#endif
 #define MPC_Q2_JERK_CS      ((MPC_W_STEER_JERK_CS) << 1)
 #define MPC_Q2_ARATE_CS     ((MPC_W_ACCEL_RATE_CS) << 1)
 #define MPC_R2_STEER_CS     (((MPC_W_STEER_EFF) + (MPC_W_STEER_JERK_CS)) << 1)
@@ -257,12 +266,10 @@
 #define ADMM_RHO_DEFAULT    (mpc_rt_admm_rho)
 #define ADMM_RHO_U_DEFAULT  (mpc_rt_admm_rho_u)
 #define ADMM_TOL_DEFAULT    (mpc_rt_admm_tol)
-#define ADMM_ALPHA_DEFAULT  (mpc_rt_admm_alpha)
 #else
 #define ADMM_RHO_DEFAULT    FP_QP_CONST(MPC_FPGA_ADMM_RHO)
 #define ADMM_RHO_U_DEFAULT  FP_QP_CONST(MPC_FPGA_ADMM_RHO_U)
 #define ADMM_TOL_DEFAULT    FP_QP_CONST(MPC_FPGA_ADMM_TOL)
-#define ADMM_ALPHA_DEFAULT  FP_QP_CONST(MPC_FPGA_ADMM_ALPHA)
 #endif
 
 /*===========================================================================
@@ -338,7 +345,6 @@ typedef struct {
     fp_QP_t rho;
     fp_QP_t rho_u;
     fp_QP_t tolerance;
-    fp_QP_t alpha;
     int max_iterations;
     int adaptive_rho;
 } AdmmConfig_t;

@@ -13,7 +13,7 @@ Usage:
     python3 test/tune_realistic_v2.py --objective fastest    # Speed-first + recovery scoring
     python3 test/tune_realistic_v2.py --objective tracker    # Tracking-first scoring
     python3 test/tune_realistic_v2.py --raceline my_track_raceline.csv
-    python3 test/tune_realistic_v2.py --rho-fixed 18 --rho-u-fixed 24 --alpha-fixed 1.05 --tol-fixed 0.05 --run-phase5
+    python3 test/tune_realistic_v2.py --rho-fixed 18 --rho-u-fixed 24 --tol-fixed 0.05 --run-phase5
     python3 test/tune_realistic_v2.py --allow-solver-sweep --run-phase5
     python3 test/tune_realistic_v2.py --t-sweep-feasible     # Default: strict feasible T pairs
     python3 test/tune_realistic_v2.py --t-sweep-wide         # Explore short+long T pairs
@@ -22,7 +22,7 @@ The sweep runs 8 phases:
     Phase 1: One-at-a-time parameter sensitivity
     Phase 2: Primary grid (Q_LAT x Q_HDG x Q_VEL x HORIZON x PRED_DT)
     Phase 4: Secondary grid (Q_LAT_VEL x Q_YAW x R_STEER x W_JERK x R_ACCEL x W_ACCEL_RATE)
-    Phase 5: Solver parameters (RHO x RHO_U x ALPHA x TOL)
+    Phase 5: Solver parameters (RHO x RHO_U x TOL)
     Phase 6: Fine-tuning around best config
     Phase 7: Random neighbor exploration
     Phase 8: Random exploitation around branch best
@@ -36,7 +36,7 @@ Phase 2 promotes an initial seed, then Phases 4-8 repeatedly refine the
 current global best.
 
 Default solver policy:
-    - Solver tuple (RHO, RHO_U, ALPHA, TOL) is frozen in non-Phase-5 behavior sweeps.
+    - Solver tuple (RHO, RHO_U, TOL) is frozen in non-Phase-5 behavior sweeps.
     - Phase 5 solver sweep is disabled by default unless explicitly enabled.
 """
 
@@ -61,7 +61,19 @@ from concurrent.futures import ProcessPoolExecutor, wait, FIRST_COMPLETED
 # ==============================================================================
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
-TRAJ_DIR = os.path.join(os.path.dirname(PROJECT_DIR), "f1tenth_planning", "trajectories")
+WORKSPACE_DIR = os.path.dirname(os.path.dirname(PROJECT_DIR))
+TRAJ_DIR = os.path.join(WORKSPACE_DIR, "f1tenth_planning", "trajectories")
+
+KRIA_BUILD_SOURCES = [
+    os.path.join("testbench", "test_fpga_sim_drive.c"),
+    os.path.join("src", "fp_math_hls.cpp"),
+    os.path.join("src", "vehicle_model_hls.cpp"),
+    os.path.join("src", "riccati_solver_hls.cpp"),
+    os.path.join("src", "mpc_riccati_hls.cpp"),
+    os.path.join("src", "mpc_runtime_tune.cpp"),
+    os.path.join("src", "mpc_internal_diag.cpp"),
+    os.path.join("src", "mpc_fpga_top.cpp"),
+]
 
 HORIZON_SWEEP_VALUES = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36]
 HORIZON_LIMIT = 40
@@ -92,19 +104,18 @@ WALL_MARGIN = 0.20
 
 # Base configuration - starting point for all sweeps
 BASE_CONFIG = {
-    "Q_LAT":        9000.0,
-    "Q_HDG":        900.0,
-    "Q_VEL":        220.0,
-    "Q_LAT_VEL":    10.0,
-    "Q_YAW":        4.5,
-    "R_STEER":      0.55,
-    "R_ACCEL":      0.012,
-    "W_JERK":       0.16,
-    "W_ACCEL_RATE": 0.14,
+    "Q_LAT":        12000.0,
+    "Q_HDG":        3600.0,
+    "Q_VEL":        53.0,
+    "Q_LAT_VEL":    4.59,
+    "Q_YAW":        2.112,
+    "R_STEER":      2.244,
+    "R_ACCEL":      0.0065,
+    "W_JERK":       0.063,
+    "W_ACCEL_RATE": 0.17,
     "RHO":          18.0,
-    "RHO_U":        24.0,
-    "ALPHA":        1.05,
-    "TOL":          0.05,
+    "RHO_U":        32.0,
+    "TOL":          0.08,
     "MAX_ITER":     100,
     "WALL_END":     12,
     "WALL_STRIDE":  1,
@@ -115,21 +126,20 @@ BASE_CONFIG = {
 
 # Override base for fastest objective
 FASTEST_BASE_OVERRIDES = {
-    "Q_LAT": 7814.724928,
-    "Q_HDG": 1303.538363,
-    "Q_VEL": 91.166329,
-    "Q_LAT_VEL": 8.295476,
-    "Q_YAW": 3.335847,
-    "R_STEER": 1.819576,
-    "R_ACCEL": 0.008587,
-    "W_JERK": 0.105466,
-    "W_ACCEL_RATE": 0.182456,
+    "Q_LAT": 12000.0,
+    "Q_HDG": 3600.0,
+    "Q_VEL": 50.0,
+    "Q_LAT_VEL": 4.59,
+    "Q_YAW": 2.112,
+    "R_STEER": 2.244,
+    "R_ACCEL": 0.0065,
+    "W_JERK": 0.063,
+    "W_ACCEL_RATE": 0.17,
     "HORIZON": 10,
-    "PRED_DT": 0.034,
+    "PRED_DT": 0.032,
     "RHO": 18.0,
     "RHO_U": 24.0,
-    "ALPHA": 1.05,
-    "TOL": 0.05,
+    "TOL": 0.08,
     "WALL_END": 10,
     "WALL_MARGIN": 0.2,
     "MAX_ITER": 100,
@@ -148,12 +158,12 @@ PHASE2_VALUES = {
 }
 
 PHASE2_VALUES_FASTEST = {
-    # Low-tolerance (TOL=0.05) anchors from strict-regime feasibility probes.
-    "Q_LAT": [5800, 6600, 7400, 8200, 9000],
-    "Q_HDG": [1100, 1250, 1400, 1550],
-    "Q_VEL": [75, 90, 105, 120],
+    # Fastest sweep anchors centered around the validated 20s no-collision region.
+    "Q_LAT": [9000, 10000, 11000, 12000, 13000, 14000, 15000],
+    "Q_HDG": [2600, 3000, 3400, 3800, 4200, 4600],
+    "Q_VEL": [42, 45, 48, 50, 53, 56],
     "HORIZON": [10],
-    "PRED_DT": [0.032, 0.034, 0.036],
+    "PRED_DT": [0.03, 0.032, 0.034],
 }
 
 # ==============================================================================
@@ -171,29 +181,27 @@ FULL_SWEEP_VALUES = {
     "W_JERK":       [0.02, 0.04, 0.06, 0.08, 0.10, 0.14, 0.20],
     "W_ACCEL_RATE": [0.05, 0.07, 0.09, 0.11, 0.14, 0.18],
     "HORIZON":      [10, 12, 14, 16, 18, 20, 24],
-    "RHO":          [20, 28, 36, 44, 52, 60],
-    "RHO_U":        [10, 14, 18, 24, 30],
-    "ALPHA":        [0.9, 1.0, 1.1, 1.2, 1.3],
+    "RHO":          [12, 16, 18, 20, 24],
+    "RHO_U":        [18, 22, 24, 26, 30],
     "PRED_DT":      [0.032, 0.034, 0.036, 0.038, 0.04, 0.042, 0.045, 0.05],
-    "TOL":          [3.5, 4.0, 4.5, 5.0, 5.5],
+    "TOL":          [0.03, 0.05, 0.08, 0.10],
 }
 
 FULL_SWEEP_VALUES_FASTEST = {
-    "Q_LAT":        [5200, 6200, 7200, 8200, 9200],
-    "Q_HDG":        [950, 1100, 1250, 1400, 1550],
-    "Q_VEL":        [70, 85, 100, 115, 130],
-    "Q_LAT_VEL":    [5.0, 6.5, 8.0, 9.5, 11.5],
-    "Q_YAW":        [2.0, 2.8, 3.6, 4.5],
-    "R_STEER":      [1.3, 1.5, 1.7, 1.9, 2.2, 2.4],
-    "R_ACCEL":      [0.0060, 0.0070, 0.0080, 0.0090, 0.0105],
-    "W_JERK":       [0.07, 0.09, 0.11, 0.13, 0.16],
+    "Q_LAT":        [9000, 10000, 11000, 12000, 13000, 14000, 15000],
+    "Q_HDG":        [2600, 3000, 3200, 3400, 3600, 3800, 4000, 4200, 4600],
+    "Q_VEL":        [42, 45, 48, 50, 53, 56],
+    "Q_LAT_VEL":    [3.8, 4.2, 4.6, 5.0, 5.4],
+    "Q_YAW":        [1.8, 2.1, 2.4, 2.7],
+    "R_STEER":      [1.8, 2.0, 2.2, 2.4, 2.6, 2.8],
+    "R_ACCEL":      [0.0055, 0.0065, 0.0075, 0.0085, 0.0095],
+    "W_JERK":       [0.05, 0.063, 0.08, 0.10, 0.12],
     "W_ACCEL_RATE": [0.13, 0.16, 0.19, 0.22, 0.25],
     "HORIZON":      [10],
-    "RHO":          [14, 18, 22],
-    "RHO_U":        [20, 24, 28],
-    "ALPHA":        [1.00, 1.05, 1.10],
-    "PRED_DT":      [0.032, 0.034, 0.036],
-    "TOL":          [0.03, 0.05, 0.08, 0.10],
+    "RHO":          [10, 12, 14, 16, 18, 20, 22, 24, 26],
+    "RHO_U":        [16, 20, 24, 28, 32, 36, 40],
+    "PRED_DT":      [0.03, 0.032, 0.034],
+    "TOL":          [0.06, 0.07, 0.08, 0.09, 0.10],
 }
 
 # ==============================================================================
@@ -211,24 +219,23 @@ PHASE4_VALUES = {
 }
 
 PHASE4_VALUES_FASTEST = {
-    "Q_LAT_VEL":    [5.0, 6.5, 8.0, 9.5, 11.0],
-    "Q_YAW":        [2.2, 2.8, 3.4, 4.0, 4.6],
-    "R_STEER":      [1.4, 1.6, 1.8, 2.0, 2.2],
-    "W_JERK":       [0.07, 0.09, 0.11, 0.13, 0.15],
-    "R_ACCEL":      [0.0065, 0.0075, 0.0085, 0.0095, 0.0105],
+    "Q_LAT_VEL":    [3.8, 4.2, 4.6, 5.0, 5.4],
+    "Q_YAW":        [1.8, 2.1, 2.4, 2.7, 3.0],
+    "R_STEER":      [1.8, 2.0, 2.2, 2.4, 2.6],
+    "W_JERK":       [0.05, 0.063, 0.08, 0.10, 0.12],
+    "R_ACCEL":      [0.0055, 0.0065, 0.0075, 0.0085, 0.0095],
     "W_ACCEL_RATE": [0.14, 0.17, 0.20, 0.23, 0.26],
 }
 
 # ==============================================================================
 # PHASE 5: Solver Grid Values (~2000 configs)
-# RHO x RHO_U x ALPHA x TOL
+# RHO x RHO_U x TOL
 # ==============================================================================
 
 PHASE5_VALUES = {
-    "RHO":      [14, 18, 22],
-    "RHO_U":    [20, 24, 28],
-    "ALPHA":    [1.0, 1.05, 1.1],
-    "TOL":      [0.03, 0.05, 0.08, 0.10],
+    "RHO":      [10, 12, 14, 16, 18, 20, 22, 24, 26],
+    "RHO_U":    [16, 20, 24, 28, 32, 36, 40],
+    "TOL":      [0.06, 0.07, 0.08, 0.09, 0.10],
 }
 
 # ==============================================================================
@@ -255,7 +262,6 @@ RANDOM_PROFILES = {
         "discrete": {
             "HORIZON": HORIZON_SWEEP_VALUES,
             "PRED_DT": [0.04, 0.045, 0.05, 0.055, 0.06],
-            "ALPHA": [0.9, 0.93, 1.0, 1.1, 1.2],
         },
     },
     "fastest": {
@@ -277,7 +283,6 @@ RANDOM_PROFILES = {
         "discrete": {
             "HORIZON": [10, 12, 14],
             "PRED_DT": [0.032, 0.034, 0.036],
-            "ALPHA": [1.0, 1.05, 1.1],
         },
     },
     "tracker_exploit": {
@@ -299,7 +304,6 @@ RANDOM_PROFILES = {
         "discrete": {
             "HORIZON": HORIZON_SWEEP_VALUES,
             "PRED_DT": [0.04, 0.045, 0.05, 0.055],
-            "ALPHA": [0.9, 0.93, 1.0, 1.1],
         },
     },
     "fastest_exploit": {
@@ -321,7 +325,6 @@ RANDOM_PROFILES = {
         "discrete": {
             "HORIZON": [10, 12, 14],
             "PRED_DT": [0.032, 0.034, 0.036],
-            "ALPHA": [1.0, 1.05, 1.1],
         },
     },
 }
@@ -348,7 +351,7 @@ MIN_RACE_PROGRESS_MPS = 0.55
 MIN_OVERALL_PROGRESS_MPS = 0.45
 MIN_AVG_VX_MPS = 1.0
 MIN_SOLVER_OPTIMAL_RATE = 0.85
-MAX_SOLVER_MAX_ITER_RATE = 0.15
+MAX_SOLVER_MAX_ITER_RATE = 0.0
 PLANNER_CAR_WIDTH_M = 0.31
 PLANNER_CLEARANCE_TOLERANCE_M = 0.10
 PLANNER_PLANNING_TOLERANCE_SCALE = 2.0
@@ -390,7 +393,7 @@ PHASE7_RANDOM_COUNT = {"tracker": 900, "fastest": 2000}
 PHASE8_RANDOM_COUNT = {"tracker": 450, "fastest": 3000}
 STRICT_FASTEST_PROMOTION = True
 TOL_OVERRIDE_VALUES = None  # Optional list of allowed TOL values from CLI.
-SOLVER_PARAM_KEYS = ("RHO", "RHO_U", "ALPHA", "TOL")
+SOLVER_PARAM_KEYS = ("RHO", "RHO_U", "TOL")
 FREEZE_SOLVER_BEHAVIOR_SWEEPS = True
 RUN_PHASE5_SOLVER_SWEEP = False
 DIVERSITY_KEYS = ["Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW", "R_STEER", "R_ACCEL", "W_JERK", "W_ACCEL_RATE", "HORIZON", "PRED_DT"]
@@ -401,7 +404,7 @@ MPC_TYPES_PRINT_ORDER = (
     "Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW",
     "R_STEER", "R_ACCEL", "W_JERK", "W_ACCEL_RATE",
     "HORIZON", "PRED_DT", "MAX_ITER", "WALL_MARGIN",
-    "TOL", "RHO", "RHO_U", "ALPHA",
+    "TOL", "RHO", "RHO_U",
     "WALL_END", "WALL_STRIDE",
 )
 
@@ -1280,6 +1283,47 @@ def iter_ordered_base_keys():
         if key not in seen:
             yield key
 
+
+def detect_xilinx_include_dir() -> str:
+    """Resolve a usable include directory containing ap_fixed.h."""
+    candidates = []
+
+    xilinx_hls = os.environ.get("XILINX_HLS")
+    if xilinx_hls:
+        candidates.append(os.path.join(xilinx_hls, "include"))
+
+    xilinx_vitis = os.environ.get("XILINX_VITIS")
+    if xilinx_vitis:
+        candidates.append(os.path.join(xilinx_vitis, "include"))
+
+    if os.name == "nt":
+        vitis_root = os.path.join("C:\\", "Xilinx", "Vitis")
+        if os.path.isdir(vitis_root):
+            for version in sorted(os.listdir(vitis_root), reverse=True):
+                candidates.append(os.path.join(vitis_root, version, "include"))
+    else:
+        candidates.extend([
+            "/tools/Xilinx/2025.1/Vitis/include",
+            "/tools/Xilinx/2024.2/Vitis/include",
+            "/opt/Xilinx/Vitis/2025.1/include",
+            "/opt/Xilinx/Vitis/2024.2/include",
+            "/opt/Xilinx/Vitis_HLS/2025.1/include",
+            "/opt/Xilinx/Vitis_HLS/2024.2/include",
+        ])
+
+    checked = set()
+    for inc in candidates:
+        if not inc:
+            continue
+        abs_inc = os.path.abspath(inc)
+        if abs_inc in checked:
+            continue
+        checked.add(abs_inc)
+        if os.path.isfile(os.path.join(abs_inc, "ap_fixed.h")):
+            return abs_inc.replace("\\", "/") if os.name == "nt" else abs_inc
+
+    return ""
+
 # ==============================================================================
 # UTILITY FUNCTIONS
 # ==============================================================================
@@ -1812,22 +1856,20 @@ def gen_secondary_grid(objective: str) -> list:
 
 
 def gen_solver_grid() -> list:
-    """Phase 5: Solver parameters grid (RHO x RHO_U x ALPHA x TOL)."""
+    """Phase 5: Solver parameters grid (RHO x RHO_U x TOL)."""
     combos = []
     
     rho_vals = PHASE5_VALUES["RHO"]
     rho_u_vals = PHASE5_VALUES["RHO_U"]
-    alpha_vals = PHASE5_VALUES["ALPHA"]
     tol_vals = PHASE5_VALUES["TOL"]
     
-    for rho, rho_u, alpha, tol in itertools.product(
-            rho_vals, rho_u_vals, alpha_vals, tol_vals):
+    for rho, rho_u, tol in itertools.product(
+            rho_vals, rho_u_vals, tol_vals):
         w = dict(BASE)
         w["RHO"] = rho
         w["RHO_U"] = rho_u
-        w["ALPHA"] = alpha
         w["TOL"] = tol
-        combos.append((f"rho={rho}+ru={rho_u}+a={alpha}+tol={tol}", w))
+        combos.append((f"rho={rho}+ru={rho_u}+tol={tol}", w))
     
     return combos
 
@@ -2340,12 +2382,6 @@ def main():
             except ValueError:
                 print(f"ERROR: invalid --rho-u-fixed value '{sys.argv[i + 1]}'")
                 sys.exit(1)
-        if arg == "--alpha-fixed" and i + 1 < len(sys.argv):
-            try:
-                solver_fixed_overrides["ALPHA"] = float(sys.argv[i + 1])
-            except ValueError:
-                print(f"ERROR: invalid --alpha-fixed value '{sys.argv[i + 1]}'")
-                sys.exit(1)
         if arg == "--allow-solver-sweep":
             freeze_solver_behavior = False
             run_phase5_solver_sweep = True
@@ -2425,7 +2461,7 @@ def main():
     print(f"  Solver lock (non-P5): {'on' if freeze_solver_behavior else 'off'}")
     print(f"  Phase5 solver sweep: {'on' if run_phase5_solver_sweep else 'off'}")
     print(f"  T sweep mode: {'wide' if wide_t_sweep else 'feasible'}")
-    print(f"  Active solver tuple: RHO={BASE.get('RHO')} RHO_U={BASE.get('RHO_U')} ALPHA={BASE.get('ALPHA')} TOL={BASE.get('TOL')} MAX_ITER={BASE.get('MAX_ITER')}")
+    print(f"  Active solver tuple: RHO={BASE.get('RHO')} RHO_U={BASE.get('RHO_U')} TOL={BASE.get('TOL')} MAX_ITER={BASE.get('MAX_ITER')}")
     if solver_fixed_overrides:
         print(f"  Solver fixed: {solver_fixed_overrides}")
     if TOL_OVERRIDE_VALUES:
@@ -2457,21 +2493,31 @@ def main():
     binary = os.path.abspath(binary_name)
     
     print("\nBuilding test binary...")
-    ret = subprocess.run([
-        "gcc", "-D_GNU_SOURCE", "-O2", "-std=c99", "-Wall",
+    xilinx_include_dir = detect_xilinx_include_dir()
+    if not xilinx_include_dir:
+        print("BUILD FAILED: could not locate ap_fixed.h include directory.")
+        print("             Set XILINX_HLS/XILINX_VITIS or install Xilinx Vitis.")
+        sys.exit(1)
+
+    build_cmd = [
+        "g++", "-D_GNU_SOURCE", "-O2", "-std=c++17", "-Wall",
+        "-DMPC_HLS_TARGET", "-DMPC_RUNTIME_TUNE",
         f"-DPREDICTION_HORIZON={HORIZON_LIMIT}",
         "-Wno-unused-variable", "-Wno-unused-but-set-variable",
         "-Wno-unknown-pragmas",
-        "-Iinclude",
-        "test/test_sim_drive.c", "src/mpc.c", "src/riccati_solver.c",
-        "src/vehicle_model.c", "src/util_math.c",
-        "-o", binary_name, "-lm"
-    ], capture_output=True, text=True)
+        f"-I{os.path.join(PROJECT_DIR, 'include')}",
+        f"-I{xilinx_include_dir}",
+        "-x", "c++",
+    ]
+    build_cmd.extend([os.path.join(PROJECT_DIR, rel_path) for rel_path in KRIA_BUILD_SOURCES])
+    build_cmd.extend(["-o", binary_name, "-lm"])
+
+    ret = subprocess.run(build_cmd, capture_output=True, text=True)
     
     if ret.returncode != 0:
         print(f"BUILD FAILED:\n{ret.stderr}")
         sys.exit(1)
-    print("  Build OK")
+    print(f"  Build OK (xilinx include: {xilinx_include_dir})")
     
     # Run sanity check
     sanity_check_params(binary)
@@ -2483,7 +2529,9 @@ def main():
     
     # CSV writer
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    outfile = f"test/tuning_hardware_{objective}_{timestamp}.csv"
+    out_dir = os.path.join(SCRIPT_DIR, "data")
+    os.makedirs(out_dir, exist_ok=True)
+    outfile = os.path.join(out_dir, f"tuning_hardware_{objective}_{timestamp}.csv")
     scenario_fieldnames = []
     for scenario in EVAL_SCENARIOS:
         prefix = f"scenario_{scenario['name']}_"

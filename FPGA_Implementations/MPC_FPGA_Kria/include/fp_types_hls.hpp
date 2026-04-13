@@ -40,7 +40,7 @@
 #endif
 
 #ifndef MPC_HLS_RAW_ACC_GUARD_BITS
-#define MPC_HLS_RAW_ACC_GUARD_BITS 10
+#define MPC_HLS_RAW_ACC_GUARD_BITS 20
 #endif
 
 static_assert(MPC_HLS_IO_WIDTH == 32 && MPC_HLS_IO_INT_BITS == 16,

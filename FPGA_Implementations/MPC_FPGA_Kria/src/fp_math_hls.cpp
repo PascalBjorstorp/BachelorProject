@@ -107,20 +107,34 @@ fp_QP_t fp_recip(fp_QP_t x)
     bool neg = (x < 0);
     fp_QP_t abs_x = fp_abs(x);
 
-    /* Coarse fp-domain seed table to avoid slash in hot path. */
-    fp_QP_t est;
-    if (abs_x > FP_QP_CONST(4.0)) est = FP_QP_CONST(0.125);
-    else if (abs_x > FP_QP_CONST(2.0)) est = FP_QP_CONST(0.25);
-    else if (abs_x > FP_QP_CONST(1.0)) est = FP_QP_CONST(0.5);
-    else if (abs_x > FP_QP_CONST(0.5)) est = FP_ONE;
-    else if (abs_x > FP_QP_CONST(0.25)) est = FP_TWO;
-    else if (abs_x > FP_QP_CONST(0.125)) est = FP_QP_CONST(4.0);
-    else est = FP_QP_CONST(8.0);
+    /* Normalize to [0.5, 1.0] using power-of-two scaling.
+     * This keeps Newton-Raphson stable for both very small and large inputs. */
+    fp_QP_t x_norm = abs_x;
+    int shift = 0;
 
-    for (int i = 0; i < RECIP_ITERATIONS; i++) {
+    while (x_norm > FP_ONE && shift < (MPC_HLS_RICCATI_WIDTH - 2)) {
+#pragma HLS LOOP_TRIPCOUNT min=0 max=30
+        x_norm >>= 1;
+        shift++;
+    }
+    while (x_norm < FP_HALF && shift > -(MPC_HLS_RICCATI_WIDTH - 2)) {
+#pragma HLS LOOP_TRIPCOUNT min=0 max=30
+        x_norm <<= 1;
+        shift--;
+    }
+
+    fp_QP_t est = FP_QP_CONST(1.5);
+    for (int i = 0; i < 4; i++) {
 #pragma HLS PIPELINE II=2
-#pragma HLS LOOP_TRIPCOUNT min=3 max=3
-        est = fp_mul(est, (FP_TWO - fp_mul(abs_x, est)));
+#pragma HLS LOOP_TRIPCOUNT min=4 max=4
+        est = fp_mul(est, (FP_TWO - fp_mul(x_norm, est)));
+    }
+
+    /* Undo normalization: if x = x_norm * 2^shift, then 1/x = (1/x_norm) * 2^-shift. */
+    if (shift > 0) {
+        est >>= shift;
+    } else if (shift < 0) {
+        est <<= (-shift);
     }
 
     if (neg) est = -est;

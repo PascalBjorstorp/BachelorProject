@@ -62,7 +62,7 @@ MPC layer (`mpc.c`) and solve path (`riccati_solver.c`). Typical variables:
 
 - Weights: `Q_LAT`, `Q_HDG`, `Q_VEL`, `Q_LAT_VEL`, `Q_YAW`, `R_STEER`,
   `R_ACCEL`, `W_JERK`, `W_ACCEL_RATE`
-- Solver: `RHO`, `RHO_U`, `ALPHA`, `TOL`, `MAX_ITER`
+- Solver: `RHO`, `RHO_U`, `TOL`, `MAX_ITER`
 - Horizon/timestep: `HORIZON`, `PRED_DT`
 - Wall handling: `WALL_END`, `WALL_STRIDE`, `WALL_MARGIN`
 

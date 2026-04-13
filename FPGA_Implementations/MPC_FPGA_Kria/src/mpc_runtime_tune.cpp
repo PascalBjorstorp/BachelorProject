@@ -33,7 +33,6 @@ int mpc_rt_wp_advance_max = MPC_FPGA_WP_ADVANCE_MAX;
 fp_QP_t mpc_rt_admm_rho = ((fp_QP_t)(MPC_FPGA_ADMM_RHO));
 fp_QP_t mpc_rt_admm_rho_u = ((fp_QP_t)(MPC_FPGA_ADMM_RHO_U));
 fp_QP_t mpc_rt_admm_tol = ((fp_QP_t)(MPC_FPGA_ADMM_TOL));
-fp_QP_t mpc_rt_admm_alpha = ((fp_QP_t)(MPC_FPGA_ADMM_ALPHA));
 int mpc_rt_max_admm_iter = MPC_FPGA_MAX_ADMM_ITER;
 
 static int read_env_double(const char *name, double *out)
@@ -109,9 +108,6 @@ void mpc_runtime_update_from_env(void)
     }
     if (read_env_double("TOL", &dv) || read_env_double("ADMM_TOL", &dv)) {
         mpc_rt_admm_tol = (fp_QP_t)dv;
-    }
-    if (read_env_double("ALPHA", &dv) || read_env_double("ADMM_ALPHA", &dv)) {
-        mpc_rt_admm_alpha = (fp_QP_t)dv;
     }
 
     if (read_env_int("MAX_ITER", &iv) || read_env_int("MAX_ADMM_ITER", &iv)) {

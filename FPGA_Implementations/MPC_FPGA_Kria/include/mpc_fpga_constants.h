@@ -55,6 +55,33 @@
 
 #define MPC_FPGA_CONTROL_RATE_HZ      200.0f
 
+/* Derived fixed timing constants used in synthesized builds.
+ * Keep these as dependency-linked compile-time expressions.
+ * The +Q16 half-LSB term counteracts truncation when converted to ap_fixed. */
+#define MPC_FPGA_Q16_HALF_LSB         (0.5 / MPC_FPGA_Q16_SCALE_F64)
+#define MPC_FPGA_CONTROL_DT_S         (1.0 / MPC_FPGA_CONTROL_RATE_HZ)
+#define MPC_FPGA_CROSS_CALL_SCALE     ((MPC_FPGA_CONTROL_DT_S / MPC_FPGA_PREDICTION_DT_S) + MPC_FPGA_Q16_HALF_LSB)
+
+/* Cross-call scaled default rate weights (control_dt / prediction_dt). */
+#define MPC_FPGA_W_STEER_JERK_CS      ((MPC_FPGA_W_STEER_JERK * MPC_FPGA_CROSS_CALL_SCALE) + MPC_FPGA_Q16_HALF_LSB)
+#define MPC_FPGA_W_ACCEL_RATE_CS      ((MPC_FPGA_W_ACCEL_RATE * MPC_FPGA_CROSS_CALL_SCALE) + MPC_FPGA_Q16_HALF_LSB)
+
+/* Precomputed derived vehicle constants for fixed-point compile paths. */
+#define MPC_FPGA_INV_WHEELBASE        (1.0 / MPC_FPGA_WHEELBASE_M)
+#define MPC_FPGA_INV_MASS             (1.0 / MPC_FPGA_MASS_KG)
+#define MPC_FPGA_INV_IZ               (1.0 / MPC_FPGA_IZ_KGM2)
+#define MPC_FPGA_INV_PACEJKA_C_SHAPE  (1.0 / MPC_FPGA_PACEJKA_C_SHAPE)
+
+#define MPC_FPGA_FZ_FRONT_N           ((MPC_FPGA_MASS_KG * MPC_FPGA_GRAVITY_MS2 * MPC_FPGA_LR_M) / MPC_FPGA_WHEELBASE_M)
+#define MPC_FPGA_FZ_REAR_N            ((MPC_FPGA_MASS_KG * MPC_FPGA_GRAVITY_MS2 * MPC_FPGA_LF_M) / MPC_FPGA_WHEELBASE_M)
+#define MPC_FPGA_D_FRONT_N            (MPC_FPGA_MU * MPC_FPGA_FZ_FRONT_N)
+#define MPC_FPGA_D_REAR_N             (MPC_FPGA_MU * MPC_FPGA_FZ_REAR_N)
+
+#define MPC_FPGA_C_ALPHA_SF_NORM      (MPC_FPGA_C_ALPHA_F_N_PER_RAD / MPC_FPGA_D_FRONT_N)
+#define MPC_FPGA_C_ALPHA_SR_NORM      (MPC_FPGA_C_ALPHA_R_N_PER_RAD / MPC_FPGA_D_REAR_N)
+#define MPC_FPGA_B_FRONT              (MPC_FPGA_C_ALPHA_SF_NORM * MPC_FPGA_INV_PACEJKA_C_SHAPE)
+#define MPC_FPGA_B_REAR               (MPC_FPGA_C_ALPHA_SR_NORM * MPC_FPGA_INV_PACEJKA_C_SHAPE)
+
 /*===========================================================================
  * Communication Runtime Defaults (Jetson/Ultra96)
  *===========================================================================*/
@@ -87,9 +114,9 @@
 
 /** Maximum ADMM iterations. Override at compile time when tuning latency/quality tradeoff. */
 #ifndef MPC_FPGA_MAX_ADMM_ITER
-#define MPC_FPGA_MAX_ADMM_ITER        18
+#define MPC_FPGA_MAX_ADMM_ITER        100
 #endif
-#define MPC_FPGA_PREDICTION_DT_S      0.0288f
+#define MPC_FPGA_PREDICTION_DT_S      0.032f
 #define MPC_FPGA_PACEJKA_C_SHAPE      1.9f
 #define MPC_FPGA_MIN_STIFF_SCALE      0.1f
 
@@ -97,15 +124,15 @@
  * MPC Cost Weights (FPGA profile)
  *===========================================================================*/
 
-#define MPC_FPGA_W_LAT_ERROR             7000.0f
-#define MPC_FPGA_W_HEADING               236.196f
-#define MPC_FPGA_W_VELOCITY              424.54f
-#define MPC_FPGA_W_LAT_VEL               9.9f
-#define MPC_FPGA_W_YAW_RATE              1.86f
-#define MPC_FPGA_W_STEER_EFF             0.34f
-#define MPC_FPGA_W_ACCEL_EFF             0.01f
-#define MPC_FPGA_W_STEER_JERK            0.26f
-#define MPC_FPGA_W_ACCEL_RATE            0.15f
+#define MPC_FPGA_W_LAT_ERROR             9660.42f
+#define MPC_FPGA_W_HEADING               1400.0f
+#define MPC_FPGA_W_VELOCITY              132.192f
+#define MPC_FPGA_W_LAT_VEL               4.59f
+#define MPC_FPGA_W_YAW_RATE              2.112f
+#define MPC_FPGA_W_STEER_EFF             2.244f
+#define MPC_FPGA_W_ACCEL_EFF             0.0065f
+#define MPC_FPGA_W_STEER_JERK            0.063f
+#define MPC_FPGA_W_ACCEL_RATE            0.17f
 #define MPC_FPGA_W_DELTA_ACT             0.03f
 
 /*===========================================================================
@@ -123,9 +150,8 @@
 #define MPC_FPGA_BOUND_THRESHOLD      100.0f
 #define MPC_FPGA_WP_ADVANCE_MAX       10
 
-#define MPC_FPGA_ADMM_RHO                39.74f
+#define MPC_FPGA_ADMM_RHO                18.0f
 #define MPC_FPGA_ADMM_RHO_U              24.0f
-#define MPC_FPGA_ADMM_ALPHA              1.25f
-#define MPC_FPGA_ADMM_TOL                6.0f
+#define MPC_FPGA_ADMM_TOL                0.05f
 
 #endif /* MPC_FPGA_CONSTANTS_H */

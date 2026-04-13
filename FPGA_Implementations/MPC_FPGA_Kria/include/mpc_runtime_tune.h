@@ -36,7 +36,6 @@ extern int mpc_rt_wp_advance_max;
 extern fp_QP_t mpc_rt_admm_rho;
 extern fp_QP_t mpc_rt_admm_rho_u;
 extern fp_QP_t mpc_rt_admm_tol;
-extern fp_QP_t mpc_rt_admm_alpha;
 extern int mpc_rt_max_admm_iter;
 
 void mpc_runtime_update_from_env(void);

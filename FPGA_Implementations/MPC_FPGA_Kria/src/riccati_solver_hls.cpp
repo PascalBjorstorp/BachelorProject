@@ -432,8 +432,6 @@ MpcStatus_t riccati_admm_solve_hls(
                                 ? config->tolerance
                                 : FP_QP_CONST(1e-6);
     const fp_QP_t rel_tolerance = FP_QP_CONST(0.02);
-    fp_QP_t alpha_or = (config->alpha > 0) ? config->alpha : ADMM_ALPHA_DEFAULT;
-    fp_QP_t one_minus_alpha = FP_ONE - alpha_or;
 
     /* Local ADMM variables */
     fp_QP_t z_x[MPC_HORIZON + 1][MPC_NX_AUG];
@@ -586,7 +584,7 @@ MpcStatus_t riccati_admm_solve_hls(
         fp_QP_t ctrl_primal = 0, ctrl_dual = 0;
         fp_QP_t z_norm = 0, lambda_norm = 0;
 
-        /* State z/y update with over-relaxation: x_hat = alpha*x + (1-alpha)*z_old. */
+        /* State z/y update */
         for (k = 0; k <= N; k++) {
     #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON_PLUS_ONE max=MPC_HORIZON_PLUS_ONE
     #pragma HLS PIPELINE II=6
@@ -595,8 +593,7 @@ MpcStatus_t riccati_admm_solve_hls(
 #pragma HLS UNROLL factor=1
                 if (x_is_con[k][s]) {
                     fp_QP_t x_val = solution->x[k][s];
-                    fp_QP_t x_hat = fp_mul(alpha_or, x_val) + fp_mul(one_minus_alpha, z_x[k][s]);
-                    fp_raw_acc_t x_hat_raw = fp_raw_acc_from_qp(x_hat);
+                    fp_raw_acc_t x_hat_raw = fp_raw_acc_from_qp(x_val);
                     fp_raw_acc_t val = x_hat_raw + fp_raw_acc_from_qp(y_x[k][s]);
                     if (val < fp_raw_acc_from_qp(sd->x_lb[s])) val = fp_raw_acc_from_qp(sd->x_lb[s]);
                     if (val > fp_raw_acc_from_qp(sd->x_ub[s])) val = fp_raw_acc_from_qp(sd->x_ub[s]);
@@ -609,11 +606,10 @@ MpcStatus_t riccati_admm_solve_hls(
                     fp_QP_t dd = fp_qp_from_raw_acc(d64_abs);
                     if (dd > state_dual) state_dual = dd;
 
-                    /* y-update uses x_hat (over-relaxed) per Boyd et al. */
-                    fp_QP_t y_new_x = fp_qp_from_raw_acc(fp_raw_acc_from_qp(x_hat) - fp_raw_acc_from_qp(z_new) + fp_raw_acc_from_qp(y_x[k][s]));
+                    fp_QP_t y_new_x = fp_qp_from_raw_acc(fp_raw_acc_from_qp(x_val) - fp_raw_acc_from_qp(z_new) + fp_raw_acc_from_qp(y_x[k][s]));
                     y_x[k][s] = y_new_x;
 
-                    fp_QP_t pd = x_hat - z_new;
+                    fp_QP_t pd = x_val - z_new;
                     if (pd < 0) pd = -pd;
                     if (pd > state_primal) state_primal = pd;
 
@@ -629,7 +625,7 @@ MpcStatus_t riccati_admm_solve_hls(
             }
         }
 
-        /* Control z/y update — dual residual computed inline (with over-relaxation) */
+        /* Control z/y update — dual residual computed inline */
         for (k = 0; k < N; k++) {
     #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
 #pragma HLS PIPELINE II=4
@@ -637,8 +633,7 @@ MpcStatus_t riccati_admm_solve_hls(
             for (a = 0; a < nu; a++) {
 #pragma HLS UNROLL
                 fp_QP_t u_val = solution->u[k][a];
-                fp_QP_t u_hat = fp_mul(alpha_or, u_val) + fp_mul(one_minus_alpha, z_u[k][a]);
-                fp_raw_acc_t u_hat_raw = fp_raw_acc_from_qp(u_hat);
+                fp_raw_acc_t u_hat_raw = fp_raw_acc_from_qp(u_val);
                 fp_raw_acc_t val = u_hat_raw + fp_raw_acc_from_qp(y_u[k][a]);
                 if (val < fp_raw_acc_from_qp(sd->u_lb[a])) val = fp_raw_acc_from_qp(sd->u_lb[a]);
                 if (val > fp_raw_acc_from_qp(sd->u_ub[a])) val = fp_raw_acc_from_qp(sd->u_ub[a]);
@@ -651,11 +646,10 @@ MpcStatus_t riccati_admm_solve_hls(
                 fp_QP_t dd = fp_qp_from_raw_acc(d64_abs);
                 if (dd > ctrl_dual) ctrl_dual = dd;
 
-                /* y-update uses u_hat */
-                fp_QP_t y_new_u = fp_qp_from_raw_acc(fp_raw_acc_from_qp(u_hat) - fp_raw_acc_from_qp(z_new) + fp_raw_acc_from_qp(y_u[k][a]));
+                fp_QP_t y_new_u = fp_qp_from_raw_acc(fp_raw_acc_from_qp(u_val) - fp_raw_acc_from_qp(z_new) + fp_raw_acc_from_qp(y_u[k][a]));
                 y_u[k][a] = y_new_u;
 
-                fp_QP_t pd = u_hat - z_new;
+                fp_QP_t pd = u_val - z_new;
                 if (pd < 0) pd = -pd;
                 if (pd > ctrl_primal) ctrl_primal = pd;
 
@@ -686,12 +680,27 @@ MpcStatus_t riccati_admm_solve_hls(
             break;
         }
 
-        /* Adaptive rho: balance convergence rates (checked every 2 iterations) */
-        if (config->adaptive_rho && iter > 0 && (iter & 1) == 0) {
-            if (primal_res > fp_mul(FP_QP_CONST(10.0), dual_res) && rho < FP_QP_CONST(100.0)) {
+        /* Adaptive rho: rebalance state and control channels independently. */
+        if (config->adaptive_rho && iter > 0) {
+            const fp_QP_t adapt_ratio_state = FP_QP_CONST(6.0);
+            const fp_QP_t adapt_ratio_ctrl = FP_QP_CONST(10.0);
+            int scale_rho = 0;
+            int scale_rho_u = 0;
+
+            if (state_primal > fp_mul(adapt_ratio_state, state_dual) && rho < FP_QP_CONST(100.0)) {
+                scale_rho = 1;
+            } else if (state_dual > fp_mul(adapt_ratio_state, state_primal) && rho > FP_QP_CONST(0.5)) {
+                scale_rho = -1;
+            }
+
+            if (ctrl_primal > fp_mul(adapt_ratio_ctrl, ctrl_dual) && rho_u < FP_QP_CONST(100.0)) {
+                scale_rho_u = 1;
+            } else if (ctrl_dual > fp_mul(adapt_ratio_ctrl, ctrl_primal) && rho_u > FP_QP_CONST(0.5)) {
+                scale_rho_u = -1;
+            }
+
+            if (scale_rho > 0) {
                 rho <<= 1;
-                if (rho_u < FP_QP_CONST(100.0))
-                    rho_u <<= 1;
                 for (k = 0; k <= N; k++) {
 #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON_PLUS_ONE max=MPC_HORIZON_PLUS_ONE
 #pragma HLS PIPELINE II=1
@@ -700,18 +709,8 @@ MpcStatus_t riccati_admm_solve_hls(
                         y_x[k][s] >>= 1;
                     }
                 }
-                for (k = 0; k < N; k++) {
-#pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
-#pragma HLS PIPELINE II=1
-                    for (a = 0; a < nu; a++) {
-#pragma HLS UNROLL
-                        y_u[k][a] >>= 1;
-                    }
-                }
-            } else if (dual_res > fp_mul(FP_QP_CONST(10.0), primal_res) && rho > FP_QP_CONST(0.5)) {
+            } else if (scale_rho < 0) {
                 rho >>= 1;
-                if (rho_u > FP_QP_CONST(0.5))
-                    rho_u >>= 1;
                 for (k = 0; k <= N; k++) {
 #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON_PLUS_ONE max=MPC_HORIZON_PLUS_ONE
 #pragma HLS PIPELINE II=1
@@ -720,6 +719,20 @@ MpcStatus_t riccati_admm_solve_hls(
                         y_x[k][s] <<= 1;
                     }
                 }
+            }
+
+            if (scale_rho_u > 0) {
+                rho_u <<= 1;
+                for (k = 0; k < N; k++) {
+#pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
+#pragma HLS PIPELINE II=1
+                    for (a = 0; a < nu; a++) {
+#pragma HLS UNROLL
+                        y_u[k][a] >>= 1;
+                    }
+                }
+            } else if (scale_rho_u < 0) {
+                rho_u >>= 1;
                 for (k = 0; k < N; k++) {
 #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
 #pragma HLS PIPELINE II=1

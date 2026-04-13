@@ -383,7 +383,7 @@ RiccatiStatus_t riccati_admm_solve(
     const float abs_tolerance = (tolerance > 1e-6f) ? tolerance : 1e-6f;
     const float rel_tolerance = 0.02f;
     const int adaptive_rho = config ? config->adaptive_rho : 1;
-    const float alpha_or = (config && config->alpha > 0.0f) ? config->alpha : ADMM_ALPHA;
+    const float alpha_or = 1.0f; /* Standard ADMM: over-relaxation disabled. */
 
     float rho = (admm_state->initialized && admm_state->rho > 0.0f)
                     ? admm_state->rho : cfg_rho;

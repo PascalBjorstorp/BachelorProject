@@ -616,17 +616,17 @@ int main(void)
     cfg.cross_call_rate_scale = (float)(cross_scale);
     /* Tuned weights — overridable via environment variables for tuning script. */
     const char *env;
-    cfg.weight_lateral_error          = (float)((env = getenv("Q_LAT"))       ? atof(env) : 340.0);
-    cfg.weight_heading_error          = (float)((env = getenv("Q_HDG"))       ? atof(env) : 1000.0);
-    cfg.weight_velocity               = (float)((env = getenv("Q_VEL"))       ? atof(env) : 26.0);
-    cfg.weight_lateral_velocity       = (float)((env = getenv("Q_LAT_VEL"))   ? atof(env) : 69.0);
-    cfg.weight_yaw_rate               = (float)((env = getenv("Q_YAW"))       ? atof(env) : 22.0);
-    cfg.weight_steering_effort        = (float)((env = getenv("R_STEER"))     ? atof(env) : 0.15);
-    cfg.weight_acceleration_effort    = (float)((env = getenv("R_ACCEL"))     ? atof(env) : 0.01);
-    cfg.weight_steering_rate          = (float)((env = getenv("W_JERK"))      ? atof(env) : 0.3);
-    cfg.weight_acceleration_rate      = (float)((env = getenv("W_ACCEL_RATE"))? atof(env) : 0.1);
-    cfg.max_solver_iterations       = (env = getenv("MAX_ITER")) ? atoi(env) : 20;
-    cfg.solver_convergence_tolerance    = (float)((env = getenv("TOL")) ? atof(env) : 5.0);
+    cfg.weight_lateral_error          = (float)((env = getenv("Q_LAT"))       ? atof(env) : 9660.42);
+    cfg.weight_heading_error          = (float)((env = getenv("Q_HDG"))       ? atof(env) : 1400.0);
+    cfg.weight_velocity               = (float)((env = getenv("Q_VEL"))       ? atof(env) : 132.192);
+    cfg.weight_lateral_velocity       = (float)((env = getenv("Q_LAT_VEL"))   ? atof(env) : 4.59);
+    cfg.weight_yaw_rate               = (float)((env = getenv("Q_YAW"))       ? atof(env) : 2.112);
+    cfg.weight_steering_effort        = (float)((env = getenv("R_STEER"))     ? atof(env) : 2.244);
+    cfg.weight_acceleration_effort    = (float)((env = getenv("R_ACCEL"))     ? atof(env) : 0.0065);
+    cfg.weight_steering_rate          = (float)((env = getenv("W_JERK"))      ? atof(env) : 0.063);
+    cfg.weight_acceleration_rate      = (float)((env = getenv("W_ACCEL_RATE"))? atof(env) : 0.17);
+    cfg.max_solver_iterations       = (env = getenv("MAX_ITER")) ? atoi(env) : 100;
+    cfg.solver_convergence_tolerance    = (float)((env = getenv("TOL")) ? atof(env) : 0.05);
     mpc_set_configuration(&cfg);
 
     if (verbose) {

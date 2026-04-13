@@ -570,7 +570,6 @@ MpcSolverStatus_t mpc_compute_optimal_control(
         .tolerance = get_env_float("TOL", config.solver_convergence_tolerance),
         .max_iterations = get_env_int("MAX_ITER", (int)config.max_solver_iterations),
         .adaptive_rho = 1,
-        .alpha = get_env_float("ALPHA", ADMM_ALPHA),
     };
 
     RiccatiSolution_t riccati_sol;
