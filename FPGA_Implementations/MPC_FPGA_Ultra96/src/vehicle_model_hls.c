@@ -1,5 +1,5 @@
 /**
- * @file vehicle_model_hls.c
+ * @file vehicle_model_hls.cpp
  * @brief Frenet-Frame Vehicle Model Linearization for HLS
  * @details Computes the 5x5 Frenet A matrix and 5x2 B matrix used by the
  *          fixed-horizon FPGA MPC controller. The model includes load
@@ -13,15 +13,15 @@
 
 /* HLS-tuned multiply wrapper used in model hot paths to preserve
  * predictable operator binding and latency. */
-static fixed_point_t fp_mul_vm(fixed_point_t a, fixed_point_t b) {
+static fp_QP_t fp_mul_vm(fp_QP_t a, fp_QP_t b) {
 #pragma HLS INLINE off
-#pragma HLS LATENCY min=3 max=3
-    int64_t product = (int64_t)a * (int64_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency=3
-    return (fixed_point_t)(product >> FP_FRAC_BITS);
+#pragma HLS LATENCY min=4 max=4
+    fp_QP_t product = a * b;
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency=4
+    return product;
 }
 
-static fixed_point_t fp_atan_tire_vm(fixed_point_t x) {
+static fp_QP_t fp_atan_tire_vm(fp_QP_t x) {
 #pragma HLS INLINE off
 #pragma HLS PIPELINE II=1
     return fp_atan_tire_approx(x);
@@ -41,11 +41,11 @@ static fixed_point_t fp_atan_tire_vm(fixed_point_t x) {
  * @return None.
  */
 void compute_frenet_AB_hls(
-    fixed_point_t vx, fixed_point_t vy, fixed_point_t omega,
-    fixed_point_t delta, fixed_point_t a_cmd,
-    fixed_point_t kappa, fixed_point_t dt,
-    fixed_point_t A_fr[MPC_NX_FRENET][MPC_NX_FRENET],
-    fixed_point_t B_fr[MPC_NX_FRENET][MPC_NU])
+    fp_QP_t vx, fp_QP_t vy, fp_QP_t omega,
+    fp_QP_t delta, fp_QP_t a_cmd,
+    fp_QP_t kappa, fp_QP_t dt,
+    fp_QP_t A_fr[MPC_NX_FRENET][MPC_NX_FRENET],
+    fp_QP_t B_fr[MPC_NX_FRENET][MPC_NU])
 {
 /* Keep this function as a separate scheduled block with bounded multiplier use. */
 #pragma HLS INLINE off
@@ -53,32 +53,33 @@ void compute_frenet_AB_hls(
 #pragma HLS ALLOCATION function instances=fp_mul_vm limit=2
 
     /* Velocity floor for numerical stability */
-    fixed_point_t vx_safe = (vx > FP_CONST(0.5)) ? vx : FP_CONST(0.5);
-    fixed_point_t inv_vx = fp_recip(vx_safe);
+    fp_QP_t vx_safe = (vx > FP_QP_CONST(0.5)) ? vx : FP_QP_CONST(0.5);
+    fp_QP_t inv_vx = fp_recip(vx_safe);
 
-    /* Trig of steering angle — Taylor approx for small |δ| < 0.4 rad:
-     *   sin(x) ≈ x - x³/6    (error < 0.03% at δ=0.4)
-     *   cos(x) ≈ 1 - x²/2    (error < 0.12% at δ=0.4)
-    */
-    fixed_point_t cos_delta, sin_delta;
-    if (delta == 0) {
-        cos_delta = FP_ONE;
-        sin_delta = 0;
+    /* Hybrid steering trig:
+     * - fast Taylor path for small steering angles
+     * - exact shared kernels outside the small-angle region
+     */
+    fp_QP_t cos_delta, sin_delta;
+    fp_QP_t abs_delta = fp_abs(delta);
+    if (abs_delta < FP_QP_CONST(0.25)) {
+        fp_QP_t d2 = fp_mul_vm(delta, delta);
+        cos_delta = FP_ONE - (d2 >> 1);
+        fp_QP_t d3 = fp_mul_vm(d2, delta);
+        sin_delta = delta - fp_mul_vm(d3, FP_QP_CONST(0.16666667));
     } else {
-        fixed_point_t d2 = fp_mul_vm(delta, delta);                 /* δ² */
-        cos_delta = FP_ONE - (d2 >> 1);                             /* 1 - δ²/2 */
-        fixed_point_t d3 = fp_mul_vm(d2, delta);                    /* δ³ */
-        sin_delta = delta - fp_mul_vm(d3, FP_CONST(0.16666667));    /* δ - δ³/6 */
+        cos_delta = fp_cos(delta);
+        sin_delta = fp_sin(delta);
     }
 
     /* Longitudinal force for load transfer: Fx = m * a_cmd */
-    fixed_point_t Fx = fp_mul_vm(VP_MASS, a_cmd);
+    fp_QP_t Fx = fp_mul_vm(VP_MASS, a_cmd);
 
     /* Normal forces with load transfer (constant gravity terms precomputed). */
-    fixed_point_t F_zf = fp_mul_vm(
-        fp_sub(VP_MG_LR, fp_mul_vm(Fx, VP_CG_HEIGHT)), VP_INV_L);
-    fixed_point_t F_zr = fp_mul_vm(
-        fp_add(VP_MG_LF, fp_mul_vm(Fx, VP_CG_HEIGHT)), VP_INV_L);
+    fp_QP_t F_zf = fp_mul_vm(
+        VP_MG_LR - fp_mul_vm(Fx, VP_CG_HEIGHT), VP_INV_L);
+    fp_QP_t F_zr = fp_mul_vm(
+        VP_MG_LF + fp_mul_vm(Fx, VP_CG_HEIGHT), VP_INV_L);
 
     /* ================================================================
      * Slip angle Jacobians
@@ -88,28 +89,28 @@ void compute_frenet_AB_hls(
      *
      * d(atan(n/d))/dx = (d * dn/dx - n * dd/dx) / (d^2 + n^2)
      * ================================================================ */
-    fixed_point_t front_num = fp_add(vy, fp_mul_vm(VP_LF, omega));
-    fixed_point_t rear_num  = fp_sub(vy, fp_mul_vm(VP_LR, omega));
+    fp_QP_t front_num = vy + fp_mul_vm(VP_LF, omega);
+    fp_QP_t rear_num  = vy - fp_mul_vm(VP_LR, omega);
 
-    fixed_point_t vx2 = fp_mul_vm(vx_safe, vx_safe);
-    fixed_point_t front_num2 = fp_mul_vm(front_num, front_num);
-    fixed_point_t rear_num2  = fp_mul_vm(rear_num, rear_num);
+    fp_QP_t vx2 = fp_mul_vm(vx_safe, vx_safe);
+    fp_QP_t front_num2 = fp_mul_vm(front_num, front_num);
+    fp_QP_t rear_num2  = fp_mul_vm(rear_num, rear_num);
 
-    fixed_point_t D_f = fp_add(vx2, front_num2);
-    fixed_point_t D_r = fp_add(vx2, rear_num2);
+    fp_QP_t D_f = vx2 + front_num2;
+    fp_QP_t D_r = vx2 + rear_num2;
     if (D_f == 0) D_f = FP_ONE;
     if (D_r == 0) D_r = FP_ONE;
 
-    fixed_point_t inv_D_f = fp_recip(D_f);
-    fixed_point_t inv_D_r = fp_recip(D_r);
+    fp_QP_t inv_D_f = fp_recip(D_f);
+    fp_QP_t inv_D_r = fp_recip(D_r);
 
-    fixed_point_t daf_dvx = fp_mul_vm(front_num, inv_D_f);
-    fixed_point_t daf_dvy = fp_neg(fp_mul_vm(vx_safe, inv_D_f));
-    fixed_point_t daf_dom = fp_neg(fp_mul_vm(fp_mul_vm(VP_LF, vx_safe), inv_D_f));
+    fp_QP_t daf_dvx = fp_mul_vm(front_num, inv_D_f);
+    fp_QP_t daf_dvy = -fp_mul_vm(vx_safe, inv_D_f);
+    fp_QP_t daf_dom = -fp_mul_vm(fp_mul_vm(VP_LF, vx_safe), inv_D_f);
 
-    fixed_point_t dar_dvx = fp_mul_vm(rear_num, inv_D_r);
-    fixed_point_t dar_dvy = fp_neg(fp_mul_vm(vx_safe, inv_D_r));
-    fixed_point_t dar_dom = fp_mul_vm(fp_mul_vm(VP_LR, vx_safe), inv_D_r);
+    fp_QP_t dar_dvx = fp_mul_vm(rear_num, inv_D_r);
+    fp_QP_t dar_dvy = -fp_mul_vm(vx_safe, inv_D_r);
+    fp_QP_t dar_dom = fp_mul_vm(fp_mul_vm(VP_LR, vx_safe), inv_D_r);
 
     /* ================================================================
      * Pacejka-like tire saturation for effective cornering stiffness
@@ -121,60 +122,54 @@ void compute_frenet_AB_hls(
      * ================================================================ */
 
     /* Slip angles at operating point */
-    fixed_point_t front_ratio = fp_mul_vm(front_num, inv_vx);
-    fixed_point_t rear_ratio  = fp_mul_vm(rear_num, inv_vx);
-    fixed_point_t alpha_f_op = fp_sub(delta, fp_atan_tire_vm(front_ratio));
-    fixed_point_t alpha_r_op = fp_neg(fp_atan_tire_vm(rear_ratio));
+    fp_QP_t front_ratio = fp_mul_vm(front_num, inv_vx);
+    fp_QP_t rear_ratio  = fp_mul_vm(rear_num, inv_vx);
+    fp_QP_t alpha_f_op = delta - fp_atan(front_ratio);
+    fp_QP_t alpha_r_op = -fp_atan(rear_ratio);
 
     /* Front tire — Pacejka effective stiffness (B_f precomputed) */
-    fixed_point_t D_pac_f = fp_mul_vm(VP_MU, F_zf);
-    fixed_point_t Ba_f = fp_mul_vm(VP_B_FRONT, alpha_f_op);
-    fixed_point_t inner_f = fp_mul_vm(VP_C_SHAPE, fp_atan_tire_vm(Ba_f));
-    fixed_point_t inner_f2 = fp_mul_vm(inner_f, inner_f);
-    fixed_point_t cos_inner_f = fp_sub(FP_ONE, (inner_f2 >> 1));
-    fixed_point_t ba_f2 = fp_mul_vm(Ba_f, Ba_f);
-    fixed_point_t inv_denom_f = fp_sub(FP_ONE, ba_f2);
-    if (inv_denom_f < 0) inv_denom_f = 0;
+    fp_QP_t D_pac_f = fp_mul_vm(VP_MU, F_zf);
+    fp_QP_t Ba_f = fp_mul_vm(VP_B_FRONT, alpha_f_op);
+    fp_QP_t inner_f = fp_mul_vm(VP_C_SHAPE, fp_atan(Ba_f));
+    fp_QP_t cos_inner_f = fp_cos(inner_f);
+    fp_QP_t ba_f2 = fp_mul_vm(Ba_f, Ba_f);
+    fp_QP_t inv_denom_f = fp_recip(FP_ONE + ba_f2);
 
-    fixed_point_t C_eff_f = fp_mul_vm(
+    fp_QP_t C_eff_f = fp_mul_vm(
         fp_mul_vm(D_pac_f, VP_CB_FRONT),
         fp_mul_vm(cos_inner_f, inv_denom_f));
-    fixed_point_t C_min_f = fp_mul_vm(F_zf, VP_MU_CSF_MIN);
+    fp_QP_t C_min_f = fp_mul_vm(F_zf, VP_MU_CSF_MIN);
     C_eff_f = (C_eff_f > C_min_f) ? C_eff_f : C_min_f;
 
-    /* F_yf at operating point (for B matrix terms), sin(x) approx: x - x^3/6 */
-    fixed_point_t inner_f3 = fp_mul_vm(fp_mul_vm(inner_f, inner_f), inner_f);
-    fixed_point_t sin_inner_f = fp_sub(inner_f, fp_mul_vm(inner_f3, FP_CONST(0.16666667)));
-    fixed_point_t F_yf = fp_mul_vm(D_pac_f, sin_inner_f);
+    /* F_yf at operating point (for B matrix terms). */
+    fp_QP_t sin_inner_f = fp_sin(inner_f);
+    fp_QP_t F_yf = fp_mul_vm(D_pac_f, sin_inner_f);
 
-    /* Rear tire — Pacejka effective stiffness (B_r precomputed) */
-    fixed_point_t B_r = VP_B_REAR;
-    fixed_point_t D_pac_r = fp_mul_vm(VP_MU, F_zr);
-    fixed_point_t Ba_r = fp_mul_vm(B_r, alpha_r_op);
-    fixed_point_t inner_r = fp_mul_vm(VP_C_SHAPE, fp_atan_tire_vm(Ba_r));
-    fixed_point_t inner_r2 = fp_mul_vm(inner_r, inner_r);
-    fixed_point_t cos_inner_r = fp_sub(FP_ONE, (inner_r2 >> 1));
-    fixed_point_t ba_r2 = fp_mul_vm(Ba_r, Ba_r);
-    fixed_point_t inv_denom_r = fp_sub(FP_ONE, ba_r2);
-    if (inv_denom_r < 0) inv_denom_r = 0;
+    /* Rear tire — Pacejka effective stiffness */
+    fp_QP_t D_pac_r = fp_mul_vm(VP_MU, F_zr);
+    fp_QP_t Ba_r = fp_mul_vm(VP_B_REAR, alpha_r_op);
+    fp_QP_t inner_r = fp_mul_vm(VP_C_SHAPE, fp_atan(Ba_r));
+    fp_QP_t cos_inner_r = fp_cos(inner_r);
+    fp_QP_t ba_r2 = fp_mul_vm(Ba_r, Ba_r);
+    fp_QP_t inv_denom_r = fp_recip(FP_ONE + ba_r2);
 
-    fixed_point_t C_eff_r = fp_mul_vm(
+    fp_QP_t C_eff_r = fp_mul_vm(
         fp_mul_vm(D_pac_r, VP_CB_REAR),
         fp_mul_vm(cos_inner_r, inv_denom_r));
-    fixed_point_t C_min_r = fp_mul_vm(F_zr, VP_MU_CSR_MIN);
+    fp_QP_t C_min_r = fp_mul_vm(F_zr, VP_MU_CSR_MIN);
     C_eff_r = (C_eff_r > C_min_r) ? C_eff_r : C_min_r;
 
     /* ================================================================
      * Tire force Jacobians w.r.t. body states
      * ================================================================ */
-    fixed_point_t dFyf_dvx = fp_mul_vm(C_eff_f, daf_dvx);
-    fixed_point_t dFyf_dvy = fp_mul_vm(C_eff_f, daf_dvy);
-    fixed_point_t dFyf_dom = fp_mul_vm(C_eff_f, daf_dom);
-    fixed_point_t dFyf_dd  = C_eff_f;  /* dFyf/d(delta) = C_eff_f */
+    fp_QP_t dFyf_dvx = fp_mul_vm(C_eff_f, daf_dvx);
+    fp_QP_t dFyf_dvy = fp_mul_vm(C_eff_f, daf_dvy);
+    fp_QP_t dFyf_dom = fp_mul_vm(C_eff_f, daf_dom);
+    fp_QP_t dFyf_dd  = C_eff_f;  /* dFyf/d(delta) = C_eff_f */
 
-    fixed_point_t dFyr_dvx = fp_mul_vm(C_eff_r, dar_dvx);
-    fixed_point_t dFyr_dvy = fp_mul_vm(C_eff_r, dar_dvy);
-    fixed_point_t dFyr_dom = fp_mul_vm(C_eff_r, dar_dom);
+    fp_QP_t dFyr_dvx = fp_mul_vm(C_eff_r, dar_dvx);
+    fp_QP_t dFyr_dvy = fp_mul_vm(C_eff_r, dar_dvy);
+    fp_QP_t dFyr_dom = fp_mul_vm(C_eff_r, dar_dom);
 
     /* ================================================================
      * Initialize A to zero, then fill non-zero entries
@@ -192,55 +187,53 @@ void compute_frenet_AB_hls(
     /* --- Row 0: e_y dynamics ---
      * e_y[k+1] = e_y[k] + dt*(vx*e_psi + vy) */
     A_fr[0][0] = FP_ONE;
-    A_fr[0][1] = fp_mul_vm(dt, vx_safe);
+    A_fr[0][1] = fp_mul_vm(dt, vx);
     A_fr[0][3] = dt;
 
     /* --- Row 1: e_psi dynamics ---
      * e_psi[k+1] = e_psi[k] + dt*(omega - kappa*vx) */
     A_fr[1][1] = FP_ONE;
-    A_fr[1][2] = fp_neg(fp_mul_vm(dt, kappa));
+    A_fr[1][2] = -fp_mul_vm(dt, kappa);
     A_fr[1][4] = dt;
 
     /* --- Row 2: vx dynamics (full model with cos/sin delta) ---
      * dvx/dt = (Fx - Fyf*sin(δ) + m*vy*ω) / m
      * A[2][2] = 1 + (-dFyf_dvx * sin(δ)) * dt/m */
-    A_fr[2][2] = fp_sub(FP_ONE,
-        fp_mul_vm(fp_mul_vm(dFyf_dvx, sin_delta), VP_DT_INV_MASS));
+    A_fr[2][2] = FP_ONE
+        - fp_mul_vm(fp_mul_vm(dFyf_dvx, sin_delta), VP_DT_INV_MASS);
     /* A[2][3] = dt * (-dFyf_dvy * sin(δ) / m + ω) */
     A_fr[2][3] = fp_mul_vm(dt,
-        fp_sub(omega, fp_mul_vm(fp_mul_vm(dFyf_dvy, sin_delta), VP_INV_MASS)));
+        omega - fp_mul_vm(fp_mul_vm(dFyf_dvy, sin_delta), VP_INV_MASS));
     /* A[2][4] = dt * (-dFyf_dom * sin(δ) / m + vy) */
     A_fr[2][4] = fp_mul_vm(dt,
-        fp_sub(vy, fp_mul_vm(fp_mul_vm(dFyf_dom, sin_delta), VP_INV_MASS)));
+        vy - fp_mul_vm(fp_mul_vm(dFyf_dom, sin_delta), VP_INV_MASS));
 
     /* --- Row 3: vy dynamics (full model) ---
      * dvy/dt = (Fyf*cos(δ) + Fyr - m*vx*ω) / m */
     A_fr[3][2] = fp_mul_vm(
-        fp_sub(fp_add(fp_mul_vm(dFyf_dvx, cos_delta), dFyr_dvx),
-               fp_mul_vm(VP_MASS, omega)),
+        fp_mul_vm(dFyf_dvx, cos_delta) + dFyr_dvx - fp_mul_vm(VP_MASS, omega),
         VP_DT_INV_MASS);
-    A_fr[3][3] = fp_add(FP_ONE, fp_mul_vm(
-        fp_add(fp_mul_vm(dFyf_dvy, cos_delta), dFyr_dvy),
-        VP_DT_INV_MASS));
+    A_fr[3][3] = FP_ONE + fp_mul_vm(
+        fp_mul_vm(dFyf_dvy, cos_delta) + dFyr_dvy,
+        VP_DT_INV_MASS);
     A_fr[3][4] = fp_mul_vm(
-        fp_sub(fp_add(fp_mul_vm(dFyf_dom, cos_delta), dFyr_dom),
-               fp_mul_vm(VP_MASS, vx_safe)),
+        fp_mul_vm(dFyf_dom, cos_delta) + dFyr_dom - fp_mul_vm(VP_MASS, vx),
         VP_DT_INV_MASS);
 
     /* --- Row 4: omega dynamics (full model) ---
      * dω/dt = (lf*Fyf*cos(δ) - lr*Fyr) / Iz */
     A_fr[4][2] = fp_mul_vm(
-        fp_sub(fp_mul_vm(VP_LF, fp_mul_vm(dFyf_dvx, cos_delta)),
-               fp_mul_vm(VP_LR, dFyr_dvx)),
+        fp_mul_vm(VP_LF, fp_mul_vm(dFyf_dvx, cos_delta))
+        - fp_mul_vm(VP_LR, dFyr_dvx),
         VP_DT_INV_IZ);
     A_fr[4][3] = fp_mul_vm(
-        fp_sub(fp_mul_vm(VP_LF, fp_mul_vm(dFyf_dvy, cos_delta)),
-               fp_mul_vm(VP_LR, dFyr_dvy)),
+        fp_mul_vm(VP_LF, fp_mul_vm(dFyf_dvy, cos_delta))
+        - fp_mul_vm(VP_LR, dFyr_dvy),
         VP_DT_INV_IZ);
-    A_fr[4][4] = fp_add(FP_ONE, fp_mul_vm(
-        fp_sub(fp_mul_vm(VP_LF, fp_mul_vm(dFyf_dom, cos_delta)),
-               fp_mul_vm(VP_LR, dFyr_dom)),
-        VP_DT_INV_IZ));
+    A_fr[4][4] = FP_ONE + fp_mul_vm(
+        fp_mul_vm(VP_LF, fp_mul_vm(dFyf_dom, cos_delta))
+        - fp_mul_vm(VP_LR, dFyr_dom),
+        VP_DT_INV_IZ);
 
     /* ================================================================
      * B matrix: steering and acceleration effects
@@ -248,19 +241,19 @@ void compute_frenet_AB_hls(
      * ================================================================ */
 
     /* Precompute common subexpressions for B-matrix steering column */
-    fixed_point_t dFyf_dd_sin = fp_mul_vm(dFyf_dd, sin_delta);
-    fixed_point_t Fyf_cos     = fp_mul_vm(F_yf, cos_delta);
-    fixed_point_t dFyf_dd_cos = fp_mul_vm(dFyf_dd, cos_delta);
-    fixed_point_t Fyf_sin     = fp_mul_vm(F_yf, sin_delta);
+    fp_QP_t dFyf_dd_sin = fp_mul_vm(dFyf_dd, sin_delta);
+    fp_QP_t Fyf_cos     = fp_mul_vm(F_yf, cos_delta);
+    fp_QP_t dFyf_dd_cos = fp_mul_vm(dFyf_dd, cos_delta);
+    fp_QP_t Fyf_sin     = fp_mul_vm(F_yf, sin_delta);
 
     /* B[2][0]: d(dvx/dt)/dδ = (-dFyf_dd*sin(δ) - Fyf*cos(δ)) * dt/m */
-    B_fr[2][0] = fp_neg(fp_mul_vm(fp_add(dFyf_dd_sin, Fyf_cos), VP_DT_INV_MASS));
+    B_fr[2][0] = -fp_mul_vm(dFyf_dd_sin + Fyf_cos, VP_DT_INV_MASS);
 
     /* B[3][0]: d(dvy/dt)/dδ = (dFyf_dd*cos(δ) - Fyf*sin(δ)) * dt/m */
-    B_fr[3][0] = fp_mul_vm(fp_sub(dFyf_dd_cos, Fyf_sin), VP_DT_INV_MASS);
+    B_fr[3][0] = fp_mul_vm(dFyf_dd_cos - Fyf_sin, VP_DT_INV_MASS);
 
     /* B[4][0]: d(dω/dt)/dδ = lf*(dFyf_dd*cos(δ) - Fyf*sin(δ)) * dt/Iz */
-    B_fr[4][0] = fp_mul_vm(fp_mul_vm(VP_LF, fp_sub(dFyf_dd_cos, Fyf_sin)), VP_DT_INV_IZ);
+    B_fr[4][0] = fp_mul_vm(fp_mul_vm(VP_LF, dFyf_dd_cos - Fyf_sin), VP_DT_INV_IZ);
 
     /* B[2][1] = dt (acceleration → vx directly) */
     B_fr[2][1] = dt;
@@ -279,10 +272,10 @@ void compute_frenet_AB_hls(
  * @return None.
  */
 void saturate_control_hls(
-    fixed_point_t steer_in, fixed_point_t accel_in,
-    fixed_point_t *steer_out, fixed_point_t *accel_out)
+    fp_QP_t steer_in, fp_QP_t accel_in,
+    fp_QP_t *steer_out, fp_QP_t *accel_out)
 {
 #pragma HLS INLINE
-    *steer_out = fp_clamp(steer_in, fp_neg(VP_MAX_STEER), VP_MAX_STEER);
+    *steer_out = fp_clamp(steer_in, -VP_MAX_STEER, VP_MAX_STEER);
     *accel_out = fp_clamp(accel_in, VP_MIN_ACCEL, VP_MAX_ACCEL);
 }

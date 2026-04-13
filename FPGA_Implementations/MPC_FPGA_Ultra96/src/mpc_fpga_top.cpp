@@ -21,6 +21,7 @@
 #include "../include/fp_math_hls.h"
 #include "../include/mpc_fpga_types.h"
 #include "../include/riccati_solver_hls.h"
+#include "../include/mpc_riccati_hls.h"
 
 #ifdef MPC_HLS_BUILD
 #include <hls_stream.h>
@@ -30,21 +31,6 @@
 typedef ap_uint<128> stream_word_t;
 typedef hls::axis<stream_word_t, 0, 0, 0> axis_word_t;
 #endif
-
-/* Declare the MPC solver core (implemented in mpc_riccati_hls.c) */
-extern "C" void mpc_compute_hls(
-    fixed_point_t state_ey,
-    fixed_point_t state_epsi,
-    fixed_point_t state_vx,
-    fixed_point_t state_vy,
-    fixed_point_t state_omega,
-    const MpcRefPoint_t ref[MPC_HORIZON],
-    MpcPersistState_t *persist,
-    AdmmState_t *admm_state,
-    fixed_point_t *out_steering,
-    fixed_point_t *out_accel,
-    int *out_status,
-    int *out_iters);
 
 /**
  * @brief Execute one MPC solve call with persistent ADMM and actuator history.
@@ -62,9 +48,9 @@ extern "C" void mpc_compute_hls(
  * @return None.
  */
 static void mpc_fpga_compute_core(
-    fixed_point_t ey, fixed_point_t epsi,
-    fixed_point_t vx, fixed_point_t vy, fixed_point_t omega,
-    fixed_point_t steering,
+    fp_QP_t ey, fp_QP_t epsi,
+    fp_QP_t vx, fp_QP_t vy, fp_QP_t omega,
+    fp_QP_t steering,
     const MpcRefPoint_t ref[MPC_HORIZON],
     int *out_steering, int *out_accel, int *out_status, int *out_iters)
 {
@@ -74,9 +60,7 @@ static void mpc_fpga_compute_core(
 #pragma HLS BIND_STORAGE variable=admm_state type=ram_2p impl=bram
 #pragma HLS BIND_STORAGE variable=persist type=ram_1p impl=lutram
 
-    if (!out_steering || !out_accel || !out_status || !out_iters) {
-        return;
-    }
+
 
     if (!initialized) {
         persist.prev_steer_rate = 0;
@@ -90,13 +74,13 @@ static void mpc_fpga_compute_core(
     }
     persist.actual_steering = steering;
 
-    fixed_point_t steer_out, accel_out;
+    fp_QP_t steer_out, accel_out;
     int status, iters;
     mpc_compute_hls(ey, epsi, vx, vy, omega, ref, &persist, &admm_state,
                     &steer_out, &accel_out, &status, &iters);
 
-    *out_steering = (int)steer_out;
-    *out_accel    = (int)accel_out;
+    *out_steering = (int)fp_raw_from_io((fp_io_t)steer_out);
+    *out_accel    = (int)fp_raw_from_io((fp_io_t)accel_out);
     *out_status   = status;
     *out_iters    = iters;
 }
@@ -110,13 +94,13 @@ static void mpc_fpga_compute_core(
  * @param v3 Fourth lane value.
  * @return Packed 128-bit stream word.
  */
-static stream_word_t pack_word(fixed_point_t v0, fixed_point_t v1,
-                               fixed_point_t v2, fixed_point_t v3) {
+static stream_word_t pack_word(fp_QP_t v0, fp_QP_t v1,
+                               fp_QP_t v2, fp_QP_t v3) {
     stream_word_t w = 0;
-    w.range(31, 0)   = (uint32_t)v0;
-    w.range(63, 32)  = (uint32_t)v1;
-    w.range(95, 64)  = (uint32_t)v2;
-    w.range(127, 96) = (uint32_t)v3;
+    w.range(31, 0)   = (uint32_t)((fp_stream_raw_t)fp_raw_from_QP(v0));
+    w.range(63, 32)  = (uint32_t)((fp_stream_raw_t)fp_raw_from_QP(v1));
+    w.range(95, 64)  = (uint32_t)((fp_stream_raw_t)fp_raw_from_QP(v2));
+    w.range(127, 96) = (uint32_t)((fp_stream_raw_t)fp_raw_from_QP(v3));
     return w;
 }
 
@@ -140,32 +124,26 @@ void mpc_fpga_top(
 #pragma HLS INTERFACE s_axilite port=out_status bundle=ctrl
 #pragma HLS INTERFACE s_axilite port=out_iters bundle=ctrl
 #pragma HLS ALLOCATION operation instances=div limit=0
-#pragma HLS ALLOCATION operation instances=mul limit=2
-
-#ifndef MPC_HLS_BUILD
-    if (!out_steering || !out_accel || !out_status || !out_iters) {
-        return;
-    }
-#endif
 
     /* Beat 0: [e_y | e_psi | vx | vy] */
     stream_word_t d0 = input_stream.read().data;
-    fixed_point_t ey   = (fixed_point_t)(int)d0.range(31, 0);
-    fixed_point_t epsi = fp_normalize_angle((fixed_point_t)(int)d0.range(63, 32));
-    fixed_point_t vx   = (fixed_point_t)(int)d0.range(95, 64);
-    fixed_point_t vy   = (fixed_point_t)(int)d0.range(127, 96);
+    fp_io_t ey_io   = fp_io_from_raw((fp_stream_raw_t)(int)d0.range(31, 0));
+    fp_io_t epsi_io = fp_io_from_raw((fp_stream_raw_t)(int)d0.range(63, 32));
+    fp_io_t vx_io   = fp_io_from_raw((fp_stream_raw_t)(int)d0.range(95, 64));
+    fp_io_t vy_io   = fp_io_from_raw((fp_stream_raw_t)(int)d0.range(127, 96));
+    fp_QP_t ey      = (fp_QP_t)ey_io;
+    fp_QP_t epsi    = fp_normalize_angle((fp_QP_t)epsi_io);
+    fp_QP_t vx      = (fp_QP_t)vx_io;
+    fp_QP_t vy      = (fp_QP_t)vy_io;
 
     /* Beat 1: [omega | steering | horizon_length | reserved] */
     stream_word_t d1 = input_stream.read().data;
-    fixed_point_t omega    = (fixed_point_t)(int)d1.range(31, 0);
-    fixed_point_t steering = (fixed_point_t)(int)d1.range(63, 32);
+    fp_io_t omega_io    = fp_io_from_raw((fp_stream_raw_t)(int)d1.range(31, 0));
+    fp_io_t steering_io = fp_io_from_raw((fp_stream_raw_t)(int)d1.range(63, 32));
+    fp_QP_t omega       = (fp_QP_t)omega_io;
+    fp_QP_t steering    = (fp_QP_t)steering_io;
     int horizon_len        = (int)d1.range(95, 64);
-
-    if (horizon_len <= 0 || horizon_len > MPC_HORIZON) {
-        *out_steering = 0; *out_accel = 0;
-        *out_status = 3; *out_iters = 0;
-        return;
-    }
+    (void)horizon_len; /* Reserved protocol field (stream always carries MPC_HORIZON points). */
 
     /* Beats 2..N+1: Reference trajectory */
     MpcRefPoint_t ref[MPC_HORIZON];
@@ -173,11 +151,13 @@ void mpc_fpga_top(
     for (int k = 0; k < MPC_HORIZON; k++) {
 #pragma HLS PIPELINE II=1
         stream_word_t dr = input_stream.read().data;
-        ref[k].velocity = (fixed_point_t)(int)dr.range(31, 0);
-        fixed_point_t kappa = (fixed_point_t)(int)dr.range(63, 32);
-        ref[k].kappa = fp_clamp(kappa, FP_CONST(-1.5), FP_CONST(1.5));
-        ref[k].left_bound  = (fixed_point_t)(int)dr.range(95, 64);
-        ref[k].right_bound = (fixed_point_t)(int)dr.range(127, 96);
+        fp_io_t ref_v_io = fp_io_from_raw((fp_stream_raw_t)(int)dr.range(31, 0));
+        fp_io_t ref_k_io = fp_io_from_raw((fp_stream_raw_t)(int)dr.range(63, 32));
+        ref[k].velocity = (fp_QP_t)ref_v_io;
+        ref[k].kappa = (fp_QP_t)ref_k_io;
+        ref[k].yaw_rate = fp_mul(ref[k].velocity, ref[k].kappa);
+        ref[k].left_bound  = (fp_QP_t)fp_io_from_raw((fp_stream_raw_t)(int)dr.range(95, 64));
+        ref[k].right_bound = (fp_QP_t)fp_io_from_raw((fp_stream_raw_t)(int)dr.range(127, 96));
     }
 
     mpc_fpga_compute_core(ey, epsi, vx, vy, omega, steering, ref,
@@ -226,16 +206,25 @@ extern "C" void mpc_fpga_top_scalar(
     hls::stream<axis_word_t> stream;
     axis_word_t beat;
 
-    beat.data = pack_word(ey_fp, epsi_fp, vx_fp, vy_fp);
+    beat.data = pack_word(fp_QP_from_raw((fp_stream_raw_t)ey_fp),
+                          fp_QP_from_raw((fp_stream_raw_t)epsi_fp),
+                          fp_QP_from_raw((fp_stream_raw_t)vx_fp),
+                          fp_QP_from_raw((fp_stream_raw_t)vy_fp));
     stream.write(beat);
 
-    beat.data = pack_word(omega_fp, steering_fp, ref_count, 0);
+    beat.data = pack_word(fp_QP_from_raw((fp_stream_raw_t)omega_fp),
+                          fp_QP_from_raw((fp_stream_raw_t)steering_fp),
+                          fp_QP_from_raw((fp_stream_raw_t)ref_count),
+                          0);
     stream.write(beat);
 
     for (int k = 0; k < MPC_HORIZON; k++) {
         int src_k = (k < ref_count) ? k : (ref_count - 1);
-        fixed_point_t kappa = fp_clamp(ref_kappa[src_k], FP_CONST(-1.5), FP_CONST(1.5));
-        beat.data = pack_word(ref_vx[src_k], kappa, ref_left[src_k], ref_right[src_k]);
+        fp_QP_t kappa = fp_QP_from_raw((fp_stream_raw_t)ref_kappa[src_k]);
+        beat.data = pack_word(fp_QP_from_raw((fp_stream_raw_t)ref_vx[src_k]),
+                              kappa,
+                              fp_QP_from_raw((fp_stream_raw_t)ref_left[src_k]),
+                              fp_QP_from_raw((fp_stream_raw_t)ref_right[src_k]));
         stream.write(beat);
     }
     mpc_fpga_top(stream, out_steering, out_accel, out_status, out_iters);
@@ -243,12 +232,18 @@ extern "C" void mpc_fpga_top_scalar(
     MpcRefPoint_t ref[MPC_HORIZON];
     for (int k = 0; k < MPC_HORIZON; k++) {
         int src_k = (k < ref_count) ? k : (ref_count - 1);
-        ref[k].velocity = ref_vx[src_k];
-        ref[k].kappa = fp_clamp(ref_kappa[src_k], FP_CONST(-1.5), FP_CONST(1.5));
-        ref[k].left_bound = ref_left[src_k];
-        ref[k].right_bound = ref_right[src_k];
+        ref[k].velocity = fp_QP_from_raw((fp_stream_raw_t)ref_vx[src_k]);
+        ref[k].kappa = fp_QP_from_raw((fp_stream_raw_t)ref_kappa[src_k]);
+        ref[k].yaw_rate = fp_mul(ref[k].velocity, ref[k].kappa);
+        ref[k].left_bound = fp_QP_from_raw((fp_stream_raw_t)ref_left[src_k]);
+        ref[k].right_bound = fp_QP_from_raw((fp_stream_raw_t)ref_right[src_k]);
     }
-    mpc_fpga_compute_core(ey_fp, fp_normalize_angle(epsi_fp), vx_fp, vy_fp, omega_fp, steering_fp,
+    mpc_fpga_compute_core(fp_QP_from_raw((fp_stream_raw_t)ey_fp),
+                          fp_normalize_angle(fp_QP_from_raw((fp_stream_raw_t)epsi_fp)),
+                          fp_QP_from_raw((fp_stream_raw_t)vx_fp),
+                          fp_QP_from_raw((fp_stream_raw_t)vy_fp),
+                          fp_QP_from_raw((fp_stream_raw_t)omega_fp),
+                          fp_QP_from_raw((fp_stream_raw_t)steering_fp),
                           ref, out_steering, out_accel, out_status, out_iters);
 #endif
 }

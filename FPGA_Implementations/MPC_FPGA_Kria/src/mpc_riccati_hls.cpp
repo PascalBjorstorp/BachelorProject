@@ -1,5 +1,5 @@
 /**
- * @file mpc_riccati_hls.c
+ * @file mpc_riccati_hls.cpp
  * @brief MPC Riccati-ADMM Compute Function — HLS-Synthesizable
  * @details Builds the augmented 8-state QP from the current Frenet state and
  *          fixed-horizon references, then solves via Riccati-ADMM and maps
@@ -10,18 +10,27 @@
 #include "../include/fp_math_hls.h"
 #include "../include/riccati_solver_hls.h"
 #include "../include/mpc_fpga_types.h"
+#ifdef MPC_RUNTIME_TUNE
+#include "../include/mpc_runtime_tune.h"
+#endif
+#if defined(MPC_HLS_BUILD) && defined(MPC_USE_AP_FIXED)
+#include "../include/fp_types_hls.hpp"
+#endif
 
-/* Forward declaration of vehicle model (defined in vehicle_model_hls.cpp) */
+#include <stdio.h>
+#include <stdlib.h>
+
+/* Forward declaration of vehicle model (defined in vehicle_model_hls.c) */
 extern void compute_frenet_AB_hls(
-    fixed_point_t vx, fixed_point_t vy, fixed_point_t omega,
-    fixed_point_t delta, fixed_point_t a_cmd,
-    fixed_point_t kappa, fixed_point_t dt,
-    fixed_point_t A_fr[MPC_NX_FRENET][MPC_NX_FRENET],
-    fixed_point_t B_fr[MPC_NX_FRENET][MPC_NU]);
+    fp_QP_t vx, fp_QP_t vy, fp_QP_t omega,
+    fp_QP_t delta, fp_QP_t a_cmd,
+    fp_QP_t kappa, fp_QP_t dt,
+    fp_QP_t A_fr[MPC_NX_FRENET][MPC_NX_FRENET],
+    fp_QP_t B_fr[MPC_NX_FRENET][MPC_NU]);
 
 extern void saturate_control_hls(
-    fixed_point_t steer_in, fixed_point_t accel_in,
-    fixed_point_t *steer_out, fixed_point_t *accel_out);
+    fp_QP_t steer_in, fp_QP_t accel_in,
+    fp_QP_t *steer_out, fp_QP_t *accel_out);
 
 /**
  * MPC compute: build QP and solve.
@@ -40,54 +49,58 @@ extern void saturate_control_hls(
  * @param out_iters     Output: ADMM iterations used
  * @return None.
  */
-#ifdef __cplusplus
-extern "C"
-#endif
 void mpc_compute_hls(
-    fixed_point_t state_ey,
-    fixed_point_t state_epsi,
-    fixed_point_t state_vx,
-    fixed_point_t state_vy,
-    fixed_point_t state_omega,
+    fp_QP_t state_ey,
+    fp_QP_t state_epsi,
+    fp_QP_t state_vx,
+    fp_QP_t state_vy,
+    fp_QP_t state_omega,
     const MpcRefPoint_t ref[MPC_HORIZON],
     MpcPersistState_t *persist,
     AdmmState_t *admm_state,
-    fixed_point_t *out_steering,
-    fixed_point_t *out_accel,
+    fp_QP_t *out_steering,
+    fp_QP_t *out_accel,
     int *out_status,
     int *out_iters)
 {
-#ifndef MPC_HLS_TARGET
-    if (!ref || !persist || !admm_state ||
-        !out_steering || !out_accel || !out_status || !out_iters) {
-        if (out_steering) *out_steering = 0;
-        if (out_accel) *out_accel = 0;
-        if (out_status) *out_status = MPC_STATUS_ERROR;
-        if (out_iters) *out_iters = 0;
-        return;
-    }
-#endif
-
     const int N = MPC_HORIZON;
-    fixed_point_t dt = MPC_DT;
+    fp_QP_t dt = MPC_DT;
     int k, i, j;
+
+#ifdef MPC_HLS_BUILD
+    const int trace_enable = 0;
+    const int call_id = 0;
+#else
+    static int trace_enable = -1;
+    static int trace_call = 0;
+    if (trace_enable < 0) {
+        const char *env = getenv("MPC_SOLVER_TRACE");
+        trace_enable = (env && atoi(env) != 0) ? 1 : 0;
+    }
+    const int call_id = trace_call++;
+#endif
 
     /* ---------------------------------------------------------------
      * Step 1: Keep first-point curvature for warm-start validation.
      * Full model linearization is performed per-step in the loop below.
      * --------------------------------------------------------------- */
-    fixed_point_t kappa0 = ref[0].kappa;
+    fp_QP_t kappa0 = ref[0].kappa;
 
     /* ---------------------------------------------------------------
      * Step 2: Build augmented per-step data (8-state formulation)
      * --------------------------------------------------------------- */
 
     StepData_t step_data[MPC_HORIZON];
-#pragma HLS BIND_STORAGE variable=step_data type=ram_2p impl=bram latency=2
+#pragma HLS BIND_STORAGE variable=step_data type=ram_2p impl=bram
     /* Zero only sparse fields that are not explicitly overwritten below. */
+    const fp_QP_t half_steer = VP_MAX_STEER >> 1;
+    const fp_QP_t qp_half_steer = half_steer;
+    const fp_QP_t qp_min_lin_vel = MIN_LIN_VEL;
 
     for (k = 0; k < N; k++) {
 #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
+#pragma HLS PIPELINE II=8
+#pragma HLS DEPENDENCE variable=step_data inter false
         StepData_t *sd = &step_data[k];
 
         /* Zero sparse blocks not explicitly written by the assignments below. */
@@ -121,16 +134,16 @@ void mpc_compute_hls(
         }
 
         /* Per-step Frenet linearization */
-        fixed_point_t A_step[MPC_NX_FRENET][MPC_NX_FRENET];
-        fixed_point_t B_step[MPC_NX_FRENET][MPC_NU];
+        fp_QP_t A_step[MPC_NX_FRENET][MPC_NX_FRENET];
+        fp_QP_t B_step[MPC_NX_FRENET][MPC_NU];
 
-        fixed_point_t kappa_k = ref[k].kappa;
-        fixed_point_t dff_k = fp_mul(VP_WHEELBASE, kappa_k);
-        fixed_point_t half_steer = VP_MAX_STEER >> 1;
-        dff_k = fp_clamp(dff_k, fp_neg(half_steer), half_steer);
+        fp_QP_t kappa_k = ref[k].kappa;
+        fp_QP_t dff_k = fp_atan(fp_mul(VP_WHEELBASE, kappa_k));
+        dff_k = fp_clamp(dff_k, -qp_half_steer, qp_half_steer);
 
-        fixed_point_t lin_vx_k = (ref[k].velocity > MIN_LIN_VEL) ? ref[k].velocity
-                                                                  : MIN_LIN_VEL;
+        fp_QP_t lin_vx_k;
+        lin_vx_k = (ref[k].velocity > qp_min_lin_vel) ? ref[k].velocity
+                                                       : qp_min_lin_vel;
 
         compute_frenet_AB_hls(
             lin_vx_k, state_vy, state_omega,
@@ -140,15 +153,15 @@ void mpc_compute_hls(
 
         /* Stabilize fast dynamics (omega row = 4) per stage */
         {
-            fixed_point_t a44 = A_step[4][4];
-            fixed_point_t abs_a44 = fp_abs(a44);
+            fp_QP_t a44 = A_step[4][4];
+            fp_QP_t abs_a44 = fp_abs(a44);
             if (abs_a44 > STABILITY_LIMIT_VAL) {
-                fixed_point_t target = (a44 < 0) ? fp_neg(STABILITY_LIMIT_VAL)
-                                                  : STABILITY_LIMIT_VAL;
-                fixed_point_t num = fp_sub(target, FP_ONE);
-                fixed_point_t den = fp_sub(a44, FP_ONE);
+                fp_QP_t target = (a44 < 0) ? (fp_QP_t)(-STABILITY_LIMIT_VAL)
+                                                : STABILITY_LIMIT_VAL;
+                fp_QP_t num = target - FP_ONE;
+                fp_QP_t den = a44 - FP_ONE;
                 if (den != 0) {
-                    fixed_point_t scale = fp_mul(num, fp_recip(den));
+                    fp_QP_t scale = fp_mul(num, fp_recip(den));
                     for (j = 0; j < MPC_NX_FRENET; j++) {
 #pragma HLS UNROLL
                         if (j != 4) A_step[4][j] = fp_mul(A_step[4][j], scale);
@@ -216,11 +229,11 @@ void mpc_compute_hls(
         /* References for e_y and e_psi are 0 (path following) */
         sd->q[0] = 0;
         sd->q[1] = 0;
-        sd->q[2] = fp_neg(fp_mul(MPC_Q2_VELOCITY, ref[k].velocity));
+        sd->q[2] = -fp_mul(MPC_Q2_VELOCITY, ref[k].velocity);
         sd->q[3] = 0;  /* vy_ref = 0 */
-        sd->q[4] = 0;  /* omega_ref = 0 */
+        sd->q[4] = -fp_mul(MPC_Q2_YAW_RATE, ref[k].yaw_rate);
         /* delta_actual reference: feedforward steering */
-        sd->q[IDX_DELTA_ACT] = fp_neg(fp_mul(MPC_Q2_DELTA_ACT, dff_k));
+        sd->q[IDX_DELTA_ACT] = -fp_mul(MPC_Q2_DELTA_ACT, dff_k);
         sd->q[IDX_DELTA_RATE_PREV] = 0;
         sd->q[IDX_ACCEL_PREV] = 0;
 
@@ -238,31 +251,22 @@ void mpc_compute_hls(
         sd->N_cross[IDX_DELTA_RATE_PREV][0] = MPC_N2_STEER_JERK;
         sd->N_cross[IDX_ACCEL_PREV][1] = MPC_N2_ACCEL_RATE;
         if (k == 0) {
-            sd->N_cross[IDX_DELTA_RATE_PREV][0] = fp_neg(MPC_Q2_JERK_CS);
-            sd->N_cross[IDX_ACCEL_PREV][1] = fp_neg(MPC_Q2_ARATE_CS);
+            sd->N_cross[IDX_DELTA_RATE_PREV][0] = -MPC_Q2_JERK_CS;
+            sd->N_cross[IDX_ACCEL_PREV][1] = -MPC_Q2_ARATE_CS;
         }
 
         /* === State bounds === */
-        /* e_y: wall constraints (near-term: steps START..END, every STRIDE) */
-        int wall_active = (k >= WALL_START) &&
-                          (k <= WALL_END) &&
-                          ((k - WALL_START) % WALL_STRIDE == 0);
-        if (wall_active &&
-            ref[k].left_bound < FP_CONST(4.0) &&
-            ref[k].right_bound < FP_CONST(4.0)) {
-            sd->x_lb[0] = fp_neg(fp_sub(ref[k].right_bound, WALL_MARGIN));
-            sd->x_ub[0] = fp_sub(ref[k].left_bound, WALL_MARGIN);
-        } else {
-            sd->x_lb[0] = -BIG_BOUND;
-            sd->x_ub[0] =  BIG_BOUND;
-        }
+        /* e_y: wall constraints active for all steps when bounds are valid. */
+        sd->x_lb[0] = -(ref[k].right_bound - WALL_MARGIN);
+        sd->x_ub[0] = ref[k].left_bound - WALL_MARGIN;
+
         /* States 1-4: unconstrained */
         for (i = 1; i < 5; i++) {
             sd->x_lb[i] = -BIG_BOUND;
             sd->x_ub[i] =  BIG_BOUND;
         }
         /* State 5 (delta_actual): steering angle limit */
-        sd->x_lb[IDX_DELTA_ACT] = fp_neg(VP_MAX_STEER);
+        sd->x_lb[IDX_DELTA_ACT] = -VP_MAX_STEER;
         sd->x_ub[IDX_DELTA_ACT] = VP_MAX_STEER;
         /* States 6-7: unconstrained */
         sd->x_lb[IDX_DELTA_RATE_PREV] = -BIG_BOUND;
@@ -272,52 +276,52 @@ void mpc_compute_hls(
 
         /* === Control bounds === */
         /* u[0] = steering rate limit */
-        sd->u_lb[0] = fp_neg(VP_MAX_STEER_RATE);
+        sd->u_lb[0] = -VP_MAX_STEER_RATE;
         sd->u_ub[0] = VP_MAX_STEER_RATE;
 
         /* u[1] = acceleration with speed-dependent power limit */
-        {
-            fixed_point_t v_ref_k = ref[k].velocity;
-            if (v_ref_k > V_SWITCH) {
-                fixed_point_t scale = fp_mul(V_SWITCH, fp_recip(v_ref_k));
-                sd->u_ub[1] = fp_mul(VP_MAX_ACCEL, scale);
-                sd->u_lb[1] = fp_mul(VP_MIN_ACCEL, scale);
-            } else {
-                sd->u_ub[1] = VP_MAX_ACCEL;
-                sd->u_lb[1] = VP_MIN_ACCEL;
-            }
+        fp_QP_t v_ref_k = ref[k].velocity;
+        if (v_ref_k > V_SWITCH) {
+            fp_QP_t scale = fp_mul(V_SWITCH, fp_recip(v_ref_k));
+            sd->u_ub[1] = fp_mul(VP_MAX_ACCEL, scale);
+            sd->u_lb[1] = fp_mul(VP_MIN_ACCEL, scale);
+        } else {
+            sd->u_ub[1] = VP_MAX_ACCEL;
+            sd->u_lb[1] = VP_MIN_ACCEL;
         }
+        
     }
 
     /* ---------------------------------------------------------------
      * Step 3: Terminal cost
      * --------------------------------------------------------------- */
-    fixed_point_t terminal_Q[MPC_NX_AUG];
-    fixed_point_t terminal_q[MPC_NX_AUG];
+    fp_QP_t terminal_q_diag[MPC_NX_AUG];
+    fp_QP_t terminal_q_linear[MPC_NX_AUG];
     for (i = 0; i < MPC_NX_AUG; i++) {
 #pragma HLS UNROLL
-        terminal_Q[i] = 0;
-        terminal_q[i] = 0;
+        terminal_q_diag[i] = 0;
+        terminal_q_linear[i] = 0;
     }
 
-    terminal_Q[0] = MPC_Q2_LAT_ERROR;
-    terminal_Q[1] = MPC_Q2_HEADING;
-    terminal_Q[2] = MPC_Q2_VELOCITY;
-    terminal_Q[3] = MPC_Q2_LAT_VEL;
-    terminal_Q[4] = MPC_Q2_YAW_RATE;
-    terminal_Q[IDX_DELTA_ACT] = MPC_Q2_DELTA_ACT;
+    terminal_q_diag[0] = MPC_Q2_LAT_ERROR;
+    terminal_q_diag[1] = MPC_Q2_HEADING;
+    terminal_q_diag[2] = MPC_Q2_VELOCITY;
+    terminal_q_diag[3] = MPC_Q2_LAT_VEL;
+    terminal_q_diag[4] = MPC_Q2_YAW_RATE;
+    terminal_q_diag[IDX_DELTA_ACT] = MPC_Q2_DELTA_ACT;
 
     if (N > 0) {
-        terminal_q[2] = fp_neg(fp_mul(terminal_Q[2], ref[N-1].velocity));
-        fixed_point_t kN = ref[N-1].kappa;
-        fixed_point_t dff_N = fp_mul(VP_WHEELBASE, kN);  /* atan(x)≈x */
-        terminal_q[IDX_DELTA_ACT] = fp_neg(fp_mul(terminal_Q[IDX_DELTA_ACT], dff_N));
+        terminal_q_linear[2] = -fp_mul(terminal_q_diag[2], ref[N-1].velocity);
+        terminal_q_linear[4] = -fp_mul(terminal_q_diag[4], ref[N-1].yaw_rate);
+        fp_QP_t kN = ref[N-1].kappa;
+        fp_QP_t dff_N = fp_atan(fp_mul(VP_WHEELBASE, kN));  /* feedforward steering from curvature */
+        terminal_q_linear[IDX_DELTA_ACT] = -fp_mul(terminal_q_diag[IDX_DELTA_ACT], dff_N);
     }
 
     /* ---------------------------------------------------------------
      * Step 4: Initial state (8 elements)
      * --------------------------------------------------------------- */
-    fixed_point_t x0[MPC_NX_AUG];
+    fp_QP_t x0[MPC_NX_AUG];
     x0[0] = state_ey;
     x0[1] = state_epsi;
     x0[2] = state_vx;
@@ -327,14 +331,28 @@ void mpc_compute_hls(
     x0[IDX_DELTA_RATE_PREV] = persist->prev_steer_rate;
     x0[IDX_ACCEL_PREV] = persist->prev_accel;
 
+    if (trace_enable && call_id < 64) {
+        const StepData_t *sd0 = &step_data[0];
+        printf(
+            "TRACE_QP0,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+            call_id,
+            FP_TO_DOUBLE(state_ey), FP_TO_DOUBLE(state_epsi), FP_TO_DOUBLE(state_vx),
+            FP_TO_DOUBLE(sd0->A[2][2]), FP_TO_DOUBLE(sd0->A[3][3]), FP_TO_DOUBLE(sd0->A[4][4]),
+            FP_TO_DOUBLE(sd0->B[2][0]), FP_TO_DOUBLE(sd0->B[3][0]), FP_TO_DOUBLE(sd0->B[4][0]),
+            FP_TO_DOUBLE(sd0->q[2]), FP_TO_DOUBLE(sd0->q[IDX_DELTA_ACT]),
+            FP_TO_DOUBLE(sd0->R_diag[0]), FP_TO_DOUBLE(sd0->R_diag[1]),
+            FP_TO_DOUBLE(sd0->x_lb[0]), FP_TO_DOUBLE(sd0->x_ub[0]),
+            FP_TO_DOUBLE(x0[IDX_DELTA_ACT]), FP_TO_DOUBLE(x0[IDX_DELTA_RATE_PREV]));
+    }
+
     /* ---------------------------------------------------------------
      * Step 5: Warm-start management
      * --------------------------------------------------------------- */
     {
         /* Invalidate warm-start only on cold start or large curvature jump.
          * Keeping warm-start after a max-iteration return is still useful. */
-        fixed_point_t kappa_diff = fp_abs(fp_sub(kappa0, persist->prev_curvature));
-        if (!admm_state->initialized || kappa_diff > FP_CONST(0.5)) {
+        fp_QP_t kappa_diff = fp_abs(kappa0 - persist->prev_curvature);
+        if (!admm_state->initialized || kappa_diff > FP_QP_CONST(0.5)) {
             admm_state->initialized = 0;
         }
     }
@@ -347,7 +365,12 @@ void mpc_compute_hls(
     solver_cfg.rho            = ADMM_RHO_DEFAULT;
     solver_cfg.rho_u          = ADMM_RHO_U_DEFAULT;
     solver_cfg.tolerance      = ADMM_TOL_DEFAULT;
+    solver_cfg.alpha          = ADMM_ALPHA_DEFAULT;
+#ifdef MPC_RUNTIME_TUNE
+    solver_cfg.max_iterations = mpc_rt_max_admm_iter;
+#else
     solver_cfg.max_iterations = MPC_MAX_ADMM_ITER;
+#endif
     solver_cfg.adaptive_rho   = 1;
 
     MpcSolution_t sol;
@@ -370,7 +393,7 @@ void mpc_compute_hls(
     }
 
     MpcStatus_t rstatus = riccati_admm_solve_hls(
-        step_data, terminal_Q, terminal_q, x0,
+        step_data, terminal_q_diag, terminal_q_linear, x0,
         &solver_cfg, admm_state, &sol);
 
     /* ---------------------------------------------------------------
@@ -379,17 +402,16 @@ void mpc_compute_hls(
      * u = [delta_rate, accel]. Convert delta_rate to steering angle:
      *   delta_cmd = delta_actual + dt * delta_rate
      * --------------------------------------------------------------- */
-    fixed_point_t delta_rate = admm_state->z_u[0][0];
-    fixed_point_t accel      = admm_state->z_u[0][1];
+    fp_QP_t delta_rate = admm_state->z_u[0][0];
+    fp_QP_t accel      = admm_state->z_u[0][1];
 
-    fixed_point_t delta_cmd = fp_add(persist->actual_steering,
-        fp_mul(dt, delta_rate));
+    fp_QP_t delta_cmd = persist->actual_steering + fp_mul(dt, delta_rate);
 
     /* Clamp to physical limits */
-    delta_cmd = fp_clamp(delta_cmd, fp_neg(VP_MAX_STEER), VP_MAX_STEER);
+    delta_cmd = fp_clamp(delta_cmd, -VP_MAX_STEER, VP_MAX_STEER);
 
     /* Final saturation */
-    fixed_point_t steer_sat, accel_sat;
+    fp_QP_t steer_sat, accel_sat;
     saturate_control_hls(delta_cmd, accel, &steer_sat, &accel_sat);
 
     /* ---------------------------------------------------------------

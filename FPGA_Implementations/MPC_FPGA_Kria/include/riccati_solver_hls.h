@@ -16,11 +16,25 @@
 extern "C" {
 #endif
 
+void riccati_pass_hls(
+    const StepData_t step_data[MPC_HORIZON],
+    const fp_QP_t *terminal_q_diag,
+    const fp_QP_t *terminal_q_linear,
+    const fp_QP_t *x0,
+    fp_QP_t rho,
+    fp_QP_t rho_u,
+    const fp_QP_t z_x[][MPC_NX_AUG],
+    const fp_QP_t y_x[][MPC_NX_AUG],
+    const fp_QP_t z_u[][MPC_NU],
+    const fp_QP_t y_u[][MPC_NU],
+    fp_QP_t x_out[][MPC_NX_AUG],
+    fp_QP_t u_out[][MPC_NU]);
+
 /**
  * @brief Solve constrained LQR using Riccati-ADMM.
  * @param step_data Per-step dynamics, costs, and bounds array of length MPC_HORIZON.
- * @param terminal_Q Terminal diagonal cost vector of length MPC_NX_AUG.
- * @param terminal_q Terminal linear cost vector of length MPC_NX_AUG.
+ * @param terminal_q_diag Terminal diagonal cost vector of length MPC_NX_AUG.
+ * @param terminal_q_linear Terminal linear cost vector of length MPC_NX_AUG.
  * @param x0 Initial augmented state vector of length MPC_NX_AUG.
  * @param config ADMM configuration pointer.
  * @param admm_state Warm-start and dual/primal history pointer.
@@ -29,9 +43,9 @@ extern "C" {
  */
 MpcStatus_t riccati_admm_solve_hls(
     const StepData_t step_data[MPC_HORIZON],
-    const fixed_point_t terminal_Q[MPC_NX_AUG],
-    const fixed_point_t terminal_q[MPC_NX_AUG],
-    const fixed_point_t x0[MPC_NX_AUG],
+    const fp_QP_t terminal_q_diag[MPC_NX_AUG],
+    const fp_QP_t terminal_q_linear[MPC_NX_AUG],
+    const fp_QP_t x0[MPC_NX_AUG],
     const AdmmConfig_t *config,
     AdmmState_t *admm_state,
     MpcSolution_t *solution);
