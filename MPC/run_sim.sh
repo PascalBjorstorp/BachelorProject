@@ -23,7 +23,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 DURATION_SECONDS="${1:-120}"
-TRAJECTORY_FILE="${2:-${ROOT_DIR}/f1tenth_planning/trajectories/Spielberg_raceline_pipeline_cl050.csv}"
+TRAJECTORY_FILE="${2:-${ROOT_DIR}/f1tenth_planning/trajectories/my_track_raceline.csv}"
 
 RUN_ID="$(date +%Y%m%d_%H%M%S)"
 LOG_DIR="${SCRIPT_DIR}/logs/run_${RUN_ID}"
@@ -161,7 +161,7 @@ if first_status2_text:
 PY
 
 echo "=== Run complete ==="
-echo "collision_seen=${COLLISION_SEEN}"
+echo "collision_seen=${COLLISION_SEEsN}"
 echo "gym_log=${GYM_LOG}"
 echo "mpc_log=${MPC_LOG}"
 echo "summary=${SUMMARY_LOG}"

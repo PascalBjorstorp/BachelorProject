@@ -39,10 +39,6 @@
 #define MPC_HLS_ACCUM_INT_BITS 12
 #endif
 
-#ifndef MPC_HLS_RAW_ACC_GUARD_BITS
-#define MPC_HLS_RAW_ACC_GUARD_BITS 10
-#endif
-
 static_assert(MPC_HLS_IO_WIDTH == 32 && MPC_HLS_IO_INT_BITS == 16,
               "IO boundary must stay Q16.16 (32,16)");
 static_assert(MPC_HLS_IO_WIDTH > MPC_HLS_IO_INT_BITS,
@@ -57,7 +53,7 @@ typedef ap_fixed<MPC_HLS_IO_WIDTH, MPC_HLS_IO_INT_BITS, AP_TRN, AP_WRAP> fp_io_t
 typedef ap_fixed<MPC_HLS_RICCATI_WIDTH, MPC_HLS_RICCATI_INT_BITS, AP_TRN, AP_WRAP> fp_QP_t;
 typedef ap_fixed<MPC_HLS_ACCUM_WIDTH, MPC_HLS_ACCUM_INT_BITS, AP_TRN, AP_WRAP> fp_accum_t;
 typedef ap_int<MPC_HLS_RICCATI_WIDTH> fp_qp_raw_t;
-typedef ap_int<(MPC_HLS_RICCATI_WIDTH + MPC_HLS_RAW_ACC_GUARD_BITS)> fp_raw_acc_t;
+typedef ap_int<(MPC_HLS_RICCATI_WIDTH + 16)> fp_raw_acc_t;
 
 /**
  * @brief Convert packed raw value to IO family type.
