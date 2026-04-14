@@ -47,7 +47,6 @@ void riccati_pass_hls(
     fp_QP_t kk[MPC_HORIZON][MPC_NU];
 #pragma HLS ARRAY_PARTITION variable=K complete dim=3
 #pragma HLS ARRAY_PARTITION variable=K complete dim=2
-#pragma HLS BIND_STORAGE variable=K type=ram_2p impl=bram
 #pragma HLS ARRAY_PARTITION variable=kk complete dim=2
 
     /* Value function P (nx x nx) and p (nx x 1) in int64 */
@@ -389,11 +388,11 @@ void riccati_pass_hls(
             fp_raw_acc_t sum = 0;
             for (s = 0; s < 6; s++) {
     #pragma HLS UNROLL factor=2
-                sum += fp_raw_acc_from_qp(A_fwd[i][s]) * fp_raw_acc_from_qp(x_out[k][s]);
+            sum += fp_raw_acc_from_qp(A_fwd[i][s]) * fp_raw_acc_from_qp(x_out[k][s]);
             }
             for (a = 0; a < nu; a++) {
 #pragma HLS UNROLL
-                sum += fp_raw_acc_from_qp(sd->B[i][a]) * fp_raw_acc_from_qp(u_out[k][a]);
+            sum += fp_raw_acc_from_qp(sd->B[i][a]) * fp_raw_acc_from_qp(u_out[k][a]);
             }
             fp_raw_acc_t result = sum >> FP_FRAC_BITS;
             result = fp_clip_raw_to_qp(result);
@@ -422,6 +421,8 @@ MpcStatus_t riccati_admm_solve_hls(
     const int nu = MPC_NU;
     const int N = MPC_HORIZON;
 
+#pragma HLS ALLOCATION function instances=riccati_pass_hls limit=1
+
     /* Restore persisted rho from warm-start if available */
     fp_QP_t rho   = (admm_state->initialized && admm_state->rho > 0)
                         ? admm_state->rho : config->rho;
@@ -439,10 +440,8 @@ MpcStatus_t riccati_admm_solve_hls(
     fp_QP_t y_x[MPC_HORIZON + 1][MPC_NX_AUG];
     fp_QP_t y_u[MPC_HORIZON][MPC_NU];
 #pragma HLS ARRAY_PARTITION variable=z_x complete dim=2
-#pragma HLS BIND_STORAGE variable=z_u type=ram_2p impl=bram
 #pragma HLS ARRAY_PARTITION variable=z_u complete dim=2
 #pragma HLS ARRAY_PARTITION variable=y_x complete dim=2
-#pragma HLS BIND_STORAGE variable=y_u type=ram_2p impl=bram
 #pragma HLS ARRAY_PARTITION variable=y_u complete dim=2
 
     /* Precompute constrained flags */
@@ -590,7 +589,7 @@ MpcStatus_t riccati_admm_solve_hls(
     #pragma HLS PIPELINE II=6
             const StepData_t *sd = (k < N) ? &step_data[k] : &step_data[N - 1];
             for (s = 0; s < nx; s++) {
-#pragma HLS UNROLL factor=1
+#pragma HLS UNROLL
                 if (x_is_con[k][s]) {
                     fp_QP_t x_val = solution->x[k][s];
                     fp_raw_acc_t x_hat_raw = fp_raw_acc_from_qp(x_val);

@@ -21,12 +21,6 @@ static fp_QP_t fp_mul_vm(fp_QP_t a, fp_QP_t b) {
     return product;
 }
 
-static fp_QP_t fp_atan_tire_vm(fp_QP_t x) {
-#pragma HLS INLINE off
-#pragma HLS PIPELINE II=1
-    return fp_atan_tire_approx(x);
-}
-
 /**
  * @brief Compute Frenet-frame linearized dynamics matrices.
  * @param vx Operating-point longitudinal velocity (expected >= MIN_LIN_VEL).

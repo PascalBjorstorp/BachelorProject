@@ -112,10 +112,8 @@
  * Solver Structure and Model Constants
  *===========================================================================*/
 
-/** Maximum ADMM iterations. Override at compile time when tuning latency/quality tradeoff. */
-#ifndef MPC_FPGA_MAX_ADMM_ITER
-#define MPC_FPGA_MAX_ADMM_ITER        100
-#endif
+/** Maximum ADMM iterations. Fixed project-wide for stable timing/behavior comparisons. */
+#define MPC_FPGA_MAX_ADMM_ITER        50
 #define MPC_FPGA_PREDICTION_DT_S      0.032f
 #define MPC_FPGA_PACEJKA_C_SHAPE      1.9f
 #define MPC_FPGA_MIN_STIFF_SCALE      0.1f

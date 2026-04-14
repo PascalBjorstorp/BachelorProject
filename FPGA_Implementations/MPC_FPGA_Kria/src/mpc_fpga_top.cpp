@@ -58,6 +58,10 @@ static void mpc_fpga_compute_core(
     int *out_steering, int *out_accel, int *out_status, int *out_iters)
 {
     static AdmmState_t admm_state;
+#pragma HLS ARRAY_PARTITION variable=admm_state.z_x complete dim=2
+#pragma HLS ARRAY_PARTITION variable=admm_state.y_x complete dim=2
+#pragma HLS ARRAY_PARTITION variable=admm_state.z_u complete dim=2
+#pragma HLS ARRAY_PARTITION variable=admm_state.y_u complete dim=2
     static MpcPersistState_t persist;
     static int initialized = 0;
 #ifdef MPC_RUNTIME_TUNE

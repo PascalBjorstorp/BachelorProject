@@ -52,7 +52,6 @@ fp_raw_acc_t reciprocal_raw(fp_raw_acc_t det)
 int invert_2x2_hls(fp_raw_acc_t S[2][2], fp_raw_acc_t Si[2][2])
 {
 #pragma HLS INLINE
-#pragma HLS ALLOCATION operation instances=sdiv limit=1
     fp_raw_acc_t det = ((S[0][0] * S[1][1]) >> FP_FRAC_BITS)
                     - ((S[0][1] * S[1][0]) >> FP_FRAC_BITS);
 
