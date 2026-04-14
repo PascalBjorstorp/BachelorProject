@@ -2,6 +2,7 @@
 
 #include "gpu_amcl_cpp/helpers/math_utils.hpp"
 
+#include <array>
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
@@ -40,8 +41,10 @@ private:
     double odom_x_    = 0.0;
     double odom_y_    = 0.0;
     double odom_theta_ = 0.0;
+    std::array<double, 36> odom_pose_covariance_{};
 
     // Parameters
+    bool pass_through_covariance_ = true;
     double base_cov_xy_    = 0.01;
     double base_cov_theta_ = 0.02;
 

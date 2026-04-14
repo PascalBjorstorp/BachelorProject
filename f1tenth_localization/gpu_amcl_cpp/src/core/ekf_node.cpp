@@ -52,6 +52,7 @@ void EkfNode::declare_all_parameters() {
 
     declare_parameter<double>("transform_tolerance", 0.1);
     declare_parameter<double>("process_noise_scale", 1.0);
+    declare_parameter<double>("amcl_max_latency_sec", 0.08);
     declare_parameter<int>("odom_history_max_size", 500);
 }
 
@@ -64,10 +65,17 @@ void EkfNode::load_parameters() {
     base_frame_          = get_parameter("base_frame").as_string();
     transform_tolerance_ = get_parameter("transform_tolerance").as_double();
     process_noise_scale_ = get_parameter("process_noise_scale").as_double();
+    amcl_max_latency_sec_ = get_parameter("amcl_max_latency_sec").as_double();
     const int64_t odom_history_size_param =
         get_parameter("odom_history_max_size").as_int();
     odom_history_max_size_ = static_cast<size_t>(
         std::max<int64_t>(2, odom_history_size_param));
+
+    if (amcl_max_latency_sec_ <= 0.0) {
+        RCLCPP_WARN(get_logger(),
+                    "amcl_max_latency_sec <= 0.0, using 0.08 s");
+        amcl_max_latency_sec_ = 0.08;
+    }
 }
 
 void EkfNode::push_odom_sample(const rclcpp::Time& stamp,
@@ -217,9 +225,18 @@ void EkfNode::odom_callback(
 // ─── AMCL callback (correction source) ─────────────────────────────
 void EkfNode::amcl_callback(
     const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
-    std::unique_lock<std::mutex> lock(state_mutex_);
+    const auto clock_type = get_clock()->get_clock_type();
+    const rclcpp::Time amcl_stamp(msg->header.stamp, clock_type);
+    const double latency_sec = (now() - amcl_stamp).seconds();
+    if (latency_sec > amcl_max_latency_sec_) {
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 2000,
+            "Dropping delayed AMCL update (latency %.4f s > %.4f s)",
+            latency_sec, amcl_max_latency_sec_);
+        return;
+    }
 
-    const rclcpp::Time amcl_stamp(msg->header.stamp);
+    std::unique_lock<std::mutex> lock(state_mutex_);
 
     if (!initialized_) {
         state_       = math_utils::pose_to_vec(msg->pose.pose);

@@ -138,6 +138,8 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
     declare_parameter("imu_history_max_samples", imu_history_max_samples_);
   imu_sync_tolerance_sec_ =
     declare_parameter("imu_sync_tolerance_sec", imu_sync_tolerance_sec_);
+  imu_timeout_sec_ = declare_parameter("imu_timeout_sec", imu_timeout_sec_);
+  servo_timeout_sec_ = declare_parameter("servo_timeout_sec", servo_timeout_sec_);
 
   // Lateral velocity estimator parameters
   imu_lateral_accel_alpha_ =
@@ -241,6 +243,22 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
       "imu_sync_tolerance_sec %.3f < 0. Using 0.03.",
       imu_sync_tolerance_sec_);
     imu_sync_tolerance_sec_ = 0.03;
+  }
+
+  if (imu_timeout_sec_ <= 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "imu_timeout_sec %.3f <= 0. Using 0.10.",
+      imu_timeout_sec_);
+    imu_timeout_sec_ = 0.10;
+  }
+
+  if (servo_timeout_sec_ <= 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "servo_timeout_sec %.3f <= 0. Using 0.10.",
+      servo_timeout_sec_);
+    servo_timeout_sec_ = 0.10;
   }
 
   if (slip_enter_hold_sec_ < 0.0) {
@@ -362,6 +380,40 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     return;
   }
 
+  const rclcpp::Time current_time = now();
+  const double imu_age_sec =
+    imu_receive_time_initialized_ ? (current_time - last_imu_receive_time_).seconds() :
+    std::numeric_limits<double>::infinity();
+  const bool imu_fresh = imu_age_sec <= imu_timeout_sec_;
+
+  const bool servo_message_seen = servo_receive_time_initialized_ && static_cast<bool>(last_servo_cmd_);
+  const double servo_age_sec =
+    servo_message_seen ? (current_time - last_servo_receive_time_).seconds() :
+    std::numeric_limits<double>::infinity();
+  const bool servo_fresh = servo_message_seen && servo_age_sec <= servo_timeout_sec_;
+
+  if (!imu_fresh) {
+    RCLCPP_WARN_THROTTLE(
+      get_logger(), *get_clock(), 2000,
+      "IMU data is stale (age %.4f s > timeout %.4f s). Falling back from IMU yaw fusion.",
+      imu_age_sec, imu_timeout_sec_);
+  }
+
+  if (servo_message_seen && !servo_fresh) {
+    RCLCPP_WARN_THROTTLE(
+      get_logger(), *get_clock(), 2000,
+      "Servo command is stale (age %.4f s > timeout %.4f s). Ignoring steering model for this update.",
+      servo_age_sec, servo_timeout_sec_);
+  }
+
+  if (!imu_fresh && !servo_fresh) {
+    RCLCPP_WARN_THROTTLE(
+      get_logger(), *get_clock(), 2000,
+      "Skipping odom update: both IMU and servo are stale.");
+    last_state_ = state;
+    return;
+  }
+
   // Wheel speed from ERPM calibration.
   double current_speed = (state->state.speed - speed_to_erpm_offset_) / speed_to_erpm_gain_;
   if (std::fabs(current_speed) < speed_deadband_) {
@@ -382,7 +434,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   }
 
   // Steering-derived model yaw rate.
-  const bool has_servo = static_cast<bool>(last_servo_cmd_);
+  const bool has_servo = servo_fresh;
   double steering_angle = 0.0;
   if (has_servo && std::fabs(steering_to_servo_gain_) > kEpsilon) {
     const double raw_steering =
@@ -423,7 +475,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   double lateral_accel_measured_for_slip = debiased_linear_accel_y_raw_;
   double yaw_rate_measured_for_slip = debiased_angular_velocity_z_raw_;
 
-  if (!imu_history_.empty()) {
+  if (imu_fresh && !imu_history_.empty()) {
     const rclcpp::Time state_stamp(state->header.stamp);
     const ImuSyncSample * nearest_sample = nullptr;
     double nearest_abs_dt_sec = std::numeric_limits<double>::infinity();
@@ -449,6 +501,14 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
           nearest_abs_dt_sec, imu_sync_tolerance_sec_);
       }
     }
+  }
+
+  if (!imu_fresh) {
+    // If IMU is stale, use model-consistent channels to avoid stale residual spikes.
+    imu_yaw_rate_raw = model_yaw_rate + gyro_bias_;
+    lateral_accel_measured = current_speed * model_yaw_rate;
+    lateral_accel_measured_for_slip = lateral_accel_measured;
+    yaw_rate_measured_for_slip = model_yaw_rate + gyro_bias_;
   }
 
   // Slip indicator uses fast de-biased IMU channels to keep slip response quick.
@@ -535,14 +595,15 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     slip_weight = 0.0;
   }
 
-  if (has_servo && slip_weight < 0.2 && std::fabs(current_speed) > 0.5) {
+  if (imu_fresh && has_servo && slip_weight < 0.2 && std::fabs(current_speed) > 0.5) {
     const double yaw_rate_error = imu_yaw_rate_raw - model_yaw_rate;
     gyro_bias_ = (1.0 - gyro_bias_alpha_) * gyro_bias_ + gyro_bias_alpha_ * yaw_rate_error;
   }
 
   const double imu_yaw_rate = imu_yaw_rate_raw - gyro_bias_;
-  const double imu_yaw_weight =
-    imu_yaw_base_weight_ + (1.0 - imu_yaw_base_weight_) * slip_weight;
+  const double imu_yaw_weight = imu_fresh ?
+    (imu_yaw_base_weight_ + (1.0 - imu_yaw_base_weight_) * slip_weight) :
+    0.0;
   const double current_yaw_rate =
     (1.0 - imu_yaw_weight) * model_yaw_rate + imu_yaw_weight * imu_yaw_rate;
 
@@ -611,9 +672,27 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   const double xy_cov = odom_x_covariance_ * (1.0 + slip_weight * (slip_xy_covariance_scale_ - 1.0));
   const double yaw_cov = odom_yaw_covariance_ * (1.0 + slip_weight * (slip_yaw_covariance_scale_ - 1.0));
 
+  std::fill(odom->pose.covariance.begin(), odom->pose.covariance.end(), 0.0);
+  constexpr double kUnsupportedPoseCov = 1e3;
   odom->pose.covariance[0] = xy_cov;
-  odom->pose.covariance[7] = odom_y_covariance_ * (1.0 + slip_weight * (slip_xy_covariance_scale_ - 1.0));
+  odom->pose.covariance[7] = odom_y_covariance_ *
+    (1.0 + slip_weight * (slip_xy_covariance_scale_ - 1.0));
+  odom->pose.covariance[14] = kUnsupportedPoseCov;
+  odom->pose.covariance[21] = kUnsupportedPoseCov;
+  odom->pose.covariance[28] = kUnsupportedPoseCov;
   odom->pose.covariance[35] = yaw_cov;
+
+  std::fill(odom->twist.covariance.begin(), odom->twist.covariance.end(), 0.0);
+  constexpr double kUnsupportedTwistCov = 1e3;
+  const double vx_cov = std::max(0.02, xy_cov);
+  const double vy_cov = std::max(0.05, xy_cov);
+  const double wz_cov = std::max(0.05, yaw_cov);
+  odom->twist.covariance[0] = vx_cov;
+  odom->twist.covariance[7] = vy_cov;
+  odom->twist.covariance[14] = kUnsupportedTwistCov;
+  odom->twist.covariance[21] = kUnsupportedTwistCov;
+  odom->twist.covariance[28] = kUnsupportedTwistCov;
+  odom->twist.covariance[35] = wz_cov;
 
   odom->twist.twist.linear.x = current_speed;
   odom->twist.twist.linear.y = imu_lateral_velocity_;
@@ -637,6 +716,8 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
 void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
 {
   last_imu_ = imu;
+  last_imu_receive_time_ = now();
+  imu_receive_time_initialized_ = true;
 
   const bool has_valid_stamp =
     (imu->header.stamp.sec != 0) || (imu->header.stamp.nanosec != 0);
@@ -832,6 +913,8 @@ void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
 void VescToOdom::servoCmdCallback(const Float64::SharedPtr servo)
 {
   last_servo_cmd_ = servo;
+  last_servo_receive_time_ = now();
+  servo_receive_time_initialized_ = true;
 }
 
 }  // namespace vesc_ackermann

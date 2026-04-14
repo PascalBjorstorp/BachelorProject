@@ -192,6 +192,14 @@ private:
   std::deque<ImuSyncSample> imu_history_;
   int imu_history_max_samples_{400};
   double imu_sync_tolerance_sec_{0.03};
+  double imu_timeout_sec_{0.10};
+  double servo_timeout_sec_{0.10};
+
+  // Last receive timestamps (node clock) for stale-signal detection
+  rclcpp::Time last_imu_receive_time_;
+  rclcpp::Time last_servo_receive_time_;
+  bool imu_receive_time_initialized_{false};
+  bool servo_receive_time_initialized_{false};
 
   // ROS I/O
   rclcpp::Publisher<Odometry>::SharedPtr odom_pub_;

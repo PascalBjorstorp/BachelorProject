@@ -92,7 +92,7 @@ void AmclNode::declare_all_parameters() {
     declare_parameter<double>("update_min_a", 0.001);
 
     // Scan freshness
-    declare_parameter<double>("max_scan_age", 0.05);
+    declare_parameter<double>("max_scan_age", 0.012);
 
     // Motion model
     declare_parameter<double>("alpha1", 0.1);

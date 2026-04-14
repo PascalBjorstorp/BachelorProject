@@ -47,9 +47,8 @@ gpu_amcl_cpp:
 
     # ---- Scan freshness ----
     # Max age (seconds) of a scan before it's rejected as stale.
-    # On real HW, scan_splitter + processing adds latency. 0.5s is safe.
-    # SIM: 0.03  |  REAL: 0.5
-    max_scan_age: 0.5
+    # Tight gate to avoid stale corrections under backlog.
+    max_scan_age: 0.012
 
     # ---- Motion model (odometry noise, Prob. Robotics §5.4) ----
     # These control how much random noise is added to each particle.
@@ -107,6 +106,7 @@ odom_fused:
     frame_id: "ego_racecar/odom"               # Header frame_id for published pose (must match odom_frame)
 
     # ---- Base covariances (metres² / rad²) ----
+    pass_through_covariance: true            # Forward covariance from /ego_racecar/odom
     base_cov_xy: 0.005                        # Variance for x and y
     base_cov_theta: 0.005                     # Variance for yaw (theta)        
 
@@ -132,3 +132,4 @@ ekf_localization:
     # ---- EKF tuning ----
     transform_tolerance: 0.0    # seconds into the future for TF
     process_noise_scale: 1.0    # multiplier on odom covariance for Q
+    amcl_max_latency_sec: 0.08  # Drop AMCL updates older than 80 ms

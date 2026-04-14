@@ -22,8 +22,9 @@ OdomNode::OdomNode(const rclcpp::NodeOptions& options)
                                                                             // Best-effort, keep only latest
     // Log startup info
     RCLCPP_INFO(get_logger(),
-                "Odom relay node started — '%s' -> '%s' (cov: xy=%.5f, theta=%.5f)",
+                "Odom relay node started — '%s' -> '%s' (cov_mode=%s, fallback_xy=%.5f, fallback_theta=%.5f)",
                 odom_topic_.c_str(), output_topic_.c_str(),
+                pass_through_covariance_ ? "pass_through" : "fixed",
                 base_cov_xy_, base_cov_theta_);
 }
 
@@ -33,6 +34,7 @@ void OdomNode::declare_all_parameters() {
     declare_parameter<std::string>("output_topic", "/odom_pose");
     declare_parameter<std::string>("frame_id", "ego_racecar/odom");
 
+    declare_parameter<bool>("pass_through_covariance", pass_through_covariance_);
     declare_parameter<double>("base_cov_xy", base_cov_xy_);
     declare_parameter<double>("base_cov_theta", base_cov_theta_);
 }
@@ -41,6 +43,7 @@ void OdomNode::load_parameters() {
     odom_topic_     = get_parameter("odom_topic").as_string();
     output_topic_   = get_parameter("output_topic").as_string();
     frame_id_       = get_parameter("frame_id").as_string();
+    pass_through_covariance_ = get_parameter("pass_through_covariance").as_bool();
     base_cov_xy_    = get_parameter("base_cov_xy").as_double();
     base_cov_theta_ = get_parameter("base_cov_theta").as_double();
 }
@@ -52,6 +55,7 @@ void OdomNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
     odom_y_     = msg->pose.pose.position.y;
     // Convert quaternion to yaw using helper function
     odom_theta_ = math_utils::quaternion_to_yaw(msg->pose.pose.orientation);
+    odom_pose_covariance_ = msg->pose.covariance;
 
     // Immediately publish — preserves original timestamp
     publish_pose(rclcpp::Time(msg->header.stamp));
@@ -70,12 +74,16 @@ void OdomNode::publish_pose(const rclcpp::Time& stamp) {
     out.pose.pose.position.z = 0.0;     // Always 0 (planar robot)
     out.pose.pose.orientation = math_utils::yaw_to_quaternion(odom_theta_);
 
-    auto& cov = out.pose.covariance;
-    std::fill(cov.begin(), cov.end(), 0.0); // Zero everything first
+    if (pass_through_covariance_) {
+        out.pose.covariance = odom_pose_covariance_;
+    } else {
+        auto& cov = out.pose.covariance;
+        std::fill(cov.begin(), cov.end(), 0.0); // Zero everything first
 
-    cov[0]  = base_cov_xy_;                 // xx variance (meters²)
-    cov[7]  = base_cov_xy_;                 // yy variance (meters²)
-    cov[35] = base_cov_theta_;              // yaw-yaw variance (radians²)
+        cov[0]  = base_cov_xy_;                 // xx variance (meters²)
+        cov[7]  = base_cov_xy_;                 // yy variance (meters²)
+        cov[35] = base_cov_theta_;              // yaw-yaw variance (radians²)
+    }
 
     pose_pub_->publish(out);
 }

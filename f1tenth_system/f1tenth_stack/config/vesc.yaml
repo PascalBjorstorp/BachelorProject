@@ -89,6 +89,8 @@ vesc_to_odom_node:
     imu_yaw_base_weight: 0.80
     imu_history_max_samples: 400
     imu_sync_tolerance_sec: 0.03
+    imu_timeout_sec: 0.10
+    servo_timeout_sec: 0.10
 
     # Slip detector thresholds using |a_y_measured - v_x * r_model| [m/s^2]
     # Enter should be greater than exit (hysteresis).
