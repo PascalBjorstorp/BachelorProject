@@ -27,10 +27,9 @@ fp_raw_acc_t reciprocal_raw(fp_raw_acc_t det)
     fp_raw_acc_t sign = (det < 0) ? (fp_raw_acc_t)-1 : (fp_raw_acc_t)1;
     fp_raw_acc_t abs_det = (det < 0) ? (fp_raw_acc_t)(-det) : det;
 
-    unsigned long long abs_u = (unsigned long long)abs_det;
-    int lead_zeros = __builtin_clzll(abs_u) + (2 * FP_FRAC_BITS) - 64;
+    int lead_zeros = abs_det.countLeadingZeros() + (2 * FP_FRAC_BITS) - FP_RAW_ACC_WIDTH;
     if (lead_zeros < 0) lead_zeros = 0;
-    if (lead_zeros > 62) lead_zeros = 62;
+    if (lead_zeros > (FP_RAW_ACC_WIDTH - 2)) lead_zeros = (FP_RAW_ACC_WIDTH - 2);
 
     fp_raw_acc_t est = ((fp_raw_acc_t)1) << lead_zeros;
 
@@ -106,21 +105,35 @@ fp_QP_t fp_recip(fp_QP_t x)
     bool neg = (x < 0);
     fp_QP_t abs_x = fp_abs(x);
 
-    /* Normalize to [0.5, 1.0] using power-of-two scaling.
-     * This keeps Newton-Raphson stable for both very small and large inputs. */
-    fp_QP_t x_norm = abs_x;
+    /* Width-aware bit-domain normalization without variable-trip loops. */
+    fp_qp_raw_t abs_raw_signed = fp_qp_raw_from_QP(abs_x);
+    ap_uint<MPC_HLS_RICCATI_WIDTH> abs_raw = (ap_uint<MPC_HLS_RICCATI_WIDTH>)abs_raw_signed;
+
+    const int one_bit = FP_FRAC_BITS;
+    const int half_bit = FP_FRAC_BITS - 1;
     int shift = 0;
 
-    while (x_norm > FP_ONE && shift < (MPC_HLS_RICCATI_WIDTH - 2)) {
-#pragma HLS LOOP_TRIPCOUNT min=0 max=30
-        x_norm >>= 1;
-        shift++;
+    int clz = (int)abs_raw.countLeadingZeros();
+    int msb = (MPC_HLS_RICCATI_WIDTH - 1) - clz;
+
+    if (msb > one_bit) {
+        shift = msb - one_bit;
+    } else if (msb < half_bit) {
+        shift = -(half_bit - msb);
     }
-    while (x_norm < FP_HALF && shift > -(MPC_HLS_RICCATI_WIDTH - 2)) {
-#pragma HLS LOOP_TRIPCOUNT min=0 max=30
-        x_norm <<= 1;
-        shift--;
+
+    if (shift >= 0) {
+        ap_uint<MPC_HLS_RICCATI_WIDTH> right_norm = abs_raw >> shift;
+        ap_uint<MPC_HLS_RICCATI_WIDTH> one_raw = ((ap_uint<MPC_HLS_RICCATI_WIDTH>)1) << FP_FRAC_BITS;
+        if (right_norm > one_raw && shift < (MPC_HLS_RICCATI_WIDTH - 2)) {
+            shift++;
+        }
     }
+
+    if (shift > (MPC_HLS_RICCATI_WIDTH - 2)) shift = (MPC_HLS_RICCATI_WIDTH - 2);
+    if (shift < -(MPC_HLS_RICCATI_WIDTH - 2)) shift = -(MPC_HLS_RICCATI_WIDTH - 2);
+
+    fp_QP_t x_norm = (shift >= 0) ? (abs_x >> shift) : (abs_x << (-shift));
 
     fp_QP_t est = FP_QP_CONST(1.5);
     for (int i = 0; i < 4; i++) {

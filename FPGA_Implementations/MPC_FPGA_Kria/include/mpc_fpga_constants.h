@@ -114,7 +114,7 @@
 
 /** Maximum ADMM iterations. Fixed project-wide for stable timing/behavior comparisons. */
 #define MPC_FPGA_MAX_ADMM_ITER        50
-#define MPC_FPGA_PREDICTION_DT_S      0.032f
+#define MPC_FPGA_PREDICTION_DT_S      0.03f
 #define MPC_FPGA_PACEJKA_C_SHAPE      1.9f
 #define MPC_FPGA_MIN_STIFF_SCALE      0.1f
 
@@ -141,15 +141,12 @@
 #define MPC_FPGA_MIN_LIN_VEL_MPS      1.0f
 #define MPC_FPGA_STABILITY_LIMIT      0.95f
 #define MPC_FPGA_WALL_MARGIN_M        0.2f
-#define MPC_FPGA_WALL_START           1
-#define MPC_FPGA_WALL_STRIDE          1
-#define MPC_FPGA_WALL_END             10
 #define MPC_FPGA_V_SWITCH_MPS         7.319f
 #define MPC_FPGA_BOUND_THRESHOLD      100.0f
 #define MPC_FPGA_WP_ADVANCE_MAX       10
 
 #define MPC_FPGA_ADMM_RHO                18.0f
 #define MPC_FPGA_ADMM_RHO_U              24.0f
-#define MPC_FPGA_ADMM_TOL                0.05f
+#define MPC_FPGA_ADMM_TOL                0.1f
 
 #endif /* MPC_FPGA_CONSTANTS_H */

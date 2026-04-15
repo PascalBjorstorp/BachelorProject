@@ -45,6 +45,7 @@ void compute_frenet_AB_hls(
 #pragma HLS INLINE
 #pragma HLS ALLOCATION operation instances=mul limit=MPC_HLS_VEHICLE_MUL_LIMIT
 #pragma HLS ALLOCATION function instances=fp_mul_vm limit=8
+#pragma HLS ALLOCATION function instances=fp_recip limit=4
 
     /* Velocity floor for numerical stability */
     fp_QP_t vx_safe = (vx > FP_QP_CONST(0.5)) ? vx : FP_QP_CONST(0.5);

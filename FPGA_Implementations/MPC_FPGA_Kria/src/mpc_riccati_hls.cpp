@@ -365,11 +365,7 @@ void mpc_compute_hls(
     solver_cfg.rho            = ADMM_RHO_DEFAULT;
     solver_cfg.rho_u          = ADMM_RHO_U_DEFAULT;
     solver_cfg.tolerance      = ADMM_TOL_DEFAULT;
-#ifdef MPC_RUNTIME_TUNE
-    solver_cfg.max_iterations = mpc_rt_max_admm_iter;
-#else
     solver_cfg.max_iterations = MPC_MAX_ADMM_ITER;
-#endif
     solver_cfg.adaptive_rho   = 1;
 
     MpcSolution_t sol;

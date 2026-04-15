@@ -10,6 +10,14 @@
 #include <cstdint>
 #include <climits>
 
+/* Automatic bitwidth adjustment for countLeadingZeros normalization.
+ * When casting ap_int<N> to unsigned long long for clz, the value occupies
+ * lower N bits [N-1:0], leaving (64-N) unused high bits [63:N].
+ * This requires adjustment when switching from __builtin_clzll to countLeadingZeros.
+ */
+#define FP_RAW_ACC_WIDTH (MPC_HLS_RICCATI_WIDTH + MPC_HLS_RAW_ACC_GUARD_BITS)
+#define FP_CLZ_ULL_ADJUSTMENT (64 - FP_RAW_ACC_WIDTH)
+
 /* Fixed-point base constants */
 #define FP_FRAC_BITS       (MPC_HLS_RICCATI_WIDTH - MPC_HLS_RICCATI_INT_BITS)
 #define FP_IO_CONST(x)     ((fp_io_t)(x))

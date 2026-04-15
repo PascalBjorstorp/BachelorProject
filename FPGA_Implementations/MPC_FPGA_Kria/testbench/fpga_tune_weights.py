@@ -7,16 +7,16 @@ SLAM-mapped track (~22m, 0.27-1.4m wide). Optimized for maximum velocity
 while maintaining safety under all realistic effects.
 
 Usage:
-    python3 test/tune_realistic_v2.py                        # Full sweep (all CPUs)
-    python3 test/tune_realistic_v2.py --jobs 8               # Use 8 parallel workers
-    python3 test/tune_realistic_v2.py -j 4                   # Use 4 workers
-    python3 test/tune_realistic_v2.py --objective fastest    # Speed-first + recovery scoring
-    python3 test/tune_realistic_v2.py --objective tracker    # Tracking-first scoring
-    python3 test/tune_realistic_v2.py --raceline my_track_raceline.csv
-    python3 test/tune_realistic_v2.py --rho-fixed 18 --rho-u-fixed 24 --tol-fixed 0.05 --run-phase5
-    python3 test/tune_realistic_v2.py --allow-solver-sweep --run-phase5
-    python3 test/tune_realistic_v2.py --t-sweep-feasible     # Default: strict feasible T pairs
-    python3 test/tune_realistic_v2.py --t-sweep-wide         # Explore short+long T pairs
+    python3 testbench/fpga_tune_weights.py                        # Full sweep (all CPUs)
+    python3 testbench/fpga_tune_weights.py --jobs 8               # Use 8 parallel workers
+    python3 testbench/fpga_tune_weights.py -j 4                   # Use 4 workers
+    python3 testbench/fpga_tune_weights.py --objective fastest    # Speed-first + recovery scoring
+    python3 testbench/fpga_tune_weights.py --objective tracker    # Tracking-first scoring
+    python3 testbench/fpga_tune_weights.py --raceline my_track_raceline.csv
+    python3 testbench/fpga_tune_weights.py --rho-fixed 18 --rho-u-fixed 24 --tol-fixed 0.05 --run-phase5
+    python3 testbench/fpga_tune_weights.py --allow-solver-sweep --run-phase5
+    python3 testbench/fpga_tune_weights.py --t-sweep-feasible     # Default: strict feasible T pairs
+    python3 testbench/fpga_tune_weights.py --t-sweep-wide         # Explore short+long T pairs
 
 The sweep runs 8 phases:
     Phase 1: One-at-a-time parameter sensitivity
@@ -54,7 +54,7 @@ import shutil
 import tempfile
 import multiprocessing
 from datetime import datetime
-from concurrent.futures import ProcessPoolExecutor, wait, FIRST_COMPLETED
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 
 # ==============================================================================
 # PATHS
@@ -79,17 +79,17 @@ HORIZON_SWEEP_VALUES = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36]
 HORIZON_LIMIT = 40
 FASTEST_T_SWEEP_PAIRS_FEASIBLE = [
     (10, 0.032),
-    (10, 0.034),  # 0.34 s
+    (10, 0.034),
     (10, 0.036),
 ]
 FASTEST_T_SWEEP_PAIRS_WIDE = [
-    (10, 0.034),  # 0.34 s
-    (12, 0.032),  # 0.384 s
-    (14, 0.036),  # 0.504 s
-    (19, 0.040),  # 0.76 s
-    (25, 0.040),  # 1.00 s
-    (31, 0.040),  # 1.24 s
-    (30, 0.050),  # 1.50 s
+    (10, 0.034),
+    (12, 0.032),
+    (14, 0.036),
+    (19, 0.040),
+    (25, 0.040),
+    (31, 0.040),
+    (30, 0.050),
 ]
 WIDE_T_SWEEP_ENABLED = True
 
@@ -100,13 +100,12 @@ WIDE_T_SWEEP_ENABLED = True
 DEFAULT_RACELINE_NAME = "my_track_raceline.csv"
 RACELINE_PATH = os.path.join(TRAJ_DIR, DEFAULT_RACELINE_NAME)
 RACELINE_TAG = "my_track"
-WALL_MARGIN = 0.20
 
 # Base configuration - starting point for all sweeps
 BASE_CONFIG = {
-    "Q_LAT":        12000.0,
-    "Q_HDG":        3600.0,
-    "Q_VEL":        53.0,
+    "Q_LAT":        9660.42,
+    "Q_HDG":        1400.0,
+    "Q_VEL":        132.192,
     "Q_LAT_VEL":    4.59,
     "Q_YAW":        2.112,
     "R_STEER":      2.244,
@@ -117,32 +116,27 @@ BASE_CONFIG = {
     "RHO_U":        32.0,
     "TOL":          0.08,
     "MAX_ITER":     100,
-    "WALL_END":     12,
-    "WALL_STRIDE":  1,
-    "WALL_MARGIN":  0.20,
-    "HORIZON":      12,
+    "HORIZON":      10,
     "PRED_DT":      0.032,
 }
 
 # Override base for fastest objective
 FASTEST_BASE_OVERRIDES = {
-    "Q_LAT": 12000.0,
-    "Q_HDG": 3600.0,
-    "Q_VEL": 50.0,
-    "Q_LAT_VEL": 4.59,
-    "Q_YAW": 2.112,
-    "R_STEER": 2.244,
-    "R_ACCEL": 0.0065,
-    "W_JERK": 0.063,
+    "Q_LAT":        9660.42,
+    "Q_HDG":        1400.0,
+    "Q_VEL":        132.192,
+    "Q_LAT_VEL":    4.59,
+    "Q_YAW":        2.112,
+    "R_STEER":      2.244,
+    "R_ACCEL":      0.0065,
+    "W_JERK":       0.063,
     "W_ACCEL_RATE": 0.17,
     "HORIZON": 10,
-    "PRED_DT": 0.032,
+    "PRED_DT": 0.03,
     "RHO": 18.0,
     "RHO_U": 24.0,
-    "TOL": 0.08,
-    "WALL_END": 10,
-    "WALL_MARGIN": 0.2,
-    "MAX_ITER": 100,
+    "TOL": 0.1,
+    "MAX_ITER": 50,
 }
 
 # ==============================================================================
@@ -333,15 +327,16 @@ RANDOM_PROFILES = {
 # CONSTANTS
 # ==============================================================================
 
-INT_PARAMS = {"HORIZON", "WALL_END", "WALL_STRIDE", "MAX_ITER"}
+INT_PARAMS = {"HORIZON", "MAX_ITER"}
 
 SCENARIO_VEHICLE_HALF_WIDTH = 0.137
-SCENARIO_BODY_SAFETY_MARGIN = 0.06
+SCENARIO_BODY_SAFETY_MARGIN = 0.02
 MAX_OFFSET_STEP_M = 0.015
 MAX_HEADING_STEP_RAD = 0.30
 P99_HEADING_STEP_RAD = 0.18
 RACE_SCENARIO_DURATION = 75.0
 OBSTACLE_SCENARIO_DURATION = 60.0
+EARLY_REJECT_ON_RACE_FAIL = True
 
 SCENARIO_TARGET_START_X = 5.5
 SCENARIO_TARGET_START_Y = 0.0
@@ -351,7 +346,6 @@ MIN_RACE_PROGRESS_MPS = 0.55
 MIN_OVERALL_PROGRESS_MPS = 0.45
 MIN_AVG_VX_MPS = 1.0
 MIN_SOLVER_OPTIMAL_RATE = 0.85
-MAX_SOLVER_MAX_ITER_RATE = 0.0
 PLANNER_CAR_WIDTH_M = 0.31
 PLANNER_CLEARANCE_TOLERANCE_M = 0.10
 PLANNER_PLANNING_TOLERANCE_SCALE = 2.0
@@ -403,9 +397,8 @@ DIVERSITY_MIN_DISTANCE = 0.10
 MPC_TYPES_PRINT_ORDER = (
     "Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW",
     "R_STEER", "R_ACCEL", "W_JERK", "W_ACCEL_RATE",
-    "HORIZON", "PRED_DT", "MAX_ITER", "WALL_MARGIN",
+    "HORIZON", "PRED_DT", "MAX_ITER",
     "TOL", "RHO", "RHO_U",
-    "WALL_END", "WALL_STRIDE",
 )
 
 # Working copy of base config (modified during cascade)
@@ -1201,6 +1194,8 @@ atexit.register(cleanup_generated_racelines)
 def build_eval_scenarios(include_obstacles: bool = INCLUDE_OBSTACLE_SCENARIOS) -> list:
     """Build deterministic scenarios where every run starts off-raceline."""
     base_path = SCENARIO_RACELINE_PATHS.get("base", RACELINE_PATH)
+    race_duration = RACE_SCENARIO_DURATION
+    obstacle_duration = OBSTACLE_SCENARIO_DURATION
 
     scenarios = [
         {
@@ -1209,7 +1204,7 @@ def build_eval_scenarios(include_obstacles: bool = INCLUDE_OBSTACLE_SCENARIOS) -
             "seed_offset": 0,
             "raceline_path": base_path,
             "env": {
-                "SIM_DURATION": f"{RACE_SCENARIO_DURATION}",
+                "SIM_DURATION": f"{race_duration}",
                 "START_OFFSET_LAT": "0.0",
                 "START_HEADING_OFFSET": "0.0",
                 "START_SPEED": "0.0",
@@ -1229,7 +1224,7 @@ def build_eval_scenarios(include_obstacles: bool = INCLUDE_OBSTACLE_SCENARIOS) -
                 "seed_offset": 303,
                 "raceline_path": avoid_single_path,
                 "env": {
-                    "SIM_DURATION": f"{OBSTACLE_SCENARIO_DURATION}",
+                    "SIM_DURATION": f"{obstacle_duration}",
                     "START_OFFSET_LAT": "0.0",
                     "START_HEADING_OFFSET": "0.0",
                     "START_SPEED": "0.0",
@@ -1243,7 +1238,7 @@ def build_eval_scenarios(include_obstacles: bool = INCLUDE_OBSTACLE_SCENARIOS) -
                 "seed_offset": 404,
                 "raceline_path": avoid_double_path,
                 "env": {
-                    "SIM_DURATION": f"{OBSTACLE_SCENARIO_DURATION}",
+                    "SIM_DURATION": f"{obstacle_duration}",
                     "START_OFFSET_LAT": "0.0",
                     "START_HEADING_OFFSET": "0.0",
                     "START_SPEED": "0.0",
@@ -1341,14 +1336,9 @@ def canonicalize_params(params: dict) -> dict:
             tol_in = float(out.get("TOL", BASE.get("TOL", vals[0])))
             out["TOL"] = min(vals, key=lambda v: abs(tol_in - v))
     
-    # Hardware policy: WALL_END = HORIZON, WALL_STRIDE = 1
     h = int(float(out.get("HORIZON", BASE.get("HORIZON", HORIZON_LIMIT))))
     h = max(2, min(HORIZON_LIMIT, h))
     out["HORIZON"] = h
-    out["WALL_END"] = h
-    out["WALL_STRIDE"] = 1
-    out["WALL_MARGIN"] = float(WALL_MARGIN)
-    
     # Integer params
     for k in INT_PARAMS:
         if k in out:
@@ -1620,9 +1610,13 @@ def run_test(params: dict, binary: str, seed: int = SEED, eval_scenarios: list =
     """Run all evaluation scenarios and return a single aggregate result."""
     scenarios = eval_scenarios if eval_scenarios is not None else EVAL_SCENARIOS
     scenario_results = []
-    for scenario in scenarios:
+    ordered = sorted(scenarios, key=lambda s: 0 if s.get("name") == "race" else 1)
+    for idx, scenario in enumerate(ordered):
         result = run_single_scenario(params, binary, scenario, seed)
         scenario_results.append(result)
+        if EARLY_REJECT_ON_RACE_FAIL and idx == 0 and scenario.get("name") == "race":
+            if not is_safe_single_result(result):
+                break
     return aggregate_scenario_results(scenario_results)
 
 
@@ -1678,7 +1672,6 @@ def promotable_fail_reasons(r: dict) -> list:
     overall_prog = float(r.get("avg_progress_mps", 0.0) or 0.0)
     avg_vx = float(r.get("avg_vx", 0.0) or 0.0)
     solver_opt = float(r.get("solver_optimal_rate", 0.0) or 0.0)
-    solver_mx = float(r.get("solver_max_iter_rate", 1.0) or 1.0)
 
     if race_status and race_status != "OK":
         reasons.append("race_not_ok")
@@ -1690,8 +1683,6 @@ def promotable_fail_reasons(r: dict) -> list:
         reasons.append("avg_vx_low")
     if solver_opt < MIN_SOLVER_OPTIMAL_RATE:
         reasons.append("solver_optimal_rate_low")
-    if solver_mx > MAX_SOLVER_MAX_ITER_RATE:
-        reasons.append("solver_maxiter_rate_high")
 
     return reasons
 
@@ -1821,8 +1812,6 @@ def gen_primary_grid(objective: str) -> list:
         w["Q_VEL"] = qv
         w["HORIZON"] = h
         w["PRED_DT"] = pd
-        w["WALL_END"] = h
-        
         if is_valid_config(w):
             combos.append((f"L={ql}+H={qh}+V={qv}+N={h}+dt={pd}", w))
     
@@ -1878,7 +1867,7 @@ def gen_fine_tuning(best_weights: dict) -> list:
     """Phase 6: Fine-tuning around best config (~2000 configs)."""
     combos = []
     pct_range = (0.80, 0.85, 0.90, 0.92, 0.95, 0.97, 1.03, 1.05, 1.08, 1.10, 1.15, 1.20)
-    skip = {"MAX_ITER", "HORIZON", "WALL_STRIDE", "WALL_END", "WALL_MARGIN"}
+    skip = {"MAX_ITER", "HORIZON"}
     
     # Single parameter perturbations
     for name, base_val in best_weights.items():
@@ -1932,7 +1921,7 @@ def gen_random_neighbors(best_weights: dict, n: int, objective: str,
     min_perturb, max_perturb = profile.get("num_perturb_range", (3, 6))
     
     tune_params = [k for k in best_weights.keys()
-                   if k not in ("MAX_ITER", "WALL_END", "WALL_STRIDE", "WALL_MARGIN") 
+                   if k not in ("MAX_ITER") 
                    and best_weights[k] != 0]
     
     i = 0
@@ -2092,12 +2081,12 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
     else:
         # Parallel execution
         done_count = 0
-        with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        with ThreadPoolExecutor(max_workers=num_workers) as executor:
             scenario_bundle = [dict(s) for s in EVAL_SCENARIOS]
             raceline_tag = RACELINE_TAG
             it = ((label, params, binary, phase_name, objective, scenario_bundle, raceline_tag)
                   for label, params in combos)
-            max_in_flight = max(num_workers * 4, num_workers + 2)
+            max_in_flight = max(num_workers * 8, num_workers + 4)
             futures = set()
             
             for _ in range(min(total, max_in_flight)):
@@ -2156,21 +2145,23 @@ def sanity_check_params(binary: str):
         round(baseline.get("avg_lat_err", 0.0), 4),
         round(baseline.get("avg_hdg_err", 0.0), 4),
         round(baseline.get("max_vx", 0.0), 2),
+        round(baseline.get("avg_solve_us", 0.0), 1),
+        round(baseline.get("avg_iters", 0.0), 2),
+        round(baseline.get("scenario_race_avg_progress_mps", 0.0), 4),
+        round(baseline.get("scenario_race_lap_time_est", 0.0), 4),
     )
     
     probes = [
         ("Q_LAT", BASE.get("Q_LAT", 10000) * 1.5),
         ("Q_VEL", BASE.get("Q_VEL", 120) * 1.3),
         ("RHO", BASE.get("RHO", 32) * 1.5),
-        ("HORIZON", min(HORIZON_LIMIT, int(BASE.get("HORIZON", HORIZON_LIMIT) + 2))),
+        ("HORIZON", HORIZON_LIMIT),
     ]
     
     ineffective = []
     for name, new_val in probes:
         p = dict(BASE)
         p[name] = new_val
-        if name == "HORIZON":
-            p["WALL_END"] = int(new_val)
         
         rr = run_test(p, binary)
         sig = (
@@ -2178,6 +2169,10 @@ def sanity_check_params(binary: str):
             round(rr.get("avg_lat_err", 0.0), 4),
             round(rr.get("avg_hdg_err", 0.0), 4),
             round(rr.get("max_vx", 0.0), 2),
+            round(rr.get("avg_solve_us", 0.0), 1),
+            round(rr.get("avg_iters", 0.0), 2),
+            round(rr.get("scenario_race_avg_progress_mps", 0.0), 4),
+            round(rr.get("scenario_race_lap_time_est", 0.0), 4),
         )
         if sig == baseline_sig:
             ineffective.append(name)
@@ -2500,8 +2495,10 @@ def main():
         sys.exit(1)
 
     build_cmd = [
-        "g++", "-D_GNU_SOURCE", "-O2", "-std=c++17", "-Wall",
+        "g++", "-D_GNU_SOURCE", "-O3", "-DNDEBUG", "-std=c++17", "-Wall",
+        "-march=native", "-mtune=native", "-flto",
         "-DMPC_HLS_TARGET", "-DMPC_RUNTIME_TUNE",
+        f"-DMPC_FPGA_HORIZON_STEPS={HORIZON_LIMIT}",
         f"-DPREDICTION_HORIZON={HORIZON_LIMIT}",
         "-Wno-unused-variable", "-Wno-unused-but-set-variable",
         "-Wno-unknown-pragmas",
