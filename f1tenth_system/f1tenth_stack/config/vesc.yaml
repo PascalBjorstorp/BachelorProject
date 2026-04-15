@@ -147,6 +147,21 @@ vesc_to_odom_node:
     odom_y_covariance: 0.2
     odom_yaw_covariance: 0.2
 
+# Legacy analytical odometry path used when System_launch.py oldOdom:=true
+vesc_to_odom_old_node:
+  ros__parameters:
+    odom_frame: ego_racecar/odom
+    base_frame: ego_racecar/base_link
+    use_servo_cmd_to_calc_angular_velocity: true
+    use_imu: false
+    integration_method: analytical
+    wheelbase: 0.324
+    imu_angular_velocity_alpha: 0.45
+    odom_x_covariance: 0.2
+    odom_y_covariance: 0.2
+    odom_yaw_covariance: 0.2
+    publish_tf: false
+
 # ===================
 # Ackermann to VESC Config
 # ===================
