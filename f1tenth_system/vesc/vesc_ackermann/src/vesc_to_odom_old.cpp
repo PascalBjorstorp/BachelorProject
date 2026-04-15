@@ -49,10 +49,15 @@ using std::placeholders::_1;
 using std_msgs::msg::Float64;
 using vesc_msgs::msg::VescStateStamped;
 
+namespace
+{
+constexpr double kEpsilon = 1e-9;
+}  // namespace
+
 VescToOdomOld::VescToOdomOld(const rclcpp::NodeOptions & options)
 : Node("vesc_to_odom_old_node", options),
   odom_frame_("ego_racecar/odom"),
-  base_frame_("base_link"),
+  base_frame_("ego_racecar/base_link"),
   use_servo_cmd_(true),
   use_imu_(false),
   publish_tf_(false),
@@ -89,7 +94,7 @@ VescToOdomOld::VescToOdomOld(const rclcpp::NodeOptions & options)
   if (use_servo_cmd_) {
     declare_parameter<double>("steering_angle_to_servo_gain", 0.0);
     declare_parameter<double>("steering_angle_to_servo_offset", 0.0);
-    declare_parameter<double>("wheelbase", 0.0);
+    declare_parameter<double>("wheelbase", 0.33);
     declare_parameter<double>("steering_correction_c2", 0.0);
     declare_parameter<double>("steering_correction_c1", 1.0);
     declare_parameter<double>("steering_correction_c0", 0.0);
@@ -100,6 +105,32 @@ VescToOdomOld::VescToOdomOld(const rclcpp::NodeOptions & options)
     steering_correction_c2_ = get_parameter("steering_correction_c2").get_value<double>();
     steering_correction_c1_ = get_parameter("steering_correction_c1").get_value<double>();
     steering_correction_c0_ = get_parameter("steering_correction_c0").get_value<double>();
+
+    if (std::fabs(steering_to_servo_gain_) < kEpsilon) {
+      RCLCPP_WARN(
+        get_logger(),
+        "steering_angle_to_servo_gain is zero; disabling servo-based yaw in old odom.");
+      use_servo_cmd_ = false;
+    }
+
+    if (std::fabs(wheelbase_) < kEpsilon) {
+      RCLCPP_WARN(
+        get_logger(),
+        "wheelbase is zero; disabling servo-based yaw in old odom to avoid NaNs.");
+      use_servo_cmd_ = false;
+    }
+  }
+
+  if (std::fabs(speed_to_erpm_gain_) < kEpsilon) {
+    RCLCPP_WARN(
+      get_logger(),
+      "speed_to_erpm_gain is zero; old odom cannot convert ERPM to linear speed.");
+  }
+
+  if (!use_servo_cmd_ && !use_imu_) {
+    RCLCPP_WARN(
+      get_logger(),
+      "Both servo and IMU yaw sources are disabled; old odom will publish straight-line yaw only.");
   }
 
   publish_tf_ = declare_parameter("publish_tf", publish_tf_);
@@ -168,6 +199,14 @@ void VescToOdomOld::vescStateCallback(const VescStateStamped::SharedPtr state)
     return;
   }
 
+  if (std::fabs(speed_to_erpm_gain_) < kEpsilon) {
+    RCLCPP_ERROR_THROTTLE(
+      get_logger(), *get_clock(), 2000,
+      "speed_to_erpm_gain is zero. Cannot compute old odometry speed.");
+    last_state_ = state;
+    return;
+  }
+
   // convert to engineering units
   // Linear model: speed = (ERPM - offset) / gain
   double erpm = state->state.speed;
@@ -182,6 +221,12 @@ void VescToOdomOld::vescStateCallback(const VescStateStamped::SharedPtr state)
     // Use filtered IMU yaw rate (angular velocity around z-axis)
     current_angular_velocity = filtered_angular_velocity_;
   } else if (use_servo_cmd_) {
+    if (std::fabs(steering_to_servo_gain_) < kEpsilon || std::fabs(wheelbase_) < kEpsilon) {
+      RCLCPP_ERROR_THROTTLE(
+        get_logger(), *get_clock(), 2000,
+        "Invalid steering gain or wheelbase in old odom; publishing zero yaw rate this cycle.");
+      current_angular_velocity = 0.0;
+    } else {
     // Calculate from steering angle (with polynomial inverse correction)
     double corrected_angle =
       (last_servo_cmd_->data - steering_to_servo_offset_) / steering_to_servo_gain_;
@@ -201,6 +246,7 @@ void VescToOdomOld::vescStateCallback(const VescStateStamped::SharedPtr state)
       current_steering_angle = corrected_angle;
     }
     current_angular_velocity = current_speed * tan(current_steering_angle) / wheelbase_;
+    }
   }
 
   // use current state as last state if this is our first time here
@@ -225,6 +271,10 @@ void VescToOdomOld::vescStateCallback(const VescStateStamped::SharedPtr state)
   }
 
   // Update yaw first (needed for position integration)
+  const double prev_x = x_;
+  const double prev_y = y_;
+  const double prev_yaw = yaw_;
+
   double yaw_start = yaw_;
   double yaw_end = yaw_;
 
@@ -253,6 +303,19 @@ void VescToOdomOld::vescStateCallback(const VescStateStamped::SharedPtr state)
   } else {
     yaw_end = yaw_ + current_angular_velocity * dt.seconds();
     yaw_ = yaw_end;
+  }
+
+  if (!std::isfinite(current_speed) || !std::isfinite(current_angular_velocity) ||
+    !std::isfinite(yaw_))
+  {
+    RCLCPP_ERROR_THROTTLE(
+      get_logger(), *get_clock(), 2000,
+      "Non-finite old odom state detected (speed/yaw/yaw_rate). Skipping this update.");
+    x_ = prev_x;
+    y_ = prev_y;
+    yaw_ = prev_yaw;
+    last_state_ = state;
+    return;
   }
 
   // Propagate odometry using selected integration method
@@ -311,6 +374,17 @@ void VescToOdomOld::vescStateCallback(const VescStateStamped::SharedPtr state)
     const double dt_sec = dt.seconds();
     x_ += current_speed * cos_start * dt_sec;
     y_ += current_speed * sin_start * dt_sec;
+  }
+
+  if (!std::isfinite(x_) || !std::isfinite(y_) || !std::isfinite(yaw_)) {
+    RCLCPP_ERROR_THROTTLE(
+      get_logger(), *get_clock(), 2000,
+      "Non-finite x/y/yaw produced by old odom integration. Reverting this update.");
+    x_ = prev_x;
+    y_ = prev_y;
+    yaw_ = prev_yaw;
+    last_state_ = state;
+    return;
   }
 
   // save state for next time
