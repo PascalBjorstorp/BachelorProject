@@ -89,13 +89,10 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   // Base covariance parameters
   odom_x_covariance_ = declare_parameter("odom_x_covariance", odom_x_covariance_);
   odom_y_covariance_ = declare_parameter("odom_y_covariance", odom_y_covariance_);
-  odom_yaw_covariance_ = declare_parameter("odom_yaw_covariance", odom_yaw_covariance_);
 
-  // Slip-aware covariance inflation
+  // Slip-aware covariance inflation (x/y only)
   slip_xy_covariance_scale_ =
     declare_parameter("slip_xy_covariance_scale", slip_xy_covariance_scale_);
-  slip_yaw_covariance_scale_ =
-    declare_parameter("slip_yaw_covariance_scale", slip_yaw_covariance_scale_);
 
   // Slip detection thresholds
   slip_accel_enter_ = declare_parameter("slip_accel_enter", slip_accel_enter_);
@@ -743,30 +740,18 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   odom->pose.pose.orientation.z = std::sin(yaw_ / 2.0);
   odom->pose.pose.orientation.w = std::cos(yaw_ / 2.0);
 
-  const double xy_cov = odom_x_covariance_ * (1.0 + slip_weight * (slip_xy_covariance_scale_ - 1.0));
-  const double yaw_cov = odom_yaw_covariance_ * (1.0 + slip_weight * (slip_yaw_covariance_scale_ - 1.0));
+  const double x_cov = odom_x_covariance_ * (1.0 + slip_weight * (slip_xy_covariance_scale_ - 1.0));
+  const double y_cov = odom_y_covariance_ * (1.0 + slip_weight * (slip_xy_covariance_scale_ - 1.0));
 
   std::fill(odom->pose.covariance.begin(), odom->pose.covariance.end(), 0.0);
-  constexpr double kUnsupportedPoseCov = 1e3;
-  odom->pose.covariance[0] = xy_cov;
-  odom->pose.covariance[7] = odom_y_covariance_ *
-    (1.0 + slip_weight * (slip_xy_covariance_scale_ - 1.0));
-  odom->pose.covariance[14] = kUnsupportedPoseCov;
-  odom->pose.covariance[21] = kUnsupportedPoseCov;
-  odom->pose.covariance[28] = kUnsupportedPoseCov;
-  odom->pose.covariance[35] = yaw_cov;
+  odom->pose.covariance[0] = x_cov;
+  odom->pose.covariance[7] = y_cov;
 
   std::fill(odom->twist.covariance.begin(), odom->twist.covariance.end(), 0.0);
-  constexpr double kUnsupportedTwistCov = 1e3;
-  const double vx_cov = std::max(0.02, xy_cov);
-  const double vy_cov = std::max(0.05, xy_cov);
-  const double wz_cov = std::max(0.05, yaw_cov);
+  const double vx_cov = std::max(0.02, x_cov);
+  const double vy_cov = std::max(0.05, y_cov);
   odom->twist.covariance[0] = vx_cov;
   odom->twist.covariance[7] = vy_cov;
-  odom->twist.covariance[14] = kUnsupportedTwistCov;
-  odom->twist.covariance[21] = kUnsupportedTwistCov;
-  odom->twist.covariance[28] = kUnsupportedTwistCov;
-  odom->twist.covariance[35] = wz_cov;
 
   odom->twist.twist.linear.x = fused_speed;
   odom->twist.twist.linear.y = imu_lateral_velocity_;

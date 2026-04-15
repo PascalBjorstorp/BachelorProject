@@ -126,9 +126,8 @@ vesc_to_odom_node:
     c_alpha_r: 43.10
     dynamic_model_min_speed: 1.0
 
-    # Inflate odometry covariance while slipping so localization trusts map fixes more.
+    # Inflate odometry x/y covariance while slipping so localization trusts map fixes more.
     slip_xy_covariance_scale: 6.0
-    slip_yaw_covariance_scale: 10.0
 
     # Online gyro-bias adaptation (active in low-slip, well-modeled motion).
     gyro_bias_alpha: 0.02
@@ -142,11 +141,10 @@ vesc_to_odom_node:
     beta_max_rad: 0.8
     kinematic_beta_ratio: 0.5
 
-    # Odometry covariance scalars used by vesc_to_odom
-    # Units: x/y in m^2, yaw in rad^2
+    # Odometry covariance scalars used by vesc_to_odom (2D plane only)
+    # Units: x/y in m^2
     odom_x_covariance: 0.2
     odom_y_covariance: 0.2
-    odom_yaw_covariance: 0.4
 
 # ===================
 # Ackermann to VESC Config

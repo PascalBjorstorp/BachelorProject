@@ -86,14 +86,12 @@ private:
   double pacejka_shape_factor_{1.9};
   double dynamic_model_min_speed_{1.0};
 
-  // Base covariance
+  // 2D pose covariance (x/y plane only)
   double odom_x_covariance_{0.2};
   double odom_y_covariance_{0.2};
-  double odom_yaw_covariance_{0.4};
 
-  // Slip-aware covariance scaling
+  // Slip-aware covariance scaling for x/y
   double slip_xy_covariance_scale_{6.0};
-  double slip_yaw_covariance_scale_{10.0};
 
   // Slip detection thresholds (m/s^2)
   double slip_accel_enter_{1.8};
