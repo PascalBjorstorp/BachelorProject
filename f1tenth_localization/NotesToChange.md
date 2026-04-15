@@ -1,5 +1,29 @@
 # Task
 
+
+## To check
+1. 
+What to check:
+Does AMCL “snap” after corners?
+Does it lag in chicanes?
+If yes → your motion model covariance is not honest enough
+
+3. Change the way we measure speed
+Instead of 
+v = erpm
+Have
+Use IMU acceleration ONLY for short-term correction
+
+v_imu = integrate(ax)
+v = (1 - w) * v_erpm + w * v_imu
+
+where w increases with slip
+
+
+
+4. Already fused to ekf but check covariance
+
+
 ## Localization [0 / 2] 
 - [ ] In AMCL node make sure that even with the new minimum distance needed to move it will still converge at start
 

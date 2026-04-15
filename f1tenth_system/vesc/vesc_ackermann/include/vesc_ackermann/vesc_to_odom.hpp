@@ -83,6 +83,7 @@ private:
   double l_r_{0.16};
   double c_alpha_f_{51.4};
   double c_alpha_r_{43.1};
+  double pacejka_shape_factor_{1.9};
   double dynamic_model_min_speed_{1.0};
 
   // Base covariance
@@ -122,8 +123,10 @@ private:
   double imu_butterworth_lateral_accel_cutoff_hz_{12.0};
   double imu_yaw_base_weight_{0.8};
   double filtered_angular_velocity_{0.0};
+  double filtered_linear_accel_x_{0.0};
   double filtered_linear_accel_y_{0.0};
   double debiased_angular_velocity_z_raw_{0.0};
+  double debiased_linear_accel_x_raw_{0.0};
   double debiased_linear_accel_y_raw_{0.0};
   bool angular_velocity_filter_initialized_{false};
   bool imu_sample_time_initialized_{false};
@@ -140,6 +143,11 @@ private:
   double lateral_accel_y_biquad_x2_{0.0};
   double lateral_accel_y_biquad_y1_{0.0};
   double lateral_accel_y_biquad_y2_{0.0};
+  bool longitudinal_accel_x_biquad_initialized_{false};
+  double longitudinal_accel_x_biquad_x1_{0.0};
+  double longitudinal_accel_x_biquad_x2_{0.0};
+  double longitudinal_accel_x_biquad_y1_{0.0};
+  double longitudinal_accel_x_biquad_y2_{0.0};
 
   // Gyro bias adaptation
   double gyro_bias_{0.0};
@@ -168,6 +176,13 @@ private:
   double imu_lateral_velocity_decay_{1.5};
   double imu_lateral_velocity_max_{3.0};
 
+  // Longitudinal speed correction from IMU
+  double speed_correction_max_weight_{0.25};
+  double imu_speed_correction_{0.0};
+  double imu_speed_correction_decay_{1.5};
+  double imu_speed_correction_max_{1.5};
+  double imu_speed_correction_min_speed_{0.2};
+
   // Slip-angle handling
   double beta_max_rad_{0.8};
   double kinematic_beta_ratio_{0.5};
@@ -185,8 +200,10 @@ private:
   {
     rclcpp::Time stamp;
     double filtered_angular_velocity{0.0};
+    double filtered_linear_accel_x{0.0};
     double filtered_linear_accel_y{0.0};
     double raw_angular_velocity{0.0};
+    double raw_linear_accel_x{0.0};
     double raw_linear_accel_y{0.0};
   };
   std::deque<ImuSyncSample> imu_history_;

@@ -81,6 +81,8 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   l_r_ = declare_parameter("l_r", l_r_);
   c_alpha_f_ = declare_parameter("c_alpha_f", c_alpha_f_);
   c_alpha_r_ = declare_parameter("c_alpha_r", c_alpha_r_);
+  pacejka_shape_factor_ =
+    declare_parameter("pacejka_shape_factor", pacejka_shape_factor_);
   dynamic_model_min_speed_ =
     declare_parameter("dynamic_model_min_speed", dynamic_model_min_speed_);
 
@@ -148,6 +150,16 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
     declare_parameter("imu_lateral_velocity_decay", imu_lateral_velocity_decay_);
   imu_lateral_velocity_max_ =
     declare_parameter("imu_lateral_velocity_max", imu_lateral_velocity_max_);
+
+  // Longitudinal speed correction parameters
+  speed_correction_max_weight_ =
+    declare_parameter("speed_correction_max_weight", speed_correction_max_weight_);
+  imu_speed_correction_decay_ =
+    declare_parameter("imu_speed_correction_decay", imu_speed_correction_decay_);
+  imu_speed_correction_max_ =
+    declare_parameter("imu_speed_correction_max", imu_speed_correction_max_);
+  imu_speed_correction_min_speed_ =
+    declare_parameter("imu_speed_correction_min_speed", imu_speed_correction_min_speed_);
 
   // Slip-angle parameters
   beta_max_rad_ = declare_parameter("beta_max_rad", beta_max_rad_);
@@ -227,6 +239,38 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
       "imu_yaw_base_weight %.3f out of [0,1]. Clamping.",
       imu_yaw_base_weight_);
     imu_yaw_base_weight_ = std::clamp(imu_yaw_base_weight_, 0.0, 1.0);
+  }
+
+  if (speed_correction_max_weight_ < 0.0 || speed_correction_max_weight_ > 1.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "speed_correction_max_weight %.3f out of [0,1]. Clamping.",
+      speed_correction_max_weight_);
+    speed_correction_max_weight_ = std::clamp(speed_correction_max_weight_, 0.0, 1.0);
+  }
+
+  if (imu_speed_correction_decay_ < 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "imu_speed_correction_decay %.3f < 0. Using 1.5.",
+      imu_speed_correction_decay_);
+    imu_speed_correction_decay_ = 1.5;
+  }
+
+  if (imu_speed_correction_max_ <= 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "imu_speed_correction_max %.3f <= 0. Using 1.5.",
+      imu_speed_correction_max_);
+    imu_speed_correction_max_ = 1.5;
+  }
+
+  if (imu_speed_correction_min_speed_ < 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "imu_speed_correction_min_speed %.3f < 0. Using 0.2.",
+      imu_speed_correction_min_speed_);
+    imu_speed_correction_min_speed_ = 0.2;
   }
 
   if (imu_history_max_samples_ < 5) {
@@ -319,6 +363,14 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
       get_logger(),
       "Dynamic bicycle model parameters invalid. Falling back to kinematic yaw model.");
     use_dynamic_bicycle_model_ = false;
+  }
+
+  if (pacejka_shape_factor_ <= 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "pacejka_shape_factor %.3f <= 0. Using 1.9.",
+      pacejka_shape_factor_);
+    pacejka_shape_factor_ = 1.9;
   }
 
   odom_pub_ = create_publisher<Odometry>("ego_racecar/odom", 10);
@@ -459,8 +511,13 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     const double alpha_f = steering_angle - (model_lateral_velocity + l_f_ * yaw_rate_state_) / safe_vx;
     const double alpha_r = -(model_lateral_velocity - l_r_ * yaw_rate_state_) / safe_vx;
 
-    const double f_yf = c_alpha_f_ * alpha_f;
-    const double f_yr = c_alpha_r_ * alpha_r;
+    // Simplified Pacejka: Fy = D * sin(C * atan(B * alpha)).
+    // We choose B = 1/C and D = C_alpha so small-angle slope matches C_alpha.
+    const double pacejka_b = 1.0 / pacejka_shape_factor_;
+    const double f_yf =
+      c_alpha_f_ * std::sin(pacejka_shape_factor_ * std::atan(pacejka_b * alpha_f));
+    const double f_yr =
+      c_alpha_r_ * std::sin(pacejka_shape_factor_ * std::atan(pacejka_b * alpha_r));
 
     const double v_y_dot = (f_yf + f_yr) / vehicle_mass_ - safe_vx * yaw_rate_state_;
     const double yaw_dot = (l_f_ * f_yf - l_r_ * f_yr) / vehicle_Iz_;
@@ -471,6 +528,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
 
   // Time-align IMU and VESC updates by using the nearest IMU sample to the VESC stamp.
   double imu_yaw_rate_raw = filtered_angular_velocity_;
+  double longitudinal_accel_measured = filtered_linear_accel_x_;
   double lateral_accel_measured = filtered_linear_accel_y_;
   double lateral_accel_measured_for_slip = debiased_linear_accel_y_raw_;
   double yaw_rate_measured_for_slip = debiased_angular_velocity_z_raw_;
@@ -490,6 +548,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
 
     if (nearest_sample != nullptr) {
       imu_yaw_rate_raw = nearest_sample->filtered_angular_velocity;
+      longitudinal_accel_measured = nearest_sample->filtered_linear_accel_x;
       lateral_accel_measured = nearest_sample->filtered_linear_accel_y;
       lateral_accel_measured_for_slip = nearest_sample->raw_linear_accel_y;
       yaw_rate_measured_for_slip = nearest_sample->raw_angular_velocity;
@@ -506,6 +565,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   if (!imu_fresh) {
     // If IMU is stale, use model-consistent channels to avoid stale residual spikes.
     imu_yaw_rate_raw = model_yaw_rate + gyro_bias_;
+    longitudinal_accel_measured = 0.0;
     lateral_accel_measured = current_speed * model_yaw_rate;
     lateral_accel_measured_for_slip = lateral_accel_measured;
     yaw_rate_measured_for_slip = model_yaw_rate + gyro_bias_;
@@ -595,9 +655,23 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     slip_weight = 0.0;
   }
 
-  if (imu_fresh && has_servo && slip_weight < 0.2 && std::fabs(current_speed) > 0.5) {
-    const double yaw_rate_error = imu_yaw_rate_raw - model_yaw_rate;
-    gyro_bias_ = (1.0 - gyro_bias_alpha_) * gyro_bias_ + gyro_bias_alpha_ * yaw_rate_error;
+  if (imu_fresh && std::fabs(current_speed) >= imu_speed_correction_min_speed_) {
+    imu_speed_correction_ += longitudinal_accel_measured * dt_sec;
+  } else {
+    imu_speed_correction_ = 0.0;
+  }
+
+  const double speed_correction_decay = std::max(0.0, 1.0 - imu_speed_correction_decay_ * dt_sec);
+  imu_speed_correction_ *= speed_correction_decay;
+  imu_speed_correction_ = std::clamp(
+    imu_speed_correction_, -imu_speed_correction_max_, imu_speed_correction_max_);
+
+  const double speed_correction_weight = imu_fresh ?
+    std::min(slip_weight, speed_correction_max_weight_) :
+    0.0;
+  double fused_speed = current_speed + speed_correction_weight * imu_speed_correction_;
+  if (std::fabs(fused_speed) < speed_deadband_) {
+    fused_speed = 0.0;
   }
 
   const double imu_yaw_rate = imu_yaw_rate_raw - gyro_bias_;
@@ -608,7 +682,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     (1.0 - imu_yaw_weight) * model_yaw_rate + imu_yaw_weight * imu_yaw_rate;
 
   // Lateral velocity estimate (high-slip helper) from IMU lateral acceleration residual.
-  const double lateral_accel_residual = lateral_accel_measured - current_speed * current_yaw_rate;
+  const double lateral_accel_residual = lateral_accel_measured - fused_speed * current_yaw_rate;
   if (!lateral_accel_filter_initialized_) {
     filtered_lateral_accel_ = lateral_accel_residual;
     lateral_accel_filter_initialized_ = true;
@@ -622,7 +696,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   imu_lateral_velocity_estimate += filtered_lateral_accel_ * dt_sec;
   const double decay = std::max(0.0, 1.0 - imu_lateral_velocity_decay_ * dt_sec);
   imu_lateral_velocity_estimate *= decay;
-  if (std::fabs(current_speed) < 0.2) {
+  if (std::fabs(fused_speed) < 0.2) {
     imu_lateral_velocity_estimate = 0.0;
   }
   imu_lateral_velocity_estimate = std::clamp(
@@ -641,7 +715,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   if (has_servo) {
     beta_kinematic = std::atan(kinematic_beta_ratio_ * std::tan(steering_angle));
   }
-  const double beta_imu = std::atan2(imu_lateral_velocity_, std::max(0.4, std::fabs(current_speed)));
+  const double beta_imu = std::atan2(imu_lateral_velocity_, std::max(0.4, std::fabs(fused_speed)));
   const double beta = std::clamp(
     (1.0 - slip_weight) * beta_kinematic + slip_weight * beta_imu,
     -beta_max_rad_, beta_max_rad_);
@@ -651,8 +725,8 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   yaw_ = normalizeAngle(yaw_ + current_yaw_rate * dt_sec);
   yaw_rate_state_ = current_yaw_rate;
   const double heading = yaw_mid + beta;
-  x_ += current_speed * std::cos(heading) * dt_sec;
-  y_ += current_speed * std::sin(heading) * dt_sec;
+  x_ += fused_speed * std::cos(heading) * dt_sec;
+  y_ += fused_speed * std::sin(heading) * dt_sec;
 
   last_state_ = state;
 
@@ -694,7 +768,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   odom->twist.covariance[28] = kUnsupportedTwistCov;
   odom->twist.covariance[35] = wz_cov;
 
-  odom->twist.twist.linear.x = current_speed;
+  odom->twist.twist.linear.x = fused_speed;
   odom->twist.twist.linear.y = imu_lateral_velocity_;
   odom->twist.twist.angular.z = current_yaw_rate;
 
@@ -775,6 +849,7 @@ void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
   last_imu_sample_time_sec_ = sample_time_sec;
 
   double current_gyro_z_bias = imu_startup_angular_velocity_z_bias_;
+  double current_linear_accel_x_bias = imu_startup_linear_accel_x_bias_;
   double current_linear_accel_y_bias = imu_startup_linear_accel_y_bias_;
   if (imu_startup_calibration_enabled_ && !imu_startup_calibration_done_ &&
     imu_startup_calibration_sample_count_ > 0U)
@@ -782,14 +857,19 @@ void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
     current_gyro_z_bias =
       imu_startup_angular_velocity_z_sum_ /
       static_cast<double>(imu_startup_calibration_sample_count_);
+    current_linear_accel_x_bias =
+      imu_startup_linear_accel_x_sum_ /
+      static_cast<double>(imu_startup_calibration_sample_count_);
     current_linear_accel_y_bias =
       imu_startup_linear_accel_y_sum_ /
       static_cast<double>(imu_startup_calibration_sample_count_);
   }
 
   const double raw_angular_velocity = imu->angular_velocity.z - current_gyro_z_bias;
+  const double raw_linear_accel_x = imu->linear_acceleration.x - current_linear_accel_x_bias;
   const double raw_linear_accel_y = imu->linear_acceleration.y - current_linear_accel_y_bias;
   debiased_angular_velocity_z_raw_ = raw_angular_velocity;
+  debiased_linear_accel_x_raw_ = raw_linear_accel_x;
   debiased_linear_accel_y_raw_ = raw_linear_accel_y;
 
   auto apply_butterworth_lowpass =
@@ -871,6 +951,16 @@ void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
       gyro_biquad_y2_,
       imu_dt_sec);
 
+    filtered_linear_accel_x_ = apply_butterworth_lowpass(
+      raw_linear_accel_x,
+      imu_butterworth_lateral_accel_cutoff_hz_,
+      longitudinal_accel_x_biquad_initialized_,
+      longitudinal_accel_x_biquad_x1_,
+      longitudinal_accel_x_biquad_x2_,
+      longitudinal_accel_x_biquad_y1_,
+      longitudinal_accel_x_biquad_y2_,
+      imu_dt_sec);
+
     filtered_linear_accel_y_ = apply_butterworth_lowpass(
       raw_linear_accel_y,
       imu_butterworth_lateral_accel_cutoff_hz_,
@@ -891,14 +981,17 @@ void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
         imu_angular_velocity_alpha_ * raw_angular_velocity +
         (1.0 - imu_angular_velocity_alpha_) * filtered_angular_velocity_;
     }
+    filtered_linear_accel_x_ = raw_linear_accel_x;
     filtered_linear_accel_y_ = raw_linear_accel_y;
   }
 
   ImuSyncSample sync_sample;
   sync_sample.stamp = sample_stamp;
   sync_sample.filtered_angular_velocity = filtered_angular_velocity_;
+  sync_sample.filtered_linear_accel_x = filtered_linear_accel_x_;
   sync_sample.filtered_linear_accel_y = filtered_linear_accel_y_;
   sync_sample.raw_angular_velocity = debiased_angular_velocity_z_raw_;
+  sync_sample.raw_linear_accel_x = debiased_linear_accel_x_raw_;
   sync_sample.raw_linear_accel_y = debiased_linear_accel_y_raw_;
   imu_history_.push_back(sync_sample);
   while (static_cast<int>(imu_history_.size()) > imu_history_max_samples_) {
