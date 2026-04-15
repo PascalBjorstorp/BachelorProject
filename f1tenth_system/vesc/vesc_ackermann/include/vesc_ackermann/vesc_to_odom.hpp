@@ -86,9 +86,10 @@ private:
   double pacejka_shape_factor_{1.9};
   double dynamic_model_min_speed_{1.0};
 
-  // 2D pose covariance (x/y plane only)
+  // 2D pose covariance (x/y/yaw)
   double odom_x_covariance_{0.2};
   double odom_y_covariance_{0.2};
+  double odom_yaw_covariance_{0.2};
 
   // Slip-aware covariance scaling for x/y
   double slip_xy_covariance_scale_{6.0};
@@ -173,13 +174,6 @@ private:
   double imu_lateral_velocity_{0.0};
   double imu_lateral_velocity_decay_{1.5};
   double imu_lateral_velocity_max_{3.0};
-
-  // Longitudinal speed correction from IMU
-  double speed_correction_max_weight_{0.25};
-  double imu_speed_correction_{0.0};
-  double imu_speed_correction_decay_{1.5};
-  double imu_speed_correction_max_{1.5};
-  double imu_speed_correction_min_speed_{0.2};
 
   // Slip-angle handling
   double beta_max_rad_{0.8};

@@ -89,6 +89,7 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   // Base covariance parameters
   odom_x_covariance_ = declare_parameter("odom_x_covariance", odom_x_covariance_);
   odom_y_covariance_ = declare_parameter("odom_y_covariance", odom_y_covariance_);
+  odom_yaw_covariance_ = declare_parameter("odom_yaw_covariance", odom_yaw_covariance_);
 
   // Slip-aware covariance inflation (x/y only)
   slip_xy_covariance_scale_ =
@@ -147,16 +148,6 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
     declare_parameter("imu_lateral_velocity_decay", imu_lateral_velocity_decay_);
   imu_lateral_velocity_max_ =
     declare_parameter("imu_lateral_velocity_max", imu_lateral_velocity_max_);
-
-  // Longitudinal speed correction parameters
-  speed_correction_max_weight_ =
-    declare_parameter("speed_correction_max_weight", speed_correction_max_weight_);
-  imu_speed_correction_decay_ =
-    declare_parameter("imu_speed_correction_decay", imu_speed_correction_decay_);
-  imu_speed_correction_max_ =
-    declare_parameter("imu_speed_correction_max", imu_speed_correction_max_);
-  imu_speed_correction_min_speed_ =
-    declare_parameter("imu_speed_correction_min_speed", imu_speed_correction_min_speed_);
 
   // Slip-angle parameters
   beta_max_rad_ = declare_parameter("beta_max_rad", beta_max_rad_);
@@ -236,38 +227,6 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
       "imu_yaw_base_weight %.3f out of [0,1]. Clamping.",
       imu_yaw_base_weight_);
     imu_yaw_base_weight_ = std::clamp(imu_yaw_base_weight_, 0.0, 1.0);
-  }
-
-  if (speed_correction_max_weight_ < 0.0 || speed_correction_max_weight_ > 1.0) {
-    RCLCPP_WARN(
-      get_logger(),
-      "speed_correction_max_weight %.3f out of [0,1]. Clamping.",
-      speed_correction_max_weight_);
-    speed_correction_max_weight_ = std::clamp(speed_correction_max_weight_, 0.0, 1.0);
-  }
-
-  if (imu_speed_correction_decay_ < 0.0) {
-    RCLCPP_WARN(
-      get_logger(),
-      "imu_speed_correction_decay %.3f < 0. Using 1.5.",
-      imu_speed_correction_decay_);
-    imu_speed_correction_decay_ = 1.5;
-  }
-
-  if (imu_speed_correction_max_ <= 0.0) {
-    RCLCPP_WARN(
-      get_logger(),
-      "imu_speed_correction_max %.3f <= 0. Using 1.5.",
-      imu_speed_correction_max_);
-    imu_speed_correction_max_ = 1.5;
-  }
-
-  if (imu_speed_correction_min_speed_ < 0.0) {
-    RCLCPP_WARN(
-      get_logger(),
-      "imu_speed_correction_min_speed %.3f < 0. Using 0.2.",
-      imu_speed_correction_min_speed_);
-    imu_speed_correction_min_speed_ = 0.2;
   }
 
   if (imu_history_max_samples_ < 5) {
@@ -525,7 +484,6 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
 
   // Time-align IMU and VESC updates by using the nearest IMU sample to the VESC stamp.
   double imu_yaw_rate_raw = filtered_angular_velocity_;
-  double longitudinal_accel_measured = filtered_linear_accel_x_;
   double lateral_accel_measured = filtered_linear_accel_y_;
   double lateral_accel_measured_for_slip = debiased_linear_accel_y_raw_;
   double yaw_rate_measured_for_slip = debiased_angular_velocity_z_raw_;
@@ -545,7 +503,6 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
 
     if (nearest_sample != nullptr) {
       imu_yaw_rate_raw = nearest_sample->filtered_angular_velocity;
-      longitudinal_accel_measured = nearest_sample->filtered_linear_accel_x;
       lateral_accel_measured = nearest_sample->filtered_linear_accel_y;
       lateral_accel_measured_for_slip = nearest_sample->raw_linear_accel_y;
       yaw_rate_measured_for_slip = nearest_sample->raw_angular_velocity;
@@ -562,7 +519,6 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   if (!imu_fresh) {
     // If IMU is stale, use model-consistent channels to avoid stale residual spikes.
     imu_yaw_rate_raw = model_yaw_rate + gyro_bias_;
-    longitudinal_accel_measured = 0.0;
     lateral_accel_measured = current_speed * model_yaw_rate;
     lateral_accel_measured_for_slip = lateral_accel_measured;
     yaw_rate_measured_for_slip = model_yaw_rate + gyro_bias_;
@@ -652,21 +608,8 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     slip_weight = 0.0;
   }
 
-  if (imu_fresh && std::fabs(current_speed) >= imu_speed_correction_min_speed_) {
-    imu_speed_correction_ += longitudinal_accel_measured * dt_sec;
-  } else {
-    imu_speed_correction_ = 0.0;
-  }
-
-  const double speed_correction_decay = std::max(0.0, 1.0 - imu_speed_correction_decay_ * dt_sec);
-  imu_speed_correction_ *= speed_correction_decay;
-  imu_speed_correction_ = std::clamp(
-    imu_speed_correction_, -imu_speed_correction_max_, imu_speed_correction_max_);
-
-  const double speed_correction_weight = imu_fresh ?
-    std::min(slip_weight, speed_correction_max_weight_) :
-    0.0;
-  double fused_speed = current_speed + speed_correction_weight * imu_speed_correction_;
+  // Forward speed stays wheel-odometry based; IMU is used for yaw/slip channels.
+  double fused_speed = current_speed;
   if (std::fabs(fused_speed) < speed_deadband_) {
     fused_speed = 0.0;
   }
@@ -742,10 +685,12 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
 
   const double x_cov = odom_x_covariance_ * (1.0 + slip_weight * (slip_xy_covariance_scale_ - 1.0));
   const double y_cov = odom_y_covariance_ * (1.0 + slip_weight * (slip_xy_covariance_scale_ - 1.0));
+  const double yaw_cov = odom_yaw_covariance_;
 
   std::fill(odom->pose.covariance.begin(), odom->pose.covariance.end(), 0.0);
   odom->pose.covariance[0] = x_cov;
   odom->pose.covariance[7] = y_cov;
+  odom->pose.covariance[35] = yaw_cov;
 
   std::fill(odom->twist.covariance.begin(), odom->twist.covariance.end(), 0.0);
   const double vx_cov = std::max(0.02, x_cov);

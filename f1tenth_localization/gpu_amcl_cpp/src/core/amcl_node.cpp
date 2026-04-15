@@ -125,7 +125,6 @@ void AmclNode::declare_all_parameters() {
     declare_parameter<double>("initial_cov_aa", 0.2);
 
     // Publishing
-    declare_parameter<double>("publish_rate", 40.0);
     declare_parameter<double>("cloud_publish_rate", 2.0);  // Particle cloud rate (Hz) — lower to save bandwidth
     declare_parameter<double>("transform_tolerance", 1.0);
 

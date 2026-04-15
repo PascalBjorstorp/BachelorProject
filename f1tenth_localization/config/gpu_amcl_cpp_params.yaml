@@ -48,21 +48,21 @@ gpu_amcl_cpp:
     # ---- Scan freshness ----
     # Max age (seconds) of a scan before it's rejected as stale.
     # Tight gate to avoid stale corrections under backlog.
-    max_scan_age: 0.012
+    max_scan_age: 0.04
 
     # ---- Motion model (odometry noise, Prob. Robotics §5.4) ----
     # These control how much random noise is added to each particle.
     # For simulation (accurate odom), use LOW values.
     # For real hardware (noisy odom/slip), increase 5-10x.
-    alpha1: 0.05    # rotation  → rotation  noise 0.0001 for sim
-    alpha2: 0.05    # translation → rotation  noise
-    alpha3: 0.05    # translation → translation noise
-    alpha4: 0.05    # rotation  → translation noise
+    alpha1: 0.08    # rotation  → rotation  noise 0.0001 for sim
+    alpha2: 0.08    # translation → rotation  noise
+    alpha3: 0.08    # translation → translation noise
+    alpha4: 0.08    # rotation  → translation noise
 
     # ---- Slip-aware noise scaling ----
     # During aggressive turns, increase noise to account for tire slip
     slip_angular_threshold: 1.0  # rad/s — angular velocity above which slip is assumed
-    slip_noise_multiplier: 2.0   # multiply alpha values by this during slip
+    slip_noise_multiplier: 2.5   # multiply alpha values by this during slip
 
     # ---- Sensor model (likelihood field, Prob. Robotics §6.4) ----
     max_beams: 270
@@ -87,7 +87,6 @@ gpu_amcl_cpp:
     initial_cov_aa: 0.1
 
     # ---- Publishing ----
-    publish_rate: 40.0           # Hz — pose publish rate (match LiDAR rate)
     cloud_publish_rate: 0.1      # Hz — particle cloud visualization rate (lower saves GPU bandwidth)
     transform_tolerance: 0.2
 
@@ -126,10 +125,7 @@ ekf_localization:
     odom_frame: "ego_racecar/odom"
     base_frame: "ego_racecar/base_link"
 
-    # ---- Rate ----
-    publish_rate: 200.0          # Hz
-
     # ---- EKF tuning ----
     transform_tolerance: 0.2    # seconds into the future for TF
-    process_noise_scale: 10.0    # multiplier on odom covariance for Q
-    amcl_max_latency_sec: 0.08  # Drop AMCL updates older than 80 ms
+    process_noise_scale: 0.2    # multiplier on odom covariance for Q
+    amcl_max_latency_sec: 0.10  # Drop AMCL updates older than 80 ms
