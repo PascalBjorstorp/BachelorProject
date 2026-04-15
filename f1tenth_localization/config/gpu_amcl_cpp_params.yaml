@@ -88,7 +88,6 @@ gpu_amcl_cpp:
 
     # ---- Publishing ----
     cloud_publish_rate: 0.1      # Hz — particle cloud visualization rate (lower saves GPU bandwidth)
-    transform_tolerance: 0.2
 
 
 
@@ -126,6 +125,6 @@ ekf_localization:
     base_frame: "ego_racecar/base_link"
 
     # ---- EKF tuning ----
-    transform_tolerance: 0.2    # seconds into the future for TF
+    transform_tolerance: 0.02    # seconds into the future for TF
     process_noise_scale: 0.2    # multiplier on odom covariance for Q
     amcl_max_latency_sec: 0.10  # Drop AMCL updates older than 80 ms
