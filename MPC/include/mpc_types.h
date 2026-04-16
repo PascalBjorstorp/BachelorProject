@@ -48,7 +48,7 @@
 #define WEIGHT_ACCEL_EFFORT 0.0065f                      /* Penalizes longitudinal acceleration effort to smooth throttle/brake usage. */
 #define WEIGHT_STEER_RATE 0.063f                         /* Penalizes steering-rate change to reduce steering jerk. */
 #define WEIGHT_ACCEL_RATE 0.17f                          /* Penalizes acceleration change to reduce longitudinal jerk. */
-#define WEIGHT_DELTA_ACTUAL 0.03f                         /* Penalizes steering-state bias away from curvature feedforward. */
+#define WEIGHT_DELTA_ACTUAL 0.03f                        /* Penalizes steering-state bias away from curvature feedforward. */
 
 /* Other swept MPC defaults */
 #define MAX_ITERATIONS 100                               /* Default solver iteration budget per control update. */

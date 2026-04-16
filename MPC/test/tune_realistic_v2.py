@@ -1,31 +1,21 @@
 #!/usr/bin/env python3
 """
-MPC Weight Tuning for Hardware Map (REALISTIC_SIM=1 Mode)
-==========================================================
-Sweeps MPC weights, horizons, and solver parameters on the hardware
-SLAM-mapped track (~22m, 0.27-1.4m wide). Optimized for maximum velocity
-while maintaining safety under all realistic effects.
+Base MPC tuning for the hardware map.
+=====================================
+Sweeps MPC weights, horizons, and solver timing on the hardware
+SLAM-mapped track (~22m, 0.27-1.4m wide).
 
 Usage:
     python3 test/tune_realistic_v2.py                        # Full sweep (all CPUs)
-    python3 test/tune_realistic_v2.py --jobs 8               # Use 8 parallel workers
-    python3 test/tune_realistic_v2.py -j 4                   # Use 4 workers
-    python3 test/tune_realistic_v2.py --objective fastest    # Speed-first + recovery scoring
-    python3 test/tune_realistic_v2.py --objective tracker    # Tracking-first scoring
-    python3 test/tune_realistic_v2.py --raceline my_track_raceline.csv
-    python3 test/tune_realistic_v2.py --rho-fixed 18 --rho-u-fixed 24 --alpha-fixed 1.05 --tol-fixed 0.05 --run-phase5
-    python3 test/tune_realistic_v2.py --allow-solver-sweep --run-phase5
-    python3 test/tune_realistic_v2.py --t-sweep-feasible     # Default: strict feasible T pairs
-    python3 test/tune_realistic_v2.py --t-sweep-wide         # Explore short+long T pairs
+    python3 test/tune_realistic_v2.py -j 0                   # Use all workers
 
-The sweep runs 8 phases:
+The sweep runs 6 phases:
     Phase 1: One-at-a-time parameter sensitivity
     Phase 2: Primary grid (Q_LAT x Q_HDG x Q_VEL x HORIZON x PRED_DT)
     Phase 4: Secondary grid (Q_LAT_VEL x Q_YAW x R_STEER x W_JERK x R_ACCEL x W_ACCEL_RATE)
-    Phase 5: Solver parameters (RHO x RHO_U x ALPHA x TOL)
     Phase 6: Fine-tuning around best config
     Phase 7: Random neighbor exploration
-    Phase 8: Random exploitation around branch best
+    Phase 8: Random exploitation around current best
 
 Each configuration is evaluated across deterministic robustness scenarios:
     1. A standard raceline launch with off-raceline recovery start
@@ -34,10 +24,6 @@ Each configuration is evaluated across deterministic robustness scenarios:
 
 Phase 2 promotes an initial seed, then Phases 4-8 repeatedly refine the
 current global best.
-
-Default solver policy:
-    - Solver tuple (RHO, RHO_U, ALPHA, TOL) is frozen in non-Phase-5 behavior sweeps.
-    - Phase 5 solver sweep is disabled by default unless explicitly enabled.
 """
 
 import subprocess
@@ -61,25 +47,10 @@ from concurrent.futures import ProcessPoolExecutor, wait, FIRST_COMPLETED
 # ==============================================================================
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
-TRAJ_DIR = os.path.join(os.path.dirname(PROJECT_DIR), "f1tenth_planning", "trajectories")
+TRAJ_DIR = os.path.join(PROJECT_DIR, "trajectories")
 
-HORIZON_SWEEP_VALUES = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36]
-HORIZON_LIMIT = 40
-FASTEST_T_SWEEP_PAIRS_FEASIBLE = [
-    (10, 0.032),
-    (10, 0.034),  # 0.34 s
-    (10, 0.036),
-]
-FASTEST_T_SWEEP_PAIRS_WIDE = [
-    (10, 0.034),  # 0.34 s
-    (12, 0.032),  # 0.384 s
-    (14, 0.036),  # 0.504 s
-    (19, 0.040),  # 0.76 s
-    (25, 0.040),  # 1.00 s
-    (31, 0.040),  # 1.24 s
-    (30, 0.050),  # 1.50 s
-]
-WIDE_T_SWEEP_ENABLED = True
+HORIZON_SWEEP_VALUES = [10, 12, 14, 16, 18, 20, 24, 28, 30]
+HORIZON_LIMIT = 50
 
 # ==============================================================================
 # HARDWARE MAP CONFIGURATION
@@ -90,175 +61,208 @@ RACELINE_PATH = os.path.join(TRAJ_DIR, DEFAULT_RACELINE_NAME)
 RACELINE_TAG = "my_track"
 WALL_MARGIN = 0.20
 
-# Base configuration - starting point for all sweeps
-BASE_CONFIG = {
-    "Q_LAT":        9000.0,
-    "Q_HDG":        900.0,
-    "Q_VEL":        220.0,
-    "Q_LAT_VEL":    10.0,
-    "Q_YAW":        4.5,
-    "R_STEER":      0.55,
-    "R_ACCEL":      0.012,
-    "W_JERK":       0.16,
-    "W_ACCEL_RATE": 0.14,
-    "RHO":          18.0,
-    "RHO_U":        24.0,
-    "ALPHA":        1.05,
-    "TOL":          0.05,
-    "MAX_ITER":     100,
-    "WALL_END":     12,
-    "WALL_STRIDE":  1,
-    "WALL_MARGIN":  0.20,
-    "HORIZON":      12,
-    "PRED_DT":      0.032,
-}
-
-# Override base for fastest objective
-FASTEST_BASE_OVERRIDES = {
-    "Q_LAT": 7814.724928,
-    "Q_HDG": 1303.538363,
-    "Q_VEL": 91.166329,
-    "Q_LAT_VEL": 8.295476,
-    "Q_YAW": 3.335847,
-    "R_STEER": 1.819576,
-    "R_ACCEL": 0.008587,
-    "W_JERK": 0.105466,
-    "W_ACCEL_RATE": 0.182456,
+# Base override seed
+BASE_OVERRIDES = {
+    # Seeded from top row in tuning_hardware_fastest_20260410_231743_sorted.csv
+    "Q_LAT": 9660.42,
+    "Q_HDG": 1400.0,
+    "Q_VEL": 132.192,
+    "Q_LAT_VEL": 4.59,
+    "Q_YAW": 2.112,
+    "R_STEER": 2.244,
+    "R_ACCEL": 0.0065,
+    "W_JERK": 0.063,
+    "W_ACCEL_RATE": 0.17,
+    "MPC_W_DELTA_ACTUAL": 0.03,
     "HORIZON": 10,
-    "PRED_DT": 0.034,
+    "PRED_DT": 0.032,
     "RHO": 18.0,
     "RHO_U": 24.0,
     "ALPHA": 1.05,
     "TOL": 0.05,
-    "WALL_END": 10,
-    "WALL_MARGIN": 0.2,
     "MAX_ITER": 100,
+    "WALL_END": 10,
+    "WALL_STRIDE": 1,
+    "WALL_MARGIN": 0.2,
 }
 
 # ==============================================================================
 # SWEEP VALUE RANGES - PHASE 2 (Primary Grid)
 # ==============================================================================
 
-PHASE2_VALUES = {
-    "Q_LAT": [1200, 1800, 2600, 3600, 5000, 7000, 9500, 12500, 16000],
-    "Q_HDG": [80, 140, 220, 320, 460, 640, 860, 1120, 1500],
-    "Q_VEL": [100, 140, 180, 240, 320, 420, 540, 700, 900],
-    "HORIZON": [10, 12, 14, 16, 18, 20, 24, 28, 30, 40, 50],
-    "PRED_DT": [0.032, 0.034, 0.036, 0.038, 0.04, 0.042, 0.045, 0.05],
-}
-
-PHASE2_VALUES_FASTEST = {
-    # Low-tolerance (TOL=0.05) anchors from strict-regime feasibility probes.
-    "Q_LAT": [5800, 6600, 7400, 8200, 9000],
-    "Q_HDG": [1100, 1250, 1400, 1550],
-    "Q_VEL": [75, 90, 105, 120],
-    "HORIZON": [10],
-    "PRED_DT": [0.032, 0.034, 0.036],
+PHASE2_VALUES_BASE = {
+    # Large primary grid centered around the attached best CSV seed.
+    # Sweeps grouped solver bucket profile as one config value
+    # (HORIZON+PRED_DT+RHO+RHO_U+TOL tied together).
+    # 6*5*5*4*4*4*3*10 = 288,000 configs.
+    "Q_LAT": [8200.0, 9000.0, 9660.42, 10300.0, 11200.0, 12200.0],
+    "Q_HDG": [1100.0, 1250.0, 1400.0, 1550.0, 1700.0],
+    "Q_VEL": [95.0, 110.0, 122.4, 132.192, 145.0],
+    "Q_LAT_VEL": [3.8, 4.59, 5.8, 7.2],
+    "Q_YAW": [1.8, 2.112, 2.8, 3.4],
+    "R_STEER": [1.9, 2.1, 2.244, 2.5],
+    "MPC_W_DELTA_ACTUAL": [0.02, 0.03, 0.05],
+    "SOLVER_BUCKET": ["t01", "t02", "t03", "t04", "t05", "t06", "t07", "t08", "t09", "t10"],
 }
 
 # ==============================================================================
 # SWEEP VALUE RANGES - ALL PARAMETERS (for one-at-a-time and fine-tuning)
 # ==============================================================================
 
-FULL_SWEEP_VALUES = {
-    "Q_LAT":        [1000, 1400, 2000, 2800, 3800, 5200, 7000, 9200, 12000, 15500],
-    "Q_HDG":        [60, 100, 160, 240, 340, 480, 680, 920, 1250, 1600],
-    "Q_VEL":        [100, 140, 180, 240, 320, 420, 540, 700, 900],
-    "Q_LAT_VEL":    [2, 4, 6, 8, 10, 12, 16, 20],
-    "Q_YAW":        [0.5, 1, 2, 3, 4.5, 6, 8],
-    "R_STEER":      [0.30, 0.40, 0.52, 0.65, 0.75, 0.90, 1.05],
-    "R_ACCEL":      [0.006, 0.008, 0.01, 0.012, 0.014, 0.016],
-    "W_JERK":       [0.02, 0.04, 0.06, 0.08, 0.10, 0.14, 0.20],
-    "W_ACCEL_RATE": [0.05, 0.07, 0.09, 0.11, 0.14, 0.18],
-    "HORIZON":      [10, 12, 14, 16, 18, 20, 24],
-    "RHO":          [20, 28, 36, 44, 52, 60],
-    "RHO_U":        [10, 14, 18, 24, 30],
-    "ALPHA":        [0.9, 1.0, 1.1, 1.2, 1.3],
-    "PRED_DT":      [0.032, 0.034, 0.036, 0.038, 0.04, 0.042, 0.045, 0.05],
-    "TOL":          [3.5, 4.0, 4.5, 5.0, 5.5],
-}
-
-FULL_SWEEP_VALUES_FASTEST = {
-    "Q_LAT":        [5200, 6200, 7200, 8200, 9200],
-    "Q_HDG":        [950, 1100, 1250, 1400, 1550],
-    "Q_VEL":        [70, 85, 100, 115, 130],
-    "Q_LAT_VEL":    [5.0, 6.5, 8.0, 9.5, 11.5],
-    "Q_YAW":        [2.0, 2.8, 3.6, 4.5],
-    "R_STEER":      [1.3, 1.5, 1.7, 1.9, 2.2, 2.4],
-    "R_ACCEL":      [0.0060, 0.0070, 0.0080, 0.0090, 0.0105],
-    "W_JERK":       [0.07, 0.09, 0.11, 0.13, 0.16],
-    "W_ACCEL_RATE": [0.13, 0.16, 0.19, 0.22, 0.25],
-    "HORIZON":      [10],
+FULL_SWEEP_VALUES_BASE = {
+    "Q_LAT":        [8200.0, 9000.0, 9660.42, 10300.0, 11000.0],
+    "Q_HDG":        [1100.0, 1250.0, 1400.0, 1550.0, 1700.0],
+    "Q_VEL":        [95.0, 110.0, 122.4, 132.192, 145.0],
+    "Q_LAT_VEL":    [3.8, 4.59, 5.6, 7.0, 8.5],
+    "Q_YAW":        [1.8, 2.112, 2.6, 3.2, 3.8],
+    "R_STEER":      [1.8, 2.1, 2.244, 2.5, 2.8],
+    "R_ACCEL":      [0.0058, 0.0065, 0.0075, 0.0085, 0.0095],
+    "W_JERK":       [0.05, 0.063, 0.08, 0.10, 0.12],
+    "W_ACCEL_RATE": [0.14, 0.16, 0.17, 0.19, 0.22],
+    "MPC_W_DELTA_ACTUAL": [0.02, 0.03, 0.05, 0.08],
+    "HORIZON":      HORIZON_SWEEP_VALUES,
     "RHO":          [14, 18, 22],
     "RHO_U":        [20, 24, 28],
-    "ALPHA":        [1.00, 1.05, 1.10],
-    "PRED_DT":      [0.032, 0.034, 0.036],
+    "PRED_DT":      [0.032, 0.034, 0.036, 0.038, 0.04, 0.045, 0.05],
     "TOL":          [0.03, 0.05, 0.08, 0.10],
 }
 
 # ==============================================================================
-# PHASE 4: Secondary Grid Values (~2000 configs)
+# PHASE 4: Secondary Grid Values (~18,000 configs)
 # Q_LAT_VEL x Q_YAW x R_STEER x W_JERK x R_ACCEL x W_ACCEL_RATE
 # ==============================================================================
 
-PHASE4_VALUES = {
-    "Q_LAT_VEL":    [2, 4, 6, 8, 10, 12, 16, 20],
-    "Q_YAW":        [0.5, 1, 2, 3, 4.5, 6, 8],
-    "R_STEER":      [0.30, 0.40, 0.52, 0.65, 0.75, 0.90, 1.05],
-    "W_JERK":       [0.02, 0.04, 0.06, 0.08, 0.10, 0.14, 0.20],
-    "R_ACCEL":      [0.008, 0.01, 0.012, 0.014, 0.016],
-    "W_ACCEL_RATE": [0.06, 0.08, 0.10, 0.12, 0.14, 0.18],
-}
-
-PHASE4_VALUES_FASTEST = {
-    "Q_LAT_VEL":    [5.0, 6.5, 8.0, 9.5, 11.0],
-    "Q_YAW":        [2.2, 2.8, 3.4, 4.0, 4.6],
-    "R_STEER":      [1.4, 1.6, 1.8, 2.0, 2.2],
-    "W_JERK":       [0.07, 0.09, 0.11, 0.13, 0.15],
-    "R_ACCEL":      [0.0065, 0.0075, 0.0085, 0.0095, 0.0105],
-    "W_ACCEL_RATE": [0.14, 0.17, 0.20, 0.23, 0.26],
+PHASE4_VALUES_BASE = {
+    "Q_LAT_VEL":    [3.8, 4.59, 5.6, 7.0, 8.5],
+    "Q_YAW":        [1.8, 2.112, 2.6, 3.2, 3.8],
+    "R_STEER":      [1.8, 2.1, 2.244, 2.5],
+    "W_JERK":       [0.05, 0.063, 0.08, 0.10],
+    "R_ACCEL":      [0.0058, 0.0065, 0.0075, 0.0085, 0.0095],
+    "W_ACCEL_RATE": [0.15, 0.17, 0.21],
+    "MPC_W_DELTA_ACTUAL": [0.02, 0.03, 0.05],
 }
 
 # ==============================================================================
-# PHASE 5: Solver Grid Values (~2000 configs)
-# RHO x RHO_U x ALPHA x TOL
+# SOLVER BUCKETS (lookahead-based)
+# T = HORIZON * PRED_DT -> (RHO, RHO_U, TOL)
 # ==============================================================================
 
-PHASE5_VALUES = {
-    "RHO":      [14, 18, 22],
-    "RHO_U":    [20, 24, 28],
-    "ALPHA":    [1.0, 1.05, 1.1],
-    "TOL":      [0.03, 0.05, 0.08, 0.10],
-}
+SOLVER_BUCKETS = [
+    {
+        "name": "t01",
+        "t_max": 0.35,
+        "horizon": 10,
+        "pred_dt": 0.032,
+        "rho": 18.0,
+        "rho_u": 24.0,
+        "tol": 0.05,
+    },
+    {
+        "name": "t02",
+        "t_max": 0.45,
+        "horizon": 10,
+        "pred_dt": 0.034,
+        "rho": 22.0,
+        "rho_u": 28.0,
+        "tol": 0.055,
+    },
+    {
+        "name": "t03",
+        "t_max": 0.55,
+        "horizon": 12,
+        "pred_dt": 0.036,
+        "rho": 26.0,
+        "rho_u": 31.0,
+        "tol": 0.06,
+    },
+    {
+        "name": "t04",
+        "t_max": 0.70,
+        "horizon": 14,
+        "pred_dt": 0.040,
+        "rho": 30.0,
+        "rho_u": 34.0,
+        "tol": 0.068,
+    },
+    {
+        "name": "t05",
+        "t_max": 0.85,
+        "horizon": 16,
+        "pred_dt": 0.042,
+        "rho": 34.0,
+        "rho_u": 37.0,
+        "tol": 0.075,
+    },
+    {
+        "name": "t06",
+        "t_max": 1.00,
+        "horizon": 18,
+        "pred_dt": 0.045,
+        "rho": 38.0,
+        "rho_u": 40.0,
+        "tol": 0.082,
+    },
+    {
+        "name": "t07",
+        "t_max": 1.15,
+        "horizon": 20,
+        "pred_dt": 0.045,
+        "rho": 42.0,
+        "rho_u": 42.0,
+        "tol": 0.089,
+    },
+    {
+        "name": "t08",
+        "t_max": 1.30,
+        "horizon": 24,
+        "pred_dt": 0.045,
+        "rho": 45.0,
+        "rho_u": 44.0,
+        "tol": 0.095,
+    },
+    {
+        "name": "t09",
+        "t_max": 1.40,
+        "horizon": 24,
+        "pred_dt": 0.050,
+        "rho": 47.0,
+        "rho_u": 45.0,
+        "tol": 0.098,
+    },
+    {
+        "name": "t10",
+        "t_max": 1.50,
+        "horizon": 30,
+        "pred_dt": 0.050,
+        "rho": 48.0,
+        "rho_u": 46.0,
+        "tol": 0.10,
+    },
+]
+
+SOLVER_BUCKETS_BY_NAME = {b["name"]: b for b in SOLVER_BUCKETS}
+
+# Evaluate each weight candidate across multiple lookahead anchors so
+# promotion does not overfit to one short-horizon operating point.
+GLOBAL_WEIGHT_REGION_HDT = [
+    (10, 0.032),  # best-csv seed operating point
+    (10, 0.034),  # short-alt
+    (12, 0.036),
+    (16, 0.040),
+    (20, 0.045),  # medium
+    (24, 0.050),
+    (30, 0.050),  # long (T=1.5)
+]
+
+# Candidate is globally passable if enough anchors are promotable.
+GLOBAL_HDT_MIN_PASS_RATIO = 0.50
 
 # ==============================================================================
 # RANDOM NEIGHBOR PROFILES
 # ==============================================================================
 
 RANDOM_PROFILES = {
-    "tracker": {
-        "num_perturb_range": (3, 6),
-        "default_multipliers": [0.85, 0.95, 1.0, 1.1, 1.2],
-        "param_multipliers": {
-            "Q_LAT": [0.9, 0.97, 1.0, 1.08, 1.18],
-            "Q_HDG": [0.9, 0.97, 1.0, 1.08, 1.18],
-            "Q_VEL": [0.9, 0.95, 1.0, 1.05],
-            "Q_LAT_VEL": [0.75, 0.9, 1.0, 1.15, 1.3],
-            "Q_YAW": [0.75, 0.9, 1.0, 1.15, 1.3],
-            "R_STEER": [0.85, 0.95, 1.0, 1.15, 1.3],
-            "R_ACCEL": [0.7, 0.85, 1.0, 1.2, 1.4],
-            "W_JERK": [0.85, 0.95, 1.0, 1.15, 1.3],
-            "W_ACCEL_RATE": [0.7, 0.85, 1.0, 1.2, 1.4],
-            "RHO": [0.75, 0.9, 1.0, 1.15, 1.35],
-            "RHO_U": [0.75, 0.9, 1.0, 1.15, 1.35],
-        },
-        "discrete": {
-            "HORIZON": HORIZON_SWEEP_VALUES,
-            "PRED_DT": [0.04, 0.045, 0.05, 0.055, 0.06],
-            "ALPHA": [0.9, 0.93, 1.0, 1.1, 1.2],
-        },
-    },
-    "fastest": {
+    "base": {
         "num_perturb_range": (3, 6),
         "default_multipliers": [0.96, 0.99, 1.0, 1.03, 1.06],
         "param_multipliers": {
@@ -275,34 +279,11 @@ RANDOM_PROFILES = {
             "RHO_U": [0.92, 0.97, 1.0, 1.04, 1.1],
         },
         "discrete": {
-            "HORIZON": [10, 12, 14],
-            "PRED_DT": [0.032, 0.034, 0.036],
-            "ALPHA": [1.0, 1.05, 1.1],
-        },
-    },
-    "tracker_exploit": {
-        "num_perturb_range": (2, 4),
-        "default_multipliers": [0.95, 0.98, 1.0, 1.02, 1.05],
-        "param_multipliers": {
-            "Q_LAT": [0.96, 0.99, 1.0, 1.02, 1.05],
-            "Q_HDG": [0.96, 0.99, 1.0, 1.02, 1.05],
-            "Q_VEL": [0.97, 1.0, 1.03, 1.06],
-            "Q_LAT_VEL": [0.9, 0.97, 1.0, 1.05, 1.1],
-            "Q_YAW": [0.9, 0.97, 1.0, 1.05, 1.1],
-            "R_STEER": [0.92, 0.98, 1.0, 1.05, 1.1],
-            "R_ACCEL": [0.9, 0.97, 1.0, 1.05, 1.1],
-            "W_JERK": [0.9, 0.97, 1.0, 1.05, 1.1],
-            "W_ACCEL_RATE": [0.9, 0.97, 1.0, 1.05, 1.1],
-            "RHO": [0.9, 0.97, 1.0, 1.06, 1.12],
-            "RHO_U": [0.9, 0.97, 1.0, 1.06, 1.12],
-        },
-        "discrete": {
             "HORIZON": HORIZON_SWEEP_VALUES,
-            "PRED_DT": [0.04, 0.045, 0.05, 0.055],
-            "ALPHA": [0.9, 0.93, 1.0, 1.1],
+            "PRED_DT": [0.032, 0.034, 0.036, 0.038, 0.04, 0.045, 0.05],
         },
     },
-    "fastest_exploit": {
+    "base_exploit": {
         "num_perturb_range": (2, 3),
         "default_multipliers": [0.97, 0.99, 1.0, 1.02, 1.05],
         "param_multipliers": {
@@ -319,9 +300,8 @@ RANDOM_PROFILES = {
             "RHO_U": [0.96, 0.99, 1.0, 1.02, 1.05],
         },
         "discrete": {
-            "HORIZON": [10, 12, 14],
-            "PRED_DT": [0.032, 0.034, 0.036],
-            "ALPHA": [1.0, 1.05, 1.1],
+            "HORIZON": HORIZON_SWEEP_VALUES,
+            "PRED_DT": [0.032, 0.034, 0.036, 0.038, 0.04, 0.045, 0.05],
         },
     },
 }
@@ -330,7 +310,7 @@ RANDOM_PROFILES = {
 # CONSTANTS
 # ==============================================================================
 
-INT_PARAMS = {"HORIZON", "WALL_END", "WALL_STRIDE", "MAX_ITER"}
+INT_PARAMS = {"HORIZON", "MAX_ITER"}
 
 SCENARIO_VEHICLE_HALF_WIDTH = 0.137
 SCENARIO_BODY_SAFETY_MARGIN = 0.06
@@ -364,7 +344,7 @@ ENABLE_SCENARIO_AUDIT = True
 DETERMINISTIC_OBSTACLE_PROFILES = {
     "avoid_single": {
         "objects": [
-            {"s_fraction": 0.78, "lateral_offset": -0.04},
+            {"s_fraction": 0.62, "lateral_offset": -0.04},
         ],
     },
     "avoid_double": {
@@ -386,14 +366,11 @@ CASCADE_TOP_N = 4   # Top-N seeds promoted from Phase 2 into Phase 4
 SEED = 42           # Fixed seed for reproducibility
 GLOBAL_OPTIMIZATION_PASSES = 4  # Repeated refinement passes for Phases 5-8
 INCLUDE_OBSTACLE_SCENARIOS = True
-PHASE7_RANDOM_COUNT = {"tracker": 900, "fastest": 2000}
-PHASE8_RANDOM_COUNT = {"tracker": 450, "fastest": 3000}
-STRICT_FASTEST_PROMOTION = True
-TOL_OVERRIDE_VALUES = None  # Optional list of allowed TOL values from CLI.
-SOLVER_PARAM_KEYS = ("RHO", "RHO_U", "ALPHA", "TOL")
-FREEZE_SOLVER_BEHAVIOR_SWEEPS = True
-RUN_PHASE5_SOLVER_SWEEP = False
-DIVERSITY_KEYS = ["Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW", "R_STEER", "R_ACCEL", "W_JERK", "W_ACCEL_RATE", "HORIZON", "PRED_DT"]
+PHASE7_RANDOM_COUNT = 2000
+PHASE8_RANDOM_COUNT = 3000
+STRICT_PROMOTION = True
+SOLVER_PARAM_KEYS = ("RHO", "RHO_U", "TOL")
+DIVERSITY_KEYS = ["Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW", "R_STEER", "R_ACCEL", "W_JERK", "W_ACCEL_RATE", "MPC_W_DELTA_ACTUAL", "HORIZON", "PRED_DT"]
 DIVERSITY_MIN_DISTANCE = 0.10
 
 # Keep summary print order aligned with swept define order in mpc_types.h.
@@ -401,8 +378,7 @@ MPC_TYPES_PRINT_ORDER = (
     "Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW",
     "R_STEER", "R_ACCEL", "W_JERK", "W_ACCEL_RATE",
     "HORIZON", "PRED_DT", "MAX_ITER", "WALL_MARGIN",
-    "TOL", "RHO", "RHO_U", "ALPHA",
-    "WALL_END", "WALL_STRIDE",
+    "TOL", "RHO", "RHO_U",
 )
 
 # Working copy of base config (modified during cascade)
@@ -1256,17 +1232,17 @@ def build_eval_scenarios(include_obstacles: bool = INCLUDE_OBSTACLE_SCENARIOS) -
 
 def get_primary_grid_values(objective: str) -> dict:
     """Return the Phase 2 sweep for the active objective."""
-    return PHASE2_VALUES_FASTEST if objective == "fastest" else PHASE2_VALUES
+    return PHASE2_VALUES_BASE
 
 
 def get_full_sweep_values(objective: str) -> dict:
     """Return the broad sweep values for the active objective."""
-    return FULL_SWEEP_VALUES_FASTEST if objective == "fastest" else FULL_SWEEP_VALUES
+    return FULL_SWEEP_VALUES_BASE
 
 
 def get_secondary_grid_values(objective: str) -> dict:
     """Return the Phase 4 sweep for the active objective."""
-    return PHASE4_VALUES_FASTEST if objective == "fastest" else PHASE4_VALUES
+    return PHASE4_VALUES_BASE
 
 
 def iter_ordered_base_keys():
@@ -1288,21 +1264,9 @@ def canonicalize_params(params: dict) -> dict:
     """Normalize params to the values MPC actually receives."""
     out = dict(params)
 
-    # Optional global TOL override: lock or quantize all generated configs.
-    if TOL_OVERRIDE_VALUES:
-        vals = [float(v) for v in TOL_OVERRIDE_VALUES]
-        if len(vals) == 1:
-            out["TOL"] = vals[0]
-        else:
-            tol_in = float(out.get("TOL", BASE.get("TOL", vals[0])))
-            out["TOL"] = min(vals, key=lambda v: abs(tol_in - v))
-    
-    # Hardware policy: WALL_END = HORIZON, WALL_STRIDE = 1
     h = int(float(out.get("HORIZON", BASE.get("HORIZON", HORIZON_LIMIT))))
     h = max(2, min(HORIZON_LIMIT, h))
     out["HORIZON"] = h
-    out["WALL_END"] = h
-    out["WALL_STRIDE"] = 1
     out["WALL_MARGIN"] = float(WALL_MARGIN)
     
     # Integer params
@@ -1651,8 +1615,8 @@ def promotable_fail_reasons(r: dict) -> list:
 
     return reasons
 
-def compute_tracker_score(r: dict) -> float:
-    """Tracker score: minimize trajectory-following errors (lower is better)."""
+def compute_reference_score(r: dict) -> float:
+    """Reference score: minimize trajectory-following errors (lower is better)."""
     if not is_safe_result(r):
         if r.get("status") != "OK":
             return 5000.0
@@ -1685,8 +1649,8 @@ def compute_tracker_score(r: dict) -> float:
     return round(tracking + solver, 3)
 
 
-def compute_fastest_score(r: dict) -> float:
-    """Fastest score: minimize lap-time estimate, then lightly break ties by stability."""
+def compute_base_score(r: dict) -> float:
+    """Base score: minimize lap-time estimate, then lightly break ties by stability."""
     if not is_safe_result(r):
         if r.get("status") != "OK":
             return 5000.0
@@ -1725,9 +1689,8 @@ def apply_scores(r: dict, objective: str) -> dict:
     r["promotable"] = 1 if not reasons else 0
     r["promotable_deficit"] = round(promotable_deficit_score(r), 6)
     r["promotable_reason"] = "|".join(reasons) if reasons else ""
-    r["tracker_score"] = compute_tracker_score(r)
-    r["fastest_score"] = compute_fastest_score(r)
-    r["score"] = r["tracker_score"] if objective == "tracker" else r["fastest_score"]
+    r["base_score"] = compute_base_score(r)
+    r["score"] = r["base_score"]
     return r
 
 
@@ -1759,34 +1722,34 @@ def gen_primary_grid(objective: str) -> list:
     ql_vals = values["Q_LAT"]
     qh_vals = values["Q_HDG"]
     qv_vals = values["Q_VEL"]
-    hdt_pairs = []
-    if objective == "fastest":
-        if WIDE_T_SWEEP_ENABLED:
-            hdt_pairs = list(FASTEST_T_SWEEP_PAIRS_WIDE)
-        else:
-            hdt_pairs = list(FASTEST_T_SWEEP_PAIRS_FEASIBLE)
-    else:
-        h_vals = values["HORIZON"]
-        pd_vals = values["PRED_DT"]
-        hdt_pairs = list(itertools.product(h_vals, pd_vals))
-
-    for ql, qh, qv, (h, pd) in itertools.product(ql_vals, qh_vals, qv_vals, hdt_pairs):
+    qlv_vals = values["Q_LAT_VEL"]
+    qy_vals = values["Q_YAW"]
+    rs_vals = values["R_STEER"]
+    wda_vals = values["MPC_W_DELTA_ACTUAL"]
+    sb_vals = values["SOLVER_BUCKET"]
+    for ql, qh, qv, qlv, qy, rs, wda, sb in itertools.product(
+            ql_vals, qh_vals, qv_vals, qlv_vals, qy_vals, rs_vals, wda_vals, sb_vals):
         w = dict(BASE)
         w["Q_LAT"] = ql
         w["Q_HDG"] = qh
         w["Q_VEL"] = qv
-        w["HORIZON"] = h
-        w["PRED_DT"] = pd
-        w["WALL_END"] = h
-        
+        w["Q_LAT_VEL"] = qlv
+        w["Q_YAW"] = qy
+        w["R_STEER"] = rs
+        w["MPC_W_DELTA_ACTUAL"] = wda
+        w["SOLVER_BUCKET"] = sb
+        w = apply_solver_bucket(w)
         if is_valid_config(w):
-            combos.append((f"L={ql}+H={qh}+V={qv}+N={h}+dt={pd}", w))
+            combos.append((
+                f"L={ql}+H={qh}+V={qv}+LV={qlv}+Y={qy}+RS={rs}+WDA={wda}+SB={sb}+HZ={int(w['HORIZON'])}+DT={float(w['PRED_DT']):.3f}+CFG",
+                w,
+            ))
     
     return combos
 
 
 def gen_secondary_grid(objective: str) -> list:
-    """Phase 4: Secondary parameters grid (includes R_ACCEL and W_ACCEL_RATE)."""
+    """Phase 4: Secondary parameters grid."""
     combos = []
     
     values = get_secondary_grid_values(objective)
@@ -1796,9 +1759,10 @@ def gen_secondary_grid(objective: str) -> list:
     wj_vals = values["W_JERK"]
     ra_vals = values["R_ACCEL"]
     war_vals = values["W_ACCEL_RATE"]
+    wda_vals = values["MPC_W_DELTA_ACTUAL"]
     
-    for qlv, qy, rs, wj, ra, war in itertools.product(
-            qlv_vals, qy_vals, rs_vals, wj_vals, ra_vals, war_vals):
+    for qlv, qy, rs, wj, ra, war, wda in itertools.product(
+            qlv_vals, qy_vals, rs_vals, wj_vals, ra_vals, war_vals, wda_vals):
         w = dict(BASE)
         w["Q_LAT_VEL"] = qlv
         w["Q_YAW"] = qy
@@ -1806,29 +1770,9 @@ def gen_secondary_grid(objective: str) -> list:
         w["W_JERK"] = wj
         w["R_ACCEL"] = ra
         w["W_ACCEL_RATE"] = war
-        combos.append((f"LV={qlv}+Y={qy}+RS={rs}+WJ={wj}+RA={ra}+WAR={war}", w))
-    
-    return combos
+        w["MPC_W_DELTA_ACTUAL"] = wda
+        combos.append((f"LV={qlv}+Y={qy}+RS={rs}+WJ={wj}+RA={ra}+WAR={war}+WDA={wda}", w))
 
-
-def gen_solver_grid() -> list:
-    """Phase 5: Solver parameters grid (RHO x RHO_U x ALPHA x TOL)."""
-    combos = []
-    
-    rho_vals = PHASE5_VALUES["RHO"]
-    rho_u_vals = PHASE5_VALUES["RHO_U"]
-    alpha_vals = PHASE5_VALUES["ALPHA"]
-    tol_vals = PHASE5_VALUES["TOL"]
-    
-    for rho, rho_u, alpha, tol in itertools.product(
-            rho_vals, rho_u_vals, alpha_vals, tol_vals):
-        w = dict(BASE)
-        w["RHO"] = rho
-        w["RHO_U"] = rho_u
-        w["ALPHA"] = alpha
-        w["TOL"] = tol
-        combos.append((f"rho={rho}+ru={rho_u}+a={alpha}+tol={tol}", w))
-    
     return combos
 
 
@@ -1836,7 +1780,7 @@ def gen_fine_tuning(best_weights: dict) -> list:
     """Phase 6: Fine-tuning around best config (~2000 configs)."""
     combos = []
     pct_range = (0.80, 0.85, 0.90, 0.92, 0.95, 0.97, 1.03, 1.05, 1.08, 1.10, 1.15, 1.20)
-    skip = {"MAX_ITER", "HORIZON", "WALL_STRIDE", "WALL_END", "WALL_MARGIN"}
+    skip = {"MAX_ITER", "HORIZON", "WALL_MARGIN"}
     
     # Single parameter perturbations
     for name, base_val in best_weights.items():
@@ -1881,8 +1825,8 @@ def gen_random_neighbors(best_weights: dict, n: int, objective: str,
     """Generate random perturbations around best config for exploration/exploitation phases."""
     combos = []
     rng = random.Random(SEED + seed_offset)
-    profile_name = profile_override if profile_override else objective
-    profile = RANDOM_PROFILES.get(profile_name, RANDOM_PROFILES["tracker"])
+    profile_name = profile_override if profile_override else "base"
+    profile = RANDOM_PROFILES.get(profile_name, RANDOM_PROFILES["base"])
     
     discrete = profile.get("discrete", {})
     param_multipliers = profile.get("param_multipliers", {})
@@ -1890,8 +1834,9 @@ def gen_random_neighbors(best_weights: dict, n: int, objective: str,
     min_perturb, max_perturb = profile.get("num_perturb_range", (3, 6))
     
     tune_params = [k for k in best_weights.keys()
-                   if k not in ("MAX_ITER", "WALL_END", "WALL_STRIDE", "WALL_MARGIN") 
+                   if k not in ("MAX_ITER", "WALL_MARGIN") 
                    and best_weights[k] != 0]
+    tune_params = [k for k in tune_params if k not in ("HORIZON", "PRED_DT")]
     
     i = 0
     attempts = 0
@@ -1962,18 +1907,125 @@ class IncrementalCSV:
             writer.writerow(row)
 
 
-def lock_solver_tuple(params: dict, solver_tuple: dict) -> dict:
-    """Return params with solver tuple forced to a fixed set of values."""
+def select_solver_bucket(params: dict) -> dict:
+    """Select grouped HORIZON/PRED_DT/RHO/RHO_U/TOL solver bucket."""
+    explicit_name = str(params.get("SOLVER_BUCKET", "") or "").strip()
+    if explicit_name:
+        bucket = SOLVER_BUCKETS_BY_NAME.get(explicit_name)
+        if bucket is None:
+            bucket = SOLVER_BUCKETS[0]
+        return {
+            "HORIZON": int(bucket["horizon"]),
+            "PRED_DT": float(bucket["pred_dt"]),
+            "RHO": float(bucket["rho"]),
+            "RHO_U": float(bucket["rho_u"]),
+            "TOL": float(bucket["tol"]),
+        }
+
+    # Fallback path: infer bucket from current HORIZON/PRED_DT by T=H*dt.
+    h = int(float(params.get("HORIZON", BASE.get("HORIZON", 10)) or 10))
+    dt = float(params.get("PRED_DT", BASE.get("PRED_DT", 0.034)) or 0.034)
+    lookahead_t = max(0.01, float(h) * dt)
+
+    selected = SOLVER_BUCKETS[-1]
+    for bucket in SOLVER_BUCKETS:
+        if lookahead_t <= float(bucket["t_max"]):
+            selected = bucket
+            break
+
+    return {
+        "HORIZON": int(h),
+        "PRED_DT": float(dt),
+        "RHO": float(selected["rho"]),
+        "RHO_U": float(selected["rho_u"]),
+        "TOL": float(selected["tol"]),
+    }
+
+
+def apply_solver_bucket(params: dict) -> dict:
+    """Return params with solver tuple overridden by T=H*dt bucket schedule."""
     out = dict(params)
-    for key in SOLVER_PARAM_KEYS:
-        if key in solver_tuple and solver_tuple[key] is not None:
-            out[key] = solver_tuple[key]
+    out.update(select_solver_bucket(out))
     return out
 
 
-def should_freeze_solver_for_phase(phase_name: str, freeze_solver_behavior: bool) -> bool:
-    """Freeze solver params in all behavior phases unless explicitly disabled."""
-    return freeze_solver_behavior and not str(phase_name).startswith("Phase 5:")
+def aggregate_global_hdt_rows(rows: list) -> dict:
+    """Aggregate per-anchor results into a single global-region score row."""
+    if not rows:
+        return {
+            "status": "EXIT_FAIL",
+            "score": 999999.0,
+            "base_score": 999999.0,
+            "promotable": 0,
+            "promotable_reason": "no_rows",
+        }
+
+    first = rows[0]
+    out = dict(first)
+
+    count = len(rows)
+    avg = lambda key: sum(float(r.get(key, 0.0) or 0.0) for r in rows) / float(count)
+    minv = lambda key: min(float(r.get(key, 0.0) or 0.0) for r in rows)
+    maxv = lambda key: max(float(r.get(key, 0.0) or 0.0) for r in rows)
+
+    non_promotable = [r for r in rows if not is_promotable_result(r)]
+    fail_count = len(non_promotable)
+    promotable_count = count - fail_count
+    min_promotable = max(1, int(math.ceil(GLOBAL_HDT_MIN_PASS_RATIO * float(count))))
+    pass_global = promotable_count >= min_promotable
+
+    mean_base = avg("base_score")
+    worst_base = maxv("base_score")
+    failure_penalty = 2000.0 * float(fail_count)
+    global_score = mean_base + (0.35 * worst_base) + failure_penalty
+
+    out["status"] = "OK" if pass_global else "EXIT_FAIL"
+    out["scenario_count"] = int(sum(int(r.get("scenario_count", 0) or 0) for r in rows))
+    out["scenario_failures"] = int(sum(int(r.get("scenario_failures", 0) or 0) for r in rows))
+    out["failed"] = int(sum(int(r.get("failed", 0) or 0) for r in rows))
+    out["failed_non_speed"] = int(sum(int(r.get("failed_non_speed", 0) or 0) for r in rows))
+    out["wall_collisions"] = int(sum(int(r.get("wall_collisions", 0) or 0) for r in rows))
+
+    out["avg_lat_err"] = avg("avg_lat_err")
+    out["avg_hdg_err"] = avg("avg_hdg_err")
+    out["avg_vx"] = minv("avg_vx")
+    out["avg_progress_mps"] = minv("avg_progress_mps")
+    out["scenario_race_avg_progress_mps"] = minv("scenario_race_avg_progress_mps")
+    out["scenario_race_status"] = "OK" if all(str(r.get("scenario_race_status", "")) == "OK" for r in rows) else "EXIT_FAIL"
+    out["solver_optimal_rate"] = minv("solver_optimal_rate")
+    out["solver_max_iter_rate"] = maxv("solver_max_iter_rate")
+    out["lap_time_est"] = avg("lap_time_est")
+
+    out["base_score"] = round(global_score, 6)
+    out["score"] = out["base_score"]
+    out["promotable"] = 1 if pass_global else 0
+    out["promotable_deficit"] = round(promotable_deficit_score(out), 6)
+    if not pass_global:
+        reasons = sorted(set(r.get("promotable_reason", "") for r in non_promotable if r.get("promotable_reason")))
+        out["promotable_reason"] = f"global_hdt_fail:{promotable_count}/{count}:" + ";".join(reasons[:4])
+    else:
+        out["promotable_reason"] = ""
+
+    out["global_hdt_count"] = count
+    out["global_hdt_promotable"] = promotable_count
+    out["global_hdt_set"] = "|".join(f"{int(r.get('HORIZON', 0))}x{float(r.get('PRED_DT', 0.0)):.3f}" for r in rows)
+    return out
+
+
+def build_global_hdt_region(center_h: int, center_dt: float) -> list:
+    """Build sweepable anchor set around candidate horizon/dt."""
+    anchors = set(GLOBAL_WEIGHT_REGION_HDT)
+    h = int(center_h)
+    dt = float(center_dt)
+    anchors.add((h, dt))
+
+    # Add local neighbors around candidate to sweep anchor region itself.
+    for dh, ddt in [(-4, -0.004), (-2, -0.002), (2, 0.002), (4, 0.004)]:
+        nh = int(max(min(h + dh, max(HORIZON_SWEEP_VALUES)), min(HORIZON_SWEEP_VALUES)))
+        ndt = max(0.032, min(0.050, dt + ddt))
+        anchors.add((nh, round(ndt, 3)))
+
+    return sorted(anchors, key=lambda x: (int(x[0]), float(x[1])))
 
 
 # ==============================================================================
@@ -1983,12 +2035,16 @@ def should_freeze_solver_for_phase(phase_name: str, freeze_solver_behavior: bool
 def _run_single(args):
     """Worker: run one test and return scored result."""
     label, params, binary, phase_name, objective, eval_scenarios, raceline_tag = args
-    r = run_test(params, binary, eval_scenarios=eval_scenarios)
+    p = apply_solver_bucket(dict(params))
+    r = run_test(p, binary, eval_scenarios=eval_scenarios)
     r = apply_scores(r, objective)
+    r.update(canonicalize_params(p))
+    r["global_hdt_count"] = 1
+    r["global_hdt_set"] = f"{int(r.get('HORIZON', 0))}x{float(r.get('PRED_DT', 0.0)):.3f}"
+
     r["label"] = label
     r["phase"] = phase_name
     r["raceline"] = raceline_tag
-    r.update(canonicalize_params(params))
     return r
 
 
@@ -1997,13 +2053,8 @@ def _run_single(args):
 # ==============================================================================
 
 def run_phase(phase_name: str, combos: list, binary: str, results: list,
-              t0: float, num_workers: int, csv_writer, objective: str,
-              freeze_solver_behavior: bool = True) -> tuple:
+              t0: float, num_workers: int, csv_writer, objective: str) -> tuple:
     """Run a sweep phase. Returns (passed, failed)."""
-    if should_freeze_solver_for_phase(phase_name, freeze_solver_behavior):
-        solver_tuple = {k: BASE.get(k) for k in SOLVER_PARAM_KEYS}
-        combos = [(label, lock_solver_tuple(params, solver_tuple)) for label, params in combos]
-
     combos = deduplicate(combos)
     
     if not combos:
@@ -2025,12 +2076,15 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
             eta = (total - i - 1) / max(rate, 0.01)
             print(f"  [{i+1:4d}/{total}] {label:55s} ", end="", flush=True)
             
-            r = run_test(params, binary)
+            p = apply_solver_bucket(dict(params))
+            r = run_test(p, binary)
             r = apply_scores(r, objective)
             r["label"] = label
             r["phase"] = phase_name
             r["raceline"] = RACELINE_TAG
-            r.update(canonicalize_params(params))
+            r.update(canonicalize_params(p))
+            r["global_hdt_count"] = 1
+            r["global_hdt_set"] = f"{int(r.get('HORIZON', 0))}x{float(r.get('PRED_DT', 0.0)):.3f}"
             results.append(r)
             
             if csv_writer:
@@ -2127,8 +2181,6 @@ def sanity_check_params(binary: str):
     for name, new_val in probes:
         p = dict(BASE)
         p[name] = new_val
-        if name == "HORIZON":
-            p["WALL_END"] = int(new_val)
         
         rr = run_test(p, binary)
         sig = (
@@ -2189,7 +2241,7 @@ def select_diverse_rows(rows: list, n: int) -> list:
     return selected
 
 
-def get_top_n_params(results: list, n: int = CASCADE_TOP_N, objective: str = "fastest") -> list:
+def get_top_n_params(results: list, n: int = CASCADE_TOP_N, objective: str = "base") -> list:
     """Return list of up to N best params dicts."""
     promotable = [r for r in results if is_promotable_result(r)]
     pool = promotable
@@ -2218,8 +2270,8 @@ def get_top_n_params(results: list, n: int = CASCADE_TOP_N, objective: str = "fa
                 x.get("wall_collisions", 999),
                 x.get("score", 99999)
             ))
-            if objective == "fastest" and STRICT_FASTEST_PROMOTION:
-                print("  WARNING: No promotable/safe-full candidates; strict fastest promotion returning no seeds.")
+            if STRICT_PROMOTION:
+                print("  WARNING: No promotable/safe-full candidates; strict promotion returning no seeds.")
                 return []
             pool = unsafe[:n] if unsafe else []
             if pool:
@@ -2261,24 +2313,17 @@ def update_base(new_params: dict):
 # ==============================================================================
 
 def main():
-    global BASE, RACELINE_PATH, RACELINE_TAG, TOL_OVERRIDE_VALUES
-    global FREEZE_SOLVER_BEHAVIOR_SWEEPS, RUN_PHASE5_SOLVER_SWEEP
-    global WIDE_T_SWEEP_ENABLED
+    global BASE, RACELINE_PATH, RACELINE_TAG
     global TRACK_LENGTH_METERS, RACELINE_START_LEFT_BOUND, RACELINE_START_RIGHT_BOUND, EVAL_SCENARIOS
     global SCENARIO_RACELINE_PATHS
     
     # Parse arguments
     num_workers = multiprocessing.cpu_count()  # Default to max workers
-    objective = "fastest"
+    objective = "base"
     raceline_override = None
     phase2_top_n = CASCADE_TOP_N
     global_passes = GLOBAL_OPTIMIZATION_PASSES
     include_obstacles = INCLUDE_OBSTACLE_SCENARIOS
-    tol_override_values = None
-    solver_fixed_overrides = {}
-    freeze_solver_behavior = FREEZE_SOLVER_BEHAVIOR_SWEEPS
-    run_phase5_solver_sweep = RUN_PHASE5_SOLVER_SWEEP
-    wide_t_sweep = WIDE_T_SWEEP_ENABLED
     
     for i, arg in enumerate(sys.argv):
         if arg in ("--jobs", "-j") and i + 1 < len(sys.argv):
@@ -2289,8 +2334,6 @@ def main():
                 num_workers = multiprocessing.cpu_count()
             if num_workers <= 0:
                 num_workers = multiprocessing.cpu_count()
-        if arg == "--objective" and i + 1 < len(sys.argv):
-            objective = sys.argv[i + 1].strip().lower()
         if arg == "--raceline" and i + 1 < len(sys.argv):
             raceline_override = sys.argv[i + 1].strip()
         if arg == "--phase2-top" and i + 1 < len(sys.argv):
@@ -2309,88 +2352,6 @@ def main():
             include_obstacles = True
         if arg == "--no-obstacles":
             include_obstacles = False
-        if arg == "--tol-fixed" and i + 1 < len(sys.argv):
-            try:
-                tol_val = float(sys.argv[i + 1])
-                tol_override_values = [tol_val]
-                solver_fixed_overrides["TOL"] = tol_val
-            except ValueError:
-                print(f"ERROR: invalid --tol-fixed value '{sys.argv[i + 1]}'")
-                sys.exit(1)
-        if arg == "--tol-values" and i + 1 < len(sys.argv):
-            raw = sys.argv[i + 1].strip()
-            try:
-                vals = [float(v.strip()) for v in raw.split(",") if v.strip()]
-            except ValueError:
-                print(f"ERROR: invalid --tol-values list '{raw}'")
-                sys.exit(1)
-            if not vals:
-                print("ERROR: --tol-values produced an empty set")
-                sys.exit(1)
-            tol_override_values = vals
-        if arg == "--rho-fixed" and i + 1 < len(sys.argv):
-            try:
-                solver_fixed_overrides["RHO"] = float(sys.argv[i + 1])
-            except ValueError:
-                print(f"ERROR: invalid --rho-fixed value '{sys.argv[i + 1]}'")
-                sys.exit(1)
-        if arg == "--rho-u-fixed" and i + 1 < len(sys.argv):
-            try:
-                solver_fixed_overrides["RHO_U"] = float(sys.argv[i + 1])
-            except ValueError:
-                print(f"ERROR: invalid --rho-u-fixed value '{sys.argv[i + 1]}'")
-                sys.exit(1)
-        if arg == "--alpha-fixed" and i + 1 < len(sys.argv):
-            try:
-                solver_fixed_overrides["ALPHA"] = float(sys.argv[i + 1])
-            except ValueError:
-                print(f"ERROR: invalid --alpha-fixed value '{sys.argv[i + 1]}'")
-                sys.exit(1)
-        if arg == "--allow-solver-sweep":
-            freeze_solver_behavior = False
-            run_phase5_solver_sweep = True
-        if arg == "--run-phase5":
-            run_phase5_solver_sweep = True
-        if arg == "--skip-phase5":
-            run_phase5_solver_sweep = False
-        if arg == "--t-sweep-wide":
-            wide_t_sweep = True
-        if arg == "--t-sweep-feasible":
-            wide_t_sweep = False
-
-    if solver_fixed_overrides:
-        for key, value in solver_fixed_overrides.items():
-            BASE_CONFIG[key] = value
-            FASTEST_BASE_OVERRIDES[key] = value
-            if key in PHASE5_VALUES:
-                PHASE5_VALUES[key] = [value]
-            if key in FULL_SWEEP_VALUES:
-                FULL_SWEEP_VALUES[key] = [value]
-            if key in FULL_SWEEP_VALUES_FASTEST:
-                FULL_SWEEP_VALUES_FASTEST[key] = [value]
-
-    FREEZE_SOLVER_BEHAVIOR_SWEEPS = freeze_solver_behavior
-    RUN_PHASE5_SOLVER_SWEEP = run_phase5_solver_sweep
-    WIDE_T_SWEEP_ENABLED = wide_t_sweep
-    
-    if objective not in ("tracker", "fastest"):
-        print("ERROR: --objective must be 'tracker' or 'fastest'")
-        sys.exit(1)
-
-    if tol_override_values:
-        # Deduplicate + sort for deterministic sweeps.
-        vals = sorted(set(float(v) for v in tol_override_values))
-        TOL_OVERRIDE_VALUES = vals
-
-        # Use middle value as starting/base TOL.
-        mid_tol = vals[len(vals) // 2]
-        BASE_CONFIG["TOL"] = mid_tol
-        FASTEST_BASE_OVERRIDES["TOL"] = mid_tol
-
-        # Constrain all tolerance sweeps to the requested fixed/tight region.
-        PHASE5_VALUES["TOL"] = list(vals)
-        FULL_SWEEP_VALUES["TOL"] = list(vals)
-        FULL_SWEEP_VALUES_FASTEST["TOL"] = list(vals)
 
     if raceline_override:
         RACELINE_PATH = resolve_raceline_path(raceline_override)
@@ -2410,30 +2371,21 @@ def main():
     EVAL_SCENARIOS = build_eval_scenarios(include_obstacles=include_obstacles)
     
     # Initialize BASE config
-    BASE.update(BASE_CONFIG)
-    if objective == "fastest":
-        BASE.update(FASTEST_BASE_OVERRIDES)
+    BASE.update(BASE_OVERRIDES)
     
     print(f"\n{'='*80}")
     print("MPC Weight Tuning - Hardware Map")
     print(f"{'='*80}")
     print(f"  Workers:     {num_workers}")
-    print(f"  Objective:   {objective}")
+    print("  Mode:        base")
     print(f"  Phase2->P4:  top {phase2_top_n}")
-    print(f"  Global passes (P5-P8): {global_passes}")
+    print(f"  Global passes (P6-P8): {global_passes}")
     print(f"  Obstacles:   {'on' if include_obstacles else 'off'}")
-    print(f"  Solver lock (non-P5): {'on' if freeze_solver_behavior else 'off'}")
-    print(f"  Phase5 solver sweep: {'on' if run_phase5_solver_sweep else 'off'}")
-    print(f"  T sweep mode: {'wide' if wide_t_sweep else 'feasible'}")
-    print(f"  Active solver tuple: RHO={BASE.get('RHO')} RHO_U={BASE.get('RHO_U')} ALPHA={BASE.get('ALPHA')} TOL={BASE.get('TOL')} MAX_ITER={BASE.get('MAX_ITER')}")
-    if solver_fixed_overrides:
-        print(f"  Solver fixed: {solver_fixed_overrides}")
-    if TOL_OVERRIDE_VALUES:
-        print(f"  TOL mode:    override {TOL_OVERRIDE_VALUES}")
-    else:
-        print("  TOL mode:    default sweep")
-    print(f"  Phase7 random: {PHASE7_RANDOM_COUNT.get(objective, 3600)}")
-    print(f"  Phase8 random: {PHASE8_RANDOM_COUNT.get(objective, 1800)}")
+    print("  Solver mode: T=H*dt bucketed RHO/RHO_U/TOL")
+    print("  Config eval: single (one config must pass all 3 scenarios)")
+    print(f"  Base solver tuple: RHO={BASE.get('RHO')} RHO_U={BASE.get('RHO_U')} TOL={BASE.get('TOL')} MAX_ITER={BASE.get('MAX_ITER')}")
+    print(f"  Phase7 random: {PHASE7_RANDOM_COUNT}")
+    print(f"  Phase8 random: {PHASE8_RANDOM_COUNT}")
     print(f"  Horizon sweep: {HORIZON_SWEEP_VALUES}")
     print(f"  Raceline:    {RACELINE_PATH}")
     print(f"  Raceline tag:{RACELINE_TAG}")
@@ -2483,7 +2435,7 @@ def main():
     
     # CSV writer
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    outfile = f"test/tuning_hardware_{objective}_{timestamp}.csv"
+    outfile = f"test/tuning_hardware_base_{timestamp}.csv"
     scenario_fieldnames = []
     for scenario in EVAL_SCENARIOS:
         prefix = f"scenario_{scenario['name']}_"
@@ -2498,8 +2450,9 @@ def main():
             f"{prefix}speed_check_pass",
         ])
     fieldnames = (
-        ["label", "phase", "raceline", "score", "tracker_score", "fastest_score",
+        ["label", "phase", "raceline", "score", "base_score",
          "promotable", "promotable_deficit", "promotable_reason",
+         "global_hdt_count", "global_hdt_set",
          "passed", "failed", "failed_non_speed", "scenario_count", "scenario_failures", "recovery_failures", "main_failed",
          "lap_time_est", "completed_laps", "progress_m", "avg_progress_mps",
          "max_steer_change", "steer_reversals",
@@ -2517,8 +2470,7 @@ def main():
     # ========== PHASE 1: One-at-a-time ==========
     p, f = run_phase("Phase 1: One-at-a-time sensitivity",
                      gen_one_at_a_time(objective), binary, results, t0,
-                     num_workers, csv_writer, objective,
-                     freeze_solver_behavior=freeze_solver_behavior)
+                     num_workers, csv_writer, objective)
     total_p += p
     total_f += f
     
@@ -2527,8 +2479,7 @@ def main():
     print(f"\n  Phase 2 will test {len(combos):,} configurations")
     p, f = run_phase("Phase 2: Primary grid (Q_LAT x Q_HDG x Q_VEL x HORIZON x PRED_DT)",
                      combos, binary, results, t0,
-                     num_workers, csv_writer, objective,
-                     freeze_solver_behavior=freeze_solver_behavior)
+                     num_workers, csv_writer, objective)
     total_p += p
     total_f += f
     
@@ -2539,9 +2490,7 @@ def main():
     if not phase2_seeds:
         phase2_seeds = [dict(BASE)]
 
-    # ========== PHASES 3-8 ==========
-    # Phase 3 is skipped for hardware map mode (fixed wall margin).
-    print("\n  Phase 3: Skipped (wall margin is fixed for hardware)")
+    # ========== PHASES 4-8 ==========
 
     # Phase 4: branch from top-N seeds from Phase 2.
     print("\n  Phase 4 branching from Phase 2 seeds...")
@@ -2549,8 +2498,7 @@ def main():
         update_base(seed_params)
         p, f = run_phase(f"Phase 4: Secondary grid [seed {bi}/{len(phase2_seeds)}]",
                          gen_secondary_grid(objective), binary, results, t0,
-                         num_workers, csv_writer, objective,
-                         freeze_solver_behavior=freeze_solver_behavior)
+                         num_workers, csv_writer, objective)
         total_p += p
         total_f += f
 
@@ -2574,8 +2522,7 @@ def main():
         update_base(current_best_params)
         p, f = run_phase(f"Phase 6: Fine-tuning [pass {pi+1}/{global_passes}]",
                          gen_fine_tuning(current_best_params), binary, results, t0,
-                         num_workers, csv_writer, objective,
-                         freeze_solver_behavior=freeze_solver_behavior)
+                         num_workers, csv_writer, objective)
         total_p += p
         total_f += f
         top = get_top_n_params(results, n=1, objective=objective)
@@ -2583,31 +2530,14 @@ def main():
             current_best_params = top[0]
             update_base(current_best_params)
 
-        # Phase 5: optional solver-parameter sweep after behavior refinement.
-        update_base(current_best_params)
-        if run_phase5_solver_sweep:
-            p, f = run_phase(f"Phase 5: Solver parameters [pass {pi+1}/{global_passes}]",
-                             gen_solver_grid(), binary, results, t0,
-                             num_workers, csv_writer, objective,
-                             freeze_solver_behavior=freeze_solver_behavior)
-            total_p += p
-            total_f += f
-            top = get_top_n_params(results, n=1, objective=objective)
-            if top:
-                current_best_params = top[0]
-                update_base(current_best_params)
-        else:
-            print(f"  Phase 5 [pass {pi+1}/{global_passes}]: skipped (solver sweep disabled, fixed tuple)")
-
         # Phase 7: random exploration around current promoted best.
         update_base(current_best_params)
-        n_random = PHASE7_RANDOM_COUNT.get(objective, 3600)
+        n_random = PHASE7_RANDOM_COUNT
         p, f = run_phase(f"Phase 7: Random neighbors ({n_random}) [pass {pi+1}/{global_passes}]",
                          gen_random_neighbors(current_best_params, n_random, objective,
                                               seed_offset=7000 + pi),
                          binary, results, t0,
-                         num_workers, csv_writer, objective,
-                         freeze_solver_behavior=freeze_solver_behavior)
+                         num_workers, csv_writer, objective)
         total_p += p
         total_f += f
         top = get_top_n_params(results, n=1, objective=objective)
@@ -2617,14 +2547,13 @@ def main():
 
         # Phase 8: random exploitation around promoted best from Phase 7.
         update_base(current_best_params)
-        n_random = PHASE8_RANDOM_COUNT.get(objective, 1800)
+        n_random = PHASE8_RANDOM_COUNT
         p, f = run_phase(f"Phase 8: Random exploitation ({n_random}) [pass {pi+1}/{global_passes}]",
                          gen_random_neighbors(current_best_params, n_random, objective,
-                                              profile_override=f"{objective}_exploit",
+                                              profile_override="base_exploit",
                                               seed_offset=9000 + pi),
                          binary, results, t0,
-                         num_workers, csv_writer, objective,
-                         freeze_solver_behavior=freeze_solver_behavior)
+                         num_workers, csv_writer, objective)
         total_p += p
         total_f += f
         top = get_top_n_params(results, n=1, objective=objective)
