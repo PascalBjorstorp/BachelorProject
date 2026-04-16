@@ -4,7 +4,6 @@
 #include <cmath>
 #include <limits>
 #include <queue>
-#include <algorithm>
 #include <chrono>
 #include <functional>
 
@@ -63,10 +62,6 @@ ScanSplitterNode::ScanSplitterNode(const rclcpp::NodeOptions & options)
   RCLCPP_INFO(this->get_logger(), "  Threshold: %.2f m", obstacle_threshold_);
   RCLCPP_INFO(this->get_logger(), "  Min cluster size: %d beams", min_cluster_size_);
   RCLCPP_INFO(this->get_logger(), "  Max cluster gap: %d beams", max_cluster_gap_beams_);
-  RCLCPP_INFO(
-    this->get_logger(),
-    "  Adaptive bias compensation: up to %.2f m (min beams %d)",
-    max_map_bias_compensation_m_, min_valid_beams_for_drift_check_);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -202,9 +197,6 @@ void ScanSplitterNode::scan_callback(
   if (angles_.size() != n) {
     angles_.resize(n);
     is_obstacle_.resize(n);
-    has_map_distance_.resize(n);
-    dist_to_wall_.resize(n);
-    distance_samples_.resize(n);
     wall_ranges_.resize(n);
     obstacle_ranges_.resize(n);
 
@@ -224,16 +216,13 @@ void ScanSplitterNode::scan_callback(
   const int h           = map_height_;
   const float threshold = static_cast<float>(obstacle_threshold_);
   const float * __restrict__ df = distance_field_.data();
-  size_t map_distance_count = 0;
 
-  // ── Gather map distances for valid beams ───────────────────────────
+  // ── Classify beams by map distance ─────────────────────────────────
   for (size_t i = 0; i < n; ++i) {
     const float r = ranges[i];
 
     // Default state for this beam.
     is_obstacle_[i] = false;
-    has_map_distance_[i] = false;
-    dist_to_wall_[i] = INF;
 
     // Skip invalid beams
     if (!std::isfinite(r) || r <= range_min || r >= range_max) {
@@ -255,41 +244,9 @@ void ScanSplitterNode::scan_callback(
 
     // Distance-field lookup
     const float dist_to_wall = df[py * w + px];
-    has_map_distance_[i] = true;
-    dist_to_wall_[i] = dist_to_wall;
-    distance_samples_[map_distance_count++] = dist_to_wall;
-  }
-
-  // Estimate global map/pose mismatch as the median endpoint distance to map
-  // walls, then compensate threshold by that bias (up to a configured cap).
-  float map_bias_compensation = 0.0f;
-  if (
-    min_valid_beams_for_drift_check_ > 0 &&
-    static_cast<int>(map_distance_count) >= min_valid_beams_for_drift_check_)
-  {
-    auto begin = distance_samples_.begin();
-    auto mid = begin + (map_distance_count / 2);
-    auto end = begin + map_distance_count;
-    std::nth_element(begin, mid, end);
-    map_bias_compensation = std::clamp(
-      *mid,
-      0.0f,
-      static_cast<float>(max_map_bias_compensation_m_));
-  }
-
-  const float adaptive_threshold = threshold + map_bias_compensation;
-
-  for (size_t i = 0; i < n; ++i) {
-    if (has_map_distance_[i] && dist_to_wall_[i] > adaptive_threshold) {
+    if (dist_to_wall > threshold) {
       is_obstacle_[i] = true;
     }
-  }
-
-  if (map_bias_compensation > 1e-4f) {
-    RCLCPP_DEBUG_THROTTLE(
-      this->get_logger(), *this->get_clock(), 1000,
-      "Adaptive obstacle threshold increased by %.2f m (effective %.2f m, samples=%zu)",
-      map_bias_compensation, adaptive_threshold, map_distance_count);
   }
 
   // ── Cluster filtering ─────────────────────────────────────────────
