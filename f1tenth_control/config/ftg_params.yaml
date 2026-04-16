@@ -53,7 +53,7 @@ ftg_node:
     # ===================
     # Safety Parameters
     # ===================
-    emergency_brake_distance: 0.15  # Emergency stop if obstacle closer (m)
+    emergency_brake_distance: 0.04  # Emergency stop if obstacle closer (m)
 
     # ===================
     # LiDAR Processing

@@ -1,5 +1,5 @@
 /**
- * @file fp_math_hls.c
+ * @file fp_math_hls.cpp
  * @brief Q16.16 fixed-point math kernels for HLS synthesis.
  * @details Implements non-inline trigonometric and reciprocal kernels used by
  *          the FPGA MPC pipeline. Arithmetic is performed in fixed-point with
@@ -8,53 +8,81 @@
  */
 
 #include "../include/fp_math_hls.h"
+#include <cstdint>
+#include <climits>
 
-/*===========================================================================
- * Constants
- *===========================================================================*/
+fp_raw_acc_t reciprocal_raw(fp_raw_acc_t det)
+{
+#pragma HLS INLINE
+    if (det == 0) return 0;
 
-#define RECIP_ITERATIONS    3       /*  Number of Newton-Raphson iterations for reciprocal approximation. */
+    fp_raw_acc_t sign = (det < 0) ? (fp_raw_acc_t)-1 : (fp_raw_acc_t)1;
+    fp_raw_acc_t abs_det = (det < 0) ? (fp_raw_acc_t)(-det) : det;
 
-#define INV_FACT_2          32768   /* 1/2! */
-#define INV_FACT_3          10923   /* 1/3! in Q16.16 */
-#define INV_FACT_4          2731    /* 1/4! */
-#define INV_FACT_5          546     /* 1/5! */
+    unsigned long long abs_u = (unsigned long long)abs_det;
+    int lead_zeros = __builtin_clzll(abs_u) + (2 * FP_FRAC_BITS) - 64;
+    if (lead_zeros < 0) lead_zeros = 0;
+    if (lead_zeros > 62) lead_zeros = 62;
 
-/* atan polynomial coefficients */
-#define ATAN_COEF_3         21845   /* 1/3 */
-#define ATAN_COEF_5         13107   /* 1/5 */
-#define ATAN_COEF_7         9362    /* 1/7 */
-#define FP_HALF_CONST       32768   /* 0.5 */
-#define FP_ATAN_HALF        30386   /* atan(0.5) */
-#define FP_INV_TWO_PI       10430   /* 1/(2*pi) */
+    fp_raw_acc_t est = ((fp_raw_acc_t)1) << lead_zeros;
+
+    for (int i = 0; i < 3; i++) {
+#pragma HLS PIPELINE II=6
+#pragma HLS LOOP_TRIPCOUNT min=3 max=3
+        fp_raw_acc_t prod = abs_det * est;
+        prod >>= FP_FRAC_BITS;
+        fp_raw_acc_t corr = (((fp_raw_acc_t)1) << FP_FRAC_BITS) - prod;
+        fp_raw_acc_t adj  = est * corr;
+        adj >>= FP_FRAC_BITS;
+        est = est + adj;
+    }
+
+    if (sign < 0) est = (fp_raw_acc_t)(-est);
+    return est;
+}
+
+int invert_2x2_hls(fp_raw_acc_t S[2][2], fp_raw_acc_t Si[2][2])
+{
+#pragma HLS INLINE
+#pragma HLS ALLOCATION operation instances=sdiv limit=1
+    fp_raw_acc_t det = ((S[0][0] * S[1][1]) >> FP_FRAC_BITS)
+                    - ((S[0][1] * S[1][0]) >> FP_FRAC_BITS);
+
+    fp_raw_acc_t det_eps = (FP_FRAC_BITS >= 12)
+        ? (((fp_raw_acc_t)1) << (FP_FRAC_BITS - 12))
+        : (fp_raw_acc_t)1;
+
+    if (det == 0 || (det > -det_eps && det < det_eps)) {
+        return -1;
+    }
+
+    fp_raw_acc_t inv_det = reciprocal_raw(det);
+
+    fp_raw_acc_t si00 = S[1][1] * inv_det;
+    Si[0][0] =  si00 >> FP_FRAC_BITS;
+    fp_raw_acc_t si01 = S[0][1] * inv_det;
+    Si[0][1] = -(si01 >> FP_FRAC_BITS);
+    fp_raw_acc_t si10 = S[1][0] * inv_det;
+    Si[1][0] = -(si10 >> FP_FRAC_BITS);
+    fp_raw_acc_t si11 = S[0][0] * inv_det;
+    Si[1][1] =  si11 >> FP_FRAC_BITS;
+
+    return 0;
+}
 
 /*===========================================================================
  * Normalize Angle to [-pi, pi]
  *===========================================================================*/
 
-fixed_point_t fp_normalize_angle(fixed_point_t angle)
+fp_QP_t fp_normalize_angle(fp_QP_t angle)
 {
 #pragma HLS INLINE
-    /*
-     * Compute floor((angle + pi) / (2*pi)) using fixed-point multiply.
-     * Adding pi first maps [-pi, pi] to [0, 2*pi], which keeps boundaries stable.
-     */
-    fixed_point_t shifted = fp_add(angle, FP_PI);
-    fixed_point_t q = fp_mul(shifted, FP_INV_TWO_PI);
-
-    /* Q16.16 to integer floor. */
-    int32_t q_int = q >> FP_FRAC_BITS;
-
-    /* Subtract the nearest integer multiple of 2*pi in fixed-point units. */
-    if (q_int != 0)
-        angle -= (fixed_point_t)(q_int * FP_TWO_PI);
-
-    /* Final correction for rounding edge cases near boundaries. */
-    if (angle > FP_PI)
-        angle -= FP_TWO_PI;
-        
-    if (angle < fp_neg(FP_PI)) 
-        angle += FP_TWO_PI;
+    /* Bounded fp-domain wrap loop avoids int casting for phase reduction. */
+    for (int i = 0; i < 4; i++) {
+#pragma HLS UNROLL
+        if (angle > FP_PI) angle = angle - FP_TWO_PI;
+        if (angle < -FP_PI) angle = angle + FP_TWO_PI;
+    }
 
     return angle;
 }
@@ -63,71 +91,70 @@ fixed_point_t fp_normalize_angle(fixed_point_t angle)
  * Reciprocal: 1/x (Newton-Raphson, fixed iteration count)
  *===========================================================================*/
 
-fixed_point_t fp_recip(fixed_point_t x)
+fp_QP_t fp_recip(fp_QP_t x)
 {
 #pragma HLS INLINE off
     if (x == 0) return 0;
 
-    int32_t sign = (x < 0) ? -1 : 1;
-    fixed_point_t abs_x = fp_abs(x);
+    bool neg = (x < 0);
+    fp_QP_t abs_x = fp_abs(x);
 
-    /* Initial guess via leading-zero count (priority encoder).
-     * For Q16.16: true 1/x is approximately 2^(32-p), where p = MSB position.
-     * clz = 31 - p, so 1/x is approximately 2^(clz+1). Use 2^clz for safe
-     * underestimate keeping a*x_0 in [0.5, 1.0]. */
-    int lead_zeros = __builtin_clz((unsigned int)abs_x);
+    /* Coarse fp-domain seed table to avoid slash in hot path. */
+    fp_QP_t est;
+    if (abs_x > FP_QP_CONST(4.0)) est = FP_QP_CONST(0.125);
+    else if (abs_x > FP_QP_CONST(2.0)) est = FP_QP_CONST(0.25);
+    else if (abs_x > FP_QP_CONST(1.0)) est = FP_QP_CONST(0.5);
+    else if (abs_x > FP_QP_CONST(0.5)) est = FP_ONE;
+    else if (abs_x > FP_QP_CONST(0.25)) est = FP_TWO;
+    else if (abs_x > FP_QP_CONST(0.125)) est = FP_QP_CONST(4.0);
+    else est = FP_QP_CONST(8.0);
 
-    fixed_point_t est = (fixed_point_t)(1 << lead_zeros);
-
-    /* Newton-Raphson update: est = est + est*(1 - x*est) */
-    int i;
-    for (i = 0; i < RECIP_ITERATIONS; i++) {
+    for (int i = 0; i < RECIP_ITERATIONS; i++) {
 #pragma HLS PIPELINE II=2
-#pragma HLS LOOP_TRIPCOUNT min=4 max=4
-        fixed_point_t prod = fp_mul(abs_x, est);
-        fixed_point_t corr = fp_sub(FP_ONE, prod);
-        fixed_point_t adj = fp_mul(est, corr);
-        est = fp_add(est, adj);
+#pragma HLS LOOP_TRIPCOUNT min=3 max=3
+        est = fp_mul(est, (FP_TWO - fp_mul(abs_x, est)));
     }
 
-    return (sign < 0) ? fp_neg(est) : est;
+    if (neg) est = -est;
+    return est;
 }
 
 /*===========================================================================
  * Sine: range reduction + truncated Taylor series
  *===========================================================================*/
 
-fixed_point_t fp_sin(fixed_point_t angle)
+fp_QP_t fp_sin(fp_QP_t angle)
 {
 #pragma HLS INLINE
     angle = fp_normalize_angle(angle);
 
     int negate = 0;
     if (angle > FP_PI_HALF) {
-        angle = fp_sub(FP_PI, angle);
+        angle = FP_PI - angle;
     } else if (angle < -FP_PI_HALF) {
-        angle = fp_add(FP_PI, angle);
+        angle = FP_PI + angle;
         negate = 1;
     }
 
-    fixed_point_t x2 = fp_mul(angle, angle);
-    fixed_point_t result = angle;
-    fixed_point_t term = angle;
+    fp_QP_t x2 = fp_mul(angle, angle);
+    fp_QP_t result = angle;
+    fp_QP_t term = angle;
 
     term = fp_mul(term, x2);
-    result = fp_sub(result, fp_mul(term, INV_FACT_3));
+    result = result - fp_mul(term, INV_FACT_3);
 
     term = fp_mul(term, x2);
-    result = fp_add(result, fp_mul(term, INV_FACT_5));
+    result = result + fp_mul(term, INV_FACT_5);
 
-    return negate ? fp_neg(result) : result;
+    if (negate) result = -result;
+    return result;
 }
 
 /*===========================================================================
  * Cosine: range reduction + truncated Taylor series
  *===========================================================================*/
 
-fixed_point_t fp_cos(fixed_point_t angle)
+fp_QP_t fp_cos(fp_QP_t angle)
 {
 #pragma HLS INLINE
     angle = fp_normalize_angle(angle);
@@ -135,38 +162,39 @@ fixed_point_t fp_cos(fixed_point_t angle)
 
     int negate = 0;
     if (angle > FP_PI_HALF) {
-        angle = fp_sub(FP_PI, angle);
+        angle = FP_PI - angle;
         negate = 1;
     }
 
-    fixed_point_t x2 = fp_mul(angle, angle);
-    fixed_point_t result = FP_ONE;
-    fixed_point_t term = x2;
+    fp_QP_t x2 = fp_mul(angle, angle);
+    fp_QP_t result = FP_ONE;
+    fp_QP_t term = x2;
 
-    result = fp_sub(result, fp_mul(term, INV_FACT_2));
+    result = result - fp_mul(term, INV_FACT_2);
     term = fp_mul(term, x2);
-    result = fp_add(result, fp_mul(term, INV_FACT_4));
+    result = result + fp_mul(term, INV_FACT_4);
 
-    return negate ? fp_neg(result) : result;
+    if (negate) result = -result;
+    return result;
 }
 
 /*===========================================================================
  * Arctangent helper for |x| <= 0.5
  *===========================================================================*/
 
-static fixed_point_t fp_atan_small(fixed_point_t x)
+static fp_QP_t fp_atan_small(fp_QP_t x)
 {
 #pragma HLS INLINE
-    fixed_point_t x2 = fp_mul(x, x);
-    fixed_point_t term = x;
-    fixed_point_t result = x;
+    fp_QP_t x2 = fp_mul(x, x);
+    fp_QP_t term = x;
+    fp_QP_t result = x;
 
     term = fp_mul(term, x2);
-    result = fp_sub(result, fp_mul(term, ATAN_COEF_3));
+    result = result - fp_mul(term, ATAN_COEF_3);
     term = fp_mul(term, x2);
-    result = fp_add(result, fp_mul(term, ATAN_COEF_5));
+    result = result + fp_mul(term, ATAN_COEF_5);
     term = fp_mul(term, x2);
-    result = fp_sub(result, fp_mul(term, ATAN_COEF_7));
+    result = result - fp_mul(term, ATAN_COEF_7);
 
     return result;
 }
@@ -175,50 +203,51 @@ static fixed_point_t fp_atan_small(fixed_point_t x)
  * Arctangent with piecewise range reduction
  *===========================================================================*/
 
-fixed_point_t fp_atan(fixed_point_t x)
+fp_QP_t fp_atan(fp_QP_t x)
 {
 #pragma HLS INLINE
     if (x == 0) return 0;
 
-    int32_t sign = (x < 0) ? -1 : 1;
-    fixed_point_t abs_x = fp_abs(x);
-    fixed_point_t result;
+    bool neg = (x < 0);
+    fp_QP_t abs_x = fp_abs(x);
+    fp_QP_t result;
 
     if (abs_x <= FP_HALF_CONST) {
         result = fp_atan_small(abs_x);
     } else if (abs_x <= FP_ONE) {
         /* atan(x) = atan(0.5) + atan((x-0.5)/(1+0.5*x)) */
-        fixed_point_t num = fp_sub(abs_x, FP_HALF_CONST);
-        fixed_point_t den = fp_add(FP_ONE, (abs_x >> 1));  /* 0.5*x via shift */
-        fixed_point_t inv_den = fp_recip(den);
-        fixed_point_t reduced = fp_mul(num, inv_den);
-        result = fp_add(FP_ATAN_HALF, fp_atan_small(reduced));
+        fp_QP_t num = abs_x - FP_HALF_CONST;
+        fp_QP_t den = FP_ONE + (abs_x >> 1);  /* 0.5*x via shift */
+        fp_QP_t inv_den = fp_recip(den);
+        fp_QP_t reduced = fp_mul(num, inv_den);
+        result = FP_ATAN_HALF + fp_atan_small(reduced);
     } else {
         /* atan(x) = pi/2 - atan(1/x) */
-        fixed_point_t inv_x = fp_recip(abs_x);
+        fp_QP_t inv_x = fp_recip(abs_x);
         if (inv_x <= FP_HALF_CONST) {
-            result = fp_sub(FP_PI_HALF, fp_atan_small(inv_x));
+            result = FP_PI_HALF - fp_atan_small(inv_x);
         } else {
-            fixed_point_t num = fp_sub(inv_x, FP_HALF_CONST);
-            fixed_point_t den = fp_add(FP_ONE, (inv_x >> 1));  /* 0.5*x via shift */
-            fixed_point_t inv_den = fp_recip(den);
-            fixed_point_t reduced = fp_mul(num, inv_den);
-            fixed_point_t atan_inv = fp_add(FP_ATAN_HALF, fp_atan_small(reduced));
-            result = fp_sub(FP_PI_HALF, atan_inv);
+            fp_QP_t num = inv_x - FP_HALF_CONST;
+            fp_QP_t den = FP_ONE + (inv_x >> 1);  /* 0.5*x via shift */
+            fp_QP_t inv_den = fp_recip(den);
+            fp_QP_t reduced = fp_mul(num, inv_den);
+            fp_QP_t atan_inv = FP_ATAN_HALF + fp_atan_small(reduced);
+            result = FP_PI_HALF - atan_inv;
         }
     }
 
-    return (sign < 0) ? fp_neg(result) : result;
+    if (neg) result = -result;
+    return result;
 }
 
 /*===========================================================================
  * Cubic atan approximation for tire-model angle terms
  *===========================================================================*/
 
-fixed_point_t fp_atan_tire_approx(fixed_point_t x)
+fp_QP_t fp_atan_tire_approx(fp_QP_t x)
 {
 #pragma HLS INLINE
-    fixed_point_t x2 = fp_mul(x, x);
-    fixed_point_t x3 = fp_mul(x2, x);
-    return fp_sub(x, fp_mul(x3, FP_CONST(0.33333333)));
+    fp_QP_t x2 = fp_mul(x, x);
+    fp_QP_t x3 = fp_mul(x2, x);
+    return x - fp_mul(x3, FP_QP_CONST(0.33333333));
 }

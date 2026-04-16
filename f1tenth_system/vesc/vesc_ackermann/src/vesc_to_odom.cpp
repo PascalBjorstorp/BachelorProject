@@ -32,6 +32,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <string>
 
@@ -80,6 +81,8 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   l_r_ = declare_parameter("l_r", l_r_);
   c_alpha_f_ = declare_parameter("c_alpha_f", c_alpha_f_);
   c_alpha_r_ = declare_parameter("c_alpha_r", c_alpha_r_);
+  pacejka_shape_factor_ =
+    declare_parameter("pacejka_shape_factor", pacejka_shape_factor_);
   dynamic_model_min_speed_ =
     declare_parameter("dynamic_model_min_speed", dynamic_model_min_speed_);
 
@@ -88,15 +91,18 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   odom_y_covariance_ = declare_parameter("odom_y_covariance", odom_y_covariance_);
   odom_yaw_covariance_ = declare_parameter("odom_yaw_covariance", odom_yaw_covariance_);
 
-  // Slip-aware covariance inflation
+  // Slip-aware covariance inflation (x/y only)
   slip_xy_covariance_scale_ =
     declare_parameter("slip_xy_covariance_scale", slip_xy_covariance_scale_);
-  slip_yaw_covariance_scale_ =
-    declare_parameter("slip_yaw_covariance_scale", slip_yaw_covariance_scale_);
 
   // Slip detection thresholds
   slip_accel_enter_ = declare_parameter("slip_accel_enter", slip_accel_enter_);
   slip_accel_exit_ = declare_parameter("slip_accel_exit", slip_accel_exit_);
+  slip_indicator_source_ = declare_parameter("slip_indicator_source", slip_indicator_source_);
+  slip_lateral_velocity_enter_ =
+    declare_parameter("slip_lateral_velocity_enter", slip_lateral_velocity_enter_);
+  slip_lateral_velocity_exit_ =
+    declare_parameter("slip_lateral_velocity_exit", slip_lateral_velocity_exit_);
   slip_min_speed_ = declare_parameter("slip_min_speed", slip_min_speed_);
   slip_indicator_alpha_ = declare_parameter("slip_indicator_alpha", slip_indicator_alpha_);
   slip_use_lateral_accel_ =
@@ -110,7 +116,30 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   // IMU filter + bias parameters
   imu_angular_velocity_alpha_ =
     declare_parameter("imu_angular_velocity_alpha", imu_angular_velocity_alpha_);
+  imu_use_butterworth_filter_ =
+    declare_parameter("imu_use_butterworth_filter", imu_use_butterworth_filter_);
+  imu_butterworth_gyro_cutoff_hz_ =
+    declare_parameter("imu_butterworth_gyro_cutoff_hz", imu_butterworth_gyro_cutoff_hz_);
+  imu_butterworth_lateral_accel_cutoff_hz_ =
+    declare_parameter(
+    "imu_butterworth_lateral_accel_cutoff_hz", imu_butterworth_lateral_accel_cutoff_hz_);
+  imu_yaw_base_weight_ =
+    declare_parameter("imu_yaw_base_weight", imu_yaw_base_weight_);
   gyro_bias_alpha_ = declare_parameter("gyro_bias_alpha", gyro_bias_alpha_);
+  imu_startup_calibration_enabled_ =
+    declare_parameter("imu_startup_calibration_enabled", imu_startup_calibration_enabled_);
+  imu_startup_calibration_duration_sec_ =
+    declare_parameter("imu_startup_calibration_duration_sec", imu_startup_calibration_duration_sec_);
+  imu_startup_hold_odom_during_calibration_ =
+    declare_parameter(
+    "imu_startup_hold_odom_during_calibration",
+    imu_startup_hold_odom_during_calibration_);
+  imu_history_max_samples_ =
+    declare_parameter("imu_history_max_samples", imu_history_max_samples_);
+  imu_sync_tolerance_sec_ =
+    declare_parameter("imu_sync_tolerance_sec", imu_sync_tolerance_sec_);
+  imu_timeout_sec_ = declare_parameter("imu_timeout_sec", imu_timeout_sec_);
+  servo_timeout_sec_ = declare_parameter("servo_timeout_sec", servo_timeout_sec_);
 
   // Lateral velocity estimator parameters
   imu_lateral_accel_alpha_ =
@@ -130,6 +159,42 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
       "slip_accel_enter (%.3f) <= slip_accel_exit (%.3f). Adjusting exit threshold.",
       slip_accel_enter_, slip_accel_exit_);
     slip_accel_exit_ = 0.5 * slip_accel_enter_;
+  }
+
+  if (
+    slip_indicator_source_ != "yaw_residual" &&
+    slip_indicator_source_ != "lateral_accel" &&
+    slip_indicator_source_ != "lateral_velocity_error")
+  {
+    RCLCPP_WARN(
+      get_logger(),
+      "Invalid slip_indicator_source '%s'. Using 'yaw_residual'.",
+      slip_indicator_source_.c_str());
+    slip_indicator_source_ = "yaw_residual";
+  }
+
+  if (slip_lateral_velocity_enter_ <= 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "slip_lateral_velocity_enter %.3f <= 0. Using 0.7 m/s.",
+      slip_lateral_velocity_enter_);
+    slip_lateral_velocity_enter_ = 0.7;
+  }
+
+  if (slip_lateral_velocity_exit_ < 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "slip_lateral_velocity_exit %.3f < 0. Using 0.35 m/s.",
+      slip_lateral_velocity_exit_);
+    slip_lateral_velocity_exit_ = 0.35;
+  }
+
+  if (slip_lateral_velocity_enter_ <= slip_lateral_velocity_exit_) {
+    RCLCPP_WARN(
+      get_logger(),
+      "slip_lateral_velocity_enter (%.3f) <= slip_lateral_velocity_exit (%.3f). Adjusting exit threshold.",
+      slip_lateral_velocity_enter_, slip_lateral_velocity_exit_);
+    slip_lateral_velocity_exit_ = 0.5 * slip_lateral_velocity_enter_;
   }
 
   if (slip_indicator_alpha_ < 0.0 || slip_indicator_alpha_ > 1.0) {
@@ -156,6 +221,46 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
     slip_yaw_rate_weight_ = 3.0;
   }
 
+  if (imu_yaw_base_weight_ < 0.0 || imu_yaw_base_weight_ > 1.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "imu_yaw_base_weight %.3f out of [0,1]. Clamping.",
+      imu_yaw_base_weight_);
+    imu_yaw_base_weight_ = std::clamp(imu_yaw_base_weight_, 0.0, 1.0);
+  }
+
+  if (imu_history_max_samples_ < 5) {
+    RCLCPP_WARN(
+      get_logger(),
+      "imu_history_max_samples %d is too small. Using 400.",
+      imu_history_max_samples_);
+    imu_history_max_samples_ = 400;
+  }
+
+  if (imu_sync_tolerance_sec_ < 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "imu_sync_tolerance_sec %.3f < 0. Using 0.03.",
+      imu_sync_tolerance_sec_);
+    imu_sync_tolerance_sec_ = 0.03;
+  }
+
+  if (imu_timeout_sec_ <= 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "imu_timeout_sec %.3f <= 0. Using 0.10.",
+      imu_timeout_sec_);
+    imu_timeout_sec_ = 0.10;
+  }
+
+  if (servo_timeout_sec_ <= 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "servo_timeout_sec %.3f <= 0. Using 0.10.",
+      servo_timeout_sec_);
+    servo_timeout_sec_ = 0.10;
+  }
+
   if (slip_enter_hold_sec_ < 0.0) {
     RCLCPP_WARN(
       get_logger(),
@@ -179,6 +284,33 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
       speed_to_erpm_gain_);
   }
 
+  if (imu_startup_calibration_enabled_ && imu_startup_calibration_duration_sec_ <= 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "imu_startup_calibration_duration_sec %.3f <= 0. Disabling startup IMU calibration.",
+      imu_startup_calibration_duration_sec_);
+    imu_startup_calibration_enabled_ = false;
+  }
+
+  if (imu_use_butterworth_filter_) {
+    if (imu_butterworth_gyro_cutoff_hz_ <= 0.0 ||
+      imu_butterworth_lateral_accel_cutoff_hz_ <= 0.0)
+    {
+      RCLCPP_WARN(
+        get_logger(),
+        "Butterworth cutoffs must be positive (gyro=%.3f, lat_accel=%.3f). Falling back to EMA.",
+        imu_butterworth_gyro_cutoff_hz_,
+        imu_butterworth_lateral_accel_cutoff_hz_);
+      imu_use_butterworth_filter_ = false;
+    } else {
+      RCLCPP_INFO(
+        get_logger(),
+        "IMU 2nd-order Butterworth enabled (gyro cutoff=%.2f Hz, linear-y cutoff=%.2f Hz).",
+        imu_butterworth_gyro_cutoff_hz_,
+        imu_butterworth_lateral_accel_cutoff_hz_);
+    }
+  }
+
   if (use_dynamic_bicycle_model_ &&
     (vehicle_mass_ <= 0.0 || vehicle_Iz_ <= 0.0 || l_f_ <= 0.0 || l_r_ <= 0.0 ||
     c_alpha_f_ <= 0.0 || c_alpha_r_ <= 0.0))
@@ -187,6 +319,14 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
       get_logger(),
       "Dynamic bicycle model parameters invalid. Falling back to kinematic yaw model.");
     use_dynamic_bicycle_model_ = false;
+  }
+
+  if (pacejka_shape_factor_ <= 0.0) {
+    RCLCPP_WARN(
+      get_logger(),
+      "pacejka_shape_factor %.3f <= 0. Using 1.9.",
+      pacejka_shape_factor_);
+    pacejka_shape_factor_ = 1.9;
   }
 
   odom_pub_ = create_publisher<Odometry>("ego_racecar/odom", 10);
@@ -248,14 +388,61 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     return;
   }
 
+  const rclcpp::Time current_time = now();
+  const double imu_age_sec =
+    imu_receive_time_initialized_ ? (current_time - last_imu_receive_time_).seconds() :
+    std::numeric_limits<double>::infinity();
+  const bool imu_fresh = imu_age_sec <= imu_timeout_sec_;
+
+  const bool servo_message_seen = servo_receive_time_initialized_ && static_cast<bool>(last_servo_cmd_);
+  const double servo_age_sec =
+    servo_message_seen ? (current_time - last_servo_receive_time_).seconds() :
+    std::numeric_limits<double>::infinity();
+  const bool servo_fresh = servo_message_seen && servo_age_sec <= servo_timeout_sec_;
+
+  if (!imu_fresh) {
+    RCLCPP_WARN_THROTTLE(
+      get_logger(), *get_clock(), 2000,
+      "IMU data is stale (age %.4f s > timeout %.4f s). Falling back from IMU yaw fusion.",
+      imu_age_sec, imu_timeout_sec_);
+  }
+
+  if (servo_message_seen && !servo_fresh) {
+    RCLCPP_WARN_THROTTLE(
+      get_logger(), *get_clock(), 2000,
+      "Servo command is stale (age %.4f s > timeout %.4f s). Ignoring steering model for this update.",
+      servo_age_sec, servo_timeout_sec_);
+  }
+
+  if (!imu_fresh && !servo_fresh) {
+    RCLCPP_WARN_THROTTLE(
+      get_logger(), *get_clock(), 2000,
+      "Skipping odom update: both IMU and servo are stale.");
+    last_state_ = state;
+    return;
+  }
+
   // Wheel speed from ERPM calibration.
   double current_speed = (state->state.speed - speed_to_erpm_offset_) / speed_to_erpm_gain_;
   if (std::fabs(current_speed) < speed_deadband_) {
     current_speed = 0.0;
   }
 
+  if (
+    imu_startup_calibration_enabled_ &&
+    imu_startup_hold_odom_during_calibration_ &&
+    !imu_startup_calibration_done_)
+  {
+    RCLCPP_INFO_THROTTLE(
+      get_logger(), *get_clock(), 2000,
+      "IMU startup calibration in progress. Holding odom output for %.2f seconds.",
+      imu_startup_calibration_duration_sec_);
+    last_state_ = state;
+    return;
+  }
+
   // Steering-derived model yaw rate.
-  const bool has_servo = static_cast<bool>(last_servo_cmd_);
+  const bool has_servo = servo_fresh;
   double steering_angle = 0.0;
   if (has_servo && std::fabs(steering_to_servo_gain_) > kEpsilon) {
     const double raw_steering =
@@ -280,8 +467,13 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     const double alpha_f = steering_angle - (model_lateral_velocity + l_f_ * yaw_rate_state_) / safe_vx;
     const double alpha_r = -(model_lateral_velocity - l_r_ * yaw_rate_state_) / safe_vx;
 
-    const double f_yf = c_alpha_f_ * alpha_f;
-    const double f_yr = c_alpha_r_ * alpha_r;
+    // Simplified Pacejka: Fy = D * sin(C * atan(B * alpha)).
+    // We choose B = 1/C and D = C_alpha so small-angle slope matches C_alpha.
+    const double pacejka_b = 1.0 / pacejka_shape_factor_;
+    const double f_yf =
+      c_alpha_f_ * std::sin(pacejka_shape_factor_ * std::atan(pacejka_b * alpha_f));
+    const double f_yr =
+      c_alpha_r_ * std::sin(pacejka_shape_factor_ * std::atan(pacejka_b * alpha_r));
 
     const double v_y_dot = (f_yf + f_yr) / vehicle_mass_ - safe_vx * yaw_rate_state_;
     const double yaw_dot = (l_f_ * f_yf - l_r_ * f_yr) / vehicle_Iz_;
@@ -290,21 +482,70 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     model_yaw_rate = yaw_rate_state_ + yaw_dot * dt_sec;
   }
 
-  // IMU yaw rate with online bias correction.
-  const double imu_yaw_rate_raw = filtered_angular_velocity_;
+  // Time-align IMU and VESC updates by using the nearest IMU sample to the VESC stamp.
+  double imu_yaw_rate_raw = filtered_angular_velocity_;
+  double lateral_accel_measured = filtered_linear_accel_y_;
+  double lateral_accel_measured_for_slip = debiased_linear_accel_y_raw_;
+  double yaw_rate_measured_for_slip = debiased_angular_velocity_z_raw_;
 
-  // Slip indicator: yaw-rate residual (primary), optional clipped accel residual.
-  const double lateral_accel_measured = last_imu_->linear_acceleration.y;
+  if (imu_fresh && !imu_history_.empty()) {
+    const rclcpp::Time state_stamp(state->header.stamp);
+    const ImuSyncSample * nearest_sample = nullptr;
+    double nearest_abs_dt_sec = std::numeric_limits<double>::infinity();
+
+    for (const auto & sample : imu_history_) {
+      const double abs_dt_sec = std::fabs((state_stamp - sample.stamp).seconds());
+      if (abs_dt_sec < nearest_abs_dt_sec) {
+        nearest_abs_dt_sec = abs_dt_sec;
+        nearest_sample = &sample;
+      }
+    }
+
+    if (nearest_sample != nullptr) {
+      imu_yaw_rate_raw = nearest_sample->filtered_angular_velocity;
+      lateral_accel_measured = nearest_sample->filtered_linear_accel_y;
+      lateral_accel_measured_for_slip = nearest_sample->raw_linear_accel_y;
+      yaw_rate_measured_for_slip = nearest_sample->raw_angular_velocity;
+
+      if (nearest_abs_dt_sec > imu_sync_tolerance_sec_) {
+        RCLCPP_WARN_THROTTLE(
+          get_logger(), *get_clock(), 2000,
+          "IMU/VESC timestamp offset is %.4f s (tolerance %.4f s).",
+          nearest_abs_dt_sec, imu_sync_tolerance_sec_);
+      }
+    }
+  }
+
+  if (!imu_fresh) {
+    // If IMU is stale, use model-consistent channels to avoid stale residual spikes.
+    imu_yaw_rate_raw = model_yaw_rate + gyro_bias_;
+    lateral_accel_measured = current_speed * model_yaw_rate;
+    lateral_accel_measured_for_slip = lateral_accel_measured;
+    yaw_rate_measured_for_slip = model_yaw_rate + gyro_bias_;
+  }
+
+  // Slip indicator uses fast de-biased IMU channels to keep slip response quick.
   const double lateral_accel_model = current_speed * model_yaw_rate;
   const double lateral_accel_residual_abs =
-    std::fabs(lateral_accel_measured - lateral_accel_model);
+    std::fabs(lateral_accel_measured_for_slip - lateral_accel_model);
   const double yaw_rate_residual_abs =
-    std::fabs((imu_yaw_rate_raw - gyro_bias_) - model_yaw_rate);
+    std::fabs((yaw_rate_measured_for_slip - gyro_bias_) - model_yaw_rate);
+  const double lateral_velocity_error_abs = std::fabs(imu_lateral_velocity_ - model_lateral_velocity);
   const double yaw_indicator = slip_yaw_rate_weight_ * yaw_rate_residual_abs;
+  const double lateral_accel_indicator = std::min(lateral_accel_residual_abs, slip_accel_clip_);
 
   double slip_indicator_raw = yaw_indicator;
-  if (slip_use_lateral_accel_) {
-    slip_indicator_raw = std::max(yaw_indicator, std::min(lateral_accel_residual_abs, slip_accel_clip_));
+  double slip_enter_threshold = slip_accel_enter_;
+  double slip_exit_threshold = slip_accel_exit_;
+
+  if (slip_indicator_source_ == "lateral_accel") {
+    slip_indicator_raw = lateral_accel_indicator;
+  } else if (slip_indicator_source_ == "lateral_velocity_error") {
+    slip_indicator_raw = lateral_velocity_error_abs;
+    slip_enter_threshold = slip_lateral_velocity_enter_;
+    slip_exit_threshold = slip_lateral_velocity_exit_;
+  } else if (slip_use_lateral_accel_) {
+    slip_indicator_raw = std::max(yaw_indicator, lateral_accel_indicator);
   }
 
   if (!slip_indicator_initialized_) {
@@ -321,7 +562,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     slip_exit_timer_ = 0.0;
     slip_active_ = false;
   } else if (!slip_active_) {
-    if (filtered_slip_indicator_ > slip_accel_enter_) {
+    if (filtered_slip_indicator_ > slip_enter_threshold) {
       slip_enter_timer_ += dt_sec;
     } else {
       slip_enter_timer_ = 0.0;
@@ -334,10 +575,10 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
       RCLCPP_INFO(
         get_logger(),
         "Slip mode ON (raw=%.3f, filtered=%.3f, enter=%.3f).",
-        slip_indicator_raw, filtered_slip_indicator_, slip_accel_enter_);
+        slip_indicator_raw, filtered_slip_indicator_, slip_enter_threshold);
     }
   } else {
-    if (filtered_slip_indicator_ < slip_accel_exit_) {
+    if (filtered_slip_indicator_ < slip_exit_threshold) {
       slip_exit_timer_ += dt_sec;
     } else {
       slip_exit_timer_ = 0.0;
@@ -350,12 +591,14 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
       RCLCPP_INFO(
         get_logger(),
         "Slip mode OFF (raw=%.3f, filtered=%.3f, exit=%.3f).",
-        slip_indicator_raw, filtered_slip_indicator_, slip_accel_exit_);
+        slip_indicator_raw, filtered_slip_indicator_, slip_exit_threshold);
     }
   }
 
+  const double slip_threshold_delta =
+    std::max(slip_enter_threshold - slip_exit_threshold, kEpsilon);
   double slip_weight = std::clamp(
-    (filtered_slip_indicator_ - slip_accel_exit_) / (slip_accel_enter_ - slip_accel_exit_),
+    (filtered_slip_indicator_ - slip_exit_threshold) / slip_threshold_delta,
     0.0,
     1.0);
   if (!has_servo) {
@@ -365,17 +608,21 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     slip_weight = 0.0;
   }
 
-  if (has_servo && slip_weight < 0.2 && std::fabs(current_speed) > 0.5) {
-    const double yaw_rate_error = imu_yaw_rate_raw - model_yaw_rate;
-    gyro_bias_ = (1.0 - gyro_bias_alpha_) * gyro_bias_ + gyro_bias_alpha_ * yaw_rate_error;
+  // Forward speed stays wheel-odometry based; IMU is used for yaw/slip channels.
+  double fused_speed = current_speed;
+  if (std::fabs(fused_speed) < speed_deadband_) {
+    fused_speed = 0.0;
   }
 
   const double imu_yaw_rate = imu_yaw_rate_raw - gyro_bias_;
+  const double imu_yaw_weight = imu_fresh ?
+    (imu_yaw_base_weight_ + (1.0 - imu_yaw_base_weight_) * slip_weight) :
+    0.0;
   const double current_yaw_rate =
-    (1.0 - slip_weight) * model_yaw_rate + slip_weight * imu_yaw_rate;
+    (1.0 - imu_yaw_weight) * model_yaw_rate + imu_yaw_weight * imu_yaw_rate;
 
   // Lateral velocity estimate (high-slip helper) from IMU lateral acceleration residual.
-  const double lateral_accel_residual = lateral_accel_measured - current_speed * current_yaw_rate;
+  const double lateral_accel_residual = lateral_accel_measured - fused_speed * current_yaw_rate;
   if (!lateral_accel_filter_initialized_) {
     filtered_lateral_accel_ = lateral_accel_residual;
     lateral_accel_filter_initialized_ = true;
@@ -389,7 +636,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   imu_lateral_velocity_estimate += filtered_lateral_accel_ * dt_sec;
   const double decay = std::max(0.0, 1.0 - imu_lateral_velocity_decay_ * dt_sec);
   imu_lateral_velocity_estimate *= decay;
-  if (std::fabs(current_speed) < 0.2) {
+  if (std::fabs(fused_speed) < 0.2) {
     imu_lateral_velocity_estimate = 0.0;
   }
   imu_lateral_velocity_estimate = std::clamp(
@@ -408,17 +655,18 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   if (has_servo) {
     beta_kinematic = std::atan(kinematic_beta_ratio_ * std::tan(steering_angle));
   }
-  const double beta_imu = std::atan2(imu_lateral_velocity_, std::max(0.4, std::fabs(current_speed)));
+  const double beta_imu = std::atan2(imu_lateral_velocity_, std::max(0.4, std::fabs(fused_speed)));
   const double beta = std::clamp(
     (1.0 - slip_weight) * beta_kinematic + slip_weight * beta_imu,
     -beta_max_rad_, beta_max_rad_);
 
-  // Integrate pose in the velocity direction (yaw + beta).
+  // Integrate pose with midpoint heading to reduce turn-rate integration error.
+  const double yaw_mid = normalizeAngle(yaw_ + 0.5 * current_yaw_rate * dt_sec);
   yaw_ = normalizeAngle(yaw_ + current_yaw_rate * dt_sec);
   yaw_rate_state_ = current_yaw_rate;
-  const double heading = yaw_ + beta;
-  x_ += current_speed * std::cos(heading) * dt_sec;
-  y_ += current_speed * std::sin(heading) * dt_sec;
+  const double heading = yaw_mid + beta;
+  x_ += fused_speed * std::cos(heading) * dt_sec;
+  y_ += fused_speed * std::sin(heading) * dt_sec;
 
   last_state_ = state;
 
@@ -435,14 +683,22 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   odom->pose.pose.orientation.z = std::sin(yaw_ / 2.0);
   odom->pose.pose.orientation.w = std::cos(yaw_ / 2.0);
 
-  const double xy_cov = odom_x_covariance_ * (1.0 + slip_weight * (slip_xy_covariance_scale_ - 1.0));
-  const double yaw_cov = odom_yaw_covariance_ * (1.0 + slip_weight * (slip_yaw_covariance_scale_ - 1.0));
+  const double x_cov = odom_x_covariance_ * (1.0 + slip_weight * (slip_xy_covariance_scale_ - 1.0));
+  const double y_cov = odom_y_covariance_ * (1.0 + slip_weight * (slip_xy_covariance_scale_ - 1.0));
+  const double yaw_cov = odom_yaw_covariance_;
 
-  odom->pose.covariance[0] = xy_cov;
-  odom->pose.covariance[7] = odom_y_covariance_ * (1.0 + slip_weight * (slip_xy_covariance_scale_ - 1.0));
+  std::fill(odom->pose.covariance.begin(), odom->pose.covariance.end(), 0.0);
+  odom->pose.covariance[0] = x_cov;
+  odom->pose.covariance[7] = y_cov;
   odom->pose.covariance[35] = yaw_cov;
 
-  odom->twist.twist.linear.x = current_speed;
+  std::fill(odom->twist.covariance.begin(), odom->twist.covariance.end(), 0.0);
+  const double vx_cov = std::max(0.02, x_cov);
+  const double vy_cov = std::max(0.05, y_cov);
+  odom->twist.covariance[0] = vx_cov;
+  odom->twist.covariance[7] = vy_cov;
+
+  odom->twist.twist.linear.x = fused_speed;
   odom->twist.twist.linear.y = imu_lateral_velocity_;
   odom->twist.twist.angular.z = current_yaw_rate;
 
@@ -458,21 +714,223 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   if (rclcpp::ok()) {
     tf_pub_->sendTransform(tf);
     odom_pub_->publish(std::move(odom));
+  }else {
+    RCLCPP_WARN(
+      get_logger(),
+      "TF NOT PRINTED!!! due to");
+      
   }
 }
 
 void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
 {
   last_imu_ = imu;
+  last_imu_receive_time_ = now();
+  imu_receive_time_initialized_ = true;
 
-  const double raw_angular_velocity = imu->angular_velocity.z;
-  if (!angular_velocity_filter_initialized_) {
-    filtered_angular_velocity_ = raw_angular_velocity;
+  const bool has_valid_stamp =
+    (imu->header.stamp.sec != 0) || (imu->header.stamp.nanosec != 0);
+  const rclcpp::Time sample_stamp = has_valid_stamp ? rclcpp::Time(imu->header.stamp) : now();
+  const double sample_time_sec = sample_stamp.seconds();
+
+  if (imu_startup_calibration_enabled_ && !imu_startup_calibration_done_) {
+    if (!imu_startup_calibration_started_) {
+      imu_startup_calibration_started_ = true;
+      imu_startup_calibration_start_sec_ = sample_time_sec;
+      imu_startup_calibration_sample_count_ = 0;
+      imu_startup_linear_accel_x_sum_ = 0.0;
+      imu_startup_linear_accel_y_sum_ = 0.0;
+      imu_startup_angular_velocity_z_sum_ = 0.0;
+      RCLCPP_INFO(
+        get_logger(),
+        "Starting IMU startup calibration for %.2f seconds. Keep the car stationary.",
+        imu_startup_calibration_duration_sec_);
+    }
+
+    imu_startup_linear_accel_x_sum_ += imu->linear_acceleration.x;
+    imu_startup_linear_accel_y_sum_ += imu->linear_acceleration.y;
+    imu_startup_angular_velocity_z_sum_ += imu->angular_velocity.z;
+    ++imu_startup_calibration_sample_count_;
+
+    const double elapsed_sec = sample_time_sec - imu_startup_calibration_start_sec_;
+    if (elapsed_sec >= imu_startup_calibration_duration_sec_ &&
+      imu_startup_calibration_sample_count_ > 0U)
+    {
+      const double inv_samples =
+        1.0 / static_cast<double>(std::max<std::size_t>(imu_startup_calibration_sample_count_, 1U));
+      imu_startup_linear_accel_x_bias_ = imu_startup_linear_accel_x_sum_ * inv_samples;
+      imu_startup_linear_accel_y_bias_ = imu_startup_linear_accel_y_sum_ * inv_samples;
+      imu_startup_angular_velocity_z_bias_ = imu_startup_angular_velocity_z_sum_ * inv_samples;
+      imu_startup_calibration_done_ = true;
+
+      RCLCPP_INFO(
+        get_logger(),
+        "IMU startup calibration done (%zu samples): accel_bias_x=%.6f, accel_bias_y=%.6f, gyro_bias_z=%.6f",
+        imu_startup_calibration_sample_count_,
+        imu_startup_linear_accel_x_bias_,
+        imu_startup_linear_accel_y_bias_,
+        imu_startup_angular_velocity_z_bias_);
+    }
+  }
+
+  double imu_dt_sec = 0.0;
+  if (imu_sample_time_initialized_) {
+    imu_dt_sec = sample_time_sec - last_imu_sample_time_sec_;
+    if (imu_dt_sec <= 0.0 || imu_dt_sec > max_dt_sec_) {
+      imu_dt_sec = 0.0;
+    }
+  }
+  imu_sample_time_initialized_ = true;
+  last_imu_sample_time_sec_ = sample_time_sec;
+
+  double current_gyro_z_bias = imu_startup_angular_velocity_z_bias_;
+  double current_linear_accel_x_bias = imu_startup_linear_accel_x_bias_;
+  double current_linear_accel_y_bias = imu_startup_linear_accel_y_bias_;
+  if (imu_startup_calibration_enabled_ && !imu_startup_calibration_done_ &&
+    imu_startup_calibration_sample_count_ > 0U)
+  {
+    current_gyro_z_bias =
+      imu_startup_angular_velocity_z_sum_ /
+      static_cast<double>(imu_startup_calibration_sample_count_);
+    current_linear_accel_x_bias =
+      imu_startup_linear_accel_x_sum_ /
+      static_cast<double>(imu_startup_calibration_sample_count_);
+    current_linear_accel_y_bias =
+      imu_startup_linear_accel_y_sum_ /
+      static_cast<double>(imu_startup_calibration_sample_count_);
+  }
+
+  const double raw_angular_velocity = imu->angular_velocity.z - current_gyro_z_bias;
+  const double raw_linear_accel_x = imu->linear_acceleration.x - current_linear_accel_x_bias;
+  const double raw_linear_accel_y = imu->linear_acceleration.y - current_linear_accel_y_bias;
+  debiased_angular_velocity_z_raw_ = raw_angular_velocity;
+  debiased_linear_accel_x_raw_ = raw_linear_accel_x;
+  debiased_linear_accel_y_raw_ = raw_linear_accel_y;
+
+  auto apply_butterworth_lowpass =
+    [&](double input,
+    double cutoff_hz,
+    bool & filter_initialized,
+    double & x1,
+    double & x2,
+    double & y1,
+    double & y2,
+    double dt_sec) -> double
+    {
+      if (!filter_initialized) {
+        filter_initialized = true;
+        x1 = input;
+        x2 = input;
+        y1 = input;
+        y2 = input;
+        return input;
+      }
+
+      if (dt_sec <= 0.0 || cutoff_hz <= 0.0) {
+        x2 = x1;
+        x1 = input;
+        y2 = y1;
+        y1 = input;
+        return input;
+      }
+
+      const double sample_rate_hz = 1.0 / dt_sec;
+      const double max_cutoff_hz = 0.45 * sample_rate_hz;
+      if (max_cutoff_hz <= 0.0) {
+        x2 = x1;
+        x1 = input;
+        y2 = y1;
+        y1 = input;
+        return input;
+      }
+
+      const double limited_cutoff_hz = std::min(cutoff_hz, max_cutoff_hz);
+      const double q = std::sqrt(0.5);  // Butterworth Q = 1/sqrt(2)
+      const double omega = 2.0 * M_PI * limited_cutoff_hz / sample_rate_hz;
+      const double sin_omega = std::sin(omega);
+      const double cos_omega = std::cos(omega);
+      const double alpha = sin_omega / (2.0 * q);
+
+      double b0 = (1.0 - cos_omega) * 0.5;
+      double b1 = 1.0 - cos_omega;
+      double b2 = (1.0 - cos_omega) * 0.5;
+      double a0 = 1.0 + alpha;
+      double a1 = -2.0 * cos_omega;
+      double a2 = 1.0 - alpha;
+
+      const double a0_inv = 1.0 / a0;
+      b0 *= a0_inv;
+      b1 *= a0_inv;
+      b2 *= a0_inv;
+      a1 *= a0_inv;
+      a2 *= a0_inv;
+
+      const double output =
+        b0 * input + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+
+      x2 = x1;
+      x1 = input;
+      y2 = y1;
+      y1 = output;
+      return output;
+    };
+
+  if (imu_use_butterworth_filter_) {
+    filtered_angular_velocity_ = apply_butterworth_lowpass(
+      raw_angular_velocity,
+      imu_butterworth_gyro_cutoff_hz_,
+      gyro_biquad_initialized_,
+      gyro_biquad_x1_,
+      gyro_biquad_x2_,
+      gyro_biquad_y1_,
+      gyro_biquad_y2_,
+      imu_dt_sec);
+
+    filtered_linear_accel_x_ = apply_butterworth_lowpass(
+      raw_linear_accel_x,
+      imu_butterworth_lateral_accel_cutoff_hz_,
+      longitudinal_accel_x_biquad_initialized_,
+      longitudinal_accel_x_biquad_x1_,
+      longitudinal_accel_x_biquad_x2_,
+      longitudinal_accel_x_biquad_y1_,
+      longitudinal_accel_x_biquad_y2_,
+      imu_dt_sec);
+
+    filtered_linear_accel_y_ = apply_butterworth_lowpass(
+      raw_linear_accel_y,
+      imu_butterworth_lateral_accel_cutoff_hz_,
+      lateral_accel_y_biquad_initialized_,
+      lateral_accel_y_biquad_x1_,
+      lateral_accel_y_biquad_x2_,
+      lateral_accel_y_biquad_y1_,
+      lateral_accel_y_biquad_y2_,
+      imu_dt_sec);
+
     angular_velocity_filter_initialized_ = true;
   } else {
-    filtered_angular_velocity_ =
-      imu_angular_velocity_alpha_ * raw_angular_velocity +
-      (1.0 - imu_angular_velocity_alpha_) * filtered_angular_velocity_;
+    if (!angular_velocity_filter_initialized_) {
+      filtered_angular_velocity_ = raw_angular_velocity;
+      angular_velocity_filter_initialized_ = true;
+    } else {
+      filtered_angular_velocity_ =
+        imu_angular_velocity_alpha_ * raw_angular_velocity +
+        (1.0 - imu_angular_velocity_alpha_) * filtered_angular_velocity_;
+    }
+    filtered_linear_accel_x_ = raw_linear_accel_x;
+    filtered_linear_accel_y_ = raw_linear_accel_y;
+  }
+
+  ImuSyncSample sync_sample;
+  sync_sample.stamp = sample_stamp;
+  sync_sample.filtered_angular_velocity = filtered_angular_velocity_;
+  sync_sample.filtered_linear_accel_x = filtered_linear_accel_x_;
+  sync_sample.filtered_linear_accel_y = filtered_linear_accel_y_;
+  sync_sample.raw_angular_velocity = debiased_angular_velocity_z_raw_;
+  sync_sample.raw_linear_accel_x = debiased_linear_accel_x_raw_;
+  sync_sample.raw_linear_accel_y = debiased_linear_accel_y_raw_;
+  imu_history_.push_back(sync_sample);
+  while (static_cast<int>(imu_history_.size()) > imu_history_max_samples_) {
+    imu_history_.pop_front();
   }
 
   auto filtered_msg = std::make_unique<Float64>();
@@ -483,6 +941,8 @@ void VescToOdom::imuCallback(const sensor_msgs::msg::Imu::SharedPtr imu)
 void VescToOdom::servoCmdCallback(const Float64::SharedPtr servo)
 {
   last_servo_cmd_ = servo;
+  last_servo_receive_time_ = now();
+  servo_receive_time_initialized_ = true;
 }
 
 }  // namespace vesc_ackermann

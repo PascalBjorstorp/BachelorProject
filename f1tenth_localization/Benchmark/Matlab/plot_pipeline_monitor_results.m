@@ -8,7 +8,6 @@ close all;
 %
 % The script looks for:
 %   newest pipeline_latency_*.csv (fallback Pipeline_*.csv)
-%   SystemUsageShort.csv (optional, includes gpu_percent when available)
 %   SystemUsageLong.csv (optional, includes gpu_percent when available)
 %   SystemUsagePerCore.csv (optional)
 %   SystemUsageNodeProcesses.csv (optional, per-ROS-node CPU usage)
@@ -22,10 +21,8 @@ end
 
 
 pipelineFile = latestFileAny(csvDir, {'pipeline_*.csv'});
-shortCpuFile = fullfile(csvDir, 'SystemUsageShort.csv');
 longCpuFile = fullfile(csvDir, 'SystemUsageLong.csv');
 perCoreCpuFile = fullfile(csvDir, 'SystemUsagePerCore.csv');
-gpuUsageFile = fullfile(csvDir, 'SystemUsageGpu.csv');
 nodeProcessCpuFile = fullfile(csvDir, 'SystemUsageNodeProcesses.csv');
 
 fprintf('Using pipeline CSV: %s\n', pipelineFile);
@@ -40,38 +37,29 @@ requiredPipeline = {
     'scan_to_ekf_ms'};
 assertHasColumns(Tp, requiredPipeline, 'Pipeline CSV');
 
-hasCpuWindows = isfile(shortCpuFile) && isfile(longCpuFile);
+hasCpuWindows = isfile(longCpuFile);
 hasPerCoreCpu = isfile(perCoreCpuFile);
-hasGpuShort = isfile(gpuUsageFile);
 hasNodeProcessCpu = isfile(nodeProcessCpuFile);
-Tshort = table();
 Tlong = table();
 Tcore = table();
-Tgpu = table();
 Tnode = table();
-shortCpu = [];
 longCpu = [];
-shortGpu = [];
 longGpu = [];
 hasGpuLong = false;
 coreCpu = [];
 coreNames = {};
 
 if hasCpuWindows
-    fprintf('Using short CPU CSV: %s\n', shortCpuFile);
     fprintf('Using long CPU CSV:  %s\n', longCpuFile);
 
-    Tshort = readtable(shortCpuFile, 'VariableNamingRule', 'preserve');
     Tlong = readtable(longCpuFile, 'VariableNamingRule', 'preserve');
 
-    assertHasColumns(Tshort, {'monotonic_time_ns','cpu_short_window_percent'}, 'Short CPU CSV');
     assertHasColumns(Tlong, {'monotonic_time_ns','cpu_long_window_percent'}, 'Long CPU CSV');
 
-    if height(Tshort) == 0 || height(Tlong) == 0
-        fprintf('CPU window CSVs are empty. Skipping CPU windows figure.\n');
+    if height(Tlong) == 0
+        fprintf('Long CPU CSV is empty. Skipping CPU windows figure.\n');
         hasCpuWindows = false;
     else
-        shortCpu = double(Tshort.cpu_short_window_percent);
         longCpu = double(Tlong.cpu_long_window_percent);
 
         hasGpuLong = ismember('gpu_percent', Tlong.Properties.VariableNames);
@@ -80,31 +68,9 @@ if hasCpuWindows
         end
     end
 else
-    fprintf('CPU window CSVs not found. Expected:\n');
-    fprintf('  %s\n', shortCpuFile);
+    fprintf('CPU long-window CSV not found. Expected:\n');
     fprintf('  %s\n', longCpuFile);
     fprintf('Proceeding with pipeline latency plots only.\n');
-end
-
-if hasGpuShort
-    fprintf('Using GPU CSV: %s\n', gpuUsageFile);
-    Tgpu = readtable(gpuUsageFile, 'VariableNamingRule', 'preserve');
-    assertHasColumns(Tgpu, {'monotonic_time_ns','gpu_percent'}, 'GPU CSV');
-
-    if height(Tgpu) == 0
-        fprintf('GPU CSV is empty. Skipping GPU short-rate plots.\n');
-        hasGpuShort = false;
-    else
-        shortGpu = double(Tgpu.gpu_percent);
-    end
-else
-    fprintf('GPU CSV not found. Expected:\n');
-    fprintf('  %s\n', gpuUsageFile);
-    if hasCpuWindows && ismember('gpu_percent', Tshort.Properties.VariableNames)
-        fprintf('Falling back to gpu_percent in short CPU CSV.\n');
-        hasGpuShort = true;
-        shortGpu = double(Tshort.gpu_percent);
-    end
 end
 
 if hasNodeProcessCpu
@@ -146,10 +112,8 @@ end
 
 % Time vectors (seconds from start) for CPU files
 if hasCpuWindows
-    tShort = (double(Tshort.monotonic_time_ns) - double(Tshort.monotonic_time_ns(1))) * 1e-9;
     tLong = (double(Tlong.monotonic_time_ns) - double(Tlong.monotonic_time_ns(1))) * 1e-9;
 else
-    tShort = [];
     tLong = [];
 end
 
@@ -157,16 +121,6 @@ if hasPerCoreCpu
     tCore = (double(Tcore.monotonic_time_ns) - double(Tcore.monotonic_time_ns(1))) * 1e-9;
 else
     tCore = [];
-end
-
-if hasGpuShort
-    if height(Tgpu) > 0
-        tGpu = (double(Tgpu.monotonic_time_ns) - double(Tgpu.monotonic_time_ns(1))) * 1e-9;
-    else
-        tGpu = tShort;
-    end
-else
-    tGpu = [];
 end
 
 if hasNodeProcessCpu
@@ -187,18 +141,28 @@ if hasPipeline
     warmupSeconds = 3.0;      % Ignore startup transient pairing/matching
     maxLatencyMs = 200.0;     % Clip unrealistic spikes for visualization
 
-    % Optional columns
-    hasE2D = ismember('ekf_to_drive_ms', Tp.Properties.VariableNames);
-    hasS2D = ismember('scan_to_drive_ms', Tp.Properties.VariableNames);
+    % Optional columns (prefer new command naming, keep drive fallback)
+    hasE2D = ismember('ekf_to_command_ms', Tp.Properties.VariableNames) || ...
+             ismember('ekf_to_drive_ms', Tp.Properties.VariableNames);
+    hasS2D = ismember('scan_to_command_ms', Tp.Properties.VariableNames) || ...
+             ismember('scan_to_drive_ms', Tp.Properties.VariableNames);
 
     if hasE2D
-        e2d = double(Tp.ekf_to_drive_ms);
+        if ismember('ekf_to_command_ms', Tp.Properties.VariableNames)
+            e2d = double(Tp.ekf_to_command_ms);
+        else
+            e2d = double(Tp.ekf_to_drive_ms);
+        end
     else
         e2d = nan(height(Tp), 1);
     end
 
     if hasS2D
-        s2d = double(Tp.scan_to_drive_ms);
+        if ismember('scan_to_command_ms', Tp.Properties.VariableNames)
+            s2d = double(Tp.scan_to_command_ms);
+        else
+            s2d = double(Tp.scan_to_drive_ms);
+        end
     else
         s2d = nan(height(Tp), 1);
     end
@@ -212,7 +176,7 @@ if hasPipeline
     amcl2ekf = double(Tp.amcl_to_ekf_ms);
     scan2ekf = double(Tp.scan_to_ekf_ms);
 
-    % Clean startup and extreme outliers for drive-related metrics.
+    % Clean startup and extreme outliers for command-related metrics.
     e2dPlot = e2d;
     s2dPlot = s2d;
     e2dPlot(tPipe < warmupSeconds) = NaN;
@@ -238,24 +202,24 @@ if hasPipeline
 
     nexttile;
     if hasE2D
-        plotLatencyTrace(tPipe, e2dPlot, 'ekf->drive', [0.47 0.67 0.19]);
+        plotLatencyTrace(tPipe, e2dPlot, 'ekf->motor_cmd', [0.47 0.67 0.19]);
     else
-        axis off; text(0.1,0.5,'No ekf->drive column','FontSize',11);
+        axis off; text(0.1,0.5,'No ekf->motor_cmd column','FontSize',11);
     end
 
     nexttile;
     if hasS2D
-        plotLatencyTrace(tPipe, s2dPlot, 'scan->drive', [0.30 0.75 0.93]);
+        plotLatencyTrace(tPipe, s2dPlot, 'scan->motor_cmd', [0.30 0.75 0.93]);
     else
-        axis off; text(0.1,0.5,'No scan->drive column','FontSize',11);
+        axis off; text(0.1,0.5,'No scan->motor_cmd column','FontSize',11);
     end
 
-    %% Figure 2: Combined histograms (scan->ekf on top, scan->drive below)
+    %% Figure 2: Combined histograms (scan->ekf on top, scan->motor_cmd below)
     scan2ekfAllValid = scan2ekf(isfinite(scan2ekf) & scan2ekf >= 0);
 
     if hasS2D
-        driveMatchedMask = isfinite(scan2ekf) & (scan2ekf >= 0) & ~isnan(s2dPlot);
-        scan2ekfValid = scan2ekf(driveMatchedMask);
+        commandMatchedMask = isfinite(scan2ekf) & (scan2ekf >= 0) & ~isnan(s2dPlot);
+        scan2ekfValid = scan2ekf(commandMatchedMask);
         s2dValid = s2dPlot(~isnan(s2dPlot));
         droppedUnmatched = max(0, numel(scan2ekfAllValid) - numel(scan2ekfValid));
     else
@@ -271,7 +235,7 @@ if hasPipeline
     histogram(scan2ekfValid, 80);
     grid on;
     if hasS2D
-        title(sprintf('Histogram: scan->ekf (drive-matched, dropped %d unmatched)', droppedUnmatched));
+        title(sprintf('Histogram: scan->ekf (command-matched, dropped %d unmatched)', droppedUnmatched));
     else
         title('Histogram: scan->ekf');
     end
@@ -285,13 +249,13 @@ if hasPipeline
     if ~isempty(s2dValid)
         histogram(s2dValid, 80);
         grid on;
-        title('Histogram: scan->drive');
-        xlabel('scan->drive [ms]');
+        title('Histogram: scan->motor_cmd');
+        xlabel('scan->motor_cmd [ms]');
         ylabel('Count');
         xlim([0, max(5, prctile(s2dValid, 99.5))]);
     else
         axis off;
-        text(0.1, 0.5, 'No scan->drive data available', 'FontSize', 11);
+        text(0.1, 0.5, 'No scan->motor_cmd data available', 'FontSize', 11);
     end
 
     %% Figure 3: Boxplot with six timing metrics
@@ -310,8 +274,8 @@ if hasPipeline
         repmat({'scan_{walls}->amcl'}, numel(b2), 1);
         repmat({'amcl->ekf'}, numel(b3), 1);
         repmat({'scan->ekf'}, numel(b4), 1);
-        repmat({'ekf->drive'}, numel(b5), 1);
-        repmat({'scan->drive'}, numel(b6), 1);
+        repmat({'ekf->motor_cmd'}, numel(b5), 1);
+        repmat({'scan->motor_cmd'}, numel(b6), 1);
         ];
 
     if isempty(allVals)
@@ -331,76 +295,17 @@ end
 
 %% Figure 4: CPU windows over time (optional)
 if hasCpuWindows
-    figure('Name', 'CPU Windows', 'Color', 'w');
-    tiledlayout(2,1, 'Padding', 'compact', 'TileSpacing', 'compact');
-
-    nexttile;
-    plot(tShort, shortCpu, 'Color', [0.20 0.55 0.90], 'LineWidth', 0.8);
-    grid on;
-    ylabel('CPU [%]');
-    title('Short window CPU (high-rate)');
-    ylim([0, 100]);
-
-    nexttile;
+    figure('Name', 'CPU Long Window', 'Color', 'w');
     stairs(tLong, longCpu, 'Color', [0.85 0.33 0.10], 'LineWidth', 1.4);
     grid on;
     xlabel('Time [s]');
     ylabel('CPU [%]');
     title('Long window CPU (1 Hz)');
     ylim([0, 100]);
-
-    % Figure 5: 25ms phase view in 5ms bins (for AMCL spike timing)
-    phaseCycleSec = 0.025;
-    phaseBinSec = 0.005;
-    phaseSec = mod(tShort, phaseCycleSec);
-    phaseEdgesSec = 0:phaseBinSec:phaseCycleSec;
-    [~, ~, phaseBinIdx] = histcounts(phaseSec, phaseEdgesSec);
-
-    nBins = numel(phaseEdgesSec) - 1;
-    phaseCentersSec = phaseEdgesSec(1:end-1) + (phaseBinSec / 2);
-    phaseMean = nan(nBins, 1);
-    phaseP95 = nan(nBins, 1);
-    phaseCount = zeros(nBins, 1);
-
-    for b = 1:nBins
-        vals = shortCpu(phaseBinIdx == b);
-        vals = vals(isfinite(vals));
-        phaseCount(b) = numel(vals);
-        if ~isempty(vals)
-            phaseMean(b) = mean(vals);
-            phaseP95(b) = prctile(vals, 95);
-        end
-    end
-
-    figure('Name', 'Short CPU Phase (25ms)', 'Color', 'w');
-    tiledlayout(2,1, 'Padding', 'compact', 'TileSpacing', 'compact');
-
-    nexttile;
-    scatter(phaseSec * 1e3, shortCpu, 8, [0.20 0.55 0.90], 'filled', ...
-        'MarkerFaceAlpha', 0.15, 'MarkerEdgeAlpha', 0.15);
-    grid on;
-    ylabel('CPU [%]');
-    title('Raw short CPU folded into 25ms cycle');
-    xlim([0, phaseCycleSec * 1e3]);
-    ylim([0, 100]);
-
-    nexttile;
-    plot(phaseCentersSec * 1e3, phaseMean, '-o', 'LineWidth', 1.4, 'Color', [0.00 0.45 0.74]);
-    hold on;
-    plot(phaseCentersSec * 1e3, phaseP95, '--s', 'LineWidth', 1.2, 'Color', [0.85 0.33 0.10]);
-    hold off;
-    grid on;
-    xlabel('Phase in 25ms cycle [ms]');
-    ylabel('CPU [%]');
-    title('5ms-bin statistics within 25ms cycle');
-    xlim([0, phaseCycleSec * 1e3]);
-    xticks(0:(phaseBinSec * 1e3):(phaseCycleSec * 1e3));
-    ylim([0, 100]);
-    legend('Mean', 'P95', 'Location', 'best');
 else
-    figure('Name', 'CPU Windows', 'Color', 'w');
+    figure('Name', 'CPU Long Window', 'Color', 'w');
     axis off;
-    text(0.1, 0.5, 'CPU window CSVs were not found', 'FontSize', 12);
+    text(0.1, 0.5, 'CPU long-window CSVs were not found', 'FontSize', 12);
 end
 
 %% Figure 6: Per-core CPU usage (optional)
@@ -463,92 +368,14 @@ if hasPerCoreCpu
 end
 
 %% Figure 7: GPU windows over time (optional)
-if hasGpuShort || hasGpuLong
-    figure('Name', 'GPU Windows', 'Color', 'w');
-    if hasGpuLong
-        tiledlayout(2,1, 'Padding', 'compact', 'TileSpacing', 'compact');
-    else
-        tiledlayout(1,1, 'Padding', 'compact', 'TileSpacing', 'compact');
-    end
-
-    nexttile;
-    plot(tGpu, shortGpu, 'Color', [0.49 0.18 0.56], 'LineWidth', 0.8);
-    grid on;
-    ylabel('GPU [%]');
-    title('Short-rate GPU usage');
-    ylim([0, 100]);
-    if ~hasGpuLong
-        xlabel('Time [s]');
-    end
-
-    if hasGpuLong
-        nexttile;
-        stairs(tLong, longGpu, 'Color', [0.47 0.67 0.19], 'LineWidth', 1.4);
-        grid on;
-        xlabel('Time [s]');
-        ylabel('GPU [%]');
-        title('Long window GPU (1 Hz log cadence)');
-        ylim([0, 100]);
-    end
-end
-
-%% Figure 8: CPU vs GPU alignment and phase comparison (optional)
-if hasCpuWindows && hasGpuShort
-    gpuAligned = interp1(tGpu, shortGpu, tShort, 'linear', 'extrap');
-
-    phaseCycleAlignSec = 0.025;
-    phaseBinAlignSec = 0.005;
-    phaseAlignSec = mod(tShort, phaseCycleAlignSec);
-    phaseAlignEdgesSec = 0:phaseBinAlignSec:phaseCycleAlignSec;
-    [~, ~, phaseAlignIdx] = histcounts(phaseAlignSec, phaseAlignEdgesSec);
-
-    nAlignBins = numel(phaseAlignEdgesSec) - 1;
-    phaseAlignCentersSec = phaseAlignEdgesSec(1:end-1) + (phaseBinAlignSec / 2);
-    cpuAlignMean = nan(nAlignBins, 1);
-    gpuAlignMean = nan(nAlignBins, 1);
-
-    for b = 1:nAlignBins
-        cpuVals = shortCpu(phaseAlignIdx == b);
-        gpuVals = gpuAligned(phaseAlignIdx == b);
-
-        cpuVals = cpuVals(isfinite(cpuVals));
-        gpuVals = gpuVals(isfinite(gpuVals));
-
-        if ~isempty(cpuVals)
-            cpuAlignMean(b) = mean(cpuVals);
-        end
-        if ~isempty(gpuVals)
-            gpuAlignMean(b) = mean(gpuVals);
-        end
-    end
-
-    figure('Name', 'CPU-GPU Alignment (25ms)', 'Color', 'w');
-    tiledlayout(2,1, 'Padding', 'compact', 'TileSpacing', 'compact');
-
-    nexttile;
-    plot(tShort, shortCpu, 'Color', [0.00 0.45 0.74], 'LineWidth', 0.8);
-    hold on;
-    plot(tShort, gpuAligned, 'Color', [0.49 0.18 0.56], 'LineWidth', 0.8);
-    hold off;
+if hasGpuLong
+    figure('Name', 'GPU Long Window', 'Color', 'w');
+    stairs(tLong, longGpu, 'Color', [0.47 0.67 0.19], 'LineWidth', 1.4);
     grid on;
     xlabel('Time [s]');
-    ylabel('Utilization [%]');
-    title('Short-rate aligned CPU and GPU');
+    ylabel('GPU [%]');
+    title('Long window GPU (1 Hz log cadence)');
     ylim([0, 100]);
-    legend('CPU short', 'GPU', 'Location', 'best');
-
-    nexttile;
-    plot(phaseAlignCentersSec * 1e3, cpuAlignMean, '-o', 'Color', [0.00 0.45 0.74], 'LineWidth', 1.4);
-    hold on;
-    plot(phaseAlignCentersSec * 1e3, gpuAlignMean, '-s', 'Color', [0.49 0.18 0.56], 'LineWidth', 1.4);
-    hold off;
-    grid on;
-    xlabel('Phase in 25ms cycle [ms]');
-    ylabel('Mean utilization [%]');
-    title('CPU vs GPU mean by 5ms phase bin');
-    xticks(0:(phaseBinAlignSec * 1e3):(phaseCycleAlignSec * 1e3));
-    ylim([0, 100]);
-    legend('CPU mean', 'GPU mean', 'Location', 'best');
 end
 
 %% Figure 9: Per-node CPU usage (optional)
@@ -680,34 +507,21 @@ if hasPipeline
     printStats('amcl->ekf', amcl2ekf, 'ms');
     printStats('scan->ekf', scan2ekf, 'ms');
     if hasE2D
-        printStats('ekf->drive', e2dPlot, 'ms');
+        printStats('ekf->motor_cmd', e2dPlot, 'ms');
     end
     if hasS2D
-        printStats('scan->drive', s2dPlot, 'ms');
+        printStats('scan->motor_cmd', s2dPlot, 'ms');
     end
 end
 
 if hasCpuWindows
     fprintf('\nCPU window summary\n');
-    printStats('cpu_short_window', shortCpu, '%');
     printStats('cpu_long_window', longCpu, '%');
-
-    fprintf('\nShort CPU phase summary (25ms cycle, 5ms bins)\n');
-    for b = 1:numel(phaseMean)
-        fprintf('phase [%5.1f,%5.1f) ms : mean=%8.3f  p95=%8.3f  n=%d\n', ...
-            phaseEdgesSec(b) * 1e3, phaseEdgesSec(b + 1) * 1e3, ...
-            phaseMean(b), phaseP95(b), phaseCount(b));
-    end
 end
 
-if hasGpuShort || hasGpuLong
+if hasGpuLong
     fprintf('\nGPU summary\n');
-    if hasGpuShort
-        printStats('gpu_short_window', shortGpu, '%');
-    end
-    if hasGpuLong
-        printStats('gpu_long_window', longGpu, '%');
-    end
+    printStats('gpu_long_window', longGpu, '%');
 end
 
 if hasPerCoreCpu

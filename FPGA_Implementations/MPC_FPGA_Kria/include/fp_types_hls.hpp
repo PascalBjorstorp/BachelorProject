@@ -1,9 +1,9 @@
 /**
  * @file fp_types_hls.hpp
- * @brief Mixed-precision internal fixed-point aliases for HLS builds.
+ * @brief AP-fixed type families for Kria MPC.
  *
- * This header keeps the external ABI in Q16.16 int32 while enabling
- * optional ap_fixed internal arithmetic in hot paths.
+ * IO boundary is fixed to Q16.16 to match the receiver protocol.
+ * Internal families are separated into QP and accumulator domains.
  */
 
 #ifndef FP_TYPES_HLS_HPP
@@ -11,88 +11,169 @@
 
 #ifdef __cplusplus
 
-#include <stdint.h>
-#include <limits.h>
-
-#if defined(MPC_USE_AP_FIXED)
 #include <ap_fixed.h>
 #include <ap_int.h>
 
-typedef ap_fixed<32, 16, AP_RND_CONV, AP_SAT> fp_state_t;
-typedef ap_fixed<24, 8, AP_RND_CONV, AP_SAT> fp_ctrl_t;
-typedef ap_fixed<40, 20, AP_RND_CONV, AP_SAT> fp_cost_t;
-typedef ap_fixed<56, 33, AP_RND_CONV, AP_SAT> fp_acc_t;
-typedef ap_fixed<28, 6, AP_RND_CONV, AP_SAT> fp_trig_t;
-typedef ap_fixed<24, 10, AP_TRN, AP_WRAP> fp_vm_t;
-typedef ap_fixed<40, 18, AP_TRN, AP_WRAP> fp_vm_acc_t;
-typedef ap_fixed<20, 9, AP_TRN, AP_WRAP> fp_recip_t;
-typedef ap_fixed<30, 14, AP_TRN, AP_WRAP> fp_recip_acc_t;
+/* IO boundary: must remain Q16.16 for protocol compatibility. */
+#ifndef MPC_HLS_IO_WIDTH
+#define MPC_HLS_IO_WIDTH 32
+#endif
 
-static inline fp_state_t fp_state_from_q16(int32_t raw)
+#ifndef MPC_HLS_IO_INT_BITS
+#define MPC_HLS_IO_INT_BITS 16
+#endif
+
+#ifndef MPC_HLS_RICCATI_WIDTH
+#define MPC_HLS_RICCATI_WIDTH 32
+#endif
+
+#ifndef MPC_HLS_RICCATI_INT_BITS
+#define MPC_HLS_RICCATI_INT_BITS 16
+#endif
+
+#ifndef MPC_HLS_ACCUM_WIDTH
+#define MPC_HLS_ACCUM_WIDTH 24
+#endif
+
+#ifndef MPC_HLS_ACCUM_INT_BITS
+#define MPC_HLS_ACCUM_INT_BITS 12
+#endif
+
+#ifndef MPC_HLS_RAW_ACC_GUARD_BITS
+#define MPC_HLS_RAW_ACC_GUARD_BITS 20
+#endif
+
+static_assert(MPC_HLS_IO_WIDTH == 32 && MPC_HLS_IO_INT_BITS == 16,
+              "IO boundary must stay Q16.16 (32,16)");
+static_assert(MPC_HLS_IO_WIDTH > MPC_HLS_IO_INT_BITS,
+              "MPC_HLS_IO_WIDTH must exceed MPC_HLS_IO_INT_BITS");
+static_assert(MPC_HLS_RICCATI_WIDTH > MPC_HLS_RICCATI_INT_BITS,
+              "MPC_HLS_RICCATI_WIDTH must exceed MPC_HLS_RICCATI_INT_BITS");
+static_assert(MPC_HLS_ACCUM_WIDTH > MPC_HLS_ACCUM_INT_BITS,
+              "MPC_HLS_ACCUM_WIDTH must exceed MPC_HLS_ACCUM_INT_BITS");
+
+typedef ap_int<32> fp_stream_raw_t;
+typedef ap_fixed<MPC_HLS_IO_WIDTH, MPC_HLS_IO_INT_BITS, AP_TRN, AP_WRAP> fp_io_t;
+typedef ap_fixed<MPC_HLS_RICCATI_WIDTH, MPC_HLS_RICCATI_INT_BITS, AP_TRN, AP_WRAP> fp_QP_t;
+typedef ap_fixed<MPC_HLS_ACCUM_WIDTH, MPC_HLS_ACCUM_INT_BITS, AP_TRN, AP_WRAP> fp_accum_t;
+typedef ap_int<MPC_HLS_RICCATI_WIDTH> fp_qp_raw_t;
+typedef ap_int<(MPC_HLS_RICCATI_WIDTH + MPC_HLS_RAW_ACC_GUARD_BITS)> fp_raw_acc_t;
+
+/**
+ * @brief Convert packed raw value to IO family type.
+ * @param raw Packed stream payload.
+ * @return IO family value.
+ */
+static inline fp_io_t fp_io_from_raw(fp_stream_raw_t raw)
 {
 #pragma HLS INLINE
-    fp_state_t out = 0;
-    out.range(31, 0) = (ap_int<32>)raw;
+    fp_io_t out = 0;
+    out.range(31, 0) = raw;
     return out;
 }
 
-static inline int32_t fp_q16_from_state(fp_state_t value)
+/**
+ * @brief Convert packed raw value to QP family type.
+ * @param raw Packed stream payload.
+ * @return QP family value.
+ */
+static inline fp_QP_t fp_QP_from_raw(fp_stream_raw_t raw)
 {
 #pragma HLS INLINE
-    ap_int<32> raw = value.range(31, 0);
-    return (int32_t)raw;
+    return (fp_QP_t)fp_io_from_raw(raw);
 }
 
-static inline int32_t fp_q16_mul_backend(int32_t a, int32_t b)
+static inline fp_qp_raw_t fp_qp_raw_from_QP(fp_QP_t value)
 {
 #pragma HLS INLINE
-    fp_acc_t prod = (fp_acc_t)fp_state_from_q16(a) * (fp_acc_t)fp_state_from_q16(b);
-    return fp_q16_from_state((fp_state_t)prod);
+    fp_qp_raw_t out;
+    out.range(MPC_HLS_RICCATI_WIDTH - 1, 0) = value.range(MPC_HLS_RICCATI_WIDTH - 1, 0);
+    return out;
 }
 
-static inline int32_t fp_q16_div_backend(int32_t a, int32_t b)
+static inline fp_QP_t fp_QP_from_qp_raw(fp_qp_raw_t raw)
 {
 #pragma HLS INLINE
-    if (a == 0 || b == 0) return 0;
-    fp_state_t qa = fp_state_from_q16(a);
-    fp_state_t qb = fp_state_from_q16(b);
-    return fp_q16_from_state((fp_state_t)(qa / qb));
+    fp_QP_t out;
+    out.range(MPC_HLS_RICCATI_WIDTH - 1, 0) = raw.range(MPC_HLS_RICCATI_WIDTH - 1, 0);
+    return out;
 }
 
-#else
-
-typedef int32_t fp_state_t;
-typedef int32_t fp_ctrl_t;
-typedef int32_t fp_cost_t;
-typedef int64_t fp_acc_t;
-typedef int32_t fp_trig_t;
-typedef int32_t fp_vm_t;
-typedef int64_t fp_vm_acc_t;
-typedef int32_t fp_recip_t;
-typedef int64_t fp_recip_acc_t;
-
-static inline fp_state_t fp_state_from_q16(int32_t raw)
+static inline fp_raw_acc_t fp_raw_acc_from_qp(fp_QP_t value)
 {
-    return raw;
+#pragma HLS INLINE
+    return (fp_raw_acc_t)fp_qp_raw_from_QP(value);
 }
 
-static inline int32_t fp_q16_from_state(fp_state_t value)
+static inline fp_QP_t fp_qp_from_raw_acc(fp_raw_acc_t raw)
 {
+#pragma HLS INLINE
+    return fp_QP_from_qp_raw((fp_qp_raw_t)raw);
+}
+
+static inline fp_raw_acc_t fp_qp_raw_min_acc()
+{
+#pragma HLS INLINE
+    return -(((fp_raw_acc_t)1) << (MPC_HLS_RICCATI_WIDTH - 1));
+}
+
+static inline fp_raw_acc_t fp_qp_raw_max_acc()
+{
+#pragma HLS INLINE
+    return ((((fp_raw_acc_t)1) << (MPC_HLS_RICCATI_WIDTH - 1)) - 1);
+}
+
+static inline fp_raw_acc_t fp_clip_raw_to_qp(fp_raw_acc_t value)
+{
+#pragma HLS INLINE
+    if (value > fp_qp_raw_max_acc()) return fp_qp_raw_max_acc();
+    if (value < fp_qp_raw_min_acc()) return fp_qp_raw_min_acc();
     return value;
 }
 
-static inline int32_t fp_q16_mul_backend(int32_t a, int32_t b)
+/**
+ * @brief Convert packed raw value to accumulator family type.
+ * @param raw Packed stream payload.
+ * @return Accumulator family value.
+ */
+static inline fp_accum_t fp_accum_from_raw(fp_stream_raw_t raw)
 {
-    return (int32_t)(((int64_t)a * (int64_t)b) >> 16);
+#pragma HLS INLINE
+    return (fp_accum_t)fp_io_from_raw(raw);
 }
 
-static inline int32_t fp_q16_div_backend(int32_t a, int32_t b)
+/**
+ * @brief Convert IO family value to packed raw payload.
+ * @param value IO family value.
+ * @return Packed raw payload.
+ */
+static inline fp_stream_raw_t fp_raw_from_io(fp_io_t value)
 {
-    if (a == 0 || b == 0) return 0;
-    return (int32_t)(((int64_t)a << 16) / (int64_t)b);
+#pragma HLS INLINE
+    return (fp_stream_raw_t)value.range(31, 0);
 }
 
-#endif
+/**
+ * @brief Convert QP family value to packed raw payload.
+ * @param value QP family value.
+ * @return Packed raw payload.
+ */
+static inline fp_stream_raw_t fp_raw_from_QP(fp_QP_t value)
+{
+#pragma HLS INLINE
+    return fp_raw_from_io((fp_io_t)value);
+}
+
+/**
+ * @brief Convert accumulator family value to packed raw payload.
+ * @param value Accumulator family value.
+ * @return Packed raw payload.
+ */
+static inline fp_stream_raw_t fp_raw_from_accum(fp_accum_t value)
+{
+#pragma HLS INLINE
+    return fp_raw_from_io((fp_io_t)value);
+}
 
 #endif
 

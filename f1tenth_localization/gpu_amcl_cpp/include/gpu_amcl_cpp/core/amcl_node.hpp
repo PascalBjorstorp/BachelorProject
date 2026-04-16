@@ -13,6 +13,7 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <mutex>
 #include <atomic>
+#include <deque>
 
 namespace gpu_amcl_cpp {
 
@@ -40,6 +41,14 @@ private:
     void declare_all_parameters();
     void load_parameters();
     void publish_pose(const PoseEstimate& est, const rclcpp::Time& stamp);
+    void push_odom_sample(const rclcpp::Time& stamp,
+                          double x,
+                          double y,
+                          double theta);
+    bool interpolate_odom_pose(const rclcpp::Time& stamp,
+                               double& x,
+                               double& y,
+                               double& theta) const;
 
     // ── ROS I/O ────────────────────────────────────────────────────
     // Subscribers
@@ -79,6 +88,16 @@ private:
     double pred_last_x_ = 0;
     double pred_last_y_ = 0;
     double pred_last_theta_ = 0;
+
+    struct OdomSample {
+        rclcpp::Time stamp;
+        double x;
+        double y;
+        double theta;
+    };
+
+    std::deque<OdomSample> odom_history_;
+    size_t odom_history_max_size_ = 500;
 
     // Thread safety
     std::mutex pf_mutex_;                       // Protects pf_ during GPU ops

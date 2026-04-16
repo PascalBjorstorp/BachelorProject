@@ -1,35 +1,26 @@
 #!/usr/bin/env python3
 """
-MPC Weight Tuning for Hardware Map (REALISTIC_SIM=1 Mode)
-==========================================================
-Sweeps MPC weights, horizons, and solver parameters on the hardware
-SLAM-mapped track (~22m, 0.27-1.4m wide). Optimized for maximum velocity
-while maintaining safety under all realistic effects.
+Base MPC tuning for the hardware map.
+=====================================
+Sweeps MPC weights, horizons, and solver timing on the hardware
+SLAM-mapped track (~22m, 0.27-1.4m wide).
 
 Usage:
     python3 test/tune_realistic_v2.py                        # Full sweep (all CPUs)
-    python3 test/tune_realistic_v2.py --jobs 8               # Use 8 parallel workers
-    python3 test/tune_realistic_v2.py -j 4                   # Use 4 workers
-    python3 test/tune_realistic_v2.py --objective fastest    # Speed-first + recovery scoring
-    python3 test/tune_realistic_v2.py --objective tracker    # Tracking-first scoring
-    python3 test/tune_realistic_v2.py --raceline my_track_raceline.csv
+    python3 test/tune_realistic_v2.py -j 0                   # Use all workers
 
-The sweep runs 8 phases:
+The sweep runs 6 phases:
     Phase 1: One-at-a-time parameter sensitivity
     Phase 2: Primary grid (Q_LAT x Q_HDG x Q_VEL x HORIZON x PRED_DT)
-    Phase 3: (Skipped for Hardware - wall margin is fixed)
     Phase 4: Secondary grid (Q_LAT_VEL x Q_YAW x R_STEER x W_JERK x R_ACCEL x W_ACCEL_RATE)
-    Phase 5: Solver parameters (RHO x RHO_U x ALPHA x TOL)
     Phase 6: Fine-tuning around best config
     Phase 7: Random neighbor exploration
-    Phase 8: Random exploitation around branch best
+    Phase 8: Random exploitation around current best
 
 Each configuration is evaluated across deterministic robustness scenarios:
-    1. A standard raceline launch to estimate lap pace
-    2. A left-offset recovery launch
-    3. A right-offset recovery launch
-    4. A single planner-style shifted raceline
-    5. A double-shift planner-style raceline
+    1. A standard raceline launch with off-raceline recovery start
+    2. A single planner-style shifted raceline with off-raceline recovery start
+    3. A double-shift planner-style raceline with off-raceline recovery start
 
 Phase 2 promotes an initial seed, then Phases 4-8 repeatedly refine the
 current global best.
@@ -56,10 +47,10 @@ from concurrent.futures import ProcessPoolExecutor, wait, FIRST_COMPLETED
 # ==============================================================================
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
-TRAJ_DIR = os.path.join(os.path.dirname(PROJECT_DIR), "f1tenth_planning", "trajectories")
+TRAJ_DIR = os.path.join(PROJECT_DIR, "trajectories")
 
-HORIZON_SWEEP_VALUES = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36]
-HORIZON_LIMIT = 40
+HORIZON_SWEEP_VALUES = [10, 12, 14, 16, 18, 20, 24, 28, 30]
+HORIZON_LIMIT = 50
 
 # ==============================================================================
 # HARDWARE MAP CONFIGURATION
@@ -70,232 +61,247 @@ RACELINE_PATH = os.path.join(TRAJ_DIR, DEFAULT_RACELINE_NAME)
 RACELINE_TAG = "my_track"
 WALL_MARGIN = 0.20
 
-# Base configuration - starting point for all sweeps
-BASE_CONFIG = {
-    "Q_LAT":        9000.0,
-    "Q_HDG":        900.0,
-    "Q_VEL":        220.0,
-    "Q_LAT_VEL":    10.0,
-    "Q_YAW":        4.5,
-    "R_STEER":      0.55,
-    "R_ACCEL":      0.012,
-    "W_JERK":       0.16,
-    "W_ACCEL_RATE": 0.14,
-    "RHO":          40.0,
-    "RHO_U":        24.0,
-    "ALPHA":        1.10,
-    "TOL":          5.0,
-    "MAX_ITER":     20,
-    "WALL_END":     12,
-    "WALL_STRIDE":  1,
-    "WALL_MARGIN":  0.20,
-    "HORIZON":      12,
-    "PRED_DT":      0.04,
-}
-
-# Override base for fastest objective
-FASTEST_BASE_OVERRIDES = {
-    "Q_LAT": 2200.0,
-    "Q_HDG": 480.0,
-    "Q_VEL": 620.0,
-    "Q_LAT_VEL": 12.0,
-    "Q_YAW": 4.5,
-    "R_STEER": 0.75,
-    "R_ACCEL": 0.012,
-    "W_JERK": 0.16,
-    "W_ACCEL_RATE": 0.14,
-    "HORIZON": 12,
-    "PRED_DT": 0.04,
+# Base override seed
+BASE_OVERRIDES = {
+    # Seeded from top row in tuning_hardware_fastest_20260410_231743_sorted.csv
+    "Q_LAT": 9660.42,
+    "Q_HDG": 1400.0,
+    "Q_VEL": 132.192,
+    "Q_LAT_VEL": 4.59,
+    "Q_YAW": 2.112,
+    "R_STEER": 2.244,
+    "R_ACCEL": 0.0065,
+    "W_JERK": 0.063,
+    "W_ACCEL_RATE": 0.17,
+    "MPC_W_DELTA_ACTUAL": 0.03,
+    "HORIZON": 10,
+    "PRED_DT": 0.032,
+    "RHO": 18.0,
+    "RHO_U": 24.0,
+    "ALPHA": 1.05,
+    "TOL": 0.05,
+    "MAX_ITER": 100,
+    "WALL_END": 10,
+    "WALL_STRIDE": 1,
+    "WALL_MARGIN": 0.2,
 }
 
 # ==============================================================================
 # SWEEP VALUE RANGES - PHASE 2 (Primary Grid)
 # ==============================================================================
 
-PHASE2_VALUES = {
-    "Q_LAT": [1200, 1800, 2600, 3600, 5000, 7000, 9500, 12500, 16000],
-    "Q_HDG": [80, 140, 220, 320, 460, 640, 860, 1120, 1500],
-    "Q_VEL": [100, 140, 180, 240, 320, 420, 540, 700, 900],
-    "HORIZON": [10, 12, 14, 16, 18, 20, 24, 28, 30, 40, 50],
-    "PRED_DT": [0.032, 0.034, 0.036, 0.038, 0.04, 0.042, 0.045, 0.05],
-}
-
-PHASE2_VALUES_FASTEST = {
-    # Feasibility-guided fastest basin from previous runs:
-    # higher lateral/heading authority + shorter prediction dt around N=14.
-    "Q_LAT": [6000, 8000, 10000, 12000, 14000, 16000],
-    "Q_HDG": [500, 700, 850, 950, 1100, 1300],
-    "Q_VEL": [420, 520, 620, 760, 900],
-    "HORIZON": [12, 14, 16, 18, 20],
-    "PRED_DT": [0.032, 0.034, 0.036, 0.038],
+PHASE2_VALUES_BASE = {
+    # Large primary grid centered around the attached best CSV seed.
+    # Sweeps grouped solver bucket profile as one config value
+    # (HORIZON+PRED_DT+RHO+RHO_U+TOL tied together).
+    # 6*5*5*4*4*4*3*10 = 288,000 configs.
+    "Q_LAT": [8200.0, 9000.0, 9660.42, 10300.0, 11200.0, 12200.0],
+    "Q_HDG": [1100.0, 1250.0, 1400.0, 1550.0, 1700.0],
+    "Q_VEL": [95.0, 110.0, 122.4, 132.192, 145.0],
+    "Q_LAT_VEL": [3.8, 4.59, 5.8, 7.2],
+    "Q_YAW": [1.8, 2.112, 2.8, 3.4],
+    "R_STEER": [1.9, 2.1, 2.244, 2.5],
+    "MPC_W_DELTA_ACTUAL": [0.02, 0.03, 0.05],
+    "SOLVER_BUCKET": ["t01", "t02", "t03", "t04", "t05", "t06", "t07", "t08", "t09", "t10"],
 }
 
 # ==============================================================================
 # SWEEP VALUE RANGES - ALL PARAMETERS (for one-at-a-time and fine-tuning)
 # ==============================================================================
 
-FULL_SWEEP_VALUES = {
-    "Q_LAT":        [1000, 1400, 2000, 2800, 3800, 5200, 7000, 9200, 12000, 15500],
-    "Q_HDG":        [60, 100, 160, 240, 340, 480, 680, 920, 1250, 1600],
-    "Q_VEL":        [100, 140, 180, 240, 320, 420, 540, 700, 900],
-    "Q_LAT_VEL":    [2, 4, 6, 8, 10, 12, 16, 20],
-    "Q_YAW":        [0.5, 1, 2, 3, 4.5, 6, 8],
-    "R_STEER":      [0.30, 0.40, 0.52, 0.65, 0.75, 0.90, 1.05],
-    "R_ACCEL":      [0.006, 0.008, 0.01, 0.012, 0.014, 0.016],
-    "W_JERK":       [0.02, 0.04, 0.06, 0.08, 0.10, 0.14, 0.20],
-    "W_ACCEL_RATE": [0.05, 0.07, 0.09, 0.11, 0.14, 0.18],
-    "HORIZON":      [10, 12, 14, 16, 18, 20, 24],
-    "RHO":          [20, 28, 36, 44, 52, 60],
-    "RHO_U":        [10, 14, 18, 24, 30],
-    "ALPHA":        [0.9, 1.0, 1.1, 1.2, 1.3],
-    "PRED_DT":      [0.032, 0.034, 0.036, 0.038, 0.04, 0.042, 0.045, 0.05],
-    "TOL":          [3.5, 4.0, 4.5, 5.0, 5.5],
-}
-
-FULL_SWEEP_VALUES_FASTEST = {
-    "Q_LAT":        [700, 900, 1200, 1600, 2200, 3000, 4200, 6000, 8500, 12000],
-    "Q_HDG":        [60, 90, 140, 200, 280, 380, 520, 720, 980, 1300, 1600],
-    "Q_VEL":        [120, 160, 200, 240, 300, 380, 480, 620, 760, 900],
-    "Q_LAT_VEL":    [2, 4, 6, 8, 10, 12, 16, 20],
-    "Q_YAW":        [0.5, 1, 2, 3, 4.5, 6, 8],
-    "R_STEER":      [0.30, 0.40, 0.52, 0.65, 0.75, 0.90, 1.05],
-    "R_ACCEL":      [0.006, 0.008, 0.01, 0.012, 0.014, 0.016],
-    "W_JERK":       [0.02, 0.04, 0.06, 0.08, 0.10, 0.14, 0.20],
-    "W_ACCEL_RATE": [0.05, 0.07, 0.09, 0.11, 0.14, 0.18],
-    "HORIZON":      [10, 12, 14, 16, 18, 20, 24],
-    "RHO":          [20, 28, 36, 44, 52, 60],
-    "RHO_U":        [10, 14, 18, 24, 30],
-    "ALPHA":        [0.9, 1.0, 1.1, 1.2, 1.3],
-    "PRED_DT":      [0.032, 0.034, 0.036, 0.038, 0.04, 0.042, 0.045, 0.05],
-    "TOL":          [3.5, 4.0, 4.5, 5.0, 5.5],
+FULL_SWEEP_VALUES_BASE = {
+    "Q_LAT":        [8200.0, 9000.0, 9660.42, 10300.0, 11000.0],
+    "Q_HDG":        [1100.0, 1250.0, 1400.0, 1550.0, 1700.0],
+    "Q_VEL":        [95.0, 110.0, 122.4, 132.192, 145.0],
+    "Q_LAT_VEL":    [3.8, 4.59, 5.6, 7.0, 8.5],
+    "Q_YAW":        [1.8, 2.112, 2.6, 3.2, 3.8],
+    "R_STEER":      [1.8, 2.1, 2.244, 2.5, 2.8],
+    "R_ACCEL":      [0.0058, 0.0065, 0.0075, 0.0085, 0.0095],
+    "W_JERK":       [0.05, 0.063, 0.08, 0.10, 0.12],
+    "W_ACCEL_RATE": [0.14, 0.16, 0.17, 0.19, 0.22],
+    "MPC_W_DELTA_ACTUAL": [0.02, 0.03, 0.05, 0.08],
+    "HORIZON":      HORIZON_SWEEP_VALUES,
+    "RHO":          [14, 18, 22],
+    "RHO_U":        [20, 24, 28],
+    "PRED_DT":      [0.032, 0.034, 0.036, 0.038, 0.04, 0.045, 0.05],
+    "TOL":          [0.03, 0.05, 0.08, 0.10],
 }
 
 # ==============================================================================
-# PHASE 4: Secondary Grid Values (~2000 configs)
+# PHASE 4: Secondary Grid Values (~18,000 configs)
 # Q_LAT_VEL x Q_YAW x R_STEER x W_JERK x R_ACCEL x W_ACCEL_RATE
 # ==============================================================================
 
-PHASE4_VALUES = {
-    "Q_LAT_VEL":    [2, 4, 6, 8, 10, 12, 16, 20],
-    "Q_YAW":        [0.5, 1, 2, 3, 4.5, 6, 8],
-    "R_STEER":      [0.30, 0.40, 0.52, 0.65, 0.75, 0.90, 1.05],
-    "W_JERK":       [0.02, 0.04, 0.06, 0.08, 0.10, 0.14, 0.20],
-    "R_ACCEL":      [0.008, 0.01, 0.012, 0.014, 0.016],
-    "W_ACCEL_RATE": [0.06, 0.08, 0.10, 0.12, 0.14, 0.18],
-}
-
-PHASE4_VALUES_FASTEST = {
-    "Q_LAT_VEL":    [2, 4, 6, 8],
-    "Q_YAW":        [3, 4.5, 6],
-    "R_STEER":      [0.65, 0.75, 0.90, 1.05],
-    "W_JERK":       [0.04, 0.08, 0.14, 0.20],
-    "R_ACCEL":      [0.008, 0.01, 0.012, 0.014],
-    "W_ACCEL_RATE": [0.08, 0.10, 0.12, 0.14],
+PHASE4_VALUES_BASE = {
+    "Q_LAT_VEL":    [3.8, 4.59, 5.6, 7.0, 8.5],
+    "Q_YAW":        [1.8, 2.112, 2.6, 3.2, 3.8],
+    "R_STEER":      [1.8, 2.1, 2.244, 2.5],
+    "W_JERK":       [0.05, 0.063, 0.08, 0.10],
+    "R_ACCEL":      [0.0058, 0.0065, 0.0075, 0.0085, 0.0095],
+    "W_ACCEL_RATE": [0.15, 0.17, 0.21],
+    "MPC_W_DELTA_ACTUAL": [0.02, 0.03, 0.05],
 }
 
 # ==============================================================================
-# PHASE 5: Solver Grid Values (~2000 configs)
-# RHO x RHO_U x ALPHA x TOL
+# SOLVER BUCKETS (lookahead-based)
+# T = HORIZON * PRED_DT -> (RHO, RHO_U, TOL)
 # ==============================================================================
 
-PHASE5_VALUES = {
-    "RHO":      [20, 28, 36, 44, 52, 60],
-    "RHO_U":    [10, 14, 18, 24, 30],
-    "ALPHA":    [0.9, 1.0, 1.1, 1.2, 1.3],
-    "TOL":      [3.5, 4.0, 4.5, 5.0, 5.5],
-}
+SOLVER_BUCKETS = [
+    {
+        "name": "t01",
+        "t_max": 0.35,
+        "horizon": 10,
+        "pred_dt": 0.032,
+        "rho": 18.0,
+        "rho_u": 24.0,
+        "tol": 0.05,
+    },
+    {
+        "name": "t02",
+        "t_max": 0.45,
+        "horizon": 10,
+        "pred_dt": 0.034,
+        "rho": 22.0,
+        "rho_u": 28.0,
+        "tol": 0.055,
+    },
+    {
+        "name": "t03",
+        "t_max": 0.55,
+        "horizon": 12,
+        "pred_dt": 0.036,
+        "rho": 26.0,
+        "rho_u": 31.0,
+        "tol": 0.06,
+    },
+    {
+        "name": "t04",
+        "t_max": 0.70,
+        "horizon": 14,
+        "pred_dt": 0.040,
+        "rho": 30.0,
+        "rho_u": 34.0,
+        "tol": 0.068,
+    },
+    {
+        "name": "t05",
+        "t_max": 0.85,
+        "horizon": 16,
+        "pred_dt": 0.042,
+        "rho": 34.0,
+        "rho_u": 37.0,
+        "tol": 0.075,
+    },
+    {
+        "name": "t06",
+        "t_max": 1.00,
+        "horizon": 18,
+        "pred_dt": 0.045,
+        "rho": 38.0,
+        "rho_u": 40.0,
+        "tol": 0.082,
+    },
+    {
+        "name": "t07",
+        "t_max": 1.15,
+        "horizon": 20,
+        "pred_dt": 0.045,
+        "rho": 42.0,
+        "rho_u": 42.0,
+        "tol": 0.089,
+    },
+    {
+        "name": "t08",
+        "t_max": 1.30,
+        "horizon": 24,
+        "pred_dt": 0.045,
+        "rho": 45.0,
+        "rho_u": 44.0,
+        "tol": 0.095,
+    },
+    {
+        "name": "t09",
+        "t_max": 1.40,
+        "horizon": 24,
+        "pred_dt": 0.050,
+        "rho": 47.0,
+        "rho_u": 45.0,
+        "tol": 0.098,
+    },
+    {
+        "name": "t10",
+        "t_max": 1.50,
+        "horizon": 30,
+        "pred_dt": 0.050,
+        "rho": 48.0,
+        "rho_u": 46.0,
+        "tol": 0.10,
+    },
+]
+
+SOLVER_BUCKETS_BY_NAME = {b["name"]: b for b in SOLVER_BUCKETS}
+
+# Evaluate each weight candidate across multiple lookahead anchors so
+# promotion does not overfit to one short-horizon operating point.
+GLOBAL_WEIGHT_REGION_HDT = [
+    (10, 0.032),  # best-csv seed operating point
+    (10, 0.034),  # short-alt
+    (12, 0.036),
+    (16, 0.040),
+    (20, 0.045),  # medium
+    (24, 0.050),
+    (30, 0.050),  # long (T=1.5)
+]
+
+# Candidate is globally passable if enough anchors are promotable.
+GLOBAL_HDT_MIN_PASS_RATIO = 0.50
 
 # ==============================================================================
 # RANDOM NEIGHBOR PROFILES
 # ==============================================================================
 
 RANDOM_PROFILES = {
-    "tracker": {
+    "base": {
         "num_perturb_range": (3, 6),
-        "default_multipliers": [0.85, 0.95, 1.0, 1.1, 1.2],
+        "default_multipliers": [0.96, 0.99, 1.0, 1.03, 1.06],
         "param_multipliers": {
-            "Q_LAT": [0.9, 0.97, 1.0, 1.08, 1.18],
-            "Q_HDG": [0.9, 0.97, 1.0, 1.08, 1.18],
-            "Q_VEL": [0.9, 0.95, 1.0, 1.05],
-            "Q_LAT_VEL": [0.75, 0.9, 1.0, 1.15, 1.3],
-            "Q_YAW": [0.75, 0.9, 1.0, 1.15, 1.3],
-            "R_STEER": [0.85, 0.95, 1.0, 1.15, 1.3],
-            "R_ACCEL": [0.7, 0.85, 1.0, 1.2, 1.4],
-            "W_JERK": [0.85, 0.95, 1.0, 1.15, 1.3],
-            "W_ACCEL_RATE": [0.7, 0.85, 1.0, 1.2, 1.4],
-            "RHO": [0.75, 0.9, 1.0, 1.15, 1.35],
-            "RHO_U": [0.75, 0.9, 1.0, 1.15, 1.35],
+            "Q_LAT": [0.9, 0.96, 1.0, 1.04, 1.1],
+            "Q_HDG": [0.9, 0.96, 1.0, 1.04, 1.1],
+            "Q_VEL": [0.9, 0.96, 1.0, 1.05, 1.1, 1.2],
+            "Q_LAT_VEL": [0.9, 0.96, 1.0, 1.04, 1.1],
+            "Q_YAW": [0.9, 0.96, 1.0, 1.04, 1.1],
+            "R_STEER": [0.92, 0.97, 1.0, 1.04, 1.08],
+            "R_ACCEL": [0.9, 0.96, 1.0, 1.04, 1.1],
+            "W_JERK": [0.9, 0.96, 1.0, 1.04, 1.1],
+            "W_ACCEL_RATE": [0.9, 0.96, 1.0, 1.04, 1.1],
+            "RHO": [0.92, 0.97, 1.0, 1.04, 1.1],
+            "RHO_U": [0.92, 0.97, 1.0, 1.04, 1.1],
         },
         "discrete": {
             "HORIZON": HORIZON_SWEEP_VALUES,
-            "PRED_DT": [0.04, 0.045, 0.05, 0.055, 0.06],
-            "ALPHA": [0.9, 0.93, 1.0, 1.1, 1.2],
+            "PRED_DT": [0.032, 0.034, 0.036, 0.038, 0.04, 0.045, 0.05],
         },
     },
-    "fastest": {
-        "num_perturb_range": (3, 7),
-        "default_multipliers": [0.9, 0.97, 1.0, 1.06, 1.12],
-        "param_multipliers": {
-            "Q_LAT": [0.75, 0.85, 0.95, 1.0, 1.08, 1.18],
-            "Q_HDG": [0.7, 0.85, 0.95, 1.0, 1.08, 1.18],
-            "Q_VEL": [0.95, 1.0, 1.05, 1.12, 1.2, 1.3, 1.4],
-            "Q_LAT_VEL": [0.6, 0.75, 0.9, 1.0, 1.1],
-            "Q_YAW": [0.5, 0.7, 0.85, 1.0, 1.1],
-            "R_STEER": [0.9, 0.97, 1.0, 1.08, 1.18, 1.3],
-            "R_ACCEL": [0.8, 0.9, 1.0, 1.15, 1.3],
-            "W_JERK": [0.8, 0.9, 1.0, 1.1, 1.25],
-            "W_ACCEL_RATE": [0.8, 0.9, 1.0, 1.15, 1.3],
-            "RHO": [0.85, 0.95, 1.0, 1.1, 1.2],
-            "RHO_U": [0.85, 0.95, 1.0, 1.1, 1.2],
-        },
-        "discrete": {
-            "HORIZON": HORIZON_SWEEP_VALUES,
-            "PRED_DT": [0.04, 0.045, 0.05, 0.055, 0.06],
-            "ALPHA": [0.93, 1.0, 1.1, 1.2, 1.3],
-        },
-    },
-    "tracker_exploit": {
-        "num_perturb_range": (2, 4),
-        "default_multipliers": [0.95, 0.98, 1.0, 1.02, 1.05],
+    "base_exploit": {
+        "num_perturb_range": (2, 3),
+        "default_multipliers": [0.97, 0.99, 1.0, 1.02, 1.05],
         "param_multipliers": {
             "Q_LAT": [0.96, 0.99, 1.0, 1.02, 1.05],
             "Q_HDG": [0.96, 0.99, 1.0, 1.02, 1.05],
-            "Q_VEL": [0.97, 1.0, 1.03, 1.06],
-            "Q_LAT_VEL": [0.9, 0.97, 1.0, 1.05, 1.1],
-            "Q_YAW": [0.9, 0.97, 1.0, 1.05, 1.1],
-            "R_STEER": [0.92, 0.98, 1.0, 1.05, 1.1],
-            "R_ACCEL": [0.9, 0.97, 1.0, 1.05, 1.1],
-            "W_JERK": [0.9, 0.97, 1.0, 1.05, 1.1],
-            "W_ACCEL_RATE": [0.9, 0.97, 1.0, 1.05, 1.1],
-            "RHO": [0.9, 0.97, 1.0, 1.06, 1.12],
-            "RHO_U": [0.9, 0.97, 1.0, 1.06, 1.12],
+            "Q_VEL": [0.97, 1.0, 1.02, 1.05, 1.08],
+            "Q_LAT_VEL": [0.96, 0.99, 1.0, 1.02, 1.05],
+            "Q_YAW": [0.96, 0.99, 1.0, 1.02, 1.05],
+            "R_STEER": [0.96, 0.99, 1.0, 1.02, 1.05],
+            "R_ACCEL": [0.96, 0.99, 1.0, 1.02, 1.05],
+            "W_JERK": [0.96, 0.99, 1.0, 1.02, 1.05],
+            "W_ACCEL_RATE": [0.96, 0.99, 1.0, 1.02, 1.05],
+            "RHO": [0.96, 0.99, 1.0, 1.02, 1.05],
+            "RHO_U": [0.96, 0.99, 1.0, 1.02, 1.05],
         },
         "discrete": {
             "HORIZON": HORIZON_SWEEP_VALUES,
-            "PRED_DT": [0.04, 0.045, 0.05, 0.055],
-            "ALPHA": [0.9, 0.93, 1.0, 1.1],
-        },
-    },
-    "fastest_exploit": {
-        "num_perturb_range": (2, 4),
-        "default_multipliers": [0.96, 0.99, 1.0, 1.03, 1.07],
-        "param_multipliers": {
-            "Q_LAT": [0.9, 0.96, 0.99, 1.0, 1.03, 1.08],
-            "Q_HDG": [0.88, 0.95, 0.99, 1.0, 1.03, 1.08],
-            "Q_VEL": [0.98, 1.0, 1.03, 1.06, 1.1, 1.15],
-            "Q_LAT_VEL": [0.85, 0.94, 0.98, 1.0, 1.04, 1.1],
-            "Q_YAW": [0.82, 0.92, 0.98, 1.0, 1.04, 1.1],
-            "R_STEER": [0.92, 0.98, 1.0, 1.04, 1.1, 1.16],
-            "R_ACCEL": [0.9, 0.97, 1.0, 1.05, 1.1],
-            "W_JERK": [0.9, 0.97, 1.0, 1.05, 1.1],
-            "W_ACCEL_RATE": [0.9, 0.97, 1.0, 1.05, 1.1],
-            "RHO": [0.9, 0.97, 1.0, 1.06, 1.12],
-            "RHO_U": [0.9, 0.97, 1.0, 1.06, 1.12],
-        },
-        "discrete": {
-            "HORIZON": HORIZON_SWEEP_VALUES,
-            "PRED_DT": [0.04, 0.045, 0.05, 0.055],
-            "ALPHA": [0.93, 1.0, 1.1, 1.2],
+            "PRED_DT": [0.032, 0.034, 0.036, 0.038, 0.04, 0.045, 0.05],
         },
     },
 }
@@ -304,19 +310,15 @@ RANDOM_PROFILES = {
 # CONSTANTS
 # ==============================================================================
 
-INT_PARAMS = {"HORIZON", "WALL_END", "WALL_STRIDE", "MAX_ITER"}
+INT_PARAMS = {"HORIZON", "MAX_ITER"}
 
 SCENARIO_VEHICLE_HALF_WIDTH = 0.137
-SCENARIO_BODY_SAFETY_MARGIN = 0.03
+SCENARIO_BODY_SAFETY_MARGIN = 0.06
 MAX_OFFSET_STEP_M = 0.015
-OFFSET_SMOOTHING_PASSES = 4
-OFFSET_SMOOTHING_WINDOW = 4
 MAX_HEADING_STEP_RAD = 0.30
 P99_HEADING_STEP_RAD = 0.18
 RACE_SCENARIO_DURATION = 75.0
-RECOVERY_SCENARIO_DURATION = 20.0
 OBSTACLE_SCENARIO_DURATION = 60.0
-RECOVERY_START_SPEED = 0.0
 
 SCENARIO_TARGET_START_X = 5.5
 SCENARIO_TARGET_START_Y = 0.0
@@ -324,6 +326,9 @@ GLOBAL_START_SHIFT_X_M = 0.5
 GLOBAL_START_SHIFT_Y_M = 1.0
 MIN_RACE_PROGRESS_MPS = 0.55
 MIN_OVERALL_PROGRESS_MPS = 0.45
+MIN_AVG_VX_MPS = 1.0
+MIN_SOLVER_OPTIMAL_RATE = 0.85
+MAX_SOLVER_MAX_ITER_RATE = 0.15
 PLANNER_CAR_WIDTH_M = 0.31
 PLANNER_CLEARANCE_TOLERANCE_M = 0.10
 PLANNER_PLANNING_TOLERANCE_SCALE = 2.0
@@ -331,17 +336,21 @@ PLANNER_MIN_WINDOW_M = 8.0
 PLANNER_WINDOW_TIME_S = 2.0
 PLANNER_WINDOW_LEAD_RATIO = 0.5
 PLANNER_MAX_LATERAL_SHIFT_M = 0.8
+PLANNER_OPPONENT_LENGTH_M = 0.58
+OBSTACLE_BOX_BACKOFF_M = 0.0
+OBSTACLE_BOUND_INFLATION_M = 0.0
+ENABLE_SCENARIO_AUDIT = True
 
 DETERMINISTIC_OBSTACLE_PROFILES = {
     "avoid_single": {
         "objects": [
-            {"s_fraction": 0.48, "lateral_offset": -0.10},
+            {"s_fraction": 0.62, "lateral_offset": -0.04},
         ],
     },
     "avoid_double": {
         "objects": [
-            {"s_fraction": 0.44, "lateral_offset": 0.10},
-            {"s_fraction": 0.84, "lateral_offset": -0.12},
+            {"s_fraction": 0.58, "lateral_offset": 0.04},
+            {"s_fraction": 0.78, "lateral_offset": -0.04},
         ],
     },
 }
@@ -357,10 +366,11 @@ CASCADE_TOP_N = 4   # Top-N seeds promoted from Phase 2 into Phase 4
 SEED = 42           # Fixed seed for reproducibility
 GLOBAL_OPTIMIZATION_PASSES = 4  # Repeated refinement passes for Phases 5-8
 INCLUDE_OBSTACLE_SCENARIOS = True
-PHASE7_RANDOM_COUNT = {"tracker": 900, "fastest": 2000}
-PHASE8_RANDOM_COUNT = {"tracker": 450, "fastest": 3000}
-STRICT_FASTEST_PROMOTION = True
-DIVERSITY_KEYS = ["Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW", "R_STEER", "R_ACCEL", "W_JERK", "W_ACCEL_RATE", "HORIZON", "PRED_DT"]
+PHASE7_RANDOM_COUNT = 2000
+PHASE8_RANDOM_COUNT = 3000
+STRICT_PROMOTION = True
+SOLVER_PARAM_KEYS = ("RHO", "RHO_U", "TOL")
+DIVERSITY_KEYS = ["Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW", "R_STEER", "R_ACCEL", "W_JERK", "W_ACCEL_RATE", "MPC_W_DELTA_ACTUAL", "HORIZON", "PRED_DT"]
 DIVERSITY_MIN_DISTANCE = 0.10
 
 # Keep summary print order aligned with swept define order in mpc_types.h.
@@ -368,8 +378,7 @@ MPC_TYPES_PRINT_ORDER = (
     "Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW",
     "R_STEER", "R_ACCEL", "W_JERK", "W_ACCEL_RATE",
     "HORIZON", "PRED_DT", "MAX_ITER", "WALL_MARGIN",
-    "TOL", "RHO", "RHO_U", "ALPHA",
-    "WALL_END", "WALL_STRIDE",
+    "TOL", "RHO", "RHO_U",
 )
 
 # Working copy of base config (modified during cascade)
@@ -490,7 +499,7 @@ def closest_waypoint_by_s(samples: list, s_query: float) -> int:
     return min(range(len(samples)), key=lambda idx: abs(samples[idx]["s"] - s_query))
 
 
-def choose_pass_direction(opp_wp: dict, obstacle_offset: float) -> float:
+def choose_pass_direction(opp_wp: dict, obstacle_offset: float, committed_side: float = 0.0) -> float:
     """Mirror the lateral planner's passing-side decision for a static obstacle."""
     inflated_tol = PLANNER_CLEARANCE_TOLERANCE_M * max(1.0, PLANNER_PLANNING_TOLERANCE_SCALE)
     clearance = PLANNER_CAR_WIDTH_M + inflated_tol
@@ -502,6 +511,20 @@ def choose_pass_direction(opp_wp: dict, obstacle_offset: float) -> float:
     needed_right = abs(obstacle_offset - clearance)
     left_feasible = left_limit >= needed_left
     right_feasible = right_limit >= needed_right
+
+    # Bias toward committed side when feasible, matching planner hysteresis.
+    if committed_side > 0.0:
+        if left_feasible:
+            return 1.0
+        if right_feasible:
+            return -1.0
+        return 0.0
+    if committed_side < 0.0:
+        if right_feasible:
+            return -1.0
+        if left_feasible:
+            return 1.0
+        return 0.0
 
     if left_feasible and not right_feasible:
         return 1.0
@@ -530,28 +553,246 @@ def compute_shift_magnitude(opp_wp: dict, obstacle_offset: float, pass_dir: floa
     return min(required_shift, abs(PLANNER_MAX_LATERAL_SHIFT_M), directional_limit)
 
 
-def smooth_circular_offsets(offsets: list, passes: int = OFFSET_SMOOTHING_PASSES,
-                            window: int = OFFSET_SMOOTHING_WINDOW) -> list:
-    """Circular moving-average smoothing to prevent rugged heading artifacts."""
-    if not offsets:
-        return offsets
-    n = len(offsets)
-    out = list(offsets)
-    w = max(1, int(window))
-    for _ in range(max(1, int(passes))):
-        prev = out[:]
-        for i in range(n):
-            acc = 0.0
-            cnt = 0
-            for k in range(-w, w + 1):
-                acc += prev[(i + k) % n]
-                cnt += 1
-            out[i] = acc / max(cnt, 1)
-    return out
+def build_obstacle_boxes(base_samples: list, objects: list) -> list:
+    """Place car-sized oriented obstacle boxes on the unedited baseline raceline."""
+    if not base_samples or not objects:
+        return []
+
+    track_length = max(base_samples[-1]["s"] - base_samples[0]["s"], 0.0)
+    boxes = []
+    for obj in objects:
+        target_s = base_samples[0]["s"] + float(obj["s_fraction"]) * track_length
+        idx = closest_waypoint_by_s(base_samples, target_s)
+        wp = base_samples[idx]
+        normal = wp["psi"] + math.pi / 2.0
+        lateral_offset = float(obj["lateral_offset"])
+        boxes.append({
+            "x": wp["x"] + lateral_offset * math.cos(normal),
+            "y": wp["y"] + lateral_offset * math.sin(normal),
+            "yaw": wp["psi"],
+            "half_length": max(0.5 * PLANNER_OPPONENT_LENGTH_M, 0.05),
+            "half_width": max(0.5 * PLANNER_CAR_WIDTH_M, 0.05),
+        })
+    return boxes
+
+
+def validate_obstacle_profile_feasibility(base_samples: list, objects: list, profile_name: str):
+    """Reject deterministic obstacle profiles that planner logic cannot pass safely."""
+    if not base_samples or not objects:
+        return
+
+    track_length = max(base_samples[-1]["s"] - base_samples[0]["s"], 0.0)
+    min_clearance = SCENARIO_VEHICLE_HALF_WIDTH + SCENARIO_BODY_SAFETY_MARGIN
+    half_obstacle_width = 0.5 * PLANNER_CAR_WIDTH_M
+    issues = []
+
+    for obj_idx, obj in enumerate(objects):
+        s_fraction = float(obj["s_fraction"])
+        obstacle_offset = float(obj["lateral_offset"])
+        target_s = base_samples[0]["s"] + s_fraction * track_length
+        opp_idx = closest_waypoint_by_s(base_samples, target_s)
+        opp_wp = base_samples[opp_idx]
+
+        # Ensure the obstacle box itself fits inside the map corridor.
+        if obstacle_offset >= 0.0:
+            if obstacle_offset + half_obstacle_width > opp_wp["left"]:
+                issues.append(
+                    f"obj#{obj_idx}: box exceeds left wall at s_fraction={s_fraction:.3f} "
+                    f"(offset={obstacle_offset:.3f}, left={opp_wp['left']:.3f})"
+                )
+        else:
+            if -obstacle_offset + half_obstacle_width > opp_wp["right"]:
+                issues.append(
+                    f"obj#{obj_idx}: box exceeds right wall at s_fraction={s_fraction:.3f} "
+                    f"(offset={obstacle_offset:.3f}, right={opp_wp['right']:.3f})"
+                )
+
+        pass_dir = choose_pass_direction(opp_wp, obstacle_offset, 0.0)
+        shift_mag = compute_shift_magnitude(opp_wp, obstacle_offset, pass_dir)
+        if pass_dir == 0.0 or shift_mag <= 1e-6:
+            issues.append(
+                f"obj#{obj_idx}: no feasible pass side at s_fraction={s_fraction:.3f} "
+                f"(offset={obstacle_offset:.3f})"
+            )
+            continue
+
+        # Ensure shifted line still leaves at least car+body clearance on the
+        # wall-constrained side used by the shift.
+        if pass_dir >= 0.0:
+            remaining = opp_wp["left"] - shift_mag
+            side = "left"
+        else:
+            remaining = opp_wp["right"] - shift_mag
+            side = "right"
+        if remaining < min_clearance:
+            issues.append(
+                f"obj#{obj_idx}: {side} clearance too small after shift at s_fraction={s_fraction:.3f} "
+                f"(remaining={remaining:.3f}, required>={min_clearance:.3f})"
+            )
+
+    if issues:
+        details = "\n  - " + "\n  - ".join(issues)
+        raise ValueError(f"Infeasible obstacle profile '{profile_name}':{details}")
+
+
+def enforce_min_wall_clearance(samples: list, label: str):
+    """Require every waypoint to keep at least half-car-width wall clearance."""
+    if not samples:
+        return
+
+    required = 0.5 * PLANNER_CAR_WIDTH_M
+    worst_idx = min(
+        range(len(samples)),
+        key=lambda i: min(float(samples[i].get("left", 0.0)), float(samples[i].get("right", 0.0))),
+    )
+    worst = samples[worst_idx]
+    min_lr = min(float(worst.get("left", 0.0)), float(worst.get("right", 0.0)))
+    if min_lr < required:
+        raise ValueError(
+            f"Scenario '{label}' violates half-width clearance: min(left,right)={min_lr:.3f} "
+            f"at s={float(worst.get('s', 0.0)):.3f}, required>={required:.3f}"
+        )
+
+
+def clip_segment_to_box(start_x: float, start_y: float,
+                        end_x: float, end_y: float,
+                        box: dict,
+                        backoff_m: float = OBSTACLE_BOX_BACKOFF_M) -> tuple:
+    """Clip a wall-distance ray to an oriented obstacle box (Liang-Barsky in local frame)."""
+    c = math.cos(box["yaw"])
+    s = math.sin(box["yaw"])
+
+    def to_local(wx: float, wy: float) -> tuple:
+        dx = wx - box["x"]
+        dy = wy - box["y"]
+        lx = dx * c + dy * s
+        ly = -dx * s + dy * c
+        return lx, ly
+
+    def to_world(lx: float, ly: float) -> tuple:
+        wx = box["x"] + lx * c - ly * s
+        wy = box["y"] + lx * s + ly * c
+        return wx, wy
+
+    x0, y0 = to_local(start_x, start_y)
+    x1, y1 = to_local(end_x, end_y)
+    dx = x1 - x0
+    dy = y1 - y0
+
+    t_min = 0.0
+    t_max = 1.0
+
+    def clip_axis(p0: float, d: float, min_v: float, max_v: float) -> bool:
+        nonlocal t_min, t_max
+        if abs(d) < 1e-9:
+            return min_v <= p0 <= max_v
+        t1 = (min_v - p0) / d
+        t2 = (max_v - p0) / d
+        if t1 > t2:
+            t1, t2 = t2, t1
+        t_min = max(t_min, t1)
+        t_max = min(t_max, t2)
+        return t_min <= t_max
+
+    half_len = box["half_length"]
+    half_wid = box["half_width"]
+    if not clip_axis(x0, dx, -half_len, half_len):
+        return end_x, end_y
+    if not clip_axis(y0, dy, -half_wid, half_wid):
+        return end_x, end_y
+    if t_max < 0.0 or t_min > 1.0:
+        return end_x, end_y
+
+    t_hit = min(max(t_min, 0.0), 1.0)
+    if t_hit >= 1.0:
+        return end_x, end_y
+
+    seg_len = math.hypot(dx, dy)
+    backoff_t = (backoff_m / seg_len) if seg_len > 1e-6 else 0.0
+    t_clip = max(0.0, t_hit - backoff_t)
+    clip_local_x = x0 + t_clip * dx
+    clip_local_y = y0 + t_clip * dy
+    return to_world(clip_local_x, clip_local_y)
+
+
+def _cross2(ax: float, ay: float, bx: float, by: float) -> float:
+    return ax * by - ay * bx
+
+
+def ray_polyline_distance(px: float, py: float,
+                          dx: float, dy: float,
+                          polyline: list) -> float:
+    """Distance from ray p+t*d (t>=0) to first hit on a closed polyline."""
+    best_t = None
+    n = len(polyline)
+    if n < 2:
+        return None
+
+    for i in range(n):
+        ax, ay = polyline[i]
+        bx, by = polyline[(i + 1) % n]
+        sx = bx - ax
+        sy = by - ay
+        den = _cross2(dx, dy, sx, sy)
+        if abs(den) < 1e-12:
+            continue
+
+        qpx = ax - px
+        qpy = ay - py
+        t = _cross2(qpx, qpy, sx, sy) / den
+        u = _cross2(qpx, qpy, dx, dy) / den
+        if t >= 0.0 and 0.0 <= u <= 1.0:
+            if best_t is None or t < best_t:
+                best_t = t
+    return best_t
+
+
+def is_s_in_window(s: float, s_start: float, s_end: float, track_length: float) -> bool:
+    """Check whether arc-length s lies inside wrapped window [s_start, s_end]."""
+    if track_length <= 1e-9:
+        return s_start <= s <= s_end
+    window_len = wrap_forward_distance(s_start, s_end, track_length)
+    return wrap_forward_distance(s_start, s, track_length) <= window_len
+
+
+def apply_obstacle_boxes_to_bounds(samples: list,
+                                   reference_samples: list,
+                                   obstacle_boxes: list,
+                                   obstacle_windows: list,
+                                   track_length: float):
+    """Edit d_left/d_right so obstacle boxes become part of the avoidable corridor."""
+    if not samples or not obstacle_boxes:
+        return
+
+    for idx, wp in enumerate(samples):
+        active_boxes = []
+        for box, window in zip(obstacle_boxes, obstacle_windows):
+            if is_s_in_window(wp["s"], window[0], window[1], track_length):
+                active_boxes.append(box)
+        if not active_boxes:
+            continue
+
+        normal = wp["psi"] + math.pi / 2.0
+        nx = math.cos(normal)
+        ny = math.sin(normal)
+
+        left_d = max(float(wp.get("left", 0.0)), 0.0)
+        right_d = max(float(wp.get("right", 0.0)), 0.0)
+
+        sx, sy = wp["x"], wp["y"]
+        lx, ly = sx + left_d * nx, sy + left_d * ny
+        rx, ry = sx - right_d * nx, sy - right_d * ny
+
+        for box in active_boxes:
+            lx, ly = clip_segment_to_box(sx, sy, lx, ly, box)
+            rx, ry = clip_segment_to_box(sx, sy, rx, ry, box)
+
+        wp["left"] = max(0.0, math.hypot(lx - sx, ly - sy))
+        wp["right"] = max(0.0, math.hypot(rx - sx, ry - sy))
 
 
 def limit_offset_step(offsets: list, max_step: float = MAX_OFFSET_STEP_M) -> list:
-    """Constrain adjacent offset deltas so heading does not become too rugged."""
+    """Constrain adjacent offset deltas so heading changes stay trackable."""
     if not offsets:
         return offsets
     out = list(offsets)
@@ -567,23 +808,129 @@ def limit_offset_step(offsets: list, max_step: float = MAX_OFFSET_STEP_M) -> lis
     return out
 
 
+def limit_offset_step_masked(offsets: list, active_mask: list, max_step: float = MAX_OFFSET_STEP_M) -> list:
+    """Limit offset slope inside active windows only, forcing inactive points to zero."""
+    if not offsets:
+        return offsets
+    out = list(offsets)
+    n = len(out)
+    step = max(1e-6, float(max_step))
+
+    i = 0
+    while i < n:
+        if not active_mask[i]:
+            out[i] = 0.0
+            i += 1
+            continue
+
+        start = i
+        while i < n and active_mask[i]:
+            i += 1
+        end = i
+
+        for j in range(start + 1, end):
+            lo = out[j - 1] - step
+            hi = out[j - 1] + step
+            out[j] = min(hi, max(lo, out[j]))
+        for j in range(end - 2, start - 1, -1):
+            lo = out[j + 1] - step
+            hi = out[j + 1] + step
+            out[j] = min(hi, max(lo, out[j]))
+
+    for j in range(n):
+        if not active_mask[j]:
+            out[j] = 0.0
+    return out
+
+
+def audit_shifted_raceline_locality(base_samples: list,
+                                    shifted_samples: list,
+                                    active_windows: list,
+                                    track_length: float,
+                                    label: str):
+    """Audit that non-obstacle regions remain close to baseline geometry and bounds."""
+    if not base_samples or not shifted_samples:
+        return
+
+    if len(base_samples) != len(shifted_samples):
+        print(f"[AUDIT:{label}] skipped (size mismatch)")
+        return
+
+    halo_m = 1.0
+    lat_abs = []
+    wall_abs = []
+    outside_count = 0
+
+    def outside_windows(s_val: float) -> bool:
+        for s_start, s_end in active_windows:
+            # Expand each active window slightly to avoid edge false positives.
+            w_start = s_start - halo_m
+            w_end = s_end + halo_m
+            if is_s_in_window(s_val, w_start, w_end, track_length):
+                return False
+        return True
+
+    for base_wp, shift_wp in zip(base_samples, shifted_samples):
+        if not outside_windows(shift_wp["s"]):
+            continue
+        outside_count += 1
+
+        normal = base_wp["psi"] + math.pi / 2.0
+        nx = math.cos(normal)
+        ny = math.sin(normal)
+        dx = shift_wp["x"] - base_wp["x"]
+        dy = shift_wp["y"] - base_wp["y"]
+        lat_abs.append(abs(dx * nx + dy * ny))
+
+        d_left_delta = abs(float(shift_wp.get("left", 0.0)) - float(base_wp.get("left", 0.0)))
+        d_right_delta = abs(float(shift_wp.get("right", 0.0)) - float(base_wp.get("right", 0.0)))
+        wall_abs.append(max(d_left_delta, d_right_delta))
+
+    if outside_count == 0:
+        print(f"[AUDIT:{label}] skipped (no outside-window samples)")
+        return
+
+    lat_sorted = sorted(lat_abs)
+    wall_sorted = sorted(wall_abs)
+    p99_idx = int(0.99 * (outside_count - 1))
+    max_lat = lat_sorted[-1]
+    p99_lat = lat_sorted[p99_idx]
+    max_wall = wall_sorted[-1]
+    p99_wall = wall_sorted[p99_idx]
+
+    pass_ok = (max_lat <= 0.03 and p99_lat <= 0.015 and max_wall <= 0.03 and p99_wall <= 0.015)
+    print(
+        f"[AUDIT:{label}] outside={outside_count} "
+        f"max_lat={max_lat:.4f} p99_lat={p99_lat:.4f} "
+        f"max_wall={max_wall:.4f} p99_wall={p99_wall:.4f} "
+        f"status={'PASS' if pass_ok else 'WARN'}"
+    )
+
+
 def build_shifted_raceline_samples(base_samples: list, objects: list) -> list:
-    """Build planner-style shifted raceline while enforcing wall and heading legality."""
+    """Build planner-style shifted raceline with the same half-cosine offset window."""
     shifted = [dict(sample) for sample in base_samples]
     if not shifted:
         return shifted
 
     track_length = max(shifted[-1]["s"] - shifted[0]["s"], 0.0)
+    obstacle_boxes = build_obstacle_boxes(base_samples, objects)
     accumulated_offsets = [0.0 for _ in shifted]
-    min_wall_clearance = SCENARIO_VEHICLE_HALF_WIDTH + SCENARIO_BODY_SAFETY_MARGIN
 
-    def clamp_offsets(offsets: list) -> list:
-        out = []
-        for idx, sample in enumerate(base_samples):
-            max_left = max(sample["left"] - min_wall_clearance, 0.0)
-            max_right = max(sample["right"] - min_wall_clearance, 0.0)
-            out.append(max(-max_right, min(max_left, offsets[idx])))
-        return out
+    baseline_left_wall = []
+    baseline_right_wall = []
+    for sample in base_samples:
+        normal = sample["psi"] + math.pi / 2.0
+        nx = math.cos(normal)
+        ny = math.sin(normal)
+        baseline_left_wall.append((
+            sample["x"] + sample["left"] * nx,
+            sample["y"] + sample["left"] * ny,
+        ))
+        baseline_right_wall.append((
+            sample["x"] - sample["right"] * nx,
+            sample["y"] - sample["right"] * ny,
+        ))
 
     def materialize_from_offsets(offsets: list) -> list:
         out = [dict(sample) for sample in base_samples]
@@ -592,8 +939,8 @@ def build_shifted_raceline_samples(base_samples: list, objects: list) -> list:
             normal = sample["psi"] + math.pi / 2.0
             out[idx]["x"] = sample["x"] + offset * math.cos(normal)
             out[idx]["y"] = sample["y"] + offset * math.sin(normal)
-            out[idx]["left"] = max(0.0, sample["left"] - offset)
-            out[idx]["right"] = max(0.0, sample["right"] + offset)
+            out[idx]["left"] = max(0.0, sample["left"])
+            out[idx]["right"] = max(0.0, sample["right"])
 
         n = len(out)
         if n >= 3:
@@ -614,45 +961,73 @@ def build_shifted_raceline_samples(base_samples: list, objects: list) -> list:
                 ds_next = math.hypot(next_wp["x"] - curr_wp["x"], next_wp["y"] - curr_wp["y"])
                 ds = max(0.5 * (ds_prev + ds_next), 1e-3)
                 curr_wp["kappa"] = dpsi / ds
+
+        # Re-project to fixed baseline wall world-points so the map wall
+        # geometry remains unchanged outside obstacle edits.
+        for idx, curr_wp in enumerate(out):
+            normal = curr_wp["psi"] + math.pi / 2.0
+            nx = math.cos(normal)
+            ny = math.sin(normal)
+
+            left_hits = [
+                ray_polyline_distance(curr_wp["x"], curr_wp["y"], nx, ny, baseline_left_wall),
+                ray_polyline_distance(curr_wp["x"], curr_wp["y"], nx, ny, baseline_right_wall),
+            ]
+            right_hits = [
+                ray_polyline_distance(curr_wp["x"], curr_wp["y"], -nx, -ny, baseline_left_wall),
+                ray_polyline_distance(curr_wp["x"], curr_wp["y"], -nx, -ny, baseline_right_wall),
+            ]
+
+            left_valid = [d for d in left_hits if d is not None]
+            right_valid = [d for d in right_hits if d is not None]
+
+            left_hit = min(left_valid) if left_valid else None
+            right_hit = min(right_valid) if right_valid else None
+
+            if left_hit is None:
+                left_hit = max(0.0, base_samples[idx]["left"])
+            if right_hit is None:
+                right_hit = max(0.0, base_samples[idx]["right"])
+
+            curr_wp["left"] = max(0.0, left_hit)
+            curr_wp["right"] = max(0.0, right_hit)
         return out
 
-    def heading_is_legal(samples: list) -> bool:
-        if len(samples) < 3:
-            return True
-        dpsi_vals = []
-        for i in range(len(samples)):
-            a = float(samples[i - 1]["psi"])
-            b = float(samples[i]["psi"])
-            dpsi_vals.append(abs(wrap_angle(b - a)))
-        dpsi_vals.sort()
-        p99_idx = int(0.99 * (len(dpsi_vals) - 1))
-        p99 = dpsi_vals[p99_idx]
-        return dpsi_vals[-1] <= MAX_HEADING_STEP_RAD and p99 <= P99_HEADING_STEP_RAD
+    wall_limit = abs(PLANNER_MAX_LATERAL_SHIFT_M)
 
-    for obj in objects:
+    active_boxes = []
+    active_windows = []
+
+    for obj_idx, obj in enumerate(objects):
         target_s = shifted[0]["s"] + float(obj["s_fraction"]) * track_length
         obstacle_offset = float(obj["lateral_offset"])
         opp_idx = closest_waypoint_by_s(base_samples, target_s)
         opp_wp = base_samples[opp_idx]
 
-        # Never place synthetic obstacles so close to walls that they force a
-        # raceline violation of (half-car-width + margin).
-        max_obs_left = max(opp_wp["left"] - min_wall_clearance, 0.0)
-        max_obs_right = max(opp_wp["right"] - min_wall_clearance, 0.0)
-        obstacle_offset = max(-max_obs_right, min(max_obs_left, obstacle_offset))
+        window_dist = max(PLANNER_MIN_WINDOW_M, max(opp_wp["vx"], 0.0) * PLANNER_WINDOW_TIME_S)
+        lead_ratio = min(max(PLANNER_WINDOW_LEAD_RATIO, 0.1), 0.9)
+        lead_dist = max(0.75, window_dist * lead_ratio)
+        trail_dist = max(0.75, window_dist * (1.0 - lead_ratio))
 
-        pass_dir = choose_pass_direction(opp_wp, obstacle_offset)
+        # Mirror planner behavior near the opponent: keep a minimum lead window.
+        car_to_opp = wrap_forward_distance(base_samples[0]["s"], opp_wp["s"], track_length)
+        if car_to_opp < 0.2:
+            lead_dist = max(lead_dist, 0.2)
+
+        # Treat deterministic static boxes as independent local events.
+        pass_dir = choose_pass_direction(opp_wp, obstacle_offset, 0.0)
         shift_mag = compute_shift_magnitude(opp_wp, obstacle_offset, pass_dir)
         if pass_dir == 0.0 or shift_mag <= 1e-6:
             continue
 
-        window_dist = max(PLANNER_MIN_WINDOW_M, max(opp_wp["vx"], 1.0) * PLANNER_WINDOW_TIME_S)
-        lead_ratio = min(max(PLANNER_WINDOW_LEAD_RATIO, 0.1), 0.9)
-        lead_dist = max(0.75, window_dist * lead_ratio)
-        trail_dist = max(0.75, window_dist * (1.0 - lead_ratio))
-        window_len = lead_dist + trail_dist
-        peak_offset = pass_dir * shift_mag
         s_start = opp_wp["s"] - lead_dist
+        window_len = lead_dist + trail_dist
+        s_end = opp_wp["s"] + trail_dist
+        active_windows.append((s_start, s_end))
+        if obj_idx < len(obstacle_boxes):
+            active_boxes.append(obstacle_boxes[obj_idx])
+
+        peak_offset = pass_dir * shift_mag
 
         for idx, sample in enumerate(base_samples):
             s_rel = wrap_forward_distance(s_start, sample["s"], track_length)
@@ -663,27 +1038,37 @@ def build_shifted_raceline_samples(base_samples: list, objects: list) -> list:
                 elif trail_dist > 1e-9:
                     trail_s = s_rel - lead_dist
                     offset = peak_offset * 0.5 * (1.0 + math.cos(math.pi * trail_s / trail_dist))
-            accumulated_offsets[idx] += offset
+                if abs(offset) > wall_limit:
+                    offset = math.copysign(wall_limit, offset)
+            # Deterministic multi-obstacle scenarios should emulate one active
+            # opponent influence at a time (planner runtime behavior), so avoid
+            # opposite-window cancellation by keeping the dominant local offset.
+            if abs(offset) > abs(accumulated_offsets[idx]):
+                accumulated_offsets[idx] = offset
 
-    # Smooth and slope-limit offsets first.
-    smoothed_offsets = smooth_circular_offsets(accumulated_offsets)
-    smoothed_offsets = limit_offset_step(smoothed_offsets)
+    active_mask = []
+    for sample in base_samples:
+        is_active = False
+        for s_start, s_end in active_windows:
+            if is_s_in_window(sample["s"], s_start, s_end, track_length):
+                is_active = True
+                break
+        active_mask.append(is_active)
 
-    # Enforce heading legality by reducing global shift scale if needed.
-    legal_shifted = None
-    for scale in (1.0, 0.85, 0.70, 0.55, 0.40, 0.25, 0.10):
-        scaled = [v * scale for v in smoothed_offsets]
-        scaled = clamp_offsets(scaled)
-        candidate = materialize_from_offsets(scaled)
-        if heading_is_legal(candidate):
-            legal_shifted = candidate
-            break
+    final_offsets = []
+    for idx, sample in enumerate(base_samples):
+        if not active_mask[idx]:
+            final_offsets.append(0.0)
+            continue
+        max_left = max(sample["left"] - 1e-6, 0.0)
+        max_right = max(sample["right"] - 1e-6, 0.0)
+        final_offsets.append(max(-max_right, min(max_left, accumulated_offsets[idx])))
 
-    if legal_shifted is None:
-        # If no scaled candidate is smooth enough, keep baseline (legal fallback).
-        return [dict(sample) for sample in base_samples]
-
-    return legal_shifted
+    candidate = materialize_from_offsets(final_offsets)
+    apply_obstacle_boxes_to_bounds(candidate, base_samples, active_boxes, active_windows, track_length)
+    if ENABLE_SCENARIO_AUDIT:
+        audit_shifted_raceline_locality(base_samples, candidate, active_windows, track_length, "shifted")
+    return candidate
 
 
 def write_raceline_samples(path: str, samples: list):
@@ -762,18 +1147,21 @@ def build_scenario_raceline_paths(base_path: str) -> dict:
 
     base_samples_raw = load_raceline_samples(base_path)
     base_samples = align_samples_to_target_start(base_samples_raw)
+    enforce_min_wall_clearance(base_samples, "base")
 
     base_out = os.path.join(GENERATED_RACELINE_DIR, f"{RACELINE_TAG}_base.csv")
     write_raceline_samples(base_out, base_samples)
 
     paths = {"base": os.path.abspath(base_out)}
     for profile_name, profile in DETERMINISTIC_OBSTACLE_PROFILES.items():
+        validate_obstacle_profile_feasibility(base_samples, profile["objects"], profile_name)
         shifted_samples = build_shifted_raceline_samples(base_samples, profile["objects"])
         # Keep a common exact start point across all scenario racelines.
         if shifted_samples:
             dx = SCENARIO_TARGET_START_X - shifted_samples[0]["x"]
             dy = SCENARIO_TARGET_START_Y - shifted_samples[0]["y"]
             shifted_samples = translate_samples(shifted_samples, dx, dy)
+        enforce_min_wall_clearance(shifted_samples, profile_name)
         out_path = os.path.join(GENERATED_RACELINE_DIR, f"{RACELINE_TAG}_{profile_name}.csv")
         write_raceline_samples(out_path, shifted_samples)
         paths[profile_name] = os.path.abspath(out_path)
@@ -783,49 +1171,14 @@ def build_scenario_raceline_paths(base_path: str) -> dict:
 atexit.register(cleanup_generated_racelines)
 
 
-def compute_recovery_offset(bound: float) -> float:
-    """Choose a moderate off-raceline start offset that stays inside the corridor."""
-    usable = float(bound) - SCENARIO_VEHICLE_HALF_WIDTH - SCENARIO_BODY_SAFETY_MARGIN
-    if usable <= 0.0:
-        return 0.0
-    return round(min(0.35, 0.45 * usable), 4)
-
-
-def compute_shifted_spawn_offset(raceline_path: str, preferred_sign: float,
-                                 min_shift: float = 0.03, max_shift: float = 0.09) -> float:
-    """Return a legal non-zero spawn offset for the given raceline start corridor."""
-    meta = load_raceline_metadata(raceline_path)
-    left_usable = max(meta["start_left_bound"] - SCENARIO_VEHICLE_HALF_WIDTH - SCENARIO_BODY_SAFETY_MARGIN, 0.0)
-    right_usable = max(meta["start_right_bound"] - SCENARIO_VEHICLE_HALF_WIDTH - SCENARIO_BODY_SAFETY_MARGIN, 0.0)
-    nominal = min(max_shift, max(min_shift, 0.25 * max(min(left_usable, right_usable), 0.0)))
-
-    if preferred_sign >= 0.0:
-        if left_usable >= nominal:
-            return nominal
-        if right_usable >= nominal:
-            return -nominal
-    else:
-        if right_usable >= nominal:
-            return -nominal
-        if left_usable >= nominal:
-            return nominal
-
-    # Fallback: largest feasible non-zero offset on either side.
-    if left_usable > 1e-4 or right_usable > 1e-4:
-        if left_usable >= right_usable:
-            return min(left_usable, max_shift)
-        return -min(right_usable, max_shift)
-    return 0.0
-
-
 def build_eval_scenarios(include_obstacles: bool = INCLUDE_OBSTACLE_SCENARIOS) -> list:
-    """Build deterministic evaluation scenarios for race pace and recovery robustness."""
+    """Build deterministic scenarios where every run starts off-raceline."""
     base_path = SCENARIO_RACELINE_PATHS.get("base", RACELINE_PATH)
 
     scenarios = [
         {
             "name": "race",
-            "weight": 0.70 if not include_obstacles else 0.40,
+            "weight": 1.00 if not include_obstacles else 0.50,
             "seed_offset": 0,
             "raceline_path": base_path,
             "env": {
@@ -833,34 +1186,6 @@ def build_eval_scenarios(include_obstacles: bool = INCLUDE_OBSTACLE_SCENARIOS) -
                 "START_OFFSET_LAT": "0.0",
                 "START_HEADING_OFFSET": "0.0",
                 "START_SPEED": "0.0",
-                "START_OFFSET_X": f"{GLOBAL_START_SHIFT_X_M}",
-                "START_OFFSET_Y": f"{GLOBAL_START_SHIFT_Y_M}",
-            },
-        },
-        {
-            "name": "recover_left",
-            "weight": 0.15,
-            "seed_offset": 101,
-            "raceline_path": base_path,
-            "env": {
-                "SIM_DURATION": f"{RECOVERY_SCENARIO_DURATION}",
-                "START_OFFSET_LAT": "0.0",
-                "START_HEADING_OFFSET": "0.0",
-                "START_SPEED": f"{RECOVERY_START_SPEED}",
-                "START_OFFSET_X": f"{GLOBAL_START_SHIFT_X_M}",
-                "START_OFFSET_Y": f"{GLOBAL_START_SHIFT_Y_M}",
-            },
-        },
-        {
-            "name": "recover_right",
-            "weight": 0.15,
-            "seed_offset": 202,
-            "raceline_path": base_path,
-            "env": {
-                "SIM_DURATION": f"{RECOVERY_SCENARIO_DURATION}",
-                "START_OFFSET_LAT": "0.0",
-                "START_HEADING_OFFSET": "0.0",
-                "START_SPEED": f"{RECOVERY_START_SPEED}",
                 "START_OFFSET_X": f"{GLOBAL_START_SHIFT_X_M}",
                 "START_OFFSET_Y": f"{GLOBAL_START_SHIFT_Y_M}",
             },
@@ -873,7 +1198,7 @@ def build_eval_scenarios(include_obstacles: bool = INCLUDE_OBSTACLE_SCENARIOS) -
         scenarios.extend([
             {
                 "name": "avoid_single",
-                "weight": 0.15,
+                "weight": 0.25,
                 "seed_offset": 303,
                 "raceline_path": avoid_single_path,
                 "env": {
@@ -887,7 +1212,7 @@ def build_eval_scenarios(include_obstacles: bool = INCLUDE_OBSTACLE_SCENARIOS) -
             },
             {
                 "name": "avoid_double",
-                "weight": 0.15,
+                "weight": 0.25,
                 "seed_offset": 404,
                 "raceline_path": avoid_double_path,
                 "env": {
@@ -907,17 +1232,17 @@ def build_eval_scenarios(include_obstacles: bool = INCLUDE_OBSTACLE_SCENARIOS) -
 
 def get_primary_grid_values(objective: str) -> dict:
     """Return the Phase 2 sweep for the active objective."""
-    return PHASE2_VALUES_FASTEST if objective == "fastest" else PHASE2_VALUES
+    return PHASE2_VALUES_BASE
 
 
 def get_full_sweep_values(objective: str) -> dict:
     """Return the broad sweep values for the active objective."""
-    return FULL_SWEEP_VALUES_FASTEST if objective == "fastest" else FULL_SWEEP_VALUES
+    return FULL_SWEEP_VALUES_BASE
 
 
 def get_secondary_grid_values(objective: str) -> dict:
     """Return the Phase 4 sweep for the active objective."""
-    return PHASE4_VALUES_FASTEST if objective == "fastest" else PHASE4_VALUES
+    return PHASE4_VALUES_BASE
 
 
 def iter_ordered_base_keys():
@@ -938,13 +1263,10 @@ def iter_ordered_base_keys():
 def canonicalize_params(params: dict) -> dict:
     """Normalize params to the values MPC actually receives."""
     out = dict(params)
-    
-    # Hardware policy: WALL_END = HORIZON, WALL_STRIDE = 1
+
     h = int(float(out.get("HORIZON", BASE.get("HORIZON", HORIZON_LIMIT))))
     h = max(2, min(HORIZON_LIMIT, h))
     out["HORIZON"] = h
-    out["WALL_END"] = h
-    out["WALL_STRIDE"] = 1
     out["WALL_MARGIN"] = float(WALL_MARGIN)
     
     # Integer params
@@ -981,11 +1303,17 @@ def parse_csv_result(stdout: str, return_code: int) -> dict:
         if line.startswith("CSV,"):
             parts = line.split(",")
             try:
+                raw_failed = int(parts[2])
+                speed_check_pass = int(parts[22]) if len(parts) > 22 else 1
+                failed_non_speed = int(parts[23]) if len(parts) > 23 else max(0, raw_failed - (0 if speed_check_pass else 1))
+                status = "OK" if failed_non_speed == 0 else "EXIT_FAIL"
                 return {
-                    "status": "OK",
+                    "status": status,
                     "return_code": return_code,
                     "passed": int(parts[1]),
-                    "failed": int(parts[2]),
+                    "failed": raw_failed,
+                    "failed_non_speed": failed_non_speed,
+                    "speed_check_pass": speed_check_pass,
                     "max_lat_err": float(parts[3]),
                     "avg_lat_err": float(parts[4]),
                     "max_hdg_err": float(parts[5]),
@@ -1005,6 +1333,8 @@ def parse_csv_result(stdout: str, return_code: int) -> dict:
                     "avg_lap_time": float(parts[19]) if len(parts) > 19 else 0.0,
                     "max_steer_change": float(parts[20]) if len(parts) > 20 else 0.0,
                     "steer_reversals": int(parts[21]) if len(parts) > 21 else 0,
+                    "solver_optimal_rate": float(parts[24]) if len(parts) > 24 else 0.0,
+                    "solver_max_iter_rate": float(parts[25]) if len(parts) > 25 else 0.0,
                 }
             except (IndexError, ValueError):
                 break
@@ -1025,7 +1355,11 @@ def estimate_lap_time(r: dict) -> float:
 
 def is_safe_single_result(r: dict) -> bool:
     """True when one scenario run is valid and collision-free."""
-    return r.get("status") == "OK" and int(r.get("wall_collisions", 999)) == 0
+    return (
+        r.get("status") == "OK"
+        and int(r.get("wall_collisions", 999)) == 0
+        and int(r.get("failed_non_speed", r.get("failed", 999))) == 0
+    )
 
 
 def weighted_mean(rows: list, key: str) -> float:
@@ -1048,6 +1382,7 @@ def aggregate_scenario_results(scenario_results: list) -> dict:
             "main_failed": 1,
             "passed": 0,
             "failed": 6,
+            "failed_non_speed": 6,
             "wall_collisions": 0,
             "completed_laps": 0,
             "time_above_5ms": 0.0,
@@ -1062,6 +1397,8 @@ def aggregate_scenario_results(scenario_results: list) -> dict:
             "avg_solve_us": 0.0,
             "max_solve_us": 0.0,
             "avg_iters": 0.0,
+            "solver_optimal_rate": 0.0,
+            "solver_max_iter_rate": 0.0,
             "progress_m": 0.0,
             "avg_progress_mps": 0.0,
             "avg_lap_time": 0.0,
@@ -1093,6 +1430,7 @@ def aggregate_scenario_results(scenario_results: list) -> dict:
         ) else 0,
         "passed": sum(int(r.get("passed", 0)) for r in scenario_results),
         "failed": sum(int(r.get("failed", 0)) for r in scenario_results),
+        "failed_non_speed": sum(int(r.get("failed_non_speed", r.get("failed", 0))) for r in scenario_results),
         "wall_collisions": sum(int(r.get("wall_collisions", 0)) for r in scenario_results),
         "completed_laps": sum(int(r.get("completed_laps", 0)) for r in scenario_results),
         "time_above_5ms": sum(float(r.get("time_above_5ms", 0.0)) * float(r.get("scenario_weight", 0.0))
@@ -1108,6 +1446,8 @@ def aggregate_scenario_results(scenario_results: list) -> dict:
         "avg_solve_us": weighted_mean(scenario_results, "avg_solve_us"),
         "max_solve_us": max(float(r.get("max_solve_us", 0.0)) for r in scenario_results),
         "avg_iters": weighted_mean(scenario_results, "avg_iters"),
+        "solver_optimal_rate": weighted_mean(scenario_results, "solver_optimal_rate"),
+        "solver_max_iter_rate": weighted_mean(scenario_results, "solver_max_iter_rate"),
         "progress_m": weighted_mean(scenario_results, "progress_m"),
         "avg_progress_mps": weighted_mean(scenario_results, "avg_progress_mps"),
         "avg_lap_time": (
@@ -1127,6 +1467,8 @@ def aggregate_scenario_results(scenario_results: list) -> dict:
         aggregate[f"{prefix}avg_lat_err"] = float(r.get("avg_lat_err", 0.0))
         aggregate[f"{prefix}avg_vx"] = float(r.get("avg_vx", 0.0))
         aggregate[f"{prefix}wall_collisions"] = int(r.get("wall_collisions", 0))
+        aggregate[f"{prefix}failed_non_speed"] = int(r.get("failed_non_speed", r.get("failed", 0)))
+        aggregate[f"{prefix}speed_check_pass"] = int(r.get("speed_check_pass", 1))
 
     return aggregate
 
@@ -1156,6 +1498,8 @@ def run_single_scenario(params: dict, binary: str, scenario: dict, seed: int) ->
             "status": "TIMEOUT",
             "passed": 0,
             "failed": 6,
+            "failed_non_speed": 6,
+            "speed_check_pass": 0,
             "return_code": -1,
             "scenario_name": scenario["name"],
             "scenario_weight": float(scenario["weight"]),
@@ -1168,9 +1512,23 @@ def run_single_scenario(params: dict, binary: str, scenario: dict, seed: int) ->
     parsed = parse_csv_result(result.stdout, result.returncode)
     if parsed is None:
         if result.returncode != 0:
-            parsed = {"status": "EXIT_FAIL", "return_code": result.returncode, "passed": 0, "failed": 6}
+            parsed = {
+                "status": "EXIT_FAIL",
+                "return_code": result.returncode,
+                "passed": 0,
+                "failed": 6,
+                "failed_non_speed": 6,
+                "speed_check_pass": 0,
+            }
         else:
-            parsed = {"status": "NO_CSV", "return_code": result.returncode, "passed": 0, "failed": 6}
+            parsed = {
+                "status": "NO_CSV",
+                "return_code": result.returncode,
+                "passed": 0,
+                "failed": 6,
+                "failed_non_speed": 6,
+                "speed_check_pass": 0,
+            }
 
     parsed["scenario_name"] = scenario["name"]
     parsed["scenario_weight"] = float(scenario["weight"])
@@ -1194,7 +1552,11 @@ def run_test(params: dict, binary: str, seed: int = SEED, eval_scenarios: list =
 
 def is_safe_result(r: dict) -> bool:
     """True when aggregate run completed and had no wall collisions."""
-    return r.get("status") == "OK" and int(r.get("wall_collisions", 999)) == 0
+    return (
+        r.get("status") == "OK"
+        and int(r.get("wall_collisions", 999)) == 0
+        and int(r.get("failed_non_speed", r.get("failed", 999))) == 0
+    )
 
 
 def has_full_scenario_coverage(r: dict) -> bool:
@@ -1211,10 +1573,12 @@ def promotable_deficit_score(r: dict) -> float:
     """Lower is better; 0 means fully promotable under progress criteria."""
     race_prog = float(r.get("scenario_race_avg_progress_mps", 0.0) or 0.0)
     overall_prog = float(r.get("avg_progress_mps", 0.0) or 0.0)
+    avg_vx = float(r.get("avg_vx", 0.0) or 0.0)
     race_def = max(0.0, MIN_RACE_PROGRESS_MPS - race_prog)
     overall_def = max(0.0, MIN_OVERALL_PROGRESS_MPS - overall_prog)
+    speed_def = max(0.0, MIN_AVG_VX_MPS - avg_vx)
     # prioritize race progress first, then aggregate progress
-    return race_def * 2.0 + overall_def
+    return race_def * 2.0 + overall_def + (0.5 * speed_def)
 
 
 def promotable_fail_reasons(r: dict) -> list:
@@ -1232,6 +1596,9 @@ def promotable_fail_reasons(r: dict) -> list:
     race_status = str(r.get("scenario_race_status", ""))
     race_prog = float(r.get("scenario_race_avg_progress_mps", 0.0) or 0.0)
     overall_prog = float(r.get("avg_progress_mps", 0.0) or 0.0)
+    avg_vx = float(r.get("avg_vx", 0.0) or 0.0)
+    solver_opt = float(r.get("solver_optimal_rate", 0.0) or 0.0)
+    solver_mx = float(r.get("solver_max_iter_rate", 1.0) or 1.0)
 
     if race_status and race_status != "OK":
         reasons.append("race_not_ok")
@@ -1239,11 +1606,17 @@ def promotable_fail_reasons(r: dict) -> list:
         reasons.append("race_progress_low")
     if overall_prog < MIN_OVERALL_PROGRESS_MPS:
         reasons.append("overall_progress_low")
+    if avg_vx < MIN_AVG_VX_MPS:
+        reasons.append("avg_vx_low")
+    if solver_opt < MIN_SOLVER_OPTIMAL_RATE:
+        reasons.append("solver_optimal_rate_low")
+    if solver_mx > MAX_SOLVER_MAX_ITER_RATE:
+        reasons.append("solver_maxiter_rate_high")
 
     return reasons
 
-def compute_tracker_score(r: dict) -> float:
-    """Tracker score: minimize trajectory-following errors (lower is better)."""
+def compute_reference_score(r: dict) -> float:
+    """Reference score: minimize trajectory-following errors (lower is better)."""
     if not is_safe_result(r):
         if r.get("status") != "OK":
             return 5000.0
@@ -1276,8 +1649,8 @@ def compute_tracker_score(r: dict) -> float:
     return round(tracking + solver, 3)
 
 
-def compute_fastest_score(r: dict) -> float:
-    """Fastest score: minimize lap-time estimate, then lightly break ties by stability."""
+def compute_base_score(r: dict) -> float:
+    """Base score: minimize lap-time estimate, then lightly break ties by stability."""
     if not is_safe_result(r):
         if r.get("status") != "OK":
             return 5000.0
@@ -1307,8 +1680,7 @@ def compute_fastest_score(r: dict) -> float:
         r.get("max_steer_change", 0.0) * 0.05 +
         r.get("steer_reversals", 0.0) * 0.015
     )
-    solver = r.get("avg_solve_us", 0.0) * 0.0005 + r.get("avg_iters", 0.0) * 0.03
-    return round(r.get("lap_time_est", 999.0) + stability + solver, 6)
+    return round(r.get("lap_time_est", 999.0) + stability, 6)
 
 
 def apply_scores(r: dict, objective: str) -> dict:
@@ -1317,9 +1689,8 @@ def apply_scores(r: dict, objective: str) -> dict:
     r["promotable"] = 1 if not reasons else 0
     r["promotable_deficit"] = round(promotable_deficit_score(r), 6)
     r["promotable_reason"] = "|".join(reasons) if reasons else ""
-    r["tracker_score"] = compute_tracker_score(r)
-    r["fastest_score"] = compute_fastest_score(r)
-    r["score"] = r["tracker_score"] if objective == "tracker" else r["fastest_score"]
+    r["base_score"] = compute_base_score(r)
+    r["score"] = r["base_score"]
     return r
 
 
@@ -1351,26 +1722,34 @@ def gen_primary_grid(objective: str) -> list:
     ql_vals = values["Q_LAT"]
     qh_vals = values["Q_HDG"]
     qv_vals = values["Q_VEL"]
-    h_vals = values["HORIZON"]
-    pd_vals = values["PRED_DT"]
-    
-    for ql, qh, qv, h, pd in itertools.product(ql_vals, qh_vals, qv_vals, h_vals, pd_vals):
+    qlv_vals = values["Q_LAT_VEL"]
+    qy_vals = values["Q_YAW"]
+    rs_vals = values["R_STEER"]
+    wda_vals = values["MPC_W_DELTA_ACTUAL"]
+    sb_vals = values["SOLVER_BUCKET"]
+    for ql, qh, qv, qlv, qy, rs, wda, sb in itertools.product(
+            ql_vals, qh_vals, qv_vals, qlv_vals, qy_vals, rs_vals, wda_vals, sb_vals):
         w = dict(BASE)
         w["Q_LAT"] = ql
         w["Q_HDG"] = qh
         w["Q_VEL"] = qv
-        w["HORIZON"] = h
-        w["PRED_DT"] = pd
-        w["WALL_END"] = h
-        
+        w["Q_LAT_VEL"] = qlv
+        w["Q_YAW"] = qy
+        w["R_STEER"] = rs
+        w["MPC_W_DELTA_ACTUAL"] = wda
+        w["SOLVER_BUCKET"] = sb
+        w = apply_solver_bucket(w)
         if is_valid_config(w):
-            combos.append((f"L={ql}+H={qh}+V={qv}+N={h}+dt={pd}", w))
+            combos.append((
+                f"L={ql}+H={qh}+V={qv}+LV={qlv}+Y={qy}+RS={rs}+WDA={wda}+SB={sb}+HZ={int(w['HORIZON'])}+DT={float(w['PRED_DT']):.3f}+CFG",
+                w,
+            ))
     
     return combos
 
 
 def gen_secondary_grid(objective: str) -> list:
-    """Phase 4: Secondary parameters grid (includes R_ACCEL and W_ACCEL_RATE)."""
+    """Phase 4: Secondary parameters grid."""
     combos = []
     
     values = get_secondary_grid_values(objective)
@@ -1380,9 +1759,10 @@ def gen_secondary_grid(objective: str) -> list:
     wj_vals = values["W_JERK"]
     ra_vals = values["R_ACCEL"]
     war_vals = values["W_ACCEL_RATE"]
+    wda_vals = values["MPC_W_DELTA_ACTUAL"]
     
-    for qlv, qy, rs, wj, ra, war in itertools.product(
-            qlv_vals, qy_vals, rs_vals, wj_vals, ra_vals, war_vals):
+    for qlv, qy, rs, wj, ra, war, wda in itertools.product(
+            qlv_vals, qy_vals, rs_vals, wj_vals, ra_vals, war_vals, wda_vals):
         w = dict(BASE)
         w["Q_LAT_VEL"] = qlv
         w["Q_YAW"] = qy
@@ -1390,29 +1770,9 @@ def gen_secondary_grid(objective: str) -> list:
         w["W_JERK"] = wj
         w["R_ACCEL"] = ra
         w["W_ACCEL_RATE"] = war
-        combos.append((f"LV={qlv}+Y={qy}+RS={rs}+WJ={wj}+RA={ra}+WAR={war}", w))
-    
-    return combos
+        w["MPC_W_DELTA_ACTUAL"] = wda
+        combos.append((f"LV={qlv}+Y={qy}+RS={rs}+WJ={wj}+RA={ra}+WAR={war}+WDA={wda}", w))
 
-
-def gen_solver_grid() -> list:
-    """Phase 5: Solver parameters grid (RHO x RHO_U x ALPHA x TOL)."""
-    combos = []
-    
-    rho_vals = PHASE5_VALUES["RHO"]
-    rho_u_vals = PHASE5_VALUES["RHO_U"]
-    alpha_vals = PHASE5_VALUES["ALPHA"]
-    tol_vals = PHASE5_VALUES["TOL"]
-    
-    for rho, rho_u, alpha, tol in itertools.product(
-            rho_vals, rho_u_vals, alpha_vals, tol_vals):
-        w = dict(BASE)
-        w["RHO"] = rho
-        w["RHO_U"] = rho_u
-        w["ALPHA"] = alpha
-        w["TOL"] = tol
-        combos.append((f"rho={rho}+ru={rho_u}+a={alpha}+tol={tol}", w))
-    
     return combos
 
 
@@ -1420,7 +1780,7 @@ def gen_fine_tuning(best_weights: dict) -> list:
     """Phase 6: Fine-tuning around best config (~2000 configs)."""
     combos = []
     pct_range = (0.80, 0.85, 0.90, 0.92, 0.95, 0.97, 1.03, 1.05, 1.08, 1.10, 1.15, 1.20)
-    skip = {"MAX_ITER", "HORIZON", "WALL_STRIDE", "WALL_END", "WALL_MARGIN"}
+    skip = {"MAX_ITER", "HORIZON", "WALL_MARGIN"}
     
     # Single parameter perturbations
     for name, base_val in best_weights.items():
@@ -1465,8 +1825,8 @@ def gen_random_neighbors(best_weights: dict, n: int, objective: str,
     """Generate random perturbations around best config for exploration/exploitation phases."""
     combos = []
     rng = random.Random(SEED + seed_offset)
-    profile_name = profile_override if profile_override else objective
-    profile = RANDOM_PROFILES.get(profile_name, RANDOM_PROFILES["tracker"])
+    profile_name = profile_override if profile_override else "base"
+    profile = RANDOM_PROFILES.get(profile_name, RANDOM_PROFILES["base"])
     
     discrete = profile.get("discrete", {})
     param_multipliers = profile.get("param_multipliers", {})
@@ -1474,8 +1834,9 @@ def gen_random_neighbors(best_weights: dict, n: int, objective: str,
     min_perturb, max_perturb = profile.get("num_perturb_range", (3, 6))
     
     tune_params = [k for k in best_weights.keys()
-                   if k not in ("MAX_ITER", "WALL_END", "WALL_STRIDE", "WALL_MARGIN") 
+                   if k not in ("MAX_ITER", "WALL_MARGIN") 
                    and best_weights[k] != 0]
+    tune_params = [k for k in tune_params if k not in ("HORIZON", "PRED_DT")]
     
     i = 0
     attempts = 0
@@ -1546,6 +1907,127 @@ class IncrementalCSV:
             writer.writerow(row)
 
 
+def select_solver_bucket(params: dict) -> dict:
+    """Select grouped HORIZON/PRED_DT/RHO/RHO_U/TOL solver bucket."""
+    explicit_name = str(params.get("SOLVER_BUCKET", "") or "").strip()
+    if explicit_name:
+        bucket = SOLVER_BUCKETS_BY_NAME.get(explicit_name)
+        if bucket is None:
+            bucket = SOLVER_BUCKETS[0]
+        return {
+            "HORIZON": int(bucket["horizon"]),
+            "PRED_DT": float(bucket["pred_dt"]),
+            "RHO": float(bucket["rho"]),
+            "RHO_U": float(bucket["rho_u"]),
+            "TOL": float(bucket["tol"]),
+        }
+
+    # Fallback path: infer bucket from current HORIZON/PRED_DT by T=H*dt.
+    h = int(float(params.get("HORIZON", BASE.get("HORIZON", 10)) or 10))
+    dt = float(params.get("PRED_DT", BASE.get("PRED_DT", 0.034)) or 0.034)
+    lookahead_t = max(0.01, float(h) * dt)
+
+    selected = SOLVER_BUCKETS[-1]
+    for bucket in SOLVER_BUCKETS:
+        if lookahead_t <= float(bucket["t_max"]):
+            selected = bucket
+            break
+
+    return {
+        "HORIZON": int(h),
+        "PRED_DT": float(dt),
+        "RHO": float(selected["rho"]),
+        "RHO_U": float(selected["rho_u"]),
+        "TOL": float(selected["tol"]),
+    }
+
+
+def apply_solver_bucket(params: dict) -> dict:
+    """Return params with solver tuple overridden by T=H*dt bucket schedule."""
+    out = dict(params)
+    out.update(select_solver_bucket(out))
+    return out
+
+
+def aggregate_global_hdt_rows(rows: list) -> dict:
+    """Aggregate per-anchor results into a single global-region score row."""
+    if not rows:
+        return {
+            "status": "EXIT_FAIL",
+            "score": 999999.0,
+            "base_score": 999999.0,
+            "promotable": 0,
+            "promotable_reason": "no_rows",
+        }
+
+    first = rows[0]
+    out = dict(first)
+
+    count = len(rows)
+    avg = lambda key: sum(float(r.get(key, 0.0) or 0.0) for r in rows) / float(count)
+    minv = lambda key: min(float(r.get(key, 0.0) or 0.0) for r in rows)
+    maxv = lambda key: max(float(r.get(key, 0.0) or 0.0) for r in rows)
+
+    non_promotable = [r for r in rows if not is_promotable_result(r)]
+    fail_count = len(non_promotable)
+    promotable_count = count - fail_count
+    min_promotable = max(1, int(math.ceil(GLOBAL_HDT_MIN_PASS_RATIO * float(count))))
+    pass_global = promotable_count >= min_promotable
+
+    mean_base = avg("base_score")
+    worst_base = maxv("base_score")
+    failure_penalty = 2000.0 * float(fail_count)
+    global_score = mean_base + (0.35 * worst_base) + failure_penalty
+
+    out["status"] = "OK" if pass_global else "EXIT_FAIL"
+    out["scenario_count"] = int(sum(int(r.get("scenario_count", 0) or 0) for r in rows))
+    out["scenario_failures"] = int(sum(int(r.get("scenario_failures", 0) or 0) for r in rows))
+    out["failed"] = int(sum(int(r.get("failed", 0) or 0) for r in rows))
+    out["failed_non_speed"] = int(sum(int(r.get("failed_non_speed", 0) or 0) for r in rows))
+    out["wall_collisions"] = int(sum(int(r.get("wall_collisions", 0) or 0) for r in rows))
+
+    out["avg_lat_err"] = avg("avg_lat_err")
+    out["avg_hdg_err"] = avg("avg_hdg_err")
+    out["avg_vx"] = minv("avg_vx")
+    out["avg_progress_mps"] = minv("avg_progress_mps")
+    out["scenario_race_avg_progress_mps"] = minv("scenario_race_avg_progress_mps")
+    out["scenario_race_status"] = "OK" if all(str(r.get("scenario_race_status", "")) == "OK" for r in rows) else "EXIT_FAIL"
+    out["solver_optimal_rate"] = minv("solver_optimal_rate")
+    out["solver_max_iter_rate"] = maxv("solver_max_iter_rate")
+    out["lap_time_est"] = avg("lap_time_est")
+
+    out["base_score"] = round(global_score, 6)
+    out["score"] = out["base_score"]
+    out["promotable"] = 1 if pass_global else 0
+    out["promotable_deficit"] = round(promotable_deficit_score(out), 6)
+    if not pass_global:
+        reasons = sorted(set(r.get("promotable_reason", "") for r in non_promotable if r.get("promotable_reason")))
+        out["promotable_reason"] = f"global_hdt_fail:{promotable_count}/{count}:" + ";".join(reasons[:4])
+    else:
+        out["promotable_reason"] = ""
+
+    out["global_hdt_count"] = count
+    out["global_hdt_promotable"] = promotable_count
+    out["global_hdt_set"] = "|".join(f"{int(r.get('HORIZON', 0))}x{float(r.get('PRED_DT', 0.0)):.3f}" for r in rows)
+    return out
+
+
+def build_global_hdt_region(center_h: int, center_dt: float) -> list:
+    """Build sweepable anchor set around candidate horizon/dt."""
+    anchors = set(GLOBAL_WEIGHT_REGION_HDT)
+    h = int(center_h)
+    dt = float(center_dt)
+    anchors.add((h, dt))
+
+    # Add local neighbors around candidate to sweep anchor region itself.
+    for dh, ddt in [(-4, -0.004), (-2, -0.002), (2, 0.002), (4, 0.004)]:
+        nh = int(max(min(h + dh, max(HORIZON_SWEEP_VALUES)), min(HORIZON_SWEEP_VALUES)))
+        ndt = max(0.032, min(0.050, dt + ddt))
+        anchors.add((nh, round(ndt, 3)))
+
+    return sorted(anchors, key=lambda x: (int(x[0]), float(x[1])))
+
+
 # ==============================================================================
 # PARALLEL WORKER
 # ==============================================================================
@@ -1553,12 +2035,16 @@ class IncrementalCSV:
 def _run_single(args):
     """Worker: run one test and return scored result."""
     label, params, binary, phase_name, objective, eval_scenarios, raceline_tag = args
-    r = run_test(params, binary, eval_scenarios=eval_scenarios)
+    p = apply_solver_bucket(dict(params))
+    r = run_test(p, binary, eval_scenarios=eval_scenarios)
     r = apply_scores(r, objective)
+    r.update(canonicalize_params(p))
+    r["global_hdt_count"] = 1
+    r["global_hdt_set"] = f"{int(r.get('HORIZON', 0))}x{float(r.get('PRED_DT', 0.0)):.3f}"
+
     r["label"] = label
     r["phase"] = phase_name
     r["raceline"] = raceline_tag
-    r.update(canonicalize_params(params))
     return r
 
 
@@ -1590,12 +2076,15 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
             eta = (total - i - 1) / max(rate, 0.01)
             print(f"  [{i+1:4d}/{total}] {label:55s} ", end="", flush=True)
             
-            r = run_test(params, binary)
+            p = apply_solver_bucket(dict(params))
+            r = run_test(p, binary)
             r = apply_scores(r, objective)
             r["label"] = label
             r["phase"] = phase_name
             r["raceline"] = RACELINE_TAG
-            r.update(canonicalize_params(params))
+            r.update(canonicalize_params(p))
+            r["global_hdt_count"] = 1
+            r["global_hdt_set"] = f"{int(r.get('HORIZON', 0))}x{float(r.get('PRED_DT', 0.0)):.3f}"
             results.append(r)
             
             if csv_writer:
@@ -1692,8 +2181,6 @@ def sanity_check_params(binary: str):
     for name, new_val in probes:
         p = dict(BASE)
         p[name] = new_val
-        if name == "HORIZON":
-            p["WALL_END"] = int(new_val)
         
         rr = run_test(p, binary)
         sig = (
@@ -1715,8 +2202,6 @@ def sanity_check_params(binary: str):
 # ==============================================================================
 # RESULT HELPERS
 # ==============================================================================
-
-
 
 def normalized_param_distance(a: dict, b: dict) -> float:
     """Distance in normalized parameter space for diversity selection."""
@@ -1756,7 +2241,7 @@ def select_diverse_rows(rows: list, n: int) -> list:
     return selected
 
 
-def get_top_n_params(results: list, n: int = CASCADE_TOP_N, objective: str = "fastest") -> list:
+def get_top_n_params(results: list, n: int = CASCADE_TOP_N, objective: str = "base") -> list:
     """Return list of up to N best params dicts."""
     promotable = [r for r in results if is_promotable_result(r)]
     pool = promotable
@@ -1785,8 +2270,8 @@ def get_top_n_params(results: list, n: int = CASCADE_TOP_N, objective: str = "fa
                 x.get("wall_collisions", 999),
                 x.get("score", 99999)
             ))
-            if objective == "fastest" and STRICT_FASTEST_PROMOTION:
-                print("  WARNING: No promotable/safe-full candidates; strict fastest promotion returning no seeds.")
+            if STRICT_PROMOTION:
+                print("  WARNING: No promotable/safe-full candidates; strict promotion returning no seeds.")
                 return []
             pool = unsafe[:n] if unsafe else []
             if pool:
@@ -1835,7 +2320,7 @@ def main():
     
     # Parse arguments
     num_workers = multiprocessing.cpu_count()  # Default to max workers
-    objective = "fastest"
+    objective = "base"
     raceline_override = None
     phase2_top_n = CASCADE_TOP_N
     global_passes = GLOBAL_OPTIMIZATION_PASSES
@@ -1850,8 +2335,6 @@ def main():
                 num_workers = multiprocessing.cpu_count()
             if num_workers <= 0:
                 num_workers = multiprocessing.cpu_count()
-        if arg == "--objective" and i + 1 < len(sys.argv):
-            objective = sys.argv[i + 1].strip().lower()
         if arg == "--raceline" and i + 1 < len(sys.argv):
             raceline_override = sys.argv[i + 1].strip()
         if arg == "--phase2-top" and i + 1 < len(sys.argv):
@@ -1880,10 +2363,6 @@ def main():
             include_obstacles = True
         if arg == "--no-obstacles":
             include_obstacles = False
-    
-    if objective not in ("tracker", "fastest"):
-        print("ERROR: --objective must be 'tracker' or 'fastest'")
-        sys.exit(1)
 
     if raceline_override:
         RACELINE_PATH = resolve_raceline_path(raceline_override)
@@ -1903,20 +2382,21 @@ def main():
     EVAL_SCENARIOS = build_eval_scenarios(include_obstacles=include_obstacles)
     
     # Initialize BASE config
-    BASE.update(BASE_CONFIG)
-    if objective == "fastest":
-        BASE.update(FASTEST_BASE_OVERRIDES)
+    BASE.update(BASE_OVERRIDES)
     
     print(f"\n{'='*80}")
     print("MPC Weight Tuning - Hardware Map")
     print(f"{'='*80}")
     print(f"  Workers:     {num_workers}")
-    print(f"  Objective:   {objective}")
+    print("  Mode:        base")
     print(f"  Phase2->P4:  top {phase2_top_n}")
-    print(f"  Global passes (P5-P8): {global_passes}")
+    print(f"  Global passes (P6-P8): {global_passes}")
     print(f"  Obstacles:   {'on' if include_obstacles else 'off'}")
-    print(f"  Phase7 random: {PHASE7_RANDOM_COUNT.get(objective, 3600)}")
-    print(f"  Phase8 random: {PHASE8_RANDOM_COUNT.get(objective, 1800)}")
+    print("  Solver mode: T=H*dt bucketed RHO/RHO_U/TOL")
+    print("  Config eval: single (one config must pass all 3 scenarios)")
+    print(f"  Base solver tuple: RHO={BASE.get('RHO')} RHO_U={BASE.get('RHO_U')} TOL={BASE.get('TOL')} MAX_ITER={BASE.get('MAX_ITER')}")
+    print(f"  Phase7 random: {PHASE7_RANDOM_COUNT}")
+    print(f"  Phase8 random: {PHASE8_RANDOM_COUNT}")
     print(f"  Horizon sweep: {HORIZON_SWEEP_VALUES}")
     print(f"  Raceline:    {RACELINE_PATH}")
     print(f"  Raceline tag:{RACELINE_TAG}")
@@ -1966,7 +2446,7 @@ def main():
     
     # CSV writer
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    outfile = f"test/tuning_hardware_{objective}_{timestamp}.csv"
+    outfile = f"test/tuning_hardware_base_{timestamp}.csv"
     scenario_fieldnames = []
     for scenario in EVAL_SCENARIOS:
         prefix = f"scenario_{scenario['name']}_"
@@ -1977,17 +2457,21 @@ def main():
             f"{prefix}avg_lat_err",
             f"{prefix}avg_vx",
             f"{prefix}wall_collisions",
+            f"{prefix}failed_non_speed",
+            f"{prefix}speed_check_pass",
         ])
     fieldnames = (
-        ["label", "phase", "raceline", "score", "tracker_score", "fastest_score",
+        ["label", "phase", "raceline", "score", "base_score",
          "promotable", "promotable_deficit", "promotable_reason",
-         "passed", "failed", "scenario_count", "scenario_failures", "recovery_failures", "main_failed",
+         "global_hdt_count", "global_hdt_set",
+         "passed", "failed", "failed_non_speed", "scenario_count", "scenario_failures", "recovery_failures", "main_failed",
          "lap_time_est", "completed_laps", "progress_m", "avg_progress_mps",
          "max_steer_change", "steer_reversals",
          "max_lat_err", "avg_lat_err",
          "max_hdg_err", "avg_hdg_err", "max_vx", "avg_vx",
          "avg_vel_err", "max_vel_err", "avg_solve_us", "max_solve_us",
-         "wall_collisions", "time_above_5ms", "avg_iters", "avg_lap_time", "status", "return_code"]
+         "wall_collisions", "time_above_5ms", "avg_iters", "solver_optimal_rate", "solver_max_iter_rate",
+         "avg_lap_time", "status", "return_code"]
         + scenario_fieldnames
         + list(BASE.keys())
     )
@@ -2017,9 +2501,7 @@ def main():
     if not phase2_seeds:
         phase2_seeds = [dict(BASE)]
 
-    # ========== PHASES 3-8 ==========
-    # Phase 3 is skipped for hardware map mode (fixed wall margin).
-    print("\n  Phase 3: Skipped (wall margin is fixed for hardware)")
+    # ========== PHASES 4-8 ==========
 
     # Phase 4: branch from top-N seeds from Phase 2.
     print("\n  Phase 4 branching from Phase 2 seeds...")
@@ -2037,7 +2519,8 @@ def main():
         update_base(top_after_p4[0])
 
     # Global optimization loop: repeatedly refine one promoted-best candidate
-    # through Phases 5-8, always handing off the best from each phase.
+    # through Phases 5-8, always handing off the global best so phase-local
+    # regressions are never promoted forward.
     current_best = get_top_n_params(results, n=1, objective=objective)
     current_best_params = current_best[0] if current_best else dict(BASE)
 
@@ -2046,38 +2529,21 @@ def main():
         print(f"# GLOBAL OPTIMIZATION PASS {pi+1}/{global_passes}")
         print(f"{'#'*80}")
 
-        # Phase 5: solver parameter sweep around current promoted best.
-        update_base(current_best_params)
-        phase_start = len(results)
-        p, f = run_phase(f"Phase 5: Solver parameters [pass {pi+1}/{global_passes}]",
-                         gen_solver_grid(), binary, results, t0,
-                         num_workers, csv_writer, objective)
-        total_p += p
-        total_f += f
-        phase_rows = results[phase_start:]
-        top = get_top_n_params(phase_rows, n=1, objective=objective)
-        if top:
-            current_best_params = top[0]
-            update_base(current_best_params)
-
         # Phase 6: fine tuning around current promoted best.
         update_base(current_best_params)
-        phase_start = len(results)
         p, f = run_phase(f"Phase 6: Fine-tuning [pass {pi+1}/{global_passes}]",
                          gen_fine_tuning(current_best_params), binary, results, t0,
                          num_workers, csv_writer, objective)
         total_p += p
         total_f += f
-        phase_rows = results[phase_start:]
-        top = get_top_n_params(phase_rows, n=1, objective=objective)
+        top = get_top_n_params(results, n=1, objective=objective)
         if top:
             current_best_params = top[0]
             update_base(current_best_params)
 
         # Phase 7: random exploration around current promoted best.
         update_base(current_best_params)
-        n_random = PHASE7_RANDOM_COUNT.get(objective, 3600)
-        phase_start = len(results)
+        n_random = PHASE7_RANDOM_COUNT
         p, f = run_phase(f"Phase 7: Random neighbors ({n_random}) [pass {pi+1}/{global_passes}]",
                          gen_random_neighbors(current_best_params, n_random, objective,
                                               seed_offset=7000 + pi),
@@ -2085,31 +2551,27 @@ def main():
                          num_workers, csv_writer, objective)
         total_p += p
         total_f += f
-        phase_rows = results[phase_start:]
-        top = get_top_n_params(phase_rows, n=1, objective=objective)
+        top = get_top_n_params(results, n=1, objective=objective)
         if top:
             current_best_params = top[0]
             update_base(current_best_params)
 
         # Phase 8: random exploitation around promoted best from Phase 7.
         update_base(current_best_params)
-        n_random = PHASE8_RANDOM_COUNT.get(objective, 1800)
-        phase_start = len(results)
+        n_random = PHASE8_RANDOM_COUNT
         p, f = run_phase(f"Phase 8: Random exploitation ({n_random}) [pass {pi+1}/{global_passes}]",
                          gen_random_neighbors(current_best_params, n_random, objective,
-                                              profile_override=f"{objective}_exploit",
+                                              profile_override="base_exploit",
                                               seed_offset=9000 + pi),
                          binary, results, t0,
                          num_workers, csv_writer, objective)
         total_p += p
         total_f += f
-        phase_rows = results[phase_start:]
-        top = get_top_n_params(phase_rows, n=1, objective=objective)
+        top = get_top_n_params(results, n=1, objective=objective)
         if top:
             current_best_params = top[0]
             update_base(current_best_params)
 
-    # ========== FINAL RESULTS ==========
     # ========== FINAL RESULTS ==========
     results.sort(key=lambda x: x.get("score", 999999.0))
     elapsed = time.time() - t0

@@ -298,6 +298,7 @@ MpcSolverStatus_t mpc_compute_optimal_control(
 
         /* Per-step Frenet linearization */
         float kappa_k = reference_trajectory[k].path_curvature;
+        float v_state_for_limits = lin_state.flong_vel;
 
         ControlInput_t lin_control;
         lin_control.steer_ang = atanf(VP_WHEELBASE_M * kappa_k);
@@ -440,23 +441,19 @@ MpcSolverStatus_t mpc_compute_optimal_control(
 
         /* === State bounds (8 elements) === */
 
-        /* e_y: wall constraints from step 1 through horizon (all remaining steps). */
-        int wall_active = (k >= 1);
-
-        if (wall_active) {
+        /* e_y wall bounds active from the first stage; if bounds are too narrow,
+         * collapse to a conservative zero-slack corridor instead of forcing solver infeasibility. */
+        {
             float left_bound = reference_trajectory[k].left_wall_bound;
             float right_bound = reference_trajectory[k].right_wall_bound;
-            if (left_bound <= WALL_MARGIN || right_bound <= WALL_MARGIN) {
-                /* Invalid wall bounds -> force infeasible interval for safe stop behavior. */
-                sd->x_lb[0] = 1.0f;
-                sd->x_ub[0] = -1.0f;
-            } else {
-                sd->x_lb[0] = -(right_bound - WALL_MARGIN);
-                sd->x_ub[0] = left_bound - WALL_MARGIN;
-            }
-        } else {
-            sd->x_lb[0] = -BIG_BOUND;
-            sd->x_ub[0] = BIG_BOUND;
+            float left_room = left_bound - WALL_MARGIN;
+            float right_room = right_bound - WALL_MARGIN;
+
+            if (left_room < 0.0f) left_room = 0.0f;
+            if (right_room < 0.0f) right_room = 0.0f;
+
+            sd->x_lb[0] = -right_room;
+            sd->x_ub[0] = left_room;
         }
 
         /* States 1-4 (e_psi, vx, vy, omega): unconstrained */
@@ -483,11 +480,22 @@ MpcSolverStatus_t mpc_compute_optimal_control(
         /* u[1] acceleration bound follows a constant-power region model. */
         {
             float v_ref_k = reference_trajectory[k].reference_velocity;
+            float v_model_k = v_state_for_limits;
+            float v_for_limit;
             float a_max = VP_MAX_ACCEL_MPS2;
             float a_min = VP_MIN_ACCEL_MPS2;
 
-            if (v_ref_k > V_SWITCH) {
-                float scale = V_SWITCH / v_ref_k;
+            if (v_model_k < MIN_LINEARIZATION_VELOCITY)
+                v_model_k = MIN_LINEARIZATION_VELOCITY;
+
+            /* Blend model speed with reference speed so under-speed states are not
+             * over-limited by an aggressive reference profile. */
+            v_for_limit = 0.7f * v_model_k + 0.3f * v_ref_k;
+            if (v_for_limit < MIN_LINEARIZATION_VELOCITY)
+                v_for_limit = MIN_LINEARIZATION_VELOCITY;
+
+            if (v_for_limit > V_SWITCH) {
+                float scale = V_SWITCH / v_for_limit;
                 sd->u_ub[1] = a_max * scale;
                 sd->u_lb[1] = a_min * scale;  /* a_min is negative */
             } else {
@@ -562,7 +570,6 @@ MpcSolverStatus_t mpc_compute_optimal_control(
         .tolerance = get_env_float("TOL", config.solver_convergence_tolerance),
         .max_iterations = get_env_int("MAX_ITER", (int)config.max_solver_iterations),
         .adaptive_rho = 1,
-        .alpha = get_env_float("ALPHA", ADMM_ALPHA),
     };
 
     RiccatiSolution_t riccati_sol;

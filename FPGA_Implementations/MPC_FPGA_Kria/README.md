@@ -29,7 +29,7 @@ CPU (ARM Cortex-A53)               FPGA (Programmable Logic)
 
 | Feature | Choice | Rationale |
 |---------|--------|-----------|
-| Arithmetic | Q16.16 fixed-point | No FPU on PL, deterministic latency |
+| Arithmetic | ap_fixed<32,16> internal math | No FPU on PL, deterministic latency |
 | Vehicle params | Compile-time `#define` | Constant propagation, zero BRAM overhead |
 | Solver | Riccati-ADMM | O(N·nx³) per iter vs O(N³) for dense QP |
 | Warm-start | Static BRAM | Persists across calls, reduces iterations |
@@ -46,10 +46,10 @@ MPC_FPGA_Kria/
 │   ├── riccati_solver_hls.h    # Solver API declaration
 │   └── mpc_fpga_interface.h    # AXI-Lite register map (documentation)
 ├── src/
-│   ├── fp_math_hls.c           # Trig functions (sin, cos, atan, recip)
-│   ├── vehicle_model_hls.c     # Frenet linearization (Pacejka + full physics)
-│   ├── riccati_solver_hls.c    # Riccati-ADMM solver core (~700 lines)
-│   ├── mpc_riccati_hls.c       # MPC QP construction + control extraction
+│   ├── fp_math_hls.cpp         # Trig functions (sin, cos, atan, recip)
+│   ├── vehicle_model_hls.cpp   # Frenet linearization (Pacejka + full physics)
+│   ├── riccati_solver_hls.cpp  # Riccati-ADMM solver core
+│   ├── mpc_riccati_hls.cpp     # MPC QP construction + control extraction
 │   └── mpc_fpga_top.cpp        # AXI-stream top + scalar simulation wrapper
 ├── testbench/
 │   └── test_fpga_sim_drive.c   # Closed-loop FPGA simulation test
@@ -122,32 +122,18 @@ cd FPGA_Implementations/MPC_FPGA_Kria
 source /tools/Xilinx/2025.1/Vitis/settings64.sh
 
 HLS_RUN_MODE=synth \
-HLS_CLOCK_PERIOD_NS=5 \
-HLS_CLOCK_UNCERTAINTY_PCT=5% \
-HLS_PIPELINE_LOOPS=16 \
-HLS_RECIP_II=4 \
-HLS_STATE_UPDATE_II=4 \
-HLS_UNROLL_GMA_FACTOR=6 \
-HLS_UNROLL_PA_FACTOR=6 \
-HLS_UNROLL_ATPA_FACTOR=3 \
-HLS_UNROLL_SYM_FACTOR=1 \
-HLS_UNROLL_FORWARD_FACTOR=4 \
-HLS_UNROLL_STATE_FACTOR=1 \
-HLS_RICCATI_MUL_LIMIT=6 \
-HLS_K_PARTITION_MODE=0 \
-HLS_K_PARTITION_FACTOR=4 \
 vitis-run --mode hls --tcl scripts/run_hls.tcl
 ```
 
 Validated synthesis result for this profile:
-- Estimated Fmax: 214.59 MHz
-- Top latency: 24,372 cycles
-- Estimated runtime from cycles/Fmax: 113.575 us
+- Estimated Fmax: 204.79 MHz
+- Top latency: 19,935 cycles
+- Estimated runtime from cycles/Fmax: 97.34 us
 
 Targeted exploration note:
-- Additional sweeps were run to trade more resources for fewer cycles.
-- Structural refinement applied: packed state-constraint bitmask (`x_con_mask`) in ADMM loops.
-- None of the tested alternatives beat this profile while keeping robust timing margin above 200 MHz.
+- Additional sweeps were run to balance max frequency and cycle count for minimum end-to-end latency.
+- Structural refinements include packed state-constraint masking (`x_con_mask`) and AP-fixed profile tuning.
+- This profile is now reflected in `scripts/run_hls.tcl` default synthesis settings.
 - Sweep logs:
     - `logs/hls_targeted_sweep.csv`
     - `logs/hls_targeted_sweep_phase2.csv`
@@ -160,20 +146,6 @@ cd FPGA_Implementations/MPC_FPGA_Kria
 source /tools/Xilinx/2025.1/Vitis/settings64.sh
 
 HLS_RUN_MODE=export \
-HLS_CLOCK_PERIOD_NS=5 \
-HLS_CLOCK_UNCERTAINTY_PCT=5% \
-HLS_PIPELINE_LOOPS=16 \
-HLS_RECIP_II=4 \
-HLS_STATE_UPDATE_II=4 \
-HLS_UNROLL_GMA_FACTOR=6 \
-HLS_UNROLL_PA_FACTOR=6 \
-HLS_UNROLL_ATPA_FACTOR=3 \
-HLS_UNROLL_SYM_FACTOR=1 \
-HLS_UNROLL_FORWARD_FACTOR=4 \
-HLS_UNROLL_STATE_FACTOR=1 \
-HLS_RICCATI_MUL_LIMIT=6 \
-HLS_K_PARTITION_MODE=0 \
-HLS_K_PARTITION_FACTOR=4 \
 vitis-run --mode hls --tcl scripts/run_hls.tcl
 ```
 
@@ -185,10 +157,10 @@ Exported IP package (latest run):
 ```bash
 cd FPGA_Implementations/MPC_FPGA_Kria
 gcc -O2 -I include -Wno-unknown-pragmas -c testbench/test_fpga_sim_drive.c -o test_fpga_sim_drive.o
-gcc -O2 -I include -Wno-unknown-pragmas -c src/riccati_solver_hls.c -o riccati_solver_hls.o
-gcc -O2 -I include -Wno-unknown-pragmas -c src/mpc_riccati_hls.c -o mpc_riccati_hls.o
-gcc -O2 -I include -Wno-unknown-pragmas -c src/vehicle_model_hls.c -o vehicle_model_hls.o
-gcc -O2 -I include -Wno-unknown-pragmas -c src/fp_math_hls.c -o fp_math_hls.o
+g++ -O2 -I include -Wno-unknown-pragmas -x c++ -c src/riccati_solver_hls.cpp -o riccati_solver_hls.o
+g++ -O2 -I include -Wno-unknown-pragmas -x c++ -c src/mpc_riccati_hls.cpp -o mpc_riccati_hls.o
+g++ -O2 -I include -Wno-unknown-pragmas -x c++ -c src/vehicle_model_hls.cpp -o vehicle_model_hls.o
+g++ -O2 -I include -Wno-unknown-pragmas -x c++ -c src/fp_math_hls.cpp -o fp_math_hls.o
 g++ -O2 -I include -Wno-unknown-pragmas -x c++ -c src/mpc_fpga_top.cpp -o mpc_fpga_top.o
 g++ -o test_fpga_sim \
     test_fpga_sim_drive.o \
@@ -201,8 +173,7 @@ g++ -o test_fpga_sim \
 ./test_fpga_sim
 ```
 
-The top source is compiled as C++ because it uses HLS stream types, while the
-solver sources remain in their existing C compilation flow.
+All core sources are compiled as C++ for AP-native type support and HLS compatibility.
 
 ### Vivado Implementation and Bitstream
 

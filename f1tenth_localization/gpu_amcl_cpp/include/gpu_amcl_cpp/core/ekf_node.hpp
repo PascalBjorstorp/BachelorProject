@@ -183,6 +183,7 @@ private:
 
     // Process noise scaling (multiplied onto odom covariance)
     double process_noise_scale_ = 1.0;
+    double amcl_max_latency_sec_ = 0.08;
 
     std::string amcl_topic_;
     std::string odom_topic_;

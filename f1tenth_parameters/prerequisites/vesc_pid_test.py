@@ -16,7 +16,7 @@ Two modes of operation:
         1. Make sure VESC Tool is NOT connected (only one app can use the port)
         2. Put the car on a stand so the wheels spin freely!
         3. Run:
-           python3 vesc_pid_test.py [--port /dev/ttyACM0] [--target-rpm 5000]
+           python3 vesc_pid_test.py [--port /dev/ttyACM0] [--target-rpm 15000]
 
         On Linux the port is usually /dev/ttyACM0.
         On Windows it's COMx (check Device Manager).

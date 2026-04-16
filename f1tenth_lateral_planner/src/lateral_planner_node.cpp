@@ -94,7 +94,11 @@ private:
     params.clearance_tolerance_m = CLEARANCE_TOLERANCE_M;
     params.planning_tolerance_scale = PLANNING_TOLERANCE_SCALE;
     params.car_width_m           = CAR_WIDTH_M;
-    params.merge_back_speed_factor = MERGE_BACK_SPEED_FACTOR;
+    params.curvature_speed_factor = CURVATURE_SPEED_FACTOR;
+    params.curvature_speed_floor_ratio = CURVATURE_SPEED_FLOOR_RATIO;
+    params.speed_preview_points = CURVATURE_SPEED_PREVIEW_POINTS;
+    params.max_lateral_accel = MAX_LATERAL_ACCEL_MPS2;
+    params.min_regulated_speed = MIN_REGULATED_SPEED_MPS;
 
     planner_ = std::make_unique<LateralPlanner>(get_logger(), params);
 

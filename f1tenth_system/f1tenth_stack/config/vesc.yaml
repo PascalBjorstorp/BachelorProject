@@ -68,18 +68,46 @@ vesc_to_odom_node:
   ros__parameters:
     odom_frame: ego_racecar/odom
     base_frame: ego_racecar/base_link
+    # Odom-only steering sign override: keep command path gain untouched, fix odom turn direction.
+    steering_angle_to_servo_gain: 0.7284
+    steering_angle_to_servo_offset: 0.5500
     speed_deadband: 0.15
     max_dt_sec: 1.0
     
-    # IMU angular velocity low-pass filter coefficient (0.0 to 1.0)
+    # Fallback IMU angular velocity low-pass coefficient (EMA, used only when Butterworth is disabled)
     # Lower = more filtering (smoother but slower)
     # Higher = less filtering (faster but noisier)
-    imu_angular_velocity_alpha: 0.45
+    imu_angular_velocity_alpha: 0.45  
+
+    # Startup IMU bias calibration (car stationary): averages linear x/y and angular z.
+    imu_startup_calibration_enabled: true
+    imu_startup_calibration_duration_sec: 5.0
+    imu_startup_hold_odom_during_calibration: false
+
+    # 2nd-order Butterworth filtering at IMU rate.
+    # Keeps update rate high while attenuating sensor noise.
+    imu_use_butterworth_filter: true
+    imu_butterworth_gyro_cutoff_hz: 18.0
+    imu_butterworth_lateral_accel_cutoff_hz: 12.0
+    imu_yaw_base_weight: 0.80
+    imu_history_max_samples: 400
+    imu_sync_tolerance_sec: 0.03
+    imu_timeout_sec: 0.10
+    servo_timeout_sec: 0.10
+
     # Slip detector thresholds using |a_y_measured - v_x * r_model| [m/s^2]
     # Enter should be greater than exit (hysteresis).
-    slip_accel_enter: 3.0
-    slip_accel_exit: 1.6
+    slip_accel_enter: 8.0
+    slip_accel_exit: 2.0
     slip_min_speed: 1.2
+
+    # Slip indicator source:
+    # - yaw_residual: weighted yaw-rate residual (default model-based mode)
+    # - lateral_accel: |a_y_measured - v_x * r_model|
+    # - lateral_velocity_error: |v_y_imu - v_y_model| (m/s)
+    slip_indicator_source: lateral_velocity_error
+    slip_lateral_velocity_enter: 0.45
+    slip_lateral_velocity_exit: 0.25
 
     # Filter and dwell-time debounce for slip switching.
     # This prevents rapid ON/OFF chatter from IMU noise and transient spikes.
@@ -92,7 +120,7 @@ vesc_to_odom_node:
     slip_exit_hold_sec: 0.12
 
     # Dynamic bicycle model (linear tire model)
-    use_dynamic_bicycle_model: false
+    use_dynamic_bicycle_model: true
     vehicle_mass: 3.314
     vehicle_Iz: 0.035
     l_f: 0.166
@@ -101,9 +129,8 @@ vesc_to_odom_node:
     c_alpha_r: 43.10
     dynamic_model_min_speed: 1.0
 
-    # Inflate odometry covariance while slipping so localization trusts map fixes more.
+    # Inflate odometry x/y covariance while slipping so localization trusts map fixes more.
     slip_xy_covariance_scale: 6.0
-    slip_yaw_covariance_scale: 10.0
 
     # Online gyro-bias adaptation (active in low-slip, well-modeled motion).
     gyro_bias_alpha: 0.02
@@ -121,7 +148,23 @@ vesc_to_odom_node:
     # Units: x/y in m^2, yaw in rad^2
     odom_x_covariance: 0.2
     odom_y_covariance: 0.2
-    odom_yaw_covariance: 0.4
+    odom_yaw_covariance: 0.2
+
+# Legacy analytical odometry path used when System_launch.py oldOdom:=true
+vesc_to_odom_old_node:
+  ros__parameters:
+    odom_frame: ego_racecar/odom
+    base_frame: ego_racecar/base_link
+    # Odom-only steering sign override: keep command path gain untouched, fix odom turn direction.
+    use_servo_cmd_to_calc_angular_velocity: true
+    use_imu: false
+    integration_method: analytical
+    wheelbase: 0.324
+    imu_angular_velocity_alpha: 0.45
+    odom_x_covariance: 0.2
+    odom_y_covariance: 0.2
+    odom_yaw_covariance: 0.2
+    publish_tf: true
 
 # ===================
 # Ackermann to VESC Config

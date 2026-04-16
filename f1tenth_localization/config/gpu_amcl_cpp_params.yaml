@@ -18,9 +18,9 @@ gpu_amcl_cpp:
     use_gpu: true
 
     # ---- Particles ----
-    num_particles: 1000
-    min_particles: 1000
-    max_particles: 1000
+    num_particles: 800
+    min_particles: 800
+    max_particles: 800
 
     # ---- KLD adaptive sampling ----
     # Dynamically adjusts particle count based on distribution spread.
@@ -47,9 +47,8 @@ gpu_amcl_cpp:
 
     # ---- Scan freshness ----
     # Max age (seconds) of a scan before it's rejected as stale.
-    # On real HW, scan_splitter + processing adds latency. 0.5s is safe.
-    # SIM: 0.03  |  REAL: 0.5
-    max_scan_age: 0.5
+    # Tight gate to avoid stale corrections under backlog.
+    max_scan_age: 0.04
 
     # ---- Motion model (odometry noise, Prob. Robotics §5.4) ----
     # These control how much random noise is added to each particle.
@@ -63,13 +62,13 @@ gpu_amcl_cpp:
     # ---- Slip-aware noise scaling ----
     # During aggressive turns, increase noise to account for tire slip
     slip_angular_threshold: 1.0  # rad/s — angular velocity above which slip is assumed
-    slip_noise_multiplier: 2.0   # multiply alpha values by this during slip
+    slip_noise_multiplier: 2.5   # multiply alpha values by this during slip
 
     # ---- Sensor model (likelihood field, Prob. Robotics §6.4) ----
     max_beams: 270
     z_hit: 0.975
     z_rand: 0.025
-    sigma_hit: 0.1         # meters (real LiDAR noise std dev)
+    sigma_hit: 0.05         # meters (real LiDAR noise std dev)
     laser_max_range: 10.0
     laser_offset_x: 0.265   # LiDAR X offset from base_link
     laser_offset_y: 0.0     # LiDAR Y offset from base_link
@@ -83,14 +82,12 @@ gpu_amcl_cpp:
     initial_pose_x: 0.0
     initial_pose_y: 0.0
     initial_pose_a: 0.0
-    initial_cov_xx: 0.02
-    initial_cov_yy: 0.02
-    initial_cov_aa: 0.05
+    initial_cov_xx: 0.1
+    initial_cov_yy: 0.1
+    initial_cov_aa: 0.1
 
     # ---- Publishing ----
-    publish_rate: 40.0           # Hz — pose publish rate (match LiDAR rate)
-    cloud_publish_rate: 2.0      # Hz — particle cloud visualization rate (lower saves GPU bandwidth)
-    transform_tolerance: 1.0
+    cloud_publish_rate: 0.1      # Hz — particle cloud visualization rate (lower saves GPU bandwidth)
 
 
 
@@ -104,11 +101,12 @@ odom_fused:
     output_topic: "/odom_pose"                # OUTPUT: PoseWithCovarianceStamped
 
     # ---- Frames ----
-    frame_id: "odom"                           # Header frame_id for published pose
+    frame_id: "ego_racecar/odom"               # Header frame_id for published pose (must match odom_frame)
 
     # ---- Base covariances (metres² / rad²) ----
-    base_cov_xy: 0.005                        # Variance for x and y
-    base_cov_theta: 0.005                     # Variance for yaw (theta)        
+    pass_through_covariance: true            # Forward covariance from /ego_racecar/odom
+    base_cov_xy: 0.05                        # Variance for x and y
+    base_cov_theta: 0.05                     # Variance for yaw (theta)        
 
 
 # ────────────────────────────────────────────────────────────────
@@ -126,9 +124,7 @@ ekf_localization:
     odom_frame: "ego_racecar/odom"
     base_frame: "ego_racecar/base_link"
 
-    # ---- Rate ----
-    publish_rate: 200.0          # Hz
-
     # ---- EKF tuning ----
-    transform_tolerance: 0.0    # seconds into the future for TF
+    transform_tolerance: 0.02    # seconds into the future for TF
     process_noise_scale: 1.0    # multiplier on odom covariance for Q
+    amcl_max_latency_sec: 0.10  # Drop AMCL updates older than 80 ms

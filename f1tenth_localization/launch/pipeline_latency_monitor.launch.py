@@ -30,14 +30,19 @@ def generate_launch_description():
             description='Print latency summary every N scan cycles (~1 Hz at 40 Hz scan rate)'),
 
         DeclareLaunchArgument(
-            'drive_topic',
-            default_value='/drive',
-            description='Drive command topic used for ekf_pose -> drive latency measurement'),
+            'command_topic',
+            default_value='/commands/motor/speed',
+            description='Motor command topic used for ekf_pose -> command latency measurement'),
 
         DeclareLaunchArgument(
-            'drive_match_max_ms',
+            'command_match_max_ms',
             default_value='20.0',
-            description='Maximum ekf->drive match window in ms to reject startup/stale pairs'),
+            description='Maximum ekf->command match window in ms to reject startup/stale pairs'),
+
+        DeclareLaunchArgument(
+            'strict_mode',
+            default_value='true',
+            description='Enable strict mismatch counters and warnings'),
 
         DeclareLaunchArgument(
             'log_to_csv',
@@ -59,8 +64,9 @@ def generate_launch_description():
                 'walls_topic': '/scan_walls',
                 'amcl_topic': '/amcl_pose',
                 'ekf_topic': '/ekf_pose',
-                'drive_topic': LaunchConfiguration('drive_topic'),
-                'drive_match_max_ms': LaunchConfiguration('drive_match_max_ms'),
+                'command_topic': LaunchConfiguration('command_topic'),
+                'command_match_max_ms': LaunchConfiguration('command_match_max_ms'),
+                'strict_mode': LaunchConfiguration('strict_mode'),
                 'print_every': LaunchConfiguration('print_every'),
                 'log_to_csv': LaunchConfiguration('log_to_csv'),
                 'csv_output_dir': LaunchConfiguration('csv_output_dir'),

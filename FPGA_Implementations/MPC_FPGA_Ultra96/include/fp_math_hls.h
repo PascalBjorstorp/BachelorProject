@@ -1,225 +1,91 @@
 /**
  * @file fp_math_hls.h
  * @brief Q16.16 fixed-point math helpers for HLS synthesis.
- * @details Provides inline fixed-point arithmetic primitives and declarations
- *          for non-inline transcendental and reciprocal kernels used by the
- *          FPGA MPC pipeline. All values are Q16.16 signed fixed-point unless
- *          otherwise noted.
- * @dependencies <stdint.h>, <limits.h>
  */
 
 #ifndef FP_MATH_HLS_H
 #define FP_MATH_HLS_H
 
-#include <stdint.h>
-#include <limits.h>
+#include "fp_types_hls.hpp"
+#include <cstdint>
+#include <climits>
 
-/*===========================================================================
- * Fixed-Point Type and Constants (Q16.16)
- *===========================================================================*/
+/* Fixed-point base constants */
+#define FP_FRAC_BITS       (MPC_HLS_RICCATI_WIDTH - MPC_HLS_RICCATI_INT_BITS)
+#define FP_IO_CONST(x)     ((fp_io_t)(x))
+#define FP_QP_CONST(x)     ((fp_QP_t)(x))
+#define FP_ACCUM_CONST(x)  ((fp_accum_t)(x))
+#define FP_CONST(x)        FP_QP_CONST(x)
+#define FP_ONE             FP_QP_CONST(1.0)
+#define FP_TWO             FP_QP_CONST(2.0)
+#define FP_HALF            FP_QP_CONST(0.5)
+#define FP_PI              FP_QP_CONST(3.14159265358979323846)
+#define FP_PI_HALF         FP_QP_CONST(1.57079632679489661923)
+#define FP_TWO_PI          FP_QP_CONST(6.28318530717958647693)
 
-typedef int32_t fixed_point_t;
+#define RECIP_ITERATIONS   3
 
-#define FP_FRAC_BITS    16
-#define FP_ONE          (1 << FP_FRAC_BITS)       /* 65536 (2^16) */
-#define FP_TWO          (2 << FP_FRAC_BITS)       /* 131072 (2^17) */
-#define FP_HALF         (FP_ONE >> 1)             /* 32768 (2^15) */
-#define FP_PI           205887                    /* pi (3.14159 * 65536) */
-#define FP_PI_HALF      102943                    /* pi/2 (1.5708 * 65536) */
-#define FP_TWO_PI       411775                    /* 2*pi (6.28318 * 65536) */
+#define INV_FACT_2         FP_QP_CONST(0.5)
+#define INV_FACT_3         FP_QP_CONST(0.16666666666666666)
+#define INV_FACT_4         FP_QP_CONST(0.041666666666666664)
+#define INV_FACT_5         FP_QP_CONST(0.008333333333333333)
 
-/** Compile-time float to Q16.16 conversion
- *  Rounding is applied to minimize quantization error in constants.
-*/
-#define FP_CONST(x) ((fixed_point_t)(((double)(x) >= 0) ? \
-                    ((double)(x) * FP_ONE + 0.5) : \
-                    ((double)(x) * FP_ONE - 0.5)))
+#define ATAN_COEF_3        FP_QP_CONST(0.3333333333333333)
+#define ATAN_COEF_5        FP_QP_CONST(0.2)
+#define ATAN_COEF_7        FP_QP_CONST(0.14285714285714285)
+#define FP_HALF_CONST      FP_HALF
+#define FP_ATAN_HALF       FP_QP_CONST(0.4636476090008061)
+#define FP_INV_TWO_PI      FP_QP_CONST(0.15915494309189535)
 
-/* Fixed-point arithmetic helper macros (Q16.16) */
-#define FP_MUL(a, b) ((fixed_point_t)(((int64_t)(a) * (int64_t)(b)) >> FP_FRAC_BITS))
-#define FP_DIV(a, b) ((fixed_point_t)(((int64_t)(a) << FP_FRAC_BITS) / (int64_t)(b)))
-#define FP_TO_FLOAT(x) ((float)(x) / FP_ONE)
-#define FLOAT_TO_FP(x) ((fixed_point_t)((x) * FP_ONE))
-#define FP_TO_DOUBLE(x) ((double)(x) / FP_ONE)
-#define DOUBLE_TO_FP(x) ((fixed_point_t)((x) * FP_ONE))
+/* Function-based helpers (no define aliases for arithmetic/conversions). */
+static inline float FP_TO_FLOAT(fp_QP_t x) { return (float)x; }
+static inline fp_QP_t FLOAT_TO_FP(float x) { return (fp_QP_t)x; }
+static inline double FP_TO_DOUBLE(fp_QP_t x) { return (double)x; }
+static inline fp_QP_t DOUBLE_TO_FP(double x) { return (fp_QP_t)x; }
 
-/*===========================================================================
- * Inline Arithmetic
- *===========================================================================*/
-
-/**
- * @brief Add two Q16.16 values.
- * @param a First addend.
- * @param b Second addend.
- * @return Sum a + b.
- */
-static inline fixed_point_t fp_add(fixed_point_t a, fixed_point_t b)
+template <typename T>
+static inline T fp_mul_t(T a, T b)
 {
-    return a + b;
+    return (T)(a * b);
 }
 
-/**
- * @brief Subtract two Q16.16 values.
- * @param a Minuend.
- * @param b Subtrahend.
- * @return Difference a - b.
- */
-static inline fixed_point_t fp_sub(fixed_point_t a, fixed_point_t b)
+/* Forward declaration used by fp_div to keep slash out of hot call-sites. */
+fp_QP_t fp_recip(fp_QP_t x);
+
+static inline fp_QP_t fp_mul(fp_QP_t a, fp_QP_t b)
 {
-    return a - b;
+    return fp_mul_t<fp_QP_t>(a, b);
 }
 
-/**
- * @brief Multiply two Q16.16 values.
- * @param a First multiplicand.
- * @param b Second multiplicand.
- * @return Product in Q16.16.
- */
-static inline fixed_point_t fp_mul(fixed_point_t a, fixed_point_t b)
+static inline fp_QP_t fp_div(fp_QP_t a, fp_QP_t b)
 {
-    int64_t product = (int64_t)a * (int64_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency=3
-    return (fixed_point_t)(product >> FP_FRAC_BITS);
-}
-
-/**
- * @brief Divide two Q16.16 values.
- * @param a Dividend.
- * @param b Divisor.
- * @return Quotient a/b, or zero when either operand is zero.
- */
-static inline fixed_point_t fp_div(fixed_point_t a, fixed_point_t b)
-{
-    /* Return 0 for undefined divisions to avoid divide-by-zero hardware paths. */
     if (a == 0 || b == 0) return 0;
-    return (fixed_point_t)(((int64_t)a << FP_FRAC_BITS) / b);
+    return fp_mul(a, fp_recip(b));
 }
 
-/**
- * @brief Compute absolute value with saturation safety.
- * @param a Input value.
- * @return |a|, saturated to INT32_MAX for INT32_MIN input.
- */
-static inline fixed_point_t fp_abs(fixed_point_t a)
+static inline fp_QP_t fp_abs(fp_QP_t a)
 {
-    if (a == INT32_MIN) return INT32_MAX;
-    return (a < 0) ? -a : a;
+    if (a < 0) {
+        fp_QP_t neg = -a;
+        return neg;
+    }
+    return a;
 }
 
-/**
- * @brief Negate a Q16.16 value.
- * @param a Input value.
- * @return -a.
- */
-static inline fixed_point_t fp_neg(fixed_point_t a)
-{
-    return -a;
-}
-
-/**
- * @brief Return the minimum of two Q16.16 values.
- * @param a First value.
- * @param b Second value.
- * @return The smaller of a and b.
- */
-static inline fixed_point_t fp_min(fixed_point_t a, fixed_point_t b)
-{
-    return (a < b) ? a : b;
-}
-
-/**
- * @brief Return the maximum of two Q16.16 values.
- * @param a First value.
- * @param b Second value.
- * @return The larger of a and b.
- */
-static inline fixed_point_t fp_max(fixed_point_t a, fixed_point_t b)
-{
-    return (a > b) ? a : b;
-}
-
-/**
- * @brief Clamp a Q16.16 value to a closed interval.
- * @param val Input value.
- * @param lo Lower bound (inclusive).
- * @param hi Upper bound (inclusive).
- * @return val constrained to [lo, hi].
- */
-static inline fixed_point_t fp_clamp(fixed_point_t val,
-                                     fixed_point_t lo,
-                                     fixed_point_t hi)
+static inline fp_QP_t fp_clamp(fp_QP_t val, fp_QP_t lo, fp_QP_t hi)
 {
     if (val < lo) return lo;
     if (val > hi) return hi;
     return val;
 }
 
-/**
- * @brief Add two values with signed 32-bit saturation.
- * @param a First addend.
- * @param b Second addend.
- * @return Saturating sum in INT32 range.
- */
-static inline fixed_point_t fp_add_sat(fixed_point_t a, fixed_point_t b)
-{
-    int64_t sum = (int64_t)a + (int64_t)b;
-    if (sum > INT32_MAX) return INT32_MAX;
-    if (sum < INT32_MIN) return INT32_MIN;
-    return (fixed_point_t)sum;
-}
+fp_QP_t fp_normalize_angle(fp_QP_t angle);
+fp_QP_t fp_sin(fp_QP_t angle);
+fp_QP_t fp_cos(fp_QP_t angle);
+fp_QP_t fp_atan(fp_QP_t x);
+fp_QP_t fp_atan_tire_approx(fp_QP_t x);
 
-/*===========================================================================
- * Non-Inline Function Declarations
- *===========================================================================*/
+fp_raw_acc_t reciprocal_raw(fp_raw_acc_t det);
+int invert_2x2_hls(fp_raw_acc_t S[2][2], fp_raw_acc_t Si[2][2]);
 
-#ifdef __cplusplus
-extern "C" {
 #endif
-
-/**
- * @brief Normalize an angle to the range [-pi, pi].
- * @param angle Input angle in Q16.16 radians.
- * @return Equivalent wrapped angle in [-pi, pi].
- */
-fixed_point_t fp_normalize_angle(fixed_point_t angle);
-
-/**
- * @brief Compute reciprocal 1/x using fixed-iteration Newton-Raphson.
- * @param x Input value.
- * @return Reciprocal of x, or zero when x is zero.
- */
-fixed_point_t fp_recip(fixed_point_t x);
-
-/**
- * @brief Compute sine using range reduction and polynomial approximation.
- * @param angle Input angle in Q16.16 radians.
- * @return Approximate sine(angle) in Q16.16.
- */
-fixed_point_t fp_sin(fixed_point_t angle);
-
-/**
- * @brief Compute cosine using range reduction and polynomial approximation.
- * @param angle Input angle in Q16.16 radians.
- * @return Approximate cosine(angle) in Q16.16.
- */
-fixed_point_t fp_cos(fixed_point_t angle);
-
-/**
- * @brief Compute arctangent using piecewise range reduction.
- * @param x Input value.
- * @return Approximate atan(x) in Q16.16 radians.
- */
-fixed_point_t fp_atan(fixed_point_t x);
-
-/**
- * @brief Fast cubic arctangent approximation used in tire-model paths.
- * @param x Input value.
- * @return Approximate atan(x) in Q16.16 radians.
- */
-fixed_point_t fp_atan_tire_approx(fixed_point_t x);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* FP_MATH_HLS_H */

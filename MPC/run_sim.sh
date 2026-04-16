@@ -161,7 +161,7 @@ if first_status2_text:
 PY
 
 echo "=== Run complete ==="
-echo "collision_seen=${COLLISION_SEEN}"
+echo "collision_seen=${COLLISION_SEEsN}"
 echo "gym_log=${GYM_LOG}"
 echo "mpc_log=${MPC_LOG}"
 echo "summary=${SUMMARY_LOG}"

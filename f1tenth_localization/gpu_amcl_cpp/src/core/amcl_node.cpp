@@ -92,7 +92,7 @@ void AmclNode::declare_all_parameters() {
     declare_parameter<double>("update_min_a", 0.001);
 
     // Scan freshness
-    declare_parameter<double>("max_scan_age", 0.05);
+    declare_parameter<double>("max_scan_age", 0.012);
 
     // Motion model
     declare_parameter<double>("alpha1", 0.1);
@@ -125,9 +125,10 @@ void AmclNode::declare_all_parameters() {
     declare_parameter<double>("initial_cov_aa", 0.2);
 
     // Publishing
-    declare_parameter<double>("publish_rate", 40.0);
     declare_parameter<double>("cloud_publish_rate", 2.0);  // Particle cloud rate (Hz) — lower to save bandwidth
-    declare_parameter<double>("transform_tolerance", 1.0);
+
+    // Odom alignment
+    declare_parameter<int>("odom_history_max_size", 500);
 }
 
 void AmclNode::load_parameters() {
@@ -141,11 +142,76 @@ void AmclNode::load_parameters() {
     max_scan_age_ = get_parameter("max_scan_age").as_double();
     slip_angular_threshold_ = get_parameter("slip_angular_threshold").as_double();
     slip_noise_multiplier_  = get_parameter("slip_noise_multiplier").as_double();
+    const int64_t odom_history_size_param =
+        get_parameter("odom_history_max_size").as_int();
+    odom_history_max_size_ = static_cast<size_t>(
+        std::max<int64_t>(2, odom_history_size_param));
 
     RCLCPP_INFO(get_logger(),
         "[AMCL] Parameters: update_min_d=%.5f, update_min_a=%.5f, "
         "max_scan_age=%.4f, slip_threshold=%.2f rad/s",
         update_min_d_, update_min_a_, max_scan_age_, slip_angular_threshold_);
+}
+
+void AmclNode::push_odom_sample(const rclcpp::Time& stamp,
+                                double x,
+                                double y,
+                                double theta) {
+    odom_history_.push_back({stamp, x, y, theta});
+
+    while (odom_history_.size() > odom_history_max_size_) {
+        odom_history_.pop_front();
+    }
+}
+
+bool AmclNode::interpolate_odom_pose(const rclcpp::Time& stamp,
+                                     double& x,
+                                     double& y,
+                                     double& theta) const {
+    if (odom_history_.empty()) {
+        return false;
+    }
+
+    const auto& first = odom_history_.front();
+    if (stamp <= first.stamp) {
+        x = first.x;
+        y = first.y;
+        theta = first.theta;
+        return true;
+    }
+
+    const auto& last = odom_history_.back();
+    if (stamp >= last.stamp) {
+        x = last.x;
+        y = last.y;
+        theta = last.theta;
+        return true;
+    }
+
+    for (size_t i = 1; i < odom_history_.size(); ++i) {
+        const auto& a = odom_history_[i - 1];
+        const auto& b = odom_history_[i];
+
+        if (stamp <= b.stamp) {
+            const double dt = (b.stamp - a.stamp).seconds();
+            if (dt <= 1e-9) {
+                x = b.x;
+                y = b.y;
+                theta = b.theta;
+                return true;
+            }
+
+            const double t = (stamp - a.stamp).seconds() / dt;
+            x = a.x + t * (b.x - a.x);
+            y = a.y + t * (b.y - a.y);
+
+            const double dtheta = math_utils::angle_diff(b.theta, a.theta);
+            theta = math_utils::normalize_angle(a.theta + t * dtheta);
+            return true;
+        }
+    }
+
+    return false;
 }
 
 // ─── Map callback ───────────────────────────────────────────────────
@@ -232,6 +298,10 @@ void AmclNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
     prev_x_     = x;
     prev_y_     = y;
     prev_theta_ = theta;
+
+    const auto clock_type = get_clock()->get_clock_type();
+    const rclcpp::Time odom_stamp(msg->header.stamp, clock_type);
+    push_odom_sample(odom_stamp, x, y, theta);
 }
 
 // ─── Scan callback (main PF loop) ──────────────────────────────────
@@ -263,21 +333,29 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
 
     std::lock_guard<std::mutex> lock(pf_mutex_);
 
+    double odom_x_at_scan = 0.0;
+    double odom_y_at_scan = 0.0;
+    double odom_theta_at_scan = 0.0;
+    if (!interpolate_odom_pose(scan_time, odom_x_at_scan, odom_y_at_scan, odom_theta_at_scan)) {
+        processing_scan_ = false;
+        return;
+    }
+
     // ── Baseline initialization ──
     // For the first scan after startup/reinit, just seed the odom baseline
     if (!prediction_baseline_ready_) {
-        pred_last_x_ = prev_x_;
-        pred_last_y_ = prev_y_;
-        pred_last_theta_ = prev_theta_;
+        pred_last_x_ = odom_x_at_scan;
+        pred_last_y_ = odom_y_at_scan;
+        pred_last_theta_ = odom_theta_at_scan;
         prediction_baseline_ready_ = true;
         processing_scan_ = false;
         return;
     }
 
     // ── Compute odom delta (odom frame) ──
-    double dx_odom = prev_x_ - pred_last_x_;
-    double dy_odom = prev_y_ - pred_last_y_;
-    double dtheta  = math_utils::angle_diff(prev_theta_, pred_last_theta_);
+    double dx_odom = odom_x_at_scan - pred_last_x_;
+    double dy_odom = odom_y_at_scan - pred_last_y_;
+    double dtheta  = math_utils::angle_diff(odom_theta_at_scan, pred_last_theta_);
 
     // ── Guard 4: Skip update if robot hasn't moved enough ──
     double dist_moved = std::sqrt(dx_odom * dx_odom + dy_odom * dy_odom);
@@ -294,9 +372,9 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     float dy_robot = static_cast<float>(-dx_odom * s + dy_odom * c);
 
     // Update baseline for next iteration
-    pred_last_x_     = prev_x_;
-    pred_last_y_     = prev_y_;
-    pred_last_theta_ = prev_theta_;
+    pred_last_x_     = odom_x_at_scan;
+    pred_last_y_     = odom_y_at_scan;
+    pred_last_theta_ = odom_theta_at_scan;
 
     // ── Timing start ──
     auto t_pf_start = std::chrono::high_resolution_clock::now();

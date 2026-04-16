@@ -60,6 +60,8 @@ private:
   double obstacle_threshold_{SCAN_SPLITTER_OBSTACLE_THRESHOLD_M};
   int    min_cluster_size_{SCAN_SPLITTER_MIN_CLUSTER_SIZE};
   int    max_cluster_gap_beams_{SCAN_SPLITTER_MAX_CLUSTER_GAP_BEAMS};
+  int    min_valid_beams_for_drift_check_{SCAN_SPLITTER_MIN_VALID_BEAMS_FOR_DRIFT_CHECK};
+  double max_map_bias_compensation_m_{SCAN_SPLITTER_MAX_MAP_BIAS_COMPENSATION_M};
   std::string scan_topic_{SCAN_SPLITTER_SCAN_TOPIC};
   std::string walls_topic_{SCAN_SPLITTER_WALLS_TOPIC};
   std::string obstacles_topic_{SCAN_SPLITTER_OBSTACLES_TOPIC};
@@ -78,6 +80,9 @@ private:
   // ── Pre-allocated work buffers (avoid per-callback heap alloc) ────
   std::vector<float> angles_;
   std::vector<bool>  is_obstacle_;
+  std::vector<bool>  has_map_distance_;
+  std::vector<float> dist_to_wall_;
+  std::vector<float> distance_samples_;
   std::vector<float> wall_ranges_;
   std::vector<float> obstacle_ranges_;
 

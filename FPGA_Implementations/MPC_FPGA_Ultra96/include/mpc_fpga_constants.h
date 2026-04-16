@@ -14,7 +14,7 @@
  * Fixed Horizon and DMA Framing
  *===========================================================================*/
 
-#define MPC_FPGA_HORIZON_STEPS        10
+#define MPC_FPGA_HORIZON_STEPS        10 
 #define MPC_FPGA_STATE_BEATS          2
 #define MPC_FPGA_STREAM_WORD_BYTES    16
 #define MPC_FPGA_DMA_BEATS            (MPC_FPGA_STATE_BEATS + MPC_FPGA_HORIZON_STEPS)
@@ -86,7 +86,7 @@
  *===========================================================================*/
 
 #define MPC_FPGA_MAX_ADMM_ITER        20
-#define MPC_FPGA_PREDICTION_DT_S      0.03f
+#define MPC_FPGA_PREDICTION_DT_S      0.0288f
 #define MPC_FPGA_PACEJKA_C_SHAPE      1.9f
 #define MPC_FPGA_MIN_STIFF_SCALE      0.1f
 
@@ -94,16 +94,16 @@
  * MPC Cost Weights (FPGA profile)
  *===========================================================================*/
 
-#define MPC_FPGA_W_LAT_ERROR             15500.0f
-#define MPC_FPGA_W_HEADING               350.0f
-#define MPC_FPGA_W_VELOCITY              220.0f
-#define MPC_FPGA_W_LAT_VEL               24.0f
-#define MPC_FPGA_W_YAW_RATE              19.238172f
-#define MPC_FPGA_W_STEER_EFF             0.05f
+#define MPC_FPGA_W_LAT_ERROR             7000.0f
+#define MPC_FPGA_W_HEADING               236.196f
+#define MPC_FPGA_W_VELOCITY              424.54f
+#define MPC_FPGA_W_LAT_VEL               9.9f
+#define MPC_FPGA_W_YAW_RATE              1.86f
+#define MPC_FPGA_W_STEER_EFF             0.34f
 #define MPC_FPGA_W_ACCEL_EFF             0.01f
-#define MPC_FPGA_W_STEER_JERK            0.005f
-#define MPC_FPGA_W_ACCEL_RATE            0.08f
-#define MPC_FPGA_W_DELTA_ACT             0.1f
+#define MPC_FPGA_W_STEER_JERK            0.26f
+#define MPC_FPGA_W_ACCEL_RATE            0.15f
+#define MPC_FPGA_W_DELTA_ACT             0.03f
 
 /*===========================================================================
  * Solver and Constraint Limits (FPGA profile)
@@ -120,8 +120,9 @@
 #define MPC_FPGA_BOUND_THRESHOLD      100.0f
 #define MPC_FPGA_WP_ADVANCE_MAX       10
 
-#define MPC_FPGA_ADMM_RHO                32.0f
-#define MPC_FPGA_ADMM_RHO_U              24.8f
-#define MPC_FPGA_ADMM_TOL                5.0f
+#define MPC_FPGA_ADMM_RHO                39.74f
+#define MPC_FPGA_ADMM_RHO_U              24.0f
+#define MPC_FPGA_ADMM_ALPHA              1.25f
+#define MPC_FPGA_ADMM_TOL                6.0f
 
 #endif /* MPC_FPGA_CONSTANTS_H */

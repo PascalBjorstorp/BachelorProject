@@ -380,8 +380,10 @@ RiccatiStatus_t riccati_admm_solve(
     const float tolerance = (config && config->tolerance > 0.0f)
                                 ? config->tolerance
                                 : CONVERGENCE_TOLERANCE;
+    const float abs_tolerance = (tolerance > 1e-6f) ? tolerance : 1e-6f;
+    const float rel_tolerance = 0.02f;
     const int adaptive_rho = config ? config->adaptive_rho : 1;
-    const float alpha_or = (config && config->alpha > 0.0f) ? config->alpha : ADMM_ALPHA;
+    const float alpha_or = 1.0f; /* Standard ADMM: over-relaxation disabled. */
 
     float rho = (admm_state->initialized && admm_state->rho > 0.0f)
                     ? admm_state->rho : cfg_rho;
@@ -470,9 +472,23 @@ RiccatiStatus_t riccati_admm_solve(
             (const float (*)[RICCATI_MAX_NU])y_u,
             solution->x, solution->u);
 
+        float x_norm = 0.0f;
+        float u_norm = 0.0f;
+        for (int k = 0; k <= N; k++) {
+            for (int s = 0; s < nx; s++) {
+                x_norm = fmaxf(x_norm, fabsf(solution->x[k][s]));
+            }
+        }
+        for (int k = 0; k < N; k++) {
+            for (int a = 0; a < nu; a++) {
+                u_norm = fmaxf(u_norm, fabsf(solution->u[k][a]));
+            }
+        }
+
         /*--- Fused z-update, y-update, and residual computation ---*/
         float state_primal = 0.0f, state_dual = 0.0f;
         float ctrl_primal = 0.0f, ctrl_dual = 0.0f;
+        float z_norm = 0.0f, lambda_norm = 0.0f;
 
         /* Over-relaxation parameters */
         const float one_minus_alpha = 1.0f - alpha_or;
@@ -501,6 +517,8 @@ RiccatiStatus_t riccati_admm_solve(
                     /* Primal residual */
                     float pd = fabsf(x_hat - z_new);
                     state_primal = fmaxf(state_primal, pd);
+                    z_norm = fmaxf(z_norm, fabsf(z_new));
+                    lambda_norm = fmaxf(lambda_norm, fabsf(rho * y_x[k][s]));
                     z_x[k][s] = z_new;
                 } else {
                     z_x[k][s] = solution->x[k][s];
@@ -529,12 +547,17 @@ RiccatiStatus_t riccati_admm_solve(
                 /* Primal residual */
                 float pd = fabsf(u_hat - z_new);
                 ctrl_primal = fmaxf(ctrl_primal, pd);
+                z_norm = fmaxf(z_norm, fabsf(z_new));
+                lambda_norm = fmaxf(lambda_norm, fabsf(rho_u * y_u[k][a]));
                 z_u[k][a] = z_new;
             }
         }
 
         float primal_res = state_primal > ctrl_primal ? state_primal : ctrl_primal;
         float dual_res = state_dual > ctrl_dual ? state_dual : ctrl_dual;
+        float primal_scale = fmaxf(fmaxf(x_norm, u_norm), z_norm);
+        float eps_primal = abs_tolerance + rel_tolerance * primal_scale;
+        float eps_dual = abs_tolerance + rel_tolerance * lambda_norm;
 
         solution->iterations = iter + 1;
         solution->primal_residual = primal_res;
@@ -542,17 +565,17 @@ RiccatiStatus_t riccati_admm_solve(
 
         /* Debug output */
         if (riccati_admm_debug && (iter < 5 || iter % 50 == 0 || iter == max_iter - 1)) {
-            printf("    ADMM[%3d] p=%.4f(s=%.4f,c=%.4f) d=%.4f(s=%.4f,c=%.4f) rho=%.2f rho_u=%.2f u0=[%.4f,%.3f] z0=[%.4f,%.3f] y0=[%.4f,%.3f]\n",
+            printf("    ADMM[%3d] p=%.4f<=%.4f(s=%.4f,c=%.4f) d=%.4f<=%.4f(s=%.4f,c=%.4f) rho=%.2f rho_u=%.2f u0=[%.4f,%.3f] z0=[%.4f,%.3f] y0=[%.4f,%.3f]\n",
                    iter,
-                   (double)primal_res, (double)state_primal, (double)ctrl_primal,
-                   (double)dual_res, (double)state_dual, (double)ctrl_dual,
+                   (double)primal_res, (double)eps_primal, (double)state_primal, (double)ctrl_primal,
+                   (double)dual_res, (double)eps_dual, (double)state_dual, (double)ctrl_dual,
                    (double)rho, (double)rho_u,
                    (double)solution->u[0][0], (double)solution->u[0][1],
                    (double)z_u[0][0], (double)z_u[0][1],
                    (double)y_u[0][0], (double)y_u[0][1]);
         }
 
-        if (primal_res <= tolerance && dual_res <= tolerance) {
+        if (primal_res <= eps_primal && dual_res <= eps_dual) {
             status = RICCATI_STATUS_OPTIMAL;
             break;
         }
