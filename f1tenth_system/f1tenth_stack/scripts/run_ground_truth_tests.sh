@@ -7,6 +7,29 @@ set -euo pipefail
 WORKSPACE_ROOT="/home/f1tenth/BachelorProject"
 TRAJECTORY_FILE="${WORKSPACE_ROOT}/f1tenth_planning/trajectories/my_track_raceline.csv"
 TF_POSE_PUBLISHER="${WORKSPACE_ROOT}/f1tenth_localization/launch/tf_pose_publisher.py"
+ROSBAG_QOS_FILE="${WORKSPACE_ROOT}/f1tenth_system/f1tenth_stack/config/rosbag_tf_qos.yaml"
+ROSBAG_STORAGE_ID="${ROSBAG_STORAGE_ID:-auto}"
+
+TOPICS_TO_RECORD=(
+  "/tf_static"
+  "/scan"
+  "/opponent_marker"
+  "/local_raceline_wall_distance_markers"
+  "/local_raceline_viz"
+  "/ekf_pose"
+  "/tf"
+  "/scan_walls"
+  "/amcl_timing"
+  "/ackermann_cmd"
+  "/amcl_pose"
+  "/particlecloud"
+  "/scan_obstacles"
+  "/ego_racecar/odom"
+  "/odom_pose"
+  "/map"
+  "/map_server/transition_event"
+  "/drive"
+)
 
 LOOKAHEAD_MIN="0.30"
 LOOKAHEAD_MAX="0.60"
@@ -157,6 +180,22 @@ if [[ ! -f "${TF_POSE_PUBLISHER}" ]]; then
   exit 1
 fi
 
+if [[ ! -f "${ROSBAG_QOS_FILE}" ]]; then
+  echo "[error] rosbag QoS file missing: ${ROSBAG_QOS_FILE}"
+  exit 1
+fi
+
+if [[ "${ROSBAG_STORAGE_ID}" == "auto" ]]; then
+  if ros2 bag record -h 2>/dev/null | grep -q "mcap"; then
+    ROSBAG_STORAGE_ID="mcap"
+  else
+    ROSBAG_STORAGE_ID="sqlite3"
+    echo "[warn] rosbag2 mcap storage plugin not detected; falling back to sqlite3."
+  fi
+fi
+
+echo "[info] rosbag storage backend: ${ROSBAG_STORAGE_ID}"
+
 if [[ "${MANAGE_CORE}" == "true" ]]; then
   if [[ "${RESTART_CORE_EACH_RUN}" != "true" ]]; then
     echo "Starting core stack once (stable mode)..."
@@ -215,7 +254,11 @@ for speed in "${SPEEDS[@]}"; do
     fi
 
     start_background bag_pid "${LOG_DIR}/bag_${bag_name}.log" \
-      ros2 bag record -a -o "${bag_path}"
+      ros2 bag record \
+        -o "${bag_path}" \
+        -s "${ROSBAG_STORAGE_ID}" \
+        --qos-profile-overrides-path "${ROSBAG_QOS_FILE}" \
+        "${TOPICS_TO_RECORD[@]}"
     sleep 1
 
     start_background pp_pid "${LOG_DIR}/pure_pursuit_${bag_name}.log" \
