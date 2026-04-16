@@ -68,13 +68,16 @@ vesc_to_odom_node:
   ros__parameters:
     odom_frame: ego_racecar/odom
     base_frame: ego_racecar/base_link
+    # Odom-only steering sign override: keep command path gain untouched, fix odom turn direction.
+    steering_angle_to_servo_gain: 0.7284
+    steering_angle_to_servo_offset: 0.5500
     speed_deadband: 0.15
     max_dt_sec: 1.0
     
     # Fallback IMU angular velocity low-pass coefficient (EMA, used only when Butterworth is disabled)
     # Lower = more filtering (smoother but slower)
     # Higher = less filtering (faster but noisier)
-    imu_angular_velocity_alpha: 0.45
+    imu_angular_velocity_alpha: 0.45  
 
     # Startup IMU bias calibration (car stationary): averages linear x/y and angular z.
     imu_startup_calibration_enabled: true
@@ -103,8 +106,8 @@ vesc_to_odom_node:
     # - lateral_accel: |a_y_measured - v_x * r_model|
     # - lateral_velocity_error: |v_y_imu - v_y_model| (m/s)
     slip_indicator_source: lateral_velocity_error
-    slip_lateral_velocity_enter: 0.70
-    slip_lateral_velocity_exit: 0.35
+    slip_lateral_velocity_enter: 0.45
+    slip_lateral_velocity_exit: 0.25
 
     # Filter and dwell-time debounce for slip switching.
     # This prevents rapid ON/OFF chatter from IMU noise and transient spikes.
@@ -152,6 +155,7 @@ vesc_to_odom_old_node:
   ros__parameters:
     odom_frame: ego_racecar/odom
     base_frame: ego_racecar/base_link
+    # Odom-only steering sign override: keep command path gain untouched, fix odom turn direction.
     use_servo_cmd_to_calc_angular_velocity: true
     use_imu: false
     integration_method: analytical
@@ -160,7 +164,7 @@ vesc_to_odom_old_node:
     odom_x_covariance: 0.2
     odom_y_covariance: 0.2
     odom_yaw_covariance: 0.2
-    publish_tf: false
+    publish_tf: true
 
 # ===================
 # Ackermann to VESC Config

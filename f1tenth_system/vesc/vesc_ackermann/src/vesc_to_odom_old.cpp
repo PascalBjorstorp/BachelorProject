@@ -186,11 +186,12 @@ VescToOdomOld::VescToOdomOld(const rclcpp::NodeOptions & options)
 
 void VescToOdomOld::vescStateCallback(const VescStateStamped::SharedPtr state)
 {
-  // check that we have a last servo command if we are depending on it for angular velocity
-  if (use_servo_cmd_ && !last_servo_cmd_) {
+  const bool has_servo_cmd = static_cast<bool>(last_servo_cmd_);
+
+  // If steering command has not arrived yet, fall back to zero steering so odom/TF still publish.
+  if (use_servo_cmd_ && !has_servo_cmd) {
     RCLCPP_INFO_ONCE(this->get_logger(),
-      "Waiting for servo command message to calculate angular velocity.");
-    return;
+      "No servo command yet; assuming zero steering until first command arrives.");
   }
 
   // check that we have IMU data if we are using it
@@ -221,31 +222,33 @@ void VescToOdomOld::vescStateCallback(const VescStateStamped::SharedPtr state)
     // Use filtered IMU yaw rate (angular velocity around z-axis)
     current_angular_velocity = filtered_angular_velocity_;
   } else if (use_servo_cmd_) {
-    if (std::fabs(steering_to_servo_gain_) < kEpsilon || std::fabs(wheelbase_) < kEpsilon) {
+    if (!has_servo_cmd) {
+      current_angular_velocity = 0.0;
+    } else if (std::fabs(steering_to_servo_gain_) < kEpsilon || std::fabs(wheelbase_) < kEpsilon) {
       RCLCPP_ERROR_THROTTLE(
         get_logger(), *get_clock(), 2000,
         "Invalid steering gain or wheelbase in old odom; publishing zero yaw rate this cycle.");
       current_angular_velocity = 0.0;
     } else {
-    // Calculate from steering angle (with polynomial inverse correction)
-    double corrected_angle =
-      (last_servo_cmd_->data - steering_to_servo_offset_) / steering_to_servo_gain_;
-    double abs_corr = std::abs(corrected_angle);
-    double current_steering_angle;
-    if (steering_correction_c2_ != 0.0) {
-      double disc = steering_correction_c1_ * steering_correction_c1_
-                  - 4.0 * steering_correction_c2_ * (steering_correction_c0_ - abs_corr);
-      if (disc >= 0.0) {
-        double t = (-steering_correction_c1_ + std::sqrt(disc))
-                 / (2.0 * steering_correction_c2_);
-        current_steering_angle = std::copysign(t, corrected_angle);
+      // Calculate from steering angle (with polynomial inverse correction)
+      double corrected_angle =
+        (last_servo_cmd_->data - steering_to_servo_offset_) / steering_to_servo_gain_;
+      double abs_corr = std::abs(corrected_angle);
+      double current_steering_angle;
+      if (steering_correction_c2_ != 0.0) {
+        double disc = steering_correction_c1_ * steering_correction_c1_
+                    - 4.0 * steering_correction_c2_ * (steering_correction_c0_ - abs_corr);
+        if (disc >= 0.0) {
+          double t = (-steering_correction_c1_ + std::sqrt(disc))
+                   / (2.0 * steering_correction_c2_);
+          current_steering_angle = std::copysign(t, corrected_angle);
+        } else {
+          current_steering_angle = corrected_angle;
+        }
       } else {
         current_steering_angle = corrected_angle;
       }
-    } else {
-      current_steering_angle = corrected_angle;
-    }
-    current_angular_velocity = current_speed * tan(current_steering_angle) / wheelbase_;
+      current_angular_velocity = current_speed * tan(current_steering_angle) / wheelbase_;
     }
   }
 
@@ -417,22 +420,18 @@ void VescToOdomOld::vescStateCallback(const VescStateStamped::SharedPtr state)
   // Velocity uncertainty
   /** @todo Think about velocity uncertainty */
 
-  if (publish_tf_) {
-    TransformStamped tf;
-    tf.header.frame_id = odom_frame_;
-    tf.child_frame_id = base_frame_;
-    tf.header.stamp = state->header.stamp;
-    tf.transform.translation.x = x_;
-    tf.transform.translation.y = y_;
-    tf.transform.translation.z = 0.0;
-    tf.transform.rotation = odom->pose.pose.orientation;
+  TransformStamped tf;
+  tf.header.frame_id = odom_frame_;
+  tf.child_frame_id = base_frame_;
+  tf.header.stamp = state->header.stamp;
+  tf.transform.translation.x = x_;
+  tf.transform.translation.y = y_;
+  tf.transform.translation.z = 0.0;
+  tf.transform.rotation = odom->pose.pose.orientation;
 
-    if (rclcpp::ok()) {
-      tf_pub_->sendTransform(tf);
-    }
-  }
 
   if (rclcpp::ok()) {
+    tf_pub_->sendTransform(tf);
     odom_pub_->publish(std::move(odom));
   }
 }

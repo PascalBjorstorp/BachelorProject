@@ -714,6 +714,11 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   if (rclcpp::ok()) {
     tf_pub_->sendTransform(tf);
     odom_pub_->publish(std::move(odom));
+  }else {
+    RCLCPP_WARN(
+      get_logger(),
+      "TF NOT PRINTED!!! due to");
+      
   }
 }
 
