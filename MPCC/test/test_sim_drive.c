@@ -45,7 +45,7 @@
 
 #define SIM_DT_DEFAULT    0.005f   /* 200 Hz physics */
 #define MPCC_DT_DEFAULT   0.050f   /* 20 Hz MPCC (matches ROS2 node timer) */
-#define SIM_DURATION      30.0f    /* seconds */
+#define SIM_DURATION      60.0f    /* seconds */
 #define MAX_WAYPOINTS     2000
 #define MAX_STEERING      0.4189f  /* rad */
 #define MAX_VELOCITY      20.0f    /* m/s */

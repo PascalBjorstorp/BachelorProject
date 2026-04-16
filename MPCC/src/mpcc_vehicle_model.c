@@ -255,7 +255,7 @@ void mpcc_linearize_dynamics(
 
     /* Vehicle dynamics with Pacejka tires (Forward Euler) */
     float dvx_dt = (((-F_yf * sin_delta) * inv_m) + (control->a_x + (state->vy * state->omega)));
-    float dvy_dt = (((F_yf * cos_delta) + F_yr)- (m * (vx_safe * state->omega))) - inv_m;
+    float dvy_dt = (((F_yf * cos_delta) + F_yr) - (m * (vx_safe * state->omega))) * inv_m;
     float domega_dt = (((l_f * (F_yf * cos_delta)) - (l_r * F_yr)) * inv_Iz);
 
     z_next[1] = state->vx + (dt * dvx_dt);

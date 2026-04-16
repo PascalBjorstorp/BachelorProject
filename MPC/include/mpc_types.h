@@ -376,6 +376,7 @@ typedef struct
 {
     float A[RICCATI_MAX_NX][RICCATI_MAX_NX];
     float B[RICCATI_MAX_NX][RICCATI_MAX_NU];
+    float d[NX_AUG]; 
     float Q_diag[RICCATI_MAX_NX];
     float q[RICCATI_MAX_NX];
     float R_diag[RICCATI_MAX_NU];

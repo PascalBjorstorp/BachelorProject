@@ -1,6 +1,6 @@
 /**
  * @file test_sim_drive.c
- * @brief Realistic MPC simulation on Spielberg raceline
+ * @brief Realistic MPC simulation on my_track raceline
  * @details Runs closed-loop simulation of the Riccati-ADMM controller with
  *          configurable physics/control rates and optional realistic effects
  *          (noise, delay, nonlinear tire saturation, drivetrain drag).
@@ -174,11 +174,11 @@ static int load_raceline(void)
         return 0;
     }
     const char *paths[] = {
-        "../../f1tenth_planning/trajectories/Spielberg_raceline.csv",
-        "../../../f1tenth_planning/trajectories/Spielberg_raceline.csv",
-        "f1tenth_planning/trajectories/Spielberg_raceline.csv",
-        "../f1tenth_planning/trajectories/Spielberg_raceline.csv",
-        "../../../../f1tenth_planning/trajectories/Spielberg_raceline.csv",
+        "../../f1tenth_planning/trajectories/my_track_raceline.csv",
+        "../../../f1tenth_planning/trajectories/my_track_raceline.csv",
+        "f1tenth_planning/trajectories/my_track_raceline.csv",
+        "../f1tenth_planning/trajectories/my_track_raceline.csv",
+        "../../../../f1tenth_planning/trajectories/my_track_raceline.csv",
         NULL
     };
     FILE *f = NULL;
@@ -186,7 +186,7 @@ static int load_raceline(void)
         f = fopen(paths[i], "r");
         if (f) { printf("[LOAD] %s\n", paths[i]); break; }
     }
-    if (!f) { fprintf(stderr, "ERROR: Cannot open Spielberg_raceline.csv\n"); return 0; }
+    if (!f) { fprintf(stderr, "ERROR: Cannot open my_track_raceline.csv\n"); return 0; }
 
     char buf[512];
     while (fgets(buf, sizeof(buf), f)) {
@@ -526,7 +526,6 @@ int main(void)
     const char *mpc_dt_env = getenv("MPC_DT");
     const double mpc_dt_raw = mpc_dt_env ? atof(mpc_dt_env) : MPC_DT_DEFAULT;
     const double MPC_DT = (mpc_dt_raw > 1e-6) ? mpc_dt_raw : MPC_DT_DEFAULT;
-    const double sim_duration = get_env_double("SIM_DURATION", SIM_DURATION);
 
     int mpc_call_interval = (int)(MPC_DT / SIM_DT + 0.5);
     if (mpc_call_interval < 1) mpc_call_interval = 1;
@@ -554,8 +553,8 @@ int main(void)
 
     const int verbose = getenv("VERBOSE") != NULL;
 
-    printf("=== Spielberg Sim-Drive Test (Riccati-ADMM, %.0fs at dt=%.4fs = %d steps, %.0fHz) ===\n",
-           sim_duration, SIM_DT, SIM_STEPS, 1.0/SIM_DT);
+    printf("=== MPC Sim-Drive Test (Riccati-ADMM, %.0fs at dt=%.4fs = %d steps, %.0fHz) ===\n",
+           SIM_DURATION, SIM_DT, SIM_STEPS, 1.0/SIM_DT);
     printf("    MPC rate: %.0fHz (every %d sim steps)\n",
            1.0/MPC_DT, MPC_CALL_INTERVAL);
 
@@ -599,13 +598,6 @@ int main(void)
     if (start_index_env) start_index = atoi(start_index_env);
     if (start_index < 0) start_index = 0;
     if (start_index >= raceline_count) start_index = raceline_count - 1;
-
-    const char *start_lat_env = getenv("START_OFFSET_LAT");
-    const char *start_hdg_env = getenv("START_HEADING_OFFSET");
-    const char *start_speed_env = getenv("START_SPEED");
-    const double start_offset_lat = start_lat_env ? atof(start_lat_env) : 0.0;
-    const double start_heading_offset = start_hdg_env ? atof(start_hdg_env) : 0.0;
-    const double start_speed = start_speed_env ? atof(start_speed_env) : 0.0;
 
     /* Initialize Riccati-ADMM MPC via the unified API */
     mpc_initialize();
@@ -776,52 +768,20 @@ int main(void)
         const double current_progress_s = raceline[true_closest].s;
 
         if (!progress_initialized) {
-            prev_progress_s = current_progress_s;
-            progress_initialized = 1;
-        } else {
-            const double raw_delta = forward_track_delta(prev_progress_s, current_progress_s);
-            const double max_reasonable_step_progress = fmax(0.5, MAX_VELOCITY * SIM_DT * 2.0);
-            const double delta_progress = (raw_delta <= max_reasonable_step_progress) ? raw_delta : max_reasonable_step_progress;
-            const double progress_before = progress_m;
-            progress_m += delta_progress;
-            prev_progress_s = current_progress_s;
-
-            if (g_track_length_m > 1e-6) {
-                const int laps_after = (int)(progress_m / g_track_length_m);
-                while (completed_laps < laps_after) {
-                    const double lap_boundary = (completed_laps + 1) * g_track_length_m;
-                    const double progress_step = progress_m - progress_before;
-                    double lap_cross_time = t;
-                    if (progress_step > 1e-6) {
-                        const double frac = (lap_boundary - progress_before) / progress_step;
-                        const double clamped_frac = fmin(fmax(frac, 0.0), 1.0);
-                        lap_cross_time = (t - SIM_DT) + clamped_frac * SIM_DT;
-                    }
-                    const double lap_time = lap_cross_time - last_lap_cross_time;
-                    if (lap_time > 1e-3) {
-                        lap_time_sum += lap_time;
-                    }
-                    last_lap_cross_time = lap_cross_time;
-                    completed_laps++;
-                }
-            }
-        }
-
-        if (!progress_initialized) {
-            start_projected_s = true_proj.s;
-            last_projected_s = true_proj.s;
-            unwrapped_s = true_proj.s;
+            start_projected_s = current_progress_s;
+            last_projected_s = current_progress_s;
+            unwrapped_s = current_progress_s;
             next_lap_marker_s = start_projected_s + g_track_length_m;
             last_lap_cross_time = 0.0;
             progress_initialized = 1;
         } else {
-            double ds = true_proj.s - last_projected_s;
+            double ds = current_progress_s - last_projected_s;
             if (g_track_length_m > 1e-6) {
                 if (ds < -0.5 * g_track_length_m) ds += g_track_length_m;
                 else if (ds > 0.5 * g_track_length_m) ds -= g_track_length_m;
             }
             unwrapped_s += ds;
-            last_projected_s = true_proj.s;
+            last_projected_s = current_progress_s;
         }
         progress_m = unwrapped_s - start_projected_s;
         while (g_track_length_m > 1e-6 && unwrapped_s >= next_lap_marker_s) {

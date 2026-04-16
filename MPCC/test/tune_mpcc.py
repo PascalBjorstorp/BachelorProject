@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-MPCC Weight Tuning — Hardware Map
-==================================
+MPCC Weight Tuning — Liniger-style Path Generation
+====================================================
 Sweeps MPCC controller weights (Global Frame Liniger MPCC, ADMM+Riccati)
 via env vars and the standalone test_sim_drive binary.
+
+Objective: maximize average speed with ZERO wall collisions (hard constraint).
+           Any collision → score = 1000 + collisions (never beats safe config).
 
 Usage:
     python3 test/tune_mpcc.py                         # Full sweep (all CPUs)
@@ -12,26 +15,13 @@ Usage:
     python3 test/tune_mpcc.py --objective racer       # Optimize for speed (default)
     python3 test/tune_mpcc.py --objective tracker     # Optimize for tracking
     python3 test/tune_mpcc.py --raceline my_track_raceline.csv
-
-The sweep runs 8 phases:
-    Phase 1: One-at-a-time parameter sensitivity
-    Phase 2: Primary grid (Q_CONTOURING x Q_LAG x Q_PROGRESS x HORIZON x DT)
-    Phase 3: (Skipped — no wall-margin concept in MPCC)
-    Phase 4: Secondary grid (Q_VY x Q_OMEGA x R_DELTA x W_DELTA_RATE x V_THETA_MAX)
-    Phase 5: Solver parameters (ADMM_RHO x ADMM_MAX_ITER x ADMM_TOL)
-    Phase 6: Fine-tuning around best config
-    Phase 7: Random neighbor exploration
-    Phase 8: Random exploitation around branch best
-
-Top 10 configurations from Phase 2 are screened with a smaller Phase 4 sweep.
-The single global-best configuration is then optimized through Phases 5-8 for
-10 consecutive passes.
 """
 
 import subprocess
 import os
 import sys
 import csv
+import json
 import itertools
 import time
 import random
@@ -56,187 +46,200 @@ DEFAULT_RACELINE_NAME = "my_track_raceline.csv"
 RACELINE_PATH = os.path.join(TRAJ_DIR, DEFAULT_RACELINE_NAME)
 RACELINE_TAG = "my_track"
 
-# Base configuration — starting point for all sweeps (tuned for hardware map)
 BASE_CONFIG = {
     # Contouring tracking
-    "Q_CONTOURING":      2000.0,
-    "Q_LAG":             136.282905,
-    "Q_PROGRESS":        9.04816,
+    "Q_CONTOURING":      1000.0,
+    "Q_LAG":             300.0,
+    "Q_PROGRESS":        20.0,
+
     # State regularization
     "Q_VX":              1.5,
-    "VX_REF":            4.034304,
-    "Q_VY":              1.5435,
-    "Q_OMEGA":           0.805,
+    "VX_REF":            4.0,
+    "Q_VY":              1.54,
+    "Q_OMEGA":           0.8,
+
     # Control effort
     "R_DELTA":           13.75,
-    "R_AX":              0.054864,
-    "R_VTHETA":          1.1232,
-    # Control rate
+    "R_AX":              0.055,
+    "R_VTHETA":          0.1,
+
+    # Control rate smoothness
     "W_DELTA_RATE":      0.65,
-    "W_AX_RATE":         0.610926,
-    "W_VTHETA_RATE":     0.126,
-    # Terminal
-    "Q_CONTOURING_TERM": 493.7625,
-    "Q_LAG_TERM":        1072.17,
-    "Q_PROGRESS_TERM":   5.564503,
+    "W_AX_RATE":         0.61,
+    "W_VTHETA_RATE":     0.13,
+
+    # Terminal weights — MUST be >= running weights
+    "Q_CONTOURING_TERM": 4000.0,
+    "Q_LAG_TERM":        500.0,
+    "Q_PROGRESS_TERM":   20.0,
+
     # ADMM solver
     "ADMM_RHO":          0.9,
-    "ADMM_MAX_ITER":     100,
-    "ADMM_TOL":          0.011449,
+    "ADMM_MAX_ITER":     150,
+    "ADMM_TOL":          0.011,
+
     # Horizon
-    "HORIZON":           7,
+    "HORIZON":           20,
     "DT":                0.02,
-    "V_THETA_MAX":       6.24,
+
+    # V_THETA_MAX >= vx_max so reference keeps up with vehicle
+    "V_THETA_MAX":       20.0,
+
+    # cross_call_rate_scale = (1/200Hz) / 0.02s = 0.25
+    "CROSS_CALL_SCALE":  0.25,
 }
 
-# Override base for racer objective (push speed harder)
 RACER_BASE_OVERRIDES = {
-    "Q_PROGRESS": 8.0,
-    "V_THETA_MAX": 10.0,
+    "Q_PROGRESS":        30.0,
+    "V_THETA_MAX":       25.0,
+    "Q_CONTOURING":      800.0,
+    "Q_LAG":             200.0,
+    "Q_CONTOURING_TERM": 3000.0,
+    "Q_LAG_TERM":        400.0,
+    "Q_PROGRESS_TERM":   30.0,
+    "R_VTHETA":          0.05,
+    "HORIZON":           12,
 }
 
 # ==============================================================================
-# SWEEP VALUE RANGES — PHASE 2 (Primary Grid)
+# SWEEP VALUE RANGES
 # ==============================================================================
 
 PHASE2_VALUES = {
-    "Q_CONTOURING": [200, 500, 700, 1000, 1500, 2000, 3000, 5000],
-    "Q_LAG":        [150, 350, 500, 700, 1000, 1500, 2500, 5000],
-    "Q_PROGRESS":   [0.3, 0.5, 1.0, 3.0, 5.0, 8.0, 15.0],
-    "HORIZON":      [5, 7, 8, 10, 12, 15, 20],
-    "DT":           [0.02, 0.025, 0.03, 0.035, 0.04, 0.05, 0.06],
+    "Q_CONTOURING":      [300, 500, 1000, 2000, 4000],
+    "Q_LAG":             [100, 200, 300, 500, 800],
+    "Q_PROGRESS":        [10, 20, 30, 50, 80],
+    "Q_CONTOURING_TERM": [1000, 2000, 4000, 8000],
+    "Q_LAG_TERM":        [200, 400, 800, 1500],
+    "HORIZON":           [7, 10, 15, 20],
+    "DT":                [0.015, 0.02, 0.025, 0.03],
 }
-
-# ==============================================================================
-# SWEEP VALUE RANGES — ALL PARAMETERS (one-at-a-time and fine-tuning)
-# ==============================================================================
 
 FULL_SWEEP_VALUES = {
-    "Q_CONTOURING":      [50, 200, 500, 700, 1000, 1500, 2000, 3000, 5000, 8000],
-    "Q_LAG":             [50, 150, 350, 500, 700, 1000, 1500, 2500, 5000],
-    "Q_PROGRESS":        [0.1, 0.3, 0.5, 1.0, 3.0, 5.0, 8.0, 15.0, 25.0],
-    "Q_VY":              [0.1, 0.5, 1.0, 3.5, 5.0, 10.0],
-    "Q_OMEGA":           [0.05, 0.1, 0.3, 0.5, 0.7, 1.0, 3.0, 5.0],
-    "R_DELTA":           [0.01, 0.1, 0.5, 1.0, 3.0, 6.5, 10.0, 20.0],
-    "R_VTHETA":          [0.1, 0.5, 1.0, 2.0, 5.0, 10.0],
-    "W_DELTA_RATE":      [0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0],
-    "W_VTHETA_RATE":     [0.01, 0.05, 0.1, 0.5, 1.0],
-    "Q_CONTOURING_TERM": [100, 200, 450, 700, 1000, 2000],
-    "Q_LAG_TERM":        [200, 500, 950, 1500, 3000, 5000],
-    "Q_PROGRESS_TERM":   [1, 3, 5, 10, 20],
-    "HORIZON":           [5, 7, 8, 10, 12, 15, 20],
-    "DT":                [0.02, 0.025, 0.03, 0.035, 0.04, 0.05, 0.06, 0.08],
-    "ADMM_RHO":          [0.5, 1.0, 2.0, 5.0, 10.0, 17.0, 25.0, 50.0],
-    "ADMM_MAX_ITER":     [30, 50, 100, 150, 200, 300],
-    "ADMM_TOL":          [0.001, 0.005, 0.01, 0.03, 0.05, 0.1],
-    "V_THETA_MAX":       [1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0],
-    "Q_VX":              [0.0, 0.5, 1.0, 3.0, 5.0, 10.0, 20.0, 50.0],
+    "Q_CONTOURING":      [200, 500, 800, 1000, 2000, 3000, 5000],
+    "Q_LAG":             [50, 100, 200, 300, 500, 800, 1000],
+    "Q_PROGRESS":        [5, 10, 15, 20, 30, 50, 80, 120],
+    "Q_VY":              [0.5, 1.0, 1.5, 3.0, 5.0, 10.0],
+    "Q_OMEGA":           [0.3, 0.5, 0.8, 1.5, 3.0, 5.0],
+    "R_DELTA":           [3.0, 5.0, 10.0, 14.0, 20.0, 30.0],
+    "R_VTHETA":          [0.0, 0.05, 0.1, 0.3, 0.5, 1.0],
+    "W_DELTA_RATE":      [0.2, 0.5, 0.65, 1.0, 2.0, 5.0],
+    "W_VTHETA_RATE":     [0.05, 0.1, 0.13, 0.3, 0.5, 1.0],
+    "Q_CONTOURING_TERM": [500, 1000, 2000, 4000, 8000, 12000],
+    "Q_LAG_TERM":        [100, 200, 400, 800, 1500, 3000],
+    "Q_PROGRESS_TERM":   [5, 10, 20, 30, 50, 80],
+    "HORIZON":           [5, 7, 10, 12, 15, 20],
+    "DT":                [0.015, 0.02, 0.025, 0.03, 0.035],
+    "ADMM_RHO":          [0.3, 0.5, 0.9, 2.0, 5.0, 10.0],
+    "ADMM_MAX_ITER":     [50, 100, 150, 200, 300],
+    "ADMM_TOL":          [0.005, 0.01, 0.02, 0.05],
+    "V_THETA_MAX":       [8.0, 10.0, 15.0, 20.0, 25.0, 30.0],
+    "Q_VX":              [0.0, 0.5, 1.0, 1.5, 3.0, 5.0],
     "VX_REF":            [2.0, 3.0, 4.0, 5.0, 6.0, 8.0],
-    "R_AX":              [0.001, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0],
-    "W_AX_RATE":         [0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0],
+    "R_AX":              [0.02, 0.055, 0.1, 0.3, 1.0],
+    "W_AX_RATE":         [0.1, 0.3, 0.61, 1.0, 2.0],
+    "CROSS_CALL_SCALE":  [0.1, 0.15, 0.25, 0.35, 0.5],
 }
-
-# ==============================================================================
-# PHASE 4: Secondary Grid Values
-# Q_VY x Q_OMEGA x R_DELTA x W_DELTA_RATE x V_THETA_MAX
-# ==============================================================================
 
 PHASE4_VALUES = {
-    "Q_VY":         [0.5, 1.0, 3.5, 5.0, 10.0],
-    "Q_OMEGA":      [0.1, 0.5, 0.7, 1.0, 3.0],
-    "R_DELTA":      [0.5, 1.0, 3.0, 6.5, 10.0],
-    "W_DELTA_RATE": [0.5, 1.0, 2.0, 5.0, 10.0],
-    "V_THETA_MAX":  [4.0, 6.0, 8.0, 10.0, 15.0],
+    "Q_VY":         [0.5, 1.0, 1.54, 3.0, 5.0],
+    "Q_OMEGA":      [0.3, 0.5, 0.8, 1.5, 3.0],
+    "R_DELTA":      [5.0, 10.0, 14.0, 20.0, 30.0],
+    "W_DELTA_RATE": [0.3, 0.5, 0.65, 1.0, 2.0],
+    "V_THETA_MAX":  [8.0, 12.0, 15.0, 20.0, 25.0],
 }
-
-# ==============================================================================
-# PHASE 5: Solver Grid Values
-# ADMM_RHO x ADMM_MAX_ITER x ADMM_TOL
-# ==============================================================================
 
 PHASE5_VALUES = {
-    "ADMM_RHO":      [1.0, 5.0, 10.0, 17.0, 25.0, 50.0],
-    "ADMM_MAX_ITER": [30, 50, 100, 150, 200],
-    "ADMM_TOL":      [0.005, 0.01, 0.03, 0.05, 0.1],
+    "ADMM_RHO":      [0.3, 0.5, 0.9, 1.5, 2.0, 5.0, 10.0],
+    "ADMM_MAX_ITER": [50, 100, 150, 200, 300],
+    "ADMM_TOL":      [0.005, 0.01, 0.02, 0.05, 0.1],
 }
-
-# ==============================================================================
-# RANDOM NEIGHBOR PROFILES
-# ==============================================================================
 
 RANDOM_PROFILES = {
     "racer": {
         "num_perturb_range": (3, 7),
         "default_multipliers": [0.85, 0.95, 1.0, 1.1, 1.2],
         "param_multipliers": {
-            "Q_CONTOURING":  [0.85, 0.95, 1.0, 1.1, 1.2],
-            "Q_LAG":         [0.85, 0.95, 1.0, 1.1, 1.2],
-            "Q_PROGRESS":    [0.9, 1.0, 1.1, 1.2, 1.4, 1.6],
-            "Q_VX":          [0.0, 0.5, 1.0, 1.5, 2.0, 3.0],
-            "Q_VY":          [0.7, 0.9, 1.0, 1.15, 1.3],
-            "Q_OMEGA":       [0.7, 0.9, 1.0, 1.15, 1.3],
-            "R_DELTA":       [0.8, 0.9, 1.0, 1.1, 1.25],
-            "R_AX":          [0.5, 0.8, 1.0, 1.3, 2.0, 5.0],
-            "R_VTHETA":      [0.8, 0.9, 1.0, 1.15, 1.3],
-            "W_DELTA_RATE":  [0.8, 0.9, 1.0, 1.15, 1.3],
-            "W_AX_RATE":     [0.5, 0.8, 1.0, 1.3, 2.0, 5.0],
-            "W_VTHETA_RATE": [0.7, 0.85, 1.0, 1.2, 1.4],
-            "ADMM_RHO":      [0.75, 0.9, 1.0, 1.15, 1.35],
-            "V_THETA_MAX":   [0.8, 0.9, 1.0, 1.15, 1.3],
+            "Q_CONTOURING":      [0.7, 0.85, 1.0, 1.2, 1.5],
+            "Q_LAG":             [0.7, 0.85, 1.0, 1.2, 1.5],
+            "Q_PROGRESS":        [0.8, 0.9, 1.0, 1.15, 1.3, 1.5],
+            "Q_CONTOURING_TERM": [1.0, 1.1, 1.2, 1.5, 2.0],
+            "Q_LAG_TERM":        [1.0, 1.1, 1.2, 1.5, 2.0],
+            "Q_PROGRESS_TERM":   [0.8, 0.9, 1.0, 1.15, 1.3],
+            "Q_VX":              [0.0, 0.5, 1.0, 1.5, 2.0, 3.0],
+            "Q_VY":              [0.7, 0.9, 1.0, 1.15, 1.3],
+            "Q_OMEGA":           [0.7, 0.9, 1.0, 1.15, 1.3],
+            "R_DELTA":           [0.8, 0.9, 1.0, 1.1, 1.25],
+            "R_AX":              [0.5, 0.8, 1.0, 1.3, 2.0],
+            "R_VTHETA":          [0.5, 0.8, 1.0, 1.3, 2.0],
+            "W_DELTA_RATE":      [0.8, 0.9, 1.0, 1.15, 1.3],
+            "W_AX_RATE":         [0.5, 0.8, 1.0, 1.3, 2.0],
+            "W_VTHETA_RATE":     [0.7, 0.85, 1.0, 1.2, 1.4],
+            "ADMM_RHO":          [0.75, 0.9, 1.0, 1.15, 1.35],
+            "V_THETA_MAX":       [0.8, 0.9, 1.0, 1.1, 1.2],
+            "CROSS_CALL_SCALE":  [0.8, 0.9, 1.0, 1.1, 1.2],
         },
         "discrete": {
-            "HORIZON":       [5, 7, 8, 10, 12, 15, 20],
-            "DT":            [0.025, 0.03, 0.035, 0.04, 0.05, 0.06],
-            "ADMM_MAX_ITER": [30, 50, 100, 150, 200],
+            "HORIZON":       [7, 8, 10, 12, 15, 20],
+            "DT":            [0.015, 0.02, 0.025, 0.03, 0.035],
+            "ADMM_MAX_ITER": [50, 100, 150, 200, 300],
         },
     },
     "tracker": {
         "num_perturb_range": (3, 6),
         "default_multipliers": [0.85, 0.95, 1.0, 1.1, 1.2],
         "param_multipliers": {
-            "Q_CONTOURING":  [0.9, 0.97, 1.0, 1.08, 1.18],
-            "Q_LAG":         [0.9, 0.97, 1.0, 1.08, 1.18],
-            "Q_PROGRESS":    [0.85, 0.95, 1.0, 1.1, 1.2],
-            "Q_VX":          [0.0, 0.5, 1.0, 1.3, 2.0],
-            "Q_VY":          [0.8, 0.9, 1.0, 1.15, 1.3],
-            "Q_OMEGA":       [0.8, 0.9, 1.0, 1.15, 1.3],
-            "R_DELTA":       [0.85, 0.95, 1.0, 1.1, 1.2],
-            "R_AX":          [0.5, 0.8, 1.0, 1.3, 2.0],
-            "R_VTHETA":      [0.85, 0.95, 1.0, 1.1, 1.2],
-            "W_DELTA_RATE":  [0.85, 0.95, 1.0, 1.1, 1.2],
-            "W_AX_RATE":     [0.5, 0.8, 1.0, 1.3, 2.0],
-            "W_VTHETA_RATE": [0.7, 0.85, 1.0, 1.2, 1.4],
-            "ADMM_RHO":      [0.85, 0.95, 1.0, 1.1, 1.2],
-            "V_THETA_MAX":   [0.85, 0.95, 1.0, 1.1, 1.2],
+            "Q_CONTOURING":      [0.9, 0.97, 1.0, 1.08, 1.18],
+            "Q_LAG":             [0.9, 0.97, 1.0, 1.08, 1.18],
+            "Q_PROGRESS":        [0.85, 0.95, 1.0, 1.1, 1.2],
+            "Q_CONTOURING_TERM": [1.0, 1.1, 1.2, 1.5, 2.0],
+            "Q_LAG_TERM":        [1.0, 1.1, 1.2, 1.5, 2.0],
+            "Q_PROGRESS_TERM":   [0.8, 0.9, 1.0, 1.15, 1.3],
+            "Q_VX":              [0.0, 0.5, 1.0, 1.3, 2.0],
+            "Q_VY":              [0.8, 0.9, 1.0, 1.15, 1.3],
+            "Q_OMEGA":           [0.8, 0.9, 1.0, 1.15, 1.3],
+            "R_DELTA":           [0.85, 0.95, 1.0, 1.1, 1.2],
+            "R_AX":              [0.5, 0.8, 1.0, 1.3, 2.0],
+            "R_VTHETA":          [0.5, 0.8, 1.0, 1.3, 2.0],
+            "W_DELTA_RATE":      [0.85, 0.95, 1.0, 1.1, 1.2],
+            "W_AX_RATE":         [0.5, 0.8, 1.0, 1.3, 2.0],
+            "W_VTHETA_RATE":     [0.7, 0.85, 1.0, 1.2, 1.4],
+            "ADMM_RHO":          [0.85, 0.95, 1.0, 1.1, 1.2],
+            "V_THETA_MAX":       [0.85, 0.95, 1.0, 1.1, 1.2],
+            "CROSS_CALL_SCALE":  [0.8, 0.9, 1.0, 1.1, 1.2],
         },
         "discrete": {
-            "HORIZON":       [5, 7, 8, 10, 12, 15],
-            "DT":            [0.025, 0.03, 0.035, 0.04, 0.05],
-            "ADMM_MAX_ITER": [30, 50, 100, 150, 200],
+            "HORIZON":       [7, 10, 12, 15, 20],
+            "DT":            [0.015, 0.02, 0.025, 0.03, 0.035],
+            "ADMM_MAX_ITER": [50, 100, 150, 200],
         },
     },
     "racer_exploit": {
         "num_perturb_range": (2, 4),
         "default_multipliers": [0.96, 0.99, 1.0, 1.03, 1.07],
         "param_multipliers": {
-            "Q_CONTOURING":  [0.96, 0.99, 1.0, 1.03, 1.07],
-            "Q_LAG":         [0.96, 0.99, 1.0, 1.03, 1.07],
-            "Q_PROGRESS":    [0.97, 1.0, 1.03, 1.06, 1.1],
-            "Q_VX":          [0.0, 0.7, 1.0, 1.2, 1.5],
-            "Q_VY":          [0.92, 0.98, 1.0, 1.05, 1.1],
-            "Q_OMEGA":       [0.92, 0.98, 1.0, 1.05, 1.1],
-            "R_DELTA":       [0.94, 0.99, 1.0, 1.04, 1.08],
-            "R_AX":          [0.7, 0.9, 1.0, 1.2, 1.5],
-            "R_VTHETA":      [0.94, 0.99, 1.0, 1.04, 1.08],
-            "W_DELTA_RATE":  [0.92, 0.98, 1.0, 1.05, 1.1],
-            "W_AX_RATE":     [0.7, 0.9, 1.0, 1.2, 1.5],
-            "W_VTHETA_RATE": [0.9, 0.97, 1.0, 1.05, 1.1],
-            "ADMM_RHO":      [0.9, 0.97, 1.0, 1.06, 1.12],
-            "V_THETA_MAX":   [0.94, 0.99, 1.0, 1.04, 1.08],
+            "Q_CONTOURING":      [0.94, 0.98, 1.0, 1.03, 1.07],
+            "Q_LAG":             [0.94, 0.98, 1.0, 1.03, 1.07],
+            "Q_PROGRESS":        [0.97, 1.0, 1.03, 1.06, 1.1],
+            "Q_CONTOURING_TERM": [1.0, 1.02, 1.05, 1.1, 1.15],
+            "Q_LAG_TERM":        [1.0, 1.02, 1.05, 1.1, 1.15],
+            "Q_PROGRESS_TERM":   [0.95, 0.98, 1.0, 1.03, 1.06],
+            "Q_VX":              [0.0, 0.7, 1.0, 1.2, 1.5],
+            "Q_VY":              [0.92, 0.98, 1.0, 1.05, 1.1],
+            "Q_OMEGA":           [0.92, 0.98, 1.0, 1.05, 1.1],
+            "R_DELTA":           [0.94, 0.99, 1.0, 1.04, 1.08],
+            "R_AX":              [0.7, 0.9, 1.0, 1.2, 1.5],
+            "R_VTHETA":          [0.7, 0.9, 1.0, 1.2, 1.5],
+            "W_DELTA_RATE":      [0.92, 0.98, 1.0, 1.05, 1.1],
+            "W_AX_RATE":         [0.7, 0.9, 1.0, 1.2, 1.5],
+            "W_VTHETA_RATE":     [0.9, 0.97, 1.0, 1.05, 1.1],
+            "ADMM_RHO":          [0.9, 0.97, 1.0, 1.06, 1.12],
+            "V_THETA_MAX":       [0.94, 0.99, 1.0, 1.04, 1.08],
+            "CROSS_CALL_SCALE":  [0.92, 0.98, 1.0, 1.05, 1.1],
         },
         "discrete": {
-            "HORIZON":       [5, 7, 8, 10, 12, 15],
-            "DT":            [0.025, 0.03, 0.035, 0.04, 0.05],
+            "HORIZON":       [7, 8, 10, 12, 15],
+            "DT":            [0.015, 0.02, 0.025, 0.03, 0.035],
             "ADMM_MAX_ITER": [50, 100, 150, 200],
         },
     },
@@ -244,25 +247,29 @@ RANDOM_PROFILES = {
         "num_perturb_range": (2, 4),
         "default_multipliers": [0.95, 0.98, 1.0, 1.02, 1.05],
         "param_multipliers": {
-            "Q_CONTOURING":  [0.96, 0.99, 1.0, 1.02, 1.05],
-            "Q_LAG":         [0.96, 0.99, 1.0, 1.02, 1.05],
-            "Q_PROGRESS":    [0.95, 0.98, 1.0, 1.03, 1.06],
-            "Q_VX":          [0.0, 0.8, 1.0, 1.15, 1.3],
-            "Q_VY":          [0.9, 0.97, 1.0, 1.05, 1.1],
-            "Q_OMEGA":       [0.9, 0.97, 1.0, 1.05, 1.1],
-            "R_DELTA":       [0.92, 0.98, 1.0, 1.05, 1.1],
-            "R_AX":          [0.8, 0.95, 1.0, 1.1, 1.3],
-            "R_VTHETA":      [0.92, 0.98, 1.0, 1.05, 1.1],
-            "W_DELTA_RATE":  [0.92, 0.98, 1.0, 1.05, 1.1],
-            "W_AX_RATE":     [0.8, 0.95, 1.0, 1.1, 1.3],
-            "W_VTHETA_RATE": [0.9, 0.97, 1.0, 1.05, 1.1],
-            "ADMM_RHO":      [0.92, 0.98, 1.0, 1.05, 1.1],
-            "V_THETA_MAX":   [0.92, 0.98, 1.0, 1.05, 1.1],
+            "Q_CONTOURING":      [0.96, 0.99, 1.0, 1.02, 1.05],
+            "Q_LAG":             [0.96, 0.99, 1.0, 1.02, 1.05],
+            "Q_PROGRESS":        [0.95, 0.98, 1.0, 1.03, 1.06],
+            "Q_CONTOURING_TERM": [1.0, 1.02, 1.05, 1.1, 1.15],
+            "Q_LAG_TERM":        [1.0, 1.02, 1.05, 1.1, 1.15],
+            "Q_PROGRESS_TERM":   [0.92, 0.97, 1.0, 1.05, 1.1],
+            "Q_VX":              [0.0, 0.8, 1.0, 1.15, 1.3],
+            "Q_VY":              [0.9, 0.97, 1.0, 1.05, 1.1],
+            "Q_OMEGA":           [0.9, 0.97, 1.0, 1.05, 1.1],
+            "R_DELTA":           [0.92, 0.98, 1.0, 1.05, 1.1],
+            "R_AX":              [0.8, 0.95, 1.0, 1.1, 1.3],
+            "R_VTHETA":          [0.8, 0.95, 1.0, 1.1, 1.3],
+            "W_DELTA_RATE":      [0.92, 0.98, 1.0, 1.05, 1.1],
+            "W_AX_RATE":         [0.8, 0.95, 1.0, 1.1, 1.3],
+            "W_VTHETA_RATE":     [0.9, 0.97, 1.0, 1.05, 1.1],
+            "ADMM_RHO":          [0.92, 0.98, 1.0, 1.05, 1.1],
+            "V_THETA_MAX":       [0.92, 0.98, 1.0, 1.05, 1.1],
+            "CROSS_CALL_SCALE":  [0.92, 0.98, 1.0, 1.05, 1.1],
         },
         "discrete": {
-            "HORIZON":       [5, 7, 8, 10, 12],
-            "DT":            [0.03, 0.035, 0.04, 0.05],
-            "ADMM_MAX_ITER": [50, 100, 150],
+            "HORIZON":       [7, 10, 12, 15, 20],
+            "DT":            [0.015, 0.02, 0.025, 0.03, 0.035],
+            "ADMM_MAX_ITER": [100, 150, 200],
         },
     },
 }
@@ -279,23 +286,21 @@ GLOBAL_OPTIMIZATION_PASSES = 10
 PHASE7_RANDOM_COUNT = {"racer": 4400, "tracker": 3600}
 PHASE8_RANDOM_COUNT = {"racer": 2400, "tracker": 1800}
 
-# Print order matching MPCC config structure
 MPCC_PRINT_ORDER = (
     "Q_CONTOURING", "Q_LAG", "Q_PROGRESS",
     "Q_VY", "Q_OMEGA",
-    "R_DELTA", "R_VTHETA",
-    "W_DELTA_RATE", "W_VTHETA_RATE",
+    "Q_VX", "VX_REF",
+    "R_DELTA", "R_AX", "R_VTHETA",
+    "W_DELTA_RATE", "W_AX_RATE", "W_VTHETA_RATE",
     "Q_CONTOURING_TERM", "Q_LAG_TERM", "Q_PROGRESS_TERM",
     "ADMM_RHO", "ADMM_MAX_ITER", "ADMM_TOL",
-    "HORIZON", "DT", "V_THETA_MAX",
+    "HORIZON", "DT", "V_THETA_MAX", "CROSS_CALL_SCALE",
 )
 
-# Working copy of base config (modified during cascade)
 BASE = {}
 
 
 def infer_raceline_tag(path: str) -> str:
-    """Create a compact label from raceline filename."""
     stem = os.path.splitext(os.path.basename(path))[0]
     if stem.endswith("_raceline"):
         stem = stem[: -len("_raceline")]
@@ -303,7 +308,6 @@ def infer_raceline_tag(path: str) -> str:
 
 
 def resolve_raceline_path(path_arg: str) -> str:
-    """Resolve raceline path argument to an absolute path."""
     if os.path.isabs(path_arg):
         return path_arg
     traj_candidate = os.path.join(TRAJ_DIR, path_arg)
@@ -313,7 +317,6 @@ def resolve_raceline_path(path_arg: str) -> str:
 
 
 def iter_ordered_base_keys():
-    """Yield BASE keys in MPCC config order, then any remaining."""
     seen = set()
     for key in MPCC_PRINT_ORDER:
         if key in BASE:
@@ -329,7 +332,6 @@ def iter_ordered_base_keys():
 # ==============================================================================
 
 def canonicalize_params(params: dict) -> dict:
-    """Normalize params to the values MPCC actually receives via env parsing."""
     out = dict(params)
     for k in INT_PARAMS:
         if k in out:
@@ -337,19 +339,43 @@ def canonicalize_params(params: dict) -> dict:
     return out
 
 
+def enforce_terminal_weight_floor(params: dict) -> dict:
+    """
+    Enforce terminal >= running weights (required for Riccati correctness)
+    and V_THETA_MAX >= 8 m/s (required for reference to keep up with car).
+    """
+    out = dict(params)
+    qc = float(out.get("Q_CONTOURING", BASE.get("Q_CONTOURING", 1000)))
+    ql = float(out.get("Q_LAG",        BASE.get("Q_LAG",        300)))
+    qp = float(out.get("Q_PROGRESS",   BASE.get("Q_PROGRESS",   20)))
+
+    if float(out.get("Q_CONTOURING_TERM", 0)) < qc:
+        out["Q_CONTOURING_TERM"] = qc * 2.0
+    if float(out.get("Q_LAG_TERM", 0)) < ql:
+        out["Q_LAG_TERM"] = ql
+    if float(out.get("Q_PROGRESS_TERM", 0)) < qp * 0.5:
+        out["Q_PROGRESS_TERM"] = qp
+    if float(out.get("V_THETA_MAX", BASE.get("V_THETA_MAX", 20.0))) < 8.0:
+        out["V_THETA_MAX"] = 8.0
+
+    return out
+
+
 def is_valid_config(params: dict) -> bool:
-    """Check if configuration is valid."""
-    h = int(params.get("HORIZON", BASE.get("HORIZON", 7)))
+    h = int(params.get("HORIZON", BASE.get("HORIZON", 10)))
     if h < 2 or h > 50:
         return False
-    dt = float(params.get("DT", BASE.get("DT", 0.035)))
+    dt = float(params.get("DT", BASE.get("DT", 0.02)))
     if dt < 0.01 or dt > 0.2:
+        return False
+    qc = float(params.get("Q_CONTOURING", BASE.get("Q_CONTOURING", 1000)))
+    ql = float(params.get("Q_LAG", BASE.get("Q_LAG", 300)))
+    if ql > 0 and (qc / ql) > 10.0:
         return False
     return True
 
 
 def config_hash(params: dict) -> str:
-    """Create unique hash for a config to avoid duplicates."""
     eff = canonicalize_params(params)
     key = tuple(sorted((k, round(v, 4) if isinstance(v, float) else v)
                        for k, v in eff.items()))
@@ -361,12 +387,11 @@ def config_hash(params: dict) -> str:
 # ==============================================================================
 
 def run_test(params: dict, binary: str) -> dict:
-    """Run a single MPCC test with given parameters. Returns parsed metrics."""
     env = os.environ.copy()
     env["MPCC_TUNING_CSV"] = "1"
     env["RACELINE_PATH"] = RACELINE_PATH
 
-    effective_params = canonicalize_params(params)
+    effective_params = canonicalize_params(enforce_terminal_weight_floor(params))
     for name, value in effective_params.items():
         env[name] = str(value)
 
@@ -391,21 +416,21 @@ def run_test(params: dict, binary: str) -> dict:
                     "failed": int(parts[2]),
                     "max_contouring_err": float(parts[3]),
                     "avg_contouring_err": float(parts[4]),
-                    "max_heading_err": float(parts[5]),
-                    "avg_heading_err": float(parts[6]),
-                    "max_vx": float(parts[7]),
-                    "avg_solve_us": float(parts[8]),
-                    "max_solve_us": float(parts[9]),
-                    "wall_collisions": int(parts[10]),
-                    "time_above_5ms": float(parts[11]),
-                    "max_vel_err": float(parts[12]) if len(parts) > 12 else 0.0,
-                    "avg_vel_err": float(parts[13]) if len(parts) > 13 else 0.0,
-                    "avg_iters": float(parts[14]) if len(parts) > 14 else 0.0,
-                    "avg_rho": float(parts[15]) if len(parts) > 15 else 0.0,
-                    "avg_rho_u": float(parts[16]) if len(parts) > 16 else 0.0,
-                    "avg_adapt_updates": float(parts[17]) if len(parts) > 17 else 0.0,
-                    "avg_clip_events": float(parts[18]) if len(parts) > 18 else 0.0,
-                    "avg_speed": float(parts[19]) if len(parts) > 19 else 0.0,
+                    "max_heading_err":    float(parts[5]),
+                    "avg_heading_err":    float(parts[6]),
+                    "max_vx":             float(parts[7]),
+                    "avg_solve_us":       float(parts[8]),
+                    "max_solve_us":       float(parts[9]),
+                    "wall_collisions":    int(parts[10]),
+                    "time_above_5ms":     float(parts[11]),
+                    "max_vel_err":        float(parts[12]) if len(parts) > 12 else 0.0,
+                    "avg_vel_err":        float(parts[13]) if len(parts) > 13 else 0.0,
+                    "avg_iters":          float(parts[14]) if len(parts) > 14 else 0.0,
+                    "avg_rho":            float(parts[15]) if len(parts) > 15 else 0.0,
+                    "avg_rho_u":          float(parts[16]) if len(parts) > 16 else 0.0,
+                    "avg_adapt_updates":  float(parts[17]) if len(parts) > 17 else 0.0,
+                    "avg_clip_events":    float(parts[18]) if len(parts) > 18 else 0.0,
+                    "avg_speed":          float(parts[19]) if len(parts) > 19 else 0.0,
                 }
             except (IndexError, ValueError):
                 pass
@@ -422,52 +447,60 @@ def run_test(params: dict, binary: str) -> dict:
 # ==============================================================================
 
 def is_safe_result(r: dict) -> bool:
-    """True when run is valid and collision-free."""
+    """Zero collisions and valid run."""
     return r.get("status") == "OK" and int(r.get("wall_collisions", 999)) == 0
 
 
 def compute_tracker_score(r: dict) -> float:
-    """Tracker score: minimize contouring/heading errors (lower is better).
-
-    MPCC uses global-frame contouring control — contouring_err is the
-    perpendicular distance from the reference path, heading_err is the
-    heading deviation from the path tangent. We weight these heavily since
-    tracker mode cares about path following accuracy.
     """
-    if not is_safe_result(r):
-        if r.get("status") != "OK":
-            return 5000.0
-        return 2000.0 + 100.0 * float(r.get("wall_collisions", 0))
+    Tracker: minimize contouring + heading errors.
+    Any collision = hard penalty of 1000 + collisions (never beats safe config).
+    """
+    if r.get("status") != "OK":
+        return 5000.0
+
+    collisions = int(r.get("wall_collisions", 0))
+    if collisions > 0:
+        # Hard constraint: unsafe configs are always ranked last
+        return 1000.0 + float(collisions)
 
     tracking = (
         r["avg_contouring_err"] * 80.0 +
         r["max_contouring_err"] * 15.0 +
-        r["avg_heading_err"] * 35.0 +
-        r["max_heading_err"] * 8.0 +
-        r.get("max_vel_err", 0) * 4.0
+        r["avg_heading_err"]    * 35.0 +
+        r["max_heading_err"]    *  8.0 +
+        r.get("max_vel_err", 0) *  4.0
     )
     solver = r.get("avg_iters", 0) * 0.2 + r["avg_solve_us"] * 0.001
     return round(tracking + solver, 3)
 
 
 def compute_racer_score(r: dict) -> float:
-    """Racer score: maximize average velocity while staying collision-free.
-
-    MPCC naturally finds its own racing line via progress maximization,
-    so the primary metric is how fast it goes.
     """
-    if not is_safe_result(r):
-        if r.get("status") != "OK":
-            return 5000.0
-        return 2000.0 + 100.0 * float(r.get("wall_collisions", 0))
+    Racer: maximize average speed — zero collisions is a HARD constraint.
 
-    return round(-r.get("avg_speed", 0.0), 6)
+    Scoring:
+      - Any collision      → 1000 + collisions  (always loses to any safe config)
+      - Zero collisions    → -avg_speed          (lower = faster = better)
+
+    This means a safe config doing 0.1 m/s beats an unsafe config doing 8 m/s.
+    The sweep will only optimise speed among collision-free configs.
+    """
+    if r.get("status") != "OK":
+        return 5000.0
+
+    collisions = int(r.get("wall_collisions", 0))
+    if collisions > 0:
+        # Hard constraint: ANY collision → disqualified
+        return 1000.0 + float(collisions)
+
+    speed = r.get("avg_speed", 0.0)
+    return round(-speed, 6)
 
 
 def apply_scores(r: dict, objective: str) -> dict:
-    """Attach scores to a result row."""
     r["tracker_score"] = compute_tracker_score(r)
-    r["racer_score"] = compute_racer_score(r)
+    r["racer_score"]   = compute_racer_score(r)
     r["score"] = r["tracker_score"] if objective == "tracker" else r["racer_score"]
     return r
 
@@ -477,112 +510,100 @@ def apply_scores(r: dict, objective: str) -> dict:
 # ==============================================================================
 
 def gen_one_at_a_time() -> list:
-    """Phase 1: Vary each parameter one at a time from baseline."""
-    combos = [("BASELINE", dict(BASE))]
-
+    combos = [("BASELINE", enforce_terminal_weight_floor(dict(BASE)))]
     for name, values in FULL_SWEEP_VALUES.items():
         for v in values:
             if abs(v - BASE.get(name, -999)) < 1e-6:
                 continue
             w = dict(BASE)
             w[name] = v
+            w = enforce_terminal_weight_floor(w)
             if is_valid_config(w):
                 combos.append((f"{name}={v}", w))
-
     return combos
 
 
 def gen_primary_grid() -> list:
-    """Phase 2: Primary grid — core MPCC contouring weights + discretization.
-
-    Q_CONTOURING x Q_LAG x Q_PROGRESS x HORIZON x DT
-    """
     combos = []
+    for qc, ql, qp, qct, qlt, h, dt in itertools.product(
+            PHASE2_VALUES["Q_CONTOURING"],
+            PHASE2_VALUES["Q_LAG"],
+            PHASE2_VALUES["Q_PROGRESS"],
+            PHASE2_VALUES["Q_CONTOURING_TERM"],
+            PHASE2_VALUES["Q_LAG_TERM"],
+            PHASE2_VALUES["HORIZON"],
+            PHASE2_VALUES["DT"]):
 
-    qc_vals = PHASE2_VALUES["Q_CONTOURING"]
-    ql_vals = PHASE2_VALUES["Q_LAG"]
-    qp_vals = PHASE2_VALUES["Q_PROGRESS"]
-    h_vals = PHASE2_VALUES["HORIZON"]
-    dt_vals = PHASE2_VALUES["DT"]
+        if qct < qc or qlt < ql:
+            continue
+        if ql > 0 and (qc / ql) > 8.0:
+            continue
 
-    for qc, ql, qp, h, dt in itertools.product(
-            qc_vals, ql_vals, qp_vals, h_vals, dt_vals):
         w = dict(BASE)
-        w["Q_CONTOURING"] = qc
-        w["Q_LAG"] = ql
-        w["Q_PROGRESS"] = qp
-        w["HORIZON"] = h
-        w["DT"] = dt
+        w["Q_CONTOURING"]      = qc
+        w["Q_LAG"]             = ql
+        w["Q_PROGRESS"]        = qp
+        w["Q_CONTOURING_TERM"] = qct
+        w["Q_LAG_TERM"]        = qlt
+        w["HORIZON"]           = h
+        w["DT"]                = dt
 
         if is_valid_config(w):
-            combos.append((f"QC={qc}+QL={ql}+QP={qp}+N={h}+dt={dt}", w))
-
+            label = (f"QC={qc}+QL={ql}+QP={qp}"
+                     f"+QCT={qct}+QLT={qlt}+N={h}+dt={dt}")
+            combos.append((label, w))
     return combos
 
 
 def gen_secondary_grid() -> list:
-    """Phase 4: Secondary parameters — state reg., control effort, v_theta.
-
-    Q_VY x Q_OMEGA x R_DELTA x W_DELTA_RATE x V_THETA_MAX
-    """
     combos = []
-
-    qvy_vals = PHASE4_VALUES["Q_VY"]
-    qom_vals = PHASE4_VALUES["Q_OMEGA"]
-    rd_vals = PHASE4_VALUES["R_DELTA"]
-    wdr_vals = PHASE4_VALUES["W_DELTA_RATE"]
-    vtm_vals = PHASE4_VALUES["V_THETA_MAX"]
-
     for qvy, qom, rd, wdr, vtm in itertools.product(
-            qvy_vals, qom_vals, rd_vals, wdr_vals, vtm_vals):
+            PHASE4_VALUES["Q_VY"],
+            PHASE4_VALUES["Q_OMEGA"],
+            PHASE4_VALUES["R_DELTA"],
+            PHASE4_VALUES["W_DELTA_RATE"],
+            PHASE4_VALUES["V_THETA_MAX"]):
         w = dict(BASE)
-        w["Q_VY"] = qvy
-        w["Q_OMEGA"] = qom
-        w["R_DELTA"] = rd
+        w["Q_VY"]         = qvy
+        w["Q_OMEGA"]      = qom
+        w["R_DELTA"]      = rd
         w["W_DELTA_RATE"] = wdr
-        w["V_THETA_MAX"] = vtm
-        combos.append((
-            f"VY={qvy}+O={qom}+RD={rd}+WDR={wdr}+VT={vtm}", w))
-
+        w["V_THETA_MAX"]  = vtm
+        w = enforce_terminal_weight_floor(w)
+        combos.append((f"VY={qvy}+O={qom}+RD={rd}+WDR={wdr}+VT={vtm}", w))
     return combos
 
 
 def gen_solver_grid() -> list:
-    """Phase 5: Solver parameters — ADMM_RHO x ADMM_MAX_ITER x ADMM_TOL."""
     combos = []
-
-    rho_vals = PHASE5_VALUES["ADMM_RHO"]
-    mi_vals = PHASE5_VALUES["ADMM_MAX_ITER"]
-    tol_vals = PHASE5_VALUES["ADMM_TOL"]
-
-    for rho, mi, tol in itertools.product(rho_vals, mi_vals, tol_vals):
+    for rho, mi, tol in itertools.product(
+            PHASE5_VALUES["ADMM_RHO"],
+            PHASE5_VALUES["ADMM_MAX_ITER"],
+            PHASE5_VALUES["ADMM_TOL"]):
         w = dict(BASE)
-        w["ADMM_RHO"] = rho
+        w["ADMM_RHO"]      = rho
         w["ADMM_MAX_ITER"] = mi
-        w["ADMM_TOL"] = tol
+        w["ADMM_TOL"]      = tol
+        w = enforce_terminal_weight_floor(w)
         combos.append((f"rho={rho}+mi={mi}+tol={tol}", w))
-
     return combos
 
 
 def gen_fine_tuning(best_weights: dict) -> list:
-    """Phase 6: Fine-tuning around best config — single & pairwise perturbations."""
     combos = []
     pct_range = (0.80, 0.85, 0.90, 0.92, 0.95, 0.97,
                  1.03, 1.05, 1.08, 1.10, 1.15, 1.20)
     skip = {"ADMM_MAX_ITER", "HORIZON"}
 
-    # Single parameter perturbations
     for name, base_val in best_weights.items():
         if name in skip:
             continue
         if base_val == 0:
-            # Zero-valued: try values from FULL_SWEEP_VALUES
             if name in FULL_SWEEP_VALUES:
                 for sv in FULL_SWEEP_VALUES[name]:
                     if sv == 0:
                         continue
-                    w = dict(best_weights)
+                    w = enforce_terminal_weight_floor(dict(best_weights))
                     w[name] = sv
                     combos.append((f"FT:{name}={sv}", w))
             continue
@@ -590,16 +611,20 @@ def gen_fine_tuning(best_weights: dict) -> list:
             new_val = round(base_val * mult, 6)
             if name in INT_PARAMS:
                 new_val = int(new_val)
-
             w = dict(best_weights)
             w[name] = new_val
-            pct = int((mult - 1.0) * 100)
-            sign = "+" if pct >= 0 else ""
-            combos.append((f"FT:{name}{sign}{pct}%", w))
+            w = enforce_terminal_weight_floor(w)
+            if is_valid_config(w):
+                pct = int((mult - 1.0) * 100)
+                sign = "+" if pct >= 0 else ""
+                combos.append((f"FT:{name}{sign}{pct}%", w))
 
-    # Pairwise perturbations of key params
-    key_params = ["Q_CONTOURING", "Q_LAG", "Q_PROGRESS", "Q_VX", "R_DELTA",
-                  "R_AX", "V_THETA_MAX", "ADMM_RHO", "W_DELTA_RATE", "DT"]
+    key_params = [
+        "Q_CONTOURING", "Q_LAG", "Q_PROGRESS",
+        "Q_CONTOURING_TERM", "Q_LAG_TERM",
+        "Q_VX", "R_DELTA", "R_AX", "R_VTHETA",
+        "V_THETA_MAX", "ADMM_RHO", "W_DELTA_RATE", "DT",
+    ]
     for w1, w2 in itertools.combinations(key_params, 2):
         v1 = best_weights.get(w1, 0)
         v2 = best_weights.get(w2, 0)
@@ -614,9 +639,11 @@ def gen_fine_tuning(best_weights: dict) -> list:
                 w[w1] = int(w[w1])
             if w2 in INT_PARAMS:
                 w[w2] = int(w[w2])
-            p1 = f"+{int((m1-1)*100)}%" if m1 > 1 else f"{int((m1-1)*100)}%"
-            p2 = f"+{int((m2-1)*100)}%" if m2 > 1 else f"{int((m2-1)*100)}%"
-            combos.append((f"FT:{w1}{p1}+{w2}{p2}", w))
+            w = enforce_terminal_weight_floor(w)
+            if is_valid_config(w):
+                p1 = f"+{int((m1-1)*100)}%" if m1 > 1 else f"{int((m1-1)*100)}%"
+                p2 = f"+{int((m2-1)*100)}%" if m2 > 1 else f"{int((m2-1)*100)}%"
+                combos.append((f"FT:{w1}{p1}+{w2}{p2}", w))
 
     return combos
 
@@ -624,20 +651,17 @@ def gen_fine_tuning(best_weights: dict) -> list:
 def gen_random_neighbors(best_weights: dict, n: int, objective: str,
                          profile_override: str | None = None,
                          seed_offset: int = 0) -> list:
-    """Generate random perturbations around best config."""
     combos = []
     rng = random.Random(SEED + seed_offset)
     profile_name = profile_override if profile_override else objective
     profile = RANDOM_PROFILES.get(profile_name, RANDOM_PROFILES["racer"])
 
-    discrete = profile.get("discrete", {})
+    discrete          = profile.get("discrete", {})
     param_multipliers = profile.get("param_multipliers", {})
-    default_multipliers = profile.get("default_multipliers",
-                                      [0.85, 0.95, 1.0, 1.1, 1.2])
-    min_perturb, max_perturb = profile.get("num_perturb_range", (3, 6))
+    default_mults     = profile.get("default_multipliers", [0.85, 0.95, 1.0, 1.1, 1.2])
+    min_p, max_p      = profile.get("num_perturb_range", (3, 6))
 
-    tune_params = [k for k in best_weights.keys()
-                   if k not in ("ADMM_MAX_ITER",)]
+    tune_params = [k for k in best_weights.keys() if k not in ("ADMM_MAX_ITER",)]
 
     i = 0
     attempts = 0
@@ -646,26 +670,21 @@ def gen_random_neighbors(best_weights: dict, n: int, objective: str,
     while i < n and attempts < max_attempts:
         attempts += 1
         w = dict(best_weights)
-        num_perturb = rng.randint(min_perturb,
-                                  min(max_perturb, len(tune_params)))
-        params_to_perturb = rng.sample(tune_params, num_perturb)
-
-        for name in params_to_perturb:
+        num_perturb = rng.randint(min_p, min(max_p, len(tune_params)))
+        for name in rng.sample(tune_params, num_perturb):
             if name in discrete:
                 w[name] = rng.choice(discrete[name])
             elif w[name] == 0 and name in FULL_SWEEP_VALUES:
-                # Zero-valued params: sample from sweep values instead of multiplying
                 w[name] = rng.choice(FULL_SWEEP_VALUES[name])
             else:
-                mult = rng.choice(param_multipliers.get(name,
-                                                        default_multipliers))
+                mult = rng.choice(param_multipliers.get(name, default_mults))
                 w[name] = round(w[name] * mult, 6)
-
             if name in INT_PARAMS:
                 w[name] = int(float(w[name]))
                 if name == "HORIZON":
                     w[name] = max(2, min(50, w[name]))
 
+        w = enforce_terminal_weight_floor(w)
         if is_valid_config(w):
             combos.append((f"RND_{i}", w))
             i += 1
@@ -678,16 +697,13 @@ def gen_random_neighbors(best_weights: dict, n: int, objective: str,
 # ==============================================================================
 
 def deduplicate(combos: list) -> list:
-    """Remove duplicate configurations."""
     seen = set()
     unique = []
-
     for label, params in combos:
         key = config_hash(params)
         if key not in seen:
             seen.add(key)
             unique.append((label, params))
-
     return unique
 
 
@@ -696,8 +712,6 @@ def deduplicate(combos: list) -> list:
 # ==============================================================================
 
 class IncrementalCSV:
-    """Appends results to CSV file after each test for crash safety."""
-
     def __init__(self, filepath, fieldnames):
         self.filepath = filepath
         self.fieldnames = fieldnames
@@ -719,12 +733,11 @@ class IncrementalCSV:
 # ==============================================================================
 
 def _run_single(args):
-    """Worker: run one test and return scored result."""
     label, params, binary, phase_name, objective = args
     r = run_test(params, binary)
     r = apply_scores(r, objective)
-    r["label"] = label
-    r["phase"] = phase_name
+    r["label"]    = label
+    r["phase"]    = phase_name
     r["raceline"] = RACELINE_TAG
     r.update(canonicalize_params(params))
     return r
@@ -736,9 +749,7 @@ def _run_single(args):
 
 def run_phase(phase_name: str, combos: list, binary: str, results: list,
               t0: float, num_workers: int, csv_writer, objective: str) -> tuple:
-    """Run a sweep phase. Returns (passed, failed)."""
     combos = deduplicate(combos)
-
     if not combos:
         print(f"  ({phase_name}: empty, skipping)")
         return 0, 0
@@ -759,25 +770,24 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
 
             r = run_test(params, binary)
             r = apply_scores(r, objective)
-            r["label"] = label
-            r["phase"] = phase_name
+            r["label"]    = label
+            r["phase"]    = phase_name
             r["raceline"] = RACELINE_TAG
             r.update(canonicalize_params(params))
             results.append(r)
-
             if csv_writer:
                 csv_writer.write_row(r)
 
+            wc = int(r.get("wall_collisions", 0))
             if r["status"] != "OK":
                 failed += 1
                 print(f"FAIL  (ETA {eta:.0f}s)")
-            elif not is_safe_result(r):
+            elif wc > 0:
                 failed += 1
-                print(f"unsafe wc={r.get('wall_collisions', '?')}  "
-                      f"(ETA {eta:.0f}s)")
+                print(f"COLLISION wc={wc} speed={r.get('avg_speed',0):.2f}  (ETA {eta:.0f}s)")
             else:
                 passed += 1
-                print(f"sc={r['score']:7.2f}  avgv={r.get('avg_speed', 0.0):.2f}"
+                print(f"sc={r['score']:7.4f}  speed={r.get('avg_speed',0):.3f} m/s"
                       f"  ec={r['avg_contouring_err']:.3f}  (ETA {eta:.0f}s)")
     else:
         done_count = 0
@@ -804,30 +814,30 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
                     done_count += 1
                     r = future.result()
                     results.append(r)
-
                     if csv_writer:
                         csv_writer.write_row(r)
 
                     elapsed = time.time() - t0
                     rate = max(done_count, 1) / max(elapsed, 0.01)
                     eta = (total - done_count) / max(rate, 0.01)
+                    wc = int(r.get("wall_collisions", 0))
 
                     if r["status"] != "OK":
                         failed += 1
                         print(f"  [{done_count:4d}/{total}] "
                               f"{r['label']:55s} FAIL  (ETA {eta:.0f}s)")
-                    elif not is_safe_result(r):
+                    elif wc > 0:
                         failed += 1
                         print(f"  [{done_count:4d}/{total}] "
                               f"{r['label']:55s} "
-                              f"unsafe wc={r.get('wall_collisions', '?')}  "
-                              f"(ETA {eta:.0f}s)")
+                              f"COLLISION wc={wc} speed={r.get('avg_speed',0):.2f}"
+                              f"  (ETA {eta:.0f}s)")
                     else:
                         passed += 1
                         print(f"  [{done_count:4d}/{total}] "
                               f"{r['label']:55s} "
-                              f"sc={r['score']:7.2f}  "
-                              f"avgv={r.get('avg_speed', 0.0):.2f}  "
+                              f"sc={r['score']:7.4f}  "
+                              f"speed={r.get('avg_speed',0):.3f} m/s  "
                               f"ec={r['avg_contouring_err']:.3f}  "
                               f"(ETA {eta:.0f}s)")
 
@@ -835,102 +845,80 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
 
 
 # ==============================================================================
-# SANITY CHECK
-# ==============================================================================
-
-def sanity_check_params(binary: str):
-    """Verify key swept parameters actually affect output."""
-    print("\nRunning parameter effect sanity check...")
-
-    print("  [1/5] Running baseline...", end=" ", flush=True)
-    baseline = run_test(dict(BASE), binary)
-    print(f"status={baseline.get('status')}")
-    baseline_sig = (
-        baseline.get("status"),
-        round(baseline.get("avg_contouring_err", 0.0), 4),
-        round(baseline.get("avg_heading_err", 0.0), 4),
-        round(baseline.get("max_vx", 0.0), 2),
-    )
-
-    probes = [
-        ("Q_CONTOURING", BASE.get("Q_CONTOURING", 1000) * 1.5),
-        ("Q_LAG", BASE.get("Q_LAG", 700) * 1.5),
-        ("ADMM_RHO", BASE.get("ADMM_RHO", 17) * 1.5),
-        ("HORIZON", min(50, int(BASE.get("HORIZON", 7) + 3))),
-    ]
-
-    ineffective = []
-    for i, (name, new_val) in enumerate(probes, 2):
-        print(f"  [{i}/5] Probing {name}={new_val}...", end=" ", flush=True)
-        p = dict(BASE)
-        p[name] = new_val
-
-        rr = run_test(p, binary)
-        print(f"status={rr.get('status')}")
-        sig = (
-            rr.get("status"),
-            round(rr.get("avg_contouring_err", 0.0), 4),
-            round(rr.get("avg_heading_err", 0.0), 4),
-            round(rr.get("max_vx", 0.0), 2),
-        )
-        if sig == baseline_sig:
-            ineffective.append(name)
-
-    if ineffective:
-        print(f"  WARNING: Parameters with no detected effect: "
-              f"{', '.join(ineffective)}")
-        print("           Check env-variable plumbing in MPCC code.")
-    else:
-        print("  All tested parameters show effect on output — OK")
-
-
-# ==============================================================================
 # RESULT HELPERS
 # ==============================================================================
 
 def get_top_n_params(results: list, n: int = CASCADE_TOP_N) -> list:
-    """Return list of up to N best params dicts."""
+    """Return list of up to N best params dicts from collision-free runs only."""
     safe = [r for r in results if is_safe_result(r)]
-
-    if not safe:
-        unsafe = sorted(results, key=lambda x: (
-            0 if x.get("status") == "OK" else 1,
-            x.get("wall_collisions", 999),
-            x.get("score", 99999)
-        ))
-        safe = unsafe[:n] if unsafe else []
-        if safe:
-            print("  WARNING: No safe candidates yet; "
-                  "using least-bad configs for cascade.")
-    else:
-        safe.sort(key=lambda x: x.get("score", 999999.0))
-
+    safe.sort(key=lambda r: r.get("score", 9999))
     seen = set()
-    unique = []
+    top = []
     for r in safe:
-        key = config_hash({k: r.get(k, BASE[k]) for k in BASE.keys()})
-        if key not in seen:
-            seen.add(key)
-            params = {k: r.get(k, BASE[k]) for k in BASE.keys()}
-            unique.append((r, params))
-        if len(unique) >= n:
+        params = {k: r[k] for k in MPCC_PRINT_ORDER if k in r}
+        h = config_hash(params)
+        if h not in seen:
+            seen.add(h)
+            top.append(params)
+        if len(top) >= n:
             break
-
-    if unique:
-        for i, (r, _) in enumerate(unique):
-            print(f"  Top-{i+1}: {r['label'][:50]} "
-                  f"(score={r.get('score', 0.0):.2f}, "
-                  f"avgv={r.get('avg_speed', 0):.2f})")
-
-    return [p for _, p in unique]
+    return top
 
 
-def update_base(new_params: dict):
-    """Update BASE dict with new values."""
-    if new_params:
-        for k in BASE:
-            if k in new_params:
-                BASE[k] = new_params[k]
+def get_best_params(results: list) -> dict:
+    """Return params dict of best collision-free result."""
+    top = get_top_n_params(results, n=1)
+    if top:
+        return top[0]
+    # Fallback: if nothing is safe, return baseline
+    return dict(BASE)
+
+
+def print_best(results: list, objective: str, label: str = ""):
+    safe = [r for r in results if is_safe_result(r)]
+    if not safe:
+        print(f"  [{label}] No collision-free results yet.")
+        return
+    safe.sort(key=lambda r: r.get("score", 9999))
+    b = safe[0]
+    print(f"\n  {'='*60}")
+    print(f"  Best {label} (collision-free only):")
+    print(f"    score={b['score']:.4f}  speed={b.get('avg_speed',0):.3f} m/s"
+          f"  ec={b.get('avg_contouring_err',0):.3f}  iters={b.get('avg_iters',0):.1f}")
+    print(f"    label={b.get('label','?')}  phase={b.get('phase','?')}")
+    for k in iter_ordered_base_keys():
+        if k in b:
+            print(f"    {k}={b[k]}")
+    print(f"  {'='*60}\n")
+
+
+# ==============================================================================
+# SANITY CHECK
+# ==============================================================================
+
+def sanity_check_params(binary: str):
+    print("\nRunning parameter effect sanity check...")
+    print("  [1/5] Running baseline...", end=" ", flush=True)
+    baseline = run_test(dict(BASE), binary)
+    print(f"status={baseline.get('status')}  "
+          f"speed={baseline.get('avg_speed',0):.3f}  "
+          f"wc={baseline.get('wall_collisions','?')}")
+
+    probes = [
+        ("Q_CONTOURING", BASE.get("Q_CONTOURING", 1000) * 1.5),
+        ("Q_LAG",        BASE.get("Q_LAG", 300) * 1.5),
+        ("ADMM_RHO",     BASE.get("ADMM_RHO", 0.9) * 1.5),
+        ("HORIZON",      min(50, int(BASE.get("HORIZON", 10) + 3))),
+    ]
+    for i, (name, new_val) in enumerate(probes, 2):
+        print(f"  [{i}/5] Probing {name}={new_val}...", end=" ", flush=True)
+        p = dict(BASE)
+        p[name] = new_val
+        rr = run_test(p, binary)
+        print(f"status={rr.get('status')}  "
+              f"speed={rr.get('avg_speed',0):.3f}  "
+              f"wc={rr.get('wall_collisions','?')}")
+    print("  Sanity check done.")
 
 
 # ==============================================================================
@@ -938,307 +926,204 @@ def update_base(new_params: dict):
 # ==============================================================================
 
 def main():
+    import argparse
     global BASE, RACELINE_PATH, RACELINE_TAG
 
-    # Parse arguments
-    num_workers = multiprocessing.cpu_count()
-    objective = "racer"
-    raceline_override = None
+    parser = argparse.ArgumentParser(description="MPCC Weight Tuner")
+    parser.add_argument("--jobs", "-j", type=int,
+                        default=multiprocessing.cpu_count(),
+                        help="Number of parallel workers")
+    parser.add_argument("--objective", choices=["racer", "tracker"],
+                        default="racer",
+                        help="Optimization objective")
+    parser.add_argument("--raceline", default=DEFAULT_RACELINE_NAME,
+                        help="Raceline CSV filename or path")
+    parser.add_argument("--binary", default=None,
+                        help="Path to test_sim_drive binary")
+    parser.add_argument("--sanity-only", action="store_true",
+                        help="Only run sanity check, then exit")
+    parser.add_argument("--phase1-only", action="store_true",
+                        help="Only run Phase 1 (one-at-a-time)")
+    args = parser.parse_args()
 
-    for i, arg in enumerate(sys.argv):
-        if arg in ("--jobs", "-j") and i + 1 < len(sys.argv):
-            try:
-                num_workers = int(sys.argv[i + 1])
-            except ValueError:
-                print(f"WARNING: invalid --jobs value '{sys.argv[i + 1]}', "
-                      "using CPU count")
-                num_workers = multiprocessing.cpu_count()
-            if num_workers <= 0:
-                num_workers = multiprocessing.cpu_count()
-        if arg == "--objective" and i + 1 < len(sys.argv):
-            objective = sys.argv[i + 1].strip().lower()
-        if arg == "--raceline" and i + 1 < len(sys.argv):
-            raceline_override = sys.argv[i + 1].strip()
+    RACELINE_PATH = resolve_raceline_path(args.raceline)
+    RACELINE_TAG  = infer_raceline_tag(RACELINE_PATH)
 
-    if objective not in ("racer", "tracker"):
-        print("ERROR: --objective must be 'racer' or 'tracker'")
-        sys.exit(1)
-
-    if raceline_override:
-        RACELINE_PATH = resolve_raceline_path(raceline_override)
-    else:
-        RACELINE_PATH = os.path.abspath(RACELINE_PATH)
-    RACELINE_TAG = infer_raceline_tag(RACELINE_PATH)
-
-    # Initialize BASE config
-    BASE.update(BASE_CONFIG)
-    if objective == "racer":
-        BASE.update(RACER_BASE_OVERRIDES)
-
-    print(f"\n{'='*80}")
-    print("MPCC Weight Tuning — Hardware Map")
-    print(f"{'='*80}")
-    print(f"  Workers:           {num_workers}")
-    print(f"  Objective:         {objective}")
-    print(f"  Cascade:           top {CASCADE_TOP_N}")
-    print(f"  Global passes:     {GLOBAL_OPTIMIZATION_PASSES}")
-    print(f"  Phase7 random:     {PHASE7_RANDOM_COUNT.get(objective, 3600)}")
-    print(f"  Phase8 random:     {PHASE8_RANDOM_COUNT.get(objective, 1800)}")
-    print(f"  Raceline:          {RACELINE_PATH}")
-    print(f"  Raceline tag:      {RACELINE_TAG}")
-
-    os.chdir(MPCC_DIR)
-
-    # Build binary
-    binary_name = f"test_sim_drive_{os.getpid()}_{int(time.time())}"
-    binary = os.path.join(MPCC_DIR, binary_name)
-
-    print("\nBuilding MPCC test binary...")
-    ret = subprocess.run([
-        "gcc",
-        "-D_GNU_SOURCE", "-O3", "-std=c99", "-Wall", "-ffast-math",
-        "-Wno-unused-variable", "-Wno-unused-but-set-variable",
-        "-Wno-unused-function", "-Wno-unknown-pragmas",
-        f"-I{MPCC_DIR}/include",
-        f"{MPCC_DIR}/test/test_sim_drive.c",
-        f"{MPCC_DIR}/src/mpcc.c",
-        f"{MPCC_DIR}/src/mpcc_vehicle_model.c",
-        f"{MPCC_DIR}/src/qp_solver_mpcc.c",
-        "-lm",
-        "-o", binary,
-    ], capture_output=True, text=True)
-
-    if ret.returncode != 0:
-        print(f"BUILD FAILED:\n{ret.stderr}")
-        sys.exit(1)
-    print("  Build OK")
-
-    # Check raceline exists
     if not os.path.exists(RACELINE_PATH):
         print(f"ERROR: Raceline not found: {RACELINE_PATH}")
         sys.exit(1)
 
-    # Sanity check
-    sanity_check_params(binary)
+    # Set up BASE
+    BASE.update(BASE_CONFIG)
+    if args.objective == "racer":
+        BASE.update(RACER_BASE_OVERRIDES)
+    BASE = enforce_terminal_weight_floor(BASE)
 
-    # Setup
+    # Find binary
+    binary = args.binary
+    if binary is None:
+        candidates = [
+            os.path.join(MPCC_DIR, "build", "test_sim_drive"),
+            os.path.join(MPCC_DIR, "test_sim_drive"),
+            os.path.join(PROJECT_DIR, "build", "test_sim_drive"),
+        ]
+        for c in candidates:
+            if os.path.isfile(c):
+                binary = c
+                break
+    if binary is None or not os.path.isfile(binary):
+        print("ERROR: Cannot find test_sim_drive binary. Use --binary PATH.")
+        sys.exit(1)
+
+    print(f"MPCC Tuner — objective={args.objective}  workers={args.jobs}")
+    print(f"  binary:   {binary}")
+    print(f"  raceline: {RACELINE_PATH}")
+    print(f"  Scoring:  zero-collision HARD constraint — any wc>0 → score=1000+wc")
+    print()
+
+    if args.sanity_only:
+        sanity_check_params(binary)
+        return
+
+    # Output CSV
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    out_csv = os.path.join(MPCC_DIR, "test",
+                           f"tuning_{args.objective}_{ts}.csv")
+    all_fields = list(MPCC_PRINT_ORDER) + [
+        "label", "phase", "raceline",
+        "score", "tracker_score", "racer_score",
+        "passed", "failed",
+        "max_contouring_err", "avg_contouring_err",
+        "max_heading_err", "avg_heading_err",
+        "max_vx", "avg_speed",
+        "avg_vel_err", "max_vel_err",
+        "avg_solve_us", "max_solve_us",
+        "wall_collisions", "time_above_5ms",
+        "avg_iters", "avg_rho", "avg_rho_u",
+        "avg_adapt_updates", "avg_clip_events",
+        "status", "return_code",
+    ]
+    csv_writer = IncrementalCSV(out_csv, all_fields)
+    print(f"  Output: {out_csv}\n")
+
     results = []
     t0 = time.time()
-    total_p = total_f = 0
 
-    # CSV writer
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    results_dir = os.path.join(MPCC_DIR, "tuning_results")
-    os.makedirs(results_dir, exist_ok=True)
-    outfile = os.path.join(results_dir,
-                           f"tuning_hardware_{objective}_{timestamp}.csv")
-    fieldnames = (
-        ["label", "phase", "raceline", "score", "tracker_score", "racer_score",
-         "passed", "failed", "max_contouring_err", "avg_contouring_err",
-         "max_heading_err", "avg_heading_err", "max_vx", "avg_speed",
-         "avg_vel_err", "max_vel_err", "avg_solve_us", "max_solve_us",
-         "wall_collisions", "time_above_5ms", "avg_iters",
-         "avg_rho", "avg_rho_u", "avg_adapt_updates", "avg_clip_events",
-         "status", "return_code"]
-        + list(BASE.keys())
-    )
-    csv_writer = IncrementalCSV(outfile, fieldnames)
-    print(f"  Results: {outfile}\n")
+    # ── Phase 1 ──────────────────────────────────────────────────────────────
+    run_phase("Phase 1: One-at-a-time sensitivity",
+              gen_one_at_a_time(), binary, results, t0,
+              args.jobs, csv_writer, args.objective)
+    print_best(results, args.objective, "after Phase 1")
 
-    # ========== PHASE 1: One-at-a-time ==========
-    p, f = run_phase("Phase 1: One-at-a-time sensitivity",
-                     gen_one_at_a_time(), binary, results, t0,
-                     num_workers, csv_writer, objective)
-    total_p += p
-    total_f += f
+    if args.phase1_only:
+        return
 
-    # ========== PHASE 2: Primary grid ==========
-    combos = gen_primary_grid()
-    print(f"\n  Phase 2 will test {len(combos):,} configurations")
-    p, f = run_phase(
-        "Phase 2: Primary grid "
-        "(Q_CONTOURING x Q_LAG x Q_PROGRESS x HORIZON x DT)",
-        combos, binary, results, t0, num_workers, csv_writer, objective)
-    total_p += p
-    total_f += f
+    # ── Phase 2 ──────────────────────────────────────────────────────────────
+    run_phase("Phase 2: Primary grid (contouring+lag+progress+terminal+horizon)",
+              gen_primary_grid(), binary, results, t0,
+              args.jobs, csv_writer, args.objective)
+    print_best(results, args.objective, "after Phase 2")
 
-    # Get top N for cascade
-    print("\n  Selecting top configs for cascade...")
-    top_configs = get_top_n_params(results)
-    if not top_configs:
-        top_configs = [dict(BASE)]
+    # Cascade: update BASE to best config so far
+    top10 = get_top_n_params(results, CASCADE_TOP_N)
+    if top10:
+        BASE.clear()
+        BASE.update(top10[0])
+        BASE.update(enforce_terminal_weight_floor(BASE))
 
-    # ========== PHASE 3: Skipped ==========
-    print("\n  Phase 3: Skipped (no wall-margin concept in MPCC)")
+    # ── Phase 4 ──────────────────────────────────────────────────────────────
+    # Run secondary grid for each of top-10 Phase-2 configs
+    p4_combos = []
+    for seed_params in top10:
+        for qvy, qom, rd, wdr, vtm in itertools.product(
+                PHASE4_VALUES["Q_VY"],
+                PHASE4_VALUES["Q_OMEGA"],
+                PHASE4_VALUES["R_DELTA"],
+                PHASE4_VALUES["W_DELTA_RATE"],
+                PHASE4_VALUES["V_THETA_MAX"]):
+            w = dict(seed_params)
+            w["Q_VY"]         = qvy
+            w["Q_OMEGA"]      = qom
+            w["R_DELTA"]      = rd
+            w["W_DELTA_RATE"] = wdr
+            w["V_THETA_MAX"]  = vtm
+            w = enforce_terminal_weight_floor(w)
+            p4_combos.append((f"VY={qvy}+O={qom}+RD={rd}+WDR={wdr}+VT={vtm}", w))
 
-    # ========== PHASE 4: Secondary grid (seed screening) ==========
+    run_phase("Phase 4: Secondary grid (state-reg + control effort + v_theta)",
+              p4_combos, binary, results, t0,
+              args.jobs, csv_writer, args.objective)
+    print_best(results, args.objective, "after Phase 4")
+
+    best = get_best_params(results)
+
+    # ── Phase 5 ──────────────────────────────────────────────────────────────
+    p5_combos = []
+    for rho, mi, tol in itertools.product(
+            PHASE5_VALUES["ADMM_RHO"],
+            PHASE5_VALUES["ADMM_MAX_ITER"],
+            PHASE5_VALUES["ADMM_TOL"]):
+        w = dict(best)
+        w["ADMM_RHO"]      = rho
+        w["ADMM_MAX_ITER"] = mi
+        w["ADMM_TOL"]      = tol
+        w = enforce_terminal_weight_floor(w)
+        p5_combos.append((f"rho={rho}+mi={mi}+tol={tol}", w))
+
+    run_phase("Phase 5: Solver parameters (ADMM_RHO x ADMM_MAX_ITER x ADMM_TOL)",
+              p5_combos, binary, results, t0,
+              args.jobs, csv_writer, args.objective)
+    print_best(results, args.objective, "after Phase 5")
+
+    best = get_best_params(results)
+
+    # ── Phases 6-8: iterative optimization ───────────────────────────────────
+    for opt_pass in range(GLOBAL_OPTIMIZATION_PASSES):
+        best = get_best_params(results)
+        print(f"\n  === Optimization pass {opt_pass+1}/{GLOBAL_OPTIMIZATION_PASSES} ===")
+
+        # Phase 6: fine-tuning
+        run_phase(f"Phase 6 (pass {opt_pass+1}): Fine-tuning",
+                  gen_fine_tuning(best), binary, results, t0,
+                  args.jobs, csv_writer, args.objective)
+
+        best = get_best_params(results)
+
+        # Phase 7: random exploration
+        n7 = PHASE7_RANDOM_COUNT[args.objective]
+        run_phase(f"Phase 7 (pass {opt_pass+1}): Random exploration ({n7})",
+                  gen_random_neighbors(best, n7, args.objective,
+                                       seed_offset=opt_pass * 10000),
+                  binary, results, t0,
+                  args.jobs, csv_writer, args.objective)
+
+        best = get_best_params(results)
+
+        # Phase 8: exploitation
+        n8 = PHASE8_RANDOM_COUNT[args.objective]
+        exploit_profile = (f"{args.objective}_exploit"
+                           if f"{args.objective}_exploit" in RANDOM_PROFILES
+                           else args.objective)
+        run_phase(f"Phase 8 (pass {opt_pass+1}): Exploitation ({n8})",
+                  gen_random_neighbors(best, n8, args.objective,
+                                       profile_override=exploit_profile,
+                                       seed_offset=opt_pass * 10000 + 5000),
+                  binary, results, t0,
+                  args.jobs, csv_writer, args.objective)
+
+        print_best(results, args.objective, f"pass {opt_pass+1}")
+
+    # ── Final summary ─────────────────────────────────────────────────────────
     print(f"\n{'='*80}")
-    print(f"Phase 4 seed screening from top {len(top_configs)} Phase-2 configs")
+    print("FINAL RESULT (collision-free configs only, ranked by speed)")
     print(f"{'='*80}")
+    print_best(results, args.objective, "FINAL")
 
-    for ci, cascade_base in enumerate(top_configs):
-        print(f"\n{'#'*80}")
-        print(f"# PHASE 4 SEED {ci+1}/{len(top_configs)}")
-        print(f"{'#'*80}")
-
-        update_base(cascade_base)
-        p, f = run_phase(
-            f"Phase 4: Secondary grid [seed {ci+1}/{len(top_configs)}]",
-            gen_secondary_grid(), binary, results, t0,
-            num_workers, csv_writer, objective)
-        total_p += p
-        total_f += f
-
-    # Promote one global best after seed screening
-    best = get_top_n_params(results, n=1)
-    if best:
-        update_base(best[0])
-
-    # ========== PHASES 5-8: Global optimization loop ==========
-    for pi in range(GLOBAL_OPTIMIZATION_PASSES):
-        print(f"\n{'#'*80}")
-        print(f"# GLOBAL OPTIMIZATION PASS "
-              f"{pi+1}/{GLOBAL_OPTIMIZATION_PASSES}")
-        print(f"{'#'*80}")
-
-        # Phase 5: solver parameter sweep
-        p, f = run_phase(
-            f"Phase 5: Solver parameters "
-            f"[pass {pi+1}/{GLOBAL_OPTIMIZATION_PASSES}]",
-            gen_solver_grid(), binary, results, t0,
-            num_workers, csv_writer, objective)
-        total_p += p
-        total_f += f
-
-        top = get_top_n_params(results, n=1)
-        if top:
-            update_base(top[0])
-
-        # Phase 6: fine tuning around current global best
-        best = get_top_n_params(results, n=1)
-        if best:
-            p, f = run_phase(
-                f"Phase 6: Fine-tuning "
-                f"[pass {pi+1}/{GLOBAL_OPTIMIZATION_PASSES}]",
-                gen_fine_tuning(best[0]), binary, results, t0,
-                num_workers, csv_writer, objective)
-            total_p += p
-            total_f += f
-
-            top = get_top_n_params(results, n=1)
-            if top:
-                update_base(top[0])
-
-        # Phase 7: random exploration around global best
-        best = get_top_n_params(results, n=1)
-        if best:
-            n_random = PHASE7_RANDOM_COUNT.get(objective, 3600)
-            p, f = run_phase(
-                f"Phase 7: Random neighbors ({n_random}) "
-                f"[pass {pi+1}/{GLOBAL_OPTIMIZATION_PASSES}]",
-                gen_random_neighbors(best[0], n_random, objective,
-                                     seed_offset=7000 + pi),
-                binary, results, t0, num_workers, csv_writer, objective)
-            total_p += p
-            total_f += f
-
-            top = get_top_n_params(results, n=1)
-            if top:
-                update_base(top[0])
-
-        # Phase 8: random exploitation around updated global best
-        best = get_top_n_params(results, n=1)
-        if best:
-            n_random = PHASE8_RANDOM_COUNT.get(objective, 1800)
-            p, f = run_phase(
-                f"Phase 8: Random exploitation ({n_random}) "
-                f"[pass {pi+1}/{GLOBAL_OPTIMIZATION_PASSES}]",
-                gen_random_neighbors(best[0], n_random, objective,
-                                     profile_override=f"{objective}_exploit",
-                                     seed_offset=9000 + pi),
-                binary, results, t0, num_workers, csv_writer, objective)
-            total_p += p
-            total_f += f
-
-            top = get_top_n_params(results, n=1)
-            if top:
-                update_base(top[0])
-
-    # ========== FINAL RESULTS ==========
-    results.sort(key=lambda x: x.get("score", 999999.0))
-    elapsed = time.time() - t0
-
-    print(f"\n{'='*80}")
-    print(f"COMPLETED {len(results):,} tests in "
-          f"{elapsed:.1f}s ({elapsed/60:.1f} min)")
-    print(f"  Passed: {total_p}  Failed: {total_f}")
-    print(f"{'='*80}")
-
-    # Write sorted results
-    sorted_file = outfile.replace(".csv", "_sorted.csv")
-    if results:
-        with open(sorted_file, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames,
-                                    extrasaction="ignore")
-            writer.writeheader()
-            writer.writerows(results)
-        print(f"Results: {sorted_file}")
-
-    # Show top results
     safe = [r for r in results if is_safe_result(r)]
-    if safe:
-        print(f"\n{'='*80}")
-        print(f"TOP 20 RESULTS ({objective} objective)")
-        print(f"{'='*80}")
-
-        fmt = ("{:<4} {:<45} {:>8} {:>6} {:>6} {:>6} {:>6} "
-               "{:>6} {:>6} {:>3}")
-        print(fmt.format("Rank", "Label", "Score", "AvgSpd", "MaxVx",
-                          "AvgEc", "QC", "QL", "QP", "WC"))
-        print("-" * 105)
-
-        top = sorted(safe, key=lambda x: x.get("score", 999999.0))[:20]
-        for i, r in enumerate(top):
-            print(fmt.format(
-                i+1,
-                r['label'][:45],
-                f"{r.get('score', 0.0):.2f}",
-                f"{r.get('avg_speed', 0.0):.2f}",
-                f"{r['max_vx']:.1f}",
-                f"{r['avg_contouring_err']:.4f}",
-                f"{r.get('Q_CONTOURING', '-')}",
-                f"{r.get('Q_LAG', '-')}",
-                f"{r.get('Q_PROGRESS', '-')}",
-                f"{r.get('wall_collisions', '-')}",
-            ))
-
-        best = top[0]
-        print(f"\nBEST CONFIGURATION:")
-        print(f"  Score:        {best.get('score', 0.0):.2f}")
-        print(f"  Avg speed:    {best.get('avg_speed', 0.0):.2f} m/s")
-        print(f"  Max velocity: {best.get('max_vx', 0.0):.2f} m/s")
-        print(f"  Avg contouring err: {best['avg_contouring_err']:.4f} m")
-        print(f"  Walls:        {best['wall_collisions']}")
-        print(f"  ---")
-        for k in iter_ordered_base_keys():
-            print(f"  {k:20s} = {best.get(k, BASE[k])}")
-
-        # Print as env var command
-        print(f"\n  Run with:")
-        env_parts = []
-        for k in iter_ordered_base_keys():
-            v = best.get(k, BASE[k])
-            env_parts.append(f"{k}={v}")
-        print(f"    {' '.join(env_parts)} ./test_sim_drive")
-
-    # Cleanup
-    try:
-        os.remove(binary)
-    except OSError:
-        pass
-
-    return 0
+    print(f"  Total runs: {len(results)}  |  "
+          f"Collision-free: {len(safe)}  |  "
+          f"Output: {out_csv}")
 
 
 if __name__ == "__main__":
-    sys.exit(main() or 0)
+    main()

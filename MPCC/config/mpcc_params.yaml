@@ -1,60 +1,61 @@
-# MPCC Configuration Parameters
-# Lifted ODE: Frenet primary + Cartesian redundant
+# MPCC Configuration Parameters — Liniger-style Path Generation
+# Global Frame Liniger MPCC (7-state) with centerline reference
 #
-# State [9]: s, n, alpha, vx, vy, omega, X, Y, psi
-# Control [2]: delta, a_x
+# State [7]: s, vx, vy, omega, X, Y, psi
+# Control [3]: delta, a_x, v_theta
 #
-# Tuned via automated parameter sweep (racer objective, avg_speed=3.79 m/s, 0 walls)
+# Mode: Centerline reference with low contouring / high progress
+#        MPCC generates its own racing line within track bounds
 #
 # Usage: ros2 launch mpcc_f1_10th mpcc_launch.py
-# Override: ros2 launch mpcc_f1_10th mpcc_launch.py weight_n:=200.0
+# Override: ros2 launch mpcc_f1_10th mpcc_launch.py weight_contouring:=50.0
 
 mpcc_node:
   ros__parameters:
 
     # --- Prediction Horizon (tuned via iterative sweep, Hardware) ---
-    horizon_steps: 7
+    horizon_steps: 10
     dt: 0.02              # [seconds] time step between prediction stages
 
-    # --- Frenet Tracking Weights ---
-    # weight_n: penalizes lateral deviation (n^2) from path (Frenet approx, optional)
-    # weight_contouring: penalizes real contouring error e_c^2 (Cartesian-based)
-    # weight_lag: penalizes real lag error e_l^2 (Cartesian-based)
-    # weight_alpha: penalizes heading error (alpha^2) from path tangent
+    # --- Contouring Weights (Liniger-style: low contouring, high progress) ---
+    # weight_contouring: penalizes perpendicular distance from centerline
+    #   LOW value → MPCC can deviate from centerline to find faster path
+    # weight_lag: penalizes tangential distance (keeps s synced to position)
     # weight_progress: reward for forward progress (-q_s * v_theta)
-    weight_contouring: 2000.0     # real contouring error (perpendicular to path at s)
-    weight_lag: 136.282905        # real lag error (tangential distance at s)
-    weight_progress: 9.04816
+    #   HIGH value → MPCC aggressively maximizes speed along track
+    weight_contouring: 1400.0     # contouring error penalty
+    weight_lag: 300.0             # lag error penalty
+    weight_progress: 80.0         # progress reward
 
-    # --- State Regularization (tuned via iterative sweep) ---
-    weight_vx: 1.5        # velocity tracking weight
-    vx_ref: 4.034304      # [m/s] reference velocity
-    weight_vy: 1.5435     # lateral velocity penalty (anti-drift)
-    weight_omega: 0.805   # yaw rate penalty
+    # --- State Regularization ---
+    weight_vx: 1.5        # longitudinal velocity tracking weight
+    vx_ref: 4.0           # [m/s] reference velocity
+    weight_vy: 0.4725     # lateral velocity penalty
+    weight_omega: 0.45    # yaw rate penalty
 
-    # --- Control Effort (tuned via iterative sweep) ---
-    weight_delta: 13.75   # steering magnitude penalty
-    weight_ax: 0.054864   # acceleration magnitude penalty
-    weight_v_theta: 1.1232  # progress rate penalty
+    # --- Control Effort ---
+    weight_delta: 20.0    # steering magnitude penalty
+    weight_ax: 0.0495     # acceleration magnitude penalty
+    weight_v_theta: 0.05  # progress rate penalty
 
-    # --- Control Smoothness (rate penalties, tuned via iterative sweep) ---
-    weight_delta_rate: 0.65      # steering rate
-    weight_ax_rate: 0.610926     # acceleration rate
-    weight_v_theta_rate: 0.126   # progress acceleration rate
+    # --- Control Smoothness (rate penalties) ---
+    weight_delta_rate: 0.345     # steering rate
+    weight_ax_rate: 0.61         # acceleration rate
+    weight_v_theta_rate: 0.156   # progress acceleration rate
 
     # --- Terminal Cost ---
-    weight_contouring_terminal: 493.7625
-    weight_lag_terminal: 1072.17
-    weight_progress_terminal: 5.564503
+    weight_contouring_terminal: 4896.0
+    weight_lag_terminal: 800.0
+    weight_progress_terminal: 80.0
 
     # --- Obstacle Avoidance ---
     weight_obstacle: 1000.0   # penalty for ellipsoidal constraint violation
     obstacle_margin: 0.1      # [m] safety margin added to obstacles
 
-    # --- ADMM Solver (tuned via iterative sweep) ---
-    admm_rho: 0.9         # penalty parameter
-    admm_max_iterations: 100
-    admm_tolerance: 0.011449  # convergence tolerance
+    # --- ADMM Solver ---
+    admm_rho: 0.3         # penalty parameter
+    admm_max_iterations: 300
+    admm_tolerance: 0.005     # convergence tolerance
 
     # --- Constraint Bounds ---
     delta_max: 0.4189     # [rad] max steering angle
@@ -63,7 +64,7 @@ mpcc_node:
     vx_max: 20.0          # [m/s] max longitudinal velocity
     vx_min: 0.0           # [m/s] min longitudinal velocity
     n_max: 0.5            # [m] default track half-width
-    v_theta_max: 6.24     # [m/s] max progress rate
+    v_theta_max: 8.0     # [m/s] max progress rate
 
     # --- Tire Parameters ---
     mu: 0.745             # [-] road-tire friction coefficient
