@@ -7,7 +7,7 @@
 #
 # Defaults:
 #   DURATION_SECONDS = 120
-#   TRAJECTORY_FILE  = <workspace>/f1tenth_planning/trajectories/Spielberg_raceline_pipeline_cl050.csv
+#   TRAJECTORY_FILE  = <workspace>/f1tenth_planning/trajectories/my_track_raceline.csv
 #
 # This script:
 #   1. Syncs latest MPC sources into MPC_experimental (the ROS2 package)

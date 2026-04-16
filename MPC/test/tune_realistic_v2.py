@@ -2316,6 +2316,7 @@ def main():
     global BASE, RACELINE_PATH, RACELINE_TAG
     global TRACK_LENGTH_METERS, RACELINE_START_LEFT_BOUND, RACELINE_START_RIGHT_BOUND, EVAL_SCENARIOS
     global SCENARIO_RACELINE_PATHS
+    global GLOBAL_START_SHIFT_X_M, GLOBAL_START_SHIFT_Y_M
     
     # Parse arguments
     num_workers = multiprocessing.cpu_count()  # Default to max workers
@@ -2348,6 +2349,16 @@ def main():
             except ValueError:
                 print(f"WARNING: invalid {arg} value '{sys.argv[i + 1]}', using {GLOBAL_OPTIMIZATION_PASSES}")
                 global_passes = GLOBAL_OPTIMIZATION_PASSES
+        if arg == "--start-shift" and i + 1 < len(sys.argv):
+            parts = sys.argv[i + 1].split(",")
+            if len(parts) == 2:
+                try:
+                    GLOBAL_START_SHIFT_X_M = float(parts[0])
+                    GLOBAL_START_SHIFT_Y_M = float(parts[1])
+                except ValueError:
+                    print(f"WARNING: invalid --start-shift '{sys.argv[i + 1]}', using defaults")
+            else:
+                print(f"WARNING: --start-shift expects x,y (e.g. '0.0,0.0'), using defaults")
         if arg == "--with-obstacles":
             include_obstacles = True
         if arg == "--no-obstacles":

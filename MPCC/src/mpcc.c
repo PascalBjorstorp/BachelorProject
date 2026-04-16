@@ -237,15 +237,7 @@ void mpcc_obstacle_compute_sigma_inv(MPCCObstacle_t *obs)
  * Path Interpolation
  *===========================================================================*/
 
-/** Wrap s to [0, total_length) for closed paths. */
-static float wrap_s(float s, float total_length)
-{
-    while (s >= total_length)
-        s = s - total_length;
-    while (s < 0)
-        s = s - total_length;
-    return s;
-}
+
 
 void mpcc_path_interpolate(
     const MPCCReferencePath_t *path,
@@ -357,7 +349,7 @@ static float mpcc_find_closest_s_with_hint(
     if (path->is_closed && s_max > s_min) {
         float len = s_max - s_min;
         while (s_query > s_max) s_query = s_query - len;
-        while (s_query < s_min) s_query = s_query - len;
+        while (s_query < s_min) s_query = s_query + len;
     }
 
     uint16_t lo = 0;
@@ -495,13 +487,34 @@ MPCCState_t mpcc_state_from_vehicle_state(
     /* Compute s via forward-biased closest-waypoint search + segment projection */
     {
         if (last_closest_idx >= ref_path.num_points) last_closest_idx = 0;
+
+        /* Step 1: forward-biased index search for the best waypoint */
         uint16_t idx0 = mpcc_find_closest_index_forward_biased(
             &ref_path, st.X, st.Y, st.psi, last_closest_idx);
         uint16_t idx1 = (uint16_t)(idx0 + 1);
         if (idx1 >= ref_path.num_points)
             idx1 = ref_path.is_closed ? 0 : (ref_path.num_points - 1);
         last_closest_idx = idx0;
-        st.s = mpcc_project_s_on_segment(&ref_path, idx0, idx1, st.X, st.Y);
+
+        /* Step 2: project onto the segment for sub-waypoint precision */
+        float s_segment = mpcc_project_s_on_segment(
+            &ref_path, idx0, idx1, st.X, st.Y);
+
+        /* Step 3: use hint-based windowed search to guard against
+         * index errors — if it disagrees significantly, trust the
+         * windowed search (it checked ±80 waypoints vs 1 segment). */
+        float s_hint_val = (warm_start_available)
+            ? prev_predicted_states[0].s
+            : s_segment;
+
+        float s_windowed = mpcc_find_closest_s_with_hint(
+            &ref_path, st.X, st.Y, s_hint_val);
+
+        /* Pick whichever is further along (guards against backward jumps)
+         * but only if they agree within a reasonable tolerance. */
+        float diff = s_windowed - s_segment;
+        if (diff < 0) diff = -diff;
+        st.s = (diff < 1.0f) ? s_segment : s_windowed;
     }
 
     return st;
@@ -536,15 +549,15 @@ static void build_stage_cost(
      * in add_contouring_lag_cost() since they depend on the operating point. */
 
     /* State regularization (same for running and terminal) */
-    cost->Q[MPCC_IDX_VY][MPCC_IDX_VY] = config.weight_vy;
-    cost->Q[MPCC_IDX_OMEGA][MPCC_IDX_OMEGA] = config.weight_omega;
+    cost->Q[MPCC_IDX_VY][MPCC_IDX_VY] = 2.0f * config.weight_vy;
+    cost->Q[MPCC_IDX_OMEGA][MPCC_IDX_OMEGA] = 2.0f * config.weight_omega;
 
     /* Velocity tracking: q_vx * (vx - vx_ref)^2
      * = q_vx * vx^2 - 2*q_vx*vx_ref*vx + const
      * Q[VX][VX] = q_vx,  q[VX] = -2*q_vx*vx_ref */
     if (config.weight_vx > 0)
     {
-        cost->Q[MPCC_IDX_VX][MPCC_IDX_VX] = config.weight_vx;
+        cost->Q[MPCC_IDX_VX][MPCC_IDX_VX] = 2.0f * config.weight_vx;
         cost->q[MPCC_IDX_VX] = -(2.0f * config.weight_vx * config.vx_ref);
     }
 
@@ -576,11 +589,11 @@ static void build_stage_cost(
         }
 
         cost->R[MPCC_IDX_DELTA][MPCC_IDX_DELTA] =
-            (config.weight_delta + w_dr);
+            2.0f * (config.weight_delta + w_dr);
         cost->R[MPCC_IDX_AX][MPCC_IDX_AX] =
-            (config.weight_ax + w_ar);
+            2.0f * (config.weight_ax + w_ar);
         cost->R[MPCC_IDX_VTHETA][MPCC_IDX_VTHETA] =
-            (config.weight_v_theta + w_vr);
+            2.0f * (config.weight_v_theta + w_vr);
     }
 }
 
@@ -646,7 +659,7 @@ static void add_contouring_lag_cost(
     g_c[MPCC_IDX_X] = sin_phi;
     g_c[MPCC_IDX_Y] = (0 - cos_phi);                 /* -cos(phi) */
 
-    g_l[MPCC_IDX_S] = ((kappa + e_c_bar) * 1.0f);  /* kappa * e_c + 1 */
+    g_l[MPCC_IDX_S] = (kappa * e_c_bar) + 1.0f;  /* de_l/ds = kappa * e_c + 1 */
     g_l[MPCC_IDX_X] = (0 - cos_phi);                      /* -cos(phi) */
     g_l[MPCC_IDX_Y] = (0 - sin_phi);                      /* -sin(phi) */
 
@@ -691,6 +704,9 @@ static void add_contouring_lag_cost(
 /*===========================================================================
  * QP Problem Construction
  *===========================================================================*/
+
+static void state_to_array(const MPCCState_t *st, float arr[MPCC_NX]);
+static void array_to_state(const float arr[MPCC_NX], MPCCState_t *st);
 
 static void build_qp_problem(
     const MPCCState_t *x0,
@@ -746,39 +762,46 @@ static void build_qp_problem(
 
     MPCCState_t z_bar = *x0;
     MPCCControl_t u_bar;
+
     if (warm_start_available)
         u_bar = prev_predicted_controls[0];
     else {
-        u_bar.delta = 0;
-        u_bar.a_x = 0;
-        u_bar.v_theta = 1.0f;
+        u_bar.delta   = 0.0f;
+        u_bar.a_x     = 0.0f;
+        u_bar.v_theta = 1.0f;  /* gentle forward progress */
     }
 
     for (uint16_t k = 0; k < N; k++)
     {
-        /* Get operating point: k=0 always uses the actual current state x0
-         * for accurate linearization.  Subsequent stages use the warm-start
-         * trajectory (shifted from previous solve). */
+        /* --- Pick operating point for this stage --- */
         if (warm_start_available && k > 0)
         {
-            /* shift_warm_start() already advanced the trajectory by one step,
-             * so stage k should use index k (not k+1). */
+            /* Warm start: use the shifted previous solution.
+             * Already correct — shift_warm_start() moved everything
+             * forward by one step so index k matches stage k. */
             z_bar = prev_predicted_states[k];
             u_bar = prev_predicted_controls[k];
         }
+        /* Cold start (k == 0): z_bar is already x0, set above.
+         * Cold start (k  > 0): z_bar was propagated forward at the
+         *                      bottom of the previous iteration — see below. */
 
         /* Interpolate path at s_bar */
         MPCCPathPoint_t path_pt;
         mpcc_path_interpolate(&ref_path, z_bar.s, &path_pt);
 
-        /* Linearize dynamics */
+        /* --- ADD: store path geometry for ADMM track projection --- */
+        qp->path_x_ref[k]   = path_pt.x_ref;
+        qp->path_y_ref[k]   = path_pt.y_ref;
+        qp->path_phi_ref[k] = path_pt.phi_ref;
+
+
+        /* Linearize dynamics — produces A, B, d for this stage */
         mpcc_linearize_dynamics(&z_bar, &u_bar,
-                          config.dt, &config, &qp->dynamics[k]);
+                                config.dt, &config, &qp->dynamics[k]);
 
-        /* Build stage cost */
+        /* Build costs ... (unchanged) */
         build_stage_cost(&qp->stage_cost[k], 0, k);
-
-        /* Add real contouring/lag error cost (linearized at operating point) */
         add_contouring_lag_cost(&qp->stage_cost[k], &z_bar, &path_pt,
                                 config.weight_contouring, config.weight_lag);
 
@@ -862,29 +885,60 @@ static void build_qp_problem(
             qp->ax_lim_stage[k] = config.ax_max;
         }
 
-        /* TODO: If obstacles are active, linearize ellipsoidal constraints
-         * and add as softened penalty to the stage cost.
-         *
-         * For each obstacle j:
-         *   h_j(X, Y) = (p - c)^T Sigma_inv (p - c) - 1
-         *   If h_j < 0 at the operating point (constraint violated):
-         *     Linearize: grad_h^T * [dX; dY] + h_bar >= 0
-         *     Add as penalty: weight_obstacle * max(0, -h_lin)^2
-         */
+        if (!warm_start_available)
+        {
+            float x_arr[MPCC_NX], x_next[MPCC_NX];
+            state_to_array(&z_bar, x_arr);
+
+            float u_arr[MPCC_NU] = {
+                u_bar.delta,
+                u_bar.a_x,
+                u_bar.v_theta
+            };
+
+            /* x_next = A·x + B·u + d */
+            for (int i = 0; i < MPCC_NX; i++) {
+                x_next[i] = qp->dynamics[k].d[i];          /* start with d */
+                for (int j = 0; j < MPCC_NX; j++)
+                    x_next[i] += qp->dynamics[k].A[i][j] * x_arr[j];
+                for (int j = 0; j < MPCC_NU; j++)
+                    x_next[i] += qp->dynamics[k].B[i][j] * u_arr[j];
+            }
+
+            array_to_state(x_next, &z_bar);   /* z_bar is now x_{k+1} */
+            /* u_bar stays constant (zero-input rollout — simple & stable) */
+        }
     }
 
     /* Terminal stage track bound */
     {
+        MPCCState_t z_terminal;
+
+        if (warm_start_available) {
+            /* prev_predicted_states[N] is the terminal state from the
+             * previous solve, shifted by shift_warm_start(). This is the
+             * correct operating point for the terminal cost linearization. */
+            z_terminal = prev_predicted_states[N];
+        } else {
+            /* Cold start: no previous trajectory. z_bar (stage N-1 op-point)
+             * is the best approximation available. */
+            z_terminal = z_bar;
+        }
+
         MPCCPathPoint_t path_pt;
-        mpcc_path_interpolate(&ref_path, z_bar.s, &path_pt);
-        qp->track_left[N] = path_pt.left_bound;
+        mpcc_path_interpolate(&ref_path, z_terminal.s, &path_pt);  // ✓ uses stage N's s
+
+        qp->track_left[N]  = path_pt.left_bound;
         qp->track_right[N] = path_pt.right_bound;
 
-        /* Terminal cost — also override vx_ref so terminal matches stage vx targets */
+        /* --- terminal stage geometry --- */
+        qp->path_x_ref[N]   = path_pt.x_ref;
+        qp->path_y_ref[N]   = path_pt.y_ref;
+        qp->path_phi_ref[N] = path_pt.phi_ref;
+
         build_stage_cost(&qp->terminal_cost, 1, N);
 
-        /* Add real contouring/lag error cost at terminal stage */
-        add_contouring_lag_cost(&qp->terminal_cost, &z_bar, &path_pt,
+        add_contouring_lag_cost(&qp->terminal_cost, &z_terminal, &path_pt,  // ✓ correct op-point
                                 config.weight_contouring_terminal,
                                 config.weight_lag_terminal);
 
@@ -897,8 +951,6 @@ static void build_qp_problem(
 /*===========================================================================
  * Warm Start Management
  *===========================================================================*/
-
-static void state_to_array(const MPCCState_t *st, float arr[MPCC_NX]);
 
 static void shift_warm_start(void)
 {
@@ -915,6 +967,41 @@ static void shift_warm_start(void)
         prev_predicted_controls[k] = prev_predicted_controls[k + 1];
     /* prev_predicted_controls[N-1] stays as-is (hold last) */
 
+    /* Extrapolate terminal state: prev_predicted_states[N] is now stale
+     * (the shift loop never updates index N). Propagate one step forward
+     * from the new [N-1] using the linearized dynamics so the terminal
+     * operating point used by build_qp_problem() is fresh each cycle.
+     *
+     *   x_N = A * x_{N-1} + B * u_{N-1} + d
+     */
+    {
+        MPCCLinearSystem_t dyn_terminal;
+        mpcc_linearize_dynamics(
+            &prev_predicted_states[N - 1],    /* new [N-1] after shift */
+            &prev_predicted_controls[N - 1],  /* held last control */
+            config.dt, &config, &dyn_terminal);
+
+        float x_arr[MPCC_NX];
+        float x_next[MPCC_NX];
+        state_to_array(&prev_predicted_states[N - 1], x_arr);
+
+        float u_arr[MPCC_NU] = {
+            prev_predicted_controls[N - 1].delta,
+            prev_predicted_controls[N - 1].a_x,
+            prev_predicted_controls[N - 1].v_theta
+        };
+
+        for (int i = 0; i < MPCC_NX; i++) {
+            x_next[i] = dyn_terminal.d[i];                      /* affine offset */
+            for (int j = 0; j < MPCC_NX; j++)
+                x_next[i] += dyn_terminal.A[i][j] * x_arr[j];  /* A * x */
+            for (int j = 0; j < MPCC_NU; j++)
+                x_next[i] += dyn_terminal.B[i][j] * u_arr[j];  /* B * u */
+        }
+
+        array_to_state(x_next, &prev_predicted_states[N]);      /* fresh x_N */
+    }
+
     /* Copy shifted trajectory into ADMM workspace */
     for (uint16_t k = 0; k <= N; k++)
     {
@@ -924,16 +1011,14 @@ static void shift_warm_start(void)
     }
     for (uint16_t k = 0; k < N; k++)
     {
-        admm_workspace.z_u[k][MPCC_IDX_DELTA] = prev_predicted_controls[k].delta;
-        admm_workspace.z_u[k][MPCC_IDX_AX]    = prev_predicted_controls[k].a_x;
+        admm_workspace.z_u[k][MPCC_IDX_DELTA]  = prev_predicted_controls[k].delta;
+        admm_workspace.z_u[k][MPCC_IDX_AX]     = prev_predicted_controls[k].a_x;
         admm_workspace.z_u[k][MPCC_IDX_VTHETA] = prev_predicted_controls[k].v_theta;
         memcpy(admm_workspace.w_u[k], admm_workspace.z_u[k],
                sizeof(float) * MPCC_NU);
     }
 
-    /* Shift dual variables (lambda) forward to preserve ADMM convergence
-     * history.  Zeroing lambda defeats warm-starting — ADMM needs the
-     * accumulated constraint-violation information to converge properly. */
+    /* Shift dual variables (lambda) forward */
     for (uint16_t k = 0; k < N; k++) {
         memcpy(admm_workspace.lambda_x[k], admm_workspace.lambda_x[k + 1],
                sizeof(float) * MPCC_NX);
@@ -941,11 +1026,7 @@ static void shift_warm_start(void)
             memcpy(admm_workspace.lambda_u[k], admm_workspace.lambda_u[k + 1],
                    sizeof(float) * MPCC_NU);
     }
-    /* k=0 state is hard-fixed to x0 each solve; reset its dual row. */
     memset(admm_workspace.lambda_x[0], 0, sizeof(admm_workspace.lambda_x[0]));
-    /* Terminal lambda: hold last */
-    /* lambda_x[N] stays as lambda_x[N] (already in place after shift) */
-    /* lambda_u[N-1] stays as lambda_u[N-1] (already in place after shift) */
 }
 
 /*===========================================================================

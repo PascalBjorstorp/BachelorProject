@@ -99,6 +99,13 @@ typedef struct
      *  Constraint: n_k >= -track_right[k] */
     float track_right[MPCC_MAX_HORIZON + 1];
 
+        /** Reference path geometry at each stage — needed to project
+     *  Cartesian (X,Y) into the Frenet frame and back.
+     *  Populated by build_qp_problem() from mpcc_path_interpolate(). */
+    float path_x_ref  [MPCC_MAX_HORIZON + 1];   /* x_ref(s_k)   [m]   */
+    float path_y_ref  [MPCC_MAX_HORIZON + 1];   /* y_ref(s_k)   [m]   */
+    float path_phi_ref[MPCC_MAX_HORIZON + 1];   /* phi_ref(s_k) [rad] */
+
     /*--- Friction circle ---*/
 
     /** Squared friction limit (mu * g)^2 for combined acceleration constraint.

@@ -360,7 +360,7 @@ void admm_solver_default_config(ADMMConfig_t *config)
     config->warm_start = 0;
     config->rho_u = 0;            /* 0 = use same rho as states */
     config->adaptive_rho = 1;     /* Enable adaptive rho by default */
-    config->alpha_relax = 1.5f; /* Over-relaxation: 1.5 is a robust default */
+    config->alpha_relax = 1.5f;  /* Over-relaxation: 1.5 is a robust default */
 }
 
 /*===========================================================================
@@ -418,10 +418,13 @@ void riccati_backward_pass(
 
     /* Precompute constrained flags from global bounds */
     uint8_t x_constrained[MPCC_NX];
-    for (int i = 0; i < MPCC_NX; i++) {
+   for (int i = 0; i < MPCC_NX; i++) {
         x_constrained[i] = (problem->x_upper[i] < MPCC_BOUND_THRESHOLD ||
                             problem->x_lower[i] > -MPCC_BOUND_THRESHOLD);
     }
+
+    x_constrained[MPCC_IDX_X] = 1;
+    x_constrained[MPCC_IDX_Y] = 1;
 
     /* Rolling value function */
     float P[MPCC_NX][MPCC_NX];
@@ -678,7 +681,6 @@ void admm_projection_step(
 {
     uint16_t N = problem->N;
 
-    /* Save current w for dual residual */
     memcpy(ws->w_x_prev, ws->w_x,
            sizeof(float) * (MPCC_MAX_HORIZON + 1) * MPCC_NX);
     memcpy(ws->w_u_prev, ws->w_u,
@@ -687,50 +689,78 @@ void admm_projection_step(
     /* Project states */
     for (uint16_t k = 0; k <= N; k++)
     {
-        if (k == 0)
-        {
-            /* Initial state: hard equality constraint */
-            memcpy(ws->w_x[0], problem->x0,
-                   sizeof(float) * MPCC_NX);
+        if (k == 0) {
+            memcpy(ws->w_x[0], problem->x0, sizeof(float) * MPCC_NX);
             continue;
         }
 
-        for (int i = 0; i < MPCC_NX; i++)
-        {
-            float val = (ws->z_x[k][i] + ws->lambda_x[k][i]);
-
-            /* Apply global box constraints */
-            if (val < problem->x_lower[i])
-                val = problem->x_lower[i];
-            if (val > problem->x_upper[i])
-                val = problem->x_upper[i];
-
+        /* 1. Global box constraints (vx bounds, s >= 0, etc.) */
+        for (int i = 0; i < MPCC_NX; i++) {
+            float val = ws->z_x[k][i] + ws->lambda_x[k][i];
+            if (val < problem->x_lower[i]) val = problem->x_lower[i];
+            if (val > problem->x_upper[i]) val = problem->x_upper[i];
             ws->w_x[k][i] = val;
         }
 
+        /* 2. Per-stage track corridor constraint on (X, Y).
+         *
+         * Transform proposed Cartesian position into the local Frenet
+         * frame, clamp the lateral deviation, transform back.
+         *
+         * Frenet frame at arc-length s_k:
+         *   tangent  t = [ cos(phi),  sin(phi) ]
+         *   normal   n = [-sin(phi),  cos(phi) ]  (positive = left)
+         *
+         * Lateral deviation (contouring error):
+         *   e_c = sin(phi)*(X - x_ref) - cos(phi)*(Y - y_ref)
+         * Longitudinal deviation (lag error — NOT clamped):
+         *   e_l = -cos(phi)*(X - x_ref) - sin(phi)*(Y - y_ref)
+         *
+         * Inverse (exact):
+         *   X_new = x_ref + sin(phi)*e_c_clamped - cos(phi)*e_l
+         *   Y_new = y_ref - cos(phi)*e_c_clamped - sin(phi)*e_l
+         */
+        {
+            float phi     = problem->path_phi_ref[k];
+            float x_ref   = problem->path_x_ref[k];
+            float y_ref   = problem->path_y_ref[k];
+            float sin_phi = sinf(phi);
+            float cos_phi = cosf(phi);
 
+            float X_prop = ws->w_x[k][MPCC_IDX_X];
+            float Y_prop = ws->w_x[k][MPCC_IDX_Y];
+
+            float dX = X_prop - x_ref;
+            float dY = Y_prop - y_ref;
+
+            /* Decompose into Frenet components */
+            float e_c = (sin_phi * dX) - (cos_phi * dY);   /* lateral  */
+            float e_l = (-cos_phi * dX) - (sin_phi * dY);  /* longitudinal — preserved */
+
+            /* Clamp lateral deviation to corridor */
+            float left_b  = problem->track_left[k];   /* positive: max left  */
+            float right_b = problem->track_right[k];  /* positive: max right */
+            if (e_c >  left_b)  e_c =  left_b;
+            if (e_c < -right_b) e_c = -right_b;
+
+            /* Reconstruct clamped Cartesian position */
+            ws->w_x[k][MPCC_IDX_X] = x_ref + (sin_phi * e_c) - (cos_phi * e_l);
+            ws->w_x[k][MPCC_IDX_Y] = y_ref - (cos_phi * e_c) - (sin_phi * e_l);
+        }
     }
 
-    /* Project controls */
-    for (uint16_t k = 0; k < N; k++)
-    {
-        for (int i = 0; i < MPCC_NU; i++)
-        {
-            float val = (ws->z_u[k][i] + ws->lambda_u[k][i]);
-            if (val < problem->u_lower[i])
-                val = problem->u_lower[i];
-            if (val > problem->u_upper[i])
-                val = problem->u_upper[i];
+    /* Project controls (unchanged) */
+    for (uint16_t k = 0; k < N; k++) {
+        for (int i = 0; i < MPCC_NU; i++) {
+            float val = ws->z_u[k][i] + ws->lambda_u[k][i];
+            if (val < problem->u_lower[i]) val = problem->u_lower[i];
+            if (val > problem->u_upper[i]) val = problem->u_upper[i];
             ws->w_u[k][i] = val;
         }
-
-        /* Friction circle: per-stage a_x bound from operating point.
-         * Computed in build_qp_problem from warm-start trajectory. */
-        if (problem->mu_g_sq > 0.0f)
-        {
+        if (problem->mu_g_sq > 0.0f) {
             float ax_lim = problem->ax_lim_stage[k];
             float ax = ws->w_u[k][MPCC_IDX_AX];
-            if (ax > ax_lim)  ws->w_u[k][MPCC_IDX_AX] = ax_lim;
+            if (ax >  ax_lim) ws->w_u[k][MPCC_IDX_AX] =  ax_lim;
             if (ax < -ax_lim) ws->w_u[k][MPCC_IDX_AX] = -ax_lim;
         }
     }

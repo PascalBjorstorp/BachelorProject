@@ -36,11 +36,11 @@ def generate_launch_description():
         from ament_index_python.packages import get_package_share_directory
         planning_dir = get_package_share_directory('f1tenth_planning')
         default_trajectory = os.path.join(
-            planning_dir, 'trajectories', 'Spielberg_raceline.csv')
+            planning_dir, 'trajectories', 'my_track_raceline.csv')
     except Exception:
         # DEPLOYMENT NOTE: This hardcoded fallback path assumes a specific workspace
         # layout. Override via the trajectory_file launch argument.
-        default_trajectory = '/ros2_ws/src/f1tenth_planning/trajectories/Spielberg_raceline.csv'
+        default_trajectory = '/ros2_ws/src/f1tenth_planning/trajectories/my_track_raceline.csv'
 
     trajectory_arg = DeclareLaunchArgument(
         'trajectory_file',
