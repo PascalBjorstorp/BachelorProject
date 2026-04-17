@@ -431,24 +431,20 @@ void riccati_backward_pass(
     float p[MPCC_NX];
 
     /* Initialize terminal cost-to-go */
-    for (int i = 0; i < MPCC_NX; i++) {
-        for (int j = 0; j < MPCC_NX; j++)
-            P[i][j] = problem->terminal_cost.Q[i][j];
-        if (x_constrained[i]) {
-            P[i][i] += rho;
-            p[i] = problem->terminal_cost.q[i]
-                 + rho * (ws->lambda_x[N][i] - ws->w_x[N][i]);
-        } else {
-            p[i] = problem->terminal_cost.q[i];
+        for (int i = 0; i < MPCC_NX; i++) {
+            for (int j = i + 1; j < MPCC_NX; j++) {
+                float sym = 0.5f * (P[i][j] + P[j][i]);
+                P[i][j] = sym;
+                P[j][i] = sym;
+            }
         }
-    }
 
-    /* Store P_N in workspace */
-    for (int i = 0; i < MPCC_NX; i++) {
-        for (int j = 0; j < MPCC_NX; j++)
-            ws->P[N][i][j] = P[i][j];
-        ws->p[N][i] = p[i];
-    }
+        /* Store P_N in workspace */
+        for (int i = 0; i < MPCC_NX; i++) {
+            for (int j = 0; j < MPCC_NX; j++)
+                ws->P[N][i][j] = P[i][j];
+            ws->p[N][i] = p[i];
+        }
 
     /* Backward sweep: k = N-1 down to 0 */
     for (int k = N - 1; k >= 0; k--)
@@ -578,7 +574,26 @@ void riccati_backward_pass(
             if (x_constrained[i])
                 P_new[i][i] += rho;
         }
+
+        /* Symmetrize P to prevent floating-point asymmetry drift
+         * accumulating over the backward sweep. Mathematically P is
+         * symmetric — this enforces it numerically at each stage. */
+        for (int i = 0; i < MPCC_NX; i++) {
+            for (int j = i + 1; j < MPCC_NX; j++) {
+                float sym = 0.5f * (P_new[i][j] + P_new[j][i]);
+                P_new[i][j] = sym;
+                P_new[j][i] = sym;
+            }
+        }
+
         memcpy(P, P_new, sizeof(P));
+
+        /* Store P_k, p_k in workspace */
+        for (int i = 0; i < MPCC_NX; i++) {
+            for (int j = 0; j < MPCC_NX; j++)
+                ws->P[k][i][j] = P[i][j];
+            ws->p[k][i] = p[i];
+        }
 
         /* Step 9: p_k = q_tilde + A^T s_next + H^T kk */
         float p_new[MPCC_NX];

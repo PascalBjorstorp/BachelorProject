@@ -759,16 +759,25 @@ static void build_qp_problem(
     /* --- Build stages --- */
     /* TODO: Use warm-start trajectory as operating points.
      * For now, use the initial state propagated forward. */
-
-    MPCCState_t z_bar = *x0;
+   MPCCState_t z_bar = *x0;
     MPCCControl_t u_bar;
 
     if (warm_start_available)
         u_bar = prev_predicted_controls[0];
     else {
+
+        MPCCPathPoint_t path_pt_0;
+        mpcc_path_interpolate(&ref_path, x0->s, &path_pt_0);
+
+        float vx_err   = path_pt_0.vx_ref - x0->vx;
+        float ax_guess = vx_err / (config.dt > 0.0f ? config.dt : 0.02f);
+
+        if (ax_guess > config.ax_max) ax_guess = config.ax_max;
+        if (ax_guess < config.ax_min) ax_guess = config.ax_min;
+
         u_bar.delta   = 0.0f;
-        u_bar.a_x     = 0.0f;
-        u_bar.v_theta = 1.0f;  /* gentle forward progress */
+        u_bar.a_x     = ax_guess;
+        u_bar.v_theta = 1.0f;
     }
 
     for (uint16_t k = 0; k < N; k++)
@@ -828,11 +837,16 @@ static void build_qp_problem(
          * At step 0: scale rate weights by cross_call_rate_scale. */
         {
             MPCCControl_t u_ref;
-            if (warm_start_available)
-                u_ref = prev_predicted_controls[k];
-            else {
-                u_ref.delta = 0;
-                u_ref.a_x = 0;
+            if (warm_start_available) {
+                /* k=0: penalize deviation from the ACTUALLY applied control,
+                 * not the shifted plan. After shift_warm_start(),
+                 * prev_predicted_controls[0] holds what was planned for
+                 * stage 1 last cycle — wrong reference for the rate penalty.
+                 * prev_control always holds the last commanded input. */
+                u_ref = (k == 0) ? prev_control : prev_predicted_controls[k];
+            } else {
+                u_ref.delta   = 0.0f;
+                u_ref.a_x     = 0.0f;
                 u_ref.v_theta = 1.0f;
             }
 
