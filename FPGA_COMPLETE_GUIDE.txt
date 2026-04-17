@@ -10,6 +10,28 @@
 # Interface on Jetson: enx00e04c534458
 # Ultra96 IP: 10.23.0.120
 
+# Persistent KRia/K26 static IP setup
+# Use a valid netplan file on the board:
+#   /etc/netplan/99-kria-static.yaml
+#
+# network:
+#   version: 2
+#   renderer: networkd
+#   ethernets:
+#     eth1:
+#       dhcp4: false
+#       addresses:
+#         - 10.23.0.120/24
+#       routes:
+#         - to: default
+#           via: 10.23.0.1
+#
+# Then lock permissions and apply:
+#   sudo chmod 600 /etc/netplan/*.yaml
+#   sudo netplan apply
+# If cloud-init keeps regenerating network files on boot, disable its network config too:
+#   echo 'network: {config: disabled}' | sudo tee /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+
 # Step 1: Configure Jetson network for Ultra96
 sudo ip addr add 10.23.0.1/24 dev enx00e04c534458
 sudo ip link set enx00e04c534458 up

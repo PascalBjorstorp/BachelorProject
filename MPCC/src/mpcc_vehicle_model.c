@@ -124,33 +124,29 @@ void mpcc_linearize_dynamics(
     /* Front tire — Pacejka effective stiffness */
     float Ba_f = B_f * alpha_f;
     float inner_f = C_shape * atanf(Ba_f);
-    float inner_f2 = inner_f * inner_f;
-    float cos_inner_f = 1.0f - (inner_f2 * 0.5f);   /* cos(x) ≈ 1 - x²/2 */
+    float cos_inner_f = cosf(inner_f);
     float ba_f2 = Ba_f * Ba_f;
     float inv_denom_f = 1.0f / (1.0f + ba_f2);
     float C_eff_f = (D_pac_f * C_shape * B_f) * (cos_inner_f * inv_denom_f);
     C_eff_f = (C_eff_f > C_min_f) ? C_eff_f : C_min_f;
 
-    /* F_yf at operating point: sin(x) ≈ x - x³/6 */
-    float inner_f3 = inner_f * inner_f * inner_f;
-    float sin_inner_f = inner_f - (inner_f3 * 0.16666667f);
+    /* F_yf at operating point */
+    float sin_inner_f = sinf(inner_f);
     float F_yf = D_pac_f * sin_inner_f;
 
     /* Rear tire — Pacejka effective stiffness */
     float Ba_r = B_r * alpha_r;
     float inner_r = C_shape * atanf(Ba_r);
-    float inner_r2 = inner_r * inner_r;
-    float cos_inner_r = 1.0f - (inner_r2 * 0.5f);   /* cos(x) ≈ 1 - x²/2 */
+    float cos_inner_r = cosf(inner_r);
     float ba_r2 = Ba_r * Ba_r;
     float inv_denom_r = 1.0f / (1.0f + ba_r2);
     float C_eff_r = (D_pac_r * C_shape * B_r) * (cos_inner_r * inv_denom_r);
     C_eff_r = (C_eff_r > C_min_r) ? C_eff_r : C_min_r;
 
     /* F_yr at operating point */
-    float inner_r3 = inner_r * inner_r * inner_r;
-    float sin_inner_r = inner_r - (inner_r3 * 0.16666667f);
+    float sin_inner_r = sinf(inner_r);
     float F_yr = D_pac_r * sin_inner_r;
-
+    
     /* Precomputed denominators */
     float inv_m     = 1.0f / m;
     float inv_Iz    = 1.0f / I_z;
@@ -164,10 +160,10 @@ void mpcc_linearize_dynamics(
     float inv_D_f = 1.0f / D_f;
     float inv_D_r = 1.0f / D_r;
 
-    float daf_dvx = vy_plus_lf_w * inv_D_f;
+    float daf_dvx = (vx_abs >= 0.5f) ? (vy_plus_lf_w  * inv_D_f) : 0.0f;
     float daf_dvy = -vx_safe * inv_D_f;
     float daf_dom = -(l_f * vx_safe) * inv_D_f;
-    float dar_dvx = vy_minus_lr_w * inv_D_r;
+    float dar_dvx = (vx_abs >= 0.5f) ? (vy_minus_lr_w * inv_D_r) : 0.0f;
     float dar_dvy = -vx_safe * inv_D_r;
     float dar_dom = (l_r * vx_safe) * inv_D_r;
 
@@ -234,6 +230,23 @@ void mpcc_linearize_dynamics(
 
     /* Row 1: dvx/dt = a_x */
     sys->B[1][MPCC_IDX_AX] = dt;
+
+    /* Rows 2-3: load transfer effect of a_x on lateral and yaw dynamics.
+     * Under longitudinal acceleration, normal loads shift front-to-rear:
+     *   dF_zf/d(a_x) = -m * h_cg / L  (front unloads)
+     *   dF_zr/d(a_x) = +m * h_cg / L  (rear loads)
+     * This changes peak lateral force D_pac = mu * F_z, which changes
+     * F_yf and F_yr: dF_y/d(a_x) = (F_y / D_pac) * mu * dF_z/d(a_x) */
+    {
+        float h_cg    = F110_CG_HEIGHT_METERS;
+        float dFzf_dax = -(m * h_cg) / L;
+        float dFzr_dax = -dFzf_dax;
+        float dFyf_dax = (F_yf / D_pac_f) * (mu * dFzf_dax);
+        float dFyr_dax = (F_yr / D_pac_r) * (mu * dFzr_dax);
+        sys->B[2][MPCC_IDX_AX] = dt * ((dFyf_dax * cos_delta + dFyr_dax) * inv_m);
+        sys->B[3][MPCC_IDX_AX] = dt * ((l_f * dFyf_dax * cos_delta
+                                       - l_r * dFyr_dax) * inv_Iz);
+    }
 
     /* Steering couplings (full model) */
     {

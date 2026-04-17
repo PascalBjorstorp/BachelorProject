@@ -356,3 +356,6 @@ MPCC/logs/run_20260409_120930/summary.txt
 MPCC/test/tuning_racer_20260416_144716.csv
 MPCC/test/tuning_racer_20260416_144739 copy.csv
 MPCC/test/tuning_racer_20260416_144739.csv
+MPCC/test/tuning_racer_20260417_125704.csv
+mpc_fpga_hls_*
+

@@ -58,19 +58,19 @@ static void mpc_fpga_compute_core(
     int *out_steering, int *out_accel, int *out_status, int *out_iters)
 {
     static AdmmState_t admm_state;
+#pragma HLS ARRAY_PARTITION variable=admm_state.z_x complete dim=2
+#pragma HLS ARRAY_PARTITION variable=admm_state.y_x complete dim=2
+#pragma HLS ARRAY_PARTITION variable=admm_state.z_u complete dim=2
+#pragma HLS ARRAY_PARTITION variable=admm_state.y_u complete dim=2
     static MpcPersistState_t persist;
     static int initialized = 0;
 #ifdef MPC_RUNTIME_TUNE
-    static int runtime_loaded = 0;
 #endif
 #pragma HLS BIND_STORAGE variable=admm_state type=ram_2p impl=bram
 #pragma HLS BIND_STORAGE variable=persist type=ram_1p impl=lutram
 
 #ifdef MPC_RUNTIME_TUNE
-    if (!runtime_loaded) {
-        mpc_runtime_update_from_env();
-        runtime_loaded = 1;
-    }
+    mpc_runtime_update_from_env();
 #endif
 
 

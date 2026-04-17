@@ -90,6 +90,7 @@ static double g_latest_vx_mps = 0.0;
 static double g_latest_vy_mps = 0.0;
 static double g_latest_omega = 0.0;
 static struct timespec g_last_odom_time = {0, 0};
+static struct timespec g_last_imu_time  = {0, 0};
 static uint32_t g_solve_count = 0;
 
 /* Measured control loop timing for cross-call scaling */
@@ -395,10 +396,9 @@ static void raceline_callback(const void *msg_in)
         ref_path.points[i].phi_ref = (float)quat_to_yaw(
             ps->pose.orientation.x, ps->pose.orientation.y,
             ps->pose.orientation.z, ps->pose.orientation.w);
-        ref_path.points[i].left_bound  = 0.5f;
-        ref_path.points[i].right_bound = 0.5f;
     }
 
+    /* Build arc-length parameterization */
     ref_path.points[0].s_ref = 0.0f;
     for (uint16_t i = 1; i < n; i++) {
         float dx = ref_path.points[i].x_ref - ref_path.points[i - 1].x_ref;
@@ -407,6 +407,7 @@ static void raceline_callback(const void *msg_in)
                                    + sqrtf(dx * dx + dy * dy);
     }
 
+    /* Build curvature from heading differences */
     for (uint16_t i = 0; i < n; i++) {
         uint16_t prev = (i == 0) ? 0 : i - 1;
         uint16_t next = (i == n - 1) ? n - 1 : i + 1;
@@ -425,10 +426,71 @@ static void raceline_callback(const void *msg_in)
     ref_path.total_length = ref_path.points[n - 1].s_ref;
     ref_path.is_closed = 1;
 
+    /* ---------------------------------------------------------------
+     * Track bounds: look up from the CSV-loaded path (g_reference_path)
+     * by finding the nearest point on the old path for each new point.
+     *
+     * nav_msgs/Path with PoseStamped has no field for track bounds —
+     * position.z is already used for velocity. The CSV path has measured
+     * bounds. Since both describe the same physical track, we match by
+     * nearest Cartesian distance and copy bounds across.
+     *
+     * Fallback: if no CSV path is loaded yet, use a conservative 0.35 m.
+     * --------------------------------------------------------------- */
+    if (g_reference_path.num_points >= 2)
+    {
+        for (uint16_t i = 0; i < n; i++)
+        {
+            float qx = ref_path.points[i].x_ref;
+            float qy = ref_path.points[i].y_ref;
+
+            /* Find nearest point in CSV path */
+            float best_dist_sq = FLT_MAX;
+            uint16_t best_idx  = 0;
+
+            for (uint16_t j = 0; j < g_reference_path.num_points; j++)
+            {
+                float dx = qx - g_reference_path.points[j].x_ref;
+                float dy = qy - g_reference_path.points[j].y_ref;
+                float dist_sq = dx * dx + dy * dy;
+                if (dist_sq < best_dist_sq)
+                {
+                    best_dist_sq = dist_sq;
+                    best_idx     = j;
+                }
+            }
+
+            /* Copy bounds from the matched CSV waypoint */
+            ref_path.points[i].left_bound  =
+                g_reference_path.points[best_idx].left_bound;
+            ref_path.points[i].right_bound =
+                g_reference_path.points[best_idx].right_bound;
+
+            /* If the match is very far away (> 2 m) the paths differ
+             * significantly — use conservative fallback instead. */
+            if (best_dist_sq > 4.0f)
+            {
+                ref_path.points[i].left_bound  = 0.35f;
+                ref_path.points[i].right_bound = 0.35f;
+            }
+        }
+    }
+    else
+    {
+        /* No CSV path loaded yet — use conservative fixed bounds */
+        for (uint16_t i = 0; i < n; i++)
+        {
+            ref_path.points[i].left_bound  = 0.35f;
+            ref_path.points[i].right_bound = 0.35f;
+        }
+    }
+
     mpcc_set_reference_path(&ref_path);
     g_have_reference = 1;
-    printf("[MPCC] Updated raceline from topic (%d points, %.1f m)\n",
-           n, ref_path.total_length);
+    printf("[MPCC] Updated raceline from topic (%d points, %.1f m) "
+           "— bounds from %s\n",
+           n, ref_path.total_length,
+           (g_reference_path.num_points >= 2) ? "CSV lookup" : "fallback");
 
     publish_raceline(&ref_path);
 }
@@ -519,18 +581,16 @@ static void pose_callback(const void *msg_in)
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
 
-        if ((g_last_odom_time.tv_sec != 0 || g_last_odom_time.tv_nsec != 0)
-            && timespec_diff_sec(&g_last_odom_time, &now) > g_watchdog_timeout_sec)
+        if ((g_last_imu_time.tv_sec != 0 || g_last_imu_time.tv_nsec != 0)
+            && timespec_diff_sec(&g_last_imu_time, &now) > 0.05)
         {
             if (g_verbose)
             {
-                printf("[MPCC] WATCHDOG: stale odometry, publishing zero command\n");
+                printf("[MPCC] WARNING: IMU stale (%.0f ms), "
+                       "falling back to odometry yaw rate\n",
+                       timespec_diff_sec(&g_last_imu_time, &now) * 1000.0);
             }
-            g_drive_msg.drive.steering_angle = 0.0f;
-            g_drive_msg.drive.speed = 0.0f;
-            g_drive_msg.drive.acceleration = 0.0f;
-            { rcl_ret_t rc_ = rcl_publish(&g_drive_pub, &g_drive_msg, NULL); (void)rc_; }
-            return;
+            g_vehicle_state.yaw_rate = (float)g_latest_omega;
         }
     }
 
@@ -591,13 +651,23 @@ static void pose_callback(const void *msg_in)
         a_x_cmd = (float)g_ax_min_hardware;
     }
 
-    double v_cmd = g_latest_vx_mps + (double)a_x_cmd * g_solver_dt_sec;
-    if (v_cmd < 1.0)
+
+    double v_cmd;
+    float vx_predicted = result.predicted_states[1].vx;
+
+    if (vx_predicted > 0.1f && vx_predicted < (float)g_vx_max_mps * 1.2f)
     {
-        v_cmd = 1.0;
+        /* Solver prediction is sane — use it directly */
+        v_cmd = (double)vx_predicted;
     }
+    else
+    {
+        /* Fallback: simple Euler step from measured vx */
+        v_cmd = g_latest_vx_mps + (double)a_x_cmd * g_solver_dt_sec;
+    }
+
     /* Apply minimum velocity floor only when the solver wants to accelerate,
-     * so the car can still brake/stop when the solver commands a_x < 0. */
+     * so the car can still brake when the solver commands a_x < 0. */
     if (a_x_cmd >= 0.0f && v_cmd < g_vx_min_cmd)
     {
         v_cmd = g_vx_min_cmd;
@@ -666,6 +736,7 @@ static void imu_callback(const void *msg_in)
 
     const std_msgs__msg__Float64 *msg = (const std_msgs__msg__Float64 *)msg_in;
     g_vehicle_state.yaw_rate = (float)msg->data;
+    clock_gettime(CLOCK_MONOTONIC, &g_last_imu_time);
 }
 
 static void servo_callback(const void *msg_in)
@@ -777,39 +848,71 @@ static void configure_mpcc_from_environment(void)
     mpcc_initialize();
     MPCCConfiguration_t cfg = mpcc_get_configuration();
 
+    /* Each parameter with an alias: canonical name takes priority.
+     * Warn loudly if both are set so the user knows which one wins. */
+    {
+        const char *v_canon = getenv("Q_CONTOURING");
+        const char *v_alias = getenv("Q_N");
+        if (v_canon && v_alias)
+            fprintf(stderr, "[MPCC] WARNING: both Q_CONTOURING and Q_N are set — "
+                            "Q_CONTOURING takes priority (%.1f)\n", atof(v_canon));
+        if (v_canon)      cfg.weight_contouring = (float)atof(v_canon);
+        else if (v_alias) cfg.weight_contouring = (float)atof(v_alias);
+    }
+    {
+        const char *v_canon = getenv("Q_LAG");
+        const char *v_alias = getenv("Q_ALPHA");
+        if (v_canon && v_alias)
+            fprintf(stderr, "[MPCC] WARNING: both Q_LAG and Q_ALPHA are set — "
+                            "Q_LAG takes priority (%.1f)\n", atof(v_canon));
+        if (v_canon)      cfg.weight_lag = (float)atof(v_canon);
+        else if (v_alias) cfg.weight_lag = (float)atof(v_alias);
+    }
+    {
+        const char *v_canon = getenv("Q_CONTOURING_TERM");
+        const char *v_alias = getenv("Q_N_TERM");
+        if (v_canon && v_alias)
+            fprintf(stderr, "[MPCC] WARNING: both Q_CONTOURING_TERM and Q_N_TERM are set — "
+                            "Q_CONTOURING_TERM takes priority (%.1f)\n", atof(v_canon));
+        if (v_canon)      cfg.weight_contouring_terminal = (float)atof(v_canon);
+        else if (v_alias) cfg.weight_contouring_terminal = (float)atof(v_alias);
+    }
+    {
+        const char *v_canon = getenv("Q_LAG_TERM");
+        const char *v_alias = getenv("Q_ALPHA_TERM");
+        if (v_canon && v_alias)
+            fprintf(stderr, "[MPCC] WARNING: both Q_LAG_TERM and Q_ALPHA_TERM are set — "
+                            "Q_LAG_TERM takes priority (%.1f)\n", atof(v_canon));
+        if (v_canon)      cfg.weight_lag_terminal = (float)atof(v_canon);
+        else if (v_alias) cfg.weight_lag_terminal = (float)atof(v_alias);
+    }
+
+    /* Single-name parameters — no alias conflict possible */
     const char *v;
-    if ((v = getenv("Q_N")) != NULL) cfg.weight_contouring = (float)atof(v);
-    if ((v = getenv("Q_CONTOURING")) != NULL) cfg.weight_contouring = (float)atof(v);
-    if ((v = getenv("Q_LAG")) != NULL) cfg.weight_lag = (float)atof(v);
-    if ((v = getenv("Q_ALPHA")) != NULL) cfg.weight_lag = (float)atof(v);
-    if ((v = getenv("Q_PROGRESS")) != NULL) cfg.weight_progress = (float)atof(v);
-    if ((v = getenv("Q_VX")) != NULL) cfg.weight_vx = (float)atof(v);
-    if ((v = getenv("VX_REF")) != NULL) cfg.vx_ref = (float)atof(v);
-    if ((v = getenv("Q_VY")) != NULL) cfg.weight_vy = (float)atof(v);
-    if ((v = getenv("Q_OMEGA")) != NULL) cfg.weight_omega = (float)atof(v);
-    if ((v = getenv("R_DELTA")) != NULL) cfg.weight_delta = (float)atof(v);
-    if ((v = getenv("R_AX")) != NULL) cfg.weight_ax = (float)atof(v);
-    if ((v = getenv("R_VTHETA")) != NULL) cfg.weight_v_theta = (float)atof(v);
-    if ((v = getenv("W_DELTA_RATE")) != NULL) cfg.weight_delta_rate = (float)atof(v);
-    if ((v = getenv("W_AX_RATE")) != NULL) cfg.weight_ax_rate = (float)atof(v);
-    if ((v = getenv("W_VTHETA_RATE")) != NULL) cfg.weight_v_theta_rate = (float)atof(v);
-    if ((v = getenv("Q_N_TERM")) != NULL) cfg.weight_contouring_terminal = (float)atof(v);
-    if ((v = getenv("Q_CONTOURING_TERM")) != NULL) cfg.weight_contouring_terminal = (float)atof(v);
-    if ((v = getenv("Q_LAG_TERM")) != NULL) cfg.weight_lag_terminal = (float)atof(v);
-    if ((v = getenv("Q_ALPHA_TERM")) != NULL) cfg.weight_lag_terminal = (float)atof(v);
+    if ((v = getenv("Q_PROGRESS")) != NULL)    cfg.weight_progress          = (float)atof(v);
+    if ((v = getenv("Q_VX")) != NULL)          cfg.weight_vx                = (float)atof(v);
+    if ((v = getenv("VX_REF")) != NULL)        cfg.vx_ref                   = (float)atof(v);
+    if ((v = getenv("Q_VY")) != NULL)          cfg.weight_vy                = (float)atof(v);
+    if ((v = getenv("Q_OMEGA")) != NULL)       cfg.weight_omega             = (float)atof(v);
+    if ((v = getenv("R_DELTA")) != NULL)       cfg.weight_delta             = (float)atof(v);
+    if ((v = getenv("R_AX")) != NULL)          cfg.weight_ax                = (float)atof(v);
+    if ((v = getenv("R_VTHETA")) != NULL)      cfg.weight_v_theta           = (float)atof(v);
+    if ((v = getenv("W_DELTA_RATE")) != NULL)  cfg.weight_delta_rate        = (float)atof(v);
+    if ((v = getenv("W_AX_RATE")) != NULL)     cfg.weight_ax_rate           = (float)atof(v);
+    if ((v = getenv("W_VTHETA_RATE")) != NULL) cfg.weight_v_theta_rate      = (float)atof(v);
     if ((v = getenv("Q_PROGRESS_TERM")) != NULL) cfg.weight_progress_terminal = (float)atof(v);
-    if ((v = getenv("ADMM_RHO")) != NULL) cfg.admm_rho = (float)atof(v);
-    if ((v = getenv("ADMM_MAX_ITER")) != NULL) cfg.admm_max_iterations = (uint16_t)atoi(v);
-    if ((v = getenv("ADMM_TOL")) != NULL) cfg.admm_tolerance = (float)atof(v);
-    if ((v = getenv("HORIZON")) != NULL) cfg.horizon_steps = (uint16_t)atoi(v);
-    if ((v = getenv("DT")) != NULL) cfg.dt = (float)atof(v);
-    if ((v = getenv("V_THETA_MAX")) != NULL) cfg.v_theta_max = (float)atof(v);
-    if ((v = getenv("V_THETA_MIN")) != NULL) cfg.v_theta_min = (float)atof(v);
-    if ((v = getenv("MU")) != NULL) cfg.mu = (float)atof(v);
-    if ((v = getenv("C_SF")) != NULL) cfg.C_Sf = (float)atof(v);
-    if ((v = getenv("C_SR")) != NULL) cfg.C_Sr = (float)atof(v);
-    if ((v = getenv("AX_MAX")) != NULL) cfg.ax_max = (float)atof(v);
-    if ((v = getenv("AX_MIN")) != NULL) cfg.ax_min = (float)atof(v);
+    if ((v = getenv("ADMM_RHO")) != NULL)      cfg.admm_rho                 = (float)atof(v);
+    if ((v = getenv("ADMM_MAX_ITER")) != NULL) cfg.admm_max_iterations      = (uint16_t)atoi(v);
+    if ((v = getenv("ADMM_TOL")) != NULL)      cfg.admm_tolerance           = (float)atof(v);
+    if ((v = getenv("HORIZON")) != NULL)       cfg.horizon_steps            = (uint16_t)atoi(v);
+    if ((v = getenv("DT")) != NULL)            cfg.dt                       = (float)atof(v);
+    if ((v = getenv("V_THETA_MAX")) != NULL)   cfg.v_theta_max              = (float)atof(v);
+    if ((v = getenv("V_THETA_MIN")) != NULL)   cfg.v_theta_min              = (float)atof(v);
+    if ((v = getenv("MU")) != NULL)            cfg.mu                       = (float)atof(v);
+    if ((v = getenv("C_SF")) != NULL)          cfg.C_Sf                     = (float)atof(v);
+    if ((v = getenv("C_SR")) != NULL)          cfg.C_Sr                     = (float)atof(v);
+    if ((v = getenv("AX_MAX")) != NULL)        cfg.ax_max                   = (float)atof(v);
+    if ((v = getenv("AX_MIN")) != NULL)        cfg.ax_min                   = (float)atof(v);
 
     if ((v = getenv("MPCC_CROSS_CALL_SCALE")) != NULL)
         cfg.cross_call_rate_scale = (float)atof(v);

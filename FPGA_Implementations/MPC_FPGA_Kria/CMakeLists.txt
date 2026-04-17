@@ -37,6 +37,7 @@ set(MPC_FPGA_CORE_SOURCES
     src/riccati_solver_hls.cpp
     src/mpc_riccati_hls.cpp
     src/mpc_fpga_top.cpp
+    src/mpc_runtime_tune.cpp
 )
 
 add_library(mpc_fpga_core STATIC ${MPC_FPGA_CORE_SOURCES})

@@ -162,6 +162,7 @@ static double g_latest_omega = 0.0;
 /** Filtered IMU yaw rate (updated by IMU callback) */
 static double g_imu_yaw_rate = 0.0;
 static int g_imu_received = 0;
+static struct timespec g_last_imu_time = {0, 0};
 
 /** Watchdog: timestamp of last odometry received (CLOCK_MONOTONIC — uses VDSO
  *  fast path on aarch64, ~3ns vs ~50ns syscall for CLOCK_MONOTONIC_RAW) */
@@ -530,7 +531,12 @@ static void sample_waypoint_by_s(double s_query, TrajectoryWaypoint_t *out)
             out->s_meters = s;
             out->x_meters = w0->x_meters + (w1->x_meters - w0->x_meters) * t;
             out->y_meters = w0->y_meters + (w1->y_meters - w0->y_meters) * t;
-            out->heading_radians = w0->heading_radians + (w1->heading_radians - w0->heading_radians) * t;
+            {
+                double dh = w1->heading_radians - w0->heading_radians;
+                while (dh > M_PI) dh -= TWO_PI;
+                while (dh < -M_PI) dh += TWO_PI;
+                out->heading_radians = w0->heading_radians + t * dh;
+            }
             out->curvature_radians_per_meter = w0->curvature_radians_per_meter +
                                                (w1->curvature_radians_per_meter - w0->curvature_radians_per_meter) * t;
             out->velocity_meters_per_second = w0->velocity_meters_per_second +
@@ -555,7 +561,12 @@ static void sample_waypoint_by_s(double s_query, TrajectoryWaypoint_t *out)
     out->s_meters = s;
     out->x_meters = w0->x_meters + (w1->x_meters - w0->x_meters) * t;
     out->y_meters = w0->y_meters + (w1->y_meters - w0->y_meters) * t;
-    out->heading_radians = w0->heading_radians + (w1->heading_radians - w0->heading_radians) * t;
+    {
+        double dh = w1->heading_radians - w0->heading_radians;
+        while (dh > M_PI) dh -= TWO_PI;
+        while (dh < -M_PI) dh += TWO_PI;
+        out->heading_radians = w0->heading_radians + t * dh;
+    }
     out->curvature_radians_per_meter = w0->curvature_radians_per_meter +
                                        (w1->curvature_radians_per_meter - w0->curvature_radians_per_meter) * t;
     out->velocity_meters_per_second = w0->velocity_meters_per_second +
@@ -577,12 +588,14 @@ static void sample_waypoint_by_s(double s_query, TrajectoryWaypoint_t *out)
  */
 static void build_reference_from_trajectory(int closest_index)
 {
+    const MpcConfiguration_t cfg = mpc_get_configuration();
+    const double pred_dt = (cfg.time_step > 0.0f) ? (double)cfg.time_step : (double)TIME_STEP_SECONDS;
     double s_query = global_trajectory[closest_index].s_meters;
     double step_velocity = global_trajectory[closest_index].velocity_meters_per_second;
 
     for (int step = 0; step < PREDICTION_HORIZON; step++)
     {
-        s_query += step_velocity * TIME_STEP_SECONDS;
+        s_query += step_velocity * pred_dt;
         TrajectoryWaypoint_t wp;
         sample_waypoint_by_s(s_query, &wp);
 
@@ -789,6 +802,19 @@ static void convert_to_frenet_state(
     double cos_h = global_trajectory[idx0].cos_heading
                  + t * (global_trajectory[idx1].cos_heading
                       - global_trajectory[idx0].cos_heading);
+    {
+        double norm = hypot(sin_h, cos_h);
+        if (norm > 1e-9)
+        {
+            sin_h /= norm;
+            cos_h /= norm;
+        }
+        else
+        {
+            sin_h = sin(path_heading);
+            cos_h = cos(path_heading);
+        }
+    }
     double dx = car_x - path_x;
     double dy = car_y - path_y;
     double lateral_error = -dx * sin_h + dy * cos_h;
@@ -877,8 +903,8 @@ void local_raceline_callback(const void *message_in)
         }
         wp->velocity_meters_per_second = v_ref;
 
-        wp->left_bound_meters = BIG_BOUND;
-        wp->right_bound_meters = BIG_BOUND;
+        wp->left_bound_meters = 1.5;
+        wp->right_bound_meters = 1.5;
         wp->heading_radians = 0.0;
         wp->curvature_radians_per_meter = 0.0;
         wp->sin_heading = 0.0;
@@ -980,10 +1006,16 @@ void odometry_subscription_callback(const void *message_in)
     global_vehicle_state.long_vel = vx;
     global_vehicle_state.lat_vel = vy;
 
-    /* Use IMU yaw rate if available (higher quality than odom twist) */
+    /* Use IMU yaw rate if available and fresh (higher quality than odom twist). */
     if (g_imu_received)
     {
-        global_vehicle_state.yaw_rate = g_imu_yaw_rate;
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        double imu_age = timespec_diff_sec(&g_last_imu_time, &now);
+        if (imu_age <= 0.05)
+            global_vehicle_state.yaw_rate = g_imu_yaw_rate;
+        else
+            global_vehicle_state.yaw_rate = omega;
     }
     else
     {
@@ -1097,6 +1129,7 @@ void imu_callback(const void *message_in)
 
     g_imu_yaw_rate = msg->data;
     g_imu_received = 1;
+    clock_gettime(CLOCK_MONOTONIC, &g_last_imu_time);
 }
 
 /*===========================================================================
@@ -1359,9 +1392,11 @@ void amcl_pose_callback(const void *message_in)
         {
             double a_cmd =
                 global_control_command.long_acc;
+            const MpcConfiguration_t cfg = mpc_get_configuration();
+            const double pred_dt = (cfg.time_step > 0.0f) ? (double)cfg.time_step : (double)TIME_STEP_SECONDS;
 
             /* Integrate over the prediction time step used by MPC. */
-            double v_cmd = g_latest_vx + a_cmd * TIME_STEP_SECONDS;
+            double v_cmd = g_latest_vx + a_cmd * pred_dt;
             if (v_cmd < 0.0) v_cmd = 0.0;
             if (v_cmd > TRAJECTORY_MAXIMUM_VELOCITY) v_cmd = TRAJECTORY_MAXIMUM_VELOCITY;
 
@@ -1473,8 +1508,11 @@ int main(int argc, char *argv[])
         }
     }
 
-    printf("[MPC] Controller initialized (horizon=%d, dt=%.0fms)\n",
-           PREDICTION_HORIZON, TIME_STEP_SECONDS * 1000.0);
+    {
+        MpcConfiguration_t cfg = mpc_get_configuration();
+        printf("[MPC] Controller initialized (horizon=%d, dt=%.0fms)\n",
+               (int)cfg.prediction_horizon_steps, (double)cfg.time_step * 1000.0);
+    }
 
     printf("[MPC] Control mode: EKF-driven (MPC runs on each /ekf_pose message)\n");
     printf("[MPC] Topics: odom=%s, drive=%s\n", g_odom_topic, g_drive_topic);
@@ -1494,9 +1532,36 @@ int main(int argc, char *argv[])
 
     {
         MpcConfiguration_t cfg = mpc_get_configuration();
-        printf("[MPC] max_iter=%u, tol=%d\n",
-               cfg.max_solver_iterations,
-               (int)cfg.solver_convergence_tolerance);
+        unsigned int effective_max_iter = cfg.max_solver_iterations;
+        double effective_tol = (double)cfg.solver_convergence_tolerance;
+        double effective_rho = ADMM_RHO;
+        double effective_rho_u = ADMM_RHO_U;
+        const char *env_val = getenv("MAX_ITER");
+        if (env_val != NULL && env_val[0] != '\0') {
+            int parsed = atoi(env_val);
+            if (parsed > 0) effective_max_iter = (unsigned int)parsed;
+        }
+        env_val = getenv("TOL");
+        if (env_val != NULL && env_val[0] != '\0') {
+            double parsed = atof(env_val);
+            if (parsed > 0.0) effective_tol = parsed;
+        }
+        env_val = getenv("RHO");
+        if (env_val != NULL && env_val[0] != '\0') {
+            double parsed = atof(env_val);
+            if (parsed > 0.0) effective_rho = parsed;
+        }
+        env_val = getenv("RHO_U");
+        if (env_val != NULL && env_val[0] != '\0') {
+            double parsed = atof(env_val);
+            if (parsed > 0.0) effective_rho_u = parsed;
+        }
+        printf("[MPC] max_iter=%u, tol=%.6g\n",
+               effective_max_iter,
+               effective_tol);
+        printf("[MPC] rho=%.6g, rho_u=%.6g\n",
+               effective_rho,
+               effective_rho_u);
         printf("[MPC] Weights: lat=%.1f heading=%.1f vel=%.1f steer_rate=%.2f steer_effort=%.4f\n",
                cfg.weight_lateral_error,
                cfg.weight_heading_error,

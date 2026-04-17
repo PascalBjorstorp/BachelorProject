@@ -21,12 +21,6 @@ static fp_QP_t fp_mul_vm(fp_QP_t a, fp_QP_t b) {
     return product;
 }
 
-static fp_QP_t fp_atan_tire_vm(fp_QP_t x) {
-#pragma HLS INLINE off
-#pragma HLS PIPELINE II=1
-    return fp_atan_tire_approx(x);
-}
-
 /**
  * @brief Compute Frenet-frame linearized dynamics matrices.
  * @param vx Operating-point longitudinal velocity (expected >= MIN_LIN_VEL).
@@ -41,6 +35,7 @@ static fp_QP_t fp_atan_tire_vm(fp_QP_t x) {
  * @return None.
  */
 void compute_frenet_AB_hls(
+    fp_QP_t ey, fp_QP_t epsi,
     fp_QP_t vx, fp_QP_t vy, fp_QP_t omega,
     fp_QP_t delta, fp_QP_t a_cmd,
     fp_QP_t kappa, fp_QP_t dt,
@@ -51,6 +46,7 @@ void compute_frenet_AB_hls(
 #pragma HLS INLINE
 #pragma HLS ALLOCATION operation instances=mul limit=MPC_HLS_VEHICLE_MUL_LIMIT
 #pragma HLS ALLOCATION function instances=fp_mul_vm limit=8
+#pragma HLS ALLOCATION function instances=fp_recip limit=4
 
     /* Velocity floor for numerical stability */
     fp_QP_t vx_safe = (vx > FP_QP_CONST(0.5)) ? vx : FP_QP_CONST(0.5);
@@ -184,17 +180,31 @@ void compute_frenet_AB_hls(
         B_fr[i][1] = 0;
     }
 
-    /* --- Row 0: e_y dynamics ---
-     * e_y[k+1] = e_y[k] + dt*(vx*e_psi + vy) */
-    A_fr[0][0] = FP_ONE;
-    A_fr[0][1] = fp_mul_vm(dt, vx);
-    A_fr[0][3] = dt;
+    /* --- Rows 0/1: exact operating-point Frenet Jacobian --- */
+    {
+        fp_QP_t cp = fp_cos(epsi);
+        fp_QP_t sp = fp_sin(epsi);
+        fp_QP_t denom = FP_ONE - fp_mul_vm(kappa, ey);
+        if (fp_abs(denom) < FP_QP_CONST(1e-3)) {
+            denom = (denom >= 0) ? FP_QP_CONST(1e-3) : FP_QP_CONST(-1e-3);
+        }
+        fp_QP_t inv_denom = fp_recip(denom);
+        fp_QP_t inv_denom2 = fp_mul_vm(inv_denom, inv_denom);
 
-    /* --- Row 1: e_psi dynamics ---
-     * e_psi[k+1] = e_psi[k] + dt*(omega - kappa*vx) */
-    A_fr[1][1] = FP_ONE;
-    A_fr[1][2] = -fp_mul_vm(dt, kappa);
-    A_fr[1][4] = dt;
+        A_fr[0][0] = FP_ONE;
+        A_fr[0][1] = fp_mul_vm(dt, fp_mul_vm(vx, cp) - fp_mul_vm(vy, sp));
+        A_fr[0][2] = fp_mul_vm(dt, sp);
+        A_fr[0][3] = fp_mul_vm(dt, cp);
+
+        A_fr[1][0] = -fp_mul_vm(
+            fp_mul_vm(fp_mul_vm(fp_mul_vm(dt, fp_mul_vm(kappa, kappa)), vx), cp),
+            inv_denom2);
+        A_fr[1][1] = FP_ONE + fp_mul_vm(
+            fp_mul_vm(fp_mul_vm(fp_mul_vm(dt, kappa), vx), sp),
+            inv_denom);
+        A_fr[1][2] = -fp_mul_vm(fp_mul_vm(fp_mul_vm(dt, kappa), cp), inv_denom);
+        A_fr[1][4] = dt;
+    }
 
     /* Stage shared products to reduce arithmetic depth in row assembly. */
     fp_QP_t dFyf_dvx_sin = fp_mul_vm(dFyf_dvx, sin_delta);
@@ -261,8 +271,115 @@ void compute_frenet_AB_hls(
     /* B[2][1] = dt (acceleration → vx directly) */
     B_fr[2][1] = dt;
 
+    /* B[3][1], B[4][1]: acceleration affects lateral dynamics through load transfer. */
+    {
+        fp_QP_t inv_Fzf = fp_recip(F_zf);
+        fp_QP_t inv_Fzr = fp_recip(F_zr);
+        fp_QP_t C_Sf_norm = fp_mul_vm(C_eff_f, inv_Fzf);
+        fp_QP_t C_Sr_norm = fp_mul_vm(C_eff_r, inv_Fzr);
+
+        fp_QP_t dFzf_da = -fp_mul_vm(fp_mul_vm(VP_MASS, VP_CG_HEIGHT), VP_INV_L);
+        fp_QP_t dFzr_da = -dFzf_da;
+
+        fp_QP_t dFyf_da = fp_mul_vm(fp_mul_vm(C_Sf_norm, alpha_f_op), dFzf_da);
+        fp_QP_t dFyr_da = fp_mul_vm(fp_mul_vm(C_Sr_norm, alpha_r_op), dFzr_da);
+
+        B_fr[3][1] = fp_mul_vm(
+            fp_mul_vm((fp_mul_vm(dFyf_da, cos_delta) + dFyr_da), VP_INV_MASS),
+            dt);
+
+        B_fr[4][1] = fp_mul_vm(
+            fp_mul_vm(
+                (fp_mul_vm(fp_mul_vm(VP_LF, dFyf_da), cos_delta) - fp_mul_vm(VP_LR, dFyr_da)),
+                VP_INV_IZ),
+            dt);
+    }
+
     /* B[0:1][*] = 0: steering/accel don't directly change e_y or e_psi */
-    /* B[3][1] = 0, B[4][1] = 0: accel doesn't directly change vy/omega */
+}
+
+/**
+ * @brief Predict one Frenet-step forward using the same plant terms as the linearization.
+ * @param ey Current lateral error.
+ * @param epsi Current heading error.
+ * @param vx Current longitudinal velocity.
+ * @param vy Current lateral velocity.
+ * @param omega Current yaw rate.
+ * @param delta Current steering angle.
+ * @param a_cmd Current longitudinal acceleration.
+ * @param kappa Path curvature at the current point.
+ * @param dt Discretization step.
+ * @param next_state Output next-state array [e_y, e_psi, vx, vy, omega].
+ * @return None.
+ */
+void predict_frenet_next_hls(
+    fp_QP_t ey, fp_QP_t epsi,
+    fp_QP_t vx, fp_QP_t vy, fp_QP_t omega,
+    fp_QP_t delta, fp_QP_t a_cmd,
+    fp_QP_t kappa, fp_QP_t dt,
+    fp_QP_t next_state[MPC_NX_FRENET])
+{
+#pragma HLS INLINE
+#pragma HLS ALLOCATION operation instances=mul limit=MPC_HLS_VEHICLE_MUL_LIMIT
+#pragma HLS ALLOCATION function instances=fp_mul_vm limit=8
+#pragma HLS ALLOCATION function instances=fp_recip limit=4
+
+    fp_QP_t vx_safe = (vx > FP_QP_CONST(0.5)) ? vx : FP_QP_CONST(0.5);
+    fp_QP_t inv_vx = fp_recip(vx_safe);
+
+    fp_QP_t cos_delta, sin_delta;
+    fp_QP_t abs_delta = fp_abs(delta);
+    if (abs_delta < FP_QP_CONST(0.25)) {
+        fp_QP_t d2 = fp_mul_vm(delta, delta);
+        cos_delta = FP_ONE - (d2 >> 1);
+        fp_QP_t d3 = fp_mul_vm(d2, delta);
+        sin_delta = delta - fp_mul_vm(d3, FP_QP_CONST(0.16666667));
+    } else {
+        cos_delta = fp_cos(delta);
+        sin_delta = fp_sin(delta);
+    }
+
+    fp_QP_t Fx = fp_mul_vm(VP_MASS, a_cmd);
+    fp_QP_t F_zf = fp_mul_vm(VP_MG_LR - fp_mul_vm(Fx, VP_CG_HEIGHT), VP_INV_L);
+    fp_QP_t F_zr = fp_mul_vm(VP_MG_LF + fp_mul_vm(Fx, VP_CG_HEIGHT), VP_INV_L);
+
+    fp_QP_t front_num = vy + fp_mul_vm(VP_LF, omega);
+    fp_QP_t rear_num  = vy - fp_mul_vm(VP_LR, omega);
+    fp_QP_t front_ratio = fp_mul_vm(front_num, inv_vx);
+    fp_QP_t rear_ratio  = fp_mul_vm(rear_num, inv_vx);
+    fp_QP_t alpha_f_op = delta - fp_atan(front_ratio);
+    fp_QP_t alpha_r_op = -fp_atan(rear_ratio);
+
+    fp_QP_t D_pac_f = fp_mul_vm(VP_MU, F_zf);
+    fp_QP_t Ba_f = fp_mul_vm(VP_B_FRONT, alpha_f_op);
+    fp_QP_t inner_f = fp_mul_vm(VP_C_SHAPE, fp_atan(Ba_f));
+    fp_QP_t sin_inner_f = fp_sin(inner_f);
+    fp_QP_t F_yf = fp_mul_vm(D_pac_f, sin_inner_f);
+
+    fp_QP_t D_pac_r = fp_mul_vm(VP_MU, F_zr);
+    fp_QP_t Ba_r = fp_mul_vm(VP_B_REAR, alpha_r_op);
+    fp_QP_t inner_r = fp_mul_vm(VP_C_SHAPE, fp_atan(Ba_r));
+    fp_QP_t sin_inner_r = fp_sin(inner_r);
+    fp_QP_t F_yr = fp_mul_vm(D_pac_r, sin_inner_r);
+
+    fp_QP_t ey_denom = FP_ONE - fp_mul_vm(kappa, ey);
+    fp_QP_t ey_denom_abs = fp_abs(ey_denom);
+    if (ey_denom_abs < FP_QP_CONST(1e-3)) {
+        ey_denom = (ey_denom >= 0) ? FP_QP_CONST(1e-3) : FP_QP_CONST(-1e-3);
+    }
+
+    fp_QP_t e_y_dot = fp_mul_vm(vx, fp_sin(epsi)) + fp_mul_vm(vy, fp_cos(epsi));
+    fp_QP_t e_psi_dot = omega - fp_mul_vm(kappa, fp_mul_vm(vx, fp_cos(epsi))) / ey_denom;
+    fp_QP_t dvx_dt = (Fx - fp_mul_vm(F_yf, sin_delta)) * VP_INV_MASS + fp_mul_vm(vy, omega);
+    fp_QP_t dvy_dt = (fp_mul_vm(F_yf, cos_delta) + F_yr) * VP_INV_MASS - fp_mul_vm(vx, omega);
+    fp_QP_t domega_dt = (fp_mul_vm(VP_LF, fp_mul_vm(F_yf, cos_delta)) - fp_mul_vm(VP_LR, F_yr)) * VP_INV_IZ;
+
+    next_state[0] = ey + fp_mul_vm(dt, e_y_dot);
+    next_state[1] = epsi + fp_mul_vm(dt, e_psi_dot);
+    next_state[2] = vx + fp_mul_vm(dt, dvx_dt);
+    if (next_state[2] < MIN_LIN_VEL) next_state[2] = MIN_LIN_VEL;
+    next_state[3] = vy + fp_mul_vm(dt, dvy_dt);
+    next_state[4] = omega + fp_mul_vm(dt, domega_dt);
 }
 
 /**

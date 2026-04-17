@@ -7,7 +7,7 @@
 #
 # Defaults:
 #   DURATION_SECONDS = 120
-#   TRAJECTORY_FILE  = <workspace>/f1tenth_planning/trajectories/my_track_raceline.csv
+#   TRAJECTORY_FILE  = <workspace>/MPC/trajectories/my_track_raceline.csv
 #
 # This script:
 #   1. Syncs latest MPC sources into MPC_experimental (the ROS2 package)
@@ -23,7 +23,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 DURATION_SECONDS="${1:-120}"
-TRAJECTORY_FILE="${2:-${ROOT_DIR}/f1tenth_planning/trajectories/my_track_raceline.csv}"
+TRAJECTORY_FILE="${2:-${ROOT_DIR}/MPC/trajectories/my_track_raceline.csv}"
 
 RUN_ID="$(date +%Y%m%d_%H%M%S)"
 LOG_DIR="${SCRIPT_DIR}/logs/run_${RUN_ID}"

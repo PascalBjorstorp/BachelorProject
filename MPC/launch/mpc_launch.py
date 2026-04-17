@@ -31,16 +31,16 @@ def generate_launch_description():
         mpc_node action.
     """
 
-    # Resolve default trajectory path from f1tenth_planning if available
+    # Resolve default trajectory path from mpc_riccati if available
     try:
         from ament_index_python.packages import get_package_share_directory
-        planning_dir = get_package_share_directory('f1tenth_planning')
+        mpc_dir = get_package_share_directory('mpc_riccati')
         default_trajectory = os.path.join(
-            planning_dir, 'trajectories', 'my_track_raceline.csv')
+            mpc_dir, 'trajectories', 'my_track_raceline.csv')
     except Exception:
         # DEPLOYMENT NOTE: This hardcoded fallback path assumes a specific workspace
         # layout. Override via the trajectory_file launch argument.
-        default_trajectory = '/ros2_ws/src/f1tenth_planning/trajectories/my_track_raceline.csv'
+        default_trajectory = '/ros2_ws/src/MPC/trajectories/my_track_raceline.csv'
 
     trajectory_arg = DeclareLaunchArgument(
         'trajectory_file',

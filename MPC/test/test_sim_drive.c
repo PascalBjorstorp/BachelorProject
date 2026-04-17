@@ -1,6 +1,6 @@
 /**
  * @file test_sim_drive.c
- * @brief Realistic MPC simulation on Spielberg raceline
+ * @brief Realistic MPC simulation on my_track_raceline
  * @details Runs closed-loop simulation of the Riccati-ADMM controller with
  *          configurable physics/control rates and optional realistic effects
  *          (noise, nonlinear tire saturation, drivetrain drag).
@@ -177,11 +177,11 @@ static int load_raceline(void)
         return 0;
     }
     const char *paths[] = {
-        "../../f1tenth_planning/trajectories/Spielberg_raceline.csv",
-        "../../../f1tenth_planning/trajectories/Spielberg_raceline.csv",
-        "f1tenth_planning/trajectories/Spielberg_raceline.csv",
-        "../f1tenth_planning/trajectories/Spielberg_raceline.csv",
-        "../../../../f1tenth_planning/trajectories/Spielberg_raceline.csv",
+        "trajectories/my_track_raceline.csv",
+        "../trajectories/my_track_raceline.csv",
+        "../../MPC/trajectories/my_track_raceline.csv",
+        "../../f1tenth_planning/trajectories/my_track_raceline.csv",
+        "../../../f1tenth_planning/trajectories/my_track_raceline.csv",
         NULL
     };
     FILE *f = NULL;
@@ -189,7 +189,7 @@ static int load_raceline(void)
         f = fopen(paths[i], "r");
         if (f) { printf("[LOAD] %s\n", paths[i]); break; }
     }
-    if (!f) { fprintf(stderr, "ERROR: Cannot open Spielberg_raceline.csv\n"); return 0; }
+    if (!f) { fprintf(stderr, "ERROR: Cannot open my_track_raceline.csv\n"); return 0; }
 
     char buf[512];
     while (fgets(buf, sizeof(buf), f)) {
@@ -389,7 +389,12 @@ static Waypoint_t sample_raceline_by_s(double s_query)
             out.s = s;
             out.x = w0->x + (w1->x - w0->x) * t;
             out.y = w0->y + (w1->y - w0->y) * t;
-            out.psi = w0->psi + (w1->psi - w0->psi) * t;
+            {
+                double dpsi = w1->psi - w0->psi;
+                while (dpsi > M_PI) dpsi -= TWO_PI;
+                while (dpsi < -M_PI) dpsi += TWO_PI;
+                out.psi = wrap_angle(w0->psi + dpsi * t);
+            }
             out.kappa = w0->kappa + (w1->kappa - w0->kappa) * t;
             out.vx = w0->vx + (w1->vx - w0->vx) * t;
             out.ax = w0->ax + (w1->ax - w0->ax) * t;
@@ -410,7 +415,12 @@ static Waypoint_t sample_raceline_by_s(double s_query)
     out.s = s;
     out.x = w0->x + (w1->x - w0->x) * t;
     out.y = w0->y + (w1->y - w0->y) * t;
-    out.psi = w0->psi + (w1->psi - w0->psi) * t;
+    {
+        double dpsi = w1->psi - w0->psi;
+        while (dpsi > M_PI) dpsi -= TWO_PI;
+        while (dpsi < -M_PI) dpsi += TWO_PI;
+        out.psi = wrap_angle(w0->psi + dpsi * t);
+    }
     out.kappa = w0->kappa + (w1->kappa - w0->kappa) * t;
     out.vx = w0->vx + (w1->vx - w0->vx) * t;
     out.ax = w0->ax + (w1->ax - w0->ax) * t;
@@ -555,7 +565,7 @@ int main(void)
 
     const int verbose = getenv("VERBOSE") != NULL;
 
-    printf("=== Spielberg Sim-Drive Test (Riccati-ADMM, %.0fs at dt=%.4fs = %d steps, %.0fHz) ===\n",
+    printf("=== my_track Sim-Drive Test (Riccati-ADMM, %.0fs at dt=%.4fs = %d steps, %.0fHz) ===\n",
             SIM_DURATION, SIM_DT, SIM_STEPS, 1.0/SIM_DT);
     printf("    MPC rate: %.0fHz (every %d sim steps)\n",
            1.0/MPC_DT, MPC_CALL_INTERVAL);
@@ -1159,6 +1169,15 @@ int main(void)
     check("Avg heading error < 0.3 rad (17 deg)", avg_hdg < 0.3);
     check("Solver mostly succeeds (>80%)", solver_ok > solver_calls * 80 / 100);
     int speed_check_pass = 1;
+    double ref_peak_speed = 0.0;
+    double ref_avg_speed = 0.0;
+    for (int i = 0; i < raceline_count; i++) {
+        if (raceline[i].vx > ref_peak_speed)
+            ref_peak_speed = raceline[i].vx;
+        ref_avg_speed += raceline[i].vx;
+    }
+    if (raceline_count > 0)
+        ref_avg_speed /= raceline_count;
     if (realistic_mode) {
         char speed_msg[128];
         snprintf(speed_msg, sizeof(speed_msg),
@@ -1167,8 +1186,19 @@ int main(void)
         speed_check_pass = (time_above_5ms > simulated_time * speed_threshold);
         check(speed_msg, speed_check_pass);
     } else {
-        speed_check_pass = (time_above_5ms > simulated_time * 0.5);
-        check("Reaches driving speed (>5 m/s for >50% of time)", speed_check_pass);
+        if (ref_avg_speed < 5.0) {
+            char speed_msg[160];
+            const double min_avg_ratio = 0.60;
+            const double min_avg_speed = ref_avg_speed * min_avg_ratio;
+            snprintf(speed_msg, sizeof(speed_msg),
+                     "Tracks low-speed map (avg speed > %.0f%% of avg ref %.2f m/s)",
+                     min_avg_ratio * 100.0, ref_avg_speed);
+            speed_check_pass = (avg_vx > min_avg_speed);
+            check(speed_msg, speed_check_pass);
+        } else {
+            speed_check_pass = (time_above_5ms > simulated_time * 0.5);
+            check("Reaches driving speed (>5 m/s for >50% of time)", speed_check_pass);
+        }
     }
 
     int failed_non_speed = tests_failed - (speed_check_pass ? 0 : 1);

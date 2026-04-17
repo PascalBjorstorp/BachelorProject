@@ -69,6 +69,30 @@
 #define MPC_HLS_VEHICLE_MUL_LIMIT 8
 #endif
 
+/** ADMM state z/y update loop target II.
+ *  Override at compile time: -DMPC_HLS_STATE_ZY_II=N */
+#ifndef MPC_HLS_STATE_ZY_II
+#define MPC_HLS_STATE_ZY_II 6
+#endif
+
+/** ADMM control z/y update loop target II.
+ *  Override at compile time: -DMPC_HLS_CTRL_ZY_II=N */
+#ifndef MPC_HLS_CTRL_ZY_II
+#define MPC_HLS_CTRL_ZY_II 4
+#endif
+
+/** Unroll factor for ADMM state-axis loops (nx dimension).
+ *  Override at compile time: -DMPC_HLS_UNROLL_STATE_FACTOR=N */
+#ifndef MPC_HLS_UNROLL_STATE_FACTOR
+#define MPC_HLS_UNROLL_STATE_FACTOR 2
+#endif
+
+/** M = B^T P backward pass pipeline II.
+ *  Override at compile time: -DMPC_HLS_M_BT_P_II=N */
+#ifndef MPC_HLS_M_BT_P_II
+#define MPC_HLS_M_BT_P_II 3
+#endif
+
 /*===========================================================================
  * Augmented State Indices
  *===========================================================================*/
@@ -242,16 +266,10 @@
 #define MIN_LIN_VEL         (mpc_rt_min_lin_vel)
 #define STABILITY_LIMIT_VAL (mpc_rt_stability_limit)
 #define WALL_MARGIN         (mpc_rt_wall_margin)
-#define WALL_START          (mpc_rt_wall_start)
-#define WALL_STRIDE         (mpc_rt_wall_stride)
-#define WALL_END            (mpc_rt_wall_end)
 #else
 #define MIN_LIN_VEL         FP_QP_CONST(MPC_FPGA_MIN_LIN_VEL_MPS)
 #define STABILITY_LIMIT_VAL FP_QP_CONST(MPC_FPGA_STABILITY_LIMIT)
 #define WALL_MARGIN         FP_QP_CONST(MPC_FPGA_WALL_MARGIN_M)
-#define WALL_START          MPC_FPGA_WALL_START
-#define WALL_STRIDE         MPC_FPGA_WALL_STRIDE
-#define WALL_END            MPC_FPGA_WALL_END
 #endif
 #define V_SWITCH            FP_QP_CONST(MPC_FPGA_V_SWITCH_MPS)
 #define BOUND_THRESHOLD     FP_QP_CONST(MPC_FPGA_BOUND_THRESHOLD)
@@ -301,6 +319,7 @@ typedef struct {
 typedef struct {
     fp_QP_t A[MPC_NX_AUG][MPC_NX_AUG];
     fp_QP_t B[MPC_NX_AUG][MPC_NU];
+    fp_QP_t d[MPC_NX_AUG];
     fp_QP_t Q_diag[MPC_NX_AUG];
     fp_QP_t q[MPC_NX_AUG];
     fp_QP_t R_diag[MPC_NU];

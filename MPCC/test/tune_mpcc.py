@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-MPCC Weight Tuning — Liniger-style Path Generation
-====================================================
-Sweeps MPCC controller weights (Global Frame Liniger MPCC, ADMM+Riccati)
-via env vars and the standalone test_sim_drive binary.
+MPCC Weight Tuning — Locked Horizon/DT
+=======================================
+Sweeps MPCC controller weights with HORIZON=20 and DT=0.03 locked.
+Total prediction window: 20 × 0.03 = 0.60 s.
 
 Objective: maximize average speed with ZERO wall collisions (hard constraint).
            Any collision → score = 1000 + collisions (never beats safe config).
@@ -46,6 +46,14 @@ DEFAULT_RACELINE_NAME = "my_track_raceline.csv"
 RACELINE_PATH = os.path.join(TRAJ_DIR, DEFAULT_RACELINE_NAME)
 RACELINE_TAG = "my_track"
 
+# ==============================================================================
+# LOCKED PREDICTION WINDOW  (never swept)
+# ==============================================================================
+LOCKED_HORIZON = 20
+LOCKED_DT      = 0.03
+# cross_call_rate_scale = control_dt / prediction_dt = (1/200 Hz) / 0.03 s
+LOCKED_CROSS_CALL_SCALE = round((1.0 / 200.0) / LOCKED_DT, 6)  # ≈ 0.1667
+
 BASE_CONFIG = {
     # Contouring tracking
     "Q_CONTOURING":      1000.0,
@@ -78,15 +86,13 @@ BASE_CONFIG = {
     "ADMM_MAX_ITER":     150,
     "ADMM_TOL":          0.011,
 
-    # Horizon
-    "HORIZON":           20,
-    "DT":                0.02,
-
     # V_THETA_MAX >= vx_max so reference keeps up with vehicle
     "V_THETA_MAX":       20.0,
 
-    # cross_call_rate_scale = (1/200Hz) / 0.02s = 0.25
-    "CROSS_CALL_SCALE":  0.25,
+    # LOCKED — not swept
+    "HORIZON":           LOCKED_HORIZON,
+    "DT":                LOCKED_DT,
+    "CROSS_CALL_SCALE":  LOCKED_CROSS_CALL_SCALE,
 }
 
 RACER_BASE_OVERRIDES = {
@@ -98,7 +104,6 @@ RACER_BASE_OVERRIDES = {
     "Q_LAG_TERM":        400.0,
     "Q_PROGRESS_TERM":   30.0,
     "R_VTHETA":          0.05,
-    "HORIZON":           12,
 }
 
 # ==============================================================================
@@ -111,8 +116,6 @@ PHASE2_VALUES = {
     "Q_PROGRESS":        [10, 20, 30, 50, 80],
     "Q_CONTOURING_TERM": [1000, 2000, 4000, 8000],
     "Q_LAG_TERM":        [200, 400, 800, 1500],
-    "HORIZON":           [7, 10, 15, 20],
-    "DT":                [0.015, 0.02, 0.025, 0.03],
 }
 
 FULL_SWEEP_VALUES = {
@@ -128,8 +131,6 @@ FULL_SWEEP_VALUES = {
     "Q_CONTOURING_TERM": [500, 1000, 2000, 4000, 8000, 12000],
     "Q_LAG_TERM":        [100, 200, 400, 800, 1500, 3000],
     "Q_PROGRESS_TERM":   [5, 10, 20, 30, 50, 80],
-    "HORIZON":           [5, 7, 10, 12, 15, 20],
-    "DT":                [0.015, 0.02, 0.025, 0.03, 0.035],
     "ADMM_RHO":          [0.3, 0.5, 0.9, 2.0, 5.0, 10.0],
     "ADMM_MAX_ITER":     [50, 100, 150, 200, 300],
     "ADMM_TOL":          [0.005, 0.01, 0.02, 0.05],
@@ -138,7 +139,6 @@ FULL_SWEEP_VALUES = {
     "VX_REF":            [2.0, 3.0, 4.0, 5.0, 6.0, 8.0],
     "R_AX":              [0.02, 0.055, 0.1, 0.3, 1.0],
     "W_AX_RATE":         [0.1, 0.3, 0.61, 1.0, 2.0],
-    "CROSS_CALL_SCALE":  [0.1, 0.15, 0.25, 0.35, 0.5],
 }
 
 PHASE4_VALUES = {
@@ -177,11 +177,9 @@ RANDOM_PROFILES = {
             "W_VTHETA_RATE":     [0.7, 0.85, 1.0, 1.2, 1.4],
             "ADMM_RHO":          [0.75, 0.9, 1.0, 1.15, 1.35],
             "V_THETA_MAX":       [0.8, 0.9, 1.0, 1.1, 1.2],
-            "CROSS_CALL_SCALE":  [0.8, 0.9, 1.0, 1.1, 1.2],
         },
         "discrete": {
-            "HORIZON":       [7, 8, 10, 12, 15, 20],
-            "DT":            [0.015, 0.02, 0.025, 0.03, 0.035],
+            # HORIZON and DT intentionally omitted — locked
             "ADMM_MAX_ITER": [50, 100, 150, 200, 300],
         },
     },
@@ -206,11 +204,9 @@ RANDOM_PROFILES = {
             "W_VTHETA_RATE":     [0.7, 0.85, 1.0, 1.2, 1.4],
             "ADMM_RHO":          [0.85, 0.95, 1.0, 1.1, 1.2],
             "V_THETA_MAX":       [0.85, 0.95, 1.0, 1.1, 1.2],
-            "CROSS_CALL_SCALE":  [0.8, 0.9, 1.0, 1.1, 1.2],
         },
         "discrete": {
-            "HORIZON":       [7, 10, 12, 15, 20],
-            "DT":            [0.015, 0.02, 0.025, 0.03, 0.035],
+            # HORIZON and DT intentionally omitted — locked
             "ADMM_MAX_ITER": [50, 100, 150, 200],
         },
     },
@@ -235,11 +231,9 @@ RANDOM_PROFILES = {
             "W_VTHETA_RATE":     [0.9, 0.97, 1.0, 1.05, 1.1],
             "ADMM_RHO":          [0.9, 0.97, 1.0, 1.06, 1.12],
             "V_THETA_MAX":       [0.94, 0.99, 1.0, 1.04, 1.08],
-            "CROSS_CALL_SCALE":  [0.92, 0.98, 1.0, 1.05, 1.1],
         },
         "discrete": {
-            "HORIZON":       [7, 8, 10, 12, 15],
-            "DT":            [0.015, 0.02, 0.025, 0.03, 0.035],
+            # HORIZON and DT intentionally omitted — locked
             "ADMM_MAX_ITER": [50, 100, 150, 200],
         },
     },
@@ -264,11 +258,9 @@ RANDOM_PROFILES = {
             "W_VTHETA_RATE":     [0.9, 0.97, 1.0, 1.05, 1.1],
             "ADMM_RHO":          [0.92, 0.98, 1.0, 1.05, 1.1],
             "V_THETA_MAX":       [0.92, 0.98, 1.0, 1.05, 1.1],
-            "CROSS_CALL_SCALE":  [0.92, 0.98, 1.0, 1.05, 1.1],
         },
         "discrete": {
-            "HORIZON":       [7, 10, 12, 15, 20],
-            "DT":            [0.015, 0.02, 0.025, 0.03, 0.035],
+            # HORIZON and DT intentionally omitted — locked
             "ADMM_MAX_ITER": [100, 150, 200],
         },
     },
@@ -392,6 +384,10 @@ def run_test(params: dict, binary: str) -> dict:
     env["RACELINE_PATH"] = RACELINE_PATH
 
     effective_params = canonicalize_params(enforce_terminal_weight_floor(params))
+    # Always enforce locked prediction window
+    effective_params["HORIZON"]         = LOCKED_HORIZON
+    effective_params["DT"]              = LOCKED_DT
+    effective_params["CROSS_CALL_SCALE"] = LOCKED_CROSS_CALL_SCALE
     for name, value in effective_params.items():
         env[name] = str(value)
 
@@ -525,14 +521,12 @@ def gen_one_at_a_time() -> list:
 
 def gen_primary_grid() -> list:
     combos = []
-    for qc, ql, qp, qct, qlt, h, dt in itertools.product(
+    for qc, ql, qp, qct, qlt in itertools.product(
             PHASE2_VALUES["Q_CONTOURING"],
             PHASE2_VALUES["Q_LAG"],
             PHASE2_VALUES["Q_PROGRESS"],
             PHASE2_VALUES["Q_CONTOURING_TERM"],
-            PHASE2_VALUES["Q_LAG_TERM"],
-            PHASE2_VALUES["HORIZON"],
-            PHASE2_VALUES["DT"]):
+            PHASE2_VALUES["Q_LAG_TERM"]):
 
         if qct < qc or qlt < ql:
             continue
@@ -545,12 +539,10 @@ def gen_primary_grid() -> list:
         w["Q_PROGRESS"]        = qp
         w["Q_CONTOURING_TERM"] = qct
         w["Q_LAG_TERM"]        = qlt
-        w["HORIZON"]           = h
-        w["DT"]                = dt
 
         if is_valid_config(w):
             label = (f"QC={qc}+QL={ql}+QP={qp}"
-                     f"+QCT={qct}+QLT={qlt}+N={h}+dt={dt}")
+                     f"+QCT={qct}+QLT={qlt}")
             combos.append((label, w))
     return combos
 
@@ -593,7 +585,7 @@ def gen_fine_tuning(best_weights: dict) -> list:
     combos = []
     pct_range = (0.80, 0.85, 0.90, 0.92, 0.95, 0.97,
                  1.03, 1.05, 1.08, 1.10, 1.15, 1.20)
-    skip = {"ADMM_MAX_ITER", "HORIZON"}
+    skip = {"ADMM_MAX_ITER", "HORIZON", "DT", "CROSS_CALL_SCALE"}
 
     for name, base_val in best_weights.items():
         if name in skip:
@@ -623,7 +615,7 @@ def gen_fine_tuning(best_weights: dict) -> list:
         "Q_CONTOURING", "Q_LAG", "Q_PROGRESS",
         "Q_CONTOURING_TERM", "Q_LAG_TERM",
         "Q_VX", "R_DELTA", "R_AX", "R_VTHETA",
-        "V_THETA_MAX", "ADMM_RHO", "W_DELTA_RATE", "DT",
+        "V_THETA_MAX", "ADMM_RHO", "W_DELTA_RATE",
     ]
     for w1, w2 in itertools.combinations(key_params, 2):
         v1 = best_weights.get(w1, 0)
@@ -661,7 +653,8 @@ def gen_random_neighbors(best_weights: dict, n: int, objective: str,
     default_mults     = profile.get("default_multipliers", [0.85, 0.95, 1.0, 1.1, 1.2])
     min_p, max_p      = profile.get("num_perturb_range", (3, 6))
 
-    tune_params = [k for k in best_weights.keys() if k not in ("ADMM_MAX_ITER",)]
+    tune_params = [k for k in best_weights.keys()
+                   if k not in ("ADMM_MAX_ITER", "HORIZON", "DT", "CROSS_CALL_SCALE")]
 
     i = 0
     attempts = 0
@@ -681,8 +674,11 @@ def gen_random_neighbors(best_weights: dict, n: int, objective: str,
                 w[name] = round(w[name] * mult, 6)
             if name in INT_PARAMS:
                 w[name] = int(float(w[name]))
-                if name == "HORIZON":
-                    w[name] = max(2, min(50, w[name]))
+
+        # Always re-lock prediction window
+        w["HORIZON"]         = LOCKED_HORIZON
+        w["DT"]              = LOCKED_DT
+        w["CROSS_CALL_SCALE"] = LOCKED_CROSS_CALL_SCALE
 
         w = enforce_terminal_weight_floor(w)
         if is_valid_config(w):
@@ -908,7 +904,7 @@ def sanity_check_params(binary: str):
         ("Q_CONTOURING", BASE.get("Q_CONTOURING", 1000) * 1.5),
         ("Q_LAG",        BASE.get("Q_LAG", 300) * 1.5),
         ("ADMM_RHO",     BASE.get("ADMM_RHO", 0.9) * 1.5),
-        ("HORIZON",      min(50, int(BASE.get("HORIZON", 10) + 3))),
+        ("R_DELTA",      BASE.get("R_DELTA", 13.75) * 1.5),
     ]
     for i, (name, new_val) in enumerate(probes, 2):
         print(f"  [{i}/5] Probing {name}={new_val}...", end=" ", flush=True)
@@ -929,7 +925,8 @@ def main():
     import argparse
     global BASE, RACELINE_PATH, RACELINE_TAG
 
-    parser = argparse.ArgumentParser(description="MPCC Weight Tuner")
+    parser = argparse.ArgumentParser(
+        description="MPCC Weight Tuner — locked HORIZON=20, DT=0.03")
     parser.add_argument("--jobs", "-j", type=int,
                         default=multiprocessing.cpu_count(),
                         help="Number of parallel workers")
@@ -976,6 +973,9 @@ def main():
         sys.exit(1)
 
     print(f"MPCC Tuner — objective={args.objective}  workers={args.jobs}")
+    print(f"  LOCKED: HORIZON={LOCKED_HORIZON}  DT={LOCKED_DT}"
+          f"  window={LOCKED_HORIZON * LOCKED_DT:.2f}s"
+          f"  CROSS_CALL_SCALE={LOCKED_CROSS_CALL_SCALE:.4f}")
     print(f"  binary:   {binary}")
     print(f"  raceline: {RACELINE_PATH}")
     print(f"  Scoring:  zero-collision HARD constraint — any wc>0 → score=1000+wc")
@@ -1019,7 +1019,7 @@ def main():
         return
 
     # ── Phase 2 ──────────────────────────────────────────────────────────────
-    run_phase("Phase 2: Primary grid (contouring+lag+progress+terminal+horizon)",
+    run_phase("Phase 2: Primary grid (contouring+lag+progress+terminal)",
               gen_primary_grid(), binary, results, t0,
               args.jobs, csv_writer, args.objective)
     print_best(results, args.objective, "after Phase 2")
