@@ -417,14 +417,24 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
     fused_speed = 0.0;
   }
 
+  const double speed_for_blend = std::max(dynamic_model_min_speed_, kEpsilon);
+  const double low_speed_imu_boost =
+    1.0 - std::clamp(std::fabs(current_speed) / speed_for_blend, 0.0, 1.0);
   const double imu_yaw_rate = imu_yaw_rate_raw - gyro_bias_;
-  const double imu_yaw_weight = imu_fresh ? imu_yaw_base_weight_ : 0.0;
+  const double imu_yaw_weight = imu_fresh ?
+    std::clamp(
+    imu_yaw_base_weight_ + (1.0 - imu_yaw_base_weight_) * low_speed_imu_boost,
+    0.0,
+    1.0) :
+    0.0;
   const double current_yaw_rate =
     (1.0 - imu_yaw_weight) * model_yaw_rate + imu_yaw_weight * imu_yaw_rate;
 
   // Use dynamic-model lateral state directly.
   if (has_servo) {
-    imu_lateral_velocity_ = model_lateral_velocity;
+    const double low_speed_lateral_scale =
+      std::clamp(std::fabs(current_speed) / speed_for_blend, 0.0, 1.0);
+    imu_lateral_velocity_ = model_lateral_velocity * low_speed_lateral_scale;
   } else {
     imu_lateral_velocity_ = 0.0;
   }
