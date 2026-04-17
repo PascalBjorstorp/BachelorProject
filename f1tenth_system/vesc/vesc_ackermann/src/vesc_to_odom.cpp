@@ -83,8 +83,7 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   c_alpha_r_ = declare_parameter("c_alpha_r", c_alpha_r_);
   pacejka_shape_factor_ =
     declare_parameter("pacejka_shape_factor", pacejka_shape_factor_);
-  dynamic_model_min_speed_ =
-    declare_parameter("dynamic_model_min_speed", dynamic_model_min_speed_);
+  dynamic_model_min_speed_ = declare_parameter("dynamic_model_min_speed", dynamic_model_min_speed_);
 
   // Base covariance parameters
   odom_x_covariance_ = declare_parameter("odom_x_covariance", odom_x_covariance_);
@@ -445,8 +444,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   const bool has_servo = servo_fresh;
   double steering_angle = 0.0;
   if (has_servo && std::fabs(steering_to_servo_gain_) > kEpsilon) {
-    const double raw_steering =
-      (last_servo_cmd_->data - steering_to_servo_offset_) / steering_to_servo_gain_;
+    const double raw_steering = (last_servo_cmd_->data - steering_to_servo_offset_) / steering_to_servo_gain_;
     const double abs_raw = std::fabs(raw_steering);
     const double corrected_abs =
       steering_correction_c2_ * abs_raw * abs_raw +
@@ -462,8 +460,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
 
   double model_lateral_velocity = imu_lateral_velocity_;
   if (use_dynamic_bicycle_model_ && has_servo && std::fabs(current_speed) > dynamic_model_min_speed_) {
-    const double safe_vx =
-      std::copysign(std::max(std::fabs(current_speed), dynamic_model_min_speed_), current_speed);
+    const double safe_vx = std::copysign(std::max(std::fabs(current_speed), dynamic_model_min_speed_), current_speed);
     const double alpha_f = steering_angle - (model_lateral_velocity + l_f_ * yaw_rate_state_) / safe_vx;
     const double alpha_r = -(model_lateral_velocity - l_r_ * yaw_rate_state_) / safe_vx;
 
@@ -632,7 +629,10 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
       (1.0 - imu_lateral_accel_alpha_) * filtered_lateral_accel_;
   }
 
+  
   double imu_lateral_velocity_estimate = imu_lateral_velocity_;
+  if (std::fabs(imu_lateral_velocity_) < 0.1)
+    imu_lateral_velocity_ = 0.0;
   imu_lateral_velocity_estimate += filtered_lateral_accel_ * dt_sec;
   const double decay = std::max(0.0, 1.0 - imu_lateral_velocity_decay_ * dt_sec);
   imu_lateral_velocity_estimate *= decay;
@@ -664,9 +664,9 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   const double yaw_mid = normalizeAngle(yaw_ + 0.5 * current_yaw_rate * dt_sec);
   yaw_ = normalizeAngle(yaw_ + current_yaw_rate * dt_sec);
   yaw_rate_state_ = current_yaw_rate;
-  const double heading = yaw_mid + beta;
-  x_ += fused_speed * std::cos(heading) * dt_sec;
-  y_ += fused_speed * std::sin(heading) * dt_sec;
+  x_ += (fused_speed * std::cos(yaw_mid) - imu_lateral_velocity_ * std::sin(yaw_mid)) * dt_sec;
+  y_ += (fused_speed * std::sin(yaw_mid) + imu_lateral_velocity_ * std::cos(yaw_mid)) * dt_sec;
+
 
   last_state_ = state;
 
@@ -699,7 +699,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   odom->twist.covariance[7] = vy_cov;
 
   odom->twist.twist.linear.x = fused_speed;
-  odom->twist.twist.linear.y = imu_lateral_velocity_;
+  odom->twist.twist.linear.y = 0;
   odom->twist.twist.angular.z = current_yaw_rate;
 
   TransformStamped tf;

@@ -32,6 +32,8 @@ TOPICS=(
   "/map"
   "/map_server/transition_event"
   "/drive"
+  "/mpcc/predicted_path"
+
 )
 
 if ! command -v ros2 >/dev/null 2>&1; then

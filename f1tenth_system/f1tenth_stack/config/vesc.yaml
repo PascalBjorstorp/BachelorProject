@@ -69,7 +69,7 @@ vesc_to_odom_node:
     odom_frame: ego_racecar/odom
     base_frame: ego_racecar/base_link
     # Odom-only steering sign override: keep command path gain untouched, fix odom turn direction.
-    steering_angle_to_servo_gain: 0.7284
+    steering_angle_to_servo_gain: -0.7284
     steering_angle_to_servo_offset: 0.5500
     speed_deadband: 0.15
     max_dt_sec: 1.0
@@ -89,7 +89,7 @@ vesc_to_odom_node:
     imu_use_butterworth_filter: true
     imu_butterworth_gyro_cutoff_hz: 18.0
     imu_butterworth_lateral_accel_cutoff_hz: 12.0
-    imu_yaw_base_weight: 0.80
+    imu_yaw_base_weight: 0.40
     imu_history_max_samples: 400
     imu_sync_tolerance_sec: 0.03
     imu_timeout_sec: 0.10
@@ -141,8 +141,8 @@ vesc_to_odom_node:
     imu_lateral_velocity_max: 3.0
 
     # Slip-angle blending limits.
-    beta_max_rad: 0.8
-    kinematic_beta_ratio: 0.5
+    beta_max_rad: 0.3
+    kinematic_beta_ratio: 0.3
 
     # Odometry covariance scalars used by vesc_to_odom
     # Units: x/y in m^2, yaw in rad^2
