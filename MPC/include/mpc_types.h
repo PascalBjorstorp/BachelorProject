@@ -87,20 +87,20 @@
 #define STEERING_CORRECTION_C0 0.001490f                 /* Constant term in empirical steering-command correction model. */
 
 /* Vehicle parameter defaults and derived constants */
-#define VP_WHEELBASE_M 0.324f                            /* Distance between front and rear axle centers. */
 #define VP_MAX_STEERING_RAD 0.4189f                      /* Steering-angle saturation used by controller and model limits. */
 #define VP_MAX_VELOCITY_MPS 20.0f                        /* Upper velocity limit used by vehicle model clamping logic. */
 #define VP_MIN_VELOCITY_MPS 0.0f                         /* Lower velocity limit used by vehicle model clamping logic. */
 #define VP_CG_TO_FRONT_AXLE_M 0.166f                     /* Center-of-gravity distance from front axle for load transfer. */
 #define VP_CG_TO_REAR_AXLE_M 0.16f                       /* Center-of-gravity distance from rear axle for load transfer. */
+#define VP_WHEELBASE_M (VP_CG_TO_FRONT_AXLE_M + VP_CG_TO_REAR_AXLE_M) /* Distance between front and rear axle centers. */
 #define VP_MASS_KG 3.314f                                /* Vehicle mass used in dynamic equations and load calculations. */
 #define VP_YAW_INERTIA_KGM2 0.035f                       /* Yaw inertia governing rotational response to tire moments. */
 #define VP_CG_HEIGHT_M 0.0703f                           /* Center-of-gravity height driving longitudinal load transfer. */
 #define VP_FRICTION_COEFF 0.745f                         /* Effective tire-road friction coefficient for force limits. */
 #define GRAVITY_MPS2 9.81f                               /* Gravitational acceleration constant used in vehicle load equations. */
 #define VP_MASS_TIMES_GRAVITY_N (VP_MASS_KG * GRAVITY_MPS2) /* Vehicle weight magnitude used by normal-load equations. */
-#define VP_INV_MASS_1_PER_KG util_recip(VP_MASS_KG)      /* Reciprocal vehicle mass used in acceleration-state Jacobians. */
-#define VP_INV_YAW_INERTIA_1_PER_KGM2 util_recip(VP_YAW_INERTIA_KGM2) /* Reciprocal yaw inertia used in yaw-rate Jacobians. */
+#define VP_INV_MASS_1_PER_KG (1.0f / VP_MASS_KG)         /* Reciprocal vehicle mass used in acceleration-state Jacobians. */
+#define VP_INV_YAW_INERTIA_1_PER_KGM2 (1.0f / VP_YAW_INERTIA_KGM2) /* Reciprocal yaw inertia used in yaw-rate Jacobians. */
 #define VP_MAX_ACCEL_MPS2 (VP_FRICTION_COEFF * GRAVITY_MPS2) /* Friction-limited forward acceleration derived from tire-road capacity. */
 #define VP_MIN_ACCEL_MPS2 (-VP_MAX_ACCEL_MPS2)           /* Braking bound mirrored from the friction-limited acceleration envelope. */
 #define VP_C_ALPHA_F 51.40f                              /* Front tire lateral-force scale used by the nonlinear tire model. */
@@ -110,7 +110,7 @@
 #define VP_D_FRONT (VP_FRICTION_COEFF * VP_NORM_LOAD_F) /* Front lateral force scale from friction and normal-load estimate. */
 #define VP_D_REAR (VP_FRICTION_COEFF * VP_NORM_LOAD_R)  /* Rear lateral force scale from friction and normal-load estimate. */
 #define VP_C_SHAPE 1.9f                                  /* Tire-model shape factor governing force saturation transition. */
-#define VP_INV_C_SHAPE util_recip(VP_C_SHAPE)            /* Reciprocal tire shape factor for local-slope calculations. */
+#define VP_INV_C_SHAPE (1.0f / VP_C_SHAPE)               /* Reciprocal tire shape factor for local-slope calculations. */
 #define MIN_STIFF_SCALE 0.1f                             /* Lower bound on stiffness scaling to avoid low-speed singularities. */
 #define VP_FRONT_CORNERING_STIFFNESS (VP_C_ALPHA_F / VP_D_FRONT) /* Front normalized cornering stiffness used in slip-force mapping. */
 #define VP_REAR_CORNERING_STIFFNESS (VP_C_ALPHA_R / VP_D_REAR)   /* Rear normalized cornering stiffness used in slip-force mapping. */
@@ -348,7 +348,7 @@ typedef enum
  * @param solver_status Solver termination state.
  * @param optimal_control First-step optimal control command.
  * @param iterations_used Number of iterations consumed by the solver.
- * @param final_cost Final objective value reported by the solver.
+ * @param final_cost Final primal residual metric reported by the solver.
  * @param dual_residual Final dual residual from ADMM convergence checks.
  */
 typedef struct
@@ -356,7 +356,7 @@ typedef struct
     MpcSolverStatus_t solver_status;  /* Solver termination status. */
     ControlInput_t optimal_control;   /* First-step optimal control command. */
     uint16_t iterations_used;         /* Number of solver iterations used. */
-    float final_cost;                 /* Final solver cost metric. */
+    float final_cost;                 /* Final solver primal residual metric. */
     float dual_residual;              /* Final dual residual (ADMM metric). */
 } MpcSolverResult_t;
 

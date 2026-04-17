@@ -289,7 +289,12 @@ static void sample_waypoint_by_s(double s_query, TrajectoryWaypoint_t *out)
             out->s_meters = s;
             out->x_meters = w0->x_meters + (w1->x_meters - w0->x_meters) * t;
             out->y_meters = w0->y_meters + (w1->y_meters - w0->y_meters) * t;
-            out->heading_radians = w0->heading_radians + (w1->heading_radians - w0->heading_radians) * t;
+            {
+                double dh = w1->heading_radians - w0->heading_radians;
+                while (dh > M_PI) dh -= TWO_PI;
+                while (dh < -M_PI) dh += TWO_PI;
+                out->heading_radians = w0->heading_radians + t * dh;
+            }
             out->curvature_radians_per_meter = w0->curvature_radians_per_meter +
                                                (w1->curvature_radians_per_meter - w0->curvature_radians_per_meter) * t;
             out->velocity_meters_per_second = w0->velocity_meters_per_second +
@@ -313,7 +318,12 @@ static void sample_waypoint_by_s(double s_query, TrajectoryWaypoint_t *out)
     out->s_meters = s;
     out->x_meters = w0->x_meters + (w1->x_meters - w0->x_meters) * t;
     out->y_meters = w0->y_meters + (w1->y_meters - w0->y_meters) * t;
-    out->heading_radians = w0->heading_radians + (w1->heading_radians - w0->heading_radians) * t;
+    {
+        double dh = w1->heading_radians - w0->heading_radians;
+        while (dh > M_PI) dh -= TWO_PI;
+        while (dh < -M_PI) dh += TWO_PI;
+        out->heading_radians = w0->heading_radians + t * dh;
+    }
     out->curvature_radians_per_meter = w0->curvature_radians_per_meter +
                                        (w1->curvature_radians_per_meter - w0->curvature_radians_per_meter) * t;
     out->velocity_meters_per_second = w0->velocity_meters_per_second +
@@ -335,12 +345,14 @@ static void sample_waypoint_by_s(double s_query, TrajectoryWaypoint_t *out)
  */
 static void build_reference_from_trajectory(int closest_index)
 {
+    const MpcConfiguration_t cfg = mpc_get_configuration();
+    const double pred_dt = (cfg.time_step > 0.0f) ? (double)cfg.time_step : (double)TIME_STEP_SECONDS;
     double s_query = global_trajectory[closest_index].s_meters;
     double step_velocity = global_trajectory[closest_index].velocity_meters_per_second;
 
     for (int step = 0; step < PREDICTION_HORIZON; step++)
     {
-        s_query += step_velocity * TIME_STEP_SECONDS;
+        s_query += step_velocity * pred_dt;
         TrajectoryWaypoint_t wp;
         sample_waypoint_by_s(s_query, &wp);
 
@@ -558,7 +570,7 @@ void odometry_subscription_callback(const void *message_in)
 
             /* Simulate servo lag and feed actual steering back to MPC. */
             {
-                double max_delta = STEERING_RATE_LIMIT * TIME_STEP_SECONDS;
+                double max_delta = STEERING_RATE_LIMIT * CONTROL_DT_SECONDS;
                 double steer_diff = (double)global_control_command.steer_ang -
                                     global_actual_steering_angle;
 
@@ -650,6 +662,9 @@ void collision_subscription_callback(const void *message_in)
  */
 int main(int argc, char *argv[])
 {
+    /* Initialize MPC controller before printing runtime configuration. */
+    mpc_initialize();
+
     printf("============================================================\n");
     printf("  MPC Riccati-ADMM ROS2 Node for F1/10th Simulator\n");
     printf("  8-state augmented Frenet model\n");
@@ -657,9 +672,12 @@ int main(int argc, char *argv[])
     printf("  Controls: [delta_rate, a_x]\n");
     printf("  Solver: Riccati backward/forward pass inside ADMM loop\n");
     printf("============================================================\n");
-    printf("  Prediction horizon: %d steps (%.1f ms each)\n",
-            PREDICTION_HORIZON,
-            TIME_STEP_SECONDS * 1000.0);
+    {
+        MpcConfiguration_t cfg = mpc_get_configuration();
+        printf("  Prediction horizon: %d steps (%.1f ms each)\n",
+                PREDICTION_HORIZON,
+                (double)cfg.time_step * 1000.0);
+    }
     printf("  Max velocity: %.1f m/s\n",
             TRAJECTORY_MAXIMUM_VELOCITY);
     printf("------------------------------------------------------------\n");
@@ -670,19 +688,31 @@ int main(int argc, char *argv[])
 
     rcl_ret_t rc;
 
-    /* Initialize MPC controller — uses Riccati-ADMM internally */
-    mpc_initialize();
-
-    printf("[MPC] Controller initialized (horizon=%d, dt=%.0fms)\n",
-           PREDICTION_HORIZON, TIME_STEP_SECONDS * 1000.0);
+    {
+        MpcConfiguration_t cfg = mpc_get_configuration();
+        printf("[MPC] Controller initialized (horizon=%d, dt=%.0fms)\n",
+               PREDICTION_HORIZON, (double)cfg.time_step * 1000.0);
+    }
     printf("[MPC] Control rate: ~%d Hz \n",
            (int)CONTROL_RATE_HZ);
 
     {
         MpcConfiguration_t cfg = mpc_get_configuration();
-        printf("[MPC] max_iter=%u, tol=%d\n",
-               cfg.max_solver_iterations,
-               (int)cfg.solver_convergence_tolerance);
+        unsigned int effective_max_iter = cfg.max_solver_iterations;
+        double effective_tol = (double)cfg.solver_convergence_tolerance;
+        const char *env_val = getenv("MAX_ITER");
+        if (env_val != NULL && env_val[0] != '\0') {
+            int parsed = atoi(env_val);
+            if (parsed > 0) effective_max_iter = (unsigned int)parsed;
+        }
+        env_val = getenv("TOL");
+        if (env_val != NULL && env_val[0] != '\0') {
+            double parsed = atof(env_val);
+            if (parsed > 0.0) effective_tol = parsed;
+        }
+        printf("[MPC] max_iter=%u, tol=%.6g\n",
+               effective_max_iter,
+               effective_tol);
         printf("[MPC] Weights: lat=%.2f heading=%.2f vel=%.2f steer_rate=%.2f steer_effort=%.4f\n",
                (double)cfg.weight_lateral_error,
                (double)cfg.weight_heading_error,
@@ -704,7 +734,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        trajectory_file = "/ros2_ws/src/f1tenth_planning/trajectories/Spielberg_raceline.csv";
+        trajectory_file = "/ros2_ws/src/MPC/trajectories/my_track_raceline.csv";
     }
 
     if (load_trajectory_from_csv(trajectory_file))

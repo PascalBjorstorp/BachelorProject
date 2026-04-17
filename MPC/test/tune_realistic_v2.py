@@ -49,8 +49,8 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
 TRAJ_DIR = os.path.join(PROJECT_DIR, "trajectories")
 
-HORIZON_SWEEP_VALUES = [10, 12, 14, 16, 18, 20, 24, 28, 30]
-HORIZON_LIMIT = 50
+HORIZON_SWEEP_VALUES = [20]
+HORIZON_LIMIT = 20
 
 # ==============================================================================
 # HARDWARE MAP CONFIGURATION
@@ -95,14 +95,14 @@ PHASE2_VALUES_BASE = {
     # Sweeps grouped solver bucket profile as one config value
     # (HORIZON+PRED_DT+RHO+RHO_U+TOL tied together).
     # 6*5*5*4*4*4*3*10 = 288,000 configs.
-    "Q_LAT": [8200.0, 9000.0, 9660.42, 10300.0, 11200.0, 12200.0],
-    "Q_HDG": [1100.0, 1250.0, 1400.0, 1550.0, 1700.0],
-    "Q_VEL": [95.0, 110.0, 122.4, 132.192, 145.0],
-    "Q_LAT_VEL": [3.8, 4.59, 5.8, 7.2],
-    "Q_YAW": [1.8, 2.112, 2.8, 3.4],
-    "R_STEER": [1.9, 2.1, 2.244, 2.5],
-    "MPC_W_DELTA_ACTUAL": [0.02, 0.03, 0.05],
-    "SOLVER_BUCKET": ["t01", "t02", "t03", "t04", "t05", "t06", "t07", "t08", "t09", "t10"],
+    "Q_LAT": [2000.0, 4000.0, 6000.0, 8000.0, 9660.42, 10300.0],
+    "Q_HDG": [400, 800, 1100.0, 1250.0, 1400.0, 1550.0],
+    "Q_VEL": [60, 95.0, 110.0, 122.4, 132.192, 145.0],
+    "Q_LAT_VEL": [1.0, 2.0, 3.8, 4.59, 5.6, 7.0],
+    "Q_YAW": [1.0, 1.8, 2.112, 2.6, 3.2, 3.8],
+    "R_STEER": [1.0, 1.8, 2.1, 2.244, 2.5, 2.8],
+    "MPC_W_DELTA_ACTUAL": [0.02, 0.03, 0.05, 0.08, 0.2],
+    "SOLVER_BUCKET": ["t01"],
 }
 
 # ==============================================================================
@@ -110,20 +110,20 @@ PHASE2_VALUES_BASE = {
 # ==============================================================================
 
 FULL_SWEEP_VALUES_BASE = {
-    "Q_LAT":        [8200.0, 9000.0, 9660.42, 10300.0, 11000.0],
-    "Q_HDG":        [1100.0, 1250.0, 1400.0, 1550.0, 1700.0],
-    "Q_VEL":        [95.0, 110.0, 122.4, 132.192, 145.0],
-    "Q_LAT_VEL":    [3.8, 4.59, 5.6, 7.0, 8.5],
-    "Q_YAW":        [1.8, 2.112, 2.6, 3.2, 3.8],
-    "R_STEER":      [1.8, 2.1, 2.244, 2.5, 2.8],
-    "R_ACCEL":      [0.0058, 0.0065, 0.0075, 0.0085, 0.0095],
+    "Q_LAT":        [2000.0, 4000.0, 6000.0, 8000.0, 9660.42, 10300.0, 11000.0],
+    "Q_HDG":        [400, 800, 1100.0, 1250.0, 1400.0, 1550.0, 1700.0],
+    "Q_VEL":        [60, 95.0, 110.0, 122.4, 132.192, 145.0],
+    "Q_LAT_VEL":    [1.0, 2.0, 3.8, 4.59, 5.6, 7.0, 8.5],
+    "Q_YAW":        [1.0, 1.8, 2.112, 2.6, 3.2, 3.8],
+    "R_STEER":      [1.0, 1.8, 2.1, 2.244, 2.5, 2.8],
+    "R_ACCEL":      [0.004, 0.005, 0.0065, 0.0075, 0.0085, 0.0095],
     "W_JERK":       [0.05, 0.063, 0.08, 0.10, 0.12],
     "W_ACCEL_RATE": [0.14, 0.16, 0.17, 0.19, 0.22],
     "MPC_W_DELTA_ACTUAL": [0.02, 0.03, 0.05, 0.08],
     "HORIZON":      HORIZON_SWEEP_VALUES,
     "RHO":          [14, 18, 22],
     "RHO_U":        [20, 24, 28],
-    "PRED_DT":      [0.032, 0.034, 0.036, 0.038, 0.04, 0.045, 0.05],
+    "PRED_DT":      [0.03],
     "TOL":          [0.03, 0.05, 0.08, 0.10],
 }
 
@@ -133,13 +133,13 @@ FULL_SWEEP_VALUES_BASE = {
 # ==============================================================================
 
 PHASE4_VALUES_BASE = {
-    "Q_LAT_VEL":    [3.8, 4.59, 5.6, 7.0, 8.5],
-    "Q_YAW":        [1.8, 2.112, 2.6, 3.2, 3.8],
-    "R_STEER":      [1.8, 2.1, 2.244, 2.5],
-    "W_JERK":       [0.05, 0.063, 0.08, 0.10],
-    "R_ACCEL":      [0.0058, 0.0065, 0.0075, 0.0085, 0.0095],
-    "W_ACCEL_RATE": [0.15, 0.17, 0.21],
-    "MPC_W_DELTA_ACTUAL": [0.02, 0.03, 0.05],
+    "Q_LAT_VEL":    [1.0, 2.0, 3.8, 4.59, 5.6, 7.0, 8.5],
+    "Q_YAW":        [1.0, 1.8, 2.112, 2.6, 3.2, 3.8],
+    "R_STEER":      [1.0, 1.8, 2.1, 2.244, 2.5, 2.8],
+    "W_JERK":       [0.05, 0.063, 0.08, 0.10, 0.12],
+    "R_ACCEL":      [0.004, 0.005, 0.0065, 0.0075, 0.0085, 0.0095, 0.02],
+    "W_ACCEL_RATE": [0.14, 0.16, 0.17, 0.19, 0.22],
+    "MPC_W_DELTA_ACTUAL": [0.02, 0.03, 0.05, 0.08, 0.10],
 }
 
 # ==============================================================================
@@ -150,93 +150,12 @@ PHASE4_VALUES_BASE = {
 SOLVER_BUCKETS = [
     {
         "name": "t01",
-        "t_max": 0.35,
-        "horizon": 10,
-        "pred_dt": 0.032,
-        "rho": 18.0,
-        "rho_u": 24.0,
-        "tol": 0.05,
-    },
-    {
-        "name": "t02",
-        "t_max": 0.45,
-        "horizon": 10,
-        "pred_dt": 0.034,
-        "rho": 22.0,
-        "rho_u": 28.0,
-        "tol": 0.055,
-    },
-    {
-        "name": "t03",
-        "t_max": 0.55,
-        "horizon": 12,
-        "pred_dt": 0.036,
-        "rho": 26.0,
-        "rho_u": 31.0,
-        "tol": 0.06,
-    },
-    {
-        "name": "t04",
-        "t_max": 0.70,
-        "horizon": 14,
-        "pred_dt": 0.040,
-        "rho": 30.0,
-        "rho_u": 34.0,
-        "tol": 0.068,
-    },
-    {
-        "name": "t05",
-        "t_max": 0.85,
-        "horizon": 16,
-        "pred_dt": 0.042,
-        "rho": 34.0,
-        "rho_u": 37.0,
-        "tol": 0.075,
-    },
-    {
-        "name": "t06",
-        "t_max": 1.00,
-        "horizon": 18,
-        "pred_dt": 0.045,
-        "rho": 38.0,
-        "rho_u": 40.0,
-        "tol": 0.082,
-    },
-    {
-        "name": "t07",
         "t_max": 1.15,
         "horizon": 20,
-        "pred_dt": 0.045,
-        "rho": 42.0,
+        "pred_dt": 0.03,
+        "rho": 28.0,
         "rho_u": 42.0,
-        "tol": 0.089,
-    },
-    {
-        "name": "t08",
-        "t_max": 1.30,
-        "horizon": 24,
-        "pred_dt": 0.045,
-        "rho": 45.0,
-        "rho_u": 44.0,
-        "tol": 0.095,
-    },
-    {
-        "name": "t09",
-        "t_max": 1.40,
-        "horizon": 24,
-        "pred_dt": 0.050,
-        "rho": 47.0,
-        "rho_u": 45.0,
-        "tol": 0.098,
-    },
-    {
-        "name": "t10",
-        "t_max": 1.50,
-        "horizon": 30,
-        "pred_dt": 0.050,
-        "rho": 48.0,
-        "rho_u": 46.0,
-        "tol": 0.10,
+        "tol": 0.05,
     },
 ]
 
@@ -245,13 +164,7 @@ SOLVER_BUCKETS_BY_NAME = {b["name"]: b for b in SOLVER_BUCKETS}
 # Evaluate each weight candidate across multiple lookahead anchors so
 # promotion does not overfit to one short-horizon operating point.
 GLOBAL_WEIGHT_REGION_HDT = [
-    (10, 0.032),  # best-csv seed operating point
-    (10, 0.034),  # short-alt
-    (12, 0.036),
-    (16, 0.040),
-    (20, 0.045),  # medium
-    (24, 0.050),
-    (30, 0.050),  # long (T=1.5)
+    (20, 0.03)
 ]
 
 # Candidate is globally passable if enough anchors are promotable.
@@ -266,21 +179,21 @@ RANDOM_PROFILES = {
         "num_perturb_range": (3, 6),
         "default_multipliers": [0.96, 0.99, 1.0, 1.03, 1.06],
         "param_multipliers": {
-            "Q_LAT": [0.9, 0.96, 1.0, 1.04, 1.1],
-            "Q_HDG": [0.9, 0.96, 1.0, 1.04, 1.1],
-            "Q_VEL": [0.9, 0.96, 1.0, 1.05, 1.1, 1.2],
-            "Q_LAT_VEL": [0.9, 0.96, 1.0, 1.04, 1.1],
-            "Q_YAW": [0.9, 0.96, 1.0, 1.04, 1.1],
-            "R_STEER": [0.92, 0.97, 1.0, 1.04, 1.08],
-            "R_ACCEL": [0.9, 0.96, 1.0, 1.04, 1.1],
-            "W_JERK": [0.9, 0.96, 1.0, 1.04, 1.1],
-            "W_ACCEL_RATE": [0.9, 0.96, 1.0, 1.04, 1.1],
-            "RHO": [0.92, 0.97, 1.0, 1.04, 1.1],
-            "RHO_U": [0.92, 0.97, 1.0, 1.04, 1.1],
+            "Q_LAT": [0.8, 0.9, 0.96, 1.0, 1.04, 1.1],
+            "Q_HDG": [0.8, 0.9, 0.96, 1.0, 1.04, 1.1],
+            "Q_VEL": [0.8, 0.9, 0.96, 1.0, 1.05, 1.1, 1.2],
+            "Q_LAT_VEL": [0.8, 0.9, 0.96, 1.0, 1.04, 1.1],
+            "Q_YAW": [0.8, 0.9, 0.96, 1.0, 1.04, 1.1],
+            "R_STEER": [0.85, 0.92, 0.97, 1.0, 1.04, 1.08],
+            "R_ACCEL": [0.8, 0.9, 0.96, 1.0, 1.04, 1.1],
+            "W_JERK": [0.8, 0.9, 0.96, 1.0, 1.04, 1.1],
+            "W_ACCEL_RATE": [0.8, 0.9, 0.96, 1.0, 1.04, 1.1],
+            "RHO": [0.85, 0.92, 0.97, 1.0, 1.04, 1.1],
+            "RHO_U": [0.85, 0.92, 0.97, 1.0, 1.04, 1.1],
         },
         "discrete": {
             "HORIZON": HORIZON_SWEEP_VALUES,
-            "PRED_DT": [0.032, 0.034, 0.036, 0.038, 0.04, 0.045, 0.05],
+            "PRED_DT": [0.03],
         },
     },
     "base_exploit": {
@@ -301,7 +214,7 @@ RANDOM_PROFILES = {
         },
         "discrete": {
             "HORIZON": HORIZON_SWEEP_VALUES,
-            "PRED_DT": [0.032, 0.034, 0.036, 0.038, 0.04, 0.045, 0.05],
+            "PRED_DT": [0.03],
         },
     },
 }
@@ -362,12 +275,12 @@ EVAL_SCENARIOS = []
 GENERATED_RACELINE_DIR = None
 SCENARIO_RACELINE_PATHS = {}
 
-CASCADE_TOP_N = 4   # Top-N seeds promoted from Phase 2 into Phase 4
+CASCADE_TOP_N = 10   # Top-N seeds promoted from Phase 2 into Phase 4
 SEED = 42           # Fixed seed for reproducibility
-GLOBAL_OPTIMIZATION_PASSES = 4  # Repeated refinement passes for Phases 5-8
+GLOBAL_OPTIMIZATION_PASSES = 10  # Repeated refinement passes for Phases 5-8
 INCLUDE_OBSTACLE_SCENARIOS = True
-PHASE7_RANDOM_COUNT = 2000
-PHASE8_RANDOM_COUNT = 3000
+PHASE7_RANDOM_COUNT = 5000
+PHASE8_RANDOM_COUNT = 5000
 STRICT_PROMOTION = True
 SOLVER_PARAM_KEYS = ("RHO", "RHO_U", "TOL")
 DIVERSITY_KEYS = ["Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW", "R_STEER", "R_ACCEL", "W_JERK", "W_ACCEL_RATE", "MPC_W_DELTA_ACTUAL", "HORIZON", "PRED_DT"]
