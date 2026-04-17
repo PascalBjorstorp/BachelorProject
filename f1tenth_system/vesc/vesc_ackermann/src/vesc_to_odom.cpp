@@ -51,6 +51,67 @@ using vesc_msgs::msg::VescStateStamped;
 namespace
 {
 constexpr double kEpsilon = 1e-9;
+
+double invertSteeringCorrection(
+  double corrected_angle,
+  double steering_correction_c2,
+  double steering_correction_c1,
+  double steering_correction_c0)
+{
+  const double abs_corrected = std::fabs(corrected_angle);
+  double abs_steering = abs_corrected;
+
+  if (std::fabs(steering_correction_c2) > kEpsilon) {
+    const double discriminant =
+      steering_correction_c1 * steering_correction_c1 -
+      4.0 * steering_correction_c2 * (steering_correction_c0 - abs_corrected);
+
+    if (discriminant >= 0.0) {
+      const double sqrt_discriminant = std::sqrt(discriminant);
+      const double denominator = 2.0 * steering_correction_c2;
+
+      if (std::fabs(denominator) > kEpsilon) {
+        const double root_1 = (-steering_correction_c1 + sqrt_discriminant) / denominator;
+        const double root_2 = (-steering_correction_c1 - sqrt_discriminant) / denominator;
+
+        auto residual =
+          [&](double candidate) {
+            const double projected =
+              steering_correction_c2 * candidate * candidate +
+              steering_correction_c1 * candidate +
+              steering_correction_c0;
+            return std::fabs(projected - abs_corrected);
+          };
+
+        bool found_candidate = false;
+        if (std::isfinite(root_1) && root_1 >= 0.0) {
+          abs_steering = root_1;
+          found_candidate = true;
+        }
+
+        if (std::isfinite(root_2) && root_2 >= 0.0) {
+          if (!found_candidate || residual(root_2) < residual(abs_steering)) {
+            abs_steering = root_2;
+          }
+          found_candidate = true;
+        }
+
+        if (!found_candidate) {
+          abs_steering = abs_corrected;
+        }
+      }
+    }
+  } else if (std::fabs(steering_correction_c1) > kEpsilon) {
+    abs_steering = (abs_corrected - steering_correction_c0) / steering_correction_c1;
+  }
+
+  if (!std::isfinite(abs_steering)) {
+    abs_steering = abs_corrected;
+  }
+
+  abs_steering = std::max(0.0, abs_steering);
+  return std::copysign(abs_steering, corrected_angle);
+}
 }  // namespace
 
 VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
@@ -444,13 +505,13 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   const bool has_servo = servo_fresh;
   double steering_angle = 0.0;
   if (has_servo && std::fabs(steering_to_servo_gain_) > kEpsilon) {
-    const double raw_steering = (last_servo_cmd_->data - steering_to_servo_offset_) / steering_to_servo_gain_;
-    const double abs_raw = std::fabs(raw_steering);
-    const double corrected_abs =
-      steering_correction_c2_ * abs_raw * abs_raw +
-      steering_correction_c1_ * abs_raw +
-      steering_correction_c0_;
-    steering_angle = std::copysign(corrected_abs, raw_steering);
+    const double corrected_steering =
+      (last_servo_cmd_->data - steering_to_servo_offset_) / steering_to_servo_gain_;
+    steering_angle = invertSteeringCorrection(
+      corrected_steering,
+      steering_correction_c2_,
+      steering_correction_c1_,
+      steering_correction_c0_);
   }
 
   double model_yaw_rate = 0.0;
