@@ -115,7 +115,7 @@ odom_fused:
 ekf_localization:
   ros__parameters:
     # ---- Topics ----
-    amcl_topic: "/amcl_pose_disabled"
+    amcl_topic: "/amcl_pose"
     odom_topic: "/odom_pose"
     output_topic: "/ekf_pose"
 
