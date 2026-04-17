@@ -65,16 +65,12 @@ static void mpc_fpga_compute_core(
     static MpcPersistState_t persist;
     static int initialized = 0;
 #ifdef MPC_RUNTIME_TUNE
-    static int runtime_loaded = 0;
 #endif
 #pragma HLS BIND_STORAGE variable=admm_state type=ram_2p impl=bram
 #pragma HLS BIND_STORAGE variable=persist type=ram_1p impl=lutram
 
 #ifdef MPC_RUNTIME_TUNE
-    if (!runtime_loaded) {
-        mpc_runtime_update_from_env();
-        runtime_loaded = 1;
-    }
+    mpc_runtime_update_from_env();
 #endif
 
 

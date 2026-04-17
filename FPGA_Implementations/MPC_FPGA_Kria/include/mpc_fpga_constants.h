@@ -24,17 +24,24 @@
  * Numeric Format Constants
  *===========================================================================*/
 
+/* IO boundary: Fixed Q16.16 for protocol. */
 #define MPC_FPGA_Q16_SCALE_I32        65536
 #define MPC_FPGA_Q16_SCALE_F32        65536.0f
 #define MPC_FPGA_Q16_SCALE_F64        65536.0
+
+/* Internal Riccati domain: Parameterized by MPC_HLS_RICCATI_INT_BITS.
+   Enables width/precision optimization sweeps independent of I/O format. */
+#define MPC_FPGA_RICCATI_SCALE_I32    (1 << MPC_HLS_RICCATI_INT_BITS)
+#define MPC_FPGA_RICCATI_SCALE_F32   ((float)(1 << MPC_HLS_RICCATI_INT_BITS))
+#define MPC_FPGA_RICCATI_SCALE_F64   ((double)(1 << MPC_HLS_RICCATI_INT_BITS))
 
 /*===========================================================================
  * Vehicle and Tire Constants (SI)
  *===========================================================================*/
 
-#define MPC_FPGA_WHEELBASE_M          0.324f
 #define MPC_FPGA_LF_M                 0.166f
 #define MPC_FPGA_LR_M                 0.160f
+#define MPC_FPGA_WHEELBASE_M          (MPC_FPGA_LF_M + MPC_FPGA_LR_M)
 #define MPC_FPGA_MASS_KG              3.314f
 #define MPC_FPGA_IZ_KGM2              0.035f
 #define MPC_FPGA_CG_HEIGHT_M          0.0703f
@@ -145,8 +152,16 @@
 #define MPC_FPGA_BOUND_THRESHOLD      100.0f
 #define MPC_FPGA_WP_ADVANCE_MAX       10
 
+#ifndef MPC_FPGA_ADMM_RHO
 #define MPC_FPGA_ADMM_RHO                18.0f
+#endif
+
+#ifndef MPC_FPGA_ADMM_RHO_U
 #define MPC_FPGA_ADMM_RHO_U              24.0f
+#endif
+
+#ifndef MPC_FPGA_ADMM_TOL
 #define MPC_FPGA_ADMM_TOL                0.1f
+#endif
 
 #endif /* MPC_FPGA_CONSTANTS_H */

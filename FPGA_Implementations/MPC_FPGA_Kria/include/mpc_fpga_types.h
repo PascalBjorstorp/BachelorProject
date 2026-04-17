@@ -87,6 +87,12 @@
 #define MPC_HLS_UNROLL_STATE_FACTOR 2
 #endif
 
+/** M = B^T P backward pass pipeline II.
+ *  Override at compile time: -DMPC_HLS_M_BT_P_II=N */
+#ifndef MPC_HLS_M_BT_P_II
+#define MPC_HLS_M_BT_P_II 3
+#endif
+
 /*===========================================================================
  * Augmented State Indices
  *===========================================================================*/
@@ -313,6 +319,7 @@ typedef struct {
 typedef struct {
     fp_QP_t A[MPC_NX_AUG][MPC_NX_AUG];
     fp_QP_t B[MPC_NX_AUG][MPC_NU];
+    fp_QP_t d[MPC_NX_AUG];
     fp_QP_t Q_diag[MPC_NX_AUG];
     fp_QP_t q[MPC_NX_AUG];
     fp_QP_t R_diag[MPC_NU];

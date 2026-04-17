@@ -11,11 +11,34 @@
 #include <cstdint>
 #include <climits>
 
+/* When fp_io_t and fp_QP_t are different types (different precisions),
+   define an overload for fp_io_t. When they're the same (both Q32.16),
+   rely on implicit conversion to avoid redefinition errors. */
+#if (MPC_HLS_RICCATI_WIDTH != MPC_HLS_IO_WIDTH) || (MPC_HLS_RICCATI_INT_BITS != MPC_HLS_IO_INT_BITS)
+fp_io_t fp_mul(fp_io_t a, fp_io_t b)
+{
+#pragma HLS INLINE
+    fp_io_t product = a * b;
+    return product;
+}
+#endif
+
+/* Overloaded fp_mul for QP type (internal Riccati precision).
+    When fp_io_t and fp_QP_t are the same type (both Q32.16), this overload
+    serves both; no separate fp_io_t overload is defined (see conditional above). */
 fp_QP_t fp_mul(fp_QP_t a, fp_QP_t b)
 {
 #pragma HLS INLINE off
     fp_QP_t product = a * b;
 #pragma HLS BIND_OP variable=product op=mul impl=dsp latency=4
+    return product;
+}
+
+/* Overloaded fp_mul for accumulator type (distinct from QP domain). */
+fp_accum_t fp_mul(fp_accum_t a, fp_accum_t b)
+{
+#pragma HLS INLINE
+    fp_accum_t product = a * b;
     return product;
 }
 

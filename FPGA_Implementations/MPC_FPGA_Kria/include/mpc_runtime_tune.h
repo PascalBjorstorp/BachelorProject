@@ -7,7 +7,6 @@
 #define MPC_RUNTIME_TUNE_H
 
 #include "fp_math_hls.h"
-#include "fp_types_hls.hpp"
 
 #ifdef __cplusplus
 extern "C" {
