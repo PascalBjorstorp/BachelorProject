@@ -397,6 +397,14 @@ int main(void)
     double cmd_accel = 0.0;
     float current_s = 0;
 
+    /* Lap tracking */
+    int    lap_count     = 0;
+    double lap_start_time = 0.0;
+    double best_lap_time  = 9999.0;
+    double first_lap_time = 0.0;
+    float  prev_s         = 0.0f;
+    float  track_length   = g_ref_path.total_length;
+
     /* ST model persistent state */
     double st_delta = 0.0;
     double st_V = 0.0;
@@ -463,6 +471,22 @@ int main(void)
             /* Convert vehicle state -> MPCC state */
             MPCCState_t mpcc_state = mpcc_state_from_vehicle_state(&state, current_s);
             current_s = mpcc_state.s;
+
+            /* Lap detection: s wrapped past track_length (min lap time guard) */
+            if (current_s < prev_s - track_length * 0.5f
+                && prev_s > track_length * 0.5f
+                && (t - lap_start_time) > 2.0) {
+                double lap_time = t - lap_start_time;
+                lap_count++;
+                if (lap_count == 1) first_lap_time = lap_time;
+                if (lap_time < best_lap_time) best_lap_time = lap_time;
+                lap_start_time = t;
+                if (verbose) {
+                    printf("  >>> LAP %d completed: %.3f s (best: %.3f s) <<<\n",
+                           lap_count, lap_time, best_lap_time);
+                }
+            }
+            prev_s = current_s;
 
             /* Solve */
             MPCCResult_t result;
@@ -690,6 +714,11 @@ int main(void)
     printf("  Solver success:     %d / %d (%.1f%%)\n", solver_ok, solver_calls,
            100.0*solver_ok/(solver_calls > 0 ? solver_calls : 1));
     printf("  Avg speed:          %.2f m/s\n", avg_speed);
+    printf("  Laps completed:     %d\n", lap_count);
+    if (lap_count > 0) {
+        printf("  Best lap time:      %.3f s\n", best_lap_time);
+        printf("  First lap time:     %.3f s\n", first_lap_time);
+    }
     printf("  Max velocity:       %.2f m/s\n", max_vx);
     printf("  Max lateral error:  %.3f m\n", max_lat_err);
     printf("  Avg lateral error:  %.3f m\n", avg_lat);
@@ -737,14 +766,15 @@ int main(void)
 
     /* Machine-readable CSV for tuning scripts */
     if (getenv("MPCC_TUNING_CSV")) {
-         printf("CSV,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%.1f,%d,%.1f,%.4f,%.4f,%.1f,%.3f,%.3f,%.2f,%.2f,%.4f\n",
+         printf("CSV,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%.1f,%d,%.1f,%.4f,%.4f,%.1f,%.3f,%.3f,%.2f,%.2f,%.4f,%d,%.4f\n",
                tests_passed, tests_failed,
                max_lat_err, avg_lat, max_hdg_err, avg_hdg,
                max_vx, avg_solve, max_solve_us,
                wall_collisions, time_above_5ms,
                max_vel_err, avg_vel_err, avg_iters,
                avg_rho, avg_rho_u, avg_adapt_updates, avg_clip_events,
-               avg_speed);
+               avg_speed,
+               lap_count, best_lap_time);
     }
     return tests_failed > 0 ? 1 : 0;
 }

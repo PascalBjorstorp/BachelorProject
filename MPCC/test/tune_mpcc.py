@@ -427,6 +427,8 @@ def run_test(params: dict, binary: str) -> dict:
                     "avg_adapt_updates":  float(parts[17]) if len(parts) > 17 else 0.0,
                     "avg_clip_events":    float(parts[18]) if len(parts) > 18 else 0.0,
                     "avg_speed":          float(parts[19]) if len(parts) > 19 else 0.0,
+                    "lap_count":          int(parts[20])   if len(parts) > 20 else 0,
+                    "best_lap_time":      float(parts[21]) if len(parts) > 21 else 9999.0,
                 }
             except (IndexError, ValueError):
                 pass
@@ -473,14 +475,15 @@ def compute_tracker_score(r: dict) -> float:
 
 def compute_racer_score(r: dict) -> float:
     """
-    Racer: maximize average speed — zero collisions is a HARD constraint.
+    Racer: minimize best lap time — zero collisions is a HARD constraint.
 
     Scoring:
       - Any collision      → 1000 + collisions  (always loses to any safe config)
-      - Zero collisions    → -avg_speed          (lower = faster = better)
+      - No laps completed  → 999                (worse than any config that completes a lap)
+      - Zero collisions    → best_lap_time       (lower = faster = better)
 
-    This means a safe config doing 0.1 m/s beats an unsafe config doing 8 m/s.
-    The sweep will only optimise speed among collision-free configs.
+    This means a safe config doing a slow lap beats an unsafe config.
+    The sweep will only optimise lap time among collision-free configs.
     """
     if r.get("status") != "OK":
         return 5000.0
@@ -490,8 +493,13 @@ def compute_racer_score(r: dict) -> float:
         # Hard constraint: ANY collision → disqualified
         return 1000.0 + float(collisions)
 
-    speed = r.get("avg_speed", 0.0)
-    return round(-speed, 6)
+    lap_count = int(r.get("lap_count", 0))
+    if lap_count == 0:
+        # No laps completed — worse than any config that finishes a lap
+        return 999.0
+
+    best_lap = float(r.get("best_lap_time", 9999.0))
+    return round(best_lap, 6)
 
 
 def apply_scores(r: dict, objective: str) -> dict:
@@ -783,7 +791,8 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
                 print(f"COLLISION wc={wc} speed={r.get('avg_speed',0):.2f}  (ETA {eta:.0f}s)")
             else:
                 passed += 1
-                print(f"sc={r['score']:7.4f}  speed={r.get('avg_speed',0):.3f} m/s"
+                print(f"sc={r['score']:7.4f}  lap={r.get('best_lap_time',0):.3f}s"
+                      f"  speed={r.get('avg_speed',0):.3f} m/s"
                       f"  ec={r['avg_contouring_err']:.3f}  (ETA {eta:.0f}s)")
     else:
         done_count = 0
@@ -833,6 +842,7 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
                         print(f"  [{done_count:4d}/{total}] "
                               f"{r['label']:55s} "
                               f"sc={r['score']:7.4f}  "
+                              f"lap={r.get('best_lap_time',0):.3f}s  "
                               f"speed={r.get('avg_speed',0):.3f} m/s  "
                               f"ec={r['avg_contouring_err']:.3f}  "
                               f"(ETA {eta:.0f}s)")
@@ -879,7 +889,8 @@ def print_best(results: list, objective: str, label: str = ""):
     b = safe[0]
     print(f"\n  {'='*60}")
     print(f"  Best {label} (collision-free only):")
-    print(f"    score={b['score']:.4f}  speed={b.get('avg_speed',0):.3f} m/s"
+    print(f"    score={b['score']:.4f}  lap_time={b.get('best_lap_time',0):.3f}s"
+          f"  laps={b.get('lap_count',0)}  speed={b.get('avg_speed',0):.3f} m/s"
           f"  ec={b.get('avg_contouring_err',0):.3f}  iters={b.get('avg_iters',0):.1f}")
     print(f"    label={b.get('label','?')}  phase={b.get('phase','?')}")
     for k in iter_ordered_base_keys():
@@ -996,6 +1007,7 @@ def main():
         "max_contouring_err", "avg_contouring_err",
         "max_heading_err", "avg_heading_err",
         "max_vx", "avg_speed",
+        "lap_count", "best_lap_time",
         "avg_vel_err", "max_vel_err",
         "avg_solve_us", "max_solve_us",
         "wall_collisions", "time_above_5ms",
@@ -1115,7 +1127,7 @@ def main():
 
     # ── Final summary ─────────────────────────────────────────────────────────
     print(f"\n{'='*80}")
-    print("FINAL RESULT (collision-free configs only, ranked by speed)")
+    print("FINAL RESULT (collision-free configs only, ranked by lap time)")
     print(f"{'='*80}")
     print_best(results, args.objective, "FINAL")
 
