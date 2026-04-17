@@ -163,8 +163,8 @@ private:
   /// Begin smooth blend from current modified line back to baseline raceline.
   void startMergeBack();
 
-  /// Update modified raceline according to merge-back progress.
-  void updateMergeBackPath();
+  /// Build a fixed merge-back raceline from current line to baseline.
+  void buildMergeBackPath();
 
   /// Apply curvature-aware speed limits to a path in-place.
   void updateRacelineSpeedsFromCurvature(std::vector<Waypoint> & path) const;

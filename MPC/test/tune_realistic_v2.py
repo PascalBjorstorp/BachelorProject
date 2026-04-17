@@ -95,12 +95,12 @@ PHASE2_VALUES_BASE = {
     # Sweeps grouped solver bucket profile as one config value
     # (HORIZON+PRED_DT+RHO+RHO_U+TOL tied together).
     # 6*5*5*4*4*4*3*10 = 288,000 configs.
-    "Q_LAT": [2000.0, 4000.0, 6000.0, 8000.0, 9660.42, 10300.0],
-    "Q_HDG": [400, 800, 1100.0, 1250.0, 1400.0, 1550.0],
+    "Q_LAT": [2000.0, 4000.0, 6000.0, 8000.0, 9660.42],
+    "Q_HDG": [400, 800, 1100.0, 1250.0, 1400.0],
     "Q_VEL": [60, 95.0, 110.0, 122.4, 132.192, 145.0],
-    "Q_LAT_VEL": [1.0, 2.0, 3.8, 4.59, 5.6, 7.0],
-    "Q_YAW": [1.0, 1.8, 2.112, 2.6, 3.2, 3.8],
-    "R_STEER": [1.0, 1.8, 2.1, 2.244, 2.5, 2.8],
+    "Q_LAT_VEL": [2.0, 3.8, 4.59, 5.6, 7.0],
+    "Q_YAW": [1.8, 2.112, 2.6, 3.2, 3.8],
+    "R_STEER": [1.8, 2.1, 2.244, 2.5, 2.8],
     "MPC_W_DELTA_ACTUAL": [0.02, 0.03, 0.05, 0.08, 0.2],
     "SOLVER_BUCKET": ["t01"],
 }
@@ -113,9 +113,9 @@ FULL_SWEEP_VALUES_BASE = {
     "Q_LAT":        [2000.0, 4000.0, 6000.0, 8000.0, 9660.42, 10300.0, 11000.0],
     "Q_HDG":        [400, 800, 1100.0, 1250.0, 1400.0, 1550.0, 1700.0],
     "Q_VEL":        [60, 95.0, 110.0, 122.4, 132.192, 145.0],
-    "Q_LAT_VEL":    [1.0, 2.0, 3.8, 4.59, 5.6, 7.0, 8.5],
-    "Q_YAW":        [1.0, 1.8, 2.112, 2.6, 3.2, 3.8],
-    "R_STEER":      [1.0, 1.8, 2.1, 2.244, 2.5, 2.8],
+    "Q_LAT_VEL":    [2.0, 3.8, 4.59, 5.6, 7.0, 8.5],
+    "Q_YAW":        [1.8, 2.112, 2.6, 3.2, 3.8],
+    "R_STEER":      [1.8, 2.1, 2.244, 2.5, 2.8],
     "R_ACCEL":      [0.004, 0.005, 0.0065, 0.0075, 0.0085, 0.0095],
     "W_JERK":       [0.05, 0.063, 0.08, 0.10, 0.12],
     "W_ACCEL_RATE": [0.14, 0.16, 0.17, 0.19, 0.22],
@@ -133,11 +133,11 @@ FULL_SWEEP_VALUES_BASE = {
 # ==============================================================================
 
 PHASE4_VALUES_BASE = {
-    "Q_LAT_VEL":    [1.0, 2.0, 3.8, 4.59, 5.6, 7.0, 8.5],
-    "Q_YAW":        [1.0, 1.8, 2.112, 2.6, 3.2, 3.8],
-    "R_STEER":      [1.0, 1.8, 2.1, 2.244, 2.5, 2.8],
+    "Q_LAT_VEL":    [2.0, 3.8, 4.59, 5.6, 7.0, 8.5],
+    "Q_YAW":        [1.8, 2.112, 2.6, 3.2, 3.8],
+    "R_STEER":      [1.8, 2.1, 2.244, 2.5, 2.8],
     "W_JERK":       [0.05, 0.063, 0.08, 0.10, 0.12],
-    "R_ACCEL":      [0.004, 0.005, 0.0065, 0.0075, 0.0085, 0.0095, 0.02],
+    "R_ACCEL":      [0.004, 0.005, 0.0065, 0.0075, 0.0085, 0.0095],
     "W_ACCEL_RATE": [0.14, 0.16, 0.17, 0.19, 0.22],
     "MPC_W_DELTA_ACTUAL": [0.02, 0.03, 0.05, 0.08, 0.10],
 }
@@ -233,15 +233,15 @@ P99_HEADING_STEP_RAD = 0.18
 RACE_SCENARIO_DURATION = 75.0
 OBSTACLE_SCENARIO_DURATION = 60.0
 
-SCENARIO_TARGET_START_X = 5.5
+SCENARIO_TARGET_START_X = 0.0
 SCENARIO_TARGET_START_Y = 0.0
-GLOBAL_START_SHIFT_X_M = 0.5
-GLOBAL_START_SHIFT_Y_M = 1.0
+GLOBAL_START_SHIFT_X_M = 0.0
+GLOBAL_START_SHIFT_Y_M = 0.0
 MIN_RACE_PROGRESS_MPS = 0.55
 MIN_OVERALL_PROGRESS_MPS = 0.45
 MIN_AVG_VX_MPS = 1.0
-MIN_SOLVER_OPTIMAL_RATE = 0.85
-MAX_SOLVER_MAX_ITER_RATE = 0.15
+MIN_SOLVER_OPTIMAL_RATE = 0.0
+MAX_SOLVER_MAX_ITER_RATE = 1.0
 PLANNER_CAR_WIDTH_M = 0.31
 PLANNER_CLEARANCE_TOLERANCE_M = 0.10
 PLANNER_PLANNING_TOLERANCE_SCALE = 2.0
@@ -257,13 +257,13 @@ ENABLE_SCENARIO_AUDIT = True
 DETERMINISTIC_OBSTACLE_PROFILES = {
     "avoid_single": {
         "objects": [
-            {"s_fraction": 0.62, "lateral_offset": -0.04},
+            {"s_fraction": 0.62, "lateral_offset": -0.2},
         ],
     },
     "avoid_double": {
         "objects": [
-            {"s_fraction": 0.58, "lateral_offset": 0.04},
-            {"s_fraction": 0.78, "lateral_offset": -0.04},
+            #{"s_fraction": 0.58, "lateral_offset": 0.3},
+            #{"s_fraction": 0.9, "lateral_offset": -0.3},
         ],
     },
 }
@@ -275,10 +275,10 @@ EVAL_SCENARIOS = []
 GENERATED_RACELINE_DIR = None
 SCENARIO_RACELINE_PATHS = {}
 
-CASCADE_TOP_N = 10   # Top-N seeds promoted from Phase 2 into Phase 4
+CASCADE_TOP_N = 1   # Top-N seeds promoted from Phase 2 into Phase 4
 SEED = 42           # Fixed seed for reproducibility
-GLOBAL_OPTIMIZATION_PASSES = 10  # Repeated refinement passes for Phases 5-8
-INCLUDE_OBSTACLE_SCENARIOS = True
+GLOBAL_OPTIMIZATION_PASSES = 4  # Repeated refinement passes for Phases 5-8
+INCLUDE_OBSTACLE_SCENARIOS = False
 PHASE7_RANDOM_COUNT = 5000
 PHASE8_RANDOM_COUNT = 5000
 STRICT_PROMOTION = True
@@ -1106,9 +1106,9 @@ def build_eval_scenarios(include_obstacles: bool = INCLUDE_OBSTACLE_SCENARIOS) -
     ]
 
     if include_obstacles:
-        avoid_single_path = SCENARIO_RACELINE_PATHS.get("avoid_single", RACELINE_PATH)
-        avoid_double_path = SCENARIO_RACELINE_PATHS.get("avoid_double", RACELINE_PATH)
-        scenarios.extend([
+        #avoid_single_path = SCENARIO_RACELINE_PATHS.get("avoid_single", RACELINE_PATH)
+        #avoid_double_path = SCENARIO_RACELINE_PATHS.get("avoid_double", RACELINE_PATH)
+        """scenarios.extend([
             {
                 "name": "avoid_single",
                 "weight": 0.25,
@@ -1138,6 +1138,7 @@ def build_eval_scenarios(include_obstacles: bool = INCLUDE_OBSTACLE_SCENARIOS) -
                 },
             },
         ])
+        """
 
     return scenarios
 

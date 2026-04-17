@@ -237,7 +237,6 @@ std::vector<Waypoint> LateralPlanner::computePath()
     }
 
     if (merge_back_active_) {
-      updateMergeBackPath();
       if (mergeBackProgress() >= 1.0) {
         resetAvoidance();
         return extractSegment();
@@ -269,7 +268,6 @@ std::vector<Waypoint> LateralPlanner::computePath()
     }
 
     if (merge_back_active_) {
-      updateMergeBackPath();
       if (mergeBackProgress() >= 1.0) {
         resetAvoidance();
         return extractSegment();
@@ -745,9 +743,10 @@ void LateralPlanner::startMergeBack()
   }
 
   RCLCPP_INFO(logger_, "Merging back to baseline raceline over %.2f m", merge_distance_m_);
+  buildMergeBackPath();
 }
 
-void LateralPlanner::updateMergeBackPath()
+void LateralPlanner::buildMergeBackPath()
 {
   if (!merge_back_active_) {
     return;
@@ -758,16 +757,22 @@ void LateralPlanner::updateMergeBackPath()
     return;
   }
 
-  const double progress = mergeBackProgress();
-  const double blend = 0.5 * (1.0 - std::cos(M_PI * progress));
-
   if (modified_raceline_.size() != waypoints_.size()) {
     modified_raceline_.resize(waypoints_.size());
   }
 
+  const double merge_distance = std::max(merge_distance_m_, 1e-6);
+
   for (size_t i = 0; i < waypoints_.size(); ++i) {
     const Waypoint & from = merge_from_raceline_[i];
     const Waypoint & base = waypoints_[i];
+
+    const double s_rel = wrapForwardDistance(merge_start_s_, base.s);
+    double blend = 1.0;
+    if (s_rel < merge_distance) {
+      const double t = std::clamp(s_rel / merge_distance, 0.0, 1.0);
+      blend = 0.5 * (1.0 - std::cos(M_PI * t));
+    }
 
     Waypoint merged = from;
     merged.x = from.x + blend * (base.x - from.x);
