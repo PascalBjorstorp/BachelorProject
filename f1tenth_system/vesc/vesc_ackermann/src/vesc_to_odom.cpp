@@ -122,6 +122,7 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   base_frame_ = declare_parameter("base_frame", base_frame_);
   speed_to_erpm_gain_ = declare_parameter("speed_to_erpm_gain", speed_to_erpm_gain_);
   speed_to_erpm_offset_ = declare_parameter("speed_to_erpm_offset", speed_to_erpm_offset_);
+  odom_speed_scale_ = declare_parameter("odom_speed_scale", odom_speed_scale_);
   speed_deadband_ = declare_parameter("speed_deadband", speed_deadband_);
   max_dt_sec_ = declare_parameter("max_dt_sec", max_dt_sec_);
 
@@ -131,6 +132,7 @@ VescToOdom::VescToOdom(const rclcpp::NodeOptions & options)
   steering_correction_c2_ = declare_parameter("steering_correction_c2", steering_correction_c2_);
   steering_correction_c1_ = declare_parameter("steering_correction_c1", steering_correction_c1_);
   steering_correction_c0_ = declare_parameter("steering_correction_c0", steering_correction_c0_);
+  steering_model_scale_ = declare_parameter("steering_model_scale", steering_model_scale_);
 
   // Compatibility declarations: retained so existing parameter files still load.
   const double wheelbase_compat = declare_parameter("wheelbase", 0.33);
@@ -326,6 +328,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
 
   // Wheel speed from ERPM calibration.
   double current_speed = (state->state.speed - speed_to_erpm_offset_) / speed_to_erpm_gain_;
+  current_speed *= odom_speed_scale_;
   if (std::fabs(current_speed) < speed_deadband_) {
     current_speed = 0.0;
   }
@@ -354,6 +357,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
       steering_correction_c2_,
       steering_correction_c1_,
       steering_correction_c0_);
+    steering_angle *= steering_model_scale_;
   }
 
   double model_yaw_rate = yaw_rate_state_;
