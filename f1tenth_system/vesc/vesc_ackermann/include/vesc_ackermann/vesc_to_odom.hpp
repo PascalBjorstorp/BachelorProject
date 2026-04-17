@@ -64,6 +64,7 @@ private:
   std::string base_frame_{"ego_racecar/base_link"};
   double speed_to_erpm_gain_{0.0};
   double speed_to_erpm_offset_{0.0};
+  double odom_speed_scale_{1.0};
   double speed_deadband_{0.15};
   double max_dt_sec_{1.0};
 
@@ -73,10 +74,9 @@ private:
   double steering_correction_c2_{0.0};
   double steering_correction_c1_{1.0};
   double steering_correction_c0_{0.0};
-  double wheelbase_{0.33};
+  double steering_model_scale_{1.0};
 
   // Dynamic bicycle model parameters
-  bool use_dynamic_bicycle_model_{true};
   double vehicle_mass_{3.314};
   double vehicle_Iz_{0.035};
   double l_f_{0.166};
@@ -174,10 +174,6 @@ private:
   double imu_lateral_velocity_{0.0};
   double imu_lateral_velocity_decay_{1.5};
   double imu_lateral_velocity_max_{3.0};
-
-  // Slip-angle handling
-  double beta_max_rad_{0.8};
-  double kinematic_beta_ratio_{0.5};
 
   // State
   double x_{0.0};

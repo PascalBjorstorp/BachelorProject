@@ -105,3 +105,9 @@
   depth: 100
   reliability: reliable
   durability: volatile
+
+/mpcc/predicted_path:
+  history: keep_last
+  depth: 100
+  reliability: reliable
+  durability: volatile

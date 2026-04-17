@@ -29,6 +29,7 @@ TOPICS_TO_RECORD=(
   "/map"
   "/map_server/transition_event"
   "/drive"
+  "/mpcc/predicted_path"
 )
 
 LOOKAHEAD_MIN="0.30"
