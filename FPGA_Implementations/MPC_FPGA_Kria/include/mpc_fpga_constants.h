@@ -14,7 +14,9 @@
  * Fixed Horizon and DMA Framing
  *===========================================================================*/
 
-#define MPC_FPGA_HORIZON_STEPS        10 
+#ifndef MPC_FPGA_HORIZON_STEPS
+#define MPC_FPGA_HORIZON_STEPS        10
+#endif
 #define MPC_FPGA_STATE_BEATS          2
 #define MPC_FPGA_STREAM_WORD_BYTES    16
 #define MPC_FPGA_DMA_BEATS            (MPC_FPGA_STATE_BEATS + MPC_FPGA_HORIZON_STEPS)
@@ -90,7 +92,7 @@
 #define MPC_FPGA_B_REAR               (MPC_FPGA_C_ALPHA_SR_NORM * MPC_FPGA_INV_PACEJKA_C_SHAPE)
 
 /*===========================================================================
- * Communication Runtime Defaults (Jetson/Ultra96)
+ * Communication Runtime Defaults (Jetson/Kria)
  *===========================================================================*/
 
 #define MPC_FPGA_RECEIVER_LOG_PERIOD_MSGS    100
@@ -120,8 +122,8 @@
  *===========================================================================*/
 
 /** Maximum ADMM iterations. Fixed project-wide for stable timing/behavior comparisons. */
-#define MPC_FPGA_MAX_ADMM_ITER        50
-#define MPC_FPGA_PREDICTION_DT_S      0.03f
+#define MPC_FPGA_MAX_ADMM_ITER        100
+#define MPC_FPGA_PREDICTION_DT_S      0.032f
 #define MPC_FPGA_PACEJKA_C_SHAPE      1.9f
 #define MPC_FPGA_MIN_STIFF_SCALE      0.1f
 
@@ -147,21 +149,20 @@
 #define MPC_FPGA_BIG_BOUND            100.0f
 #define MPC_FPGA_MIN_LIN_VEL_MPS      1.0f
 #define MPC_FPGA_STABILITY_LIMIT      0.95f
-#define MPC_FPGA_WALL_MARGIN_M        0.2f
+#define MPC_FPGA_WALL_MARGIN_M        0.16f
 #define MPC_FPGA_V_SWITCH_MPS         7.319f
 #define MPC_FPGA_BOUND_THRESHOLD      100.0f
-#define MPC_FPGA_WP_ADVANCE_MAX       10
 
 #ifndef MPC_FPGA_ADMM_RHO
-#define MPC_FPGA_ADMM_RHO                18.0f
+#define MPC_FPGA_ADMM_RHO                28.0f
 #endif
 
 #ifndef MPC_FPGA_ADMM_RHO_U
-#define MPC_FPGA_ADMM_RHO_U              24.0f
+#define MPC_FPGA_ADMM_RHO_U              42.0f
 #endif
 
 #ifndef MPC_FPGA_ADMM_TOL
-#define MPC_FPGA_ADMM_TOL                0.1f
+#define MPC_FPGA_ADMM_TOL                0.05f
 #endif
 
 #endif /* MPC_FPGA_CONSTANTS_H */

@@ -16,22 +16,18 @@
  * This requires adjustment when switching from __builtin_clzll to countLeadingZeros.
  */
 #define FP_RAW_ACC_WIDTH (MPC_HLS_RICCATI_WIDTH + MPC_HLS_RAW_ACC_GUARD_BITS)
-#define FP_CLZ_ULL_ADJUSTMENT (64 - FP_RAW_ACC_WIDTH)
 
 /* Fixed-point base constants */
 #define FP_FRAC_BITS       (MPC_HLS_RICCATI_WIDTH - MPC_HLS_RICCATI_INT_BITS)
 #define FP_IO_CONST(x)     ((fp_io_t)(x))
 #define FP_QP_CONST(x)     ((fp_QP_t)(x))
 #define FP_ACCUM_CONST(x)  ((fp_accum_t)(x))
-#define FP_CONST(x)        FP_QP_CONST(x)
 #define FP_ONE             FP_QP_CONST(1.0)
 #define FP_TWO             FP_QP_CONST(2.0)
 #define FP_HALF            FP_QP_CONST(0.5)
 #define FP_PI              FP_QP_CONST(3.14159265358979323846)
 #define FP_PI_HALF         FP_QP_CONST(1.57079632679489661923)
 #define FP_TWO_PI          FP_QP_CONST(6.28318530717958647693)
-
-#define RECIP_ITERATIONS   3
 
 #define INV_FACT_2         FP_QP_CONST(0.5)
 #define INV_FACT_3         FP_QP_CONST(0.16666666666666666)
@@ -43,19 +39,12 @@
 #define ATAN_COEF_7        FP_QP_CONST(0.14285714285714285)
 #define FP_HALF_CONST      FP_HALF
 #define FP_ATAN_HALF       FP_QP_CONST(0.4636476090008061)
-#define FP_INV_TWO_PI      FP_QP_CONST(0.15915494309189535)
 
 /* Function-based helpers (no define aliases for arithmetic/conversions). */
 static inline float FP_TO_FLOAT(fp_QP_t x) { return (float)x; }
 static inline fp_QP_t FLOAT_TO_FP(float x) { return (fp_QP_t)x; }
 static inline double FP_TO_DOUBLE(fp_QP_t x) { return (double)x; }
 static inline fp_QP_t DOUBLE_TO_FP(double x) { return (fp_QP_t)x; }
-
-template <typename T>
-static inline T fp_mul_t(T a, T b)
-{
-    return (T)(a * b);
-}
 
 /* Forward declaration used by fp_div to keep slash out of hot call-sites. */
 fp_QP_t fp_recip(fp_QP_t x);

@@ -1,17 +1,17 @@
 # F1Tenth Communication
 
-ROS2 communication stack for streaming vehicle state and MPC references from Jetson to Ultra96.
+ROS2 communication stack for streaming vehicle state and MPC references from Jetson to Kria.
 
 ## Architecture
 
 ```
-Jetson (state_publisher)                              Ultra96 (state_receiver)
+Jetson (state_publisher)                              Kria (state_receiver)
 ┌──────────────────────────────────────┐             ┌──────────────────────────────────────┐
 │ Sub: /ego_racecar/odom, /ekf_pose    │             │ Sub: /mpc_state (Best Effort QoS)    │
-│ Optional sub: /sensors/servo...      │             │ Init: /dev/mem + AXI-Lite + AXI DMA  │
+│ Optional sub: /sensors/servo...      │             │ Init: OpenCL context + kernel buffers │
 │                                      │             │                                      │
-│ KD-tree nearest + forward bias       │  MpcState   │ Pack state/horizon into DMA buffer   │
-│ Horizon extraction from trajectory   │────────────>│ Stream to FPGA MPC IP                │
+│ KD-tree nearest + forward bias       │  MpcState   │ Pack state/horizon into OpenCL input │
+│ Horizon extraction from trajectory   │────────────>│ Launch OpenCL MPC kernel             │
 │ Q16.16 fixed-point conversion        │             │ Read steering/accel outputs          │
 │ Pub: /mpc_state                      │             │ Pub: /drive                          │
 └──────────────────────────────────────┘             └──────────────────────────────────────┘
@@ -41,21 +41,21 @@ All numeric payload fields are Q16.16 fixed-point (`int32`) except `horizon_leng
 4. Uses KD-tree nearest search plus fixed forward lookahead (compile-time define).
 5. Streams only the active MPC horizon in each `MpcState` message.
 
-### state_receiver (Ultra96)
+### state_receiver (Kria)
 
 `mpc_receiver_node`:
 
 1. Subscribes to `/mpc_state` with Best Effort QoS.
 2. Validates horizon payload lengths.
-3. Transfers packed data to FPGA via AXI DMA.
-4. Reads MPC outputs from AXI-Lite registers.
+3. Transfers packed data to FPGA via OpenCL buffer writes.
+4. Reads MPC outputs from OpenCL kernel output buffer.
 5. Publishes `ackermann_msgs/AckermannDriveStamped` on `/drive`.
 
 ### state_transport_udp
 
 UDP bridge package for transport experiments and non-ROS links.
 It now builds as a normal ROS2 package (`state_transport_udp`) and uses the
-same DMA-backed MPC interface contract as `state_receiver`.
+same OpenCL-backed MPC interface contract as `state_receiver`.
 
 ## Build
 
@@ -73,7 +73,7 @@ Start Jetson publisher:
 ros2 launch state_publisher state_publisher_launch.py
 ```
 
-Start Ultra96 receiver:
+Start Kria receiver:
 
 ```bash
 ros2 launch state_receiver mpc_launch.py
@@ -95,7 +95,7 @@ ros2 launch state_receiver mpc_launch.py
 - `input_topic` (default `/mpc_state`)
 - `drive_topic` (default `/drive`)
 
-FPGA address and command-limit constants are taken directly from compile-time defines in `mpc_fpga_interface.h`.
+OpenCL payload sizing and command-limit constants are taken directly from compile-time defines in `mpc_fpga_interface.h`.
 
 ## Q16.16 Fixed-Point Reference
 

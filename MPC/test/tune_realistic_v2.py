@@ -95,12 +95,12 @@ PHASE2_VALUES_BASE = {
     # Sweeps grouped solver bucket profile as one config value
     # (HORIZON+PRED_DT+RHO+RHO_U+TOL tied together).
     # 6*5*5*4*4*4*3*10 = 288,000 configs.
-    "Q_LAT": [2000.0, 4000.0, 6000.0, 8000.0, 9660.42, 10300.0],
-    "Q_HDG": [400, 800, 1100.0, 1250.0, 1400.0, 1550.0],
-    "Q_VEL": [60, 95.0, 110.0, 122.4, 132.192, 145.0],
-    "Q_LAT_VEL": [1.0, 2.0, 3.8, 4.59, 5.6, 7.0],
-    "Q_YAW": [1.0, 1.8, 2.112, 2.6, 3.2, 3.8],
-    "R_STEER": [1.0, 1.8, 2.1, 2.244, 2.5, 2.8],
+    "Q_LAT": [4000.0, 6000.0, 8000.0, 9660.42, 10300.0],
+    "Q_HDG": [800, 1100.0, 1250.0, 1400.0, 1550.0],
+    "Q_VEL": [95.0, 110.0, 122.4, 132.192, 145.0],
+    "Q_LAT_VEL": [2.0, 3.8, 4.59, 5.6, 7.0],
+    "Q_YAW": [1.8, 2.112, 2.6, 3.2, 3.8],
+    "R_STEER": [1.8, 2.1, 2.244, 2.5, 2.8],
     "MPC_W_DELTA_ACTUAL": [0.02, 0.03, 0.05, 0.08, 0.2],
     "SOLVER_BUCKET": ["t01"],
 }
@@ -133,11 +133,11 @@ FULL_SWEEP_VALUES_BASE = {
 # ==============================================================================
 
 PHASE4_VALUES_BASE = {
-    "Q_LAT_VEL":    [1.0, 2.0, 3.8, 4.59, 5.6, 7.0, 8.5],
-    "Q_YAW":        [1.0, 1.8, 2.112, 2.6, 3.2, 3.8],
-    "R_STEER":      [1.0, 1.8, 2.1, 2.244, 2.5, 2.8],
+    "Q_LAT_VEL":    [2.0, 3.8, 4.59, 5.6, 7.0, 8.5],
+    "Q_YAW":        [1.8, 2.112, 2.6, 3.2, 3.8],
+    "R_STEER":      [1.8, 2.1, 2.244, 2.5, 2.8],
     "W_JERK":       [0.05, 0.063, 0.08, 0.10, 0.12],
-    "R_ACCEL":      [0.004, 0.005, 0.0065, 0.0075, 0.0085, 0.0095, 0.02],
+    "R_ACCEL":      [0.004, 0.005, 0.0065, 0.0075, 0.0085, 0.0095],
     "W_ACCEL_RATE": [0.14, 0.16, 0.17, 0.19, 0.22],
     "MPC_W_DELTA_ACTUAL": [0.02, 0.03, 0.05, 0.08, 0.10],
 }
@@ -233,10 +233,10 @@ P99_HEADING_STEP_RAD = 0.18
 RACE_SCENARIO_DURATION = 75.0
 OBSTACLE_SCENARIO_DURATION = 60.0
 
-SCENARIO_TARGET_START_X = 5.5
+SCENARIO_TARGET_START_X = 0.0
 SCENARIO_TARGET_START_Y = 0.0
-GLOBAL_START_SHIFT_X_M = 0.5
-GLOBAL_START_SHIFT_Y_M = 1.0
+GLOBAL_START_SHIFT_X_M = 0.0
+GLOBAL_START_SHIFT_Y_M = 0.0
 MIN_RACE_PROGRESS_MPS = 0.55
 MIN_OVERALL_PROGRESS_MPS = 0.45
 MIN_AVG_VX_MPS = 1.0
@@ -257,13 +257,13 @@ ENABLE_SCENARIO_AUDIT = True
 DETERMINISTIC_OBSTACLE_PROFILES = {
     "avoid_single": {
         "objects": [
-            {"s_fraction": 0.62, "lateral_offset": -0.04},
+            #{"s_fraction": 0.62, "lateral_offset": -0.04},
         ],
     },
     "avoid_double": {
         "objects": [
-            {"s_fraction": 0.58, "lateral_offset": 0.04},
-            {"s_fraction": 0.78, "lateral_offset": -0.04},
+            #{"s_fraction": 0.58, "lateral_offset": 0.04},
+            #{"s_fraction": 0.78, "lateral_offset": -0.04},
         ],
     },
 }
@@ -278,9 +278,9 @@ SCENARIO_RACELINE_PATHS = {}
 CASCADE_TOP_N = 10   # Top-N seeds promoted from Phase 2 into Phase 4
 SEED = 42           # Fixed seed for reproducibility
 GLOBAL_OPTIMIZATION_PASSES = 10  # Repeated refinement passes for Phases 5-8
-INCLUDE_OBSTACLE_SCENARIOS = True
-PHASE7_RANDOM_COUNT = 5000
-PHASE8_RANDOM_COUNT = 5000
+INCLUDE_OBSTACLE_SCENARIOS = False
+PHASE7_RANDOM_COUNT = 2000
+PHASE8_RANDOM_COUNT = 2000
 STRICT_PROMOTION = True
 SOLVER_PARAM_KEYS = ("RHO", "RHO_U", "TOL")
 DIVERSITY_KEYS = ["Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW", "R_STEER", "R_ACCEL", "W_JERK", "W_ACCEL_RATE", "MPC_W_DELTA_ACTUAL", "HORIZON", "PRED_DT"]

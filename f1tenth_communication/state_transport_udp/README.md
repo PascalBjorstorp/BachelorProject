@@ -1,15 +1,15 @@
 # state_transport_udp
 
-UDP transport package for Jetson <-> Ultra96 MPC streaming.
+UDP transport package for Jetson <-> Kria MPC streaming.
 
 ## Binaries
 
 - ros2_udp_sender
   - ROS2 node (Jetson side)
   - Subscribes to odom + pose, builds streamed horizon from trajectory, and sends fixed-size UDP packets.
-- ultra96_udp_receiver
-  - Ultra96 executable (no ROS topics)
-  - Receives UDP state packets, computes Frenet errors, runs AXI-DMA/AXI-Lite MPC compute, and sends UDP control response.
+- kria_udp_receiver
+  - Kria executable (no ROS topics)
+  - Receives UDP state packets, computes Frenet errors, runs OpenCL MPC kernel compute, and sends UDP control response.
 - udp_control_bridge
   - ROS2 node (Jetson side)
   - Receives control UDP packets and publishes Ackermann commands to /drive.
@@ -45,15 +45,15 @@ Jetson control bridge:
 ros2 run state_transport_udp udp_control_bridge
 ```
 
-Ultra96 receiver:
+Kria receiver:
 
 ```bash
 UDP_STATE_PORT=49000 \
 UDP_CONTROL_PORT=49001 \
-MPC_BASE_ADDR=0xA0010000 \
-DMA_BASE_ADDR=0xA0000000 \
-DMA_BUFFER_PHYS_ADDR=0x70000000 \
-ros2 run state_transport_udp ultra96_udp_receiver
+MPC_XCLBIN=/lib/firmware/mpc_fpga_top_opencl.xclbin \
+MPC_KERNEL_NAME=mpc_fpga_top_opencl \
+MPC_DEVICE_INDEX=0 \
+ros2 run state_transport_udp kria_udp_receiver
 ```
 
 Optional overrides without YAML:
@@ -66,12 +66,12 @@ ros2 run state_transport_udp ros2_udp_sender --ros-args \
 
 ## End-to-End Loop
 
-1. Jetson ros2_udp_sender sends StatePacket to Ultra96:49000.
-2. Ultra96 receiver validates CRC, runs DMA-backed MPC solve, sends ControlPacket to Jetson:49001.
+1. Jetson ros2_udp_sender sends StatePacket to Kria:49000.
+2. Kria receiver validates CRC, runs OpenCL-backed MPC solve, sends ControlPacket to Jetson:49001.
 3. Jetson udp_control_bridge validates CRC and publishes /drive.
 
 ## Timing Fields
 
 - sender_mono_ns: Jetson monotonic timestamp echoed through control response.
-- ultra_process_us: Ultra96 processing time from packet receive to control send.
+- ultra_process_us: Kria processing time from packet receive to control send.
 - udp_control_bridge computes RTT from sender_mono_ns on Jetson.

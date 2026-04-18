@@ -21,6 +21,13 @@ static fp_QP_t fp_mul_vm(fp_QP_t a, fp_QP_t b) {
     return product;
 }
 
+void predict_frenet_next_hls(
+    fp_QP_t ey, fp_QP_t epsi,
+    fp_QP_t vx, fp_QP_t vy, fp_QP_t omega,
+    fp_QP_t delta, fp_QP_t a_cmd,
+    fp_QP_t kappa, fp_QP_t dt,
+    fp_QP_t next_state[MPC_NX_FRENET]);
+
 /**
  * @brief Compute Frenet-frame linearized dynamics matrices.
  * @param vx Operating-point longitudinal velocity (expected >= MIN_LIN_VEL).
@@ -43,13 +50,13 @@ void compute_frenet_AB_hls(
     fp_QP_t B_fr[MPC_NX_FRENET][MPC_NU])
 {
 /* Keep this function as a separate scheduled block with bounded multiplier use. */
-#pragma HLS INLINE
+#pragma HLS INLINE off
 #pragma HLS ALLOCATION operation instances=mul limit=MPC_HLS_VEHICLE_MUL_LIMIT
-#pragma HLS ALLOCATION function instances=fp_mul_vm limit=8
+#pragma HLS ALLOCATION function instances=fp_mul_vm limit=MPC_HLS_VEHICLE_MUL_LIMIT
 #pragma HLS ALLOCATION function instances=fp_recip limit=4
 
-    /* Velocity floor for numerical stability */
-    fp_QP_t vx_safe = (vx > FP_QP_CONST(0.5)) ? vx : FP_QP_CONST(0.5);
+    /* Velocity floor for numerical stability (shared with controller tuning). */
+    fp_QP_t vx_safe = (vx > MIN_LIN_VEL) ? vx : MIN_LIN_VEL;
     fp_QP_t inv_vx = fp_recip(vx_safe);
 
     /* Hybrid steering trig:
@@ -126,7 +133,10 @@ void compute_frenet_AB_hls(
     /* Front tire — Pacejka effective stiffness (B_f precomputed) */
     fp_QP_t D_pac_f = fp_mul_vm(VP_MU, F_zf);
     fp_QP_t Ba_f = fp_mul_vm(VP_B_FRONT, alpha_f_op);
-    fp_QP_t inner_f = fp_mul_vm(VP_C_SHAPE, fp_atan(Ba_f));
+    fp_QP_t atan_ba_f = (fp_abs(Ba_f) < FP_QP_CONST(2.0))
+                            ? fp_atan_tire_approx(Ba_f)
+                            : fp_atan(Ba_f);
+    fp_QP_t inner_f = fp_mul_vm(VP_C_SHAPE, atan_ba_f);
     fp_QP_t cos_inner_f = fp_cos(inner_f);
     fp_QP_t ba_f2 = fp_mul_vm(Ba_f, Ba_f);
     fp_QP_t inv_denom_f = fp_recip(FP_ONE + ba_f2);
@@ -144,7 +154,10 @@ void compute_frenet_AB_hls(
     /* Rear tire — Pacejka effective stiffness */
     fp_QP_t D_pac_r = fp_mul_vm(VP_MU, F_zr);
     fp_QP_t Ba_r = fp_mul_vm(VP_B_REAR, alpha_r_op);
-    fp_QP_t inner_r = fp_mul_vm(VP_C_SHAPE, fp_atan(Ba_r));
+    fp_QP_t atan_ba_r = (fp_abs(Ba_r) < FP_QP_CONST(2.0))
+                            ? fp_atan_tire_approx(Ba_r)
+                            : fp_atan(Ba_r);
+    fp_QP_t inner_r = fp_mul_vm(VP_C_SHAPE, atan_ba_r);
     fp_QP_t cos_inner_r = fp_cos(inner_r);
     fp_QP_t ba_r2 = fp_mul_vm(Ba_r, Ba_r);
     fp_QP_t inv_denom_r = fp_recip(FP_ONE + ba_r2);
@@ -298,6 +311,32 @@ void compute_frenet_AB_hls(
     /* B[0:1][*] = 0: steering/accel don't directly change e_y or e_psi */
 }
 
+void compute_frenet_AB_and_next_hls(
+    fp_QP_t ey, fp_QP_t epsi,
+    fp_QP_t vx, fp_QP_t vy, fp_QP_t omega,
+    fp_QP_t delta, fp_QP_t a_cmd,
+    fp_QP_t kappa, fp_QP_t dt,
+    fp_QP_t A_fr[MPC_NX_FRENET][MPC_NX_FRENET],
+    fp_QP_t B_fr[MPC_NX_FRENET][MPC_NU],
+    fp_QP_t next_state[MPC_NX_FRENET])
+{
+#pragma HLS INLINE off
+    compute_frenet_AB_hls(
+        ey, epsi,
+        vx, vy, omega,
+        delta, a_cmd,
+        kappa, dt,
+        A_fr, B_fr);
+
+    /* Use a nonlinear one-step rollout for affine-term consistency in d_k. */
+    predict_frenet_next_hls(
+        ey, epsi,
+        vx, vy, omega,
+        delta, a_cmd,
+        kappa, dt,
+        next_state);
+}
+
 /**
  * @brief Predict one Frenet-step forward using the same plant terms as the linearization.
  * @param ey Current lateral error.
@@ -321,10 +360,10 @@ void predict_frenet_next_hls(
 {
 #pragma HLS INLINE
 #pragma HLS ALLOCATION operation instances=mul limit=MPC_HLS_VEHICLE_MUL_LIMIT
-#pragma HLS ALLOCATION function instances=fp_mul_vm limit=8
+#pragma HLS ALLOCATION function instances=fp_mul_vm limit=MPC_HLS_VEHICLE_MUL_LIMIT
 #pragma HLS ALLOCATION function instances=fp_recip limit=4
 
-    fp_QP_t vx_safe = (vx > FP_QP_CONST(0.5)) ? vx : FP_QP_CONST(0.5);
+    fp_QP_t vx_safe = (vx > MIN_LIN_VEL) ? vx : MIN_LIN_VEL;
     fp_QP_t inv_vx = fp_recip(vx_safe);
 
     fp_QP_t cos_delta, sin_delta;
@@ -352,13 +391,19 @@ void predict_frenet_next_hls(
 
     fp_QP_t D_pac_f = fp_mul_vm(VP_MU, F_zf);
     fp_QP_t Ba_f = fp_mul_vm(VP_B_FRONT, alpha_f_op);
-    fp_QP_t inner_f = fp_mul_vm(VP_C_SHAPE, fp_atan(Ba_f));
+    fp_QP_t atan_ba_f = (fp_abs(Ba_f) < FP_QP_CONST(2.0))
+                            ? fp_atan_tire_approx(Ba_f)
+                            : fp_atan(Ba_f);
+    fp_QP_t inner_f = fp_mul_vm(VP_C_SHAPE, atan_ba_f);
     fp_QP_t sin_inner_f = fp_sin(inner_f);
     fp_QP_t F_yf = fp_mul_vm(D_pac_f, sin_inner_f);
 
     fp_QP_t D_pac_r = fp_mul_vm(VP_MU, F_zr);
     fp_QP_t Ba_r = fp_mul_vm(VP_B_REAR, alpha_r_op);
-    fp_QP_t inner_r = fp_mul_vm(VP_C_SHAPE, fp_atan(Ba_r));
+    fp_QP_t atan_ba_r = (fp_abs(Ba_r) < FP_QP_CONST(2.0))
+                            ? fp_atan_tire_approx(Ba_r)
+                            : fp_atan(Ba_r);
+    fp_QP_t inner_r = fp_mul_vm(VP_C_SHAPE, atan_ba_r);
     fp_QP_t sin_inner_r = fp_sin(inner_r);
     fp_QP_t F_yr = fp_mul_vm(D_pac_r, sin_inner_r);
 
@@ -368,8 +413,12 @@ void predict_frenet_next_hls(
         ey_denom = (ey_denom >= 0) ? FP_QP_CONST(1e-3) : FP_QP_CONST(-1e-3);
     }
 
-    fp_QP_t e_y_dot = fp_mul_vm(vx, fp_sin(epsi)) + fp_mul_vm(vy, fp_cos(epsi));
-    fp_QP_t e_psi_dot = omega - fp_mul_vm(kappa, fp_mul_vm(vx, fp_cos(epsi))) / ey_denom;
+    fp_QP_t sin_epsi = fp_sin(epsi);
+    fp_QP_t cos_epsi = fp_cos(epsi);
+    fp_QP_t inv_ey_denom = fp_recip(ey_denom);
+
+    fp_QP_t e_y_dot = fp_mul_vm(vx, sin_epsi) + fp_mul_vm(vy, cos_epsi);
+    fp_QP_t e_psi_dot = omega - fp_mul_vm(fp_mul_vm(kappa, fp_mul_vm(vx, cos_epsi)), inv_ey_denom);
     fp_QP_t dvx_dt = (Fx - fp_mul_vm(F_yf, sin_delta)) * VP_INV_MASS + fp_mul_vm(vy, omega);
     fp_QP_t dvy_dt = (fp_mul_vm(F_yf, cos_delta) + F_yr) * VP_INV_MASS - fp_mul_vm(vx, omega);
     fp_QP_t domega_dt = (fp_mul_vm(VP_LF, fp_mul_vm(F_yf, cos_delta)) - fp_mul_vm(VP_LR, F_yr)) * VP_INV_IZ;

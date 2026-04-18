@@ -28,7 +28,7 @@ int32 ref_x_0_fp     # First waypoint X position [meters], Q16.16
 int32 ref_y_0_fp     # First waypoint Y position [meters], Q16.16
 int32 ref_psi_0_fp   # First waypoint heading [radians], Q16.16
 
-# Horizon reference arrays (sent to FPGA via AXI-Stream).
+# Horizon reference arrays (sent to FPGA via OpenCL packed buffers).
 # All entries up to horizon_length are valid.
 uint32 horizon_length
 int32[] ref_vx_fp          # Reference velocity [m/s], Q16.16

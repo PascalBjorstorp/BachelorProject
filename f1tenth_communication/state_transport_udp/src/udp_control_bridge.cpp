@@ -1,7 +1,7 @@
 /**
  * @file udp_control_bridge.cpp
  * @brief Jetson-side UDP control receiver and ROS drive publisher.
- * @details Receives control packets from Ultra96, validates packet integrity,
+ * @details Receives control packets from Kria, validates packet integrity,
  *          publishes Ackermann commands, and enforces watchdog stop behavior.
  * @dependencies rclcpp, ackermann_msgs, state_transport_udp/state_packet.hpp,
  *               POSIX sockets
@@ -302,8 +302,8 @@ private:
 
     int sock_fd_{-1};                       // UDP socket file descriptor
     uint64_t packet_count_{0};              // Total number of valid control packets received
-    double total_rtt_ms_{0.0};              // Cumulative round-trip time in milliseconds (Jetson send → Ultra96 receive → Ultra96 send → Jetson receive)
-    double total_ultra_us_{0.0};            // Cumulative processing time reported by Ultra96 in microseconds
+    double total_rtt_ms_{0.0};              // Cumulative round-trip time in milliseconds (Jetson send → Kria receive → Kria send → Jetson receive)
+    double total_ultra_us_{0.0};            // Cumulative processing time reported by Kria in microseconds
     double min_rtt_ms_{std::numeric_limits<double>::infinity()};
     double max_rtt_ms_{0.0};
     bool stats_started_{false};

@@ -62,7 +62,9 @@ from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
 WORKSPACE_DIR = os.path.dirname(os.path.dirname(PROJECT_DIR))
-TRAJ_DIR = os.path.join(WORKSPACE_DIR, "f1tenth_planning", "trajectories")
+TRAJ_DIR = os.path.join(PROJECT_DIR, "trajectories")
+if not os.path.exists(os.path.join(TRAJ_DIR, "my_track_raceline.csv")):
+    TRAJ_DIR = os.path.join(WORKSPACE_DIR, "f1tenth_planning", "trajectories")
 
 KRIA_BUILD_SOURCES = [
     os.path.join("testbench", "test_fpga_sim_drive.c"),
@@ -71,7 +73,6 @@ KRIA_BUILD_SOURCES = [
     os.path.join("src", "riccati_solver_hls.cpp"),
     os.path.join("src", "mpc_riccati_hls.cpp"),
     os.path.join("src", "mpc_runtime_tune.cpp"),
-    os.path.join("src", "mpc_internal_diag.cpp"),
     os.path.join("src", "mpc_fpga_top.cpp"),
 ]
 
@@ -2500,7 +2501,6 @@ def main():
         "-DMPC_HLS_TARGET", "-DMPC_RUNTIME_TUNE",
         f"-DMPC_FPGA_HORIZON_STEPS={HORIZON_LIMIT}",
         f"-DPREDICTION_HORIZON={HORIZON_LIMIT}",
-        "-Wno-unused-variable", "-Wno-unused-but-set-variable",
         "-Wno-unknown-pragmas",
         f"-I{os.path.join(PROJECT_DIR, 'include')}",
         f"-I{xilinx_include_dir}",

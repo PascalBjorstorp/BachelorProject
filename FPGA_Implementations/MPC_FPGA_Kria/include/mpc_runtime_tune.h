@@ -28,7 +28,6 @@ extern fp_QP_t mpc_rt_w_delta_act;
 extern fp_QP_t mpc_rt_min_lin_vel;
 extern fp_QP_t mpc_rt_stability_limit;
 extern fp_QP_t mpc_rt_wall_margin;
-extern int mpc_rt_wp_advance_max;
 
 extern fp_QP_t mpc_rt_admm_rho;
 extern fp_QP_t mpc_rt_admm_rho_u;

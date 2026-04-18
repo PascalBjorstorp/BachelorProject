@@ -2,7 +2,7 @@
  * @file state_publisher.cpp
  * @brief Publish vehicle state and streamed MPC references from Jetson.
  * @details Builds a KD-tree from trajectory waypoints, receives pose/odometry,
- *          and publishes Q16.16 `MpcState` packets for the Ultra96 receiver.
+ *          and publishes Q16.16 `MpcState` packets for the Kria receiver.
  * @dependencies rclcpp, nav_msgs, geometry_msgs, std_msgs, f1tenth_msgs,
  *               state_publisher/kdtree.hpp, mpc_fpga_constants.h
  */

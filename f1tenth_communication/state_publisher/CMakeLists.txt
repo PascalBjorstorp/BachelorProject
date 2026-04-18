@@ -25,7 +25,7 @@ add_executable(state_publisher_node
 )
 target_include_directories(state_publisher_node PRIVATE
   include
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../FPGA_Implementations/MPC_FPGA_Ultra96/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../FPGA_Implementations/MPC_FPGA_Kria/include
 )
 ament_target_dependencies(state_publisher_node
   rclcpp

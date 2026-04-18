@@ -60,7 +60,7 @@
  *  Higher default to reduce cycle count in matrix-heavy backward/forward passes.
  *  Override at compile time: -DMPC_HLS_RICCATI_MUL_LIMIT=N */
 #ifndef MPC_HLS_RICCATI_MUL_LIMIT
-#define MPC_HLS_RICCATI_MUL_LIMIT 4
+#define MPC_HLS_RICCATI_MUL_LIMIT 8
 #endif
 
 /** Vehicle model multiplier budget.
@@ -81,16 +81,70 @@
 #define MPC_HLS_CTRL_ZY_II 4
 #endif
 
-/** Unroll factor for ADMM state-axis loops (nx dimension).
+/** Step-data assembly loop target II in mpc_compute_hls.
+ *  Override at compile time: -DMPC_HLS_STEP_ASSEMBLY_II=N */
+#ifndef MPC_HLS_STEP_ASSEMBLY_II
+#define MPC_HLS_STEP_ASSEMBLY_II 8
+#endif
+
+/** Unroll factor for G = M*A inner reduction loops.
+ *  Override at compile time: -DMPC_HLS_UNROLL_GMA_FACTOR=N */
+#ifndef MPC_HLS_UNROLL_GMA_FACTOR
+#define MPC_HLS_UNROLL_GMA_FACTOR 3
+#endif
+
+/** Unroll factor for p-shift accumulation loops.
+ *  Override at compile time: -DMPC_HLS_UNROLL_PSHIFT_FACTOR=N */
+#ifndef MPC_HLS_UNROLL_PSHIFT_FACTOR
+#define MPC_HLS_UNROLL_PSHIFT_FACTOR 2
+#endif
+
+/** Unroll factor for K*x forward-control accumulation loops.
+ *  Override at compile time: -DMPC_HLS_UNROLL_KX_FACTOR=N */
+#ifndef MPC_HLS_UNROLL_KX_FACTOR
+#define MPC_HLS_UNROLL_KX_FACTOR 2
+#endif
+
+/** Unroll factor for state z/y update inner loop.
  *  Override at compile time: -DMPC_HLS_UNROLL_STATE_FACTOR=N */
 #ifndef MPC_HLS_UNROLL_STATE_FACTOR
-#define MPC_HLS_UNROLL_STATE_FACTOR 2
+#define MPC_HLS_UNROLL_STATE_FACTOR 1
+#endif
+
+/** Unroll factor for forward A*x rollout loops.
+ *  Override at compile time: -DMPC_HLS_UNROLL_FWD_AX_FACTOR=N */
+#ifndef MPC_HLS_UNROLL_FWD_AX_FACTOR
+#define MPC_HLS_UNROLL_FWD_AX_FACTOR 2
 #endif
 
 /** M = B^T P backward pass pipeline II.
  *  Override at compile time: -DMPC_HLS_M_BT_P_II=N */
 #ifndef MPC_HLS_M_BT_P_II
-#define MPC_HLS_M_BT_P_II 3
+#define MPC_HLS_M_BT_P_II 5
+#endif
+
+#if (MPC_HLS_UNROLL_GMA_FACTOR < 1) || (MPC_HLS_UNROLL_GMA_FACTOR > 4)
+#error "MPC_HLS_UNROLL_GMA_FACTOR must be in [1,4] to match current array banking"
+#endif
+
+#if (MPC_HLS_UNROLL_PSHIFT_FACTOR < 1)
+#error "MPC_HLS_UNROLL_PSHIFT_FACTOR must be >= 1"
+#endif
+
+#if (MPC_HLS_UNROLL_KX_FACTOR < 1)
+#error "MPC_HLS_UNROLL_KX_FACTOR must be >= 1"
+#endif
+
+#if (MPC_HLS_UNROLL_STATE_FACTOR < 1)
+#error "MPC_HLS_UNROLL_STATE_FACTOR must be >= 1"
+#endif
+
+#if (MPC_HLS_UNROLL_FWD_AX_FACTOR < 1)
+#error "MPC_HLS_UNROLL_FWD_AX_FACTOR must be >= 1"
+#endif
+
+#if (MPC_HLS_STATE_ZY_II < 1) || (MPC_HLS_CTRL_ZY_II < 1) || (MPC_HLS_M_BT_P_II < 1) || (MPC_HLS_STEP_ASSEMBLY_II < 1)
+#error "HLS II knobs must be >= 1"
 #endif
 
 /*===========================================================================
@@ -273,11 +327,6 @@
 #endif
 #define V_SWITCH            FP_QP_CONST(MPC_FPGA_V_SWITCH_MPS)
 #define BOUND_THRESHOLD     FP_QP_CONST(MPC_FPGA_BOUND_THRESHOLD)
-#ifdef MPC_RUNTIME_TUNE
-#define WP_ADVANCE_MAX      (mpc_rt_wp_advance_max)
-#else
-#define WP_ADVANCE_MAX      MPC_FPGA_WP_ADVANCE_MAX
-#endif
 
 /* ADMM default parameters */
 #ifdef MPC_RUNTIME_TUNE

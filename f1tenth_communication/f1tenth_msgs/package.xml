@@ -4,7 +4,7 @@
   <name>f1tenth_msgs</name>
   <version>0.1.0</version>
   <description>
-    Custom ROS2 message definitions for F1/10th communication between Jetson and Ultra96.
+    Custom ROS2 message definitions for F1/10th communication between Jetson and Kria.
   </description>
   <maintainer email="akmun23@student.sdu.dk">Aksel Munksgaard-Ottosen</maintainer>
   <license>MIT</license>

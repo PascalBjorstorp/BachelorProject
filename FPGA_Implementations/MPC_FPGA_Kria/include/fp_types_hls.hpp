@@ -43,7 +43,7 @@
 #define MPC_HLS_RAW_ACC_GUARD_BITS 20
 #endif
 
-/* IO boundary is FIXED to Q16.16 for protocol compatibility with Jetson/Ultra96.
+/* IO boundary is FIXED to Q16.16 for protocol compatibility with Jetson/Kria.
    Internal Riccati precision can vary (26-32 bits) for optimization sweeps.
    Both assertions verify valid ranges independently. */
 static_assert(MPC_HLS_IO_WIDTH == 32 && MPC_HLS_IO_INT_BITS == 16,
@@ -108,12 +108,6 @@ static inline fp_raw_acc_t fp_raw_acc_from_qp(fp_QP_t value)
     return (fp_raw_acc_t)fp_qp_raw_from_QP(value);
 }
 
-static inline fp_QP_t fp_qp_from_raw_acc(fp_raw_acc_t raw)
-{
-#pragma HLS INLINE
-    return fp_QP_from_qp_raw((fp_qp_raw_t)raw);
-}
-
 static inline fp_raw_acc_t fp_qp_raw_min_acc()
 {
 #pragma HLS INLINE
@@ -133,6 +127,15 @@ static inline fp_raw_acc_t fp_clip_raw_to_qp(fp_raw_acc_t value)
     if (value < fp_qp_raw_min_acc()) return fp_qp_raw_min_acc();
     return value;
 }
+
+static inline fp_QP_t fp_qp_from_raw_acc(fp_raw_acc_t raw)
+{
+#pragma HLS INLINE
+    fp_raw_acc_t clipped = fp_clip_raw_to_qp(raw);
+    return fp_QP_from_qp_raw((fp_qp_raw_t)clipped);
+}
+
+
 
 /**
  * @brief Convert packed raw value to accumulator family type.

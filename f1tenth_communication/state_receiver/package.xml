@@ -5,7 +5,7 @@
   <version>0.1.0</version>
   <description>
     ROS2 node that receives streamed MpcState horizon data and runs FPGA MPC
-    through AXI-DMA/AXI-Lite interfaces on Ultra96.
+    through OpenCL/XRT-managed kernel execution on Kria.
   </description>
   <maintainer email="akmun23@student.sdu.dk">Aksel Munksgaard-Ottosen</maintainer>
   <license>MIT</license>

@@ -55,6 +55,7 @@ void riccati_pass_hls(
     fp_raw_acc_t P[MPC_NX_AUG][MPC_NX_AUG];
     fp_raw_acc_t p[MPC_NX_AUG];
 #pragma HLS ARRAY_PARTITION variable=P cyclic factor=8 dim=1
+#pragma HLS BIND_STORAGE variable=P type=ram_2p impl=lutram
 #pragma HLS ARRAY_PARTITION variable=p complete dim=1
 #pragma HLS ALLOCATION operation instances=mul limit=MPC_HLS_RICCATI_MUL_LIMIT
 
@@ -138,7 +139,7 @@ void riccati_pass_hls(
             fp_raw_acc_t s0 = 0;
             fp_raw_acc_t s1 = 0;
             for (i = 0; i < nx; i++) {
-#pragma HLS UNROLL factor=4
+#pragma HLS UNROLL factor=2
                 s0 += fp_raw_acc_from_qp(sd->B[i][0]) * P[i][j];
                 s1 += fp_raw_acc_from_qp(sd->B[i][1]) * P[i][j];
             }
@@ -293,12 +294,18 @@ void riccati_pass_hls(
         for (i = 0; i < 6; i++) {
             for (j = 1; j < 6; j++) {
 #pragma HLS PIPELINE II=1
-                fp_raw_acc_t sum = 0;
-                for (s = 0; s < 6; s++) {
-#pragma HLS UNROLL
-                    fp_raw_acc_t pa_prod = P[i][s] * fp_raw_acc_from_qp(sd->A[s][j]);
-                    sum += pa_prod;
-                }
+                /* Balanced tree reduces adder carry depth versus linear accumulation. */
+                fp_raw_acc_t pa_p0 = P[i][0] * fp_raw_acc_from_qp(sd->A[0][j]);
+                fp_raw_acc_t pa_p1 = P[i][1] * fp_raw_acc_from_qp(sd->A[1][j]);
+                fp_raw_acc_t pa_p2 = P[i][2] * fp_raw_acc_from_qp(sd->A[2][j]);
+                fp_raw_acc_t pa_p3 = P[i][3] * fp_raw_acc_from_qp(sd->A[3][j]);
+                fp_raw_acc_t pa_p4 = P[i][4] * fp_raw_acc_from_qp(sd->A[4][j]);
+                fp_raw_acc_t pa_p5 = P[i][5] * fp_raw_acc_from_qp(sd->A[5][j]);
+
+                fp_raw_acc_t pa_s0 = pa_p0 + pa_p1;
+                fp_raw_acc_t pa_s1 = pa_p2 + pa_p3;
+                fp_raw_acc_t pa_s2 = pa_p4 + pa_p5;
+                fp_raw_acc_t sum = (pa_s0 + pa_s1) + pa_s2;
                 PA[i][j] = sum >> FP_FRAC_BITS;
             }
         }
@@ -309,6 +316,9 @@ void riccati_pass_hls(
             /* Upper-triangle decode tables (i,j) for 21 entries */
             static const int sym_i[21] = {0,0,0,0,0,0, 1,1,1,1,1, 2,2,2,2, 3,3,3, 4,4, 5};
             static const int sym_j[21] = {0,1,2,3,4,5, 1,2,3,4,5, 2,3,4,5, 3,4,5, 4,5, 5};
+            fp_raw_acc_t P_ut_val[21];
+#pragma HLS ARRAY_PARTITION variable=P_ut_val complete dim=1
+
             for (int idx = 0; idx < 21; idx++) {
 #pragma HLS PIPELINE II=1
                 int ii = sym_i[idx];
@@ -327,8 +337,25 @@ void riccati_pass_hls(
                     sum += gtk_prod;
                 }
                 fp_raw_acc_t val = ((ii == jj) ? q_aug_diag[ii] : (fp_raw_acc_t)0) + (sum >> FP_FRAC_BITS);
-                P[ii][jj] = val;
-                if (ii != jj) P[jj][ii] = val;  /* Symmetric mirror */
+                P_ut_val[idx] = val;
+            }
+
+            /* Stage write: separate memory writes from arithmetic to shorten write-data path. */
+            for (int idx = 0; idx < 21; idx++) {
+#pragma HLS PIPELINE II=1
+                int ii = sym_i[idx];
+                int jj = sym_j[idx];
+                P[ii][jj] = P_ut_val[idx];
+            }
+
+            /* Mirror write: keep one write target per cycle in this loop. */
+            for (int idx = 0; idx < 21; idx++) {
+#pragma HLS PIPELINE II=1
+                int ii = sym_i[idx];
+                int jj = sym_j[idx];
+                if (ii != jj) {
+                    P[jj][ii] = P_ut_val[idx];
+                }
             }
         }
         /* Cols 6,7: AtPA=0, only G^T*K contributes */
@@ -669,9 +696,9 @@ MpcStatus_t riccati_admm_solve_hls(
 
                     /* Dual residual contribution: rho*(z_new - z_old) */
                     fp_QP_t z_prev = z_x[k][s];
-                    fp_raw_acc_t d64 = (fp_raw_acc_from_qp(rho) * (fp_raw_acc_from_qp(z_new) - fp_raw_acc_from_qp(z_prev))) >> FP_FRAC_BITS;
-                    fp_raw_acc_t d64_abs = (d64 < 0) ? (fp_raw_acc_t)(-d64) : d64;
-                    fp_QP_t dd = fp_qp_from_raw_acc(d64_abs);
+                    fp_raw_acc_t dz_raw = fp_raw_acc_from_qp(z_new) - fp_raw_acc_from_qp(z_prev);
+                    fp_QP_t dz_qp = fp_qp_from_raw_acc(dz_raw);
+                    fp_QP_t dd = fp_abs(fp_mul(rho, dz_qp));
                     if (dd > state_dual) state_dual = dd;
 
                     fp_QP_t y_new_x = fp_qp_from_raw_acc(fp_raw_acc_from_qp(x_val) - fp_raw_acc_from_qp(z_new) + fp_raw_acc_from_qp(y_x[k][s]));
@@ -709,9 +736,9 @@ MpcStatus_t riccati_admm_solve_hls(
 
                 /* Dual residual: rho_u * (z_new - z_old) */
                 fp_QP_t z_prev = z_u[k][a];
-                fp_raw_acc_t d64 = (fp_raw_acc_from_qp(rho_u) * (fp_raw_acc_from_qp(z_new) - fp_raw_acc_from_qp(z_prev))) >> FP_FRAC_BITS;
-                fp_raw_acc_t d64_abs = (d64 < 0) ? (fp_raw_acc_t)(-d64) : d64;
-                fp_QP_t dd = fp_qp_from_raw_acc(d64_abs);
+                fp_raw_acc_t dz_raw = fp_raw_acc_from_qp(z_new) - fp_raw_acc_from_qp(z_prev);
+                fp_QP_t dz_qp = fp_qp_from_raw_acc(dz_raw);
+                fp_QP_t dd = fp_abs(fp_mul(rho_u, dz_qp));
                 if (dd > ctrl_dual) ctrl_dual = dd;
 
                 fp_QP_t y_new_u = fp_qp_from_raw_acc(fp_raw_acc_from_qp(u_val) - fp_raw_acc_from_qp(z_new) + fp_raw_acc_from_qp(y_u[k][a]));

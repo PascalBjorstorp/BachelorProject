@@ -20,20 +20,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/* Forward declaration of vehicle model (defined in vehicle_model_hls.c) */
-extern void compute_frenet_AB_hls(
+extern void compute_frenet_AB_and_next_hls(
     fp_QP_t ey, fp_QP_t epsi,
     fp_QP_t vx, fp_QP_t vy, fp_QP_t omega,
     fp_QP_t delta, fp_QP_t a_cmd,
     fp_QP_t kappa, fp_QP_t dt,
     fp_QP_t A_fr[MPC_NX_FRENET][MPC_NX_FRENET],
-    fp_QP_t B_fr[MPC_NX_FRENET][MPC_NU]);
-
-extern void predict_frenet_next_hls(
-    fp_QP_t ey, fp_QP_t epsi,
-    fp_QP_t vx, fp_QP_t vy, fp_QP_t omega,
-    fp_QP_t delta, fp_QP_t a_cmd,
-    fp_QP_t kappa, fp_QP_t dt,
+    fp_QP_t B_fr[MPC_NX_FRENET][MPC_NU],
     fp_QP_t next_state[MPC_NX_FRENET]);
 
 extern void saturate_control_hls(
@@ -73,7 +66,9 @@ extern "C" void mpc_compute_hls(
 {
     const int N = MPC_HORIZON;
     fp_QP_t dt = MPC_DT;
-    int k, i, j, a;
+    int k, i, j;
+
+#pragma HLS ALLOCATION operation instances=mul limit=MPC_HLS_MUL_LIMIT
 
 #ifdef MPC_HLS_BUILD
     const int trace_enable = 0;
@@ -148,7 +143,10 @@ extern "C" void mpc_compute_hls(
 
     for (k = 0; k < N; k++) {
 #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
-#pragma HLS PIPELINE II=1
+#pragma HLS PIPELINE II=MPC_HLS_STEP_ASSEMBLY_II
+#pragma HLS DEPENDENCE variable=step_data inter false
+        StepData_t *sd = &step_data[k];
+
         if (use_ws_linearization) {
             lin_u[k][0] = admm_state->z_u[k][0];
             lin_u[k][1] = admm_state->z_u[k][1];
@@ -160,16 +158,32 @@ extern "C" void mpc_compute_hls(
             lin_u[k][1] = 0;
         }
 
+        /* Per-step Frenet linearization + rollout */
+        fp_QP_t A_step[MPC_NX_FRENET][MPC_NX_FRENET];
+        fp_QP_t B_step[MPC_NX_FRENET][MPC_NU];
         fp_QP_t next_frenet[MPC_NX_FRENET];
-        predict_frenet_next_hls(
-            lin_x[k][0], lin_x[k][1], lin_x[k][2], lin_x[k][3], lin_x[k][4],
-            lin_x[k][IDX_DELTA_ACT], lin_u[k][1],
-            ref[k].kappa, dt, next_frenet);
+#pragma HLS ARRAY_PARTITION variable=A_step complete dim=0
+#pragma HLS ARRAY_PARTITION variable=B_step complete dim=0
+
+        fp_QP_t kappa_k = ref[k].kappa;
+        fp_QP_t lin_delta_k = fp_clamp(lin_x[k][IDX_DELTA_ACT],
+                                       -VP_MAX_STEER,
+                                       VP_MAX_STEER);
+        fp_QP_t lin_vx_k = (lin_x[k][2] > qp_min_lin_vel) ? lin_x[k][2]
+                                                           : qp_min_lin_vel;
+
+        compute_frenet_AB_and_next_hls(
+            lin_x[k][0], lin_x[k][1],
+            lin_vx_k, lin_x[k][3], lin_x[k][4],
+            lin_delta_k, lin_u[k][1],
+            kappa_k, dt,
+            A_step, B_step,
+            next_frenet);
 
         lin_x[k + 1][0] = next_frenet[0];
         lin_x[k + 1][1] = next_frenet[1];
         lin_x[k + 1][2] = (next_frenet[2] > qp_min_lin_vel) ? next_frenet[2]
-                                                           : qp_min_lin_vel;
+                                                             : qp_min_lin_vel;
         lin_x[k + 1][3] = next_frenet[3];
         lin_x[k + 1][4] = next_frenet[4];
         lin_x[k + 1][IDX_DELTA_ACT] = fp_clamp(
@@ -177,13 +191,6 @@ extern "C" void mpc_compute_hls(
             -VP_MAX_STEER, VP_MAX_STEER);
         lin_x[k + 1][IDX_DELTA_RATE_PREV] = lin_u[k][0];
         lin_x[k + 1][IDX_ACCEL_PREV] = lin_u[k][1];
-    }
-
-    for (k = 0; k < N; k++) {
-#pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
-#pragma HLS PIPELINE II=8
-#pragma HLS DEPENDENCE variable=step_data inter false
-        StepData_t *sd = &step_data[k];
 
         /* Zero sparse blocks not explicitly written by the assignments below. */
         /* A rows 5,6,7 = 0 (delta integrator + prev-controls have no
@@ -215,29 +222,9 @@ extern "C" void mpc_compute_hls(
             sd->N_cross[i][1] = 0;
         }
 
-        /* Per-step Frenet linearization */
-        fp_QP_t A_step[MPC_NX_FRENET][MPC_NX_FRENET];
-        fp_QP_t B_step[MPC_NX_FRENET][MPC_NU];
-
-        fp_QP_t kappa_k = ref[k].kappa;
+        /* Feedforward steering from path curvature. */
         fp_QP_t dff_k = fp_atan(fp_mul(VP_WHEELBASE, kappa_k));
         dff_k = fp_clamp(dff_k, -VP_MAX_STEER, VP_MAX_STEER);
-
-        fp_QP_t lin_vx_k = (lin_x[k][2] > qp_min_lin_vel) ? lin_x[k][2]
-                                                           : qp_min_lin_vel;
-        fp_QP_t lin_vy_k = lin_x[k][3];
-        fp_QP_t lin_omega_k = lin_x[k][4];
-        fp_QP_t lin_delta_k = fp_clamp(lin_x[k][IDX_DELTA_ACT],
-                           -VP_MAX_STEER,
-                           VP_MAX_STEER);
-        fp_QP_t lin_accel_k = lin_u[k][1];
-
-        compute_frenet_AB_hls(
-            lin_x[k][0], lin_x[k][1],
-            lin_vx_k, lin_vy_k, lin_omega_k,
-            lin_delta_k, lin_accel_k,
-            kappa_k, dt,
-            A_step, B_step);
 
         /* Diagonal-only guard for fast yaw dynamics: clamp A[4][4] without
          * introducing off-diagonal coupling changes. */
@@ -286,22 +273,48 @@ extern "C" void mpc_compute_hls(
         /* B[7][1] = 1 (accel_prev = accel) */
         sd->B[IDX_ACCEL_PREV][1] = FP_ONE;
 
-        /* === Affine dynamics bias d: x_{k+1} = A x_k + B u_k + d_k === */
+        /* === Affine dynamics bias d: x_{k+1} = A x_k + B u_k + d_k ===
+         * Use explicit sparsity of augmented A/B to avoid dense 8x8/8x2 MACs. */
+        fp_raw_acc_t xk_raw[MPC_NX_AUG];
+        fp_raw_acc_t xk1_raw[MPC_NX_AUG];
+        fp_raw_acc_t uk0_raw = fp_raw_acc_from_qp(lin_u[k][0]);
+        fp_raw_acc_t uk1_raw = fp_raw_acc_from_qp(lin_u[k][1]);
+#pragma HLS ARRAY_PARTITION variable=xk_raw complete dim=1
+#pragma HLS ARRAY_PARTITION variable=xk1_raw complete dim=1
         for (i = 0; i < MPC_NX_AUG; i++) {
-    #pragma HLS UNROLL
-            fp_raw_acc_t affine_term = fp_raw_acc_from_qp(lin_x[k + 1][i]);
-            for (j = 0; j < MPC_NX_AUG; j++) {
-    #pragma HLS UNROLL
-            affine_term -=
-                (fp_raw_acc_from_qp(sd->A[i][j]) * fp_raw_acc_from_qp(lin_x[k][j])) >> FP_FRAC_BITS;
+#pragma HLS UNROLL
+            xk_raw[i] = fp_raw_acc_from_qp(lin_x[k][i]);
+            xk1_raw[i] = fp_raw_acc_from_qp(lin_x[k + 1][i]);
+        }
+
+        for (i = 0; i < 5; i++) {
+#pragma HLS UNROLL
+            fp_raw_acc_t affine_term = xk1_raw[i];
+            for (j = 0; j < 6; j++) {
+#pragma HLS UNROLL
+                affine_term -= (fp_raw_acc_from_qp(sd->A[i][j]) * xk_raw[j]) >> FP_FRAC_BITS;
             }
-            for (a = 0; a < MPC_NU; a++) {
-    #pragma HLS UNROLL
-            affine_term -=
-                (fp_raw_acc_from_qp(sd->B[i][a]) * fp_raw_acc_from_qp(lin_u[k][a])) >> FP_FRAC_BITS;
-            }
-            affine_term = fp_clip_raw_to_qp(affine_term);
-            sd->d[i] = fp_qp_from_raw_acc(affine_term);
+            affine_term -= (fp_raw_acc_from_qp(sd->B[i][1]) * uk1_raw) >> FP_FRAC_BITS;
+            sd->d[i] = fp_qp_from_raw_acc(fp_clip_raw_to_qp(affine_term));
+        }
+
+        {
+            fp_raw_acc_t d5 = xk1_raw[IDX_DELTA_ACT]
+                            - ((fp_raw_acc_from_qp(sd->A[IDX_DELTA_ACT][IDX_DELTA_ACT]) * xk_raw[IDX_DELTA_ACT]) >> FP_FRAC_BITS)
+                            - ((fp_raw_acc_from_qp(sd->B[IDX_DELTA_ACT][0]) * uk0_raw) >> FP_FRAC_BITS);
+            sd->d[IDX_DELTA_ACT] = fp_qp_from_raw_acc(fp_clip_raw_to_qp(d5));
+        }
+
+        {
+            fp_raw_acc_t d6 = xk1_raw[IDX_DELTA_RATE_PREV]
+                            - ((fp_raw_acc_from_qp(sd->B[IDX_DELTA_RATE_PREV][0]) * uk0_raw) >> FP_FRAC_BITS);
+            sd->d[IDX_DELTA_RATE_PREV] = fp_qp_from_raw_acc(fp_clip_raw_to_qp(d6));
+        }
+
+        {
+            fp_raw_acc_t d7 = xk1_raw[IDX_ACCEL_PREV]
+                            - ((fp_raw_acc_from_qp(sd->B[IDX_ACCEL_PREV][1]) * uk1_raw) >> FP_FRAC_BITS);
+            sd->d[IDX_ACCEL_PREV] = fp_qp_from_raw_acc(fp_clip_raw_to_qp(d7));
         }
 
         /* === Q_diag (8 elements) — precomputed constants === */
@@ -351,16 +364,23 @@ extern "C" void mpc_compute_hls(
         }
 
         /* === State bounds === */
-        /* e_y: wall constraints active for all steps when bounds are valid. */
+        /* e_y: wall constraints with adaptive margin relaxation to preserve
+         * a feasible hard corridor when local track width is very narrow. */
         fp_QP_t left_room = ref[k].left_bound - WALL_MARGIN;
         fp_QP_t right_room = ref[k].right_bound - WALL_MARGIN;
-        if (left_room > 0 && right_room > 0) {
-            sd->x_lb[0] = -right_room;
-            sd->x_ub[0] = left_room;
-        } else {
-            sd->x_lb[0] = -BIG_BOUND;
-            sd->x_ub[0] = BIG_BOUND;
+        fp_QP_t room_sum = left_room + right_room;
+        if (room_sum < FP_QP_CONST(2e-3)) {
+            fp_QP_t relax = fp_mul(FP_QP_CONST(2e-3) - room_sum, FP_HALF);
+            left_room += relax;
+            right_room += relax;
         }
+        if ((left_room + right_room) < FP_QP_CONST(2e-3)) {
+            left_room = FP_QP_CONST(1e-3);
+            right_room = FP_QP_CONST(1e-3);
+        }
+
+        sd->x_lb[0] = -right_room;
+        sd->x_ub[0] = left_room;
 
         /* States 1-4: unconstrained */
         for (i = 1; i < 5; i++) {
@@ -381,10 +401,12 @@ extern "C" void mpc_compute_hls(
         sd->u_lb[0] = -VP_MAX_STEER_RATE;
         sd->u_ub[0] = VP_MAX_STEER_RATE;
 
-        /* u[1] = acceleration with speed-dependent power limit */
-        fp_QP_t v_ref_k = ref[k].velocity;
-        if (v_ref_k > V_SWITCH) {
-            fp_QP_t scale = fp_mul(V_SWITCH, fp_recip(v_ref_k));
+        /* u[1] = acceleration with speed-dependent power limit.
+         * Use predicted operating speed so the car can still accelerate
+         * when below target velocity. */
+        fp_QP_t v_op_k = lin_vx_k;
+        if (v_op_k > V_SWITCH) {
+            fp_QP_t scale = fp_mul(V_SWITCH, fp_recip(v_op_k));
             sd->u_ub[1] = fp_mul(VP_MAX_ACCEL, scale);
             sd->u_lb[1] = fp_mul(VP_MIN_ACCEL, scale);
         } else {
@@ -426,13 +448,20 @@ extern "C" void mpc_compute_hls(
 
         fp_QP_t left_room = ref[N - 1].left_bound - WALL_MARGIN;
         fp_QP_t right_room = ref[N - 1].right_bound - WALL_MARGIN;
-        if (left_room > 0 && right_room > 0) {
-            terminal_x_lb[0] = -right_room;
-            terminal_x_ub[0] = left_room;
-        } else {
-            terminal_x_lb[0] = -BIG_BOUND;
-            terminal_x_ub[0] = BIG_BOUND;
+        fp_QP_t room_sum = left_room + right_room;
+        if (room_sum < FP_QP_CONST(2e-3)) {
+            fp_QP_t relax = fp_mul(FP_QP_CONST(2e-3) - room_sum, FP_HALF);
+            left_room += relax;
+            right_room += relax;
         }
+        if ((left_room + right_room) < FP_QP_CONST(2e-3)) {
+            left_room = FP_QP_CONST(1e-3);
+            right_room = FP_QP_CONST(1e-3);
+        }
+
+        terminal_x_lb[0] = -right_room;
+        terminal_x_ub[0] = left_room;
+        
         terminal_x_lb[IDX_DELTA_ACT] = -VP_MAX_STEER;
         terminal_x_ub[IDX_DELTA_ACT] = VP_MAX_STEER;
     }

@@ -2,24 +2,25 @@
  * @file mpc_fpga_top.cpp
  * @brief FPGA top-level wrappers for the HLS MPC Riccati-ADMM solver.
  * @details Provides two front-ends to the same compute core:
- *          (1) AXI-stream interface for synthesis-time integration and
+ *          (1) OpenCL RAM-buffer kernel interface for deployment and
  *          (2) scalar testbench wrapper for software-driven validation.
  *          Both front-ends decode reference trajectory inputs, preserve
  *          solver state across calls, and expose steering/acceleration/status
  *          outputs from the shared MPC pipeline.
- * @dependencies fp_math_hls.h, mpc_fpga_types.h, riccati_solver_hls.h,
- *               hls_stream.h, ap_int.h, ap_axi_sdata.h
+ * @dependencies fp_math_hls.h, mpc_fpga_types.h, riccati_solver_hls.h
  *
- * Stream Format (128-bit words):
- *   Beat 0: [e_y | e_psi | vx | vy]
- *   Beat 1: [omega | steering | horizon_length | reserved]
- *   Beat 2..N+1: [ref_vx[i] | ref_kappa[i] | ref_left[i] | ref_right[i]]
+ * Packed RAM-Word Format (logical 32-bit lane groups):
+ *   Group 0: [e_y | e_psi | vx | vy]
+ *   Group 1: [omega | steering | horizon_length | reserved]
+ *   Group 2..N+1: [ref_vx[i] | ref_kappa[i] | ref_left[i] | ref_right[i]]
  *
- * Total: 2 + MPC_HORIZON beats (MPC_FPGA_DMA_BEATS words)
+ * Transport: packed in 512-bit OpenCL memory words.
+ * Total payload: MPC_FPGA_DMA_BYTES bytes (3 x 512-bit words at current horizon).
  */
 
 #include "../include/fp_math_hls.h"
 #include "../include/mpc_fpga_types.h"
+#include "../include/mpc_fpga_interface.h"
 #include "../include/riccati_solver_hls.h"
 #include "../include/mpc_riccati_hls.h"
 #ifdef MPC_RUNTIME_TUNE
@@ -27,12 +28,7 @@
 #endif
 
 #ifdef MPC_HLS_BUILD
-#include <hls_stream.h>
 #include <ap_int.h>
-#include <ap_axi_sdata.h>
-
-typedef ap_uint<128> stream_word_t;
-typedef hls::axis<stream_word_t, 0, 0, 0> axis_word_t;
 #endif
 
 /**
@@ -58,22 +54,12 @@ static void mpc_fpga_compute_core(
     int *out_steering, int *out_accel, int *out_status, int *out_iters)
 {
     static AdmmState_t admm_state;
-#pragma HLS ARRAY_PARTITION variable=admm_state.z_x complete dim=2
-#pragma HLS ARRAY_PARTITION variable=admm_state.y_x complete dim=2
-#pragma HLS ARRAY_PARTITION variable=admm_state.z_u complete dim=2
-#pragma HLS ARRAY_PARTITION variable=admm_state.y_u complete dim=2
     static MpcPersistState_t persist;
     static int initialized = 0;
-#ifdef MPC_RUNTIME_TUNE
-#endif
-#pragma HLS BIND_STORAGE variable=admm_state type=ram_2p impl=bram
-#pragma HLS BIND_STORAGE variable=persist type=ram_1p impl=lutram
 
 #ifdef MPC_RUNTIME_TUNE
     mpc_runtime_update_from_env();
 #endif
-
-
 
     if (!initialized) {
         persist.prev_steer_rate = 0;
@@ -100,81 +86,105 @@ static void mpc_fpga_compute_core(
 
 #ifdef MPC_HLS_BUILD
 /**
- * @brief Pack four 32-bit fixed-point values into one 128-bit stream beat.
- * @param v0 First lane value.
- * @param v1 Second lane value.
- * @param v2 Third lane value.
- * @param v3 Fourth lane value.
- * @return Packed 128-bit stream word.
- */
-static stream_word_t pack_word(fp_QP_t v0, fp_QP_t v1,
-                               fp_QP_t v2, fp_QP_t v3) {
-    stream_word_t w = 0;
-    w.range(31, 0)   = (uint32_t)((fp_stream_raw_t)fp_raw_from_QP(v0));
-    w.range(63, 32)  = (uint32_t)((fp_stream_raw_t)fp_raw_from_QP(v1));
-    w.range(95, 64)  = (uint32_t)((fp_stream_raw_t)fp_raw_from_QP(v2));
-    w.range(127, 96) = (uint32_t)((fp_stream_raw_t)fp_raw_from_QP(v3));
-    return w;
-}
-
-/**
- * @brief AXI-stream top-level entry point used for HLS synthesis.
- * @param input_stream AXI-stream carrying current state and reference beats.
- * @param out_steering Output steering command pointer.
- * @param out_accel Output acceleration command pointer.
- * @param out_status Output solver status pointer.
- * @param out_iters Output ADMM iteration count pointer.
+ * @brief OpenCL-friendly top-level that reads packed input words from RAM.
+ * @param input_words512 Input buffer packed as 512-bit words.
+ * @param output_words128 Output buffer packed as one 128-bit word:
+ *        [steering_fp | accel_fp | status | iterations] in 32-bit lanes.
  * @return None.
  */
-void mpc_fpga_top(
-    hls::stream<axis_word_t>& input_stream,
-    int *out_steering, int *out_accel, int *out_status, int *out_iters)
+extern "C" void mpc_fpga_top_opencl(
+    const ap_uint<512> *input_words512,
+    ap_uint<128> *output_words128)
 {
-#pragma HLS INTERFACE axis port=input_stream
-#pragma HLS INTERFACE s_axilite port=return bundle=ctrl
-#pragma HLS INTERFACE s_axilite port=out_steering bundle=ctrl
-#pragma HLS INTERFACE s_axilite port=out_accel bundle=ctrl
-#pragma HLS INTERFACE s_axilite port=out_status bundle=ctrl
-#pragma HLS INTERFACE s_axilite port=out_iters bundle=ctrl
+#pragma HLS INTERFACE m_axi port=input_words512 offset=slave bundle=gmem0 depth=INPUT_BUFFER_WORDS_512 max_widen_bitwidth=512
+#pragma HLS INTERFACE m_axi port=output_words128 offset=slave bundle=gmem1 depth=1 max_widen_bitwidth=128
+#pragma HLS INTERFACE s_axilite port=input_words512 bundle=control
+#pragma HLS INTERFACE s_axilite port=output_words128 bundle=control
+#pragma HLS INTERFACE s_axilite port=return bundle=control
 #pragma HLS ALLOCATION operation instances=div limit=0
 
-    /* Beat 0: [e_y | e_psi | vx | vy] */
-    stream_word_t d0 = input_stream.read().data;
-    fp_io_t ey_io   = fp_io_from_raw((fp_stream_raw_t)(int)d0.range(31, 0));
-    fp_io_t epsi_io = fp_io_from_raw((fp_stream_raw_t)(int)d0.range(63, 32));
-    fp_io_t vx_io   = fp_io_from_raw((fp_stream_raw_t)(int)d0.range(95, 64));
-    fp_io_t vy_io   = fp_io_from_raw((fp_stream_raw_t)(int)d0.range(127, 96));
-    fp_QP_t ey      = (fp_QP_t)ey_io;
-    fp_QP_t epsi    = fp_normalize_angle((fp_QP_t)epsi_io);
-    fp_QP_t vx      = (fp_QP_t)vx_io;
-    fp_QP_t vy      = (fp_QP_t)vy_io;
-
-    /* Beat 1: [omega | steering | horizon_length | reserved] */
-    stream_word_t d1 = input_stream.read().data;
-    fp_io_t omega_io    = fp_io_from_raw((fp_stream_raw_t)(int)d1.range(31, 0));
-    fp_io_t steering_io = fp_io_from_raw((fp_stream_raw_t)(int)d1.range(63, 32));
-    fp_QP_t omega       = (fp_QP_t)omega_io;
-    fp_QP_t steering    = (fp_QP_t)steering_io;
-    int horizon_len        = (int)d1.range(95, 64);
-    (void)horizon_len; /* Reserved protocol field (stream always carries MPC_HORIZON points). */
-
-    /* Beats 2..N+1: Reference trajectory */
-    MpcRefPoint_t ref[MPC_HORIZON];
-#pragma HLS ARRAY_PARTITION variable=ref complete dim=0
-    for (int k = 0; k < MPC_HORIZON; k++) {
-#pragma HLS PIPELINE II=1
-        stream_word_t dr = input_stream.read().data;
-        fp_io_t ref_v_io = fp_io_from_raw((fp_stream_raw_t)(int)dr.range(31, 0));
-        fp_io_t ref_k_io = fp_io_from_raw((fp_stream_raw_t)(int)dr.range(63, 32));
-        ref[k].velocity = (fp_QP_t)ref_v_io;
-        ref[k].kappa = (fp_QP_t)ref_k_io;
-        ref[k].yaw_rate = fp_mul(ref[k].velocity, ref[k].kappa);
-        ref[k].left_bound  = (fp_QP_t)fp_io_from_raw((fp_stream_raw_t)(int)dr.range(95, 64));
-        ref[k].right_bound = (fp_QP_t)fp_io_from_raw((fp_stream_raw_t)(int)dr.range(127, 96));
+    if (!output_words128) {
+        return;
+    }
+    if (!input_words512) {
+        ap_uint<128> packed_out = 0;
+        packed_out.range(31, 0) = (ap_uint<32>)0;
+        packed_out.range(63, 32) = (ap_uint<32>)0;
+        packed_out.range(95, 64) = (ap_uint<32>)MPC_FPGA_STATUS_ERROR;
+        packed_out.range(127, 96) = (ap_uint<32>)0;
+        output_words128[0] = packed_out;
+        return;
     }
 
+    constexpr int kPacketWords = INPUT_BUFFER_WORDS_512;
+    constexpr int kLaneWordsPerPacket = 16;
+    constexpr int kLaneWords = INPUT_BUFFER_WORDS_512 * kLaneWordsPerPacket;
+
+    ap_uint<32> lane_words[kLaneWords];
+#pragma HLS ARRAY_PARTITION variable=lane_words complete dim=1
+
+    for (int packet_idx = 0; packet_idx < kPacketWords; ++packet_idx) {
+        const ap_uint<512> packet = input_words512[packet_idx];
+        for (int lane = 0; lane < kLaneWordsPerPacket; ++lane) {
+#pragma HLS PIPELINE II=1
+            const int word_index = (packet_idx * kLaneWordsPerPacket) + lane;
+            if (word_index < INPUT_BUFFER_WORDS_32) {
+                const int lo = lane * 32;
+                lane_words[word_index] = packet.range(lo + 31, lo);
+            } else {
+                lane_words[word_index] = 0;
+            }
+        }
+    }
+
+    auto read_word32 = [&](int idx) -> int {
+#pragma HLS INLINE
+        return (int)lane_words[idx];
+    };
+
+    fp_QP_t ey       = fp_QP_from_raw((fp_stream_raw_t)read_word32(0));
+    fp_QP_t epsi     = fp_normalize_angle(fp_QP_from_raw((fp_stream_raw_t)read_word32(1)));
+    fp_QP_t vx       = fp_QP_from_raw((fp_stream_raw_t)read_word32(2));
+    fp_QP_t vy       = fp_QP_from_raw((fp_stream_raw_t)read_word32(3));
+    fp_QP_t omega    = fp_QP_from_raw((fp_stream_raw_t)read_word32(4));
+    fp_QP_t steering = fp_QP_from_raw((fp_stream_raw_t)read_word32(5));
+
+    int horizon_len = read_word32(6);
+    if (horizon_len < 1 || horizon_len > MPC_HORIZON) {
+        ap_uint<128> packed_out = 0;
+        packed_out.range(31, 0) = (ap_uint<32>)0;
+        packed_out.range(63, 32) = (ap_uint<32>)0;
+        packed_out.range(95, 64) = (ap_uint<32>)MPC_FPGA_STATUS_NO_TRAJECTORY;
+        packed_out.range(127, 96) = (ap_uint<32>)0;
+        output_words128[0] = packed_out;
+        return;
+    }
+
+    MpcRefPoint_t ref[MPC_HORIZON];
+    for (int k = 0; k < MPC_HORIZON; ++k) {
+#pragma HLS PIPELINE II=1
+        const int src_k = (k < horizon_len) ? k : (horizon_len - 1);
+        const int base = 8 + (src_k * 4);
+        ref[k].velocity = fp_QP_from_raw((fp_stream_raw_t)read_word32(base + 0));
+        ref[k].kappa = fp_QP_from_raw((fp_stream_raw_t)read_word32(base + 1));
+        ref[k].yaw_rate = fp_mul(ref[k].velocity, ref[k].kappa);
+        ref[k].left_bound = fp_QP_from_raw((fp_stream_raw_t)read_word32(base + 2));
+        ref[k].right_bound = fp_QP_from_raw((fp_stream_raw_t)read_word32(base + 3));
+    }
+
+    int out_steering = 0;
+    int out_accel = 0;
+    int out_status = 0;
+    int out_iters = 0;
     mpc_fpga_compute_core(ey, epsi, vx, vy, omega, steering, ref,
-                          out_steering, out_accel, out_status, out_iters);
+                          &out_steering, &out_accel, &out_status, &out_iters);
+
+    ap_uint<128> packed_out = 0;
+    packed_out.range(31, 0) = (ap_uint<32>)((uint32_t)out_steering);
+    packed_out.range(63, 32) = (ap_uint<32>)((uint32_t)out_accel);
+    packed_out.range(95, 64) = (ap_uint<32>)((uint32_t)out_status);
+    packed_out.range(127, 96) = (ap_uint<32>)((uint32_t)out_iters);
+    output_words128[0] = packed_out;
 }
 #endif
 
@@ -199,49 +209,34 @@ void mpc_fpga_top(
  */
 #ifndef __SYNTHESIS__
 extern "C" void mpc_fpga_top_scalar(
-    int ey_fp, int epsi_fp, int vx_fp, int vy_fp, int omega_fp, int steering_fp,
-    const int *ref_vx, const int *ref_kappa, const int *ref_left, const int *ref_right,
+    int32_t ey_fp, int32_t epsi_fp, int32_t vx_fp, int32_t vy_fp, int32_t omega_fp, int32_t steering_fp,
+    const int32_t *ref_vx, const int32_t *ref_kappa, const int32_t *ref_left, const int32_t *ref_right,
     int ref_count,
-    int *out_steering, int *out_accel, int *out_status, int *out_iters)
+    int32_t *out_steering, int32_t *out_accel, int32_t *out_status, int32_t *out_iters)
 {
     if (!out_steering || !out_accel || !out_status || !out_iters) {
+        if (out_steering) {
+            *out_steering = 0;
+        }
+        if (out_accel) {
+            *out_accel = 0;
+        }
+        if (out_status) {
+            *out_status = MPC_FPGA_STATUS_ERROR;
+        }
+        if (out_iters) {
+            *out_iters = 0;
+        }
         return;
     }
 
     if (!ref_vx || !ref_kappa || !ref_left || !ref_right ||
         ref_count <= 0 || ref_count > MPC_HORIZON) {
         *out_steering = 0; *out_accel = 0;
-        *out_status = 3; *out_iters = 0;
+        *out_status = MPC_FPGA_STATUS_NO_TRAJECTORY; *out_iters = 0;
         return;
     }
 
-#ifdef MPC_HLS_BUILD
-    hls::stream<axis_word_t> stream;
-    axis_word_t beat;
-
-    beat.data = pack_word(fp_QP_from_raw((fp_stream_raw_t)ey_fp),
-                          fp_QP_from_raw((fp_stream_raw_t)epsi_fp),
-                          fp_QP_from_raw((fp_stream_raw_t)vx_fp),
-                          fp_QP_from_raw((fp_stream_raw_t)vy_fp));
-    stream.write(beat);
-
-    beat.data = pack_word(fp_QP_from_raw((fp_stream_raw_t)omega_fp),
-                          fp_QP_from_raw((fp_stream_raw_t)steering_fp),
-                          fp_QP_from_raw((fp_stream_raw_t)ref_count),
-                          0);
-    stream.write(beat);
-
-    for (int k = 0; k < MPC_HORIZON; k++) {
-        int src_k = (k < ref_count) ? k : (ref_count - 1);
-        fp_QP_t kappa = fp_QP_from_raw((fp_stream_raw_t)ref_kappa[src_k]);
-        beat.data = pack_word(fp_QP_from_raw((fp_stream_raw_t)ref_vx[src_k]),
-                              kappa,
-                              fp_QP_from_raw((fp_stream_raw_t)ref_left[src_k]),
-                              fp_QP_from_raw((fp_stream_raw_t)ref_right[src_k]));
-        stream.write(beat);
-    }
-    mpc_fpga_top(stream, out_steering, out_accel, out_status, out_iters);
-#else
     MpcRefPoint_t ref[MPC_HORIZON];
     for (int k = 0; k < MPC_HORIZON; k++) {
         int src_k = (k < ref_count) ? k : (ref_count - 1);
@@ -258,6 +253,5 @@ extern "C" void mpc_fpga_top_scalar(
                           fp_QP_from_raw((fp_stream_raw_t)omega_fp),
                           fp_QP_from_raw((fp_stream_raw_t)steering_fp),
                           ref, out_steering, out_accel, out_status, out_iters);
-#endif
 }
 #endif
