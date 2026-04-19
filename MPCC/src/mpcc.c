@@ -744,6 +744,14 @@ static void build_qp_problem(
     qp->x_lower[MPCC_IDX_VX] = config.vx_min;
     qp->x_upper[MPCC_IDX_VX] = config.vx_max;
 
+    /* vy: physical lateral velocity bound [m/s] */
+    qp->x_lower[MPCC_IDX_VY] = -5.0f;
+    qp->x_upper[MPCC_IDX_VY] =  5.0f;
+
+    /* omega: physical yaw rate bound [rad/s] */
+    qp->x_lower[MPCC_IDX_OMEGA] = -15.0f;
+    qp->x_upper[MPCC_IDX_OMEGA] =  15.0f;
+
     /* Control bounds */
     qp->u_lower[MPCC_IDX_DELTA] = (0 - config.delta_max);
     qp->u_upper[MPCC_IDX_DELTA] = config.delta_max;
@@ -1089,7 +1097,53 @@ MPCCStatus_t mpcc_compute_control(
     if (warm_start_available)
     {
         shift_warm_start();
-        admm_config.warm_start = 1;
+
+        /* Shift ADMM workspace to align with the new prediction window.
+         * Without this, z_x[k] from the previous solve corresponds to
+         * time t + k*dt, but the new QP stage k is at t+dt + k*dt.
+         * The one-step misalignment causes huge initial ADMM residuals. */
+        {
+            uint16_t N = config.horizon_steps;
+            if (N > MPCC_MAX_HORIZON) N = MPCC_MAX_HORIZON;
+
+            /* Shift states: [k] = [k+1] for k = 0..N-1, hold last */
+            for (uint16_t k = 0; k < N; k++) {
+                memcpy(admm_workspace.z_x[k], admm_workspace.z_x[k+1],
+                       sizeof(float) * MPCC_NX);
+                memcpy(admm_workspace.w_x[k], admm_workspace.w_x[k+1],
+                       sizeof(float) * MPCC_NX);
+                memcpy(admm_workspace.lambda_x[k], admm_workspace.lambda_x[k+1],
+                       sizeof(float) * MPCC_NX);
+            }
+            /* Terminal state stays (hold last) */
+
+            /* Shift controls: [k] = [k+1] for k = 0..N-2, hold last */
+            for (uint16_t k = 0; k + 1 < N; k++) {
+                memcpy(admm_workspace.z_u[k], admm_workspace.z_u[k+1],
+                       sizeof(float) * MPCC_NU);
+                memcpy(admm_workspace.w_u[k], admm_workspace.w_u[k+1],
+                       sizeof(float) * MPCC_NU);
+                memcpy(admm_workspace.lambda_u[k], admm_workspace.lambda_u[k+1],
+                       sizeof(float) * MPCC_NU);
+            }
+        }
+
+        /* Detect s-wrap (lap boundary crossing): if s jumped backward
+         * by more than half the track length, the warm-started workspace
+         * has s values from the old lap and is useless. Force cold start
+         * for both ADMM and QP operating points. */
+        float s_jump = current_state->s - prev_predicted_states[0].s;
+        if (s_jump < -(ref_path.total_length * 0.5f)) {
+            admm_config.warm_start = 0;
+            warm_start_available = 0;  /* Also reset QP operating points */
+#ifdef MPCC_DEBUG_PRINT
+            printf("[MPCC] s-wrap detected (%.2f → %.2f), forcing full cold start\n",
+                   (double)prev_predicted_states[0].s, (double)current_state->s);
+#endif
+        } else {
+            admm_config.warm_start = 1;
+        }
+
         /* Save the shifted warm-start's first control as fallback
          * in case the solver doesn't converge this cycle. */
         fallback_control = prev_predicted_controls[0];

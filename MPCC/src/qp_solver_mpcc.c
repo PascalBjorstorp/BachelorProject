@@ -360,7 +360,7 @@ void admm_solver_default_config(ADMMConfig_t *config)
     config->warm_start = 0;
     config->rho_u = 0;            /* 0 = use same rho as states */
     config->adaptive_rho = 1;     /* Enable adaptive rho by default */
-    config->alpha_relax = 1.5f;  /* Over-relaxation: 1.5 is a robust default */
+    config->alpha_relax = 1.0f;  /* No over-relaxation: prevents oscillation with strong tires */
 }
 
 /*===========================================================================
@@ -416,35 +416,54 @@ void riccati_backward_pass(
 {
     uint16_t N = problem->N;
 
-    /* Precompute constrained flags from global bounds */
+    /* All states get ADMM rho augmentation for proper consensus.
+     * Previously only "constrained" states (bounds < threshold) got rho,
+     * leaving vy, omega, psi without consensus penalty — causing poor
+     * P-matrix conditioning and ADMM non-convergence. */
     uint8_t x_constrained[MPCC_NX];
-   for (int i = 0; i < MPCC_NX; i++) {
-        x_constrained[i] = (problem->x_upper[i] < MPCC_BOUND_THRESHOLD ||
-                            problem->x_lower[i] > -MPCC_BOUND_THRESHOLD);
+    for (int i = 0; i < MPCC_NX; i++) {
+        x_constrained[i] = 1;
     }
-
-    x_constrained[MPCC_IDX_X] = 1;
-    x_constrained[MPCC_IDX_Y] = 1;
 
     /* Rolling value function */
     float P[MPCC_NX][MPCC_NX];
     float p[MPCC_NX];
 
-    /* Initialize terminal cost-to-go */
-        for (int i = 0; i < MPCC_NX; i++) {
-            for (int j = i + 1; j < MPCC_NX; j++) {
-                float sym = 0.5f * (P[i][j] + P[j][i]);
-                P[i][j] = sym;
-                P[j][i] = sym;
-            }
-        }
+    /* Initialize P_N and p_N from the terminal cost matrices */
+    for (int i = 0; i < MPCC_NX; i++) {
+        for (int j = 0; j < MPCC_NX; j++)
+            P[i][j] = problem->terminal_cost.Q[i][j];
+    }
 
-        /* Store P_N in workspace */
-        for (int i = 0; i < MPCC_NX; i++) {
-            for (int j = 0; j < MPCC_NX; j++)
-                ws->P[N][i][j] = P[i][j];
-            ws->p[N][i] = p[i];
+    /* ADMM augmentation of terminal cost-to-go:
+     *   P_N[i][i] += rho          (constrained states)
+     *   p_N[i]     = q_N[i] + rho*(lambda_x[N][i] - w_x[N][i])
+     */
+    for (int i = 0; i < MPCC_NX; i++) {
+        if (x_constrained[i]) {
+            P[i][i] += rho;
+            p[i] = problem->terminal_cost.q[i]
+                 + rho * (ws->lambda_x[N][i] - ws->w_x[N][i]);
+        } else {
+            p[i] = problem->terminal_cost.q[i];
         }
+    }
+
+    /* Symmetrize P_N */
+    for (int i = 0; i < MPCC_NX; i++) {
+        for (int j = i + 1; j < MPCC_NX; j++) {
+            float sym = 0.5f * (P[i][j] + P[j][i]);
+            P[i][j] = sym;
+            P[j][i] = sym;
+        }
+    }
+
+    /* Store P_N, p_N */
+    for (int i = 0; i < MPCC_NX; i++) {
+        for (int j = 0; j < MPCC_NX; j++)
+            ws->P[N][i][j] = P[i][j];
+        ws->p[N][i] = p[i];
+    }
 
     /* Backward sweep: k = N-1 down to 0 */
     for (int k = N - 1; k >= 0; k--)
@@ -999,38 +1018,43 @@ MPCCStatus_t admm_solver_solve(
             break;
         }
 
-        /*--- Adaptive rho: balance primal/dual convergence rates ---*/
-        if (config->adaptive_rho && iter > 0 && (iter & 1) == 0) {
-            if (prim_res / 10 > dual_res &&
+        /*--- Adaptive rho: balance primal/dual convergence rates ---
+         * Check every 25 iterations (not every 2) and use 1.5x scaling
+         * (not 2x) to avoid ping-ponging that disrupts convergence. */
+        if (config->adaptive_rho && iter >= 25 && (iter % 25) == 0) {
+            if (prim_res > 5.0f * dual_res &&
                 rho < 100.0f) {
-                rho = (rho * 2.0f);
+                float scale = 1.5f;
+                float inv_scale = 1.0f / scale;
+                rho = (rho * scale);
                 if (rho_u < 100.0f)
-                    rho_u = (rho_u * 2.0f);
+                    rho_u = (rho_u * scale);
                 if (rho > 100.0f) rho = 100.0f;
                 if (rho_u > 100.0f) rho_u = 100.0f;
                 workspace->adaptive_rho_updates++;
-                /* Scale dual variables: lambda /= 2 */
+                /* Scale dual variables: lambda /= scale */
                 for (uint16_t kk = 0; kk <= N; kk++)
                     for (int i = 0; i < MPCC_NX; i++)
-                        workspace->lambda_x[kk][i] *= 0.5f;
+                        workspace->lambda_x[kk][i] *= inv_scale;
                 for (uint16_t kk = 0; kk < N; kk++)
                     for (int i = 0; i < MPCC_NU; i++)
-                        workspace->lambda_u[kk][i] *= 0.5f;
-            } else if (dual_res / 10 > prim_res &&
+                        workspace->lambda_u[kk][i] *= inv_scale;
+            } else if (dual_res > 5.0f * prim_res &&
                        rho > 0.5f) {
-                rho = (rho * 0.5f);
+                float scale = 1.5f;
+                rho = (rho / scale);
                 if (rho_u > 0.5f)
-                    rho_u = (rho_u * 0.5f);
+                    rho_u = (rho_u / scale);
                 if (rho < 0.5f) rho = 0.5f;
                 if (rho_u < 0.5f) rho_u = 0.5f;
                 workspace->adaptive_rho_updates++;
-                /* Scale dual variables: lambda *= 2 */
+                /* Scale dual variables: lambda *= scale */
                 for (uint16_t kk = 0; kk <= N; kk++)
                     for (int i = 0; i < MPCC_NX; i++)
-                        workspace->lambda_x[kk][i] *= 2.0f;
+                        workspace->lambda_x[kk][i] *= scale;
                 for (uint16_t kk = 0; kk < N; kk++)
                     for (int i = 0; i < MPCC_NU; i++)
-                        workspace->lambda_u[kk][i] *= 2.0f;
+                        workspace->lambda_u[kk][i] *= scale;
             }
         }
     }

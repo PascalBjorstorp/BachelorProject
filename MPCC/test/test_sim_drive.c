@@ -45,7 +45,7 @@
 
 #define SIM_DT_DEFAULT    0.005f   /* 200 Hz physics */
 #define MPCC_DT_DEFAULT   0.050f   /* 20 Hz MPCC (matches ROS2 node timer) */
-#define SIM_DURATION      60.0f    /* seconds */
+#define SIM_DURATION      120.0f   /* seconds — 60s too short for slow/long tracks */
 #define MAX_WAYPOINTS     2000
 #define MAX_STEERING      0.4189f  /* rad */
 #define MAX_VELOCITY      20.0f    /* m/s */
@@ -272,44 +272,44 @@ int main(void)
     MPCCConfiguration_t cfg;
     memset(&cfg, 0, sizeof(cfg));
 
-    /* Horizon (tuned via sweep) */
-    cfg.horizon_steps     = env_int("HORIZON", 7);
-    cfg.dt                = env_double("DT", 0.02f);
+    /* Horizon */
+    cfg.horizon_steps     = env_int("HORIZON", MPCC_DEFAULT_HORIZON);
+    cfg.dt                = env_double("DT", MPCC_DEFAULT_DT);
 
-    /* Contouring tracking */
-    cfg.weight_contouring = env_double("Q_CONTOURING", 2000.0f);
-    cfg.weight_lag        = env_double("Q_LAG", 136.282905f);
-    cfg.weight_progress   = env_double("Q_PROGRESS", 9.04816f);
+    /* Contouring tracking (consistent with tuner BASE_CONFIG) */
+    cfg.weight_contouring = env_double("Q_CONTOURING", 1000.0f);
+    cfg.weight_lag        = env_double("Q_LAG", 300.0f);
+    cfg.weight_progress   = env_double("Q_PROGRESS", 40.0f);
 
-    /* State regularization */
+    /* State regularization — increased for corrected (12x stronger) tires */
     cfg.weight_vx         = env_double("Q_VX", 1.5f);
-    cfg.vx_ref            = env_double("VX_REF", 4.034304f);
-    cfg.weight_vy         = env_double("Q_VY", 1.5435f);
-    cfg.weight_omega      = env_double("Q_OMEGA", 0.805f);
+    cfg.vx_ref            = env_double("VX_REF", 4.0f);
+    cfg.weight_vy         = env_double("Q_VY", 8.0f);
+    cfg.weight_omega      = env_double("Q_OMEGA", 5.0f);
 
-    /* Control effort */
-    cfg.weight_delta      = env_double("R_DELTA", 13.75f);
-    cfg.weight_ax         = env_double("R_AX", 0.054864f);
-    cfg.weight_v_theta    = env_double("R_VTHETA", 1.1232f);
+    /* Control effort — R_DELTA raised: steering much more powerful now */
+    cfg.weight_delta      = env_double("R_DELTA", 80.0f);
+    cfg.weight_ax         = env_double("R_AX", 0.055f);
+    cfg.weight_v_theta    = env_double("R_VTHETA", 0.1f);
 
-    /* Control rate */
-    cfg.weight_delta_rate   = env_double("W_DELTA_RATE", 0.65f);
-    cfg.weight_ax_rate      = env_double("W_AX_RATE", 0.610926f);
-    cfg.weight_v_theta_rate = env_double("W_VTHETA_RATE", 0.126f);
+    /* Control rate — delta rate raised for stability */
+    cfg.weight_delta_rate   = env_double("W_DELTA_RATE", 3.0f);
+    cfg.weight_ax_rate      = env_double("W_AX_RATE", 0.61f);
+    cfg.weight_v_theta_rate = env_double("W_VTHETA_RATE", 0.13f);
 
-    /* Terminal */
-    cfg.weight_contouring_terminal = env_double("Q_CONTOURING_TERM", 493.7625f);
-    cfg.weight_lag_terminal     = env_double("Q_LAG_TERM", 1072.17f);
-    cfg.weight_progress_terminal = env_double("Q_PROGRESS_TERM", 5.564503f);
+    /* Terminal MUST be >= running (Riccati requires positive semi-definite cost-to-go) */
+    cfg.weight_contouring_terminal = env_double("Q_CONTOURING_TERM", 4000.0f);
+    cfg.weight_lag_terminal     = env_double("Q_LAG_TERM", 500.0f);
+    cfg.weight_progress_terminal = env_double("Q_PROGRESS_TERM", 40.0f);
 
     /* Obstacle */
     cfg.weight_obstacle   = env_double("W_OBSTACLE", 1000.0f);
     cfg.obstacle_margin   = env_double("OBSTACLE_MARGIN", 0.1f);
 
-    /* ADMM solver (tuned via sweep) */
-    cfg.admm_rho            = env_double("ADMM_RHO", 0.9f);
-    cfg.admm_max_iterations = env_int("ADMM_MAX_ITER", 100);
-    cfg.admm_tolerance      = env_double("ADMM_TOL", 0.011449f);
+    /* ADMM solver — more iterations for stronger tire forces */
+    cfg.admm_rho            = env_double("ADMM_RHO", 3.0f);
+    cfg.admm_max_iterations = env_int("ADMM_MAX_ITER", 300);
+    cfg.admm_tolerance      = env_double("ADMM_TOL", 0.008f);
 
     /* Constraint bounds */
     cfg.delta_max = env_double("DELTA_MAX", 0.4189f);
@@ -317,13 +317,16 @@ int main(void)
     cfg.ax_min    = env_double("AX_MIN", -10.0f);
     cfg.vx_max    = env_double("VX_MAX", 20.0f);
     cfg.vx_min    = env_double("VX_MIN", 0.0f);
-    cfg.v_theta_max = env_double("V_THETA_MAX", 6.24f);
+    cfg.v_theta_max = env_double("V_THETA_MAX", 20.0f);
     cfg.v_theta_min = env_double("V_THETA_MIN", 0.0f);
 
     /* Tire parameters */
     cfg.mu   = env_double("MU", 0.745f);
     cfg.C_Sf = env_double("C_SF", 4.297f);
     cfg.C_Sr = env_double("C_SR", 3.473f);
+
+    /* Cross-call rate scaling */
+    cfg.cross_call_rate_scale = env_double("CROSS_CALL_SCALE", MPCC_DEFAULT_CROSS_CALL_SCALE);
 
     if (verbose) {
         printf("  Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_prog=%.1f\n",
@@ -397,6 +400,14 @@ int main(void)
     double cmd_accel = 0.0;
     float current_s = 0;
 
+    /* Lap tracking */
+    int    lap_count     = 0;
+    double lap_start_time = 0.0;
+    double best_lap_time  = 9999.0;
+    double first_lap_time = 0.0;
+    float  prev_s         = 0.0f;
+    float  track_length   = g_ref_path.total_length;
+
     /* ST model persistent state */
     double st_delta = 0.0;
     double st_V = 0.0;
@@ -464,6 +475,22 @@ int main(void)
             MPCCState_t mpcc_state = mpcc_state_from_vehicle_state(&state, current_s);
             current_s = mpcc_state.s;
 
+            /* Lap detection: s wrapped past track_length (min lap time guard) */
+            if (current_s < prev_s - track_length * 0.5f
+                && prev_s > track_length * 0.5f
+                && (t - lap_start_time) > 2.0) {
+                double lap_time = t - lap_start_time;
+                lap_count++;
+                if (lap_count == 1) first_lap_time = lap_time;
+                if (lap_time < best_lap_time) best_lap_time = lap_time;
+                lap_start_time = t;
+                if (verbose) {
+                    printf("  >>> LAP %d completed: %.3f s (best: %.3f s) <<<\n",
+                           lap_count, lap_time, best_lap_time);
+                }
+            }
+            prev_s = current_s;
+
             /* Solve */
             MPCCResult_t result;
             clock_gettime(CLOCK_MONOTONIC_RAW, &ts0);
@@ -525,7 +552,7 @@ int main(void)
         prev_steer = actual_steer;
 
         if (verbose) {
-            int print_row = (step < 40) || (step % 200 == 0) || wall_hit || (fabs(e_y) > 0.8);
+            int print_row = (step < 40) || (step % 200 == 0) || (step >= 180 && step <= 310) || wall_hit || (fabs(e_y) > 0.8);
             if (print_row) {
                 printf("  %4d | %5.2f | %5.2f | %5.2f | %+.3f | %+.3f | %+.4f | %+.4f | %+.2f | %2d | %3d\n",
                        step, t, vx, raceline[closest].vx, e_y, e_psi,
@@ -690,6 +717,11 @@ int main(void)
     printf("  Solver success:     %d / %d (%.1f%%)\n", solver_ok, solver_calls,
            100.0*solver_ok/(solver_calls > 0 ? solver_calls : 1));
     printf("  Avg speed:          %.2f m/s\n", avg_speed);
+    printf("  Laps completed:     %d\n", lap_count);
+    if (lap_count > 0) {
+        printf("  Best lap time:      %.3f s\n", best_lap_time);
+        printf("  First lap time:     %.3f s\n", first_lap_time);
+    }
     printf("  Max velocity:       %.2f m/s\n", max_vx);
     printf("  Max lateral error:  %.3f m\n", max_lat_err);
     printf("  Avg lateral error:  %.3f m\n", avg_lat);
@@ -737,14 +769,15 @@ int main(void)
 
     /* Machine-readable CSV for tuning scripts */
     if (getenv("MPCC_TUNING_CSV")) {
-         printf("CSV,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%.1f,%d,%.1f,%.4f,%.4f,%.1f,%.3f,%.3f,%.2f,%.2f,%.4f\n",
+         printf("CSV,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%.1f,%d,%.1f,%.4f,%.4f,%.1f,%.3f,%.3f,%.2f,%.2f,%.4f,%d,%.4f\n",
                tests_passed, tests_failed,
                max_lat_err, avg_lat, max_hdg_err, avg_hdg,
                max_vx, avg_solve, max_solve_us,
                wall_collisions, time_above_5ms,
                max_vel_err, avg_vel_err, avg_iters,
                avg_rho, avg_rho_u, avg_adapt_updates, avg_clip_events,
-               avg_speed);
+               avg_speed,
+               lap_count, best_lap_time);
     }
     return tests_failed > 0 ? 1 : 0;
 }

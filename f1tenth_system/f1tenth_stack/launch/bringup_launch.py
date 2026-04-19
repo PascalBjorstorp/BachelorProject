@@ -82,10 +82,10 @@ def generate_launch_description():
     mapping_mode = LaunchConfiguration('mapping_mode')
 
     # ══════════════════════
-    #  Map Server (always)
+    #  Map Server (racing mode only)
     # ══════════════════════
     # Serves the static occupancy-grid map on /map with transient_local QoS.
-    # Started early so the map is available before localization and scan_splitter.
+    # Disabled in mapping mode to avoid /map publisher conflicts with slam_toolbox.
     ld.add_action(LifecycleNode(
         package='nav2_map_server',
         executable='map_server',
@@ -96,6 +96,7 @@ def generate_launch_description():
             'use_sim_time': LaunchConfiguration('use_sim_time'),
             'yaml_filename': LaunchConfiguration('map_file'),
         }],
+        condition=UnlessCondition(mapping_mode),
     ))
 
     ld.add_action(Node(
@@ -109,6 +110,7 @@ def generate_launch_description():
             'node_names': ['map_server'],
             'bond_timeout': 0.0,
         }],
+        condition=UnlessCondition(mapping_mode),
     ))
 
     # ══════════════════════
@@ -187,13 +189,14 @@ def generate_launch_description():
         ])),
     ))
 
-    # Mapping mode: 1080 beams @ 40 Hz (cluster=1, skip=0 — full resolution)
+    # Mapping mode: 540 beams @ 40 Hz (cluster=2, skip=0)
+    # This reduces SLAM load while retaining enough wall detail for track mapping.
     ld.add_action(Node(
         package='f1tenth_lidar',
         executable='hokuyo_scip_driver_node',
         name='hokuyo_scip_driver',
         output='screen',
-        parameters=[hokuyo_config, {'skip': 0, 'cluster': 1}],
+        parameters=[hokuyo_config, {'skip': 0, 'cluster': 2}],
         condition=IfCondition(PythonExpression([
             "'", use_lidar, "' == 'true' and '", mapping_mode, "' == 'true'"
         ])),
