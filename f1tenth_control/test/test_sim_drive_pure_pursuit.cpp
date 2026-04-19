@@ -522,7 +522,7 @@ Candidate launchLikeBaseline() {
     c.config.max_steering = 0.4189;
     c.config.wheelbase = 0.324;
     c.config.position_tolerance = 0.5;
-    c.max_speed = 5.5;
+    c.max_speed = 12.0;
     return c;
 }
 
@@ -625,7 +625,7 @@ void printCandidate(const EvaluatedCandidate& e, size_t rank = 0) {
 
 int main(int argc, char** argv) {
     std::string trajectory_path =
-        "/home/akselmo/Documents/GitHub/BachelorProject/f1tenth_planning/trajectories/hardware_raceline.csv";
+        "/home/pascal/Documents/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv";
     int iterations = 260;
     int target_laps = 3;
     int seed = 42;
