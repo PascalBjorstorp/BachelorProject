@@ -67,7 +67,7 @@
 #define STEERING_RATE_LIMIT 2.849f                       /* Hard bound on steering-rate command in optimization. */
 #define STEERING_FEEDFORWARD_CLAMP_FACTOR 0.5f           /* Limits feedforward steering around linearization operating point. */
 #define BIG_BOUND 100.0f                                 /* Sentinel magnitude representing an effectively unconstrained bound. */
-#define MIN_LINEARIZATION_VELOCITY 1.0f                  /* Lower velocity clamp to avoid fragile low-speed linearization. */
+#define MIN_LINEARIZATION_VELOCITY 0.5f                  /* Lower velocity clamp to avoid fragile low-speed linearization. */
 #define STABILITY_LIMIT 0.95f                            /* Clamp on selected discrete self-coupling to preserve numerical stability. */
 #define V_SWITCH 7.319f                                  /* Transition speed for constant-power acceleration limiting. */
 #define MIN_SLIP_VELOCITY 0.5f                           /* Lower velocity clamp used in slip-angle calculations. */
@@ -96,7 +96,7 @@
 #define VP_MASS_KG 3.314f                                /* Vehicle mass used in dynamic equations and load calculations. */
 #define VP_YAW_INERTIA_KGM2 0.035f                       /* Yaw inertia governing rotational response to tire moments. */
 #define VP_CG_HEIGHT_M 0.0703f                           /* Center-of-gravity height driving longitudinal load transfer. */
-#define VP_FRICTION_COEFF 1.3f                         /* Effective tire-road friction coefficient for force limits. */
+#define VP_FRICTION_COEFF 1.6f                         /* Effective tire-road friction coefficient for force limits. */
 #define GRAVITY_MPS2 9.81f                               /* Gravitational acceleration constant used in vehicle load equations. */
 #define VP_MASS_TIMES_GRAVITY_N (VP_MASS_KG * GRAVITY_MPS2) /* Vehicle weight magnitude used by normal-load equations. */
 #define VP_INV_MASS_1_PER_KG (1.0f / VP_MASS_KG)         /* Reciprocal vehicle mass used in acceleration-state Jacobians. */
