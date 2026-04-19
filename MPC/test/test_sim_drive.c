@@ -635,6 +635,12 @@ int main(void)
     cfg.weight_acceleration_effort    = (float)((env = getenv("R_ACCEL"))     ? atof(env) : 0.0065);
     cfg.weight_steering_rate          = (float)((env = getenv("W_JERK"))      ? atof(env) : 0.063);
     cfg.weight_acceleration_rate      = (float)((env = getenv("W_ACCEL_RATE"))? atof(env) : 0.17);
+    {
+        const double footprint_margin = VEHICLE_HALF_WIDTH + body_safety_margin;
+        const double margin_env = get_env_double("WALL_MARGIN", footprint_margin);
+        const double effective_margin = fmax(footprint_margin, margin_env);
+        cfg.wall_margin = (float)effective_margin;
+    }
     cfg.max_solver_iterations       = (env = getenv("MAX_ITER")) ? atoi(env) : 100;
     cfg.solver_convergence_tolerance    = (float)((env = getenv("TOL")) ? atof(env) : 0.05);
     mpc_set_configuration(&cfg);
@@ -653,12 +659,13 @@ int main(void)
                (double)(cfg.cross_call_rate_scale));
     }
 
-    /* Spawn at raceline[0], optionally shifted laterally and with a custom initial speed. */
-    const double start_normal = raceline[0].psi + M_PI / 2.0;
+    /* Spawn at selected raceline waypoint, optionally shifted laterally and with a custom initial speed. */
+    const Waypoint_t *start_wp = &raceline[start_index];
+    const double start_normal = start_wp->psi + M_PI / 2.0;
     VehicleState_t state;
-    state.pos_x = (float)(raceline[0].x + start_offset_lat * cos(start_normal) + start_offset_x);
-    state.pos_y = (float)(raceline[0].y + start_offset_lat * sin(start_normal) + start_offset_y);
-    state.heading = (float)(wrap_angle(raceline[0].psi + start_heading_offset));
+    state.pos_x = (float)(start_wp->x + start_offset_lat * cos(start_normal) + start_offset_x);
+    state.pos_y = (float)(start_wp->y + start_offset_lat * sin(start_normal) + start_offset_y);
+    state.heading = (float)(wrap_angle(start_wp->psi + start_heading_offset));
     state.long_vel = (float)(start_speed);
     state.lat_vel = 0;
     state.yaw_rate = 0;
@@ -768,9 +775,10 @@ int main(void)
         /* Wall collision check — body-edge, using TRUE state */
         double left_wall = raceline[true_closest].left_bound;
         double right_wall = raceline[true_closest].right_bound;
+        const double effective_wall_margin = (double)(cfg.wall_margin);
         int wall_hit = 0;
-        if (e_y > (left_wall - VEHICLE_HALF_WIDTH - body_safety_margin))  { wall_hit = 1;  wall_collisions++; }
-        if (e_y < -(right_wall - VEHICLE_HALF_WIDTH - body_safety_margin)){ wall_hit = -1; wall_collisions++; }
+        if (e_y > (left_wall - effective_wall_margin))  { wall_hit = 1;  wall_collisions++; }
+        if (e_y < -(right_wall - effective_wall_margin)){ wall_hit = -1; wall_collisions++; }
         if (wall_hit) {
             printf("\n  !!! WALL CRASH: e_y = %.3f m (bound: %.3f) at step %d (t=%.2fs, wp=%d, v=%.1f) !!!\n",
                    e_y, wall_hit > 0 ? left_wall : right_wall, step, t, closest, speed_mps);
@@ -872,7 +880,7 @@ int main(void)
          * Vehicle params from measured data (sim.yaml / vehicle_params.yaml). */
         {
             /* Vehicle parameters matching gym config */
-            const double mu = 0.745, mass = 3.314, Iz = 0.035;
+            const double mu = 0.743, mass = 3.314, Iz = 0.035;
             const double C_Sf = 4.297, C_Sr = 3.473;
             const double lf = 0.166, lr = 0.16, h_cg = 0.0703;
             const double g_acc = 9.81;

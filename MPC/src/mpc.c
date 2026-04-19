@@ -43,6 +43,21 @@ int get_env_int(const char *name, int default_val){
     return env ? (int)strtol(env, NULL, 10) : default_val;
 }
 
+static float get_recovery_heading_threshold_rad(void)
+{
+    return get_env_float("MPC_RECOVERY_HEADING_RAD", 0.60f);
+}
+
+static float get_recovery_speed_cap_mps(void)
+{
+    return get_env_float("MPC_RECOVERY_VREF_CAP", 0.20f);
+}
+
+static float get_recovery_wall_proximity_m(void)
+{
+    return get_env_float("MPC_RECOVERY_WALL_PROX_M", 1.00f);
+}
+
 /*===========================================================================
  * Module State (Static)
  *===========================================================================*/
@@ -160,6 +175,7 @@ MpcConfiguration_t get_default_configuration(void)
 
     /* Cross-call rate scale computed from control and prediction periods. */
     .cross_call_rate_scale = CROSS_CALL_RATE_SCALE,
+    .wall_margin = WALL_MARGIN,
 
     /* Solver parameters */
     .max_solver_iterations = MAX_ITERATIONS,
@@ -182,6 +198,10 @@ MpcConfiguration_t get_default_configuration(void)
     cfg.weight_delta_actual      = get_env_float("MPC_W_DELTA_ACTUAL", cfg.weight_delta_actual);
 
     cfg.cross_call_rate_scale = get_env_float("MPC_CROSS_CALL_SCALE", cfg.cross_call_rate_scale);
+    cfg.wall_margin = get_env_float("WALL_MARGIN", cfg.wall_margin);
+    cfg.wall_margin = get_env_float("MPC_WALL_MARGIN", cfg.wall_margin);
+    if (!(cfg.wall_margin >= 0.0f) || !isfinite(cfg.wall_margin))
+        cfg.wall_margin = WALL_MARGIN;
 
     int horizon = get_env_int("HORIZON", cfg.prediction_horizon_steps);
     if (horizon >= 1 && horizon <= PREDICTION_HORIZON)
@@ -259,6 +279,8 @@ void mpc_set_configuration(const MpcConfiguration_t *configuration)
             config.prediction_horizon_steps = PREDICTION_HORIZON;
         if (config.time_step <= 0.0f)
             config.time_step = TIME_STEP_SECONDS;
+        if (!(config.wall_margin >= 0.0f) || !isfinite(config.wall_margin))
+            config.wall_margin = WALL_MARGIN;
     }
 }
 
@@ -360,6 +382,20 @@ MpcSolverStatus_t mpc_compute_optimal_control(
     FrenetState_t lin_state = *frenet;
     if (lin_state.flong_vel < MIN_LINEARIZATION_VELOCITY)
         lin_state.flong_vel = MIN_LINEARIZATION_VELOCITY;
+
+    /* Near-wall large-heading recoveries can chatter if velocity tracking remains
+     * dominant. In that regime, cap reference velocity to bias heading alignment first. */
+    float recovery_heading_thr = get_recovery_heading_threshold_rad();
+    float recovery_vref_cap = get_recovery_speed_cap_mps();
+    float recovery_wall_prox = get_recovery_wall_proximity_m();
+    float left_dist_now = reference_trajectory[0].left_wall_bound - frenet->flat_error;
+    float right_dist_now = reference_trajectory[0].right_wall_bound + frenet->flat_error;
+    float nearest_wall_dist = fminf(left_dist_now, right_dist_now);
+    int in_recovery_mode = (
+        fabsf(frenet->fhead_error) > recovery_heading_thr &&
+        frenet->flong_vel < 2.0f &&
+        nearest_wall_dist < recovery_wall_prox
+    );
 
     /* Step 2: Build augmented dynamics, costs, and bounds over the horizon. */
 
@@ -514,7 +550,12 @@ MpcSolverStatus_t mpc_compute_optimal_control(
         sd->q[0] = -(sd->Q_diag[0] * reference_trajectory[k].reference_lateral_error);
         sd->q[1] = -(sd->Q_diag[1] * reference_trajectory[k].reference_heading_error);
 
-        sd->q[2] = -(sd->Q_diag[2] * reference_trajectory[k].reference_velocity);
+        {
+            float v_ref_track = reference_trajectory[k].reference_velocity;
+            if (in_recovery_mode && v_ref_track > recovery_vref_cap)
+                v_ref_track = recovery_vref_cap;
+            sd->q[2] = -(sd->Q_diag[2] * v_ref_track);
+        }
 
         sd->q[3] = -(sd->Q_diag[3] * reference_trajectory[k].reference_lateral_velocity);
         sd->q[4] = -(sd->Q_diag[4] * reference_trajectory[k].reference_yaw_rate);
@@ -560,8 +601,8 @@ MpcSolverStatus_t mpc_compute_optimal_control(
         {
             float left_bound = reference_trajectory[k].left_wall_bound;
             float right_bound = reference_trajectory[k].right_wall_bound;
-            float left_room = left_bound - WALL_MARGIN;
-            float right_room = right_bound - WALL_MARGIN;
+            float left_room = left_bound - config.wall_margin;
+            float right_room = right_bound - config.wall_margin;
 
             if (left_room < 0.0f) left_room = 0.0f;
             if (right_room < 0.0f) right_room = 0.0f;
@@ -645,7 +686,12 @@ MpcSolverStatus_t mpc_compute_optimal_control(
     if (N > 0) {
         terminal_q[0] = -(terminal_Q[0] * reference_trajectory[N-1].reference_lateral_error);
         terminal_q[1] = -(terminal_Q[1] * reference_trajectory[N-1].reference_heading_error);
-        terminal_q[2] = -(terminal_Q[2] * reference_trajectory[N-1].reference_velocity);
+        {
+            float v_ref_terminal = reference_trajectory[N-1].reference_velocity;
+            if (in_recovery_mode && v_ref_terminal > recovery_vref_cap)
+                v_ref_terminal = recovery_vref_cap;
+            terminal_q[2] = -(terminal_Q[2] * v_ref_terminal);
+        }
         terminal_q[3] = -(terminal_Q[3] * reference_trajectory[N-1].reference_lateral_velocity);
         terminal_q[4] = -(terminal_Q[4] * reference_trajectory[N-1].reference_yaw_rate);
         /* δ_actual terminal: track feedforward */
@@ -658,8 +704,8 @@ MpcSolverStatus_t mpc_compute_optimal_control(
         {
             float left_bound = reference_trajectory[N-1].left_wall_bound;
             float right_bound = reference_trajectory[N-1].right_wall_bound;
-            float left_room = left_bound - WALL_MARGIN;
-            float right_room = right_bound - WALL_MARGIN;
+            float left_room = left_bound - config.wall_margin;
+            float right_room = right_bound - config.wall_margin;
 
             if (left_room < 0.0f) left_room = 0.0f;
             if (right_room < 0.0f) right_room = 0.0f;
