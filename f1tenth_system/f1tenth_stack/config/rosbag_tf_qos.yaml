@@ -58,6 +58,12 @@
   reliability: reliable
   durability: volatile
 
+/local_raceline:
+  history: keep_last
+  depth: 20
+  reliability: reliable
+  durability: volatile
+
 /ekf_pose:
   history: keep_last
   depth: 50
