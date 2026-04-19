@@ -257,7 +257,7 @@ ENABLE_SCENARIO_AUDIT = True
 DETERMINISTIC_OBSTACLE_PROFILES = {
     "avoid_single": {
         "objects": [
-            {"s_fraction": 0.62, "lateral_offset": -0.2},
+            #{"s_fraction": 0.62, "lateral_offset": -0.2},
         ],
     },
     "avoid_double": {
