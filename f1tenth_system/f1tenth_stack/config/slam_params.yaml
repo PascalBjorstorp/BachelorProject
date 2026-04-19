@@ -14,9 +14,9 @@ slam_toolbox:
     ceres_preconditioner: SCHUR_JACOBI
     ceres_trust_strategy: LEVENBERG_MARQUARDT
     ceres_dogleg_type: TRADITIONAL_DOGLEG
-    ceres_loss_function: None
+    ceres_loss_function: SOFT_L1
 
-    ceres_max_num_iterations: 20
+    ceres_max_num_iterations: 10
     ceres_num_threads: 5
 
     num_threads: 4
@@ -34,8 +34,8 @@ slam_toolbox:
     transform_publish_period: 0.02
     map_update_interval: 3.0
     resolution: 0.02
-    min_laser_range: 0.04       # Slightly below lidar minimum to avoid precision clipping warning
-    max_laser_range: 8.0        # Shorter range reduces distant-noise clutter for indoor tracks
+    min_laser_range: 0.1       # Slightly below lidar minimum to avoid precision clipping warning
+    max_laser_range: 9.0        # Shorter range reduces distant-noise clutter for indoor tracks
     minimum_time_interval: 0.1
     transform_timeout: 0.5
     tf_buffer_duration: 30.0

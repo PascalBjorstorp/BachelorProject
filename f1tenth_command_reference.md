@@ -26,7 +26,7 @@ ros2 launch slam_toolbox online_async_launch.py \
 
 ### Terminal 3 — FTG Autonomous Driving 
 ```bash
-ros2 launch f1tenth_control ftg_hardware_launch.py max_speed:=1.5 mapping_mode:=true
+ros2 launch f1tenth_control ftg_hardware_launch.py max_speed:=2.5 mapping_mode:=true
 ```
 > The car will explore the track.  
 > `mapping_mode:=true` enables track boundary extraction.
