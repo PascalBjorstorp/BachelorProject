@@ -41,13 +41,14 @@ plot_opts = {"mincurv_curv_lin": False,         # plot curv. linearization (orig
 # file_paths["track_name"] = "handling_track"                                 # artificial track
 # file_paths["track_name"] = "my_track"                                    # Berlin Formula E 2018
 # file_paths["track_name"] = "modena_2019"                                    # Modena 2019
-file_paths["track_name"] = "Spielberg"                                    # set by optimize_trajectory.py
+# file_paths["track_name"] = "Spielberg"                                    # set by optimize_trajectory.py
+file_paths["track_name"] = "my_track"                                    # set by optimize_trajectory.py
 
 # set import options ---------------------------------------------------------------------------------------------------
 imp_opts = {"flip_imp_track": False,                # flip imported track to reverse direction
             "set_new_start": False,                 # set new starting point (changes order, not coordinates)
             "new_start": np.array([0.0, -47.0]),    # [x_m, y_m]
-            "min_track_width": 0.393,                # [m] minimum enforced track width (set None to deactivate)
+            "min_track_width": 0.540,                # [m] minimum enforced track width (set None to deactivate)
             "num_laps": 1}                          # number of laps to be driven (significant with powertrain-option),
                                                     # only relevant in mintime-optimization
 
