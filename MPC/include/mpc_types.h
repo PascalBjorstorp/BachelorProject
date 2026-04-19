@@ -52,7 +52,7 @@
 
 /* Other swept MPC defaults */
 #define MAX_ITERATIONS 100                               /* Default solver iteration budget per control update. */
-#define WALL_MARGIN 0.2f                                 /* Safety offset subtracted from both wall boundaries. */
+#define WALL_MARGIN 0.16f                                 /* Safety offset subtracted from both wall boundaries. */
 #define ADMM_RHO 18.0f                                   /* Primary ADMM penalty balancing feasibility and optimality progress. */
 #define ADMM_RHO_U 24.0f                                 /* ADMM penalty applied to control-variable projection terms. */
 #define CONVERGENCE_TOLERANCE 0.05f                      /* Residual threshold used to declare solver convergence. */
@@ -67,7 +67,7 @@
 #define STEERING_RATE_LIMIT 2.849f                       /* Hard bound on steering-rate command in optimization. */
 #define STEERING_FEEDFORWARD_CLAMP_FACTOR 0.5f           /* Limits feedforward steering around linearization operating point. */
 #define BIG_BOUND 100.0f                                 /* Sentinel magnitude representing an effectively unconstrained bound. */
-#define MIN_LINEARIZATION_VELOCITY 1.0f                  /* Lower velocity clamp to avoid fragile low-speed linearization. */
+#define MIN_LINEARIZATION_VELOCITY 0.5f                  /* Lower velocity clamp aligned with slip-angle floor for low-speed recovery. */
 #define STABILITY_LIMIT 0.95f                            /* Clamp on selected discrete self-coupling to preserve numerical stability. */
 #define V_SWITCH 7.319f                                  /* Transition speed for constant-power acceleration limiting. */
 #define MIN_SLIP_VELOCITY 0.5f                           /* Lower velocity clamp used in slip-angle calculations. */
@@ -278,6 +278,7 @@ typedef struct
  * @param weight_acceleration_rate Weight on acceleration-rate change.
  * @param weight_delta_actual Weight on steering-state centering term.
  * @param cross_call_rate_scale Scale factor for first-step cross-call penalties.
+ * @param wall_margin Effective lateral wall margin [meters] used in e_y constraints.
  * @param max_solver_iterations Maximum QP/ADMM iterations per solve.
  * @param solver_convergence_tolerance Residual tolerance for solve termination.
  */
@@ -296,6 +297,7 @@ typedef struct
     float weight_acceleration_rate;      /* Weight for acceleration rate change. */
     float weight_delta_actual;           /* Weight for steering centering state. */
     float cross_call_rate_scale;         /* First-step cross-call rate penalty scale factor. */
+    float wall_margin;                   /* Effective wall margin for lateral corridor bounds [m]. */
 
     uint16_t max_solver_iterations;      /* Maximum QP solver iterations. */
     float solver_convergence_tolerance;  /* Solver convergence tolerance. */

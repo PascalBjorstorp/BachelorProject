@@ -59,7 +59,7 @@ HORIZON_LIMIT = 20
 DEFAULT_RACELINE_NAME = "my_track_raceline.csv"
 RACELINE_PATH = os.path.join(TRAJ_DIR, DEFAULT_RACELINE_NAME)
 RACELINE_TAG = "my_track"
-WALL_MARGIN = 0.20
+WALL_MARGIN = 0.16
 
 # Base override seed
 BASE_OVERRIDES = {
@@ -78,12 +78,8 @@ BASE_OVERRIDES = {
     "PRED_DT": 0.032,
     "RHO": 18.0,
     "RHO_U": 24.0,
-    "ALPHA": 1.05,
     "TOL": 0.05,
     "MAX_ITER": 100,
-    "WALL_END": 10,
-    "WALL_STRIDE": 1,
-    "WALL_MARGIN": 0.2,
 }
 
 # ==============================================================================
@@ -91,17 +87,15 @@ BASE_OVERRIDES = {
 # ==============================================================================
 
 PHASE2_VALUES_BASE = {
-    # Large primary grid centered around the attached best CSV seed.
-    # Sweeps grouped solver bucket profile as one config value
-    # (HORIZON+PRED_DT+RHO+RHO_U+TOL tied together).
-    # 6*5*5*4*4*4*3*10 = 288,000 configs.
-    "Q_LAT": [2000.0, 4000.0, 6000.0, 8000.0, 9660.42],
-    "Q_HDG": [400, 800, 1100.0, 1250.0, 1400.0],
-    "Q_VEL": [60, 95.0, 110.0, 122.4, 132.192, 145.0],
-    "Q_LAT_VEL": [2.0, 3.8, 4.59, 5.6, 7.0],
-    "Q_YAW": [1.8, 2.112, 2.6, 3.2, 3.8],
-    "R_STEER": [1.8, 2.1, 2.244, 2.5, 2.8],
-    "MPC_W_DELTA_ACTUAL": [0.02, 0.03, 0.05, 0.08, 0.2],
+    # Primary sweep around the proven full-100s feasible region.
+    # Total = 7*6*6*4*5*5*4*1 = 100,800 configurations.
+    "Q_LAT": [6500.0, 7600.0, 8694.378, 9660.42, 10626.462, 11400.0, 12250.0],
+    "Q_HDG": [900.0, 1100.0, 1300.0, 1400.0, 1600.0, 1800.0],
+    "Q_VEL": [120.0, 130.0, 140.0, 142.767, 150.0, 160.0],
+    "Q_LAT_VEL": [3.5, 4.59, 5.6, 7.0],
+    "Q_YAW": [1.8, 2.112, 2.5, 3.0, 3.6],
+    "R_STEER": [1.7, 1.9, 2.064, 2.25, 2.5],
+    "MPC_W_DELTA_ACTUAL": [0.015, 0.02, 0.03, 0.045],
     "SOLVER_BUCKET": ["t01"],
 }
 
@@ -133,13 +127,14 @@ FULL_SWEEP_VALUES_BASE = {
 # ==============================================================================
 
 PHASE4_VALUES_BASE = {
-    "Q_LAT_VEL":    [2.0, 3.8, 4.59, 5.6, 7.0, 8.5],
-    "Q_YAW":        [1.8, 2.112, 2.6, 3.2, 3.8],
-    "R_STEER":      [1.8, 2.1, 2.244, 2.5, 2.8],
-    "W_JERK":       [0.05, 0.063, 0.08, 0.10, 0.12],
-    "R_ACCEL":      [0.004, 0.005, 0.0065, 0.0075, 0.0085, 0.0095],
-    "W_ACCEL_RATE": [0.14, 0.16, 0.17, 0.19, 0.22],
-    "MPC_W_DELTA_ACTUAL": [0.02, 0.03, 0.05, 0.08, 0.10],
+    # Secondary sweep size per seed: 5*5*5*4*4*4*3 = 24,000.
+    "Q_LAT_VEL":    [3.5, 4.2, 4.59, 5.2, 6.0],
+    "Q_YAW":        [1.8, 2.112, 2.4, 2.8, 3.2],
+    "R_STEER":      [1.8, 1.95, 2.064, 2.2, 2.35],
+    "W_JERK":       [0.045, 0.055, 0.063, 0.075],
+    "R_ACCEL":      [0.005, 0.006, 0.0065, 0.0075],
+    "W_ACCEL_RATE": [0.14, 0.16, 0.17, 0.19],
+    "MPC_W_DELTA_ACTUAL": [0.015, 0.02, 0.03],
 }
 
 # ==============================================================================
@@ -242,7 +237,7 @@ MIN_OVERALL_PROGRESS_MPS = 0.45
 MIN_AVG_VX_MPS = 1.0
 MIN_SOLVER_OPTIMAL_RATE = 0.0
 MAX_SOLVER_MAX_ITER_RATE = 1.0
-PLANNER_CAR_WIDTH_M = 0.31
+PLANNER_CAR_WIDTH_M = 0.27
 PLANNER_CLEARANCE_TOLERANCE_M = 0.10
 PLANNER_PLANNING_TOLERANCE_SCALE = 2.0
 PLANNER_MIN_WINDOW_M = 8.0
@@ -253,6 +248,8 @@ PLANNER_OPPONENT_LENGTH_M = 0.58
 OBSTACLE_BOX_BACKOFF_M = 0.0
 OBSTACLE_BOUND_INFLATION_M = 0.0
 ENABLE_SCENARIO_AUDIT = True
+BOUND_SPIKE_ABS_MAX_M = 0.20
+BOUND_SPIKE_NEIGHBOR_MIN_M = 0.40
 
 DETERMINISTIC_OBSTACLE_PROFILES = {
     "avoid_single": {
@@ -275,12 +272,12 @@ EVAL_SCENARIOS = []
 GENERATED_RACELINE_DIR = None
 SCENARIO_RACELINE_PATHS = {}
 
-CASCADE_TOP_N = 1   # Top-N seeds promoted from Phase 2 into Phase 4
+CASCADE_TOP_N = 4   # Top-N seeds promoted from Phase 2 into Phase 4
 SEED = 42           # Fixed seed for reproducibility
 GLOBAL_OPTIMIZATION_PASSES = 4  # Repeated refinement passes for Phases 5-8
 INCLUDE_OBSTACLE_SCENARIOS = False
-PHASE7_RANDOM_COUNT = 5000
-PHASE8_RANDOM_COUNT = 5000
+PHASE7_RANDOM_COUNT = 2000
+PHASE8_RANDOM_COUNT = 2000
 STRICT_PROMOTION = True
 SOLVER_PARAM_KEYS = ("RHO", "RHO_U", "TOL")
 DIVERSITY_KEYS = ["Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW", "R_STEER", "R_ACCEL", "W_JERK", "W_ACCEL_RATE", "MPC_W_DELTA_ACTUAL", "HORIZON", "PRED_DT"]
@@ -390,6 +387,60 @@ def load_raceline_samples(path: str) -> list:
     if not samples:
         raise RuntimeError(f"Could not parse raceline geometry from {path}")
     return samples
+
+
+def min_corridor_half_width(samples: list) -> float:
+    """Return minimum of min(d_left, d_right) over all waypoints."""
+    if not samples:
+        return 0.0
+    return min(
+        min(float(wp.get("left", 0.0)), float(wp.get("right", 0.0)))
+        for wp in samples
+    )
+
+
+def despike_wall_bounds(samples: list) -> tuple:
+    """Replace isolated one-sample wall-bound dips with local median neighbor value."""
+    if len(samples) < 3:
+        return [dict(wp) for wp in samples], 0
+
+    out = [dict(wp) for wp in samples]
+    spikes_fixed = 0
+
+    for key in ("left", "right"):
+        vals = [float(wp.get(key, 0.0)) for wp in out]
+        for i in range(1, len(out) - 1):
+            prev_v = vals[i - 1]
+            cur_v = vals[i]
+            next_v = vals[i + 1]
+            if (
+                cur_v < BOUND_SPIKE_ABS_MAX_M
+                and prev_v > BOUND_SPIKE_NEIGHBOR_MIN_M
+                and next_v > BOUND_SPIKE_NEIGHBOR_MIN_M
+            ):
+                repaired = sorted((prev_v, cur_v, next_v))[1]
+                out[i][key] = repaired
+                vals[i] = repaired
+                spikes_fixed += 1
+
+    return out, spikes_fixed
+
+
+def build_no_obstacle_base_path(base_path: str) -> str:
+    """Use original raceline unless isolated wall-bound spikes are repaired into temp copy."""
+    global GENERATED_RACELINE_DIR
+
+    base_samples = load_raceline_samples(base_path)
+    repaired_samples, spikes_fixed = despike_wall_bounds(base_samples)
+    if spikes_fixed <= 0:
+        return os.path.abspath(base_path)
+
+    cleanup_generated_racelines()
+    GENERATED_RACELINE_DIR = tempfile.mkdtemp(prefix="mpc_tuning_racelines_", dir=SCRIPT_DIR)
+    out_path = os.path.join(GENERATED_RACELINE_DIR, f"{RACELINE_TAG}_base_despiked.csv")
+    write_raceline_samples(out_path, repaired_samples)
+    print(f"INFO: Repaired {spikes_fixed} isolated wall-bound spike(s) in temporary base raceline.")
+    return os.path.abspath(out_path)
 
 
 def wrap_angle(angle: float) -> float:
@@ -1099,6 +1150,7 @@ def build_eval_scenarios(include_obstacles: bool = INCLUDE_OBSTACLE_SCENARIOS) -
                 "START_OFFSET_LAT": "0.0",
                 "START_HEADING_OFFSET": "0.0",
                 "START_SPEED": "0.0",
+                "START_INDEX": "0",
                 "START_OFFSET_X": f"{GLOBAL_START_SHIFT_X_M}",
                 "START_OFFSET_Y": f"{GLOBAL_START_SHIFT_Y_M}",
             },
@@ -1392,7 +1444,6 @@ def run_single_scenario(params: dict, binary: str, scenario: dict, seed: int) ->
     env = os.environ.copy()
     env["MPC_TUNING_CSV"] = "1"
     env["REALISTIC_SIM"] = "1"
-    env["WALL_SOFT_K"] = "0"
     env["SIM_SEED"] = str(seed + int(scenario.get("seed_offset", 0)))
     env["RACELINE_PATH"] = os.path.abspath(scenario.get("raceline_path", RACELINE_PATH))
     
@@ -1659,6 +1710,39 @@ def gen_primary_grid(objective: str) -> list:
                 w,
             ))
     
+    return combos
+
+
+def gen_primary_grid_local() -> list:
+    """Focused local sweep around BASE to find a promotable seed region quickly."""
+    combos = []
+
+    def around(key: str, mults: tuple, lower: float = 0.0) -> list:
+        base_v = float(BASE.get(key, 0.0))
+        vals = sorted(set(max(lower, base_v * m) for m in mults))
+        return vals
+
+    ql_vals = around("Q_LAT", (0.90, 1.00, 1.10), 100.0)
+    qv_vals = around("Q_VEL", (0.92, 1.00, 1.08), 10.0)
+    rs_vals = around("R_STEER", (0.92, 1.00, 1.08), 0.1)
+    wda_vals = around("MPC_W_DELTA_ACTUAL", (0.67, 1.00, 1.33), 0.005)
+    sb_vals = [str(BASE.get("SOLVER_BUCKET", "t01"))]
+
+    for ql, qv, rs, wda, sb in itertools.product(
+            ql_vals, qv_vals, rs_vals, wda_vals, sb_vals):
+        w = dict(BASE)
+        w["Q_LAT"] = ql
+        w["Q_VEL"] = qv
+        w["R_STEER"] = rs
+        w["MPC_W_DELTA_ACTUAL"] = wda
+        w["SOLVER_BUCKET"] = sb
+        w = apply_solver_bucket(w)
+        if is_valid_config(w):
+            combos.append((
+                f"LOCAL+L={ql:.3f}+V={qv:.3f}+RS={rs:.3f}+WDA={wda:.4f}+SB={sb}",
+                w,
+            ))
+
     return combos
 
 
@@ -2231,6 +2315,8 @@ def main():
     global TRACK_LENGTH_METERS, RACELINE_START_LEFT_BOUND, RACELINE_START_RIGHT_BOUND, EVAL_SCENARIOS
     global SCENARIO_RACELINE_PATHS
     global GLOBAL_START_SHIFT_X_M, GLOBAL_START_SHIFT_Y_M
+    global WALL_MARGIN
+    global RACE_SCENARIO_DURATION
     
     # Parse arguments
     num_workers = multiprocessing.cpu_count()  # Default to max workers
@@ -2239,6 +2325,8 @@ def main():
     phase2_top_n = CASCADE_TOP_N
     global_passes = GLOBAL_OPTIMIZATION_PASSES
     include_obstacles = INCLUDE_OBSTACLE_SCENARIOS
+    local_sweep = False
+    local_duration = 8.0
     
     for i, arg in enumerate(sys.argv):
         if arg in ("--jobs", "-j") and i + 1 < len(sys.argv):
@@ -2277,6 +2365,33 @@ def main():
             include_obstacles = True
         if arg == "--no-obstacles":
             include_obstacles = False
+        if arg == "--local-sweep":
+            local_sweep = True
+        if arg == "--local-duration" and i + 1 < len(sys.argv):
+            try:
+                local_duration = max(2.0, float(sys.argv[i + 1]))
+            except ValueError:
+                print(f"WARNING: invalid --local-duration '{sys.argv[i + 1]}', using {local_duration}")
+        if arg == "--wall-margin" and i + 1 < len(sys.argv):
+            try:
+                WALL_MARGIN = max(0.0, float(sys.argv[i + 1]))
+            except ValueError:
+                print(f"WARNING: invalid --wall-margin '{sys.argv[i + 1]}', using {WALL_MARGIN}")
+
+    if local_sweep:
+        include_obstacles = False
+        phase2_top_n = 1
+        global_passes = 1
+        RACE_SCENARIO_DURATION = local_duration
+
+    # test_sim_drive floors effective margin to (vehicle_half_width + body_safety_margin).
+    min_effective_wall_margin = SCENARIO_VEHICLE_HALF_WIDTH + SCENARIO_BODY_SAFETY_MARGIN
+    if WALL_MARGIN < min_effective_wall_margin:
+        print(
+            f"INFO: WALL_MARGIN={WALL_MARGIN:.3f} below effective simulator floor "
+            f"({min_effective_wall_margin:.3f}); using floor value."
+        )
+        WALL_MARGIN = min_effective_wall_margin
 
     if raceline_override:
         RACELINE_PATH = resolve_raceline_path(raceline_override)
@@ -2292,11 +2407,17 @@ def main():
     TRACK_LENGTH_METERS = meta["track_length"]
     RACELINE_START_LEFT_BOUND = meta["start_left_bound"]
     RACELINE_START_RIGHT_BOUND = meta["start_right_bound"]
-    SCENARIO_RACELINE_PATHS = build_scenario_raceline_paths(RACELINE_PATH)
+
+    if include_obstacles:
+        SCENARIO_RACELINE_PATHS = build_scenario_raceline_paths(RACELINE_PATH)
+    else:
+        base_no_obstacle_path = build_no_obstacle_base_path(RACELINE_PATH)
+        SCENARIO_RACELINE_PATHS = {"base": base_no_obstacle_path}
     EVAL_SCENARIOS = build_eval_scenarios(include_obstacles=include_obstacles)
     
     # Initialize BASE config
     BASE.update(BASE_OVERRIDES)
+    BASE["WALL_MARGIN"] = float(WALL_MARGIN)
     
     print(f"\n{'='*80}")
     print("MPC Weight Tuning - Hardware Map")
@@ -2306,9 +2427,13 @@ def main():
     print(f"  Phase2->P4:  top {phase2_top_n}")
     print(f"  Global passes (P6-P8): {global_passes}")
     print(f"  Obstacles:   {'on' if include_obstacles else 'off'}")
+    print(f"  Local sweep: {'on' if local_sweep else 'off'}")
+    if local_sweep:
+        print(f"  Local race duration: {RACE_SCENARIO_DURATION:.1f}s")
     print("  Solver mode: T=H*dt bucketed RHO/RHO_U/TOL")
     print("  Config eval: single (one config must pass all 3 scenarios)")
     print(f"  Base solver tuple: RHO={BASE.get('RHO')} RHO_U={BASE.get('RHO_U')} TOL={BASE.get('TOL')} MAX_ITER={BASE.get('MAX_ITER')}")
+    print(f"  Wall margin: {WALL_MARGIN:.3f}")
     print(f"  Phase7 random: {PHASE7_RANDOM_COUNT}")
     print(f"  Phase8 random: {PHASE8_RANDOM_COUNT}")
     print(f"  Horizon sweep: {HORIZON_SWEEP_VALUES}")
@@ -2393,98 +2518,105 @@ def main():
     print(f"  Results: {outfile}\n")
     
     # ========== PHASE 1: One-at-a-time ==========
-    p, f = run_phase("Phase 1: One-at-a-time sensitivity",
-                     gen_one_at_a_time(objective), binary, results, t0,
-                     num_workers, csv_writer, objective)
-    total_p += p
-    total_f += f
+    if local_sweep:
+        print("\n  Local sweep mode: skipping Phase 1 (broad sweep)")
+    else:
+        p, f = run_phase("Phase 1: One-at-a-time sensitivity",
+                         gen_one_at_a_time(objective), binary, results, t0,
+                         num_workers, csv_writer, objective)
+        total_p += p
+        total_f += f
     
     # ========== PHASE 2: Primary grid ==========
-    combos = gen_primary_grid(objective)
+    combos = gen_primary_grid_local() if local_sweep else gen_primary_grid(objective)
     print(f"\n  Phase 2 will test {len(combos):,} configurations")
     p, f = run_phase("Phase 2: Primary grid (Q_LAT x Q_HDG x Q_VEL x HORIZON x PRED_DT)",
                      combos, binary, results, t0,
                      num_workers, csv_writer, objective)
     total_p += p
     total_f += f
+
+    if local_sweep:
+        print("\nLocal sweep mode: skipping Phases 4-8 (focused seed-region search only).")
+    else:
+        # Select top-N Phase 2 seeds, run Phase 4 from each, then refine global best.
+        print("\n  Selecting Phase 2 seeds for Phase 4...")
+        phase2_results = [r for r in results if str(r.get("phase", "")).startswith("Phase 2:")]
+        phase2_seeds = get_top_n_params(phase2_results, n=phase2_top_n, objective=objective)
+        if not phase2_seeds:
+            phase2_seeds = [dict(BASE)]
     
-    # Select top-N Phase 2 seeds, run Phase 4 from each, then refine global best.
-    print("\n  Selecting Phase 2 seeds for Phase 4...")
-    phase2_results = [r for r in results if str(r.get("phase", "")).startswith("Phase 2:")]
-    phase2_seeds = get_top_n_params(phase2_results, n=phase2_top_n, objective=objective)
-    if not phase2_seeds:
-        phase2_seeds = [dict(BASE)]
+    if not local_sweep:
+        # ========== PHASES 4-8 ==========
 
-    # ========== PHASES 4-8 ==========
+        # Phase 4: branch from top-N seeds from Phase 2.
+        print("\n  Phase 4 branching from Phase 2 seeds...")
+        for bi, seed_params in enumerate(phase2_seeds, start=1):
+            update_base(seed_params)
+            p, f = run_phase(f"Phase 4: Secondary grid [seed {bi}/{len(phase2_seeds)}]",
+                             gen_secondary_grid(objective), binary, results, t0,
+                             num_workers, csv_writer, objective)
+            total_p += p
+            total_f += f
 
-    # Phase 4: branch from top-N seeds from Phase 2.
-    print("\n  Phase 4 branching from Phase 2 seeds...")
-    for bi, seed_params in enumerate(phase2_seeds, start=1):
-        update_base(seed_params)
-        p, f = run_phase(f"Phase 4: Secondary grid [seed {bi}/{len(phase2_seeds)}]",
-                         gen_secondary_grid(objective), binary, results, t0,
-                         num_workers, csv_writer, objective)
-        total_p += p
-        total_f += f
+        # Promote current global best after all branch sweeps.
+        top_after_p4 = get_top_n_params(results, n=1, objective=objective)
+        if top_after_p4:
+            update_base(top_after_p4[0])
 
-    # Promote current global best after all branch sweeps.
-    top_after_p4 = get_top_n_params(results, n=1, objective=objective)
-    if top_after_p4:
-        update_base(top_after_p4[0])
+        # Global optimization loop: repeatedly refine one promoted-best candidate
+        # through Phases 5-8, always handing off the global best so phase-local
+        # regressions are never promoted forward.
+        current_best = get_top_n_params(results, n=1, objective=objective)
+        current_best_params = current_best[0] if current_best else dict(BASE)
 
-    # Global optimization loop: repeatedly refine one promoted-best candidate
-    # through Phases 5-8, always handing off the global best so phase-local
-    # regressions are never promoted forward.
-    current_best = get_top_n_params(results, n=1, objective=objective)
-    current_best_params = current_best[0] if current_best else dict(BASE)
+        for pi in range(global_passes):
+            print(f"\n{'#'*80}")
+            print(f"# GLOBAL OPTIMIZATION PASS {pi+1}/{global_passes}")
+            print(f"{'#'*80}")
 
-    for pi in range(global_passes):
-        print(f"\n{'#'*80}")
-        print(f"# GLOBAL OPTIMIZATION PASS {pi+1}/{global_passes}")
-        print(f"{'#'*80}")
-
-        # Phase 6: fine tuning around current promoted best.
-        update_base(current_best_params)
-        p, f = run_phase(f"Phase 6: Fine-tuning [pass {pi+1}/{global_passes}]",
-                         gen_fine_tuning(current_best_params), binary, results, t0,
-                         num_workers, csv_writer, objective)
-        total_p += p
-        total_f += f
-        top = get_top_n_params(results, n=1, objective=objective)
-        if top:
-            current_best_params = top[0]
+            # Phase 6: fine tuning around current promoted best.
             update_base(current_best_params)
+            p, f = run_phase(f"Phase 6: Fine-tuning [pass {pi+1}/{global_passes}]",
+                             gen_fine_tuning(current_best_params), binary, results, t0,
+                             num_workers, csv_writer, objective)
+            total_p += p
+            total_f += f
+            top = get_top_n_params(results, n=1, objective=objective)
+            if top:
+                current_best_params = top[0]
+                update_base(current_best_params)
 
-        # Phase 7: random exploration around current promoted best.
-        update_base(current_best_params)
-        n_random = PHASE7_RANDOM_COUNT
-        p, f = run_phase(f"Phase 7: Random neighbors ({n_random}) [pass {pi+1}/{global_passes}]",
-                         gen_random_neighbors(current_best_params, n_random, objective,
-                                              seed_offset=7000 + pi),
-                         binary, results, t0,
-                         num_workers, csv_writer, objective)
-        total_p += p
-        total_f += f
-        top = get_top_n_params(results, n=1, objective=objective)
-        if top:
-            current_best_params = top[0]
+            # Phase 7: random exploration around current promoted best.
             update_base(current_best_params)
+            n_random = PHASE7_RANDOM_COUNT
+            p, f = run_phase(f"Phase 7: Random neighbors ({n_random}) [pass {pi+1}/{global_passes}]",
+                             gen_random_neighbors(current_best_params, n_random, objective,
+                                                  seed_offset=7000 + pi),
+                             binary, results, t0,
+                             num_workers, csv_writer, objective)
+            total_p += p
+            total_f += f
+            top = get_top_n_params(results, n=1, objective=objective)
+            if top:
+                current_best_params = top[0]
+                update_base(current_best_params)
 
-        # Phase 8: random exploitation around promoted best from Phase 7.
-        update_base(current_best_params)
-        n_random = PHASE8_RANDOM_COUNT
-        p, f = run_phase(f"Phase 8: Random exploitation ({n_random}) [pass {pi+1}/{global_passes}]",
-                         gen_random_neighbors(current_best_params, n_random, objective,
-                                              profile_override="base_exploit",
-                                              seed_offset=9000 + pi),
-                         binary, results, t0,
-                         num_workers, csv_writer, objective)
-        total_p += p
-        total_f += f
-        top = get_top_n_params(results, n=1, objective=objective)
-        if top:
-            current_best_params = top[0]
+            # Phase 8: random exploitation around promoted best from Phase 7.
             update_base(current_best_params)
+            n_random = PHASE8_RANDOM_COUNT
+            p, f = run_phase(f"Phase 8: Random exploitation ({n_random}) [pass {pi+1}/{global_passes}]",
+                             gen_random_neighbors(current_best_params, n_random, objective,
+                                                  profile_override="base_exploit",
+                                                  seed_offset=9000 + pi),
+                             binary, results, t0,
+                             num_workers, csv_writer, objective)
+            total_p += p
+            total_f += f
+            top = get_top_n_params(results, n=1, objective=objective)
+            if top:
+                current_best_params = top[0]
+                update_base(current_best_params)
 
     # ========== FINAL RESULTS ==========
     results.sort(key=lambda x: x.get("score", 999999.0))
