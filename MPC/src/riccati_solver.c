@@ -81,6 +81,8 @@ void riccati_solver_pass(
     const RiccatiStepData_t * restrict step_data,
     const float * restrict terminal_Q,
     const float * restrict terminal_q,
+    const float * restrict terminal_x_lb,
+    const float * restrict terminal_x_ub,
     const float * restrict x0,
     int nx, int nu, int N,
     float rho,
@@ -104,11 +106,10 @@ void riccati_solver_pass(
     memset(P, 0, sizeof(P));
     memset(p, 0, sizeof(p));
     {
-        const RiccatiStepData_t *last_sd = &step_data[N - 1];
         // Add ADMM penalty to terminal cost for constrained state channels
         for (int s = 0; s < nx; s++) {
-            int is_constrained = (last_sd->x_ub[s] < BIG_BOUND ||
-                                  last_sd->x_lb[s] > -BIG_BOUND);
+            int is_constrained = (terminal_x_ub[s] < BIG_BOUND ||
+                                  terminal_x_lb[s] > -BIG_BOUND);
             if (is_constrained) {
                 P[s][s] = terminal_Q[s] + rho;
                 p[s] = terminal_q[s] - rho * (z_x[N][s] - y_x[N][s]);
@@ -217,16 +218,26 @@ void riccati_solver_pass(
             }
         }
 
+        /* Shift p by affine dynamics bias: p_shift = p + P*d */
+        float p_shift[RICCATI_MAX_NX];
+        for (int i = 0; i < nx; i++) {
+            float sum = p[i];
+            for (int s = 0; s < NX_DENSE; s++) {
+                sum += P[i][s] * sd->d[s];
+            }
+            p_shift[i] = sum;
+        }
+
         /* Step 6: kk = -S^{-1} (r_aug_linear + B^T p) (nu x 1) */
         float Bp[RICCATI_MAX_NU];
         {
             float bp0 = 0.0f, bp1 = 0.0f;
             for (int s = IDX_SPARSE_B_FIRST_ROW; s < IDX_DRATE_PREV; s++) {
-                bp0 += sd->B[s][0] * p[s];
-                bp1 += sd->B[s][1] * p[s];
+                bp0 += sd->B[s][0] * p_shift[s];
+                bp1 += sd->B[s][1] * p_shift[s];
             }
-            Bp[0] = bp0 + p[IDX_DRATE_PREV];
-            Bp[1] = bp1 + p[IDX_ACCEL_PREV];
+            Bp[0] = bp0 + p_shift[IDX_DRATE_PREV];
+            Bp[1] = bp1 + p_shift[IDX_ACCEL_PREV];
         }
 
         for (int a = 0; a < nu; a++) {
@@ -289,7 +300,7 @@ void riccati_solver_pass(
         for (int i = 0; i < NX_DENSE; i++) {
             float Atp = 0.0f;
             for (int s = 0; s < NX_DENSE; s++) {
-                Atp += sd->A[s][i] * p[s];
+                Atp += sd->A[s][i] * p_shift[s];
             }
             Atp_vec[i] = Atp;
         }
@@ -328,9 +339,9 @@ void riccati_solver_pass(
             u_out[k][a] = sum;
         }
 
-        /* x_{k+1} = A_k x_k + B_k u_k */
+        /* x_{k+1} = A_k x_k + B_k u_k + d_k */
         for (int i = 0; i < NX_DENSE; i++) {
-            float sum = 0.0f;
+            float sum = sd->d[i];
             for (int s = 0; s < NX_DENSE; s++) {
                 sum += sd->A[i][s] * x_out[k][s];
             }
@@ -340,8 +351,8 @@ void riccati_solver_pass(
             x_out[k + 1][i] = sum;
         }
         /* Rows 6,7: x_prev = u */
-        x_out[k + 1][IDX_DRATE_PREV] = u_out[k][0];
-        x_out[k + 1][IDX_ACCEL_PREV] = u_out[k][1];
+        x_out[k + 1][IDX_DRATE_PREV] = u_out[k][0] + sd->d[IDX_DRATE_PREV];
+        x_out[k + 1][IDX_ACCEL_PREV] = u_out[k][1] + sd->d[IDX_ACCEL_PREV];
     }
 }
 
@@ -353,13 +364,15 @@ RiccatiStatus_t riccati_admm_solve(
     const RiccatiStepData_t *step_data,
     const float *terminal_Q,
     const float *terminal_q,
+    const float *terminal_x_lb,
+    const float *terminal_x_ub,
     const float *x0,
     int nx, int nu, int N,
     const RiccatiAdmmConfig_t *config,
     RiccatiAdmmState_t *admm_state,
     RiccatiSolution_t *solution)
 {
-    if (!step_data || !terminal_Q || !terminal_q || !x0 || !admm_state || !solution) {
+    if (!step_data || !terminal_Q || !terminal_q || !terminal_x_lb || !terminal_x_ub || !x0 || !admm_state || !solution) {
         if (solution) {
             solution->status = RICCATI_STATUS_ERROR;
         }
@@ -383,7 +396,6 @@ RiccatiStatus_t riccati_admm_solve(
     const float abs_tolerance = (tolerance > 1e-6f) ? tolerance : 1e-6f;
     const float rel_tolerance = 0.02f;
     const int adaptive_rho = config ? config->adaptive_rho : 1;
-    const float alpha_or = 1.0f; /* Standard ADMM: over-relaxation disabled. */
 
     float rho = (admm_state->initialized && admm_state->rho > 0.0f)
                     ? admm_state->rho : cfg_rho;
@@ -401,10 +413,10 @@ RiccatiStatus_t riccati_admm_solve(
     uint8_t x_is_constrained[PREDICTION_HORIZON + 1][RICCATI_MAX_NX];
     memset(x_is_constrained, 0, sizeof(x_is_constrained));
     for (int k = 0; k <= N; k++) {
-        const RiccatiStepData_t *sd = (k < N) ? &step_data[k] : &step_data[N - 1];
         for (int s = 0; s < nx; s++) {
-            x_is_constrained[k][s] = (sd->x_ub[s] < BIG_BOUND ||
-                                       sd->x_lb[s] > -BIG_BOUND);
+            const float xub = (k < N) ? step_data[k].x_ub[s] : terminal_x_ub[s];
+            const float xlb = (k < N) ? step_data[k].x_lb[s] : terminal_x_lb[s];
+            x_is_constrained[k][s] = (xub < BIG_BOUND || xlb > -BIG_BOUND);
         }
     }
 
@@ -416,7 +428,7 @@ RiccatiStatus_t riccati_admm_solve(
         memset(y_u, 0, sizeof(admm_state->y_u));
 
         riccati_solver_pass(
-            step_data, terminal_Q, terminal_q, x0,
+            step_data, terminal_Q, terminal_q, terminal_x_lb, terminal_x_ub, x0,
             nx, nu, N, 0.0f, 0.0f,
             (const float (*)[RICCATI_MAX_NX])z_x,
             (const float (*)[RICCATI_MAX_NX])y_x,
@@ -426,11 +438,12 @@ RiccatiStatus_t riccati_admm_solve(
 
         /* Initialize z from projection of unconstrained solution */
         for (int k = 0; k <= N; k++) {
-            const RiccatiStepData_t *sd = (k < N) ? &step_data[k] : &step_data[N - 1];
             for (int s = 0; s < nx; s++) {
                 float val = solution->x[k][s];
-                if (val < sd->x_lb[s]) val = sd->x_lb[s];
-                if (val > sd->x_ub[s]) val = sd->x_ub[s];
+                const float xlb = (k < N) ? step_data[k].x_lb[s] : terminal_x_lb[s];
+                const float xub = (k < N) ? step_data[k].x_ub[s] : terminal_x_ub[s];
+                if (val < xlb) val = xlb;
+                if (val > xub) val = xub;
                 z_x[k][s] = val;
             }
         }
@@ -464,7 +477,7 @@ RiccatiStatus_t riccati_admm_solve(
 
         /*--- Primal update: Riccati pass with augmented costs ---*/
         riccati_solver_pass(
-            step_data, terminal_Q, terminal_q, x0,
+            step_data, terminal_Q, terminal_q, terminal_x_lb, terminal_x_ub, x0,
             nx, nu, N, rho, rho_u,
             (const float (*)[RICCATI_MAX_NX])z_x,
             (const float (*)[RICCATI_MAX_NX])y_x,
@@ -490,29 +503,26 @@ RiccatiStatus_t riccati_admm_solve(
         float ctrl_primal = 0.0f, ctrl_dual = 0.0f;
         float z_norm = 0.0f, lambda_norm = 0.0f;
 
-        /* Over-relaxation parameters */
-        const float one_minus_alpha = 1.0f - alpha_or;
-
         /* State loop */
         for (int k = 0; k <= N; k++) {
-            const RiccatiStepData_t *sd = (k < N) ? &step_data[k] : &step_data[N - 1];
             for (int s = 0; s < nx; s++) {
                 if (x_is_constrained[k][s]) {
                     float x_val = solution->x[k][s];
-                    /* Over-relaxation: x_hat = alpha*x + (1-alpha)*z_old */
-                    float x_hat = alpha_or * x_val + one_minus_alpha * z_x[k][s];
+                    float x_hat = x_val;
                     float val = x_hat + y_x[k][s];
+                    const float xlb = (k < N) ? step_data[k].x_lb[s] : terminal_x_lb[s];
+                    const float xub = (k < N) ? step_data[k].x_ub[s] : terminal_x_ub[s];
 
                     /* z-update: hard constraint projection (box clipping) */
-                    if (val < sd->x_lb[s]) val = sd->x_lb[s];
-                    if (val > sd->x_ub[s]) val = sd->x_ub[s];
+                    if (val < xlb) val = xlb;
+                    if (val > xub) val = xub;
 
                     float z_new = val;
                     /* Dual residual */
                     float z_prev = z_x[k][s];
                     float dd = fabsf(rho * (z_new - z_prev));
                     state_dual = fmaxf(state_dual, dd);
-                    /* y-update: y += x_hat - z (over-relaxed per Boyd et al.) */
+                    /* y-update: y += x - z */
                     y_x[k][s] = x_hat - z_new + y_x[k][s];
                     /* Primal residual */
                     float pd = fabsf(x_hat - z_new);
@@ -531,8 +541,7 @@ RiccatiStatus_t riccati_admm_solve(
             const RiccatiStepData_t *sd = &step_data[k];
             for (int a = 0; a < nu; a++) {
                 float u_val = solution->u[k][a];
-                /* Over-relaxation: u_hat = alpha*u + (1-alpha)*z_old */
-                float u_hat = alpha_or * u_val + one_minus_alpha * z_u[k][a];
+                float u_hat = u_val;
                 /* z-update: z = clip(u_hat + y, lb, ub) */
                 float val = u_hat + y_u[k][a];
                 if (val < sd->u_lb[a]) val = sd->u_lb[a];
@@ -542,7 +551,7 @@ RiccatiStatus_t riccati_admm_solve(
                 float z_prev = z_u[k][a];
                 float dd = fabsf(rho_u * (z_new - z_prev));
                 ctrl_dual = fmaxf(ctrl_dual, dd);
-                /* y-update: y += u_hat - z (over-relaxed per Boyd et al.) */
+                /* y-update: y += u - z */
                 y_u[k][a] = u_hat - z_new + y_u[k][a];
                 /* Primal residual */
                 float pd = fabsf(u_hat - z_new);

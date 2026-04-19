@@ -27,6 +27,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 /*===========================================================================
  * Helper functions
@@ -52,6 +53,83 @@ static ControlInput_t prev_control;
 static float actual_steering_angle = 0;  /* Servo physical position */
 static RiccatiAdmmState_t admm_state;
 static float warm_start_prev_curvature = 0;
+static float ema_alpha = EMA_ALPHA;
+static int ema_alpha_cached = 0;
+static int ema_initialized = 0;
+static FrenetState_t ema_prev_filtered;
+
+static void mpc_reset_ema_state(void)
+{
+    ema_alpha = EMA_ALPHA;
+    ema_alpha_cached = 0;
+    ema_initialized = 0;
+    memset(&ema_prev_filtered, 0, sizeof(ema_prev_filtered));
+}
+
+static FrenetState_t mpc_predict_frenet_next_state(
+    const FrenetState_t *state,
+    const ControlInput_t *control,
+    float dt,
+    float path_curvature)
+{
+    FrenetState_t next = *state;
+    const float vx = state->flong_vel;
+    const float vy = state->flat_vel;
+    const float omega = state->fyaw_rate;
+    const float delta = control->steer_ang;
+    const float a_cmd = control->long_acc;
+
+    const float cos_delta = cosf(delta);
+    const float sin_delta = sinf(delta);
+
+    SlipTerms_t slip_terms;
+    vehicle_model_compute_slip_terms(vx, vy, omega, delta, &slip_terms);
+
+    const float Fx = VP_MASS_KG * a_cmd;
+
+    float F_zf;
+    float F_zr;
+    vehicle_model_compute_normal_loads(Fx, &F_zf, &F_zr);
+
+    float C_Sf_Fzf;
+    float C_Sr_Fzr;
+    float F_yf;
+    float F_yr;
+    vehicle_model_compute_effective_lateral_stiffness(
+        1u,
+        F_zf,
+        slip_terms.alpha_front,
+        &C_Sf_Fzf,
+        &F_yf);
+    vehicle_model_compute_effective_lateral_stiffness(
+        0u,
+        F_zr,
+        slip_terms.alpha_rear,
+        &C_Sr_Fzr,
+        &F_yr);
+
+    const float dvx_dt = (Fx - F_yf * sin_delta) * VP_INV_MASS_1_PER_KG + vy * omega;
+    const float dvy_dt = (F_yf * cos_delta + F_yr) * VP_INV_MASS_1_PER_KG - vx * omega;
+    const float domega_dt =
+        (VP_CG_TO_FRONT_AXLE_M * F_yf * cos_delta - VP_CG_TO_REAR_AXLE_M * F_yr) *
+        VP_INV_YAW_INERTIA_1_PER_KGM2;
+
+    float ey_denom = 1.0f - path_curvature * state->flat_error;
+    if (fabsf(ey_denom) < 1e-3f)
+        ey_denom = (ey_denom >= 0.0f) ? 1e-3f : -1e-3f;
+
+    const float e_y_dot = vx * sinf(state->fhead_error) + vy * cosf(state->fhead_error);
+    const float e_psi_dot = omega -
+        path_curvature * vx * cosf(state->fhead_error) / ey_denom;
+
+    next.flat_error = state->flat_error + dt * e_y_dot;
+    next.fhead_error = util_normalize_angle(state->fhead_error + dt * e_psi_dot);
+    next.flong_vel = util_clamp(vx + dt * dvx_dt, VP_MIN_VELOCITY_MPS, VP_MAX_VELOCITY_MPS);
+    next.flat_vel = vy + dt * dvy_dt;
+    next.fyaw_rate = omega + dt * domega_dt;
+
+    return next;
+}
 
 
 /*===========================================================================
@@ -100,7 +178,7 @@ MpcConfiguration_t get_default_configuration(void)
     cfg.weight_acceleration_effort = get_env_float("MPC_W_ACCEL_EFFORT", cfg.weight_acceleration_effort);
 
     cfg.weight_steering_rate     = get_env_float("MPC_W_STEER_RATE", cfg.weight_steering_rate);
-    cfg.weight_acceleration_rate = get_env_float("MPC_W_TORQUE_RATE", cfg.weight_acceleration_rate);
+    cfg.weight_acceleration_rate = get_env_float("MPC_W_ACCEL_RATE", cfg.weight_acceleration_rate);
     cfg.weight_delta_actual      = get_env_float("MPC_W_DELTA_ACTUAL", cfg.weight_delta_actual);
 
     cfg.cross_call_rate_scale = get_env_float("MPC_CROSS_CALL_SCALE", cfg.cross_call_rate_scale);
@@ -110,6 +188,8 @@ MpcConfiguration_t get_default_configuration(void)
         cfg.prediction_horizon_steps = horizon;
 
     float dt = get_env_float("PRED_DT", cfg.time_step);
+    if (!(dt > 0.0f) || !isfinite(dt))
+        dt = TIME_STEP_SECONDS;
     cfg.time_step = dt;
 
     /* Auto-update cross-call scaling if not explicitly set */
@@ -134,6 +214,7 @@ void mpc_initialize(void)
     actual_steering_angle = 0.0f;
     riccati_admm_state_init(&admm_state);
     warm_start_prev_curvature = 0.0f;
+    mpc_reset_ema_state();
     initialized = 1;
 }
 
@@ -147,6 +228,7 @@ void mpc_initialize_with_configuration(const MpcConfiguration_t *cfg)
     actual_steering_angle = 0.0f;
     riccati_admm_state_init(&admm_state);
     warm_start_prev_curvature = 0.0f;
+    mpc_reset_ema_state();
     initialized = 1;
 }
 
@@ -159,6 +241,7 @@ void mpc_reset(void)
     actual_steering_angle = 0.0f;
     riccati_admm_state_init(&admm_state);
     warm_start_prev_curvature = 0.0f;
+    mpc_reset_ema_state();
 }
 
 MpcConfiguration_t mpc_get_configuration(void)
@@ -168,7 +251,15 @@ MpcConfiguration_t mpc_get_configuration(void)
 
 void mpc_set_configuration(const MpcConfiguration_t *configuration)
 {
-    if (configuration) config = *configuration;
+    if (configuration) {
+        config = *configuration;
+        if (config.prediction_horizon_steps < 1)
+            config.prediction_horizon_steps = 1;
+        if (config.prediction_horizon_steps > PREDICTION_HORIZON)
+            config.prediction_horizon_steps = PREDICTION_HORIZON;
+        if (config.time_step <= 0.0f)
+            config.time_step = TIME_STEP_SECONDS;
+    }
 }
 
 void mpc_set_actual_previous_control(const ControlInput_t *actual)
@@ -178,6 +269,10 @@ void mpc_set_actual_previous_control(const ControlInput_t *actual)
          * - prev_control stores the previous δ̇ (steering rate) and acceleration
          *   for the rate-of-rate penalty.
          * - actual_steering_angle stores the physical servo position for x0[5]. */
+        float steer_rate = (actual->steer_ang - actual_steering_angle) / CONTROL_DT_SECONDS;
+        if (steer_rate > STEERING_RATE_LIMIT) steer_rate = STEERING_RATE_LIMIT;
+        if (steer_rate < -STEERING_RATE_LIMIT) steer_rate = -STEERING_RATE_LIMIT;
+        prev_control.steer_ang = steer_rate;
         actual_steering_angle = actual->steer_ang;
         prev_control.long_acc =
             actual->long_acc;
@@ -201,20 +296,15 @@ MpcSolverStatus_t mpc_compute_optimal_control(
     /* EMA filter for measurement smoothing. */
     FrenetState_t filtered_state = *current_frenet_state;
     {
-        static float ema_alpha = EMA_ALPHA;
-        static int ema_initialized = 0;
-        static int alpha_cached = 0;
-        static FrenetState_t prev_filtered;
-
-        if (!alpha_cached) {
+        if (!ema_alpha_cached) {
             ema_alpha = get_env_float("MPC_EMA_ALPHA", ema_alpha);
             if (ema_alpha < 0.0f) ema_alpha = 0.0f;
             if (ema_alpha > 1.0f) ema_alpha = 1.0f;
-            alpha_cached = 1;
+            ema_alpha_cached = 1;
         }
 
         if (!ema_initialized) {
-            prev_filtered = *current_frenet_state;
+            ema_prev_filtered = *current_frenet_state;
             ema_initialized = 1;
         }
 
@@ -224,30 +314,37 @@ MpcSolverStatus_t mpc_compute_optimal_control(
 
             filtered_state.flat_error =
                 a * current_frenet_state->flat_error +
-                b * prev_filtered.flat_error;
+                b * ema_prev_filtered.flat_error;
 
-            filtered_state.fhead_error =
-                a * current_frenet_state->fhead_error +
-                b * prev_filtered.fhead_error;
+            {
+                const float pi_f = 0.5f * TWO_PI;
+                float dh = current_frenet_state->fhead_error - ema_prev_filtered.fhead_error;
+                while (dh > pi_f) dh -= TWO_PI;
+                while (dh < -pi_f) dh += TWO_PI;
+                filtered_state.fhead_error = ema_prev_filtered.fhead_error + a * dh;
+                while (filtered_state.fhead_error > pi_f) filtered_state.fhead_error -= TWO_PI;
+                while (filtered_state.fhead_error < -pi_f) filtered_state.fhead_error += TWO_PI;
+            }
 
             filtered_state.flong_vel =
                 a * current_frenet_state->flong_vel +
-                b * prev_filtered.flong_vel;
+                b * ema_prev_filtered.flong_vel;
             
             filtered_state.flat_vel =
                 a * current_frenet_state->flat_vel +
-                b * prev_filtered.flat_vel;
+                b * ema_prev_filtered.flat_vel;
 
             filtered_state.fyaw_rate =
                 a * current_frenet_state->fyaw_rate +
-                b * prev_filtered.fyaw_rate;
+                b * ema_prev_filtered.fyaw_rate;
         }
-        prev_filtered = filtered_state;
+        ema_prev_filtered = filtered_state;
     }
     const FrenetState_t *frenet = &filtered_state;
 
     // Extract horizon length and clamp to compile-time maximum.
     int N = config.prediction_horizon_steps;
+    if (N < 1) N = 1;
     if (N > PREDICTION_HORIZON) N = PREDICTION_HORIZON;
 
     /* ---------------------------------------------------------------
@@ -298,6 +395,8 @@ MpcSolverStatus_t mpc_compute_optimal_control(
 
         /* Per-step Frenet linearization */
         float kappa_k = reference_trajectory[k].path_curvature;
+        if (lin_state.flong_vel < MIN_LINEARIZATION_VELOCITY)
+            lin_state.flong_vel = MIN_LINEARIZATION_VELOCITY;
         float v_state_for_limits = lin_state.flong_vel;
 
         ControlInput_t lin_control;
@@ -308,11 +407,6 @@ MpcSolverStatus_t mpc_compute_optimal_control(
             lin_control.steer_ang = -delta_clamp;
         lin_control.long_acc = 0;
 
-        lin_state.flong_vel =
-            reference_trajectory[k].reference_velocity;
-        if (lin_state.flong_vel < MIN_LINEARIZATION_VELOCITY)
-            lin_state.flong_vel = MIN_LINEARIZATION_VELOCITY;
-
         float A_step[5][5];
         float B_step[5][2];
 
@@ -322,29 +416,21 @@ MpcSolverStatus_t mpc_compute_optimal_control(
             kappa_k,
             A_step, B_step);
 
-        /* Stabilize fast dynamics (omega row = 4) per stage */
-        /* Clamp the yaw-rate row's self-coupling coefficient to the stability
-         * boundary to prevent discrete-time instability in the fast lateral
-         * dynamics at large time steps. */
+        /* Stabilize fast dynamics (omega row = 4) per stage. */
         {
             int row = 4;  /* Yaw-rate row (omega) in the 5-state Frenet model */
             float abs_aii = fabsf(A_step[row][row]);
             if (abs_aii > STABILITY_LIMIT) {
-                float target = (A_step[row][row] < 0)
+                A_step[row][row] = (A_step[row][row] < 0)
                     ? -STABILITY_LIMIT : STABILITY_LIMIT;
-                float num = target - 1.0f;
-                float den = A_step[row][row] - 1.0f;
-                if (den != 0) {
-                    float scale = num/den;
-                    for (int j = 0; j < 5; j++) {
-                        if (j != row) A_step[row][j] = A_step[row][j] * scale;
-                    }
-                    B_step[row][0] = B_step[row][0] * scale;
-                    B_step[row][1] = B_step[row][1] * scale;
-                }
-                A_step[row][row] = target;
             }
         }
+
+        FrenetState_t lin_state_next = mpc_predict_frenet_next_state(
+            &lin_state,
+            &lin_control,
+            config.time_step,
+            kappa_k);
 
         /* === Augmented A matrix (8×8) === */
 
@@ -356,6 +442,34 @@ MpcSolverStatus_t mpc_compute_optimal_control(
         /* Column 5 of A (rows 0-4): steering effect via δ_actual state. */
         for (int i = 0; i < 5; i++)
             sd->A[i][IDX_DELTA_ACTUAL] = B_step[i][0];
+
+        for (int i = 0; i < NX_AUG; i++)
+            sd->d[i] = 0.0f;
+
+        const float xbar[NX_FRENET] = {
+            lin_state.flat_error,
+            lin_state.fhead_error,
+            lin_state.flong_vel,
+            lin_state.flat_vel,
+            lin_state.fyaw_rate,
+        };
+        const float xbar_next[NX_FRENET] = {
+            lin_state_next.flat_error,
+            lin_state_next.fhead_error,
+            lin_state_next.flong_vel,
+            lin_state_next.flat_vel,
+            lin_state_next.fyaw_rate,
+        };
+
+        for (int i = 0; i < NX_FRENET; i++) {
+            float lin_pred = 0.0f;
+            for (int j = 0; j < NX_FRENET; j++) {
+                lin_pred += A_step[i][j] * xbar[j];
+            }
+            lin_pred += B_step[i][0] * lin_control.steer_ang;
+            lin_pred += B_step[i][1] * lin_control.long_acc;
+            sd->d[i] = xbar_next[i] - lin_pred;
+        }
 
         /* A[5][5] = 1: δ_actual integrator (δ_{k+1} = δ_k + dt*δ̇) */
         sd->A[IDX_DELTA_ACTUAL][IDX_DELTA_ACTUAL] = 1.0f;
@@ -407,7 +521,7 @@ MpcSolverStatus_t mpc_compute_optimal_control(
 
         /* δ_actual reference: feedforward steering δ_ff = atan(L*κ) */
         {
-            float delta_ff_k = atan(VP_WHEELBASE_M * kappa_k);
+            float delta_ff_k = atanf(VP_WHEELBASE_M * kappa_k);
             sd->q[IDX_DELTA_ACTUAL] = -(sd->Q_diag[IDX_DELTA_ACTUAL] * delta_ff_k);
         }
         sd->q[IDX_DRATE_PREV] = 0;  /* No tracking ref for δ̇_prev */
@@ -503,13 +617,21 @@ MpcSolverStatus_t mpc_compute_optimal_control(
                 sd->u_lb[1] = a_min;
             }
         }
+
+        lin_state = lin_state_next;
+        if (lin_state.flong_vel < MIN_LINEARIZATION_VELOCITY)
+            lin_state.flong_vel = MIN_LINEARIZATION_VELOCITY;
     }
 
     /* Terminal state cost */
     float terminal_Q[RICCATI_MAX_NX];
     float terminal_q[RICCATI_MAX_NX];
+    float terminal_x_lb[RICCATI_MAX_NX];
+    float terminal_x_ub[RICCATI_MAX_NX];
     memset(terminal_Q, 0, sizeof(terminal_Q));
     memset(terminal_q, 0, sizeof(terminal_q));
+    memset(terminal_x_lb, 0, sizeof(terminal_x_lb));
+    memset(terminal_x_ub, 0, sizeof(terminal_x_ub));
 
     terminal_Q[0] = RICCATI_COST_FACTOR * config.weight_lateral_error;
     terminal_Q[1] = RICCATI_COST_FACTOR * config.weight_heading_error;
@@ -529,9 +651,33 @@ MpcSolverStatus_t mpc_compute_optimal_control(
         /* δ_actual terminal: track feedforward */
         {
             float kappa_N = reference_trajectory[N-1].path_curvature;
-            float delta_ff_N = atan(VP_WHEELBASE_M * kappa_N);
+            float delta_ff_N = atanf(VP_WHEELBASE_M * kappa_N);
             terminal_q[IDX_DELTA_ACTUAL] = -(terminal_Q[IDX_DELTA_ACTUAL] * delta_ff_N);
         }
+
+        {
+            float left_bound = reference_trajectory[N-1].left_wall_bound;
+            float right_bound = reference_trajectory[N-1].right_wall_bound;
+            float left_room = left_bound - WALL_MARGIN;
+            float right_room = right_bound - WALL_MARGIN;
+
+            if (left_room < 0.0f) left_room = 0.0f;
+            if (right_room < 0.0f) right_room = 0.0f;
+
+            terminal_x_lb[0] = -right_room;
+            terminal_x_ub[0] = left_room;
+        }
+
+        for (int s = 1; s < 5; s++) {
+            terminal_x_lb[s] = -BIG_BOUND;
+            terminal_x_ub[s] = BIG_BOUND;
+        }
+        terminal_x_lb[IDX_DELTA_ACTUAL] = -VP_MAX_STEERING_RAD;
+        terminal_x_ub[IDX_DELTA_ACTUAL] = VP_MAX_STEERING_RAD;
+        terminal_x_lb[IDX_DRATE_PREV] = -BIG_BOUND;
+        terminal_x_ub[IDX_DRATE_PREV] = BIG_BOUND;
+        terminal_x_lb[IDX_ACCEL_PREV] = -BIG_BOUND;
+        terminal_x_ub[IDX_ACCEL_PREV] = BIG_BOUND;
     }
 
     /* ---------------------------------------------------------------
@@ -576,9 +722,19 @@ MpcSolverStatus_t mpc_compute_optimal_control(
     memset(&riccati_sol, 0, sizeof(riccati_sol));
 
     RiccatiStatus_t rstatus = riccati_admm_solve(
-        step_data, terminal_Q, terminal_q, x0,
+        step_data, terminal_Q, terminal_q, terminal_x_lb, terminal_x_ub, x0,
         NX_AUG, NU, N,
         &solver_config, &admm_state, &riccati_sol);
+
+    if (rstatus != RICCATI_STATUS_OPTIMAL && rstatus != RICCATI_STATUS_MAX_ITERATIONS) {
+        result->optimal_control.steer_ang = actual_steering_angle;
+        result->optimal_control.long_acc = 0.0f;
+        result->iterations_used = (uint16_t)riccati_sol.iterations;
+        result->final_cost = riccati_sol.primal_residual;
+        result->dual_residual = riccati_sol.dual_residual;
+        result->solver_status = MPC_STATUS_ERROR;
+        return result->solver_status;
+    }
 
     /* Step 6: map solver output [delta_rate, accel] to actuator command. */
     float delta_rate = admm_state.z_u[0][0];

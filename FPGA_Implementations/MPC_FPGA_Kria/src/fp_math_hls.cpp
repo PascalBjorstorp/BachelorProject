@@ -11,11 +11,34 @@
 #include <cstdint>
 #include <climits>
 
+/* When fp_io_t and fp_QP_t are different types (different precisions),
+   define an overload for fp_io_t. When they're the same (both Q32.16),
+   rely on implicit conversion to avoid redefinition errors. */
+#if (MPC_HLS_RICCATI_WIDTH != MPC_HLS_IO_WIDTH) || (MPC_HLS_RICCATI_INT_BITS != MPC_HLS_IO_INT_BITS)
+fp_io_t fp_mul(fp_io_t a, fp_io_t b)
+{
+#pragma HLS INLINE
+    fp_io_t product = a * b;
+    return product;
+}
+#endif
+
+/* Overloaded fp_mul for QP type (internal Riccati precision).
+    When fp_io_t and fp_QP_t are the same type (both Q32.16), this overload
+    serves both; no separate fp_io_t overload is defined (see conditional above). */
 fp_QP_t fp_mul(fp_QP_t a, fp_QP_t b)
 {
 #pragma HLS INLINE off
     fp_QP_t product = a * b;
 #pragma HLS BIND_OP variable=product op=mul impl=dsp latency=4
+    return product;
+}
+
+/* Overloaded fp_mul for accumulator type (distinct from QP domain). */
+fp_accum_t fp_mul(fp_accum_t a, fp_accum_t b)
+{
+#pragma HLS INLINE
+    fp_accum_t product = a * b;
     return product;
 }
 
@@ -27,10 +50,9 @@ fp_raw_acc_t reciprocal_raw(fp_raw_acc_t det)
     fp_raw_acc_t sign = (det < 0) ? (fp_raw_acc_t)-1 : (fp_raw_acc_t)1;
     fp_raw_acc_t abs_det = (det < 0) ? (fp_raw_acc_t)(-det) : det;
 
-    unsigned long long abs_u = (unsigned long long)abs_det;
-    int lead_zeros = __builtin_clzll(abs_u) + (2 * FP_FRAC_BITS) - 64;
+    int lead_zeros = abs_det.countLeadingZeros() + (2 * FP_FRAC_BITS) - FP_RAW_ACC_WIDTH;
     if (lead_zeros < 0) lead_zeros = 0;
-    if (lead_zeros > 62) lead_zeros = 62;
+    if (lead_zeros > (FP_RAW_ACC_WIDTH - 2)) lead_zeros = (FP_RAW_ACC_WIDTH - 2);
 
     fp_raw_acc_t est = ((fp_raw_acc_t)1) << lead_zeros;
 
@@ -52,7 +74,6 @@ fp_raw_acc_t reciprocal_raw(fp_raw_acc_t det)
 int invert_2x2_hls(fp_raw_acc_t S[2][2], fp_raw_acc_t Si[2][2])
 {
 #pragma HLS INLINE
-#pragma HLS ALLOCATION operation instances=sdiv limit=1
     fp_raw_acc_t det = ((S[0][0] * S[1][1]) >> FP_FRAC_BITS)
                     - ((S[0][1] * S[1][0]) >> FP_FRAC_BITS);
 
@@ -107,21 +128,35 @@ fp_QP_t fp_recip(fp_QP_t x)
     bool neg = (x < 0);
     fp_QP_t abs_x = fp_abs(x);
 
-    /* Normalize to [0.5, 1.0] using power-of-two scaling.
-     * This keeps Newton-Raphson stable for both very small and large inputs. */
-    fp_QP_t x_norm = abs_x;
+    /* Width-aware bit-domain normalization without variable-trip loops. */
+    fp_qp_raw_t abs_raw_signed = fp_qp_raw_from_QP(abs_x);
+    ap_uint<MPC_HLS_RICCATI_WIDTH> abs_raw = (ap_uint<MPC_HLS_RICCATI_WIDTH>)abs_raw_signed;
+
+    const int one_bit = FP_FRAC_BITS;
+    const int half_bit = FP_FRAC_BITS - 1;
     int shift = 0;
 
-    while (x_norm > FP_ONE && shift < (MPC_HLS_RICCATI_WIDTH - 2)) {
-#pragma HLS LOOP_TRIPCOUNT min=0 max=30
-        x_norm >>= 1;
-        shift++;
+    int clz = (int)abs_raw.countLeadingZeros();
+    int msb = (MPC_HLS_RICCATI_WIDTH - 1) - clz;
+
+    if (msb > one_bit) {
+        shift = msb - one_bit;
+    } else if (msb < half_bit) {
+        shift = -(half_bit - msb);
     }
-    while (x_norm < FP_HALF && shift > -(MPC_HLS_RICCATI_WIDTH - 2)) {
-#pragma HLS LOOP_TRIPCOUNT min=0 max=30
-        x_norm <<= 1;
-        shift--;
+
+    if (shift >= 0) {
+        ap_uint<MPC_HLS_RICCATI_WIDTH> right_norm = abs_raw >> shift;
+        ap_uint<MPC_HLS_RICCATI_WIDTH> one_raw = ((ap_uint<MPC_HLS_RICCATI_WIDTH>)1) << FP_FRAC_BITS;
+        if (right_norm > one_raw && shift < (MPC_HLS_RICCATI_WIDTH - 2)) {
+            shift++;
+        }
     }
+
+    if (shift > (MPC_HLS_RICCATI_WIDTH - 2)) shift = (MPC_HLS_RICCATI_WIDTH - 2);
+    if (shift < -(MPC_HLS_RICCATI_WIDTH - 2)) shift = -(MPC_HLS_RICCATI_WIDTH - 2);
+
+    fp_QP_t x_norm = (shift >= 0) ? (abs_x >> shift) : (abs_x << (-shift));
 
     fp_QP_t est = FP_QP_CONST(1.5);
     for (int i = 0; i < 4; i++) {

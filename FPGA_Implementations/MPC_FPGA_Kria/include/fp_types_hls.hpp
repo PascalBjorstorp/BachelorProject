@@ -43,8 +43,11 @@
 #define MPC_HLS_RAW_ACC_GUARD_BITS 20
 #endif
 
+/* IO boundary is FIXED to Q16.16 for protocol compatibility with Jetson/Ultra96.
+   Internal Riccati precision can vary (26-32 bits) for optimization sweeps.
+   Both assertions verify valid ranges independently. */
 static_assert(MPC_HLS_IO_WIDTH == 32 && MPC_HLS_IO_INT_BITS == 16,
-              "IO boundary must stay Q16.16 (32,16)");
+              "IO boundary must stay Q16.16 (32,16) for protocol compatibility");
 static_assert(MPC_HLS_IO_WIDTH > MPC_HLS_IO_INT_BITS,
               "MPC_HLS_IO_WIDTH must exceed MPC_HLS_IO_INT_BITS");
 static_assert(MPC_HLS_RICCATI_WIDTH > MPC_HLS_RICCATI_INT_BITS,

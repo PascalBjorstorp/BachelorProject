@@ -348,6 +348,13 @@ void vehicle_model_compute_frenet_linearization(
     float dar_dvy = -slip_terms.vx_safe * inv_D_r;
     float dar_domega = VP_CG_TO_REAR_AXLE_M * slip_terms.vx_safe * inv_D_r;
 
+    /* Below the slip-velocity floor, alpha depends on vx_safe (constant),
+     * so d(alpha)/d(vx) must be zero. */
+    if (vx <= MIN_SLIP_VELOCITY) {
+        daf_dvx = 0.0f;
+        dar_dvx = 0.0f;
+    }
+
     /*
      * Normal forces with load transfer
      *   F_zf = (m*g*l_r - F_x*h) / L
@@ -406,9 +413,27 @@ void vehicle_model_compute_frenet_linearization(
      *   A[0][3] = dt        (lateral velocity directly changes e_y)
      *   A[0][4] = 0         (no direct omega coupling)
      */
-    state_matrix_A[0][0] = 1.0f;
-    state_matrix_A[0][1] = time_step * vx;
-    state_matrix_A[0][3] = time_step;
+    {
+        float epsi = frenet_state->fhead_error;
+        float ey = frenet_state->flat_error;
+        float cp = cosf(epsi);
+        float sp = sinf(epsi);
+        float denom = 1.0f - path_curvature * ey;
+        if (fabsf(denom) < 1e-3f)
+            denom = (denom >= 0.0f) ? 1e-3f : -1e-3f;
+        float inv_denom = util_recip(denom);
+        float inv_denom2 = inv_denom * inv_denom;
+
+        state_matrix_A[0][0] = 1.0f;
+        state_matrix_A[0][1] = time_step * (vx * cp - vy * sp);
+        state_matrix_A[0][2] = time_step * sp;
+        state_matrix_A[0][3] = time_step * cp;
+
+        state_matrix_A[1][0] = -time_step * (path_curvature * path_curvature) * vx * cp * inv_denom2;
+        state_matrix_A[1][1] = 1.0f + time_step * path_curvature * vx * sp * inv_denom;
+        state_matrix_A[1][2] = -time_step * path_curvature * cp * inv_denom;
+        state_matrix_A[1][4] = time_step;
+    }
 
     /*
      * Row 1: e_psi dynamics (Frenet kinematics)
@@ -420,9 +445,7 @@ void vehicle_model_compute_frenet_linearization(
      *   A[1][2] = -dt * kappa      (speed along curved path changes heading error)
      *   A[1][4] = dt               (yaw rate directly changes heading error)
      */
-    state_matrix_A[1][1] = 1.0f;
-    state_matrix_A[1][2] = -time_step * path_curvature;
-    state_matrix_A[1][4] = time_step;
+    /* Row 1 already assigned in the exact Frenet Jacobian block above. */
 
     /*
      * Rows 2-4: Body-frame dynamics (computed directly — avoids the
@@ -465,6 +488,23 @@ void vehicle_model_compute_frenet_linearization(
 
     /* B[2][1]: acceleration → vx directly (dt * 1) */
     input_matrix_B[2][1] = time_step;
+
+    /* B[3][1], B[4][1]: acceleration affects lateral dynamics via load transfer. */
+    {
+        float inv_Fzf = util_recip(F_zf);
+        float inv_Fzr = util_recip(F_zr);
+        float C_Sf_norm = C_Sf_Fzf * inv_Fzf;
+        float C_Sr_norm = C_Sr_Fzr * inv_Fzr;
+        float dFzf_da = -(VP_MASS_KG * VP_CG_HEIGHT_M) / VP_WHEELBASE_M;
+        float dFzr_da = -dFzf_da;
+        float dFyf_da = C_Sf_norm * slip_terms.alpha_front * dFzf_da;
+        float dFyr_da = C_Sr_norm * slip_terms.alpha_rear * dFzr_da;
+
+        input_matrix_B[3][1] = time_step * ((dFyf_da * cos_delta + dFyr_da) * VP_INV_MASS_1_PER_KG);
+        input_matrix_B[4][1] = time_step * ((VP_CG_TO_FRONT_AXLE_M * dFyf_da * cos_delta
+                                            - VP_CG_TO_REAR_AXLE_M * dFyr_da)
+                                           * VP_INV_YAW_INERTIA_1_PER_KGM2);
+    }
 
     /*
      * B rows 0-1 are all zero:

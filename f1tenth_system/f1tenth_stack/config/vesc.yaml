@@ -72,9 +72,9 @@ vesc_to_odom_node:
     steering_angle_to_servo_gain: -0.7284
     steering_angle_to_servo_offset: 0.5500
     # Global odom speed scaling (use <1.0 if odom distance/speed is too high).
-    odom_speed_scale: 0.87
+    odom_speed_scale: 1.03
     # Dynamic-model steering scale (use <1.0 if odom over-rotates, >1.0 if under-rotates).
-    steering_model_scale: 0.87
+    steering_model_scale: 0.86
     speed_deadband: 0.15
     max_dt_sec: 1.0
     
