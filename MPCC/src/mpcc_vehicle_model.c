@@ -76,14 +76,16 @@ void mpcc_linearize_dynamics(
     /* Pacejka shape factor and B factors.
      * Standard Pacejka: F_y = D * sin(C * atan(B * alpha))
      * At small alpha: F_y ≈ D * C * B * alpha
-     * To match the linear model (F_y = C_S * alpha) at zero slip:
-     *   D * C * B = C_S  →  B = C_S / (D * C) = C_S / (mu * F_z * C_shape)
+     * Gym linear model: F_y = mu * C_S * F_z * alpha
+     * Matching: D * C * B = mu * C_S * F_z
+     *   (mu * F_z) * C_shape * B = mu * C_S * F_z
+     *   B = C_S / C_shape
      */
     float C_shape = 1.9f;
     float D_pac_f = mu * F_zf;        /* peak front force */
     float D_pac_r = mu * F_zr;        /* peak rear force */
-    float B_f = C_f / (D_pac_f * C_shape);  /* C_Sf / (D_f * C) */
-    float B_r = C_r / (D_pac_r * C_shape);  /* C_Sr / (D_r * C) */
+    float B_f = C_f / C_shape;        /* was C_f / (D_pac_f * C_shape) — 12x too small */
+    float B_r = C_r / C_shape;        /* was C_r / (D_pac_r * C_shape) — 12x too small */
 
     /* Minimum stiffness clamp (10% of linear C_S) */
     float C_min_f = C_f * 0.1f;
@@ -94,11 +96,15 @@ void mpcc_linearize_dynamics(
      * Tire forces and Jacobians (Pacejka model with atan slip angles)
      *=====================================================================================*/
     /* --- Tire forces and Jacobians (rows 1-3) ---
-     * Use minimum vx of 0.5 m/s for slip angle calculations.
-     * Lower thresholds cause Riccati instability at high speeds due to
-     * large tire Jacobian eigenvalues in corners. */
+     * Minimum vx for slip angle calculations. With the corrected Pacejka
+     * B factors (B = C_S/C_shape), effective tire stiffness is ~12x larger
+     * than old (wrong) formula. The continuous-time [vy, omega] eigenvalues
+     * scale as ~C_eff / (vx * I_z). At vx=0.5 they reach -55 and -145,
+     * causing Forward Euler (A_d = I + dt*A_c) discrete eigenvalues of
+     * -1.76 and -6.23 — far outside the unit circle (unstable).
+     * vx_safe=2.0 gives stable discrete eigenvalues [0.40, -0.90]. */
     float vx_abs = fabsf(state->vx);
-    float vx_safe = (vx_abs < 0.5f) ? 0.5f : vx_abs;
+    float vx_safe = (vx_abs < 3.0f) ? 3.0f : vx_abs;
     float inv_vx = 1.0f / vx_safe;
     float cos_delta = cosf(control->delta);
     float sin_delta = sinf(control->delta);

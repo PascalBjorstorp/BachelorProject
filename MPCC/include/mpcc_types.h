@@ -546,9 +546,9 @@ typedef struct
  * Default MPCC Parameters
  *===========================================================================*/
 
-/*--- Horizon (tuned via iterative sweep, Hardware mode) ---*/
-#define MPCC_DEFAULT_HORIZON          10                            /** Horizon look ahead. */
-#define MPCC_DEFAULT_DT               (0.02f)                       /** Time step between prediction stages [s]. */
+/* --- Horizon (increase for real hardware) --- */
+#define MPCC_DEFAULT_HORIZON          20                            /** was 10 — 200 ms total was too short */
+#define MPCC_DEFAULT_DT               (0.05f)                       /** was 0.02 s — now 1.0 s total horizon */
 
 /*--- Contouring tracking weights ---*/
 #define MPCC_DEFAULT_WEIGHT_CONTOURING (1400.0f)                    /** Contouring error penalty. */
@@ -571,9 +571,10 @@ typedef struct
 #define MPCC_DEFAULT_WEIGHT_AX_RATE       (0.61f)                     /** Longitudinal acceleration rate penalty. */
 #define MPCC_DEFAULT_WEIGHT_V_THETA_RATE  (0.156f)                    /** Virtual progress speed rate penalty. */
 
-/*--- Cross-call rate scaling (control_dt / prediction_dt) ---*/
-#define MPCC_CONTROL_RATE_HZ              (200.0f)                   /** Control callback rate in Hz. Used to compute cross-call rate scaling. */
-#define MPCC_DEFAULT_CROSS_CALL_SCALE     (0.3f)                     /** Scale factor for control rate penalties at step 0. */
+/* cross_call_rate_scale = control_dt / prediction_dt
+ * At 200 Hz control rate and dt=0.05: 0.005/0.05 = 0.1 */
+#define MPCC_CONTROL_RATE_HZ              (200.0f)                   /** Control callback rate in Hz. */
+#define MPCC_DEFAULT_CROSS_CALL_SCALE     (0.1f)                     /** was 0.3, must = 1/(Hz*dt) */
 
 /*--- Terminal weights ---*/
 #define MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL     (4896.0f)     /** Terminal contouring error penalty. */

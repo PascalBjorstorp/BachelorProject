@@ -2,8 +2,8 @@
 """
 MPCC Weight Tuning — Locked Horizon/DT
 =======================================
-Sweeps MPCC controller weights with HORIZON=20 and DT=0.03 locked.
-Total prediction window: 20 × 0.03 = 0.60 s.
+Sweeps MPCC controller weights with HORIZON=20 and DT=0.05 locked.
+Total prediction window: 20 × 0.05 = 1.00 s.
 
 Objective: maximize average speed with ZERO wall collisions (hard constraint).
            Any collision → score = 1000 + collisions (never beats safe config).
@@ -50,41 +50,41 @@ RACELINE_TAG = "my_track"
 # LOCKED PREDICTION WINDOW  (never swept)
 # ==============================================================================
 LOCKED_HORIZON = 20
-LOCKED_DT      = 0.03
-# cross_call_rate_scale = control_dt / prediction_dt = (1/200 Hz) / 0.03 s
-LOCKED_CROSS_CALL_SCALE = round((1.0 / 200.0) / LOCKED_DT, 6)  # ≈ 0.1667
+LOCKED_DT      = 0.05
+# cross_call_rate_scale = control_dt / prediction_dt = (1/200 Hz) / 0.05 s
+LOCKED_CROSS_CALL_SCALE = round((1.0 / 200.0) / LOCKED_DT, 6)  # = 0.1
 
 BASE_CONFIG = {
     # Contouring tracking
     "Q_CONTOURING":      1000.0,
     "Q_LAG":             300.0,
-    "Q_PROGRESS":        20.0,
+    "Q_PROGRESS":        40.0,
 
-    # State regularization
+    # State regularization — increased for 12x stronger tires
     "Q_VX":              1.5,
     "VX_REF":            4.0,
-    "Q_VY":              1.54,
-    "Q_OMEGA":           0.8,
+    "Q_VY":              8.0,
+    "Q_OMEGA":           5.0,
 
-    # Control effort
-    "R_DELTA":           13.75,
+    # Control effort — R_DELTA raised: steering much more powerful now
+    "R_DELTA":           80.0,
     "R_AX":              0.055,
     "R_VTHETA":          0.1,
 
-    # Control rate smoothness
-    "W_DELTA_RATE":      0.65,
+    # Control rate smoothness — delta rate raised for stability
+    "W_DELTA_RATE":      3.0,
     "W_AX_RATE":         0.61,
     "W_VTHETA_RATE":     0.13,
 
     # Terminal weights — MUST be >= running weights
     "Q_CONTOURING_TERM": 4000.0,
     "Q_LAG_TERM":        500.0,
-    "Q_PROGRESS_TERM":   20.0,
+    "Q_PROGRESS_TERM":   40.0,
 
-    # ADMM solver
-    "ADMM_RHO":          0.9,
-    "ADMM_MAX_ITER":     150,
-    "ADMM_TOL":          0.011,
+    # ADMM solver — more iterations for harder problem
+    "ADMM_RHO":          3.0,
+    "ADMM_MAX_ITER":     300,
+    "ADMM_TOL":          0.008,
 
     # V_THETA_MAX >= vx_max so reference keeps up with vehicle
     "V_THETA_MAX":       20.0,
@@ -96,13 +96,13 @@ BASE_CONFIG = {
 }
 
 RACER_BASE_OVERRIDES = {
-    "Q_PROGRESS":        30.0,
+    "Q_PROGRESS":        60.0,
     "V_THETA_MAX":       25.0,
     "Q_CONTOURING":      800.0,
     "Q_LAG":             200.0,
     "Q_CONTOURING_TERM": 3000.0,
     "Q_LAG_TERM":        400.0,
-    "Q_PROGRESS_TERM":   30.0,
+    "Q_PROGRESS_TERM":   60.0,
     "R_VTHETA":          0.05,
 }
 
