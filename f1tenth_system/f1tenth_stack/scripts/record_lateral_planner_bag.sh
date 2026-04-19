@@ -18,6 +18,7 @@ TOPICS=(
   "/scan"
   "/opponent_marker"
   "/local_raceline_wall_distance_markers"
+  "/local_raceline"
   "/local_raceline_viz"
   "/ekf_pose"
   "/tf"
