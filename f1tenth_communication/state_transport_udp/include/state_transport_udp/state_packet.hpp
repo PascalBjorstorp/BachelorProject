@@ -4,7 +4,7 @@
 /**
  * @file state_packet.hpp
  * @brief Packet definitions and checksum helpers for UDP state/control transport.
- * @details Defines packed wire-format structs exchanged between Jetson and Ultra96
+ * @details Defines packed wire-format structs exchanged between Jetson and Kria
  *          and utility helpers for checksum and layout validation.
  * @dependencies array, cstdint, cstddef, mpc_fpga_constants.h
  */
@@ -63,7 +63,7 @@ struct ControlPacket {
     int32_t accel_fp;          // Acceleration command [m/s^2], Q16.16.
     uint32_t solver_status;    // Solver status code.
     uint32_t solver_iterations;// Solver iterations for this cycle.
-    uint32_t ultra_process_us; // Ultra-side processing duration [us].
+    uint32_t ultra_process_us; // Kria-side processing duration [us].
     uint32_t reserved;         // Reserved for future metadata.
 
     uint32_t crc32;            // IEEE CRC32 over packet bytes with this field zeroed.

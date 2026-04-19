@@ -2,7 +2,7 @@
  * @file ros2_udp_sender.cpp
  * @brief Jetson-side ROS2 to UDP state packet sender.
  * @details Subscribes to pose/odometry topics, builds reference horizon from
- *          trajectory, and transmits fixed-size state packets to Ultra96.
+ *          trajectory, and transmits fixed-size state packets to Kria.
  * @dependencies rclcpp, nav_msgs, geometry_msgs, std_msgs,
  *               state_transport_udp/state_packet.hpp, POSIX sockets
  */

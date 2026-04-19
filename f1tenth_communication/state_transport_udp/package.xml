@@ -4,8 +4,8 @@
   <name>state_transport_udp</name>
   <version>0.1.0</version>
   <description>
-    UDP transport bridge for Jetson-to-Ultra96 MPC streaming.
-    Includes ROS2 sender/drive bridge on Jetson and a DMA-backed UDP receiver on Ultra96.
+    UDP transport bridge for Jetson-to-Kria MPC streaming.
+    Includes ROS2 sender/drive bridge on Jetson and an OpenCL-backed UDP receiver on Kria.
   </description>
   <maintainer email="akmun23@student.sdu.dk">Aksel Munksgaard-Ottosen</maintainer>
   <license>MIT</license>

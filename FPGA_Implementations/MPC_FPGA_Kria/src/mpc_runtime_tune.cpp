@@ -26,7 +26,6 @@ fp_QP_t mpc_rt_w_delta_act = ((fp_QP_t)(MPC_FPGA_W_DELTA_ACT));
 fp_QP_t mpc_rt_min_lin_vel = ((fp_QP_t)(MPC_FPGA_MIN_LIN_VEL_MPS));
 fp_QP_t mpc_rt_stability_limit = ((fp_QP_t)(MPC_FPGA_STABILITY_LIMIT));
 fp_QP_t mpc_rt_wall_margin = ((fp_QP_t)(MPC_FPGA_WALL_MARGIN_M));
-int mpc_rt_wp_advance_max = MPC_FPGA_WP_ADVANCE_MAX;
 
 fp_QP_t mpc_rt_admm_rho = ((fp_QP_t)(MPC_FPGA_ADMM_RHO));
 fp_QP_t mpc_rt_admm_rho_u = ((fp_QP_t)(MPC_FPGA_ADMM_RHO_U));
@@ -42,7 +41,7 @@ static int read_env_double(const char *name, double *out)
     errno = 0;
     char *end = NULL;
     double parsed = strtod(raw, &end);
-    if (end == raw || errno != 0 || !isfinite(parsed)) {
+    if (end == raw || errno != 0 || !isfinite(parsed) || (end && *end != '\0')) {
         return 0;
     }
 
@@ -50,33 +49,14 @@ static int read_env_double(const char *name, double *out)
     return 1;
 }
 
-static int read_env_int(const char *name, int *out)
-{
-    const char *raw = getenv(name);
-    if (!raw || !raw[0]) {
-        return 0;
-    }
-
-    errno = 0;
-    char *end = NULL;
-    long parsed = strtol(raw, &end, 10);
-    if (end == raw || errno != 0) {
-        return 0;
-    }
-
-    *out = (int)parsed;
-    return 1;
-}
-
 void mpc_runtime_update_from_env(void)
 {
     double dv = 0.0;
-    int iv = 0;
 
-    if (read_env_double("PRED_DT", &dv) || read_env_double("dt", &dv)) {
+    if ((read_env_double("PRED_DT", &dv) || read_env_double("dt", &dv)) && dv > 1e-6) {
         mpc_rt_dt = (fp_QP_t)dv;
     }
-    if (read_env_double("HORIZON", &dv)) mpc_rt_horizon = (fp_QP_t)dv;
+    if (read_env_double("HORIZON", &dv) && dv >= 1.0) mpc_rt_horizon = (fp_QP_t)dv;
     if (read_env_double("Q_LAT", &dv)) mpc_rt_w_lat_error = (fp_QP_t)dv;
     if (read_env_double("Q_HDG", &dv)) mpc_rt_w_heading = (fp_QP_t)dv;
     if (read_env_double("Q_VEL", &dv)) mpc_rt_w_velocity = (fp_QP_t)dv;
@@ -88,19 +68,17 @@ void mpc_runtime_update_from_env(void)
     if (read_env_double("W_ACCEL_RATE", &dv)) mpc_rt_w_accel_rate = (fp_QP_t)dv;
     if (read_env_double("W_DELTA_ACT", &dv)) mpc_rt_w_delta_act = (fp_QP_t)dv;
 
-    if (read_env_double("MIN_LIN_VEL", &dv)) mpc_rt_min_lin_vel = (fp_QP_t)dv;
-    if (read_env_double("STABILITY_LIMIT", &dv)) mpc_rt_stability_limit = (fp_QP_t)dv;
-    if (read_env_double("WALL_MARGIN", &dv)) mpc_rt_wall_margin = (fp_QP_t)dv;
+    if (read_env_double("MIN_LIN_VEL", &dv) && dv > 1e-6) mpc_rt_min_lin_vel = (fp_QP_t)dv;
+    if (read_env_double("STABILITY_LIMIT", &dv) && dv > 1e-6) mpc_rt_stability_limit = (fp_QP_t)dv;
+    if (read_env_double("WALL_MARGIN", &dv) && dv >= 0.0) mpc_rt_wall_margin = (fp_QP_t)dv;
 
-    if (read_env_int("WP_ADVANCE_MAX", &iv) && iv > 0) mpc_rt_wp_advance_max = iv;
-
-    if (read_env_double("RHO", &dv) || read_env_double("ADMM_RHO", &dv)) {
+    if ((read_env_double("RHO", &dv) || read_env_double("ADMM_RHO", &dv)) && dv > 1e-6) {
         mpc_rt_admm_rho = (fp_QP_t)dv;
     }
-    if (read_env_double("RHO_U", &dv) || read_env_double("ADMM_RHO_U", &dv)) {
+    if ((read_env_double("RHO_U", &dv) || read_env_double("ADMM_RHO_U", &dv)) && dv > 1e-6) {
         mpc_rt_admm_rho_u = (fp_QP_t)dv;
     }
-    if (read_env_double("TOL", &dv) || read_env_double("ADMM_TOL", &dv)) {
+    if ((read_env_double("TOL", &dv) || read_env_double("ADMM_TOL", &dv)) && dv > 1e-9) {
         mpc_rt_admm_tol = (fp_QP_t)dv;
     }
 
