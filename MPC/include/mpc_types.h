@@ -96,7 +96,7 @@
 #define VP_MASS_KG 3.314f                                /* Vehicle mass used in dynamic equations and load calculations. */
 #define VP_YAW_INERTIA_KGM2 0.035f                       /* Yaw inertia governing rotational response to tire moments. */
 #define VP_CG_HEIGHT_M 0.0703f                           /* Center-of-gravity height driving longitudinal load transfer. */
-#define VP_FRICTION_COEFF 0.745f                         /* Effective tire-road friction coefficient for force limits. */
+#define VP_FRICTION_COEFF 1.6f                         /* Effective tire-road friction coefficient for force limits. */
 #define GRAVITY_MPS2 9.81f                               /* Gravitational acceleration constant used in vehicle load equations. */
 #define VP_MASS_TIMES_GRAVITY_N (VP_MASS_KG * GRAVITY_MPS2) /* Vehicle weight magnitude used by normal-load equations. */
 #define VP_INV_MASS_1_PER_KG (1.0f / VP_MASS_KG)         /* Reciprocal vehicle mass used in acceleration-state Jacobians. */
