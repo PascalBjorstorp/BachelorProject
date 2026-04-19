@@ -2,8 +2,8 @@
 """
 MPCC Weight Tuning — Locked Horizon/DT
 =======================================
-Sweeps MPCC controller weights with HORIZON=20 and DT=0.03 locked.
-Total prediction window: 20 × 0.03 = 0.60 s.
+Sweeps MPCC controller weights with HORIZON=20 and DT=0.05 locked.
+Total prediction window: 20 × 0.05 = 1.00 s.
 
 Objective: maximize average speed with ZERO wall collisions (hard constraint).
            Any collision → score = 1000 + collisions (never beats safe config).
@@ -50,41 +50,41 @@ RACELINE_TAG = "my_track"
 # LOCKED PREDICTION WINDOW  (never swept)
 # ==============================================================================
 LOCKED_HORIZON = 20
-LOCKED_DT      = 0.03
-# cross_call_rate_scale = control_dt / prediction_dt = (1/200 Hz) / 0.03 s
-LOCKED_CROSS_CALL_SCALE = round((1.0 / 200.0) / LOCKED_DT, 6)  # ≈ 0.1667
+LOCKED_DT      = 0.05
+# cross_call_rate_scale = control_dt / prediction_dt = (1/200 Hz) / 0.05 s
+LOCKED_CROSS_CALL_SCALE = round((1.0 / 200.0) / LOCKED_DT, 6)  # = 0.1
 
 BASE_CONFIG = {
     # Contouring tracking
     "Q_CONTOURING":      1000.0,
     "Q_LAG":             300.0,
-    "Q_PROGRESS":        20.0,
+    "Q_PROGRESS":        40.0,
 
-    # State regularization
+    # State regularization — increased for 12x stronger tires
     "Q_VX":              1.5,
     "VX_REF":            4.0,
-    "Q_VY":              1.54,
-    "Q_OMEGA":           0.8,
+    "Q_VY":              8.0,
+    "Q_OMEGA":           5.0,
 
-    # Control effort
-    "R_DELTA":           13.75,
+    # Control effort — R_DELTA raised: steering much more powerful now
+    "R_DELTA":           80.0,
     "R_AX":              0.055,
     "R_VTHETA":          0.1,
 
-    # Control rate smoothness
-    "W_DELTA_RATE":      0.65,
+    # Control rate smoothness — delta rate raised for stability
+    "W_DELTA_RATE":      3.0,
     "W_AX_RATE":         0.61,
     "W_VTHETA_RATE":     0.13,
 
     # Terminal weights — MUST be >= running weights
     "Q_CONTOURING_TERM": 4000.0,
     "Q_LAG_TERM":        500.0,
-    "Q_PROGRESS_TERM":   20.0,
+    "Q_PROGRESS_TERM":   40.0,
 
-    # ADMM solver
-    "ADMM_RHO":          0.9,
-    "ADMM_MAX_ITER":     150,
-    "ADMM_TOL":          0.011,
+    # ADMM solver — more iterations for harder problem
+    "ADMM_RHO":          3.0,
+    "ADMM_MAX_ITER":     300,
+    "ADMM_TOL":          0.008,
 
     # V_THETA_MAX >= vx_max so reference keeps up with vehicle
     "V_THETA_MAX":       20.0,
@@ -96,13 +96,13 @@ BASE_CONFIG = {
 }
 
 RACER_BASE_OVERRIDES = {
-    "Q_PROGRESS":        30.0,
+    "Q_PROGRESS":        60.0,
     "V_THETA_MAX":       25.0,
     "Q_CONTOURING":      800.0,
     "Q_LAG":             200.0,
     "Q_CONTOURING_TERM": 3000.0,
     "Q_LAG_TERM":        400.0,
-    "Q_PROGRESS_TERM":   30.0,
+    "Q_PROGRESS_TERM":   60.0,
     "R_VTHETA":          0.05,
 }
 
@@ -427,6 +427,8 @@ def run_test(params: dict, binary: str) -> dict:
                     "avg_adapt_updates":  float(parts[17]) if len(parts) > 17 else 0.0,
                     "avg_clip_events":    float(parts[18]) if len(parts) > 18 else 0.0,
                     "avg_speed":          float(parts[19]) if len(parts) > 19 else 0.0,
+                    "lap_count":          int(parts[20])   if len(parts) > 20 else 0,
+                    "best_lap_time":      float(parts[21]) if len(parts) > 21 else 9999.0,
                 }
             except (IndexError, ValueError):
                 pass
@@ -473,14 +475,15 @@ def compute_tracker_score(r: dict) -> float:
 
 def compute_racer_score(r: dict) -> float:
     """
-    Racer: maximize average speed — zero collisions is a HARD constraint.
+    Racer: minimize best lap time — zero collisions is a HARD constraint.
 
     Scoring:
       - Any collision      → 1000 + collisions  (always loses to any safe config)
-      - Zero collisions    → -avg_speed          (lower = faster = better)
+      - No laps completed  → 999                (worse than any config that completes a lap)
+      - Zero collisions    → best_lap_time       (lower = faster = better)
 
-    This means a safe config doing 0.1 m/s beats an unsafe config doing 8 m/s.
-    The sweep will only optimise speed among collision-free configs.
+    This means a safe config doing a slow lap beats an unsafe config.
+    The sweep will only optimise lap time among collision-free configs.
     """
     if r.get("status") != "OK":
         return 5000.0
@@ -490,8 +493,13 @@ def compute_racer_score(r: dict) -> float:
         # Hard constraint: ANY collision → disqualified
         return 1000.0 + float(collisions)
 
-    speed = r.get("avg_speed", 0.0)
-    return round(-speed, 6)
+    lap_count = int(r.get("lap_count", 0))
+    if lap_count == 0:
+        # No laps completed — worse than any config that finishes a lap
+        return 999.0
+
+    best_lap = float(r.get("best_lap_time", 9999.0))
+    return round(best_lap, 6)
 
 
 def apply_scores(r: dict, objective: str) -> dict:
@@ -783,7 +791,8 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
                 print(f"COLLISION wc={wc} speed={r.get('avg_speed',0):.2f}  (ETA {eta:.0f}s)")
             else:
                 passed += 1
-                print(f"sc={r['score']:7.4f}  speed={r.get('avg_speed',0):.3f} m/s"
+                print(f"sc={r['score']:7.4f}  lap={r.get('best_lap_time',0):.3f}s"
+                      f"  speed={r.get('avg_speed',0):.3f} m/s"
                       f"  ec={r['avg_contouring_err']:.3f}  (ETA {eta:.0f}s)")
     else:
         done_count = 0
@@ -833,6 +842,7 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
                         print(f"  [{done_count:4d}/{total}] "
                               f"{r['label']:55s} "
                               f"sc={r['score']:7.4f}  "
+                              f"lap={r.get('best_lap_time',0):.3f}s  "
                               f"speed={r.get('avg_speed',0):.3f} m/s  "
                               f"ec={r['avg_contouring_err']:.3f}  "
                               f"(ETA {eta:.0f}s)")
@@ -879,7 +889,8 @@ def print_best(results: list, objective: str, label: str = ""):
     b = safe[0]
     print(f"\n  {'='*60}")
     print(f"  Best {label} (collision-free only):")
-    print(f"    score={b['score']:.4f}  speed={b.get('avg_speed',0):.3f} m/s"
+    print(f"    score={b['score']:.4f}  lap_time={b.get('best_lap_time',0):.3f}s"
+          f"  laps={b.get('lap_count',0)}  speed={b.get('avg_speed',0):.3f} m/s"
           f"  ec={b.get('avg_contouring_err',0):.3f}  iters={b.get('avg_iters',0):.1f}")
     print(f"    label={b.get('label','?')}  phase={b.get('phase','?')}")
     for k in iter_ordered_base_keys():
@@ -996,6 +1007,7 @@ def main():
         "max_contouring_err", "avg_contouring_err",
         "max_heading_err", "avg_heading_err",
         "max_vx", "avg_speed",
+        "lap_count", "best_lap_time",
         "avg_vel_err", "max_vel_err",
         "avg_solve_us", "max_solve_us",
         "wall_collisions", "time_above_5ms",
@@ -1115,7 +1127,7 @@ def main():
 
     # ── Final summary ─────────────────────────────────────────────────────────
     print(f"\n{'='*80}")
-    print("FINAL RESULT (collision-free configs only, ranked by speed)")
+    print("FINAL RESULT (collision-free configs only, ranked by lap time)")
     print(f"{'='*80}")
     print_best(results, args.objective, "FINAL")
 
