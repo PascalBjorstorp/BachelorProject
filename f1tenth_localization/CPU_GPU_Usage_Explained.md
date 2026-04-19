@@ -44,11 +44,26 @@ Practical takeaway:
 
 ### CPU counter update interval (`/proc/stat`)
 
-Check configured kernel tick rate (if config is available):
+Check configured kernel tick rate (if kernel config is exposed):
 
 ```bash
-grep '^CONFIG_HZ=' /boot/config-$(uname -r)
+for cfg in \
+  "/boot/config-$(uname -r)" \
+  "/proc/config.gz" \
+  "/usr/src/linux-headers-$(uname -r)/.config" \
+  "/lib/modules/$(uname -r)/build/.config"
+do
+  if [[ -f "$cfg" ]]; then
+    if [[ "$cfg" == "/proc/config.gz" ]]; then
+      zgrep '^CONFIG_HZ=' "$cfg" && break
+    else
+      grep '^CONFIG_HZ=' "$cfg" && break
+    fi
+  fi
+done
 ```
+
+If this prints nothing, your current image does not expose kernel config files; continue with the observed interval measurement below.
 
 Then measure observed counter-change intervals directly:
 
