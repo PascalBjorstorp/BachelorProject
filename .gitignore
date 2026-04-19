@@ -364,3 +364,6 @@ MPCC/test/tuning_racer_20260418_233737.csv
 MPCC/test/tuning_racer_20260419_011756.csv
 mpc_fpga_hls_*
 
+MPCC/test/tuning_racer_20260419_113215.csv
+MPCC/test/tuning_racer_20260419_144440.csv
+MPCC/test/tuning_racer_20260419_165412.csv

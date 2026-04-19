@@ -117,6 +117,11 @@ typedef struct
      *  Computed from operating point lateral acceleration at each stage. */
     float ax_lim_stage[MPCC_MAX_HORIZON];
 
+    /** Per-stage upper bound on vx [m/s].
+     *  Computed from lookahead curvature to enforce braking before curves.
+     *  When > 0, tightens the global vx_max at each stage. */
+    float vx_max_stage[MPCC_MAX_HORIZON + 1];
+
     /*--- Problem size ---*/
 
     /** Prediction horizon length (0 < N <= MPCC_MAX_HORIZON) */
