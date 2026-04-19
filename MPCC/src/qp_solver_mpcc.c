@@ -359,8 +359,8 @@ void admm_solver_default_config(ADMMConfig_t *config)
     config->eps_dual = MPCC_DEFAULT_ADMM_TOLERANCE;
     config->warm_start = 0;
     config->rho_u = 0;            /* 0 = use same rho as states */
-    config->adaptive_rho = 1;     /* Enable adaptive rho by default */
-    config->alpha_relax = 1.0f;  /* No over-relaxation: prevents oscillation with strong tires */
+    config->adaptive_rho = 0;     /* DISABLED: adaptive rho oscillates at tight corners */
+    config->alpha_relax = 1.6f;  /* Over-relaxation: accelerates ADMM convergence */
 }
 
 /*===========================================================================
@@ -736,6 +736,13 @@ void admm_projection_step(
             ws->w_x[k][i] = val;
         }
 
+        /* 1b. Per-stage vx speed limit (curvature-based braking) */
+        if (problem->vx_max_stage[k] > 0.0f &&
+            ws->w_x[k][MPCC_IDX_VX] > problem->vx_max_stage[k])
+        {
+            ws->w_x[k][MPCC_IDX_VX] = problem->vx_max_stage[k];
+        }
+
         /* 2. Per-stage track corridor constraint on (X, Y).
          *
          * Transform proposed Cartesian position into the local Frenet
@@ -771,11 +778,13 @@ void admm_projection_step(
             float e_c = (sin_phi * dX) - (cos_phi * dY);   /* lateral  */
             float e_l = (-cos_phi * dX) - (sin_phi * dY);  /* longitudinal — preserved */
 
-            /* Clamp lateral deviation to corridor */
+            /* Clamp lateral deviation to corridor.
+             * e_c sign: positive = vehicle is RIGHT of reference path.
+             * left_b/right_b are positive max distances to each wall. */
             float left_b  = problem->track_left[k];   /* positive: max left  */
             float right_b = problem->track_right[k];  /* positive: max right */
-            if (e_c >  left_b)  e_c =  left_b;
-            if (e_c < -right_b) e_c = -right_b;
+            if (e_c >  right_b) e_c =  right_b;
+            if (e_c < -left_b)  e_c = -left_b;
 
             /* Reconstruct clamped Cartesian position */
             ws->w_x[k][MPCC_IDX_X] = x_ref + (sin_phi * e_c) - (cos_phi * e_l);
@@ -1074,7 +1083,7 @@ MPCCStatus_t admm_solver_solve(
     result->adaptive_rho_updates = workspace->adaptive_rho_updates;
     result->numeric_clip_count = workspace->numeric_clip_count;
 
-    memcpy(result->x_opt, workspace->z_x,
+    memcpy(result->x_opt, workspace->w_x,
            sizeof(float) * (N + 1) * MPCC_NX);
     /* Output feasible controls: w_u is the ADMM projection, always
      * within bounds. The raw z_u from the Riccati forward pass is

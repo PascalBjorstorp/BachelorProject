@@ -56,18 +56,18 @@ LOCKED_CROSS_CALL_SCALE = round((1.0 / 200.0) / LOCKED_DT, 6)  # = 0.1
 
 BASE_CONFIG = {
     # Contouring tracking
-    "Q_CONTOURING":      1000.0,
-    "Q_LAG":             300.0,
+    "Q_CONTOURING":      1500.0,
+    "Q_LAG":             400.0,
     "Q_PROGRESS":        40.0,
 
     # State regularization — increased for 12x stronger tires
-    "Q_VX":              1.5,
+    "Q_VX":              30.0,
     "VX_REF":            4.0,
-    "Q_VY":              8.0,
-    "Q_OMEGA":           5.0,
+    "Q_VY":              10.0,
+    "Q_OMEGA":           6.0,
 
-    # Control effort — R_DELTA raised: steering much more powerful now
-    "R_DELTA":           80.0,
+    # Control effort — R_DELTA raised for ADMM convergence on tight curves
+    "R_DELTA":           130.0,
     "R_AX":              0.055,
     "R_VTHETA":          0.1,
 
@@ -82,12 +82,12 @@ BASE_CONFIG = {
     "Q_PROGRESS_TERM":   40.0,
 
     # ADMM solver — more iterations for harder problem
-    "ADMM_RHO":          3.0,
+    "ADMM_RHO":          5.0,
     "ADMM_MAX_ITER":     300,
-    "ADMM_TOL":          0.008,
+    "ADMM_TOL":          0.02,
 
     # V_THETA_MAX >= vx_max so reference keeps up with vehicle
-    "V_THETA_MAX":       20.0,
+    "V_THETA_MAX":       8.0,
 
     # LOCKED — not swept
     "HORIZON":           LOCKED_HORIZON,
@@ -124,16 +124,14 @@ FULL_SWEEP_VALUES = {
     "Q_PROGRESS":        [5, 10, 15, 20, 30, 50, 80, 120],
     "Q_VY":              [0.5, 1.0, 1.5, 3.0, 5.0, 10.0],
     "Q_OMEGA":           [0.3, 0.5, 0.8, 1.5, 3.0, 5.0],
-    "R_DELTA":           [3.0, 5.0, 10.0, 14.0, 20.0, 30.0],
+    "R_DELTA":           [50.0, 80.0, 100.0, 130.0, 160.0, 200.0],
     "R_VTHETA":          [0.0, 0.05, 0.1, 0.3, 0.5, 1.0],
     "W_DELTA_RATE":      [0.2, 0.5, 0.65, 1.0, 2.0, 5.0],
     "W_VTHETA_RATE":     [0.05, 0.1, 0.13, 0.3, 0.5, 1.0],
     "Q_CONTOURING_TERM": [500, 1000, 2000, 4000, 8000, 12000],
     "Q_LAG_TERM":        [100, 200, 400, 800, 1500, 3000],
     "Q_PROGRESS_TERM":   [5, 10, 20, 30, 50, 80],
-    "ADMM_RHO":          [0.3, 0.5, 0.9, 2.0, 5.0, 10.0],
-    "ADMM_MAX_ITER":     [50, 100, 150, 200, 300],
-    "ADMM_TOL":          [0.005, 0.01, 0.02, 0.05],
+    # ADMM params removed — unused with OSQP solver
     "V_THETA_MAX":       [8.0, 10.0, 15.0, 20.0, 25.0, 30.0],
     "Q_VX":              [0.0, 0.5, 1.0, 1.5, 3.0, 5.0],
     "VX_REF":            [2.0, 3.0, 4.0, 5.0, 6.0, 8.0],
@@ -144,16 +142,13 @@ FULL_SWEEP_VALUES = {
 PHASE4_VALUES = {
     "Q_VY":         [0.5, 1.0, 1.54, 3.0, 5.0],
     "Q_OMEGA":      [0.3, 0.5, 0.8, 1.5, 3.0],
-    "R_DELTA":      [5.0, 10.0, 14.0, 20.0, 30.0],
+    "R_DELTA":      [80.0, 100.0, 130.0, 160.0, 200.0],
     "W_DELTA_RATE": [0.3, 0.5, 0.65, 1.0, 2.0],
     "V_THETA_MAX":  [8.0, 12.0, 15.0, 20.0, 25.0],
 }
 
-PHASE5_VALUES = {
-    "ADMM_RHO":      [0.3, 0.5, 0.9, 1.5, 2.0, 5.0, 10.0],
-    "ADMM_MAX_ITER": [50, 100, 150, 200, 300],
-    "ADMM_TOL":      [0.005, 0.01, 0.02, 0.05, 0.1],
-}
+# PHASE5_VALUES removed — was ADMM-only tuning, unused with OSQP solver
+PHASE5_VALUES = {}
 
 RANDOM_PROFILES = {
     "racer": {
@@ -175,12 +170,12 @@ RANDOM_PROFILES = {
             "W_DELTA_RATE":      [0.8, 0.9, 1.0, 1.15, 1.3],
             "W_AX_RATE":         [0.5, 0.8, 1.0, 1.3, 2.0],
             "W_VTHETA_RATE":     [0.7, 0.85, 1.0, 1.2, 1.4],
-            "ADMM_RHO":          [0.75, 0.9, 1.0, 1.15, 1.35],
+            # ADMM_RHO removed — unused with OSQP solver
             "V_THETA_MAX":       [0.8, 0.9, 1.0, 1.1, 1.2],
         },
         "discrete": {
             # HORIZON and DT intentionally omitted — locked
-            "ADMM_MAX_ITER": [50, 100, 150, 200, 300],
+            # ADMM_MAX_ITER removed — unused with OSQP solver
         },
     },
     "tracker": {
@@ -202,12 +197,12 @@ RANDOM_PROFILES = {
             "W_DELTA_RATE":      [0.85, 0.95, 1.0, 1.1, 1.2],
             "W_AX_RATE":         [0.5, 0.8, 1.0, 1.3, 2.0],
             "W_VTHETA_RATE":     [0.7, 0.85, 1.0, 1.2, 1.4],
-            "ADMM_RHO":          [0.85, 0.95, 1.0, 1.1, 1.2],
+            # ADMM_RHO removed — unused with OSQP solver
             "V_THETA_MAX":       [0.85, 0.95, 1.0, 1.1, 1.2],
         },
         "discrete": {
             # HORIZON and DT intentionally omitted — locked
-            "ADMM_MAX_ITER": [50, 100, 150, 200],
+            # ADMM_MAX_ITER removed — unused with OSQP solver
         },
     },
     "racer_exploit": {
@@ -229,12 +224,12 @@ RANDOM_PROFILES = {
             "W_DELTA_RATE":      [0.92, 0.98, 1.0, 1.05, 1.1],
             "W_AX_RATE":         [0.7, 0.9, 1.0, 1.2, 1.5],
             "W_VTHETA_RATE":     [0.9, 0.97, 1.0, 1.05, 1.1],
-            "ADMM_RHO":          [0.9, 0.97, 1.0, 1.06, 1.12],
+            # ADMM_RHO removed — unused with OSQP solver
             "V_THETA_MAX":       [0.94, 0.99, 1.0, 1.04, 1.08],
         },
         "discrete": {
             # HORIZON and DT intentionally omitted — locked
-            "ADMM_MAX_ITER": [50, 100, 150, 200],
+            # ADMM_MAX_ITER removed — unused with OSQP solver
         },
     },
     "tracker_exploit": {
@@ -256,12 +251,12 @@ RANDOM_PROFILES = {
             "W_DELTA_RATE":      [0.92, 0.98, 1.0, 1.05, 1.1],
             "W_AX_RATE":         [0.8, 0.95, 1.0, 1.1, 1.3],
             "W_VTHETA_RATE":     [0.9, 0.97, 1.0, 1.05, 1.1],
-            "ADMM_RHO":          [0.92, 0.98, 1.0, 1.05, 1.1],
+            # ADMM_RHO removed — unused with OSQP solver
             "V_THETA_MAX":       [0.92, 0.98, 1.0, 1.05, 1.1],
         },
         "discrete": {
             # HORIZON and DT intentionally omitted — locked
-            "ADMM_MAX_ITER": [100, 150, 200],
+            # ADMM_MAX_ITER removed — unused with OSQP solver
         },
     },
 }
@@ -575,25 +570,16 @@ def gen_secondary_grid() -> list:
 
 
 def gen_solver_grid() -> list:
-    combos = []
-    for rho, mi, tol in itertools.product(
-            PHASE5_VALUES["ADMM_RHO"],
-            PHASE5_VALUES["ADMM_MAX_ITER"],
-            PHASE5_VALUES["ADMM_TOL"]):
-        w = dict(BASE)
-        w["ADMM_RHO"]      = rho
-        w["ADMM_MAX_ITER"] = mi
-        w["ADMM_TOL"]      = tol
-        w = enforce_terminal_weight_floor(w)
-        combos.append((f"rho={rho}+mi={mi}+tol={tol}", w))
-    return combos
+    # Solver grid removed — ADMM params unused with OSQP solver
+    return []
 
 
 def gen_fine_tuning(best_weights: dict) -> list:
     combos = []
     pct_range = (0.80, 0.85, 0.90, 0.92, 0.95, 0.97,
                  1.03, 1.05, 1.08, 1.10, 1.15, 1.20)
-    skip = {"ADMM_MAX_ITER", "HORIZON", "DT", "CROSS_CALL_SCALE"}
+    skip = {"ADMM_MAX_ITER", "ADMM_RHO", "ADMM_TOL",
+            "HORIZON", "DT", "CROSS_CALL_SCALE"}
 
     for name, base_val in best_weights.items():
         if name in skip:
@@ -623,7 +609,7 @@ def gen_fine_tuning(best_weights: dict) -> list:
         "Q_CONTOURING", "Q_LAG", "Q_PROGRESS",
         "Q_CONTOURING_TERM", "Q_LAG_TERM",
         "Q_VX", "R_DELTA", "R_AX", "R_VTHETA",
-        "V_THETA_MAX", "ADMM_RHO", "W_DELTA_RATE",
+        "V_THETA_MAX", "W_DELTA_RATE",
     ]
     for w1, w2 in itertools.combinations(key_params, 2):
         v1 = best_weights.get(w1, 0)
@@ -662,7 +648,8 @@ def gen_random_neighbors(best_weights: dict, n: int, objective: str,
     min_p, max_p      = profile.get("num_perturb_range", (3, 6))
 
     tune_params = [k for k in best_weights.keys()
-                   if k not in ("ADMM_MAX_ITER", "HORIZON", "DT", "CROSS_CALL_SCALE")]
+                   if k not in ("ADMM_MAX_ITER", "ADMM_RHO", "ADMM_TOL",
+                                "HORIZON", "DT", "CROSS_CALL_SCALE")]
 
     i = 0
     attempts = 0
@@ -914,8 +901,8 @@ def sanity_check_params(binary: str):
     probes = [
         ("Q_CONTOURING", BASE.get("Q_CONTOURING", 1000) * 1.5),
         ("Q_LAG",        BASE.get("Q_LAG", 300) * 1.5),
-        ("ADMM_RHO",     BASE.get("ADMM_RHO", 0.9) * 1.5),
-        ("R_DELTA",      BASE.get("R_DELTA", 13.75) * 1.5),
+        ("W_DELTA_RATE", BASE.get("W_DELTA_RATE", 3.0) * 1.5),
+        ("R_DELTA",      BASE.get("R_DELTA", 130.0) * 1.5),
     ]
     for i, (name, new_val) in enumerate(probes, 2):
         print(f"  [{i}/5] Probing {name}={new_val}...", end=" ", flush=True)
@@ -1069,23 +1056,9 @@ def main():
 
     best = get_best_params(results)
 
-    # ── Phase 5 ──────────────────────────────────────────────────────────────
-    p5_combos = []
-    for rho, mi, tol in itertools.product(
-            PHASE5_VALUES["ADMM_RHO"],
-            PHASE5_VALUES["ADMM_MAX_ITER"],
-            PHASE5_VALUES["ADMM_TOL"]):
-        w = dict(best)
-        w["ADMM_RHO"]      = rho
-        w["ADMM_MAX_ITER"] = mi
-        w["ADMM_TOL"]      = tol
-        w = enforce_terminal_weight_floor(w)
-        p5_combos.append((f"rho={rho}+mi={mi}+tol={tol}", w))
-
-    run_phase("Phase 5: Solver parameters (ADMM_RHO x ADMM_MAX_ITER x ADMM_TOL)",
-              p5_combos, binary, results, t0,
-              args.jobs, csv_writer, args.objective)
-    print_best(results, args.objective, "after Phase 5")
+    # ── Phase 5 (skipped — ADMM params unused with OSQP solver) ────────────
+    print("\n  Phase 5: SKIPPED — ADMM solver params unused with OSQP")
+    print_best(results, args.objective, "after Phase 4 (Phase 5 skipped)")
 
     best = get_best_params(results)
 

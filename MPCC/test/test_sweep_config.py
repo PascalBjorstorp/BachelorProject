@@ -32,28 +32,28 @@ TRAJ_DIR = os.path.join(PROJECT_DIR, "f1tenth_planning", "trajectories")
 
 # Must match tune_mpcc.py BASE_CONFIG
 BASE_CONFIG = {
-    "Q_CONTOURING":      1000.0,
-    "Q_LAG":             200.0,
-    "Q_PROGRESS":        20.0,
-    "Q_VX":              1.5,
-    "VX_REF":            4.034304,
-    "Q_VY":              1.5435,
-    "Q_OMEGA":           0.805,
-    "R_DELTA":           13.75,
-    "R_AX":              0.054864,
+    "Q_CONTOURING":      1500.0,
+    "Q_LAG":             400.0,
+    "Q_PROGRESS":        40.0,
+    "Q_VX":              30.0,
+    "VX_REF":            4.0,
+    "Q_VY":              10.0,
+    "Q_OMEGA":           6.0,
+    "R_DELTA":           130.0,
+    "R_AX":              0.055,
     "R_VTHETA":          0.1,
-    "W_DELTA_RATE":      0.65,
-    "W_AX_RATE":         0.610926,
-    "W_VTHETA_RATE":     0.126,
-    "Q_CONTOURING_TERM": 2000.0,
-    "Q_LAG_TERM":        400.0,
-    "Q_PROGRESS_TERM":   20.0,
-    "ADMM_RHO":          0.9,
-    "ADMM_MAX_ITER":     100,
-    "ADMM_TOL":          0.011449,
-    "HORIZON":           10,
-    "DT":                0.02,
-    "V_THETA_MAX":       20.0,
+    "W_DELTA_RATE":      3.0,
+    "W_AX_RATE":         0.61,
+    "W_VTHETA_RATE":     0.13,
+    "Q_CONTOURING_TERM": 4000.0,
+    "Q_LAG_TERM":        500.0,
+    "Q_PROGRESS_TERM":   40.0,
+    "ADMM_RHO":          5.0,
+    "ADMM_MAX_ITER":     300,
+    "ADMM_TOL":          0.02,
+    "HORIZON":           20,
+    "DT":                0.05,
+    "V_THETA_MAX":       8.0,
 }
 
 # Label abbreviation → env var name
@@ -100,20 +100,26 @@ def parse_label(label: str) -> dict:
 
 
 def build_binary():
-    """Build the test_sim_drive binary, return path."""
+    """Build the test_sim_drive binary with OSQP, return path."""
     binary = os.path.join(MPCC_DIR, "test_sim_drive_visual")
-    print("Building test binary...")
+    print("Building test binary (OSQP)...")
     ret = subprocess.run([
         "gcc",
+        "-DUSE_OSQP", "-DMPCC_DEBUG_PRINT",
         "-D_GNU_SOURCE", "-O3", "-std=c99", "-Wall", "-ffast-math",
         "-Wno-unused-variable", "-Wno-unused-but-set-variable",
         "-Wno-unused-function", "-Wno-unknown-pragmas",
         f"-I{MPCC_DIR}/include",
+        "-I/opt/ros/jazzy/include",
         f"{MPCC_DIR}/test/test_sim_drive.c",
         f"{MPCC_DIR}/src/mpcc.c",
         f"{MPCC_DIR}/src/mpcc_vehicle_model.c",
         f"{MPCC_DIR}/src/qp_solver_mpcc.c",
-        "-lm", "-o", binary,
+        f"{MPCC_DIR}/src/qp_solver_osqp.c",
+        "-L/opt/ros/jazzy/lib",
+        "-losqp", "-lm",
+        "-Wl,-rpath,/opt/ros/jazzy/lib",
+        "-o", binary,
     ], capture_output=True, text=True)
     if ret.returncode != 0:
         print(f"Build failed:\n{ret.stderr}")

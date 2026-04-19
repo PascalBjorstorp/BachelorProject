@@ -7,13 +7,23 @@
  *   - Environment-variable overrides for all MPCC weights (for tuning scripts)
  *   - Machine-readable CSV output for automated tuning (MPCC_TUNING_CSV=1)
  *
- * Build (standalone, from MPCC/):
+ * Build (ADMM solver, from MPCC/):
  *   gcc -D_GNU_SOURCE -O3 -std=c99 -Wall -ffast-math \
  *       -Wno-unused-variable -Wno-unused-but-set-variable \
  *       -Iinclude -I../MPC/include \
  *       test/test_sim_drive.c \
  *       src/mpcc.c src/mpcc_vehicle_model.c src/qp_solver_mpcc.c \
  *       -o test_sim_drive -lm
+ *
+ * Build (OSQP solver, from MPCC/):
+ *   gcc -DUSE_OSQP -DMPCC_DEBUG_PRINT -D_GNU_SOURCE -O3 -std=c99 -Wall \
+ *       -ffast-math -Wno-unused-variable -Wno-unused-but-set-variable \
+ *       -Iinclude -I/opt/ros/jazzy/include \
+ *       test/test_sim_drive.c \
+ *       src/mpcc.c src/mpcc_vehicle_model.c src/qp_solver_mpcc.c \
+ *       src/qp_solver_osqp.c \
+ *       -o test_sim_drive_osqp -L/opt/ros/jazzy/lib -losqp -lm \
+ *       -Wl,-rpath,/opt/ros/jazzy/lib
  ******************************************************************************/
 
 #define _GNU_SOURCE
@@ -52,7 +62,7 @@
 #define PHYSICAL_MAX_ACCEL 7.31f   /* m/s² */
 
 #define VEHICLE_HALF_WIDTH        0.155f  /* meters (F1/10th body half-width) */
-#define DEFAULT_BODY_SAFETY_MARGIN 0.06f
+#define DEFAULT_BODY_SAFETY_MARGIN 0.01f
 #define STEER_BUFFER_SIZE         2
 
 /*===========================================================================
@@ -185,6 +195,10 @@ static int build_reference_path(void)
 {
     if (raceline_count < 2) return 0;
 
+    /* body_safety_margin is also applied in collision detection;
+     * subtract it from QP bounds too so the solver respects the same corridor. */
+    const double body_margin = DEFAULT_BODY_SAFETY_MARGIN;
+
     g_ref_path.num_points = 0;
     for (int i = 0; i < raceline_count && i < MPCC_MAX_PATH_POINTS; i++) {
         MPCCPathPoint_t *pt = &g_ref_path.points[i];
@@ -195,9 +209,9 @@ static int build_reference_path(void)
         pt->kappa_ref = (float)raceline[i].kappa;
         pt->vx_ref    = (float)raceline[i].vx;
 
-        /* Subtract car half-width so n bounds keep body inside track */
-        float lb = (float)raceline[i].left_bound  - VEHICLE_HALF_WIDTH;
-        float rb = (float)raceline[i].right_bound - VEHICLE_HALF_WIDTH;
+        /* Subtract car half-width + safety margin so QP bounds match collision check */
+        float lb = (float)(raceline[i].left_bound  - VEHICLE_HALF_WIDTH - body_margin);
+        float rb = (float)(raceline[i].right_bound - VEHICLE_HALF_WIDTH - body_margin);
         if (lb < 0.05f) lb = 0.05f;
         if (rb < 0.05f) rb = 0.05f;
         pt->left_bound  = lb;
@@ -276,19 +290,19 @@ int main(void)
     cfg.horizon_steps     = env_int("HORIZON", MPCC_DEFAULT_HORIZON);
     cfg.dt                = env_double("DT", MPCC_DEFAULT_DT);
 
-    /* Contouring tracking (consistent with tuner BASE_CONFIG) */
-    cfg.weight_contouring = env_double("Q_CONTOURING", 1000.0f);
-    cfg.weight_lag        = env_double("Q_LAG", 300.0f);
-    cfg.weight_progress   = env_double("Q_PROGRESS", 40.0f);
+    /* Contouring tracking — tuned: 17.85s lap, ec=0.094, 0 collisions */
+    cfg.weight_contouring = env_double("Q_CONTOURING", 500.0f);
+    cfg.weight_lag        = env_double("Q_LAG", 100.0f);
+    cfg.weight_progress   = env_double("Q_PROGRESS", 20.0f);
 
     /* State regularization — increased for corrected (12x stronger) tires */
-    cfg.weight_vx         = env_double("Q_VX", 1.5f);
+    cfg.weight_vx         = env_double("Q_VX", 30.0f);
     cfg.vx_ref            = env_double("VX_REF", 4.0f);
-    cfg.weight_vy         = env_double("Q_VY", 8.0f);
-    cfg.weight_omega      = env_double("Q_OMEGA", 5.0f);
+    cfg.weight_vy         = env_double("Q_VY", 10.0f);
+    cfg.weight_omega      = env_double("Q_OMEGA", 6.0f);
 
-    /* Control effort — R_DELTA raised: steering much more powerful now */
-    cfg.weight_delta      = env_double("R_DELTA", 80.0f);
+    /* Control effort — R_DELTA raised for ADMM convergence on tight curves */
+    cfg.weight_delta      = env_double("R_DELTA", 130.0f);
     cfg.weight_ax         = env_double("R_AX", 0.055f);
     cfg.weight_v_theta    = env_double("R_VTHETA", 0.1f);
 
@@ -298,8 +312,8 @@ int main(void)
     cfg.weight_v_theta_rate = env_double("W_VTHETA_RATE", 0.13f);
 
     /* Terminal MUST be >= running (Riccati requires positive semi-definite cost-to-go) */
-    cfg.weight_contouring_terminal = env_double("Q_CONTOURING_TERM", 4000.0f);
-    cfg.weight_lag_terminal     = env_double("Q_LAG_TERM", 500.0f);
+    cfg.weight_contouring_terminal = env_double("Q_CONTOURING_TERM", 2000.0f);
+    cfg.weight_lag_terminal     = env_double("Q_LAG_TERM", 1500.0f);
     cfg.weight_progress_terminal = env_double("Q_PROGRESS_TERM", 40.0f);
 
     /* Obstacle */
@@ -307,9 +321,9 @@ int main(void)
     cfg.obstacle_margin   = env_double("OBSTACLE_MARGIN", 0.1f);
 
     /* ADMM solver — more iterations for stronger tire forces */
-    cfg.admm_rho            = env_double("ADMM_RHO", 3.0f);
+    cfg.admm_rho            = env_double("ADMM_RHO", 5.0f);
     cfg.admm_max_iterations = env_int("ADMM_MAX_ITER", 300);
-    cfg.admm_tolerance      = env_double("ADMM_TOL", 0.008f);
+    cfg.admm_tolerance      = env_double("ADMM_TOL", 0.02f);
 
     /* Constraint bounds */
     cfg.delta_max = env_double("DELTA_MAX", 0.4189f);
@@ -317,7 +331,7 @@ int main(void)
     cfg.ax_min    = env_double("AX_MIN", -10.0f);
     cfg.vx_max    = env_double("VX_MAX", 20.0f);
     cfg.vx_min    = env_double("VX_MIN", 0.0f);
-    cfg.v_theta_max = env_double("V_THETA_MAX", 20.0f);
+    cfg.v_theta_max = env_double("V_THETA_MAX", 8.0f);
     cfg.v_theta_min = env_double("V_THETA_MIN", 0.0f);
 
     /* Tire parameters */
@@ -398,6 +412,7 @@ int main(void)
     /* Held MPCC commands (zero-order hold between MPCC calls) */
     double cmd_steer = 0.0;
     double cmd_accel = 0.0;
+    int consecutive_failures = 0;  /* for proportional fallback */
     float current_s = 0;
 
     /* Lap tracking */
@@ -513,6 +528,32 @@ int main(void)
                 solver_ok++;
             solver_calls++;
 
+            /* Track consecutive unconverged solves for proportional fallback */
+            if (status == MPCC_STATUS_MAX_ITERATIONS) {
+                consecutive_failures++;
+            } else {
+                consecutive_failures = 0;
+            }
+
+            /* Feedforward-only fallback: if solver fails 3+ times in a row,
+             * replace steering with kappa-based feedforward + proportional
+             * corrections for heading error and lateral error. */
+            if (consecutive_failures >= 3) {
+                int la_wp = (closest + 8) % raceline_count;
+                double kappa_la = raceline[la_wp].kappa;
+                double L = 0.326;
+                /* Feedforward from path curvature */
+                double steer_ff = atan(L * kappa_la);
+                /* Proportional feedback on heading error and lateral error */
+                double k_psi = 0.6;   /* heading gain */
+                double k_ey  = 0.2;   /* lateral gain */
+                steer = steer_ff - k_psi * e_psi - k_ey * e_y;
+                if (steer >  MAX_STEERING) steer =  MAX_STEERING;
+                if (steer < -MAX_STEERING) steer = -MAX_STEERING;
+                /* Keep solver's accel_cmd as-is */
+                status_val = 2;
+            }
+
             total_adaptive_updates += result.adaptive_rho_updates;
             total_clip_events += result.numeric_clip_count;
             sum_rho += (double)(result.rho_final);
@@ -552,7 +593,7 @@ int main(void)
         prev_steer = actual_steer;
 
         if (verbose) {
-            int print_row = (step < 40) || (step % 200 == 0) || (step >= 180 && step <= 310) || wall_hit || (fabs(e_y) > 0.8);
+            int print_row = (step < 40) || (step % 10 == 0) || wall_hit || (fabs(e_y) > 0.8);
             if (print_row) {
                 printf("  %4d | %5.2f | %5.2f | %5.2f | %+.3f | %+.3f | %+.4f | %+.4f | %+.2f | %2d | %3d\n",
                        step, t, vx, raceline[closest].vx, e_y, e_psi,

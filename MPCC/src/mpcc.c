@@ -37,6 +37,9 @@
 #include "mpcc.h"
 #include "mpcc_vehicle_model.h"
 #include "qp_solver_mpcc.h"
+#ifdef USE_OSQP
+#include "qp_solver_osqp.h"
+#endif
 #include <string.h>
 
 
@@ -702,6 +705,63 @@ static void add_contouring_lag_cost(
 }
 
 /*===========================================================================
+ * Curvature-Based Speed Limiter
+ *===========================================================================
+ * Scans the raceline ahead from arc-length s and computes the maximum
+ * safe speed at s, accounting for braking distance to upcoming curves.
+ *
+ * For each lookahead point p at distance d ahead:
+ *   v_corner(p) = sqrt(mu * g / |kappa(p)|)
+ *   v_safe(s)   = sqrt(v_corner(p)^2 + 2 * |ax_brake| * d)
+ *
+ * Returns the minimum v_safe over all lookahead points, clamped to vx_max.
+ */
+static float compute_speed_limit(float s, float lookahead_m)
+{
+    const float g = F110_GRAVITY_ACCELERATION_MS2;
+    const float mu = config.mu;
+    const float vx_max = config.vx_max;
+    const float ax_brake_ref = 4.0f;   /* braking for vx_ref-based limit */
+    const float ax_brake_curv = 2.0f;  /* conservative braking for curvature limit */
+    const float vx_ref_scale = 0.9f;   /* margin below raceline target */
+    const float curv_safety = 0.8f;    /* conservative cornering speed safety factor */
+    const float kappa_thresh = 0.5f;   /* only apply curvature limit above this */
+
+    float v_limit = vx_max;
+    const int n_samples = 20;
+    float ds = lookahead_m / (float)n_samples;
+
+    for (int i = 1; i <= n_samples; i++)
+    {
+        float d = ds * (float)i;
+        float s_ahead = s + d;
+        MPCCPathPoint_t pt;
+        mpcc_path_interpolate(&ref_path, s_ahead, &pt);
+
+        /* 1. Raceline vx_ref-based limit */
+        float v_target = pt.vx_ref * vx_ref_scale;
+        if (v_target > 0.0f && v_target < vx_max)
+        {
+            float v_brake = sqrtf(v_target * v_target + 2.0f * ax_brake_ref * d);
+            if (v_brake < v_limit)
+                v_limit = v_brake;
+        }
+
+        /* 2. Curvature-based limit for tight curves */
+        float kappa_abs = fabsf(pt.kappa_ref);
+        if (kappa_abs > kappa_thresh)
+        {
+            float v_corner = curv_safety * sqrtf(mu * g / kappa_abs);
+            float v_brake = sqrtf(v_corner * v_corner + 2.0f * ax_brake_curv * d);
+            if (v_brake < v_limit)
+                v_limit = v_brake;
+        }
+    }
+
+    return v_limit;
+}
+
+/*===========================================================================
  * QP Problem Construction
  *===========================================================================*/
 
@@ -740,9 +800,17 @@ static void build_qp_problem(
     /* s: must be non-negative */
     qp->x_lower[MPCC_IDX_S] = 0;
 
-    /* vx: bounded */
+    /* vx: bounded, tightened by curvature-based speed limit */
     qp->x_lower[MPCC_IDX_VX] = config.vx_min;
-    qp->x_upper[MPCC_IDX_VX] = config.vx_max;
+    {
+        float v_safe = compute_speed_limit(x0->s, 5.0f);
+        float vx_ub = v_safe < config.vx_max ? v_safe : config.vx_max;
+        qp->x_upper[MPCC_IDX_VX] = vx_ub;
+#ifdef MPCC_DEBUG_PRINT
+        printf("  [SPD] s=%.2f v_safe=%.2f vx_ub=%.2f\n",
+               (double)x0->s, (double)v_safe, (double)vx_ub);
+#endif
+    }
 
     /* vy: physical lateral velocity bound [m/s] */
     qp->x_lower[MPCC_IDX_VY] = -5.0f;
@@ -817,7 +885,7 @@ static void build_qp_problem(
         mpcc_linearize_dynamics(&z_bar, &u_bar,
                                 config.dt, &config, &qp->dynamics[k]);
 
-        /* Build costs ... (unchanged) */
+        /* Build costs */
         build_stage_cost(&qp->stage_cost[k], 0, k);
         add_contouring_lag_cost(&qp->stage_cost[k], &z_bar, &path_pt,
                                 config.weight_contouring, config.weight_lag);
@@ -884,6 +952,10 @@ static void build_qp_problem(
         /* Per-stage track bounds on n */
         qp->track_left[k] = path_pt.left_bound;
         qp->track_right[k] = path_pt.right_bound;
+
+        /* Per-stage curvature-based speed limit — disabled, using global limit.
+         * Keep array populated for compatibility but don't tighten. */
+        qp->vx_max_stage[k] = config.vx_max;
 
         /* Per-stage friction circle: tighten a_x bound based on
          * lateral acceleration at operating point.
@@ -952,6 +1024,9 @@ static void build_qp_problem(
 
         qp->track_left[N]  = path_pt.left_bound;
         qp->track_right[N] = path_pt.right_bound;
+
+        /* Terminal speed limit — use global */
+        qp->vx_max_stage[N] = config.vx_max;
 
         /* --- terminal stage geometry --- */
         qp->path_x_ref[N]   = path_pt.x_ref;
@@ -1130,15 +1205,25 @@ MPCCStatus_t mpcc_compute_control(
 
         /* Detect s-wrap (lap boundary crossing): if s jumped backward
          * by more than half the track length, the warm-started workspace
-         * has s values from the old lap and is useless. Force cold start
-         * for both ADMM and QP operating points. */
+         * has s values from the old lap.  Instead of a full cold start,
+         * wrap the s values in the warm-start so the solver keeps a useful
+         * starting point for the new lap. */
         float s_jump = current_state->s - prev_predicted_states[0].s;
         if (s_jump < -(ref_path.total_length * 0.5f)) {
-            admm_config.warm_start = 0;
-            warm_start_available = 0;  /* Also reset QP operating points */
+            /* Wrap s values in warm-start trajectory */
+            float total_len = ref_path.total_length;
+            for (uint16_t k = 0; k <= config.horizon_steps; k++) {
+                while (prev_predicted_states[k].s > total_len)
+                    prev_predicted_states[k].s -= total_len;
+                if (prev_predicted_states[k].s < 0)
+                    prev_predicted_states[k].s = 0;
+            }
+            admm_config.warm_start = 1;
+            /* Keep warm_start_available = 1 so QP uses wrapped states */
 #ifdef MPCC_DEBUG_PRINT
-            printf("[MPCC] s-wrap detected (%.2f → %.2f), forcing full cold start\n",
-                   (double)prev_predicted_states[0].s, (double)current_state->s);
+            printf("[MPCC] s-wrap detected (%.2f → %.2f), wrapping warm-start s values\n",
+                   (double)(prev_predicted_states[0].s + total_len),
+                   (double)current_state->s);
 #endif
         } else {
             admm_config.warm_start = 1;
@@ -1209,8 +1294,12 @@ MPCCStatus_t mpcc_compute_control(
 
     /* Solve via ADMM + Riccati */
     ADMMResult_t admm_result;
+#ifdef USE_OSQP
+    MPCCStatus_t status = osqp_solver_solve(&qp_problem, &admm_result);
+#else
     MPCCStatus_t status = admm_solver_solve(
         &qp_problem, &admm_config, &admm_workspace, &admm_result);
+#endif
 
     /* Extract first control input */
     result->status = status;
@@ -1223,11 +1312,22 @@ MPCCStatus_t mpcc_compute_control(
     result->numeric_clip_count = admm_result.numeric_clip_count;
 
     if (status == MPCC_STATUS_SUCCESS || status == MPCC_STATUS_MAX_ITERATIONS) {
-        /* Use the latest ADMM iterate for control (same policy as MPC).
-         * MAX_ITERATIONS is still a usable solution in practice. */
+        /* Use the ADMM iterate for control.
+         * MAX_ITERATIONS is still a partially converged, usually usable solution. */
         result->optimal_control.delta = admm_result.u_opt[0][MPCC_IDX_DELTA];
         result->optimal_control.a_x = admm_result.u_opt[0][MPCC_IDX_AX];
         result->optimal_control.v_theta = admm_result.u_opt[0][MPCC_IDX_VTHETA];
+
+        /* Steering rate clamp: prevent physically impossible steering jumps.
+         * sv_max ≈ 2.85 rad/s → max change = sv_max * dt per call. */
+        {
+            float max_delta_change = 2.85f * config.dt;
+            float delta_diff = result->optimal_control.delta - prev_control.delta;
+            if (delta_diff > max_delta_change)
+                result->optimal_control.delta = prev_control.delta + max_delta_change;
+            else if (delta_diff < -max_delta_change)
+                result->optimal_control.delta = prev_control.delta - max_delta_change;
+        }
 
         /* Copy predicted trajectory to result */
         uint16_t N = config.horizon_steps;
@@ -1248,11 +1348,10 @@ MPCCStatus_t mpcc_compute_control(
 
         prev_control = result->optimal_control;
     } else {
-        /* Infeasible/error: fall back to shifted warm-start control, but
-         * still update warm-start buffers with the latest ADMM iterate. */
+        /* Unconverged / error: fall back to previous good control. */
         result->optimal_control = fallback_control;
 
-        /* Copy ADMM predicted trajectory for warm-start AND diagnostics */
+        /* Copy ADMM predicted trajectory for diagnostics */
         uint16_t N = config.horizon_steps;
         for (uint16_t k = 0; k <= N; k++)
             array_to_state(admm_result.x_opt[k], &result->predicted_states[k]);
@@ -1263,11 +1362,16 @@ MPCCStatus_t mpcc_compute_control(
             result->predicted_controls[k].v_theta = admm_result.u_opt[k][MPCC_IDX_VTHETA];
         }
 
-        /* Update warm-start with ADMM output (approximate but fresh) */
-        for (uint16_t k = 0; k <= N; k++)
-            prev_predicted_states[k] = result->predicted_states[k];
-        for (uint16_t k = 0; k < N; k++)
-            prev_predicted_controls[k] = result->predicted_controls[k];
+        /* Only update warm-start if residual is moderate (partially converged).
+         * For badly diverged solves, keep the previous warm-start to avoid
+         * contaminating the next solve with garbage. */
+        if (admm_result.primal_residual < 50.0f * config.admm_tolerance) {
+            for (uint16_t k = 0; k <= N; k++)
+                prev_predicted_states[k] = result->predicted_states[k];
+            for (uint16_t k = 0; k < N; k++)
+                prev_predicted_controls[k] = result->predicted_controls[k];
+        }
+        /* else: keep prev_predicted_states/controls from last good solve */
     }
     warm_start_available = 1;
 
