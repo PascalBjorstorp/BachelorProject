@@ -1,0 +1,305 @@
+{
+  "configById": {
+    "3D!pjn0oo": {
+      "cameraState": {
+        "perspective": false,
+        "distance": 9.265824603194922,
+        "phi": 60.000000000000234,
+        "thetaOffset": 86.87258687258894,
+        "targetOffset": [
+          1.4439559624866465,
+          0.04896906839834138,
+          -8.876472184070713e-18
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "fovy": 45,
+        "near": 0.5,
+        "far": 5000
+      },
+      "followMode": "follow-heading",
+      "scene": {
+        "transforms": {
+          "visible": false
+        }
+      },
+      "transforms": {},
+      "topics": {
+        "/map": {
+          "visible": true
+        },
+        "/amcl_pose": {
+          "visible": false
+        },
+        "/ekf_pose": {
+          "visible": true,
+          "type": "arrow",
+          "color": "#2300ffff"
+        },
+        "/local_raceline_wall_distance_markers": {
+          "visible": true
+        },
+        "/local_raceline_viz": {
+          "visible": true,
+          "lineWidth": 0.1,
+          "gradient": [
+            "#45ff00ff",
+            "#45ff00ff"
+          ]
+        },
+        "/scan": {
+          "visible": true,
+          "colorField": "intensity",
+          "colorMode": "colormap",
+          "colorMap": "rainbow",
+          "pointSize": 9
+        },
+        "/opponent_marker": {
+          "visible": true
+        }
+      },
+      "layers": {
+        "grid": {
+          "visible": true,
+          "drawBehind": false,
+          "label": "Grid",
+          "instanceId": "091f14ab-b363-43fb-8e96-e28183061cc0",
+          "layerId": "foxglove.Grid",
+          "size": 10,
+          "divisions": 10,
+          "lineWidth": 1,
+          "color": "#248eff",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "publish": {
+        "type": "point",
+        "poseTopic": "/move_base_simple/goal",
+        "pointTopic": "/clicked_point",
+        "poseEstimateTopic": "/initialpose",
+        "poseEstimateXDeviation": 0.5,
+        "poseEstimateYDeviation": 0.5,
+        "poseEstimateThetaDeviation": 0.26179939
+      },
+      "synchronize": false,
+      "imageMode": {},
+      "followTf": "ego_racecar/base_link"
+    },
+    "3D!1vqceb1": {
+      "cameraState": {
+        "perspective": false,
+        "distance": 19.99999999999825,
+        "phi": 60.000000000000234,
+        "thetaOffset": -28.250355618776958,
+        "targetOffset": [
+          -0.9114607017620449,
+          -0.2946649152490004,
+          -8.877788302289368e-18
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "fovy": 45,
+        "near": 0.5,
+        "far": 5000
+      },
+      "followMode": "follow-pose",
+      "scene": {
+        "transforms": {
+          "visible": false
+        }
+      },
+      "transforms": {},
+      "topics": {
+        "/map": {
+          "visible": true
+        },
+        "/amcl_pose": {
+          "visible": false
+        },
+        "/ekf_pose": {
+          "visible": true,
+          "type": "arrow",
+          "color": "#2300ffff"
+        },
+        "/local_raceline_wall_distance_markers": {
+          "visible": true
+        },
+        "/local_raceline_viz": {
+          "visible": true,
+          "lineWidth": 0.1,
+          "gradient": [
+            "#45ff00ff",
+            "#45ff00ff"
+          ]
+        },
+        "/scan": {
+          "visible": true,
+          "colorField": "intensity",
+          "colorMode": "colormap",
+          "colorMap": "rainbow",
+          "pointSize": 9
+        },
+        "/opponent_marker": {
+          "visible": true
+        }
+      },
+      "layers": {
+        "grid": {
+          "visible": true,
+          "drawBehind": false,
+          "label": "Grid",
+          "instanceId": "091f14ab-b363-43fb-8e96-e28183061cc0",
+          "layerId": "foxglove.Grid",
+          "size": 10,
+          "divisions": 10,
+          "lineWidth": 1,
+          "color": "#248eff",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "publish": {
+        "type": "point",
+        "poseTopic": "/move_base_simple/goal",
+        "pointTopic": "/clicked_point",
+        "poseEstimateTopic": "/initialpose",
+        "poseEstimateXDeviation": 0.5,
+        "poseEstimateYDeviation": 0.5,
+        "poseEstimateThetaDeviation": 0.26179939
+      },
+      "synchronize": false,
+      "imageMode": {}
+    },
+    "Gauge!3aildky": {
+      "path": "/ackermann_cmd.drive.speed",
+      "style": "dial",
+      "minValue": 0,
+      "maxValue": 10,
+      "colorMap": "red-yellow-green",
+      "colorMode": "colormap",
+      "gradient": [
+        "#0000ff",
+        "#ff00ff"
+      ],
+      "reverse": false,
+      "reverseDirection": false
+    },
+    "Gauge!1onzl7x": {
+      "path": "/ackermann_cmd.drive.acceleration",
+      "style": "dial",
+      "minValue": -10,
+      "maxValue": 10,
+      "colorMap": "red-yellow-green",
+      "colorMode": "colormap",
+      "gradient": [
+        "#0000ff",
+        "#ff00ff"
+      ],
+      "reverse": false,
+      "reverseDirection": false
+    },
+    "Plot!1uaahf5": {
+      "paths": [
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/ackermann_cmd.drive.speed",
+          "enabled": true,
+          "color": "#0099ff",
+          "id": "ad196155-0f80-46f0-8bfb-9f608b6d2e90",
+          "lineSize": 3
+        },
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/ackermann_cmd.drive.acceleration",
+          "enabled": true,
+          "color": "#00ff1e",
+          "id": "09a899f3-0a11-4ef7-bfff-6ead11380435",
+          "lineSize": 3
+        }
+      ]
+    },
+    "Plot!2jyeury": {
+      "paths": [
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/ackermann_cmd.drive.steering_angle",
+          "enabled": true,
+          "color": "#0080ff",
+          "id": "2e00e9cc-a5ac-4e31-8ab9-2292b3c3647e",
+          "lineSize": 3
+        }
+      ]
+    },
+    "Tab!3at6dum": {
+      "activeTabIdx": 0,
+      "tabs": [
+        {
+          "layout": {
+            "first": {
+              "first": "3D!pjn0oo",
+              "second": "3D!1vqceb1",
+              "direction": "row"
+            },
+            "second": {
+              "first": {
+                "first": "Gauge!3aildky",
+                "second": "Gauge!1onzl7x",
+                "direction": "column"
+              },
+              "second": {
+                "first": "Plot!1uaahf5",
+                "second": "Plot!2jyeury",
+                "direction": "column"
+              },
+              "direction": "row"
+            },
+            "direction": "column",
+            "splitPercentage": 58.590978205778
+          },
+          "title": ""
+        }
+      ]
+    }
+  },
+  "globalVariables": {},
+  "playbackConfig": {
+    "speed": 1
+  },
+  "userNodes": {},
+  "layout": "Tab!3at6dum"
+}
