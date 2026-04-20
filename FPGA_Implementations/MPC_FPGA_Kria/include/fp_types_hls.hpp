@@ -3,7 +3,7 @@
  * @brief AP-fixed type families for Kria MPC.
  *
  * IO boundary is fixed to Q16.16 to match the receiver protocol.
- * Internal families are separated into QP and accumulator domains.
+ * Internal solver family uses QP precision plus guarded raw accumulation.
  */
 
 #ifndef FP_TYPES_HLS_HPP
@@ -24,23 +24,15 @@
 #endif
 
 #ifndef MPC_HLS_RICCATI_WIDTH
-#define MPC_HLS_RICCATI_WIDTH 32
+#define MPC_HLS_RICCATI_WIDTH 30
 #endif
 
 #ifndef MPC_HLS_RICCATI_INT_BITS
 #define MPC_HLS_RICCATI_INT_BITS 16
 #endif
 
-#ifndef MPC_HLS_ACCUM_WIDTH
-#define MPC_HLS_ACCUM_WIDTH 24
-#endif
-
-#ifndef MPC_HLS_ACCUM_INT_BITS
-#define MPC_HLS_ACCUM_INT_BITS 12
-#endif
-
 #ifndef MPC_HLS_RAW_ACC_GUARD_BITS
-#define MPC_HLS_RAW_ACC_GUARD_BITS 20
+#define MPC_HLS_RAW_ACC_GUARD_BITS 16
 #endif
 
 /* IO boundary is FIXED to Q16.16 for protocol compatibility with Jetson/Kria.
@@ -52,13 +44,10 @@ static_assert(MPC_HLS_IO_WIDTH > MPC_HLS_IO_INT_BITS,
               "MPC_HLS_IO_WIDTH must exceed MPC_HLS_IO_INT_BITS");
 static_assert(MPC_HLS_RICCATI_WIDTH > MPC_HLS_RICCATI_INT_BITS,
               "MPC_HLS_RICCATI_WIDTH must exceed MPC_HLS_RICCATI_INT_BITS");
-static_assert(MPC_HLS_ACCUM_WIDTH > MPC_HLS_ACCUM_INT_BITS,
-              "MPC_HLS_ACCUM_WIDTH must exceed MPC_HLS_ACCUM_INT_BITS");
 
 typedef ap_int<32> fp_stream_raw_t;
 typedef ap_fixed<MPC_HLS_IO_WIDTH, MPC_HLS_IO_INT_BITS, AP_TRN, AP_WRAP> fp_io_t;
 typedef ap_fixed<MPC_HLS_RICCATI_WIDTH, MPC_HLS_RICCATI_INT_BITS, AP_TRN, AP_WRAP> fp_QP_t;
-typedef ap_fixed<MPC_HLS_ACCUM_WIDTH, MPC_HLS_ACCUM_INT_BITS, AP_TRN, AP_WRAP> fp_accum_t;
 typedef ap_int<MPC_HLS_RICCATI_WIDTH> fp_qp_raw_t;
 typedef ap_int<(MPC_HLS_RICCATI_WIDTH + MPC_HLS_RAW_ACC_GUARD_BITS)> fp_raw_acc_t;
 
@@ -134,20 +123,6 @@ static inline fp_QP_t fp_qp_from_raw_acc(fp_raw_acc_t raw)
     fp_raw_acc_t clipped = fp_clip_raw_to_qp(raw);
     return fp_QP_from_qp_raw((fp_qp_raw_t)clipped);
 }
-
-
-
-/**
- * @brief Convert packed raw value to accumulator family type.
- * @param raw Packed stream payload.
- * @return Accumulator family value.
- */
-static inline fp_accum_t fp_accum_from_raw(fp_stream_raw_t raw)
-{
-#pragma HLS INLINE
-    return (fp_accum_t)fp_io_from_raw(raw);
-}
-
 /**
  * @brief Convert IO family value to packed raw payload.
  * @param value IO family value.
@@ -165,17 +140,6 @@ static inline fp_stream_raw_t fp_raw_from_io(fp_io_t value)
  * @return Packed raw payload.
  */
 static inline fp_stream_raw_t fp_raw_from_QP(fp_QP_t value)
-{
-#pragma HLS INLINE
-    return fp_raw_from_io((fp_io_t)value);
-}
-
-/**
- * @brief Convert accumulator family value to packed raw payload.
- * @param value Accumulator family value.
- * @return Packed raw payload.
- */
-static inline fp_stream_raw_t fp_raw_from_accum(fp_accum_t value)
 {
 #pragma HLS INLINE
     return fp_raw_from_io((fp_io_t)value);

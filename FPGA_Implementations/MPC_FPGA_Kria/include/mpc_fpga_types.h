@@ -60,13 +60,13 @@
  *  Higher default to reduce cycle count in matrix-heavy backward/forward passes.
  *  Override at compile time: -DMPC_HLS_RICCATI_MUL_LIMIT=N */
 #ifndef MPC_HLS_RICCATI_MUL_LIMIT
-#define MPC_HLS_RICCATI_MUL_LIMIT 8
+#define MPC_HLS_RICCATI_MUL_LIMIT 16
 #endif
 
 /** Vehicle model multiplier budget.
  *  Override at compile time: -DMPC_HLS_VEHICLE_MUL_LIMIT=N */
 #ifndef MPC_HLS_VEHICLE_MUL_LIMIT
-#define MPC_HLS_VEHICLE_MUL_LIMIT 8
+#define MPC_HLS_VEHICLE_MUL_LIMIT 16
 #endif
 
 /** ADMM state z/y update loop target II.
@@ -84,13 +84,13 @@
 /** Step-data assembly loop target II in mpc_compute_hls.
  *  Override at compile time: -DMPC_HLS_STEP_ASSEMBLY_II=N */
 #ifndef MPC_HLS_STEP_ASSEMBLY_II
-#define MPC_HLS_STEP_ASSEMBLY_II 8
+#define MPC_HLS_STEP_ASSEMBLY_II 6
 #endif
 
 /** Unroll factor for G = M*A inner reduction loops.
  *  Override at compile time: -DMPC_HLS_UNROLL_GMA_FACTOR=N */
 #ifndef MPC_HLS_UNROLL_GMA_FACTOR
-#define MPC_HLS_UNROLL_GMA_FACTOR 3
+#define MPC_HLS_UNROLL_GMA_FACTOR 2
 #endif
 
 /** Unroll factor for p-shift accumulation loops.
@@ -120,7 +120,7 @@
 /** M = B^T P backward pass pipeline II.
  *  Override at compile time: -DMPC_HLS_M_BT_P_II=N */
 #ifndef MPC_HLS_M_BT_P_II
-#define MPC_HLS_M_BT_P_II 5
+#define MPC_HLS_M_BT_P_II 2
 #endif
 
 #if (MPC_HLS_UNROLL_GMA_FACTOR < 1) || (MPC_HLS_UNROLL_GMA_FACTOR > 4)

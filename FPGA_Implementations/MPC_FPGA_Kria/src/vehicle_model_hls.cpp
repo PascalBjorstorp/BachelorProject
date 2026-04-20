@@ -15,9 +15,9 @@
  * predictable operator binding and latency. */
 static fp_QP_t fp_mul_vm(fp_QP_t a, fp_QP_t b) {
 #pragma HLS INLINE off
-#pragma HLS LATENCY min=4 max=4
+#pragma HLS LATENCY min=MPC_HLS_VM_MUL_LATENCY max=MPC_HLS_VM_MUL_LATENCY
     fp_QP_t product = a * b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency=4
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency=MPC_HLS_VM_MUL_LATENCY
     return product;
 }
 
@@ -358,7 +358,7 @@ void predict_frenet_next_hls(
     fp_QP_t kappa, fp_QP_t dt,
     fp_QP_t next_state[MPC_NX_FRENET])
 {
-#pragma HLS INLINE
+#pragma HLS INLINE off
 #pragma HLS ALLOCATION operation instances=mul limit=MPC_HLS_VEHICLE_MUL_LIMIT
 #pragma HLS ALLOCATION function instances=fp_mul_vm limit=MPC_HLS_VEHICLE_MUL_LIMIT
 #pragma HLS ALLOCATION function instances=fp_recip limit=4

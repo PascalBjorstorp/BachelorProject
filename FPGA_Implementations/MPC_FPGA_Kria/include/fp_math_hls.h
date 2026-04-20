@@ -17,11 +17,23 @@
  */
 #define FP_RAW_ACC_WIDTH (MPC_HLS_RICCATI_WIDTH + MPC_HLS_RAW_ACC_GUARD_BITS)
 
+/* Tunable arithmetic scheduling knobs for latency-focused HLS sweeps. */
+#ifndef MPC_HLS_MUL_LATENCY
+#define MPC_HLS_MUL_LATENCY 4
+#endif
+
+#ifndef MPC_HLS_VM_MUL_LATENCY
+#define MPC_HLS_VM_MUL_LATENCY 4
+#endif
+
+#ifndef MPC_HLS_TRIG_INLINE
+#define MPC_HLS_TRIG_INLINE 1
+#endif
+
 /* Fixed-point base constants */
 #define FP_FRAC_BITS       (MPC_HLS_RICCATI_WIDTH - MPC_HLS_RICCATI_INT_BITS)
 #define FP_IO_CONST(x)     ((fp_io_t)(x))
 #define FP_QP_CONST(x)     ((fp_QP_t)(x))
-#define FP_ACCUM_CONST(x)  ((fp_accum_t)(x))
 #define FP_ONE             FP_QP_CONST(1.0)
 #define FP_TWO             FP_QP_CONST(2.0)
 #define FP_HALF            FP_QP_CONST(0.5)
@@ -58,7 +70,6 @@ fp_io_t fp_mul(fp_io_t a, fp_io_t b);      /* Q16.16 I/O multiplication (when di
 #endif
 
 fp_QP_t fp_mul(fp_QP_t a, fp_QP_t b);      /* Riccati domain multiplication (DSP-pipelined) */
-fp_accum_t fp_mul(fp_accum_t a, fp_accum_t b); /* Accumulator domain multiplication */
 
 static inline fp_QP_t fp_div(fp_QP_t a, fp_QP_t b)
 {

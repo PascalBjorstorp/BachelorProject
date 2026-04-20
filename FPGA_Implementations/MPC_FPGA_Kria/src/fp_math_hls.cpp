@@ -30,15 +30,7 @@ fp_QP_t fp_mul(fp_QP_t a, fp_QP_t b)
 {
 #pragma HLS INLINE off
     fp_QP_t product = a * b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency=4
-    return product;
-}
-
-/* Overloaded fp_mul for accumulator type (distinct from QP domain). */
-fp_accum_t fp_mul(fp_accum_t a, fp_accum_t b)
-{
-#pragma HLS INLINE
-    fp_accum_t product = a * b;
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency=MPC_HLS_MUL_LATENCY
     return product;
 }
 
@@ -182,7 +174,11 @@ fp_QP_t fp_recip(fp_QP_t x)
 
 fp_QP_t fp_sin(fp_QP_t angle)
 {
+#if MPC_HLS_TRIG_INLINE
 #pragma HLS INLINE
+#else
+#pragma HLS INLINE off
+#endif
     angle = fp_normalize_angle(angle);
 
     int negate = 0;
@@ -213,7 +209,11 @@ fp_QP_t fp_sin(fp_QP_t angle)
 
 fp_QP_t fp_cos(fp_QP_t angle)
 {
+#if MPC_HLS_TRIG_INLINE
 #pragma HLS INLINE
+#else
+#pragma HLS INLINE off
+#endif
     angle = fp_normalize_angle(angle);
     angle = fp_abs(angle);
 
@@ -262,7 +262,11 @@ static fp_QP_t fp_atan_small(fp_QP_t x)
 
 fp_QP_t fp_atan(fp_QP_t x)
 {
+#if MPC_HLS_TRIG_INLINE
 #pragma HLS INLINE
+#else
+#pragma HLS INLINE off
+#endif
     if (x == 0) return 0;
 
     bool neg = (x < 0);
