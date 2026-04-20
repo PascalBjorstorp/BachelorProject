@@ -36,7 +36,7 @@ gpu_amcl_cpp:
     global_frame_id: "map"
 
     # ---- Topics ----
-    scan_topic: "/scan_walls"
+    scan_topic: "/scan"
     odom_topic: "/ego_racecar/odom"
 
     # ---- Update thresholds (metres / radians) ----

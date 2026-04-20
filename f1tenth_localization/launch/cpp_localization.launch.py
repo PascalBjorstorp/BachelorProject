@@ -2,13 +2,12 @@
 Launch file for the C++ GPU AMCL localization stack.
 
 Launches three nodes:
-  1. gpu_amcl_cpp      — GPU particle-filter AMCL (40 Hz, subscribes to /scan_walls)
+    1. gpu_amcl_cpp      — GPU particle-filter AMCL (40 Hz, subscribes to /scan)
   2. odom_fused        — IMU + wheel odom fusion (200 Hz)
   3. ekf_localization  — EKF sensor fusion + TF broadcast
 
 The map_server is expected to be running from bringup_launch.py.
-The scan splitter (/scan → /scan_walls) is expected to be running
-from the bringup_launch.py driver stack.
+The LiDAR driver publishing /scan is expected to be running from bringup_launch.py.
 
 All parameters are loaded from config/gpu_amcl_cpp_params.yaml.
 """

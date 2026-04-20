@@ -179,7 +179,7 @@ target_include_directories(pipeline_latency_monitor PUBLIC
   include
 )
 ament_target_dependencies(pipeline_latency_monitor
-  rclcpp sensor_msgs geometry_msgs std_msgs
+  rclcpp sensor_msgs geometry_msgs std_msgs ackermann_msgs
 )
 
 add_executable(performance_monitor_cpp

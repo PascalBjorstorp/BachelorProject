@@ -17,16 +17,15 @@ namespace f1tenth_lidar
 {
 
 /**
- * @brief Splits raw LiDAR scan into wall beams and obstacle beams.
+ * @brief Extracts obstacle beams from raw LiDAR scans.
  *
  * Subscribes to raw /scan and the static occupancy-grid map, then for each
  * beam checks whether the endpoint lies near a known wall (using a
  * precomputed distance field).  Beams that hit something NOT in the map are
  * classified as obstacle beams (likely the opponent car).
  *
- * Publishes two LaserScan topics:
- *   /scan_walls     — obstacle beams replaced with inf  (for AMCL)
- *   /scan_obstacles — wall beams replaced with inf      (for lateral planner)
+ * Publishes one LaserScan topic:
+ *   /scan_obstacles — wall beams replaced with inf (for lateral planner)
  */
 class ScanSplitterNode : public rclcpp::Node
 {
@@ -61,7 +60,6 @@ private:
   int    min_cluster_size_{SCAN_SPLITTER_MIN_CLUSTER_SIZE};
   int    max_cluster_gap_beams_{SCAN_SPLITTER_MAX_CLUSTER_GAP_BEAMS};
   std::string scan_topic_{SCAN_SPLITTER_SCAN_TOPIC};
-  std::string walls_topic_{SCAN_SPLITTER_WALLS_TOPIC};
   std::string obstacles_topic_{SCAN_SPLITTER_OBSTACLES_TOPIC};
   std::string laser_frame_{SCAN_SPLITTER_LASER_FRAME};
   std::string map_frame_{SCAN_SPLITTER_MAP_FRAME};
@@ -78,7 +76,6 @@ private:
   // ── Pre-allocated work buffers (avoid per-callback heap alloc) ────
   std::vector<float> angles_;
   std::vector<bool>  is_obstacle_;
-  std::vector<float> wall_ranges_;
   std::vector<float> obstacle_ranges_;
 
   // ── ROS interfaces ────────────────────────────────────────────────
@@ -88,7 +85,6 @@ private:
   rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub_;
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr  scan_sub_;
 
-  rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr walls_pub_;
   rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr obstacles_pub_;
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr splitter_timing_pub_;
 };

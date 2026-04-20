@@ -10,7 +10,6 @@
 #define SCAN_SPLITTER_MAX_CLUSTER_GAP_BEAMS 1
 
 #define SCAN_SPLITTER_SCAN_TOPIC "/scan"
-#define SCAN_SPLITTER_WALLS_TOPIC "/scan_walls"
 #define SCAN_SPLITTER_OBSTACLES_TOPIC "/scan_obstacles"
 
 #define SCAN_SPLITTER_LASER_FRAME "ego_racecar/laser"

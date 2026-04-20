@@ -287,7 +287,8 @@ void HokuyoScipDriver::receive_loop()
     while ((pos = buf.find("\n\n")) != std::string::npos) {
       std::string message = buf.substr(0, pos);
       buf.erase(0, pos + 2);
-      process_md_response(message);
+      const auto rx_stamp = now();
+      process_md_response(message, rx_stamp);
     }
   }
 }
@@ -330,7 +331,9 @@ std::vector<int> HokuyoScipDriver::scip_decode(const std::string & data)
 //  MD Response → LaserScan
 // ═════════════════════════════════════════════════════════════════════════════
 
-void HokuyoScipDriver::process_md_response(const std::string & message)
+void HokuyoScipDriver::process_md_response(
+  const std::string & message,
+  const rclcpp::Time & rx_stamp)
 {
   // Split into lines
   std::vector<std::string> lines;
@@ -351,7 +354,9 @@ void HokuyoScipDriver::process_md_response(const std::string & message)
   // Line 1: status (first 2 chars)
   if (lines[1].size() < 2 || lines[1].substr(0, 2) != "99") return;
 
-  // Line 2: timestamp (ignored; we use wall clock)
+  // Line 2: sensor timestamp (not used directly here).
+  // We anchor scan.header.stamp at the driver receive time (rx_stamp)
+  // so downstream latency monitors include in-driver handling.
 
   // Lines 3+: distance data
   std::string data_str;
@@ -368,7 +373,7 @@ void HokuyoScipDriver::process_md_response(const std::string & message)
 
   // Build LaserScan
   sensor_msgs::msg::LaserScan scan;
-  scan.header.stamp    = now();
+  scan.header.stamp    = rx_stamp;
   scan.header.frame_id = frame_id_;
 
   const int    num_points           = static_cast<int>(distances_mm.size());
