@@ -125,6 +125,8 @@ endforeach()
 # ===================
 # Install targets
 # ===================
+
+# Install main libraries and node executables
 install(
   TARGETS f1tenth_common ftg_algorithm pure_pursuit_algorithm stanley_algorithm pure_pursuit_node stanley_node ftg_node_component
   ARCHIVE DESTINATION lib
@@ -182,6 +184,11 @@ if(BUILD_TESTING)
   add_executable(test_sim_drive_stanley test/test_sim_drive_stanley.cpp)
   target_link_libraries(test_sim_drive_stanley stanley_algorithm)
   ament_target_dependencies(test_sim_drive_stanley ${DEPENDENCIES})
+  # Install test executables so they are available to ros2 run
+  install(
+    TARGETS test_sim_drive_pure_pursuit test_sim_drive_stanley
+    RUNTIME DESTINATION lib/${PROJECT_NAME}
+  )
 endif()
 
 # Export

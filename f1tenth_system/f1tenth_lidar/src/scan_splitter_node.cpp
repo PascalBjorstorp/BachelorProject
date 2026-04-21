@@ -47,7 +47,6 @@ ScanSplitterNode::ScanSplitterNode(const rclcpp::NodeOptions & options)
   // difference vs BEST_EFFORT is negligible on localhost / shared memory.
   rclcpp::QoS pub_qos(5);
   pub_qos.reliable();
-  walls_pub_     = this->create_publisher<sensor_msgs::msg::LaserScan>(walls_topic_, pub_qos);
   obstacles_pub_ = this->create_publisher<sensor_msgs::msg::LaserScan>(obstacles_topic_, pub_qos);
 
   // ── Timing publisher ─────────────────────────────────────────────
@@ -57,7 +56,6 @@ ScanSplitterNode::ScanSplitterNode(const rclcpp::NodeOptions & options)
   RCLCPP_INFO(this->get_logger(), "Scan Splitter Node (C++) initialized");
   RCLCPP_INFO(this->get_logger(), "  Splitting enabled: %s", enable_splitting_ ? "true" : "false");
   RCLCPP_INFO(this->get_logger(), "  Input:  %s", scan_topic_.c_str());
-  RCLCPP_INFO(this->get_logger(), "  Walls:  %s", walls_topic_.c_str());
   RCLCPP_INFO(this->get_logger(), "  Obstacles: %s", obstacles_topic_.c_str());
   RCLCPP_INFO(this->get_logger(), "  Threshold: %.2f m", obstacle_threshold_);
   RCLCPP_INFO(this->get_logger(), "  Min cluster size: %d beams", min_cluster_size_);
@@ -152,8 +150,6 @@ void ScanSplitterNode::scan_callback(
 
   // ── Passthrough mode ──────────────────────────────────────────────
   if (!enable_splitting_) {
-    walls_pub_->publish(*scan);
-
     auto empty = *scan;
     empty.ranges.assign(n, INF);
     obstacles_pub_->publish(empty);
@@ -161,8 +157,6 @@ void ScanSplitterNode::scan_callback(
   }
 
   if (!map_ready_) {
-    walls_pub_->publish(*scan);
-
     auto empty = *scan;
     empty.ranges.assign(n, INF);
     obstacles_pub_->publish(empty);
@@ -177,8 +171,7 @@ void ScanSplitterNode::scan_callback(
       tf2::durationFromSec(0.02));
   } catch (const tf2::TransformException & ex) {
     RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
-      "TF lookup failed: %s — passing through raw scan", ex.what());
-    walls_pub_->publish(*scan);
+      "TF lookup failed: %s — publishing empty obstacle scan", ex.what());
 
     auto empty = *scan;
     empty.ranges.assign(n, INF);
@@ -197,7 +190,6 @@ void ScanSplitterNode::scan_callback(
   if (angles_.size() != n) {
     angles_.resize(n);
     is_obstacle_.resize(n);
-    wall_ranges_.resize(n);
     obstacle_ranges_.resize(n);
 
     // Precompute beam angles (constant for a given scanner config)
@@ -255,29 +247,15 @@ void ScanSplitterNode::scan_callback(
   }
 
   // ── Build output scans ────────────────────────────────────────────
-  // Walls scan keeps only wall beams; obstacles scan keeps only obstacle beams.
   for (size_t i = 0; i < n; ++i) {
     if (is_obstacle_[i]) {
-      wall_ranges_[i] = INF;
       obstacle_ranges_[i] = ranges[i];
     } else {
-      wall_ranges_[i] = ranges[i];
       obstacle_ranges_[i] = INF;
     }
   }
 
   // ── Publish ───────────────────────────────────────────────────────
-  sensor_msgs::msg::LaserScan walls_msg;
-  walls_msg.header          = scan->header;
-  walls_msg.angle_min       = scan->angle_min;
-  walls_msg.angle_max       = scan->angle_max;
-  walls_msg.angle_increment = scan->angle_increment;
-  walls_msg.time_increment  = scan->time_increment;
-  walls_msg.scan_time       = scan->scan_time;
-  walls_msg.range_min       = scan->range_min;
-  walls_msg.range_max       = scan->range_max;
-  walls_msg.ranges.assign(wall_ranges_.begin(), wall_ranges_.end());
-
   sensor_msgs::msg::LaserScan obs_msg;
   obs_msg.header          = scan->header;
   obs_msg.angle_min       = scan->angle_min;
@@ -289,7 +267,6 @@ void ScanSplitterNode::scan_callback(
   obs_msg.range_max       = scan->range_max;
   obs_msg.ranges.assign(obstacle_ranges_.begin(), obstacle_ranges_.end());
 
-  walls_pub_->publish(walls_msg);
   obstacles_pub_->publish(obs_msg);
 
   // ── Timing ──────────────────────────────────────────────────────

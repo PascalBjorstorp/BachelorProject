@@ -47,7 +47,7 @@ private:
   // ── Streaming ──────────────────────────────────────────────────────
   void start_streaming();
   void receive_loop();
-  void process_md_response(const std::string & message);
+  void process_md_response(const std::string & message, const rclcpp::Time & rx_stamp);
 
   // ── SCIP decode ────────────────────────────────────────────────────
   /// Decode SCIP 2.0 three-character encoded data into integer distances (mm).

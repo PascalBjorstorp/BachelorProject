@@ -84,7 +84,7 @@ void AmclNode::declare_all_parameters() {
     declare_parameter<std::string>("global_frame_id", "map");
 
     // Topics
-    declare_parameter<std::string>("scan_topic", "/scan_walls");
+    declare_parameter<std::string>("scan_topic", "/scan");
     declare_parameter<std::string>("odom_topic", "/ego_racecar/odom");
 
     // Update thresholds
