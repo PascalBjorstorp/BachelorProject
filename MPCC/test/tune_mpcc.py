@@ -56,30 +56,30 @@ LOCKED_CROSS_CALL_SCALE = round((1.0 / 200.0) / LOCKED_DT, 6)  # = 0.1
 
 BASE_CONFIG = {
     # Contouring tracking
-    "Q_CONTOURING":      1500.0,
-    "Q_LAG":             400.0,
-    "Q_PROGRESS":        40.0,
+    "Q_CONTOURING":      960.0,
+    "Q_LAG":             100.0,
+    "Q_PROGRESS":        15.6,
 
     # State regularization — increased for 12x stronger tires
     "Q_VX":              30.0,
     "VX_REF":            4.0,
-    "Q_VY":              10.0,
-    "Q_OMEGA":           6.0,
+    "Q_VY":              0.5,
+    "Q_OMEGA":           3.0,
 
     # Control effort — R_DELTA raised for ADMM convergence on tight curves
-    "R_DELTA":           130.0,
-    "R_AX":              0.055,
+    "R_DELTA":           100.0,
+    "R_AX":              0.05225,
     "R_VTHETA":          0.1,
 
     # Control rate smoothness — delta rate raised for stability
-    "W_DELTA_RATE":      3.0,
-    "W_AX_RATE":         0.61,
-    "W_VTHETA_RATE":     0.13,
+    "W_DELTA_RATE":      2.0,
+    "W_AX_RATE":         0.488,
+    "W_VTHETA_RATE":     0.1105,
 
     # Terminal weights — MUST be >= running weights
-    "Q_CONTOURING_TERM": 4000.0,
-    "Q_LAG_TERM":        500.0,
-    "Q_PROGRESS_TERM":   40.0,
+    "Q_CONTOURING_TERM": 4800.0,
+    "Q_LAG_TERM":        800.0,
+    "Q_PROGRESS_TERM":   41.4,
 
     # ADMM solver — more iterations for harder problem
     "ADMM_RHO":          5.0,
@@ -87,7 +87,7 @@ BASE_CONFIG = {
     "ADMM_TOL":          0.02,
 
     # V_THETA_MAX >= vx_max so reference keeps up with vehicle
-    "V_THETA_MAX":       8.0,
+    "V_THETA_MAX":       15.0,
 
     # LOCKED — not swept
     "HORIZON":           LOCKED_HORIZON,
@@ -96,14 +96,26 @@ BASE_CONFIG = {
 }
 
 RACER_BASE_OVERRIDES = {
-    "Q_PROGRESS":        60.0,
-    "V_THETA_MAX":       25.0,
-    "Q_CONTOURING":      800.0,
-    "Q_LAG":             200.0,
-    "Q_CONTOURING_TERM": 3000.0,
-    "Q_LAG_TERM":        400.0,
-    "Q_PROGRESS_TERM":   60.0,
-    "R_VTHETA":          0.05,
+    "Q_CONTOURING":      960.0,
+    "Q_LAG":             100.0,
+    "Q_PROGRESS":        15.6,
+    "Q_VY":              0.5,
+    "Q_OMEGA":           3.0,
+    "Q_VX":              30.0,
+    "VX_REF":            4.0,
+    "R_DELTA":           100.0,
+    "R_AX":              0.05225,
+    "R_VTHETA":          0.1,
+    "W_DELTA_RATE":      2.0,
+    "W_AX_RATE":         0.488,
+    "W_VTHETA_RATE":     0.1105,
+    "Q_CONTOURING_TERM": 4800.0,
+    "Q_LAG_TERM":        800.0,
+    "Q_PROGRESS_TERM":   41.4,
+    "ADMM_RHO":          5.0,
+    "ADMM_MAX_ITER":     300,
+    "ADMM_TOL":          0.02,
+    "V_THETA_MAX":       15.0,
 }
 
 # ==============================================================================
@@ -111,28 +123,27 @@ RACER_BASE_OVERRIDES = {
 # ==============================================================================
 
 PHASE2_VALUES = {
-    "Q_CONTOURING":      [300, 500, 1000, 2000, 4000],
-    "Q_LAG":             [100, 200, 300, 500, 800],
-    "Q_PROGRESS":        [10, 20, 30, 50, 80],
-    "Q_CONTOURING_TERM": [1000, 2000, 4000, 8000],
-    "Q_LAG_TERM":        [200, 400, 800, 1500],
+    "Q_CONTOURING":      [300, 500, 800, 1000],
+    "Q_LAG":             [50, 100, 150, 200, 300],
+    "Q_PROGRESS":        [8, 10, 12, 15, 18, 20],
+    "Q_CONTOURING_TERM": [1000, 2000, 3000, 4000],
+    "Q_LAG_TERM":        [400, 800, 1500],
 }
 
 FULL_SWEEP_VALUES = {
-    "Q_CONTOURING":      [200, 500, 800, 1000, 2000, 3000, 5000],
-    "Q_LAG":             [50, 100, 200, 300, 500, 800, 1000],
-    "Q_PROGRESS":        [5, 10, 15, 20, 30, 50, 80, 120],
+    "Q_CONTOURING":      [300, 500, 800, 1000, 1500],
+    "Q_LAG":             [50, 100, 150, 200, 300, 500],
+    "Q_PROGRESS":        [8, 10, 12, 15, 18, 20, 25],
     "Q_VY":              [0.5, 1.0, 1.5, 3.0, 5.0, 10.0],
     "Q_OMEGA":           [0.3, 0.5, 0.8, 1.5, 3.0, 5.0],
-    "R_DELTA":           [50.0, 80.0, 100.0, 130.0, 160.0, 200.0],
-    "R_VTHETA":          [0.0, 0.05, 0.1, 0.3, 0.5, 1.0],
-    "W_DELTA_RATE":      [0.2, 0.5, 0.65, 1.0, 2.0, 5.0],
+    "R_DELTA":           [100.0, 130.0, 160.0, 200.0],
+    "R_VTHETA":          [0.05, 0.1, 0.2, 0.3],
+    "W_DELTA_RATE":      [2.0, 3.0, 4.0, 5.0],
     "W_VTHETA_RATE":     [0.05, 0.1, 0.13, 0.3, 0.5, 1.0],
-    "Q_CONTOURING_TERM": [500, 1000, 2000, 4000, 8000, 12000],
-    "Q_LAG_TERM":        [100, 200, 400, 800, 1500, 3000],
-    "Q_PROGRESS_TERM":   [5, 10, 20, 30, 50, 80],
-    # ADMM params removed — unused with OSQP solver
-    "V_THETA_MAX":       [8.0, 10.0, 15.0, 20.0, 25.0, 30.0],
+    "Q_CONTOURING_TERM": [1000, 2000, 3000, 4000, 8000],
+    "Q_LAG_TERM":        [400, 800, 1500, 3000],
+    "Q_PROGRESS_TERM":   [20, 30, 40, 50, 60],
+    "V_THETA_MAX":       [8.0, 10.0, 12.0, 15.0],
     "Q_VX":              [0.0, 0.5, 1.0, 1.5, 3.0, 5.0],
     "VX_REF":            [2.0, 3.0, 4.0, 5.0, 6.0, 8.0],
     "R_AX":              [0.02, 0.055, 0.1, 0.3, 1.0],
@@ -142,9 +153,9 @@ FULL_SWEEP_VALUES = {
 PHASE4_VALUES = {
     "Q_VY":         [0.5, 1.0, 1.54, 3.0, 5.0],
     "Q_OMEGA":      [0.3, 0.5, 0.8, 1.5, 3.0],
-    "R_DELTA":      [80.0, 100.0, 130.0, 160.0, 200.0],
-    "W_DELTA_RATE": [0.3, 0.5, 0.65, 1.0, 2.0],
-    "V_THETA_MAX":  [8.0, 12.0, 15.0, 20.0, 25.0],
+    "R_DELTA":      [100.0, 130.0, 160.0, 200.0],
+    "W_DELTA_RATE": [2.0, 3.0, 4.0, 5.0],
+    "V_THETA_MAX":  [8.0, 10.0, 12.0, 15.0],
 }
 
 # PHASE5_VALUES removed — was ADMM-only tuning, unused with OSQP solver

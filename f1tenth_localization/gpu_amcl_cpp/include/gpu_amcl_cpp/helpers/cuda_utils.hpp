@@ -280,7 +280,21 @@ public:
      *   - Throws std::runtime_error if stream creation fails.
      */
     CudaStream(){ 
-        CUDA_CHECK(cudaStreamCreate(&s_)); 
+        int device_count = 0;
+        CUDA_CHECK(cudaGetDeviceCount(&device_count));
+        if (device_count <= 0) {
+            throw std::runtime_error("No CUDA devices available");
+        }
+        CUDA_CHECK(cudaSetDevice(0));
+        CUDA_CHECK(cudaFree(0));
+        cudaError_t stream_status = cudaStreamCreate(&s_);
+        if (stream_status == cudaErrorNotSupported) {
+            s_ = 0;
+            std::fprintf(stderr,
+                         "[gpu_amcl_cpp] CUDA stream creation not supported; using default stream\n");
+            return;
+        }
+        CUDA_CHECK(stream_status);
     }
     /**
      * @brief Destroy the owned CUDA stream if it exists.
