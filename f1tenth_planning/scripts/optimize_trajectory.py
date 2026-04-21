@@ -1123,7 +1123,7 @@ def main():
         help='Clamp velocity to this value [m/s] (default: 12.0)',
     )
     parser.add_argument(
-        '--min-speed', type=float, default=2.0,
+        '--min-speed', type=float, default=2.5,
         help='Minimum velocity [m/s] (default: 2.0). DC motors struggle below this.',
     )
     parser.add_argument(
@@ -1139,7 +1139,7 @@ def main():
         help='Skip centerline extraction (use existing TUM track CSV)',
     )
     parser.add_argument(
-        '--car-width', type=float, default=0.3,
+        '--car-width', type=float, default=0.28,
         help='Physical car width [m] used for wall distance margin (default: 0.273, F1Tenth)',
     )
     parser.add_argument(
@@ -1162,7 +1162,7 @@ def main():
         help='Track direction: auto-detect from winding order, or force cw/ccw (default: cw)',
     )
     parser.add_argument(
-        '--smooth-factor', type=float, default=8.0,
+        '--smooth-factor', type=float, default=20.0,
         help='Spline smoothing factor s_reg for TUM optimizer (default: 2.0). '
              'Lower values preserve centerline shape better; higher values smooth more. '
              '0 = exact interpolation (safest but slowest), 2 = good balance for small tracks.',
