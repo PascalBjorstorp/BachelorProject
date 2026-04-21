@@ -723,8 +723,8 @@ static float compute_speed_limit(float s, float lookahead_m)
     const float vx_max = config.vx_max;
     const float ax_brake_ref = 4.0f;   /* braking for vx_ref-based limit */
     const float ax_brake_curv = 2.0f;  /* conservative braking for curvature limit */
-    const float vx_ref_scale = 0.9f;   /* margin below raceline target */
-    const float curv_safety = 0.8f;    /* conservative cornering speed safety factor */
+    const float vx_ref_scale = 0.98f;  /* small margin below raceline target */
+    const float curv_safety = 0.95f;   /* keep cornering margin, but less conservative */
     const float kappa_thresh = 0.5f;   /* only apply curvature limit above this */
 
     float v_limit = vx_max;
@@ -773,6 +773,7 @@ static void build_qp_problem(
     MPCCQPProblem_t *qp)
 {
     uint16_t N = config.horizon_steps;
+    const float track_buffer = 0.0f;
     if (N > MPCC_MAX_HORIZON) N = MPCC_MAX_HORIZON;
 
     memset(qp, 0, sizeof(*qp));
@@ -867,13 +868,11 @@ static void build_qp_problem(
             z_bar = prev_predicted_states[k];
             u_bar = prev_predicted_controls[k];
         }
-        /* Cold start (k == 0): z_bar is already x0, set above.
-         * Cold start (k  > 0): z_bar was propagated forward at the
-         *                      bottom of the previous iteration — see below. */
 
-        /* Interpolate path at s_bar */
         MPCCPathPoint_t path_pt;
-        mpcc_path_interpolate(&ref_path, z_bar.s, &path_pt);
+        float s_geom = mpcc_find_closest_s_with_hint(
+            &ref_path, z_bar.X, z_bar.Y, z_bar.s);
+        mpcc_path_interpolate(&ref_path, s_geom, &path_pt);
 
         /* --- ADD: store path geometry for ADMM track projection --- */
         qp->path_x_ref[k]   = path_pt.x_ref;
@@ -950,8 +949,10 @@ static void build_qp_problem(
         }
 
         /* Per-stage track bounds on n */
-        qp->track_left[k] = path_pt.left_bound;
-        qp->track_right[k] = path_pt.right_bound;
+        qp->track_left[k] = path_pt.left_bound - track_buffer;
+        qp->track_right[k] = path_pt.right_bound - track_buffer;
+        if (qp->track_left[k] < 0.02f) qp->track_left[k] = 0.02f;
+        if (qp->track_right[k] < 0.02f) qp->track_right[k] = 0.02f;
 
         /* Per-stage curvature-based speed limit — disabled, using global limit.
          * Keep array populated for compatibility but don't tighten. */
@@ -1020,10 +1021,14 @@ static void build_qp_problem(
         }
 
         MPCCPathPoint_t path_pt;
-        mpcc_path_interpolate(&ref_path, z_terminal.s, &path_pt);  // ✓ uses stage N's s
+        float s_terminal_geom = mpcc_find_closest_s_with_hint(
+            &ref_path, z_terminal.X, z_terminal.Y, z_terminal.s);
+        mpcc_path_interpolate(&ref_path, s_terminal_geom, &path_pt);
 
-        qp->track_left[N]  = path_pt.left_bound;
-        qp->track_right[N] = path_pt.right_bound;
+        qp->track_left[N]  = path_pt.left_bound - track_buffer;
+        qp->track_right[N] = path_pt.right_bound - track_buffer;
+        if (qp->track_left[N] < 0.02f) qp->track_left[N] = 0.02f;
+        if (qp->track_right[N] < 0.02f) qp->track_right[N] = 0.02f;
 
         /* Terminal speed limit — use global */
         qp->vx_max_stage[N] = config.vx_max;
@@ -1095,6 +1100,9 @@ static void shift_warm_start(void)
             for (int j = 0; j < MPCC_NU; j++)
                 x_next[i] += dyn_terminal.B[i][j] * u_arr[j];  /* B * u */
         }
+
+        x_next[MPCC_IDX_S] = mpcc_find_closest_s_with_hint(
+            &ref_path, x_next[MPCC_IDX_X], x_next[MPCC_IDX_Y], x_next[MPCC_IDX_S]);
 
         array_to_state(x_next, &prev_predicted_states[N]);      /* fresh x_N */
     }

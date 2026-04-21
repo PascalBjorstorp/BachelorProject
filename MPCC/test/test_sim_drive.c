@@ -288,33 +288,33 @@ int main(void)
 
     /* Horizon */
     cfg.horizon_steps     = env_int("HORIZON", MPCC_DEFAULT_HORIZON);
-    cfg.dt                = env_double("DT", MPCC_DEFAULT_DT);
+    cfg.dt                = env_double("DT", 0.03f);
 
-    /* Contouring tracking — tuned: 17.85s lap, ec=0.094, 0 collisions */
-    cfg.weight_contouring = env_double("Q_CONTOURING", 500.0f);
+    /* Best configuration under the physical steering limit. */
+    cfg.weight_contouring = env_double("Q_CONTOURING", 960.0f);
     cfg.weight_lag        = env_double("Q_LAG", 100.0f);
-    cfg.weight_progress   = env_double("Q_PROGRESS", 20.0f);
+    cfg.weight_progress   = env_double("Q_PROGRESS", 15.6f);
 
-    /* State regularization — increased for corrected (12x stronger) tires */
+    /* State regularization */
     cfg.weight_vx         = env_double("Q_VX", 30.0f);
     cfg.vx_ref            = env_double("VX_REF", 4.0f);
-    cfg.weight_vy         = env_double("Q_VY", 10.0f);
-    cfg.weight_omega      = env_double("Q_OMEGA", 6.0f);
+    cfg.weight_vy         = env_double("Q_VY", 0.5f);
+    cfg.weight_omega      = env_double("Q_OMEGA", 3.0f);
 
-    /* Control effort — R_DELTA raised for ADMM convergence on tight curves */
-    cfg.weight_delta      = env_double("R_DELTA", 130.0f);
-    cfg.weight_ax         = env_double("R_AX", 0.055f);
+    /* Control effort */
+    cfg.weight_delta      = env_double("R_DELTA", 100.0f);
+    cfg.weight_ax         = env_double("R_AX", 0.05225f);
     cfg.weight_v_theta    = env_double("R_VTHETA", 0.1f);
 
-    /* Control rate — delta rate raised for stability */
-    cfg.weight_delta_rate   = env_double("W_DELTA_RATE", 3.0f);
-    cfg.weight_ax_rate      = env_double("W_AX_RATE", 0.61f);
-    cfg.weight_v_theta_rate = env_double("W_VTHETA_RATE", 0.13f);
+    /* Control rate */
+    cfg.weight_delta_rate   = env_double("W_DELTA_RATE", 2.0f);
+    cfg.weight_ax_rate      = env_double("W_AX_RATE", 0.488f);
+    cfg.weight_v_theta_rate = env_double("W_VTHETA_RATE", 0.1105f);
 
     /* Terminal MUST be >= running (Riccati requires positive semi-definite cost-to-go) */
-    cfg.weight_contouring_terminal = env_double("Q_CONTOURING_TERM", 2000.0f);
-    cfg.weight_lag_terminal     = env_double("Q_LAG_TERM", 1500.0f);
-    cfg.weight_progress_terminal = env_double("Q_PROGRESS_TERM", 40.0f);
+    cfg.weight_contouring_terminal = env_double("Q_CONTOURING_TERM", 4800.0f);
+    cfg.weight_lag_terminal     = env_double("Q_LAG_TERM", 800.0f);
+    cfg.weight_progress_terminal = env_double("Q_PROGRESS_TERM", 41.4f);
 
     /* Obstacle */
     cfg.weight_obstacle   = env_double("W_OBSTACLE", 1000.0f);
@@ -326,12 +326,12 @@ int main(void)
     cfg.admm_tolerance      = env_double("ADMM_TOL", 0.02f);
 
     /* Constraint bounds */
-    cfg.delta_max = env_double("DELTA_MAX", 0.4189f);
+    cfg.delta_max = env_double("DELTA_MAX", F110_DEFAULT_MAXIMUM_STEERING_RADIANS);
     cfg.ax_max    = env_double("AX_MAX", 7.0f);
     cfg.ax_min    = env_double("AX_MIN", -10.0f);
     cfg.vx_max    = env_double("VX_MAX", 20.0f);
     cfg.vx_min    = env_double("VX_MIN", 0.0f);
-    cfg.v_theta_max = env_double("V_THETA_MAX", 8.0f);
+    cfg.v_theta_max = env_double("V_THETA_MAX", 15.0f);
     cfg.v_theta_min = env_double("V_THETA_MIN", 0.0f);
 
     /* Tire parameters */
@@ -340,7 +340,7 @@ int main(void)
     cfg.C_Sr = env_double("C_SR", 3.473f);
 
     /* Cross-call rate scaling */
-    cfg.cross_call_rate_scale = env_double("CROSS_CALL_SCALE", MPCC_DEFAULT_CROSS_CALL_SCALE);
+    cfg.cross_call_rate_scale = env_double("CROSS_CALL_SCALE", 0.1f);
 
     if (verbose) {
         printf("  Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_prog=%.1f\n",
@@ -797,11 +797,11 @@ int main(void)
     printf("  Avg clip events:    %.2f per solve\n", avg_clip_events);
     printf("\n");
 
-    /* Pass/fail criteria: standstill launch + numerical safety + speed */
+        /* Pass/fail criteria: numerical safety + usable lap-driving */
     check("No numerical failures", numerical_failures == 0);
     check("Runs full simulation horizon", total_stepped == SIM_STEPS);
     check("Solver mostly succeeds (>50%)", solver_ok > solver_calls * 50 / 100);
-    check("Launches from standstill (>1 m/s reached)", max_vx > 1.0);
+        check("Completes at least one lap", lap_count > 0);
     check("Sustains motion (>2 m/s for >5% of time)",
           time_above_2ms > SIM_DURATION * 0.05);
     check("High top speed (>5 m/s)", max_vx > 5.0);
