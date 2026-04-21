@@ -1123,7 +1123,7 @@ def main():
         help='Clamp velocity to this value [m/s] (default: 12.0)',
     )
     parser.add_argument(
-        '--min-speed', type=float, default=2.5,
+        '--min-speed', type=float, default=2.0,
         help='Minimum velocity [m/s] (default: 2.0). DC motors struggle below this.',
     )
     parser.add_argument(
@@ -1131,7 +1131,7 @@ def main():
         help='Output directory (default: f1tenth_planning/trajectories/)',
     )
     parser.add_argument(
-        '--centerline-points', type=int, default=2000,
+        '--centerline-points', type=int, default=1000,
         help='Number of centerline points to sample (default: 300)',
     )
     parser.add_argument(
@@ -1143,7 +1143,7 @@ def main():
         help='Physical car width [m] used for wall distance margin (default: 0.273, F1Tenth)',
     )
     parser.add_argument(
-        '--wall-clearance', type=float, default=0.05,
+        '--wall-clearance', type=float, default=0.01,
         help='Extra clearance from walls beyond car width on each side [m] (default: 0.05). '
              'Optimizer width_opt = car_width + 2*wall_clearance',
     )
@@ -1162,13 +1162,13 @@ def main():
         help='Track direction: auto-detect from winding order, or force cw/ccw (default: cw)',
     )
     parser.add_argument(
-        '--smooth-factor', type=float, default=20.0,
+        '--smooth-factor', type=float, default=100.0,
         help='Spline smoothing factor s_reg for TUM optimizer (default: 2.0). '
              'Lower values preserve centerline shape better; higher values smooth more. '
              '0 = exact interpolation (safest but slowest), 2 = good balance for small tracks.',
     )
     parser.add_argument(
-        '--waypoint-spacing', type=float, default=0.05,
+        '--waypoint-spacing', type=float, default=0.02,
         help='Waypoint spacing [m] for the final trajectory (stepsize_interp_after_opt, default: 0.15). '
              'Smaller values produce denser waypoints (recommended for MPC).',
     )
