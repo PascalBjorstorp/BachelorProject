@@ -439,38 +439,55 @@ static void raceline_callback(const void *msg_in)
      * --------------------------------------------------------------- */
     if (g_reference_path.num_points >= 2)
     {
+        float best_dist_sq = FLT_MAX;
+        uint16_t best_idx = 0;
+        float csv_len = g_reference_path.total_length;
+        float new_len = ref_path.total_length;
+        float s_offset = 0.0f;
+
+        /* Align the topic path to the CSV path once, then transfer bounds
+         * by arc-length progress to preserve track-side correspondence. */
+        for (uint16_t j = 0; j < g_reference_path.num_points; j++)
+        {
+            float dx = ref_path.points[0].x_ref - g_reference_path.points[j].x_ref;
+            float dy = ref_path.points[0].y_ref - g_reference_path.points[j].y_ref;
+            float dist_sq = dx * dx + dy * dy;
+            if (dist_sq < best_dist_sq)
+            {
+                best_dist_sq = dist_sq;
+                best_idx = j;
+            }
+        }
+
+        s_offset = g_reference_path.points[best_idx].s_ref;
+
         for (uint16_t i = 0; i < n; i++)
         {
-            float qx = ref_path.points[i].x_ref;
-            float qy = ref_path.points[i].y_ref;
+            MPCCPathPoint_t bounds_pt;
+            float s_ratio = 0.0f;
+            float s_query;
+            float dx;
+            float dy;
+            float dist_sq;
 
-            /* Find nearest point in CSV path */
-            float best_dist_sq = FLT_MAX;
-            uint16_t best_idx  = 0;
+            if (new_len > 1e-6f && csv_len > 1e-6f)
+                s_ratio = ref_path.points[i].s_ref / new_len;
 
-            for (uint16_t j = 0; j < g_reference_path.num_points; j++)
+            s_query = s_offset + (s_ratio * csv_len);
+            mpcc_path_interpolate(&g_reference_path, s_query, &bounds_pt);
+
+            ref_path.points[i].left_bound = bounds_pt.left_bound;
+            ref_path.points[i].right_bound = bounds_pt.right_bound;
+
+            /* If the aligned arc-length sample is still far away in
+             * Cartesian space, the paths differ materially — use a
+             * conservative fallback corridor instead. */
+            dx = ref_path.points[i].x_ref - bounds_pt.x_ref;
+            dy = ref_path.points[i].y_ref - bounds_pt.y_ref;
+            dist_sq = dx * dx + dy * dy;
+            if (dist_sq > 4.0f)
             {
-                float dx = qx - g_reference_path.points[j].x_ref;
-                float dy = qy - g_reference_path.points[j].y_ref;
-                float dist_sq = dx * dx + dy * dy;
-                if (dist_sq < best_dist_sq)
-                {
-                    best_dist_sq = dist_sq;
-                    best_idx     = j;
-                }
-            }
-
-            /* Copy bounds from the matched CSV waypoint */
-            ref_path.points[i].left_bound  =
-                g_reference_path.points[best_idx].left_bound;
-            ref_path.points[i].right_bound =
-                g_reference_path.points[best_idx].right_bound;
-
-            /* If the match is very far away (> 2 m) the paths differ
-             * significantly — use conservative fallback instead. */
-            if (best_dist_sq > 4.0f)
-            {
-                ref_path.points[i].left_bound  = 0.35f;
+                ref_path.points[i].left_bound = 0.35f;
                 ref_path.points[i].right_bound = 0.35f;
             }
         }
