@@ -13,6 +13,9 @@ Override trajectory and topics:
       odom_topic:=/ego_racecar/odom \
       pose_topic:=/ekf_pose \
       imu_topic:=/imu/filtered_angular_velocity
+
+This launch file forces a conservative hardware-safe MPCC baseline by default.
+Override any launch argument if you need to run a different tune.
 """
 
 import os
@@ -21,6 +24,50 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, SetEnvironmentVariable
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+
+
+HARDWARE_TUNING_DEFAULTS = [
+    ("horizon", "HORIZON", "20", "Prediction horizon steps"),
+    ("dt", "DT", "0.05", "Prediction time step in seconds"),
+    ("q_contouring", "Q_CONTOURING", "1000.0", "Contouring weight"),
+    ("q_lag", "Q_LAG", "100.0", "Lag weight"),
+    ("q_progress", "Q_PROGRESS", "15.6", "Progress reward"),
+    ("q_vx", "Q_VX", "30.0", "Longitudinal velocity tracking weight"),
+    ("vx_ref", "VX_REF", "4.0", "Reference longitudinal velocity"),
+    ("q_vy", "Q_VY", "0.5", "Lateral velocity regularization weight"),
+    ("q_omega", "Q_OMEGA", "3.0", "Yaw-rate regularization weight"),
+    ("r_delta", "R_DELTA", "100.0", "Steering effort weight"),
+    ("r_ax", "R_AX", "0.05225", "Acceleration effort weight"),
+    ("r_vtheta", "R_VTHETA", "0.1", "Virtual progress effort weight"),
+    ("w_delta_rate", "W_DELTA_RATE", "2.0", "Steering rate weight"),
+    ("w_ax_rate", "W_AX_RATE", "0.488", "Acceleration rate weight"),
+    ("w_vtheta_rate", "W_VTHETA_RATE", "0.1105", "Virtual progress rate weight"),
+    ("q_contouring_term", "Q_CONTOURING_TERM", "4800.0", "Terminal contouring weight"),
+    ("q_lag_term", "Q_LAG_TERM", "800.0", "Terminal lag weight"),
+    ("q_progress_term", "Q_PROGRESS_TERM", "41.4", "Terminal progress reward"),
+    ("admm_rho", "ADMM_RHO", "5.0", "ADMM penalty parameter"),
+    ("admm_max_iter", "ADMM_MAX_ITER", "300", "ADMM maximum iterations"),
+    ("admm_tol", "ADMM_TOL", "0.02", "ADMM convergence tolerance"),
+    ("v_theta_max", "V_THETA_MAX", "15.0", "Maximum virtual progress speed"),
+    (
+        "cross_call_scale",
+        "MPCC_CROSS_CALL_SCALE",
+        "0.1",
+        "Rate-scaling factor for the hardware-safe high-rate solve cadence",
+    ),
+    (
+        "adapt_cross_call_scale",
+        "MPCC_ADAPT_CROSS_CALL_SCALE",
+        "0",
+        "Enable runtime adaptation of cross-call scaling (0/1)",
+    ),
+    (
+        "vx_min_cmd",
+        "MPCC_VX_MIN_CMD",
+        "0.1",
+        "Minimum positive speed command in m/s",
+    ),
+]
 
 
 def _resolve_default_trajectory() -> str:
@@ -32,6 +79,7 @@ def _resolve_default_trajectory() -> str:
         planning_share = get_package_share_directory("f1tenth_planning")
         candidates.extend(
             [
+                os.path.join(planning_share, "trajectories", "hardware_raceline.csv"),
                 os.path.join(planning_share, "trajectories", "my_track_raceline.csv"),
             ]
         )
@@ -39,13 +87,21 @@ def _resolve_default_trajectory() -> str:
         pass
 
     launch_dir = os.path.dirname(os.path.abspath(__file__))
-    workspace_root = os.path.dirname(os.path.dirname(launch_dir))
+    search_roots = []
+    current = launch_dir
+    for _ in range(6):
+        current = os.path.dirname(current)
+        search_roots.append(current)
 
-    candidates.extend(
-        [
-            os.path.join(workspace_root, "f1tenth_planning", "trajectories", "my_track_raceline.csv"),
-        ]
-    )
+    for root in search_roots:
+        candidates.extend(
+            [
+                os.path.join(root, "f1tenth_planning", "trajectories", "hardware_raceline.csv"),
+                os.path.join(root, "f1tenth_planning", "trajectories", "my_track_raceline.csv"),
+                os.path.join(root, "src", "f1tenth_planning", "trajectories", "hardware_raceline.csv"),
+                os.path.join(root, "src", "f1tenth_planning", "trajectories", "my_track_raceline.csv"),
+            ]
+        )
 
     for candidate in candidates:
         if candidate and os.path.isfile(candidate):
@@ -88,7 +144,7 @@ def generate_launch_description() -> LaunchDescription:
     control_period_arg = DeclareLaunchArgument(
         "control_period_ms",
         default_value="0",
-        description="Control timer period in milliseconds (0 uses MPCC DT)",
+        description="Nominal control period in milliseconds for rate scaling (0 keeps the 200 Hz baseline)",
     )
 
     watchdog_arg = DeclareLaunchArgument(
@@ -102,6 +158,15 @@ def generate_launch_description() -> LaunchDescription:
         default_value="0",
         description="Verbose solver logging (0/1)",
     )
+
+    tuning_args = [
+        DeclareLaunchArgument(
+            arg_name,
+            default_value=default_value,
+            description=description,
+        )
+        for arg_name, _env_name, default_value, description in HARDWARE_TUNING_DEFAULTS
+    ]
 
     set_trajectory = SetEnvironmentVariable(
         "MPCC_TRAJECTORY_FILE", LaunchConfiguration("trajectory_file")
@@ -128,6 +193,11 @@ def generate_launch_description() -> LaunchDescription:
         "MPCC_VERBOSE", LaunchConfiguration("verbose")
     )
 
+    tuning_env = [
+        SetEnvironmentVariable(env_name, LaunchConfiguration(arg_name))
+        for arg_name, env_name, _default_value, _description in HARDWARE_TUNING_DEFAULTS
+    ]
+
     mpcc_hardware_node = Node(
         package="mpcc_f1_10th",
         executable="mpcc_hardware_node",
@@ -147,6 +217,7 @@ def generate_launch_description() -> LaunchDescription:
             control_period_arg,
             watchdog_arg,
             verbose_arg,
+            *tuning_args,
             set_trajectory,
             set_odom,
             set_pose,
@@ -155,6 +226,7 @@ def generate_launch_description() -> LaunchDescription:
             set_control_period,
             set_watchdog,
             set_verbose,
+            *tuning_env,
             mpcc_hardware_node,
         ]
     )

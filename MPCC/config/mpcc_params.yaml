@@ -13,49 +13,49 @@
 mpcc_node:
   ros__parameters:
 
-    # --- Prediction Horizon (tuned via iterative sweep, Hardware) ---
-    horizon_steps: 10
-    dt: 0.02              # [seconds] time step between prediction stages
+    # --- Prediction Horizon (April 21 best configuration) ---
+    horizon_steps: 20
+    dt: 0.05              # [seconds] time step between prediction stages
 
-    # --- Contouring Weights (Liniger-style: low contouring, high progress) ---
+    # --- Contouring Weights ---
     # weight_contouring: penalizes perpendicular distance from centerline
     #   LOW value → MPCC can deviate from centerline to find faster path
     # weight_lag: penalizes tangential distance (keeps s synced to position)
     # weight_progress: reward for forward progress (-q_s * v_theta)
     #   HIGH value → MPCC aggressively maximizes speed along track
-    weight_contouring: 1400.0     # contouring error penalty
-    weight_lag: 300.0             # lag error penalty
-    weight_progress: 80.0         # progress reward
+    weight_contouring: 960.0      # contouring error penalty
+    weight_lag: 200.0             # lag error penalty
+    weight_progress: 15.6         # progress reward
 
     # --- State Regularization ---
-    weight_vx: 1.5        # longitudinal velocity tracking weight
+    weight_vx: 30.0       # longitudinal velocity tracking weight
     vx_ref: 4.0           # [m/s] reference velocity
-    weight_vy: 0.4725     # lateral velocity penalty
-    weight_omega: 0.45    # yaw rate penalty
+    weight_vy: 0.5        # lateral velocity penalty
+    weight_omega: 1.5     # yaw rate penalty
 
     # --- Control Effort ---
-    weight_delta: 20.0    # steering magnitude penalty
-    weight_ax: 0.0495     # acceleration magnitude penalty
-    weight_v_theta: 0.05  # progress rate penalty
+    weight_delta: 200.0   # steering magnitude penalty
+    weight_ax: 0.05225    # acceleration magnitude penalty
+    weight_v_theta: 0.1   # progress rate penalty
 
     # --- Control Smoothness (rate penalties) ---
-    weight_delta_rate: 0.345     # steering rate
-    weight_ax_rate: 0.61         # acceleration rate
-    weight_v_theta_rate: 0.156   # progress acceleration rate
+    weight_delta_rate: 5.0       # steering-rate smoothing
+    weight_ax_rate: 0.488        # acceleration rate
+    weight_v_theta_rate: 0.1105  # progress acceleration rate
 
     # --- Terminal Cost ---
-    weight_contouring_terminal: 4896.0
+    weight_contouring_terminal: 4800.0
     weight_lag_terminal: 800.0
-    weight_progress_terminal: 80.0
+    weight_progress_terminal: 41.4
 
     # --- Obstacle Avoidance ---
     weight_obstacle: 1000.0   # penalty for ellipsoidal constraint violation
     obstacle_margin: 0.1      # [m] safety margin added to obstacles
 
     # --- ADMM Solver ---
-    admm_rho: 0.3         # penalty parameter
+    admm_rho: 5.0         # penalty parameter
     admm_max_iterations: 300
-    admm_tolerance: 0.005     # convergence tolerance
+    admm_tolerance: 0.02      # convergence tolerance
 
     # --- Constraint Bounds ---
     delta_max: 0.4189     # [rad] max steering angle

@@ -3,7 +3,7 @@ Pipeline Latency Monitor Launch File
 
 Runs a lightweight C++ node that measures per-stage latency through the
 localization pipeline:
-  /scan → /scan_walls → /amcl_pose → /ekf_pose
+    /scan → /amcl_pose → /ekf_pose → /drive → /ackermann_cmd
 
 Prints a summary to the terminal at ~1 Hz (configurable via print_every).
 Also logs per-cycle latency samples to CSV (configurable via launch args).
@@ -30,14 +30,19 @@ def generate_launch_description():
             description='Print latency summary every N scan cycles (~1 Hz at 40 Hz scan rate)'),
 
         DeclareLaunchArgument(
-            'command_topic',
-            default_value='/commands/motor/speed',
-            description='Motor command topic used for ekf_pose -> command latency measurement'),
+            'drive_topic',
+            default_value='/drive',
+            description='Drive command topic used for ekf_pose -> drive latency measurement'),
 
         DeclareLaunchArgument(
-            'command_match_max_ms',
+            'ackermann_topic',
+            default_value='/ackermann_cmd',
+            description='Ackermann mux output topic used for drive -> ackermann latency measurement'),
+
+        DeclareLaunchArgument(
+            'stage_match_max_ms',
             default_value='20.0',
-            description='Maximum ekf->command match window in ms to reject startup/stale pairs'),
+            description='Maximum stage matching window in ms to reject startup/stale pairs'),
 
         DeclareLaunchArgument(
             'strict_mode',
@@ -61,11 +66,11 @@ def generate_launch_description():
             output='screen',
             parameters=[{
                 'scan_topic': '/scan',
-                'walls_topic': '/scan_walls',
                 'amcl_topic': '/amcl_pose',
                 'ekf_topic': '/ekf_pose',
-                'command_topic': LaunchConfiguration('command_topic'),
-                'command_match_max_ms': LaunchConfiguration('command_match_max_ms'),
+                'drive_topic': LaunchConfiguration('drive_topic'),
+                'ackermann_topic': LaunchConfiguration('ackermann_topic'),
+                'stage_match_max_ms': LaunchConfiguration('stage_match_max_ms'),
                 'strict_mode': LaunchConfiguration('strict_mode'),
                 'print_every': LaunchConfiguration('print_every'),
                 'log_to_csv': LaunchConfiguration('log_to_csv'),
