@@ -1014,11 +1014,12 @@ static void build_qp_problem(
          * a_y = vx * omega,  |a_x| <= sqrt((mu*g)^2 - a_y^2) */
         if (qp->mu_g_sq > 0.0f)
         {
-            float vx_op = z_bar.vx;
+            float vx_op = fabsf(z_bar.vx);
             float omega_op = z_bar.omega;
             float a_y = vx_op * omega_op;
             float a_y_sq = a_y * a_y;
             float ax_box = config.ax_max;
+
             if (a_y_sq < qp->mu_g_sq) {
                 float ax_fc = sqrtf(qp->mu_g_sq - a_y_sq);
                 qp->ax_lim_stage[k] = ax_fc < ax_box ? ax_fc : ax_box;
