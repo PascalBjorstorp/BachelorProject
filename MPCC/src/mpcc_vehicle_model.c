@@ -99,10 +99,10 @@ void mpcc_linearize_dynamics(
      * Minimum vx for slip angle calculations. With the corrected Pacejka
      * B factors (B = C_S/C_shape), effective tire stiffness is ~12x larger
      * than old (wrong) formula. The continuous-time [vy, omega] eigenvalues
-     * scale as ~C_eff / (vx * I_z). At vx=0.5 they reach -55 and -145,
-     * causing Forward Euler (A_d = I + dt*A_c) discrete eigenvalues of
-     * -1.76 and -6.23 — far outside the unit circle (unstable).
-     * vx_safe=2.0 gives stable discrete eigenvalues [0.40, -0.90]. */
+    * scale as ~C_eff / (vx * I_z). At vx=0.5 they reach -55 and -145,
+    * causing Forward Euler (A_d = I + dt*A_c) discrete eigenvalues of
+    * -1.76 and -6.23 — far outside the unit circle (unstable).
+    * vx_safe=2.0 gives stable discrete eigenvalues [0.40, -0.90]. */
     float vx_abs = fabsf(state->vx);
     float vx_safe = (vx_abs < 3.0f) ? 3.0f : vx_abs;
     float inv_vx = 1.0f / vx_safe;
