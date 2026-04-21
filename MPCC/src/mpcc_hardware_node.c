@@ -55,10 +55,14 @@ static int g_verbose = 0;
 /* Solver-derived values used to map MPCC acceleration to a velocity command. */
 static double g_solver_dt_sec = 0.05;
 static double g_vx_max_mps = 8.0;
-static double g_vx_min_cmd = 1.0;  /* Minimum velocity command [m/s] */
+static double g_vx_min_cmd = 0.1;  /* Minimum velocity command [m/s] */
 
 /* Hardware safety: clamp acceleration to prevent violent braking */
 static double g_ax_min_hardware = -3.0;
+
+/* Nominal control cadence used for rate penalties when not adapting online. */
+static double g_nominal_control_dt_sec = 1.0 / MPCC_CONTROL_RATE_HZ;
+static int g_adapt_cross_call_scale = 0;
 
 /* -------------------------------------------------------------------------- */
 /* VESC Servo Conversion Parameters                                            */
@@ -225,6 +229,25 @@ static int load_trajectory_csv(const char *file_path, MPCCReferencePath_t *path)
 
     path->total_length = path->points[path->num_points - 1].s_ref;
     path->is_closed = 1;
+
+    {
+        float min_corridor = path->points[0].left_bound + path->points[0].right_bound;
+        for (uint16_t i = 1; i < path->num_points; ++i)
+        {
+            const float corridor = path->points[i].left_bound + path->points[i].right_bound;
+            if (corridor < min_corridor)
+            {
+                min_corridor = corridor;
+            }
+        }
+
+        if (min_corridor < 0.35f)
+        {
+            fprintf(stderr,
+                    "[MPCC] WARNING: very tight CSV corridor detected (min width %.2f m)\n",
+                    min_corridor);
+        }
+    }
 
     printf("[MPCC] Loaded %d points from %s (track length %.1f m)\n",
            path->num_points, file_path, path->total_length);
@@ -598,6 +621,22 @@ static void pose_callback(const void *msg_in)
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
 
+        if (g_last_odom_time.tv_sec == 0 && g_last_odom_time.tv_nsec == 0)
+        {
+            return;
+        }
+
+        if (timespec_diff_sec(&g_last_odom_time, &now) > g_watchdog_timeout_sec)
+        {
+            if (g_verbose || g_solve_count <= 20 || (g_solve_count % 10U) == 0U)
+            {
+                fprintf(stderr,
+                        "[MPCC] WARNING: odometry stale (%.0f ms), skipping solve\n",
+                        timespec_diff_sec(&g_last_odom_time, &now) * 1000.0);
+            }
+            return;
+        }
+
         if ((g_last_imu_time.tv_sec != 0 || g_last_imu_time.tv_nsec != 0)
             && timespec_diff_sec(&g_last_imu_time, &now) > 0.05)
         {
@@ -614,7 +653,9 @@ static void pose_callback(const void *msg_in)
     MPCCState_t mpcc_state = mpcc_state_from_vehicle_state(&g_vehicle_state, g_current_s);
     g_current_s = mpcc_state.s;
 
-    /* Measure actual control loop dt and update cross-call rate scale */
+    /* Measure actual control loop dt only when explicitly requested.
+     * The hardware-safe baseline keeps a fixed nominal rate scale. */
+    if (g_adapt_cross_call_scale)
     {
         struct timespec solve_now;
         clock_gettime(CLOCK_MONOTONIC, &solve_now);
@@ -623,7 +664,16 @@ static void pose_callback(const void *msg_in)
             double dt_actual = timespec_diff_sec(&g_prev_solve_time, &solve_now);
             if (dt_actual > 0.0005 && dt_actual < 0.5)  /* sanity: 2 Hz–2 kHz */
             {
-                g_control_dt_filtered = 0.9 * g_control_dt_filtered + 0.1 * dt_actual;
+                const double alpha =
+                    (fabs(dt_actual - g_control_dt_filtered) > 0.02) ? 0.3 : 0.1;
+                const double min_dt = 0.5 * g_nominal_control_dt_sec;
+                const double max_dt = 2.0 * g_nominal_control_dt_sec;
+
+                g_control_dt_filtered =
+                    (1.0 - alpha) * g_control_dt_filtered + alpha * dt_actual;
+                if (g_control_dt_filtered < min_dt) g_control_dt_filtered = min_dt;
+                if (g_control_dt_filtered > max_dt) g_control_dt_filtered = max_dt;
+
                 double prediction_dt = (double)g_solver_dt_sec;
                 if (prediction_dt > 0.0)
                 {
@@ -647,13 +697,33 @@ static void pose_callback(const void *msg_in)
         if (g_verbose || g_solve_count <= 20 || (g_solve_count % 10U) == 0U)
         {
             fprintf(stderr,
-                    "[MPCC %3u] solver failed (status=%d), keeping previous command (d=%.3f v=%.2f)\n",
+                    "[MPCC %3u] solver failed (status=%d), applying safe fallback (prev d=%.3f v=%.2f)\n",
                     g_solve_count, (int)status, g_prev_delta_cmd, g_prev_speed_cmd);
         }
-        /* Keep the previous command instead of commanding zero */
-        g_drive_msg.drive.steering_angle = g_prev_delta_cmd;
-        g_drive_msg.drive.speed = g_prev_speed_cmd;
-        g_drive_msg.drive.acceleration = g_prev_ax_cmd;
+        {
+            const float delta_safe = 0.5f * g_prev_delta_cmd;
+            float a_x_safe = g_prev_ax_cmd;
+            double v_safe;
+
+            if (a_x_safe > -1.0f)
+            {
+                a_x_safe = -1.0f;
+            }
+
+            v_safe = g_latest_vx_mps + (double)a_x_safe * g_solver_dt_sec;
+            if (v_safe < 0.0)
+            {
+                v_safe = 0.0;
+            }
+            if (v_safe > g_vx_max_mps)
+            {
+                v_safe = g_vx_max_mps;
+            }
+
+            g_drive_msg.drive.steering_angle = delta_safe;
+            g_drive_msg.drive.speed = (float)v_safe;
+            g_drive_msg.drive.acceleration = a_x_safe;
+        }
         { rcl_ret_t rc_ = rcl_publish(&g_drive_pub, &g_drive_msg, NULL); (void)rc_; }
         return;
     }
@@ -840,6 +910,19 @@ static void read_runtime_environment(void)
         }
     }
 
+    if ((value = getenv("MPCC_CONTROL_PERIOD_MS")) != NULL)
+    {
+        const double period_ms = atof(value);
+        if (period_ms > 0.0 && period_ms <= 1000.0)
+        {
+            g_nominal_control_dt_sec = period_ms * 1e-3;
+        }
+        else if (period_ms == 0.0)
+        {
+            g_nominal_control_dt_sec = 1.0 / MPCC_CONTROL_RATE_HZ;
+        }
+    }
+
     if ((value = getenv("MPCC_VERBOSE")) != NULL)
     {
         g_verbose = atoi(value);
@@ -857,6 +940,11 @@ static void read_runtime_environment(void)
         {
             g_vx_min_cmd = val;
         }
+    }
+
+    if ((value = getenv("MPCC_ADAPT_CROSS_CALL_SCALE")) != NULL)
+    {
+        g_adapt_cross_call_scale = (atoi(value) != 0);
     }
 }
 
@@ -943,7 +1031,7 @@ static void configure_mpcc_from_environment(void)
         float dt = cfg.dt;
         if (dt > 0.0f)
             cfg.cross_call_rate_scale =
-                (float)(1.0 / (MPCC_CONTROL_RATE_HZ * (double)dt));
+                (float)(g_nominal_control_dt_sec / (double)dt);
         mpcc_set_configuration(&cfg);
     }
 
@@ -959,7 +1047,17 @@ static void configure_mpcc_from_environment(void)
         g_vx_max_mps = 8.0;
     }
 
-    printf("[MPCC] Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_prog=%.1f R_delta=%.2f ax_min_hw=%.1f cross_call=%.4f\n",
+    g_control_dt_filtered = cfg.cross_call_rate_scale * (double)cfg.dt;
+    if (g_control_dt_filtered <= 0.0)
+    {
+        g_control_dt_filtered = g_nominal_control_dt_sec;
+    }
+    if (g_control_dt_filtered <= 0.0)
+    {
+        g_control_dt_filtered = 1.0 / MPCC_CONTROL_RATE_HZ;
+    }
+
+    printf("[MPCC] Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_prog=%.1f R_delta=%.2f ax_min_hw=%.1f cross_call=%.4f adapt_cross_call=%d vx_min_cmd=%.2f\n",
            cfg.horizon_steps,
            cfg.dt,
            cfg.weight_contouring,
@@ -967,7 +1065,9 @@ static void configure_mpcc_from_environment(void)
            cfg.weight_progress,
            cfg.weight_delta,
            g_ax_min_hardware,
-           cfg.cross_call_rate_scale);
+           cfg.cross_call_rate_scale,
+           g_adapt_cross_call_scale,
+           g_vx_min_cmd);
 }
 
 static const char *autodetect_trajectory_file(void)
@@ -1035,8 +1135,11 @@ int main(int argc, const char *argv[])
 
     printf("[MPCC] Hardware topics: odom=%s pose=%s imu=%s servo=%s drive=%s\n",
            g_odom_topic, g_pose_topic, g_imu_topic, g_servo_topic, g_drive_topic);
-    printf("[MPCC] EKF-driven mode | watchdog: %.0f ms | ax_min_hw: %.1f | trajectory: %s\n",
-           g_watchdog_timeout_sec * 1000.0, g_ax_min_hardware, g_trajectory_file);
+        printf("[MPCC] EKF-driven mode | watchdog: %.0f ms | nominal_dt: %.1f ms | cross_call: %s | trajectory: %s\n",
+            g_watchdog_timeout_sec * 1000.0,
+            g_nominal_control_dt_sec * 1000.0,
+            g_adapt_cross_call_scale ? "adaptive" : "fixed",
+            g_trajectory_file);
 
     rcl_allocator_t allocator = rcl_get_default_allocator();
 

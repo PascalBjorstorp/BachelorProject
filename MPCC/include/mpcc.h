@@ -200,7 +200,7 @@ float mpcc_find_closest_s(
  * Requires the reference path to be set.
  *
  * @param vehicle_state  Vehicle state from localization (Cartesian)
- * @param s_hint         Previous s estimate (unused, kept for API compat)
+ * @param s_hint         Previous s estimate used to preserve path continuity
  * @return Global-frame MPCC state [s, vx, vy, omega, X, Y, psi]
  */
 MPCCState_t mpcc_state_from_vehicle_state(
