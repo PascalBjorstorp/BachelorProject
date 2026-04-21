@@ -49,25 +49,25 @@ def generate_launch_description():
     
     min_lookahead_arg = DeclareLaunchArgument(
         'min_lookahead',
-        default_value='0.47',
+        default_value='0.396',
         description='Minimum lookahead distance [m]'
     )
     
     max_lookahead_arg = DeclareLaunchArgument(
         'max_lookahead',
-        default_value='1.20',
+        default_value='0.995',
         description='Maximum lookahead distance [m]'
     )
     
     lookahead_gain_arg = DeclareLaunchArgument(
         'lookahead_gain',
-        default_value='0.18',
+        default_value='0.06',
         description='Velocity-proportional lookahead gain. Lookahead = gain * speed + min, capped at max [m/(m/s)]'
     )
 
     max_speed_arg = DeclareLaunchArgument(
         'max_speed',
-        default_value='12.0',
+        default_value='10.4',
         description='Maximum commanded speed cap [m/s]'
     )
 
@@ -79,13 +79,13 @@ def generate_launch_description():
 
     cte_lookahead_gain_arg = DeclareLaunchArgument(
         'cte_lookahead_gain',
-        default_value='0.022',
+        default_value='0.14',
         description='Lookahead reduction gain based on cross-track error. Higher values reduce lookahead when CTE is large [m/m]'
     )
 
     curvature_lookahead_gain_arg = DeclareLaunchArgument(
         'curvature_lookahead_gain',
-        default_value='1.07',
+        default_value='1.18',
         description='Turn-radius-based lookahead limit factor (L_max = gain/kappa). Higher values reduce lookahead in tight curves [m]'
     )
 
@@ -97,19 +97,19 @@ def generate_launch_description():
 
     curvature_speed_floor_ratio_arg = DeclareLaunchArgument(
         'curvature_speed_floor_ratio',
-        default_value='0.2',
+        default_value='0.51',
         description='Minimum speed ratio after curvature slowdown [0..1]'
     )
 
     cte_speed_factor_arg = DeclareLaunchArgument(
         'cte_speed_factor',
-        default_value='0.19',
+        default_value='0.10',
         description='CTE-based speed slowdown aggressiveness. Higher values result in more aggressive speed reduction when CTE is large [unitless]'
     )
 
     cte_speed_floor_ratio_arg = DeclareLaunchArgument(
         'cte_speed_floor_ratio',
-        default_value='0.375',
+        default_value='0.30',
         description='Minimum speed ratio after CTE slowdown [0..1]'
     )
 
@@ -127,7 +127,7 @@ def generate_launch_description():
 
     curvature_preview_factor_arg = DeclareLaunchArgument(
         'curvature_preview_factor',
-        default_value='1.2',
+        default_value='1.0',
         description='Preview distance multiplier for curvature-based braking'
     )
 

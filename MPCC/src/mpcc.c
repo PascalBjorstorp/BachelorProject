@@ -395,6 +395,43 @@ static float mpcc_find_closest_s_with_hint(
     return path->points[best_idx].s_ref;
 }
 
+static float mpcc_normalize_s_delta(
+    const MPCCReferencePath_t *path,
+    float delta)
+{
+    if (!path->is_closed || path->total_length <= 0.0f)
+        return delta;
+
+    const float half_length = 0.5f * path->total_length;
+    while (delta > half_length) delta -= path->total_length;
+    while (delta < -half_length) delta += path->total_length;
+    return delta;
+}
+
+static float mpcc_limit_s_jump(
+    const MPCCReferencePath_t *path,
+    float s_reference,
+    float s_candidate,
+    float vx)
+{
+    float delta = mpcc_normalize_s_delta(path, s_candidate - s_reference);
+    float max_jump = 0.75f + 2.0f * fabsf(vx) * config.dt;
+
+    if (max_jump < 0.75f) max_jump = 0.75f;
+    if (max_jump > 2.5f) max_jump = 2.5f;
+
+    if (delta > max_jump) delta = max_jump;
+    if (delta < -max_jump) delta = -max_jump;
+
+    s_candidate = s_reference + delta;
+    if (path->is_closed && path->total_length > 0.0f) {
+        while (s_candidate > path->total_length) s_candidate -= path->total_length;
+        while (s_candidate < 0.0f) s_candidate += path->total_length;
+    }
+
+    return s_candidate;
+}
+
 /* MPC-style forward-biased closest-waypoint search with heading penalty. */
 static uint16_t mpcc_find_closest_index_forward_biased(
     const MPCCReferencePath_t *path,
@@ -475,7 +512,6 @@ MPCCState_t mpcc_state_from_vehicle_state(
     const VehicleState_t *vs,
     float s_hint)
 {
-    (void)s_hint;
     MPCCState_t st;
     memset(&st, 0, sizeof(st));
 
@@ -506,18 +542,33 @@ MPCCState_t mpcc_state_from_vehicle_state(
         /* Step 3: use hint-based windowed search to guard against
          * index errors — if it disagrees significantly, trust the
          * windowed search (it checked ±80 waypoints vs 1 segment). */
-        float s_hint_val = (warm_start_available)
-            ? prev_predicted_states[0].s
-            : s_segment;
+        float s_hint_val = s_hint;
+        if (s_hint_val <= 0.0f && warm_start_available)
+            s_hint_val = prev_predicted_states[0].s;
+        if (s_hint_val <= 0.0f)
+            s_hint_val = s_segment;
 
         float s_windowed = mpcc_find_closest_s_with_hint(
             &ref_path, st.X, st.Y, s_hint_val);
 
         /* Pick whichever is further along (guards against backward jumps)
          * but only if they agree within a reasonable tolerance. */
-        float diff = s_windowed - s_segment;
+        float diff = mpcc_normalize_s_delta(
+            &ref_path, s_windowed - s_segment);
         if (diff < 0) diff = -diff;
-        st.s = (diff < 1.0f) ? s_segment : s_windowed;
+        if (diff < 1.0f) {
+            float seg_from_hint = mpcc_normalize_s_delta(
+                &ref_path, s_segment - s_hint_val);
+            float window_from_hint = mpcc_normalize_s_delta(
+                &ref_path, s_windowed - s_hint_val);
+            st.s = (window_from_hint > seg_from_hint)
+                ? s_windowed
+                : s_segment;
+        } else {
+            st.s = s_windowed;
+        }
+
+        st.s = mpcc_limit_s_jump(&ref_path, s_hint_val, st.s, st.vx);
     }
 
     return st;

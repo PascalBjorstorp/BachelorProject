@@ -290,24 +290,24 @@ int main(void)
     cfg.horizon_steps     = env_int("HORIZON", MPCC_DEFAULT_HORIZON);
     cfg.dt                = env_double("DT", 0.03f);
 
-    /* Best configuration under the physical steering limit. */
+    /* April 21 winning configuration from the latest safe sweep. */
     cfg.weight_contouring = env_double("Q_CONTOURING", 960.0f);
-    cfg.weight_lag        = env_double("Q_LAG", 100.0f);
+    cfg.weight_lag        = env_double("Q_LAG", 200.0f);
     cfg.weight_progress   = env_double("Q_PROGRESS", 15.6f);
 
     /* State regularization */
     cfg.weight_vx         = env_double("Q_VX", 30.0f);
     cfg.vx_ref            = env_double("VX_REF", 4.0f);
     cfg.weight_vy         = env_double("Q_VY", 0.5f);
-    cfg.weight_omega      = env_double("Q_OMEGA", 3.0f);
+    cfg.weight_omega      = env_double("Q_OMEGA", 1.5f);
 
     /* Control effort */
-    cfg.weight_delta      = env_double("R_DELTA", 100.0f);
+    cfg.weight_delta      = env_double("R_DELTA", 200.0f);
     cfg.weight_ax         = env_double("R_AX", 0.05225f);
     cfg.weight_v_theta    = env_double("R_VTHETA", 0.1f);
 
     /* Control rate */
-    cfg.weight_delta_rate   = env_double("W_DELTA_RATE", 2.0f);
+    cfg.weight_delta_rate   = env_double("W_DELTA_RATE", 5.0f);
     cfg.weight_ax_rate      = env_double("W_AX_RATE", 0.488f);
     cfg.weight_v_theta_rate = env_double("W_VTHETA_RATE", 0.1105f);
 
@@ -331,7 +331,7 @@ int main(void)
     cfg.ax_min    = env_double("AX_MIN", -10.0f);
     cfg.vx_max    = env_double("VX_MAX", 20.0f);
     cfg.vx_min    = env_double("VX_MIN", 0.0f);
-    cfg.v_theta_max = env_double("V_THETA_MAX", 15.0f);
+    cfg.v_theta_max = env_double("V_THETA_MAX", 8.0f);
     cfg.v_theta_min = env_double("V_THETA_MIN", 0.0f);
 
     /* Tire parameters */
