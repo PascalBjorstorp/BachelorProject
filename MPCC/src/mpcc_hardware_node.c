@@ -49,7 +49,6 @@ static const char *g_drive_topic = "/drive";
 
 static const char *g_trajectory_file = NULL;
 
-static double g_watchdog_timeout_sec = 0.5;
 static int g_verbose = 0;
 
 /* Solver-derived values used to map MPCC acceleration to a velocity command. */
@@ -93,9 +92,10 @@ static int g_using_map_pose = 0;
 static double g_latest_vx_mps = 0.0;
 static double g_latest_vy_mps = 0.0;
 static double g_latest_omega = 0.0;
-static struct timespec g_last_odom_time = {0, 0};
 static struct timespec g_last_imu_time  = {0, 0};
 static uint32_t g_solve_count = 0;
+static uint32_t g_odom_update_count = 0;
+static uint32_t g_last_solve_odom_update_count = 0;
 
 /* Measured control loop timing for cross-call scaling */
 static struct timespec g_prev_solve_time = {0, 0};
@@ -576,8 +576,7 @@ static void odom_callback(const void *msg_in)
     g_latest_vy_mps = vy;
     g_latest_omega = omega;
     g_have_odom = 1;
-
-    clock_gettime(CLOCK_MONOTONIC, &g_last_odom_time);
+    g_odom_update_count++;
 }
 
 static void pose_callback(const void *msg_in)
@@ -616,26 +615,19 @@ static void pose_callback(const void *msg_in)
         return;
     }
 
-    /* Watchdog: check for stale odometry */
+    /* Only solve when this fresh EKF pose is paired with a newer odom sample. */
+    if (g_odom_update_count == g_last_solve_odom_update_count)
+    {
+        if (g_verbose)
+        {
+            printf("[MPCC] Waiting for fresh odometry to pair with EKF pose; skipping solve\n");
+        }
+        return;
+    }
+
     {
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
-
-        if (g_last_odom_time.tv_sec == 0 && g_last_odom_time.tv_nsec == 0)
-        {
-            return;
-        }
-
-        if (timespec_diff_sec(&g_last_odom_time, &now) > g_watchdog_timeout_sec)
-        {
-            if (g_verbose || g_solve_count <= 20 || (g_solve_count % 10U) == 0U)
-            {
-                fprintf(stderr,
-                        "[MPCC] WARNING: odometry stale (%.0f ms), skipping solve\n",
-                        timespec_diff_sec(&g_last_odom_time, &now) * 1000.0);
-            }
-            return;
-        }
 
         if ((g_last_imu_time.tv_sec != 0 || g_last_imu_time.tv_nsec != 0)
             && timespec_diff_sec(&g_last_imu_time, &now) > 0.05)
@@ -649,6 +641,8 @@ static void pose_callback(const void *msg_in)
             g_vehicle_state.yaw_rate = (float)g_latest_omega;
         }
     }
+
+    g_last_solve_odom_update_count = g_odom_update_count;
 
     MPCCState_t mpcc_state = mpcc_state_from_vehicle_state(&g_vehicle_state, g_current_s);
     g_current_s = mpcc_state.s;
@@ -901,15 +895,6 @@ static void read_runtime_environment(void)
         }
     }
 
-    if ((value = getenv("MPCC_WATCHDOG_TIMEOUT")) != NULL)
-    {
-        const double timeout = atof(value);
-        if (timeout > 0.0 && timeout <= 5.0)
-        {
-            g_watchdog_timeout_sec = timeout;
-        }
-    }
-
     if ((value = getenv("MPCC_CONTROL_PERIOD_MS")) != NULL)
     {
         const double period_ms = atof(value);
@@ -1135,8 +1120,7 @@ int main(int argc, const char *argv[])
 
     printf("[MPCC] Hardware topics: odom=%s pose=%s imu=%s servo=%s drive=%s\n",
            g_odom_topic, g_pose_topic, g_imu_topic, g_servo_topic, g_drive_topic);
-        printf("[MPCC] EKF-driven mode | watchdog: %.0f ms | nominal_dt: %.1f ms | cross_call: %s | trajectory: %s\n",
-            g_watchdog_timeout_sec * 1000.0,
+        printf("[MPCC] EKF-driven mode | solve gate: fresh pose + fresh odom | nominal_dt: %.1f ms | cross_call: %s | trajectory: %s\n",
             g_nominal_control_dt_sec * 1000.0,
             g_adapt_cross_call_scale ? "adaptive" : "fixed",
             g_trajectory_file);

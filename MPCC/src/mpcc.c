@@ -921,9 +921,8 @@ static void build_qp_problem(
         }
 
         MPCCPathPoint_t path_pt;
-        float s_geom = mpcc_find_closest_s_with_hint(
-            &ref_path, z_bar.X, z_bar.Y, z_bar.s);
-        mpcc_path_interpolate(&ref_path, s_geom, &path_pt);
+        /* Keep stage geometry anchored to the MPCC arc-length state. */
+        mpcc_path_interpolate(&ref_path, z_bar.s, &path_pt);
 
         /* --- ADD: store path geometry for ADMM track projection --- */
         qp->path_x_ref[k]   = path_pt.x_ref;
@@ -1073,9 +1072,7 @@ static void build_qp_problem(
         }
 
         MPCCPathPoint_t path_pt;
-        float s_terminal_geom = mpcc_find_closest_s_with_hint(
-            &ref_path, z_terminal.X, z_terminal.Y, z_terminal.s);
-        mpcc_path_interpolate(&ref_path, s_terminal_geom, &path_pt);
+        mpcc_path_interpolate(&ref_path, z_terminal.s, &path_pt);
 
         qp->track_left[N]  = path_pt.left_bound - track_buffer;
         qp->track_right[N] = path_pt.right_bound - track_buffer;
