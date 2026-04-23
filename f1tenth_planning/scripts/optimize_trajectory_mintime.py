@@ -1693,7 +1693,7 @@ def main():
         max_speed=12.0,         # m/s (set to None for no clamping)
         min_speed=2.0,          # m/s (set to None for no clamping)
         waypoint_spacing=0.02,  
-        reopt_mintime_solution=True,
+        reopt_mintime_solution=False,
         recalc_vel_profile_by_tph=None,
 
         # Centerline extraction settings
