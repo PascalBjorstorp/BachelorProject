@@ -462,53 +462,33 @@ static void raceline_callback(const void *msg_in)
      * --------------------------------------------------------------- */
     if (g_reference_path.num_points >= 2)
     {
-        float best_dist_sq = FLT_MAX;
-        uint16_t best_idx = 0;
-        float csv_len = g_reference_path.total_length;
-        float new_len = ref_path.total_length;
-        float s_offset = 0.0f;
-
-        /* Align the topic path to the CSV path once, then transfer bounds
-         * by arc-length progress to preserve track-side correspondence. */
-        for (uint16_t j = 0; j < g_reference_path.num_points; j++)
-        {
-            float dx = ref_path.points[0].x_ref - g_reference_path.points[j].x_ref;
-            float dy = ref_path.points[0].y_ref - g_reference_path.points[j].y_ref;
-            float dist_sq = dx * dx + dy * dy;
-            if (dist_sq < best_dist_sq)
-            {
-                best_dist_sq = dist_sq;
-                best_idx = j;
-            }
-        }
-
-        s_offset = g_reference_path.points[best_idx].s_ref;
-
+        /* Transfer bounds from the CSV reference path point-by-point.
+         * The incoming topic path may use a different discretization or
+         * progression profile, so a single global arc-length ratio can
+         * attach the wrong corridor farther along the horizon. */
         for (uint16_t i = 0; i < n; i++)
         {
             MPCCPathPoint_t bounds_pt;
-            float s_ratio = 0.0f;
-            float s_query;
+            float s_query = mpcc_find_closest_s(
+                &g_reference_path,
+                ref_path.points[i].x_ref,
+                ref_path.points[i].y_ref);
             float dx;
             float dy;
             float dist_sq;
 
-            if (new_len > 1e-6f && csv_len > 1e-6f)
-                s_ratio = ref_path.points[i].s_ref / new_len;
-
-            s_query = s_offset + (s_ratio * csv_len);
             mpcc_path_interpolate(&g_reference_path, s_query, &bounds_pt);
 
             ref_path.points[i].left_bound = bounds_pt.left_bound;
             ref_path.points[i].right_bound = bounds_pt.right_bound;
 
-            /* If the aligned arc-length sample is still far away in
-             * Cartesian space, the paths differ materially — use a
-             * conservative fallback corridor instead. */
+            /* If the nearest CSV sample is still materially offset in
+             * Cartesian space, the paths do not describe the same corridor.
+             * Fall back to a conservative fixed-width lane instead. */
             dx = ref_path.points[i].x_ref - bounds_pt.x_ref;
             dy = ref_path.points[i].y_ref - bounds_pt.y_ref;
             dist_sq = dx * dx + dy * dy;
-            if (dist_sq > 4.0f)
+            if (dist_sq > 0.25f)
             {
                 ref_path.points[i].left_bound = 0.35f;
                 ref_path.points[i].right_bound = 0.35f;

@@ -523,52 +523,69 @@ MPCCState_t mpcc_state_from_vehicle_state(
     st.vy    = vs->lat_vel;
     st.omega = vs->yaw_rate;
 
-    /* Compute s via forward-biased closest-waypoint search + segment projection */
+    /* Compute s by following the previous plan first and only using
+     * geometry as a local correction/recovery signal. */
     {
+        float s_anchor;
+        float s_geom;
+
+        if (ref_path.num_points == 0) {
+            st.s = 0.0f;
+            return st;
+        }
+
         if (last_closest_idx >= ref_path.num_points) last_closest_idx = 0;
 
-        /* Step 1: forward-biased index search for the best waypoint */
+        /* Keep the forward-biased waypoint search for local index tracking. */
         uint16_t idx0 = mpcc_find_closest_index_forward_biased(
             &ref_path, st.X, st.Y, st.psi, last_closest_idx);
         uint16_t idx1 = (uint16_t)(idx0 + 1);
         if (idx1 >= ref_path.num_points)
             idx1 = ref_path.is_closed ? 0 : (ref_path.num_points - 1);
-        last_closest_idx = idx0;
 
-        /* Step 2: project onto the segment for sub-waypoint precision */
+        /* Fallback geometry-only estimate used when no progress anchor exists. */
         float s_segment = mpcc_project_s_on_segment(
             &ref_path, idx0, idx1, st.X, st.Y);
 
-        /* Step 3: use hint-based windowed search to guard against
-         * index errors — if it disagrees significantly, trust the
-         * windowed search (it checked ±80 waypoints vs 1 segment). */
-        float s_hint_val = s_hint;
-        if (s_hint_val <= 0.0f && warm_start_available)
-            s_hint_val = prev_predicted_states[0].s;
-        if (s_hint_val <= 0.0f)
-            s_hint_val = s_segment;
+        if (warm_start_available && config.horizon_steps > 0)
+            s_anchor = prev_predicted_states[1].s;
+        else if (s_hint > 0.0f)
+            s_anchor = s_hint;
+        else
+            s_anchor = s_segment;
 
-        float s_windowed = mpcc_find_closest_s_with_hint(
-            &ref_path, st.X, st.Y, s_hint_val);
+        s_geom = mpcc_find_closest_s_with_hint(&ref_path, st.X, st.Y, s_anchor);
 
-        /* Pick whichever is further along (guards against backward jumps)
-         * but only if they agree within a reasonable tolerance. */
-        float diff = mpcc_normalize_s_delta(
-            &ref_path, s_windowed - s_segment);
-        if (diff < 0) diff = -diff;
-        if (diff < 1.0f) {
-            float seg_from_hint = mpcc_normalize_s_delta(
-                &ref_path, s_segment - s_hint_val);
-            float window_from_hint = mpcc_normalize_s_delta(
-                &ref_path, s_windowed - s_hint_val);
-            st.s = (window_from_hint > seg_from_hint)
-                ? s_windowed
-                : s_segment;
-        } else {
-            st.s = s_windowed;
+        {
+            float diff = mpcc_normalize_s_delta(&ref_path, s_geom - s_anchor);
+            if (diff < 0.0f) diff = -diff;
+
+            if (diff < 0.75f) {
+                st.s = s_geom;
+            } else if (diff < 2.0f) {
+                float delta = mpcc_normalize_s_delta(&ref_path, s_geom - s_anchor);
+                st.s = s_anchor + (0.25f * delta);
+            } else {
+                st.s = s_anchor;
+            }
         }
 
-        st.s = mpcc_limit_s_jump(&ref_path, s_hint_val, st.s, st.vx);
+        st.s = mpcc_limit_s_jump(&ref_path, s_anchor, st.s, st.vx);
+        if (ref_path.is_closed && ref_path.total_length > 0.0f) {
+            while (st.s > ref_path.total_length) st.s -= ref_path.total_length;
+            while (st.s < 0.0f) st.s += ref_path.total_length;
+        } else {
+            if (st.s < 0.0f) st.s = 0.0f;
+            if (st.s > ref_path.total_length) st.s = ref_path.total_length;
+        }
+
+        /* Update search locality after the final s decision. */
+        if (ref_path.num_points > 0) {
+            last_closest_idx = mpcc_find_closest_index_forward_biased(
+                &ref_path, st.X, st.Y, st.psi, idx0);
+        } else {
+            last_closest_idx = 0;
+        }
     }
 
     return st;
@@ -868,9 +885,22 @@ static void build_qp_problem(
     qp->x_lower[MPCC_IDX_VY] = -5.0f;
     qp->x_upper[MPCC_IDX_VY] =  5.0f;
 
-    /* omega: physical yaw rate bound [rad/s] */
-    qp->x_lower[MPCC_IDX_OMEGA] = -15.0f;
-    qp->x_upper[MPCC_IDX_OMEGA] =  15.0f;
+    /* omega: tighten yaw-rate by available lateral grip at the measured
+     * speed so high-speed solves cannot demand impossible curvature. */
+    {
+        float omega_bound = 15.0f;
+        float vx_for_omega = fabsf(x0->vx);
+        float mu_g = config.mu * F110_GRAVITY_ACCELERATION_MS2;
+
+        if (vx_for_omega > 5.0f && mu_g > 0.0f) {
+            float omega_friction = (0.95f * mu_g) / vx_for_omega;
+            if (omega_friction < omega_bound)
+                omega_bound = omega_friction;
+        }
+
+        qp->x_lower[MPCC_IDX_OMEGA] = -omega_bound;
+        qp->x_upper[MPCC_IDX_OMEGA] =  omega_bound;
+    }
 
     /* Control bounds */
     qp->u_lower[MPCC_IDX_DELTA] = (0 - config.delta_max);
@@ -1386,7 +1416,7 @@ MPCCStatus_t mpcc_compute_control(
                 result->optimal_control.delta = prev_control.delta - max_delta_change;
         }
 
-        /* Copy predicted trajectory to result */
+        /* Copy the solver trajectory directly. */
         uint16_t N = config.horizon_steps;
         for (uint16_t k = 0; k <= N; k++)
             array_to_state(admm_result.x_opt[k], &result->predicted_states[k]);
@@ -1397,33 +1427,31 @@ MPCCStatus_t mpcc_compute_control(
             result->predicted_controls[k].v_theta = admm_result.u_opt[k][MPCC_IDX_VTHETA];
         }
 
-        /* The first applied steering command is rate-limited after the solve.
-         * Re-anchor the returned horizon to that actual first input so the
-         * published prediction and next warm-start stay aligned with the car. */
-        result->predicted_controls[0] = result->optimal_control;
         result->predicted_states[0] = *current_state;
-        for (uint16_t k = 0; k < N; k++)
+        if (N > 0)
         {
             float x_arr[MPCC_NX];
             float x_next[MPCC_NX];
             float u_arr[MPCC_NU] = {
-                result->predicted_controls[k].delta,
-                result->predicted_controls[k].a_x,
-                result->predicted_controls[k].v_theta
+                result->optimal_control.delta,
+                result->optimal_control.a_x,
+                result->optimal_control.v_theta
             };
 
-            state_to_array(&result->predicted_states[k], x_arr);
+            result->predicted_controls[0] = result->optimal_control;
+            state_to_array(&result->predicted_states[0], x_arr);
 
             for (int i = 0; i < MPCC_NX; i++) {
-                x_next[i] = qp_problem.dynamics[k].d[i];
+                x_next[i] = qp_problem.dynamics[0].d[i];
                 for (int j = 0; j < MPCC_NX; j++)
-                    x_next[i] += qp_problem.dynamics[k].A[i][j] * x_arr[j];
+                    x_next[i] += qp_problem.dynamics[0].A[i][j] * x_arr[j];
                 for (int j = 0; j < MPCC_NU; j++)
-                    x_next[i] += qp_problem.dynamics[k].B[i][j] * u_arr[j];
+                    x_next[i] += qp_problem.dynamics[0].B[i][j] * u_arr[j];
             }
 
-            array_to_state(x_next, &result->predicted_states[k + 1]);
+            array_to_state(x_next, &result->predicted_states[1]);
         }
+        result->predicted_controls[0] = result->optimal_control;
 
         /* Store solution for next cycle's warm start */
         for (uint16_t k = 0; k <= N; k++)
