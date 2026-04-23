@@ -272,7 +272,12 @@ elif opt_type == 'mintime':
                                                    + pars["vehicle_params_mintime"]["wheelbase_rear"])
 
 # set import path for ggv diagram and ax_max_machines (if required)
-if not (opt_type == 'mintime' and not mintime_opts["recalc_vel_profile_by_tph"]):
+needs_ggv_profile = not (
+    opt_type == 'mintime'
+    and not mintime_opts["recalc_vel_profile_by_tph"]
+    and not mintime_opts["reopt_mintime_solution"]
+)
+if needs_ggv_profile:
     file_paths["ggv_file"] = os.path.join(file_paths["module"], "inputs", "veh_dyn_info", pars["ggv_file"])
     file_paths["ax_max_machines_file"] = os.path.join(file_paths["module"], "inputs", "veh_dyn_info",
                                                       pars["ax_max_machines_file"])
@@ -290,7 +295,7 @@ reftrack_imp = helper_funcs_glob.src.import_track.import_track(imp_opts=imp_opts
                                                                width_veh=pars["veh_params"]["width"])
 
 # import ggv and ax_max_machines (if required)
-if not (opt_type == 'mintime' and not mintime_opts["recalc_vel_profile_by_tph"]):
+if needs_ggv_profile:
     ggv, ax_max_machines = tph.import_veh_dyn_info.\
         import_veh_dyn_info(ggv_import_path=file_paths["ggv_file"],
                             ax_max_machines_import_path=file_paths["ax_max_machines_file"])
@@ -557,13 +562,18 @@ psi_vel_opt, kappa_opt = tph.calc_head_curv_an.\
 # CALCULATE VELOCITY AND ACCELERATION PROFILE --------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------
 
-if opt_type == 'mintime' and not mintime_opts["recalc_vel_profile_by_tph"]:
+if opt_type == 'mintime' and not mintime_opts["recalc_vel_profile_by_tph"] \
+        and not mintime_opts["reopt_mintime_solution"]:
     # interpolation
     s_splines = np.cumsum(spline_lengths_opt)
     s_splines = np.insert(s_splines, 0, 0.0)
     vx_profile_opt = np.interp(s_points_opt_interp, s_splines[:-1], v_opt)
 
 else:
+    if opt_type == 'mintime' and mintime_opts["reopt_mintime_solution"] \
+            and not mintime_opts["recalc_vel_profile_by_tph"]:
+        print("INFO: Mintime reoptimization changed spline sampling; "
+              "using TPH velocity recalculation instead of stale v_opt interpolation.")
     vx_profile_opt = tph.calc_vel_profile.\
         calc_vel_profile(ggv=ggv,
                          ax_max_machines=ax_max_machines,

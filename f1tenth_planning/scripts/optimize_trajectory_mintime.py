@@ -1693,7 +1693,7 @@ def main():
         max_speed=12.0,         # m/s (set to None for no clamping)
         min_speed=2.0,          # m/s (set to None for no clamping)
         waypoint_spacing=0.02,  
-        reopt_mintime_solution=False,
+        reopt_mintime_solution=True,
         recalc_vel_profile_by_tph=None,
 
         # Centerline extraction settings
@@ -1865,11 +1865,11 @@ def main():
             "reopt_mintime_solution",
             args.reopt_mintime_solution,
         )
-        #set_mintime_bool_option_in_main(
-        #    main_py,
-        #    "recalc_vel_profile_by_tph",
-        #    recalc_vel_profile,
-        #)
+        set_mintime_bool_option_in_main(
+            main_py,
+            "recalc_vel_profile_by_tph",
+            recalc_vel_profile,
+        )
         patch_main_to_load_prepared_track(main_py, prepared_track_npz)
         print("  Patched main_globaltraj.py: using prepared Step 0 splines")
         print(
