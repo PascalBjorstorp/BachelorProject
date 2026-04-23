@@ -1011,6 +1011,20 @@ def plot_prepared_optimizer_track(map_img, resolution, origin,
         axis=1,
     )
     boundary_plot_jump = max(0.30, 3.0 * float(np.median(center_steps)))
+    free_for_plot = map_img >= 240
+
+    def _segment_crosses_free_space(p0, p1, samples=9):
+        ts = np.linspace(0.0, 1.0, samples + 2)[1:-1]
+        pts = p0[None, :] + ts[:, None] * (p1 - p0)[None, :]
+        cols = np.rint((pts[:, 0] - origin[0]) / resolution).astype(int)
+        rows = np.rint(map_img.shape[0] - (pts[:, 1] - origin[1]) / resolution).astype(int)
+        in_bounds = (
+            (rows >= 0) & (rows < map_img.shape[0])
+            & (cols >= 0) & (cols < map_img.shape[1])
+        )
+        if not np.any(in_bounds):
+            return True
+        return np.mean(free_for_plot[rows[in_bounds], cols[in_bounds]]) > 0.35
 
     def _plot_boundary_with_gaps(boundary_world, color, label):
         boundary_closed = np.vstack([boundary_world, boundary_world[0]])
@@ -1018,7 +1032,9 @@ def plot_prepared_optimizer_track(map_img, resolution, origin,
         plot_pts = []
         for i, pt in enumerate(boundary_world):
             plot_pts.append(pt)
-            if jumps[i] > boundary_plot_jump:
+            next_pt = boundary_closed[i + 1]
+            if (jumps[i] > boundary_plot_jump
+                    or _segment_crosses_free_space(pt, next_pt)):
                 plot_pts.append([np.nan, np.nan])
         plot_pts = np.asarray(plot_pts, dtype=float)
         ax.plot(

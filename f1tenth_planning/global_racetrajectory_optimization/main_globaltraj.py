@@ -17,6 +17,88 @@ Documentation:
 This script has to be executed to generate an optimal trajectory based on a given reference track.
 """
 
+
+def repair_closed_velocity_profile(vx_profile: np.ndarray,
+                                   kappa: np.ndarray,
+                                   el_lengths: np.ndarray,
+                                   ggv: np.ndarray,
+                                   ax_max_machines: np.ndarray,
+                                   pars: dict,
+                                   debug: bool,
+                                   max_passes: int = 80) -> np.ndarray:
+    """Conservatively remove closed-loop acceleration spikes from TPH velocity output."""
+    if ggv is None or ax_max_machines is None:
+        return vx_profile
+
+    vx_original = np.asarray(vx_profile, dtype=float)
+    vx_repaired = vx_original.copy()
+    if vx_repaired.size == 0:
+        return vx_repaired
+
+    radii = np.abs(np.divide(1.0, kappa,
+                             out=np.full(kappa.size, np.inf),
+                             where=kappa != 0.0))
+    dyn_model_exp = pars["vel_calc_opts"]["dyn_model_exp"]
+    dragcoeff = pars["veh_params"]["dragcoeff"]
+    mass = pars["veh_params"]["mass"]
+
+    max_delta = 0.0
+    passes_done = 0
+    for pass_idx in range(max_passes):
+        prev_vx = vx_repaired.copy()
+
+        # Forward pass: limit acceleration from point i to point i+1.
+        for i in range(vx_repaired.size):
+            j = (i + 1) % vx_repaired.size
+            ax_possible = tph.calc_vel_profile.calc_ax_poss(
+                vx_start=float(vx_repaired[i]),
+                radius=float(radii[i]),
+                ggv=ggv,
+                ax_max_machines=ax_max_machines,
+                mu=1.0,
+                mode='accel_forw',
+                dyn_model_exp=dyn_model_exp,
+                drag_coeff=dragcoeff,
+                m_veh=mass,
+            )
+            v_next_max = np.sqrt(max(vx_repaired[i] ** 2
+                                     + 2.0 * ax_possible * el_lengths[i],
+                                     0.0))
+            if vx_repaired[j] > v_next_max:
+                vx_repaired[j] = v_next_max
+
+        # Backward pass: limit braking needed from point i to point i+1.
+        for j in range(vx_repaired.size - 1, -1, -1):
+            i = (j - 1) % vx_repaired.size
+            ax_possible = tph.calc_vel_profile.calc_ax_poss(
+                vx_start=float(vx_repaired[j]),
+                radius=float(radii[j]),
+                ggv=ggv,
+                mu=1.0,
+                mode='decel_backw',
+                dyn_model_exp=dyn_model_exp,
+                drag_coeff=dragcoeff,
+                m_veh=mass,
+            )
+            v_prev_max = np.sqrt(max(vx_repaired[j] ** 2
+                                     + 2.0 * ax_possible * el_lengths[i],
+                                     0.0))
+            if vx_repaired[i] > v_prev_max:
+                vx_repaired[i] = v_prev_max
+
+        pass_delta = float(np.max(np.abs(vx_repaired - prev_vx)))
+        max_delta = max(max_delta, pass_delta)
+        passes_done = pass_idx + 1
+        if pass_delta < 1e-6:
+            break
+
+    if debug and max_delta > 1e-6:
+        print("INFO: Repaired closed TPH velocity profile: "
+              f"max speed reduction {np.max(vx_original - vx_repaired):.3f}m/s "
+              f"over {passes_done} passes")
+
+    return vx_repaired
+
 # ----------------------------------------------------------------------------------------------------------------------
 # USER INPUT -----------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------
@@ -71,8 +153,8 @@ opt_type = 'mintime'
 mintime_opts = {"tpadata": None,
                 "warm_start": False,
                 "var_friction": None,
-                "reopt_mintime_solution": True,
-                "recalc_vel_profile_by_tph": True}
+                "reopt_mintime_solution": False,
+                "recalc_vel_profile_by_tph": False}
 
 # lap time calculation table -------------------------------------------------------------------------------------------
 lap_time_mat_opts = {"use_lap_time_mat": False,             # calculate a lap time matrix (diff. top speeds and scales)
@@ -240,18 +322,12 @@ if opt_type == 'mintime' and pars["optim_opts"]["safe_traj"] \
 # PREPARE REFTRACK -----------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------
 
-prepared_track_file = r"/home/pascal/Documents/BachelorProject/f1tenth_planning/global_racetrajectory_optimization/inputs/tracks/my_track_prepared.npz"
-if not os.path.exists(prepared_track_file):
-    raise FileNotFoundError(f"Prepared track file not found: {prepared_track_file}")
-prepared_track = np.load(prepared_track_file)
-reftrack_interp = prepared_track["reftrack_interp"]
-normvec_normalized_interp = prepared_track["normvec_normalized_interp"]
-a_interp = prepared_track["a_interp"]
-coeffs_x_interp = prepared_track["coeffs_x_interp"]
-coeffs_y_interp = prepared_track["coeffs_y_interp"]
-if debug:
-    print(f"INFO: Loaded prepared reference track: {prepared_track_file}")
-    print(f"INFO: Prepared reference points: {reftrack_interp.shape[0]}")
+reftrack_interp, normvec_normalized_interp, a_interp, coeffs_x_interp, coeffs_y_interp = \
+    helper_funcs_glob.src.prep_track.prep_track(reftrack_imp=reftrack_imp,
+                                                reg_smooth_opts=pars["reg_smooth_opts"],
+                                                stepsize_opts=pars["stepsize_opts"],
+                                                debug=debug,
+                                                min_width=imp_opts["min_track_width"])
 
 # ----------------------------------------------------------------------------------------------------------------------
 # CALL OPTIMIZATION ----------------------------------------------------------------------------------------------------
@@ -386,14 +462,14 @@ if opt_type == 'mintime' and mintime_opts["reopt_mintime_solution"]:
 
         reopt_errors = []
         alpha_reopt = None
-        for free_dev in free_dev_candidates:
-            side_width = w_veh_reopt / 2.0 + free_dev
-            w_tr_tmp = side_width * np.ones(reftrack_interp.shape[0])
-            racetrack_mintime_reopt = np.column_stack(
-                (reftrack_interp[:, :2], w_tr_tmp, w_tr_tmp)
-            )
+        for kappa_bound_reopt in kappa_candidates:
+            for free_dev in free_dev_candidates:
+                side_width = w_veh_reopt / 2.0 + free_dev
+                w_tr_tmp = side_width * np.ones(reftrack_interp.shape[0])
+                racetrack_mintime_reopt = np.column_stack(
+                    (reftrack_interp[:, :2], w_tr_tmp, w_tr_tmp)
+                )
 
-            for kappa_bound_reopt in kappa_candidates:
                 try:
                     alpha_reopt = tph.opt_min_curv.opt_min_curv(
                         reftrack=racetrack_mintime_reopt,
@@ -499,6 +575,13 @@ else:
                          dyn_model_exp=pars["vel_calc_opts"]["dyn_model_exp"],
                          drag_coeff=pars["veh_params"]["dragcoeff"],
                          m_veh=pars["veh_params"]["mass"])
+    vx_profile_opt = repair_closed_velocity_profile(vx_profile=vx_profile_opt,
+                                                    kappa=kappa_opt,
+                                                    el_lengths=el_lengths_opt_interp,
+                                                    ggv=ggv,
+                                                    ax_max_machines=ax_max_machines,
+                                                    pars=pars,
+                                                    debug=debug)
 
 # calculate longitudinal acceleration profile
 vx_profile_opt_cl = np.append(vx_profile_opt, vx_profile_opt[0])
