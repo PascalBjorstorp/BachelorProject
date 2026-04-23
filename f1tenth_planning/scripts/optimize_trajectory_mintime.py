@@ -1705,8 +1705,8 @@ def main():
         direction='cw',             # 'auto', 'cw', or 'ccw'
 
         # Vehicle and wall-clearance settings
-        car_width=0.28,
-        wall_clearance=0.05,
+        car_width=0.3,
+        wall_clearance=0.15,
         max_ray_distance=8.0,
     )
 
