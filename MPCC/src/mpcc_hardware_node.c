@@ -936,6 +936,11 @@ static void read_runtime_environment(void)
 static void configure_mpcc_from_environment(void)
 {
     mpcc_initialize();
+    if (g_ax_min_hardware > 0.0)
+    {
+        g_ax_min_hardware = 0.0;
+    }
+
     MPCCConfiguration_t cfg = mpcc_get_configuration();
 
     /* Each parameter with an alias: canonical name takes priority.
@@ -1003,6 +1008,9 @@ static void configure_mpcc_from_environment(void)
     if ((v = getenv("C_SR")) != NULL)          cfg.C_Sr                     = (float)atof(v);
     if ((v = getenv("AX_MAX")) != NULL)        cfg.ax_max                   = (float)atof(v);
     if ((v = getenv("AX_MIN")) != NULL)        cfg.ax_min                   = (float)atof(v);
+
+    if ((float)g_ax_min_hardware > cfg.ax_min)
+        cfg.ax_min = (float)g_ax_min_hardware;
 
     if ((v = getenv("MPCC_CROSS_CALL_SCALE")) != NULL)
         cfg.cross_call_rate_scale = (float)atof(v);

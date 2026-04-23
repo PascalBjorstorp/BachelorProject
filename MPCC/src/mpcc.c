@@ -1397,6 +1397,34 @@ MPCCStatus_t mpcc_compute_control(
             result->predicted_controls[k].v_theta = admm_result.u_opt[k][MPCC_IDX_VTHETA];
         }
 
+        /* The first applied steering command is rate-limited after the solve.
+         * Re-anchor the returned horizon to that actual first input so the
+         * published prediction and next warm-start stay aligned with the car. */
+        result->predicted_controls[0] = result->optimal_control;
+        result->predicted_states[0] = *current_state;
+        for (uint16_t k = 0; k < N; k++)
+        {
+            float x_arr[MPCC_NX];
+            float x_next[MPCC_NX];
+            float u_arr[MPCC_NU] = {
+                result->predicted_controls[k].delta,
+                result->predicted_controls[k].a_x,
+                result->predicted_controls[k].v_theta
+            };
+
+            state_to_array(&result->predicted_states[k], x_arr);
+
+            for (int i = 0; i < MPCC_NX; i++) {
+                x_next[i] = qp_problem.dynamics[k].d[i];
+                for (int j = 0; j < MPCC_NX; j++)
+                    x_next[i] += qp_problem.dynamics[k].A[i][j] * x_arr[j];
+                for (int j = 0; j < MPCC_NU; j++)
+                    x_next[i] += qp_problem.dynamics[k].B[i][j] * u_arr[j];
+            }
+
+            array_to_state(x_next, &result->predicted_states[k + 1]);
+        }
+
         /* Store solution for next cycle's warm start */
         for (uint16_t k = 0; k <= N; k++)
             prev_predicted_states[k] = result->predicted_states[k];

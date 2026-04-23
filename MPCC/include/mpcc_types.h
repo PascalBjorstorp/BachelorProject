@@ -550,24 +550,24 @@ typedef struct
 #define MPCC_DEFAULT_HORIZON          20                            /** was 10 — 200 ms total was too short */
 #define MPCC_DEFAULT_DT               (0.05f)                       /** was 0.02 s — now 1.0 s total horizon */
 
-/*--- Contouring tracking weights (Apr 22 sweep best: 12.25s lap, 0 collisions) ---*/
-#define MPCC_DEFAULT_WEIGHT_CONTOURING (600.0f)                     /** Contouring error penalty. */
-#define MPCC_DEFAULT_WEIGHT_LAG       (200.0f)                     /** Lag error penalty. */
-#define MPCC_DEFAULT_WEIGHT_PROGRESS  (18.0f)                      /** Progress reward. */
+/*--- Contouring tracking weights (Apr 22 post-fix sweep best: 11.9s lap, 0 collisions) ---*/
+#define MPCC_DEFAULT_WEIGHT_CONTOURING (960.0f)                     /** Contouring error penalty. */
+#define MPCC_DEFAULT_WEIGHT_LAG       (100.0f)                     /** Lag error penalty. */
+#define MPCC_DEFAULT_WEIGHT_PROGRESS  (15.6f)                      /** Progress reward. */
 
 /*--- State regularization ---*/
-#define MPCC_DEFAULT_WEIGHT_VX        (30.0f)                        /** Longitudinal velocity tracking weight.*/
+#define MPCC_DEFAULT_WEIGHT_VX        (0.0f)                         /** Longitudinal velocity tracking weight.*/
 #define MPCC_DEFAULT_VX_REF           (4.0f)                        /** Reference velocity for longitudinal velocity tracking [m/s]. */
-#define MPCC_DEFAULT_WEIGHT_VY        (1.0f)                        /** Lateral velocity tracking weight. */
-#define MPCC_DEFAULT_WEIGHT_OMEGA     (3.0f)                         /** Yaw rate tracking weight. */
+#define MPCC_DEFAULT_WEIGHT_VY        (0.5f)                        /** Lateral velocity tracking weight. */
+#define MPCC_DEFAULT_WEIGHT_OMEGA     (0.3f)                         /** Yaw rate tracking weight. */
 
 /*--- Control effort ---*/
-#define MPCC_DEFAULT_WEIGHT_DELTA     (100.0f)                      /** Steering angle effort penalty. */
-#define MPCC_DEFAULT_WEIGHT_AX        (0.057475f)                   /** Longitudinal acceleration effort penalty. */
+#define MPCC_DEFAULT_WEIGHT_DELTA     (160.0f)                      /** Steering angle effort penalty. */
+#define MPCC_DEFAULT_WEIGHT_AX        (0.05225f)                    /** Longitudinal acceleration effort penalty. */
 #define MPCC_DEFAULT_WEIGHT_V_THETA   (0.1f)                        /** Virtual progress speed effort penalty. */
 
 /*--- Control rate (smoothness) ---*/
-#define MPCC_DEFAULT_WEIGHT_DELTA_RATE    (5.72f)                     /** Steering rate penalty. */
+#define MPCC_DEFAULT_WEIGHT_DELTA_RATE    (3.0f)                      /** Steering rate penalty. */
 #define MPCC_DEFAULT_WEIGHT_AX_RATE       (0.488f)                    /** Longitudinal acceleration rate penalty. */
 #define MPCC_DEFAULT_WEIGHT_V_THETA_RATE  (0.1105f)                   /** Virtual progress speed rate penalty. */
 
@@ -577,8 +577,8 @@ typedef struct
 #define MPCC_DEFAULT_CROSS_CALL_SCALE     (0.1f)                     /** was 0.3, must = 1/(Hz*dt) */
 
 /*--- Terminal weights ---*/
-#define MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL     (1000.0f)     /** Terminal contouring error penalty. */
-#define MPCC_DEFAULT_WEIGHT_LAG_TERMINAL            (400.0f)      /** Terminal lag error penalty. */
+#define MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL     (4800.0f)     /** Terminal contouring error penalty. */
+#define MPCC_DEFAULT_WEIGHT_LAG_TERMINAL            (800.0f)      /** Terminal lag error penalty. */
 #define MPCC_DEFAULT_WEIGHT_PROGRESS_TERMINAL       (41.4f)       /** Terminal progress reward. */
 
 /*--- Obstacle avoidance ---*/
@@ -600,7 +600,7 @@ typedef struct
 #define MPCC_DEFAULT_AX_MIN           (-10.0f)                      /** Minimum Acceleration bound (negative = breaking)*/
 
 /*--- Virtual progress speed bounds ---*/
-#define MPCC_DEFAULT_V_THETA_MAX      (10.0f)                       /** Maximum virtual progress bound */
+#define MPCC_DEFAULT_V_THETA_MAX      (8.0f)                        /** Maximum virtual progress bound */
 #define MPCC_DEFAULT_V_THETA_MIN      (0.0f)                        /** Minimum virtual progress bound */
 
 #endif /* MPCC_TYPES_H */
