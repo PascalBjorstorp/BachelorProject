@@ -175,6 +175,14 @@ def opt_mintime(reftrack: np.ndarray,
         pint = np.polyint(p)
         B[j] = pint(1.0)
 
+    # extract vehicle and tire parameters
+    veh = pars["vehicle_params_mintime"]
+    tire = pars["tire_params_mintime"]
+
+    # general constants
+    g = pars["veh_params"]["g"]
+    mass = pars["veh_params"]["mass"]
+
     # ------------------------------------------------------------------------------------------------------------------
     # STATE VARIABLES --------------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
@@ -189,7 +197,7 @@ def opt_mintime(reftrack: np.ndarray,
 
     # velocity [m/s]
     v_n = ca.SX.sym('v_n')
-    v_s = 50
+    v_s = max(float(pars["veh_params"]["v_max"]), 1.0)
     v = v_s * v_n
 
     # side slip angle [rad]
@@ -199,7 +207,11 @@ def opt_mintime(reftrack: np.ndarray,
 
     # yaw rate [rad/s]
     omega_z_n = ca.SX.sym('omega_z_n')
-    omega_z_s = 1
+    omega_z_limit = max(
+        0.5 * np.pi,
+        1.5 * float(pars["veh_params"]["v_max"]) * float(pars["veh_params"]["curvlim"]),
+    )
+    omega_z_s = max(omega_z_limit, 1.0)
     omega_z = omega_z_s * omega_z_n
 
     # lateral distance to reference line (positive = left) [m]
@@ -258,17 +270,20 @@ def opt_mintime(reftrack: np.ndarray,
 
     # positive longitudinal force (drive) [N]
     f_drive_n = ca.SX.sym('f_drive_n')
-    f_drive_s = 7500.0
+    f_drive_s = max(float(veh["f_drive_max"]), 1.0)
     f_drive = f_drive_s * f_drive_n
 
     # negative longitudinal force (brake) [N]
     f_brake_n = ca.SX.sym('f_brake_n')
-    f_brake_s = 20000.0
+    f_brake_s = max(float(veh["f_brake_max"]), 1.0)
     f_brake = f_brake_s * f_brake_n
 
     # lateral wheel load transfer [N]
     gamma_y_n = ca.SX.sym('gamma_y_n')
-    gamma_y_s = 5000.0
+    gamma_y_s = max(
+        mass * g * veh["cog_z"] / max(0.5 * (veh["track_width_front"] + veh["track_width_rear"]), 1e-3),
+        1.0,
+    )
     gamma_y = gamma_y_s * gamma_y_n
 
     # scaling factors for control variables
@@ -280,14 +295,6 @@ def opt_mintime(reftrack: np.ndarray,
     # ------------------------------------------------------------------------------------------------------------------
     # MODEL EQUATIONS --------------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
-
-    # extract vehicle and tire parameters
-    veh = pars["vehicle_params_mintime"]
-    tire = pars["tire_params_mintime"]
-
-    # general constants
-    g = pars["veh_params"]["g"]
-    mass = pars["veh_params"]["mass"]
 
     # curvature of reference line [rad/m]
     kappa = ca.SX.sym('kappa')
@@ -496,15 +503,25 @@ def opt_mintime(reftrack: np.ndarray,
     v_max = pars["veh_params"]["v_max"] / v_s       # max. velocity [m/s]
     beta_min = -0.5 * np.pi / beta_s                # min. side slip angle [rad]
     beta_max = 0.5 * np.pi / beta_s                 # max. side slip angle [rad]
-    omega_z_min = - 0.5 * np.pi / omega_z_s         # min. yaw rate [rad/s]
-    omega_z_max = 0.5 * np.pi / omega_z_s           # max. yaw rate [rad/s]
+    omega_z_min = -omega_z_limit / omega_z_s        # min. yaw rate [rad/s]
+    omega_z_max = omega_z_limit / omega_z_s         # max. yaw rate [rad/s]
     xi_min = - 0.5 * np.pi / xi_s                   # min. relative angle to tangent on reference line [rad]
     xi_max = 0.5 * np.pi / xi_s                     # max. relative angle to tangent on reference line [rad]
 
     # ------------------------------------------------------------------------------------------------------------------
     # INITIAL GUESS FOR DECISION VARIABLES -----------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
-    v_guess = 20.0 / v_s
+    v_guess_mps = max(1.2, min(4.0, 0.5 * float(pars["veh_params"]["v_max"])))
+    v_guess = v_guess_mps / v_s
+
+    if print_debug:
+        print(
+            "INFO: Mintime NLP scaling: "
+            f"v_s={v_s:.2f}, v_guess={v_guess_mps:.2f}m/s, "
+            f"omega_z_limit={omega_z_limit:.2f}rad/s, "
+            f"f_drive_s={f_drive_s:.2f}N, f_brake_s={f_brake_s:.2f}N, "
+            f"gamma_y_s={gamma_y_s:.2f}N"
+        )
 
     # ------------------------------------------------------------------------------------------------------------------
     # HELPER FUNCTIONS -------------------------------------------------------------------------------------------------
@@ -787,7 +804,10 @@ def opt_mintime(reftrack: np.ndarray,
 
         # append controls (for regularization)
         delta_p.append(Uk[0] * delta_s)
-        F_p.append(Uk[1] * f_drive_s / 10000.0 + Uk[2] * f_brake_s / 10000.0)
+        F_p.append(
+            (Uk[1] * f_drive_s + Uk[2] * f_brake_s)
+            / max(f_drive_s, f_brake_s)
+        )
 
         # append outputs
         x_opt.append(Xk * x_s)
@@ -887,7 +907,9 @@ def opt_mintime(reftrack: np.ndarray,
     opts = {"expand": True,
             "verbose": print_debug,
             "ipopt.max_iter": 2000,
-            "ipopt.tol": 1e-7}
+            "ipopt.tol": 1e-6,
+            "ipopt.acceptable_tol": 1e-4,
+            "ipopt.acceptable_iter": 15}
 
     # solver options for warm start
     if pars["optim_opts"]["warm_start"]:
@@ -932,7 +954,7 @@ def opt_mintime(reftrack: np.ndarray,
     # end time measure
     tend = time.perf_counter()
 
-    if solver.stats()['return_status'] != 'Solve_Succeeded':
+    if solver.stats()['return_status'] not in ('Solve_Succeeded', 'Solved_To_Acceptable_Level'):
         print('\033[91m' + 'ERROR: Optimization did not succeed!' + '\033[0m')
         sys.exit(1)
 
