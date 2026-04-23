@@ -71,8 +71,8 @@ opt_type = 'mintime'
 mintime_opts = {"tpadata": None,
                 "warm_start": False,
                 "var_friction": None,
-                "reopt_mintime_solution": False,
-                "recalc_vel_profile_by_tph": False}
+                "reopt_mintime_solution": True,
+                "recalc_vel_profile_by_tph": True}
 
 # lap time calculation table -------------------------------------------------------------------------------------------
 lap_time_mat_opts = {"use_lap_time_mat": False,             # calculate a lap time matrix (diff. top speeds and scales)
@@ -240,12 +240,18 @@ if opt_type == 'mintime' and pars["optim_opts"]["safe_traj"] \
 # PREPARE REFTRACK -----------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------
 
-reftrack_interp, normvec_normalized_interp, a_interp, coeffs_x_interp, coeffs_y_interp = \
-    helper_funcs_glob.src.prep_track.prep_track(reftrack_imp=reftrack_imp,
-                                                reg_smooth_opts=pars["reg_smooth_opts"],
-                                                stepsize_opts=pars["stepsize_opts"],
-                                                debug=debug,
-                                                min_width=imp_opts["min_track_width"])
+prepared_track_file = r"/home/pascal/Documents/BachelorProject/f1tenth_planning/global_racetrajectory_optimization/inputs/tracks/my_track_prepared.npz"
+if not os.path.exists(prepared_track_file):
+    raise FileNotFoundError(f"Prepared track file not found: {prepared_track_file}")
+prepared_track = np.load(prepared_track_file)
+reftrack_interp = prepared_track["reftrack_interp"]
+normvec_normalized_interp = prepared_track["normvec_normalized_interp"]
+a_interp = prepared_track["a_interp"]
+coeffs_x_interp = prepared_track["coeffs_x_interp"]
+coeffs_y_interp = prepared_track["coeffs_y_interp"]
+if debug:
+    print(f"INFO: Loaded prepared reference track: {prepared_track_file}")
+    print(f"INFO: Prepared reference points: {reftrack_interp.shape[0]}")
 
 # ----------------------------------------------------------------------------------------------------------------------
 # CALL OPTIMIZATION ----------------------------------------------------------------------------------------------------
@@ -319,51 +325,135 @@ else:
 
 if opt_type == 'mintime' and mintime_opts["reopt_mintime_solution"]:
 
-    # get raceline solution of the time-optimal trajectory
-    raceline_mintime = reftrack_interp[:, :2] + np.expand_dims(alpha_opt, 1) * normvec_normalized_interp
+    alpha_mintime = alpha_opt.copy()
+    reftrack_mintime = reftrack_interp.copy()
+    normvec_mintime = normvec_normalized_interp.copy()
+    a_mintime = a_interp
 
-    # calculate new track boundaries around raceline solution depending on alpha_opt values
-    w_tr_right_mintime = reftrack_interp[:, 2] - alpha_opt
-    w_tr_left_mintime = reftrack_interp[:, 3] + alpha_opt
+    try:
+        # get raceline solution of the time-optimal trajectory
+        raceline_mintime = reftrack_interp[:, :2] + np.expand_dims(alpha_opt, 1) * normvec_normalized_interp
 
-    # create new reference track around the raceline
-    racetrack_mintime = np.column_stack((raceline_mintime, w_tr_right_mintime, w_tr_left_mintime))
+        # calculate new track boundaries around raceline solution depending on alpha_opt values
+        w_tr_right_mintime = reftrack_interp[:, 2] - alpha_opt
+        w_tr_left_mintime = reftrack_interp[:, 3] + alpha_opt
 
-    # use spline approximation a second time
-    reftrack_interp, normvec_normalized_interp, a_interp = \
-        helper_funcs_glob.src.prep_track.prep_track(reftrack_imp=racetrack_mintime,
-                                                    reg_smooth_opts=pars["reg_smooth_opts"],
-                                                    stepsize_opts=pars["stepsize_opts"],
-                                                    debug=False,
-                                                    min_width=imp_opts["min_track_width"])[:3]
+        # create new reference track around the raceline
+        racetrack_mintime = np.column_stack((raceline_mintime, w_tr_right_mintime, w_tr_left_mintime))
 
-    # set artificial track widths for reoptimization
-    w_tr_tmp = 0.5 * pars["optim_opts"]["w_tr_reopt"] * np.ones(reftrack_interp.shape[0])
-    racetrack_mintime_reopt = np.column_stack((reftrack_interp[:, :2], w_tr_tmp, w_tr_tmp))
+        # use spline approximation a second time
+        reftrack_interp, normvec_normalized_interp, a_interp = \
+            helper_funcs_glob.src.prep_track.prep_track(reftrack_imp=racetrack_mintime,
+                                                        reg_smooth_opts=pars["reg_smooth_opts"],
+                                                        stepsize_opts=pars["stepsize_opts"],
+                                                        debug=False,
+                                                        min_width=imp_opts["min_track_width"])[:3]
 
-    # call mincurv reoptimization
-    alpha_opt = tph.opt_min_curv.opt_min_curv(reftrack=racetrack_mintime_reopt,
-                                              normvectors=normvec_normalized_interp,
-                                              A=a_interp,
-                                              kappa_bound=pars["veh_params"]["curvlim"],
-                                              w_veh=pars["optim_opts"]["w_veh_reopt"],
-                                              print_debug=debug,
-                                              plot_debug=plot_opts["mincurv_curv_lin"])[0]
+        # Reoptimization uses an artificial tube around the mintime raceline.
+        # The original TUM defaults leave only ~5 cm lateral freedom.  On
+        # tight F1TENTH maps that can make the min-curvature QP infeasible, so
+        # retry with slightly wider, still reserved tubes and relaxed curvature
+        # bounds before giving up.
+        w_veh_reopt = pars["optim_opts"]["w_veh_reopt"]
+        base_free_dev = max(
+            0.0,
+            0.5 * (pars["optim_opts"]["w_tr_reopt"] - w_veh_reopt),
+        )
+        reserved_free_dev = max(
+            base_free_dev,
+            0.5 * (
+                pars["optim_opts"]["width_opt"]
+                + (pars["optim_opts"]["w_tr_reopt"] - w_veh_reopt)
+                + pars["optim_opts"]["w_add_spl_regr"]
+                - w_veh_reopt
+            ),
+        )
+        free_dev_candidates = [
+            base_free_dev,
+            min(reserved_free_dev, 0.075),
+            min(reserved_free_dev, 0.100),
+            reserved_free_dev,
+        ]
+        free_dev_candidates = sorted({
+            round(float(free_dev), 4)
+            for free_dev in free_dev_candidates
+            if free_dev >= base_free_dev - 1e-9
+        })
+        kappa_candidates = [
+            pars["veh_params"]["curvlim"] * factor
+            for factor in (1.0, 1.25, 1.5, 2.0, 3.0)
+        ]
 
-    # calculate minimum distance from raceline to bounds and print it
-    if debug:
-        raceline_reopt = reftrack_interp[:, :2] + np.expand_dims(alpha_opt, 1) * normvec_normalized_interp
-        bound_r_reopt = (reftrack_interp[:, :2]
-                         + np.expand_dims(reftrack_interp[:, 2], axis=1) * normvec_normalized_interp)
-        bound_l_reopt = (reftrack_interp[:, :2]
-                         - np.expand_dims(reftrack_interp[:, 3], axis=1) * normvec_normalized_interp)
+        reopt_errors = []
+        alpha_reopt = None
+        for free_dev in free_dev_candidates:
+            side_width = w_veh_reopt / 2.0 + free_dev
+            w_tr_tmp = side_width * np.ones(reftrack_interp.shape[0])
+            racetrack_mintime_reopt = np.column_stack(
+                (reftrack_interp[:, :2], w_tr_tmp, w_tr_tmp)
+            )
 
-        d_r_reopt = np.hypot(raceline_reopt[:, 0] - bound_r_reopt[:, 0], raceline_reopt[:, 1] - bound_r_reopt[:, 1])
-        d_l_reopt = np.hypot(raceline_reopt[:, 0] - bound_l_reopt[:, 0], raceline_reopt[:, 1] - bound_l_reopt[:, 1])
+            for kappa_bound_reopt in kappa_candidates:
+                try:
+                    alpha_reopt = tph.opt_min_curv.opt_min_curv(
+                        reftrack=racetrack_mintime_reopt,
+                        normvectors=normvec_normalized_interp,
+                        A=a_interp,
+                        kappa_bound=kappa_bound_reopt,
+                        w_veh=w_veh_reopt,
+                        print_debug=debug,
+                        plot_debug=plot_opts["mincurv_curv_lin"],
+                    )[0]
+                    print(
+                        "INFO: Mintime reoptimization succeeded with "
+                        f"free_dev={free_dev:.3f}m, "
+                        f"kappa_bound={kappa_bound_reopt:.3f}rad/m"
+                    )
+                    break
+                except Exception as reopt_exc:
+                    reopt_errors.append(
+                        f"free_dev={free_dev:.3f}, "
+                        f"kappa={kappa_bound_reopt:.3f}: "
+                        f"{type(reopt_exc).__name__}: {reopt_exc}"
+                    )
 
-        print("INFO: Mintime reoptimization: minimum distance to right/left bound: %.2fm / %.2fm"
-              % (np.amin(d_r_reopt) - pars["veh_params"]["width"] / 2,
-                 np.amin(d_l_reopt) - pars["veh_params"]["width"] / 2))
+            if alpha_reopt is not None:
+                break
+
+        if alpha_reopt is None:
+            raise RuntimeError(
+                "all reoptimization attempts failed; "
+                + " | ".join(reopt_errors[-5:])
+            )
+
+        alpha_opt = alpha_reopt
+
+        # calculate minimum distance from raceline to bounds and print it
+        if debug:
+            raceline_reopt = reftrack_interp[:, :2] + np.expand_dims(alpha_opt, 1) * normvec_normalized_interp
+            bound_r_reopt = (reftrack_interp[:, :2]
+                             + np.expand_dims(reftrack_interp[:, 2], axis=1) * normvec_normalized_interp)
+            bound_l_reopt = (reftrack_interp[:, :2]
+                             - np.expand_dims(reftrack_interp[:, 3], axis=1) * normvec_normalized_interp)
+
+            d_r_reopt = np.hypot(raceline_reopt[:, 0] - bound_r_reopt[:, 0], raceline_reopt[:, 1] - bound_r_reopt[:, 1])
+            d_l_reopt = np.hypot(raceline_reopt[:, 0] - bound_l_reopt[:, 0], raceline_reopt[:, 1] - bound_l_reopt[:, 1])
+
+            print("INFO: Mintime reoptimization: minimum distance to right/left bound: %.2fm / %.2fm"
+                  % (np.amin(d_r_reopt) - pars["veh_params"]["width"] / 2,
+                     np.amin(d_l_reopt) - pars["veh_params"]["width"] / 2))
+
+    except Exception as exc:
+        print(
+            "WARNING: Mintime reoptimization failed "
+            f"({type(exc).__name__}: {exc}). Using original mintime solution."
+        )
+        alpha_opt = alpha_mintime
+        reftrack_interp = reftrack_mintime
+        normvec_normalized_interp = normvec_mintime
+        a_interp = a_mintime
+        mintime_opts["reopt_mintime_solution"] = False
+        mintime_opts["recalc_vel_profile_by_tph"] = False
 
 # ----------------------------------------------------------------------------------------------------------------------
 # INTERPOLATE SPLINES TO SMALL DISTANCES BETWEEN RACELINE POINTS -------------------------------------------------------
