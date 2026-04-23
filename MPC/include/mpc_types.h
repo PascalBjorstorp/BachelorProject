@@ -101,7 +101,7 @@
 #define VP_MASS_TIMES_GRAVITY_N (VP_MASS_KG * GRAVITY_MPS2) /* Vehicle weight magnitude used by normal-load equations. */
 #define VP_INV_MASS_1_PER_KG (1.0f / VP_MASS_KG)         /* Reciprocal vehicle mass used in acceleration-state Jacobians. */
 #define VP_INV_YAW_INERTIA_1_PER_KGM2 (1.0f / VP_YAW_INERTIA_KGM2) /* Reciprocal yaw inertia used in yaw-rate Jacobians. */
-#define VP_MAX_ACCEL_MPS2 (0.72f * GRAVITY_MPS2) /* Friction-limited forward acceleration derived from tire-road capacity. */
+#define VP_MAX_ACCEL_MPS2 (0.745f * GRAVITY_MPS2) /* Friction-limited forward acceleration derived from tire-road capacity. */
 #define VP_MIN_ACCEL_MPS2 (-VP_MAX_ACCEL_MPS2)           /* Braking bound mirrored from the friction-limited acceleration envelope. */
 #define VP_C_ALPHA_F 51.40f                              /* Front tire lateral-force scale used by the nonlinear tire model. */
 #define VP_C_ALPHA_R 43.10f                              /* Rear tire lateral-force scale used by the nonlinear tire model. */

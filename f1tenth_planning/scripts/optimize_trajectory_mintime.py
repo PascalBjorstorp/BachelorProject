@@ -1865,11 +1865,11 @@ def main():
             "reopt_mintime_solution",
             args.reopt_mintime_solution,
         )
-        set_mintime_bool_option_in_main(
-            main_py,
-            "recalc_vel_profile_by_tph",
-            recalc_vel_profile,
-        )
+        #set_mintime_bool_option_in_main(
+        #    main_py,
+        #    "recalc_vel_profile_by_tph",
+        #    recalc_vel_profile,
+        #)
         patch_main_to_load_prepared_track(main_py, prepared_track_npz)
         print("  Patched main_globaltraj.py: using prepared Step 0 splines")
         print(
