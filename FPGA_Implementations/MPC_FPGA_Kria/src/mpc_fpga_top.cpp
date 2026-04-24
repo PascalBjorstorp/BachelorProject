@@ -101,7 +101,6 @@ extern "C" void mpc_fpga_top_opencl(
 #pragma HLS INTERFACE s_axilite port=input_words512 bundle=control
 #pragma HLS INTERFACE s_axilite port=output_words128 bundle=control
 #pragma HLS INTERFACE s_axilite port=return bundle=control
-#pragma HLS ALLOCATION operation instances=div limit=0
 
     if (!output_words128) {
         return;
@@ -124,13 +123,33 @@ extern "C" void mpc_fpga_top_opencl(
 #pragma HLS ARRAY_PARTITION variable=lane_words complete dim=1
 
     for (int packet_idx = 0; packet_idx < kPacketWords; ++packet_idx) {
-        const ap_uint<512> packet = input_words512[packet_idx];
-        for (int lane = 0; lane < kLaneWordsPerPacket; ++lane) {
 #pragma HLS PIPELINE II=1
+        const ap_uint<512> packet = input_words512[packet_idx];
+        ap_uint<32> packet_lanes[kLaneWordsPerPacket];
+#pragma HLS ARRAY_PARTITION variable=packet_lanes complete dim=1
+
+        packet_lanes[0]  = packet.range(31, 0);
+        packet_lanes[1]  = packet.range(63, 32);
+        packet_lanes[2]  = packet.range(95, 64);
+        packet_lanes[3]  = packet.range(127, 96);
+        packet_lanes[4]  = packet.range(159, 128);
+        packet_lanes[5]  = packet.range(191, 160);
+        packet_lanes[6]  = packet.range(223, 192);
+        packet_lanes[7]  = packet.range(255, 224);
+        packet_lanes[8]  = packet.range(287, 256);
+        packet_lanes[9]  = packet.range(319, 288);
+        packet_lanes[10] = packet.range(351, 320);
+        packet_lanes[11] = packet.range(383, 352);
+        packet_lanes[12] = packet.range(415, 384);
+        packet_lanes[13] = packet.range(447, 416);
+        packet_lanes[14] = packet.range(479, 448);
+        packet_lanes[15] = packet.range(511, 480);
+
+        for (int lane = 0; lane < kLaneWordsPerPacket; ++lane) {
+#pragma HLS UNROLL
             const int word_index = (packet_idx * kLaneWordsPerPacket) + lane;
             if (word_index < INPUT_BUFFER_WORDS_32) {
-                const int lo = lane * 32;
-                lane_words[word_index] = packet.range(lo + 31, lo);
+                lane_words[word_index] = packet_lanes[lane];
             } else {
                 lane_words[word_index] = 0;
             }

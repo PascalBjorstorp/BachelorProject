@@ -74,6 +74,30 @@ def start_pose(sample0, env):
     return x, y, psi
 
 
+def align_samples_to_reference(samples, reference_samples):
+    """Rigidly align samples to the first pose of a reference raceline."""
+    if not samples or not reference_samples:
+        return samples
+
+    ref = reference_samples[0]
+    cur = samples[0]
+    dpsi = math.atan2(math.sin(ref["psi"] - cur["psi"]), math.cos(ref["psi"] - cur["psi"]))
+    c = math.cos(dpsi)
+    s = math.sin(dpsi)
+
+    aligned = []
+    for wp in samples:
+        dx = wp["x"] - cur["x"]
+        dy = wp["y"] - cur["y"]
+        aligned.append({
+            **wp,
+            "x": ref["x"] + dx * c - dy * s,
+            "y": ref["y"] + dx * s + dy * c,
+            "psi": math.atan2(math.sin(wp["psi"] + dpsi), math.cos(wp["psi"] + dpsi)),
+        })
+    return aligned
+
+
 def obstacle_points(samples, objects):
     track_len = max(samples[-1]["s"] - samples[0]["s"], 0.0)
     pts = []
@@ -142,6 +166,7 @@ def main():
     for ax, scenario in zip(axes, selected):
         name = scenario["name"]
         samples = tune.load_raceline_samples(scenario["raceline_path"])
+        samples = align_samples_to_reference(samples, base_samples)
         required_half_width = 0.5 * float(tune.PLANNER_CAR_WIDTH_M)
         min_wall_clearance = min(min(float(wp["left"]), float(wp["right"])) for wp in samples)
 

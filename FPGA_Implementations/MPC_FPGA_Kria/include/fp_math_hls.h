@@ -7,6 +7,7 @@
 #define FP_MATH_HLS_H
 
 #include "fp_types_hls.hpp"
+#include "mpc_fpga_types.h"
 #include <cstdint>
 #include <climits>
 
@@ -20,14 +21,6 @@
 /* Tunable arithmetic scheduling knobs for latency-focused HLS sweeps. */
 #ifndef MPC_HLS_MUL_LATENCY
 #define MPC_HLS_MUL_LATENCY 4
-#endif
-
-#ifndef MPC_HLS_VM_MUL_LATENCY
-#define MPC_HLS_VM_MUL_LATENCY 4
-#endif
-
-#ifndef MPC_HLS_TRIG_INLINE
-#define MPC_HLS_TRIG_INLINE 1
 #endif
 
 /* Fixed-point base constants */
@@ -45,12 +38,6 @@
 #define INV_FACT_3         FP_QP_CONST(0.16666666666666666)
 #define INV_FACT_4         FP_QP_CONST(0.041666666666666664)
 #define INV_FACT_5         FP_QP_CONST(0.008333333333333333)
-
-#define ATAN_COEF_3        FP_QP_CONST(0.3333333333333333)
-#define ATAN_COEF_5        FP_QP_CONST(0.2)
-#define ATAN_COEF_7        FP_QP_CONST(0.14285714285714285)
-#define FP_HALF_CONST      FP_HALF
-#define FP_ATAN_HALF       FP_QP_CONST(0.4636476090008061)
 
 /* Function-based helpers (no define aliases for arithmetic/conversions). */
 static inline float FP_TO_FLOAT(fp_QP_t x) { return (float)x; }
@@ -70,6 +57,10 @@ fp_io_t fp_mul(fp_io_t a, fp_io_t b);      /* Q16.16 I/O multiplication (when di
 #endif
 
 fp_QP_t fp_mul(fp_QP_t a, fp_QP_t b);      /* Riccati domain multiplication (DSP-pipelined) */
+fp_raw_acc_t fp_mul_qp_raw(fp_qp_raw_t a, fp_qp_raw_t b);    /* QP-width raw multiplication with guarded result */
+fp_raw_acc_t fp_mul_qp_acc(fp_qp_raw_t a, fp_raw_acc_t b);    /* Mixed QP/raw-accumulator multiplication */
+fp_raw_acc_t fp_mul_acc_qp(fp_raw_acc_t a, fp_qp_raw_t b);    /* Mixed raw-accumulator/QP multiplication */
+fp_raw_acc_t fp_mul_raw_acc(fp_raw_acc_t a, fp_raw_acc_t b);  /* Guarded raw-accumulator multiplication */
 
 static inline fp_QP_t fp_div(fp_QP_t a, fp_QP_t b)
 {
@@ -96,7 +87,6 @@ static inline fp_QP_t fp_clamp(fp_QP_t val, fp_QP_t lo, fp_QP_t hi)
 fp_QP_t fp_normalize_angle(fp_QP_t angle);
 fp_QP_t fp_sin(fp_QP_t angle);
 fp_QP_t fp_cos(fp_QP_t angle);
-fp_QP_t fp_atan(fp_QP_t x);
 fp_QP_t fp_atan_tire_approx(fp_QP_t x);
 
 fp_raw_acc_t reciprocal_raw(fp_raw_acc_t det);

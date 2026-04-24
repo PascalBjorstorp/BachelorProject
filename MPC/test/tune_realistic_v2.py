@@ -59,25 +59,25 @@ HORIZON_LIMIT = 20
 DEFAULT_RACELINE_NAME = "my_track_raceline.csv"
 RACELINE_PATH = os.path.join(TRAJ_DIR, DEFAULT_RACELINE_NAME)
 RACELINE_TAG = "my_track"
-WALL_MARGIN = 0.16
+WALL_MARGIN = 0.14
 
 # Base override seed
 BASE_OVERRIDES = {
-    # Seeded from top row in tuning_hardware_fastest_20260410_231743_sorted.csv
-    "Q_LAT": 9660.42,
-    "Q_HDG": 1400.0,
-    "Q_VEL": 132.192,
-    "Q_LAT_VEL": 4.59,
-    "Q_YAW": 2.112,
-    "R_STEER": 2.244,
-    "R_ACCEL": 0.0065,
-    "W_JERK": 0.063,
-    "W_ACCEL_RATE": 0.17,
-    "MPC_W_DELTA_ACTUAL": 0.03,
-    "HORIZON": 10,
-    "PRED_DT": 0.032,
-    "RHO": 18.0,
-    "RHO_U": 24.0,
+    # Seeded from the latest known-good tuning cluster.
+    "Q_LAT":  10000.0,
+    "Q_HDG": 50.0,
+    "Q_VEL": 48.0,
+    "Q_LAT_VEL": 6.12,
+    "Q_YAW": 1.44,
+    "R_STEER": 1.50,
+    "R_ACCEL": 0.0075,
+    "W_JERK": 0.045,
+    "W_ACCEL_RATE": 0.153,
+    "MPC_W_DELTA_ACTUAL": 0.02,
+    "HORIZON": 20,
+    "PRED_DT": 0.03,
+    "RHO": 28.0,
+    "RHO_U": 42.0,
     "TOL": 0.05,
     "MAX_ITER": 100,
 }
@@ -87,15 +87,15 @@ BASE_OVERRIDES = {
 # ==============================================================================
 
 PHASE2_VALUES_BASE = {
-    # Primary sweep around the proven full-100s feasible region.
-    # Total = 7*6*6*4*5*5*4*1 = 100,800 configurations.
-    "Q_LAT": [6500.0, 7600.0, 8694.378, 9660.42, 10626.462, 11400.0, 12250.0],
-    "Q_HDG": [900.0, 1100.0, 1300.0, 1400.0, 1600.0, 1800.0],
-    "Q_VEL": [120.0, 130.0, 140.0, 142.767, 150.0, 160.0],
-    "Q_LAT_VEL": [3.5, 4.59, 5.6, 7.0],
-    "Q_YAW": [1.8, 2.112, 2.5, 3.0, 3.6],
-    "R_STEER": [1.7, 1.9, 2.064, 2.25, 2.5],
-    "MPC_W_DELTA_ACTUAL": [0.015, 0.02, 0.03, 0.045],
+    # Primary sweep around the latest good region, with a wider exploratory net.
+    # Total = 7*6*6*4*5*5*4 = 100,800 configurations.
+    "Q_LAT": [7000.0, 8500.0, 10000.0, 11500.0, 13000.0, 14500.0, 16000.0],
+    "Q_HDG": [35.0, 42.0, 50.0, 55.0, 60.0, 65.0],
+    "Q_VEL": [40.0, 44.0, 48.0, 52.0, 56.0, 60.0],
+    "Q_LAT_VEL": [5.5, 5.8, 6.12, 6.4],
+    "Q_YAW": [1.20, 1.32, 1.44, 1.56, 1.68],
+    "R_STEER": [1.35, 1.42, 1.50, 1.58, 1.65],
+    "MPC_W_DELTA_ACTUAL": [0.018, 0.019, 0.020, 0.021],
     "SOLVER_BUCKET": ["t01"],
 }
 
@@ -104,21 +104,21 @@ PHASE2_VALUES_BASE = {
 # ==============================================================================
 
 FULL_SWEEP_VALUES_BASE = {
-    "Q_LAT":        [2000.0, 4000.0, 6000.0, 8000.0, 9660.42, 10300.0, 11000.0],
-    "Q_HDG":        [400, 800, 1100.0, 1250.0, 1400.0, 1550.0, 1700.0],
-    "Q_VEL":        [60, 95.0, 110.0, 122.4, 132.192, 145.0],
-    "Q_LAT_VEL":    [2.0, 3.8, 4.59, 5.6, 7.0, 8.5],
-    "Q_YAW":        [1.8, 2.112, 2.6, 3.2, 3.8],
-    "R_STEER":      [1.8, 2.1, 2.244, 2.5, 2.8],
-    "R_ACCEL":      [0.004, 0.005, 0.0065, 0.0075, 0.0085, 0.0095],
-    "W_JERK":       [0.05, 0.063, 0.08, 0.10, 0.12],
-    "W_ACCEL_RATE": [0.14, 0.16, 0.17, 0.19, 0.22],
-    "MPC_W_DELTA_ACTUAL": [0.02, 0.03, 0.05, 0.08],
+    "Q_LAT": [7000.0, 8500.0, 10000.0, 11500.0, 13000.0, 14500.0, 16000.0],
+    "Q_HDG": [35.0, 42.0, 50.0, 55.0, 60.0],
+    "Q_VEL": [40.0, 44.0, 48.0, 52.0, 56.0, 60.0],
+    "Q_LAT_VEL": [5.5, 5.8, 6.12, 6.4, 6.8],
+    "Q_YAW": [1.20, 1.32, 1.44, 1.56, 1.68],
+    "R_STEER": [1.35, 1.42, 1.50, 1.58, 1.65],
+    "R_ACCEL":      [0.0068, 0.0072, 0.0075, 0.0078, 0.0082],
+    "W_JERK":       [0.0432, 0.0445, 0.0450, 0.0465, 0.0480, 0.0500],
+    "W_ACCEL_RATE": [0.146, 0.150, 0.153, 0.156, 0.160, 0.165],
+    "MPC_W_DELTA_ACTUAL": [0.018, 0.019, 0.020, 0.021, 0.022],
     "HORIZON":      HORIZON_SWEEP_VALUES,
-    "RHO":          [14, 18, 22],
-    "RHO_U":        [20, 24, 28],
     "PRED_DT":      [0.03],
-    "TOL":          [0.03, 0.05, 0.08, 0.10],
+    "RHO":          [28.0],
+    "RHO_U":        [42.0],
+    "TOL":          [0.05],
 }
 
 # ==============================================================================
@@ -127,14 +127,14 @@ FULL_SWEEP_VALUES_BASE = {
 # ==============================================================================
 
 PHASE4_VALUES_BASE = {
-    # Secondary sweep size per seed: 5*5*5*4*4*4*3 = 24,000.
-    "Q_LAT_VEL":    [3.5, 4.2, 4.59, 5.2, 6.0],
-    "Q_YAW":        [1.8, 2.112, 2.4, 2.8, 3.2],
-    "R_STEER":      [1.8, 1.95, 2.064, 2.2, 2.35],
-    "W_JERK":       [0.045, 0.055, 0.063, 0.075],
-    "R_ACCEL":      [0.005, 0.006, 0.0065, 0.0075],
-    "W_ACCEL_RATE": [0.14, 0.16, 0.17, 0.19],
-    "MPC_W_DELTA_ACTUAL": [0.015, 0.02, 0.03],
+    # Secondary sweep keeps the center near the latest good cluster but explores wider.
+    "Q_LAT_VEL":    [5.5, 5.8, 6.12, 6.4, 6.8],
+    "Q_YAW":        [1.20, 1.32, 1.44, 1.56, 1.68],
+    "R_STEER":      [1.35, 1.42, 1.50, 1.58, 1.65],
+    "W_JERK":       [0.0425, 0.0440, 0.0450, 0.0465, 0.0485],
+    "R_ACCEL":      [0.0068, 0.0072, 0.0075, 0.0078, 0.0082],
+    "W_ACCEL_RATE": [0.146, 0.150, 0.153, 0.156, 0.160],
+    "MPC_W_DELTA_ACTUAL": [0.018, 0.019, 0.020, 0.021, 0.022],
 }
 
 # ==============================================================================
@@ -171,20 +171,19 @@ GLOBAL_HDT_MIN_PASS_RATIO = 0.50
 
 RANDOM_PROFILES = {
     "base": {
-        "num_perturb_range": (3, 6),
-        "default_multipliers": [0.96, 0.99, 1.0, 1.03, 1.06],
+        "num_perturb_range": (4, 8),
+        "default_multipliers": [0.85, 0.92, 0.97, 1.0, 1.03, 1.08, 1.15],
         "param_multipliers": {
-            "Q_LAT": [0.8, 0.9, 0.96, 1.0, 1.04, 1.1],
-            "Q_HDG": [0.8, 0.9, 0.96, 1.0, 1.04, 1.1],
-            "Q_VEL": [0.8, 0.9, 0.96, 1.0, 1.05, 1.1, 1.2],
-            "Q_LAT_VEL": [0.8, 0.9, 0.96, 1.0, 1.04, 1.1],
-            "Q_YAW": [0.8, 0.9, 0.96, 1.0, 1.04, 1.1],
-            "R_STEER": [0.85, 0.92, 0.97, 1.0, 1.04, 1.08],
-            "R_ACCEL": [0.8, 0.9, 0.96, 1.0, 1.04, 1.1],
-            "W_JERK": [0.8, 0.9, 0.96, 1.0, 1.04, 1.1],
-            "W_ACCEL_RATE": [0.8, 0.9, 0.96, 1.0, 1.04, 1.1],
-            "RHO": [0.85, 0.92, 0.97, 1.0, 1.04, 1.1],
-            "RHO_U": [0.85, 0.92, 0.97, 1.0, 1.04, 1.1],
+            "Q_LAT": [0.80, 0.88, 0.94, 1.0, 1.06, 1.12, 1.20],
+            "Q_HDG": [0.80, 0.88, 0.94, 1.0, 1.06, 1.12, 1.20],
+            "Q_VEL": [0.85, 0.92, 0.97, 1.0, 1.03, 1.08, 1.15],
+            "Q_LAT_VEL": [0.85, 0.92, 0.97, 1.0, 1.03, 1.08, 1.15],
+            "Q_YAW": [0.85, 0.92, 0.97, 1.0, 1.03, 1.08, 1.15],
+            "R_STEER": [0.90, 0.95, 0.98, 1.0, 1.02, 1.06, 1.10],
+            "R_ACCEL": [0.90, 0.95, 0.98, 1.0, 1.02, 1.06, 1.10],
+            "W_JERK": [0.90, 0.95, 0.98, 1.0, 1.02, 1.06, 1.10],
+            "W_ACCEL_RATE": [0.90, 0.95, 0.98, 1.0, 1.02, 1.06, 1.10],
+            "MPC_W_DELTA_ACTUAL": [0.90, 0.95, 0.98, 1.0, 1.02, 1.06, 1.10],
         },
         "discrete": {
             "HORIZON": HORIZON_SWEEP_VALUES,
@@ -192,20 +191,19 @@ RANDOM_PROFILES = {
         },
     },
     "base_exploit": {
-        "num_perturb_range": (2, 3),
-        "default_multipliers": [0.97, 0.99, 1.0, 1.02, 1.05],
+        "num_perturb_range": (3, 5),
+        "default_multipliers": [0.92, 0.96, 0.99, 1.0, 1.01, 1.04, 1.08],
         "param_multipliers": {
-            "Q_LAT": [0.96, 0.99, 1.0, 1.02, 1.05],
-            "Q_HDG": [0.96, 0.99, 1.0, 1.02, 1.05],
-            "Q_VEL": [0.97, 1.0, 1.02, 1.05, 1.08],
-            "Q_LAT_VEL": [0.96, 0.99, 1.0, 1.02, 1.05],
-            "Q_YAW": [0.96, 0.99, 1.0, 1.02, 1.05],
-            "R_STEER": [0.96, 0.99, 1.0, 1.02, 1.05],
-            "R_ACCEL": [0.96, 0.99, 1.0, 1.02, 1.05],
-            "W_JERK": [0.96, 0.99, 1.0, 1.02, 1.05],
-            "W_ACCEL_RATE": [0.96, 0.99, 1.0, 1.02, 1.05],
-            "RHO": [0.96, 0.99, 1.0, 1.02, 1.05],
-            "RHO_U": [0.96, 0.99, 1.0, 1.02, 1.05],
+            "Q_LAT": [0.92, 0.96, 0.99, 1.0, 1.01, 1.04, 1.08],
+            "Q_HDG": [0.92, 0.96, 0.99, 1.0, 1.01, 1.04, 1.08],
+            "Q_VEL": [0.94, 0.97, 0.99, 1.0, 1.01, 1.03, 1.06],
+            "Q_LAT_VEL": [0.92, 0.96, 0.99, 1.0, 1.01, 1.04, 1.08],
+            "Q_YAW": [0.92, 0.96, 0.99, 1.0, 1.01, 1.04, 1.08],
+            "R_STEER": [0.94, 0.97, 0.99, 1.0, 1.01, 1.03, 1.06],
+            "R_ACCEL": [0.94, 0.97, 0.99, 1.0, 1.01, 1.03, 1.06],
+            "W_JERK": [0.94, 0.97, 0.99, 1.0, 1.01, 1.03, 1.06],
+            "W_ACCEL_RATE": [0.94, 0.97, 0.99, 1.0, 1.01, 1.03, 1.06],
+            "MPC_W_DELTA_ACTUAL": [0.94, 0.97, 0.99, 1.0, 1.01, 1.03, 1.06],
         },
         "discrete": {
             "HORIZON": HORIZON_SWEEP_VALUES,
@@ -221,7 +219,8 @@ RANDOM_PROFILES = {
 INT_PARAMS = {"HORIZON", "MAX_ITER"}
 
 SCENARIO_VEHICLE_HALF_WIDTH = 0.137
-SCENARIO_BODY_SAFETY_MARGIN = 0.06
+SCENARIO_BODY_SAFETY_MARGIN = 0.00
+FIXED_WALL_MARGIN = 0.14
 MAX_OFFSET_STEP_M = 0.015
 MAX_HEADING_STEP_RAD = 0.30
 P99_HEADING_STEP_RAD = 0.18
@@ -231,7 +230,7 @@ OBSTACLE_SCENARIO_DURATION = 60.0
 SCENARIO_TARGET_START_X = 0.0
 SCENARIO_TARGET_START_Y = 0.0
 GLOBAL_START_SHIFT_X_M = 0.0
-GLOBAL_START_SHIFT_Y_M = 0.0
+GLOBAL_START_SHIFT_Y_M = 0.5
 MIN_RACE_PROGRESS_MPS = 0.55
 MIN_OVERALL_PROGRESS_MPS = 0.45
 MIN_AVG_VX_MPS = 1.0
@@ -254,13 +253,13 @@ BOUND_SPIKE_NEIGHBOR_MIN_M = 0.40
 DETERMINISTIC_OBSTACLE_PROFILES = {
     "avoid_single": {
         "objects": [
-            #{"s_fraction": 0.62, "lateral_offset": -0.04},
+            {"s_fraction": 0.65, "lateral_offset": 0.00},
         ],
     },
     "avoid_double": {
         "objects": [
-            #{"s_fraction": 0.58, "lateral_offset": 0.04},
-            #{"s_fraction": 0.78, "lateral_offset": -0.04},
+            {"s_fraction": 0.22, "lateral_offset": 0.05},
+            {"s_fraction": 0.55, "lateral_offset": -0.05},
         ],
     },
 }
@@ -276,8 +275,8 @@ CASCADE_TOP_N = 4   # Top-N seeds promoted from Phase 2 into Phase 4
 SEED = 42           # Fixed seed for reproducibility
 GLOBAL_OPTIMIZATION_PASSES = 4  # Repeated refinement passes for Phases 5-8
 INCLUDE_OBSTACLE_SCENARIOS = False
-PHASE7_RANDOM_COUNT = 2000
-PHASE8_RANDOM_COUNT = 2000
+PHASE7_RANDOM_COUNT = 5000
+PHASE8_RANDOM_COUNT = 5000
 STRICT_PROMOTION = True
 SOLVER_PARAM_KEYS = ("RHO", "RHO_U", "TOL")
 DIVERSITY_KEYS = ["Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW", "R_STEER", "R_ACCEL", "W_JERK", "W_ACCEL_RATE", "MPC_W_DELTA_ACTUAL", "HORIZON", "PRED_DT"]
@@ -730,10 +729,19 @@ def apply_obstacle_boxes_to_bounds(samples: list,
 
     for idx, wp in enumerate(samples):
         active_boxes = []
+        active_windows_local = []
         for box, window in zip(obstacle_boxes, obstacle_windows):
             if is_s_in_window(wp["s"], window[0], window[1], track_length):
                 active_boxes.append(box)
+                active_windows_local.append(window)
         if not active_boxes:
+            continue
+
+        ref_wp = reference_samples[idx]
+        ref_normal = ref_wp["psi"] + math.pi / 2.0
+        local_offset = ((wp["x"] - ref_wp["x"]) * math.cos(ref_normal) +
+                        (wp["y"] - ref_wp["y"]) * math.sin(ref_normal))
+        if abs(local_offset) < 1e-6:
             continue
 
         normal = wp["psi"] + math.pi / 2.0
@@ -747,9 +755,24 @@ def apply_obstacle_boxes_to_bounds(samples: list,
         lx, ly = sx + left_d * nx, sy + left_d * ny
         rx, ry = sx - right_d * nx, sy - right_d * ny
 
-        for box in active_boxes:
-            lx, ly = clip_segment_to_box(sx, sy, lx, ly, box)
-            rx, ry = clip_segment_to_box(sx, sy, rx, ry, box)
+        if len(active_boxes) > 1:
+            nearest_idx = min(
+                range(len(active_boxes)),
+                key=lambda j: abs(
+                    wp["s"] - (
+                        active_windows_local[j][0] +
+                        0.5 * wrap_forward_distance(active_windows_local[j][0], active_windows_local[j][1], track_length)
+                    )
+                ),
+            )
+            active_boxes = [active_boxes[nearest_idx]]
+
+        if local_offset > 0.0:
+            for box in active_boxes:
+                rx, ry = clip_segment_to_box(sx, sy, rx, ry, box)
+        else:
+            for box in active_boxes:
+                lx, ly = clip_segment_to_box(sx, sy, lx, ly, box)
 
         wp["left"] = max(0.0, math.hypot(lx - sx, ly - sy))
         wp["right"] = max(0.0, math.hypot(rx - sx, ry - sy))
@@ -1158,9 +1181,9 @@ def build_eval_scenarios(include_obstacles: bool = INCLUDE_OBSTACLE_SCENARIOS) -
     ]
 
     if include_obstacles:
-        #avoid_single_path = SCENARIO_RACELINE_PATHS.get("avoid_single", RACELINE_PATH)
-        #avoid_double_path = SCENARIO_RACELINE_PATHS.get("avoid_double", RACELINE_PATH)
-        """scenarios.extend([
+        avoid_single_path = SCENARIO_RACELINE_PATHS.get("avoid_single", RACELINE_PATH)
+        avoid_double_path = SCENARIO_RACELINE_PATHS.get("avoid_double", RACELINE_PATH)
+        scenarios.extend([
             {
                 "name": "avoid_single",
                 "weight": 0.25,
@@ -1190,7 +1213,6 @@ def build_eval_scenarios(include_obstacles: bool = INCLUDE_OBSTACLE_SCENARIOS) -
                 },
             },
         ])
-        """
 
     return scenarios
 
@@ -1233,7 +1255,6 @@ def canonicalize_params(params: dict) -> dict:
     h = int(float(out.get("HORIZON", BASE.get("HORIZON", HORIZON_LIMIT))))
     h = max(2, min(HORIZON_LIMIT, h))
     out["HORIZON"] = h
-    out["WALL_MARGIN"] = float(WALL_MARGIN)
     
     # Integer params
     for k in INT_PARAMS:
@@ -1834,7 +1855,7 @@ def gen_random_neighbors(best_weights: dict, n: int, objective: str,
     tune_params = [k for k in best_weights.keys()
                    if k not in ("MAX_ITER", "WALL_MARGIN") 
                    and best_weights[k] != 0]
-    tune_params = [k for k in tune_params if k not in ("HORIZON", "PRED_DT")]
+    tune_params = [k for k in tune_params if k not in ("HORIZON", "PRED_DT", *SOLVER_PARAM_KEYS)]
     
     i = 0
     attempts = 0
@@ -1921,8 +1942,8 @@ def select_solver_bucket(params: dict) -> dict:
         }
 
     # Fallback path: infer bucket from current HORIZON/PRED_DT by T=H*dt.
-    h = int(float(params.get("HORIZON", BASE.get("HORIZON", 10)) or 10))
-    dt = float(params.get("PRED_DT", BASE.get("PRED_DT", 0.034)) or 0.034)
+    h = int(float(params.get("HORIZON", BASE.get("HORIZON", 20)) or 20))
+    dt = float(params.get("PRED_DT", BASE.get("PRED_DT", 0.03)) or 0.03)
     lookahead_t = max(0.01, float(h) * dt)
 
     selected = SOLVER_BUCKETS[-1]
@@ -2008,23 +2029,6 @@ def aggregate_global_hdt_rows(rows: list) -> dict:
     out["global_hdt_promotable"] = promotable_count
     out["global_hdt_set"] = "|".join(f"{int(r.get('HORIZON', 0))}x{float(r.get('PRED_DT', 0.0)):.3f}" for r in rows)
     return out
-
-
-def build_global_hdt_region(center_h: int, center_dt: float) -> list:
-    """Build sweepable anchor set around candidate horizon/dt."""
-    anchors = set(GLOBAL_WEIGHT_REGION_HDT)
-    h = int(center_h)
-    dt = float(center_dt)
-    anchors.add((h, dt))
-
-    # Add local neighbors around candidate to sweep anchor region itself.
-    for dh, ddt in [(-4, -0.004), (-2, -0.002), (2, 0.002), (4, 0.004)]:
-        nh = int(max(min(h + dh, max(HORIZON_SWEEP_VALUES)), min(HORIZON_SWEEP_VALUES)))
-        ndt = max(0.032, min(0.050, dt + ddt))
-        anchors.add((nh, round(ndt, 3)))
-
-    return sorted(anchors, key=lambda x: (int(x[0]), float(x[1])))
-
 
 # ==============================================================================
 # PARALLEL WORKER
@@ -2374,15 +2378,23 @@ def main():
                 print(f"WARNING: invalid --local-duration '{sys.argv[i + 1]}', using {local_duration}")
         if arg == "--wall-margin" and i + 1 < len(sys.argv):
             try:
-                WALL_MARGIN = max(0.0, float(sys.argv[i + 1]))
+                requested = max(0.0, float(sys.argv[i + 1]))
+                if abs(requested - FIXED_WALL_MARGIN) > 1e-9:
+                    print(
+                        f"INFO: --wall-margin={requested:.3f} ignored; "
+                        f"using fixed WALL_MARGIN={FIXED_WALL_MARGIN:.3f}."
+                    )
             except ValueError:
-                print(f"WARNING: invalid --wall-margin '{sys.argv[i + 1]}', using {WALL_MARGIN}")
+                print(f"WARNING: invalid --wall-margin '{sys.argv[i + 1]}', using fixed {FIXED_WALL_MARGIN}")
 
     if local_sweep:
         include_obstacles = False
         phase2_top_n = 1
         global_passes = 1
         RACE_SCENARIO_DURATION = local_duration
+
+    # Keep wall margin fixed slightly above half vehicle width.
+    WALL_MARGIN = FIXED_WALL_MARGIN
 
     # test_sim_drive floors effective margin to (vehicle_half_width + body_safety_margin).
     min_effective_wall_margin = SCENARIO_VEHICLE_HALF_WIDTH + SCENARIO_BODY_SAFETY_MARGIN

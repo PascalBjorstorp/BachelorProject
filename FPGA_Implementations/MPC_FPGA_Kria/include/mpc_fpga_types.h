@@ -46,27 +46,35 @@
 /** Maximum ADMM iterations */
 #define MPC_MAX_ADMM_ITER MPC_FPGA_MAX_ADMM_ITER
 
+/** Maximum ADMM passes including the optional cold-start bootstrap pass. */
+#define MPC_MAX_ADMM_PASS_COUNT (MPC_MAX_ADMM_ITER + 1)
+
 /*===========================================================================
  * HLS Resource Constraints
  *===========================================================================*/
-
-/** Default multiplier budget for non-hot blocks.
- *  Override at compile time: -DMPC_HLS_MUL_LIMIT=N */
-#ifndef MPC_HLS_MUL_LIMIT
-#define MPC_HLS_MUL_LIMIT 4
-#endif
 
 /** Multiplier budget for Riccati hot path.
  *  Higher default to reduce cycle count in matrix-heavy backward/forward passes.
  *  Override at compile time: -DMPC_HLS_RICCATI_MUL_LIMIT=N */
 #ifndef MPC_HLS_RICCATI_MUL_LIMIT
-#define MPC_HLS_RICCATI_MUL_LIMIT 16
+#define MPC_HLS_RICCATI_MUL_LIMIT 128
 #endif
 
-/** Vehicle model multiplier budget.
- *  Override at compile time: -DMPC_HLS_VEHICLE_MUL_LIMIT=N */
-#ifndef MPC_HLS_VEHICLE_MUL_LIMIT
-#define MPC_HLS_VEHICLE_MUL_LIMIT 16
+/** Function-instance budget for out-of-line raw accumulator multipliers.
+ *  This is separate from operation-level mul limits because fp_mul_raw_acc()
+ *  hides the actual '*' inside a helper function. */
+#ifndef MPC_HLS_RICCATI_RAW_MUL_LIMIT
+#define MPC_HLS_RICCATI_RAW_MUL_LIMIT 64
+#endif
+
+/** Function-instance budget for mixed QP/raw accumulator multipliers. */
+#ifndef MPC_HLS_RICCATI_MIXED_MUL_LIMIT
+#define MPC_HLS_RICCATI_MIXED_MUL_LIMIT 64
+#endif
+
+/** Function-instance budget for QP-width raw multipliers. */
+#ifndef MPC_HLS_RICCATI_QP_RAW_MUL_LIMIT
+#define MPC_HLS_RICCATI_QP_RAW_MUL_LIMIT 64
 #endif
 
 /** ADMM state z/y update loop target II.
@@ -87,63 +95,47 @@
 #define MPC_HLS_STEP_ASSEMBLY_II 6
 #endif
 
-/** Unroll factor for G = M*A inner reduction loops.
- *  Override at compile time: -DMPC_HLS_UNROLL_GMA_FACTOR=N */
-#ifndef MPC_HLS_UNROLL_GMA_FACTOR
-#define MPC_HLS_UNROLL_GMA_FACTOR 2
-#endif
-
-/** Unroll factor for p-shift accumulation loops.
- *  Override at compile time: -DMPC_HLS_UNROLL_PSHIFT_FACTOR=N */
-#ifndef MPC_HLS_UNROLL_PSHIFT_FACTOR
-#define MPC_HLS_UNROLL_PSHIFT_FACTOR 2
-#endif
-
 /** Unroll factor for K*x forward-control accumulation loops.
  *  Override at compile time: -DMPC_HLS_UNROLL_KX_FACTOR=N */
 #ifndef MPC_HLS_UNROLL_KX_FACTOR
-#define MPC_HLS_UNROLL_KX_FACTOR 2
+#define MPC_HLS_UNROLL_KX_FACTOR 8
 #endif
 
-/** Unroll factor for state z/y update inner loop.
- *  Override at compile time: -DMPC_HLS_UNROLL_STATE_FACTOR=N */
-#ifndef MPC_HLS_UNROLL_STATE_FACTOR
-#define MPC_HLS_UNROLL_STATE_FACTOR 1
+/** Unroll factor for affine p_new copy/update loops.
+ *  Override at compile time: -DMPC_HLS_AFFINE_PNEW_UNROLL=N */
+#ifndef MPC_HLS_AFFINE_PNEW_UNROLL
+#define MPC_HLS_AFFINE_PNEW_UNROLL 8
 #endif
 
-/** Unroll factor for forward A*x rollout loops.
- *  Override at compile time: -DMPC_HLS_UNROLL_FWD_AX_FACTOR=N */
-#ifndef MPC_HLS_UNROLL_FWD_AX_FACTOR
-#define MPC_HLS_UNROLL_FWD_AX_FACTOR 2
+/** Unroll factor for affine control accumulation loops.
+ *  Override at compile time: -DMPC_HLS_AFFINE_CTRL_UNROLL=N */
+#ifndef MPC_HLS_AFFINE_CTRL_UNROLL
+#define MPC_HLS_AFFINE_CTRL_UNROLL 2
 #endif
 
-/** M = B^T P backward pass pipeline II.
- *  Override at compile time: -DMPC_HLS_M_BT_P_II=N */
-#ifndef MPC_HLS_M_BT_P_II
-#define MPC_HLS_M_BT_P_II 2
-#endif
-
-#if (MPC_HLS_UNROLL_GMA_FACTOR < 1) || (MPC_HLS_UNROLL_GMA_FACTOR > 4)
-#error "MPC_HLS_UNROLL_GMA_FACTOR must be in [1,4] to match current array banking"
-#endif
-
-#if (MPC_HLS_UNROLL_PSHIFT_FACTOR < 1)
-#error "MPC_HLS_UNROLL_PSHIFT_FACTOR must be >= 1"
+/** Enable/disable adaptive rho updates inside ADMM.
+ *  Override at compile time: -DMPC_HLS_ADAPTIVE_RHO={0|1} */
+#ifndef MPC_HLS_ADAPTIVE_RHO
+#define MPC_HLS_ADAPTIVE_RHO 1
 #endif
 
 #if (MPC_HLS_UNROLL_KX_FACTOR < 1)
 #error "MPC_HLS_UNROLL_KX_FACTOR must be >= 1"
 #endif
 
-#if (MPC_HLS_UNROLL_STATE_FACTOR < 1)
-#error "MPC_HLS_UNROLL_STATE_FACTOR must be >= 1"
+#if (MPC_HLS_AFFINE_PNEW_UNROLL < 1)
+#error "MPC_HLS_AFFINE_PNEW_UNROLL must be >= 1"
 #endif
 
-#if (MPC_HLS_UNROLL_FWD_AX_FACTOR < 1)
-#error "MPC_HLS_UNROLL_FWD_AX_FACTOR must be >= 1"
+#if (MPC_HLS_AFFINE_CTRL_UNROLL < 1)
+#error "MPC_HLS_AFFINE_CTRL_UNROLL must be >= 1"
 #endif
 
-#if (MPC_HLS_STATE_ZY_II < 1) || (MPC_HLS_CTRL_ZY_II < 1) || (MPC_HLS_M_BT_P_II < 1) || (MPC_HLS_STEP_ASSEMBLY_II < 1)
+#if ((MPC_HLS_ADAPTIVE_RHO != 0) && (MPC_HLS_ADAPTIVE_RHO != 1))
+#error "MPC_HLS_ADAPTIVE_RHO must be 0 or 1"
+#endif
+
+#if (MPC_HLS_STATE_ZY_II < 1) || (MPC_HLS_CTRL_ZY_II < 1) || (MPC_HLS_STEP_ASSEMBLY_II < 1)
 #error "HLS II knobs must be >= 1"
 #endif
 
@@ -210,6 +202,12 @@
 #define VP_FZ_REAR              FP_QP_CONST(MPC_FPGA_FZ_REAR_N)
 #define VP_D_FRONT              FP_QP_CONST(MPC_FPGA_D_FRONT_N)
 #define VP_D_REAR               FP_QP_CONST(MPC_FPGA_D_REAR_N)
+#define VP_FZ_LOAD_GAIN         FP_QP_CONST(MPC_FPGA_MASS_KG * MPC_FPGA_CG_HEIGHT_M * MPC_FPGA_INV_WHEELBASE)
+#define VP_D_LOAD_GAIN          FP_QP_CONST(MPC_FPGA_MU * MPC_FPGA_MASS_KG * MPC_FPGA_CG_HEIGHT_M * MPC_FPGA_INV_WHEELBASE)
+#define VP_CMIN_FRONT_STATIC    FP_QP_CONST(MPC_FPGA_C_ALPHA_F_N_PER_RAD * MPC_FPGA_MIN_STIFF_SCALE)
+#define VP_CMIN_REAR_STATIC     FP_QP_CONST(MPC_FPGA_C_ALPHA_R_N_PER_RAD * MPC_FPGA_MIN_STIFF_SCALE)
+#define VP_CMIN_FRONT_LOAD_GAIN FP_QP_CONST(MPC_FPGA_MASS_KG * MPC_FPGA_CG_HEIGHT_M * MPC_FPGA_INV_WHEELBASE * MPC_FPGA_MU * MPC_FPGA_C_ALPHA_SF_NORM * MPC_FPGA_MIN_STIFF_SCALE)
+#define VP_CMIN_REAR_LOAD_GAIN  FP_QP_CONST(MPC_FPGA_MASS_KG * MPC_FPGA_CG_HEIGHT_M * MPC_FPGA_INV_WHEELBASE * MPC_FPGA_MU * MPC_FPGA_C_ALPHA_SR_NORM * MPC_FPGA_MIN_STIFF_SCALE)
 
 /*
  * Normalize absolute cornering stiffness (N/rad) into model C_S terms ([1/rad]):
@@ -223,8 +221,8 @@
 #define VP_C_ALPHA_SR           FP_QP_CONST(MPC_FPGA_C_ALPHA_SR_NORM)
 
 /*
- * B factors for Pacejka nonlinearity: Fy = D * sin(C * atan(B * alpha)).
- * B appears inside atan(B*alpha), so it is required explicitly.
+ * B factors for Pacejka nonlinearity: Fy = D * sin(C * atan_approx(B * alpha)).
+ * B appears inside atan_approx(B*alpha), so it is required explicitly.
  */
 #define VP_B_FRONT              FP_QP_CONST(MPC_FPGA_B_FRONT)
 #define VP_B_REAR               FP_QP_CONST(MPC_FPGA_B_REAR)
@@ -232,10 +230,6 @@
 /* C_shape * B aliases used in Jacobian terms (equal to C_alpha_S* by construction). */
 #define VP_CB_FRONT             (VP_C_ALPHA_SF)
 #define VP_CB_REAR              (VP_C_ALPHA_SR)
-
-/* Precomputed minimum effective stiffness factors (mu*C_S*MIN_STIFF_SCALE) */
-#define VP_MU_CSF_MIN           fp_mul(fp_mul(VP_MU, VP_C_ALPHA_SF), MIN_STIFF_SCALE) /* mu*C_Sf*MIN_STIFF_SCALE */
-#define VP_MU_CSR_MIN           fp_mul(fp_mul(VP_MU, VP_C_ALPHA_SR), MIN_STIFF_SCALE) /* mu*C_Sr*MIN_STIFF_SCALE */
 
 /*===========================================================================
  * MPC Default Cost Weights (tuned for F1/10th)
@@ -269,6 +263,7 @@
 
 /* Precomputed dt*inv_mass and dt*inv_Iz */
 #define VP_DT_INV_MASS      fp_mul(MPC_DT, VP_INV_MASS)     /* dt * (1/mass) */
+#define NEG_VP_DT_INV_MASS  (-((fp_QP_t)(VP_DT_INV_MASS)))   /* dt * (-1/mass) */
 #define VP_DT_INV_IZ        fp_mul(MPC_DT, VP_INV_IZ)       /* dt * (1/I_z) */
 
 /* Control period for cross-call rate scaling.
@@ -366,14 +361,20 @@ typedef struct {
 
 /** Per-step QP data for Riccati-ADMM */
 typedef struct {
-    fp_QP_t A[MPC_NX_AUG][MPC_NX_AUG];
-    fp_QP_t B[MPC_NX_AUG][MPC_NU];
-    fp_QP_t d[MPC_NX_AUG];
+    fp_QP_t A[MPC_NX_DENSE][MPC_NX_DENSE];
+    fp_QP_t B[MPC_NX_DENSE][MPC_NU];
+    fp_QP_t d0;
+    fp_QP_t d1;
+    fp_QP_t d2;
+    fp_QP_t d3;
+    fp_QP_t d4;
+    fp_QP_t d5;
     fp_QP_t Q_diag[MPC_NX_AUG];
     fp_QP_t q[MPC_NX_AUG];
     fp_QP_t R_diag[MPC_NU];
     fp_QP_t r[MPC_NU];
-    fp_QP_t N_cross[MPC_NX_AUG][MPC_NU];
+    fp_QP_t N_delta_rate;
+    fp_QP_t N_accel;
     fp_QP_t x_lb[MPC_NX_AUG];
     fp_QP_t x_ub[MPC_NX_AUG];
     fp_QP_t u_lb[MPC_NU];
