@@ -315,10 +315,16 @@
 #define MIN_LIN_VEL         (mpc_rt_min_lin_vel)
 #define STABILITY_LIMIT_VAL (mpc_rt_stability_limit)
 #define WALL_MARGIN         (mpc_rt_wall_margin)
+#define WALL_BIAS_CLEAR_M   (mpc_rt_wall_bias_clear_m)
+#define WALL_BIAS_MAX_M     (mpc_rt_wall_bias_max_m)
+#define WALL_BOUND_WINDOW   (mpc_rt_wall_bound_window)
 #else
 #define MIN_LIN_VEL         FP_QP_CONST(MPC_FPGA_MIN_LIN_VEL_MPS)
 #define STABILITY_LIMIT_VAL FP_QP_CONST(MPC_FPGA_STABILITY_LIMIT)
 #define WALL_MARGIN         FP_QP_CONST(MPC_FPGA_WALL_MARGIN_M)
+#define WALL_BIAS_CLEAR_M   FP_QP_CONST(MPC_FPGA_WALL_BIAS_CLEAR_M)
+#define WALL_BIAS_MAX_M     FP_QP_CONST(MPC_FPGA_WALL_BIAS_MAX_M)
+#define WALL_BOUND_WINDOW   MPC_FPGA_WALL_BOUND_WINDOW
 #endif
 #define V_SWITCH            FP_QP_CONST(MPC_FPGA_V_SWITCH_MPS)
 #define BOUND_THRESHOLD     FP_QP_CONST(MPC_FPGA_BOUND_THRESHOLD)
@@ -401,8 +407,6 @@ typedef struct {
 
 /** Solver solution output */
 typedef struct {
-    fp_QP_t x[MPC_HORIZON + 1][MPC_NX_AUG];
-    fp_QP_t u[MPC_HORIZON][MPC_NU];
     int iterations;
     fp_QP_t primal_residual;
     fp_QP_t dual_residual;

@@ -174,6 +174,8 @@ static double g_solve_time_max_us = 0.0;
 static unsigned long g_solve_cycle_count = 0;
 #define SOLVE_STATS_PRINT_INTERVAL 500
 
+static int g_last_solver_failed = 0;
+
 /** Optional solver telemetry logging for post-drive analysis. */
 static FILE *g_solver_log_file = NULL;
 static unsigned long g_solver_log_counter = 0;
@@ -1301,6 +1303,7 @@ void amcl_pose_callback(const void *message_in)
     if (mpc_status == MPC_STATUS_SUCCESS ||
         mpc_status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED)
     {
+        g_last_solver_failed = 0;
         double steer =
             mpc_result.optimal_control.steer_ang;
 
@@ -1343,9 +1346,10 @@ void amcl_pose_callback(const void *message_in)
     }
     else
     {
+        g_last_solver_failed = 1;
         if (g_verbose)
         {
-            printf("[MPC] WARNING: Solver status=%d, keeping previous command\n", mpc_status);
+            printf("[MPC] WARNING: Solver status=%d, publishing safe fallback\n", mpc_status);
         }
     }
 
@@ -1386,6 +1390,15 @@ void amcl_pose_callback(const void *message_in)
     {
         global_drive_message_buffer.drive.steering_angle = 
             global_control_command.steer_ang;
+
+        if (g_last_solver_failed)
+        {
+            global_drive_message_buffer.drive.speed = 0.0f;
+            global_drive_message_buffer.drive.acceleration = VP_MIN_ACCEL_MPS2;
+            rcl_ret_t pub_rc __attribute__((unused)) =
+                rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);
+            return;
+        }
 
         /* Convert acceleration command to velocity target over one prediction step.
          * This keeps the velocity command consistent with the MPC integration model. */

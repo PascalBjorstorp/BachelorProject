@@ -880,7 +880,7 @@ int main(void)
          * Vehicle params from measured data (sim.yaml / vehicle_params.yaml). */
         {
             /* Vehicle parameters matching gym config */
-            const double mu = 1.6, mass = 3.314, Iz = 0.035;
+            const double mu = 0.743, mass = 3.314, Iz = 0.035;
             const double C_Sf = 4.297, C_Sr = 3.473;
             const double lf = 0.166, lr = 0.16, h_cg = 0.0703;
             const double g_acc = 9.81;

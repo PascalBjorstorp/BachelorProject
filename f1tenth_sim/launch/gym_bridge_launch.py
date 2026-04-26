@@ -40,6 +40,24 @@ from launch_ros.actions import Node
 import yaml
 
 
+def _source_root_dir() -> str:
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+
+def _resolve_config_path() -> str:
+    share_config = os.path.join(get_package_share_directory('f1tenth_gym_ros'), 'config', 'sim.yaml')
+    if os.path.exists(share_config):
+        return share_config
+    return os.path.join(_source_root_dir(), 'config', 'sim.yaml')
+
+
+def _resolve_maps_dir() -> str:
+    share_maps = os.path.join(get_package_share_directory('f1tenth_gym_ros'), 'maps')
+    if os.path.isdir(share_maps):
+        return share_maps
+    return os.path.join(_source_root_dir(), 'maps')
+
+
 def launch_setup(context, *args, **kwargs):
     """Setup function called at launch time with resolved arguments."""
     # Get resolved ground_truth argument
@@ -48,11 +66,7 @@ def launch_setup(context, *args, **kwargs):
     
     nodes = []
     
-    config = os.path.join(
-        get_package_share_directory('f1tenth_gym_ros'),
-        'config',
-        'sim.yaml'
-    )
+    config = _resolve_config_path()
     with open(config, 'r') as config_file:
         config_dict = yaml.safe_load(config_file)
 
@@ -117,7 +131,7 @@ def launch_setup(context, *args, **kwargs):
 
     # Get the map base name from config (e.g., 'Spielberg_map')
     map_base = os.path.basename(config_dict['bridge']['ros__parameters']['map_path'])
-    map_dir = os.path.join(get_package_share_directory('f1tenth_gym_ros'), 'maps')
+    map_dir = _resolve_maps_dir()
     map_yaml_path = os.path.join(map_dir, map_base + '.yaml')
     map_image_path = os.path.join(map_dir, map_base + config_dict['bridge']['ros__parameters']['map_img_ext'])
 

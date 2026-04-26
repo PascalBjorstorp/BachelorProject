@@ -68,6 +68,7 @@ static FrenetState_t global_frenet_state = {0};
 static ControlInput_t global_control_command = {0};
 static int global_odometry_received_flag = 0;
 static volatile int global_collision_detected = 0;
+static int global_last_solver_failed = 0;
 static rcl_context_t *global_ros2_context = NULL;
 
 /* Servo dynamics tracking for 8-state MPC.
@@ -567,6 +568,7 @@ void odometry_subscription_callback(const void *message_in)
             mpc_status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED)
         {
             global_control_command = mpc_result.optimal_control;
+            global_last_solver_failed = 0;
 
             /* Simulate servo lag and feed actual steering back to MPC. */
             {
@@ -584,11 +586,19 @@ void odometry_subscription_callback(const void *message_in)
                 mpc_set_actual_previous_control(&actual_control);
             }
         }
+        else
+        {
+            global_last_solver_failed = 1;
+            fprintf(stderr,
+                    "[MPC] WARNING: Solver status=%d, publishing braking fallback\n",
+                    (int)mpc_status);
+        }
     }
     else
     {
         global_control_command.steer_ang = 0.0f;
-        global_control_command.long_acc = 0.0f;
+        global_control_command.long_acc = VP_MIN_ACCEL_MPS2;
+        global_last_solver_failed = 1;
     }
 
     /* Publish drive command every callback */
@@ -600,7 +610,7 @@ void odometry_subscription_callback(const void *message_in)
         /* gym_bridge with control_input=['accl','steering_angle']
          * interprets drive.speed as acceleration command. */
         global_drive_message_buffer.drive.speed =
-            global_control_command.long_acc;
+            global_last_solver_failed ? VP_MIN_ACCEL_MPS2 : global_control_command.long_acc;
 
         rcl_ret_t pub_rc =
             rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);

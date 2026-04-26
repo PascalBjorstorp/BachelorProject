@@ -33,6 +33,95 @@ extern void saturate_control_hls(
     fp_QP_t steer_in, fp_QP_t accel_in,
     fp_QP_t *steer_out, fp_QP_t *accel_out);
 
+static fp_QP_t fp_util_clamp(fp_QP_t value, fp_QP_t lower, fp_QP_t upper)
+{
+    if (value < lower) return lower;
+    if (value > upper) return upper;
+    return value;
+}
+
+static void compute_wall_ey_bounds_hls(
+    fp_QP_t left_wall_bound,
+    fp_QP_t right_wall_bound,
+    fp_QP_t wall_margin,
+    fp_QP_t *out_x_lb,
+    fp_QP_t *out_x_ub)
+{
+    fp_QP_t x_lb = wall_margin - right_wall_bound;
+    fp_QP_t x_ub = left_wall_bound - wall_margin;
+
+    if (x_lb > x_ub) {
+        fp_QP_t mid = fp_mul(FP_QP_CONST(0.5), x_lb + x_ub);
+        x_lb = mid;
+        x_ub = mid;
+    }
+
+    *out_x_lb = x_lb;
+    *out_x_ub = x_ub;
+}
+
+static fp_QP_t compute_wall_biased_ey_ref_hls(
+    fp_QP_t base_ref,
+    fp_QP_t x_lb,
+    fp_QP_t x_ub)
+{
+    fp_QP_t ref = base_ref;
+    const fp_QP_t desired_lb = x_lb + WALL_BIAS_CLEAR_M;
+    const fp_QP_t desired_ub = x_ub - WALL_BIAS_CLEAR_M;
+    if (desired_lb <= desired_ub) {
+        ref = fp_util_clamp(ref, desired_lb, desired_ub);
+    } else {
+        ref = fp_mul(FP_QP_CONST(0.5), x_lb + x_ub);
+    }
+
+    return fp_util_clamp(ref, -WALL_BIAS_MAX_M, WALL_BIAS_MAX_M);
+}
+
+static void compute_stage_wall_constraints_hls(
+    const MpcRefPoint_t ref[MPC_HORIZON],
+    int center_idx,
+    fp_QP_t *out_x_lb,
+    fp_QP_t *out_x_ub,
+    fp_QP_t *out_ey_ref)
+{
+#pragma HLS INLINE
+    fp_QP_t left_bound = ref[center_idx].left_bound;
+    fp_QP_t right_bound = ref[center_idx].right_bound;
+
+    const int window = WALL_BOUND_WINDOW;
+    if (window > 0) {
+        const int j0 = center_idx - window;
+        const int j1 = center_idx + window;
+        for (int j = 0; j < MPC_HORIZON; ++j) {
+#pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
+            if (j >= j0 && j <= j1) {
+                if (ref[j].left_bound < left_bound) left_bound = ref[j].left_bound;
+                if (ref[j].right_bound < right_bound) right_bound = ref[j].right_bound;
+            }
+        }
+    }
+
+    fp_QP_t wall_x_lb, wall_x_ub;
+    compute_wall_ey_bounds_hls(
+        left_bound,
+        right_bound,
+        WALL_MARGIN,
+        &wall_x_lb,
+        &wall_x_ub);
+
+    fp_QP_t wall_x_lb_con = wall_x_lb + WALL_BIAS_CLEAR_M;
+    fp_QP_t wall_x_ub_con = wall_x_ub - WALL_BIAS_CLEAR_M;
+    if (wall_x_lb_con > wall_x_ub_con) {
+        const fp_QP_t mid = fp_mul(FP_QP_CONST(0.5), wall_x_lb + wall_x_ub);
+        wall_x_lb_con = mid;
+        wall_x_ub_con = mid;
+    }
+
+    *out_x_lb = wall_x_lb_con;
+    *out_x_ub = wall_x_ub_con;
+    *out_ey_ref = compute_wall_biased_ey_ref_hls(0, wall_x_lb_con, wall_x_ub_con);
+}
+
 /**
  * MPC compute: build QP and solve.
  *
@@ -115,6 +204,21 @@ extern "C" void mpc_compute_hls(
                                  VP_MAX_STEER);
     fp_QP_t rollout_steer_rate = persist->prev_steer_rate;
     fp_QP_t rollout_accel = persist->prev_accel;
+    fp_QP_t wall_x_lb_stage[MPC_HORIZON];
+    fp_QP_t wall_x_ub_stage[MPC_HORIZON];
+    fp_QP_t wall_ey_ref_stage[MPC_HORIZON];
+#pragma HLS ARRAY_PARTITION variable=wall_x_lb_stage complete dim=1
+#pragma HLS ARRAY_PARTITION variable=wall_x_ub_stage complete dim=1
+#pragma HLS ARRAY_PARTITION variable=wall_ey_ref_stage complete dim=1
+
+    for (k = 0; k < N; ++k) {
+#pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
+        compute_stage_wall_constraints_hls(
+            ref, k,
+            &wall_x_lb_stage[k],
+            &wall_x_ub_stage[k],
+            &wall_ey_ref_stage[k]);
+    }
 
     for (k = 0; k < N; k++) {
 #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
@@ -300,8 +404,12 @@ extern "C" void mpc_compute_hls(
         }
 
         /* === q (8 elements): linear cost from tracking references === */
-        /* References for e_y and e_psi are 0 (path following) */
-        sd->q[0] = 0;
+        /* References for e_y and e_psi are zero-centered, with e_y biased
+         * inside the active wall corridor for obstacle-course feasibility. */
+        fp_QP_t wall_x_lb_k = wall_x_lb_stage[k];
+        fp_QP_t wall_x_ub_k = wall_x_ub_stage[k];
+        fp_QP_t ey_ref_k = wall_ey_ref_stage[k];
+        sd->q[0] = -fp_mul(MPC_Q2_LAT_ERROR, ey_ref_k);
         sd->q[1] = 0;
         sd->q[2] = -fp_mul(MPC_Q2_VELOCITY, ref[k].velocity);
         sd->q[3] = 0;  /* vy_ref = 0 */
@@ -331,18 +439,8 @@ extern "C" void mpc_compute_hls(
         }
 
         /* === State bounds === */
-        /* e_y: wall constraints with adaptive margin relaxation to preserve
-         * a feasible hard corridor when local track width is very narrow. */
-        fp_QP_t left_room = ref[k].left_bound - WALL_MARGIN;
-        fp_QP_t right_room = ref[k].right_bound - WALL_MARGIN;
-
-        if ((left_room + right_room) < FP_QP_CONST(2e-3)) {
-            left_room = FP_QP_CONST(1e-3);
-            right_room = FP_QP_CONST(1e-3);
-        }
-
-        sd->x_lb[0] = -right_room;
-        sd->x_ub[0] = left_room;
+        sd->x_lb[0] = wall_x_lb_k;
+        sd->x_ub[0] = wall_x_ub_k;
 
         /* States 1-4: unconstrained */
         for (i = 1; i < 5; i++) {
@@ -409,6 +507,11 @@ extern "C" void mpc_compute_hls(
     terminal_q_diag[IDX_DELTA_ACT] = MPC_Q2_DELTA_ACT;
 
     if (N > 0) {
+        fp_QP_t terminal_wall_x_lb = wall_x_lb_stage[N - 1];
+        fp_QP_t terminal_wall_x_ub = wall_x_ub_stage[N - 1];
+        fp_QP_t terminal_ey_ref = wall_ey_ref_stage[N - 1];
+
+        terminal_q_linear[0] = -fp_mul(terminal_q_diag[0], terminal_ey_ref);
         terminal_q_linear[2] = -fp_mul(terminal_q_diag[2], ref[N-1].velocity);
         terminal_q_linear[4] = -fp_mul(terminal_q_diag[4], ref[N-1].yaw_rate);
         fp_QP_t kN = ref[N-1].kappa;
@@ -416,16 +519,8 @@ extern "C" void mpc_compute_hls(
         dff_N = fp_clamp(dff_N, -VP_MAX_STEER, VP_MAX_STEER);
         terminal_q_linear[IDX_DELTA_ACT] = -fp_mul(terminal_q_diag[IDX_DELTA_ACT], dff_N);
 
-        fp_QP_t left_room = ref[N - 1].left_bound - WALL_MARGIN;
-        fp_QP_t right_room = ref[N - 1].right_bound - WALL_MARGIN;
-
-        if ((left_room + right_room) < FP_QP_CONST(2e-3)) {
-            left_room = FP_QP_CONST(1e-3);
-            right_room = FP_QP_CONST(1e-3);
-        }
-
-        terminal_x_lb[0] = -right_room;
-        terminal_x_ub[0] = left_room;
+        terminal_x_lb[0] = terminal_wall_x_lb;
+        terminal_x_ub[0] = terminal_wall_x_ub;
         
         terminal_x_lb[IDX_DELTA_ACT] = -VP_MAX_STEER;
         terminal_x_ub[IDX_DELTA_ACT] = VP_MAX_STEER;

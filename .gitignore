@@ -375,3 +375,7 @@ MPCC/test/tuning_racer_20260421_140150 copy.csv
 .gitignore
 MPCC/test/tuning_racer_20260421_140150.csv
 MPCC/test/tuning_racer_20260421_154850.csv
+FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/
+mpc_fpga_top_*/
+MPC_system/
+Kria_platform/

@@ -2,16 +2,17 @@
 """
 Base MPC tuning for the hardware map.
 =====================================
-Sweeps MPC weights, horizons, and solver timing on the hardware
+Sweeps MPC weights on the hardware map with fixed horizon and prediction dt
 SLAM-mapped track (~22m, 0.27-1.4m wide).
 
 Usage:
     python3 test/tune_realistic_v2.py                        # Full sweep (all CPUs)
     python3 test/tune_realistic_v2.py -j 0                   # Use all workers
+    python3 test/tune_realistic_v2.py --seed-csv /path/to/results.csv
 
 The sweep runs 6 phases:
     Phase 1: One-at-a-time parameter sensitivity
-    Phase 2: Primary grid (Q_LAT x Q_HDG x Q_VEL x HORIZON x PRED_DT)
+    Phase 2: Primary grid (Q_LAT x Q_HDG x Q_VEL x Q_LAT_VEL x Q_YAW x R_STEER x MPC_W_DELTA_ACTUAL)
     Phase 4: Secondary grid (Q_LAT_VEL x Q_YAW x R_STEER x W_JERK x R_ACCEL x W_ACCEL_RATE)
     Phase 6: Fine-tuning around best config
     Phase 7: Random neighbor exploration
@@ -30,6 +31,7 @@ import subprocess
 import os
 import sys
 import csv
+import json
 import math
 import atexit
 import itertools
@@ -47,10 +49,12 @@ from concurrent.futures import ProcessPoolExecutor, wait, FIRST_COMPLETED
 # ==============================================================================
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
+REPO_ROOT = os.path.dirname(PROJECT_DIR)
 TRAJ_DIR = os.path.join(PROJECT_DIR, "trajectories")
 
 HORIZON_SWEEP_VALUES = [20]
 HORIZON_LIMIT = 20
+FIXED_PRED_DT = 0.03
 
 # ==============================================================================
 # HARDWARE MAP CONFIGURATION
@@ -60,20 +64,22 @@ DEFAULT_RACELINE_NAME = "my_track_raceline.csv"
 RACELINE_PATH = os.path.join(TRAJ_DIR, DEFAULT_RACELINE_NAME)
 RACELINE_TAG = "my_track"
 WALL_MARGIN = 0.14
+DEFAULT_BASE_SEED_CSV = "/home/akselmo/Downloads/tuning_hardware_base_20260425_161330.csv"
 
 # Base override seed
 BASE_OVERRIDES = {
-    # Seeded from the latest known-good tuning cluster.
-    "Q_LAT":  10000.0,
-    "Q_HDG": 50.0,
-    "Q_VEL": 48.0,
-    "Q_LAT_VEL": 6.12,
-    "Q_YAW": 1.44,
-    "R_STEER": 1.50,
-    "R_ACCEL": 0.0075,
-    "W_JERK": 0.045,
-    "W_ACCEL_RATE": 0.153,
-    "MPC_W_DELTA_ACTUAL": 0.02,
+    # Fallback seed. Replaced at runtime when --seed-csv is provided
+    # or when DEFAULT_BASE_SEED_CSV exists.
+    "Q_LAT":  16896.0,
+    "Q_HDG": 248.864,
+    "Q_VEL": 60.48,
+    "Q_LAT_VEL": 6.75648,
+    "Q_YAW": 1.285056,
+    "R_STEER": 1.815,
+    "R_ACCEL": 0.007276,
+    "W_JERK": 0.05115,
+    "W_ACCEL_RATE": 0.1387,
+    "MPC_W_DELTA_ACTUAL": 0.021,
     "HORIZON": 20,
     "PRED_DT": 0.03,
     "RHO": 28.0,
@@ -87,16 +93,15 @@ BASE_OVERRIDES = {
 # ==============================================================================
 
 PHASE2_VALUES_BASE = {
-    # Primary sweep around the latest good region, with a wider exploratory net.
-    # Total = 7*6*6*4*5*5*4 = 100,800 configurations.
-    "Q_LAT": [7000.0, 8500.0, 10000.0, 11500.0, 13000.0, 14500.0, 16000.0],
-    "Q_HDG": [35.0, 42.0, 50.0, 55.0, 60.0, 65.0],
-    "Q_VEL": [40.0, 44.0, 48.0, 52.0, 56.0, 60.0],
-    "Q_LAT_VEL": [5.5, 5.8, 6.12, 6.4],
-    "Q_YAW": [1.20, 1.32, 1.44, 1.56, 1.68],
-    "R_STEER": [1.35, 1.42, 1.50, 1.58, 1.65],
-    "MPC_W_DELTA_ACTUAL": [0.018, 0.019, 0.020, 0.021],
-    "SOLVER_BUCKET": ["t01"],
+    # Retuned from tuning_hardware_base_20260424_102313_sorted.csv.
+    # Target ~= 50k configs: 7*5*5*4*5*5*3 = 52,500.
+    "Q_LAT": [13000.0, 14500.0, 16000.0, 16896.0, 17920.0, 19200.0, 20352.0],
+    "Q_HDG": [248.864, 280.0, 350.0, 400.0, 450.0],
+    "Q_VEL": [48.0, 52.0, 56.0, 60.0, 60.48],
+    "Q_LAT_VEL": [5.8, 6.12, 6.4, 6.75648],
+    "Q_YAW": [1.20, 1.285056, 1.32, 1.44, 1.56],
+    "R_STEER": [1.50, 1.58, 1.65, 1.815, 1.9239],
+    "MPC_W_DELTA_ACTUAL": [0.019, 0.020, 0.021],
 }
 
 # ==============================================================================
@@ -105,7 +110,7 @@ PHASE2_VALUES_BASE = {
 
 FULL_SWEEP_VALUES_BASE = {
     "Q_LAT": [7000.0, 8500.0, 10000.0, 11500.0, 13000.0, 14500.0, 16000.0],
-    "Q_HDG": [35.0, 42.0, 50.0, 55.0, 60.0],
+    "Q_HDG": [350.0, 400.0, 450.0, 500.0, 550.0, 600.0, 650.0],
     "Q_VEL": [40.0, 44.0, 48.0, 52.0, 56.0, 60.0],
     "Q_LAT_VEL": [5.5, 5.8, 6.12, 6.4, 6.8],
     "Q_YAW": [1.20, 1.32, 1.44, 1.56, 1.68],
@@ -127,43 +132,20 @@ FULL_SWEEP_VALUES_BASE = {
 # ==============================================================================
 
 PHASE4_VALUES_BASE = {
-    # Secondary sweep keeps the center near the latest good cluster but explores wider.
-    "Q_LAT_VEL":    [5.5, 5.8, 6.12, 6.4, 6.8],
-    "Q_YAW":        [1.20, 1.32, 1.44, 1.56, 1.68],
-    "R_STEER":      [1.35, 1.42, 1.50, 1.58, 1.65],
-    "W_JERK":       [0.0425, 0.0440, 0.0450, 0.0465, 0.0485],
-    "R_ACCEL":      [0.0068, 0.0072, 0.0075, 0.0078, 0.0082],
-    "W_ACCEL_RATE": [0.146, 0.150, 0.153, 0.156, 0.160],
-    "MPC_W_DELTA_ACTUAL": [0.018, 0.019, 0.020, 0.021, 0.022],
+    # Retuned around strongest Phase 4 region from sorted CSV.
+    # Target ~= 15k configs: 5*5*5*4*4*4*2 = 16,000.
+    "Q_LAT_VEL":    [5.8, 6.12, 6.4, 6.75648, 6.8],
+    "Q_YAW":        [1.20, 1.285056, 1.32, 1.44, 1.56],
+    "R_STEER":      [1.50, 1.58, 1.65, 1.815, 1.9239],
+    "W_JERK":       [0.0440, 0.0450, 0.0485, 0.05115],
+    "R_ACCEL":      [0.0068, 0.0072, 0.007276, 0.0075],
+    "W_ACCEL_RATE": [0.1387, 0.146, 0.150, 0.153],
+    "MPC_W_DELTA_ACTUAL": [0.020, 0.021],
 }
 
-# ==============================================================================
-# SOLVER BUCKETS (lookahead-based)
-# T = HORIZON * PRED_DT -> (RHO, RHO_U, TOL)
-# ==============================================================================
-
-SOLVER_BUCKETS = [
-    {
-        "name": "t01",
-        "t_max": 1.15,
-        "horizon": 20,
-        "pred_dt": 0.03,
-        "rho": 28.0,
-        "rho_u": 42.0,
-        "tol": 0.05,
-    },
-]
-
-SOLVER_BUCKETS_BY_NAME = {b["name"]: b for b in SOLVER_BUCKETS}
-
-# Evaluate each weight candidate across multiple lookahead anchors so
-# promotion does not overfit to one short-horizon operating point.
-GLOBAL_WEIGHT_REGION_HDT = [
-    (20, 0.03)
-]
-
-# Candidate is globally passable if enough anchors are promotable.
-GLOBAL_HDT_MIN_PASS_RATIO = 0.50
+# Keep these fixed for all sweeps and validations.
+FIXED_HORIZON = 20
+SOLVER_PAIR_PARAM = "RHO_RHO_U"
 
 # ==============================================================================
 # RANDOM NEIGHBOR PROFILES
@@ -184,10 +166,11 @@ RANDOM_PROFILES = {
             "W_JERK": [0.90, 0.95, 0.98, 1.0, 1.02, 1.06, 1.10],
             "W_ACCEL_RATE": [0.90, 0.95, 0.98, 1.0, 1.02, 1.06, 1.10],
             "MPC_W_DELTA_ACTUAL": [0.90, 0.95, 0.98, 1.0, 1.02, 1.06, 1.10],
+            SOLVER_PAIR_PARAM: [0.75, 0.80, 0.84, 0.88, 0.92, 0.95, 0.97, 0.99, 1.0, 1.01, 1.03, 1.05, 1.08, 1.12, 1.16, 1.22, 1.28],
         },
         "discrete": {
             "HORIZON": HORIZON_SWEEP_VALUES,
-            "PRED_DT": [0.03],
+            "PRED_DT": [FIXED_PRED_DT],
         },
     },
     "base_exploit": {
@@ -204,10 +187,11 @@ RANDOM_PROFILES = {
             "W_JERK": [0.94, 0.97, 0.99, 1.0, 1.01, 1.03, 1.06],
             "W_ACCEL_RATE": [0.94, 0.97, 0.99, 1.0, 1.01, 1.03, 1.06],
             "MPC_W_DELTA_ACTUAL": [0.94, 0.97, 0.99, 1.0, 1.01, 1.03, 1.06],
+            SOLVER_PAIR_PARAM: [0.88, 0.92, 0.95, 0.97, 0.99, 1.0, 1.01, 1.03, 1.05, 1.07, 1.10],
         },
         "discrete": {
             "HORIZON": HORIZON_SWEEP_VALUES,
-            "PRED_DT": [0.03],
+            "PRED_DT": [FIXED_PRED_DT],
         },
     },
 }
@@ -273,14 +257,14 @@ SCENARIO_RACELINE_PATHS = {}
 
 CASCADE_TOP_N = 4   # Top-N seeds promoted from Phase 2 into Phase 4
 SEED = 42           # Fixed seed for reproducibility
-GLOBAL_OPTIMIZATION_PASSES = 4  # Repeated refinement passes for Phases 5-8
+GLOBAL_OPTIMIZATION_PASSES = 16  # Repeated refinement passes for Phases 5-8
 INCLUDE_OBSTACLE_SCENARIOS = False
-PHASE7_RANDOM_COUNT = 5000
-PHASE8_RANDOM_COUNT = 5000
+PHASE7_RANDOM_COUNT = 2000
+PHASE8_RANDOM_COUNT = 2000
 STRICT_PROMOTION = True
-SOLVER_PARAM_KEYS = ("RHO", "RHO_U", "TOL")
+SOLVER_PARAM_KEYS = ("TOL",)
 DIVERSITY_KEYS = ["Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW", "R_STEER", "R_ACCEL", "W_JERK", "W_ACCEL_RATE", "MPC_W_DELTA_ACTUAL", "HORIZON", "PRED_DT"]
-DIVERSITY_MIN_DISTANCE = 0.10
+DIVERSITY_MIN_DISTANCE = 1.0
 
 # Keep summary print order aligned with swept define order in mpc_types.h.
 MPC_TYPES_PRINT_ORDER = (
@@ -315,6 +299,26 @@ def resolve_raceline_path(path_arg: str) -> str:
     # Fallback: resolve relative to the MPC project directory.
     proj_candidate = os.path.join(PROJECT_DIR, path_arg)
     return os.path.abspath(proj_candidate)
+
+
+def resolve_project_path(path_arg: str) -> str:
+    """Resolve repo-relative path to existing file, if possible."""
+    if not path_arg:
+        return path_arg
+    if os.path.isabs(path_arg):
+        return path_arg
+
+    candidates = [
+        os.path.join(REPO_ROOT, path_arg),
+        os.path.join(PROJECT_DIR, path_arg),
+        os.path.join(SCRIPT_DIR, path_arg),
+        os.path.join(os.getcwd(), path_arg),
+    ]
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return os.path.abspath(candidate)
+
+    return os.path.abspath(os.path.join(REPO_ROOT, path_arg))
 
 
 def load_raceline_metadata(path: str) -> dict:
@@ -1252,9 +1256,8 @@ def canonicalize_params(params: dict) -> dict:
     """Normalize params to the values MPC actually receives."""
     out = dict(params)
 
-    h = int(float(out.get("HORIZON", BASE.get("HORIZON", HORIZON_LIMIT))))
-    h = max(2, min(HORIZON_LIMIT, h))
-    out["HORIZON"] = h
+    out["HORIZON"] = FIXED_HORIZON
+    out["PRED_DT"] = FIXED_PRED_DT
     
     # Integer params
     for k in INT_PARAMS:
@@ -1266,8 +1269,11 @@ def canonicalize_params(params: dict) -> dict:
 
 def is_valid_config(params: dict) -> bool:
     """Check if configuration is valid for hardware map."""
-    h = int(params.get("HORIZON", BASE.get("HORIZON", HORIZON_LIMIT)))
-    if h < 2 or h > HORIZON_LIMIT:
+    h = int(float(params.get("HORIZON", FIXED_HORIZON)))
+    dt = float(params.get("PRED_DT", FIXED_PRED_DT))
+    if h != FIXED_HORIZON:
+        return False
+    if abs(dt - FIXED_PRED_DT) > 1e-9:
         return False
     return True
 
@@ -1466,6 +1472,9 @@ def run_single_scenario(params: dict, binary: str, scenario: dict, seed: int) ->
     env["MPC_TUNING_CSV"] = "1"
     env["REALISTIC_SIM"] = "1"
     env["SIM_SEED"] = str(seed + int(scenario.get("seed_offset", 0)))
+    # Align test_sim_drive's internal wall-margin floor (half-width + BODY_SAFETY_MARGIN)
+    # with the scenario audit assumptions.
+    env["BODY_SAFETY_MARGIN"] = str(SCENARIO_BODY_SAFETY_MARGIN)
     env["RACELINE_PATH"] = os.path.abspath(scenario.get("raceline_path", RACELINE_PATH))
     
     effective_params = canonicalize_params(params)
@@ -1712,9 +1721,8 @@ def gen_primary_grid(objective: str) -> list:
     qy_vals = values["Q_YAW"]
     rs_vals = values["R_STEER"]
     wda_vals = values["MPC_W_DELTA_ACTUAL"]
-    sb_vals = values["SOLVER_BUCKET"]
-    for ql, qh, qv, qlv, qy, rs, wda, sb in itertools.product(
-            ql_vals, qh_vals, qv_vals, qlv_vals, qy_vals, rs_vals, wda_vals, sb_vals):
+    for ql, qh, qv, qlv, qy, rs, wda in itertools.product(
+            ql_vals, qh_vals, qv_vals, qlv_vals, qy_vals, rs_vals, wda_vals):
         w = dict(BASE)
         w["Q_LAT"] = ql
         w["Q_HDG"] = qh
@@ -1723,11 +1731,11 @@ def gen_primary_grid(objective: str) -> list:
         w["Q_YAW"] = qy
         w["R_STEER"] = rs
         w["MPC_W_DELTA_ACTUAL"] = wda
-        w["SOLVER_BUCKET"] = sb
-        w = apply_solver_bucket(w)
+        w["HORIZON"] = FIXED_HORIZON
+        w["PRED_DT"] = FIXED_PRED_DT
         if is_valid_config(w):
             combos.append((
-                f"L={ql}+H={qh}+V={qv}+LV={qlv}+Y={qy}+RS={rs}+WDA={wda}+SB={sb}+HZ={int(w['HORIZON'])}+DT={float(w['PRED_DT']):.3f}+CFG",
+                f"L={ql}+H={qh}+V={qv}+LV={qlv}+Y={qy}+RS={rs}+WDA={wda}+HZ={FIXED_HORIZON}+DT={FIXED_PRED_DT:.3f}+CFG",
                 w,
             ))
     
@@ -1747,20 +1755,19 @@ def gen_primary_grid_local() -> list:
     qv_vals = around("Q_VEL", (0.92, 1.00, 1.08), 10.0)
     rs_vals = around("R_STEER", (0.92, 1.00, 1.08), 0.1)
     wda_vals = around("MPC_W_DELTA_ACTUAL", (0.67, 1.00, 1.33), 0.005)
-    sb_vals = [str(BASE.get("SOLVER_BUCKET", "t01"))]
 
-    for ql, qv, rs, wda, sb in itertools.product(
-            ql_vals, qv_vals, rs_vals, wda_vals, sb_vals):
+    for ql, qv, rs, wda in itertools.product(
+            ql_vals, qv_vals, rs_vals, wda_vals):
         w = dict(BASE)
         w["Q_LAT"] = ql
         w["Q_VEL"] = qv
         w["R_STEER"] = rs
         w["MPC_W_DELTA_ACTUAL"] = wda
-        w["SOLVER_BUCKET"] = sb
-        w = apply_solver_bucket(w)
+        w["HORIZON"] = FIXED_HORIZON
+        w["PRED_DT"] = FIXED_PRED_DT
         if is_valid_config(w):
             combos.append((
-                f"LOCAL+L={ql:.3f}+V={qv:.3f}+RS={rs:.3f}+WDA={wda:.4f}+SB={sb}",
+                f"LOCAL+L={ql:.3f}+V={qv:.3f}+RS={rs:.3f}+WDA={wda:.4f}",
                 w,
             ))
 
@@ -1796,10 +1803,28 @@ def gen_secondary_grid(objective: str) -> list:
 
 
 def gen_fine_tuning(best_weights: dict) -> list:
-    """Phase 6: Fine-tuning around best config (~2000 configs)."""
+    """Phase 6: Fine-tuning around best config (~1000 configs)."""
     combos = []
-    pct_range = (0.80, 0.85, 0.90, 0.92, 0.95, 0.97, 1.03, 1.05, 1.08, 1.10, 1.15, 1.20)
-    skip = {"MAX_ITER", "HORIZON", "WALL_MARGIN"}
+    pct_range = (
+        0.75, 0.78, 0.80, 0.83, 0.85, 0.88, 0.90,
+        0.92, 0.95, 0.97, 0.99, 1.01, 1.03, 1.05,
+        1.08, 1.10, 1.12, 1.15, 1.17, 1.20, 1.25,
+    )
+    solver_pair_range = (0.75, 0.80, 0.84, 0.88, 0.92, 0.95, 0.97, 0.99, 1.0, 1.01, 1.03, 1.05, 1.08, 1.12, 1.16, 1.22, 1.28)
+    pair_patterns = (
+        (0.95, 1.05), (1.05, 0.95), (0.92, 1.08), (1.08, 0.92),
+        (0.97, 1.03), (1.03, 0.97), (0.90, 0.90), (1.10, 1.10),
+    )
+    triple_patterns = (
+        (0.95, 0.95, 1.05), (0.95, 1.05, 0.95), (1.05, 0.95, 0.95),
+        (1.05, 1.05, 0.95), (1.05, 0.95, 1.05), (0.95, 1.05, 1.05),
+        (0.90, 1.00, 1.10), (1.10, 1.00, 0.90), (0.92, 1.00, 1.08),
+        (1.08, 1.00, 0.92), (0.97, 1.03, 1.00), (1.03, 0.97, 1.00),
+    )
+    skip = {"MAX_ITER", "HORIZON", "PRED_DT", "WALL_MARGIN", "TOL", "RHO", "RHO_U"}
+
+    def fmt_pct(mult: float) -> str:
+        return f"{int(round((mult - 1.0) * 100)):+d}%"
     
     # Single parameter perturbations
     for name, base_val in best_weights.items():
@@ -1812,29 +1837,86 @@ def gen_fine_tuning(best_weights: dict) -> list:
             
             w = dict(best_weights)
             w[name] = new_val
-            pct = int((mult - 1.0) * 100)
-            sign = "+" if pct >= 0 else ""
-            combos.append((f"FT:{name}{sign}{pct}%", w))
+            w["HORIZON"] = FIXED_HORIZON
+            w["PRED_DT"] = FIXED_PRED_DT
+            combos.append((f"FT:{name}{fmt_pct(mult)}", w))
+
+    # Coupled solver sweep: RHO and RHO_U always move together.
+    if float(best_weights.get("RHO", 0.0) or 0.0) > 0.0 and float(best_weights.get("RHO_U", 0.0) or 0.0) > 0.0:
+        for mult in solver_pair_range:
+            w = apply_coupled_solver_pair(best_weights, mult)
+            w["HORIZON"] = FIXED_HORIZON
+            w["PRED_DT"] = FIXED_PRED_DT
+            combos.append((f"FT:RHO/RHO_U{fmt_pct(mult)}", w))
     
-    # Pairwise perturbations of key params
-    key_params = ["Q_LAT", "Q_HDG", "Q_VEL", "R_STEER", "HORIZON", "Q_LAT_VEL", "Q_YAW"]
-    for w1, w2 in itertools.combinations(key_params, 2):
+    # Pairwise perturbations across all tunable params.
+    pair_params = [
+        k for k, v in best_weights.items()
+        if k not in skip and k not in ("RHO", "RHO_U") and v != 0
+    ]
+    for w1, w2 in itertools.combinations(pair_params, 2):
         v1 = best_weights.get(w1, 0)
         v2 = best_weights.get(w2, 0)
         if v1 == 0 or v2 == 0:
             continue
-        for m1, m2 in [(0.9, 1.1), (1.1, 0.9), (0.9, 0.9), (1.1, 1.1), 
-                       (0.95, 1.05), (1.05, 0.95)]:
+        for m1, m2 in pair_patterns:
             w = dict(best_weights)
             w[w1] = round(v1 * m1, 6)
             w[w2] = round(v2 * m2, 6)
-            if w1 in INT_PARAMS:
-                w[w1] = int(w[w1])
-            if w2 in INT_PARAMS:
-                w[w2] = int(w[w2])
-            p1 = f"+{int((m1-1)*100)}%" if m1 > 1 else f"{int((m1-1)*100)}%"
-            p2 = f"+{int((m2-1)*100)}%" if m2 > 1 else f"{int((m2-1)*100)}%"
-            combos.append((f"FT:{w1}{p1}+{w2}{p2}", w))
+            w["HORIZON"] = FIXED_HORIZON
+            w["PRED_DT"] = FIXED_PRED_DT
+            combos.append((f"FT:{w1}{fmt_pct(m1)}+{w2}{fmt_pct(m2)}", w))
+
+    # Solver pair plus one regular param.
+    solver_pair_regular_patterns = (
+        (0.95, 1.05), (1.05, 0.95), (0.92, 1.08), (1.08, 0.92),
+        (0.97, 1.03), (1.03, 0.97), (0.90, 0.90), (1.10, 1.10),
+    )
+    for name in pair_params:
+        base_val = best_weights.get(name, 0)
+        if base_val == 0:
+            continue
+        for solver_mult, other_mult in solver_pair_regular_patterns:
+            w = apply_coupled_solver_pair(best_weights, solver_mult)
+            w[name] = round(base_val * other_mult, 6)
+            w["HORIZON"] = FIXED_HORIZON
+            w["PRED_DT"] = FIXED_PRED_DT
+            combos.append((f"FT:RHO/RHO_U{fmt_pct(solver_mult)}+{name}{fmt_pct(other_mult)}", w))
+
+    # 3-way local perturbations for core steering/tracking params.
+    triple_params = ["Q_LAT", "Q_HDG", "Q_VEL", "Q_LAT_VEL", "Q_YAW", "R_STEER"]
+    for w1, w2, w3 in itertools.combinations(triple_params, 3):
+        v1 = best_weights.get(w1, 0)
+        v2 = best_weights.get(w2, 0)
+        v3 = best_weights.get(w3, 0)
+        if v1 == 0 or v2 == 0 or v3 == 0:
+            continue
+        for m1, m2, m3 in triple_patterns:
+            w = dict(best_weights)
+            w[w1] = round(v1 * m1, 6)
+            w[w2] = round(v2 * m2, 6)
+            w[w3] = round(v3 * m3, 6)
+            w["HORIZON"] = FIXED_HORIZON
+            w["PRED_DT"] = FIXED_PRED_DT
+            combos.append((f"FT:{w1}{fmt_pct(m1)}+{w2}{fmt_pct(m2)}+{w3}{fmt_pct(m3)}", w))
+
+    # Solver pair plus two core params.
+    solver_pair_triple_patterns = (
+        (0.95, 0.95, 1.05), (0.95, 1.05, 0.95), (1.05, 0.95, 0.95),
+        (1.05, 1.05, 0.95), (1.05, 0.95, 1.05), (0.95, 1.05, 1.05),
+    )
+    for w1, w2 in itertools.combinations(triple_params, 2):
+        v1 = best_weights.get(w1, 0)
+        v2 = best_weights.get(w2, 0)
+        if v1 == 0 or v2 == 0:
+            continue
+        for solver_mult, m1, m2 in solver_pair_triple_patterns:
+            w = apply_coupled_solver_pair(best_weights, solver_mult)
+            w[w1] = round(v1 * m1, 6)
+            w[w2] = round(v2 * m2, 6)
+            w["HORIZON"] = FIXED_HORIZON
+            w["PRED_DT"] = FIXED_PRED_DT
+            combos.append((f"FT:RHO/RHO_U{fmt_pct(solver_mult)}+{w1}{fmt_pct(m1)}+{w2}{fmt_pct(m2)}", w))
     
     return combos
 
@@ -1855,7 +1937,9 @@ def gen_random_neighbors(best_weights: dict, n: int, objective: str,
     tune_params = [k for k in best_weights.keys()
                    if k not in ("MAX_ITER", "WALL_MARGIN") 
                    and best_weights[k] != 0]
-    tune_params = [k for k in tune_params if k not in ("HORIZON", "PRED_DT", *SOLVER_PARAM_KEYS)]
+    tune_params = [k for k in tune_params if k not in ("HORIZON", "PRED_DT", "RHO", "RHO_U", *SOLVER_PARAM_KEYS)]
+    if float(best_weights.get("RHO", 0.0) or 0.0) > 0.0 and float(best_weights.get("RHO_U", 0.0) or 0.0) > 0.0:
+        tune_params.append(SOLVER_PAIR_PARAM)
     
     i = 0
     attempts = 0
@@ -1868,7 +1952,10 @@ def gen_random_neighbors(best_weights: dict, n: int, objective: str,
         params_to_perturb = rng.sample(tune_params, num_perturb)
         
         for name in params_to_perturb:
-            if name in discrete:
+            if name == SOLVER_PAIR_PARAM:
+                mult = rng.choice(param_multipliers.get(name, default_multipliers))
+                w = apply_coupled_solver_pair(w, mult)
+            elif name in discrete:
                 w[name] = rng.choice(discrete[name])
             else:
                 mult = rng.choice(param_multipliers.get(name, default_multipliers))
@@ -1878,6 +1965,9 @@ def gen_random_neighbors(best_weights: dict, n: int, objective: str,
                 w[name] = int(float(w[name]))
                 if name == "HORIZON":
                     w[name] = max(2, min(HORIZON_LIMIT, w[name]))
+
+            w["HORIZON"] = FIXED_HORIZON
+            w["PRED_DT"] = FIXED_PRED_DT
         
         if is_valid_config(w):
             combos.append((f"RND_{i}", w))
@@ -1914,7 +2004,7 @@ class IncrementalCSV:
     def __init__(self, filepath, fieldnames):
         self.filepath = filepath
         self.fieldnames = fieldnames
-        self._header_written = False
+        self._header_written = os.path.exists(filepath) and os.path.getsize(filepath) > 0
     
     def write_row(self, row):
         mode = "a" if self._header_written else "w"
@@ -1926,109 +2016,59 @@ class IncrementalCSV:
             writer.writerow(row)
 
 
-def select_solver_bucket(params: dict) -> dict:
-    """Select grouped HORIZON/PRED_DT/RHO/RHO_U/TOL solver bucket."""
-    explicit_name = str(params.get("SOLVER_BUCKET", "") or "").strip()
-    if explicit_name:
-        bucket = SOLVER_BUCKETS_BY_NAME.get(explicit_name)
-        if bucket is None:
-            bucket = SOLVER_BUCKETS[0]
-        return {
-            "HORIZON": int(bucket["horizon"]),
-            "PRED_DT": float(bucket["pred_dt"]),
-            "RHO": float(bucket["rho"]),
-            "RHO_U": float(bucket["rho_u"]),
-            "TOL": float(bucket["tol"]),
-        }
+class ProgressTracker:
+    """Writes a lightweight heartbeat file for long remote runs."""
 
-    # Fallback path: infer bucket from current HORIZON/PRED_DT by T=H*dt.
-    h = int(float(params.get("HORIZON", BASE.get("HORIZON", 20)) or 20))
-    dt = float(params.get("PRED_DT", BASE.get("PRED_DT", 0.03)) or 0.03)
-    lookahead_t = max(0.01, float(h) * dt)
+    def __init__(self, filepath: str):
+        self.filepath = filepath
+        parent = os.path.dirname(os.path.abspath(filepath))
+        if parent:
+            os.makedirs(parent, exist_ok=True)
 
-    selected = SOLVER_BUCKETS[-1]
-    for bucket in SOLVER_BUCKETS:
-        if lookahead_t <= float(bucket["t_max"]):
-            selected = bucket
-            break
+    def _write_lines(self, lines: list):
+        tmp_path = f"{self.filepath}.tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+        os.replace(tmp_path, self.filepath)
 
-    return {
-        "HORIZON": int(h),
-        "PRED_DT": float(dt),
-        "RHO": float(selected["rho"]),
-        "RHO_U": float(selected["rho_u"]),
-        "TOL": float(selected["tol"]),
-    }
+    def update(self,
+               phase_name: str,
+               done: int,
+               total: int,
+               passed: int,
+               failed: int,
+               label: str,
+               status: str,
+               eta_s: float,
+               score: float = None):
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        pct = (100.0 * float(done) / float(max(total, 1)))
+        lines = [
+            f"updated_at={now}",
+            f"phase={phase_name}",
+            f"progress={done}/{total} ({pct:.2f}%)",
+            f"passed={passed}",
+            f"failed={failed}",
+            f"last_status={status}",
+            f"eta_s={max(0.0, float(eta_s)):.1f}",
+            f"last_label={label}",
+        ]
+        if score is not None:
+            lines.append(f"last_score={float(score):.6f}")
+        self._write_lines(lines)
 
+    def finalize(self, total_tests: int, total_passed: int, total_failed: int, elapsed_s: float):
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        lines = [
+            f"updated_at={now}",
+            "phase=COMPLETE",
+            f"tests={total_tests}",
+            f"passed={total_passed}",
+            f"failed={total_failed}",
+            f"elapsed_s={float(elapsed_s):.1f}",
+        ]
+        self._write_lines(lines)
 
-def apply_solver_bucket(params: dict) -> dict:
-    """Return params with solver tuple overridden by T=H*dt bucket schedule."""
-    out = dict(params)
-    out.update(select_solver_bucket(out))
-    return out
-
-
-def aggregate_global_hdt_rows(rows: list) -> dict:
-    """Aggregate per-anchor results into a single global-region score row."""
-    if not rows:
-        return {
-            "status": "EXIT_FAIL",
-            "score": 999999.0,
-            "base_score": 999999.0,
-            "promotable": 0,
-            "promotable_reason": "no_rows",
-        }
-
-    first = rows[0]
-    out = dict(first)
-
-    count = len(rows)
-    avg = lambda key: sum(float(r.get(key, 0.0) or 0.0) for r in rows) / float(count)
-    minv = lambda key: min(float(r.get(key, 0.0) or 0.0) for r in rows)
-    maxv = lambda key: max(float(r.get(key, 0.0) or 0.0) for r in rows)
-
-    non_promotable = [r for r in rows if not is_promotable_result(r)]
-    fail_count = len(non_promotable)
-    promotable_count = count - fail_count
-    min_promotable = max(1, int(math.ceil(GLOBAL_HDT_MIN_PASS_RATIO * float(count))))
-    pass_global = promotable_count >= min_promotable
-
-    mean_base = avg("base_score")
-    worst_base = maxv("base_score")
-    failure_penalty = 2000.0 * float(fail_count)
-    global_score = mean_base + (0.35 * worst_base) + failure_penalty
-
-    out["status"] = "OK" if pass_global else "EXIT_FAIL"
-    out["scenario_count"] = int(sum(int(r.get("scenario_count", 0) or 0) for r in rows))
-    out["scenario_failures"] = int(sum(int(r.get("scenario_failures", 0) or 0) for r in rows))
-    out["failed"] = int(sum(int(r.get("failed", 0) or 0) for r in rows))
-    out["failed_non_speed"] = int(sum(int(r.get("failed_non_speed", 0) or 0) for r in rows))
-    out["wall_collisions"] = int(sum(int(r.get("wall_collisions", 0) or 0) for r in rows))
-
-    out["avg_lat_err"] = avg("avg_lat_err")
-    out["avg_hdg_err"] = avg("avg_hdg_err")
-    out["avg_vx"] = minv("avg_vx")
-    out["avg_progress_mps"] = minv("avg_progress_mps")
-    out["scenario_race_avg_progress_mps"] = minv("scenario_race_avg_progress_mps")
-    out["scenario_race_status"] = "OK" if all(str(r.get("scenario_race_status", "")) == "OK" for r in rows) else "EXIT_FAIL"
-    out["solver_optimal_rate"] = minv("solver_optimal_rate")
-    out["solver_max_iter_rate"] = maxv("solver_max_iter_rate")
-    out["lap_time_est"] = avg("lap_time_est")
-
-    out["base_score"] = round(global_score, 6)
-    out["score"] = out["base_score"]
-    out["promotable"] = 1 if pass_global else 0
-    out["promotable_deficit"] = round(promotable_deficit_score(out), 6)
-    if not pass_global:
-        reasons = sorted(set(r.get("promotable_reason", "") for r in non_promotable if r.get("promotable_reason")))
-        out["promotable_reason"] = f"global_hdt_fail:{promotable_count}/{count}:" + ";".join(reasons[:4])
-    else:
-        out["promotable_reason"] = ""
-
-    out["global_hdt_count"] = count
-    out["global_hdt_promotable"] = promotable_count
-    out["global_hdt_set"] = "|".join(f"{int(r.get('HORIZON', 0))}x{float(r.get('PRED_DT', 0.0)):.3f}" for r in rows)
-    return out
 
 # ==============================================================================
 # PARALLEL WORKER
@@ -2036,15 +2076,15 @@ def aggregate_global_hdt_rows(rows: list) -> dict:
 
 def _run_single(args):
     """Worker: run one test and return scored result."""
-    label, params, binary, phase_name, objective, eval_scenarios, raceline_tag = args
-    p = apply_solver_bucket(dict(params))
+    index, total, label, params, binary, phase_name, objective, eval_scenarios, raceline_tag = args
+    p = canonicalize_params(dict(params))
     r = run_test(p, binary, eval_scenarios=eval_scenarios)
     r = apply_scores(r, objective)
     r.update(canonicalize_params(p))
     r["global_hdt_count"] = 1
     r["global_hdt_set"] = f"{int(r.get('HORIZON', 0))}x{float(r.get('PRED_DT', 0.0)):.3f}"
 
-    r["label"] = label
+    r["label"] = f"{index}/{total} {label}"
     r["phase"] = phase_name
     r["raceline"] = raceline_tag
     return r
@@ -2055,7 +2095,8 @@ def _run_single(args):
 # ==============================================================================
 
 def run_phase(phase_name: str, combos: list, binary: str, results: list,
-              t0: float, num_workers: int, csv_writer, objective: str) -> tuple:
+              t0: float, num_workers: int, csv_writer, objective: str,
+              progress_tracker=None) -> tuple:
     """Run a sweep phase. Returns (passed, failed)."""
     combos = deduplicate(combos)
     
@@ -2078,10 +2119,10 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
             eta = (total - i - 1) / max(rate, 0.01)
             print(f"  [{i+1:4d}/{total}] {label:55s} ", end="", flush=True)
             
-            p = apply_solver_bucket(dict(params))
+            p = canonicalize_params(dict(params))
             r = run_test(p, binary)
             r = apply_scores(r, objective)
-            r["label"] = label
+            r["label"] = f"{i+1}/{total} {label}"
             r["phase"] = phase_name
             r["raceline"] = RACELINE_TAG
             r.update(canonicalize_params(p))
@@ -2089,7 +2130,7 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
             r["global_hdt_set"] = f"{int(r.get('HORIZON', 0))}x{float(r.get('PRED_DT', 0.0)):.3f}"
             results.append(r)
             
-            if csv_writer:
+            if csv_writer and r.get("status") == "OK":
                 csv_writer.write_row(r)
             
             if r["status"] != "OK":
@@ -2103,14 +2144,27 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
                 print(f"sc={r['score']:7.2f}  avx={r.get('avg_vx', 0.0):.2f}  "
                       f"lap={r.get('lap_time_est', 0.0):.2f}s  "
                       f"prog={r.get('avg_progress_mps', 0.0):.2f}  (ETA {eta:.0f}s)")
+
+            if progress_tracker:
+                progress_tracker.update(
+                    phase_name=phase_name,
+                    done=i + 1,
+                    total=total,
+                    passed=passed,
+                    failed=failed,
+                    label=r.get("label", label),
+                    status=str(r.get("status", "")),
+                    eta_s=eta,
+                    score=r.get("score"),
+                )
     else:
         # Parallel execution
         done_count = 0
         with ProcessPoolExecutor(max_workers=num_workers) as executor:
             scenario_bundle = [dict(s) for s in EVAL_SCENARIOS]
             raceline_tag = RACELINE_TAG
-            it = ((label, params, binary, phase_name, objective, scenario_bundle, raceline_tag)
-                  for label, params in combos)
+            it = ((idx, total, label, params, binary, phase_name, objective, scenario_bundle, raceline_tag)
+                for idx, (label, params) in enumerate(combos, start=1))
             max_in_flight = max(num_workers * 4, num_workers + 2)
             futures = set()
             
@@ -2132,7 +2186,7 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
                     r = future.result()
                     results.append(r)
                     
-                    if csv_writer:
+                    if csv_writer and r.get("status") == "OK":
                         csv_writer.write_row(r)
                     
                     elapsed = time.time() - t0
@@ -2152,6 +2206,19 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
                               f"sc={r['score']:7.2f}  avx={r.get('avg_vx', 0.0):.2f}  "
                               f"lap={r.get('lap_time_est', 0.0):.2f}s  "
                               f"prog={r.get('avg_progress_mps', 0.0):.2f}  (ETA {eta:.0f}s)")
+
+                    if progress_tracker:
+                        progress_tracker.update(
+                            phase_name=phase_name,
+                            done=done_count,
+                            total=total,
+                            passed=passed,
+                            failed=failed,
+                            label=r.get("label", ""),
+                            status=str(r.get("status", "")),
+                            eta_s=eta,
+                            score=r.get("score"),
+                        )
     
     return passed, failed
 
@@ -2176,7 +2243,7 @@ def sanity_check_params(binary: str):
         ("Q_LAT", BASE.get("Q_LAT", 10000) * 1.5),
         ("Q_VEL", BASE.get("Q_VEL", 120) * 1.3),
         ("RHO", BASE.get("RHO", 32) * 1.5),
-        ("HORIZON", min(HORIZON_LIMIT, int(BASE.get("HORIZON", HORIZON_LIMIT) + 2))),
+        ("RHO_U", BASE.get("RHO_U", 42) * 1.3),
     ]
     
     ineffective = []
@@ -2310,6 +2377,206 @@ def update_base(new_params: dict):
                 BASE[k] = new_params[k]
 
 
+def apply_coupled_solver_pair(weights: dict, multiplier: float) -> dict:
+    """Scale RHO and RHO_U together by same factor."""
+    w = dict(weights)
+    rho = float(w.get("RHO", BASE.get("RHO", 0.0)) or 0.0)
+    rho_u = float(w.get("RHO_U", BASE.get("RHO_U", 0.0)) or 0.0)
+    if rho > 0.0 and rho_u > 0.0:
+        w["RHO"] = round(rho * multiplier, 6)
+        w["RHO_U"] = round(rho_u * multiplier, 6)
+    return w
+
+
+def better_result(lhs: dict | None, rhs: dict | None) -> dict | None:
+    """Pick better tuner row. Prefer promotable, then lower score."""
+    if lhs is None:
+        return rhs
+    if rhs is None:
+        return lhs
+
+    lhs_prom = is_promotable_result(lhs)
+    rhs_prom = is_promotable_result(rhs)
+    if lhs_prom != rhs_prom:
+        return lhs if lhs_prom else rhs
+
+    try:
+        lhs_score = float(lhs.get("score", 999999.0))
+    except (TypeError, ValueError):
+        lhs_score = 999999.0
+    try:
+        rhs_score = float(rhs.get("score", 999999.0))
+    except (TypeError, ValueError):
+        rhs_score = 999999.0
+
+    return lhs if lhs_score <= rhs_score else rhs
+
+
+def coerce_seed_value(key: str, raw_value: str):
+    """Convert CSV text into the type expected by BASE."""
+    if raw_value is None:
+        return None
+
+    text = str(raw_value).strip()
+    if text == "":
+        return None
+
+    if key in INT_PARAMS:
+        return int(float(text))
+    return float(text)
+
+
+def load_best_seed_from_csv(csv_path: str) -> tuple[dict | None, dict | None]:
+    """Load best config row from tuning CSV."""
+    if not csv_path or not os.path.exists(csv_path):
+        return None, None
+
+    rows = []
+    with open(csv_path, newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if not row:
+                continue
+            if row.get("status") and row.get("status") != "OK":
+                continue
+            if "score" not in row:
+                continue
+            try:
+                score = float(row["score"])
+            except (TypeError, ValueError):
+                continue
+            rows.append((score, row))
+
+    if not rows:
+        return None, None
+
+    rows.sort(key=lambda item: item[0])
+    score, best_row = rows[0]
+
+    seed = dict(BASE_OVERRIDES)
+    for key in BASE_OVERRIDES.keys():
+        if key in best_row:
+            value = coerce_seed_value(key, best_row.get(key))
+            if value is not None:
+                seed[key] = value
+
+    meta = {
+        "label": best_row.get("label", ""),
+        "phase": best_row.get("phase", ""),
+        "score": score,
+        "source": csv_path,
+    }
+    return seed, meta
+
+
+def load_progress_state(progress_path: str) -> dict:
+    """Load key=value progress metadata if file exists."""
+    if not progress_path or not os.path.exists(progress_path):
+        return {}
+
+    state = {}
+    with open(progress_path, "r", encoding="utf-8") as f:
+        for raw in f:
+            line = raw.strip()
+            if not line or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            state[key.strip()] = value.strip()
+    return state
+
+
+def phase_priority(phase_name: str) -> int:
+    """Order phases by tuning sequence."""
+    if not phase_name:
+        return -1
+    if phase_name.startswith("Phase 1:"):
+        return 1
+    if phase_name.startswith("Phase 2:"):
+        return 2
+    if phase_name.startswith("Phase 4:"):
+        return 4
+    if phase_name.startswith("Phase 6:"):
+        return 6
+    if phase_name.startswith("Phase 7:"):
+        return 7
+    if phase_name.startswith("Phase 8:"):
+        return 8
+    return 0
+
+
+def load_resume_seed_from_csv(csv_path: str) -> tuple[dict | None, dict | None]:
+    """Resume from latest completed phase in CSV, not from global best row."""
+    if not csv_path or not os.path.exists(csv_path):
+        return None, None
+
+    rows = []
+    with open(csv_path, newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if not row:
+                continue
+            rows.append(row)
+
+    if not rows:
+        return None, None
+
+    max_phase = max(phase_priority(r.get("phase", "")) for r in rows)
+    phase_rows = [r for r in rows if phase_priority(r.get("phase", "")) == max_phase]
+    if not phase_rows:
+        phase_rows = rows
+
+    best_row = None
+    best_score = None
+    for row in phase_rows:
+        if row.get("status") not in (None, "", "OK"):
+            continue
+        try:
+            score = float(row.get("score", "inf"))
+        except (TypeError, ValueError):
+            continue
+        if best_row is None or score < best_score:
+            best_row = row
+            best_score = score
+
+    if best_row is None:
+        for row in phase_rows:
+            try:
+                score = float(row.get("score", "inf"))
+            except (TypeError, ValueError):
+                continue
+            if best_row is None or score < best_score:
+                best_row = row
+                best_score = score
+
+    if best_row is None:
+        return None, None
+
+    seed = dict(BASE_OVERRIDES)
+    for key in BASE_OVERRIDES.keys():
+        if key in best_row:
+            value = coerce_seed_value(key, best_row.get(key))
+            if value is not None:
+                seed[key] = value
+
+    meta = {
+        "label": best_row.get("label", ""),
+        "phase": best_row.get("phase", ""),
+        "score": best_score if best_score is not None else float(best_row.get("score", 0.0) or 0.0),
+        "source": csv_path,
+        "resume_phase": max_phase,
+    }
+    return seed, meta
+
+
+def make_continued_csv_path(source_csv: str, timestamp: str) -> str:
+    """Create new CSV path for resumed run."""
+    source_abs = os.path.abspath(source_csv)
+    root, ext = os.path.splitext(source_abs)
+    if not ext:
+        ext = ".csv"
+    return f"{root}_continued_{timestamp}{ext}"
+
+
 # ==============================================================================
 # MAIN
 # ==============================================================================
@@ -2326,13 +2593,24 @@ def main():
     num_workers = multiprocessing.cpu_count()  # Default to max workers
     objective = "base"
     raceline_override = None
+    seed_csv_override = None
+    resume_csv_override = None
+    resume_progress_override = None
+    append_resume_csv = False
     phase2_top_n = CASCADE_TOP_N
     global_passes = GLOBAL_OPTIMIZATION_PASSES
     include_obstacles = INCLUDE_OBSTACLE_SCENARIOS
     local_sweep = False
     local_duration = 8.0
+    progress_file_override = None
     
     for i, arg in enumerate(sys.argv):
+        if arg.startswith("--resume-csv "):
+            resume_csv_override = arg.split(" ", 1)[1].strip()
+        if arg.startswith("--seed-csv "):
+            seed_csv_override = arg.split(" ", 1)[1].strip()
+        if arg.startswith("--resume-progress "):
+            resume_progress_override = arg.split(" ", 1)[1].strip()
         if arg in ("--jobs", "-j") and i + 1 < len(sys.argv):
             try:
                 num_workers = int(sys.argv[i + 1])
@@ -2343,6 +2621,14 @@ def main():
                 num_workers = multiprocessing.cpu_count()
         if arg == "--raceline" and i + 1 < len(sys.argv):
             raceline_override = sys.argv[i + 1].strip()
+        if arg == "--seed-csv" and i + 1 < len(sys.argv):
+            seed_csv_override = sys.argv[i + 1].strip()
+        if arg == "--resume-csv" and i + 1 < len(sys.argv):
+            resume_csv_override = sys.argv[i + 1].strip()
+        if arg == "--resume-progress" and i + 1 < len(sys.argv):
+            resume_progress_override = sys.argv[i + 1].strip()
+        if arg in ("--append-csv", "--resume-append"):
+            append_resume_csv = True
         if arg == "--phase2-top" and i + 1 < len(sys.argv):
             try:
                 phase2_top_n = max(1, int(sys.argv[i + 1]))
@@ -2376,6 +2662,8 @@ def main():
                 local_duration = max(2.0, float(sys.argv[i + 1]))
             except ValueError:
                 print(f"WARNING: invalid --local-duration '{sys.argv[i + 1]}', using {local_duration}")
+        if arg == "--progress-file" and i + 1 < len(sys.argv):
+            progress_file_override = sys.argv[i + 1].strip()
         if arg == "--wall-margin" and i + 1 < len(sys.argv):
             try:
                 requested = max(0.0, float(sys.argv[i + 1]))
@@ -2426,9 +2714,40 @@ def main():
         base_no_obstacle_path = build_no_obstacle_base_path(RACELINE_PATH)
         SCENARIO_RACELINE_PATHS = {"base": base_no_obstacle_path}
     EVAL_SCENARIOS = build_eval_scenarios(include_obstacles=include_obstacles)
-    
-    # Initialize BASE config
-    BASE.update(BASE_OVERRIDES)
+
+    resume_mode = bool(resume_csv_override or resume_progress_override)
+    resume_state = load_progress_state(resume_progress_override) if resume_progress_override else {}
+    resume_csv_path = resolve_project_path(resume_csv_override) if resume_csv_override else None
+
+    seed_params = None
+    seed_meta = None
+    if resume_state.get("resume_seed"):
+        try:
+            seed_params = json.loads(resume_state["resume_seed"])
+            seed_meta = {
+                "label": resume_state.get("resume_label", ""),
+                "phase": resume_state.get("resume_phase_name", ""),
+                "score": float(resume_state.get("resume_score", "nan")),
+                "source": resume_progress_override,
+                "resume_phase": int(resume_state.get("resume_phase", "0")),
+                "resume_pass": int(resume_state.get("resume_pass", "1")),
+            }
+        except Exception:
+            seed_params = None
+            seed_meta = None
+
+    if seed_params is None and resume_csv_path:
+        seed_params, seed_meta = load_resume_seed_from_csv(resume_csv_path)
+
+    if seed_params is None:
+        seed_csv_path = resolve_project_path(seed_csv_override) if seed_csv_override else DEFAULT_BASE_SEED_CSV
+        seed_params, seed_meta = load_best_seed_from_csv(seed_csv_path)
+
+    # Initialize BASE config from best CSV seed when available.
+    if seed_params:
+        BASE.update(seed_params)
+    else:
+        BASE.update(BASE_OVERRIDES)
     BASE["WALL_MARGIN"] = float(WALL_MARGIN)
     
     print(f"\n{'='*80}")
@@ -2440,15 +2759,24 @@ def main():
     print(f"  Global passes (P6-P8): {global_passes}")
     print(f"  Obstacles:   {'on' if include_obstacles else 'off'}")
     print(f"  Local sweep: {'on' if local_sweep else 'off'}")
+    print(f"  Resume:      {'on' if resume_mode else 'off'}")
+    if seed_meta:
+        print(
+            f"  Base seed:   {seed_meta['label'][:60]} "
+            f"(score={seed_meta['score']:.6f}, phase={seed_meta['phase']}, "
+            f"src={seed_meta['source']})"
+        )
+    else:
+        print(f"  Base seed:   fallback hardcoded seed")
     if local_sweep:
         print(f"  Local race duration: {RACE_SCENARIO_DURATION:.1f}s")
-    print("  Solver mode: T=H*dt bucketed RHO/RHO_U/TOL")
+    print(f"  Solver mode: fixed H={FIXED_HORIZON}, DT={FIXED_PRED_DT:.3f}; RHO/RHO_U tuned only in Phases 6-8")
     print("  Config eval: single (one config must pass all 3 scenarios)")
     print(f"  Base solver tuple: RHO={BASE.get('RHO')} RHO_U={BASE.get('RHO_U')} TOL={BASE.get('TOL')} MAX_ITER={BASE.get('MAX_ITER')}")
     print(f"  Wall margin: {WALL_MARGIN:.3f}")
     print(f"  Phase7 random: {PHASE7_RANDOM_COUNT}")
     print(f"  Phase8 random: {PHASE8_RANDOM_COUNT}")
-    print(f"  Horizon sweep: {HORIZON_SWEEP_VALUES}")
+    print(f"  Horizon sweep: {[FIXED_HORIZON]}")
     print(f"  Raceline:    {RACELINE_PATH}")
     print(f"  Raceline tag:{RACELINE_TAG}")
     print(f"  Track length:{TRACK_LENGTH_METERS:.3f} m")
@@ -2494,10 +2822,25 @@ def main():
     results = []
     t0 = time.time()
     total_p = total_f = 0
+
+    # Force line-buffered terminal output for remote/non-interactive runs.
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(line_buffering=True)
+    except Exception:
+        pass
     
     # CSV writer
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     outfile = f"test/tuning_hardware_base_{timestamp}.csv"
+    if resume_mode and resume_csv_path:
+        if append_resume_csv:
+            outfile = resume_csv_path
+        else:
+            outfile = make_continued_csv_path(resume_csv_path, timestamp)
+            shutil.copy2(resume_csv_path, outfile)
+    progress_file = progress_file_override if progress_file_override else f"test/tuning_hardware_base_{timestamp}_progress.txt"
+    progress_tracker = ProgressTracker(progress_file)
     scenario_fieldnames = []
     for scenario in EVAL_SCENARIOS:
         prefix = f"scenario_{scenario['name']}_"
@@ -2528,28 +2871,39 @@ def main():
     )
     csv_writer = IncrementalCSV(outfile, fieldnames)
     print(f"  Results: {outfile}\n")
+    if resume_mode and resume_csv_path:
+        if append_resume_csv:
+            print(f"  Resume CSV: {resume_csv_path} (appending in-place)\n")
+        else:
+            print(f"  Resume CSV: {resume_csv_path} (copied to results)\n")
+    print(f"  Progress: {progress_file}\n")
     
     # ========== PHASE 1: One-at-a-time ==========
-    if local_sweep:
-        print("\n  Local sweep mode: skipping Phase 1 (broad sweep)")
+    if local_sweep or resume_mode:
+        print("\n  Skipping Phase 1 (resume/local sweep mode)")
     else:
         p, f = run_phase("Phase 1: One-at-a-time sensitivity",
                          gen_one_at_a_time(objective), binary, results, t0,
-                         num_workers, csv_writer, objective)
+                         num_workers, csv_writer, objective, progress_tracker)
         total_p += p
         total_f += f
-    
+
     # ========== PHASE 2: Primary grid ==========
-    combos = gen_primary_grid_local() if local_sweep else gen_primary_grid(objective)
-    print(f"\n  Phase 2 will test {len(combos):,} configurations")
-    p, f = run_phase("Phase 2: Primary grid (Q_LAT x Q_HDG x Q_VEL x HORIZON x PRED_DT)",
-                     combos, binary, results, t0,
-                     num_workers, csv_writer, objective)
-    total_p += p
-    total_f += f
+    if local_sweep or resume_mode:
+        print("\n  Skipping Phase 2 (resume/local sweep mode)")
+    else:
+        combos = gen_primary_grid_local() if local_sweep else gen_primary_grid(objective)
+        print(f"\n  Phase 2 will test {len(combos):,} configurations")
+        p, f = run_phase("Phase 2: Primary grid (Q_LAT x Q_HDG x Q_VEL x Q_LAT_VEL x Q_YAW x R_STEER x MPC_W_DELTA_ACTUAL)",
+                         combos, binary, results, t0,
+                         num_workers, csv_writer, objective, progress_tracker)
+        total_p += p
+        total_f += f
 
     if local_sweep:
         print("\nLocal sweep mode: skipping Phases 4-8 (focused seed-region search only).")
+    elif resume_mode:
+        print("\nResume mode: skipping Phases 4-8 setup, continuing Phase 5-8 from resume seed.")
     else:
         # Select top-N Phase 2 seeds, run Phase 4 from each, then refine global best.
         print("\n  Selecting Phase 2 seeds for Phase 4...")
@@ -2558,7 +2912,7 @@ def main():
         if not phase2_seeds:
             phase2_seeds = [dict(BASE)]
     
-    if not local_sweep:
+    if not local_sweep and not resume_mode:
         # ========== PHASES 4-8 ==========
 
         # Phase 4: branch from top-N seeds from Phase 2.
@@ -2567,7 +2921,7 @@ def main():
             update_base(seed_params)
             p, f = run_phase(f"Phase 4: Secondary grid [seed {bi}/{len(phase2_seeds)}]",
                              gen_secondary_grid(objective), binary, results, t0,
-                             num_workers, csv_writer, objective)
+                             num_workers, csv_writer, objective, progress_tracker)
             total_p += p
             total_f += f
 
@@ -2576,59 +2930,146 @@ def main():
         if top_after_p4:
             update_base(top_after_p4[0])
 
-        # Global optimization loop: repeatedly refine one promoted-best candidate
-        # through Phases 5-8, always handing off the global best so phase-local
-        # regressions are never promoted forward.
-        current_best = get_top_n_params(results, n=1, objective=objective)
-        current_best_params = current_best[0] if current_best else dict(BASE)
+        # Global optimization loop: start each pass from pass-best seed.
+        # Phase-local best only advances seed inside current pass.
+        global_best = get_top_n_params(results, n=1, objective=objective)
+        global_best_row = global_best[0] if global_best else dict(BASE)
 
         for pi in range(global_passes):
             print(f"\n{'#'*80}")
-            print(f"# GLOBAL OPTIMIZATION PASS {pi+1}/{global_passes}")
+            print(f"# GLOBAL OPTIMIZATION PASS {pi+1}/{global_passes} (Phase 5-8)")
             print(f"{'#'*80}")
 
-            # Phase 6: fine tuning around current promoted best.
-            update_base(current_best_params)
+            pass_best_row = dict(global_best_row)
+            pass_improved = False
+
+            # Phase 5: lock in pass-best seed.
+            update_base(pass_best_row)
+
+            # Phase 6: fine tuning around pass-best.
+            phase_start = len(results)
+            update_base(pass_best_row)
             p, f = run_phase(f"Phase 6: Fine-tuning [pass {pi+1}/{global_passes}]",
-                             gen_fine_tuning(current_best_params), binary, results, t0,
-                             num_workers, csv_writer, objective)
+                             gen_fine_tuning(pass_best_row), binary, results, t0,
+                             num_workers, csv_writer, objective, progress_tracker)
             total_p += p
             total_f += f
-            top = get_top_n_params(results, n=1, objective=objective)
-            if top:
-                current_best_params = top[0]
-                update_base(current_best_params)
+            phase_top = get_top_n_params(results[phase_start:], n=1, objective=objective)
+            if phase_top:
+                new_best = better_result(pass_best_row, phase_top[0])
+                if new_best is not pass_best_row:
+                    pass_best_row = new_best
+                    pass_improved = True
 
-            # Phase 7: random exploration around current promoted best.
-            update_base(current_best_params)
+            # Phase 7: random exploration around pass-best.
+            phase_start = len(results)
+            update_base(pass_best_row)
             n_random = PHASE7_RANDOM_COUNT
             p, f = run_phase(f"Phase 7: Random neighbors ({n_random}) [pass {pi+1}/{global_passes}]",
-                             gen_random_neighbors(current_best_params, n_random, objective,
+                             gen_random_neighbors(pass_best_row, n_random, objective,
                                                   seed_offset=7000 + pi),
                              binary, results, t0,
-                             num_workers, csv_writer, objective)
+                             num_workers, csv_writer, objective, progress_tracker)
             total_p += p
             total_f += f
-            top = get_top_n_params(results, n=1, objective=objective)
-            if top:
-                current_best_params = top[0]
-                update_base(current_best_params)
+            phase_top = get_top_n_params(results[phase_start:], n=1, objective=objective)
+            if phase_top:
+                new_best = better_result(pass_best_row, phase_top[0])
+                if new_best is not pass_best_row:
+                    pass_best_row = new_best
+                    pass_improved = True
 
-            # Phase 8: random exploitation around promoted best from Phase 7.
-            update_base(current_best_params)
+            # Phase 8: random exploitation around pass-best.
+            phase_start = len(results)
+            update_base(pass_best_row)
             n_random = PHASE8_RANDOM_COUNT
             p, f = run_phase(f"Phase 8: Random exploitation ({n_random}) [pass {pi+1}/{global_passes}]",
-                             gen_random_neighbors(current_best_params, n_random, objective,
+                             gen_random_neighbors(pass_best_row, n_random, objective,
                                                   profile_override="base_exploit",
                                                   seed_offset=9000 + pi),
                              binary, results, t0,
-                             num_workers, csv_writer, objective)
+                             num_workers, csv_writer, objective, progress_tracker)
             total_p += p
             total_f += f
-            top = get_top_n_params(results, n=1, objective=objective)
-            if top:
-                current_best_params = top[0]
-                update_base(current_best_params)
+            phase_top = get_top_n_params(results[phase_start:], n=1, objective=objective)
+            if phase_top:
+                new_best = better_result(pass_best_row, phase_top[0])
+                if new_best is not pass_best_row:
+                    pass_best_row = new_best
+                    pass_improved = True
+
+            if not pass_improved:
+                print("  No improvement in this pass. Stop early.")
+                break
+
+            global_best_row = pass_best_row
+    elif resume_mode:
+        global_best_row = dict(BASE)
+        if seed_meta and seed_meta.get("resume_phase"):
+            print(f"\n  Resuming from phase {seed_meta['resume_phase']} seed.")
+        else:
+            print("\n  Resuming from loaded seed.")
+        for pi in range(global_passes):
+            print(f"\n{'#'*80}")
+            print(f"# GLOBAL OPTIMIZATION PASS {pi+1}/{global_passes} (Phase 5-8 resume)")
+            print(f"{'#'*80}")
+            pass_best_row = dict(global_best_row)
+            pass_improved = False
+
+            phase_start = len(results)
+            update_base(pass_best_row)
+            p, f = run_phase(f"Phase 6: Fine-tuning [pass {pi+1}/{global_passes}]",
+                             gen_fine_tuning(pass_best_row), binary, results, t0,
+                             num_workers, csv_writer, objective, progress_tracker)
+            total_p += p
+            total_f += f
+            phase_top = get_top_n_params(results[phase_start:], n=1, objective=objective)
+            if phase_top:
+                new_best = better_result(pass_best_row, phase_top[0])
+                if new_best is not pass_best_row:
+                    pass_best_row = new_best
+                    pass_improved = True
+
+            phase_start = len(results)
+            update_base(pass_best_row)
+            n_random = PHASE7_RANDOM_COUNT
+            p, f = run_phase(f"Phase 7: Random neighbors ({n_random}) [pass {pi+1}/{global_passes}]",
+                             gen_random_neighbors(pass_best_row, n_random, objective,
+                                                  seed_offset=7000 + pi),
+                             binary, results, t0,
+                             num_workers, csv_writer, objective, progress_tracker)
+            total_p += p
+            total_f += f
+            phase_top = get_top_n_params(results[phase_start:], n=1, objective=objective)
+            if phase_top:
+                new_best = better_result(pass_best_row, phase_top[0])
+                if new_best is not pass_best_row:
+                    pass_best_row = new_best
+                    pass_improved = True
+
+            phase_start = len(results)
+            update_base(pass_best_row)
+            n_random = PHASE8_RANDOM_COUNT
+            p, f = run_phase(f"Phase 8: Random exploitation ({n_random}) [pass {pi+1}/{global_passes}]",
+                             gen_random_neighbors(pass_best_row, n_random, objective,
+                                                  profile_override="base_exploit",
+                                                  seed_offset=9000 + pi),
+                             binary, results, t0,
+                             num_workers, csv_writer, objective, progress_tracker)
+            total_p += p
+            total_f += f
+            phase_top = get_top_n_params(results[phase_start:], n=1, objective=objective)
+            if phase_top:
+                new_best = better_result(pass_best_row, phase_top[0])
+                if new_best is not pass_best_row:
+                    pass_best_row = new_best
+                    pass_improved = True
+
+            if not pass_improved:
+                print("  No improvement in this pass. Stop early.")
+                break
+
+            global_best_row = pass_best_row
 
     # ========== FINAL RESULTS ==========
     results.sort(key=lambda x: x.get("score", 999999.0))
@@ -2638,14 +3079,16 @@ def main():
     print(f"COMPLETED {len(results):,} tests in {elapsed:.1f}s ({elapsed/60:.1f} min)")
     print(f"  Passed: {total_p}  Failed: {total_f}")
     print(f"{'='*80}")
+    progress_tracker.finalize(len(results), total_p, total_f, elapsed)
     
     # Write sorted results
     sorted_file = outfile.replace(".csv", "_sorted.csv")
-    if results:
+    ok_results = [r for r in results if r.get("status") == "OK"]
+    if ok_results:
         with open(sorted_file, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
             writer.writeheader()
-            writer.writerows(results)
+            writer.writerows(ok_results)
         print(f"Results: {sorted_file}")
     
     # Show top results
@@ -2693,4 +3136,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main() or 0)
-

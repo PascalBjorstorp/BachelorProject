@@ -33,6 +33,44 @@ static fp_QP_t fp_pacejka_inner_arg(fp_QP_t ba)
     return fp_mul(VP_C_SHAPE, atan_ba);
 }
 
+static void fp_trig_pair(
+    fp_QP_t angle,
+    fp_QP_t *sin_val,
+    fp_QP_t *cos_val)
+{
+#pragma HLS INLINE off
+#pragma HLS PIPELINE II=1
+    fp_QP_t angle_reg = angle;
+    *sin_val = fp_sin(angle_reg);
+    *cos_val = fp_cos(angle_reg);
+}
+
+static void fp_slip_terms(
+    fp_QP_t vy,
+    fp_QP_t omega,
+    fp_QP_t inv_vx,
+    fp_QP_t *lf_omega,
+    fp_QP_t *lr_omega,
+    fp_QP_t *front_num,
+    fp_QP_t *rear_num,
+    fp_QP_t *front_ratio,
+    fp_QP_t *rear_ratio)
+{
+#pragma HLS INLINE off
+#pragma HLS PIPELINE II=1
+    fp_QP_t lf_omega_local = fp_mul(VP_LF, omega);
+    fp_QP_t lr_omega_local = fp_mul(VP_LR, omega);
+    fp_QP_t front_num_local = vy + lf_omega_local;
+    fp_QP_t rear_num_local = vy + (-lr_omega_local);
+
+    *lf_omega = lf_omega_local;
+    *lr_omega = lr_omega_local;
+    *front_num = front_num_local;
+    *rear_num = rear_num_local;
+    *front_ratio = fp_mul(front_num_local, inv_vx);
+    *rear_ratio = fp_mul(rear_num_local, inv_vx);
+}
+
 static void fp_front_force_jacobians(
     fp_QP_t C_eff_f, fp_QP_t front_num, fp_QP_t vx_safe, fp_QP_t inv_D_f,
     fp_QP_t *dFyf_dvx, fp_QP_t *dFyf_dvy, fp_QP_t *dFyf_dom)
@@ -132,10 +170,12 @@ void compute_frenet_AB_hls(
      *
      * d(atan_approx(n/d))/dx ~= (d * dn/dx - n * dd/dx) / (d^2 + n^2)
      * ================================================================ */
-    fp_QP_t lf_omega = fp_mul(VP_LF, omega);
-    fp_QP_t lr_omega = fp_mul(VP_LR, omega);
-    fp_QP_t front_num = vy + lf_omega;
-    fp_QP_t rear_num  = vy + (-lr_omega);
+    fp_QP_t lf_omega, lr_omega, front_num, rear_num;
+    fp_QP_t front_ratio, rear_ratio;
+    fp_slip_terms(vy, omega, inv_vx,
+                  &lf_omega, &lr_omega,
+                  &front_num, &rear_num,
+                  &front_ratio, &rear_ratio);
 
     fp_QP_t vx2 = fp_mul(vx_safe, vx_safe);
     fp_QP_t vy2 = fp_mul(vy, vy);
@@ -163,8 +203,6 @@ void compute_frenet_AB_hls(
      * ================================================================ */
 
     /* Slip angles at operating point */
-    fp_QP_t front_ratio = fp_mul(front_num, inv_vx);
-    fp_QP_t rear_ratio  = fp_mul(rear_num, inv_vx);
     fp_QP_t alpha_f_op = delta - fp_atan_tire_approx(front_ratio);
     fp_QP_t rear_atan = fp_atan_tire_approx(rear_ratio);
     fp_QP_t alpha_r_op = -rear_atan;
@@ -172,7 +210,8 @@ void compute_frenet_AB_hls(
     /* Front tire — Pacejka effective stiffness (B_f precomputed) */
     fp_QP_t Ba_f = fp_mul(VP_B_FRONT, alpha_f_op);
     fp_QP_t inner_f = fp_pacejka_inner_arg(Ba_f);
-    fp_QP_t cos_inner_f = fp_cos(inner_f);
+    fp_QP_t sin_inner_f, cos_inner_f;
+    fp_trig_pair(inner_f, &sin_inner_f, &cos_inner_f);
     fp_QP_t ba_f2 = fp_mul(Ba_f, Ba_f);
     fp_QP_t inv_denom_f = fp_recip(FP_ONE + ba_f2);
     fp_QP_t D_pac_f_cb_base = fp_mul(VP_D_FRONT, VP_CB_FRONT);
@@ -182,15 +221,14 @@ void compute_frenet_AB_hls(
     fp_QP_t C_eff_f_raw = fp_mul(D_pac_f_cb, cos_over_denom_f);
 
     /* F_yf at operating point (for B matrix terms). */
-    fp_QP_t sin_inner_f = fp_sin(inner_f);
     fp_QP_t F_yf = fp_mul(D_pac_f, sin_inner_f);
 
     /* Rear tire — Pacejka effective stiffness */
     fp_QP_t rear_ratio_eff = fp_rear_pacejka_ratio_eff(rear_ratio);
     fp_QP_t Ba_r = fp_rear_pacejka_b_scale(rear_ratio_eff);
     fp_QP_t inner_r = fp_pacejka_inner_arg(Ba_r);
-    fp_QP_t cos_inner_r = fp_cos(inner_r);
-    fp_QP_t sin_inner_r = fp_sin(inner_r);
+    fp_QP_t sin_inner_r, cos_inner_r;
+    fp_trig_pair(inner_r, &sin_inner_r, &cos_inner_r);
     fp_QP_t F_yr = fp_mul(D_pac_r, sin_inner_r);
     fp_QP_t ba_r2 = fp_mul(Ba_r, Ba_r);
     fp_QP_t inv_denom_r = fp_recip(FP_ONE + ba_r2);
@@ -229,8 +267,8 @@ void compute_frenet_AB_hls(
 
     /* --- Rows 0/1: exact operating-point Frenet Jacobian --- */
     {
-        fp_QP_t cp = fp_cos(epsi);
-        fp_QP_t sp = fp_sin(epsi);
+        fp_QP_t sp, cp;
+        fp_trig_pair(epsi, &sp, &cp);
         fp_QP_t denom = FP_ONE - fp_mul(kappa, ey);
         fp_QP_t dt_cp = fp_mul(MPC_DT, cp);
         fp_QP_t kappa_dt = fp_mul(kappa, MPC_DT);
@@ -329,6 +367,7 @@ void compute_frenet_AB_hls(
     fp_QP_t Fyf_cos_dt = fp_mul(Fyf_cos, NEG_VP_DT_INV_MASS);
     fp_QP_t Fyf_sin_dt = fp_mul(Fyf_sin, VP_DT_INV_MASS);
     fp_QP_t lf_dt_over_iz = fp_mul(VP_LF, VP_DT_INV_IZ);
+    fp_QP_t neg_lr_dt_over_iz = fp_mul(-VP_LR, VP_DT_INV_IZ);
     fp_QP_t Fyf_sin_lf_dt_iz = fp_mul(Fyf_sin, lf_dt_over_iz);
 
     /* B[2][0]: d(dvx/dt)/dδ = (dFyf_dd*sin(δ) + Fyf*cos(δ)) * dt/m with sign folded into NEG_VP_DT_INV_MASS */
@@ -364,25 +403,20 @@ void compute_frenet_AB_hls(
         fp_QP_t dFyf_da_raw = fp_mul(fp_mul(C_Sf_norm_raw, alpha_f_op), dFzf_da);
         fp_QP_t dFyf_da_min = fp_mul(fp_mul(C_Sf_norm_min, alpha_f_op), dFzf_da);
         fp_QP_t dFyr_da = fp_mul(fp_mul(C_Sr_norm, alpha_r_op), dFzr_da);
+        fp_QP_t dFyf_da_raw_cos = fp_mul(dFyf_da_raw, cos_delta);
+        fp_QP_t dFyf_da_min_cos = fp_mul(dFyf_da_min, cos_delta);
 
         fp_QP_t B31_raw = fp_mul(
-            fp_mul((fp_mul(dFyf_da_raw, cos_delta) + dFyr_da), VP_INV_MASS),
-            MPC_DT);
+            (dFyf_da_raw_cos + dFyr_da),
+            VP_DT_INV_MASS);
         fp_QP_t B31_min = fp_mul(
-            fp_mul((fp_mul(dFyf_da_min, cos_delta) + dFyr_da), VP_INV_MASS),
-            MPC_DT);
+            (dFyf_da_min_cos + dFyr_da),
+            VP_DT_INV_MASS);
         B_fr[3][1] = use_front_norm_raw ? B31_raw : B31_min;
 
-        fp_QP_t B41_raw = fp_mul(
-            fp_mul(
-                (fp_mul(fp_mul(VP_LF, dFyf_da_raw), cos_delta) + (-fp_mul(VP_LR, dFyr_da))),
-                VP_INV_IZ),
-            MPC_DT);
-        fp_QP_t B41_min = fp_mul(
-            fp_mul(
-                (fp_mul(fp_mul(VP_LF, dFyf_da_min), cos_delta) + (-fp_mul(VP_LR, dFyr_da))),
-                VP_INV_IZ),
-            MPC_DT);
+        fp_QP_t lr_dFyr_da_dt_iz = fp_mul(dFyr_da, neg_lr_dt_over_iz);
+        fp_QP_t B41_raw = fp_mul(dFyf_da_raw_cos, lf_dt_over_iz) + lr_dFyr_da_dt_iz;
+        fp_QP_t B41_min = fp_mul(dFyf_da_min_cos, lf_dt_over_iz) + lr_dFyr_da_dt_iz;
         B_fr[4][1] = use_front_norm_raw ? B41_raw : B41_min;
     }
 
@@ -491,27 +525,28 @@ void predict_frenet_next_hls(
     fp_QP_t D_pac_f = VP_D_FRONT + (-D_transfer);
     fp_QP_t D_pac_r = VP_D_REAR + D_transfer;
 
-    fp_QP_t lf_omega = fp_mul(VP_LF, omega);
-    fp_QP_t lr_omega = fp_mul(VP_LR, omega);
-    fp_QP_t front_num = vy + lf_omega;
-    fp_QP_t rear_num  = vy + (-lr_omega);
-    fp_QP_t front_ratio = fp_mul(front_num, inv_vx);
-    fp_QP_t rear_ratio  = fp_mul(rear_num, inv_vx);
+    fp_QP_t lf_omega, lr_omega, front_num, rear_num;
+    fp_QP_t front_ratio, rear_ratio;
+    fp_slip_terms(vy, omega, inv_vx,
+                  &lf_omega, &lr_omega,
+                  &front_num, &rear_num,
+                  &front_ratio, &rear_ratio);
     fp_QP_t alpha_f_op = delta - fp_atan_tire_approx(front_ratio);
     fp_QP_t rear_atan = fp_atan_tire_approx(rear_ratio);
     fp_QP_t alpha_r_op = -rear_atan;
 
     fp_QP_t Ba_f = fp_mul(VP_B_FRONT, alpha_f_op);
     fp_QP_t inner_f = fp_pacejka_inner_arg(Ba_f);
-    fp_QP_t sin_inner_f = fp_sin(inner_f);
+    fp_QP_t sin_inner_f, cos_inner_f_unused;
+    fp_trig_pair(inner_f, &sin_inner_f, &cos_inner_f_unused);
     fp_QP_t F_yf = fp_mul(D_pac_f, sin_inner_f);
 
     /* Rear tire — Pacejka effective stiffness */
     fp_QP_t rear_ratio_eff = fp_rear_pacejka_ratio_eff(rear_ratio);
     fp_QP_t Ba_r = fp_rear_pacejka_b_scale(rear_ratio_eff);
     fp_QP_t inner_r = fp_pacejka_inner_arg(Ba_r);
-    fp_QP_t cos_inner_r = fp_cos(inner_r);
-    fp_QP_t sin_inner_r = fp_sin(inner_r);
+    fp_QP_t sin_inner_r, cos_inner_r;
+    fp_trig_pair(inner_r, &sin_inner_r, &cos_inner_r);
     fp_QP_t F_yr = fp_mul(D_pac_r, sin_inner_r);
     fp_QP_t ba_r2 = fp_mul(Ba_r, Ba_r);
     fp_QP_t inv_denom_r = fp_recip(FP_ONE + ba_r2);
@@ -522,8 +557,8 @@ void predict_frenet_next_hls(
         ey_denom = (ey_denom >= 0) ? FP_QP_CONST(1e-3) : FP_QP_CONST(-1e-3);
     }
 
-    fp_QP_t sin_epsi = fp_sin(epsi);
-    fp_QP_t cos_epsi = fp_cos(epsi);
+    fp_QP_t sin_epsi, cos_epsi;
+    fp_trig_pair(epsi, &sin_epsi, &cos_epsi);
     fp_QP_t inv_ey_denom = fp_recip(ey_denom);
 
     fp_QP_t vx_sin_epsi = fp_mul(vx, sin_epsi);

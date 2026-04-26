@@ -12,6 +12,32 @@
 #include "../include/fp_math_hls.h"
 #include <climits>
 
+static fp_QP_t fp_max2(fp_QP_t a, fp_QP_t b)
+{
+#pragma HLS INLINE
+    return (a > b) ? a : b;
+}
+
+static fp_QP_t max_abs_state8(
+    fp_QP_t x0, fp_QP_t x1, fp_QP_t x2, fp_QP_t x3,
+    fp_QP_t x4, fp_QP_t x5, fp_QP_t x6, fp_QP_t x7)
+{
+#pragma HLS INLINE
+    fp_QP_t m0 = fp_max2(fp_abs(x0), fp_abs(x1));
+    fp_QP_t m1 = fp_max2(fp_abs(x2), fp_abs(x3));
+    fp_QP_t m2 = fp_max2(fp_abs(x4), fp_abs(x5));
+    fp_QP_t m3 = fp_max2(fp_abs(x6), fp_abs(x7));
+    fp_QP_t m4 = fp_max2(m0, m1);
+    fp_QP_t m5 = fp_max2(m2, m3);
+    return fp_max2(m4, m5);
+}
+
+static fp_QP_t max_abs_ctrl2(fp_QP_t x0, fp_QP_t x1)
+{
+#pragma HLS INLINE
+    return fp_max2(fp_abs(x0), fp_abs(x1));
+}
+
 /*===========================================================================
  * Riccati Backward + Forward Pass
  *
@@ -248,11 +274,17 @@ static void riccati_pass_hls(
 #pragma HLS ARRAY_PARTITION variable=p_shift complete dim=1
         for (i = 0; i < nx; i++) {
 #pragma HLS PIPELINE II=1
-            fp_raw_acc_t pd_sum = 0;
-            for (j = 0; j < MPC_NX_DENSE; j++) {
-#pragma HLS UNROLL
-                pd_sum += fp_mul_acc_qp(P[i][j], d_local[j]);
-            }
+            fp_raw_acc_t pd0 = fp_mul_acc_qp(P[i][0], d_local[0]);
+            fp_raw_acc_t pd1 = fp_mul_acc_qp(P[i][1], d_local[1]);
+            fp_raw_acc_t pd2 = fp_mul_acc_qp(P[i][2], d_local[2]);
+            fp_raw_acc_t pd3 = fp_mul_acc_qp(P[i][3], d_local[3]);
+            fp_raw_acc_t pd4 = fp_mul_acc_qp(P[i][4], d_local[4]);
+            fp_raw_acc_t pd5 = fp_mul_acc_qp(P[i][5], d_local[5]);
+            fp_raw_acc_t pd01 = pd0 + pd1;
+            fp_raw_acc_t pd23 = pd2 + pd3;
+            fp_raw_acc_t pd45 = pd4 + pd5;
+            fp_raw_acc_t pd0123 = pd01 + pd23;
+            fp_raw_acc_t pd_sum = pd0123 + pd45;
             p_shift[i] = p[i] + (pd_sum >> FP_FRAC_BITS);
         }
 
@@ -302,12 +334,17 @@ static void riccati_pass_hls(
         for (i = 0; i < 6; i++) {
             for (j = 1; j < 6; j++) {
 #pragma HLS PIPELINE II=1
-                fp_raw_acc_t sum = 0;
-                for (s = 0; s < 6; s++) {
-#pragma HLS UNROLL
-                    fp_raw_acc_t pa_prod = fp_mul_acc_qp(P[i][s], fp_qp_raw_from_QP(sd->A[s][j]));
-                    sum += pa_prod;
-                }
+                fp_raw_acc_t pa0 = fp_mul_acc_qp(P[i][0], fp_qp_raw_from_QP(sd->A[0][j]));
+                fp_raw_acc_t pa1 = fp_mul_acc_qp(P[i][1], fp_qp_raw_from_QP(sd->A[1][j]));
+                fp_raw_acc_t pa2 = fp_mul_acc_qp(P[i][2], fp_qp_raw_from_QP(sd->A[2][j]));
+                fp_raw_acc_t pa3 = fp_mul_acc_qp(P[i][3], fp_qp_raw_from_QP(sd->A[3][j]));
+                fp_raw_acc_t pa4 = fp_mul_acc_qp(P[i][4], fp_qp_raw_from_QP(sd->A[4][j]));
+                fp_raw_acc_t pa5 = fp_mul_acc_qp(P[i][5], fp_qp_raw_from_QP(sd->A[5][j]));
+                fp_raw_acc_t pa01 = pa0 + pa1;
+                fp_raw_acc_t pa23 = pa2 + pa3;
+                fp_raw_acc_t pa45 = pa4 + pa5;
+                fp_raw_acc_t pa0123 = pa01 + pa23;
+                fp_raw_acc_t sum = pa0123 + pa45;
                 PA[i][j] = sum >> FP_FRAC_BITS;
             }
         }
@@ -663,22 +700,14 @@ MpcStatus_t riccati_admm_solve_hls(
         fp_QP_t u_norm = 0;
         for (k = 0; k <= N; k++) {
 #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON_PLUS_ONE max=MPC_HORIZON_PLUS_ONE
-            fp_QP_t x_norm_k = 0;
-            for (s = 0; s < nx; s++) {
-#pragma HLS UNROLL
-                fp_QP_t x_abs = fp_abs(sol_x[k][s]);
-                if (x_abs > x_norm_k) x_norm_k = x_abs;
-            }
+            fp_QP_t x_norm_k = max_abs_state8(
+                sol_x[k][0], sol_x[k][1], sol_x[k][2], sol_x[k][3],
+                sol_x[k][4], sol_x[k][5], sol_x[k][6], sol_x[k][7]);
             if (x_norm_k > x_norm) x_norm = x_norm_k;
         }
         for (k = 0; k < N; k++) {
 #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
-            fp_QP_t u_norm_k = 0;
-            for (a = 0; a < nu; a++) {
-#pragma HLS UNROLL
-                fp_QP_t u_abs = fp_abs(sol_u[k][a]);
-                if (u_abs > u_norm_k) u_norm_k = u_abs;
-            }
+            fp_QP_t u_norm_k = max_abs_ctrl2(sol_u[k][0], sol_u[k][1]);
             if (u_norm_k > u_norm) u_norm = u_norm_k;
         }
 
@@ -852,10 +881,8 @@ MpcStatus_t riccati_admm_solve_hls(
                 for (k = 0; k <= N; k++) {
 #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON_PLUS_ONE max=MPC_HORIZON_PLUS_ONE
 #pragma HLS PIPELINE II=1
-                    for (s = 0; s < nx; s++) {
-#pragma HLS UNROLL
-                        y_x[k][s] >>= 1;
-                    }
+                    y_x[k][IDX_EY] >>= 1;
+                    y_x[k][IDX_DELTA_ACT] >>= 1;
                 }
             } else if (scale_rho < 0) {
                 rho >>= 1;
@@ -863,10 +890,8 @@ MpcStatus_t riccati_admm_solve_hls(
                 for (k = 0; k <= N; k++) {
 #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON_PLUS_ONE max=MPC_HORIZON_PLUS_ONE
 #pragma HLS PIPELINE II=1
-                    for (s = 0; s < nx; s++) {
-#pragma HLS UNROLL
-                        y_x[k][s] <<= 1;
-                    }
+                    y_x[k][IDX_EY] <<= 1;
+                    y_x[k][IDX_DELTA_ACT] <<= 1;
                 }
             }
 
@@ -915,20 +940,6 @@ MpcStatus_t riccati_admm_solve_hls(
     admm_state->rho = rho;
     admm_state->rho_u = rho_u;
     admm_state->initialized = 1;
-
-    /* Output feasible controls (projected z_u, always within bounds) */
-    for (k = 0; k <= N; k++) {
-#pragma HLS PIPELINE II=1
-        for (s = 0; s < nx; s++) {
-            solution->x[k][s] = sol_x[k][s];
-        }
-    }
-    for (k = 0; k < N; k++) {
-#pragma HLS PIPELINE II=1
-        for (a = 0; a < nu; a++) {
-            solution->u[k][a] = z_u[k][a];
-        }
-    }
 
     solution->status = status;
     return status;

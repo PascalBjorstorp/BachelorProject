@@ -35,38 +35,38 @@
 #define TWO_PI (2.0 * M_PI)                              /* Full-angle constant used for heading wrap operations. */
 #define CONTROL_RATE_HZ 200.0f                           /* Controller update frequency used by cross-call scaling logic. */
 #define CONTROL_DT_SECONDS (1.0f / CONTROL_RATE_HZ)      /* Controller sample period derived from control-rate definition. */
-#define PREDICTION_DT_SECONDS 0.034f                     /* Nominal prediction-step duration used for model rollout defaults. */
+#define PREDICTION_DT_SECONDS 0.03f                     /* Nominal prediction-step duration used for model rollout defaults. */
 #define CROSS_CALL_RATE_SCALE (CONTROL_DT_SECONDS / PREDICTION_DT_SECONDS) /* Normalizes first-step rate penalties across sample times. */
 
 /* Default MPC objective weights */
-#define WEIGHT_LAT_ERROR 9660.42f                        /* Penalizes lateral tracking deviation from the reference path. */
-#define WEIGHT_HEADING 1400.0f                           /* Penalizes heading misalignment relative to path tangent. */
-#define WEIGHT_VELOCITY 132.192f                         /* Penalizes deviation from target longitudinal speed profile. */
-#define WEIGHT_LAT_VEL 4.59f                             /* Penalizes lateral velocity to suppress side-slip growth. */
-#define WEIGHT_YAW_RATE 2.112f                           /* Penalizes yaw-rate mismatch against reference curvature dynamics. */
-#define WEIGHT_STEER_EFFORT 2.244f                       /* Penalizes steering-rate effort to limit aggressive steering actuation. */
-#define WEIGHT_ACCEL_EFFORT 0.0065f                      /* Penalizes longitudinal acceleration effort to smooth throttle/brake usage. */
-#define WEIGHT_STEER_RATE 0.063f                         /* Penalizes steering-rate change to reduce steering jerk. */
-#define WEIGHT_ACCEL_RATE 0.17f                          /* Penalizes acceleration change to reduce longitudinal jerk. */
-#define WEIGHT_DELTA_ACTUAL 0.03f                        /* Penalizes steering-state bias away from curvature feedforward. */
+#define WEIGHT_LAT_ERROR 16000.0f                        /* Penalizes lateral tracking deviation from the reference path. */
+#define WEIGHT_HEADING 350.0f                           /* Penalizes heading misalignment relative to path tangent. */
+#define WEIGHT_VELOCITY 56.0f                         /* Penalizes deviation from target longitudinal speed profile. */
+#define WEIGHT_LAT_VEL 6.12f                             /* Penalizes lateral velocity to suppress side-slip growth. */
+#define WEIGHT_YAW_RATE 1.44f                           /* Penalizes yaw-rate mismatch against reference curvature dynamics. */
+#define WEIGHT_STEER_EFFORT 1.65f                       /* Penalizes steering-rate effort to limit aggressive steering actuation. */
+#define WEIGHT_ACCEL_EFFORT 0.0068f                      /* Penalizes longitudinal acceleration effort to smooth throttle/brake usage. */
+#define WEIGHT_STEER_RATE 0.0465f                         /* Penalizes steering-rate change to reduce steering jerk. */
+#define WEIGHT_ACCEL_RATE 0.46f                          /* Penalizes acceleration change to reduce longitudinal jerk. */
+#define WEIGHT_DELTA_ACTUAL 0.021f                        /* Penalizes steering-state bias away from curvature feedforward. */
 
 /* Other swept MPC defaults */
 #define MAX_ITERATIONS 100                               /* Default solver iteration budget per control update. */
-#define WALL_MARGIN 0.16f                                 /* Safety offset subtracted from both wall boundaries. */
-#define ADMM_RHO 18.0f                                   /* Primary ADMM penalty balancing feasibility and optimality progress. */
-#define ADMM_RHO_U 24.0f                                 /* ADMM penalty applied to control-variable projection terms. */
+#define WALL_MARGIN 0.20f                                 /* Safety offset subtracted from both wall boundaries. */
+#define ADMM_RHO 28.0f                                   /* Primary ADMM penalty balancing feasibility and optimality progress. */
+#define ADMM_RHO_U 42.0f                                 /* ADMM penalty applied to control-variable projection terms. */
 #define CONVERGENCE_TOLERANCE 0.05f                      /* Residual threshold used to declare solver convergence. */
 #ifndef PREDICTION_HORIZON
-#define PREDICTION_HORIZON 10                            /* Default maximum number of prediction stages used by the controller. */
+#define PREDICTION_HORIZON 20                            /* Default maximum number of prediction stages used by the controller. */
 #endif
-#define TIME_STEP_SECONDS 0.032f                         /* Default model integration period per horizon stage. */
+#define TIME_STEP_SECONDS 0.03f                         /* Default model integration period per horizon stage. */
 
 /* Solver and model safeguards */
 #define RICCATI_COST_FACTOR 2.0f                         /* Global scaling factor applied to stage and terminal costs. */
 #define EMA_ALPHA 0.7f                                   /* Smoothing factor for optional Frenet-state exponential filtering. */
 #define STEERING_RATE_LIMIT 2.849f                       /* Hard bound on steering-rate command in optimization. */
 #define STEERING_FEEDFORWARD_CLAMP_FACTOR 0.5f           /* Limits feedforward steering around linearization operating point. */
-#define BIG_BOUND 100.0f                                 /* Sentinel magnitude representing an effectively unconstrained bound. */
+#define BIG_BOUND 50.0f                                  /* Sentinel magnitude representing an effectively unconstrained bound. */
 #define MIN_LINEARIZATION_VELOCITY 0.5f                  /* Lower velocity clamp aligned with slip-angle floor for low-speed recovery. */
 #define STABILITY_LIMIT 0.95f                            /* Clamp on selected discrete self-coupling to preserve numerical stability. */
 #define V_SWITCH 7.319f                                  /* Transition speed for constant-power acceleration limiting. */
@@ -74,7 +74,7 @@
 #define WARMSTART_CURVATURE_RESET_THRESHOLD 0.5f         /* Curvature jump threshold that resets warm-start state history. */
 
 /* Default MPC configuration values */
-#define TRAJECTORY_MAXIMUM_WAYPOINTS 1000                /* Maximum trajectory samples accepted by MPC reference buffers. */
+#define TRAJECTORY_MAXIMUM_WAYPOINTS 4000                /* Maximum trajectory samples accepted by MPC reference buffers. */
 #define TRAJECTORY_MAXIMUM_VELOCITY 20.0f                /* Cap on reference velocity accepted from trajectory input. */
 #define MIN_TRAJECTORY_SPEED_MPS 1.0f                    /* Lower bound used when trajectory speed is missing or too small. */
 
@@ -96,7 +96,7 @@
 #define VP_MASS_KG 3.314f                                /* Vehicle mass used in dynamic equations and load calculations. */
 #define VP_YAW_INERTIA_KGM2 0.035f                       /* Yaw inertia governing rotational response to tire moments. */
 #define VP_CG_HEIGHT_M 0.0703f                           /* Center-of-gravity height driving longitudinal load transfer. */
-#define VP_FRICTION_COEFF 1.6f                         /* Effective tire-road friction coefficient for force limits. */
+#define VP_FRICTION_COEFF 0.72f                         /* Effective tire-road friction coefficient for force limits. */
 #define GRAVITY_MPS2 9.81f                               /* Gravitational acceleration constant used in vehicle load equations. */
 #define VP_MASS_TIMES_GRAVITY_N (VP_MASS_KG * GRAVITY_MPS2) /* Vehicle weight magnitude used by normal-load equations. */
 #define VP_INV_MASS_1_PER_KG (1.0f / VP_MASS_KG)         /* Reciprocal vehicle mass used in acceleration-state Jacobians. */
