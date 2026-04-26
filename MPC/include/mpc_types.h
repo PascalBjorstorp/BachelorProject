@@ -89,7 +89,7 @@
 /* Vehicle parameter defaults and derived constants */
 #define VP_MAX_STEERING_RAD 0.4189f                      /* Steering-angle saturation used by controller and model limits. */
 #define VP_MAX_VELOCITY_MPS 20.0f                        /* Upper velocity limit used by vehicle model clamping logic. */
-#define VP_MIN_VELOCITY_MPS 0.0f                         /* Lower velocity limit used by vehicle model clamping logic. */
+#define VP_MIN_VELOCITY_MPS 1.5f                         /* Lower velocity limit used by vehicle model clamping logic. */
 #define VP_CG_TO_FRONT_AXLE_M 0.166f                     /* Center-of-gravity distance from front axle for load transfer. */
 #define VP_CG_TO_REAR_AXLE_M 0.16f                       /* Center-of-gravity distance from rear axle for load transfer. */
 #define VP_WHEELBASE_M (VP_CG_TO_FRONT_AXLE_M + VP_CG_TO_REAR_AXLE_M) /* Distance between front and rear axle centers. */
