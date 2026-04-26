@@ -1706,7 +1706,7 @@ def main():
 
         # Vehicle and wall-clearance settings
         car_width=0.3,
-        wall_clearance=0.35,
+        wall_clearance=0.30,
         max_ray_distance=8.0,
     )
 
