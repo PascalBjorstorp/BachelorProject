@@ -1690,7 +1690,7 @@ def main():
 
         # Minimum-time optimizer settings
         opt_type=MIN_TIME_OPT_TYPE,
-        max_speed=5.0,         # m/s (set to None for no clamping)
+        max_speed=10.0,         # m/s (set to None for no clamping)
         min_speed=1.5,          # m/s (set to None for no clamping)
         waypoint_spacing=0.02,  
         reopt_mintime_solution=True,
