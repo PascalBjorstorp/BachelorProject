@@ -64,48 +64,24 @@ The new stack uses three key pipelines launched across two terminals:
 2. **C++ GPU AMCL** (Terminal 2): Map server, GPU-accelerated particle filter (`gpu_amcl_cpp`), odometry fusion (`odom_fused`), and EKF sensor fusion (`ekf_localization`). Subscribes to `/scan_walls` (wall-only beams) for robust localization.
 3. **Pure Pursuit** (Terminal 3): Follows the `/local_raceline` produced by the lateral planner (or a static trajectory CSV).
 
-### Terminal 1 — VESC Driver Stack + Scan Splitter + Lateral Planner (on Jetson)
+### Terminal 1 — Vesc, Lidar and localization
 ```bash
-ros2 launch f1tenth_stack bringup_launch.py
-```
-> This starts: VESC driver, ackermann mux, Hokuyo LiDAR (40 Hz), **scan splitter** (classifies beams as wall/obstacle), and **lateral planner** (opponent avoidance).
->
-> The scan splitter requires `/map` from the localization stack (Terminal 2). It will wait until the map is available.
-
-### Terminal 2 — Localization: C++ GPU AMCL (on Jetson)
-```bash
-ros2 launch f1tenth_localization cpp_localization.launch.py
+ros2 launch f1tenth_stack System_launch.py
 ```
 
-> This launches the full C++ GPU AMCL localization stack:
-> - **gpu_amcl_cpp** — CUDA-accelerated particle filter (subscribes to `/scan_walls`)
-> - **odom_fused** — IMU + wheel odom fusion at 200 Hz
-> - **ekf_localization** — EKF sensor fusion + TF broadcast at 200 Hz
->
-> All parameters are in `f1tenth_localization/config/gpu_amcl_cpp_params.yaml`.
-
----
-### Terminal 3 — Pure Pursuit Controller (on Jetson)
+### Terminal 2 — Controller (on Jetson)
 ```bash
 ros2 launch f1tenth_control pure_pursuit_launch.py \
   max_speed:=3.0
 ```
-
-### Terminal 3 — Model Predictive Control (on Jetson)
 ```bash
-ros2 launch mpc_riccati mpc_hardware.launch.py \
-  trajectory_file:=/home/f1tenth/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv \
+ros2 launch mpc_riccati mpc_hardware.launch.py
 ```
-> Use this as an alternative to Pure Pursuit in Terminal 3.
->
-> If your trajectory file is named differently (for example `my_track_map.csv`), update `trajectory_file:=...` accordingly.
-
-### Terminal 4 — ROS BAG Recording (on Jetson)
+### Terminal 3 — ROS BAG Recording (on Jetson)
 ```bash
 # Record EVERYTHING (large files, but complete):
-ros2 bag record -a -o ~/bags/race_run_$(date +%Y%m%d_%H%M%S)
+./f1tenth_system/f1tenth_stack/scripts/record_lateral_planner_bag.sh
 ```
----
 
 ## PHASE 3B: Run MPC on FPGA (Ultra96 PS)
 
