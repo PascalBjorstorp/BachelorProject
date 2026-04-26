@@ -43,36 +43,6 @@ int get_env_int(const char *name, int default_val){
     return env ? (int)strtol(env, NULL, 10) : default_val;
 }
 
-static float get_recovery_heading_threshold_rad(void)
-{
-    return get_env_float("MPC_RECOVERY_HEADING_RAD", 0.60f);
-}
-
-static float get_recovery_speed_cap_mps(void)
-{
-    /* Keep this reasonably high by default: even during recovery we want forward
-     * motion so the car can re-align and re-enter the corridor. */
-    return get_env_float("MPC_RECOVERY_VREF_CAP", 1.00f);
-}
-
-static float get_recovery_speed_min_mps(void)
-{
-    /* Absolute floor on recovery reference speed (prevents "stop to recover"). */
-    return get_env_float("MPC_RECOVERY_VREF_MIN", 1.00f);
-}
-
-static float get_recovery_velocity_weight_scale(void)
-{
-    /* Down-weight velocity tracking during recovery so heading/wall constraints
-     * dominate without commanding full stops. */
-    return get_env_float("MPC_RECOVERY_QVEL_SCALE", 0.25f);
-}
-
-static float get_recovery_wall_proximity_m(void)
-{
-    return get_env_float("MPC_RECOVERY_WALL_PROX_M", 1.00f);
-}
-
 static float get_wall_bias_clearance_m(void)
 {
     /* Extra clearance beyond config.wall_margin; applied by biasing the lateral
@@ -474,32 +444,11 @@ MpcSolverStatus_t mpc_compute_optimal_control(
 
     /* Near-wall large-heading recoveries can chatter if velocity tracking remains
      * dominant. In that regime, cap reference velocity to bias heading alignment first. */
-    float recovery_heading_thr = get_recovery_heading_threshold_rad();
-    float recovery_vref_cap = get_recovery_speed_cap_mps();
-    float recovery_vref_min = get_recovery_speed_min_mps();
-    float recovery_qvel_scale = get_recovery_velocity_weight_scale();
-    float recovery_wall_prox = get_recovery_wall_proximity_m();
     const float wall_bias_clear_m = get_wall_bias_clearance_m();
     const float wall_bias_max_m = get_wall_bias_max_shift_m();
     int wall_bound_window = get_env_int("MPC_WALL_BOUND_WINDOW", 3);
     if (wall_bound_window < 0) wall_bound_window = 0;
     if (wall_bound_window > 25) wall_bound_window = 25;
-    float left_dist_now = reference_trajectory[0].left_wall_bound - frenet->flat_error;
-    float right_dist_now = reference_trajectory[0].right_wall_bound + frenet->flat_error;
-    float nearest_wall_dist = fminf(left_dist_now, right_dist_now);
-    int in_recovery_mode = (
-        fabsf(frenet->fhead_error) > recovery_heading_thr &&
-        frenet->flong_vel < 2.0f &&
-        nearest_wall_dist < recovery_wall_prox
-    );
-    if (!(recovery_vref_min > 0.0f) || !isfinite(recovery_vref_min))
-        recovery_vref_min = 0.5f;
-    if (!(recovery_vref_cap > 0.0f) || !isfinite(recovery_vref_cap))
-        recovery_vref_cap = recovery_vref_min;
-    if (recovery_vref_cap < recovery_vref_min)
-        recovery_vref_cap = recovery_vref_min;
-    if (!(recovery_qvel_scale >= 0.0f) || !isfinite(recovery_qvel_scale))
-        recovery_qvel_scale = 0.0f;
 
     /* Step 2: Build augmented dynamics, costs, and bounds over the horizon. */
 
@@ -650,10 +599,6 @@ MpcSolverStatus_t mpc_compute_optimal_control(
             sd->Q_diag[IDX_ACCEL_PREV] = RICCATI_COST_FACTOR * (config.weight_acceleration_rate * config.cross_call_rate_scale);
         }
 
-        if (in_recovery_mode) {
-            sd->Q_diag[2] *= recovery_qvel_scale;
-        }
-
         float wall_x_lb = -BIG_BOUND;
         float wall_x_ub = BIG_BOUND;
         float left_bound_k = reference_trajectory[k].left_wall_bound;
@@ -702,12 +647,6 @@ MpcSolverStatus_t mpc_compute_optimal_control(
 
         {
             float v_ref_track = reference_trajectory[k].reference_velocity;
-            if (in_recovery_mode) {
-                if (v_ref_track > recovery_vref_cap)
-                    v_ref_track = recovery_vref_cap;
-                if (v_ref_track < recovery_vref_min)
-                    v_ref_track = recovery_vref_min;
-            }
             sd->q[2] = -(sd->Q_diag[2] * v_ref_track);
         }
 
@@ -825,9 +764,6 @@ MpcSolverStatus_t mpc_compute_optimal_control(
     terminal_Q[IDX_DELTA_ACTUAL] = RICCATI_COST_FACTOR * config.weight_delta_actual;
     /* No jerk/rate penalty on terminal prev controls (Q[6:7] = 0) */
 
-    if (in_recovery_mode) {
-        terminal_Q[2] *= recovery_qvel_scale;
-    }
 
     /* Terminal q: tracking at last reference */
     if (N > 0) {
@@ -835,12 +771,6 @@ MpcSolverStatus_t mpc_compute_optimal_control(
         terminal_q[1] = -(terminal_Q[1] * reference_trajectory[N-1].reference_heading_error);
         {
             float v_ref_terminal = reference_trajectory[N-1].reference_velocity;
-            if (in_recovery_mode) {
-                if (v_ref_terminal > recovery_vref_cap)
-                    v_ref_terminal = recovery_vref_cap;
-                if (v_ref_terminal < recovery_vref_min)
-                    v_ref_terminal = recovery_vref_min;
-            }
             terminal_q[2] = -(terminal_Q[2] * v_ref_terminal);
         }
         terminal_q[3] = -(terminal_Q[3] * reference_trajectory[N-1].reference_lateral_velocity);
