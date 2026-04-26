@@ -63,7 +63,7 @@
 
 /* Solver and model safeguards */
 #define RICCATI_COST_FACTOR 2.0f                         /* Global scaling factor applied to stage and terminal costs. */
-#define EMA_ALPHA 0.7f                                   /* Smoothing factor for optional Frenet-state exponential filtering. */
+#define EMA_ALPHA 1.0f                                   /* Smoothing factor for optional Frenet-state exponential filtering. */
 #define STEERING_RATE_LIMIT 2.849f                       /* Hard bound on steering-rate command in optimization. */
 #define STEERING_FEEDFORWARD_CLAMP_FACTOR 0.5f           /* Limits feedforward steering around linearization operating point. */
 #define BIG_BOUND 50.0f                                  /* Sentinel magnitude representing an effectively unconstrained bound. */
