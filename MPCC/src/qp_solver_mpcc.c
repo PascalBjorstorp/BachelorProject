@@ -1083,8 +1083,15 @@ MPCCStatus_t admm_solver_solve(
     result->adaptive_rho_updates = workspace->adaptive_rho_updates;
     result->numeric_clip_count = workspace->numeric_clip_count;
 
-    memcpy(result->x_opt, workspace->w_x,
-           sizeof(float) * (N + 1) * MPCC_NX);
+    /* Export a dynamics-consistent state rollout for the feasible controls. */
+    memcpy(result->x_opt[0], problem->x0, sizeof(float) * MPCC_NX);
+    for (uint16_t k = 0; k < N; k++) {
+        float Ax[MPCC_NX], Bu[MPCC_NX];
+        matvec_nx(problem->dynamics[k].A, result->x_opt[k], Ax);
+        matvec_Bu(problem->dynamics[k].B, workspace->w_u[k], Bu);
+        for (int i = 0; i < MPCC_NX; i++)
+            result->x_opt[k + 1][i] = Ax[i] + Bu[i] + problem->dynamics[k].d[i];
+    }
     /* Output feasible controls: w_u is the ADMM projection, always
      * within bounds. The raw z_u from the Riccati forward pass is
      * unconstrained and may exceed control limits. */

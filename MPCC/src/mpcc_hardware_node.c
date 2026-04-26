@@ -49,7 +49,6 @@ static const char *g_drive_topic = "/drive";
 
 static const char *g_trajectory_file = NULL;
 
-static double g_watchdog_timeout_sec = 0.5;
 static int g_verbose = 0;
 
 /* Solver-derived values used to map MPCC acceleration to a velocity command. */
@@ -93,9 +92,10 @@ static int g_using_map_pose = 0;
 static double g_latest_vx_mps = 0.0;
 static double g_latest_vy_mps = 0.0;
 static double g_latest_omega = 0.0;
-static struct timespec g_last_odom_time = {0, 0};
 static struct timespec g_last_imu_time  = {0, 0};
 static uint32_t g_solve_count = 0;
+static uint32_t g_odom_update_count = 0;
+static uint32_t g_last_solve_odom_update_count = 0;
 
 /* Measured control loop timing for cross-call scaling */
 static struct timespec g_prev_solve_time = {0, 0};
@@ -462,53 +462,33 @@ static void raceline_callback(const void *msg_in)
      * --------------------------------------------------------------- */
     if (g_reference_path.num_points >= 2)
     {
-        float best_dist_sq = FLT_MAX;
-        uint16_t best_idx = 0;
-        float csv_len = g_reference_path.total_length;
-        float new_len = ref_path.total_length;
-        float s_offset = 0.0f;
-
-        /* Align the topic path to the CSV path once, then transfer bounds
-         * by arc-length progress to preserve track-side correspondence. */
-        for (uint16_t j = 0; j < g_reference_path.num_points; j++)
-        {
-            float dx = ref_path.points[0].x_ref - g_reference_path.points[j].x_ref;
-            float dy = ref_path.points[0].y_ref - g_reference_path.points[j].y_ref;
-            float dist_sq = dx * dx + dy * dy;
-            if (dist_sq < best_dist_sq)
-            {
-                best_dist_sq = dist_sq;
-                best_idx = j;
-            }
-        }
-
-        s_offset = g_reference_path.points[best_idx].s_ref;
-
+        /* Transfer bounds from the CSV reference path point-by-point.
+         * The incoming topic path may use a different discretization or
+         * progression profile, so a single global arc-length ratio can
+         * attach the wrong corridor farther along the horizon. */
         for (uint16_t i = 0; i < n; i++)
         {
             MPCCPathPoint_t bounds_pt;
-            float s_ratio = 0.0f;
-            float s_query;
+            float s_query = mpcc_find_closest_s(
+                &g_reference_path,
+                ref_path.points[i].x_ref,
+                ref_path.points[i].y_ref);
             float dx;
             float dy;
             float dist_sq;
 
-            if (new_len > 1e-6f && csv_len > 1e-6f)
-                s_ratio = ref_path.points[i].s_ref / new_len;
-
-            s_query = s_offset + (s_ratio * csv_len);
             mpcc_path_interpolate(&g_reference_path, s_query, &bounds_pt);
 
             ref_path.points[i].left_bound = bounds_pt.left_bound;
             ref_path.points[i].right_bound = bounds_pt.right_bound;
 
-            /* If the aligned arc-length sample is still far away in
-             * Cartesian space, the paths differ materially — use a
-             * conservative fallback corridor instead. */
+            /* If the nearest CSV sample is still materially offset in
+             * Cartesian space, the paths do not describe the same corridor.
+             * Fall back to a conservative fixed-width lane instead. */
             dx = ref_path.points[i].x_ref - bounds_pt.x_ref;
             dy = ref_path.points[i].y_ref - bounds_pt.y_ref;
             dist_sq = dx * dx + dy * dy;
-            if (dist_sq > 4.0f)
+            if (dist_sq > 0.25f)
             {
                 ref_path.points[i].left_bound = 0.35f;
                 ref_path.points[i].right_bound = 0.35f;
@@ -576,8 +556,7 @@ static void odom_callback(const void *msg_in)
     g_latest_vy_mps = vy;
     g_latest_omega = omega;
     g_have_odom = 1;
-
-    clock_gettime(CLOCK_MONOTONIC, &g_last_odom_time);
+    g_odom_update_count++;
 }
 
 static void pose_callback(const void *msg_in)
@@ -616,26 +595,19 @@ static void pose_callback(const void *msg_in)
         return;
     }
 
-    /* Watchdog: check for stale odometry */
+    /* Only solve when this fresh EKF pose is paired with a newer odom sample. */
+    if (g_odom_update_count == g_last_solve_odom_update_count)
+    {
+        if (g_verbose)
+        {
+            printf("[MPCC] Waiting for fresh odometry to pair with EKF pose; skipping solve\n");
+        }
+        return;
+    }
+
     {
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
-
-        if (g_last_odom_time.tv_sec == 0 && g_last_odom_time.tv_nsec == 0)
-        {
-            return;
-        }
-
-        if (timespec_diff_sec(&g_last_odom_time, &now) > g_watchdog_timeout_sec)
-        {
-            if (g_verbose || g_solve_count <= 20 || (g_solve_count % 10U) == 0U)
-            {
-                fprintf(stderr,
-                        "[MPCC] WARNING: odometry stale (%.0f ms), skipping solve\n",
-                        timespec_diff_sec(&g_last_odom_time, &now) * 1000.0);
-            }
-            return;
-        }
 
         if ((g_last_imu_time.tv_sec != 0 || g_last_imu_time.tv_nsec != 0)
             && timespec_diff_sec(&g_last_imu_time, &now) > 0.05)
@@ -649,6 +621,8 @@ static void pose_callback(const void *msg_in)
             g_vehicle_state.yaw_rate = (float)g_latest_omega;
         }
     }
+
+    g_last_solve_odom_update_count = g_odom_update_count;
 
     MPCCState_t mpcc_state = mpcc_state_from_vehicle_state(&g_vehicle_state, g_current_s);
     g_current_s = mpcc_state.s;
@@ -901,15 +875,6 @@ static void read_runtime_environment(void)
         }
     }
 
-    if ((value = getenv("MPCC_WATCHDOG_TIMEOUT")) != NULL)
-    {
-        const double timeout = atof(value);
-        if (timeout > 0.0 && timeout <= 5.0)
-        {
-            g_watchdog_timeout_sec = timeout;
-        }
-    }
-
     if ((value = getenv("MPCC_CONTROL_PERIOD_MS")) != NULL)
     {
         const double period_ms = atof(value);
@@ -951,6 +916,11 @@ static void read_runtime_environment(void)
 static void configure_mpcc_from_environment(void)
 {
     mpcc_initialize();
+    if (g_ax_min_hardware > 0.0)
+    {
+        g_ax_min_hardware = 0.0;
+    }
+
     MPCCConfiguration_t cfg = mpcc_get_configuration();
 
     /* Each parameter with an alias: canonical name takes priority.
@@ -1018,6 +988,9 @@ static void configure_mpcc_from_environment(void)
     if ((v = getenv("C_SR")) != NULL)          cfg.C_Sr                     = (float)atof(v);
     if ((v = getenv("AX_MAX")) != NULL)        cfg.ax_max                   = (float)atof(v);
     if ((v = getenv("AX_MIN")) != NULL)        cfg.ax_min                   = (float)atof(v);
+
+    if ((float)g_ax_min_hardware > cfg.ax_min)
+        cfg.ax_min = (float)g_ax_min_hardware;
 
     if ((v = getenv("MPCC_CROSS_CALL_SCALE")) != NULL)
         cfg.cross_call_rate_scale = (float)atof(v);
@@ -1135,8 +1108,7 @@ int main(int argc, const char *argv[])
 
     printf("[MPCC] Hardware topics: odom=%s pose=%s imu=%s servo=%s drive=%s\n",
            g_odom_topic, g_pose_topic, g_imu_topic, g_servo_topic, g_drive_topic);
-        printf("[MPCC] EKF-driven mode | watchdog: %.0f ms | nominal_dt: %.1f ms | cross_call: %s | trajectory: %s\n",
-            g_watchdog_timeout_sec * 1000.0,
+        printf("[MPCC] EKF-driven mode | solve gate: fresh pose + fresh odom | nominal_dt: %.1f ms | cross_call: %s | trajectory: %s\n",
             g_nominal_control_dt_sec * 1000.0,
             g_adapt_cross_call_scale ? "adaptive" : "fixed",
             g_trajectory_file);

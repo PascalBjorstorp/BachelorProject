@@ -379,3 +379,11 @@ FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/
 mpc_fpga_top_*/
 MPC_system/
 Kria_platform/
+MPCC/test/tuning_racer_20260422_122321.csv
+.gitignore
+MPCC/test/tuning_racer_20260422_122321 copy.csv
+MPCC/test/tuning_racer_20260421_163326.csv
+MPCC/test/tuning_racer_20260422_210707.csv
+MPCC/test/tuning_racer_20260422_142832.csv
+MPCC/test/tuning_racer_20260422_210707 copy.csv
+MPCC/test/tuning_racer_20260423_141148.csv

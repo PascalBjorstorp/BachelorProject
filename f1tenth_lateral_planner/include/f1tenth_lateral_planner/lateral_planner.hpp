@@ -12,6 +12,7 @@
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
+#include <rclcpp/time.hpp>
 
 namespace f1tenth_lateral_planner
 {
@@ -178,6 +179,7 @@ private:
   /// Check if the opponent has moved significantly from the locked position.
   bool hasOpponentMoved() const;
 
+  
   // ── Data ──────────────────────────────────────────────────────────
 
   rclcpp::Logger logger_;

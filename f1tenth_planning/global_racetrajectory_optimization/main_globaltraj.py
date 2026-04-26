@@ -17,6 +17,88 @@ Documentation:
 This script has to be executed to generate an optimal trajectory based on a given reference track.
 """
 
+
+def repair_closed_velocity_profile(vx_profile: np.ndarray,
+                                   kappa: np.ndarray,
+                                   el_lengths: np.ndarray,
+                                   ggv: np.ndarray,
+                                   ax_max_machines: np.ndarray,
+                                   pars: dict,
+                                   debug: bool,
+                                   max_passes: int = 80) -> np.ndarray:
+    """Conservatively remove closed-loop acceleration spikes from TPH velocity output."""
+    if ggv is None or ax_max_machines is None:
+        return vx_profile
+
+    vx_original = np.asarray(vx_profile, dtype=float)
+    vx_repaired = vx_original.copy()
+    if vx_repaired.size == 0:
+        return vx_repaired
+
+    radii = np.abs(np.divide(1.0, kappa,
+                             out=np.full(kappa.size, np.inf),
+                             where=kappa != 0.0))
+    dyn_model_exp = pars["vel_calc_opts"]["dyn_model_exp"]
+    dragcoeff = pars["veh_params"]["dragcoeff"]
+    mass = pars["veh_params"]["mass"]
+
+    max_delta = 0.0
+    passes_done = 0
+    for pass_idx in range(max_passes):
+        prev_vx = vx_repaired.copy()
+
+        # Forward pass: limit acceleration from point i to point i+1.
+        for i in range(vx_repaired.size):
+            j = (i + 1) % vx_repaired.size
+            ax_possible = tph.calc_vel_profile.calc_ax_poss(
+                vx_start=float(vx_repaired[i]),
+                radius=float(radii[i]),
+                ggv=ggv,
+                ax_max_machines=ax_max_machines,
+                mu=1.0,
+                mode='accel_forw',
+                dyn_model_exp=dyn_model_exp,
+                drag_coeff=dragcoeff,
+                m_veh=mass,
+            )
+            v_next_max = np.sqrt(max(vx_repaired[i] ** 2
+                                     + 2.0 * ax_possible * el_lengths[i],
+                                     0.0))
+            if vx_repaired[j] > v_next_max:
+                vx_repaired[j] = v_next_max
+
+        # Backward pass: limit braking needed from point i to point i+1.
+        for j in range(vx_repaired.size - 1, -1, -1):
+            i = (j - 1) % vx_repaired.size
+            ax_possible = tph.calc_vel_profile.calc_ax_poss(
+                vx_start=float(vx_repaired[j]),
+                radius=float(radii[j]),
+                ggv=ggv,
+                mu=1.0,
+                mode='decel_backw',
+                dyn_model_exp=dyn_model_exp,
+                drag_coeff=dragcoeff,
+                m_veh=mass,
+            )
+            v_prev_max = np.sqrt(max(vx_repaired[j] ** 2
+                                     + 2.0 * ax_possible * el_lengths[i],
+                                     0.0))
+            if vx_repaired[i] > v_prev_max:
+                vx_repaired[i] = v_prev_max
+
+        pass_delta = float(np.max(np.abs(vx_repaired - prev_vx)))
+        max_delta = max(max_delta, pass_delta)
+        passes_done = pass_idx + 1
+        if pass_delta < 1e-6:
+            break
+
+    if debug and max_delta > 1e-6:
+        print("INFO: Repaired closed TPH velocity profile: "
+              f"max speed reduction {np.max(vx_original - vx_repaired):.3f}m/s "
+              f"over {passes_done} passes")
+
+    return vx_repaired
+
 # ----------------------------------------------------------------------------------------------------------------------
 # USER INPUT -----------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------
@@ -190,7 +272,12 @@ elif opt_type == 'mintime':
                                                    + pars["vehicle_params_mintime"]["wheelbase_rear"])
 
 # set import path for ggv diagram and ax_max_machines (if required)
-if not (opt_type == 'mintime' and not mintime_opts["recalc_vel_profile_by_tph"]):
+needs_ggv_profile = not (
+    opt_type == 'mintime'
+    and not mintime_opts["recalc_vel_profile_by_tph"]
+    and not mintime_opts["reopt_mintime_solution"]
+)
+if needs_ggv_profile:
     file_paths["ggv_file"] = os.path.join(file_paths["module"], "inputs", "veh_dyn_info", pars["ggv_file"])
     file_paths["ax_max_machines_file"] = os.path.join(file_paths["module"], "inputs", "veh_dyn_info",
                                                       pars["ax_max_machines_file"])
@@ -208,7 +295,7 @@ reftrack_imp = helper_funcs_glob.src.import_track.import_track(imp_opts=imp_opts
                                                                width_veh=pars["veh_params"]["width"])
 
 # import ggv and ax_max_machines (if required)
-if not (opt_type == 'mintime' and not mintime_opts["recalc_vel_profile_by_tph"]):
+if needs_ggv_profile:
     ggv, ax_max_machines = tph.import_veh_dyn_info.\
         import_veh_dyn_info(ggv_import_path=file_paths["ggv_file"],
                             ax_max_machines_import_path=file_paths["ax_max_machines_file"])
@@ -319,51 +406,135 @@ else:
 
 if opt_type == 'mintime' and mintime_opts["reopt_mintime_solution"]:
 
-    # get raceline solution of the time-optimal trajectory
-    raceline_mintime = reftrack_interp[:, :2] + np.expand_dims(alpha_opt, 1) * normvec_normalized_interp
+    alpha_mintime = alpha_opt.copy()
+    reftrack_mintime = reftrack_interp.copy()
+    normvec_mintime = normvec_normalized_interp.copy()
+    a_mintime = a_interp
 
-    # calculate new track boundaries around raceline solution depending on alpha_opt values
-    w_tr_right_mintime = reftrack_interp[:, 2] - alpha_opt
-    w_tr_left_mintime = reftrack_interp[:, 3] + alpha_opt
+    try:
+        # get raceline solution of the time-optimal trajectory
+        raceline_mintime = reftrack_interp[:, :2] + np.expand_dims(alpha_opt, 1) * normvec_normalized_interp
 
-    # create new reference track around the raceline
-    racetrack_mintime = np.column_stack((raceline_mintime, w_tr_right_mintime, w_tr_left_mintime))
+        # calculate new track boundaries around raceline solution depending on alpha_opt values
+        w_tr_right_mintime = reftrack_interp[:, 2] - alpha_opt
+        w_tr_left_mintime = reftrack_interp[:, 3] + alpha_opt
 
-    # use spline approximation a second time
-    reftrack_interp, normvec_normalized_interp, a_interp = \
-        helper_funcs_glob.src.prep_track.prep_track(reftrack_imp=racetrack_mintime,
-                                                    reg_smooth_opts=pars["reg_smooth_opts"],
-                                                    stepsize_opts=pars["stepsize_opts"],
-                                                    debug=False,
-                                                    min_width=imp_opts["min_track_width"])[:3]
+        # create new reference track around the raceline
+        racetrack_mintime = np.column_stack((raceline_mintime, w_tr_right_mintime, w_tr_left_mintime))
 
-    # set artificial track widths for reoptimization
-    w_tr_tmp = 0.5 * pars["optim_opts"]["w_tr_reopt"] * np.ones(reftrack_interp.shape[0])
-    racetrack_mintime_reopt = np.column_stack((reftrack_interp[:, :2], w_tr_tmp, w_tr_tmp))
+        # use spline approximation a second time
+        reftrack_interp, normvec_normalized_interp, a_interp = \
+            helper_funcs_glob.src.prep_track.prep_track(reftrack_imp=racetrack_mintime,
+                                                        reg_smooth_opts=pars["reg_smooth_opts"],
+                                                        stepsize_opts=pars["stepsize_opts"],
+                                                        debug=False,
+                                                        min_width=imp_opts["min_track_width"])[:3]
 
-    # call mincurv reoptimization
-    alpha_opt = tph.opt_min_curv.opt_min_curv(reftrack=racetrack_mintime_reopt,
-                                              normvectors=normvec_normalized_interp,
-                                              A=a_interp,
-                                              kappa_bound=pars["veh_params"]["curvlim"],
-                                              w_veh=pars["optim_opts"]["w_veh_reopt"],
-                                              print_debug=debug,
-                                              plot_debug=plot_opts["mincurv_curv_lin"])[0]
+        # Reoptimization uses an artificial tube around the mintime raceline.
+        # The original TUM defaults leave only ~5 cm lateral freedom.  On
+        # tight F1TENTH maps that can make the min-curvature QP infeasible, so
+        # retry with slightly wider, still reserved tubes and relaxed curvature
+        # bounds before giving up.
+        w_veh_reopt = pars["optim_opts"]["w_veh_reopt"]
+        base_free_dev = max(
+            0.0,
+            0.5 * (pars["optim_opts"]["w_tr_reopt"] - w_veh_reopt),
+        )
+        reserved_free_dev = max(
+            base_free_dev,
+            0.5 * (
+                pars["optim_opts"]["width_opt"]
+                + (pars["optim_opts"]["w_tr_reopt"] - w_veh_reopt)
+                + pars["optim_opts"]["w_add_spl_regr"]
+                - w_veh_reopt
+            ),
+        )
+        free_dev_candidates = [
+            base_free_dev,
+            min(reserved_free_dev, 0.075),
+            min(reserved_free_dev, 0.100),
+            reserved_free_dev,
+        ]
+        free_dev_candidates = sorted({
+            round(float(free_dev), 4)
+            for free_dev in free_dev_candidates
+            if free_dev >= base_free_dev - 1e-9
+        })
+        kappa_candidates = [
+            pars["veh_params"]["curvlim"] * factor
+            for factor in (1.0, 1.25, 1.5, 2.0, 3.0)
+        ]
 
-    # calculate minimum distance from raceline to bounds and print it
-    if debug:
-        raceline_reopt = reftrack_interp[:, :2] + np.expand_dims(alpha_opt, 1) * normvec_normalized_interp
-        bound_r_reopt = (reftrack_interp[:, :2]
-                         + np.expand_dims(reftrack_interp[:, 2], axis=1) * normvec_normalized_interp)
-        bound_l_reopt = (reftrack_interp[:, :2]
-                         - np.expand_dims(reftrack_interp[:, 3], axis=1) * normvec_normalized_interp)
+        reopt_errors = []
+        alpha_reopt = None
+        for kappa_bound_reopt in kappa_candidates:
+            for free_dev in free_dev_candidates:
+                side_width = w_veh_reopt / 2.0 + free_dev
+                w_tr_tmp = side_width * np.ones(reftrack_interp.shape[0])
+                racetrack_mintime_reopt = np.column_stack(
+                    (reftrack_interp[:, :2], w_tr_tmp, w_tr_tmp)
+                )
 
-        d_r_reopt = np.hypot(raceline_reopt[:, 0] - bound_r_reopt[:, 0], raceline_reopt[:, 1] - bound_r_reopt[:, 1])
-        d_l_reopt = np.hypot(raceline_reopt[:, 0] - bound_l_reopt[:, 0], raceline_reopt[:, 1] - bound_l_reopt[:, 1])
+                try:
+                    alpha_reopt = tph.opt_min_curv.opt_min_curv(
+                        reftrack=racetrack_mintime_reopt,
+                        normvectors=normvec_normalized_interp,
+                        A=a_interp,
+                        kappa_bound=kappa_bound_reopt,
+                        w_veh=w_veh_reopt,
+                        print_debug=debug,
+                        plot_debug=plot_opts["mincurv_curv_lin"],
+                    )[0]
+                    print(
+                        "INFO: Mintime reoptimization succeeded with "
+                        f"free_dev={free_dev:.3f}m, "
+                        f"kappa_bound={kappa_bound_reopt:.3f}rad/m"
+                    )
+                    break
+                except Exception as reopt_exc:
+                    reopt_errors.append(
+                        f"free_dev={free_dev:.3f}, "
+                        f"kappa={kappa_bound_reopt:.3f}: "
+                        f"{type(reopt_exc).__name__}: {reopt_exc}"
+                    )
 
-        print("INFO: Mintime reoptimization: minimum distance to right/left bound: %.2fm / %.2fm"
-              % (np.amin(d_r_reopt) - pars["veh_params"]["width"] / 2,
-                 np.amin(d_l_reopt) - pars["veh_params"]["width"] / 2))
+            if alpha_reopt is not None:
+                break
+
+        if alpha_reopt is None:
+            raise RuntimeError(
+                "all reoptimization attempts failed; "
+                + " | ".join(reopt_errors[-5:])
+            )
+
+        alpha_opt = alpha_reopt
+
+        # calculate minimum distance from raceline to bounds and print it
+        if debug:
+            raceline_reopt = reftrack_interp[:, :2] + np.expand_dims(alpha_opt, 1) * normvec_normalized_interp
+            bound_r_reopt = (reftrack_interp[:, :2]
+                             + np.expand_dims(reftrack_interp[:, 2], axis=1) * normvec_normalized_interp)
+            bound_l_reopt = (reftrack_interp[:, :2]
+                             - np.expand_dims(reftrack_interp[:, 3], axis=1) * normvec_normalized_interp)
+
+            d_r_reopt = np.hypot(raceline_reopt[:, 0] - bound_r_reopt[:, 0], raceline_reopt[:, 1] - bound_r_reopt[:, 1])
+            d_l_reopt = np.hypot(raceline_reopt[:, 0] - bound_l_reopt[:, 0], raceline_reopt[:, 1] - bound_l_reopt[:, 1])
+
+            print("INFO: Mintime reoptimization: minimum distance to right/left bound: %.2fm / %.2fm"
+                  % (np.amin(d_r_reopt) - pars["veh_params"]["width"] / 2,
+                     np.amin(d_l_reopt) - pars["veh_params"]["width"] / 2))
+
+    except Exception as exc:
+        print(
+            "WARNING: Mintime reoptimization failed "
+            f"({type(exc).__name__}: {exc}). Using original mintime solution."
+        )
+        alpha_opt = alpha_mintime
+        reftrack_interp = reftrack_mintime
+        normvec_normalized_interp = normvec_mintime
+        a_interp = a_mintime
+        mintime_opts["reopt_mintime_solution"] = False
+        mintime_opts["recalc_vel_profile_by_tph"] = False
 
 # ----------------------------------------------------------------------------------------------------------------------
 # INTERPOLATE SPLINES TO SMALL DISTANCES BETWEEN RACELINE POINTS -------------------------------------------------------
@@ -391,13 +562,18 @@ psi_vel_opt, kappa_opt = tph.calc_head_curv_an.\
 # CALCULATE VELOCITY AND ACCELERATION PROFILE --------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------
 
-if opt_type == 'mintime' and not mintime_opts["recalc_vel_profile_by_tph"]:
+if opt_type == 'mintime' and not mintime_opts["recalc_vel_profile_by_tph"] \
+        and not mintime_opts["reopt_mintime_solution"]:
     # interpolation
     s_splines = np.cumsum(spline_lengths_opt)
     s_splines = np.insert(s_splines, 0, 0.0)
     vx_profile_opt = np.interp(s_points_opt_interp, s_splines[:-1], v_opt)
 
 else:
+    if opt_type == 'mintime' and mintime_opts["reopt_mintime_solution"] \
+            and not mintime_opts["recalc_vel_profile_by_tph"]:
+        print("INFO: Mintime reoptimization changed spline sampling; "
+              "using TPH velocity recalculation instead of stale v_opt interpolation.")
     vx_profile_opt = tph.calc_vel_profile.\
         calc_vel_profile(ggv=ggv,
                          ax_max_machines=ax_max_machines,
@@ -409,6 +585,13 @@ else:
                          dyn_model_exp=pars["vel_calc_opts"]["dyn_model_exp"],
                          drag_coeff=pars["veh_params"]["dragcoeff"],
                          m_veh=pars["veh_params"]["mass"])
+    vx_profile_opt = repair_closed_velocity_profile(vx_profile=vx_profile_opt,
+                                                    kappa=kappa_opt,
+                                                    el_lengths=el_lengths_opt_interp,
+                                                    ggv=ggv,
+                                                    ax_max_machines=ax_max_machines,
+                                                    pars=pars,
+                                                    debug=debug)
 
 # calculate longitudinal acceleration profile
 vx_profile_opt_cl = np.append(vx_profile_opt, vx_profile_opt[0])

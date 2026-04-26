@@ -44,7 +44,8 @@ import sys
 import cv2
 import numpy as np
 import yaml
-from scipy.interpolate import splprep, splev
+from scipy.interpolate import splprep, splev, CubicSpline
+from scipy.ndimage import gaussian_filter1d
 
 
 def thin_binary_mask(binary_mask):
@@ -679,29 +680,59 @@ def measure_track_widths(centerline, map_img, resolution, origin,
     """
     # Consistent wall threshold: pixels below wall_thresh are walls.
     free = (map_img >= wall_thresh).astype(np.uint8)
-    n = len(centerline)
 
-    # Compute tangent vectors (periodic)
-    tangents = np.zeros_like(centerline)
-    tangents[:-1] = np.diff(centerline, axis=0)
-    tangents[-1] = centerline[0] - centerline[-1]
+    # Robust casting mask: close tiny wall gaps / pinholes for ray tests.
+    free_cast = cv2.morphologyEx(
+        free,
+        cv2.MORPH_CLOSE,
+        np.ones((3, 3), np.uint8),
+        iterations=1,
+    )
+
+    n = len(centerline)
+    h, w = map_img.shape[:2]
+
+    def _world_to_grid_xy(pt_xy):
+        """World [x,y] -> image [row,col], with nearest-pixel rounding."""
+        col_f = (pt_xy[0] - origin[0]) / resolution
+        row_f = h - (pt_xy[1] - origin[1]) / resolution
+        return int(np.round(row_f)), int(np.round(col_f))
+
+    # Compute tangent vectors via periodic central differences on a lightly
+    # smoothed centerline to reduce normal jitter in raw width estimates.
+    # This is less noisy than forward differences and avoids a hard normal
+    # discontinuity at the wrap-around index.
+    from scipy.ndimage import gaussian_filter1d
+    cx = gaussian_filter1d(centerline[:, 0], sigma=1.2, mode='wrap')
+    cy = gaussian_filter1d(centerline[:, 1], sigma=1.2, mode='wrap')
+    cl_smooth = np.column_stack([cx, cy])
+    tangents = np.roll(cl_smooth, -1, axis=0) - np.roll(cl_smooth, 1, axis=0)
     t_len = np.linalg.norm(tangents, axis=1, keepdims=True)
     tangents = tangents / np.maximum(t_len, 1e-6)
 
     # Normal: rotate tangent 90 deg CCW  ->  (-ty, tx)
     normals = np.column_stack([-tangents[:, 1], tangents[:, 0]])
 
+    # Enforce normal sign continuity to avoid local +/- flips that create
+    # side-swaps and sharp spikes in measured boundaries.
+    for i in range(1, n):
+        if np.dot(normals[i], normals[i - 1]) < 0.0:
+            normals[i] *= -1.0
+    # Keep wrap-around consistent with index 0 orientation.
+    if np.dot(normals[-1], normals[0]) < 0.0:
+        normals[-1] *= -1.0
+
     w_right = np.zeros(n)
-    w_left = np.zeros(n)
-    step_size = resolution * 0.5
+    w_left = np.zeros(n)/home/pascal/Documents/BachelorProject/f1tenth_planning/trajectories/my_track_raceline_raycast_widths_debug.png
+    # Sub-pixel stepping: smaller step for better corner hit detection.
+    step_size = max(resolution * 0.10, 0.0010)
 
     for i in range(n):
         # +normal direction -> left
         for d in np.arange(step_size, max_dist, step_size):
             pt = centerline[i] + d * normals[i]
-            col = int((pt[0] - origin[0]) / resolution)
-            row = int(map_img.shape[0] - (pt[1] - origin[1]) / resolution)
-            if not (0 <= row < map_img.shape[0] and 0 <= col < map_img.shape[1]) or not free[row, col]:
+            row, col = _world_to_grid_xy(pt)
+            if not (0 <= row < h and 0 <= col < w) or not free_cast[row, col]:
                 w_left[i] = d
                 break
         else:
@@ -710,9 +741,8 @@ def measure_track_widths(centerline, map_img, resolution, origin,
         # -normal direction -> right
         for d in np.arange(step_size, max_dist, step_size):
             pt = centerline[i] - d * normals[i]
-            col = int((pt[0] - origin[0]) / resolution)
-            row = int(map_img.shape[0] - (pt[1] - origin[1]) / resolution)
-            if not (0 <= row < map_img.shape[0] and 0 <= col < map_img.shape[1]) or not free[row, col]:
+            row, col = _world_to_grid_xy(pt)
+            if not (0 <= row < h and 0 <= col < w) or not free_cast[row, col]:
                 w_right[i] = d
                 break
         else:
@@ -722,12 +752,11 @@ def measure_track_widths(centerline, map_img, resolution, origin,
     # This prevents inflated widths from rays escaping through wall gaps
     # into exterior free space.  After ridge-snapping the centerline to
     # the white-space centre, the cap should only trim outlier rays.
-    dist_transform = cv2.distanceTransform(free, cv2.DIST_L2, 5)
+    dist_transform = cv2.distanceTransform((free_cast * 255).astype(np.uint8), cv2.DIST_L2, 5)
     n_capped = 0
     for i in range(n):
-        col = int((centerline[i, 0] - origin[0]) / resolution)
-        row = int(map_img.shape[0] - (centerline[i, 1] - origin[1]) / resolution)
-        if 0 <= row < map_img.shape[0] and 0 <= col < map_img.shape[1]:
+        row, col = _world_to_grid_xy(centerline[i])
+        if 0 <= row < h and 0 <= col < w:
             dt_val = dist_transform[row, col] * resolution
             # Cap ray-cast width to the DT value (distance to nearest
             # non-free pixel).  This prevents rays from escaping through
@@ -742,61 +771,272 @@ def measure_track_widths(centerline, map_img, resolution, origin,
     if n_capped > 0:
         print(f"  Width DT-capped: {n_capped} sides")
 
+    # Stabilize raw widths with a trailing median over the last 7 points.
+    # Use circular history because the track is closed.
+    def _trailing_median_closed(arr, window=7):
+        arr = np.asarray(arr, dtype=float)
+        if window <= 1 or arr.size == 0:
+            return arr.copy()
+        tail = arr[-(window - 1):]
+        ext = np.concatenate([tail, arr])
+        out = np.empty_like(arr)
+        for i in range(arr.size):
+            out[i] = np.median(ext[i:i + window])
+        return out
+
+    w_right = _trailing_median_closed(w_right, window=7)
+    w_left = _trailing_median_closed(w_left, window=7)
+    print("  Width trailing-median filtered: window=7")
+
+    # Aggressive de-hooking: centered circular median smoothing.
+    # This removes residual hook artifacts in tight corners.
+    def _centered_median_closed(arr, window=9):
+        arr = np.asarray(arr, dtype=float)
+        n_pts = arr.size
+        if n_pts == 0 or window <= 1:
+            return arr.copy()
+        half = window // 2
+        out = np.empty_like(arr)
+        for i in range(n_pts):
+            idx = [(i + k) % n_pts for k in range(-half, half + 1)]
+            out[i] = np.median(arr[idx])
+        return out
+
+    w_right = _centered_median_closed(w_right, window=9)
+    w_left = _centered_median_closed(w_left, window=9)
+    print("  Width de-hook median-smoothed: centered window=9")
+
+    # Final continuous smoothing to suppress residual tiny hook stubs.
+    w_right = gaussian_filter1d(w_right, sigma=1.4, mode='wrap')
+    w_left = gaussian_filter1d(w_left, sigma=1.4, mode='wrap')
+    print("  Width de-hook gaussian-smoothed: sigma=1.4")
+
+    # Final local slope clamp to eliminate residual one-point hook protrusions.
+    def _slope_clamp_closed(arr, delta=0.02, passes=2):
+        out = np.asarray(arr, dtype=float).copy()
+        n_pts = out.size
+        if n_pts < 3:
+            return out
+        for _ in range(passes):
+            nxt = out.copy()
+            for i in range(n_pts):
+                i_prev = (i - 1) % n_pts
+                i_next = (i + 1) % n_pts
+                pred = 0.5 * (out[i_prev] + out[i_next])
+                if abs(out[i] - pred) > delta:
+                    nxt[i] = pred
+            out = nxt
+        return out
+
+    w_right = _slope_clamp_closed(w_right, delta=0.02, passes=2)
+    w_left = _slope_clamp_closed(w_left, delta=0.02, passes=2)
+    print("  Width de-hook slope-clamped: delta=0.02, passes=2")
+
     return w_right, w_left
 
 
-def smooth_track_widths(centerline, w_right, w_left, min_width=0.3):
-    """
-    Post-process measured track widths to avoid TUM optimizer spline-normal
-    crossing errors.
 
-    1. **Curvature cap** -- at tight corners the track width must be less than
-       the radius of curvature, otherwise normals cross.  We enforce
-       ``w <= 0.8 * R`` where ``R = 1 / |kappa|``.
-    2. **Smoothing** -- Gaussian-filter to remove measurement noise.
-    3. **Minimum enforcement** -- clamp to *min_width* so the optimizer has
-       some room to work with.
+def smooth_track_widths_spline(centerline, w_right, w_left,
+                               min_width=0.3,
+                               sigma_width=8.0,
+                               sigma_width_post=4.0,
+                               kappa_eps=1e-6,
+                               cap_factor=0.9):
     """
-    from scipy.ndimage import uniform_filter1d, gaussian_filter1d
+    Curvature-aware spline-based smoothing of track widths.
 
+    Parameters
+    ----------
+    centerline : (N, 2) array
+        XY coordinates of the track centerline (closed loop, ordered).
+    w_right, w_left : (N,) arrays
+        Raw measured distances from centerline to right/left boundaries.
+    min_width : float
+        Minimum allowed width on each side.
+    sigma_width : float
+        Gaussian sigma (in samples) for initial width smoothing.
+    sigma_width_post : float
+        Gaussian sigma for post-capping smoothing.
+    kappa_eps : float
+        Small value to avoid division by zero in curvature radius.
+    cap_factor : float
+        Fraction of curvature radius used as max width (e.g. 0.9 * R).
+
+    Returns
+    -------
+    w_right_s, w_left_s : (N,) arrays
+        Smoothed, curvature-aware right/left widths.
+    """
+
+    from scipy.ndimage import gaussian_filter1d
     n = len(centerline)
+    if n < 5:
+        print("  Warning: too few centerline points for width smoothing")
+        return w_right, w_left
+    
+    # 1. Initial smoothing to suppress measurement noise before curvature capping.
+    w_right_s = gaussian_filter1d(w_right, sigma=sigma_width, mode='wrap')
+    w_left_s = gaussian_filter1d(w_left, sigma=sigma_width, mode='wrap')
+    print(f"  Initial width smoothing: Gaussian sigma={sigma_width} samples")
 
-    # Compute curvature on a Gaussian-smoothed copy of the centerline so that
-    # SLAM noise spikes (which create artificially high kappa) don't cause
-    # over-aggressive width capping.  sigma=3 removes pixel-scale noise while
-    # preserving genuine corners.
-    sigma = 3.0
-    cx_smooth = gaussian_filter1d(centerline[:, 0], sigma=sigma, mode='wrap')
-    cy_smooth = gaussian_filter1d(centerline[:, 1], sigma=sigma, mode='wrap')
-    dx = np.gradient(cx_smooth)
-    dy = np.gradient(cy_smooth)
-    ddx = np.gradient(dx)
-    ddy = np.gradient(dy)
-    kappa = (dx * ddy - dy * ddx) / np.maximum((dx ** 2 + dy ** 2) ** 1.5, 1e-10)
-    R = 1.0 / np.maximum(np.abs(kappa), 1e-6)
+    # 2. Curvature-aware capping: width on each side cannot exceed cap_factor * curvature radius.
+    #    This prevents over-wide boundaries in tight corners where ray-cast can overshoot.
+    #    Curvature radius R = 1 / |kappa|, where
+    #    kappa = (x'y'' - y'x'') / (x'^2 + y'^2)^(3/2)
+    dx = np.roll(centerline[:, 0], -1, axis=0) - np.roll(centerline[:, 0], 1, axis=0)
+    dy = np.roll(centerline[:, 1], -1, axis=0) - np.roll(centerline[:, 1], 1, axis=0)
+    ddx = np.roll(centerline[:, 0], -1, axis=0) - 2 * centerline[:, 0] + np.roll(centerline[:, 0], 1, axis=0)
+    ddy = np.roll(centerline[:, 1], -1, axis=0) - 2 * centerline[:, 1] + np.roll(centerline[:, 1], 1, axis=0)
+    kappa = (dx * ddy - dy * ddx) / np.maximum(dx**2 + dy**2, kappa_eps)**1.5
+    R = np.where(np.abs(kappa) > kappa_eps, 1.0 / np.abs(kappa), np.inf)
+    max_width = cap_factor * R
+    w_right_c = np.minimum(w_right_s, max_width)
+    w_left_c = np.minimum(w_left_s, max_width)
 
-    # Cap widths to 90% of curvature radius (prevents normal crossings)
-    cap = 0.9 * R
-    w_right_c = np.minimum(w_right, cap)
-    w_left_c = np.minimum(w_left, cap)
 
-    # Smooth with a moving average (wrap-around for closed track)
-    kernel = max(5, n // 100)
-    w_right_s = uniform_filter1d(w_right_c, size=kernel, mode='wrap')
-    w_left_s = uniform_filter1d(w_left_c, size=kernel, mode='wrap')
+    return w_right_c, w_left_c
 
-    # Enforce minimum width
-    w_right_s = np.maximum(w_right_s, min_width)
-    w_left_s = np.maximum(w_left_s, min_width)
 
-    n_capped_r = int(np.sum(w_right_c < w_right))
-    n_capped_l = int(np.sum(w_left_c < w_left))
-    if n_capped_r + n_capped_l > 0:
-        print(f"  Width curvature-capped: right {n_capped_r}, left {n_capped_l}")
-    print(f"  Width after smoothing: right [{w_right_s.min():.3f}, {w_right_s.max():.3f}] m, "
-          f"left [{w_left_s.min():.3f}, {w_left_s.max():.3f}] m")
 
-    return w_right_s, w_left_s
+
+def _world_to_pixel(points_xy, map_img, resolution, origin):
+    """Convert Nx2 world coordinates to pixel coordinates for plotting."""
+    px = (points_xy[:, 0] - origin[0]) / resolution
+    py = map_img.shape[0] - (points_xy[:, 1] - origin[1]) / resolution
+    return px, py
+
+
+def _plot_width_boundaries(ax, centerline, w_right, w_left, color_r, color_l):
+    """Plot left/right boundary curves from centerline plus side widths."""
+    from scipy.ndimage import gaussian_filter1d
+
+    # Match the normal construction used by width measurement to ensure
+    # debug plots reflect actual measured geometry (no plotting-only hooks).
+    cx = gaussian_filter1d(centerline[:, 0], sigma=1.2, mode='wrap')
+    cy = gaussian_filter1d(centerline[:, 1], sigma=1.2, mode='wrap')
+    cl_smooth = np.column_stack([cx, cy])
+    tangent = np.roll(cl_smooth, -1, axis=0) - np.roll(cl_smooth, 1, axis=0)
+    tnorm = np.linalg.norm(tangent, axis=1, keepdims=True)
+    tangent = tangent / np.maximum(tnorm, 1e-9)
+    normal = np.column_stack([-tangent[:, 1], tangent[:, 0]])
+
+    # Enforce sign continuity around the loop.
+    for i in range(1, len(normal)):
+        if np.dot(normal[i], normal[i - 1]) < 0.0:
+            normal[i] *= -1.0
+    if np.dot(normal[-1], normal[0]) < 0.0:
+        normal[-1] *= -1.0
+
+    right_b = centerline - normal * np.asarray(w_right)[:, None]
+    left_b = centerline + normal * np.asarray(w_left)[:, None]
+    return right_b, left_b
+
+
+def save_width_debug_plots(
+    map_img,
+    resolution,
+    origin,
+    wall_thresh,
+    centerline,
+    max_dist,
+    w_right_raw,
+    w_left_raw,
+    w_right_smooth,
+    w_left_smooth,
+    output_prefix,
+):
+    """Save Step 0 debug plots for measure/smooth width stages."""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
+    os.makedirs(os.path.dirname(output_prefix), exist_ok=True)
+    free_mask = (map_img >= wall_thresh).astype(np.uint8)
+
+    # 1) Inputs to measure_track_widths: map + centerline + local normals.
+    fig, ax = plt.subplots(figsize=(10, 10))
+    ax.imshow(free_mask, cmap='gray', origin='upper')
+    cx, cy = _world_to_pixel(centerline, map_img, resolution, origin)
+    ax.plot(cx, cy, color='red', linewidth=1.3, label='centerline (input)')
+
+    xy_prev = np.roll(centerline, 1, axis=0)
+    xy_next = np.roll(centerline, -1, axis=0)
+    tangent = xy_next - xy_prev
+    tnorm = np.linalg.norm(tangent, axis=1, keepdims=True)
+    tangent = tangent / np.maximum(tnorm, 1e-9)
+    normal = np.column_stack([-tangent[:, 1], tangent[:, 0]])
+
+    sample_step = max(1, len(centerline) // 80)
+    # Keep normals short for readability; long rays create clutter and can
+    # visually suggest behaviour that is not representative of local geometry.
+    normal_len = min(max_dist * 0.20, 0.40)
+    for i in range(0, len(centerline), sample_step):
+        p0 = centerline[i]
+        p_l = p0 + normal_len * normal[i]
+        p_r = p0 - normal_len * normal[i]
+        px, py = _world_to_pixel(np.vstack([p_l, p_r]), map_img, resolution, origin)
+        ax.plot(px, py, color='darkgreen', alpha=0.35, linewidth=0.8)
+
+    ax.set_title('Step 0 input to measure_track_widths')
+    ax.legend(loc='upper right')
+    ax.set_axis_off()
+    fig.tight_layout()
+    path_in = f'{output_prefix}_measure_input.png'
+    fig.savefig(path_in, dpi=180)
+    plt.close(fig)
+
+    # 2) Output of measure_track_widths (= input to smooth_track_widths).
+    right_raw, left_raw = _plot_width_boundaries(
+        ax=None,
+        centerline=centerline,
+        w_right=w_right_raw,
+        w_left=w_left_raw,
+        color_r='#2c7fb8',
+        color_l='#d95f0e',
+    )
+    fig, ax = plt.subplots(figsize=(10, 10))
+    ax.imshow(free_mask, cmap='gray', origin='upper')
+    rx, ry = _world_to_pixel(right_raw, map_img, resolution, origin)
+    lx, ly = _world_to_pixel(left_raw, map_img, resolution, origin)
+    ax.plot(cx, cy, color='red', linewidth=1.2, label='centerline')
+    ax.plot(rx, ry, color='#2c7fb8', linewidth=1.0, label='right raw')
+    ax.plot(lx, ly, color='#d95f0e', linewidth=1.0, label='left raw')
+    ax.set_title('Output of measure_track_widths (raw widths)')
+    ax.legend(loc='upper right')
+    ax.set_axis_off()
+    fig.tight_layout()
+    path_raw = f'{output_prefix}_measure_output_raw.png'
+    fig.savefig(path_raw, dpi=180)
+    plt.close(fig)
+
+    # 3) Output of smooth_track_widths.
+    right_s, left_s = _plot_width_boundaries(
+        ax=None,
+        centerline=centerline,
+        w_right=w_right_smooth,
+        w_left=w_left_smooth,
+        color_r='#377eb8',
+        color_l='#ff7f00',
+    )
+    fig, ax = plt.subplots(figsize=(10, 10))
+    ax.imshow(free_mask, cmap='gray', origin='upper')
+    rsx, rsy = _world_to_pixel(right_s, map_img, resolution, origin)
+    lsx, lsy = _world_to_pixel(left_s, map_img, resolution, origin)
+    ax.plot(cx, cy, color='red', linewidth=1.2, label='centerline')
+    ax.plot(rsx, rsy, color='#377eb8', linewidth=1.0, label='right smoothed')
+    ax.plot(lsx, lsy, color='#ff7f00', linewidth=1.0, label='left smoothed')
+    ax.set_title('Output of smooth_track_widths (smoothed widths)')
+    ax.legend(loc='upper right')
+    ax.set_axis_off()
+    fig.tight_layout()
+    path_smooth = f'{output_prefix}_smooth_output.png'
+    fig.savefig(path_smooth, dpi=180)
+    plt.close(fig)
+
+    print('  Saved Step 0 width debug plots:')
+    print(f'    - {path_in}')
+    print(f'    - {path_raw}')
+    print(f'    - {path_smooth}')
 
 
 def save_tum_track_csv(centerline, w_right, w_left, output_path):
@@ -1131,7 +1371,7 @@ def main():
         help='Output directory (default: f1tenth_planning/trajectories/)',
     )
     parser.add_argument(
-        '--centerline-points', type=int, default=1200,
+        '--centerline-points', type=int, default=500,
         help='Number of centerline points to sample (default: 300)',
     )
     parser.add_argument(
@@ -1139,11 +1379,11 @@ def main():
         help='Skip centerline extraction (use existing TUM track CSV)',
     )
     parser.add_argument(
-        '--car-width', type=float, default=0.3,
+        '--car-width', type=float, default=0.28,
         help='Physical car width [m] used for wall distance margin (default: 0.273, F1Tenth)',
     )
     parser.add_argument(
-        '--wall-clearance', type=float, default=0.12,
+        '--wall-clearance', type=float, default=0.05,
         help='Extra clearance from walls beyond car width on each side [m] (default: 0.05). '
              'Optimizer width_opt = car_width + 2*wall_clearance',
     )
@@ -1162,13 +1402,13 @@ def main():
         help='Track direction: auto-detect from winding order, or force cw/ccw (default: cw)',
     )
     parser.add_argument(
-        '--smooth-factor', type=float, default=4.0,
+        '--smooth-factor', type=float, default=1.0,
         help='Spline smoothing factor s_reg for TUM optimizer (default: 2.0). '
              'Lower values preserve centerline shape better; higher values smooth more. '
              '0 = exact interpolation (safest but slowest), 2 = good balance for small tracks.',
     )
     parser.add_argument(
-        '--waypoint-spacing', type=float, default=0.05,
+        '--waypoint-spacing', type=float, default=0.02,
         help='Waypoint spacing [m] for the final trajectory (stepsize_interp_after_opt, default: 0.15). '
              'Smaller values produce denser waypoints (recommended for MPC).',
     )
@@ -1306,6 +1546,8 @@ def main():
             max_dist=args.max_ray_distance,
             wall_thresh=wall_thresh,
         )
+        w_right_raw = np.array(w_right, copy=True)
+        w_left_raw = np.array(w_left, copy=True)
 
         # Smooth and cap widths to prevent spline normal crossings.
         # Use car half-width as the absolute minimum per side (car must physically fit).
@@ -1313,7 +1555,7 @@ def main():
         # constraint naturally push the raceline away from narrow walls.
         # This is safe because total_width >= width_opt at every point (checked below).
         car_half = args.car_width / 2.0
-        w_right, w_left = smooth_track_widths(
+        w_right, w_left = smooth_track_widths_spline(
             centerline, w_right, w_left, min_width=car_half
         )
 
@@ -1341,11 +1583,28 @@ def main():
                 max_dist=args.max_ray_distance,
                 wall_thresh=wall_thresh,
             )
-            w_right, w_left = smooth_track_widths(
+            w_right_raw = np.array(w_right, copy=True)
+            w_left_raw = np.array(w_left, copy=True)
+            w_right, w_left = smooth_track_widths_spline(
                 centerline, w_right, w_left, min_width=car_half
             )
 
         # Verify the optimizer can find a feasible solution (after resampling)
+        width_debug_prefix = output_csv.replace('.csv', '_step0_width_debug')
+        save_width_debug_plots(
+            map_img=map_img,
+            resolution=resolution,
+            origin=origin,
+            wall_thresh=wall_thresh,
+            centerline=centerline,
+            max_dist=args.max_ray_distance,
+            w_right_raw=w_right_raw,
+            w_left_raw=w_left_raw,
+            w_right_smooth=w_right,
+            w_left_smooth=w_left,
+            output_prefix=width_debug_prefix,
+        )
+
         total_w = np.array(w_right) + np.array(w_left)
         min_total = total_w.min()
         if min_total < args.min_track_width:

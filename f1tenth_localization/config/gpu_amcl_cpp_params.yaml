@@ -18,9 +18,9 @@ gpu_amcl_cpp:
     use_gpu: true
 
     # ---- Particles ----
-    num_particles: 800
-    min_particles: 800
-    max_particles: 800
+    num_particles: 1000
+    min_particles: 1000
+    max_particles: 1000
 
     # ---- KLD adaptive sampling ----
     # Dynamically adjusts particle count based on distribution spread.

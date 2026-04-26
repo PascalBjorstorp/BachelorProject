@@ -1,0 +1,2003 @@
+#!/usr/bin/env python3
+"""
+Minimum-time one-click trajectory optimization pipeline for F1Tenth MPC.
+
+Works with ANY map (.pgm/.yaml) -- no pre-made TUM track CSV required.
+This copy is intentionally fixed to TUM's ``mintime`` optimization method.
+
+Pipeline steps:
+  Step 0: Extract centerline + track widths from map image  (NEW)
+  Step 1: Run TUM global_racetrajectory_optimization with opt_type='mintime'
+  Step 2: Convert to MPC format (psi += pi/2, delimiter, clamp velocity)
+  Step 3: Add wall distances via ray-cast
+  Step 4: Verify output trajectory
+
+Output CSV format (7 or 9 columns):
+  s_m, x_m, y_m, psi_rad, kappa_radpm, vx_mps, ax_mps2 [, d_left_m, d_right_m]
+
+Usage:
+    # Edit the User settings block in main(), then run:
+    python3 optimize_trajectory_mintime.py
+
+Requirements:
+    pip install numpy opencv-python scipy pyyaml
+    pip install -r global_racetrajectory_optimization/requirements.txt
+"""
+
+import argparse
+import csv
+import math
+import os
+import re
+import subprocess
+import sys
+
+import cv2
+import numpy as np
+import yaml
+from scipy.interpolate import splprep, splev, CubicSpline
+
+
+MIN_TIME_OPT_TYPE = 'mintime'
+
+
+def thin_binary_mask(binary_mask):
+    """Return a 1-pixel skeleton from a binary mask using best available method."""
+    mask_u8 = (binary_mask.astype(np.uint8) > 0).astype(np.uint8) * 255
+
+    # Preferred: OpenCV contrib Zhang-Suen thinning.
+    if hasattr(cv2, 'ximgproc') and hasattr(cv2.ximgproc, 'thinning'):
+        skel = cv2.ximgproc.thinning(
+            mask_u8,
+            thinningType=cv2.ximgproc.THINNING_ZHANGSUEN,
+        )
+        return skel, 'cv2.ximgproc.THINNING_ZHANGSUEN'
+
+    # Fallback: morphological skeletonization (no extra dependency).
+    element = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
+    img = mask_u8.copy()
+    skel = np.zeros_like(img)
+    max_iter = img.size
+    for _ in range(max_iter):
+        eroded = cv2.erode(img, element)
+        opened = cv2.dilate(eroded, element)
+        temp = cv2.subtract(img, opened)
+        skel = cv2.bitwise_or(skel, temp)
+        img = eroded
+        if cv2.countNonZero(img) == 0:
+            break
+
+    return skel, 'morphological_skeleton_fallback'
+
+# =============================================================================
+#  Utility helpers (kept from original)
+# =============================================================================
+
+def find_workspace_root():
+    """Walk up from this script to find the workspace root (contains f1tenth_planning/)."""
+    d = os.path.dirname(os.path.abspath(__file__))
+    for _ in range(10):
+        if os.path.isdir(os.path.join(d, 'f1tenth_planning')):
+            return d
+        d = os.path.dirname(d)
+    return None
+
+
+def run_step(label, cmd, cwd=None):
+    """Run a subprocess, stream output, and abort on failure."""
+    print(f"\n{'=' * 64}")
+    print(f"  {label}")
+    print(f"{'=' * 64}")
+    print(f"  Command: {' '.join(cmd)}")
+    if cwd:
+        print(f"  Working dir: {cwd}")
+    print()
+    env = os.environ.copy()
+    env['MPLBACKEND'] = 'Agg'  # Prevent matplotlib from blocking on plt.show()
+    result = subprocess.run(cmd, cwd=cwd, env=env)
+    if result.returncode != 0:
+        print(f"\n  ERROR: {label} failed (exit code {result.returncode})")
+        sys.exit(result.returncode)
+
+
+# =============================================================================
+#  Step 0 -- Map loading, boundary extraction, centerline, track widths
+# =============================================================================
+
+def compute_centerline_thinned_loop(
+    map_img,
+    resolution,
+    origin,
+    wall_thresh,
+    num_points,
+    gvd_debug_path=None,
+):
+    """
+    Compute the track centerline using a GVD (Generalised Voronoi Diagram):
+
+      1. Label wall obstacle components (outer wall vs inner island)
+      2. Per-obstacle Euclidean distance transforms → GVD boundary
+         (free pixels equidistant from both obstacles)
+      3. Zhang-Suen thinning of the GVD boundary → clean 1-px skeleton ring
+      4. Walk the skeleton ring from the widest point (max EDT) →
+         ordered pixel loop
+      5. B-spline smooth + uniform resample
+
+    Parameters
+    ----------
+    map_img    : uint8 grayscale — free pixels >= wall_thresh
+    resolution : float — metres per pixel
+    origin     : [x0, y0, …] — world-frame origin of pixel (0,0)
+    wall_thresh: int — pixel value >= this counts as free space
+    num_points : int — desired uniformly-spaced output waypoints
+
+    Returns
+    -------
+    centerline  : (num_points, 2) world-frame coordinates
+    half_widths : (num_points,)   EDT-based half-track-width in metres
+    """
+    from scipy.ndimage import label as _sc_label
+    from scipy.ndimage import distance_transform_edt as _edt_scipy
+
+    h, w = map_img.shape[:2]
+    free = (map_img >= wall_thresh).astype(np.uint8)
+    edt  = cv2.distanceTransform(free, cv2.DIST_L2, 5)
+
+    def _save_gvd_debug(pixel_path=None, start_rc=None):
+        if not gvd_debug_path:
+            return
+        os.makedirs(os.path.dirname(gvd_debug_path), exist_ok=True)
+        vis = cv2.cvtColor(map_img, cv2.COLOR_GRAY2BGR)
+        vis[gvd_mask] = (0, 220, 255)   # GVD boundary in yellow
+        vis[skel_mat > 0] = (0, 0, 255) # Skeleton in red
+        if pixel_path is not None:
+            for rr, cc in pixel_path:
+                vis[rr, cc] = (0, 255, 0)  # Ring walk in green
+        if start_rc is not None:
+            cv2.circle(vis, (start_rc[1], start_rc[0]), 4, (255, 0, 0), -1)
+        if cv2.imwrite(gvd_debug_path, vis):
+            print(f"  Saved GVD debug visualization: {gvd_debug_path}")
+        else:
+            print(f"  WARNING: Failed to save GVD debug visualization: {gvd_debug_path}")
+
+    # ---- 1. Label wall obstacles -----------------------------------------
+    wall = (1 - free).astype(np.uint8)
+    wall_labeled, n_wall = _sc_label(wall, structure=np.ones((3, 3), int))
+    print(f"  Wall obstacle components: {n_wall}")
+    if n_wall < 2:
+        raise RuntimeError(
+            f"Expected ≥2 wall components (outer + inner), got {n_wall}. "
+            "Map may not have a ring-shaped corridor."
+        )
+
+    # ---- 2. Per-obstacle EDT → GVD boundary ------------------------------
+    # Distance from every pixel to each obstacle
+    comp_sizes = []
+    for wid in range(1, n_wall + 1):
+        comp_sizes.append((wid, int((wall_labeled == wid).sum())))
+    comp_sizes.sort(key=lambda x: x[1], reverse=True)
+    keep_ids = [wid for wid, _ in comp_sizes[:2]]
+    print(f"  Using wall components for GVD: {keep_ids} (sizes: {[s for _, s in comp_sizes[:2]]})")
+
+    dists = []
+    for wid in keep_ids:
+        # _edt_scipy: distance to nearest 0-pixel; invert so obstacle=0
+        dists.append(_edt_scipy((wall_labeled != wid).astype(np.uint8)))
+
+    # GVD boundary: free pixels where the two closest obstacles are
+    # nearly equidistant.  For 2 obstacles this is simply |d1 - d2| < thr.
+    d1, d2 = dists[0], dists[1]
+    diff_map = np.abs(d1.astype(float) - d2.astype(float))
+    gvd_thresh = 2.0   # pixels
+    gvd_mask = (free == 1) & (diff_map < gvd_thresh)
+    n_gvd = int(gvd_mask.sum())
+    print(f"  GVD boundary pixels (thresh={gvd_thresh}): {n_gvd}")
+
+    # ---- 3. Zhang-Suen thinning of GVD boundary -------------------------
+    skel_mat, thin_method = thin_binary_mask(gvd_mask)
+    print(f"  Thinning method: {thin_method}")
+    skel_set = set(map(tuple, np.column_stack(np.where(skel_mat > 0)).tolist()))
+    n_skel = len(skel_set)
+    print(f"  GVD skeleton: {n_skel} pixels")
+    _save_gvd_debug(pixel_path=None, start_rc=None)
+    if n_skel < 20:
+        raise RuntimeError("GVD skeleton too sparse; check wall_thresh or map.")
+
+    # ---- 4. Extract the main ring from the skeleton ----------------------
+    # The skeleton is one connected component forming a ring (centerline)
+    # with optional short cross-links at junctions.  A simple greedy walk
+    # can get trapped at multi-pixel junctions.
+    #
+    # Robust approach:
+    #   1. Build adjacency graph.
+    #   2. Find *all* simple cycles using a DFS.
+    #   3. Pick the longest cycle — that's the main ring.
+    #
+    # Since the graph is sparse (~2k nodes, mostly degree 2), this is fast.
+
+    from collections import deque
+
+    def _nbrs8(rc, pset):
+        """8-connected neighbours of pixel rc that are in pset."""
+        r, c = rc
+        return [(r+dr, c+dc)
+                for dr in (-1, 0, 1) for dc in (-1, 0, 1)
+                if (dr or dc) and (r+dr, c+dc) in pset]
+
+    # Build adjacency dict
+    adj = {p: set(_nbrs8(p, skel_set)) for p in skel_set}
+
+    # Identify junction pixels (degree >= 3)
+    junc_pixels = {p for p in adj if len(adj[p]) >= 3}
+    print(f"  Junction pixels (degree>=3): {len(junc_pixels)}")
+
+    # Strategy: simplify the graph by contracting degree-2 chains into
+    # single edges between junctions.  Then find the main cycle on the
+    # simplified graph.  Finally expand back.
+    #
+    # If there are no junctions (pure ring), just walk it directly.
+
+    if not junc_pixels:
+        # Pure ring — simple walk
+        ring_arr = np.array(list(skel_set))
+        edt_vals = edt[ring_arr[:, 0], ring_arr[:, 1]]
+        start_idx = int(np.argmax(edt_vals))
+        start_rc = tuple(ring_arr[start_idx].tolist())
+        visited_w = {start_rc}
+        pixel_path = [start_rc]
+        cur = start_rc
+        closed_loop = False
+        while True:
+            unvis = [(edt[n[0], n[1]], n) for n in adj[cur] if n not in visited_w]
+            if unvis:
+                unvis.sort(reverse=True)
+                nxt = unvis[0][1]
+                visited_w.add(nxt)
+                pixel_path.append(nxt)
+                cur = nxt
+            else:
+                if start_rc in adj[cur] and len(pixel_path) > 10:
+                    closed_loop = True
+                break
+    else:
+        # --- Contract degree-2 chains into edges ---
+        # Group junction pixels into clusters (connected via other junctions)
+        junc_remaining = set(junc_pixels)
+        junc_clusters = []
+        while junc_remaining:
+            seed = next(iter(junc_remaining))
+            cluster = set()
+            q = deque([seed])
+            while q:
+                p = q.popleft()
+                if p in cluster:
+                    continue
+                cluster.add(p)
+                junc_remaining.discard(p)
+                for nb in adj[p]:
+                    if nb in junc_remaining:
+                        q.append(nb)
+            junc_clusters.append(frozenset(cluster))
+
+        # Map pixel → cluster id
+        px_to_cid = {}
+        for cid, cl in enumerate(junc_clusters):
+            for p in cl:
+                px_to_cid[p] = cid
+
+        print(f"  Junction clusters: {len(junc_clusters)}, "
+              f"sizes: {sorted(len(c) for c in junc_clusters)}")
+
+        # Trace chains: start from each junction pixel, follow degree-2
+        # pixels until reaching another junction pixel.
+        chains = []  # (cid_a, cid_b, [pixel list including endpoints])
+        chain_visited_px = set()
+
+        for cid_a, cluster_a in enumerate(junc_clusters):
+            for jp in cluster_a:
+                for nb in adj[jp]:
+                    if nb in junc_pixels:
+                        continue  # skip junction-junction direct edges for now
+                    if nb in chain_visited_px:
+                        continue
+                    # Trace a chain from jp through nb
+                    chain = [jp, nb]
+                    chain_visited_px.add(nb)
+                    cur = nb
+                    prev = jp
+                    while True:
+                        nxts = [n for n in adj[cur] if n != prev and n not in chain_visited_px]
+                        # Filter: if we hit a junction pixel, stop
+                        junc_nxts = [n for n in nxts if n in junc_pixels]
+                        non_junc = [n for n in nxts if n not in junc_pixels]
+                        if junc_nxts:
+                            # Reached a junction — pick the one that continues the ring
+                            chain.append(junc_nxts[0])
+                            cid_b = px_to_cid[junc_nxts[0]]
+                            chains.append((cid_a, cid_b, chain))
+                            break
+                        elif non_junc:
+                            nxt = non_junc[0]
+                            chain_visited_px.add(nxt)
+                            chain.append(nxt)
+                            prev = cur
+                            cur = nxt
+                        else:
+                            # Dead end (spur) — discard this chain
+                            break
+
+        # Also add direct junction-to-junction edges (between different clusters)
+        direct_edges = set()
+        for cid_a, cluster_a in enumerate(junc_clusters):
+            for jp in cluster_a:
+                for nb in adj[jp]:
+                    if nb in junc_pixels and px_to_cid[nb] != cid_a:
+                        pair = (min(cid_a, px_to_cid[nb]), max(cid_a, px_to_cid[nb]))
+                        if pair not in direct_edges:
+                            direct_edges.add(pair)
+                            chains.append((pair[0], pair[1], [jp, nb]))
+
+        # Filter out self-loops (chains from cluster X back to cluster X)
+        ring_chains = [(a, b, c) for a, b, c in chains if a != b]
+        self_loops  = [(a, b, c) for a, b, c in chains if a == b]
+        if self_loops:
+            print(f"  Dropped {len(self_loops)} self-loop chain(s)")
+        chains = ring_chains
+
+        print(f"  Chains: {len(chains)}")
+        for i, (ca, cb, ch) in enumerate(chains):
+            print(f"    Chain {i}: cluster {ca}→{cb}, {len(ch)} px")
+
+        # Build a simplified multigraph: nodes = cluster ids, edges = chains
+        n_clusters = len(junc_clusters)
+        cluster_adj = {cid: [] for cid in range(n_clusters)}
+        for ci, (ca, cb, ch) in enumerate(chains):
+            cluster_adj[ca].append((ci, cb))
+            cluster_adj[cb].append((ci, ca))
+
+        # Find the main cycle using DFS on the simplified graph
+        # We want the longest simple cycle
+        best_cycle = None
+
+        def dfs_cycle(start_cid):
+            nonlocal best_cycle
+            # stack: (current_cluster, list_of_chain_indices, set_of_used_chains)
+            stack = [(start_cid, [], set())]
+            while stack:
+                cur_cid, path, used = stack.pop()
+                for ci, next_cid in cluster_adj[cur_cid]:
+                    if ci in used:
+                        continue
+                    if next_cid == start_cid and len(path) > 0:
+                        # Found a cycle
+                        cycle = path + [ci]
+                        if best_cycle is None or len(cycle) > len(best_cycle):
+                            best_cycle = cycle
+                        continue
+                    # Avoid revisiting clusters (except start)
+                    visited_clusters = {start_cid}
+                    for pci in path:
+                        ca, cb, _ = chains[pci]
+                        visited_clusters.add(ca)
+                        visited_clusters.add(cb)
+                    if next_cid in visited_clusters and next_cid != start_cid:
+                        continue
+                    new_used = used | {ci}
+                    stack.append((next_cid, path + [ci], new_used))
+
+        # Try starting from each cluster to find the best cycle
+        for start in range(n_clusters):
+            dfs_cycle(start)
+            if best_cycle and len(best_cycle) >= n_clusters:
+                break  # found a Hamiltonian cycle, can't do better
+
+        if best_cycle is None:
+            # Fallback: use the longest contour on the skeleton image.
+            skel_bin = (skel_mat > 0).astype(np.uint8)
+            contours, _ = cv2.findContours(
+                skel_bin, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE
+            )
+            if contours:
+                best_cnt = max(contours, key=lambda c: len(c))
+                cnt = best_cnt.reshape(-1, 2)  # x, y
+                pixel_path = [(int(y), int(x)) for x, y in cnt]
+                closed_loop = len(pixel_path) > 20
+                print(f"  Fallback contour walk: {len(pixel_path)} pixels")
+            else:
+                _save_gvd_debug(pixel_path=None, start_rc=None)
+                raise RuntimeError("Could not find a cycle in the simplified skeleton graph.")
+        else:
+            print(f"  Best cycle: {len(best_cycle)} chains (of {len(chains)})")
+
+            # Reconstruct pixel path from the chain cycle
+            # Determine correct chain orientation for each step
+            pixel_path = []
+            # Determine traversal direction for each chain in the cycle
+            first_chain = chains[best_cycle[0]]
+            # Start cluster for the cycle
+            if len(best_cycle) > 1:
+                second_chain = chains[best_cycle[1]]
+                # Figure out shared cluster between chain 0 and chain 1
+                c0_set = {first_chain[0], first_chain[1]}
+                c1_set = {second_chain[0], second_chain[1]}
+                shared = c0_set & c1_set
+                if shared:
+                    # Chain 0 should end at the shared cluster
+                    end_cluster = next(iter(shared))
+                    if first_chain[1] == end_cluster:
+                        pixel_path.extend(first_chain[2])
+                    else:
+                        pixel_path.extend(reversed(first_chain[2]))
+                else:
+                    pixel_path.extend(first_chain[2])
+            else:
+                pixel_path.extend(first_chain[2])
+
+            for step in range(1, len(best_cycle)):
+                ci = best_cycle[step]
+                ca, cb, ch = chains[ci]
+                # Connect to previous path
+                last_px = pixel_path[-1]
+                # Check which end of chain is closer to last_px
+                d_start = abs(ch[0][0] - last_px[0]) + abs(ch[0][1] - last_px[1])
+                d_end = abs(ch[-1][0] - last_px[0]) + abs(ch[-1][1] - last_px[1])
+                if d_start <= d_end:
+                    # Forward direction: skip first pixel if it overlaps
+                    start_idx = 1 if ch[0] == last_px or d_start == 0 else 0
+                    pixel_path.extend(ch[start_idx:])
+                else:
+                    # Reverse direction
+                    rev = list(reversed(ch))
+                    start_idx = 1 if rev[0] == last_px or d_end == 0 else 0
+                    pixel_path.extend(rev[start_idx:])
+
+            closed_loop = True  # we found a cycle
+
+    # Re-order path to start from the pixel with highest EDT
+    path_arr = np.array(pixel_path)
+    path_edt = edt[path_arr[:, 0], path_arr[:, 1]]
+    best_start = int(np.argmax(path_edt))
+    pixel_path = pixel_path[best_start:] + pixel_path[:best_start]
+
+    nr0, nc0 = pixel_path[0]
+    print(f"  Start pixel ({nr0},{nc0}), EDT={edt[nr0,nc0]:.1f}px, "
+          f"world=({origin[0]+nc0*resolution:.2f},"
+          f"{origin[1]+(h-1-nr0)*resolution:.2f})")
+    print(f"  Ring walk: {len(pixel_path)} pixels, closed={closed_loop}")
+
+    _save_gvd_debug(pixel_path=pixel_path, start_rc=(nr0, nc0))
+
+    if not closed_loop:
+        raise RuntimeError(
+            f"Ring walk collected {len(pixel_path)} pixels but could not "
+            "close the loop.  The GVD skeleton may be disconnected."
+        )
+
+    # ---- 5. Convert to world coords + half-widths -----------------------
+    pixel_path = np.array(pixel_path)
+    rows = pixel_path[:, 0]
+    cols = pixel_path[:, 1]
+
+    wx = origin[0] + cols * resolution
+    wy = origin[1] + (h - 1 - rows) * resolution
+    hw = edt[rows, cols] * resolution   # half-widths in metres
+
+    skel_world = np.column_stack([wx, wy])
+    pg     = float(np.linalg.norm(skel_world[-1] - skel_world[0]))
+    px_len = float(np.sum(np.linalg.norm(np.diff(skel_world, axis=0), axis=1)))
+    print(f"  Pixel path: {len(pixel_path)} pts, {px_len:.1f} m, "
+          f"loop_gap={pg:.3f} m")
+
+    # ---- 6. Remove near-duplicates → B-spline smooth + resample ---------
+    dd   = np.linalg.norm(np.diff(skel_world, axis=0), axis=1)
+    keep = np.concatenate([[True], dd > 0.005])
+    skel_world = skel_world[keep]
+    hw         = hw[keep]
+
+    closed = np.vstack([skel_world, skel_world[0]])
+    try:
+        tck, _ = splprep([closed[:, 0], closed[:, 1]],
+                         s=0, per=True)
+    except Exception as exc:
+        raise RuntimeError(f"B-spline on GVD skeleton loop failed: {exc}") from exc
+
+    u_new = np.linspace(0, 1, num_points, endpoint=False)
+    centerline      = np.array(splev(u_new, tck)).T
+    half_widths_out = np.interp(u_new,
+                                np.linspace(0, 1, len(hw), endpoint=False),
+                                hw)
+    return centerline, half_widths_out
+
+def load_map(map_yaml_path):
+    """
+    Load a ROS2 map from its YAML descriptor and PGM image.
+
+    Returns
+    -------
+    img : np.ndarray  -- grayscale image (uint8)
+    resolution : float -- meters per pixel
+    origin : np.ndarray -- [x, y, theta] world-frame origin
+    """
+    with open(map_yaml_path, 'r') as f:
+        config = yaml.safe_load(f)
+
+    resolution = float(config['resolution'])
+    origin = np.array(config['origin'], dtype=float)
+
+    image_path = config['image']
+    if not os.path.isabs(image_path):
+        image_path = os.path.join(os.path.dirname(map_yaml_path), image_path)
+
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    if img is None:
+        if not os.path.exists(image_path):
+            raise FileNotFoundError(f"Map image file does not exist: {image_path}")
+        try:
+            from PIL import Image
+            pil_img = Image.open(image_path).convert('L')
+            img = np.array(pil_img)
+            print(f"  Warning: cv2.imread failed, loaded via PIL instead")
+        except Exception:
+            raise FileNotFoundError(
+                f"Could not load map image: {image_path}\n"
+                f"  File exists but cv2.imread returned None.\n"
+                f"  Check: pip install opencv-python (or opencv-python-headless)"
+            )
+
+    # Read occupied_thresh from map YAML (ROS convention).
+    # Used to compute a consistent wall threshold across the pipeline.
+    occupied_thresh = float(config.get('occupied_thresh', 0.65))
+
+    # --- SLAM map preprocessing ---
+    # 0. Convert grey "unknown" pixels to wall (black).
+    #    SLAM maps use: 0=occupied (wall), 205=unknown, 254=free.
+    #    Unknown regions are outside the track and must be treated as wall
+    #    so the GVD sees exactly 2 obstacle components (outer + inner).
+    free_thresh = 240  # pixels >= this are free space
+    grey_mask = (img > 0) & (img < free_thresh)
+    if grey_mask.sum() > 0:
+        img[grey_mask] = 0
+        print(f"  Converted {grey_mask.sum()} grey/unknown pixels to wall (SLAM cleanup)")
+
+    # 1. Close small gaps in walls (SLAM maps often have 1-2 pixel wall gaps)
+    wall_thresh_tmp = int(255 * (1.0 - occupied_thresh))
+    wall_mask = (img < wall_thresh_tmp).astype(np.uint8)
+    kernel = np.ones((3, 3), np.uint8)
+    wall_closed = cv2.morphologyEx(wall_mask, cv2.MORPH_CLOSE, kernel, iterations=1)
+    gap_pixels = (wall_closed > 0) & (wall_mask == 0) & (img != 0)
+    if gap_pixels.sum() > 0:
+        # Fill gaps: set gap pixels to wall (black)
+        img[gap_pixels] = 0
+        print(f"  Closed {gap_pixels.sum()} wall gap pixels")
+
+    # 2. Pad map if free space touches any edge (SLAM map cropped too tight)
+    h, w = img.shape
+    free_mask = (img >= 240)
+    pad_needed = [
+        free_mask[0, :].any(),   # top
+        free_mask[-1, :].any(),  # bottom
+        free_mask[:, 0].any(),   # left
+        free_mask[:, -1].any(),  # right
+    ]
+    if any(pad_needed):
+        pad_px = 15  # pad by 15 pixels = 0.75m at 0.05m/px
+        # Pad with grey (205) = non-free, treated as wall
+        new_img = np.full((h + 2 * pad_px, w + 2 * pad_px), 205, dtype=np.uint8)
+        new_img[pad_px:pad_px + h, pad_px:pad_px + w] = img
+        img = new_img
+        # Adjust origin to account for the padding
+        origin[0] -= pad_px * resolution
+        origin[1] -= pad_px * resolution
+        sides = ['top', 'bottom', 'left', 'right']
+        padded_sides = [s for s, p in zip(sides, pad_needed) if p]
+        print(f"  Padded map by {pad_px}px ({padded_sides}): "
+              f"new size {img.shape[1]}x{img.shape[0]}")
+
+    return img, resolution, origin, occupied_thresh
+
+
+def extract_outer_boundary(img, resolution, origin, wall_thresh=140):
+    """
+    Extract the outer track boundary from a SLAM map image.
+
+    The outer wall is the largest free-space contour.  This is used to
+    estimate the track perimeter for auto-scaling the number of centerline
+    waypoints.
+
+    Parameters
+    ----------
+    wall_thresh : int
+        Pixel values >= wall_thresh are considered free space.
+
+    Returns
+    -------
+    outer_world : np.ndarray, shape (N, 2) -- outer boundary in world coords
+    """
+    free_space = (img >= wall_thresh).astype(np.uint8)
+    contours, _ = cv2.findContours(
+        free_space, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
+    )
+    if not contours:
+        raise RuntimeError("No contours found in the map image")
+
+    # Largest contour = outer wall of the track
+    outer = max(contours, key=cv2.contourArea).reshape(-1, 2)
+
+    # Convert pixel coords → world coords
+    outer_world = np.zeros((len(outer), 2))
+    outer_world[:, 0] = outer[:, 0] * resolution + origin[0]
+    outer_world[:, 1] = (img.shape[0] - outer[:, 1]) * resolution + origin[1]
+    print(f"  Outer boundary: {len(outer_world)} points")
+    return outer_world
+
+
+
+
+
+def detect_winding_direction(centerline):
+    """
+    Detect the winding direction (CW vs CCW) of a closed centerline.
+
+    Uses the signed area (shoelace formula).
+    Returns 'ccw' if counter-clockwise, 'cw' if clockwise.
+    """
+    n = len(centerline)
+    signed_area = 0.0
+    for i in range(n):
+        j = (i + 1) % n
+        signed_area += centerline[i, 0] * centerline[j, 1]
+        signed_area -= centerline[j, 0] * centerline[i, 1]
+    return 'ccw' if signed_area > 0 else 'cw'
+
+
+def measure_track_widths(centerline, map_img, resolution, origin,
+                         max_dist=5.0, wall_thresh=140,
+                         left_normals=None,
+                         boundary_smooth_sigma_px=4.0):
+    """
+    Measure track widths by intersecting centerline normals with the extracted
+    track boundary contours.  Falls back to pixel ray-casting only if a normal
+    does not intersect a boundary cleanly.
+
+    Parameters
+    ----------
+    centerline : np.ndarray, shape (N, 2)
+    map_img : np.ndarray -- grayscale image
+    resolution : float -- meters per pixel
+    origin : np.ndarray -- map origin [x, y, theta]
+    max_dist : float -- maximum ray-cast distance in metres
+    wall_thresh : int -- pixel values >= this are free space (must match
+        compute_wall_distances.py threshold to avoid grey-zone errors)
+    left_normals : np.ndarray, optional -- normalized normals pointing to the
+        left side of the track.  If omitted, normals are estimated from the
+        centerline.  Supplying these lets the width measurement match the
+        exact spline normals used by the optimizer.
+    boundary_smooth_sigma_px : float -- smoothing applied to extracted wall
+        contours before normal intersection.  This removes pixel/branch spikes
+        from optimizer constraints without smoothing the centerline.
+
+    Returns
+    -------
+    w_right : np.ndarray, shape (N,) -- distance to right wall
+    w_left  : np.ndarray, shape (N,) -- distance to left wall
+    """
+    # Consistent wall threshold: pixels below wall_thresh are walls.
+    free = (map_img >= wall_thresh).astype(np.uint8)
+
+    # Robust casting mask: close tiny wall gaps / pinholes for ray tests.
+    free_cast = cv2.morphologyEx(
+        free,
+        cv2.MORPH_CLOSE,
+        np.ones((3, 3), np.uint8),
+        iterations=1,
+    )
+
+    n = len(centerline)
+    h, w = map_img.shape[:2]
+
+    def _world_to_grid_xy(pt_xy):
+        """World [x,y] -> image [row,col], with nearest-pixel rounding."""
+        col_f = (pt_xy[0] - origin[0]) / resolution
+        row_f = h - (pt_xy[1] - origin[1]) / resolution
+        return int(np.round(row_f)), int(np.round(col_f))
+
+    def _cross2(a, b):
+        """2D cross product with numpy broadcasting."""
+        return a[..., 0] * b[..., 1] - a[..., 1] * b[..., 0]
+
+    # Extract all white free-space boundary loops: the outer edge plus holes
+    # such as the inner island.  These are the walls normals are allowed to hit.
+    contours, _ = cv2.findContours(
+        (free * 255).astype(np.uint8),
+        cv2.RETR_LIST,
+        cv2.CHAIN_APPROX_NONE,
+    )
+    segment_starts = []
+    segment_ends = []
+    kept_contours = 0
+    for contour in contours:
+        contour_xy_raw = contour.reshape(-1, 2)
+        if len(contour_xy_raw) < 3 or abs(cv2.contourArea(contour_xy_raw)) < 5.0:
+            continue
+        contour_xy = contour_xy_raw.astype(float)
+        if boundary_smooth_sigma_px and len(contour_xy) > 8:
+            from scipy.ndimage import gaussian_filter1d
+            contour_xy = np.column_stack([
+                gaussian_filter1d(
+                    contour_xy[:, 0],
+                    sigma=boundary_smooth_sigma_px,
+                    mode='wrap',
+                ),
+                gaussian_filter1d(
+                    contour_xy[:, 1],
+                    sigma=boundary_smooth_sigma_px,
+                    mode='wrap',
+                ),
+            ])
+        pts_world = np.column_stack([
+            origin[0] + contour_xy[:, 0].astype(float) * resolution,
+            origin[1] + (h - contour_xy[:, 1].astype(float)) * resolution,
+        ])
+        segment_starts.append(pts_world)
+        segment_ends.append(np.roll(pts_world, -1, axis=0))
+        kept_contours += 1
+
+    if not segment_starts:
+        raise RuntimeError("No free-space boundary contours found for width measurement.")
+
+    seg_a = np.vstack(segment_starts)
+    seg_b = np.vstack(segment_ends)
+    seg_vec = seg_b - seg_a
+    print(f"  Boundary contours: {kept_contours}, segments: {len(seg_a)}")
+
+    if left_normals is None:
+        # Compute tangent vectors via periodic central differences on a lightly
+        # smoothed centerline to reduce normal jitter in raw width estimates.
+        # This is less noisy than forward differences and avoids a hard normal
+        # discontinuity at the wrap-around index.
+        from scipy.ndimage import gaussian_filter1d
+        cx = gaussian_filter1d(centerline[:, 0], sigma=1.2, mode='wrap')
+        cy = gaussian_filter1d(centerline[:, 1], sigma=1.2, mode='wrap')
+        cl_smooth = np.column_stack([cx, cy])
+        tangents = np.roll(cl_smooth, -1, axis=0) - np.roll(cl_smooth, 1, axis=0)
+        t_len = np.linalg.norm(tangents, axis=1, keepdims=True)
+        tangents = tangents / np.maximum(t_len, 1e-6)
+
+        # Normal: rotate tangent 90 deg CCW  ->  (-ty, tx)
+        normals = np.column_stack([-tangents[:, 1], tangents[:, 0]])
+    else:
+        normals = np.asarray(left_normals, dtype=float)
+        if normals.shape != centerline.shape:
+            raise ValueError(
+                "left_normals must have the same shape as centerline "
+                f"({centerline.shape}), got {normals.shape}"
+            )
+        norm_len = np.linalg.norm(normals, axis=1, keepdims=True)
+        normals = normals / np.maximum(norm_len, 1e-9)
+
+    # Enforce normal sign continuity to avoid local +/- flips that create
+    # side-swaps and sharp spikes in measured boundaries.
+    for i in range(1, n):
+        if np.dot(normals[i], normals[i - 1]) < 0.0:
+            normals[i] *= -1.0
+    # Keep wrap-around consistent with index 0 orientation.
+    if np.dot(normals[-1], normals[0]) < 0.0:
+        normals[-1] *= -1.0
+
+    w_right = np.zeros(n)
+    w_left = np.zeros(n)
+    # Sub-pixel stepping: smaller step for better corner hit detection.
+    step_size = max(resolution * 0.10, 0.0010)
+
+    def _raycast_distance(center_pt, direction):
+        for d in np.arange(step_size, max_dist, step_size):
+            pt = center_pt + d * direction
+            row, col = _world_to_grid_xy(pt)
+            if not (0 <= row < h and 0 <= col < w) or not free_cast[row, col]:
+                return d
+        return max_dist
+
+    def _contour_candidates(center_pt, direction, max_candidates=8):
+        rel_seg = seg_a - center_pt
+        denom = _cross2(direction, seg_vec)
+        valid = np.abs(denom) > 1e-9
+        t_seg = np.full(len(seg_a), np.inf)
+        u_seg = np.full(len(seg_a), np.inf)
+        t_seg[valid] = _cross2(rel_seg[valid], seg_vec[valid]) / denom[valid]
+        u_seg[valid] = _cross2(rel_seg[valid], direction) / denom[valid]
+        valid_hit = (
+            valid
+            & (t_seg > 0.0)
+            & (t_seg <= max_dist)
+            & (u_seg >= -1e-9)
+            & (u_seg <= 1.0 + 1e-9)
+        )
+
+        if np.any(valid_hit):
+            dists = t_seg[valid_hit]
+            order = np.argsort(dists)[:max_candidates]
+            dists = dists[order]
+            points = center_pt + dists[:, None] * direction
+            return dists.astype(float), points.astype(float), False
+
+        dist = _raycast_distance(center_pt, direction)
+        point = center_pt + dist * direction
+        return np.array([dist], dtype=float), np.array([point], dtype=float), True
+
+    def _select_continuous_widths(side_name, directions):
+        cand_dists = []
+        cand_points = []
+        fallback_count = 0
+        for i in range(n):
+            dists_i, points_i, used_fallback = _contour_candidates(
+                centerline[i],
+                directions[i],
+            )
+            cand_dists.append(dists_i)
+            cand_points.append(points_i)
+            fallback_count += int(used_fallback)
+
+        # Start DP at the most constrained normal to avoid an arbitrary seam
+        # deciding which wall branch the sequence follows.
+        seed = int(np.argmin([len(d) for d in cand_dists]))
+        order = [(seed + k) % n for k in range(n)]
+        d_rot = [cand_dists[i] for i in order]
+        p_rot = [cand_points[i] for i in order]
+
+        dist_weight = 0.05
+        width_jump_weight = 1.5
+        backward_weight = 6.0
+        closure_weight = 1.0
+        best_total = np.inf
+        best_path = None
+        seed_count = len(d_rot[0])
+
+        for seed_choice in range(seed_count):
+            dp_prev = np.full(seed_count, np.inf)
+            dp_prev[seed_choice] = dist_weight * d_rot[0][seed_choice]
+            parents = []
+
+            for k in range(1, n):
+                prev_pts = p_rot[k - 1]
+                cur_pts = p_rot[k]
+                move = cur_pts[None, :, :] - prev_pts[:, None, :]
+                continuity = np.linalg.norm(move, axis=2)
+
+                cl_step = centerline[order[k]] - centerline[order[k - 1]]
+                cl_step_norm = float(np.linalg.norm(cl_step))
+                if cl_step_norm > 1e-9:
+                    cl_dir = cl_step / cl_step_norm
+                    progress = np.einsum('ijk,k->ij', move, cl_dir)
+                    backward_penalty = backward_weight * np.maximum(0.0, -progress)
+                else:
+                    backward_penalty = 0.0
+
+                width_jump = np.abs(d_rot[k - 1][:, None] - d_rot[k][None, :])
+                cost = (
+                    dp_prev[:, None]
+                    + continuity
+                    + backward_penalty
+                    + width_jump_weight * width_jump
+                    + dist_weight * d_rot[k][None, :]
+                )
+                parent = np.argmin(cost, axis=0)
+                dp_cur = cost[parent, np.arange(len(d_rot[k]))]
+                parents.append(parent)
+                dp_prev = dp_cur
+
+            closure = np.linalg.norm(
+                p_rot[-1] - p_rot[0][seed_choice],
+                axis=1,
+            )
+            total_cost = dp_prev + closure_weight * closure
+            end_choice = int(np.argmin(total_cost))
+            total = float(total_cost[end_choice])
+            if total < best_total:
+                best_total = total
+                path = [0] * n
+                path[-1] = end_choice
+                for k in range(n - 2, -1, -1):
+                    path[k] = int(parents[k][path[k + 1]])
+                path[0] = seed_choice
+                best_path = path
+
+        widths_rot = np.array([
+            d_rot[k][best_path[k]]
+            for k in range(n)
+        ])
+        widths = np.empty(n, dtype=float)
+        for k, original_i in enumerate(order):
+            widths[original_i] = widths_rot[k]
+
+        # The first intersection along a normal is the physical wall of the
+        # current driveable corridor.  The continuity tracker above can
+        # occasionally lock onto a farther contour branch on dense tracks,
+        # creating cross-track boundary spikes.  Keep continuity when it agrees
+        # with the nearest hit, but reject skipped-nearest-wall solutions.
+        nearest_widths = np.array([float(d[0]) for d in cand_dists])
+        skipped_nearest = widths > np.maximum(
+            nearest_widths + 0.20,
+            nearest_widths * 1.25,
+        )
+        if np.any(skipped_nearest):
+            widths[skipped_nearest] = nearest_widths[skipped_nearest]
+            print(
+                f"  Width nearest-wall guard ({side_name}): "
+                f"{int(skipped_nearest.sum())} branch hops corrected"
+            )
+
+        raycast_widths = np.array([
+            _raycast_distance(centerline[i], directions[i])
+            for i in range(n)
+        ])
+        raycast_caps = widths > np.maximum(
+            raycast_widths + 0.05,
+            raycast_widths * 1.10,
+        )
+        if np.any(raycast_caps):
+            widths[raycast_caps] = raycast_widths[raycast_caps]
+            print(
+                f"  Width ray-cast guard ({side_name}): "
+                f"{int(raycast_caps.sum())} contour misses corrected"
+            )
+
+        if fallback_count:
+            print(f"  Width fallback ray-casts ({side_name}): {fallback_count}")
+        print(
+            f"  Width continuity tracking ({side_name}): "
+            f"seed={seed}, candidates={sum(len(d) for d in cand_dists)}"
+        )
+        return widths
+
+    w_left = _select_continuous_widths('left', normals)
+    w_right = _select_continuous_widths('right', -normals)
+
+    def _clamp_long_outliers_to_local_median(widths, side_name, window=21, factor=1.5):
+        out = np.asarray(widths, dtype=float).copy()
+        half = window // 2
+        n_clamped = 0
+        for i in range(n):
+            idx = [(i + k) % n for k in range(-half, half + 1) if k != 0]
+            local_median = float(np.median(out[idx]))
+            if local_median > 1e-6 and out[i] > factor * local_median:
+                out[i] = local_median
+                n_clamped += 1
+        if n_clamped:
+            print(
+                f"  Width outlier clamp ({side_name}): "
+                f"{n_clamped} points > {factor:.1f}x local median"
+            )
+        return out
+
+    w_left = _clamp_long_outliers_to_local_median(w_left, 'left')
+    w_right = _clamp_long_outliers_to_local_median(w_right, 'right')
+
+    return w_right, w_left
+
+
+
+def _world_to_pixel(points_xy, map_img, resolution, origin):
+    """Convert Nx2 world coordinates to pixel coordinates for plotting."""
+    px = (points_xy[:, 0] - origin[0]) / resolution
+    py = map_img.shape[0] - (points_xy[:, 1] - origin[1]) / resolution
+    return px, py
+
+
+def plot_prepared_optimizer_track(map_img, resolution, origin,
+                                  prepared_track, output_path):
+    """Plot the exact reference spline and bounds sent to the optimizer."""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
+    reftrack = prepared_track['reftrack_interp']
+    normals = prepared_track['normvec_normalized_interp']
+    coeffs_x = prepared_track['coeffs_x_interp']
+    coeffs_y = prepared_track['coeffs_y_interp']
+
+    samples_per_segment = 8
+    t = np.linspace(0.0, 1.0, samples_per_segment, endpoint=False)
+    spline_pts = []
+    for cx, cy in zip(coeffs_x, coeffs_y):
+        x = cx[0] + cx[1] * t + cx[2] * t**2 + cx[3] * t**3
+        y = cy[0] + cy[1] * t + cy[2] * t**2 + cy[3] * t**3
+        spline_pts.append(np.column_stack([x, y]))
+    spline_pts = np.vstack(spline_pts)
+
+    right_boundary = reftrack[:, :2] + normals * reftrack[:, 2:3]
+    left_boundary = reftrack[:, :2] - normals * reftrack[:, 3:4]
+    center_steps = np.linalg.norm(
+        np.diff(np.vstack([reftrack[:, :2], reftrack[0, :2]]), axis=0),
+        axis=1,
+    )
+    boundary_plot_jump = max(0.30, 3.0 * float(np.median(center_steps)))
+    free_for_plot = map_img >= 240
+
+    def _segment_crosses_free_space(p0, p1, samples=9):
+        ts = np.linspace(0.0, 1.0, samples + 2)[1:-1]
+        pts = p0[None, :] + ts[:, None] * (p1 - p0)[None, :]
+        cols = np.rint((pts[:, 0] - origin[0]) / resolution).astype(int)
+        rows = np.rint(map_img.shape[0] - (pts[:, 1] - origin[1]) / resolution).astype(int)
+        in_bounds = (
+            (rows >= 0) & (rows < map_img.shape[0])
+            & (cols >= 0) & (cols < map_img.shape[1])
+        )
+        if not np.any(in_bounds):
+            return True
+        return np.mean(free_for_plot[rows[in_bounds], cols[in_bounds]]) > 0.35
+
+    def _plot_boundary_with_gaps(boundary_world, color, label):
+        boundary_closed = np.vstack([boundary_world, boundary_world[0]])
+        jumps = np.linalg.norm(np.diff(boundary_closed, axis=0), axis=1)
+        plot_pts = []
+        for i, pt in enumerate(boundary_world):
+            plot_pts.append(pt)
+            next_pt = boundary_closed[i + 1]
+            if (jumps[i] > boundary_plot_jump
+                    or _segment_crosses_free_space(pt, next_pt)):
+                plot_pts.append([np.nan, np.nan])
+        plot_pts = np.asarray(plot_pts, dtype=float)
+        ax.plot(
+            *_world_to_pixel(plot_pts, map_img, resolution, origin),
+            color=color,
+            linewidth=1.0,
+            label=label,
+        )
+
+    spline_px = _world_to_pixel(spline_pts, map_img, resolution, origin)
+    center_px = _world_to_pixel(reftrack[:, :2], map_img, resolution, origin)
+
+    fig, ax = plt.subplots(figsize=(12, 12))
+    ax.imshow(map_img, cmap='gray')
+    ax.plot(*spline_px, color='lime', linewidth=1.6, label='optimizer spline')
+    ax.scatter(*center_px, s=8, color='blue', label='optimizer points', zorder=4)
+    _plot_boundary_with_gaps(right_boundary, 'red', 'right boundary')
+    _plot_boundary_with_gaps(left_boundary, 'deepskyblue', 'left boundary')
+
+    # Draw the exact normal-width segments used as optimizer constraints.
+    for c, r, l in zip(reftrack[:, :2], right_boundary, left_boundary):
+        cr_px = _world_to_pixel(np.vstack([l, c, r]), map_img, resolution, origin)
+        ax.plot(*cr_px, color='white', linewidth=0.25, alpha=0.35)
+
+    ax.set_aspect('equal')
+    ax.set_title('Prepared optimizer spline and bounds')
+    ax.legend(loc='upper right')
+    ax.axis('off')
+    plt.tight_layout()
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    plt.savefig(output_path, dpi=160)
+    plt.close(fig)
+    print(f"  TEMP DEBUG: Saved prepared optimizer spline plot: {output_path}")
+
+
+def _plot_width_boundaries(ax, centerline, w_right, w_left, color_r, color_l):
+    """Plot left/right boundary curves from centerline plus side widths."""
+    from scipy.ndimage import gaussian_filter1d
+
+    # Match the normal construction used by width measurement to ensure
+    # debug plots reflect actual measured geometry (no plotting-only hooks).
+    cx = gaussian_filter1d(centerline[:, 0], sigma=1.2, mode='wrap')
+    cy = gaussian_filter1d(centerline[:, 1], sigma=1.2, mode='wrap')
+    cl_smooth = np.column_stack([cx, cy])
+    tangent = np.roll(cl_smooth, -1, axis=0) - np.roll(cl_smooth, 1, axis=0)
+    tnorm = np.linalg.norm(tangent, axis=1, keepdims=True)
+    tangent = tangent / np.maximum(tnorm, 1e-9)
+    normal = np.column_stack([-tangent[:, 1], tangent[:, 0]])
+
+    # Enforce sign continuity around the loop.
+    for i in range(1, len(normal)):
+        if np.dot(normal[i], normal[i - 1]) < 0.0:
+            normal[i] *= -1.0
+    if np.dot(normal[-1], normal[0]) < 0.0:
+        normal[-1] *= -1.0
+
+    right_b = centerline - normal * np.asarray(w_right)[:, None]
+    left_b = centerline + normal * np.asarray(w_left)[:, None]
+    return right_b, left_b
+
+
+def save_tum_track_csv(centerline, w_right, w_left, output_path):
+    """
+    Save centerline + track widths in the TUM global optimizer input format.
+
+    Format: ``# x_m, y_m, w_tr_right_m, w_tr_left_m``
+    """
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with open(output_path, 'w') as f:
+        f.write('# x_m, y_m, w_tr_right_m, w_tr_left_m\n')
+        for i in range(len(centerline)):
+            f.write(
+                f'{centerline[i, 0]:.6f}, {centerline[i, 1]:.6f}, '
+                f'{w_right[i]:.4f}, {w_left[i]:.4f}\n'
+            )
+    print(f"  Saved TUM track CSV: {output_path}")
+    print(f"  Points: {len(centerline)}, "
+          f"avg width right: {w_right.mean():.3f} m, "
+          f"avg width left: {w_left.mean():.3f} m")
+
+
+def resample_closed_centerline(centerline, spacing):
+    """
+    Resample an ordered closed centerline by arc length.
+
+    This is deliberately simpler than TUM's ``spline_approximation`` step:
+    Step 0 already created a good centerline from the map, so here we only
+    choose a stable point spacing for the nonlinear optimizer.
+    """
+    pts = np.asarray(centerline, dtype=float)
+    if spacing <= 0.0:
+        raise ValueError("spacing must be positive")
+    if pts.ndim != 2 or pts.shape[1] != 2:
+        raise ValueError("centerline must be an Nx2 array")
+    if len(pts) < 4:
+        raise ValueError("Need at least 4 centerline points for closed resampling")
+
+    # Drop duplicated seam/near-duplicate samples before building the periodic
+    # spline parameter.  CubicSpline requires strictly increasing arc length.
+    min_dist = 1e-4
+    cleaned = [pts[0]]
+    for pt in pts[1:]:
+        if np.linalg.norm(pt - cleaned[-1]) > min_dist:
+            cleaned.append(pt)
+    if len(cleaned) > 1 and np.linalg.norm(cleaned[-1] - cleaned[0]) < min_dist:
+        cleaned.pop()
+    pts = np.asarray(cleaned, dtype=float)
+    if len(pts) < 4:
+        raise ValueError("Too few unique centerline points after duplicate removal")
+
+    closed = np.vstack([pts, pts[0]])
+    seg_lengths = np.linalg.norm(np.diff(closed, axis=0), axis=1)
+    if np.any(seg_lengths <= 1e-6):
+        raise ValueError("Centerline still contains zero-length segments")
+
+    s = np.concatenate([[0.0], np.cumsum(seg_lengths)])
+    total_length = float(s[-1])
+    n_points = max(20, int(np.ceil(total_length / spacing)))
+    s_new = np.linspace(0.0, total_length, n_points, endpoint=False)
+
+    spline_x = CubicSpline(s, closed[:, 0], bc_type='periodic')
+    spline_y = CubicSpline(s, closed[:, 1], bc_type='periodic')
+    resampled = np.column_stack([spline_x(s_new), spline_y(s_new)])
+    actual_spacing = total_length / n_points
+
+    return resampled, total_length, actual_spacing
+
+
+def build_prepared_optimizer_track(centerline, map_img, resolution, origin,
+                                   wall_thresh, max_ray_distance,
+                                   car_width, optimizer_spacing,
+                                   optimizer_smoothing_s=0.0,
+                                   optimizer_smoothing_k=2,
+                                   optimizer_smoothing_prep_spacing=0.02):
+    """
+    Build the exact reference-track arrays consumed by TUM's mintime optimizer.
+
+    The important bit: we bypass TUM's full ``prep_track`` loader, but still
+    use TUM's spline smoother and ``tph.calc_splines`` so the optimizer
+    receives the coefficient matrices and normal-vector convention it expects.
+    """
+    import trajectory_planning_helpers as tph
+
+    opt_centerline, track_length, actual_spacing = resample_closed_centerline(
+        centerline,
+        optimizer_spacing,
+    )
+    print(
+        f"  Prepared optimizer centerline: {len(opt_centerline)} points, "
+        f"{track_length:.1f} m, spacing={actual_spacing:.3f} m"
+    )
+
+    if optimizer_smoothing_s and optimizer_smoothing_s > 0.0:
+        print(
+            "  Applying TUM spline smoother to optimizer centerline: "
+            f"k={optimizer_smoothing_k}, s={optimizer_smoothing_s:.3f}"
+        )
+        dummy_width = np.ones(len(opt_centerline), dtype=float)
+        smooth_input = np.column_stack([opt_centerline, dummy_width, dummy_width])
+        smooth_track = tph.spline_approximation.spline_approximation(
+            track=smooth_input,
+            k_reg=optimizer_smoothing_k,
+            s_reg=optimizer_smoothing_s,
+            stepsize_prep=optimizer_smoothing_prep_spacing,
+            stepsize_reg=optimizer_spacing,
+            debug=True,
+        )
+        opt_centerline = smooth_track[:, :2]
+        smooth_closed = np.vstack([opt_centerline, opt_centerline[0]])
+        smooth_lengths = np.linalg.norm(np.diff(smooth_closed, axis=0), axis=1)
+        track_length = float(np.sum(smooth_lengths))
+        actual_spacing = track_length / len(opt_centerline)
+        print(
+            f"  Smoothed optimizer centerline: {len(opt_centerline)} points, "
+            f"{track_length:.1f} m, spacing={actual_spacing:.3f} m"
+        )
+
+    refpath_closed = np.vstack([opt_centerline, opt_centerline[0]])
+    coeffs_x, coeffs_y, a_interp, normvec_right = tph.calc_splines.calc_splines(
+        path=refpath_closed,
+    )
+
+    # TPH normals point to the right side of the track.  The width measurer
+    # accepts left normals, so use the opposite direction here.  This keeps
+    # width_right aligned with +normvec_right inside opt_mintime().
+    print("  Measuring optimizer-track widths with final spline normals...")
+    w_right, w_left = measure_track_widths(
+        opt_centerline,
+        map_img,
+        resolution,
+        origin,
+        max_dist=max_ray_distance,
+        wall_thresh=wall_thresh,
+        left_normals=-normvec_right,
+    )
+
+    car_half = car_width / 2.0
+    w_right = np.maximum(w_right, car_half)
+    w_left = np.maximum(w_left, car_half)
+
+    reftrack_interp = np.column_stack([opt_centerline, w_right, w_left])
+
+    normals_crossing = tph.check_normals_crossing.check_normals_crossing(
+        track=reftrack_interp,
+        normvec_normalized=normvec_right,
+        horizon=10,
+    )
+    if normals_crossing:
+        print(
+            "  WARNING: Prepared optimizer track has normal crossings. "
+            "Continuing without local width caps to avoid artificial spikes."
+        )
+
+    total_width = w_right + w_left
+    print(
+        f"  Prepared optimizer widths: "
+        f"right=[{np.min(w_right):.3f}, {np.max(w_right):.3f}] m, "
+        f"left=[{np.min(w_left):.3f}, {np.max(w_left):.3f}] m, "
+        f"total_min={np.min(total_width):.3f} m"
+    )
+
+    return {
+        'reftrack_interp': reftrack_interp,
+        'normvec_normalized_interp': normvec_right,
+        'a_interp': a_interp,
+        'coeffs_x_interp': coeffs_x,
+        'coeffs_y_interp': coeffs_y,
+    }
+
+
+def save_prepared_optimizer_track(prepared_track, output_path):
+    """Save prepared optimizer arrays for loading inside main_globaltraj.py."""
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    np.savez(
+        output_path,
+        reftrack_interp=prepared_track['reftrack_interp'],
+        normvec_normalized_interp=prepared_track['normvec_normalized_interp'],
+        a_interp=prepared_track['a_interp'],
+        coeffs_x_interp=prepared_track['coeffs_x_interp'],
+        coeffs_y_interp=prepared_track['coeffs_y_interp'],
+    )
+    print(f"  Saved prepared optimizer track: {output_path}")
+
+
+# =============================================================================
+#  Step 1 -- TUM optimizer helpers (kept from original)
+# =============================================================================
+
+def _is_track_name_assignment(line):
+    """Return True only for lines that ASSIGN file_paths["track_name"]."""
+    # Strip comments for the test
+    code = line.split('#')[0]
+    # Must be an assignment: file_paths["track_name"] = "..."
+    return 'file_paths["track_name"]' in code and '=' in code and '+' not in code
+
+
+def set_track_in_main(main_py_path, track_name):
+    """Set the track name in main_globaltraj.py."""
+    with open(main_py_path, 'r') as f:
+        content = f.read()
+
+    lines = content.split('\n')
+    new_lines = []
+    track_set = False
+    for line in lines:
+        if _is_track_name_assignment(line):
+            stripped = line.lstrip()
+            if stripped.startswith('#'):
+                # Commented line -- uncomment if it matches our track
+                if f'"{track_name}"' in line:
+                    idx = line.index('#')
+                    new_lines.append(line[:idx] + stripped[2:])
+                    track_set = True
+                else:
+                    new_lines.append(line)
+            else:
+                # Active line -- keep if it matches, else comment out
+                if f'"{track_name}"' in line:
+                    new_lines.append(line)
+                    track_set = True
+                else:
+                    new_lines.append('# ' + line)
+        else:
+            new_lines.append(line)
+
+    if not track_set:
+        # Add track line after last track_name assignment (including commented)
+        # Only match lines that look like assignments (not usage like + ".csv")
+        for i in range(len(new_lines) - 1, -1, -1):
+            stripped = new_lines[i].lstrip().lstrip('#').lstrip()
+            if (stripped.startswith('file_paths["track_name"]')
+                    and '=' in stripped
+                    and '+' not in stripped):
+                new_lines.insert(
+                    i + 1,
+                    f'file_paths["track_name"] = "{track_name}"'
+                    f'                                    # set by optimize_trajectory.py',
+                )
+                break
+
+    with open(main_py_path, 'w') as f:
+        f.write('\n'.join(new_lines))
+
+
+def set_opt_type_in_main(main_py_path, opt_type):
+    """Set the optimization type in main_globaltraj.py."""
+    with open(main_py_path, 'r') as f:
+        content = f.read()
+
+    content = re.sub(
+        r"^(opt_type\s*=\s*).*$",
+        f"opt_type = '{opt_type}'",
+        content,
+        flags=re.MULTILINE,
+    )
+
+    with open(main_py_path, 'w') as f:
+        f.write(content)
+
+
+def set_mintime_bool_option_in_main(main_py_path, option_name, enabled):
+    """Toggle a boolean option in TUM's ``mintime_opts`` dict."""
+    with open(main_py_path, 'r') as f:
+        content = f.read()
+
+    replacement = f'"{option_name}": {str(enabled)}'
+    content, count = re.subn(
+        rf'"{re.escape(option_name)}":\s*(True|False)',
+        replacement,
+        content,
+        count=1,
+    )
+    if count != 1:
+        raise RuntimeError(f"Could not find {option_name} in main_globaltraj.py")
+
+    with open(main_py_path, 'w') as f:
+        f.write(content)
+
+
+def _original_prep_track_block():
+    """Return TUM's original reference-track preparation block."""
+    return [
+        'reftrack_interp, normvec_normalized_interp, a_interp, coeffs_x_interp, coeffs_y_interp = \\',
+        '    helper_funcs_glob.src.prep_track.prep_track(reftrack_imp=reftrack_imp,',
+        '                                                reg_smooth_opts=pars["reg_smooth_opts"],',
+        '                                                stepsize_opts=pars["stepsize_opts"],',
+        '                                                debug=debug,',
+        '                                                min_width=imp_opts["min_track_width"])',
+        '',
+    ]
+
+
+def restore_main_prep_track_if_needed(main_py_path):
+    """
+    Restore ``main_globaltraj.py`` if a previous interrupted run left our
+    prepared-track loader patch in place.
+    """
+    with open(main_py_path, 'r') as f:
+        lines = f.read().splitlines()
+
+    start = None
+    for i, line in enumerate(lines):
+        if line.startswith('prepared_track_file = r"'):
+            start = i
+            break
+    if start is None:
+        return False
+
+    end = None
+    for i in range(start + 1, len(lines)):
+        if lines[i].startswith('# ----------------------------------------------------------------------------------------------------------------------'):
+            end = i
+            break
+    if end is None:
+        raise RuntimeError("Could not find end of prepared-track patch in main_globaltraj.py")
+
+    lines[start:end] = _original_prep_track_block()
+    with open(main_py_path, 'w') as f:
+        f.write('\n'.join(lines) + '\n')
+    return True
+
+
+def patch_main_to_load_prepared_track(main_py_path, prepared_track_path):
+    """
+    Patch TUM's main script so it loads our prepared arrays instead of calling
+    helper_funcs_glob.src.prep_track.prep_track().
+
+    The wrapper restores the original file in a ``finally`` block after the
+    subprocess exits.
+    """
+    with open(main_py_path, 'r') as f:
+        lines = f.read().splitlines()
+
+    start = None
+    for i, line in enumerate(lines):
+        if line.startswith('reftrack_interp, normvec_normalized_interp, a_interp, coeffs_x_interp, coeffs_y_interp ='):
+            start = i
+            break
+    if start is None:
+        if restore_main_prep_track_if_needed(main_py_path):
+            with open(main_py_path, 'r') as f:
+                lines = f.read().splitlines()
+            for i, line in enumerate(lines):
+                if line.startswith('reftrack_interp, normvec_normalized_interp, a_interp, coeffs_x_interp, coeffs_y_interp ='):
+                    start = i
+                    break
+        if start is None:
+            raise RuntimeError("Could not find prep_track assignment in main_globaltraj.py")
+
+    end = None
+    for i in range(start, len(lines)):
+        if 'min_width=imp_opts["min_track_width"])' in lines[i]:
+            end = i + 1
+            break
+    if end is None:
+        raise RuntimeError("Could not find end of prep_track call in main_globaltraj.py")
+
+    replacement = [
+        f'prepared_track_file = r"{prepared_track_path}"',
+        'if not os.path.exists(prepared_track_file):',
+        '    raise FileNotFoundError(f"Prepared track file not found: {prepared_track_file}")',
+        'prepared_track = np.load(prepared_track_file)',
+        'reftrack_interp = prepared_track["reftrack_interp"]',
+        'normvec_normalized_interp = prepared_track["normvec_normalized_interp"]',
+        'a_interp = prepared_track["a_interp"]',
+        'coeffs_x_interp = prepared_track["coeffs_x_interp"]',
+        'coeffs_y_interp = prepared_track["coeffs_y_interp"]',
+        'if debug:',
+        '    print(f"INFO: Loaded prepared reference track: {prepared_track_file}")',
+        '    print(f"INFO: Prepared reference points: {reftrack_interp.shape[0]}")',
+    ]
+
+    lines[start:end] = replacement
+    with open(main_py_path, 'w') as f:
+        f.write('\n'.join(lines) + '\n')
+
+
+# =============================================================================
+#  Step 2 -- TUM -> MPC format conversion (kept from original)
+# =============================================================================
+
+def convert_tum_to_mpc(input_csv, output_csv, max_speed=None, min_speed=None):
+    """
+    Convert TUM global optimizer output to MPC-compatible CSV.
+
+    Changes:
+      - Delimiter: semicolon -> comma
+      - Heading: psi += pi/2, wrapped to [-pi, pi]
+      - Header: standardised to ``# s_m,x_m,y_m,...``
+      - Optional: clamp velocity to [min_speed, max_speed]
+    """
+    rows = []
+    with open(input_csv, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            parts = [p.strip() for p in line.split(';')]
+            if len(parts) < 7:
+                continue
+            rows.append(parts)
+
+    clamped_hi = 0
+    clamped_lo = 0
+    with open(output_csv, 'w') as f:
+        f.write('# s_m,x_m,y_m,psi_rad,kappa_radpm,vx_mps,ax_mps2\n')
+        for row in rows:
+            # Apply psi + pi/2 heading correction
+            psi = float(row[3])
+            psi_corrected = psi + math.pi / 2.0
+            # Wrap to [-pi, pi]
+            psi_corrected = (psi_corrected + math.pi) % (2 * math.pi) - math.pi
+            row[3] = f"{psi_corrected:.7f}"
+
+            # Clamp velocity to [min_speed, max_speed]
+            vx = float(row[5])
+            if max_speed is not None and vx > max_speed:
+                row[5] = f"{max_speed:.7f}"
+                clamped_hi += 1
+            elif min_speed is not None and vx < min_speed:
+                row[5] = f"{min_speed:.7f}"
+                clamped_lo += 1
+
+            f.write(','.join(row[:7]) + '\n')
+
+    print(f"  Converted {len(rows)} waypoints (psi += pi/2)")
+    if clamped_hi > 0:
+        print(f"  Clamped {clamped_hi}/{len(rows)} velocities to max {max_speed:.1f} m/s")
+    if clamped_lo > 0:
+        print(f"  Clamped {clamped_lo}/{len(rows)} velocities to min {min_speed:.1f} m/s")
+    return len(rows)
+
+
+# =============================================================================
+#  Step 4 -- Verification (kept from original)
+# =============================================================================
+
+def verify_output(csv_path):
+    """Sanity-check the final trajectory CSV."""
+    waypoints = []
+    with open(csv_path, 'r') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if not row or row[0].startswith('#'):
+                continue
+            if len(row) < 7:
+                continue
+            waypoints.append([float(v) for v in row])
+
+    if not waypoints:
+        print("  ERROR: No waypoints found!")
+        return False
+
+    w = np.array(waypoints)
+    n = len(w)
+    ncols = w.shape[1]
+
+    # Check heading vs atan2(dy, dx) using periodic central differences
+    # (np.gradient with default mode gives wrong answer at endpoints for a
+    # closed track; use explicit wrap-around central differences instead).
+    n_pts = len(w)
+    dx = np.zeros(n_pts)
+    dy = np.zeros(n_pts)
+    for i in range(n_pts):
+        i_prev = (i - 1) % n_pts
+        i_next = (i + 1) % n_pts
+        dx[i] = w[i_next, 1] - w[i_prev, 1]
+        dy[i] = w[i_next, 2] - w[i_prev, 2]
+    recomputed_psi = np.arctan2(dy, dx)
+    psi_diff = (w[:, 3] - recomputed_psi + np.pi) % (2 * np.pi) - np.pi
+    max_psi_err = np.abs(psi_diff).max()
+
+    print(f"\n  --- Trajectory Summary ---")
+    print(f"  Waypoints:      {n}")
+    print(f"  Columns:        {ncols}")
+    print(f"  Track length:   {w[-1, 0]:.1f} m")
+    print(f"  X range:        [{w[:, 1].min():.2f}, {w[:, 1].max():.2f}] m")
+    print(f"  Y range:        [{w[:, 2].min():.2f}, {w[:, 2].max():.2f}] m")
+    print(f"  Psi range:      [{w[:, 3].min():.4f}, {w[:, 3].max():.4f}] rad")
+    print(f"  Psi vs atan2:   max err = {math.degrees(max_psi_err):.2f} deg")
+    print(f"  Kappa range:    [{w[:, 4].min():.4f}, {w[:, 4].max():.4f}] 1/m")
+    print(f"  Velocity range: [{w[:, 5].min():.2f}, {w[:, 5].max():.2f}] m/s")
+
+    if ncols >= 9:
+        print(f"  Left wall:      [{w[:, 7].min():.3f}, {w[:, 7].max():.3f}] m")
+        print(f"  Right wall:     [{w[:, 8].min():.3f}, {w[:, 8].max():.3f}] m")
+
+    ok = True
+    if max_psi_err > math.radians(5):
+        print(
+            f"  WARNING: Heading deviates from atan2(dy,dx) by up to "
+            f"{math.degrees(max_psi_err):.1f} deg"
+        )
+    if ncols >= 9 and (w[:, 7].min() < 0.2 or w[:, 8].min() < 0.2):
+        print(f"  WARNING: Some wall distances < 0.2 m")
+    if n < 100:
+        print(f"  WARNING: Very few waypoints ({n})")
+        ok = False
+    return ok
+
+
+# =============================================================================
+#  Visualization
+# =============================================================================
+
+def visualize_raceline(map_yaml_path, csv_path, output_path):
+    """Create visualization of racing line on track map, colored by velocity."""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
+    with open(map_yaml_path, 'r') as f:
+        config = yaml.safe_load(f)
+
+    img_path = config['image']
+    if not os.path.isabs(img_path):
+        img_path = os.path.join(os.path.dirname(map_yaml_path), img_path)
+
+    img = cv2.imread(img_path)
+    resolution = config['resolution']
+    origin = np.array(config['origin'])
+    img_height = img.shape[0]
+
+    # Load trajectory
+    data = np.loadtxt(csv_path, delimiter=',', comments='#')
+    xy = data[:, 1:3]
+    velocities = data[:, 5]
+
+    # Convert world coords to pixel coords
+    px = ((xy[:, 0] - origin[0]) / resolution).astype(int)
+    py = (img_height - (xy[:, 1] - origin[1]) / resolution).astype(int)
+
+    fig, ax = plt.subplots(figsize=(16, 16))
+    ax.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+
+    scatter = ax.scatter(px, py, c=velocities, cmap='RdYlGn', s=20,
+                         vmin=velocities.min(), vmax=velocities.max())
+    cbar = plt.colorbar(scatter, ax=ax, shrink=0.6)
+    cbar.set_label('Velocity (m/s)', fontsize=12)
+
+    ax.scatter(px[0], py[0], c='blue', s=300, marker='*', label='Start', zorder=10)
+
+    # Direction arrows
+    for i in range(0, len(px), max(1, len(px) // 8)):
+        if i + 1 < len(px):
+            dx = px[i + 1] - px[i]
+            dy = py[i + 1] - py[i]
+            length = np.sqrt(dx**2 + dy**2)
+            if length > 0:
+                dx, dy = dx / length * 15, dy / length * 15
+                ax.annotate('', xy=(px[i] + dx, py[i] + dy),
+                            xytext=(px[i], py[i]),
+                            arrowprops=dict(arrowstyle='->', color='white', lw=2))
+
+    ax.legend(loc='upper right', fontsize=12)
+    ax.set_title('Optimized Racing Line', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150)
+    plt.close()
+    print(f"  Saved visualization: {output_path}")
+
+
+# =============================================================================
+#  Main pipeline
+# =============================================================================
+
+def main():
+    workspace = find_workspace_root()
+    if not workspace:
+        print(
+            "ERROR: Could not find workspace root "
+            "(no f1tenth_planning/ found)"
+        )
+        sys.exit(1)
+
+    scripts_dir = os.path.dirname(os.path.abspath(__file__))
+    global_opt_dir = os.path.join(workspace, 'f1tenth_planning', 'global_racetrajectory_optimization')
+    default_output = os.path.join(workspace, 'f1tenth_planning', 'trajectories')
+
+    # ---- User settings -------------------------------------------------------
+    # This mintime copy is configured directly here instead of through command
+    # line arguments.  Change these values before running the script.
+    if len(sys.argv) > 1:
+        print("ERROR: This script uses in-code settings instead of launch arguments.")
+        print("  Edit the User settings block near the top of main().")
+        sys.exit(2)
+
+    args = argparse.Namespace(
+        # Map and output paths
+        map=os.path.join(workspace, 'f1tenth_planning', 'maps', 'my_track_map.yaml'),
+        track_name='my_track',
+        output=default_output,
+
+        # Minimum-time optimizer settings
+        opt_type=MIN_TIME_OPT_TYPE,
+        max_speed=12.0,         # m/s (set to None for no clamping)
+        min_speed=2.0,          # m/s (set to None for no clamping)
+        waypoint_spacing=0.02,  
+        reopt_mintime_solution=True,
+        recalc_vel_profile_by_tph=None,
+
+        # Centerline extraction settings
+        centerline_spacing=0.15,     # target spacing for centerline points (in metres)
+        optimizer_spacing=0.1,      # prepared reference-track spacing for TUM mintime
+        optimizer_smoothing_s=3.0,  # TUM spline smoothing factor before width measurement
+        optimizer_smoothing_k=2,    # TUM spline order (mirrors racecar.ini)
+        optimizer_smoothing_prep_spacing=0.02,
+        direction='cw',             # 'auto', 'cw', or 'ccw'
+
+        # Vehicle and wall-clearance settings
+        car_width=0.3,
+        wall_clearance=0.15,
+        max_ray_distance=8.0,
+    )
+
+    # Verify map path
+    if not os.path.exists(args.map):
+        print(f"ERROR: Map file not found: {args.map}")
+        sys.exit(1)
+
+
+    track_name = args.track_name
+    track_csv = os.path.join(global_opt_dir, 'inputs', 'tracks', f'{track_name}.csv')
+    prepared_track_npz = os.path.join(
+        global_opt_dir, 'inputs', 'tracks', f'{track_name}_prepared.npz'
+    )
+    output_csv = os.path.join(args.output, f'{track_name}_raceline.csv')
+    gvd_debug_path = output_csv.replace('.csv', '_gvd.png')
+    prepared_spline_debug_path = output_csv.replace(
+        '.csv',
+        '_prepared_splines_debug.png',
+    )
+
+
+    # ---- Banner --------------------------------------------------------------
+    print("=" * 64)
+    print("  F1Tenth Minimum-Time Trajectory Optimization Pipeline")
+    print("=" * 64)
+    print(f"  Map:              {args.map}")
+    print(f"  Track name:       {track_name}")
+    print(f"  Opt type:         {args.opt_type}")
+    print(f"  Reopt mintime:    {args.reopt_mintime_solution}")
+    recalc_label = (
+        "auto"
+        if args.recalc_vel_profile_by_tph is None
+        else str(args.recalc_vel_profile_by_tph)
+    )
+    print(f"  Recalc velocity:  {recalc_label}")
+    print(f"  Max speed:        {args.max_speed} m/s")
+    print(f"  Centerline spacing: {args.centerline_spacing} m")
+    print(f"  Optimizer spacing:  {args.optimizer_spacing} m")
+    print(f"  Optimizer smoothing: s={args.optimizer_smoothing_s}, "
+          f"k={args.optimizer_smoothing_k}")
+    print(f"  Direction:        {args.direction}")
+    print(f"  Car width:        {args.car_width} m")
+    print(f"  Wall clearance:   {args.wall_clearance} m")
+    print(f"  Optimizer width:  {args.car_width + 2.0 * args.wall_clearance:.3f} m")
+    print(f"  Wall distances:   yes")
+    print(f"  Output:           {output_csv}")
+
+    print(f"\n{'=' * 64}")
+    print(f"  Step 0: Extract centerline from map")
+    print(f"{'=' * 64}")
+
+
+    # -------- Step 0: Extract centerline and measure widths --------------------------------
+    map_img, resolution, origin, _occupied_thresh = load_map(args.map)
+
+    # Known map format: white is driveable, black walls and grey unknown
+    # outside the racetrack are not driveable.
+    wall_thresh = 240
+    print(f"  Wall threshold: {wall_thresh} (only white pixels are free)")
+
+    print(f"  Image size: {map_img.shape[1]}x{map_img.shape[0]} px, "
+          f"resolution: {resolution} m/px")
+
+    outer_world = extract_outer_boundary(map_img, resolution, origin, wall_thresh=wall_thresh)
+
+    # Choose the number of centerline points from the estimated track length.
+    outer_closed = np.vstack([outer_world, outer_world[0]])
+    perimeter = np.sum(np.linalg.norm(np.diff(outer_closed, axis=0), axis=1))
+    num_pts = max(100, int(np.ceil(perimeter / args.centerline_spacing)))
+    print(
+        f"  Estimated perimeter: {perimeter:.1f} m "
+        f"→ using {num_pts} centerline points "
+        f"(~{args.centerline_spacing:.3f} m spacing)"
+    )
+
+    # GVD centerline: label wall obstacles, find equidistant boundary,
+    # thin it, walk the ring, B-spline smooth.
+    centerline, _ = compute_centerline_thinned_loop(
+        map_img, resolution, origin,
+        wall_thresh=wall_thresh,
+        num_points=num_pts,
+        gvd_debug_path=gvd_debug_path,
+    )
+
+    # Determine direction
+    winding = detect_winding_direction(centerline)
+    print(f"  Detected winding: {winding}")
+    if args.direction == 'auto':
+        direction = winding
+    else:
+        direction = args.direction
+
+    # Reverse centerline if user wants opposite direction
+    if direction != winding:
+        print(f"  Reversing centerline to match requested direction: {direction}")
+        centerline = centerline[::-1].copy()
+
+    prepared_track = build_prepared_optimizer_track(
+        centerline=centerline,
+        map_img=map_img,
+        resolution=resolution,
+        origin=origin,
+        wall_thresh=wall_thresh,
+        max_ray_distance=args.max_ray_distance,
+        car_width=args.car_width,
+        optimizer_spacing=args.optimizer_spacing,
+        optimizer_smoothing_s=args.optimizer_smoothing_s,
+        optimizer_smoothing_k=args.optimizer_smoothing_k,
+        optimizer_smoothing_prep_spacing=args.optimizer_smoothing_prep_spacing,
+    )
+    reftrack_interp = prepared_track['reftrack_interp']
+    plot_prepared_optimizer_track(
+        map_img,
+        resolution,
+        origin,
+        prepared_track,
+        prepared_spline_debug_path,
+    )
+
+    # Keep a CSV copy for inspection/fallback, but the optimizer itself loads
+    # the prepared .npz and skips TUM's prep_track spline approximation.
+    save_tum_track_csv(
+        reftrack_interp[:, :2],
+        reftrack_interp[:, 2],
+        reftrack_interp[:, 3],
+        track_csv,
+    )
+    save_prepared_optimizer_track(prepared_track, prepared_track_npz)
+
+    # ---- Step 1: Run TUM global_racetrajectory_optimization -----------------
+    tum_output = os.path.join(global_opt_dir, 'outputs', 'traj_race_cl.csv')
+
+    main_py = os.path.join(global_opt_dir, 'main_globaltraj.py')
+    racecar_ini = os.path.join(global_opt_dir, 'params', 'racecar.ini')
+
+    if restore_main_prep_track_if_needed(main_py):
+        print("  Restored stale prepared-track patch in main_globaltraj.py")
+
+    # Save original content for restoration
+    with open(main_py, 'r') as f:
+        original_content = f.read()
+    with open(racecar_ini, 'r') as f:
+        original_ini_content = f.read()
+
+    try:
+        set_track_in_main(main_py, track_name)
+        set_opt_type_in_main(main_py, args.opt_type)
+        recalc_vel_profile = (
+            args.reopt_mintime_solution
+            if args.recalc_vel_profile_by_tph is None
+            else args.recalc_vel_profile_by_tph
+        )
+        set_mintime_bool_option_in_main(
+            main_py,
+            "reopt_mintime_solution",
+            args.reopt_mintime_solution,
+        )
+        set_mintime_bool_option_in_main(
+            main_py,
+            "recalc_vel_profile_by_tph",
+            recalc_vel_profile,
+        )
+        patch_main_to_load_prepared_track(main_py, prepared_track_npz)
+        print("  Patched main_globaltraj.py: using prepared Step 0 splines")
+        print(
+            "  Patched main_globaltraj.py: "
+            f"reopt_mintime_solution -> {args.reopt_mintime_solution}"
+        )
+        print(
+            "  Patched main_globaltraj.py: "
+            f"recalc_vel_profile_by_tph -> {recalc_vel_profile}"
+        )
+
+        # Patch width_opt in racecar.ini: car_width + 2*wall_clearance
+        # This ensures the optimizer keeps the raceline far enough
+        # from track boundaries that after subtracting car_half_width
+        # in wall distance computation, there is wall_clearance of
+        # driveable room for the MPC on each side.
+        optimizer_width = args.car_width + 2.0 * args.wall_clearance
+        patched_ini = re.sub(
+            r'(optim_opts_mintime\s*=\s*\{"width_opt":\s*)[\d.]+',
+            rf'\g<1>{optimizer_width:.3f}',
+            original_ini_content,
+        )
+
+        print(f"  Patched racecar.ini: width_opt -> {optimizer_width:.3f} "
+              f"(car_width={args.car_width:.2f} + 2*clearance={args.wall_clearance:.2f})")
+
+        if args.max_speed is not None:
+            patched_ini = re.sub(
+                r'("v_max":\s*)[\d.]+',
+                rf'\g<1>{args.max_speed:.3f}',
+                patched_ini,
+            )
+            print(f"  Patched racecar.ini: v_max -> {args.max_speed:.3f}m/s")
+
+        # Match TUM's optimization step size to the prepared .npz reference
+        # spacing.  The dense exported CSV spacing is patched separately below.
+        patched_ini = re.sub(
+            r'("stepsize_reg":\s*)[\d.]+',
+            rf'\g<1>{args.optimizer_spacing:.3f}',
+            patched_ini,
+        )
+        print(f"  Patched racecar.ini: stepsize_reg -> {args.optimizer_spacing:.3f}m")
+
+        # Patch stepsize_interp_after_opt to produce denser output waypoints.
+        patched_ini = re.sub(
+            r'("stepsize_interp_after_opt":\s*)[\d.]+',
+            rf'\g<1>{args.waypoint_spacing:.3f}',
+            patched_ini,
+        )
+        print(f"  Patched racecar.ini: stepsize_interp_after_opt -> {args.waypoint_spacing:.3f}m")
+        # Write all ini patches at once
+        with open(racecar_ini, 'w') as f:
+            f.write(patched_ini)
+
+        run_step(
+            f"Step 1: Optimize trajectory ({args.opt_type}, {track_name})",
+            [sys.executable, 'main_globaltraj.py'],
+            cwd=global_opt_dir,
+        )
+    finally:
+        # Always restore original files
+        with open(main_py, 'w') as f:
+            f.write(original_content)
+        with open(racecar_ini, 'w') as f:
+            f.write(original_ini_content)
+
+    if not os.path.exists(tum_output):
+        print(f"  ERROR: TUM output not found: {tum_output}")
+        sys.exit(1)
+
+    # ---- Step 2: Convert to MPC format --------------------------------------
+    print(f"\n{'=' * 64}")
+    print(f"  Step 2: Convert to MPC format (psi += pi/2, ';' -> ',')")
+    print(f"{'=' * 64}")
+
+    os.makedirs(os.path.dirname(output_csv), exist_ok=True)
+
+    # Intermediate 7-column CSV
+    intermediate_csv = output_csv + '.7col'
+    n_waypoints = convert_tum_to_mpc(
+        tum_output, intermediate_csv,
+        max_speed=args.max_speed, min_speed=args.min_speed
+    )
+
+    # ---- Step 3: Add wall distances -----------------------------------------
+    wall_script = os.path.join(scripts_dir, 'compute_wall_distances.py')
+    if not os.path.exists(wall_script):
+        print(f"  ERROR: Wall script not found: {wall_script}")
+        sys.exit(1)
+
+    wall_cmd = [
+        sys.executable, wall_script,
+        '--map', args.map,
+        '--trajectory', intermediate_csv,
+        '--output', output_csv,
+        '--max-distance', str(args.max_ray_distance),
+        '--car-width', str(args.car_width),
+    ]
+    run_step("Step 3: Compute ray-cast wall distances", wall_cmd)
+
+    # Clean up intermediate file
+    if os.path.exists(intermediate_csv):
+        os.remove(intermediate_csv)
+
+    # ---- Step 4: Verify ------------------------------------------------------
+    print(f"\n{'=' * 64}")
+    print(f"  Step 4: Verify output")
+    print(f"{'=' * 64}")
+    ok = verify_output(output_csv)
+
+    # ---- Visualization --------------------------------------------------------
+    viz_path = output_csv.replace('.csv', '_viz.png')
+    try:
+        visualize_raceline(args.map, output_csv, viz_path)
+    except Exception as e:
+        print(f"  WARNING: Visualization failed: {e}")
+
+    # ---- Done ----------------------------------------------------------------
+    print(f"\n{'=' * 64}")
+    if ok:
+        print(f"  SUCCESS: Trajectory ready at {output_csv}")
+    else:
+        print(f"  DONE (with warnings): {output_csv}")
+    print(f"  Waypoints: {n_waypoints}")
+    print(f"{'=' * 64}\n")
+
+    return 0 if ok else 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())
