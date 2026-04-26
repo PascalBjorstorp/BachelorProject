@@ -53,7 +53,7 @@ static float get_wall_bias_clearance_m(void)
 static float get_wall_bias_max_shift_m(void)
 {
     /* Clamp absolute magnitude of the biased lateral reference (safety valve). */
-    return get_env_float("MPC_WALL_BIAS_MAX_M", 0.30f);
+    return get_env_float("MPC_WALL_BIAS_MAX_M", 0.05f);
 }
 
 static void compute_wall_ey_bounds(
