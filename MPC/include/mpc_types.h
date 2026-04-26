@@ -39,31 +39,31 @@
 #define CROSS_CALL_RATE_SCALE (CONTROL_DT_SECONDS / PREDICTION_DT_SECONDS) /* Normalizes first-step rate penalties across sample times. */
 
 /* Default MPC objective weights */
-#define WEIGHT_LAT_ERROR 8000.0f                        /* Penalizes lateral tracking deviation from the reference path. */
-#define WEIGHT_HEADING 30.0f                           /* Penalizes heading misalignment relative to path tangent. */
-#define WEIGHT_VELOCITY 20.0f                         /* Penalizes deviation from target longitudinal speed profile. */
-#define WEIGHT_LAT_VEL 2.0f                             /* Penalizes lateral velocity to suppress side-slip growth. */
-#define WEIGHT_YAW_RATE 1.25f                           /* Penalizes yaw-rate mismatch against reference curvature dynamics. */
-#define WEIGHT_STEER_EFFORT 1.5f                       /* Penalizes steering-rate effort to limit aggressive steering actuation. */
-#define WEIGHT_ACCEL_EFFORT 0.005f                      /* Penalizes longitudinal acceleration effort to smooth throttle/brake usage. */
-#define WEIGHT_STEER_RATE 0.045f                         /* Penalizes steering-rate change to reduce steering jerk. */
-#define WEIGHT_ACCEL_RATE 0.1f                          /* Penalizes acceleration change to reduce longitudinal jerk. */
+#define WEIGHT_LAT_ERROR 16000.0f                        /* Penalizes lateral tracking deviation from the reference path. */
+#define WEIGHT_HEADING 350.0f                           /* Penalizes heading misalignment relative to path tangent. */
+#define WEIGHT_VELOCITY 56.0f                         /* Penalizes deviation from target longitudinal speed profile. */
+#define WEIGHT_LAT_VEL 6.12f                             /* Penalizes lateral velocity to suppress side-slip growth. */
+#define WEIGHT_YAW_RATE 1.44f                           /* Penalizes yaw-rate mismatch against reference curvature dynamics. */
+#define WEIGHT_STEER_EFFORT 1.65f                       /* Penalizes steering-rate effort to limit aggressive steering actuation. */
+#define WEIGHT_ACCEL_EFFORT 0.0068f                      /* Penalizes longitudinal acceleration effort to smooth throttle/brake usage. */
+#define WEIGHT_STEER_RATE 0.0465f                         /* Penalizes steering-rate change to reduce steering jerk. */
+#define WEIGHT_ACCEL_RATE 0.46f                          /* Penalizes acceleration change to reduce longitudinal jerk. */
 #define WEIGHT_DELTA_ACTUAL 0.021f                        /* Penalizes steering-state bias away from curvature feedforward. */
 
 /* Other swept MPC defaults */
 #define MAX_ITERATIONS 100                               /* Default solver iteration budget per control update. */
 #define WALL_MARGIN 0.14f                                 /* Safety offset subtracted from both wall boundaries. */
-#define ADMM_RHO 16.0f                                   /* Primary ADMM penalty balancing feasibility and optimality progress. */
-#define ADMM_RHO_U 24.0f                                 /* ADMM penalty applied to control-variable projection terms. */
+#define ADMM_RHO 28.0f                                   /* Primary ADMM penalty balancing feasibility and optimality progress. */
+#define ADMM_RHO_U 42.0f                                 /* ADMM penalty applied to control-variable projection terms. */
 #define CONVERGENCE_TOLERANCE 0.05f                      /* Residual threshold used to declare solver convergence. */
 #ifndef PREDICTION_HORIZON
-#define PREDICTION_HORIZON 20                            /* Default maximum number of prediction stages used by the controller. */
+#define PREDICTION_HORIZON 40                            /* Default maximum number of prediction stages used by the controller. */
 #endif
 #define TIME_STEP_SECONDS 0.03f                         /* Default model integration period per horizon stage. */
 
 /* Solver and model safeguards */
 #define RICCATI_COST_FACTOR 2.0f                         /* Global scaling factor applied to stage and terminal costs. */
-#define EMA_ALPHA 1.0f                                   /* Smoothing factor for optional Frenet-state exponential filtering. */
+#define EMA_ALPHA 0.2f                                   /* Smoothing factor for optional Frenet-state exponential filtering. */
 #define STEERING_RATE_LIMIT 2.849f                       /* Hard bound on steering-rate command in optimization. */
 #define STEERING_FEEDFORWARD_CLAMP_FACTOR 0.5f           /* Limits feedforward steering around linearization operating point. */
 #define BIG_BOUND 50.0f                                  /* Sentinel magnitude representing an effectively unconstrained bound. */
