@@ -1691,7 +1691,7 @@ def main():
         # Minimum-time optimizer settings
         opt_type=MIN_TIME_OPT_TYPE,
         max_speed=12.0,         # m/s (set to None for no clamping)
-        min_speed=2.0,          # m/s (set to None for no clamping)
+        min_speed=1.5,          # m/s (set to None for no clamping)
         waypoint_spacing=0.02,  
         reopt_mintime_solution=True,
         recalc_vel_profile_by_tph=None,
@@ -1706,7 +1706,7 @@ def main():
 
         # Vehicle and wall-clearance settings
         car_width=0.3,
-        wall_clearance=0.15,
+        wall_clearance=0.35,
         max_ray_distance=8.0,
     )
 
