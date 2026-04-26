@@ -1699,7 +1699,7 @@ def main():
         # Centerline extraction settings
         centerline_spacing=0.15,     # target spacing for centerline points (in metres)
         optimizer_spacing=0.1,      # prepared reference-track spacing for TUM mintime
-        optimizer_smoothing_s=3.0,  # TUM spline smoothing factor before width measurement
+        optimizer_smoothing_s=2.0,  # TUM spline smoothing factor before width measurement
         optimizer_smoothing_k=2,    # TUM spline order (mirrors racecar.ini)
         optimizer_smoothing_prep_spacing=0.02,
         direction='cw',             # 'auto', 'cw', or 'ccw'
