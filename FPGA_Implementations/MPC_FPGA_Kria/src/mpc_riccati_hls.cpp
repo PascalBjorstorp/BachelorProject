@@ -351,20 +351,27 @@ extern "C" void mpc_compute_hls(
                 fp_raw_acc_t a1 = (fp_mul_qp_raw(A_col1_raw[i], xk_raw[1])) >> FP_FRAC_BITS;
                 fp_raw_acc_t a2 = (fp_mul_qp_raw(A_col2_raw[i], xk_raw[2])) >> FP_FRAC_BITS;
                 fp_raw_acc_t a3 = (fp_mul_qp_raw(A_col3_raw[i], xk_raw[3])) >> FP_FRAC_BITS;
-                affine_term = (fp_raw_acc_t)xk1_raw[i] - (((a0 + a1) + a2) + a3);
+                fp_raw_acc_t a01 = a0 + a1;
+                fp_raw_acc_t a23 = a2 + a3;
+                affine_term = (fp_raw_acc_t)xk1_raw[i] - (a01 + a23);
             } else if (i == 1) {
                 fp_raw_acc_t a0 = (fp_mul_qp_raw(A_col0_raw[i], xk_raw[0])) >> FP_FRAC_BITS;
                 fp_raw_acc_t a1 = (fp_mul_qp_raw(A_col1_raw[i], xk_raw[1])) >> FP_FRAC_BITS;
                 fp_raw_acc_t a2 = (fp_mul_qp_raw(A_col2_raw[i], xk_raw[2])) >> FP_FRAC_BITS;
                 fp_raw_acc_t a4 = (fp_mul_qp_raw(A_col4_raw[i], xk_raw[4])) >> FP_FRAC_BITS;
-                affine_term = (fp_raw_acc_t)xk1_raw[i] - (((a0 + a1) + a2) + a4);
+                fp_raw_acc_t a01 = a0 + a1;
+                fp_raw_acc_t a24 = a2 + a4;
+                affine_term = (fp_raw_acc_t)xk1_raw[i] - (a01 + a24);
             } else {
                 fp_raw_acc_t a2 = (fp_mul_qp_raw(A_col2_raw[i], xk_raw[2])) >> FP_FRAC_BITS;
                 fp_raw_acc_t a3 = (fp_mul_qp_raw(A_col3_raw[i], xk_raw[3])) >> FP_FRAC_BITS;
                 fp_raw_acc_t a4 = (fp_mul_qp_raw(A_col4_raw[i], xk_raw[4])) >> FP_FRAC_BITS;
                 fp_raw_acc_t b0 = (fp_mul_qp_raw(B_col0_raw[i], xk_raw[IDX_DELTA_ACT])) >> FP_FRAC_BITS;
                 fp_raw_acc_t b1 = (fp_mul_qp_raw(B_col1_raw[i], uk1_raw)) >> FP_FRAC_BITS;
-                affine_term = (fp_raw_acc_t)xk1_raw[i] - ((((a2 + a3) + a4) + b0) + b1);
+                fp_raw_acc_t a23 = a2 + a3;
+                fp_raw_acc_t a4b0 = a4 + b0;
+                fp_raw_acc_t sum0 = a23 + a4b0;
+                affine_term = (fp_raw_acc_t)xk1_raw[i] - (sum0 + b1);
             }
 
             affine_term = fp_clip_raw_to_qp(affine_term);

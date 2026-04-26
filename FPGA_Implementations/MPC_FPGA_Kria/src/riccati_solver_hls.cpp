@@ -424,26 +424,27 @@ static void riccati_pass_hls(
         fp_raw_acc_t p_new[MPC_NX_AUG];
         for (i = 0; i < 6; i++) {
     #pragma HLS PIPELINE II=1
-            fp_raw_acc_t Atp = 0;
-            for (s = 0; s < 6; s++) {
-#pragma HLS UNROLL
-                fp_raw_acc_t step8_prod = fp_mul_qp_acc(fp_qp_raw_from_QP(A_local[s][i]), p_shift[s]);
-                Atp += step8_prod;
-            }
-            fp_raw_acc_t Gtk = 0;
-            for (a = 0; a < nu; a++) {
-#pragma HLS UNROLL
-                Gtk += fp_mul_qp_raw(fp_qp_raw_from_QP(G[a][i]), fp_qp_raw_from_QP(kk[k][a]));
-            }
+            fp_raw_acc_t atp0 = fp_mul_qp_acc(fp_qp_raw_from_QP(A_local[0][i]), p_shift[0]);
+            fp_raw_acc_t atp1 = fp_mul_qp_acc(fp_qp_raw_from_QP(A_local[1][i]), p_shift[1]);
+            fp_raw_acc_t atp2 = fp_mul_qp_acc(fp_qp_raw_from_QP(A_local[2][i]), p_shift[2]);
+            fp_raw_acc_t atp3 = fp_mul_qp_acc(fp_qp_raw_from_QP(A_local[3][i]), p_shift[3]);
+            fp_raw_acc_t atp4 = fp_mul_qp_acc(fp_qp_raw_from_QP(A_local[4][i]), p_shift[4]);
+            fp_raw_acc_t atp5 = fp_mul_qp_acc(fp_qp_raw_from_QP(A_local[5][i]), p_shift[5]);
+            fp_raw_acc_t atp01 = atp0 + atp1;
+            fp_raw_acc_t atp23 = atp2 + atp3;
+            fp_raw_acc_t atp45 = atp4 + atp5;
+            fp_raw_acc_t atp0123 = atp01 + atp23;
+            fp_raw_acc_t Atp = atp0123 + atp45;
+            fp_raw_acc_t gtk0 = fp_mul_qp_raw(fp_qp_raw_from_QP(G[0][i]), fp_qp_raw_from_QP(kk[k][0]));
+            fp_raw_acc_t gtk1 = fp_mul_qp_raw(fp_qp_raw_from_QP(G[1][i]), fp_qp_raw_from_QP(kk[k][1]));
+            fp_raw_acc_t Gtk = gtk0 + gtk1;
             p_new[i] = q_aug_linear[i] + (Atp >> FP_FRAC_BITS) + (Gtk >> FP_FRAC_BITS);
         }
         for (i = 6; i < nx; i++) {
     #pragma HLS PIPELINE II=1
-            fp_raw_acc_t Gtk = 0;
-            for (a = 0; a < nu; a++) {
-#pragma HLS UNROLL
-                Gtk += fp_mul_qp_raw(fp_qp_raw_from_QP(G[a][i]), fp_qp_raw_from_QP(kk[k][a]));
-            }
+            fp_raw_acc_t gtk0 = fp_mul_qp_raw(fp_qp_raw_from_QP(G[0][i]), fp_qp_raw_from_QP(kk[k][0]));
+            fp_raw_acc_t gtk1 = fp_mul_qp_raw(fp_qp_raw_from_QP(G[1][i]), fp_qp_raw_from_QP(kk[k][1]));
+            fp_raw_acc_t Gtk = gtk0 + gtk1;
             p_new[i] = q_aug_linear[i] + (Gtk >> FP_FRAC_BITS);
         }
         for (i = 0; i < nx; i++) {

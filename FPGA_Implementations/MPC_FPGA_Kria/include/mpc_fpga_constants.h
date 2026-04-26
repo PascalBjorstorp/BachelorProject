@@ -48,7 +48,7 @@
 #define MPC_FPGA_IZ_KGM2              0.035f
 #define MPC_FPGA_CG_HEIGHT_M          0.0703f
 #define MPC_FPGA_GRAVITY_MS2          9.81f
-#define MPC_FPGA_MU                   0.745f
+#define MPC_FPGA_MU                   1.6f
 
 #define MPC_FPGA_MAX_STEER_RAD        0.4189f
 #define MPC_FPGA_MAX_STEER_RATE_RADPS 2.849f
@@ -131,16 +131,16 @@
  * MPC Cost Weights (FPGA profile)
  *===========================================================================*/
 
-#define MPC_FPGA_W_LAT_ERROR             16000.0f
-#define MPC_FPGA_W_HEADING               248.864f
-#define MPC_FPGA_W_VELOCITY              60.48f
-#define MPC_FPGA_W_LAT_VEL               6.75f
-#define MPC_FPGA_W_YAW_RATE              1.28f
-#define MPC_FPGA_W_STEER_EFF             1.815f
-#define MPC_FPGA_W_ACCEL_EFF             0.007276f
-#define MPC_FPGA_W_STEER_JERK            0.05115f
-#define MPC_FPGA_W_ACCEL_RATE            0.1387f
-#define MPC_FPGA_W_DELTA_ACT             0.019f
+#define MPC_FPGA_W_LAT_ERROR             500.0f
+#define MPC_FPGA_W_HEADING               20.0f
+#define MPC_FPGA_W_VELOCITY              6.0f
+#define MPC_FPGA_W_LAT_VEL               0.5f
+#define MPC_FPGA_W_YAW_RATE              0.5f
+#define MPC_FPGA_W_STEER_EFF             0.75f
+#define MPC_FPGA_W_ACCEL_EFF             0.005f
+#define MPC_FPGA_W_STEER_JERK            0.045f
+#define MPC_FPGA_W_ACCEL_RATE            0.1f
+#define MPC_FPGA_W_DELTA_ACT             0.021f
 
 /*===========================================================================
  * Solver and Constraint Limits (FPGA profile)
@@ -157,11 +157,11 @@
 #define MPC_FPGA_BOUND_THRESHOLD      50.0f
 
 #ifndef MPC_FPGA_ADMM_RHO
-#define MPC_FPGA_ADMM_RHO                28.0f
+#define MPC_FPGA_ADMM_RHO                16.0f
 #endif
 
 #ifndef MPC_FPGA_ADMM_RHO_U
-#define MPC_FPGA_ADMM_RHO_U              42.0f
+#define MPC_FPGA_ADMM_RHO_U              24.0f
 #endif
 
 #ifndef MPC_FPGA_ADMM_TOL

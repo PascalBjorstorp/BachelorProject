@@ -61,7 +61,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
 WORKSPACE_DIR = os.path.dirname(os.path.dirname(PROJECT_DIR))
 TRAJ_DIR = os.path.join(PROJECT_DIR, "trajectories")
-if not os.path.exists(os.path.join(TRAJ_DIR, "my_track_raceline_new.csv")):
+if not os.path.exists(os.path.join(TRAJ_DIR, "my_track_raceline.csv")):
     TRAJ_DIR = os.path.join(WORKSPACE_DIR, "f1tenth_planning", "trajectories")
 
 KRIA_BUILD_SOURCES = [
@@ -90,74 +90,34 @@ RACELINE_TAG = "my_track"
 # Keep doubled Hessian terms inside ap_fixed<30,16> range:
 # Q_LAT and other direct-diagonal weights must stay <= ~16384.
 BASE_CONFIG = {
-    "Q_LAT":        15360.0,
-    "Q_HDG":        248.864,
-    "Q_VEL":        55.2,
-    "Q_LAT_VEL":    6.8,
-    "Q_YAW":        1.32,
-    "R_STEER":      1.815,
-    "R_ACCEL":      0.00795,
-    "W_JERK":       0.0485,
-    "W_ACCEL_RATE": 0.153,
-    "RHO":          32.0,
-    "RHO_U":        48.0,
+    "Q_LAT":        2000.0,
+    "Q_HDG":        40.0,
+    "Q_VEL":        10.0,
+    "Q_LAT_VEL":    1.0,
+    "Q_YAW":        1.0,
+    "R_STEER":      1.0,
+    "R_ACCEL":      0.005,
+    "W_JERK":       0.045,
+    "W_ACCEL_RATE": 0.10,
+    "RHO":          16.0,
+    "RHO_U":        24.0,
     "TOL":          0.05,
     "MAX_ITER":     20,
     "HORIZON":      20,
     "PRED_DT":      0.03,
 }
 
-# Conservative/no-wall seeds + moving near-wall seeds.
-PASS_REGION_BOOTSTRAP = [
-    {
-        "Q_LAT": 16000.0, "Q_HDG": 248.864, "Q_VEL": 60.0,
-        "Q_LAT_VEL": 6.75, "Q_YAW": 1.285056, "R_STEER": 1.815,
-        "R_ACCEL": 0.007276, "W_JERK": 0.05115, "W_ACCEL_RATE": 0.1387,
-        "RHO": 28.0, "RHO_U": 42.0, "TOL": 0.05,
-    },
-    {
-        "Q_LAT": 15872.0, "Q_HDG": 248.864, "Q_VEL": 60.0,
-        "Q_LAT_VEL": 6.4, "Q_YAW": 1.285056, "R_STEER": 1.815,
-        "R_ACCEL": 0.007276, "W_JERK": 0.05115, "W_ACCEL_RATE": 0.1387,
-        "RHO": 28.0, "RHO_U": 32.0, "TOL": 0.05,
-    },
-    {
-        "Q_LAT": 15200.0, "Q_HDG": 248.864, "Q_VEL": 56.0,
-        "Q_LAT_VEL": 6.4, "Q_YAW": 1.32, "R_STEER": 1.65,
-        "R_ACCEL": 0.007276, "W_JERK": 0.05115, "W_ACCEL_RATE": 0.1387,
-        "RHO": 28.0, "RHO_U": 42.0, "TOL": 0.05,
-    },
-    {
-        "Q_LAT": 14500.0, "Q_HDG": 280.0, "Q_VEL": 52.0,
-        "Q_LAT_VEL": 6.12, "Q_YAW": 1.44, "R_STEER": 1.58,
-        "R_ACCEL": 0.007276, "W_JERK": 0.0485, "W_ACCEL_RATE": 0.146,
-        "RHO": 28.0, "RHO_U": 42.0, "TOL": 0.05,
-    },
-    {
-        "Q_LAT": 13000.0, "Q_HDG": 350.0, "Q_VEL": 48.0,
-        "Q_LAT_VEL": 5.8, "Q_YAW": 1.56, "R_STEER": 1.50,
-        "R_ACCEL": 0.0072, "W_JERK": 0.0450, "W_ACCEL_RATE": 0.150,
-        "RHO": 28.0, "RHO_U": 42.0, "TOL": 0.05,
-    },
-    {
-        "Q_LAT": 16000.0, "Q_HDG": 400.0, "Q_VEL": 60.0,
-        "Q_LAT_VEL": 6.75, "Q_YAW": 1.20, "R_STEER": 1.9239,
-        "R_ACCEL": 0.0075, "W_JERK": 0.0440, "W_ACCEL_RATE": 0.153,
-        "RHO": 34.16, "RHO_U": 51.24, "TOL": 0.05,
-    },
-]
-
 # ==============================================================================
 # SWEEP VALUE RANGES - PHASE 2 (Primary Grid)
 # ==============================================================================
 
 PHASE2_VALUES_BASE = {
-    "Q_LAT": [13000.0, 14500.0, 15200.0, 15872.0, 16000.0],
-    "Q_HDG": [248.864, 280.0, 350.0, 400.0, 450.0],
-    "Q_VEL": [48.0, 52.0, 56.0, 60.0, 60.48],
-    "Q_LAT_VEL": [5.8, 6.12, 6.4, 6.75],
-    "Q_YAW": [1.20, 1.285056, 1.32, 1.44, 1.56],
-    "R_STEER": [1.50, 1.58, 1.65, 1.815, 1.9239],
+    "Q_LAT": [500.0, 1000.0, 2000.0, 4000.0, 6000.0, 8000.0],
+    "Q_HDG": [20.0, 30.0, 40.0, 50.0, 60.0],
+    "Q_VEL": [3.0, 6.0, 10.0, 15.0, 20.0],
+    "Q_LAT_VEL": [0.5, 0.75, 1.0, 1.5, 2.0],
+    "Q_YAW": [0.5, 0.75, 1.0, 1.25, 1.50],
+    "R_STEER": [0.5, 0.75, 1.0, 1.25, 1.50],
 }
 
 # ==============================================================================
@@ -165,15 +125,15 @@ PHASE2_VALUES_BASE = {
 # ==============================================================================
 
 FULL_SWEEP_VALUES_BASE = {
-    "Q_LAT":        [7000.0, 8500.0, 10000.0, 13000.0, 14500.0, 15200.0, 16000.0],
-    "Q_HDG":        [248.864, 280.0, 350.0, 400.0, 450.0, 500.0, 600.0],
-    "Q_VEL":        [40.0, 44.0, 48.0, 52.0, 56.0, 60.0, 60.48],
-    "Q_LAT_VEL":    [5.5, 5.8, 6.12, 6.4, 6.75, 6.8],
-    "Q_YAW":        [1.20, 1.285056, 1.32, 1.44, 1.56, 1.68],
-    "R_STEER":      [1.35, 1.42, 1.50, 1.58, 1.65, 1.815, 1.9239],
+    "Q_LAT":        [2000.0, 4000.0, 6000.0, 8000.0, 10000.0],
+    "Q_HDG":        [20.0, 40.0, 80.0, 120.0, 200.0],
+    "Q_VEL":        [10.0, 20.0, 30.0, 40.0, 50.0],
+    "Q_LAT_VEL":    [0.5, 0.75, 1.0, 1.5, 2.0],
+    "Q_YAW":        [0.5, 0.75, 1.0, 1.25, 1.50],
+    "R_STEER":      [0.5, 0.75, 1.0, 1.25, 1.50],
     "R_ACCEL":      [0.0068, 0.0072, 0.007276, 0.0075, 0.0078, 0.0082],
     "W_JERK":       [0.0432, 0.0445, 0.0450, 0.0465, 0.0480, 0.0500, 0.05115],
-    "W_ACCEL_RATE": [0.1387, 0.146, 0.150, 0.153, 0.156, 0.160, 0.165],
+    "W_ACCEL_RATE": [0.1387, 0.146, 0.150, 0.153, 0.156, 0.160, 0.165, 0.170],
     "RHO":          [28.0, 34.16, 42.0],
     "RHO_U":        [42.0, 51.24, 64.0],
     "TOL":          [0.05],
@@ -185,12 +145,12 @@ FULL_SWEEP_VALUES_BASE = {
 # ==============================================================================
 
 PHASE4_VALUES_BASE = {
-    "Q_LAT_VEL":    [5.8, 6.12, 6.4, 6.75, 6.8],
-    "Q_YAW":        [1.20, 1.285056, 1.32, 1.44, 1.56],
-    "R_STEER":      [1.50, 1.58, 1.65, 1.815, 1.9239],
-    "W_JERK":       [0.0440, 0.0450, 0.0485, 0.05115],
-    "R_ACCEL":      [0.0068, 0.0072, 0.007276, 0.0075],
-    "W_ACCEL_RATE": [0.1387, 0.146, 0.150, 0.153],
+    "Q_LAT_VEL":    [0.5, 0.75, 1.0, 1.5, 2.0],
+    "Q_YAW":        [0.5, 0.75, 1.0, 1.25, 1.50],
+    "R_STEER":      [0.5, 0.75, 1.0, 1.25, 1.50],
+    "W_JERK":       [0.025, 0.035, 0.045, 0.0485, 0.052, 0.056],
+    "R_ACCEL":      [0.0068, 0.0072, 0.007276, 0.0075, 0.0078],
+    "W_ACCEL_RATE": [0.1387, 0.146, 0.150, 0.153, 0.156, 0.160, 0.165],
 }
 
 # ==============================================================================
@@ -199,8 +159,8 @@ PHASE4_VALUES_BASE = {
 # ==============================================================================
 
 PHASE5_VALUES = {
-    "RHO":      [8.0, 12.0, 18.0, 28.0, 42.0],
-    "RHO_U":    [12.0, 18.0, 24.0, 32.0, 42.0, 64.0],
+    "RHO":      [4.0, 8.0, 12.0, 16.0, 24.0],
+    "RHO_U":    [4.0, 8.0, 12.0, 16.0, 24.0, 32.0],
     "TOL":      [0.03, 0.05, 0.08, 0.10],
 }
 
@@ -271,8 +231,8 @@ EARLY_REJECT_ON_RACE_FAIL = False
 SCENARIO_TARGET_START_X = 0.0
 SCENARIO_TARGET_START_Y = 0.0
 GLOBAL_START_SHIFT_X_M = 0.0
-GLOBAL_START_SHIFT_Y_M = 0.5
-MIN_RACE_PROGRESS_MPS = 0.55
+GLOBAL_START_SHIFT_Y_M = 0.0
+MIN_RACE_PROGRESS_MPS = 0.0
 MIN_OVERALL_PROGRESS_MPS = 0.45
 MIN_AVG_VX_MPS = 1.0
 MIN_SOLVER_OPTIMAL_RATE = 0.0
@@ -1940,18 +1900,6 @@ def deduplicate(combos: list) -> list:
     
     return unique
 
-
-def gen_pass_region_bootstrap() -> list:
-    """Phase 0: Probe hand-picked feasible/moving FPGA regions first."""
-    combos = [("BOOT:BASE", dict(BASE))]
-    for idx, seed in enumerate(PASS_REGION_BOOTSTRAP, start=1):
-        w = dict(BASE)
-        w.update(seed)
-        if is_valid_config(w):
-            combos.append((f"BOOT:{idx}", w))
-    return deduplicate(combos)
-
-
 # ==============================================================================
 # CSV WRITER
 # ==============================================================================
@@ -2045,7 +1993,7 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
             r.update(canonicalize_params(params))
             results.append(r)
             
-            if csv_writer and r.get("status") == "OK":
+            if csv_writer:
                 csv_writer.write_row(r)
             
             if r["status"] != "OK":
@@ -2088,7 +2036,7 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
                     r = future.result()
                     results.append(r)
                     
-                    if csv_writer and r.get("status") == "OK":
+                    if csv_writer:
                         csv_writer.write_row(r)
                     
                     elapsed = time.time() - t0
@@ -2558,22 +2506,6 @@ def main():
         except OSError:
             pass
         return 0
-
-    # ========== PHASE 0: Pass-region bootstrap ==========
-    boot_combos = gen_pass_region_bootstrap()
-    print(f"\n  Phase 0 will test {len(boot_combos):,} configurations")
-    p, f = run_phase("Phase 0: Pass-region bootstrap",
-                     boot_combos, binary, results, t0,
-                     num_workers, csv_writer, objective,
-                     freeze_solver_behavior=freeze_solver_behavior)
-    total_p += p
-    total_f += f
-    boot_best = get_top_n_params(
-        [r for r in results if str(r.get("phase", "")).startswith("Phase 0:")],
-        n=1, objective=objective
-    )
-    if boot_best:
-        update_base(boot_best[0])
 
     # ========== PHASE 1: One-at-a-time ==========
     p, f = run_phase("Phase 1: One-at-a-time sensitivity",
