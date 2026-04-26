@@ -52,7 +52,7 @@
 
 /* Other swept MPC defaults */
 #define MAX_ITERATIONS 100                               /* Default solver iteration budget per control update. */
-#define WALL_MARGIN 0.20f                                 /* Safety offset subtracted from both wall boundaries. */
+#define WALL_MARGIN 0.14f                                 /* Safety offset subtracted from both wall boundaries. */
 #define ADMM_RHO 16.0f                                   /* Primary ADMM penalty balancing feasibility and optimality progress. */
 #define ADMM_RHO_U 24.0f                                 /* ADMM penalty applied to control-variable projection terms. */
 #define CONVERGENCE_TOLERANCE 0.05f                      /* Residual threshold used to declare solver convergence. */
