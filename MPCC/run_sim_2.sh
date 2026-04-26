@@ -50,9 +50,9 @@ cleanup() {
         kill "${SIM_PID}" 2>/dev/null || true
     fi
 
-    pkill -f 'ros2 launch mpc_riccati mpc_launch.py' 2>/dev/null || true
+    pkill -f 'ros2 launch mpcc_f1_10th mpcc_launch.py' 2>/dev/null || true
     pkill -f 'ros2 launch f1tenth_gym_ros gym_bridge_launch.py' 2>/dev/null || true
-    pkill -f '/mpc_riccati/mpc_node' 2>/dev/null || true
+    pkill -f '/mpcc_f1_10th/mpcc_node' 2>/dev/null || true
     pkill -f '/f1tenth_gym_ros/gym_bridge' 2>/dev/null || true
     pkill -f 'rviz2.*gym_bridge.rviz' 2>/dev/null || true
     pkill -f 'lifecycle_manager_localization' 2>/dev/null || true
@@ -75,7 +75,7 @@ echo "Trajectory: ${TRAJECTORY_FILE}"
 # Step 1: Build the ROS2 package (from MPC/ directly)
 #===========================================================================
 echo ""
-echo "--- Building mpc_riccati ROS2 package ---"
+echo "--- Building mpcc_f1_10th ROS2 package ---"
 
 cd "${ROOT_DIR}"
 
@@ -84,21 +84,21 @@ set +u
 source /opt/ros/jazzy/setup.bash
 set -u
 
-# Build just the mpc_riccati package
-colcon build --packages-select mpc_riccati --cmake-force-configure 2>&1 | tail -5
+# Build just the mpcc_f1_10th package
+colcon build --packages-select mpcc_f1_10th --cmake-force-configure 2>&1 | tail -5
 
 # Re-source the workspace after build
 set +u
 source "${ROOT_DIR}/install/setup.bash"
 set -u
 
-if ! ros2 pkg prefix mpc_riccati >/dev/null 2>&1; then
-    echo "ERROR: 'mpc_riccati' is not discoverable after build/source." >&2
+if ! ros2 pkg prefix mpcc_f1_10th >/dev/null 2>&1; then
+    echo "ERROR: 'mpcc_f1_10th' is not discoverable after build/source." >&2
     echo "This usually means CMake configured without ROS dependencies in cache." >&2
     echo "Try removing the package build cache and rebuilding:" >&2
-    echo "  rm -rf ${ROOT_DIR}/build/mpc_riccati ${ROOT_DIR}/install/mpc_riccati ${ROOT_DIR}/log/latest_build/mpc_riccati" >&2
+    echo "  rm -rf ${ROOT_DIR}/build/mpcc_f1_10th ${ROOT_DIR}/install/mpcc_f1_10th ${ROOT_DIR}/log/latest_build/mpcc_f1_10th" >&2
     echo "  source /opt/ros/jazzy/setup.bash" >&2
-    echo "  colcon build --packages-select mpc_riccati --cmake-force-configure" >&2
+    echo "  colcon build --packages-select mpcc_f1_10th --cmake-force-configure" >&2
     exit 1
 fi
 
@@ -149,7 +149,7 @@ SIM_PID=$!
 sleep 10
 
 echo "Launching MPC Riccati-ADMM..."
-ros2 launch mpc_riccati mpc_launch.py "trajectory_file:=${TRAJECTORY_FILE}" >"${MPC_LOG}" 2>&1 &
+ros2 launch mpcc_f1_10th mpcc_launch.py "trajectory_file:=${TRAJECTORY_FILE}" >"${MPC_LOG}" 2>&1 &
 MPC_PID=$!
 
 #===========================================================================
