@@ -40,15 +40,15 @@
 
 /* Default MPC objective weights */
 #define WEIGHT_LAT_ERROR 8000.0f                        /* Penalizes lateral tracking deviation from the reference path. */
-#define WEIGHT_HEADING 30.0f                           /* Penalizes heading misalignment relative to path tangent. */
-#define WEIGHT_VELOCITY 20.0f                         /* Penalizes deviation from target longitudinal speed profile. */
-#define WEIGHT_LAT_VEL 2.0f                             /* Penalizes lateral velocity to suppress side-slip growth. */
-#define WEIGHT_YAW_RATE 1.25f                           /* Penalizes yaw-rate mismatch against reference curvature dynamics. */
+#define WEIGHT_HEADING 28.8f                           /* Penalizes heading misalignment relative to path tangent. */
+#define WEIGHT_VELOCITY 15.0f                         /* Penalizes deviation from target longitudinal speed profile. */
+#define WEIGHT_LAT_VEL 1.04f                             /* Penalizes lateral velocity to suppress side-slip growth. */
+#define WEIGHT_YAW_RATE 1.5f                           /* Penalizes yaw-rate mismatch against reference curvature dynamics. */
 #define WEIGHT_STEER_EFFORT 1.5f                       /* Penalizes steering-rate effort to limit aggressive steering actuation. */
-#define WEIGHT_ACCEL_EFFORT 0.005f                      /* Penalizes longitudinal acceleration effort to smooth throttle/brake usage. */
-#define WEIGHT_STEER_RATE 0.045f                         /* Penalizes steering-rate change to reduce steering jerk. */
+#define WEIGHT_ACCEL_EFFORT 0.01f                      /* Penalizes longitudinal acceleration effort to smooth throttle/brake usage. */
+#define WEIGHT_STEER_RATE 0.04f                         /* Penalizes steering-rate change to reduce steering jerk. */
 #define WEIGHT_ACCEL_RATE 0.1f                          /* Penalizes acceleration change to reduce longitudinal jerk. */
-#define WEIGHT_DELTA_ACTUAL 0.021f                        /* Penalizes steering-state bias away from curvature feedforward. */
+#define WEIGHT_DELTA_ACTUAL 0.023f                        /* Penalizes steering-state bias away from curvature feedforward. */
 
 /* Other swept MPC defaults */
 #define MAX_ITERATIONS 100                               /* Default solver iteration budget per control update. */
@@ -89,7 +89,7 @@
 /* Vehicle parameter defaults and derived constants */
 #define VP_MAX_STEERING_RAD 0.4189f                      /* Steering-angle saturation used by controller and model limits. */
 #define VP_MAX_VELOCITY_MPS 20.0f                        /* Upper velocity limit used by vehicle model clamping logic. */
-#define VP_MIN_VELOCITY_MPS 0.0f                         /* Lower velocity limit used by vehicle model clamping logic. */
+#define VP_MIN_VELOCITY_MPS 1.5f                         /* Lower velocity limit used by vehicle model clamping logic. */
 #define VP_CG_TO_FRONT_AXLE_M 0.166f                     /* Center-of-gravity distance from front axle for load transfer. */
 #define VP_CG_TO_REAR_AXLE_M 0.16f                       /* Center-of-gravity distance from rear axle for load transfer. */
 #define VP_WHEELBASE_M (VP_CG_TO_FRONT_AXLE_M + VP_CG_TO_REAR_AXLE_M) /* Distance between front and rear axle centers. */

@@ -414,6 +414,7 @@ def run_test(params: dict, binary: str) -> dict:
                 return {
                     "status": "OK",
                     "return_code": result.returncode,
+                    "admm_max_iter":     float(effective_params.get("ADMM_MAX_ITER", 300)),
                     "passed": int(parts[1]),
                     "failed": int(parts[2]),
                     "max_contouring_err": float(parts[3]),
@@ -435,6 +436,11 @@ def run_test(params: dict, binary: str) -> dict:
                     "avg_speed":          float(parts[19]) if len(parts) > 19 else 0.0,
                     "lap_count":          int(parts[20])   if len(parts) > 20 else 0,
                     "best_lap_time":      float(parts[21]) if len(parts) > 21 else 9999.0,
+                    "s_backward_jumps":   int(parts[22])   if len(parts) > 22 else 0,
+                    "s_large_corrections": int(parts[23])  if len(parts) > 23 else 0,
+                    "max_s_jump":         float(parts[24]) if len(parts) > 24 else 0.0,
+                    "s_prediction_regressions": int(parts[25]) if len(parts) > 25 else 0,
+                    "max_predicted_s_span": float(parts[26]) if len(parts) > 26 else 0.0,
                 }
             except (IndexError, ValueError):
                 pass
@@ -455,6 +461,28 @@ def is_safe_result(r: dict) -> bool:
     return r.get("status") == "OK" and int(r.get("wall_collisions", 999)) == 0
 
 
+def compute_stability_penalty(r: dict) -> float | None:
+    """Return a hard ranking penalty for unstable-but-lucky runs."""
+    s_backward_jumps = int(r.get("s_backward_jumps", 0))
+    s_prediction_regressions = int(r.get("s_prediction_regressions", 0))
+    s_large_corrections = int(r.get("s_large_corrections", 0))
+    avg_iters = float(r.get("avg_iters", 0.0))
+    admm_max_iter = max(float(r.get("admm_max_iter", 300.0)), 1.0)
+    avg_clip_events = float(r.get("avg_clip_events", 0.0))
+
+    if s_backward_jumps > 0 or s_prediction_regressions > 0:
+        severity = (2.0 * s_backward_jumps) + (5.0 * s_prediction_regressions) + (0.5 * s_large_corrections)
+        return 950.0 + min(40.0, severity)
+
+    if avg_clip_events > 0.05:
+        return 940.0 + min(40.0, avg_clip_events * 20.0)
+
+    if avg_iters > 0.8 * admm_max_iter:
+        return 930.0 + min(50.0, 50.0 * (avg_iters / admm_max_iter))
+
+    return None
+
+
 def compute_tracker_score(r: dict) -> float:
     """
     Tracker: minimize contouring + heading errors.
@@ -467,6 +495,10 @@ def compute_tracker_score(r: dict) -> float:
     if collisions > 0:
         # Hard constraint: unsafe configs are always ranked last
         return 1000.0 + float(collisions)
+
+    stability_penalty = compute_stability_penalty(r)
+    if stability_penalty is not None:
+        return stability_penalty
 
     tracking = (
         r["avg_contouring_err"] * 80.0 +
@@ -503,6 +535,10 @@ def compute_racer_score(r: dict) -> float:
     if lap_count == 0:
         # No laps completed — worse than any config that finishes a lap
         return 999.0
+
+    stability_penalty = compute_stability_penalty(r)
+    if stability_penalty is not None:
+        return stability_penalty
 
     best_lap = float(r.get("best_lap_time", 9999.0))
     return round(best_lap, 6)
@@ -1011,6 +1047,9 @@ def main():
         "wall_collisions", "time_above_5ms",
         "avg_iters", "avg_rho", "avg_rho_u",
         "avg_adapt_updates", "avg_clip_events",
+        "s_backward_jumps", "s_large_corrections",
+        "max_s_jump", "s_prediction_regressions",
+        "max_predicted_s_span",
         "status", "return_code",
     ]
     csv_writer = IncrementalCSV(out_csv, all_fields)

@@ -156,6 +156,16 @@ static double wrap_angle(double a)
     return a;
 }
 
+static double wrap_s_delta(double delta, double track_length)
+{
+    if (track_length <= 0.0) return delta;
+
+    double half_length = 0.5 * track_length;
+    while (delta > half_length) delta -= track_length;
+    while (delta < -half_length) delta += track_length;
+    return delta;
+}
+
 static int last_closest = 0;
 
 static int find_closest_waypoint(double px, double py, double heading)
@@ -270,6 +280,10 @@ int main(void)
     const double SIM_DT = env_double("SIM_DT", SIM_DT_DEFAULT);
     const double MPCC_DT = env_double("MPCC_DT", MPCC_DT_DEFAULT);
     const int MPCC_CALL_INTERVAL = (int)(MPCC_DT / SIM_DT + 0.5);
+    const double ODOM_DT = env_double("ODOM_DT", SIM_DT);
+    const double POSE_DT = env_double("POSE_DT", MPCC_DT);
+    const int ODOM_UPDATE_INTERVAL = (int)(ODOM_DT / SIM_DT + 0.5);
+    const int POSE_UPDATE_INTERVAL = (int)(POSE_DT / SIM_DT + 0.5);
     const int SIM_STEPS = (int)(SIM_DURATION / SIM_DT);
     const int verbose = getenv("VERBOSE") != NULL;
     const double body_safety_margin = env_double("BODY_SAFETY_MARGIN", DEFAULT_BODY_SAFETY_MARGIN);
@@ -278,6 +292,9 @@ int main(void)
            SIM_DURATION, SIM_DT);
     printf("    MPCC rate: %.0fHz (every %d sim steps)\n",
            1.0/MPCC_DT, MPCC_CALL_INTERVAL);
+        printf("    Sensor cadence: odom %.0fHz (every %d), pose %.0fHz (every %d)\n",
+            1.0 / ODOM_DT, ODOM_UPDATE_INTERVAL,
+            1.0 / POSE_DT, POSE_UPDATE_INTERVAL);
 
     if (!load_raceline()) return 1;
     if (!build_reference_path()) return 1;
@@ -414,6 +431,13 @@ int main(void)
     double cmd_accel = 0.0;
     int consecutive_failures = 0;  /* for proportional fallback */
     float current_s = 0;
+    int odom_update_count = 0;
+    int last_solve_odom_update_count = -1;
+    int s_backward_jumps = 0;
+    int s_large_corrections = 0;
+    int s_prediction_regressions = 0;
+    double max_s_estimator_jump = 0.0;
+    double max_predicted_s_span = 0.0;
 
     /* Lap tracking */
     int    lap_count     = 0;
@@ -439,10 +463,19 @@ int main(void)
 
     for (int step = 0; step < SIM_STEPS; step++) {
         double t = step * SIM_DT;
+        double s_debug_now = current_s;
+        double s_debug_pred1 = current_s;
+        double s_debug_predN = current_s;
+        int s_debug_valid = 0;
         double px = (double)(state.pos_x);
         double py = (double)(state.pos_y);
         double psi = (double)(state.heading);
         double vx = (double)(state.long_vel);
+        int odom_tick = (step % ODOM_UPDATE_INTERVAL) == 0;
+        int pose_tick = (step % POSE_UPDATE_INTERVAL) == 0;
+
+        if (odom_tick)
+            odom_update_count++;
 
         if (!isfinite(px) || !isfinite(py) || !isfinite(psi) || !isfinite(vx)) {
             numerical_failures++;
@@ -485,10 +518,23 @@ int main(void)
         int iter = 0;
         int status_val = -1;
 
-        if (step % MPCC_CALL_INTERVAL == 0) {
+        if (pose_tick && odom_update_count != last_solve_odom_update_count) {
             /* Convert vehicle state -> MPCC state */
             MPCCState_t mpcc_state = mpcc_state_from_vehicle_state(&state, current_s);
+            {
+                double s_jump = wrap_s_delta((double)mpcc_state.s - (double)current_s,
+                                             (double)track_length);
+                double s_jump_abs = fabs(s_jump);
+
+                if (s_jump < -0.05)
+                    s_backward_jumps++;
+                if (s_jump_abs > 0.75)
+                    s_large_corrections++;
+                if (s_jump_abs > max_s_estimator_jump)
+                    max_s_estimator_jump = s_jump_abs;
+            }
             current_s = mpcc_state.s;
+            s_debug_now = current_s;
 
             /* Lap detection: s wrapped past track_length (min lap time guard) */
             if (current_s < prev_s - track_length * 0.5f
@@ -511,6 +557,25 @@ int main(void)
             clock_gettime(CLOCK_MONOTONIC_RAW, &ts0);
             MPCCStatus_t status = mpcc_compute_control(&mpcc_state, &result);
             clock_gettime(CLOCK_MONOTONIC_RAW, &ts1);
+            last_solve_odom_update_count = odom_update_count;
+
+            if (cfg.horizon_steps > 0) {
+                double ds1 = wrap_s_delta((double)result.predicted_states[1].s
+                                          - (double)result.predicted_states[0].s,
+                                          (double)track_length);
+                double dsN = wrap_s_delta((double)result.predicted_states[cfg.horizon_steps].s
+                                          - (double)result.predicted_states[0].s,
+                                          (double)track_length);
+
+                s_debug_pred1 = result.predicted_states[1].s;
+                s_debug_predN = result.predicted_states[cfg.horizon_steps].s;
+                s_debug_valid = 1;
+
+                if (ds1 <= 0.0 || dsN <= ds1)
+                    s_prediction_regressions++;
+                if (dsN > max_predicted_s_span)
+                    max_predicted_s_span = dsN;
+            }
 
             double solve_us = (ts1.tv_sec - ts0.tv_sec) * 1e6
                             + (ts1.tv_nsec - ts0.tv_nsec) / 1e3;
@@ -598,6 +663,14 @@ int main(void)
                 printf("  %4d | %5.2f | %5.2f | %5.2f | %+.3f | %+.3f | %+.4f | %+.4f | %+.2f | %2d | %3d\n",
                        step, t, vx, raceline[closest].vx, e_y, e_psi,
                        steer, actual_steer, accel_cmd, status_val, iter);
+                if (s_debug_valid) {
+                    printf("       SDBG | s=%6.2f | p1=%6.2f | pN=%6.2f | ds1=%+.3f | dsN=%+.3f\n",
+                           s_debug_now,
+                           s_debug_pred1,
+                           s_debug_predN,
+                           wrap_s_delta(s_debug_pred1 - s_debug_now, (double)track_length),
+                           wrap_s_delta(s_debug_predN - s_debug_now, (double)track_length));
+                }
             }
         }
 
@@ -773,6 +846,11 @@ int main(void)
     printf("  Max steer change:   %.4f rad/step\n", max_steer_change);
     printf("  Steer reversals:    %d\n", steer_reversals);
     printf("  Wall collisions:    %d\n", wall_collisions);
+    printf("  S backward jumps:   %d\n", s_backward_jumps);
+    printf("  Large s corrections:%d\n", s_large_corrections);
+    printf("  Max s jump:         %.3f m\n", max_s_estimator_jump);
+    printf("  S regressions:      %d\n", s_prediction_regressions);
+    printf("  Max predicted ds:   %.3f m\n", max_predicted_s_span);
     printf("  Time above 2 m/s:   %.1f / %.1f s (%.0f%%)\n",
            time_above_2ms, SIM_DURATION, 100*time_above_2ms/SIM_DURATION);
     printf("  Time above 5 m/s:   %.1f / %.1f s (%.0f%%)\n",
@@ -810,7 +888,7 @@ int main(void)
 
     /* Machine-readable CSV for tuning scripts */
     if (getenv("MPCC_TUNING_CSV")) {
-         printf("CSV,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%.1f,%d,%.1f,%.4f,%.4f,%.1f,%.3f,%.3f,%.2f,%.2f,%.4f,%d,%.4f\n",
+           printf("CSV,%d,%d,%.4f,%.4f,%.4f,%.4f,%.2f,%.1f,%.1f,%d,%.1f,%.4f,%.4f,%.1f,%.3f,%.3f,%.2f,%.2f,%.4f,%d,%.4f,%d,%d,%.4f,%d,%.4f\n",
                tests_passed, tests_failed,
                max_lat_err, avg_lat, max_hdg_err, avg_hdg,
                max_vx, avg_solve, max_solve_us,
@@ -818,7 +896,12 @@ int main(void)
                max_vel_err, avg_vel_err, avg_iters,
                avg_rho, avg_rho_u, avg_adapt_updates, avg_clip_events,
                avg_speed,
-               lap_count, best_lap_time);
+               lap_count, best_lap_time,
+               s_backward_jumps,
+               s_large_corrections,
+               max_s_estimator_jump,
+               s_prediction_regressions,
+               max_predicted_s_span);
     }
     return tests_failed > 0 ? 1 : 0;
 }

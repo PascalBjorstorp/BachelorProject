@@ -1392,7 +1392,7 @@ void amcl_pose_callback(const void *message_in)
 
             /* Integrate over the prediction time step used by MPC. */
             double v_cmd = g_latest_vx + a_cmd * pred_dt;
-            if (v_cmd < 0.0) v_cmd = 0.0;
+            if (v_cmd < (double)VP_MIN_VELOCITY_MPS) v_cmd = (double)VP_MIN_VELOCITY_MPS;
             if (v_cmd > TRAJECTORY_MAXIMUM_VELOCITY) v_cmd = TRAJECTORY_MAXIMUM_VELOCITY;
 
             global_drive_message_buffer.drive.speed = (float)v_cmd;
