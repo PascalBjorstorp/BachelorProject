@@ -482,7 +482,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   odom->twist.covariance[7] = vy_cov;
 
   odom->twist.twist.linear.x = fused_speed;
-  odom->twist.twist.linear.y = 0;
+  odom->twist.twist.linear.y = imu_lateral_velocity_;
   odom->twist.twist.angular.z = current_yaw_rate;
 
   TransformStamped tf;

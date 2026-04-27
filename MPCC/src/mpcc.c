@@ -20,7 +20,11 @@
  *   4. Extract first control input
  *
  * Dynamics:
- *   ds/dt     = v_theta                         (virtual progress control)
+ *   ds/dt     = v_theta                         (virtual 🟡 Bug 4 — Stale Dimension Comments (qp_solver_mpcc.c, file header and mpcc_types.h comment)
+The file header of qp_solver_mpcc.c says:
+NX = MPCC_NX = 9   (Lifted ODE: Frenet + Cartesian)
+NU = MPCC_NU = 2   (controls: delta, a_x, v_theta)
+But mpcc_types.h defines MPCC_NX = 7 and MPCC_NU = 3. Similarly, the MPCCLinearSystem_t comment says "10x10" and "10x2". These are from a previous refactor and are dead comments, not code bugs — but they will mislead anyone debugging the solver. control)
  *   dvx/dt    = (-F_yf*sin(d) + F_x) / m + vy*omega
  *   dvy/dt    = (F_yf*cos(d) + F_yr) / m - vx*omega
  *   domega/dt = (l_f*F_yf*cos(d) - l_r*F_yr) / I_z
@@ -1210,7 +1214,14 @@ static void shift_warm_start(void)
             memcpy(admm_workspace.lambda_u[k], admm_workspace.lambda_u[k + 1],
                    sizeof(float) * MPCC_NU);
     }
-    memset(admm_workspace.lambda_x[0], 0, sizeof(admm_workspace.lambda_x[0]));
+
+    /* The shift leaves the terminal dual slots stale because no source
+     * exists beyond the horizon. Clear those end slots here; the warm-start
+     * solve path separately enforces lambda_x[0] = 0 for the fixed x0 state. */
+    memset(admm_workspace.lambda_x[N], 0, sizeof(admm_workspace.lambda_x[N]));
+    if (N > 0)
+        memset(admm_workspace.lambda_u[N - 1], 0,
+               sizeof(admm_workspace.lambda_u[N - 1]));
 }
 
 /*===========================================================================
@@ -1260,36 +1271,6 @@ MPCCStatus_t mpcc_compute_control(
     {
         shift_warm_start();
 
-        /* Shift ADMM workspace to align with the new prediction window.
-         * Without this, z_x[k] from the previous solve corresponds to
-         * time t + k*dt, but the new QP stage k is at t+dt + k*dt.
-         * The one-step misalignment causes huge initial ADMM residuals. */
-        {
-            uint16_t N = config.horizon_steps;
-            if (N > MPCC_MAX_HORIZON) N = MPCC_MAX_HORIZON;
-
-            /* Shift states: [k] = [k+1] for k = 0..N-1, hold last */
-            for (uint16_t k = 0; k < N; k++) {
-                memcpy(admm_workspace.z_x[k], admm_workspace.z_x[k+1],
-                       sizeof(float) * MPCC_NX);
-                memcpy(admm_workspace.w_x[k], admm_workspace.w_x[k+1],
-                       sizeof(float) * MPCC_NX);
-                memcpy(admm_workspace.lambda_x[k], admm_workspace.lambda_x[k+1],
-                       sizeof(float) * MPCC_NX);
-            }
-            /* Terminal state stays (hold last) */
-
-            /* Shift controls: [k] = [k+1] for k = 0..N-2, hold last */
-            for (uint16_t k = 0; k + 1 < N; k++) {
-                memcpy(admm_workspace.z_u[k], admm_workspace.z_u[k+1],
-                       sizeof(float) * MPCC_NU);
-                memcpy(admm_workspace.w_u[k], admm_workspace.w_u[k+1],
-                       sizeof(float) * MPCC_NU);
-                memcpy(admm_workspace.lambda_u[k], admm_workspace.lambda_u[k+1],
-                       sizeof(float) * MPCC_NU);
-            }
-        }
-
         /* Detect s-wrap (lap boundary crossing): if s jumped backward
          * by more than half the track length, the warm-started workspace
          * has s values from the old lap.  Instead of a full cold start,
@@ -1299,12 +1280,27 @@ MPCCStatus_t mpcc_compute_control(
         if (s_jump < -(ref_path.total_length * 0.5f)) {
             /* Wrap s values in warm-start trajectory */
             float total_len = ref_path.total_length;
-            for (uint16_t k = 0; k <= config.horizon_steps; k++) {
+            uint16_t N = config.horizon_steps;
+            if (N > MPCC_MAX_HORIZON) N = MPCC_MAX_HORIZON;
+
+            for (uint16_t k = 0; k <= N; k++) {
                 while (prev_predicted_states[k].s > total_len)
                     prev_predicted_states[k].s -= total_len;
-                if (prev_predicted_states[k].s < 0)
-                    prev_predicted_states[k].s = 0;
+                while (prev_predicted_states[k].s < 0)
+                    prev_predicted_states[k].s += total_len;
+
+                /* Keep the ADMM warm-start state aligned with the wrapped
+                 * trajectory; shift_warm_start() populated z/w before this
+                 * lap-crossing correction was detected. */
+                admm_workspace.z_x[k][MPCC_IDX_S] = prev_predicted_states[k].s;
+                admm_workspace.w_x[k][MPCC_IDX_S] = prev_predicted_states[k].s;
             }
+
+            /* Lap crossing changes the active geometry/constraints, so the
+             * shifted duals are no longer a meaningful warm start. */
+            memset(admm_workspace.lambda_x, 0, sizeof(admm_workspace.lambda_x));
+            memset(admm_workspace.lambda_u, 0, sizeof(admm_workspace.lambda_u));
+
             admm_config.warm_start = 1;
             /* Keep warm_start_available = 1 so QP uses wrapped states */
 #ifdef MPCC_DEBUG_PRINT

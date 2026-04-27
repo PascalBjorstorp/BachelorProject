@@ -2,8 +2,9 @@
 """
 MPCC Weight Tuning — Locked Horizon/DT
 =======================================
-Sweeps MPCC controller weights with HORIZON=20 and DT=0.05 locked.
-Total prediction window: 20 × 0.05 = 1.00 s.
+Sweeps MPCC controller weights with safer-region defaults locked.
+Default prediction window: 20 × 0.03 = 0.60 s.
+Override with MPCC_TUNE_HORIZON / MPCC_TUNE_DT if needed.
 
 Objective: maximize average speed with ZERO wall collisions (hard constraint).
            Any collision → score = 1000 + collisions (never beats safe config).
@@ -49,45 +50,48 @@ RACELINE_TAG = "my_track"
 # ==============================================================================
 # LOCKED PREDICTION WINDOW  (never swept)
 # ==============================================================================
-LOCKED_HORIZON = 20
-LOCKED_DT      = 0.05
-# cross_call_rate_scale = control_dt / prediction_dt = (1/200 Hz) / 0.05 s
-LOCKED_CROSS_CALL_SCALE = round((1.0 / 200.0) / LOCKED_DT, 6)  # = 0.1
+LOCKED_HORIZON = int(os.getenv("MPCC_TUNE_HORIZON", "20"))
+LOCKED_DT      = float(os.getenv("MPCC_TUNE_DT", "0.03"))
+# cross_call_rate_scale = control_dt / prediction_dt = (1/200 Hz) / dt
+_default_cross_call_scale = round((1.0 / 200.0) / LOCKED_DT, 6)
+LOCKED_CROSS_CALL_SCALE = float(
+    os.getenv("MPCC_TUNE_CROSS_CALL_SCALE", str(_default_cross_call_scale))
+)
 
 BASE_CONFIG = {
-    # Contouring tracking
-    "Q_CONTOURING":      960.0,
-    "Q_LAG":             100.0,
-    "Q_PROGRESS":        15.6,
+    # Seed from the last manually verified zero-collision region and search outward.
+    "Q_CONTOURING":      500.0,
+    "Q_LAG":             500.0,
+    "Q_PROGRESS":        2.0,
 
-    # State regularization — increased for 12x stronger tires
-    "Q_VX":              30.0,
-    "VX_REF":            4.0,
+    # State regularization
+    "Q_VX":              0.0,
+    "VX_REF":            2.0,
     "Q_VY":              0.5,
-    "Q_OMEGA":           3.0,
+    "Q_OMEGA":           5.0,
 
-    # Control effort — R_DELTA raised for ADMM convergence on tight curves
-    "R_DELTA":           100.0,
+    # Control effort
+    "R_DELTA":           400.0,
     "R_AX":              0.05225,
-    "R_VTHETA":          0.1,
+    "R_VTHETA":          0.08,
 
-    # Control rate smoothness — delta rate raised for stability
-    "W_DELTA_RATE":      2.0,
-    "W_AX_RATE":         0.488,
-    "W_VTHETA_RATE":     0.1105,
+    # Control rate smoothness
+    "W_DELTA_RATE":      12.0,
+    "W_AX_RATE":         0.7,
+    "W_VTHETA_RATE":     0.2,
 
     # Terminal weights — MUST be >= running weights
-    "Q_CONTOURING_TERM": 4800.0,
-    "Q_LAG_TERM":        800.0,
-    "Q_PROGRESS_TERM":   41.4,
+    "Q_CONTOURING_TERM": 2500.0,
+    "Q_LAG_TERM":        1200.0,
+    "Q_PROGRESS_TERM":   40.0,
 
-    # ADMM solver — more iterations for harder problem
+    # ADMM solver
     "ADMM_RHO":          5.0,
     "ADMM_MAX_ITER":     300,
     "ADMM_TOL":          0.02,
 
-    # V_THETA_MAX >= vx_max so reference keeps up with vehicle
-    "V_THETA_MAX":       15.0,
+    # Keep path-progress authority available even when vx targets are conservative.
+    "V_THETA_MAX":       18.0,
 
     # LOCKED — not swept
     "HORIZON":           LOCKED_HORIZON,
@@ -95,67 +99,48 @@ BASE_CONFIG = {
     "CROSS_CALL_SCALE":  LOCKED_CROSS_CALL_SCALE,
 }
 
-RACER_BASE_OVERRIDES = {
-    "Q_CONTOURING":      960.0,
-    "Q_LAG":             100.0,
-    "Q_PROGRESS":        15.6,
-    "Q_VY":              0.5,
-    "Q_OMEGA":           3.0,
-    "Q_VX":              30.0,
-    "VX_REF":            4.0,
-    "R_DELTA":           100.0,
-    "R_AX":              0.05225,
-    "R_VTHETA":          0.1,
-    "W_DELTA_RATE":      2.0,
-    "W_AX_RATE":         0.488,
-    "W_VTHETA_RATE":     0.1105,
-    "Q_CONTOURING_TERM": 4800.0,
-    "Q_LAG_TERM":        800.0,
-    "Q_PROGRESS_TERM":   41.4,
-    "ADMM_RHO":          5.0,
-    "ADMM_MAX_ITER":     300,
-    "ADMM_TOL":          0.02,
-    "V_THETA_MAX":       15.0,
-}
+# Keep racer search anchored to the same conservative basin; let the sweep,
+# not a known-crashy seed, recover speed.
+RACER_BASE_OVERRIDES = {}
 
 # ==============================================================================
 # SWEEP VALUE RANGES
 # ==============================================================================
 
 PHASE2_VALUES = {
-    "Q_CONTOURING":      [300, 500, 800, 1000],
-    "Q_LAG":             [50, 100, 150, 200, 300],
-    "Q_PROGRESS":        [8, 10, 12, 15, 18, 20],
-    "Q_CONTOURING_TERM": [1000, 2000, 3000, 4000],
-    "Q_LAG_TERM":        [400, 800, 1500],
+    "Q_CONTOURING":      [400, 500, 650, 800, 1000],
+    "Q_LAG":             [200, 300, 400, 500, 600],
+    "Q_PROGRESS":        [1, 2, 3, 4, 5, 6, 8],
+    "Q_CONTOURING_TERM": [2000, 2500, 3000, 4000],
+    "Q_LAG_TERM":        [800, 1000, 1200, 1500],
 }
 
 FULL_SWEEP_VALUES = {
-    "Q_CONTOURING":      [300, 500, 800, 1000, 1500],
-    "Q_LAG":             [50, 100, 150, 200, 300, 500],
-    "Q_PROGRESS":        [8, 10, 12, 15, 18, 20, 25],
-    "Q_VY":              [0.5, 1.0, 1.5, 3.0, 5.0, 10.0],
-    "Q_OMEGA":           [0.3, 0.5, 0.8, 1.5, 3.0, 5.0],
-    "R_DELTA":           [100.0, 130.0, 160.0, 200.0],
-    "R_VTHETA":          [0.05, 0.1, 0.2, 0.3],
-    "W_DELTA_RATE":      [2.0, 3.0, 4.0, 5.0],
-    "W_VTHETA_RATE":     [0.05, 0.1, 0.13, 0.3, 0.5, 1.0],
-    "Q_CONTOURING_TERM": [1000, 2000, 3000, 4000, 8000],
-    "Q_LAG_TERM":        [400, 800, 1500, 3000],
-    "Q_PROGRESS_TERM":   [20, 30, 40, 50, 60],
-    "V_THETA_MAX":       [8.0, 10.0, 12.0, 15.0],
-    "Q_VX":              [0.0, 0.5, 1.0, 1.5, 3.0, 5.0],
-    "VX_REF":            [2.0, 3.0, 4.0, 5.0, 6.0, 8.0],
-    "R_AX":              [0.02, 0.055, 0.1, 0.3, 1.0],
-    "W_AX_RATE":         [0.1, 0.3, 0.61, 1.0, 2.0],
+    "Q_CONTOURING":      [400, 500, 650, 800, 1000, 1500],
+    "Q_LAG":             [150, 200, 300, 400, 500, 600],
+    "Q_PROGRESS":        [1, 2, 3, 4, 5, 6, 8, 10, 12],
+    "Q_VY":              [0.5, 1.0, 1.5, 3.0, 5.0],
+    "Q_OMEGA":           [1.0, 3.0, 5.0, 8.0],
+    "R_DELTA":           [200.0, 250.0, 300.0, 350.0, 400.0],
+    "R_VTHETA":          [0.05, 0.08, 0.1, 0.15, 0.2],
+    "W_DELTA_RATE":      [3.0, 5.0, 7.0, 9.0, 12.0],
+    "W_VTHETA_RATE":     [0.1, 0.15, 0.2, 0.3, 0.5],
+    "Q_CONTOURING_TERM": [2000, 2500, 3000, 4000, 6000],
+    "Q_LAG_TERM":        [800, 1000, 1200, 1500, 2000],
+    "Q_PROGRESS_TERM":   [20, 40, 60, 80],
+    "V_THETA_MAX":       [12.0, 15.0, 18.0, 20.0, 22.0, 25.0],
+    "Q_VX":              [0.0, 0.5, 1.0, 2.0, 3.0],
+    "VX_REF":            [2.0, 2.5, 3.0, 4.0, 5.0],
+    "R_AX":              [0.02, 0.05225, 0.1, 0.3, 0.7, 1.0],
+    "W_AX_RATE":         [0.3, 0.488, 0.6, 0.7, 1.0, 2.0],
 }
 
 PHASE4_VALUES = {
-    "Q_VY":         [0.5, 1.0, 1.54, 3.0, 5.0],
-    "Q_OMEGA":      [0.3, 0.5, 0.8, 1.5, 3.0],
-    "R_DELTA":      [100.0, 130.0, 160.0, 200.0],
-    "W_DELTA_RATE": [2.0, 3.0, 4.0, 5.0],
-    "V_THETA_MAX":  [8.0, 10.0, 12.0, 15.0],
+    "Q_VY":         [0.5, 1.0, 1.5, 3.0, 5.0],
+    "Q_OMEGA":      [1.0, 3.0, 5.0, 8.0],
+    "R_DELTA":      [250.0, 300.0, 350.0, 400.0],
+    "W_DELTA_RATE": [7.0, 9.0, 10.0, 12.0],
+    "V_THETA_MAX":  [18.0, 20.0, 22.0, 25.0],
 }
 
 # PHASE5_VALUES removed — was ADMM-only tuning, unused with OSQP solver
@@ -511,17 +496,42 @@ def compute_tracker_score(r: dict) -> float:
     return round(tracking + solver, 3)
 
 
+def compute_racer_bootstrap_score(r: dict) -> float:
+    """Rank safe no-lap runs so the sweep can climb out of the stall basin."""
+    avg_speed = float(r.get("avg_speed", 0.0))
+    max_predicted_s_span = float(r.get("max_predicted_s_span", 0.0))
+    avg_iters = float(r.get("avg_iters", 0.0))
+    s_prediction_regressions = int(r.get("s_prediction_regressions", 0))
+    s_backward_jumps = int(r.get("s_backward_jumps", 0))
+    s_large_corrections = int(r.get("s_large_corrections", 0))
+
+    progress_credit = min(
+        220.0,
+        (avg_speed * 400.0) + (max_predicted_s_span * 6.0),
+    )
+    instability_penalty = min(
+        70.0,
+        (0.01 * s_prediction_regressions)
+        + (2.0 * s_backward_jumps)
+        + (0.5 * s_large_corrections)
+        + (avg_iters * 0.1),
+    )
+
+    return round(980.0 - progress_credit + instability_penalty, 3)
+
+
 def compute_racer_score(r: dict) -> float:
     """
     Racer: minimize best lap time — zero collisions is a HARD constraint.
 
     Scoring:
       - Any collision      → 1000 + collisions  (always loses to any safe config)
-      - No laps completed  → 999                (worse than any config that completes a lap)
+            - No laps completed  → bootstrap score    (rank safe progress before any lap exists)
       - Zero collisions    → best_lap_time       (lower = faster = better)
 
-    This means a safe config doing a slow lap beats an unsafe config.
-    The sweep will only optimise lap time among collision-free configs.
+        This means a safe config doing a slow lap beats an unsafe config.
+        Before any lap-completing seed exists, the sweep still gets a gradient through
+        safe no-lap configs instead of a flat 999 plateau.
     """
     if r.get("status") != "OK":
         return 5000.0
@@ -533,8 +543,7 @@ def compute_racer_score(r: dict) -> float:
 
     lap_count = int(r.get("lap_count", 0))
     if lap_count == 0:
-        # No laps completed — worse than any config that finishes a lap
-        return 999.0
+        return compute_racer_bootstrap_score(r)
 
     stability_penalty = compute_stability_penalty(r)
     if stability_penalty is not None:
