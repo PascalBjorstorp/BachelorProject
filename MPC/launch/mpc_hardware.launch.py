@@ -47,6 +47,12 @@ def generate_launch_description():
         description='Local raceline topic published by lateral planner'
     )
 
+    odom_topic_arg = DeclareLaunchArgument(
+        'odom_topic',
+        default_value='/ego_racecar/odom',
+        description='Odometry topic (velocity feedback)'
+    )
+
     drive_topic_arg = DeclareLaunchArgument(
         'drive_topic',
         default_value='/drive',
@@ -62,7 +68,7 @@ def generate_launch_description():
     pose_topic_arg = DeclareLaunchArgument(
         'pose_topic',
         default_value='/ekf_pose',
-        description='Map-frame pose topic (EKF-fused or raw AMCL)'
+        description='EKF pose topic'
     )
 
     verbose_arg = DeclareLaunchArgument(
@@ -86,6 +92,10 @@ def generate_launch_description():
         'MPC_LOCAL_RACELINE_TOPIC',
         LaunchConfiguration('local_raceline_topic')
     )
+    set_odom = SetEnvironmentVariable(
+        'MPC_ODOM_TOPIC',
+        LaunchConfiguration('odom_topic')
+    )
     set_drive = SetEnvironmentVariable(
         'MPC_DRIVE_TOPIC',
         LaunchConfiguration('drive_topic')
@@ -95,7 +105,7 @@ def generate_launch_description():
         LaunchConfiguration('servo_topic')
     )
     set_pose = SetEnvironmentVariable(
-        'MPC_AMCL_TOPIC',
+        'MPC_EKF_TOPIC',
         LaunchConfiguration('pose_topic')
     )
     set_verbose = SetEnvironmentVariable(
@@ -118,6 +128,7 @@ def generate_launch_description():
     return LaunchDescription([
         use_local_raceline_arg,
         local_raceline_topic_arg,
+        odom_topic_arg,
         drive_topic_arg,
         servo_topic_arg,
         pose_topic_arg,
@@ -125,6 +136,7 @@ def generate_launch_description():
         watchdog_timeout_arg,
         set_use_local_raceline,
         set_local_raceline_topic,
+        set_odom,
         set_drive,
         set_servo,
         set_pose,
