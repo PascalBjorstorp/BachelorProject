@@ -1163,35 +1163,6 @@ def resample_closed_centerline(centerline, spacing):
     return resampled, total_length, actual_spacing
 
 
-def smooth_optimizer_centerline(centerline, smoothing_s, smoothing_k, spacing):
-    """
-    Smooth a closed optimizer centerline with a periodic B-spline.
-
-    This keeps the smoothing step local to this script.  TUM's
-    ``spline_approximation`` helper is sensitive to SciPy versions because it
-    expects scalar optimization parameters where newer SciPy passes arrays.
-    """
-    pts = np.asarray(centerline, dtype=float)
-    if len(pts) < 4:
-        raise ValueError("Need at least 4 points for closed smoothing")
-
-    k = int(max(1, min(smoothing_k, len(pts) - 1, 5)))
-    closed = np.vstack([pts, pts[0]])
-    try:
-        tck, _ = splprep(
-            [closed[:, 0], closed[:, 1]],
-            s=float(smoothing_s),
-            k=k,
-            per=True,
-        )
-    except Exception as exc:
-        raise RuntimeError(f"Periodic optimizer smoothing failed: {exc}") from exc
-
-    u_new = np.linspace(0.0, 1.0, len(pts), endpoint=False)
-    smoothed = np.column_stack(splev(u_new, tck))
-    return resample_closed_centerline(smoothed, spacing)
-
-
 def build_prepared_optimizer_track(centerline, map_img, resolution, origin,
                                    wall_thresh, max_ray_distance,
                                    car_width, optimizer_spacing,
@@ -1202,8 +1173,8 @@ def build_prepared_optimizer_track(centerline, map_img, resolution, origin,
     Build the exact reference-track arrays consumed by TUM's mintime optimizer.
 
     The important bit: we bypass TUM's full ``prep_track`` loader, but still
-    use ``tph.calc_splines`` so the optimizer receives the coefficient
-    matrices and normal-vector convention it expects.
+    use TUM's spline smoother and ``tph.calc_splines`` so the optimizer
+    receives the coefficient matrices and normal-vector convention it expects.
     """
     import trajectory_planning_helpers as tph
 
@@ -1218,15 +1189,24 @@ def build_prepared_optimizer_track(centerline, map_img, resolution, origin,
 
     if optimizer_smoothing_s and optimizer_smoothing_s > 0.0:
         print(
-            "  Applying periodic spline smoother to optimizer centerline: "
+            "  Applying TUM spline smoother to optimizer centerline: "
             f"k={optimizer_smoothing_k}, s={optimizer_smoothing_s:.3f}"
         )
-        opt_centerline, track_length, actual_spacing = smooth_optimizer_centerline(
-            opt_centerline,
-            optimizer_smoothing_s,
-            optimizer_smoothing_k,
-            optimizer_spacing,
+        dummy_width = np.ones(len(opt_centerline), dtype=float)
+        smooth_input = np.column_stack([opt_centerline, dummy_width, dummy_width])
+        smooth_track = tph.spline_approximation.spline_approximation(
+            track=smooth_input,
+            k_reg=optimizer_smoothing_k,
+            s_reg=optimizer_smoothing_s,
+            stepsize_prep=optimizer_smoothing_prep_spacing,
+            stepsize_reg=optimizer_spacing,
+            debug=True,
         )
+        opt_centerline = smooth_track[:, :2]
+        smooth_closed = np.vstack([opt_centerline, opt_centerline[0]])
+        smooth_lengths = np.linalg.norm(np.diff(smooth_closed, axis=0), axis=1)
+        track_length = float(np.sum(smooth_lengths))
+        actual_spacing = track_length / len(opt_centerline)
         print(
             f"  Smoothed optimizer centerline: {len(opt_centerline)} points, "
             f"{track_length:.1f} m, spacing={actual_spacing:.3f} m"
@@ -1719,8 +1699,8 @@ def main():
         # Centerline extraction settings
         centerline_spacing=0.15,     # target spacing for centerline points (in metres)
         optimizer_spacing=0.1,      # prepared reference-track spacing for TUM mintime
-        optimizer_smoothing_s=2.0,  # periodic spline smoothing before width measurement
-        optimizer_smoothing_k=2,    # periodic spline order
+        optimizer_smoothing_s=2.0,  # TUM spline smoothing factor before width measurement
+        optimizer_smoothing_k=2,    # TUM spline order (mirrors racecar.ini)
         optimizer_smoothing_prep_spacing=0.02,
         direction='cw',             # 'auto', 'cw', or 'ccw'
 
