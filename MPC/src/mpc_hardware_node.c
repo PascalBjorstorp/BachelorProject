@@ -81,6 +81,7 @@ static const char *g_trajectory_file = NULL;
 static int g_use_local_raceline = 1;
 static int g_local_raceline_received = 0;
 static int g_local_raceline_wait_logged = 0;
+static int g_local_raceline_speed_warned = 0;
 
 /** Enable verbose logging (disabled by default for real-time performance) */
 static int g_verbose = 0;
@@ -129,6 +130,9 @@ static int g_use_steering_feedback = 0;
 static TrajectoryWaypoint_t global_trajectory[TRAJECTORY_MAXIMUM_WAYPOINTS];
 static int global_trajectory_count = 0;
 static int global_last_closest_index = 0;
+static int g_trajectory_closed = 0;
+static double g_trajectory_s_min = 0.0;
+static double g_trajectory_s_max = 0.0;
 static VehicleState_t global_vehicle_state = {0};
 static FrenetState_t global_frenet_state = {0};
 static ControlInput_t global_control_command = {0};
@@ -402,10 +406,22 @@ static int load_trajectory_from_csv(const char *file_path)
     g_track_length_meters = 0.0;
     if (global_trajectory_count >= 2)
     {
-        g_track_length_meters = global_trajectory[global_trajectory_count - 1].s_meters
-                              - global_trajectory[0].s_meters;
-        if (g_track_length_meters < 1e-3)
-            g_track_length_meters = g_avg_waypoint_spacing * global_trajectory_count;
+        g_trajectory_s_min = global_trajectory[0].s_meters;
+        g_trajectory_s_max = global_trajectory[global_trajectory_count - 1].s_meters;
+
+        const double close_dist = hypot(
+            global_trajectory[global_trajectory_count - 1].x_meters - global_trajectory[0].x_meters,
+            global_trajectory[global_trajectory_count - 1].y_meters - global_trajectory[0].y_meters);
+        g_trajectory_closed = (close_dist <= (2.5 * g_avg_waypoint_spacing));
+
+        if (g_trajectory_closed)
+        {
+            g_track_length_meters = (g_trajectory_s_max - g_trajectory_s_min) + close_dist;
+        }
+        else
+        {
+            g_track_length_meters = 0.0;
+        }
     }
 
     return 1;
@@ -437,12 +453,22 @@ static int find_closest_waypoint(double position_x, double position_y, double ve
     double veh_dx = cos(vehicle_heading);
     double veh_dy = sin(vehicle_heading);
 
+    if (search_start < 0) search_start = 0;
+    if (search_start >= global_trajectory_count) search_start = global_trajectory_count - 1;
+
     // Search in a window around the last closest index for efficiency, with a bias towards points in front of the vehicle.
     for (int offset = -search_backward; offset < search_forward; offset++)
     {
         int idx = search_start + offset;
-        if (idx >= global_trajectory_count) idx -= global_trajectory_count;
-        if (idx < 0) idx += global_trajectory_count;
+        if (g_trajectory_closed)
+        {
+            if (idx >= global_trajectory_count) idx -= global_trajectory_count;
+            if (idx < 0) idx += global_trajectory_count;
+        }
+        else
+        {
+            if (idx < 0 || idx >= global_trajectory_count) continue;
+        }
 
         double dx = global_trajectory[idx].x_meters - position_x;
         double dy = global_trajectory[idx].y_meters - position_y;
@@ -470,6 +496,13 @@ static int find_closest_waypoint(double position_x, double position_y, double ve
  */
 static double wrap_track_s(double s)
 {
+    if (!g_trajectory_closed)
+    {
+        if (s < g_trajectory_s_min) return g_trajectory_s_min;
+        if (s > g_trajectory_s_max) return g_trajectory_s_max;
+        return s;
+    }
+
     if (g_track_length_meters <= 1e-6)
         return s;
 
@@ -540,6 +573,17 @@ static void sample_waypoint_by_s(double s_query, TrajectoryWaypoint_t *out)
         }
     }
 
+    if (!g_trajectory_closed)
+    {
+        if (s <= global_trajectory[0].s_meters)
+        {
+            *out = global_trajectory[0];
+            return;
+        }
+        *out = global_trajectory[global_trajectory_count - 1];
+        return;
+    }
+
     TrajectoryWaypoint_t *w0 = &global_trajectory[global_trajectory_count - 1];
     TrajectoryWaypoint_t *w1 = &global_trajectory[0];
     double s1 = w1->s_meters + g_track_length_meters;
@@ -606,40 +650,6 @@ static void build_reference_from_trajectory(int closest_index)
         double omega_ref = wp.curvature_radians_per_meter * traj_vel;
         global_reference_trajectory[step].reference_yaw_rate = omega_ref;
         global_reference_trajectory[step].reference_lateral_velocity = 0;
-    }
-}
-
-/**
- * @brief Build MPC reference directly from latest local raceline topic points.
- * @return None.
- */
-static void build_reference_from_local_raceline(void)
-{
-    if (global_trajectory_count <= 0)
-    {
-        return;
-    }
-
-    for (int step = 0; step < PREDICTION_HORIZON; step++)
-    {
-        int idx = step;
-        if (idx >= global_trajectory_count)
-        {
-            idx = global_trajectory_count - 1;
-        }
-
-        const TrajectoryWaypoint_t *wp = &global_trajectory[idx];
-        const double traj_vel = wp->velocity_meters_per_second;
-
-        global_reference_trajectory[step].reference_lateral_error = 0;
-        global_reference_trajectory[step].reference_heading_error = 0;
-        global_reference_trajectory[step].path_curvature = wp->curvature_radians_per_meter;
-        global_reference_trajectory[step].left_wall_bound = wp->left_bound_meters;
-        global_reference_trajectory[step].right_wall_bound = wp->right_bound_meters;
-        global_reference_trajectory[step].reference_velocity = traj_vel;
-        global_reference_trajectory[step].reference_lateral_velocity = 0;
-        global_reference_trajectory[step].reference_yaw_rate =
-            wp->curvature_radians_per_meter * traj_vel;
     }
 }
 
@@ -755,6 +765,19 @@ static void convert_to_frenet_state(
 {
     int idx0 = closest_index;
     int idx1 = (closest_index + 1) % global_trajectory_count;
+    if (!g_trajectory_closed)
+    {
+        if (global_trajectory_count < 2)
+        {
+            return;
+        }
+        if (idx0 >= global_trajectory_count - 1)
+        {
+            idx0 = global_trajectory_count - 2;
+        }
+        if (idx0 < 0) idx0 = 0;
+        idx1 = idx0 + 1;
+    }
 
     double ax = global_trajectory[idx0].x_meters;
     double ay = global_trajectory[idx0].y_meters;
@@ -865,6 +888,7 @@ void local_raceline_callback(const void *message_in)
     double cumulative_s = 0.0;
     double prev_x = 0.0;
     double prev_y = 0.0;
+    size_t missing_speed_count = 0;
 
     for (size_t i = 0; i < waypoint_count; i++)
     {
@@ -873,6 +897,11 @@ void local_raceline_callback(const void *message_in)
 
         const double x = pose->pose.position.x;
         const double y = pose->pose.position.y;
+        const double heading = quaternion_to_yaw_angle(
+            pose->pose.orientation.x,
+            pose->pose.orientation.y,
+            pose->pose.orientation.z,
+            pose->pose.orientation.w);
 
         if (i > 0)
         {
@@ -887,6 +916,7 @@ void local_raceline_callback(const void *message_in)
         if (!isfinite(v_ref) || v_ref < MIN_TRAJECTORY_SPEED_MPS)
         {
             v_ref = MIN_TRAJECTORY_SPEED_MPS;
+            missing_speed_count++;
         }
         if (v_ref > TRAJECTORY_MAXIMUM_VELOCITY)
         {
@@ -896,36 +926,13 @@ void local_raceline_callback(const void *message_in)
 
         wp->left_bound_meters = 1.5;
         wp->right_bound_meters = 1.5;
-        wp->heading_radians = 0.0;
+        wp->heading_radians = heading;
         wp->curvature_radians_per_meter = 0.0;
-        wp->sin_heading = 0.0;
-        wp->cos_heading = 1.0;
+        wp->sin_heading = sin(heading);
+        wp->cos_heading = cos(heading);
 
         prev_x = x;
         prev_y = y;
-    }
-
-    for (size_t i = 0; i < waypoint_count; i++)
-    {
-        size_t i_prev = (i == 0) ? 0 : (i - 1);
-        size_t i_next = (i + 1 < waypoint_count) ? (i + 1) : (waypoint_count - 1);
-
-        const double dx = global_trajectory[i_next].x_meters - global_trajectory[i_prev].x_meters;
-        const double dy = global_trajectory[i_next].y_meters - global_trajectory[i_prev].y_meters;
-
-        double heading = 0.0;
-        if ((dx * dx + dy * dy) > 1e-12)
-        {
-            heading = atan2(dy, dx);
-        }
-        else if (i > 0)
-        {
-            heading = global_trajectory[i - 1].heading_radians;
-        }
-
-        global_trajectory[i].heading_radians = heading;
-        global_trajectory[i].sin_heading = sin(heading);
-        global_trajectory[i].cos_heading = cos(heading);
     }
 
     if (waypoint_count >= 3)
@@ -947,14 +954,50 @@ void local_raceline_callback(const void *message_in)
     }
 
     global_trajectory_count = (int)waypoint_count;
-    global_last_closest_index = 0;
-    g_track_length_meters =
-        (waypoint_count > 1)
-        ? (global_trajectory[waypoint_count - 1].s_meters - global_trajectory[0].s_meters)
-        : 0.0;
+    g_trajectory_s_min = global_trajectory[0].s_meters;
+    g_trajectory_s_max = global_trajectory[waypoint_count - 1].s_meters;
+    g_avg_waypoint_spacing = (waypoint_count > 1) ? (cumulative_s / (double)(waypoint_count - 1)) : 0.05;
+    if (g_avg_waypoint_spacing < 0.01) g_avg_waypoint_spacing = 0.01;
+
+    {
+        const double close_dist = hypot(
+            global_trajectory[0].x_meters - global_trajectory[waypoint_count - 1].x_meters,
+            global_trajectory[0].y_meters - global_trajectory[waypoint_count - 1].y_meters);
+        g_trajectory_closed = (close_dist <= (2.5 * g_avg_waypoint_spacing));
+        g_track_length_meters = g_trajectory_closed ? (cumulative_s + close_dist) : 0.0;
+    }
+
+    if (g_ekf_pose_received)
+    {
+        int best = 0;
+        double best_dist = 1e18;
+        for (int i = 0; i < global_trajectory_count; i++)
+        {
+            const double dx = global_trajectory[i].x_meters - g_latest_pos_x;
+            const double dy = global_trajectory[i].y_meters - g_latest_pos_y;
+            const double d2 = dx * dx + dy * dy;
+            if (d2 < best_dist)
+            {
+                best_dist = d2;
+                best = i;
+            }
+        }
+        global_last_closest_index = best;
+    }
+    else
+    {
+        global_last_closest_index = 0;
+    }
 
     g_local_raceline_received = 1;
     g_local_raceline_wait_logged = 0;
+
+    if (!g_local_raceline_speed_warned &&
+        missing_speed_count > (size_t)((double)waypoint_count * 0.90))
+    {
+        printf("[MPC] WARNING: /local_raceline speed missing (z≈0). If using lateral planner, subscribe to /local_raceline (not /local_raceline_viz).\n");
+        g_local_raceline_speed_warned = 1;
+    }
 
     if (g_verbose)
     {
@@ -1187,16 +1230,8 @@ static void run_mpc_control_cycle(void)
         double vref0 = 0.0, kappa0 = 0.0;
         double left_wall0 = 0.0, right_wall0 = 0.0;
 
-        if (g_use_local_raceline)
-        {
-            closest = 0;
-            build_reference_from_local_raceline();
-        }
-        else
-        {
-            closest = find_closest_waypoint(pos_x, pos_y, heading);
-            build_reference_from_trajectory(closest);
-        }
+        closest = find_closest_waypoint(pos_x, pos_y, heading);
+        build_reference_from_trajectory(closest);
 
         convert_to_frenet_state(pos_x, pos_y, heading, closest, &global_frenet_state);
 
