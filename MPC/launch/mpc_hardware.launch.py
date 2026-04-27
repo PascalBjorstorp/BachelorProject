@@ -47,12 +47,6 @@ def generate_launch_description():
         description='Local raceline topic published by lateral planner'
     )
 
-    odom_topic_arg = DeclareLaunchArgument(
-        'odom_topic',
-        default_value='/ego_racecar/odom',
-        description='Odometry topic name (from VESC driver)'
-    )
-
     drive_topic_arg = DeclareLaunchArgument(
         'drive_topic',
         default_value='/drive',
@@ -63,12 +57,6 @@ def generate_launch_description():
         'servo_topic',
         default_value='/sensors/servo_position_command',
         description='VESC servo position feedback topic'
-    )
-
-    imu_topic_arg = DeclareLaunchArgument(
-        'imu_topic',
-        default_value='/imu/filtered_angular_velocity',
-        description='Filtered IMU angular velocity topic'
     )
 
     pose_topic_arg = DeclareLaunchArgument(
@@ -98,10 +86,6 @@ def generate_launch_description():
         'MPC_LOCAL_RACELINE_TOPIC',
         LaunchConfiguration('local_raceline_topic')
     )
-    set_odom = SetEnvironmentVariable(
-        'MPC_ODOM_TOPIC',
-        LaunchConfiguration('odom_topic')
-    )
     set_drive = SetEnvironmentVariable(
         'MPC_DRIVE_TOPIC',
         LaunchConfiguration('drive_topic')
@@ -109,10 +93,6 @@ def generate_launch_description():
     set_servo = SetEnvironmentVariable(
         'MPC_SERVO_TOPIC',
         LaunchConfiguration('servo_topic')
-    )
-    set_imu = SetEnvironmentVariable(
-        'MPC_IMU_TOPIC',
-        LaunchConfiguration('imu_topic')
     )
     set_pose = SetEnvironmentVariable(
         'MPC_AMCL_TOPIC',
@@ -138,19 +118,15 @@ def generate_launch_description():
     return LaunchDescription([
         use_local_raceline_arg,
         local_raceline_topic_arg,
-        odom_topic_arg,
         drive_topic_arg,
         servo_topic_arg,
-        imu_topic_arg,
         pose_topic_arg,
         verbose_arg,
         watchdog_timeout_arg,
         set_use_local_raceline,
         set_local_raceline_topic,
-        set_odom,
         set_drive,
         set_servo,
-        set_imu,
         set_pose,
         set_verbose,
         set_watchdog,
