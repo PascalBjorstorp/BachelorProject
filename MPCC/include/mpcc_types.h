@@ -109,7 +109,7 @@ typedef struct
 
 
 #define MPCC_MAX_HORIZON 20         /** Maximum prediction horizon steps.*/
-#define MPCC_MAX_PATH_POINTS 2000    /** Maximum number of reference path waypoints.*/
+#define MPCC_MAX_PATH_POINTS 2500    /** Maximum number of reference path waypoints.*/
 #define MPCC_MAX_OBSTACLES 10       /** Maximum number of obstacles that can be tracked simultaneously */
 
 /*===========================================================================
@@ -564,7 +564,7 @@ typedef struct
 /*--- Control effort ---*/
 #define MPCC_DEFAULT_WEIGHT_DELTA     (160.0f)                      /** Steering angle effort penalty. */
 #define MPCC_DEFAULT_WEIGHT_AX        (0.05225f)                    /** Longitudinal acceleration effort penalty. */
-#define MPCC_DEFAULT_WEIGHT_V_THETA   (0.1f)                        /** Virtual progress speed effort penalty. */
+#define MPCC_DEFAULT_WEIGHT_V_THETA   (2.0f)                        /** Virtual progress speed effort penalty. */
 
 /*--- Control rate (smoothness) ---*/
 #define MPCC_DEFAULT_WEIGHT_DELTA_RATE    (3.0f)                      /** Steering rate penalty. */
@@ -586,7 +586,7 @@ typedef struct
 #define MPCC_DEFAULT_OBSTACLE_MARGIN  (0.1f)                        /** Minimum distance to obstacles [m]. */
 
 /*--- ADMM solver (tuned via iterative sweep) ---*/
-#define MPCC_DEFAULT_ADMM_RHO         (5.0f)                        /** ADMM penalty parameter. */
+#define MPCC_DEFAULT_ADMM_RHO         (50.0f)                        /** ADMM penalty parameter. */
 #define MPCC_DEFAULT_ADMM_MAX_ITER    300                           /** Maximum ADMM iterations. */
 #define MPCC_DEFAULT_ADMM_TOLERANCE   (0.02f)                       /** ADMM convergence tolerance. */
 

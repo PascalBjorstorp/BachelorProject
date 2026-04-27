@@ -868,6 +868,7 @@ static void build_qp_problem(
 
     /* s: must be non-negative */
     qp->x_lower[MPCC_IDX_S] = 0;
+    qp->x_upper[MPCC_IDX_S] = (ref_path.total_length > 0.0f) ? ref_path.total_length : 1000.0f;
 
     /* vx: bounded, tightened by curvature-based speed limit */
     qp->x_lower[MPCC_IDX_VX] = config.vx_min;
@@ -1195,6 +1196,7 @@ static void shift_warm_start(void)
     }
     for (uint16_t k = 0; k < N; k++)
     {
+
         admm_workspace.z_u[k][MPCC_IDX_DELTA]  = prev_predicted_controls[k].delta;
         admm_workspace.z_u[k][MPCC_IDX_AX]     = prev_predicted_controls[k].a_x;
         admm_workspace.z_u[k][MPCC_IDX_VTHETA] = prev_predicted_controls[k].v_theta;
@@ -1260,36 +1262,6 @@ MPCCStatus_t mpcc_compute_control(
     {
         shift_warm_start();
 
-        /* Shift ADMM workspace to align with the new prediction window.
-         * Without this, z_x[k] from the previous solve corresponds to
-         * time t + k*dt, but the new QP stage k is at t+dt + k*dt.
-         * The one-step misalignment causes huge initial ADMM residuals. */
-        {
-            uint16_t N = config.horizon_steps;
-            if (N > MPCC_MAX_HORIZON) N = MPCC_MAX_HORIZON;
-
-            /* Shift states: [k] = [k+1] for k = 0..N-1, hold last */
-            for (uint16_t k = 0; k < N; k++) {
-                memcpy(admm_workspace.z_x[k], admm_workspace.z_x[k+1],
-                       sizeof(float) * MPCC_NX);
-                memcpy(admm_workspace.w_x[k], admm_workspace.w_x[k+1],
-                       sizeof(float) * MPCC_NX);
-                memcpy(admm_workspace.lambda_x[k], admm_workspace.lambda_x[k+1],
-                       sizeof(float) * MPCC_NX);
-            }
-            /* Terminal state stays (hold last) */
-
-            /* Shift controls: [k] = [k+1] for k = 0..N-2, hold last */
-            for (uint16_t k = 0; k + 1 < N; k++) {
-                memcpy(admm_workspace.z_u[k], admm_workspace.z_u[k+1],
-                       sizeof(float) * MPCC_NU);
-                memcpy(admm_workspace.w_u[k], admm_workspace.w_u[k+1],
-                       sizeof(float) * MPCC_NU);
-                memcpy(admm_workspace.lambda_u[k], admm_workspace.lambda_u[k+1],
-                       sizeof(float) * MPCC_NU);
-            }
-        }
-
         /* Detect s-wrap (lap boundary crossing): if s jumped backward
          * by more than half the track length, the warm-started workspace
          * has s values from the old lap.  Instead of a full cold start,
@@ -1304,6 +1276,18 @@ MPCCStatus_t mpcc_compute_control(
                     prev_predicted_states[k].s -= total_len;
                 if (prev_predicted_states[k].s < 0)
                     prev_predicted_states[k].s = 0;
+
+                float *s = &admm_workspace.z_x[k][MPCC_IDX_S];
+                while (*s > total_len) *s -= total_len;
+                if (*s < 0) *s = 0;
+                admm_workspace.w_x[k][MPCC_IDX_S] = admm_workspace.z_x[k][MPCC_IDX_S];
+
+                /* Keep scaled dual variable aligned with wrapped coordinates.
+                 * ADMM uses (lambda - w) in linear terms; if w is wrapped but
+                 * lambda is not, the subproblem sees a huge fictitious jump. */
+                float *lambda_s = &admm_workspace.lambda_x[k][MPCC_IDX_S];
+                while (*lambda_s > total_len) *lambda_s -= total_len;
+                if (*lambda_s < 0) *lambda_s = 0;
             }
             admm_config.warm_start = 1;
             /* Keep warm_start_available = 1 so QP uses wrapped states */
@@ -1319,6 +1303,9 @@ MPCCStatus_t mpcc_compute_control(
         /* Save the shifted warm-start's first control as fallback
          * in case the solver doesn't converge this cycle. */
         fallback_control = prev_predicted_controls[0];
+        if (!isfinite((double)fallback_control.delta)) fallback_control.delta = 0.0f;
+        if (!isfinite((double)fallback_control.a_x)) fallback_control.a_x = 0.0f;
+        if (!isfinite((double)fallback_control.v_theta)) fallback_control.v_theta = 0.0f;
     }
     else
     {
@@ -1398,7 +1385,12 @@ MPCCStatus_t mpcc_compute_control(
     result->adaptive_rho_updates = admm_result.adaptive_rho_updates;
     result->numeric_clip_count = admm_result.numeric_clip_count;
 
-    if (status == MPCC_STATUS_SUCCESS || status == MPCC_STATUS_MAX_ITERATIONS) {
+    {
+        const int finite_control = isfinite(admm_result.u_opt[0][MPCC_IDX_DELTA]) &&
+                       isfinite(admm_result.u_opt[0][MPCC_IDX_AX]) &&
+                       isfinite(admm_result.u_opt[0][MPCC_IDX_VTHETA]);
+
+        if (status == MPCC_STATUS_SUCCESS && finite_control) {
         /* Use the ADMM iterate for control.
          * MAX_ITERATIONS is still a partially converged, usually usable solution. */
         result->optimal_control.delta = admm_result.u_opt[0][MPCC_IDX_DELTA];
@@ -1428,29 +1420,6 @@ MPCCStatus_t mpcc_compute_control(
         }
 
         result->predicted_states[0] = *current_state;
-        if (N > 0)
-        {
-            float x_arr[MPCC_NX];
-            float x_next[MPCC_NX];
-            float u_arr[MPCC_NU] = {
-                result->optimal_control.delta,
-                result->optimal_control.a_x,
-                result->optimal_control.v_theta
-            };
-
-            result->predicted_controls[0] = result->optimal_control;
-            state_to_array(&result->predicted_states[0], x_arr);
-
-            for (int i = 0; i < MPCC_NX; i++) {
-                x_next[i] = qp_problem.dynamics[0].d[i];
-                for (int j = 0; j < MPCC_NX; j++)
-                    x_next[i] += qp_problem.dynamics[0].A[i][j] * x_arr[j];
-                for (int j = 0; j < MPCC_NU; j++)
-                    x_next[i] += qp_problem.dynamics[0].B[i][j] * u_arr[j];
-            }
-
-            array_to_state(x_next, &result->predicted_states[1]);
-        }
         result->predicted_controls[0] = result->optimal_control;
 
         /* Store solution for next cycle's warm start */
@@ -1460,7 +1429,7 @@ MPCCStatus_t mpcc_compute_control(
             prev_predicted_controls[k] = result->predicted_controls[k];
 
         prev_control = result->optimal_control;
-    } else {
+        } else {
         /* Unconverged / error: fall back to previous good control. */
         result->optimal_control = fallback_control;
 
@@ -1485,8 +1454,22 @@ MPCCStatus_t mpcc_compute_control(
                 prev_predicted_controls[k] = result->predicted_controls[k];
         }
         /* else: keep prev_predicted_states/controls from last good solve */
+        }
+
+        /* Numerical breakdown contaminates ADMM workspace (z/w/lambda) and
+         * can poison subsequent warm-starts. Reset workspace on hard failure. */
+        if (status != MPCC_STATUS_SUCCESS ||
+            !isfinite((double)(admm_result.primal_residual)) ||
+            !isfinite((double)(admm_result.dual_residual)))
+        {
+            admm_solver_initialize(&admm_workspace);
+            warm_start_available = 0;
+        }
+        else
+        {
+            warm_start_available = 1;
+        }
     }
-    warm_start_available = 1;
 
 #ifdef MPCC_DEBUG_PRINT
         printf("[MPCC] status=%d  iter=%u  prim=%.4f  dual=%.4f  "

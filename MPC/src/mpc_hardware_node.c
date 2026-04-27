@@ -653,6 +653,47 @@ static void build_reference_from_trajectory(int closest_index)
     }
 }
 
+/**
+ * @brief Build MPC reference directly from the latest /local_raceline points.
+ *
+ * The lateral planner publishes a local (vehicle-anchored) path segment that
+ * already represents the intended horizon ahead. In this mode we should not
+ * resample by arc-length using the global raceline model; instead, take the
+ * provided discrete points directly (clamped to the last point if the horizon
+ * exceeds the message length).
+ *
+ * @return None.
+ */
+static void build_reference_from_local_raceline(void)
+{
+    if (global_trajectory_count <= 0)
+    {
+        return;
+    }
+
+    for (int step = 0; step < PREDICTION_HORIZON; step++)
+    {
+        int idx = step;
+        if (idx >= global_trajectory_count)
+        {
+            idx = global_trajectory_count - 1;
+        }
+
+        const TrajectoryWaypoint_t *wp = &global_trajectory[idx];
+        const double traj_vel = wp->velocity_meters_per_second;
+
+        global_reference_trajectory[step].reference_lateral_error = 0;
+        global_reference_trajectory[step].reference_heading_error = 0;
+        global_reference_trajectory[step].path_curvature = wp->curvature_radians_per_meter;
+        global_reference_trajectory[step].left_wall_bound = wp->left_bound_meters;
+        global_reference_trajectory[step].right_wall_bound = wp->right_bound_meters;
+        global_reference_trajectory[step].reference_velocity = traj_vel;
+        global_reference_trajectory[step].reference_lateral_velocity = 0;
+        global_reference_trajectory[step].reference_yaw_rate =
+            wp->curvature_radians_per_meter * traj_vel;
+    }
+}
+
 /*===========================================================================
  * Helper Functions
  *===========================================================================*/
@@ -897,11 +938,6 @@ void local_raceline_callback(const void *message_in)
 
         const double x = pose->pose.position.x;
         const double y = pose->pose.position.y;
-        const double heading = quaternion_to_yaw_angle(
-            pose->pose.orientation.x,
-            pose->pose.orientation.y,
-            pose->pose.orientation.z,
-            pose->pose.orientation.w);
 
         if (i > 0)
         {
@@ -926,13 +962,39 @@ void local_raceline_callback(const void *message_in)
 
         wp->left_bound_meters = 1.5;
         wp->right_bound_meters = 1.5;
-        wp->heading_radians = heading;
+        /* Heading is computed from geometry after loading all points. */
+        wp->heading_radians = 0.0;
         wp->curvature_radians_per_meter = 0.0;
-        wp->sin_heading = sin(heading);
-        wp->cos_heading = cos(heading);
+        wp->sin_heading = 0.0;
+        wp->cos_heading = 1.0;
 
         prev_x = x;
         prev_y = y;
+    }
+
+    /* Compute heading from finite differences of x/y to avoid relying on
+     * PoseStamped.orientation (which may be unset or noisy on some stacks). */
+    for (size_t i = 0; i < waypoint_count; i++)
+    {
+        size_t i_prev = (i == 0) ? 0 : (i - 1);
+        size_t i_next = (i + 1 < waypoint_count) ? (i + 1) : (waypoint_count - 1);
+
+        const double dx = global_trajectory[i_next].x_meters - global_trajectory[i_prev].x_meters;
+        const double dy = global_trajectory[i_next].y_meters - global_trajectory[i_prev].y_meters;
+
+        double heading = 0.0;
+        if ((dx * dx + dy * dy) > 1e-12)
+        {
+            heading = atan2(dy, dx);
+        }
+        else if (i > 0)
+        {
+            heading = global_trajectory[i - 1].heading_radians;
+        }
+
+        global_trajectory[i].heading_radians = heading;
+        global_trajectory[i].sin_heading = sin(heading);
+        global_trajectory[i].cos_heading = cos(heading);
     }
 
     if (waypoint_count >= 3)
@@ -959,35 +1021,11 @@ void local_raceline_callback(const void *message_in)
     g_avg_waypoint_spacing = (waypoint_count > 1) ? (cumulative_s / (double)(waypoint_count - 1)) : 0.05;
     if (g_avg_waypoint_spacing < 0.01) g_avg_waypoint_spacing = 0.01;
 
-    {
-        const double close_dist = hypot(
-            global_trajectory[0].x_meters - global_trajectory[waypoint_count - 1].x_meters,
-            global_trajectory[0].y_meters - global_trajectory[waypoint_count - 1].y_meters);
-        g_trajectory_closed = (close_dist <= (2.5 * g_avg_waypoint_spacing));
-        g_track_length_meters = g_trajectory_closed ? (cumulative_s + close_dist) : 0.0;
-    }
+    /* /local_raceline is a local segment; treat as open track. */
+    g_trajectory_closed = 0;
+    g_track_length_meters = 0.0;
 
-    if (g_ekf_pose_received)
-    {
-        int best = 0;
-        double best_dist = 1e18;
-        for (int i = 0; i < global_trajectory_count; i++)
-        {
-            const double dx = global_trajectory[i].x_meters - g_latest_pos_x;
-            const double dy = global_trajectory[i].y_meters - g_latest_pos_y;
-            const double d2 = dx * dx + dy * dy;
-            if (d2 < best_dist)
-            {
-                best_dist = d2;
-                best = i;
-            }
-        }
-        global_last_closest_index = best;
-    }
-    else
-    {
-        global_last_closest_index = 0;
-    }
+    global_last_closest_index = 0;
 
     g_local_raceline_received = 1;
     g_local_raceline_wait_logged = 0;
@@ -1230,8 +1268,16 @@ static void run_mpc_control_cycle(void)
         double vref0 = 0.0, kappa0 = 0.0;
         double left_wall0 = 0.0, right_wall0 = 0.0;
 
-        closest = find_closest_waypoint(pos_x, pos_y, heading);
-        build_reference_from_trajectory(closest);
+        if (g_use_local_raceline)
+        {
+            closest = 0;
+            build_reference_from_local_raceline();
+        }
+        else
+        {
+            closest = find_closest_waypoint(pos_x, pos_y, heading);
+            build_reference_from_trajectory(closest);
+        }
 
         convert_to_frenet_state(pos_x, pos_y, heading, closest, &global_frenet_state);
 
@@ -1412,6 +1458,21 @@ static void run_mpc_control_cycle(void)
             double v_cmd = g_latest_vx + a_cmd * pred_dt;
             if (v_cmd < (double)VP_MIN_VELOCITY_MPS) v_cmd = (double)VP_MIN_VELOCITY_MPS;
             if (v_cmd > TRAJECTORY_MAXIMUM_VELOCITY) v_cmd = TRAJECTORY_MAXIMUM_VELOCITY;
+
+            /* Hardware is in VEL_TO_ERPM mode by default (see `vesc.yaml`), so the
+             * low-level stack primarily obeys `drive.speed`. If we allow `v_cmd`
+             * to exceed the reference profile, the car can enter corners too
+             * fast even when the MPC outputs braking (because the speed setpoint
+             * only decreases gradually by a_cmd*dt). Clamp the published speed
+             * to the current reference to enforce "never faster than raceline". */
+            if (global_trajectory_count > 1)
+            {
+                const double v_ref0 = (double)global_reference_trajectory[0].reference_velocity;
+                if (isfinite(v_ref0) && v_ref0 > 0.0)
+                {
+                    if (v_cmd > v_ref0) v_cmd = v_ref0;
+                }
+            }
 
             global_drive_message_buffer.drive.speed = (float)v_cmd;
             global_drive_message_buffer.drive.acceleration = (float)a_cmd;
