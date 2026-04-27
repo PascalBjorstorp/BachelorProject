@@ -1,3 +1,20 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:fec4bd118bea7e2c501c033ee48bc03107a4fa17930f4023c4d599cbf0455dde
-size 344
+# v_mps,ax_max_machines_mps2
+# F1/10th motor limit: max_wheel_force=23.8N, mass=3.314kg
+# Low speed: a = F/m = 23.8/3.314 = 7.18 m/s²
+# High speed: drops due to back-EMF limiting motor current
+0.0,7.18
+1.0,7.18
+2.0,7.18
+3.0,7.18
+4.0,7.18
+5.0,7.18
+6.0,7.18
+7.0,7.18
+8.0,6.42
+9.0,5.71
+10.0,5.14
+11.0,4.67
+12.0,4.28
+13.0,3.95
+14.0,3.67
+15.0,3.43
