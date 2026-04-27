@@ -915,6 +915,11 @@ static void build_qp_problem(
     qp->u_lower[MPCC_IDX_VTHETA] = config.v_theta_min;
     qp->u_upper[MPCC_IDX_VTHETA] = config.v_theta_max;
 
+    for (uint16_t k = 0; k < N; k++) {
+        qp->delta_lower_stage[k] = qp->u_lower[MPCC_IDX_DELTA];
+        qp->delta_upper_stage[k] = qp->u_upper[MPCC_IDX_DELTA];
+    }
+
     /* Friction circle: (mu * g)^2 for combined acceleration constraint */
     float mu_g = config.mu * F110_GRAVITY_ACCELERATION_MS2;
     qp->mu_g_sq = mu_g * mu_g;
@@ -1036,8 +1041,8 @@ static void build_qp_problem(
         /* Per-stage track bounds on n */
         qp->track_left[k] = path_pt.left_bound - track_buffer;
         qp->track_right[k] = path_pt.right_bound - track_buffer;
-        if (qp->track_left[k] < 0.02f) qp->track_left[k] = 0.02f;
-        if (qp->track_right[k] < 0.02f) qp->track_right[k] = 0.02f;
+        if (qp->track_left[k] < 0.0f) qp->track_left[k] = 0.0f;
+        if (qp->track_right[k] < 0.0f) qp->track_right[k] = 0.0f;
 
         /* Per-stage curvature-based speed limit — disabled, using global limit.
          * Keep array populated for compatibility but don't tighten. */
@@ -1273,53 +1278,37 @@ MPCCStatus_t mpcc_compute_control(
     {
         shift_warm_start();
 
+        uint8_t keep_warm_start = 1;
+
         /* Detect s-wrap (lap boundary crossing): if s jumped backward
          * by more than half the track length, the warm-started workspace
-         * has s values from the old lap.  Instead of a full cold start,
-         * wrap the s values in the warm-start so the solver keeps a useful
-         * starting point for the new lap. */
+         * has s values from the old lap. The wrapped state representation
+         * is discontinuous at the seam, so reusing the old trajectory can
+         * inject a large fictitious jump into the next QP. */
         float s_jump = current_state->s - prev_predicted_states[0].s;
-        if (s_jump < -(ref_path.total_length * 0.5f)) {
-            /* Wrap s values in warm-start trajectory */
-            float total_len = ref_path.total_length;
-            uint16_t N = config.horizon_steps;
-            if (N > MPCC_MAX_HORIZON) N = MPCC_MAX_HORIZON;
-
-            for (uint16_t k = 0; k <= N; k++) {
-                while (prev_predicted_states[k].s > total_len)
-                    prev_predicted_states[k].s -= total_len;
-                if (prev_predicted_states[k].s < 0)
-                    prev_predicted_states[k].s = 0;
-
-                float *s = &admm_workspace.z_x[k][MPCC_IDX_S];
-                while (*s > total_len) *s -= total_len;
-                if (*s < 0) *s = 0;
-                admm_workspace.w_x[k][MPCC_IDX_S] = admm_workspace.z_x[k][MPCC_IDX_S];
-
-                /* Keep scaled dual variable aligned with wrapped coordinates.
-                 * ADMM uses (lambda - w) in linear terms; if w is wrapped but
-                 * lambda is not, the subproblem sees a huge fictitious jump. */
-                float *lambda_s = &admm_workspace.lambda_x[k][MPCC_IDX_S];
-                while (*lambda_s > total_len) *lambda_s -= total_len;
-                if (*lambda_s < 0) *lambda_s = 0;
-            }
-            admm_config.warm_start = 1;
-            /* Keep warm_start_available = 1 so QP uses wrapped states */
+        if (ref_path.is_closed && ref_path.total_length > 0.0f
+            && s_jump < -(ref_path.total_length * 0.5f)) {
+            keep_warm_start = 0;
+            warm_start_available = 0;
 #ifdef MPCC_DEBUG_PRINT
-            printf("[MPCC] s-wrap detected (%.2f → %.2f), wrapping warm-start s values\n",
-                   (double)(prev_predicted_states[0].s + total_len),
+            printf("[MPCC] s-wrap detected (%.2f → %.2f), dropping warm-start for this cycle\n",
+                   (double)(prev_predicted_states[0].s),
                    (double)current_state->s);
 #endif
-        } else {
-            admm_config.warm_start = 1;
         }
 
-        /* Save the shifted warm-start's first control as fallback
-         * in case the solver doesn't converge this cycle. */
-        fallback_control = prev_predicted_controls[0];
-        if (!isfinite((double)fallback_control.delta)) fallback_control.delta = 0.0f;
-        if (!isfinite((double)fallback_control.a_x)) fallback_control.a_x = 0.0f;
-        if (!isfinite((double)fallback_control.v_theta)) fallback_control.v_theta = 0.0f;
+        if (keep_warm_start) {
+            admm_config.warm_start = 1;
+
+            /* Save the shifted warm-start's first control as fallback
+             * in case the solver doesn't converge this cycle. */
+            fallback_control = prev_predicted_controls[0];
+            if (!isfinite((double)fallback_control.delta)) fallback_control.delta = 0.0f;
+            if (!isfinite((double)fallback_control.a_x)) fallback_control.a_x = 0.0f;
+            if (!isfinite((double)fallback_control.v_theta)) fallback_control.v_theta = 0.0f;
+        } else {
+            admm_config.warm_start = 0;
+        }
     }
     else
     {
@@ -1403,9 +1392,16 @@ MPCCStatus_t mpcc_compute_control(
         const int finite_control = isfinite(admm_result.u_opt[0][MPCC_IDX_DELTA]) &&
                        isfinite(admm_result.u_opt[0][MPCC_IDX_AX]) &&
                        isfinite(admm_result.u_opt[0][MPCC_IDX_VTHETA]);
+        const int finite_residuals = isfinite((double)(admm_result.primal_residual)) &&
+                       isfinite((double)(admm_result.dual_residual));
+        const int usable_status = (status == MPCC_STATUS_SUCCESS) ||
+                       (status == MPCC_STATUS_MAX_ITERATIONS);
+        const int hard_failure = (status == MPCC_STATUS_INFEASIBLE) ||
+                       (status == MPCC_STATUS_ERROR) ||
+                       !finite_residuals;
 
-        if (status == MPCC_STATUS_SUCCESS && finite_control) {
-        /* Use the ADMM iterate for control.
+        if (usable_status && finite_control && finite_residuals) {
+        /* Use the solver iterate for control.
          * MAX_ITERATIONS is still a partially converged, usually usable solution. */
         result->optimal_control.delta = admm_result.u_opt[0][MPCC_IDX_DELTA];
         result->optimal_control.a_x = admm_result.u_opt[0][MPCC_IDX_AX];
@@ -1422,7 +1418,6 @@ MPCCStatus_t mpcc_compute_control(
                 result->optimal_control.delta = prev_control.delta - max_delta_change;
         }
 
-        /* Copy the solver trajectory directly. */
         uint16_t N = config.horizon_steps;
         for (uint16_t k = 0; k <= N; k++)
             array_to_state(admm_result.x_opt[k], &result->predicted_states[k]);
@@ -1461,7 +1456,8 @@ MPCCStatus_t mpcc_compute_control(
         /* Only update warm-start if residual is moderate (partially converged).
          * For badly diverged solves, keep the previous warm-start to avoid
          * contaminating the next solve with garbage. */
-        if (admm_result.primal_residual < 50.0f * config.admm_tolerance) {
+        if (finite_residuals &&
+            admm_result.primal_residual < 50.0f * config.admm_tolerance) {
             for (uint16_t k = 0; k <= N; k++)
                 prev_predicted_states[k] = result->predicted_states[k];
             for (uint16_t k = 0; k < N; k++)
@@ -1471,10 +1467,8 @@ MPCCStatus_t mpcc_compute_control(
         }
 
         /* Numerical breakdown contaminates ADMM workspace (z/w/lambda) and
-         * can poison subsequent warm-starts. Reset workspace on hard failure. */
-        if (status != MPCC_STATUS_SUCCESS ||
-            !isfinite((double)(admm_result.primal_residual)) ||
-            !isfinite((double)(admm_result.dual_residual)))
+         * can poison subsequent warm-starts. Reset workspace only on hard failure. */
+        if (hard_failure)
         {
             admm_solver_initialize(&admm_workspace);
             warm_start_available = 0;

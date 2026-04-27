@@ -89,6 +89,12 @@ typedef struct
     /** Control upper bounds */
     float u_upper[MPCC_NU];
 
+    /** Per-stage steering bounds [rad].
+     *  Tighten the global steering box with a physically reachable envelope
+     *  from the currently applied steering angle. */
+    float delta_lower_stage[MPCC_MAX_HORIZON];
+    float delta_upper_stage[MPCC_MAX_HORIZON];
+
     /*--- Per-stage track bounds on n (state index 1) ---*/
 
     /** Left track boundary at each stage [m] (positive value).

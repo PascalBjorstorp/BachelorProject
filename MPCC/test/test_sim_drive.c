@@ -210,6 +210,9 @@ static int build_reference_path(void)
     const double body_margin = DEFAULT_BODY_SAFETY_MARGIN;
 
     g_ref_path.num_points = 0;
+    int invalid_corridor_points = 0;
+    float min_left_effective = 1.0e9f;
+    float min_right_effective = 1.0e9f;
     for (int i = 0; i < raceline_count && i < MPCC_MAX_PATH_POINTS; i++) {
         MPCCPathPoint_t *pt = &g_ref_path.points[i];
         pt->s_ref     = (float)raceline[i].s;
@@ -219,11 +222,18 @@ static int build_reference_path(void)
         pt->kappa_ref = (float)raceline[i].kappa;
         pt->vx_ref    = (float)raceline[i].vx;
 
-        /* Subtract car half-width + safety margin so QP bounds match collision check */
-        float lb = (float)(raceline[i].left_bound  - VEHICLE_HALF_WIDTH - body_margin);
-        float rb = (float)(raceline[i].right_bound - VEHICLE_HALF_WIDTH - body_margin);
-        if (lb < 0.05f) lb = 0.05f;
-        if (rb < 0.05f) rb = 0.05f;
+        /* Keep the exact post-body corridor where possible; only clip truly
+         * impossible negative widths to zero so the solver does not get more
+         * space than the collision checker allows. */
+        float lb_raw = (float)(raceline[i].left_bound  - VEHICLE_HALF_WIDTH - body_margin);
+        float rb_raw = (float)(raceline[i].right_bound - VEHICLE_HALF_WIDTH - body_margin);
+        float lb = lb_raw;
+        float rb = rb_raw;
+        if (lb_raw < min_left_effective) min_left_effective = lb_raw;
+        if (rb_raw < min_right_effective) min_right_effective = rb_raw;
+        if (lb_raw <= 0.0f || rb_raw <= 0.0f) invalid_corridor_points++;
+        if (lb < 0.0f) lb = 0.0f;
+        if (rb < 0.0f) rb = 0.0f;
         pt->left_bound  = lb;
         pt->right_bound = rb;
 
@@ -235,6 +245,12 @@ static int build_reference_path(void)
 
     printf("[MPCC] Built reference path: %d points, length %.1f m\n",
            g_ref_path.num_points, g_ref_path.total_length);
+    if (invalid_corridor_points > 0) {
+        printf("[MPCC] Warning: %d path points are narrower than vehicle width + safety margin (min effective left/right %.3f / %.3f m)\n",
+               invalid_corridor_points,
+               (double)min_left_effective,
+               (double)min_right_effective);
+    }
     return 1;
 }
 
