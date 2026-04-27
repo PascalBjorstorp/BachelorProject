@@ -735,7 +735,7 @@ MpcSolverStatus_t mpc_compute_optimal_control(
             if (v_for_limit > V_SWITCH) {
                 float scale = V_SWITCH / v_for_limit;
                 sd->u_ub[1] = a_max * scale;
-                sd->u_lb[1] = a_min * scale;  /* a_min is negative */
+                sd->u_lb[1] = a_min;  /* a_min is negative */
             } else {
                 sd->u_ub[1] = a_max;
                 sd->u_lb[1] = a_min;
