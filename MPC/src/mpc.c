@@ -52,7 +52,7 @@ static float get_wall_bias_clearance_m(void)
 
 static float get_wall_bias_max_shift_m(void)
 {
-    /* Clamp absolute magnitude of the biased lateral reference (safety valve). */
+    /* Clamp max correction magnitude applied to base reference (safety valve). */
     return get_env_float("MPC_WALL_BIAS_MAX_M", 0.05f);
 }
 
@@ -96,23 +96,25 @@ static float compute_wall_biased_ey_ref(
     if (!(max_shift_m > 0.0f) || !isfinite(max_shift_m))
         max_shift_m = BIG_BOUND;
 
-    float ref = base_ref;
+    float target_lb = x_lb;
+    float target_ub = x_ub;
 
     if (clearance_m > 0.0f && isfinite(clearance_m)) {
         /* When possible, keep at least clearance_m from both corridor edges. */
         const float desired_lb = x_lb + clearance_m;
         const float desired_ub = x_ub - clearance_m;
         if (desired_lb <= desired_ub) {
-            ref = util_clamp(ref, desired_lb, desired_ub);
-        } else {
-            /* Corridor too narrow for requested clearance; track midpoint. */
-            ref = 0.5f * (x_lb + x_ub);
+            target_lb = desired_lb;
+            target_ub = desired_ub;
         }
-    } else {
-        ref = util_clamp(ref, x_lb, x_ub);
     }
 
-    ref = util_clamp(ref, -max_shift_m, max_shift_m);
+    /* Project reference to nearest feasible point, then limit correction size. */
+    float target_ref = util_clamp(base_ref, target_lb, target_ub);
+    float corr = target_ref - base_ref;
+    corr = util_clamp(corr, -max_shift_m, max_shift_m);
+    float ref = base_ref + corr;
+
     ref = util_clamp(ref, x_lb, x_ub);
     return ref;
 }
@@ -631,9 +633,8 @@ MpcSolverStatus_t mpc_compute_optimal_control(
             wall_x_lb_con = wall_x_lb + wall_bias_clear_m;
             wall_x_ub_con = wall_x_ub - wall_bias_clear_m;
             if (wall_x_lb_con > wall_x_ub_con) {
-                float mid = 0.5f * (wall_x_lb + wall_x_ub);
-                wall_x_lb_con = mid;
-                wall_x_ub_con = mid;
+                wall_x_lb_con = wall_x_lb;
+                wall_x_ub_con = wall_x_ub;
             }
         }
 
@@ -812,9 +813,8 @@ MpcSolverStatus_t mpc_compute_optimal_control(
                 wall_x_lb_con = wall_x_lb + wall_bias_clear_m;
                 wall_x_ub_con = wall_x_ub - wall_bias_clear_m;
                 if (wall_x_lb_con > wall_x_ub_con) {
-                    float mid = 0.5f * (wall_x_lb + wall_x_ub);
-                    wall_x_lb_con = mid;
-                    wall_x_ub_con = mid;
+                    wall_x_lb_con = wall_x_lb;
+                    wall_x_ub_con = wall_x_ub;
                 }
             }
 
