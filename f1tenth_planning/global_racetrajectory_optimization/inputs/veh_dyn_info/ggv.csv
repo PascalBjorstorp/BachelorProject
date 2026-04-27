@@ -1,3 +1,20 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:751648d9f6518ccfbc6f28cb575fbfeff6c7a4f53bc305456f514d507f49bae6
-size 393
+# v_mps,ax_max_mps2,ay_max_mps2
+# F1/10th: mu=0.787, ay_max = mu*g = 7.72 m/s²
+# ax_max = mu*g = 7.72 m/s² (tire-limited, braking)
+# Motor accel limit handled separately by ax_max_machines.csv
+0.0,7.7,7.7
+1.0,7.7,7.7
+2.0,7.7,7.7
+3.0,7.7,7.7
+4.0,7.7,7.7
+5.0,7.7,7.7
+6.0,7.7,7.7
+7.0,7.7,7.7
+8.0,7.7,7.7
+9.0,7.7,7.7
+10.0,7.7,7.7
+11.0,7.7,7.7
+12.0,7.7,7.7
+13.0,7.7,7.7
+14.0,7.7,7.7
+15.0,7.7,7.7
