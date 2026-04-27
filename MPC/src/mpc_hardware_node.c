@@ -11,17 +11,14 @@
  * real-time 200 Hz execution on embedded hardware.
  *
  * Architecture (EKF-driven):
- *   - Odometry callback: stores latest velocity state (fast, non-blocking)
  *   - Servo feedback callback: stores actual steering angle from VESC
- *   - IMU callback: stores filtered yaw rate for higher-quality feedback
- *   - EKF pose callback: receives map-frame pose, runs MPC, publishes result
- *   - Safety: no command published until both odom and EKF pose are received
+ *   - EKF pose callback: receives map-frame pose, estimates body-frame vx/vy/omega
+ *     from pose deltas, runs MPC, publishes result
  *
  * Topics:
- *   Subscribe: /ego_racecar/odom       (nav_msgs/Odometry)     — VESC odometry [QoS(10)]
  *   Subscribe: /sensors/servo_position_command (std_msgs/Float64) — servo fb [QoS(10)]
- *   Subscribe: /imu/filtered_angular_velocity (std_msgs/Float64)  — filtered yaw [QoS(10)]
  *   Subscribe: /local_raceline         (nav_msgs/Path)         — lateral planner reference [QoS(10)]
+ *   Subscribe: /ekf_pose               (geometry_msgs/PoseWithCovarianceStamped) — EKF pose [QoS(10)]
  *   Publish:   /drive                  (ackermann_msgs/AckermannDriveStamped) — mux [QoS(10)]
  *
  * @dependencies mpc.h, mpc_types.h, util_math.h, vehicle_model.h,
@@ -56,7 +53,6 @@
 #include "rcutils/allocator.h"
 
 /* ROS2 Message Types */
-#include "nav_msgs/msg/odometry.h"
 #include "nav_msgs/msg/path.h"
 #include "ackermann_msgs/msg/ackermann_drive_stamped.h"
 #include "std_msgs/msg/float64.h"
@@ -74,10 +70,8 @@
 
 
 /** Configurable topic names */
-static const char *g_odom_topic = "/ego_racecar/odom";
 static const char *g_drive_topic = "/drive";
 static const char *g_servo_topic = "/sensors/servo_position_command";
-static const char *g_imu_topic = "/imu/filtered_angular_velocity";
 static const char *g_amcl_pose_topic = "/ekf_pose";
 static const char *g_local_raceline_topic = "/local_raceline";
 static const char *g_trajectory_file = NULL;
@@ -138,37 +132,31 @@ static int global_last_closest_index = 0;
 static VehicleState_t global_vehicle_state = {0};
 static FrenetState_t global_frenet_state = {0};
 static ControlInput_t global_control_command = {0};
-static int global_odometry_received_flag = 0;
+static int g_ekf_state_received = 0;
 static volatile sig_atomic_t global_shutdown_requested = 0;
 static rcl_context_t *global_ros2_context = NULL;
 
 static rcl_publisher_t global_control_publisher;
 
-static nav_msgs__msg__Odometry global_odometry_message_buffer;
 static std_msgs__msg__Float64 global_servo_message_buffer;
-static std_msgs__msg__Float64 global_imu_message_buffer;
 static ackermann_msgs__msg__AckermannDriveStamped global_drive_message_buffer;
 static geometry_msgs__msg__PoseWithCovarianceStamped global_amcl_pose_buffer;
 static nav_msgs__msg__Path global_local_raceline_buffer;
 
 static TrajectoryReferencePoint_t global_reference_trajectory[PREDICTION_HORIZON];
 
-/** Cached latest odometry values for the timer callback (stored in odom callback) */
+/** Latest EKF pose-derived state used by MPC cycle. */
 static double g_latest_pos_x = 0.0;
 static double g_latest_pos_y = 0.0;
 static double g_latest_heading = 0.0;
 static double g_latest_vx = 0.0;
 static double g_latest_vy = 0.0;
 static double g_latest_omega = 0.0;
-
-/** Filtered IMU yaw rate (updated by IMU callback) */
-static double g_imu_yaw_rate = 0.0;
-static int g_imu_received = 0;
-static struct timespec g_last_imu_time = {0, 0};
-
-/** Watchdog: timestamp of last odometry received (CLOCK_MONOTONIC — uses VDSO
- *  fast path on aarch64, ~3ns vs ~50ns syscall for CLOCK_MONOTONIC_RAW) */
-static struct timespec g_last_odom_time = {0, 0};
+static int g_prev_ekf_pose_valid = 0;
+static double g_prev_ekf_x = 0.0;
+static double g_prev_ekf_y = 0.0;
+static double g_prev_ekf_heading = 0.0;
+static struct timespec g_last_ekf_time = {0, 0};
 
 /** Rolling solve-time instrumentation (always active, prints every 500 cycles) */
 static double g_solve_time_sum_us = 0.0;
@@ -223,8 +211,8 @@ static void ensure_parent_directories(const char *filepath)
     }
 }
 
-/** Number of executor handles: 5 subscriptions (no timer) */
-#define EXECUTOR_NUM_HANDLES 5
+/** Number of executor handles: 3 subscriptions (servo, ekf_pose, local_raceline). */
+#define EXECUTOR_NUM_HANDLES 3
 
 /*===========================================================================
  * Signal Handler for Graceful Shutdown
@@ -974,76 +962,7 @@ void local_raceline_callback(const void *message_in)
     }
 }
 
-/*===========================================================================
- * ROS2 Callback: Odometry Subscription (non-blocking, just stores state)
- *===========================================================================*/
-
 static void run_mpc_control_cycle(void);
-
-/**
- * @brief Process odometry messages and update cached vehicle dynamics.
- * @param message_in Pointer to nav_msgs/Odometry message.
- * @return None.
- */
-
-void odometry_subscription_callback(const void *message_in)
-{
-    if (message_in == NULL) return;
-
-    const nav_msgs__msg__Odometry *odom =
-        (const nav_msgs__msg__Odometry *)message_in;
-
-    double pos_x = odom->pose.pose.position.x;
-    double pos_y = odom->pose.pose.position.y;
-    double heading = quaternion_to_yaw_angle(
-        odom->pose.pose.orientation.x,
-        odom->pose.pose.orientation.y,
-        odom->pose.pose.orientation.z,
-        odom->pose.pose.orientation.w);
-    double vx = odom->twist.twist.linear.x;
-    double vy = odom->twist.twist.linear.y;
-    double omega = odom->twist.twist.angular.z;
-
-    /* Store into vehicle state (fixed-point for MPC) — only store fields
-     * actually consumed by the solver (vx, vy, omega).  Position/heading
-     * are used as doubles for Frenet conversion, so skip the FP conversion. */
-    global_vehicle_state.long_vel = vx;
-    global_vehicle_state.lat_vel = vy;
-
-    /* Use IMU yaw rate if available and fresh (higher quality than odom twist). */
-    if (g_imu_received)
-    {
-        struct timespec now;
-        clock_gettime(CLOCK_MONOTONIC, &now);
-        double imu_age = timespec_diff_sec(&g_last_imu_time, &now);
-        if (imu_age <= 0.05)
-            global_vehicle_state.yaw_rate = g_imu_yaw_rate;
-        else
-            global_vehicle_state.yaw_rate = omega;
-    }
-    else
-    {
-        global_vehicle_state.yaw_rate = omega;
-    }
-
-    /* Cache velocity for the EKF-pose callback.
-     * Position/heading are only taken from odom when AMCL is not available.
-     * When AMCL is running the amcl_pose_callback keeps them updated in the
-    * map frame, which is the same frame as the reference path. */
-    if (!g_amcl_received) {
-        g_latest_pos_x = pos_x;
-        g_latest_pos_y = pos_y;
-        g_latest_heading = heading;
-    }
-    g_latest_vx = vx;
-    g_latest_vy = vy;
-    g_latest_omega = omega;
-
-    /* Update watchdog timestamp */
-    clock_gettime(CLOCK_MONOTONIC, &g_last_odom_time);
-
-    global_odometry_received_flag = 1;
-}
 
 /*===========================================================================
  * ROS2 Callback: Servo Feedback Subscription
@@ -1116,35 +1035,13 @@ void servo_feedback_callback(const void *message_in)
 }
 
 /*===========================================================================
- * ROS2 Callback: IMU Filtered Angular Velocity
- *===========================================================================*/
-
-/**
- * @brief Process filtered IMU yaw-rate updates.
- * @param message_in Pointer to std_msgs/Float64 message.
- * @return None.
- */
-
-void imu_callback(const void *message_in)
-{
-    if (message_in == NULL) return;
-
-    const std_msgs__msg__Float64 *msg =
-        (const std_msgs__msg__Float64 *)message_in;
-
-    g_imu_yaw_rate = msg->data;
-    g_imu_received = 1;
-    clock_gettime(CLOCK_MONOTONIC, &g_last_imu_time);
-}
-
-/*===========================================================================
- * ROS2 Callback: Map-Frame Pose (EKF or AMCL) + MPC Computation
+ * ROS2 Callback: EKF Pose + MPC Computation
  *===========================================================================
- * Receives the map-frame position from the EKF and runs the MPC solver.
+ * Receives the map-frame pose from the EKF and runs the MPC solver.
  * MPC only executes when a new EKF pose message arrives (event-driven).
  * The reference path is in map frame, so Frenet errors are only meaningful
  * when position comes from here rather than from raw wheel odometry.
- * Default source: /ekf_pose (EKF fuses odom + AMCL for smooth updates).
+ * Default topic: /ekf_pose.
  *===========================================================================*/
 
 /**
@@ -1152,7 +1049,7 @@ void imu_callback(const void *message_in)
  * @param message_in Pointer to geometry_msgs/PoseWithCovarianceStamped message.
  * @return None.
  */
-void amcl_pose_callback(const void *message_in)
+void ekf_pose_callback(const void *message_in)
 {
     if (message_in == NULL) return;
 
@@ -1167,12 +1064,47 @@ void amcl_pose_callback(const void *message_in)
         msg->pose.pose.orientation.z,
         msg->pose.pose.orientation.w);
 
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+
+    if (g_prev_ekf_pose_valid)
+    {
+        double dt = timespec_diff_sec(&g_last_ekf_time, &now);
+        if (dt > 1e-4)
+        {
+            const double dx = pos_x - g_prev_ekf_x;
+            const double dy = pos_y - g_prev_ekf_y;
+            const double vx_world = dx / dt;
+            const double vy_world = dy / dt;
+            const double c = cos(heading);
+            const double s = sin(heading);
+            double dpsi = heading - g_prev_ekf_heading;
+            while (dpsi > M_PI) dpsi -= TWO_PI;
+            while (dpsi < -M_PI) dpsi += TWO_PI;
+
+            /* Rotate world-frame velocity into body frame used by MPC state. */
+            g_latest_vx = c * vx_world + s * vy_world;
+            g_latest_vy = -s * vx_world + c * vy_world;
+            g_latest_omega = dpsi / dt;
+        }
+    }
+
+    g_prev_ekf_x = pos_x;
+    g_prev_ekf_y = pos_y;
+    g_prev_ekf_heading = heading;
+    g_last_ekf_time = now;
+    g_prev_ekf_pose_valid = 1;
+
     g_latest_pos_x   = pos_x;
     g_latest_pos_y   = pos_y;
     g_latest_heading = heading;
+    global_vehicle_state.long_vel = g_latest_vx;
+    global_vehicle_state.lat_vel = g_latest_vy;
+    global_vehicle_state.yaw_rate = g_latest_omega;
+    g_ekf_state_received = 1;
 
     if (!g_amcl_received) {
-        printf("[MPC] Map-frame pose received — switching to map-frame position\n");
+        printf("[MPC] EKF pose received — using map-frame position\n");
         g_amcl_received = 1;
     }
 
@@ -1185,8 +1117,8 @@ static void run_mpc_control_cycle(void)
     double pos_y = g_latest_pos_y;
     double heading = g_latest_heading;
 
-    /* Don't run MPC until odometry (velocity) has been received */
-    if (!global_odometry_received_flag)
+    /* Don't run MPC until at least one EKF-derived state sample is available. */
+    if (!g_ekf_state_received)
     {
         return;
     }
@@ -1202,17 +1134,17 @@ static void run_mpc_control_cycle(void)
         return;
     }
 
-    /* Safety watchdog: check if odometry velocity is stale */
+    /* Safety watchdog: check if EKF pose stream is stale. */
     {
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
-        double elapsed = timespec_diff_sec(&g_last_odom_time, &now);
+        double elapsed = timespec_diff_sec(&g_last_ekf_time, &now);
 
         if (elapsed > g_watchdog_timeout_sec)
         {
             if (g_verbose)
             {
-                printf("[MPC] WATCHDOG: Odometry stale (%.1fms > %.1fms), continuing\n",
+                printf("[MPC] WATCHDOG: EKF pose stale (%.1fms > %.1fms), continuing\n",
                        elapsed * 1000.0, g_watchdog_timeout_sec * 1000.0);
             }
         }
@@ -1472,14 +1404,10 @@ int main(int argc, char *argv[])
          * responsible for providing valid numeric values; strtof/strtol/atof
          * return zero on invalid input and may silently fall back. */
         const char *env_val;
-        if ((env_val = getenv("MPC_ODOM_TOPIC")) != NULL)
-            g_odom_topic = env_val;
         if ((env_val = getenv("MPC_DRIVE_TOPIC")) != NULL)
             g_drive_topic = env_val;
         if ((env_val = getenv("MPC_SERVO_TOPIC")) != NULL)
             g_servo_topic = env_val;
-        if ((env_val = getenv("MPC_IMU_TOPIC")) != NULL)
-            g_imu_topic = env_val;
         if ((env_val = getenv("MPC_VERBOSE")) != NULL)
             g_verbose = atoi(env_val);
         if ((env_val = getenv("MPC_WATCHDOG_TIMEOUT")) != NULL)
@@ -1539,12 +1467,11 @@ int main(int argc, char *argv[])
     }
 
     printf("[MPC] Control mode: EKF-driven (MPC runs on each /ekf_pose message)\n");
-    printf("[MPC] Topics: odom=%s, drive=%s\n", g_odom_topic, g_drive_topic);
+    printf("[MPC] Topics: ekf_pose=%s, drive=%s\n", g_amcl_pose_topic, g_drive_topic);
     printf("[MPC] Servo feedback: %s (gain=%.4f, offset=%.4f)\n",
             g_servo_topic, STEERING_TO_SERVO_GAIN, STEERING_TO_SERVO_OFFSET);
     printf("[MPC] Steering correction: c2=%.6f, c1=%.6f, c0=%.6f\n",
             STEERING_CORRECTION_C2, STEERING_CORRECTION_C1, STEERING_CORRECTION_C0);
-    printf("[MPC] IMU yaw rate: %s\n", g_imu_topic);
     printf("[MPC] Watchdog timeout: %.0f ms\n", g_watchdog_timeout_sec * 1000.0);
     printf("[MPC] Map-frame pose topic: %s\n", g_amcl_pose_topic);
     printf("[MPC] Local raceline mode: %s\n", g_use_local_raceline ? "enabled" : "disabled");
@@ -1714,22 +1641,7 @@ int main(int argc, char *argv[])
     qos_reliable_10.history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
     qos_reliable_10.depth = 10;
 
-    /* ===== Subscription 1: /ego_racecar/odom (nav_msgs/Odometry) ===== */
-    rcl_subscription_t odom_sub = rcl_get_zero_initialized_subscription();
-    rcl_subscription_options_t odom_sub_opts = rcl_subscription_get_default_options();
-    odom_sub_opts.qos = qos_reliable_10;
-
-    rc = rcl_subscription_init(&odom_sub, &node,
-        ROSIDL_GET_MSG_TYPE_SUPPORT(nav_msgs, msg, Odometry),
-        g_odom_topic, &odom_sub_opts);
-    if (rc != RCL_RET_OK)
-    {
-        fprintf(stderr, "[ROS2] ERROR: odom subscription: %s\n", rcl_get_error_string().str);
-        return 1;
-    }
-    printf("[ROS2] Subscribed to %s (Reliable, KeepLast(10))\n", g_odom_topic);
-
-    /* ===== Subscription 2: /sensors/servo_position_command (std_msgs/Float64) ===== */
+    /* ===== Subscription 1: /sensors/servo_position_command (std_msgs/Float64) ===== */
     rcl_subscription_t servo_sub = rcl_get_zero_initialized_subscription();
     rcl_subscription_options_t servo_sub_opts = rcl_subscription_get_default_options();
     servo_sub_opts.qos = qos_reliable_10;
@@ -1744,22 +1656,7 @@ int main(int argc, char *argv[])
     }
     printf("[ROS2] Subscribed to %s (Reliable, KeepLast(10))\n", g_servo_topic);
 
-    /* ===== Subscription 3: /imu/filtered_angular_velocity (std_msgs/Float64) ===== */
-    rcl_subscription_t imu_sub = rcl_get_zero_initialized_subscription();
-    rcl_subscription_options_t imu_sub_opts = rcl_subscription_get_default_options();
-    imu_sub_opts.qos = qos_reliable_10;
-
-    rc = rcl_subscription_init(&imu_sub, &node,
-        ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float64),
-        g_imu_topic, &imu_sub_opts);
-    if (rc != RCL_RET_OK)
-    {
-        fprintf(stderr, "[ROS2] ERROR: imu subscription: %s\n", rcl_get_error_string().str);
-        return 1;
-    }
-    printf("[ROS2] Subscribed to %s (Reliable, KeepLast(10))\n", g_imu_topic);
-
-    /* ===== Subscription 4: Map-frame pose (geometry_msgs/PoseWithCovarianceStamped) ==
+    /* ===== Subscription 2: Map-frame pose (geometry_msgs/PoseWithCovarianceStamped) ==
      * Default: /ekf_pose from the EKF localization node (fuses odom + AMCL).
      * Override with MPC_AMCL_TOPIC env var (e.g. /amcl_pose for raw AMCL).
      * Reliable QoS to match the EKF publisher. */
@@ -1777,17 +1674,12 @@ int main(int argc, char *argv[])
         g_amcl_pose_topic, &amcl_sub_opts);
     if (rc != RCL_RET_OK)
     {
-        /* Non-fatal: robot may not have localization running */
-        fprintf(stderr, "[ROS2] WARNING: map-frame pose subscription failed (%s) — using odom\n",
-                rcl_get_error_string().str);
-        rcl_reset_error();
+        fprintf(stderr, "[ROS2] ERROR: ekf_pose subscription: %s\n", rcl_get_error_string().str);
+        return 1;
     }
-    else
-    {
-        printf("[ROS2] Subscribed to %s (Reliable, KeepLast(10))\n", g_amcl_pose_topic);
-    }
+    printf("[ROS2] Subscribed to %s (Reliable, KeepLast(10))\n", g_amcl_pose_topic);
 
-    /* ===== Subscription 5: Local raceline path (nav_msgs/Path) ===== */
+    /* ===== Subscription 3: Local raceline path (nav_msgs/Path) ===== */
     rcl_subscription_t local_raceline_sub = rcl_get_zero_initialized_subscription();
     rcl_subscription_options_t local_raceline_sub_opts = rcl_subscription_get_default_options();
     local_raceline_sub_opts.qos = qos_reliable_10;
@@ -1818,16 +1710,7 @@ int main(int argc, char *argv[])
     printf("[ROS2] Publishing to %s (Reliable, KeepLast(10))\n", g_drive_topic);
 
     /* Initialize message buffers (pre-allocate all strings) */
-    nav_msgs__msg__Odometry__init(&global_odometry_message_buffer);
-    if (!preallocate_rosidl_string(&global_odometry_message_buffer.header.frame_id, 64) ||
-        !preallocate_rosidl_string(&global_odometry_message_buffer.child_frame_id, 64))
-    {
-        fprintf(stderr, "[ROS2] ERROR: odom string alloc\n");
-        return 1;
-    }
-
     std_msgs__msg__Float64__init(&global_servo_message_buffer);
-    std_msgs__msg__Float64__init(&global_imu_message_buffer);
     geometry_msgs__msg__PoseWithCovarianceStamped__init(&global_amcl_pose_buffer);
     nav_msgs__msg__Path__init(&global_local_raceline_buffer);
 
@@ -1839,7 +1722,7 @@ int main(int argc, char *argv[])
     }
     set_rosidl_string(&global_drive_message_buffer.header.frame_id, "base_link");
 
-    /* Executor: 5 subscriptions (odom, servo, imu, ekf_pose, local_raceline) */
+    /* Executor: 3 subscriptions (servo, ekf_pose, local_raceline) */
     rcl_allocator_t alloc = rcl_get_default_allocator();
     rclc_executor_t executor = rclc_executor_get_zero_initialized_executor();
 
@@ -1847,15 +1730,6 @@ int main(int argc, char *argv[])
     if (rc != RCL_RET_OK)
     {
         fprintf(stderr, "[ROS2] ERROR: executor init: %s\n", rcl_get_error_string().str);
-        return 1;
-    }
-
-    /* Add odometry subscription */
-    rc = rclc_executor_add_subscription(&executor, &odom_sub,
-        &global_odometry_message_buffer, &odometry_subscription_callback, ON_NEW_DATA);
-    if (rc != RCL_RET_OK)
-    {
-        fprintf(stderr, "[ROS2] ERROR: add odom sub: %s\n", rcl_get_error_string().str);
         return 1;
     }
 
@@ -1868,18 +1742,9 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* Add IMU subscription */
-    rc = rclc_executor_add_subscription(&executor, &imu_sub,
-        &global_imu_message_buffer, &imu_callback, ON_NEW_DATA);
-    if (rc != RCL_RET_OK)
-    {
-        fprintf(stderr, "[ROS2] ERROR: add imu sub: %s\n", rcl_get_error_string().str);
-        return 1;
-    }
-
-    /* Add AMCL/EKF pose subscription — this drives MPC execution */
+    /* Add EKF pose subscription — this drives MPC execution */
     rc = rclc_executor_add_subscription(&executor, &amcl_sub,
-        &global_amcl_pose_buffer, &amcl_pose_callback, ON_NEW_DATA);
+        &global_amcl_pose_buffer, &ekf_pose_callback, ON_NEW_DATA);
     if (rc != RCL_RET_OK)
     {
         fprintf(stderr, "[ROS2] ERROR: add amcl_pose sub failed — MPC cannot run without EKF pose\n");
@@ -1895,16 +1760,16 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    printf("[ROS2] Executor ready (5 subs, MPC driven by %s)\n", g_amcl_pose_topic);
+    printf("[ROS2] Executor ready (3 subs, MPC driven by %s)\n", g_amcl_pose_topic);
     if (g_use_local_raceline)
     {
-        printf("\n[MPC] Spinning... (waiting for EKF pose on %s, odometry on %s, and local raceline on %s)\n\n",
-               g_amcl_pose_topic, g_odom_topic, g_local_raceline_topic);
+        printf("\n[MPC] Spinning... (waiting for EKF pose on %s and local raceline on %s)\n\n",
+               g_amcl_pose_topic, g_local_raceline_topic);
     }
     else
     {
-        printf("\n[MPC] Spinning... (waiting for EKF pose on %s and odometry on %s)\n\n",
-               g_amcl_pose_topic, g_odom_topic);
+        printf("\n[MPC] Spinning... (waiting for EKF pose on %s)\n\n",
+               g_amcl_pose_topic);
     }
 
     rclc_executor_spin(&executor);
@@ -1918,17 +1783,13 @@ int main(int argc, char *argv[])
         g_solver_log_file = NULL;
     }
 
-    nav_msgs__msg__Odometry__fini(&global_odometry_message_buffer);
     std_msgs__msg__Float64__fini(&global_servo_message_buffer);
-    std_msgs__msg__Float64__fini(&global_imu_message_buffer);
     ackermann_msgs__msg__AckermannDriveStamped__fini(&global_drive_message_buffer);
     nav_msgs__msg__Path__fini(&global_local_raceline_buffer);
     geometry_msgs__msg__PoseWithCovarianceStamped__fini(&global_amcl_pose_buffer);
 
     rcl_ret_t cleanup_rc;
-    cleanup_rc = rcl_subscription_fini(&odom_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&servo_sub, &node); (void)cleanup_rc;
-    cleanup_rc = rcl_subscription_fini(&imu_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&amcl_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&local_raceline_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_publisher_fini(&global_control_publisher, &node); (void)cleanup_rc;
