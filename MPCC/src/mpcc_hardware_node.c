@@ -33,6 +33,7 @@
 
 #include "mpcc_types.h"
 #include "mpcc.h"
+#include "mpcc_vehicle_model.h"
 
 /* -------------------------------------------------------------------------- */
 /* Runtime Configuration                                                       */
@@ -143,6 +144,106 @@ static double timespec_diff_sec(const struct timespec *start,
 {
     return (double)(end->tv_sec - start->tv_sec)
          + (double)(end->tv_nsec - start->tv_nsec) * 1e-9;
+}
+
+static double current_control_dt_sec(void)
+{
+    if (g_adapt_cross_call_scale && g_control_dt_filtered > 0.0)
+    {
+        return g_control_dt_filtered;
+    }
+    if (g_nominal_control_dt_sec > 0.0)
+    {
+        return g_nominal_control_dt_sec;
+    }
+    if (g_solver_dt_sec > 0.0)
+    {
+        return g_solver_dt_sec;
+    }
+    return 0.005;
+}
+
+static float limit_steering_delta(float requested_delta, double control_dt_sec)
+{
+    float limited_delta = requested_delta;
+
+    if (limited_delta > F110_DEFAULT_MAXIMUM_STEERING_RADIANS)
+        limited_delta = F110_DEFAULT_MAXIMUM_STEERING_RADIANS;
+    if (limited_delta < -F110_DEFAULT_MAXIMUM_STEERING_RADIANS)
+        limited_delta = -F110_DEFAULT_MAXIMUM_STEERING_RADIANS;
+
+    if (control_dt_sec > 0.0)
+    {
+        const float max_delta_change = (float)(STEERING_RATE_LIMIT * control_dt_sec);
+        float delta_change = limited_delta - g_prev_delta_cmd;
+
+        if (delta_change > max_delta_change)
+            limited_delta = g_prev_delta_cmd + max_delta_change;
+        else if (delta_change < -max_delta_change)
+            limited_delta = g_prev_delta_cmd - max_delta_change;
+    }
+
+    return limited_delta;
+}
+
+static void align_first_prediction_step(
+    MPCCResult_t *result,
+    const MPCCState_t *current_state,
+    float delta_cmd,
+    float a_x_cmd,
+    float v_theta_cmd,
+    float v_cmd)
+{
+    MPCCConfiguration_t cfg = mpcc_get_configuration();
+    MPCCControl_t applied_control;
+
+    applied_control.delta = delta_cmd;
+    applied_control.a_x = a_x_cmd;
+    applied_control.v_theta = v_theta_cmd;
+
+    result->predicted_states[0] = *current_state;
+    result->predicted_controls[0] = applied_control;
+
+    if (cfg.horizon_steps > 0)
+    {
+        MPCCLinearSystem_t dyn;
+        float x_arr[MPCC_NX] = {
+            current_state->s,
+            current_state->vx,
+            current_state->vy,
+            current_state->omega,
+            current_state->X,
+            current_state->Y,
+            current_state->psi
+        };
+        float u_arr[MPCC_NU] = {
+            delta_cmd,
+            a_x_cmd,
+            v_theta_cmd
+        };
+        float x_next[MPCC_NX];
+
+        mpcc_linearize_dynamics(current_state, &applied_control, cfg.dt, &cfg, &dyn);
+
+        for (int i = 0; i < MPCC_NX; ++i)
+        {
+            x_next[i] = dyn.d[i];
+            for (int j = 0; j < MPCC_NX; ++j)
+                x_next[i] += dyn.A[i][j] * x_arr[j];
+            for (int j = 0; j < MPCC_NU; ++j)
+                x_next[i] += dyn.B[i][j] * u_arr[j];
+        }
+
+        x_next[MPCC_IDX_VX] = v_cmd;
+
+        result->predicted_states[1].s = x_next[MPCC_IDX_S];
+        result->predicted_states[1].vx = x_next[MPCC_IDX_VX];
+        result->predicted_states[1].vy = x_next[MPCC_IDX_VY];
+        result->predicted_states[1].omega = x_next[MPCC_IDX_OMEGA];
+        result->predicted_states[1].X = x_next[MPCC_IDX_X];
+        result->predicted_states[1].Y = x_next[MPCC_IDX_Y];
+        result->predicted_states[1].psi = x_next[MPCC_IDX_PSI];
+    }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -675,9 +776,16 @@ static void pose_callback(const void *msg_in)
                     g_solve_count, (int)status, g_prev_delta_cmd, g_prev_speed_cmd);
         }
         {
-            const float delta_safe = 0.5f * g_prev_delta_cmd;
+            const double control_dt_sec = current_control_dt_sec();
+            float delta_safe = 0.5f * g_prev_delta_cmd;
             float a_x_safe = g_prev_ax_cmd;
             double v_safe;
+            float steering_velocity_cmd;
+
+            delta_safe = limit_steering_delta(delta_safe, control_dt_sec);
+            steering_velocity_cmd = (control_dt_sec > 0.0)
+                ? (float)((delta_safe - g_prev_delta_cmd) / control_dt_sec)
+                : 0.0f;
 
             if (a_x_safe > -1.0f)
             {
@@ -695,22 +803,50 @@ static void pose_callback(const void *msg_in)
             }
 
             g_drive_msg.drive.steering_angle = delta_safe;
+            g_drive_msg.drive.steering_angle_velocity = steering_velocity_cmd;
             g_drive_msg.drive.speed = (float)v_safe;
             g_drive_msg.drive.acceleration = a_x_safe;
+
+            g_prev_delta_cmd = delta_safe;
+            g_prev_speed_cmd = (float)v_safe;
+            g_prev_ax_cmd = a_x_safe;
         }
         { rcl_ret_t rc_ = rcl_publish(&g_drive_pub, &g_drive_msg, NULL); (void)rc_; }
         return;
     }
 
     float a_x_cmd = result.optimal_control.a_x;
-    const float delta_cmd = result.optimal_control.delta;
+    float delta_cmd = result.optimal_control.delta;
     const float v_theta_cmd = result.optimal_control.v_theta;
+    const double control_dt_sec = current_control_dt_sec();
+    float steering_velocity_cmd;
 
     /* Clamp acceleration for hardware safety */
     if (a_x_cmd < (float)g_ax_min_hardware)
     {
         a_x_cmd = (float)g_ax_min_hardware;
     }
+
+    /* Mirror the simulator's constant-power acceleration limit so the
+     * published command matches what the drivetrain can achieve at speed. */
+    if (a_x_cmd > 0.0f)
+    {
+        const float accel_switch_speed = 7.319f;
+        const float accel_limit = 7.31f;
+        const float vx_measured = (float)g_latest_vx_mps;
+
+        if (vx_measured > accel_switch_speed)
+        {
+            float a_x_power_max = accel_limit * accel_switch_speed / vx_measured;
+            if (a_x_cmd > a_x_power_max)
+                a_x_cmd = a_x_power_max;
+        }
+    }
+
+    delta_cmd = limit_steering_delta(delta_cmd, control_dt_sec);
+    steering_velocity_cmd = (control_dt_sec > 0.0)
+        ? (float)((delta_cmd - g_prev_delta_cmd) / control_dt_sec)
+        : 0.0f;
 
 
     double v_cmd;
@@ -746,10 +882,18 @@ static void pose_callback(const void *msg_in)
     g_drive_msg.header.stamp.sec = 0;
     g_drive_msg.header.stamp.nanosec = 0;
     g_drive_msg.drive.steering_angle = delta_cmd;
-    g_drive_msg.drive.steering_angle_velocity = 0.0f;
+    g_drive_msg.drive.steering_angle_velocity = steering_velocity_cmd;
     g_drive_msg.drive.speed = (float)v_cmd;
     g_drive_msg.drive.acceleration = a_x_cmd;
     g_drive_msg.drive.jerk = 0.0f;
+
+    align_first_prediction_step(
+        &result,
+        &mpcc_state,
+        delta_cmd,
+        a_x_cmd,
+        v_theta_cmd,
+        (float)v_cmd);
 
     {
         const rcl_ret_t rc = rcl_publish(&g_drive_pub, &g_drive_msg, NULL);
