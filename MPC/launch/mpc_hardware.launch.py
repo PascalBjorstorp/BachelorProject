@@ -50,7 +50,7 @@ def generate_launch_description():
     odom_topic_arg = DeclareLaunchArgument(
         'odom_topic',
         default_value='/ego_racecar/odom',
-        description='Odometry topic name (from VESC driver)'
+        description='Odometry topic (velocity feedback)'
     )
 
     drive_topic_arg = DeclareLaunchArgument(
@@ -65,16 +65,10 @@ def generate_launch_description():
         description='VESC servo position feedback topic'
     )
 
-    imu_topic_arg = DeclareLaunchArgument(
-        'imu_topic',
-        default_value='/imu/filtered_angular_velocity',
-        description='Filtered IMU angular velocity topic'
-    )
-
     pose_topic_arg = DeclareLaunchArgument(
         'pose_topic',
         default_value='/ekf_pose',
-        description='Map-frame pose topic (EKF-fused or raw AMCL)'
+        description='EKF pose topic'
     )
 
     verbose_arg = DeclareLaunchArgument(
@@ -110,12 +104,8 @@ def generate_launch_description():
         'MPC_SERVO_TOPIC',
         LaunchConfiguration('servo_topic')
     )
-    set_imu = SetEnvironmentVariable(
-        'MPC_IMU_TOPIC',
-        LaunchConfiguration('imu_topic')
-    )
     set_pose = SetEnvironmentVariable(
-        'MPC_AMCL_TOPIC',
+        'MPC_EKF_TOPIC',
         LaunchConfiguration('pose_topic')
     )
     set_verbose = SetEnvironmentVariable(
@@ -141,7 +131,6 @@ def generate_launch_description():
         odom_topic_arg,
         drive_topic_arg,
         servo_topic_arg,
-        imu_topic_arg,
         pose_topic_arg,
         verbose_arg,
         watchdog_timeout_arg,
@@ -150,7 +139,6 @@ def generate_launch_description():
         set_odom,
         set_drive,
         set_servo,
-        set_imu,
         set_pose,
         set_verbose,
         set_watchdog,

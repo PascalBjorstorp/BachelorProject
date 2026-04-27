@@ -63,7 +63,6 @@
 
 /* Solver and model safeguards */
 #define RICCATI_COST_FACTOR 2.0f                         /* Global scaling factor applied to stage and terminal costs. */
-#define EMA_ALPHA 1.0f                                   /* Smoothing factor for optional Frenet-state exponential filtering. */
 #define STEERING_RATE_LIMIT 2.849f                       /* Hard bound on steering-rate command in optimization. */
 #define STEERING_FEEDFORWARD_CLAMP_FACTOR 0.5f           /* Limits feedforward steering around linearization operating point. */
 #define BIG_BOUND 50.0f                                  /* Sentinel magnitude representing an effectively unconstrained bound. */
@@ -76,7 +75,7 @@
 /* Default MPC configuration values */
 #define TRAJECTORY_MAXIMUM_WAYPOINTS 4000                /* Maximum trajectory samples accepted by MPC reference buffers. */
 #define TRAJECTORY_MAXIMUM_VELOCITY 20.0f                /* Cap on reference velocity accepted from trajectory input. */
-#define MIN_TRAJECTORY_SPEED_MPS 1.0f                    /* Lower bound used when trajectory speed is missing or too small. */
+#define MIN_TRAJECTORY_SPEED_MPS 0.5f                    /* Lower bound used when trajectory speed is missing or too small. */
 
 /* Hardware/sim calibration defaults */
 #define TRAJECTORY_SPEED_GAIN 1.0f                       /* Global multiplier applied to reference speed profile. */
@@ -89,7 +88,7 @@
 /* Vehicle parameter defaults and derived constants */
 #define VP_MAX_STEERING_RAD 0.4189f                      /* Steering-angle saturation used by controller and model limits. */
 #define VP_MAX_VELOCITY_MPS 20.0f                        /* Upper velocity limit used by vehicle model clamping logic. */
-#define VP_MIN_VELOCITY_MPS 1.5f                         /* Lower velocity limit used by vehicle model clamping logic. */
+#define VP_MIN_VELOCITY_MPS 0.5f                         /* Lower velocity limit used by vehicle model clamping logic. */
 #define VP_CG_TO_FRONT_AXLE_M 0.166f                     /* Center-of-gravity distance from front axle for load transfer. */
 #define VP_CG_TO_REAR_AXLE_M 0.16f                       /* Center-of-gravity distance from rear axle for load transfer. */
 #define VP_WHEELBASE_M (VP_CG_TO_FRONT_AXLE_M + VP_CG_TO_REAR_AXLE_M) /* Distance between front and rear axle centers. */

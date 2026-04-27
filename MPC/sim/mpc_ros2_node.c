@@ -354,7 +354,7 @@ static void build_reference_from_trajectory(int closest_index)
     for (int step = 0; step < PREDICTION_HORIZON; step++)
     {
         s_query += step_velocity * pred_dt;
-        TrajectoryWaypoint_t wp;
+        TrajectoryWaypoint_t wp = {0};
         sample_waypoint_by_s(s_query, &wp);
 
         double traj_vel = wp.velocity_meters_per_second;
