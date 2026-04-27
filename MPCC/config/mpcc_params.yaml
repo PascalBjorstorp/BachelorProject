@@ -21,10 +21,17 @@ mpcc_node:
     # weight_contouring: penalizes perpendicular distance from centerline
     #   LOW value → MPCC can deviate from centerline to find faster path
     # weight_lag: penalizes tangential distance (keeps s synced to position)
+    # weight_wall_clearance: penalizes predicted states that enter a near-wall
+    #   band inside the hard corridor. This is the controller-side wall-avoidance
+    #   term for racelines that hug one wall too closely.
+    # wall_clearance_margin: extra desired distance from each wall [m] for the
+    #   soft inner corridor used by weight_wall_clearance.
     # weight_progress: reward for forward progress (-q_s * v_theta)
     #   HIGH value → MPCC aggressively maximizes speed along track
     weight_contouring: 960.0      # contouring error penalty
     weight_lag: 100.0             # lag error penalty
+    weight_wall_clearance: 3200.0 # soft wall-clearance penalty
+    wall_clearance_margin: 0.02   # [m] extra desired distance from each wall
     weight_progress: 15.6         # progress reward
 
     # --- State Regularization ---
