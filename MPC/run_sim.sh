@@ -25,6 +25,11 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DURATION_SECONDS="${1:-120}"
 TRAJECTORY_FILE="${2:-${ROOT_DIR}/MPC/trajectories/my_track_raceline.csv}"
 
+# Resolve to an absolute path so ROS2 nodes can find the trajectory regardless of cwd.
+if [[ "${TRAJECTORY_FILE}" != /* ]]; then
+    TRAJECTORY_FILE="$(cd "$(dirname "${TRAJECTORY_FILE}")" && pwd)/$(basename "${TRAJECTORY_FILE}")"
+fi
+
 RUN_ID="$(date +%Y%m%d_%H%M%S)"
 LOG_DIR="${SCRIPT_DIR}/logs/run_${RUN_ID}"
 mkdir -p "${LOG_DIR}"
@@ -80,12 +85,22 @@ source /opt/ros/jazzy/setup.bash
 set -u
 
 # Build just the mpc_riccati package
-colcon build --packages-select mpc_riccati 2>&1 | tail -5
+colcon build --packages-select mpc_riccati --cmake-force-configure 2>&1 | tail -5
 
 # Re-source the workspace after build
 set +u
 source "${ROOT_DIR}/install/setup.bash"
 set -u
+
+if ! ros2 pkg prefix mpc_riccati >/dev/null 2>&1; then
+    echo "ERROR: 'mpc_riccati' is not discoverable after build/source." >&2
+    echo "This usually means CMake configured without ROS dependencies in cache." >&2
+    echo "Try removing the package build cache and rebuilding:" >&2
+    echo "  rm -rf ${ROOT_DIR}/build/mpc_riccati ${ROOT_DIR}/install/mpc_riccati ${ROOT_DIR}/log/latest_build/mpc_riccati" >&2
+    echo "  source /opt/ros/jazzy/setup.bash" >&2
+    echo "  colcon build --packages-select mpc_riccati --cmake-force-configure" >&2
+    exit 1
+fi
 
 echo "  Build complete."
 
@@ -97,11 +112,41 @@ echo "--- Launching simulation ---"
 
 export PYTHONPATH="${ROOT_DIR}/f1tenth_sim:${ROOT_DIR}/f1tenth_sim/.venv/lib/python3.12/site-packages:${PYTHONPATH:-}"
 
+# Keep the gym spawn and map aligned with the selected raceline, just like the
+# successful sweep / ground-truth runs. This prevents the simulator from
+# starting the car at a pose that is far away from the MPC trajectory.
+TRAJ_SX="$(awk -F, 'NR==2 {gsub(/[[:space:]]/, "", $2); print $2; exit}' "${TRAJECTORY_FILE}" 2>/dev/null || true)"
+TRAJ_SY="$(awk -F, 'NR==2 {gsub(/[[:space:]]/, "", $3); print $3; exit}' "${TRAJECTORY_FILE}" 2>/dev/null || true)"
+TRAJ_STHETA="$(awk -F, 'NR==2 {gsub(/[[:space:]]/, "", $4); print $4; exit}' "${TRAJECTORY_FILE}" 2>/dev/null || true)"
+
+DEFAULT_GYM_MAP_PATH="my_track_map"
+DEFAULT_GYM_MAP_IMG_EXT=".pgm"
+TRAJ_BASENAME="$(basename "${TRAJECTORY_FILE}")"
+if [[ "${TRAJ_BASENAME}" == *"my_track"* ]]; then
+    DEFAULT_GYM_MAP_PATH="my_track_map"
+    DEFAULT_GYM_MAP_IMG_EXT=".pgm"
+elif [[ "${TRAJ_BASENAME}" == *"Spielberg"* ]]; then
+    DEFAULT_GYM_MAP_PATH="Spielberg_map"
+    DEFAULT_GYM_MAP_IMG_EXT=".png"
+elif [[ "${TRAJ_BASENAME}" == *"hardware"* ]]; then
+    DEFAULT_GYM_MAP_PATH="hardware_map"
+    DEFAULT_GYM_MAP_IMG_EXT=".pgm"
+fi
+
+export GYM_MAP_PATH="${GYM_MAP_PATH:-${DEFAULT_GYM_MAP_PATH}}"
+export GYM_MAP_IMG_EXT="${GYM_MAP_IMG_EXT:-${DEFAULT_GYM_MAP_IMG_EXT}}"
+export GYM_SX="${GYM_SX:-${TRAJ_SX:-0.0}}"
+export GYM_SY="${GYM_SY:-${TRAJ_SY:-0.0}}"
+export GYM_STHETA="${GYM_STHETA:-${TRAJ_STHETA:-0.0}}"
+
+echo "Map override: GYM_MAP_PATH=${GYM_MAP_PATH} GYM_MAP_IMG_EXT=${GYM_MAP_IMG_EXT}"
+echo "Spawn override: GYM_SX=${GYM_SX} GYM_SY=${GYM_SY} GYM_STHETA=${GYM_STHETA}"
+
 echo "Launching gym_bridge..."
 ros2 launch f1tenth_gym_ros gym_bridge_launch.py >"${GYM_LOG}" 2>&1 &
 SIM_PID=$!
 
-sleep 4
+sleep 10
 
 echo "Launching MPC Riccati-ADMM..."
 ros2 launch mpc_riccati mpc_launch.py "trajectory_file:=${TRAJECTORY_FILE}" >"${MPC_LOG}" 2>&1 &
@@ -161,7 +206,7 @@ if first_status2_text:
 PY
 
 echo "=== Run complete ==="
-echo "collision_seen=${COLLISION_SEEsN}"
+echo "collision_seen=${COLLISION_SEEN}"
 echo "gym_log=${GYM_LOG}"
 echo "mpc_log=${MPC_LOG}"
 echo "summary=${SUMMARY_LOG}"

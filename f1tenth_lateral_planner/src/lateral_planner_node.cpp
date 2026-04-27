@@ -145,7 +145,6 @@ private:
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
       TOPIC_EGO_ODOM, 10,
       std::bind(&LateralPlannerNode::odomCallback, this, std::placeholders::_1));
-
   }
 
   // ── Publishers ────────────────────────────────────────────────────
@@ -274,6 +273,20 @@ private:
     return true;
   }
 
+  // ── Startup speed ramp helper ─────────────────────────────────────
+
+  double getStartupSpeedScale()
+  {
+    if (!speed_ramp_started_) {
+      speed_ramp_start_time_ = now();
+      speed_ramp_started_ = true;
+    }
+
+    const double elapsed = (now() - speed_ramp_start_time_).seconds();
+    const double alpha = std::clamp(elapsed / 25.0, 0.0, 1.0);
+    return 0.2 + 0.8 * alpha;  // 20% -> 100% over 25 seconds
+  }
+
   // ── Publishing ────────────────────────────────────────────────────
 
   void publishPath(const std::vector<Waypoint> & waypoints)
@@ -283,12 +296,14 @@ private:
     path_msg.header.frame_id = map_frame_;
     path_msg.poses.reserve(waypoints.size());
 
+    const double speed_scale = getStartupSpeedScale();
+
     for (const auto & wp : waypoints) {
       geometry_msgs::msg::PoseStamped pose;
       pose.header = path_msg.header;
       pose.pose.position.x = wp.x;
       pose.pose.position.y = wp.y;
-      pose.pose.position.z = wp.vx;  // velocity encoded in z (controller convention)
+      pose.pose.position.z = wp.vx * speed_scale;  // velocity encoded in z (controller convention)
       pose.pose.orientation.z = std::sin(wp.psi / 2.0);
       pose.pose.orientation.w = std::cos(wp.psi / 2.0);
       path_msg.poses.push_back(pose);
@@ -563,6 +578,10 @@ private:
 
   // Timer
   rclcpp::TimerBase::SharedPtr timer_;
+
+  // Startup speed ramp
+  rclcpp::Time speed_ramp_start_time_;
+  bool speed_ramp_started_{false};
 };
 
 }  // namespace f1tenth_lateral_planner

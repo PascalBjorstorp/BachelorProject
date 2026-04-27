@@ -43,19 +43,78 @@ int get_env_int(const char *name, int default_val){
     return env ? (int)strtol(env, NULL, 10) : default_val;
 }
 
-static float get_recovery_heading_threshold_rad(void)
+static float get_wall_bias_clearance_m(void)
 {
-    return get_env_float("MPC_RECOVERY_HEADING_RAD", 0.60f);
+    /* Extra clearance beyond config.wall_margin; applied by biasing the lateral
+     * reference within the corridor. Set to 0 to disable. */
+    return get_env_float("MPC_WALL_BIAS_CLEAR_M", 0.01f);
 }
 
-static float get_recovery_speed_cap_mps(void)
+static float get_wall_bias_max_shift_m(void)
 {
-    return get_env_float("MPC_RECOVERY_VREF_CAP", 0.20f);
+    /* Clamp absolute magnitude of the biased lateral reference (safety valve). */
+    return get_env_float("MPC_WALL_BIAS_MAX_M", 0.05f);
 }
 
-static float get_recovery_wall_proximity_m(void)
+static void compute_wall_ey_bounds(
+    float left_wall_bound,
+    float right_wall_bound,
+    float wall_margin,
+    float *out_x_lb,
+    float *out_x_ub)
 {
-    return get_env_float("MPC_RECOVERY_WALL_PROX_M", 1.00f);
+    /* Feasible e_y interval after subtracting wall_margin from both sides:
+     *   e_y <= left_wall_bound  - wall_margin
+     *   e_y >= -(right_wall_bound - wall_margin)
+     */
+    float x_lb = wall_margin - right_wall_bound;
+    float x_ub = left_wall_bound - wall_margin;
+
+    if (!isfinite(x_lb) || !isfinite(x_ub)) {
+        x_lb = -BIG_BOUND;
+        x_ub = BIG_BOUND;
+    }
+
+    /* If corridor is infeasible, collapse to the midpoint for solver stability. */
+    if (x_lb > x_ub) {
+        float mid = 0.5f * (x_lb + x_ub);
+        x_lb = mid;
+        x_ub = mid;
+    }
+
+    *out_x_lb = x_lb;
+    *out_x_ub = x_ub;
+}
+
+static float compute_wall_biased_ey_ref(
+    float base_ref,
+    float x_lb,
+    float x_ub,
+    float clearance_m,
+    float max_shift_m)
+{
+    if (!(max_shift_m > 0.0f) || !isfinite(max_shift_m))
+        max_shift_m = BIG_BOUND;
+
+    float ref = base_ref;
+
+    if (clearance_m > 0.0f && isfinite(clearance_m)) {
+        /* When possible, keep at least clearance_m from both corridor edges. */
+        const float desired_lb = x_lb + clearance_m;
+        const float desired_ub = x_ub - clearance_m;
+        if (desired_lb <= desired_ub) {
+            ref = util_clamp(ref, desired_lb, desired_ub);
+        } else {
+            /* Corridor too narrow for requested clearance; track midpoint. */
+            ref = 0.5f * (x_lb + x_ub);
+        }
+    } else {
+        ref = util_clamp(ref, x_lb, x_ub);
+    }
+
+    ref = util_clamp(ref, -max_shift_m, max_shift_m);
+    ref = util_clamp(ref, x_lb, x_ub);
+    return ref;
 }
 
 /*===========================================================================
@@ -385,17 +444,11 @@ MpcSolverStatus_t mpc_compute_optimal_control(
 
     /* Near-wall large-heading recoveries can chatter if velocity tracking remains
      * dominant. In that regime, cap reference velocity to bias heading alignment first. */
-    float recovery_heading_thr = get_recovery_heading_threshold_rad();
-    float recovery_vref_cap = get_recovery_speed_cap_mps();
-    float recovery_wall_prox = get_recovery_wall_proximity_m();
-    float left_dist_now = reference_trajectory[0].left_wall_bound - frenet->flat_error;
-    float right_dist_now = reference_trajectory[0].right_wall_bound + frenet->flat_error;
-    float nearest_wall_dist = fminf(left_dist_now, right_dist_now);
-    int in_recovery_mode = (
-        fabsf(frenet->fhead_error) > recovery_heading_thr &&
-        frenet->flong_vel < 2.0f &&
-        nearest_wall_dist < recovery_wall_prox
-    );
+    const float wall_bias_clear_m = get_wall_bias_clearance_m();
+    const float wall_bias_max_m = get_wall_bias_max_shift_m();
+    int wall_bound_window = get_env_int("MPC_WALL_BOUND_WINDOW", 3);
+    if (wall_bound_window < 0) wall_bound_window = 0;
+    if (wall_bound_window > 25) wall_bound_window = 25;
 
     /* Step 2: Build augmented dynamics, costs, and bounds over the horizon. */
 
@@ -546,14 +599,54 @@ MpcSolverStatus_t mpc_compute_optimal_control(
             sd->Q_diag[IDX_ACCEL_PREV] = RICCATI_COST_FACTOR * (config.weight_acceleration_rate * config.cross_call_rate_scale);
         }
 
+        float wall_x_lb = -BIG_BOUND;
+        float wall_x_ub = BIG_BOUND;
+        float left_bound_k = reference_trajectory[k].left_wall_bound;
+        float right_bound_k = reference_trajectory[k].right_wall_bound;
+        if (wall_bound_window > 0) {
+            int j0 = k - wall_bound_window;
+            int j1 = k + wall_bound_window;
+            if (j0 < 0) j0 = 0;
+            if (j1 > (N - 1)) j1 = (N - 1);
+            for (int j = j0; j <= j1; j++) {
+                if (reference_trajectory[j].left_wall_bound < left_bound_k)
+                    left_bound_k = reference_trajectory[j].left_wall_bound;
+                if (reference_trajectory[j].right_wall_bound < right_bound_k)
+                    right_bound_k = reference_trajectory[j].right_wall_bound;
+            }
+        }
+
+        compute_wall_ey_bounds(
+            left_bound_k,
+            right_bound_k,
+            config.wall_margin,
+            &wall_x_lb,
+            &wall_x_ub);
+
+        /* Tighten the corridor by an extra buffer (in addition to wall_margin)
+         * to improve robustness against model mismatch and discretization. */
+        float wall_x_lb_con = wall_x_lb;
+        float wall_x_ub_con = wall_x_ub;
+        if (wall_bias_clear_m > 0.0f && isfinite(wall_bias_clear_m)) {
+            wall_x_lb_con = wall_x_lb + wall_bias_clear_m;
+            wall_x_ub_con = wall_x_ub - wall_bias_clear_m;
+            if (wall_x_lb_con > wall_x_ub_con) {
+                float mid = 0.5f * (wall_x_lb + wall_x_ub);
+                wall_x_lb_con = mid;
+                wall_x_ub_con = mid;
+            }
+        }
+
         /* === q (8 elements): linear state cost (tracking references) === */
-        sd->q[0] = -(sd->Q_diag[0] * reference_trajectory[k].reference_lateral_error);
+        {
+            float ey_ref_k = reference_trajectory[k].reference_lateral_error;
+            ey_ref_k = compute_wall_biased_ey_ref(ey_ref_k, wall_x_lb_con, wall_x_ub_con, 0.0f, wall_bias_max_m);
+            sd->q[0] = -(sd->Q_diag[0] * ey_ref_k);
+        }
         sd->q[1] = -(sd->Q_diag[1] * reference_trajectory[k].reference_heading_error);
 
         {
             float v_ref_track = reference_trajectory[k].reference_velocity;
-            if (in_recovery_mode && v_ref_track > recovery_vref_cap)
-                v_ref_track = recovery_vref_cap;
             sd->q[2] = -(sd->Q_diag[2] * v_ref_track);
         }
 
@@ -596,20 +689,9 @@ MpcSolverStatus_t mpc_compute_optimal_control(
 
         /* === State bounds (8 elements) === */
 
-        /* e_y wall bounds active from the first stage; if bounds are too narrow,
-         * collapse to a conservative zero-slack corridor instead of forcing solver infeasibility. */
-        {
-            float left_bound = reference_trajectory[k].left_wall_bound;
-            float right_bound = reference_trajectory[k].right_wall_bound;
-            float left_room = left_bound - config.wall_margin;
-            float right_room = right_bound - config.wall_margin;
-
-            if (left_room < 0.0f) left_room = 0.0f;
-            if (right_room < 0.0f) right_room = 0.0f;
-
-            sd->x_lb[0] = -right_room;
-            sd->x_ub[0] = left_room;
-        }
+        /* e_y wall bounds active from the first stage. */
+        sd->x_lb[0] = wall_x_lb_con;
+        sd->x_ub[0] = wall_x_ub_con;
 
         /* States 1-4 (e_psi, vx, vy, omega): unconstrained */
         for (int s = 1; s < 5; s++) {
@@ -682,14 +764,13 @@ MpcSolverStatus_t mpc_compute_optimal_control(
     terminal_Q[IDX_DELTA_ACTUAL] = RICCATI_COST_FACTOR * config.weight_delta_actual;
     /* No jerk/rate penalty on terminal prev controls (Q[6:7] = 0) */
 
+
     /* Terminal q: tracking at last reference */
     if (N > 0) {
         terminal_q[0] = -(terminal_Q[0] * reference_trajectory[N-1].reference_lateral_error);
         terminal_q[1] = -(terminal_Q[1] * reference_trajectory[N-1].reference_heading_error);
         {
             float v_ref_terminal = reference_trajectory[N-1].reference_velocity;
-            if (in_recovery_mode && v_ref_terminal > recovery_vref_cap)
-                v_ref_terminal = recovery_vref_cap;
             terminal_q[2] = -(terminal_Q[2] * v_ref_terminal);
         }
         terminal_q[3] = -(terminal_Q[3] * reference_trajectory[N-1].reference_lateral_velocity);
@@ -702,16 +783,50 @@ MpcSolverStatus_t mpc_compute_optimal_control(
         }
 
         {
-            float left_bound = reference_trajectory[N-1].left_wall_bound;
-            float right_bound = reference_trajectory[N-1].right_wall_bound;
-            float left_room = left_bound - config.wall_margin;
-            float right_room = right_bound - config.wall_margin;
+            float wall_x_lb = -BIG_BOUND;
+            float wall_x_ub = BIG_BOUND;
+            float left_bound_N = reference_trajectory[N-1].left_wall_bound;
+            float right_bound_N = reference_trajectory[N-1].right_wall_bound;
+            if (wall_bound_window > 0) {
+                int j0 = (N - 1) - wall_bound_window;
+                int j1 = (N - 1) + wall_bound_window;
+                if (j0 < 0) j0 = 0;
+                if (j1 > (N - 1)) j1 = (N - 1);
+                for (int j = j0; j <= j1; j++) {
+                    if (reference_trajectory[j].left_wall_bound < left_bound_N)
+                        left_bound_N = reference_trajectory[j].left_wall_bound;
+                    if (reference_trajectory[j].right_wall_bound < right_bound_N)
+                        right_bound_N = reference_trajectory[j].right_wall_bound;
+                }
+            }
+            compute_wall_ey_bounds(
+                left_bound_N,
+                right_bound_N,
+                config.wall_margin,
+                &wall_x_lb,
+                &wall_x_ub);
 
-            if (left_room < 0.0f) left_room = 0.0f;
-            if (right_room < 0.0f) right_room = 0.0f;
+            float wall_x_lb_con = wall_x_lb;
+            float wall_x_ub_con = wall_x_ub;
+            if (wall_bias_clear_m > 0.0f && isfinite(wall_bias_clear_m)) {
+                wall_x_lb_con = wall_x_lb + wall_bias_clear_m;
+                wall_x_ub_con = wall_x_ub - wall_bias_clear_m;
+                if (wall_x_lb_con > wall_x_ub_con) {
+                    float mid = 0.5f * (wall_x_lb + wall_x_ub);
+                    wall_x_lb_con = mid;
+                    wall_x_ub_con = mid;
+                }
+            }
 
-            terminal_x_lb[0] = -right_room;
-            terminal_x_ub[0] = left_room;
+            terminal_x_lb[0] = wall_x_lb_con;
+            terminal_x_ub[0] = wall_x_ub_con;
+
+            /* Apply same wall-bias to the terminal lateral reference. */
+            {
+                float ey_ref_N = reference_trajectory[N-1].reference_lateral_error;
+                ey_ref_N = compute_wall_biased_ey_ref(ey_ref_N, wall_x_lb_con, wall_x_ub_con, 0.0f, wall_bias_max_m);
+                terminal_q[0] = -(terminal_Q[0] * ey_ref_N);
+            }
         }
 
         for (int s = 1; s < 5; s++) {
@@ -774,7 +889,9 @@ MpcSolverStatus_t mpc_compute_optimal_control(
 
     if (rstatus != RICCATI_STATUS_OPTIMAL && rstatus != RICCATI_STATUS_MAX_ITERATIONS) {
         result->optimal_control.steer_ang = actual_steering_angle;
-        result->optimal_control.long_acc = 0.0f;
+        /* Avoid "dead stop" behavior on transient solver failures by holding the
+         * previous acceleration command. */
+        result->optimal_control.long_acc = prev_control.long_acc;
         result->iterations_used = (uint16_t)riccati_sol.iterations;
         result->final_cost = riccati_sol.primal_residual;
         result->dual_residual = riccati_sol.dual_residual;

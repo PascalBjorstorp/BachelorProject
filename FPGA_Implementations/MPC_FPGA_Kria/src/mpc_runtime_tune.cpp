@@ -26,6 +26,9 @@ fp_QP_t mpc_rt_w_delta_act = ((fp_QP_t)(MPC_FPGA_W_DELTA_ACT));
 fp_QP_t mpc_rt_min_lin_vel = ((fp_QP_t)(MPC_FPGA_MIN_LIN_VEL_MPS));
 fp_QP_t mpc_rt_stability_limit = ((fp_QP_t)(MPC_FPGA_STABILITY_LIMIT));
 fp_QP_t mpc_rt_wall_margin = ((fp_QP_t)(MPC_FPGA_WALL_MARGIN_M));
+fp_QP_t mpc_rt_wall_bias_clear_m = ((fp_QP_t)(MPC_FPGA_WALL_BIAS_CLEAR_M));
+fp_QP_t mpc_rt_wall_bias_max_m = ((fp_QP_t)(MPC_FPGA_WALL_BIAS_MAX_M));
+int mpc_rt_wall_bound_window = MPC_FPGA_WALL_BOUND_WINDOW;
 
 fp_QP_t mpc_rt_admm_rho = ((fp_QP_t)(MPC_FPGA_ADMM_RHO));
 fp_QP_t mpc_rt_admm_rho_u = ((fp_QP_t)(MPC_FPGA_ADMM_RHO_U));
@@ -71,6 +74,14 @@ void mpc_runtime_update_from_env(void)
     if (read_env_double("MIN_LIN_VEL", &dv) && dv > 1e-6) mpc_rt_min_lin_vel = (fp_QP_t)dv;
     if (read_env_double("STABILITY_LIMIT", &dv) && dv > 1e-6) mpc_rt_stability_limit = (fp_QP_t)dv;
     if (read_env_double("WALL_MARGIN", &dv) && dv >= 0.0) mpc_rt_wall_margin = (fp_QP_t)dv;
+    if (read_env_double("MPC_WALL_BIAS_CLEAR_M", &dv) && dv >= 0.0) mpc_rt_wall_bias_clear_m = (fp_QP_t)dv;
+    if (read_env_double("MPC_WALL_BIAS_MAX_M", &dv) && dv >= 0.0) mpc_rt_wall_bias_max_m = (fp_QP_t)dv;
+    if (read_env_double("MPC_WALL_BOUND_WINDOW", &dv)) {
+        int window = (int)dv;
+        if (window < 0) window = 0;
+        if (window > 25) window = 25;
+        mpc_rt_wall_bound_window = window;
+    }
 
     if ((read_env_double("RHO", &dv) || read_env_double("ADMM_RHO", &dv)) && dv > 1e-6) {
         mpc_rt_admm_rho = (fp_QP_t)dv;

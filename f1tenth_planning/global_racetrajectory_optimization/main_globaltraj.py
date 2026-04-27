@@ -99,6 +99,36 @@ def repair_closed_velocity_profile(vx_profile: np.ndarray,
 
     return vx_repaired
 
+
+def interpolate_closed_profile_by_progress(profile_values: np.ndarray,
+                                           support_path_xy: np.ndarray,
+                                           query_s: np.ndarray,
+                                           query_total_length: float) -> np.ndarray:
+    """Map a closed-loop profile onto a re-sampled closed path by lap progress."""
+    profile_values = np.asarray(profile_values, dtype=float)
+    support_path_xy = np.asarray(support_path_xy, dtype=float)
+    query_s = np.asarray(query_s, dtype=float)
+
+    if profile_values.size == 0 or query_s.size == 0:
+        return query_s.copy()
+
+    if support_path_xy.shape[0] != profile_values.size:
+        raise RuntimeError("support_path_xy and profile_values must have the same length!")
+
+    closed_path = np.vstack((support_path_xy, support_path_xy[0]))
+    seg_lengths = np.linalg.norm(np.diff(closed_path, axis=0), axis=1)
+    total_length = float(np.sum(seg_lengths))
+
+    if total_length <= 1e-9 or query_total_length <= 1e-9:
+        return np.full(query_s.shape, profile_values[0], dtype=float)
+
+    support_s = np.concatenate(([0.0], np.cumsum(seg_lengths[:-1])))
+    support_s_closed = np.append(support_s, total_length)
+    profile_closed = np.append(profile_values, profile_values[0])
+    query_s_scaled = query_s * (total_length / query_total_length)
+
+    return np.interp(query_s_scaled, support_s_closed, profile_closed)
+
 # ----------------------------------------------------------------------------------------------------------------------
 # USER INPUT -----------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------
@@ -272,7 +302,12 @@ elif opt_type == 'mintime':
                                                    + pars["vehicle_params_mintime"]["wheelbase_rear"])
 
 # set import path for ggv diagram and ax_max_machines (if required)
-if not (opt_type == 'mintime' and not mintime_opts["recalc_vel_profile_by_tph"]):
+needs_ggv_profile = not (
+    opt_type == 'mintime'
+    and not mintime_opts["recalc_vel_profile_by_tph"]
+    and not mintime_opts["reopt_mintime_solution"]
+)
+if needs_ggv_profile:
     file_paths["ggv_file"] = os.path.join(file_paths["module"], "inputs", "veh_dyn_info", pars["ggv_file"])
     file_paths["ax_max_machines_file"] = os.path.join(file_paths["module"], "inputs", "veh_dyn_info",
                                                       pars["ax_max_machines_file"])
@@ -290,7 +325,7 @@ reftrack_imp = helper_funcs_glob.src.import_track.import_track(imp_opts=imp_opts
                                                                width_veh=pars["veh_params"]["width"])
 
 # import ggv and ax_max_machines (if required)
-if not (opt_type == 'mintime' and not mintime_opts["recalc_vel_profile_by_tph"]):
+if needs_ggv_profile:
     ggv, ax_max_machines = tph.import_veh_dyn_info.\
         import_veh_dyn_info(ggv_import_path=file_paths["ggv_file"],
                             ax_max_machines_import_path=file_paths["ax_max_machines_file"])
@@ -390,6 +425,10 @@ elif opt_type == 'mintime':
     # replace a_interp if necessary
     if a_interp_tmp is not None:
         a_interp = a_interp_tmp
+
+    mintime_raceline_ref = (reftrack_interp[:, :2]
+                            + np.expand_dims(alpha_opt, 1) * normvec_normalized_interp)
+    mintime_velocity_ref = np.copy(v_opt)
 
 else:
     raise ValueError('Unknown optimization type!')
@@ -558,10 +597,21 @@ psi_vel_opt, kappa_opt = tph.calc_head_curv_an.\
 # ----------------------------------------------------------------------------------------------------------------------
 
 if opt_type == 'mintime' and not mintime_opts["recalc_vel_profile_by_tph"]:
-    # interpolation
-    s_splines = np.cumsum(spline_lengths_opt)
-    s_splines = np.insert(s_splines, 0, 0.0)
-    vx_profile_opt = np.interp(s_points_opt_interp, s_splines[:-1], v_opt)
+    if mintime_opts["reopt_mintime_solution"]:
+        track_length_interp = float(np.sum(spline_lengths_opt))
+        vx_profile_opt = interpolate_closed_profile_by_progress(
+            profile_values=mintime_velocity_ref,
+            support_path_xy=mintime_raceline_ref,
+            query_s=s_points_opt_interp,
+            query_total_length=track_length_interp,
+        )
+        if debug:
+            print("INFO: Preserving mintime velocity profile across reoptimization by lap-progress interpolation.")
+    else:
+        # interpolation
+        s_splines = np.cumsum(spline_lengths_opt)
+        s_splines = np.insert(s_splines, 0, 0.0)
+        vx_profile_opt = np.interp(s_points_opt_interp, s_splines[:-1], v_opt)
 
 else:
     vx_profile_opt = tph.calc_vel_profile.\

@@ -99,6 +99,10 @@ static int g_new_ekf_pose = 0;
 
 /** Safety watchdog timeout [seconds] */
 static double g_watchdog_timeout_sec = 0.2;
+/* Last published drive command (fallback uses these instead of forcing stop). */
+static float g_last_cmd_steer = 0.0f;
+static float g_last_cmd_speed = 0.0f;
+static float g_last_cmd_accel = 0.0f;
 
 /*===========================================================================
  * VESC Servo Conversion Parameters
@@ -1204,20 +1208,11 @@ void amcl_pose_callback(const void *message_in)
 
         if (elapsed > g_watchdog_timeout_sec)
         {
-            /* Odometry stale — zero the command for safety */
-            global_drive_message_buffer.drive.steering_angle = 0.0f;
-            global_drive_message_buffer.drive.speed = 0.0f;
-            global_drive_message_buffer.drive.acceleration = 0.0f;
-
-            rcl_ret_t pub_rc __attribute__((unused)) =
-                rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);
-
             if (g_verbose)
             {
-                printf("[MPC] WATCHDOG: Odometry stale (%.1fms > %.1fms), zeroing command\n",
+                printf("[MPC] WATCHDOG: Odometry stale (%.1fms > %.1fms), continuing\n",
                        elapsed * 1000.0, g_watchdog_timeout_sec * 1000.0);
             }
-            return;
         }
     }
 
@@ -1258,11 +1253,11 @@ void amcl_pose_callback(const void *message_in)
     {
         if (g_verbose)
         {
-            printf("[MPC] ERROR: No trajectory loaded, publishing zero command\n");
+            printf("[MPC] ERROR: No trajectory loaded, publishing last command\n");
         }
-        global_drive_message_buffer.drive.steering_angle = 0.0f;
-        global_drive_message_buffer.drive.speed = 0.0f;
-        global_drive_message_buffer.drive.acceleration = 0.0f;
+        global_drive_message_buffer.drive.steering_angle = g_last_cmd_steer;
+        global_drive_message_buffer.drive.speed = g_last_cmd_speed;
+        global_drive_message_buffer.drive.acceleration = g_last_cmd_accel;
         rcl_ret_t pub_rc __attribute__((unused)) =
             rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);
         return;
@@ -1345,7 +1340,7 @@ void amcl_pose_callback(const void *message_in)
     {
         if (g_verbose)
         {
-            printf("[MPC] WARNING: Solver status=%d, keeping previous command\n", mpc_status);
+            printf("[MPC] WARNING: Solver status=%d, holding last command\n", mpc_status);
         }
     }
 
@@ -1397,12 +1392,17 @@ void amcl_pose_callback(const void *message_in)
 
             /* Integrate over the prediction time step used by MPC. */
             double v_cmd = g_latest_vx + a_cmd * pred_dt;
-            if (v_cmd < 0.0) v_cmd = 0.0;
+            if (v_cmd < (double)VP_MIN_VELOCITY_MPS) v_cmd = (double)VP_MIN_VELOCITY_MPS;
             if (v_cmd > TRAJECTORY_MAXIMUM_VELOCITY) v_cmd = TRAJECTORY_MAXIMUM_VELOCITY;
 
             global_drive_message_buffer.drive.speed = (float)v_cmd;
             global_drive_message_buffer.drive.acceleration = (float)a_cmd;
         }
+
+        /* Cache last published values for fallback paths. */
+        g_last_cmd_steer = global_drive_message_buffer.drive.steering_angle;
+        g_last_cmd_speed = global_drive_message_buffer.drive.speed;
+        g_last_cmd_accel = global_drive_message_buffer.drive.acceleration;
 
         rcl_ret_t pub_rc __attribute__((unused)) =
             rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);

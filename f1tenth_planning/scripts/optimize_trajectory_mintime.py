@@ -1691,22 +1691,22 @@ def main():
         # Minimum-time optimizer settings
         opt_type=MIN_TIME_OPT_TYPE,
         max_speed=12.0,         # m/s (set to None for no clamping)
-        min_speed=2.0,          # m/s (set to None for no clamping)
+        min_speed=1.5,          # m/s (set to None for no clamping)
         waypoint_spacing=0.02,  
-        reopt_mintime_solution=False,
-        recalc_vel_profile_by_tph=None,
+        reopt_mintime_solution=True,
+        recalc_vel_profile_by_tph=False,
 
         # Centerline extraction settings
         centerline_spacing=0.15,     # target spacing for centerline points (in metres)
         optimizer_spacing=0.1,      # prepared reference-track spacing for TUM mintime
-        optimizer_smoothing_s=3.0,  # TUM spline smoothing factor before width measurement
+        optimizer_smoothing_s=2.0,  # TUM spline smoothing factor before width measurement
         optimizer_smoothing_k=2,    # TUM spline order (mirrors racecar.ini)
         optimizer_smoothing_prep_spacing=0.02,
         direction='cw',             # 'auto', 'cw', or 'ccw'
 
         # Vehicle and wall-clearance settings
         car_width=0.3,
-        wall_clearance=0.15,
+        wall_clearance=0.10,
         max_ray_distance=8.0,
     )
 
@@ -1737,11 +1737,7 @@ def main():
     print(f"  Track name:       {track_name}")
     print(f"  Opt type:         {args.opt_type}")
     print(f"  Reopt mintime:    {args.reopt_mintime_solution}")
-    recalc_label = (
-        "auto"
-        if args.recalc_vel_profile_by_tph is None
-        else str(args.recalc_vel_profile_by_tph)
-    )
+    recalc_label = str(args.recalc_vel_profile_by_tph)
     print(f"  Recalc velocity:  {recalc_label}")
     print(f"  Max speed:        {args.max_speed} m/s")
     print(f"  Centerline spacing: {args.centerline_spacing} m")
@@ -1856,7 +1852,7 @@ def main():
         set_track_in_main(main_py, track_name)
         set_opt_type_in_main(main_py, args.opt_type)
         recalc_vel_profile = (
-            args.reopt_mintime_solution
+            False
             if args.recalc_vel_profile_by_tph is None
             else args.recalc_vel_profile_by_tph
         )

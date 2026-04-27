@@ -20,6 +20,7 @@ from .utils import find_track_dir
 class TrackSpec(YamlDataClassConfig):
     name: Optional[str]
     image: Optional[str]
+    mode: Optional[str]
     resolution: float
     origin: Tuple[float, float, float]
     negate: int
