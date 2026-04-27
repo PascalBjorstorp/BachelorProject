@@ -35,6 +35,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.conditions import IfCondition
 from launch.substitutions import Command, LaunchConfiguration
 from launch_ros.actions import Node
 import yaml
@@ -63,6 +64,8 @@ def launch_setup(context, *args, **kwargs):
     # Get resolved ground_truth argument
     ground_truth_str = LaunchConfiguration('ground_truth').perform(context)
     ground_truth = ground_truth_str.lower() in ('true', '1', 'yes')
+    use_rviz_str = LaunchConfiguration('use_rviz').perform(context)
+    use_rviz = use_rviz_str.lower() in ('true', '1', 'yes')
     
     nodes = []
     
@@ -116,18 +119,20 @@ def launch_setup(context, *args, **kwargs):
     )
     nodes.append(bridge_node)
     
-    rviz_node = Node(
-        package='rviz2',
-        executable='rviz2',
-        name='rviz',
-        arguments=['-d', os.path.join(
-            get_package_share_directory('f1tenth_gym_ros'),
-            'launch',
-            'gym_bridge.rviz'
-        )],
-        parameters=[{'use_sim_time': use_sim_time}],
-    )
-    nodes.append(rviz_node)
+    if use_rviz:
+        rviz_node = Node(
+            package='rviz2',
+            executable='rviz2',
+            name='rviz',
+            arguments=['-d', os.path.join(
+                get_package_share_directory('f1tenth_gym_ros'),
+                'launch',
+                'gym_bridge.rviz'
+            )],
+            parameters=[{'use_sim_time': use_sim_time}],
+            condition=IfCondition(LaunchConfiguration('use_rviz')),
+        )
+        nodes.append(rviz_node)
 
     # Get the map base name from config (e.g., 'Spielberg_map')
     map_base = os.path.basename(config_dict['bridge']['ros__parameters']['map_path'])
@@ -242,6 +247,11 @@ def generate_launch_description():
             default_value='true',
             description='If true, sim publishes map->base_link (ground truth, no AMCL needed). '
                         'If false, sim publishes odom->base_link (requires AMCL for map->odom).'
+        ),
+        DeclareLaunchArgument(
+            'use_rviz',
+            default_value='true',
+            description='If true, launch RViz for visualization. Set false for headless runs.'
         ),
         OpaqueFunction(function=launch_setup),
     ])

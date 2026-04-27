@@ -386,6 +386,19 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
     float delta_cmd  = result.optimal_control.delta;
     float v_theta_cmd = result.optimal_control.v_theta;
 
+    if (!isfinite((double)delta_cmd) || !isfinite((double)a_x_cmd)) {
+        fprintf(stderr,
+            "[MPCC] WARNING: non-finite control (delta=%.6f ax=%.6f), forcing safe brake\n",
+            (double)delta_cmd, (double)a_x_cmd);
+        delta_cmd = 0.0f;
+        a_x_cmd = -7.0f;
+    }
+
+    if (delta_cmd > 0.4189f) delta_cmd = 0.4189f;
+    if (delta_cmd < -0.4189f) delta_cmd = -0.4189f;
+    if (a_x_cmd > 7.31f) a_x_cmd = 7.31f;
+    if (a_x_cmd < -7.31f) a_x_cmd = -7.31f;
+
     /* Diagnostic: show state + actual commands sent */
     if (solve_count <= 20 || (solve_count % 10 == 0)) {
         fprintf(stderr,
@@ -408,8 +421,8 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
     drive_msg.drive.steering_angle        = delta_cmd;
     drive_msg.drive.steering_angle_velocity = 0.0f;
 
-    /* gym_bridge with control_input=['accl','steering_angle']
-     * interprets drive.speed as acceleration command (m/s^2). */
+    /* Keep exact MPC sim behavior: gym_bridge control_input=['accl','steering_angle']
+     * reads drive.speed as acceleration command. */
     drive_msg.drive.speed         = a_x_cmd;
     drive_msg.drive.acceleration  = a_x_cmd;
     drive_msg.drive.jerk          = 0.0f;

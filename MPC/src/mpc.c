@@ -52,7 +52,7 @@ static float get_wall_bias_clearance_m(void)
 
 static float get_wall_bias_max_shift_m(void)
 {
-    /* Clamp absolute magnitude of the biased lateral reference (safety valve). */
+    /* Clamp max correction magnitude applied to base reference (safety valve). */
     return get_env_float("MPC_WALL_BIAS_MAX_M", 0.05f);
 }
 
@@ -96,23 +96,25 @@ static float compute_wall_biased_ey_ref(
     if (!(max_shift_m > 0.0f) || !isfinite(max_shift_m))
         max_shift_m = BIG_BOUND;
 
-    float ref = base_ref;
+    float target_lb = x_lb;
+    float target_ub = x_ub;
 
     if (clearance_m > 0.0f && isfinite(clearance_m)) {
         /* When possible, keep at least clearance_m from both corridor edges. */
         const float desired_lb = x_lb + clearance_m;
         const float desired_ub = x_ub - clearance_m;
         if (desired_lb <= desired_ub) {
-            ref = util_clamp(ref, desired_lb, desired_ub);
-        } else {
-            /* Corridor too narrow for requested clearance; track midpoint. */
-            ref = 0.5f * (x_lb + x_ub);
+            target_lb = desired_lb;
+            target_ub = desired_ub;
         }
-    } else {
-        ref = util_clamp(ref, x_lb, x_ub);
     }
 
-    ref = util_clamp(ref, -max_shift_m, max_shift_m);
+    /* Project reference to nearest feasible point, then limit correction size. */
+    float target_ref = util_clamp(base_ref, target_lb, target_ub);
+    float corr = target_ref - base_ref;
+    corr = util_clamp(corr, -max_shift_m, max_shift_m);
+    float ref = base_ref + corr;
+
     ref = util_clamp(ref, x_lb, x_ub);
     return ref;
 }
@@ -127,18 +129,6 @@ static ControlInput_t prev_control;
 static float actual_steering_angle = 0;  /* Servo physical position */
 static RiccatiAdmmState_t admm_state;
 static float warm_start_prev_curvature = 0;
-static float ema_alpha = EMA_ALPHA;
-static int ema_alpha_cached = 0;
-static int ema_initialized = 0;
-static FrenetState_t ema_prev_filtered;
-
-static void mpc_reset_ema_state(void)
-{
-    ema_alpha = EMA_ALPHA;
-    ema_alpha_cached = 0;
-    ema_initialized = 0;
-    memset(&ema_prev_filtered, 0, sizeof(ema_prev_filtered));
-}
 
 static FrenetState_t mpc_predict_frenet_next_state(
     const FrenetState_t *state,
@@ -293,7 +283,6 @@ void mpc_initialize(void)
     actual_steering_angle = 0.0f;
     riccati_admm_state_init(&admm_state);
     warm_start_prev_curvature = 0.0f;
-    mpc_reset_ema_state();
     initialized = 1;
 }
 
@@ -307,7 +296,6 @@ void mpc_initialize_with_configuration(const MpcConfiguration_t *cfg)
     actual_steering_angle = 0.0f;
     riccati_admm_state_init(&admm_state);
     warm_start_prev_curvature = 0.0f;
-    mpc_reset_ema_state();
     initialized = 1;
 }
 
@@ -320,7 +308,6 @@ void mpc_reset(void)
     actual_steering_angle = 0.0f;
     riccati_admm_state_init(&admm_state);
     warm_start_prev_curvature = 0.0f;
-    mpc_reset_ema_state();
 }
 
 MpcConfiguration_t mpc_get_configuration(void)
@@ -374,54 +361,7 @@ MpcSolverStatus_t mpc_compute_optimal_control(
     // Auto-initialize on first use if not already initialized.
     if (!initialized) mpc_initialize();
 
-    /* EMA filter for measurement smoothing. */
-    FrenetState_t filtered_state = *current_frenet_state;
-    {
-        if (!ema_alpha_cached) {
-            ema_alpha = get_env_float("MPC_EMA_ALPHA", ema_alpha);
-            if (ema_alpha < 0.0f) ema_alpha = 0.0f;
-            if (ema_alpha > 1.0f) ema_alpha = 1.0f;
-            ema_alpha_cached = 1;
-        }
-
-        if (!ema_initialized) {
-            ema_prev_filtered = *current_frenet_state;
-            ema_initialized = 1;
-        }
-
-        if (ema_alpha < 1.0f) {
-            float a = ema_alpha;
-            float b = 1.0f - a;
-
-            filtered_state.flat_error =
-                a * current_frenet_state->flat_error +
-                b * ema_prev_filtered.flat_error;
-
-            {
-                const float pi_f = 0.5f * TWO_PI;
-                float dh = current_frenet_state->fhead_error - ema_prev_filtered.fhead_error;
-                while (dh > pi_f) dh -= TWO_PI;
-                while (dh < -pi_f) dh += TWO_PI;
-                filtered_state.fhead_error = ema_prev_filtered.fhead_error + a * dh;
-                while (filtered_state.fhead_error > pi_f) filtered_state.fhead_error -= TWO_PI;
-                while (filtered_state.fhead_error < -pi_f) filtered_state.fhead_error += TWO_PI;
-            }
-
-            filtered_state.flong_vel =
-                a * current_frenet_state->flong_vel +
-                b * ema_prev_filtered.flong_vel;
-            
-            filtered_state.flat_vel =
-                a * current_frenet_state->flat_vel +
-                b * ema_prev_filtered.flat_vel;
-
-            filtered_state.fyaw_rate =
-                a * current_frenet_state->fyaw_rate +
-                b * ema_prev_filtered.fyaw_rate;
-        }
-        ema_prev_filtered = filtered_state;
-    }
-    const FrenetState_t *frenet = &filtered_state;
+    const FrenetState_t *frenet = current_frenet_state;
 
     // Extract horizon length and clamp to compile-time maximum.
     int N = config.prediction_horizon_steps;
@@ -631,9 +571,8 @@ MpcSolverStatus_t mpc_compute_optimal_control(
             wall_x_lb_con = wall_x_lb + wall_bias_clear_m;
             wall_x_ub_con = wall_x_ub - wall_bias_clear_m;
             if (wall_x_lb_con > wall_x_ub_con) {
-                float mid = 0.5f * (wall_x_lb + wall_x_ub);
-                wall_x_lb_con = mid;
-                wall_x_ub_con = mid;
+                wall_x_lb_con = wall_x_lb;
+                wall_x_ub_con = wall_x_ub;
             }
         }
 
@@ -734,7 +673,7 @@ MpcSolverStatus_t mpc_compute_optimal_control(
             if (v_for_limit > V_SWITCH) {
                 float scale = V_SWITCH / v_for_limit;
                 sd->u_ub[1] = a_max * scale;
-                sd->u_lb[1] = a_min * scale;  /* a_min is negative */
+                sd->u_lb[1] = a_min;
             } else {
                 sd->u_ub[1] = a_max;
                 sd->u_lb[1] = a_min;
@@ -812,9 +751,8 @@ MpcSolverStatus_t mpc_compute_optimal_control(
                 wall_x_lb_con = wall_x_lb + wall_bias_clear_m;
                 wall_x_ub_con = wall_x_ub - wall_bias_clear_m;
                 if (wall_x_lb_con > wall_x_ub_con) {
-                    float mid = 0.5f * (wall_x_lb + wall_x_ub);
-                    wall_x_lb_con = mid;
-                    wall_x_ub_con = mid;
+                    wall_x_lb_con = wall_x_lb;
+                    wall_x_ub_con = wall_x_ub;
                 }
             }
 

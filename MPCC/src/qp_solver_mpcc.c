@@ -360,7 +360,7 @@ void admm_solver_default_config(ADMMConfig_t *config)
     config->eps_dual = MPCC_DEFAULT_ADMM_TOLERANCE;
     config->warm_start = 0;
     config->rho_u = 0;            /* 0 = use same rho as states */
-    config->adaptive_rho = 0;     /* DISABLED: adaptive rho oscillates at tight corners */
+    config->adaptive_rho = 1;     /* DISABLED: adaptive rho oscillates at tight corners */
     config->alpha_relax = 1.6f;  /* Over-relaxation: accelerates ADMM convergence */
 }
 
@@ -844,17 +844,38 @@ void admm_compute_residuals(
     float max_prim = 0;
     float max_dual = 0;
 
+    if (!isfinite((double)rho) || !isfinite((double)rho_u)) {
+        *primal_res = INFINITY;
+        *dual_res = INFINITY;
+        return;
+    }
+
     /* State residuals */
     for (uint16_t k = 0; k <= N; k++)
     {
         for (int i = 0; i < MPCC_NX; i++)
         {
             float diff = (ws->z_x[k][i] - ws->w_x[k][i]);
+            if (!isfinite((double)diff)) {
+                *primal_res = INFINITY;
+                *dual_res = INFINITY;
+                return;
+            }
             float abs_diff = diff < 0 ? (0 - diff) : diff;
             if (abs_diff > max_prim) max_prim = abs_diff;
 
             float w_diff = (ws->w_x[k][i] - ws->w_x_prev[k][i]);
+            if (!isfinite((double)w_diff)) {
+                *primal_res = INFINITY;
+                *dual_res = INFINITY;
+                return;
+            }
             float abs_w = rho * (w_diff < 0 ? -w_diff : w_diff);
+            if (!isfinite((double)abs_w)) {
+                *primal_res = INFINITY;
+                *dual_res = INFINITY;
+                return;
+            }
             if (abs_w > max_dual) max_dual = abs_w;
         }
     }
@@ -865,11 +886,26 @@ void admm_compute_residuals(
         for (int i = 0; i < MPCC_NU; i++)
         {
             float diff = (ws->z_u[k][i] - ws->w_u[k][i]);
+            if (!isfinite((double)diff)) {
+                *primal_res = INFINITY;
+                *dual_res = INFINITY;
+                return;
+            }
             float abs_diff = diff < 0 ? (0 - diff) : diff;
             if (abs_diff > max_prim) max_prim = abs_diff;
 
             float w_diff = (ws->w_u[k][i] - ws->w_u_prev[k][i]);
+            if (!isfinite((double)w_diff)) {
+                *primal_res = INFINITY;
+                *dual_res = INFINITY;
+                return;
+            }
             float abs_w = rho_u * (w_diff < 0 ? -w_diff : w_diff);
+            if (!isfinite((double)abs_w)) {
+                *primal_res = INFINITY;
+                *dual_res = INFINITY;
+                return;
+            }
             if (abs_w > max_dual) max_dual = abs_w;
         }
     }
@@ -1008,6 +1044,14 @@ MPCCStatus_t admm_solver_solve(
         /* Step 4: Convergence check */
         float prim_res, dual_res;
         admm_compute_residuals(workspace, rho, rho_u, N, &prim_res, &dual_res);
+
+        if (!isfinite((double)prim_res) || !isfinite((double)dual_res)) {
+            status = MPCC_STATUS_ERROR;
+            workspace->primal_residual = INFINITY;
+            workspace->dual_residual = INFINITY;
+            workspace->iterations = iter + 1;
+            break;
+        }
 
         workspace->primal_residual = prim_res;
         workspace->dual_residual = dual_res;
