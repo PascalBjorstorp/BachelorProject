@@ -94,11 +94,9 @@ static int g_verbose = 0;
  *  in map frame, so Frenet errors are only correct when this flag is set. */
 static int g_amcl_received = 0;
 
-/** Flag for new EKF pose message */
-static int g_new_ekf_pose = 0;
-
 /** Safety watchdog timeout [seconds] */
 static double g_watchdog_timeout_sec = 0.2;
+static struct timespec g_last_servo_time;
 /* Last published drive command (fallback uses these instead of forcing stop). */
 static float g_last_cmd_steer = 0.0f;
 static float g_last_cmd_speed = 0.0f;
@@ -600,7 +598,7 @@ static void build_reference_from_trajectory(int closest_index)
     for (int step = 0; step < PREDICTION_HORIZON; step++)
     {
         s_query += step_velocity * pred_dt;
-        TrajectoryWaypoint_t wp;
+        TrajectoryWaypoint_t wp = {0};
         sample_waypoint_by_s(s_query, &wp);
 
         double traj_vel = wp.velocity_meters_per_second;
@@ -980,6 +978,8 @@ void local_raceline_callback(const void *message_in)
  * ROS2 Callback: Odometry Subscription (non-blocking, just stores state)
  *===========================================================================*/
 
+static void run_mpc_control_cycle(void);
+
 /**
  * @brief Process odometry messages and update cached vehicle dynamics.
  * @param message_in Pointer to nav_msgs/Odometry message.
@@ -1026,7 +1026,7 @@ void odometry_subscription_callback(const void *message_in)
         global_vehicle_state.yaw_rate = omega;
     }
 
-    /* Cache velocity for the timer callback.
+    /* Cache velocity for the EKF-pose callback.
      * Position/heading are only taken from odom when AMCL is not available.
      * When AMCL is running the amcl_pose_callback keeps them updated in the
     * map frame, which is the same frame as the reference path. */
@@ -1106,6 +1106,7 @@ void servo_feedback_callback(const void *message_in)
     }
 
     g_use_steering_feedback = 1;
+    clock_gettime(CLOCK_MONOTONIC, &g_last_servo_time);
 
     if (g_verbose)
     {
@@ -1170,18 +1171,19 @@ void amcl_pose_callback(const void *message_in)
     g_latest_pos_y   = pos_y;
     g_latest_heading = heading;
 
-    /* Local variables for MPC computation and logging */
-    int closest = 0;
-    double ey = 0.0, epsi = 0.0;
-    double vref0 = 0.0, kappa0 = 0.0;
-    double left_wall0 = 0.0, right_wall0 = 0.0;
-
-    g_new_ekf_pose = 1;
-
     if (!g_amcl_received) {
         printf("[MPC] Map-frame pose received — switching to map-frame position\n");
         g_amcl_received = 1;
     }
+
+    run_mpc_control_cycle();
+}
+
+static void run_mpc_control_cycle(void)
+{
+    double pos_x = g_latest_pos_x;
+    double pos_y = g_latest_pos_y;
+    double heading = g_latest_heading;
 
     /* Don't run MPC until odometry (velocity) has been received */
     if (!global_odometry_received_flag)
@@ -1221,8 +1223,14 @@ void amcl_pose_callback(const void *message_in)
         printf("[MPC] State: x=%.2f y=%.2f th=%.2f vx=%.2f vy=%.2f w=%.2f\n",
                pos_x, pos_y, heading, g_latest_vx, g_latest_vy, g_latest_omega);
     }
+
     if (global_trajectory_count > 1)
     {
+        int closest = 0;
+        double ey = 0.0, epsi = 0.0;
+        double vref0 = 0.0, kappa0 = 0.0;
+        double left_wall0 = 0.0, right_wall0 = 0.0;
+
         if (g_use_local_raceline)
         {
             closest = 0;
@@ -1248,138 +1256,154 @@ void amcl_pose_callback(const void *message_in)
             printf("[MPC] Frenet: e_y=%.3f e_psi=%.3f v_ref=%.2f kappa=%.3f\n",
                    ey, epsi, vref0, kappa0);
         }
-    }
-    else
-    {
-        if (g_verbose)
+
+        /* ===== Run MPC — output used DIRECTLY, no post-processing ===== */
+        MpcSolverResult_t mpc_result;
+        MpcSolverStatus_t mpc_status;
+        struct timespec t0, t1;
+        clock_gettime(CLOCK_MONOTONIC, &t0);
+        mpc_status = mpc_compute_optimal_control(
+            &global_frenet_state,
+            global_reference_trajectory,
+            &mpc_result);
+        clock_gettime(CLOCK_MONOTONIC, &t1);
+        double solve_us = (t1.tv_sec - t0.tv_sec) * 1e6 +
+                          (t1.tv_nsec - t0.tv_nsec) / 1e3;
+        double primal_res = mpc_result.final_cost;
+        double dual_res = mpc_result.dual_residual;
+
+        /* Rolling solve-time statistics (always active, lightweight) */
+        g_solve_time_sum_us += solve_us;
+        if (solve_us > g_solve_time_max_us) g_solve_time_max_us = solve_us;
+        g_solve_cycle_count++;
+        if (g_solve_cycle_count >= SOLVE_STATS_PRINT_INTERVAL)
         {
-            printf("[MPC] ERROR: No trajectory loaded, publishing last command\n");
-        }
-        global_drive_message_buffer.drive.steering_angle = g_last_cmd_steer;
-        global_drive_message_buffer.drive.speed = g_last_cmd_speed;
-        global_drive_message_buffer.drive.acceleration = g_last_cmd_accel;
-        rcl_ret_t pub_rc __attribute__((unused)) =
-            rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);
-        return;
-    }
-
-    /* ===== Run MPC — output used DIRECTLY, no post-processing ===== */
-    MpcSolverResult_t mpc_result;
-    MpcSolverStatus_t mpc_status;
-    struct timespec t0, t1;
-    clock_gettime(CLOCK_MONOTONIC, &t0);
-    mpc_status = mpc_compute_optimal_control(
-        &global_frenet_state,
-        global_reference_trajectory,
-        &mpc_result);
-    clock_gettime(CLOCK_MONOTONIC, &t1);
-    double solve_us = (t1.tv_sec - t0.tv_sec) * 1e6 +
-                      (t1.tv_nsec - t0.tv_nsec) / 1e3;
-    double primal_res = mpc_result.final_cost;
-    double dual_res = mpc_result.dual_residual;
-
-    /* Rolling solve-time statistics (always active, lightweight) */
-    g_solve_time_sum_us += solve_us;
-    if (solve_us > g_solve_time_max_us) g_solve_time_max_us = solve_us;
-    g_solve_cycle_count++;
-    if (g_solve_cycle_count >= SOLVE_STATS_PRINT_INTERVAL)
-    {
-        double avg_us = g_solve_time_sum_us / (double)g_solve_cycle_count;
-        printf("[MPC] Solve stats (%lu cycles): avg=%.1f us, max=%.1f us (budget=%.0f us)\n",
-               g_solve_cycle_count, avg_us, g_solve_time_max_us,
-             1e6 / CONTROL_RATE_HZ);
-        g_solve_time_sum_us = 0.0;
-        g_solve_time_max_us = 0.0;
-        g_solve_cycle_count = 0;
-    }
-
-    if (mpc_status == MPC_STATUS_SUCCESS ||
-        mpc_status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED)
-    {
-        double steer =
-            mpc_result.optimal_control.steer_ang;
-
-        /* Pass MPC output directly — no clamping, no bias, no softening. */
-        global_control_command.steer_ang =
-            mpc_result.optimal_control.steer_ang;
-        global_control_command.long_acc =
-            mpc_result.optimal_control.long_acc;
-
-        /* Update servo tracking.
-         * If steering feedback is available from VESC, it's already set by
-         * the servo callback. Otherwise, simulate servo dynamics with rate limit. */
-        if (!g_use_steering_feedback)
-        {
-            double max_delta = STEERING_RATE_LIMIT * CONTROL_DT_SECONDS;
-            double steer_diff = steer - global_actual_steering_angle;
-            if (steer_diff > max_delta) steer_diff = max_delta;
-            if (steer_diff < -max_delta) steer_diff = -max_delta;
-            global_actual_steering_angle += steer_diff;
+            double avg_us = g_solve_time_sum_us / (double)g_solve_cycle_count;
+            printf("[MPC] Solve stats (%lu cycles): avg=%.1f us, max=%.1f us (budget=%.0f us)\n",
+                   g_solve_cycle_count, avg_us, g_solve_time_max_us,
+                 1e6 / CONTROL_RATE_HZ);
+            g_solve_time_sum_us = 0.0;
+            g_solve_time_max_us = 0.0;
+            g_solve_cycle_count = 0;
         }
 
-        /* Feed actual servo position back to MPC */
+        if (mpc_status == MPC_STATUS_SUCCESS ||
+            mpc_status == MPC_STATUS_MAXIMUM_ITERATIONS_REACHED)
         {
-            ControlInput_t actual_ctrl;
-            actual_ctrl.steer_ang =
-                global_actual_steering_angle;
-            actual_ctrl.long_acc =
-                mpc_result.optimal_control.long_acc;
-            mpc_set_actual_previous_control(&actual_ctrl);
-        }
+            double steer =
+                mpc_result.optimal_control.steer_ang;
+            int servo_feedback_fresh = 0;
 
-        if (g_verbose && g_solver_log_file == NULL)
-        {
-            double accel = 
-                mpc_result.optimal_control.long_acc;
-            printf("[MPC] Control: steer=%.4f accel=%.2f (status=%d iter=%d pr=%.3e dr=%.3e solve=%.1fus)\n",
-                   steer, accel, mpc_status, mpc_result.iterations_used,
-                   primal_res, dual_res, solve_us);
-        }
-    }
-    else
-    {
-        if (g_verbose)
-        {
-            printf("[MPC] WARNING: Solver status=%d, holding last command\n", mpc_status);
-        }
-    }
-
-    /* Optional per-cycle solver telemetry (CSV) for post-drive analysis. */
-    if (g_solver_log_file != NULL)
-    {
-        g_solver_log_counter++;
-        if ((g_solver_log_counter % (unsigned long)g_solver_log_stride) == 0)
-        {
-            struct timespec now_rt;
-            clock_gettime(CLOCK_REALTIME, &now_rt);
-            long long unix_time_ns =
-                (long long)now_rt.tv_sec * 1000000000LL + (long long)now_rt.tv_nsec;
-
-            double cmd_steer = mpc_result.optimal_control.steer_ang;
-            double cmd_accel = mpc_result.optimal_control.long_acc;
-
-            fprintf(g_solver_log_file,
-                    "%lld,%.3f,%d,%u,%.9f,%.9f,%d,"
-                    "%.6f,%.6f,%.6f,%.6f,%.6f,"
-                    "%.6f,%.6f,%.6f,%.6f,"
-                    "%.6f,%.6f,%.3f,%d\n",
-                    unix_time_ns, solve_us, (int)mpc_status, mpc_result.iterations_used,
-                    primal_res, dual_res, closest,
-                    ey, epsi, g_latest_vx, g_latest_vy, g_latest_omega,
-                    vref0, kappa0, left_wall0, right_wall0,
-                    cmd_steer, cmd_accel, global_actual_steering_angle,
-                    g_use_steering_feedback);
-
-            if ((g_solver_log_counter % 20UL) == 0UL)
+            if (g_use_steering_feedback)
             {
-                fflush(g_solver_log_file);
+                struct timespec now;
+                clock_gettime(CLOCK_MONOTONIC, &now);
+                double servo_age = timespec_diff_sec(&g_last_servo_time, &now);
+                if (servo_age <= 0.05)
+                    servo_feedback_fresh = 1;
+            }
+
+            /* Pass MPC output directly — no clamping, no bias, no softening. */
+            global_control_command.steer_ang =
+                mpc_result.optimal_control.steer_ang;
+            global_control_command.long_acc =
+                mpc_result.optimal_control.long_acc;
+
+            /* Update servo tracking.
+             * If steering feedback is available from VESC, it's already set by
+             * the servo callback. Otherwise, simulate servo dynamics with rate limit. */
+            if (!servo_feedback_fresh)
+            {
+                double max_delta = STEERING_RATE_LIMIT * CONTROL_DT_SECONDS;
+                double steer_diff = steer - global_actual_steering_angle;
+                if (steer_diff > max_delta) steer_diff = max_delta;
+                if (steer_diff < -max_delta) steer_diff = -max_delta;
+                global_actual_steering_angle += steer_diff;
+            }
+
+            /* Feed actual servo position back to MPC */
+            {
+                ControlInput_t actual_ctrl;
+                actual_ctrl.steer_ang = global_actual_steering_angle;
+                actual_ctrl.long_acc = mpc_result.optimal_control.long_acc;
+                mpc_set_actual_previous_control(&actual_ctrl);
+            }
+
+            if (g_verbose && g_solver_log_file == NULL)
+            {
+                double accel =
+                    mpc_result.optimal_control.long_acc;
+                printf("[MPC] Control: steer=%.4f accel=%.2f (status=%d iter=%d pr=%.3e dr=%.3e solve=%.1fus)\n",
+                       steer, accel, mpc_status, mpc_result.iterations_used, primal_res, dual_res, solve_us);
+            }
+            else if (g_solver_log_file != NULL)
+            {
+                const MpcConfiguration_t cfg = mpc_get_configuration();
+                const double pred_dt = (cfg.time_step > 0.0f)
+                    ? (double)cfg.time_step : (double)TIME_STEP_SECONDS;
+                double cmd_speed = g_latest_vx +
+                    ((double)mpc_result.optimal_control.long_acc * pred_dt);
+                if (cmd_speed < (double)VP_MIN_VELOCITY_MPS)
+                    cmd_speed = (double)VP_MIN_VELOCITY_MPS;
+                if (cmd_speed > (double)TRAJECTORY_MAXIMUM_VELOCITY)
+                    cmd_speed = (double)TRAJECTORY_MAXIMUM_VELOCITY;
+
+                struct timespec ts_now;
+                clock_gettime(CLOCK_REALTIME, &ts_now);
+                long long unix_time_ns =
+                    ((long long)ts_now.tv_sec * 1000000000LL) + (long long)ts_now.tv_nsec;
+
+                fprintf(g_solver_log_file,
+                        "%lld,%.1f,%d,%d,%.6e,%.6e,%d,"
+                        "%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,"
+                        "%.4f,%.4f,%.4f,%.4f,%d\n",
+                        unix_time_ns,
+                        solve_us,
+                        (int)mpc_status,
+                        (int)mpc_result.iterations_used,
+                        primal_res,
+                        dual_res,
+                        closest,
+                        ey,
+                        epsi,
+                        g_latest_vx,
+                        g_latest_vy,
+                        g_latest_omega,
+                        vref0,
+                        kappa0,
+                        left_wall0,
+                        right_wall0,
+                        mpc_result.optimal_control.steer_ang,
+                        mpc_result.optimal_control.long_acc,
+                        cmd_speed,
+                        global_actual_steering_angle,
+                        g_use_steering_feedback);
+
+                g_solver_log_counter++;
+                if ((g_solver_log_counter % 20UL) == 0UL)
+                {
+                    fflush(g_solver_log_file);
+                }
             }
         }
+        else
+        {
+            global_control_command.steer_ang = 0.0f;
+            global_control_command.long_acc = VP_MIN_ACCEL_MPS2;
+            fprintf(stderr,
+                    "[MPC] WARNING: Solver status=%d, publishing braking fallback\n",
+                    (int)mpc_status);
+        }
+    }
+    else
+    {
+        global_control_command.steer_ang = 0.0f;
+        global_control_command.long_acc = VP_MIN_ACCEL_MPS2;
     }
 
     /* Publish drive command */
     {
-        global_drive_message_buffer.drive.steering_angle = 
+        global_drive_message_buffer.drive.steering_angle =
             global_control_command.steer_ang;
 
         /* Convert acceleration command to velocity target over one prediction step.
@@ -1502,7 +1526,7 @@ int main(int argc, char *argv[])
             fprintf(g_solver_log_file,
                     "unix_time_ns,solve_us,status,iterations,primal_residual,dual_residual,closest_wp,"
                     "e_y,e_psi,vx,vy,omega,v_ref0,kappa0,left_wall0,right_wall0,"
-                    "cmd_steer,cmd_accel,actual_steer,use_steering_feedback\n");
+                    "cmd_steer,cmd_accel,cmd_speed,actual_steer,use_steering_feedback\n");
             fflush(g_solver_log_file);
             printf("[MPC] Solver telemetry log: %s (every control callback)\n", log_path);
         }
@@ -1604,12 +1628,12 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (g_trajectory_file == NULL)
         {
             /* SECURITY: Environment variable path is accepted as trusted local
              * deployment configuration and is not sanitized by this node. */
             const char *env_val = getenv("MPC_TRAJECTORY_FILE");
-            if (env_val != NULL)
+            if ((g_trajectory_file == NULL || g_trajectory_file[0] == '\0') &&
+                env_val != NULL && env_val[0] != '\0')
                 g_trajectory_file = env_val;
         }
 
@@ -1893,19 +1917,20 @@ int main(int argc, char *argv[])
         fclose(g_solver_log_file);
         g_solver_log_file = NULL;
     }
-    rclc_executor_fini(&executor);
+
     nav_msgs__msg__Odometry__fini(&global_odometry_message_buffer);
     std_msgs__msg__Float64__fini(&global_servo_message_buffer);
     std_msgs__msg__Float64__fini(&global_imu_message_buffer);
     ackermann_msgs__msg__AckermannDriveStamped__fini(&global_drive_message_buffer);
     nav_msgs__msg__Path__fini(&global_local_raceline_buffer);
+    geometry_msgs__msg__PoseWithCovarianceStamped__fini(&global_amcl_pose_buffer);
+
     rcl_ret_t cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&odom_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&servo_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&imu_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&amcl_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&local_raceline_sub, &node); (void)cleanup_rc;
-    geometry_msgs__msg__PoseWithCovarianceStamped__fini(&global_amcl_pose_buffer);
     cleanup_rc = rcl_publisher_fini(&global_control_publisher, &node); (void)cleanup_rc;
     cleanup_rc = rcl_node_fini(&node); (void)cleanup_rc;
     cleanup_rc = rcl_context_fini(&ctx); (void)cleanup_rc;
