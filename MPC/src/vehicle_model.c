@@ -294,6 +294,7 @@ void vehicle_model_compute_frenet_linearization(
     const ControlInput_t *operating_control,
     float time_step,
     float path_curvature,
+    float reference_velocity,
     float state_matrix_A[NX_FRENET][NX_FRENET],
     float input_matrix_B[NX_FRENET][2])
 {
@@ -404,14 +405,15 @@ void vehicle_model_compute_frenet_linearization(
     /*
      * Row 0: e_y dynamics (Frenet kinematics)
      *   Continuous: e_y_dot = v_x * sin(e_psi) + v_y * cos(e_psi)
-     *   Linearized (e_psi ≈ 0): e_y_dot ≈ v_x * e_psi + v_y
-     *   Discrete: e_y[k+1] = e_y[k] + dt * (v_x * e_psi[k] + v_y[k])
+     *   Linearized (e_psi ≈ 0): e_y_dot ≈ v_ref * e_psi + v_y
+     *     (using v_ref instead of vx to maintain lookahead visibility when vx=0)
+     *   Discrete: e_y[k+1] = e_y[k] + dt * (v_ref * e_psi[k] + v_y[k])
      *
-     *   A[0][0] = 1         (identity)
-     *   A[0][1] = dt * v_x  (heading error drives lateral drift)
-     *   A[0][2] = 0         (∂/∂v_x = sin(e_psi) ≈ 0 at e_psi=0)
-     *   A[0][3] = dt        (lateral velocity directly changes e_y)
-     *   A[0][4] = 0         (no direct omega coupling)
+     *   A[0][0] = 1                (identity)
+     *   A[0][1] = dt * v_ref       (heading error drives lateral drift, using v_ref)
+     *   A[0][2] = 0                (∂/∂v_x = sin(e_psi) ≈ 0 at e_psi=0)
+     *   A[0][3] = dt               (lateral velocity directly changes e_y)
+     *   A[0][4] = 0                (no direct omega coupling)
      */
     {
         float epsi = frenet_state->fhead_error;
@@ -425,24 +427,25 @@ void vehicle_model_compute_frenet_linearization(
         float inv_denom2 = inv_denom * inv_denom;
 
         state_matrix_A[0][0] = 1.0f;
-        state_matrix_A[0][1] = time_step * (vx * cp - vy * sp);
+        state_matrix_A[0][1] = time_step * (reference_velocity * cp - vy * sp);
         state_matrix_A[0][2] = time_step * sp;
         state_matrix_A[0][3] = time_step * cp;
 
-        state_matrix_A[1][0] = -time_step * (path_curvature * path_curvature) * vx * cp * inv_denom2;
-        state_matrix_A[1][1] = 1.0f + time_step * path_curvature * vx * sp * inv_denom;
+        state_matrix_A[1][0] = -time_step * (path_curvature * path_curvature) * reference_velocity * cp * inv_denom2;
+        state_matrix_A[1][1] = 1.0f + time_step * path_curvature * reference_velocity * sp * inv_denom;
         state_matrix_A[1][2] = -time_step * path_curvature * cp * inv_denom;
         state_matrix_A[1][4] = time_step;
     }
 
     /*
      * Row 1: e_psi dynamics (Frenet kinematics)
-     *   Continuous: e_psi_dot = omega - kappa * v_x * cos(e_psi) / (1 - kappa * e_y)
-     *   Linearized (e_y ≈ 0, e_psi ≈ 0): e_psi_dot ≈ omega - kappa * v_x
-     *   Discrete: e_psi[k+1] = e_psi[k] + dt * (omega[k] - kappa * v_x[k])
+     *   Continuous: e_psi_dot = omega - kappa * v_ref * cos(e_psi) / (1 - kappa * e_y)
+     *   Linearized (e_y ≈ 0, e_psi ≈ 0): e_psi_dot ≈ omega - kappa * v_ref
+     *     (using v_ref instead of vx to maintain lookahead visibility when vx=0)
+     *   Discrete: e_psi[k+1] = e_psi[k] + dt * (omega[k] - kappa * v_ref)
      *
      *   A[1][1] = 1                (identity)
-     *   A[1][2] = -dt * kappa      (speed along curved path changes heading error)
+     *   A[1][2] = -dt * kappa * v_ref / v_ref_clamp  (speed effect, using v_ref)
      *   A[1][4] = dt               (yaw rate directly changes heading error)
      */
     /* Row 1 already assigned in the exact Frenet Jacobian block above. */
