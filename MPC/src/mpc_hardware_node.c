@@ -81,7 +81,7 @@ static int g_local_raceline_wait_logged = 0;
 static int g_local_raceline_speed_warned = 0;
 
 /** Enable verbose logging (disabled by default for real-time performance) */
-static int g_verbose = 0;
+static int g_verbose = 1;
 
 /** Set to 1 once the first EKF pose message has been received. */
 static int g_ekf_pose_received = 0;
@@ -760,8 +760,7 @@ void local_raceline_callback(const void *message_in)
     g_avg_waypoint_spacing = (waypoint_count > 1) ? (cumulative_s / (double)(waypoint_count - 1)) : 0.05;
     if (g_avg_waypoint_spacing < 0.01) g_avg_waypoint_spacing = 0.01;
 
-    /* Reset closest-index seed on new local segment. */
-    g_last_local_closest_index = 0;
+    /* Keep closest-index seed across updates; clamp will be applied in the search. */
 
     g_local_raceline_received = 1;
     g_local_raceline_wait_logged = 0;
@@ -1296,7 +1295,7 @@ int main(int argc, char *argv[])
         }
 
         ensure_parent_directories(log_path);
-
+½½
         g_solver_log_file = fopen(log_path, "w");
         if (g_solver_log_file == NULL)
         {

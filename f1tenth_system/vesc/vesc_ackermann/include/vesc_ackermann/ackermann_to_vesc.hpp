@@ -65,6 +65,7 @@ private:
   double accel_drag_coulomb_, accel_drag_viscous_, accel_drag_quadratic_;
   double max_drive_current_, max_brake_current_;
   double slow_start_threshold_, slow_start_increment_;
+  double stop_speed_deadzone_;
 
   // Operation modes enum
   enum OperationMode
