@@ -23,7 +23,7 @@ end
 if data.amcl.hasTimingParticles
     fprintf('\nAMCL timing and particle summary\n');
     fprintf('Pairing method      : %s\n', data.amcl.pairMethod);
-    printStats('/amcl_timing', data.amcl.timingMs, 'ms');
+    printStats('scan->amcl', data.amcl.timingMs, 'ms');
     printStats('/amcl_particle_count', data.amcl.particleCount, 'particles');
 end
 

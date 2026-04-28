@@ -40,11 +40,6 @@ def generate_launch_description():
             description='Ackermann mux output topic used for drive -> ackermann latency measurement'),
 
         DeclareLaunchArgument(
-            'amcl_timing_topic',
-            default_value='/amcl_timing',
-            description='AMCL timing topic recorded into the pipeline latency CSV'),
-
-        DeclareLaunchArgument(
             'amcl_particle_count_topic',
             default_value='/amcl_particle_count',
             description='AMCL particle count topic recorded into the pipeline latency CSV'),
@@ -77,7 +72,6 @@ def generate_launch_description():
             parameters=[{
                 'scan_topic': '/scan',
                 'amcl_topic': '/amcl_pose',
-                'amcl_timing_topic': LaunchConfiguration('amcl_timing_topic'),
                 'amcl_particle_count_topic': LaunchConfiguration('amcl_particle_count_topic'),
                 'ekf_topic': '/ekf_pose',
                 'drive_topic': LaunchConfiguration('drive_topic'),

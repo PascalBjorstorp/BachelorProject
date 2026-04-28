@@ -1,7 +1,7 @@
 function plotAmclTimingParticleHeatmap(data, outputDir, showPlot)
-%PLOTAMCLTIMINGPARTICLEHEATMAP Figure 8: AMCL timing colored by particle count.
+%PLOTAMCLTIMINGPARTICLEHEATMAP AMCL stage timing colored by particle count.
 
-fig = makePlotFigure('AMCL Timing vs Particle Count', showPlot);
+fig = makePlotFigure('AMCL Stage Timing vs Particle Count', showPlot);
 if data.amcl.hasTimingParticles
     x = data.amcl.sampleIndex(:);
     y = data.amcl.timingMs(:);
@@ -27,9 +27,9 @@ if data.amcl.hasTimingParticles
         'MarkerFaceAlpha', 0.85, 'MarkerEdgeAlpha', 0.08);
     hold off;
     grid on;
-    xlabel('AMCL timing sample index');
-    ylabel('/amcl\_timing [ms]');
-    title(sprintf('AMCL timing colored by /amcl\\_particle\\_count (%s)', ...
+    xlabel('AMCL output sample index');
+    ylabel('scan->amcl [ms]');
+    title(sprintf('scan->amcl colored by /amcl\\_particle\\_count (%s)', ...
         data.amcl.pairMethod), 'Interpreter', 'tex');
     cb = colorbar;
     cb.Label.String = '/amcl\_particle\_count';
@@ -46,7 +46,7 @@ if data.amcl.hasTimingParticles
     set(gca, 'FontSize', 11, 'LineWidth', 0.9);
 else
     axis off;
-    text(0.08, 0.55, 'No paired /amcl\_timing and /amcl\_particle\_count CSV data found', ...
+    text(0.08, 0.55, 'No paired scan->amcl timing and /amcl\_particle\_count CSV data found', ...
         'FontSize', 12, 'Interpreter', 'tex');
     text(0.08, 0.45, sprintf('Topic CSV folder: %s', data.topicCsvDir), ...
         'FontSize', 10, 'Interpreter', 'none');

@@ -12,7 +12,6 @@
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
-#include <std_msgs/msg/float64.hpp>
 #include <std_msgs/msg/int32.hpp>
 
 namespace f1tenth_localization
@@ -27,7 +26,6 @@ namespace f1tenth_localization
  *   /ekf_pose     — EKF correction output matched by scan/amcl stamp
  *   /drive        — controller output matched by header stamp
  *   /ackermann_cmd — mux output matched by header stamp
- *   /amcl_timing  — AMCL particle-filter processing time
  *   /amcl_particle_count — AMCL active particle count
  *
  * Prints per-cycle:
@@ -53,7 +51,6 @@ private:
     double ekf_recv_ns{0.0};
     double drive_recv_ns{0.0};
     double ackermann_recv_ns{0.0};
-    double amcl_timing_ms{-1.0};
     int32_t amcl_particle_count{-1};
     bool   has_scan{false};
     bool   has_amcl{false};
@@ -65,7 +62,6 @@ private:
   void scan_callback(const sensor_msgs::msg::LaserScan::ConstSharedPtr & msg);
   void amcl_callback(
     const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr & msg);
-  void amcl_timing_callback(const std_msgs::msg::Float64::ConstSharedPtr & msg);
   void amcl_particle_count_callback(const std_msgs::msg::Int32::ConstSharedPtr & msg);
   void ekf_callback(
     const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr & msg);
@@ -78,7 +74,6 @@ private:
   void write_csv_row(
     int64_t stamp_ns,
     double scan_stamp_to_scan_ms,
-    double amcl_timing_ms,
     int32_t amcl_particle_count,
     double scan_to_amcl_ms,
     double amcl_to_ekf_ms,
@@ -96,7 +91,6 @@ private:
   // Configurable topics
   std::string scan_topic_;
   std::string amcl_topic_;
-  std::string amcl_timing_topic_;
   std::string amcl_particle_count_topic_;
   std::string ekf_topic_;
   std::string drive_topic_;
@@ -120,8 +114,6 @@ private:
   int print_every_{1};
   int cycle_count_{0};
 
-  double latest_amcl_timing_ms_{-1.0};
-  double latest_amcl_timing_recv_ns_{0.0};
   int32_t latest_amcl_particle_count_{-1};
   double latest_amcl_particle_count_recv_ns_{0.0};
 
@@ -148,7 +140,6 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
   rclcpp::Subscription<
     geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr amcl_sub_;
-  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr amcl_timing_sub_;
   rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr amcl_particle_count_sub_;
   rclcpp::Subscription<
     geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr ekf_sub_;

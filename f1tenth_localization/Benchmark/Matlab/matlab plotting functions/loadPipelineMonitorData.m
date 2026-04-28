@@ -65,9 +65,8 @@ if ~isempty(pipelineFile)
         data.pipeline.d2a = optionalLatency(Tp, {'drive_to_ackermann_ms', 'drive_to_ackermann_cmd_ms'}, data.pipeline.t, data.pipeline.warmupSeconds, data.pipeline.maxLatencyMs);
         data.pipeline.s2a = optionalLatency(Tp, {'scan_to_ackermann_ms', 'scan_to_command_ms', 'scan_to_drive_ms'}, data.pipeline.t, data.pipeline.warmupSeconds, data.pipeline.maxLatencyMs);
 
-        if ismember('amcl_timing_ms', Tp.Properties.VariableNames) && ...
-                ismember('amcl_particle_count', Tp.Properties.VariableNames)
-            timing = double(Tp.amcl_timing_ms);
+        if ismember('amcl_particle_count', Tp.Properties.VariableNames)
+            timing = data.pipeline.scan2amcl;
             particles = double(Tp.amcl_particle_count);
             validAmcl = isfinite(timing) & timing >= 0 & ...
                 isfinite(particles) & particles >= 0;
@@ -76,7 +75,7 @@ if ~isempty(pipelineFile)
                 data.amcl.timingMs = timing(validAmcl);
                 data.amcl.particleCount = particles(validAmcl);
                 data.amcl.sampleIndex = (1:nnz(validAmcl))';
-                data.amcl.pairMethod = 'pipeline CSV rows';
+                data.amcl.pairMethod = 'pipeline CSV rows (scan->amcl)';
             end
         end
     end
