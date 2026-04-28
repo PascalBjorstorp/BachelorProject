@@ -212,7 +212,16 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
         }
 
         if (brake_msg->data > max_brake_current_) brake_msg->data = max_brake_current_;
-        publish_brake = true;
+        if (brake_msg->data > 0.0) {
+          publish_brake = true;
+        } else {
+          // IMPORTANT: when brake computes to ~0 (e.g. small decel requests),
+          // still publish a 0-current command so the motor does not keep a stale
+          // positive current setpoint from the previous cycle.
+          operation_mode_ = ACCEL_TO_CURRENT;
+          current_msg->data = 0.0;
+          publish_erpm = true;
+        }
       } else {
         const double v = std::abs(current_vel_);
         const double accel_ff =
@@ -325,7 +334,7 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
 
   // Publish commands (std::move for zero-copy intra-process transfer)
   if (rclcpp::ok()) {
-    if (publish_brake && brake_msg->data != 0.0) {
+    if (publish_brake) {
       brake_pub_->publish(std::move(brake_msg));
     } else if (publish_erpm) {
       if (operation_mode_ == ACCEL_TO_CURRENT || operation_mode_ == VEL_TO_CURRENT) {

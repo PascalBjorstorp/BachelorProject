@@ -287,6 +287,8 @@ static void setup_realtime_scheduling(void)
 
 /** Average spacing of latest local raceline waypoints. */
 static double g_avg_waypoint_spacing = 0.05;
+/** Last closest index used for local raceline projection (stabilizes closest-point selection). */
+static int g_last_local_closest_index = 0;
 
 /**
  * @brief Wrap heading difference into [-pi, pi].
@@ -324,20 +326,38 @@ static int find_closest_waypoint_local(double position_x, double position_y, dou
         return 0;
     }
 
-    int best_index = 0;
+    /* Local raceline is an open segment that typically starts near the vehicle.
+     * Restrict closest-point search to an early window to avoid index "jumps"
+     * to far-ahead points when the vehicle deviates. */
+    const int max_search_points = 60;
+    const int search_end =
+        (global_trajectory_count < max_search_points) ? global_trajectory_count : max_search_points;
+
+    int search_start = g_last_local_closest_index;
+    if (search_start < 0) search_start = 0;
+    if (search_start >= search_end) search_start = search_end - 1;
+
+    const int search_window = 50;
+    const int back_window = 5;
+
+    int best_index = search_start;
     double best_score = 1e18;
     const double veh_dx = cos(vehicle_heading);
     const double veh_dy = sin(vehicle_heading);
 
-    for (int i = 0; i < global_trajectory_count; i++)
+    for (int offset = -back_window; offset < search_window; offset++)
     {
+        int i = search_start + offset;
+        if (i < 0) i = 0;
+        if (i >= search_end) i = search_end - 1;
+
         const double dx = global_trajectory[i].x_meters - position_x;
         const double dy = global_trajectory[i].y_meters - position_y;
         const double dist2 = dx * dx + dy * dy;
 
         /* Penalize points behind the vehicle. */
         const double dot = dx * veh_dx + dy * veh_dy;
-        const double score = dist2 + ((dot < 0.0) ? 4.0 : 0.0); /* +2m equiv penalty */
+        const double score = dist2 + ((dot < 0.0) ? 25.0 : 0.0); /* +5m equiv penalty */
 
         if (score < best_score)
         {
@@ -346,6 +366,7 @@ static int find_closest_waypoint_local(double position_x, double position_y, dou
         }
     }
 
+    g_last_local_closest_index = best_index;
     return best_index;
 }
 
@@ -738,6 +759,9 @@ void local_raceline_callback(const void *message_in)
     global_trajectory_count = (int)waypoint_count;
     g_avg_waypoint_spacing = (waypoint_count > 1) ? (cumulative_s / (double)(waypoint_count - 1)) : 0.05;
     if (g_avg_waypoint_spacing < 0.01) g_avg_waypoint_spacing = 0.01;
+
+    /* Reset closest-index seed on new local segment. */
+    g_last_local_closest_index = 0;
 
     g_local_raceline_received = 1;
     g_local_raceline_wait_logged = 0;
