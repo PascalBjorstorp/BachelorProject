@@ -83,7 +83,7 @@ static int g_local_raceline_wall_warned = 0;
 static const double FALLBACK_WALL_BOUND_M = 1.5;
 
 /** Enable verbose logging (disabled by default for real-time performance) */
-static int g_verbose = 0;
+static int g_verbose = 1;
 
 /** Set to 1 once the first EKF pose message has been received. */
 static int g_ekf_pose_received = 0;
@@ -289,6 +289,8 @@ static void setup_realtime_scheduling(void)
 
 /** Average spacing of latest local raceline waypoints. */
 static double g_avg_waypoint_spacing = 0.05;
+/** Last closest index used for local raceline projection (stabilizes closest-point selection). */
+static int g_last_local_closest_index = 0;
 
 /**
  * @brief Wrap heading difference into [-pi, pi].
@@ -326,20 +328,38 @@ static int find_closest_waypoint_local(double position_x, double position_y, dou
         return 0;
     }
 
-    int best_index = 0;
+    /* Local raceline is an open segment that typically starts near the vehicle.
+     * Restrict closest-point search to an early window to avoid index "jumps"
+     * to far-ahead points when the vehicle deviates. */
+    const int max_search_points = 60;
+    const int search_end =
+        (global_trajectory_count < max_search_points) ? global_trajectory_count : max_search_points;
+
+    int search_start = g_last_local_closest_index;
+    if (search_start < 0) search_start = 0;
+    if (search_start >= search_end) search_start = search_end - 1;
+
+    const int search_window = 50;
+    const int back_window = 5;
+
+    int best_index = search_start;
     double best_score = 1e18;
     const double veh_dx = cos(vehicle_heading);
     const double veh_dy = sin(vehicle_heading);
 
-    for (int i = 0; i < global_trajectory_count; i++)
+    for (int offset = -back_window; offset < search_window; offset++)
     {
+        int i = search_start + offset;
+        if (i < 0) i = 0;
+        if (i >= search_end) i = search_end - 1;
+
         const double dx = global_trajectory[i].x_meters - position_x;
         const double dy = global_trajectory[i].y_meters - position_y;
         const double dist2 = dx * dx + dy * dy;
 
         /* Penalize points behind the vehicle. */
         const double dot = dx * veh_dx + dy * veh_dy;
-        const double score = dist2 + ((dot < 0.0) ? 4.0 : 0.0); /* +2m equiv penalty */
+        const double score = dist2 + ((dot < 0.0) ? 25.0 : 0.0); /* +5m equiv penalty */
 
         if (score < best_score)
         {
@@ -348,6 +368,7 @@ static int find_closest_waypoint_local(double position_x, double position_y, dou
         }
     }
 
+    g_last_local_closest_index = best_index;
     return best_index;
 }
 
@@ -452,6 +473,19 @@ static void build_reference_from_local_raceline(int closest_index)
     const double pred_dt = (cfg.time_step > 0.0f) ? (double)cfg.time_step : (double)TIME_STEP_SECONDS;
     double s_query = global_trajectory[closest_index].s_meters;
     double step_velocity = global_trajectory[closest_index].velocity_meters_per_second;
+    /* If the vehicle is significantly slower than the reference (e.g. after an
+     * avoidance/stop event), advancing the query by v_ref*dt can jump far ahead
+     * on the local segment and make the MPC "give up". Use a blended speed so
+     * the horizon stays locally relevant during recovery. */
+    {
+        const double v_meas = fabs(g_latest_vx);
+        if (isfinite(v_meas) && v_meas > 0.0)
+        {
+            const double v_ref0 = step_velocity;
+            const double v_blend = 0.6 * v_meas + 0.4 * v_ref0;
+            if (v_blend > 0.0) step_velocity = v_blend;
+        }
+    }
 
     for (int step = 0; step < PREDICTION_HORIZON; step++)
     {
@@ -710,14 +744,22 @@ void local_raceline_callback(const void *message_in)
     }
 
     /* Compute heading from finite differences of x/y to avoid relying on
-     * PoseStamped.orientation (which may be unset or noisy on some stacks). */
+     * PoseStamped.orientation (which may be unset or noisy on some stacks).
+     *
+     * NOTE: Keep heading local (small window) because it directly affects e_psi.
+     * Compute curvature with a larger window below to avoid κ spikes from
+     * dense/noisy points. */
+    const size_t heading_window = 1;   /* points on each side (local heading) */
+    const size_t curvature_window = 3; /* points on each side (smooth κ) */
     for (size_t i = 0; i < waypoint_count; i++)
     {
-        size_t i_prev = (i == 0) ? 0 : (i - 1);
-        size_t i_next = (i + 1 < waypoint_count) ? (i + 1) : (waypoint_count - 1);
+        size_t i_prev = (i > heading_window) ? (i - heading_window) : 0;
+        size_t i_next = (i + heading_window < waypoint_count) ? (i + heading_window) : (waypoint_count - 1);
 
-        const double dx = global_trajectory[i_next].x_meters - global_trajectory[i_prev].x_meters;
-        const double dy = global_trajectory[i_next].y_meters - global_trajectory[i_prev].y_meters;
+        const double dx =
+            global_trajectory[i_next].x_meters - global_trajectory[i_prev].x_meters;
+        const double dy =
+            global_trajectory[i_next].y_meters - global_trajectory[i_prev].y_meters;
 
         double heading = 0.0;
         if ((dx * dx + dy * dy) > 1e-12)
@@ -734,14 +776,30 @@ void local_raceline_callback(const void *message_in)
 
     if (waypoint_count >= 3)
     {
+        /* Clamp κ to the maximum curvature implied by steering limits. This is
+         * a pragmatic guardrail for local-planner paths that may contain
+         * discontinuities (piecewise linear segments) or overly aggressive
+         * cornering. Without this, κ can exceed what δ_max can realize and the
+         * MPC can choose to stop rather than accept tracking error. */
+        const double kappa_max =
+            (VP_WHEELBASE_M > 1e-6f)
+                ? (tan((double)VP_MAX_STEERING_RAD) / (double)VP_WHEELBASE_M)
+                : 10.0;
+
         for (size_t i = 1; i + 1 < waypoint_count; i++)
         {
+            const size_t i_prev = (i > curvature_window) ? (i - curvature_window) : 0;
+            const size_t i_next = (i + curvature_window < waypoint_count) ? (i + curvature_window) : (waypoint_count - 1);
+
             const double dpsi = wrap_angle_pi(
-                global_trajectory[i + 1].heading_radians -
-                global_trajectory[i - 1].heading_radians);
-            const double ds = global_trajectory[i + 1].s_meters - global_trajectory[i - 1].s_meters;
+                global_trajectory[i_next].heading_radians -
+                global_trajectory[i_prev].heading_radians);
+            const double ds = global_trajectory[i_next].s_meters - global_trajectory[i_prev].s_meters;
             const double ds_safe = (ds > 1e-6) ? ds : 1e-6;
-            global_trajectory[i].curvature_radians_per_meter = dpsi / ds_safe;
+            double kappa = dpsi / ds_safe;
+            if (kappa > kappa_max) kappa = kappa_max;
+            if (kappa < -kappa_max) kappa = -kappa_max;
+            global_trajectory[i].curvature_radians_per_meter = kappa;
         }
 
         global_trajectory[0].curvature_radians_per_meter =
@@ -753,6 +811,8 @@ void local_raceline_callback(const void *message_in)
     global_trajectory_count = (int)waypoint_count;
     g_avg_waypoint_spacing = (waypoint_count > 1) ? (cumulative_s / (double)(waypoint_count - 1)) : 0.05;
     if (g_avg_waypoint_spacing < 0.01) g_avg_waypoint_spacing = 0.01;
+
+    /* Keep closest-index seed across updates; clamp will be applied in the search. */
 
     g_local_raceline_received = 1;
     g_local_raceline_wait_logged = 0;

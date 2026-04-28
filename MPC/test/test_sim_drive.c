@@ -242,6 +242,62 @@ static double wrap_angle(double a)
     return a;
 }
 
+/* Recompute s/psi/kappa from x/y geometry, similar to the hardware node's
+ * /local_raceline processing. This helps stress-test MPC robustness against
+ * discretization/noise in the provided path rather than trusting CSV kappa. */
+static void recompute_raceline_geometry(int diff_window, int recompute_s)
+{
+    if (raceline_count < 2) return;
+    if (diff_window < 1) diff_window = 1;
+
+    /* Recompute s as cumulative arc-length (optional). */
+    if (recompute_s) {
+        double cumulative_s = 0.0;
+        double prev_x = raceline[0].x;
+        double prev_y = raceline[0].y;
+        raceline[0].s = 0.0;
+        for (int i = 1; i < raceline_count; i++) {
+            const double x = raceline[i].x;
+            const double y = raceline[i].y;
+            cumulative_s += hypot(x - prev_x, y - prev_y);
+            raceline[i].s = cumulative_s;
+            prev_x = x;
+            prev_y = y;
+        }
+        g_track_length_m = raceline[raceline_count - 1].s - raceline[0].s;
+        if (g_track_length_m < 1e-3) g_track_length_m = 0.0;
+    }
+
+    /* Heading from windowed finite differences. */
+    for (int i = 0; i < raceline_count; i++) {
+        int i_prev = (i - diff_window >= 0) ? (i - diff_window) : 0;
+        int i_next = (i + diff_window < raceline_count) ? (i + diff_window) : (raceline_count - 1);
+        const double dx = raceline[i_next].x - raceline[i_prev].x;
+        const double dy = raceline[i_next].y - raceline[i_prev].y;
+        double heading = 0.0;
+        if ((dx * dx + dy * dy) > 1e-12) {
+            heading = atan2(dy, dx);
+        } else if (i > 0) {
+            heading = raceline[i - 1].psi;
+        }
+        raceline[i].psi = heading;
+    }
+
+    /* Curvature from dpsi/ds using same window. */
+    if (raceline_count >= 3) {
+        for (int i = 1; i + 1 < raceline_count; i++) {
+            int i_prev = (i - diff_window >= 0) ? (i - diff_window) : 0;
+            int i_next = (i + diff_window < raceline_count) ? (i + diff_window) : (raceline_count - 1);
+            double dpsi = wrap_angle(raceline[i_next].psi - raceline[i_prev].psi);
+            const double ds = raceline[i_next].s - raceline[i_prev].s;
+            const double ds_safe = (ds > 1e-6) ? ds : 1e-6;
+            raceline[i].kappa = dpsi / ds_safe;
+        }
+        raceline[0].kappa = raceline[1].kappa;
+        raceline[raceline_count - 1].kappa = raceline[raceline_count - 2].kappa;
+    }
+}
+
 static int last_closest = 0;
 
 /* Find nearest raceline waypoint to the vehicle pose.
@@ -482,10 +538,11 @@ static void build_reference(int closest, int horizon_steps, TrajectoryReferenceP
 
         ref[step].reference_velocity = (float)(v_ref);
 
-        /* Clamp kappa to physical limits */
+        /* Clamp kappa to the physical limit implied by steering saturation. */
+        const double kappa_max = tan(MAX_STEERING) / 0.326;  /* wheelbase */
         double kappa = wp.kappa;
-        if (kappa > 1.5) kappa = 1.5;
-        if (kappa < -1.5) kappa = -1.5;
+        if (kappa > kappa_max) kappa = kappa_max;
+        if (kappa < -kappa_max) kappa = -kappa_max;
 
         /* vy reference: zero */
         ref[step].reference_lateral_velocity = 0;
@@ -591,6 +648,30 @@ int main(void)
         printf(" [seed=%u]", sim_seed);
         printf("\n");
     }
+
+    /* Extra longitudinal realism knobs (helps match accel-to-current behavior):
+     *  - DRAG_C*: coastdown drag in accel domain (m/s^2): a_drag(v)=c0+c1*|v|+c2*v^2
+     *  - ACCEL_TAU_*: 1st-order accel tracking lag (seconds), separate for drive/brake
+     *  - ACCEL_GAIN_*: accel tracking gain (unitless), separate for drive/brake */
+    const double drag_c0 = get_env_double("DRAG_C0", 0.0);
+    const double drag_c1 = get_env_double("DRAG_C1", 0.0);
+    const double drag_c2 = get_env_double("DRAG_C2", 0.0);
+    const double accel_tau_pos = get_env_double("ACCEL_TAU_POS", 0.0);
+    const double accel_tau_neg = get_env_double("ACCEL_TAU_NEG", 0.0);
+    const double accel_gain_pos = get_env_double("ACCEL_GAIN_POS", 1.0);
+    const double accel_gain_neg = get_env_double("ACCEL_GAIN_NEG", 1.0);
+    int realistic_actuation = (getenv("REALISTIC_ACTUATION") && atoi(getenv("REALISTIC_ACTUATION")));
+    if (!realistic_actuation) {
+        if (fabs(drag_c0) > 1e-9 || fabs(drag_c1) > 1e-9 || fabs(drag_c2) > 1e-9 ||
+            accel_tau_pos > 1e-6 || accel_tau_neg > 1e-6 ||
+            fabs(accel_gain_pos - 1.0) > 1e-9 || fabs(accel_gain_neg - 1.0) > 1e-9) {
+            realistic_actuation = 1;
+        }
+    }
+    if (realistic_actuation && verbose) {
+        printf("    Actuation model: DRAG_C0=%.3f DRAG_C1=%.3f DRAG_C2=%.3f ACCEL_TAU_POS=%.3f ACCEL_TAU_NEG=%.3f ACCEL_GAIN_POS=%.3f ACCEL_GAIN_NEG=%.3f\n",
+               drag_c0, drag_c1, drag_c2, accel_tau_pos, accel_tau_neg, accel_gain_pos, accel_gain_neg);
+    }
     if (body_safety_margin != DEFAULT_BODY_SAFETY_MARGIN)
         printf("    BODY_SAFETY_MARGIN: %.3fm (default: %.3fm)\n",
                body_safety_margin, DEFAULT_BODY_SAFETY_MARGIN);
@@ -602,6 +683,17 @@ int main(void)
     printf("\n");
 
     if (!load_raceline()) return 1;
+
+    /* Optional: emulate hardware /local_raceline processing by recomputing
+     * heading/curvature from geometry (and optionally s). */
+    if (getenv("RECOMPUTE_GEOMETRY") && atoi(getenv("RECOMPUTE_GEOMETRY"))) {
+        const int w = (getenv("GEOM_WINDOW") ? atoi(getenv("GEOM_WINDOW")) : 3);
+        const int recompute_s = (getenv("RECOMPUTE_S") && atoi(getenv("RECOMPUTE_S")));
+        recompute_raceline_geometry(w, recompute_s);
+        if (verbose) {
+            printf("    Geometry recompute: window=%d recompute_s=%d\n", w, recompute_s);
+        }
+    }
 
     int start_index = 0;
     const char *start_index_env = getenv("START_INDEX");
@@ -712,6 +804,7 @@ int main(void)
     /* Held MPC commands (zero-order hold between 20Hz MPC calls) */
     double cmd_steer = 0.0;
     double cmd_accel = 0.0;
+    double accel_applied = 0.0;  /* 1st-order longitudinal actuator state (optional) */
     int steps_executed = 0;
 
     if (verbose) {
@@ -922,8 +1015,25 @@ int main(void)
                 if (steer_vel >  sv_max) steer_vel =  sv_max;
             }
 
-            /* accl_constraints: v_switch power limit */
+            /* Longitudinal actuation: optional first-order tracking + asymmetry
+             * between drive/brake (matches accel-to-current "feel" better than
+             * directly applying MPC a_cmd). */
             double accl = accel_cmd;
+            if (realistic_actuation) {
+                const double gain = (accl >= 0.0) ? accel_gain_pos : accel_gain_neg;
+                double a_target = accl * gain;
+                const double tau = (a_target >= 0.0) ? accel_tau_pos : accel_tau_neg;
+                if (tau > 1e-6) {
+                    double alpha = SIM_DT / tau;
+                    if (alpha > 1.0) alpha = 1.0;
+                    accel_applied += alpha * (a_target - accel_applied);
+                } else {
+                    accel_applied = a_target;
+                }
+                accl = accel_applied;
+            }
+
+            /* accl_constraints: v_switch power limit */
             if (st_V > v_switch) {
                 double a_max_eff = PHYSICAL_MAX_ACCEL * v_switch / st_V;
                 if (accl > a_max_eff) accl = a_max_eff;
@@ -986,14 +1096,20 @@ int main(void)
                     } \
                     /* Longitudinal force */ \
                     double Fx_raw_ = mass * (ACCL); \
-                    double Fx_; \
+                    double Fx_ = Fx_raw_; \
                     if (realistic_drive) { \
                         /* Rolling resistance as constant drag force. \
                          * Note: VESC ACCEL_TO_CURRENT compensates for drivetrain \
                          * efficiency, so we do NOT apply eta (would double-count). */ \
-                        Fx_ = Fx_raw_ - ROLLING_RESISTANCE_N; \
-                    } else { \
-                        Fx_ = Fx_raw_; \
+                        Fx_ -= ROLLING_RESISTANCE_N; \
+                    } \
+                    if (realistic_actuation) { \
+                        /* Coastdown drag in acceleration domain: a_drag(v)=c0+c1*|v|+c2*v^2 */ \
+                        const double v_abs_ = fabs(vx_); \
+                        double a_drag_ = drag_c0 + drag_c1 * v_abs_ + drag_c2 * v_abs_ * v_abs_; \
+                        if (a_drag_ > 0.0) { \
+                            Fx_ -= mass * a_drag_; \
+                        } \
                     } \
                     double cos_delta_ = cos(DELTA); \
                     double sin_delta_ = sin(DELTA); \
