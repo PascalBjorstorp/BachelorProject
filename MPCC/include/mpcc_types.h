@@ -176,9 +176,9 @@ typedef struct
      *  Monotonically increasing along the path. */
     float s_ref;
 
-    /** Reference longitudinal velocity at this waypoint [m/s].
-     *  From the raceline optimiser's velocity profile.
-     *  Used as per-stage vx_ref in the QP cost. */
+    /** Optional reference longitudinal velocity at this waypoint [m/s].
+     *  From the trajectory file's velocity profile. Racing-mode MPCC may
+     *  ignore this value and let progress/dynamics/constraints choose speed. */
     float vx_ref;
 
     /** Maximum leftward deviation from centerline [m] (positive).
@@ -355,6 +355,19 @@ typedef struct
     /** Velocity reference for vx tracking [m/s].
      *  Only used if weight_vx > 0. */
     float vx_ref;
+
+    /** Use trajectory-file vx_ref as the per-stage velocity target.
+     *  Set to 0 for Liniger-style racing, where speed is mainly selected by
+     *  progress reward, dynamics, and constraints. */
+    uint8_t use_raceline_vx_ref;
+
+    /** Include trajectory-file vx_ref in the forward-looking speed limiter.
+     *  Set to 0 to avoid treating the CSV speed profile as a hard authority. */
+    uint8_t use_raceline_vx_limit;
+
+    /** Multiplier applied to trajectory-file vx_ref when the limiter above is
+     *  enabled. Values >1 allow exceeding the CSV speed profile. */
+    float raceline_vx_limit_scale;
 
     /** Lateral velocity penalty (anti-drift) */
     float weight_vy;
@@ -552,36 +565,39 @@ typedef struct
  *===========================================================================*/
 
 /* --- Horizon (increase for real hardware) --- */
-#define MPCC_DEFAULT_HORIZON          40                          /** was 10 — 200 ms total was too short */
-#define MPCC_DEFAULT_DT               (0.05f)                       /** was 0.02 s — now 1.0 s total horizon */
+#define MPCC_DEFAULT_HORIZON          20                          /** was 10 — 200 ms total was too short */
+#define MPCC_DEFAULT_DT               (0.03f)                       /** was 0.02 s — now 1.0 s total horizon */
 
 /*--- Contouring tracking weights (Apr 22 post-fix sweep best: 11.9s lap, 0 collisions) ---*/
 #define MPCC_DEFAULT_WEIGHT_CONTOURING (960.0f)                     /** Contouring error penalty. */
-#define MPCC_DEFAULT_WEIGHT_LAG       (100.0f)                     /** Lag error penalty. */
+#define MPCC_DEFAULT_WEIGHT_LAG       (200.0f)                     /** Lag error penalty. */
 #define MPCC_DEFAULT_WEIGHT_WALL_CLEARANCE (3200.0f)               /** Soft near-wall penalty inside the hard corridor. */
 #define MPCC_DEFAULT_WALL_CLEARANCE_MARGIN (0.02f)                 /** Extra desired distance from each wall [m]. */
 #define MPCC_DEFAULT_WEIGHT_PROGRESS  (15.6f)                      /** Progress reward. */
 
 /*--- State regularization ---*/
-#define MPCC_DEFAULT_WEIGHT_VX        (0.0f)                         /** Longitudinal velocity tracking weight.*/
+#define MPCC_DEFAULT_WEIGHT_VX        (50.0f)                         /** Longitudinal velocity tracking weight.*/
 #define MPCC_DEFAULT_VX_REF           (4.0f)                        /** Reference velocity for longitudinal velocity tracking [m/s]. */
+#define MPCC_DEFAULT_USE_RACELINE_VX_REF   0                         /** Use per-waypoint CSV vx as target. */
+#define MPCC_DEFAULT_USE_RACELINE_VX_LIMIT 0                         /** Use per-waypoint CSV vx as speed cap. */
+#define MPCC_DEFAULT_RACELINE_VX_LIMIT_SCALE (1.0f)                  /** CSV vx cap multiplier. */
 #define MPCC_DEFAULT_WEIGHT_VY        (0.5f)                        /** Lateral velocity tracking weight. */
-#define MPCC_DEFAULT_WEIGHT_OMEGA     (0.3f)                         /** Yaw rate tracking weight. */
+#define MPCC_DEFAULT_WEIGHT_OMEGA     (1.5f)                         /** Yaw rate tracking weight. */
 
 /*--- Control effort ---*/
-#define MPCC_DEFAULT_WEIGHT_DELTA     (160.0f)                      /** Steering angle effort penalty. */
+#define MPCC_DEFAULT_WEIGHT_DELTA     (200.0f)                      /** Steering angle effort penalty. */
 #define MPCC_DEFAULT_WEIGHT_AX        (0.05225f)                    /** Longitudinal acceleration effort penalty. */
-#define MPCC_DEFAULT_WEIGHT_V_THETA   (2.0f)                        /** Virtual progress speed effort penalty. */
+#define MPCC_DEFAULT_WEIGHT_V_THETA   (0.1f)                        /** Virtual progress speed effort penalty. */
 
 /*--- Control rate (smoothness) ---*/
-#define MPCC_DEFAULT_WEIGHT_DELTA_RATE    (3.0f)                      /** Steering rate penalty. */
+#define MPCC_DEFAULT_WEIGHT_DELTA_RATE    (5.0f)                      /** Steering rate penalty. */
 #define MPCC_DEFAULT_WEIGHT_AX_RATE       (0.488f)                    /** Longitudinal acceleration rate penalty. */
 #define MPCC_DEFAULT_WEIGHT_V_THETA_RATE  (0.1105f)                   /** Virtual progress speed rate penalty. */
 
 /* cross_call_rate_scale = control_dt / prediction_dt
  * At 200 Hz control rate and dt=0.05: 0.005/0.05 = 0.1 */
 #define MPCC_CONTROL_RATE_HZ              (200.0f)                   /** Control callback rate in Hz. */
-#define MPCC_DEFAULT_CROSS_CALL_SCALE     (0.1f)                     /** was 0.3, must = 1/(Hz*dt) */
+#define MPCC_DEFAULT_CROSS_CALL_SCALE     (0.166667f)                     /** was 0.3, must = 1/(Hz*dt) */
 
 /*--- Terminal weights ---*/
 #define MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL     (4800.0f)     /** Terminal contouring error penalty. */
@@ -593,7 +609,7 @@ typedef struct
 #define MPCC_DEFAULT_OBSTACLE_MARGIN  (0.1f)                        /** Minimum distance to obstacles [m]. */
 
 /*--- ADMM solver (tuned via iterative sweep) ---*/
-#define MPCC_DEFAULT_ADMM_RHO         (50.0f)                        /** ADMM penalty parameter. */
+#define MPCC_DEFAULT_ADMM_RHO         (5.0f)                        /** ADMM penalty parameter. */
 #define MPCC_DEFAULT_ADMM_MAX_ITER    300                           /** Maximum ADMM iterations. */
 #define MPCC_DEFAULT_ADMM_TOLERANCE   (0.02f)                       /** ADMM convergence tolerance. */
 

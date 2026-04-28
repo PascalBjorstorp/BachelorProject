@@ -723,7 +723,7 @@ def measure_track_widths(centerline, map_img, resolution, origin,
         normals[-1] *= -1.0
 
     w_right = np.zeros(n)
-    w_left = np.zeros(n)/home/pascal/Documents/BachelorProject/f1tenth_planning/trajectories/my_track_raceline_raycast_widths_debug.png
+    w_left = np.zeros(n)
     # Sub-pixel stepping: smaller step for better corner hit detection.
     step_size = max(resolution * 0.10, 0.0010)
 

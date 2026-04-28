@@ -101,6 +101,9 @@ static MPCCConfiguration_t get_default_config(void)
     /* State regularization */
     cfg.weight_vx = MPCC_DEFAULT_WEIGHT_VX;
     cfg.vx_ref = MPCC_DEFAULT_VX_REF;
+    cfg.use_raceline_vx_ref = MPCC_DEFAULT_USE_RACELINE_VX_REF;
+    cfg.use_raceline_vx_limit = MPCC_DEFAULT_USE_RACELINE_VX_LIMIT;
+    cfg.raceline_vx_limit_scale = MPCC_DEFAULT_RACELINE_VX_LIMIT_SCALE;
     cfg.weight_vy = MPCC_DEFAULT_WEIGHT_VY;
     cfg.weight_omega = MPCC_DEFAULT_WEIGHT_OMEGA;
 
@@ -161,6 +164,10 @@ static void sanitize_config(MPCCConfiguration_t *cfg)
         cfg->weight_wall_clearance = 0.0f;
     if (cfg->wall_clearance_margin < 0.0f)
         cfg->wall_clearance_margin = 0.0f;
+    cfg->use_raceline_vx_ref = cfg->use_raceline_vx_ref ? 1 : 0;
+    cfg->use_raceline_vx_limit = cfg->use_raceline_vx_limit ? 1 : 0;
+    if (cfg->raceline_vx_limit_scale < 0.0f)
+        cfg->raceline_vx_limit_scale = 0.0f;
 }
 
 /*===========================================================================
@@ -316,6 +323,13 @@ void mpcc_path_interpolate(
     /* Angle interpolation: handle wrapping for phi_ref */
     float dphi = remainderf(p1->phi_ref - p0->phi_ref, 2.0f * (float)M_PI);
     result->phi_ref = remainderf(p0->phi_ref + (t * dphi), 2.0f * (float)M_PI);
+}
+
+static float mpcc_stage_vx_ref(const MPCCPathPoint_t *path_pt)
+{
+    if (config.use_raceline_vx_ref && path_pt && path_pt->vx_ref > 0.0f)
+        return path_pt->vx_ref;
+    return config.vx_ref;
 }
 
 /*===========================================================================
@@ -906,7 +920,7 @@ static void add_wall_clearance_cost(
 /*===========================================================================
  * Curvature-Based Speed Limiter
  *===========================================================================
- * Scans the raceline ahead from arc-length s and computes the maximum
+ * Scans the reference path ahead from arc-length s and computes the maximum
  * safe speed at s, accounting for braking distance to upcoming curves.
  *
  * For each lookahead point p at distance d ahead:
@@ -920,9 +934,9 @@ static float compute_speed_limit(float s, float lookahead_m)
     const float g = F110_GRAVITY_ACCELERATION_MS2;
     const float mu = config.mu;
     const float vx_max = config.vx_max;
-    const float ax_brake_ref = 4.0f;   /* braking for vx_ref-based limit */
+    const float ax_brake_ref = 4.0f;   /* braking for optional vx_ref limit */
     const float ax_brake_curv = 2.0f;  /* conservative braking for curvature limit */
-    const float vx_ref_scale = 0.98f;  /* small margin below raceline target */
+    const float vx_ref_scale = config.raceline_vx_limit_scale;
     const float curv_safety = 0.95f;   /* keep cornering margin, but less conservative */
     const float kappa_thresh = 0.5f;   /* only apply curvature limit above this */
 
@@ -937,9 +951,10 @@ static float compute_speed_limit(float s, float lookahead_m)
         MPCCPathPoint_t pt;
         mpcc_path_interpolate(&ref_path, s_ahead, &pt);
 
-        /* 1. Raceline vx_ref-based limit */
+        /* 1. Optional trajectory vx_ref-based limit. Disabled by default so
+         * racing mode can exceed the CSV speed profile when constraints allow. */
         float v_target = pt.vx_ref * vx_ref_scale;
-        if (v_target > 0.0f && v_target < vx_max)
+        if (config.use_raceline_vx_limit && v_target > 0.0f && v_target < vx_max)
         {
             float v_brake = sqrtf(v_target * v_target + 2.0f * ax_brake_ref * d);
             if (v_brake < v_limit)
@@ -1064,7 +1079,7 @@ static void build_qp_problem(
         MPCCPathPoint_t path_pt_0;
         mpcc_path_interpolate(&ref_path, x0->s, &path_pt_0);
 
-        float vx_err   = path_pt_0.vx_ref - x0->vx;
+        float vx_err   = mpcc_stage_vx_ref(&path_pt_0) - x0->vx;
         float ax_guess = vx_err / (config.dt > 0.0f ? config.dt : 0.02f);
 
         if (ax_guess > config.ax_max) ax_guess = config.ax_max;
@@ -1109,14 +1124,16 @@ static void build_qp_problem(
                     config.weight_wall_clearance,
                     config.wall_clearance_margin);
 
-        /* Override vx_ref with the per-stage value from the raceline velocity
-         * profile so the solver naturally slows before turns. */
-        if (path_pt.vx_ref > 0 && config.weight_vx > 0) {
-            qp->stage_cost[k].q[MPCC_IDX_VX] = -(2.0f * config.weight_vx * path_pt.vx_ref);
+        /* Optional velocity tracking. In racing mode, keep the constant
+         * config.vx_ref target or set Q_VX=0; do not let CSV vx_mps dictate
+         * the optimizer's speed. */
+        if (config.weight_vx > 0) {
+            float vx_ref_k = mpcc_stage_vx_ref(&path_pt);
+            qp->stage_cost[k].q[MPCC_IDX_VX] = -(2.0f * config.weight_vx * vx_ref_k);
 #ifdef MPCC_DEBUG_PRINT
             if (k == 0) {
                 printf("  [QP] s_bar=%.2f vx_ref=%.3f q_vx=%.1f Q_vx=%.1f\n",
-                       (double)(z_bar.s), (double)(path_pt.vx_ref),
+                       (double)(z_bar.s), (double)vx_ref_k,
                        (double)(qp->stage_cost[k].q[MPCC_IDX_VX]),
                        (double)(qp->stage_cost[k].Q[MPCC_IDX_VX][MPCC_IDX_VX]));
             }
@@ -1285,8 +1302,9 @@ static void build_qp_problem(
                                 config.weight_wall_clearance,
                                 config.wall_clearance_margin);
 
-        if (path_pt.vx_ref > 0 && config.weight_vx > 0) {
-            qp->terminal_cost.q[MPCC_IDX_VX] = -(2.0f * config.weight_vx * path_pt.vx_ref);
+        if (config.weight_vx > 0) {
+            float vx_ref_N = mpcc_stage_vx_ref(&path_pt);
+            qp->terminal_cost.q[MPCC_IDX_VX] = -(2.0f * config.weight_vx * vx_ref_N);
         }
     }
 }

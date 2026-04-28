@@ -30,30 +30,36 @@ MPCC_DIR = os.path.dirname(SCRIPT_DIR)
 PROJECT_DIR = os.path.dirname(MPCC_DIR)
 TRAJ_DIR = os.path.join(PROJECT_DIR, "f1tenth_planning", "trajectories")
 
-# Must match tune_mpcc.py BASE_CONFIG
+# Must match tune_mpcc.py BASE_CONFIG (or be a safe superset).
 BASE_CONFIG = {
-    "Q_CONTOURING":      1500.0,
-    "Q_LAG":             400.0,
-    "Q_PROGRESS":        40.0,
-    "Q_VX":              30.0,
+    "Q_CONTOURING":      960.0,
+    "Q_LAG":             200.0,
+    "Q_PROGRESS":        15.6,
+    "Q_WALL_CLEARANCE":  3200.0,
+    "WALL_CLEARANCE_MARGIN": 0.02,
+    "Q_VX":              10.0,
     "VX_REF":            4.0,
-    "Q_VY":              10.0,
-    "Q_OMEGA":           6.0,
-    "R_DELTA":           130.0,
-    "R_AX":              0.055,
+    "MPCC_USE_RACELINE_VX_REF": 0,
+    "MPCC_USE_RACELINE_VX_LIMIT": 0,
+    "MPCC_RACELINE_VX_LIMIT_SCALE": 1.0,
+    "Q_VY":              0.5,
+    "Q_OMEGA":           1.5,
+    "R_DELTA":           200.0,
+    "R_AX":              0.05225,
     "R_VTHETA":          0.1,
-    "W_DELTA_RATE":      3.0,
-    "W_AX_RATE":         0.61,
-    "W_VTHETA_RATE":     0.13,
-    "Q_CONTOURING_TERM": 4000.0,
-    "Q_LAG_TERM":        500.0,
-    "Q_PROGRESS_TERM":   40.0,
+    "W_DELTA_RATE":      5.0,
+    "W_AX_RATE":         0.488,
+    "W_VTHETA_RATE":     0.1105,
+    "Q_CONTOURING_TERM": 4800.0,
+    "Q_LAG_TERM":        800.0,
+    "Q_PROGRESS_TERM":   41.4,
     "ADMM_RHO":          5.0,
     "ADMM_MAX_ITER":     300,
     "ADMM_TOL":          0.02,
     "HORIZON":           20,
-    "DT":                0.05,
+    "DT":                0.03,
     "V_THETA_MAX":       8.0,
+    "CROSS_CALL_SCALE":  0.166667,
 }
 
 # Label abbreviation → env var name
@@ -61,13 +67,18 @@ LABEL_MAP = {
     "QC":   "Q_CONTOURING",
     "QL":   "Q_LAG",
     "QP":   "Q_PROGRESS",
+    "QW":   "Q_WALL_CLEARANCE",
+    "WCM":  "WALL_CLEARANCE_MARGIN",
     "N":    "HORIZON",
     "dt":   "DT",
     "QVY":  "Q_VY",
+    "VY":   "Q_VY",
     "QOM":  "Q_OMEGA",
+    "O":    "Q_OMEGA",
     "RD":   "R_DELTA",
     "WDR":  "W_DELTA_RATE",
     "VTM":  "V_THETA_MAX",
+    "VT":   "V_THETA_MAX",
     "RHO":  "ADMM_RHO",
     "ITER": "ADMM_MAX_ITER",
     "TOL":  "ADMM_TOL",
@@ -78,7 +89,8 @@ LABEL_MAP = {
     "QPT":  "Q_PROGRESS_TERM",
 }
 
-INT_PARAMS = {"HORIZON", "ADMM_MAX_ITER"}
+INT_PARAMS = {"HORIZON", "ADMM_MAX_ITER",
+              "MPCC_USE_RACELINE_VX_REF", "MPCC_USE_RACELINE_VX_LIMIT"}
 
 
 def parse_label(label: str) -> dict:
@@ -137,7 +149,7 @@ def main():
     export_mode = False
     label = None
     extra = {}
-    raceline = os.path.join(TRAJ_DIR, "my_track_raceline.csv")
+    raceline = os.path.join(TRAJ_DIR, "my_track_centerline.csv")
 
     i = 0
     while i < len(args):

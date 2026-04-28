@@ -110,11 +110,11 @@ static int load_raceline(void)
         return 0;
     }
     const char *paths[] = {
-        "../../f1tenth_planning/trajectories/my_track_raceline.csv",
-        "../../../f1tenth_planning/trajectories/my_track_raceline.csv",
-        "f1tenth_planning/trajectories/my_track_raceline.csv",
-        "../f1tenth_planning/trajectories/my_track_raceline.csv",
-        "../../../../f1tenth_planning/trajectories/my_track_raceline.csv",
+        "../../f1tenth_planning/trajectories/my_track_centerline.csv",
+        "../../../f1tenth_planning/trajectories/my_track_centerline.csv",
+        "f1tenth_planning/trajectories/my_track_centerline.csv",
+        "../f1tenth_planning/trajectories/my_track_centerline.csv",
+        "../../../../f1tenth_planning/trajectories/my_track_centerline.csv",
         NULL
     };
     FILE *f = NULL;
@@ -208,7 +208,9 @@ static int build_reference_path(void)
 
     /* body_safety_margin is also applied in collision detection;
      * subtract it from QP bounds too so the solver respects the same corridor. */
-    const double body_margin = DEFAULT_BODY_SAFETY_MARGIN;
+    const char *body_margin_env = getenv("BODY_SAFETY_MARGIN");
+    const double body_margin = body_margin_env ? atof(body_margin_env)
+                                               : DEFAULT_BODY_SAFETY_MARGIN;
 
     g_ref_path.num_points = 0;
     int invalid_corridor_points = 0;
@@ -260,6 +262,12 @@ static int build_reference_path(void)
 
     printf("[MPCC] Built reference path: %d points, length %.1f m\n",
            g_ref_path.num_points, g_ref_path.total_length);
+    printf("[MPCC] Wall corridor: CSV bounds minus body %.3f m and safety %.3f m "
+           "(min effective left/right %.3f / %.3f m)\n",
+           (double)VEHICLE_HALF_WIDTH,
+           body_margin,
+           (double)min_left_effective,
+           (double)min_right_effective);
     if (invalid_corridor_points > 0) {
         printf("[MPCC] Warning: %d path points are narrower than vehicle width + safety margin (min effective left/right %.3f / %.3f m)\n",
                invalid_corridor_points,
@@ -334,6 +342,7 @@ static void check(const char *label, int cond)
 
 int main(void)
 {
+    const double SIM_DURATION_S = env_double("SIM_DURATION", SIM_DURATION);
     const double SIM_DT = env_double("SIM_DT", SIM_DT_DEFAULT);
     const double MPCC_DT = env_double("MPCC_DT", MPCC_DT_DEFAULT);
     const double ODOM_DT = env_double("ODOM_DT", SIM_DT);
@@ -342,7 +351,7 @@ int main(void)
     int MPCC_CALL_INTERVAL = (int)(CONTROL_DT / SIM_DT + 0.5);
     int ODOM_UPDATE_INTERVAL = (int)(ODOM_DT / SIM_DT + 0.5);
     int POSE_UPDATE_INTERVAL = (int)(POSE_DT / SIM_DT + 0.5);
-    const int SIM_STEPS = (int)(SIM_DURATION / SIM_DT);
+    const int SIM_STEPS = (int)(SIM_DURATION_S / SIM_DT);
     const int verbose = getenv("VERBOSE") != NULL;
     const double body_safety_margin = env_double("BODY_SAFETY_MARGIN", DEFAULT_BODY_SAFETY_MARGIN);
     const char *trace_csv_path = getenv("MPCC_TRACE_CSV_PATH");
@@ -354,7 +363,7 @@ int main(void)
     if (POSE_UPDATE_INTERVAL < 1) POSE_UPDATE_INTERVAL = 1;
 
     printf("=== MPCC Sim-Drive (Lifted ODE, ADMM+Riccati, %.0fs at dt=%.4fs) ===\n",
-           SIM_DURATION, SIM_DT);
+           SIM_DURATION_S, SIM_DT);
     printf("    MPCC rate: %.0fHz (every %d sim steps)\n",
         1.0 / CONTROL_DT, MPCC_CALL_INTERVAL);
         printf("    Sensor cadence: odom %.0fHz (every %d), pose %.0fHz (every %d)\n",
@@ -380,8 +389,11 @@ int main(void)
     cfg.weight_progress   = env_double("Q_PROGRESS", 15.6f);
 
     /* State regularization */
-    cfg.weight_vx         = env_double("Q_VX", 30.0f);
+    cfg.weight_vx         = env_double("Q_VX", 10.0f);
     cfg.vx_ref            = env_double("VX_REF", 4.0f);
+    cfg.use_raceline_vx_ref = (uint8_t)env_int("MPCC_USE_RACELINE_VX_REF", 0);
+    cfg.use_raceline_vx_limit = (uint8_t)env_int("MPCC_USE_RACELINE_VX_LIMIT", 0);
+    cfg.raceline_vx_limit_scale = env_double("MPCC_RACELINE_VX_LIMIT_SCALE", 1.0f);
     cfg.weight_vy         = env_double("Q_VY", 0.5f);
     cfg.weight_omega      = env_double("Q_OMEGA", 1.5f);
 
@@ -439,8 +451,10 @@ int main(void)
                cfg.weight_progress);
          printf("  Q_wall=%.1f wall_margin=%.3f\n",
              cfg.weight_wall_clearance, cfg.wall_clearance_margin);
-        printf("  Q_vx=%.1f vx_ref=%.1f R_delta=%.2f R_ax=%.3f R_vt=%.2f\n",
+        printf("  Q_vx=%.1f vx_ref=%.1f use_csv_vx_ref=%u use_csv_vx_limit=%u R_delta=%.2f R_ax=%.3f R_vt=%.2f\n",
                cfg.weight_vx, cfg.vx_ref,
+               (unsigned)cfg.use_raceline_vx_ref,
+               (unsigned)cfg.use_raceline_vx_limit,
                cfg.weight_delta, cfg.weight_ax,
                cfg.weight_v_theta);
         printf("  ADMM: rho=%.2f max_iter=%d tol=%.4f\n",
@@ -525,6 +539,9 @@ int main(void)
     double first_lap_time = 0.0;
     float  prev_s         = 0.0f;
     float  track_length   = g_ref_path.total_length;
+    double lap_distance_traveled = 0.0;
+    double lap_prev_x = (double)state.pos_x;
+    double lap_prev_y = (double)state.pos_y;
 
     /* ST model persistent state */
     double st_delta = 0.0;
@@ -543,7 +560,8 @@ int main(void)
         }
         fprintf(trace_csv,
             "step,time_s,x_m,y_m,psi_rad,vx_mps,s_m,closest_wp,ref_s_m,e_y_m,e_c_m,e_psi_rad,"
-                "left_bound_m,right_bound_m,cmd_steer_rad,act_steer_rad,accel_cmd_mps2,"
+                "left_bound_m,right_bound_m,effective_left_bound_m,effective_right_bound_m,"
+                "body_safety_margin_m,cmd_steer_rad,act_steer_rad,accel_cmd_mps2,"
                 "status,iterations,pred_min_wall_slack_m,wall_hit,lap_count,"
                 "dx_exec_pred,dy_exec_pred,dpsi_exec_pred,ds_exec_pred\n");
     }
@@ -567,6 +585,17 @@ int main(void)
         double vx = (double)(state.long_vel);
         int odom_tick = (step % ODOM_UPDATE_INTERVAL) == 0;
         int pose_tick = (step % POSE_UPDATE_INTERVAL) == 0;
+
+        /* Track physical distance traveled for robust lap validation.
+         * This prevents counting "laps" from s-estimator wrap when the car is
+         * stationary or not actually driving the track. */
+        {
+            double dx_lap = px - lap_prev_x;
+            double dy_lap = py - lap_prev_y;
+            lap_distance_traveled += sqrt((dx_lap * dx_lap) + (dy_lap * dy_lap));
+            lap_prev_x = px;
+            lap_prev_y = py;
+        }
 
         // Executed state minus previous predicted state (for model/actuation mismatch diagnosis)
         static double prev_pred_X = 0.0, prev_pred_Y = 0.0, prev_pred_psi = 0.0, prev_pred_s = 0.0;
@@ -605,20 +634,24 @@ int main(void)
         /* Wall collision check (body-edge) — abort on first hit.
          * Use the same contouring-error sign convention as the MPCC core:
          * e_c > 0 lies to the right of the reference, e_c < 0 to the left. */
-        double left_wall  = (double)metrics_path_pt.left_bound + VEHICLE_HALF_WIDTH + body_safety_margin;
-        double right_wall = (double)metrics_path_pt.right_bound + VEHICLE_HALF_WIDTH + body_safety_margin;
+        double effective_left_bound = (double)metrics_path_pt.left_bound;
+        double effective_right_bound = (double)metrics_path_pt.right_bound;
+        double left_wall  = effective_left_bound + VEHICLE_HALF_WIDTH + body_safety_margin;
+        double right_wall = effective_right_bound + VEHICLE_HALF_WIDTH + body_safety_margin;
         int wall_hit = 0;
-        if (e_c > (right_wall - VEHICLE_HALF_WIDTH - body_safety_margin)) { wall_hit = 1; }
-        if (e_c < -(left_wall - VEHICLE_HALF_WIDTH - body_safety_margin)) { wall_hit = -1; }
+        if (e_c > effective_right_bound) { wall_hit = 1; }
+        if (e_c < -effective_left_bound) { wall_hit = -1; }
         if (wall_hit && !prev_wall_hit) {
             wall_collisions++;
             if (trace_csv) {
                 fprintf(trace_csv,
-                    "%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%d,%.6f,%d,%d,%.6f,%.6f,%.6f,%.6f\n",
+                    "%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%d,%.6f,%d,%d,%.6f,%.6f,%.6f,%.6f\n",
                     step, t, px, py, psi, vx,
                     s_debug_now, closest, raceline[closest].s,
                     e_y, e_c, e_psi,
                     left_wall, right_wall,
+                    effective_left_bound, effective_right_bound,
+                    body_safety_margin,
                     cmd_steer, actual_steer, cmd_accel,
                     -1, 0,
                     pred_slack_valid ? pred_min_wall_slack : 0.0,
@@ -628,8 +661,8 @@ int main(void)
             }
             if (verbose) {
                 double bound = (wall_hit > 0)
-                             ? (right_wall - VEHICLE_HALF_WIDTH - body_safety_margin)
-                             : -(left_wall - VEHICLE_HALF_WIDTH - body_safety_margin);
+                             ? effective_right_bound
+                             : -effective_left_bound;
                 printf("\n  !!! WALL COLLISION: e_c=%.3f (bound:%.3f) step=%d t=%.2f wp=%d v=%.1f — aborting !!!\n",
                        e_c, bound, step, t, closest, vx);
             }
@@ -663,7 +696,10 @@ int main(void)
             s_debug_now = current_s;
 
             /* Lap detection: s wrapped past track_length (min lap time guard) */
-            if (current_s < prev_s - track_length * 0.5f
+            double min_lap_distance = 0.8 * (double)track_length;
+            if (track_length > 1e-3f
+                && lap_distance_traveled > min_lap_distance
+                && current_s < prev_s - track_length * 0.5f
                 && prev_s > track_length * 0.5f
                 && (t - lap_start_time) > 2.0) {
                 double lap_time = t - lap_start_time;
@@ -671,6 +707,7 @@ int main(void)
                 if (lap_count == 1) first_lap_time = lap_time;
                 if (lap_time < best_lap_time) best_lap_time = lap_time;
                 lap_start_time = t;
+                lap_distance_traveled = 0.0;
                 if (verbose) {
                     printf("  >>> LAP %d completed: %.3f s (best: %.3f s) <<<\n",
                            lap_count, lap_time, best_lap_time);
@@ -800,11 +837,13 @@ int main(void)
 
         if (trace_csv) {
             fprintf(trace_csv,
-                "%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%d,%.6f,%d,%d,%.6f,%.6f,%.6f,%.6f\n",
+                "%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%d,%.6f,%d,%d,%.6f,%.6f,%.6f,%.6f\n",
                 step, t, px, py, psi, vx,
                 s_debug_now, closest, raceline[closest].s,
                 e_y, e_c, e_psi,
                 left_wall, right_wall,
+                effective_left_bound, effective_right_bound,
+                body_safety_margin,
                 steer, actual_steer, accel_cmd,
                 status_val, iter,
                 pred_slack_valid ? pred_min_wall_slack : 0.0,
@@ -982,7 +1021,7 @@ int main(void)
     double avg_vel_err = sum_vel_err / total_stepped;
     double avg_speed = sum_vx / total_stepped;
 
-    printf("\n  === Results (%.0fs, MPCC Lifted ODE, ADMM+Riccati) ===\n", SIM_DURATION);
+    printf("\n  === Results (%.0fs, MPCC Lifted ODE, ADMM+Riccati) ===\n", SIM_DURATION_S);
     printf("  Solver success:     %d / %d (%.1f%%)\n", solver_ok, solver_calls,
            100.0*solver_ok/(solver_calls > 0 ? solver_calls : 1));
     printf("  Avg speed:          %.2f m/s\n", avg_speed);
@@ -1007,9 +1046,9 @@ int main(void)
     printf("  S regressions:      %d\n", s_prediction_regressions);
     printf("  Max predicted ds:   %.3f m\n", max_predicted_s_span);
     printf("  Time above 2 m/s:   %.1f / %.1f s (%.0f%%)\n",
-           time_above_2ms, SIM_DURATION, 100*time_above_2ms/SIM_DURATION);
+           time_above_2ms, SIM_DURATION_S, 100*time_above_2ms/SIM_DURATION_S);
     printf("  Time above 5 m/s:   %.1f / %.1f s (%.0f%%)\n",
-           time_above_5ms, SIM_DURATION, 100*time_above_5ms/SIM_DURATION);
+           time_above_5ms, SIM_DURATION_S, 100*time_above_5ms/SIM_DURATION_S);
     printf("\n  --- Solver Performance ---\n");
     double avg_iters = (solver_calls > 0) ? (double)total_iterations / solver_calls : 0;
     double avg_solve = (solver_calls > 0) ? total_solve_us / solver_calls : 0;
@@ -1036,7 +1075,7 @@ int main(void)
     check("Solver mostly succeeds (>50%)", solver_ok > solver_calls * 50 / 100);
         check("Completes at least one lap", lap_count > 0);
     check("Sustains motion (>2 m/s for >5% of time)",
-          time_above_2ms > SIM_DURATION * 0.05);
+          time_above_2ms > SIM_DURATION_S * 0.05);
     check("High top speed (>5 m/s)", max_vx > 5.0);
 
     printf("\n=== RESULTS: %d passed, %d failed ===\n", tests_passed, tests_failed);

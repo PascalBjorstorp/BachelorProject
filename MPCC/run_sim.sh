@@ -3,11 +3,11 @@
 # MPCC/run_sim.sh — Launch MPCC (Contouring Control) with F1/10th simulator
 #
 # Usage:
-#   ./MPCC/run_sim.sh 120 f1tenth_planning/trajectories/my_track_raceline.csv
+#   ./MPCC/run_sim.sh 120 f1tenth_planning/trajectories/my_track_centerline.csv
 #
 # Defaults:
 #   DURATION_SECONDS = 120
-#   TRAJECTORY_FILE  = f1tenth_planning/trajectories/my_track_raceline.csv
+#   TRAJECTORY_FILE  = f1tenth_planning/trajectories/my_track_centerline.csv
 #
 # This script:
 #   1. Rebuilds the mpcc_f1_10th package via colcon
@@ -22,7 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 DURATION_SECONDS="${1:-120}"
-TRAJECTORY_FILE="${2:-${ROOT_DIR}/f1tenth_planning/trajectories/my_track_raceline.csv}"
+TRAJECTORY_FILE="${2:-${ROOT_DIR}/f1tenth_planning/trajectories/my_track_centerline.csv}"
 
 # Resolve to absolute path so ROS2 nodes can find it regardless of cwd
 if [[ "${TRAJECTORY_FILE}" != /* ]]; then
@@ -145,8 +145,11 @@ export DT="${DT:-0.05}"
 export Q_CONTOURING="${Q_CONTOURING:-960.0}"
 export Q_LAG="${Q_LAG:-100.0}"
 export Q_PROGRESS="${Q_PROGRESS:-15.6}"
-export Q_VX="${Q_VX:-30.0}"
+export Q_VX="${Q_VX:-10.0}"
 export VX_REF="${VX_REF:-4.0}"
+export MPCC_USE_RACELINE_VX_REF="${MPCC_USE_RACELINE_VX_REF:-0}"
+export MPCC_USE_RACELINE_VX_LIMIT="${MPCC_USE_RACELINE_VX_LIMIT:-0}"
+export MPCC_RACELINE_VX_LIMIT_SCALE="${MPCC_RACELINE_VX_LIMIT_SCALE:-1.0}"
 export Q_VY="${Q_VY:-0.5}"
 export Q_OMEGA="${Q_OMEGA:-3.0}"
 export R_DELTA="${R_DELTA:-100.0}"
