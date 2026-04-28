@@ -88,6 +88,7 @@ private:
     params.window_time_s         = WINDOW_TIME_S;
     params.max_lateral_shift_m   = MAX_LATERAL_SHIFT_M;
     params.lookahead_points      = LOOKAHEAD_POINTS;
+    params.path_start_offset_points = PATH_START_OFFSET_POINTS;
     params.pass_complete_margin  = PASS_COMPLETE_MARGIN_M;
     params.window_lead_ratio     = WINDOW_LEAD_RATIO;
     params.opponent_length_m     = OPPONENT_LENGTH_M;

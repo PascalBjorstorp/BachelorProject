@@ -308,13 +308,16 @@ std::vector<Waypoint> LateralPlanner::extractSegment() const
   }
 
   const size_t robot_idx = closestWaypointInPath(modified_raceline_, robot_.x, robot_.y);
+  const size_t start_offset = static_cast<size_t>(
+    std::max(0, params_.path_start_offset_points));
+  const size_t start_idx = (robot_idx + start_offset) % n;
   const size_t ahead  = static_cast<size_t>(params_.lookahead_points);
 
   std::vector<Waypoint> result;
   result.reserve(ahead);
 
   for (size_t k = 0; k < ahead; ++k) {
-    const size_t idx = (robot_idx + k) % n;
+    const size_t idx = (start_idx + k) % n;
     result.push_back(waypoints_[idx]);
   }
 
@@ -329,13 +332,16 @@ std::vector<Waypoint> LateralPlanner::extractSegmentFromModified() const
   }
 
   const size_t robot_idx = closestWaypoint(robot_.x, robot_.y);
+  const size_t start_offset = static_cast<size_t>(
+    std::max(0, params_.path_start_offset_points));
+  const size_t start_idx = (robot_idx + start_offset) % n;
   const size_t ahead  = static_cast<size_t>(params_.lookahead_points);
 
   std::vector<Waypoint> result;
   result.reserve(ahead);
 
   for (size_t k = 0; k < ahead; ++k) {
-    const size_t idx = (robot_idx + k) % n;
+    const size_t idx = (start_idx + k) % n;
     result.push_back(modified_raceline_[idx]);
   }
 
