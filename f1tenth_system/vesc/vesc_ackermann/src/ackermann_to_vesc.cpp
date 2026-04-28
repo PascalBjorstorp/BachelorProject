@@ -214,19 +214,34 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
         if (brake_msg->data > max_brake_current_) brake_msg->data = max_brake_current_;
         publish_brake = true;
       } else {
-        // Above threshold: direct current command is safe — the observer
-        // has enough back-EMF signal for reliable rotor position estimation.
-        operation_mode_ = ACCEL_TO_CURRENT;
         const double v = std::abs(current_vel_);
         const double accel_ff =
           accel_drag_coulomb_ +
           accel_drag_viscous_ * v +
           accel_drag_quadratic_ * v * v;
         const double accel_total = accel_cmd + accel_ff;
-        current_msg->data = accel_to_current_gain_ * accel_total;
-        if (current_msg->data < 0.0) current_msg->data = 0.0;
-        if (current_msg->data > max_drive_current_) current_msg->data = max_drive_current_;
-        publish_erpm = true;
+
+        if (slow_start_threshold_ > 0.0 && v < slow_start_threshold_) {
+          // Low-speed protection for sensorless motors: prefer ERPM below threshold.
+          // Uses drive.speed as hint (MPC publishes v_cmd) and ramps conservatively.
+          operation_mode_ = VEL_TO_ERPM;
+          double target_vel = cmd->drive.speed;
+          if (target_vel <= 0.0) {
+            target_vel = slow_start_increment_;
+          }
+          if (target_vel > slow_start_threshold_) {
+            target_vel = std::min(current_vel_ + slow_start_increment_, slow_start_threshold_);
+          }
+          erpm_msg->data = speed_to_erpm_gain_ * target_vel + speed_to_erpm_offset_;
+          publish_erpm = true;
+        } else {
+          // Normal speeds: command current from (a_cmd + drag FF).
+          operation_mode_ = ACCEL_TO_CURRENT;
+          current_msg->data = accel_to_current_gain_ * accel_total;
+          if (current_msg->data < 0.0) current_msg->data = 0.0;
+          if (current_msg->data > max_drive_current_) current_msg->data = max_drive_current_;
+          publish_erpm = true;
+        }
       }
     } else {
       // a_cmd ~ 0: still publish current feedforward to cancel drag (if configured).
@@ -239,10 +254,25 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
         accel_drag_viscous_ * v +
         accel_drag_quadratic_ * v * v;
       const double accel_total = accel_ff;  // accel_cmd ~ 0
-      current_msg->data = accel_to_current_gain_ * accel_total;
-      if (current_msg->data < 0.0) current_msg->data = 0.0;
-      if (current_msg->data > max_drive_current_) current_msg->data = max_drive_current_;
-      publish_erpm = true;
+      if (slow_start_threshold_ > 0.0 && v < slow_start_threshold_ && accel_total > accel_deadzone_) {
+        // If drag FF requests positive accel at very low speed, use ERPM for stable launch.
+        operation_mode_ = VEL_TO_ERPM;
+        double target_vel = cmd->drive.speed;
+        if (target_vel <= 0.0) {
+          target_vel = slow_start_increment_;
+        }
+        if (target_vel > slow_start_threshold_) {
+          target_vel = std::min(current_vel_ + slow_start_increment_, slow_start_threshold_);
+        }
+        erpm_msg->data = speed_to_erpm_gain_ * target_vel + speed_to_erpm_offset_;
+        publish_erpm = true;
+      } else {
+        operation_mode_ = ACCEL_TO_CURRENT;
+        current_msg->data = accel_to_current_gain_ * accel_total;
+        if (current_msg->data < 0.0) current_msg->data = 0.0;
+        if (current_msg->data > max_drive_current_) current_msg->data = max_drive_current_;
+        publish_erpm = true;
+      }
     }
   } else {
     // Case 2: Velocity-to-ERPM mode (default, when accel gains are 0)
