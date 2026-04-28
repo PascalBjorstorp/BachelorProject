@@ -1,17 +1,18 @@
 /**
  * @file qp_solver_mpcc.c
- * @brief ADMM + Riccati QP Solver — Implementation (Lifted ODE)
+ * @brief ADMM + Riccati QP Solver — Implementation
  *
- * Solves the structured multistage QP from the Lifted ODE MPCC using
+ * Solves the structured multistage QP from the global-frame MPCC using
  * ADMM with Riccati recursion for the equality-constrained subproblem.
  *
  * Matrix dimensions:
- *   NX = MPCC_NX = 7   (Lifted ODE: Frenet + Cartesian)
+ *   NX = MPCC_NX = 7   (state: [s, vx, vy, omega, X, Y, psi])
  *   NU = MPCC_NU = 3   (controls: delta, a_x, v_theta)
  *   G_k inversion is 3x3 -> Cramer's rule (FPGA-friendly, no loops)
  *
- * Track bounds on n (state index 1) are applied per-stage in the
- * ADMM projection step, enabling tight corridor constraints.
+ * Track corridor constraints are applied per-stage in the ADMM projection
+ * step by clamping the Cartesian position states against the local path
+ * frame, enabling tight corridor constraints.
  *
  * All arithmetic uses Q16.16 fixed-point for FPGA compatibility.
  */
@@ -28,7 +29,7 @@
  * Fixed-Size Matrix/Vector Helpers
  *===========================================================================
  * These operate on MPCC_NX and MPCC_NU dimensions.
- * Since the macros changed (NX=7, NU=3), all loops auto-adapt.
+ * Loop bounds follow the MPCC_NX and MPCC_NU macros directly.
  */
 
 /*---------------------------------------------------------------------------
@@ -796,8 +797,17 @@ void admm_projection_step(
     for (uint16_t k = 0; k < N; k++) {
         for (int i = 0; i < MPCC_NU; i++) {
             float val = ws->z_u[k][i] + ws->lambda_u[k][i];
-            if (val < problem->u_lower[i]) val = problem->u_lower[i];
-            if (val > problem->u_upper[i]) val = problem->u_upper[i];
+
+            if (i == MPCC_IDX_DELTA) {
+                if (val < problem->delta_lower_stage[k])
+                    val = problem->delta_lower_stage[k];
+                if (val > problem->delta_upper_stage[k])
+                    val = problem->delta_upper_stage[k];
+            } else {
+                if (val < problem->u_lower[i]) val = problem->u_lower[i];
+                if (val > problem->u_upper[i]) val = problem->u_upper[i];
+            }
+
             ws->w_u[k][i] = val;
         }
         if (problem->mu_g_sq > 0.0f) {

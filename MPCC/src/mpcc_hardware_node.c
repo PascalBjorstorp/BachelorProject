@@ -41,6 +41,10 @@
 
 #define MPCC_DEFAULT_CONTROL_PERIOD_MS 50U
 #define MPCC_EXECUTOR_HANDLES 6
+#define MPCC_ODOM_LOG_THROTTLE_SEC 1.0
+#define MPCC_ODOM_MAX_ABS_VX_MPS 20.0
+#define MPCC_ODOM_MAX_ABS_VY_MPS 20.0
+#define MPCC_ODOM_MAX_ABS_YAW_RATE_RADPS 20.0
 
 static const char *g_odom_topic = "/ego_racecar/odom";
 static const char *g_pose_topic = "/ekf_pose";
@@ -59,6 +63,9 @@ static double g_vx_min_cmd = 0.1;  /* Minimum velocity command [m/s] */
 
 /* Hardware safety: clamp acceleration to prevent violent braking */
 static double g_ax_min_hardware = -3.0;
+
+/* Odometry watchdog and twist sanity thresholds for real-car inputs. */
+static double g_watchdog_timeout_sec = 0.5;
 
 /* Nominal control cadence used for rate penalties when not adapting online. */
 static double g_nominal_control_dt_sec = 1.0 / MPCC_CONTROL_RATE_HZ;
@@ -93,10 +100,14 @@ static int g_using_map_pose = 0;
 static double g_latest_vx_mps = 0.0;
 static double g_latest_vy_mps = 0.0;
 static double g_latest_omega = 0.0;
+static struct timespec g_last_odom_time = {0, 0};
 static struct timespec g_last_imu_time  = {0, 0};
+static struct timespec g_last_odom_watchdog_log_time = {0, 0};
+static struct timespec g_last_odom_sanity_log_time = {0, 0};
 static uint32_t g_solve_count = 0;
 static uint32_t g_odom_update_count = 0;
 static uint32_t g_last_solve_odom_update_count = 0;
+static int g_odom_watchdog_active = 0;
 
 /* Measured control loop timing for cross-call scaling */
 static struct timespec g_prev_solve_time = {0, 0};
@@ -144,6 +155,67 @@ static double timespec_diff_sec(const struct timespec *start,
 {
     return (double)(end->tv_sec - start->tv_sec)
          + (double)(end->tv_nsec - start->tv_nsec) * 1e-9;
+}
+
+static int timespec_is_set(const struct timespec *stamp)
+{
+    return stamp->tv_sec != 0 || stamp->tv_nsec != 0;
+}
+
+static int should_log_throttled(struct timespec *last_log_time,
+                                const struct timespec *now,
+                                double interval_sec)
+{
+    if (!timespec_is_set(last_log_time)
+        || timespec_diff_sec(last_log_time, now) >= interval_sec)
+    {
+        *last_log_time = *now;
+        return 1;
+    }
+
+    return 0;
+}
+
+static int odom_twist_is_sane(double vx,
+                              double vy,
+                              double omega,
+                              const struct timespec *now)
+{
+    if (!isfinite(vx) || !isfinite(vy) || !isfinite(omega))
+    {
+        if (should_log_throttled(&g_last_odom_sanity_log_time,
+                                 now,
+                                 MPCC_ODOM_LOG_THROTTLE_SEC))
+        {
+            fprintf(stderr,
+                    "[MPCC] WARNING: rejecting odometry twist with NaN/Inf "
+                    "(vx=%.3f vy=%.3f w=%.3f)\n",
+                    vx,
+                    vy,
+                    omega);
+        }
+        return 0;
+    }
+
+    if (fabs(vx) > MPCC_ODOM_MAX_ABS_VX_MPS
+        || fabs(vy) > MPCC_ODOM_MAX_ABS_VY_MPS
+        || fabs(omega) > MPCC_ODOM_MAX_ABS_YAW_RATE_RADPS)
+    {
+        if (should_log_throttled(&g_last_odom_sanity_log_time,
+                                 now,
+                                 MPCC_ODOM_LOG_THROTTLE_SEC))
+        {
+            fprintf(stderr,
+                    "[MPCC] WARNING: rejecting odometry twist outside sanity "
+                    "limits (vx=%.3f vy=%.3f w=%.3f)\n",
+                    vx,
+                    vy,
+                    omega);
+        }
+        return 0;
+    }
+
+    return 1;
 }
 
 static double current_control_dt_sec(void)
@@ -303,8 +375,14 @@ static int load_trajectory_csv(const char *file_path, MPCCReferencePath_t *path)
             {
                 float left_bound = (float)d_left - car_half_width;
                 float right_bound = (float)d_right - car_half_width;
-                if (left_bound < 0.05f) left_bound = 0.05f;
-                if (right_bound < 0.05f) right_bound = 0.05f;
+                if ((left_bound + right_bound) < 0.0f)
+                {
+                    float lower = -left_bound;
+                    float upper = right_bound;
+                    float center = 0.5f * (lower + upper);
+                    left_bound = -center;
+                    right_bound = center;
+                }
                 pt->left_bound = left_bound;
                 pt->right_bound = right_bound;
             }
@@ -548,7 +626,8 @@ static void raceline_callback(const void *msg_in)
     }
 
     ref_path.total_length = ref_path.points[n - 1].s_ref;
-    ref_path.is_closed = 1;
+    /* /local_raceline is a rolling lookahead segment, not a closed lap. */
+    ref_path.is_closed = 0;
 
     /* ---------------------------------------------------------------
      * Track bounds: look up from the CSV-loaded path (g_reference_path)
@@ -608,8 +687,8 @@ static void raceline_callback(const void *msg_in)
 
     mpcc_set_reference_path(&ref_path);
     g_have_reference = 1;
-    printf("[MPCC] Updated raceline from topic (%d points, %.1f m) "
-           "— bounds from %s\n",
+        printf("[MPCC] Updated open raceline segment from topic (%d points, %.1f m) "
+            "— bounds from %s\n",
            n, ref_path.total_length,
            (g_reference_path.num_points >= 2) ? "CSV lookup" : "fallback");
 
@@ -640,6 +719,14 @@ static void odom_callback(const void *msg_in)
     const double vx = msg->twist.twist.linear.x;
     const double vy = msg->twist.twist.linear.y;
     const double omega = msg->twist.twist.angular.z;
+    struct timespec now;
+
+    clock_gettime(CLOCK_MONOTONIC, &now);
+
+    if (!odom_twist_is_sane(vx, vy, omega, &now))
+    {
+        return;
+    }
 
     if (!g_using_map_pose)
     {
@@ -656,8 +743,19 @@ static void odom_callback(const void *msg_in)
     g_latest_vx_mps = vx;
     g_latest_vy_mps = vy;
     g_latest_omega = omega;
+    g_last_odom_time = now;
     g_have_odom = 1;
     g_odom_update_count++;
+
+    if (g_odom_watchdog_active)
+    {
+        fprintf(stderr,
+                "[MPCC] WATCHDOG: odometry recovered (vx=%.2f vy=%.2f w=%.2f)\n",
+                vx,
+                vy,
+                omega);
+        g_odom_watchdog_active = 0;
+    }
 }
 
 static void pose_callback(const void *msg_in)
@@ -694,6 +792,33 @@ static void pose_callback(const void *msg_in)
     if (!g_have_reference || !g_have_odom)
     {
         return;
+    }
+
+    {
+        struct timespec now;
+
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        if (g_watchdog_timeout_sec > 0.0
+            && timespec_is_set(&g_last_odom_time))
+        {
+            const double odom_age = timespec_diff_sec(&g_last_odom_time, &now);
+
+            if (odom_age > g_watchdog_timeout_sec)
+            {
+                g_odom_watchdog_active = 1;
+                if (should_log_throttled(&g_last_odom_watchdog_log_time,
+                                         &now,
+                                         MPCC_ODOM_LOG_THROTTLE_SEC))
+                {
+                    fprintf(stderr,
+                            "[MPCC] WATCHDOG: odometry stale (%.1f ms > %.1f ms), "
+                            "skipping solve\n",
+                            odom_age * 1000.0,
+                            g_watchdog_timeout_sec * 1000.0);
+                }
+                return;
+            }
+        }
     }
 
     /* Only solve when this fresh EKF pose is paired with a newer odom sample. */
@@ -1032,6 +1157,15 @@ static void read_runtime_environment(void)
         }
     }
 
+    if ((value = getenv("MPCC_WATCHDOG_TIMEOUT")) != NULL)
+    {
+        const double timeout = atof(value);
+        if (timeout >= 0.0 && timeout <= 5.0)
+        {
+            g_watchdog_timeout_sec = timeout;
+        }
+    }
+
     if ((value = getenv("MPCC_VERBOSE")) != NULL)
     {
         g_verbose = atoi(value);
@@ -1088,6 +1222,15 @@ static void configure_mpcc_from_environment(void)
         else if (v_alias) cfg.weight_lag = (float)atof(v_alias);
     }
     {
+        const char *v_canon = getenv("Q_WALL_CLEARANCE");
+        const char *v_alias = getenv("Q_WALL");
+        if (v_canon && v_alias)
+            fprintf(stderr, "[MPCC] WARNING: both Q_WALL_CLEARANCE and Q_WALL are set — "
+                            "Q_WALL_CLEARANCE takes priority (%.1f)\n", atof(v_canon));
+        if (v_canon)      cfg.weight_wall_clearance = (float)atof(v_canon);
+        else if (v_alias) cfg.weight_wall_clearance = (float)atof(v_alias);
+    }
+    {
         const char *v_canon = getenv("Q_CONTOURING_TERM");
         const char *v_alias = getenv("Q_N_TERM");
         if (v_canon && v_alias)
@@ -1108,6 +1251,7 @@ static void configure_mpcc_from_environment(void)
 
     /* Single-name parameters — no alias conflict possible */
     const char *v;
+    if ((v = getenv("WALL_CLEARANCE_MARGIN")) != NULL) cfg.wall_clearance_margin = (float)atof(v);
     if ((v = getenv("Q_PROGRESS")) != NULL)    cfg.weight_progress          = (float)atof(v);
     if ((v = getenv("Q_VX")) != NULL)          cfg.weight_vx                = (float)atof(v);
     if ((v = getenv("VX_REF")) != NULL)        cfg.vx_ref                   = (float)atof(v);
@@ -1174,11 +1318,13 @@ static void configure_mpcc_from_environment(void)
         g_control_dt_filtered = 1.0 / MPCC_CONTROL_RATE_HZ;
     }
 
-    printf("[MPCC] Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_prog=%.1f R_delta=%.2f ax_min_hw=%.1f cross_call=%.4f adapt_cross_call=%d vx_min_cmd=%.2f\n",
+        printf("[MPCC] Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_wall=%.1f wall_margin=%.3f Q_prog=%.1f R_delta=%.2f ax_min_hw=%.1f cross_call=%.4f adapt_cross_call=%d vx_min_cmd=%.2f\n",
            cfg.horizon_steps,
            cfg.dt,
            cfg.weight_contouring,
            cfg.weight_lag,
+            cfg.weight_wall_clearance,
+            cfg.wall_clearance_margin,
            cfg.weight_progress,
            cfg.weight_delta,
            g_ax_min_hardware,
@@ -1252,6 +1398,21 @@ int main(int argc, const char *argv[])
 
     printf("[MPCC] Hardware topics: odom=%s pose=%s imu=%s servo=%s drive=%s\n",
            g_odom_topic, g_pose_topic, g_imu_topic, g_servo_topic, g_drive_topic);
+        if (g_watchdog_timeout_sec > 0.0)
+        {
+         printf("[MPCC] Odom watchdog: %.0f ms | twist sanity: |vx|<=%.1f |vy|<=%.1f |w|<=%.1f\n",
+             g_watchdog_timeout_sec * 1000.0,
+             MPCC_ODOM_MAX_ABS_VX_MPS,
+             MPCC_ODOM_MAX_ABS_VY_MPS,
+             MPCC_ODOM_MAX_ABS_YAW_RATE_RADPS);
+        }
+        else
+        {
+         printf("[MPCC] Odom watchdog: disabled | twist sanity: |vx|<=%.1f |vy|<=%.1f |w|<=%.1f\n",
+             MPCC_ODOM_MAX_ABS_VX_MPS,
+             MPCC_ODOM_MAX_ABS_VY_MPS,
+             MPCC_ODOM_MAX_ABS_YAW_RATE_RADPS);
+        }
         printf("[MPCC] EKF-driven mode | solve gate: fresh pose + fresh odom | nominal_dt: %.1f ms | cross_call: %s | trajectory: %s\n",
             g_nominal_control_dt_sec * 1000.0,
             g_adapt_cross_call_scale ? "adaptive" : "fixed",

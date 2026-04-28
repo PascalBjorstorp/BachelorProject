@@ -20,7 +20,11 @@
  *   4. Extract first control input
  *
  * Dynamics:
- *   ds/dt     = v_theta                         (virtual progress control)
+ *   ds/dt     = v_theta                         (virtual 🟡 Bug 4 — Stale Dimension Comments (qp_solver_mpcc.c, file header and mpcc_types.h comment)
+The file header of qp_solver_mpcc.c says:
+NX = MPCC_NX = 9   (Lifted ODE: Frenet + Cartesian)
+NU = MPCC_NU = 2   (controls: delta, a_x, v_theta)
+But mpcc_types.h defines MPCC_NX = 7 and MPCC_NU = 3. Similarly, the MPCCLinearSystem_t comment says "10x10" and "10x2". These are from a previous refactor and are dead comments, not code bugs — but they will mislead anyone debugging the solver. control)
  *   dvx/dt    = (-F_yf*sin(d) + F_x) / m + vy*omega
  *   dvy/dt    = (F_yf*cos(d) + F_yr) / m - vx*omega
  *   domega/dt = (l_f*F_yf*cos(d) - l_r*F_yr) / I_z
@@ -90,6 +94,8 @@ static MPCCConfiguration_t get_default_config(void)
     /* Frenet tracking */
     cfg.weight_contouring = MPCC_DEFAULT_WEIGHT_CONTOURING;
     cfg.weight_lag = MPCC_DEFAULT_WEIGHT_LAG;
+    cfg.weight_wall_clearance = MPCC_DEFAULT_WEIGHT_WALL_CLEARANCE;
+    cfg.wall_clearance_margin = MPCC_DEFAULT_WALL_CLEARANCE_MARGIN;
     cfg.weight_progress = MPCC_DEFAULT_WEIGHT_PROGRESS;
 
     /* State regularization */
@@ -151,6 +157,10 @@ static void sanitize_config(MPCCConfiguration_t *cfg)
         cfg->horizon_steps = MPCC_DEFAULT_HORIZON;
     if (cfg->horizon_steps > MPCC_MAX_HORIZON)
         cfg->horizon_steps = MPCC_MAX_HORIZON;
+    if (cfg->weight_wall_clearance < 0.0f)
+        cfg->weight_wall_clearance = 0.0f;
+    if (cfg->wall_clearance_margin < 0.0f)
+        cfg->wall_clearance_margin = 0.0f;
 }
 
 /*===========================================================================
@@ -432,6 +442,26 @@ static float mpcc_limit_s_jump(
     return s_candidate;
 }
 
+static uint16_t mpcc_warm_start_stage_advance(void)
+{
+    uint16_t N = config.horizon_steps;
+    if (N > MPCC_MAX_HORIZON) N = MPCC_MAX_HORIZON;
+
+    if (N == 0)
+        return 0;
+
+    if (config.cross_call_rate_scale <= 0.0f)
+        return 1;
+
+    if (config.cross_call_rate_scale < 1.0f)
+        return 0;
+
+    uint16_t advance = (uint16_t)floorf(config.cross_call_rate_scale);
+    if (advance < 1) advance = 1;
+    if (advance > N) advance = N;
+    return advance;
+}
+
 /* MPC-style forward-biased closest-waypoint search with heading penalty. */
 static uint16_t mpcc_find_closest_index_forward_biased(
     const MPCCReferencePath_t *path,
@@ -547,8 +577,10 @@ MPCCState_t mpcc_state_from_vehicle_state(
         float s_segment = mpcc_project_s_on_segment(
             &ref_path, idx0, idx1, st.X, st.Y);
 
-        if (warm_start_available && config.horizon_steps > 0)
-            s_anchor = prev_predicted_states[1].s;
+        if (warm_start_available && config.horizon_steps > 0) {
+            uint16_t anchor_idx = mpcc_warm_start_stage_advance();
+            s_anchor = prev_predicted_states[anchor_idx].s;
+        }
         else if (s_hint > 0.0f)
             s_anchor = s_hint;
         else
@@ -772,6 +804,105 @@ static void add_contouring_lag_cost(
     }
 }
 
+static void add_wall_clearance_cost(
+    MPCCStageCost_t *cost,
+    const MPCCState_t *z_bar,
+    const MPCCPathPoint_t *path_pt,
+    float wall_weight,
+    float wall_margin)
+{
+    if (wall_weight <= 0.0f || wall_margin <= 0.0f)
+        return;
+
+    float left_bound = path_pt->left_bound;
+    float right_bound = path_pt->right_bound;
+
+    float corridor_width = left_bound + right_bound;
+    if (corridor_width <= 0.0f)
+        return;
+
+    float sin_phi = sinf(path_pt->phi_ref);
+    float cos_phi = cosf(path_pt->phi_ref);
+    float kappa   = path_pt->kappa_ref;
+
+    float dX = (z_bar->X - path_pt->x_ref);
+    float dY = (z_bar->Y - path_pt->y_ref);
+    float e_c_bar = sin_phi * dX - cos_phi * dY;
+    float e_l_bar = -(cos_phi * dX + sin_phi * dY);
+
+    float g_c[MPCC_NX];
+    memset(g_c, 0, sizeof(g_c));
+    g_c[MPCC_IDX_S] = (0 - (kappa * e_l_bar));
+    g_c[MPCC_IDX_X] = sin_phi;
+    g_c[MPCC_IDX_Y] = (0 - cos_phi);
+
+    float x_bar[MPCC_NX] = {
+        z_bar->s,
+        z_bar->vx, z_bar->vy, z_bar->omega,
+        z_bar->X, z_bar->Y, z_bar->psi
+    };
+    float gc_xbar = 0.0f;
+    for (int i = 0; i < MPCC_NX; i++)
+        gc_xbar += g_c[i] * x_bar[i];
+    float d_c = e_c_bar - gc_xbar;
+
+    /* Define a soft inner corridor. Outside it, penalize the projected
+     * distance back into the band. If the corridor is tighter than the
+     * requested margin, collapse to corridor centering. */
+    float safe_lower = (0 - left_bound) + wall_margin;
+    float safe_upper = right_bound - wall_margin;
+    float target = e_c_bar;
+    float stage_weight = wall_weight;
+    float narrow_deficit = 0.0f;
+
+    if (left_bound < wall_margin)
+        narrow_deficit = wall_margin - left_bound;
+    if ((right_bound < wall_margin) && ((wall_margin - right_bound) > narrow_deficit))
+        narrow_deficit = wall_margin - right_bound;
+
+    if (narrow_deficit > 0.0f) {
+        stage_weight = wall_weight * (1.0f + (narrow_deficit / wall_margin));
+        if (stage_weight > 3.0f * wall_weight)
+            stage_weight = 3.0f * wall_weight;
+    }
+
+    if (safe_lower <= safe_upper)
+    {
+        if (e_c_bar < safe_lower) {
+            target = safe_lower;
+        } else if (e_c_bar > safe_upper) {
+            target = safe_upper;
+        } else {
+            return;
+        }
+    }
+    else
+    {
+        target = 0.5f * (right_bound - left_bound);
+
+        float deficit = (2.0f * wall_margin) - corridor_width;
+        if (deficit > 0.0f)
+            stage_weight = wall_weight * (1.0f + (deficit / wall_margin));
+
+        if (fabsf(e_c_bar - target) < 0.005f)
+            return;
+    }
+
+    float d_target = d_c - target;
+    for (int i = 0; i < MPCC_NX; i++) {
+        if (g_c[i] == 0.0f) continue;
+        for (int j = 0; j < MPCC_NX; j++) {
+            if (g_c[j] == 0.0f) continue;
+            cost->Q[i][j] += 2.0f * stage_weight * g_c[i] * g_c[j];
+        }
+    }
+
+    for (int i = 0; i < MPCC_NX; i++) {
+        if (g_c[i] == 0.0f) continue;
+        cost->q[i] += 2.0f * stage_weight * d_target * g_c[i];
+    }
+}
+
 /*===========================================================================
  * Curvature-Based Speed Limiter
  *===========================================================================
@@ -911,6 +1042,11 @@ static void build_qp_problem(
     qp->u_lower[MPCC_IDX_VTHETA] = config.v_theta_min;
     qp->u_upper[MPCC_IDX_VTHETA] = config.v_theta_max;
 
+    for (uint16_t k = 0; k < N; k++) {
+        qp->delta_lower_stage[k] = qp->u_lower[MPCC_IDX_DELTA];
+        qp->delta_upper_stage[k] = qp->u_upper[MPCC_IDX_DELTA];
+    }
+
     /* Friction circle: (mu * g)^2 for combined acceleration constraint */
     float mu_g = config.mu * F110_GRAVITY_ACCELERATION_MS2;
     qp->mu_g_sq = mu_g * mu_g;
@@ -969,6 +1105,9 @@ static void build_qp_problem(
         build_stage_cost(&qp->stage_cost[k], 0, k);
         add_contouring_lag_cost(&qp->stage_cost[k], &z_bar, &path_pt,
                                 config.weight_contouring, config.weight_lag);
+        add_wall_clearance_cost(&qp->stage_cost[k], &z_bar, &path_pt,
+                    config.weight_wall_clearance,
+                    config.wall_clearance_margin);
 
         /* Override vx_ref with the per-stage value from the raceline velocity
          * profile so the solver naturally slows before turns. */
@@ -1032,12 +1171,22 @@ static void build_qp_problem(
         /* Per-stage track bounds on n */
         qp->track_left[k] = path_pt.left_bound - track_buffer;
         qp->track_right[k] = path_pt.right_bound - track_buffer;
-        if (qp->track_left[k] < 0.02f) qp->track_left[k] = 0.02f;
-        if (qp->track_right[k] < 0.02f) qp->track_right[k] = 0.02f;
+        if ((qp->track_left[k] + qp->track_right[k]) < 0.0f) {
+            float lower = -qp->track_left[k];
+            float upper = qp->track_right[k];
+            float center = 0.5f * (lower + upper);
+            qp->track_left[k] = -center;
+            qp->track_right[k] = center;
+        }
 
-        /* Per-stage curvature-based speed limit — disabled, using global limit.
-         * Keep array populated for compatibility but don't tighten. */
-        qp->vx_max_stage[k] = config.vx_max;
+        /* Per-stage speed cap: apply the same raceline- and curvature-aware
+         * braking limit along the horizon so sharp corners are slowed before
+         * the vehicle reaches the locally hard-to-solve segment. */
+        {
+            float v_safe_stage = compute_speed_limit(z_bar.s, 5.0f);
+            qp->vx_max_stage[k] =
+                (v_safe_stage < config.vx_max) ? v_safe_stage : config.vx_max;
+        }
 
         /* Per-stage friction circle: tighten a_x bound based on
          * lateral acceleration at operating point.
@@ -1107,11 +1256,20 @@ static void build_qp_problem(
 
         qp->track_left[N]  = path_pt.left_bound - track_buffer;
         qp->track_right[N] = path_pt.right_bound - track_buffer;
-        if (qp->track_left[N] < 0.02f) qp->track_left[N] = 0.02f;
-        if (qp->track_right[N] < 0.02f) qp->track_right[N] = 0.02f;
+        if ((qp->track_left[N] + qp->track_right[N]) < 0.0f) {
+            float lower = -qp->track_left[N];
+            float upper = qp->track_right[N];
+            float center = 0.5f * (lower + upper);
+            qp->track_left[N] = -center;
+            qp->track_right[N] = center;
+        }
 
-        /* Terminal speed limit — use global */
-        qp->vx_max_stage[N] = config.vx_max;
+        /* Terminal stage gets the same horizon speed cap. */
+        {
+            float v_safe_terminal = compute_speed_limit(z_terminal.s, 5.0f);
+            qp->vx_max_stage[N] =
+                (v_safe_terminal < config.vx_max) ? v_safe_terminal : config.vx_max;
+        }
 
         /* --- terminal stage geometry --- */
         qp->path_x_ref[N]   = path_pt.x_ref;
@@ -1123,6 +1281,9 @@ static void build_qp_problem(
         add_contouring_lag_cost(&qp->terminal_cost, &z_terminal, &path_pt,  // ✓ correct op-point
                                 config.weight_contouring_terminal,
                                 config.weight_lag_terminal);
+        add_wall_clearance_cost(&qp->terminal_cost, &z_terminal, &path_pt,
+                                config.weight_wall_clearance,
+                                config.wall_clearance_margin);
 
         if (path_pt.vx_ref > 0 && config.weight_vx > 0) {
             qp->terminal_cost.q[MPCC_IDX_VX] = -(2.0f * config.weight_vx * path_pt.vx_ref);
@@ -1212,7 +1373,14 @@ static void shift_warm_start(void)
             memcpy(admm_workspace.lambda_u[k], admm_workspace.lambda_u[k + 1],
                    sizeof(float) * MPCC_NU);
     }
-    memset(admm_workspace.lambda_x[0], 0, sizeof(admm_workspace.lambda_x[0]));
+
+    /* The shift leaves the terminal dual slots stale because no source
+     * exists beyond the horizon. Clear those end slots here; the warm-start
+     * solve path separately enforces lambda_x[0] = 0 for the fixed x0 state. */
+    memset(admm_workspace.lambda_x[N], 0, sizeof(admm_workspace.lambda_x[N]));
+    if (N > 0)
+        memset(admm_workspace.lambda_u[N - 1], 0,
+               sizeof(admm_workspace.lambda_u[N - 1]));
 }
 
 /*===========================================================================
@@ -1260,52 +1428,41 @@ MPCCStatus_t mpcc_compute_control(
     MPCCControl_t fallback_control = {0, 0, 1.0f};
     if (warm_start_available)
     {
-        shift_warm_start();
+        uint16_t stage_advance = mpcc_warm_start_stage_advance();
+        for (uint16_t shift = 0; shift < stage_advance; shift++)
+            shift_warm_start();
+
+        uint8_t keep_warm_start = 1;
 
         /* Detect s-wrap (lap boundary crossing): if s jumped backward
          * by more than half the track length, the warm-started workspace
-         * has s values from the old lap.  Instead of a full cold start,
-         * wrap the s values in the warm-start so the solver keeps a useful
-         * starting point for the new lap. */
+         * has s values from the old lap. The wrapped state representation
+         * is discontinuous at the seam, so reusing the old trajectory can
+         * inject a large fictitious jump into the next QP. */
         float s_jump = current_state->s - prev_predicted_states[0].s;
-        if (s_jump < -(ref_path.total_length * 0.5f)) {
-            /* Wrap s values in warm-start trajectory */
-            float total_len = ref_path.total_length;
-            for (uint16_t k = 0; k <= config.horizon_steps; k++) {
-                while (prev_predicted_states[k].s > total_len)
-                    prev_predicted_states[k].s -= total_len;
-                if (prev_predicted_states[k].s < 0)
-                    prev_predicted_states[k].s = 0;
-
-                float *s = &admm_workspace.z_x[k][MPCC_IDX_S];
-                while (*s > total_len) *s -= total_len;
-                if (*s < 0) *s = 0;
-                admm_workspace.w_x[k][MPCC_IDX_S] = admm_workspace.z_x[k][MPCC_IDX_S];
-
-                /* Keep scaled dual variable aligned with wrapped coordinates.
-                 * ADMM uses (lambda - w) in linear terms; if w is wrapped but
-                 * lambda is not, the subproblem sees a huge fictitious jump. */
-                float *lambda_s = &admm_workspace.lambda_x[k][MPCC_IDX_S];
-                while (*lambda_s > total_len) *lambda_s -= total_len;
-                if (*lambda_s < 0) *lambda_s = 0;
-            }
-            admm_config.warm_start = 1;
-            /* Keep warm_start_available = 1 so QP uses wrapped states */
+        if (ref_path.is_closed && ref_path.total_length > 0.0f
+            && s_jump < -(ref_path.total_length * 0.5f)) {
+            keep_warm_start = 0;
+            warm_start_available = 0;
 #ifdef MPCC_DEBUG_PRINT
-            printf("[MPCC] s-wrap detected (%.2f → %.2f), wrapping warm-start s values\n",
-                   (double)(prev_predicted_states[0].s + total_len),
+            printf("[MPCC] s-wrap detected (%.2f → %.2f), dropping warm-start for this cycle\n",
+                   (double)(prev_predicted_states[0].s),
                    (double)current_state->s);
 #endif
-        } else {
-            admm_config.warm_start = 1;
         }
 
-        /* Save the shifted warm-start's first control as fallback
-         * in case the solver doesn't converge this cycle. */
-        fallback_control = prev_predicted_controls[0];
-        if (!isfinite((double)fallback_control.delta)) fallback_control.delta = 0.0f;
-        if (!isfinite((double)fallback_control.a_x)) fallback_control.a_x = 0.0f;
-        if (!isfinite((double)fallback_control.v_theta)) fallback_control.v_theta = 0.0f;
+        if (keep_warm_start) {
+            admm_config.warm_start = 1;
+
+            /* Save the shifted warm-start's first control as fallback
+             * in case the solver doesn't converge this cycle. */
+            fallback_control = prev_predicted_controls[0];
+            if (!isfinite((double)fallback_control.delta)) fallback_control.delta = 0.0f;
+            if (!isfinite((double)fallback_control.a_x)) fallback_control.a_x = 0.0f;
+            if (!isfinite((double)fallback_control.v_theta)) fallback_control.v_theta = 0.0f;
+        } else {
+            admm_config.warm_start = 0;
+        }
     }
     else
     {
@@ -1389,9 +1546,16 @@ MPCCStatus_t mpcc_compute_control(
         const int finite_control = isfinite(admm_result.u_opt[0][MPCC_IDX_DELTA]) &&
                        isfinite(admm_result.u_opt[0][MPCC_IDX_AX]) &&
                        isfinite(admm_result.u_opt[0][MPCC_IDX_VTHETA]);
+        const int finite_residuals = isfinite((double)(admm_result.primal_residual)) &&
+                       isfinite((double)(admm_result.dual_residual));
+        const int usable_status = (status == MPCC_STATUS_SUCCESS) ||
+                       (status == MPCC_STATUS_MAX_ITERATIONS);
+        const int hard_failure = (status == MPCC_STATUS_INFEASIBLE) ||
+                       (status == MPCC_STATUS_ERROR) ||
+                       !finite_residuals;
 
-        if (status == MPCC_STATUS_SUCCESS && finite_control) {
-        /* Use the ADMM iterate for control.
+        if (usable_status && finite_control && finite_residuals) {
+        /* Use the solver iterate for control.
          * MAX_ITERATIONS is still a partially converged, usually usable solution. */
         result->optimal_control.delta = admm_result.u_opt[0][MPCC_IDX_DELTA];
         result->optimal_control.a_x = admm_result.u_opt[0][MPCC_IDX_AX];
@@ -1408,7 +1572,6 @@ MPCCStatus_t mpcc_compute_control(
                 result->optimal_control.delta = prev_control.delta - max_delta_change;
         }
 
-        /* Copy the solver trajectory directly. */
         uint16_t N = config.horizon_steps;
         for (uint16_t k = 0; k <= N; k++)
             array_to_state(admm_result.x_opt[k], &result->predicted_states[k]);
@@ -1447,7 +1610,8 @@ MPCCStatus_t mpcc_compute_control(
         /* Only update warm-start if residual is moderate (partially converged).
          * For badly diverged solves, keep the previous warm-start to avoid
          * contaminating the next solve with garbage. */
-        if (admm_result.primal_residual < 50.0f * config.admm_tolerance) {
+        if (finite_residuals &&
+            admm_result.primal_residual < 50.0f * config.admm_tolerance) {
             for (uint16_t k = 0; k <= N; k++)
                 prev_predicted_states[k] = result->predicted_states[k];
             for (uint16_t k = 0; k < N; k++)
@@ -1457,10 +1621,8 @@ MPCCStatus_t mpcc_compute_control(
         }
 
         /* Numerical breakdown contaminates ADMM workspace (z/w/lambda) and
-         * can poison subsequent warm-starts. Reset workspace on hard failure. */
-        if (status != MPCC_STATUS_SUCCESS ||
-            !isfinite((double)(admm_result.primal_residual)) ||
-            !isfinite((double)(admm_result.dual_residual)))
+         * can poison subsequent warm-starts. Reset workspace only on hard failure. */
+        if (hard_failure)
         {
             admm_solver_initialize(&admm_workspace);
             warm_start_available = 0;

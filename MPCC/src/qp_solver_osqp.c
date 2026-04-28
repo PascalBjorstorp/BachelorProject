@@ -280,8 +280,14 @@ static c_int build_A_and_bounds(const MPCCQPProblem_t *prob, c_int n)
         else if (k < N)
         {
             int iu = sub - NX;
-            s_l[row] = (c_float)prob->u_lower[iu];
-            s_u[row] = (c_float)prob->u_upper[iu];
+
+            if (iu == MPCC_IDX_DELTA) {
+                s_l[row] = (c_float)prob->delta_lower_stage[k];
+                s_u[row] = (c_float)prob->delta_upper_stage[k];
+            } else {
+                s_l[row] = (c_float)prob->u_lower[iu];
+                s_u[row] = (c_float)prob->u_upper[iu];
+            }
 
             /* Tighten a_x with friction circle */
             if (iu == MPCC_IDX_AX && prob->mu_g_sq > 0.0f)

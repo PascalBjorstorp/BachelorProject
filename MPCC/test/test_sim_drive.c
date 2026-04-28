@@ -5,6 +5,7 @@
  *   - Gym-matching nonlinear single-track vehicle model (RK4)
  *   - Raceline CSV loading with track bounds
  *   - Environment-variable overrides for all MPCC weights (for tuning scripts)
+ *   - Optional per-step trace CSV export (MPCC_TRACE_CSV_PATH=/path/to/file.csv)
  *   - Machine-readable CSV output for automated tuning (MPCC_TUNING_CSV=1)
  *
  * Build (ADMM solver, from MPCC/):
@@ -54,7 +55,7 @@
  *===========================================================================*/
 
 #define SIM_DT_DEFAULT    0.005f   /* 200 Hz physics */
-#define MPCC_DT_DEFAULT   0.050f   /* 20 Hz MPCC (matches ROS2 node timer) */
+#define MPCC_DT_DEFAULT   (1.0f / MPCC_CONTROL_RATE_HZ) /* 200 Hz nominal MPCC solve rate */
 #define SIM_DURATION      120.0f   /* seconds — 60s too short for slow/long tracks */
 #define MAX_WAYPOINTS     2000
 #define MAX_STEERING      0.4189f  /* rad */
@@ -210,6 +211,9 @@ static int build_reference_path(void)
     const double body_margin = DEFAULT_BODY_SAFETY_MARGIN;
 
     g_ref_path.num_points = 0;
+    int invalid_corridor_points = 0;
+    float min_left_effective = 1.0e9f;
+    float min_right_effective = 1.0e9f;
     for (int i = 0; i < raceline_count && i < MPCC_MAX_PATH_POINTS; i++) {
         MPCCPathPoint_t *pt = &g_ref_path.points[i];
         pt->s_ref     = (float)raceline[i].s;
@@ -219,13 +223,34 @@ static int build_reference_path(void)
         pt->kappa_ref = (float)raceline[i].kappa;
         pt->vx_ref    = (float)raceline[i].vx;
 
-        /* Subtract car half-width + safety margin so QP bounds match collision check */
-        float lb = (float)(raceline[i].left_bound  - VEHICLE_HALF_WIDTH - body_margin);
-        float rb = (float)(raceline[i].right_bound - VEHICLE_HALF_WIDTH - body_margin);
-        if (lb < 0.05f) lb = 0.05f;
-        if (rb < 0.05f) rb = 0.05f;
+        /* Keep the exact post-body corridor where possible; only clip truly
+         * impossible negative widths to zero so the solver does not get more
+         * space than the collision checker allows. */
+        float lb_raw = (float)(raceline[i].left_bound  - VEHICLE_HALF_WIDTH - body_margin);
+        float rb_raw = (float)(raceline[i].right_bound - VEHICLE_HALF_WIDTH - body_margin);
+        float lb = lb_raw;
+        float rb = rb_raw;
+        if (lb_raw < min_left_effective) min_left_effective = lb_raw;
+        if (rb_raw < min_right_effective) min_right_effective = rb_raw;
+        int body_infeasible = (lb_raw <= 0.0f || rb_raw <= 0.0f);
+        if (body_infeasible) invalid_corridor_points++;
+        if ((lb + rb) < 0.0f) {
+            float lower = -lb;
+            float upper = rb;
+            float center = 0.5f * (lower + upper);
+            lb = -center;
+            rb = center;
+        }
         pt->left_bound  = lb;
         pt->right_bound = rb;
+
+        /* Local robustness: if corridor is body-infeasible, slow down and expand margin */
+        if (body_infeasible) {
+            pt->vx_ref = fminf(pt->vx_ref, 0.5f); // Slow to 0.5 m/s at infeasible points
+            // Optionally, expand bounds slightly for extra margin (soft, not hard)
+            pt->left_bound  += 0.02f; // Add 2cm margin left
+            pt->right_bound += 0.02f; // Add 2cm margin right
+        }
 
         g_ref_path.num_points++;
     }
@@ -235,7 +260,39 @@ static int build_reference_path(void)
 
     printf("[MPCC] Built reference path: %d points, length %.1f m\n",
            g_ref_path.num_points, g_ref_path.total_length);
+    if (invalid_corridor_points > 0) {
+        printf("[MPCC] Warning: %d path points are narrower than vehicle width + safety margin (min effective left/right %.3f / %.3f m)\n",
+               invalid_corridor_points,
+               (double)min_left_effective,
+               (double)min_right_effective);
+    }
     return 1;
+}
+
+static double compute_predicted_min_wall_slack(
+    const MPCCResult_t *result,
+    int horizon_steps)
+{
+    double min_slack = 1.0e9;
+
+    for (int k = 1; k <= horizon_steps; k++) {
+        MPCCPathPoint_t path_pt;
+        mpcc_path_interpolate(&g_ref_path, result->predicted_states[k].s, &path_pt);
+
+        double dx = (double)result->predicted_states[k].X - (double)path_pt.x_ref;
+        double dy = (double)result->predicted_states[k].Y - (double)path_pt.y_ref;
+        double sin_phi = sin((double)path_pt.phi_ref);
+        double cos_phi = cos((double)path_pt.phi_ref);
+        double e_c = (sin_phi * dx) - (cos_phi * dy);
+        double left_slack = e_c + (double)path_pt.left_bound;
+        double right_slack = (double)path_pt.right_bound - e_c;
+        double stage_slack = (left_slack < right_slack) ? left_slack : right_slack;
+
+        if (stage_slack < min_slack)
+            min_slack = stage_slack;
+    }
+
+    return min_slack;
 }
 
 /*===========================================================================
@@ -279,19 +336,27 @@ int main(void)
 {
     const double SIM_DT = env_double("SIM_DT", SIM_DT_DEFAULT);
     const double MPCC_DT = env_double("MPCC_DT", MPCC_DT_DEFAULT);
-    const int MPCC_CALL_INTERVAL = (int)(MPCC_DT / SIM_DT + 0.5);
     const double ODOM_DT = env_double("ODOM_DT", SIM_DT);
     const double POSE_DT = env_double("POSE_DT", MPCC_DT);
-    const int ODOM_UPDATE_INTERVAL = (int)(ODOM_DT / SIM_DT + 0.5);
-    const int POSE_UPDATE_INTERVAL = (int)(POSE_DT / SIM_DT + 0.5);
+    const double CONTROL_DT = (POSE_DT > ODOM_DT) ? POSE_DT : ODOM_DT;
+    int MPCC_CALL_INTERVAL = (int)(CONTROL_DT / SIM_DT + 0.5);
+    int ODOM_UPDATE_INTERVAL = (int)(ODOM_DT / SIM_DT + 0.5);
+    int POSE_UPDATE_INTERVAL = (int)(POSE_DT / SIM_DT + 0.5);
     const int SIM_STEPS = (int)(SIM_DURATION / SIM_DT);
     const int verbose = getenv("VERBOSE") != NULL;
     const double body_safety_margin = env_double("BODY_SAFETY_MARGIN", DEFAULT_BODY_SAFETY_MARGIN);
+    const char *trace_csv_path = getenv("MPCC_TRACE_CSV_PATH");
+    const char *cross_call_scale_env = getenv("CROSS_CALL_SCALE");
+    FILE *trace_csv = NULL;
+
+    if (MPCC_CALL_INTERVAL < 1) MPCC_CALL_INTERVAL = 1;
+    if (ODOM_UPDATE_INTERVAL < 1) ODOM_UPDATE_INTERVAL = 1;
+    if (POSE_UPDATE_INTERVAL < 1) POSE_UPDATE_INTERVAL = 1;
 
     printf("=== MPCC Sim-Drive (Lifted ODE, ADMM+Riccati, %.0fs at dt=%.4fs) ===\n",
            SIM_DURATION, SIM_DT);
     printf("    MPCC rate: %.0fHz (every %d sim steps)\n",
-           1.0/MPCC_DT, MPCC_CALL_INTERVAL);
+        1.0 / CONTROL_DT, MPCC_CALL_INTERVAL);
         printf("    Sensor cadence: odom %.0fHz (every %d), pose %.0fHz (every %d)\n",
             1.0 / ODOM_DT, ODOM_UPDATE_INTERVAL,
             1.0 / POSE_DT, POSE_UPDATE_INTERVAL);
@@ -310,6 +375,8 @@ int main(void)
     /* April 21 winning configuration from the latest safe sweep. */
     cfg.weight_contouring = env_double("Q_CONTOURING", 960.0f);
     cfg.weight_lag        = env_double("Q_LAG", 200.0f);
+    cfg.weight_wall_clearance = env_double("Q_WALL_CLEARANCE", MPCC_DEFAULT_WEIGHT_WALL_CLEARANCE);
+    cfg.wall_clearance_margin = env_double("WALL_CLEARANCE_MARGIN", MPCC_DEFAULT_WALL_CLEARANCE_MARGIN);
     cfg.weight_progress   = env_double("Q_PROGRESS", 15.6f);
 
     /* State regularization */
@@ -357,13 +424,21 @@ int main(void)
     cfg.C_Sr = env_double("C_SR", 3.473f);
 
     /* Cross-call rate scaling */
-    cfg.cross_call_rate_scale = env_double("CROSS_CALL_SCALE", 0.1f);
+    if (cross_call_scale_env != NULL) {
+        cfg.cross_call_rate_scale = (float)atof(cross_call_scale_env);
+    } else if (cfg.dt > 0.0f) {
+        cfg.cross_call_rate_scale = (float)(CONTROL_DT / (double)cfg.dt);
+    } else {
+        cfg.cross_call_rate_scale = MPCC_DEFAULT_CROSS_CALL_SCALE;
+    }
 
     if (verbose) {
         printf("  Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_prog=%.1f\n",
                cfg.horizon_steps, cfg.dt,
                cfg.weight_contouring, cfg.weight_lag,
                cfg.weight_progress);
+         printf("  Q_wall=%.1f wall_margin=%.3f\n",
+             cfg.weight_wall_clearance, cfg.wall_clearance_margin);
         printf("  Q_vx=%.1f vx_ref=%.1f R_delta=%.2f R_ax=%.3f R_vt=%.2f\n",
                cfg.weight_vx, cfg.vx_ref,
                cfg.weight_delta, cfg.weight_ax,
@@ -371,6 +446,8 @@ int main(void)
         printf("  ADMM: rho=%.2f max_iter=%d tol=%.4f\n",
                cfg.admm_rho, cfg.admm_max_iterations,
                cfg.admm_tolerance);
+         printf("  control_dt=%.4f cross_call=%.4f\n",
+             CONTROL_DT, cfg.cross_call_rate_scale);
     }
 
     /* Initialize MPCC with custom config */
@@ -438,6 +515,8 @@ int main(void)
     int s_prediction_regressions = 0;
     double max_s_estimator_jump = 0.0;
     double max_predicted_s_span = 0.0;
+    double last_pred_min_wall_slack = 0.0;
+    int last_pred_slack_valid = 0;
 
     /* Lap tracking */
     int    lap_count     = 0;
@@ -456,6 +535,19 @@ int main(void)
 
     int stepped = 0;
 
+    if (trace_csv_path && trace_csv_path[0] != '\0') {
+        trace_csv = fopen(trace_csv_path, "w");
+        if (!trace_csv) {
+            fprintf(stderr, "ERROR: Cannot open MPCC_TRACE_CSV_PATH=%s for writing\n", trace_csv_path);
+            return 1;
+        }
+        fprintf(trace_csv,
+            "step,time_s,x_m,y_m,psi_rad,vx_mps,s_m,closest_wp,ref_s_m,e_y_m,e_c_m,e_psi_rad,"
+                "left_bound_m,right_bound_m,cmd_steer_rad,act_steer_rad,accel_cmd_mps2,"
+                "status,iterations,pred_min_wall_slack_m,wall_hit,lap_count,"
+                "dx_exec_pred,dy_exec_pred,dpsi_exec_pred,ds_exec_pred\n");
+    }
+
     if (verbose) {
         printf("\n  Step | Time  | vx    | v_cmd | e_y   | e_psi | cmd_st | act_st | accel | st | it\n");
         printf("  -----|-------|-------|-------|-------|-------|--------|--------|-------|----|---\n");
@@ -466,6 +558,8 @@ int main(void)
         double s_debug_now = current_s;
         double s_debug_pred1 = current_s;
         double s_debug_predN = current_s;
+        double pred_min_wall_slack = last_pred_min_wall_slack;
+        int pred_slack_valid = last_pred_slack_valid;
         int s_debug_valid = 0;
         double px = (double)(state.pos_x);
         double py = (double)(state.pos_y);
@@ -473,6 +567,16 @@ int main(void)
         double vx = (double)(state.long_vel);
         int odom_tick = (step % ODOM_UPDATE_INTERVAL) == 0;
         int pose_tick = (step % POSE_UPDATE_INTERVAL) == 0;
+
+        // Executed state minus previous predicted state (for model/actuation mismatch diagnosis)
+        static double prev_pred_X = 0.0, prev_pred_Y = 0.0, prev_pred_psi = 0.0, prev_pred_s = 0.0;
+        double dx_exec_pred = 0.0, dy_exec_pred = 0.0, dpsi_exec_pred = 0.0, ds_exec_pred = 0.0;
+        if (step > 0) {
+            dx_exec_pred = px - prev_pred_X;
+            dy_exec_pred = py - prev_pred_Y;
+            dpsi_exec_pred = wrap_angle(psi - prev_pred_psi);
+            ds_exec_pred = s_debug_now - prev_pred_s;
+        }
 
         if (odom_tick)
             odom_update_count++;
@@ -487,25 +591,47 @@ int main(void)
         if (vx > max_vx) max_vx = vx;
 
         int closest = find_closest_waypoint(px, py, psi);
+        MPCCPathPoint_t metrics_path_pt;
+        mpcc_path_interpolate(&g_ref_path, s_debug_now, &metrics_path_pt);
 
         /* Compute Frenet error for metrics */
-        double dx = px - raceline[closest].x;
-        double dy = py - raceline[closest].y;
-        double path_psi = raceline[closest].psi;
+        double dx = px - (double)metrics_path_pt.x_ref;
+        double dy = py - (double)metrics_path_pt.y_ref;
+        double path_psi = (double)metrics_path_pt.phi_ref;
         double e_y = -dx * sin(path_psi) + dy * cos(path_psi);
+        double e_c = -e_y;  /* MPCC core uses positive = right of reference. */
         double e_psi = wrap_angle(psi - path_psi);
 
-        /* Wall collision check (body-edge) — abort on first hit */
-        double left_wall  = raceline[closest].left_bound;
-        double right_wall = raceline[closest].right_bound;
+        /* Wall collision check (body-edge) — abort on first hit.
+         * Use the same contouring-error sign convention as the MPCC core:
+         * e_c > 0 lies to the right of the reference, e_c < 0 to the left. */
+        double left_wall  = (double)metrics_path_pt.left_bound + VEHICLE_HALF_WIDTH + body_safety_margin;
+        double right_wall = (double)metrics_path_pt.right_bound + VEHICLE_HALF_WIDTH + body_safety_margin;
         int wall_hit = 0;
-        if (e_y > (left_wall - VEHICLE_HALF_WIDTH - body_safety_margin))   { wall_hit = 1; }
-        if (e_y < -(right_wall - VEHICLE_HALF_WIDTH - body_safety_margin)) { wall_hit = -1; }
+        if (e_c > (right_wall - VEHICLE_HALF_WIDTH - body_safety_margin)) { wall_hit = 1; }
+        if (e_c < -(left_wall - VEHICLE_HALF_WIDTH - body_safety_margin)) { wall_hit = -1; }
         if (wall_hit && !prev_wall_hit) {
             wall_collisions++;
+            if (trace_csv) {
+                fprintf(trace_csv,
+                    "%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%d,%.6f,%d,%d,%.6f,%.6f,%.6f,%.6f\n",
+                    step, t, px, py, psi, vx,
+                    s_debug_now, closest, raceline[closest].s,
+                    e_y, e_c, e_psi,
+                    left_wall, right_wall,
+                    cmd_steer, actual_steer, cmd_accel,
+                    -1, 0,
+                    pred_slack_valid ? pred_min_wall_slack : 0.0,
+                    wall_hit, lap_count,
+                    dx_exec_pred, dy_exec_pred, dpsi_exec_pred, ds_exec_pred);
+                fflush(trace_csv);
+            }
             if (verbose) {
-                printf("\n  !!! WALL COLLISION: e_y=%.3f (bound:%.3f) step=%d t=%.2f wp=%d v=%.1f — aborting !!!\n",
-                       e_y, wall_hit > 0 ? left_wall : right_wall, step, t, closest, vx);
+                double bound = (wall_hit > 0)
+                             ? (right_wall - VEHICLE_HALF_WIDTH - body_safety_margin)
+                             : -(left_wall - VEHICLE_HALF_WIDTH - body_safety_margin);
+                printf("\n  !!! WALL COLLISION: e_c=%.3f (bound:%.3f) step=%d t=%.2f wp=%d v=%.1f — aborting !!!\n",
+                       e_c, bound, step, t, closest, vx);
             }
             stepped = step;
             break;  /* single hit = failure, stop sim */
@@ -575,6 +701,17 @@ int main(void)
                     s_prediction_regressions++;
                 if (dsN > max_predicted_s_span)
                     max_predicted_s_span = dsN;
+
+                pred_min_wall_slack = compute_predicted_min_wall_slack(&result, cfg.horizon_steps);
+                pred_slack_valid = 1;
+                last_pred_min_wall_slack = pred_min_wall_slack;
+                last_pred_slack_valid = pred_slack_valid;
+
+                // Save predicted state for next step's executed-minus-predicted diagnostic
+                prev_pred_X = result.predicted_states[1].X;
+                prev_pred_Y = result.predicted_states[1].Y;
+                prev_pred_psi = result.predicted_states[1].psi;
+                prev_pred_s = result.predicted_states[1].s;
             }
 
             double solve_us = (ts1.tv_sec - ts0.tv_sec) * 1e6
@@ -593,14 +730,18 @@ int main(void)
                 solver_ok++;
             solver_calls++;
 
-            /* Track consecutive unconverged solves for proportional fallback */
-            if (status == MPCC_STATUS_MAX_ITERATIONS) {
+            /* Track only hard solver failures for proportional fallback.
+             * MAX_ITERATIONS still returns a usable control in this MPCC,
+             * so treating it as a failure can override the optimizer with a
+             * saturated feedforward steer right when the car is cornering. */
+            if (status == MPCC_STATUS_INFEASIBLE ||
+                status == MPCC_STATUS_ERROR) {
                 consecutive_failures++;
             } else {
                 consecutive_failures = 0;
             }
 
-            /* Feedforward-only fallback: if solver fails 3+ times in a row,
+            /* Feedforward-only fallback: if the solver hard-fails 3+ times in a row,
              * replace steering with kappa-based feedforward + proportional
              * corrections for heading error and lateral error. */
             if (consecutive_failures >= 3) {
@@ -656,6 +797,20 @@ int main(void)
         if (step > 0 && actual_steer * prev_steer < 0 && fabs(steer_change) > 0.1)
             steer_reversals++;
         prev_steer = actual_steer;
+
+        if (trace_csv) {
+            fprintf(trace_csv,
+                "%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%d,%.6f,%d,%d,%.6f,%.6f,%.6f,%.6f\n",
+                step, t, px, py, psi, vx,
+                s_debug_now, closest, raceline[closest].s,
+                e_y, e_c, e_psi,
+                left_wall, right_wall,
+                steer, actual_steer, accel_cmd,
+                status_val, iter,
+                pred_slack_valid ? pred_min_wall_slack : 0.0,
+                wall_hit, lap_count,
+                dx_exec_pred, dy_exec_pred, dpsi_exec_pred, ds_exec_pred);
+        }
 
         if (verbose) {
             int print_row = (step < 40) || (step % 10 == 0) || wall_hit || (fabs(e_y) > 0.8);
@@ -902,6 +1057,10 @@ int main(void)
                max_s_estimator_jump,
                s_prediction_regressions,
                max_predicted_s_span);
+    }
+    if (trace_csv) {
+        fclose(trace_csv);
+        printf("  Trace CSV:           %s\n", trace_csv_path);
     }
     return tests_failed > 0 ? 1 : 0;
 }

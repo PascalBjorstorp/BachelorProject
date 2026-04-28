@@ -328,6 +328,19 @@ typedef struct
      *  Keeps s from running too far ahead of the vehicle. */
     float weight_lag;
 
+    /** Wall-clearance weight.
+     *  Adds a soft penalty when the predicted contouring state enters a
+     *  near-wall band inside the hard corridor bounds. This lets the
+     *  controller leave a wall-hugging reference line before projection
+     *  against the hard corridor becomes active. */
+    float weight_wall_clearance;
+
+    /** Desired extra clearance from each wall [m].
+     *  Defines the soft inner corridor used by weight_wall_clearance.
+     *  If the corridor is narrower than 2x this value, the wall-clearance
+     *  cost falls back to corridor centering. */
+    float wall_clearance_margin;
+
     /** Progress weight (q_s).
      *  Reward for forward progress ds/dt. Higher = more aggressive.
      *  Applied as linear cost: -q_s on s-component. */
@@ -490,31 +503,23 @@ typedef struct
 /*===========================================================================
  * Linearized System Matrices (per prediction stage)
  *===========================================================================
- * Discrete-time linearization of the Lifted ODE:
+ * Discrete-time linearization of the global-frame MPCC dynamics:
  *
  *   z_{k+1} = A_k z_k + B_k u_k + d_k
  *
- * Where z = [s, n, alpha, vx, vy, omega, omega_w, X, Y, psi] (10 states)
- * and   u = [delta, T_motor] (2 controls)
- *
- * The A matrix has block structure:
- *   A = [ A_frenet(7x7)    0(7x3)       ]
- *       [ A_coupling(3x7)  A_cart(3x3)   ]
- *
- * Note: The Frenet dynamics depend on kappa(s), which couples s to
- * all Frenet states. The Cartesian ODE depends on vx, vy, omega, psi
- * but is independent of s, n, alpha in the state-space ODE form.
+ * Where z = [s, vx, vy, omega, X, Y, psi] and
+ *       u = [delta, a_x, v_theta].
  */
 
 typedef struct
 {
-    /** Discrete state transition matrix (NX x NX = 10x10) */
+    /** Discrete state transition matrix (NX x NX) */
     float A[MPCC_NX][MPCC_NX];
 
-    /** Discrete input matrix (NX x NU = 10x2) */
+    /** Discrete input matrix (NX x NU) */
     float B[MPCC_NX][MPCC_NU];
 
-    /** Affine term / linearization residual (NX = 10) */
+    /** Affine term / linearization residual (NX) */
     float d[MPCC_NX];
 
 } MPCCLinearSystem_t;
@@ -547,12 +552,14 @@ typedef struct
  *===========================================================================*/
 
 /* --- Horizon (increase for real hardware) --- */
-#define MPCC_DEFAULT_HORIZON          20                            /** was 10 — 200 ms total was too short */
+#define MPCC_DEFAULT_HORIZON          40                          /** was 10 — 200 ms total was too short */
 #define MPCC_DEFAULT_DT               (0.05f)                       /** was 0.02 s — now 1.0 s total horizon */
 
 /*--- Contouring tracking weights (Apr 22 post-fix sweep best: 11.9s lap, 0 collisions) ---*/
 #define MPCC_DEFAULT_WEIGHT_CONTOURING (960.0f)                     /** Contouring error penalty. */
 #define MPCC_DEFAULT_WEIGHT_LAG       (100.0f)                     /** Lag error penalty. */
+#define MPCC_DEFAULT_WEIGHT_WALL_CLEARANCE (3200.0f)               /** Soft near-wall penalty inside the hard corridor. */
+#define MPCC_DEFAULT_WALL_CLEARANCE_MARGIN (0.02f)                 /** Extra desired distance from each wall [m]. */
 #define MPCC_DEFAULT_WEIGHT_PROGRESS  (15.6f)                      /** Progress reward. */
 
 /*--- State regularization ---*/
