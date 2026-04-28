@@ -44,6 +44,7 @@ def generate_launch_description():
     mapping_mode_arg = LaunchConfiguration('mapping_mode')
     lidar_cluster_arg = LaunchConfiguration('lidar_cluster')
     lateral_planner_avoidance_enabled_arg = LaunchConfiguration('lateral_planner_avoidance_enabled')
+    lateral_planner_delay_sec_arg = LaunchConfiguration('lateral_planner_delay_sec')
     map_file_arg = LaunchConfiguration('map_file')
     bringup_delay_sec_arg = LaunchConfiguration('bringup_delay_sec')
     use_dynamic_bicycle_model_arg = LaunchConfiguration('use_dynamic_bicycle_model')
@@ -97,7 +98,11 @@ def generate_launch_description():
         DeclareLaunchArgument(  'lateral_planner_avoidance_enabled',
                     default_value='true',
                     description='Enable lateral planner obstacle avoidance (false publishes baseline raceline)'),
-        
+
+        DeclareLaunchArgument(  'lateral_planner_delay_sec',
+                    default_value='2.0',
+                    description='Delay before starting the lateral planner after bringup starts (seconds)'),
+
         DeclareLaunchArgument(  'map_file', 
                                 default_value=default_map,
                                 description='Path to the map YAML file for map_server'),
@@ -375,13 +380,18 @@ def generate_launch_description():
                 #  Lateral Planner — opponent avoidance → /local_raceline
                 # ══════════════════════
                 # Only launched in racing mode (mapping_mode=false).
-                IncludeLaunchDescription(
-                    PythonLaunchDescriptionSource(
-                        os.path.join(lateral_planner_pkg_dir, 'launch', 'lateral_planner.launch.py')
-                    ),
-                    launch_arguments={
-                        'avoidance_enabled': lateral_planner_avoidance_enabled_arg,
-                    }.items(),
+                TimerAction(
+                    period=lateral_planner_delay_sec_arg,
+                    actions=[
+                        IncludeLaunchDescription(
+                            PythonLaunchDescriptionSource(
+                                os.path.join(lateral_planner_pkg_dir, 'launch', 'lateral_planner.launch.py')
+                            ),
+                            launch_arguments={
+                                'avoidance_enabled': lateral_planner_avoidance_enabled_arg,
+                            }.items(),
+                        ),
+                    ],
                     condition=UnlessCondition(mapping_mode_arg),
                 ),
 

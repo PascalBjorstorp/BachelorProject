@@ -71,6 +71,11 @@ def generate_launch_description():
             description='Enable lateral planner obstacle avoidance'),
 
         DeclareLaunchArgument(
+            'lateral_planner_delay_sec',
+            default_value='2.0',
+            description='Delay before starting the lateral planner after bringup starts in seconds'),
+
+        DeclareLaunchArgument(
             'map_file',
             default_value=default_map,
             description='Path to the map YAML file for map_server'),
@@ -109,6 +114,7 @@ def generate_launch_description():
                 'lidar_cluster': LaunchConfiguration('lidar_cluster'),
                 'lateral_planner_avoidance_enabled': LaunchConfiguration(
                     'lateral_planner_avoidance_enabled'),
+                'lateral_planner_delay_sec': LaunchConfiguration('lateral_planner_delay_sec'),
                 'map_file': LaunchConfiguration('map_file'),
                 'bringup_delay_sec': LaunchConfiguration('bringup_delay_sec'),
                 'use_dynamic_bicycle_model': LaunchConfiguration('use_dynamic_bicycle_model'),
