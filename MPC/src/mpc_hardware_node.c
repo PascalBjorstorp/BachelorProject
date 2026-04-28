@@ -89,6 +89,8 @@ static int g_ekf_pose_received = 0;
 /** Safety watchdog timeout [seconds] */
 static double g_watchdog_timeout_sec = 0.2;
 static struct timespec g_last_servo_time;
+static const double LOW_SPEED_ACCEL_THRESHOLD_MPS = 1.2;
+static const double LOW_SPEED_FORCED_ACCEL_MPS2 = 2.0;
 /* Last published drive command (fallback uses these instead of forcing stop). */
 static float g_last_cmd_steer = 0.0f;
 static float g_last_cmd_speed = 0.0f;
@@ -918,17 +920,20 @@ static void run_mpc_control_cycle(void)
                     servo_feedback_fresh = 1;
             }
 
-            /* Pass MPC output, but limit excessive braking for small heading errors. */
+            /* Pass MPC steering output directly. */
             global_control_command.steer_ang = mpc_result.optimal_control.steer_ang;
 
-            /* Adjust longitudinal accel to avoid full-stop behavior when
-             * heading error is small. Tunable thresholds below. */
+            /* Keep the car moving at very low odometry speeds. */
             double cmd_long_acc = mpc_result.optimal_control.long_acc;
-            const double HEADING_BRAKE_THRESH = 0.25; /* rad (~14°) */
-            const double MAX_BRAKE_WHEN_LARGE_HEADING = 2.0; /* m/s^2 */
-            if (fabs(epsi) > HEADING_BRAKE_THRESH && cmd_long_acc < MAX_BRAKE_WHEN_LARGE_HEADING) {
-                cmd_long_acc = MAX_BRAKE_WHEN_LARGE_HEADING;
-                if (g_verbose) printf("[MPC] Adjusted long_acc to %.3f due large heading error %.3f\n", cmd_long_acc, epsi);
+            const double odom_speed = sqrt(g_latest_vx * g_latest_vx + g_latest_vy * g_latest_vy);
+            if (odom_speed < LOW_SPEED_ACCEL_THRESHOLD_MPS)
+            {
+                cmd_long_acc = LOW_SPEED_FORCED_ACCEL_MPS2;
+                if (g_verbose)
+                {
+                    printf("[MPC] Forced long_acc to %.3f at low odom speed %.3f m/s\n",
+                           cmd_long_acc, odom_speed);
+                }
             }
             global_control_command.long_acc = cmd_long_acc;
 
