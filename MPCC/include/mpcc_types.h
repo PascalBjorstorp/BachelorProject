@@ -566,7 +566,7 @@ typedef struct
 
 /* --- Horizon (increase for real hardware) --- */
 #define MPCC_DEFAULT_HORIZON          20                          /** was 10 — 200 ms total was too short */
-#define MPCC_DEFAULT_DT               (0.03f)                       /** was 0.02 s — now 1.0 s total horizon */
+#define MPCC_DEFAULT_DT               (0.03f)                       /** 30 ms prediction step: 20 * 0.03 = 0.6s lookahead */
 
 /*--- Contouring tracking weights (Apr 22 post-fix sweep best: 11.9s lap, 0 collisions) ---*/
 #define MPCC_DEFAULT_WEIGHT_CONTOURING (960.0f)                     /** Contouring error penalty. */

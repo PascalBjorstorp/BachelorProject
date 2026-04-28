@@ -15,7 +15,7 @@ mpcc_node:
 
     # --- Prediction Horizon (Apr 22 post-fix sweep best configuration) ---
     horizon_steps: 20
-    dt: 0.05              # [seconds] time step between prediction stages
+    dt: 0.03              # [seconds] time step between prediction stages
 
     # --- Contouring Weights ---
     # weight_contouring: penalizes perpendicular distance from centerline
@@ -38,7 +38,7 @@ mpcc_node:
     weight_vx: 0.0        # longitudinal velocity tracking weight
     vx_ref: 4.0           # [m/s] reference velocity
     weight_vy: 0.5        # lateral velocity penalty
-    weight_omega: 0.3     # yaw rate penalty
+    weight_omega: 1.5     # yaw rate penalty
 
     # --- Control Effort ---
     weight_delta: 0.03   # steering magnitude penalty
@@ -46,7 +46,7 @@ mpcc_node:
     weight_v_theta: 0.1   # progress rate penalty
 
     # --- Control Smoothness (rate penalties) ---
-    weight_delta_rate: 3.0       # steering-rate smoothing
+    weight_delta_rate: 10.0       # steering-rate smoothing
     weight_ax_rate: 0.488        # acceleration rate
     weight_v_theta_rate: 0.1105  # progress acceleration rate
 
@@ -71,7 +71,7 @@ mpcc_node:
     vx_max: 20.0          # [m/s] max longitudinal velocity
     vx_min: 0.0           # [m/s] min longitudinal velocity
     n_max: 0.5            # [m] default track half-width
-    v_theta_max: 8.0      # [m/s] max progress rate
+    v_theta_max: 10.0      # [m/s] max progress rate
 
     # --- Tire Parameters ---
     mu: 0.745             # [-] road-tire friction coefficient
