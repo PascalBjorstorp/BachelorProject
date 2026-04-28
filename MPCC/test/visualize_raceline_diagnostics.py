@@ -195,7 +195,7 @@ def load_sim_trace(csv_path: Path) -> list[SimTraceSample]:
 def parse_args() -> argparse.Namespace:
     script_dir = Path(__file__).resolve().parent
     project_dir = script_dir.parent.parent
-    default_raceline = project_dir / "f1tenth_planning" / "trajectories" / "my_track_raceline.csv"
+    default_raceline = project_dir / "f1tenth_planning" / "trajectories" / "my_track_centerline.csv"
 
     parser = argparse.ArgumentParser(description="Visualize raceline geometry and effective clearances.")
     parser.add_argument(

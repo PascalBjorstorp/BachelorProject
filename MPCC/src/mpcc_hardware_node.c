@@ -121,6 +121,7 @@ static int g_use_steering_feedback = 0;
 static float g_prev_delta_cmd = 0.0f;
 static float g_prev_speed_cmd = 0.0f;
 static float g_prev_ax_cmd = 0.0f;
+static int g_publish_speed_command = 1;
 
 /* ROS entities */
 static rcl_subscription_t g_odom_sub;
@@ -976,16 +977,24 @@ static void pose_callback(const void *msg_in)
 
     double v_cmd;
     float vx_predicted = result.predicted_states[1].vx;
+    double v_euler = g_latest_vx_mps + (double)a_x_cmd * g_solver_dt_sec;
+    const float v_pred_min = 0.1f;
+    const float v_pred_max = (float)g_vx_max_mps * 1.2f;
+    const double v_pred_err = fabs((double)vx_predicted - v_euler);
 
-    if (vx_predicted > 0.1f && vx_predicted < (float)g_vx_max_mps * 1.2f)
+    if (status == MPCC_STATUS_SUCCESS
+        && isfinite(vx_predicted)
+        && vx_predicted > v_pred_min
+        && vx_predicted < v_pred_max
+        && v_pred_err < 0.5)
     {
-        /* Solver prediction is sane — use it directly */
+        /* Solver prediction is sane and consistent with the measured state. */
         v_cmd = (double)vx_predicted;
     }
     else
     {
-        /* Fallback: simple Euler step from measured vx */
-        v_cmd = g_latest_vx_mps + (double)a_x_cmd * g_solver_dt_sec;
+        /* Safer fallback: simple Euler step from measured vx and commanded accel. */
+        v_cmd = v_euler;
     }
 
     /* Apply minimum velocity floor only when the solver wants to accelerate,
@@ -1008,7 +1017,7 @@ static void pose_callback(const void *msg_in)
     g_drive_msg.header.stamp.nanosec = 0;
     g_drive_msg.drive.steering_angle = delta_cmd;
     g_drive_msg.drive.steering_angle_velocity = steering_velocity_cmd;
-    g_drive_msg.drive.speed = (float)v_cmd;
+    g_drive_msg.drive.speed = g_publish_speed_command ? (float)v_cmd : 0.0f;
     g_drive_msg.drive.acceleration = a_x_cmd;
     g_drive_msg.drive.jerk = 0.0f;
 
@@ -1189,6 +1198,11 @@ static void read_runtime_environment(void)
     {
         g_adapt_cross_call_scale = (atoi(value) != 0);
     }
+
+    if ((value = getenv("MPCC_PUBLISH_SPEED_COMMAND")) != NULL)
+    {
+        g_publish_speed_command = (atoi(value) != 0);
+    }
 }
 
 static void configure_mpcc_from_environment(void)
@@ -1255,6 +1269,12 @@ static void configure_mpcc_from_environment(void)
     if ((v = getenv("Q_PROGRESS")) != NULL)    cfg.weight_progress          = (float)atof(v);
     if ((v = getenv("Q_VX")) != NULL)          cfg.weight_vx                = (float)atof(v);
     if ((v = getenv("VX_REF")) != NULL)        cfg.vx_ref                   = (float)atof(v);
+    if ((v = getenv("MPCC_USE_RACELINE_VX_REF")) != NULL)
+        cfg.use_raceline_vx_ref = (uint8_t)(atoi(v) != 0);
+    if ((v = getenv("MPCC_USE_RACELINE_VX_LIMIT")) != NULL)
+        cfg.use_raceline_vx_limit = (uint8_t)(atoi(v) != 0);
+    if ((v = getenv("MPCC_RACELINE_VX_LIMIT_SCALE")) != NULL)
+        cfg.raceline_vx_limit_scale = (float)atof(v);
     if ((v = getenv("Q_VY")) != NULL)          cfg.weight_vy                = (float)atof(v);
     if ((v = getenv("Q_OMEGA")) != NULL)       cfg.weight_omega             = (float)atof(v);
     if ((v = getenv("R_DELTA")) != NULL)       cfg.weight_delta             = (float)atof(v);
@@ -1318,7 +1338,7 @@ static void configure_mpcc_from_environment(void)
         g_control_dt_filtered = 1.0 / MPCC_CONTROL_RATE_HZ;
     }
 
-        printf("[MPCC] Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_wall=%.1f wall_margin=%.3f Q_prog=%.1f R_delta=%.2f ax_min_hw=%.1f cross_call=%.4f adapt_cross_call=%d vx_min_cmd=%.2f\n",
+        printf("[MPCC] Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_wall=%.1f wall_margin=%.3f Q_prog=%.1f Q_vx=%.1f use_csv_vx_ref=%u use_csv_vx_limit=%u R_delta=%.2f ax_min_hw=%.1f cross_call=%.4f adapt_cross_call=%d vx_min_cmd=%.2f\n",
            cfg.horizon_steps,
            cfg.dt,
            cfg.weight_contouring,
@@ -1326,6 +1346,9 @@ static void configure_mpcc_from_environment(void)
             cfg.weight_wall_clearance,
             cfg.wall_clearance_margin,
            cfg.weight_progress,
+           cfg.weight_vx,
+           (unsigned)cfg.use_raceline_vx_ref,
+           (unsigned)cfg.use_raceline_vx_limit,
            cfg.weight_delta,
            g_ax_min_hardware,
            cfg.cross_call_rate_scale,

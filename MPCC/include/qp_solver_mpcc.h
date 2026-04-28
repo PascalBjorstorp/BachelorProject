@@ -95,14 +95,15 @@ typedef struct
     float delta_lower_stage[MPCC_MAX_HORIZON];
     float delta_upper_stage[MPCC_MAX_HORIZON];
 
-    /*--- Per-stage track bounds on n (state index 1) ---*/
+    /*--- Per-stage track bounds in contouring-error coordinates ---*/
 
     /** Left track boundary at each stage [m] (positive value).
-     *  Constraint: n_k <= track_left[k] */
+     *  The MPCC contouring error is positive to the right, so the hard
+     *  lower bound is e_c >= -track_left[k]. */
     float track_left[MPCC_MAX_HORIZON + 1];
 
     /** Right track boundary at each stage [m] (positive value).
-     *  Constraint: n_k >= -track_right[k] */
+     *  The hard upper bound is e_c <= track_right[k]. */
     float track_right[MPCC_MAX_HORIZON + 1];
 
         /** Reference path geometry at each stage — needed to project

@@ -28,11 +28,11 @@ mpcc_node:
     #   soft inner corridor used by weight_wall_clearance.
     # weight_progress: reward for forward progress (-q_s * v_theta)
     #   HIGH value → MPCC aggressively maximizes speed along track
-    weight_contouring: 960.0      # contouring error penalty
-    weight_lag: 100.0             # lag error penalty
+    weight_contouring: 0.1      # contouring error penalty
+    weight_lag: 500.0             # lag error penalty
     weight_wall_clearance: 3200.0 # soft wall-clearance penalty
     wall_clearance_margin: 0.02   # [m] extra desired distance from each wall
-    weight_progress: 15.6         # progress reward
+    weight_progress: 0.02          # progress reward
 
     # --- State Regularization ---
     weight_vx: 0.0        # longitudinal velocity tracking weight
@@ -41,7 +41,7 @@ mpcc_node:
     weight_omega: 0.3     # yaw rate penalty
 
     # --- Control Effort ---
-    weight_delta: 160.0   # steering magnitude penalty
+    weight_delta: 0.03   # steering magnitude penalty
     weight_ax: 0.05225    # acceleration magnitude penalty
     weight_v_theta: 0.1   # progress rate penalty
 
