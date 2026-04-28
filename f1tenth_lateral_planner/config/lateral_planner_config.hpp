@@ -37,10 +37,11 @@
 #define MIN_REGULATED_SPEED_MPS 0.30
 
 // Published path extent
-#define LOOKAHEAD_POINTS 80
+#define LOOKAHEAD_POINTS 200
+#define PATH_START_OFFSET_POINTS 0
 
 // Node behavior
-#define PUBLISH_RATE_HZ 40.0
+#define PUBLISH_RATE_HZ 200.0
 
 // Obstacle behavior
 // true  -> obstacle avoidance enabled

@@ -35,6 +35,7 @@
 #include <nav_msgs/msg/odometry.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/float64.hpp>
+#include <vesc_msgs/msg/vesc_state_stamped.hpp>
 
 namespace vesc_ackermann
 {
@@ -60,7 +61,11 @@ private:
   double steering_correction_c2_, steering_correction_c1_, steering_correction_c0_;
   double current_vel_, brake_deadzone_;
   double accel_to_current_gain_, accel_to_brake_gain_;
+  double accel_deadzone_;
+  double accel_drag_coulomb_, accel_drag_viscous_, accel_drag_quadratic_;
+  double max_drive_current_, max_brake_current_;
   double slow_start_threshold_, slow_start_increment_;
+  double stop_speed_deadzone_;
 
   // Operation modes enum
   enum OperationMode
@@ -81,10 +86,16 @@ private:
   // ROS subscriptions
   rclcpp::Subscription<Odometry>::SharedPtr odom_sub_;
   rclcpp::Subscription<AckermannDriveStamped>::SharedPtr ackermann_sub_;
+  rclcpp::Subscription<vesc_msgs::msg::VescStateStamped>::SharedPtr vesc_state_sub_;
 
   // ROS callbacks
   void ackermannCmdCallback(const AckermannDriveStamped::SharedPtr cmd);
   void odomCallback(const Odometry::SharedPtr odom_msg);
+  void vescStateCallback(const vesc_msgs::msg::VescStateStamped::SharedPtr state);
+
+  // Battery current limiting (input current from VESC telemetry).
+  double max_regen_input_current_;
+  double last_input_current_;
 };
 
 }  // namespace vesc_ackermann

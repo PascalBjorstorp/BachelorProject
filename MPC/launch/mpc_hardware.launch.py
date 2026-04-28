@@ -21,7 +21,6 @@ from launch.actions import DeclareLaunchArgument, SetEnvironmentVariable
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
-
 def generate_launch_description():
     """
     Build the launch graph for the MPC hardware node.
@@ -83,6 +82,36 @@ def generate_launch_description():
         description='Safety watchdog timeout in seconds'
     )
 
+    low_speed_brake_inhibit_vx_arg = DeclareLaunchArgument(
+        'low_speed_brake_inhibit_vx',
+        default_value='0.7',
+        description='Disable braking below this speed (m/s). Set 0 to disable.'
+    )
+
+    low_speed_min_accel_arg = DeclareLaunchArgument(
+        'low_speed_min_accel',
+        default_value='0.0',
+        description='Minimum allowed accel when low-speed brake inhibit is active (m/s^2).'
+    )
+
+    recovery_epsi_arg = DeclareLaunchArgument(
+        'recovery_epsi_rad',
+        default_value='0.45',
+        description='Recovery trigger heading error threshold |e_psi| (rad). Set <=0 to disable.'
+    )
+
+    recovery_ey_arg = DeclareLaunchArgument(
+        'recovery_ey_m',
+        default_value='0.20',
+        description='Recovery trigger lateral error threshold |e_y| (m). Set <=0 to disable.'
+    )
+
+    recovery_vref_cap_arg = DeclareLaunchArgument(
+        'recovery_vref_max',
+        default_value='1.50',
+        description='Max v_ref during recovery (m/s). Set <=0 to disable.'
+    )
+
     # Set environment variables for the MPC node
     set_use_local_raceline = SetEnvironmentVariable(
         'MPC_USE_LOCAL_RACELINE',
@@ -116,6 +145,26 @@ def generate_launch_description():
         'MPC_WATCHDOG_TIMEOUT',
         LaunchConfiguration('watchdog_timeout')
     )
+    set_low_speed_brake_inhibit_vx = SetEnvironmentVariable(
+        'MPC_LOW_SPEED_BRAKE_INHIBIT_VX',
+        LaunchConfiguration('low_speed_brake_inhibit_vx')
+    )
+    set_low_speed_min_accel = SetEnvironmentVariable(
+        'MPC_LOW_SPEED_MIN_ACCEL',
+        LaunchConfiguration('low_speed_min_accel')
+    )
+    set_recovery_epsi = SetEnvironmentVariable(
+        'MPC_RECOVERY_EPSI_RAD',
+        LaunchConfiguration('recovery_epsi_rad')
+    )
+    set_recovery_ey = SetEnvironmentVariable(
+        'MPC_RECOVERY_EY_M',
+        LaunchConfiguration('recovery_ey_m')
+    )
+    set_recovery_vref = SetEnvironmentVariable(
+        'MPC_RECOVERY_VREF_MAX',
+        LaunchConfiguration('recovery_vref_max')
+    )
     # MPC hardware node
     mpc_node = Node(
         package='mpc_riccati',
@@ -134,6 +183,11 @@ def generate_launch_description():
         pose_topic_arg,
         verbose_arg,
         watchdog_timeout_arg,
+        low_speed_brake_inhibit_vx_arg,
+        low_speed_min_accel_arg,
+        recovery_epsi_arg,
+        recovery_ey_arg,
+        recovery_vref_cap_arg,
         set_use_local_raceline,
         set_local_raceline_topic,
         set_odom,
@@ -142,5 +196,10 @@ def generate_launch_description():
         set_pose,
         set_verbose,
         set_watchdog,
+        set_low_speed_brake_inhibit_vx,
+        set_low_speed_min_accel,
+        set_recovery_epsi,
+        set_recovery_ey,
+        set_recovery_vref,
         mpc_node,
     ])

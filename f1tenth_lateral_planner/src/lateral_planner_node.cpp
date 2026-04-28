@@ -88,6 +88,7 @@ private:
     params.window_time_s         = WINDOW_TIME_S;
     params.max_lateral_shift_m   = MAX_LATERAL_SHIFT_M;
     params.lookahead_points      = LOOKAHEAD_POINTS;
+    params.path_start_offset_points = PATH_START_OFFSET_POINTS;
     params.pass_complete_margin  = PASS_COMPLETE_MARGIN_M;
     params.window_lead_ratio     = WINDOW_LEAD_RATIO;
     params.opponent_length_m     = OPPONENT_LENGTH_M;
@@ -112,9 +113,8 @@ private:
     }
 
     RCLCPP_INFO(get_logger(), "  Avoidance enabled: %s", avoidance_enabled_ ? "true" : "false");
-    map_frame_  = FRAME_MAP;
-    base_frame_ = FRAME_BASE_LINK;
-    laser_frame_ = FRAME_LASER;
+    map_frame_ = FRAME_MAP;
+    laser_frame_ = FRAME_BASE_LINK;
   }
 
   // ── Subscribers ───────────────────────────────────────────────────
@@ -165,8 +165,8 @@ private:
   {
     double rate = PUBLISH_RATE_HZ;
     if (rate <= 0.0) {
-      RCLCPP_WARN(get_logger(), "Invalid PUBLISH_RATE_HZ (%.3f), using 40.0", rate);
-      rate = 40.0;
+      RCLCPP_WARN(get_logger(), "Invalid PUBLISH_RATE_HZ (%.3f), using 200.0", rate);
+      rate = 200.0;
     }
     auto period = std::chrono::duration<double>(1.0 / rate);
     timer_ = create_wall_timer(
@@ -225,7 +225,7 @@ private:
       }
     }
 
-    // Update robot pose from TF
+    // Update planning reference pose from TF
     if (!updateRobotPoseFromTF()) {
       return;
     }
@@ -256,11 +256,11 @@ private:
     geometry_msgs::msg::TransformStamped tf;
     try {
       tf = tf_buffer_->lookupTransform(
-        map_frame_, base_frame_,
+        map_frame_, laser_frame_,
         tf2::TimePointZero,
         tf2::durationFromSec(0.02));
     } catch (const tf2::TransformException & ex) {
-      RCLCPP_DEBUG(get_logger(), "Robot TF lookup failed: %s", ex.what());
+      RCLCPP_DEBUG(get_logger(), "Laser TF lookup failed: %s", ex.what());
       return false;
     }
 
@@ -283,8 +283,8 @@ private:
     }
 
     const double elapsed = (now() - speed_ramp_start_time_).seconds();
-    const double alpha = std::clamp(elapsed / 25.0, 0.0, 1.0);
-    return 0.2 + 0.8 * alpha;  // 20% -> 100% over 25 seconds
+    const double alpha = std::clamp(elapsed / 15.0, 0.0, 1.0);
+    return 0.5 + 0.5 * alpha;  // 50% -> 100% over 15 seconds
   }
 
   // ── Publishing ────────────────────────────────────────────────────
@@ -304,6 +304,8 @@ private:
       pose.pose.position.x = wp.x;
       pose.pose.position.y = wp.y;
       pose.pose.position.z = wp.vx * speed_scale;  // velocity encoded in z (controller convention)
+      pose.pose.orientation.x = wp.d_left;          // left wall distance encoded for MPC
+      pose.pose.orientation.y = wp.d_right;         // right wall distance encoded for MPC
       pose.pose.orientation.z = std::sin(wp.psi / 2.0);
       pose.pose.orientation.w = std::cos(wp.psi / 2.0);
       path_msg.poses.push_back(pose);
@@ -559,7 +561,6 @@ private:
 
   // Frame IDs
   std::string map_frame_;
-  std::string base_frame_;
   std::string laser_frame_;
 
   // TF

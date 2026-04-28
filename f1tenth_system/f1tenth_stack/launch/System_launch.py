@@ -11,6 +11,7 @@ from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node, LifecycleNode, ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 
@@ -41,11 +42,19 @@ def generate_launch_description():
     use_teleop_arg = LaunchConfiguration('use_teleop')
     use_lidar_arg = LaunchConfiguration('use_lidar')
     mapping_mode_arg = LaunchConfiguration('mapping_mode')
+    lidar_cluster_arg = LaunchConfiguration('lidar_cluster')
     lateral_planner_avoidance_enabled_arg = LaunchConfiguration('lateral_planner_avoidance_enabled')
+    lateral_planner_delay_sec_arg = LaunchConfiguration('lateral_planner_delay_sec')
     map_file_arg = LaunchConfiguration('map_file')
     bringup_delay_sec_arg = LaunchConfiguration('bringup_delay_sec')
     use_dynamic_bicycle_model_arg = LaunchConfiguration('use_dynamic_bicycle_model')
     old_odom_arg = LaunchConfiguration('oldOdom')
+    use_localization_arg = LaunchConfiguration('use_localization')
+    amcl_num_particles_arg = LaunchConfiguration('amcl_num_particles')
+    amcl_min_particles_arg = LaunchConfiguration('amcl_min_particles')
+    amcl_max_particles_arg = LaunchConfiguration('amcl_max_particles')
+    amcl_max_beams_arg = LaunchConfiguration('amcl_max_beams')
+    amcl_use_kld_arg = LaunchConfiguration('amcl_use_kld')
 
     return LaunchDescription([
 
@@ -82,10 +91,18 @@ def generate_launch_description():
                                 default_value='false',
                                 description='Mapping mode: 270 beams @ 20 Hz, no scan splitter or lateral planner'),
 
+        DeclareLaunchArgument(  'lidar_cluster',
+                                default_value='4',
+                                description='LiDAR clustering in racing mode: 1=1080 beams, 2=540, 4=270'),
+
         DeclareLaunchArgument(  'lateral_planner_avoidance_enabled',
                     default_value='true',
                     description='Enable lateral planner obstacle avoidance (false publishes baseline raceline)'),
-        
+
+        DeclareLaunchArgument(  'lateral_planner_delay_sec',
+                    default_value='2.0',
+                    description='Delay before starting the lateral planner after bringup starts (seconds)'),
+
         DeclareLaunchArgument(  'map_file', 
                                 default_value=default_map,
                                 description='Path to the map YAML file for map_server'),
@@ -104,6 +121,36 @@ def generate_launch_description():
             default_value='false',
             description='Use legacy analytical vesc_to_odom implementation'),
 
+        DeclareLaunchArgument(
+            'use_localization',
+            default_value='true',
+            description='Launch the GPU AMCL localization stack'),
+
+        DeclareLaunchArgument(
+            'amcl_num_particles',
+            default_value='1000',
+            description='GPU AMCL initial/fixed particle count'),
+
+        DeclareLaunchArgument(
+            'amcl_min_particles',
+            default_value='1000',
+            description='GPU AMCL minimum particle count'),
+
+        DeclareLaunchArgument(
+            'amcl_max_particles',
+            default_value='1000',
+            description='GPU AMCL maximum particle count'),
+
+        DeclareLaunchArgument(
+            'amcl_max_beams',
+            default_value='270',
+            description='GPU AMCL max beams sampled from each scan'),
+
+        DeclareLaunchArgument(
+            'amcl_use_kld',
+            default_value='false',
+            description='Enable GPU AMCL KLD adaptive particle sampling'),
+
 
         # ------------------------------- LOCALIZATION NODES -------------------------------
 
@@ -116,7 +163,15 @@ def generate_launch_description():
             parameters=[
                 localization_params_file_arg,
                 {'use_sim_time': use_sim_time_arg},
+                {
+                    'num_particles': ParameterValue(amcl_num_particles_arg, value_type=int),
+                    'min_particles': ParameterValue(amcl_min_particles_arg, value_type=int),
+                    'max_particles': ParameterValue(amcl_max_particles_arg, value_type=int),
+                    'max_beams': ParameterValue(amcl_max_beams_arg, value_type=int),
+                    'use_kld_sampling': ParameterValue(amcl_use_kld_arg, value_type=bool),
+                },
             ],
+            condition=IfCondition(use_localization_arg),
         ),
 
         # ── AMCL node ─────────────────────────────────────────────
@@ -129,6 +184,7 @@ def generate_launch_description():
                 localization_params_file_arg,
                 {'use_sim_time': use_sim_time_arg},
             ],
+            condition=IfCondition(use_localization_arg),
         ),
 
         # ── EKF node ──────────────────────────────────────────────
@@ -141,6 +197,7 @@ def generate_launch_description():
                 localization_params_file_arg,
                 {'use_sim_time': use_sim_time_arg},
             ],
+            condition=IfCondition(use_localization_arg),
         ),
 
 
@@ -289,7 +346,7 @@ def generate_launch_description():
                     executable='hokuyo_scip_driver_node',
                     name='hokuyo_scip_driver',
                     output='screen',
-                    parameters=[hokuyo_config, {'skip': 0}],
+                    parameters=[hokuyo_config, {'skip': 0, 'cluster': lidar_cluster_arg}],
                     condition=IfCondition(PythonExpression([
                         "'", use_lidar_arg, "' == 'true' and '",
                         mapping_mode_arg, "' != 'true'"
@@ -323,13 +380,18 @@ def generate_launch_description():
                 #  Lateral Planner — opponent avoidance → /local_raceline
                 # ══════════════════════
                 # Only launched in racing mode (mapping_mode=false).
-                IncludeLaunchDescription(
-                    PythonLaunchDescriptionSource(
-                        os.path.join(lateral_planner_pkg_dir, 'launch', 'lateral_planner.launch.py')
-                    ),
-                    launch_arguments={
-                        'avoidance_enabled': lateral_planner_avoidance_enabled_arg,
-                    }.items(),
+                TimerAction(
+                    period=lateral_planner_delay_sec_arg,
+                    actions=[
+                        IncludeLaunchDescription(
+                            PythonLaunchDescriptionSource(
+                                os.path.join(lateral_planner_pkg_dir, 'launch', 'lateral_planner.launch.py')
+                            ),
+                            launch_arguments={
+                                'avoidance_enabled': lateral_planner_avoidance_enabled_arg,
+                            }.items(),
+                        ),
+                    ],
                     condition=UnlessCondition(mapping_mode_arg),
                 ),
 
@@ -376,5 +438,3 @@ def generate_launch_description():
         ),
 
     ])
-
-
