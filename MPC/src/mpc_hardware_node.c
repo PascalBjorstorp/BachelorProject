@@ -88,6 +88,10 @@ static int g_ekf_pose_received = 0;
 
 /** Safety watchdog timeout [seconds] */
 static double g_watchdog_timeout_sec = 0.2;
+/** Low-speed braking inhibit threshold [m/s]. <=0 disables. */
+static double g_low_speed_brake_inhibit_vx = 0.7;
+/** Minimum allowed acceleration when braking is inhibited [m/s^2]. */
+static double g_low_speed_min_accel = 0.0;
 static struct timespec g_last_servo_time;
 /* Last published drive command (fallback uses these instead of forcing stop). */
 static float g_last_cmd_steer = 0.0f;
@@ -1108,6 +1112,21 @@ static void run_mpc_control_cycle(void)
             global_control_command.steer_ang = mpc_result.optimal_control.steer_ang;
             global_control_command.long_acc = mpc_result.optimal_control.long_acc;
 
+            /* Real hardware cannot reverse out of heading errors. A common failure mode
+             * is "brake to zero and get stuck" when the MPC decides stopping is the
+             * cheapest way to reduce lateral/heading error. Prevent full braking at
+             * very low speed so the vehicle keeps creeping forward and can steer back
+             * onto the local raceline. */
+            if (g_low_speed_brake_inhibit_vx > 0.0)
+            {
+                const double vx_abs = fabs(g_latest_vx);
+                if (isfinite(vx_abs) && vx_abs < g_low_speed_brake_inhibit_vx)
+                {
+                    if (global_control_command.long_acc < (float)g_low_speed_min_accel)
+                        global_control_command.long_acc = (float)g_low_speed_min_accel;
+                }
+            }
+
             /* Update servo tracking.
              * If steering feedback is available from VESC, it's already set by
              * the servo callback. Otherwise, simulate servo dynamics with rate limit. */
@@ -1301,6 +1320,16 @@ int main(int argc, char *argv[])
         {
             double timeout = atof(env_val);
             if (timeout > 0.0 && timeout <= 5.0) g_watchdog_timeout_sec = timeout;
+        }
+        if ((env_val = getenv("MPC_LOW_SPEED_BRAKE_INHIBIT_VX")) != NULL)
+        {
+            double v = atof(env_val);
+            if (v >= 0.0 && v <= 5.0) g_low_speed_brake_inhibit_vx = v;
+        }
+        if ((env_val = getenv("MPC_LOW_SPEED_MIN_ACCEL")) != NULL)
+        {
+            double a = atof(env_val);
+            if (a >= -VP_MAX_ACCEL_MPS2 && a <= VP_MAX_ACCEL_MPS2) g_low_speed_min_accel = a;
         }
         if ((env_val = getenv("MPC_EKF_TOPIC")) != NULL)
             g_ekf_pose_topic = env_val;

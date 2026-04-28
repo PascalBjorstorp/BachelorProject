@@ -21,7 +21,6 @@ from launch.actions import DeclareLaunchArgument, SetEnvironmentVariable
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
-
 def generate_launch_description():
     """
     Build the launch graph for the MPC hardware node.
@@ -83,6 +82,18 @@ def generate_launch_description():
         description='Safety watchdog timeout in seconds'
     )
 
+    low_speed_brake_inhibit_vx_arg = DeclareLaunchArgument(
+        'low_speed_brake_inhibit_vx',
+        default_value='0.7',
+        description='Disable braking below this speed (m/s). Set 0 to disable.'
+    )
+
+    low_speed_min_accel_arg = DeclareLaunchArgument(
+        'low_speed_min_accel',
+        default_value='0.0',
+        description='Minimum allowed accel when low-speed brake inhibit is active (m/s^2).'
+    )
+
     # Set environment variables for the MPC node
     set_use_local_raceline = SetEnvironmentVariable(
         'MPC_USE_LOCAL_RACELINE',
@@ -116,6 +127,14 @@ def generate_launch_description():
         'MPC_WATCHDOG_TIMEOUT',
         LaunchConfiguration('watchdog_timeout')
     )
+    set_low_speed_brake_inhibit_vx = SetEnvironmentVariable(
+        'MPC_LOW_SPEED_BRAKE_INHIBIT_VX',
+        LaunchConfiguration('low_speed_brake_inhibit_vx')
+    )
+    set_low_speed_min_accel = SetEnvironmentVariable(
+        'MPC_LOW_SPEED_MIN_ACCEL',
+        LaunchConfiguration('low_speed_min_accel')
+    )
     # MPC hardware node
     mpc_node = Node(
         package='mpc_riccati',
@@ -134,6 +153,8 @@ def generate_launch_description():
         pose_topic_arg,
         verbose_arg,
         watchdog_timeout_arg,
+        low_speed_brake_inhibit_vx_arg,
+        low_speed_min_accel_arg,
         set_use_local_raceline,
         set_local_raceline_topic,
         set_odom,
@@ -142,5 +163,7 @@ def generate_launch_description():
         set_pose,
         set_verbose,
         set_watchdog,
+        set_low_speed_brake_inhibit_vx,
+        set_low_speed_min_accel,
         mpc_node,
     ])
