@@ -135,6 +135,25 @@ def read_curvlim_from_racecar_ini(ini_path):
         return None
 
 
+def max_abs_kappa_from_tum_csv(csv_path):
+    """Return max absolute kappa from a TUM traj_race_cl.csv file."""
+    max_kappa = None
+    with open(csv_path, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            parts = [p.strip() for p in line.split(';')]
+            if len(parts) < 5:
+                continue
+            try:
+                kappa = abs(float(parts[4]))
+            except ValueError:
+                continue
+            max_kappa = kappa if max_kappa is None else max(max_kappa, kappa)
+    return max_kappa
+
+
 # =============================================================================
 #  Step 0 -- Map loading, boundary extraction, centerline, track widths
 # =============================================================================
@@ -1456,6 +1475,31 @@ def set_mintime_bool_option_in_main(main_py_path, option_name, enabled):
         f.write(content)
 
 
+def set_strict_curvlim_kappa_candidates(main_py_path, enabled):
+    """Force mintime reoptimization to use only curvlim as kappa bound."""
+    if not enabled:
+        return
+    with open(main_py_path, 'r') as f:
+        content = f.read()
+
+    replacement = (
+        'kappa_candidates = [pars["veh_params"]["curvlim"]] '
+        '# set by optimize_trajectory_mintime.py'
+    )
+    content, count = re.subn(
+        r'kappa_candidates\s*=\s*\[[^\]]*\]',
+        replacement,
+        content,
+        count=1,
+        flags=re.DOTALL,
+    )
+    if count != 1:
+        raise RuntimeError("Could not find kappa_candidates in main_globaltraj.py")
+
+    with open(main_py_path, 'w') as f:
+        f.write(content)
+
+
 def _original_prep_track_block():
     """Return TUM's original reference-track preparation block."""
     return [
@@ -1791,6 +1835,9 @@ def main():
         car_width=0.3,
         wall_clearance=0.10,
         max_ray_distance=8.0,
+
+        # Enforce curvature limit at all times
+        strict_curvlim=True,
     )
 
     # Verify map path
@@ -1799,8 +1846,15 @@ def main():
         sys.exit(1)
 
     curvlim = read_curvlim_from_racecar_ini(racecar_ini)
+    if args.strict_curvlim and (curvlim is None or curvlim <= 0.0):
+        print("ERROR: strict_curvlim enabled but curvlim is missing or invalid in racecar.ini")
+        sys.exit(1)
     if curvlim is None:
         print("  WARNING: curvlim not found in racecar.ini; smoothing guard disabled")
+
+    if args.strict_curvlim and not args.reopt_mintime_solution:
+        print("  INFO: strict_curvlim enabled; forcing reopt_mintime_solution=True")
+        args.reopt_mintime_solution = True
 
 
     track_name = args.track_name
@@ -1824,6 +1878,7 @@ def main():
     print(f"  Track name:       {track_name}")
     print(f"  Opt type:         {args.opt_type}")
     print(f"  Reopt mintime:    {args.reopt_mintime_solution}")
+    print(f"  Strict curvlim:   {args.strict_curvlim}")
     recalc_label = str(args.recalc_vel_profile_by_tph)
     print(f"  Recalc velocity:  {recalc_label}")
     print(f"  Max speed:        {args.max_speed} m/s")
@@ -1953,6 +2008,7 @@ def main():
             "recalc_vel_profile_by_tph",
             recalc_vel_profile,
         )
+        set_strict_curvlim_kappa_candidates(main_py, args.strict_curvlim)
         patch_main_to_load_prepared_track(main_py, prepared_track_npz)
         print("  Patched main_globaltraj.py: using prepared Step 0 splines")
         print(
@@ -1963,6 +2019,8 @@ def main():
             "  Patched main_globaltraj.py: "
             f"recalc_vel_profile_by_tph -> {recalc_vel_profile}"
         )
+        if args.strict_curvlim:
+            print("  Patched main_globaltraj.py: strict curvlim enabled")
 
         # Patch width_opt in racecar.ini: car_width + 2*wall_clearance
         # This ensures the optimizer keeps the raceline far enough
@@ -2022,6 +2080,19 @@ def main():
     if not os.path.exists(tum_output):
         print(f"  ERROR: TUM output not found: {tum_output}")
         sys.exit(1)
+
+    if args.strict_curvlim:
+        max_kappa = max_abs_kappa_from_tum_csv(tum_output)
+        if max_kappa is None:
+            print("  ERROR: Could not parse kappa from TUM output CSV")
+            sys.exit(1)
+        tol = 0.02
+        if max_kappa > curvlim * (1.0 + tol):
+            print(
+                "  ERROR: TUM output exceeds curvlim "
+                f"({max_kappa:.3f} > {curvlim:.3f} rad/m)"
+            )
+            sys.exit(1)
 
     # ---- Step 2: Convert to MPC format --------------------------------------
     print(f"\n{'=' * 64}")
