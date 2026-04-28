@@ -28,11 +28,11 @@ from launch_ros.actions import Node
 
 HARDWARE_TUNING_DEFAULTS = [
     ("horizon", "HORIZON", "20", "Prediction horizon steps"),
-    ("dt", "DT", "0.05", "Prediction time step in seconds"),
+    ("dt", "DT", "0.03", "Prediction time step in seconds"),
     ("q_contouring", "Q_CONTOURING", "960.0", "Contouring weight"),
-    ("q_lag", "Q_LAG", "100.0", "Lag weight"),
+    ("q_lag", "Q_LAG", "200.0", "Lag weight"),
     ("q_progress", "Q_PROGRESS", "15.6", "Progress reward"),
-    ("q_vx", "Q_VX", "0.0", "Longitudinal velocity tracking weight"),
+    ("q_vx", "Q_VX", "50.0", "Longitudinal velocity tracking weight"),
     ("vx_ref", "VX_REF", "4.0", "Reference longitudinal velocity"),
     (
         "use_raceline_vx_ref",
@@ -53,11 +53,11 @@ HARDWARE_TUNING_DEFAULTS = [
         "Multiplier for CSV velocity speed limit when enabled",
     ),
     ("q_vy", "Q_VY", "0.5", "Lateral velocity regularization weight"),
-    ("q_omega", "Q_OMEGA", "0.3", "Yaw-rate regularization weight"),
-    ("r_delta", "R_DELTA", "160.0", "Steering effort weight"),
+    ("q_omega", "Q_OMEGA", "1.5", "Yaw-rate regularization weight"),
+    ("r_delta", "R_DELTA", "200.0", "Steering effort weight"),
     ("r_ax", "R_AX", "0.05225", "Acceleration effort weight"),
     ("r_vtheta", "R_VTHETA", "0.1", "Virtual progress effort weight"),
-    ("w_delta_rate", "W_DELTA_RATE", "3.0", "Steering rate weight"),
+    ("w_delta_rate", "W_DELTA_RATE", "10.0", "Steering rate weight"),
     ("w_ax_rate", "W_AX_RATE", "0.488", "Acceleration rate weight"),
     ("w_vtheta_rate", "W_VTHETA_RATE", "0.1105", "Virtual progress rate weight"),
     ("q_contouring_term", "Q_CONTOURING_TERM", "4800.0", "Terminal contouring weight"),
@@ -66,11 +66,11 @@ HARDWARE_TUNING_DEFAULTS = [
     ("admm_rho", "ADMM_RHO", "5.0", "ADMM penalty parameter"),
     ("admm_max_iter", "ADMM_MAX_ITER", "300", "ADMM maximum iterations"),
     ("admm_tol", "ADMM_TOL", "0.02", "ADMM convergence tolerance"),
-    ("v_theta_max", "V_THETA_MAX", "8.0", "Maximum virtual progress speed"),
+    ("v_theta_max", "V_THETA_MAX", "10.0", "Maximum virtual progress speed"),
     (
         "cross_call_scale",
         "MPCC_CROSS_CALL_SCALE",
-        "0.1",
+        "0.166667",
         "Rate-scaling factor for the hardware-safe high-rate solve cadence",
     ),
     (

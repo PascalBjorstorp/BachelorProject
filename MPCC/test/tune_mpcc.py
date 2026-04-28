@@ -3,7 +3,7 @@
 MPCC Weight Tuning — Locked Horizon/DT
 =======================================
 Sweeps MPCC controller weights with safer-region defaults locked.
-Default prediction window: 20 × 0.03 = 0.60 s.
+Default prediction window: 30 × 0.05 = 1.50 s.
 Override with MPCC_TUNE_HORIZON / MPCC_TUNE_DT if needed.
 
 Objective: maximize average speed with ZERO wall collisions (hard constraint).
@@ -97,7 +97,7 @@ BASE_CONFIG = {
     "ADMM_TOL":          0.02,
 
     # Keep path-progress authority available even when vx targets are conservative.
-    "V_THETA_MAX":       8.0,
+    "V_THETA_MAX":       10.0,
 
     # LOCKED — not swept
     "HORIZON":           LOCKED_HORIZON,
