@@ -87,9 +87,6 @@ static int g_verbose = 1;
 
 /** Set to 1 once the first EKF pose message has been received. */
 static int g_ekf_pose_received = 0;
-/** Header stamp of the EKF sample currently driving the MPC command. */
-static int32_t g_latest_ekf_stamp_sec = 0;
-static uint32_t g_latest_ekf_stamp_nanosec = 0U;
 
 /** Safety watchdog timeout [seconds] */
 static double g_watchdog_timeout_sec = 0.2;
@@ -170,6 +167,42 @@ static double g_solve_time_sum_us = 0.0;
 static double g_solve_time_max_us = 0.0;
 static unsigned long g_solve_cycle_count = 0;
 #define SOLVE_STATS_PRINT_INTERVAL 500
+
+/** Hardware node operation timing CSV logging */
+static FILE *g_timing_log_file = NULL;
+static unsigned long g_timing_log_index = 0;
+
+/** Per-operation invocation counters for CSV index field */
+static unsigned long g_idx_odom_cb = 0;
+static unsigned long g_idx_servo_cb = 0;
+static unsigned long g_idx_local_raceline_cb = 0;
+static unsigned long g_idx_frenet_convert = 0;
+static unsigned long g_idx_ref_build = 0;
+static unsigned long g_idx_drive_publish = 0;
+static unsigned long g_idx_cycle_total = 0;
+
+/**
+ * @brief Log operation timing to CSV file.
+ * @param operation_name Name of the operation (e.g., "odometry_cb").
+ * @param idx Operation invocation index.
+ * @param elapsed_us Elapsed time in microseconds.
+ */
+static void log_timing_to_csv(const char *operation_name, unsigned long idx, double elapsed_us)
+{
+    if (g_timing_log_file == NULL) return;
+    
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    long long unix_time_ns = ((long long)ts.tv_sec * 1000000000LL) + (long long)ts.tv_nsec;
+    
+    fprintf(g_timing_log_file, "%lu,%lld,%s,%lu,%.3f\n",
+            g_timing_log_index++, unix_time_ns, operation_name, idx, elapsed_us);
+    
+    /* Flush every 50 operations to balance I/O and data safety */
+    if ((g_timing_log_index % 50) == 0) {
+        fflush(g_timing_log_file);
+    }
+}
 
 /** Optional solver telemetry logging for post-drive analysis. */
 static FILE *g_solver_log_file = NULL;
@@ -727,7 +760,12 @@ static void convert_to_frenet_state(
  */
 void local_raceline_callback(const void *message_in)
 {
-    if (message_in == NULL) return;
+    struct timespec t_start, t_end;
+    clock_gettime(CLOCK_MONOTONIC, &t_start);
+    
+    if (message_in == NULL) {
+        return;
+    }
 
     const nav_msgs__msg__Path *msg =
         (const nav_msgs__msg__Path *)message_in;
@@ -893,6 +931,12 @@ void local_raceline_callback(const void *message_in)
         printf("[MPC] Local raceline updated: %zu waypoints, length=%.2f m\n",
                waypoint_count, cumulative_s);
     }
+    
+    clock_gettime(CLOCK_MONOTONIC, &t_end);
+    double elapsed_us = (t_end.tv_sec - t_start.tv_sec) * 1e6 +
+                        (t_end.tv_nsec - t_start.tv_nsec) / 1e3;
+    g_idx_local_raceline_cb++;
+    log_timing_to_csv("local_raceline_cb", g_idx_local_raceline_cb, elapsed_us);
 }
 
 static void run_mpc_control_cycle(void);
@@ -903,7 +947,12 @@ static void run_mpc_control_cycle(void);
 
 void odometry_subscription_callback(const void *message_in)
 {
-    if (message_in == NULL) return;
+    struct timespec t_start, t_end;
+    clock_gettime(CLOCK_MONOTONIC, &t_start);
+    
+    if (message_in == NULL) {
+        return;
+    }
 
     const nav_msgs__msg__Odometry *odom =
         (const nav_msgs__msg__Odometry *)message_in;
@@ -918,6 +967,12 @@ void odometry_subscription_callback(const void *message_in)
 
     g_odometry_received = 1;
     g_odom_wait_logged = 0;
+    
+    clock_gettime(CLOCK_MONOTONIC, &t_end);
+    double elapsed_us = (t_end.tv_sec - t_start.tv_sec) * 1e6 +
+                        (t_end.tv_nsec - t_start.tv_nsec) / 1e3;
+    g_idx_odom_cb++;
+    log_timing_to_csv("odometry_cb", g_idx_odom_cb, elapsed_us);
 }
 
 /*===========================================================================
@@ -932,7 +987,12 @@ void odometry_subscription_callback(const void *message_in)
 
 void servo_feedback_callback(const void *message_in)
 {
-    if (message_in == NULL) return;
+    struct timespec t_start, t_end;
+    clock_gettime(CLOCK_MONOTONIC, &t_start);
+    
+    if (message_in == NULL) {
+        return;
+    }
 
     const std_msgs__msg__Float64 *msg =
         (const std_msgs__msg__Float64 *)message_in;
@@ -988,6 +1048,12 @@ void servo_feedback_callback(const void *message_in)
         printf("[MPC] Servo feedback: servo_val=%.3f -> delta=%.4f rad\n",
                servo_val, global_actual_steering_angle);
     }
+    
+    clock_gettime(CLOCK_MONOTONIC, &t_end);
+    double elapsed_us = (t_end.tv_sec - t_start.tv_sec) * 1e6 +
+                        (t_end.tv_nsec - t_start.tv_nsec) / 1e3;
+    g_idx_servo_cb++;
+    log_timing_to_csv("servo_cb", g_idx_servo_cb, elapsed_us);
 }
 
 /*===========================================================================
@@ -1027,8 +1093,6 @@ void ekf_pose_callback(const void *message_in)
     g_latest_pos_x   = pos_x;
     g_latest_pos_y   = pos_y;
     g_latest_heading = heading;
-    g_latest_ekf_stamp_sec = msg->header.stamp.sec;
-    g_latest_ekf_stamp_nanosec = msg->header.stamp.nanosec;
     g_ekf_state_received = 1;
 
     if (!g_ekf_pose_received) {
@@ -1060,6 +1124,9 @@ void ekf_pose_callback(const void *message_in)
 
 static void run_mpc_control_cycle(void)
 {
+    struct timespec t_cycle_start, t_ref_end, t_frenet_end, t_publish_end;
+    clock_gettime(CLOCK_MONOTONIC, &t_cycle_start);
+    
     double pos_x = g_latest_pos_x;
     double pos_y = g_latest_pos_y;
     double heading = g_latest_heading;
@@ -1122,9 +1189,26 @@ static void run_mpc_control_cycle(void)
         double left_wall0 = 0.0, right_wall0 = 0.0;
 
         closest = find_closest_waypoint_local(pos_x, pos_y, heading);
+        
+        /* ===== Instrument: build_reference_from_local_raceline ===== */
+        struct timespec t_ref_start;
+        clock_gettime(CLOCK_MONOTONIC, &t_ref_start);
         build_reference_from_local_raceline(closest);
+        clock_gettime(CLOCK_MONOTONIC, &t_ref_end);
+        double ref_build_us = (t_ref_end.tv_sec - t_ref_start.tv_sec) * 1e6 +
+                              (t_ref_end.tv_nsec - t_ref_start.tv_nsec) / 1e3;
+        g_idx_ref_build++;
+        log_timing_to_csv("ref_build", g_idx_ref_build, ref_build_us);
 
+        /* ===== Instrument: convert_to_frenet_state ===== */
+        struct timespec t_frenet_start;
+        clock_gettime(CLOCK_MONOTONIC, &t_frenet_start);
         convert_to_frenet_state(pos_x, pos_y, heading, closest, &global_frenet_state);
+        clock_gettime(CLOCK_MONOTONIC, &t_frenet_end);
+        double frenet_us = (t_frenet_end.tv_sec - t_frenet_start.tv_sec) * 1e6 +
+                           (t_frenet_end.tv_nsec - t_frenet_start.tv_nsec) / 1e3;
+        g_idx_frenet_convert++;
+        log_timing_to_csv("frenet_convert", g_idx_frenet_convert, frenet_us);
 
         ey = global_frenet_state.flat_error;
         epsi = global_frenet_state.fhead_error;
@@ -1319,9 +1403,9 @@ static void run_mpc_control_cycle(void)
 
     /* Publish drive command */
     {
-        global_drive_message_buffer.header.stamp.sec = g_latest_ekf_stamp_sec;
-        global_drive_message_buffer.header.stamp.nanosec = g_latest_ekf_stamp_nanosec;
-
+        struct timespec t_pub_start;
+        clock_gettime(CLOCK_MONOTONIC, &t_pub_start);
+        
         global_drive_message_buffer.drive.steering_angle =
             global_control_command.steer_ang;
 
@@ -1367,7 +1451,22 @@ static void run_mpc_control_cycle(void)
 
         rcl_ret_t pub_rc __attribute__((unused)) =
             rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);
+        
+        struct timespec t_pub_end;
+        clock_gettime(CLOCK_MONOTONIC, &t_pub_end);
+        double pub_us = (t_pub_end.tv_sec - t_pub_start.tv_sec) * 1e6 +
+                        (t_pub_end.tv_nsec - t_pub_start.tv_nsec) / 1e3;
+        g_idx_drive_publish++;
+        log_timing_to_csv("drive_publish", g_idx_drive_publish, pub_us);
     }
+    
+    /* Log total cycle time */
+    struct timespec t_cycle_end;
+    clock_gettime(CLOCK_MONOTONIC, &t_cycle_end);
+    double cycle_total_us = (t_cycle_end.tv_sec - t_cycle_start.tv_sec) * 1e6 +
+                            (t_cycle_end.tv_nsec - t_cycle_start.tv_nsec) / 1e3;
+    g_idx_cycle_total++;
+    log_timing_to_csv("cycle_total", g_idx_cycle_total, cycle_total_us);
 }
 
 /*===========================================================================
@@ -1477,6 +1576,37 @@ int main(int argc, char *argv[])
                     "cmd_steer,cmd_accel,cmd_speed,v_cmd,actual_steer,use_steering_feedback\n");
             fflush(g_solver_log_file);
             printf("[MPC] Solver telemetry log: %s (every control callback)\n", log_path);
+        }
+    }
+
+    /* Open timing instrumentation log */
+    {
+        const char *timing_log_path = getenv("MPC_TIMING_LOG");
+        char default_timing_log_path[256];
+
+        if (timing_log_path == NULL || timing_log_path[0] == '\0')
+        {
+            time_t now = time(NULL);
+            struct tm tm_now;
+            localtime_r(&now, &tm_now);
+            strftime(default_timing_log_path, sizeof(default_timing_log_path),
+                     "log/mpc_timing_%Y%m%d_%H%M%S.csv", &tm_now);
+            timing_log_path = default_timing_log_path;
+        }
+
+        ensure_parent_directories(timing_log_path);
+
+        g_timing_log_file = fopen(timing_log_path, "w");
+        if (g_timing_log_file == NULL)
+        {
+            fprintf(stderr, "[MPC] WARNING: Failed to open timing log file %s\n", timing_log_path);
+        }
+        else
+        {
+            fprintf(g_timing_log_file,
+                    "idx,unix_time_ns,operation,invocation,elapsed_us\n");
+            fflush(g_timing_log_file);
+            printf("[MPC] Hardware node timing log: %s (all operations)\n", timing_log_path);
         }
     }
 
@@ -1740,6 +1870,12 @@ int main(int argc, char *argv[])
         fflush(g_solver_log_file);
         fclose(g_solver_log_file);
         g_solver_log_file = NULL;
+    }
+    if (g_timing_log_file != NULL)
+    {
+        fflush(g_timing_log_file);
+        fclose(g_timing_log_file);
+        g_timing_log_file = NULL;
     }
 
     nav_msgs__msg__Odometry__fini(&global_odometry_message_buffer);
