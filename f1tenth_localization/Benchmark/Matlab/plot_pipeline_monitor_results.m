@@ -9,46 +9,62 @@ close all;
 %   plotsRootDir - output root for PNG plots
 %   showPlots    - true: save and show figures, false: save only
 
+% Get script directory - handle both file and editor temporary paths
 scriptDir = fileparts(mfilename('fullpath'));
 plotFunctionsDir = fullfile(scriptDir, 'matlab plotting functions');
-addpath(plotFunctionsDir);
 
-defaultCsvRootDir = fullfile(scriptDir, 'csv');
-defaultPlotsRootDir = fullfile(scriptDir, 'plots');
-
-if ~exist('csvRootDir', 'var') || isempty(csvRootDir)
-    csvRootDir = defaultCsvRootDir;
-end
-if ~exist('plotsRootDir', 'var') || isempty(plotsRootDir)
-    plotsRootDir = defaultPlotsRootDir;
-end
-if ~exist('showPlots', 'var') || isempty(showPlots)
-    showPlots = true;
-end
-
-csvRootDir = stripTrailingSeparator(csvRootDir);
-plotsRootDir = stripTrailingSeparator(plotsRootDir);
-
-%% Find CSV runs
-csvRuns = discoverCsvRunFolders(csvRootDir);
-
-fprintf('CSV search folder : %s\n', csvRootDir);
-fprintf('Found %d CSV run folder(s).\n', numel(csvRuns));
-
-if ~exist('csvDir', 'var') || isempty(csvDir)
-    if isempty(csvRuns)
-        error('No CSV run folders found under %s', csvRootDir);
+% If the functions directory doesn't exist (editor temp path), use current working directory
+if ~isfolder(plotFunctionsDir)
+    % Try current working directory
+    scriptDir = pwd;
+    plotFunctionsDir = fullfile(scriptDir, 'matlab plotting functions');
+    
+    % If still not found, try looking for 'csv' folder to infer the correct directory
+    if ~isfolder(plotFunctionsDir) && ~isfolder(fullfile(scriptDir, 'csv'))
+        % Search up one level
+        parentDir = fileparts(scriptDir);
+        if isfolder(fullfile(parentDir, 'matlab plotting functions'))
+            scriptDir = parentDir;
+            plotFunctionsDir = fullfile(scriptDir, 'matlab plotting functions');
+        end
     end
-    csvDir = csvRuns(1).path;
-    fprintf('No csvDir supplied; using latest CSV run folder.\n');
 end
 
-if ~exist('topicCsvDir', 'var') || isempty(topicCsvDir)
-    topicCsvDir = csvDir;
+if isfolder(plotFunctionsDir)
+    addpath(plotFunctionsDir);
+else
+    warning('Could not find matlab plotting functions directory at %s', plotFunctionsDir);
 end
 
-csvDir = stripTrailingSeparator(csvDir);
-topicCsvDir = stripTrailingSeparator(topicCsvDir);
+% Add relative paths
+if isfolder(fullfile(scriptDir, 'csv'))
+    addpath(fullfile(scriptDir, 'csv'));
+end
+if isfolder(fullfile(scriptDir, 'plots'))
+    addpath(fullfile(scriptDir, 'plots'));
+end
+
+% ===== HARDCODED PATHS =====
+% Input CSV folder (relative to script directory)
+csvDir = fullfile(scriptDir, 'csv', 'TestRun');
+
+% Output plots root directory (relative to script directory)
+plotsRootDir = fullfile(scriptDir, 'plots');
+
+% Show plots flag
+showPlots = true;
+
+% ===== END HARDCODED PATHS =====
+
+if ~isdir(csvDir)
+    error('Input CSV directory does not exist: %s\nMake sure you are running this script from the Matlab folder or set your working directory to: %s', csvDir, fullfile(scriptDir, '..', '..'));
+end
+
+if ~isdir(plotsRootDir)
+    error('Output plots directory does not exist: %s', plotsRootDir);
+end
+
+topicCsvDir = csvDir;
 
 fprintf('Input CSV folder  : %s\n', csvDir);
 fprintf('Topic CSV folder  : %s\n', topicCsvDir);
