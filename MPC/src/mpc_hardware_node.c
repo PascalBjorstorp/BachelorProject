@@ -302,6 +302,8 @@ static double wrap_angle_pi(double angle)
 
 /**
  * @brief Build MPC reference directly from latest local raceline topic points.
+ * Computes arc-length lookahead using reference velocity (not actual velocity)
+ * so the horizon is never "blind" when the car momentarily stops.
  * @return None.
  */
 static void build_reference_from_local_raceline(void)
@@ -311,14 +313,39 @@ static void build_reference_from_local_raceline(void)
         return;
     }
 
+    /* Get MPC parameters for time step */
+    const MpcConfiguration_t cfg = mpc_get_configuration();
+    const double dt = (cfg.time_step > 0.0f) ? (double)cfg.time_step : (double)TIME_STEP_SECONDS;
+    
+    /* Use v_ref at current position (step 0) to compute lookahead arc-length.
+     * This ensures the horizon is always computed from a valid reference speed,
+     * not from actual velocity which may momentarily be zero. */
+    double v_ref_base = (double)global_trajectory[0].velocity_meters_per_second;
+    if (v_ref_base <= 0.0) v_ref_base = MIN_TRAJECTORY_SPEED_MPS;
+    
+    /* For each horizon step, compute the arc-length position and fill reference trajectory */
     for (int step = 0; step < PREDICTION_HORIZON; step++)
     {
-        int idx = step;
-        if (idx >= global_trajectory_count)
+        /* Compute cumulative arc-length at this step: s = v_ref * dt * step */
+        double target_s = v_ref_base * dt * (double)step;
+        
+        /* Find the waypoint at (or closest to) this arc-length */
+        int idx = 0;
+        for (int i = 0; i < global_trajectory_count - 1; i++)
+        {
+            if (global_trajectory[i].s_meters <= target_s &&
+                global_trajectory[i + 1].s_meters > target_s)
+            {
+                idx = i;
+                break;
+            }
+        }
+        /* Clamp to last waypoint if beyond track end */
+        if (idx >= global_trajectory_count - 1)
         {
             idx = global_trajectory_count - 1;
         }
-
+        
         const TrajectoryWaypoint_t *wp = &global_trajectory[idx];
         const double traj_vel = wp->velocity_meters_per_second;
 

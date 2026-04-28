@@ -206,6 +206,7 @@ void vehicle_model_compute_frenet_linearization(
     const ControlInput_t *operating_control,
     float time_step,
     float path_curvature,
+    float reference_velocity,
     float state_matrix_A[NX_FRENET][NX_FRENET],
     float input_matrix_B[NX_FRENET][2]);
 
