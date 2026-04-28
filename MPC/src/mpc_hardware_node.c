@@ -305,7 +305,128 @@ static double wrap_angle_pi(double angle)
  *===========================================================================*/
 
 /**
- * @brief Build MPC reference directly from the latest /local_raceline points.
+ * @brief Find the closest forward-relevant waypoint in the latest local raceline.
+ *
+ * The lateral planner often publishes a segment that starts ahead of the car
+ * (see PATH_START_OFFSET_POINTS). Using index 0 as the closest point can
+ * create large artificial tracking errors (e_y/e_psi) → MPC brakes hard and
+ * appears "stuck" on real hardware (especially in accel-to-current mode).
+ *
+ * @param position_x Vehicle x-position in map frame (m).
+ * @param position_y Vehicle y-position in map frame (m).
+ * @param vehicle_heading Vehicle heading in map frame (rad).
+ * @return Closest waypoint index (0..global_trajectory_count-1).
+ */
+static int find_closest_waypoint_local(double position_x, double position_y, double vehicle_heading)
+{
+    if (global_trajectory_count <= 0)
+    {
+        return 0;
+    }
+
+    int best_index = 0;
+    double best_score = 1e18;
+    const double veh_dx = cos(vehicle_heading);
+    const double veh_dy = sin(vehicle_heading);
+
+    for (int i = 0; i < global_trajectory_count; i++)
+    {
+        const double dx = global_trajectory[i].x_meters - position_x;
+        const double dy = global_trajectory[i].y_meters - position_y;
+        const double dist2 = dx * dx + dy * dy;
+
+        /* Penalize points behind the vehicle. */
+        const double dot = dx * veh_dx + dy * veh_dy;
+        const double score = dist2 + ((dot < 0.0) ? 4.0 : 0.0); /* +2m equiv penalty */
+
+        if (score < best_score)
+        {
+            best_score = score;
+            best_index = i;
+        }
+    }
+
+    return best_index;
+}
+
+/**
+ * @brief Interpolate local raceline waypoint at an arbitrary arc-length.
+ *
+ * Unlike the simulator's global raceline, the local raceline segment is not
+ * assumed to wrap (open interval). Query is clamped to [s_first, s_last].
+ *
+ * @param s_query Arc-length coordinate in meters.
+ * @param out Destination waypoint pointer.
+ * @return None.
+ */
+static void sample_waypoint_by_s_local(double s_query, TrajectoryWaypoint_t *out)
+{
+    if (out == NULL || global_trajectory_count <= 0)
+    {
+        return;
+    }
+
+    if (global_trajectory_count == 1)
+    {
+        *out = global_trajectory[0];
+        out->s_meters = s_query;
+        return;
+    }
+
+    const double s_first = global_trajectory[0].s_meters;
+    const double s_last = global_trajectory[global_trajectory_count - 1].s_meters;
+    double s = s_query;
+    if (s <= s_first)
+    {
+        *out = global_trajectory[0];
+        out->s_meters = s;
+        return;
+    }
+    if (s >= s_last)
+    {
+        *out = global_trajectory[global_trajectory_count - 1];
+        out->s_meters = s;
+        return;
+    }
+
+    for (int i = 0; i < global_trajectory_count - 1; i++)
+    {
+        TrajectoryWaypoint_t *w0 = &global_trajectory[i];
+        TrajectoryWaypoint_t *w1 = &global_trajectory[i + 1];
+        if (s >= w0->s_meters && s <= w1->s_meters)
+        {
+            const double denom = w1->s_meters - w0->s_meters;
+            const double t = (denom > 1e-9) ? ((s - w0->s_meters) / denom) : 0.0;
+
+            *out = *w0;
+            out->s_meters = s;
+            out->x_meters = w0->x_meters + (w1->x_meters - w0->x_meters) * t;
+            out->y_meters = w0->y_meters + (w1->y_meters - w0->y_meters) * t;
+            {
+                double dh = w1->heading_radians - w0->heading_radians;
+                while (dh > M_PI) dh -= TWO_PI;
+                while (dh < -M_PI) dh += TWO_PI;
+                out->heading_radians = w0->heading_radians + t * dh;
+            }
+            out->curvature_radians_per_meter =
+                w0->curvature_radians_per_meter +
+                (w1->curvature_radians_per_meter - w0->curvature_radians_per_meter) * t;
+            out->velocity_meters_per_second =
+                w0->velocity_meters_per_second +
+                (w1->velocity_meters_per_second - w0->velocity_meters_per_second) * t;
+            out->left_bound_meters = w0->left_bound_meters + (w1->left_bound_meters - w0->left_bound_meters) * t;
+            out->right_bound_meters = w0->right_bound_meters + (w1->right_bound_meters - w0->right_bound_meters) * t;
+            return;
+        }
+    }
+
+    /* Fallback (should not hit if s is within bounds). */
+    *out = global_trajectory[global_trajectory_count - 1];
+    out->s_meters = s;
+}
+
+/**
+ * @brief Build MPC reference from the latest /local_raceline (s-interpolated).
  *
  * The lateral planner publishes a local (vehicle-anchored) path segment that
  * already represents the intended horizon ahead. In this mode we should not
@@ -315,33 +436,38 @@ static double wrap_angle_pi(double angle)
  *
  * @return None.
  */
-static void build_reference_from_local_raceline(void)
+static void build_reference_from_local_raceline(int closest_index)
 {
     if (global_trajectory_count <= 0)
     {
         return;
     }
 
+    if (closest_index < 0) closest_index = 0;
+    if (closest_index >= global_trajectory_count) closest_index = global_trajectory_count - 1;
+
+    const MpcConfiguration_t cfg = mpc_get_configuration();
+    const double pred_dt = (cfg.time_step > 0.0f) ? (double)cfg.time_step : (double)TIME_STEP_SECONDS;
+    double s_query = global_trajectory[closest_index].s_meters;
+    double step_velocity = global_trajectory[closest_index].velocity_meters_per_second;
+
     for (int step = 0; step < PREDICTION_HORIZON; step++)
     {
-        int idx = step;
-        if (idx >= global_trajectory_count)
-        {
-            idx = global_trajectory_count - 1;
-        }
-
-        const TrajectoryWaypoint_t *wp = &global_trajectory[idx];
-        const double traj_vel = wp->velocity_meters_per_second;
+        s_query += step_velocity * pred_dt;
+        TrajectoryWaypoint_t wp = {0};
+        sample_waypoint_by_s_local(s_query, &wp);
+        const double traj_vel = wp.velocity_meters_per_second;
+        step_velocity = traj_vel;
 
         global_reference_trajectory[step].reference_lateral_error = 0;
         global_reference_trajectory[step].reference_heading_error = 0;
-        global_reference_trajectory[step].path_curvature = wp->curvature_radians_per_meter;
-        global_reference_trajectory[step].left_wall_bound = wp->left_bound_meters;
-        global_reference_trajectory[step].right_wall_bound = wp->right_bound_meters;
+        global_reference_trajectory[step].path_curvature = wp.curvature_radians_per_meter;
+        global_reference_trajectory[step].left_wall_bound = wp.left_bound_meters;
+        global_reference_trajectory[step].right_wall_bound = wp.right_bound_meters;
         global_reference_trajectory[step].reference_velocity = traj_vel;
         global_reference_trajectory[step].reference_lateral_velocity = 0;
         global_reference_trajectory[step].reference_yaw_rate =
-            wp->curvature_radians_per_meter * traj_vel;
+            wp.curvature_radians_per_meter * traj_vel;
     }
 }
 
@@ -854,8 +980,8 @@ static void run_mpc_control_cycle(void)
         double vref0 = 0.0, kappa0 = 0.0;
         double left_wall0 = 0.0, right_wall0 = 0.0;
 
-        closest = 0;
-        build_reference_from_local_raceline();
+        closest = find_closest_waypoint_local(pos_x, pos_y, heading);
+        build_reference_from_local_raceline(closest);
 
         convert_to_frenet_state(pos_x, pos_y, heading, closest, &global_frenet_state);
 
@@ -918,19 +1044,11 @@ static void run_mpc_control_cycle(void)
                     servo_feedback_fresh = 1;
             }
 
-            /* Pass MPC output, but limit excessive braking for small heading errors. */
-            global_control_command.steer_ang = mpc_result.optimal_control.steer_ang;
-
-            /* Adjust longitudinal accel to avoid full-stop behavior when
-             * heading error is small. Tunable thresholds below. */
-            double cmd_long_acc = mpc_result.optimal_control.long_acc;
-            const double HEADING_BRAKE_THRESH = 0.25; /* rad (~14°) */
-            const double MAX_BRAKE_WHEN_LARGE_HEADING = -1.0; /* m/s^2 */
-            if (fabs(epsi) > HEADING_BRAKE_THRESH && cmd_long_acc < MAX_BRAKE_WHEN_LARGE_HEADING) {
-                cmd_long_acc = MAX_BRAKE_WHEN_LARGE_HEADING;
-                if (g_verbose) printf("[MPC] Adjusted long_acc to %.3f due large heading error %.3f\n", cmd_long_acc, epsi);
-            }
-            global_control_command.long_acc = cmd_long_acc;
+            /* Pass MPC output directly — no clamping, no bias, no softening. */
+            global_control_command.steer_ang =
+                mpc_result.optimal_control.steer_ang;
+            global_control_command.long_acc =
+                mpc_result.optimal_control.long_acc;
 
             /* Update servo tracking.
              * If steering feedback is available from VESC, it's already set by
@@ -948,13 +1066,14 @@ static void run_mpc_control_cycle(void)
             {
                 ControlInput_t actual_ctrl;
                 actual_ctrl.steer_ang = global_actual_steering_angle;
-                actual_ctrl.long_acc = global_control_command.long_acc;
+                actual_ctrl.long_acc = mpc_result.optimal_control.long_acc;
                 mpc_set_actual_previous_control(&actual_ctrl);
             }
 
             if (g_verbose && g_solver_log_file == NULL)
             {
-                double accel = global_control_command.long_acc;
+                double accel =
+                    mpc_result.optimal_control.long_acc;
                 printf("[MPC] Control: steer=%.4f accel=%.2f (status=%d iter=%d pr=%.3e dr=%.3e solve=%.1fus)\n",
                        steer, accel, mpc_status, mpc_result.iterations_used, primal_res, dual_res, solve_us);
             }
@@ -963,7 +1082,8 @@ static void run_mpc_control_cycle(void)
                 const MpcConfiguration_t cfg = mpc_get_configuration();
                 const double pred_dt = (cfg.time_step > 0.0f)
                     ? (double)cfg.time_step : (double)TIME_STEP_SECONDS;
-                double cmd_speed = g_latest_vx + ((double)global_control_command.long_acc * pred_dt);
+                double cmd_speed = g_latest_vx +
+                    ((double)mpc_result.optimal_control.long_acc * pred_dt);
                 if (cmd_speed < (double)VP_MIN_VELOCITY_MPS)
                     cmd_speed = (double)VP_MIN_VELOCITY_MPS;
                 if (cmd_speed > (double)TRAJECTORY_MAXIMUM_VELOCITY)
@@ -995,7 +1115,7 @@ static void run_mpc_control_cycle(void)
                         left_wall0,
                         right_wall0,
                         mpc_result.optimal_control.steer_ang,
-                        global_control_command.long_acc,
+                        mpc_result.optimal_control.long_acc,
                         cmd_speed,
                         global_actual_steering_angle,
                         g_use_steering_feedback);
