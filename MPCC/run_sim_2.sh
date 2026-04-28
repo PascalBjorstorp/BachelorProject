@@ -23,7 +23,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 DURATION_SECONDS="${1:-120}"
-TRAJECTORY_FILE="${2:-${ROOT_DIR}/MPC/trajectories/my_track_raceline.csv}"
+TRAJECTORY_FILE="${2:-${ROOT_DIR}/f1tenth_planning/trajectories/my_track_centerline.csv}"
 
 # Resolve to an absolute path so ROS2 nodes can find the trajectory regardless of cwd.
 if [[ "${TRAJECTORY_FILE}" != /* ]]; then
@@ -135,9 +135,9 @@ fi
 
 export GYM_MAP_PATH="${GYM_MAP_PATH:-${DEFAULT_GYM_MAP_PATH}}"
 export GYM_MAP_IMG_EXT="${GYM_MAP_IMG_EXT:-${DEFAULT_GYM_MAP_IMG_EXT}}"
-export GYM_SX="${GYM_SX:-${TRAJ_SX:-0.0}}"
-export GYM_SY="${GYM_SY:-${TRAJ_SY:-0.0}}"
-export GYM_STHETA="${GYM_STHETA:-${TRAJ_STHETA:-0.0}}"
+export GYM_SX="${GYM_SX:-${TRAJ_SX:--0.79}}"
+export GYM_SY="${GYM_SY:-${TRAJ_SY:--4.88}}"
+export GYM_STHETA="${GYM_STHETA:-${TRAJ_STHETA:-0.67}}"
 
 echo "Map override: GYM_MAP_PATH=${GYM_MAP_PATH} GYM_MAP_IMG_EXT=${GYM_MAP_IMG_EXT}"
 echo "Spawn override: GYM_SX=${GYM_SX} GYM_SY=${GYM_SY} GYM_STHETA=${GYM_STHETA}"
