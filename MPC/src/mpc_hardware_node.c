@@ -90,7 +90,7 @@ static int g_ekf_pose_received = 0;
 static double g_watchdog_timeout_sec = 0.2;
 static struct timespec g_last_servo_time;
 static const double LOW_SPEED_ACCEL_THRESHOLD_MPS = 1.2;
-static const double LOW_SPEED_FORCED_ACCEL_MPS2 = 2.0;
+static const double LOW_SPEED_MIN_ACCEL_MPS2 = 2.0;
 /* Last published drive command (fallback uses these instead of forcing stop). */
 static float g_last_cmd_steer = 0.0f;
 static float g_last_cmd_speed = 0.0f;
@@ -923,15 +923,17 @@ static void run_mpc_control_cycle(void)
             /* Pass MPC steering output directly. */
             global_control_command.steer_ang = mpc_result.optimal_control.steer_ang;
 
-            /* Keep the car moving at very low odometry speeds. */
+            /* Keep the car moving at very low odometry speeds without limiting
+             * stronger acceleration commands from the MPC. */
             double cmd_long_acc = mpc_result.optimal_control.long_acc;
             const double odom_speed = sqrt(g_latest_vx * g_latest_vx + g_latest_vy * g_latest_vy);
-            if (odom_speed < LOW_SPEED_ACCEL_THRESHOLD_MPS)
+            if (odom_speed < LOW_SPEED_ACCEL_THRESHOLD_MPS &&
+                cmd_long_acc < LOW_SPEED_MIN_ACCEL_MPS2)
             {
-                cmd_long_acc = LOW_SPEED_FORCED_ACCEL_MPS2;
+                cmd_long_acc = LOW_SPEED_MIN_ACCEL_MPS2;
                 if (g_verbose)
                 {
-                    printf("[MPC] Forced long_acc to %.3f at low odom speed %.3f m/s\n",
+                    printf("[MPC] Raised long_acc to %.3f at low odom speed %.3f m/s\n",
                            cmd_long_acc, odom_speed);
                 }
             }
