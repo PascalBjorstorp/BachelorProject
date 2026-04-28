@@ -100,6 +100,41 @@ def run_step(label, cmd, cwd=None):
         sys.exit(result.returncode)
 
 
+def max_abs_curvature_closed(path_xy):
+    """Return max absolute curvature for a closed polyline."""
+    pts = np.asarray(path_xy, dtype=float)
+    if pts.ndim != 2 or pts.shape[0] < 3:
+        return 0.0
+
+    p_prev = np.roll(pts, 1, axis=0)
+    p_next = np.roll(pts, -1, axis=0)
+    a = pts - p_prev
+    b = p_next - pts
+    c = p_next - p_prev
+
+    cross = a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0]
+    denom = (np.linalg.norm(a, axis=1)
+             * np.linalg.norm(b, axis=1)
+             * np.linalg.norm(c, axis=1))
+    kappa = np.abs(2.0 * cross / np.maximum(denom, 1e-9))
+    return float(np.max(kappa))
+
+
+def read_curvlim_from_racecar_ini(ini_path):
+    """Parse curvlim from racecar.ini; return None if unavailable."""
+    if not ini_path or not os.path.exists(ini_path):
+        return None
+    with open(ini_path, 'r') as f:
+        content = f.read()
+    match = re.search(r'"curvlim"\s*:\s*([0-9.+-eE]+)', content)
+    if not match:
+        return None
+    try:
+        return float(match.group(1))
+    except ValueError:
+        return None
+
+
 # =============================================================================
 #  Step 0 -- Map loading, boundary extraction, centerline, track widths
 # =============================================================================
@@ -1168,7 +1203,8 @@ def build_prepared_optimizer_track(centerline, map_img, resolution, origin,
                                    car_width, optimizer_spacing,
                                    optimizer_smoothing_s=0.0,
                                    optimizer_smoothing_k=2,
-                                   optimizer_smoothing_prep_spacing=0.02):
+                                   optimizer_smoothing_prep_spacing=0.02,
+                                   curvlim=None):
     """
     Build the exact reference-track arrays consumed by TUM's mintime optimizer.
 
@@ -1187,30 +1223,76 @@ def build_prepared_optimizer_track(centerline, map_img, resolution, origin,
         f"{track_length:.1f} m, spacing={actual_spacing:.3f} m"
     )
 
+    base_max_kappa = max_abs_curvature_closed(opt_centerline)
+    if curvlim is not None:
+        print(
+            f"  Base max curvature: {base_max_kappa:.3f} 1/m "
+            f"(curvlim={curvlim:.3f} 1/m)"
+        )
+
     if optimizer_smoothing_s and optimizer_smoothing_s > 0.0:
         print(
             "  Applying TUM spline smoother to optimizer centerline: "
             f"k={optimizer_smoothing_k}, s={optimizer_smoothing_s:.3f}"
         )
-        dummy_width = np.ones(len(opt_centerline), dtype=float)
-        smooth_input = np.column_stack([opt_centerline, dummy_width, dummy_width])
-        smooth_track = tph.spline_approximation.spline_approximation(
-            track=smooth_input,
-            k_reg=optimizer_smoothing_k,
-            s_reg=optimizer_smoothing_s,
-            stepsize_prep=optimizer_smoothing_prep_spacing,
-            stepsize_reg=optimizer_spacing,
-            debug=True,
-        )
-        opt_centerline = smooth_track[:, :2]
-        smooth_closed = np.vstack([opt_centerline, opt_centerline[0]])
-        smooth_lengths = np.linalg.norm(np.diff(smooth_closed, axis=0), axis=1)
-        track_length = float(np.sum(smooth_lengths))
-        actual_spacing = track_length / len(opt_centerline)
-        print(
-            f"  Smoothed optimizer centerline: {len(opt_centerline)} points, "
-            f"{track_length:.1f} m, spacing={actual_spacing:.3f} m"
-        )
+        def _smooth_centerline(s_reg):
+            dummy_width = np.ones(len(opt_centerline), dtype=float)
+            smooth_input = np.column_stack([opt_centerline, dummy_width, dummy_width])
+            smooth_track = tph.spline_approximation.spline_approximation(
+                track=smooth_input,
+                k_reg=optimizer_smoothing_k,
+                s_reg=s_reg,
+                stepsize_prep=optimizer_smoothing_prep_spacing,
+                stepsize_reg=optimizer_spacing,
+                debug=True,
+            )
+            smoothed = smooth_track[:, :2]
+            smooth_closed = np.vstack([smoothed, smoothed[0]])
+            smooth_lengths = np.linalg.norm(np.diff(smooth_closed, axis=0), axis=1)
+            smoothed_len = float(np.sum(smooth_lengths))
+            smoothed_spacing = smoothed_len / len(smoothed)
+            return smoothed, smoothed_len, smoothed_spacing
+
+        if curvlim is None or curvlim <= 0.0:
+            opt_centerline, track_length, actual_spacing = _smooth_centerline(
+                optimizer_smoothing_s
+            )
+            print(
+                f"  Smoothed optimizer centerline: {len(opt_centerline)} points, "
+                f"{track_length:.1f} m, spacing={actual_spacing:.3f} m"
+            )
+        else:
+            s_reg = float(optimizer_smoothing_s)
+            max_attempts = 6
+            tol = 0.02
+            accepted = False
+            for attempt in range(max_attempts):
+                smoothed, smoothed_len, smoothed_spacing = _smooth_centerline(s_reg)
+                smoothed_max_kappa = max_abs_curvature_closed(smoothed)
+                print(
+                    f"  Smoothing attempt {attempt + 1}/{max_attempts}: "
+                    f"s={s_reg:.4f}, max_kappa={smoothed_max_kappa:.3f} 1/m"
+                )
+                if smoothed_max_kappa <= curvlim * (1.0 + tol):
+                    opt_centerline = smoothed
+                    track_length = smoothed_len
+                    actual_spacing = smoothed_spacing
+                    accepted = True
+                    break
+                s_reg *= 0.5
+                if s_reg < 1e-6:
+                    break
+
+            if accepted:
+                print(
+                    f"  Smoothed optimizer centerline: {len(opt_centerline)} points, "
+                    f"{track_length:.1f} m, spacing={actual_spacing:.3f} m"
+                )
+            else:
+                print(
+                    "  WARNING: Smoothing exceeds curvlim; keeping unsmoothed "
+                    f"centerline (max_kappa={base_max_kappa:.3f} 1/m)"
+                )
 
     refpath_closed = np.vstack([opt_centerline, opt_centerline[0]])
     coeffs_x, coeffs_y, a_interp, normvec_right = tph.calc_splines.calc_splines(
@@ -1673,6 +1755,7 @@ def main():
     scripts_dir = os.path.dirname(os.path.abspath(__file__))
     global_opt_dir = os.path.join(workspace, 'f1tenth_planning', 'global_racetrajectory_optimization')
     default_output = os.path.join(workspace, 'f1tenth_planning', 'trajectories')
+    racecar_ini = os.path.join(global_opt_dir, 'params', 'racecar.ini')
 
     # ---- User settings -------------------------------------------------------
     # This mintime copy is configured directly here instead of through command
@@ -1714,6 +1797,10 @@ def main():
     if not os.path.exists(args.map):
         print(f"ERROR: Map file not found: {args.map}")
         sys.exit(1)
+
+    curvlim = read_curvlim_from_racecar_ini(racecar_ini)
+    if curvlim is None:
+        print("  WARNING: curvlim not found in racecar.ini; smoothing guard disabled")
 
 
     track_name = args.track_name
@@ -1813,6 +1900,7 @@ def main():
         optimizer_smoothing_s=args.optimizer_smoothing_s,
         optimizer_smoothing_k=args.optimizer_smoothing_k,
         optimizer_smoothing_prep_spacing=args.optimizer_smoothing_prep_spacing,
+        curvlim=curvlim,
     )
     reftrack_interp = prepared_track['reftrack_interp']
     plot_prepared_optimizer_track(
@@ -1837,7 +1925,6 @@ def main():
     tum_output = os.path.join(global_opt_dir, 'outputs', 'traj_race_cl.csv')
 
     main_py = os.path.join(global_opt_dir, 'main_globaltraj.py')
-    racecar_ini = os.path.join(global_opt_dir, 'params', 'racecar.ini')
 
     if restore_main_prep_track_if_needed(main_py):
         print("  Restored stale prepared-track patch in main_globaltraj.py")

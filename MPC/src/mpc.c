@@ -134,7 +134,8 @@ static FrenetState_t mpc_predict_frenet_next_state(
     const FrenetState_t *state,
     const ControlInput_t *control,
     float dt,
-    float path_curvature)
+    float path_curvature,
+    float v_ref)
 {
     FrenetState_t next = *state;
     const float vx = state->flong_vel;
@@ -182,9 +183,13 @@ static FrenetState_t mpc_predict_frenet_next_state(
     if (fabsf(ey_denom) < 1e-3f)
         ey_denom = (ey_denom >= 0.0f) ? 1e-3f : -1e-3f;
 
-    const float e_y_dot = vx * sinf(state->fhead_error) + vy * cosf(state->fhead_error);
+    /* Use reference velocity (v_ref) for lateral/heading error dynamics rather than
+     * actual velocity (vx). This ensures the solver's predictions of error evolution
+     * don't become "blind" when vx momentarily reaches zero. v_ref represents the
+     * planned speed along the path, while vx is actual plant velocity. */
+    const float e_y_dot = v_ref * sinf(state->fhead_error) + vy * cosf(state->fhead_error);
     const float e_psi_dot = omega -
-        path_curvature * vx * cosf(state->fhead_error) / ey_denom;
+        path_curvature * v_ref * cosf(state->fhead_error) / ey_denom;
 
     next.flat_error = state->flat_error + dt * e_y_dot;
     next.fhead_error = util_normalize_angle(state->fhead_error + dt * e_psi_dot);
@@ -443,6 +448,7 @@ MpcSolverStatus_t mpc_compute_optimal_control(
             &lin_state, &lin_control,
             config.time_step,
             kappa_k,
+            reference_trajectory[k].reference_velocity,
             A_step, B_step);
 
         /* Stabilize fast dynamics (omega row = 4) per stage. */
@@ -459,7 +465,8 @@ MpcSolverStatus_t mpc_compute_optimal_control(
             &lin_state,
             &lin_control,
             config.time_step,
-            kappa_k);
+            kappa_k,
+            reference_trajectory[k].reference_velocity);
 
         /* === Augmented A matrix (8×8) === */
 
