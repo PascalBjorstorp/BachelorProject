@@ -234,8 +234,10 @@ static c_int build_A_and_bounds(const MPCCQPProblem_t *prob, c_int n)
         float y_ref = prob->path_y_ref[k];
         float C_k   = sinf(phi) * x_ref - cosf(phi) * y_ref;
 
-        s_l[row] = (c_float)(C_k - prob->track_right[k]);
-        s_u[row] = (c_float)(C_k + prob->track_left[k]);
+        /* e_c = sin(phi) * X - cos(phi) * Y - C_k, positive to the
+         * right of the reference path. Enforce -left <= e_c <= right. */
+        s_l[row] = (c_float)(C_k - prob->track_left[k]);
+        s_u[row] = (c_float)(C_k + prob->track_right[k]);
     }
 
     /* Box constraint bounds */

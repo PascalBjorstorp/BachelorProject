@@ -402,3 +402,7 @@ f1tenth_planning/trajectories/my_track_mpcc_trace_qc450_qw3600.csv
 f1tenth_planning/trajectories/my_track_mpcc_trace_wallfree_probe.csv
 f1tenth_planning/trajectories/my_track_mpcc_trace.csv
 f1tenth_planning/trajectories/my_track_raceline_body_safe.csv
+MPCC/test/tuning_racer_20260428_152135.csv
+MPCC/test/tuning_racer_20260428_153041.csv
+MPCC/test/tuning_racer_20260428_153229.csv
+f1tenth_planning/trajectories/my_track_raceline_repaired.csv

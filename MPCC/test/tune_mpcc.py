@@ -15,7 +15,7 @@ Usage:
     python3 test/tune_mpcc.py -j 4                    # Use 4 workers
     python3 test/tune_mpcc.py --objective racer       # Optimize for speed (default)
     python3 test/tune_mpcc.py --objective tracker     # Optimize for tracking
-    python3 test/tune_mpcc.py --raceline my_track_raceline.csv
+    python3 test/tune_mpcc.py --raceline my_track_centerline.csv
 """
 
 import subprocess
@@ -43,9 +43,9 @@ TRAJ_DIR = os.path.join(PROJECT_DIR, "f1tenth_planning", "trajectories")
 # HARDWARE MAP CONFIGURATION
 # ==============================================================================
 
-DEFAULT_RACELINE_NAME = "my_track_raceline.csv"
+DEFAULT_RACELINE_NAME = "my_track_centerline.csv"
 RACELINE_PATH = os.path.join(TRAJ_DIR, DEFAULT_RACELINE_NAME)
-RACELINE_TAG = "my_track"
+RACELINE_TAG = "my_track_centerline"
 
 # ==============================================================================
 # LOCKED PREDICTION WINDOW  (never swept)
@@ -59,31 +59,37 @@ LOCKED_CROSS_CALL_SCALE = float(
 )
 
 BASE_CONFIG = {
-    # Seed from the last manually verified zero-collision region and search outward.
-    "Q_CONTOURING":      500.0,
-    "Q_LAG":             500.0,
-    "Q_PROGRESS":        2.0,
+    # Seed from a "moving" baseline (matches test_sim_drive defaults).
+    # Note: absolute magnitudes are implementation-dependent; tune relative tradeoffs.
+    "Q_CONTOURING":      960.0,
+    "Q_LAG":             200.0,
+    "Q_PROGRESS":        15.6,
+    "Q_WALL_CLEARANCE":  3200.0,
+    "WALL_CLEARANCE_MARGIN": 0.02,
 
     # State regularization
-    "Q_VX":              0.0,
-    "VX_REF":            2.0,
+    "Q_VX":              10.0,
+    "VX_REF":            4.0,
+    "MPCC_USE_RACELINE_VX_REF": 0,
+    "MPCC_USE_RACELINE_VX_LIMIT": 0,
+    "MPCC_RACELINE_VX_LIMIT_SCALE": 1.0,
     "Q_VY":              0.5,
-    "Q_OMEGA":           5.0,
+    "Q_OMEGA":           1.5,
 
     # Control effort
-    "R_DELTA":           400.0,
+    "R_DELTA":           200.0,
     "R_AX":              0.05225,
-    "R_VTHETA":          0.08,
+    "R_VTHETA":          0.1,
 
     # Control rate smoothness
-    "W_DELTA_RATE":      12.0,
-    "W_AX_RATE":         0.7,
-    "W_VTHETA_RATE":     0.2,
+    "W_DELTA_RATE":      5.0,
+    "W_AX_RATE":         0.488,
+    "W_VTHETA_RATE":     0.1105,
 
     # Terminal weights — MUST be >= running weights
-    "Q_CONTOURING_TERM": 2500.0,
-    "Q_LAG_TERM":        1200.0,
-    "Q_PROGRESS_TERM":   40.0,
+    "Q_CONTOURING_TERM": 4800.0,
+    "Q_LAG_TERM":        800.0,
+    "Q_PROGRESS_TERM":   41.4,
 
     # ADMM solver
     "ADMM_RHO":          5.0,
@@ -91,7 +97,7 @@ BASE_CONFIG = {
     "ADMM_TOL":          0.02,
 
     # Keep path-progress authority available even when vx targets are conservative.
-    "V_THETA_MAX":       18.0,
+    "V_THETA_MAX":       8.0,
 
     # LOCKED — not swept
     "HORIZON":           LOCKED_HORIZON,
@@ -108,39 +114,41 @@ RACER_BASE_OVERRIDES = {}
 # ==============================================================================
 
 PHASE2_VALUES = {
-    "Q_CONTOURING":      [10, 100, 500, 1000],
-    "Q_LAG":             [10, 50, 100, 200, 400],
-    "Q_PROGRESS":        [2, 4, 6, 8, 10, 16],
-    "Q_CONTOURING_TERM": [100, 500, 1000, 2000],
-    "Q_LAG_TERM":        [50, 200, 800],
+    "Q_CONTOURING":      [200, 500, 960, 1500, 2500, 4000],
+    "Q_LAG":             [100, 150, 200, 300, 400, 500, 700],
+    "Q_PROGRESS":        [5.0, 10.0, 15.6, 20.0, 25.0, 30.0],
+    "Q_CONTOURING_TERM": [2000.0, 4800.0, 8000.0, 12000.0],
+    "Q_LAG_TERM":        [400.0, 800.0, 1200.0, 2000.0, 3000.0],
 }
 
 FULL_SWEEP_VALUES = {
-    "Q_CONTOURING":      [10, 100, 500, 1000, 1500],
-    "Q_LAG":             [50, 100, 150, 200, 300, 500],
-    "Q_PROGRESS":        [8, 10, 12, 15, 18, 20, 25],
+    "Q_CONTOURING":      [200, 500, 960, 1500, 2500, 4000],
+    "Q_LAG":             [100, 150, 200, 300, 400, 500, 700],
+    "Q_PROGRESS":        [5.0, 10.0, 15.6, 20.0, 25.0, 30.0],
+    "Q_WALL_CLEARANCE":  [0.0, 1600.0, 3200.0, 6000.0, 12000.0],
+    "WALL_CLEARANCE_MARGIN": [0.0, 0.01, 0.02, 0.03, 0.05],
     "Q_VY":              [0.5, 1.0, 1.5, 3.0, 5.0, 10.0],
     "Q_OMEGA":           [0.3, 0.5, 0.8, 1.5, 3.0, 5.0],
-    "R_DELTA":           [100.0, 130.0, 160.0, 200.0],
+    "R_DELTA":           [100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0],
     "R_VTHETA":          [0.05, 0.1, 0.2, 0.3],
-    "W_DELTA_RATE":      [2.0, 3.0, 4.0, 5.0],
+    "W_DELTA_RATE":      [3.0, 5.0, 7.0, 10.0, 12.0],
     "W_VTHETA_RATE":     [0.05, 0.1, 0.13, 0.3, 0.5, 1.0],
-    "Q_CONTOURING_TERM": [1000, 2000, 3000, 4000, 8000],
-    "Q_LAG_TERM":        [400, 800, 1500, 3000],
-    "Q_PROGRESS_TERM":   [20, 30, 40, 50, 60],
+    "Q_CONTOURING_TERM": [2000.0, 4800.0, 8000.0, 12000.0],
+    "Q_LAG_TERM":        [400.0, 800.0, 1500.0, 3000.0],
+    "Q_PROGRESS_TERM":   [20.0, 30.0, 40.0, 41.4, 50.0, 60.0],
     "V_THETA_MAX":       [8.0, 10.0, 12.0, 15.0],
-    "Q_VX":              [0.0, 0.5, 1.0, 1.5, 3.0, 5.0],
-    "VX_REF":            [2.0, 3.0, 4.0, 5.0, 6.0, 8.0],
+    "Q_VX":              [0.0, 5.0, 10.0, 20.0, 30.0, 50.0],
+    "VX_REF":            [2.0, 3.0, 4.0, 5.0, 6.0],
     "R_AX":              [0.02, 0.055, 0.1, 0.3, 1.0],
-    "W_AX_RATE":         [0.1, 0.3, 0.61, 1.0, 2.0],
+    "W_AX_RATE":         [0.1, 0.3, 0.488, 0.61, 1.0, 2.0],
 }
 
 PHASE4_VALUES = {
     "Q_VY":         [0.5, 1.0, 1.5, 3.0, 5.0],
     "Q_OMEGA":      [1.0, 3.0, 5.0, 8.0],
-    "R_DELTA":      [250.0, 300.0, 350.0, 400.0],
+    "R_DELTA":      [150.0, 200.0, 250.0, 300.0, 350.0, 400.0],
     "W_DELTA_RATE": [7.0, 9.0, 10.0, 12.0],
-    "V_THETA_MAX":  [18.0, 20.0, 22.0, 25.0],
+    "V_THETA_MAX":  [8.0, 10.0, 12.0, 15.0],
 }
 
 # PHASE5_VALUES removed — was ADMM-only tuning, unused with OSQP solver
@@ -261,7 +269,8 @@ RANDOM_PROFILES = {
 # CONSTANTS
 # ==============================================================================
 
-INT_PARAMS = {"HORIZON", "ADMM_MAX_ITER"}
+INT_PARAMS = {"HORIZON", "ADMM_MAX_ITER",
+              "MPCC_USE_RACELINE_VX_REF", "MPCC_USE_RACELINE_VX_LIMIT"}
 
 CASCADE_TOP_N = 10
 SEED = 42
@@ -271,8 +280,11 @@ PHASE8_RANDOM_COUNT = {"racer": 2400, "tracker": 1800}
 
 MPCC_PRINT_ORDER = (
     "Q_CONTOURING", "Q_LAG", "Q_PROGRESS",
+    "Q_WALL_CLEARANCE", "WALL_CLEARANCE_MARGIN",
     "Q_VY", "Q_OMEGA",
     "Q_VX", "VX_REF",
+    "MPCC_USE_RACELINE_VX_REF", "MPCC_USE_RACELINE_VX_LIMIT",
+    "MPCC_RACELINE_VX_LIMIT_SCALE",
     "R_DELTA", "R_AX", "R_VTHETA",
     "W_DELTA_RATE", "W_AX_RATE", "W_VTHETA_RATE",
     "Q_CONTOURING_TERM", "Q_LAG_TERM", "Q_PROGRESS_TERM",
@@ -369,10 +381,11 @@ def config_hash(params: dict) -> str:
 # TEST RUNNER
 # ==============================================================================
 
-def run_test(params: dict, binary: str) -> dict:
+def run_test(params: dict, binary: str, sim_duration_s: float) -> dict:
     env = os.environ.copy()
     env["MPCC_TUNING_CSV"] = "1"
     env["RACELINE_PATH"] = RACELINE_PATH
+    env["SIM_DURATION"] = str(sim_duration_s)
 
     effective_params = canonicalize_params(enforce_terminal_weight_floor(params))
     # Always enforce locked prediction window
@@ -383,8 +396,9 @@ def run_test(params: dict, binary: str) -> dict:
         env[name] = str(value)
 
     try:
+        timeout_s = max(30.0, float(sim_duration_s) + 20.0)
         result = subprocess.run(
-            [binary], capture_output=True, text=True, timeout=120, env=env
+            [binary], capture_output=True, text=True, timeout=timeout_s, env=env
         )
     except subprocess.TimeoutExpired:
         return {"status": "TIMEOUT", "passed": 0, "failed": 6}
@@ -517,7 +531,9 @@ def compute_racer_bootstrap_score(r: dict) -> float:
         + (avg_iters * 0.1),
     )
 
-    return round(980.0 - progress_credit + instability_penalty, 3)
+    # Keep all zero-collision no-lap runs below the collision band (1000+),
+    # but above real lap-completing runs, which are scored in seconds.
+    return round(min(999.0, 980.0 - progress_credit + instability_penalty), 3)
 
 
 def compute_racer_score(r: dict) -> float:
@@ -526,12 +542,14 @@ def compute_racer_score(r: dict) -> float:
 
     Scoring:
       - Any collision      → 1000 + collisions  (always loses to any safe config)
-            - No laps completed  → bootstrap score    (rank safe progress before any lap exists)
-      - Zero collisions    → best_lap_time       (lower = faster = better)
+      - No laps completed  → bootstrap score    (rank safe progress before any lap exists)
+      - Zero-collision lap → best_lap_time       (lower = faster = better)
 
         This means a safe config doing a slow lap beats an unsafe config.
         Before any lap-completing seed exists, the sweep still gets a gradient through
         safe no-lap configs instead of a flat 999 plateau.
+        Stability diagnostics are kept in the CSV/tracker score, but they must not
+        make a real lap-completing run rank below a no-lap bootstrap run.
     """
     if r.get("status") != "OK":
         return 5000.0
@@ -545,10 +563,8 @@ def compute_racer_score(r: dict) -> float:
     if lap_count == 0:
         return compute_racer_bootstrap_score(r)
 
-    stability_penalty = compute_stability_penalty(r)
-    if stability_penalty is not None:
-        return stability_penalty
-
+    # Racer mode is about completing the course quickly. Lap detection already
+    # requires real travelled distance, so keep completed laps on lap-time scale.
     best_lap = float(r.get("best_lap_time", 9999.0))
     return round(best_lap, 6)
 
@@ -635,7 +651,9 @@ def gen_fine_tuning(best_weights: dict) -> list:
     pct_range = (0.80, 0.85, 0.90, 0.92, 0.95, 0.97,
                  1.03, 1.05, 1.08, 1.10, 1.15, 1.20)
     skip = {"ADMM_MAX_ITER", "ADMM_RHO", "ADMM_TOL",
-            "HORIZON", "DT", "CROSS_CALL_SCALE"}
+            "HORIZON", "DT", "CROSS_CALL_SCALE",
+            "MPCC_USE_RACELINE_VX_REF", "MPCC_USE_RACELINE_VX_LIMIT",
+            "MPCC_RACELINE_VX_LIMIT_SCALE"}
 
     for name, base_val in best_weights.items():
         if name in skip:
@@ -705,7 +723,10 @@ def gen_random_neighbors(best_weights: dict, n: int, objective: str,
 
     tune_params = [k for k in best_weights.keys()
                    if k not in ("ADMM_MAX_ITER", "ADMM_RHO", "ADMM_TOL",
-                                "HORIZON", "DT", "CROSS_CALL_SCALE")]
+                                "HORIZON", "DT", "CROSS_CALL_SCALE",
+                                "MPCC_USE_RACELINE_VX_REF",
+                                "MPCC_USE_RACELINE_VX_LIMIT",
+                                "MPCC_RACELINE_VX_LIMIT_SCALE")]
 
     i = 0
     attempts = 0
@@ -780,8 +801,8 @@ class IncrementalCSV:
 # ==============================================================================
 
 def _run_single(args):
-    label, params, binary, phase_name, objective = args
-    r = run_test(params, binary)
+    label, params, binary, phase_name, objective, sim_duration_s = args
+    r = run_test(params, binary, sim_duration_s)
     r = apply_scores(r, objective)
     r["label"]    = label
     r["phase"]    = phase_name
@@ -795,7 +816,8 @@ def _run_single(args):
 # ==============================================================================
 
 def run_phase(phase_name: str, combos: list, binary: str, results: list,
-              t0: float, num_workers: int, csv_writer, objective: str) -> tuple:
+              t0: float, num_workers: int, csv_writer, objective: str,
+              sim_duration_s: float) -> tuple:
     combos = deduplicate(combos)
     if not combos:
         print(f"  ({phase_name}: empty, skipping)")
@@ -815,7 +837,7 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
             eta = (total - i - 1) / max(rate, 0.01)
             print(f"  [{i+1:4d}/{total}] {label:55s} ", end="", flush=True)
 
-            r = run_test(params, binary)
+            r = run_test(params, binary, sim_duration_s)
             r = apply_scores(r, objective)
             r["label"]    = label
             r["phase"]    = phase_name
@@ -834,13 +856,13 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
                 print(f"COLLISION wc={wc} speed={r.get('avg_speed',0):.2f}  (ETA {eta:.0f}s)")
             else:
                 passed += 1
-                print(f"sc={r['score']:7.4f}  lap={r.get('best_lap_time',0):.3f}s"
+                print(f"sc={r['score']:7.4f}  laps={r.get('lap_count',0):d}  lap={r.get('best_lap_time',0):.3f}s"
                       f"  speed={r.get('avg_speed',0):.3f} m/s"
                       f"  ec={r['avg_contouring_err']:.3f}  (ETA {eta:.0f}s)")
     else:
         done_count = 0
         with ProcessPoolExecutor(max_workers=num_workers) as executor:
-            it = ((label, params, binary, phase_name, objective)
+            it = ((label, params, binary, phase_name, objective, sim_duration_s)
                   for label, params in combos)
             max_in_flight = max(num_workers * 4, num_workers + 2)
             futures = set()
@@ -885,6 +907,7 @@ def run_phase(phase_name: str, combos: list, binary: str, results: list,
                         print(f"  [{done_count:4d}/{total}] "
                               f"{r['label']:55s} "
                               f"sc={r['score']:7.4f}  "
+                              f"laps={r.get('lap_count',0):d}  "
                               f"lap={r.get('best_lap_time',0):.3f}s  "
                               f"speed={r.get('avg_speed',0):.3f} m/s  "
                               f"ec={r['avg_contouring_err']:.3f}  "
@@ -946,10 +969,10 @@ def print_best(results: list, objective: str, label: str = ""):
 # SANITY CHECK
 # ==============================================================================
 
-def sanity_check_params(binary: str):
+def sanity_check_params(binary: str, sim_duration_s: float):
     print("\nRunning parameter effect sanity check...")
     print("  [1/5] Running baseline...", end=" ", flush=True)
-    baseline = run_test(dict(BASE), binary)
+    baseline = run_test(dict(BASE), binary, sim_duration_s)
     print(f"status={baseline.get('status')}  "
           f"speed={baseline.get('avg_speed',0):.3f}  "
           f"wc={baseline.get('wall_collisions','?')}")
@@ -964,7 +987,7 @@ def sanity_check_params(binary: str):
         print(f"  [{i}/5] Probing {name}={new_val}...", end=" ", flush=True)
         p = dict(BASE)
         p[name] = new_val
-        rr = run_test(p, binary)
+        rr = run_test(p, binary, sim_duration_s)
         print(f"status={rr.get('status')}  "
               f"speed={rr.get('avg_speed',0):.3f}  "
               f"wc={rr.get('wall_collisions','?')}")
@@ -991,6 +1014,8 @@ def main():
                         help="Raceline CSV filename or path")
     parser.add_argument("--binary", default=None,
                         help="Path to test_sim_drive binary")
+    parser.add_argument("--sim-duration", type=float, default=45.0,
+                        help="Simulation duration in seconds (passed via SIM_DURATION env var)")
     parser.add_argument("--sanity-only", action="store_true",
                         help="Only run sanity check, then exit")
     parser.add_argument("--phase1-only", action="store_true",
@@ -1036,7 +1061,7 @@ def main():
     print()
 
     if args.sanity_only:
-        sanity_check_params(binary)
+        sanity_check_params(binary, args.sim_duration)
         return
 
     # Output CSV
@@ -1070,7 +1095,7 @@ def main():
     # ── Phase 1 ──────────────────────────────────────────────────────────────
     run_phase("Phase 1: One-at-a-time sensitivity",
               gen_one_at_a_time(), binary, results, t0,
-              args.jobs, csv_writer, args.objective)
+              args.jobs, csv_writer, args.objective, args.sim_duration)
     print_best(results, args.objective, "after Phase 1")
 
     if args.phase1_only:
@@ -1079,7 +1104,7 @@ def main():
     # ── Phase 2 ──────────────────────────────────────────────────────────────
     run_phase("Phase 2: Primary grid (contouring+lag+progress+terminal)",
               gen_primary_grid(), binary, results, t0,
-              args.jobs, csv_writer, args.objective)
+              args.jobs, csv_writer, args.objective, args.sim_duration)
     print_best(results, args.objective, "after Phase 2")
 
     # Cascade: update BASE to best config so far
@@ -1110,7 +1135,7 @@ def main():
 
     run_phase("Phase 4: Secondary grid (state-reg + control effort + v_theta)",
               p4_combos, binary, results, t0,
-              args.jobs, csv_writer, args.objective)
+              args.jobs, csv_writer, args.objective, args.sim_duration)
     print_best(results, args.objective, "after Phase 4")
 
     best = get_best_params(results)
@@ -1129,7 +1154,7 @@ def main():
         # Phase 6: fine-tuning
         run_phase(f"Phase 6 (pass {opt_pass+1}): Fine-tuning",
                   gen_fine_tuning(best), binary, results, t0,
-                  args.jobs, csv_writer, args.objective)
+                  args.jobs, csv_writer, args.objective, args.sim_duration)
 
         best = get_best_params(results)
 
@@ -1139,7 +1164,7 @@ def main():
                   gen_random_neighbors(best, n7, args.objective,
                                        seed_offset=opt_pass * 10000),
                   binary, results, t0,
-                  args.jobs, csv_writer, args.objective)
+                  args.jobs, csv_writer, args.objective, args.sim_duration)
 
         best = get_best_params(results)
 
@@ -1153,7 +1178,7 @@ def main():
                                        profile_override=exploit_profile,
                                        seed_offset=opt_pass * 10000 + 5000),
                   binary, results, t0,
-                  args.jobs, csv_writer, args.objective)
+                  args.jobs, csv_writer, args.objective, args.sim_duration)
 
         print_best(results, args.objective, f"pass {opt_pass+1}")
 
