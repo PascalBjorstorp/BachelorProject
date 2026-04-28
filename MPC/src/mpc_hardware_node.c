@@ -1044,11 +1044,9 @@ static void run_mpc_control_cycle(void)
                     servo_feedback_fresh = 1;
             }
 
-            /* Pass MPC output directly — no clamping, no bias, no softening. */
-            global_control_command.steer_ang =
-                mpc_result.optimal_control.steer_ang;
-            global_control_command.long_acc =
-                mpc_result.optimal_control.long_acc;
+            /* Pass MPC output directly. */
+            global_control_command.steer_ang = mpc_result.optimal_control.steer_ang;
+            global_control_command.long_acc = mpc_result.optimal_control.long_acc;
 
             /* Update servo tracking.
              * If steering feedback is available from VESC, it's already set by
