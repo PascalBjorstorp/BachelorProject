@@ -471,6 +471,19 @@ static void build_reference_from_local_raceline(int closest_index)
     const double pred_dt = (cfg.time_step > 0.0f) ? (double)cfg.time_step : (double)TIME_STEP_SECONDS;
     double s_query = global_trajectory[closest_index].s_meters;
     double step_velocity = global_trajectory[closest_index].velocity_meters_per_second;
+    /* If the vehicle is significantly slower than the reference (e.g. after an
+     * avoidance/stop event), advancing the query by v_ref*dt can jump far ahead
+     * on the local segment and make the MPC "give up". Use a blended speed so
+     * the horizon stays locally relevant during recovery. */
+    {
+        const double v_meas = fabs(g_latest_vx);
+        if (isfinite(v_meas) && v_meas > 0.0)
+        {
+            const double v_ref0 = step_velocity;
+            const double v_blend = 0.6 * v_meas + 0.4 * v_ref0;
+            if (v_blend > 0.0) step_velocity = v_blend;
+        }
+    }
 
     for (int step = 0; step < PREDICTION_HORIZON; step++)
     {
@@ -718,15 +731,15 @@ void local_raceline_callback(const void *message_in)
     /* Compute heading from finite differences of x/y to avoid relying on
      * PoseStamped.orientation (which may be unset or noisy on some stacks).
      *
-     * IMPORTANT: Use a small window (rather than i±1) to reduce curvature spikes
-     * caused by very dense or slightly noisy local-planner points. Large κ
-     * spikes can make the MPC think the path is infeasible and "prefer stopping"
-     * at sharp corners on real hardware. */
-    const size_t diff_window = 3;  /* points on each side */
+     * NOTE: Keep heading local (small window) because it directly affects e_psi.
+     * Compute curvature with a larger window below to avoid κ spikes from
+     * dense/noisy points. */
+    const size_t heading_window = 1;   /* points on each side (local heading) */
+    const size_t curvature_window = 3; /* points on each side (smooth κ) */
     for (size_t i = 0; i < waypoint_count; i++)
     {
-        size_t i_prev = (i > diff_window) ? (i - diff_window) : 0;
-        size_t i_next = (i + diff_window < waypoint_count) ? (i + diff_window) : (waypoint_count - 1);
+        size_t i_prev = (i > heading_window) ? (i - heading_window) : 0;
+        size_t i_next = (i + heading_window < waypoint_count) ? (i + heading_window) : (waypoint_count - 1);
 
         const double dx =
             global_trajectory[i_next].x_meters - global_trajectory[i_prev].x_meters;
@@ -760,8 +773,8 @@ void local_raceline_callback(const void *message_in)
 
         for (size_t i = 1; i + 1 < waypoint_count; i++)
         {
-            const size_t i_prev = (i > diff_window) ? (i - diff_window) : 0;
-            const size_t i_next = (i + diff_window < waypoint_count) ? (i + diff_window) : (waypoint_count - 1);
+            const size_t i_prev = (i > curvature_window) ? (i - curvature_window) : 0;
+            const size_t i_next = (i + curvature_window < waypoint_count) ? (i + curvature_window) : (waypoint_count - 1);
 
             const double dpsi = wrap_angle_pi(
                 global_trajectory[i_next].heading_radians -
