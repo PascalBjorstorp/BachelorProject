@@ -18,10 +18,13 @@ PipelineLatencyMonitor::PipelineLatencyMonitor(
 {
   declare_parameter("scan_topic", std::string("/scan"));
   declare_parameter("amcl_topic", std::string("/amcl_pose"));
+  declare_parameter("amcl_timing_topic", std::string("/amcl_timing"));
+  declare_parameter("amcl_particle_count_topic", std::string("/amcl_particle_count"));
   declare_parameter("ekf_topic", std::string("/ekf_pose"));
   declare_parameter("drive_topic", std::string("/drive"));
   declare_parameter("ackermann_topic", std::string("/ackermann_cmd"));
   declare_parameter("stage_match_max_ms", 20.0);
+  declare_parameter("amcl_aux_max_age_ms", 100.0);
   declare_parameter("strict_mode", false);
   declare_parameter("print_every", 40);  // print every N cycles (~1 Hz at 40 Hz)
   declare_parameter("log_to_csv", true);
@@ -29,10 +32,13 @@ PipelineLatencyMonitor::PipelineLatencyMonitor(
 
   scan_topic_ = get_parameter("scan_topic").as_string();
   amcl_topic_ = get_parameter("amcl_topic").as_string();
+  amcl_timing_topic_ = get_parameter("amcl_timing_topic").as_string();
+  amcl_particle_count_topic_ = get_parameter("amcl_particle_count_topic").as_string();
   ekf_topic_ = get_parameter("ekf_topic").as_string();
   drive_topic_ = get_parameter("drive_topic").as_string();
   ackermann_topic_ = get_parameter("ackermann_topic").as_string();
   stage_match_max_ms_ = get_parameter("stage_match_max_ms").as_double();
+  amcl_aux_max_age_ms_ = get_parameter("amcl_aux_max_age_ms").as_double();
   strict_mode_ = get_parameter("strict_mode").as_bool();
   print_every_ = get_parameter("print_every").as_int();
   log_to_csv_ = get_parameter("log_to_csv").as_bool();
@@ -51,6 +57,16 @@ PipelineLatencyMonitor::PipelineLatencyMonitor(
     geometry_msgs::msg::PoseWithCovarianceStamped>(
     amcl_topic_, rclcpp::QoS(10),
     std::bind(&PipelineLatencyMonitor::amcl_callback, this,
+              std::placeholders::_1));
+
+  amcl_timing_sub_ = create_subscription<std_msgs::msg::Float64>(
+    amcl_timing_topic_, rclcpp::QoS(50),
+    std::bind(&PipelineLatencyMonitor::amcl_timing_callback, this,
+              std::placeholders::_1));
+
+  amcl_particle_count_sub_ = create_subscription<std_msgs::msg::Int32>(
+    amcl_particle_count_topic_, rclcpp::QoS(50),
+    std::bind(&PipelineLatencyMonitor::amcl_particle_count_callback, this,
               std::placeholders::_1));
 
   ekf_sub_ = create_subscription<
@@ -75,6 +91,9 @@ PipelineLatencyMonitor::PipelineLatencyMonitor(
     "  Tracking: %s -> %s -> %s -> %s -> %s",
     scan_topic_.c_str(), amcl_topic_.c_str(),
     ekf_topic_.c_str(), drive_topic_.c_str(), ackermann_topic_.c_str());
+  RCLCPP_INFO(get_logger(),
+    "  AMCL aux topics: timing=%s particle_count=%s",
+    amcl_timing_topic_.c_str(), amcl_particle_count_topic_.c_str());
   RCLCPP_INFO(get_logger(), "  Strict mode: %s", strict_mode_ ? "ON" : "OFF");
 
   if (log_to_csv_) {
@@ -137,9 +156,41 @@ void PipelineLatencyMonitor::amcl_callback(
   it->second.amcl_recv_ns = recv;
   it->second.has_amcl = true;
 
-  pending_ekf_keys_.push_back(key);
-  if (pending_ekf_keys_.size() > 2000) {
-    pending_ekf_keys_.erase(pending_ekf_keys_.begin(), pending_ekf_keys_.begin() + 1000);
+  const double max_aux_age_ns = amcl_aux_max_age_ms_ * 1e6;
+  if (latest_amcl_timing_ms_ >= 0.0 &&
+      (amcl_aux_max_age_ms_ <= 0.0 ||
+       std::fabs(recv - latest_amcl_timing_recv_ns_) <= max_aux_age_ns))
+  {
+    it->second.amcl_timing_ms = latest_amcl_timing_ms_;
+  }
+
+  if (latest_amcl_particle_count_ >= 0 &&
+      (amcl_aux_max_age_ms_ <= 0.0 ||
+       std::fabs(recv - latest_amcl_particle_count_recv_ns_) <= max_aux_age_ns))
+  {
+    it->second.amcl_particle_count = latest_amcl_particle_count_;
+  }
+}
+
+void PipelineLatencyMonitor::amcl_timing_callback(
+  const std_msgs::msg::Float64::ConstSharedPtr & msg)
+{
+  const double recv = wall_clock_ns();
+  std::lock_guard<std::mutex> lk(mutex_);
+  if (std::isfinite(msg->data) && msg->data >= 0.0) {
+    latest_amcl_timing_ms_ = msg->data;
+    latest_amcl_timing_recv_ns_ = recv;
+  }
+}
+
+void PipelineLatencyMonitor::amcl_particle_count_callback(
+  const std_msgs::msg::Int32::ConstSharedPtr & msg)
+{
+  const double recv = wall_clock_ns();
+  std::lock_guard<std::mutex> lk(mutex_);
+  if (msg->data >= 0) {
+    latest_amcl_particle_count_ = msg->data;
+    latest_amcl_particle_count_recv_ns_ = recv;
   }
 }
 
@@ -181,20 +232,13 @@ void PipelineLatencyMonitor::ekf_callback(
   if (ekf_key > 0 && mark_ekf(ekf_key)) {
     return;
   }
-
-  while (!pending_ekf_keys_.empty()) {
-    const int64_t key = pending_ekf_keys_.front();
-    pending_ekf_keys_.pop_front();
-    if (mark_ekf(key)) {
-      return;
-    }
-  }
 }
 
 void PipelineLatencyMonitor::drive_callback(
-  const ackermann_msgs::msg::AckermannDriveStamped::ConstSharedPtr & /*msg*/)
+  const ackermann_msgs::msg::AckermannDriveStamped::ConstSharedPtr & msg)
 {
   const double recv = wall_clock_ns();
+  const int64_t drive_key = stamp_to_key(msg->header.stamp);
 
   std::lock_guard<std::mutex> lk(mutex_);
   if (pending_drive_entries_.empty()) {
@@ -233,8 +277,24 @@ void PipelineLatencyMonitor::drive_callback(
     return;
   }
 
-  const auto matched = pending_drive_entries_.front();
-  pending_drive_entries_.erase(pending_drive_entries_.begin());
+  PendingStageEntry matched;
+  if (drive_key > 0) {
+    bool found = false;
+    for (auto it = pending_drive_entries_.begin(); it != pending_drive_entries_.end(); ++it) {
+      if (it->key == drive_key) {
+        matched = *it;
+        pending_drive_entries_.erase(it);
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      return;
+    }
+  } else {
+    matched = pending_drive_entries_.front();
+    pending_drive_entries_.erase(pending_drive_entries_.begin());
+  }
 
   const double measured_ms = (recv - matched.stage_recv_ns) * 1e-6;
   if (measured_ms < 0.0 || measured_ms > 5000.0) {
@@ -267,9 +327,10 @@ void PipelineLatencyMonitor::drive_callback(
 }
 
 void PipelineLatencyMonitor::ackermann_callback(
-  const ackermann_msgs::msg::AckermannDriveStamped::ConstSharedPtr & /*msg*/)
+  const ackermann_msgs::msg::AckermannDriveStamped::ConstSharedPtr & msg)
 {
   const double recv = wall_clock_ns();
+  const int64_t ackermann_key = stamp_to_key(msg->header.stamp);
 
   std::lock_guard<std::mutex> lk(mutex_);
   if (pending_ackermann_entries_.empty()) {
@@ -308,8 +369,24 @@ void PipelineLatencyMonitor::ackermann_callback(
     return;
   }
 
-  const auto matched = pending_ackermann_entries_.front();
-  pending_ackermann_entries_.erase(pending_ackermann_entries_.begin());
+  PendingStageEntry matched;
+  if (ackermann_key > 0) {
+    bool found = false;
+    for (auto it = pending_ackermann_entries_.begin(); it != pending_ackermann_entries_.end(); ++it) {
+      if (it->key == ackermann_key) {
+        matched = *it;
+        pending_ackermann_entries_.erase(it);
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      return;
+    }
+  } else {
+    matched = pending_ackermann_entries_.front();
+    pending_ackermann_entries_.erase(pending_ackermann_entries_.begin());
+  }
 
   const double drive_to_ackermann_ms = (recv - matched.stage_recv_ns) * 1e-6;
   if (drive_to_ackermann_ms < 0.0 || drive_to_ackermann_ms > 5000.0) {
@@ -372,6 +449,8 @@ void PipelineLatencyMonitor::try_report(int64_t key, double drive_to_ackermann_m
   const double scan_to_amcl_ms = (e.amcl_recv_ns - e.scan_recv_ns) * ns_to_ms;
   const double amcl_to_ekf_ms = (e.ekf_recv_ns - e.amcl_recv_ns) * ns_to_ms;
   const double scan_to_ekf_ms = (e.ekf_recv_ns - e.scan_recv_ns) * ns_to_ms;
+  const double amcl_timing_ms = e.amcl_timing_ms;
+  const int32_t amcl_particle_count = e.amcl_particle_count;
 
   double ekf_to_drive_ms = -1.0;
   if (e.has_drive) {
@@ -397,6 +476,8 @@ void PipelineLatencyMonitor::try_report(int64_t key, double drive_to_ackermann_m
   write_csv_row(
     key,
     scan_stamp_to_scan_ms,
+    amcl_timing_ms,
+    amcl_particle_count,
     scan_to_amcl_ms,
     amcl_to_ekf_ms,
     scan_to_ekf_ms,
@@ -519,7 +600,7 @@ void PipelineLatencyMonitor::initialize_csv_logging()
       return;
     }
 
-    csv_file_ << "wall_time_ns,scan_stamp_ns,scan_stamp_to_scan_ms,scan_to_amcl_ms,amcl_to_ekf_ms,scan_to_ekf_ms,ekf_to_drive_ms,drive_to_ackermann_ms,scan_to_ackermann_ms\n";
+    csv_file_ << "wall_time_ns,scan_stamp_ns,scan_stamp_to_scan_ms,amcl_timing_ms,amcl_particle_count,scan_to_amcl_ms,amcl_to_ekf_ms,scan_to_ekf_ms,ekf_to_drive_ms,drive_to_ackermann_ms,scan_to_ackermann_ms\n";
     csv_file_.flush();
   } catch (const std::exception & e) {
     csv_path_.clear();
@@ -530,6 +611,8 @@ void PipelineLatencyMonitor::initialize_csv_logging()
 void PipelineLatencyMonitor::write_csv_row(
   int64_t stamp_ns,
   double scan_stamp_to_scan_ms,
+  double amcl_timing_ms,
+  int32_t amcl_particle_count,
   double scan_to_amcl_ms,
   double amcl_to_ekf_ms,
   double scan_to_ekf_ms,
@@ -548,6 +631,8 @@ void PipelineLatencyMonitor::write_csv_row(
             << stamp_ns << ','
             << std::fixed << std::setprecision(3)
             << scan_stamp_to_scan_ms << ','
+            << amcl_timing_ms << ','
+            << amcl_particle_count << ','
             << scan_to_amcl_ms << ','
             << amcl_to_ekf_ms << ','
             << scan_to_ekf_ms << ','

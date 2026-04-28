@@ -87,6 +87,9 @@ static int g_verbose = 1;
 
 /** Set to 1 once the first EKF pose message has been received. */
 static int g_ekf_pose_received = 0;
+/** Header stamp of the EKF sample currently driving the MPC command. */
+static int32_t g_latest_ekf_stamp_sec = 0;
+static uint32_t g_latest_ekf_stamp_nanosec = 0U;
 
 /** Safety watchdog timeout [seconds] */
 static double g_watchdog_timeout_sec = 0.2;
@@ -1024,6 +1027,8 @@ void ekf_pose_callback(const void *message_in)
     g_latest_pos_x   = pos_x;
     g_latest_pos_y   = pos_y;
     g_latest_heading = heading;
+    g_latest_ekf_stamp_sec = msg->header.stamp.sec;
+    g_latest_ekf_stamp_nanosec = msg->header.stamp.nanosec;
     g_ekf_state_received = 1;
 
     if (!g_ekf_pose_received) {
@@ -1314,6 +1319,9 @@ static void run_mpc_control_cycle(void)
 
     /* Publish drive command */
     {
+        global_drive_message_buffer.header.stamp.sec = g_latest_ekf_stamp_sec;
+        global_drive_message_buffer.header.stamp.nanosec = g_latest_ekf_stamp_nanosec;
+
         global_drive_message_buffer.drive.steering_angle =
             global_control_command.steer_ang;
 
