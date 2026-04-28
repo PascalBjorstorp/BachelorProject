@@ -515,6 +515,56 @@ static void build_reference_from_local_raceline(int closest_index)
  * Helper Functions
  *===========================================================================*/
 
+static double get_env_double_or_default(const char *name, double default_val)
+{
+    const char *env = getenv(name);
+    if (env == NULL || env[0] == '\0') return default_val;
+    char *end = NULL;
+    double v = strtod(env, &end);
+    if (end == env) return default_val;
+    return v;
+}
+
+/**
+ * @brief Clamp reference velocity during large-error recovery.
+ *
+ * Real hardware startup often begins with large heading/lateral errors and low speed.
+ * If we command a high v_ref in that state, the MPC can saturate accel/steer, overshoot,
+ * and get "stuck" in a limit cycle. This helper optionally caps v_ref across the
+ * horizon while preserving the path curvature feedforward (yaw_rate = κ * v_ref).
+ *
+ * Enable via:
+ *  - MPC_RECOVERY_EPSI_RAD (default 0.45)
+ *  - MPC_RECOVERY_EY_M     (default 0.20)
+ *  - MPC_RECOVERY_VREF_MAX (default 1.50)
+ * Set thresholds <=0 to disable.
+ */
+static void maybe_apply_recovery_reference_cap(double ey, double epsi)
+{
+    const double epsi_th = get_env_double_or_default("MPC_RECOVERY_EPSI_RAD", 0.45);
+    const double ey_th   = get_env_double_or_default("MPC_RECOVERY_EY_M", 0.20);
+    const double v_cap   = get_env_double_or_default("MPC_RECOVERY_VREF_MAX", 1.50);
+
+    if (!(v_cap > 0.0)) return;
+    if (!(epsi_th > 0.0) && !(ey_th > 0.0)) return;
+
+    const int trig =
+        ((epsi_th > 0.0) && (fabs(epsi) > epsi_th)) ||
+        ((ey_th > 0.0) && (fabs(ey) > ey_th));
+
+    if (!trig) return;
+
+    for (int k = 0; k < PREDICTION_HORIZON; k++)
+    {
+        if (global_reference_trajectory[k].reference_velocity > (float)v_cap)
+        {
+            global_reference_trajectory[k].reference_velocity = (float)v_cap;
+            global_reference_trajectory[k].reference_yaw_rate =
+                global_reference_trajectory[k].path_curvature * (float)v_cap;
+        }
+    }
+}
+
 /**
  * @brief Convert quaternion orientation to yaw angle.
  * @param qx Quaternion x component.
@@ -1073,6 +1123,11 @@ static void run_mpc_control_cycle(void)
 
         ey = global_frenet_state.flat_error;
         epsi = global_frenet_state.fhead_error;
+
+        /* Startup / recovery shaping: cap v_ref when errors are large to avoid
+         * saturating accel/steer and overshooting the local raceline. */
+        maybe_apply_recovery_reference_cap(ey, epsi);
+
         vref0 = global_reference_trajectory[0].reference_velocity;
         kappa0 = global_reference_trajectory[0].path_curvature;
         left_wall0 = global_reference_trajectory[0].left_wall_bound;
@@ -1165,7 +1220,10 @@ static void run_mpc_control_cycle(void)
             {
                 ControlInput_t actual_ctrl;
                 actual_ctrl.steer_ang = global_actual_steering_angle;
-                actual_ctrl.long_acc = mpc_result.optimal_control.long_acc;
+                /* Use the applied longitudinal command (after any safety clamps),
+                 * not the raw solver output. This keeps the augmented a_prev
+                 * state consistent with the true plant input. */
+                actual_ctrl.long_acc = global_control_command.long_acc;
                 mpc_set_actual_previous_control(&actual_ctrl);
             }
 
@@ -1181,12 +1239,19 @@ static void run_mpc_control_cycle(void)
                 const MpcConfiguration_t cfg = mpc_get_configuration();
                 const double pred_dt = (cfg.time_step > 0.0f)
                     ? (double)cfg.time_step : (double)TIME_STEP_SECONDS;
-                double cmd_speed = g_latest_vx +
-                    ((double)mpc_result.optimal_control.long_acc * pred_dt);
+                const double applied_accel = (double)global_control_command.long_acc;
+                double cmd_speed = g_latest_vx + (applied_accel * pred_dt);
                 if (cmd_speed < (double)VP_MIN_VELOCITY_MPS)
                     cmd_speed = (double)VP_MIN_VELOCITY_MPS;
                 if (cmd_speed > (double)TRAJECTORY_MAXIMUM_VELOCITY)
                     cmd_speed = (double)TRAJECTORY_MAXIMUM_VELOCITY;
+                /* Published v_cmd (drive.speed) includes the "never faster than raceline"
+                 * clamp applied right before publishing. */
+                double v_cmd_pub = cmd_speed;
+                if (isfinite(vref0) && vref0 > 0.0)
+                {
+                    if (v_cmd_pub > vref0) v_cmd_pub = vref0;
+                }
 
                 struct timespec ts_now;
                 clock_gettime(CLOCK_REALTIME, &ts_now);
@@ -1195,8 +1260,10 @@ static void run_mpc_control_cycle(void)
 
                 fprintf(g_solver_log_file,
                         "%lld,%.1f,%d,%d,%.6e,%.6e,%d,"
-                        "%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,"
-                        "%.4f,%.4f,%.4f,%.4f,%d\n",
+                        "%.4f,%.4f,%.4f,"
+                        "%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,"
+                        "%.4f,%.4f,%.4f,%.4f,%.4f,"
+                        "%.4f,%.4f,%d\n",
                         unix_time_ns,
                         solve_us,
                         (int)mpc_status,
@@ -1204,6 +1271,9 @@ static void run_mpc_control_cycle(void)
                         primal_res,
                         dual_res,
                         closest,
+                        (float)g_latest_pos_x,
+                        (float)g_latest_pos_y,
+                        (float)g_latest_heading,
                         ey,
                         epsi,
                         g_latest_vx,
@@ -1214,8 +1284,9 @@ static void run_mpc_control_cycle(void)
                         left_wall0,
                         right_wall0,
                         mpc_result.optimal_control.steer_ang,
-                        mpc_result.optimal_control.long_acc,
+                        global_control_command.long_acc,
                         cmd_speed,
+                        v_cmd_pub,
                         global_actual_steering_angle,
                         g_use_steering_feedback);
 
@@ -1393,8 +1464,9 @@ int main(int argc, char *argv[])
         {
             fprintf(g_solver_log_file,
                     "unix_time_ns,solve_us,status,iterations,primal_residual,dual_residual,closest_wp,"
+                    "pose_x,pose_y,yaw,"
                     "e_y,e_psi,vx,vy,omega,v_ref0,kappa0,left_wall0,right_wall0,"
-                    "cmd_steer,cmd_accel,cmd_speed,actual_steer,use_steering_feedback\n");
+                    "cmd_steer,cmd_accel,cmd_speed,v_cmd,actual_steer,use_steering_feedback\n");
             fflush(g_solver_log_file);
             printf("[MPC] Solver telemetry log: %s (every control callback)\n", log_path);
         }

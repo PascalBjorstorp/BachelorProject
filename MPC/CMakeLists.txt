@@ -80,6 +80,10 @@ if(ament_cmake_FOUND)
         install(DIRECTORY launch/ DESTINATION share/${PROJECT_NAME}/launch)
     endif()
 
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/trajectories)
+        install(DIRECTORY trajectories/ DESTINATION share/${PROJECT_NAME}/trajectories)
+    endif()
+
     if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/config)
         install(DIRECTORY config/ DESTINATION share/${PROJECT_NAME}/config)
     endif()

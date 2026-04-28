@@ -109,6 +109,11 @@ static int raceline_count = 0;
 static double g_mpc_prediction_dt = TIME_STEP_SECONDS;  /* Set from PRED_DT env or default */
 static double g_track_length_m = 0.0;
 
+/* Optional local-raceline emulation (matches MPC hardware node behavior more closely). */
+static Waypoint_t local_line[MAX_WAYPOINTS];
+static int local_count = 0;
+static int local_last_closest = 0;
+
 /* Read a double-valued environment override, falling back when unset/invalid. */
 static double get_env_double(const char *name, double fallback)
 {
@@ -122,6 +127,30 @@ static double get_env_double(const char *name, double fallback)
         return fallback;
     }
     return value;
+}
+
+static void maybe_apply_recovery_reference_cap(double e_y, double e_psi,
+                                               TrajectoryReferencePoint_t *ref, int horizon_steps)
+{
+    if (ref == NULL || horizon_steps <= 0) return;
+
+    const double epsi_th = get_env_double("MPC_RECOVERY_EPSI_RAD", 0.45);
+    const double ey_th   = get_env_double("MPC_RECOVERY_EY_M", 0.20);
+    const double v_cap   = get_env_double("MPC_RECOVERY_VREF_MAX", 1.50);
+    if (!(v_cap > 0.0)) return;
+    if (!(epsi_th > 0.0) && !(ey_th > 0.0)) return;
+
+    const int trig =
+        ((epsi_th > 0.0) && (fabs(e_psi) > epsi_th)) ||
+        ((ey_th > 0.0) && (fabs(e_y) > ey_th));
+    if (!trig) return;
+
+    for (int k = 0; k < horizon_steps; k++) {
+        if (ref[k].reference_velocity > (float)v_cap) {
+            ref[k].reference_velocity = (float)v_cap;
+            ref[k].reference_yaw_rate = ref[k].path_curvature * (float)v_cap;
+        }
+    }
 }
 
 /* Load raceline waypoints from an environment path or known fallback paths.
@@ -298,6 +327,213 @@ static void recompute_raceline_geometry(int diff_window, int recompute_s)
     }
 }
 
+/* Build an open local segment starting ahead of the vehicle on the global raceline.
+ * This emulates the /local_raceline behavior on hardware (segment may start ahead). */
+static void build_local_segment(int global_closest, int start_offset_points, int segment_points,
+                                int heading_window, int curvature_window)
+{
+    if (raceline_count < 2) { local_count = 0; return; }
+    if (segment_points < 2) segment_points = 2;
+    if (segment_points > MAX_WAYPOINTS) segment_points = MAX_WAYPOINTS;
+    if (heading_window < 1) heading_window = 1;
+    if (curvature_window < 1) curvature_window = 1;
+
+    const int start = (global_closest + start_offset_points) % raceline_count;
+    local_count = 0;
+    double cumulative_s = 0.0;
+    double prev_x = 0.0, prev_y = 0.0;
+
+    for (int i = 0; i < segment_points; i++) {
+        const int gi = (start + i) % raceline_count;
+        Waypoint_t *dst = &local_line[i];
+        const Waypoint_t *src = &raceline[gi];
+        dst->x = src->x;
+        dst->y = src->y;
+        dst->vx = src->vx;
+        dst->ax = src->ax;
+        dst->left_bound = src->left_bound;
+        dst->right_bound = src->right_bound;
+
+        if (i == 0) {
+            cumulative_s = 0.0;
+        } else {
+            cumulative_s += hypot(dst->x - prev_x, dst->y - prev_y);
+        }
+        dst->s = cumulative_s;
+        dst->psi = 0.0;
+        dst->kappa = 0.0;
+
+        prev_x = dst->x;
+        prev_y = dst->y;
+        local_count++;
+    }
+
+    /* Heading (local window) */
+    for (int i = 0; i < local_count; i++) {
+        int i_prev = (i - heading_window >= 0) ? (i - heading_window) : 0;
+        int i_next = (i + heading_window < local_count) ? (i + heading_window) : (local_count - 1);
+        const double dx = local_line[i_next].x - local_line[i_prev].x;
+        const double dy = local_line[i_next].y - local_line[i_prev].y;
+        double heading = 0.0;
+        if ((dx * dx + dy * dy) > 1e-12) heading = atan2(dy, dx);
+        else if (i > 0) heading = local_line[i - 1].psi;
+        local_line[i].psi = heading;
+    }
+
+    /* Curvature (larger window) */
+    if (local_count >= 3) {
+        for (int i = 1; i + 1 < local_count; i++) {
+            int i_prev = (i - curvature_window >= 0) ? (i - curvature_window) : 0;
+            int i_next = (i + curvature_window < local_count) ? (i + curvature_window) : (local_count - 1);
+            double dpsi = wrap_angle(local_line[i_next].psi - local_line[i_prev].psi);
+            const double ds = local_line[i_next].s - local_line[i_prev].s;
+            const double ds_safe = (ds > 1e-6) ? ds : 1e-6;
+            local_line[i].kappa = dpsi / ds_safe;
+        }
+        local_line[0].kappa = local_line[1].kappa;
+        local_line[local_count - 1].kappa = local_line[local_count - 2].kappa;
+    }
+}
+
+static int find_closest_waypoint_local(double px, double py, double heading)
+{
+    if (local_count <= 0) return 0;
+    const int search_end = (local_count < 60) ? local_count : 60;
+    int search_start = local_last_closest;
+    if (search_start < 0) search_start = 0;
+    if (search_start >= search_end) search_start = search_end - 1;
+
+    const int search_window = 50;
+    const int back_window = 5;
+    int best = search_start;
+    double best_score = 1e18;
+    const double dir_x = cos(heading), dir_y = sin(heading);
+
+    for (int off = -back_window; off < search_window; off++) {
+        int i = search_start + off;
+        if (i < 0) i = 0;
+        if (i >= search_end) i = search_end - 1;
+        const double dx = local_line[i].x - px;
+        const double dy = local_line[i].y - py;
+        const double d2 = dx*dx + dy*dy;
+        const double dot = dx*dir_x + dy*dir_y;
+        const double score = d2 + ((dot < 0.0) ? 25.0 : 0.0);
+        if (score < best_score) { best_score = score; best = i; }
+    }
+    local_last_closest = best;
+    return best;
+}
+
+static PathProjection_t project_pose_to_local_segment(double px, double py, double psi, int closest_index)
+{
+    PathProjection_t out = {0};
+    if (local_count <= 0) return out;
+
+    int idx0 = closest_index;
+    if (idx0 < 0) idx0 = 0;
+    if (idx0 >= local_count) idx0 = local_count - 1;
+    int idx1 = idx0 + 1;
+    if (idx1 >= local_count) idx1 = local_count - 1;
+
+    const double ax = local_line[idx0].x;
+    const double ay = local_line[idx0].y;
+    const double bx = local_line[idx1].x;
+    const double by = local_line[idx1].y;
+
+    const double abx = bx - ax;
+    const double aby = by - ay;
+    const double apx = px - ax;
+    const double apy = py - ay;
+    const double ab_len2 = abx * abx + aby * aby;
+    double t = 0.0;
+    if (ab_len2 > 1e-12) t = (apx * abx + apy * aby) / ab_len2;
+    if (t < 0.0) t = 0.0;
+    if (t > 1.0) t = 1.0;
+
+    const double path_x = ax + t * abx;
+    const double path_y = ay + t * aby;
+
+    /* Heading interpolation with wrap */
+    double h0 = local_line[idx0].psi;
+    double h1 = local_line[idx1].psi;
+    double dh = h1 - h0;
+    while (dh > M_PI) dh -= 2.0 * M_PI;
+    while (dh < -M_PI) dh += 2.0 * M_PI;
+    const double path_hdg = wrap_angle(h0 + dh * t);
+
+    const double dx = px - path_x;
+    const double dy = py - path_y;
+    const double cos_h = cos(path_hdg);
+    const double sin_h = sin(path_hdg);
+    out.lateral_error = -dx * sin_h + dy * cos_h;
+
+    double hdg_err = psi - path_hdg;
+    while (hdg_err > M_PI) hdg_err -= 2.0 * M_PI;
+    while (hdg_err < -M_PI) hdg_err += 2.0 * M_PI;
+    out.heading_error = hdg_err;
+
+    out.s = local_line[idx0].s + t * (local_line[idx1].s - local_line[idx0].s);
+    return out;
+}
+
+static Waypoint_t sample_local_by_s(double s_query)
+{
+    if (local_count <= 0)
+        return (Waypoint_t){0};
+
+    if (local_count == 1)
+    {
+        Waypoint_t w = local_line[0];
+        w.s = s_query;
+        return w;
+    }
+
+    if (s_query <= local_line[0].s)
+    {
+        Waypoint_t w = local_line[0];
+        w.s = s_query;
+        return w;
+    }
+    if (s_query >= local_line[local_count - 1].s)
+    {
+        Waypoint_t w = local_line[local_count - 1];
+        w.s = s_query;
+        return w;
+    }
+
+    for (int i = 0; i < local_count - 1; i++)
+    {
+        const Waypoint_t *w0 = &local_line[i];
+        const Waypoint_t *w1 = &local_line[i + 1];
+        if (s_query >= w0->s && s_query <= w1->s)
+        {
+            const double denom = w1->s - w0->s;
+            const double u = (denom > 1e-9) ? ((s_query - w0->s) / denom) : 0.0;
+
+            Waypoint_t out = *w0;
+            out.s = s_query;
+            out.x = w0->x + (w1->x - w0->x) * u;
+            out.y = w0->y + (w1->y - w0->y) * u;
+            {
+                double dh = w1->psi - w0->psi;
+                while (dh > M_PI) dh -= 2.0 * M_PI;
+                while (dh < -M_PI) dh += 2.0 * M_PI;
+                out.psi = wrap_angle(w0->psi + dh * u);
+            }
+            out.kappa = w0->kappa + (w1->kappa - w0->kappa) * u;
+            out.vx = w0->vx + (w1->vx - w0->vx) * u;
+            out.ax = w0->ax + (w1->ax - w0->ax) * u;
+            out.left_bound = w0->left_bound + (w1->left_bound - w0->left_bound) * u;
+            out.right_bound = w0->right_bound + (w1->right_bound - w0->right_bound) * u;
+            return out;
+        }
+    }
+
+    Waypoint_t w = local_line[local_count - 1];
+    w.s = s_query;
+    return w;
+}
+
 static int last_closest = 0;
 
 /* Find nearest raceline waypoint to the vehicle pose.
@@ -413,6 +649,22 @@ static FrenetState_t vehicle_to_frenet(const VehicleState_t *v, int wp)
         (double)(v->pos_y),
         (double)(v->heading),
         wp);
+    f.flat_error = (float)(proj.lateral_error);
+    f.fhead_error = (float)(proj.heading_error);
+    f.flong_vel = v->long_vel;
+    f.flat_vel = v->lat_vel;
+    f.fyaw_rate = v->yaw_rate;
+    return f;
+}
+
+static FrenetState_t vehicle_to_frenet_local(const VehicleState_t *v, int local_wp)
+{
+    FrenetState_t f;
+    PathProjection_t proj = project_pose_to_local_segment(
+        (double)(v->pos_x),
+        (double)(v->pos_y),
+        (double)(v->heading),
+        local_wp);
     f.flat_error = (float)(proj.lateral_error);
     f.fhead_error = (float)(proj.heading_error);
     f.flong_vel = v->long_vel;
@@ -556,6 +808,54 @@ static void build_reference(int closest, int horizon_steps, TrajectoryReferenceP
     }
 }
 
+static void build_reference_local(int closest_local, int horizon_steps, TrajectoryReferencePoint_t *ref,
+                                  double v_meas, double step_blend_meas)
+{
+    if (ref == NULL) return;
+    if (horizon_steps < 1) return;
+    if (horizon_steps > PREDICTION_HORIZON) horizon_steps = PREDICTION_HORIZON;
+    if (local_count <= 0) return;
+
+    if (closest_local < 0) closest_local = 0;
+    if (closest_local >= local_count) closest_local = local_count - 1;
+
+    double s_query = local_line[closest_local].s;
+    double step_velocity = fabs(local_line[closest_local].vx);
+    if (step_velocity < 0.5) step_velocity = 0.5;
+
+    /* Blend measured speed into the s-advance to mimic hardware recovery behavior. */
+    if (step_blend_meas > 0.0 && step_blend_meas < 1.0 && v_meas > 0.0) {
+        step_velocity = step_blend_meas * v_meas + (1.0 - step_blend_meas) * step_velocity;
+        if (step_velocity < 0.5) step_velocity = 0.5;
+    }
+
+    for (int step = 0; step < horizon_steps; step++)
+    {
+        s_query += step_velocity * g_mpc_prediction_dt;
+        Waypoint_t wp = sample_local_by_s(s_query);
+        double v_ref = wp.vx;
+        if (v_ref < 0.5) v_ref = 0.5;
+        if (v_ref > TRAJECTORY_MAX_VELOCITY) v_ref = TRAJECTORY_MAX_VELOCITY;
+        step_velocity = v_ref;
+
+        ref[step].reference_lateral_error = 0;
+        ref[step].reference_heading_error = 0;
+        ref[step].reference_velocity = (float)v_ref;
+        ref[step].reference_lateral_velocity = 0;
+
+        /* Clamp kappa to steering limit */
+        const double kappa_max = tan(MAX_STEERING) / 0.326;
+        double kappa = wp.kappa;
+        if (kappa > kappa_max) kappa = kappa_max;
+        if (kappa < -kappa_max) kappa = -kappa_max;
+
+        ref[step].path_curvature = (float)kappa;
+        ref[step].reference_yaw_rate = (float)(kappa * v_ref);
+        ref[step].left_wall_bound = (float)(wp.left_bound);
+        ref[step].right_wall_bound = (float)(wp.right_bound);
+    }
+}
+
 /*===========================================================================
  * Main Simulation
  *===========================================================================*/
@@ -621,6 +921,20 @@ int main(void)
     const double start_speed = get_env_double("START_SPEED", 0.0);
 
     const int verbose = getenv("VERBOSE") != NULL;
+
+    /* Hardware-aligned startup emulation:
+     * LOCAL_RACELINE_SIM=1 builds an open segment that starts ahead of the car,
+     * and uses that segment for MPC projection/reference (mirrors hardware node). */
+    const int local_raceline_sim = (getenv("LOCAL_RACELINE_SIM") && atoi(getenv("LOCAL_RACELINE_SIM")));
+    const int local_start_offset_points = (getenv("LOCAL_START_OFFSET_POINTS") ? atoi(getenv("LOCAL_START_OFFSET_POINTS")) : 0);
+    const int local_segment_points = (getenv("LOCAL_SEGMENT_POINTS") ? atoi(getenv("LOCAL_SEGMENT_POINTS")) : 80);
+    const int local_heading_window = (getenv("LOCAL_HEADING_WINDOW") ? atoi(getenv("LOCAL_HEADING_WINDOW")) : 1);
+    const int local_curvature_window = (getenv("LOCAL_CURVATURE_WINDOW") ? atoi(getenv("LOCAL_CURVATURE_WINDOW")) : 3);
+    const double local_step_blend_meas = get_env_double("LOCAL_STEP_BLEND_MEAS", 0.6); /* hardware: ~0.6 */
+
+    /* Low-speed brake inhibit (match hardware safety clamp). */
+    const double low_speed_brake_inhibit_vx = get_env_double("LOW_SPEED_BRAKE_INHIBIT_VX", 0.7);
+    const double low_speed_min_accel = get_env_double("LOW_SPEED_MIN_ACCEL", 0.0);
 
     printf("=== my_track Sim-Drive Test (Riccati-ADMM, %.0fs at dt=%.4fs = %d steps, %.0fHz) ===\n",
             SIM_DURATION, SIM_DT, SIM_STEPS, 1.0/SIM_DT);
@@ -762,6 +1076,7 @@ int main(void)
     state.lat_vel = 0;
     state.yaw_rate = 0;
     last_closest = start_index;
+    local_last_closest = 0;
 
     if (verbose || fabs(start_offset_lat) > 1e-6 || fabs(start_heading_offset) > 1e-6 || start_speed > 1e-6) {
         printf("    Start state: idx=%d, lat_offset=%+.3fm, hdg_offset=%+.3frad, speed=%.2fm/s\n",
@@ -808,8 +1123,13 @@ int main(void)
     int steps_executed = 0;
 
     if (verbose) {
-        printf("\n  Step | Time  | vx    | v_cmd | e_y   | e_psi | cmd_st | act_st | accel | iter | wp  | wall?\n");
-        printf("  -----|-------|-------|-------|-------|-------|--------|--------|-------|------|-----|------\n");
+        if (local_raceline_sim) {
+            printf("\n  Step | Time  | vx    | v_ref | e_y   | e_psi | cmd_st | act_st | accel | iter | wp_g | wp_l | wall?\n");
+            printf("  -----|-------|-------|-------|-------|-------|--------|--------|-------|------|------|------|------\n");
+        } else {
+            printf("\n  Step | Time  | vx    | v_ref | e_y   | e_psi | cmd_st | act_st | accel | iter | wp_g | wall?\n");
+            printf("  -----|-------|-------|-------|-------|-------|--------|--------|-------|------|------|------\n");
+        }
     }
 
     for (int step = 0; step < SIM_STEPS; step++) {
@@ -820,18 +1140,26 @@ int main(void)
         double psi = (double)(state.heading);
         double vx = (double)(state.long_vel);
 
-        int closest = find_closest_waypoint(px, py, psi);
+        int closest_global = find_closest_waypoint(px, py, psi);
 
-        FrenetState_t frenet = vehicle_to_frenet(&state, closest);
+        FrenetState_t frenet = vehicle_to_frenet(&state, closest_global);
 
-        /* Keep EMA filtering inside MPC only to avoid extra sim-side delay. */
+        /* MPC input can optionally use a local open segment (hardware-like). */
+        int closest_local = 0;
         FrenetState_t frenet_for_mpc = frenet;
+        if (local_raceline_sim)
+        {
+            build_local_segment(closest_global, local_start_offset_points, local_segment_points,
+                                local_heading_window, local_curvature_window);
+            closest_local = find_closest_waypoint_local(px, py, psi);
+            frenet_for_mpc = vehicle_to_frenet_local(&state, closest_local);
+        }
 
         /* Wall check and metrics use TRUE state (no sensor noise) */
         double true_px = (double)(true_state.pos_x);
         double true_py = (double)(true_state.pos_y);
         double true_psi = (double)(true_state.heading);
-        int true_closest = realistic_noise ? find_closest_waypoint(true_px, true_py, true_psi) : closest;
+        int true_closest = realistic_noise ? find_closest_waypoint(true_px, true_py, true_psi) : closest_global;
         FrenetState_t true_frenet = realistic_noise ? vehicle_to_frenet(&true_state, true_closest) : frenet;
         /* Ground-truth speed magnitude for robust metrics (frame/sign independent). */
         const double speed_mps = hypot((double)(true_state.long_vel), (double)(true_state.lat_vel));
@@ -874,7 +1202,7 @@ int main(void)
         if (e_y < -(right_wall - effective_wall_margin)){ wall_hit = -1; wall_collisions++; }
         if (wall_hit) {
             printf("\n  !!! WALL CRASH: e_y = %.3f m (bound: %.3f) at step %d (t=%.2fs, wp=%d, v=%.1f) !!!\n",
-                   e_y, wall_hit > 0 ? left_wall : right_wall, step, t, closest, speed_mps);
+                   e_y, wall_hit > 0 ? left_wall : right_wall, step, t, true_closest, speed_mps);
             break;
         }
 
@@ -882,6 +1210,7 @@ int main(void)
         double steer = cmd_steer;
         double accel_cmd = cmd_accel;
         int iter = 0;
+        double v_ref_print = raceline[closest_global].vx;
 
         /* Feed the realized ST servo position to MPC (from previous propagation).
          * actual_steer is st_delta from end of previous step's propagation. */
@@ -896,7 +1225,13 @@ int main(void)
         if (step % MPC_CALL_INTERVAL == 0) {
             /* Build reference */
             TrajectoryReferencePoint_t ref[PREDICTION_HORIZON];
-            build_reference(closest, cfg.prediction_horizon_steps, ref);
+            if (local_raceline_sim) {
+                build_reference_local(closest_local, cfg.prediction_horizon_steps, ref, speed_mps, local_step_blend_meas);
+            } else {
+                build_reference(closest_global, cfg.prediction_horizon_steps, ref);
+            }
+            maybe_apply_recovery_reference_cap(e_y, e_psi, ref, cfg.prediction_horizon_steps);
+            v_ref_print = (double)ref[0].reference_velocity;
 
             /* Always call MPC — no low-speed guard */
             MpcSolverResult_t result;
@@ -922,6 +1257,13 @@ int main(void)
                 solver_max_iter++;
             }
             solver_calls++;
+
+            /* Low-speed brake inhibit (match hardware clamp): don't allow the
+             * controller to "solve" heading error by braking to zero and getting stuck. */
+            if (low_speed_brake_inhibit_vx > 0.0 && speed_mps < low_speed_brake_inhibit_vx) {
+                if (accel_cmd < low_speed_min_accel) accel_cmd = low_speed_min_accel;
+            }
+
             cmd_steer = steer;
             cmd_accel = accel_cmd;
         }
@@ -941,7 +1283,7 @@ int main(void)
         sum_lat_err += fabs(e_y);
         if (fabs(e_psi) > max_hdg_err) max_hdg_err = fabs(e_psi);
         sum_hdg_err += fabs(e_psi);
-        double vel_err = fabs(speed_mps - raceline[closest].vx);
+        double vel_err = fabs(speed_mps - raceline[true_closest].vx);
         if (vel_err > max_vel_err) max_vel_err = vel_err;
         sum_vel_err += vel_err;
         if (speed_mps > 5.0) time_above_5ms += SIM_DT;
@@ -956,9 +1298,17 @@ int main(void)
         if (verbose) {
             int print_row = (step < 40) || (step % 20 == 0) || wall_hit || (fabs(e_y) > 0.8);
             if (print_row) {
-                printf("  %4d | %5.2f | %5.2f | %5.2f | %+.3f | %+.3f | %+.4f | %+.4f | %+.2f | %4d | %3d | %s\n",
-                       step, t, speed_mps, raceline[closest].vx, e_y, e_psi, steer, actual_steer, accel_cmd, iter, closest,
-                       wall_hit > 0 ? "LEFT!" : (wall_hit < 0 ? "RIGHT!" : ""));
+                if (local_raceline_sim) {
+                    printf("  %4d | %5.2f | %5.2f | %5.2f | %+.3f | %+.3f | %+.4f | %+.4f | %+.2f | %4d | %4d | %4d | %s\n",
+                           step, t, speed_mps, v_ref_print, e_y, e_psi, steer, actual_steer, accel_cmd, iter,
+                           true_closest, closest_local,
+                           wall_hit > 0 ? "LEFT!" : (wall_hit < 0 ? "RIGHT!" : ""));
+                } else {
+                    printf("  %4d | %5.2f | %5.2f | %5.2f | %+.3f | %+.3f | %+.4f | %+.4f | %+.2f | %4d | %4d | %s\n",
+                           step, t, speed_mps, v_ref_print, e_y, e_psi, steer, actual_steer, accel_cmd, iter,
+                           true_closest,
+                           wall_hit > 0 ? "LEFT!" : (wall_hit < 0 ? "RIGHT!" : ""));
+                }
             }
         }
 
@@ -1229,7 +1579,7 @@ int main(void)
 
         /* Early termination on severe crash */
         if (fabs(e_y) > 3.0) {
-            printf("\n  !!! CRASH: e_y = %.2f m at step %d (t=%.2fs, wp=%d) !!!\n", e_y, step, t, closest);
+            printf("\n  !!! CRASH: e_y = %.2f m at step %d (t=%.2fs, wp_g=%d) !!!\n", e_y, step, t, true_closest);
             break;
         }
     }
