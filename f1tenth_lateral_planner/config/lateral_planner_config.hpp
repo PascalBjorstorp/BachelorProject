@@ -40,7 +40,7 @@
 #define LOOKAHEAD_POINTS 80
 
 // Node behavior
-#define PUBLISH_RATE_HZ 40.0
+#define PUBLISH_RATE_HZ 200.0
 
 // Obstacle behavior
 // true  -> obstacle avoidance enabled

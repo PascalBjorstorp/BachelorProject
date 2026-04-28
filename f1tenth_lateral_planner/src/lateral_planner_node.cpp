@@ -112,8 +112,7 @@ private:
     }
 
     RCLCPP_INFO(get_logger(), "  Avoidance enabled: %s", avoidance_enabled_ ? "true" : "false");
-    map_frame_  = FRAME_MAP;
-    base_frame_ = FRAME_BASE_LINK;
+    map_frame_ = FRAME_MAP;
     laser_frame_ = FRAME_LASER;
   }
 
@@ -165,8 +164,8 @@ private:
   {
     double rate = PUBLISH_RATE_HZ;
     if (rate <= 0.0) {
-      RCLCPP_WARN(get_logger(), "Invalid PUBLISH_RATE_HZ (%.3f), using 40.0", rate);
-      rate = 40.0;
+      RCLCPP_WARN(get_logger(), "Invalid PUBLISH_RATE_HZ (%.3f), using 200.0", rate);
+      rate = 200.0;
     }
     auto period = std::chrono::duration<double>(1.0 / rate);
     timer_ = create_wall_timer(
@@ -225,7 +224,7 @@ private:
       }
     }
 
-    // Update robot pose from TF
+    // Update planning reference pose from TF
     if (!updateRobotPoseFromTF()) {
       return;
     }
@@ -256,11 +255,11 @@ private:
     geometry_msgs::msg::TransformStamped tf;
     try {
       tf = tf_buffer_->lookupTransform(
-        map_frame_, base_frame_,
+        map_frame_, laser_frame_,
         tf2::TimePointZero,
         tf2::durationFromSec(0.02));
     } catch (const tf2::TransformException & ex) {
-      RCLCPP_DEBUG(get_logger(), "Robot TF lookup failed: %s", ex.what());
+      RCLCPP_DEBUG(get_logger(), "Laser TF lookup failed: %s", ex.what());
       return false;
     }
 
@@ -559,7 +558,6 @@ private:
 
   // Frame IDs
   std::string map_frame_;
-  std::string base_frame_;
   std::string laser_frame_;
 
   // TF
