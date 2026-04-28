@@ -38,6 +38,7 @@
 #include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <std_msgs/msg/float64.hpp>
+#include <vesc_msgs/msg/vesc_state_stamped.hpp>
 
 namespace vesc_ackermann
 {
@@ -80,6 +81,14 @@ AckermannToVesc::AckermannToVesc(const rclcpp::NodeOptions & options)
   declare_parameter("accel_drag_coulomb", 0.0);    // m/s^2
   declare_parameter("accel_drag_viscous", 0.0);    // 1/s
   declare_parameter("accel_drag_quadratic", 0.0);  // 1/m
+  // Output clamps (amps). Keep symmetric so braking not wildly stronger than drive.
+  // These clamps are IN ADDITION to vesc_driver's own limits.
+  declare_parameter("max_drive_current", 100.0);
+  declare_parameter("max_brake_current", 20.0);
+  // Battery (input) current clamp for regen (A). Uses VESC telemetry on `sensors/core`.
+  // Example: 10A means "never regen more than -10A into battery".
+  // Set <=0 to disable.
+  declare_parameter("max_regen_input_current", 0.0);
 
   // Slow-start parameters (for sensorless motors that need low-speed
   // rotation to detect rotor position before full ERPM can be commanded)
@@ -109,6 +118,12 @@ AckermannToVesc::AckermannToVesc(const rclcpp::NodeOptions & options)
   accel_drag_coulomb_ = get_parameter("accel_drag_coulomb").get_value<double>();
   accel_drag_viscous_ = get_parameter("accel_drag_viscous").get_value<double>();
   accel_drag_quadratic_ = get_parameter("accel_drag_quadratic").get_value<double>();
+  max_drive_current_ = get_parameter("max_drive_current").get_value<double>();
+  max_brake_current_ = get_parameter("max_brake_current").get_value<double>();
+  if (!(max_drive_current_ > 0.0)) max_drive_current_ = 100.0;
+  if (!(max_brake_current_ > 0.0)) max_brake_current_ = 20.0;
+  max_regen_input_current_ = get_parameter("max_regen_input_current").get_value<double>();
+  last_input_current_ = 0.0;
 
   // Slow-start parameters
   slow_start_threshold_ = get_parameter("slow_start_threshold").get_value<double>();
@@ -131,6 +146,8 @@ AckermannToVesc::AckermannToVesc(const rclcpp::NodeOptions & options)
   // Subscribe to odometry for velocity feedback
   odom_sub_ = create_subscription<Odometry>(
     "ego_racecar/odom", 10, std::bind(&AckermannToVesc::odomCallback, this, _1));
+  vesc_state_sub_ = create_subscription<vesc_msgs::msg::VescStateStamped>(
+    "sensors/core", 10, std::bind(&AckermannToVesc::vescStateCallback, this, _1));
 }
 
 void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPtr cmd)
@@ -175,6 +192,26 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
         double brake_decel = std::abs(accel_cmd) - accel_ff;
         if (brake_decel < 0.0) brake_decel = 0.0;
         brake_msg->data = accel_to_brake_gain_ * brake_decel;
+
+        // Optional battery regen clamp: if VESC reports we're already close to
+        // the regen limit, scale down brake command.
+        if (max_regen_input_current_ > 0.0) {
+          const double regen_now = -last_input_current_;  // positive when input_current is negative
+          if (regen_now > 0.0) {
+            const double headroom = max_regen_input_current_ - regen_now;
+            if (headroom <= 0.0) {
+              brake_msg->data = 0.0;
+            } else {
+              // Scale brake current conservatively by available headroom fraction.
+              const double scale = headroom / max_regen_input_current_;
+              if (scale < 1.0) {
+                brake_msg->data *= scale;
+              }
+            }
+          }
+        }
+
+        if (brake_msg->data > max_brake_current_) brake_msg->data = max_brake_current_;
         publish_brake = true;
       } else {
         // Above threshold: direct current command is safe — the observer
@@ -187,6 +224,8 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
           accel_drag_quadratic_ * v * v;
         const double accel_total = accel_cmd + accel_ff;
         current_msg->data = accel_to_current_gain_ * accel_total;
+        if (current_msg->data < 0.0) current_msg->data = 0.0;
+        if (current_msg->data > max_drive_current_) current_msg->data = max_drive_current_;
         publish_erpm = true;
       }
     } else {
@@ -201,6 +240,8 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
         accel_drag_quadratic_ * v * v;
       const double accel_total = accel_ff;  // accel_cmd ~ 0
       current_msg->data = accel_to_current_gain_ * accel_total;
+      if (current_msg->data < 0.0) current_msg->data = 0.0;
+      if (current_msg->data > max_drive_current_) current_msg->data = max_drive_current_;
       publish_erpm = true;
     }
   } else {
@@ -273,6 +314,14 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
 void AckermannToVesc::odomCallback(const Odometry::SharedPtr odom_msg)
 {
   current_vel_ = odom_msg->twist.twist.linear.x;
+}
+
+void AckermannToVesc::vescStateCallback(const vesc_msgs::msg::VescStateStamped::SharedPtr state)
+{
+  if (!state) {
+    return;
+  }
+  last_input_current_ = state->state.current_input;
 }
 
 }  // namespace vesc_ackermann

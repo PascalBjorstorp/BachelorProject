@@ -189,22 +189,22 @@ ackermann_to_vesc_node:
     # Identified from `f1tenth_parameters/data/motor_torque_*.csv`:
     #   accel_to_current_gain ≈ m / Kt_eff
     #   accel_to_brake_gain   ≈ m / Kt_eff_brake
-    accel_to_current_gain: 5.73     # A/(m/s^2)
-    accel_to_brake_gain: 6.97       # A/(m/s^2)
+    accel_to_current_gain: 5.82     # A/(m/s^2) (fit over all 5 runs)
+    accel_to_brake_gain: 7.38       # A/(m/s^2) (fit over all 5 runs)
     accel_deadzone: 0.02            # m/s^2 (treat tiny accel as 0, still publish current FF)
     # Coastdown / drag feedforward to avoid "a=0 -> car slows too much" mismatch vs sim.
     # Set from coastdown fit of dv/dt ≈ -(c0 + c1*|v| + c2*v^2).
     # Start simple: only coulomb term (c0) often enough on carpet/asphalt.
     # Identified from `f1tenth_parameters/data/rolling_resistance_*.csv` coastdown:
-    #   a_coast ≈ 1.61 m/s^2  (so set accel_drag_coulomb ≈ 1.61)
-    accel_drag_coulomb: 1.61        # m/s^2
+    #   a_coast ≈ 1.60 m/s^2 median (10 runs)
+    accel_drag_coulomb: 1.60        # m/s^2
     accel_drag_viscous: 0.0         # 1/s
     accel_drag_quadratic: 0.0       # 1/m
 
-    # Braking parameters (for ACCEL_TO_CURRENT and VEL_TO_CURRENT modes)
-    use_braking: true
-    braking_decel_threshold: -0.5
-    max_brake_current: 10.0
+    # Output clamps (amps). Set to match VESC config + desired feel.
+    max_drive_current: 100.0
+    max_brake_current: 20.0
+    max_regen_input_current: 10.0   # A (battery/input current limit during regen)
 
     # Slow-start parameters (used only in VEL_TO_ERPM mode).
     # In ACCEL_TO_CURRENT mode this repo's `ackermann_to_vesc` no longer falls back to ERPM.
