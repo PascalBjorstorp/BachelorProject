@@ -79,6 +79,8 @@ static const char *g_local_raceline_topic = "/local_raceline";
 static int g_local_raceline_received = 0;
 static int g_local_raceline_wait_logged = 0;
 static int g_local_raceline_speed_warned = 0;
+static int g_local_raceline_wall_warned = 0;
+static const double FALLBACK_WALL_BOUND_M = 1.5;
 
 /** Enable verbose logging (disabled by default for real-time performance) */
 static int g_verbose = 1;
@@ -692,6 +694,7 @@ void local_raceline_callback(const void *message_in)
     double prev_x = 0.0;
     double prev_y = 0.0;
     size_t missing_speed_count = 0;
+    size_t missing_wall_count = 0;
 
     for (size_t i = 0; i < waypoint_count; i++)
     {
@@ -722,8 +725,20 @@ void local_raceline_callback(const void *message_in)
         }
         wp->velocity_meters_per_second = v_ref;
 
-        wp->left_bound_meters = 1.5;
-        wp->right_bound_meters = 1.5;
+        double left_bound = pose->pose.orientation.x;
+        double right_bound = pose->pose.orientation.y;
+        if (!isfinite(left_bound) || left_bound <= 0.0)
+        {
+            left_bound = FALLBACK_WALL_BOUND_M;
+            missing_wall_count++;
+        }
+        if (!isfinite(right_bound) || right_bound <= 0.0)
+        {
+            right_bound = FALLBACK_WALL_BOUND_M;
+            missing_wall_count++;
+        }
+        wp->left_bound_meters = (float)left_bound;
+        wp->right_bound_meters = (float)right_bound;
         /* Heading is computed from geometry after loading all points. */
         wp->heading_radians = 0.0;
         wp->curvature_radians_per_meter = 0.0;
@@ -811,6 +826,13 @@ void local_raceline_callback(const void *message_in)
     {
         printf("[MPC] WARNING: /local_raceline speed missing (z≈0). If using lateral planner, subscribe to /local_raceline (not /local_raceline_viz).\n");
         g_local_raceline_speed_warned = 1;
+    }
+
+    if (!g_local_raceline_wall_warned &&
+        missing_wall_count > (size_t)((double)waypoint_count * 2.0 * 0.90))
+    {
+        printf("[MPC] WARNING: /local_raceline wall distances missing (orientation.x/y≈0). Using fallback wall bounds.\n");
+        g_local_raceline_wall_warned = 1;
     }
 
     if (g_verbose)

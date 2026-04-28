@@ -304,6 +304,8 @@ private:
       pose.pose.position.x = wp.x;
       pose.pose.position.y = wp.y;
       pose.pose.position.z = wp.vx * speed_scale;  // velocity encoded in z (controller convention)
+      pose.pose.orientation.x = wp.d_left;          // left wall distance encoded for MPC
+      pose.pose.orientation.y = wp.d_right;         // right wall distance encoded for MPC
       pose.pose.orientation.z = std::sin(wp.psi / 2.0);
       pose.pose.orientation.w = std::cos(wp.psi / 2.0);
       path_msg.poses.push_back(pose);
