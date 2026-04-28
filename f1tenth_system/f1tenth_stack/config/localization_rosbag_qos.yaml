@@ -1,0 +1,119 @@
+/tf:
+  history: keep_last
+  depth: 1000
+  reliability: best_effort
+  durability: volatile
+
+/tf_static:
+  history: keep_last
+  depth: 1
+  reliability: reliable
+  durability: transient_local
+
+/scan:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
+  durability: volatile
+
+/scan_walls:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
+  durability: volatile
+
+/scan_obstacles:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
+  durability: volatile
+
+/ego_racecar/odom:
+  history: keep_last
+  depth: 200
+  reliability: best_effort
+  durability: volatile
+
+/odom_pose:
+  history: keep_last
+  depth: 200
+  reliability: reliable
+  durability: volatile
+
+/amcl_pose:
+  history: keep_last
+  depth: 100
+  reliability: reliable
+  durability: volatile
+
+/amcl_timing:
+  history: keep_last
+  depth: 100
+  reliability: reliable
+  durability: volatile
+
+/amcl_particle_count:
+  history: keep_last
+  depth: 100
+  reliability: reliable
+  durability: volatile
+
+/ekf_pose:
+  history: keep_last
+  depth: 200
+  reliability: reliable
+  durability: volatile
+
+/vrpn_mocap/car_pos/pose:
+  history: keep_last
+  depth: 200
+  reliability: reliable
+  durability: volatile
+
+/map:
+  history: keep_last
+  depth: 1
+  reliability: reliable
+  durability: transient_local
+
+/map_metadata:
+  history: keep_last
+  depth: 1
+  reliability: reliable
+  durability: transient_local
+
+/initialpose:
+  history: keep_last
+  depth: 10
+  reliability: reliable
+  durability: volatile
+
+/particlecloud:
+  history: keep_last
+  depth: 20
+  reliability: reliable
+  durability: volatile
+
+/particle_cloud:
+  history: keep_last
+  depth: 20
+  reliability: reliable
+  durability: volatile
+
+/drive:
+  history: keep_last
+  depth: 100
+  reliability: reliable
+  durability: volatile
+
+/ackermann_cmd:
+  history: keep_last
+  depth: 100
+  reliability: reliable
+  durability: volatile
+
+/clock:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
+  durability: volatile

@@ -80,6 +80,7 @@ public:
     double window_time_s         = 0.8;
     double max_lateral_shift_m   = 0.8;
     int    lookahead_points      = 80;   ///< Waypoints to publish ahead
+    int    path_start_offset_points = 0; ///< Start this many waypoints ahead of nearest
     double pass_complete_margin  = 2.0;  ///< Car must be this far past opponent to unlock [m]
     double window_lead_ratio     = 0.7;  ///< Fraction of window before the opponent [0..1]
     double opponent_length_m     = 0.58; ///< Known opponent length [m]

@@ -1693,13 +1693,13 @@ def main():
         max_speed=12.0,         # m/s (set to None for no clamping)
         min_speed=1.5,          # m/s (set to None for no clamping)
         waypoint_spacing=0.02,  
-        reopt_mintime_solution=True,
-        recalc_vel_profile_by_tph=False,
+        reopt_mintime_solution=True,        # Try false false or true true
+        recalc_vel_profile_by_tph=False,    # If true follow the files ax max and ggv
 
         # Centerline extraction settings
         centerline_spacing=0.15,     # target spacing for centerline points (in metres)
         optimizer_spacing=0.1,      # prepared reference-track spacing for TUM mintime
-        optimizer_smoothing_s=2.0,  # TUM spline smoothing factor before width measurement
+        optimizer_smoothing_s=3.0,  # TUM spline smoothing factor before width measurement
         optimizer_smoothing_k=2,    # TUM spline order (mirrors racecar.ini)
         optimizer_smoothing_prep_spacing=0.02,
         direction='cw',             # 'auto', 'cw', or 'ccw'

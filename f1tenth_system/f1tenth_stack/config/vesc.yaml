@@ -180,15 +180,15 @@ ackermann_to_vesc_node:
     # "VEL_TO_CURRENT": velocity command -> current (with PID)
     # "VEL_TO_ERPM": velocity command -> ERPM (default, simplest)
     # Mode is determined by accel gains: non-zero enables ACCEL_TO_CURRENT.
-    operation_mode: "VEL_TO_ERPM"
+    operation_mode: "ACCEL_TO_CURRENT"
 
     # Acceleration-to-current gains (set non-zero to enable ACCEL_TO_CURRENT)
     # Derived from tested drivetrain model:
-    #   gain = mass / Kt_eff = 3.314 / 0.583 = 5.684 A/(m/s²)
+    #   gain = mass / Kt_eff = 3.496 / 0.583 = 5.997 A/(m/s²)
     # Source: f1tenth_parameters/vehicle_params.yaml (Kt_eff tested, R²=0.87)
-    accel_to_current_gain: 0.0    # 0.0 = VEL_TO_ERPM mode (set to 5.684 for ACCEL_TO_CURRENT)
-    accel_to_brake_gain: 0.0      # 0.0 = VEL_TO_ERPM mode (set to 5.684 for ACCEL_TO_CURRENT)
-    
+    accel_to_current_gain: 5.997    # 0.0 = VEL_TO_ERPM mode (set to 5.997 for ACCEL_TO_CURRENT)
+    accel_to_brake_gain: 5.997      # 0.0 = VEL_TO_ERPM mode (set to 5.997 for ACCEL_TO_CURRENT)
+
     # Braking parameters (for ACCEL_TO_CURRENT and VEL_TO_CURRENT modes)
     use_braking: true
     braking_decel_threshold: -0.5

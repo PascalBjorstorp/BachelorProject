@@ -328,6 +328,19 @@ typedef struct
      *  Keeps s from running too far ahead of the vehicle. */
     float weight_lag;
 
+    /** Wall-clearance weight.
+     *  Adds a soft penalty when the predicted contouring state enters a
+     *  near-wall band inside the hard corridor bounds. This lets the
+     *  controller leave a wall-hugging reference line before projection
+     *  against the hard corridor becomes active. */
+    float weight_wall_clearance;
+
+    /** Desired extra clearance from each wall [m].
+     *  Defines the soft inner corridor used by weight_wall_clearance.
+     *  If the corridor is narrower than 2x this value, the wall-clearance
+     *  cost falls back to corridor centering. */
+    float wall_clearance_margin;
+
     /** Progress weight (q_s).
      *  Reward for forward progress ds/dt. Higher = more aggressive.
      *  Applied as linear cost: -q_s on s-component. */
@@ -545,6 +558,8 @@ typedef struct
 /*--- Contouring tracking weights (Apr 22 post-fix sweep best: 11.9s lap, 0 collisions) ---*/
 #define MPCC_DEFAULT_WEIGHT_CONTOURING (960.0f)                     /** Contouring error penalty. */
 #define MPCC_DEFAULT_WEIGHT_LAG       (100.0f)                     /** Lag error penalty. */
+#define MPCC_DEFAULT_WEIGHT_WALL_CLEARANCE (3200.0f)               /** Soft near-wall penalty inside the hard corridor. */
+#define MPCC_DEFAULT_WALL_CLEARANCE_MARGIN (0.02f)                 /** Extra desired distance from each wall [m]. */
 #define MPCC_DEFAULT_WEIGHT_PROGRESS  (15.6f)                      /** Progress reward. */
 
 /*--- State regularization ---*/

@@ -375,8 +375,14 @@ static int load_trajectory_csv(const char *file_path, MPCCReferencePath_t *path)
             {
                 float left_bound = (float)d_left - car_half_width;
                 float right_bound = (float)d_right - car_half_width;
-                if (left_bound < 0.05f) left_bound = 0.05f;
-                if (right_bound < 0.05f) right_bound = 0.05f;
+                if ((left_bound + right_bound) < 0.0f)
+                {
+                    float lower = -left_bound;
+                    float upper = right_bound;
+                    float center = 0.5f * (lower + upper);
+                    left_bound = -center;
+                    right_bound = center;
+                }
                 pt->left_bound = left_bound;
                 pt->right_bound = right_bound;
             }
@@ -1216,6 +1222,15 @@ static void configure_mpcc_from_environment(void)
         else if (v_alias) cfg.weight_lag = (float)atof(v_alias);
     }
     {
+        const char *v_canon = getenv("Q_WALL_CLEARANCE");
+        const char *v_alias = getenv("Q_WALL");
+        if (v_canon && v_alias)
+            fprintf(stderr, "[MPCC] WARNING: both Q_WALL_CLEARANCE and Q_WALL are set — "
+                            "Q_WALL_CLEARANCE takes priority (%.1f)\n", atof(v_canon));
+        if (v_canon)      cfg.weight_wall_clearance = (float)atof(v_canon);
+        else if (v_alias) cfg.weight_wall_clearance = (float)atof(v_alias);
+    }
+    {
         const char *v_canon = getenv("Q_CONTOURING_TERM");
         const char *v_alias = getenv("Q_N_TERM");
         if (v_canon && v_alias)
@@ -1236,6 +1251,7 @@ static void configure_mpcc_from_environment(void)
 
     /* Single-name parameters — no alias conflict possible */
     const char *v;
+    if ((v = getenv("WALL_CLEARANCE_MARGIN")) != NULL) cfg.wall_clearance_margin = (float)atof(v);
     if ((v = getenv("Q_PROGRESS")) != NULL)    cfg.weight_progress          = (float)atof(v);
     if ((v = getenv("Q_VX")) != NULL)          cfg.weight_vx                = (float)atof(v);
     if ((v = getenv("VX_REF")) != NULL)        cfg.vx_ref                   = (float)atof(v);
@@ -1302,11 +1318,13 @@ static void configure_mpcc_from_environment(void)
         g_control_dt_filtered = 1.0 / MPCC_CONTROL_RATE_HZ;
     }
 
-    printf("[MPCC] Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_prog=%.1f R_delta=%.2f ax_min_hw=%.1f cross_call=%.4f adapt_cross_call=%d vx_min_cmd=%.2f\n",
+        printf("[MPCC] Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f Q_wall=%.1f wall_margin=%.3f Q_prog=%.1f R_delta=%.2f ax_min_hw=%.1f cross_call=%.4f adapt_cross_call=%d vx_min_cmd=%.2f\n",
            cfg.horizon_steps,
            cfg.dt,
            cfg.weight_contouring,
            cfg.weight_lag,
+            cfg.weight_wall_clearance,
+            cfg.wall_clearance_margin,
            cfg.weight_progress,
            cfg.weight_delta,
            g_ax_min_hardware,

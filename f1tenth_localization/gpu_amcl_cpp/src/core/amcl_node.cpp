@@ -4,6 +4,7 @@
 #include <chrono>
 #include <algorithm>
 #include <std_msgs/msg/float64.hpp>
+#include <std_msgs/msg/int32.hpp>
 
 using namespace std::chrono_literals;
 
@@ -19,6 +20,7 @@ AmclNode::AmclNode(const rclcpp::NodeOptions& options)
     pose_pub_  = create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("amcl_pose", rclcpp::QoS(10));
     cloud_pub_ = create_publisher<geometry_msgs::msg::PoseArray>("particlecloud", rclcpp::QoS(2));
     timing_pub_ = create_publisher<std_msgs::msg::Float64>("amcl_timing", rclcpp::QoS(10));
+    particle_count_pub_ = create_publisher<std_msgs::msg::Int32>("amcl_particle_count", rclcpp::QoS(10));
 
     // ── Callback groups ──
     // MutuallyExclusive: callbacks in SAME group don't run concurrently
@@ -275,6 +277,10 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     prediction_baseline_ready_ = false;
     RCLCPP_INFO(get_logger(), "Particle filter initialised with %d particles", pf_cfg.num_particles);
 
+    std_msgs::msg::Int32 particle_count_msg;
+    particle_count_msg.data = pf_.num_particles();
+    particle_count_pub_->publish(particle_count_msg);
+
     // 6. Publish initial pose so EKF can bootstrap
     auto init_est = pf_.get_estimate();
     publish_pose(init_est, now());
@@ -422,6 +428,10 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
         timing_pub_->publish(timing_msg);
     }
 
+    std_msgs::msg::Int32 particle_count_msg;
+    particle_count_msg.data = pf_.num_particles();
+    particle_count_pub_->publish(particle_count_msg);
+
     // ═══════════════════════════════════════════════════════════
     // STEP 4: PUBLISH POSE — Immediately, with scan's timestamp
     // ═══════════════════════════════════════════════════════════
@@ -453,6 +463,10 @@ void AmclNode::initialpose_callback(const geometry_msgs::msg::PoseWithCovariance
                      get_parameter("initial_cov_xx").as_double(),
                      get_parameter("initial_cov_yy").as_double(),
                      get_parameter("initial_cov_aa").as_double());
+
+    std_msgs::msg::Int32 particle_count_msg;
+    particle_count_msg.data = pf_.num_particles();
+    particle_count_pub_->publish(particle_count_msg);
 
     // Reset odom baseline
     prediction_baseline_ready_ = false;
