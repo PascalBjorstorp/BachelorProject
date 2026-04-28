@@ -283,8 +283,8 @@ private:
     }
 
     const double elapsed = (now() - speed_ramp_start_time_).seconds();
-    const double alpha = std::clamp(elapsed / 25.0, 0.0, 1.0);
-    return 0.2 + 0.8 * alpha;  // 20% -> 100% over 25 seconds
+    const double alpha = std::clamp(elapsed / 15.0, 0.0, 1.0);
+    return 0.5 + 0.5 * alpha;  // 50% -> 100% over 15 seconds
   }
 
   // ── Publishing ────────────────────────────────────────────────────
