@@ -186,23 +186,29 @@ ackermann_to_vesc_node:
     # Derived from tested drivetrain model:
     #   gain = mass / Kt_eff = 3.496 / 0.583 = 5.997 A/(m/s²)
     # Source: f1tenth_parameters/vehicle_params.yaml (Kt_eff tested, R²=0.87)
-    accel_to_current_gain: 5.997    # 0.0 = VEL_TO_ERPM mode (set to 5.997 for ACCEL_TO_CURRENT)
-    accel_to_brake_gain: 5.997      # 0.0 = VEL_TO_ERPM mode (set to 5.997 for ACCEL_TO_CURRENT)
+    # Identified from `f1tenth_parameters/data/motor_torque_*.csv`:
+    #   accel_to_current_gain ≈ m / Kt_eff
+    #   accel_to_brake_gain   ≈ m / Kt_eff_brake
+    accel_to_current_gain: 5.73     # A/(m/s^2)
+    accel_to_brake_gain: 6.97       # A/(m/s^2)
+    accel_deadzone: 0.02            # m/s^2 (treat tiny accel as 0, still publish current FF)
+    # Coastdown / drag feedforward to avoid "a=0 -> car slows too much" mismatch vs sim.
+    # Set from coastdown fit of dv/dt ≈ -(c0 + c1*|v| + c2*v^2).
+    # Start simple: only coulomb term (c0) often enough on carpet/asphalt.
+    # Identified from `f1tenth_parameters/data/rolling_resistance_*.csv` coastdown:
+    #   a_coast ≈ 1.61 m/s^2  (so set accel_drag_coulomb ≈ 1.61)
+    accel_drag_coulomb: 1.61        # m/s^2
+    accel_drag_viscous: 0.0         # 1/s
+    accel_drag_quadratic: 0.0       # 1/m
 
     # Braking parameters (for ACCEL_TO_CURRENT and VEL_TO_CURRENT modes)
     use_braking: true
     braking_decel_threshold: -0.5
     max_brake_current: 10.0
 
-    # Slow-start parameters (for sensorless brushless motors)
-    # When current speed < threshold and commanded > threshold, the driver
-    # gradually ramps up speed by increment to allow rotor position detection.
-    # Set threshold to 0.0 to disable slow-start entirely.
-    # IMPORTANT: When using ACCEL_TO_CURRENT mode with a sensorless motor,
-    # this MUST be > 0 to avoid sending COMM_SET_CURRENT at standstill,
-    # which causes cogging/vibration because the back-EMF observer cannot
-    # determine rotor position at zero speed.
-    slow_start_threshold: 1.0    # m/s (>0 enables ERPM-based startup below this speed)
+    # Slow-start parameters (used only in VEL_TO_ERPM mode).
+    # In ACCEL_TO_CURRENT mode this repo's `ackermann_to_vesc` no longer falls back to ERPM.
+    slow_start_threshold: 1.0    # m/s
     slow_start_increment: 0.4    # m/s per command step
 
 # ===================

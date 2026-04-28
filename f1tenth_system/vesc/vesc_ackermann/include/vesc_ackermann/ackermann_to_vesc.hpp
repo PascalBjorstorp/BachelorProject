@@ -60,6 +60,8 @@ private:
   double steering_correction_c2_, steering_correction_c1_, steering_correction_c0_;
   double current_vel_, brake_deadzone_;
   double accel_to_current_gain_, accel_to_brake_gain_;
+  double accel_deadzone_;
+  double accel_drag_coulomb_, accel_drag_viscous_, accel_drag_quadratic_;
   double slow_start_threshold_, slow_start_increment_;
 
   // Operation modes enum

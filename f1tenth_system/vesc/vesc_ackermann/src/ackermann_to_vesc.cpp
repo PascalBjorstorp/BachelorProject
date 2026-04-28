@@ -73,6 +73,13 @@ AckermannToVesc::AckermannToVesc(const rclcpp::NodeOptions & options)
   // Acceleration control parameters
   declare_parameter("accel_to_current_gain", 0.0);
   declare_parameter("accel_to_brake_gain", 0.0);
+  declare_parameter("accel_deadzone", 0.02);  // m/s^2: treat tiny accel as 0 (avoid command dropouts)
+  // Coastdown / drag feedforward (accel domain): a_ff(v)=c0 + c1*|v| + c2*v^2
+  // Add to commanded acceleration to counter real drivetrain/tire drag.
+  // Defaults 0 → no change vs upstream behavior.
+  declare_parameter("accel_drag_coulomb", 0.0);    // m/s^2
+  declare_parameter("accel_drag_viscous", 0.0);    // 1/s
+  declare_parameter("accel_drag_quadratic", 0.0);  // 1/m
 
   // Slow-start parameters (for sensorless motors that need low-speed
   // rotation to detect rotor position before full ERPM can be commanded)
@@ -98,6 +105,10 @@ AckermannToVesc::AckermannToVesc(const rclcpp::NodeOptions & options)
   // Acceleration parameters
   accel_to_current_gain_ = get_parameter("accel_to_current_gain").get_value<double>();
   accel_to_brake_gain_ = get_parameter("accel_to_brake_gain").get_value<double>();
+  accel_deadzone_ = get_parameter("accel_deadzone").get_value<double>();
+  accel_drag_coulomb_ = get_parameter("accel_drag_coulomb").get_value<double>();
+  accel_drag_viscous_ = get_parameter("accel_drag_viscous").get_value<double>();
+  accel_drag_quadratic_ = get_parameter("accel_drag_quadratic").get_value<double>();
 
   // Slow-start parameters
   slow_start_threshold_ = get_parameter("slow_start_threshold").get_value<double>();
@@ -148,69 +159,49 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
 
   // Case 1: Acceleration-to-current mode (if gains are set)
   if (accel_to_current_gain_ != 0 && accel_to_brake_gain_ != 0) {
-    if (cmd->drive.acceleration != 0) {
-      if (cmd->drive.acceleration < 0) {
-        // Braking — always safe regardless of speed
+    const double accel_cmd = cmd->drive.acceleration;
+    if (std::abs(accel_cmd) > accel_deadzone_) {
+      if (accel_cmd < 0) {
+        // Braking.
+        // Note: Resistive drag already provides negative acceleration during coasting.
+        // To make the realized deceleration match the commanded value, subtract the
+        // configured drag feedforward magnitude from the requested braking decel.
         operation_mode_ = ACCEL_TO_CURRENT;
-        brake_msg->data = accel_to_brake_gain_ * std::abs(cmd->drive.acceleration);
+        const double v = std::abs(current_vel_);
+        const double accel_ff =
+          accel_drag_coulomb_ +
+          accel_drag_viscous_ * v +
+          accel_drag_quadratic_ * v * v;
+        double brake_decel = std::abs(accel_cmd) - accel_ff;
+        if (brake_decel < 0.0) brake_decel = 0.0;
+        brake_msg->data = accel_to_brake_gain_ * brake_decel;
         publish_brake = true;
-      } else if (slow_start_threshold_ > 0.0 &&
-                 std::abs(current_vel_) < slow_start_threshold_) {
-        // LOW-SPEED PROTECTION for sensorless motors:
-        // Below the slow-start threshold, COMM_SET_CURRENT is unreliable
-        // because the back-EMF observer has insufficient signal for rotor
-        // position estimation. Instead, use COMM_SET_RPM which triggers
-        // the VESC firmware's built-in open-loop startup sequence.
-        //
-        // The target velocity is computed from the drive.speed field (set by
-        // MPC as v_ref + a_cmd*dt) or, if zero, from a small increment.
-        // The slow_start_increment_ parameter limits how quickly we ramp
-        // to avoid overshooting the open-loop → sensorless transition.
-        operation_mode_ = VEL_TO_ERPM;
-        double target_vel = cmd->drive.speed;
-        if (target_vel <= 0.0) {
-          // Fallback: use a gentle kick to get the motor moving
-          target_vel = slow_start_increment_;
-        }
-        // Limit the commanded velocity to the threshold during startup
-        if (target_vel > slow_start_threshold_) {
-          target_vel = std::min(current_vel_ + slow_start_increment_, slow_start_threshold_);
-        }
-        erpm_msg->data = speed_to_erpm_gain_ * target_vel + speed_to_erpm_offset_;
-        publish_erpm = true;
-        RCLCPP_DEBUG_THROTTLE(get_logger(), *get_clock(), 500,
-          "Low-speed protection: using ERPM mode (vel=%.2f, target=%.2f, threshold=%.2f)",
-          current_vel_, target_vel, slow_start_threshold_);
       } else {
         // Above threshold: direct current command is safe — the observer
         // has enough back-EMF signal for reliable rotor position estimation.
         operation_mode_ = ACCEL_TO_CURRENT;
-        current_msg->data = accel_to_current_gain_ * cmd->drive.acceleration;
+        const double v = std::abs(current_vel_);
+        const double accel_ff =
+          accel_drag_coulomb_ +
+          accel_drag_viscous_ * v +
+          accel_drag_quadratic_ * v * v;
+        const double accel_total = accel_cmd + accel_ff;
+        current_msg->data = accel_to_current_gain_ * accel_total;
         publish_erpm = true;
       }
-    } else if (cmd->drive.speed != 0 || operation_mode_ == VEL_TO_CURRENT) {
-      // Velocity-to-current mode with feedback
-      operation_mode_ = VEL_TO_CURRENT;
-      double commanded_vel = cmd->drive.speed;
-      double acceleration = 10.0 * (commanded_vel - current_vel_);
-      if (acceleration > 0) {
-        if (slow_start_threshold_ > 0.0 &&
-            std::abs(current_vel_) < slow_start_threshold_) {
-          // Low-speed protection: use ERPM instead of current
-          operation_mode_ = VEL_TO_ERPM;
-          double target_vel = std::min(commanded_vel, slow_start_threshold_);
-          if (current_vel_ < slow_start_threshold_) {
-            target_vel = std::min(current_vel_ + slow_start_increment_, target_vel);
-          }
-          erpm_msg->data = speed_to_erpm_gain_ * target_vel + speed_to_erpm_offset_;
-        } else {
-          current_msg->data = acceleration * accel_to_current_gain_;
-        }
-        publish_erpm = true;
-      } else {
-        brake_msg->data = std::abs(acceleration) * accel_to_brake_gain_;
-        publish_brake = true;
-      }
+    } else {
+      // a_cmd ~ 0: still publish current feedforward to cancel drag (if configured).
+      // This enables "acceleration-only" control to match real coastdown behavior:
+      // with a_ff(v) tuned, a_cmd=0 can yield dv/dt≈0 instead of decelerating.
+      operation_mode_ = ACCEL_TO_CURRENT;
+      const double v = std::abs(current_vel_);
+      const double accel_ff =
+        accel_drag_coulomb_ +
+        accel_drag_viscous_ * v +
+        accel_drag_quadratic_ * v * v;
+      const double accel_total = accel_ff;  // accel_cmd ~ 0
+      current_msg->data = accel_to_current_gain_ * accel_total;
+      publish_erpm = true;
     }
   } else {
     // Case 2: Velocity-to-ERPM mode (default, when accel gains are 0)
@@ -267,9 +258,8 @@ void AckermannToVesc::ackermannCmdCallback(const AckermannDriveStamped::SharedPt
       brake_pub_->publish(std::move(brake_msg));
     } else if (publish_erpm) {
       if (operation_mode_ == ACCEL_TO_CURRENT || operation_mode_ == VEL_TO_CURRENT) {
-        if (current_msg->data != 0.0) {
-          current_pub_->publish(std::move(current_msg));
-        }
+        // Always publish current (even 0) to keep VESC command timeout reset.
+        current_pub_->publish(std::move(current_msg));
       } else if (operation_mode_ == VEL_TO_ERPM) {
         if (erpm_msg->data != 0.0) {
           erpm_pub_->publish(std::move(erpm_msg));
