@@ -86,7 +86,7 @@ static const double FALLBACK_WALL_BOUND_M = 1.5;
 static double g_raceline_speed_margin_mps = 0.5;
 
 /** Enable verbose logging (disabled by default for real-time performance) */
-static int g_verbose = 0;
+static int g_verbose = 1;
 
 /** Set to 1 once the first EKF pose message has been received. */
 static int g_ekf_pose_received = 0;
