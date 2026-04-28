@@ -211,8 +211,6 @@ endif()
 
 # Install Python scripts as executables (skip optional legacy node if absent)
 set(LOCALIZATION_PYTHON_SCRIPTS
-  Benchmark/localization_benchmark.py
-  Benchmark/JetsonFiles/odom_tf_publisher.py
 )
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/gpu_amcl/scripts/gpu_amcl_node.py")
@@ -221,10 +219,12 @@ else()
   message(STATUS "gpu_amcl/scripts/gpu_amcl_node.py not found; skipping install")
 endif()
 
-install(PROGRAMS
-  ${LOCALIZATION_PYTHON_SCRIPTS}
-  DESTINATION lib/${PROJECT_NAME}
-)
+if(LOCALIZATION_PYTHON_SCRIPTS)
+  install(PROGRAMS
+    ${LOCALIZATION_PYTHON_SCRIPTS}
+    DESTINATION lib/${PROJECT_NAME}
+  )
+endif()
 
 # ================================================================
 #  Shared assets (launch, config, benchmark)
@@ -235,30 +235,10 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}
 )
 
-# Also install benchmark launch files
-install(FILES
-  Benchmark/JetsonFiles/amcl_bag_benchmark.launch.py
-  Benchmark/JetsonFiles/sim_headless.launch.py
-  Benchmark/JetsonFiles/record_bag.launch.py
-  DESTINATION share/${PROJECT_NAME}/launch
-)
-
 # Install config files (YAML params + RViz configs)
 install(DIRECTORY
   config
   DESTINATION share/${PROJECT_NAME}
-)
-
-# Also install benchmark config
-install(FILES
-  Benchmark/config/benchmark_configs.yaml
-  DESTINATION share/${PROJECT_NAME}/config
-)
-
-# Install benchmark sweep script
-install(PROGRAMS
-  Benchmark/JetsonFiles/run_benchmark_sweep.sh
-  DESTINATION lib/${PROJECT_NAME}
 )
 
 ament_package()

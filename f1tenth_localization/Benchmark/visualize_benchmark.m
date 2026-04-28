@@ -2,7 +2,7 @@
 %  Usage: Run this script from MATLAB. A file picker will open if no CSV
 %         path is hard-coded below.
 %
-%  Columns expected (from localization_benchmark.py):
+%  Columns expected (from legacy localization benchmark CSV logs):
 %    time_s, gt_x, gt_y, gt_theta, gt_vx, gt_vy, gt_omega,
 %    ekf_x, ekf_y, ekf_theta, ekf_cov_xx, ekf_cov_yy, ekf_cov_tt,
 %    amcl_x, amcl_y, amcl_theta, amcl_cov_xx, amcl_cov_yy, amcl_cov_tt,
