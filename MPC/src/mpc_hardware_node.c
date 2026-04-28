@@ -34,7 +34,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <math.h>
 #include <time.h>
 #include <signal.h>
@@ -77,8 +76,6 @@ static const char *g_servo_topic = "/sensors/servo_position_command";
 static const char *g_odom_topic = "/ego_racecar/odom";
 static const char *g_ekf_pose_topic = "/ekf_pose";
 static const char *g_local_raceline_topic = "/local_raceline";
-static const char *g_trajectory_file = NULL;
-static int g_use_local_raceline = 1;
 static int g_local_raceline_received = 0;
 static int g_local_raceline_wait_logged = 0;
 static int g_local_raceline_speed_warned = 0;
@@ -129,10 +126,6 @@ static int g_use_steering_feedback = 0;
 
 static TrajectoryWaypoint_t global_trajectory[TRAJECTORY_MAXIMUM_WAYPOINTS];
 static int global_trajectory_count = 0;
-static int global_last_closest_index = 0;
-static int g_trajectory_closed = 0;
-static double g_trajectory_s_min = 0.0;
-static double g_trajectory_s_max = 0.0;
 static VehicleState_t global_vehicle_state = {0};
 static FrenetState_t global_frenet_state = {0};
 static ControlInput_t global_control_command = {0};
@@ -289,228 +282,11 @@ static void setup_realtime_scheduling(void)
 }
 
 /*===========================================================================
- * Trajectory Loading (CSV from f1tenth_planning)
+ * Trajectory Metrics
  *===========================================================================*/
 
-/** Average waypoint spacing, computed from loaded trajectory. */
+/** Average spacing of latest local raceline waypoints. */
 static double g_avg_waypoint_spacing = 0.05;
-static double g_track_length_meters = 0.0;
-
-/**
- * @brief Load trajectory waypoints and corridor bounds from a CSV file.
- * @param file_path Path to the trajectory CSV file.
- * @return 1 on success, 0 on failure.
- */
-static int load_trajectory_from_csv(const char *file_path)
-{
-    FILE *csv_file = fopen(file_path, "r");
-    if (csv_file == NULL)
-    {
-        fprintf(stderr, "[MPC] ERROR: Cannot open trajectory file: %s\n", file_path);
-        return 0;
-    }
-
-    char line_buffer[512];
-    int line_number = 0;
-    global_trajectory_count = 0;
-
-    while (fgets(line_buffer, sizeof(line_buffer), csv_file) != NULL)
-    {
-        line_number++;
-        if (line_buffer[0] == '#' || line_buffer[0] == '\n' || line_buffer[0] == '\r')
-        {
-            continue;
-        }
-
-        if (global_trajectory_count >= TRAJECTORY_MAXIMUM_WAYPOINTS)
-        {
-            printf("[MPC] WARNING: Trajectory truncated at %d waypoints\n",
-                   TRAJECTORY_MAXIMUM_WAYPOINTS);
-            break;
-        }
-
-        double s_m, x_m, y_m, psi_rad, kappa_radpm, vx_mps, ax_mps2;
-        double left_bound = 0.0;
-        double right_bound = 0.0;
-        int fields_read = sscanf(line_buffer, "%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf",
-                                 &s_m, &x_m, &y_m, &psi_rad,
-                                 &kappa_radpm, &vx_mps, &ax_mps2,
-                                 &left_bound, &right_bound);
-
-        if (fields_read != 9) {
-            fprintf(stderr,
-                    "[MPC] ERROR: Trajectory line %d must contain 9 columns including wall bounds\n",
-                    line_number);
-            fclose(csv_file);
-            return 0;
-        }
-        if (left_bound <= 0.0 || right_bound <= 0.0) {
-            fprintf(stderr,
-                    "[MPC] ERROR: Invalid wall bounds at trajectory line %d (left=%.3f right=%.3f)\n",
-                    line_number, left_bound, right_bound);
-            fclose(csv_file);
-            return 0;
-        }
-
-        TrajectoryWaypoint_t *wp = &global_trajectory[global_trajectory_count];
-        wp->s_meters = s_m;
-        wp->x_meters = x_m;
-        wp->y_meters = y_m;
-        wp->heading_radians = psi_rad;
-        wp->curvature_radians_per_meter = kappa_radpm;
-        wp->left_bound_meters = left_bound;
-        wp->right_bound_meters = right_bound;
-
-        (void)ax_mps2;
-        wp->velocity_meters_per_second = vx_mps;
-
-        global_trajectory_count++;
-    }
-
-    fclose(csv_file);
-
-    if (global_trajectory_count == 0)
-    {
-        fprintf(stderr, "[MPC] ERROR: No waypoints loaded from %s\n", file_path);
-        return 0;
-    }
-
-    /* Precompute sin/cos for each waypoint heading (immutable after load).
-     * Eliminates sin()/cos() calls from the 200 Hz Frenet conversion hot path
-     * by interpolating precomputed values instead. */
-    for (int i = 0; i < global_trajectory_count; i++)
-    {
-        global_trajectory[i].sin_heading = sin(global_trajectory[i].heading_radians);
-        global_trajectory[i].cos_heading = cos(global_trajectory[i].heading_radians);
-    }
-
-    printf("[MPC] Loaded %d waypoints from %s\n", global_trajectory_count, file_path);
-    printf("[MPC] Speed gain: %.2f, max velocity: %.1f m/s\n",
-           1.0, TRAJECTORY_MAXIMUM_VELOCITY);
-
-    /* Compute average waypoint spacing from loaded data */
-    if (global_trajectory_count >= 2)
-    {
-        double total_spacing = 0.0;
-        for (int i = 0; i < global_trajectory_count - 1; i++)
-        {
-            double dx = global_trajectory[i + 1].x_meters - global_trajectory[i].x_meters;
-            double dy = global_trajectory[i + 1].y_meters - global_trajectory[i].y_meters;
-            total_spacing += sqrt(dx * dx + dy * dy);
-        }
-        g_avg_waypoint_spacing = total_spacing / (global_trajectory_count - 1);
-        if (g_avg_waypoint_spacing < 0.01) g_avg_waypoint_spacing = 0.01; /* safety floor */
-        printf("[MPC] Average waypoint spacing: %.4f m\n", g_avg_waypoint_spacing);
-    }
-
-    g_track_length_meters = 0.0;
-    if (global_trajectory_count >= 2)
-    {
-        g_trajectory_s_min = global_trajectory[0].s_meters;
-        g_trajectory_s_max = global_trajectory[global_trajectory_count - 1].s_meters;
-
-        const double close_dist = hypot(
-            global_trajectory[global_trajectory_count - 1].x_meters - global_trajectory[0].x_meters,
-            global_trajectory[global_trajectory_count - 1].y_meters - global_trajectory[0].y_meters);
-        g_trajectory_closed = (close_dist <= (2.5 * g_avg_waypoint_spacing));
-
-        if (g_trajectory_closed)
-        {
-            g_track_length_meters = (g_trajectory_s_max - g_trajectory_s_min) + close_dist;
-        }
-        else
-        {
-            g_track_length_meters = 0.0;
-        }
-    }
-
-    return 1;
-}
-
-/*===========================================================================
- * Waypoint Search
- *===========================================================================*/
-
-/**
- * @brief Find the closest forward-relevant waypoint near the rolling anchor.
- * @param position_x Vehicle x-position in map frame (m).
- * @param position_y Vehicle y-position in map frame (m).
- * @param vehicle_heading Vehicle heading in map frame (rad).
- * @return Closest waypoint index.
- */
-static int find_closest_waypoint(double position_x, double position_y, double vehicle_heading)
-{
-    if (global_trajectory_count == 0)
-        return 0;
-
-    int search_start = global_last_closest_index;
-    int search_forward = 200;
-    int search_backward = 20;
-    int best_index = search_start;
-    double best_score = 1e18;
-
-    /* Hoist trig out of loop (loop-invariant) */
-    double veh_dx = cos(vehicle_heading);
-    double veh_dy = sin(vehicle_heading);
-
-    if (search_start < 0) search_start = 0;
-    if (search_start >= global_trajectory_count) search_start = global_trajectory_count - 1;
-
-    // Search in a window around the last closest index for efficiency, with a bias towards points in front of the vehicle.
-    for (int offset = -search_backward; offset < search_forward; offset++)
-    {
-        int idx = search_start + offset;
-        if (g_trajectory_closed)
-        {
-            if (idx >= global_trajectory_count) idx -= global_trajectory_count;
-            if (idx < 0) idx += global_trajectory_count;
-        }
-        else
-        {
-            if (idx < 0 || idx >= global_trajectory_count) continue;
-        }
-
-        double dx = global_trajectory[idx].x_meters - position_x;
-        double dy = global_trajectory[idx].y_meters - position_y;
-        double dist = dx * dx + dy * dy;
-
-        /* Penalize points behind the vehicle */
-        double dot = dx * veh_dx + dy * veh_dy;
-        double score = dist + ((dot < 0.0) ? 2.0 : 0.0);
-
-        if (score < best_score)
-        {
-            best_score = score;
-            best_index = idx;
-        }
-    }
-
-    global_last_closest_index = best_index;
-    return best_index;
-}
-
-/**
- * @brief Wrap an arc-length coordinate to the closed-track interval.
- * @param s Arc-length coordinate in meters.
- * @return Wrapped arc-length coordinate.
- */
-static double wrap_track_s(double s)
-{
-    if (!g_trajectory_closed)
-    {
-        if (s < g_trajectory_s_min) return g_trajectory_s_min;
-        if (s > g_trajectory_s_max) return g_trajectory_s_max;
-        return s;
-    }
-
-    if (g_track_length_meters <= 1e-6)
-        return s;
-
-    double s0 = global_trajectory[0].s_meters;
-    while (s < s0) s += g_track_length_meters;
-    while (s >= s0 + g_track_length_meters) s -= g_track_length_meters;
-    return s;
-}
 
 /**
  * @brief Wrap heading difference into [-pi, pi].
@@ -524,134 +300,9 @@ static double wrap_angle_pi(double angle)
     return angle;
 }
 
-/**
- * @brief Interpolate a trajectory waypoint at an arbitrary arc-length position.
- * @param s_query Query arc-length coordinate in meters.
- * @param out Destination waypoint pointer.
- * @return None.
- */
-static void sample_waypoint_by_s(double s_query, TrajectoryWaypoint_t *out)
-{
-    if (out == NULL || global_trajectory_count == 0)
-        return;
-
-    if (global_trajectory_count == 1)
-    {
-        *out = global_trajectory[0];
-        return;
-    }
-
-    double s = wrap_track_s(s_query);
-
-    for (int i = 0; i < global_trajectory_count - 1; i++)
-    {
-        TrajectoryWaypoint_t *w0 = &global_trajectory[i];
-        TrajectoryWaypoint_t *w1 = &global_trajectory[i + 1];
-        if (s >= w0->s_meters && s <= w1->s_meters)
-        {
-            double denom = w1->s_meters - w0->s_meters;
-            double t = (denom > 1e-9) ? ((s - w0->s_meters) / denom) : 0.0;
-            *out = *w0;
-            out->s_meters = s;
-            out->x_meters = w0->x_meters + (w1->x_meters - w0->x_meters) * t;
-            out->y_meters = w0->y_meters + (w1->y_meters - w0->y_meters) * t;
-            {
-                double dh = w1->heading_radians - w0->heading_radians;
-                while (dh > M_PI) dh -= TWO_PI;
-                while (dh < -M_PI) dh += TWO_PI;
-                out->heading_radians = w0->heading_radians + t * dh;
-            }
-            out->curvature_radians_per_meter = w0->curvature_radians_per_meter +
-                                               (w1->curvature_radians_per_meter - w0->curvature_radians_per_meter) * t;
-            out->velocity_meters_per_second = w0->velocity_meters_per_second +
-                                              (w1->velocity_meters_per_second - w0->velocity_meters_per_second) * t;
-            out->left_bound_meters = w0->left_bound_meters + (w1->left_bound_meters - w0->left_bound_meters) * t;
-            out->right_bound_meters = w0->right_bound_meters + (w1->right_bound_meters - w0->right_bound_meters) * t;
-            out->sin_heading = sin(out->heading_radians);
-            out->cos_heading = cos(out->heading_radians);
-            return;
-        }
-    }
-
-    if (!g_trajectory_closed)
-    {
-        if (s <= global_trajectory[0].s_meters)
-        {
-            *out = global_trajectory[0];
-            return;
-        }
-        *out = global_trajectory[global_trajectory_count - 1];
-        return;
-    }
-
-    TrajectoryWaypoint_t *w0 = &global_trajectory[global_trajectory_count - 1];
-    TrajectoryWaypoint_t *w1 = &global_trajectory[0];
-    double s1 = w1->s_meters + g_track_length_meters;
-    double denom = s1 - w0->s_meters;
-    double s_adj = s;
-    if (s_adj < w0->s_meters)
-        s_adj += g_track_length_meters;
-    double t = (denom > 1e-9) ? ((s_adj - w0->s_meters) / denom) : 0.0;
-    *out = *w0;
-    out->s_meters = s;
-    out->x_meters = w0->x_meters + (w1->x_meters - w0->x_meters) * t;
-    out->y_meters = w0->y_meters + (w1->y_meters - w0->y_meters) * t;
-    {
-        double dh = w1->heading_radians - w0->heading_radians;
-        while (dh > M_PI) dh -= TWO_PI;
-        while (dh < -M_PI) dh += TWO_PI;
-        out->heading_radians = w0->heading_radians + t * dh;
-    }
-    out->curvature_radians_per_meter = w0->curvature_radians_per_meter +
-                                       (w1->curvature_radians_per_meter - w0->curvature_radians_per_meter) * t;
-    out->velocity_meters_per_second = w0->velocity_meters_per_second +
-                                      (w1->velocity_meters_per_second - w0->velocity_meters_per_second) * t;
-    out->left_bound_meters = w0->left_bound_meters + (w1->left_bound_meters - w0->left_bound_meters) * t;
-    out->right_bound_meters = w0->right_bound_meters + (w1->right_bound_meters - w0->right_bound_meters) * t;
-    out->sin_heading = sin(out->heading_radians);
-    out->cos_heading = cos(out->heading_radians);
-}
-
 /*===========================================================================
  * Reference Trajectory Builder
  *===========================================================================*/
-
-/**
- * @brief Build MPC reference points from the loaded trajectory.
- * @param closest_index Closest waypoint index to current pose.
- * @return None.
- */
-static void build_reference_from_trajectory(int closest_index)
-{
-    const MpcConfiguration_t cfg = mpc_get_configuration();
-    const double pred_dt = (cfg.time_step > 0.0f) ? (double)cfg.time_step : (double)TIME_STEP_SECONDS;
-    double s_query = global_trajectory[closest_index].s_meters;
-    double step_velocity = global_trajectory[closest_index].velocity_meters_per_second;
-
-    for (int step = 0; step < PREDICTION_HORIZON; step++)
-    {
-        s_query += step_velocity * pred_dt;
-        TrajectoryWaypoint_t wp = {0};
-        sample_waypoint_by_s(s_query, &wp);
-
-        double traj_vel = wp.velocity_meters_per_second;
-        step_velocity = traj_vel;
-
-        global_reference_trajectory[step].reference_lateral_error = 0;
-        global_reference_trajectory[step].reference_heading_error = 0;
-
-        global_reference_trajectory[step].path_curvature = wp.curvature_radians_per_meter;
-        global_reference_trajectory[step].left_wall_bound = wp.left_bound_meters;
-        global_reference_trajectory[step].right_wall_bound = wp.right_bound_meters;
-
-        global_reference_trajectory[step].reference_velocity = traj_vel;
-
-        /* Yaw rate reference = kappa * v_ref (steady-state cornering) — fused in single pass */
-        double omega_ref = wp.curvature_radians_per_meter * traj_vel;
-        global_reference_trajectory[step].reference_yaw_rate = omega_ref;
-        global_reference_trajectory[step].reference_lateral_velocity = 0;
-    }
-}
 
 /**
  * @brief Build MPC reference directly from the latest /local_raceline points.
@@ -756,36 +407,6 @@ static double timespec_diff_sec(struct timespec *a, struct timespec *b){
            (double)(b->tv_nsec - a->tv_nsec) / 1e9;
 }
 
-/**
- * @brief Parse common text boolean forms (1/0, true/false, yes/no, on/off).
- * @param text Input C-string.
- * @param default_value Fallback when text is NULL or unrecognized.
- * @return 1 for true, 0 for false.
- */
-static int parse_bool_text(const char *text, int default_value)
-{
-    if (text == NULL || text[0] == '\0')
-    {
-        return default_value;
-    }
-
-    if (strcmp(text, "1") == 0) return 1;
-    if (strcmp(text, "0") == 0) return 0;
-
-    const char c0 = (char)tolower((unsigned char)text[0]);
-    if (c0 == 't' || c0 == 'y') return 1; /* true / yes */
-    if (c0 == 'f' || c0 == 'n') return 0; /* false / no */
-
-    if (c0 == 'o')
-    {
-        const char c1 = (char)tolower((unsigned char)text[1]);
-        if (c1 == 'n') return 1;
-        if (c1 == 'f') return 0;
-    }
-
-    return default_value;
-}
-
 /*===========================================================================
  * Frenet State Conversion
  *===========================================================================*/
@@ -805,20 +426,17 @@ static void convert_to_frenet_state(
     FrenetState_t *frenet_out)
 {
     int idx0 = closest_index;
-    int idx1 = (closest_index + 1) % global_trajectory_count;
-    if (!g_trajectory_closed)
+    int idx1 = idx0 + 1;
+    if (global_trajectory_count < 2)
     {
-        if (global_trajectory_count < 2)
-        {
-            return;
-        }
-        if (idx0 >= global_trajectory_count - 1)
-        {
-            idx0 = global_trajectory_count - 2;
-        }
-        if (idx0 < 0) idx0 = 0;
-        idx1 = idx0 + 1;
+        return;
     }
+    if (idx0 >= global_trajectory_count - 1)
+    {
+        idx0 = global_trajectory_count - 2;
+    }
+    if (idx0 < 0) idx0 = 0;
+    idx1 = idx0 + 1;
 
     double ax = global_trajectory[idx0].x_meters;
     double ay = global_trajectory[idx0].y_meters;
@@ -847,29 +465,10 @@ static void convert_to_frenet_state(
     while (dh < -M_PI) dh += TWO_PI;
     double path_heading = h0 + t * dh;
 
-    /* Signed lateral error (positive = left of path).
-     * Use linearly-interpolated precomputed sin/cos instead of calling
-     * sin()/cos() on the interpolated heading.  Accurate for adjacent
-     * waypoints with small heading difference (typical: <0.05 rad). */
-    double sin_h = global_trajectory[idx0].sin_heading
-                 + t * (global_trajectory[idx1].sin_heading
-                      - global_trajectory[idx0].sin_heading);
-    double cos_h = global_trajectory[idx0].cos_heading
-                 + t * (global_trajectory[idx1].cos_heading
-                      - global_trajectory[idx0].cos_heading);
-    {
-        double norm = hypot(sin_h, cos_h);
-        if (norm > 1e-9)
-        {
-            sin_h /= norm;
-            cos_h /= norm;
-        }
-        else
-        {
-            sin_h = sin(path_heading);
-            cos_h = cos(path_heading);
-        }
-    }
+    /* Signed lateral error (positive = left of path) using exact trig of
+     * interpolated heading. */
+    double sin_h = sin(path_heading);
+    double cos_h = cos(path_heading);
     double dx = car_x - path_x;
     double dy = car_y - path_y;
     double lateral_error = -dx * sin_h + dy * cos_h;
@@ -909,7 +508,6 @@ static void convert_to_frenet_state(
  */
 void local_raceline_callback(const void *message_in)
 {
-    if (!g_use_local_raceline) return;
     if (message_in == NULL) return;
 
     const nav_msgs__msg__Path *msg =
@@ -965,8 +563,6 @@ void local_raceline_callback(const void *message_in)
         /* Heading is computed from geometry after loading all points. */
         wp->heading_radians = 0.0;
         wp->curvature_radians_per_meter = 0.0;
-        wp->sin_heading = 0.0;
-        wp->cos_heading = 1.0;
 
         prev_x = x;
         prev_y = y;
@@ -993,8 +589,6 @@ void local_raceline_callback(const void *message_in)
         }
 
         global_trajectory[i].heading_radians = heading;
-        global_trajectory[i].sin_heading = sin(heading);
-        global_trajectory[i].cos_heading = cos(heading);
     }
 
     if (waypoint_count >= 3)
@@ -1016,16 +610,8 @@ void local_raceline_callback(const void *message_in)
     }
 
     global_trajectory_count = (int)waypoint_count;
-    g_trajectory_s_min = global_trajectory[0].s_meters;
-    g_trajectory_s_max = global_trajectory[waypoint_count - 1].s_meters;
     g_avg_waypoint_spacing = (waypoint_count > 1) ? (cumulative_s / (double)(waypoint_count - 1)) : 0.05;
     if (g_avg_waypoint_spacing < 0.01) g_avg_waypoint_spacing = 0.01;
-
-    /* /local_raceline is a local segment; treat as open track. */
-    g_trajectory_closed = 0;
-    g_track_length_meters = 0.0;
-
-    global_last_closest_index = 0;
 
     g_local_raceline_received = 1;
     g_local_raceline_wait_logged = 0;
@@ -1040,7 +626,7 @@ void local_raceline_callback(const void *message_in)
     if (g_verbose)
     {
         printf("[MPC] Local raceline updated: %zu waypoints, length=%.2f m\n",
-               waypoint_count, g_track_length_meters);
+               waypoint_count, cumulative_s);
     }
 }
 
@@ -1228,7 +814,7 @@ static void run_mpc_control_cycle(void)
         return;
     }
 
-    if (g_use_local_raceline && (!g_local_raceline_received || global_trajectory_count < 2))
+    if (!g_local_raceline_received || global_trajectory_count < 2)
     {
         if (!g_local_raceline_wait_logged)
         {
@@ -1268,16 +854,8 @@ static void run_mpc_control_cycle(void)
         double vref0 = 0.0, kappa0 = 0.0;
         double left_wall0 = 0.0, right_wall0 = 0.0;
 
-        if (g_use_local_raceline)
-        {
-            closest = 0;
-            build_reference_from_local_raceline();
-        }
-        else
-        {
-            closest = find_closest_waypoint(pos_x, pos_y, heading);
-            build_reference_from_trajectory(closest);
-        }
+        closest = 0;
+        build_reference_from_local_raceline();
 
         convert_to_frenet_state(pos_x, pos_y, heading, closest, &global_frenet_state);
 
@@ -1545,7 +1123,9 @@ int main(int argc, char *argv[])
         if ((env_val = getenv("MPC_LOCAL_RACELINE_TOPIC")) != NULL)
             g_local_raceline_topic = env_val;
         if ((env_val = getenv("MPC_USE_LOCAL_RACELINE")) != NULL)
-            g_use_local_raceline = parse_bool_text(env_val, g_use_local_raceline);
+        {
+            printf("[MPC] WARNING: MPC_USE_LOCAL_RACELINE ignored (hardware node always uses local raceline)\n");
+        }
     }
 
     {
@@ -1600,11 +1180,8 @@ int main(int argc, char *argv[])
     printf("[MPC] Watchdog timeout: %.0f ms\n", g_watchdog_timeout_sec * 1000.0);
     printf("[MPC] EKF pose topic: %s\n", g_ekf_pose_topic);
     printf("[MPC] Odometry topic: %s\n", g_odom_topic);
-    printf("[MPC] Local raceline mode: %s\n", g_use_local_raceline ? "enabled" : "disabled");
-    if (g_use_local_raceline)
-    {
-        printf("[MPC] Local raceline topic: %s\n", g_local_raceline_topic);
-    }
+    printf("[MPC] Local raceline mode: enabled \n");
+    printf("[MPC] Local raceline topic: %s\n", g_local_raceline_topic);
     printf("[MPC] Verbose=%d\n", g_verbose);
 
     {
@@ -1647,87 +1224,8 @@ int main(int argc, char *argv[])
                cfg.weight_steering_effort);
     }
 
-    if (g_use_local_raceline)
-    {
-        printf("[MPC] Reference source: %s (nav_msgs/Path)\n", g_local_raceline_topic);
-        printf("[MPC] Waiting for first local raceline message before running control\n");
-    }
-    else
-    {
-        /* Load trajectory — search order:
-         *   1. Command-line argument: ./mpc_hardware_node /path/to/raceline.csv
-         *   2. Environment variable:  MPC_TRAJECTORY_FILE=/path/to/raceline.csv
-         *   3. Default search paths (relative to cwd and common install locations)
-         */
-        if (argc >= 2)
-        {
-            for (int i = 1; i < argc; i++)
-            {
-                const char *arg = argv[i];
-                if (arg == NULL || arg[0] == '\0')
-                {
-                    continue;
-                }
-                if (arg[0] == '-')
-                {
-                    if (strcmp(arg, "--ros-args") == 0)
-                    {
-                        break;
-                    }
-                    continue;
-                }
-                g_trajectory_file = arg;
-                break;
-            }
-        }
-
-        {
-            /* SECURITY: Environment variable path is accepted as trusted local
-             * deployment configuration and is not sanitized by this node. */
-            const char *env_val = getenv("MPC_TRAJECTORY_FILE");
-            if ((g_trajectory_file == NULL || g_trajectory_file[0] == '\0') &&
-                env_val != NULL && env_val[0] != '\0')
-                g_trajectory_file = env_val;
-        }
-
-        /* If no explicit path given, try common relative/absolute locations */
-        if (g_trajectory_file == NULL || strlen(g_trajectory_file) == 0)
-        {
-            static const char *search_paths[] = {
-                "my_track_raceline.csv",
-                "trajectories/my_track_raceline.csv",
-                "f1tenth_planning/trajectories/my_track_raceline.csv",
-                "../f1tenth_planning/trajectories/my_track_raceline.csv",
-                "../trajectories/my_track_raceline.csv",
-                NULL
-            };
-            for (int i = 0; search_paths[i] != NULL; i++)
-            {
-                FILE *test = fopen(search_paths[i], "r");
-                if (test != NULL)
-                {
-                    fclose(test);
-                    g_trajectory_file = search_paths[i];
-                    printf("[MPC] Auto-found trajectory: %s\n", g_trajectory_file);
-                    break;
-                }
-            }
-        }
-
-        if (g_trajectory_file != NULL && strlen(g_trajectory_file) > 0)
-        {
-            if (load_trajectory_from_csv(g_trajectory_file))
-                printf("[MPC] Trajectory loaded successfully\n");
-            else
-                printf("[MPC] WARNING: Failed to load trajectory, using straight-line fallback\n");
-        }
-        else
-        {
-            printf("[MPC] WARNING: No trajectory file specified. Use arg or MPC_TRAJECTORY_FILE env.\n");
-            printf("[MPC] Searched: my_track_raceline.csv, trajectories/, f1tenth_planning/trajectories/, ../f1tenth_planning/trajectories/\n");
-            printf("[MPC] Using straight-line fallback.\n");
-        }
-    }
+    printf("[MPC] Reference source: %s (nav_msgs/Path)\n", g_local_raceline_topic);
+    printf("[MPC] Waiting for first local raceline message before running control\n");
 
     /* Initialize ROS2 */
     rcl_context_t ctx = rcl_get_zero_initialized_context();
@@ -1915,16 +1413,8 @@ int main(int argc, char *argv[])
     }
 
     printf("[ROS2] Executor ready (4 subs, MPC driven by %s)\n", g_ekf_pose_topic);
-    if (g_use_local_raceline)
-    {
         printf("\n[MPC] Spinning... (waiting for EKF pose on %s, odom on %s, and local raceline on %s)\n\n",
-               g_ekf_pose_topic, g_odom_topic, g_local_raceline_topic);
-    }
-    else
-    {
-        printf("\n[MPC] Spinning... (waiting for EKF pose on %s and odom on %s)\n\n",
-               g_ekf_pose_topic, g_odom_topic);
-    }
+            g_ekf_pose_topic, g_odom_topic, g_local_raceline_topic);
 
     rclc_executor_spin(&executor);
 
