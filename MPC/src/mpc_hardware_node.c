@@ -89,8 +89,6 @@ static int g_ekf_pose_received = 0;
 /** Safety watchdog timeout [seconds] */
 static double g_watchdog_timeout_sec = 0.2;
 static struct timespec g_last_servo_time;
-static const double LOW_SPEED_ACCEL_THRESHOLD_MPS = 1.2;
-static const double LOW_SPEED_MIN_ACCEL_MPS2 = 2.0;
 /* Last published drive command (fallback uses these instead of forcing stop). */
 static float g_last_cmd_steer = 0.0f;
 static float g_last_cmd_speed = 0.0f;
@@ -920,24 +918,9 @@ static void run_mpc_control_cycle(void)
                     servo_feedback_fresh = 1;
             }
 
-            /* Pass MPC steering output directly. */
+            /* Pass MPC output directly. */
             global_control_command.steer_ang = mpc_result.optimal_control.steer_ang;
-
-            /* Keep the car moving at very low odometry speeds without limiting
-             * stronger acceleration commands from the MPC. */
-            double cmd_long_acc = mpc_result.optimal_control.long_acc;
-            const double odom_speed = sqrt(g_latest_vx * g_latest_vx + g_latest_vy * g_latest_vy);
-            if (odom_speed < LOW_SPEED_ACCEL_THRESHOLD_MPS &&
-                cmd_long_acc < LOW_SPEED_MIN_ACCEL_MPS2)
-            {
-                cmd_long_acc = LOW_SPEED_MIN_ACCEL_MPS2;
-                if (g_verbose)
-                {
-                    printf("[MPC] Raised long_acc to %.3f at low odom speed %.3f m/s\n",
-                           cmd_long_acc, odom_speed);
-                }
-            }
-            global_control_command.long_acc = cmd_long_acc;
+            global_control_command.long_acc = mpc_result.optimal_control.long_acc;
 
             /* Update servo tracking.
              * If steering feedback is available from VESC, it's already set by
