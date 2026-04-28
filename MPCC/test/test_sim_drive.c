@@ -232,7 +232,8 @@ static int build_reference_path(void)
         float rb = rb_raw;
         if (lb_raw < min_left_effective) min_left_effective = lb_raw;
         if (rb_raw < min_right_effective) min_right_effective = rb_raw;
-        if (lb_raw <= 0.0f || rb_raw <= 0.0f) invalid_corridor_points++;
+        int body_infeasible = (lb_raw <= 0.0f || rb_raw <= 0.0f);
+        if (body_infeasible) invalid_corridor_points++;
         if ((lb + rb) < 0.0f) {
             float lower = -lb;
             float upper = rb;
@@ -242,6 +243,14 @@ static int build_reference_path(void)
         }
         pt->left_bound  = lb;
         pt->right_bound = rb;
+
+        /* Local robustness: if corridor is body-infeasible, slow down and expand margin */
+        if (body_infeasible) {
+            pt->vx_ref = fminf(pt->vx_ref, 0.5f); // Slow to 0.5 m/s at infeasible points
+            // Optionally, expand bounds slightly for extra margin (soft, not hard)
+            pt->left_bound  += 0.02f; // Add 2cm margin left
+            pt->right_bound += 0.02f; // Add 2cm margin right
+        }
 
         g_ref_path.num_points++;
     }
@@ -535,7 +544,8 @@ int main(void)
         fprintf(trace_csv,
             "step,time_s,x_m,y_m,psi_rad,vx_mps,s_m,closest_wp,ref_s_m,e_y_m,e_c_m,e_psi_rad,"
                 "left_bound_m,right_bound_m,cmd_steer_rad,act_steer_rad,accel_cmd_mps2,"
-                "status,iterations,pred_min_wall_slack_m,wall_hit,lap_count\n");
+                "status,iterations,pred_min_wall_slack_m,wall_hit,lap_count,"
+                "dx_exec_pred,dy_exec_pred,dpsi_exec_pred,ds_exec_pred\n");
     }
 
     if (verbose) {
@@ -557,6 +567,16 @@ int main(void)
         double vx = (double)(state.long_vel);
         int odom_tick = (step % ODOM_UPDATE_INTERVAL) == 0;
         int pose_tick = (step % POSE_UPDATE_INTERVAL) == 0;
+
+        // Executed state minus previous predicted state (for model/actuation mismatch diagnosis)
+        static double prev_pred_X = 0.0, prev_pred_Y = 0.0, prev_pred_psi = 0.0, prev_pred_s = 0.0;
+        double dx_exec_pred = 0.0, dy_exec_pred = 0.0, dpsi_exec_pred = 0.0, ds_exec_pred = 0.0;
+        if (step > 0) {
+            dx_exec_pred = px - prev_pred_X;
+            dy_exec_pred = py - prev_pred_Y;
+            dpsi_exec_pred = wrap_angle(psi - prev_pred_psi);
+            ds_exec_pred = s_debug_now - prev_pred_s;
+        }
 
         if (odom_tick)
             odom_update_count++;
@@ -594,15 +614,16 @@ int main(void)
             wall_collisions++;
             if (trace_csv) {
                 fprintf(trace_csv,
-                        "%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%d,%.6f,%d,%d\n",
-                        step, t, px, py, psi, vx,
-                        s_debug_now, closest, raceline[closest].s,
-                        e_y, e_c, e_psi,
-                        left_wall, right_wall,
-                        cmd_steer, actual_steer, cmd_accel,
-                        -1, 0,
-                        pred_slack_valid ? pred_min_wall_slack : 0.0,
-                        wall_hit, lap_count);
+                    "%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%d,%.6f,%d,%d,%.6f,%.6f,%.6f,%.6f\n",
+                    step, t, px, py, psi, vx,
+                    s_debug_now, closest, raceline[closest].s,
+                    e_y, e_c, e_psi,
+                    left_wall, right_wall,
+                    cmd_steer, actual_steer, cmd_accel,
+                    -1, 0,
+                    pred_slack_valid ? pred_min_wall_slack : 0.0,
+                    wall_hit, lap_count,
+                    dx_exec_pred, dy_exec_pred, dpsi_exec_pred, ds_exec_pred);
                 fflush(trace_csv);
             }
             if (verbose) {
@@ -685,6 +706,12 @@ int main(void)
                 pred_slack_valid = 1;
                 last_pred_min_wall_slack = pred_min_wall_slack;
                 last_pred_slack_valid = pred_slack_valid;
+
+                // Save predicted state for next step's executed-minus-predicted diagnostic
+                prev_pred_X = result.predicted_states[1].X;
+                prev_pred_Y = result.predicted_states[1].Y;
+                prev_pred_psi = result.predicted_states[1].psi;
+                prev_pred_s = result.predicted_states[1].s;
             }
 
             double solve_us = (ts1.tv_sec - ts0.tv_sec) * 1e6
@@ -773,15 +800,16 @@ int main(void)
 
         if (trace_csv) {
             fprintf(trace_csv,
-                    "%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%d,%.6f,%d,%d\n",
-                    step, t, px, py, psi, vx,
-                    s_debug_now, closest, raceline[closest].s,
-                    e_y, e_c, e_psi,
-                    left_wall, right_wall,
-                    steer, actual_steer, accel_cmd,
-                    status_val, iter,
-                    pred_slack_valid ? pred_min_wall_slack : 0.0,
-                    wall_hit, lap_count);
+                "%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%d,%.6f,%d,%d,%.6f,%.6f,%.6f,%.6f\n",
+                step, t, px, py, psi, vx,
+                s_debug_now, closest, raceline[closest].s,
+                e_y, e_c, e_psi,
+                left_wall, right_wall,
+                steer, actual_steer, accel_cmd,
+                status_val, iter,
+                pred_slack_valid ? pred_min_wall_slack : 0.0,
+                wall_hit, lap_count,
+                dx_exec_pred, dy_exec_pred, dpsi_exec_pred, ds_exec_pred);
         }
 
         if (verbose) {
