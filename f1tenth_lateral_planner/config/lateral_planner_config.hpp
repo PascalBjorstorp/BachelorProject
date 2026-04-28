@@ -38,7 +38,7 @@
 
 // Published path extent
 #define LOOKAHEAD_POINTS 200
-#define PATH_START_OFFSET_POINTS 5
+#define PATH_START_OFFSET_POINTS 0
 
 // Node behavior
 #define PUBLISH_RATE_HZ 200.0
