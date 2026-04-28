@@ -918,11 +918,19 @@ static void run_mpc_control_cycle(void)
                     servo_feedback_fresh = 1;
             }
 
-            /* Pass MPC output directly — no clamping, no bias, no softening. */
-            global_control_command.steer_ang =
-                mpc_result.optimal_control.steer_ang;
-            global_control_command.long_acc =
-                mpc_result.optimal_control.long_acc;
+            /* Pass MPC output, but limit excessive braking for small heading errors. */
+            global_control_command.steer_ang = mpc_result.optimal_control.steer_ang;
+
+            /* Adjust longitudinal accel to avoid full-stop behavior when
+             * heading error is small. Tunable thresholds below. */
+            double cmd_long_acc = mpc_result.optimal_control.long_acc;
+            const double HEADING_BRAKE_THRESH = 0.25; /* rad (~14°) */
+            const double MAX_BRAKE_WHEN_SMALL_HEADING = -1.0; /* m/s^2 */
+            if (fabs(epsi) < HEADING_BRAKE_THRESH && cmd_long_acc < MAX_BRAKE_WHEN_SMALL_HEADING) {
+                cmd_long_acc = MAX_BRAKE_WHEN_SMALL_HEADING;
+                if (g_verbose) printf("[MPC] Adjusted long_acc to %.3f due small heading error %.3f\n", cmd_long_acc, epsi);
+            }
+            global_control_command.long_acc = cmd_long_acc;
 
             /* Update servo tracking.
              * If steering feedback is available from VESC, it's already set by
@@ -940,14 +948,13 @@ static void run_mpc_control_cycle(void)
             {
                 ControlInput_t actual_ctrl;
                 actual_ctrl.steer_ang = global_actual_steering_angle;
-                actual_ctrl.long_acc = mpc_result.optimal_control.long_acc;
+                actual_ctrl.long_acc = global_control_command.long_acc;
                 mpc_set_actual_previous_control(&actual_ctrl);
             }
 
             if (g_verbose && g_solver_log_file == NULL)
             {
-                double accel =
-                    mpc_result.optimal_control.long_acc;
+                double accel = global_control_command.long_acc;
                 printf("[MPC] Control: steer=%.4f accel=%.2f (status=%d iter=%d pr=%.3e dr=%.3e solve=%.1fus)\n",
                        steer, accel, mpc_status, mpc_result.iterations_used, primal_res, dual_res, solve_us);
             }
@@ -956,8 +963,7 @@ static void run_mpc_control_cycle(void)
                 const MpcConfiguration_t cfg = mpc_get_configuration();
                 const double pred_dt = (cfg.time_step > 0.0f)
                     ? (double)cfg.time_step : (double)TIME_STEP_SECONDS;
-                double cmd_speed = g_latest_vx +
-                    ((double)mpc_result.optimal_control.long_acc * pred_dt);
+                double cmd_speed = g_latest_vx + ((double)global_control_command.long_acc * pred_dt);
                 if (cmd_speed < (double)VP_MIN_VELOCITY_MPS)
                     cmd_speed = (double)VP_MIN_VELOCITY_MPS;
                 if (cmd_speed > (double)TRAJECTORY_MAXIMUM_VELOCITY)
@@ -989,7 +995,7 @@ static void run_mpc_control_cycle(void)
                         left_wall0,
                         right_wall0,
                         mpc_result.optimal_control.steer_ang,
-                        mpc_result.optimal_control.long_acc,
+                        global_control_command.long_acc,
                         cmd_speed,
                         global_actual_steering_angle,
                         g_use_steering_feedback);
