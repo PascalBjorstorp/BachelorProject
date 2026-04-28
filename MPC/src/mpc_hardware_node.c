@@ -716,14 +716,22 @@ void local_raceline_callback(const void *message_in)
     }
 
     /* Compute heading from finite differences of x/y to avoid relying on
-     * PoseStamped.orientation (which may be unset or noisy on some stacks). */
+     * PoseStamped.orientation (which may be unset or noisy on some stacks).
+     *
+     * IMPORTANT: Use a small window (rather than i±1) to reduce curvature spikes
+     * caused by very dense or slightly noisy local-planner points. Large κ
+     * spikes can make the MPC think the path is infeasible and "prefer stopping"
+     * at sharp corners on real hardware. */
+    const size_t diff_window = 3;  /* points on each side */
     for (size_t i = 0; i < waypoint_count; i++)
     {
-        size_t i_prev = (i == 0) ? 0 : (i - 1);
-        size_t i_next = (i + 1 < waypoint_count) ? (i + 1) : (waypoint_count - 1);
+        size_t i_prev = (i > diff_window) ? (i - diff_window) : 0;
+        size_t i_next = (i + diff_window < waypoint_count) ? (i + diff_window) : (waypoint_count - 1);
 
-        const double dx = global_trajectory[i_next].x_meters - global_trajectory[i_prev].x_meters;
-        const double dy = global_trajectory[i_next].y_meters - global_trajectory[i_prev].y_meters;
+        const double dx =
+            global_trajectory[i_next].x_meters - global_trajectory[i_prev].x_meters;
+        const double dy =
+            global_trajectory[i_next].y_meters - global_trajectory[i_prev].y_meters;
 
         double heading = 0.0;
         if ((dx * dx + dy * dy) > 1e-12)
@@ -740,14 +748,30 @@ void local_raceline_callback(const void *message_in)
 
     if (waypoint_count >= 3)
     {
+        /* Clamp κ to the maximum curvature implied by steering limits. This is
+         * a pragmatic guardrail for local-planner paths that may contain
+         * discontinuities (piecewise linear segments) or overly aggressive
+         * cornering. Without this, κ can exceed what δ_max can realize and the
+         * MPC can choose to stop rather than accept tracking error. */
+        const double kappa_max =
+            (VP_WHEELBASE_M > 1e-6f)
+                ? (tan((double)VP_MAX_STEERING_RAD) / (double)VP_WHEELBASE_M)
+                : 10.0;
+
         for (size_t i = 1; i + 1 < waypoint_count; i++)
         {
+            const size_t i_prev = (i > diff_window) ? (i - diff_window) : 0;
+            const size_t i_next = (i + diff_window < waypoint_count) ? (i + diff_window) : (waypoint_count - 1);
+
             const double dpsi = wrap_angle_pi(
-                global_trajectory[i + 1].heading_radians -
-                global_trajectory[i - 1].heading_radians);
-            const double ds = global_trajectory[i + 1].s_meters - global_trajectory[i - 1].s_meters;
+                global_trajectory[i_next].heading_radians -
+                global_trajectory[i_prev].heading_radians);
+            const double ds = global_trajectory[i_next].s_meters - global_trajectory[i_prev].s_meters;
             const double ds_safe = (ds > 1e-6) ? ds : 1e-6;
-            global_trajectory[i].curvature_radians_per_meter = dpsi / ds_safe;
+            double kappa = dpsi / ds_safe;
+            if (kappa > kappa_max) kappa = kappa_max;
+            if (kappa < -kappa_max) kappa = -kappa_max;
+            global_trajectory[i].curvature_radians_per_meter = kappa;
         }
 
         global_trajectory[0].curvature_radians_per_meter =
@@ -1295,7 +1319,7 @@ int main(int argc, char *argv[])
         }
 
         ensure_parent_directories(log_path);
-½½
+
         g_solver_log_file = fopen(log_path, "w");
         if (g_solver_log_file == NULL)
         {

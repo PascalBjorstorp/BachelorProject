@@ -595,6 +595,8 @@ MpcSolverStatus_t mpc_compute_optimal_control(
         /* δ_actual reference: feedforward steering δ_ff = atan(L*κ) */
         {
             float delta_ff_k = atanf(VP_WHEELBASE_M * kappa_k);
+            if (delta_ff_k > VP_MAX_STEERING_RAD) delta_ff_k = VP_MAX_STEERING_RAD;
+            if (delta_ff_k < -VP_MAX_STEERING_RAD) delta_ff_k = -VP_MAX_STEERING_RAD;
             sd->q[IDX_DELTA_ACTUAL] = -(sd->Q_diag[IDX_DELTA_ACTUAL] * delta_ff_k);
         }
         sd->q[IDX_DRATE_PREV] = 0;  /* No tracking ref for δ̇_prev */
@@ -718,6 +720,8 @@ MpcSolverStatus_t mpc_compute_optimal_control(
         {
             float kappa_N = reference_trajectory[N-1].path_curvature;
             float delta_ff_N = atanf(VP_WHEELBASE_M * kappa_N);
+            if (delta_ff_N > VP_MAX_STEERING_RAD) delta_ff_N = VP_MAX_STEERING_RAD;
+            if (delta_ff_N < -VP_MAX_STEERING_RAD) delta_ff_N = -VP_MAX_STEERING_RAD;
             terminal_q[IDX_DELTA_ACTUAL] = -(terminal_Q[IDX_DELTA_ACTUAL] * delta_ff_N);
         }
 
