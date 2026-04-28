@@ -925,7 +925,7 @@ static void run_mpc_control_cycle(void)
              * heading error is small. Tunable thresholds below. */
             double cmd_long_acc = mpc_result.optimal_control.long_acc;
             const double HEADING_BRAKE_THRESH = 0.25; /* rad (~14°) */
-            const double MAX_BRAKE_WHEN_LARGE_HEADING = -1.0; /* m/s^2 */
+            const double MAX_BRAKE_WHEN_LARGE_HEADING = 2.0; /* m/s^2 */
             if (fabs(epsi) > HEADING_BRAKE_THRESH && cmd_long_acc < MAX_BRAKE_WHEN_LARGE_HEADING) {
                 cmd_long_acc = MAX_BRAKE_WHEN_LARGE_HEADING;
                 if (g_verbose) printf("[MPC] Adjusted long_acc to %.3f due large heading error %.3f\n", cmd_long_acc, epsi);
