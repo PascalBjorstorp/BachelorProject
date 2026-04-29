@@ -195,6 +195,8 @@ class TurnInTransientNode(TestNode):
         self.straight_vy_limit = float(args.straight_vy_limit)
         self.straight_gz_limit = float(args.straight_gz_limit)
         self.straight_beta_limit = float(args.straight_beta_limit)
+        self.pre_run_pause = float(args.pre_run_pause)
+        self.between_run_pause = float(args.between_run_pause)
         self.results = []
         self.steering_trim = 0.0
         self.odom_bias_vx = 0.0
@@ -523,6 +525,29 @@ class TurnInTransientNode(TestNode):
             })
         return True
 
+    def _pause_for_reposition(self, duration: float, label: str) -> bool:
+        if duration <= 1e-6:
+            return True
+        self.get_logger().info(
+            f"{label}: holding stopped for {duration:.1f}s so you can reposition the car.")
+        self.stop_car()
+        end_time = time.monotonic() + duration
+        next_log = time.monotonic()
+        while time.monotonic() < end_time:
+            now = time.monotonic()
+            if now >= next_log:
+                remaining = end_time - now
+                self.get_logger().info(f"  {label}: {remaining:.1f}s remaining")
+                next_log = now + 1.0
+            rclpy.spin_once(self, timeout_sec=0.05)
+            self.send_command(0.0, 0.0)
+            if not self.safety.check():
+                self.get_logger().error(f"Safety abort: {self.safety.abort_reason}")
+                self.stop_car()
+                return False
+        self.stop_car()
+        return True
+
     def run_test(self):
         if not self.wait_for_sensors(require_vesc=True, require_lidar=True):
             return False
@@ -557,6 +582,11 @@ class TurnInTransientNode(TestNode):
             csv_path = self.recorder.save()
             self._write_metadata(csv_path)
             return False
+        if not self._pause_for_reposition(self.pre_run_pause, "Pre-run pause"):
+            self.test_running = False
+            csv_path = self.recorder.save()
+            self._write_metadata(csv_path)
+            return False
         self.countdown(5)
 
         run_id = 0
@@ -571,7 +601,9 @@ class TurnInTransientNode(TestNode):
                         if not ok:
                             self.test_running = False
                             break
-                        time.sleep(0.25)
+                        if not self._pause_for_reposition(self.between_run_pause, f"Between run {run_id} and next run"):
+                            self.test_running = False
+                            break
                 if not self.test_running:
                     break
             if not self.test_running:
@@ -613,6 +645,8 @@ class TurnInTransientNode(TestNode):
             f.write(f"straight_vy_limit_mps={self.straight_vy_limit:.6f}\n")
             f.write(f"straight_gz_limit_radps={self.straight_gz_limit:.6f}\n")
             f.write(f"straight_beta_limit_rad={self.straight_beta_limit:.6f}\n")
+            f.write(f"pre_run_pause_s={self.pre_run_pause:.6f}\n")
+            f.write(f"between_run_pause_s={self.between_run_pause:.6f}\n")
             f.write(f"imu_bias_ax={self.imu_bias_ax:.9f}\n")
             f.write(f"imu_bias_ay={self.imu_bias_ay:.9f}\n")
             f.write(f"imu_bias_az={self.imu_bias_az:.9f}\n")
@@ -695,6 +729,10 @@ def main():
                         help='Allowed mean yaw rate during straight check [rad/s].')
     parser.add_argument('--straight-beta-limit', type=float, default=0.05,
                         help='Allowed mean sideslip during straight check [rad].')
+    parser.add_argument('--pre-run-pause', type=float, default=5.0,
+                        help='Stopped pause before the first measured run [s].')
+    parser.add_argument('--between-run-pause', type=float, default=6.0,
+                        help='Stopped pause between completed runs [s].')
     args = parser.parse_args()
 
     args.speeds = _parse_csv_floats(args.speeds)
