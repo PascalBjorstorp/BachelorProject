@@ -19,7 +19,7 @@ gpu_amcl_cpp:
 
     # ---- Particles ----
     num_particles: 1000
-    min_particles: 1000
+    min_particles: 200
     max_particles: 1000
 
     # ---- KLD adaptive sampling ----
@@ -54,10 +54,10 @@ gpu_amcl_cpp:
     # These control how much random noise is added to each particle.
     # For simulation (accurate odom), use LOW values.
     # For real hardware (noisy odom/slip), increase 5-10x.
-    alpha1: 0.08    # rotation  → rotation  noise 0.0001 for sim
-    alpha2: 0.08    # translation → rotation  noise
-    alpha3: 0.08    # translation → translation noise
-    alpha4: 0.08    # rotation  → translation noise
+    alpha1: 0.1    # rotation  → rotation  noise 0.0001 for sim
+    alpha2: 0.1    # translation → rotation  noise
+    alpha3: 0.1    # translation → translation noise
+    alpha4: 0.1    # rotation  → translation noise
 
     # ---- Slip-aware noise scaling ----
     # During aggressive turns, increase noise to account for tire slip
@@ -126,5 +126,5 @@ ekf_localization:
 
     # ---- EKF tuning ----
     transform_tolerance: 0.02    # seconds into the future for TF
-    process_noise_scale: 1.0    # multiplier on odom covariance for Q
+    process_noise_scale: 0.1    # multiplier on odom covariance for Q
     amcl_max_latency_sec: 0.10  # Drop AMCL updates older than 80 ms
