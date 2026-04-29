@@ -86,7 +86,7 @@
 #define STEERING_CORRECTION_C0 0.001490f                 /* Constant term in empirical steering-command correction model. */
 
 /* Vehicle parameter defaults and derived constants */
-#define VP_MAX_STEERING_RAD 0.4189f                      /* Steering-angle saturation used by controller and model limits. */
+#define VP_MAX_STEERING_RAD 0.39f                      /* Steering-angle saturation used by controller and model limits. */
 #define VP_MAX_VELOCITY_MPS 20.0f                        /* Upper velocity limit used by vehicle model clamping logic. */
 #define VP_MIN_VELOCITY_MPS 0.5f                         /* Lower velocity limit used by vehicle model clamping logic. */
 #define VP_CG_TO_FRONT_AXLE_M 0.166f                     /* Center-of-gravity distance from front axle for load transfer. */
