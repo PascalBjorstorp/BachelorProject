@@ -165,10 +165,13 @@ static unsigned long g_solve_cycle_count = 0;
 /** Optional solver telemetry logging for post-drive analysis. */
 static FILE *g_solver_log_file = NULL;
 static FILE *g_solver_meta_file = NULL;
+static FILE *g_local_raceline_log_file = NULL;
 static unsigned long g_solver_log_counter = 0;
 static int g_solver_log_stride = 1;
 static double g_last_servo_raw = 0.0;
 static long long g_last_odom_ros_time_ns = 0;
+static unsigned long g_local_raceline_update_seq = 0;
+static long long g_local_raceline_ros_time_ns = 0;
 
 typedef struct
 {
@@ -555,6 +558,9 @@ void local_raceline_callback(const void *message_in)
 
     const nav_msgs__msg__Path *msg =
         (const nav_msgs__msg__Path *)message_in;
+    const long long local_raceline_ros_time_ns =
+        (long long)msg->header.stamp.sec * 1000000000LL +
+        (long long)msg->header.stamp.nanosec;
 
     if (msg->poses.size < 2)
     {
@@ -668,9 +674,34 @@ void local_raceline_callback(const void *message_in)
         (waypoint_count > 1)
         ? (global_trajectory[waypoint_count - 1].s_meters - global_trajectory[0].s_meters)
         : 0.0;
+    g_local_raceline_ros_time_ns = local_raceline_ros_time_ns;
+    g_local_raceline_update_seq++;
 
     g_local_raceline_received = 1;
     g_local_raceline_wait_logged = 0;
+
+    if (g_local_raceline_log_file != NULL)
+    {
+        for (size_t i = 0; i < waypoint_count; i++)
+        {
+            const TrajectoryWaypoint_t *wp = &global_trajectory[i];
+            fprintf(g_local_raceline_log_file,
+                    "%lu,%lld,%zu,%zu,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+                    g_local_raceline_update_seq,
+                    g_local_raceline_ros_time_ns,
+                    i,
+                    waypoint_count,
+                    wp->s_meters,
+                    wp->x_meters,
+                    wp->y_meters,
+                    wp->heading_radians,
+                    wp->curvature_radians_per_meter,
+                    wp->velocity_meters_per_second,
+                    wp->left_bound_meters,
+                    wp->right_bound_meters);
+        }
+        fflush(g_local_raceline_log_file);
+    }
 
     if (!g_local_raceline_wall_warned &&
         missing_wall_count > (size_t)((double)waypoint_count * 2.0 * 0.90))
@@ -840,6 +871,7 @@ void ekf_pose_callback(const void *message_in)
     double left_wall0 = 0.0, right_wall0 = 0.0;
     double ref_yaw_rate0 = 0.0;
     double path_x = 0.0, path_y = 0.0, path_heading = 0.0, path_s = 0.0, path_t = 0.0;
+    int path_segment_idx = 0;
     double local_wp0_x = 0.0, local_wp0_y = 0.0, local_wp0_heading = 0.0, local_wp0_s = 0.0;
     double odom_age_ms = 0.0;
     double publish_speed_cmd = g_last_cmd_speed;
@@ -908,6 +940,7 @@ void ekf_pose_callback(const void *message_in)
         path_heading = projection.path_heading_rad;
         path_s = projection.path_s_m;
         path_t = projection.segment_t;
+        path_segment_idx = projection.segment_index;
         local_wp0_x = global_trajectory[0].x_meters;
         local_wp0_y = global_trajectory[0].y_meters;
         local_wp0_heading = global_trajectory[0].heading_radians;
@@ -1070,18 +1103,20 @@ void ekf_pose_callback(const void *message_in)
             double cmd_accel = mpc_result.optimal_control.long_acc;
 
             fprintf(g_solver_log_file,
-                    "%lld,%lld,%.3f,%d,%u,%.9f,%.9f,%d,%d,%.6f,%.3f,"
+                    "%lld,%lld,%.3f,%d,%u,%.9f,%.9f,%d,%lu,%lld,%d,%.6f,%.3f,"
                     "%.6f,%.6f,%.6f,%.9f,%.9f,%.9f,"
                     "%.6f,%.6f,%.6f,%.6f,%.6f,"
-                    "%.6f,%.6f,%.6f,%.6f,%.6f,"
+                    "%.6f,%.6f,%.6f,%.6f,%.6f,%d,"
+                    "%.6f,%.6f,%.6f,%.6f,"
                     "%.6f,%.6f,%.6f,%.6f,%.6f,"
                     "%.6f,%.6f,%.6f,%.6f,"
-                    "%.6f,%.6f,%.6f,%.6f,%.6f,%.3f,%d,%lld\n",
+                    "%.6f,%.3f,%d,%lld\n",
                     pose_ros_time_ns, unix_time_ns, solve_us, (int)mpc_status, mpc_result.iterations_used,
-                    primal_res, dual_res, closest, global_trajectory_count, g_local_raceline_length_meters, odom_age_ms,
+                    primal_res, dual_res, closest, g_local_raceline_update_seq, g_local_raceline_ros_time_ns,
+                    global_trajectory_count, g_local_raceline_length_meters, odom_age_ms,
                     pos_x, pos_y, heading, pose_cov_x, pose_cov_y, pose_cov_yaw,
                     ey, epsi, g_latest_vx, g_latest_vy, g_latest_omega,
-                    path_x, path_y, path_heading, path_s, path_t,
+                    path_x, path_y, path_heading, path_s, path_t, path_segment_idx,
                     vref0, kappa0, ref_yaw_rate0, left_wall0, right_wall0,
                     local_wp0_x, local_wp0_y, local_wp0_heading, local_wp0_s,
                     cmd_steer, cmd_accel, publish_speed_cmd, global_drive_message_buffer.drive.acceleration,
@@ -1188,16 +1223,34 @@ int main(int argc, char *argv[])
         {
             fprintf(g_solver_log_file,
                     "pose_ros_time_ns,unix_time_ns,solve_us,status,iterations,primal_residual,dual_residual,"
-                    "closest_wp,local_raceline_count,local_raceline_length_m,odom_age_ms,"
+                    "closest_wp,local_raceline_seq,local_raceline_ros_time_ns,local_raceline_count,local_raceline_length_m,odom_age_ms,"
                     "pos_x,pos_y,heading,pose_cov_x,pose_cov_y,pose_cov_yaw,"
                     "e_y,e_psi,vx,vy,omega,"
-                    "path_x,path_y,path_heading,path_s,path_t,"
+                    "path_x,path_y,path_heading,path_s,path_t,path_segment_idx,"
                     "v_ref0,kappa0,ref_yaw_rate0,left_wall0,right_wall0,"
                     "local_wp0_x,local_wp0_y,local_wp0_heading,local_wp0_s,"
                     "cmd_steer,cmd_accel,publish_speed_cmd,publish_accel_cmd,"
                     "actual_steer,servo_raw,use_steering_feedback,odom_ros_time_ns\n");
             fflush(g_solver_log_file);
             printf("[MPC] Solver telemetry log: %s (every control callback)\n", log_path);
+
+            {
+                char local_raceline_log_path[PATH_MAX];
+                int local_len = snprintf(local_raceline_log_path, sizeof(local_raceline_log_path),
+                                         "%s.local_raceline.csv", log_path);
+                if (local_len > 0 && (size_t)local_len < sizeof(local_raceline_log_path))
+                {
+                    g_local_raceline_log_file = fopen(local_raceline_log_path, "w");
+                    if (g_local_raceline_log_file != NULL)
+                    {
+                        fprintf(g_local_raceline_log_file,
+                                "local_raceline_seq,local_raceline_ros_time_ns,waypoint_index,waypoint_count,"
+                                "s_m,x_m,y_m,heading_rad,kappa_radpm,v_ref_mps,left_bound_m,right_bound_m\n");
+                        fflush(g_local_raceline_log_file);
+                        printf("[MPC] Local raceline snapshot log: %s\n", local_raceline_log_path);
+                    }
+                }
+            }
 
             {
                 char meta_path[PATH_MAX];
@@ -1209,6 +1262,7 @@ int main(int argc, char *argv[])
                     if (g_solver_meta_file != NULL)
                     {
                         fprintf(g_solver_meta_file, "log_path=%s\n", log_path);
+                        fprintf(g_solver_meta_file, "local_raceline_log_path=%s.local_raceline.csv\n", log_path);
                         fprintf(g_solver_meta_file, "control_rate_hz=%.3f\n", (double)CONTROL_RATE_HZ);
                         fprintf(g_solver_meta_file, "control_dt_s=%.6f\n", (double)CONTROL_DT_SECONDS);
                         fprintf(g_solver_meta_file, "prediction_horizon=%d\n", (int)cfg.prediction_horizon_steps);
@@ -1511,6 +1565,12 @@ int main(int argc, char *argv[])
         fflush(g_solver_meta_file);
         fclose(g_solver_meta_file);
         g_solver_meta_file = NULL;
+    }
+    if (g_local_raceline_log_file != NULL)
+    {
+        fflush(g_local_raceline_log_file);
+        fclose(g_local_raceline_log_file);
+        g_local_raceline_log_file = NULL;
     }
     rclc_executor_fini(&executor);
     nav_msgs__msg__Odometry__fini(&global_odometry_message_buffer);
