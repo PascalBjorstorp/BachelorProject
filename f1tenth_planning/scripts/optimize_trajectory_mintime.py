@@ -39,6 +39,8 @@ import cv2
 import numpy as np
 import yaml
 from scipy.interpolate import splprep, splev, CubicSpline
+from scipy.interpolate import splprep, splev, CubicSpline, UnivariateSpline
+from scipy.ndimage import gaussian_filter1d
 
 
 MIN_TIME_OPT_TYPE = 'mintime'
@@ -123,7 +125,412 @@ def max_abs_curvature_closed(path_xy):
              * np.linalg.norm(c, axis=1))
     kappa = np.abs(2.0 * cross / np.maximum(denom, 1e-9))
     return float(np.max(kappa))
+def closed_path_arclength(points_xy):
+    """
+    Return cumulative arc length for a closed path, including the duplicated
+    final point.
+    """
+    pts = np.asarray(points_xy, dtype=float)
+    closed = np.vstack([pts, pts[0]])
+    ds = np.linalg.norm(np.diff(closed, axis=0), axis=1)
 
+    if np.any(ds < 1e-9):
+        keep = np.concatenate([[True], ds[:-1] > 1e-9])
+        pts = pts[keep]
+        closed = np.vstack([pts, pts[0]])
+        ds = np.linalg.norm(np.diff(closed, axis=0), axis=1)
+
+    s = np.concatenate([[0.0], np.cumsum(ds)])
+    return closed, s
+
+
+def analytical_curvature_from_periodic_splines(path_xy, sample_spacing=0.01, smooth_s=0.0):
+    """
+    Compute true geometric curvature from periodic x(s), y(s) splines.
+
+    This is independent of waypoint spacing and catches the actual curvature
+    that a spline-based optimizer will see.
+    """
+    pts = np.asarray(path_xy, dtype=float)
+
+    if len(pts) < 6:
+        return np.array([0.0]), np.array([[0.0, 0.0]])
+
+    closed, s = closed_path_arclength(pts)
+    total_length = float(s[-1])
+
+    if total_length <= 1e-6:
+        return np.array([0.0]), pts.copy()
+
+    # CubicSpline with periodic boundary conditions requires the first and last
+    # values to match exactly. closed already duplicates pts[0].
+    sx = CubicSpline(s, closed[:, 0], bc_type='periodic')
+    sy = CubicSpline(s, closed[:, 1], bc_type='periodic')
+
+    n_samples = max(50, int(np.ceil(total_length / sample_spacing)))
+    s_eval = np.linspace(0.0, total_length, n_samples, endpoint=False)
+
+    dx = sx(s_eval, 1)
+    dy = sy(s_eval, 1)
+    ddx = sx(s_eval, 2)
+    ddy = sy(s_eval, 2)
+
+    denom = np.maximum((dx * dx + dy * dy) ** 1.5, 1e-9)
+    kappa = (dx * ddy - dy * ddx) / denom
+
+    xy_eval = np.column_stack([sx(s_eval), sy(s_eval)])
+    return kappa, xy_eval
+
+
+def max_abs_analytical_curvature(path_xy, sample_spacing=0.01):
+    """
+    Max absolute curvature of a closed path using periodic analytical splines.
+    """
+    kappa, _ = analytical_curvature_from_periodic_splines(
+        path_xy,
+        sample_spacing=sample_spacing,
+    )
+    return float(np.max(np.abs(kappa)))
+
+
+def remove_closed_path_duplicates(path_xy, min_dist=1e-4):
+    """
+    Remove consecutive duplicate or near-duplicate points from a closed path.
+    """
+    pts = np.asarray(path_xy, dtype=float)
+
+    if len(pts) == 0:
+        return pts
+
+    cleaned = [pts[0]]
+    for pt in pts[1:]:
+        if np.linalg.norm(pt - cleaned[-1]) > min_dist:
+            cleaned.append(pt)
+
+    if len(cleaned) > 1 and np.linalg.norm(cleaned[-1] - cleaned[0]) < min_dist:
+        cleaned.pop()
+
+    return np.asarray(cleaned, dtype=float)
+
+
+def resample_closed_path_periodic(path_xy, spacing):
+    """
+    Resample closed path using periodic cubic splines and uniform arc length.
+    """
+    pts = remove_closed_path_duplicates(path_xy)
+
+    if len(pts) < 6:
+        raise ValueError("Need at least 6 unique points for periodic resampling")
+
+    closed, s = closed_path_arclength(pts)
+    total_length = float(s[-1])
+
+    sx = CubicSpline(s, closed[:, 0], bc_type='periodic')
+    sy = CubicSpline(s, closed[:, 1], bc_type='periodic')
+
+    n_points = max(20, int(np.ceil(total_length / spacing)))
+    s_new = np.linspace(0.0, total_length, n_points, endpoint=False)
+
+    out = np.column_stack([sx(s_new), sy(s_new)])
+    return out, total_length, total_length / n_points
+
+
+def smooth_closed_path_gaussian(path_xy, sigma_points):
+    """
+    Simple wrap-around Gaussian smoothing for closed paths.
+
+    This is good at removing pixel stair-steps before the higher-quality
+    spline smoother runs.
+    """
+    pts = np.asarray(path_xy, dtype=float)
+
+    if sigma_points <= 0.0:
+        return pts.copy()
+
+    x = gaussian_filter1d(pts[:, 0], sigma=sigma_points, mode='wrap')
+    y = gaussian_filter1d(pts[:, 1], sigma=sigma_points, mode='wrap')
+
+    return np.column_stack([x, y])
+
+
+def smooth_closed_path_by_arclength(path_xy, spacing, smooth_s):
+    """
+    Smooth x(s), y(s) as periodic splines and resample uniformly.
+
+    Larger smooth_s means more smoothing. This removes hard pixel-angle turns.
+    """
+    pts = remove_closed_path_duplicates(path_xy)
+
+    if len(pts) < 8:
+        raise ValueError("Need at least 8 points for spline smoothing")
+
+    closed, s = closed_path_arclength(pts)
+    total_length = float(s[-1])
+
+    # Use periodic cubic splines for final geometric path.
+    # If smooth_s <= 0, this becomes interpolation.
+    if smooth_s <= 0.0:
+        sx = CubicSpline(s, closed[:, 0], bc_type='periodic')
+        sy = CubicSpline(s, closed[:, 1], bc_type='periodic')
+    else:
+        # UnivariateSpline does not support periodic constraints directly.
+        # To avoid seam artifacts, extend the signal by wrapping it.
+        s_core = s[:-1]
+        x_core = pts[:, 0]
+        y_core = pts[:, 1]
+
+        s_ext = np.concatenate([
+            s_core - total_length,
+            s_core,
+            s_core + total_length,
+        ])
+        x_ext = np.concatenate([x_core, x_core, x_core])
+        y_ext = np.concatenate([y_core, y_core, y_core])
+
+        sx_raw = UnivariateSpline(s_ext, x_ext, k=3, s=smooth_s)
+        sy_raw = UnivariateSpline(s_ext, y_ext, k=3, s=smooth_s)
+
+        n_dense = max(200, int(np.ceil(total_length / max(spacing * 0.5, 0.005))))
+        s_dense = np.linspace(0.0, total_length, n_dense, endpoint=False)
+        dense = np.column_stack([sx_raw(s_dense), sy_raw(s_dense)])
+
+        # Refit periodic cubic spline to enforce exact closure.
+        dense_closed, dense_s = closed_path_arclength(dense)
+        sx = CubicSpline(dense_s, dense_closed[:, 0], bc_type='periodic')
+        sy = CubicSpline(dense_s, dense_closed[:, 1], bc_type='periodic')
+        total_length = float(dense_s[-1])
+
+    n_points = max(20, int(np.ceil(total_length / spacing)))
+    s_new = np.linspace(0.0, total_length, n_points, endpoint=False)
+
+    out = np.column_stack([sx(s_new), sy(s_new)])
+    return out, total_length, total_length / n_points
+
+
+def centerline_clearance_ok(centerline, map_img, resolution, origin,
+                            wall_thresh, max_ray_distance,
+                            car_width, wall_clearance):
+    """
+    Check whether a candidate centerline stays far enough from both walls.
+    """
+    w_right, w_left = measure_track_widths(
+        centerline=centerline,
+        map_img=map_img,
+        resolution=resolution,
+        origin=origin,
+        max_dist=max_ray_distance,
+        wall_thresh=wall_thresh,
+    )
+
+    min_required = 0.5 * float(car_width) + float(wall_clearance)
+
+    min_right = float(np.min(w_right))
+    min_left = float(np.min(w_left))
+
+    ok = min_right >= min_required and min_left >= min_required
+
+    return ok, min_right, min_left
+
+
+def condition_centerline_for_curvature_and_clearance(
+    centerline,
+    map_img,
+    resolution,
+    origin,
+    wall_thresh,
+    curvlim,
+    target_spacing,
+    max_ray_distance,
+    car_width,
+    wall_clearance,
+    kappa_sample_spacing=0.01,
+):
+    """
+    Robust centerline conditioner.
+
+    Purpose:
+      - remove 90-degree pixel turns
+      - enforce analytical curvature <= curvlim
+      - reject candidates that move too close to walls
+      - return a uniformly sampled closed path
+
+    This should run immediately after GVD centerline extraction.
+    """
+    if curvlim is None or curvlim <= 0.0:
+        print("  Centerline conditioning: curvlim missing; only resampling.")
+        out, _, _ = resample_closed_path_periodic(centerline, target_spacing)
+        return out
+
+    print("\n  --- Curvature-aware centerline conditioning ---")
+
+    raw = remove_closed_path_duplicates(centerline)
+    raw, raw_len, raw_spacing = resample_closed_path_periodic(raw, target_spacing)
+
+    raw_kappa = max_abs_analytical_curvature(
+        raw,
+        sample_spacing=kappa_sample_spacing,
+    )
+
+    print(
+        f"  Raw centerline after uniform resampling: "
+        f"{len(raw)} points, length={raw_len:.2f} m, "
+        f"spacing={raw_spacing:.3f} m, "
+        f"true_max_kappa={raw_kappa:.3f} 1/m"
+    )
+
+    # First stage: cheap circular Gaussian smoothing. This kills pixel staircases
+    # and 90-degree skeleton artifacts before spline smoothing.
+    best = None
+
+    gaussian_sigmas_m = [
+        0.00,
+        0.05,
+        0.08,
+        0.12,
+        0.16,
+        0.22,
+        0.30,
+        0.40,
+        0.55,
+        0.75,
+    ]
+
+    for sigma_m in gaussian_sigmas_m:
+        sigma_points = sigma_m / max(raw_spacing, 1e-6)
+        candidate = smooth_closed_path_gaussian(raw, sigma_points)
+        candidate, _, _ = resample_closed_path_periodic(candidate, target_spacing)
+
+        kappa = max_abs_analytical_curvature(
+            candidate,
+            sample_spacing=kappa_sample_spacing,
+        )
+
+        clearance_ok, min_right, min_left = centerline_clearance_ok(
+            candidate,
+            map_img,
+            resolution,
+            origin,
+            wall_thresh,
+            max_ray_distance,
+            car_width,
+            wall_clearance,
+        )
+
+        print(
+            f"  Gaussian candidate sigma={sigma_m:.2f} m: "
+            f"true_max_kappa={kappa:.3f}, "
+            f"min_right={min_right:.3f}, min_left={min_left:.3f}, "
+            f"clearance_ok={clearance_ok}"
+        )
+
+        if clearance_ok:
+            if best is None or kappa < best["kappa"]:
+                best = {
+                    "path": candidate,
+                    "method": f"gaussian_sigma_{sigma_m:.2f}m",
+                    "kappa": kappa,
+                    "min_right": min_right,
+                    "min_left": min_left,
+                }
+
+        if kappa <= curvlim and clearance_ok:
+            print(
+                f"  Accepted centerline conditioning: gaussian sigma={sigma_m:.2f} m, "
+                f"true_max_kappa={kappa:.3f} <= {curvlim:.3f}"
+            )
+            return candidate
+
+    # Second stage: stronger arc-length spline smoothing.
+    #
+    # The scale of smooth_s depends on track length and coordinate scale.
+    # These values intentionally cover a wide range.
+    spline_s_values = [
+        0.001,
+        0.003,
+        0.01,
+        0.03,
+        0.10,
+        0.30,
+        1.00,
+        3.00,
+        10.0,
+        30.0,
+        100.0,
+        300.0,
+        1000.0,
+    ]
+
+    for smooth_s in spline_s_values:
+        try:
+            candidate, cand_len, cand_spacing = smooth_closed_path_by_arclength(
+                raw,
+                spacing=target_spacing,
+                smooth_s=smooth_s,
+            )
+        except Exception as exc:
+            print(
+                f"  Spline candidate s={smooth_s:.4g} failed: "
+                f"{type(exc).__name__}: {exc}"
+            )
+            continue
+
+        kappa = max_abs_analytical_curvature(
+            candidate,
+            sample_spacing=kappa_sample_spacing,
+        )
+
+        clearance_ok, min_right, min_left = centerline_clearance_ok(
+            candidate,
+            map_img,
+            resolution,
+            origin,
+            wall_thresh,
+            max_ray_distance,
+            car_width,
+            wall_clearance,
+        )
+
+        print(
+            f"  Spline candidate s={smooth_s:.4g}: "
+            f"true_max_kappa={kappa:.3f}, "
+            f"length={cand_len:.2f} m, spacing={cand_spacing:.3f} m, "
+            f"min_right={min_right:.3f}, min_left={min_left:.3f}, "
+            f"clearance_ok={clearance_ok}"
+        )
+
+        if clearance_ok:
+            if best is None or kappa < best["kappa"]:
+                best = {
+                    "path": candidate,
+                    "method": f"spline_s_{smooth_s:.4g}",
+                    "kappa": kappa,
+                    "min_right": min_right,
+                    "min_left": min_left,
+                }
+
+        if kappa <= curvlim and clearance_ok:
+            print(
+                f"  Accepted centerline conditioning: spline s={smooth_s:.4g}, "
+                f"true_max_kappa={kappa:.3f} <= {curvlim:.3f}"
+            )
+            return candidate
+
+    if best is not None:
+        print(
+            "  WARNING: No candidate fully satisfied curvlim. "
+            f"Using best clearance-valid candidate from {best['method']}: "
+            f"true_max_kappa={best['kappa']:.3f}, "
+            f"curvlim={curvlim:.3f}, "
+            f"min_right={best['min_right']:.3f}, "
+            f"min_left={best['min_left']:.3f}"
+        )
+        return best["path"]
+
+    raise RuntimeError(
+        "Centerline conditioning failed: no smoothed candidate had enough "
+        "wall clearance. The extracted GVD line may be too close to walls, "
+        "or wall_clearance/car_width is too conservative for this map."
+    )
 
 def read_curvlim_from_racecar_ini(ini_path):
     """Parse curvlim from racecar.ini; return None if unavailable."""
@@ -556,8 +963,14 @@ def compute_centerline_thinned_loop(
 
     closed = np.vstack([skel_world, skel_world[0]])
     try:
-        tck, _ = splprep([closed[:, 0], closed[:, 1]],
-                         s=0, per=True)
+        pixel_noise_m = max(0.5 * resolution, 0.01)
+        s_gvd = len(closed) * pixel_noise_m**2
+
+        tck, _ = splprep(
+            [closed[:, 0], closed[:, 1]],
+            s=s_gvd,
+            per=True,
+        )
     except Exception as exc:
         raise RuntimeError(f"B-spline on GVD skeleton loop failed: {exc}") from exc
 
@@ -1393,7 +1806,10 @@ def build_prepared_optimizer_track(centerline, map_img, resolution, origin,
         f"{track_length:.1f} m, spacing={actual_spacing:.3f} m"
     )
 
-    base_max_kappa = max_abs_curvature_closed(opt_centerline)
+    base_max_kappa = max_abs_analytical_curvature(
+        opt_centerline,
+        sample_spacing=0.01,
+    )
     if curvlim is not None:
         print(
             f"  Base max curvature: {base_max_kappa:.3f} 1/m "
@@ -1437,7 +1853,10 @@ def build_prepared_optimizer_track(centerline, map_img, resolution, origin,
             accepted = False
             for attempt in range(max_attempts):
                 smoothed, smoothed_len, smoothed_spacing = _smooth_centerline(s_reg)
-                smoothed_max_kappa = max_abs_curvature_closed(smoothed)
+                smoothed_max_kappa = max_abs_analytical_curvature(
+                    smoothed,
+                    sample_spacing=0.01,
+                )
                 print(
                     f"  Smoothing attempt {attempt + 1}/{max_attempts}: "
                     f"s={s_reg:.4f}, max_kappa={smoothed_max_kappa:.3f} 1/m"
@@ -2197,15 +2616,15 @@ def main():
         # Minimum-time optimizer settings
         opt_type=MIN_TIME_OPT_TYPE,
         max_speed=12.0,         # m/s (set to None for no clamping)
-        min_speed=0.5,          # m/s (set to None for no clamping)
+        min_speed=1.5,          # m/s (set to None for no clamping)
         waypoint_spacing=0.02,  
         reopt_mintime_solution=True,        # Try false false or true true
         recalc_vel_profile_by_tph=True,    # If true follow the files ax max and ggv
 
         # Centerline extraction settings
-        centerline_spacing=0.15,     # target spacing for centerline points (in metres)
-        optimizer_spacing=0.1,      # prepared reference-track spacing for TUM mintime
-        optimizer_smoothing_s=6.0,  # TUM spline smoothing factor before width measurement
+        centerline_spacing=0.05,     # target spacing for centerline points (in metres)
+        optimizer_spacing=0.08,      # prepared reference-track spacing for TUM mintime
+        optimizer_smoothing_s=2.0,  # TUM spline smoothing factor before width measurement
         optimizer_smoothing_k=2,    # TUM spline order (mirrors racecar.ini)
         optimizer_smoothing_prep_spacing=0.02,
         direction='cw',             # 'auto', 'cw', or 'ccw'
@@ -2321,6 +2740,20 @@ def main():
         gvd_debug_path=gvd_debug_path,
     )
 
+    centerline = condition_centerline_for_curvature_and_clearance(
+        centerline=centerline,
+        map_img=map_img,
+        resolution=resolution,
+        origin=origin,
+        wall_thresh=wall_thresh,
+        curvlim=curvlim if args.strict_curvlim else None,
+        target_spacing=args.centerline_spacing,
+        max_ray_distance=args.max_ray_distance,
+        car_width=args.car_width,
+        wall_clearance=args.wall_clearance + args.wall_clearance_guard,
+        kappa_sample_spacing=0.01,
+    )
+
     # Determine direction
     winding = detect_winding_direction(centerline)
     print(f"  Detected winding: {winding}")
@@ -2333,6 +2766,7 @@ def main():
     if direction != winding:
         print(f"  Reversing centerline to match requested direction: {direction}")
         centerline = centerline[::-1].copy()
+
 
     prepared_track = build_prepared_optimizer_track(
         centerline=centerline,
