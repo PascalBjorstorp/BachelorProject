@@ -120,6 +120,45 @@ TESTS = [
         'parameters': ['C_alpha_f', 'C_alpha_r', 'understeer_gradient'],
     },
     {
+        'name': 'Turn-In Transient',
+        'script': 'tests/test_turn_in_transient.py',
+        'description': (
+            'Captures transient turn-in / washout behavior that circle tests miss.\n'
+            '  Requires: ~10m straight plus clear runoff on both sides\n'
+            '  Duration: ~2 min per full sweep\n'
+            '  Uses: odom + IMU + LiDAR body velocity\n'
+            '  Primary use: fit yaw-rate build-up, lateral velocity, and understeer onset\n'
+            '  NOTE: This is the key dataset for matching MPC sim RMSE in the hard corner.'
+        ),
+        'default_args': ['--speeds', '2.0,2.5,3.0,3.5',
+                         '--steering', '0.30',
+                         '--directions', 'both',
+                         '--repeats', '2',
+                         '--turn-time', '2.5'],
+        'data_prefix': 'turn_in_transient',
+        'parameters': ['transient_yaw_response', 'transient_lateral_response', 'understeer_onset'],
+    },
+    {
+        'name': 'Combined-Slip Turn-In',
+        'script': 'tests/test_turn_in_transient.py',
+        'description': (
+            'Captures braking/speed-bleed while cornering.\n'
+            '  Requires: same space as Turn-In Transient\n'
+            '  Duration: ~2 min per full sweep\n'
+            '  Uses: same sensors, but adds commanded speed drop during the held turn\n'
+            '  Primary use: fit combined longitudinal+lateral saturation in the hard corner.'
+        ),
+        'default_args': ['--speeds', '2.5,3.0,3.5',
+                         '--steering', '0.30',
+                         '--directions', 'both',
+                         '--repeats', '2',
+                         '--turn-time', '2.5',
+                         '--speed-drop', '0.6',
+                         '--drop-after', '0.35'],
+        'data_prefix': 'turn_in_transient',
+        'parameters': ['combined_slip_response'],
+    },
+    {
         'name': 'Longitudinal Tire Stiffness',
         'script': 'tests/test_longitudinal_stiffness.py',
         'description': (
