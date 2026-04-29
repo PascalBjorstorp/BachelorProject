@@ -628,8 +628,8 @@ void local_raceline_callback(const void *message_in)
             const double ds = global_trajectory[i + 1].s_meters - global_trajectory[i - 1].s_meters;
             const double ds_safe = (ds > 1e-6) ? ds : 1e-6;
             double kappa = dpsi / ds_safe;
-            if (kappa > kappa_max) kappa = kappa_max;
-            if (kappa < -kappa_max) kappa = -kappa_max;
+            // if (kappa > kappa_max) kappa = kappa_max;
+            // if (kappa < -kappa_max) kappa = -kappa_max;
             global_trajectory[i].curvature_radians_per_meter = kappa;
         }
 
