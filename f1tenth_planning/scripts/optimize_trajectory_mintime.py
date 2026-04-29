@@ -32,6 +32,9 @@ import re
 import subprocess
 import sys
 
+os.environ.setdefault('MPLCONFIGDIR', '/tmp/matplotlib')
+os.makedirs(os.environ['MPLCONFIGDIR'], exist_ok=True)
+
 import cv2
 import numpy as np
 import yaml
@@ -94,6 +97,8 @@ def run_step(label, cmd, cwd=None):
     print()
     env = os.environ.copy()
     env['MPLBACKEND'] = 'Agg'  # Prevent matplotlib from blocking on plt.show()
+    env.setdefault('MPLCONFIGDIR', '/tmp/matplotlib')
+    os.makedirs(env['MPLCONFIGDIR'], exist_ok=True)
     result = subprocess.run(cmd, cwd=cwd, env=env)
     if result.returncode != 0:
         print(f"\n  ERROR: {label} failed (exit code {result.returncode})")
@@ -126,7 +131,8 @@ def read_curvlim_from_racecar_ini(ini_path):
         return None
     with open(ini_path, 'r') as f:
         content = f.read()
-    match = re.search(r'"curvlim"\s*:\s*([0-9.+-eE]+)', content)
+    number = r'([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)'
+    match = re.search(r'"curvlim"\s*:\s*' + number, content)
     if not match:
         return None
     try:
@@ -1217,9 +1223,151 @@ def resample_closed_centerline(centerline, spacing):
     return resampled, total_length, actual_spacing
 
 
+def interpolated_spline_max_abs_kappa(path_xy, spacing):
+    """Return max abs analytical curvature after closed spline interpolation."""
+    import trajectory_planning_helpers as tph
+
+    path = np.asarray(path_xy, dtype=float)
+    if path.ndim != 2 or path.shape[1] != 2 or len(path) < 4:
+        return 0.0
+
+    coeffs_x, coeffs_y, _, _ = tph.calc_splines.calc_splines(
+        path=np.vstack([path, path[0]]),
+    )
+    spline_lengths = tph.calc_spline_lengths.calc_spline_lengths(
+        coeffs_x=coeffs_x,
+        coeffs_y=coeffs_y,
+    )
+    _, spline_inds, t_vals, _ = tph.interp_splines.interp_splines(
+        spline_lengths=spline_lengths,
+        coeffs_x=coeffs_x,
+        coeffs_y=coeffs_y,
+        incl_last_point=False,
+        stepsize_approx=spacing,
+    )
+    _, kappa = tph.calc_head_curv_an.calc_head_curv_an(
+        coeffs_x=coeffs_x,
+        coeffs_y=coeffs_y,
+        ind_spls=spline_inds,
+        t_spls=t_vals,
+    )
+    return float(np.max(np.abs(kappa)))
+
+
+def mincurv_condition_centerline(reftrack_interp, normvec_right, a_interp,
+                                 curvlim, optimizer_width,
+                                 optimizer_spacing, wall_clearance=0.0,
+                                 kappa_spacing=0.02):
+    """
+    Project the prepared centerline through TUM's min-curvature QP and keep
+    only solutions whose true interpolated spline curvature satisfies curvlim.
+    """
+    import trajectory_planning_helpers as tph
+
+    if curvlim is None or curvlim <= 0.0:
+        return None
+
+    wall_clearance = max(0.0, float(wall_clearance or 0.0))
+    clearance_reftrack = reftrack_interp.copy()
+    clearance_reftrack[:, 2:4] -= wall_clearance
+
+    min_side_width = float(np.min(clearance_reftrack[:, 2:4]))
+    max_feasible_width = max(0.0, 2.0 * min_side_width - 0.005)
+    width_candidates = []
+    if optimizer_width > 0.0 and optimizer_width <= max_feasible_width + 1e-9:
+        width_candidates = [round(float(optimizer_width), 4)]
+
+    if not width_candidates:
+        print(
+            "  Mincurv pre-pass skipped: configured width_opt "
+            f"{optimizer_width:.3f}m is infeasible for minimum side width "
+            f"{min_side_width:.3f}m after wall_clearance="
+            f"{wall_clearance:.3f}m"
+        )
+        return None
+
+    print(
+        f"  Mincurv pre-pass width_opt fixed at {width_candidates[0]:.3f}m, "
+        f"effective_clearance={wall_clearance:.3f}m"
+    )
+
+    kappa_candidates = [
+        curvlim * factor
+        for factor in (1.0, 0.80, 0.65, 0.57, 0.50, 0.43)
+    ]
+
+    best_path = None
+    best_kappa = np.inf
+    best_meta = None
+    print("  Running min-curvature pre-pass before mintime...")
+    for kappa_bound in kappa_candidates:
+        for width_opt in width_candidates:
+            try:
+                alpha, curv_error = tph.opt_min_curv.opt_min_curv(
+                    reftrack=clearance_reftrack,
+                    normvectors=normvec_right,
+                    A=a_interp,
+                    kappa_bound=kappa_bound,
+                    w_veh=width_opt,
+                    print_debug=False,
+                    plot_debug=False,
+                )
+            except Exception as exc:
+                print(
+                    "  Mincurv pre-pass attempt failed: "
+                    f"kappa_bound={kappa_bound:.3f}, "
+                    f"width_opt={width_opt:.3f}: "
+                    f"{type(exc).__name__}: {exc}"
+                )
+                continue
+
+            projected = (
+                reftrack_interp[:, :2]
+                + np.expand_dims(alpha, 1) * normvec_right
+            )
+            projected, _, _ = resample_closed_centerline(
+                projected,
+                optimizer_spacing,
+            )
+            actual_kappa = interpolated_spline_max_abs_kappa(
+                projected,
+                kappa_spacing,
+            )
+            print(
+                "  Mincurv pre-pass attempt: "
+                f"kappa_bound={kappa_bound:.3f}, "
+                f"width_opt={width_opt:.3f}, "
+                f"actual_max_kappa={actual_kappa:.3f}, "
+                f"lin_error={curv_error:.3f}"
+            )
+
+            if actual_kappa < best_kappa:
+                best_path = projected
+                best_kappa = actual_kappa
+                best_meta = (kappa_bound, width_opt)
+
+            if actual_kappa <= curvlim:
+                print(
+                    "  Mincurv pre-pass accepted: "
+                    f"actual_max_kappa={actual_kappa:.3f} <= "
+                    f"curvlim={curvlim:.3f}"
+                )
+                return projected
+
+    if best_path is not None:
+        print(
+            "  WARNING: Mincurv pre-pass could not satisfy curvlim; "
+            f"best actual_max_kappa={best_kappa:.3f} "
+            f"(kappa_bound={best_meta[0]:.3f}, width_opt={best_meta[1]:.3f})"
+        )
+    return None
+
+
 def build_prepared_optimizer_track(centerline, map_img, resolution, origin,
                                    wall_thresh, max_ray_distance,
                                    car_width, optimizer_spacing,
+                                   optimizer_width=None,
+                                   wall_clearance=0.0,
                                    optimizer_smoothing_s=0.0,
                                    optimizer_smoothing_k=2,
                                    optimizer_smoothing_prep_spacing=0.02,
@@ -1232,6 +1380,9 @@ def build_prepared_optimizer_track(centerline, map_img, resolution, origin,
     receives the coefficient matrices and normal-vector convention it expects.
     """
     import trajectory_planning_helpers as tph
+
+    if optimizer_width is None:
+        optimizer_width = car_width
 
     opt_centerline, track_length, actual_spacing = resample_closed_centerline(
         centerline,
@@ -1282,8 +1433,7 @@ def build_prepared_optimizer_track(centerline, map_img, resolution, origin,
             )
         else:
             s_reg = float(optimizer_smoothing_s)
-            max_attempts = 6
-            tol = 0.02
+            max_attempts = 8
             accepted = False
             for attempt in range(max_attempts):
                 smoothed, smoothed_len, smoothed_spacing = _smooth_centerline(s_reg)
@@ -1292,15 +1442,13 @@ def build_prepared_optimizer_track(centerline, map_img, resolution, origin,
                     f"  Smoothing attempt {attempt + 1}/{max_attempts}: "
                     f"s={s_reg:.4f}, max_kappa={smoothed_max_kappa:.3f} 1/m"
                 )
-                if smoothed_max_kappa <= curvlim * (1.0 + tol):
+                if smoothed_max_kappa <= curvlim:
                     opt_centerline = smoothed
                     track_length = smoothed_len
                     actual_spacing = smoothed_spacing
                     accepted = True
                     break
-                s_reg *= 0.5
-                if s_reg < 1e-6:
-                    break
+                s_reg *= 1.5
 
             if accepted:
                 print(
@@ -1337,6 +1485,41 @@ def build_prepared_optimizer_track(centerline, map_img, resolution, origin,
     w_left = np.maximum(w_left, car_half)
 
     reftrack_interp = np.column_stack([opt_centerline, w_right, w_left])
+
+    conditioned_centerline = mincurv_condition_centerline(
+        reftrack_interp=reftrack_interp,
+        normvec_right=normvec_right,
+        a_interp=a_interp,
+        curvlim=curvlim,
+        optimizer_width=optimizer_width,
+        optimizer_spacing=optimizer_spacing,
+        wall_clearance=wall_clearance,
+    )
+    if conditioned_centerline is not None:
+        opt_centerline = conditioned_centerline
+        refpath_closed = np.vstack([opt_centerline, opt_centerline[0]])
+        coeffs_x, coeffs_y, a_interp, normvec_right = (
+            tph.calc_splines.calc_splines(path=refpath_closed)
+        )
+        true_kappa = interpolated_spline_max_abs_kappa(opt_centerline, 0.02)
+        print(
+            "  Prepared centerline after mincurv pre-pass: "
+            f"{len(opt_centerline)} points, "
+            f"true_max_kappa={true_kappa:.3f} 1/m"
+        )
+        print("  Re-measuring optimizer-track widths after mincurv pre-pass...")
+        w_right, w_left = measure_track_widths(
+            opt_centerline,
+            map_img,
+            resolution,
+            origin,
+            max_dist=max_ray_distance,
+            wall_thresh=wall_thresh,
+            left_normals=-normvec_right,
+        )
+        w_right = np.maximum(w_right, car_half)
+        w_left = np.maximum(w_left, car_half)
+        reftrack_interp = np.column_stack([opt_centerline, w_right, w_left])
 
     normals_crossing = tph.check_normals_crossing.check_normals_crossing(
         track=reftrack_interp,
@@ -1475,7 +1658,8 @@ def set_mintime_bool_option_in_main(main_py_path, option_name, enabled):
         f.write(content)
 
 
-def set_strict_curvlim_kappa_candidates(main_py_path, enabled):
+def set_strict_curvlim_kappa_candidates(main_py_path, enabled,
+                                         reopt_kappa_factor=1.0):
     """Force mintime reoptimization to use only curvlim as kappa bound."""
     if not enabled:
         return
@@ -1483,11 +1667,15 @@ def set_strict_curvlim_kappa_candidates(main_py_path, enabled):
         content = f.read()
 
     replacement = (
-        'kappa_candidates = [pars["veh_params"]["curvlim"]] '
+        'kappa_candidates = [pars["veh_params"]["curvlim"] '
+        f'* {float(reopt_kappa_factor):.6g}] '
         '# set by optimize_trajectory_mintime.py'
     )
     content, count = re.subn(
-        r'kappa_candidates\s*=\s*\[[^\]]*\]',
+        r'kappa_candidates\s*=\s*\[\s*'
+        r'pars\["veh_params"\]\["curvlim"\]\s*\*\s*factor\s*'
+        r'for\s+factor\s+in\s*\([^)]*\)\s*'
+        r'\]',
         replacement,
         content,
         count=1,
@@ -1498,6 +1686,67 @@ def set_strict_curvlim_kappa_candidates(main_py_path, enabled):
 
     with open(main_py_path, 'w') as f:
         f.write(content)
+
+
+def patch_mintime_optim_numeric_option(ini_content, option_name, value,
+                                       insert_after='penalty_F'):
+    """Patch or insert a numeric option in optim_opts_mintime."""
+    number = r'[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?'
+    value_text = f"{float(value):.6g}"
+
+    key_pattern = rf'("{re.escape(option_name)}"\s*:\s*){number}'
+    patched, count = re.subn(
+        key_pattern,
+        rf'\g<1>{value_text}',
+        ini_content,
+        count=1,
+    )
+    if count:
+        return patched
+
+    insert_pattern = rf'("{re.escape(insert_after)}"\s*:\s*{number},)'
+    patched, count = re.subn(
+        insert_pattern,
+        rf'\1\n                    "{option_name}": {value_text},',
+        ini_content,
+        count=1,
+    )
+    if not count:
+        raise RuntimeError(
+            f"Could not patch optim_opts_mintime option '{option_name}'"
+        )
+    return patched
+
+
+def patch_mintime_optim_bool_option(ini_content, option_name, value,
+                                    insert_after='penalty_F'):
+    """Patch or insert a boolean option in optim_opts_mintime."""
+    value_text = "true" if value else "false"
+
+    key_pattern = rf'("{re.escape(option_name)}"\s*:\s*)(true|false)'
+    patched, count = re.subn(
+        key_pattern,
+        rf'\g<1>{value_text}',
+        ini_content,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+    if count:
+        return patched
+
+    number = r'[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?'
+    insert_pattern = rf'("{re.escape(insert_after)}"\s*:\s*{number},)'
+    patched, count = re.subn(
+        insert_pattern,
+        rf'\1\n                    "{option_name}": {value_text},',
+        ini_content,
+        count=1,
+    )
+    if not count:
+        raise RuntimeError(
+            f"Could not patch optim_opts_mintime option '{option_name}'"
+        )
+    return patched
 
 
 def _original_prep_track_block():
@@ -1654,11 +1903,118 @@ def convert_tum_to_mpc(input_csv, output_csv, max_speed=None, min_speed=None):
     return len(rows)
 
 
+def write_mpc_trajectory_from_path(path_xy, output_csv, waypoint_spacing,
+                                   max_speed=None, min_speed=None,
+                                   lateral_acc_limit=3.8,
+                                   accel_limit=3.8,
+                                   decel_limit=4.2,
+                                   curvature_window_m=1.0,
+                                   curvature_smooth_sigma_m=0.25,
+                                   curvlim=None):
+    """Write a closed path directly to the MPC CSV format."""
+    import trajectory_planning_helpers as tph
+
+    path = np.asarray(path_xy, dtype=float)
+    coeffs_x, coeffs_y, _, _ = tph.calc_splines.calc_splines(
+        path=np.vstack([path, path[0]]),
+    )
+    spline_lengths = tph.calc_spline_lengths.calc_spline_lengths(
+        coeffs_x=coeffs_x,
+        coeffs_y=coeffs_y,
+    )
+    raceline, spline_inds, t_vals, s_points = tph.interp_splines.interp_splines(
+        spline_lengths=spline_lengths,
+        coeffs_x=coeffs_x,
+        coeffs_y=coeffs_y,
+        incl_last_point=False,
+        stepsize_approx=waypoint_spacing,
+    )
+    psi_tum, kappa = tph.calc_head_curv_an.calc_head_curv_an(
+        coeffs_x=coeffs_x,
+        coeffs_y=coeffs_y,
+        ind_spls=spline_inds,
+        t_spls=t_vals,
+    )
+    psi_mpc = (psi_tum + math.pi / 2.0 + math.pi) % (2 * math.pi) - math.pi
+
+    max_abs_kappa = float(np.max(np.abs(kappa)))
+    if curvlim is not None and max_abs_kappa > curvlim:
+        raise RuntimeError(
+            "Strict fallback path exceeds curvlim "
+            f"({max_abs_kappa:.3f} > {curvlim:.3f})"
+        )
+
+    total_length = float(np.sum(spline_lengths))
+    el_lengths = np.diff(s_points)
+    el_lengths = np.append(el_lengths, total_length - s_points[-1])
+
+    abs_kappa = np.abs(kappa)
+    mean_step = max(total_length / max(len(abs_kappa), 1), 1e-6)
+    window_pts = max(3, int(round(curvature_window_m / mean_step)))
+    if window_pts % 2 == 0:
+        window_pts += 1
+    sigma_pts = max(1.0, curvature_smooth_sigma_m / mean_step)
+
+    from scipy.ndimage import gaussian_filter1d, maximum_filter1d
+    kappa_envelope = maximum_filter1d(
+        abs_kappa,
+        size=window_pts,
+        mode='wrap',
+    )
+    kappa_envelope = np.maximum(
+        abs_kappa,
+        gaussian_filter1d(kappa_envelope, sigma=sigma_pts, mode='wrap'),
+    )
+    vx = np.sqrt(lateral_acc_limit / np.maximum(kappa_envelope, 1e-6))
+    if max_speed is not None:
+        vx = np.minimum(vx, max_speed)
+    if min_speed is not None:
+        vx = np.maximum(vx, min_speed)
+
+    for _ in range(200):
+        prev_vx = vx.copy()
+        for i in range(len(vx)):
+            j = (i + 1) % len(vx)
+            v_next_max = math.sqrt(max(vx[i] ** 2
+                                       + 2.0 * accel_limit * el_lengths[i],
+                                       0.0))
+            if vx[j] > v_next_max:
+                vx[j] = v_next_max
+        for j in range(len(vx) - 1, -1, -1):
+            i = (j - 1) % len(vx)
+            v_prev_max = math.sqrt(max(vx[j] ** 2
+                                       + 2.0 * decel_limit * el_lengths[i],
+                                       0.0))
+            if vx[i] > v_prev_max:
+                vx[i] = v_prev_max
+        if float(np.max(np.abs(vx - prev_vx))) < 1e-5:
+            break
+
+    vx_next = np.roll(vx, -1)
+    ax = (vx_next**2 - vx**2) / np.maximum(2.0 * el_lengths, 1e-6)
+
+    with open(output_csv, 'w') as f:
+        f.write('# s_m,x_m,y_m,psi_rad,kappa_radpm,vx_mps,ax_mps2\n')
+        for s, xy, psi, kap, vel, acc in zip(
+                s_points, raceline, psi_mpc, kappa, vx, ax):
+            f.write(
+                f"{s:.6f},{xy[0]:.6f},{xy[1]:.6f},"
+                f"{psi:.7f},{kap:.7f},{vel:.7f},{acc:.7f}\n"
+            )
+
+    print(
+        f"  Wrote strict curvature-limited fallback: {len(raceline)} waypoints, "
+        f"max_abs_kappa={max_abs_kappa:.3f} 1/m, "
+        f"speed_window={curvature_window_m:.1f}m"
+    )
+    return len(raceline)
+
+
 # =============================================================================
 #  Step 4 -- Verification (kept from original)
 # =============================================================================
 
-def verify_output(csv_path):
+def verify_output(csv_path, curvlim=None, car_width=None, wall_clearance=0.0):
     """Sanity-check the final trajectory CSV."""
     waypoints = []
     with open(csv_path, 'r') as f:
@@ -1707,6 +2063,15 @@ def verify_output(csv_path):
     if ncols >= 9:
         print(f"  Left wall:      [{w[:, 7].min():.3f}, {w[:, 7].max():.3f}] m")
         print(f"  Right wall:     [{w[:, 8].min():.3f}, {w[:, 8].max():.3f}] m")
+        if car_width is not None:
+            car_half = float(car_width) / 2.0
+            min_left_clearance = float(w[:, 7].min()) - car_half
+            min_right_clearance = float(w[:, 8].min()) - car_half
+            print(
+                f"  Side clearance: "
+                f"left_min={min_left_clearance:.3f} m, "
+                f"right_min={min_right_clearance:.3f} m"
+            )
 
     ok = True
     if max_psi_err > math.radians(5):
@@ -1714,11 +2079,25 @@ def verify_output(csv_path):
             f"  WARNING: Heading deviates from atan2(dy,dx) by up to "
             f"{math.degrees(max_psi_err):.1f} deg"
         )
-    if ncols >= 9 and (w[:, 7].min() < 0.2 or w[:, 8].min() < 0.2):
-        print(f"  WARNING: Some wall distances < 0.2 m")
+    if ncols >= 9 and car_width is not None:
+        min_center_distance = float(car_width) / 2.0 + float(wall_clearance or 0.0)
+        if w[:, 7].min() < min_center_distance or w[:, 8].min() < min_center_distance:
+            print(
+                "  ERROR: Some center-to-wall distances are below "
+                f"half car width + clearance ({min_center_distance:.3f} m)"
+            )
+            ok = False
     if n < 100:
         print(f"  WARNING: Very few waypoints ({n})")
         ok = False
+    if curvlim is not None:
+        max_abs_kappa = float(np.max(np.abs(w[:, 4])))
+        if max_abs_kappa > curvlim:
+            print(
+                "  ERROR: Curvature limit violated: "
+                f"{max_abs_kappa:.4f} > {curvlim:.4f} 1/m"
+            )
+            ok = False
     return ok
 
 
@@ -1821,23 +2200,30 @@ def main():
         min_speed=0.5,          # m/s (set to None for no clamping)
         waypoint_spacing=0.02,  
         reopt_mintime_solution=True,        # Try false false or true true
-        recalc_vel_profile_by_tph=False,    # If true follow the files ax max and ggv
+        recalc_vel_profile_by_tph=True,    # If true follow the files ax max and ggv
 
         # Centerline extraction settings
         centerline_spacing=0.15,     # target spacing for centerline points (in metres)
         optimizer_spacing=0.1,      # prepared reference-track spacing for TUM mintime
-        optimizer_smoothing_s=3.0,  # TUM spline smoothing factor before width measurement
+        optimizer_smoothing_s=6.0,  # TUM spline smoothing factor before width measurement
         optimizer_smoothing_k=2,    # TUM spline order (mirrors racecar.ini)
         optimizer_smoothing_prep_spacing=0.02,
         direction='cw',             # 'auto', 'cw', or 'ccw'
 
-        # Vehicle and wall-clearance settings
-        car_width=0.3,
-        wall_clearance=0.10,
+        # Vehicle width and separate center-to-wall clearance constraint.
+        # width_opt remains car_width; wall_clearance reduces the allowed
+        # centerline corridor by this extra margin on each side.
+        car_width=0.30,
+        wall_clearance=0.05,
+        wall_clearance_guard=0.03,
+        reopt_free_dev=0.005,
+        reopt_kappa_factor=0.95,
         max_ray_distance=8.0,
 
         # Enforce curvature limit at all times
         strict_curvlim=True,
+        curvature_penalty_weight=10000.0,
+        curvature_penalty_margin=0.85,
     )
 
     # Verify map path
@@ -1889,7 +2275,12 @@ def main():
     print(f"  Direction:        {args.direction}")
     print(f"  Car width:        {args.car_width} m")
     print(f"  Wall clearance:   {args.wall_clearance} m")
-    print(f"  Optimizer width:  {args.car_width + 2.0 * args.wall_clearance:.3f} m")
+    print(f"  Clearance guard:  {args.wall_clearance_guard} m")
+    print(f"  Reopt free dev:   {args.reopt_free_dev} m")
+    print(f"  Reopt kappa fac:  {args.reopt_kappa_factor}")
+    print(f"  Optimizer width:  {args.car_width:.3f} m")
+    print(f"  Curv penalty:     weight={args.curvature_penalty_weight:g}, "
+          f"margin={args.curvature_penalty_margin:.2f}")
     print(f"  Wall distances:   yes")
     print(f"  Output:           {output_csv}")
 
@@ -1952,6 +2343,8 @@ def main():
         max_ray_distance=args.max_ray_distance,
         car_width=args.car_width,
         optimizer_spacing=args.optimizer_spacing,
+        optimizer_width=args.car_width,
+        wall_clearance=args.wall_clearance + args.wall_clearance_guard,
         optimizer_smoothing_s=args.optimizer_smoothing_s,
         optimizer_smoothing_k=args.optimizer_smoothing_k,
         optimizer_smoothing_prep_spacing=args.optimizer_smoothing_prep_spacing,
@@ -2008,7 +2401,11 @@ def main():
             "recalc_vel_profile_by_tph",
             recalc_vel_profile,
         )
-        set_strict_curvlim_kappa_candidates(main_py, args.strict_curvlim)
+        set_strict_curvlim_kappa_candidates(
+            main_py,
+            args.strict_curvlim,
+            args.reopt_kappa_factor,
+        )
         patch_main_to_load_prepared_track(main_py, prepared_track_npz)
         print("  Patched main_globaltraj.py: using prepared Step 0 splines")
         print(
@@ -2020,14 +2417,15 @@ def main():
             f"recalc_vel_profile_by_tph -> {recalc_vel_profile}"
         )
         if args.strict_curvlim:
-            print("  Patched main_globaltraj.py: strict curvlim enabled")
+            print(
+                "  Patched main_globaltraj.py: strict curvlim enabled "
+                f"(reopt factor={args.reopt_kappa_factor:.3f})"
+            )
 
-        # Patch width_opt in racecar.ini: car_width + 2*wall_clearance
-        # This ensures the optimizer keeps the raceline far enough
-        # from track boundaries that after subtracting car_half_width
-        # in wall distance computation, there is wall_clearance of
-        # driveable room for the MPC on each side.
-        optimizer_width = args.car_width + 2.0 * args.wall_clearance
+        # Patch width_opt in racecar.ini to the configured optimizer width.
+        # wall_clearance is patched separately and tightens the lateral center
+        # bounds without changing width_opt.
+        optimizer_width = args.car_width
         patched_ini = re.sub(
             r'(optim_opts_mintime\s*=\s*\{"width_opt":\s*)[\d.]+',
             rf'\g<1>{optimizer_width:.3f}',
@@ -2035,7 +2433,74 @@ def main():
         )
 
         print(f"  Patched racecar.ini: width_opt -> {optimizer_width:.3f} "
-              f"(car_width={args.car_width:.2f} + 2*clearance={args.wall_clearance:.2f})")
+              f"(configured optimizer width)")
+
+        patched_ini = patch_mintime_optim_bool_option(
+            patched_ini,
+            "preserve_width_opt",
+            True,
+        )
+        print("  Patched racecar.ini: preserve_width_opt -> true")
+
+        patched_ini = patch_mintime_optim_bool_option(
+            patched_ini,
+            "direct_reopt_tube",
+            True,
+        )
+        print(
+            "  Patched racecar.ini: direct_reopt_tube -> true "
+            "(preserve mintime reference for curvature repair)"
+        )
+
+        patched_ini = patch_mintime_optim_numeric_option(
+            patched_ini,
+            "wall_clearance",
+            args.wall_clearance,
+        )
+        patched_ini = patch_mintime_optim_numeric_option(
+            patched_ini,
+            "wall_clearance_guard",
+            args.wall_clearance_guard,
+        )
+        print(
+            f"  Patched racecar.ini: wall_clearance -> "
+            f"{args.wall_clearance:.3f}, guard -> "
+            f"{args.wall_clearance_guard:.3f} "
+            "(guard is an internal optimizer buffer)"
+        )
+
+        patched_ini = patch_mintime_optim_numeric_option(
+            patched_ini,
+            "w_veh_reopt",
+            optimizer_width,
+        )
+        patched_ini = patch_mintime_optim_numeric_option(
+            patched_ini,
+            "w_tr_reopt",
+            optimizer_width + 2.0 * args.reopt_free_dev,
+        )
+        print(
+            "  Patched racecar.ini: reopt widths -> "
+            f"w_veh_reopt={optimizer_width:.3f}, "
+            f"w_tr_reopt={optimizer_width + 2.0 * args.reopt_free_dev:.3f} "
+            f"(free_dev={args.reopt_free_dev:.3f}m)"
+        )
+
+        patched_ini = patch_mintime_optim_numeric_option(
+            patched_ini,
+            "penalty_raceline_curvature",
+            args.curvature_penalty_weight if args.strict_curvlim else 0.0,
+        )
+        patched_ini = patch_mintime_optim_numeric_option(
+            patched_ini,
+            "curvlim_cost_margin",
+            args.curvature_penalty_margin,
+        )
+        print(
+            "  Patched racecar.ini: raceline curvature penalty -> "
+            f"{args.curvature_penalty_weight:g}, "
+            f"margin -> {args.curvature_penalty_margin:.2f}"
+        )
 
         if args.max_speed is not None:
             patched_ini = re.sub(
@@ -2086,11 +2551,12 @@ def main():
         if max_kappa is None:
             print("  ERROR: Could not parse kappa from TUM output CSV")
             sys.exit(1)
-        tol = 0.02
-        if max_kappa > curvlim * (1.0 + tol):
+        if max_kappa > curvlim:
             print(
-                "  ERROR: TUM output exceeds curvlim "
-                f"({max_kappa:.3f} > {curvlim:.3f} rad/m)"
+                "  ERROR: TUM output still exceeds curvlim "
+                f"({max_kappa:.3f} > {curvlim:.3f} rad/m); "
+                "not exporting a centerline fallback. Increase "
+                "curvature_penalty_weight or lower curvature_penalty_margin."
             )
             sys.exit(1)
 
@@ -2121,6 +2587,7 @@ def main():
         '--output', output_csv,
         '--max-distance', str(args.max_ray_distance),
         '--car-width', str(args.car_width),
+        '--wall-clearance', str(args.wall_clearance),
     ]
     run_step("Step 3: Compute ray-cast wall distances", wall_cmd)
 
@@ -2132,7 +2599,12 @@ def main():
     print(f"\n{'=' * 64}")
     print(f"  Step 4: Verify output")
     print(f"{'=' * 64}")
-    ok = verify_output(output_csv)
+    ok = verify_output(
+        output_csv,
+        curvlim=curvlim if args.strict_curvlim else None,
+        car_width=args.car_width,
+        wall_clearance=args.wall_clearance,
+    )
 
     # ---- Visualization --------------------------------------------------------
     viz_path = output_csv.replace('.csv', '_viz.png')

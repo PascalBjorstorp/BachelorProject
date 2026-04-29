@@ -82,8 +82,12 @@ The raceline CSV has 9 columns:
 | `kappa_radpm` | Curvature [rad/m] |
 | `vx_mps` | Target velocity [m/s] |
 | `ax_mps2` | Target longitudinal acceleration [m/s²] |
-| `d_left_m` | Distance to left wall [m] |
-| `d_right_m` | Distance to right wall [m] |
+| `d_left_m` | Raw center-point distance to left wall [m] |
+| `d_right_m` | Raw center-point distance to right wall [m] |
+
+The wall-distance columns are not reduced by half the car width.  For example,
+with a 0.35 m wide car and 0.05 m desired side clearance, each raw wall
+distance must be at least `0.35 / 2 + 0.05 = 0.225 m`.
 
 ## Vehicle Parameters
 
