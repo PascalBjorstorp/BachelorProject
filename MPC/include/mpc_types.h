@@ -39,7 +39,7 @@
 #define CROSS_CALL_RATE_SCALE (CONTROL_DT_SECONDS / PREDICTION_DT_SECONDS) /* Normalizes first-step rate penalties across sample times. */
 
 /* Default MPC objective weights */
-#define WEIGHT_LAT_ERROR 8000.0f                        /* Penalizes lateral tracking deviation from the reference path. */
+#define WEIGHT_LAT_ERROR 2000.0f                        /* Penalizes lateral tracking deviation from the reference path. */
 #define WEIGHT_HEADING 28.8f                           /* Penalizes heading misalignment relative to path tangent. */
 #define WEIGHT_VELOCITY 15.0f                         /* Penalizes deviation from target longitudinal speed profile. */
 #define WEIGHT_LAT_VEL 1.04f                             /* Penalizes lateral velocity to suppress side-slip growth. */
@@ -53,9 +53,9 @@
 /* Other swept MPC defaults */
 #define MAX_ITERATIONS 100                               /* Default solver iteration budget per control update. */
 #define WALL_MARGIN 0.14f                                 /* Safety offset subtracted from both wall boundaries. */
-#define ADMM_RHO 16.0f                                   /* Primary ADMM penalty balancing feasibility and optimality progress. */
+#define ADMM_RHO 8.0f                                   /* Primary ADMM penalty balancing feasibility and optimality progress. */
 #define ADMM_RHO_U 24.0f                                 /* ADMM penalty applied to control-variable projection terms. */
-#define CONVERGENCE_TOLERANCE 0.05f                      /* Residual threshold used to declare solver convergence. */
+#define CONVERGENCE_TOLERANCE 0.01f                      /* Residual threshold used to declare solver convergence. */
 #ifndef PREDICTION_HORIZON
 #define PREDICTION_HORIZON 20                            /* Default maximum number of prediction stages used by the controller. */
 #endif
@@ -64,7 +64,7 @@
 /* Solver and model safeguards */
 #define RICCATI_COST_FACTOR 2.0f                         /* Global scaling factor applied to stage and terminal costs. */
 #define STEERING_RATE_LIMIT 2.849f                       /* Hard bound on steering-rate command in optimization. */
-#define STEERING_FEEDFORWARD_CLAMP_FACTOR 0.5f           /* Limits feedforward steering around linearization operating point. */
+#define STEERING_FEEDFORWARD_CLAMP_FACTOR 1.0f           /* Limits feedforward steering around linearization operating point. */
 #define BIG_BOUND 50.0f                                  /* Sentinel magnitude representing an effectively unconstrained bound. */
 #define MIN_LINEARIZATION_VELOCITY 0.5f                  /* Lower velocity clamp aligned with slip-angle floor for low-speed recovery. */
 #define STABILITY_LIMIT 0.95f                            /* Clamp on selected discrete self-coupling to preserve numerical stability. */

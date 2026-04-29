@@ -2197,7 +2197,7 @@ def main():
         # Minimum-time optimizer settings
         opt_type=MIN_TIME_OPT_TYPE,
         max_speed=12.0,         # m/s (set to None for no clamping)
-        min_speed=1.5,          # m/s (set to None for no clamping)
+        min_speed=0.5,          # m/s (set to None for no clamping)
         waypoint_spacing=0.02,  
         reopt_mintime_solution=True,        # Try false false or true true
         recalc_vel_profile_by_tph=True,    # If true follow the files ax max and ggv
