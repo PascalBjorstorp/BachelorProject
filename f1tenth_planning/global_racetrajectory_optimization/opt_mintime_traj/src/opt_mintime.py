@@ -104,6 +104,9 @@ def opt_mintime(reftrack: np.ndarray,
 
     # step size along the reference line
     h = pars["stepsize_opts"]["stepsize_reg"]
+    wall_clearance = float(pars["optim_opts"].get("wall_clearance", 0.0) or 0.0)
+    wall_clearance_guard = float(pars["optim_opts"].get("wall_clearance_guard", 0.0) or 0.0)
+    wall_clearance_eff = wall_clearance + wall_clearance_guard
 
     # optimization steps (0, 1, 2 ... end point/start point)
     # steps = [i for i in range(kappa_refline_cl.size)]
@@ -122,6 +125,15 @@ def opt_mintime(reftrack: np.ndarray,
     # interpolate track width (left and right to reference line) in terms of steps
     w_tr_left_interp = ca.interpolant('w_tr_left_interp', 'linear', [steps], w_tr_left_cl)
     w_tr_right_interp = ca.interpolant('w_tr_right_interp', 'linear', [steps], w_tr_right_cl)
+
+    refline_x_cl = np.append(reftrack[:, 0], reftrack[0, 0])
+    refline_y_cl = np.append(reftrack[:, 1], reftrack[0, 1])
+    normvec_x_cl = np.append(normvectors[:, 0], normvectors[0, 0])
+    normvec_y_cl = np.append(normvectors[:, 1], normvectors[0, 1])
+    refline_x_interp = ca.interpolant('refline_x_interp', 'linear', [steps], refline_x_cl)
+    refline_y_interp = ca.interpolant('refline_y_interp', 'linear', [steps], refline_y_cl)
+    normvec_x_interp = ca.interpolant('normvec_x_interp', 'linear', [steps], normvec_x_cl)
+    normvec_y_interp = ca.interpolant('normvec_y_interp', 'linear', [steps], normvec_y_cl)
 
     # describe friction coefficients from friction map with linear equations or gaussian basis functions
     if pars["optim_opts"]["var_friction"] is not None:
@@ -520,7 +532,9 @@ def opt_mintime(reftrack: np.ndarray,
             f"v_s={v_s:.2f}, v_guess={v_guess_mps:.2f}m/s, "
             f"omega_z_limit={omega_z_limit:.2f}rad/s, "
             f"f_drive_s={f_drive_s:.2f}N, f_brake_s={f_brake_s:.2f}N, "
-            f"gamma_y_s={gamma_y_s:.2f}N"
+            f"gamma_y_s={gamma_y_s:.2f}N, "
+            f"wall_clearance={wall_clearance:.3f}m, "
+            f"wall_clearance_guard={wall_clearance_guard:.3f}m"
         )
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -576,12 +590,21 @@ def opt_mintime(reftrack: np.ndarray,
     # initialize control vectors (for regularization)
     delta_p = []
     F_p = []
+    n_nodes = []
 
     # boundary constraint: lift initial conditions
     Xk = ca.MX.sym('X0', nx)
     w.append(Xk)
-    n_min = (-w_tr_right_interp(0) + pars["optim_opts"]["width_opt"] / 2) / n_s
-    n_max = (w_tr_left_interp(0) - pars["optim_opts"]["width_opt"] / 2) / n_s
+    n_min = (
+        -w_tr_right_interp(0)
+        + pars["optim_opts"]["width_opt"] / 2
+        + wall_clearance_eff
+    ) / n_s
+    n_max = (
+        w_tr_left_interp(0)
+        - pars["optim_opts"]["width_opt"] / 2
+        - wall_clearance_eff
+    ) / n_s
     if pars["pwr_params_mintime"]["pwr_behavior"]:
         lbw.append([v_min, beta_min, omega_z_min, n_min, xi_min,
                     machine.temp_min, batt.temp_min, inverter.temp_min,
@@ -625,6 +648,7 @@ def opt_mintime(reftrack: np.ndarray,
         lbw.append([v_min, beta_min, omega_z_min, n_min, xi_min])
         ubw.append([v_max, beta_max, omega_z_max, n_max, xi_max])
         w0.append([v_guess, 0.0, 0.0, 0.0, 0.0])
+    n_nodes.append(Xk[3] * n_s)
     x_opt.append(Xk * x_s)
 
     # loop along the racetrack and formulate path constraints & system dynamic
@@ -693,8 +717,16 @@ def opt_mintime(reftrack: np.ndarray,
         # add new decision variables for state at end of the collocation interval
         Xk = ca.MX.sym('X_' + str(k + 1), nx)
         w.append(Xk)
-        n_min = (-w_tr_right_interp(k + 1) + pars["optim_opts"]["width_opt"] / 2.0) / n_s
-        n_max = (w_tr_left_interp(k + 1) - pars["optim_opts"]["width_opt"] / 2.0) / n_s
+        n_min = (
+            -w_tr_right_interp(k + 1)
+            + pars["optim_opts"]["width_opt"] / 2.0
+            + wall_clearance_eff
+        ) / n_s
+        n_max = (
+            w_tr_left_interp(k + 1)
+            - pars["optim_opts"]["width_opt"] / 2.0
+            - wall_clearance_eff
+        ) / n_s
         if pars["pwr_params_mintime"]["pwr_behavior"]:
             lbw.append([v_min, beta_min, omega_z_min, n_min, xi_min,
                         machine.temp_min, batt.temp_min, inverter.temp_min,
@@ -712,6 +744,7 @@ def opt_mintime(reftrack: np.ndarray,
             lbw.append([v_min, beta_min, omega_z_min, n_min, xi_min])
             ubw.append([v_max, beta_max, omega_z_max, n_max, xi_max])
             w0.append([v_guess, 0.0, 0.0, 0.0, 0.0])
+        n_nodes.append(Xk[3] * n_s)
 
         # add equality constraint
         g.append(Xk_end - Xk)
@@ -854,8 +887,63 @@ def opt_mintime(reftrack: np.ndarray,
     Jp_f = ca.mtimes(ca.MX(diff_matrix), F_p)
     Jp_f = ca.dot(Jp_f, Jp_f)
 
+    # Soft geometric curvature limit for the optimized raceline.  The hard
+    # vehicle dynamics use the reference-line curvature; this term makes the
+    # optimizer pay when its lateral offset sequence creates a raceline whose
+    # own curvature exceeds curvlim.
+    Jp_kappa = 0.0
+    penalty_kappa = float(pars["optim_opts"].get("penalty_raceline_curvature", 0.0) or 0.0)
+    curvlim = float(pars["veh_params"].get("curvlim", 0.0) or 0.0)
+    curvlim_margin = float(pars["optim_opts"].get("curvlim_cost_margin", 1.0) or 1.0)
+    kappa_cost_limit = curvlim * curvlim_margin
+    if penalty_kappa > 0.0 and kappa_cost_limit > 0.0:
+        raceline_x = []
+        raceline_y = []
+        for i in range(N):
+            # opt_mintime returns alpha=-n; create the same raceline here.
+            n_i = n_nodes[i]
+            raceline_x.append(refline_x_interp(i) - n_i * normvec_x_interp(i))
+            raceline_y.append(refline_y_interp(i) - n_i * normvec_y_interp(i))
+
+        limit_sq = kappa_cost_limit ** 2
+        for i in range(N):
+            i_prev = (i - 1) % N
+            i_next = (i + 1) % N
+            ax_i = raceline_x[i] - raceline_x[i_prev]
+            ay_i = raceline_y[i] - raceline_y[i_prev]
+            bx_i = raceline_x[i_next] - raceline_x[i]
+            by_i = raceline_y[i_next] - raceline_y[i]
+            cx_i = raceline_x[i_next] - raceline_x[i_prev]
+            cy_i = raceline_y[i_next] - raceline_y[i_prev]
+
+            cross = ax_i * by_i - ay_i * bx_i
+            denom_sq = (
+                (ax_i ** 2 + ay_i ** 2)
+                * (bx_i ** 2 + by_i ** 2)
+                * (cx_i ** 2 + cy_i ** 2)
+                + 1e-12
+            )
+            kappa_sq = 4.0 * cross ** 2 / denom_sq
+            violation_raw = kappa_sq / limit_sq - 1.0
+            violation = 0.5 * (
+                violation_raw
+                + ca.sqrt(violation_raw ** 2 + 1e-8)
+            )
+            Jp_kappa += violation ** 2
+
+        Jp_kappa = Jp_kappa / max(N, 1)
+
+        print(
+            "INFO: Mintime raceline curvature penalty active: "
+            f"weight={penalty_kappa:.3g}, "
+            f"cost_limit={kappa_cost_limit:.3f}rad/m"
+        )
+
     # formulate objective
-    J = J + pars["optim_opts"]["penalty_F"] * Jp_f + pars["optim_opts"]["penalty_delta"] * Jp_delta
+    J = (J
+         + pars["optim_opts"]["penalty_F"] * Jp_f
+         + pars["optim_opts"]["penalty_delta"] * Jp_delta
+         + penalty_kappa * Jp_kappa)
 
     # concatenate NLP vectors
     w = ca.vertcat(*w)

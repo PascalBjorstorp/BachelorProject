@@ -181,7 +181,9 @@ def main():
     parser.add_argument('--max-distance', type=float, default=5.0,
                         help='Maximum raycasting distance (meters)')
     parser.add_argument('--car-width', type=float, default=0.30,
-                        help='Car width for safety margin (meters)')
+                        help='Car width used only for clearance warnings (meters)')
+    parser.add_argument('--wall-clearance', type=float, default=0.0,
+                        help='Desired side-of-car wall clearance (meters)')
     args = parser.parse_args()
 
     print(f"Loading map from: {args.map}")
@@ -197,7 +199,8 @@ def main():
     print(f"  Waypoints: {len(waypoints)}")
 
     print(f"\nComputing wall distances (max={args.max_distance}m, "
-          f"car_width={args.car_width}m)...")
+          f"car_width={args.car_width}m, "
+          f"wall_clearance={args.wall_clearance}m)...")
     wall_distances = compute_wall_distances(
         waypoints, is_wall, origin_x, origin_y, resolution,
         map_height, map_width,
@@ -211,11 +214,28 @@ def main():
           f"avg={sum(d_lefts)/len(d_lefts):.2f}m")
     print(f"  Right wall: min={min(d_rights):.2f}m, max={max(d_rights):.2f}m, "
           f"avg={sum(d_rights)/len(d_rights):.2f}m")
+    car_half_width = args.car_width / 2.0
+    min_left_clearance = min(d_lefts) - car_half_width
+    min_right_clearance = min(d_rights) - car_half_width
+    print(
+        f"  Side clearance after half car width: "
+        f"left_min={min_left_clearance:.2f}m, "
+        f"right_min={min_right_clearance:.2f}m"
+    )
 
     # Check for suspiciously small distances
-    narrow = sum(1 for dl, dr in wall_distances if dl < 0.3 or dr < 0.3)
+    min_center_distance = car_half_width + args.wall_clearance
+    narrow = sum(
+        1
+        for dl, dr in wall_distances
+        if dl < min_center_distance or dr < min_center_distance
+    )
     if narrow > 0:
-        print(f"  WARNING: {narrow} waypoints have wall distance < 0.3m")
+        print(
+            f"  WARNING: {narrow} waypoints have center-to-wall distance "
+            f"< {min_center_distance:.2f}m "
+            f"(half car + clearance)"
+        )
 
     print(f"\nSaving 9-column trajectory to: {args.output}")
     save_trajectory_with_walls(args.output, waypoints, wall_distances)
