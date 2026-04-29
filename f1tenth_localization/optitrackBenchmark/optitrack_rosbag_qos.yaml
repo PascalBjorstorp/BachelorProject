@@ -46,11 +46,6 @@
   reliability: reliable
   durability: volatile
 
-/local_raceline_wall_distance_markers:
-  history: keep_last
-  depth: 20
-  reliability: reliable
-  durability: volatile
 
 /local_raceline_viz:
   history: keep_last
