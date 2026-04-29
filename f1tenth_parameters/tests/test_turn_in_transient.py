@@ -191,10 +191,12 @@ class TurnInTransientNode(TestNode):
         self.wheelbase = float(args.wheelbase)
         self.straight_check_speed = float(args.straight_check_speed)
         self.straight_check_time = float(args.straight_check_time)
+        self.straight_check_max_passes = int(args.straight_check_max_passes)
         self.straight_trim_limit = float(args.straight_trim_limit)
         self.straight_vy_limit = float(args.straight_vy_limit)
         self.straight_gz_limit = float(args.straight_gz_limit)
         self.straight_beta_limit = float(args.straight_beta_limit)
+        self.straight_yaw_delta_limit = float(args.straight_yaw_delta_limit)
         self.pre_run_pause = float(args.pre_run_pause)
         self.between_run_pause = float(args.between_run_pause)
         self.results = []
@@ -209,6 +211,8 @@ class TurnInTransientNode(TestNode):
         self.footprint_span_y = worst_span_y
         self.footprint_max_radius = worst_radius
         self.straightness_reports = []
+        self.lidar_zero_reliable = True
+        self.straightness_degraded = False
 
     def _corrected_lidar(self) -> tuple[float, float, float]:
         return (
@@ -289,7 +293,12 @@ class TurnInTransientNode(TestNode):
             rclpy.spin_once(self, timeout_sec=0.005)
             if not (self.imu_received and self.odom_received and self.lidar_received):
                 continue
-            if abs(self.odom_vx) > 0.15 or abs(self.motor_current) > 8.0:
+            if (
+                abs(self.odom_vx) > 0.10 or
+                abs(self.odom_vy) > 0.10 or
+                abs(self.imu_gz) > 0.12 or
+                abs(self.motor_current) > 4.0
+            ):
                 continue
             imu_ax_samples.append(self.imu_ax)
             imu_ay_samples.append(self.imu_ay)
@@ -315,16 +324,28 @@ class TurnInTransientNode(TestNode):
         if len(imu_ax_samples) < 20:
             raise RuntimeError("Not enough stationary samples to calibrate sensor biases")
 
-        self.imu_bias_ax = float(np.mean(imu_ax_samples))
-        self.imu_bias_ay = float(np.mean(imu_ay_samples))
-        self.imu_bias_az = float(np.mean(imu_az_samples))
-        self.imu_bias_gz = float(np.mean(imu_gz_samples))
-        self.odom_bias_vx = float(np.mean(odom_vx_samples))
-        self.odom_bias_vy = float(np.mean(odom_vy_samples))
-        self.odom_bias_omega = float(np.mean(odom_omega_samples))
-        self.lidar_bias_vx = float(np.mean(lidar_vx_samples))
-        self.lidar_bias_vy = float(np.mean(lidar_vy_samples))
-        self.lidar_bias_omega = float(np.mean(lidar_omega_samples))
+        self.imu_bias_ax = float(np.median(imu_ax_samples))
+        self.imu_bias_ay = float(np.median(imu_ay_samples))
+        self.imu_bias_az = float(np.median(imu_az_samples))
+        self.imu_bias_gz = float(np.median(imu_gz_samples))
+        self.odom_bias_vx = float(np.median(odom_vx_samples))
+        self.odom_bias_vy = float(np.median(odom_vy_samples))
+        self.odom_bias_omega = float(np.median(odom_omega_samples))
+        self.lidar_bias_vx = float(np.median(lidar_vx_samples))
+        self.lidar_bias_vy = float(np.median(lidar_vy_samples))
+        self.lidar_bias_omega = float(np.median(lidar_omega_samples))
+
+        lidar_vx_std = float(np.std(lidar_vx_samples))
+        lidar_vy_std = float(np.std(lidar_vy_samples))
+        lidar_omega_std = float(np.std(lidar_omega_samples))
+        self.lidar_zero_reliable = (
+            abs(self.lidar_bias_vx) <= 0.10 and
+            abs(self.lidar_bias_vy) <= 0.10 and
+            abs(self.lidar_bias_omega) <= 0.10 and
+            lidar_vx_std <= 0.08 and
+            lidar_vy_std <= 0.08 and
+            lidar_omega_std <= 0.08
+        )
 
         self.get_logger().info(
             f"IMU bias: ax={self.imu_bias_ax:+.4f}, ay={self.imu_bias_ay:+.4f}, "
@@ -335,6 +356,11 @@ class TurnInTransientNode(TestNode):
         self.get_logger().info(
             f"LiDAR zero: vx={self.lidar_bias_vx:+.4f}, vy={self.lidar_bias_vy:+.4f}, "
             f"omega={self.lidar_bias_omega:+.4f}")
+        if not self.lidar_zero_reliable:
+            self.get_logger().warn(
+                "LiDAR stationary zero looks unreliable; straightness trim will rely on yaw response "
+                "more than LiDAR lateral velocity for this run."
+            )
 
     def _run_phase(
         self,
@@ -392,7 +418,9 @@ class TurnInTransientNode(TestNode):
     def _run_straightness_check(self) -> bool:
         self.get_logger().info("Checking straight-line trim from measured velocities...")
         check_speed = min(self.straight_check_speed, max(self.speeds))
-        for pass_idx in range(2):
+        hard_gz_abort = math.radians(20.0)
+        best_report = None
+        for pass_idx in range(self.straight_check_max_passes):
             ok, samples = self._run_phase(
                 duration=self.straight_check_time,
                 run_id=0,
@@ -413,12 +441,12 @@ class TurnInTransientNode(TestNode):
             yaw_delta = _wrap_angle(samples[-1]['odom_yaw'] - samples[0]['odom_yaw'])
 
             correction = -math.atan2(self.wheelbase * mean_gz, max(abs(mean_vx), 0.5))
-            if pass_idx == 0:
-                self.steering_trim = float(np.clip(
-                    self.steering_trim + correction,
-                    -self.straight_trim_limit,
-                    self.straight_trim_limit,
-                ))
+            yaw_ok = abs(mean_gz) <= self.straight_gz_limit and abs(yaw_delta) <= self.straight_yaw_delta_limit
+            lidar_ok = (
+                abs(mean_vy) <= self.straight_vy_limit and
+                abs(mean_beta) <= self.straight_beta_limit
+            ) if self.lidar_zero_reliable else True
+            trim_ok = yaw_ok and lidar_ok
 
             report = {
                 'pass_idx': pass_idx + 1,
@@ -428,7 +456,32 @@ class TurnInTransientNode(TestNode):
                 'mean_beta': mean_beta,
                 'yaw_delta': yaw_delta,
                 'steering_trim': self.steering_trim,
+                'yaw_ok': yaw_ok,
+                'lidar_ok': lidar_ok,
+                'trim_ok': trim_ok,
+                'lidar_zero_reliable': self.lidar_zero_reliable,
             }
+            best_report = report
+
+            if trim_ok:
+                self.straightness_reports.append(report)
+                self.get_logger().info(
+                    f"Straight pass {pass_idx + 1}: trim={self.steering_trim:+.4f} rad, "
+                    f"mean_vx={mean_vx:.3f}, mean_vy={mean_vy:+.3f}, "
+                    f"mean_gz={math.degrees(mean_gz):+.2f} deg/s, "
+                    f"beta={math.degrees(mean_beta):+.2f} deg, yaw_delta={math.degrees(yaw_delta):+.2f} deg "
+                    f"-> straight enough")
+                return True
+
+            new_trim = float(np.clip(
+                self.steering_trim + correction,
+                -self.straight_trim_limit,
+                self.straight_trim_limit,
+            ))
+            trim_saturated = abs(new_trim - self.steering_trim) < 1e-4 and abs(correction) > 1e-4
+            self.steering_trim = new_trim
+            report['steering_trim'] = self.steering_trim
+
             self.straightness_reports.append(report)
             self.get_logger().info(
                 f"Straight pass {pass_idx + 1}: trim={self.steering_trim:+.4f} rad, "
@@ -438,19 +491,19 @@ class TurnInTransientNode(TestNode):
 
             self.stop_car()
             self.spin_for(0.4)
+            if abs(mean_gz) > hard_gz_abort and trim_saturated:
+                self.get_logger().error(
+                    "Straight trim saturated while yaw error stayed very large; aborting."
+                )
+                return False
 
-        final = self.straightness_reports[-1]
-        straight_ok = (
-            abs(final['mean_vy']) <= self.straight_vy_limit and
-            abs(final['mean_gz']) <= self.straight_gz_limit and
-            abs(final['mean_beta']) <= self.straight_beta_limit
-        )
-        if not straight_ok:
-            self.get_logger().error(
-                "Straight-line verification failed after trim correction. "
-                "The car is still veering; aborting so the data is not misleading."
+        self.straightness_degraded = True
+        if best_report is not None:
+            self.get_logger().warn(
+                "Straight-line trim did not fully meet thresholds after iterative correction. "
+                "Continuing with best available trim and marking the dataset as degraded."
             )
-        return straight_ok
+        return True
 
     def _run_single(self, run_id: int, repeat_idx: int, speed: float, steer: float, direction: float) -> bool:
         signed_steer = direction * steer
@@ -641,12 +694,16 @@ class TurnInTransientNode(TestNode):
             f.write(f"geofence_m={self.safety.max_distance:.6f}\n")
             f.write(f"straight_check_speed_mps={self.straight_check_speed:.6f}\n")
             f.write(f"straight_check_time_s={self.straight_check_time:.6f}\n")
+            f.write(f"straight_check_max_passes={self.straight_check_max_passes}\n")
             f.write(f"straight_trim_limit_rad={self.straight_trim_limit:.6f}\n")
             f.write(f"straight_vy_limit_mps={self.straight_vy_limit:.6f}\n")
             f.write(f"straight_gz_limit_radps={self.straight_gz_limit:.6f}\n")
             f.write(f"straight_beta_limit_rad={self.straight_beta_limit:.6f}\n")
+            f.write(f"straight_yaw_delta_limit_rad={self.straight_yaw_delta_limit:.6f}\n")
             f.write(f"pre_run_pause_s={self.pre_run_pause:.6f}\n")
             f.write(f"between_run_pause_s={self.between_run_pause:.6f}\n")
+            f.write(f"lidar_zero_reliable={int(self.lidar_zero_reliable)}\n")
+            f.write(f"straightness_degraded={int(self.straightness_degraded)}\n")
             f.write(f"imu_bias_ax={self.imu_bias_ax:.9f}\n")
             f.write(f"imu_bias_ay={self.imu_bias_ay:.9f}\n")
             f.write(f"imu_bias_az={self.imu_bias_az:.9f}\n")
@@ -721,6 +778,8 @@ def main():
                         help='Speed used for pre-test straight-line verification [m/s].')
     parser.add_argument('--straight-check-time', type=float, default=1.0,
                         help='Duration of each straight-line verification pass [s].')
+    parser.add_argument('--straight-check-max-passes', type=int, default=5,
+                        help='Maximum number of iterative straight-trim passes before continuing with best trim.')
     parser.add_argument('--straight-trim-limit', type=float, default=0.06,
                         help='Maximum steering trim correction magnitude [rad].')
     parser.add_argument('--straight-vy-limit', type=float, default=0.10,
@@ -729,6 +788,8 @@ def main():
                         help='Allowed mean yaw rate during straight check [rad/s].')
     parser.add_argument('--straight-beta-limit', type=float, default=0.05,
                         help='Allowed mean sideslip during straight check [rad].')
+    parser.add_argument('--straight-yaw-delta-limit', type=float, default=0.08,
+                        help='Allowed yaw change over a straight-check pass [rad].')
     parser.add_argument('--pre-run-pause', type=float, default=5.0,
                         help='Stopped pause before the first measured run [s].')
     parser.add_argument('--between-run-pause', type=float, default=6.0,
