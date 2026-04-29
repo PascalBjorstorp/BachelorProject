@@ -79,6 +79,9 @@ void AmclNode::declare_all_parameters() {
     declare_parameter<bool>("use_kld_sampling", false);
     declare_parameter<double>("kld_epsilon", 0.05);
     declare_parameter<double>("kld_z", 2.33);
+    declare_parameter<double>("kld_bin_x", 0.5);
+    declare_parameter<double>("kld_bin_y", 0.5);
+    declare_parameter<double>("kld_bin_theta", 0.1);
 
     // Frames
     declare_parameter<std::string>("base_frame_id", "ego_racecar/base_link");
@@ -247,6 +250,9 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     pf_cfg.use_kld           = get_parameter("use_kld_sampling").as_bool();
     pf_cfg.kld_epsilon       = get_parameter("kld_epsilon").as_double();
     pf_cfg.kld_z             = get_parameter("kld_z").as_double();
+    pf_cfg.kld_bin_x         = get_parameter("kld_bin_x").as_double();
+    pf_cfg.kld_bin_y         = get_parameter("kld_bin_y").as_double();
+    pf_cfg.kld_bin_theta     = get_parameter("kld_bin_theta").as_double();
     pf_cfg.init_x            = get_parameter("initial_pose_x").as_double();
     pf_cfg.init_y            = get_parameter("initial_pose_y").as_double();
     pf_cfg.init_a            = get_parameter("initial_pose_a").as_double();

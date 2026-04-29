@@ -9,6 +9,17 @@
 # All values are configurable — nothing is hardcoded.
 # ============================================================
 
+## OLD VALUES (for reference):
+# min_particles: 300
+# max_particles: 1000
+# kld_epsilon: 0.05
+# kld_z: 2.33
+
+# sigma_hit: 0.05
+# z_hit: 0.975
+# z_rand: 0.025
+
+
 # ────────────────────────────────────────────────────────────────
 #  AMCL Node
 # ────────────────────────────────────────────────────────────────
@@ -27,8 +38,11 @@ gpu_amcl_cpp:
     # When converged (tight cluster), uses fewer particles → saves GPU time.
     # When uncertain (spread out), uses more particles → better coverage.
     use_kld_sampling: true
-    kld_epsilon: 0.05          # KL-divergence error bound (smaller → more particles)
+    kld_epsilon: 0.02          # KL-divergence error bound (smaller → more particles)
     kld_z: 2.33                # Quantile: 2.33 = 99%, 1.96 = 95%
+    kld_bin_x: 0.5             # metres per occupied KLD bin in x
+    kld_bin_y: 0.5             # metres per occupied KLD bin in y
+    kld_bin_theta: 0.1         # radians per occupied KLD bin in heading
 
     # ---- Frame IDs ----
     base_frame_id: "ego_racecar/base_link"

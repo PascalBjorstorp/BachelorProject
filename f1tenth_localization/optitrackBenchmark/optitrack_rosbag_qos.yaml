@@ -1,0 +1,125 @@
+/tf:
+  history: keep_last
+  depth: 1000
+  reliability: best_effort
+  durability: volatile
+
+/tf_static:
+  history: keep_last
+  depth: 1
+  reliability: reliable
+  durability: transient_local
+
+/scan:
+  history: keep_last
+  depth: 50
+  reliability: best_effort
+  durability: volatile
+
+/scan_walls:
+  history: keep_last
+  depth: 50
+  reliability: best_effort
+  durability: volatile
+
+/scan_obstacles:
+  history: keep_last
+  depth: 50
+  reliability: best_effort
+  durability: volatile
+
+/map:
+  history: keep_last
+  depth: 1
+  reliability: reliable
+  durability: transient_local
+
+/map_server/transition_event:
+  history: keep_last
+  depth: 10
+  reliability: reliable
+  durability: volatile
+
+/opponent_marker:
+  history: keep_last
+  depth: 20
+  reliability: reliable
+  durability: volatile
+
+/local_raceline_wall_distance_markers:
+  history: keep_last
+  depth: 20
+  reliability: reliable
+  durability: volatile
+
+/local_raceline_viz:
+  history: keep_last
+  depth: 20
+  reliability: reliable
+  durability: volatile
+
+/local_raceline:
+  history: keep_last
+  depth: 20
+  reliability: reliable
+  durability: volatile
+
+/ekf_pose:
+  history: keep_last
+  depth: 50
+  reliability: reliable
+  durability: volatile
+
+/amcl_timing:
+  history: keep_last
+  depth: 50
+  reliability: reliable
+  durability: volatile
+
+/ackermann_cmd:
+  history: keep_last
+  depth: 100
+  reliability: reliable
+  durability: volatile
+
+/amcl_pose:
+  history: keep_last
+  depth: 50
+  reliability: reliable
+  durability: volatile
+
+/particlecloud:
+  history: keep_last
+  depth: 20
+  reliability: reliable
+  durability: volatile
+
+/ego_racecar/odom:
+  history: keep_last
+  depth: 100
+  reliability: reliable
+  durability: volatile
+
+/odom_pose:
+  history: keep_last
+  depth: 100
+  reliability: reliable
+  durability: volatile
+
+/drive:
+  history: keep_last
+  depth: 100
+  reliability: reliable
+  durability: volatile
+
+/mpcc/predicted_path:
+  history: keep_last
+  depth: 100
+  reliability: reliable
+  durability: volatile
+
+/vrpn_mocap/Car2/pose:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
+  durability: volatile
