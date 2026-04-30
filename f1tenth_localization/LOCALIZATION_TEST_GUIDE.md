@@ -17,17 +17,20 @@ Record one localization bag. Use a unique output path for each run:
 ./f1tenth_system/f1tenth_stack/scripts/record_localization_bag.sh \
   /home/pascal/Documents/BachelorProject/bags/Localization_gpu_p0400_kldfalse_b270_run01
 ```
-
+```text
+100, 150, 250, 400, 600, 800, 1000, 1500
+```
 GPU AMCL fixed-particle launch. Set `P` to the particle count and `BEAMS` to
 the AMCL beam count:
 
 ```bash
 ros2 launch f1tenth_stack System_launch.py \
   lidar_cluster:=4 \
-  amcl_num_particles:=400 \
-  amcl_min_particles:=400 \
-  amcl_max_particles:=400 \
+  amcl_num_particles:=1500 \
+  amcl_min_particles:=1500 \
+  amcl_max_particles:=1500 \
   amcl_max_beams:=270 \
+  lateral_planner_avoidance_enabled:=false \
   amcl_use_kld:=false
 ```
 
@@ -66,8 +69,8 @@ Terminal 2 starts Nav2 AMCL with the same particle and beam values:
 
 ```bash
 ros2 launch f1tenth_localization nav2_amcl.launch.py \
-  min_particles:=400 \
-  max_particles:=400 \
+  min_particles:=1000 \
+  max_particles:=1000 \
   max_beams:=270
 ```
 

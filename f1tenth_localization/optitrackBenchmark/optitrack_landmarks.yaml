@@ -9,10 +9,10 @@ optitrack_frame: world
 # In RViz, click the same landmarks in this exact order.
 landmarks:
   - name: landmark_1
-    optitrack: [-2.8276, 0.495, -2.2087]
+    optitrack: [-2.618, 0.315, -2.065]
   - name: landmark_2
     optitrack: [1.385, 0.236, 1.233]
   - name: landmark_3
-    optitrack: [3.975, 0.322, 0.015]
+    optitrack: [3.975, 0.322,]
   - name: landmark_4
-    optitrack: [1.390, 0.373, 4.371]
+    optitrack: [1.3216, 0.042, 1.822]

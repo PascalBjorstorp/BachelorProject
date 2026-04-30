@@ -39,16 +39,16 @@
 #define CROSS_CALL_RATE_SCALE (CONTROL_DT_SECONDS / PREDICTION_DT_SECONDS) /* Normalizes first-step rate penalties across sample times. */
 
 /* Default MPC objective weights */
-#define WEIGHT_LAT_ERROR 1000.0f                        /* Penalizes lateral tracking deviation from the reference path. */
+#define WEIGHT_LAT_ERROR 700.0f                        /* Penalizes lateral tracking deviation from the reference path. */
 #define WEIGHT_HEADING 28.8f                           /* Penalizes heading misalignment relative to path tangent. */
-#define WEIGHT_VELOCITY 30.0f                         /* Penalizes deviation from target longitudinal speed profile. */
+#define WEIGHT_VELOCITY 27.6f                         /* Penalizes deviation from target longitudinal speed profile. */
 #define WEIGHT_LAT_VEL 1.04f                             /* Penalizes lateral velocity to suppress side-slip growth. */
 #define WEIGHT_YAW_RATE 1.5f                           /* Penalizes yaw-rate mismatch against reference curvature dynamics. */
-#define WEIGHT_STEER_EFFORT 1.5f                       /* Penalizes steering-rate effort to limit aggressive steering actuation. */
-#define WEIGHT_ACCEL_EFFORT 0.01f                      /* Penalizes longitudinal acceleration effort to smooth throttle/brake usage. */
-#define WEIGHT_STEER_RATE 0.04f                         /* Penalizes steering-rate change to reduce steering jerk. */
+#define WEIGHT_STEER_EFFORT 1.53f                       /* Penalizes steering-rate effort to limit aggressive steering actuation. */
+#define WEIGHT_ACCEL_EFFORT 0.0106f                      /* Penalizes longitudinal acceleration effort to smooth throttle/brake usage. */
+#define WEIGHT_STEER_RATE 0.036f                         /* Penalizes steering-rate change to reduce steering jerk. */
 #define WEIGHT_ACCEL_RATE 0.1f                          /* Penalizes acceleration change to reduce longitudinal jerk. */
-#define WEIGHT_DELTA_ACTUAL 0.023f                        /* Penalizes steering-state bias away from curvature feedforward. */
+#define WEIGHT_DELTA_ACTUAL 0.0253f                        /* Penalizes steering-state bias away from curvature feedforward. */
 
 /* Other swept MPC defaults */
 #define MAX_ITERATIONS 100                               /* Default solver iteration budget per control update. */
