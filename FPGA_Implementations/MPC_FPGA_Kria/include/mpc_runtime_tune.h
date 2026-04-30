@@ -35,6 +35,7 @@ extern int mpc_rt_wall_bound_window;
 extern fp_QP_t mpc_rt_admm_rho;
 extern fp_QP_t mpc_rt_admm_rho_u;
 extern fp_QP_t mpc_rt_admm_tol;
+extern int mpc_rt_admm_max_iter;
 
 void mpc_runtime_update_from_env(void);
 

@@ -1,0 +1,18 @@
+map_frame: map
+optitrack_frame: world
+
+# For 3D calibration, fill these with raw OptiTrack [x, y, z] in meters.
+# If your OptiTrack setup is Y-up, keep that raw Y-up coordinate here.
+# The 3D fit rotates the OptiTrack frame into the map frame.
+#
+# If you only provide [x, y], the tool falls back to 2D calibration.
+# In RViz, click the same landmarks in this exact order.
+landmarks:
+  - name: landmark_1
+    optitrack: [-1.4909, 0.08, 1.5319]
+  - name: landmark_2
+    optitrack: [-1.1827, 0.0645, -1.3896]
+  - name: landmark_3
+    optitrack: [1.3944, 0.024, -1.4562]
+  - name: landmark_4
+    optitrack: [1.3216, 0.042, 1.822]
