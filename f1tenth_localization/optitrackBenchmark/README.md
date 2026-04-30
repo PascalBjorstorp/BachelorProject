@@ -52,13 +52,6 @@ Default map:
 ros2 launch f1tenth_localization optitrack_calibration.launch.py
 ```
 
-Hardware map:
-
-```bash
-ros2 launch f1tenth_localization optitrack_calibration.launch.py \
-  map_file:=$PWD/f1tenth_planning/maps/hardware_map.yaml
-```
-
 ## RViz Steps
 
 1. Open RViz.

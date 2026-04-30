@@ -334,10 +334,12 @@
 #define ADMM_RHO_DEFAULT    (mpc_rt_admm_rho)
 #define ADMM_RHO_U_DEFAULT  (mpc_rt_admm_rho_u)
 #define ADMM_TOL_DEFAULT    (mpc_rt_admm_tol)
+#define ADMM_MAX_ITER_DEFAULT (mpc_rt_admm_max_iter)
 #else
 #define ADMM_RHO_DEFAULT    FP_QP_CONST(MPC_FPGA_ADMM_RHO)
 #define ADMM_RHO_U_DEFAULT  FP_QP_CONST(MPC_FPGA_ADMM_RHO_U)
 #define ADMM_TOL_DEFAULT    FP_QP_CONST(MPC_FPGA_ADMM_TOL)
+#define ADMM_MAX_ITER_DEFAULT MPC_MAX_ADMM_ITER
 #endif
 
 /*===========================================================================

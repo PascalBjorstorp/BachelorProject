@@ -49,7 +49,7 @@
 static void mpc_fpga_compute_core(
     fp_QP_t ey, fp_QP_t epsi,
     fp_QP_t vx, fp_QP_t vy, fp_QP_t omega,
-    fp_QP_t steering,
+    fp_QP_t steering, fp_QP_t prev_accel,
     const MpcRefPoint_t ref[MPC_HORIZON],
     int *out_steering, int *out_accel, int *out_status, int *out_iters)
 {
@@ -72,6 +72,8 @@ static void mpc_fpga_compute_core(
         initialized = 1;
     }
     persist.actual_steering = steering;
+    /* Accept previous applied acceleration forwarded from compat layer */
+    persist.prev_accel = prev_accel;
 
     fp_QP_t steer_out, accel_out;
     int status, iters;
@@ -195,7 +197,7 @@ extern "C" void mpc_fpga_top_opencl(
     int out_accel = 0;
     int out_status = 0;
     int out_iters = 0;
-    mpc_fpga_compute_core(ey, epsi, vx, vy, omega, steering, ref,
+    mpc_fpga_compute_core(ey, epsi, vx, vy, omega, steering, FP_QP_CONST(0), ref,
                           &out_steering, &out_accel, &out_status, &out_iters);
 
     ap_uint<128> packed_out = 0;
@@ -233,6 +235,7 @@ extern "C" void mpc_fpga_top_scalar(
     int ref_count,
     int32_t *out_steering, int32_t *out_accel, int32_t *out_status, int32_t *out_iters)
 {
+/* (no forward-declare) */
     if (!out_steering || !out_accel || !out_status || !out_iters) {
         if (out_steering) {
             *out_steering = 0;
@@ -265,12 +268,55 @@ extern "C" void mpc_fpga_top_scalar(
         ref[k].left_bound = fp_QP_from_raw((fp_stream_raw_t)ref_left[src_k]);
         ref[k].right_bound = fp_QP_from_raw((fp_stream_raw_t)ref_right[src_k]);
     }
+    /* Default scalar wrapper: call compute core with zero previous-accel */
     mpc_fpga_compute_core(fp_QP_from_raw((fp_stream_raw_t)ey_fp),
                           fp_normalize_angle(fp_QP_from_raw((fp_stream_raw_t)epsi_fp)),
                           fp_QP_from_raw((fp_stream_raw_t)vx_fp),
                           fp_QP_from_raw((fp_stream_raw_t)vy_fp),
                           fp_QP_from_raw((fp_stream_raw_t)omega_fp),
                           fp_QP_from_raw((fp_stream_raw_t)steering_fp),
+                          FP_QP_CONST(0),
+                          ref, out_steering, out_accel, out_status, out_iters);
+}
+#endif
+
+/* Extended scalar wrapper that accepts previous applied acceleration. */
+#ifndef __SYNTHESIS__
+extern "C" void mpc_fpga_top_scalar_with_prev_accel(
+    int32_t ey_fp, int32_t epsi_fp, int32_t vx_fp, int32_t vy_fp, int32_t omega_fp, int32_t steering_fp, int32_t prev_accel_fp,
+    const int32_t *ref_vx, const int32_t *ref_kappa, const int32_t *ref_left, const int32_t *ref_right,
+    int ref_count,
+    int32_t *out_steering, int32_t *out_accel, int32_t *out_status, int32_t *out_iters)
+{
+    if (!out_steering || !out_accel || !out_status || !out_iters) {
+        if (out_steering) *out_steering = 0;
+        if (out_accel) *out_accel = 0;
+        if (out_status) *out_status = MPC_FPGA_STATUS_ERROR;
+        if (out_iters) *out_iters = 0;
+        return;
+    }
+    if (!ref_vx || !ref_kappa || !ref_left || !ref_right || ref_count <= 0 || ref_count > MPC_HORIZON) {
+        *out_steering = 0; *out_accel = 0;
+        *out_status = MPC_FPGA_STATUS_NO_TRAJECTORY; *out_iters = 0;
+        return;
+    }
+    MpcRefPoint_t ref[MPC_HORIZON];
+    for (int k = 0; k < MPC_HORIZON; k++) {
+        int src_k = (k < ref_count) ? k : (ref_count - 1);
+        ref[k].velocity = fp_QP_from_raw((fp_stream_raw_t)ref_vx[src_k]);
+        ref[k].kappa = fp_QP_from_raw((fp_stream_raw_t)ref_kappa[src_k]);
+        ref[k].yaw_rate = fp_mul(ref[k].velocity, ref[k].kappa);
+        ref[k].left_bound = fp_QP_from_raw((fp_stream_raw_t)ref_left[src_k]);
+        ref[k].right_bound = fp_QP_from_raw((fp_stream_raw_t)ref_right[src_k]);
+    }
+
+    mpc_fpga_compute_core(fp_QP_from_raw((fp_stream_raw_t)ey_fp),
+                          fp_normalize_angle(fp_QP_from_raw((fp_stream_raw_t)epsi_fp)),
+                          fp_QP_from_raw((fp_stream_raw_t)vx_fp),
+                          fp_QP_from_raw((fp_stream_raw_t)vy_fp),
+                          fp_QP_from_raw((fp_stream_raw_t)omega_fp),
+                          fp_QP_from_raw((fp_stream_raw_t)steering_fp),
+                          fp_QP_from_raw((fp_stream_raw_t)prev_accel_fp),
                           ref, out_steering, out_accel, out_status, out_iters);
 }
 #endif

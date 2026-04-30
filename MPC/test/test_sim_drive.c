@@ -19,13 +19,6 @@
  * Reports: wall collisions, max/avg lateral error, steering behavior,
  *          velocity tracking, and step-by-step diagnostics near crashes.
  *
- * Compile (standalone):
- *   cd MPC
- *   gcc -D_GNU_SOURCE -O3 -std=c99 -Wall -ffast-math \
- *       -Wno-unused-variable -Wno-unused-but-set-variable \
- *       -Iinclude test/test_sim_drive.c src/mpc.c \
- *       src/riccati_solver.c src/vehicle_model.c src/util_math.c \
- *       -o test_sim_drive -lm
  * @dependencies mpc.h, mpc_types.h, vehicle_model.h,
  *               <stdio.h>, <stdlib.h>, <string.h>, <math.h>, <time.h>
  */
@@ -58,7 +51,7 @@
 #define MPC_DT_DEFAULT    0.005
 #define SIM_DURATION_DEFAULT 100.0  /* seconds */
 #define MAX_WAYPOINTS     2000
-#define MAX_STEERING      0.4189 /* rad — calibrated limit (with polynomial servo correction) */
+#define MAX_STEERING      0.39 /* rad — calibrated limit (with polynomial servo correction) */
 #define MAX_VELOCITY      20.0   /* m/s */
 #define PHYSICAL_MAX_ACCEL 7.31  /* m/s² — bounded by mu*g */
 
@@ -68,13 +61,14 @@
 #define DEFAULT_BODY_SAFETY_MARGIN 0.06   /* extra margin: gym bitmap is stricter */
 
 /*===========================================================================
- * Realistic Simulation Enhancements (enabled with REALISTIC_SIM=1 env var)
+ * Hardware-matched plant enhancements
  *
- * When enabled, the plant model adds real-world effects NOT in the gym:
- *   1. Rolling resistance (F_roll = 2.79 N) + drivetrain efficiency (57.5%)
- *   2. Pacejka tire saturation (replaces linear Fy = mu*Cs*alpha*Fz)
- *   3. Sensor noise (position ±2cm, heading ±1.5°, velocity ±0.1 m/s)
- * These values come from measured vehicle parameters in vehicle_params.yaml.
+ * This simulator is intentionally locked to the hardware-like plant:
+ *   1. Rolling resistance / drivetrain drag
+ *   2. Pacejka tire saturation
+ *   3. Sensor noise on the MPC-observed state
+ * Idealized toggles are intentionally removed so tuning always targets the
+ * real-car-like failure modes.
  *===========================================================================*/
 #define ROLLING_RESISTANCE_N      2.79    /* Measured: vehicle_params.yaml L176 */
 #define PACEJKA_C_SHAPE           1.9     /* Shape factor for Pacejka tire */
@@ -113,6 +107,21 @@ static double g_track_length_m = 0.0;
 static Waypoint_t local_line[MAX_WAYPOINTS];
 static int local_count = 0;
 static int local_last_closest = 0;
+typedef struct {
+    unsigned long seq;
+    long long ros_time_ns;
+    long file_offset;
+    int waypoint_count;
+    double s_global;
+    int has_s_global;
+} LocalReplaySnapshot_t;
+static FILE *g_local_replay_file = NULL;
+static LocalReplaySnapshot_t *g_local_replay_snapshots = NULL;
+static int g_local_replay_snapshot_count = 0;
+static int g_local_replay_active_snapshot = -1;
+static int g_local_replay_enabled = 0;
+static long long g_local_replay_start_ns = 0;
+static int g_local_replay_progress_mode = 0;
 
 /* Read a double-valued environment override, falling back when unset/invalid. */
 static double get_env_double(const char *name, double fallback)
@@ -129,27 +138,203 @@ static double get_env_double(const char *name, double fallback)
     return value;
 }
 
-static void maybe_apply_recovery_reference_cap(double e_y, double e_psi,
-                                               TrajectoryReferencePoint_t *ref, int horizon_steps)
+static void free_local_raceline_replay(void)
 {
-    if (ref == NULL || horizon_steps <= 0) return;
+    if (g_local_replay_file) {
+        fclose(g_local_replay_file);
+        g_local_replay_file = NULL;
+    }
+    free(g_local_replay_snapshots);
+    g_local_replay_snapshots = NULL;
+    g_local_replay_snapshot_count = 0;
+    g_local_replay_active_snapshot = -1;
+    g_local_replay_enabled = 0;
+    g_local_replay_start_ns = 0;
+    g_local_replay_progress_mode = 0;
+}
 
-    const double epsi_th = get_env_double("MPC_RECOVERY_EPSI_RAD", 0.45);
-    const double ey_th   = get_env_double("MPC_RECOVERY_EY_M", 0.20);
-    const double v_cap   = get_env_double("MPC_RECOVERY_VREF_MAX", 1.50);
-    if (!(v_cap > 0.0)) return;
-    if (!(epsi_th > 0.0) && !(ey_th > 0.0)) return;
+static int load_local_replay_snapshot(int snapshot_index)
+{
+    if (!g_local_replay_file || snapshot_index < 0 || snapshot_index >= g_local_replay_snapshot_count)
+        return 0;
 
-    const int trig =
-        ((epsi_th > 0.0) && (fabs(e_psi) > epsi_th)) ||
-        ((ey_th > 0.0) && (fabs(e_y) > ey_th));
-    if (!trig) return;
+    const LocalReplaySnapshot_t *snap = &g_local_replay_snapshots[snapshot_index];
+    if (fseek(g_local_replay_file, snap->file_offset, SEEK_SET) != 0)
+        return 0;
 
-    for (int k = 0; k < horizon_steps; k++) {
-        if (ref[k].reference_velocity > (float)v_cap) {
-            ref[k].reference_velocity = (float)v_cap;
-            ref[k].reference_yaw_rate = ref[k].path_curvature * (float)v_cap;
+    char line[512];
+    int count = 0;
+    while (count < snap->waypoint_count && fgets(line, sizeof(line), g_local_replay_file)) {
+        unsigned long seq = 0;
+        long long ros_ns = 0;
+        int waypoint_index = 0;
+        int waypoint_count = 0;
+        Waypoint_t wp = {0};
+        if (sscanf(line,
+                   "%lu,%lld,%d,%d,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf",
+                   &seq, &ros_ns, &waypoint_index, &waypoint_count,
+                   &wp.s, &wp.x, &wp.y, &wp.psi, &wp.kappa, &wp.vx,
+                   &wp.left_bound, &wp.right_bound) != 12) {
+            break;
         }
+        wp.ax = 0.0;
+        if (waypoint_index >= 0 && waypoint_index < MAX_WAYPOINTS) {
+            local_line[waypoint_index] = wp;
+        }
+        count++;
+    }
+    local_count = snap->waypoint_count;
+    local_last_closest = 0;
+    g_local_replay_active_snapshot = snapshot_index;
+    return (count == snap->waypoint_count);
+}
+
+static int init_local_raceline_replay(const char *filepath, long long start_ros_time_ns)
+{
+    if (!filepath || !filepath[0]) return 0;
+
+    FILE *file = fopen(filepath, "r");
+    if (!file) return 0;
+
+    free_local_raceline_replay();
+    g_local_replay_file = file;
+    g_local_replay_start_ns = start_ros_time_ns;
+
+    char line[512];
+    if (!fgets(line, sizeof(line), g_local_replay_file)) {
+        free_local_raceline_replay();
+        return 0;
+    }
+
+    int capacity = 256;
+    g_local_replay_snapshots = (LocalReplaySnapshot_t *)malloc((size_t)capacity * sizeof(LocalReplaySnapshot_t));
+    if (!g_local_replay_snapshots) {
+        free_local_raceline_replay();
+        return 0;
+    }
+
+    unsigned long current_seq = 0;
+    int have_seq = 0;
+    while (1) {
+        long offset = ftell(g_local_replay_file);
+        if (!fgets(line, sizeof(line), g_local_replay_file)) break;
+
+        unsigned long seq = 0;
+        long long ros_ns = 0;
+        int waypoint_index = 0;
+        int waypoint_count = 0;
+        if (sscanf(line, "%lu,%lld,%d,%d,", &seq, &ros_ns, &waypoint_index, &waypoint_count) != 4)
+            continue;
+
+        if (!have_seq || seq != current_seq) {
+            if (g_local_replay_snapshot_count >= capacity) {
+                capacity *= 2;
+                LocalReplaySnapshot_t *grown = (LocalReplaySnapshot_t *)realloc(
+                    g_local_replay_snapshots, (size_t)capacity * sizeof(LocalReplaySnapshot_t));
+                if (!grown) {
+                    free_local_raceline_replay();
+                    return 0;
+                }
+                g_local_replay_snapshots = grown;
+            }
+            LocalReplaySnapshot_t *snap = &g_local_replay_snapshots[g_local_replay_snapshot_count++];
+            snap->seq = seq;
+            snap->ros_time_ns = ros_ns;
+            snap->file_offset = offset;
+            snap->waypoint_count = waypoint_count;
+            snap->s_global = 0.0;
+            snap->has_s_global = 0;
+            current_seq = seq;
+            have_seq = 1;
+        }
+    }
+
+    if (g_local_replay_snapshot_count <= 0) {
+        free_local_raceline_replay();
+        return 0;
+    }
+
+    g_local_replay_enabled = 1;
+    if (g_local_replay_start_ns == 0)
+        g_local_replay_start_ns = g_local_replay_snapshots[0].ros_time_ns;
+
+    int initial_snapshot = 0;
+    while (initial_snapshot + 1 < g_local_replay_snapshot_count &&
+           g_local_replay_snapshots[initial_snapshot + 1].ros_time_ns <= g_local_replay_start_ns) {
+        initial_snapshot++;
+    }
+    return load_local_replay_snapshot(initial_snapshot);
+}
+
+static int load_local_raceline_replay_index(const char *filepath)
+{
+    if (!filepath || !filepath[0] || !g_local_replay_snapshots || g_local_replay_snapshot_count <= 0)
+        return 0;
+
+    FILE *file = fopen(filepath, "r");
+    if (!file) return 0;
+
+    char line[256];
+    if (!fgets(line, sizeof(line), file)) {
+        fclose(file);
+        return 0;
+    }
+
+    int loaded = 0;
+    while (fgets(line, sizeof(line), file)) {
+        unsigned long seq = 0;
+        double s_global = 0.0;
+        long long pose_ns = 0;
+        if (sscanf(line, "%lu,%lf,%lld", &seq, &s_global, &pose_ns) < 2)
+            continue;
+        for (int i = 0; i < g_local_replay_snapshot_count; i++) {
+            if (g_local_replay_snapshots[i].seq == seq) {
+                g_local_replay_snapshots[i].s_global = s_global;
+                g_local_replay_snapshots[i].has_s_global = 1;
+                loaded++;
+                break;
+            }
+        }
+    }
+    fclose(file);
+    return loaded > 0;
+}
+
+static void maybe_update_local_raceline_replay(double sim_time_s)
+{
+    if (!g_local_replay_enabled || g_local_replay_snapshot_count <= 0) return;
+
+    long long target_ns = g_local_replay_start_ns + (long long)llround(sim_time_s * 1e9);
+    int next_snapshot = g_local_replay_active_snapshot;
+    if (next_snapshot < 0) next_snapshot = 0;
+    while (next_snapshot + 1 < g_local_replay_snapshot_count &&
+           g_local_replay_snapshots[next_snapshot + 1].ros_time_ns <= target_ns) {
+        next_snapshot++;
+    }
+    if (next_snapshot != g_local_replay_active_snapshot) {
+        load_local_replay_snapshot(next_snapshot);
+    }
+}
+
+static void maybe_update_local_raceline_replay_progress(double s_global)
+{
+    if (!g_local_replay_enabled || g_local_replay_snapshot_count <= 0) return;
+
+    int best_index = g_local_replay_active_snapshot;
+    double best_dist = 1e18;
+    for (int i = 0; i < g_local_replay_snapshot_count; i++) {
+        if (!g_local_replay_snapshots[i].has_s_global) continue;
+        double ds = fabs(g_local_replay_snapshots[i].s_global - s_global);
+        if (g_track_length_m > 1e-6) {
+            if (ds > 0.5 * g_track_length_m) ds = g_track_length_m - ds;
+        }
+        if (ds < best_dist) {
+            best_dist = ds;
+            best_index = i;
+        }
+    }
+    if (best_index >= 0 && best_index != g_local_replay_active_snapshot) {
+        load_local_replay_snapshot(best_index);
     }
 }
 
@@ -750,21 +935,6 @@ static void build_reference(int closest, int horizon_steps, TrajectoryReferenceP
     double step_velocity = fabs(raceline[closest].vx);
     if (step_velocity < 1.0) step_velocity = 1.0;
 
-    /* Curvature-based velocity limiting.
-     * Caps reference velocity to what the tires can support at each curvature.
-     * v_max_curve = sqrt(a_lat_max / |kappa|)   — lateral grip limit
-     * Active in realistic mode only. */
-    static int use_vlimit = -1;
-    static double a_lat_max = 7.3078;  /* m/s² — mu*g = 0.745 * 9.81 */
-    if (use_vlimit < 0) {
-        use_vlimit = (getenv("REALISTIC_SIM") && atoi(getenv("REALISTIC_SIM")))
-                  || (getenv("REALISTIC_TIRES") && atoi(getenv("REALISTIC_TIRES")))
-                  || (getenv("REALISTIC_DRIVE") && atoi(getenv("REALISTIC_DRIVE")))
-                  || (getenv("REALISTIC_NOISE") && atoi(getenv("REALISTIC_NOISE")));
-        const char *al = getenv("MAX_LAT_ACCEL");
-        if (al) a_lat_max = atof(al);
-    }
-
     for (int step = 0; step < horizon_steps; step++) {
         /* Keep ref[0] aligned with the current stage; advance s for the next stage at loop end. */
         Waypoint_t wp = sample_raceline_by_s(s_query);
@@ -774,15 +944,6 @@ static void build_reference(int closest, int horizon_steps, TrajectoryReferenceP
 
         double v_ref = wp.vx;
 
-        /* Velocity limiting: curvature-based (realistic mode only). */
-        if (use_vlimit) {
-            double abs_kappa = fabs(wp.kappa);
-            if (abs_kappa > 0.01) {
-                double v_curv = sqrt(a_lat_max / abs_kappa);
-                if (v_ref > v_curv) v_ref = v_curv;
-            }
-        }
-
         if (v_ref < 1.0) v_ref = 1.0;
         if (v_ref > TRAJECTORY_MAX_VELOCITY) v_ref = TRAJECTORY_MAX_VELOCITY;
         step_velocity = v_ref;
@@ -790,69 +951,40 @@ static void build_reference(int closest, int horizon_steps, TrajectoryReferenceP
 
         ref[step].reference_velocity = (float)(v_ref);
 
-        /* Clamp kappa to the physical limit implied by steering saturation. */
-        const double kappa_max = tan(MAX_STEERING) / 0.326;  /* wheelbase */
-        double kappa = wp.kappa;
-        if (kappa > kappa_max) kappa = kappa_max;
-        if (kappa < -kappa_max) kappa = -kappa_max;
-
         /* vy reference: zero */
         ref[step].reference_lateral_velocity = 0;
 
-        ref[step].reference_yaw_rate = (float)(kappa * v_ref);
+        ref[step].reference_yaw_rate = (float)(wp.kappa * v_ref);
 
 
-        ref[step].path_curvature = (float)(kappa);
+        ref[step].path_curvature = (float)(wp.kappa);
         ref[step].left_wall_bound = (float)(wp.left_bound);
         ref[step].right_wall_bound = (float)(wp.right_bound);
     }
 }
 
-static void build_reference_local(int closest_local, int horizon_steps, TrajectoryReferencePoint_t *ref,
-                                  double v_meas, double step_blend_meas)
+static void build_reference_local(int horizon_steps, TrajectoryReferencePoint_t *ref)
 {
     if (ref == NULL) return;
     if (horizon_steps < 1) return;
     if (horizon_steps > PREDICTION_HORIZON) horizon_steps = PREDICTION_HORIZON;
     if (local_count <= 0) return;
 
-    if (closest_local < 0) closest_local = 0;
-    if (closest_local >= local_count) closest_local = local_count - 1;
+    double v_ref_base = local_line[0].vx;
+    if (v_ref_base <= 0.0) v_ref_base = MIN_TRAJECTORY_SPEED_MPS;
 
-    double s_query = local_line[closest_local].s;
-    double step_velocity = fabs(local_line[closest_local].vx);
-    if (step_velocity < 0.5) step_velocity = 0.5;
-
-    /* Blend measured speed into the s-advance to mimic hardware recovery behavior. */
-    if (step_blend_meas > 0.0 && step_blend_meas < 1.0 && v_meas > 0.0) {
-        step_velocity = step_blend_meas * v_meas + (1.0 - step_blend_meas) * step_velocity;
-        if (step_velocity < 0.5) step_velocity = 0.5;
-    }
-
-    for (int step = 0; step < horizon_steps; step++)
-    {
-        s_query += step_velocity * g_mpc_prediction_dt;
-        Waypoint_t wp = sample_local_by_s(s_query);
-        double v_ref = wp.vx;
-        if (v_ref < 0.5) v_ref = 0.5;
-        if (v_ref > TRAJECTORY_MAX_VELOCITY) v_ref = TRAJECTORY_MAX_VELOCITY;
-        step_velocity = v_ref;
+    for (int step = 0; step < horizon_steps; step++) {
+        double target_s = v_ref_base * g_mpc_prediction_dt * (double)step;
+        Waypoint_t wp = sample_local_by_s(target_s);
 
         ref[step].reference_lateral_error = 0;
         ref[step].reference_heading_error = 0;
-        ref[step].reference_velocity = (float)v_ref;
+        ref[step].reference_velocity = (float)wp.vx;
         ref[step].reference_lateral_velocity = 0;
-
-        /* Clamp kappa to steering limit */
-        const double kappa_max = tan(MAX_STEERING) / 0.326;
-        double kappa = wp.kappa;
-        if (kappa > kappa_max) kappa = kappa_max;
-        if (kappa < -kappa_max) kappa = -kappa_max;
-
-        ref[step].path_curvature = (float)kappa;
-        ref[step].reference_yaw_rate = (float)(kappa * v_ref);
-        ref[step].left_wall_bound = (float)(wp.left_bound);
-        ref[step].right_wall_bound = (float)(wp.right_bound);
+        ref[step].path_curvature = (float)wp.kappa;
+        ref[step].reference_yaw_rate = (float)(wp.kappa * wp.vx);
+        ref[step].left_wall_bound = (float)wp.left_bound;
+        ref[step].right_wall_bound = (float)wp.right_bound;
     }
 }
 
@@ -919,46 +1051,44 @@ int main(void)
     const double start_offset_y = get_env_double("START_OFFSET_Y", 0.0);
     const double start_heading_offset = get_env_double("START_HEADING_OFFSET", 0.0);
     const double start_speed = get_env_double("START_SPEED", 0.0);
+    const double start_lat_speed = get_env_double("START_LAT_SPEED", 0.0);
+    const double start_yaw_rate = get_env_double("START_YAW_RATE", 0.0);
+    const double start_steer = get_env_double("START_STEER", 0.0);
 
     const int verbose = getenv("VERBOSE") != NULL;
 
-    /* Hardware-aligned startup emulation:
-     * LOCAL_RACELINE_SIM=1 builds an open segment that starts ahead of the car,
-     * and uses that segment for MPC projection/reference (mirrors hardware node). */
-    const int local_raceline_sim = (getenv("LOCAL_RACELINE_SIM") && atoi(getenv("LOCAL_RACELINE_SIM")));
+    /* Always emulate hardware local-raceline behavior in tuning runs. */
+    const int local_raceline_sim = 1;
     const int local_start_offset_points = (getenv("LOCAL_START_OFFSET_POINTS") ? atoi(getenv("LOCAL_START_OFFSET_POINTS")) : 0);
     const int local_segment_points = (getenv("LOCAL_SEGMENT_POINTS") ? atoi(getenv("LOCAL_SEGMENT_POINTS")) : 80);
     const int local_heading_window = (getenv("LOCAL_HEADING_WINDOW") ? atoi(getenv("LOCAL_HEADING_WINDOW")) : 1);
     const int local_curvature_window = (getenv("LOCAL_CURVATURE_WINDOW") ? atoi(getenv("LOCAL_CURVATURE_WINDOW")) : 3);
-    const double local_step_blend_meas = get_env_double("LOCAL_STEP_BLEND_MEAS", 0.6); /* hardware: ~0.6 */
-
-    /* Low-speed brake inhibit (match hardware safety clamp). */
-    const double low_speed_brake_inhibit_vx = get_env_double("LOW_SPEED_BRAKE_INHIBIT_VX", 0.7);
-    const double low_speed_min_accel = get_env_double("LOW_SPEED_MIN_ACCEL", 0.0);
+    const char *local_replay_log_path = getenv("REPLAY_LOCAL_RACELINE_LOG");
+    const char *local_replay_mode = getenv("REPLAY_LOCAL_RACELINE_MODE");
+    const char *local_replay_index_path = getenv("REPLAY_LOCAL_RACELINE_INDEX");
+    const long long local_replay_start_ns =
+        (getenv("REPLAY_LOCAL_RACELINE_START_NS") && getenv("REPLAY_LOCAL_RACELINE_START_NS")[0])
+        ? strtoll(getenv("REPLAY_LOCAL_RACELINE_START_NS"), NULL, 10)
+        : 0LL;
 
     printf("=== my_track Sim-Drive Test (Riccati-ADMM, %.0fs at dt=%.4fs = %d steps, %.0fHz) ===\n",
             SIM_DURATION, SIM_DT, SIM_STEPS, 1.0/SIM_DT);
     printf("    MPC rate: %.0fHz (every %d sim steps)\n",
            1.0/MPC_DT, MPC_CALL_INTERVAL);
 
-    /* Realistic simulation mode: enable real-world effects.
-     * REALISTIC_SIM=1  → all features
-     * Individual toggles: REALISTIC_TIRES=1, REALISTIC_DRIVE=1,
-     *                     REALISTIC_NOISE=1  */
-    const char *realistic_env = getenv("REALISTIC_SIM");
-    const int realistic_all = realistic_env ? atoi(realistic_env) : 0;
-    const int realistic_tires = realistic_all || (getenv("REALISTIC_TIRES") && atoi(getenv("REALISTIC_TIRES")));
-    const int realistic_drive = realistic_all || (getenv("REALISTIC_DRIVE") && atoi(getenv("REALISTIC_DRIVE")));
-    const int realistic_noise = realistic_all || (getenv("REALISTIC_NOISE") && atoi(getenv("REALISTIC_NOISE")));
-    const int realistic_mode = realistic_tires || realistic_drive || realistic_noise;
-    if (realistic_mode) {
+    /* Always enable hardware-like tires, actuation/drag, and observation noise. */
+    const int realistic_tires = 1;
+    const int realistic_drive = 1;
+    const int realistic_noise = 1;
+    const int realistic_mode = 1;
+    {
         const char *seed_env = getenv("SIM_SEED");
         unsigned int sim_seed = seed_env ? (unsigned int)strtoul(seed_env, NULL, 10) : 42u;
         srand(sim_seed);  /* Deterministic by default; override with SIM_SEED for multi-trial robustness. */
-        printf("    REALISTIC MODE:");
-        if (realistic_drive) printf(" [drag: F_roll=%.1fN]", ROLLING_RESISTANCE_N);
-        if (realistic_tires) printf(" [Pacejka tires: C=%.1f]", PACEJKA_C_SHAPE);
-        if (realistic_noise) printf(" [sensor noise]");
+        printf("    HARDWARE MODE:");
+        printf(" [drag: F_roll=%.1fN]", ROLLING_RESISTANCE_N);
+        printf(" [Pacejka tires: C=%.1f]", PACEJKA_C_SHAPE);
+        printf(" [sensor noise]");
         printf(" [seed=%u]", sim_seed);
         printf("\n");
     }
@@ -968,12 +1098,53 @@ int main(void)
      *  - ACCEL_TAU_*: 1st-order accel tracking lag (seconds), separate for drive/brake
      *  - ACCEL_GAIN_*: accel tracking gain (unitless), separate for drive/brake */
     const double drag_c0 = get_env_double("DRAG_C0", 0.0);
-    const double drag_c1 = get_env_double("DRAG_C1", 0.0);
-    const double drag_c2 = get_env_double("DRAG_C2", 0.0);
-    const double accel_tau_pos = get_env_double("ACCEL_TAU_POS", 0.0);
-    const double accel_tau_neg = get_env_double("ACCEL_TAU_NEG", 0.0);
-    const double accel_gain_pos = get_env_double("ACCEL_GAIN_POS", 1.0);
+    const double drag_c1 = get_env_double("DRAG_C1", 0.05);
+    const double drag_c2 = get_env_double("DRAG_C2", 0.04);
+    const double accel_tau_pos = get_env_double("ACCEL_TAU_POS", 0.05);
+    const double accel_tau_neg = get_env_double("ACCEL_TAU_NEG", 0.12);
+    const double accel_gain_pos = get_env_double("ACCEL_GAIN_POS", 0.575);
     const double accel_gain_neg = get_env_double("ACCEL_GAIN_NEG", 1.0);
+    const double sim_mu = get_env_double("SIM_MU", 0.6652002785524997);
+    const double sim_mu_front = get_env_double("SIM_MU_FRONT", 0.775687);
+    const double sim_mu_rear = get_env_double("SIM_MU_REAR", 0.6565520426481404);
+    const double sim_mass = get_env_double("SIM_MASS", 3.57912);
+    const double sim_Iz = get_env_double("SIM_IZ", 0.035);
+    const double sim_C_Sf = get_env_double("SIM_C_SF", 4.78281642069513);
+    const double sim_C_Sr = get_env_double("SIM_C_SR", 2.73123678240426);
+    const double sim_C_Sf_high_slip = get_env_double("SIM_C_SF_HIGH_SLIP", 2.4199490875105907);
+    const double sim_C_Sr_high_slip = get_env_double("SIM_C_SR_HIGH_SLIP", 2.73123678240426);
+    const double sim_lf = get_env_double("SIM_LF", 0.166);
+    const double sim_lr = get_env_double("SIM_LR", 0.16);
+    const double sim_h_cg = get_env_double("SIM_H_CG", 0.0703);
+    const double sim_steer_rate_max = get_env_double("SIM_STEER_RATE_MAX", 2.8492);
+    const double sim_steer_angle_max = get_env_double("SIM_STEER_ANGLE_MAX", MAX_STEERING);
+    const double sim_steer_gain = get_env_double("SIM_STEER_GAIN", 1.0085301459687404);
+    const double sim_steer_gain_high_slip = get_env_double("SIM_STEER_GAIN_HIGH_SLIP", 0.6541720766809247);
+    const double sim_v_switch = get_env_double("SIM_V_SWITCH", 7.319);
+    const double sim_v_min = get_env_double("SIM_V_MIN", 0.5);
+    const double sim_v_max = get_env_double("SIM_V_MAX", 21.6);
+    const double sim_roll_res_n = get_env_double("SIM_ROLL_RES_N", ROLLING_RESISTANCE_N);
+    const double sim_pacejka_c = get_env_double("SIM_PACEJKA_C", 1.6041121492252324);
+    const double sim_pacejka_c_front = get_env_double("SIM_PACEJKA_C_FRONT", 1.8031639754063644);
+    const double sim_pacejka_c_rear = get_env_double("SIM_PACEJKA_C_REAR", 1.7681655069132207);
+    const double sim_slip_blend_start = get_env_double("SIM_SLIP_BLEND_START", 0.1643527788471148);
+    const double sim_slip_blend_end = get_env_double("SIM_SLIP_BLEND_END", 0.5319307735091576);
+    const double sim_slip_blend_start_front = get_env_double("SIM_SLIP_BLEND_START_FRONT", 0.1643527788471148);
+    const double sim_slip_blend_end_front = get_env_double("SIM_SLIP_BLEND_END_FRONT", 0.5319307735091576);
+    const double sim_slip_blend_start_rear = get_env_double("SIM_SLIP_BLEND_START_REAR", 0.2502122916247753);
+    const double sim_slip_blend_end_rear = get_env_double("SIM_SLIP_BLEND_END_REAR", 0.47793678552502167);
+    const double sim_combined_slip_gain = get_env_double("SIM_COMBINED_SLIP_GAIN", 0.10359393575265835);
+    const double sim_front_peak_drop = get_env_double("SIM_FRONT_PEAK_DROP", 0.11804981810838257);
+    const double sim_front_peak_drop_start = get_env_double("SIM_FRONT_PEAK_DROP_START", 0.13813810031946996);
+    const double sim_front_peak_drop_end = get_env_double("SIM_FRONT_PEAK_DROP_END", 0.48938120479012814);
+    const double sim_front_peak_drop_pow = get_env_double("SIM_FRONT_PEAK_DROP_POW", 1.03);
+    const double sim_front_combined_gain = get_env_double("SIM_FRONT_COMBINED_GAIN", 0.13366870620631957);
+    const double sim_front_peak_floor = get_env_double("SIM_FRONT_PEAK_FLOOR", 0.2708096984131235);
+    const double sim_noise_pos_m = get_env_double("SIM_NOISE_POS_M", NOISE_POS_M);
+    const double sim_noise_hdg_rad = get_env_double("SIM_NOISE_HDG_RAD", NOISE_HDG_RAD);
+    const double sim_noise_vx_ms = get_env_double("SIM_NOISE_VX_MS", NOISE_VX_MS);
+    const double sim_noise_vy_ms = get_env_double("SIM_NOISE_VY_MS", NOISE_VY_MS);
+    const double sim_noise_omega_rad = get_env_double("SIM_NOISE_OMEGA_RAD", NOISE_OMEGA_RAD);
     int realistic_actuation = (getenv("REALISTIC_ACTUATION") && atoi(getenv("REALISTIC_ACTUATION")));
     if (!realistic_actuation) {
         if (fabs(drag_c0) > 1e-9 || fabs(drag_c1) > 1e-9 || fabs(drag_c2) > 1e-9 ||
@@ -986,6 +1157,17 @@ int main(void)
         printf("    Actuation model: DRAG_C0=%.3f DRAG_C1=%.3f DRAG_C2=%.3f ACCEL_TAU_POS=%.3f ACCEL_TAU_NEG=%.3f ACCEL_GAIN_POS=%.3f ACCEL_GAIN_NEG=%.3f\n",
                drag_c0, drag_c1, drag_c2, accel_tau_pos, accel_tau_neg, accel_gain_pos, accel_gain_neg);
     }
+    if (verbose) {
+        printf("    Plant model: MU=%.4f FRONT_MU=%.4f REAR_MU=%.4f MASS=%.3f IZ=%.4f C_SF=%.3f->%.3f C_SR=%.3f->%.3f LF=%.3f LR=%.3f H_CG=%.4f\n",
+               sim_mu, sim_mu_front, sim_mu_rear, sim_mass, sim_Iz, sim_C_Sf, sim_C_Sf_high_slip, sim_C_Sr, sim_C_Sr_high_slip, sim_lf, sim_lr, sim_h_cg);
+        printf("                 STEER_MAX=%.4f STEER_RATE_MAX=%.4f STEER_GAIN=%.4f->%.4f V_SWITCH=%.3f V_RANGE=[%.2f, %.2f] ROLL_RES=%.3f PACEJKA_C=%.3f F/R=[%.3f, %.3f] COMBINED=%.3f FRONT_COMBINED=%.3f\n",
+               sim_steer_angle_max, sim_steer_rate_max, sim_steer_gain, sim_steer_gain_high_slip, sim_v_switch, sim_v_min, sim_v_max, sim_roll_res_n, sim_pacejka_c, sim_pacejka_c_front, sim_pacejka_c_rear, sim_combined_slip_gain, sim_front_combined_gain);
+        printf("                 SLIP_BLEND_FRONT=[%.3f, %.3f] REAR=[%.3f, %.3f] FRONT_DROP=[%.3f, %.3f] DROP=%.3f POW=%.3f FLOOR=%.3f\n",
+               sim_slip_blend_start_front, sim_slip_blend_end_front, sim_slip_blend_start_rear, sim_slip_blend_end_rear,
+               sim_front_peak_drop_start, sim_front_peak_drop_end, sim_front_peak_drop, sim_front_peak_drop_pow, sim_front_peak_floor);
+        printf("                 NOISE pos=%.4f hdg=%.4f vx=%.4f vy=%.4f omega=%.4f\n",
+               sim_noise_pos_m, sim_noise_hdg_rad, sim_noise_vx_ms, sim_noise_vy_ms, sim_noise_omega_rad);
+    }
     if (body_safety_margin != DEFAULT_BODY_SAFETY_MARGIN)
         printf("    BODY_SAFETY_MARGIN: %.3fm (default: %.3fm)\n",
                body_safety_margin, DEFAULT_BODY_SAFETY_MARGIN);
@@ -997,6 +1179,28 @@ int main(void)
     printf("\n");
 
     if (!load_raceline()) return 1;
+
+    if (local_replay_log_path && local_replay_log_path[0]) {
+        if (!init_local_raceline_replay(local_replay_log_path, local_replay_start_ns)) {
+            fprintf(stderr, "[SIM] Failed to initialize REPLAY_LOCAL_RACELINE_LOG=%s\n", local_replay_log_path);
+            return 1;
+        }
+        g_local_replay_progress_mode = (local_replay_mode && strcmp(local_replay_mode, "progress") == 0) ? 1 : 0;
+        if (g_local_replay_progress_mode) {
+            if (!load_local_raceline_replay_index(local_replay_index_path)) {
+                fprintf(stderr, "[SIM] Failed to initialize REPLAY_LOCAL_RACELINE_INDEX=%s\n",
+                        local_replay_index_path ? local_replay_index_path : "(null)");
+                free_local_raceline_replay();
+                return 1;
+            }
+        }
+        if (verbose) {
+            printf("    Local replay: %s (snapshots=%d, mode=%s, start_ns=%lld)\n",
+                   local_replay_log_path, g_local_replay_snapshot_count,
+                   g_local_replay_progress_mode ? "progress" : "time",
+                   (long long)g_local_replay_start_ns);
+        }
+    }
 
     /* Optional: emulate hardware /local_raceline processing by recomputing
      * heading/curvature from geometry (and optionally s). */
@@ -1032,23 +1236,35 @@ int main(void)
     cfg.cross_call_rate_scale = (float)(cross_scale);
     /* Tuned weights — overridable via environment variables for tuning script. */
     const char *env;
-    cfg.weight_lateral_error          = (float)((env = getenv("Q_LAT"))       ? atof(env) : 9660.42);
-    cfg.weight_heading_error          = (float)((env = getenv("Q_HDG"))       ? atof(env) : 1400.0);
-    cfg.weight_velocity               = (float)((env = getenv("Q_VEL"))       ? atof(env) : 132.192);
-    cfg.weight_lateral_velocity       = (float)((env = getenv("Q_LAT_VEL"))   ? atof(env) : 4.59);
-    cfg.weight_yaw_rate               = (float)((env = getenv("Q_YAW"))       ? atof(env) : 2.112);
-    cfg.weight_steering_effort        = (float)((env = getenv("R_STEER"))     ? atof(env) : 2.244);
-    cfg.weight_acceleration_effort    = (float)((env = getenv("R_ACCEL"))     ? atof(env) : 0.0065);
-    cfg.weight_steering_rate          = (float)((env = getenv("W_JERK"))      ? atof(env) : 0.063);
-    cfg.weight_acceleration_rate      = (float)((env = getenv("W_ACCEL_RATE"))? atof(env) : 0.17);
+    cfg.weight_lateral_error          = (float)((env = getenv("Q_LAT"))       ? atof(env) : 200.0);
+    cfg.weight_heading_error          = (float)((env = getenv("Q_HDG"))       ? atof(env) : 28.8);
+    cfg.weight_velocity               = (float)((env = getenv("Q_VEL"))       ? atof(env) : 30.0);
+    cfg.weight_lateral_velocity       = (float)((env = getenv("Q_LAT_VEL"))   ? atof(env) : 1.04);
+    cfg.weight_yaw_rate               = (float)((env = getenv("Q_YAW"))       ? atof(env) : 1.5);
+    cfg.weight_steering_effort        = (float)((env = getenv("R_STEER"))     ? atof(env) : 1.5);
+    cfg.weight_acceleration_effort    = (float)((env = getenv("R_ACCEL"))     ? atof(env) : 0.01);
+    cfg.weight_steering_rate          = (float)((env = getenv("W_JERK"))      ? atof(env) : 0.04);
+    cfg.weight_acceleration_rate      = (float)((env = getenv("W_ACCEL_RATE"))? atof(env) : 0.10);
     {
         const double footprint_margin = VEHICLE_HALF_WIDTH + body_safety_margin;
         const double margin_env = get_env_double("WALL_MARGIN", footprint_margin);
         const double effective_margin = fmax(footprint_margin, margin_env);
         cfg.wall_margin = (float)effective_margin;
     }
-    cfg.max_solver_iterations       = (env = getenv("MAX_ITER")) ? atoi(env) : 100;
-    cfg.solver_convergence_tolerance    = (float)((env = getenv("TOL")) ? atof(env) : 0.05);
+    /* Require explicit solver parameters from the sweep or controller environment.
+     * Do not provide local fallback defaults — the actual controller always
+     * sets these and implicit fallbacks cause mismatches between sim and HW. */
+    if (!(env = getenv("MAX_ITER"))) {
+        fprintf(stderr, "[ERROR] MAX_ITER must be set in environment\n");
+        return 1;
+    }
+    cfg.max_solver_iterations = atoi(env);
+
+    if (!(env = getenv("TOL"))) {
+        fprintf(stderr, "[ERROR] TOL must be set in environment\n");
+        return 1;
+    }
+    cfg.solver_convergence_tolerance = (float)atof(env);
     mpc_set_configuration(&cfg);
 
     if (verbose) {
@@ -1073,14 +1289,31 @@ int main(void)
     state.pos_y = (float)(start_wp->y + start_offset_lat * sin(start_normal) + start_offset_y);
     state.heading = (float)(wrap_angle(start_wp->psi + start_heading_offset));
     state.long_vel = (float)(start_speed);
-    state.lat_vel = 0;
-    state.yaw_rate = 0;
+    state.lat_vel = (float)(start_lat_speed);
+    state.yaw_rate = (float)(start_yaw_rate);
     last_closest = start_index;
     local_last_closest = 0;
 
-    if (verbose || fabs(start_offset_lat) > 1e-6 || fabs(start_heading_offset) > 1e-6 || start_speed > 1e-6) {
-        printf("    Start state: idx=%d, lat_offset=%+.3fm, hdg_offset=%+.3frad, speed=%.2fm/s\n",
-               start_index, start_offset_lat, start_heading_offset, start_speed);
+    if (verbose || fabs(start_offset_lat) > 1e-6 || fabs(start_heading_offset) > 1e-6 ||
+        start_speed > 1e-6 || fabs(start_lat_speed) > 1e-6 || fabs(start_yaw_rate) > 1e-6 ||
+        fabs(start_steer) > 1e-6) {
+        printf("    Start state: idx=%d, lat_offset=%+.3fm, hdg_offset=%+.3frad, vx=%.2fm/s vy=%.2fm/s yaw_rate=%.2frad/s steer=%.3frad\n",
+               start_index, start_offset_lat, start_heading_offset, start_speed, start_lat_speed, start_yaw_rate, start_steer);
+    }
+
+    FILE *sim_trace_file = NULL;
+    const char *sim_trace_path = getenv("SIM_TRACE_LOG");
+    if (sim_trace_path && sim_trace_path[0]) {
+        sim_trace_file = fopen(sim_trace_path, "w");
+        if (!sim_trace_file) {
+            perror("[SIM] fopen(SIM_TRACE_LOG)");
+            return 1;
+        }
+        fprintf(sim_trace_file,
+                "sim_time_s,step,closest_wp,closest_local,true_path_s,completed_laps,"
+                "pos_x,pos_y,heading,e_y,e_psi,vx,vy,omega,"
+                "v_ref0,kappa0,cmd_steer,cmd_accel,actual_steer,solver_iter,solver_status,wall_hit\n");
+        fflush(sim_trace_file);
     }
 
     /* Tracking metrics */
@@ -1090,8 +1323,8 @@ int main(void)
     int wall_collisions = 0;
     int solver_ok = 0, solver_calls = 0;
     int solver_optimal = 0, solver_max_iter = 0;
-    double prev_steer = 0;
-    double actual_steer = 0;  /* Steering target fed into actuator dynamics */
+    double prev_steer = start_steer;
+    double actual_steer = start_steer;  /* Steering target fed into actuator dynamics */
     int steer_reversals = 0;
     double max_steer_change = 0;
     double time_above_5ms = 0;
@@ -1121,6 +1354,7 @@ int main(void)
     double cmd_accel = 0.0;
     double accel_applied = 0.0;  /* 1st-order longitudinal actuator state (optional) */
     int steps_executed = 0;
+    int last_solver_status = -1;
 
     if (verbose) {
         if (local_raceline_sim) {
@@ -1143,14 +1377,22 @@ int main(void)
         int closest_global = find_closest_waypoint(px, py, psi);
 
         FrenetState_t frenet = vehicle_to_frenet(&state, closest_global);
+        PathProjection_t state_proj = project_pose_to_raceline(px, py, psi, closest_global);
 
         /* MPC input can optionally use a local open segment (hardware-like). */
         int closest_local = 0;
         FrenetState_t frenet_for_mpc = frenet;
         if (local_raceline_sim)
         {
-            build_local_segment(closest_global, local_start_offset_points, local_segment_points,
-                                local_heading_window, local_curvature_window);
+            if (g_local_replay_enabled) {
+                if (g_local_replay_progress_mode)
+                    maybe_update_local_raceline_replay_progress(state_proj.s);
+                else
+                    maybe_update_local_raceline_replay(t);
+            } else {
+                build_local_segment(closest_global, local_start_offset_points, local_segment_points,
+                                    local_heading_window, local_curvature_window);
+            }
             closest_local = find_closest_waypoint_local(px, py, psi);
             frenet_for_mpc = vehicle_to_frenet_local(&state, closest_local);
         }
@@ -1161,12 +1403,22 @@ int main(void)
         double true_psi = (double)(true_state.heading);
         int true_closest = realistic_noise ? find_closest_waypoint(true_px, true_py, true_psi) : closest_global;
         FrenetState_t true_frenet = realistic_noise ? vehicle_to_frenet(&true_state, true_closest) : frenet;
+        int true_local_closest = 0;
+        FrenetState_t true_local_frenet = {0};
+        int have_true_local_frenet = 0;
+        PathProjection_t true_local_proj = {0};
+        if (local_raceline_sim && local_count > 1) {
+            true_local_closest = find_closest_waypoint_local(true_px, true_py, true_psi);
+            true_local_frenet = vehicle_to_frenet_local(&true_state, true_local_closest);
+            true_local_proj = project_pose_to_local_segment(true_px, true_py, true_psi, true_local_closest);
+            have_true_local_frenet = 1;
+        }
         /* Ground-truth speed magnitude for robust metrics (frame/sign independent). */
         const double speed_mps = hypot((double)(true_state.long_vel), (double)(true_state.lat_vel));
         if (speed_mps > max_vx) max_vx = speed_mps;
         sum_vx += speed_mps;
-        double e_y = (double)(true_frenet.flat_error);
-        double e_psi = (double)(true_frenet.fhead_error);
+        double e_y = have_true_local_frenet ? (double)(true_local_frenet.flat_error) : (double)(true_frenet.flat_error);
+        double e_psi = have_true_local_frenet ? (double)(true_local_frenet.fhead_error) : (double)(true_frenet.fhead_error);
         PathProjection_t true_proj = project_pose_to_raceline(true_px, true_py, true_psi, true_closest);
 
         if (!progress_initialized) {
@@ -1196,6 +1448,11 @@ int main(void)
         /* Wall collision check — body-edge, using TRUE state */
         double left_wall = raceline[true_closest].left_bound;
         double right_wall = raceline[true_closest].right_bound;
+        if (local_raceline_sim && local_count > 1) {
+            Waypoint_t local_wall_wp = sample_local_by_s(true_local_proj.s);
+            left_wall = local_wall_wp.left_bound;
+            right_wall = local_wall_wp.right_bound;
+        }
         const double effective_wall_margin = (double)(cfg.wall_margin);
         int wall_hit = 0;
         if (e_y > (left_wall - effective_wall_margin))  { wall_hit = 1;  wall_collisions++; }
@@ -1211,6 +1468,7 @@ int main(void)
         double accel_cmd = cmd_accel;
         int iter = 0;
         double v_ref_print = raceline[closest_global].vx;
+        double kappa_ref_print = raceline[closest_global].kappa;
 
         /* Feed the realized ST servo position to MPC (from previous propagation).
          * actual_steer is st_delta from end of previous step's propagation. */
@@ -1226,12 +1484,12 @@ int main(void)
             /* Build reference */
             TrajectoryReferencePoint_t ref[PREDICTION_HORIZON];
             if (local_raceline_sim) {
-                build_reference_local(closest_local, cfg.prediction_horizon_steps, ref, speed_mps, local_step_blend_meas);
+                build_reference_local(cfg.prediction_horizon_steps, ref);
             } else {
                 build_reference(closest_global, cfg.prediction_horizon_steps, ref);
             }
-            maybe_apply_recovery_reference_cap(e_y, e_psi, ref, cfg.prediction_horizon_steps);
             v_ref_print = (double)ref[0].reference_velocity;
+            kappa_ref_print = (double)ref[0].path_curvature;
 
             /* Always call MPC — no low-speed guard */
             MpcSolverResult_t result;
@@ -1256,21 +1514,16 @@ int main(void)
                 solver_ok++;
                 solver_max_iter++;
             }
+            last_solver_status = (int)status;
             solver_calls++;
-
-            /* Low-speed brake inhibit (match hardware clamp): don't allow the
-             * controller to "solve" heading error by braking to zero and getting stuck. */
-            if (low_speed_brake_inhibit_vx > 0.0 && speed_mps < low_speed_brake_inhibit_vx) {
-                if (accel_cmd < low_speed_min_accel) accel_cmd = low_speed_min_accel;
-            }
 
             cmd_steer = steer;
             cmd_accel = accel_cmd;
         }
 
         /* Physical saturation: steering and acceleration */
-        if (steer > MAX_STEERING) steer = MAX_STEERING;
-        if (steer < -MAX_STEERING) steer = -MAX_STEERING;
+        if (steer > sim_steer_angle_max) steer = sim_steer_angle_max;
+        if (steer < -sim_steer_angle_max) steer = -sim_steer_angle_max;
         if (accel_cmd > PHYSICAL_MAX_ACCEL) accel_cmd = PHYSICAL_MAX_ACCEL;
         if (accel_cmd < -PHYSICAL_MAX_ACCEL) accel_cmd = -PHYSICAL_MAX_ACCEL;
 
@@ -1312,6 +1565,18 @@ int main(void)
             }
         }
 
+        if (sim_trace_file) {
+            fprintf(sim_trace_file,
+                    "%.6f,%d,%d,%d,%.6f,%d,"
+                    "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
+                    "%.6f,%.6f,%.6f,%.6f,%.6f,%d,%d,%d\n",
+                    t, step, true_closest, closest_local, true_proj.s, completed_laps,
+                    true_px, true_py, true_psi, e_y, e_psi,
+                    (double)(true_state.long_vel), (double)(true_state.lat_vel), (double)(true_state.yaw_rate),
+                    v_ref_print, kappa_ref_print, steer, accel_cmd, actual_steer,
+                    iter, last_solver_status, wall_hit);
+        }
+
         /* Propagate vehicle state using gym-matching ST model with RK4.
          * State: [X, Y, delta, V, psi, psi_dot, beta] (7 states)
          * Matches f1tenth_gym single_track.py exactly:
@@ -1323,15 +1588,14 @@ int main(void)
          * Vehicle params from measured data (sim.yaml / vehicle_params.yaml). */
         {
             /* Vehicle parameters matching gym config */
-            const double mu = 0.743, mass = 3.314, Iz = 0.035;
-            const double C_Sf = 4.297, C_Sr = 3.473;
-            const double lf = 0.166, lr = 0.16, h_cg = 0.0703;
+            const double mu = sim_mu, mass = sim_mass, Iz = sim_Iz;
+            const double lf = sim_lf, lr = sim_lr, h_cg = sim_h_cg;
             const double g_acc = 9.81;
-            const double sv_max = 2.8492;  /* max steering velocity */
-            const double s_max = 0.4189;   /* max steering angle (calibrated) */
-            const double v_switch = 7.319;
-            const double v_min = 0.0, v_max = 20.0;
-            const double lwb = 0.326;  /* lf + lr */
+            const double sv_max = sim_steer_rate_max;
+            const double s_max = sim_steer_angle_max;
+            const double v_switch = sim_v_switch;
+            const double v_min = sim_v_min, v_max = sim_v_max;
+            const double lwb = lf + lr;
 
             /* Persistent ST state variables (first call initializes from vehicle state) */
             static double st_delta = 0.0;
@@ -1405,18 +1669,20 @@ int main(void)
             do { \
                 if ((V) < 0.5) { \
                     /* Kinematic mode */ \
-                    double beta_hat = atan(tan(DELTA) * lr / lwb); \
-                    double beta_dot = (1.0 / (1.0 + pow(tan(DELTA) * lr / lwb, 2.0))) \
-                                    * (lr / (lwb * pow(cos(DELTA), 2.0))) * (SV); \
+                    double delta_eff = sim_steer_gain * (DELTA); \
+                    double sv_eff = sim_steer_gain * (SV); \
+                    double beta_hat = atan(tan(delta_eff) * lr / lwb); \
+                    double beta_dot = (1.0 / (1.0 + pow(tan(delta_eff) * lr / lwb, 2.0))) \
+                                    * (lr / (lwb * pow(cos(delta_eff), 2.0))) * (sv_eff); \
                     (dX) = (V) * cos((PSI) + beta_hat); \
                     (dY) = (V) * sin((PSI) + beta_hat); \
                     (dDELTA) = (SV); \
                     (dV) = (ACCL); \
-                    (dPSI) = (V) * cos(beta_hat) * tan(DELTA) / lwb; \
+                    (dPSI) = (V) * cos(beta_hat) * tan(delta_eff) / lwb; \
                     (dPSI_DOT) = (1.0 / lwb) * ( \
-                        (ACCL) * cos(BETA) * tan(DELTA) \
-                        - (V) * sin(BETA) * tan(DELTA) * beta_dot \
-                        + ((V) * cos(BETA) * (SV)) / pow(cos(DELTA), 2.0)); \
+                        (ACCL) * cos(BETA) * tan(delta_eff) \
+                        - (V) * sin(BETA) * tan(delta_eff) * beta_dot \
+                        + ((V) * cos(BETA) * (sv_eff)) / pow(cos(delta_eff), 2.0)); \
                     (dBETA) = beta_dot; \
                 } else { \
                     /* Dynamic ST mode — full nonlinear (matching gym single_track.py) */ \
@@ -1426,23 +1692,67 @@ int main(void)
                     /* Normal forces with longitudinal load transfer */ \
                     double Fzf_ = mass * (g_acc * lr - (ACCL) * h_cg) / lwb; \
                     double Fzr_ = mass * (g_acc * lf + (ACCL) * h_cg) / lwb; \
+                    /* Provisional slip angles for slip-dependent steering compliance. */ \
+                    double alpha_f_raw_ = sim_steer_gain * (DELTA) - atan2(vy_ + lf * (PSI_DOT_VAL), vx_safe_); \
+                    double alpha_r_raw_ = -atan2(vy_ - lr * (PSI_DOT_VAL), vx_safe_); \
+                    double slip_front_raw_ = fabs(alpha_f_raw_); \
+                    double steer_blend_; \
+                    if (slip_front_raw_ <= sim_slip_blend_start_front) steer_blend_ = 0.0; \
+                    else if (slip_front_raw_ >= sim_slip_blend_end_front) steer_blend_ = 1.0; \
+                    else steer_blend_ = (slip_front_raw_ - sim_slip_blend_start_front) / (sim_slip_blend_end_front - sim_slip_blend_start_front); \
+                    steer_blend_ = steer_blend_ * steer_blend_ * (3.0 - 2.0 * steer_blend_); \
+                    double steer_gain_eff_ = sim_steer_gain + (sim_steer_gain_high_slip - sim_steer_gain) * steer_blend_; \
+                    double delta_eff = steer_gain_eff_ * (DELTA); \
                     /* atan2-based slip angles (not small-angle approx) */ \
-                    double alpha_f_ = (DELTA) - atan2(vy_ + lf * (PSI_DOT_VAL), vx_safe_); \
+                    double alpha_f_ = delta_eff - atan2(vy_ + lf * (PSI_DOT_VAL), vx_safe_); \
                     double alpha_r_ = -atan2(vy_ - lr * (PSI_DOT_VAL), vx_safe_); \
+                    double slip_front_ = fabs(alpha_f_); \
+                    double slip_rear_ = fabs(alpha_r_); \
+                    double slip_blend_front_; \
+                    if (slip_front_ <= sim_slip_blend_start_front) slip_blend_front_ = 0.0; \
+                    else if (slip_front_ >= sim_slip_blend_end_front) slip_blend_front_ = 1.0; \
+                    else slip_blend_front_ = (slip_front_ - sim_slip_blend_start_front) / (sim_slip_blend_end_front - sim_slip_blend_start_front); \
+                    slip_blend_front_ = slip_blend_front_ * slip_blend_front_ * (3.0 - 2.0 * slip_blend_front_); \
+                    double slip_blend_rear_; \
+                    if (slip_rear_ <= sim_slip_blend_start_rear) slip_blend_rear_ = 0.0; \
+                    else if (slip_rear_ >= sim_slip_blend_end_rear) slip_blend_rear_ = 1.0; \
+                    else slip_blend_rear_ = (slip_rear_ - sim_slip_blend_start_rear) / (sim_slip_blend_end_rear - sim_slip_blend_start_rear); \
+                    slip_blend_rear_ = slip_blend_rear_ * slip_blend_rear_ * (3.0 - 2.0 * slip_blend_rear_); \
+                    double C_Sf_eff_ = sim_C_Sf + (sim_C_Sf_high_slip - sim_C_Sf) * slip_blend_front_; \
+                    double C_Sr_eff_ = sim_C_Sr + (sim_C_Sr_high_slip - sim_C_Sr) * slip_blend_rear_; \
+                    double combined_scale_ = 1.0; \
+                    double accel_usage_ = 0.0; \
+                    if (sim_combined_slip_gain > 1e-9) { \
+                        accel_usage_ = fabs(ACCL) / PHYSICAL_MAX_ACCEL; \
+                        if (accel_usage_ > 1.0) accel_usage_ = 1.0; \
+                        combined_scale_ = 1.0 - sim_combined_slip_gain * accel_usage_; \
+                        if (combined_scale_ < 0.30) combined_scale_ = 0.30; \
+                    } \
+                    double front_drop_blend_; \
+                    if (slip_front_ <= sim_front_peak_drop_start) front_drop_blend_ = 0.0; \
+                    else if (slip_front_ >= sim_front_peak_drop_end) front_drop_blend_ = 1.0; \
+                    else front_drop_blend_ = (slip_front_ - sim_front_peak_drop_start) / (sim_front_peak_drop_end - sim_front_peak_drop_start); \
+                    front_drop_blend_ = front_drop_blend_ * front_drop_blend_ * (3.0 - 2.0 * front_drop_blend_); \
+                    if (sim_front_peak_drop_pow > 1.0) front_drop_blend_ = pow(front_drop_blend_, sim_front_peak_drop_pow); \
+                    double front_peak_scale_ = 1.0 - sim_front_peak_drop * front_drop_blend_; \
+                    if (front_peak_scale_ < sim_front_peak_floor) front_peak_scale_ = sim_front_peak_floor; \
+                    double front_combined_scale_ = 1.0 - sim_front_combined_gain * accel_usage_ * front_drop_blend_; \
+                    if (front_combined_scale_ < sim_front_peak_floor) front_combined_scale_ = sim_front_peak_floor; \
+                    front_peak_scale_ *= front_combined_scale_; \
                     /* Lateral tire forces */ \
                     double Fyf_, Fyr_; \
                     if (realistic_tires) { \
                         /* Pacejka magic formula: Fy = D*sin(C*atan(B*alpha)) */ \
-                        double B_f = C_Sf / PACEJKA_C_SHAPE; \
-                        double B_r = C_Sr / PACEJKA_C_SHAPE; \
-                        double D_f = mu * Fzf_; \
-                        double D_r = mu * Fzr_; \
-                        Fyf_ = D_f * sin(PACEJKA_C_SHAPE * atan(B_f * alpha_f_)); \
-                        Fyr_ = D_r * sin(PACEJKA_C_SHAPE * atan(B_r * alpha_r_)); \
+                        double B_f = C_Sf_eff_ / sim_pacejka_c_front; \
+                        double B_r = C_Sr_eff_ / sim_pacejka_c_rear; \
+                        double D_f = sim_mu_front * Fzf_ * front_peak_scale_; \
+                        double D_r = sim_mu_rear * Fzr_; \
+                        Fyf_ = combined_scale_ * D_f * sin(sim_pacejka_c_front * atan(B_f * alpha_f_)); \
+                        Fyr_ = combined_scale_ * D_r * sin(sim_pacejka_c_rear * atan(B_r * alpha_r_)); \
                     } else { \
                         /* Linear tire model: Fy = mu * C_S * alpha * Fz */ \
-                        Fyf_ = mu * C_Sf * alpha_f_ * Fzf_; \
-                        Fyr_ = mu * C_Sr * alpha_r_ * Fzr_; \
+                        Fyf_ = combined_scale_ * sim_mu_front * front_peak_scale_ * C_Sf_eff_ * alpha_f_ * Fzf_; \
+                        Fyr_ = combined_scale_ * sim_mu_rear * C_Sr_eff_ * alpha_r_ * Fzr_; \
                     } \
                     /* Longitudinal force */ \
                     double Fx_raw_ = mass * (ACCL); \
@@ -1451,7 +1761,7 @@ int main(void)
                         /* Rolling resistance as constant drag force. \
                          * Note: VESC ACCEL_TO_CURRENT compensates for drivetrain \
                          * efficiency, so we do NOT apply eta (would double-count). */ \
-                        Fx_ -= ROLLING_RESISTANCE_N; \
+                        Fx_ -= sim_roll_res_n; \
                     } \
                     if (realistic_actuation) { \
                         /* Coastdown drag in acceleration domain: a_drag(v)=c0+c1*|v|+c2*v^2 */ \
@@ -1461,8 +1771,8 @@ int main(void)
                             Fx_ -= mass * a_drag_; \
                         } \
                     } \
-                    double cos_delta_ = cos(DELTA); \
-                    double sin_delta_ = sin(DELTA); \
+                    double cos_delta_ = cos(delta_eff); \
+                    double sin_delta_ = sin(delta_eff); \
                     /* Body-frame dynamics with cos(δ)/sin(δ) force resolution */ \
                     double dvx_dt_ = (Fx_ - Fyf_ * sin_delta_ \
                                       + mass * vy_ * (PSI_DOT_VAL)) / mass; \
@@ -1552,15 +1862,15 @@ int main(void)
                 true_state.lat_vel = (float)(sn[3] * sin(sn[6]));
                 true_state.yaw_rate = (float)(sn[5]);
                 /* Noisy state: what the MPC controller sees */
-                state.pos_x = (float)(sn[0] + NOISE_POS_M * randn());
-                state.pos_y = (float)(sn[1] + NOISE_POS_M * randn());
-                state.heading = (float)(sn[4] + NOISE_HDG_RAD * randn());
+                state.pos_x = (float)(sn[0] + sim_noise_pos_m * randn());
+                state.pos_y = (float)(sn[1] + sim_noise_pos_m * randn());
+                state.heading = (float)(sn[4] + sim_noise_hdg_rad * randn());
                 state.long_vel = (float)(
-                    sn[3] * cos(sn[6]) + NOISE_VX_MS * randn());
+                    sn[3] * cos(sn[6]) + sim_noise_vx_ms * randn());
                 state.lat_vel = (float)(
-                    sn[3] * sin(sn[6]) + NOISE_VY_MS * randn());
+                    sn[3] * sin(sn[6]) + sim_noise_vy_ms * randn());
                 state.yaw_rate = (float)(
-                    sn[5] + NOISE_OMEGA_RAD * randn());
+                    sn[5] + sim_noise_omega_rad * randn());
             } else {
                 state.pos_x = (float)(sn[0]);
                 state.pos_y = (float)(sn[1]);
@@ -1693,5 +2003,7 @@ int main(void)
             speed_check_pass, failed_non_speed,
             solver_optimal_rate, solver_max_iter_rate);
     }
+    if (sim_trace_file) fclose(sim_trace_file);
+    free_local_raceline_replay();
     return tests_failed > 0 ? 1 : 0;
 }

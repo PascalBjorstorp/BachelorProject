@@ -80,6 +80,4 @@ residuals:
   name: landmark_4
 map_frame: map
 optitrack_frame: world
-static_transform_publisher: ros2 run tf2_ros static_transform_publisher --x 0.347875066
-  --y -1.049517066 --z -0.052198841 --qx 0.478854894 --qy 0.522460199 --qz 0.527052800
-  --qw 0.468986862 --frame-id map --child-frame-id world
+static_transform_publisher: ros2 run tf2_ros static_transform_publisher --x 0.347875066 --y -1.049517066 --z -0.052198841 --qx 0.478854894 --qy 0.522460199 --qz 0.527052800 --qw 0.468986862 --frame-id map --child-frame-id world

@@ -201,7 +201,8 @@ def main():
         profile = tune.DETERMINISTIC_OBSTACLE_PROFILES.get(name)
         min_box_clearance = None
         if profile:
-            boxes = tune.build_obstacle_boxes(base_samples, profile["objects"])
+            profile_objects = profile.get("resolved_objects", profile["objects"])
+            boxes = tune.build_obstacle_boxes(base_samples, profile_objects)
             for i, box in enumerate(boxes):
                 poly = box_outline(box)
                 xs = [p[0] for p in poly]

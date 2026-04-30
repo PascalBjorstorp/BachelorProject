@@ -51,6 +51,7 @@ python3 tests/test_max_dynamics.py --max-speed 3.0
 python3 tests/test_steering_rate.py
 python3 tests/test_friction.py --max-speed 4.0
 python3 tests/test_cornering_stiffness.py
+python3 tests/test_turn_in_transient.py --speeds 2.0,2.5,3.0,3.5 --steering 0.30 --directions both
 python3 tests/test_rolling_resistance.py
 python3 tests/test_motor_torque.py
 python3 tests/test_current_limits.py
@@ -58,6 +59,44 @@ python3 tests/test_current_limits.py
 
 Each test saves CSVs to `data/` and auto-updates `vehicle_params.yaml`.
 Use `--runs N` for repeated measurements.
+
+## Data needed for MPC sim RMSE fitting
+
+For matching the simulator to the real car in the high-error corner regime, the
+most important datasets are:
+
+1. `tests/test_turn_in_transient.py`
+   - captures transient understeer / washout / sideslip growth
+   - run both directions
+   - run at multiple speeds near the problem corner speed
+2. `tests/test_friction.py`
+   - constrains lateral grip saturation
+3. `tests/test_cornering_stiffness.py`
+   - constrains low/mid-slip lateral response
+4. `tests/test_rolling_resistance.py` + `tests/test_motor_torque.py`
+   - constrains longitudinal dynamics
+
+Recommended transient collection command:
+
+```bash
+python3 tests/test_turn_in_transient.py \
+  --speeds 2.0,2.5,3.0,3.5 \
+  --steering 0.30 \
+  --directions both \
+  --repeats 2
+```
+
+Optional combined-slip collection:
+
+```bash
+python3 tests/test_turn_in_transient.py \
+  --speeds 2.5,3.0,3.5 \
+  --steering 0.30 \
+  --directions both \
+  --repeats 2 \
+  --speed-drop 0.6 \
+  --drop-after 0.35
+```
 
 ## Step 3 — Plots & Report
 

@@ -9,6 +9,8 @@ Usage:
     python3 test/tune_realistic_v2.py                        # Full sweep (all CPUs)
     python3 test/tune_realistic_v2.py -j 0                   # Use all workers
     python3 test/tune_realistic_v2.py --seed-csv /path/to/results.csv
+    python3 test/tune_realistic_v2.py --hardware-log /path/to/mpc_solver.csv \
+        --hardware-meta /path/to/mpc_solver.csv.meta.txt     # Replay exact hardware scenario
 
 The sweep runs 6 phases:
     Phase 1: One-at-a-time parameter sensitivity
@@ -41,8 +43,14 @@ import hashlib
 import shutil
 import tempfile
 import multiprocessing
+from pathlib import Path
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor, wait, FIRST_COMPLETED
+
+try:
+    from calibrate_plant_to_hardware import load_hardware_run, load_raceline
+except ModuleNotFoundError:
+    from MPC.test.calibrate_plant_to_hardware import load_hardware_run, load_raceline
 
 # ==============================================================================
 # PATHS
@@ -70,38 +78,88 @@ DEFAULT_BASE_SEED_CSV = "/home/akselmo/Downloads/tuning_hardware_base_20260425_1
 BASE_OVERRIDES = {
     # Fallback seed. Replaced at runtime when --seed-csv is provided
     # or when DEFAULT_BASE_SEED_CSV exists.
-    "Q_LAT":  16896.0,
-    "Q_HDG": 248.864,
-    "Q_VEL": 60.48,
-    "Q_LAT_VEL": 6.75648,
-    "Q_YAW": 1.285056,
-    "R_STEER": 1.815,
-    "R_ACCEL": 0.007276,
-    "W_JERK": 0.05115,
-    "W_ACCEL_RATE": 0.1387,
-    "MPC_W_DELTA_ACTUAL": 0.021,
+    "Q_LAT":  1000.0,
+    "Q_HDG": 28.8,
+    "Q_VEL": 30.0,
+    "Q_LAT_VEL": 1.04,
+    "Q_YAW": 1.5,
+    "R_STEER": 1.5,
+    "R_ACCEL": 0.01,
+    "W_JERK": 0.04,
+    "W_ACCEL_RATE": 0.10,
+    "MPC_W_DELTA_ACTUAL": 0.023,
     "HORIZON": 20,
     "PRED_DT": 0.03,
-    "RHO": 28.0,
-    "RHO_U": 42.0,
-    "TOL": 0.05,
+    "RHO": 8.0,
+    "RHO_U": 24.0,
+    "TOL": 0.01,
     "MAX_ITER": 100,
+    "SIM_MU": 0.6652002785524997,
+    "SIM_MU_FRONT": 0.6745101974282083,
+    "SIM_MU_REAR": 0.6565520426481404,
+    "SIM_MASS": 3.314,
+    "SIM_IZ": 0.035,
+    "SIM_C_SF": 4.78281642069513,
+    "SIM_C_SR": 2.73123678240426,
+    "SIM_C_SF_HIGH_SLIP": 2.4199490875105907,
+    "SIM_C_SR_HIGH_SLIP": 2.73123678240426,
+    "SIM_LF": 0.166,
+    "SIM_LR": 0.16,
+    "SIM_H_CG": 0.0703,
+    "SIM_STEER_RATE_MAX": 2.8492,
+    "SIM_STEER_ANGLE_MAX": 0.39,
+    "SIM_STEER_GAIN": 1.0085301459687404,
+    "SIM_STEER_GAIN_HIGH_SLIP": 0.6541720766809247,
+    "SIM_V_SWITCH": 7.319,
+    "SIM_V_MIN": 0.5,
+    "SIM_V_MAX": 20.0,
+    "SIM_ROLL_RES_N": 2.79,
+    "SIM_PACEJKA_C": 1.6041121492252324,
+    "SIM_PACEJKA_C_FRONT": 1.8031639754063644,
+    "SIM_PACEJKA_C_REAR": 1.7681655069132207,
+    "SIM_SLIP_BLEND_START": 0.1643527788471148,
+    "SIM_SLIP_BLEND_END": 0.5319307735091576,
+    "SIM_SLIP_BLEND_START_FRONT": 0.1643527788471148,
+    "SIM_SLIP_BLEND_END_FRONT": 0.5319307735091576,
+    "SIM_SLIP_BLEND_START_REAR": 0.2502122916247753,
+    "SIM_SLIP_BLEND_END_REAR": 0.47793678552502167,
+    "SIM_COMBINED_SLIP_GAIN": 0.10359393575265835,
+    "SIM_FRONT_PEAK_DROP": 0.11804981810838257,
+    "SIM_FRONT_PEAK_DROP_START": 0.13813810031946996,
+    "SIM_FRONT_PEAK_DROP_END": 0.48938120479012814,
+    "SIM_FRONT_PEAK_DROP_POW": 1.0,
+    "SIM_FRONT_COMBINED_GAIN": 0.13366870620631957,
+    "SIM_FRONT_PEAK_FLOOR": 0.2708096984131235,
+    "SIM_NOISE_POS_M": 0.0,
+    "SIM_NOISE_HDG_RAD": 0.0,
+    "SIM_NOISE_VX_MS": 0.0,
+    "SIM_NOISE_VY_MS": 0.0,
+    "SIM_NOISE_OMEGA_RAD": 0.0,
+    "DRAG_C0": 0.0,
+    "DRAG_C1": 0.05,
+    "DRAG_C2": 0.04,
+    "ACCEL_TAU_POS": 0.05,
+    "ACCEL_TAU_NEG": 0.12,
+    "ACCEL_GAIN_POS": 0.5,
+    "ACCEL_GAIN_NEG": 1.0,
 }
+
+HARDWARE_REPLAY_RUN = None
+HARDWARE_REPLAY_WINDOW_SEC = 3.0
 
 # ==============================================================================
 # SWEEP VALUE RANGES - PHASE 2 (Primary Grid)
 # ==============================================================================
 
 PHASE2_VALUES_BASE = {
-    # Retuned from tuning_hardware_base_20260424_102313_sorted.csv.
-    # Target ~= 50k configs: 7*5*5*4*5*5*3 = 52,500.
-    "Q_LAT": [13000.0, 14500.0, 16000.0, 16896.0, 17920.0, 19200.0, 20352.0],
-    "Q_HDG": [248.864, 280.0, 350.0, 400.0, 450.0],
-    "Q_VEL": [48.0, 52.0, 56.0, 60.0, 60.48],
-    "Q_LAT_VEL": [5.8, 6.12, 6.4, 6.75648],
-    "Q_YAW": [1.20, 1.285056, 1.32, 1.44, 1.56],
-    "R_STEER": [1.50, 1.58, 1.65, 1.815, 1.9239],
-    "MPC_W_DELTA_ACTUAL": [0.019, 0.020, 0.021],
+    # Centered on mpc_types.h current values ±25-30% for exploration
+    "Q_LAT": [100.0, 400.0, 600.0, 800.0],
+    "Q_HDG": [10, 15, 20, 25, 30],
+    "Q_VEL": [20, 25, 30.0, 35, 40],
+    "Q_LAT_VEL": [0.5, 0.75, 1.0, 1.25, 1.5],
+    "Q_YAW": [1.0, 1.25, 1.50, 1.75, 2.0],
+    "R_STEER": [1.0, 1.25, 1.50, 1.75, 2.0],
+    "MPC_W_DELTA_ACTUAL": [0.015, 0.02, 0.025, 0.03],
 }
 
 # ==============================================================================
@@ -109,21 +167,21 @@ PHASE2_VALUES_BASE = {
 # ==============================================================================
 
 FULL_SWEEP_VALUES_BASE = {
-    "Q_LAT": [7000.0, 8500.0, 10000.0, 11500.0, 13000.0, 14500.0, 16000.0],
-    "Q_HDG": [350.0, 400.0, 450.0, 500.0, 550.0, 600.0, 650.0],
-    "Q_VEL": [40.0, 44.0, 48.0, 52.0, 56.0, 60.0],
-    "Q_LAT_VEL": [5.5, 5.8, 6.12, 6.4, 6.8],
-    "Q_YAW": [1.20, 1.32, 1.44, 1.56, 1.68],
-    "R_STEER": [1.35, 1.42, 1.50, 1.58, 1.65],
-    "R_ACCEL":      [0.0068, 0.0072, 0.0075, 0.0078, 0.0082],
-    "W_JERK":       [0.0432, 0.0445, 0.0450, 0.0465, 0.0480, 0.0500],
-    "W_ACCEL_RATE": [0.146, 0.150, 0.153, 0.156, 0.160, 0.165],
-    "MPC_W_DELTA_ACTUAL": [0.018, 0.019, 0.020, 0.021, 0.022],
+    "Q_LAT": [80.0, 120.0, 160.0, 200.0, 240.0, 300.0, 380.0, 500.0, 700.0, 1000.0],
+    "Q_HDG": [10.0, 12.0, 14.0, 16.0, 20.0, 24.0, 28.8, 34.0, 40.0, 48.0],
+    "Q_VEL": [20.0, 24.0, 28.0, 30.0, 34.0, 38.0, 44.0],
+    "Q_LAT_VEL": [0.50, 0.70, 0.90, 1.04, 1.20, 1.40, 1.70],
+    "Q_YAW": [0.90, 1.10, 1.30, 1.50, 1.70, 1.90, 2.20],
+    "R_STEER": [0.90, 1.10, 1.30, 1.50, 1.70, 1.90, 2.20],
+    "R_ACCEL":      [0.006, 0.008, 0.010, 0.012, 0.015],
+    "W_JERK":       [0.020, 0.030, 0.040, 0.050, 0.065],
+    "W_ACCEL_RATE": [0.060, 0.080, 0.100, 0.120, 0.150],
+    "MPC_W_DELTA_ACTUAL": [0.018, 0.020, 0.023, 0.026, 0.030],
     "HORIZON":      HORIZON_SWEEP_VALUES,
     "PRED_DT":      [0.03],
-    "RHO":          [28.0],
-    "RHO_U":        [42.0],
-    "TOL":          [0.05],
+    "RHO":          [8.0],
+    "RHO_U":        [24.0],
+    "TOL":          [0.01],
 }
 
 # ==============================================================================
@@ -132,15 +190,14 @@ FULL_SWEEP_VALUES_BASE = {
 # ==============================================================================
 
 PHASE4_VALUES_BASE = {
-    # Retuned around strongest Phase 4 region from sorted CSV.
-    # Target ~= 15k configs: 5*5*5*4*4*4*2 = 16,000.
-    "Q_LAT_VEL":    [5.8, 6.12, 6.4, 6.75648, 6.8],
-    "Q_YAW":        [1.20, 1.285056, 1.32, 1.44, 1.56],
-    "R_STEER":      [1.50, 1.58, 1.65, 1.815, 1.9239],
-    "W_JERK":       [0.0440, 0.0450, 0.0485, 0.05115],
-    "R_ACCEL":      [0.0068, 0.0072, 0.007276, 0.0075],
-    "W_ACCEL_RATE": [0.1387, 0.146, 0.150, 0.153],
-    "MPC_W_DELTA_ACTUAL": [0.020, 0.021],
+    # Centered on mpc_types.h current values ±25-30% for fine-tuning
+    "Q_LAT_VEL":    [0.5, 1.0, 1.5, 2.0, 4.0],
+    "Q_YAW":        [0.5, 1.0, 1.5, 2.0, 4.0],
+    "R_STEER":      [0.5, 1.0, 1.5, 2.0, 4.0],
+    "W_JERK":       [0.01, 0.02, 0.040, 0.06, 0.80],
+    "R_ACCEL":      [0.005, 0.0075, 0.010, 0.02, 0.05],
+    "W_ACCEL_RATE": [0.01, 0.05, 0.08, 0.120, 0.140],
+    "MPC_W_DELTA_ACTUAL": [0.018, 0.020, 0.023, 0.026, 0.030],
 }
 
 # Keep these fixed for all sweeps and validations.
@@ -237,13 +294,13 @@ BOUND_SPIKE_NEIGHBOR_MIN_M = 0.40
 DETERMINISTIC_OBSTACLE_PROFILES = {
     "avoid_single": {
         "objects": [
-            {"s_fraction": 0.65, "lateral_offset": 0.00},
+            {"s_fraction": 0.90, "lateral_offset": 0.05},
         ],
     },
     "avoid_double": {
         "objects": [
-            {"s_fraction": 0.22, "lateral_offset": 0.05},
-            {"s_fraction": 0.55, "lateral_offset": -0.05},
+            {"s_fraction": 0.23, "lateral_offset": -0.10},
+            {"s_fraction": 0.65, "lateral_offset": 0.00},
         ],
     },
 }
@@ -258,7 +315,7 @@ SCENARIO_RACELINE_PATHS = {}
 CASCADE_TOP_N = 4   # Top-N seeds promoted from Phase 2 into Phase 4
 SEED = 42           # Fixed seed for reproducibility
 GLOBAL_OPTIMIZATION_PASSES = 16  # Repeated refinement passes for Phases 5-8
-INCLUDE_OBSTACLE_SCENARIOS = False
+INCLUDE_OBSTACLE_SCENARIOS = True
 PHASE7_RANDOM_COUNT = 2000
 PHASE8_RANDOM_COUNT = 2000
 STRICT_PROMOTION = True
@@ -543,6 +600,33 @@ def build_obstacle_boxes(base_samples: list, objects: list) -> list:
     return boxes
 
 
+def min_signed_distance_to_box(samples: list, box: dict) -> float:
+    """Minimum signed distance from samples to an oriented obstacle box.
+
+    Negative means at least one sample lies inside the box footprint.
+    """
+    c = math.cos(box["yaw"])
+    s = math.sin(box["yaw"])
+    hl = box["half_length"]
+    hw = box["half_width"]
+
+    best = float("inf")
+    for wp in samples:
+        dx = float(wp["x"]) - box["x"]
+        dy = float(wp["y"]) - box["y"]
+        lx = dx * c + dy * s
+        ly = -dx * s + dy * c
+
+        ex = max(abs(lx) - hl, 0.0)
+        ey = max(abs(ly) - hw, 0.0)
+        outside = math.hypot(ex, ey)
+        inside = max(abs(lx) - hl, abs(ly) - hw)
+        signed = outside if inside > 0.0 else inside
+        if signed < best:
+            best = signed
+    return best
+
+
 def validate_obstacle_profile_feasibility(base_samples: list, objects: list, profile_name: str):
     """Reject deterministic obstacle profiles that planner logic cannot pass safely."""
     if not base_samples or not objects:
@@ -600,6 +684,256 @@ def validate_obstacle_profile_feasibility(base_samples: list, objects: list, pro
     if issues:
         details = "\n  - " + "\n  - ".join(issues)
         raise ValueError(f"Infeasible obstacle profile '{profile_name}':{details}")
+
+
+def can_realize_obstacle_profile(base_samples: list, objects: list, profile_name: str) -> tuple[bool, list | None, str]:
+    """Return whether a deterministic obstacle profile can build a valid shifted raceline."""
+    try:
+        validate_obstacle_profile_feasibility(base_samples, objects, profile_name)
+        global ENABLE_SCENARIO_AUDIT
+        prev_audit = ENABLE_SCENARIO_AUDIT
+        ENABLE_SCENARIO_AUDIT = False
+        try:
+            shifted_samples = build_shifted_raceline_samples(base_samples, objects)
+        finally:
+            ENABLE_SCENARIO_AUDIT = prev_audit
+        enforce_min_wall_clearance(shifted_samples, profile_name)
+        return True, shifted_samples, ""
+    except ValueError as exc:
+        return False, None, str(exc)
+
+
+def generate_obstacle_offset_candidates(wp: dict, preferred_offset: float) -> list:
+    """Generate plausible obstacle lateral offsets at one waypoint."""
+    half_obstacle_width = 0.5 * PLANNER_CAR_WIDTH_M
+    max_left = max(float(wp["left"]) - half_obstacle_width - 1e-3, 0.0)
+    max_right = max(float(wp["right"]) - half_obstacle_width - 1e-3, 0.0)
+
+    if max_left <= 1e-6 and max_right <= 1e-6:
+        return []
+
+    offsets = []
+
+    def clamp_offset(offset: float) -> float:
+        return max(-max_right, min(max_left, float(offset)))
+
+    def add(offset: float):
+        clipped = clamp_offset(offset)
+        for existing in offsets:
+            if abs(existing - clipped) < 0.02:
+                return
+        offsets.append(clipped)
+
+    preferred = clamp_offset(preferred_offset)
+    preferred_sign = 1.0 if preferred_offset >= 0.0 else -1.0
+    dominant_wall = max_left if preferred_sign >= 0.0 else max_right
+
+    add(preferred)
+    add(0.0)
+    if dominant_wall > 1e-6:
+        add(preferred_sign * 0.35 * dominant_wall)
+        add(preferred_sign * 0.65 * dominant_wall)
+        add(preferred_sign * 0.85 * dominant_wall)
+    if max_left > 1e-6:
+        add(0.50 * max_left)
+        add(0.85 * max_left)
+    if max_right > 1e-6:
+        add(-0.50 * max_right)
+        add(-0.85 * max_right)
+
+    viable = []
+    min_clearance = SCENARIO_VEHICLE_HALF_WIDTH + SCENARIO_BODY_SAFETY_MARGIN
+    for offset in offsets:
+        if offset >= 0.0:
+            if offset + half_obstacle_width > wp["left"]:
+                continue
+        else:
+            if -offset + half_obstacle_width > wp["right"]:
+                continue
+
+        pass_dir = choose_pass_direction(wp, offset, 0.0)
+        shift_mag = compute_shift_magnitude(wp, offset, pass_dir)
+        if pass_dir == 0.0 or shift_mag <= 1e-6:
+            continue
+
+        remaining = (wp["left"] - shift_mag) if pass_dir >= 0.0 else (wp["right"] - shift_mag)
+        if remaining < min_clearance:
+            continue
+
+        viable.append(offset)
+
+    return viable
+
+
+def collect_feasible_obstacle_candidates(base_samples: list, preferred_offset: float) -> list:
+    """Find waypoint/offset candidates where an obstacle can be placed and still admit a valid planner shift."""
+    if not base_samples:
+        return []
+
+    track_length = max(base_samples[-1]["s"] - base_samples[0]["s"], 0.0)
+    candidates = []
+
+    for idx, wp in enumerate(base_samples):
+        offset_candidates = generate_obstacle_offset_candidates(wp, preferred_offset)
+        if not offset_candidates:
+            continue
+
+        corridor_width = float(wp["left"]) + float(wp["right"])
+        curvature_penalty = abs(float(wp.get("kappa", 0.0)))
+        s_fraction = ((float(wp["s"]) - float(base_samples[0]["s"])) / track_length) if track_length > 1e-9 else 0.0
+
+        for obstacle_offset in offset_candidates:
+            candidates.append({
+                "idx": idx,
+                "s": float(wp["s"]),
+                "s_fraction": s_fraction,
+                "lateral_offset": float(obstacle_offset),
+                "left": float(wp["left"]),
+                "right": float(wp["right"]),
+                "corridor_width": corridor_width,
+                "curvature_penalty": curvature_penalty,
+                "offset_penalty": abs(float(obstacle_offset) - float(preferred_offset)),
+            })
+
+    return candidates
+
+
+def resolve_obstacle_profile_objects(base_samples: list, profile_name: str, objects: list) -> tuple[list, list]:
+    """Auto-place deterministic obstacles near requested s-fractions in feasible track regions."""
+    if not objects:
+        return objects, build_shifted_raceline_samples(base_samples, objects)
+
+    track_length = max(base_samples[-1]["s"] - base_samples[0]["s"], 0.0)
+    min_spacing = max(PLANNER_MIN_WINDOW_M * 0.8, 0.12 * track_length)
+    candidate_lists = []
+    desired_s_values = []
+    for obj in objects:
+        desired_s = float(base_samples[0]["s"]) + float(obj["s_fraction"]) * track_length
+        desired_s_values.append(desired_s)
+        preferred_offset = float(obj["lateral_offset"])
+        candidates = collect_feasible_obstacle_candidates(base_samples, preferred_offset)
+        if not candidates:
+            raise ValueError(
+                f"Scenario '{profile_name}' has no feasible obstacle placements for lateral_offset={preferred_offset:.3f}"
+            )
+        candidates.sort(
+            key=lambda c: (
+                abs(c["s"] - desired_s),
+                c["offset_penalty"],
+                c["curvature_penalty"],
+                -c["corridor_width"],
+            )
+        )
+        max_candidates = 100 if len(objects) <= 1 else 20
+        candidate_lists.append(candidates[:max_candidates])
+
+    best_objects = None
+    best_shifted = None
+    best_cost = None
+
+    def candidate_cost(chosen: list) -> float:
+        total = 0.0
+        for desired_s, candidate in zip(desired_s_values, chosen):
+            total += abs(candidate["s"] - desired_s)
+            total += 100.0 * candidate["offset_penalty"]
+            total -= 0.05 * candidate["corridor_width"]
+            total += 0.1 * candidate["curvature_penalty"]
+        return total
+
+    def shifted_geometry_cost(samples: list) -> float:
+        min_clear = float("inf")
+        dpsi_vals = []
+        for wp in samples:
+            min_clear = min(min_clear, float(wp["left"]), float(wp["right"]))
+        for i in range(1, len(samples)):
+            dpsi_vals.append(abs(wrap_angle(float(samples[i]["psi"]) - float(samples[i - 1]["psi"]))))
+
+        max_dpsi = max(dpsi_vals) if dpsi_vals else 0.0
+        p99_dpsi = 0.0
+        if dpsi_vals:
+            dpsi_sorted = sorted(dpsi_vals)
+            p99_dpsi = dpsi_sorted[int(0.99 * (len(dpsi_sorted) - 1))]
+
+        required = 0.5 * PLANNER_CAR_WIDTH_M
+        clearance_penalty = 20.0 * max(0.0, (required + 0.05) - min_clear)
+        max_dpsi_penalty = 25.0 * max(0.0, max_dpsi - MAX_HEADING_STEP_RAD)
+        p99_dpsi_penalty = 15.0 * max(0.0, p99_dpsi - P99_HEADING_STEP_RAD)
+        return clearance_penalty + max_dpsi_penalty + p99_dpsi_penalty + 2.0 * max_dpsi + p99_dpsi
+
+    def obstruction_cost(placed_objects: list, shifted_samples: list) -> float:
+        boxes = build_obstacle_boxes(base_samples, placed_objects)
+        if not boxes:
+            return 0.0
+
+        signed_distances = [min_signed_distance_to_box(base_samples, box) for box in boxes]
+        max_box_gap = max(signed_distances)
+        mean_box_gap = sum(signed_distances) / len(signed_distances)
+
+        max_shift = 0.0
+        for base_wp, shifted_wp in zip(base_samples, shifted_samples):
+            normal = float(base_wp["psi"]) + math.pi / 2.0
+            dx = float(shifted_wp["x"]) - float(base_wp["x"])
+            dy = float(shifted_wp["y"]) - float(base_wp["y"])
+            lat_shift = abs(dx * math.cos(normal) + dy * math.sin(normal))
+            if lat_shift > max_shift:
+                max_shift = lat_shift
+
+        # Obstacles must actually obstruct the baseline raceline, not merely sit
+        # beside it. Allow a small positive gap, but strongly penalize boxes that
+        # remain farther away than ~0.15 m from the baseline line.
+        target_gap = 0.15
+        obstruction_penalty = 12.0 * max(0.0, max_box_gap - target_gap)
+        obstruction_penalty += 6.0 * max(0.0, mean_box_gap - target_gap)
+
+        # Also require the resulting shifted raceline to move meaningfully.
+        min_meaningful_shift = 0.18
+        shift_penalty = 10.0 * max(0.0, min_meaningful_shift - max_shift)
+        return obstruction_penalty + shift_penalty
+
+    def spacing_ok(chosen: list) -> bool:
+        for i in range(len(chosen)):
+            for j in range(i + 1, len(chosen)):
+                if abs(chosen[i]["s"] - chosen[j]["s"]) < min_spacing:
+                    return False
+        return True
+
+    candidate_combos = []
+    if len(candidate_lists) == 1:
+        candidate_combos = [[candidate] for candidate in candidate_lists[0]]
+    else:
+        for combo in itertools.product(*candidate_lists):
+            combo_list = list(combo)
+            if spacing_ok(combo_list):
+                candidate_combos.append(combo_list)
+
+    candidate_combos.sort(key=candidate_cost)
+    validate_limit = len(candidate_combos)
+    for chosen in candidate_combos[:validate_limit]:
+        placed_objects = []
+        for original, candidate in zip(objects, chosen):
+            placed_objects.append({
+                "s_fraction": candidate["s_fraction"],
+                "lateral_offset": float(candidate["lateral_offset"]),
+            })
+        ok_local, shifted_local, _ = can_realize_obstacle_profile(base_samples, placed_objects, profile_name)
+        if not ok_local:
+            continue
+        total_cost = candidate_cost(chosen)
+        total_cost += shifted_geometry_cost(shifted_local)
+        total_cost += obstruction_cost(placed_objects, shifted_local)
+        if best_cost is None or total_cost < best_cost:
+            best_cost = total_cost
+            best_objects = placed_objects
+            best_shifted = shifted_local
+    if best_objects is None or best_shifted is None:
+        ok, _, err = can_realize_obstacle_profile(base_samples, objects, profile_name)
+        if ok:
+            return objects, build_shifted_raceline_samples(base_samples, objects)
+        raise ValueError(
+            f"Scenario '{profile_name}' could not auto-place feasible obstacle locations. Last error: {err}"
+        )
+
+    return best_objects, best_shifted
 
 
 def enforce_min_wall_clearance(samples: list, label: str):
@@ -908,21 +1242,6 @@ def build_shifted_raceline_samples(base_samples: list, objects: list) -> list:
     obstacle_boxes = build_obstacle_boxes(base_samples, objects)
     accumulated_offsets = [0.0 for _ in shifted]
 
-    baseline_left_wall = []
-    baseline_right_wall = []
-    for sample in base_samples:
-        normal = sample["psi"] + math.pi / 2.0
-        nx = math.cos(normal)
-        ny = math.sin(normal)
-        baseline_left_wall.append((
-            sample["x"] + sample["left"] * nx,
-            sample["y"] + sample["left"] * ny,
-        ))
-        baseline_right_wall.append((
-            sample["x"] - sample["right"] * nx,
-            sample["y"] - sample["right"] * ny,
-        ))
-
     def materialize_from_offsets(offsets: list) -> list:
         out = [dict(sample) for sample in base_samples]
         for idx, sample in enumerate(base_samples):
@@ -930,8 +1249,11 @@ def build_shifted_raceline_samples(base_samples: list, objects: list) -> list:
             normal = sample["psi"] + math.pi / 2.0
             out[idx]["x"] = sample["x"] + offset * math.cos(normal)
             out[idx]["y"] = sample["y"] + offset * math.sin(normal)
-            out[idx]["left"] = max(0.0, sample["left"])
-            out[idx]["right"] = max(0.0, sample["right"])
+            # Mirror the planner's corridor semantics in the raceline frame:
+            # shifting the centerline by +offset toward the left wall consumes
+            # left clearance and increases right clearance by the same amount.
+            out[idx]["left"] = max(0.0, float(sample["left"]) - offset)
+            out[idx]["right"] = max(0.0, float(sample["right"]) + offset)
 
         n = len(out)
         if n >= 3:
@@ -952,36 +1274,6 @@ def build_shifted_raceline_samples(base_samples: list, objects: list) -> list:
                 ds_next = math.hypot(next_wp["x"] - curr_wp["x"], next_wp["y"] - curr_wp["y"])
                 ds = max(0.5 * (ds_prev + ds_next), 1e-3)
                 curr_wp["kappa"] = dpsi / ds
-
-        # Re-project to fixed baseline wall world-points so the map wall
-        # geometry remains unchanged outside obstacle edits.
-        for idx, curr_wp in enumerate(out):
-            normal = curr_wp["psi"] + math.pi / 2.0
-            nx = math.cos(normal)
-            ny = math.sin(normal)
-
-            left_hits = [
-                ray_polyline_distance(curr_wp["x"], curr_wp["y"], nx, ny, baseline_left_wall),
-                ray_polyline_distance(curr_wp["x"], curr_wp["y"], nx, ny, baseline_right_wall),
-            ]
-            right_hits = [
-                ray_polyline_distance(curr_wp["x"], curr_wp["y"], -nx, -ny, baseline_left_wall),
-                ray_polyline_distance(curr_wp["x"], curr_wp["y"], -nx, -ny, baseline_right_wall),
-            ]
-
-            left_valid = [d for d in left_hits if d is not None]
-            right_valid = [d for d in right_hits if d is not None]
-
-            left_hit = min(left_valid) if left_valid else None
-            right_hit = min(right_valid) if right_valid else None
-
-            if left_hit is None:
-                left_hit = max(0.0, base_samples[idx]["left"])
-            if right_hit is None:
-                right_hit = max(0.0, base_samples[idx]["right"])
-
-            curr_wp["left"] = max(0.0, left_hit)
-            curr_wp["right"] = max(0.0, right_hit)
         return out
 
     wall_limit = abs(PLANNER_MAX_LATERAL_SHIFT_M)
@@ -1047,12 +1339,13 @@ def build_shifted_raceline_samples(base_samples: list, objects: list) -> list:
         active_mask.append(is_active)
 
     final_offsets = []
+    min_corridor_clearance = SCENARIO_VEHICLE_HALF_WIDTH + SCENARIO_BODY_SAFETY_MARGIN
     for idx, sample in enumerate(base_samples):
         if not active_mask[idx]:
             final_offsets.append(0.0)
             continue
-        max_left = max(sample["left"] - 1e-6, 0.0)
-        max_right = max(sample["right"] - 1e-6, 0.0)
+        max_left = max(float(sample["left"]) - min_corridor_clearance, 0.0)
+        max_right = max(float(sample["right"]) - min_corridor_clearance, 0.0)
         final_offsets.append(max(-max_right, min(max_left, accumulated_offsets[idx])))
 
     candidate = materialize_from_offsets(final_offsets)
@@ -1137,6 +1430,9 @@ def build_scenario_raceline_paths(base_path: str) -> dict:
     GENERATED_RACELINE_DIR = tempfile.mkdtemp(prefix="mpc_tuning_racelines_", dir=SCRIPT_DIR)
 
     base_samples_raw = load_raceline_samples(base_path)
+    base_samples_raw, spikes_fixed = despike_wall_bounds(base_samples_raw)
+    if spikes_fixed > 0:
+        print(f"INFO: Repaired {spikes_fixed} isolated wall-bound spike(s) before obstacle scenario generation.")
     base_samples = align_samples_to_target_start(base_samples_raw)
     enforce_min_wall_clearance(base_samples, "base")
 
@@ -1145,8 +1441,11 @@ def build_scenario_raceline_paths(base_path: str) -> dict:
 
     paths = {"base": os.path.abspath(base_out)}
     for profile_name, profile in DETERMINISTIC_OBSTACLE_PROFILES.items():
-        validate_obstacle_profile_feasibility(base_samples, profile["objects"], profile_name)
-        shifted_samples = build_shifted_raceline_samples(base_samples, profile["objects"])
+        try:
+            resolved_objects, shifted_samples = resolve_obstacle_profile_objects(base_samples, profile_name, profile["objects"])
+        except ValueError as exc:
+            print(f"[SCENARIO:{profile_name}] skipped: {exc}")
+            continue
         # Keep a common exact start point across all scenario racelines.
         if shifted_samples:
             dx = SCENARIO_TARGET_START_X - shifted_samples[0]["x"]
@@ -1156,6 +1455,7 @@ def build_scenario_raceline_paths(base_path: str) -> dict:
         out_path = os.path.join(GENERATED_RACELINE_DIR, f"{RACELINE_TAG}_{profile_name}.csv")
         write_raceline_samples(out_path, shifted_samples)
         paths[profile_name] = os.path.abspath(out_path)
+        profile["resolved_objects"] = resolved_objects
     return paths
 
 
@@ -1163,7 +1463,16 @@ atexit.register(cleanup_generated_racelines)
 
 
 def build_eval_scenarios(include_obstacles: bool = INCLUDE_OBSTACLE_SCENARIOS) -> list:
-    """Build deterministic scenarios where every run starts off-raceline."""
+    """Build deterministic scenarios for weight tuning.
+
+    Note: Keep these scenarios *controller-focused* (idealized startup), not
+    hardware-debug focused. If you need to model hardware quirks (e.g. delayed
+    servo feedback, control-rate limiting), do it in the hardware stack, not
+    in this weight sweep.
+    """
+    if HARDWARE_REPLAY_RUN is not None:
+        return build_hardware_replay_scenarios(HARDWARE_REPLAY_RUN)
+
     base_path = SCENARIO_RACELINE_PATHS.get("base", RACELINE_PATH)
 
     scenarios = [
@@ -1174,89 +1483,65 @@ def build_eval_scenarios(include_obstacles: bool = INCLUDE_OBSTACLE_SCENARIOS) -
             "raceline_path": base_path,
             "env": {
                 "SIM_DURATION": f"{RACE_SCENARIO_DURATION}",
-                # Hardware-aligned nasty startup (from solver logs ~2026-04-28):
-                # large heading error and modest lateral offset.
-                "START_OFFSET_LAT": "0.08",
-                "START_HEADING_OFFSET": "-0.59",
+                # Idealized start: on-raceline, aligned heading.
+                "START_OFFSET_LAT": "0.0",
+                "START_HEADING_OFFSET": "0.0",
                 "START_SPEED": "0.0",
                 "START_INDEX": "0",
-                "START_OFFSET_X": f"{GLOBAL_START_SHIFT_X_M}",
-                "START_OFFSET_Y": f"{GLOBAL_START_SHIFT_Y_M}",
-                # Emulate /local_raceline open-segment behavior (more realistic for startup recovery).
-                "LOCAL_RACELINE_SIM": "1",
-                "LOCAL_START_OFFSET_POINTS": "10",
-                "LOCAL_SEGMENT_POINTS": "80",
-                "LOCAL_HEADING_WINDOW": "1",
-                "LOCAL_CURVATURE_WINDOW": "3",
-                "LOCAL_STEP_BLEND_MEAS": "0.6",
-                # Match hardware safety clamp to avoid brake-to-zero deadlock.
-                "LOW_SPEED_BRAKE_INHIBIT_VX": "0.7",
-                "LOW_SPEED_MIN_ACCEL": "0.0",
-                # Match hardware startup recovery shaping (caps v_ref when errors are large).
-                "MPC_RECOVERY_EPSI_RAD": "0.45",
-                "MPC_RECOVERY_EY_M": "0.20",
-                "MPC_RECOVERY_VREF_MAX": "1.50",
             },
         },
     ]
 
     if include_obstacles:
-        avoid_single_path = SCENARIO_RACELINE_PATHS.get("avoid_single", RACELINE_PATH)
-        avoid_double_path = SCENARIO_RACELINE_PATHS.get("avoid_double", RACELINE_PATH)
-        scenarios.extend([
-            {
+        if "avoid_single" in SCENARIO_RACELINE_PATHS:
+            scenarios.append({
                 "name": "avoid_single",
                 "weight": 0.25,
                 "seed_offset": 303,
-                "raceline_path": avoid_single_path,
+                "raceline_path": SCENARIO_RACELINE_PATHS["avoid_single"],
                 "env": {
                     "SIM_DURATION": f"{OBSTACLE_SCENARIO_DURATION}",
-                    "START_OFFSET_LAT": "0.08",
-                    "START_HEADING_OFFSET": "-0.59",
+                    "START_OFFSET_LAT": "0.0",
+                    "START_HEADING_OFFSET": "0.0",
                     "START_SPEED": "0.0",
-                    "START_OFFSET_X": f"{GLOBAL_START_SHIFT_X_M}",
-                    "START_OFFSET_Y": f"{GLOBAL_START_SHIFT_Y_M}",
-                    "LOCAL_RACELINE_SIM": "1",
-                    "LOCAL_START_OFFSET_POINTS": "10",
-                    "LOCAL_SEGMENT_POINTS": "80",
-                    "LOCAL_HEADING_WINDOW": "1",
-                    "LOCAL_CURVATURE_WINDOW": "3",
-                    "LOCAL_STEP_BLEND_MEAS": "0.6",
-                    "LOW_SPEED_BRAKE_INHIBIT_VX": "0.7",
-                    "LOW_SPEED_MIN_ACCEL": "0.0",
-                    "MPC_RECOVERY_EPSI_RAD": "0.45",
-                    "MPC_RECOVERY_EY_M": "0.20",
-                    "MPC_RECOVERY_VREF_MAX": "1.50",
                 },
-            },
-            {
+            })
+        if "avoid_double" in SCENARIO_RACELINE_PATHS:
+            scenarios.append({
                 "name": "avoid_double",
                 "weight": 0.25,
                 "seed_offset": 404,
-                "raceline_path": avoid_double_path,
+                "raceline_path": SCENARIO_RACELINE_PATHS["avoid_double"],
                 "env": {
                     "SIM_DURATION": f"{OBSTACLE_SCENARIO_DURATION}",
-                    "START_OFFSET_LAT": "0.08",
-                    "START_HEADING_OFFSET": "-0.59",
+                    "START_OFFSET_LAT": "0.0",
+                    "START_HEADING_OFFSET": "0.0",
                     "START_SPEED": "0.0",
-                    "START_OFFSET_X": f"{GLOBAL_START_SHIFT_X_M}",
-                    "START_OFFSET_Y": f"{GLOBAL_START_SHIFT_Y_M}",
-                    "LOCAL_RACELINE_SIM": "1",
-                    "LOCAL_START_OFFSET_POINTS": "10",
-                    "LOCAL_SEGMENT_POINTS": "80",
-                    "LOCAL_HEADING_WINDOW": "1",
-                    "LOCAL_CURVATURE_WINDOW": "3",
-                    "LOCAL_STEP_BLEND_MEAS": "0.6",
-                    "LOW_SPEED_BRAKE_INHIBIT_VX": "0.7",
-                    "LOW_SPEED_MIN_ACCEL": "0.0",
-                    "MPC_RECOVERY_EPSI_RAD": "0.45",
-                    "MPC_RECOVERY_EY_M": "0.20",
-                    "MPC_RECOVERY_VREF_MAX": "1.50",
                 },
-            },
-        ])
+            })
 
     return scenarios
+
+
+def build_hardware_replay_scenarios(run: dict) -> list:
+    """Evaluate against one real hardware segment with exact local-raceline replay."""
+    sim_duration = min(run["elapsed_s"][-1], HARDWARE_REPLAY_WINDOW_SEC) if HARDWARE_REPLAY_WINDOW_SEC > 0.0 else run["elapsed_s"][-1]
+    return [
+        {
+            "name": "hardware_replay",
+            "weight": 1.0,
+            "seed_offset": 0,
+            "raceline_path": RACELINE_PATH,
+            "env": {
+                "SIM_DURATION": f"{sim_duration:.6f}",
+                "REPLAY_LOCAL_RACELINE_LOG": str(run["local_raceline_log_path"]),
+                "REPLAY_LOCAL_RACELINE_MODE": "progress" if run.get("local_raceline_index_path") else "time",
+                "REPLAY_LOCAL_RACELINE_INDEX": str(run["local_raceline_index_path"]) if run.get("local_raceline_index_path") else "",
+                "REPLAY_LOCAL_RACELINE_START_NS": str(run["start_local_raceline_ns"]),
+                **run["start_env"],
+            },
+        },
+    ]
 
 
 
@@ -1508,7 +1793,11 @@ def run_single_scenario(params: dict, binary: str, scenario: dict, seed: int) ->
     """Run one deterministic scenario for the current MPC configuration."""
     env = os.environ.copy()
     env["MPC_TUNING_CSV"] = "1"
+    env["LOCAL_RACELINE_SIM"] = "1"
     env["REALISTIC_SIM"] = "1"
+    env["REALISTIC_TIRES"] = "1"
+    env["REALISTIC_DRIVE"] = "1"
+    env["REALISTIC_NOISE"] = "1"
     env["SIM_SEED"] = str(seed + int(scenario.get("seed_offset", 0)))
     # Align test_sim_drive's internal wall-margin floor (half-width + BODY_SAFETY_MARGIN)
     # with the scenario audit assumptions.
@@ -2280,8 +2569,8 @@ def sanity_check_params(binary: str):
     probes = [
         ("Q_LAT", BASE.get("Q_LAT", 10000) * 1.5),
         ("Q_VEL", BASE.get("Q_VEL", 120) * 1.3),
-        ("RHO", BASE.get("RHO", 32) * 1.5),
-        ("RHO_U", BASE.get("RHO_U", 42) * 1.3),
+        ("RHO", BASE.get("RHO", 8) * 1.5),
+        ("RHO_U", BASE.get("RHO_U", 24) * 1.3),
     ]
     
     ineffective = []
@@ -2626,6 +2915,8 @@ def main():
     global GLOBAL_START_SHIFT_X_M, GLOBAL_START_SHIFT_Y_M
     global WALL_MARGIN
     global RACE_SCENARIO_DURATION
+    global HARDWARE_REPLAY_RUN
+    global HARDWARE_REPLAY_WINDOW_SEC
     
     # Parse arguments
     num_workers = multiprocessing.cpu_count()  # Default to max workers
@@ -2641,6 +2932,9 @@ def main():
     local_sweep = False
     local_duration = 8.0
     progress_file_override = None
+    hardware_log_override = None
+    hardware_meta_override = None
+    hardware_window_sec = HARDWARE_REPLAY_WINDOW_SEC
     
     for i, arg in enumerate(sys.argv):
         if arg.startswith("--resume-csv "):
@@ -2702,6 +2996,15 @@ def main():
                 print(f"WARNING: invalid --local-duration '{sys.argv[i + 1]}', using {local_duration}")
         if arg == "--progress-file" and i + 1 < len(sys.argv):
             progress_file_override = sys.argv[i + 1].strip()
+        if arg == "--hardware-log" and i + 1 < len(sys.argv):
+            hardware_log_override = sys.argv[i + 1].strip()
+        if arg == "--hardware-meta" and i + 1 < len(sys.argv):
+            hardware_meta_override = sys.argv[i + 1].strip()
+        if arg == "--hardware-window-sec" and i + 1 < len(sys.argv):
+            try:
+                hardware_window_sec = float(sys.argv[i + 1])
+            except ValueError:
+                print(f"WARNING: invalid --hardware-window-sec '{sys.argv[i + 1]}', using {HARDWARE_REPLAY_WINDOW_SEC}")
         if arg == "--wall-margin" and i + 1 < len(sys.argv):
             try:
                 requested = max(0.0, float(sys.argv[i + 1]))
@@ -2714,7 +3017,7 @@ def main():
                 print(f"WARNING: invalid --wall-margin '{sys.argv[i + 1]}', using fixed {FIXED_WALL_MARGIN}")
 
     if local_sweep:
-        include_obstacles = False
+        include_obstacles = True
         phase2_top_n = 1
         global_passes = 1
         RACE_SCENARIO_DURATION = local_duration
@@ -2746,7 +3049,28 @@ def main():
     RACELINE_START_LEFT_BOUND = meta["start_left_bound"]
     RACELINE_START_RIGHT_BOUND = meta["start_right_bound"]
 
-    if include_obstacles:
+    if hardware_log_override:
+        HARDWARE_REPLAY_WINDOW_SEC = hardware_window_sec
+        hardware_log_path = os.path.abspath(hardware_log_override)
+        if not os.path.exists(hardware_log_path):
+            print(f"ERROR: Hardware log not found: {hardware_log_path}")
+            sys.exit(1)
+        if hardware_meta_override:
+            hardware_meta_path = os.path.abspath(hardware_meta_override)
+        else:
+            hardware_meta_path = hardware_log_path + ".meta.txt"
+        if not os.path.exists(hardware_meta_path):
+            print(f"ERROR: Hardware meta not found: {hardware_meta_path}")
+            sys.exit(1)
+        HARDWARE_REPLAY_RUN = load_hardware_run(
+            Path(hardware_log_path),
+            Path(hardware_meta_path),
+            load_raceline(Path(RACELINE_PATH)),
+            window_seconds=HARDWARE_REPLAY_WINDOW_SEC if HARDWARE_REPLAY_WINDOW_SEC > 0.0 else None,
+        )
+        include_obstacles = False
+        SCENARIO_RACELINE_PATHS = {"base": RACELINE_PATH}
+    elif include_obstacles:
         SCENARIO_RACELINE_PATHS = build_scenario_raceline_paths(RACELINE_PATH)
     else:
         base_no_obstacle_path = build_no_obstacle_base_path(RACELINE_PATH)
@@ -2792,7 +3116,7 @@ def main():
     print("MPC Weight Tuning - Hardware Map")
     print(f"{'='*80}")
     print(f"  Workers:     {num_workers}")
-    print("  Mode:        base")
+    print("  Mode:        hardware-matched only")
     print(f"  Phase2->P4:  top {phase2_top_n}")
     print(f"  Global passes (P6-P8): {global_passes}")
     print(f"  Obstacles:   {'on' if include_obstacles else 'off'}")

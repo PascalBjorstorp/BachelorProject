@@ -33,6 +33,7 @@ int mpc_rt_wall_bound_window = MPC_FPGA_WALL_BOUND_WINDOW;
 fp_QP_t mpc_rt_admm_rho = ((fp_QP_t)(MPC_FPGA_ADMM_RHO));
 fp_QP_t mpc_rt_admm_rho_u = ((fp_QP_t)(MPC_FPGA_ADMM_RHO_U));
 fp_QP_t mpc_rt_admm_tol = ((fp_QP_t)(MPC_FPGA_ADMM_TOL));
+int mpc_rt_admm_max_iter = MPC_FPGA_MAX_ADMM_ITER;
 
 static int read_env_double(const char *name, double *out)
 {
@@ -91,6 +92,12 @@ void mpc_runtime_update_from_env(void)
     }
     if ((read_env_double("TOL", &dv) || read_env_double("ADMM_TOL", &dv)) && dv > 1e-9) {
         mpc_rt_admm_tol = (fp_QP_t)dv;
+    }
+    if (read_env_double("MAX_ITER", &dv) || read_env_double("ADMM_MAX_ITER", &dv)) {
+        int iters = (int)dv;
+        if (iters < 1) iters = 1;
+        if (iters > 1000) iters = 1000;
+        mpc_rt_admm_max_iter = iters;
     }
 
 }
