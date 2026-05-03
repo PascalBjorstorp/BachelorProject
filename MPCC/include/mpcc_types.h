@@ -108,9 +108,9 @@ typedef struct
 #define MPCC_IDX_VTHETA  2          /**< virtual progress speed ds/dt */
 
 
-#define MPCC_MAX_HORIZON 40      /** Maximum prediction horizon steps.*/
+#define MPCC_MAX_HORIZON 40          /** Maximum prediction horizon steps.*/
 #define MPCC_MAX_PATH_POINTS 2500    /** Maximum number of reference path waypoints.*/
-#define MPCC_MAX_OBSTACLES 10       /** Maximum number of obstacles that can be tracked simultaneously */
+#define MPCC_MAX_OBSTACLES 10        /** Maximum number of obstacles that can be tracked simultaneously */
 
 /*===========================================================================
  * MPCC ODE State
@@ -341,12 +341,6 @@ typedef struct
      *  cost falls back to corridor centering. */
     float wall_clearance_margin;
 
-    /** Hard safety buffer subtracted from both track bounds [m].
-     *  Unlike wall_clearance_margin, this tightens the actual QP corridor
-     *  constraint. Use this to leave room for solver residuals, body/model
-     *  mismatch, and the simulator's bitmap collision check. */
-    float track_safety_buffer;
-
     /** Progress weight (q_s).
      *  Reward for forward progress ds/dt. Higher = more aggressive.
      *  Applied as linear cost: -q_s on s-component. */
@@ -444,21 +438,6 @@ typedef struct
 
     /** ADMM over-relaxation factor. 1.0 disables over-relaxation. */
     float admm_alpha_relax;
-
-    /** Accept a max-iteration solver status if residuals are still small.
-     *  Set to 0 for hard-safety runs where any max-iteration solve should
-     *  fall back instead of publishing the partially converged iterate. */
-    uint8_t accept_max_iterations;
-
-    /** Maximum primal residual allowed when accepting MAX_ITERATIONS. */
-    float max_iter_primal_tolerance;
-
-    /** Maximum dual residual allowed when accepting MAX_ITERATIONS. */
-    float max_iter_dual_tolerance;
-
-    /** Maximum predicted hard-corridor violation [m] allowed when accepting
-     *  MAX_ITERATIONS. */
-    float max_iter_track_violation_tolerance;
 
     /*--- Constraint bounds ---*/
 
@@ -603,7 +582,6 @@ typedef struct
 #define MPCC_DEFAULT_WEIGHT_LAG       (200.0f)                     /** Lag error penalty. */
 #define MPCC_DEFAULT_WEIGHT_WALL_CLEARANCE (3200.0f)               /** Soft near-wall penalty inside the hard corridor. */
 #define MPCC_DEFAULT_WALL_CLEARANCE_MARGIN (0.02f)                 /** Extra desired distance from each wall [m]. */
-#define MPCC_DEFAULT_TRACK_SAFETY_BUFFER   (0.0f)                  /** Hard buffer subtracted from each track bound [m]. */
 #define MPCC_DEFAULT_WEIGHT_PROGRESS  (15.6f)                      /** Progress reward. */
 
 /*--- State regularization ---*/
@@ -646,10 +624,6 @@ typedef struct
 #define MPCC_DEFAULT_ADMM_RHO_U       (0.0f)                        /** 0 => reuse state rho for controls. */
 #define MPCC_DEFAULT_ADMM_ADAPTIVE_RHO 1                            /** Enable adaptive rho by default. */
 #define MPCC_DEFAULT_ADMM_ALPHA_RELAX (1.6f)                        /** Warm-start over-relaxation factor. */
-#define MPCC_DEFAULT_ACCEPT_MAX_ITERATIONS 0                        /** Do not publish max-iteration iterates by default. */
-#define MPCC_DEFAULT_MAX_ITER_PRIMAL_TOL   (0.01f)                  /** Primal residual threshold for accepting max-iteration solves. */
-#define MPCC_DEFAULT_MAX_ITER_DUAL_TOL     (0.01f)                  /** Dual residual threshold for accepting max-iteration solves. */
-#define MPCC_DEFAULT_MAX_ITER_TRACK_VIOLATION_TOL (0.005f)          /** Track violation threshold [m] for accepting max-iteration solves. */
 
 /*--- Pacejka tire model ---*/
 #define MPCC_DEFAULT_MU       F110_FRICTION_COEFFICIENT                  /** Friction coefficient for tire model. */
