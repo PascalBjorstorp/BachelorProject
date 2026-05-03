@@ -15,11 +15,16 @@
  * A_k/B_k entries are always emitted.
  */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include "qp_solver_osqp.h"
 #include <osqp/osqp.h>
 #include <string.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /* ============================================================
  * Dimension constants
@@ -27,18 +32,20 @@
 #define NX      MPCC_NX             /* 7  */
 #define NU      MPCC_NU             /* 3  */
 #define NXNU    (NX + NU)           /* 10 */
-#define MAX_N   MPCC_MAX_HORIZON    /* 20 */
+#define MAX_N   MPCC_MAX_HORIZON
 
 /* Maximum sizes for N = MAX_N */
-#define MAX_VARS       (MAX_N * NXNU + NX)              /* 207 */
-#define MAX_DYN_ROWS   (MAX_N * NX)                     /* 140 */
-#define MAX_TRACK_ROWS (MAX_N + 1)                      /* 21  */
-#define MAX_BOX_ROWS   MAX_VARS                         /* 207 */
-#define MAX_CONSTRAINTS (MAX_DYN_ROWS + MAX_TRACK_ROWS + MAX_BOX_ROWS) /* 368 */
+#define MAX_VARS       (MAX_N * NXNU + NX)
+#define MAX_DYN_ROWS   (MAX_N * NX)
+#define MAX_TRACK_ROWS (MAX_N + 1)
+#define MAX_BOX_ROWS   MAX_VARS
+#define MAX_CONSTRAINTS (MAX_DYN_ROWS + MAX_TRACK_ROWS + MAX_BOX_ROWS)
 
-/* Upper bounds on nonzeros */
-#define MAX_P_NNZ 512
-#define MAX_A_NNZ 3200
+/* Upper bounds on nonzeros for the fixed sparsity patterns below. */
+#define MAX_Q_P_NNZ 10
+#define MAX_R_P_NNZ ((NU * (NU + 1)) / 2)
+#define MAX_P_NNZ (((MAX_N + 1) * MAX_Q_P_NNZ) + (MAX_N * MAX_R_P_NNZ))
+#define MAX_A_NNZ (((MAX_N + 1) * NX * (NX + 3)) + (MAX_N * NU * (NX + 1)))
 
 /* ============================================================
  * Static workspace (avoids malloc in real-time path)
@@ -64,6 +71,18 @@ static c_float  s_u[MAX_CONSTRAINTS];
 /* Warm-start: previous solution */
 static c_float s_prev_x[MAX_VARS];
 static int s_has_prev_solution = 0;
+
+static int osqp_env_int(const char *name, int default_value)
+{
+    const char *value = getenv(name);
+    return (value && value[0] != '\0') ? atoi(value) : default_value;
+}
+
+static c_float osqp_env_float(const char *name, c_float default_value)
+{
+    const char *value = getenv(name);
+    return (value && value[0] != '\0') ? (c_float)atof(value) : default_value;
+}
 
 /* ============================================================
  * Index helpers
@@ -105,6 +124,28 @@ static inline c_int row_box(int N, c_int j)
     return (c_int)(N * NX + (N + 1) + j);
 }
 
+static inline int append_P_entry(c_int *nnz, c_int row, c_int col, c_float value)
+{
+    if (row > col || *nnz >= (c_int)MAX_P_NNZ)
+        return 0;
+
+    s_P_i[*nnz] = row;
+    s_P_x[*nnz] = value;
+    (*nnz)++;
+    return 1;
+}
+
+static inline int append_A_entry(c_int *nnz, c_int row, c_float value)
+{
+    if (*nnz >= (c_int)MAX_A_NNZ)
+        return 0;
+
+    s_A_i[*nnz] = row;
+    s_A_x[*nnz] = value;
+    (*nnz)++;
+    return 1;
+}
+
 /* ============================================================
  * Build P matrix (upper triangular CSC)
  *
@@ -122,8 +163,8 @@ static inline c_int row_box(int N, c_int j)
  * Plus full diagonal for safety: (6,6)
  *   → 10 entries per Q block
  *
- * Upper triangle R entries per stage (always 3 entries):
- *   (0,0) (1,1) (2,2)
+ * Upper triangle R entries per stage:
+ *   (0,0) (0,1) (1,1) (0,2) (1,2) (2,2)
  * ============================================================ */
 
 /* Q upper triangle entry positions (row, col) — entries we always emit.
@@ -175,9 +216,8 @@ static c_int build_P(const MPCCQPProblem_t *prob, c_int n)
                 int ec = Q_UTRI_ENTRIES[e][1];
                 if (ec == ix && er <= ix)
                 {
-                    s_P_i[nnz] = idx_x(k, er);
-                    s_P_x[nnz] = (c_float)Q[er][ix];
-                    nnz++;
+                    if (!append_P_entry(&nnz, idx_x(k, er), col, (c_float)Q[er][ix]))
+                        return -1;
                 }
             }
         }
@@ -190,9 +230,8 @@ static c_int build_P(const MPCCQPProblem_t *prob, c_int n)
             /* Always emit diagonal R entries for this column */
             for (int i = 0; i <= iu; i++)
             {
-                s_P_i[nnz] = idx_u(k, i);
-                s_P_x[nnz] = (c_float)R[i][iu];
-                nnz++;
+                if (!append_P_entry(&nnz, idx_u(k, i), col, (c_float)R[i][iu]))
+                    return -1;
             }
         }
     }
@@ -212,7 +251,6 @@ static c_int build_P(const MPCCQPProblem_t *prob, c_int n)
 static c_int build_A_and_bounds(const MPCCQPProblem_t *prob, c_int n)
 {
     const int N = (int)prob->N;
-    const c_int m = (c_int)(N * NX + (N + 1) + n);
     c_int nnz = 0;
 
     /* ---- Initialize bounds ---- */
@@ -328,9 +366,8 @@ static c_int build_A_and_bounds(const MPCCQPProblem_t *prob, c_int n)
             /* 1. Stage k-1 dynamics: x_k appears as -I (single row) */
             if (k > 0)
             {
-                s_A_i[nnz] = row_dyn(k - 1, ix);
-                s_A_x[nnz] = -1.0;
-                nnz++;
+                if (!append_A_entry(&nnz, row_dyn(k - 1, ix), -1.0))
+                    return -1;
             }
 
             /* 2. Stage k dynamics: x_k appears as A_k (NX rows) */
@@ -340,9 +377,8 @@ static c_int build_A_and_bounds(const MPCCQPProblem_t *prob, c_int n)
                 {
                     float val = prob->dynamics[k].A[r][ix];
                     /* Include all entries (even zero) for fixed sparsity pattern */
-                    s_A_i[nnz] = row_dyn(k, r);
-                    s_A_x[nnz] = (c_float)val;
-                    nnz++;
+                    if (!append_A_entry(&nnz, row_dyn(k, r), (c_float)val))
+                        return -1;
                 }
             }
 
@@ -354,15 +390,13 @@ static c_int build_A_and_bounds(const MPCCQPProblem_t *prob, c_int n)
                     ? (c_float)sinf(phi)
                     : (c_float)(-cosf(phi));
 
-                s_A_i[nnz] = row_track(N, k);
-                s_A_x[nnz] = coeff;
-                nnz++;
+                if (!append_A_entry(&nnz, row_track(N, k), coeff))
+                    return -1;
             }
 
             /* 4. Box constraint (identity) */
-            s_A_i[nnz] = row_box(N, col);
-            s_A_x[nnz] = 1.0;
-            nnz++;
+            if (!append_A_entry(&nnz, row_box(N, col), 1.0))
+                return -1;
         }
         else if (k < N)
         {
@@ -373,15 +407,13 @@ static c_int build_A_and_bounds(const MPCCQPProblem_t *prob, c_int n)
             for (int r = 0; r < NX; r++)
             {
                 float val = prob->dynamics[k].B[r][iu];
-                s_A_i[nnz] = row_dyn(k, r);
-                s_A_x[nnz] = (c_float)val;
-                nnz++;
+                if (!append_A_entry(&nnz, row_dyn(k, r), (c_float)val))
+                    return -1;
             }
 
             /* 2. Box constraint (identity) */
-            s_A_i[nnz] = row_box(N, col);
-            s_A_x[nnz] = 1.0;
-            nnz++;
+            if (!append_A_entry(&nnz, row_box(N, col), 1.0))
+                return -1;
         }
     }
 
@@ -453,6 +485,7 @@ MPCCStatus_t osqp_solver_solve(
         if (result) result->status = MPCC_STATUS_ERROR;
         return MPCC_STATUS_ERROR;
     }
+    memset(result, 0, sizeof(*result));
 
     const int N = (int)problem->N;
     if (N == 0 || N > MAX_N)
@@ -466,12 +499,31 @@ MPCCStatus_t osqp_solver_solve(
 
     /* ---- Build QP data ---- */
     c_int P_nnz = build_P(problem, n);
+    if (P_nnz < 0)
+    {
+        fprintf(stderr, "[OSQP] P matrix assembly exceeded bounds or emitted a lower-triangular entry\n");
+        result->status = MPCC_STATUS_ERROR;
+        return MPCC_STATUS_ERROR;
+    }
     build_q(problem, n);
     c_int A_nnz = build_A_and_bounds(problem, n);
+    if (A_nnz < 0)
+    {
+        fprintf(stderr, "[OSQP] A matrix assembly exceeded bounds\n");
+        result->status = MPCC_STATUS_ERROR;
+        return MPCC_STATUS_ERROR;
+    }
 
     /* ---- Create CSC wrappers ---- */
     csc *P = csc_matrix(n, n, P_nnz, s_P_x, s_P_i, s_P_p);
     csc *A = csc_matrix(m, n, A_nnz, s_A_x, s_A_i, s_A_p);
+    if (!P || !A)
+    {
+        if (P) c_free(P);
+        if (A) c_free(A);
+        result->status = MPCC_STATUS_ERROR;
+        return MPCC_STATUS_ERROR;
+    }
 
     OSQPData data;
     data.n = n;
@@ -485,19 +537,30 @@ MPCCStatus_t osqp_solver_solve(
     /* ---- OSQP settings ---- */
     OSQPSettings settings;
     osqp_set_default_settings(&settings);
-    settings.max_iter       = 4000;
-    settings.eps_abs        = 1e-3;
-    settings.eps_rel        = 1e-3;
-    settings.verbose        = 0;
-    settings.warm_start     = 1;
-    settings.adaptive_rho   = 1;
-    settings.polish         = 1;
-    settings.scaling        = 10;
-    settings.alpha          = 1.6;
-    settings.rho            = 0.1;
-    settings.sigma          = 1e-6;
-    settings.eps_prim_inf   = 1e-15;
-    settings.eps_dual_inf   = 1e-15;
+    settings.max_iter       = osqp_env_int("OSQP_MAX_ITER", 4000);
+    settings.eps_abs        = osqp_env_float("OSQP_EPS_ABS", 1e-3);
+    settings.eps_rel        = osqp_env_float("OSQP_EPS_REL", 1e-3);
+    settings.verbose        = osqp_env_int("OSQP_VERBOSE", 0);
+    settings.warm_start     = osqp_env_int("OSQP_WARM_START", 1);
+    settings.adaptive_rho   = osqp_env_int("OSQP_ADAPTIVE_RHO", 1);
+    settings.adaptive_rho_interval =
+        osqp_env_int("OSQP_ADAPTIVE_RHO_INTERVAL", settings.adaptive_rho_interval);
+    settings.adaptive_rho_tolerance =
+        osqp_env_float("OSQP_ADAPTIVE_RHO_TOLERANCE", settings.adaptive_rho_tolerance);
+    settings.polish         = osqp_env_int("OSQP_POLISH", 1);
+    settings.polish_refine_iter =
+        osqp_env_int("OSQP_POLISH_REFINE_ITER", settings.polish_refine_iter);
+    settings.scaling        = osqp_env_int("OSQP_SCALING", 10);
+    settings.alpha          = osqp_env_float("OSQP_ALPHA", 1.6);
+    settings.rho            = osqp_env_float("OSQP_RHO", 0.1);
+    settings.sigma          = osqp_env_float("OSQP_SIGMA", 1e-6);
+    settings.delta          = osqp_env_float("OSQP_DELTA", settings.delta);
+    settings.scaled_termination =
+        osqp_env_int("OSQP_SCALED_TERMINATION", settings.scaled_termination);
+    settings.check_termination =
+        osqp_env_int("OSQP_CHECK_TERMINATION", settings.check_termination);
+    settings.eps_prim_inf   = osqp_env_float("OSQP_EPS_PRIM_INF", 1e-15);
+    settings.eps_dual_inf   = osqp_env_float("OSQP_EPS_DUAL_INF", 1e-15);
 
     /* ---- Setup ---- */
     OSQPWorkspace *work = NULL;
@@ -551,7 +614,7 @@ MPCCStatus_t osqp_solver_solve(
     result->dual_residual   = (float)work->info->dua_res;
     result->rho_final       = (float)work->settings->rho;
     result->rho_u_final     = (float)work->settings->rho;
-    result->adaptive_rho_updates = 0;
+    result->adaptive_rho_updates = (uint16_t)work->info->rho_updates;
     result->numeric_clip_count   = 0;
 
     /* Copy solution into ADMMResult_t arrays */

@@ -1,11 +1,11 @@
-# MPCC Configuration Parameters — Liniger-style Path Generation
-# Global Frame Liniger MPCC (7-state) with centerline reference
+# MPCC Configuration Parameters
+# Global Frame MPCC (7-state) with verified centerline reference
 #
 # State [7]: s, vx, vy, omega, X, Y, psi
 # Control [3]: delta, a_x, v_theta
 #
-# Mode: Centerline reference with low contouring / high progress
-#        MPCC generates its own racing line within track bounds
+# Mode: Verified centerline reference with progress-prioritized tuning
+#        MPCC can deviate inside the corridor while keeping sane tracking
 #
 # Usage: ros2 launch mpcc_f1_10th mpcc_launch.py
 # Override: ros2 launch mpcc_f1_10th mpcc_launch.py weight_contouring:=50.0
@@ -13,40 +13,37 @@
 mpcc_node:
   ros__parameters:
 
-    # --- Prediction Horizon (Apr 22 post-fix sweep best configuration) ---
+    # --- Prediction Horizon (Apr 28 latest tuning CSV promoted baseline) ---
     horizon_steps: 20
     dt: 0.03              # [seconds] time step between prediction stages
 
     # --- Contouring Weights ---
     # weight_contouring: penalizes perpendicular distance from centerline
-    #   LOW value → MPCC can deviate from centerline to find faster path
     # weight_lag: penalizes tangential distance (keeps s synced to position)
     # weight_wall_clearance: penalizes predicted states that enter a near-wall
-    #   band inside the hard corridor. This is the controller-side wall-avoidance
-    #   term for racelines that hug one wall too closely.
+    #   band inside the hard corridor
     # wall_clearance_margin: extra desired distance from each wall [m] for the
-    #   soft inner corridor used by weight_wall_clearance.
+    #   soft inner corridor used by weight_wall_clearance
     # weight_progress: reward for forward progress (-q_s * v_theta)
-    #   HIGH value → MPCC aggressively maximizes speed along track
-    weight_contouring: 0.1      # contouring error penalty
-    weight_lag: 500.0             # lag error penalty
+    weight_contouring: 960.0      # contouring error penalty
+    weight_lag: 200.0             # lag error penalty
     weight_wall_clearance: 3200.0 # soft wall-clearance penalty
     wall_clearance_margin: 0.02   # [m] extra desired distance from each wall
-    weight_progress: 0.02          # progress reward
+    weight_progress: 15.6         # progress reward
 
     # --- State Regularization ---
-    weight_vx: 0.0        # longitudinal velocity tracking weight
+    weight_vx: 30.0       # longitudinal velocity tracking weight
     vx_ref: 4.0           # [m/s] reference velocity
     weight_vy: 0.5        # lateral velocity penalty
     weight_omega: 1.5     # yaw rate penalty
 
     # --- Control Effort ---
-    weight_delta: 0.03   # steering magnitude penalty
+    weight_delta: 100.0   # steering magnitude penalty
     weight_ax: 0.05225    # acceleration magnitude penalty
     weight_v_theta: 0.1   # progress rate penalty
 
     # --- Control Smoothness (rate penalties) ---
-    weight_delta_rate: 10.0       # steering-rate smoothing
+    weight_delta_rate: 5.0        # steering-rate smoothing
     weight_ax_rate: 0.488        # acceleration rate
     weight_v_theta_rate: 0.1105  # progress acceleration rate
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
  * test_sim_drive.c — Realistic closed-loop MPCC simulation on raceline
  *
- * Tests the MPCC controller (Global Frame, ADMM+Riccati) in closed-loop:
+ * Tests the MPCC controller (Global Frame, OSQP or ADMM/Riccati) in closed-loop:
  *   - Gym-matching nonlinear single-track vehicle model (RK4)
  *   - Raceline CSV loading with track bounds
  *   - Environment-variable overrides for all MPCC weights (for tuning scripts)
@@ -9,7 +9,7 @@
  *   - Machine-readable CSV output for automated tuning (MPCC_TUNING_CSV=1)
  *
  * Build (ADMM solver, from MPCC/):
- *   gcc -D_GNU_SOURCE -O3 -std=c99 -Wall -ffast-math \
+ *   gcc -O3 -std=c99 -Wall -ffast-math \
  *       -Wno-unused-variable -Wno-unused-but-set-variable \
  *       -Iinclude -I../MPC/include \
  *       test/test_sim_drive.c \
@@ -17,12 +17,11 @@
  *       -o test_sim_drive -lm
  *
  * Build (OSQP solver, from MPCC/):
- *   gcc -DUSE_OSQP -DMPCC_DEBUG_PRINT -D_GNU_SOURCE -O3 -std=c99 -Wall \
+ *   gcc -DUSE_OSQP -O3 -std=c99 -Wall \
  *       -ffast-math -Wno-unused-variable -Wno-unused-but-set-variable \
  *       -Iinclude -I/opt/ros/jazzy/include \
  *       test/test_sim_drive.c \
- *       src/mpcc.c src/mpcc_vehicle_model.c src/qp_solver_mpcc.c \
- *       src/qp_solver_osqp.c \
+ *       src/mpcc.c src/mpcc_vehicle_model.c src/qp_solver_osqp.c \
  *       -o test_sim_drive_osqp -L/opt/ros/jazzy/lib -losqp -lm \
  *       -Wl,-rpath,/opt/ros/jazzy/lib
  ******************************************************************************/
@@ -38,6 +37,12 @@
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
+#endif
+
+#ifdef USE_OSQP
+#define MPCC_SOLVER_NAME "OSQP"
+#else
+#define MPCC_SOLVER_NAME "ADMM+Riccati"
 #endif
 
 #include "mpcc_types.h"
@@ -110,6 +115,16 @@ static int load_raceline(void)
         return 0;
     }
     const char *paths[] = {
+        "../../f1tenth_planning/trajectories/my_track_centerline_smooth.csv",
+        "../../../f1tenth_planning/trajectories/my_track_centerline_smooth.csv",
+        "f1tenth_planning/trajectories/my_track_centerline_smooth.csv",
+        "../f1tenth_planning/trajectories/my_track_centerline_smooth.csv",
+        "../../../../f1tenth_planning/trajectories/my_track_centerline_smooth.csv",
+        "../../f1tenth_planning/trajectories/my_track_centerline_verified.csv",
+        "../../../f1tenth_planning/trajectories/my_track_centerline_verified.csv",
+        "f1tenth_planning/trajectories/my_track_centerline_verified.csv",
+        "../f1tenth_planning/trajectories/my_track_centerline_verified.csv",
+        "../../../../f1tenth_planning/trajectories/my_track_centerline_verified.csv",
         "../../f1tenth_planning/trajectories/my_track_centerline.csv",
         "../../../f1tenth_planning/trajectories/my_track_centerline.csv",
         "f1tenth_planning/trajectories/my_track_centerline.csv",
@@ -362,8 +377,8 @@ int main(void)
     if (ODOM_UPDATE_INTERVAL < 1) ODOM_UPDATE_INTERVAL = 1;
     if (POSE_UPDATE_INTERVAL < 1) POSE_UPDATE_INTERVAL = 1;
 
-    printf("=== MPCC Sim-Drive (Lifted ODE, ADMM+Riccati, %.0fs at dt=%.4fs) ===\n",
-           SIM_DURATION_S, SIM_DT);
+    printf("=== MPCC Sim-Drive (Lifted ODE, %s, %.0fs at dt=%.4fs) ===\n",
+           MPCC_SOLVER_NAME, SIM_DURATION_S, SIM_DT);
     printf("    MPCC rate: %.0fHz (every %d sim steps)\n",
         1.0 / CONTROL_DT, MPCC_CALL_INTERVAL);
         printf("    Sensor cadence: odom %.0fHz (every %d), pose %.0fHz (every %d)\n",
@@ -387,9 +402,10 @@ int main(void)
     cfg.weight_wall_clearance = env_double("Q_WALL_CLEARANCE", MPCC_DEFAULT_WEIGHT_WALL_CLEARANCE);
     cfg.wall_clearance_margin = env_double("WALL_CLEARANCE_MARGIN", MPCC_DEFAULT_WALL_CLEARANCE_MARGIN);
     cfg.weight_progress   = env_double("Q_PROGRESS", 15.6f);
+    cfg.track_safety_buffer = env_double("MPCC_TRACK_BUFFER", MPCC_DEFAULT_TRACK_SAFETY_BUFFER);
 
     /* State regularization */
-    cfg.weight_vx         = env_double("Q_VX", 10.0f);
+    cfg.weight_vx         = env_double("Q_VX", 30.0f);
     cfg.vx_ref            = env_double("VX_REF", 4.0f);
     cfg.use_raceline_vx_ref = (uint8_t)env_int("MPCC_USE_RACELINE_VX_REF", 0);
     cfg.use_raceline_vx_limit = (uint8_t)env_int("MPCC_USE_RACELINE_VX_LIMIT", 0);
@@ -398,7 +414,7 @@ int main(void)
     cfg.weight_omega      = env_double("Q_OMEGA", 1.5f);
 
     /* Control effort */
-    cfg.weight_delta      = env_double("R_DELTA", 200.0f);
+    cfg.weight_delta      = env_double("R_DELTA", 100.0f);
     cfg.weight_ax         = env_double("R_AX", 0.05225f);
     cfg.weight_v_theta    = env_double("R_VTHETA", 0.1f);
 
@@ -416,10 +432,18 @@ int main(void)
     cfg.weight_obstacle   = env_double("W_OBSTACLE", 1000.0f);
     cfg.obstacle_margin   = env_double("OBSTACLE_MARGIN", 0.1f);
 
-    /* ADMM solver — more iterations for stronger tire forces */
+    /* ADMM config is only used by the ADMM/Riccati build. OSQP settings are
+     * read directly by qp_solver_osqp.c from OSQP_* environment variables. */
     cfg.admm_rho            = env_double("ADMM_RHO", 5.0f);
     cfg.admm_max_iterations = env_int("ADMM_MAX_ITER", 300);
     cfg.admm_tolerance      = env_double("ADMM_TOL", 0.02f);
+    cfg.admm_rho_u          = env_double("ADMM_RHO_U", 0.0f);
+    cfg.admm_adaptive_rho   = (uint8_t)env_int("ADMM_ADAPTIVE_RHO", 1);
+    cfg.admm_alpha_relax    = env_double("ADMM_ALPHA_RELAX", 1.6f);
+    cfg.accept_max_iterations = (uint8_t)env_int("MPCC_ACCEPT_MAX_ITER", MPCC_DEFAULT_ACCEPT_MAX_ITERATIONS);
+    cfg.max_iter_primal_tolerance = env_double("MPCC_MAX_ITER_PRIMAL_TOL", MPCC_DEFAULT_MAX_ITER_PRIMAL_TOL);
+    cfg.max_iter_dual_tolerance = env_double("MPCC_MAX_ITER_DUAL_TOL", MPCC_DEFAULT_MAX_ITER_DUAL_TOL);
+    cfg.max_iter_track_violation_tolerance = env_double("MPCC_MAX_ITER_TRACK_TOL", MPCC_DEFAULT_MAX_ITER_TRACK_VIOLATION_TOL);
 
     /* Constraint bounds */
     cfg.delta_max = env_double("DELTA_MAX", F110_DEFAULT_MAXIMUM_STEERING_RADIANS);
@@ -427,7 +451,7 @@ int main(void)
     cfg.ax_min    = env_double("AX_MIN", -10.0f);
     cfg.vx_max    = env_double("VX_MAX", 20.0f);
     cfg.vx_min    = env_double("VX_MIN", 0.0f);
-    cfg.v_theta_max = env_double("V_THETA_MAX", 8.0f);
+    cfg.v_theta_max = env_double("V_THETA_MAX", 10.0f);
     cfg.v_theta_min = env_double("V_THETA_MIN", 0.0f);
 
     /* Tire parameters */
@@ -449,17 +473,22 @@ int main(void)
                cfg.horizon_steps, cfg.dt,
                cfg.weight_contouring, cfg.weight_lag,
                cfg.weight_progress);
-         printf("  Q_wall=%.1f wall_margin=%.3f\n",
-             cfg.weight_wall_clearance, cfg.wall_clearance_margin);
+         printf("  Q_wall=%.1f wall_margin=%.3f track_buffer=%.3f\n",
+             cfg.weight_wall_clearance, cfg.wall_clearance_margin,
+             cfg.track_safety_buffer);
         printf("  Q_vx=%.1f vx_ref=%.1f use_csv_vx_ref=%u use_csv_vx_limit=%u R_delta=%.2f R_ax=%.3f R_vt=%.2f\n",
                cfg.weight_vx, cfg.vx_ref,
                (unsigned)cfg.use_raceline_vx_ref,
                (unsigned)cfg.use_raceline_vx_limit,
                cfg.weight_delta, cfg.weight_ax,
                cfg.weight_v_theta);
-        printf("  ADMM: rho=%.2f max_iter=%d tol=%.4f\n",
+#ifdef USE_OSQP
+        printf("  Solver: OSQP (OSQP_* environment settings)\n");
+#else
+        printf("  Solver: ADMM rho=%.2f max_iter=%d tol=%.4f\n",
                cfg.admm_rho, cfg.admm_max_iterations,
                cfg.admm_tolerance);
+#endif
          printf("  control_dt=%.4f cross_call=%.4f\n",
              CONTROL_DT, cfg.cross_call_rate_scale);
     }
@@ -1021,7 +1050,8 @@ int main(void)
     double avg_vel_err = sum_vel_err / total_stepped;
     double avg_speed = sum_vx / total_stepped;
 
-    printf("\n  === Results (%.0fs, MPCC Lifted ODE, ADMM+Riccati) ===\n", SIM_DURATION_S);
+    printf("\n  === Results (%.0fs, MPCC Lifted ODE, %s) ===\n",
+           SIM_DURATION_S, MPCC_SOLVER_NAME);
     printf("  Solver success:     %d / %d (%.1f%%)\n", solver_ok, solver_calls,
            100.0*solver_ok/(solver_calls > 0 ? solver_calls : 1));
     printf("  Avg speed:          %.2f m/s\n", avg_speed);

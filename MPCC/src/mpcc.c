@@ -16,15 +16,11 @@
  *      c. Build stage cost (contouring/lag errors, progress reward)
  *      d. Set per-stage track bounds from path
  *      e. Linearize obstacle constraints (if active)
- *   3. Solve multistage QP via ADMM + Riccati
+ *   3. Solve multistage QP with the selected backend
  *   4. Extract first control input
  *
  * Dynamics:
- *   ds/dt     = v_theta                         (virtual 🟡 Bug 4 — Stale Dimension Comments (qp_solver_mpcc.c, file header and mpcc_types.h comment)
-The file header of qp_solver_mpcc.c says:
-NX = MPCC_NX = 9   (Lifted ODE: Frenet + Cartesian)
-NU = MPCC_NU = 2   (controls: delta, a_x, v_theta)
-But mpcc_types.h defines MPCC_NX = 7 and MPCC_NU = 3. Similarly, the MPCCLinearSystem_t comment says "10x10" and "10x2". These are from a previous refactor and are dead comments, not code bugs — but they will mislead anyone debugging the solver. control)
+ *   ds/dt     = v_theta                         (virtual control)
  *   dvx/dt    = (-F_yf*sin(d) + F_x) / m + vy*omega
  *   dvy/dt    = (F_yf*cos(d) + F_yr) / m - vx*omega
  *   domega/dt = (l_f*F_yf*cos(d) - l_r*F_yr) / I_z
@@ -96,6 +92,7 @@ static MPCCConfiguration_t get_default_config(void)
     cfg.weight_lag = MPCC_DEFAULT_WEIGHT_LAG;
     cfg.weight_wall_clearance = MPCC_DEFAULT_WEIGHT_WALL_CLEARANCE;
     cfg.wall_clearance_margin = MPCC_DEFAULT_WALL_CLEARANCE_MARGIN;
+    cfg.track_safety_buffer = MPCC_DEFAULT_TRACK_SAFETY_BUFFER;
     cfg.weight_progress = MPCC_DEFAULT_WEIGHT_PROGRESS;
 
     /* State regularization */
@@ -130,6 +127,13 @@ static MPCCConfiguration_t get_default_config(void)
     cfg.admm_rho = MPCC_DEFAULT_ADMM_RHO;
     cfg.admm_max_iterations = MPCC_DEFAULT_ADMM_MAX_ITER;
     cfg.admm_tolerance = MPCC_DEFAULT_ADMM_TOLERANCE;
+    cfg.admm_rho_u = MPCC_DEFAULT_ADMM_RHO_U;
+    cfg.admm_adaptive_rho = MPCC_DEFAULT_ADMM_ADAPTIVE_RHO;
+    cfg.admm_alpha_relax = MPCC_DEFAULT_ADMM_ALPHA_RELAX;
+    cfg.accept_max_iterations = MPCC_DEFAULT_ACCEPT_MAX_ITERATIONS;
+    cfg.max_iter_primal_tolerance = MPCC_DEFAULT_MAX_ITER_PRIMAL_TOL;
+    cfg.max_iter_dual_tolerance = MPCC_DEFAULT_MAX_ITER_DUAL_TOL;
+    cfg.max_iter_track_violation_tolerance = MPCC_DEFAULT_MAX_ITER_TRACK_VIOLATION_TOL;
 
     /* Constraint bounds */
     cfg.delta_max = F110_DEFAULT_MAXIMUM_STEERING_RADIANS;
@@ -164,10 +168,26 @@ static void sanitize_config(MPCCConfiguration_t *cfg)
         cfg->weight_wall_clearance = 0.0f;
     if (cfg->wall_clearance_margin < 0.0f)
         cfg->wall_clearance_margin = 0.0f;
+    if (cfg->track_safety_buffer < 0.0f)
+        cfg->track_safety_buffer = 0.0f;
     cfg->use_raceline_vx_ref = cfg->use_raceline_vx_ref ? 1 : 0;
     cfg->use_raceline_vx_limit = cfg->use_raceline_vx_limit ? 1 : 0;
     if (cfg->raceline_vx_limit_scale < 0.0f)
         cfg->raceline_vx_limit_scale = 0.0f;
+    if (cfg->admm_rho_u < 0.0f)
+        cfg->admm_rho_u = 0.0f;
+    cfg->admm_adaptive_rho = cfg->admm_adaptive_rho ? 1 : 0;
+    if (cfg->admm_alpha_relax < 1.0f)
+        cfg->admm_alpha_relax = 1.0f;
+    if (cfg->admm_alpha_relax > 1.95f)
+        cfg->admm_alpha_relax = 1.95f;
+    cfg->accept_max_iterations = cfg->accept_max_iterations ? 1 : 0;
+    if (cfg->max_iter_primal_tolerance <= 0.0f)
+        cfg->max_iter_primal_tolerance = MPCC_DEFAULT_MAX_ITER_PRIMAL_TOL;
+    if (cfg->max_iter_dual_tolerance <= 0.0f)
+        cfg->max_iter_dual_tolerance = MPCC_DEFAULT_MAX_ITER_DUAL_TOL;
+    if (cfg->max_iter_track_violation_tolerance < 0.0f)
+        cfg->max_iter_track_violation_tolerance = 0.0f;
 }
 
 /*===========================================================================
@@ -178,8 +198,13 @@ void mpcc_initialize(void)
 {
     config = get_default_config();
 
+#ifndef USE_OSQP
     admm_solver_default_config(&admm_config);
     admm_solver_initialize(&admm_workspace);
+#else
+    memset(&admm_config, 0, sizeof(admm_config));
+    memset(&admm_workspace, 0, sizeof(admm_workspace));
+#endif
 
     memset(&prev_control, 0, sizeof(prev_control));
     memset(&ref_path, 0, sizeof(ref_path));
@@ -193,14 +218,22 @@ void mpcc_initialize_with_config(const MPCCConfiguration_t *cfg)
     config = cfg ? *cfg : get_default_config();
     sanitize_config(&config);
 
+#ifndef USE_OSQP
     admm_solver_default_config(&admm_config);
     admm_config.rho = config.admm_rho;
     admm_config.max_iterations = config.admm_max_iterations;
     admm_config.eps_primal = config.admm_tolerance;
     admm_config.eps_dual = config.admm_tolerance;
+    admm_config.rho_u = config.admm_rho_u;
+    admm_config.adaptive_rho = config.admm_adaptive_rho;
+    admm_config.alpha_relax = config.admm_alpha_relax;
     admm_config.warm_start = 0;
 
     admm_solver_initialize(&admm_workspace);
+#else
+    memset(&admm_config, 0, sizeof(admm_config));
+    memset(&admm_workspace, 0, sizeof(admm_workspace));
+#endif
 
     memset(&prev_control, 0, sizeof(prev_control));
     memset(&obstacle_set, 0, sizeof(obstacle_set));
@@ -449,7 +482,7 @@ static float mpcc_limit_s_jump(
 
     s_candidate = s_reference + delta;
     if (path->is_closed && path->total_length > 0.0f) {
-        while (s_candidate > path->total_length) s_candidate -= path->total_length;
+        while (s_candidate >= path->total_length) s_candidate -= path->total_length;
         while (s_candidate < 0.0f) s_candidate += path->total_length;
     }
 
@@ -618,7 +651,7 @@ MPCCState_t mpcc_state_from_vehicle_state(
 
         st.s = mpcc_limit_s_jump(&ref_path, s_anchor, st.s, st.vx);
         if (ref_path.is_closed && ref_path.total_length > 0.0f) {
-            while (st.s > ref_path.total_length) st.s -= ref_path.total_length;
+            while (st.s >= ref_path.total_length) st.s -= ref_path.total_length;
             while (st.s < 0.0f) st.s += ref_path.total_length;
         } else {
             if (st.s < 0.0f) st.s = 0.0f;
@@ -987,7 +1020,7 @@ static void build_qp_problem(
     MPCCQPProblem_t *qp)
 {
     uint16_t N = config.horizon_steps;
-    const float track_buffer = 0.0f;
+    const float track_buffer = config.track_safety_buffer;
     if (N > MPCC_MAX_HORIZON) N = MPCC_MAX_HORIZON;
 
     memset(qp, 0, sizeof(*qp));
@@ -1419,6 +1452,43 @@ static void array_to_state(const float arr[MPCC_NX], MPCCState_t *st)
     st->psi = arr[6];
 }
 
+static float solution_max_track_violation(
+    const MPCCQPProblem_t *prob,
+    const ADMMResult_t *solver_result)
+{
+    if (!prob || !solver_result)
+        return FLT_MAX;
+
+    float max_violation = 0.0f;
+    uint16_t N = prob->N;
+    if (N > MPCC_MAX_HORIZON) N = MPCC_MAX_HORIZON;
+
+    for (uint16_t k = 0; k <= N; k++)
+    {
+        const float X = solver_result->x_opt[k][MPCC_IDX_X];
+        const float Y = solver_result->x_opt[k][MPCC_IDX_Y];
+        if (!isfinite((double)X) || !isfinite((double)Y))
+            return FLT_MAX;
+
+        const float phi = prob->path_phi_ref[k];
+        const float x_ref = prob->path_x_ref[k];
+        const float y_ref = prob->path_y_ref[k];
+        const float C = sinf(phi) * x_ref - cosf(phi) * y_ref;
+        const float e_c = sinf(phi) * X - cosf(phi) * Y - C;
+
+        float violation = 0.0f;
+        if (e_c > prob->track_right[k])
+            violation = e_c - prob->track_right[k];
+        else if (e_c < -prob->track_left[k])
+            violation = (-prob->track_left[k]) - e_c;
+
+        if (violation > max_violation)
+            max_violation = violation;
+    }
+
+    return max_violation;
+}
+
 /*===========================================================================
  * Main Control Computation
  *===========================================================================*/
@@ -1541,8 +1611,9 @@ MPCCStatus_t mpcc_compute_control(
     }
 #endif
 
-    /* Solve via ADMM + Riccati */
+    /* Solve QP */
     ADMMResult_t admm_result;
+    memset(&admm_result, 0, sizeof(admm_result));
 #ifdef USE_OSQP
     MPCCStatus_t status = osqp_solver_solve(&qp_problem, &admm_result);
 #else
@@ -1551,6 +1622,7 @@ MPCCStatus_t mpcc_compute_control(
 #endif
 
     /* Extract first control input */
+    MPCCStatus_t return_status = status;
     result->status = status;
     result->admm_iterations = admm_result.iterations;
     result->primal_residual = admm_result.primal_residual;
@@ -1566,15 +1638,37 @@ MPCCStatus_t mpcc_compute_control(
                        isfinite(admm_result.u_opt[0][MPCC_IDX_VTHETA]);
         const int finite_residuals = isfinite((double)(admm_result.primal_residual)) &&
                        isfinite((double)(admm_result.dual_residual));
+        float max_track_violation = 0.0f;
+        if (status == MPCC_STATUS_MAX_ITERATIONS && finite_residuals)
+            max_track_violation = solution_max_track_violation(&qp_problem, &admm_result);
+
+        const int max_iter_acceptable =
+            (status == MPCC_STATUS_MAX_ITERATIONS) &&
+            config.accept_max_iterations &&
+            finite_residuals &&
+            (admm_result.primal_residual <= config.max_iter_primal_tolerance) &&
+            (admm_result.dual_residual <= config.max_iter_dual_tolerance) &&
+            (max_track_violation <= config.max_iter_track_violation_tolerance);
+
         const int usable_status = (status == MPCC_STATUS_SUCCESS) ||
-                       (status == MPCC_STATUS_MAX_ITERATIONS);
+                       max_iter_acceptable;
+        const int rejected_max_iter =
+            (status == MPCC_STATUS_MAX_ITERATIONS) && !max_iter_acceptable;
         const int hard_failure = (status == MPCC_STATUS_INFEASIBLE) ||
                        (status == MPCC_STATUS_ERROR) ||
+                       rejected_max_iter ||
                        !finite_residuals;
+
+        if (rejected_max_iter)
+        {
+            return_status = MPCC_STATUS_ERROR;
+            result->status = return_status;
+        }
 
         if (usable_status && finite_control && finite_residuals) {
         /* Use the solver iterate for control.
-         * MAX_ITERATIONS is still a partially converged, usually usable solution. */
+         * MAX_ITERATIONS is accepted only when explicitly enabled and residuals
+         * plus predicted hard-corridor violation are small. */
         result->optimal_control.delta = admm_result.u_opt[0][MPCC_IDX_DELTA];
         result->optimal_control.a_x = admm_result.u_opt[0][MPCC_IDX_AX];
         result->optimal_control.v_theta = admm_result.u_opt[0][MPCC_IDX_VTHETA];
@@ -1591,6 +1685,7 @@ MPCCStatus_t mpcc_compute_control(
         }
 
         uint16_t N = config.horizon_steps;
+        if (N > MPCC_MAX_HORIZON) N = MPCC_MAX_HORIZON;
         for (uint16_t k = 0; k <= N; k++)
             array_to_state(admm_result.x_opt[k], &result->predicted_states[k]);
         for (uint16_t k = 0; k < N; k++)
@@ -1614,8 +1709,9 @@ MPCCStatus_t mpcc_compute_control(
         /* Unconverged / error: fall back to previous good control. */
         result->optimal_control = fallback_control;
 
-        /* Copy ADMM predicted trajectory for diagnostics */
+        /* Copy solver predicted trajectory for diagnostics */
         uint16_t N = config.horizon_steps;
+        if (N > MPCC_MAX_HORIZON) N = MPCC_MAX_HORIZON;
         for (uint16_t k = 0; k <= N; k++)
             array_to_state(admm_result.x_opt[k], &result->predicted_states[k]);
         for (uint16_t k = 0; k < N; k++)
@@ -1642,7 +1738,9 @@ MPCCStatus_t mpcc_compute_control(
          * can poison subsequent warm-starts. Reset workspace only on hard failure. */
         if (hard_failure)
         {
+#ifndef USE_OSQP
             admm_solver_initialize(&admm_workspace);
+#endif
             warm_start_available = 0;
         }
         else
@@ -1655,7 +1753,7 @@ MPCCStatus_t mpcc_compute_control(
         printf("[MPCC] status=%d  iter=%u  prim=%.4f  dual=%.4f  "
             "rho=%.3f  rho_u=%.3f  rho_upd=%u  clip=%u  "
             "delta=%.3f  a_x=%.3f  v_theta=%.3f  s=%.2f  vx=%.3f\n",
-           status, admm_result.iterations,
+           return_status, admm_result.iterations,
            (double)(admm_result.primal_residual),
            (double)(admm_result.dual_residual),
             (double)(admm_result.rho_final),
@@ -1701,7 +1799,7 @@ MPCCStatus_t mpcc_compute_control(
     }
 #endif
 
-    return status;
+    return return_status;
 }
 
 /*===========================================================================
@@ -1720,10 +1818,13 @@ void mpcc_set_configuration(const MPCCConfiguration_t *cfg)
 
     config = *cfg;
     sanitize_config(&config);
-    admm_config.rho = cfg->admm_rho;
-    admm_config.max_iterations = cfg->admm_max_iterations;
-    admm_config.eps_primal = cfg->admm_tolerance;
-    admm_config.eps_dual = cfg->admm_tolerance;
+    admm_config.rho = config.admm_rho;
+    admm_config.max_iterations = config.admm_max_iterations;
+    admm_config.eps_primal = config.admm_tolerance;
+    admm_config.eps_dual = config.admm_tolerance;
+    admm_config.rho_u = config.admm_rho_u;
+    admm_config.adaptive_rho = config.admm_adaptive_rho;
+    admm_config.alpha_relax = config.admm_alpha_relax;
 }
 
 void mpcc_reset(void)
@@ -1731,5 +1832,9 @@ void mpcc_reset(void)
     warm_start_available = 0;
     last_closest_idx = 0; /* Reset path tracking */
     memset(&prev_control, 0, sizeof(prev_control));
+#ifndef USE_OSQP
     admm_solver_initialize(&admm_workspace);
+#else
+    memset(&admm_workspace, 0, sizeof(admm_workspace));
+#endif
 }
