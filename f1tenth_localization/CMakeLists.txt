@@ -211,6 +211,7 @@ endif()
 
 # Install Python scripts as executables (skip optional legacy node if absent)
 set(LOCALIZATION_PYTHON_SCRIPTS
+  optitrackBenchmark/optitrack_map_calibrator.py
 )
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/gpu_amcl/scripts/gpu_amcl_node.py")
@@ -239,6 +240,17 @@ install(DIRECTORY
 install(DIRECTORY
   config
   DESTINATION share/${PROJECT_NAME}
+)
+
+# Install OptiTrack calibration/benchmark helper files.
+install(DIRECTORY
+  optitrackBenchmark
+  DESTINATION share/${PROJECT_NAME}
+)
+
+install(PROGRAMS
+  optitrackBenchmark/record_optitrack_benchmark_bag.sh
+  DESTINATION share/${PROJECT_NAME}/optitrackBenchmark
 )
 
 ament_package()

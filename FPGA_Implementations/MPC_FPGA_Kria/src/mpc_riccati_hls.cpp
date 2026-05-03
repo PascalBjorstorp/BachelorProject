@@ -566,7 +566,7 @@ extern "C" void mpc_compute_hls(
     solver_cfg.rho            = ADMM_RHO_DEFAULT;
     solver_cfg.rho_u          = ADMM_RHO_U_DEFAULT;
     solver_cfg.tolerance      = ADMM_TOL_DEFAULT;
-    solver_cfg.max_iterations = MPC_MAX_ADMM_ITER;
+    solver_cfg.max_iterations = ADMM_MAX_ITER_DEFAULT;
     solver_cfg.adaptive_rho   = MPC_HLS_ADAPTIVE_RHO;
 
     MpcSolution_t sol;

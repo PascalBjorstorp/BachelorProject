@@ -370,7 +370,9 @@ reftrack_interp, normvec_normalized_interp, a_interp, coeffs_x_interp, coeffs_y_
 
 # if reoptimization of mintime solution is used afterwards we have to consider some additional deviation in the first
 # optimization
-if opt_type == 'mintime' and mintime_opts["reopt_mintime_solution"]:
+if (opt_type == 'mintime'
+        and mintime_opts["reopt_mintime_solution"]
+        and not pars["optim_opts"].get("preserve_width_opt", False)):
     w_veh_tmp = pars["optim_opts"]["width_opt"] + (pars["optim_opts"]["w_tr_reopt"] - pars["optim_opts"]["w_veh_reopt"])
     w_veh_tmp += pars["optim_opts"]["w_add_spl_regr"]
     pars_tmp = copy.deepcopy(pars)
@@ -456,20 +458,46 @@ if opt_type == 'mintime' and mintime_opts["reopt_mintime_solution"]:
         # create new reference track around the raceline
         racetrack_mintime = np.column_stack((raceline_mintime, w_tr_right_mintime, w_tr_left_mintime))
 
-        # use spline approximation a second time
-        reftrack_interp, normvec_normalized_interp, a_interp = \
-            helper_funcs_glob.src.prep_track.prep_track(reftrack_imp=racetrack_mintime,
-                                                        reg_smooth_opts=pars["reg_smooth_opts"],
-                                                        stepsize_opts=pars["stepsize_opts"],
-                                                        debug=False,
-                                                        min_width=imp_opts["min_track_width"])[:3]
+        w_veh_reopt = pars["optim_opts"]["w_veh_reopt"]
+        wall_clearance = float(pars["optim_opts"].get("wall_clearance", 0.0) or 0.0)
+        wall_clearance_guard = float(pars["optim_opts"].get("wall_clearance_guard", 0.0) or 0.0)
+        direct_reopt_tube = bool(
+            pars["optim_opts"].get("direct_reopt_tube", False)
+        )
+        allow_uncapped_reopt_tube = bool(
+            pars["optim_opts"].get("allow_uncapped_reopt_tube", False)
+        )
+
+        if direct_reopt_tube:
+            # Preserve the mintime raceline as the reoptimization reference.
+            # A second spline approximation can move the already-clearance-
+            # checked reference enough that a small repair tube gets measured
+            # against the wrong wall distances.
+            reftrack_interp = racetrack_mintime
+            _, _, a_interp, normvec_normalized_interp = (
+                tph.calc_splines.calc_splines(
+                    path=np.vstack((raceline_mintime, raceline_mintime[0]))
+                )
+            )
+        else:
+            # use spline approximation a second time
+            reftrack_interp, normvec_normalized_interp, a_interp = \
+                helper_funcs_glob.src.prep_track.prep_track(reftrack_imp=racetrack_mintime,
+                                                            reg_smooth_opts=pars["reg_smooth_opts"],
+                                                            stepsize_opts=pars["stepsize_opts"],
+                                                            debug=False,
+                                                            min_width=imp_opts["min_track_width"])[:3]
 
         # Reoptimization uses an artificial tube around the mintime raceline.
         # The original TUM defaults leave only ~5 cm lateral freedom.  On
         # tight F1TENTH maps that can make the min-curvature QP infeasible, so
         # retry with slightly wider, still reserved tubes and relaxed curvature
         # bounds before giving up.
-        w_veh_reopt = pars["optim_opts"]["w_veh_reopt"]
+        # The guard is an internal buffer for the first mintime NLP.  The
+        # follow-up min-curvature reoptimization enforces the user-requested
+        # physical clearance exactly so it can still repair curvature when the
+        # first solution is close to, but not below, the true wall limit.
+        wall_clearance_eff = wall_clearance
         base_free_dev = max(
             0.0,
             0.5 * (pars["optim_opts"]["w_tr_reopt"] - w_veh_reopt),
@@ -504,9 +532,38 @@ if opt_type == 'mintime' and mintime_opts["reopt_mintime_solution"]:
         for kappa_bound_reopt in kappa_candidates:
             for free_dev in free_dev_candidates:
                 side_width = w_veh_reopt / 2.0 + free_dev
-                w_tr_tmp = side_width * np.ones(reftrack_interp.shape[0])
+                w_tr_right_tmp = np.minimum(
+                    side_width,
+                    reftrack_interp[:, 2] - wall_clearance_eff,
+                )
+                w_tr_left_tmp = np.minimum(
+                    side_width,
+                    reftrack_interp[:, 3] - wall_clearance_eff,
+                )
+                if (np.any(w_tr_right_tmp < w_veh_reopt / 2.0)
+                        or np.any(w_tr_left_tmp < w_veh_reopt / 2.0)):
+                    if allow_uncapped_reopt_tube:
+                        reopt_errors.append(
+                            f"free_dev={free_dev:.3f}, "
+                            "using uncapped reopt tube; final wall ray-cast "
+                            "verification required"
+                        )
+                        w_tr_right_tmp = np.full(
+                            reftrack_interp.shape[0],
+                            side_width,
+                        )
+                        w_tr_left_tmp = np.full(
+                            reftrack_interp.shape[0],
+                            side_width,
+                        )
+                    else:
+                        reopt_errors.append(
+                            f"free_dev={free_dev:.3f}, "
+                            "insufficient wall clearance for reopt tube"
+                        )
+                        continue
                 racetrack_mintime_reopt = np.column_stack(
-                    (reftrack_interp[:, :2], w_tr_tmp, w_tr_tmp)
+                    (reftrack_interp[:, :2], w_tr_right_tmp, w_tr_left_tmp)
                 )
 
                 try:

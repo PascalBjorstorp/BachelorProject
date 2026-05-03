@@ -66,7 +66,9 @@ The new stack uses three key pipelines launched across two terminals:
 
 ### Terminal 1 — Vesc, Lidar and localization
 ```bash
-ros2 launch f1tenth_stack System_launch.py
+ros2 launch f1tenth_stack System_launch.py 
+or
+ros2 launch f1tenth_stack System_launch.py lateral_planner_avoidance_enabled:=false
 ```
 
 ### Terminal 2 — Controller (on Jetson)
