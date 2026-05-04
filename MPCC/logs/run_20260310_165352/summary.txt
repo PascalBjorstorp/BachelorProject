@@ -1,6 +1,0 @@
-variant: MPCC (Contouring Control)
-first_collision_line: 71
-first_status2_line: None
-status2_count: 0
-status0_count: 0
-first_collision_text: [gym_bridge-1] [WARN] [1773158046.089080795] [bridge]: Ego vehicle collision detected!

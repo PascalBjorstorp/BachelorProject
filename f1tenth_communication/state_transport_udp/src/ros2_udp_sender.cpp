@@ -636,17 +636,16 @@ private:
         packet.omega_fp = toFp(omega);
         packet.steering_angle_fp = toFp(steering_angle);
 
-        const auto& wp0 = kdtree_.getWaypoint(waypoint_idx);
-        packet.ref_x_0_fp = toFp(wp0.x);
-        packet.ref_y_0_fp = toFp(wp0.y);
-        packet.ref_psi_0_fp = toFp(wp0.psi);
-
         packet.horizon_length = static_cast<uint32_t>(MPC_HORIZON);
 
         if (interpolate_horizon_ && !trajectory_.empty()) {
             const double base_s = kdtree_.getWaypoint(waypoint_idx).s;
             for (size_t i = 0; i < MPC_HORIZON; ++i) {
                 const Waypoint wp = sampleByArcLength(base_s + horizon_step_m_ * static_cast<double>(i));
+                packet.ref_x_fp[i] = toFp(wp.x);
+                packet.ref_y_fp[i] = toFp(wp.y);
+                packet.ref_psi_fp[i] = toFp(wp.psi);
+                packet.ref_ey_fp[i] = toFp(0.0);
                 packet.ref_vx_fp[i] = toFp(wp.vx);
                 packet.ref_kappa_fp[i] = toFp(wp.kappa);
                 packet.ref_left_bound_fp[i] = toFp(wp.left_bound);
@@ -657,6 +656,10 @@ private:
             for (size_t i = 0; i < MPC_HORIZON; ++i) {
                 const size_t idx = (waypoint_idx + i) % n;
                 const auto& wp = kdtree_.getWaypoint(idx);
+                packet.ref_x_fp[i] = toFp(wp.x);
+                packet.ref_y_fp[i] = toFp(wp.y);
+                packet.ref_psi_fp[i] = toFp(wp.psi);
+                packet.ref_ey_fp[i] = toFp(0.0);
                 packet.ref_vx_fp[i] = toFp(wp.vx);
                 packet.ref_kappa_fp[i] = toFp(wp.kappa);
                 packet.ref_left_bound_fp[i] = toFp(wp.left_bound);

@@ -4,9 +4,6 @@
 #include "fp_math_hls.h"
 #include "mpc_fpga_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 void mpc_compute_hls(
     fp_QP_t state_ey,
@@ -22,8 +19,6 @@ void mpc_compute_hls(
     int *out_status,
     int *out_iters);
 
-#ifdef __cplusplus
-}
-#endif
+
 
 #endif

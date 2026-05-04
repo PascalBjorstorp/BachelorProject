@@ -200,8 +200,9 @@ scalar wrapper `mpc_fpga_top_scalar` is only used by the standalone simulation
 harness.
 
 1. Pack beat 0 as `[e_y | e_psi | vx | vy]`
-2. Pack beat 1 as `[omega | steering | horizon_length | reserved]`
-3. Pack beats 2..N+1 as `[ref_vx | ref_kappa | ref_left | ref_right]`
+2. Pack beat 1 as `[omega | steering | horizon_length | prev_accel]`
+3. Pack words 8.. as repeated per-step groups:
+   `[ref_ey | ref_vx | ref_kappa | ref_left | ref_right]`
 4. Trigger `ap_start` and read `out_steering_fp`, `out_accel_fp`,
    `out_status`, and `out_iterations`
 

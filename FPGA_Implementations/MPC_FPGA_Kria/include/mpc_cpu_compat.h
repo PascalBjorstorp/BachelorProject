@@ -17,25 +17,17 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-extern void mpc_fpga_top_scalar(
-    int32_t ey_fp, int32_t epsi_fp,
-    int32_t vx_fp, int32_t vy_fp, int32_t omega_fp,
-    int32_t steering_fp,
-    const int32_t *ref_vx,
-    const int32_t *ref_kappa,
-    const int32_t *ref_left,
-    const int32_t *ref_right,
-    int ref_count,
-    int32_t *out_steering, int32_t *out_accel,
-    int32_t *out_status, int32_t *out_iters);
-// Extended scalar wrapper that accepts previous applied acceleration (m/s^2)
-extern void mpc_fpga_top_scalar_with_prev_accel(
+
+extern void mpc_fpga_top_scalar_with_prev_accel_and_ref_ey(
     int32_t ey_fp, int32_t epsi_fp,
     int32_t vx_fp, int32_t vy_fp, int32_t omega_fp, int32_t steering_fp, int32_t prev_accel_fp,
-    const int32_t *ref_vx, const int32_t *ref_kappa, const int32_t *ref_left, const int32_t *ref_right,
+    const int32_t *ref_ey, const int32_t *ref_epsi, const int32_t *ref_vx, const int32_t *ref_vy, const int32_t *ref_omega_ref,
+    const int32_t *ref_kappa, const int32_t *ref_left, const int32_t *ref_right,
     int ref_count,
     int32_t *out_steering, int32_t *out_accel,
     int32_t *out_status, int32_t *out_iters);
+
+extern void mpc_fpga_reset_persistent_state(void);
 #ifdef __cplusplus
 }
 #endif
@@ -47,6 +39,11 @@ extern void mpc_fpga_top_scalar_with_prev_accel(
 #ifndef PREDICTION_HORIZON
 #define PREDICTION_HORIZON MPC_HORIZON
 #endif
+
+#define CPU_COMPAT_FLOAT_TO_FP16(x)((int32_t)((double)(x) * MPC_FPGA_Q16_SCALE_F64))
+#define CPU_COMPAT_FP16_TO_FLOAT(x)((float)((double)(x) / MPC_FPGA_Q16_SCALE_F64))
+#define CPU_COMPAT_DOUBLE_TO_FP16(x)((int32_t)((double)(x) * MPC_FPGA_Q16_SCALE_F64))
+#define CPU_COMPAT_FP16_TO_DOUBLE(x)((double)(x) / MPC_FPGA_Q16_SCALE_F64)
 
 typedef struct {
     float flat_error;
@@ -82,7 +79,6 @@ typedef struct {
 } TrajectoryReferencePoint_t;
 
 typedef struct {
-    uint16_t prediction_horizon_steps;
     float time_step;
     float cross_call_rate_scale;
     float weight_lateral_error;
@@ -94,6 +90,7 @@ typedef struct {
     float weight_acceleration_effort;
     float weight_steering_rate;
     float weight_acceleration_rate;
+    float weight_delta_actual;
     float wall_margin;
     int max_solver_iterations;
     float solver_convergence_tolerance;
@@ -102,6 +99,9 @@ typedef struct {
 typedef struct {
     ControlInput_t optimal_control;
     int iterations_used;
+    float final_cost;      /* Unsupported in FPGA scalar API (set to 0). */
+    float dual_residual;   /* Unsupported in FPGA scalar API (set to 0). */
+    int solver_status;
 } MpcSolverResult_t;
 
 typedef enum {
@@ -111,21 +111,21 @@ typedef enum {
 } MpcSolverStatus_t;
 
 static MpcConfiguration_t g_mpc_cpu_compat_cfg = {
-    .prediction_horizon_steps = (uint16_t)PREDICTION_HORIZON,
     .time_step = (float)TIME_STEP_SECONDS,
-    .cross_call_rate_scale = 1.0f,
-    .weight_lateral_error = 200.0f,
-    .weight_heading_error = 28.8f,
-    .weight_velocity = 30.0f,
-    .weight_lateral_velocity = 1.04f,
-    .weight_yaw_rate = 1.5f,
-    .weight_steering_effort = 1.5f,
-    .weight_acceleration_effort = 0.01f,
-    .weight_steering_rate = 0.04f,
-    .weight_acceleration_rate = 0.10f,
-    .wall_margin = 0.197f,
-    .max_solver_iterations = 100,
-    .solver_convergence_tolerance = 0.05f,
+    .cross_call_rate_scale = (float)(MPC_FPGA_CONTROL_DT_S / MPC_FPGA_PREDICTION_DT_S),
+    .weight_lateral_error = (float)MPC_FPGA_W_LAT_ERROR,
+    .weight_heading_error = (float)MPC_FPGA_W_HEADING,
+    .weight_velocity = (float)MPC_FPGA_W_VELOCITY,
+    .weight_lateral_velocity = (float)MPC_FPGA_W_LAT_VEL,
+    .weight_yaw_rate = (float)MPC_FPGA_W_YAW_RATE,
+    .weight_steering_effort = (float)MPC_FPGA_W_STEER_EFF,
+    .weight_acceleration_effort = (float)MPC_FPGA_W_ACCEL_EFF,
+    .weight_steering_rate = (float)MPC_FPGA_W_STEER_JERK,
+    .weight_acceleration_rate = (float)MPC_FPGA_W_ACCEL_RATE,
+    .weight_delta_actual = (float)MPC_FPGA_W_DELTA_ACT,
+    .wall_margin = (float)MPC_FPGA_WALL_MARGIN_M,
+    .max_solver_iterations = MPC_FPGA_MAX_ADMM_ITER,
+    .solver_convergence_tolerance = (float)MPC_FPGA_ADMM_TOL,
 };
 static float g_mpc_cpu_compat_actual_steering = 0.0f;
 static float g_mpc_cpu_compat_prev_accel = 0.0f;
@@ -147,29 +147,41 @@ static inline void mpc_cpu_compat_set_env_int(const char *name, int value)
 static inline MpcConfiguration_t mpc_cpu_compat_default_config(void)
 {
     MpcConfiguration_t cfg;
-    cfg.prediction_horizon_steps = (uint16_t)PREDICTION_HORIZON;
     cfg.time_step = (float)TIME_STEP_SECONDS;
-    cfg.cross_call_rate_scale = 1.0f;
-    cfg.weight_lateral_error = 200.0f;
-    cfg.weight_heading_error = 28.8f;
-    cfg.weight_velocity = 30.0f;
-    cfg.weight_lateral_velocity = 1.04f;
-    cfg.weight_yaw_rate = 1.5f;
-    cfg.weight_steering_effort = 1.5f;
-    cfg.weight_acceleration_effort = 0.01f;
-    cfg.weight_steering_rate = 0.04f;
-    cfg.weight_acceleration_rate = 0.10f;
-    cfg.wall_margin = 0.197f;
-    cfg.max_solver_iterations = 100;
-    cfg.solver_convergence_tolerance = 0.05f;
+    cfg.cross_call_rate_scale = (float)(MPC_FPGA_CONTROL_DT_S / MPC_FPGA_PREDICTION_DT_S);
+    cfg.weight_lateral_error = (float)MPC_FPGA_W_LAT_ERROR;
+    cfg.weight_heading_error = (float)MPC_FPGA_W_HEADING;
+    cfg.weight_velocity = (float)MPC_FPGA_W_VELOCITY;
+    cfg.weight_lateral_velocity = (float)MPC_FPGA_W_LAT_VEL;
+    cfg.weight_yaw_rate = (float)MPC_FPGA_W_YAW_RATE;
+    cfg.weight_steering_effort = (float)MPC_FPGA_W_STEER_EFF;
+    cfg.weight_acceleration_effort = (float)MPC_FPGA_W_ACCEL_EFF;
+    cfg.weight_steering_rate = (float)MPC_FPGA_W_STEER_JERK;
+    cfg.weight_acceleration_rate = (float)MPC_FPGA_W_ACCEL_RATE;
+    cfg.weight_delta_actual = (float)MPC_FPGA_W_DELTA_ACT;
+    cfg.wall_margin = (float)MPC_FPGA_WALL_MARGIN_M;
+    cfg.max_solver_iterations = MPC_FPGA_MAX_ADMM_ITER;
+    cfg.solver_convergence_tolerance = (float)MPC_FPGA_ADMM_TOL;
     return cfg;
 }
 
-static inline void mpc_initialize(void) {}
+static inline void mpc_initialize(void)
+{
+    g_mpc_cpu_compat_cfg = mpc_cpu_compat_default_config();
+    g_mpc_cpu_compat_actual_steering = 0.0f;
+    g_mpc_cpu_compat_prev_accel = 0.0f;
+#ifdef __cplusplus
+    mpc_fpga_reset_persistent_state();
+#endif
+}
 static inline void mpc_reset(void)
 {
     g_mpc_cpu_compat_cfg = mpc_cpu_compat_default_config();
     g_mpc_cpu_compat_actual_steering = 0.0f;
+    g_mpc_cpu_compat_prev_accel = 0.0f;
+#ifdef __cplusplus
+    mpc_fpga_reset_persistent_state();
+#endif
 }
 
 static inline MpcConfiguration_t mpc_get_configuration(void)
@@ -185,7 +197,6 @@ static inline void mpc_set_configuration(const MpcConfiguration_t *cfg)
 
     g_mpc_cpu_compat_cfg = *cfg;
 
-    mpc_cpu_compat_set_env_int("HORIZON", (int)cfg->prediction_horizon_steps);
     mpc_cpu_compat_set_env_double("PRED_DT", (double)cfg->time_step);
     mpc_cpu_compat_set_env_double("Q_LAT", (double)cfg->weight_lateral_error);
     mpc_cpu_compat_set_env_double("Q_HDG", (double)cfg->weight_heading_error);
@@ -196,14 +207,19 @@ static inline void mpc_set_configuration(const MpcConfiguration_t *cfg)
     mpc_cpu_compat_set_env_double("R_ACCEL", (double)cfg->weight_acceleration_effort);
     mpc_cpu_compat_set_env_double("W_JERK", (double)cfg->weight_steering_rate);
     mpc_cpu_compat_set_env_double("W_ACCEL_RATE", (double)cfg->weight_acceleration_rate);
+    mpc_cpu_compat_set_env_double("W_DELTA_ACT", (double)cfg->weight_delta_actual);
     mpc_cpu_compat_set_env_double("WALL_MARGIN", (double)cfg->wall_margin);
     mpc_cpu_compat_set_env_int("MAX_ITER", (int)cfg->max_solver_iterations);
-    /* Do not overwrite TOL here; let constants and sweep scripts control TOL.
-     * mpc_runtime_update_from_env() will still read the environment if the
-     * sweep sets it explicitly. */
+    mpc_cpu_compat_set_env_double("TOL", (double)cfg->solver_convergence_tolerance);
     /* Do not override RHO/RHO_U here.
      * Keep parity with CPU path where ADMM penalties are read directly from
      * environment (or solver defaults) at solve time. */
+#ifdef MPC_RUNTIME_TUNE
+    mpc_runtime_reload_from_env();
+#endif
+    
+    /* Note: Runtime horizon control disabled. Horizon is compile-time only.
+     * All internal arrays are fixed-size for HLS synthesis. */  
 }
 
 static inline void mpc_set_actual_previous_control(const ControlInput_t *ctrl)
@@ -223,21 +239,18 @@ static inline MpcSolverStatus_t mpc_compute_optimal_control(
         return MPC_SOLVER_STATUS_ERROR;
     }
 
-    int horizon = PREDICTION_HORIZON;
-    if (horizon < 1) {
-        return MPC_SOLVER_STATUS_ERROR;
-    }
-
     int32_t ref_vx_fp[MPC_HORIZON];
+    int32_t ref_ey_fp[MPC_HORIZON];
     int32_t ref_kappa_fp[MPC_HORIZON];
     int32_t ref_left_fp[MPC_HORIZON];
     int32_t ref_right_fp[MPC_HORIZON];
 
-    for (int i = 0; i < horizon; i++) {
-        ref_vx_fp[i] = DOUBLE_TO_FP((double)ref[i].reference_velocity);
-        ref_kappa_fp[i] = DOUBLE_TO_FP((double)ref[i].path_curvature);
-        ref_left_fp[i] = DOUBLE_TO_FP((double)ref[i].left_wall_bound);
-        ref_right_fp[i] = DOUBLE_TO_FP((double)ref[i].right_wall_bound);
+    for (int i = 0; i < MPC_HORIZON; i++) {
+        ref_ey_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].reference_lateral_error);
+        ref_vx_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].reference_velocity);
+        ref_kappa_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].path_curvature);
+        ref_left_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].left_wall_bound);
+        ref_right_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].right_wall_bound);
     }
 
     int32_t out_steering = 0;
@@ -246,21 +259,25 @@ static inline MpcSolverStatus_t mpc_compute_optimal_control(
     int32_t out_iters = 0;
 
     /* Forward previous applied acceleration to FPGA scalar wrapper for parity */
-    mpc_fpga_top_scalar_with_prev_accel(
-        DOUBLE_TO_FP((double)state->flat_error),
-        DOUBLE_TO_FP((double)state->fhead_error),
-        DOUBLE_TO_FP((double)state->flong_vel),
-        DOUBLE_TO_FP((double)state->flat_vel),
-        DOUBLE_TO_FP((double)state->fyaw_rate),
-        DOUBLE_TO_FP((double)g_mpc_cpu_compat_actual_steering),
-        DOUBLE_TO_FP((double)g_mpc_cpu_compat_prev_accel),
-        ref_vx_fp, ref_kappa_fp, ref_left_fp, ref_right_fp,
-        horizon,
-        &out_steering, &out_accel, &out_status, &out_iters);
+    mpc_fpga_top_scalar_with_prev_accel_and_ref_ey(
+    CPU_COMPAT_DOUBLE_TO_FP16(state->flat_error),
+    CPU_COMPAT_DOUBLE_TO_FP16(state->fhead_error),
+    CPU_COMPAT_DOUBLE_TO_FP16(state->flong_vel),
+    CPU_COMPAT_DOUBLE_TO_FP16(state->flat_vel),
+    CPU_COMPAT_DOUBLE_TO_FP16(state->fyaw_rate),
+    CPU_COMPAT_DOUBLE_TO_FP16(g_mpc_cpu_compat_actual_steering),
+    CPU_COMPAT_DOUBLE_TO_FP16(g_mpc_cpu_compat_prev_accel),
+    /* ref_ey */ ref_ey_fp, /* ref_epsi */ NULL, /* ref_vx */ ref_vx_fp, /* ref_vy */ NULL, /* ref_omega_ref */ NULL,
+    /* ref_kappa */ ref_kappa_fp, /* ref_left */ ref_left_fp, /* ref_right */ ref_right_fp,
+    MPC_HORIZON,
+    &out_steering, &out_accel, &out_status, &out_iters);
 
-    result->optimal_control.steer_ang = (float)FP_TO_DOUBLE(out_steering);
-    result->optimal_control.long_acc = (float)FP_TO_DOUBLE(out_accel);
+    result->optimal_control.steer_ang = CPU_COMPAT_FP16_TO_FLOAT(out_steering);
+    result->optimal_control.long_acc = CPU_COMPAT_FP16_TO_FLOAT(out_accel);
     result->iterations_used = (int)out_iters;
+    result->final_cost = 0.0f;     /* Unsupported by current scalar wrapper */
+    result->dual_residual = 0.0f;  /* Unsupported by current scalar wrapper */
+    result->solver_status = (int)out_status;
 
     if (out_status == MPC_FPGA_STATUS_OK) {
         return MPC_SOLVER_STATUS_SUCCESS;

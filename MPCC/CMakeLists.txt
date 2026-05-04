@@ -34,6 +34,9 @@ if(NOT MSVC)
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+option(MPCC_ENABLE_DEBUG_PRINTS "Enable verbose MPCC debug prints" OFF)
+option(MPCC_USE_OSQP "Build MPCC with the OSQP backend instead of the in-tree ADMM solver" OFF)
+
 # Path to MPC package (for shared sources: fp_math, vehicle_model)
 set(MPC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../MPC)
 
@@ -49,24 +52,46 @@ find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(ackermann_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+if(MPCC_USE_OSQP)
+    find_package(osqp REQUIRED)
+
+    find_path(OSQP_INCLUDE_ROOT
+        NAMES osqp/osqp.h
+        PATHS
+            /opt/ros/jazzy/include
+            /usr/local/include
+            /usr/include
+    )
+    if(NOT OSQP_INCLUDE_ROOT)
+        message(FATAL_ERROR "Could not find osqp/osqp.h. Install/source osqp_vendor or OSQP.")
+    endif()
+endif()
 
 #===========================================================================
 # MPCC Core Library (FPGA-Compatible, No ROS Dependencies)
 #===========================================================================
 #
-# Pure C implementation of the MPCC controller and ADMM+Riccati solver.
-# Can be compiled for JETSON or converted to HLS for FPGA.
+# Pure C implementation of the MPCC controller. The default build uses the
+# in-tree ADMM+Riccati solver. OSQP remains available as an explicit opt-in
+# backend for comparison or experimentation.
 #
 # Modules:
 #   mpcc.c                - Main MPCC controller (QP construction, cost)
 #   mpcc_vehicle_model.c  - Dynamics linearization (Lifted ODE, linear tires)
-#   qp_solver_mpcc.c      - ADMM + Riccati QP solver
+#   qp_solver_mpcc.c      - In-tree ADMM+Riccati solver
+#   qp_solver_osqp.c      - Optional OSQP solver bridge
 #
+
+if(MPCC_USE_OSQP)
+    set(MPCC_SOLVER_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/qp_solver_osqp.c)
+else()
+    set(MPCC_SOLVER_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/qp_solver_mpcc.c)
+endif()
 
 set(MPCC_CORE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/mpcc.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/mpcc_vehicle_model.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/qp_solver_mpcc.c
+    ${MPCC_SOLVER_SOURCE}
 )
 
 add_library(mpcc_core STATIC ${MPCC_CORE_SOURCES})
@@ -78,8 +103,28 @@ target_include_directories(mpcc_core
         $<INSTALL_INTERFACE:include>
 )
 
-# Enable debug prints (disable for FPGA/release builds)
-target_compile_definitions(mpcc_core PRIVATE MPCC_DEBUG_PRINT)
+if(MPCC_USE_OSQP)
+    target_include_directories(mpcc_core
+        PUBLIC
+            $<BUILD_INTERFACE:${OSQP_INCLUDE_ROOT}>
+    )
+
+    target_compile_definitions(mpcc_core
+        PUBLIC
+            USE_OSQP
+    )
+endif()
+
+if(MPCC_ENABLE_DEBUG_PRINTS)
+    target_compile_definitions(mpcc_core PRIVATE MPCC_DEBUG_PRINT)
+endif()
+
+if(MPCC_USE_OSQP)
+    target_link_libraries(mpcc_core
+        PUBLIC
+            osqp::osqp
+    )
+endif()
 
 #===========================================================================
 # ROS2 MPCC Node (Simulation Integration)
@@ -150,7 +195,13 @@ ament_target_dependencies(mpcc_hardware_node
 #
 
 if(BUILD_TESTING)
-    add_executable(test_mpcc_solver test/test_admm_riccati.c)
+    add_executable(test_mpcc_solver
+        test/test_admm_riccati.c
+    )
+
+    if(MPCC_USE_OSQP)
+        target_sources(test_mpcc_solver PRIVATE src/qp_solver_mpcc.c)
+    endif()
 
     target_link_libraries(test_mpcc_solver
         mpcc_core

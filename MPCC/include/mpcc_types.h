@@ -108,9 +108,9 @@ typedef struct
 #define MPCC_IDX_VTHETA  2          /**< virtual progress speed ds/dt */
 
 
-#define MPCC_MAX_HORIZON 20         /** Maximum prediction horizon steps.*/
+#define MPCC_MAX_HORIZON 40          /** Maximum prediction horizon steps.*/
 #define MPCC_MAX_PATH_POINTS 2500    /** Maximum number of reference path waypoints.*/
-#define MPCC_MAX_OBSTACLES 10       /** Maximum number of obstacles that can be tracked simultaneously */
+#define MPCC_MAX_OBSTACLES 10        /** Maximum number of obstacles that can be tracked simultaneously */
 
 /*===========================================================================
  * MPCC ODE State
@@ -430,6 +430,15 @@ typedef struct
     /** Convergence tolerance for primal and dual residuals */
     float admm_tolerance;
 
+    /** Optional separate ADMM penalty for control consensus. 0 = use admm_rho. */
+    float admm_rho_u;
+
+    /** Enable adaptive rho updates (0/1). */
+    uint8_t admm_adaptive_rho;
+
+    /** ADMM over-relaxation factor. 1.0 disables over-relaxation. */
+    float admm_alpha_relax;
+
     /*--- Constraint bounds ---*/
 
     /** Maximum steering angle [rad] (symmetric: +/- delta_max) */
@@ -568,7 +577,7 @@ typedef struct
 #define MPCC_DEFAULT_HORIZON          20                          /** was 10 — 200 ms total was too short */
 #define MPCC_DEFAULT_DT               (0.03f)                       /** 30 ms prediction step: 20 * 0.03 = 0.6s lookahead */
 
-/*--- Contouring tracking weights (Apr 22 post-fix sweep best: 11.9s lap, 0 collisions) ---*/
+/*--- Contouring tracking weights (Apr 28 latest CSV: fastest safe + low-regression moving baseline) ---*/
 #define MPCC_DEFAULT_WEIGHT_CONTOURING (960.0f)                     /** Contouring error penalty. */
 #define MPCC_DEFAULT_WEIGHT_LAG       (200.0f)                     /** Lag error penalty. */
 #define MPCC_DEFAULT_WEIGHT_WALL_CLEARANCE (3200.0f)               /** Soft near-wall penalty inside the hard corridor. */
@@ -576,7 +585,7 @@ typedef struct
 #define MPCC_DEFAULT_WEIGHT_PROGRESS  (15.6f)                      /** Progress reward. */
 
 /*--- State regularization ---*/
-#define MPCC_DEFAULT_WEIGHT_VX        (50.0f)                         /** Longitudinal velocity tracking weight.*/
+#define MPCC_DEFAULT_WEIGHT_VX        (30.0f)                         /** Longitudinal velocity tracking weight.*/
 #define MPCC_DEFAULT_VX_REF           (4.0f)                        /** Reference velocity for longitudinal velocity tracking [m/s]. */
 #define MPCC_DEFAULT_USE_RACELINE_VX_REF   0                         /** Use per-waypoint CSV vx as target. */
 #define MPCC_DEFAULT_USE_RACELINE_VX_LIMIT 0                         /** Use per-waypoint CSV vx as speed cap. */
@@ -585,7 +594,7 @@ typedef struct
 #define MPCC_DEFAULT_WEIGHT_OMEGA     (1.5f)                         /** Yaw rate tracking weight. */
 
 /*--- Control effort ---*/
-#define MPCC_DEFAULT_WEIGHT_DELTA     (200.0f)                      /** Steering angle effort penalty. */
+#define MPCC_DEFAULT_WEIGHT_DELTA     (100.0f)                      /** Steering angle effort penalty. */
 #define MPCC_DEFAULT_WEIGHT_AX        (0.05225f)                    /** Longitudinal acceleration effort penalty. */
 #define MPCC_DEFAULT_WEIGHT_V_THETA   (0.1f)                        /** Virtual progress speed effort penalty. */
 
@@ -612,6 +621,9 @@ typedef struct
 #define MPCC_DEFAULT_ADMM_RHO         (5.0f)                        /** ADMM penalty parameter. */
 #define MPCC_DEFAULT_ADMM_MAX_ITER    300                           /** Maximum ADMM iterations. */
 #define MPCC_DEFAULT_ADMM_TOLERANCE   (0.02f)                       /** ADMM convergence tolerance. */
+#define MPCC_DEFAULT_ADMM_RHO_U       (0.0f)                        /** 0 => reuse state rho for controls. */
+#define MPCC_DEFAULT_ADMM_ADAPTIVE_RHO 1                            /** Enable adaptive rho by default. */
+#define MPCC_DEFAULT_ADMM_ALPHA_RELAX (1.6f)                        /** Warm-start over-relaxation factor. */
 
 /*--- Pacejka tire model ---*/
 #define MPCC_DEFAULT_MU       F110_FRICTION_COEFFICIENT                  /** Friction coefficient for tire model. */
@@ -623,7 +635,7 @@ typedef struct
 #define MPCC_DEFAULT_AX_MIN           (-10.0f)                      /** Minimum Acceleration bound (negative = breaking)*/
 
 /*--- Virtual progress speed bounds ---*/
-#define MPCC_DEFAULT_V_THETA_MAX      (8.0f)                        /** Maximum virtual progress bound */
+#define MPCC_DEFAULT_V_THETA_MAX      (10.0f)                       /** Maximum virtual progress bound */
 #define MPCC_DEFAULT_V_THETA_MIN      (0.0f)                        /** Minimum virtual progress bound */
 
 #endif /* MPCC_TYPES_H */

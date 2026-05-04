@@ -3,7 +3,7 @@
 MPCC Weight Tuning — Locked Horizon/DT
 =======================================
 Sweeps MPCC controller weights with safer-region defaults locked.
-Default prediction window: 30 × 0.05 = 1.50 s.
+Default prediction window: 40 × 0.03 = 1.20 s.
 Override with MPCC_TUNE_HORIZON / MPCC_TUNE_DT if needed.
 
 Objective: maximize average speed with ZERO wall collisions (hard constraint).
@@ -15,7 +15,10 @@ Usage:
     python3 test/tune_mpcc.py -j 4                    # Use 4 workers
     python3 test/tune_mpcc.py --objective racer       # Optimize for speed (default)
     python3 test/tune_mpcc.py --objective tracker     # Optimize for tracking
-    python3 test/tune_mpcc.py --raceline my_track_centerline.csv
+    python3 test/tune_mpcc.py --raceline my_track_centerline_smooth.csv
+
+By default this script builds and runs its own ADMM standalone simulation
+binary. A custom --binary is allowed, but each run still rejects non-ADMM output.
 """
 
 import subprocess
@@ -38,20 +41,23 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 MPCC_DIR = os.path.dirname(SCRIPT_DIR)
 PROJECT_DIR = os.path.dirname(MPCC_DIR)
 TRAJ_DIR = os.path.join(PROJECT_DIR, "f1tenth_planning", "trajectories")
+DEFAULT_ADMM_BINARY = os.path.join(MPCC_DIR, "test_sim_drive_admm")
 
 # ==============================================================================
 # HARDWARE MAP CONFIGURATION
 # ==============================================================================
 
-DEFAULT_RACELINE_NAME = "my_track_centerline.csv"
+DEFAULT_RACELINE_NAME = "my_track_centerline_smooth.csv"
 RACELINE_PATH = os.path.join(TRAJ_DIR, DEFAULT_RACELINE_NAME)
-RACELINE_TAG = "my_track_centerline"
+RACELINE_TAG = "my_track_centerline_smooth"
 
 # ==============================================================================
 # LOCKED PREDICTION WINDOW  (never swept)
 # ==============================================================================
-LOCKED_HORIZON = int(os.getenv("MPCC_TUNE_HORIZON", "20"))
+LOCKED_HORIZON = int(os.getenv("MPCC_TUNE_HORIZON", "40"))
 LOCKED_DT      = float(os.getenv("MPCC_TUNE_DT", "0.03"))
+LOCKED_Q_VX    = float(os.getenv("MPCC_TUNE_Q_VX", "0.0"))
+LOCKED_VX_REF  = float(os.getenv("MPCC_TUNE_VX_REF", "0.0"))
 # cross_call_rate_scale = control_dt / prediction_dt = (1/200 Hz) / dt
 _default_cross_call_scale = round((1.0 / 200.0) / LOCKED_DT, 6)
 LOCKED_CROSS_CALL_SCALE = float(
@@ -59,42 +65,46 @@ LOCKED_CROSS_CALL_SCALE = float(
 )
 
 BASE_CONFIG = {
-    # Seed from a "moving" baseline (matches test_sim_drive defaults).
+    # Seed from a progress-optimizer baseline: low path-tracking weights,
+    # no velocity-reference tracking, and the trajectory used as geometry only.
     # Note: absolute magnitudes are implementation-dependent; tune relative tradeoffs.
-    "Q_CONTOURING":      960.0,
-    "Q_LAG":             200.0,
-    "Q_PROGRESS":        15.6,
+    "Q_CONTOURING":      50.0,
+    "Q_LAG":             60.0,
+    "Q_PROGRESS":        8.0,
     "Q_WALL_CLEARANCE":  3200.0,
     "WALL_CLEARANCE_MARGIN": 0.02,
 
     # State regularization
-    "Q_VX":              10.0,
-    "VX_REF":            4.0,
     "MPCC_USE_RACELINE_VX_REF": 0,
     "MPCC_USE_RACELINE_VX_LIMIT": 0,
     "MPCC_RACELINE_VX_LIMIT_SCALE": 1.0,
-    "Q_VY":              0.5,
-    "Q_OMEGA":           1.5,
+    "Q_VY":              1.0,
+    # The first progress sweep found the safe lap-completing basin here:
+    # Q_OMEGA=10 mostly stalled, while Q_OMEGA=3 completed laps without walls.
+    "Q_OMEGA":           3.0,
 
     # Control effort
-    "R_DELTA":           200.0,
-    "R_AX":              0.05225,
-    "R_VTHETA":          0.1,
+    "R_DELTA":           10.0,
+    "R_AX":              1.0,
+    "R_VTHETA":          0.2,
 
     # Control rate smoothness
-    "W_DELTA_RATE":      5.0,
-    "W_AX_RATE":         0.488,
-    "W_VTHETA_RATE":     0.1105,
+    "W_DELTA_RATE":      3.0,
+    "W_AX_RATE":         3.0,
+    "W_VTHETA_RATE":     0.5,
 
-    # Terminal weights — MUST be >= running weights
-    "Q_CONTOURING_TERM": 4800.0,
-    "Q_LAG_TERM":        800.0,
-    "Q_PROGRESS_TERM":   41.4,
+    # Terminal weights — enforced to the minimum stable floor if left below running weights.
+    "Q_CONTOURING_TERM": 0.0,
+    "Q_LAG_TERM":        0.0,
+    "Q_PROGRESS_TERM":   10.0,
 
     # ADMM solver
     "ADMM_RHO":          5.0,
+    "ADMM_RHO_U":        0.0,
     "ADMM_MAX_ITER":     300,
     "ADMM_TOL":          0.02,
+    "ADMM_ADAPTIVE_RHO": 1,
+    "ADMM_ALPHA_RELAX":  1.6,
 
     # Keep path-progress authority available even when vx targets are conservative.
     "V_THETA_MAX":       10.0,
@@ -103,6 +113,8 @@ BASE_CONFIG = {
     "HORIZON":           LOCKED_HORIZON,
     "DT":                LOCKED_DT,
     "CROSS_CALL_SCALE":  LOCKED_CROSS_CALL_SCALE,
+    "Q_VX":              LOCKED_Q_VX,
+    "VX_REF":            LOCKED_VX_REF,
 }
 
 # Keep racer search anchored to the same conservative basin; let the sweep,
@@ -114,153 +126,159 @@ RACER_BASE_OVERRIDES = {}
 # ==============================================================================
 
 PHASE2_VALUES = {
-    "Q_CONTOURING":      [200, 500, 960, 1500, 2500, 4000],
-    "Q_LAG":             [100, 150, 200, 300, 400, 500, 700],
-    "Q_PROGRESS":        [5.0, 10.0, 15.6, 20.0, 25.0, 30.0],
-    "Q_CONTOURING_TERM": [2000.0, 4800.0, 8000.0, 12000.0],
-    "Q_LAG_TERM":        [400.0, 800.0, 1200.0, 2000.0, 3000.0],
+    "Q_CONTOURING":      [20.0, 35.0, 50.0, 75.0, 110.0, 160.0],
+    "Q_LAG":             [25.0, 40.0, 60.0, 85.0, 120.0, 170.0],
+    "Q_PROGRESS":        [5.0, 7.0, 8.0, 9.0, 10.0, 12.0, 14.0, 16.0],
+    "Q_CONTOURING_TERM": [25.0, 50.0, 75.0, 110.0, 160.0, 240.0],
+    "Q_LAG_TERM":        [30.0, 60.0, 85.0, 120.0, 170.0, 240.0],
 }
 
 FULL_SWEEP_VALUES = {
-    "Q_CONTOURING":      [200, 500, 960, 1500, 2500, 4000],
-    "Q_LAG":             [100, 150, 200, 300, 400, 500, 700],
-    "Q_PROGRESS":        [5.0, 10.0, 15.6, 20.0, 25.0, 30.0],
-    "Q_WALL_CLEARANCE":  [0.0, 1600.0, 3200.0, 6000.0, 12000.0],
-    "WALL_CLEARANCE_MARGIN": [0.0, 0.01, 0.02, 0.03, 0.05],
-    "Q_VY":              [0.5, 1.0, 1.5, 3.0, 5.0, 10.0],
-    "Q_OMEGA":           [0.3, 0.5, 0.8, 1.5, 3.0, 5.0],
-    "R_DELTA":           [100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0],
-    "R_VTHETA":          [0.05, 0.1, 0.2, 0.3],
-    "W_DELTA_RATE":      [3.0, 5.0, 7.0, 10.0, 12.0],
-    "W_VTHETA_RATE":     [0.05, 0.1, 0.13, 0.3, 0.5, 1.0],
-    "Q_CONTOURING_TERM": [2000.0, 4800.0, 8000.0, 12000.0],
-    "Q_LAG_TERM":        [400.0, 800.0, 1500.0, 3000.0],
-    "Q_PROGRESS_TERM":   [20.0, 30.0, 40.0, 41.4, 50.0, 60.0],
-    "V_THETA_MAX":       [8.0, 10.0, 12.0, 15.0],
-    "Q_VX":              [0.0, 5.0, 10.0, 20.0, 30.0, 50.0],
-    "VX_REF":            [2.0, 3.0, 4.0, 5.0, 6.0],
-    "R_AX":              [0.02, 0.055, 0.1, 0.3, 1.0],
-    "W_AX_RATE":         [0.1, 0.3, 0.488, 0.61, 1.0, 2.0],
+    "Q_CONTOURING":      [15.0, 25.0, 35.0, 50.0, 75.0, 110.0, 160.0, 220.0],
+    "Q_LAG":             [20.0, 35.0, 50.0, 60.0, 85.0, 120.0, 170.0, 230.0],
+    "Q_PROGRESS":        [4.0, 5.5, 7.0, 8.0, 9.0, 10.0, 12.0, 14.0, 16.0, 20.0],
+    "Q_WALL_CLEARANCE":  [1600.0, 2400.0, 3200.0, 4500.0, 6000.0, 9000.0],
+    "WALL_CLEARANCE_MARGIN": [0.0, 0.01, 0.02, 0.03, 0.04],
+    "Q_VY":              [0.4, 0.7, 1.0, 1.5, 2.5, 4.0],
+    "Q_OMEGA":           [1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0, 8.0, 10.0],
+    "R_DELTA":           [4.0, 6.0, 8.0, 10.0, 12.0, 15.0, 20.0, 30.0],
+    "R_VTHETA":          [0.05, 0.1, 0.15, 0.2, 0.3, 0.5],
+    "W_DELTA_RATE":      [1.0, 2.0, 3.0, 4.0, 5.0, 7.0, 10.0],
+    "W_VTHETA_RATE":     [0.1, 0.2, 0.35, 0.5, 0.75, 1.0],
+    "Q_CONTOURING_TERM": [25.0, 50.0, 75.0, 100.0, 150.0, 220.0, 320.0],
+    "Q_LAG_TERM":        [30.0, 60.0, 85.0, 120.0, 170.0, 240.0, 320.0],
+    "Q_PROGRESS_TERM":   [8.0, 10.0, 12.0, 16.0, 20.0, 25.0, 32.0],
+    "V_THETA_MAX":       [8.0, 10.0, 12.0, 14.0, 16.0],
+    "R_AX":              [0.4, 0.7, 1.0, 1.5, 2.5, 4.0],
+    "W_AX_RATE":         [1.0, 2.0, 3.0, 4.5, 6.0],
 }
 
 PHASE4_VALUES = {
-    "Q_VY":         [0.5, 1.0, 1.5, 3.0, 5.0],
-    "Q_OMEGA":      [1.0, 3.0, 5.0, 8.0],
-    "R_DELTA":      [150.0, 200.0, 250.0, 300.0, 350.0, 400.0],
-    "W_DELTA_RATE": [7.0, 9.0, 10.0, 12.0],
-    "V_THETA_MAX":  [8.0, 10.0, 12.0, 15.0],
+    "Q_VY":         [0.5, 1.0, 1.5, 2.5],
+    "Q_OMEGA":      [2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0],
+    "R_DELTA":      [6.0, 8.0, 10.0, 12.0, 15.0, 20.0],
+    "W_DELTA_RATE": [1.5, 2.5, 3.0, 4.0, 5.0],
+    "V_THETA_MAX":  [8.0, 10.0, 12.0, 14.0],
 }
 
-# PHASE5_VALUES removed — was ADMM-only tuning, unused with OSQP solver
+PROGRESS_OPTIMIZER_LIMITS = {
+    "Q_CONTOURING":      (10.0, 250.0),
+    "Q_LAG":             (15.0, 250.0),
+    "Q_PROGRESS":        (4.0, 25.0),
+    "Q_CONTOURING_TERM": (10.0, 500.0),
+    "Q_LAG_TERM":        (15.0, 400.0),
+    "Q_PROGRESS_TERM":   (6.0, 40.0),
+    "Q_WALL_CLEARANCE":  (800.0, 10000.0),
+    "WALL_CLEARANCE_MARGIN": (0.0, 0.05),
+    "Q_VY":              (0.2, 6.0),
+    "Q_OMEGA":           (1.0, 12.0),
+    "R_DELTA":           (3.0, 35.0),
+    "R_AX":              (0.2, 5.0),
+    "R_VTHETA":          (0.03, 0.7),
+    "W_DELTA_RATE":      (0.8, 12.0),
+    "W_AX_RATE":         (0.8, 8.0),
+    "W_VTHETA_RATE":     (0.05, 1.3),
+    "V_THETA_MAX":       (8.0, 18.0),
+}
+
+# PHASE5_VALUES removed — solver settings are locked for ADMM sweeps
 PHASE5_VALUES = {}
 
 RANDOM_PROFILES = {
     "racer": {
         "num_perturb_range": (3, 7),
-        "default_multipliers": [0.85, 0.95, 1.0, 1.1, 1.2],
+        "default_multipliers": [0.75, 0.9, 1.0, 1.12, 1.25],
         "param_multipliers": {
-            "Q_CONTOURING":      [0.7, 0.85, 1.0, 1.2, 1.5],
-            "Q_LAG":             [0.7, 0.85, 1.0, 1.2, 1.5],
-            "Q_PROGRESS":        [0.8, 0.9, 1.0, 1.15, 1.3, 1.5],
-            "Q_CONTOURING_TERM": [1.0, 1.1, 1.2, 1.5, 2.0],
-            "Q_LAG_TERM":        [1.0, 1.1, 1.2, 1.5, 2.0],
-            "Q_PROGRESS_TERM":   [0.8, 0.9, 1.0, 1.15, 1.3],
-            "Q_VX":              [0.0, 0.5, 1.0, 1.5, 2.0, 3.0],
-            "Q_VY":              [0.7, 0.9, 1.0, 1.15, 1.3],
-            "Q_OMEGA":           [0.7, 0.9, 1.0, 1.15, 1.3],
-            "R_DELTA":           [0.8, 0.9, 1.0, 1.1, 1.25],
-            "R_AX":              [0.5, 0.8, 1.0, 1.3, 2.0],
-            "R_VTHETA":          [0.5, 0.8, 1.0, 1.3, 2.0],
-            "W_DELTA_RATE":      [0.8, 0.9, 1.0, 1.15, 1.3],
-            "W_AX_RATE":         [0.5, 0.8, 1.0, 1.3, 2.0],
-            "W_VTHETA_RATE":     [0.7, 0.85, 1.0, 1.2, 1.4],
-            # ADMM_RHO removed — unused with OSQP solver
+            "Q_CONTOURING":      [0.65, 0.8, 1.0, 1.15, 1.35],
+            "Q_LAG":             [0.65, 0.8, 1.0, 1.15, 1.35],
+            "Q_PROGRESS":        [0.75, 0.9, 1.0, 1.2, 1.45, 1.7],
+            "Q_CONTOURING_TERM": [0.75, 0.9, 1.0, 1.1, 1.25],
+            "Q_LAG_TERM":        [0.75, 0.9, 1.0, 1.1, 1.25],
+            "Q_PROGRESS_TERM":   [0.8, 0.9, 1.0, 1.1, 1.25, 1.45],
+            "Q_VY":              [0.65, 0.85, 1.0, 1.15, 1.35],
+            "Q_OMEGA":           [0.7, 0.85, 1.0, 1.15, 1.35],
+            "R_DELTA":           [0.7, 0.85, 1.0, 1.15, 1.35],
+            "R_AX":              [0.65, 0.85, 1.0, 1.25, 1.6],
+            "R_VTHETA":          [0.65, 0.85, 1.0, 1.25, 1.6],
+            "W_DELTA_RATE":      [0.7, 0.85, 1.0, 1.15, 1.35],
+            "W_AX_RATE":         [0.65, 0.85, 1.0, 1.25, 1.6],
+            "W_VTHETA_RATE":     [0.7, 0.85, 1.0, 1.15, 1.35],
             "V_THETA_MAX":       [0.8, 0.9, 1.0, 1.1, 1.2],
         },
         "discrete": {
             # HORIZON and DT intentionally omitted — locked
-            # ADMM_MAX_ITER removed — unused with OSQP solver
         },
     },
     "tracker": {
         "num_perturb_range": (3, 6),
-        "default_multipliers": [0.85, 0.95, 1.0, 1.1, 1.2],
+        "default_multipliers": [0.8, 0.92, 1.0, 1.1, 1.22],
         "param_multipliers": {
-            "Q_CONTOURING":      [0.9, 0.97, 1.0, 1.08, 1.18],
-            "Q_LAG":             [0.9, 0.97, 1.0, 1.08, 1.18],
-            "Q_PROGRESS":        [0.85, 0.95, 1.0, 1.1, 1.2],
-            "Q_CONTOURING_TERM": [1.0, 1.1, 1.2, 1.5, 2.0],
-            "Q_LAG_TERM":        [1.0, 1.1, 1.2, 1.5, 2.0],
-            "Q_PROGRESS_TERM":   [0.8, 0.9, 1.0, 1.15, 1.3],
-            "Q_VX":              [0.0, 0.5, 1.0, 1.3, 2.0],
-            "Q_VY":              [0.8, 0.9, 1.0, 1.15, 1.3],
-            "Q_OMEGA":           [0.8, 0.9, 1.0, 1.15, 1.3],
-            "R_DELTA":           [0.85, 0.95, 1.0, 1.1, 1.2],
-            "R_AX":              [0.5, 0.8, 1.0, 1.3, 2.0],
-            "R_VTHETA":          [0.5, 0.8, 1.0, 1.3, 2.0],
-            "W_DELTA_RATE":      [0.85, 0.95, 1.0, 1.1, 1.2],
-            "W_AX_RATE":         [0.5, 0.8, 1.0, 1.3, 2.0],
-            "W_VTHETA_RATE":     [0.7, 0.85, 1.0, 1.2, 1.4],
-            # ADMM_RHO removed — unused with OSQP solver
+            "Q_CONTOURING":      [0.8, 0.92, 1.0, 1.1, 1.25],
+            "Q_LAG":             [0.8, 0.92, 1.0, 1.1, 1.25],
+            "Q_PROGRESS":        [0.85, 0.95, 1.0, 1.12, 1.3],
+            "Q_CONTOURING_TERM": [0.85, 0.95, 1.0, 1.08, 1.2],
+            "Q_LAG_TERM":        [0.85, 0.95, 1.0, 1.08, 1.2],
+            "Q_PROGRESS_TERM":   [0.85, 0.95, 1.0, 1.1, 1.25],
+            "Q_VY":              [0.75, 0.9, 1.0, 1.12, 1.28],
+            "Q_OMEGA":           [0.75, 0.9, 1.0, 1.12, 1.28],
+            "R_DELTA":           [0.8, 0.92, 1.0, 1.1, 1.25],
+            "R_AX":              [0.7, 0.9, 1.0, 1.25, 1.55],
+            "R_VTHETA":          [0.7, 0.9, 1.0, 1.25, 1.55],
+            "W_DELTA_RATE":      [0.8, 0.92, 1.0, 1.1, 1.25],
+            "W_AX_RATE":         [0.7, 0.9, 1.0, 1.25, 1.55],
+            "W_VTHETA_RATE":     [0.75, 0.9, 1.0, 1.12, 1.28],
             "V_THETA_MAX":       [0.85, 0.95, 1.0, 1.1, 1.2],
         },
         "discrete": {
             # HORIZON and DT intentionally omitted — locked
-            # ADMM_MAX_ITER removed — unused with OSQP solver
         },
     },
     "racer_exploit": {
         "num_perturb_range": (2, 4),
-        "default_multipliers": [0.96, 0.99, 1.0, 1.03, 1.07],
+        "default_multipliers": [0.94, 0.98, 1.0, 1.03, 1.08],
         "param_multipliers": {
-            "Q_CONTOURING":      [0.94, 0.98, 1.0, 1.03, 1.07],
-            "Q_LAG":             [0.94, 0.98, 1.0, 1.03, 1.07],
-            "Q_PROGRESS":        [0.97, 1.0, 1.03, 1.06, 1.1],
-            "Q_CONTOURING_TERM": [1.0, 1.02, 1.05, 1.1, 1.15],
-            "Q_LAG_TERM":        [1.0, 1.02, 1.05, 1.1, 1.15],
-            "Q_PROGRESS_TERM":   [0.95, 0.98, 1.0, 1.03, 1.06],
-            "Q_VX":              [0.0, 0.7, 1.0, 1.2, 1.5],
+            "Q_CONTOURING":      [0.9, 0.96, 1.0, 1.04, 1.1],
+            "Q_LAG":             [0.9, 0.96, 1.0, 1.04, 1.1],
+            "Q_PROGRESS":        [0.94, 0.98, 1.0, 1.05, 1.12],
+            "Q_CONTOURING_TERM": [0.9, 0.96, 1.0, 1.04, 1.1],
+            "Q_LAG_TERM":        [0.9, 0.96, 1.0, 1.04, 1.1],
+            "Q_PROGRESS_TERM":   [0.92, 0.97, 1.0, 1.04, 1.1],
             "Q_VY":              [0.92, 0.98, 1.0, 1.05, 1.1],
             "Q_OMEGA":           [0.92, 0.98, 1.0, 1.05, 1.1],
-            "R_DELTA":           [0.94, 0.99, 1.0, 1.04, 1.08],
-            "R_AX":              [0.7, 0.9, 1.0, 1.2, 1.5],
-            "R_VTHETA":          [0.7, 0.9, 1.0, 1.2, 1.5],
-            "W_DELTA_RATE":      [0.92, 0.98, 1.0, 1.05, 1.1],
-            "W_AX_RATE":         [0.7, 0.9, 1.0, 1.2, 1.5],
+            "R_DELTA":           [0.9, 0.96, 1.0, 1.04, 1.1],
+            "R_AX":              [0.8, 0.94, 1.0, 1.12, 1.3],
+            "R_VTHETA":          [0.8, 0.94, 1.0, 1.12, 1.3],
+            "W_DELTA_RATE":      [0.9, 0.96, 1.0, 1.04, 1.1],
+            "W_AX_RATE":         [0.8, 0.94, 1.0, 1.12, 1.3],
             "W_VTHETA_RATE":     [0.9, 0.97, 1.0, 1.05, 1.1],
-            # ADMM_RHO removed — unused with OSQP solver
             "V_THETA_MAX":       [0.94, 0.99, 1.0, 1.04, 1.08],
         },
         "discrete": {
             # HORIZON and DT intentionally omitted — locked
-            # ADMM_MAX_ITER removed — unused with OSQP solver
         },
     },
     "tracker_exploit": {
         "num_perturb_range": (2, 4),
-        "default_multipliers": [0.95, 0.98, 1.0, 1.02, 1.05],
+        "default_multipliers": [0.94, 0.98, 1.0, 1.03, 1.07],
         "param_multipliers": {
-            "Q_CONTOURING":      [0.96, 0.99, 1.0, 1.02, 1.05],
-            "Q_LAG":             [0.96, 0.99, 1.0, 1.02, 1.05],
-            "Q_PROGRESS":        [0.95, 0.98, 1.0, 1.03, 1.06],
-            "Q_CONTOURING_TERM": [1.0, 1.02, 1.05, 1.1, 1.15],
-            "Q_LAG_TERM":        [1.0, 1.02, 1.05, 1.1, 1.15],
-            "Q_PROGRESS_TERM":   [0.92, 0.97, 1.0, 1.05, 1.1],
-            "Q_VX":              [0.0, 0.8, 1.0, 1.15, 1.3],
+            "Q_CONTOURING":      [0.92, 0.97, 1.0, 1.03, 1.08],
+            "Q_LAG":             [0.92, 0.97, 1.0, 1.03, 1.08],
+            "Q_PROGRESS":        [0.94, 0.98, 1.0, 1.04, 1.1],
+            "Q_CONTOURING_TERM": [0.92, 0.97, 1.0, 1.03, 1.08],
+            "Q_LAG_TERM":        [0.92, 0.97, 1.0, 1.03, 1.08],
+            "Q_PROGRESS_TERM":   [0.92, 0.97, 1.0, 1.04, 1.1],
             "Q_VY":              [0.9, 0.97, 1.0, 1.05, 1.1],
             "Q_OMEGA":           [0.9, 0.97, 1.0, 1.05, 1.1],
-            "R_DELTA":           [0.92, 0.98, 1.0, 1.05, 1.1],
-            "R_AX":              [0.8, 0.95, 1.0, 1.1, 1.3],
-            "R_VTHETA":          [0.8, 0.95, 1.0, 1.1, 1.3],
-            "W_DELTA_RATE":      [0.92, 0.98, 1.0, 1.05, 1.1],
-            "W_AX_RATE":         [0.8, 0.95, 1.0, 1.1, 1.3],
+            "R_DELTA":           [0.9, 0.97, 1.0, 1.04, 1.1],
+            "R_AX":              [0.82, 0.95, 1.0, 1.1, 1.25],
+            "R_VTHETA":          [0.82, 0.95, 1.0, 1.1, 1.25],
+            "W_DELTA_RATE":      [0.9, 0.97, 1.0, 1.04, 1.1],
+            "W_AX_RATE":         [0.82, 0.95, 1.0, 1.1, 1.25],
             "W_VTHETA_RATE":     [0.9, 0.97, 1.0, 1.05, 1.1],
-            # ADMM_RHO removed — unused with OSQP solver
             "V_THETA_MAX":       [0.92, 0.98, 1.0, 1.05, 1.1],
         },
         "discrete": {
             # HORIZON and DT intentionally omitted — locked
-            # ADMM_MAX_ITER removed — unused with OSQP solver
         },
     },
 }
@@ -269,7 +287,7 @@ RANDOM_PROFILES = {
 # CONSTANTS
 # ==============================================================================
 
-INT_PARAMS = {"HORIZON", "ADMM_MAX_ITER",
+INT_PARAMS = {"HORIZON", "ADMM_MAX_ITER", "ADMM_ADAPTIVE_RHO",
               "MPCC_USE_RACELINE_VX_REF", "MPCC_USE_RACELINE_VX_LIMIT"}
 
 CASCADE_TOP_N = 10
@@ -288,7 +306,8 @@ MPCC_PRINT_ORDER = (
     "R_DELTA", "R_AX", "R_VTHETA",
     "W_DELTA_RATE", "W_AX_RATE", "W_VTHETA_RATE",
     "Q_CONTOURING_TERM", "Q_LAG_TERM", "Q_PROGRESS_TERM",
-    "ADMM_RHO", "ADMM_MAX_ITER", "ADMM_TOL",
+    "ADMM_RHO", "ADMM_RHO_U", "ADMM_MAX_ITER", "ADMM_TOL",
+    "ADMM_ADAPTIVE_RHO", "ADMM_ALPHA_RELAX",
     "HORIZON", "DT", "V_THETA_MAX", "CROSS_CALL_SCALE",
 )
 
@@ -336,7 +355,7 @@ def canonicalize_params(params: dict) -> dict:
 
 def enforce_terminal_weight_floor(params: dict) -> dict:
     """
-    Enforce terminal >= running weights (required for Riccati correctness)
+    Enforce terminal >= running weights using the smallest valid floor
     and V_THETA_MAX >= 8 m/s (required for reference to keep up with car).
     """
     out = dict(params)
@@ -345,10 +364,10 @@ def enforce_terminal_weight_floor(params: dict) -> dict:
     qp = float(out.get("Q_PROGRESS",   BASE.get("Q_PROGRESS",   20)))
 
     if float(out.get("Q_CONTOURING_TERM", 0)) < qc:
-        out["Q_CONTOURING_TERM"] = qc * 2.0
+        out["Q_CONTOURING_TERM"] = qc
     if float(out.get("Q_LAG_TERM", 0)) < ql:
         out["Q_LAG_TERM"] = ql
-    if float(out.get("Q_PROGRESS_TERM", 0)) < qp * 0.5:
+    if float(out.get("Q_PROGRESS_TERM", 0)) < qp:
         out["Q_PROGRESS_TERM"] = qp
     if float(out.get("V_THETA_MAX", BASE.get("V_THETA_MAX", 20.0))) < 8.0:
         out["V_THETA_MAX"] = 8.0
@@ -365,7 +384,20 @@ def is_valid_config(params: dict) -> bool:
         return False
     qc = float(params.get("Q_CONTOURING", BASE.get("Q_CONTOURING", 1000)))
     ql = float(params.get("Q_LAG", BASE.get("Q_LAG", 300)))
-    if ql > 0 and (qc / ql) > 10.0:
+    qp = float(params.get("Q_PROGRESS", BASE.get("Q_PROGRESS", 20)))
+    if ql > 0 and (qc / ql) > 8.0:
+        return False
+    if qp > 0 and max(qc, ql) / qp > 40.0:
+        return False
+    for name, (lo, hi) in PROGRESS_OPTIMIZER_LIMITS.items():
+        if name not in params:
+            continue
+        value = float(params[name])
+        if value < lo - 1e-9 or value > hi + 1e-9:
+            return False
+    if abs(float(params.get("Q_VX", LOCKED_Q_VX)) - LOCKED_Q_VX) > 1e-9:
+        return False
+    if abs(float(params.get("VX_REF", LOCKED_VX_REF)) - LOCKED_VX_REF) > 1e-9:
         return False
     return True
 
@@ -381,6 +413,35 @@ def config_hash(params: dict) -> str:
 # TEST RUNNER
 # ==============================================================================
 
+def build_admm_binary() -> str:
+    """Build the standalone test_sim_drive binary with the in-tree ADMM solver."""
+    binary = DEFAULT_ADMM_BINARY
+    print("Building ADMM sweep binary...")
+    cmd = [
+        "gcc",
+        "-O3", "-std=c99", "-Wall", "-ffast-math",
+        "-Wno-unused-variable", "-Wno-unused-but-set-variable",
+        "-Wno-unused-function", "-Wno-unknown-pragmas",
+        f"-I{MPCC_DIR}/include",
+        f"-I{MPCC_DIR}/../MPC/include",
+        f"{MPCC_DIR}/test/test_sim_drive.c",
+        f"{MPCC_DIR}/src/mpcc.c",
+        f"{MPCC_DIR}/src/mpcc_vehicle_model.c",
+        f"{MPCC_DIR}/src/qp_solver_mpcc.c",
+        "-lm",
+        "-o", binary,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print("ERROR: Failed to build ADMM sweep binary.")
+        if result.stdout:
+            print(result.stdout)
+        if result.stderr:
+            print(result.stderr)
+        sys.exit(1)
+    return binary
+
+
 def run_test(params: dict, binary: str, sim_duration_s: float) -> dict:
     env = os.environ.copy()
     env["MPCC_TUNING_CSV"] = "1"
@@ -388,10 +449,12 @@ def run_test(params: dict, binary: str, sim_duration_s: float) -> dict:
     env["SIM_DURATION"] = str(sim_duration_s)
 
     effective_params = canonicalize_params(enforce_terminal_weight_floor(params))
-    # Always enforce locked prediction window
+    # Always enforce locked prediction window and no speed-reference tracking.
     effective_params["HORIZON"]         = LOCKED_HORIZON
     effective_params["DT"]              = LOCKED_DT
     effective_params["CROSS_CALL_SCALE"] = LOCKED_CROSS_CALL_SCALE
+    effective_params["Q_VX"]            = LOCKED_Q_VX
+    effective_params["VX_REF"]          = LOCKED_VX_REF
     for name, value in effective_params.items():
         env[name] = str(value)
 
@@ -406,6 +469,14 @@ def run_test(params: dict, binary: str, sim_duration_s: float) -> dict:
         print(f"ERROR: Binary '{binary}' not found.")
         sys.exit(1)
 
+    if "ADMM+Riccati" not in result.stdout:
+        return {
+            "status": "WRONG_SOLVER",
+            "return_code": result.returncode,
+            "passed": 0,
+            "failed": 6,
+        }
+
     for line in result.stdout.splitlines():
         if line.startswith("CSV,"):
             parts = line.split(",")
@@ -413,7 +484,7 @@ def run_test(params: dict, binary: str, sim_duration_s: float) -> dict:
                 return {
                     "status": "OK",
                     "return_code": result.returncode,
-                    "admm_max_iter":     float(effective_params.get("ADMM_MAX_ITER", 300)),
+                    "solver_max_iter":   float(effective_params.get("ADMM_MAX_ITER", 300)),
                     "passed": int(parts[1]),
                     "failed": int(parts[2]),
                     "max_contouring_err": float(parts[3]),
@@ -466,7 +537,7 @@ def compute_stability_penalty(r: dict) -> float | None:
     s_prediction_regressions = int(r.get("s_prediction_regressions", 0))
     s_large_corrections = int(r.get("s_large_corrections", 0))
     avg_iters = float(r.get("avg_iters", 0.0))
-    admm_max_iter = max(float(r.get("admm_max_iter", 300.0)), 1.0)
+    solver_max_iter = max(float(r.get("solver_max_iter", 4000.0)), 1.0)
     avg_clip_events = float(r.get("avg_clip_events", 0.0))
 
     if s_backward_jumps > 0 or s_prediction_regressions > 0:
@@ -476,8 +547,8 @@ def compute_stability_penalty(r: dict) -> float | None:
     if avg_clip_events > 0.05:
         return 940.0 + min(40.0, avg_clip_events * 20.0)
 
-    if avg_iters > 0.8 * admm_max_iter:
-        return 930.0 + min(50.0, 50.0 * (avg_iters / admm_max_iter))
+    if avg_iters > 0.8 * solver_max_iter:
+        return 930.0 + min(50.0, 50.0 * (avg_iters / solver_max_iter))
 
     return None
 
@@ -615,6 +686,7 @@ def gen_primary_grid() -> list:
         w["Q_CONTOURING_TERM"] = qct
         w["Q_LAG_TERM"]        = qlt
 
+        w = enforce_terminal_weight_floor(w)
         if is_valid_config(w):
             label = (f"QC={qc}+QL={ql}+QP={qp}"
                      f"+QCT={qct}+QLT={qlt}")
@@ -642,7 +714,7 @@ def gen_secondary_grid() -> list:
 
 
 def gen_solver_grid() -> list:
-    # Solver grid removed — ADMM params unused with OSQP solver
+    # Solver grid intentionally omitted; keep ADMM settings locked for sweeps.
     return []
 
 
@@ -650,8 +722,9 @@ def gen_fine_tuning(best_weights: dict) -> list:
     combos = []
     pct_range = (0.80, 0.85, 0.90, 0.92, 0.95, 0.97,
                  1.03, 1.05, 1.08, 1.10, 1.15, 1.20)
-    skip = {"ADMM_MAX_ITER", "ADMM_RHO", "ADMM_TOL",
-            "HORIZON", "DT", "CROSS_CALL_SCALE",
+    skip = {"ADMM_RHO", "ADMM_RHO_U", "ADMM_MAX_ITER", "ADMM_TOL",
+            "ADMM_ADAPTIVE_RHO", "ADMM_ALPHA_RELAX",
+            "HORIZON", "DT", "CROSS_CALL_SCALE", "Q_VX", "VX_REF",
             "MPCC_USE_RACELINE_VX_REF", "MPCC_USE_RACELINE_VX_LIMIT",
             "MPCC_RACELINE_VX_LIMIT_SCALE"}
 
@@ -663,9 +736,11 @@ def gen_fine_tuning(best_weights: dict) -> list:
                 for sv in FULL_SWEEP_VALUES[name]:
                     if sv == 0:
                         continue
-                    w = enforce_terminal_weight_floor(dict(best_weights))
+                    w = dict(best_weights)
                     w[name] = sv
-                    combos.append((f"FT:{name}={sv}", w))
+                    w = enforce_terminal_weight_floor(w)
+                    if is_valid_config(w):
+                        combos.append((f"FT:{name}={sv}", w))
             continue
         for mult in pct_range:
             new_val = round(base_val * mult, 6)
@@ -681,9 +756,9 @@ def gen_fine_tuning(best_weights: dict) -> list:
 
     key_params = [
         "Q_CONTOURING", "Q_LAG", "Q_PROGRESS",
-        "Q_CONTOURING_TERM", "Q_LAG_TERM",
-        "Q_VX", "R_DELTA", "R_AX", "R_VTHETA",
-        "V_THETA_MAX", "W_DELTA_RATE",
+        "Q_CONTOURING_TERM", "Q_LAG_TERM", "Q_PROGRESS_TERM",
+        "R_DELTA", "R_AX", "R_VTHETA",
+        "V_THETA_MAX", "W_DELTA_RATE", "W_AX_RATE",
     ]
     for w1, w2 in itertools.combinations(key_params, 2):
         v1 = best_weights.get(w1, 0)
@@ -722,8 +797,11 @@ def gen_random_neighbors(best_weights: dict, n: int, objective: str,
     min_p, max_p      = profile.get("num_perturb_range", (3, 6))
 
     tune_params = [k for k in best_weights.keys()
-                   if k not in ("ADMM_MAX_ITER", "ADMM_RHO", "ADMM_TOL",
+                   if k not in ("ADMM_RHO", "ADMM_RHO_U", "ADMM_MAX_ITER",
+                                "ADMM_TOL", "ADMM_ADAPTIVE_RHO",
+                                "ADMM_ALPHA_RELAX",
                                 "HORIZON", "DT", "CROSS_CALL_SCALE",
+                                "Q_VX", "VX_REF",
                                 "MPCC_USE_RACELINE_VX_REF",
                                 "MPCC_USE_RACELINE_VX_LIMIT",
                                 "MPCC_RACELINE_VX_LIMIT_SCALE")]
@@ -747,10 +825,12 @@ def gen_random_neighbors(best_weights: dict, n: int, objective: str,
             if name in INT_PARAMS:
                 w[name] = int(float(w[name]))
 
-        # Always re-lock prediction window
+        # Always re-lock prediction window and no speed-reference tracking.
         w["HORIZON"]         = LOCKED_HORIZON
         w["DT"]              = LOCKED_DT
         w["CROSS_CALL_SCALE"] = LOCKED_CROSS_CALL_SCALE
+        w["Q_VX"]            = LOCKED_Q_VX
+        w["VX_REF"]          = LOCKED_VX_REF
 
         w = enforce_terminal_weight_floor(w)
         if is_valid_config(w):
@@ -1003,7 +1083,7 @@ def main():
     global BASE, RACELINE_PATH, RACELINE_TAG
 
     parser = argparse.ArgumentParser(
-        description="MPCC Weight Tuner — locked HORIZON=20, DT=0.03")
+        description=f"MPCC Weight Tuner — locked HORIZON={LOCKED_HORIZON}, DT={LOCKED_DT}")
     parser.add_argument("--jobs", "-j", type=int,
                         default=multiprocessing.cpu_count(),
                         help="Number of parallel workers")
@@ -1013,7 +1093,7 @@ def main():
     parser.add_argument("--raceline", default=DEFAULT_RACELINE_NAME,
                         help="Raceline CSV filename or path")
     parser.add_argument("--binary", default=None,
-                        help="Path to test_sim_drive binary")
+                        help="Advanced: path to an already-built ADMM test_sim_drive binary")
     parser.add_argument("--sim-duration", type=float, default=45.0,
                         help="Simulation duration in seconds (passed via SIM_DURATION env var)")
     parser.add_argument("--sanity-only", action="store_true",
@@ -1035,20 +1115,11 @@ def main():
         BASE.update(RACER_BASE_OVERRIDES)
     BASE = enforce_terminal_weight_floor(BASE)
 
-    # Find binary
-    binary = args.binary
-    if binary is None:
-        candidates = [
-            os.path.join(MPCC_DIR, "build", "test_sim_drive"),
-            os.path.join(MPCC_DIR, "test_sim_drive"),
-            os.path.join(PROJECT_DIR, "build", "test_sim_drive"),
-        ]
-        for c in candidates:
-            if os.path.isfile(c):
-                binary = c
-                break
+    # Build/use the ADMM sweep binary. Avoid auto-discovering old test_sim_drive
+    # binaries because they may have been compiled with a different solver backend.
+    binary = args.binary if args.binary else build_admm_binary()
     if binary is None or not os.path.isfile(binary):
-        print("ERROR: Cannot find test_sim_drive binary. Use --binary PATH.")
+        print("ERROR: Cannot find test_sim_drive binary.")
         sys.exit(1)
 
     print(f"MPCC Tuner — objective={args.objective}  workers={args.jobs}")
@@ -1140,8 +1211,8 @@ def main():
 
     best = get_best_params(results)
 
-    # ── Phase 5 (skipped — ADMM params unused with OSQP solver) ────────────
-    print("\n  Phase 5: SKIPPED — ADMM solver params unused with OSQP")
+    # ── Phase 5 (skipped — solver settings locked) ────────────────────────
+    print("\n  Phase 5: SKIPPED — ADMM solver settings locked")
     print_best(results, args.objective, "after Phase 4 (Phase 5 skipped)")
 
     best = get_best_params(results)
