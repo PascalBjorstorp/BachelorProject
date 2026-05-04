@@ -11,6 +11,7 @@
 #include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
 
 #include "state_transport_udp/state_packet.hpp"
+#include "mpc_fpga_interface.h"
 
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -177,21 +178,39 @@ private:
      * @return None
      */
     void handleControlPacket(const ControlPacket& packet) {
-        // Set steering command
-        const float steering = std::clamp(
-            fp_to_float(packet.steering_fp),
-            -static_cast<float>(MPC_FPGA_MAX_STEER_RAD),
-            static_cast<float>(MPC_FPGA_MAX_STEER_RAD));
-        
-        // Set speed command
-        const float speed = std::clamp(
-            fp_to_float(packet.speed_fp),
-            0.0f,
-            static_cast<float>(MPC_FPGA_MAX_VEL_MPS));
+        const bool bad_status =
+            (packet.solver_status == MPC_FPGA_STATUS_ERROR) ||
+            (packet.solver_status == MPC_FPGA_STATUS_NO_TRAJECTORY);
 
-        // Acceleration isn't used for direct control but is logged for monitoring.
-        const float accel = fp_to_float(packet.accel_fp);
+        float steering = 0.0f;
+        float speed = 0.0f;
+        float accel = 0.0f;
 
+        if (bad_status) {
+            steering = last_safe_steering_;
+            speed = last_safe_speed_;
+            accel = last_safe_accel_;
+
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+                                 "UDP control packet has bad solver status=%u, holding last safe command",
+                                 packet.solver_status);
+        } else {
+            steering = std::clamp(
+                fp_to_float(packet.steering_fp),
+                -static_cast<float>(MPC_FPGA_MAX_STEER_RAD),
+                static_cast<float>(MPC_FPGA_MAX_STEER_RAD));
+
+            speed = std::clamp(
+                fp_to_float(packet.speed_fp),
+                0.0f,
+                static_cast<float>(MPC_FPGA_MAX_VEL_MPS));
+
+            accel = fp_to_float(packet.accel_fp);
+
+            last_safe_steering_ = steering;
+            last_safe_speed_ = speed;
+            last_safe_accel_ = accel;
+        }
         
         auto drive = ackermann_msgs::msg::AckermannDriveStamped();
         drive.header.stamp = now();
@@ -310,6 +329,9 @@ private:
     uint64_t stats_packet_count_{0};
     uint32_t stats_start_seq_{0};
     double stats_start_speed_mps_{0.5};
+    float last_safe_steering_{0.0f};
+    float last_safe_speed_{0.0f};
+    float last_safe_accel_{0.0f};
     std::chrono::steady_clock::time_point last_packet_time_{std::chrono::steady_clock::now()};
 
     rclcpp::Publisher<ackermann_msgs::msg::AckermannDriveStamped>::SharedPtr drive_pub_;

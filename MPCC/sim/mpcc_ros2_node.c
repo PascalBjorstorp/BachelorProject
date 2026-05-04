@@ -31,6 +31,8 @@
 static VehicleState_t   current_vehicle_state;
 static float    current_s;          /* arc-length hint for warm-start */
 static int              state_valid = 0;
+static MPCCReferencePath_t active_ref_path;
+static int ref_path_valid = 0;
 
 /* ROS objects */
 static rcl_subscription_t   odom_sub;
@@ -50,6 +52,87 @@ static double quat_to_yaw(double qx, double qy, double qz, double qw)
     double siny = 2.0 * (qw * qz + qx * qy);
     double cosy = 1.0 - 2.0 * (qy * qy + qz * qz);
     return atan2(siny, cosy);
+}
+
+static int compute_path_tracking_diag(
+    const MPCCState_t *st,
+    float *lag_error,
+    float *track_slack)
+{
+    if (!ref_path_valid || active_ref_path.num_points < 2)
+        return 0;
+
+    if (!isfinite((double)st->s) || !isfinite((double)st->X) ||
+        !isfinite((double)st->Y))
+        return 0;
+
+    MPCCPathPoint_t path_pt;
+    mpcc_path_interpolate(&active_ref_path, st->s, &path_pt);
+
+    float sin_phi = sinf(path_pt.phi_ref);
+    float cos_phi = cosf(path_pt.phi_ref);
+    float dX = st->X - path_pt.x_ref;
+    float dY = st->Y - path_pt.y_ref;
+    float e_c = sin_phi * dX - cos_phi * dY;
+    float e_l = -(cos_phi * dX + sin_phi * dY);
+    float left_slack = path_pt.left_bound - e_c;
+    float right_slack = path_pt.right_bound + e_c;
+    float min_slack = (left_slack < right_slack) ? left_slack : right_slack;
+
+    if (lag_error) *lag_error = e_l;
+    if (track_slack) *track_slack = min_slack;
+    return 1;
+}
+
+static void summarize_prediction_diag(
+    const MPCCState_t *current_state,
+    const MPCCResult_t *result,
+    uint16_t horizon,
+    float *s_stage_1,
+    float *s_terminal,
+    float *lag_now,
+    float *lag_terminal,
+    float *slack_now,
+    float *min_predicted_slack,
+    uint16_t *min_predicted_slack_k)
+{
+    if (s_stage_1) *s_stage_1 = current_state->s;
+    if (s_terminal) *s_terminal = current_state->s;
+    if (lag_now) *lag_now = NAN;
+    if (lag_terminal) *lag_terminal = NAN;
+    if (slack_now) *slack_now = NAN;
+    if (min_predicted_slack) *min_predicted_slack = NAN;
+    if (min_predicted_slack_k) *min_predicted_slack_k = 0;
+
+    if (horizon > MPCC_MAX_HORIZON)
+        horizon = MPCC_MAX_HORIZON;
+
+    compute_path_tracking_diag(current_state, lag_now, slack_now);
+
+    if (horizon > 0 && s_stage_1)
+        *s_stage_1 = result->predicted_states[1].s;
+    if (s_terminal)
+        *s_terminal = result->predicted_states[horizon].s;
+
+    compute_path_tracking_diag(&result->predicted_states[horizon],
+                               lag_terminal, NULL);
+
+    float best_slack = INFINITY;
+    uint16_t best_k = 0;
+    for (uint16_t k = 1; k <= horizon; k++) {
+        float slack_k;
+        if (!compute_path_tracking_diag(&result->predicted_states[k], NULL, &slack_k))
+            continue;
+        if (slack_k < best_slack) {
+            best_slack = slack_k;
+            best_k = k;
+        }
+    }
+
+    if (isfinite((double)best_slack)) {
+        if (min_predicted_slack) *min_predicted_slack = best_slack;
+        if (min_predicted_slack_k) *min_predicted_slack_k = best_k;
+    }
 }
 
 /* ── Trajectory Loading ──────────────────────────────────────────────────── */
@@ -305,6 +388,8 @@ static void raceline_callback(const void *msg_in)
     ref_path.is_closed = 1;
 
     mpcc_set_reference_path(&ref_path);
+    active_ref_path = ref_path;
+    ref_path_valid = 1;
     printf("[MPCC] Updated raceline from topic (%d points, %.1f m)\n",
            n, ref_path.total_length);
 
@@ -401,6 +486,24 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
 
     /* Diagnostic: show state + actual commands sent */
     if (solve_count <= 20 || (solve_count % 10 == 0)) {
+        MPCCConfiguration_t cfg = mpcc_get_configuration();
+        uint16_t horizon = cfg.horizon_steps;
+        float s_stage_1;
+        float s_terminal;
+        float lag_now;
+        float lag_terminal;
+        float slack_now;
+        float min_predicted_slack;
+        uint16_t min_predicted_slack_k;
+        float vt_vx_ratio = v_theta_cmd / fmaxf(fabsf(mpcc_state.vx), 0.10f);
+
+        summarize_prediction_diag(&mpcc_state, &result, horizon,
+                                  &s_stage_1, &s_terminal,
+                                  &lag_now, &lag_terminal,
+                                  &slack_now,
+                                  &min_predicted_slack,
+                                  &min_predicted_slack_k);
+
         fprintf(stderr,
             "[MPCC %3u] s=%.2f vx=%.2f X=%.2f Y=%.2f psi=%.3f | "
             "d=%.4f ax=%.3f vt=%.3f | st=%d it=%u\n",
@@ -412,6 +515,17 @@ static void control_timer_callback(rcl_timer_t *timer, int64_t last_call)
             mpcc_state.psi,
             delta_cmd, a_x_cmd, v_theta_cmd,
             (int)status, result.admm_iterations);
+        fprintf(stderr,
+            "           pred: s1=%.2f sN=%.2f dsN=%.2f lag0=%.3f lagN=%.3f slack0=%.3f minSlack=%.3f@k%u vt/vx=%.2f\n",
+            s_stage_1,
+            s_terminal,
+            s_terminal - mpcc_state.s,
+            lag_now,
+            lag_terminal,
+            slack_now,
+            min_predicted_slack,
+            (unsigned)min_predicted_slack_k,
+            vt_vx_ratio);
         fflush(stderr);
     }
 
@@ -477,9 +591,14 @@ int main(int argc, const char *argv[])
         if ((v = getenv("Q_CONTOURING_TERM"))) cfg.weight_contouring_terminal = (float)atof(v);
         if ((v = getenv("Q_LAG_TERM")))      cfg.weight_lag_terminal = (float)atof(v);
         if ((v = getenv("Q_PROGRESS_TERM"))) cfg.weight_progress_terminal = (float)atof(v);
+#ifndef USE_OSQP
         if ((v = getenv("ADMM_RHO")))        cfg.admm_rho          = (float)atof(v);
         if ((v = getenv("ADMM_MAX_ITER")))   cfg.admm_max_iterations = (uint16_t)atoi(v);
         if ((v = getenv("ADMM_TOL")))        cfg.admm_tolerance    = (float)atof(v);
+        if ((v = getenv("ADMM_RHO_U")))      cfg.admm_rho_u        = (float)atof(v);
+        if ((v = getenv("ADMM_ADAPTIVE_RHO"))) cfg.admm_adaptive_rho = (uint8_t)(atoi(v) != 0);
+        if ((v = getenv("ADMM_ALPHA_RELAX"))) cfg.admm_alpha_relax = (float)atof(v);
+#endif
         if ((v = getenv("HORIZON")))         cfg.horizon_steps     = (uint16_t)atoi(v);
         if ((v = getenv("DT")))              cfg.dt                = (float)atof(v);
         if ((v = getenv("V_THETA_MAX")))     cfg.v_theta_max       = (float)atof(v);
@@ -493,13 +612,17 @@ int main(int argc, const char *argv[])
         /* Apply the possibly-modified config */
         mpcc_set_configuration(&cfg);
 
-        printf("[MPCC] Config: N=%d dt=%.3f Q_c=%.1f Q_l=%.1f "
-               "Q_prog=%.1f R_delta=%.2f W_drate=%.1f ADMM_rho=%.2f\n",
+        printf("[MPCC] Config: solver=%s N=%d dt=%.3f Q_c=%.1f Q_l=%.1f "
+               "Q_prog=%.1f R_delta=%.2f W_drate=%.1f\n",
+#ifdef USE_OSQP
+               "OSQP",
+#else
+               "ADMM+Riccati",
+#endif
                cfg.horizon_steps, cfg.dt,
                cfg.weight_contouring, cfg.weight_lag,
                cfg.weight_progress,
-               cfg.weight_delta, cfg.weight_delta_rate,
-               cfg.admm_rho);
+               cfg.weight_delta, cfg.weight_delta_rate);
     }
     current_s = 0;
 
@@ -518,6 +641,8 @@ int main(int argc, const char *argv[])
     if (load_trajectory_csv(trajectory_file, &ref_path))
     {
         mpcc_set_reference_path(&ref_path);
+        active_ref_path = ref_path;
+        ref_path_valid = 1;
         printf("[MPCC] Reference path set successfully\n");
     }
     else

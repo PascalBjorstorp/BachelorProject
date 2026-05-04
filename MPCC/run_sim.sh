@@ -3,11 +3,12 @@
 # MPCC/run_sim.sh — Launch MPCC (Contouring Control) with F1/10th simulator
 #
 # Usage:
-#   ./MPCC/run_sim.sh 120 f1tenth_planning/trajectories/my_track_centerline.csv
+#   ./MPCC/run_sim.sh 120 f1tenth_planning/trajectories/my_track_centerline_smooth.csv
 #
 # Defaults:
 #   DURATION_SECONDS = 120
-#   TRAJECTORY_FILE  = f1tenth_planning/trajectories/my_track_centerline.csv
+#   TRAJECTORY_FILE  = f1tenth_planning/trajectories/my_track_centerline_smooth.csv
+#   MPCC_PROFILE     = convergence_debug
 #
 # This script:
 #   1. Rebuilds the mpcc_f1_10th package via colcon
@@ -22,7 +23,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 DURATION_SECONDS="${1:-120}"
-TRAJECTORY_FILE="${2:-${ROOT_DIR}/f1tenth_planning/trajectories/my_track_centerline.csv}"
+TRAJECTORY_FILE="${2:-${ROOT_DIR}/f1tenth_planning/trajectories/my_track_centerline_smooth.csv}"
 
 # Resolve to absolute path so ROS2 nodes can find it regardless of cwd
 if [[ "${TRAJECTORY_FILE}" != /* ]]; then
@@ -36,6 +37,7 @@ mkdir -p "${LOG_DIR}"
 GYM_LOG="${LOG_DIR}/gym_bridge.log"
 MPCC_LOG="${LOG_DIR}/mpcc.log"
 SUMMARY_LOG="${LOG_DIR}/summary.txt"
+CONFIG_LOG="${LOG_DIR}/run_config.env"
 
 SIM_PID=""
 MPC_PID=""
@@ -139,33 +141,87 @@ elif [[ "${TRAJ_BASENAME}" == *"hardware"* ]]; then
     DEFAULT_GYM_MAP_IMG_EXT=".pgm"
 fi
 
-# Match tune_mpcc.py BASE_CONFIG so ROS run is comparable.
-export HORIZON="${HORIZON:-20}"
-export DT="${DT:-0.05}"
-export Q_CONTOURING="${Q_CONTOURING:-960.0}"
-export Q_LAG="${Q_LAG:-100.0}"
-export Q_PROGRESS="${Q_PROGRESS:-15.6}"
-export Q_VX="${Q_VX:-10.0}"
-export VX_REF="${VX_REF:-4.0}"
+MPCC_PROFILE="${MPCC_PROFILE:-convergence_debug}"
+
+set_default() {
+    local var_name="$1"
+    local default_value="$2"
+    if [[ -z "${!var_name+x}" ]]; then
+        export "${var_name}=${default_value}"
+    fi
+}
+
+case "${MPCC_PROFILE}" in
+    convergence_debug)
+        set_default HORIZON 40
+        set_default DT 0.03
+        set_default Q_CONTOURING 80.0
+        set_default Q_LAG 120.0
+        set_default Q_PROGRESS 10.0
+        set_default Q_VX 10.0
+        set_default VX_REF 4.0
+        set_default Q_VY 0.5
+        set_default Q_OMEGA 1.5
+        set_default R_DELTA 150.0
+        set_default R_AX 0.05225
+        set_default R_VTHETA 0.1
+        set_default W_DELTA_RATE 8.0
+        set_default W_AX_RATE 0.488
+        set_default W_VTHETA_RATE 0.1105
+        set_default Q_CONTOURING_TERM 600.0
+        set_default Q_LAG_TERM 200.0
+        set_default Q_PROGRESS_TERM 30.0
+        set_default ADMM_RHO 5.0
+        set_default ADMM_RHO_U 0.0
+        set_default ADMM_MAX_ITER 300
+        set_default ADMM_TOL 0.02
+        set_default ADMM_ADAPTIVE_RHO 1
+        set_default ADMM_ALPHA_RELAX 1.6
+        set_default V_THETA_MAX 6.0
+        set_default CROSS_CALL_SCALE 0.166667
+        ;;
+    tuned_fast)
+        set_default HORIZON 20
+        set_default DT 0.03
+        set_default Q_CONTOURING 960.0
+        set_default Q_LAG 200.0
+        set_default Q_PROGRESS 15.6
+        set_default Q_VX 30.0
+        set_default VX_REF 4.0
+        set_default Q_VY 0.5
+        set_default Q_OMEGA 1.5
+        set_default R_DELTA 100.0
+        set_default R_AX 0.05225
+        set_default R_VTHETA 0.1
+        set_default W_DELTA_RATE 5.0
+        set_default W_AX_RATE 0.488
+        set_default W_VTHETA_RATE 0.1105
+        set_default Q_CONTOURING_TERM 4800.0
+        set_default Q_LAG_TERM 800.0
+        set_default Q_PROGRESS_TERM 41.4
+        set_default ADMM_RHO 5.0
+        set_default ADMM_RHO_U 0.0
+        set_default ADMM_MAX_ITER 300
+        set_default ADMM_TOL 0.02
+        set_default ADMM_ADAPTIVE_RHO 1
+        set_default ADMM_ALPHA_RELAX 1.6
+        set_default V_THETA_MAX 10.0
+        set_default CROSS_CALL_SCALE 0.166667
+        ;;
+    manual)
+        :
+        ;;
+    *)
+        echo "ERROR: Unknown MPCC_PROFILE=${MPCC_PROFILE}" >&2
+        echo "Valid profiles: convergence_debug, tuned_fast, manual" >&2
+        exit 1
+        ;;
+esac
+
+export MPCC_PROFILE
 export MPCC_USE_RACELINE_VX_REF="${MPCC_USE_RACELINE_VX_REF:-0}"
 export MPCC_USE_RACELINE_VX_LIMIT="${MPCC_USE_RACELINE_VX_LIMIT:-0}"
 export MPCC_RACELINE_VX_LIMIT_SCALE="${MPCC_RACELINE_VX_LIMIT_SCALE:-1.0}"
-export Q_VY="${Q_VY:-0.5}"
-export Q_OMEGA="${Q_OMEGA:-3.0}"
-export R_DELTA="${R_DELTA:-100.0}"
-export R_AX="${R_AX:-0.05225}"
-export R_VTHETA="${R_VTHETA:-0.1}"
-export W_DELTA_RATE="${W_DELTA_RATE:-2.0}"
-export W_AX_RATE="${W_AX_RATE:-0.488}"
-export W_VTHETA_RATE="${W_VTHETA_RATE:-0.1105}"
-export Q_CONTOURING_TERM="${Q_CONTOURING_TERM:-4800.0}"
-export Q_LAG_TERM="${Q_LAG_TERM:-800.0}"
-export Q_PROGRESS_TERM="${Q_PROGRESS_TERM:-41.4}"
-export ADMM_RHO="${ADMM_RHO:-5.0}"
-export ADMM_MAX_ITER="${ADMM_MAX_ITER:-300}"
-export ADMM_TOL="${ADMM_TOL:-0.02}"
-export V_THETA_MAX="${V_THETA_MAX:-15.0}"
-export CROSS_CALL_SCALE="${CROSS_CALL_SCALE:-0.1}"
 export MPCC_CROSS_CALL_SCALE="${MPCC_CROSS_CALL_SCALE:-${CROSS_CALL_SCALE}}"
 export VERBOSE="${VERBOSE:-1}"
 export MU="${MU:-${SIM_MU:-0.745}}"
@@ -179,9 +235,56 @@ export GYM_SX="${GYM_SX:-${TRAJ_SX:-4.317150}}"
 export GYM_SY="${GYM_SY:-${TRAJ_SY:--4.834061}}"
 export GYM_STHETA="${GYM_STHETA:-${TRAJ_STHETA:--3.034858}}"
 
+cat > "${CONFIG_LOG}" <<EOF
+RUN_ID=${RUN_ID}
+MPCC_PROFILE=${MPCC_PROFILE}
+MPCC_SOLVER=ADMM+Riccati
+TRAJECTORY_FILE=${TRAJECTORY_FILE}
+GYM_MAP_PATH=${GYM_MAP_PATH}
+GYM_MAP_IMG_EXT=${GYM_MAP_IMG_EXT}
+GYM_SX=${GYM_SX}
+GYM_SY=${GYM_SY}
+GYM_STHETA=${GYM_STHETA}
+HORIZON=${HORIZON}
+DT=${DT}
+Q_CONTOURING=${Q_CONTOURING}
+Q_LAG=${Q_LAG}
+Q_PROGRESS=${Q_PROGRESS}
+Q_WALL_CLEARANCE=${Q_WALL_CLEARANCE:-}
+WALL_CLEARANCE_MARGIN=${WALL_CLEARANCE_MARGIN:-}
+Q_VX=${Q_VX}
+VX_REF=${VX_REF}
+MPCC_USE_RACELINE_VX_REF=${MPCC_USE_RACELINE_VX_REF}
+MPCC_USE_RACELINE_VX_LIMIT=${MPCC_USE_RACELINE_VX_LIMIT}
+MPCC_RACELINE_VX_LIMIT_SCALE=${MPCC_RACELINE_VX_LIMIT_SCALE}
+Q_VY=${Q_VY}
+Q_OMEGA=${Q_OMEGA}
+R_DELTA=${R_DELTA}
+R_AX=${R_AX}
+R_VTHETA=${R_VTHETA}
+W_DELTA_RATE=${W_DELTA_RATE}
+W_AX_RATE=${W_AX_RATE}
+W_VTHETA_RATE=${W_VTHETA_RATE}
+Q_CONTOURING_TERM=${Q_CONTOURING_TERM}
+Q_LAG_TERM=${Q_LAG_TERM}
+Q_PROGRESS_TERM=${Q_PROGRESS_TERM}
+ADMM_RHO=${ADMM_RHO}
+ADMM_RHO_U=${ADMM_RHO_U}
+ADMM_MAX_ITER=${ADMM_MAX_ITER}
+ADMM_TOL=${ADMM_TOL}
+ADMM_ADAPTIVE_RHO=${ADMM_ADAPTIVE_RHO}
+ADMM_ALPHA_RELAX=${ADMM_ALPHA_RELAX}
+V_THETA_MAX=${V_THETA_MAX}
+CROSS_CALL_SCALE=${CROSS_CALL_SCALE}
+MPCC_CROSS_CALL_SCALE=${MPCC_CROSS_CALL_SCALE}
+EOF
+
+echo "Profile: ${MPCC_PROFILE}"
+echo "Solver: ADMM+Riccati"
 echo "Model sync: MU=${MU} C_SF=${C_SF} C_SR=${C_SR} AX_MAX=${AX_MAX} AX_MIN=${AX_MIN}"
 echo "Map override: GYM_MAP_PATH=${GYM_MAP_PATH} GYM_MAP_IMG_EXT=${GYM_MAP_IMG_EXT}"
 echo "Spawn override: GYM_SX=${GYM_SX} GYM_SY=${GYM_SY} GYM_STHETA=${GYM_STHETA}"
+echo "Run config: ${CONFIG_LOG}"
 
 echo "Launching gym_bridge..."
 ros2 launch f1tenth_gym_ros gym_bridge_launch.py >"${GYM_LOG}" 2>&1 &
@@ -245,9 +348,39 @@ status0_count = sum("status=0" in line for line in mpcc)
 
 clip_vals = []
 rho_update_vals = []
+iter_vals = []
+prim_vals = []
+dual_vals = []
+rho_vals = []
+rho_u_vals = []
+saturated_delta = 0
+saturated_ax = 0
+saturated_vtheta0 = 0
+saturated_vthetamax = 0
 for line in mpcc:
     if "[MPCC] status=" not in line:
         continue
+    m_main = re.search(
+        r"status=(\d+)\s+iter=(\d+)\s+prim=([0-9.]+)\s+dual=([0-9.]+)\s+rho=([0-9.]+)\s+rho_u=([0-9.]+).*delta=([-.0-9]+)\s+a_x=([-.0-9]+)\s+v_theta=([-.0-9]+)",
+        line,
+    )
+    if m_main:
+        iter_vals.append(int(m_main.group(2)))
+        prim_vals.append(float(m_main.group(3)))
+        dual_vals.append(float(m_main.group(4)))
+        rho_vals.append(float(m_main.group(5)))
+        rho_u_vals.append(float(m_main.group(6)))
+        delta = float(m_main.group(7))
+        a_x = float(m_main.group(8))
+        v_theta = float(m_main.group(9))
+        if abs(abs(delta) - 0.4189) < 0.01:
+            saturated_delta += 1
+        if abs(abs(a_x) - 7.308) < 0.1:
+            saturated_ax += 1
+        if abs(v_theta) < 1e-3:
+            saturated_vtheta0 += 1
+        if abs(v_theta - 10.0) < 0.1:
+            saturated_vthetamax += 1
     m_clip = re.search(r"clip=(\d+)", line)
     if m_clip:
         clip_vals.append(int(m_clip.group(1)))
@@ -259,6 +392,17 @@ avg_clip = (sum(clip_vals) / len(clip_vals)) if clip_vals else 0.0
 max_clip = max(clip_vals) if clip_vals else 0
 avg_rho_updates = (sum(rho_update_vals) / len(rho_update_vals)) if rho_update_vals else 0.0
 max_rho_updates = max(rho_update_vals) if rho_update_vals else 0
+avg_iter = (sum(iter_vals) / len(iter_vals)) if iter_vals else 0.0
+max_iter = max(iter_vals) if iter_vals else 0
+hit_max_iter = sum(1 for v in iter_vals if v >= 300)
+avg_prim = (sum(prim_vals) / len(prim_vals)) if prim_vals else 0.0
+max_prim = max(prim_vals) if prim_vals else 0.0
+avg_dual = (sum(dual_vals) / len(dual_vals)) if dual_vals else 0.0
+max_dual = max(dual_vals) if dual_vals else 0.0
+avg_rho = (sum(rho_vals) / len(rho_vals)) if rho_vals else 0.0
+max_rho = max(rho_vals) if rho_vals else 0.0
+avg_rho_u = (sum(rho_u_vals) / len(rho_u_vals)) if rho_u_vals else 0.0
+max_rho_u = max(rho_u_vals) if rho_u_vals else 0.0
 
 print(f"variant: MPCC (Contouring Control)")
 print(f"first_collision_line: {first_collision_line}")
@@ -266,10 +410,25 @@ print(f"first_status2_line: {first_status2_line}")
 print(f"status2_count: {status2_count}")
 print(f"status1_count: {status1_count}")
 print(f"status0_count: {status0_count}")
+print(f"avg_iter: {avg_iter:.2f}")
+print(f"max_iter: {max_iter}")
+print(f"hit_max_iter: {hit_max_iter}")
+print(f"avg_prim: {avg_prim:.4f}")
+print(f"max_prim: {max_prim:.4f}")
+print(f"avg_dual: {avg_dual:.4f}")
+print(f"max_dual: {max_dual:.4f}")
+print(f"avg_rho: {avg_rho:.3f}")
+print(f"max_rho: {max_rho:.3f}")
+print(f"avg_rho_u: {avg_rho_u:.3f}")
+print(f"max_rho_u: {max_rho_u:.3f}")
 print(f"avg_clip: {avg_clip:.2f}")
 print(f"max_clip: {max_clip}")
 print(f"avg_rho_updates: {avg_rho_updates:.2f}")
 print(f"max_rho_updates: {max_rho_updates}")
+print(f"saturated_delta_count: {saturated_delta}")
+print(f"saturated_ax_count: {saturated_ax}")
+print(f"vtheta_zero_count: {saturated_vtheta0}")
+print(f"vtheta_max_count: {saturated_vthetamax}")
 
 if first_collision_text:
     print(f"first_collision_text: {first_collision_text}")

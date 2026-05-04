@@ -41,7 +41,9 @@ inline float fp_to_float(int32_t fp) {
 }
 
 inline int32_t float_to_fp(float f) {
-    return static_cast<int32_t>(f * static_cast<float>(MPC_FPGA_Q16_SCALE_I32));
+    return static_cast<int32_t>(f >= 0.0f ? 
+        f * static_cast<float>(MPC_FPGA_Q16_SCALE_I32) + 0.5f : 
+        f * static_cast<float>(MPC_FPGA_Q16_SCALE_I32) - 0.5f);
 }
 
 /*===========================================================================
@@ -134,6 +136,8 @@ public:
 
     bool is_ready() const { return initialized_; }
 
+    void set_prev_accel_fp(int32_t prev_accel_fp) { prev_accel_fp_ = prev_accel_fp; }
+
     bool compute(int32_t e_y_fp, int32_t e_psi_fp,
                  int32_t vx_fp, int32_t vy_fp, int32_t omega_fp,
                  int32_t steering_fp,
@@ -154,20 +158,25 @@ public:
         input_words_[2] = vx_fp;
         input_words_[3] = vy_fp;
 
-        // Group 1: [omega | steering | horizon_length | reserved]
+        // Group 1: [omega | steering | horizon_length | prev_accel]
         input_words_[4] = omega_fp;
         input_words_[5] = steering_fp;
         input_words_[6] = static_cast<int32_t>(horizon);
-        input_words_[7] = 0;
+        input_words_[7] = prev_accel_fp_;
 
-        // Groups 2..N+1: [ref_vx | ref_kappa | ref_left | ref_right]
+        // Groups 2..N+1(+): 8 words per step V2
+        // [ref_ey | ref_epsi | ref_vx | ref_vy | ref_omega_ref | ref_kappa | ref_left | ref_right]
         for (size_t i = 0; i < MPC_HORIZON; ++i) {
-            const size_t base = 8 + (i * 4);
+            const size_t base = 8 + (i * 8);
             if (i < horizon) {
-                input_words_[base + 0] = msg.ref_vx_fp[i];
-                input_words_[base + 1] = msg.ref_kappa_fp[i];
-                input_words_[base + 2] = msg.ref_left_bound_fp[i];
-                input_words_[base + 3] = msg.ref_right_bound_fp[i];
+                input_words_[base + 0] = msg.ref_ey_fp[i];
+                input_words_[base + 1] = msg.ref_epsi_fp[i];
+                input_words_[base + 2] = msg.ref_vx_fp[i];
+                input_words_[base + 3] = msg.ref_vy_fp[i];
+                input_words_[base + 4] = msg.ref_omega_ref_fp[i];
+                input_words_[base + 5] = msg.ref_kappa_fp[i];
+                input_words_[base + 6] = msg.ref_left_bound_fp[i];
+                input_words_[base + 7] = msg.ref_right_bound_fp[i];
             }
         }
 
@@ -229,6 +238,7 @@ private:
     static constexpr size_t DMA_BUFFER_WORDS = INPUT_BUFFER_WORDS_32_PAD;
     std::vector<int32_t> input_words_{DMA_BUFFER_WORDS, 0};
     std::array<int32_t, 4> output_words_{{0, 0, 0, 0}};
+    int32_t prev_accel_fp_{0};
 
     int64_t last_compute_ns_ = 0;
 };
@@ -275,6 +285,8 @@ public:
     }
 
 private:
+    static constexpr float kRacelineSpeedMarginMps = 0.5f;
+
     float max_steering_ = MPC_FPGA_MAX_STEER_RAD;
     float max_velocity_ = MPC_FPGA_MAX_VEL_MPS;
 
@@ -295,6 +307,9 @@ private:
     double max_loop_us_ = 0.0;
     std::chrono::steady_clock::time_point last_msg_time_ = std::chrono::steady_clock::now();
     float latest_vx_mps_ = 0.0f;
+    float last_speed_cmd_mps_ = MPC_FPGA_MIN_VEL_MPS;
+    float last_steering_cmd_rad_ = 0.0f;
+    float last_accel_cmd_mps2_ = 0.0f;
 
     struct FrenetErrorsFp {
         int32_t e_y_fp;
@@ -302,31 +317,78 @@ private:
     };
 
     bool has_required_horizon_data(const f1tenth_msgs::msg::MpcState::SharedPtr& msg) const {
-        return msg->horizon_length > 0 && !msg->ref_vx_fp.empty();
+        return msg->horizon_length > 0 &&
+               !msg->ref_x_fp.empty() && !msg->ref_y_fp.empty() && !msg->ref_psi_fp.empty() &&
+               !msg->ref_vx_fp.empty() && !msg->ref_kappa_fp.empty() &&
+               !msg->ref_left_bound_fp.empty() && !msg->ref_right_bound_fp.empty();
     }
 
     static FrenetErrorsFp compute_frenet_errors(const f1tenth_msgs::msg::MpcState::SharedPtr& msg) {
         const float x = fp_to_float(msg->x_fp);
         const float y = fp_to_float(msg->y_fp);
         const float theta = fp_to_float(msg->theta_fp);
-        const float wx = fp_to_float(msg->ref_x_0_fp);
-        const float wy = fp_to_float(msg->ref_y_0_fp);
-        const float wpsi = fp_to_float(msg->ref_psi_0_fp);
 
-        const float dx = x - wx;
-        const float dy = y - wy;
-        const float e_y = -std::sin(wpsi) * dx + std::cos(wpsi) * dy;
+        const size_t horizon = static_cast<size_t>(std::max<uint32_t>(1u, msg->horizon_length));
+        const size_t max_search = std::min(horizon > 0 ? horizon - 1 : 0, static_cast<size_t>(16));
 
-        float e_psi = theta - wpsi;
-        while (e_psi > static_cast<float>(M_PI)) e_psi -= 2.0f * static_cast<float>(M_PI);
-        while (e_psi < -static_cast<float>(M_PI)) e_psi += 2.0f * static_cast<float>(M_PI);
+        float best_e_y = 0.0f;
+        float best_e_psi = 0.0f;
+        float best_dist2 = 1e18f;
 
-        return FrenetErrorsFp{float_to_fp(e_y), float_to_fp(e_psi)};
+        for (size_t i = 0; i < max_search; ++i) {
+            const float ax = fp_to_float(msg->ref_x_fp[i]);
+            const float ay = fp_to_float(msg->ref_y_fp[i]);
+            const float bx = fp_to_float(msg->ref_x_fp[i + 1]);
+            const float by = fp_to_float(msg->ref_y_fp[i + 1]);
+            const float h0 = fp_to_float(msg->ref_psi_fp[i]);
+            const float h1 = fp_to_float(msg->ref_psi_fp[i + 1]);
+
+            const float abx = bx - ax;
+            const float aby = by - ay;
+            const float apx = x - ax;
+            const float apy = y - ay;
+            const float ab_len2 = abx * abx + aby * aby;
+            float t = 0.0f;
+            if (ab_len2 > 1e-12f) {
+                t = (apx * abx + apy * aby) / ab_len2;
+            }
+            t = std::clamp(t, 0.0f, 1.0f);
+
+            const float wx = ax + t * abx;
+            const float wy = ay + t * aby;
+            float dpsi_path = h1 - h0;
+            while (dpsi_path > static_cast<float>(M_PI)) dpsi_path -= 2.0f * static_cast<float>(M_PI);
+            while (dpsi_path < -static_cast<float>(M_PI)) dpsi_path += 2.0f * static_cast<float>(M_PI);
+            const float wpsi = h0 + t * dpsi_path;
+
+            const float dx = x - wx;
+            const float dy = y - wy;
+            const float dist2 = dx * dx + dy * dy;
+
+            if (dist2 < best_dist2) {
+                best_dist2 = dist2;
+                const float e_y = -std::sin(wpsi) * dx + std::cos(wpsi) * dy;
+                float e_psi = theta - wpsi;
+                while (e_psi > static_cast<float>(M_PI)) e_psi -= 2.0f * static_cast<float>(M_PI);
+                while (e_psi < -static_cast<float>(M_PI)) e_psi += 2.0f * static_cast<float>(M_PI);
+                best_e_y = e_y;
+                best_e_psi = e_psi;
+            }
+        }
+
+        return FrenetErrorsFp{float_to_fp(best_e_y), float_to_fp(best_e_psi)};
     }
 
-    float compute_target_speed(float accel) const {
-        const float v_target = latest_vx_mps_ + accel * MPC_FPGA_PREDICTION_DT_S;
-        return std::max(0.0f, std::min(v_target, max_velocity_));
+    float compute_target_speed(float accel, const f1tenth_msgs::msg::MpcState::SharedPtr& msg) const {
+        const float speed_cmd_from_accel = latest_vx_mps_ + accel * MPC_FPGA_PREDICTION_DT_S;
+        float speed = std::clamp(speed_cmd_from_accel, MPC_FPGA_MIN_VEL_MPS, max_velocity_);
+        if (!msg->ref_vx_fp.empty()) {
+            const float v_ref0 = fp_to_float(msg->ref_vx_fp[0]);
+            if (std::isfinite(v_ref0) && v_ref0 > 0.0f) {
+                speed = std::min(speed, v_ref0 + kRacelineSpeedMarginMps);
+            }
+        }
+        return std::clamp(speed, MPC_FPGA_MIN_VEL_MPS, max_velocity_);
     }
 
     void publish_drive_command(float steering, float speed, float accel) {
@@ -427,15 +489,32 @@ private:
 
         const size_t horizon = std::min(static_cast<size_t>(msg->horizon_length),
                                         static_cast<size_t>(MPC_HORIZON));
-        if (msg->ref_vx_fp.size() < horizon ||
+        if (msg->ref_ey_fp.size() < horizon ||
+            msg->ref_epsi_fp.size() < horizon ||
+            msg->ref_x_fp.size() < horizon ||
+            msg->ref_y_fp.size() < horizon ||
+            msg->ref_psi_fp.size() < horizon ||
+            msg->ref_vx_fp.size() < horizon ||
+            msg->ref_vy_fp.size() < horizon ||
+            msg->ref_omega_ref_fp.size() < horizon ||
             msg->ref_kappa_fp.size() < horizon ||
             msg->ref_left_bound_fp.size() < horizon ||
             msg->ref_right_bound_fp.size() < horizon) {
             drop_bad_arrays_++;
             RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                "Horizon arrays too small for horizon_length=%zu, got: vx=%zu kappa=%zu left=%zu right=%zu",
-                horizon, msg->ref_vx_fp.size(), msg->ref_kappa_fp.size(),
-                msg->ref_left_bound_fp.size(), msg->ref_right_bound_fp.size());
+                "Horizon arrays too small for horizon_length=%zu, got: ey=%zu epsi=%zu x=%zu y=%zu psi=%zu vx=%zu vy=%zu omega_ref=%zu kappa=%zu left=%zu right=%zu",
+                horizon,
+                msg->ref_ey_fp.size(),
+                msg->ref_epsi_fp.size(),
+                msg->ref_x_fp.size(),
+                msg->ref_y_fp.size(),
+                msg->ref_psi_fp.size(),
+                msg->ref_vx_fp.size(),
+                msg->ref_vy_fp.size(),
+                msg->ref_omega_ref_fp.size(),
+                msg->ref_kappa_fp.size(),
+                msg->ref_left_bound_fp.size(),
+                msg->ref_right_bound_fp.size());
             return;
         }
 
@@ -461,9 +540,20 @@ private:
         steering = fp_to_float(out_steer_fp);
         accel = fp_to_float(out_accel_fp);
 
-        speed = compute_target_speed(accel);
-        steering = std::clamp(steering, -max_steering_, max_steering_);
-        speed = std::clamp(speed, 0.0f, max_velocity_);
+        if (status == MPC_FPGA_STATUS_ERROR || status == MPC_FPGA_STATUS_NO_TRAJECTORY) {
+            steering = last_steering_cmd_rad_;
+            speed = last_speed_cmd_mps_;
+            accel = last_accel_cmd_mps2_;
+            fpga_.set_prev_accel_fp(float_to_fp(accel));
+        } else {
+            speed = compute_target_speed(accel, msg);
+            steering = std::clamp(steering, -max_steering_, max_steering_);
+            speed = std::clamp(speed, MPC_FPGA_MIN_VEL_MPS, max_velocity_);
+            last_steering_cmd_rad_ = steering;
+            last_speed_cmd_mps_ = speed;
+            last_accel_cmd_mps2_ = accel;
+            fpga_.set_prev_accel_fp(float_to_fp(accel));
+        }
 
         publish_drive_command(steering, speed, accel);
         pub_count_++;

@@ -15,6 +15,12 @@
 #define MPC_HLS_TARGET
 #endif
 
+/* Host/debug builds should honor runtime tuning env overrides for parity with
+ * CPU simulation and fast diagnosis. Keep synthesis builds compile-time fixed. */
+#if !defined(MPC_RUNTIME_TUNE) && !defined(MPC_HLS_BUILD) && !defined(__SYNTHESIS__)
+#define MPC_RUNTIME_TUNE
+#endif
+
 #include "fp_math_hls.h"
 #include "mpc_fpga_constants.h"
 #ifdef MPC_RUNTIME_TUNE
@@ -37,6 +43,18 @@
 /** Control dimension: [delta_rate, acceleration] */
 #define MPC_NU          2
 
+/** Number of state channels constrained/projection-updated by ADMM. */
+#define MPC_NX_ADMM_STATE 2
+
+/** Constrained-state slots stored in ADMM warm-start buffers. */
+#define IDX_ADMM_EY           0
+#define IDX_ADMM_DELTA_ACT    1
+
+/** Warm-start bound-jump threshold for invalidating persistent state. */
+#ifndef MPC_WS_BOUND_THRESH
+#define MPC_WS_BOUND_THRESH FP_QP_CONST(0.05)
+#endif
+
 /** Fixed prediction horizon */
 #define MPC_HORIZON     MPC_FPGA_HORIZON_STEPS
 
@@ -53,46 +71,32 @@
  * HLS Resource Constraints
  *===========================================================================*/
 
-/** Multiplier budget for Riccati hot path.
- *  Higher default to reduce cycle count in matrix-heavy backward/forward passes.
- *  Override at compile time: -DMPC_HLS_RICCATI_MUL_LIMIT=N */
-#ifndef MPC_HLS_RICCATI_MUL_LIMIT
-#define MPC_HLS_RICCATI_MUL_LIMIT 128
-#endif
-
-/** Function-instance budget for out-of-line raw accumulator multipliers.
- *  This is separate from operation-level mul limits because fp_mul_raw_acc()
- *  hides the actual '*' inside a helper function. */
-#ifndef MPC_HLS_RICCATI_RAW_MUL_LIMIT
-#define MPC_HLS_RICCATI_RAW_MUL_LIMIT 64
-#endif
-
-/** Function-instance budget for mixed QP/raw accumulator multipliers. */
-#ifndef MPC_HLS_RICCATI_MIXED_MUL_LIMIT
-#define MPC_HLS_RICCATI_MIXED_MUL_LIMIT 64
-#endif
-
-/** Function-instance budget for QP-width raw multipliers. */
-#ifndef MPC_HLS_RICCATI_QP_RAW_MUL_LIMIT
-#define MPC_HLS_RICCATI_QP_RAW_MUL_LIMIT 64
-#endif
-
-/** ADMM state z/y update loop target II.
- *  Override at compile time: -DMPC_HLS_STATE_ZY_II=N */
+/*ADMM state z/y update loop target II.*/
+/* z/y update loop II target. With MUL_LATENCY=3 the inner body needs II=4
+ * (DSP latency=3 + 1 cycle pipeline start). Reduced from 6 to 4 saves
+ * 2×N×2×MAX_ITER = 2×20×2×50 = 4000 cycles per solve call.
+ * Override at compile time: -DMPC_HLS_STATE_ZY_II=N */
 #ifndef MPC_HLS_STATE_ZY_II
-#define MPC_HLS_STATE_ZY_II 6
+#define MPC_HLS_STATE_ZY_II 4
+#endif
+
+/* Structural model signature used to invalidate persistent warm-start state
+ * when the linearization/model basis changes. */
+#ifndef MPC_MODEL_SIGNATURE
+#define MPC_MODEL_SIGNATURE 1
+#endif
+
+/** Number of calls to enforce cold-start after model signature invalidation.
+ *  Reduced from 5 to 3 to improve warm-start stabilization speed.
+ *  Override at compile time: -DMPC_WS_COLD_START_CALLS=N */
+#ifndef MPC_WS_COLD_START_CALLS
+#define MPC_WS_COLD_START_CALLS 3
 #endif
 
 /** ADMM control z/y update loop target II.
  *  Override at compile time: -DMPC_HLS_CTRL_ZY_II=N */
 #ifndef MPC_HLS_CTRL_ZY_II
 #define MPC_HLS_CTRL_ZY_II 4
-#endif
-
-/** Step-data assembly loop target II in mpc_compute_hls.
- *  Override at compile time: -DMPC_HLS_STEP_ASSEMBLY_II=N */
-#ifndef MPC_HLS_STEP_ASSEMBLY_II
-#define MPC_HLS_STEP_ASSEMBLY_II 6
 #endif
 
 /** Unroll factor for K*x forward-control accumulation loops.
@@ -119,25 +123,6 @@
 #define MPC_HLS_ADAPTIVE_RHO 1
 #endif
 
-#if (MPC_HLS_UNROLL_KX_FACTOR < 1)
-#error "MPC_HLS_UNROLL_KX_FACTOR must be >= 1"
-#endif
-
-#if (MPC_HLS_AFFINE_PNEW_UNROLL < 1)
-#error "MPC_HLS_AFFINE_PNEW_UNROLL must be >= 1"
-#endif
-
-#if (MPC_HLS_AFFINE_CTRL_UNROLL < 1)
-#error "MPC_HLS_AFFINE_CTRL_UNROLL must be >= 1"
-#endif
-
-#if ((MPC_HLS_ADAPTIVE_RHO != 0) && (MPC_HLS_ADAPTIVE_RHO != 1))
-#error "MPC_HLS_ADAPTIVE_RHO must be 0 or 1"
-#endif
-
-#if (MPC_HLS_STATE_ZY_II < 1) || (MPC_HLS_CTRL_ZY_II < 1) || (MPC_HLS_STEP_ASSEMBLY_II < 1)
-#error "HLS II knobs must be >= 1"
-#endif
 
 /*===========================================================================
  * Augmented State Indices
@@ -174,16 +159,16 @@
 #define VP_MAX_STEER            FP_QP_CONST(MPC_FPGA_MAX_STEER_RAD)   /* Maximum steering angle (rad) */
 #define VP_MAX_VEL              FP_QP_CONST(MPC_FPGA_MAX_VEL_MPS)     /* Maximum velocity (m/s) */
 #define VP_MIN_VEL              FP_QP_CONST(MPC_FPGA_MIN_VEL_MPS)     /* Minimum velocity (m/s) */
-#define VP_MAX_ACCEL            fp_mul(VP_MU, VP_GRAVITY)  /* Maximum acceleration (m/s^2) = mu * g */
+#define VP_MAX_ACCEL            (VP_MU * VP_GRAVITY)  /* Maximum acceleration (m/s^2) = mu * g */
 #define VP_MIN_ACCEL            (-(VP_MAX_ACCEL))           /* Minimum acceleration (m/s^2) */
 #define VP_MAX_STEER_RATE       FP_QP_CONST(MPC_FPGA_MAX_STEER_RATE_RADPS)   /* Maximum steering rate (rad/s) */
 #define VP_C_ALPHA_F_NRAD       FP_QP_CONST(MPC_FPGA_C_ALPHA_F_N_PER_RAD)     /* Front tire cornering stiffness (N/rad) */
 #define VP_C_ALPHA_R_NRAD       FP_QP_CONST(MPC_FPGA_C_ALPHA_R_N_PER_RAD)     /* Rear tire cornering stiffness (N/rad) */
 
 #define VP_INV_L                FP_QP_CONST(MPC_FPGA_INV_WHEELBASE)  /* 1/L */
-#define VP_MG                   fp_mul(VP_MASS, VP_GRAVITY)          /* mass * gravity */
-#define VP_MG_LR                fp_mul(VP_MG, VP_LR)                 /* mass * gravity * l_r */
-#define VP_MG_LF                fp_mul(VP_MG, VP_LF)                 /* mass * gravity * l_f */
+#define VP_MG                   (VP_MASS * VP_GRAVITY)          /* mass * gravity */
+#define VP_MG_LR                (VP_MG * VP_LR)                 /* mass * gravity * l_r */
+#define VP_MG_LF                (VP_MG * VP_LF)                 /* mass * gravity * l_f */
 #define VP_INV_MASS             FP_QP_CONST(MPC_FPGA_INV_MASS)       /* 1/mass */
 #define VP_INV_IZ               FP_QP_CONST(MPC_FPGA_INV_IZ)         /* 1/I_z */
 
@@ -262,9 +247,9 @@
 #endif
 
 /* Precomputed dt*inv_mass and dt*inv_Iz */
-#define VP_DT_INV_MASS      fp_mul(MPC_DT, VP_INV_MASS)     /* dt * (1/mass) */
+#define VP_DT_INV_MASS      (MPC_DT * VP_INV_MASS)     /* dt * (1/mass) */
 #define NEG_VP_DT_INV_MASS  (-((fp_QP_t)(VP_DT_INV_MASS)))   /* dt * (-1/mass) */
-#define VP_DT_INV_IZ        fp_mul(MPC_DT, VP_INV_IZ)       /* dt * (1/I_z) */
+#define VP_DT_INV_IZ        (MPC_DT * VP_INV_IZ)       /* dt * (1/I_z) */
 
 /* Control period for cross-call rate scaling.
  * Default control loop is 200 Hz => 0.005 s. */
@@ -295,8 +280,8 @@
 
 /* Cross-call scaled variants for step 0 (scale = control_dt / prediction_dt) */
 #ifdef MPC_RUNTIME_TUNE
-#define MPC_W_STEER_JERK_CS fp_mul(MPC_W_STEER_JERK, MPC_CROSS_CALL_SCALE)
-#define MPC_W_ACCEL_RATE_CS fp_mul(MPC_W_ACCEL_RATE, MPC_CROSS_CALL_SCALE)
+#define MPC_W_STEER_JERK_CS (MPC_W_STEER_JERK * MPC_CROSS_CALL_SCALE)
+#define MPC_W_ACCEL_RATE_CS (MPC_W_ACCEL_RATE * MPC_CROSS_CALL_SCALE)
 #else
 #define MPC_W_STEER_JERK_CS FP_QP_CONST(MPC_FPGA_W_STEER_JERK_CS)
 #define MPC_W_ACCEL_RATE_CS FP_QP_CONST(MPC_FPGA_W_ACCEL_RATE_CS)
@@ -311,23 +296,27 @@
  *===========================================================================*/
 
 #define BIG_BOUND           FP_QP_CONST(MPC_FPGA_BIG_BOUND)
-#ifdef MPC_RUNTIME_TUNE
-#define MIN_LIN_VEL         (mpc_rt_min_lin_vel)
-#define STABILITY_LIMIT_VAL (mpc_rt_stability_limit)
-#define WALL_MARGIN         (mpc_rt_wall_margin)
-#define WALL_BIAS_CLEAR_M   (mpc_rt_wall_bias_clear_m)
-#define WALL_BIAS_MAX_M     (mpc_rt_wall_bias_max_m)
-#define WALL_BOUND_WINDOW   (mpc_rt_wall_bound_window)
-#else
 #define MIN_LIN_VEL         FP_QP_CONST(MPC_FPGA_MIN_LIN_VEL_MPS)
 #define STABILITY_LIMIT_VAL FP_QP_CONST(MPC_FPGA_STABILITY_LIMIT)
 #define WALL_MARGIN         FP_QP_CONST(MPC_FPGA_WALL_MARGIN_M)
+#define V_SWITCH            FP_QP_CONST(MPC_FPGA_V_SWITCH_MPS)
+#define BOUND_THRESHOLD     FP_QP_CONST(MPC_FPGA_BOUND_THRESHOLD)
 #define WALL_BIAS_CLEAR_M   FP_QP_CONST(MPC_FPGA_WALL_BIAS_CLEAR_M)
 #define WALL_BIAS_MAX_M     FP_QP_CONST(MPC_FPGA_WALL_BIAS_MAX_M)
 #define WALL_BOUND_WINDOW   MPC_FPGA_WALL_BOUND_WINDOW
-#endif
-#define V_SWITCH            FP_QP_CONST(MPC_FPGA_V_SWITCH_MPS)
-#define BOUND_THRESHOLD     FP_QP_CONST(MPC_FPGA_BOUND_THRESHOLD)
+#define ADMM_RHO_MIN FP_QP_CONST(1.0)
+#define ADMM_RHO_MAX FP_QP_CONST(40.0)
+
+/* Warm-start validation thresholds (host/debug and synthesis aligned). */
+#define MPC_WS_EY_THRESH        FP_QP_CONST(0.5)
+#define MPC_WS_EPSI_THRESH      FP_QP_CONST(0.5)
+#define MPC_WS_VX_THRESH        FP_QP_CONST(1.0)
+#define MPC_WS_VY_THRESH        FP_QP_CONST(0.5)
+#define MPC_WS_OMEGA_THRESH     FP_QP_CONST(0.6)
+#define MPC_WS_DELTA_THRESH     FP_QP_CONST(0.3)
+#define MPC_WS_DRATE_THRESH     FP_QP_CONST(1.0)
+#define MPC_WS_ACCEL_THRESH     FP_QP_CONST(2.0)
+#define MPC_WS_CURVATURE_THRESH FP_QP_CONST(0.5)
 
 /* ADMM default parameters */
 #ifdef MPC_RUNTIME_TUNE
@@ -335,11 +324,13 @@
 #define ADMM_RHO_U_DEFAULT  (mpc_rt_admm_rho_u)
 #define ADMM_TOL_DEFAULT    (mpc_rt_admm_tol)
 #define ADMM_MAX_ITER_DEFAULT (mpc_rt_admm_max_iter)
+#define ADMM_ADAPTIVE_RHO_DEFAULT (mpc_rt_adaptive_rho)
 #else
 #define ADMM_RHO_DEFAULT    FP_QP_CONST(MPC_FPGA_ADMM_RHO)
 #define ADMM_RHO_U_DEFAULT  FP_QP_CONST(MPC_FPGA_ADMM_RHO_U)
 #define ADMM_TOL_DEFAULT    FP_QP_CONST(MPC_FPGA_ADMM_TOL)
 #define ADMM_MAX_ITER_DEFAULT MPC_MAX_ADMM_ITER
+#define ADMM_ADAPTIVE_RHO_DEFAULT MPC_HLS_ADAPTIVE_RHO
 #endif
 
 /*===========================================================================
@@ -359,18 +350,29 @@ typedef struct {
 } MpcWaypoint_t;
 
 /** Reference point for one MPC prediction step */
-typedef struct {
-    fp_QP_t velocity;
-    fp_QP_t kappa;
-    fp_QP_t yaw_rate;
-    fp_QP_t left_bound;
-    fp_QP_t right_bound;
+/* Keep this struct size power-of-two to avoid expensive address math when
+ * implemented as an array in HLS (helps timing/II for pipelined loops that
+ * index into ref[]). Eight fp_QP_t fields are 240 bits; add 16 bits padding
+ * to reach 256 bits (32 bytes). */
+typedef struct alignas(32) {
+    fp_QP_t reference_heading_error;
+    fp_QP_t reference_lateral_error;
+    fp_QP_t reference_velocity;
+    fp_QP_t reference_lateral_velocity;
+    fp_QP_t reference_yaw_rate;
+    fp_QP_t path_curvature;
+    fp_QP_t left_wall_bound;
+    fp_QP_t right_wall_bound;
+    ap_uint<16> _pad16;
 } MpcRefPoint_t;
 
 /** Per-step QP data for Riccati-ADMM */
 typedef struct {
     fp_QP_t A[MPC_NX_DENSE][MPC_NX_DENSE];
-    fp_QP_t B[MPC_NX_DENSE][MPC_NU];
+    fp_QP_t B_delta_rate;
+    fp_QP_t B_vx_accel;
+    fp_QP_t B_vy_accel;
+    fp_QP_t B_omega_accel;
     fp_QP_t d0;
     fp_QP_t d1;
     fp_QP_t d2;
@@ -398,12 +400,12 @@ typedef enum {
 
 /** ADMM warm-start state (persists between calls) */
 typedef struct {
-    fp_QP_t z_x[MPC_HORIZON + 1][MPC_NX_AUG];
+    fp_QP_t z_x[MPC_HORIZON_PLUS_ONE][MPC_NX_AUG];
     fp_QP_t z_u[MPC_HORIZON][MPC_NU];
-    fp_QP_t y_x[MPC_HORIZON + 1][MPC_NX_AUG];
+    fp_QP_t y_x[MPC_HORIZON_PLUS_ONE][MPC_NX_AUG];
     fp_QP_t y_u[MPC_HORIZON][MPC_NU];
     fp_QP_t rho;    
-    fp_QP_t rho_u;  
+    fp_QP_t rho_u;
     int initialized;
 } AdmmState_t;
 
@@ -432,6 +434,13 @@ typedef struct {
     fp_QP_t actual_steering;
     fp_QP_t prev_curvature;
     int prev_converged;
+    fp_QP_t prev_ey;
+    fp_QP_t prev_epsi;
+    fp_QP_t prev_vx;
+    fp_QP_t prev_left_bound0;
+    fp_QP_t prev_right_bound0;
+    int prev_model_signature;
+    int cold_start_countdown;
 } MpcPersistState_t;
 
 #endif /* MPC_FPGA_TYPES_H */

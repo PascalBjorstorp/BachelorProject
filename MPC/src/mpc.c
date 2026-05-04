@@ -324,10 +324,6 @@ void mpc_set_configuration(const MpcConfiguration_t *configuration)
 {
     if (configuration) {
         config = *configuration;
-        if (config.prediction_horizon_steps < 1)
-            config.prediction_horizon_steps = 1;
-        if (config.prediction_horizon_steps > PREDICTION_HORIZON)
-            config.prediction_horizon_steps = PREDICTION_HORIZON;
         if (config.time_step <= 0.0f)
             config.time_step = TIME_STEP_SECONDS;
         if (!(config.wall_margin >= 0.0f) || !isfinite(config.wall_margin))
@@ -439,7 +435,9 @@ MpcSolverStatus_t mpc_compute_optimal_control(
             lin_control.steer_ang = delta_clamp;
         if (lin_control.steer_ang < -delta_clamp)
             lin_control.steer_ang = -delta_clamp;
-        lin_control.long_acc = 0;
+        /* Linearize around propagated previous acceleration for consistency
+         * with augmented state dynamics throughout the horizon. */
+        lin_control.long_acc = prev_control.long_acc;
 
         float A_step[5][5];
         float B_step[5][2];

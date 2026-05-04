@@ -431,23 +431,24 @@ void vehicle_model_compute_frenet_linearization(
         state_matrix_A[0][2] = time_step * sp;
         state_matrix_A[0][3] = time_step * cp;
 
+        /*
+         * Row 1: e_psi dynamics (Frenet kinematics)
+         *   Continuous: e_psi_dot = omega - kappa * v_ref * cos(e_psi) / (1 - kappa * e_y)
+         *   Linearized (e_y ≈ 0, e_psi ≈ 0): e_psi_dot ≈ omega - kappa * v_ref
+         *     (using v_ref instead of vx to maintain lookahead visibility when vx=0)
+         *   Discrete: e_psi[k+1] = e_psi[k] + dt * (omega[k] - kappa * v_ref)
+         *
+         *   A[1][1] = 1                (identity)
+         *   A[1][2] = -dt * kappa * v_ref / v_ref_clamp  (speed effect, using v_ref)
+         *   A[1][4] = dt               (yaw rate directly changes heading error)
+         */
+
         state_matrix_A[1][0] = -time_step * (path_curvature * path_curvature) * reference_velocity * cp * inv_denom2;
         state_matrix_A[1][1] = 1.0f + time_step * path_curvature * reference_velocity * sp * inv_denom;
         state_matrix_A[1][2] = -time_step * path_curvature * cp * inv_denom;
         state_matrix_A[1][4] = time_step;
     }
 
-    /*
-     * Row 1: e_psi dynamics (Frenet kinematics)
-     *   Continuous: e_psi_dot = omega - kappa * v_ref * cos(e_psi) / (1 - kappa * e_y)
-     *   Linearized (e_y ≈ 0, e_psi ≈ 0): e_psi_dot ≈ omega - kappa * v_ref
-     *     (using v_ref instead of vx to maintain lookahead visibility when vx=0)
-     *   Discrete: e_psi[k+1] = e_psi[k] + dt * (omega[k] - kappa * v_ref)
-     *
-     *   A[1][1] = 1                (identity)
-     *   A[1][2] = -dt * kappa * v_ref / v_ref_clamp  (speed effect, using v_ref)
-     *   A[1][4] = dt               (yaw rate directly changes heading error)
-     */
     /* Row 1 already assigned in the exact Frenet Jacobian block above. */
 
     /*
@@ -457,6 +458,7 @@ void vehicle_model_compute_frenet_linearization(
      * These are the Jacobians of [v_x_dot, v_y_dot, omega_dot] w.r.t.
      * body states [v_x, v_y, omega], discretized via Forward Euler.
      */
+
     /* Full model with cos(δ)/sin(δ) force resolution */
 
     /* Row 2: dvx/dt = (Fx - Fyf*sin(δ) + m*vy*ω) / m */
