@@ -47,13 +47,13 @@ static float get_wall_bias_clearance_m(void)
 {
     /* Extra clearance beyond config.wall_margin; applied by biasing the lateral
      * reference within the corridor. Set to 0 to disable. */
-    return get_env_float("MPC_WALL_BIAS_CLEAR_M", 0.01f);
+    return get_env_float("MPC_WALL_BIAS_CLEAR_M", 0.05f);
 }
 
 static float get_wall_bias_max_shift_m(void)
 {
     /* Clamp max correction magnitude applied to base reference (safety valve). */
-    return get_env_float("MPC_WALL_BIAS_MAX_M", 0.05f);
+    return get_env_float("MPC_WALL_BIAS_MAX_M", 0.2f);
 }
 
 static void compute_wall_ey_bounds(
@@ -208,7 +208,6 @@ static FrenetState_t mpc_predict_frenet_next_state(
 MpcConfiguration_t get_default_configuration(void)
 {
     MpcConfiguration_t cfg = {
-    .prediction_horizon_steps = PREDICTION_HORIZON,
     .time_step = TIME_STEP_SECONDS,
 
     /* State tracking weights (Frenet frame). */
@@ -257,9 +256,7 @@ MpcConfiguration_t get_default_configuration(void)
     if (!(cfg.wall_margin >= 0.0f) || !isfinite(cfg.wall_margin))
         cfg.wall_margin = WALL_MARGIN;
 
-    int horizon = get_env_int("HORIZON", cfg.prediction_horizon_steps);
-    if (horizon >= 1 && horizon <= PREDICTION_HORIZON)
-        cfg.prediction_horizon_steps = horizon;
+    /* Horizon is fixed at compile-time to PREDICTION_HORIZON; env override removed. */
 
     float dt = get_env_float("PRED_DT", cfg.time_step);
     if (!(dt > 0.0f) || !isfinite(dt))
@@ -324,10 +321,6 @@ void mpc_set_configuration(const MpcConfiguration_t *configuration)
 {
     if (configuration) {
         config = *configuration;
-        if (config.prediction_horizon_steps < 1)
-            config.prediction_horizon_steps = 1;
-        if (config.prediction_horizon_steps > PREDICTION_HORIZON)
-            config.prediction_horizon_steps = PREDICTION_HORIZON;
         if (config.time_step <= 0.0f)
             config.time_step = TIME_STEP_SECONDS;
         if (!(config.wall_margin >= 0.0f) || !isfinite(config.wall_margin))
@@ -368,10 +361,8 @@ MpcSolverStatus_t mpc_compute_optimal_control(
 
     const FrenetState_t *frenet = current_frenet_state;
 
-    // Extract horizon length and clamp to compile-time maximum.
-    int N = config.prediction_horizon_steps;
-    if (N < 1) N = 1;
-    if (N > PREDICTION_HORIZON) N = PREDICTION_HORIZON;
+    // Horizon is fixed at compile-time.
+    int N = PREDICTION_HORIZON;
 
     /* ---------------------------------------------------------------
      * Step 1: Prepare model constants for per-step linearization.
@@ -439,7 +430,9 @@ MpcSolverStatus_t mpc_compute_optimal_control(
             lin_control.steer_ang = delta_clamp;
         if (lin_control.steer_ang < -delta_clamp)
             lin_control.steer_ang = -delta_clamp;
-        lin_control.long_acc = 0;
+        /* Linearize around propagated previous acceleration for consistency
+         * with augmented state dynamics throughout the horizon. */
+        lin_control.long_acc = prev_control.long_acc;
 
         float A_step[5][5];
         float B_step[5][2];

@@ -4,16 +4,16 @@ Test a single MPCC sweep configuration visually.
 
 Usage:
     # Run standalone sim with verbose output (quick check):
-    python3 test/test_sweep_config.py "QC=200+QL=1000+QP=5.0+N=12+dt=0.06"
+    python3 test/test_sweep_config.py "QC=50+QL=60+QP=8.0"
 
     # Print env export commands (for pasting into terminal before ROS2 sim):
-    python3 test/test_sweep_config.py --export "QC=200+QL=1000+QP=5.0+N=12+dt=0.06"
+    python3 test/test_sweep_config.py --export "QC=50+QL=60+QP=8.0"
 
     # Override extra params on top of the label:
-    python3 test/test_sweep_config.py "QC=200+QL=1000+QP=5.0+N=12+dt=0.06" --set Q_VY=5.0 R_DELTA=3.0
+    python3 test/test_sweep_config.py "QC=50+QL=60+QP=8.0" --set Q_VY=1.5 R_DELTA=12.0
 
     # Use a different raceline:
-    python3 test/test_sweep_config.py "QC=200+QL=1000+QP=5.0+N=12+dt=0.06" --raceline Spielberg_raceline.csv
+    python3 test/test_sweep_config.py "QC=50+QL=60+QP=8.0" --raceline Spielberg_raceline.csv
 
 Parses the sweep label string from tune_mpcc.py output, merges with
 BASE_CONFIG, and either runs test_sim_drive with VERBOSE=1 or prints
@@ -32,34 +32,37 @@ TRAJ_DIR = os.path.join(PROJECT_DIR, "f1tenth_planning", "trajectories")
 
 # Must match tune_mpcc.py BASE_CONFIG (or be a safe superset).
 BASE_CONFIG = {
-    "Q_CONTOURING":      960.0,
-    "Q_LAG":             200.0,
-    "Q_PROGRESS":        15.6,
+    "Q_CONTOURING":      50.0,
+    "Q_LAG":             60.0,
+    "Q_PROGRESS":        8.0,
     "Q_WALL_CLEARANCE":  3200.0,
     "WALL_CLEARANCE_MARGIN": 0.02,
-    "Q_VX":              10.0,
-    "VX_REF":            4.0,
     "MPCC_USE_RACELINE_VX_REF": 0,
     "MPCC_USE_RACELINE_VX_LIMIT": 0,
     "MPCC_RACELINE_VX_LIMIT_SCALE": 1.0,
-    "Q_VY":              0.5,
-    "Q_OMEGA":           1.5,
-    "R_DELTA":           200.0,
-    "R_AX":              0.05225,
-    "R_VTHETA":          0.1,
-    "W_DELTA_RATE":      5.0,
-    "W_AX_RATE":         0.488,
-    "W_VTHETA_RATE":     0.1105,
-    "Q_CONTOURING_TERM": 4800.0,
-    "Q_LAG_TERM":        800.0,
-    "Q_PROGRESS_TERM":   41.4,
+    "Q_VY":              1.0,
+    "Q_OMEGA":           3.0,
+    "R_DELTA":           10.0,
+    "R_AX":              1.0,
+    "R_VTHETA":          0.2,
+    "W_DELTA_RATE":      3.0,
+    "W_AX_RATE":         3.0,
+    "W_VTHETA_RATE":     0.5,
+    "Q_CONTOURING_TERM": 50.0,
+    "Q_LAG_TERM":        60.0,
+    "Q_PROGRESS_TERM":   10.0,
     "ADMM_RHO":          5.0,
+    "ADMM_RHO_U":        0.0,
     "ADMM_MAX_ITER":     300,
     "ADMM_TOL":          0.02,
-    "HORIZON":           20,
+    "ADMM_ADAPTIVE_RHO": 1,
+    "ADMM_ALPHA_RELAX":  1.6,
+    "HORIZON":           40,
     "DT":                0.03,
-    "V_THETA_MAX":       8.0,
+    "V_THETA_MAX":       10.0,
     "CROSS_CALL_SCALE":  0.166667,
+    "Q_VX":              0.0,
+    "VX_REF":            0.0,
 }
 
 # Label abbreviation → env var name
@@ -79,22 +82,27 @@ LABEL_MAP = {
     "WDR":  "W_DELTA_RATE",
     "VTM":  "V_THETA_MAX",
     "VT":   "V_THETA_MAX",
-    "RHO":  "ADMM_RHO",
-    "ITER": "ADMM_MAX_ITER",
-    "TOL":  "ADMM_TOL",
     "RVT":  "R_VTHETA",
     "WVR":  "W_VTHETA_RATE",
     "QCT":  "Q_CONTOURING_TERM",
     "QLT":  "Q_LAG_TERM",
     "QPT":  "Q_PROGRESS_TERM",
+    "ARHO": "ADMM_RHO",
+    "ARHOU": "ADMM_RHO_U",
+    "AITER": "ADMM_MAX_ITER",
+    "ATOL": "ADMM_TOL",
+    "AARHO": "ADMM_ADAPTIVE_RHO",
+    "AALPHA": "ADMM_ALPHA_RELAX",
+    "ORHO": "ADMM_RHO",
+    "OITER": "ADMM_MAX_ITER",
 }
 
-INT_PARAMS = {"HORIZON", "ADMM_MAX_ITER",
+INT_PARAMS = {"HORIZON", "ADMM_MAX_ITER", "ADMM_ADAPTIVE_RHO",
               "MPCC_USE_RACELINE_VX_REF", "MPCC_USE_RACELINE_VX_LIMIT"}
 
 
 def parse_label(label: str) -> dict:
-    """Parse a sweep label like 'QC=200+QL=1000+QP=5.0+N=12+dt=0.06' into env vars."""
+    """Parse a sweep label like 'QC=50+QL=60+QP=8.0' into env vars."""
     params = {}
     for token in label.split("+"):
         if "=" not in token:
@@ -112,25 +120,21 @@ def parse_label(label: str) -> dict:
 
 
 def build_binary():
-    """Build the test_sim_drive binary with OSQP, return path."""
+    """Build the test_sim_drive binary with ADMM, return path."""
     binary = os.path.join(MPCC_DIR, "test_sim_drive_visual")
-    print("Building test binary (OSQP)...")
+    print("Building test binary (ADMM)...")
     ret = subprocess.run([
         "gcc",
-        "-DUSE_OSQP", "-DMPCC_DEBUG_PRINT",
-        "-D_GNU_SOURCE", "-O3", "-std=c99", "-Wall", "-ffast-math",
+        "-O3", "-std=c99", "-Wall", "-ffast-math",
         "-Wno-unused-variable", "-Wno-unused-but-set-variable",
         "-Wno-unused-function", "-Wno-unknown-pragmas",
         f"-I{MPCC_DIR}/include",
-        "-I/opt/ros/jazzy/include",
+        f"-I{MPCC_DIR}/../MPC/include",
         f"{MPCC_DIR}/test/test_sim_drive.c",
         f"{MPCC_DIR}/src/mpcc.c",
         f"{MPCC_DIR}/src/mpcc_vehicle_model.c",
         f"{MPCC_DIR}/src/qp_solver_mpcc.c",
-        f"{MPCC_DIR}/src/qp_solver_osqp.c",
-        "-L/opt/ros/jazzy/lib",
-        "-losqp", "-lm",
-        "-Wl,-rpath,/opt/ros/jazzy/lib",
+        "-lm",
         "-o", binary,
     ], capture_output=True, text=True)
     if ret.returncode != 0:
@@ -149,7 +153,7 @@ def main():
     export_mode = False
     label = None
     extra = {}
-    raceline = os.path.join(TRAJ_DIR, "my_track_centerline.csv")
+    raceline = os.path.join(TRAJ_DIR, "my_track_centerline_smooth.csv")
 
     i = 0
     while i < len(args):
@@ -178,7 +182,7 @@ def main():
 
     if label is None:
         print("ERROR: No sweep label provided.")
-        print("Example: python3 test/test_sweep_config.py \"QC=200+QL=1000+QP=5.0+N=12+dt=0.06\"")
+        print("Example: python3 test/test_sweep_config.py \"QC=50+QL=60+QP=8.0\"")
         sys.exit(1)
 
     # Merge: BASE_CONFIG ← label overrides ← extra --set overrides

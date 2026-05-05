@@ -14,7 +14,8 @@ Override trajectory and topics:
       pose_topic:=/ekf_pose \
       imu_topic:=/imu/filtered_angular_velocity
 
-This launch file forces a conservative hardware-safe MPCC baseline by default.
+This launch file uses the current Jetson MPCC baseline by default,
+while retaining the extra hardware guardrails needed on the real car.
 Override any launch argument if you need to run a different tune.
 """
 
@@ -27,13 +28,14 @@ from launch_ros.actions import Node
 
 
 HARDWARE_TUNING_DEFAULTS = [
-    ("horizon", "HORIZON", "20", "Prediction horizon steps"),
+    ("horizon", "HORIZON", "80", "Prediction horizon steps"),
+    ("horizon", "HORIZON", "80", "Prediction horizon steps"),
     ("dt", "DT", "0.03", "Prediction time step in seconds"),
-    ("q_contouring", "Q_CONTOURING", "960.0", "Contouring weight"),
-    ("q_lag", "Q_LAG", "200.0", "Lag weight"),
-    ("q_progress", "Q_PROGRESS", "15.6", "Progress reward"),
-    ("q_vx", "Q_VX", "50.0", "Longitudinal velocity tracking weight"),
-    ("vx_ref", "VX_REF", "4.0", "Reference longitudinal velocity"),
+    ("q_contouring", "Q_CONTOURING", "80.0", "Contouring weight"),
+    ("q_lag", "Q_LAG", "120.0", "Lag weight"),
+    ("q_progress", "Q_PROGRESS", "8.0", "Progress reward"),
+    ("q_vx", "Q_VX", "0.0", "Longitudinal velocity tracking weight"),
+    ("vx_ref", "VX_REF", "0.0", "Reference longitudinal velocity"),
     (
         "use_raceline_vx_ref",
         "MPCC_USE_RACELINE_VX_REF",
@@ -52,21 +54,37 @@ HARDWARE_TUNING_DEFAULTS = [
         "1.0",
         "Multiplier for CSV velocity speed limit when enabled",
     ),
-    ("q_vy", "Q_VY", "0.5", "Lateral velocity regularization weight"),
-    ("q_omega", "Q_OMEGA", "1.5", "Yaw-rate regularization weight"),
-    ("r_delta", "R_DELTA", "200.0", "Steering effort weight"),
-    ("r_ax", "R_AX", "0.05225", "Acceleration effort weight"),
-    ("r_vtheta", "R_VTHETA", "0.1", "Virtual progress effort weight"),
-    ("w_delta_rate", "W_DELTA_RATE", "10.0", "Steering rate weight"),
-    ("w_ax_rate", "W_AX_RATE", "0.488", "Acceleration rate weight"),
-    ("w_vtheta_rate", "W_VTHETA_RATE", "0.1105", "Virtual progress rate weight"),
-    ("q_contouring_term", "Q_CONTOURING_TERM", "4800.0", "Terminal contouring weight"),
-    ("q_lag_term", "Q_LAG_TERM", "800.0", "Terminal lag weight"),
-    ("q_progress_term", "Q_PROGRESS_TERM", "41.4", "Terminal progress reward"),
-    ("admm_rho", "ADMM_RHO", "5.0", "ADMM penalty parameter"),
+    ("q_vy", "Q_VY", "1.0", "Lateral velocity regularization weight"),
+    ("q_omega", "Q_OMEGA", "3.0", "Yaw-rate regularization weight"),
+    ("r_delta", "R_DELTA", "8.0", "Steering effort weight"),
+    ("r_ax", "R_AX", "1.0", "Acceleration effort weight"),
+    ("r_vtheta", "R_VTHETA", "0.2", "Virtual progress effort weight"),
+    ("w_delta_rate", "W_DELTA_RATE", "2.0", "Steering rate weight"),
+    ("w_ax_rate", "W_AX_RATE", "3.0", "Acceleration rate weight"),
+    ("w_vtheta_rate", "W_VTHETA_RATE", "0.8", "Virtual progress rate weight"),
+    ("q_contouring_term", "Q_CONTOURING_TERM", "75.0", "Terminal contouring weight"),
+    ("q_lag_term", "Q_LAG_TERM", "60.0", "Terminal lag weight"),
+    ("q_progress_term", "Q_PROGRESS_TERM", "10.0", "Terminal progress reward"),
+    ("admm_rho", "ADMM_RHO", "15.0", "ADMM penalty parameter"),
+    ("admm_rho_u", "ADMM_RHO_U", "8.0", "Optional control ADMM penalty (0 uses rho)"),
+    ("q_vy", "Q_VY", "1.0", "Lateral velocity regularization weight"),
+    ("q_omega", "Q_OMEGA", "3.0", "Yaw-rate regularization weight"),
+    ("r_delta", "R_DELTA", "8.0", "Steering effort weight"),
+    ("r_ax", "R_AX", "1.0", "Acceleration effort weight"),
+    ("r_vtheta", "R_VTHETA", "0.2", "Virtual progress effort weight"),
+    ("w_delta_rate", "W_DELTA_RATE", "2.0", "Steering rate weight"),
+    ("w_ax_rate", "W_AX_RATE", "3.0", "Acceleration rate weight"),
+    ("w_vtheta_rate", "W_VTHETA_RATE", "0.8", "Virtual progress rate weight"),
+    ("q_contouring_term", "Q_CONTOURING_TERM", "75.0", "Terminal contouring weight"),
+    ("q_lag_term", "Q_LAG_TERM", "60.0", "Terminal lag weight"),
+    ("q_progress_term", "Q_PROGRESS_TERM", "10.0", "Terminal progress reward"),
+    ("admm_rho", "ADMM_RHO", "15.0", "ADMM penalty parameter"),
+    ("admm_rho_u", "ADMM_RHO_U", "8.0", "Optional control ADMM penalty (0 uses rho)"),
     ("admm_max_iter", "ADMM_MAX_ITER", "300", "ADMM maximum iterations"),
     ("admm_tol", "ADMM_TOL", "0.02", "ADMM convergence tolerance"),
-    ("v_theta_max", "V_THETA_MAX", "10.0", "Maximum virtual progress speed"),
+    ("admm_adaptive_rho", "ADMM_ADAPTIVE_RHO", "1", "Enable ADMM adaptive rho updates (0/1)"),
+    ("admm_alpha_relax", "ADMM_ALPHA_RELAX", "1.6", "ADMM over-relaxation factor"),
+    ("v_theta_max", "V_THETA_MAX", "8.0", "Maximum virtual progress speed"),
     (
         "cross_call_scale",
         "MPCC_CROSS_CALL_SCALE",
@@ -97,6 +115,8 @@ def _resolve_default_trajectory() -> str:
         planning_share = get_package_share_directory("f1tenth_planning")
         candidates.extend(
             [
+                os.path.join(planning_share, "trajectories", "hardware_centerline_smooth.csv"),
+                os.path.join(planning_share, "trajectories", "my_track_centerline_smooth.csv"),
                 os.path.join(planning_share, "trajectories", "hardware_raceline.csv"),
                 os.path.join(planning_share, "trajectories", "my_track_raceline.csv"),
             ]
@@ -114,8 +134,12 @@ def _resolve_default_trajectory() -> str:
     for root in search_roots:
         candidates.extend(
             [
+                os.path.join(root, "f1tenth_planning", "trajectories", "hardware_centerline_smooth.csv"),
+                os.path.join(root, "f1tenth_planning", "trajectories", "my_track_centerline_smooth.csv"),
                 os.path.join(root, "f1tenth_planning", "trajectories", "hardware_raceline.csv"),
                 os.path.join(root, "f1tenth_planning", "trajectories", "my_track_raceline.csv"),
+                os.path.join(root, "src", "f1tenth_planning", "trajectories", "hardware_centerline_smooth.csv"),
+                os.path.join(root, "src", "f1tenth_planning", "trajectories", "my_track_centerline_smooth.csv"),
                 os.path.join(root, "src", "f1tenth_planning", "trajectories", "hardware_raceline.csv"),
                 os.path.join(root, "src", "f1tenth_planning", "trajectories", "my_track_raceline.csv"),
             ]
@@ -177,6 +201,18 @@ def generate_launch_description() -> LaunchDescription:
         description="Verbose solver logging (0/1)",
     )
 
+    publish_speed_arg = DeclareLaunchArgument(
+        "publish_speed_command",
+        default_value="0",
+        description="Publish Ackermann speed along with acceleration (0/1)",
+    )
+
+    use_local_raceline_arg = DeclareLaunchArgument(
+        "use_local_raceline",
+        default_value="0",
+        description="Allow /local_raceline to override the startup CSV trajectory (0/1)",
+    )
+
     tuning_args = [
         DeclareLaunchArgument(
             arg_name,
@@ -210,6 +246,12 @@ def generate_launch_description() -> LaunchDescription:
     set_verbose = SetEnvironmentVariable(
         "MPCC_VERBOSE", LaunchConfiguration("verbose")
     )
+    set_publish_speed = SetEnvironmentVariable(
+        "MPCC_PUBLISH_SPEED_COMMAND", LaunchConfiguration("publish_speed_command")
+    )
+    set_use_local_raceline = SetEnvironmentVariable(
+        "MPCC_USE_LOCAL_RACELINE", LaunchConfiguration("use_local_raceline")
+    )
 
     tuning_env = [
         SetEnvironmentVariable(env_name, LaunchConfiguration(arg_name))
@@ -235,6 +277,8 @@ def generate_launch_description() -> LaunchDescription:
             control_period_arg,
             watchdog_arg,
             verbose_arg,
+            publish_speed_arg,
+            use_local_raceline_arg,
             *tuning_args,
             set_trajectory,
             set_odom,
@@ -244,6 +288,8 @@ def generate_launch_description() -> LaunchDescription:
             set_control_period,
             set_watchdog,
             set_verbose,
+            set_publish_speed,
+            set_use_local_raceline,
             *tuning_env,
             mpcc_hardware_node,
         ]

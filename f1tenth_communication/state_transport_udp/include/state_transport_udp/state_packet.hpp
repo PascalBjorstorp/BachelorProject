@@ -36,12 +36,16 @@ struct StatePacket {
     int32_t omega_fp;          // Yaw rate [rad/s], Q16.16.
     int32_t steering_angle_fp; // Current steering angle [rad], Q16.16.
 
-    int32_t ref_x_0_fp;        // First reference point x [m], Q16.16.
-    int32_t ref_y_0_fp;        // First reference point y [m], Q16.16.
-    int32_t ref_psi_0_fp;      // First reference heading [rad], Q16.16.
-
     uint32_t horizon_length;   // Number of valid horizon entries in arrays below.
 
+    /* Full per-step geometry arrays (V2): publisher fills these samples for
+     * robust receiver-side projection. All arrays have at least horizon_length
+     * valid entries (pad/truncate as appropriate). */
+    std::array<int32_t, MPC_HORIZON> ref_x_fp;           // Waypoint X positions [m], Q16.16
+    std::array<int32_t, MPC_HORIZON> ref_y_fp;           // Waypoint Y positions [m], Q16.16
+    std::array<int32_t, MPC_HORIZON> ref_psi_fp;         // Waypoint heading [rad], Q16.16
+
+    std::array<int32_t, MPC_HORIZON> ref_ey_fp;          // Horizon lateral error reference [m], Q16.16.
     std::array<int32_t, MPC_HORIZON> ref_vx_fp;          // Horizon target speed [m/s], Q16.16.
     std::array<int32_t, MPC_HORIZON> ref_kappa_fp;       // Horizon curvature [rad/m], Q16.16.
     std::array<int32_t, MPC_HORIZON> ref_left_bound_fp;  // Left wall bound [m], Q16.16.

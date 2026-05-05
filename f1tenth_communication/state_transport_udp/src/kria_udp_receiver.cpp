@@ -21,7 +21,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -32,8 +34,28 @@ namespace state_transport_udp {
 
 static constexpr int32_t FP_SCALE = 65536;
 
+static std::vector<unsigned char> read_file_bytes(const std::string& path) {
+    std::ifstream ifs(path, std::ios::binary | std::ios::ate);
+    if (!ifs) {
+        throw std::runtime_error("Failed to open file: " + path);
+    }
+    const std::streamoff size = ifs.tellg();
+    if (size <= 0) {
+        throw std::runtime_error("Empty file: " + path);
+    }
+    std::vector<unsigned char> buf(static_cast<size_t>(size));
+    ifs.seekg(0, std::ios::beg);
+    if (!ifs.read(reinterpret_cast<char*>(buf.data()), size)) {
+        throw std::runtime_error("Failed to read file: " + path);
+    }
+    return buf;
+}
+
 inline int32_t float_to_fp(float f) {
-    return static_cast<int32_t>(f * static_cast<float>(FP_SCALE));
+    return static_cast<int32_t>(
+        f >= 0.0f
+            ? f * static_cast<float>(FP_SCALE) + 0.5f
+            : f * static_cast<float>(FP_SCALE) - 0.5f);
 }
 
 inline float fp_to_float(int32_t fp) {
@@ -43,6 +65,7 @@ inline float fp_to_float(int32_t fp) {
 class MpcFpgaInterface {
 public:
     MpcFpgaInterface() = default;
+    void set_prev_accel_fp(int32_t prev_accel_fp) { prev_accel_fp_ = prev_accel_fp; }
 
     bool initialize(const std::string& xclbin_path,
                     const std::string& kernel_name,
@@ -75,14 +98,16 @@ public:
             return false;
         }
 
-        unsigned int file_buf_size = 0;
-        std::unique_ptr<char[]> file_buf(read_binary_file(xclbin_path, file_buf_size));
-        if (!file_buf || file_buf_size == 0) {
-            std::fprintf(stderr, "UDP-FPGA-OpenCL: failed to read xclbin: %s\n", xclbin_path.c_str());
+        std::vector<unsigned char> file_buf;
+        try {
+            file_buf = read_file_bytes(xclbin_path);
+        } catch (const std::exception& e) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: xclbin read failed: %s (%s)\n",
+                         xclbin_path.c_str(), e.what());
             return false;
         }
 
-        cl::Program::Binaries bins{{file_buf.get(), file_buf_size}};
+        cl::Program::Binaries bins{{file_buf.data(), file_buf.size()}};
         std::vector<cl::Device> program_devices{device_};
         program_ = cl::Program(context_, program_devices, bins, nullptr, &err);
         if (err != CL_SUCCESS) {
@@ -154,20 +179,33 @@ public:
         input_words_[2] = static_cast<uint32_t>(vx_fp);
         input_words_[3] = static_cast<uint32_t>(vy_fp);
 
-        // Group 1: [omega | steering | horizon_length | reserved]
+        // Group 1: [omega | steering | horizon_length | prev_accel]
         input_words_[4] = static_cast<uint32_t>(omega_fp);
         input_words_[5] = static_cast<uint32_t>(steering_fp);
         input_words_[6] = static_cast<uint32_t>(horizon);
-        input_words_[7] = 0;
+        input_words_[7] = static_cast<uint32_t>(prev_accel_fp_);
 
-        // Groups 2..N+1: [ref_vx | ref_kappa | ref_left | ref_right]
+        // Groups 2..N+1(+): V2 layout, 8 words per step:
+        // [ref_ey | ref_epsi | ref_vx | ref_vy | ref_omega_ref | ref_kappa | ref_left | ref_right]
         for (size_t i = 0; i < MPC_HORIZON; ++i) {
-            const size_t base = 8 + (i * 4);
+            const size_t base = 8 + (i * 8);
             if (i < horizon) {
-                input_words_[base + 0] = static_cast<uint32_t>(packet.ref_vx_fp[i]);
-                input_words_[base + 1] = static_cast<uint32_t>(packet.ref_kappa_fp[i]);
-                input_words_[base + 2] = static_cast<uint32_t>(packet.ref_left_bound_fp[i]);
-                input_words_[base + 3] = static_cast<uint32_t>(packet.ref_right_bound_fp[i]);
+                input_words_[base + 0] = static_cast<uint32_t>(packet.ref_ey_fp[i]);
+                /* ref_epsi: not supplied by sender (optional) */
+                input_words_[base + 1] = static_cast<uint32_t>(0u);
+                input_words_[base + 2] = static_cast<uint32_t>(packet.ref_vx_fp[i]);
+                /* ref_vy: not supplied by sender (optional) */
+                input_words_[base + 3] = static_cast<uint32_t>(0u);
+                /* ref_omega_ref: derive as v * kappa */
+                {
+                    const float v = state_transport_udp::fp_to_float(packet.ref_vx_fp[i]);
+                    const float kap = state_transport_udp::fp_to_float(packet.ref_kappa_fp[i]);
+                    const int32_t omega_fp = state_transport_udp::float_to_fp(v * kap);
+                    input_words_[base + 4] = static_cast<uint32_t>(omega_fp);
+                }
+                input_words_[base + 5] = static_cast<uint32_t>(packet.ref_kappa_fp[i]);
+                input_words_[base + 6] = static_cast<uint32_t>(packet.ref_left_bound_fp[i]);
+                input_words_[base + 7] = static_cast<uint32_t>(packet.ref_right_bound_fp[i]);
             }
         }
 
@@ -217,8 +255,11 @@ private:
     cl::Buffer output_buffer_;
 
     static constexpr size_t INPUT_WORDS = INPUT_BUFFER_WORDS_32_PAD;
+    static_assert(INPUT_WORDS * sizeof(uint32_t) == INPUT_BUFFER_BYTES_512,
+                  "Host DMA buffer words must match OpenCL input buffer bytes");
     std::array<uint32_t, INPUT_WORDS> input_words_{};
     std::array<uint32_t, 4> output_words_{};
+    int32_t prev_accel_fp_{0};
 };
 
 }  // namespace state_transport_udp
@@ -259,24 +300,57 @@ void compute_frenet_errors(const state_transport_udp::StatePacket& packet,
     const float x = state_transport_udp::fp_to_float(packet.x_fp);
     const float y = state_transport_udp::fp_to_float(packet.y_fp);
     const float theta = state_transport_udp::fp_to_float(packet.theta_fp);
-    const float wx = state_transport_udp::fp_to_float(packet.ref_x_0_fp);
-    const float wy = state_transport_udp::fp_to_float(packet.ref_y_0_fp);
-    const float wpsi = state_transport_udp::fp_to_float(packet.ref_psi_0_fp);
 
-    const float dx = x - wx;
-    const float dy = y - wy;
-    const float e_y = -std::sin(wpsi) * dx + std::cos(wpsi) * dy;
+    const size_t horizon = static_cast<size_t>(std::max<uint32_t>(1u, packet.horizon_length));
+    const size_t max_search = std::min(horizon > 0 ? horizon - 1 : 0, static_cast<size_t>(16));
 
-    float e_psi = theta - wpsi;
-    while (e_psi > static_cast<float>(M_PI)) {
-        e_psi -= 2.0f * static_cast<float>(M_PI);
+    float best_e_y = 0.0f;
+    float best_e_psi = 0.0f;
+    float best_dist2 = 1e18f;
+
+    for (size_t i = 0; i < max_search; ++i) {
+        const float ax = state_transport_udp::fp_to_float(packet.ref_x_fp[i]);
+        const float ay = state_transport_udp::fp_to_float(packet.ref_y_fp[i]);
+        const float bx = state_transport_udp::fp_to_float(packet.ref_x_fp[i + 1]);
+        const float by = state_transport_udp::fp_to_float(packet.ref_y_fp[i + 1]);
+        const float h0 = state_transport_udp::fp_to_float(packet.ref_psi_fp[i]);
+        const float h1 = state_transport_udp::fp_to_float(packet.ref_psi_fp[i + 1]);
+
+        const float abx = bx - ax;
+        const float aby = by - ay;
+        const float apx = x - ax;
+        const float apy = y - ay;
+        const float ab_len2 = abx * abx + aby * aby;
+        float t = 0.0f;
+        if (ab_len2 > 1e-12f) {
+            t = (apx * abx + apy * aby) / ab_len2;
+        }
+        t = std::clamp(t, 0.0f, 1.0f);
+
+        const float wx = ax + t * abx;
+        const float wy = ay + t * aby;
+        float dpsi_path = h1 - h0;
+        while (dpsi_path > static_cast<float>(M_PI)) dpsi_path -= 2.0f * static_cast<float>(M_PI);
+        while (dpsi_path < -static_cast<float>(M_PI)) dpsi_path += 2.0f * static_cast<float>(M_PI);
+        const float wpsi = h0 + t * dpsi_path;
+
+        const float dx = x - wx;
+        const float dy = y - wy;
+        const float dist2 = dx * dx + dy * dy;
+
+        if (dist2 < best_dist2) {
+            best_dist2 = dist2;
+            const float e_y = -std::sin(wpsi) * dx + std::cos(wpsi) * dy;
+            float e_psi = theta - wpsi;
+            while (e_psi > static_cast<float>(M_PI)) e_psi -= 2.0f * static_cast<float>(M_PI);
+            while (e_psi < -static_cast<float>(M_PI)) e_psi += 2.0f * static_cast<float>(M_PI);
+            best_e_y = e_y;
+            best_e_psi = e_psi;
+        }
     }
-    while (e_psi < -static_cast<float>(M_PI)) {
-        e_psi += 2.0f * static_cast<float>(M_PI);
-    }
 
-    out_e_y_fp = state_transport_udp::float_to_fp(e_y);
-    out_e_psi_fp = state_transport_udp::float_to_fp(e_psi);
+    out_e_y_fp = state_transport_udp::float_to_fp(best_e_y);
+    out_e_psi_fp = state_transport_udp::float_to_fp(best_e_psi);
 }
 
 }  // namespace
@@ -342,6 +416,11 @@ int main(int argc, char** argv) {
     uint32_t last_seq = 0;
     bool have_seq = false;
     uint64_t packet_count = 0;
+
+    int32_t last_good_steering_fp = 0;
+    int32_t last_good_accel_fp = 0;
+    int32_t last_good_speed_fp =
+        state_transport_udp::float_to_fp(static_cast<float>(MPC_FPGA_MIN_VEL_MPS));
 
     while (g_running) {
         state_transport_udp::StatePacket packet{};
@@ -419,9 +498,10 @@ int main(int argc, char** argv) {
         }
 
         const float vx = state_transport_udp::fp_to_float(packet.velocity_fp);
-        const float accel = state_transport_udp::fp_to_float(out_accel_fp);
-        float speed = vx + accel * control_dt;
-        speed = std::clamp(speed, 0.0f, max_velocity);
+
+        const bool bad_status =
+            (out_status == MPC_FPGA_STATUS_ERROR) ||
+            (out_status == MPC_FPGA_STATUS_NO_TRAJECTORY);
 
         state_transport_udp::ControlPacket ctrl{};
         ctrl.magic = state_transport_udp::PACKET_MAGIC;
@@ -430,11 +510,36 @@ int main(int argc, char** argv) {
         ctrl.sequence = packet.sequence;
         ctrl.receiver_time_ms = packet.sender_time_ms;
         ctrl.sender_mono_ns = packet.sender_mono_ns;
-        ctrl.steering_fp = out_steering_fp;
-        ctrl.speed_fp = state_transport_udp::float_to_fp(speed);
-        ctrl.accel_fp = out_accel_fp;
         ctrl.solver_status = out_status;
         ctrl.solver_iterations = out_iterations;
+
+        if (bad_status) {
+            ctrl.steering_fp = last_good_steering_fp;
+            ctrl.speed_fp = last_good_speed_fp;
+            ctrl.accel_fp = last_good_accel_fp;
+            fpga.set_prev_accel_fp(last_good_accel_fp);
+
+            std::fprintf(stderr,
+                         "Solver bad status=%u at seq=%u, holding last good command\n",
+                         out_status,
+                         packet.sequence);
+        } else {
+            const float accel = state_transport_udp::fp_to_float(out_accel_fp);
+            float speed = vx + accel * control_dt;
+            speed = std::clamp(speed,
+                               static_cast<float>(MPC_FPGA_MIN_VEL_MPS),
+                               max_velocity);
+
+            ctrl.steering_fp = out_steering_fp;
+            ctrl.speed_fp = state_transport_udp::float_to_fp(speed);
+            ctrl.accel_fp = out_accel_fp;
+
+            last_good_steering_fp = ctrl.steering_fp;
+            last_good_speed_fp = ctrl.speed_fp;
+            last_good_accel_fp = ctrl.accel_fp;
+
+            fpga.set_prev_accel_fp(out_accel_fp);
+        }
         const uint64_t kria_tx_ns = monotonic_now_ns();
         const uint64_t kria_delta_ns = kria_tx_ns - kria_rx_start_ns;
         ctrl.ultra_process_us = static_cast<uint32_t>(std::min<uint64_t>(kria_delta_ns / 1000ull, 0xFFFFFFFFull));

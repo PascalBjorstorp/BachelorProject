@@ -59,6 +59,22 @@ def _resolve_maps_dir() -> str:
     return os.path.join(_source_root_dir(), 'maps')
 
 
+def _resolve_rviz_config_path() -> str:
+    override = os.environ.get('GYM_RVIZ_CONFIG', '').strip()
+    if override:
+        return override
+
+    source_config = os.path.join(_source_root_dir(), 'launch', 'gym_bridge.rviz')
+    if os.path.exists(source_config):
+        return source_config
+
+    return os.path.join(
+        get_package_share_directory('f1tenth_gym_ros'),
+        'launch',
+        'gym_bridge.rviz',
+    )
+
+
 def launch_setup(context, *args, **kwargs):
     """Setup function called at launch time with resolved arguments."""
     # Get resolved ground_truth argument
@@ -120,15 +136,12 @@ def launch_setup(context, *args, **kwargs):
     nodes.append(bridge_node)
     
     if use_rviz:
+        rviz_config = _resolve_rviz_config_path()
         rviz_node = Node(
             package='rviz2',
             executable='rviz2',
             name='rviz',
-            arguments=['-d', os.path.join(
-                get_package_share_directory('f1tenth_gym_ros'),
-                'launch',
-                'gym_bridge.rviz'
-            )],
+            arguments=['-d', rviz_config],
             parameters=[{'use_sim_time': use_sim_time}],
             condition=IfCondition(LaunchConfiguration('use_rviz')),
         )
