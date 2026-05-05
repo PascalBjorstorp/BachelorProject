@@ -687,11 +687,28 @@ static void raceline_callback(const void *msg_in)
     }
 
     mpcc_set_reference_path(&ref_path);
+
+    if (g_have_pose || g_have_odom)
+    {
+        /* Re-anchor progress onto the new local segment instead of
+         * carrying a global-lap s hint into a short open path. */
+        g_current_s = mpcc_find_closest_s(
+            &ref_path,
+            g_vehicle_state.pos_x,
+            g_vehicle_state.pos_y);
+    }
+    else
+    {
+        g_current_s = 0.0f;
+    }
+
     g_have_reference = 1;
-        printf("[MPCC] Updated open raceline segment from topic (%d points, %.1f m) "
-            "— bounds from %s\n",
-           n, ref_path.total_length,
-           (g_reference_path.num_points >= 2) ? "CSV lookup" : "fallback");
+    printf("[MPCC] Updated open raceline segment from topic (%d points, %.1f m) "
+           "— bounds from %s, re-anchored s=%.2f\n",
+           n,
+           ref_path.total_length,
+           (g_reference_path.num_points >= 2) ? "CSV lookup" : "fallback",
+           g_current_s);
 
     publish_raceline(&ref_path);
 }
