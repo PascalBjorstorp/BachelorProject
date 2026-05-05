@@ -69,7 +69,7 @@ static double g_watchdog_timeout_sec = 0.5;
 
 /* Nominal control cadence used for rate penalties when not adapting online. */
 static double g_nominal_control_dt_sec = 1.0 / MPCC_CONTROL_RATE_HZ;
-static int g_adapt_cross_call_scale = 0;
+static int g_adapt_cross_call_scale = 1;
 
 /* -------------------------------------------------------------------------- */
 /* VESC Servo Conversion Parameters                                            */
@@ -557,6 +557,7 @@ static void publish_predicted_path(const MPCCResult_t *result)
     }
 
     g_predicted_path_msg.poses.size = n;
+    g_predicted_path_msg.header.stamp = g_pose_msg.header.stamp;
     for (uint16_t i = 0; i < n; i++) {
         const MPCCState_t *st = &result->predicted_states[i];
         g_predicted_path_msg.poses.data[i].position.x = st->X;
