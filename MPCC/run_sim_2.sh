@@ -202,8 +202,8 @@ case "${MPCC_PROFILE}" in
         set_default W_DELTA_RATE 4.0
         set_default W_AX_RATE 3.0
         set_default W_VTHETA_RATE 0.8
-        set_default Q_CONTOURING_TERM 75.0
-        set_default Q_LAG_TERM 60.0
+        set_default Q_CONTOURING_TERM 150.0
+        set_default Q_LAG_TERM 120.0
         set_default Q_PROGRESS_TERM 10.0
         set_default ADMM_RHO 15.0
         set_default ADMM_RHO_U 8.0

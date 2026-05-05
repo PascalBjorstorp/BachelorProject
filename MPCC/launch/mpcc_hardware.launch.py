@@ -207,6 +207,12 @@ def generate_launch_description() -> LaunchDescription:
         description="Publish Ackermann speed along with acceleration (0/1)",
     )
 
+    use_local_raceline_arg = DeclareLaunchArgument(
+        "use_local_raceline",
+        default_value="0",
+        description="Allow /local_raceline to override the startup CSV trajectory (0/1)",
+    )
+
     tuning_args = [
         DeclareLaunchArgument(
             arg_name,
@@ -243,6 +249,9 @@ def generate_launch_description() -> LaunchDescription:
     set_publish_speed = SetEnvironmentVariable(
         "MPCC_PUBLISH_SPEED_COMMAND", LaunchConfiguration("publish_speed_command")
     )
+    set_use_local_raceline = SetEnvironmentVariable(
+        "MPCC_USE_LOCAL_RACELINE", LaunchConfiguration("use_local_raceline")
+    )
 
     tuning_env = [
         SetEnvironmentVariable(env_name, LaunchConfiguration(arg_name))
@@ -269,6 +278,7 @@ def generate_launch_description() -> LaunchDescription:
             watchdog_arg,
             verbose_arg,
             publish_speed_arg,
+            use_local_raceline_arg,
             *tuning_args,
             set_trajectory,
             set_odom,
@@ -279,6 +289,7 @@ def generate_launch_description() -> LaunchDescription:
             set_watchdog,
             set_verbose,
             set_publish_speed,
+            set_use_local_raceline,
             *tuning_env,
             mpcc_hardware_node,
         ]
