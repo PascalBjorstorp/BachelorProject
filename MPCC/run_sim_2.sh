@@ -181,12 +181,12 @@ case "${MPCC_PROFILE}" in
         # Low-reference MPCC setup:
         # The reference line is used mostly as the path coordinate frame and
         # corridor center, while progress and wall clearance dominate.
-        set_default HORIZON 40
+        set_default HORIZON 80
         set_default DT 0.03
         set_default Q_CONTOURING 60.0
         set_default Q_LAG 120.0
         set_default Q_WALL_CLEARANCE 3200.0
-        set_default WALL_CLEARANCE_MARGIN 0.02
+        set_default WALL_CLEARANCE_MARGIN 0.01
         set_default MPCC_TRACK_BUFFER 0.05
         set_default Q_PROGRESS 8.0
         set_default Q_VX 0.0
@@ -199,9 +199,9 @@ case "${MPCC_PROFILE}" in
         set_default R_DELTA 8.0
         set_default R_AX 1.0
         set_default R_VTHETA 0.2
-        set_default W_DELTA_RATE 2.0
+        set_default W_DELTA_RATE 4.0
         set_default W_AX_RATE 3.0
-        set_default W_VTHETA_RATE 0.5
+        set_default W_VTHETA_RATE 0.8
         set_default Q_CONTOURING_TERM 75.0
         set_default Q_LAG_TERM 60.0
         set_default Q_PROGRESS_TERM 10.0

@@ -972,6 +972,10 @@ static float compute_speed_limit(float s, float lookahead_m)
     const float vx_ref_scale = config.raceline_vx_limit_scale;
     const float curv_safety = 0.95f;   /* keep cornering margin, but less conservative */
     const float kappa_thresh = 0.5f;   /* only apply curvature limit above this */
+    const float shortcut_authority = 0.65f;
+    const uint8_t use_shortcut_relaxation =
+        (config.weight_vx <= 0.0f) &&
+        (config.use_raceline_vx_limit == 0);
 
     float v_limit = vx_max;
     const int n_samples = 20;
@@ -996,6 +1000,19 @@ static float compute_speed_limit(float s, float lookahead_m)
 
         /* 2. Curvature-based limit for tight curves */
         float kappa_abs = fabsf(pt.kappa_ref);
+        if (use_shortcut_relaxation && kappa_abs > 0.0f)
+        {
+            float outside_margin = (pt.kappa_ref >= 0.0f) ? pt.right_bound : pt.left_bound;
+            float usable_outside = outside_margin - config.track_safety_buffer - config.wall_clearance_margin;
+            if (usable_outside > 0.0f)
+            {
+                /* Approximate the wider-radius arc the optimizer can realize by using
+                 * the outside half of the corridor instead of following centerline curvature. */
+                float shortcut_offset = shortcut_authority * usable_outside;
+                kappa_abs = kappa_abs / (1.0f + (shortcut_offset * kappa_abs));
+            }
+        }
+
         if (kappa_abs > kappa_thresh)
         {
             float v_corner = curv_safety * sqrtf(mu * g / kappa_abs);
@@ -1045,9 +1062,14 @@ static void build_qp_problem(
         qp->x_upper[i] = big;
     }
 
-    /* s: must be non-negative */
+    /* s: must be non-negative. For closed paths, let the horizon cross the
+     * lap seam in unwrapped s-space; path interpolation already wraps stage
+     * references back onto the track geometry. */
     qp->x_lower[MPCC_IDX_S] = 0;
-    qp->x_upper[MPCC_IDX_S] = (ref_path.total_length > 0.0f) ? ref_path.total_length : 1000.0f;
+    qp->x_upper[MPCC_IDX_S] =
+        (ref_path.is_closed || ref_path.total_length <= 0.0f)
+            ? big
+            : ref_path.total_length;
 
     /* vx: bounded, tightened by curvature-based speed limit */
     qp->x_lower[MPCC_IDX_VX] = config.vx_min;
