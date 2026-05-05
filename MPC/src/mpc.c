@@ -47,13 +47,13 @@ static float get_wall_bias_clearance_m(void)
 {
     /* Extra clearance beyond config.wall_margin; applied by biasing the lateral
      * reference within the corridor. Set to 0 to disable. */
-    return get_env_float("MPC_WALL_BIAS_CLEAR_M", 0.01f);
+    return get_env_float("MPC_WALL_BIAS_CLEAR_M", 0.05f);
 }
 
 static float get_wall_bias_max_shift_m(void)
 {
     /* Clamp max correction magnitude applied to base reference (safety valve). */
-    return get_env_float("MPC_WALL_BIAS_MAX_M", 0.05f);
+    return get_env_float("MPC_WALL_BIAS_MAX_M", 0.2f);
 }
 
 static void compute_wall_ey_bounds(

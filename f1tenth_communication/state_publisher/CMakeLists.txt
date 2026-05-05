@@ -20,8 +20,7 @@ find_package(f1tenth_msgs REQUIRED)
 
 # Executable
 add_executable(state_publisher_node
-  src/state_publisher.cpp
-  src/kdtree.cpp
+  src/state_publisher_v2.cpp
 )
 target_include_directories(state_publisher_node PRIVATE
   include
