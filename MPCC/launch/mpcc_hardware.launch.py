@@ -14,7 +14,7 @@ Override trajectory and topics:
       pose_topic:=/ekf_pose \
       imu_topic:=/imu/filtered_angular_velocity
 
-This launch file uses the current track_racer-derived MPCC baseline by default,
+This launch file uses the current Jetson MPCC baseline by default,
 while retaining the extra hardware guardrails needed on the real car.
 Override any launch argument if you need to run a different tune.
 """
@@ -28,7 +28,6 @@ from launch_ros.actions import Node
 
 
 HARDWARE_TUNING_DEFAULTS = [
-    ("profile_name", "MPCC_PROFILE", "track_racer", "Human-readable tuning profile label"),
     ("horizon", "HORIZON", "80", "Prediction horizon steps"),
     ("dt", "DT", "0.03", "Prediction time step in seconds"),
     ("q_contouring", "Q_CONTOURING", "80.0", "Contouring weight"),

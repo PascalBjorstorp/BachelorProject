@@ -1,6 +1,6 @@
 # MPCC Real-Car Robustness Fixes
 
-This note records the retained MPCC fixes for the real car, the fixes that were tested but not kept, and the current launch profile that matches the validated `track_racer` baseline on `my_track_centerline_smooth.csv`.
+This note records the retained MPCC fixes for the real car, the fixes that were tested but not kept, and the current launch profile that matches the validated Jetson baseline on `my_track_centerline_smooth.csv`.
 
 ## Problem Summary
 
@@ -30,7 +30,6 @@ Retained changes:
 Current default hardware profile in the launch file:
 
 ```text
-MPCC_PROFILE=track_racer
 HORIZON=80
 DT=0.03
 Q_CONTOURING=80.0
@@ -71,7 +70,7 @@ MPCC_ADAPT_CROSS_CALL_SCALE=0
 MPCC_VX_MIN_CMD=0.1
 ```
 
-This is the profile that now mirrors the current simulation `track_racer` baseline while keeping the hardware-only guardrails.
+This is the launch baseline that mirrors the currently validated simulation tune while keeping the hardware-only guardrails.
 
 ### 2. Hardware-node runtime guardrails
 
@@ -169,7 +168,7 @@ So the "wrong direction" feeling is more likely to come from state/path continui
 
 ## Validation Results
 
-### Reproduced current track-racer candidate
+### Reproduced current Jetson baseline candidate
 
 Validation command:
 
@@ -182,7 +181,7 @@ gcc -D_GNU_SOURCE -O3 -std=c99 -Wall -ffast-math \
   -o test_sim_drive -lm
 
 RACELINE_PATH=/home/jonathan/Documents/GitHub/BachelorProject/f1tenth_planning/trajectories/my_track_centerline_smooth.csv \
-MPCC_PROFILE=track_racer DT=0.03 HORIZON=80 \
+DT=0.03 HORIZON=80 \
 Q_CONTOURING=80 Q_LAG=120 Q_WALL_CLEARANCE=3200 WALL_CLEARANCE_MARGIN=0.02 MPCC_TRACK_BUFFER=0.05 \
 Q_PROGRESS=8 Q_VX=0 VX_REF=0 MPCC_USE_RACELINE_VX_REF=0 MPCC_USE_RACELINE_VX_LIMIT=0 MPCC_RACELINE_VX_LIMIT_SCALE=1.0 \
 Q_VY=1.0 Q_OMEGA=3.0 R_DELTA=8 R_AX=1.0 R_VTHETA=0.2 \
@@ -253,7 +252,7 @@ The retained robustness solution is:
 
 - keep the runtime guardrails in the hardware node
 - keep the `s_hint` continuity fix in the core
-- use the current `track_racer`-derived launch profile by default
+- use the current Jetson launch baseline by default
 - do not trust older MPCC sweep winners unless they reproduce on the current code and current raceline
 
 That is the cleanest validated state reached in this iteration.
