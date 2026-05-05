@@ -201,6 +201,12 @@ def generate_launch_description() -> LaunchDescription:
         description="Verbose solver logging (0/1)",
     )
 
+    publish_speed_arg = DeclareLaunchArgument(
+        "publish_speed_command",
+        default_value="0",
+        description="Publish Ackermann speed along with acceleration (0/1)",
+    )
+
     tuning_args = [
         DeclareLaunchArgument(
             arg_name,
@@ -234,6 +240,9 @@ def generate_launch_description() -> LaunchDescription:
     set_verbose = SetEnvironmentVariable(
         "MPCC_VERBOSE", LaunchConfiguration("verbose")
     )
+    set_publish_speed = SetEnvironmentVariable(
+        "MPCC_PUBLISH_SPEED_COMMAND", LaunchConfiguration("publish_speed_command")
+    )
 
     tuning_env = [
         SetEnvironmentVariable(env_name, LaunchConfiguration(arg_name))
@@ -259,6 +268,7 @@ def generate_launch_description() -> LaunchDescription:
             control_period_arg,
             watchdog_arg,
             verbose_arg,
+            publish_speed_arg,
             *tuning_args,
             set_trajectory,
             set_odom,
@@ -268,6 +278,7 @@ def generate_launch_description() -> LaunchDescription:
             set_control_period,
             set_watchdog,
             set_verbose,
+            set_publish_speed,
             *tuning_env,
             mpcc_hardware_node,
         ]
