@@ -1302,7 +1302,7 @@ int main(int argc, char *argv[])
     {
         MpcConfiguration_t cfg = mpc_get_configuration();
         printf("[MPC] Controller initialized (horizon=%d, dt=%.0fms)\n",
-               (int)cfg.prediction_horizon_steps, (double)cfg.time_step * 1000.0);
+               PREDICTION_HORIZON, (double)cfg.time_step * 1000.0);
     }
 
     printf("[MPC] Control mode: EKF-driven (MPC runs on each /ekf_pose message)\n");
