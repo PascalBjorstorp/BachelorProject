@@ -601,31 +601,31 @@ typedef struct
 #define MPCC_DEFAULT_DT               (0.03f)                       /** 30 ms prediction step: 20 * 0.03 = 0.6s lookahead */
 
 /*--- Contouring tracking weights (Apr 28 latest CSV: fastest safe + low-regression moving baseline) ---*/
-#define MPCC_DEFAULT_WEIGHT_CONTOURING (80.0f)                    /** Contouring error penalty. */
-#define MPCC_DEFAULT_WEIGHT_LAG       (120.0f)                     /** Lag error penalty. */
+#define MPCC_DEFAULT_WEIGHT_CONTOURING (960.0f)                    /** Contouring error penalty. */
+#define MPCC_DEFAULT_WEIGHT_LAG       (200.0f)                     /** Lag error penalty. */
 #define MPCC_DEFAULT_WEIGHT_WALL_CLEARANCE (3200.0f)               /** Soft near-wall penalty inside the hard corridor. */
 #define MPCC_DEFAULT_WALL_CLEARANCE_MARGIN (0.02f)                 /** Extra desired distance from each wall [m]. */
-#define MPCC_DEFAULT_TRACK_SAFETY_BUFFER   (0.5f)                  /** Hard buffer subtracted from each track bound [m]. */
-#define MPCC_DEFAULT_WEIGHT_PROGRESS  (8.0f)                      /** Progress reward. */
+#define MPCC_DEFAULT_TRACK_SAFETY_BUFFER   (0.0f)                  /** Hard buffer subtracted from each track bound [m]. */
+#define MPCC_DEFAULT_WEIGHT_PROGRESS  (15.6f)                      /** Progress reward. */
 
 /*--- State regularization ---*/
-#define MPCC_DEFAULT_WEIGHT_VX        (0.0f)                         /** Longitudinal velocity tracking weight.*/
-#define MPCC_DEFAULT_VX_REF           (0.0f)                        /** Reference velocity for longitudinal velocity tracking [m/s]. */
+#define MPCC_DEFAULT_WEIGHT_VX        (30.0f)                         /** Longitudinal velocity tracking weight.*/
+#define MPCC_DEFAULT_VX_REF           (4.0f)                        /** Reference velocity for longitudinal velocity tracking [m/s]. */
 #define MPCC_DEFAULT_USE_RACELINE_VX_REF   0                         /** Use per-waypoint CSV vx as target. */
 #define MPCC_DEFAULT_USE_RACELINE_VX_LIMIT 0                         /** Use per-waypoint CSV vx as speed cap. */
 #define MPCC_DEFAULT_RACELINE_VX_LIMIT_SCALE (1.0f)                  /** CSV vx cap multiplier. */
-#define MPCC_DEFAULT_WEIGHT_VY        (1.0f)                        /** Lateral velocity tracking weight. */
-#define MPCC_DEFAULT_WEIGHT_OMEGA     (3.0f)                         /** Yaw rate tracking weight. */
+#define MPCC_DEFAULT_WEIGHT_VY        (0.5f)                        /** Lateral velocity tracking weight. */
+#define MPCC_DEFAULT_WEIGHT_OMEGA     (1.5f)                         /** Yaw rate tracking weight. */
 
 /*--- Control effort ---*/
-#define MPCC_DEFAULT_WEIGHT_DELTA     (8.0f)                      /** Steering angle effort penalty. */
-#define MPCC_DEFAULT_WEIGHT_AX        (1.0f)                    /** Longitudinal acceleration effort penalty. */
-#define MPCC_DEFAULT_WEIGHT_V_THETA   (0.2f)                        /** Virtual progress speed effort penalty. */
+#define MPCC_DEFAULT_WEIGHT_DELTA     (100.0f)                      /** Steering angle effort penalty. */
+#define MPCC_DEFAULT_WEIGHT_AX        (0.05225f)                    /** Longitudinal acceleration effort penalty. */
+#define MPCC_DEFAULT_WEIGHT_V_THETA   (0.1f)                        /** Virtual progress speed effort penalty. */
 
 /*--- Control rate (smoothness) ---*/
-#define MPCC_DEFAULT_WEIGHT_DELTA_RATE    (2.0f)                      /** Steering rate penalty. */
-#define MPCC_DEFAULT_WEIGHT_AX_RATE       (3.0f)                    /** Longitudinal acceleration rate penalty. */
-#define MPCC_DEFAULT_WEIGHT_V_THETA_RATE  (0.8f)                   /** Virtual progress speed rate penalty. */
+#define MPCC_DEFAULT_WEIGHT_DELTA_RATE    (5.0f)                      /** Steering rate penalty. */
+#define MPCC_DEFAULT_WEIGHT_AX_RATE       (0.488f)                    /** Longitudinal acceleration rate penalty. */
+#define MPCC_DEFAULT_WEIGHT_V_THETA_RATE  (0.1105f)                   /** Virtual progress speed rate penalty. */
 
 /* cross_call_rate_scale = control_dt / prediction_dt
  * At 200 Hz control rate and dt=0.05: 0.005/0.05 = 0.1 */
@@ -633,19 +633,19 @@ typedef struct
 #define MPCC_DEFAULT_CROSS_CALL_SCALE     (0.166667f)                     /** was 0.3, must = 1/(Hz*dt) */
 
 /*--- Terminal weights ---*/
-#define MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL     (75.0f)     /** Terminal contouring error penalty. */
-#define MPCC_DEFAULT_WEIGHT_LAG_TERMINAL            (60.0f)      /** Terminal lag error penalty. */
-#define MPCC_DEFAULT_WEIGHT_PROGRESS_TERMINAL       (10.0f)       /** Terminal progress reward. */
+#define MPCC_DEFAULT_WEIGHT_CONTOURING_TERMINAL     (4800.0f)     /** Terminal contouring error penalty. */
+#define MPCC_DEFAULT_WEIGHT_LAG_TERMINAL            (800.0f)      /** Terminal lag error penalty. */
+#define MPCC_DEFAULT_WEIGHT_PROGRESS_TERMINAL       (41.4f)       /** Terminal progress reward. */
 
 /*--- Obstacle avoidance ---*/
 #define MPCC_DEFAULT_WEIGHT_OBSTACLE  (1000.0f)                     /** Obstacle avoidance penalty. */
 #define MPCC_DEFAULT_OBSTACLE_MARGIN  (0.1f)                        /** Minimum distance to obstacles [m]. */
 
 /*--- ADMM solver (tuned via iterative sweep) ---*/
-#define MPCC_DEFAULT_ADMM_RHO         (15.0f)                        /** ADMM penalty parameter. */
+#define MPCC_DEFAULT_ADMM_RHO         (5.0f)                        /** ADMM penalty parameter. */
 #define MPCC_DEFAULT_ADMM_MAX_ITER    300                           /** Maximum ADMM iterations. */
 #define MPCC_DEFAULT_ADMM_TOLERANCE   (0.02f)                       /** ADMM convergence tolerance. */
-#define MPCC_DEFAULT_ADMM_RHO_U       (8.0f)                        /** 0 => reuse state rho for controls. */
+#define MPCC_DEFAULT_ADMM_RHO_U       (0.0f)                        /** 0 => reuse state rho for controls. */
 #define MPCC_DEFAULT_ADMM_ADAPTIVE_RHO 1                            /** Enable adaptive rho by default. */
 #define MPCC_DEFAULT_ADMM_ALPHA_RELAX (1.6f)                        /** Warm-start over-relaxation factor. */
 #define MPCC_DEFAULT_ACCEPT_MAX_ITERATIONS 0                        /** Do not publish max-iteration iterates by default. */
