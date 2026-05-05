@@ -518,7 +518,7 @@ static void project_to_path_segment(
             t * (global_trajectory[idx1].s_meters - global_trajectory[idx0].s_meters);
         projection_out->segment_t = t;
         projection_out->segment_index = idx0;
-    }
+    
 
     if (frenet_out != NULL)
     {

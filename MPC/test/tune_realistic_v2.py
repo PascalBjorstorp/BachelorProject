@@ -79,22 +79,22 @@ BASE_OVERRIDES = {
     # Fallback seed for MPC weights only (tuning parameters).
     # Replaced at runtime when --seed-csv is provided or when DEFAULT_BASE_SEED_CSV exists.
     # Vehicle parameters are NOT tuned and use simulator hardcoded defaults.
-    "Q_LAT":  1000.0,
+    "Q_LAT":  800.0,
     "Q_HDG": 28.8,
-    "Q_VEL": 30.0,
-    "Q_LAT_VEL": 1.04,
+    "Q_VEL": 25.5,
+    "Q_LAT_VEL": 0.9568,
     "Q_YAW": 1.5,
     "R_STEER": 1.5,
     "R_ACCEL": 0.01,
     "W_JERK": 0.04,
     "W_ACCEL_RATE": 0.10,
-    "MPC_W_DELTA_ACTUAL": 0.023,
+    "MPC_W_DELTA_ACTUAL": 0.02254,
     "HORIZON": 20,
     "PRED_DT": 0.03,
-    "RHO": 8.0,
-    "RHO_U": 24.0,   
+    "RHO": 7.0,
+    "RHO_U": 20.0,   
     "TOL": 0.01,
-    "MAX_ITER": 100,
+    "MAX_ITER": 50,
 }
 
 HARDWARE_REPLAY_RUN = None
@@ -106,7 +106,7 @@ HARDWARE_REPLAY_WINDOW_SEC = 3.0
 
 PHASE2_VALUES_BASE = {
     # Centered on mpc_types.h current values ±25-30% for exploration
-    "Q_LAT": [100.0, 400.0, 600.0, 800.0],
+    "Q_LAT": [600.0, 700.0, 800.0, 900.0],
     "Q_HDG": [10, 15, 20, 25, 30],
     "Q_VEL": [20, 25, 30.0, 35, 40],
     "Q_LAT_VEL": [0.5, 0.75, 1.0, 1.25, 1.5],

@@ -1225,13 +1225,8 @@ int main(void)
     mpc_initialize();
     mpc_reset();
 
-    /* Configure horizon and weights. Horizon must respect compile-time limits. */
+    /* Configure weights. Horizon is fixed at compile-time to PREDICTION_HORIZON. */
     MpcConfiguration_t cfg = mpc_get_configuration();
-    int horizon = PREDICTION_HORIZON;
-    if (getenv("HORIZON")) horizon = atoi(getenv("HORIZON"));
-    if (horizon < 1) horizon = 1;
-    if (horizon > PREDICTION_HORIZON) horizon = PREDICTION_HORIZON;
-    cfg.prediction_horizon_steps = (uint16_t)horizon;
     /* Prediction time step: propagate PRED_DT to solver's dynamics model */
     cfg.time_step = (float)(g_mpc_prediction_dt);
     /* cross_call_rate_scale: ratio of control interval to prediction dt */
@@ -1258,7 +1253,7 @@ int main(void)
 
     if (verbose) {
         printf("  Horizon: %d, Q_lat=%.2f Q_hdg=%.2f Q_vel=%.2f R_steer=%.2f R_accel=%.2f\n",
-               cfg.prediction_horizon_steps,
+               PREDICTION_HORIZON,
                (double)(cfg.weight_lateral_error),
                (double)(cfg.weight_heading_error),
                (double)(cfg.weight_velocity),
@@ -1473,9 +1468,9 @@ int main(void)
             /* Build reference */
             TrajectoryReferencePoint_t ref[PREDICTION_HORIZON];
             if (local_raceline_sim) {
-                build_reference_local(cfg.prediction_horizon_steps, ref);
+                build_reference_local(PREDICTION_HORIZON, ref);
             } else {
-                build_reference(closest_global, cfg.prediction_horizon_steps, ref);
+                build_reference(closest_global, PREDICTION_HORIZON, ref);
             }
             v_ref_print = (double)ref[0].reference_velocity;
             kappa_ref_print = (double)ref[0].path_curvature;
