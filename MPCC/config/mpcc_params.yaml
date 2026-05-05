@@ -14,7 +14,7 @@ mpcc_node:
   ros__parameters:
 
     # --- Prediction Horizon (Apr 28 latest tuning CSV promoted baseline) ---
-    horizon_steps: 20
+    horizon_steps: 80
     dt: 0.03              # [seconds] time step between prediction stages
 
     # --- Contouring Weights ---
@@ -25,15 +25,15 @@ mpcc_node:
     # wall_clearance_margin: extra desired distance from each wall [m] for the
     #   soft inner corridor used by weight_wall_clearance
     # weight_progress: reward for forward progress (-q_s * v_theta)
-    weight_contouring: 960.0      # contouring error penalty
-    weight_lag: 200.0             # lag error penalty
+    weight_contouring: 80.0      # contouring error penalty
+    weight_lag: 120.0             # lag error penalty
     weight_wall_clearance: 3200.0 # soft wall-clearance penalty
     wall_clearance_margin: 0.02   # [m] extra desired distance from each wall
-    weight_progress: 15.6         # progress reward
+    weight_progress: 8.0         # progress reward
 
     # --- State Regularization ---
-    weight_vx: 30.0       # longitudinal velocity tracking weight
-    vx_ref: 4.0           # [m/s] reference velocity
+    weight_vx: 0.0       # longitudinal velocity tracking weight
+    vx_ref: 0.0           # [m/s] reference velocity
     weight_vy: 0.5        # lateral velocity penalty
     weight_omega: 1.5     # yaw rate penalty
 
