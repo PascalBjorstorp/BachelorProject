@@ -21,7 +21,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -31,6 +33,23 @@
 namespace state_transport_udp {
 
 static constexpr int32_t FP_SCALE = 65536;
+
+static std::vector<unsigned char> read_file_bytes(const std::string& path) {
+    std::ifstream ifs(path, std::ios::binary | std::ios::ate);
+    if (!ifs) {
+        throw std::runtime_error("Failed to open file: " + path);
+    }
+    const std::streamoff size = ifs.tellg();
+    if (size <= 0) {
+        throw std::runtime_error("Empty file: " + path);
+    }
+    std::vector<unsigned char> buf(static_cast<size_t>(size));
+    ifs.seekg(0, std::ios::beg);
+    if (!ifs.read(reinterpret_cast<char*>(buf.data()), size)) {
+        throw std::runtime_error("Failed to read file: " + path);
+    }
+    return buf;
+}
 
 inline int32_t float_to_fp(float f) {
     return static_cast<int32_t>(
@@ -79,14 +98,16 @@ public:
             return false;
         }
 
-        unsigned int file_buf_size = 0;
-        std::unique_ptr<char[]> file_buf(read_binary_file(xclbin_path, file_buf_size));
-        if (!file_buf || file_buf_size == 0) {
-            std::fprintf(stderr, "UDP-FPGA-OpenCL: failed to read xclbin: %s\n", xclbin_path.c_str());
+        std::vector<unsigned char> file_buf;
+        try {
+            file_buf = read_file_bytes(xclbin_path);
+        } catch (const std::exception& e) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: xclbin read failed: %s (%s)\n",
+                         xclbin_path.c_str(), e.what());
             return false;
         }
 
-        cl::Program::Binaries bins{{file_buf.get(), file_buf_size}};
+        cl::Program::Binaries bins{{file_buf.data(), file_buf.size()}};
         std::vector<cl::Device> program_devices{device_};
         program_ = cl::Program(context_, program_devices, bins, nullptr, &err);
         if (err != CL_SUCCESS) {
@@ -234,6 +255,8 @@ private:
     cl::Buffer output_buffer_;
 
     static constexpr size_t INPUT_WORDS = INPUT_BUFFER_WORDS_32_PAD;
+    static_assert(INPUT_WORDS * sizeof(uint32_t) == INPUT_BUFFER_BYTES_512,
+                  "Host DMA buffer words must match OpenCL input buffer bytes");
     std::array<uint32_t, INPUT_WORDS> input_words_{};
     std::array<uint32_t, 4> output_words_{};
     int32_t prev_accel_fp_{0};

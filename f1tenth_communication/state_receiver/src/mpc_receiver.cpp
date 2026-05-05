@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <fstream>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -31,6 +32,23 @@
 #include "mpc_fpga_interface.h"
 
 namespace f1tenth_communication {
+
+static std::vector<unsigned char> read_file_bytes(const std::string& path) {
+    std::ifstream ifs(path, std::ios::binary | std::ios::ate);
+    if (!ifs) {
+        throw std::runtime_error("Failed to open file: " + path);
+    }
+    const std::streamoff size = ifs.tellg();
+    if (size <= 0) {
+        throw std::runtime_error("Empty file: " + path);
+    }
+    std::vector<unsigned char> buf(static_cast<size_t>(size));
+    ifs.seekg(0, std::ios::beg);
+    if (!ifs.read(reinterpret_cast<char*>(buf.data()), size)) {
+        throw std::runtime_error("Failed to read file: " + path);
+    }
+    return buf;
+}
 
 /*===========================================================================
  * Fixed-Point Helpers (Q16.16)
@@ -84,14 +102,16 @@ public:
             return false;
         }
 
-        unsigned int file_buf_size = 0;
-        std::unique_ptr<char[]> file_buf(read_binary_file(xclbin_path, file_buf_size));
-        if (!file_buf || file_buf_size == 0) {
-            std::fprintf(stderr, "MPC-FPGA-OpenCL: failed to read xclbin: %s\n", xclbin_path.c_str());
+        std::vector<unsigned char> file_buf;
+        try {
+            file_buf = read_file_bytes(xclbin_path);
+        } catch (const std::exception& e) {
+            std::fprintf(stderr, "MPC-FPGA-OpenCL: xclbin read failed: %s (%s)\n",
+                         xclbin_path.c_str(), e.what());
             return false;
         }
 
-        cl::Program::Binaries bins{{file_buf.get(), file_buf_size}};
+        cl::Program::Binaries bins{{file_buf.data(), file_buf.size()}};
         std::vector<cl::Device> program_devices{device_};
         program_ = cl::Program(context_, program_devices, bins, nullptr, &err);
         if (err != CL_SUCCESS) {
@@ -107,7 +127,7 @@ public:
             return false;
         }
 
-            input_buffer_ = cl::Buffer(context_, CL_MEM_READ_ONLY, INPUT_BUFFER_BYTES_512, nullptr, &err);
+        input_buffer_ = cl::Buffer(context_, CL_MEM_READ_ONLY, INPUT_BUFFER_BYTES_512, nullptr, &err);
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "MPC-FPGA-OpenCL: input buffer allocation failed (%d)\n", err);
             return false;
@@ -236,6 +256,8 @@ private:
     cl::Buffer output_buffer_;
 
     static constexpr size_t DMA_BUFFER_WORDS = INPUT_BUFFER_WORDS_32_PAD;
+    static_assert(DMA_BUFFER_WORDS * sizeof(int32_t) == INPUT_BUFFER_BYTES_512,
+                  "Host DMA buffer words must match OpenCL input buffer bytes");
     std::vector<int32_t> input_words_{DMA_BUFFER_WORDS, 0};
     std::array<int32_t, 4> output_words_{{0, 0, 0, 0}};
     int32_t prev_accel_fp_{0};
