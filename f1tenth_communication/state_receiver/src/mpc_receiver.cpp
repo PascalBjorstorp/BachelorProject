@@ -127,13 +127,23 @@ public:
             return false;
         }
 
-        input_buffer_ = cl::Buffer(context_, CL_MEM_READ_ONLY, INPUT_BUFFER_BYTES_512, nullptr, &err);
+        input_buffer_ = cl::Buffer(
+            context_,
+            static_cast<cl_mem_flags>(CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR),
+            INPUT_BUFFER_BYTES_512,
+            nullptr,
+            &err);
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "MPC-FPGA-OpenCL: input buffer allocation failed (%d)\n", err);
             return false;
         }
 
-        output_buffer_ = cl::Buffer(context_, CL_MEM_WRITE_ONLY, sizeof(int32_t) * 4, nullptr, &err);
+        output_buffer_ = cl::Buffer(
+            context_,
+            static_cast<cl_mem_flags>(CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR),
+            sizeof(int32_t) * 4,
+            nullptr,
+            &err);
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "MPC-FPGA-OpenCL: output buffer allocation failed (%d)\n", err);
             return false;
@@ -172,44 +182,68 @@ public:
 
         std::fill(input_words_.begin(), input_words_.end(), 0);
 
+        cl_int err = CL_SUCCESS;
+        void* mapped = queue_.enqueueMapBuffer(
+            input_buffer_,
+            CL_TRUE,
+            CL_MAP_WRITE,
+            0,
+            INPUT_BUFFER_BYTES_512,
+            nullptr,
+            nullptr,
+            &err);
+        if (err != CL_SUCCESS || mapped == nullptr) {
+            std::fprintf(stderr, "MPC-FPGA-OpenCL: enqueueMapBuffer(input) failed (%d)\n", err);
+            last_compute_ns_ = -1;
+            return false;
+        }
+        auto* input_words = reinterpret_cast<int32_t*>(mapped);
+        std::fill(input_words, input_words + DMA_BUFFER_WORDS, 0);
+
         // Group 0: [e_y | e_psi | vx | vy]
-        input_words_[0] = e_y_fp;
-        input_words_[1] = e_psi_fp;
-        input_words_[2] = vx_fp;
-        input_words_[3] = vy_fp;
+        input_words[0] = e_y_fp;
+        input_words[1] = e_psi_fp;
+        input_words[2] = vx_fp;
+        input_words[3] = vy_fp;
 
         // Group 1: [omega | steering | horizon_length | prev_accel]
-        input_words_[4] = omega_fp;
-        input_words_[5] = steering_fp;
-        input_words_[6] = static_cast<int32_t>(horizon);
-        input_words_[7] = prev_accel_fp_;
+        input_words[4] = omega_fp;
+        input_words[5] = steering_fp;
+        input_words[6] = static_cast<int32_t>(horizon);
+        input_words[7] = prev_accel_fp_;
 
         // Groups 2..N+1(+): 8 words per step V2
         // [ref_ey | ref_epsi | ref_vx | ref_vy | ref_omega_ref | ref_kappa | ref_left | ref_right]
         for (size_t i = 0; i < MPC_HORIZON; ++i) {
             const size_t base = 8 + (i * 8);
             if (i < horizon) {
-                input_words_[base + 0] = msg.ref_ey_fp[i];
-                input_words_[base + 1] = msg.ref_epsi_fp[i];
-                input_words_[base + 2] = msg.ref_vx_fp[i];
-                input_words_[base + 3] = msg.ref_vy_fp[i];
-                input_words_[base + 4] = msg.ref_omega_ref_fp[i];
-                input_words_[base + 5] = msg.ref_kappa_fp[i];
-                input_words_[base + 6] = msg.ref_left_bound_fp[i];
-                input_words_[base + 7] = msg.ref_right_bound_fp[i];
+                input_words[base + 0] = msg.ref_ey_fp[i];
+                input_words[base + 1] = msg.ref_epsi_fp[i];
+                input_words[base + 2] = msg.ref_vx_fp[i];
+                input_words[base + 3] = msg.ref_vy_fp[i];
+                input_words[base + 4] = msg.ref_omega_ref_fp[i];
+                input_words[base + 5] = msg.ref_kappa_fp[i];
+                input_words[base + 6] = msg.ref_left_bound_fp[i];
+                input_words[base + 7] = msg.ref_right_bound_fp[i];
             }
         }
 
-        const auto t0 = std::chrono::high_resolution_clock::now();
-        cl_int err = CL_SUCCESS;
-        err = queue_.enqueueWriteBuffer(input_buffer_, CL_FALSE, 0,
-                                            INPUT_BUFFER_BYTES_512, input_words_.data());
+        err = queue_.enqueueUnmapMemObject(input_buffer_, mapped);
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "MPC-FPGA-OpenCL: enqueueWriteBuffer failed (%d)\n", err);
+            std::fprintf(stderr, "MPC-FPGA-OpenCL: enqueueUnmapMemObject(input) failed (%d)\n", err);
             last_compute_ns_ = -1;
             return false;
         }
 
+        // Embedded XRT: prefer explicit migration before/after kernel.
+        err = queue_.enqueueMigrateMemObjects({input_buffer_}, 0);
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "MPC-FPGA-OpenCL: migrate(input) failed (%d)\n", err);
+            last_compute_ns_ = -1;
+            return false;
+        }
+
+        const auto t0 = std::chrono::high_resolution_clock::now();
         err = queue_.enqueueTask(kernel_);
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "MPC-FPGA-OpenCL: enqueueTask failed (%d)\n", err);
@@ -217,10 +251,9 @@ public:
             return false;
         }
 
-        err = queue_.enqueueReadBuffer(output_buffer_, CL_FALSE, 0,
-                                       sizeof(int32_t) * 4, output_words_.data());
+        err = queue_.enqueueMigrateMemObjects({output_buffer_}, CL_MIGRATE_MEM_OBJECT_HOST);
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "MPC-FPGA-OpenCL: enqueueReadBuffer failed (%d)\n", err);
+            std::fprintf(stderr, "MPC-FPGA-OpenCL: migrate(output) failed (%d)\n", err);
             last_compute_ns_ = -1;
             return false;
         }
@@ -234,6 +267,34 @@ public:
 
         const auto t1 = std::chrono::high_resolution_clock::now();
         last_compute_ns_ = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
+
+        void* out_mapped = queue_.enqueueMapBuffer(
+            output_buffer_,
+            CL_TRUE,
+            CL_MAP_READ,
+            0,
+            sizeof(int32_t) * 4,
+            nullptr,
+            nullptr,
+            &err);
+        if (err != CL_SUCCESS || out_mapped == nullptr) {
+            std::fprintf(stderr, "MPC-FPGA-OpenCL: enqueueMapBuffer(output) failed (%d)\n", err);
+            last_compute_ns_ = -1;
+            return false;
+        }
+
+        const auto* out_words = reinterpret_cast<const int32_t*>(out_mapped);
+        output_words_[0] = out_words[0];
+        output_words_[1] = out_words[1];
+        output_words_[2] = out_words[2];
+        output_words_[3] = out_words[3];
+
+        err = queue_.enqueueUnmapMemObject(output_buffer_, out_mapped);
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "MPC-FPGA-OpenCL: enqueueUnmapMemObject(output) failed (%d)\n", err);
+            last_compute_ns_ = -1;
+            return false;
+        }
 
         out_steering_fp = output_words_[0];
         out_accel_fp = output_words_[1];
