@@ -17,10 +17,12 @@
 #ifndef MPC_FPGA_HORIZON_STEPS
 #define MPC_FPGA_HORIZON_STEPS        20
 #endif
-#define MPC_FPGA_STATE_BEATS          2
+#define MPC_FPGA_HEADER_WORDS_32      8
+#define MPC_FPGA_REF_WORDS_PER_STEP   8
 #define MPC_FPGA_STREAM_WORD_BYTES    16
-#define MPC_FPGA_DMA_BEATS            (MPC_FPGA_STATE_BEATS + MPC_FPGA_HORIZON_STEPS)
-#define MPC_FPGA_DMA_BYTES            (MPC_FPGA_DMA_BEATS * MPC_FPGA_STREAM_WORD_BYTES)
+#define MPC_FPGA_INPUT_WORDS_32       (MPC_FPGA_HEADER_WORDS_32 + (MPC_FPGA_HORIZON_STEPS * MPC_FPGA_REF_WORDS_PER_STEP))
+#define MPC_FPGA_DMA_BEATS            ((MPC_FPGA_INPUT_WORDS_32 + 3) / 4)
+#define MPC_FPGA_DMA_BYTES            (MPC_FPGA_INPUT_WORDS_32 * 4)
 
 /*===========================================================================
  * Numeric Format Constants
@@ -48,12 +50,12 @@
 #define MPC_FPGA_IZ_KGM2              0.035f
 #define MPC_FPGA_CG_HEIGHT_M          0.0703f
 #define MPC_FPGA_GRAVITY_MS2          9.81f
-#define MPC_FPGA_MU                   1.6f
+#define MPC_FPGA_MU                   0.72f
 
-#define MPC_FPGA_MAX_STEER_RAD        0.4189f
+#define MPC_FPGA_MAX_STEER_RAD        0.39f
 #define MPC_FPGA_MAX_STEER_RATE_RADPS 2.849f
 #define MPC_FPGA_MAX_VEL_MPS          20.0f
-#define MPC_FPGA_MIN_VEL_MPS          0.0f
+#define MPC_FPGA_MIN_VEL_MPS          0.5f
 
 #define MPC_FPGA_C_ALPHA_F_N_PER_RAD  51.40f
 #define MPC_FPGA_C_ALPHA_R_N_PER_RAD  43.10f
@@ -131,16 +133,16 @@
  * MPC Cost Weights (FPGA profile)
  *===========================================================================*/
 
-#define MPC_FPGA_W_LAT_ERROR             400.0f
-#define MPC_FPGA_W_HEADING               15.0f
-#define MPC_FPGA_W_VELOCITY              20.0f
-#define MPC_FPGA_W_LAT_VEL               1.0f
-#define MPC_FPGA_W_YAW_RATE              2.0f
-#define MPC_FPGA_W_STEER_EFF             1.0f
-#define MPC_FPGA_W_ACCEL_EFF             0.007276f
-#define MPC_FPGA_W_STEER_JERK            0.05115f
-#define MPC_FPGA_W_ACCEL_RATE            0.1387f
-#define MPC_FPGA_W_DELTA_ACT             0.015f
+#define MPC_FPGA_W_LAT_ERROR             1120.0f
+#define MPC_FPGA_W_HEADING               28.8f
+#define MPC_FPGA_W_VELOCITY              25.5f
+#define MPC_FPGA_W_LAT_VEL               0.9568f
+#define MPC_FPGA_W_YAW_RATE              1.5f
+#define MPC_FPGA_W_STEER_EFF             1.5f
+#define MPC_FPGA_W_ACCEL_EFF             0.01f
+#define MPC_FPGA_W_STEER_JERK            0.04f
+#define MPC_FPGA_W_ACCEL_RATE            0.1f
+#define MPC_FPGA_W_DELTA_ACT             0.02254f
 
 /*===========================================================================
  * Solver and Constraint Limits (FPGA profile)
@@ -150,22 +152,22 @@
 #define MPC_FPGA_MIN_LIN_VEL_MPS      0.5f
 #define MPC_FPGA_STABILITY_LIMIT      0.95f
 #define MPC_FPGA_WALL_MARGIN_M        0.14f
-#define MPC_FPGA_WALL_BIAS_CLEAR_M    0.01f
-#define MPC_FPGA_WALL_BIAS_MAX_M      0.30f
-#define MPC_FPGA_WALL_BOUND_WINDOW    3
+#define MPC_FPGA_WALL_BIAS_CLEAR_M   0.01f
+#define MPC_FPGA_WALL_BIAS_MAX_M     0.05f
+#define MPC_FPGA_WALL_BOUND_WINDOW   3
 #define MPC_FPGA_V_SWITCH_MPS         7.319f
 #define MPC_FPGA_BOUND_THRESHOLD      50.0f
 
 #ifndef MPC_FPGA_ADMM_RHO
-#define MPC_FPGA_ADMM_RHO                8.0f
+#define MPC_FPGA_ADMM_RHO                4.0f
 #endif
 
 #ifndef MPC_FPGA_ADMM_RHO_U
-#define MPC_FPGA_ADMM_RHO_U              24.0f
+#define MPC_FPGA_ADMM_RHO_U              8.0f
 #endif
 
 #ifndef MPC_FPGA_ADMM_TOL
-#define MPC_FPGA_ADMM_TOL                0.01f
+#define MPC_FPGA_ADMM_TOL                0.05f
 #endif
 
 #endif /* MPC_FPGA_CONSTANTS_H */

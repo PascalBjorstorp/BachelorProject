@@ -20,7 +20,7 @@ StatePacket mirrors the active MpcState contract used by the ROS transport path:
 
 - Vehicle state: x/y/theta/vx/vy/omega/steering (Q16.16)
 - First reference point for Frenet error: ref_x_0/ref_y_0/ref_psi_0 (Q16.16)
-- Horizon arrays: ref_vx/ref_kappa/ref_left_bound/ref_right_bound
+- Horizon arrays: ref_ey/ref_vx/ref_kappa/ref_left_bound/ref_right_bound
 
 ControlPacket returns steering/speed/accel plus solver status and timing.
 

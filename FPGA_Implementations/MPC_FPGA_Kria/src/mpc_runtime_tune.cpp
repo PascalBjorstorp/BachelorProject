@@ -11,7 +11,6 @@
 #include <stdlib.h>
 
 fp_QP_t mpc_rt_dt = ((fp_QP_t)(MPC_FPGA_PREDICTION_DT_S));
-fp_QP_t mpc_rt_horizon = ((fp_QP_t)(MPC_FPGA_HORIZON_STEPS));
 fp_QP_t mpc_rt_w_lat_error = ((fp_QP_t)(MPC_FPGA_W_LAT_ERROR));
 fp_QP_t mpc_rt_w_heading = ((fp_QP_t)(MPC_FPGA_W_HEADING));
 fp_QP_t mpc_rt_w_velocity = ((fp_QP_t)(MPC_FPGA_W_VELOCITY));
@@ -34,6 +33,8 @@ fp_QP_t mpc_rt_admm_rho = ((fp_QP_t)(MPC_FPGA_ADMM_RHO));
 fp_QP_t mpc_rt_admm_rho_u = ((fp_QP_t)(MPC_FPGA_ADMM_RHO_U));
 fp_QP_t mpc_rt_admm_tol = ((fp_QP_t)(MPC_FPGA_ADMM_TOL));
 int mpc_rt_admm_max_iter = MPC_FPGA_MAX_ADMM_ITER;
+int mpc_rt_adaptive_rho = 1;
+static int mpc_rt_env_loaded = 0;
 
 static int read_env_double(const char *name, double *out)
 {
@@ -53,14 +54,13 @@ static int read_env_double(const char *name, double *out)
     return 1;
 }
 
-void mpc_runtime_update_from_env(void)
+void mpc_runtime_reload_from_env(void)
 {
     double dv = 0.0;
 
     if ((read_env_double("PRED_DT", &dv) || read_env_double("dt", &dv)) && dv > 1e-6) {
         mpc_rt_dt = (fp_QP_t)dv;
     }
-    if (read_env_double("HORIZON", &dv) && dv >= 1.0) mpc_rt_horizon = (fp_QP_t)dv;
     if (read_env_double("Q_LAT", &dv)) mpc_rt_w_lat_error = (fp_QP_t)dv;
     if (read_env_double("Q_HDG", &dv)) mpc_rt_w_heading = (fp_QP_t)dv;
     if (read_env_double("Q_VEL", &dv)) mpc_rt_w_velocity = (fp_QP_t)dv;
@@ -72,15 +72,12 @@ void mpc_runtime_update_from_env(void)
     if (read_env_double("W_ACCEL_RATE", &dv)) mpc_rt_w_accel_rate = (fp_QP_t)dv;
     if (read_env_double("W_DELTA_ACT", &dv)) mpc_rt_w_delta_act = (fp_QP_t)dv;
 
-    if (read_env_double("MIN_LIN_VEL", &dv) && dv > 1e-6) mpc_rt_min_lin_vel = (fp_QP_t)dv;
-    if (read_env_double("STABILITY_LIMIT", &dv) && dv > 1e-6) mpc_rt_stability_limit = (fp_QP_t)dv;
-    if (read_env_double("WALL_MARGIN", &dv) && dv >= 0.0) mpc_rt_wall_margin = (fp_QP_t)dv;
-    if (read_env_double("MPC_WALL_BIAS_CLEAR_M", &dv) && dv >= 0.0) mpc_rt_wall_bias_clear_m = (fp_QP_t)dv;
-    if (read_env_double("MPC_WALL_BIAS_MAX_M", &dv) && dv >= 0.0) mpc_rt_wall_bias_max_m = (fp_QP_t)dv;
-    if (read_env_double("MPC_WALL_BOUND_WINDOW", &dv)) {
+    if (read_env_double("WALL_BIAS_CLEAR_M", &dv)) mpc_rt_wall_bias_clear_m = (fp_QP_t)dv;
+    if (read_env_double("WALL_BIAS_MAX_M", &dv)) mpc_rt_wall_bias_max_m = (fp_QP_t)dv;
+    if (read_env_double("WALL_BOUND_WINDOW", &dv)) {
         int window = (int)dv;
-        if (window < 0) window = 0;
-        if (window > 25) window = 25;
+        if (window < 1) window = 1;
+        if (window > 20) window = 20;
         mpc_rt_wall_bound_window = window;
     }
 
@@ -99,5 +96,22 @@ void mpc_runtime_update_from_env(void)
         if (iters > 1000) iters = 1000;
         mpc_rt_admm_max_iter = iters;
     }
+    if (read_env_double("ADAPTIVE_RHO", &dv) || read_env_double("MPC_ADAPTIVE_RHO", &dv)) {
+        mpc_rt_adaptive_rho = (dv > 0.0) ? 1 : 0;
+    }
 
+    mpc_rt_env_loaded = 1;
+}
+
+void mpc_runtime_init_once(void)
+{
+    if (!mpc_rt_env_loaded) {
+        mpc_runtime_reload_from_env();
+    }
+}
+
+void mpc_runtime_update_from_env(void)
+{
+    /* Backward-compatible alias: explicit reload. */
+    mpc_runtime_reload_from_env();
 }

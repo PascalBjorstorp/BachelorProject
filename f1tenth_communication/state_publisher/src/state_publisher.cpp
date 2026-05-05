@@ -61,15 +61,11 @@ public:
 
         // Check that trajectory file isn't empty before proceeding.
         if (trajectory_file.empty()) {
-            RCLCPP_ERROR(this->get_logger(), "No trajectory file specified!");
-            return;
+            throw std::runtime_error("state_publisher: no trajectory file specified");
         }
-        
-        // Load trajectory
+
         if (!load_trajectory(trajectory_file)) {
-            RCLCPP_ERROR(this->get_logger(), "Failed to load trajectory from: %s",
-                        trajectory_file.c_str());
-            return;
+            throw std::runtime_error("state_publisher: failed to load trajectory: " + trajectory_file);
         }
         
         RCLCPP_INFO(this->get_logger(), "Loaded %zu waypoints from %s",
@@ -159,6 +155,7 @@ public:
 private:
     // --- ROS interfaces ------------------------------------------------------
     KDTree kdtree_;
+    std::vector<Waypoint> trajectory_;
     rclcpp::Publisher<f1tenth_msgs::msg::MpcState>::SharedPtr pub_;                             // Publisher for fixed-point MPC state packets.
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_;                              // Subscription for odometry messages to extract velocity and yaw rate.
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;   // Subscription for EKF pose messages to trigger state packet publication.
@@ -181,6 +178,7 @@ private:
     bool has_odom_dynamics_ = false;    // Flag indicating if valid odometry dynamics have been received at least once, used to determine if velocity and yaw rate can be used for steering angle computation when servo feedback is unavailable.
     bool pose_received_ = false;        // Flag indicating if at least one pose message has been received.
     uint64_t published_count_ = 0;      // Number of MpcState messages published.
+    double total_length_m_ = 0.0;       // Total wrapped trajectory length for arc-length sampling.
 
     // --- Odometry processing helpers ----------------------------------------
     /**
@@ -302,6 +300,78 @@ private:
         return static_cast<int32_t>(v >= 0.0 ? v * FP_SCALE + 0.5 : v * FP_SCALE - 0.5);
     }
 
+    static double normalize_angle(double angle) {
+        while (angle > M_PI) {
+            angle -= 2.0 * M_PI;
+        }
+        while (angle < -M_PI) {
+            angle += 2.0 * M_PI;
+        }
+        return angle;
+    }
+
+    static double lerp_angle(double a0, double a1, double t) {
+        return normalize_angle(a0 + normalize_angle(a1 - a0) * t);
+    }
+
+    Waypoint sample_by_arc_length(double s_query) const {
+        if (trajectory_.empty()) {
+            return Waypoint{};
+        }
+        if (trajectory_.size() == 1 || total_length_m_ <= 1e-6) {
+            return trajectory_.front();
+        }
+
+        const double s0 = trajectory_.front().s;
+        double s = s_query;
+        while (s < s0) {
+            s += total_length_m_;
+        }
+        while (s >= s0 + total_length_m_) {
+            s -= total_length_m_;
+        }
+
+        auto it = std::lower_bound(
+            trajectory_.begin(), trajectory_.end(), s,
+            [](const Waypoint& wp, double target_s) { return wp.s < target_s; });
+
+        if (it == trajectory_.begin()) {
+            return *it;
+        }
+
+        Waypoint out{};
+        if (it == trajectory_.end()) {
+            const auto& w0 = trajectory_.back();
+            const auto& w1 = trajectory_.front();
+            const double s1 = w1.s + total_length_m_;
+            const double denom = s1 - w0.s;
+            const double t = (denom > 1e-9) ? ((s - w0.s) / denom) : 0.0;
+            out.s = s;
+            out.x = w0.x + (w1.x - w0.x) * t;
+            out.y = w0.y + (w1.y - w0.y) * t;
+            out.psi = lerp_angle(w0.psi, w1.psi, t);
+            out.kappa = w0.kappa + (w1.kappa - w0.kappa) * t;
+            out.vx = w0.vx + (w1.vx - w0.vx) * t;
+            out.left_bound = w0.left_bound + (w1.left_bound - w0.left_bound) * t;
+            out.right_bound = w0.right_bound + (w1.right_bound - w0.right_bound) * t;
+            return out;
+        }
+
+        const auto& w1 = *it;
+        const auto& w0 = *(it - 1);
+        const double denom = w1.s - w0.s;
+        const double t = (denom > 1e-9) ? ((s - w0.s) / denom) : 0.0;
+        out.s = s;
+        out.x = w0.x + (w1.x - w0.x) * t;
+        out.y = w0.y + (w1.y - w0.y) * t;
+        out.psi = lerp_angle(w0.psi, w1.psi, t);
+        out.kappa = w0.kappa + (w1.kappa - w0.kappa) * t;
+        out.vx = w0.vx + (w1.vx - w0.vx) * t;
+        out.left_bound = w0.left_bound + (w1.left_bound - w0.left_bound) * t;
+        out.right_bound = w0.right_bound + (w1.right_bound - w0.right_bound) * t;
+        return out;
+    }
+
     /**
      * @brief Populate streamed horizon reference fields in an outgoing message in place.
      * @param mpc_state Output message to populate.
@@ -314,26 +384,38 @@ private:
         const size_t stream_count = std::min(static_cast<size_t>(MPC_FPGA_HORIZON_STEPS), N);
         mpc_state.horizon_length = static_cast<uint32_t>(stream_count);
 
-        // First waypoint for Frenet error computation (ARM-side)
-        const auto& wp0 = kdtree_.get_waypoint(waypoint_idx % N);
+        const auto& wp_seed = kdtree_.get_waypoint(waypoint_idx % N);
+        const double v_ref_base = std::clamp(
+            wp_seed.vx,
+            static_cast<double>(MPC_FPGA_MIN_VEL_MPS),
+            static_cast<double>(MPC_FPGA_MAX_VEL_MPS));
+        const Waypoint wp0 = sample_by_arc_length(wp_seed.s);
+        const Waypoint wp1 = sample_by_arc_length(
+            wp_seed.s + v_ref_base * static_cast<double>(MPC_FPGA_PREDICTION_DT_S));
         mpc_state.ref_x_0_fp = to_fixed_q16(wp0.x);
         mpc_state.ref_y_0_fp = to_fixed_q16(wp0.y);
         mpc_state.ref_psi_0_fp = to_fixed_q16(wp0.psi);
+        mpc_state.ref_x_1_fp = to_fixed_q16(wp1.x);
+        mpc_state.ref_y_1_fp = to_fixed_q16(wp1.y);
+        mpc_state.ref_psi_1_fp = to_fixed_q16(wp1.psi);
 
         // Resize only the arrays that go to FPGA
+        mpc_state.ref_ey_fp.resize(stream_count);
         mpc_state.ref_vx_fp.resize(stream_count);
         mpc_state.ref_kappa_fp.resize(stream_count);
         mpc_state.ref_left_bound_fp.resize(stream_count);
         mpc_state.ref_right_bound_fp.resize(stream_count);
 
-        // Stream only the required horizon waypoints each cycle.
+        // Advance horizon by iteratively sampling using each waypoint's speed
+        double target_s = wp_seed.s;
         for (size_t i = 0; i < stream_count; ++i) {
-            const size_t idx = (waypoint_idx + i) % N;
-            const auto& wp = kdtree_.get_waypoint(idx);
+            const Waypoint wp = sample_by_arc_length(target_s);
+            mpc_state.ref_ey_fp[i] = to_fixed_q16(0.0);
             mpc_state.ref_vx_fp[i] = to_fixed_q16(wp.vx);
             mpc_state.ref_kappa_fp[i] = to_fixed_q16(wp.kappa);
             mpc_state.ref_left_bound_fp[i] = to_fixed_q16(wp.left_bound);
             mpc_state.ref_right_bound_fp[i] = to_fixed_q16(wp.right_bound);
+            target_s += wp.vx * static_cast<double>(MPC_FPGA_PREDICTION_DT_S);
         }
     }
 
@@ -370,7 +452,11 @@ private:
             std::getline(ss, token, ','); wp.y = std::stod(token);
             std::getline(ss, token, ','); wp.psi = std::stod(token);
             std::getline(ss, token, ','); wp.kappa = std::stod(token);
-            std::getline(ss, token, ','); wp.vx = std::stod(token);
+            std::getline(ss, token, ',');
+            wp.vx = std::clamp(
+                std::stod(token),
+                static_cast<double>(MPC_FPGA_MIN_VEL_MPS),
+                static_cast<double>(MPC_FPGA_MAX_VEL_MPS));
             std::getline(ss, token, ',');
             if (!std::getline(ss, token, ',') || token.empty()) {
                 RCLCPP_ERROR(this->get_logger(),
@@ -392,7 +478,12 @@ private:
             return false;
         }
         
-        kdtree_.build(waypoints);
+        trajectory_ = waypoints;
+        kdtree_.build(trajectory_);
+        total_length_m_ = 0.0;
+        if (trajectory_.size() > 1 && trajectory_.back().s > trajectory_.front().s) {
+            total_length_m_ = trajectory_.back().s - trajectory_.front().s;
+        }
 
         return true;
     }

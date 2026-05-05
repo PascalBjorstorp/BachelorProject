@@ -1265,7 +1265,7 @@ int main(int argc, char *argv[])
                         fprintf(g_solver_meta_file, "local_raceline_log_path=%s.local_raceline.csv\n", log_path);
                         fprintf(g_solver_meta_file, "control_rate_hz=%.3f\n", (double)CONTROL_RATE_HZ);
                         fprintf(g_solver_meta_file, "control_dt_s=%.6f\n", (double)CONTROL_DT_SECONDS);
-                        fprintf(g_solver_meta_file, "prediction_horizon=%d\n", (int)cfg.prediction_horizon_steps);
+                        fprintf(g_solver_meta_file, "prediction_horizon=%d\n", PREDICTION_HORIZON);
                         fprintf(g_solver_meta_file, "prediction_dt_s=%.6f\n", (double)cfg.time_step);
                         fprintf(g_solver_meta_file, "weight_lat=%.9g\n", (double)cfg.weight_lateral_error);
                         fprintf(g_solver_meta_file, "weight_heading=%.9g\n", (double)cfg.weight_heading_error);
@@ -1302,7 +1302,7 @@ int main(int argc, char *argv[])
     {
         MpcConfiguration_t cfg = mpc_get_configuration();
         printf("[MPC] Controller initialized (horizon=%d, dt=%.0fms)\n",
-               (int)cfg.prediction_horizon_steps, (double)cfg.time_step * 1000.0);
+               PREDICTION_HORIZON, (double)cfg.time_step * 1000.0);
     }
 
     printf("[MPC] Control mode: EKF-driven (MPC runs on each /ekf_pose message)\n");
