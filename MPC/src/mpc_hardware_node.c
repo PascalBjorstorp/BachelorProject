@@ -518,7 +518,7 @@ static void project_to_path_segment(
             t * (global_trajectory[idx1].s_meters - global_trajectory[idx0].s_meters);
         projection_out->segment_t = t;
         projection_out->segment_index = idx0;
-    
+    }
 
     if (frenet_out != NULL)
     {
@@ -1265,7 +1265,7 @@ int main(int argc, char *argv[])
                         fprintf(g_solver_meta_file, "local_raceline_log_path=%s.local_raceline.csv\n", log_path);
                         fprintf(g_solver_meta_file, "control_rate_hz=%.3f\n", (double)CONTROL_RATE_HZ);
                         fprintf(g_solver_meta_file, "control_dt_s=%.6f\n", (double)CONTROL_DT_SECONDS);
-                        fprintf(g_solver_meta_file, "prediction_horizon=%d\n", (int)cfg.prediction_horizon_steps);
+                        fprintf(g_solver_meta_file, "prediction_horizon=%d\n", PREDICTION_HORIZON);
                         fprintf(g_solver_meta_file, "prediction_dt_s=%.6f\n", (double)cfg.time_step);
                         fprintf(g_solver_meta_file, "weight_lat=%.9g\n", (double)cfg.weight_lateral_error);
                         fprintf(g_solver_meta_file, "weight_heading=%.9g\n", (double)cfg.weight_heading_error);
