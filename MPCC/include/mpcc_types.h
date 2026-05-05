@@ -109,7 +109,7 @@ typedef struct
 
 
 #define MPCC_MAX_HORIZON 40          /** Maximum prediction horizon steps.*/
-#define MPCC_MAX_PATH_POINTS 2500    /** Maximum number of reference path waypoints.*/
+#define MPCC_MAX_PATH_POINTS 3000    /** Maximum number of reference path waypoints.*/
 #define MPCC_MAX_OBSTACLES 10        /** Maximum number of obstacles that can be tracked simultaneously */
 
 /*===========================================================================
