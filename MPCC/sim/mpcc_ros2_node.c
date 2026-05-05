@@ -574,46 +574,122 @@ int main(int argc, const char *argv[])
         mpcc_initialize();
         MPCCConfiguration_t cfg = mpcc_get_configuration();
 
+        {
+            const char *v_canon = getenv("Q_CONTOURING");
+            const char *v_alias = getenv("Q_N");
+            if (v_canon)      cfg.weight_contouring = (float)atof(v_canon);
+            else if (v_alias) cfg.weight_contouring = (float)atof(v_alias);
+        }
+        {
+            const char *v_canon = getenv("Q_LAG");
+            const char *v_alias = getenv("Q_ALPHA");
+            if (v_canon)      cfg.weight_lag = (float)atof(v_canon);
+            else if (v_alias) cfg.weight_lag = (float)atof(v_alias);
+        }
+        {
+            const char *v_canon = getenv("Q_WALL_CLEARANCE");
+            const char *v_alias = getenv("Q_WALL");
+            if (v_canon)      cfg.weight_wall_clearance = (float)atof(v_canon);
+            else if (v_alias) cfg.weight_wall_clearance = (float)atof(v_alias);
+        }
+        {
+            const char *v_canon = getenv("Q_CONTOURING_TERM");
+            const char *v_alias = getenv("Q_N_TERM");
+            if (v_canon)      cfg.weight_contouring_terminal = (float)atof(v_canon);
+            else if (v_alias) cfg.weight_contouring_terminal = (float)atof(v_alias);
+        }
+        {
+            const char *v_canon = getenv("Q_LAG_TERM");
+            const char *v_alias = getenv("Q_ALPHA_TERM");
+            if (v_canon)      cfg.weight_lag_terminal = (float)atof(v_canon);
+            else if (v_alias) cfg.weight_lag_terminal = (float)atof(v_alias);
+        }
+
         const char *v;
-        if ((v = getenv("Q_CONTOURING")))    cfg.weight_contouring = (float)atof(v);
-        if ((v = getenv("Q_LAG")))           cfg.weight_lag        = (float)atof(v);
-        if ((v = getenv("Q_PROGRESS")))      cfg.weight_progress   = (float)atof(v);
-        if ((v = getenv("Q_VX")))            cfg.weight_vx         = (float)atof(v);
-        if ((v = getenv("VX_REF")))          cfg.vx_ref            = (float)atof(v);
-        if ((v = getenv("Q_VY")))            cfg.weight_vy         = (float)atof(v);
-        if ((v = getenv("Q_OMEGA")))         cfg.weight_omega      = (float)atof(v);
-        if ((v = getenv("R_DELTA")))         cfg.weight_delta      = (float)atof(v);
-        if ((v = getenv("R_AX")))            cfg.weight_ax         = (float)atof(v);
-        if ((v = getenv("R_VTHETA")))        cfg.weight_v_theta    = (float)atof(v);
-        if ((v = getenv("W_DELTA_RATE")))    cfg.weight_delta_rate = (float)atof(v);
-        if ((v = getenv("W_AX_RATE")))       cfg.weight_ax_rate    = (float)atof(v);
-        if ((v = getenv("W_VTHETA_RATE")))   cfg.weight_v_theta_rate = (float)atof(v);
-        if ((v = getenv("Q_CONTOURING_TERM"))) cfg.weight_contouring_terminal = (float)atof(v);
-        if ((v = getenv("Q_LAG_TERM")))      cfg.weight_lag_terminal = (float)atof(v);
-        if ((v = getenv("Q_PROGRESS_TERM"))) cfg.weight_progress_terminal = (float)atof(v);
+        if ((v = getenv("WALL_CLEARANCE_MARGIN")) != NULL)
+            cfg.wall_clearance_margin = (float)atof(v);
+        if ((v = getenv("MPCC_TRACK_BUFFER")) != NULL)
+            cfg.track_safety_buffer = (float)atof(v);
+        if ((v = getenv("Q_PROGRESS")) != NULL)
+            cfg.weight_progress = (float)atof(v);
+        if ((v = getenv("Q_VX")) != NULL)
+            cfg.weight_vx = (float)atof(v);
+        if ((v = getenv("VX_REF")) != NULL)
+            cfg.vx_ref = (float)atof(v);
+        if ((v = getenv("MPCC_USE_RACELINE_VX_REF")) != NULL)
+            cfg.use_raceline_vx_ref = (uint8_t)(atoi(v) != 0);
+        if ((v = getenv("MPCC_USE_RACELINE_VX_LIMIT")) != NULL)
+            cfg.use_raceline_vx_limit = (uint8_t)(atoi(v) != 0);
+        if ((v = getenv("MPCC_RACELINE_VX_LIMIT_SCALE")) != NULL)
+            cfg.raceline_vx_limit_scale = (float)atof(v);
+        if ((v = getenv("Q_VY")) != NULL)
+            cfg.weight_vy = (float)atof(v);
+        if ((v = getenv("Q_OMEGA")) != NULL)
+            cfg.weight_omega = (float)atof(v);
+        if ((v = getenv("R_DELTA")) != NULL)
+            cfg.weight_delta = (float)atof(v);
+        if ((v = getenv("R_AX")) != NULL)
+            cfg.weight_ax = (float)atof(v);
+        if ((v = getenv("R_VTHETA")) != NULL)
+            cfg.weight_v_theta = (float)atof(v);
+        if ((v = getenv("W_DELTA_RATE")) != NULL)
+            cfg.weight_delta_rate = (float)atof(v);
+        if ((v = getenv("W_AX_RATE")) != NULL)
+            cfg.weight_ax_rate = (float)atof(v);
+        if ((v = getenv("W_VTHETA_RATE")) != NULL)
+            cfg.weight_v_theta_rate = (float)atof(v);
+        if ((v = getenv("Q_PROGRESS_TERM")) != NULL)
+            cfg.weight_progress_terminal = (float)atof(v);
 #ifndef USE_OSQP
-        if ((v = getenv("ADMM_RHO")))        cfg.admm_rho          = (float)atof(v);
-        if ((v = getenv("ADMM_MAX_ITER")))   cfg.admm_max_iterations = (uint16_t)atoi(v);
-        if ((v = getenv("ADMM_TOL")))        cfg.admm_tolerance    = (float)atof(v);
-        if ((v = getenv("ADMM_RHO_U")))      cfg.admm_rho_u        = (float)atof(v);
-        if ((v = getenv("ADMM_ADAPTIVE_RHO"))) cfg.admm_adaptive_rho = (uint8_t)(atoi(v) != 0);
-        if ((v = getenv("ADMM_ALPHA_RELAX"))) cfg.admm_alpha_relax = (float)atof(v);
+        if ((v = getenv("ADMM_RHO")) != NULL)
+            cfg.admm_rho = (float)atof(v);
+        if ((v = getenv("ADMM_MAX_ITER")) != NULL)
+            cfg.admm_max_iterations = (uint16_t)atoi(v);
+        if ((v = getenv("ADMM_TOL")) != NULL)
+            cfg.admm_tolerance = (float)atof(v);
+        if ((v = getenv("ADMM_RHO_U")) != NULL)
+            cfg.admm_rho_u = (float)atof(v);
+        if ((v = getenv("ADMM_ADAPTIVE_RHO")) != NULL)
+            cfg.admm_adaptive_rho = (uint8_t)(atoi(v) != 0);
+        if ((v = getenv("ADMM_ALPHA_RELAX")) != NULL)
+            cfg.admm_alpha_relax = (float)atof(v);
 #endif
-        if ((v = getenv("HORIZON")))         cfg.horizon_steps     = (uint16_t)atoi(v);
-        if ((v = getenv("DT")))              cfg.dt                = (float)atof(v);
-        if ((v = getenv("V_THETA_MAX")))     cfg.v_theta_max       = (float)atof(v);
-        if ((v = getenv("V_THETA_MIN")))     cfg.v_theta_min       = (float)atof(v);
-        if ((v = getenv("MU")))              cfg.mu                = (float)atof(v);
-        if ((v = getenv("C_SF")))            cfg.C_Sf              = (float)atof(v);
-        if ((v = getenv("C_SR")))            cfg.C_Sr              = (float)atof(v);
-        if ((v = getenv("AX_MAX")))          cfg.ax_max            = (float)atof(v);
-        if ((v = getenv("AX_MIN")))          cfg.ax_min            = (float)atof(v);
+        if ((v = getenv("MPCC_ACCEPT_MAX_ITER")) != NULL)
+            cfg.accept_max_iterations = (uint8_t)(atoi(v) != 0);
+        if ((v = getenv("MPCC_MAX_ITER_PRIMAL_TOL")) != NULL)
+            cfg.max_iter_primal_tolerance = (float)atof(v);
+        if ((v = getenv("MPCC_MAX_ITER_DUAL_TOL")) != NULL)
+            cfg.max_iter_dual_tolerance = (float)atof(v);
+        if ((v = getenv("MPCC_MAX_ITER_TRACK_TOL")) != NULL)
+            cfg.max_iter_track_violation_tolerance = (float)atof(v);
+        if ((v = getenv("HORIZON")) != NULL)
+            cfg.horizon_steps = (uint16_t)atoi(v);
+        if ((v = getenv("DT")) != NULL)
+            cfg.dt = (float)atof(v);
+        if ((v = getenv("V_THETA_MAX")) != NULL)
+            cfg.v_theta_max = (float)atof(v);
+        if ((v = getenv("V_THETA_MIN")) != NULL)
+            cfg.v_theta_min = (float)atof(v);
+        if ((v = getenv("MU")) != NULL)
+            cfg.mu = (float)atof(v);
+        if ((v = getenv("C_SF")) != NULL)
+            cfg.C_Sf = (float)atof(v);
+        if ((v = getenv("C_SR")) != NULL)
+            cfg.C_Sr = (float)atof(v);
+        if ((v = getenv("AX_MAX")) != NULL)
+            cfg.ax_max = (float)atof(v);
+        if ((v = getenv("AX_MIN")) != NULL)
+            cfg.ax_min = (float)atof(v);
+        if ((v = getenv("MPCC_CROSS_CALL_SCALE")) != NULL)
+            cfg.cross_call_rate_scale = (float)atof(v);
 
         /* Apply the possibly-modified config */
         mpcc_set_configuration(&cfg);
 
         printf("[MPCC] Config: solver=%s N=%d dt=%.3f Q_c=%.1f Q_l=%.1f "
-               "Q_prog=%.1f R_delta=%.2f W_drate=%.1f\n",
+               "Q_wall=%.1f wall_margin=%.3f track_buffer=%.3f Q_prog=%.1f "
+               "Q_vx=%.1f use_csv_vx_ref=%u use_csv_vx_limit=%u R_delta=%.2f "
+               "W_drate=%.1f cross_call=%.4f accept_max_iter=%u\n",
 #ifdef USE_OSQP
                "OSQP",
 #else
@@ -621,8 +697,17 @@ int main(int argc, const char *argv[])
 #endif
                cfg.horizon_steps, cfg.dt,
                cfg.weight_contouring, cfg.weight_lag,
+               cfg.weight_wall_clearance,
+               cfg.wall_clearance_margin,
+               cfg.track_safety_buffer,
                cfg.weight_progress,
-               cfg.weight_delta, cfg.weight_delta_rate);
+               cfg.weight_vx,
+               (unsigned)cfg.use_raceline_vx_ref,
+               (unsigned)cfg.use_raceline_vx_limit,
+               cfg.weight_delta,
+               cfg.weight_delta_rate,
+               cfg.cross_call_rate_scale,
+               (unsigned)cfg.accept_max_iterations);
     }
     current_s = 0;
 
