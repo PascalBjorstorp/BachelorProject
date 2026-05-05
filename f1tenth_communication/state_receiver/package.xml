@@ -4,9 +4,10 @@
   <name>state_receiver</name>
   <version>0.1.0</version>
   <description>
-    ROS2 node that receives streamed MpcState horizon data and runs FPGA MPC
+    ROS 2 node that receives streamed MpcState horizon data and runs FPGA MPC
     through OpenCL/XRT-managed kernel execution on Kria.
   </description>
+
   <maintainer email="akmun23@student.sdu.dk">Aksel Munksgaard-Ottosen</maintainer>
   <license>MIT</license>
 
@@ -15,6 +16,10 @@
   <depend>rclcpp</depend>
   <depend>f1tenth_msgs</depend>
   <depend>ackermann_msgs</depend>
+  <depend>vitis_common</depend>
+
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

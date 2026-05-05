@@ -22,16 +22,26 @@ int32 vy_fp          # Lateral velocity v_y [m/s], Q16.16 (body frame)
 int32 omega_fp       # Yaw rate ω [rad/s], Q16.16
 int32 steering_angle_fp  # Actual servo steering angle δ [rad], Q16.16
 
-# First waypoint reference for Frenet error computation (ARM-side).
-# Only index [0] is needed; the rest are computed from the horizon arrays
-int32 ref_x_0_fp     # First waypoint X position [meters], Q16.16
-int32 ref_y_0_fp     # First waypoint Y position [meters], Q16.16
-int32 ref_psi_0_fp   # First waypoint heading [radians], Q16.16
-
-# Horizon reference arrays (sent to FPGA via OpenCL packed buffers).
-# All entries up to horizon_length are valid.
+# Horizon reference arrays and full horizon geometry (V2 message).
+# All entries up to horizon_length are valid. Receivers should validate
+# each ref_*_fp array size >= horizon_length before indexing.
 uint32 horizon_length
-int32[] ref_vx_fp          # Reference velocity [m/s], Q16.16
+
+# Per-step Frenet / geometric horizon data.
+int32[] ref_ey_fp          # Reference lateral error e_y_ref [m], Q16.16
+int32[] ref_epsi_fp        # Reference heading error e_psi_ref [rad], Q16.16
+
+# Geometry used by the receiver to compute current Frenet errors.
+int32[] ref_x_fp           # Waypoint X positions [meters], Q16.16
+int32[] ref_y_fp           # Waypoint Y positions [meters], Q16.16
+int32[] ref_psi_fp         # Waypoint heading [radians], Q16.16
+
+# Dynamic/path references consumed by the FPGA kernel.
+int32[] ref_vx_fp          # Reference longitudinal velocity [m/s], Q16.16
+int32[] ref_vy_fp          # Reference lateral velocity [m/s], Q16.16
+int32[] ref_omega_ref_fp   # Reference yaw rate [rad/s], Q16.16
 int32[] ref_kappa_fp       # Reference curvature [1/m], Q16.16
+
+# Corridor bounds.
 int32[] ref_left_bound_fp  # Left track bound [m], Q16.16
 int32[] ref_right_bound_fp # Right track bound [m], Q16.16

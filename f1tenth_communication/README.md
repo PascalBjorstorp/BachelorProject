@@ -27,7 +27,7 @@ Main payload groups:
 
 - Vehicle state (`x_fp`, `y_fp`, `theta_fp`, `velocity_fp`, `vy_fp`, `omega_fp`, `steering_angle_fp`)
 - First reference point for Frenet error (`ref_x_0_fp`, `ref_y_0_fp`, `ref_psi_0_fp`)
-- Horizon arrays (`horizon_length`, `ref_vx_fp`, `ref_kappa_fp`, `ref_left_bound_fp`, `ref_right_bound_fp`)
+- Horizon arrays (`horizon_length`, `ref_ey_fp`, `ref_vx_fp`, `ref_kappa_fp`, `ref_left_bound_fp`, `ref_right_bound_fp`)
 
 All numeric payload fields are Q16.16 fixed-point (`int32`) except `horizon_length` (`uint32`).
 

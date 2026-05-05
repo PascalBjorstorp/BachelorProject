@@ -201,6 +201,8 @@ htmlcov/
 FPGA/build/
 FPGA/logs/
 
+# Allow FPGA OpenCL xclbin files to be tracked when needed
+!**/*.xclbin
 # HLS output logs
 FPGA/*.log
 

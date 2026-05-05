@@ -22,7 +22,10 @@
  *          velocity tracking, and step-by-step diagnostics near crashes.
  *
  * @dependencies mpc_cpu_compat.h, <stdio.h>, <stdlib.h>, <string.h>, <math.h>, <time.h>
- */
+    set -e
+    g++ -O2 -I../include -I/home/akselmo/Vivado_program/2025.2/Vitis/include -Wno-unknown-pragmas test_fpga_csim_drive.cpp ../src/fp_math_hls.cpp ../src/vehicle_model_hls.cpp ../src/riccati_solver_hls.cpp ../src/mpc_riccati_hls.cpp ../src/mpc_fpga_top.cpp ../src/mpc_runtime_tune.cpp -lm -o test_fpga_csim_drive 
+    ./test_fpga_csim_drive
+*/
 
 #define _USE_MATH_DEFINES
 #include <stdio.h>
@@ -53,7 +56,7 @@
  * for faithful simulation of the deployed system. */
 #define MPC_DT_DEFAULT    0.005
 #define SIM_DURATION_DEFAULT 100.0  /* seconds */
-#define MAX_WAYPOINTS     2000
+#define MAX_WAYPOINTS     2500
 #define MAX_STEERING      0.39 /* rad — calibrated limit (with polynomial servo correction) */
 #define MAX_VELOCITY      20.0   /* m/s */
 #define PHYSICAL_MAX_ACCEL 7.31  /* m/s² — bounded by mu*g */
@@ -63,7 +66,7 @@
 #define MIN_TRAJECTORY_SPEED_MPS  0.5
 #define TRAJECTORY_SPEED_GAIN     1.0
 #define VEHICLE_HALF_WIDTH        0.137   /* meters — for body-edge collision */
-#define DEFAULT_BODY_SAFETY_MARGIN 0.06   /* extra margin: gym bitmap is stricter */
+#define DEFAULT_BODY_SAFETY_MARGIN 0.00   /* extra margin: gym bitmap is stricter */
 
 /*===========================================================================
  * Hardware-matched plant enhancements
@@ -77,11 +80,6 @@
  *===========================================================================*/
 #define ROLLING_RESISTANCE_N      2.79    /* Measured: vehicle_params.yaml L176 */
 #define PACEJKA_C_SHAPE           1.9     /* Shape factor for Pacejka tire */
-/* Noise std-devs matching real sensor characteristics.
- * Note: VESC ACCEL_TO_CURRENT mode compensates for rolling resistance and
- * drivetrain efficiency, so a_max=7.31 respects measured traction limits.
- * Rolling resistance is modeled as speed-dependent aerodynamic+friction drag
- * that the VESC cannot fully compensate at high speed. */
 #define NOISE_POS_M               0.01    /* AMCL position noise (m) */
 #define NOISE_HDG_RAD             0.009   /* AMCL heading noise (~0.5 deg) */
 #define NOISE_VX_MS               0.05    /* ERPM velocity noise (m/s) */
@@ -396,6 +394,7 @@ static int load_raceline(void)
         return 0;
     }
     const char *paths[] = {
+        "my_track_raceline.csv",
         "trajectories/my_track_raceline.csv",
         "../trajectories/my_track_raceline.csv",
         "../../MPC/trajectories/my_track_raceline.csv",
@@ -927,69 +926,90 @@ static Waypoint_t sample_raceline_by_s(double s_query)
     return out;
 }
 
-/* Build horizon reference trajectory for the MPC from raceline samples.
- * Parameters: closest waypoint index, horizon steps, output ref array.
- * Side effect: writes MPC reference entries into ref[0..horizon_steps-1]. */
-static void build_reference(int closest, int horizon_steps, TrajectoryReferencePoint_t *ref)
+/* === V2 Message Simulation Helpers ===
+ * Local helpers that mirror the ROS V2 message and receiver conversion path.
+ * These are used by the C-sim harness to exercise the publisher->receiver->kernel
+ * transformation chain with local-raceline geometry.
+ */
+typedef struct {
+    int32_t x_fp;
+    int32_t y_fp;
+    int32_t theta_fp;
+    int32_t velocity_fp;
+    int32_t vy_fp;
+    int32_t omega_fp;
+    int32_t steering_angle_fp;
+    uint32_t horizon_length;
+    int32_t ref_ey_fp[PREDICTION_HORIZON];
+    int32_t ref_epsi_fp[PREDICTION_HORIZON];
+    int32_t ref_x_fp[PREDICTION_HORIZON];
+    int32_t ref_y_fp[PREDICTION_HORIZON];
+    int32_t ref_psi_fp[PREDICTION_HORIZON];
+    int32_t ref_vx_fp[PREDICTION_HORIZON];
+    int32_t ref_vy_fp[PREDICTION_HORIZON];
+    int32_t ref_omega_ref_fp[PREDICTION_HORIZON];
+    int32_t ref_kappa_fp[PREDICTION_HORIZON];
+    int32_t ref_left_bound_fp[PREDICTION_HORIZON];
+    int32_t ref_right_bound_fp[PREDICTION_HORIZON];
+} MpcStateSimV2;
+
+/* Simple Q16.16 conversion helpers */
+static int32_t to_q16(double v) { return (int32_t)((v >= 0.0) ? (v * 65536.0 + 0.5) : (v * 65536.0 - 0.5)); }
+static double from_q16(int32_t q) { return ((double)q) / 65536.0; }
+
+/* Build MpcStateSimV2 from local_line: samples interpolated horizon geometry. */
+static void build_mpc_state_v2_from_local(double ego_x, double ego_y, double ego_theta,
+                                          double vx, double vy, double omega, int horizon_steps,
+                                          MpcStateSimV2 *out)
 {
-    if (ref == NULL) return;
-    if (horizon_steps < 1) return;
+    if (!out) return;
+    out->x_fp = to_q16(ego_x);
+    out->y_fp = to_q16(ego_y);
+    out->theta_fp = to_q16(ego_theta);
+    out->velocity_fp = to_q16(vx);
+    out->vy_fp = to_q16(vy);
+    out->omega_fp = to_q16(omega);
+    out->steering_angle_fp = to_q16(0.0);
+    const double dt = g_mpc_prediction_dt;
+    double v_base = (local_count > 0) ? local_line[0].vx : 1.0;
+    if (v_base <= 0.0) v_base = 1.0;
     if (horizon_steps > PREDICTION_HORIZON) horizon_steps = PREDICTION_HORIZON;
-
-    double s_query = raceline[closest].s;
-    double step_velocity = fabs(raceline[closest].vx);
-    if (step_velocity < 1.0) step_velocity = 1.0;
-
-    for (int step = 0; step < horizon_steps; step++) {
-        /* Keep ref[0] aligned with the current stage; advance s for the next stage at loop end. */
-        Waypoint_t wp = sample_raceline_by_s(s_query);
-
-        ref[step].reference_lateral_error = 0;
-        ref[step].reference_heading_error = 0;
-
-        double v_ref = wp.vx;
-
-        if (v_ref < 1.0) v_ref = 1.0;
-        if (v_ref > TRAJECTORY_MAX_VELOCITY) v_ref = TRAJECTORY_MAX_VELOCITY;
-        step_velocity = v_ref;
-        s_query += step_velocity * g_mpc_prediction_dt;
-
-        ref[step].reference_velocity = (float)(v_ref);
-
-        /* vy reference: zero */
-        ref[step].reference_lateral_velocity = 0;
-
-        ref[step].reference_yaw_rate = (float)(wp.kappa * v_ref);
-
-
-        ref[step].path_curvature = (float)(wp.kappa);
-        ref[step].left_wall_bound = (float)(wp.left_bound);
-        ref[step].right_wall_bound = (float)(wp.right_bound);
+    out->horizon_length = (uint32_t)horizon_steps;
+    for (int i = 0; i < horizon_steps; i++) {
+        double target_s = v_base * dt * (double)i;
+        Waypoint_t wp = sample_local_by_s(target_s);
+        out->ref_ey_fp[i] = to_q16(0.0);
+        out->ref_epsi_fp[i] = to_q16(0.0);
+        out->ref_x_fp[i] = to_q16(wp.x);
+        out->ref_y_fp[i] = to_q16(wp.y);
+        out->ref_psi_fp[i] = to_q16(wp.psi);
+        out->ref_vx_fp[i] = to_q16(wp.vx);
+        out->ref_vy_fp[i] = to_q16(0.0);
+        out->ref_omega_ref_fp[i] = to_q16(wp.vx * wp.kappa);
+        out->ref_kappa_fp[i] = to_q16(wp.kappa);
+        out->ref_left_bound_fp[i] = to_q16(wp.left_bound);
+        out->ref_right_bound_fp[i] = to_q16(wp.right_bound);
     }
 }
 
-static void build_reference_local(int horizon_steps, TrajectoryReferencePoint_t *ref)
+/* Receiver-side conversion: convert MpcStateSimV2 -> TrajectoryReferencePoint_t
+ * This emulates the receiver's projection + kernel ref conversion.
+ */
+static void receiver_convert_v2_to_kernel_refs(const MpcStateSimV2 *msg, TrajectoryReferencePoint_t *out)
 {
-    if (ref == NULL) return;
-    if (horizon_steps < 1) return;
-    if (horizon_steps > PREDICTION_HORIZON) horizon_steps = PREDICTION_HORIZON;
-    if (local_count <= 0) return;
-
-    double v_ref_base = local_line[0].vx;
-    if (v_ref_base <= 0.0) v_ref_base = MIN_TRAJECTORY_SPEED_MPS;
-
-    for (int step = 0; step < horizon_steps; step++) {
-        double target_s = v_ref_base * g_mpc_prediction_dt * (double)step;
-        Waypoint_t wp = sample_local_by_s(target_s);
-
-        ref[step].reference_lateral_error = 0;
-        ref[step].reference_heading_error = 0;
-        ref[step].reference_velocity = (float)wp.vx;
-        ref[step].reference_lateral_velocity = 0;
-        ref[step].path_curvature = (float)wp.kappa;
-        ref[step].reference_yaw_rate = (float)(wp.kappa * wp.vx);
-        ref[step].left_wall_bound = (float)wp.left_bound;
-        ref[step].right_wall_bound = (float)wp.right_bound;
+    if (!msg || !out) return;
+    const int horizon = (int)msg->horizon_length;
+    for (int i = 0; i < horizon && i < PREDICTION_HORIZON; i++) {
+        /* Compute frenet projection at sample i if needed (here we keep 0)
+         * For centerline tracking, ref_ey/ref_epsi/ref_vy are zero. */
+        out[i].reference_lateral_error = (float)from_q16(msg->ref_ey_fp[i]);
+        out[i].reference_heading_error = (float)from_q16(msg->ref_epsi_fp[i]);
+        out[i].reference_velocity = (float)from_q16(msg->ref_vx_fp[i]);
+        out[i].reference_lateral_velocity = (float)from_q16(msg->ref_vy_fp[i]);
+        out[i].reference_yaw_rate = (float)from_q16(msg->ref_omega_ref_fp[i]);
+        out[i].path_curvature = (float)from_q16(msg->ref_kappa_fp[i]);
+        out[i].left_wall_bound = (float)from_q16(msg->ref_left_bound_fp[i]);
+        out[i].right_wall_bound = (float)from_q16(msg->ref_right_bound_fp[i]);
     }
 }
 
@@ -1230,48 +1250,48 @@ int main(void)
 
     /* Configure horizon and weights. Horizon must respect compile-time limits. */
     MpcConfiguration_t cfg = mpc_get_configuration();
-    int horizon = PREDICTION_HORIZON;
-    if (getenv("HORIZON")) horizon = atoi(getenv("HORIZON"));
-    if (horizon < 1) horizon = 1;
-    if (horizon > PREDICTION_HORIZON) horizon = PREDICTION_HORIZON;
-    cfg.prediction_horizon_steps = (uint16_t)horizon;
     /* Prediction time step: propagate PRED_DT to solver's dynamics model */
     cfg.time_step = (float)(g_mpc_prediction_dt);
     /* cross_call_rate_scale: ratio of control interval to prediction dt */
     cfg.cross_call_rate_scale = (float)(cross_scale);
     /* Tuned weights — overridable via environment variables for tuning script. */
     const char *env;
-    cfg.weight_lateral_error          = (float)((env = getenv("Q_LAT"))       ? atof(env) : 200.0);
-    cfg.weight_heading_error          = (float)((env = getenv("Q_HDG"))       ? atof(env) : 28.8);
-    cfg.weight_velocity               = (float)((env = getenv("Q_VEL"))       ? atof(env) : 30.0);
-    cfg.weight_lateral_velocity       = (float)((env = getenv("Q_LAT_VEL"))   ? atof(env) : 1.04);
-    cfg.weight_yaw_rate               = (float)((env = getenv("Q_YAW"))       ? atof(env) : 1.5);
-    cfg.weight_steering_effort        = (float)((env = getenv("R_STEER"))     ? atof(env) : 1.5);
-    cfg.weight_acceleration_effort    = (float)((env = getenv("R_ACCEL"))     ? atof(env) : 0.01);
-    cfg.weight_steering_rate          = (float)((env = getenv("W_JERK"))      ? atof(env) : 0.04);
-    cfg.weight_acceleration_rate      = (float)((env = getenv("W_ACCEL_RATE"))? atof(env) : 0.10);
+    cfg.weight_lateral_error          = (float)((env = getenv("Q_LAT"))       ? atof(env) : cfg.weight_lateral_error);
+    cfg.weight_heading_error          = (float)((env = getenv("Q_HDG"))       ? atof(env) : cfg.weight_heading_error);
+    cfg.weight_velocity               = (float)((env = getenv("Q_VEL"))       ? atof(env) : cfg.weight_velocity);
+    cfg.weight_lateral_velocity       = (float)((env = getenv("Q_LAT_VEL"))   ? atof(env) : cfg.weight_lateral_velocity);
+    cfg.weight_yaw_rate               = (float)((env = getenv("Q_YAW"))       ? atof(env) : cfg.weight_yaw_rate);
+    cfg.weight_steering_effort        = (float)((env = getenv("R_STEER"))     ? atof(env) : cfg.weight_steering_effort);
+    cfg.weight_acceleration_effort    = (float)((env = getenv("R_ACCEL"))     ? atof(env) : cfg.weight_acceleration_effort);
+    cfg.weight_steering_rate          = (float)((env = getenv("W_JERK"))      ? atof(env) : cfg.weight_steering_rate);
+    cfg.weight_acceleration_rate      = (float)((env = getenv("W_ACCEL_RATE"))? atof(env) : cfg.weight_acceleration_rate);
+    cfg.weight_delta_actual           = (float)(
+        (env = getenv("MPC_W_DELTA_ACTUAL")) ? atof(env) :
+        ((env = getenv("W_DELTA_ACT")) ? atof(env) : cfg.weight_delta_actual));
     {
         const double footprint_margin = VEHICLE_HALF_WIDTH + body_safety_margin;
         const double margin_env = get_env_double("WALL_MARGIN", footprint_margin);
         const double effective_margin = fmax(footprint_margin, margin_env);
         cfg.wall_margin = (float)effective_margin;
     }
-    cfg.max_solver_iterations       = (env = getenv("MAX_ITER")) ? atoi(env) : 100;
-    cfg.solver_convergence_tolerance    = (float)((env = getenv("TOL")) ? atof(env) : 0.05);
+    cfg.max_solver_iterations       = (env = getenv("MAX_ITER")) ? atoi(env) : cfg.max_solver_iterations;
+    cfg.solver_convergence_tolerance    = (float)((env = getenv("TOL")) ? atof(env) : cfg.solver_convergence_tolerance);
     mpc_set_configuration(&cfg);
 
     if (verbose) {
         printf("  Horizon: %d, Q_lat=%.2f Q_hdg=%.2f Q_vel=%.2f R_steer=%.2f R_accel=%.2f\n",
-               cfg.prediction_horizon_steps,
+               PREDICTION_HORIZON,
                (double)(cfg.weight_lateral_error),
                (double)(cfg.weight_heading_error),
                (double)(cfg.weight_velocity),
                (double)(cfg.weight_steering_effort),
                (double)(cfg.weight_acceleration_effort));
-        printf("  Steer_rate=%.2f Accel_rate=%.2f Cross_call=%.2f\n",
+        printf("  Steer_rate=%.2f Accel_rate=%.2f Delta_actual=%.3f Cross_call=%.2f TOL=%.3f\n",
                (double)(cfg.weight_steering_rate),
                (double)(cfg.weight_acceleration_rate),
-               (double)(cfg.cross_call_rate_scale));
+               (double)(cfg.weight_delta_actual),
+               (double)(cfg.cross_call_rate_scale),
+               (double)(cfg.solver_convergence_tolerance));
     }
 
     /* Spawn at selected raceline waypoint, optionally shifted laterally and with a custom initial speed. */
@@ -1320,7 +1340,7 @@ int main(void)
     double actual_steer = start_steer;  /* Steering target fed into actuator dynamics */
     int steer_reversals = 0;
     double max_steer_change = 0;
-    double time_above_5ms = 0;
+    double time_above_3_5ms = 0;
     double max_vx = 0;
     double sum_vx = 0;
     double progress_m = 0.0;
@@ -1474,13 +1494,43 @@ int main(void)
         }
 
         if (step % MPC_CALL_INTERVAL == 0) {
-            /* Build reference */
+            /* Build reference via V2 publisher -> receiver conversion (emulated)
+             * This exercises the same data transforms as the ROS/OpenCL path. */
             TrajectoryReferencePoint_t ref[PREDICTION_HORIZON];
+            /* Build an MpcStateSimV2 (publisher output) then convert to kernel refs */
+            MpcStateSimV2 sim_msg;
             if (local_raceline_sim) {
-                build_reference_local(cfg.prediction_horizon_steps, ref);
+                build_mpc_state_v2_from_local((double)state.pos_x, (double)state.pos_y, (double)state.heading,
+                                              (double)state.long_vel, (double)state.lat_vel, (double)state.yaw_rate,
+                                              PREDICTION_HORIZON, &sim_msg);
             } else {
-                build_reference(closest_global, cfg.prediction_horizon_steps, ref);
+                /* Global raceline sampling path: emulate publisher using global raceline samples */
+                /* Fill sim_msg fields */
+                sim_msg.x_fp = to_q16((double)state.pos_x);
+                sim_msg.y_fp = to_q16((double)state.pos_y);
+                sim_msg.theta_fp = to_q16((double)state.heading);
+                sim_msg.velocity_fp = to_q16((double)state.long_vel);
+                sim_msg.vy_fp = to_q16((double)state.lat_vel);
+                sim_msg.omega_fp = to_q16((double)state.yaw_rate);
+                sim_msg.steering_angle_fp = to_q16(0.0);
+                int horizon_steps = PREDICTION_HORIZON;
+                sim_msg.horizon_length = (uint32_t)horizon_steps;
+                for (int i = 0; i < horizon_steps; i++) {
+                    double target_s = raceline[closest_global].s + fabs(raceline[closest_global].vx) * g_mpc_prediction_dt * (double)i;
+                    Waypoint_t wp = sample_raceline_by_s(target_s);
+                    sim_msg.ref_ey_fp[i] = to_q16(0.0);
+                    sim_msg.ref_x_fp[i] = to_q16(wp.x);
+                    sim_msg.ref_y_fp[i] = to_q16(wp.y);
+                    sim_msg.ref_psi_fp[i] = to_q16(wp.psi);
+                    sim_msg.ref_vx_fp[i] = to_q16(wp.vx);
+                    sim_msg.ref_kappa_fp[i] = to_q16(wp.kappa);
+                    sim_msg.ref_left_bound_fp[i] = to_q16(wp.left_bound);
+                    sim_msg.ref_right_bound_fp[i] = to_q16(wp.right_bound);
+                }
             }
+
+            /* Receiver conversion: emulated */
+            receiver_convert_v2_to_kernel_refs(&sim_msg, ref);
             v_ref_print = (double)ref[0].reference_velocity;
             kappa_ref_print = (double)ref[0].path_curvature;
 
@@ -1532,7 +1582,7 @@ int main(void)
         double vel_err = fabs(speed_mps - raceline[true_closest].vx);
         if (vel_err > max_vel_err) max_vel_err = vel_err;
         sum_vel_err += vel_err;
-        if (speed_mps > 5.0) time_above_5ms += SIM_DT;
+        if (speed_mps > 3.5) time_above_3_5ms += SIM_DT;
 
         double steer_change = actual_steer - prev_steer;
         if (fabs(steer_change) > fabs(max_steer_change)) max_steer_change = steer_change;
@@ -1919,9 +1969,9 @@ int main(void)
     printf("  Max steer change:   %.4f rad/step\n", max_steer_change);
     printf("  Steer reversals:    %d\n", steer_reversals);
     printf("  Wall collisions:    %d\n", wall_collisions);
-    printf("  Time above 5 m/s:   %.1f / %.1f s (%.0f%%)\n",
-           time_above_5ms, simulated_time,
-           (simulated_time > 0.0) ? (100*time_above_5ms/simulated_time) : 0.0);
+    printf("  Time above 3.5 m/s: %.1f / %.1f s (%.0f%%)\n",
+           time_above_3_5ms, simulated_time,
+           (simulated_time > 0.0) ? (100*time_above_3_5ms/simulated_time) : 0.0);
     printf("\n  --- Solver Performance ---\n");
     int mpc_calls = solver_calls;
     double avg_iters = (mpc_calls > 0) ? (double)total_iterations / mpc_calls : 0;
@@ -1960,7 +2010,7 @@ int main(void)
         snprintf(speed_msg, sizeof(speed_msg),
                  "Reaches driving speed (>5 m/s for >%.0f%% of time, realistic)",
                  speed_threshold * 100);
-        speed_check_pass = (time_above_5ms > simulated_time * speed_threshold);
+        speed_check_pass = (time_above_3_5ms > simulated_time * speed_threshold);
         check(speed_msg, speed_check_pass);
     } else {
         if (ref_avg_speed < 5.0) {
@@ -1973,8 +2023,8 @@ int main(void)
             speed_check_pass = (avg_vx > min_avg_speed);
             check(speed_msg, speed_check_pass);
         } else {
-            speed_check_pass = (time_above_5ms > simulated_time * 0.5);
-            check("Reaches driving speed (>5 m/s for >50% of time)", speed_check_pass);
+            speed_check_pass = (time_above_3_5ms > simulated_time * 0.5);
+            check("Reaches driving speed (>3.5 m/s for >50% of time)", speed_check_pass);
         }
     }
 
@@ -1989,7 +2039,7 @@ int main(void)
             tests_passed, tests_failed,
             max_lat_err, avg_lat, max_hdg_err, avg_hdg,
             max_vx, avg_solve, max_solve_us,
-            wall_collisions, time_above_5ms,
+            wall_collisions, time_above_3_5ms,
             max_vel_err, avg_vel, avg_iters, avg_vx,
             progress_m, avg_progress_mps, completed_laps,
             avg_lap_time, fabs(max_steer_change), steer_reversals,

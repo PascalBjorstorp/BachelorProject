@@ -14,7 +14,8 @@ Override trajectory and topics:
       pose_topic:=/ekf_pose \
       imu_topic:=/imu/filtered_angular_velocity
 
-This launch file forces a conservative hardware-safe MPCC baseline by default.
+This launch file uses the current Jetson MPCC baseline by default,
+while retaining the extra hardware guardrails needed on the real car.
 Override any launch argument if you need to run a different tune.
 """
 
@@ -27,6 +28,7 @@ from launch_ros.actions import Node
 
 
 HARDWARE_TUNING_DEFAULTS = [
+    ("horizon", "HORIZON", "80", "Prediction horizon steps"),
     ("horizon", "HORIZON", "80", "Prediction horizon steps"),
     ("dt", "DT", "0.03", "Prediction time step in seconds"),
     ("q_contouring", "Q_CONTOURING", "80.0", "Contouring weight"),
@@ -52,6 +54,19 @@ HARDWARE_TUNING_DEFAULTS = [
         "1.0",
         "Multiplier for CSV velocity speed limit when enabled",
     ),
+    ("q_vy", "Q_VY", "1.0", "Lateral velocity regularization weight"),
+    ("q_omega", "Q_OMEGA", "3.0", "Yaw-rate regularization weight"),
+    ("r_delta", "R_DELTA", "8.0", "Steering effort weight"),
+    ("r_ax", "R_AX", "1.0", "Acceleration effort weight"),
+    ("r_vtheta", "R_VTHETA", "0.2", "Virtual progress effort weight"),
+    ("w_delta_rate", "W_DELTA_RATE", "2.0", "Steering rate weight"),
+    ("w_ax_rate", "W_AX_RATE", "3.0", "Acceleration rate weight"),
+    ("w_vtheta_rate", "W_VTHETA_RATE", "0.8", "Virtual progress rate weight"),
+    ("q_contouring_term", "Q_CONTOURING_TERM", "75.0", "Terminal contouring weight"),
+    ("q_lag_term", "Q_LAG_TERM", "60.0", "Terminal lag weight"),
+    ("q_progress_term", "Q_PROGRESS_TERM", "10.0", "Terminal progress reward"),
+    ("admm_rho", "ADMM_RHO", "15.0", "ADMM penalty parameter"),
+    ("admm_rho_u", "ADMM_RHO_U", "8.0", "Optional control ADMM penalty (0 uses rho)"),
     ("q_vy", "Q_VY", "1.0", "Lateral velocity regularization weight"),
     ("q_omega", "Q_OMEGA", "3.0", "Yaw-rate regularization weight"),
     ("r_delta", "R_DELTA", "8.0", "Steering effort weight"),
@@ -100,6 +115,8 @@ def _resolve_default_trajectory() -> str:
         planning_share = get_package_share_directory("f1tenth_planning")
         candidates.extend(
             [
+                os.path.join(planning_share, "trajectories", "hardware_centerline_smooth.csv"),
+                os.path.join(planning_share, "trajectories", "my_track_centerline_smooth.csv"),
                 os.path.join(planning_share, "trajectories", "hardware_raceline.csv"),
                 os.path.join(planning_share, "trajectories", "my_track_raceline.csv"),
             ]
@@ -117,8 +134,12 @@ def _resolve_default_trajectory() -> str:
     for root in search_roots:
         candidates.extend(
             [
+                os.path.join(root, "f1tenth_planning", "trajectories", "hardware_centerline_smooth.csv"),
+                os.path.join(root, "f1tenth_planning", "trajectories", "my_track_centerline_smooth.csv"),
                 os.path.join(root, "f1tenth_planning", "trajectories", "hardware_raceline.csv"),
                 os.path.join(root, "f1tenth_planning", "trajectories", "my_track_raceline.csv"),
+                os.path.join(root, "src", "f1tenth_planning", "trajectories", "hardware_centerline_smooth.csv"),
+                os.path.join(root, "src", "f1tenth_planning", "trajectories", "my_track_centerline_smooth.csv"),
                 os.path.join(root, "src", "f1tenth_planning", "trajectories", "hardware_raceline.csv"),
                 os.path.join(root, "src", "f1tenth_planning", "trajectories", "my_track_raceline.csv"),
             ]

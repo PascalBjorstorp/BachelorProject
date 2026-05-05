@@ -1,6 +1,6 @@
 # MPCC Real-Car Robustness Fixes
 
-This note records the retained MPCC fixes for the real car, the fixes that were tested but not kept, and the current launch profile that reproduces on the newest `my_track_raceline.csv`.
+This note records the retained MPCC fixes for the real car, the fixes that were tested but not kept, and the current launch profile that matches the validated Jetson baseline on `my_track_centerline_smooth.csv`.
 
 ## Problem Summary
 
@@ -30,34 +30,47 @@ Retained changes:
 Current default hardware profile in the launch file:
 
 ```text
-HORIZON=20
-DT=0.05
-Q_CONTOURING=1000.0
-Q_LAG=100.0
-Q_PROGRESS=15.6
-Q_VX=30.0
-VX_REF=4.0
-Q_VY=0.5
+HORIZON=80
+DT=0.03
+Q_CONTOURING=80.0
+Q_LAG=120.0
+Q_WALL_CLEARANCE=3200.0
+WALL_CLEARANCE_MARGIN=0.02
+MPCC_TRACK_BUFFER=0.05
+Q_PROGRESS=8.0
+Q_VX=0.0
+VX_REF=0.0
+MPCC_USE_RACELINE_VX_REF=0
+MPCC_USE_RACELINE_VX_LIMIT=0
+MPCC_RACELINE_VX_LIMIT_SCALE=1.0
+Q_VY=1.0
 Q_OMEGA=3.0
-R_DELTA=100.0
-R_AX=0.05225
-R_VTHETA=0.1
+R_DELTA=8.0
+R_AX=1.0
+R_VTHETA=0.2
 W_DELTA_RATE=2.0
-W_AX_RATE=0.488
-W_VTHETA_RATE=0.1105
-Q_CONTOURING_TERM=4800.0
-Q_LAG_TERM=800.0
-Q_PROGRESS_TERM=41.4
-ADMM_RHO=5.0
+W_AX_RATE=3.0
+W_VTHETA_RATE=0.8
+Q_CONTOURING_TERM=75.0
+Q_LAG_TERM=60.0
+Q_PROGRESS_TERM=10.0
+ADMM_RHO=15.0
+ADMM_RHO_U=8.0
 ADMM_MAX_ITER=300
 ADMM_TOL=0.02
-V_THETA_MAX=15.0
-MPCC_CROSS_CALL_SCALE=0.1
+ADMM_ADAPTIVE_RHO=1
+ADMM_ALPHA_RELAX=1.6
+MPCC_ACCEPT_MAX_ITER=0
+MPCC_MAX_ITER_PRIMAL_TOL=0.01
+MPCC_MAX_ITER_DUAL_TOL=0.01
+MPCC_MAX_ITER_TRACK_TOL=0.005
+V_THETA_MAX=8.0
+MPCC_CROSS_CALL_SCALE=0.166667
 MPCC_ADAPT_CROSS_CALL_SCALE=0
 MPCC_VX_MIN_CMD=0.1
 ```
 
-This is the profile that reproduced cleanly on the current `my_track_raceline.csv` during validation.
+This is the launch baseline that mirrors the currently validated simulation tune while keeping the hardware-only guardrails.
 
 ### 2. Hardware-node runtime guardrails
 
@@ -155,7 +168,7 @@ So the "wrong direction" feeling is more likely to come from state/path continui
 
 ## Validation Results
 
-### Reproduced current-raceline candidate
+### Reproduced current Jetson baseline candidate
 
 Validation command:
 
@@ -167,14 +180,16 @@ gcc -D_GNU_SOURCE -O3 -std=c99 -Wall -ffast-math \
   test/test_sim_drive.c src/mpcc.c src/mpcc_vehicle_model.c src/qp_solver_mpcc.c \
   -o test_sim_drive -lm
 
-RACELINE_PATH=/home/jonathan/Documents/GitHub/BachelorProject/f1tenth_planning/trajectories/my_track_raceline.csv \
-DT=0.05 Q_CONTOURING=1000 Q_LAG=100 Q_PROGRESS=15.6 \
-Q_VX=30 VX_REF=4 Q_VY=0.5 Q_OMEGA=3.0 \
-R_DELTA=100 R_AX=0.05225 R_VTHETA=0.1 \
-W_DELTA_RATE=2.0 W_AX_RATE=0.488 W_VTHETA_RATE=0.1105 \
-Q_CONTOURING_TERM=4800 Q_LAG_TERM=800 Q_PROGRESS_TERM=41.4 \
-ADMM_RHO=5 ADMM_MAX_ITER=300 ADMM_TOL=0.02 HORIZON=20 \
-V_THETA_MAX=15.0 CROSS_CALL_SCALE=0.1 MPCC_TUNING_CSV=1 ./test_sim_drive
+RACELINE_PATH=/home/jonathan/Documents/GitHub/BachelorProject/f1tenth_planning/trajectories/my_track_centerline_smooth.csv \
+DT=0.03 HORIZON=80 \
+Q_CONTOURING=80 Q_LAG=120 Q_WALL_CLEARANCE=3200 WALL_CLEARANCE_MARGIN=0.02 MPCC_TRACK_BUFFER=0.05 \
+Q_PROGRESS=8 Q_VX=0 VX_REF=0 MPCC_USE_RACELINE_VX_REF=0 MPCC_USE_RACELINE_VX_LIMIT=0 MPCC_RACELINE_VX_LIMIT_SCALE=1.0 \
+Q_VY=1.0 Q_OMEGA=3.0 R_DELTA=8 R_AX=1.0 R_VTHETA=0.2 \
+W_DELTA_RATE=2.0 W_AX_RATE=3.0 W_VTHETA_RATE=0.8 \
+Q_CONTOURING_TERM=75 Q_LAG_TERM=60 Q_PROGRESS_TERM=10 \
+ADMM_RHO=15 ADMM_RHO_U=8 ADMM_MAX_ITER=300 ADMM_TOL=0.02 ADMM_ADAPTIVE_RHO=1 ADMM_ALPHA_RELAX=1.6 \
+MPCC_ACCEPT_MAX_ITER=0 MPCC_MAX_ITER_PRIMAL_TOL=0.01 MPCC_MAX_ITER_DUAL_TOL=0.01 MPCC_MAX_ITER_TRACK_TOL=0.005 \
+V_THETA_MAX=8.0 CROSS_CALL_SCALE=0.166667 MPCC_TUNING_CSV=1 ./test_sim_drive
 ```
 
 Validated result:
@@ -191,7 +206,7 @@ Key points:
 - `lap_count = 1`
 - `best_lap_time = 12.9 s`
 
-This is the currently reproduced profile for the newest `my_track_raceline.csv`.
+This is the currently reproduced profile for `my_track_centerline_smooth.csv`.
 
 ### Old conservative baseline no longer reproduces cleanly
 
@@ -237,7 +252,7 @@ The retained robustness solution is:
 
 - keep the runtime guardrails in the hardware node
 - keep the `s_hint` continuity fix in the core
-- use the newly reproduced current-raceline launch profile by default
+- use the current Jetson launch baseline by default
 - do not trust older MPCC sweep winners unless they reproduce on the current code and current raceline
 
 That is the cleanest validated state reached in this iteration.
