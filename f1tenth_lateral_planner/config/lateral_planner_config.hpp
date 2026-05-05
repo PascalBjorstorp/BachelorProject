@@ -37,7 +37,7 @@
 #define MIN_REGULATED_SPEED_MPS 0.30
 
 // Published path extent
-#define LOOKAHEAD_POINTS 200
+#define LOOKAHEAD_POINTS 2050
 #define PATH_START_OFFSET_POINTS 0
 
 // Node behavior

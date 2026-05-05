@@ -114,7 +114,7 @@ private:
 
     RCLCPP_INFO(get_logger(), "  Avoidance enabled: %s", avoidance_enabled_ ? "true" : "false");
     map_frame_ = FRAME_MAP;
-    laser_frame_ = FRAME_BASE_LINK;
+    laser_frame_ = FRAME_LASER;
   }
 
   // ── Subscribers ───────────────────────────────────────────────────

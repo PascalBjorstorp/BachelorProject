@@ -199,11 +199,11 @@ void LateralPlanner::processObstacleScan(
   }
   const double half_length = 0.5 * params_.opponent_length_m;
 
-  opponent_.back_x   = cx;
-  opponent_.back_y   = cy;
+  opponent_.back_x   = cx - half_length * std::cos(opponent_yaw);
+  opponent_.back_y   = cy - half_length * std::sin(opponent_yaw);
   opponent_.yaw      = opponent_yaw;
-  opponent_.x        = cx + half_length * std::cos(opponent_yaw);
-  opponent_.y        = cy + half_length * std::sin(opponent_yaw);
+  opponent_.x        = cx;
+  opponent_.y        = cy;
   opponent_.width    = params_.car_width_m;
   opponent_.length   = params_.opponent_length_m;
   opponent_.detected = true;

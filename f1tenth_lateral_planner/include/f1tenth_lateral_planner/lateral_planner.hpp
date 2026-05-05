@@ -40,8 +40,8 @@ struct OpponentState
 {
   double x       = 0.0;   ///< Body center x [m]
   double y       = 0.0;   ///< Body center y [m]
-  double back_x  = 0.0;   ///< Detected rear-point x [m]
-  double back_y  = 0.0;   ///< Detected rear-point y [m]
+  double back_x  = 0.0;   ///< Estimated rear-point x [m]
+  double back_y  = 0.0;   ///< Estimated rear-point y [m]
   double yaw     = 0.0;   ///< Body heading [rad]
   double width   = 0.3;   ///< Fixed body width [m]
   double length  = 0.5;   ///< Fixed body length [m]
