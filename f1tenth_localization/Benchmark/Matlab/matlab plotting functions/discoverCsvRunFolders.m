@@ -1,4 +1,4 @@
-function runs = discoverCsvRunFolders(csvRootDir)
+find /sys/devices -name "*zyxclmm*" -o -name "*zocl*" 2>/dev/nullfunction runs = discoverCsvRunFolders(csvRootDir)
 %DISCOVERCSVRUNFOLDERS Find CSV run folders below one root.
 
 runs = struct('name', {}, 'path', {}, 'datenum', {});
