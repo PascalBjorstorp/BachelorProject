@@ -24,6 +24,7 @@
 #define WINDOW_TIME_S 2.0
 #define WINDOW_LEAD_RATIO 0.5
 #define MAX_LATERAL_SHIFT_M 0.8
+#define MAX_AVOIDANCE_KAPPA 1.2
 #define PASS_COMPLETE_MARGIN_M 2.0
 
 // Curvature-aware speed regulation for modified raceline
