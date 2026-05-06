@@ -156,16 +156,24 @@ static double g_latest_omega = 0.0;
  *  fast path on aarch64, ~3ns vs ~50ns syscall for CLOCK_MONOTONIC_RAW) */
 static struct timespec g_last_odom_time = {0, 0};
 
-/** Rolling solve-time instrumentation (always active, prints every 500 cycles) */
+/** Rolling solve-time and iteration instrumentation (always active) */
 static double g_solve_time_sum_us = 0.0;
+static double g_solve_time_min_us = 1e9;
 static double g_solve_time_max_us = 0.0;
-static unsigned long g_solve_cycle_count = 0;
-#define SOLVE_STATS_PRINT_INTERVAL 500
+static uint16_t g_iter_count_min = 0xFFFF;
+static uint16_t g_iter_count_max = 0;
+static double g_iter_count_sum = 0.0;
+static unsigned long g_stats_cycle_count = 0;
+static unsigned long g_stats_optimal_count = 0;
+static unsigned long g_stats_max_iter_count = 0;
+static struct timespec g_last_terminal_print_time = {0, 0};
+#define TERMINAL_STATS_PRINT_INTERVAL_SECONDS 5.0
 
 /** Optional solver telemetry logging for post-drive analysis. */
 static FILE *g_solver_log_file = NULL;
 static FILE *g_solver_meta_file = NULL;
 static FILE *g_local_raceline_log_file = NULL;
+static FILE *g_stats_csv_file = NULL;
 static unsigned long g_solver_log_counter = 0;
 static int g_solver_log_stride = 1;
 static double g_last_servo_raw = 0.0;
@@ -981,19 +989,71 @@ void ekf_pose_callback(const void *message_in)
     double primal_res = mpc_result.final_cost;
     double dual_res = mpc_result.dual_residual;
 
-    /* Rolling solve-time statistics (always active, lightweight) */
+    /* Collect rolling statistics (always active, lightweight) */
+    uint16_t iterations_used = mpc_result.iterations_used;
+    MpcConfiguration_t cfg = mpc_get_configuration();
+    uint16_t max_iter = cfg.max_solver_iterations;
+
+    /* Track solve time statistics */
     g_solve_time_sum_us += solve_us;
+    if (solve_us < g_solve_time_min_us) g_solve_time_min_us = solve_us;
     if (solve_us > g_solve_time_max_us) g_solve_time_max_us = solve_us;
-    g_solve_cycle_count++;
-    if (g_solve_cycle_count >= SOLVE_STATS_PRINT_INTERVAL)
+
+    /* Track iteration statistics */
+    g_iter_count_sum += iterations_used;
+    if (iterations_used < g_iter_count_min) g_iter_count_min = iterations_used;
+    if (iterations_used > g_iter_count_max) g_iter_count_max = iterations_used;
+
+    /* Count optimal solutions and max-iter cases */
+    if (mpc_status == MPC_STATUS_SUCCESS) g_stats_optimal_count++;
+    if (iterations_used >= max_iter) g_stats_max_iter_count++;
+
+    g_stats_cycle_count++;
+
+    /* Write to stats CSV file */
+    if (g_stats_csv_file != NULL)
     {
-        double avg_us = g_solve_time_sum_us / (double)g_solve_cycle_count;
-        printf("[MPC] Solve stats (%lu cycles): avg=%.1f us, max=%.1f us (budget=%.0f us)\n",
-               g_solve_cycle_count, avg_us, g_solve_time_max_us,
-             1e6 / CONTROL_RATE_HZ);
-        g_solve_time_sum_us = 0.0;
-        g_solve_time_max_us = 0.0;
-        g_solve_cycle_count = 0;
+        fprintf(g_stats_csv_file, "%lu,%u,%.1f\n", g_stats_cycle_count, iterations_used, solve_us);
+        fflush(g_stats_csv_file);
+    }
+
+    /* Print terminal stats every 5 seconds */
+    {
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        double elapsed_sec = (now.tv_sec - g_last_terminal_print_time.tv_sec) +
+                             (now.tv_nsec - g_last_terminal_print_time.tv_nsec) / 1e9;
+
+        if (elapsed_sec >= TERMINAL_STATS_PRINT_INTERVAL_SECONDS)
+        {
+            if (g_stats_cycle_count > 0)
+            {
+                double avg_iter = g_iter_count_sum / (double)g_stats_cycle_count;
+                double avg_time = g_solve_time_sum_us / (double)g_stats_cycle_count;
+                double optimal_pct = (g_stats_optimal_count * 100.0) / (double)g_stats_cycle_count;
+                double max_iter_pct = (g_stats_max_iter_count * 100.0) / (double)g_stats_cycle_count;
+
+                printf("[MPC] Stats (last %.1fs, %lu calls):\n", elapsed_sec, g_stats_cycle_count);
+                printf("  Iterations: min=%u, avg=%.1f, max=%u\n",
+                       g_iter_count_min, avg_iter, g_iter_count_max);
+                printf("  Solve time: min=%.1f us, avg=%.1f us, max=%.1f us\n",
+                       g_solve_time_min_us, avg_time, g_solve_time_max_us);
+                printf("  Optimal: %.1f%%, Max iter: %.1f%%\n",
+                       optimal_pct, max_iter_pct);
+
+                /* Reset stats */
+                g_solve_time_sum_us = 0.0;
+                g_solve_time_min_us = 1e9;
+                g_solve_time_max_us = 0.0;
+                g_iter_count_min = 0xFFFF;
+                g_iter_count_max = 0;
+                g_iter_count_sum = 0.0;
+                g_stats_cycle_count = 0;
+                g_stats_optimal_count = 0;
+                g_stats_max_iter_count = 0;
+                g_last_terminal_print_time = now;
+            }
+        }
     }
 
     if (mpc_status == MPC_STATUS_SUCCESS ||
@@ -1296,6 +1356,23 @@ int main(int argc, char *argv[])
                     }
                 }
             }
+
+            /* Also open stats CSV file for simple idx/iter/solve_time logging */
+            {
+                char stats_csv_path[PATH_MAX];
+                int stats_len = snprintf(stats_csv_path, sizeof(stats_csv_path),
+                                         "%s.stats.csv", log_path);
+                if (stats_len > 0 && (size_t)stats_len < sizeof(stats_csv_path))
+                {
+                    g_stats_csv_file = fopen(stats_csv_path, "w");
+                    if (g_stats_csv_file != NULL)
+                    {
+                        fprintf(g_stats_csv_file, "idx,iterations,solve_time_us\n");
+                        fflush(g_stats_csv_file);
+                        printf("[MPC] Stats CSV log: %s\n", stats_csv_path);
+                    }
+                }
+            }
         }
     }
 
@@ -1359,6 +1436,9 @@ int main(int argc, char *argv[])
 
     printf("[MPC] Reference source: %s (nav_msgs/Path)\n", g_local_raceline_topic);
     printf("[MPC] Waiting for first local raceline message before running control\n");
+
+    /* Initialize terminal output timer */
+    clock_gettime(CLOCK_MONOTONIC, &g_last_terminal_print_time);
 
     /* Initialize ROS2 */
     rcl_context_t ctx = rcl_get_zero_initialized_context();

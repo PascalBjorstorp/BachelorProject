@@ -1,11 +1,10 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>state_publisher</name>
+  <name>state_publisher_udp</name>
   <version>0.1.0</version>
   <description>
-    ROS2 node that publishes vehicle state and streamed MPC horizon references.
-    Runs on Jetson, performs KD-tree lookup, and publishes MpcState to Kria.
+    Jetson-side UDP publisher and drive bridge for MPC streaming.
   </description>
   <maintainer email="akmun23@student.sdu.dk">Aksel Munksgaard-Ottosen</maintainer>
   <license>MIT</license>
@@ -13,11 +12,10 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rclcpp</depend>
-  <depend>std_msgs</depend>
   <depend>nav_msgs</depend>
   <depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
   <depend>ackermann_msgs</depend>
-  <depend>f1tenth_msgs</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

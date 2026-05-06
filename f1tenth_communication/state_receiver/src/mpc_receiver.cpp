@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <ctime>
 #include <fstream>
 #include <functional>
 #include <limits>
@@ -25,6 +26,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <sys/stat.h>
 
 #include <vitis_common/common/ros_opencl_120.hpp>
 #include <vitis_common/common/utilities.hpp>
@@ -365,10 +367,17 @@ public:
         RCLCPP_INFO(get_logger(),
                     "MPC Receiver [FPGA OpenCL] ready. %s -> %s",
                     input_topic.c_str(), drive_topic.c_str());
+
+        /* Initialize stats CSV file */
+        open_stats_csv_file();
+
+        /* Initialize terminal output timer */
+        last_terminal_print_time_ = std::chrono::steady_clock::now();
     }
 
 private:
     static constexpr float kRacelineSpeedMarginMps = 0.5f;
+    static constexpr double TERMINAL_STATS_PRINT_INTERVAL_SECONDS = 5.0;
 
     float max_steering_ = MPC_FPGA_MAX_STEER_RAD;
     float max_velocity_ = MPC_FPGA_MAX_VEL_MPS;
@@ -394,10 +403,123 @@ private:
     float last_steering_cmd_rad_ = 0.0f;
     float last_accel_cmd_mps2_ = 0.0f;
 
+    /* Stats tracking for terminal output and CSV logging */
+    double stats_solve_time_sum_us_ = 0.0;
+    double stats_solve_time_min_us_ = 1e9;
+    double stats_solve_time_max_us_ = 0.0;
+    uint32_t stats_iter_count_min_ = 0xFFFFFFFFU;
+    uint32_t stats_iter_count_max_ = 0;
+    double stats_iter_count_sum_ = 0.0;
+    double stats_transport_latency_sum_us_ = 0.0;
+    double stats_transport_latency_min_us_ = 1e9;
+    double stats_transport_latency_max_us_ = 0.0;
+    uint64_t stats_cycle_count_ = 0;
+    uint64_t stats_optimal_count_ = 0;
+    uint64_t stats_max_iter_count_ = 0;
+    std::chrono::steady_clock::time_point last_terminal_print_time_;
+    FILE* stats_csv_file_ = nullptr;
+
     struct FrenetErrorsFp {
         int32_t e_y_fp;
         int32_t e_psi_fp;
     };
+
+    void open_stats_csv_file() {
+        const char* stats_dir = "log";
+        mkdir(stats_dir, 0755);
+        
+        time_t now = time(nullptr);
+        char timestamp[64];
+        struct tm* tm_now = localtime(&now);
+        strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", tm_now);
+        
+        char csv_path[512];
+        snprintf(csv_path, sizeof(csv_path), "%s/mpc_fpga_receiver_%s.stats.csv", stats_dir, timestamp);
+        
+        stats_csv_file_ = fopen(csv_path, "w");
+        if (stats_csv_file_ != nullptr) {
+            fprintf(stats_csv_file_, "idx,iterations,solve_time_us,transport_latency_us\n");
+            fflush(stats_csv_file_);
+            RCLCPP_INFO(get_logger(), "Stats CSV log: %s", csv_path);
+        } else {
+            RCLCPP_WARN(get_logger(), "Failed to open stats CSV file: %s", csv_path);
+        }
+    }
+
+    void update_stats(int64_t compute_ns, uint32_t iterations, uint32_t status, double transport_latency_us) {
+        const double compute_us = static_cast<double>(compute_ns) / 1000.0;
+        
+        /* Track solve time statistics */
+        stats_solve_time_sum_us_ += compute_us;
+        if (compute_us < stats_solve_time_min_us_) stats_solve_time_min_us_ = compute_us;
+        if (compute_us > stats_solve_time_max_us_) stats_solve_time_max_us_ = compute_us;
+        
+        /* Track iteration statistics */
+        stats_iter_count_sum_ += static_cast<double>(iterations);
+        if (iterations < stats_iter_count_min_) stats_iter_count_min_ = iterations;
+        if (iterations > stats_iter_count_max_) stats_iter_count_max_ = iterations;
+
+        /* Track transport latency statistics */
+        if (transport_latency_us > 0.0) {
+            stats_transport_latency_sum_us_ += transport_latency_us;
+            if (transport_latency_us < stats_transport_latency_min_us_) stats_transport_latency_min_us_ = transport_latency_us;
+            if (transport_latency_us > stats_transport_latency_max_us_) stats_transport_latency_max_us_ = transport_latency_us;
+        }
+        
+        /* Count optimal solutions and max-iter cases */
+        if (status == MPC_FPGA_STATUS_OK) stats_optimal_count_++;
+        if (status == MPC_FPGA_STATUS_MAX_ITER) stats_max_iter_count_++;
+        
+        stats_cycle_count_++;
+        
+        /* Write to stats CSV file */
+        if (stats_csv_file_ != nullptr) {
+            fprintf(stats_csv_file_, "%lu,%u,%.1f,%.1f\n", stats_cycle_count_, iterations, compute_us, transport_latency_us);
+            fflush(stats_csv_file_);
+        }
+        
+        /* Print terminal stats every 5 seconds */
+        auto now = std::chrono::steady_clock::now();
+        double elapsed_sec = std::chrono::duration<double>(now - last_terminal_print_time_).count();
+        
+        if (elapsed_sec >= TERMINAL_STATS_PRINT_INTERVAL_SECONDS && stats_cycle_count_ > 0) {
+            double avg_iter = stats_iter_count_sum_ / static_cast<double>(stats_cycle_count_);
+            double avg_time = stats_solve_time_sum_us_ / static_cast<double>(stats_cycle_count_);
+            double avg_latency = (stats_transport_latency_min_us_ < 1e9) ?
+                stats_transport_latency_sum_us_ / static_cast<double>(stats_cycle_count_) : -1.0;
+            double optimal_pct = (stats_optimal_count_ * 100.0) / static_cast<double>(stats_cycle_count_);
+            double max_iter_pct = (stats_max_iter_count_ * 100.0) / static_cast<double>(stats_cycle_count_);
+            
+            RCLCPP_INFO(get_logger(),
+                "[FPGA-Stats] (last %.1fs, %lu calls):\n"
+                "  Iterations: min=%u, avg=%.1f, max=%u\n"
+                "  Solve time: min=%.1f us, avg=%.1f us, max=%.1f us\n"
+                "  Transport latency: min=%.1f us, avg=%.1f us, max=%.1f us\n"
+                "  Optimal: %.1f%%, Max iter: %.1f%%",
+                elapsed_sec, stats_cycle_count_,
+                stats_iter_count_min_, avg_iter, stats_iter_count_max_,
+                stats_solve_time_min_us_, avg_time, stats_solve_time_max_us_,
+                (stats_transport_latency_min_us_ < 1e9 ? stats_transport_latency_min_us_ : -1.0),
+                (avg_latency > 0.0 ? avg_latency : -1.0),
+                (stats_transport_latency_max_us_ > 0.0 ? stats_transport_latency_max_us_ : -1.0),
+                optimal_pct, max_iter_pct);
+            
+            /* Reset stats */
+            stats_solve_time_sum_us_ = 0.0;
+            stats_solve_time_min_us_ = 1e9;
+            stats_solve_time_max_us_ = 0.0;
+            stats_iter_count_min_ = 0xFFFFFFFFU;
+            stats_iter_count_max_ = 0;
+            stats_iter_count_sum_ = 0.0;
+            stats_transport_latency_sum_us_ = 0.0;
+            stats_transport_latency_min_us_ = 1e9;
+            stats_transport_latency_max_us_ = 0.0;
+            stats_cycle_count_ = 0;
+            stats_optimal_count_ = 0;
+            stats_max_iter_count_ = 0;
+            last_terminal_print_time_ = now;
+        }
+    }
 
     bool has_required_horizon_data(const f1tenth_msgs::msg::MpcState::SharedPtr& msg) const {
         return msg->horizon_length > 0 &&
@@ -474,9 +596,13 @@ private:
         return std::clamp(speed, MPC_FPGA_MIN_VEL_MPS, max_velocity_);
     }
 
-    void publish_drive_command(float steering, float speed, float accel) {
+    void publish_drive_command(float steering,
+                               float speed,
+                               float accel,
+                               const builtin_interfaces::msg::Time& source_stamp) {
         auto drive = ackermann_msgs::msg::AckermannDriveStamped();
-        drive.header.stamp = now();
+        /* Preserve Jetson source timestamp for end-to-end latency measurement. */
+        drive.header.stamp = source_stamp;
         drive.header.frame_id = "base_link";
         drive.drive.steering_angle = steering;
         drive.drive.speed = speed;
@@ -620,6 +746,16 @@ private:
             return;
         }
 
+        /* Calculate network transport latency (Jetson publish time to Kria receive time) */
+        double transport_latency_us = -1.0;
+        const rclcpp::Time msg_time(msg->header.stamp);
+        if (msg_time.nanoseconds() > 0) {
+            transport_latency_us = (this->now() - msg_time).seconds() * 1e6;
+        }
+
+        /* Update statistics */
+        update_stats(fpga_.get_last_compute_ns(), iters, status, transport_latency_us);
+
         steering = fp_to_float(out_steer_fp);
         accel = fp_to_float(out_accel_fp);
 
@@ -638,7 +774,7 @@ private:
             fpga_.set_prev_accel_fp(float_to_fp(accel));
         }
 
-        publish_drive_command(steering, speed, accel);
+        publish_drive_command(steering, speed, accel, msg->header.stamp);
         pub_count_++;
         if (pub_count_ == 1) {
             RCLCPP_INFO(get_logger(),
