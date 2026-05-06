@@ -41,21 +41,21 @@
 /* Default MPC objective weights */
 #define WEIGHT_LAT_ERROR 1500.0f                         /* Penalizes lateral tracking deviation from the reference path. */
 #define WEIGHT_HEADING 5.0f                            /* Penalizes heading misalignment relative to path tangent. */
-#define WEIGHT_VELOCITY 600.0f                           /* Penalizes deviation from target longitudinal speed profile. */
+#define WEIGHT_VELOCITY 200.0f                           /* Penalizes deviation from target longitudinal speed profile. */
 #define WEIGHT_LAT_VEL 10.0f                             /* Penalizes lateral velocity to suppress side-slip growth. */
 #define WEIGHT_YAW_RATE 1.5f                            /* Penalizes yaw-rate mismatch against reference curvature dynamics. */
 #define WEIGHT_STEER_EFFORT 2.0f                        /* Penalizes steering-rate effort to limit aggressive steering actuation. */
 #define WEIGHT_ACCEL_EFFORT 0.5f                       /* Penalizes longitudinal acceleration effort to smooth throttle/brake usage. */
 #define WEIGHT_STEER_RATE 5.0f                         /* Penalizes steering-rate change to reduce steering jerk. */
 #define WEIGHT_ACCEL_RATE 5.0f                         /* Penalizes acceleration change to reduce longitudinal jerk. */
-#define WEIGHT_DELTA_ACTUAL 0.02254f                      /* Penalizes steering-state bias away from curvature feedforward. */
+#define WEIGHT_DELTA_ACTUAL 1.0f                      /* Penalizes steering-state bias away from curvature feedforward. */
 
 /* Other swept MPC defaults */
-#define MAX_ITERATIONS 50                              /* Default solver iteration budget per control update. */
+#define MAX_ITERATIONS 200                              /* Default solver iteration budget per control update. */
 #define WALL_MARGIN 0.20f                                 /* Safety offset subtracted from both wall boundaries. */
 #define ADMM_RHO 7.0f                                  /* Primary ADMM penalty balancing feasibility and optimality progress. */
 #define ADMM_RHO_U 7.0f                                /* ADMM penalty applied to control-variable projection terms. */
-#define CONVERGENCE_TOLERANCE 0.01f                     /* Residual threshold used to declare solver convergence. */
+#define CONVERGENCE_TOLERANCE 0.05f                     /* Residual threshold used to declare solver convergence. */
 #define PREDICTION_HORIZON 20                            /* Default maximum number of prediction stages used by the controller. */
 #define TIME_STEP_SECONDS 0.03f                         /* Default model integration period per horizon stage. */
 
