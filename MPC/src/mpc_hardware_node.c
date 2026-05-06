@@ -1194,105 +1194,125 @@ int main(int argc, char *argv[])
     }
 
     {
-        /* SECURITY: Environment variable is trusted deployment input.
-         * Log path must come from controlled local configuration sources. */
+        /* Solver CSV logging is opt-in. Writing and flushing high-rate logs from
+         * the control callback can stall /drive publication on embedded hardware. */
         const char *log_path = getenv("MPC_SOLVER_LOG");
-        char default_log_path[256];
+        const char *log_stride = getenv("MPC_SOLVER_LOG_STRIDE");
 
-        /* Always log every control callback unless code is changed. */
-        g_solver_log_stride = 1;
-
-        if (log_path == NULL || log_path[0] == '\0')
+        if (log_stride != NULL && log_stride[0] != '\0')
         {
-            time_t now = time(NULL);
-            struct tm tm_now;
-            localtime_r(&now, &tm_now);
-            strftime(default_log_path, sizeof(default_log_path),
-                     "log/mpc_solver_%Y%m%d_%H%M%S.csv", &tm_now);
-            log_path = default_log_path;
-        }
-
-        ensure_parent_directories(log_path);
-
-        g_solver_log_file = fopen(log_path, "w");
-        if (g_solver_log_file == NULL)
-        {
-            fprintf(stderr, "[MPC] WARNING: Failed to open solver log file %s\n", log_path);
-        }
-        else
-        {
-            fprintf(g_solver_log_file,
-                    "pose_ros_time_ns,unix_time_ns,solve_us,status,iterations,primal_residual,dual_residual,"
-                    "closest_wp,local_raceline_seq,local_raceline_ros_time_ns,local_raceline_count,local_raceline_length_m,odom_age_ms,"
-                    "pos_x,pos_y,heading,pose_cov_x,pose_cov_y,pose_cov_yaw,"
-                    "e_y,e_psi,vx,vy,omega,"
-                    "path_x,path_y,path_heading,path_s,path_t,path_segment_idx,"
-                    "v_ref0,kappa0,ref_yaw_rate0,left_wall0,right_wall0,"
-                    "local_wp0_x,local_wp0_y,local_wp0_heading,local_wp0_s,"
-                    "cmd_steer,cmd_accel,publish_speed_cmd,publish_accel_cmd,"
-                    "actual_steer,servo_raw,use_steering_feedback,odom_ros_time_ns\n");
-            fflush(g_solver_log_file);
-            printf("[MPC] Solver telemetry log: %s (every control callback)\n", log_path);
-
+            const int stride = atoi(log_stride);
+            if (stride > 0)
             {
-                char local_raceline_log_path[PATH_MAX];
-                int local_len = snprintf(local_raceline_log_path, sizeof(local_raceline_log_path),
-                                         "%s.local_raceline.csv", log_path);
-                if (local_len > 0 && (size_t)local_len < sizeof(local_raceline_log_path))
+                g_solver_log_stride = stride;
+            }
+        }
+
+        if (log_path == NULL || log_path[0] == '\0' ||
+            strcmp(log_path, "0") == 0 ||
+            strcmp(log_path, "false") == 0 ||
+            strcmp(log_path, "off") == 0)
+        {
+            printf("[MPC] Solver telemetry log: disabled (set MPC_SOLVER_LOG=/path/file.csv to enable)\n");
+            log_path = NULL;
+        }
+
+        if (log_path != NULL)
+        {
+            /* SECURITY: Environment variable is trusted deployment input.
+             * Log path must come from controlled local configuration sources. */
+
+            ensure_parent_directories(log_path);
+
+            g_solver_log_file = fopen(log_path, "w");
+            if (g_solver_log_file == NULL)
+            {
+                fprintf(stderr, "[MPC] WARNING: Failed to open solver log file %s\n", log_path);
+            }
+            else
+            {
+                fprintf(g_solver_log_file,
+                        "pose_ros_time_ns,unix_time_ns,solve_us,status,iterations,primal_residual,dual_residual,"
+                        "closest_wp,local_raceline_seq,local_raceline_ros_time_ns,local_raceline_count,local_raceline_length_m,odom_age_ms,"
+                        "pos_x,pos_y,heading,pose_cov_x,pose_cov_y,pose_cov_yaw,"
+                        "e_y,e_psi,vx,vy,omega,"
+                        "path_x,path_y,path_heading,path_s,path_t,path_segment_idx,"
+                        "v_ref0,kappa0,ref_yaw_rate0,left_wall0,right_wall0,"
+                        "local_wp0_x,local_wp0_y,local_wp0_heading,local_wp0_s,"
+                        "cmd_steer,cmd_accel,publish_speed_cmd,publish_accel_cmd,"
+                        "actual_steer,servo_raw,use_steering_feedback,odom_ros_time_ns\n");
+                fflush(g_solver_log_file);
+                printf("[MPC] Solver telemetry log: %s (stride=%d)\n", log_path, g_solver_log_stride);
+
                 {
-                    g_local_raceline_log_file = fopen(local_raceline_log_path, "w");
-                    if (g_local_raceline_log_file != NULL)
+                    const char *local_raceline_log_path = getenv("MPC_LOCAL_RACELINE_LOG");
+                    if (local_raceline_log_path != NULL && local_raceline_log_path[0] != '\0' &&
+                        strcmp(local_raceline_log_path, "0") != 0 &&
+                        strcmp(local_raceline_log_path, "false") != 0 &&
+                        strcmp(local_raceline_log_path, "off") != 0)
                     {
-                        fprintf(g_local_raceline_log_file,
-                                "local_raceline_seq,local_raceline_ros_time_ns,waypoint_index,waypoint_count,"
-                                "s_m,x_m,y_m,heading_rad,kappa_radpm,v_ref_mps,left_bound_m,right_bound_m\n");
-                        fflush(g_local_raceline_log_file);
-                        printf("[MPC] Local raceline snapshot log: %s\n", local_raceline_log_path);
+                        ensure_parent_directories(local_raceline_log_path);
+                        g_local_raceline_log_file = fopen(local_raceline_log_path, "w");
+                        if (g_local_raceline_log_file != NULL)
+                        {
+                            fprintf(g_local_raceline_log_file,
+                                    "local_raceline_seq,local_raceline_ros_time_ns,waypoint_index,waypoint_count,"
+                                    "s_m,x_m,y_m,heading_rad,kappa_radpm,v_ref_mps,left_bound_m,right_bound_m\n");
+                            fflush(g_local_raceline_log_file);
+                            printf("[MPC] Local raceline snapshot log: %s\n", local_raceline_log_path);
+                        }
+                        else
+                        {
+                            fprintf(stderr, "[MPC] WARNING: Failed to open local raceline log file %s\n",
+                                    local_raceline_log_path);
+                        }
                     }
                 }
-            }
 
-            {
-                char meta_path[PATH_MAX];
-                int meta_len = snprintf(meta_path, sizeof(meta_path), "%s.meta.txt", log_path);
-                if (meta_len > 0 && (size_t)meta_len < sizeof(meta_path))
                 {
-                    MpcConfiguration_t cfg = mpc_get_configuration();
-                    g_solver_meta_file = fopen(meta_path, "w");
-                    if (g_solver_meta_file != NULL)
+                    char meta_path[PATH_MAX];
+                    int meta_len = snprintf(meta_path, sizeof(meta_path), "%s.meta.txt", log_path);
+                    if (meta_len > 0 && (size_t)meta_len < sizeof(meta_path))
                     {
-                        fprintf(g_solver_meta_file, "log_path=%s\n", log_path);
-                        fprintf(g_solver_meta_file, "local_raceline_log_path=%s.local_raceline.csv\n", log_path);
-                        fprintf(g_solver_meta_file, "control_rate_hz=%.3f\n", (double)CONTROL_RATE_HZ);
-                        fprintf(g_solver_meta_file, "control_dt_s=%.6f\n", (double)CONTROL_DT_SECONDS);
-                        fprintf(g_solver_meta_file, "prediction_horizon=%d\n", PREDICTION_HORIZON);
-                        fprintf(g_solver_meta_file, "prediction_dt_s=%.6f\n", (double)cfg.time_step);
-                        fprintf(g_solver_meta_file, "weight_lat=%.9g\n", (double)cfg.weight_lateral_error);
-                        fprintf(g_solver_meta_file, "weight_heading=%.9g\n", (double)cfg.weight_heading_error);
-                        fprintf(g_solver_meta_file, "weight_velocity=%.9g\n", (double)cfg.weight_velocity);
-                        fprintf(g_solver_meta_file, "weight_lat_vel=%.9g\n", (double)cfg.weight_lateral_velocity);
-                        fprintf(g_solver_meta_file, "weight_yaw_rate=%.9g\n", (double)cfg.weight_yaw_rate);
-                        fprintf(g_solver_meta_file, "weight_steer_effort=%.9g\n", (double)cfg.weight_steering_effort);
-                        fprintf(g_solver_meta_file, "weight_accel_effort=%.9g\n", (double)cfg.weight_acceleration_effort);
-                        fprintf(g_solver_meta_file, "weight_steer_rate=%.9g\n", (double)cfg.weight_steering_rate);
-                        fprintf(g_solver_meta_file, "weight_accel_rate=%.9g\n", (double)cfg.weight_acceleration_rate);
-                        fprintf(g_solver_meta_file, "weight_delta_actual=%.9g\n", (double)cfg.weight_delta_actual);
-                        fprintf(g_solver_meta_file, "solver_max_iter=%u\n", (unsigned int)cfg.max_solver_iterations);
-                        fprintf(g_solver_meta_file, "solver_tol=%.9g\n", (double)cfg.solver_convergence_tolerance);
-                        fprintf(g_solver_meta_file, "vehicle_mass_kg=%.9g\n", (double)VP_MASS_KG);
-                        fprintf(g_solver_meta_file, "vehicle_iz_kgm2=%.9g\n", (double)VP_YAW_INERTIA_KGM2);
-                        fprintf(g_solver_meta_file, "vehicle_lf_m=%.9g\n", (double)VP_CG_TO_FRONT_AXLE_M);
-                        fprintf(g_solver_meta_file, "vehicle_lr_m=%.9g\n", (double)VP_CG_TO_REAR_AXLE_M);
-                        fprintf(g_solver_meta_file, "vehicle_hcg_m=%.9g\n", (double)VP_CG_HEIGHT_M);
-                        fprintf(g_solver_meta_file, "vehicle_steer_max_rad=%.9g\n", (double)VP_MAX_STEERING_RAD);
-                        fprintf(g_solver_meta_file, "vehicle_min_speed_mps=%.9g\n", (double)VP_MIN_VELOCITY_MPS);
-                        fprintf(g_solver_meta_file, "vehicle_max_speed_mps=%.9g\n", (double)VP_MAX_VELOCITY_MPS);
-                        fprintf(g_solver_meta_file, "servo_gain=%.9g\n", (double)STEERING_TO_SERVO_GAIN);
-                        fprintf(g_solver_meta_file, "servo_offset=%.9g\n", (double)STEERING_TO_SERVO_OFFSET);
-                        fprintf(g_solver_meta_file, "steering_rate_limit=%.9g\n", (double)STEERING_RATE_LIMIT);
-                        fprintf(g_solver_meta_file, "raceline_speed_margin_mps=%.9g\n", g_raceline_speed_margin_mps);
-                        fprintf(g_solver_meta_file, "use_solver_log_stride=%d\n", g_solver_log_stride);
-                        fflush(g_solver_meta_file);
+                        const char *local_raceline_log_path = getenv("MPC_LOCAL_RACELINE_LOG");
+                        MpcConfiguration_t cfg = mpc_get_configuration();
+                        g_solver_meta_file = fopen(meta_path, "w");
+                        if (g_solver_meta_file != NULL)
+                        {
+                            fprintf(g_solver_meta_file, "log_path=%s\n", log_path);
+                            fprintf(g_solver_meta_file, "local_raceline_log_path=%s\n",
+                                    local_raceline_log_path != NULL ? local_raceline_log_path : "");
+                            fprintf(g_solver_meta_file, "control_rate_hz=%.3f\n", (double)CONTROL_RATE_HZ);
+                            fprintf(g_solver_meta_file, "control_dt_s=%.6f\n", (double)CONTROL_DT_SECONDS);
+                            fprintf(g_solver_meta_file, "prediction_horizon=%d\n", PREDICTION_HORIZON);
+                            fprintf(g_solver_meta_file, "prediction_dt_s=%.6f\n", (double)cfg.time_step);
+                            fprintf(g_solver_meta_file, "weight_lat=%.9g\n", (double)cfg.weight_lateral_error);
+                            fprintf(g_solver_meta_file, "weight_heading=%.9g\n", (double)cfg.weight_heading_error);
+                            fprintf(g_solver_meta_file, "weight_velocity=%.9g\n", (double)cfg.weight_velocity);
+                            fprintf(g_solver_meta_file, "weight_lat_vel=%.9g\n", (double)cfg.weight_lateral_velocity);
+                            fprintf(g_solver_meta_file, "weight_yaw_rate=%.9g\n", (double)cfg.weight_yaw_rate);
+                            fprintf(g_solver_meta_file, "weight_steer_effort=%.9g\n", (double)cfg.weight_steering_effort);
+                            fprintf(g_solver_meta_file, "weight_accel_effort=%.9g\n", (double)cfg.weight_acceleration_effort);
+                            fprintf(g_solver_meta_file, "weight_steer_rate=%.9g\n", (double)cfg.weight_steering_rate);
+                            fprintf(g_solver_meta_file, "weight_accel_rate=%.9g\n", (double)cfg.weight_acceleration_rate);
+                            fprintf(g_solver_meta_file, "weight_delta_actual=%.9g\n", (double)cfg.weight_delta_actual);
+                            fprintf(g_solver_meta_file, "solver_max_iter=%u\n", (unsigned int)cfg.max_solver_iterations);
+                            fprintf(g_solver_meta_file, "solver_tol=%.9g\n", (double)cfg.solver_convergence_tolerance);
+                            fprintf(g_solver_meta_file, "vehicle_mass_kg=%.9g\n", (double)VP_MASS_KG);
+                            fprintf(g_solver_meta_file, "vehicle_iz_kgm2=%.9g\n", (double)VP_YAW_INERTIA_KGM2);
+                            fprintf(g_solver_meta_file, "vehicle_lf_m=%.9g\n", (double)VP_CG_TO_FRONT_AXLE_M);
+                            fprintf(g_solver_meta_file, "vehicle_lr_m=%.9g\n", (double)VP_CG_TO_REAR_AXLE_M);
+                            fprintf(g_solver_meta_file, "vehicle_hcg_m=%.9g\n", (double)VP_CG_HEIGHT_M);
+                            fprintf(g_solver_meta_file, "vehicle_steer_max_rad=%.9g\n", (double)VP_MAX_STEERING_RAD);
+                            fprintf(g_solver_meta_file, "vehicle_min_speed_mps=%.9g\n", (double)VP_MIN_VELOCITY_MPS);
+                            fprintf(g_solver_meta_file, "vehicle_max_speed_mps=%.9g\n", (double)VP_MAX_VELOCITY_MPS);
+                            fprintf(g_solver_meta_file, "servo_gain=%.9g\n", (double)STEERING_TO_SERVO_GAIN);
+                            fprintf(g_solver_meta_file, "servo_offset=%.9g\n", (double)STEERING_TO_SERVO_OFFSET);
+                            fprintf(g_solver_meta_file, "steering_rate_limit=%.9g\n", (double)STEERING_RATE_LIMIT);
+                            fprintf(g_solver_meta_file, "raceline_speed_margin_mps=%.9g\n", g_raceline_speed_margin_mps);
+                            fprintf(g_solver_meta_file, "use_solver_log_stride=%d\n", g_solver_log_stride);
+                            fflush(g_solver_meta_file);
+                        }
                     }
                 }
             }

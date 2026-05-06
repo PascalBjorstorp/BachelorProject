@@ -79,7 +79,7 @@
 /ackermann_cmd:
   history: keep_last
   depth: 100
-  reliability: reliable
+  reliability: best_effort
   durability: volatile
 
 /amcl_pose:
@@ -109,7 +109,7 @@
 /drive:
   history: keep_last
   depth: 100
-  reliability: reliable
+  reliability: best_effort
   durability: volatile
 
 /mpcc/predicted_path:
