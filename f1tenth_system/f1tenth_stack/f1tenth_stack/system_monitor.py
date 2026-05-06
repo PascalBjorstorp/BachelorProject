@@ -29,6 +29,7 @@ class SystemMonitor(Node):
         self.declare_parameter('drive_topic', '/drive')
         self.declare_parameter('monitor_vesc', True)
         self.declare_parameter('monitor_drive', True)
+        self.declare_parameter('drive_arm_on_first_message', True)
         self.declare_parameter('vesc_timeout_sec', 0.5)
         self.declare_parameter('drive_timeout_sec', 0.15)
         self.declare_parameter('startup_grace_sec', 5.0)
@@ -39,6 +40,8 @@ class SystemMonitor(Node):
         self.drive_topic = self.get_parameter('drive_topic').value
         self.monitor_vesc = bool(self.get_parameter('monitor_vesc').value)
         self.monitor_drive = bool(self.get_parameter('monitor_drive').value)
+        self.drive_arm_on_first_message = bool(
+            self.get_parameter('drive_arm_on_first_message').value)
         self.vesc_timeout_sec = float(self.get_parameter('vesc_timeout_sec').value)
         self.drive_timeout_sec = float(self.get_parameter('drive_timeout_sec').value)
         self.startup_grace_sec = float(self.get_parameter('startup_grace_sec').value)
@@ -136,6 +139,7 @@ class SystemMonitor(Node):
                 stale_msg='/drive command stream stopped',
                 ok_attr='drive_ok',
                 last_error_attr='last_drive_error_time',
+                arm_on_first_message=self.drive_arm_on_first_message,
             )
 
     def _check_topic(
@@ -150,11 +154,14 @@ class SystemMonitor(Node):
         stale_msg,
         ok_attr,
         last_error_attr,
+        arm_on_first_message=False,
     ):
         ok_state = getattr(self, ok_attr)
         last_error_time = getattr(self, last_error_attr)
 
         if last_time is None:
+            if arm_on_first_message:
+                return
             age = now - self.start_time
             if age < self.startup_grace_sec:
                 return

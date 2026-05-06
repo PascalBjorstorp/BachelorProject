@@ -255,6 +255,62 @@ static void signal_handler(int sig)
     }
 }
 
+/**
+ * @brief Print a minimal fatal-signal reason before the process disappears.
+ */
+static void fatal_signal_handler(int sig)
+{
+    const char *name = "UNKNOWN";
+    size_t name_len = 7U;
+    ssize_t ignored;
+
+    switch (sig)
+    {
+        case SIGSEGV: name = "SIGSEGV"; name_len = 7U; break;
+        case SIGABRT: name = "SIGABRT"; name_len = 7U; break;
+        case SIGFPE:  name = "SIGFPE";  name_len = 6U; break;
+        case SIGILL:  name = "SIGILL";  name_len = 6U; break;
+        case SIGBUS:  name = "SIGBUS";  name_len = 6U; break;
+        default: break;
+    }
+
+    ignored = write(STDERR_FILENO,
+                    "\n[MPC] FATAL: mpc_hardware_node received ",
+                    sizeof("\n[MPC] FATAL: mpc_hardware_node received ") - 1U);
+    (void)ignored;
+    ignored = write(STDERR_FILENO, name, name_len);
+    (void)ignored;
+    ignored = write(STDERR_FILENO,
+                    " and is exiting\n",
+                    sizeof(" and is exiting\n") - 1U);
+    (void)ignored;
+    _Exit(128 + sig);
+}
+
+/**
+ * @brief Publish /drive and log if ROS refuses the publish call.
+ */
+static void publish_drive_command_or_warn(const char *context)
+{
+    static unsigned long publish_error_count = 0;
+    rcl_ret_t pub_rc =
+        rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);
+
+    if (pub_rc != RCL_RET_OK)
+    {
+        publish_error_count++;
+        if (publish_error_count <= 5UL || (publish_error_count % 20UL) == 0UL)
+        {
+            fprintf(stderr,
+                    "[ROS2] ERROR: /drive publish failed in %s: rc=%d, error=%s\n",
+                    context,
+                    (int)pub_rc,
+                    rcl_get_error_string().str);
+        }
+        rcl_reset_error();
+    }
+}
+
 /*===========================================================================
  * Real-Time Setup (Jetson Xavier NX)
  *===========================================================================*/
@@ -969,8 +1025,7 @@ void ekf_pose_callback(const void *message_in)
         global_drive_message_buffer.drive.steering_angle = g_last_cmd_steer;
         global_drive_message_buffer.drive.speed = g_last_cmd_speed;
         global_drive_message_buffer.drive.acceleration = g_last_cmd_accel;
-        rcl_ret_t pub_rc __attribute__((unused)) =
-            rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);
+        publish_drive_command_or_warn("no_trajectory_fallback");
         return;
     }
 
@@ -1144,8 +1199,7 @@ void ekf_pose_callback(const void *message_in)
         g_last_cmd_speed = global_drive_message_buffer.drive.speed;
         g_last_cmd_accel = global_drive_message_buffer.drive.acceleration;
 
-        rcl_ret_t pub_rc __attribute__((unused)) =
-            rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);
+        publish_drive_command_or_warn("ekf_pose_callback");
     }
 
     /* Optional per-cycle solver telemetry (CSV) for post-drive analysis. */
@@ -1214,6 +1268,11 @@ int main(int argc, char *argv[])
     /* Install signal handlers for graceful shutdown */
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
+    signal(SIGSEGV, fatal_signal_handler);
+    signal(SIGABRT, fatal_signal_handler);
+    signal(SIGFPE, fatal_signal_handler);
+    signal(SIGILL, fatal_signal_handler);
+    signal(SIGBUS, fatal_signal_handler);
 
     rcl_ret_t rc;
 
