@@ -26,6 +26,7 @@ setup(
     entry_points={
         'console_scripts': [
             'throttle_interpolator = f1tenth_stack.throttle_interpolator:main',
+            'system_monitor = f1tenth_stack.system_monitor:main',
         ],
     },
 )

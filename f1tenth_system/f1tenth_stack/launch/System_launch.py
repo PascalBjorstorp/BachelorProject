@@ -56,6 +56,10 @@ def generate_launch_description():
     amcl_max_beams_arg = LaunchConfiguration('amcl_max_beams')
     amcl_use_kld_arg = LaunchConfiguration('amcl_use_kld')
     amcl_global_initialization_arg = LaunchConfiguration('amcl_global_initialization')
+    use_system_monitor_arg = LaunchConfiguration('use_system_monitor')
+    monitor_vesc_timeout_sec_arg = LaunchConfiguration('monitor_vesc_timeout_sec')
+    monitor_drive_timeout_sec_arg = LaunchConfiguration('monitor_drive_timeout_sec')
+    monitor_startup_grace_sec_arg = LaunchConfiguration('monitor_startup_grace_sec')
 
     return LaunchDescription([
 
@@ -156,6 +160,26 @@ def generate_launch_description():
             'amcl_global_initialization',
             default_value='false',
             description='Seed GPU AMCL particles globally along raceline with heading cone'),
+
+        DeclareLaunchArgument(
+            'use_system_monitor',
+            default_value='true',
+            description='Monitor VESC telemetry and /drive heartbeat'),
+
+        DeclareLaunchArgument(
+            'monitor_vesc_timeout_sec',
+            default_value='0.50',
+            description='Seconds without /sensors/core before VESC error'),
+
+        DeclareLaunchArgument(
+            'monitor_drive_timeout_sec',
+            default_value='0.15',
+            description='Seconds without /drive before command error'),
+
+        DeclareLaunchArgument(
+            'monitor_startup_grace_sec',
+            default_value='5.0',
+            description='Startup grace period before missing-topic errors'),
 
 
         # ------------------------------- LOCALIZATION NODES -------------------------------
@@ -322,6 +346,24 @@ def generate_launch_description():
                     ],
                     output='screen',
                     condition=IfCondition(old_odom_arg),
+                ),
+
+                Node(
+                    package='f1tenth_stack',
+                    executable='system_monitor',
+                    name='system_monitor',
+                    output='screen',
+                    parameters=[{
+                        'vesc_topic': '/sensors/core',
+                        'drive_topic': '/drive',
+                        'vesc_timeout_sec': ParameterValue(
+                            monitor_vesc_timeout_sec_arg, value_type=float),
+                        'drive_timeout_sec': ParameterValue(
+                            monitor_drive_timeout_sec_arg, value_type=float),
+                        'startup_grace_sec': ParameterValue(
+                            monitor_startup_grace_sec_arg, value_type=float),
+                    }],
+                    condition=IfCondition(use_system_monitor_arg),
                 ),
 
                 # ══════════════════════
