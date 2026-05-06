@@ -56,6 +56,11 @@ def generate_launch_description():
             default_value=default_localization_params,
             description='Path to f1tenth_localization parameter YAML',
         ),
+        DeclareLaunchArgument(
+            'amcl_global_initialization',
+            default_value='false',
+            description='Seed GPU AMCL particles globally along raceline with heading cone',
+        ),
 
         # Bringup launch arguments (kept aligned with bringup_launch.py).
         DeclareLaunchArgument(
@@ -110,6 +115,7 @@ def generate_launch_description():
         launch_arguments={
             'params_file': LaunchConfiguration('localization_params_file'),
             'use_sim_time': LaunchConfiguration('use_sim_time'),
+            'amcl_global_initialization': LaunchConfiguration('amcl_global_initialization'),
         }.items(),
     )
 

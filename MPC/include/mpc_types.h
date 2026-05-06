@@ -41,7 +41,7 @@
 /* Default MPC objective weights */
 #define WEIGHT_LAT_ERROR 600.0f                         /* Penalizes lateral tracking deviation from the reference path. */
 #define WEIGHT_HEADING 15.0f                            /* Penalizes heading misalignment relative to path tangent. */
-#define WEIGHT_VELOCITY 32.0f                           /* Penalizes deviation from target longitudinal speed profile. */
+#define WEIGHT_VELOCITY 50.0f                           /* Penalizes deviation from target longitudinal speed profile. */
 #define WEIGHT_LAT_VEL 10.0f                             /* Penalizes lateral velocity to suppress side-slip growth. */
 #define WEIGHT_YAW_RATE 1.5f                            /* Penalizes yaw-rate mismatch against reference curvature dynamics. */
 #define WEIGHT_STEER_EFFORT 1.25f                        /* Penalizes steering-rate effort to limit aggressive steering actuation. */

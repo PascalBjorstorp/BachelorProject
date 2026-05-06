@@ -3,8 +3,12 @@
 
 #include <chrono>
 #include <algorithm>
+#include <exception>
+#include <fstream>
+#include <sstream>
 #include <std_msgs/msg/float64.hpp>
 #include <std_msgs/msg/int32.hpp>
+#include <ament_index_cpp/get_package_share_directory.hpp>
 
 using namespace std::chrono_literals;
 
@@ -120,8 +124,23 @@ void AmclNode::declare_all_parameters() {
 
     // Resampling
     declare_parameter<double>("resample_threshold", 0.5);
+    declare_parameter<bool>("enable_recovery_injection", false);
+    declare_parameter<double>("recovery_injection_ratio", 0.05);
+    declare_parameter<bool>("enable_local_roughening", true);
+    declare_parameter<double>("local_roughening_ratio", 0.20);
+    declare_parameter<double>("local_roughening_xy_std_m", 0.12);
+    declare_parameter<double>("local_roughening_yaw_std_rad", 0.0872664626);
+    declare_parameter<double>("local_roughening_bad_log_weight_per_beam", -1.0);
+    declare_parameter<double>("local_roughening_max_cloud_std_m", 0.75);
 
     // Initial pose
+    declare_parameter<bool>("global_initialization", false);
+    declare_parameter<double>("global_heading_cone_rad", 0.5235987756);
+    declare_parameter<double>("global_track_margin_m", 0.15);
+    declare_parameter<double>("global_max_lateral_offset_m", 0.55);
+    declare_parameter<std::string>("global_heading_trajectory_file", "");
+    declare_parameter<std::string>("global_heading_trajectory_package", "f1tenth_planning");
+    declare_parameter<std::string>("global_heading_trajectory_rel_path", "trajectories/my_track_raceline.csv");
     declare_parameter<double>("initial_pose_x", 0.0);
     declare_parameter<double>("initial_pose_y", 0.0);
     declare_parameter<double>("initial_pose_a", 0.0);
@@ -219,6 +238,82 @@ bool AmclNode::interpolate_odom_pose(const rclcpp::Time& stamp,
     return false;
 }
 
+std::string AmclNode::resolve_global_heading_trajectory_file() const {
+    const std::string configured_path =
+        get_parameter("global_heading_trajectory_file").as_string();
+    if (!configured_path.empty()) {
+        return configured_path;
+    }
+
+    const std::string package =
+        get_parameter("global_heading_trajectory_package").as_string();
+    const std::string rel_path =
+        get_parameter("global_heading_trajectory_rel_path").as_string();
+    if (package.empty() || rel_path.empty()) {
+        return "";
+    }
+
+    try {
+        return ament_index_cpp::get_package_share_directory(package) + "/" + rel_path;
+    } catch (const std::exception& ex) {
+        RCLCPP_WARN(get_logger(),
+                    "Failed to resolve global heading trajectory from package '%s': %s",
+                    package.c_str(), ex.what());
+        return "";
+    }
+}
+
+std::vector<ParticleFilter::TrackHeadingPoint> AmclNode::load_global_heading_points() const {
+    std::vector<ParticleFilter::TrackHeadingPoint> points;
+    const std::string path = resolve_global_heading_trajectory_file();
+    if (path.empty()) {
+        return points;
+    }
+
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        RCLCPP_WARN(get_logger(), "Cannot open global heading trajectory: %s", path.c_str());
+        return points;
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        if (line.empty() || line[0] == '#') {
+            continue;
+        }
+
+        std::istringstream ss(line);
+        std::string token;
+        std::vector<double> values;
+        while (std::getline(ss, token, ',')) {
+            try {
+                values.push_back(std::stod(token));
+            } catch (...) {
+                values.clear();
+                break;
+            }
+        }
+
+        if (values.size() < 4) {
+            continue;
+        }
+
+        ParticleFilter::TrackHeadingPoint point;
+        point.x = static_cast<float>(values[1]);
+        point.y = static_cast<float>(values[2]);
+        point.yaw = static_cast<float>(values[3]);
+        if (values.size() >= 9) {
+            point.d_left = static_cast<float>(std::max(0.0, values[7]));
+            point.d_right = static_cast<float>(std::max(0.0, values[8]));
+        }
+        points.push_back(point);
+    }
+
+    RCLCPP_INFO(get_logger(), "Loaded %zu global heading points from %s",
+                points.size(), path.c_str());
+    return points;
+}
+
 // ─── Map callback ───────────────────────────────────────────────────
 void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     static size_t map_msg_count = 0;  // Static local — persists across calls
@@ -253,6 +348,23 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     pf_cfg.kld_bin_x         = get_parameter("kld_bin_x").as_double();
     pf_cfg.kld_bin_y         = get_parameter("kld_bin_y").as_double();
     pf_cfg.kld_bin_theta     = get_parameter("kld_bin_theta").as_double();
+    pf_cfg.enable_recovery_injection = get_parameter("enable_recovery_injection").as_bool();
+    pf_cfg.recovery_injection_ratio = get_parameter("recovery_injection_ratio").as_double();
+    pf_cfg.enable_local_roughening = get_parameter("enable_local_roughening").as_bool();
+    pf_cfg.local_roughening_ratio = get_parameter("local_roughening_ratio").as_double();
+    pf_cfg.local_roughening_xy_std_m = get_parameter("local_roughening_xy_std_m").as_double();
+    pf_cfg.local_roughening_yaw_std_rad = get_parameter("local_roughening_yaw_std_rad").as_double();
+    pf_cfg.local_roughening_bad_log_weight_per_beam =
+        get_parameter("local_roughening_bad_log_weight_per_beam").as_double();
+    pf_cfg.local_roughening_max_cloud_std_m =
+        get_parameter("local_roughening_max_cloud_std_m").as_double();
+    pf_cfg.global_initialization = get_parameter("global_initialization").as_bool();
+    pf_cfg.global_heading_cone_rad = get_parameter("global_heading_cone_rad").as_double();
+    pf_cfg.global_track_margin_m = get_parameter("global_track_margin_m").as_double();
+    pf_cfg.global_max_lateral_offset_m = get_parameter("global_max_lateral_offset_m").as_double();
+    if (pf_cfg.global_initialization || pf_cfg.enable_recovery_injection) {
+        pf_cfg.global_heading_points = load_global_heading_points();
+    }
     pf_cfg.init_x            = get_parameter("initial_pose_x").as_double();
     pf_cfg.init_y            = get_parameter("initial_pose_y").as_double();
     pf_cfg.init_a            = get_parameter("initial_pose_a").as_double();
@@ -281,17 +393,25 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     pf_.init(pf_cfg, mm_cfg, sm_cfg, map_);
 
     prediction_baseline_ready_ = false;
-    RCLCPP_INFO(get_logger(), "Particle filter initialised with %d particles", pf_cfg.num_particles);
+    RCLCPP_INFO(get_logger(), "Particle filter initialised with %d particles (%s)",
+                pf_cfg.num_particles,
+                pf_cfg.global_initialization ? "global" : "local");
 
     std_msgs::msg::Int32 particle_count_msg;
     particle_count_msg.data = pf_.num_particles();
     particle_count_pub_->publish(particle_count_msg);
 
-    // 6. Publish initial pose so EKF can bootstrap
-    auto init_est = pf_.get_estimate();
-    publish_pose(init_est, now());
-
-    RCLCPP_INFO(get_logger(), "Published initial pose: (%.2f, %.2f, %.2f)", init_est.x, init_est.y, init_est.theta);
+    // 6. Publish initial pose so EKF can bootstrap. For global particles, the
+    // weighted mean is not meaningful until scan updates have concentrated them.
+    if (!pf_cfg.global_initialization) {
+        auto init_est = pf_.get_estimate();
+        publish_pose(init_est, now());
+        RCLCPP_INFO(get_logger(), "Published initial pose: (%.2f, %.2f, %.2f)",
+                    init_est.x, init_est.y, init_est.theta);
+    } else {
+        RCLCPP_INFO(get_logger(),
+                    "Global particle initialization active; waiting for scans before publishing pose");
+    }
 }
 
 // ─── Odom callback ──────────────────────────────────────────────────

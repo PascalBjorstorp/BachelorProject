@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <unordered_set>
 
 namespace gpu_amcl_cpp {
@@ -34,6 +35,7 @@ void ParticleFilter::init(const Config& pf_cfg,
                           const MapProcessor& map) {
     cfg_ = pf_cfg;
     n_   = cfg_.num_particles;
+    map_ = &map;
 
     // ── GPU Buffer Allocations ──
     // Double-buffer for particles (A and B)
@@ -46,6 +48,7 @@ void ParticleFilter::init(const Config& pf_cfg,
     d_scratch_w_.allocate(cfg_.max_particles);
 
     // Pre-allocate range buffer based on max_beams config
+    sensor_max_beams_ = sm_cfg.max_beams;
     max_ranges_ = sm_cfg.max_beams + 1;
     d_ranges_.allocate(max_ranges_);
 
@@ -77,9 +80,12 @@ void ParticleFilter::init(const Config& pf_cfg,
     est_angles_.resize(cfg_.max_particles);
     est_weights_.resize(cfg_.max_particles);
 
-    // Initialize particles around starting pose
-    reinitialize(cfg_.init_x, cfg_.init_y, cfg_.init_a,
-                 cfg_.init_cov_xx, cfg_.init_cov_yy, cfg_.init_cov_aa);
+    if (cfg_.global_initialization) {
+        reinitialize_global(map);
+    } else {
+        reinitialize(cfg_.init_x, cfg_.init_y, cfg_.init_a,
+                     cfg_.init_cov_xx, cfg_.init_cov_yy, cfg_.init_cov_aa);
+    }
 
     // Initialize sub-components
     motion_.init(cfg_.max_particles, mm_cfg);
@@ -112,6 +118,267 @@ void ParticleFilter::reinitialize(double x, double y, double theta,
     // Upload to GPU
     CUDA_CHECK(cudaMemcpy(d_active_particles_, particles.data(), n_ * 3 * sizeof(float), cudaMemcpyHostToDevice));
     d_weights_.upload(weights.data(), n_);
+}
+
+float ParticleFilter::nearest_global_heading(float wx, float wy) const {
+    if (cfg_.global_heading_points.empty()) {
+        return static_cast<float>(cfg_.init_a);
+    }
+
+    const auto* best = &cfg_.global_heading_points.front();
+    float best_d2 = std::numeric_limits<float>::max();
+    for (const auto& point : cfg_.global_heading_points) {
+        const float dx = point.x - wx;
+        const float dy = point.y - wy;
+        const float d2 = dx * dx + dy * dy;
+        if (d2 < best_d2) {
+            best_d2 = d2;
+            best = &point;
+        }
+    }
+    return best->yaw;
+}
+
+bool ParticleFilter::sample_global_particle(const MapProcessor& map,
+                                            float& wx,
+                                            float& wy,
+                                            float& yaw) {
+    const auto normalize_yaw = [](float a) {
+        return std::atan2(std::sin(a), std::cos(a));
+    };
+
+    const float heading_cone = static_cast<float>(
+        std::max(0.0, cfg_.global_heading_cone_rad));
+    std::uniform_real_distribution<float> yaw_noise(-heading_cone, heading_cone);
+
+    if (!cfg_.global_heading_points.empty()) {
+        std::uniform_int_distribution<int> track_dist(
+            0, static_cast<int>(cfg_.global_heading_points.size()) - 1);
+        const float margin = static_cast<float>(std::max(0.0, cfg_.global_track_margin_m));
+        const float max_lateral = static_cast<float>(
+            std::max(0.0, cfg_.global_max_lateral_offset_m));
+        for (int attempt = 0; attempt < 50; ++attempt) {
+            const auto& point = cfg_.global_heading_points[
+                static_cast<size_t>(track_dist(rng_))];
+            float left_limit = std::max(0.0f, point.d_left - margin);
+            float right_limit = std::max(0.0f, point.d_right - margin);
+
+            if (left_limit <= 1e-3f && right_limit <= 1e-3f) {
+                left_limit = max_lateral;
+                right_limit = max_lateral;
+            } else if (max_lateral > 0.0f) {
+                left_limit = std::min(left_limit, max_lateral);
+                right_limit = std::min(right_limit, max_lateral);
+            }
+
+            std::uniform_real_distribution<float> lateral_dist(-right_limit, left_limit);
+            const float lateral = lateral_dist(rng_);
+            const float normal = point.yaw + 0.5f * static_cast<float>(M_PI);
+            wx = point.x + lateral * std::cos(normal);
+            wy = point.y + lateral * std::sin(normal);
+            yaw = point.yaw + yaw_noise(rng_);
+
+            int mx = 0;
+            int my = 0;
+            map.world_to_map(wx, wy, mx, my);
+            if (map.is_free(mx, my)) {
+                yaw = normalize_yaw(yaw);
+                return true;
+            }
+        }
+    }
+
+    const auto& free_cells = map.free_cells();
+    if (free_cells.empty()) {
+        return false;
+    }
+
+    std::uniform_int_distribution<int> cell_dist(
+        0, static_cast<int>(free_cells.size()) - 1);
+    const int flat_idx = free_cells[static_cast<size_t>(cell_dist(rng_))];
+    const int mx = flat_idx % map.width();
+    const int my = flat_idx / map.width();
+
+    double wx_d = 0.0;
+    double wy_d = 0.0;
+    map.map_to_world(mx, my, wx_d, wy_d);
+    wx = static_cast<float>(wx_d);
+    wy = static_cast<float>(wy_d);
+    yaw = normalize_yaw(nearest_global_heading(wx, wy) + yaw_noise(rng_));
+    return true;
+}
+
+void ParticleFilter::reinitialize_global(const MapProcessor& map) {
+    if (map.free_cells().empty()) {
+        std::fprintf(stderr,
+                     "[gpu_amcl_cpp][ParticleFilter] WARNING: no free cells for global initialization; "
+                     "falling back to configured initial pose.\n");
+        reinitialize(cfg_.init_x, cfg_.init_y, cfg_.init_a,
+                     cfg_.init_cov_xx, cfg_.init_cov_yy, cfg_.init_cov_aa);
+        return;
+    }
+
+    n_ = cfg_.num_particles;
+
+    std::vector<float> particles(n_ * 3);
+    std::vector<float> weights(n_, 1.0f / n_);
+
+    if (cfg_.global_heading_points.empty()) {
+        std::fprintf(stderr,
+                     "[gpu_amcl_cpp][ParticleFilter] WARNING: global initialization has no heading path; "
+                     "using initial_pose_a plus heading cone.\n");
+    }
+
+    for (int i = 0; i < n_; ++i) {
+        float wx = 0.0f;
+        float wy = 0.0f;
+        float yaw = 0.0f;
+
+        if (!sample_global_particle(map, wx, wy, yaw)) {
+            wx = static_cast<float>(cfg_.init_x);
+            wy = static_cast<float>(cfg_.init_y);
+            yaw = static_cast<float>(cfg_.init_a);
+        }
+
+        particles[i * 3 + 0] = wx;
+        particles[i * 3 + 1] = wy;
+        particles[i * 3 + 2] = yaw;
+    }
+
+    CUDA_CHECK(cudaMemcpy(
+        d_active_particles_, particles.data(), n_ * 3 * sizeof(float), cudaMemcpyHostToDevice));
+    d_weights_.upload(weights.data(), n_);
+}
+
+void ParticleFilter::inject_recovery_particles() {
+    if (!cfg_.enable_recovery_injection ||
+        cfg_.recovery_injection_ratio <= 0.0 ||
+        n_ <= 0 ||
+        map_ == nullptr ||
+        !map_->is_loaded() ||
+        cfg_.global_heading_points.empty()) {
+        return;
+    }
+
+    const double ratio = std::clamp(cfg_.recovery_injection_ratio, 0.0, 1.0);
+    int inject_count = static_cast<int>(std::round(ratio * static_cast<double>(n_)));
+    inject_count = std::clamp(inject_count, 1, n_);
+
+    std::vector<float> particles(static_cast<size_t>(inject_count) * 3);
+    int filled = 0;
+    for (int i = 0; i < inject_count; ++i) {
+        float wx = 0.0f;
+        float wy = 0.0f;
+        float yaw = 0.0f;
+        if (!sample_global_particle(*map_, wx, wy, yaw)) {
+            continue;
+        }
+
+        particles[filled * 3 + 0] = wx;
+        particles[filled * 3 + 1] = wy;
+        particles[filled * 3 + 2] = yaw;
+        ++filled;
+    }
+
+    if (filled <= 0) {
+        return;
+    }
+
+    CUDA_CHECK(cudaMemcpyAsync(
+        d_active_particles_ + (n_ - filled) * 3,
+        particles.data(),
+        static_cast<size_t>(filled) * 3 * sizeof(float),
+        cudaMemcpyHostToDevice,
+        stream_.get()));
+    CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
+}
+
+void ParticleFilter::roughen_local_particles() {
+    if (!cfg_.enable_local_roughening ||
+        !last_scan_confidence_bad_ ||
+        cfg_.local_roughening_ratio <= 0.0 ||
+        cfg_.local_roughening_xy_std_m <= 0.0 ||
+        cfg_.local_roughening_yaw_std_rad <= 0.0 ||
+        n_ <= 0 ||
+        map_ == nullptr ||
+        !map_->is_loaded()) {
+        return;
+    }
+
+    CUDA_CHECK(cudaMemcpyAsync(h_particles_pinned_, d_active_particles_,
+                               n_ * 3 * sizeof(float),
+                               cudaMemcpyDeviceToHost, stream_.get()));
+    CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
+
+    double mean_x = 0.0;
+    double mean_y = 0.0;
+    double sin_sum = 0.0;
+    double cos_sum = 0.0;
+    for (int i = 0; i < n_; ++i) {
+        const float x = h_particles_pinned_[i * 3 + 0];
+        const float y = h_particles_pinned_[i * 3 + 1];
+        const float yaw = h_particles_pinned_[i * 3 + 2];
+        mean_x += x;
+        mean_y += y;
+        sin_sum += std::sin(yaw);
+        cos_sum += std::cos(yaw);
+    }
+    mean_x /= static_cast<double>(n_);
+    mean_y /= static_cast<double>(n_);
+    const double mean_yaw = std::atan2(sin_sum, cos_sum);
+
+    double var_xy = 0.0;
+    for (int i = 0; i < n_; ++i) {
+        const double dx = static_cast<double>(h_particles_pinned_[i * 3 + 0]) - mean_x;
+        const double dy = static_cast<double>(h_particles_pinned_[i * 3 + 1]) - mean_y;
+        var_xy += dx * dx + dy * dy;
+    }
+    const double cloud_std = std::sqrt(var_xy / static_cast<double>(n_));
+    if (cloud_std > cfg_.local_roughening_max_cloud_std_m) {
+        return;
+    }
+
+    const double ratio = std::clamp(cfg_.local_roughening_ratio, 0.0, 1.0);
+    int roughen_count = static_cast<int>(std::round(ratio * static_cast<double>(n_)));
+    roughen_count = std::clamp(roughen_count, 1, n_);
+
+    std::normal_distribution<float> xy_noise(
+        0.0f, static_cast<float>(cfg_.local_roughening_xy_std_m));
+    std::normal_distribution<float> yaw_noise(
+        0.0f, static_cast<float>(cfg_.local_roughening_yaw_std_rad));
+
+    std::vector<float> particles(static_cast<size_t>(roughen_count) * 3);
+    int filled = 0;
+    for (int attempt = 0; attempt < roughen_count * 10 && filled < roughen_count; ++attempt) {
+        const float wx = static_cast<float>(mean_x) + xy_noise(rng_);
+        const float wy = static_cast<float>(mean_y) + xy_noise(rng_);
+        const float yaw_raw = static_cast<float>(mean_yaw) + yaw_noise(rng_);
+        const float yaw = std::atan2(std::sin(yaw_raw), std::cos(yaw_raw));
+
+        int mx = 0;
+        int my = 0;
+        map_->world_to_map(wx, wy, mx, my);
+        if (!map_->is_free(mx, my)) {
+            continue;
+        }
+
+        particles[filled * 3 + 0] = wx;
+        particles[filled * 3 + 1] = wy;
+        particles[filled * 3 + 2] = yaw;
+        ++filled;
+    }
+
+    if (filled <= 0) {
+        return;
+    }
+
+    CUDA_CHECK(cudaMemcpyAsync(
+        d_active_particles_ + (n_ - filled) * 3,
+        particles.data(),
+        static_cast<size_t>(filled) * 3 * sizeof(float),
+        cudaMemcpyHostToDevice,
+        stream_.get()));
+    CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
 }
 
 // ─── Predict ────────────────────────────────────────────────────────
@@ -156,11 +423,34 @@ void ParticleFilter::update(const float* ranges, int num_ranges,
     // After normalize, d_scratch_w_ holds the normalised weights — swap.
     std::swap(d_weights_, d_scratch_w_); // Pointer swap, no copy, no sync needed. d_weights_ now has normalised weights for resampling.
 
+    update_scan_confidence(num_ranges);
+
     // Conditionally resample.
     check_resample();
 }
 
 // ─── Resampling ─────────────────────────────────────────────────────
+void ParticleFilter::update_scan_confidence(int num_ranges) {
+    last_scan_confidence_bad_ = false;
+    last_scan_log_weight_per_beam_ = 0.0;
+    if (!cfg_.enable_local_roughening || num_ranges <= 0 || sensor_max_beams_ <= 0) {
+        return;
+    }
+
+    float max_log_weight = 0.0f;
+    CUDA_CHECK(cudaMemcpyAsync(&max_log_weight, d_max_val_, sizeof(float),
+                               cudaMemcpyDeviceToHost, stream_.get()));
+    CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
+
+    const int step = std::max(1, num_ranges / sensor_max_beams_);
+    const int beam_count = std::max(1, (num_ranges + step - 1) / step);
+    last_scan_log_weight_per_beam_ =
+        static_cast<double>(max_log_weight) / static_cast<double>(beam_count);
+    last_scan_confidence_bad_ =
+        std::isfinite(last_scan_log_weight_per_beam_) &&
+        last_scan_log_weight_per_beam_ < cfg_.local_roughening_bad_log_weight_per_beam;
+}
+
 void ParticleFilter::check_resample() {
     // Compute N_eff = 1 / Σ(w_i²)
     // - If all weights equal (w=1/N): N_eff = N (perfect distribution)
@@ -169,7 +459,7 @@ void ParticleFilter::check_resample() {
         d_weights_.ptr(), n_, stream_.get());
 
     // E.g., threshold=0.5 means resample when < 50% effective particles
-    if (n_eff < cfg_.resample_threshold * n_) {
+    if (n_eff < cfg_.resample_threshold * n_ || last_scan_confidence_bad_) {
         // If KLD enabled: compute optimal particle count adaptively
         int target = cfg_.use_kld ? compute_kld_target() : n_;
         do_resample(target);
@@ -201,6 +491,9 @@ void ParticleFilter::do_resample(int target_n) {
     // Pointer swap — O(1), no GPU memory copy
     // The previously inactive buffer is now active
     d_active_particles_ = inactive;
+
+    roughen_local_particles();
+    inject_recovery_particles();
 }
 
 int ParticleFilter::compute_kld_target() {

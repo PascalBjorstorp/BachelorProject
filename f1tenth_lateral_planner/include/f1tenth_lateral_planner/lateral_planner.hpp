@@ -40,8 +40,8 @@ struct OpponentState
 {
   double x       = 0.0;   ///< Body center x [m]
   double y       = 0.0;   ///< Body center y [m]
-  double back_x  = 0.0;   ///< Detected rear-point x [m]
-  double back_y  = 0.0;   ///< Detected rear-point y [m]
+  double back_x  = 0.0;   ///< Estimated rear-point x [m]
+  double back_y  = 0.0;   ///< Estimated rear-point y [m]
   double yaw     = 0.0;   ///< Body heading [rad]
   double width   = 0.3;   ///< Fixed body width [m]
   double length  = 0.5;   ///< Fixed body length [m]
@@ -83,6 +83,7 @@ public:
     int    path_start_offset_points = 0; ///< Start this many waypoints ahead of nearest
     double pass_complete_margin  = 2.0;  ///< Car must be this far past opponent to unlock [m]
     double window_lead_ratio     = 0.7;  ///< Fraction of window before the opponent [0..1]
+    double max_avoidance_kappa   = 1.2;  ///< Max generated avoidance curvature [1/m], <=0 disables
     double opponent_length_m     = 0.58; ///< Known opponent length [m]
     double clearance_tolerance_m = 0.15; ///< Extra clearance to walls/opponent [m]
     double planning_tolerance_scale = 2.0;  ///< Multiplier for line-generation tolerance
@@ -149,6 +150,9 @@ private:
 
   /// Forward arc distance from s_from to s_to on a closed track [m].
   double wrapForwardDistance(double s_from, double s_to) const;
+
+  /// Max absolute curvature over a wrapped arc on modified_raceline_.
+  double maxAbsCurvatureBetween(double s_start, double s_end) const;
 
   /// Signed opponent lateral offset relative to waypoint tangent normal [m].
   double lateralOffsetAtWaypoint(size_t idx, double x, double y) const;

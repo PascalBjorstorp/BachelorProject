@@ -91,6 +91,7 @@ private:
     params.path_start_offset_points = PATH_START_OFFSET_POINTS;
     params.pass_complete_margin  = PASS_COMPLETE_MARGIN_M;
     params.window_lead_ratio     = WINDOW_LEAD_RATIO;
+    params.max_avoidance_kappa   = MAX_AVOIDANCE_KAPPA;
     params.opponent_length_m     = OPPONENT_LENGTH_M;
     params.clearance_tolerance_m = CLEARANCE_TOLERANCE_M;
     params.planning_tolerance_scale = PLANNING_TOLERANCE_SCALE;
@@ -114,7 +115,7 @@ private:
 
     RCLCPP_INFO(get_logger(), "  Avoidance enabled: %s", avoidance_enabled_ ? "true" : "false");
     map_frame_ = FRAME_MAP;
-    laser_frame_ = FRAME_BASE_LINK;
+    laser_frame_ = FRAME_LASER;
   }
 
   // ── Subscribers ───────────────────────────────────────────────────

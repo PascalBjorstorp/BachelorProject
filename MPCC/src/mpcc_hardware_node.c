@@ -69,7 +69,7 @@ static double g_watchdog_timeout_sec = 0.5;
 
 /* Nominal control cadence used for rate penalties when not adapting online. */
 static double g_nominal_control_dt_sec = 1.0 / MPCC_CONTROL_RATE_HZ;
-static int g_adapt_cross_call_scale = 0;
+static int g_adapt_cross_call_scale = 1;
 
 /* -------------------------------------------------------------------------- */
 /* VESC Servo Conversion Parameters                                            */
@@ -122,6 +122,8 @@ static float g_prev_delta_cmd = 0.0f;
 static float g_prev_speed_cmd = 0.0f;
 static float g_prev_ax_cmd = 0.0f;
 static int g_publish_speed_command = 1;
+static int g_use_local_raceline = 0;
+static int g_raceline_sub_ok = 0;
 
 /* ROS entities */
 static rcl_subscription_t g_odom_sub;
@@ -628,7 +630,7 @@ static void raceline_callback(const void *msg_in)
 
     ref_path.total_length = ref_path.points[n - 1].s_ref;
     /* /local_raceline is a rolling lookahead segment, not a closed lap. */
-    ref_path.is_closed = 0;
+    ref_path.is_closed = 1;
 
     /* ---------------------------------------------------------------
      * Track bounds: look up from the CSV-loaded path (g_reference_path)
@@ -1220,6 +1222,11 @@ static void read_runtime_environment(void)
     {
         g_publish_speed_command = (atoi(value) != 0);
     }
+
+    if ((value = getenv("MPCC_USE_LOCAL_RACELINE")) != NULL)
+    {
+        g_use_local_raceline = (atoi(value) != 0);
+    }
 }
 
 static void configure_mpcc_from_environment(void)
@@ -1477,10 +1484,11 @@ int main(int argc, const char *argv[])
              MPCC_ODOM_MAX_ABS_VY_MPS,
              MPCC_ODOM_MAX_ABS_YAW_RATE_RADPS);
         }
-        printf("[MPCC] EKF-driven mode | solve gate: fresh pose + fresh odom | nominal_dt: %.1f ms | cross_call: %s | trajectory: %s\n",
+        printf("[MPCC] EKF-driven mode | solve gate: fresh pose + fresh odom | nominal_dt: %.1f ms | cross_call: %s | trajectory: %s | local_raceline: %s\n",
             g_nominal_control_dt_sec * 1000.0,
             g_adapt_cross_call_scale ? "adaptive" : "fixed",
-            g_trajectory_file);
+            g_trajectory_file,
+            g_use_local_raceline ? "enabled" : "disabled");
 
     rcl_allocator_t allocator = rcl_get_default_allocator();
 
@@ -1569,15 +1577,26 @@ int main(int argc, const char *argv[])
         g_servo_sub_ok = 1;
     }
 
-    /* Raceline subscriber for dynamic path updates */
-    if (rclc_subscription_init_default(
-            &g_raceline_sub,
-            &node,
-            ROSIDL_GET_MSG_TYPE_SUPPORT(nav_msgs, msg, Path),
-            "/local_raceline") != RCL_RET_OK)
+    if (g_use_local_raceline)
     {
-        fprintf(stderr, "[MPCC] WARNING: raceline subscription init failed\n");
-        rcl_reset_error();
+        /* Optional local segment override for the CSV reference path. */
+        if (rclc_subscription_init_default(
+                &g_raceline_sub,
+                &node,
+                ROSIDL_GET_MSG_TYPE_SUPPORT(nav_msgs, msg, Path),
+                "/local_raceline") != RCL_RET_OK)
+        {
+            fprintf(stderr, "[MPCC] WARNING: raceline subscription init failed\n");
+            rcl_reset_error();
+        }
+        else
+        {
+            g_raceline_sub_ok = 1;
+        }
+    }
+    else
+    {
+        printf("[MPCC] Using CSV trajectory only; ignoring /local_raceline updates\n");
     }
 
     if (rclc_publisher_init_default(
@@ -1717,7 +1736,8 @@ int main(int argc, const char *argv[])
         }
     }
 
-    if (rclc_executor_add_subscription(
+    if (g_raceline_sub_ok &&
+        rclc_executor_add_subscription(
             &executor,
             &g_raceline_sub,
             &g_raceline_msg,
@@ -1726,6 +1746,7 @@ int main(int argc, const char *argv[])
     {
         fprintf(stderr, "[MPCC] WARNING: add raceline subscription failed\n");
         rcl_reset_error();
+        g_raceline_sub_ok = 0;
     }
 
     printf("[MPCC] Spinning hardware node...\n");
@@ -1738,7 +1759,10 @@ int main(int argc, const char *argv[])
         rc_cleanup = rcl_subscription_fini(&g_pose_sub, &node);
         rc_cleanup = rcl_subscription_fini(&g_imu_sub, &node);
         rc_cleanup = rcl_subscription_fini(&g_servo_sub, &node);
-        rc_cleanup = rcl_subscription_fini(&g_raceline_sub, &node);
+        if (g_raceline_sub_ok)
+        {
+            rc_cleanup = rcl_subscription_fini(&g_raceline_sub, &node);
+        }
         rc_cleanup = rcl_publisher_fini(&g_drive_pub, &node);
         rc_cleanup = rcl_publisher_fini(&g_predicted_path_pub, &node);
         rc_cleanup = rcl_publisher_fini(&g_raceline_pub, &node);
