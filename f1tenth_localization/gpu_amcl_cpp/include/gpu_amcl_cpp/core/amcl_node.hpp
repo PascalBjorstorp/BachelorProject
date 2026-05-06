@@ -42,6 +42,8 @@ private:
     void declare_all_parameters();
     void load_parameters();
     void publish_pose(const PoseEstimate& est, const rclcpp::Time& stamp);
+    std::string resolve_global_heading_trajectory_file() const;
+    std::vector<ParticleFilter::TrackHeadingPoint> load_global_heading_points() const;
     void push_odom_sample(const rclcpp::Time& stamp,
                           double x,
                           double y,

@@ -18,6 +18,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Hybrid ament_cmake + Python package
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(nav2_amcl REQUIRED)
 
@@ -99,7 +100,7 @@ if(HAS_CUDA)
     CUDA::curand
   )
   ament_target_dependencies(gpu_amcl_cpp_lib
-    rclcpp sensor_msgs nav_msgs geometry_msgs tf2_ros tf2_geometry_msgs std_msgs
+    ament_index_cpp rclcpp sensor_msgs nav_msgs geometry_msgs tf2_ros tf2_geometry_msgs std_msgs
   )
 
   # AMCL executable

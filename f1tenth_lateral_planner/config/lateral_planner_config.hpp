@@ -25,6 +25,7 @@
 #define WINDOW_LEAD_RATIO 0.5
 #define MAX_LATERAL_SHIFT_M 0.8
 #define PASS_COMPLETE_MARGIN_M 2.0
+#define MAX_AVOIDANCE_KAPPA 1.2
 
 // Curvature-aware speed regulation for modified raceline
 // Formula mirrors pure pursuit style:
@@ -37,7 +38,7 @@
 #define MIN_REGULATED_SPEED_MPS 0.30
 
 // Published path extent
-#define LOOKAHEAD_POINTS 2050
+#define LOOKAHEAD_POINTS 200
 #define PATH_START_OFFSET_POINTS 0
 
 // Node behavior

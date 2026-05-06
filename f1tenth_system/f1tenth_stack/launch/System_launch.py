@@ -55,6 +55,7 @@ def generate_launch_description():
     amcl_max_particles_arg = LaunchConfiguration('amcl_max_particles')
     amcl_max_beams_arg = LaunchConfiguration('amcl_max_beams')
     amcl_use_kld_arg = LaunchConfiguration('amcl_use_kld')
+    amcl_global_initialization_arg = LaunchConfiguration('amcl_global_initialization')
 
     return LaunchDescription([
 
@@ -151,6 +152,11 @@ def generate_launch_description():
             default_value='false',
             description='Enable GPU AMCL KLD adaptive particle sampling'),
 
+        DeclareLaunchArgument(
+            'amcl_global_initialization',
+            default_value='false',
+            description='Seed GPU AMCL particles globally along raceline with heading cone'),
+
 
         # ------------------------------- LOCALIZATION NODES -------------------------------
 
@@ -183,6 +189,15 @@ def generate_launch_description():
             parameters=[
                 localization_params_file_arg,
                 {'use_sim_time': use_sim_time_arg},
+                {
+                    'num_particles': ParameterValue(amcl_num_particles_arg, value_type=int),
+                    'min_particles': ParameterValue(amcl_min_particles_arg, value_type=int),
+                    'max_particles': ParameterValue(amcl_max_particles_arg, value_type=int),
+                    'max_beams': ParameterValue(amcl_max_beams_arg, value_type=int),
+                    'use_kld_sampling': ParameterValue(amcl_use_kld_arg, value_type=bool),
+                    'global_initialization': ParameterValue(
+                        amcl_global_initialization_arg, value_type=bool),
+                },
             ],
             condition=IfCondition(use_localization_arg),
         ),
