@@ -1,6 +1,7 @@
 // Copyright (c) 2025 Pascal — MIT License
 #include "f1tenth_lidar/scan_splitter_node.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <queue>
@@ -57,9 +58,14 @@ ScanSplitterNode::ScanSplitterNode(const rclcpp::NodeOptions & options)
   RCLCPP_INFO(this->get_logger(), "  Splitting enabled: %s", enable_splitting_ ? "true" : "false");
   RCLCPP_INFO(this->get_logger(), "  Input:  %s", scan_topic_.c_str());
   RCLCPP_INFO(this->get_logger(), "  Obstacles: %s", obstacles_topic_.c_str());
-  RCLCPP_INFO(this->get_logger(), "  Threshold: %.2f m", obstacle_threshold_);
+  RCLCPP_INFO(this->get_logger(), "  Wall reject radius: %.2f m", obstacle_threshold_);
+  RCLCPP_INFO(this->get_logger(), "  Wall tolerance band: %.2f m", wall_tolerance_);
   RCLCPP_INFO(this->get_logger(), "  Min cluster size: %d beams", min_cluster_size_);
   RCLCPP_INFO(this->get_logger(), "  Max cluster gap: %d beams", max_cluster_gap_beams_);
+  RCLCPP_INFO(this->get_logger(), "  Max obstacle cluster width: %.2f m", max_cluster_width_);
+  RCLCPP_INFO(this->get_logger(), "  Raycast splitting: %s", enable_raycast_splitting_ ? "true" : "false");
+  RCLCPP_INFO(this->get_logger(), "  Occlusion threshold: %.2f m", occlusion_threshold_);
+  RCLCPP_INFO(this->get_logger(), "  Raycast wall hit tolerance: %.2f m", raycast_wall_hit_tolerance_);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -130,11 +136,78 @@ void ScanSplitterNode::map_callback(
   map_origin_x_   = msg->info.origin.position.x;
   map_origin_y_   = msg->info.origin.position.y;
 
+  occupied_map_.assign(msg->data.size(), 0);
+  for (size_t i = 0; i < msg->data.size(); ++i) {
+    occupied_map_[i] = (static_cast<int8_t>(msg->data[i]) >= 50) ? 1 : 0;
+  }
+
   compute_distance_field(*msg);
 
   map_ready_ = true;
   RCLCPP_INFO(this->get_logger(),
     "Map received: %d×%d (res=%.3f m)", map_width_, map_height_, map_resolution_);
+}
+
+float ScanSplitterNode::distance_to_wall(float wx, float wy) const
+{
+  if (distance_field_.empty() || map_width_ <= 0 || map_height_ <= 0 || map_resolution_ <= 0.0) {
+    return std::numeric_limits<float>::infinity();
+  }
+
+  const float inv_res = 1.0f / static_cast<float>(map_resolution_);
+  const int px = static_cast<int>(std::floor((wx - static_cast<float>(map_origin_x_)) * inv_res));
+  const int py = static_cast<int>(std::floor((wy - static_cast<float>(map_origin_y_)) * inv_res));
+  if (px < 0 || px >= map_width_ || py < 0 || py >= map_height_) {
+    return std::numeric_limits<float>::infinity();
+  }
+
+  return distance_field_[static_cast<size_t>(py * map_width_ + px)];
+}
+
+float ScanSplitterNode::raycast_wall_range(
+  float laser_x,
+  float laser_y,
+  float world_angle,
+  float range_min,
+  float range_max) const
+{
+  if (distance_field_.empty() || map_width_ <= 0 || map_height_ <= 0 || map_resolution_ <= 0.0) {
+    return std::numeric_limits<float>::infinity();
+  }
+
+  const float max_config_range = static_cast<float>(raycast_max_range_);
+  const float max_range = max_config_range > 0.0f ? std::min(range_max, max_config_range) : range_max;
+  const float configured_step = static_cast<float>(raycast_step_);
+  const float step = configured_step > 0.0f ?
+    configured_step :
+    std::max(0.5f * static_cast<float>(map_resolution_), 0.01f);
+  const float start = std::max(range_min, step);
+  const float c = std::cos(world_angle);
+  const float s = std::sin(world_angle);
+  const float inv_res = 1.0f / static_cast<float>(map_resolution_);
+  const float ox = static_cast<float>(map_origin_x_);
+  const float oy = static_cast<float>(map_origin_y_);
+  const float wall_hit_tolerance = static_cast<float>(
+    std::max(0.0, raycast_wall_hit_tolerance_));
+
+  for (float r = start; r <= max_range; r += step) {
+    const float wx = laser_x + r * c;
+    const float wy = laser_y + r * s;
+    const int px = static_cast<int>(std::floor((wx - ox) * inv_res));
+    const int py = static_cast<int>(std::floor((wy - oy) * inv_res));
+    if (px < 0 || px >= map_width_ || py < 0 || py >= map_height_) {
+      return std::numeric_limits<float>::infinity();
+    }
+
+    const size_t idx = static_cast<size_t>(py * map_width_ + px);
+    if ((!occupied_map_.empty() && occupied_map_[idx] != 0) ||
+        distance_field_[idx] <= wall_hit_tolerance)
+    {
+      return r;
+    }
+  }
+
+  return std::numeric_limits<float>::infinity();
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -201,15 +274,14 @@ void ScanSplitterNode::scan_callback(
   const float * __restrict__ ranges = scan->ranges.data();
   const float range_min = scan->range_min;
   const float range_max = scan->range_max;
-  const float inv_res   = 1.0f / static_cast<float>(map_resolution_);
-  const float ox        = static_cast<float>(map_origin_x_);
-  const float oy        = static_cast<float>(map_origin_y_);
-  const int w           = map_width_;
-  const int h           = map_height_;
   const float threshold = static_cast<float>(obstacle_threshold_);
-  const float * __restrict__ df = distance_field_.data();
+  const float wall_tolerance = static_cast<float>(wall_tolerance_);
+  const float occlusion_threshold = static_cast<float>(occlusion_threshold_);
+  const float corrected_x = laser_x;
+  const float corrected_y = laser_y;
+  const float corrected_yaw = laser_yaw;
 
-  // ── Classify beams by map distance ─────────────────────────────────
+  // ── Classify beams using TF pose only; no local scan-to-map correction ──
   for (size_t i = 0; i < n; ++i) {
     const float r = ranges[i];
 
@@ -221,29 +293,44 @@ void ScanSplitterNode::scan_callback(
       continue;
     }
 
-    const float world_angle = angles_[i] + laser_yaw;
-    const float ex = laser_x + r * std::cos(world_angle);
-    const float ey = laser_y + r * std::sin(world_angle);
+    const float world_angle = angles_[i] + corrected_yaw;
+    const float ex = corrected_x + r * std::cos(world_angle);
+    const float ey = corrected_y + r * std::sin(world_angle);
+    const float dist_to_wall = distance_to_wall(ex, ey);
 
-    // Map pixel coordinates
-    int px = static_cast<int>((ex - ox) * inv_res);
-    int py = static_cast<int>((ey - oy) * inv_res);
-
-    // Ignore beams whose endpoints lie outside map bounds.
-    if (px < 0 || px >= w || py < 0 || py >= h) {
+    if (std::isfinite(dist_to_wall) && dist_to_wall <= wall_tolerance) {
+      is_obstacle_[i] = false;
       continue;
     }
 
-    // Distance-field lookup
-    const float dist_to_wall = df[py * w + px];
-    if (dist_to_wall > threshold) {
-      is_obstacle_[i] = true;
+    bool obstacle = false;
+    bool classified_by_raycast = false;
+
+    if (enable_raycast_splitting_) {
+      const float expected_wall_range = raycast_wall_range(
+        corrected_x, corrected_y, world_angle, range_min, range_max);
+      if (std::isfinite(expected_wall_range)) {
+        const float occlusion_depth = expected_wall_range - r;
+        obstacle =
+          std::isfinite(dist_to_wall) &&
+          dist_to_wall > wall_tolerance &&
+          occlusion_depth > occlusion_threshold;
+      }
+      classified_by_raycast = true;
     }
+
+    if (!classified_by_raycast) {
+      obstacle = std::isfinite(dist_to_wall) && dist_to_wall > threshold;
+    }
+
+    is_obstacle_[i] = obstacle;
   }
 
   // ── Cluster filtering ─────────────────────────────────────────────
-  if (min_cluster_size_ > 1) {
-    filter_clusters(is_obstacle_, min_cluster_size_, max_cluster_gap_beams_);
+  if (min_cluster_size_ > 1 || max_cluster_width_ > 0.0) {
+    filter_clusters(
+      is_obstacle_, scan->ranges, angles_,
+      min_cluster_size_, max_cluster_gap_beams_, max_cluster_width_);
   }
 
   // ── Build output scans ────────────────────────────────────────────
@@ -283,9 +370,37 @@ void ScanSplitterNode::scan_callback(
 //  Cluster filter — keeps only obstacle runs >= min_size
 // ────────────────────────────────────────────────────────────────────────────
 
-void ScanSplitterNode::filter_clusters(std::vector<bool> & mask, int min_size, int max_gap) const
+void ScanSplitterNode::filter_clusters(
+  std::vector<bool> & mask,
+  const std::vector<float> & ranges,
+  const std::vector<float> & angles,
+  int min_size,
+  int max_gap,
+  double max_width_m) const
 {
   const int n = static_cast<int>(mask.size());
+  const double max_width = std::max(0.0, max_width_m);
+
+  auto cluster_width = [&](int start, int end) -> double {
+    if (start < 0 || end <= start || end > n ||
+        ranges.size() != mask.size() || angles.size() != mask.size())
+    {
+      return 0.0;
+    }
+
+    const int last = end - 1;
+    const float r0 = ranges[static_cast<size_t>(start)];
+    const float r1 = ranges[static_cast<size_t>(last)];
+    if (!std::isfinite(r0) || !std::isfinite(r1)) {
+      return 0.0;
+    }
+
+    const double x0 = static_cast<double>(r0) * std::cos(angles[static_cast<size_t>(start)]);
+    const double y0 = static_cast<double>(r0) * std::sin(angles[static_cast<size_t>(start)]);
+    const double x1 = static_cast<double>(r1) * std::cos(angles[static_cast<size_t>(last)]);
+    const double y1 = static_cast<double>(r1) * std::sin(angles[static_cast<size_t>(last)]);
+    return std::hypot(x1 - x0, y1 - y0);
+  };
 
   // Bridge tiny false gaps between obstacle runs so sparse/decimated scans
   // do not fragment a single object into many one-beam clusters.
@@ -315,7 +430,9 @@ void ScanSplitterNode::filter_clusters(std::vector<bool> & mask, int min_size, i
     if (mask[i]) {
       int j = i;
       while (j < n && mask[j]) ++j;
-      if (j - i < min_size) {
+      const bool too_small = j - i < min_size;
+      const bool too_wide = max_width > 0.0 && cluster_width(i, j) > max_width;
+      if (too_small || too_wide) {
         for (int k = i; k < j; ++k) mask[k] = false;
       }
       i = j;

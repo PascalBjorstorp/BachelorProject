@@ -16,6 +16,7 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(ackermann_msgs REQUIRED)
 find_package(f1tenth_msgs REQUIRED)
 
 # Executable
@@ -23,14 +24,14 @@ add_executable(state_publisher_node
   src/state_publisher_v2.cpp
 )
 target_include_directories(state_publisher_node PRIVATE
-  include
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../FPGA_Implementations/MPC_FPGA_Kria/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 ament_target_dependencies(state_publisher_node
   rclcpp
   std_msgs
   nav_msgs
   geometry_msgs
+  ackermann_msgs
   f1tenth_msgs
 )
 
@@ -39,7 +40,11 @@ install(TARGETS state_publisher_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY launch config
+install(DIRECTORY include/
+  DESTINATION include/
+)
+
+install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}
   OPTIONAL
 )

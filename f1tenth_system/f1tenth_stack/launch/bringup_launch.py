@@ -32,6 +32,7 @@ from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node, LifecycleNode, ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
@@ -75,11 +76,22 @@ def generate_launch_description():
                               description='Path to the map YAML file for map_server'),
         DeclareLaunchArgument('use_sim_time', default_value='false',
                               description='Use /clock for simulation time'),
+        DeclareLaunchArgument('use_system_monitor', default_value='true',
+                              description='Monitor VESC telemetry and /drive heartbeat'),
+        DeclareLaunchArgument('monitor_vesc_timeout_sec', default_value='0.50',
+                              description='Seconds without /sensors/core before VESC error'),
+        DeclareLaunchArgument('monitor_drive_timeout_sec', default_value='0.15',
+                              description='Seconds without /drive before command error'),
+        DeclareLaunchArgument('monitor_drive_arm_on_first_message', default_value='true',
+                              description='Start /drive heartbeat only after first /drive message'),
+        DeclareLaunchArgument('monitor_startup_grace_sec', default_value='5.0',
+                              description='Startup grace period before missing-topic errors'),
     ])
 
     use_teleop = LaunchConfiguration('use_teleop')
     use_lidar = LaunchConfiguration('use_lidar')
     mapping_mode = LaunchConfiguration('mapping_mode')
+    use_system_monitor = LaunchConfiguration('use_system_monitor')
 
     # ══════════════════════
     #  Map Server (racing mode only)
@@ -145,6 +157,26 @@ def generate_launch_description():
             ),
         ],
         output='screen',
+    ))
+
+    ld.add_action(Node(
+        package='f1tenth_stack',
+        executable='system_monitor',
+        name='system_monitor',
+        output='screen',
+        parameters=[{
+            'vesc_topic': '/sensors/core',
+            'drive_topic': '/drive',
+            'vesc_timeout_sec': ParameterValue(
+                LaunchConfiguration('monitor_vesc_timeout_sec'), value_type=float),
+            'drive_timeout_sec': ParameterValue(
+                LaunchConfiguration('monitor_drive_timeout_sec'), value_type=float),
+            'drive_arm_on_first_message': ParameterValue(
+                LaunchConfiguration('monitor_drive_arm_on_first_message'), value_type=bool),
+            'startup_grace_sec': ParameterValue(
+                LaunchConfiguration('monitor_startup_grace_sec'), value_type=float),
+        }],
+        condition=IfCondition(use_system_monitor),
     ))
 
     # ══════════════════════

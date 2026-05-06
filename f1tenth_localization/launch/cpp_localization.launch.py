@@ -18,6 +18,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
@@ -35,6 +36,11 @@ def generate_launch_description():
             'use_sim_time',
             default_value='false',
             description='Use /clock for simulation time'),
+
+        DeclareLaunchArgument(
+            'amcl_global_initialization',
+            default_value='false',
+            description='Seed GPU AMCL particles globally along raceline with heading cone'),
 
         # NOTE: map_server is now launched from bringup_launch.py
         # so the map is available before localization starts.
@@ -60,6 +66,9 @@ def generate_launch_description():
             parameters=[
                 LaunchConfiguration('params_file'),
                 {'use_sim_time': LaunchConfiguration('use_sim_time')},
+                {'global_initialization': ParameterValue(
+                    LaunchConfiguration('amcl_global_initialization'),
+                    value_type=bool)},
             ],
         ),
 

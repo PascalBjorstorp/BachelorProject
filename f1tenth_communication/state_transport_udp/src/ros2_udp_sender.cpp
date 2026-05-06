@@ -21,10 +21,13 @@
 #include <chrono>
 #include <cmath>
 #include <cstring>
+#include <cstdio>
+#include <ctime>
 #include <fstream>
 #include <limits>
 #include <sstream>
 #include <string>
+#include <sys/stat.h>
 #include <vector>
 
 namespace state_transport_udp {
@@ -281,6 +284,8 @@ public:
                     horizon_step_m_,
                     dest_ip.c_str(),
                     dest_port);
+
+                openSendStatsCsv();
     }
 
     /**
@@ -290,6 +295,10 @@ public:
     ~Ros2UdpSender() override {
         if (sock_fd_ >= 0) {
             ::close(sock_fd_);
+        }
+        if (send_stats_csv_ != nullptr) {
+            std::fclose(send_stats_csv_);
+            send_stats_csv_ = nullptr;
         }
     }
 
@@ -305,6 +314,31 @@ private:
             return 0;
         }
         return static_cast<int32_t>(v >= 0.0 ? v * kScale + 0.5 : v * kScale - 0.5);
+    }
+
+    void openSendStatsCsv() {
+        const char* log_dir = "log";
+        ::mkdir(log_dir, 0755);
+
+        const std::time_t now = std::time(nullptr);
+        struct tm tm_now;
+        localtime_r(&now, &tm_now);
+
+        char timestamp[64];
+        std::strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", &tm_now);
+
+        char csv_path[512];
+        std::snprintf(csv_path, sizeof(csv_path), "%s/ros2_udp_sender_%s.csv", log_dir, timestamp);
+
+        send_stats_csv_ = std::fopen(csv_path, "w");
+        if (send_stats_csv_ == nullptr) {
+            RCLCPP_WARN(get_logger(), "Failed to open sender stats CSV file: %s", csv_path);
+            return;
+        }
+
+        std::fprintf(send_stats_csv_, "idx,send_time_us\n");
+        std::fflush(send_stats_csv_);
+        RCLCPP_INFO(get_logger(), "Sender stats CSV log: %s", csv_path);
     }
 
     /**
@@ -561,6 +595,8 @@ private:
                          double qy,
                          double qz,
                          double qw) {
+        const auto t_start = std::chrono::steady_clock::now();
+
         if (kdtree_.size() == 0) {
             return;
         }
@@ -682,6 +718,41 @@ private:
         if (sent != static_cast<ssize_t>(sizeof(packet))) {
             RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
                                  "UDP send short/failed: %ld", static_cast<long>(sent));
+            return;
+        }
+
+        const auto t_end = std::chrono::steady_clock::now();
+        const double send_us = static_cast<double>(
+            std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start).count());
+
+        if (send_stats_csv_ != nullptr) {
+            send_stats_idx_++;
+            std::fprintf(send_stats_csv_, "%lu,%.1f\n", send_stats_idx_, send_us);
+            std::fflush(send_stats_csv_);
+        }
+
+        send_window_count_++;
+        send_window_sum_us_ += send_us;
+        send_window_min_us_ = std::min(send_window_min_us_, send_us);
+        send_window_max_us_ = std::max(send_window_max_us_, send_us);
+
+        const auto now_tp = std::chrono::steady_clock::now();
+        const double elapsed_sec = std::chrono::duration<double>(now_tp - send_last_print_time_).count();
+        if (elapsed_sec >= kSendStatsIntervalSec && send_window_count_ > 0) {
+            const double avg_us = send_window_sum_us_ / static_cast<double>(send_window_count_);
+            RCLCPP_INFO(get_logger(),
+                        "[UDP Sender] Stats (last %.1fs, %lu calls): min=%.1f us, avg=%.1f us, max=%.1f us",
+                        elapsed_sec,
+                        send_window_count_,
+                        send_window_min_us_,
+                        avg_us,
+                        send_window_max_us_);
+
+            send_window_count_ = 0;
+            send_window_sum_us_ = 0.0;
+            send_window_min_us_ = std::numeric_limits<double>::infinity();
+            send_window_max_us_ = 0.0;
+            send_last_print_time_ = now_tp;
         }
     }
 
@@ -703,6 +774,15 @@ private:
     int sock_fd_{-1};
     sockaddr_in dest_addr_{};
     uint32_t sequence_{0};
+
+    uint64_t send_stats_idx_{0};
+    uint64_t send_window_count_{0};
+    double send_window_sum_us_{0.0};
+    double send_window_min_us_{std::numeric_limits<double>::infinity()};
+    double send_window_max_us_{0.0};
+    std::chrono::steady_clock::time_point send_last_print_time_{std::chrono::steady_clock::now()};
+    static constexpr double kSendStatsIntervalSec = 5.0;
+    FILE* send_stats_csv_{nullptr};
 
     double current_steering_angle_{0.0};
     bool has_servo_feedback_{false};

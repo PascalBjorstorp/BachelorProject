@@ -11,10 +11,12 @@
   <license>MIT</license>
 
   <depend>ackermann_msgs</depend>
+  <depend>rclpy</depend>
   <depend>urg_node</depend>
   <depend>joy</depend>
   <depend>joy_teleop</depend>
   <depend>vesc</depend>
+  <depend>vesc_msgs</depend>
   <depend>ackermann_mux</depend>
   <depend>std_msgs</depend>
   <depend>geometry_msgs</depend>

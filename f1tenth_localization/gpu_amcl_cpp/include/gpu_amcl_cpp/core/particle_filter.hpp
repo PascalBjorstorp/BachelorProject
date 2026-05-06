@@ -69,6 +69,14 @@ struct PoseEstimate {
  */
 class ParticleFilter {
 public:
+    struct TrackHeadingPoint {
+        float x = 0.0f;
+        float y = 0.0f;
+        float yaw = 0.0f;
+        float d_left = 0.0f;
+        float d_right = 0.0f;
+    };
+
     struct Config {
         int    num_particles       = 2000;
         int    min_particles       = 100;
@@ -81,9 +89,22 @@ public:
         double init_cov_xx = 0.5; 
         double init_cov_yy = 0.5; 
         double init_cov_aa = 0.2;
+        bool   global_initialization = false;
+        double global_heading_cone_rad = 0.5235987756;
+        double global_track_margin_m = 0.15;
+        double global_max_lateral_offset_m = 0.55;
+        std::vector<TrackHeadingPoint> global_heading_points;
 
         // Resampling
         double resample_threshold   = 0.5;
+        bool   enable_recovery_injection = false;
+        double recovery_injection_ratio = 0.05;
+        bool   enable_local_roughening = true;
+        double local_roughening_ratio = 0.20;
+        double local_roughening_xy_std_m = 0.12;
+        double local_roughening_yaw_std_rad = 0.0872664626;
+        double local_roughening_bad_log_weight_per_beam = -1.0;
+        double local_roughening_max_cloud_std_m = 0.75;
 
         // KLD adaptive sampling
         bool   use_kld              = false;
@@ -115,6 +136,9 @@ public:
     void reinitialize(double x, double y, double theta,
                       double cov_xx, double cov_yy, double cov_aa);
 
+    /// Re-initialise globally along the raceline corridor with heading cone.
+    void reinitialize_global(const MapProcessor& map);
+
     /// Prediction step: propagate particles by odom delta.
     void predict(float dx, float dy, float dtheta);
 
@@ -140,12 +164,21 @@ private:
     void check_resample();
     void do_resample(int target_n);
     int  compute_kld_target();
+    void update_scan_confidence(int num_ranges);
+    float nearest_global_heading(float wx, float wy) const;
+    bool sample_global_particle(const MapProcessor& map,
+                                float& wx,
+                                float& wy,
+                                float& yaw);
+    void roughen_local_particles();
+    void inject_recovery_particles();
 
     Config          cfg_;
     MotionModel     motion_;
     SensorModel     sensor_;
     Resampler       resampler_;
     CudaStream      stream_;
+    const MapProcessor* map_ = nullptr;
 
     // GPU double-buffering strategy
     // Two particle buffers to avoid data race: one reads, one writes
@@ -179,6 +212,9 @@ private:
 
     int n_ = 0;                              // Current particle count
     int max_ranges_ = 0;                     // Allocated range buffer capacity
+    int sensor_max_beams_ = 0;
+    bool last_scan_confidence_bad_ = false;
+    double last_scan_log_weight_per_beam_ = 0.0;
 
     std::mt19937 rng_{42};                   // For reinitialize() Gaussian sampling
 

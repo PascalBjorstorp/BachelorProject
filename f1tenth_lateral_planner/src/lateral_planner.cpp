@@ -189,21 +189,23 @@ void LateralPlanner::processObstacleScan(
 
   const Cluster & best = clusters[best_idx];
   const double inv_count = 1.0 / static_cast<double>(best.count);
-  const double cx = best.sum_x * inv_count;
-  const double cy = best.sum_y * inv_count;
+  const double rear_x = best.sum_x * inv_count;
+  const double rear_y = best.sum_y * inv_count;
 
   double opponent_yaw = robot_.yaw;
   if (!waypoints_.empty()) {
-    const size_t back_idx = closestWaypoint(cx, cy);
+    const size_t back_idx = closestWaypoint(rear_x, rear_y);
     opponent_yaw = waypoints_[back_idx].psi;
   }
   const double half_length = 0.5 * params_.opponent_length_m;
+  const double center_x = rear_x + half_length * std::cos(opponent_yaw);
+  const double center_y = rear_y + half_length * std::sin(opponent_yaw);
 
-  opponent_.back_x   = cx;
-  opponent_.back_y   = cy;
+  opponent_.back_x   = rear_x;
+  opponent_.back_y   = rear_y;
   opponent_.yaw      = opponent_yaw;
-  opponent_.x        = cx + half_length * std::cos(opponent_yaw);
-  opponent_.y        = cy + half_length * std::sin(opponent_yaw);
+  opponent_.x        = center_x;
+  opponent_.y        = center_y;
   opponent_.width    = params_.car_width_m;
   opponent_.length   = params_.opponent_length_m;
   opponent_.detected = true;
@@ -375,7 +377,7 @@ void LateralPlanner::buildAvoidancePath()
     return;
   }
 
-  const double d_max = pass_dir * shift_mag;
+  double d_max = pass_dir * shift_mag;
 
   const double window_dist = std::max(
     params_.min_window_m,
@@ -383,7 +385,7 @@ void LateralPlanner::buildAvoidancePath()
   const double lead_ratio = std::clamp(params_.window_lead_ratio, 0.1, 0.9);
 
   double lead_dist = std::max(0.75, window_dist * lead_ratio);
-  const double trail_dist = std::max(0.75, window_dist * (1.0 - lead_ratio));
+  double trail_dist = std::max(0.75, window_dist * (1.0 - lead_ratio));
 
   // Keep a full lead window even when the opponent is close so the path can
   // already be shifted at the current car position (instead of shifting too late).
@@ -392,10 +394,58 @@ void LateralPlanner::buildAvoidancePath()
     lead_dist = std::max(lead_dist, 0.2);
   }
 
-  const double s_start = opp_wp.s - lead_dist;
-  const double s_end   = opp_wp.s + trail_dist;
+  const double kappa_limit = std::max(0.0, params_.max_avoidance_kappa);
+  const double max_window_each_side = std::max(1.0, 0.45 * waypoints_.back().s);
+  double final_max_kappa = 0.0;
+  int kappa_attempt = 0;
+  bool shift_reduced_for_kappa = false;
+  static constexpr int kMaxKappaAttempts = 8;
 
-  applyLateralShift(s_start, opp_wp.s, s_end, d_max);
+  for (; kappa_attempt < kMaxKappaAttempts; ++kappa_attempt) {
+    const double s_start = opp_wp.s - lead_dist;
+    const double s_end   = opp_wp.s + trail_dist;
+
+    modified_raceline_ = waypoints_;
+    applyLateralShift(s_start, opp_wp.s, s_end, d_max);
+
+    final_max_kappa = maxAbsCurvatureBetween(s_start, s_end);
+    if (kappa_limit <= 1e-6 || final_max_kappa <= kappa_limit) {
+      break;
+    }
+
+    const double scale = std::clamp(
+      1.05 * std::sqrt(final_max_kappa / kappa_limit),
+      1.10,
+      1.75);
+    const double next_lead = std::min(max_window_each_side, lead_dist * scale);
+    const double next_trail = std::min(max_window_each_side, trail_dist * scale);
+    if (next_lead <= lead_dist + 1e-3 && next_trail <= trail_dist + 1e-3) {
+      break;
+    }
+    lead_dist = next_lead;
+    trail_dist = next_trail;
+  }
+
+  if (kappa_limit > 1e-6 && final_max_kappa > kappa_limit) {
+    const double s_start = opp_wp.s - lead_dist;
+    const double s_end   = opp_wp.s + trail_dist;
+    for (int reduce_attempt = 0; reduce_attempt < kMaxKappaAttempts; ++reduce_attempt) {
+      const double reduce_scale = std::clamp(kappa_limit / final_max_kappa, 0.40, 0.90);
+      const double next_d_max = d_max * reduce_scale;
+      if (std::abs(next_d_max) < 1e-3) {
+        break;
+      }
+
+      d_max = next_d_max;
+      shift_reduced_for_kappa = true;
+      modified_raceline_ = waypoints_;
+      applyLateralShift(s_start, opp_wp.s, s_end, d_max);
+      final_max_kappa = maxAbsCurvatureBetween(s_start, s_end);
+      if (final_max_kappa <= kappa_limit) {
+        break;
+      }
+    }
+  }
 
   avoidance_active_  = true;
   committed_side_    = pass_dir;
@@ -403,9 +453,22 @@ void LateralPlanner::buildAvoidancePath()
   committed_opp_x_   = opponent_.x;
   committed_opp_y_   = opponent_.y;
 
-  RCLCPP_INFO(logger_,
-    "Avoidance locked: side=%.0f shift=%.2fm lead=%.2fm trail=%.2fm",
-    pass_dir, shift_mag, lead_dist, trail_dist);
+  const double effective_shift = std::abs(d_max);
+  if (shift_reduced_for_kappa) {
+    RCLCPP_WARN(logger_,
+      "Avoidance shift reduced by kappa limit: requested=%.2fm used=%.2fm max_kappa=%.2f limit=%.2f",
+      shift_mag, effective_shift, final_max_kappa, kappa_limit);
+  }
+
+  if (kappa_limit > 1e-6 && final_max_kappa > kappa_limit) {
+    RCLCPP_WARN(logger_,
+      "Avoidance curvature above limit: max=%.2f limit=%.2f lead=%.2fm trail=%.2fm",
+      final_max_kappa, kappa_limit, lead_dist, trail_dist);
+  } else {
+    RCLCPP_INFO(logger_,
+      "Avoidance locked: side=%.0f shift=%.2fm lead=%.2fm trail=%.2fm max_kappa=%.2f",
+      pass_dir, effective_shift, lead_dist, trail_dist, final_max_kappa);
+  }
 }
 
 // =============================================================
@@ -433,6 +496,7 @@ void LateralPlanner::applyLateralShift(
   }
 
   const double wall_limit = std::abs(params_.max_lateral_shift_m);
+  const double wall_clearance = params_.car_width_m / 2.0 + params_.clearance_tolerance_m;
 
   for (size_t i = 0; i < modified_raceline_.size(); ++i) {
     const Waypoint & orig = waypoints_[i];
@@ -452,6 +516,10 @@ void LateralPlanner::applyLateralShift(
       if (std::abs(offset) > wall_limit) {
         offset = std::copysign(wall_limit, offset);
       }
+
+      const double max_left_shift = std::max(0.0, orig.d_left - wall_clearance);
+      const double max_right_shift = std::max(0.0, orig.d_right - wall_clearance);
+      offset = std::clamp(offset, -max_right_shift, max_left_shift);
     }
 
     const double normal = orig.psi + M_PI / 2.0;
@@ -469,6 +537,14 @@ void LateralPlanner::applyLateralShift(
       Waypoint & curr = modified_raceline_[i];
       const Waypoint & next = modified_raceline_[(i + 1) % n];
 
+      const double ds_prev = std::hypot(curr.x - prev.x, curr.y - prev.y);
+      const double ds_next = std::hypot(next.x - curr.x, next.y - curr.y);
+      if (ds_prev < 1e-6 || ds_next < 1e-6) {
+        curr.psi = waypoints_[i].psi;
+        curr.kappa = waypoints_[i].kappa;
+        continue;
+      }
+
       const double dx = next.x - prev.x;
       const double dy = next.y - prev.y;
       if (std::hypot(dx, dy) > 1e-6) {
@@ -480,8 +556,6 @@ void LateralPlanner::applyLateralShift(
       const double dpsi = std::atan2(
         std::sin(psi_next - psi_prev),
         std::cos(psi_next - psi_prev));
-      const double ds_prev = std::hypot(curr.x - prev.x, curr.y - prev.y);
-      const double ds_next = std::hypot(next.x - curr.x, next.y - curr.y);
       const double ds = std::max(0.5 * (ds_prev + ds_next), 1e-3);
       curr.kappa = dpsi / ds;
     }
@@ -635,6 +709,22 @@ double LateralPlanner::wrapForwardDistance(double s_from, double s_to) const
     d += total_s;
   }
   return d;
+}
+
+double LateralPlanner::maxAbsCurvatureBetween(double s_start, double s_end) const
+{
+  if (modified_raceline_.empty() || waypoints_.empty()) {
+    return 0.0;
+  }
+
+  const double window_len = wrapForwardDistance(s_start, s_end);
+  double max_kappa = 0.0;
+  for (const Waypoint & wp : modified_raceline_) {
+    if (wrapForwardDistance(s_start, wp.s) <= window_len) {
+      max_kappa = std::max(max_kappa, std::abs(wp.kappa));
+    }
+  }
+  return max_kappa;
 }
 
 double LateralPlanner::lateralOffsetAtWaypoint(size_t idx, double x, double y) const

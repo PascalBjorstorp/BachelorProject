@@ -98,6 +98,39 @@ static float g_last_cmd_steer = 0.0f;
 static float g_last_cmd_speed = 0.0f;
 static float g_last_cmd_accel = 0.0f;
 
+/* Standstill brake-override fallback:
+ * If the car is essentially stopped but MPC commands full braking, override
+ * acceleration to gently pull forward (keeps MPC steering). */
+static int g_standstill_brake_override_active = 0;
+
+static double apply_standstill_brake_override(double vx, double accel_cmd, int allow_log)
+{
+    const double standstill_vx_thresh = 0.15; /* m/s */
+    const double accel_override = 0.5;        /* m/s^2 */
+    const double brake_eps = 0.05;            /* m/s^2 */
+
+    const int standstill = isfinite(vx) && fabs(vx) < standstill_vx_thresh;
+    const int max_brake_cmd = isfinite(accel_cmd) && (accel_cmd <= ((double)VP_MIN_ACCEL_MPS2 + brake_eps));
+
+    if (standstill && max_brake_cmd) {
+        if (!g_standstill_brake_override_active && allow_log && g_verbose) {
+            printf("[MPC] Standstill brake override active: vx=%.3f a_cmd=%.2f -> %.2f\n",
+                   vx, accel_cmd, accel_override);
+        }
+        g_standstill_brake_override_active = 1;
+        return accel_override;
+    }
+
+    if (g_standstill_brake_override_active) {
+        if (allow_log && g_verbose) {
+            printf("[MPC] Standstill brake override cleared: vx=%.3f a_cmd=%.2f\n",
+                   vx, accel_cmd);
+        }
+        g_standstill_brake_override_active = 0;
+    }
+    return accel_cmd;
+}
+
 /*===========================================================================
  * VESC Servo Conversion Parameters
  *===========================================================================
@@ -156,16 +189,24 @@ static double g_latest_omega = 0.0;
  *  fast path on aarch64, ~3ns vs ~50ns syscall for CLOCK_MONOTONIC_RAW) */
 static struct timespec g_last_odom_time = {0, 0};
 
-/** Rolling solve-time instrumentation (always active, prints every 500 cycles) */
+/** Rolling solve-time and iteration instrumentation (always active) */
 static double g_solve_time_sum_us = 0.0;
+static double g_solve_time_min_us = 1e9;
 static double g_solve_time_max_us = 0.0;
-static unsigned long g_solve_cycle_count = 0;
-#define SOLVE_STATS_PRINT_INTERVAL 500
+static uint16_t g_iter_count_min = 0xFFFF;
+static uint16_t g_iter_count_max = 0;
+static double g_iter_count_sum = 0.0;
+static unsigned long g_stats_cycle_count = 0;
+static unsigned long g_stats_optimal_count = 0;
+static unsigned long g_stats_max_iter_count = 0;
+static struct timespec g_last_terminal_print_time = {0, 0};
+#define TERMINAL_STATS_PRINT_INTERVAL_SECONDS 5.0
 
 /** Optional solver telemetry logging for post-drive analysis. */
 static FILE *g_solver_log_file = NULL;
 static FILE *g_solver_meta_file = NULL;
 static FILE *g_local_raceline_log_file = NULL;
+static FILE *g_stats_csv_file = NULL;
 static unsigned long g_solver_log_counter = 0;
 static int g_solver_log_stride = 1;
 static double g_last_servo_raw = 0.0;
@@ -244,6 +285,62 @@ static void signal_handler(int sig)
     if (global_ros2_context != NULL && rcl_context_is_valid(global_ros2_context))
     {
         rcl_ret_t rc __attribute__((unused)) = rcl_shutdown(global_ros2_context);
+    }
+}
+
+/**
+ * @brief Print a minimal fatal-signal reason before the process disappears.
+ */
+static void fatal_signal_handler(int sig)
+{
+    const char *name = "UNKNOWN";
+    size_t name_len = 7U;
+    ssize_t ignored;
+
+    switch (sig)
+    {
+        case SIGSEGV: name = "SIGSEGV"; name_len = 7U; break;
+        case SIGABRT: name = "SIGABRT"; name_len = 7U; break;
+        case SIGFPE:  name = "SIGFPE";  name_len = 6U; break;
+        case SIGILL:  name = "SIGILL";  name_len = 6U; break;
+        case SIGBUS:  name = "SIGBUS";  name_len = 6U; break;
+        default: break;
+    }
+
+    ignored = write(STDERR_FILENO,
+                    "\n[MPC] FATAL: mpc_hardware_node received ",
+                    sizeof("\n[MPC] FATAL: mpc_hardware_node received ") - 1U);
+    (void)ignored;
+    ignored = write(STDERR_FILENO, name, name_len);
+    (void)ignored;
+    ignored = write(STDERR_FILENO,
+                    " and is exiting\n",
+                    sizeof(" and is exiting\n") - 1U);
+    (void)ignored;
+    _Exit(128 + sig);
+}
+
+/**
+ * @brief Publish /drive and log if ROS refuses the publish call.
+ */
+static void publish_drive_command_or_warn(const char *context)
+{
+    static unsigned long publish_error_count = 0;
+    rcl_ret_t pub_rc =
+        rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);
+
+    if (pub_rc != RCL_RET_OK)
+    {
+        publish_error_count++;
+        if (publish_error_count <= 5UL || (publish_error_count % 20UL) == 0UL)
+        {
+            fprintf(stderr,
+                    "[ROS2] ERROR: /drive publish failed in %s: rc=%d, error=%s\n",
+                    context,
+                    (int)pub_rc,
+                    rcl_get_error_string().str);
+        }
+        rcl_reset_error();
     }
 }
 
@@ -961,8 +1058,7 @@ void ekf_pose_callback(const void *message_in)
         global_drive_message_buffer.drive.steering_angle = g_last_cmd_steer;
         global_drive_message_buffer.drive.speed = g_last_cmd_speed;
         global_drive_message_buffer.drive.acceleration = g_last_cmd_accel;
-        rcl_ret_t pub_rc __attribute__((unused)) =
-            rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);
+        publish_drive_command_or_warn("no_trajectory_fallback");
         return;
     }
 
@@ -981,19 +1077,71 @@ void ekf_pose_callback(const void *message_in)
     double primal_res = mpc_result.final_cost;
     double dual_res = mpc_result.dual_residual;
 
-    /* Rolling solve-time statistics (always active, lightweight) */
+    /* Collect rolling statistics (always active, lightweight) */
+    uint16_t iterations_used = mpc_result.iterations_used;
+    MpcConfiguration_t cfg = mpc_get_configuration();
+    uint16_t max_iter = cfg.max_solver_iterations;
+
+    /* Track solve time statistics */
     g_solve_time_sum_us += solve_us;
+    if (solve_us < g_solve_time_min_us) g_solve_time_min_us = solve_us;
     if (solve_us > g_solve_time_max_us) g_solve_time_max_us = solve_us;
-    g_solve_cycle_count++;
-    if (g_solve_cycle_count >= SOLVE_STATS_PRINT_INTERVAL)
+
+    /* Track iteration statistics */
+    g_iter_count_sum += iterations_used;
+    if (iterations_used < g_iter_count_min) g_iter_count_min = iterations_used;
+    if (iterations_used > g_iter_count_max) g_iter_count_max = iterations_used;
+
+    /* Count optimal solutions and max-iter cases */
+    if (mpc_status == MPC_STATUS_SUCCESS) g_stats_optimal_count++;
+    if (iterations_used >= max_iter) g_stats_max_iter_count++;
+
+    g_stats_cycle_count++;
+
+    /* Write to stats CSV file */
+    if (g_stats_csv_file != NULL)
     {
-        double avg_us = g_solve_time_sum_us / (double)g_solve_cycle_count;
-        printf("[MPC] Solve stats (%lu cycles): avg=%.1f us, max=%.1f us (budget=%.0f us)\n",
-               g_solve_cycle_count, avg_us, g_solve_time_max_us,
-             1e6 / CONTROL_RATE_HZ);
-        g_solve_time_sum_us = 0.0;
-        g_solve_time_max_us = 0.0;
-        g_solve_cycle_count = 0;
+        fprintf(g_stats_csv_file, "%lu,%u,%.1f\n", g_stats_cycle_count, iterations_used, solve_us);
+        fflush(g_stats_csv_file);
+    }
+
+    /* Print terminal stats every 5 seconds */
+    {
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        double elapsed_sec = (now.tv_sec - g_last_terminal_print_time.tv_sec) +
+                             (now.tv_nsec - g_last_terminal_print_time.tv_nsec) / 1e9;
+
+        if (elapsed_sec >= TERMINAL_STATS_PRINT_INTERVAL_SECONDS)
+        {
+            if (g_stats_cycle_count > 0)
+            {
+                double avg_iter = g_iter_count_sum / (double)g_stats_cycle_count;
+                double avg_time = g_solve_time_sum_us / (double)g_stats_cycle_count;
+                double optimal_pct = (g_stats_optimal_count * 100.0) / (double)g_stats_cycle_count;
+                double max_iter_pct = (g_stats_max_iter_count * 100.0) / (double)g_stats_cycle_count;
+
+                printf("[MPC] Stats (last %.1fs, %lu calls):\n", elapsed_sec, g_stats_cycle_count);
+                printf("  Iterations: min=%u, avg=%.1f, max=%u\n",
+                       g_iter_count_min, avg_iter, g_iter_count_max);
+                printf("  Solve time: min=%.1f us, avg=%.1f us, max=%.1f us\n",
+                       g_solve_time_min_us, avg_time, g_solve_time_max_us);
+                printf("  Optimal: %.1f%%, Max iter: %.1f%%\n",
+                       optimal_pct, max_iter_pct);
+
+                /* Reset stats */
+                g_solve_time_sum_us = 0.0;
+                g_solve_time_min_us = 1e9;
+                g_solve_time_max_us = 0.0;
+                g_iter_count_min = 0xFFFF;
+                g_iter_count_max = 0;
+                g_iter_count_sum = 0.0;
+                g_stats_cycle_count = 0;
+                g_stats_optimal_count = 0;
+                g_stats_max_iter_count = 0;
+                g_last_terminal_print_time = now;
+            }
+        }
     }
 
     if (mpc_status == MPC_STATUS_SUCCESS ||
@@ -1007,6 +1155,15 @@ void ekf_pose_callback(const void *message_in)
             mpc_result.optimal_control.steer_ang;
         global_control_command.long_acc =
             mpc_result.optimal_control.long_acc;
+
+        /* Fallback: if at standstill and MPC commands max braking, override
+         * acceleration to +0.5 m/s^2 while keeping MPC steering. */
+        {
+            const double vx = g_latest_vx;
+            const double a_cmd = (double)global_control_command.long_acc;
+            global_control_command.long_acc =
+                (float)apply_standstill_brake_override(vx, a_cmd, 1);
+        }
 
         /* Update servo tracking.
          * If steering feedback is available from VESC, it's already set by
@@ -1026,7 +1183,7 @@ void ekf_pose_callback(const void *message_in)
             actual_ctrl.steer_ang =
                 global_actual_steering_angle;
             actual_ctrl.long_acc =
-                mpc_result.optimal_control.long_acc;
+                global_control_command.long_acc;
             mpc_set_actual_previous_control(&actual_ctrl);
         }
 
@@ -1060,6 +1217,10 @@ void ekf_pose_callback(const void *message_in)
             const MpcConfiguration_t cfg = mpc_get_configuration();
             const double pred_dt = (cfg.time_step > 0.0f) ? (double)cfg.time_step : (double)TIME_STEP_SECONDS;
 
+            /* Apply the same standstill brake-override in all publish paths
+             * (including solver hold-last-command fallback). */
+            a_cmd = apply_standstill_brake_override(g_latest_vx, a_cmd, 0);
+
             /* Integrate over the prediction time step used by MPC. */
             double v_cmd = g_latest_vx + a_cmd * pred_dt;
             if (v_cmd < (double)VP_MIN_VELOCITY_MPS) v_cmd = (double)VP_MIN_VELOCITY_MPS;
@@ -1084,8 +1245,7 @@ void ekf_pose_callback(const void *message_in)
         g_last_cmd_speed = global_drive_message_buffer.drive.speed;
         g_last_cmd_accel = global_drive_message_buffer.drive.acceleration;
 
-        rcl_ret_t pub_rc __attribute__((unused)) =
-            rcl_publish(&global_control_publisher, &global_drive_message_buffer, NULL);
+        publish_drive_command_or_warn("ekf_pose_callback");
     }
 
     /* Optional per-cycle solver telemetry (CSV) for post-drive analysis. */
@@ -1154,6 +1314,11 @@ int main(int argc, char *argv[])
     /* Install signal handlers for graceful shutdown */
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
+    signal(SIGSEGV, fatal_signal_handler);
+    signal(SIGABRT, fatal_signal_handler);
+    signal(SIGFPE, fatal_signal_handler);
+    signal(SIGILL, fatal_signal_handler);
+    signal(SIGBUS, fatal_signal_handler);
 
     rcl_ret_t rc;
 
@@ -1194,105 +1359,142 @@ int main(int argc, char *argv[])
     }
 
     {
-        /* SECURITY: Environment variable is trusted deployment input.
-         * Log path must come from controlled local configuration sources. */
+        /* Solver CSV logging is opt-in. Writing and flushing high-rate logs from
+         * the control callback can stall /drive publication on embedded hardware. */
         const char *log_path = getenv("MPC_SOLVER_LOG");
-        char default_log_path[256];
+        const char *log_stride = getenv("MPC_SOLVER_LOG_STRIDE");
 
-        /* Always log every control callback unless code is changed. */
-        g_solver_log_stride = 1;
-
-        if (log_path == NULL || log_path[0] == '\0')
+        if (log_stride != NULL && log_stride[0] != '\0')
         {
-            time_t now = time(NULL);
-            struct tm tm_now;
-            localtime_r(&now, &tm_now);
-            strftime(default_log_path, sizeof(default_log_path),
-                     "log/mpc_solver_%Y%m%d_%H%M%S.csv", &tm_now);
-            log_path = default_log_path;
-        }
-
-        ensure_parent_directories(log_path);
-
-        g_solver_log_file = fopen(log_path, "w");
-        if (g_solver_log_file == NULL)
-        {
-            fprintf(stderr, "[MPC] WARNING: Failed to open solver log file %s\n", log_path);
-        }
-        else
-        {
-            fprintf(g_solver_log_file,
-                    "pose_ros_time_ns,unix_time_ns,solve_us,status,iterations,primal_residual,dual_residual,"
-                    "closest_wp,local_raceline_seq,local_raceline_ros_time_ns,local_raceline_count,local_raceline_length_m,odom_age_ms,"
-                    "pos_x,pos_y,heading,pose_cov_x,pose_cov_y,pose_cov_yaw,"
-                    "e_y,e_psi,vx,vy,omega,"
-                    "path_x,path_y,path_heading,path_s,path_t,path_segment_idx,"
-                    "v_ref0,kappa0,ref_yaw_rate0,left_wall0,right_wall0,"
-                    "local_wp0_x,local_wp0_y,local_wp0_heading,local_wp0_s,"
-                    "cmd_steer,cmd_accel,publish_speed_cmd,publish_accel_cmd,"
-                    "actual_steer,servo_raw,use_steering_feedback,odom_ros_time_ns\n");
-            fflush(g_solver_log_file);
-            printf("[MPC] Solver telemetry log: %s (every control callback)\n", log_path);
-
+            const int stride = atoi(log_stride);
+            if (stride > 0)
             {
-                char local_raceline_log_path[PATH_MAX];
-                int local_len = snprintf(local_raceline_log_path, sizeof(local_raceline_log_path),
-                                         "%s.local_raceline.csv", log_path);
-                if (local_len > 0 && (size_t)local_len < sizeof(local_raceline_log_path))
+                g_solver_log_stride = stride;
+            }
+        }
+
+        if (log_path == NULL || log_path[0] == '\0' ||
+            strcmp(log_path, "0") == 0 ||
+            strcmp(log_path, "false") == 0 ||
+            strcmp(log_path, "off") == 0)
+        {
+            printf("[MPC] Solver telemetry log: disabled (set MPC_SOLVER_LOG=/path/file.csv to enable)\n");
+            log_path = NULL;
+        }
+
+        if (log_path != NULL)
+        {
+            /* SECURITY: Environment variable is trusted deployment input.
+             * Log path must come from controlled local configuration sources. */
+
+            ensure_parent_directories(log_path);
+
+            g_solver_log_file = fopen(log_path, "w");
+            if (g_solver_log_file == NULL)
+            {
+                fprintf(stderr, "[MPC] WARNING: Failed to open solver log file %s\n", log_path);
+            }
+            else
+            {
+                fprintf(g_solver_log_file,
+                        "pose_ros_time_ns,unix_time_ns,solve_us,status,iterations,primal_residual,dual_residual,"
+                        "closest_wp,local_raceline_seq,local_raceline_ros_time_ns,local_raceline_count,local_raceline_length_m,odom_age_ms,"
+                        "pos_x,pos_y,heading,pose_cov_x,pose_cov_y,pose_cov_yaw,"
+                        "e_y,e_psi,vx,vy,omega,"
+                        "path_x,path_y,path_heading,path_s,path_t,path_segment_idx,"
+                        "v_ref0,kappa0,ref_yaw_rate0,left_wall0,right_wall0,"
+                        "local_wp0_x,local_wp0_y,local_wp0_heading,local_wp0_s,"
+                        "cmd_steer,cmd_accel,publish_speed_cmd,publish_accel_cmd,"
+                        "actual_steer,servo_raw,use_steering_feedback,odom_ros_time_ns\n");
+                fflush(g_solver_log_file);
+                printf("[MPC] Solver telemetry log: %s (stride=%d)\n", log_path, g_solver_log_stride);
+
                 {
-                    g_local_raceline_log_file = fopen(local_raceline_log_path, "w");
-                    if (g_local_raceline_log_file != NULL)
+                    const char *local_raceline_log_path = getenv("MPC_LOCAL_RACELINE_LOG");
+                    if (local_raceline_log_path != NULL && local_raceline_log_path[0] != '\0' &&
+                        strcmp(local_raceline_log_path, "0") != 0 &&
+                        strcmp(local_raceline_log_path, "false") != 0 &&
+                        strcmp(local_raceline_log_path, "off") != 0)
                     {
-                        fprintf(g_local_raceline_log_file,
-                                "local_raceline_seq,local_raceline_ros_time_ns,waypoint_index,waypoint_count,"
-                                "s_m,x_m,y_m,heading_rad,kappa_radpm,v_ref_mps,left_bound_m,right_bound_m\n");
-                        fflush(g_local_raceline_log_file);
-                        printf("[MPC] Local raceline snapshot log: %s\n", local_raceline_log_path);
+                        ensure_parent_directories(local_raceline_log_path);
+                        g_local_raceline_log_file = fopen(local_raceline_log_path, "w");
+                        if (g_local_raceline_log_file != NULL)
+                        {
+                            fprintf(g_local_raceline_log_file,
+                                    "local_raceline_seq,local_raceline_ros_time_ns,waypoint_index,waypoint_count,"
+                                    "s_m,x_m,y_m,heading_rad,kappa_radpm,v_ref_mps,left_bound_m,right_bound_m\n");
+                            fflush(g_local_raceline_log_file);
+                            printf("[MPC] Local raceline snapshot log: %s\n", local_raceline_log_path);
+                        }
+                        else
+                        {
+                            fprintf(stderr, "[MPC] WARNING: Failed to open local raceline log file %s\n",
+                                    local_raceline_log_path);
+                        }
+                    }
+                }
+
+                {
+                    char meta_path[PATH_MAX];
+                    int meta_len = snprintf(meta_path, sizeof(meta_path), "%s.meta.txt", log_path);
+                    if (meta_len > 0 && (size_t)meta_len < sizeof(meta_path))
+                    {
+                        const char *local_raceline_log_path = getenv("MPC_LOCAL_RACELINE_LOG");
+                        MpcConfiguration_t cfg = mpc_get_configuration();
+                        g_solver_meta_file = fopen(meta_path, "w");
+                        if (g_solver_meta_file != NULL)
+                        {
+                            fprintf(g_solver_meta_file, "log_path=%s\n", log_path);
+                            fprintf(g_solver_meta_file, "local_raceline_log_path=%s\n",
+                                    local_raceline_log_path != NULL ? local_raceline_log_path : "");
+                            fprintf(g_solver_meta_file, "control_rate_hz=%.3f\n", (double)CONTROL_RATE_HZ);
+                            fprintf(g_solver_meta_file, "control_dt_s=%.6f\n", (double)CONTROL_DT_SECONDS);
+                            fprintf(g_solver_meta_file, "prediction_horizon=%d\n", PREDICTION_HORIZON);
+                            fprintf(g_solver_meta_file, "prediction_dt_s=%.6f\n", (double)cfg.time_step);
+                            fprintf(g_solver_meta_file, "weight_lat=%.9g\n", (double)cfg.weight_lateral_error);
+                            fprintf(g_solver_meta_file, "weight_heading=%.9g\n", (double)cfg.weight_heading_error);
+                            fprintf(g_solver_meta_file, "weight_velocity=%.9g\n", (double)cfg.weight_velocity);
+                            fprintf(g_solver_meta_file, "weight_lat_vel=%.9g\n", (double)cfg.weight_lateral_velocity);
+                            fprintf(g_solver_meta_file, "weight_yaw_rate=%.9g\n", (double)cfg.weight_yaw_rate);
+                            fprintf(g_solver_meta_file, "weight_steer_effort=%.9g\n", (double)cfg.weight_steering_effort);
+                            fprintf(g_solver_meta_file, "weight_accel_effort=%.9g\n", (double)cfg.weight_acceleration_effort);
+                            fprintf(g_solver_meta_file, "weight_steer_rate=%.9g\n", (double)cfg.weight_steering_rate);
+                            fprintf(g_solver_meta_file, "weight_accel_rate=%.9g\n", (double)cfg.weight_acceleration_rate);
+                            fprintf(g_solver_meta_file, "weight_delta_actual=%.9g\n", (double)cfg.weight_delta_actual);
+                            fprintf(g_solver_meta_file, "solver_max_iter=%u\n", (unsigned int)cfg.max_solver_iterations);
+                            fprintf(g_solver_meta_file, "solver_tol=%.9g\n", (double)cfg.solver_convergence_tolerance);
+                            fprintf(g_solver_meta_file, "vehicle_mass_kg=%.9g\n", (double)VP_MASS_KG);
+                            fprintf(g_solver_meta_file, "vehicle_iz_kgm2=%.9g\n", (double)VP_YAW_INERTIA_KGM2);
+                            fprintf(g_solver_meta_file, "vehicle_lf_m=%.9g\n", (double)VP_CG_TO_FRONT_AXLE_M);
+                            fprintf(g_solver_meta_file, "vehicle_lr_m=%.9g\n", (double)VP_CG_TO_REAR_AXLE_M);
+                            fprintf(g_solver_meta_file, "vehicle_hcg_m=%.9g\n", (double)VP_CG_HEIGHT_M);
+                            fprintf(g_solver_meta_file, "vehicle_steer_max_rad=%.9g\n", (double)VP_MAX_STEERING_RAD);
+                            fprintf(g_solver_meta_file, "vehicle_min_speed_mps=%.9g\n", (double)VP_MIN_VELOCITY_MPS);
+                            fprintf(g_solver_meta_file, "vehicle_max_speed_mps=%.9g\n", (double)VP_MAX_VELOCITY_MPS);
+                            fprintf(g_solver_meta_file, "servo_gain=%.9g\n", (double)STEERING_TO_SERVO_GAIN);
+                            fprintf(g_solver_meta_file, "servo_offset=%.9g\n", (double)STEERING_TO_SERVO_OFFSET);
+                            fprintf(g_solver_meta_file, "steering_rate_limit=%.9g\n", (double)STEERING_RATE_LIMIT);
+                            fprintf(g_solver_meta_file, "raceline_speed_margin_mps=%.9g\n", g_raceline_speed_margin_mps);
+                            fprintf(g_solver_meta_file, "use_solver_log_stride=%d\n", g_solver_log_stride);
+                            fflush(g_solver_meta_file);
+                        }
                     }
                 }
             }
 
+            /* Also open stats CSV file for simple idx/iter/solve_time logging */
             {
-                char meta_path[PATH_MAX];
-                int meta_len = snprintf(meta_path, sizeof(meta_path), "%s.meta.txt", log_path);
-                if (meta_len > 0 && (size_t)meta_len < sizeof(meta_path))
+                char stats_csv_path[PATH_MAX];
+                int stats_len = snprintf(stats_csv_path, sizeof(stats_csv_path),
+                                         "%s.stats.csv", log_path);
+                if (stats_len > 0 && (size_t)stats_len < sizeof(stats_csv_path))
                 {
-                    MpcConfiguration_t cfg = mpc_get_configuration();
-                    g_solver_meta_file = fopen(meta_path, "w");
-                    if (g_solver_meta_file != NULL)
+                    g_stats_csv_file = fopen(stats_csv_path, "w");
+                    if (g_stats_csv_file != NULL)
                     {
-                        fprintf(g_solver_meta_file, "log_path=%s\n", log_path);
-                        fprintf(g_solver_meta_file, "local_raceline_log_path=%s.local_raceline.csv\n", log_path);
-                        fprintf(g_solver_meta_file, "control_rate_hz=%.3f\n", (double)CONTROL_RATE_HZ);
-                        fprintf(g_solver_meta_file, "control_dt_s=%.6f\n", (double)CONTROL_DT_SECONDS);
-                        fprintf(g_solver_meta_file, "prediction_horizon=%d\n", PREDICTION_HORIZON);
-                        fprintf(g_solver_meta_file, "prediction_dt_s=%.6f\n", (double)cfg.time_step);
-                        fprintf(g_solver_meta_file, "weight_lat=%.9g\n", (double)cfg.weight_lateral_error);
-                        fprintf(g_solver_meta_file, "weight_heading=%.9g\n", (double)cfg.weight_heading_error);
-                        fprintf(g_solver_meta_file, "weight_velocity=%.9g\n", (double)cfg.weight_velocity);
-                        fprintf(g_solver_meta_file, "weight_lat_vel=%.9g\n", (double)cfg.weight_lateral_velocity);
-                        fprintf(g_solver_meta_file, "weight_yaw_rate=%.9g\n", (double)cfg.weight_yaw_rate);
-                        fprintf(g_solver_meta_file, "weight_steer_effort=%.9g\n", (double)cfg.weight_steering_effort);
-                        fprintf(g_solver_meta_file, "weight_accel_effort=%.9g\n", (double)cfg.weight_acceleration_effort);
-                        fprintf(g_solver_meta_file, "weight_steer_rate=%.9g\n", (double)cfg.weight_steering_rate);
-                        fprintf(g_solver_meta_file, "weight_accel_rate=%.9g\n", (double)cfg.weight_acceleration_rate);
-                        fprintf(g_solver_meta_file, "weight_delta_actual=%.9g\n", (double)cfg.weight_delta_actual);
-                        fprintf(g_solver_meta_file, "solver_max_iter=%u\n", (unsigned int)cfg.max_solver_iterations);
-                        fprintf(g_solver_meta_file, "solver_tol=%.9g\n", (double)cfg.solver_convergence_tolerance);
-                        fprintf(g_solver_meta_file, "vehicle_mass_kg=%.9g\n", (double)VP_MASS_KG);
-                        fprintf(g_solver_meta_file, "vehicle_iz_kgm2=%.9g\n", (double)VP_YAW_INERTIA_KGM2);
-                        fprintf(g_solver_meta_file, "vehicle_lf_m=%.9g\n", (double)VP_CG_TO_FRONT_AXLE_M);
-                        fprintf(g_solver_meta_file, "vehicle_lr_m=%.9g\n", (double)VP_CG_TO_REAR_AXLE_M);
-                        fprintf(g_solver_meta_file, "vehicle_hcg_m=%.9g\n", (double)VP_CG_HEIGHT_M);
-                        fprintf(g_solver_meta_file, "vehicle_steer_max_rad=%.9g\n", (double)VP_MAX_STEERING_RAD);
-                        fprintf(g_solver_meta_file, "vehicle_min_speed_mps=%.9g\n", (double)VP_MIN_VELOCITY_MPS);
-                        fprintf(g_solver_meta_file, "vehicle_max_speed_mps=%.9g\n", (double)VP_MAX_VELOCITY_MPS);
-                        fprintf(g_solver_meta_file, "servo_gain=%.9g\n", (double)STEERING_TO_SERVO_GAIN);
-                        fprintf(g_solver_meta_file, "servo_offset=%.9g\n", (double)STEERING_TO_SERVO_OFFSET);
-                        fprintf(g_solver_meta_file, "steering_rate_limit=%.9g\n", (double)STEERING_RATE_LIMIT);
-                        fprintf(g_solver_meta_file, "raceline_speed_margin_mps=%.9g\n", g_raceline_speed_margin_mps);
-                        fprintf(g_solver_meta_file, "use_solver_log_stride=%d\n", g_solver_log_stride);
-                        fflush(g_solver_meta_file);
+                        fprintf(g_stats_csv_file, "idx,iterations,solve_time_us\n");
+                        fflush(g_stats_csv_file);
+                        printf("[MPC] Stats CSV log: %s\n", stats_csv_path);
                     }
                 }
             }
@@ -1359,6 +1561,9 @@ int main(int argc, char *argv[])
 
     printf("[MPC] Reference source: %s (nav_msgs/Path)\n", g_local_raceline_topic);
     printf("[MPC] Waiting for first local raceline message before running control\n");
+
+    /* Initialize terminal output timer */
+    clock_gettime(CLOCK_MONOTONIC, &g_last_terminal_print_time);
 
     /* Initialize ROS2 */
     rcl_context_t ctx = rcl_get_zero_initialized_context();

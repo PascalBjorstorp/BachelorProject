@@ -301,10 +301,12 @@ MPCC/test/*
 MPCC/tuning_results/*
 MPCC/logs/*
 
+
 FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/
 mpc_fpga_top_*/
 MPC_system/
 Kria_platform/
+
 f1tenth_planning/trajectories/my_track_mpcc_trace_20hz_auto.csv
 f1tenth_planning/trajectories/my_track_mpcc_trace_body_safe_20hz_auto.csv
 f1tenth_planning/trajectories/my_track_mpcc_trace_body_safe.csv

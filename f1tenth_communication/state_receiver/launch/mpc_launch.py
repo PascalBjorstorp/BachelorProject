@@ -24,7 +24,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'xclbin_path',
-            default_value='/lib/firmware/xilinx/kr260_mpc_app/mpc_fpga_top_opencl.xclbin',
+            default_value='/lib/firmware/xilinx/MPC_FPGA/mpc_fpga_top_opencl.xclbin',
             description='Path to xclbin on KR260'
         ),
         DeclareLaunchArgument(
