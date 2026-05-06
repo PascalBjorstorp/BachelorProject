@@ -57,7 +57,7 @@ static const char *g_trajectory_file = NULL;
 static int g_verbose = 0;
 
 /* Solver-derived values used to map MPCC acceleration to a velocity command. */
-static double g_solver_dt_sec = 0.05;
+static double g_solver_dt_sec = MPCC_DEFAULT_DT;
 static double g_vx_max_mps = 8.0;
 static double g_vx_min_cmd = 0.1;  /* Minimum velocity command [m/s] */
 
@@ -1393,7 +1393,7 @@ static void configure_mpcc_from_environment(void)
     g_solver_dt_sec = cfg.dt;
     if (g_solver_dt_sec <= 0.0)
     {
-        g_solver_dt_sec = 0.05;
+        g_solver_dt_sec = MPCC_DEFAULT_DT;
     }
 
     g_vx_max_mps = cfg.vx_max;
