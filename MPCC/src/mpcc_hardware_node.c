@@ -57,7 +57,7 @@ static const char *g_trajectory_file = NULL;
 static int g_verbose = 0;
 
 /* Solver-derived values used to map MPCC acceleration to a velocity command. */
-static double g_solver_dt_sec = 0.05;
+static double g_solver_dt_sec = MPCC_DEFAULT_DT;
 static double g_vx_max_mps = 8.0;
 static double g_vx_min_cmd = 0.1;  /* Minimum velocity command [m/s] */
 
@@ -65,11 +65,13 @@ static double g_vx_min_cmd = 0.1;  /* Minimum velocity command [m/s] */
 static double g_ax_min_hardware = -3.0;
 
 /* Odometry watchdog and twist sanity thresholds for real-car inputs. */
-static double g_watchdog_timeout_sec = 0.5;
+static double g_watchdog_timeout_sec = 0.2;
 
 /* Nominal control cadence used for rate penalties when not adapting online. */
 static double g_nominal_control_dt_sec = 1.0 / MPCC_CONTROL_RATE_HZ;
 static int g_adapt_cross_call_scale = 1;
+static int g_control_period_explicit = 0;
+static int g_adapt_nominal_dt_bootstrapped = 0;
 
 /* -------------------------------------------------------------------------- */
 /* VESC Servo Conversion Parameters                                            */
@@ -557,6 +559,7 @@ static void publish_predicted_path(const MPCCResult_t *result)
     }
 
     g_predicted_path_msg.poses.size = n;
+    g_predicted_path_msg.header.stamp = g_pose_msg.header.stamp;
     for (uint16_t i = 0; i < n; i++) {
         const MPCCState_t *st = &result->predicted_states[i];
         g_predicted_path_msg.poses.data[i].position.x = st->X;
@@ -884,6 +887,17 @@ static void pose_callback(const void *msg_in)
             double dt_actual = timespec_diff_sec(&g_prev_solve_time, &solve_now);
             if (dt_actual > 0.0005 && dt_actual < 0.5)  /* sanity: 2 Hz–2 kHz */
             {
+                if (!g_control_period_explicit && !g_adapt_nominal_dt_bootstrapped)
+                {
+                    g_nominal_control_dt_sec = dt_actual;
+                    g_control_dt_filtered = dt_actual;
+                    g_adapt_nominal_dt_bootstrapped = 1;
+
+                    fprintf(stderr,
+                            "[MPCC] INFO: adaptive cross-call nominal bootstrapped to %.1f ms from measured solve cadence\n",
+                            dt_actual * 1000.0);
+                }
+
                 const double alpha =
                     (fabs(dt_actual - g_control_dt_filtered) > 0.02) ? 0.3 : 0.1;
                 const double min_dt = 0.5 * g_nominal_control_dt_sec;
@@ -916,9 +930,26 @@ static void pose_callback(const void *msg_in)
     {
         if (g_verbose || g_solve_count <= 20 || (g_solve_count % 10U) == 0U)
         {
+            const double control_dt_sec = current_control_dt_sec();
+
             fprintf(stderr,
-                    "[MPCC %3u] solver failed (status=%d), applying safe fallback (prev d=%.3f v=%.2f)\n",
-                    g_solve_count, (int)status, g_prev_delta_cmd, g_prev_speed_cmd);
+                    "[MPCC %3u] solver failed (status=%d iter=%u prim=%.4f dual=%.4f rho=%.3f rho_u=%.3f clips=%u cross=%.3f ctrl_dt=%.1fms nominal=%.1fms pred_dt=%.1fms), applying safe fallback (prev d=%.3f v=%.2f)\n",
+                    g_solve_count,
+                    (int)status,
+                    result.admm_iterations,
+                    result.primal_residual,
+                    result.dual_residual,
+                    result.rho_final,
+                    result.rho_u_final,
+                    result.numeric_clip_count,
+                    (g_solver_dt_sec > 0.0)
+                        ? (control_dt_sec / g_solver_dt_sec)
+                        : 0.0,
+                    control_dt_sec * 1000.0,
+                    g_nominal_control_dt_sec * 1000.0,
+                    g_solver_dt_sec * 1000.0,
+                    g_prev_delta_cmd,
+                    g_prev_speed_cmd);
         }
         {
             const double control_dt_sec = current_control_dt_sec();
@@ -1178,10 +1209,12 @@ static void read_runtime_environment(void)
         if (period_ms > 0.0 && period_ms <= 1000.0)
         {
             g_nominal_control_dt_sec = period_ms * 1e-3;
+            g_control_period_explicit = 1;
         }
         else if (period_ms == 0.0)
         {
             g_nominal_control_dt_sec = 1.0 / MPCC_CONTROL_RATE_HZ;
+            g_control_period_explicit = 0;
         }
     }
 
@@ -1360,7 +1393,7 @@ static void configure_mpcc_from_environment(void)
     g_solver_dt_sec = cfg.dt;
     if (g_solver_dt_sec <= 0.0)
     {
-        g_solver_dt_sec = 0.05;
+        g_solver_dt_sec = MPCC_DEFAULT_DT;
     }
 
     g_vx_max_mps = cfg.vx_max;

@@ -10,6 +10,7 @@
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
+#include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <f1tenth_msgs/msg/mpc_state.hpp>
 
@@ -20,6 +21,9 @@
 #include <limits>
 #include <cmath>
 #include <chrono>
+#include <cstdio>
+#include <ctime>
+#include <sys/stat.h>
 
 namespace f1tenth_communication {
 
@@ -63,12 +67,14 @@ public:
         this->declare_parameter("raceline_topic", "/local_raceline");
         this->declare_parameter("output_topic", "/mpc_state");
         this->declare_parameter("servo_topic", "/sensors/servo_position_command");
+        this->declare_parameter("drive_topic", "/drive");
 
         std::string odom_topic = this->get_parameter("odom_topic").as_string();
         std::string pose_topic = this->get_parameter("pose_topic").as_string();
         std::string raceline_topic = this->get_parameter("raceline_topic").as_string();
         std::string output_topic = this->get_parameter("output_topic").as_string();
         std::string servo_topic = this->get_parameter("servo_topic").as_string();
+        std::string drive_topic = this->get_parameter("drive_topic").as_string();
 
         // Best Effort + volatile minimizes control latency under packet loss
         auto qos = rclcpp::QoS(1).best_effort().durability_volatile();
@@ -90,6 +96,11 @@ public:
             pose_topic, qos,
             std::bind(&StatePublisherNode::pose_callback, this, std::placeholders::_1));
 
+        // Subscribe to /drive feedback for round-trip latency measurement
+        drive_sub_ = this->create_subscription<ackermann_msgs::msg::AckermannDriveStamped>(
+            drive_topic, qos,
+            std::bind(&StatePublisherNode::drive_callback, this, std::placeholders::_1));
+
         // Subscribe to servo feedback
         if (!servo_topic.empty()) {
             servo_sub_ = this->create_subscription<std_msgs::msg::Float64>(
@@ -103,6 +114,18 @@ public:
         RCLCPP_INFO(this->get_logger(),
             "State publisher ready (local_raceline). Raceline: %s, Pose: %s, Odom: %s -> %s",
             raceline_topic.c_str(), pose_topic.c_str(), odom_topic.c_str(), output_topic.c_str());
+        RCLCPP_INFO(this->get_logger(),
+            "Round-trip latency tracking active: /drive topic = %s",
+            drive_topic.c_str());
+
+        open_roundtrip_csv_file();
+    }
+
+    ~StatePublisherNode() override {
+        if (rt_csv_file_ != nullptr) {
+            fclose(rt_csv_file_);
+            rt_csv_file_ = nullptr;
+        }
     }
 
 private:
@@ -111,6 +134,7 @@ private:
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr raceline_sub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
+    rclcpp::Subscription<ackermann_msgs::msg::AckermannDriveStamped>::SharedPtr drive_sub_;
     rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr servo_sub_;
 
     // --- Runtime State ---
@@ -124,6 +148,15 @@ private:
     bool has_odom_ = false;
 
     uint64_t published_count_ = 0;
+    uint64_t rt_window_count_ = 0;
+    double rt_window_sum_us_ = 0.0;
+    double rt_window_min_us_ = 1e12;
+    double rt_window_max_us_ = 0.0;
+    uint64_t rt_csv_idx_ = 0;
+    std::chrono::steady_clock::time_point rt_last_print_time_ = std::chrono::steady_clock::now();
+    FILE* rt_csv_file_ = nullptr;
+
+    static constexpr double kRoundtripPrintIntervalSec = 5.0;
 
     // --- Helpers ---
 
@@ -142,6 +175,32 @@ private:
     static double quaternion_to_yaw(double qx, double qy, double qz, double qw) {
         return std::atan2(2.0 * (qw * qz + qx * qy),
                           1.0 - 2.0 * (qy * qy + qz * qz));
+    }
+
+    void open_roundtrip_csv_file() {
+        const char* log_dir = "log";
+        mkdir(log_dir, 0755);
+
+        time_t now = time(nullptr);
+        struct tm tm_now;
+        localtime_r(&now, &tm_now);
+
+        char timestamp[64];
+        strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", &tm_now);
+
+        char csv_path[512];
+        snprintf(csv_path, sizeof(csv_path), "%s/jetson_roundtrip_%s.csv", log_dir, timestamp);
+
+        rt_csv_file_ = fopen(csv_path, "w");
+        if (rt_csv_file_ == nullptr) {
+            RCLCPP_WARN(this->get_logger(),
+                "Failed to open round-trip CSV file: %s", csv_path);
+            return;
+        }
+
+        fprintf(rt_csv_file_, "idx,roundtrip_us\n");
+        fflush(rt_csv_file_);
+        RCLCPP_INFO(this->get_logger(), "Round-trip CSV log: %s", csv_path);
     }
 
     // Build arc-length based horizon from local_raceline using first waypoint velocity
@@ -353,6 +412,45 @@ private:
         has_odom_ = true;
     }
 
+    void drive_callback(const ackermann_msgs::msg::AckermannDriveStamped::SharedPtr msg) {
+        const rclcpp::Time src_time(msg->header.stamp);
+        if (src_time.nanoseconds() <= 0) {
+            return;
+        }
+
+        const double rt_us = (this->now() - src_time).seconds() * 1e6;
+        if (rt_us < 0.0) {
+            return;
+        }
+
+        if (rt_csv_file_ != nullptr) {
+            rt_csv_idx_++;
+            fprintf(rt_csv_file_, "%lu,%.1f\n", rt_csv_idx_, rt_us);
+            fflush(rt_csv_file_);
+        }
+
+        rt_window_count_++;
+        rt_window_sum_us_ += rt_us;
+        if (rt_us < rt_window_min_us_) rt_window_min_us_ = rt_us;
+        if (rt_us > rt_window_max_us_) rt_window_max_us_ = rt_us;
+
+        const auto now = std::chrono::steady_clock::now();
+        const double elapsed_sec =
+            std::chrono::duration<double>(now - rt_last_print_time_).count();
+        if (elapsed_sec >= kRoundtripPrintIntervalSec && rt_window_count_ > 0) {
+            const double avg_us = rt_window_sum_us_ / static_cast<double>(rt_window_count_);
+            RCLCPP_INFO(this->get_logger(),
+                "[RoundTrip] Stats (last %.1fs, %lu samples): min=%.1f us, avg=%.1f us, max=%.1f us",
+                elapsed_sec, rt_window_count_, rt_window_min_us_, avg_us, rt_window_max_us_);
+
+            rt_window_count_ = 0;
+            rt_window_sum_us_ = 0.0;
+            rt_window_min_us_ = 1e12;
+            rt_window_max_us_ = 0.0;
+            rt_last_print_time_ = now;
+        }
+    }
+
     void pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
         if (local_raceline_.empty()) {
             RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
@@ -390,6 +488,9 @@ private:
         build_horizon_from_raceline(*mpc_state);
 
         uint32_t horizon_len = mpc_state->horizon_length;
+
+        /* Set publish timestamp just before publishing (for network latency tracking on Kria) */
+        mpc_state->header.stamp = this->now();
         
         // Publish
         pub_->publish(std::move(mpc_state));

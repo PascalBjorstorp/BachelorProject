@@ -21,10 +21,12 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <sys/stat.h>
 #include <vector>
 
 #include <vitis_common/common/ros_opencl_120.hpp>
@@ -123,13 +125,23 @@ public:
             return false;
         }
 
-        input_buffer_ = cl::Buffer(context_, CL_MEM_READ_ONLY, INPUT_BUFFER_BYTES_512, nullptr, &err);
+        input_buffer_ = cl::Buffer(
+            context_,
+            static_cast<cl_mem_flags>(CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR),
+            INPUT_BUFFER_BYTES_512,
+            nullptr,
+            &err);
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "UDP-FPGA-OpenCL: input buffer allocation failed (%d)\n", err);
             return false;
         }
 
-        output_buffer_ = cl::Buffer(context_, CL_MEM_WRITE_ONLY, sizeof(uint32_t) * 4, nullptr, &err);
+        output_buffer_ = cl::Buffer(
+            context_,
+            static_cast<cl_mem_flags>(CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR),
+            sizeof(uint32_t) * 4,
+            nullptr,
+            &err);
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "UDP-FPGA-OpenCL: output buffer allocation failed (%d)\n", err);
             return false;
@@ -171,49 +183,69 @@ public:
             return false;
         }
 
-        std::fill(input_words_.begin(), input_words_.end(), 0u);
+        cl_int err = CL_SUCCESS;
+        void* mapped = queue_.enqueueMapBuffer(
+            input_buffer_,
+            CL_TRUE,
+            CL_MAP_WRITE,
+            0,
+            INPUT_BUFFER_BYTES_512,
+            nullptr,
+            nullptr,
+            &err);
+        if (err != CL_SUCCESS || mapped == nullptr) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: enqueueMapBuffer(input) failed (%d)\n", err);
+            return false;
+        }
+
+        auto* input_words = reinterpret_cast<uint32_t*>(mapped);
+        std::fill(input_words, input_words + INPUT_WORDS, 0u);
 
         // Group 0: [e_y | e_psi | vx | vy]
-        input_words_[0] = static_cast<uint32_t>(e_y_fp);
-        input_words_[1] = static_cast<uint32_t>(e_psi_fp);
-        input_words_[2] = static_cast<uint32_t>(vx_fp);
-        input_words_[3] = static_cast<uint32_t>(vy_fp);
+        input_words[0] = static_cast<uint32_t>(e_y_fp);
+        input_words[1] = static_cast<uint32_t>(e_psi_fp);
+        input_words[2] = static_cast<uint32_t>(vx_fp);
+        input_words[3] = static_cast<uint32_t>(vy_fp);
 
         // Group 1: [omega | steering | horizon_length | prev_accel]
-        input_words_[4] = static_cast<uint32_t>(omega_fp);
-        input_words_[5] = static_cast<uint32_t>(steering_fp);
-        input_words_[6] = static_cast<uint32_t>(horizon);
-        input_words_[7] = static_cast<uint32_t>(prev_accel_fp_);
+        input_words[4] = static_cast<uint32_t>(omega_fp);
+        input_words[5] = static_cast<uint32_t>(steering_fp);
+        input_words[6] = static_cast<uint32_t>(horizon);
+        input_words[7] = static_cast<uint32_t>(prev_accel_fp_);
 
         // Groups 2..N+1(+): V2 layout, 8 words per step:
         // [ref_ey | ref_epsi | ref_vx | ref_vy | ref_omega_ref | ref_kappa | ref_left | ref_right]
         for (size_t i = 0; i < MPC_HORIZON; ++i) {
             const size_t base = 8 + (i * 8);
             if (i < horizon) {
-                input_words_[base + 0] = static_cast<uint32_t>(packet.ref_ey_fp[i]);
+                input_words[base + 0] = static_cast<uint32_t>(packet.ref_ey_fp[i]);
                 /* ref_epsi: not supplied by sender (optional) */
-                input_words_[base + 1] = static_cast<uint32_t>(0u);
-                input_words_[base + 2] = static_cast<uint32_t>(packet.ref_vx_fp[i]);
+                input_words[base + 1] = static_cast<uint32_t>(0u);
+                input_words[base + 2] = static_cast<uint32_t>(packet.ref_vx_fp[i]);
                 /* ref_vy: not supplied by sender (optional) */
-                input_words_[base + 3] = static_cast<uint32_t>(0u);
+                input_words[base + 3] = static_cast<uint32_t>(0u);
                 /* ref_omega_ref: derive as v * kappa */
                 {
                     const float v = state_transport_udp::fp_to_float(packet.ref_vx_fp[i]);
                     const float kap = state_transport_udp::fp_to_float(packet.ref_kappa_fp[i]);
                     const int32_t omega_fp = state_transport_udp::float_to_fp(v * kap);
-                    input_words_[base + 4] = static_cast<uint32_t>(omega_fp);
+                    input_words[base + 4] = static_cast<uint32_t>(omega_fp);
                 }
-                input_words_[base + 5] = static_cast<uint32_t>(packet.ref_kappa_fp[i]);
-                input_words_[base + 6] = static_cast<uint32_t>(packet.ref_left_bound_fp[i]);
-                input_words_[base + 7] = static_cast<uint32_t>(packet.ref_right_bound_fp[i]);
+                input_words[base + 5] = static_cast<uint32_t>(packet.ref_kappa_fp[i]);
+                input_words[base + 6] = static_cast<uint32_t>(packet.ref_left_bound_fp[i]);
+                input_words[base + 7] = static_cast<uint32_t>(packet.ref_right_bound_fp[i]);
             }
         }
 
-        cl_int err = CL_SUCCESS;
-        err = queue_.enqueueWriteBuffer(input_buffer_, CL_FALSE, 0,
-                                        INPUT_BUFFER_BYTES_512, input_words_.data());
+        err = queue_.enqueueUnmapMemObject(input_buffer_, mapped);
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "UDP-FPGA-OpenCL: enqueueWriteBuffer failed (%d)\n", err);
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: enqueueUnmapMemObject(input) failed (%d)\n", err);
+            return false;
+        }
+
+        err = queue_.enqueueMigrateMemObjects({input_buffer_}, 0);
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: migrate(input) failed (%d)\n", err);
             return false;
         }
 
@@ -223,16 +255,41 @@ public:
             return false;
         }
 
-        err = queue_.enqueueReadBuffer(output_buffer_, CL_FALSE, 0,
-                                       sizeof(uint32_t) * 4, output_words_.data());
+        err = queue_.enqueueMigrateMemObjects({output_buffer_}, CL_MIGRATE_MEM_OBJECT_HOST);
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "UDP-FPGA-OpenCL: enqueueReadBuffer failed (%d)\n", err);
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: migrate(output) failed (%d)\n", err);
             return false;
         }
 
         err = queue_.finish();
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "UDP-FPGA-OpenCL: queue finish failed (%d)\n", err);
+            return false;
+        }
+
+        void* out_mapped = queue_.enqueueMapBuffer(
+            output_buffer_,
+            CL_TRUE,
+            CL_MAP_READ,
+            0,
+            sizeof(uint32_t) * 4,
+            nullptr,
+            nullptr,
+            &err);
+        if (err != CL_SUCCESS || out_mapped == nullptr) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: enqueueMapBuffer(output) failed (%d)\n", err);
+            return false;
+        }
+
+        const auto* out_words = reinterpret_cast<const uint32_t*>(out_mapped);
+        output_words_[0] = out_words[0];
+        output_words_[1] = out_words[1];
+        output_words_[2] = out_words[2];
+        output_words_[3] = out_words[3];
+
+        err = queue_.enqueueUnmapMemObject(output_buffer_, out_mapped);
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: enqueueUnmapMemObject(output) failed (%d)\n", err);
             return false;
         }
 
@@ -417,6 +474,42 @@ int main(int argc, char** argv) {
     bool have_seq = false;
     uint64_t packet_count = 0;
 
+    FILE* stats_csv_file = nullptr;
+    {
+        const char* log_dir = "log";
+        ::mkdir(log_dir, 0755);
+
+        const std::time_t now = std::time(nullptr);
+        struct tm tm_now;
+        localtime_r(&now, &tm_now);
+
+        char timestamp[64];
+        std::strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", &tm_now);
+
+        char csv_path[512];
+        std::snprintf(csv_path, sizeof(csv_path), "%s/kria_udp_receiver_%s.csv", log_dir, timestamp);
+
+        stats_csv_file = std::fopen(csv_path, "w");
+        if (stats_csv_file != nullptr) {
+            std::fprintf(stats_csv_file, "idx,iterations,solve_time_us\n");
+            std::fflush(stats_csv_file);
+            std::fprintf(stdout, "Kria UDP receiver stats CSV: %s\n", csv_path);
+        }
+    }
+
+    uint64_t stats_idx = 0;
+    uint64_t stats_window_count = 0;
+    double solve_sum_us = 0.0;
+    double solve_min_us = std::numeric_limits<double>::infinity();
+    double solve_max_us = 0.0;
+    double iter_sum = 0.0;
+    uint32_t iter_min = 0xFFFFFFFFu;
+    uint32_t iter_max = 0u;
+    uint64_t optimal_count = 0;
+    uint64_t max_iter_count = 0;
+    uint64_t stats_last_print_ns = monotonic_now_ns();
+    constexpr uint64_t kStatsPrintIntervalNs = 5ull * 1000000000ull;
+
     int32_t last_good_steering_fp = 0;
     int32_t last_good_accel_fp = 0;
     int32_t last_good_speed_fp =
@@ -481,6 +574,7 @@ int main(int argc, char** argv) {
         int32_t out_accel_fp = 0;
         uint32_t out_status = 0;
         uint32_t out_iterations = 0;
+        const uint64_t solve_start_ns = monotonic_now_ns();
 
         if (!fpga.compute(e_y_fp,
                           e_psi_fp,
@@ -496,6 +590,8 @@ int main(int argc, char** argv) {
             std::fprintf(stderr, "FPGA OpenCL compute failed\n");
             continue;
         }
+        const uint64_t solve_end_ns = monotonic_now_ns();
+        const double solve_us = static_cast<double>(solve_end_ns - solve_start_ns) / 1e3;
 
         const float vx = state_transport_udp::fp_to_float(packet.velocity_fp);
 
@@ -567,6 +663,62 @@ int main(int argc, char** argv) {
             continue;
         }
 
+        stats_idx++;
+        stats_window_count++;
+        solve_sum_us += solve_us;
+        solve_min_us = std::min(solve_min_us, solve_us);
+        solve_max_us = std::max(solve_max_us, solve_us);
+        iter_sum += static_cast<double>(out_iterations);
+        iter_min = std::min(iter_min, out_iterations);
+        iter_max = std::max(iter_max, out_iterations);
+        if (out_status == MPC_FPGA_STATUS_OK) {
+            optimal_count++;
+        }
+        if (out_status == MPC_FPGA_STATUS_MAX_ITER) {
+            max_iter_count++;
+        }
+
+        if (stats_csv_file != nullptr) {
+            std::fprintf(stats_csv_file, "%lu,%u,%.1f\n", stats_idx, out_iterations, solve_us);
+            std::fflush(stats_csv_file);
+        }
+
+        const uint64_t now_ns = monotonic_now_ns();
+        if (now_ns - stats_last_print_ns >= kStatsPrintIntervalNs && stats_window_count > 0) {
+            const double elapsed_sec = static_cast<double>(now_ns - stats_last_print_ns) / 1e9;
+            const double avg_iter = iter_sum / static_cast<double>(stats_window_count);
+            const double avg_solve_us = solve_sum_us / static_cast<double>(stats_window_count);
+            const double optimal_pct = (optimal_count * 100.0) / static_cast<double>(stats_window_count);
+            const double max_iter_pct = (max_iter_count * 100.0) / static_cast<double>(stats_window_count);
+
+            std::fprintf(stdout,
+                         "[Kria UDP] Stats (last %.1fs, %lu calls):\n"
+                         "  Iterations: min=%u, avg=%.1f, max=%u\n"
+                         "  Solve time: min=%.1f us, avg=%.1f us, max=%.1f us\n"
+                         "  Optimal: %.1f%%, Max iter: %.1f%%\n",
+                         elapsed_sec,
+                         stats_window_count,
+                         iter_min,
+                         avg_iter,
+                         iter_max,
+                         solve_min_us,
+                         avg_solve_us,
+                         solve_max_us,
+                         optimal_pct,
+                         max_iter_pct);
+
+            stats_window_count = 0;
+            solve_sum_us = 0.0;
+            solve_min_us = std::numeric_limits<double>::infinity();
+            solve_max_us = 0.0;
+            iter_sum = 0.0;
+            iter_min = 0xFFFFFFFFu;
+            iter_max = 0u;
+            optimal_count = 0;
+            max_iter_count = 0;
+            stats_last_print_ns = now_ns;
+        }
+
         packet_count++;
         if (packet_count == 1 || packet_count % 100 == 0) {
             std::fprintf(stdout,
@@ -582,6 +734,10 @@ int main(int argc, char** argv) {
 
     ::close(rx_fd);
     ::close(tx_fd);
+    if (stats_csv_file != nullptr) {
+        std::fclose(stats_csv_file);
+        stats_csv_file = nullptr;
+    }
     std::fprintf(stdout, "Kria UDP receiver stopped\n");
     return 0;
 }

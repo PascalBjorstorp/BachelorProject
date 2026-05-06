@@ -1,0 +1,658 @@
+/**
+ * @file kria_udp_receiver.cpp
+ * @brief Kria UDP state receiver and FPGA MPC executor via OpenCL.
+ * @details Receives UDP state packets from Jetson, computes Frenet errors,
+ *          executes OpenCL kernel-backed MPC, and sends control packets back.
+ *
+ * Transport: UDP (StatePacket -> ControlPacket). Launchable via ROS2 for
+ * convenience, but data path Jetson<->Kria remains UDP.
+ */
+
+#include <rclcpp/rclcpp.hpp>
+
+#include "state_transport_udp/state_packet.hpp"
+#include "mpc_fpga_interface.h"
+
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+#include <algorithm>
+#include <array>
+#include <cerrno>
+#include <chrono>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <ctime>
+#include <fstream>
+#include <limits>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <sys/stat.h>
+#include <vector>
+
+#include <vitis_common/common/ros_opencl_120.hpp>
+#include <vitis_common/common/utilities.hpp>
+
+namespace state_transport_udp {
+
+static constexpr int32_t FP_SCALE = 65536;
+
+static std::vector<unsigned char> read_file_bytes(const std::string& path) {
+    std::ifstream ifs(path, std::ios::binary | std::ios::ate);
+    if (!ifs) {
+        throw std::runtime_error("Failed to open file: " + path);
+    }
+    const std::streamoff size = ifs.tellg();
+    if (size <= 0) {
+        throw std::runtime_error("Empty file: " + path);
+    }
+    std::vector<unsigned char> buf(static_cast<size_t>(size));
+    ifs.seekg(0, std::ios::beg);
+    if (!ifs.read(reinterpret_cast<char*>(buf.data()), size)) {
+        throw std::runtime_error("Failed to read file: " + path);
+    }
+    return buf;
+}
+
+inline int32_t float_to_fp(float f) {
+    return static_cast<int32_t>(
+        f >= 0.0f
+            ? f * static_cast<float>(FP_SCALE) + 0.5f
+            : f * static_cast<float>(FP_SCALE) - 0.5f);
+}
+
+inline float fp_to_float(int32_t fp) {
+    return static_cast<float>(fp) / static_cast<float>(FP_SCALE);
+}
+
+class MpcFpgaInterface {
+public:
+    MpcFpgaInterface() = default;
+    void set_prev_accel_fp(int32_t prev_accel_fp) { prev_accel_fp_ = prev_accel_fp; }
+
+    bool initialize(const std::string& xclbin_path,
+                    const std::string& kernel_name,
+                    int device_index) {
+        cl_int err = CL_SUCCESS;
+        std::vector<cl::Device> devices = get_xilinx_devices();
+        if (devices.empty()) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: no Xilinx OpenCL devices found\n");
+            return false;
+        }
+
+        if (device_index < 0 || static_cast<size_t>(device_index) >= devices.size()) {
+            std::fprintf(stderr,
+                         "UDP-FPGA-OpenCL: device_index=%d out of range (devices=%zu)\n",
+                         device_index,
+                         devices.size());
+            return false;
+        }
+
+        device_ = devices[static_cast<size_t>(device_index)];
+        context_ = cl::Context(device_, nullptr, nullptr, nullptr, &err);
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: context creation failed (%d)\n", err);
+            return false;
+        }
+
+        queue_ = cl::CommandQueue(context_, device_, CL_QUEUE_PROFILING_ENABLE, &err);
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: command queue creation failed (%d)\n", err);
+            return false;
+        }
+
+        std::vector<unsigned char> file_buf;
+        try {
+            file_buf = read_file_bytes(xclbin_path);
+        } catch (const std::exception& e) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: xclbin read failed: %s (%s)\n",
+                         xclbin_path.c_str(), e.what());
+            return false;
+        }
+
+        cl::Program::Binaries bins{{file_buf.data(), file_buf.size()}};
+        std::vector<cl::Device> program_devices{device_};
+        program_ = cl::Program(context_, program_devices, bins, nullptr, &err);
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: program load failed (%d)\n", err);
+            return false;
+        }
+
+        kernel_ = cl::Kernel(program_, kernel_name.c_str(), &err);
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr,
+                         "UDP-FPGA-OpenCL: kernel '%s' creation failed (%d)\n",
+                         kernel_name.c_str(), err);
+            return false;
+        }
+
+        input_buffer_ = cl::Buffer(
+            context_,
+            static_cast<cl_mem_flags>(CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR),
+            INPUT_BUFFER_BYTES_512,
+            nullptr,
+            &err);
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: input buffer allocation failed (%d)\n", err);
+            return false;
+        }
+
+        output_buffer_ = cl::Buffer(
+            context_,
+            static_cast<cl_mem_flags>(CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR),
+            sizeof(uint32_t) * 4,
+            nullptr,
+            &err);
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: output buffer allocation failed (%d)\n", err);
+            return false;
+        }
+
+        err = kernel_.setArg(0, input_buffer_);
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: setArg(0) failed (%d)\n", err);
+            return false;
+        }
+        err = kernel_.setArg(1, output_buffer_);
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: setArg(1) failed (%d)\n", err);
+            return false;
+        }
+
+        initialized_ = true;
+        return true;
+    }
+
+    bool compute(int32_t e_y_fp,
+                 int32_t e_psi_fp,
+                 int32_t vx_fp,
+                 int32_t vy_fp,
+                 int32_t omega_fp,
+                 int32_t steering_fp,
+                 const StatePacket& packet,
+                 int32_t& out_steering_fp,
+                 int32_t& out_accel_fp,
+                 uint32_t& out_status,
+                 uint32_t& out_iterations) {
+        if (!initialized_) return false;
+
+        const size_t horizon = std::min(static_cast<size_t>(packet.horizon_length),
+                                        static_cast<size_t>(MPC_HORIZON));
+        if (horizon == 0) return false;
+
+        cl_int err = CL_SUCCESS;
+        void* mapped = queue_.enqueueMapBuffer(
+            input_buffer_,
+            CL_TRUE,
+            CL_MAP_WRITE,
+            0,
+            INPUT_BUFFER_BYTES_512,
+            nullptr,
+            nullptr,
+            &err);
+        if (err != CL_SUCCESS || mapped == nullptr) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: enqueueMapBuffer(input) failed (%d)\n", err);
+            return false;
+        }
+
+        auto* input_words = reinterpret_cast<uint32_t*>(mapped);
+        std::fill(input_words, input_words + INPUT_WORDS, 0u);
+
+        input_words[0] = static_cast<uint32_t>(e_y_fp);
+        input_words[1] = static_cast<uint32_t>(e_psi_fp);
+        input_words[2] = static_cast<uint32_t>(vx_fp);
+        input_words[3] = static_cast<uint32_t>(vy_fp);
+
+        input_words[4] = static_cast<uint32_t>(omega_fp);
+        input_words[5] = static_cast<uint32_t>(steering_fp);
+        input_words[6] = static_cast<uint32_t>(horizon);
+        input_words[7] = static_cast<uint32_t>(prev_accel_fp_);
+
+        for (size_t i = 0; i < MPC_HORIZON; ++i) {
+            const size_t base = 8 + (i * 8);
+            if (i < horizon) {
+                input_words[base + 0] = static_cast<uint32_t>(packet.ref_ey_fp[i]);
+                input_words[base + 1] = static_cast<uint32_t>(packet.ref_epsi_fp[i]);
+                input_words[base + 2] = static_cast<uint32_t>(packet.ref_vx_fp[i]);
+                input_words[base + 3] = static_cast<uint32_t>(packet.ref_vy_fp[i]);
+                input_words[base + 4] = static_cast<uint32_t>(packet.ref_omega_ref_fp[i]);
+                input_words[base + 5] = static_cast<uint32_t>(packet.ref_kappa_fp[i]);
+                input_words[base + 6] = static_cast<uint32_t>(packet.ref_left_bound_fp[i]);
+                input_words[base + 7] = static_cast<uint32_t>(packet.ref_right_bound_fp[i]);
+            }
+        }
+
+        err = queue_.enqueueUnmapMemObject(input_buffer_, mapped);
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: enqueueUnmapMemObject(input) failed (%d)\n", err);
+            return false;
+        }
+
+        err = queue_.enqueueMigrateMemObjects({input_buffer_}, 0);
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: migrate(input) failed (%d)\n", err);
+            return false;
+        }
+
+        err = queue_.enqueueTask(kernel_);
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: enqueueTask failed (%d)\n", err);
+            return false;
+        }
+
+        err = queue_.enqueueMigrateMemObjects({output_buffer_}, CL_MIGRATE_MEM_OBJECT_HOST);
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: migrate(output) failed (%d)\n", err);
+            return false;
+        }
+
+        err = queue_.finish();
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: queue finish failed (%d)\n", err);
+            return false;
+        }
+
+        void* out_mapped = queue_.enqueueMapBuffer(
+            output_buffer_,
+            CL_TRUE,
+            CL_MAP_READ,
+            0,
+            sizeof(uint32_t) * 4,
+            nullptr,
+            nullptr,
+            &err);
+        if (err != CL_SUCCESS || out_mapped == nullptr) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: enqueueMapBuffer(output) failed (%d)\n", err);
+            return false;
+        }
+
+        const auto* out_words = reinterpret_cast<const uint32_t*>(out_mapped);
+        output_words_[0] = out_words[0];
+        output_words_[1] = out_words[1];
+        output_words_[2] = out_words[2];
+        output_words_[3] = out_words[3];
+
+        err = queue_.enqueueUnmapMemObject(output_buffer_, out_mapped);
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: enqueueUnmapMemObject(output) failed (%d)\n", err);
+            return false;
+        }
+
+        out_steering_fp = static_cast<int32_t>(output_words_[0]);
+        out_accel_fp = static_cast<int32_t>(output_words_[1]);
+        out_status = output_words_[2];
+        out_iterations = output_words_[3];
+        return true;
+    }
+
+private:
+    bool initialized_{false};
+
+    cl::Device device_;
+    cl::Context context_;
+    cl::Program program_;
+    cl::Kernel kernel_;
+    cl::CommandQueue queue_;
+    cl::Buffer input_buffer_;
+    cl::Buffer output_buffer_;
+
+    static constexpr size_t INPUT_WORDS = INPUT_BUFFER_WORDS_32_PAD;
+    static_assert(INPUT_WORDS * sizeof(uint32_t) == INPUT_BUFFER_BYTES_512,
+                  "Host DMA buffer words must match OpenCL input buffer bytes");
+
+    std::array<uint32_t, 4> output_words_{};
+    int32_t prev_accel_fp_{0};
+};
+
+static void compute_frenet_errors(const StatePacket& packet,
+                                  int32_t& out_e_y_fp,
+                                  int32_t& out_e_psi_fp) {
+    const float x = fp_to_float(packet.x_fp);
+    const float y = fp_to_float(packet.y_fp);
+    const float theta = fp_to_float(packet.theta_fp);
+
+    const size_t horizon = static_cast<size_t>(std::max<uint32_t>(1u, packet.horizon_length));
+    const size_t max_search = std::min(horizon > 0 ? horizon - 1 : 0, static_cast<size_t>(16));
+
+    float best_e_y = 0.0f;
+    float best_e_psi = 0.0f;
+    float best_dist2 = 1e18f;
+
+    for (size_t i = 0; i < max_search; ++i) {
+        const float ax = fp_to_float(packet.ref_x_fp[i]);
+        const float ay = fp_to_float(packet.ref_y_fp[i]);
+        const float bx = fp_to_float(packet.ref_x_fp[i + 1]);
+        const float by = fp_to_float(packet.ref_y_fp[i + 1]);
+        const float h0 = fp_to_float(packet.ref_psi_fp[i]);
+        const float h1 = fp_to_float(packet.ref_psi_fp[i + 1]);
+
+        const float abx = bx - ax;
+        const float aby = by - ay;
+        const float apx = x - ax;
+        const float apy = y - ay;
+        const float ab_len2 = abx * abx + aby * aby;
+        float t = 0.0f;
+        if (ab_len2 > 1e-12f) {
+            t = (apx * abx + apy * aby) / ab_len2;
+        }
+        t = std::clamp(t, 0.0f, 1.0f);
+
+        const float wx = ax + t * abx;
+        const float wy = ay + t * aby;
+        float dpsi_path = h1 - h0;
+        while (dpsi_path > static_cast<float>(M_PI)) dpsi_path -= 2.0f * static_cast<float>(M_PI);
+        while (dpsi_path < -static_cast<float>(M_PI)) dpsi_path += 2.0f * static_cast<float>(M_PI);
+        const float wpsi = h0 + t * dpsi_path;
+
+        const float dx = x - wx;
+        const float dy = y - wy;
+        const float dist2 = dx * dx + dy * dy;
+
+        if (dist2 < best_dist2) {
+            best_dist2 = dist2;
+            const float e_y = -std::sin(wpsi) * dx + std::cos(wpsi) * dy;
+            float e_psi = theta - wpsi;
+            while (e_psi > static_cast<float>(M_PI)) e_psi -= 2.0f * static_cast<float>(M_PI);
+            while (e_psi < -static_cast<float>(M_PI)) e_psi += 2.0f * static_cast<float>(M_PI);
+            best_e_y = e_y;
+            best_e_psi = e_psi;
+        }
+    }
+
+    out_e_y_fp = float_to_fp(best_e_y);
+    out_e_psi_fp = float_to_fp(best_e_psi);
+}
+
+class KriaUdpReceiverNode final : public rclcpp::Node {
+public:
+    KriaUdpReceiverNode() : Node("kria_udp_receiver") {
+        declare_parameter<int>("state_port", 49000);
+        declare_parameter<int>("control_port", 49001);
+        declare_parameter<std::string>(
+            "xclbin_path",
+            "/lib/firmware/xilinx/kr260_mpc_app/mpc_fpga_top_opencl.xclbin");
+        declare_parameter<std::string>("kernel_name", "mpc_fpga_top_opencl");
+        declare_parameter<int>("device_index", 0);
+        declare_parameter<int>("poll_period_us", static_cast<int>(MPC_FPGA_BRIDGE_POLL_PERIOD_US));
+
+        state_port_ = static_cast<uint16_t>(get_parameter("state_port").as_int());
+        control_port_ = static_cast<uint16_t>(get_parameter("control_port").as_int());
+        const std::string xclbin_path = get_parameter("xclbin_path").as_string();
+        const std::string kernel_name = get_parameter("kernel_name").as_string();
+        const int device_index = get_parameter("device_index").as_int();
+        const int poll_us =
+            std::max(50, static_cast<int>(get_parameter("poll_period_us").as_int()));
+
+        if (!fpga_.initialize(xclbin_path, kernel_name, device_index)) {
+            throw std::runtime_error("UDP-FPGA-OpenCL init failed");
+        }
+
+        rx_fd_ = ::socket(AF_INET, SOCK_DGRAM, 0);
+        if (rx_fd_ < 0) throw std::runtime_error("Failed to create UDP RX socket");
+        tx_fd_ = ::socket(AF_INET, SOCK_DGRAM, 0);
+        if (tx_fd_ < 0) throw std::runtime_error("Failed to create UDP TX socket");
+
+        int flags = ::fcntl(rx_fd_, F_GETFL, 0);
+        if (flags < 0 || ::fcntl(rx_fd_, F_SETFL, flags | O_NONBLOCK) < 0) {
+            throw std::runtime_error("Failed to set RX socket non-blocking");
+        }
+
+        sockaddr_in bind_addr{};
+        bind_addr.sin_family = AF_INET;
+        bind_addr.sin_port = htons(state_port_);
+        bind_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        if (::bind(rx_fd_, reinterpret_cast<const sockaddr*>(&bind_addr), sizeof(bind_addr)) < 0) {
+            throw std::runtime_error("Failed to bind UDP RX socket");
+        }
+
+        stats_csv_file_ = open_stats_csv();
+
+        recv_timer_ = create_wall_timer(
+            std::chrono::microseconds(poll_us),
+            std::bind(&KriaUdpReceiverNode::poll_socket, this));
+
+        stats_timer_ = create_wall_timer(
+            std::chrono::seconds(5),
+            std::bind(&KriaUdpReceiverNode::print_stats, this));
+
+        RCLCPP_INFO(get_logger(),
+                    "Kria UDP receiver ready: state_port=%u control_port=%u poll=%d us",
+                    static_cast<unsigned>(state_port_),
+                    static_cast<unsigned>(control_port_),
+                    poll_us);
+    }
+
+    ~KriaUdpReceiverNode() override {
+        if (rx_fd_ >= 0) ::close(rx_fd_);
+        if (tx_fd_ >= 0) ::close(tx_fd_);
+        if (stats_csv_file_ != nullptr) std::fclose(stats_csv_file_);
+    }
+
+private:
+    static FILE* open_stats_csv() {
+        const char* log_dir = "log";
+        ::mkdir(log_dir, 0755);
+
+        const std::time_t now = std::time(nullptr);
+        struct tm tm_now;
+        localtime_r(&now, &tm_now);
+        char timestamp[64];
+        std::strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", &tm_now);
+
+        char csv_path[512];
+        std::snprintf(csv_path, sizeof(csv_path), "%s/kria_udp_receiver_%s.stats.csv", log_dir, timestamp);
+        FILE* f = std::fopen(csv_path, "w");
+        if (f != nullptr) {
+            std::fprintf(f, "idx,iterations,solve_time_us\n");
+            std::fflush(f);
+        }
+        return f;
+    }
+
+    void poll_socket() {
+        StatePacket packet{};
+        sockaddr_in peer_addr{};
+        socklen_t peer_len = sizeof(peer_addr);
+
+        while (true) {
+            const ssize_t n = ::recvfrom(
+                rx_fd_,
+                &packet,
+                sizeof(packet),
+                0,
+                reinterpret_cast<sockaddr*>(&peer_addr),
+                &peer_len);
+
+            if (n < 0) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) break;
+                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+                                     "UDP recvfrom error: %s", std::strerror(errno));
+                break;
+            }
+            if (n != static_cast<ssize_t>(sizeof(packet))) {
+                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+                                     "Dropped state packet: expected %zu bytes, got %ld",
+                                     sizeof(packet), static_cast<long>(n));
+                continue;
+            }
+            if (packet.magic != PACKET_MAGIC || packet.version != PACKET_VERSION) {
+                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+                                     "Dropped state packet: bad magic/version");
+                continue;
+            }
+
+            const uint32_t rx_crc = packet.crc32;
+            packet.crc32 = 0;
+            const uint32_t calc_crc = crc32_ieee(
+                reinterpret_cast<const uint8_t*>(&packet),
+                sizeof(packet) - sizeof(packet.crc32));
+            if (rx_crc != calc_crc) {
+                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+                                     "Dropped state packet: CRC mismatch");
+                continue;
+            }
+
+            last_peer_addr_ = peer_addr;
+            have_peer_ = true;
+            handle_packet(packet);
+        }
+    }
+
+    void handle_packet(const StatePacket& packet) {
+        const auto t_start = std::chrono::high_resolution_clock::now();
+
+        int32_t e_y_fp = 0;
+        int32_t e_psi_fp = 0;
+        compute_frenet_errors(packet, e_y_fp, e_psi_fp);
+
+        const int32_t vx_fp = packet.velocity_fp;
+        const int32_t vy_fp = packet.vy_fp;
+        const int32_t omega_fp = packet.omega_fp;
+        const int32_t steering_fp = packet.steering_angle_fp;
+
+        int32_t out_steering_fp = 0;
+        int32_t out_accel_fp = 0;
+        uint32_t out_status = MPC_FPGA_STATUS_ERROR;
+        uint32_t out_iterations = 0;
+
+        const bool ok = fpga_.compute(
+            e_y_fp, e_psi_fp, vx_fp, vy_fp, omega_fp, steering_fp,
+            packet,
+            out_steering_fp, out_accel_fp, out_status, out_iterations);
+
+        const auto t_end = std::chrono::high_resolution_clock::now();
+        const double solve_us = static_cast<double>(
+            std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start).count());
+
+        ControlPacket ctrl{};
+        ctrl.magic = PACKET_MAGIC;
+        ctrl.version = PACKET_VERSION;
+        ctrl.flags = 0;
+        ctrl.sequence = packet.sequence;
+        ctrl.receiver_time_ms = static_cast<uint32_t>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count() & 0xFFFFFFFFu);
+        ctrl.sender_mono_ns = packet.sender_mono_ns;
+        ctrl.solver_status = out_status;
+        ctrl.solver_iterations = out_iterations;
+        ctrl.reserved = 0;
+
+        if (!ok || out_status == MPC_FPGA_STATUS_ERROR || out_status == MPC_FPGA_STATUS_NO_TRAJECTORY) {
+            ctrl.steering_fp = last_good_steering_fp_;
+            ctrl.accel_fp = 0;
+            ctrl.speed_fp = last_good_speed_fp_;
+        } else {
+            const float vx = fp_to_float(packet.velocity_fp);
+            const float accel = fp_to_float(out_accel_fp);
+            float speed = vx + accel * static_cast<float>(MPC_FPGA_PREDICTION_DT_S);
+            speed = std::clamp(speed,
+                               static_cast<float>(MPC_FPGA_MIN_VEL_MPS),
+                               static_cast<float>(MPC_FPGA_MAX_VEL_MPS));
+            ctrl.steering_fp = out_steering_fp;
+            ctrl.accel_fp = out_accel_fp;
+            ctrl.speed_fp = float_to_fp(speed);
+
+            last_good_steering_fp_ = ctrl.steering_fp;
+            last_good_speed_fp_ = ctrl.speed_fp;
+            fpga_.set_prev_accel_fp(out_accel_fp);
+        }
+
+        ctrl.ultra_process_us =
+            static_cast<uint32_t>(std::clamp(solve_us, 0.0, static_cast<double>(0xFFFFFFFFu)));
+        ctrl.crc32 = 0;
+        ctrl.crc32 = crc32_ieee(reinterpret_cast<const uint8_t*>(&ctrl),
+                                sizeof(ctrl) - sizeof(ctrl.crc32));
+
+        if (have_peer_) {
+            sockaddr_in control_dest_addr{};
+            control_dest_addr.sin_family = AF_INET;
+            control_dest_addr.sin_port = htons(control_port_);
+            control_dest_addr.sin_addr = last_peer_addr_.sin_addr;
+
+            const ssize_t sent = ::sendto(
+                tx_fd_,
+                &ctrl,
+                sizeof(ctrl),
+                0,
+                reinterpret_cast<const sockaddr*>(&control_dest_addr),
+                sizeof(control_dest_addr));
+
+            if (sent != static_cast<ssize_t>(sizeof(ctrl))) {
+                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+                                     "Control UDP send failed/short: %ld", static_cast<long>(sent));
+            }
+        }
+
+        stats_idx_++;
+        stats_window_count_++;
+        stats_solve_sum_us_ += solve_us;
+        stats_solve_min_us_ = std::min(stats_solve_min_us_, solve_us);
+        stats_solve_max_us_ = std::max(stats_solve_max_us_, solve_us);
+        stats_iter_sum_ += static_cast<double>(out_iterations);
+        stats_iter_min_ = std::min(stats_iter_min_, out_iterations);
+        stats_iter_max_ = std::max(stats_iter_max_, out_iterations);
+        if (stats_csv_file_ != nullptr) {
+            std::fprintf(stats_csv_file_, "%lu,%u,%.1f\n", stats_idx_, out_iterations, solve_us);
+            std::fflush(stats_csv_file_);
+        }
+    }
+
+    void print_stats() {
+        if (stats_window_count_ == 0) return;
+        const double avg_us = stats_solve_sum_us_ / static_cast<double>(stats_window_count_);
+        const double avg_iter = stats_iter_sum_ / static_cast<double>(stats_window_count_);
+        RCLCPP_INFO(get_logger(),
+                    "Stats (%lu calls): solve_us min=%.1f avg=%.1f max=%.1f | iters min=%u avg=%.1f max=%u",
+                    stats_window_count_,
+                    stats_solve_min_us_, avg_us, stats_solve_max_us_,
+                    stats_iter_min_, avg_iter, stats_iter_max_);
+
+        stats_window_count_ = 0;
+        stats_solve_sum_us_ = 0.0;
+        stats_solve_min_us_ = std::numeric_limits<double>::infinity();
+        stats_solve_max_us_ = 0.0;
+        stats_iter_sum_ = 0.0;
+        stats_iter_min_ = 0xFFFFFFFFu;
+        stats_iter_max_ = 0u;
+    }
+
+    uint16_t state_port_{49000};
+    uint16_t control_port_{49001};
+    int rx_fd_{-1};
+    int tx_fd_{-1};
+    rclcpp::TimerBase::SharedPtr recv_timer_;
+    rclcpp::TimerBase::SharedPtr stats_timer_;
+
+    MpcFpgaInterface fpga_;
+
+    bool have_peer_{false};
+    sockaddr_in last_peer_addr_{};
+
+    int32_t last_good_steering_fp_{0};
+    int32_t last_good_speed_fp_{float_to_fp(static_cast<float>(MPC_FPGA_MIN_VEL_MPS))};
+
+    uint64_t stats_idx_{0};
+    uint64_t stats_window_count_{0};
+    double stats_solve_sum_us_{0.0};
+    double stats_solve_min_us_{std::numeric_limits<double>::infinity()};
+    double stats_solve_max_us_{0.0};
+    double stats_iter_sum_{0.0};
+    uint32_t stats_iter_min_{0xFFFFFFFFu};
+    uint32_t stats_iter_max_{0u};
+    FILE* stats_csv_file_{nullptr};
+};
+
+}  // namespace state_transport_udp
+
+int main(int argc, char** argv) {
+    rclcpp::init(argc, argv);
+    auto node = std::make_shared<state_transport_udp::KriaUdpReceiverNode>();
+    rclcpp::spin(node);
+    rclcpp::shutdown();
+    return 0;
+}
