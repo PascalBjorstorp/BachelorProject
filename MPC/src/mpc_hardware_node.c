@@ -98,6 +98,39 @@ static float g_last_cmd_steer = 0.0f;
 static float g_last_cmd_speed = 0.0f;
 static float g_last_cmd_accel = 0.0f;
 
+/* Standstill brake-override fallback:
+ * If the car is essentially stopped but MPC commands full braking, override
+ * acceleration to gently pull forward (keeps MPC steering). */
+static int g_standstill_brake_override_active = 0;
+
+static double apply_standstill_brake_override(double vx, double accel_cmd, int allow_log)
+{
+    const double standstill_vx_thresh = 0.15; /* m/s */
+    const double accel_override = 0.5;        /* m/s^2 */
+    const double brake_eps = 0.05;            /* m/s^2 */
+
+    const int standstill = isfinite(vx) && fabs(vx) < standstill_vx_thresh;
+    const int max_brake_cmd = isfinite(accel_cmd) && (accel_cmd <= ((double)VP_MIN_ACCEL_MPS2 + brake_eps));
+
+    if (standstill && max_brake_cmd) {
+        if (!g_standstill_brake_override_active && allow_log && g_verbose) {
+            printf("[MPC] Standstill brake override active: vx=%.3f a_cmd=%.2f -> %.2f\n",
+                   vx, accel_cmd, accel_override);
+        }
+        g_standstill_brake_override_active = 1;
+        return accel_override;
+    }
+
+    if (g_standstill_brake_override_active) {
+        if (allow_log && g_verbose) {
+            printf("[MPC] Standstill brake override cleared: vx=%.3f a_cmd=%.2f\n",
+                   vx, accel_cmd);
+        }
+        g_standstill_brake_override_active = 0;
+    }
+    return accel_cmd;
+}
+
 /*===========================================================================
  * VESC Servo Conversion Parameters
  *===========================================================================
@@ -1123,6 +1156,15 @@ void ekf_pose_callback(const void *message_in)
         global_control_command.long_acc =
             mpc_result.optimal_control.long_acc;
 
+        /* Fallback: if at standstill and MPC commands max braking, override
+         * acceleration to +0.5 m/s^2 while keeping MPC steering. */
+        {
+            const double vx = g_latest_vx;
+            const double a_cmd = (double)global_control_command.long_acc;
+            global_control_command.long_acc =
+                (float)apply_standstill_brake_override(vx, a_cmd, 1);
+        }
+
         /* Update servo tracking.
          * If steering feedback is available from VESC, it's already set by
          * the servo callback. Otherwise, simulate servo dynamics with rate limit. */
@@ -1141,7 +1183,7 @@ void ekf_pose_callback(const void *message_in)
             actual_ctrl.steer_ang =
                 global_actual_steering_angle;
             actual_ctrl.long_acc =
-                mpc_result.optimal_control.long_acc;
+                global_control_command.long_acc;
             mpc_set_actual_previous_control(&actual_ctrl);
         }
 
@@ -1174,6 +1216,10 @@ void ekf_pose_callback(const void *message_in)
                 global_control_command.long_acc;
             const MpcConfiguration_t cfg = mpc_get_configuration();
             const double pred_dt = (cfg.time_step > 0.0f) ? (double)cfg.time_step : (double)TIME_STEP_SECONDS;
+
+            /* Apply the same standstill brake-override in all publish paths
+             * (including solver hold-last-command fallback). */
+            a_cmd = apply_standstill_brake_override(g_latest_vx, a_cmd, 0);
 
             /* Integrate over the prediction time step used by MPC. */
             double v_cmd = g_latest_vx + a_cmd * pred_dt;
