@@ -123,6 +123,7 @@ static int g_use_steering_feedback = 0;
 static float g_prev_delta_cmd = 0.0f;
 static float g_prev_speed_cmd = 0.0f;
 static float g_prev_ax_cmd = 0.0f;
+static int g_have_published_drive_cmd = 0;
 static int g_publish_speed_command = 1;
 static int g_use_local_raceline = 0;
 static int g_raceline_sub_ok = 0;
@@ -261,6 +262,31 @@ static float limit_steering_delta(float requested_delta, double control_dt_sec)
     }
 
     return limited_delta;
+}
+
+static void republish_last_drive_command(const char *reason)
+{
+    if (!g_have_published_drive_cmd)
+    {
+        return;
+    }
+
+    if (g_verbose)
+    {
+        printf("[MPCC] Republishing last drive command (%s)\n", reason);
+    }
+
+    {
+        const rcl_ret_t rc = rcl_publish(&g_drive_pub, &g_drive_msg, NULL);
+        if (rc != RCL_RET_OK)
+        {
+            fprintf(stderr,
+                    "[MPCC] WARNING: failed to republish drive command (%s): %s\n",
+                    reason,
+                    rcl_get_error_string().str);
+            rcl_reset_error();
+        }
+    }
 }
 
 static void align_first_prediction_step(
@@ -814,6 +840,7 @@ static void pose_callback(const void *msg_in)
 
     if (!g_have_reference || !g_have_odom)
     {
+        republish_last_drive_command("waiting_for_reference_or_odom");
         return;
     }
 
@@ -839,6 +866,7 @@ static void pose_callback(const void *msg_in)
                             odom_age * 1000.0,
                             g_watchdog_timeout_sec * 1000.0);
                 }
+                republish_last_drive_command("stale_odom_watchdog");
                 return;
             }
         }
@@ -851,6 +879,7 @@ static void pose_callback(const void *msg_in)
         {
             printf("[MPCC] Waiting for fresh odometry to pair with EKF pose; skipping solve\n");
         }
+        republish_last_drive_command("waiting_for_fresh_odom");
         return;
     }
 
@@ -987,7 +1016,13 @@ static void pose_callback(const void *msg_in)
             g_prev_speed_cmd = (float)v_safe;
             g_prev_ax_cmd = a_x_safe;
         }
-        { rcl_ret_t rc_ = rcl_publish(&g_drive_pub, &g_drive_msg, NULL); (void)rc_; }
+        {
+            rcl_ret_t rc_ = rcl_publish(&g_drive_pub, &g_drive_msg, NULL);
+            if (rc_ == RCL_RET_OK)
+            {
+                g_have_published_drive_cmd = 1;
+            }
+        }
         return;
     }
 
@@ -1086,6 +1121,10 @@ static void pose_callback(const void *msg_in)
             fprintf(stderr, "[MPCC] WARNING: failed to publish drive command: %s\n",
                     rcl_get_error_string().str);
             rcl_reset_error();
+        }
+        else
+        {
+            g_have_published_drive_cmd = 1;
         }
     }
 
