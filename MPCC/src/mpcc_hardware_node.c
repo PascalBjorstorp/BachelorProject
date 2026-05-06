@@ -65,11 +65,11 @@ static double g_vx_min_cmd = 0.1;  /* Minimum velocity command [m/s] */
 static double g_ax_min_hardware = -3.0;
 
 /* Odometry watchdog and twist sanity thresholds for real-car inputs. */
-static double g_watchdog_timeout_sec = 0.5;
+static double g_watchdog_timeout_sec = 0.2;
 
 /* Nominal control cadence used for rate penalties when not adapting online. */
 static double g_nominal_control_dt_sec = 1.0 / MPCC_CONTROL_RATE_HZ;
-static int g_adapt_cross_call_scale = 1;
+static int g_adapt_cross_call_scale = 0;
 static int g_control_period_explicit = 0;
 static int g_adapt_nominal_dt_bootstrapped = 0;
 
