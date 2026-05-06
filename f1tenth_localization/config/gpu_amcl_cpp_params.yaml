@@ -109,8 +109,7 @@ gpu_amcl_cpp:
     global_heading_trajectory_package: "f1tenth_planning"
     global_heading_trajectory_rel_path: "trajectories/my_track_raceline.csv"
 
-    # Spielberg starting position (matches sim.yaml sx/sy/stheta).
-    # Use RViz "2D Pose Estimate" tool to reinitialize if heading is wrong.
+    # Used only when global_initialization=false, and as covariance for RViz 2D Pose Estimate.
     initial_pose_x: 0.0
     initial_pose_y: 0.0
     initial_pose_a: 0.0

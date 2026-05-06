@@ -93,6 +93,7 @@ public:
     int speed_preview_points = 8;             ///< Curvature preview horizon in waypoints
     double max_lateral_accel = 7.27;          ///< Physics cap for v^2*kappa [m/s^2]
     double min_regulated_speed = 0.30;        ///< Lower bound when nominal speed is nonzero [m/s]
+    double obstacle_speed_cap_mps = 5.0;      ///< Max published speed while obstacle/avoidance active
   };
 
   explicit LateralPlanner(rclcpp::Logger logger, const Parameters & params);
@@ -133,6 +134,7 @@ private:
   size_t closestWaypoint(double x, double y) const;
   std::vector<Waypoint> extractSegment() const;
   std::vector<Waypoint> extractSegmentFromModified() const;
+  void applyObstacleSpeedCap(std::vector<Waypoint> & path) const;
 
   /// Build (or rebuild) the full modified raceline for avoidance.
   void buildAvoidancePath();

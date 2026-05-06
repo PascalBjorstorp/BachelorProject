@@ -101,6 +101,7 @@ private:
     params.speed_preview_points = CURVATURE_SPEED_PREVIEW_POINTS;
     params.max_lateral_accel = MAX_LATERAL_ACCEL_MPS2;
     params.min_regulated_speed = MIN_REGULATED_SPEED_MPS;
+    params.obstacle_speed_cap_mps = OBSTACLE_DETECTED_MAX_SPEED_MPS;
 
     planner_ = std::make_unique<LateralPlanner>(get_logger(), params);
 

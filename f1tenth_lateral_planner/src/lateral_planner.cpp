@@ -323,6 +323,7 @@ std::vector<Waypoint> LateralPlanner::extractSegment() const
     result.push_back(waypoints_[idx]);
   }
 
+  applyObstacleSpeedCap(result);
   return result;
 }
 
@@ -347,7 +348,26 @@ std::vector<Waypoint> LateralPlanner::extractSegmentFromModified() const
     result.push_back(modified_raceline_[idx]);
   }
 
+  applyObstacleSpeedCap(result);
   return result;
+}
+
+void LateralPlanner::applyObstacleSpeedCap(std::vector<Waypoint> & path) const
+{
+  if (!opponent_.detected && !avoidance_active_ && !merge_back_active_) {
+    return;
+  }
+
+  const double speed_cap = params_.obstacle_speed_cap_mps;
+  if (!std::isfinite(speed_cap) || speed_cap <= 0.0) {
+    return;
+  }
+
+  for (Waypoint & wp : path) {
+    if (std::isfinite(wp.vx)) {
+      wp.vx = std::min(std::max(0.0, wp.vx), speed_cap);
+    }
+  }
 }
 
 // =============================================================
