@@ -59,6 +59,8 @@ def generate_launch_description():
     use_system_monitor_arg = LaunchConfiguration('use_system_monitor')
     monitor_vesc_timeout_sec_arg = LaunchConfiguration('monitor_vesc_timeout_sec')
     monitor_drive_timeout_sec_arg = LaunchConfiguration('monitor_drive_timeout_sec')
+    monitor_drive_arm_on_first_message_arg = LaunchConfiguration(
+        'monitor_drive_arm_on_first_message')
     monitor_startup_grace_sec_arg = LaunchConfiguration('monitor_startup_grace_sec')
 
     return LaunchDescription([
@@ -175,6 +177,11 @@ def generate_launch_description():
             'monitor_drive_timeout_sec',
             default_value='0.15',
             description='Seconds without /drive before command error'),
+
+        DeclareLaunchArgument(
+            'monitor_drive_arm_on_first_message',
+            default_value='true',
+            description='Start /drive heartbeat only after first /drive message'),
 
         DeclareLaunchArgument(
             'monitor_startup_grace_sec',
@@ -360,6 +367,8 @@ def generate_launch_description():
                             monitor_vesc_timeout_sec_arg, value_type=float),
                         'drive_timeout_sec': ParameterValue(
                             monitor_drive_timeout_sec_arg, value_type=float),
+                        'drive_arm_on_first_message': ParameterValue(
+                            monitor_drive_arm_on_first_message_arg, value_type=bool),
                         'startup_grace_sec': ParameterValue(
                             monitor_startup_grace_sec_arg, value_type=float),
                     }],

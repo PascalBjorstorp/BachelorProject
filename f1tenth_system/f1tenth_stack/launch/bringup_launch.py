@@ -82,6 +82,8 @@ def generate_launch_description():
                               description='Seconds without /sensors/core before VESC error'),
         DeclareLaunchArgument('monitor_drive_timeout_sec', default_value='0.15',
                               description='Seconds without /drive before command error'),
+        DeclareLaunchArgument('monitor_drive_arm_on_first_message', default_value='true',
+                              description='Start /drive heartbeat only after first /drive message'),
         DeclareLaunchArgument('monitor_startup_grace_sec', default_value='5.0',
                               description='Startup grace period before missing-topic errors'),
     ])
@@ -169,6 +171,8 @@ def generate_launch_description():
                 LaunchConfiguration('monitor_vesc_timeout_sec'), value_type=float),
             'drive_timeout_sec': ParameterValue(
                 LaunchConfiguration('monitor_drive_timeout_sec'), value_type=float),
+            'drive_arm_on_first_message': ParameterValue(
+                LaunchConfiguration('monitor_drive_arm_on_first_message'), value_type=bool),
             'startup_grace_sec': ParameterValue(
                 LaunchConfiguration('monitor_startup_grace_sec'), value_type=float),
         }],
