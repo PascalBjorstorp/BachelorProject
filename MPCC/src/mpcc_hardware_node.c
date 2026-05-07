@@ -72,6 +72,7 @@ static double g_nominal_control_dt_sec = 1.0 / MPCC_CONTROL_RATE_HZ;
 static int g_adapt_cross_call_scale = 1;
 static int g_control_period_explicit = 0;
 static int g_adapt_nominal_dt_bootstrapped = 0;
+static int g_cross_call_upper_clamp_logged = 0;
 
 /* -------------------------------------------------------------------------- */
 /* VESC Servo Conversion Parameters                                            */
@@ -166,6 +167,54 @@ static double timespec_diff_sec(const struct timespec *start,
 static int timespec_is_set(const struct timespec *stamp)
 {
     return stamp->tv_sec != 0 || stamp->tv_nsec != 0;
+}
+
+static void log_path_alignment_debug(uint32_t solve_count, float s_state)
+{
+    if (!g_have_reference || g_reference_path.num_points < 2)
+    {
+        return;
+    }
+
+    const float s_closest = mpcc_find_closest_s(
+        &g_reference_path,
+        g_vehicle_state.pos_x,
+        g_vehicle_state.pos_y);
+
+    MPCCPathPoint_t path_pt;
+    mpcc_path_interpolate(&g_reference_path, s_closest, &path_pt);
+
+    const float dX = g_vehicle_state.pos_x - path_pt.x_ref;
+    const float dY = g_vehicle_state.pos_y - path_pt.y_ref;
+    const float sin_phi = sinf(path_pt.phi_ref);
+    const float cos_phi = cosf(path_pt.phi_ref);
+    const float e_c = (sin_phi * dX) - (cos_phi * dY);
+    const float e_l = -((cos_phi * dX) + (sin_phi * dY));
+    float dpsi = g_vehicle_state.heading - path_pt.phi_ref;
+    const float dist = sqrtf((dX * dX) + (dY * dY));
+    const float left_slack = path_pt.left_bound - e_c;
+    const float right_slack = path_pt.right_bound + e_c;
+
+    while (dpsi > (float)M_PI) dpsi -= 2.0f * (float)M_PI;
+    while (dpsi < -(float)M_PI) dpsi += 2.0f * (float)M_PI;
+
+    fprintf(stderr,
+            "[MPCC %3u] path debug: s_state=%.2f s_closest=%.2f dist=%.3f ec=%.3f el=%.3f dpsi=%.3f bounds(L/R)=%.3f/%.3f slack(L/R)=%.3f/%.3f ref=(%.2f,%.2f) pose=(%.2f,%.2f)\n",
+            solve_count,
+            s_state,
+            s_closest,
+            dist,
+            e_c,
+            e_l,
+            dpsi,
+            path_pt.left_bound,
+            path_pt.right_bound,
+            left_slack,
+            right_slack,
+            path_pt.x_ref,
+            path_pt.y_ref,
+            g_vehicle_state.pos_x,
+            g_vehicle_state.pos_y);
 }
 
 static int should_log_throttled(struct timespec *last_log_time,
@@ -940,9 +989,24 @@ static void pose_callback(const void *msg_in)
                 double prediction_dt = (double)g_solver_dt_sec;
                 if (prediction_dt > 0.0)
                 {
+                    double scale = g_control_dt_filtered / prediction_dt;
+
+                    if (scale > 1.0)
+                    {
+                        if (!g_cross_call_upper_clamp_logged)
+                        {
+                            fprintf(stderr,
+                                    "[MPCC] WARNING: adaptive cross-call measured %.1f ms solve cadence vs %.1f ms prediction step; clamping scale %.3f -> 1.000 to avoid multi-stage warm-start jumps\n",
+                                    g_control_dt_filtered * 1000.0,
+                                    prediction_dt * 1000.0,
+                                    scale);
+                            g_cross_call_upper_clamp_logged = 1;
+                        }
+                        scale = 1.0;
+                    }
+
                     MPCCConfiguration_t cfg = mpcc_get_configuration();
-                    cfg.cross_call_rate_scale =
-                        (float)(g_control_dt_filtered / prediction_dt);
+                    cfg.cross_call_rate_scale = (float)scale;
                     mpcc_set_configuration(&cfg);
                 }
             }
@@ -979,6 +1043,7 @@ static void pose_callback(const void *msg_in)
                     g_solver_dt_sec * 1000.0,
                     g_prev_delta_cmd,
                     g_prev_speed_cmd);
+            log_path_alignment_debug(g_solve_count, mpcc_state.s);
         }
         {
             const double control_dt_sec = current_control_dt_sec();
@@ -1361,6 +1426,7 @@ static void configure_mpcc_from_environment(void)
 
     /* Single-name parameters — no alias conflict possible */
     const char *v;
+    int requested_horizon = -1;
     if ((v = getenv("WALL_CLEARANCE_MARGIN")) != NULL) cfg.wall_clearance_margin = (float)atof(v);
     if ((v = getenv("MPCC_TRACK_BUFFER")) != NULL) cfg.track_safety_buffer = (float)atof(v);
     if ((v = getenv("Q_PROGRESS")) != NULL)    cfg.weight_progress          = (float)atof(v);
@@ -1398,7 +1464,11 @@ static void configure_mpcc_from_environment(void)
         cfg.max_iter_dual_tolerance = (float)atof(v);
     if ((v = getenv("MPCC_MAX_ITER_TRACK_TOL")) != NULL)
         cfg.max_iter_track_violation_tolerance = (float)atof(v);
-    if ((v = getenv("HORIZON")) != NULL)       cfg.horizon_steps            = (uint16_t)atoi(v);
+    if ((v = getenv("HORIZON")) != NULL)
+    {
+        requested_horizon = atoi(v);
+        cfg.horizon_steps = (uint16_t)requested_horizon;
+    }
     if ((v = getenv("DT")) != NULL)            cfg.dt                       = (float)atof(v);
     if ((v = getenv("V_THETA_MAX")) != NULL)   cfg.v_theta_max              = (float)atof(v);
     if ((v = getenv("V_THETA_MIN")) != NULL)   cfg.v_theta_min              = (float)atof(v);
@@ -1415,6 +1485,15 @@ static void configure_mpcc_from_environment(void)
         cfg.cross_call_rate_scale = (float)atof(v);
 
     mpcc_set_configuration(&cfg);
+
+    if (requested_horizon > MPCC_MAX_HORIZON)
+    {
+        fprintf(stderr,
+                "[MPCC] WARNING: requested HORIZON=%d exceeds compile-time MPCC_MAX_HORIZON=%d; clamping to %d\n",
+                requested_horizon,
+                MPCC_MAX_HORIZON,
+                MPCC_MAX_HORIZON);
+    }
 
     /* If the user hasn't explicitly set the cross-call scale, auto-compute
      * from control rate and the (possibly overridden) prediction dt. */
