@@ -108,7 +108,7 @@ typedef struct
 #define MPCC_IDX_VTHETA  2          /**< virtual progress speed ds/dt */
 
 
-#define MPCC_MAX_HORIZON 40          /** Maximum prediction horizon steps.*/
+#define MPCC_MAX_HORIZON 80          /** Maximum prediction horizon steps.*/
 #define MPCC_MAX_PATH_POINTS 3000    /** Maximum number of reference path waypoints.*/
 #define MPCC_MAX_OBSTACLES 10        /** Maximum number of obstacles that can be tracked simultaneously */
 
@@ -601,12 +601,12 @@ typedef struct
 #define MPCC_DEFAULT_DT               (0.03f)                       /** 30 ms prediction step: 20 * 0.03 = 0.6s lookahead */
 
 /*--- Contouring tracking weights (Apr 28 latest CSV: fastest safe + low-regression moving baseline) ---*/
-#define MPCC_DEFAULT_WEIGHT_CONTOURING (80.0f)                    /** Contouring error penalty. */
+#define MPCC_DEFAULT_WEIGHT_CONTOURING (60.0f)                    /** Contouring error penalty. */
 #define MPCC_DEFAULT_WEIGHT_LAG       (120.0f)                     /** Lag error penalty. */
 #define MPCC_DEFAULT_WEIGHT_WALL_CLEARANCE (3200.0f)               /** Soft near-wall penalty inside the hard corridor. */
 #define MPCC_DEFAULT_WALL_CLEARANCE_MARGIN (0.02f)                 /** Extra desired distance from each wall [m]. */
 #define MPCC_DEFAULT_TRACK_SAFETY_BUFFER   (0.5f)                  /** Hard buffer subtracted from each track bound [m]. */
-#define MPCC_DEFAULT_WEIGHT_PROGRESS  (8.0f)                      /** Progress reward. */
+#define MPCC_DEFAULT_WEIGHT_PROGRESS  (6.0f)                      /** Progress reward. */
 
 /*--- State regularization ---*/
 #define MPCC_DEFAULT_WEIGHT_VX        (0.0f)                         /** Longitudinal velocity tracking weight.*/
@@ -646,7 +646,7 @@ typedef struct
 #define MPCC_DEFAULT_ADMM_MAX_ITER    300                           /** Maximum ADMM iterations. */
 #define MPCC_DEFAULT_ADMM_TOLERANCE   (0.02f)                       /** ADMM convergence tolerance. */
 #define MPCC_DEFAULT_ADMM_RHO_U       (8.0f)                        /** 0 => reuse state rho for controls. */
-#define MPCC_DEFAULT_ADMM_ADAPTIVE_RHO 1                            /** Enable adaptive rho by default. */
+#define MPCC_DEFAULT_ADMM_ADAPTIVE_RHO 0                            /** Enable adaptive rho by default. */
 #define MPCC_DEFAULT_ADMM_ALPHA_RELAX (1.6f)                        /** Warm-start over-relaxation factor. */
 #define MPCC_DEFAULT_ACCEPT_MAX_ITERATIONS 0                        /** Do not publish max-iteration iterates by default. */
 #define MPCC_DEFAULT_MAX_ITER_PRIMAL_TOL   (0.01f)                  /** Primal residual threshold for accepting max-iteration solves. */
