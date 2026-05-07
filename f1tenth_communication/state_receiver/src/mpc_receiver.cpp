@@ -360,13 +360,18 @@ public:
 
 private:
     static int64_t get_event_duration_ns(const cl::Event& event) {
-        try {
-            const cl_ulong start = event.getProfilingInfo<CL_PROFILING_COMMAND_START>();
-            const cl_ulong end = event.getProfilingInfo<CL_PROFILING_COMMAND_END>();
-            return (end >= start) ? static_cast<int64_t>(end - start) : -1;
-        } catch (const cl::Error&) {
+        cl_int err = CL_SUCCESS;
+        const cl_ulong start =
+            event.getProfilingInfo<CL_PROFILING_COMMAND_START>(&err);
+        if (err != CL_SUCCESS) {
             return -1;
         }
+        const cl_ulong end =
+            event.getProfilingInfo<CL_PROFILING_COMMAND_END>(&err);
+        if (err != CL_SUCCESS) {
+            return -1;
+        }
+        return (end >= start) ? static_cast<int64_t>(end - start) : -1;
     }
 
     bool initialized_ = false;
