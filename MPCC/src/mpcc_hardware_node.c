@@ -72,6 +72,7 @@ static double g_nominal_control_dt_sec = 1.0 / MPCC_CONTROL_RATE_HZ;
 static int g_adapt_cross_call_scale = 1;
 static int g_control_period_explicit = 0;
 static int g_adapt_nominal_dt_bootstrapped = 0;
+static int g_cross_call_upper_clamp_logged = 0;
 
 /* -------------------------------------------------------------------------- */
 /* VESC Servo Conversion Parameters                                            */
@@ -988,9 +989,24 @@ static void pose_callback(const void *msg_in)
                 double prediction_dt = (double)g_solver_dt_sec;
                 if (prediction_dt > 0.0)
                 {
+                    double scale = g_control_dt_filtered / prediction_dt;
+
+                    if (scale > 1.0)
+                    {
+                        if (!g_cross_call_upper_clamp_logged)
+                        {
+                            fprintf(stderr,
+                                    "[MPCC] WARNING: adaptive cross-call measured %.1f ms solve cadence vs %.1f ms prediction step; clamping scale %.3f -> 1.000 to avoid multi-stage warm-start jumps\n",
+                                    g_control_dt_filtered * 1000.0,
+                                    prediction_dt * 1000.0,
+                                    scale);
+                            g_cross_call_upper_clamp_logged = 1;
+                        }
+                        scale = 1.0;
+                    }
+
                     MPCCConfiguration_t cfg = mpcc_get_configuration();
-                    cfg.cross_call_rate_scale =
-                        (float)(g_control_dt_filtered / prediction_dt);
+                    cfg.cross_call_rate_scale = (float)scale;
                     mpcc_set_configuration(&cfg);
                 }
             }
