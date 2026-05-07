@@ -1361,6 +1361,7 @@ static void configure_mpcc_from_environment(void)
 
     /* Single-name parameters — no alias conflict possible */
     const char *v;
+    int requested_horizon = -1;
     if ((v = getenv("WALL_CLEARANCE_MARGIN")) != NULL) cfg.wall_clearance_margin = (float)atof(v);
     if ((v = getenv("MPCC_TRACK_BUFFER")) != NULL) cfg.track_safety_buffer = (float)atof(v);
     if ((v = getenv("Q_PROGRESS")) != NULL)    cfg.weight_progress          = (float)atof(v);
@@ -1398,7 +1399,11 @@ static void configure_mpcc_from_environment(void)
         cfg.max_iter_dual_tolerance = (float)atof(v);
     if ((v = getenv("MPCC_MAX_ITER_TRACK_TOL")) != NULL)
         cfg.max_iter_track_violation_tolerance = (float)atof(v);
-    if ((v = getenv("HORIZON")) != NULL)       cfg.horizon_steps            = (uint16_t)atoi(v);
+    if ((v = getenv("HORIZON")) != NULL)
+    {
+        requested_horizon = atoi(v);
+        cfg.horizon_steps = (uint16_t)requested_horizon;
+    }
     if ((v = getenv("DT")) != NULL)            cfg.dt                       = (float)atof(v);
     if ((v = getenv("V_THETA_MAX")) != NULL)   cfg.v_theta_max              = (float)atof(v);
     if ((v = getenv("V_THETA_MIN")) != NULL)   cfg.v_theta_min              = (float)atof(v);
@@ -1415,6 +1420,15 @@ static void configure_mpcc_from_environment(void)
         cfg.cross_call_rate_scale = (float)atof(v);
 
     mpcc_set_configuration(&cfg);
+
+    if (requested_horizon > MPCC_MAX_HORIZON)
+    {
+        fprintf(stderr,
+                "[MPCC] WARNING: requested HORIZON=%d exceeds compile-time MPCC_MAX_HORIZON=%d; clamping to %d\n",
+                requested_horizon,
+                MPCC_MAX_HORIZON,
+                MPCC_MAX_HORIZON);
+    }
 
     /* If the user hasn't explicitly set the cross-call scale, auto-compute
      * from control rate and the (possibly overridden) prediction dt. */

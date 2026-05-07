@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+from PIL import Image, ImageDraw
 from scipy.interpolate import CubicSpline, interp1d, splprep, splev
 
 
@@ -142,6 +143,37 @@ def refresh_widths(rows: list[dict[str, float]], map_path: Path, max_distance: f
         row["right"] = float(right)
 
 
+def render_overlay_png(rows: list[dict[str, float]], map_path: Path, output_path: Path) -> None:
+    is_wall, resolution, origin_x, origin_y = load_map(str(map_path))
+    height, width = is_wall.shape
+
+    canvas = np.empty((height, width, 3), dtype=np.uint8)
+    canvas[:, :] = (245, 245, 245)
+    canvas[is_wall] = (35, 35, 35)
+
+    image = Image.fromarray(canvas, mode="RGB")
+    draw = ImageDraw.Draw(image)
+
+    points = []
+    for row in rows[:-1]:
+        col = int(round((row["x"] - origin_x) / resolution))
+        py = int(round(height - 1 - ((row["y"] - origin_y) / resolution)))
+        points.append((col, py))
+
+    if len(points) < 2:
+        raise ValueError("Need at least two points to render an overlay PNG")
+
+    draw.line(points + [points[0]], fill=(20, 80, 235), width=4)
+    marker_indices = (0, len(points) // 4, len(points) // 2, (3 * len(points)) // 4)
+    for idx in marker_indices:
+        x, y = points[idx]
+        radius = 5 if idx else 6
+        draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=(40, 180, 40))
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    image.save(output_path)
+
+
 def save_rows(path: Path, rows: list[dict[str, float]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as handle:
@@ -208,10 +240,17 @@ def main() -> int:
 
     save_rows(args.output, rows)
 
+    png_path = None
+    if args.map is not None:
+        png_path = args.output.with_suffix(".png")
+        render_overlay_png(rows, args.map, png_path)
+
     kappas = np.array([abs(row["kappa"]) for row in rows[:-1]], dtype=float)
     left = np.array([row["left"] for row in rows[:-1]], dtype=float)
     right = np.array([row["right"] for row in rows[:-1]], dtype=float)
     print(f"Smoothed centerline: {args.output}")
+    if png_path is not None:
+        print(f"  overlay png={png_path}")
     print(f"  points={len(rows)} length={rows[-1]['s']:.3f} m")
     print(f"  max|kappa|={kappas.max():.3f} p95|kappa|={np.quantile(kappas, 0.95):.3f}")
     print(f"  min left/right={left.min():.3f}/{right.min():.3f} m")
