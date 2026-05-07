@@ -168,6 +168,54 @@ static int timespec_is_set(const struct timespec *stamp)
     return stamp->tv_sec != 0 || stamp->tv_nsec != 0;
 }
 
+static void log_path_alignment_debug(uint32_t solve_count, float s_state)
+{
+    if (!g_have_reference || g_reference_path.num_points < 2)
+    {
+        return;
+    }
+
+    const float s_closest = mpcc_find_closest_s(
+        &g_reference_path,
+        g_vehicle_state.pos_x,
+        g_vehicle_state.pos_y);
+
+    MPCCPathPoint_t path_pt;
+    mpcc_path_interpolate(&g_reference_path, s_closest, &path_pt);
+
+    const float dX = g_vehicle_state.pos_x - path_pt.x_ref;
+    const float dY = g_vehicle_state.pos_y - path_pt.y_ref;
+    const float sin_phi = sinf(path_pt.phi_ref);
+    const float cos_phi = cosf(path_pt.phi_ref);
+    const float e_c = (sin_phi * dX) - (cos_phi * dY);
+    const float e_l = -((cos_phi * dX) + (sin_phi * dY));
+    float dpsi = g_vehicle_state.heading - path_pt.phi_ref;
+    const float dist = sqrtf((dX * dX) + (dY * dY));
+    const float left_slack = path_pt.left_bound - e_c;
+    const float right_slack = path_pt.right_bound + e_c;
+
+    while (dpsi > (float)M_PI) dpsi -= 2.0f * (float)M_PI;
+    while (dpsi < -(float)M_PI) dpsi += 2.0f * (float)M_PI;
+
+    fprintf(stderr,
+            "[MPCC %3u] path debug: s_state=%.2f s_closest=%.2f dist=%.3f ec=%.3f el=%.3f dpsi=%.3f bounds(L/R)=%.3f/%.3f slack(L/R)=%.3f/%.3f ref=(%.2f,%.2f) pose=(%.2f,%.2f)\n",
+            solve_count,
+            s_state,
+            s_closest,
+            dist,
+            e_c,
+            e_l,
+            dpsi,
+            path_pt.left_bound,
+            path_pt.right_bound,
+            left_slack,
+            right_slack,
+            path_pt.x_ref,
+            path_pt.y_ref,
+            g_vehicle_state.pos_x,
+            g_vehicle_state.pos_y);
+}
+
 static int should_log_throttled(struct timespec *last_log_time,
                                 const struct timespec *now,
                                 double interval_sec)
@@ -979,6 +1027,7 @@ static void pose_callback(const void *msg_in)
                     g_solver_dt_sec * 1000.0,
                     g_prev_delta_cmd,
                     g_prev_speed_cmd);
+            log_path_alignment_debug(g_solve_count, mpcc_state.s);
         }
         {
             const double control_dt_sec = current_control_dt_sec();
