@@ -401,6 +401,11 @@ RiccatiStatus_t riccati_admm_solve(
                     ? admm_state->rho : cfg_rho;
     float rho_u = (admm_state->initialized && admm_state->rho_u > 0.0f)
                     ? admm_state->rho_u : (cfg_rho_u > 0.0f ? cfg_rho_u : rho);
+    /* Align with FPGA profile clamp range. */
+    if (rho < 1.0f) rho = 1.0f;
+    if (rho_u < 1.0f) rho_u = 1.0f;
+    if (rho > 40.0f) rho = 40.0f;
+    if (rho_u > 40.0f) rho_u = 40.0f;
     int max_iter = cfg_max_iter;
 
     /* ADMM variables (persistent buffers for warm-start reuse). */
@@ -589,30 +594,71 @@ RiccatiStatus_t riccati_admm_solve(
             break;
         }
 
-        /*--- Adaptive rho: every 2 iterations ---*/
-        if (adaptive_rho && iter > 0 && (iter & 1) == 0) {
-            if (primal_res > 10.0f * dual_res && rho < 100.0f) {
-                rho *= 2.0f;
-                if (rho_u < 100.0f)
+        /*--- Adaptive rho (aligned with FPGA HLS solver) ---*/
+        if (adaptive_rho && iter > 0) {
+            const float adapt_ratio_state = 5.0f;
+            const float adapt_ratio_ctrl = 5.0f;
+            const float rho_min = 1.0f;
+            const float rho_max = 40.0f;
+
+            int scale_rho = 0;
+            int scale_rho_u = 0;
+
+            if (state_primal > adapt_ratio_state * state_dual && rho <= rho_max) {
+                scale_rho = 1;
+            } else if (state_dual > adapt_ratio_state * state_primal && rho >= rho_min) {
+                scale_rho = -1;
+            }
+
+            if (ctrl_primal > adapt_ratio_ctrl * ctrl_dual && rho_u <= rho_max) {
+                scale_rho_u = 1;
+            } else if (ctrl_dual > adapt_ratio_ctrl * ctrl_primal && rho_u >= rho_min) {
+                scale_rho_u = -1;
+            }
+
+            /* Update penalties and rescale dual variables to keep rho*y invariant. */
+            if (scale_rho != 0) {
+                if (scale_rho > 0) {
+                    rho *= 2.0f;
+                    if (rho > rho_max) rho = rho_max;
+                    for (int k = 0; k <= N; k++) {
+                        for (int s = 0; s < nx; s++) {
+                            if (x_is_constrained[k][s]) {
+                                y_x[k][s] *= 0.5f;
+                            }
+                        }
+                    }
+                } else {
+                    rho *= 0.5f;
+                    if (rho < rho_min) rho = rho_min;
+                    for (int k = 0; k <= N; k++) {
+                        for (int s = 0; s < nx; s++) {
+                            if (x_is_constrained[k][s]) {
+                                y_x[k][s] *= 2.0f;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (scale_rho_u != 0) {
+                if (scale_rho_u > 0) {
                     rho_u *= 2.0f;
-                /* Scale dual variables: y = y / 2 */
-                for (int k = 0; k <= N; k++)
-                    for (int s = 0; s < nx; s++)
-                        y_x[k][s] *= 0.5f;
-                for (int k = 0; k < N; k++)
-                    for (int a = 0; a < nu; a++)
-                        y_u[k][a] *= 0.5f;
-            } else if (dual_res > 10.0f * primal_res && rho > 0.5f) {
-                rho *= 0.5f;
-                if (rho_u > 0.5f)
+                    if (rho_u > rho_max) rho_u = rho_max;
+                    for (int k = 0; k < N; k++) {
+                        for (int a = 0; a < nu; a++) {
+                            y_u[k][a] *= 0.5f;
+                        }
+                    }
+                } else {
                     rho_u *= 0.5f;
-                /* Scale dual variables: y = y * 2 */
-                for (int k = 0; k <= N; k++)
-                    for (int s = 0; s < nx; s++)
-                        y_x[k][s] *= 2.0f;
-                for (int k = 0; k < N; k++)
-                    for (int a = 0; a < nu; a++)
-                        y_u[k][a] *= 2.0f;
+                    if (rho_u < rho_min) rho_u = rho_min;
+                    for (int k = 0; k < N; k++) {
+                        for (int a = 0; a < nu; a++) {
+                            y_u[k][a] *= 2.0f;
+                        }
+                    }
+                }
             }
         }
     }

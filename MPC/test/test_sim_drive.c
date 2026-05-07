@@ -1231,23 +1231,31 @@ int main(void)
     cfg.time_step = (float)(g_mpc_prediction_dt);
     /* cross_call_rate_scale: ratio of control interval to prediction dt */
     cfg.cross_call_rate_scale = (float)(cross_scale);
-    /* Tuned weights — overridable via environment variables for tuning script. */
+    /* Tuned weights — overridable via environment variables for tuning script.
+     * Default to the MPC library defaults (which can be aligned to the FPGA
+     * profile by editing MPC/include/mpc_types.h). */
     const char *env;
-    cfg.weight_lateral_error          = (float)((env = getenv("Q_LAT"))       ? atof(env) : 200.0);
-    cfg.weight_heading_error          = (float)((env = getenv("Q_HDG"))       ? atof(env) : 28.8);
-    cfg.weight_velocity               = (float)((env = getenv("Q_VEL"))       ? atof(env) : 30.0);
-    cfg.weight_lateral_velocity       = (float)((env = getenv("Q_LAT_VEL"))   ? atof(env) : 1.04);
-    cfg.weight_yaw_rate               = (float)((env = getenv("Q_YAW"))       ? atof(env) : 1.5);
-    cfg.weight_steering_effort        = (float)((env = getenv("R_STEER"))     ? atof(env) : 1.5);
-    cfg.weight_acceleration_effort    = (float)((env = getenv("R_ACCEL"))     ? atof(env) : 0.01);
-    cfg.weight_steering_rate          = (float)((env = getenv("W_JERK"))      ? atof(env) : 0.04);
-    cfg.weight_acceleration_rate      = (float)((env = getenv("W_ACCEL_RATE"))? atof(env) : 0.10);
+    cfg.weight_lateral_error          = (float)((env = getenv("Q_LAT"))        ? atof(env) : cfg.weight_lateral_error);
+    cfg.weight_heading_error          = (float)((env = getenv("Q_HDG"))        ? atof(env) : cfg.weight_heading_error);
+    cfg.weight_velocity               = (float)((env = getenv("Q_VEL"))        ? atof(env) : cfg.weight_velocity);
+    cfg.weight_lateral_velocity       = (float)((env = getenv("Q_LAT_VEL"))    ? atof(env) : cfg.weight_lateral_velocity);
+    cfg.weight_yaw_rate               = (float)((env = getenv("Q_YAW"))        ? atof(env) : cfg.weight_yaw_rate);
+    cfg.weight_steering_effort        = (float)((env = getenv("R_STEER"))      ? atof(env) : cfg.weight_steering_effort);
+    cfg.weight_acceleration_effort    = (float)((env = getenv("R_ACCEL"))      ? atof(env) : cfg.weight_acceleration_effort);
+    cfg.weight_steering_rate          = (float)((env = getenv("W_JERK"))       ? atof(env) : cfg.weight_steering_rate);
+    cfg.weight_acceleration_rate      = (float)((env = getenv("W_ACCEL_RATE")) ? atof(env) : cfg.weight_acceleration_rate);
+    cfg.weight_delta_actual           = (float)(
+        (env = getenv("MPC_W_DELTA_ACTUAL")) ? atof(env) :
+        ((env = getenv("W_DELTA_ACT")) ? atof(env) : cfg.weight_delta_actual));
     {
         const double footprint_margin = VEHICLE_HALF_WIDTH + body_safety_margin;
         const double margin_env = get_env_double("WALL_MARGIN", footprint_margin);
         const double effective_margin = fmax(footprint_margin, margin_env);
         cfg.wall_margin = (float)effective_margin;
     }
+
+    cfg.max_solver_iterations = (env = getenv("MAX_ITER")) ? atoi(env) : cfg.max_solver_iterations;
+    cfg.solver_convergence_tolerance = (float)((env = getenv("TOL")) ? atof(env) : cfg.solver_convergence_tolerance);
 
     mpc_set_configuration(&cfg);
 
