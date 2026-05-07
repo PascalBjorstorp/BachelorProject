@@ -143,6 +143,58 @@ def refresh_widths(rows: list[dict[str, float]], map_path: Path, max_distance: f
         row["right"] = float(right)
 
 
+def _periodic_running_median(values: np.ndarray, window: int) -> np.ndarray:
+    if window <= 1:
+        return values.copy()
+    if window % 2 == 0:
+        raise ValueError("width clamp window must be odd")
+
+    half = window // 2
+    out = np.empty_like(values)
+    count = len(values)
+    for idx in range(count):
+        sample = [values[(idx + off) % count] for off in range(-half, half + 1)]
+        out[idx] = float(np.median(sample))
+    return out
+
+
+def suppress_width_spikes(
+    rows: list[dict[str, float]],
+    window: int,
+    spike_margin: float | None,
+    max_side_width: float | None,
+) -> None:
+    if window <= 1 or not rows:
+        return
+
+    body = rows[:-1] if len(rows) > 1 else rows
+    left = np.array([row["left"] for row in body], dtype=float)
+    right = np.array([row["right"] for row in body], dtype=float)
+
+    left_med = _periodic_running_median(left, window)
+    right_med = _periodic_running_median(right, window)
+
+    if spike_margin is not None:
+        left = np.minimum(left, left_med + spike_margin)
+        right = np.minimum(right, right_med + spike_margin)
+
+    if max_side_width is not None:
+        left = np.minimum(left, max_side_width)
+        right = np.minimum(right, max_side_width)
+
+    # Blend once with neighbors after clipping so corridor changes stay smooth.
+    left = 0.2 * np.roll(left, 1) + 0.6 * left + 0.2 * np.roll(left, -1)
+    right = 0.2 * np.roll(right, 1) + 0.6 * right + 0.2 * np.roll(right, -1)
+
+    for row, left_value, right_value in zip(body, left, right):
+        row["left"] = float(left_value)
+        row["right"] = float(right_value)
+
+    if len(rows) > len(body):
+        rows[-1]["left"] = float(rows[0]["left"])
+        rows[-1]["right"] = float(rows[0]["right"])
+
+
 def render_overlay_png(rows: list[dict[str, float]], map_path: Path, output_path: Path) -> None:
     is_wall, resolution, origin_x, origin_y = load_map(str(map_path))
     height, width = is_wall.shape
@@ -197,6 +249,9 @@ def main() -> int:
     parser.add_argument("--min-speed", type=float, default=1.2)
     parser.add_argument("--max-speed", type=float, default=3.0)
     parser.add_argument("--lateral-acc-limit", type=float, default=3.0)
+    parser.add_argument("--width-clamp-window", type=int, default=0)
+    parser.add_argument("--width-spike-margin", type=float)
+    parser.add_argument("--max-side-width", type=float)
     args = parser.parse_args()
 
     source_rows = load_rows(args.input)
@@ -237,6 +292,12 @@ def main() -> int:
 
     if args.map is not None:
         refresh_widths(rows, args.map, args.max_distance)
+        suppress_width_spikes(
+            rows,
+            args.width_clamp_window,
+            args.width_spike_margin,
+            args.max_side_width,
+        )
 
     save_rows(args.output, rows)
 
