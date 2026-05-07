@@ -72,6 +72,19 @@ inline int32_t float_to_fp(float f) {
 
 class MpcFpgaInterface {
 public:
+    struct TimingProfile {
+        int64_t total_call_ns = 0;
+        int64_t input_map_ns = 0;
+        int64_t input_pack_ns = 0;
+        int64_t input_unmap_ns = 0;
+        int64_t input_migrate_ns = -1;
+        int64_t kernel_ns = -1;
+        int64_t output_migrate_ns = -1;
+        int64_t output_map_ns = 0;
+        int64_t output_unpack_ns = 0;
+        int64_t output_unmap_ns = 0;
+    };
+
     MpcFpgaInterface() = default;
 
     bool initialize(const std::string& xclbin_path,
@@ -169,6 +182,7 @@ public:
     bool is_ready() const { return initialized_; }
 
     void set_prev_accel_fp(int32_t prev_accel_fp) { prev_accel_fp_ = prev_accel_fp; }
+    const TimingProfile& get_last_profile() const { return last_profile_; }
 
     bool compute(int32_t e_y_fp, int32_t e_psi_fp,
                  int32_t vx_fp, int32_t vy_fp, int32_t omega_fp,
@@ -182,9 +196,12 @@ public:
                                         static_cast<size_t>(MPC_HORIZON));
         if (horizon == 0) return false;
 
+        last_profile_ = TimingProfile{};
         std::fill(input_words_.begin(), input_words_.end(), 0);
 
         cl_int err = CL_SUCCESS;
+        const auto total_t0 = std::chrono::high_resolution_clock::now();
+        const auto input_map_t0 = total_t0;
         void* mapped = queue_.enqueueMapBuffer(
             input_buffer_,
             CL_TRUE,
@@ -199,6 +216,11 @@ public:
             last_compute_ns_ = -1;
             return false;
         }
+        const auto input_map_t1 = std::chrono::high_resolution_clock::now();
+        last_profile_.input_map_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            input_map_t1 - input_map_t0).count();
+
+        const auto input_pack_t0 = input_map_t1;
         auto* input_words = reinterpret_cast<int32_t*>(mapped);
         std::fill(input_words, input_words + DMA_BUFFER_WORDS, 0);
 
@@ -229,16 +251,27 @@ public:
                 input_words[base + 7] = msg.ref_right_bound_fp[i];
             }
         }
+        const auto input_pack_t1 = std::chrono::high_resolution_clock::now();
+        last_profile_.input_pack_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            input_pack_t1 - input_pack_t0).count();
 
+        const auto input_unmap_t0 = input_pack_t1;
         err = queue_.enqueueUnmapMemObject(input_buffer_, mapped);
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "MPC-FPGA-OpenCL: enqueueUnmapMemObject(input) failed (%d)\n", err);
             last_compute_ns_ = -1;
             return false;
         }
+        const auto input_unmap_t1 = std::chrono::high_resolution_clock::now();
+        last_profile_.input_unmap_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            input_unmap_t1 - input_unmap_t0).count();
+
+        cl::Event input_migrate_event;
+        cl::Event kernel_event;
+        cl::Event output_migrate_event;
 
         // Embedded XRT: prefer explicit migration before/after kernel.
-        err = queue_.enqueueMigrateMemObjects({input_buffer_}, 0);
+        err = queue_.enqueueMigrateMemObjects({input_buffer_}, 0, nullptr, &input_migrate_event);
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "MPC-FPGA-OpenCL: migrate(input) failed (%d)\n", err);
             last_compute_ns_ = -1;
@@ -246,14 +279,15 @@ public:
         }
 
         const auto t0 = std::chrono::high_resolution_clock::now();
-        err = queue_.enqueueTask(kernel_);
+        err = queue_.enqueueTask(kernel_, nullptr, &kernel_event);
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "MPC-FPGA-OpenCL: enqueueTask failed (%d)\n", err);
             last_compute_ns_ = -1;
             return false;
         }
 
-        err = queue_.enqueueMigrateMemObjects({output_buffer_}, CL_MIGRATE_MEM_OBJECT_HOST);
+        err = queue_.enqueueMigrateMemObjects(
+            {output_buffer_}, CL_MIGRATE_MEM_OBJECT_HOST, nullptr, &output_migrate_event);
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "MPC-FPGA-OpenCL: migrate(output) failed (%d)\n", err);
             last_compute_ns_ = -1;
@@ -269,7 +303,11 @@ public:
 
         const auto t1 = std::chrono::high_resolution_clock::now();
         last_compute_ns_ = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
+        last_profile_.input_migrate_ns = get_event_duration_ns(input_migrate_event);
+        last_profile_.kernel_ns = get_event_duration_ns(kernel_event);
+        last_profile_.output_migrate_ns = get_event_duration_ns(output_migrate_event);
 
+        const auto output_map_t0 = std::chrono::high_resolution_clock::now();
         void* out_mapped = queue_.enqueueMapBuffer(
             output_buffer_,
             CL_TRUE,
@@ -284,30 +322,53 @@ public:
             last_compute_ns_ = -1;
             return false;
         }
+        const auto output_map_t1 = std::chrono::high_resolution_clock::now();
+        last_profile_.output_map_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            output_map_t1 - output_map_t0).count();
 
+        const auto output_unpack_t0 = output_map_t1;
         const auto* out_words = reinterpret_cast<const int32_t*>(out_mapped);
         output_words_[0] = out_words[0];
         output_words_[1] = out_words[1];
         output_words_[2] = out_words[2];
         output_words_[3] = out_words[3];
+        const auto output_unpack_t1 = std::chrono::high_resolution_clock::now();
+        last_profile_.output_unpack_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            output_unpack_t1 - output_unpack_t0).count();
 
+        const auto output_unmap_t0 = output_unpack_t1;
         err = queue_.enqueueUnmapMemObject(output_buffer_, out_mapped);
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "MPC-FPGA-OpenCL: enqueueUnmapMemObject(output) failed (%d)\n", err);
             last_compute_ns_ = -1;
             return false;
         }
+        const auto output_unmap_t1 = std::chrono::high_resolution_clock::now();
+        last_profile_.output_unmap_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            output_unmap_t1 - output_unmap_t0).count();
 
         out_steering_fp = output_words_[0];
         out_accel_fp = output_words_[1];
         out_status = static_cast<uint32_t>(output_words_[2]);
         out_iterations = static_cast<uint32_t>(output_words_[3]);
+        last_profile_.total_call_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            output_unmap_t1 - total_t0).count();
         return true;
     }
 
     int64_t get_last_compute_ns() const { return last_compute_ns_; }
 
 private:
+    static int64_t get_event_duration_ns(const cl::Event& event) {
+        try {
+            const cl_ulong start = event.getProfilingInfo<CL_PROFILING_COMMAND_START>();
+            const cl_ulong end = event.getProfilingInfo<CL_PROFILING_COMMAND_END>();
+            return (end >= start) ? static_cast<int64_t>(end - start) : -1;
+        } catch (const cl::Error&) {
+            return -1;
+        }
+    }
+
     bool initialized_ = false;
 
     cl::Device device_;
@@ -325,6 +386,7 @@ private:
     std::array<int32_t, 4> output_words_{{0, 0, 0, 0}};
     int32_t prev_accel_fp_{0};
 
+    TimingProfile last_profile_{};
     int64_t last_compute_ns_ = 0;
 };
 
@@ -352,10 +414,6 @@ public:
             throw std::runtime_error("MPC FPGA OpenCL init failed");
         }
 
-        RCLCPP_INFO(get_logger(),
-                    "MPC FPGA OpenCL init OK - xclbin=%s kernel=%s device_index=%d",
-                    xclbin_path.c_str(), kernel_name.c_str(), device_index);
-
         drive_pub_ = create_publisher<ackermann_msgs::msg::AckermannDriveStamped>(
             drive_topic, rclcpp::SystemDefaultsQoS());
 
@@ -363,10 +421,6 @@ public:
         sub_ = create_subscription<f1tenth_msgs::msg::MpcState>(
             input_topic, qos,
             std::bind(&MpcReceiverFpgaNode::state_callback, this, std::placeholders::_1));
-
-        RCLCPP_INFO(get_logger(),
-                    "MPC Receiver [FPGA OpenCL] ready. %s -> %s",
-                    input_topic.c_str(), drive_topic.c_str());
 
         /* Initialize stats CSV file */
         open_stats_csv_file();
@@ -386,15 +440,11 @@ private:
     rclcpp::Subscription<f1tenth_msgs::msg::MpcState>::SharedPtr sub_;
     rclcpp::Publisher<ackermann_msgs::msg::AckermannDriveStamped>::SharedPtr drive_pub_;
 
-    uint64_t msg_count_ = 0;
     uint64_t rx_count_ = 0;
     uint64_t pub_count_ = 0;
     uint64_t drop_no_horizon_ = 0;
     uint64_t drop_bad_arrays_ = 0;
     uint64_t drop_compute_ = 0;
-    double total_loop_us_ = 0.0;
-    double min_loop_us_ = std::numeric_limits<double>::infinity();
-    double max_loop_us_ = 0.0;
     std::chrono::steady_clock::time_point last_msg_time_ = std::chrono::steady_clock::now();
     float latest_vx_mps_ = 0.0f;
     float last_speed_cmd_mps_ = MPC_FPGA_MIN_VEL_MPS;
@@ -405,6 +455,13 @@ private:
     double stats_solve_time_sum_us_ = 0.0;
     double stats_solve_time_min_us_ = 1e9;
     double stats_solve_time_max_us_ = 0.0;
+    double stats_total_call_sum_us_ = 0.0;
+    double stats_kernel_sum_us_ = 0.0;
+    double stats_input_migrate_sum_us_ = 0.0;
+    double stats_output_migrate_sum_us_ = 0.0;
+    double stats_host_prep_sum_us_ = 0.0;
+    double stats_host_readback_sum_us_ = 0.0;
+    double stats_overhead_sum_us_ = 0.0;
     uint32_t stats_iter_count_min_ = 0xFFFFFFFFU;
     uint32_t stats_iter_count_max_ = 0;
     double stats_iter_count_sum_ = 0.0;
@@ -433,21 +490,48 @@ private:
         
         stats_csv_file_ = fopen(csv_path, "w");
         if (stats_csv_file_ != nullptr) {
-            fprintf(stats_csv_file_, "idx,iterations,solve_time_us\n");
+            fprintf(stats_csv_file_,
+                    "idx,iterations,solve_time_us,total_call_us,kernel_time_us,"
+                    "input_migrate_us,output_migrate_us,host_prep_us,host_readback_us,"
+                    "opencl_overhead_us,input_map_us,input_pack_us,input_unmap_us,"
+                    "output_map_us,output_unpack_us,output_unmap_us\n");
             fflush(stats_csv_file_);
-            RCLCPP_INFO(get_logger(), "Stats CSV log: %s", csv_path);
         } else {
             RCLCPP_WARN(get_logger(), "Failed to open stats CSV file: %s", csv_path);
         }
     }
 
-    void update_stats(int64_t compute_ns, uint32_t iterations, uint32_t status) {
+    void update_stats(int64_t compute_ns,
+                      const MpcFpgaInterface::TimingProfile& profile,
+                      uint32_t iterations,
+                      uint32_t status) {
         const double compute_us = static_cast<double>(compute_ns) / 1000.0;
+        const auto ns_to_us = [](int64_t ns) {
+            return ns >= 0 ? static_cast<double>(ns) / 1000.0 : -1.0;
+        };
+        const double total_call_us = ns_to_us(profile.total_call_ns);
+        const double kernel_us = ns_to_us(profile.kernel_ns);
+        const double input_migrate_us = ns_to_us(profile.input_migrate_ns);
+        const double output_migrate_us = ns_to_us(profile.output_migrate_ns);
+        const double host_prep_us = ns_to_us(
+            profile.input_map_ns + profile.input_pack_ns + profile.input_unmap_ns);
+        const double host_readback_us = ns_to_us(
+            profile.output_map_ns + profile.output_unpack_ns + profile.output_unmap_ns);
+        const double overhead_us = (profile.total_call_ns > 0 && profile.kernel_ns >= 0)
+            ? static_cast<double>(profile.total_call_ns - profile.kernel_ns) / 1000.0
+            : -1.0;
         
         /* Track solve time statistics */
         stats_solve_time_sum_us_ += compute_us;
         if (compute_us < stats_solve_time_min_us_) stats_solve_time_min_us_ = compute_us;
         if (compute_us > stats_solve_time_max_us_) stats_solve_time_max_us_ = compute_us;
+        if (total_call_us >= 0.0) stats_total_call_sum_us_ += total_call_us;
+        if (kernel_us >= 0.0) stats_kernel_sum_us_ += kernel_us;
+        if (input_migrate_us >= 0.0) stats_input_migrate_sum_us_ += input_migrate_us;
+        if (output_migrate_us >= 0.0) stats_output_migrate_sum_us_ += output_migrate_us;
+        if (host_prep_us >= 0.0) stats_host_prep_sum_us_ += host_prep_us;
+        if (host_readback_us >= 0.0) stats_host_readback_sum_us_ += host_readback_us;
+        if (overhead_us >= 0.0) stats_overhead_sum_us_ += overhead_us;
         
         /* Track iteration statistics */
         stats_iter_count_sum_ += static_cast<double>(iterations);
@@ -462,7 +546,15 @@ private:
         
         /* Write to stats CSV file */
         if (stats_csv_file_ != nullptr) {
-            fprintf(stats_csv_file_, "%lu,%u,%.1f\n", stats_cycle_count_, iterations, compute_us);
+            fprintf(stats_csv_file_,
+                    "%lu,%u,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f\n",
+                    stats_cycle_count_, iterations, compute_us,
+                    total_call_us, kernel_us,
+                    input_migrate_us, output_migrate_us,
+                    host_prep_us, host_readback_us, overhead_us,
+                    ns_to_us(profile.input_map_ns), ns_to_us(profile.input_pack_ns),
+                    ns_to_us(profile.input_unmap_ns), ns_to_us(profile.output_map_ns),
+                    ns_to_us(profile.output_unpack_ns), ns_to_us(profile.output_unmap_ns));
             fflush(stats_csv_file_);
         }
         
@@ -471,8 +563,18 @@ private:
         double elapsed_sec = std::chrono::duration<double>(now - last_terminal_print_time_).count();
         
         if (elapsed_sec >= TERMINAL_STATS_PRINT_INTERVAL_SECONDS && stats_cycle_count_ > 0) {
+            const auto avg_or_na = [this](double sum_us) {
+                return sum_us > 0.0 ? (sum_us / static_cast<double>(stats_cycle_count_)) : -1.0;
+            };
             double avg_iter = stats_iter_count_sum_ / static_cast<double>(stats_cycle_count_);
             double avg_time = stats_solve_time_sum_us_ / static_cast<double>(stats_cycle_count_);
+            double avg_total_call = avg_or_na(stats_total_call_sum_us_);
+            double avg_kernel = avg_or_na(stats_kernel_sum_us_);
+            double avg_input_migrate = avg_or_na(stats_input_migrate_sum_us_);
+            double avg_output_migrate = avg_or_na(stats_output_migrate_sum_us_);
+            double avg_host_prep = avg_or_na(stats_host_prep_sum_us_);
+            double avg_host_readback = avg_or_na(stats_host_readback_sum_us_);
+            double avg_overhead = avg_or_na(stats_overhead_sum_us_);
             double optimal_pct = (stats_optimal_count_ * 100.0) / static_cast<double>(stats_cycle_count_);
             double max_iter_pct = (stats_max_iter_count_ * 100.0) / static_cast<double>(stats_cycle_count_);
             
@@ -480,16 +582,26 @@ private:
                 "[FPGA-Stats] (last %.1fs, %lu calls):\n"
                 "  Iterations: min=%u, avg=%.1f, max=%u\n"
                 "  Solve time: min=%.1f us, avg=%.1f us, max=%.1f us\n"
+                "  Profile avg: total=%.1f us, kernel=%.1f us, in_mig=%.1f us, out_mig=%.1f us, host_prep=%.1f us, host_read=%.1f us, overhead=%.1f us\n"
                 "  Optimal: %.1f%%, Max iter: %.1f%%",
                 elapsed_sec, stats_cycle_count_,
                 stats_iter_count_min_, avg_iter, stats_iter_count_max_,
                 stats_solve_time_min_us_, avg_time, stats_solve_time_max_us_,
+                avg_total_call, avg_kernel, avg_input_migrate, avg_output_migrate,
+                avg_host_prep, avg_host_readback, avg_overhead,
                 optimal_pct, max_iter_pct);
             
             /* Reset stats */
             stats_solve_time_sum_us_ = 0.0;
             stats_solve_time_min_us_ = 1e9;
             stats_solve_time_max_us_ = 0.0;
+            stats_total_call_sum_us_ = 0.0;
+            stats_kernel_sum_us_ = 0.0;
+            stats_input_migrate_sum_us_ = 0.0;
+            stats_output_migrate_sum_us_ = 0.0;
+            stats_host_prep_sum_us_ = 0.0;
+            stats_host_readback_sum_us_ = 0.0;
+            stats_overhead_sum_us_ = 0.0;
             stats_iter_count_min_ = 0xFFFFFFFFU;
             stats_iter_count_max_ = 0;
             stats_iter_count_sum_ = 0.0;
@@ -589,43 +701,7 @@ private:
         drive_pub_->publish(drive);
     }
 
-    void update_timing_and_log(const f1tenth_msgs::msg::MpcState::SharedPtr& msg,
-                               const std::chrono::high_resolution_clock::time_point& t_start,
-                               const std::chrono::high_resolution_clock::time_point& t_end,
-                               float e_y_m,
-                               float e_psi_rad,
-                               float steering,
-                               float speed,
-                               float accel,
-                               uint32_t status,
-                               uint32_t iters) {
-        const auto compute_us = std::chrono::duration_cast<std::chrono::microseconds>(
-            t_end - t_start).count();
-        msg_count_++;
-        total_loop_us_ += static_cast<double>(compute_us);
-        min_loop_us_ = std::min(min_loop_us_, static_cast<double>(compute_us));
-        max_loop_us_ = std::max(max_loop_us_, static_cast<double>(compute_us));
-
-        if (msg_count_ % MPC_FPGA_RECEIVER_LOG_PERIOD_MSGS == 0) {
-            const double avg_loop_us = total_loop_us_ / static_cast<double>(msg_count_);
-            const int64_t fpga_ns = fpga_.get_last_compute_ns();
-            RCLCPP_INFO(get_logger(),
-                "[FPGA-OpenCL] ey=%.3f m epsi=%.1f deg delta=%.1f deg v=%.1f a=%.1f | "
-                "Status=%u Iter=%u | Total=%ld us FPGA=%ld ns | "
-                "Loop us avg/min/max=%.1f/%.1f/%.1f | "
-                "rx=%lu pub=%lu drop(h=%lu a=%lu c=%lu)",
-                e_y_m,
-                e_psi_rad * MPC_FPGA_RAD_TO_DEG,
-                steering * MPC_FPGA_RAD_TO_DEG, speed, accel,
-                status, iters,
-                compute_us, fpga_ns,
-                avg_loop_us, min_loop_us_, max_loop_us_,
-                rx_count_, pub_count_, drop_no_horizon_, drop_bad_arrays_, drop_compute_);
-        }
-    }
-
     void state_callback(const f1tenth_msgs::msg::MpcState::SharedPtr msg) {
-        auto t_start = std::chrono::high_resolution_clock::now();
         last_msg_time_ = std::chrono::steady_clock::now();
         rx_count_++;
 
@@ -678,8 +754,6 @@ private:
 
         latest_vx_mps_ = fp_to_float(msg->velocity_fp);
         const FrenetErrorsFp errors = compute_frenet_errors(msg);
-        const float e_y_m = fp_to_float(errors.e_y_fp);
-        const float e_psi_rad = fp_to_float(errors.e_psi_fp);
 
         const bool ok = fpga_.compute(
             errors.e_y_fp, errors.e_psi_fp,
@@ -696,7 +770,7 @@ private:
         }
 
         /* Update statistics */
-        update_stats(fpga_.get_last_compute_ns(), iters, status);
+        update_stats(fpga_.get_last_compute_ns(), fpga_.get_last_profile(), iters, status);
 
         steering = fp_to_float(out_steer_fp);
         accel = fp_to_float(out_accel_fp);
@@ -718,15 +792,6 @@ private:
 
         publish_drive_command(steering, speed, accel, msg->header.stamp);
         pub_count_++;
-        if (pub_count_ == 1) {
-            RCLCPP_INFO(get_logger(),
-                "First /drive published after rx=%lu messages (drops: horizon=%lu arrays=%lu compute=%lu)",
-                rx_count_, drop_no_horizon_, drop_bad_arrays_, drop_compute_);
-        }
-
-        auto t_end = std::chrono::high_resolution_clock::now();
-        update_timing_and_log(msg, t_start, t_end, e_y_m, e_psi_rad,
-                              steering, speed, accel, status, iters);
     }
 };
 
