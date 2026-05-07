@@ -387,13 +387,11 @@ private:
     rclcpp::Publisher<ackermann_msgs::msg::AckermannDriveStamped>::SharedPtr drive_pub_;
 
     uint64_t msg_count_ = 0;
-    uint64_t latency_count_ = 0;
     uint64_t rx_count_ = 0;
     uint64_t pub_count_ = 0;
     uint64_t drop_no_horizon_ = 0;
     uint64_t drop_bad_arrays_ = 0;
     uint64_t drop_compute_ = 0;
-    double total_latency_ms_ = 0.0;
     double total_loop_us_ = 0.0;
     double min_loop_us_ = std::numeric_limits<double>::infinity();
     double max_loop_us_ = 0.0;
@@ -410,9 +408,6 @@ private:
     uint32_t stats_iter_count_min_ = 0xFFFFFFFFU;
     uint32_t stats_iter_count_max_ = 0;
     double stats_iter_count_sum_ = 0.0;
-    double stats_transport_latency_sum_us_ = 0.0;
-    double stats_transport_latency_min_us_ = 1e9;
-    double stats_transport_latency_max_us_ = 0.0;
     uint64_t stats_cycle_count_ = 0;
     uint64_t stats_optimal_count_ = 0;
     uint64_t stats_max_iter_count_ = 0;
@@ -438,7 +433,7 @@ private:
         
         stats_csv_file_ = fopen(csv_path, "w");
         if (stats_csv_file_ != nullptr) {
-            fprintf(stats_csv_file_, "idx,iterations,solve_time_us,transport_latency_us\n");
+            fprintf(stats_csv_file_, "idx,iterations,solve_time_us\n");
             fflush(stats_csv_file_);
             RCLCPP_INFO(get_logger(), "Stats CSV log: %s", csv_path);
         } else {
@@ -446,7 +441,7 @@ private:
         }
     }
 
-    void update_stats(int64_t compute_ns, uint32_t iterations, uint32_t status, double transport_latency_us) {
+    void update_stats(int64_t compute_ns, uint32_t iterations, uint32_t status) {
         const double compute_us = static_cast<double>(compute_ns) / 1000.0;
         
         /* Track solve time statistics */
@@ -459,13 +454,6 @@ private:
         if (iterations < stats_iter_count_min_) stats_iter_count_min_ = iterations;
         if (iterations > stats_iter_count_max_) stats_iter_count_max_ = iterations;
 
-        /* Track transport latency statistics */
-        if (transport_latency_us > 0.0) {
-            stats_transport_latency_sum_us_ += transport_latency_us;
-            if (transport_latency_us < stats_transport_latency_min_us_) stats_transport_latency_min_us_ = transport_latency_us;
-            if (transport_latency_us > stats_transport_latency_max_us_) stats_transport_latency_max_us_ = transport_latency_us;
-        }
-        
         /* Count optimal solutions and max-iter cases */
         if (status == MPC_FPGA_STATUS_OK) stats_optimal_count_++;
         if (status == MPC_FPGA_STATUS_MAX_ITER) stats_max_iter_count_++;
@@ -474,7 +462,7 @@ private:
         
         /* Write to stats CSV file */
         if (stats_csv_file_ != nullptr) {
-            fprintf(stats_csv_file_, "%lu,%u,%.1f,%.1f\n", stats_cycle_count_, iterations, compute_us, transport_latency_us);
+            fprintf(stats_csv_file_, "%lu,%u,%.1f\n", stats_cycle_count_, iterations, compute_us);
             fflush(stats_csv_file_);
         }
         
@@ -485,8 +473,6 @@ private:
         if (elapsed_sec >= TERMINAL_STATS_PRINT_INTERVAL_SECONDS && stats_cycle_count_ > 0) {
             double avg_iter = stats_iter_count_sum_ / static_cast<double>(stats_cycle_count_);
             double avg_time = stats_solve_time_sum_us_ / static_cast<double>(stats_cycle_count_);
-            double avg_latency = (stats_transport_latency_min_us_ < 1e9) ?
-                stats_transport_latency_sum_us_ / static_cast<double>(stats_cycle_count_) : -1.0;
             double optimal_pct = (stats_optimal_count_ * 100.0) / static_cast<double>(stats_cycle_count_);
             double max_iter_pct = (stats_max_iter_count_ * 100.0) / static_cast<double>(stats_cycle_count_);
             
@@ -494,14 +480,10 @@ private:
                 "[FPGA-Stats] (last %.1fs, %lu calls):\n"
                 "  Iterations: min=%u, avg=%.1f, max=%u\n"
                 "  Solve time: min=%.1f us, avg=%.1f us, max=%.1f us\n"
-                "  Transport latency: min=%.1f us, avg=%.1f us, max=%.1f us\n"
                 "  Optimal: %.1f%%, Max iter: %.1f%%",
                 elapsed_sec, stats_cycle_count_,
                 stats_iter_count_min_, avg_iter, stats_iter_count_max_,
                 stats_solve_time_min_us_, avg_time, stats_solve_time_max_us_,
-                (stats_transport_latency_min_us_ < 1e9 ? stats_transport_latency_min_us_ : -1.0),
-                (avg_latency > 0.0 ? avg_latency : -1.0),
-                (stats_transport_latency_max_us_ > 0.0 ? stats_transport_latency_max_us_ : -1.0),
                 optimal_pct, max_iter_pct);
             
             /* Reset stats */
@@ -511,9 +493,6 @@ private:
             stats_iter_count_min_ = 0xFFFFFFFFU;
             stats_iter_count_max_ = 0;
             stats_iter_count_sum_ = 0.0;
-            stats_transport_latency_sum_us_ = 0.0;
-            stats_transport_latency_min_us_ = 1e9;
-            stats_transport_latency_max_us_ = 0.0;
             stats_cycle_count_ = 0;
             stats_optimal_count_ = 0;
             stats_max_iter_count_ = 0;
@@ -627,51 +606,21 @@ private:
         min_loop_us_ = std::min(min_loop_us_, static_cast<double>(compute_us));
         max_loop_us_ = std::max(max_loop_us_, static_cast<double>(compute_us));
 
-        double latency_ms = -1.0;
-        const rclcpp::Time msg_time(msg->header.stamp);
-        if (msg_time.nanoseconds() > 0) {
-            latency_ms = (this->now() - msg_time).seconds() * 1000.0;
-        }
-
-        if (latency_ms >= 0.0) {
-            total_latency_ms_ += latency_ms;
-            latency_count_++;
-        }
-
         if (msg_count_ % MPC_FPGA_RECEIVER_LOG_PERIOD_MSGS == 0) {
-            const double avg = (latency_count_ > 0)
-                ? (total_latency_ms_ / static_cast<double>(latency_count_))
-                : -1.0;
             const double avg_loop_us = total_loop_us_ / static_cast<double>(msg_count_);
             const int64_t fpga_ns = fpga_.get_last_compute_ns();
-            if (latency_ms >= 0.0 && avg >= 0.0) {
-                RCLCPP_INFO(get_logger(),
-                    "[FPGA-OpenCL] ey=%.3f m epsi=%.1f deg delta=%.1f deg v=%.1f a=%.1f | "
-                    "Status=%u Iter=%u | Total=%ld us FPGA=%ld ns | "
-                    "Loop us avg/min/max=%.1f/%.1f/%.1f | Lat %.1f ms (avg %.1f) | "
-                    "rx=%lu pub=%lu drop(h=%lu a=%lu c=%lu)",
-                    e_y_m,
-                    e_psi_rad * MPC_FPGA_RAD_TO_DEG,
-                    steering * MPC_FPGA_RAD_TO_DEG, speed, accel,
-                    status, iters,
-                    compute_us, fpga_ns,
-                    avg_loop_us, min_loop_us_, max_loop_us_,
-                    latency_ms, avg,
-                    rx_count_, pub_count_, drop_no_horizon_, drop_bad_arrays_, drop_compute_);
-            } else {
-                RCLCPP_INFO(get_logger(),
-                    "[FPGA-OpenCL] ey=%.3f m epsi=%.1f deg delta=%.1f deg v=%.1f a=%.1f | "
-                    "Status=%u Iter=%u | Total=%ld us FPGA=%ld ns | "
-                    "Loop us avg/min/max=%.1f/%.1f/%.1f | Lat N/A | "
-                    "rx=%lu pub=%lu drop(h=%lu a=%lu c=%lu)",
-                    e_y_m,
-                    e_psi_rad * MPC_FPGA_RAD_TO_DEG,
-                    steering * MPC_FPGA_RAD_TO_DEG, speed, accel,
-                    status, iters,
-                    compute_us, fpga_ns,
-                    avg_loop_us, min_loop_us_, max_loop_us_,
-                    rx_count_, pub_count_, drop_no_horizon_, drop_bad_arrays_, drop_compute_);
-            }
+            RCLCPP_INFO(get_logger(),
+                "[FPGA-OpenCL] ey=%.3f m epsi=%.1f deg delta=%.1f deg v=%.1f a=%.1f | "
+                "Status=%u Iter=%u | Total=%ld us FPGA=%ld ns | "
+                "Loop us avg/min/max=%.1f/%.1f/%.1f | "
+                "rx=%lu pub=%lu drop(h=%lu a=%lu c=%lu)",
+                e_y_m,
+                e_psi_rad * MPC_FPGA_RAD_TO_DEG,
+                steering * MPC_FPGA_RAD_TO_DEG, speed, accel,
+                status, iters,
+                compute_us, fpga_ns,
+                avg_loop_us, min_loop_us_, max_loop_us_,
+                rx_count_, pub_count_, drop_no_horizon_, drop_bad_arrays_, drop_compute_);
         }
     }
 
@@ -746,15 +695,8 @@ private:
             return;
         }
 
-        /* Calculate network transport latency (Jetson publish time to Kria receive time) */
-        double transport_latency_us = -1.0;
-        const rclcpp::Time msg_time(msg->header.stamp);
-        if (msg_time.nanoseconds() > 0) {
-            transport_latency_us = (this->now() - msg_time).seconds() * 1e6;
-        }
-
         /* Update statistics */
-        update_stats(fpga_.get_last_compute_ns(), iters, status, transport_latency_us);
+        update_stats(fpga_.get_last_compute_ns(), iters, status);
 
         steering = fp_to_float(out_steer_fp);
         accel = fp_to_float(out_accel_fp);
