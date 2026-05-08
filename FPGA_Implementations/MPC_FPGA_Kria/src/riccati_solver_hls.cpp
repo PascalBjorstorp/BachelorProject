@@ -332,9 +332,9 @@ static void riccati_pass_hls(
         fp_raw_acc_t Si[2][2];
         if (invert_2x2_hls(S, Si) < 0) {
             /* Near-singular safeguard: use diagonal reciprocal fallback
-             * instead of identity, preserving units/scaling of S^{-1}.
-             * Use fp_recip (30-bit) to avoid 46-bit CLZ in reciprocal_raw. */
-            const fp_raw_acc_t eps = ((fp_raw_acc_t)1 << (FP_FRAC_BITS - 8));
+             * instead of identity, preserving units/scaling of S^{-1}. */
+            const fp_raw_acc_t eps =
+                fp_raw_acc_from_neg_pow2(FP_INVERT_2X2_DIAG_FALLBACK_MIN_EXP);
             fp_raw_acc_t s00 = (S[0][0] > eps) ? S[0][0] : eps;
             fp_raw_acc_t s11 = (S[1][1] > eps) ? S[1][1] : eps;
             Si[0][0] = (fp_raw_acc_t)fp_recip((fp_QP_t)fp_clip_raw_to_qp(s00));

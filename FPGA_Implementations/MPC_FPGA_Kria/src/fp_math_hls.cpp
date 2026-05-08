@@ -135,26 +135,25 @@ int invert_2x2_hls(fp_raw_acc_t S[2][2], fp_raw_acc_t Si[2][2]) {
 #pragma HLS INLINE off
 
   /* S entries are raw-acc values at QP scale (>> FP_FRAC_BITS already applied
-   * by caller). Convert to fp_QP_t via clip+cast to enable 30-bit arithmetic
-   * and eliminate the 46-bit CLZ (ctlz_46_46_1_1) in reciprocal_raw. */
+   * by caller). */
   fp_QP_t s00 = fp_QP_from_qp_raw((fp_qp_raw_t)fp_clip_raw_to_qp(S[0][0]));
   fp_QP_t s01 = fp_QP_from_qp_raw((fp_qp_raw_t)fp_clip_raw_to_qp(S[0][1]));
   fp_QP_t s10 = fp_QP_from_qp_raw((fp_qp_raw_t)fp_clip_raw_to_qp(S[1][0]));
   fp_QP_t s11 = fp_QP_from_qp_raw((fp_qp_raw_t)fp_clip_raw_to_qp(S[1][1]));
 
-  /* Determinant in QP space (30-bit fp_mul, no 46-bit multipliers). */
+  /* Determinant in QP space. */
   fp_QP_t det = fp_mul(s00, s11) - fp_mul(s01, s10);
 
-  fp_QP_t det_eps =
-      FP_QP_CONST(1.0 / 4096.0); /* same as << (FP_FRAC_BITS-12) in QP */
+  /* Singular threshold of 2^-12 in real units, mapped to the active QP width. */
+  fp_QP_t det_eps = fp_qp_from_neg_pow2(FP_INVERT_2X2_DET_MIN_EXP);
   if (det > -det_eps && det < det_eps) {
     return -1;
   }
 
-  /* 30-bit Newton-Raphson reciprocal — no 46-bit CLZ, 2 DSPs vs 4. */
+  /* Newton-Raphson reciprocal in the active QP format. */
   fp_QP_t inv_det = fp_recip(det);
 
-  /* Cramer's rule: Si = adj(S) * inv_det, all 30-bit fp_mul. */
+  /* Cramer's rule: Si = adj(S) * inv_det. */
   Si[0][0] = fp_raw_acc_from_qp(fp_mul(s11, inv_det));
   Si[0][1] = fp_raw_acc_from_qp(fp_mul(-s01, inv_det));
   Si[1][0] = fp_raw_acc_from_qp(fp_mul(-s10, inv_det));

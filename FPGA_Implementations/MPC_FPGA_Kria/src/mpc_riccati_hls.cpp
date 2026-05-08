@@ -143,30 +143,6 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
   fp_QP_t terminal_wall_x_ub_con = BIG_BOUND;
   fp_QP_t terminal_ey_ref = FP_QP_CONST(0.0);
 
-  int ws_matches_current = 0;
-  if (admm_state->initialized) {
-    const fp_QP_t ws_ey_err = fp_abs(admm_state->z_x[0][0] - state_ey);
-    const fp_QP_t ws_epsi_err = fp_abs(admm_state->z_x[0][1] - state_epsi);
-    const fp_QP_t ws_vx_err = fp_abs(admm_state->z_x[0][2] - state_vx);
-    const fp_QP_t ws_vy_err = fp_abs(admm_state->z_x[0][3] - state_vy);
-    const fp_QP_t ws_omega_err = fp_abs(admm_state->z_x[0][4] - state_omega);
-    const fp_QP_t ws_delta_err =
-        fp_abs(admm_state->z_x[0][IDX_DELTA_ACT] - persist->actual_steering);
-    const fp_QP_t ws_drate_err = fp_abs(
-        admm_state->z_x[0][IDX_DELTA_RATE_PREV] - persist->prev_steer_rate);
-    const fp_QP_t ws_accel_err =
-        fp_abs(admm_state->z_x[0][IDX_ACCEL_PREV] - persist->prev_accel);
-    ws_matches_current =
-        (ws_ey_err < MPC_WS_EY_THRESH && ws_epsi_err < MPC_WS_EPSI_THRESH &&
-         ws_vx_err < MPC_WS_VX_THRESH && ws_vy_err < MPC_WS_VY_THRESH &&
-         ws_omega_err < MPC_WS_OMEGA_THRESH &&
-         ws_delta_err < MPC_WS_DELTA_THRESH &&
-         ws_drate_err < MPC_WS_DRATE_THRESH &&
-         ws_accel_err < MPC_WS_ACCEL_THRESH)
-            ? 1
-            : 0;
-  }
-
   /* Rolling linearization state. The setup loop only needs x_k and x_{k+1},
    * so keeping this in scalars avoids horizon RAMs and read muxes. */
   fp_QP_t lin_ey = state_ey;
@@ -616,39 +592,13 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
    * --------------------------------------------------------------- */
   {
     const fp_QP_t kappa_diff = fp_abs(kappa0 - persist->prev_curvature);
-    const fp_QP_t ey_jump = fp_abs(state_ey - persist->prev_ey);
-    const fp_QP_t epsi_jump = fp_abs(state_epsi - persist->prev_epsi);
-    const fp_QP_t vx_jump = fp_abs(state_vx - persist->prev_vx);
-    const fp_QP_t left_jump =
-        fp_abs(ref[0].left_wall_bound - persist->prev_left_bound0);
-    const fp_QP_t right_jump =
-        fp_abs(ref[0].right_wall_bound - persist->prev_right_bound0);
-
     const int model_signature_changed =
         (persist->prev_model_signature != MPC_MODEL_SIGNATURE);
-
-    const int state_jump = (ey_jump > MPC_WS_EY_THRESH) ||
-                           (epsi_jump > MPC_WS_EPSI_THRESH) ||
-                           (vx_jump > MPC_WS_VX_THRESH);
-
-    const int corridor_jump =
-        (left_jump > MPC_WS_BOUND_THRESH) || (right_jump > MPC_WS_BOUND_THRESH);
-
     const int curvature_jump = (kappa_diff > MPC_WS_CURVATURE_THRESH);
+    const int hard_reset_reason =
+        model_signature_changed || curvature_jump;
 
-    const int bad_prev_solve = (!persist->prev_converged);
-
-    const int hard_reset_reason = model_signature_changed || state_jump ||
-                                  corridor_jump || curvature_jump;
-
-    if (hard_reset_reason || bad_prev_solve) {
-      if (persist->cold_start_countdown < MPC_WS_COLD_START_CALLS) {
-        persist->cold_start_countdown = MPC_WS_COLD_START_CALLS;
-      }
-    }
-
-    if (persist->cold_start_countdown > 0 || !admm_state->initialized ||
-        !ws_matches_current || bad_prev_solve || hard_reset_reason) {
+    if (!admm_state->initialized || hard_reset_reason) {
       admm_state->initialized = 0;
     }
   }
@@ -698,17 +648,8 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
   persist->prev_delta_cmd = delta_cmd;
   persist->prev_steer_rate = delta_rate;
   persist->prev_accel = accel_sat;
-  persist->prev_converged = (rstatus == MPC_STATUS_OPTIMAL) ? 1 : 0;
   persist->prev_curvature = kappa0;
-  persist->prev_ey = state_ey;
-  persist->prev_epsi = state_epsi;
-  persist->prev_vx = state_vx;
-  persist->prev_left_bound0 = ref[0].left_wall_bound;
-  persist->prev_right_bound0 = ref[0].right_wall_bound;
   persist->prev_model_signature = MPC_MODEL_SIGNATURE;
-  if (persist->cold_start_countdown > 0) {
-    persist->cold_start_countdown--;
-  }
 
   *out_steering = steer_sat;
   *out_accel = accel_sat;

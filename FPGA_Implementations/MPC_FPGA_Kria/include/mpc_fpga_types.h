@@ -433,14 +433,7 @@ typedef struct {
     fp_QP_t prev_delta_cmd;
     fp_QP_t actual_steering;
     fp_QP_t prev_curvature;
-    int prev_converged;
-    fp_QP_t prev_ey;
-    fp_QP_t prev_epsi;
-    fp_QP_t prev_vx;
-    fp_QP_t prev_left_bound0;
-    fp_QP_t prev_right_bound0;
     int prev_model_signature;
-    int cold_start_countdown;
 } MpcPersistState_t;
 
 #endif /* MPC_FPGA_TYPES_H */

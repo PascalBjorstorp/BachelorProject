@@ -192,12 +192,7 @@ public:
                  uint32_t& out_status, uint32_t& out_iterations) {
         if (!initialized_) return false;
 
-        const size_t horizon = std::min(static_cast<size_t>(msg.horizon_length),
-                                        static_cast<size_t>(MPC_HORIZON));
-        if (horizon == 0) return false;
-
         last_profile_ = TimingProfile{};
-        std::fill(input_words_.begin(), input_words_.end(), 0);
 
         cl_int err = CL_SUCCESS;
         const auto total_t0 = std::chrono::high_resolution_clock::now();
@@ -222,7 +217,6 @@ public:
 
         const auto input_pack_t0 = input_map_t1;
         auto* input_words = reinterpret_cast<int32_t*>(mapped);
-        std::fill(input_words, input_words + DMA_BUFFER_WORDS, 0);
 
         // Group 0: [e_y | e_psi | vx | vy]
         input_words[0] = e_y_fp;
@@ -233,23 +227,21 @@ public:
         // Group 1: [omega | steering | horizon_length | prev_accel]
         input_words[4] = omega_fp;
         input_words[5] = steering_fp;
-        input_words[6] = static_cast<int32_t>(horizon);
+        input_words[6] = MPC_HORIZON;
         input_words[7] = prev_accel_fp_;
 
         // Groups 2..N+1(+): 8 words per step V2
         // [ref_ey | ref_epsi | ref_vx | ref_vy | ref_omega_ref | ref_kappa | ref_left | ref_right]
         for (size_t i = 0; i < MPC_HORIZON; ++i) {
             const size_t base = 8 + (i * 8);
-            if (i < horizon) {
-                input_words[base + 0] = msg.ref_ey_fp[i];
-                input_words[base + 1] = msg.ref_epsi_fp[i];
-                input_words[base + 2] = msg.ref_vx_fp[i];
-                input_words[base + 3] = msg.ref_vy_fp[i];
-                input_words[base + 4] = msg.ref_omega_ref_fp[i];
-                input_words[base + 5] = msg.ref_kappa_fp[i];
-                input_words[base + 6] = msg.ref_left_bound_fp[i];
-                input_words[base + 7] = msg.ref_right_bound_fp[i];
-            }
+            input_words[base + 0] = msg.ref_ey_fp[i];
+            input_words[base + 1] = msg.ref_epsi_fp[i];
+            input_words[base + 2] = msg.ref_vx_fp[i];
+            input_words[base + 3] = msg.ref_vy_fp[i];
+            input_words[base + 4] = msg.ref_omega_ref_fp[i];
+            input_words[base + 5] = msg.ref_kappa_fp[i];
+            input_words[base + 6] = msg.ref_left_bound_fp[i];
+            input_words[base + 7] = msg.ref_right_bound_fp[i];
         }
         const auto input_pack_t1 = std::chrono::high_resolution_clock::now();
         last_profile_.input_pack_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -294,9 +286,9 @@ public:
             return false;
         }
 
-        err = queue_.finish();
+        err = cl::Event::waitForEvents({output_migrate_event});
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "MPC-FPGA-OpenCL: queue finish failed (%d)\n", err);
+            std::fprintf(stderr, "MPC-FPGA-OpenCL: output wait failed (%d)\n", err);
             last_compute_ns_ = -1;
             return false;
         }
@@ -387,7 +379,6 @@ private:
     static constexpr size_t DMA_BUFFER_WORDS = INPUT_BUFFER_WORDS_32_PAD;
     static_assert(DMA_BUFFER_WORDS * sizeof(int32_t) == INPUT_BUFFER_BYTES_512,
                   "Host DMA buffer words must match OpenCL input buffer bytes");
-    std::vector<int32_t> input_words_{DMA_BUFFER_WORDS, 0};
     std::array<int32_t, 4> output_words_{{0, 0, 0, 0}};
     int32_t prev_accel_fp_{0};
 
@@ -618,10 +609,18 @@ private:
     }
 
     bool has_required_horizon_data(const f1tenth_msgs::msg::MpcState::SharedPtr& msg) const {
-        return msg->horizon_length > 0 &&
-               !msg->ref_x_fp.empty() && !msg->ref_y_fp.empty() && !msg->ref_psi_fp.empty() &&
-               !msg->ref_vx_fp.empty() && !msg->ref_kappa_fp.empty() &&
-               !msg->ref_left_bound_fp.empty() && !msg->ref_right_bound_fp.empty();
+        return msg->horizon_length >= MPC_HORIZON &&
+               msg->ref_ey_fp.size() >= MPC_HORIZON &&
+               msg->ref_epsi_fp.size() >= MPC_HORIZON &&
+               msg->ref_x_fp.size() >= MPC_HORIZON &&
+               msg->ref_y_fp.size() >= MPC_HORIZON &&
+               msg->ref_psi_fp.size() >= MPC_HORIZON &&
+               msg->ref_vx_fp.size() >= MPC_HORIZON &&
+               msg->ref_vy_fp.size() >= MPC_HORIZON &&
+               msg->ref_omega_ref_fp.size() >= MPC_HORIZON &&
+               msg->ref_kappa_fp.size() >= MPC_HORIZON &&
+               msg->ref_left_bound_fp.size() >= MPC_HORIZON &&
+               msg->ref_right_bound_fp.size() >= MPC_HORIZON;
     }
 
     static FrenetErrorsFp compute_frenet_errors(const f1tenth_msgs::msg::MpcState::SharedPtr& msg) {
@@ -629,8 +628,7 @@ private:
         const float y = fp_to_float(msg->y_fp);
         const float theta = fp_to_float(msg->theta_fp);
 
-        const size_t horizon = static_cast<size_t>(std::max<uint32_t>(1u, msg->horizon_length));
-        const size_t max_search = std::min(horizon > 0 ? horizon - 1 : 0, static_cast<size_t>(16));
+        const size_t max_search = std::min(static_cast<size_t>(MPC_HORIZON - 1), static_cast<size_t>(16));
 
         float best_e_y = 0.0f;
         float best_e_psi = 0.0f;
@@ -722,27 +720,9 @@ private:
         if (!has_required_horizon_data(msg)) {
             drop_no_horizon_++;
             RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                "No streamed waypoint data in message");
-            return;
-        }
-
-        const size_t horizon = std::min(static_cast<size_t>(msg->horizon_length),
-                                        static_cast<size_t>(MPC_HORIZON));
-        if (msg->ref_ey_fp.size() < horizon ||
-            msg->ref_epsi_fp.size() < horizon ||
-            msg->ref_x_fp.size() < horizon ||
-            msg->ref_y_fp.size() < horizon ||
-            msg->ref_psi_fp.size() < horizon ||
-            msg->ref_vx_fp.size() < horizon ||
-            msg->ref_vy_fp.size() < horizon ||
-            msg->ref_omega_ref_fp.size() < horizon ||
-            msg->ref_kappa_fp.size() < horizon ||
-            msg->ref_left_bound_fp.size() < horizon ||
-            msg->ref_right_bound_fp.size() < horizon) {
-            drop_bad_arrays_++;
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                "Horizon arrays too small for horizon_length=%zu, got: ey=%zu epsi=%zu x=%zu y=%zu psi=%zu vx=%zu vy=%zu omega_ref=%zu kappa=%zu left=%zu right=%zu",
-                horizon,
+                "Fixed-horizon MPC requires %d populated steps, got horizon=%u arrays: ey=%zu epsi=%zu x=%zu y=%zu psi=%zu vx=%zu vy=%zu omega_ref=%zu kappa=%zu left=%zu right=%zu",
+                MPC_HORIZON,
+                msg->horizon_length,
                 msg->ref_ey_fp.size(),
                 msg->ref_epsi_fp.size(),
                 msg->ref_x_fp.size(),

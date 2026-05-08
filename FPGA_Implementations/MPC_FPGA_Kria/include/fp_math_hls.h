@@ -1,6 +1,6 @@
 /**
  * @file fp_math_hls.h
- * @brief Q16.16 fixed-point math helpers for HLS synthesis.
+ * @brief Fixed-point math helpers for HLS synthesis.
  */
 
 #ifndef FP_MATH_HLS_H
@@ -49,6 +49,10 @@
 #define INV_FACT_3 FP_QP_CONST(0.16666666666666666)
 #define INV_FACT_4 FP_QP_CONST(0.041666666666666664)
 #define INV_FACT_5 FP_QP_CONST(0.008333333333333333)
+
+/* Width-aware algorithm thresholds expressed as real-value powers of two. */
+#define FP_INVERT_2X2_DET_MIN_EXP 12
+#define FP_INVERT_2X2_DIAG_FALLBACK_MIN_EXP 8
 
 /* Function-based helpers (no define aliases for arithmetic/conversions). */
 static inline float FP_TO_FLOAT(fp_QP_t x) { return (float)x; }
@@ -110,6 +114,27 @@ static inline fp_QP_t fp_clamp(fp_QP_t val, fp_QP_t lo, fp_QP_t hi) {
   if (val > hi)
     return hi;
   return val;
+}
+
+static inline fp_qp_raw_t fp_qp_raw_from_neg_pow2(int exp) {
+#pragma HLS INLINE
+  const int shift = FP_FRAC_BITS - exp;
+  if (shift <= 0)
+    return (fp_qp_raw_t)1;
+  return ((fp_qp_raw_t)1) << shift;
+}
+
+static inline fp_raw_acc_t fp_raw_acc_from_neg_pow2(int exp) {
+#pragma HLS INLINE
+  const int shift = FP_FRAC_BITS - exp;
+  if (shift <= 0)
+    return (fp_raw_acc_t)1;
+  return ((fp_raw_acc_t)1) << shift;
+}
+
+static inline fp_QP_t fp_qp_from_neg_pow2(int exp) {
+#pragma HLS INLINE
+  return fp_QP_from_qp_raw(fp_qp_raw_from_neg_pow2(exp));
 }
 
 fp_QP_t fp_normalize_angle(fp_QP_t angle);

@@ -1,5 +1,0 @@
-udp_control_bridge:
-  ros__parameters:
-    drive_topic: "/drive"
-    listen_port: 49001
-    watchdog_timeout_ms: 100.0

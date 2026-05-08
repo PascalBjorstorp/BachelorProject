@@ -239,15 +239,21 @@ static inline MpcSolverStatus_t mpc_compute_optimal_control(
         return MPC_SOLVER_STATUS_ERROR;
     }
 
-    int32_t ref_vx_fp[MPC_HORIZON];
     int32_t ref_ey_fp[MPC_HORIZON];
+    int32_t ref_epsi_fp[MPC_HORIZON];
+    int32_t ref_vx_fp[MPC_HORIZON];
+    int32_t ref_vy_fp[MPC_HORIZON];
+    int32_t ref_omega_ref_fp[MPC_HORIZON];
     int32_t ref_kappa_fp[MPC_HORIZON];
     int32_t ref_left_fp[MPC_HORIZON];
     int32_t ref_right_fp[MPC_HORIZON];
 
     for (int i = 0; i < MPC_HORIZON; i++) {
         ref_ey_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].reference_lateral_error);
+        ref_epsi_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].reference_heading_error);
         ref_vx_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].reference_velocity);
+        ref_vy_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].reference_lateral_velocity);
+        ref_omega_ref_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].reference_yaw_rate);
         ref_kappa_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].path_curvature);
         ref_left_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].left_wall_bound);
         ref_right_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].right_wall_bound);
@@ -267,7 +273,7 @@ static inline MpcSolverStatus_t mpc_compute_optimal_control(
     CPU_COMPAT_DOUBLE_TO_FP16(state->fyaw_rate),
     CPU_COMPAT_DOUBLE_TO_FP16(g_mpc_cpu_compat_actual_steering),
     CPU_COMPAT_DOUBLE_TO_FP16(g_mpc_cpu_compat_prev_accel),
-    /* ref_ey */ ref_ey_fp, /* ref_epsi */ NULL, /* ref_vx */ ref_vx_fp, /* ref_vy */ NULL, /* ref_omega_ref */ NULL,
+    ref_ey_fp, ref_epsi_fp, ref_vx_fp, ref_vy_fp, ref_omega_ref_fp,
     /* ref_kappa */ ref_kappa_fp, /* ref_left */ ref_left_fp, /* ref_right */ ref_right_fp,
     MPC_HORIZON,
     &out_steering, &out_accel, &out_status, &out_iters);
