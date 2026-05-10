@@ -24,7 +24,7 @@ config.mapFrame = 'map';
 config.optitrackFrame = 'world';
 config.skipStartupAndIncompleteLaps = skipStartupAndIncompleteLaps;
 config.optitrackExpectedHz = 240;
-config.ekfExpectedHz = 200;
+config.ekfExpectedHz = 240;
 
 % Lap detection settings. Tune only if lap trimming misses crossings.
 config.lapCloseRadiusM = 0.45;
@@ -50,6 +50,24 @@ config.yawIsolatedOutlierMaxRunLength = 2;
 % Exclude known bad OptiTrack area from error metrics. Excluded samples are
 % still drawn grey in trajectory/heatmap plots.
 config.metricExcludeXLessThanM = 2.0;
+
+% OptiTrack ground-truth self-consistency checks. These checks run on the
+% same post-trim, metric-valid samples used by the benchmark by default.
+config.optitrackQualityEnabled = true;
+config.optitrackQualityUseMetricMask = true;
+config.optitrackQualityEnabledChecks = ["position_step", "roll_step", "forward_axis"];
+config.optitrackQualityMaxGapS = 0.05;
+config.optitrackQualityMaxStepM = 0.20;
+config.optitrackQualityMaxSpeedMps = 12.0;
+config.optitrackQualityMaxAccelMps2 = 40.0;
+config.optitrackQualityMaxYawStepRad = 30 * pi / 180;
+config.optitrackQualityMaxYawRateRadps = 12.0;
+config.optitrackQualityMaxRollAbsRad = 15 * pi / 180;
+config.optitrackQualityMaxPitchAbsRad = 15 * pi / 180;
+config.optitrackQualityMaxRollPitchStepRad = 10 * pi / 180;
+config.optitrackQualityForwardAxisEnabled = true;
+config.optitrackQualityMinMotionStepM = 0.01;
+config.optitrackQualityMaxForwardAxisErrorRad = 75 * pi / 180;
 % =================== END USER SETTINGS ===================
 
 plotFunctionsDir = fullfile(matlabRootDir, 'matlab plotting functions');
@@ -120,6 +138,11 @@ plotOptiTrackPositionErrorBins(results, outputDir, showPlots);
 plotOptiTrackBenchmarkStatistics(results, outputDir, showPlots);
 plotOptiTrackErrorHeatmaps(results, outputDir, showPlots);
 
+qualityReportPaths = [];
+if isfield(config, 'optitrackQualityEnabled') && config.optitrackQualityEnabled
+    qualityReportPaths = writeOptiTrackQualityReports(results, outputDir, config, showPlots);
+end
+
 if ~isempty(odomResults)
     plotOdomTrajectoryComparison(odomResults, odomOutputDir, showPlots);
     plotOdomPositionErrorOverTime(odomResults, odomOutputDir, showPlots);
@@ -135,6 +158,10 @@ writetable(lapTimeTable, lapTimePath);
 
 fprintf('\nSummary CSV saved to %s\n', summaryPath);
 fprintf('Lap-time CSV saved to %s\n', lapTimePath);
+if isstruct(qualityReportPaths)
+    fprintf('OptiTrack quality summary saved to %s\n', qualityReportPaths.summaryCsv);
+    fprintf('OptiTrack suspect samples saved to %s\n', qualityReportPaths.suspectCsv);
+end
 fprintf('Plots saved to %s\n', outputDir);
 if ~isempty(odomOutputDir)
     fprintf('ODOM plots saved to %s\n', odomOutputDir);

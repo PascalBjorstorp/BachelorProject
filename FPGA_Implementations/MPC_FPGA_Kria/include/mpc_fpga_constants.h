@@ -123,7 +123,7 @@
  * Solver Structure and Model Constants
  *===========================================================================*/
 
-/** Maximum ADMM iterations. Fixed project-wide for stable timing/behavior comparisons. */
+/** Maximum ADMM iterations. Keep aligned with CPU defaults for parity tests. */
 #define MPC_FPGA_MAX_ADMM_ITER        50
 #define MPC_FPGA_PREDICTION_DT_S      0.03f
 #define MPC_FPGA_PACEJKA_C_SHAPE      1.9f
