@@ -89,8 +89,8 @@ gpu_amcl_cpp:
 
     # ---- Resampling ----
     resample_threshold: 0.5  # resample when N_eff < threshold * N
-    enable_recovery_injection: false  # keep false while tuning raw AMCL convergence
-    recovery_injection_ratio: 0.05    # 5% runtime recovery particles; use 0.10 if it must recover more aggressively
+    enable_recovery_injection: false  # false after startup; global warmup can force it on temporarily
+    recovery_injection_ratio: 0.10    # 10% global particles during startup warmup/recovery
     enable_local_roughening: true      # bad scan match -> jitter local particles after resample
     local_roughening_ratio: 0.25       # replace 20% around current local mean
     local_roughening_xy_std_m: 0.20    # 12 cm XY noise
@@ -102,6 +102,9 @@ gpu_amcl_cpp:
     # false: seed particles around initial_pose_*
     # true: seed particles globally along raceline corridor with forward heading cone
     global_initialization: true
+    global_startup_warmup_sec: 3.0
+    global_startup_motion_speed_threshold_mps: 0.05
+    global_startup_hold_pose_publish: true
     global_heading_cone_rad: 0.5235987756  # +/- 30 deg around nearest raceline heading
     global_track_margin_m: 0.15            # keep global samples this far from walls
     global_max_lateral_offset_m: 1.0       # do not trust huge d_left/d_right CSV widths during global sampling
