@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <exception>
 #include <fstream>
+#include <limits>
 #include <sstream>
 #include <std_msgs/msg/float64.hpp>
 #include <std_msgs/msg/int32.hpp>
@@ -135,9 +136,7 @@ void AmclNode::declare_all_parameters() {
 
     // Initial pose
     declare_parameter<bool>("global_initialization", false);
-    declare_parameter<double>("global_startup_warmup_sec", 3.0);
-    declare_parameter<double>("global_startup_motion_speed_threshold_mps", 0.05);
-    declare_parameter<bool>("global_startup_hold_pose_publish", true);
+    declare_parameter<bool>("initial_heading_from_raceline", true);
     declare_parameter<double>("global_heading_cone_rad", 0.5235987756);
     declare_parameter<double>("global_track_margin_m", 0.15);
     declare_parameter<double>("global_max_lateral_offset_m", 0.55);
@@ -167,12 +166,8 @@ void AmclNode::load_parameters() {
     update_min_d_ = get_parameter("update_min_d").as_double();
     update_min_a_ = get_parameter("update_min_a").as_double();
     max_scan_age_ = get_parameter("max_scan_age").as_double();
-    startup_global_warmup_sec_ = std::max(
-        0.0, get_parameter("global_startup_warmup_sec").as_double());
-    startup_global_motion_speed_threshold_mps_ = std::max(
-        0.0, get_parameter("global_startup_motion_speed_threshold_mps").as_double());
-    startup_global_hold_pose_publish_ =
-        get_parameter("global_startup_hold_pose_publish").as_bool();
+    initial_heading_from_raceline_ =
+        get_parameter("initial_heading_from_raceline").as_bool();
     slip_angular_threshold_ = get_parameter("slip_angular_threshold").as_double();
     slip_noise_multiplier_  = get_parameter("slip_noise_multiplier").as_double();
     const int64_t odom_history_size_param =
@@ -182,9 +177,9 @@ void AmclNode::load_parameters() {
 
     RCLCPP_INFO(get_logger(),
         "[AMCL] Parameters: update_min_d=%.5f, update_min_a=%.5f, "
-        "max_scan_age=%.4f, slip_threshold=%.2f rad/s, global_warmup=%.2fs",
+        "max_scan_age=%.4f, slip_threshold=%.2f rad/s, initial_raceline_heading=%s",
         update_min_d_, update_min_a_, max_scan_age_, slip_angular_threshold_,
-        startup_global_warmup_sec_);
+        initial_heading_from_raceline_ ? "true" : "false");
 }
 
 void AmclNode::push_odom_sample(const rclcpp::Time& stamp,
@@ -246,40 +241,6 @@ bool AmclNode::interpolate_odom_pose(const rclcpp::Time& stamp,
     }
 
     return false;
-}
-
-bool AmclNode::global_startup_warmup_allows_publish(const rclcpp::Time& stamp,
-                                                    double odom_delta_speed_mps) {
-    if (!startup_global_warmup_active_) {
-        return true;
-    }
-
-    const double observed_speed_mps =
-        std::max(current_odom_speed_mps_, odom_delta_speed_mps);
-
-    if (!startup_global_driving_seen_) {
-        if (observed_speed_mps < startup_global_motion_speed_threshold_mps_) {
-            return !startup_global_hold_pose_publish_;
-        }
-
-        startup_global_driving_seen_ = true;
-        startup_global_driving_start_time_ = stamp;
-        RCLCPP_INFO(get_logger(),
-                    "Global startup warmup timer started at %.2f m/s",
-                    observed_speed_mps);
-    }
-
-    const double elapsed = (stamp - startup_global_driving_start_time_).seconds();
-    if (elapsed < startup_global_warmup_sec_) {
-        return !startup_global_hold_pose_publish_;
-    }
-
-    startup_global_warmup_active_ = false;
-    pf_.set_recovery_injection_enabled(configured_recovery_injection_enabled_);
-    RCLCPP_INFO(get_logger(),
-                "Global startup warmup complete after %.2fs; publishing /amcl_pose",
-                elapsed);
-    return true;
 }
 
 std::string AmclNode::resolve_global_heading_trajectory_file() const {
@@ -358,6 +319,30 @@ std::vector<ParticleFilter::TrackHeadingPoint> AmclNode::load_global_heading_poi
     return points;
 }
 
+double AmclNode::raceline_heading_near_pose(
+    double x,
+    double y,
+    double fallback_yaw,
+    const std::vector<ParticleFilter::TrackHeadingPoint>& heading_points) const {
+    if (heading_points.empty()) {
+        return math_utils::normalize_angle(fallback_yaw);
+    }
+
+    const auto* best = &heading_points.front();
+    double best_d2 = std::numeric_limits<double>::infinity();
+    for (const auto& point : heading_points) {
+        const double dx = static_cast<double>(point.x) - x;
+        const double dy = static_cast<double>(point.y) - y;
+        const double d2 = dx * dx + dy * dy;
+        if (d2 < best_d2) {
+            best_d2 = d2;
+            best = &point;
+        }
+    }
+
+    return math_utils::normalize_angle(static_cast<double>(best->yaw));
+}
+
 // ─── Map callback ───────────────────────────────────────────────────
 void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     static size_t map_msg_count = 0;  // Static local — persists across calls
@@ -392,9 +377,7 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     pf_cfg.kld_bin_x         = get_parameter("kld_bin_x").as_double();
     pf_cfg.kld_bin_y         = get_parameter("kld_bin_y").as_double();
     pf_cfg.kld_bin_theta     = get_parameter("kld_bin_theta").as_double();
-    configured_recovery_injection_enabled_ =
-        get_parameter("enable_recovery_injection").as_bool();
-    pf_cfg.enable_recovery_injection = configured_recovery_injection_enabled_;
+    pf_cfg.enable_recovery_injection = get_parameter("enable_recovery_injection").as_bool();
     pf_cfg.recovery_injection_ratio = get_parameter("recovery_injection_ratio").as_double();
     pf_cfg.enable_local_roughening = get_parameter("enable_local_roughening").as_bool();
     pf_cfg.local_roughening_ratio = get_parameter("local_roughening_ratio").as_double();
@@ -405,25 +388,39 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     pf_cfg.local_roughening_max_cloud_std_m =
         get_parameter("local_roughening_max_cloud_std_m").as_double();
     pf_cfg.global_initialization = get_parameter("global_initialization").as_bool();
-    global_initialization_active_ = pf_cfg.global_initialization;
-    startup_global_warmup_active_ =
-        global_initialization_active_ && startup_global_warmup_sec_ > 0.0;
-    startup_global_driving_seen_ = false;
-    if (startup_global_warmup_active_) {
-        pf_cfg.enable_recovery_injection = true;
-    }
     pf_cfg.global_heading_cone_rad = get_parameter("global_heading_cone_rad").as_double();
     pf_cfg.global_track_margin_m = get_parameter("global_track_margin_m").as_double();
     pf_cfg.global_max_lateral_offset_m = get_parameter("global_max_lateral_offset_m").as_double();
-    if (pf_cfg.global_initialization || pf_cfg.enable_recovery_injection) {
-        pf_cfg.global_heading_points = load_global_heading_points();
-    }
     pf_cfg.init_x            = get_parameter("initial_pose_x").as_double();
     pf_cfg.init_y            = get_parameter("initial_pose_y").as_double();
     pf_cfg.init_a            = get_parameter("initial_pose_a").as_double();
     pf_cfg.init_cov_xx       = get_parameter("initial_cov_xx").as_double();
     pf_cfg.init_cov_yy       = get_parameter("initial_cov_yy").as_double();
     pf_cfg.init_cov_aa       = get_parameter("initial_cov_aa").as_double();
+
+    std::vector<ParticleFilter::TrackHeadingPoint> heading_points;
+    if (pf_cfg.global_initialization ||
+        pf_cfg.enable_recovery_injection ||
+        initial_heading_from_raceline_) {
+        heading_points = load_global_heading_points();
+    }
+    if (pf_cfg.global_initialization || pf_cfg.enable_recovery_injection) {
+        pf_cfg.global_heading_points = heading_points;
+    }
+    if (!pf_cfg.global_initialization && initial_heading_from_raceline_) {
+        const double fallback_yaw = pf_cfg.init_a;
+        pf_cfg.init_a = raceline_heading_near_pose(
+            pf_cfg.init_x, pf_cfg.init_y, fallback_yaw, heading_points);
+        if (heading_points.empty()) {
+            RCLCPP_WARN(get_logger(),
+                        "Initial raceline heading requested but no heading points loaded; using fallback yaw %.3f rad",
+                        pf_cfg.init_a);
+        } else {
+            RCLCPP_INFO(get_logger(),
+                        "Initial local pose uses raceline heading: x=%.2f y=%.2f yaw=%.3f rad",
+                        pf_cfg.init_x, pf_cfg.init_y, pf_cfg.init_a);
+        }
+    }
 
     // 3. Build motion model config
     MotionModel::Config mm_cfg;
@@ -449,13 +446,6 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     RCLCPP_INFO(get_logger(), "Particle filter initialised with %d particles (%s)",
                 pf_cfg.num_particles,
                 pf_cfg.global_initialization ? "global" : "local");
-    if (startup_global_warmup_active_) {
-        RCLCPP_INFO(get_logger(),
-                    "Global startup warmup active: %.2fs after speed exceeds %.2f m/s, hold_pose_publish=%s",
-                    startup_global_warmup_sec_,
-                    startup_global_motion_speed_threshold_mps_,
-                    startup_global_hold_pose_publish_ ? "true" : "false");
-    }
 
     std_msgs::msg::Int32 particle_count_msg;
     particle_count_msg.data = pf_.num_particles();
@@ -490,9 +480,6 @@ void AmclNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
     prev_x_     = x;
     prev_y_     = y;
     prev_theta_ = theta;
-    const double vx = msg->twist.twist.linear.x;
-    const double vy = msg->twist.twist.linear.y;
-    current_odom_speed_mps_ = std::sqrt(vx * vx + vy * vy);
 
     const auto clock_type = get_clock()->get_clock_type();
     const rclcpp::Time odom_stamp(msg->header.stamp, clock_type);
@@ -583,8 +570,6 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     if (last_scan_time_.nanoseconds() != 0) {
         dt = (scan_time - last_scan_time_).seconds();
     }
-    const double odom_delta_speed_mps =
-        (dt > 1e-6) ? (dist_moved / dt) : 0.0;
     if (dt > 0.001 && dt < 1.0) {  // Valid dt range
         double angular_velocity = std::abs(dtheta) / dt;
         if (angular_velocity > slip_angular_threshold_) {
@@ -624,11 +609,9 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     particle_count_pub_->publish(particle_count_msg);
 
     // ═══════════════════════════════════════════════════════════
-    // STEP 4: PUBLISH POSE
+    // STEP 4: PUBLISH POSE — Immediately, with scan's timestamp
     // ═══════════════════════════════════════════════════════════
-    if (global_startup_warmup_allows_publish(scan_time, odom_delta_speed_mps)) {
-        publish_pose(est, msg->header.stamp);
-    }
+    publish_pose(est, msg->header.stamp);
 
     // Cache estimate for particle cloud visualization
     {
@@ -663,10 +646,6 @@ void AmclNode::initialpose_callback(const geometry_msgs::msg::PoseWithCovariance
 
     // Reset odom baseline
     prediction_baseline_ready_ = false;
-    global_initialization_active_ = false;
-    startup_global_warmup_active_ = false;
-    startup_global_driving_seen_ = false;
-    pf_.set_recovery_injection_enabled(configured_recovery_injection_enabled_);
 }
 
 // ─── Direct pose publish (called from scan_callback) ────────────────

@@ -69,7 +69,7 @@ def generate_launch_description():
 
         DeclareLaunchArgument(
             'amcl_global_initialization',
-            default_value='true',
+            default_value='false',
             description='Seed GPU AMCL particles globally along raceline with heading cone'),
 
         DeclareLaunchArgument(

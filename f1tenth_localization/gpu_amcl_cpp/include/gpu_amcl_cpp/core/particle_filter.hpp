@@ -156,11 +156,6 @@ public:
     /// Current number of active particles.
     int num_particles() const { return n_; }
 
-    /// Enable or disable global recovery particles after initialization.
-    void set_recovery_injection_enabled(bool enabled) {
-        cfg_.enable_recovery_injection = enabled;
-    }
-
     /// Expose sub-models for runtime tuning.
     MotionModel& motion_model() { return motion_; }
     SensorModel& sensor_model() { return sensor_; }

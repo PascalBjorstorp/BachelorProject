@@ -44,6 +44,11 @@ private:
     void publish_pose(const PoseEstimate& est, const rclcpp::Time& stamp);
     std::string resolve_global_heading_trajectory_file() const;
     std::vector<ParticleFilter::TrackHeadingPoint> load_global_heading_points() const;
+    double raceline_heading_near_pose(
+        double x,
+        double y,
+        double fallback_yaw,
+        const std::vector<ParticleFilter::TrackHeadingPoint>& heading_points) const;
     void push_odom_sample(const rclcpp::Time& stamp,
                           double x,
                           double y,
@@ -52,8 +57,6 @@ private:
                                double& x,
                                double& y,
                                double& theta) const;
-    bool global_startup_warmup_allows_publish(const rclcpp::Time& stamp,
-                                              double odom_delta_speed_mps);
 
     // ── ROS I/O ────────────────────────────────────────────────────
     // Subscribers
@@ -83,17 +86,7 @@ private:
     double update_min_d_ = 0.001;
     double update_min_a_ = 0.001;
     double max_scan_age_ = 0.05;
-    double current_odom_speed_mps_ = 0.0;
-
-    // Global startup warmup: keep AMCL global briefly before publishing to EKF.
-    bool global_initialization_active_ = false;
-    bool configured_recovery_injection_enabled_ = false;
-    bool startup_global_warmup_active_ = false;
-    bool startup_global_driving_seen_ = false;
-    bool startup_global_hold_pose_publish_ = true;
-    double startup_global_warmup_sec_ = 3.0;
-    double startup_global_motion_speed_threshold_mps_ = 0.05;
-    rclcpp::Time startup_global_driving_start_time_;
+    bool initial_heading_from_raceline_ = true;
 
     // Slip-aware noise scaling
     double slip_angular_threshold_ = 1.0;  // rad/s
