@@ -71,13 +71,12 @@
  * HLS Resource Constraints
  *===========================================================================*/
 
-/*ADMM state z/y update loop target II.*/
-/* z/y update loop II target. With MUL_LATENCY=3 the inner body needs II=4
- * (DSP latency=3 + 1 cycle pipeline start). Reduced from 6 to 4 saves
- * 2×N×2×MAX_ITER = 2×20×2×50 = 4000 cycles per solve call.
- * Override at compile time: -DMPC_HLS_STATE_ZY_II=N */
+/* ADMM state z/y update loop target II.
+ * With per-channel accumulator split, practical floor is ~7
+ * (mul + compare/update chain). Override at compile time:
+ * -DMPC_HLS_STATE_ZY_II=N */
 #ifndef MPC_HLS_STATE_ZY_II
-#define MPC_HLS_STATE_ZY_II 4
+#define MPC_HLS_STATE_ZY_II 7
 #endif
 
 /* Structural model signature used to invalidate persistent warm-start state
@@ -94,9 +93,10 @@
 #endif
 
 /** ADMM control z/y update loop target II.
+ *  With per-channel accumulator split, practical floor is ~7.
  *  Override at compile time: -DMPC_HLS_CTRL_ZY_II=N */
 #ifndef MPC_HLS_CTRL_ZY_II
-#define MPC_HLS_CTRL_ZY_II 4
+#define MPC_HLS_CTRL_ZY_II 7
 #endif
 
 /** Unroll factor for K*x forward-control accumulation loops.
@@ -433,14 +433,7 @@ typedef struct {
     fp_QP_t prev_delta_cmd;
     fp_QP_t actual_steering;
     fp_QP_t prev_curvature;
-    int prev_converged;
-    fp_QP_t prev_ey;
-    fp_QP_t prev_epsi;
-    fp_QP_t prev_vx;
-    fp_QP_t prev_left_bound0;
-    fp_QP_t prev_right_bound0;
     int prev_model_signature;
-    int cold_start_countdown;
 } MpcPersistState_t;
 
 #endif /* MPC_FPGA_TYPES_H */

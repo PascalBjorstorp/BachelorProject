@@ -106,8 +106,27 @@ public:
             servo_sub_ = this->create_subscription<std_msgs::msg::Float64>(
                 servo_topic, qos,
                 [this](const std_msgs::msg::Float64::SharedPtr msg) {
-                    // Simple linear mapping (adjust if needed for VESC nonlinearity)
-                    current_steering_angle_ = msg->data;
+                    const double corrected =
+                        (msg->data - static_cast<double>(MPC_FPGA_SERVO_OFFSET)) /
+                        static_cast<double>(MPC_FPGA_SERVO_GAIN);
+                    const double abs_corr = std::abs(corrected);
+                    if (static_cast<double>(MPC_FPGA_STEER_CORRECTION_C2) != 0.0) {
+                        const double disc =
+                            static_cast<double>(MPC_FPGA_STEER_CORRECTION_C1) *
+                                static_cast<double>(MPC_FPGA_STEER_CORRECTION_C1) -
+                            4.0 * static_cast<double>(MPC_FPGA_STEER_CORRECTION_C2) *
+                                (static_cast<double>(MPC_FPGA_STEER_CORRECTION_C0) - abs_corr);
+                        if (disc >= 0.0) {
+                            const double t =
+                                (-static_cast<double>(MPC_FPGA_STEER_CORRECTION_C1) + std::sqrt(disc)) /
+                                (2.0 * static_cast<double>(MPC_FPGA_STEER_CORRECTION_C2));
+                            current_steering_angle_ = std::copysign(t, corrected);
+                        } else {
+                            current_steering_angle_ = corrected;
+                        }
+                    } else {
+                        current_steering_angle_ = corrected;
+                    }
                 });
         }
 

@@ -476,6 +476,24 @@ void vehicle_model_compute_frenet_linearization(
     state_matrix_A[4][3] = time_step * ((VP_CG_TO_FRONT_AXLE_M * dFyf_dvy * cos_delta - VP_CG_TO_REAR_AXLE_M * dFyr_dvy) * VP_INV_YAW_INERTIA_1_PER_KGM2);
     state_matrix_A[4][4] = 1.0f + time_step * ((VP_CG_TO_FRONT_AXLE_M * dFyf_domega * cos_delta - VP_CG_TO_REAR_AXLE_M * dFyr_domega) * VP_INV_YAW_INERTIA_1_PER_KGM2);
 
+    {
+        static int cpu_ab_call = 0;
+        cpu_ab_call++;
+        if (cpu_ab_call <= 7) {
+            float Baf = slip_terms.alpha_front *
+                (VP_FRONT_CORNERING_STIFFNESS * (1.0f / VP_C_SHAPE));
+            float Bar = slip_terms.alpha_rear *
+                (VP_REAR_CORNERING_STIFFNESS * (1.0f / VP_C_SHAPE));
+            float min_slope_f = VP_FRICTION_COEFF * VP_FRONT_CORNERING_STIFFNESS * F_zf * MIN_STIFF_SCALE;
+            fprintf(stderr, "CPU_AB k=%d: vx=%f vy=%f om=%f d=%f | af=%f ar=%f Baf=%f Bar=%f | Cf=%f Cmin_f=%f Cr=%f | A43=%f A33=%f\n",
+                cpu_ab_call - 1,
+                vx, vy, omega, delta,
+                slip_terms.alpha_front, slip_terms.alpha_rear, Baf, Bar,
+                C_Sf_Fzf, min_slope_f, C_Sr_Fzr,
+                state_matrix_A[4][3], state_matrix_A[3][3]);
+        }
+    }
+
     /* B matrix — steering column with cos(δ)/sin(δ) force resolution */
     float dFyf_dd_sin = dFyf_ddelta * sin_delta;
     float Fyf_cos = F_yf * cos_delta;

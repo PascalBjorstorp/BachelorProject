@@ -123,7 +123,7 @@
  * Solver Structure and Model Constants
  *===========================================================================*/
 
-/** Maximum ADMM iterations. Fixed project-wide for stable timing/behavior comparisons. */
+/** Maximum ADMM iterations. Keep aligned with CPU defaults for parity tests. */
 #define MPC_FPGA_MAX_ADMM_ITER        50
 #define MPC_FPGA_PREDICTION_DT_S      0.03f
 #define MPC_FPGA_PACEJKA_C_SHAPE      1.9f
@@ -133,16 +133,16 @@
  * MPC Cost Weights (FPGA profile)
  *===========================================================================*/
 
-#define MPC_FPGA_W_LAT_ERROR             1120.0f
-#define MPC_FPGA_W_HEADING               28.8f
-#define MPC_FPGA_W_VELOCITY              25.5f
-#define MPC_FPGA_W_LAT_VEL               0.9568f
+#define MPC_FPGA_W_LAT_ERROR             1500.0f
+#define MPC_FPGA_W_HEADING               5.0f
+#define MPC_FPGA_W_VELOCITY              200.0f
+#define MPC_FPGA_W_LAT_VEL               10.0f
 #define MPC_FPGA_W_YAW_RATE              1.5f
-#define MPC_FPGA_W_STEER_EFF             1.5f
-#define MPC_FPGA_W_ACCEL_EFF             0.01f
-#define MPC_FPGA_W_STEER_JERK            0.04f
-#define MPC_FPGA_W_ACCEL_RATE            0.1f
-#define MPC_FPGA_W_DELTA_ACT             0.02254f
+#define MPC_FPGA_W_STEER_EFF             2.0f
+#define MPC_FPGA_W_ACCEL_EFF             0.5f
+#define MPC_FPGA_W_STEER_JERK            5.0f
+#define MPC_FPGA_W_ACCEL_RATE            5.0f
+#define MPC_FPGA_W_DELTA_ACT             1.0f
 
 /*===========================================================================
  * Solver and Constraint Limits (FPGA profile)
@@ -151,19 +151,19 @@
 #define MPC_FPGA_BIG_BOUND            50.0f
 #define MPC_FPGA_MIN_LIN_VEL_MPS      0.5f
 #define MPC_FPGA_STABILITY_LIMIT      0.95f
-#define MPC_FPGA_WALL_MARGIN_M        0.14f
-#define MPC_FPGA_WALL_BIAS_CLEAR_M   0.01f
-#define MPC_FPGA_WALL_BIAS_MAX_M     0.05f
+#define MPC_FPGA_WALL_MARGIN_M        0.2f
+#define MPC_FPGA_WALL_BIAS_CLEAR_M   0.05f
+#define MPC_FPGA_WALL_BIAS_MAX_M     0.2f
 #define MPC_FPGA_WALL_BOUND_WINDOW   3
 #define MPC_FPGA_V_SWITCH_MPS         7.319f
 #define MPC_FPGA_BOUND_THRESHOLD      50.0f
 
 #ifndef MPC_FPGA_ADMM_RHO
-#define MPC_FPGA_ADMM_RHO                4.0f
+#define MPC_FPGA_ADMM_RHO                7.0f
 #endif
 
 #ifndef MPC_FPGA_ADMM_RHO_U
-#define MPC_FPGA_ADMM_RHO_U              8.0f
+#define MPC_FPGA_ADMM_RHO_U              7.0f
 #endif
 
 #ifndef MPC_FPGA_ADMM_TOL

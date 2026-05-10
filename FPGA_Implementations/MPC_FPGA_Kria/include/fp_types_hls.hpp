@@ -24,11 +24,11 @@
 #endif
 
 #ifndef MPC_HLS_RICCATI_WIDTH
-#define MPC_HLS_RICCATI_WIDTH 30
+#define MPC_HLS_RICCATI_WIDTH 32
 #endif
 
 #ifndef MPC_HLS_RICCATI_INT_BITS
-#define MPC_HLS_RICCATI_INT_BITS 16
+#define MPC_HLS_RICCATI_INT_BITS 17
 #endif
 
 #ifndef MPC_HLS_RAW_ACC_GUARD_BITS
@@ -50,6 +50,12 @@ typedef ap_fixed<MPC_HLS_IO_WIDTH, MPC_HLS_IO_INT_BITS, AP_TRN, AP_WRAP> fp_io_t
 typedef ap_fixed<MPC_HLS_RICCATI_WIDTH, MPC_HLS_RICCATI_INT_BITS, AP_TRN, AP_WRAP> fp_QP_t;
 typedef ap_int<MPC_HLS_RICCATI_WIDTH> fp_qp_raw_t;
 typedef ap_int<(MPC_HLS_RICCATI_WIDTH + MPC_HLS_RAW_ACC_GUARD_BITS)> fp_raw_acc_t;
+typedef ap_int<(MPC_HLS_RICCATI_WIDTH + MPC_HLS_RAW_ACC_GUARD_BITS + 2)> fp_raw_mul_t;
+/* Narrow PA storage to the smallest width that still fits the observed raw
+ * range. This reduces routing/load on the PA read/write path while leaving the
+ * arithmetic accumulators unchanged. */
+typedef ap_int<MPC_HLS_RICCATI_WIDTH + 1> fp_pa_store_t;
+
 
 /**
  * @brief Convert packed raw value to IO family type.
@@ -122,6 +128,16 @@ static inline fp_QP_t fp_qp_from_raw_acc(fp_raw_acc_t raw)
 #pragma HLS INLINE
     fp_raw_acc_t clipped = fp_clip_raw_to_qp(raw);
     return fp_QP_from_qp_raw((fp_qp_raw_t)clipped);
+}
+
+static inline fp_raw_acc_t fp_clip_mul_to_acc(fp_raw_mul_t value)
+{
+#pragma HLS INLINE
+    const fp_raw_mul_t max_value = (fp_raw_mul_t)fp_qp_raw_max_acc();
+    const fp_raw_mul_t min_value = (fp_raw_mul_t)fp_qp_raw_min_acc();
+    if (value > max_value) return fp_qp_raw_max_acc();
+    if (value < min_value) return fp_qp_raw_min_acc();
+    return (fp_raw_acc_t)value;
 }
 /**
  * @brief Convert IO family value to packed raw payload.

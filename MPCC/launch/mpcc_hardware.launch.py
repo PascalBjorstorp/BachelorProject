@@ -31,9 +31,10 @@ HARDWARE_TUNING_DEFAULTS = [
     ("horizon", "HORIZON", "80", "Prediction horizon steps"),
     ("horizon", "HORIZON", "80", "Prediction horizon steps"),
     ("dt", "DT", "0.03", "Prediction time step in seconds"),
-    ("q_contouring", "Q_CONTOURING", "80.0", "Contouring weight"),
+    ("q_contouring", "Q_CONTOURING", "60.0", "Contouring weight"),
     ("q_lag", "Q_LAG", "120.0", "Lag weight"),
-    ("q_progress", "Q_PROGRESS", "8.0", "Progress reward"),
+    ("track_buffer", "MPCC_TRACK_BUFFER", "0.05", "Hard buffer subtracted from each track bound in meters"),
+    ("q_progress", "Q_PROGRESS", "6.0", "Progress reward"),
     ("q_vx", "Q_VX", "0.0", "Longitudinal velocity tracking weight"),
     ("vx_ref", "VX_REF", "0.0", "Reference longitudinal velocity"),
     (
@@ -84,6 +85,10 @@ HARDWARE_TUNING_DEFAULTS = [
     ("admm_tol", "ADMM_TOL", "0.02", "ADMM convergence tolerance"),
     ("admm_adaptive_rho", "ADMM_ADAPTIVE_RHO", "1", "Enable ADMM adaptive rho updates (0/1)"),
     ("admm_alpha_relax", "ADMM_ALPHA_RELAX", "1.6", "ADMM over-relaxation factor"),
+    ("accept_max_iter", "MPCC_ACCEPT_MAX_ITER", "1", "Accept near-converged max-iteration solves (0/1)"),
+    ("max_iter_primal_tol", "MPCC_MAX_ITER_PRIMAL_TOL", "0.01", "Primal residual tolerance for accepted max-iteration solves"),
+    ("max_iter_dual_tol", "MPCC_MAX_ITER_DUAL_TOL", "0.01", "Dual residual tolerance for accepted max-iteration solves"),
+    ("max_iter_track_tol", "MPCC_MAX_ITER_TRACK_TOL", "0.005", "Track-violation tolerance for accepted max-iteration solves"),
     ("v_theta_max", "V_THETA_MAX", "8.0", "Maximum virtual progress speed"),
     (
         "cross_call_scale",
@@ -94,7 +99,7 @@ HARDWARE_TUNING_DEFAULTS = [
     (
         "adapt_cross_call_scale",
         "MPCC_ADAPT_CROSS_CALL_SCALE",
-        "0",
+        "1",
         "Enable runtime adaptation of cross-call scaling (0/1)",
     ),
     (
@@ -116,6 +121,7 @@ def _resolve_default_trajectory() -> str:
         candidates.extend(
             [
                 os.path.join(planning_share, "trajectories", "hardware_centerline_smooth.csv"),
+                os.path.join(planning_share, "trajectories", "my_track_newmap_centerline_midpoint_smooth_cornerfix.csv"),
                 os.path.join(planning_share, "trajectories", "my_track_centerline_smooth.csv"),
                 os.path.join(planning_share, "trajectories", "hardware_raceline.csv"),
                 os.path.join(planning_share, "trajectories", "my_track_raceline.csv"),
@@ -135,10 +141,12 @@ def _resolve_default_trajectory() -> str:
         candidates.extend(
             [
                 os.path.join(root, "f1tenth_planning", "trajectories", "hardware_centerline_smooth.csv"),
+                os.path.join(root, "f1tenth_planning", "trajectories", "my_track_newmap_centerline_midpoint_smooth_cornerfix.csv"),
                 os.path.join(root, "f1tenth_planning", "trajectories", "my_track_centerline_smooth.csv"),
                 os.path.join(root, "f1tenth_planning", "trajectories", "hardware_raceline.csv"),
                 os.path.join(root, "f1tenth_planning", "trajectories", "my_track_raceline.csv"),
                 os.path.join(root, "src", "f1tenth_planning", "trajectories", "hardware_centerline_smooth.csv"),
+                os.path.join(root, "src", "f1tenth_planning", "trajectories", "my_track_newmap_centerline_midpoint_smooth_cornerfix.csv"),
                 os.path.join(root, "src", "f1tenth_planning", "trajectories", "my_track_centerline_smooth.csv"),
                 os.path.join(root, "src", "f1tenth_planning", "trajectories", "hardware_raceline.csv"),
                 os.path.join(root, "src", "f1tenth_planning", "trajectories", "my_track_raceline.csv"),

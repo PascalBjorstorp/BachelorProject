@@ -38,6 +38,7 @@
 
 #include "mpc.h"
 #include "mpc_types.h"
+#include "riccati_solver.h"
 #include "vehicle_model.h"
 
 /*===========================================================================
@@ -1057,7 +1058,7 @@ int main(void)
     const double start_yaw_rate = get_env_double("START_YAW_RATE", 0.0);
     const double start_steer = get_env_double("START_STEER", 0.0);
 
-    const int verbose = getenv("VERBOSE") != NULL;
+    const int verbose = 0;
 
     /* Always emulate hardware local-raceline behavior in tuning runs. */
     const int local_raceline_sim = 1;
@@ -1231,23 +1232,31 @@ int main(void)
     cfg.time_step = (float)(g_mpc_prediction_dt);
     /* cross_call_rate_scale: ratio of control interval to prediction dt */
     cfg.cross_call_rate_scale = (float)(cross_scale);
-    /* Tuned weights — overridable via environment variables for tuning script. */
+    /* Tuned weights — overridable via environment variables for tuning script.
+     * Default to the MPC library defaults (which can be aligned to the FPGA
+     * profile by editing MPC/include/mpc_types.h). */
     const char *env;
-    cfg.weight_lateral_error          = (float)((env = getenv("Q_LAT"))       ? atof(env) : 200.0);
-    cfg.weight_heading_error          = (float)((env = getenv("Q_HDG"))       ? atof(env) : 28.8);
-    cfg.weight_velocity               = (float)((env = getenv("Q_VEL"))       ? atof(env) : 30.0);
-    cfg.weight_lateral_velocity       = (float)((env = getenv("Q_LAT_VEL"))   ? atof(env) : 1.04);
-    cfg.weight_yaw_rate               = (float)((env = getenv("Q_YAW"))       ? atof(env) : 1.5);
-    cfg.weight_steering_effort        = (float)((env = getenv("R_STEER"))     ? atof(env) : 1.5);
-    cfg.weight_acceleration_effort    = (float)((env = getenv("R_ACCEL"))     ? atof(env) : 0.01);
-    cfg.weight_steering_rate          = (float)((env = getenv("W_JERK"))      ? atof(env) : 0.04);
-    cfg.weight_acceleration_rate      = (float)((env = getenv("W_ACCEL_RATE"))? atof(env) : 0.10);
+    cfg.weight_lateral_error          = (float)((env = getenv("Q_LAT"))        ? atof(env) : cfg.weight_lateral_error);
+    cfg.weight_heading_error          = (float)((env = getenv("Q_HDG"))        ? atof(env) : cfg.weight_heading_error);
+    cfg.weight_velocity               = (float)((env = getenv("Q_VEL"))        ? atof(env) : cfg.weight_velocity);
+    cfg.weight_lateral_velocity       = (float)((env = getenv("Q_LAT_VEL"))    ? atof(env) : cfg.weight_lateral_velocity);
+    cfg.weight_yaw_rate               = (float)((env = getenv("Q_YAW"))        ? atof(env) : cfg.weight_yaw_rate);
+    cfg.weight_steering_effort        = (float)((env = getenv("R_STEER"))      ? atof(env) : cfg.weight_steering_effort);
+    cfg.weight_acceleration_effort    = (float)((env = getenv("R_ACCEL"))      ? atof(env) : cfg.weight_acceleration_effort);
+    cfg.weight_steering_rate          = (float)((env = getenv("W_JERK"))       ? atof(env) : cfg.weight_steering_rate);
+    cfg.weight_acceleration_rate      = (float)((env = getenv("W_ACCEL_RATE")) ? atof(env) : cfg.weight_acceleration_rate);
+    cfg.weight_delta_actual           = (float)(
+        (env = getenv("MPC_W_DELTA_ACTUAL")) ? atof(env) :
+        ((env = getenv("W_DELTA_ACT")) ? atof(env) : cfg.weight_delta_actual));
     {
         const double footprint_margin = VEHICLE_HALF_WIDTH + body_safety_margin;
         const double margin_env = get_env_double("WALL_MARGIN", footprint_margin);
         const double effective_margin = fmax(footprint_margin, margin_env);
         cfg.wall_margin = (float)effective_margin;
     }
+
+    cfg.max_solver_iterations = (env = getenv("MAX_ITER")) ? atoi(env) : cfg.max_solver_iterations;
+    cfg.solver_convergence_tolerance = (float)((env = getenv("TOL")) ? atof(env) : cfg.solver_convergence_tolerance);
 
     mpc_set_configuration(&cfg);
 
@@ -1298,6 +1307,52 @@ int main(void)
                 "pos_x,pos_y,heading,e_y,e_psi,vx,vy,omega,"
                 "v_ref0,kappa0,cmd_steer,cmd_accel,actual_steer,solver_iter,solver_status,wall_hit\n");
         fflush(sim_trace_file);
+    }
+
+    FILE *mpc_trace_file = NULL;
+    const char *mpc_trace_path = getenv("MPC_INTERNAL_TRACE_LOG");
+    if (mpc_trace_path && mpc_trace_path[0]) {
+        mpc_trace_file = fopen(mpc_trace_path, "w");
+        if (!mpc_trace_file) {
+            perror("[SIM] fopen(MPC_INTERNAL_TRACE_LOG)");
+            return 1;
+        }
+        fprintf(mpc_trace_file,
+                "sim_time_s,step,solver_call,status,iterations,primal_residual,dual_residual,"
+                "rho,rho_u,invert_fallback_count,last_invert_det,last_fallback_s00,last_fallback_s11,"
+                "e_y,e_psi,vx,vy,omega,v_ref0,kappa0,cmd_steer,cmd_accel,actual_steer\n");
+        fflush(mpc_trace_file);
+    }
+
+    FILE *mpc_iter_trace_file = NULL;
+    const char *mpc_iter_trace_path = getenv("MPC_ITER_TRACE_LOG");
+    if (mpc_iter_trace_path && mpc_iter_trace_path[0]) {
+        mpc_iter_trace_file = fopen(mpc_iter_trace_path, "w");
+        if (!mpc_iter_trace_file) {
+            perror("[SIM] fopen(MPC_ITER_TRACE_LOG)");
+            return 1;
+        }
+        fprintf(mpc_iter_trace_file,
+                "sim_time_s,step,solver_call,iter,primal_residual,dual_residual,"
+                "state_primal_residual,state_dual_residual,ctrl_primal_residual,ctrl_dual_residual,"
+                "rho,rho_u,u0_steer,u0_accel,z0_steer,z0_accel,y0_steer,y0_accel,scale_rho,scale_rho_u,"
+                "pass_r_lin_steer,pass_r_lin_accel,pass_bp_steer,pass_bp_accel,pass_kk_steer,pass_kk_accel,pass_s00,pass_s11,"
+                "pass_p_shift_vx,pass_p_shift_vy,pass_p_shift_omega,pass_p_shift_accel_prev,"
+                "pass_p_shift_ey,pass_p_shift_epsi,"
+                "pass_p_vx,pass_p_vy,pass_p_omega,pass_p_accel_prev,"
+                "pass_p_ey,pass_p_epsi,"
+                "pass_pd_vx,pass_pd_vy,pass_pd_omega,pass_pd_accel_prev,"
+                "pass_pd_ey,pass_pd_epsi,"
+                "pass_p_atp_vx,pass_p_atp_vy,pass_p_atp_omega,pass_p_atp_accel_prev,"
+                "pass_p_gtk_vx,pass_p_gtk_vy,pass_p_gtk_omega,pass_p_gtk_accel_prev,"
+                "pass_bp_accel_vx,pass_bp_accel_vy,pass_bp_accel_omega,pass_bp_accel_prev,"
+                "pass_si10,pass_si11,pass_rhs_accel,"
+                "pass_k0_r_lin_accel,pass_k0_bp_accel,pass_k0_kk_accel,pass_k0_s11,pass_k0_si11,pass_k0_rhs_accel,"
+                "pass_k0_p_shift_vx,pass_k0_p_shift_vy,pass_k0_p_shift_omega,pass_k0_p_shift_accel_prev,"
+                "pass_k0_p_vx,pass_k0_p_vy,pass_k0_p_omega,pass_k0_p_accel_prev,"
+                "pass_k0_pd_vx,pass_k0_pd_vy,pass_k0_pd_omega,pass_k0_pd_accel_prev,"
+                "pass_k0_bp_accel_vx,pass_k0_bp_accel_vy,pass_k0_bp_accel_omega,pass_k0_bp_accel_prev\n");
+        fflush(mpc_iter_trace_file);
     }
 
     /* Tracking metrics */
@@ -1500,6 +1555,122 @@ int main(void)
             }
             last_solver_status = (int)status;
             solver_calls++;
+
+            if (mpc_trace_file) {
+                RiccatiDebugInfo_t debug_info;
+                riccati_debug_get_last(&debug_info);
+                fprintf(mpc_trace_file,
+                        "%.6f,%d,%d,%d,%d,%.9g,%.9g,%.9g,%.9g,%d,%.9g,%.9g,%.9g,"
+                        "%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g\n",
+                        t, step, solver_calls, (int)status, iter,
+                        (double)result.final_cost, (double)result.dual_residual,
+                        (double)debug_info.rho, (double)debug_info.rho_u,
+                        debug_info.invert_fallback_count,
+                        (double)debug_info.last_invert_det,
+                        (double)debug_info.last_fallback_s00,
+                        (double)debug_info.last_fallback_s11,
+                        e_y, e_psi, state.long_vel, state.lat_vel, state.yaw_rate,
+                        v_ref_print, kappa_ref_print, steer, accel_cmd, actual_steer);
+            }
+
+            if (mpc_iter_trace_file && solver_calls == 1) {
+                int trace_count = riccati_debug_get_trace_count();
+                for (int trace_i = 0; trace_i < trace_count; trace_i++) {
+                    RiccatiDebugIterSample_t sample;
+                    if (riccati_debug_get_trace_sample(trace_i, &sample) == 0) {
+                        fprintf(mpc_iter_trace_file, "%.6f,%d,%d,%d",
+                                t, step, solver_calls, sample.iter);
+                        fprintf(mpc_iter_trace_file,
+                                ",%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%d,%d",
+                                (double)sample.primal_residual,
+                                (double)sample.dual_residual,
+                                (double)sample.state_primal_residual,
+                                (double)sample.state_dual_residual,
+                                (double)sample.ctrl_primal_residual,
+                                (double)sample.ctrl_dual_residual,
+                                (double)sample.rho,
+                                (double)sample.rho_u,
+                                (double)sample.u0_steer,
+                                (double)sample.u0_accel,
+                                (double)sample.z0_steer,
+                                (double)sample.z0_accel,
+                                (double)sample.y0_steer,
+                                (double)sample.y0_accel,
+                                sample.scale_rho, sample.scale_rho_u);
+                        fprintf(mpc_iter_trace_file,
+                                ",%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g",
+                                (double)sample.pass_r_lin_steer,
+                                (double)sample.pass_r_lin_accel,
+                                (double)sample.pass_bp_steer,
+                                (double)sample.pass_bp_accel,
+                                (double)sample.pass_kk_steer,
+                                (double)sample.pass_kk_accel,
+                                (double)sample.pass_s00,
+                                (double)sample.pass_s11,
+                                (double)sample.pass_p_shift_vx,
+                                (double)sample.pass_p_shift_vy,
+                                (double)sample.pass_p_shift_omega,
+                                (double)sample.pass_p_shift_accel_prev,
+                                (double)sample.pass_p_shift_ey,
+                                (double)sample.pass_p_shift_epsi);
+                        fprintf(mpc_iter_trace_file,
+                                ",%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g",
+                                (double)sample.pass_p_vx,
+                                (double)sample.pass_p_vy,
+                                (double)sample.pass_p_omega,
+                                (double)sample.pass_p_accel_prev,
+                                (double)sample.pass_p_ey,
+                                (double)sample.pass_p_epsi,
+                                (double)sample.pass_pd_vx,
+                                (double)sample.pass_pd_vy,
+                                (double)sample.pass_pd_omega,
+                                (double)sample.pass_pd_accel_prev,
+                                (double)sample.pass_pd_ey,
+                                (double)sample.pass_pd_epsi,
+                                (double)sample.pass_p_atp_vx,
+                                (double)sample.pass_p_atp_vy);
+                        fprintf(mpc_iter_trace_file,
+                                ",%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g",
+                                (double)sample.pass_p_atp_omega,
+                                (double)sample.pass_p_atp_accel_prev,
+                                (double)sample.pass_p_gtk_vx,
+                                (double)sample.pass_p_gtk_vy,
+                                (double)sample.pass_p_gtk_omega,
+                                (double)sample.pass_p_gtk_accel_prev,
+                                (double)sample.pass_bp_accel_vx,
+                                (double)sample.pass_bp_accel_vy,
+                                (double)sample.pass_bp_accel_omega,
+                                (double)sample.pass_bp_accel_prev,
+                                (double)sample.pass_si10,
+                                (double)sample.pass_si11,
+                                (double)sample.pass_rhs_accel,
+                                (double)sample.pass_k0_r_lin_accel);
+                        fprintf(mpc_iter_trace_file,
+                                ",%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g,%.9g\n",
+                                (double)sample.pass_k0_bp_accel,
+                                (double)sample.pass_k0_kk_accel,
+                                (double)sample.pass_k0_s11,
+                                (double)sample.pass_k0_si11,
+                                (double)sample.pass_k0_rhs_accel,
+                                (double)sample.pass_k0_p_shift_vx,
+                                (double)sample.pass_k0_p_shift_vy,
+                                (double)sample.pass_k0_p_shift_omega,
+                                (double)sample.pass_k0_p_shift_accel_prev,
+                                (double)sample.pass_k0_p_vx,
+                                (double)sample.pass_k0_p_vy,
+                                (double)sample.pass_k0_p_omega,
+                                (double)sample.pass_k0_p_accel_prev,
+                                (double)sample.pass_k0_pd_vx,
+                                (double)sample.pass_k0_pd_vy,
+                                (double)sample.pass_k0_pd_omega,
+                                (double)sample.pass_k0_pd_accel_prev,
+                                (double)sample.pass_k0_bp_accel_vx,
+                                (double)sample.pass_k0_bp_accel_vy,
+                                (double)sample.pass_k0_bp_accel_omega,
+                                (double)sample.pass_k0_bp_accel_prev);
+                    }
+                }
+            }
 
             cmd_steer = steer;
             cmd_accel = accel_cmd;
@@ -1988,6 +2159,8 @@ int main(void)
             solver_optimal_rate, solver_max_iter_rate);
     }
     if (sim_trace_file) fclose(sim_trace_file);
+    if (mpc_trace_file) fclose(mpc_trace_file);
+    if (mpc_iter_trace_file) fclose(mpc_iter_trace_file);
     free_local_raceline_replay();
     return tests_failed > 0 ? 1 : 0;
 }

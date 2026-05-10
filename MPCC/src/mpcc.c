@@ -553,34 +553,6 @@ static uint16_t mpcc_find_closest_index_forward_biased(
     return best_idx;
 }
 
-/* Project onto segment [idx0, idx1] like MPC does, then compute s on segment. */
-static float mpcc_project_s_on_segment(
-    const MPCCReferencePath_t *path,
-    uint16_t idx0,
-    uint16_t idx1,
-    float X,
-    float Y)
-{
-    const MPCCPathPoint_t *p0 = &path->points[idx0];
-    const MPCCPathPoint_t *p1 = &path->points[idx1];
-
-    float ax = p0->x_ref, ay = p0->y_ref;
-    float bx = p1->x_ref, by = p1->y_ref;
-    float abx = bx - ax;
-    float aby = by - ay;
-    float apx = X - ax;
-    float apy = Y - ay;
-    float ab_len2 = (abx * abx) + (aby * aby);
-
-    float t = 0;
-    if (ab_len2 > 1e-9f)
-        t = ((apx * abx) + (apy * aby)) / ab_len2;
-    if (t < 0) t = 0;
-    if (t > 1.0f) t = 1.0f;
-
-    return p0->s_ref + (t * (p1->s_ref - p0->s_ref));
-}
-
 /*===========================================================================
  * Vehicle State → MPCC State Conversion
  *===========================================================================*/
@@ -620,10 +592,6 @@ MPCCState_t mpcc_state_from_vehicle_state(
         if (idx1 >= ref_path.num_points)
             idx1 = ref_path.is_closed ? 0 : (ref_path.num_points - 1);
 
-        /* Fallback geometry-only estimate used when no progress anchor exists. */
-        float s_segment = mpcc_project_s_on_segment(
-            &ref_path, idx0, idx1, st.X, st.Y);
-
         if (warm_start_available && config.horizon_steps > 0) {
             uint16_t anchor_idx = mpcc_warm_start_stage_advance();
             s_anchor = prev_predicted_states[anchor_idx].s;
@@ -631,7 +599,7 @@ MPCCState_t mpcc_state_from_vehicle_state(
         else if (s_hint > 0.0f)
             s_anchor = s_hint;
         else
-            s_anchor = s_segment;
+            s_anchor = mpcc_find_closest_s(&ref_path, st.X, st.Y);
 
         s_geom = mpcc_find_closest_s_with_hint(&ref_path, st.X, st.Y, s_anchor);
 

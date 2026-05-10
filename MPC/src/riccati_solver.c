@@ -32,6 +32,34 @@
 
 /* Debug flag: set to 1 from tests to print ADMM iteration details */
 int riccati_admm_debug = 0;
+static RiccatiDebugInfo_t g_riccati_debug_last;
+static RiccatiPassDebug_t g_riccati_pass_debug_last;
+static RiccatiDebugIterSample_t g_riccati_debug_trace[RICCATI_DEBUG_TRACE_MAX];
+static int g_riccati_debug_trace_count = 0;
+
+void riccati_debug_get_last(RiccatiDebugInfo_t *out)
+{
+    if (!out) return;
+    *out = g_riccati_debug_last;
+}
+
+int riccati_debug_get_trace_count(void)
+{
+    return g_riccati_debug_trace_count;
+}
+
+int riccati_debug_get_trace_sample(int index, RiccatiDebugIterSample_t *out)
+{
+    if (!out || index < 0 || index >= g_riccati_debug_trace_count) return -1;
+    *out = g_riccati_debug_trace[index];
+    return 0;
+}
+
+void riccati_debug_get_last_pass(RiccatiPassDebug_t *out)
+{
+    if (!out) return;
+    *out = g_riccati_pass_debug_last;
+}
 
 /*===========================================================================
  * ADMM State Initialization
@@ -61,6 +89,8 @@ int riccati_invert_2x2(
 
     if (fabsf(det) < 1e-10f) {
         /* Singular or near-singular */
+        g_riccati_debug_last.invert_fallback_count++;
+        g_riccati_debug_last.last_invert_det = det;
         return -1;
     }
 
@@ -185,6 +215,8 @@ void riccati_solver_pass(
         /* Step 3: Invert S (2x2) */
         float Si[2][2];
         if (riccati_invert_2x2(S, Si) < 0) {
+            g_riccati_debug_last.last_fallback_s00 = S[0][0];
+            g_riccati_debug_last.last_fallback_s11 = S[1][1];
             Si[0][0] = S[0][0] != 0.0f ? 1.0f / S[0][0] : 0.0f;
             Si[0][1] = 0.0f;
             Si[1][0] = 0.0f;
@@ -227,6 +259,30 @@ void riccati_solver_pass(
             }
             p_shift[i] = sum;
         }
+        {
+            static int cpu_back_call = 0;
+            if (k == N - 1) cpu_back_call++;
+            if (cpu_back_call <= 1) {
+                fprintf(stderr, "CPU_BACK k=%d: p_vx=%f p_shift_vx=%f p_vy=%f p_shift_vy=%f p_omega=%f p_shift_omega=%f\n",
+                    k, p[2], p_shift[2], p[3], p_shift[3], p[4], p_shift[4]);
+            }
+        }
+        if (k == (N - 1)) {
+            g_riccati_pass_debug_last.p_ey = p[0];
+            g_riccati_pass_debug_last.p_epsi = p[1];
+            g_riccati_pass_debug_last.p_vx = p[2];
+            g_riccati_pass_debug_last.p_vy = p[3];
+            g_riccati_pass_debug_last.p_omega = p[4];
+            g_riccati_pass_debug_last.p_accel_prev = p[IDX_ACCEL_PREV];
+            g_riccati_pass_debug_last.pd_ey = p_shift[0] - p[0];
+            g_riccati_pass_debug_last.pd_epsi = p_shift[1] - p[1];
+            g_riccati_pass_debug_last.pd_vx = p_shift[2] - p[2];
+            g_riccati_pass_debug_last.pd_vy = p_shift[3] - p[3];
+            g_riccati_pass_debug_last.pd_omega = p_shift[4] - p[4];
+            g_riccati_pass_debug_last.pd_accel_prev = p_shift[IDX_ACCEL_PREV] - p[IDX_ACCEL_PREV];
+            g_riccati_pass_debug_last.p_shift_ey = p_shift[0];
+            g_riccati_pass_debug_last.p_shift_epsi = p_shift[1];
+        }
 
         /* Step 6: kk = -S^{-1} (r_aug_linear + B^T p) (nu x 1) */
         float Bp[RICCATI_MAX_NU];
@@ -238,6 +294,43 @@ void riccati_solver_pass(
             }
             Bp[0] = bp0 + p_shift[IDX_DRATE_PREV];
             Bp[1] = bp1 + p_shift[IDX_ACCEL_PREV];
+
+            if (k == (N - 1)) {
+                g_riccati_pass_debug_last.p_shift_vx = p_shift[2];
+                g_riccati_pass_debug_last.p_shift_vy = p_shift[3];
+                g_riccati_pass_debug_last.p_shift_omega = p_shift[4];
+                g_riccati_pass_debug_last.p_shift_accel_prev = p_shift[IDX_ACCEL_PREV];
+                g_riccati_pass_debug_last.bp_accel_vx = sd->B[2][1] * p_shift[2];
+                g_riccati_pass_debug_last.bp_accel_vy = sd->B[3][1] * p_shift[3];
+                g_riccati_pass_debug_last.bp_accel_omega = sd->B[4][1] * p_shift[4];
+                g_riccati_pass_debug_last.bp_accel_prev = p_shift[IDX_ACCEL_PREV];
+                g_riccati_pass_debug_last.si10 = Si[1][0];
+                g_riccati_pass_debug_last.si11 = Si[1][1];
+                g_riccati_pass_debug_last.rhs_accel = r_aug_linear[1] + Bp[1];
+            }
+            if (k == 0) {
+                g_riccati_pass_debug_last.k0_r_lin_accel = r_aug_linear[1];
+                g_riccati_pass_debug_last.k0_bp_accel = Bp[1];
+                g_riccati_pass_debug_last.k0_s11 = Si[1][1] != 0.0f ? (1.0f / Si[1][1]) : 0.0f;
+                g_riccati_pass_debug_last.k0_si11 = Si[1][1];
+                g_riccati_pass_debug_last.k0_rhs_accel = r_aug_linear[1] + Bp[1];
+                g_riccati_pass_debug_last.k0_p_shift_vx = p_shift[2];
+                g_riccati_pass_debug_last.k0_p_shift_vy = p_shift[3];
+                g_riccati_pass_debug_last.k0_p_shift_omega = p_shift[4];
+                g_riccati_pass_debug_last.k0_p_shift_accel_prev = p_shift[IDX_ACCEL_PREV];
+                g_riccati_pass_debug_last.k0_p_vx = p[2];
+                g_riccati_pass_debug_last.k0_p_vy = p[3];
+                g_riccati_pass_debug_last.k0_p_omega = p[4];
+                g_riccati_pass_debug_last.k0_p_accel_prev = p[IDX_ACCEL_PREV];
+                g_riccati_pass_debug_last.k0_pd_vx = p_shift[2] - p[2];
+                g_riccati_pass_debug_last.k0_pd_vy = p_shift[3] - p[3];
+                g_riccati_pass_debug_last.k0_pd_omega = p_shift[4] - p[4];
+                g_riccati_pass_debug_last.k0_pd_accel_prev = p_shift[IDX_ACCEL_PREV] - p[IDX_ACCEL_PREV];
+                g_riccati_pass_debug_last.k0_bp_accel_vx = sd->B[2][1] * p_shift[2];
+                g_riccati_pass_debug_last.k0_bp_accel_vy = sd->B[3][1] * p_shift[3];
+                g_riccati_pass_debug_last.k0_bp_accel_omega = sd->B[4][1] * p_shift[4];
+                g_riccati_pass_debug_last.k0_bp_accel_prev = p_shift[IDX_ACCEL_PREV];
+            }
         }
 
         for (int a = 0; a < nu; a++) {
@@ -246,6 +339,19 @@ void riccati_solver_pass(
                 val += Si[a][b] * (r_aug_linear[b] + Bp[b]);
             }
             kk[k][a] = -val;
+        }
+        if (k == 0) {
+            g_riccati_pass_debug_last.k0_kk_accel = kk[k][1];
+        }
+        if (k == (N - 1)) {
+            g_riccati_pass_debug_last.r_aug_linear_steer = r_aug_linear[0];
+            g_riccati_pass_debug_last.r_aug_linear_accel = r_aug_linear[1];
+            g_riccati_pass_debug_last.bp_steer = Bp[0];
+            g_riccati_pass_debug_last.bp_accel = Bp[1];
+            g_riccati_pass_debug_last.kk_steer = kk[k][0];
+            g_riccati_pass_debug_last.kk_accel = kk[k][1];
+            g_riccati_pass_debug_last.s00 = S[0][0];
+            g_riccati_pass_debug_last.s11 = S[1][1];
         }
 
         /* Step 7: P_k = Q_aug_diag + A^T*P*A + G^T*K (nx x nx) */
@@ -309,12 +415,44 @@ void riccati_solver_pass(
             for (int a = 0; a < nu; a++) {
                 Gtk += G[a][i] * kk[k][a];
             }
+            if (k == (N - 1)) {
+                if (i == 2) {
+                    g_riccati_pass_debug_last.p_atp_vx = Atp_vec[i];
+                    g_riccati_pass_debug_last.p_gtk_vx = Gtk;
+                } else if (i == 3) {
+                    g_riccati_pass_debug_last.p_atp_vy = Atp_vec[i];
+                    g_riccati_pass_debug_last.p_gtk_vy = Gtk;
+                } else if (i == 4) {
+                    g_riccati_pass_debug_last.p_atp_omega = Atp_vec[i];
+                    g_riccati_pass_debug_last.p_gtk_omega = Gtk;
+                }
+            }
+            if (k == 6 && i == 3) {
+                static int cpu_back6_count = 0;
+                cpu_back6_count++;
+                if (cpu_back6_count <= 1) {
+                    float p_new3 = q_aug_linear[3] + Atp_vec[3] + Gtk;
+                    fprintf(stderr, "CPU_BACK6_vy: q_lin=%f Atp=%f Gtk=%f p_new=%f\n",
+                        q_aug_linear[3], Atp_vec[3], Gtk, p_new3);
+                    for (int dbg_s = 0; dbg_s < NX_DENSE; dbg_s++) {
+                        fprintf(stderr, "CPU_BACK6: A[%d][3]=%f p_shift[%d]=%f prod=%f\n",
+                            dbg_s, sd->A[dbg_s][3], dbg_s, p_shift[dbg_s],
+                            sd->A[dbg_s][3] * p_shift[dbg_s]);
+                    }
+                    fprintf(stderr, "CPU_BACK6: G[0][3]=%f G[1][3]=%f kk[0]=%f kk[1]=%f\n",
+                        G[0][3], G[1][3], kk[k][0], kk[k][1]);
+                }
+            }
             p[i] = q_aug_linear[i] + Atp_vec[i] + Gtk;
         }
         for (int i = IDX_DRATE_PREV; i < nx; i++) {
             float Gtk = 0.0f;
             for (int a = 0; a < nu; a++) {
                 Gtk += G[a][i] * kk[k][a];
+            }
+            if (k == 0 && i == IDX_ACCEL_PREV) {
+                g_riccati_pass_debug_last.p_atp_accel_prev = 0.0f;
+                g_riccati_pass_debug_last.p_gtk_accel_prev = Gtk;
             }
             p[i] = q_aug_linear[i] + Gtk;
         }
@@ -397,10 +535,19 @@ RiccatiStatus_t riccati_admm_solve(
     const float rel_tolerance = 0.02f;
     const int adaptive_rho = config ? config->adaptive_rho : 1;
 
+    memset(&g_riccati_debug_last, 0, sizeof(g_riccati_debug_last));
+    memset(&g_riccati_pass_debug_last, 0, sizeof(g_riccati_pass_debug_last));
+    g_riccati_debug_trace_count = 0;
+
     float rho = (admm_state->initialized && admm_state->rho > 0.0f)
                     ? admm_state->rho : cfg_rho;
     float rho_u = (admm_state->initialized && admm_state->rho_u > 0.0f)
                     ? admm_state->rho_u : (cfg_rho_u > 0.0f ? cfg_rho_u : rho);
+    /* Align with FPGA profile clamp range. */
+    if (rho < 1.0f) rho = 1.0f;
+    if (rho_u < 1.0f) rho_u = 1.0f;
+    if (rho > 40.0f) rho = 40.0f;
+    if (rho_u > 40.0f) rho_u = 40.0f;
     int max_iter = cfg_max_iter;
 
     /* ADMM variables (persistent buffers for warm-start reuse). */
@@ -468,6 +615,84 @@ RiccatiStatus_t riccati_admm_solve(
             for (int a = 0; a < nu; a++) {
                 y_u[k][a] = solution->u[k][a] - z_u[k][a];
             }
+        }
+
+        if (g_riccati_debug_trace_count < RICCATI_DEBUG_TRACE_MAX) {
+            RiccatiDebugIterSample_t *sample =
+                &g_riccati_debug_trace[g_riccati_debug_trace_count++];
+            memset(sample, 0, sizeof(*sample));
+            sample->iter = -1;
+            sample->rho = 0.0f;
+            sample->rho_u = 0.0f;
+            sample->u0_steer = solution->u[0][0];
+            sample->u0_accel = solution->u[0][1];
+            sample->z0_steer = z_u[0][0];
+            sample->z0_accel = z_u[0][1];
+            sample->y0_steer = y_u[0][0];
+            sample->y0_accel = y_u[0][1];
+            sample->pass_r_lin_steer = g_riccati_pass_debug_last.r_aug_linear_steer;
+            sample->pass_r_lin_accel = g_riccati_pass_debug_last.r_aug_linear_accel;
+            sample->pass_bp_steer = g_riccati_pass_debug_last.bp_steer;
+            sample->pass_bp_accel = g_riccati_pass_debug_last.bp_accel;
+            sample->pass_kk_steer = g_riccati_pass_debug_last.kk_steer;
+            sample->pass_kk_accel = g_riccati_pass_debug_last.kk_accel;
+            sample->pass_s00 = g_riccati_pass_debug_last.s00;
+            sample->pass_s11 = g_riccati_pass_debug_last.s11;
+            sample->pass_p_shift_vx = g_riccati_pass_debug_last.p_shift_vx;
+            sample->pass_p_shift_vy = g_riccati_pass_debug_last.p_shift_vy;
+            sample->pass_p_shift_omega = g_riccati_pass_debug_last.p_shift_omega;
+            sample->pass_p_shift_accel_prev = g_riccati_pass_debug_last.p_shift_accel_prev;
+            sample->pass_p_shift_ey = g_riccati_pass_debug_last.p_shift_ey;
+            sample->pass_p_shift_epsi = g_riccati_pass_debug_last.p_shift_epsi;
+            sample->pass_p_vx = g_riccati_pass_debug_last.p_vx;
+            sample->pass_p_vy = g_riccati_pass_debug_last.p_vy;
+            sample->pass_p_omega = g_riccati_pass_debug_last.p_omega;
+            sample->pass_p_accel_prev = g_riccati_pass_debug_last.p_accel_prev;
+            sample->pass_p_ey = g_riccati_pass_debug_last.p_ey;
+            sample->pass_p_epsi = g_riccati_pass_debug_last.p_epsi;
+            sample->pass_pd_vx = g_riccati_pass_debug_last.pd_vx;
+            sample->pass_pd_vy = g_riccati_pass_debug_last.pd_vy;
+            sample->pass_pd_omega = g_riccati_pass_debug_last.pd_omega;
+            sample->pass_pd_accel_prev = g_riccati_pass_debug_last.pd_accel_prev;
+            sample->pass_pd_ey = g_riccati_pass_debug_last.pd_ey;
+            sample->pass_pd_epsi = g_riccati_pass_debug_last.pd_epsi;
+            sample->pass_p_atp_vx = g_riccati_pass_debug_last.p_atp_vx;
+            sample->pass_p_atp_vy = g_riccati_pass_debug_last.p_atp_vy;
+            sample->pass_p_atp_omega = g_riccati_pass_debug_last.p_atp_omega;
+            sample->pass_p_atp_accel_prev = g_riccati_pass_debug_last.p_atp_accel_prev;
+            sample->pass_p_gtk_vx = g_riccati_pass_debug_last.p_gtk_vx;
+            sample->pass_p_gtk_vy = g_riccati_pass_debug_last.p_gtk_vy;
+            sample->pass_p_gtk_omega = g_riccati_pass_debug_last.p_gtk_omega;
+            sample->pass_p_gtk_accel_prev = g_riccati_pass_debug_last.p_gtk_accel_prev;
+            sample->pass_bp_accel_vx = g_riccati_pass_debug_last.bp_accel_vx;
+            sample->pass_bp_accel_vy = g_riccati_pass_debug_last.bp_accel_vy;
+            sample->pass_bp_accel_omega = g_riccati_pass_debug_last.bp_accel_omega;
+            sample->pass_bp_accel_prev = g_riccati_pass_debug_last.bp_accel_prev;
+            sample->pass_si10 = g_riccati_pass_debug_last.si10;
+            sample->pass_si11 = g_riccati_pass_debug_last.si11;
+            sample->pass_rhs_accel = g_riccati_pass_debug_last.rhs_accel;
+            sample->pass_k0_r_lin_accel = g_riccati_pass_debug_last.k0_r_lin_accel;
+            sample->pass_k0_bp_accel = g_riccati_pass_debug_last.k0_bp_accel;
+            sample->pass_k0_kk_accel = g_riccati_pass_debug_last.k0_kk_accel;
+            sample->pass_k0_s11 = g_riccati_pass_debug_last.k0_s11;
+            sample->pass_k0_si11 = g_riccati_pass_debug_last.k0_si11;
+            sample->pass_k0_rhs_accel = g_riccati_pass_debug_last.k0_rhs_accel;
+            sample->pass_k0_p_shift_vx = g_riccati_pass_debug_last.k0_p_shift_vx;
+            sample->pass_k0_p_shift_vy = g_riccati_pass_debug_last.k0_p_shift_vy;
+            sample->pass_k0_p_shift_omega = g_riccati_pass_debug_last.k0_p_shift_omega;
+            sample->pass_k0_p_shift_accel_prev = g_riccati_pass_debug_last.k0_p_shift_accel_prev;
+            sample->pass_k0_p_vx = g_riccati_pass_debug_last.k0_p_vx;
+            sample->pass_k0_p_vy = g_riccati_pass_debug_last.k0_p_vy;
+            sample->pass_k0_p_omega = g_riccati_pass_debug_last.k0_p_omega;
+            sample->pass_k0_p_accel_prev = g_riccati_pass_debug_last.k0_p_accel_prev;
+            sample->pass_k0_pd_vx = g_riccati_pass_debug_last.k0_pd_vx;
+            sample->pass_k0_pd_vy = g_riccati_pass_debug_last.k0_pd_vy;
+            sample->pass_k0_pd_omega = g_riccati_pass_debug_last.k0_pd_omega;
+            sample->pass_k0_pd_accel_prev = g_riccati_pass_debug_last.k0_pd_accel_prev;
+            sample->pass_k0_bp_accel_vx = g_riccati_pass_debug_last.k0_bp_accel_vx;
+            sample->pass_k0_bp_accel_vy = g_riccati_pass_debug_last.k0_bp_accel_vy;
+            sample->pass_k0_bp_accel_omega = g_riccati_pass_debug_last.k0_bp_accel_omega;
+            sample->pass_k0_bp_accel_prev = g_riccati_pass_debug_last.k0_bp_accel_prev;
         }
     }
 
@@ -584,35 +809,168 @@ RiccatiStatus_t riccati_admm_solve(
                    (double)y_u[0][0], (double)y_u[0][1]);
         }
 
+        if (g_riccati_debug_trace_count < RICCATI_DEBUG_TRACE_MAX) {
+            RiccatiDebugIterSample_t *sample =
+                &g_riccati_debug_trace[g_riccati_debug_trace_count++];
+            sample->iter = iter;
+            sample->primal_residual = primal_res;
+            sample->dual_residual = dual_res;
+            sample->state_primal_residual = state_primal;
+            sample->state_dual_residual = state_dual;
+            sample->ctrl_primal_residual = ctrl_primal;
+            sample->ctrl_dual_residual = ctrl_dual;
+            sample->rho = rho;
+            sample->rho_u = rho_u;
+            sample->u0_steer = solution->u[0][0];
+            sample->u0_accel = solution->u[0][1];
+            sample->z0_steer = z_u[0][0];
+            sample->z0_accel = z_u[0][1];
+            sample->y0_steer = y_u[0][0];
+            sample->y0_accel = y_u[0][1];
+            sample->pass_r_lin_steer = g_riccati_pass_debug_last.r_aug_linear_steer;
+            sample->pass_r_lin_accel = g_riccati_pass_debug_last.r_aug_linear_accel;
+            sample->pass_bp_steer = g_riccati_pass_debug_last.bp_steer;
+            sample->pass_bp_accel = g_riccati_pass_debug_last.bp_accel;
+            sample->pass_kk_steer = g_riccati_pass_debug_last.kk_steer;
+            sample->pass_kk_accel = g_riccati_pass_debug_last.kk_accel;
+            sample->pass_s00 = g_riccati_pass_debug_last.s00;
+            sample->pass_s11 = g_riccati_pass_debug_last.s11;
+            sample->pass_p_shift_vx = g_riccati_pass_debug_last.p_shift_vx;
+            sample->pass_p_shift_vy = g_riccati_pass_debug_last.p_shift_vy;
+            sample->pass_p_shift_omega = g_riccati_pass_debug_last.p_shift_omega;
+            sample->pass_p_shift_accel_prev = g_riccati_pass_debug_last.p_shift_accel_prev;
+            sample->pass_p_shift_ey = g_riccati_pass_debug_last.p_shift_ey;
+            sample->pass_p_shift_epsi = g_riccati_pass_debug_last.p_shift_epsi;
+            sample->pass_p_vx = g_riccati_pass_debug_last.p_vx;
+            sample->pass_p_vy = g_riccati_pass_debug_last.p_vy;
+            sample->pass_p_omega = g_riccati_pass_debug_last.p_omega;
+            sample->pass_p_accel_prev = g_riccati_pass_debug_last.p_accel_prev;
+            sample->pass_p_ey = g_riccati_pass_debug_last.p_ey;
+            sample->pass_p_epsi = g_riccati_pass_debug_last.p_epsi;
+            sample->pass_pd_vx = g_riccati_pass_debug_last.pd_vx;
+            sample->pass_pd_vy = g_riccati_pass_debug_last.pd_vy;
+            sample->pass_pd_omega = g_riccati_pass_debug_last.pd_omega;
+            sample->pass_pd_accel_prev = g_riccati_pass_debug_last.pd_accel_prev;
+            sample->pass_pd_ey = g_riccati_pass_debug_last.pd_ey;
+            sample->pass_pd_epsi = g_riccati_pass_debug_last.pd_epsi;
+            sample->pass_p_atp_vx = g_riccati_pass_debug_last.p_atp_vx;
+            sample->pass_p_atp_vy = g_riccati_pass_debug_last.p_atp_vy;
+            sample->pass_p_atp_omega = g_riccati_pass_debug_last.p_atp_omega;
+            sample->pass_p_atp_accel_prev = g_riccati_pass_debug_last.p_atp_accel_prev;
+            sample->pass_p_gtk_vx = g_riccati_pass_debug_last.p_gtk_vx;
+            sample->pass_p_gtk_vy = g_riccati_pass_debug_last.p_gtk_vy;
+            sample->pass_p_gtk_omega = g_riccati_pass_debug_last.p_gtk_omega;
+            sample->pass_p_gtk_accel_prev = g_riccati_pass_debug_last.p_gtk_accel_prev;
+            sample->pass_bp_accel_vx = g_riccati_pass_debug_last.bp_accel_vx;
+            sample->pass_bp_accel_vy = g_riccati_pass_debug_last.bp_accel_vy;
+            sample->pass_bp_accel_omega = g_riccati_pass_debug_last.bp_accel_omega;
+            sample->pass_bp_accel_prev = g_riccati_pass_debug_last.bp_accel_prev;
+            sample->pass_si10 = g_riccati_pass_debug_last.si10;
+            sample->pass_si11 = g_riccati_pass_debug_last.si11;
+            sample->pass_rhs_accel = g_riccati_pass_debug_last.rhs_accel;
+            sample->pass_k0_r_lin_accel = g_riccati_pass_debug_last.k0_r_lin_accel;
+            sample->pass_k0_bp_accel = g_riccati_pass_debug_last.k0_bp_accel;
+            sample->pass_k0_kk_accel = g_riccati_pass_debug_last.k0_kk_accel;
+            sample->pass_k0_s11 = g_riccati_pass_debug_last.k0_s11;
+            sample->pass_k0_si11 = g_riccati_pass_debug_last.k0_si11;
+            sample->pass_k0_rhs_accel = g_riccati_pass_debug_last.k0_rhs_accel;
+            sample->pass_k0_p_shift_vx = g_riccati_pass_debug_last.k0_p_shift_vx;
+            sample->pass_k0_p_shift_vy = g_riccati_pass_debug_last.k0_p_shift_vy;
+            sample->pass_k0_p_shift_omega = g_riccati_pass_debug_last.k0_p_shift_omega;
+            sample->pass_k0_p_shift_accel_prev = g_riccati_pass_debug_last.k0_p_shift_accel_prev;
+            sample->pass_k0_p_vx = g_riccati_pass_debug_last.k0_p_vx;
+            sample->pass_k0_p_vy = g_riccati_pass_debug_last.k0_p_vy;
+            sample->pass_k0_p_omega = g_riccati_pass_debug_last.k0_p_omega;
+            sample->pass_k0_p_accel_prev = g_riccati_pass_debug_last.k0_p_accel_prev;
+            sample->pass_k0_pd_vx = g_riccati_pass_debug_last.k0_pd_vx;
+            sample->pass_k0_pd_vy = g_riccati_pass_debug_last.k0_pd_vy;
+            sample->pass_k0_pd_omega = g_riccati_pass_debug_last.k0_pd_omega;
+            sample->pass_k0_pd_accel_prev = g_riccati_pass_debug_last.k0_pd_accel_prev;
+            sample->pass_k0_bp_accel_vx = g_riccati_pass_debug_last.k0_bp_accel_vx;
+            sample->pass_k0_bp_accel_vy = g_riccati_pass_debug_last.k0_bp_accel_vy;
+            sample->pass_k0_bp_accel_omega = g_riccati_pass_debug_last.k0_bp_accel_omega;
+            sample->pass_k0_bp_accel_prev = g_riccati_pass_debug_last.k0_bp_accel_prev;
+            sample->scale_rho = 0;
+            sample->scale_rho_u = 0;
+        }
+
         if (primal_res <= eps_primal && dual_res <= eps_dual) {
             status = RICCATI_STATUS_OPTIMAL;
             break;
         }
 
-        /*--- Adaptive rho: every 2 iterations ---*/
-        if (adaptive_rho && iter > 0 && (iter & 1) == 0) {
-            if (primal_res > 10.0f * dual_res && rho < 100.0f) {
-                rho *= 2.0f;
-                if (rho_u < 100.0f)
+        /*--- Adaptive rho (aligned with FPGA HLS solver) ---*/
+        if (adaptive_rho && iter > 0) {
+            const float adapt_ratio_state = 5.0f;
+            const float adapt_ratio_ctrl = 5.0f;
+            const float rho_min = 1.0f;
+            const float rho_max = 40.0f;
+
+            int scale_rho = 0;
+            int scale_rho_u = 0;
+
+            if (state_primal > adapt_ratio_state * state_dual && rho <= rho_max) {
+                scale_rho = 1;
+            } else if (state_dual > adapt_ratio_state * state_primal && rho >= rho_min) {
+                scale_rho = -1;
+            }
+
+            if (ctrl_primal > adapt_ratio_ctrl * ctrl_dual && rho_u <= rho_max) {
+                scale_rho_u = 1;
+            } else if (ctrl_dual > adapt_ratio_ctrl * ctrl_primal && rho_u >= rho_min) {
+                scale_rho_u = -1;
+            }
+
+            if (g_riccati_debug_trace_count > 0) {
+                RiccatiDebugIterSample_t *sample =
+                    &g_riccati_debug_trace[g_riccati_debug_trace_count - 1];
+                sample->scale_rho = scale_rho;
+                sample->scale_rho_u = scale_rho_u;
+            }
+
+            /* Update penalties and rescale dual variables to keep rho*y invariant. */
+            if (scale_rho != 0) {
+                if (scale_rho > 0) {
+                    rho *= 2.0f;
+                    if (rho > rho_max) rho = rho_max;
+                    for (int k = 0; k <= N; k++) {
+                        for (int s = 0; s < nx; s++) {
+                            if (x_is_constrained[k][s]) {
+                                y_x[k][s] *= 0.5f;
+                            }
+                        }
+                    }
+                } else {
+                    rho *= 0.5f;
+                    if (rho < rho_min) rho = rho_min;
+                    for (int k = 0; k <= N; k++) {
+                        for (int s = 0; s < nx; s++) {
+                            if (x_is_constrained[k][s]) {
+                                y_x[k][s] *= 2.0f;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (scale_rho_u != 0) {
+                if (scale_rho_u > 0) {
                     rho_u *= 2.0f;
-                /* Scale dual variables: y = y / 2 */
-                for (int k = 0; k <= N; k++)
-                    for (int s = 0; s < nx; s++)
-                        y_x[k][s] *= 0.5f;
-                for (int k = 0; k < N; k++)
-                    for (int a = 0; a < nu; a++)
-                        y_u[k][a] *= 0.5f;
-            } else if (dual_res > 10.0f * primal_res && rho > 0.5f) {
-                rho *= 0.5f;
-                if (rho_u > 0.5f)
+                    if (rho_u > rho_max) rho_u = rho_max;
+                    for (int k = 0; k < N; k++) {
+                        for (int a = 0; a < nu; a++) {
+                            y_u[k][a] *= 0.5f;
+                        }
+                    }
+                } else {
                     rho_u *= 0.5f;
-                /* Scale dual variables: y = y * 2 */
-                for (int k = 0; k <= N; k++)
-                    for (int s = 0; s < nx; s++)
-                        y_x[k][s] *= 2.0f;
-                for (int k = 0; k < N; k++)
-                    for (int a = 0; a < nu; a++)
-                        y_u[k][a] *= 2.0f;
+                    if (rho_u < rho_min) rho_u = rho_min;
+                    for (int k = 0; k < N; k++) {
+                        for (int a = 0; a < nu; a++) {
+                            y_u[k][a] *= 2.0f;
+                        }
+                    }
+                }
             }
         }
     }
@@ -621,6 +979,11 @@ RiccatiStatus_t riccati_admm_solve(
     admm_state->rho = rho;
     admm_state->rho_u = rho_u;
     admm_state->initialized = 1;
+
+    g_riccati_debug_last.rho = rho;
+    g_riccati_debug_last.rho_u = rho_u;
+    g_riccati_debug_last.primal_residual = solution->primal_residual;
+    g_riccati_debug_last.dual_residual = solution->dual_residual;
 
     /* Output feasible controls: z_u is the ADMM projection */
     /* Return the ADMM projection z_u (not the primal u) as the feasible control,
