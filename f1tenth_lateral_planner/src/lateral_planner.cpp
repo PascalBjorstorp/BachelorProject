@@ -393,6 +393,10 @@ void LateralPlanner::buildAvoidancePath()
 
   const double shift_mag = computeShiftMagnitude(opp_idx);
   if (shift_mag <= 1e-3) {
+    const double opp_lateral = lateralOffsetAtWaypoint(opp_idx, opponent_.x, opponent_.y);
+    RCLCPP_WARN(logger_,
+      "Avoidance not built: shift clamped to %.4fm (side=%.0f opp_lat=%.3fm d_left=%.3fm d_right=%.3fm)",
+      shift_mag, pass_dir, opp_lateral, opp_wp.d_left, opp_wp.d_right);
     resetAvoidance();
     return;
   }
