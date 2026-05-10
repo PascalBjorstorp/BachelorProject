@@ -34,7 +34,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'dest_ip',
-            default_value='10.23.0.120',
+            default_value='10.23.0.2',
             description='UDP destination IP',
         ),
         DeclareLaunchArgument(
