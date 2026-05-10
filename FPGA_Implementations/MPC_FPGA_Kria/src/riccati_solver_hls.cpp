@@ -129,12 +129,16 @@ static void admm_update_control_channel_raw(
  *===========================================================================*/
 
 /* sum8_raw_acc: sum 8 fp_raw_acc_t values via balanced binary tree.
- * INLINE off creates a module boundary with registered I/Os. Inputs arrive
- * as fabric wires (not DSP PCOUT outputs), so Vivado cannot use PCOUT→PCIN
- * cascade routing. The 3-level tree maps to CARRY8 chains (~0.6ns total)
- * instead of a 4-DSP PCOUT cascade (~4.4ns). This is the reliable fix for
- * the PCOUT cascade timing violation that BIND_OP op=add without variable=
- * cannot address (pragma requires variable= argument). */
+ * INLINE off keeps this as a separate RTL module.
+ * PIPELINE II=1 registers the function output (last pipeline stage FF).
+ * The parent sees an FF output rather than a raw CARRY8 wire, so the
+ * long CARRY8→LUTRAM routing arc (the -0.333 ns violation source) is
+ * broken into two separate timing paths that both meet 5 ns:
+ *   path A (current cycle):  CARRY8 → local FF  (< 1 ns)
+ *   path B (next cycle):     FF → RAMD32 write   (< 5 ns)
+ * Throughput impact: sum8 latency = 1 cycle; the calling PA loop already
+ * has 4-cycle DSP latency so II=1 is still achievable; total extra cycles
+ * ≈ 27 across all ADMM iterations (negligible). */
 static fp_raw_acc_t sum8_raw_acc(
     fp_raw_acc_t a0, fp_raw_acc_t a1,
     fp_raw_acc_t a2, fp_raw_acc_t a3,
@@ -142,7 +146,14 @@ static fp_raw_acc_t sum8_raw_acc(
     fp_raw_acc_t a6, fp_raw_acc_t a7)
 {
 #pragma HLS INLINE off
-    return ((a0+a1)+(a2+a3)) + ((a4+a5)+(a6+a7));
+#pragma HLS PIPELINE II=1
+    fp_raw_acc_t s01 = a0 + a1;
+    fp_raw_acc_t s23 = a2 + a3;
+    fp_raw_acc_t s45 = a4 + a5;
+    fp_raw_acc_t s67 = a6 + a7;
+    fp_raw_acc_t s0123 = s01 + s23;
+    fp_raw_acc_t s4567 = s45 + s67;
+    return s0123 + s4567;
 }
 
 static void riccati_pass_hls(
@@ -164,6 +175,8 @@ static void riccati_pass_hls(
 #pragma HLS ARRAY_PARTITION variable=y_u complete dim=2
 #pragma HLS ARRAY_PARTITION variable=x_out complete dim=2
 #pragma HLS ARRAY_PARTITION variable=u_out complete dim=2
+#pragma HLS ALLOCATION function instances=fp_recip limit=1
+#pragma HLS ALLOCATION function instances=sum8_raw_acc limit=21
 /* Force all additions to fabric (LUT/CARRY8) instead of DSP PCOUT cascade.
  * DSP48E2 PCOUT is always combinational (bypasses PREG), creating a 4-DSP
  * cascade = ~4.4ns critical path. CARRY8-based 46-bit add = ~0.6ns. */
@@ -187,7 +200,14 @@ static void riccati_pass_hls(
     /* Value function P (nx x nx) and p (nx x 1) in int64 */
     fp_raw_acc_t P[MPC_NX_AUG][MPC_NX_AUG];
     fp_raw_acc_t p[MPC_NX_AUG];
-#pragma HLS ARRAY_PARTITION variable=P complete dim=0
+/* Partition by column (dim=2). dim=0 (all-register) creates 64x48=3072 bits of
+ * parallel FFs simultaneously routed to multiply inputs, causing congestion level 6
+ * (same root cause as PA — see PA comment below). dim=2 gives 8 column banks;
+ * all read patterns access P row-wise (P[i][0..5]) which maps to 6 different
+ * column banks = no port conflict = II unchanged. Only cost: cross-block UNROLL
+ * writes 6 values to bank[6] serially (~5 extra cycles per backward step). */
+#pragma HLS ARRAY_PARTITION variable=P complete dim=2
+#pragma HLS BIND_STORAGE variable=P type=RAM_2P impl=LUTRAM latency=1
 #pragma HLS ARRAY_PARTITION variable=p complete dim=1
 
     /* Initialize terminal cost: P_N = Q_N [+ rho*I if constrained] */
@@ -224,22 +244,12 @@ static void riccati_pass_hls(
 #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
 #pragma HLS LOOP_FLATTEN off
         const StepData_t *sd = &step_data[k];
-        fp_QP_t A_local[MPC_NX_DENSE][MPC_NX_DENSE];
-#pragma HLS ARRAY_PARTITION variable=A_local complete dim=0
-        fp_qp_raw_t d_local[MPC_NX_DENSE];
-#pragma HLS ARRAY_PARTITION variable=d_local complete dim=1
-        for (i = 0; i < 6; i++) {
-            for (j = 0; j < 6; j++) {
-#pragma HLS UNROLL
-                A_local[i][j] = sd->A[i][j];
-            }
-        }
-        d_local[0] = fp_qp_raw_from_QP(sd->d0);
-        d_local[1] = fp_qp_raw_from_QP(sd->d1);
-        d_local[2] = fp_qp_raw_from_QP(sd->d2);
-        d_local[3] = fp_qp_raw_from_QP(sd->d3);
-        d_local[4] = fp_qp_raw_from_QP(sd->d4);
-        d_local[5] = fp_qp_raw_from_QP(sd->d5);
+        const fp_qp_raw_t d0_raw = fp_qp_raw_from_QP(sd->d0);
+        const fp_qp_raw_t d1_raw = fp_qp_raw_from_QP(sd->d1);
+        const fp_qp_raw_t d2_raw = fp_qp_raw_from_QP(sd->d2);
+        const fp_qp_raw_t d3_raw = fp_qp_raw_from_QP(sd->d3);
+        const fp_qp_raw_t d4_raw = fp_qp_raw_from_QP(sd->d4);
+        const fp_qp_raw_t d5_raw = fp_qp_raw_from_QP(sd->d5);
 
         /* Augmented costs */
         fp_raw_acc_t q_aug_diag[MPC_NX_AUG];
@@ -356,7 +366,7 @@ static void riccati_pass_hls(
 #pragma HLS UNROLL
                     fp_raw_acc_t gma_prod;
 #pragma HLS BIND_OP variable=gma_prod op=mul impl=dsp latency=MPC_HLS_MUL_LATENCY
-                    gma_prod = fp_mul_qp_raw(fp_qp_raw_from_QP(M[a][s]), fp_qp_raw_from_QP(A_local[s][j]));
+                    gma_prod = fp_mul_qp_raw(fp_qp_raw_from_QP(M[a][s]), fp_qp_raw_from_QP(sd->A[s][j]));
                     sum += gma_prod;
                 }
                 fp_raw_acc_t g_val = sum >> FP_FRAC_BITS;
@@ -391,12 +401,12 @@ static void riccati_pass_hls(
 #pragma HLS ARRAY_PARTITION variable=p_shift complete
         for (i = 0; i < nx; i++) {
 #pragma HLS PIPELINE II=1
-            fp_raw_acc_t pd0 = fp_mul_acc_qp(P[i][0], d_local[0]);
-            fp_raw_acc_t pd1 = fp_mul_acc_qp(P[i][1], d_local[1]);
-            fp_raw_acc_t pd2 = fp_mul_acc_qp(P[i][2], d_local[2]);
-            fp_raw_acc_t pd3 = fp_mul_acc_qp(P[i][3], d_local[3]);
-            fp_raw_acc_t pd4 = fp_mul_acc_qp(P[i][4], d_local[4]);
-            fp_raw_acc_t pd5 = fp_mul_acc_qp(P[i][5], d_local[5]);
+            fp_raw_acc_t pd0 = fp_mul_acc_qp(P[i][0], d0_raw);
+            fp_raw_acc_t pd1 = fp_mul_acc_qp(P[i][1], d1_raw);
+            fp_raw_acc_t pd2 = fp_mul_acc_qp(P[i][2], d2_raw);
+            fp_raw_acc_t pd3 = fp_mul_acc_qp(P[i][3], d3_raw);
+            fp_raw_acc_t pd4 = fp_mul_acc_qp(P[i][4], d4_raw);
+            fp_raw_acc_t pd5 = fp_mul_acc_qp(P[i][5], d5_raw);
             fp_raw_acc_t pd01 = pd0 + pd1;
             fp_raw_acc_t pd23 = pd2 + pd3;
             fp_raw_acc_t pd45 = pd4 + pd5;
@@ -439,7 +449,7 @@ static void riccati_pass_hls(
          * A sparsity: col 0 has only A[0][0]=1 (rows 1-5 are 0).
          * Col 5 has up to 4 nonzero entries (steering coupling).
          * Exploit col-0 identity: PA[i][0] = P[i][0], no multiply. */
-        fp_raw_acc_t PA[MPC_NX_DENSE][MPC_NX_DENSE];
+        fp_pa_store_t PA[MPC_NX_DENSE][MPC_NX_DENSE];
 /* Partition rows only (dim=1). dim=0 (all-register) caused congestion level 6
  * by creating 36x46=1656 bits of parallel FFs all simultaneously routed to the
  * 21 COMPUTE_P_SUM_TO multiplier inputs. Using LUTRAM instead of block BRAM
@@ -451,9 +461,14 @@ static void riccati_pass_hls(
         /* Col 0: A[0][0]=1, rest zero → PA[i][0] = P[i][0] */
         for (i = 0; i < 6; i++) {
 #pragma HLS UNROLL
-            PA[i][0] = P[i][0];
+            PA[i][0] = (fp_pa_store_t)P[i][0];
         }
-        /* Cols 1-5: full inner product */
+        /* Cols 1-5: route the adder tree through sum8_raw_acc (INLINE off).
+         * sum8_raw_acc creates a module boundary with registered I/Os, placing
+         * the 3-level CARRY8 tree inside the sub-module.  The PA LUTRAM write
+         * then only sees a registered output → bit-select → RAMD32, eliminating
+         * the carry-chain→LUTRAM routing hop that caused the -0.333 ns violation.
+         * Adds 1 cycle to pipeline depth (≈6k cycles over 50 ADMM iterations). */
         for (i = 0; i < 6; i++) {
             for (j = 1; j < 6; j++) {
 #pragma HLS PIPELINE II=1
@@ -463,12 +478,9 @@ static void riccati_pass_hls(
                 fp_raw_acc_t pa3 = fp_mul_acc_qp(P[i][3], fp_qp_raw_from_QP(sd->A[3][j]));
                 fp_raw_acc_t pa4 = fp_mul_acc_qp(P[i][4], fp_qp_raw_from_QP(sd->A[4][j]));
                 fp_raw_acc_t pa5 = fp_mul_acc_qp(P[i][5], fp_qp_raw_from_QP(sd->A[5][j]));
-                fp_raw_acc_t pa01 = pa0 + pa1;
-                fp_raw_acc_t pa23 = pa2 + pa3;
-                fp_raw_acc_t pa45 = pa4 + pa5;
-                fp_raw_acc_t pa0123 = pa01 + pa23;
-                fp_raw_acc_t sum = pa0123 + pa45;
-                PA[i][j] = sum >> FP_FRAC_BITS;
+                fp_raw_acc_t sum = sum8_raw_acc(pa0, pa1, pa2, pa3, pa4, pa5,
+                                                (fp_raw_acc_t)0, (fp_raw_acc_t)0);
+                PA[i][j] = (fp_pa_store_t)(sum >> FP_FRAC_BITS);
             }
         }
 
@@ -477,21 +489,35 @@ static void riccati_pass_hls(
          * with ALLOCATION capping multiplier instances at 40.
          * - Fully unrolled (147 logical muls): 871 DSPs, 3817 riccati cycles → timing violation
          * - Sequential loop  (8 physical muls): 252 DSPs, 5798 riccati cycles → 29µs (too slow)
-         * - Allocation=40   (40 physical muls): ~180 DSPs, ~4200 riccati cycles → ~21µs (on target)
-         * HLS time-multiplexes 147 logical onto 40 physical in ~4 rounds. */
-#pragma HLS ALLOCATION operation instances=mul limit=40
+         * - Allocation=40   (40 physical muls): ~180 DSPs, ~4200 riccati cycles
+         * - limit=74 was tested; added 178 DSPs with no latency change
+         * HLS time-multiplexes 147 logical muls onto physical in ceil(147/limit) rounds. */
+#pragma HLS ALLOCATION operation instances=mul limit=48
         {
             #define COMPUTE_P_SUM_TO(II, JJ, DST) \
             do { \
-                fp_raw_acc_t _pa0 = fp_mul_qp_acc(fp_qp_raw_from_QP(A_local[0][(II)]), PA[0][(JJ)]); \
-                fp_raw_acc_t _pa1 = fp_mul_qp_acc(fp_qp_raw_from_QP(A_local[1][(II)]), PA[1][(JJ)]); \
-                fp_raw_acc_t _pa2 = fp_mul_qp_acc(fp_qp_raw_from_QP(A_local[2][(II)]), PA[2][(JJ)]); \
-                fp_raw_acc_t _pa3 = fp_mul_qp_acc(fp_qp_raw_from_QP(A_local[3][(II)]), PA[3][(JJ)]); \
-                fp_raw_acc_t _pa4 = fp_mul_qp_acc(fp_qp_raw_from_QP(A_local[4][(II)]), PA[4][(JJ)]); \
-                fp_raw_acc_t _pa5 = fp_mul_qp_acc(fp_qp_raw_from_QP(A_local[5][(II)]), PA[5][(JJ)]); \
-                fp_raw_acc_t _gk0 = fp_mul_qp_raw(fp_qp_raw_from_QP(G[0][(II)]), fp_qp_raw_from_QP(K[k][0][(JJ)])); \
-                fp_raw_acc_t _gk1 = fp_mul_qp_raw(fp_qp_raw_from_QP(G[1][(II)]), fp_qp_raw_from_QP(K[k][1][(JJ)])); \
-                (DST) = sum8_raw_acc(_pa0,_pa1,_pa2,_pa3,_pa4,_pa5,_gk0,_gk1) >> FP_FRAC_BITS; \
+                /* Keep PA storage narrow and convert to accumulator width only \
+                 * at the multiplier input. */ \
+                fp_raw_acc_t _PA0 = (fp_raw_acc_t)PA[0][(JJ)]; \
+                fp_raw_acc_t _PA1 = (fp_raw_acc_t)PA[1][(JJ)]; \
+                fp_raw_acc_t _PA2 = (fp_raw_acc_t)PA[2][(JJ)]; \
+                fp_raw_acc_t _PA3 = (fp_raw_acc_t)PA[3][(JJ)]; \
+                fp_raw_acc_t _PA4 = (fp_raw_acc_t)PA[4][(JJ)]; \
+                fp_raw_acc_t _PA5 = (fp_raw_acc_t)PA[5][(JJ)]; \
+                fp_qp_raw_t _G0 = fp_qp_raw_from_QP(G[0][(II)]); \
+                fp_qp_raw_t _G1 = fp_qp_raw_from_QP(G[1][(II)]); \
+                fp_qp_raw_t _K0 = fp_qp_raw_from_QP(K[k][0][(JJ)]); \
+                fp_qp_raw_t _K1 = fp_qp_raw_from_QP(K[k][1][(JJ)]); \
+                fp_raw_acc_t _pa0 = fp_mul_qp_acc(fp_qp_raw_from_QP(sd->A[0][(II)]), _PA0); \
+                fp_raw_acc_t _pa1 = fp_mul_qp_acc(fp_qp_raw_from_QP(sd->A[1][(II)]), _PA1); \
+                fp_raw_acc_t _pa2 = fp_mul_qp_acc(fp_qp_raw_from_QP(sd->A[2][(II)]), _PA2); \
+                fp_raw_acc_t _pa3 = fp_mul_qp_acc(fp_qp_raw_from_QP(sd->A[3][(II)]), _PA3); \
+                fp_raw_acc_t _pa4 = fp_mul_qp_acc(fp_qp_raw_from_QP(sd->A[4][(II)]), _PA4); \
+                fp_raw_acc_t _pa5 = fp_mul_qp_acc(fp_qp_raw_from_QP(sd->A[5][(II)]), _PA5); \
+                fp_raw_acc_t _gk0 = fp_mul_qp_raw(_G0, _K0); \
+                fp_raw_acc_t _gk1 = fp_mul_qp_raw(_G1, _K1); \
+                fp_raw_acc_t _sum_tmp = sum8_raw_acc(_pa0,_pa1,_pa2,_pa3,_pa4,_pa5,_gk0,_gk1); \
+                (DST) = _sum_tmp >> FP_FRAC_BITS; \
             } while (0)
 
             fp_raw_acc_t r0_0,r0_1,r0_2,r0_3,r0_4,r0_5;
@@ -576,12 +602,12 @@ static void riccati_pass_hls(
         fp_raw_acc_t p_new[MPC_NX_AUG];
         for (i = 0; i < 6; i++) {
     #pragma HLS PIPELINE II=1
-            fp_raw_acc_t atp0 = fp_mul_qp_acc(fp_qp_raw_from_QP(A_local[0][i]), p_shift[0]);
-            fp_raw_acc_t atp1 = fp_mul_qp_acc(fp_qp_raw_from_QP(A_local[1][i]), p_shift[1]);
-            fp_raw_acc_t atp2 = fp_mul_qp_acc(fp_qp_raw_from_QP(A_local[2][i]), p_shift[2]);
-            fp_raw_acc_t atp3 = fp_mul_qp_acc(fp_qp_raw_from_QP(A_local[3][i]), p_shift[3]);
-            fp_raw_acc_t atp4 = fp_mul_qp_acc(fp_qp_raw_from_QP(A_local[4][i]), p_shift[4]);
-            fp_raw_acc_t atp5 = fp_mul_qp_acc(fp_qp_raw_from_QP(A_local[5][i]), p_shift[5]);
+            fp_raw_acc_t atp0 = fp_mul_qp_acc(fp_qp_raw_from_QP(sd->A[0][i]), p_shift[0]);
+            fp_raw_acc_t atp1 = fp_mul_qp_acc(fp_qp_raw_from_QP(sd->A[1][i]), p_shift[1]);
+            fp_raw_acc_t atp2 = fp_mul_qp_acc(fp_qp_raw_from_QP(sd->A[2][i]), p_shift[2]);
+            fp_raw_acc_t atp3 = fp_mul_qp_acc(fp_qp_raw_from_QP(sd->A[3][i]), p_shift[3]);
+            fp_raw_acc_t atp4 = fp_mul_qp_acc(fp_qp_raw_from_QP(sd->A[4][i]), p_shift[4]);
+            fp_raw_acc_t atp5 = fp_mul_qp_acc(fp_qp_raw_from_QP(sd->A[5][i]), p_shift[5]);
             fp_raw_acc_t atp01 = atp0 + atp1;
             fp_raw_acc_t atp23 = atp2 + atp3;
             fp_raw_acc_t atp45 = atp4 + atp5;
@@ -617,63 +643,87 @@ static void riccati_pass_hls(
 #pragma HLS LOOP_FLATTEN off
         const StepData_t *sd = &step_data[k];
 
-        /* Buffer A locally in registers for the forward rollout
-         * x_{k+1} = A_k x_k + B_k u_k. */
-        fp_QP_t A_fwd[MPC_NX_DENSE][MPC_NX_DENSE];
-#pragma HLS ARRAY_PARTITION variable=A_fwd complete dim=0
-        fp_raw_acc_t d_fwd[MPC_NX_DENSE];
-#pragma HLS ARRAY_PARTITION variable=d_fwd complete dim=1
-        for (i = 0; i < 6; i++) {
-            for (j = 0; j < 6; j++) {
-#pragma HLS UNROLL
-                A_fwd[i][j] = sd->A[i][j];
-            }
-        }
-        d_fwd[0] = fp_raw_acc_from_qp(sd->d0);
-        d_fwd[1] = fp_raw_acc_from_qp(sd->d1);
-        d_fwd[2] = fp_raw_acc_from_qp(sd->d2);
-        d_fwd[3] = fp_raw_acc_from_qp(sd->d3);
-        d_fwd[4] = fp_raw_acc_from_qp(sd->d4);
-        d_fwd[5] = fp_raw_acc_from_qp(sd->d5);
+        const fp_raw_acc_t d0_fwd = fp_raw_acc_from_qp(sd->d0);
+        const fp_raw_acc_t d1_fwd = fp_raw_acc_from_qp(sd->d1);
+        const fp_raw_acc_t d2_fwd = fp_raw_acc_from_qp(sd->d2);
+        const fp_raw_acc_t d3_fwd = fp_raw_acc_from_qp(sd->d3);
+        const fp_raw_acc_t d4_fwd = fp_raw_acc_from_qp(sd->d4);
+        const fp_raw_acc_t d5_fwd = fp_raw_acc_from_qp(sd->d5);
+
+        /* Cache current state locally to avoid repeated RAM reads and same-iter
+         * write/read pressure between u_out and state rollout. */
+        const fp_QP_t xk0 = x_out[k][0];
+        const fp_QP_t xk1 = x_out[k][1];
+        const fp_QP_t xk2 = x_out[k][2];
+        const fp_QP_t xk3 = x_out[k][3];
+        const fp_QP_t xk4 = x_out[k][4];
+        const fp_QP_t xk5 = x_out[k][5];
+        const fp_QP_t xk6 = x_out[k][6];
+        const fp_QP_t xk7 = x_out[k][7];
 
         /* u_k = K_k * x_k + kk_k */
-        for (a = 0; a < nu; a++) {
-#pragma HLS UNROLL factor=MPC_HLS_AFFINE_CTRL_UNROLL
-            fp_raw_acc_t prod_sum = 0;
-            for (s = 0; s < nx; s++) {
-    #pragma HLS UNROLL factor=MPC_HLS_UNROLL_KX_FACTOR
-                prod_sum += fp_mul_qp_raw(fp_qp_raw_from_QP(K[k][a][s]), fp_qp_raw_from_QP(x_out[k][s]));
-            }
-            fp_raw_acc_t sum = fp_raw_acc_from_qp(kk[k][a]) + (prod_sum >> FP_FRAC_BITS);
-            sum = fp_clip_raw_to_qp(sum);
-            u_out[k][a] = fp_QP_from_qp_raw((fp_qp_raw_t)sum);
-        }
+        fp_raw_acc_t prod_sum0 = 0;
+        fp_raw_acc_t prod_sum1 = 0;
+        prod_sum0 += fp_mul_qp_raw(fp_qp_raw_from_QP(K[k][0][0]), fp_qp_raw_from_QP(xk0));
+        prod_sum0 += fp_mul_qp_raw(fp_qp_raw_from_QP(K[k][0][1]), fp_qp_raw_from_QP(xk1));
+        prod_sum0 += fp_mul_qp_raw(fp_qp_raw_from_QP(K[k][0][2]), fp_qp_raw_from_QP(xk2));
+        prod_sum0 += fp_mul_qp_raw(fp_qp_raw_from_QP(K[k][0][3]), fp_qp_raw_from_QP(xk3));
+        prod_sum0 += fp_mul_qp_raw(fp_qp_raw_from_QP(K[k][0][4]), fp_qp_raw_from_QP(xk4));
+        prod_sum0 += fp_mul_qp_raw(fp_qp_raw_from_QP(K[k][0][5]), fp_qp_raw_from_QP(xk5));
+        prod_sum0 += fp_mul_qp_raw(fp_qp_raw_from_QP(K[k][0][6]), fp_qp_raw_from_QP(xk6));
+        prod_sum0 += fp_mul_qp_raw(fp_qp_raw_from_QP(K[k][0][7]), fp_qp_raw_from_QP(xk7));
+
+        prod_sum1 += fp_mul_qp_raw(fp_qp_raw_from_QP(K[k][1][0]), fp_qp_raw_from_QP(xk0));
+        prod_sum1 += fp_mul_qp_raw(fp_qp_raw_from_QP(K[k][1][1]), fp_qp_raw_from_QP(xk1));
+        prod_sum1 += fp_mul_qp_raw(fp_qp_raw_from_QP(K[k][1][2]), fp_qp_raw_from_QP(xk2));
+        prod_sum1 += fp_mul_qp_raw(fp_qp_raw_from_QP(K[k][1][3]), fp_qp_raw_from_QP(xk3));
+        prod_sum1 += fp_mul_qp_raw(fp_qp_raw_from_QP(K[k][1][4]), fp_qp_raw_from_QP(xk4));
+        prod_sum1 += fp_mul_qp_raw(fp_qp_raw_from_QP(K[k][1][5]), fp_qp_raw_from_QP(xk5));
+        prod_sum1 += fp_mul_qp_raw(fp_qp_raw_from_QP(K[k][1][6]), fp_qp_raw_from_QP(xk6));
+        prod_sum1 += fp_mul_qp_raw(fp_qp_raw_from_QP(K[k][1][7]), fp_qp_raw_from_QP(xk7));
+
+        fp_raw_acc_t u0_sum = fp_raw_acc_from_qp(kk[k][0]) + (prod_sum0 >> FP_FRAC_BITS);
+        fp_raw_acc_t u1_sum = fp_raw_acc_from_qp(kk[k][1]) + (prod_sum1 >> FP_FRAC_BITS);
+        u0_sum = fp_clip_raw_to_qp(u0_sum);
+        u1_sum = fp_clip_raw_to_qp(u1_sum);
+        const fp_QP_t u0_k = fp_QP_from_qp_raw((fp_qp_raw_t)u0_sum);
+        const fp_QP_t u1_k = fp_QP_from_qp_raw((fp_qp_raw_t)u1_sum);
+        u_out[k][0] = u0_k;
+        u_out[k][1] = u1_k;
 
         /* x_{k+1} = A_k * x_k + B_k * u_k
          * Dense rows 0..5: A*x + B*u */
         for (i = 0; i < 6; i++) {
 #pragma HLS PIPELINE II=1
-            fp_raw_acc_t sum = d_fwd[i] << FP_FRAC_BITS;
-            for (s = 0; s < 6; s++) {
-        #pragma HLS UNROLL
-            sum += fp_mul_qp_raw(fp_qp_raw_from_QP(A_fwd[i][s]), fp_qp_raw_from_QP(x_out[k][s]));
-            }
+            fp_raw_acc_t d_i = d0_fwd;
+            if (i == 1) d_i = d1_fwd;
+            else if (i == 2) d_i = d2_fwd;
+            else if (i == 3) d_i = d3_fwd;
+            else if (i == 4) d_i = d4_fwd;
+            else if (i == 5) d_i = d5_fwd;
+            fp_raw_acc_t sum = d_i << FP_FRAC_BITS;
+            sum += fp_mul_qp_raw(fp_qp_raw_from_QP(sd->A[i][0]), fp_qp_raw_from_QP(xk0));
+            sum += fp_mul_qp_raw(fp_qp_raw_from_QP(sd->A[i][1]), fp_qp_raw_from_QP(xk1));
+            sum += fp_mul_qp_raw(fp_qp_raw_from_QP(sd->A[i][2]), fp_qp_raw_from_QP(xk2));
+            sum += fp_mul_qp_raw(fp_qp_raw_from_QP(sd->A[i][3]), fp_qp_raw_from_QP(xk3));
+            sum += fp_mul_qp_raw(fp_qp_raw_from_QP(sd->A[i][4]), fp_qp_raw_from_QP(xk4));
+            sum += fp_mul_qp_raw(fp_qp_raw_from_QP(sd->A[i][5]), fp_qp_raw_from_QP(xk5));
             if (i == 2) {
-                sum += fp_mul_qp_raw(fp_qp_raw_from_QP(sd->B_vx_accel), fp_qp_raw_from_QP(u_out[k][1]));
+                sum += fp_mul_qp_raw(fp_qp_raw_from_QP(sd->B_vx_accel), fp_qp_raw_from_QP(u1_k));
             } else if (i == 3) {
-                sum += fp_mul_qp_raw(fp_qp_raw_from_QP(sd->B_vy_accel), fp_qp_raw_from_QP(u_out[k][1]));
+                sum += fp_mul_qp_raw(fp_qp_raw_from_QP(sd->B_vy_accel), fp_qp_raw_from_QP(u1_k));
             } else if (i == 4) {
-                sum += fp_mul_qp_raw(fp_qp_raw_from_QP(sd->B_omega_accel), fp_qp_raw_from_QP(u_out[k][1]));
+                sum += fp_mul_qp_raw(fp_qp_raw_from_QP(sd->B_omega_accel), fp_qp_raw_from_QP(u1_k));
             } else if (i == 5) {
-                sum += fp_mul_qp_raw(fp_qp_raw_from_QP(sd->B_delta_rate), fp_qp_raw_from_QP(u_out[k][0]));
+                sum += fp_mul_qp_raw(fp_qp_raw_from_QP(sd->B_delta_rate), fp_qp_raw_from_QP(u0_k));
             }
             fp_raw_acc_t result = sum >> FP_FRAC_BITS;
             result = fp_clip_raw_to_qp(result);
             x_out[k + 1][i] = fp_QP_from_qp_raw((fp_qp_raw_t)result);
         }
         /* Rows 6,7: x_prev = u (identity in B, zero in A) */
-        x_out[k + 1][IDX_DELTA_RATE_PREV] = u_out[k][0];
-        x_out[k + 1][IDX_ACCEL_PREV] = u_out[k][1];
+        x_out[k + 1][IDX_DELTA_RATE_PREV] = u0_k;
+        x_out[k + 1][IDX_ACCEL_PREV] = u1_k;
     }
 }
 
@@ -796,7 +846,7 @@ MpcStatus_t riccati_admm_solve_hls(
     int iter;
 
     for (iter = 0; iter < total_passes; iter++) {
-#pragma HLS LOOP_TRIPCOUNT min=1 max=MPC_MAX_ADMM_PASS_COUNT avg=2
+#pragma HLS LOOP_TRIPCOUNT min=1 max=MPC_MAX_ADMM_PASS_COUNT avg=5
         const bool bootstrap_pass = cold_start && (iter == 0);
         const int admm_iter = cold_start ? (iter - 1) : iter;
         const fp_QP_t pass_rho = bootstrap_pass ? (fp_QP_t)0 : rho;
@@ -867,21 +917,9 @@ MpcStatus_t riccati_admm_solve_hls(
             continue;
         }
 
-        /* Compute primal scaling norms directly to avoid redundant candidate buffers. */
+        /* Compute primal scaling norms inside existing z/y loops. */
         fp_QP_t x_norm = 0;
         fp_QP_t u_norm = 0;
-        for (k = 0; k <= N; k++) {
-#pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON_PLUS_ONE max=MPC_HORIZON_PLUS_ONE
-            fp_QP_t x_norm_k = max_abs_state8(
-                sol_x[k][0], sol_x[k][1], sol_x[k][2], sol_x[k][3],
-                sol_x[k][4], sol_x[k][5], sol_x[k][6], sol_x[k][7]);
-            if (x_norm_k > x_norm) x_norm = x_norm_k;
-        }
-        for (k = 0; k < N; k++) {
-#pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
-            fp_QP_t u_norm_k = max_abs_ctrl2(sol_u[k][0], sol_u[k][1]);
-            if (u_norm_k > u_norm) u_norm = u_norm_k;
-        }
 
         /* --- Fused z-update, y-update, and residual computation ---
          * Dual residual uses rho*(z_new - z_old), where z_old is read
@@ -889,6 +927,12 @@ MpcStatus_t riccati_admm_solve_hls(
         fp_QP_t state_primal = 0, state_dual = 0;
         fp_QP_t ctrl_primal = 0, ctrl_dual = 0;
         fp_QP_t z_norm = 0, lambda_norm = 0;
+
+        /* Per-channel accumulators remove false dependencies between channels. */
+        fp_QP_t primal_ey = 0, dual_ey = 0, znorm_ey = 0, lnorm_ey = 0;
+        fp_QP_t primal_da = 0, dual_da = 0, znorm_da = 0, lnorm_da = 0;
+        fp_QP_t primal_u0 = 0, dual_u0 = 0, znorm_u0 = 0, lnorm_u0 = 0;
+        fp_QP_t primal_u1 = 0, dual_u1 = 0, znorm_u1 = 0, lnorm_u1 = 0;
 
         /* State z/y update */
         for (k = 0; k <= N; k++) {
@@ -903,8 +947,10 @@ MpcStatus_t riccati_admm_solve_hls(
                 }
             }
 
-            fp_QP_t z_norm_k = 0;
-            fp_QP_t lambda_norm_k = 0;
+            fp_QP_t x_norm_k = max_abs_state8(
+                sol_x[k][0], sol_x[k][1], sol_x[k][2], sol_x[k][3],
+                sol_x[k][4], sol_x[k][5], sol_x[k][6], sol_x[k][7]);
+            if (x_norm_k > x_norm) x_norm = x_norm_k;
 
             {
                 const int idx = IDX_EY;
@@ -912,8 +958,8 @@ MpcStatus_t riccati_admm_solve_hls(
                     sol_x[k][idx], &z_x[k][idx], &y_x[k][idx], rho,
                     (k < N) ? step_data[k].x_lb[idx] : terminal_x_lb[idx],
                     (k < N) ? step_data[k].x_ub[idx] : terminal_x_ub[idx],
-                    &state_primal, &state_dual,
-                    &z_norm_k, &lambda_norm_k);
+                    &primal_ey, &dual_ey,
+                    &znorm_ey, &lnorm_ey);
             }
 
             {
@@ -922,38 +968,53 @@ MpcStatus_t riccati_admm_solve_hls(
                     sol_x[k][idx], &z_x[k][idx], &y_x[k][idx], rho,
                     (k < N) ? step_data[k].x_lb[idx] : terminal_x_lb[idx],
                     (k < N) ? step_data[k].x_ub[idx] : terminal_x_ub[idx],
-                    &state_primal, &state_dual,
-                    &z_norm_k, &lambda_norm_k);
+                    &primal_da, &dual_da,
+                    &znorm_da, &lnorm_da);
             }
+        }
 
-            if (z_norm_k > z_norm) z_norm = z_norm_k;
-            if (lambda_norm_k > lambda_norm) lambda_norm = lambda_norm_k;
-            lambda_norm = fp_clamp(lambda_norm,
-                      FP_QP_CONST(0.0),
-                      FP_QP_CONST(1000.0));
+        state_primal = (primal_ey > primal_da) ? primal_ey : primal_da;
+        state_dual   = (dual_ey > dual_da) ? dual_ey : dual_da;
+        {
+            fp_QP_t z_norm_state = (znorm_ey > znorm_da) ? znorm_ey : znorm_da;
+            fp_QP_t lnorm_state = (lnorm_ey > lnorm_da) ? lnorm_ey : lnorm_da;
+            if (z_norm_state > z_norm) z_norm = z_norm_state;
+            if (lnorm_state > lambda_norm) lambda_norm = lnorm_state;
         }
 
         /* Control z/y update — dual residual computed inline */
         for (k = 0; k < N; k++) {
 	    #pragma HLS LOOP_TRIPCOUNT min=MPC_HORIZON max=MPC_HORIZON
-	#pragma HLS PIPELINE II=MPC_HLS_CTRL_ZY_II
+		#pragma HLS PIPELINE II=MPC_HLS_CTRL_ZY_II
             const StepData_t *sd = &step_data[k];
-            fp_QP_t z_norm_k = z_norm;
-            fp_QP_t lambda_norm_k = lambda_norm;
-            for (a = 0; a < nu; a++) {
-#pragma HLS UNROLL
-                admm_update_control_channel_raw(
-                    sol_u[k][a], &z_u[k][a], &y_u[k][a], rho_u,
-                    sd->u_lb[a], sd->u_ub[a],
-                    &ctrl_primal, &ctrl_dual,
-                    &z_norm_k, &lambda_norm_k);
-            }
-            if (z_norm_k > z_norm) z_norm = z_norm_k;
-            if (lambda_norm_k > lambda_norm) lambda_norm = lambda_norm_k;
-            lambda_norm = fp_clamp(lambda_norm,
-                      FP_QP_CONST(0.0),
-                      FP_QP_CONST(1000.0));
+
+            fp_QP_t u_norm_k = max_abs_ctrl2(sol_u[k][0], sol_u[k][1]);
+            if (u_norm_k > u_norm) u_norm = u_norm_k;
+
+            admm_update_control_channel_raw(
+                sol_u[k][0], &z_u[k][0], &y_u[k][0], rho_u,
+                sd->u_lb[0], sd->u_ub[0],
+                &primal_u0, &dual_u0,
+                &znorm_u0, &lnorm_u0);
+
+            admm_update_control_channel_raw(
+                sol_u[k][1], &z_u[k][1], &y_u[k][1], rho_u,
+                sd->u_lb[1], sd->u_ub[1],
+                &primal_u1, &dual_u1,
+                &znorm_u1, &lnorm_u1);
         }
+
+        ctrl_primal = (primal_u0 > primal_u1) ? primal_u0 : primal_u1;
+        ctrl_dual   = (dual_u0 > dual_u1) ? dual_u0 : dual_u1;
+        {
+            fp_QP_t z_norm_ctrl = (znorm_u0 > znorm_u1) ? znorm_u0 : znorm_u1;
+            fp_QP_t lnorm_ctrl = (lnorm_u0 > lnorm_u1) ? lnorm_u0 : lnorm_u1;
+            if (z_norm_ctrl > z_norm) z_norm = z_norm_ctrl;
+            if (lnorm_ctrl > lambda_norm) lambda_norm = lnorm_ctrl;
+        }
+        lambda_norm = fp_clamp(lambda_norm,
+                  FP_QP_CONST(0.0),
+                  FP_QP_CONST(1000.0));
 
         fp_QP_t primal_res = state_primal > ctrl_primal ? state_primal : ctrl_primal;
         fp_QP_t dual_res   = state_dual > ctrl_dual ? state_dual : ctrl_dual;

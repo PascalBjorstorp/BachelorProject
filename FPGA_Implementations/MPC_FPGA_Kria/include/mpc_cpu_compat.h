@@ -9,6 +9,7 @@
 #include "mpc_fpga_types.h"
 #include "mpc_fpga_interface.h"
 #include "fp_math_hls.h"
+#include "riccati_solver_hls.h"
 
 #ifdef MPC_RUNTIME_TUNE
 #include "mpc_runtime_tune.h"
@@ -281,8 +282,8 @@ static inline MpcSolverStatus_t mpc_compute_optimal_control(
     result->optimal_control.steer_ang = CPU_COMPAT_FP16_TO_FLOAT(out_steering);
     result->optimal_control.long_acc = CPU_COMPAT_FP16_TO_FLOAT(out_accel);
     result->iterations_used = (int)out_iters;
-    result->final_cost = 0.0f;     /* Unsupported by current scalar wrapper */
-    result->dual_residual = 0.0f;  /* Unsupported by current scalar wrapper */
+    result->final_cost = 0.0f;    /* Debug info removed */
+    result->dual_residual = 0.0f; /* Debug info removed */
     result->solver_status = (int)out_status;
 
     if (out_status == MPC_FPGA_STATUS_OK) {

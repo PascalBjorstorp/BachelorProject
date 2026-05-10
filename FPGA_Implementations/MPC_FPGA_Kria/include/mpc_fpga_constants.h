@@ -123,7 +123,7 @@
  * Solver Structure and Model Constants
  *===========================================================================*/
 
-/** Maximum ADMM iterations. Fixed project-wide for stable timing/behavior comparisons. */
+/** Maximum ADMM iterations. Keep aligned with CPU defaults for parity tests. */
 #define MPC_FPGA_MAX_ADMM_ITER        50
 #define MPC_FPGA_PREDICTION_DT_S      0.03f
 #define MPC_FPGA_PACEJKA_C_SHAPE      1.9f
@@ -133,7 +133,7 @@
  * MPC Cost Weights (FPGA profile)
  *===========================================================================*/
 
-#define MPC_FPGA_W_LAT_ERROR             1800.0f
+#define MPC_FPGA_W_LAT_ERROR             1500.0f
 #define MPC_FPGA_W_HEADING               5.0f
 #define MPC_FPGA_W_VELOCITY              200.0f
 #define MPC_FPGA_W_LAT_VEL               10.0f
@@ -163,7 +163,7 @@
 #endif
 
 #ifndef MPC_FPGA_ADMM_RHO_U
-#define MPC_FPGA_ADMM_RHO_U              4.0f
+#define MPC_FPGA_ADMM_RHO_U              7.0f
 #endif
 
 #ifndef MPC_FPGA_ADMM_TOL

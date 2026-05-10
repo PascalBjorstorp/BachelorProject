@@ -13,8 +13,8 @@
 
 static fp_QP_t fp_pacejka_inner_arg(fp_QP_t ba)
 {
-#pragma HLS INLINE off
-    fp_QP_t atan_ba = fp_atan_tire_approx(ba);
+#pragma HLS INLINE
+    fp_QP_t atan_ba = fp_atan_lut(ba);
     return fp_mul(VP_C_SHAPE, atan_ba);
 }
 
@@ -46,11 +46,9 @@ static void fp_trig_pair(
  * Returns 1/denom with INLINE off so HLS registers the output
  * before the multiply fan-out that follows. */
 static fp_QP_t fp_frenet_recip(
-    fp_QP_t epsi, fp_QP_t kappa, fp_QP_t ey)
+    fp_QP_t kappa, fp_QP_t ey)
 {
-#pragma HLS INLINE off
-    fp_QP_t sp, cp;
-    fp_trig_pair(epsi, &sp, &cp);
+#pragma HLS INLINE
     fp_QP_t denom = FP_ONE - fp_mul(kappa, ey);
     if (fp_abs(denom) < FP_QP_CONST(1e-3)) {
         denom = (denom >= 0) ? FP_QP_CONST(1e-3) : FP_QP_CONST(-1e-3);
@@ -63,33 +61,34 @@ static fp_QP_t fp_frenet_recip(
  * multiply fan-out (inv_denom2, A10, A11, A12) in states AFTER fp_recip
  * completes, preventing the -0.12ns combinational path. */
 static void fp_frenet_rows01(
-    fp_QP_t epsi, fp_QP_t vx, fp_QP_t vy,
+    fp_QP_t sin_epsi, fp_QP_t cos_epsi, fp_QP_t vx, fp_QP_t vy,
     fp_QP_t kappa, fp_QP_t ey, fp_QP_t inv_denom,
+    fp_QP_t reference_velocity,
     fp_QP_t *A00, fp_QP_t *A01, fp_QP_t *A02, fp_QP_t *A03,
     fp_QP_t *A10, fp_QP_t *A11, fp_QP_t *A12)
 {
 #pragma HLS INLINE off
-    fp_QP_t sp, cp;
-    fp_trig_pair(epsi, &sp, &cp);
-    fp_QP_t dt_cp    = fp_mul(MPC_DT, cp);
+    (void)vx;
+    (void)ey;
+    fp_QP_t dt_cp    = fp_mul(MPC_DT, cos_epsi);
     fp_QP_t kappa_dt = fp_mul(kappa, MPC_DT);
     fp_QP_t kappa2   = fp_mul(kappa, kappa);
-    fp_QP_t vx_cp    = fp_mul(vx, cp);
-    fp_QP_t vy_sp    = fp_mul(vy, sp);
+    fp_QP_t vx_cp    = fp_mul(reference_velocity, cos_epsi);
+    fp_QP_t vy_sp    = fp_mul(vy, sin_epsi);
     *A00 = FP_ONE;
     *A01 = fp_mul(MPC_DT, vx_cp + (-vy_sp));
-    *A02 = fp_mul(MPC_DT, sp);
+    *A02 = fp_mul(MPC_DT, sin_epsi);
     *A03 = dt_cp;
     /* With MUL_LATENCY=4, every fp_mul() has an extra FF stage — the
      * inv_denom → inv_denom2 → A10 chain is automatically broken. */
     fp_QP_t inv_denom2 = fp_mul(inv_denom, inv_denom);
-    fp_QP_t k2_vx    = fp_mul(kappa2, vx);
+    fp_QP_t k2_vx    = fp_mul(kappa2, reference_velocity);
     fp_QP_t a10_pre  = fp_mul(dt_cp, k2_vx);
     *A10 = fp_mul(-a10_pre, inv_denom2);
-    fp_QP_t kdt_vx   = fp_mul(kappa_dt, vx);
-    fp_QP_t a11_pre  = fp_mul(kdt_vx, sp);
+    fp_QP_t kdt_vx   = fp_mul(kappa_dt, reference_velocity);
+    fp_QP_t a11_pre  = fp_mul(kdt_vx, sin_epsi);
     *A11 = FP_ONE + fp_mul(a11_pre, inv_denom);
-    fp_QP_t a12_pre  = fp_mul(kappa_dt, cp);
+    fp_QP_t a12_pre  = fp_mul(kappa_dt, cos_epsi);
     *A12 = fp_mul(-a12_pre, inv_denom);
 }
 
@@ -104,6 +103,7 @@ static void fp_slip_terms(
     fp_QP_t *front_ratio,
     fp_QP_t *rear_ratio)
 {
+#pragma HLS INLINE off
 #pragma HLS PIPELINE II=1
     fp_QP_t lf_omega_local = fp_mul(VP_LF, omega);
     fp_QP_t lr_omega_local = fp_mul(VP_LR, omega);
@@ -148,8 +148,8 @@ static void fp_rear_force_jacobians(
 }
 
 static void fp_rollout_from_forces_hls(
-    fp_QP_t ey, fp_QP_t epsi,
-    fp_QP_t vx_safe, fp_QP_t vy, fp_QP_t omega,
+    fp_QP_t ey, fp_QP_t epsi, fp_QP_t sin_epsi, fp_QP_t cos_epsi,
+    fp_QP_t vx_safe, fp_QP_t v_frenet, fp_QP_t vy, fp_QP_t omega,
     fp_QP_t kappa, fp_QP_t dt,
     fp_QP_t Fx, fp_QP_t F_yf, fp_QP_t F_yr,
     fp_QP_t sin_delta, fp_QP_t cos_delta,
@@ -160,14 +160,11 @@ static void fp_rollout_from_forces_hls(
     if (fp_abs(ey_denom) < FP_QP_CONST(1e-3)) {
         ey_denom = (ey_denom >= 0) ? FP_QP_CONST(1e-3) : FP_QP_CONST(-1e-3);
     }
-
-    fp_QP_t sin_epsi = fp_sin(epsi);
-    fp_QP_t cos_epsi = fp_cos(epsi);
     fp_QP_t inv_ey_denom = fp_recip(ey_denom);
 
-    fp_QP_t vx_sin_epsi = fp_mul(vx_safe, sin_epsi);
+    fp_QP_t vx_sin_epsi = fp_mul(v_frenet, sin_epsi);
     fp_QP_t vy_cos_epsi = fp_mul(vy, cos_epsi);
-    fp_QP_t vx_cos_epsi = fp_mul(vx_safe, cos_epsi);
+    fp_QP_t vx_cos_epsi = fp_mul(v_frenet, cos_epsi);
     fp_QP_t kappa_vx_cos = fp_mul(kappa, vx_cos_epsi);
     fp_QP_t kappa_vx_cos_inv = fp_mul(kappa_vx_cos, inv_ey_denom);
     fp_QP_t fx_sin_delta = fp_mul(F_yf, sin_delta);
@@ -237,6 +234,9 @@ static void compute_frenet_tire_hls(
     FpTireResults &tr)
 {
 #pragma HLS INLINE off
+#pragma HLS ALLOCATION function instances=fp_atan_lut limit=2
+#pragma HLS ALLOCATION function instances=fp_recip limit=1
+#pragma HLS ALLOCATION function instances=fp_trig_pair limit=1
     tr.vx_safe = (vx > MIN_LIN_VEL) ? vx : MIN_LIN_VEL;
     tr.inv_vx  = fp_recip(tr.vx_safe);
 
@@ -274,20 +274,21 @@ static void compute_frenet_tire_hls(
     fp_QP_t front_cross = fp_mul(vy, lf_omega);
     fp_QP_t rear_cross  = fp_mul(vy, lr_omega);
     fp_QP_t front_num2  = vy2 + (front_cross + front_cross) + lf_omega2;
-    fp_QP_t rear_num2   = vy2 + (rear_cross  + rear_cross)  + lr_omega2;
+    fp_QP_t rear_num2   = vy2 - (rear_cross  + rear_cross)  + lr_omega2;
     fp_QP_t D_f = vx2 + front_num2;
     fp_QP_t D_r = vx2 + rear_num2;
     fp_QP_t inv_D_f = fp_recip(D_f);
     fp_QP_t inv_D_r = fp_recip(D_r);
 
-    /* Slip angles */
-    tr.alpha_f_op = delta - fp_atan_tire_approx(front_ratio);
-    fp_QP_t rear_atan = fp_atan_tire_approx(rear_ratio);
+    /* Slip angles — |front_ratio|, |rear_ratio| < 1 in normal racing conditions. */
+    tr.alpha_f_op = delta - fp_atan_lut(front_ratio);
+    fp_QP_t rear_atan = fp_atan_lut(rear_ratio);
     tr.alpha_r_op = -rear_atan;
 
-    /* Front Pacejka */
-    fp_QP_t Ba_f        = fp_mul(VP_B_FRONT, tr.alpha_f_op);
-    fp_QP_t inner_f     = fp_pacejka_inner_arg(Ba_f);
+    /* Front Pacejka — Ba_f can exceed 1.0 (B≈10, alpha≈0.1-0.2 rad → Ba≈1-2).
+     * fp_atan_lut handles |Ba|>1 internally via fp_recip + reflection identity. */
+    fp_QP_t Ba_f           = fp_mul(VP_B_FRONT, tr.alpha_f_op);
+    fp_QP_t inner_f        = fp_mul(VP_C_SHAPE, fp_atan_lut(Ba_f));
     fp_QP_t sin_inner_f, cos_inner_f;
     fp_trig_pair(inner_f, &sin_inner_f, &cos_inner_f);
     fp_QP_t ba_f2       = fp_sq(Ba_f);
@@ -297,9 +298,9 @@ static void compute_frenet_tire_hls(
     tr.C_eff_f_raw      = fp_pacejka_ceff(cos_inner_f, inv_denom_f, D_pac_f_cb);
     tr.F_yf             = fp_mul(D_pac_f, sin_inner_f);
 
-    /* Rear Pacejka */
-    fp_QP_t Ba_r        = fp_mul(VP_B_REAR, tr.alpha_r_op);
-    fp_QP_t inner_r     = fp_pacejka_inner_arg(Ba_r);
+    /* Rear Pacejka — same LUT pattern as front. */
+    fp_QP_t Ba_r           = fp_mul(VP_B_REAR, tr.alpha_r_op);
+    fp_QP_t inner_r        = fp_mul(VP_C_SHAPE, fp_atan_lut(Ba_r));
     fp_QP_t sin_inner_r, cos_inner_r;
     fp_trig_pair(inner_r, &sin_inner_r, &cos_inner_r);
     tr.F_yr             = fp_mul(D_pac_r, sin_inner_r);
@@ -323,17 +324,116 @@ static void compute_frenet_tire_hls(
  * Inputs:  geometry (ey, epsi, kappa), FpTireResults struct.
  * Outputs: A_fr, B_fr, next_state arrays.
  * ----------------------------------------------------------------------- */
+
+/* Helpers extracted from compute_frenet_AB_hls to create clear HLS
+ * module boundaries and shorten combinational paths. Placed at file
+ * scope (not inside the main function) so HLS will synthesize them as
+ * separate modules when `#pragma HLS INLINE off` is present. */
+struct StageSharedProducts {
+    fp_QP_t dFyf_dvx_sin;
+    fp_QP_t dFyf_dvy_sin;
+    fp_QP_t dFyf_dom_sin;
+    fp_QP_t vx_damping;
+    fp_QP_t vy_damping;
+    fp_QP_t om_damping;
+    fp_QP_t neg_vx_damping;
+    fp_QP_t neg_vy_damping;
+    fp_QP_t neg_om_damping;
+    fp_QP_t dFyf_dvx_cos;
+    fp_QP_t dFyf_dvy_cos;
+    fp_QP_t dFyf_dom_cos;
+    fp_QP_t mass_omega;
+    fp_QP_t mass_vx;
+    fp_QP_t neg_mass_omega;
+    fp_QP_t neg_mass_vx;
+    fp_QP_t lf_dFyf_dvx_cos;
+    fp_QP_t lf_dFyf_dvy_cos;
+    fp_QP_t lf_dFyf_dom_cos;
+    fp_QP_t lr_dFyr_dvx;
+    fp_QP_t lr_dFyr_dvy;
+    fp_QP_t lr_dFyr_dom;
+    fp_QP_t neg_lr_dFyr_dvx;
+    fp_QP_t neg_lr_dFyr_dvy;
+    fp_QP_t neg_lr_dFyr_dom;
+};
+
+static inline void compute_stage_shared_products(const FpTireResults &tr,
+                                                fp_QP_t vx, fp_QP_t vy, fp_QP_t omega,
+                                                StageSharedProducts &out)
+{
+#pragma HLS INLINE off
+    (void)vy;
+    out.dFyf_dvx_sin = fp_mul(tr.dFyf_dvx, tr.sin_delta);
+    out.dFyf_dvy_sin = fp_mul(tr.dFyf_dvy, tr.sin_delta);
+    out.dFyf_dom_sin = fp_mul(tr.dFyf_dom, tr.sin_delta);
+    out.vx_damping   = fp_mul(out.dFyf_dvx_sin, VP_DT_INV_MASS);
+    out.vy_damping   = fp_mul(out.dFyf_dvy_sin, VP_INV_MASS);
+    out.om_damping   = fp_mul(out.dFyf_dom_sin, VP_INV_MASS);
+    out.neg_vx_damping = -out.vx_damping;
+    out.neg_vy_damping = -out.vy_damping;
+    out.neg_om_damping = -out.om_damping;
+
+    out.dFyf_dvx_cos = fp_mul(tr.dFyf_dvx, tr.cos_delta);
+    out.dFyf_dvy_cos = fp_mul(tr.dFyf_dvy, tr.cos_delta);
+    out.dFyf_dom_cos = fp_mul(tr.dFyf_dom, tr.cos_delta);
+    out.mass_omega   = fp_mul(VP_MASS, omega);
+    out.mass_vx      = fp_mul(VP_MASS, vx);
+    out.neg_mass_omega = -out.mass_omega;
+    out.neg_mass_vx    = -out.mass_vx;
+
+    out.lf_dFyf_dvx_cos = fp_mul(VP_LF, out.dFyf_dvx_cos);
+    out.lf_dFyf_dvy_cos = fp_mul(VP_LF, out.dFyf_dvy_cos);
+    out.lf_dFyf_dom_cos = fp_mul(VP_LF, out.dFyf_dom_cos);
+    out.lr_dFyr_dvx     = fp_mul(VP_LR, tr.dFyr_dvx);
+    out.lr_dFyr_dvy     = fp_mul(VP_LR, tr.dFyr_dvy);
+    out.lr_dFyr_dom     = fp_mul(VP_LR, tr.dFyr_dom);
+    out.neg_lr_dFyr_dvx = -out.lr_dFyr_dvx;
+    out.neg_lr_dFyr_dvy = -out.lr_dFyr_dvy;
+    out.neg_lr_dFyr_dom = -out.lr_dFyr_dom;
+}
+
+static inline void compute_B_steering(const FpTireResults &tr,
+                                     fp_QP_t lf_dt_over_iz,
+                                     fp_QP_t B_fr[MPC_NX_FRENET][MPC_NU])
+{
+#pragma HLS INLINE off
+    bool use_front_raw = (tr.C_eff_f_raw > tr.C_min_f);
+    fp_QP_t dFyf_dd_sin_raw = fp_mul(tr.C_eff_f_raw, tr.sin_delta);
+    fp_QP_t dFyf_dd_sin_min = fp_mul(tr.C_min_f,     tr.sin_delta);
+    fp_QP_t Fyf_cos         = fp_mul(tr.F_yf, tr.cos_delta);
+    fp_QP_t dFyf_dd_cos_raw = fp_mul(tr.C_eff_f_raw, tr.cos_delta);
+    fp_QP_t dFyf_dd_cos_min = fp_mul(tr.C_min_f,     tr.cos_delta);
+    fp_QP_t Fyf_sin         = fp_mul(tr.F_yf, tr.sin_delta);
+    fp_QP_t Fyf_cos_dt      = fp_mul(Fyf_cos, NEG_VP_DT_INV_MASS);
+    fp_QP_t Fyf_sin_dt      = fp_mul(Fyf_sin, VP_DT_INV_MASS);
+    fp_QP_t Fyf_sin_lf_dt_iz   = fp_mul(Fyf_sin, lf_dt_over_iz);
+
+    fp_QP_t B20_raw = fp_mul(dFyf_dd_sin_raw, NEG_VP_DT_INV_MASS) + Fyf_cos_dt;
+    fp_QP_t B20_min = fp_mul(dFyf_dd_sin_min, NEG_VP_DT_INV_MASS) + Fyf_cos_dt;
+    B_fr[2][0] = use_front_raw ? B20_raw : B20_min;
+
+    fp_QP_t B30_raw = fp_mul(dFyf_dd_cos_raw, VP_DT_INV_MASS) + (-Fyf_sin_dt);
+    fp_QP_t B30_min = fp_mul(dFyf_dd_cos_min, VP_DT_INV_MASS) + (-Fyf_sin_dt);
+    B_fr[3][0] = use_front_raw ? B30_raw : B30_min;
+
+    fp_QP_t B40_raw = fp_mul(dFyf_dd_cos_raw, lf_dt_over_iz) + (-Fyf_sin_lf_dt_iz);
+    fp_QP_t B40_min = fp_mul(dFyf_dd_cos_min, lf_dt_over_iz) + (-Fyf_sin_lf_dt_iz);
+    B_fr[4][0] = use_front_raw ? B40_raw : B40_min;
+
+    B_fr[2][1] = MPC_DT;
+}
+
 void compute_frenet_AB_hls(
     fp_QP_t ey, fp_QP_t epsi,
     fp_QP_t vx, fp_QP_t vy, fp_QP_t omega,
     fp_QP_t delta, fp_QP_t a_cmd,
-    fp_QP_t kappa,
+    fp_QP_t kappa, fp_QP_t reference_velocity,
     fp_QP_t A_fr[MPC_NX_FRENET][MPC_NX_FRENET],
     fp_QP_t B_fr[MPC_NX_FRENET][MPC_NU],
     fp_QP_t next_state[MPC_NX_FRENET])
 {
 #pragma HLS INLINE off
-
+#pragma HLS ALLOCATION function instances=fp_recip limit=1
     /* ---- Half 1: tire physics ---- */
     FpTireResults tr;
 #pragma HLS AGGREGATE variable=tr compact=bit
@@ -354,42 +454,59 @@ void compute_frenet_AB_hls(
 
     /* Frenet geometry rows */
     {
-        fp_QP_t inv_denom = fp_frenet_recip(epsi, kappa, ey);
+        fp_QP_t sin_epsi, cos_epsi;
+        fp_trig_pair(epsi, &sin_epsi, &cos_epsi);
+        fp_QP_t inv_denom = fp_frenet_recip(kappa, ey);
         fp_frenet_rows01(
-            epsi, vx, vy, kappa, ey, inv_denom,
+            sin_epsi, cos_epsi, vx, vy, kappa, ey, inv_denom, reference_velocity,
             &A_fr[0][0], &A_fr[0][1], &A_fr[0][2], &A_fr[0][3],
             &A_fr[1][0], &A_fr[1][1], &A_fr[1][2]);
         A_fr[1][4] = MPC_DT;
+
+        /* Reuse exactly the same trig pair for rollout to avoid duplicate LUT reads. */
+        fp_QP_t Fx = fp_mul(VP_MASS, a_cmd);
+        fp_rollout_from_forces_hls(
+            ey, epsi, sin_epsi, cos_epsi,
+            tr.vx_safe, reference_velocity, vy, omega,
+            kappa, MPC_DT,
+            Fx, tr.F_yf, tr.F_yr,
+            tr.sin_delta, tr.cos_delta,
+            next_state);
     }
 
-    /* Stage shared products */
-    fp_QP_t dFyf_dvx_sin = fp_mul(tr.dFyf_dvx, tr.sin_delta);
-    fp_QP_t dFyf_dvy_sin = fp_mul(tr.dFyf_dvy, tr.sin_delta);
-    fp_QP_t dFyf_dom_sin = fp_mul(tr.dFyf_dom, tr.sin_delta);
-    fp_QP_t vx_damping   = fp_mul(dFyf_dvx_sin, VP_DT_INV_MASS);
-    fp_QP_t vy_damping   = fp_mul(dFyf_dvy_sin, VP_INV_MASS);
-    fp_QP_t om_damping   = fp_mul(dFyf_dom_sin, VP_INV_MASS);
-    fp_QP_t neg_vx_damping = -vx_damping;
-    fp_QP_t neg_vy_damping = -vy_damping;
-    fp_QP_t neg_om_damping = -om_damping;
+    /* Stage shared products (extracted to helper to reduce combinational depth) */
+    StageSharedProducts s;
+    compute_stage_shared_products(tr, vx, vy, omega, s);
 
-    fp_QP_t dFyf_dvx_cos = fp_mul(tr.dFyf_dvx, tr.cos_delta);
-    fp_QP_t dFyf_dvy_cos = fp_mul(tr.dFyf_dvy, tr.cos_delta);
-    fp_QP_t dFyf_dom_cos = fp_mul(tr.dFyf_dom, tr.cos_delta);
-    fp_QP_t mass_omega   = fp_mul(VP_MASS, omega);
-    fp_QP_t mass_vx      = fp_mul(VP_MASS, vx);
-    fp_QP_t neg_mass_omega = -mass_omega;
-    fp_QP_t neg_mass_vx    = -mass_vx;
+    fp_QP_t dFyf_dvx_sin = s.dFyf_dvx_sin;
+    fp_QP_t dFyf_dvy_sin = s.dFyf_dvy_sin;
+    fp_QP_t dFyf_dom_sin = s.dFyf_dom_sin;
+    fp_QP_t vx_damping   = s.vx_damping;
+    fp_QP_t vy_damping   = s.vy_damping;
+    fp_QP_t om_damping   = s.om_damping;
+    fp_QP_t neg_vx_damping = s.neg_vx_damping;
+    fp_QP_t neg_vy_damping = s.neg_vy_damping;
+    fp_QP_t neg_om_damping = s.neg_om_damping;
 
-    fp_QP_t lf_dFyf_dvx_cos = fp_mul(VP_LF, dFyf_dvx_cos);
-    fp_QP_t lf_dFyf_dvy_cos = fp_mul(VP_LF, dFyf_dvy_cos);
-    fp_QP_t lf_dFyf_dom_cos = fp_mul(VP_LF, dFyf_dom_cos);
-    fp_QP_t lr_dFyr_dvx     = fp_mul(VP_LR, tr.dFyr_dvx);
-    fp_QP_t lr_dFyr_dvy     = fp_mul(VP_LR, tr.dFyr_dvy);
-    fp_QP_t lr_dFyr_dom     = fp_mul(VP_LR, tr.dFyr_dom);
-    fp_QP_t neg_lr_dFyr_dvx = -lr_dFyr_dvx;
-    fp_QP_t neg_lr_dFyr_dvy = -lr_dFyr_dvy;
-    fp_QP_t neg_lr_dFyr_dom = -lr_dFyr_dom;
+    fp_QP_t dFyf_dvx_cos = s.dFyf_dvx_cos;
+    fp_QP_t dFyf_dvy_cos = s.dFyf_dvy_cos;
+    fp_QP_t dFyf_dom_cos = s.dFyf_dom_cos;
+    fp_QP_t mass_omega   = s.mass_omega;
+    fp_QP_t mass_vx      = s.mass_vx;
+    fp_QP_t neg_mass_omega = s.neg_mass_omega;
+    fp_QP_t neg_mass_vx    = s.neg_mass_vx;
+
+    fp_QP_t lf_dFyf_dvx_cos = s.lf_dFyf_dvx_cos;
+    fp_QP_t lf_dFyf_dvy_cos = s.lf_dFyf_dvy_cos;
+    fp_QP_t lf_dFyf_dom_cos = s.lf_dFyf_dom_cos;
+    fp_QP_t lr_dFyr_dvx     = s.lr_dFyr_dvx;
+    fp_QP_t lr_dFyr_dvy     = s.lr_dFyr_dvy;
+    fp_QP_t lr_dFyr_dom     = s.lr_dFyr_dom;
+    fp_QP_t neg_lr_dFyr_dvx = s.neg_lr_dFyr_dvx;
+    fp_QP_t neg_lr_dFyr_dvy = s.neg_lr_dFyr_dvy;
+    fp_QP_t neg_lr_dFyr_dom = s.neg_lr_dFyr_dom;
+    fp_QP_t lf_dt_over_iz = fp_mul(VP_LF, VP_DT_INV_IZ);
+    fp_QP_t neg_lr_dt_over_iz = fp_mul((fp_QP_t)(-VP_LR), VP_DT_INV_IZ);
 
     /* Row 2: vx dynamics */
     A_fr[2][2] = FP_ONE + neg_vx_damping;
@@ -397,42 +514,17 @@ void compute_frenet_AB_hls(
     A_fr[2][4] = fp_mul(MPC_DT, vy    + neg_om_damping);
 
     /* Row 3: vy dynamics */
-    A_fr[3][2] = fp_mul((fp_QP_t)(dFyf_dvx_cos + tr.dFyr_dvx + neg_mass_omega), VP_DT_INV_MASS);
+    A_fr[3][2] = fp_mul((fp_QP_t)(neg_mass_omega), VP_DT_INV_MASS);
     A_fr[3][3] = FP_ONE + fp_mul((fp_QP_t)(dFyf_dvy_cos + tr.dFyr_dvy), VP_DT_INV_MASS);
     A_fr[3][4] = fp_mul((fp_QP_t)(dFyf_dom_cos + tr.dFyr_dom + neg_mass_vx),  VP_DT_INV_MASS);
 
     /* Row 4: omega dynamics */
-    A_fr[4][2] = fp_mul((fp_QP_t)(lf_dFyf_dvx_cos + neg_lr_dFyr_dvx), VP_DT_INV_IZ);
+    A_fr[4][2] = 0;
     A_fr[4][3] = fp_mul((fp_QP_t)(lf_dFyf_dvy_cos + neg_lr_dFyr_dvy), VP_DT_INV_IZ);
     A_fr[4][4] = FP_ONE + fp_mul((fp_QP_t)(lf_dFyf_dom_cos + neg_lr_dFyr_dom), VP_DT_INV_IZ);
 
-    /* B matrix — steering */
-    bool use_front_raw = (tr.C_eff_f_raw > tr.C_min_f);
-    fp_QP_t dFyf_dd_sin_raw = fp_mul(tr.C_eff_f_raw, tr.sin_delta);
-    fp_QP_t dFyf_dd_sin_min = fp_mul(tr.C_min_f,     tr.sin_delta);
-    fp_QP_t Fyf_cos         = fp_mul(tr.F_yf, tr.cos_delta);
-    fp_QP_t dFyf_dd_cos_raw = fp_mul(tr.C_eff_f_raw, tr.cos_delta);
-    fp_QP_t dFyf_dd_cos_min = fp_mul(tr.C_min_f,     tr.cos_delta);
-    fp_QP_t Fyf_sin         = fp_mul(tr.F_yf, tr.sin_delta);
-    fp_QP_t Fyf_cos_dt      = fp_mul(Fyf_cos, NEG_VP_DT_INV_MASS);
-    fp_QP_t Fyf_sin_dt      = fp_mul(Fyf_sin, VP_DT_INV_MASS);
-    fp_QP_t lf_dt_over_iz      = fp_mul(VP_LF,         VP_DT_INV_IZ);
-    fp_QP_t neg_lr_dt_over_iz  = fp_mul((fp_QP_t)(-VP_LR), VP_DT_INV_IZ);
-    fp_QP_t Fyf_sin_lf_dt_iz   = fp_mul(Fyf_sin, lf_dt_over_iz);
-
-    fp_QP_t B20_raw = fp_mul(dFyf_dd_sin_raw, NEG_VP_DT_INV_MASS) + Fyf_cos_dt;
-    fp_QP_t B20_min = fp_mul(dFyf_dd_sin_min, NEG_VP_DT_INV_MASS) + Fyf_cos_dt;
-    B_fr[2][0] = use_front_raw ? B20_raw : B20_min;
-
-    fp_QP_t B30_raw = fp_mul(dFyf_dd_cos_raw, VP_DT_INV_MASS) + (-Fyf_sin_dt);
-    fp_QP_t B30_min = fp_mul(dFyf_dd_cos_min, VP_DT_INV_MASS) + (-Fyf_sin_dt);
-    B_fr[3][0] = use_front_raw ? B30_raw : B30_min;
-
-    fp_QP_t B40_raw = fp_mul(dFyf_dd_cos_raw, lf_dt_over_iz) + (-Fyf_sin_lf_dt_iz);
-    fp_QP_t B40_min = fp_mul(dFyf_dd_cos_min, lf_dt_over_iz) + (-Fyf_sin_lf_dt_iz);
-    B_fr[4][0] = use_front_raw ? B40_raw : B40_min;
-
-    B_fr[2][1] = MPC_DT;
+    /* B matrix — steering (moved into helper) */
+    compute_B_steering(tr, lf_dt_over_iz, B_fr);
 
     /* B matrix — acceleration / load transfer */
     {
@@ -467,35 +559,44 @@ void compute_frenet_AB_hls(
         B_fr[4][1] = use_front_norm_raw ? B41_raw : B41_min;
     }
 
-    /* Nonlinear rollout */
-    fp_QP_t Fx = fp_mul(VP_MASS, a_cmd);
-    fp_rollout_from_forces_hls(
-        ey, epsi,
-        tr.vx_safe, vy, omega,
-        kappa, MPC_DT,
-        Fx, tr.F_yf, tr.F_yr,
-        tr.sin_delta, tr.cos_delta,
-        next_state);
 }
 
 void compute_frenet_AB_and_next_hls(
     fp_QP_t ey, fp_QP_t epsi,
     fp_QP_t vx, fp_QP_t vy, fp_QP_t omega,
     fp_QP_t delta, fp_QP_t a_cmd,
-    fp_QP_t kappa,
+    fp_QP_t kappa, fp_QP_t reference_velocity,
     fp_QP_t A_fr[MPC_NX_FRENET][MPC_NX_FRENET],
     fp_QP_t B_fr[MPC_NX_FRENET][MPC_NU],
     fp_QP_t next_state[MPC_NX_FRENET])
 {
 #pragma HLS INLINE off
+    /*
+     * NOTE: This wrapper intentionally exists as a separate function
+     * and is marked `#pragma HLS INLINE off` to create a clear HLS
+     * function/module boundary. The split is deliberate:
+     * - It gives the HLS tool an explicit module to synthesize (see HLS logs
+     *   where `compute_frenet_AB_and_next_hls` is implemented as a module).
+     * - Preventing inlining keeps the half-1 (tire model) and half-2
+     *   (A/B assembly + rollout) grouped under a defined RTL module,
+     *   enabling finer control of FSM/state replication and resource
+     *   partitioning during synthesis.
+     * - It preserves the public API used by other code (e.g. the Riccati
+     *   HLS flow) and avoids changing many call-sites.
+     *
+     * Removing this wrapper could force compute_frenet_AB_hls to be
+     * inlined everywhere, which changes the HLS module hierarchy and may
+     * negatively affect critical-path, FSM states, or replication.
+     */
     compute_frenet_AB_hls(
         ey, epsi,
         vx, vy, omega,
         delta, a_cmd,
-        kappa,
+        kappa, reference_velocity,
         A_fr, B_fr,
         next_state);
 }
+
 /**
  * @brief Predict one Frenet-step forward using the same plant terms as the linearization.
  * @param ey Current lateral error.
@@ -518,6 +619,8 @@ void predict_frenet_next_hls(
     fp_QP_t next_state[MPC_NX_FRENET])
 {
 #pragma HLS INLINE off
+#pragma HLS ALLOCATION function instances=fp_atan_lut limit=1
+#pragma HLS ALLOCATION function instances=fp_recip limit=1
 
     fp_QP_t vx_safe = (vx > MIN_LIN_VEL) ? vx : MIN_LIN_VEL;
     fp_QP_t inv_vx = fp_recip(vx_safe);
@@ -545,8 +648,8 @@ void predict_frenet_next_hls(
                   &lf_omega, &lr_omega,
                   &front_num, &rear_num,
                   &front_ratio, &rear_ratio);
-    fp_QP_t alpha_f_op = delta - fp_atan_tire_approx(front_ratio);
-    fp_QP_t rear_atan = fp_atan_tire_approx(rear_ratio);
+    fp_QP_t alpha_f_op = delta - fp_atan_lut(front_ratio);
+    fp_QP_t rear_atan = fp_atan_lut(rear_ratio);
     fp_QP_t alpha_r_op = -rear_atan;
 
     fp_QP_t Ba_f = fp_mul(VP_B_FRONT, alpha_f_op);
@@ -564,9 +667,12 @@ void predict_frenet_next_hls(
     fp_QP_t ba_r2 = fp_sq(Ba_r);
     fp_QP_t inv_denom_r = fp_recip(FP_ONE + ba_r2);
 
+    fp_QP_t sin_epsi, cos_epsi;
+    fp_trig_pair(epsi, &sin_epsi, &cos_epsi);
+
     fp_rollout_from_forces_hls(
-        ey, epsi,
-        vx_safe, vy, omega,
+        ey, epsi, sin_epsi, cos_epsi,
+        vx_safe, vx_safe, vy, omega,
         kappa, dt,
         Fx, F_yf, F_yr,
         sin_delta, cos_delta,

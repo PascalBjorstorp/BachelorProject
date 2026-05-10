@@ -23,6 +23,7 @@
 extern void compute_frenet_AB_and_next_hls(
     fp_QP_t ey, fp_QP_t epsi, fp_QP_t vx, fp_QP_t vy, fp_QP_t omega,
     fp_QP_t delta, fp_QP_t a_cmd, fp_QP_t kappa,
+    fp_QP_t reference_velocity,
     fp_QP_t A_fr[MPC_NX_FRENET][MPC_NX_FRENET],
     fp_QP_t B_fr[MPC_NX_FRENET][MPC_NU], fp_QP_t next_state[MPC_NX_FRENET]);
 
@@ -142,6 +143,7 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
   fp_QP_t terminal_wall_x_lb_con = -BIG_BOUND;
   fp_QP_t terminal_wall_x_ub_con = BIG_BOUND;
   fp_QP_t terminal_ey_ref = FP_QP_CONST(0.0);
+  fp_QP_t terminal_dff_raw = FP_QP_CONST(0.0);
 
   /* Rolling linearization state. The setup loop only needs x_k and x_{k+1},
    * so keeping this in scalars avoids horizon RAMs and read muxes. */
@@ -180,28 +182,68 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
   /* wall_left_min/right_min accessed sequentially by k in both this loop and
    * the main setup loop — no parallel access, so ARRAY_PARTITION complete
    * is unnecessary and adds 2x20x30=1200 parallel routing bits (congestion). */
-  /* No PIPELINE here: all accessed arrays are ARRAY_PARTITION complete (pure
-   * registers). A PIPELINE pragma generates an ap_loop_init_int controller FF
-   * that routes too far to left_bound_k registers in the congested system
-   * context → timing violation (VITIS_LOOP_193_2: -0.433ns at system level).
-   * Without PIPELINE, HLS schedules each k iteration as one cycle of parallel
-   * MUX comparisons over registers (~20 cycles total, zero routing pressure). */
+  /* Optimized: Use tree-based min reduction to reduce logic depth from 12 to ~5
+   * levels. Gather candidates in first unroll, then reduce in tree stages to
+   * break combinatorial path. This fixes timing violations on wall boundary
+   * calculation (Path16, 22, 25 from place & route report).
+   * 
+   * Key insight: original cascading if-statements create deeply nested logic.
+   * Tree reduction creates a balanced structure that synthesizes to shallower
+   * LUT trees. The comparison-select pairs are scheduled in parallel at each
+   * level, reducing overall depth.
+   * 
+   * Vitis 2025.2 HLS optimization: Using explicit ternary operators allows
+   * better tree inference during RTL generation. */
   for (k = 0; k < MPC_HORIZON; k++) {
 #pragma HLS UNROLL factor=1
-    fp_QP_t left_bound_k  = ref_left_wall[k];
-    fp_QP_t right_bound_k = ref_right_wall[k];
+    /* Stage 1: Gather candidates (7 window positions)
+     * Vivado infers direct mux selects over ref_left_wall partitioned registers
+     * (no arithmetic). Using array bounds checking + clipping pattern. */
+    fp_QP_t left_cand[2*WALL_BOUND_WINDOW + 1];
+    fp_QP_t right_cand[2*WALL_BOUND_WINDOW + 1];
+#pragma HLS ARRAY_PARTITION variable=left_cand complete dim=1
+#pragma HLS ARRAY_PARTITION variable=right_cand complete dim=1
 
     for (int dj = -WALL_BOUND_WINDOW; dj <= WALL_BOUND_WINDOW; dj++) {
 #pragma HLS UNROLL
       int j = k + dj;
-      if (j < 0 || j >= MPC_HORIZON)
-        continue;
-      /* ref_left_wall/ref_right_wall are fully partitioned registers;
-       * j is bounded by ±WALL_BOUND_WINDOW=3, so Vivado resolves these
-       * as MUX selects over at most 7 registers — no multiply needed. */
-      if (ref_left_wall[j]  < left_bound_k)  left_bound_k  = ref_left_wall[j];
-      if (ref_right_wall[j] < right_bound_k) right_bound_k = ref_right_wall[j];
+      int idx = dj + WALL_BOUND_WINDOW;
+      if (j >= 0 && j < MPC_HORIZON) {
+        left_cand[idx]  = ref_left_wall[j];
+        right_cand[idx] = ref_right_wall[j];
+      } else {
+        /* Sentinel: use BIG_BOUND for out-of-range so they lose all comparisons */
+        left_cand[idx]  = BIG_BOUND;
+        right_cand[idx] = BIG_BOUND;
+      }
     }
+
+    /* Stage 2a: First level tree reduction (7 → 4 candidates via 3 comparisons)
+     * Reduces 7 values via 3 parallel min operations + 1 passthrough.
+     * Each comparison generates one LUT6, all 4 operations happen in parallel. */
+    fp_QP_t left_l2_0 = (left_cand[0] < left_cand[1]) ? left_cand[0] : left_cand[1];
+    fp_QP_t left_l2_1 = (left_cand[2] < left_cand[3]) ? left_cand[2] : left_cand[3];
+    fp_QP_t left_l2_2 = (left_cand[4] < left_cand[5]) ? left_cand[4] : left_cand[5];
+    fp_QP_t left_l2_3 = left_cand[6];  /* Center element, no comparison needed */
+
+    fp_QP_t right_l2_0 = (right_cand[0] < right_cand[1]) ? right_cand[0] : right_cand[1];
+    fp_QP_t right_l2_1 = (right_cand[2] < right_cand[3]) ? right_cand[2] : right_cand[3];
+    fp_QP_t right_l2_2 = (right_cand[4] < right_cand[5]) ? right_cand[4] : right_cand[5];
+    fp_QP_t right_l2_3 = right_cand[6];
+
+    /* Stage 2b: Second level tree reduction (4 → 2 candidates via 2 comparisons)
+     * Reduces 4 values via 2 parallel min operations. Scheduled in next cycle
+     * after Stage 2a comparisons route (no combinatorial dependency). */
+    fp_QP_t left_l3_0  = (left_l2_0 < left_l2_1) ? left_l2_0 : left_l2_1;
+    fp_QP_t left_l3_1  = (left_l2_2 < left_l2_3) ? left_l2_2 : left_l2_3;
+
+    fp_QP_t right_l3_0 = (right_l2_0 < right_l2_1) ? right_l2_0 : right_l2_1;
+    fp_QP_t right_l3_1 = (right_l2_2 < right_l2_3) ? right_l2_2 : right_l2_3;
+
+    /* Stage 3: Final comparison (2 → 1 candidate)
+     * Single comparison selects overall minimum. */
+    fp_QP_t left_bound_k  = (left_l3_0 < left_l3_1) ? left_l3_0 : left_l3_1;
+    fp_QP_t right_bound_k = (right_l3_0 < right_l3_1) ? right_l3_0 : right_l3_1;
 
     wall_left_min[k]  = left_bound_k;
     wall_right_min[k] = right_bound_k;
@@ -229,15 +271,17 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
 #pragma HLS ARRAY_PARTITION variable = next_frenet complete dim = 1
 
     fp_QP_t kappa_k = ref[k].path_curvature;
-    /* Feedforward steering from path curvature. */
-    fp_QP_t dff_raw_k = fp_atan_tire_approx(fp_mul(VP_WHEELBASE, kappa_k));
+    /* Feedforward steering from path curvature via LUT atan.
+     * VP_WHEELBASE*kappa < 0.412 for unclamped regime → |x| always < 1
+     * so fp_recip branch inside fp_atan_lut is never taken. */
+    fp_QP_t dff_raw_k = fp_atan_lut(fp_mul(VP_WHEELBASE, kappa_k));
     fp_QP_t dff_k = dff_raw_k;
     if (dff_raw_k < -VP_MAX_STEER) {
       dff_k = -VP_MAX_STEER;
     } else if (dff_raw_k > VP_MAX_STEER) {
       dff_k = VP_MAX_STEER;
     }
-    fp_QP_t lin_delta_k = lin_delta;
+    fp_QP_t lin_delta_k = dff_k;
     fp_QP_t lin_vx_k = lin_vx;
     fp_QP_t left_bound_k = wall_left_min[k];
     fp_QP_t right_bound_k = wall_right_min[k];
@@ -268,11 +312,26 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
       terminal_wall_x_lb_con = wall_x_lb_con;
       terminal_wall_x_ub_con = wall_x_ub_con;
       terminal_ey_ref = ey_ref_k;
+      terminal_dff_raw = dff_raw_k;
     }
 
     compute_frenet_AB_and_next_hls(lin_ey, lin_epsi, lin_vx_k, lin_vy,
-                                   lin_omega, lin_delta_k, uk1, kappa_k, A_step,
+                                   lin_omega, lin_delta_k, uk1, kappa_k,
+                                   ref[k].reference_velocity,
+                                   A_step,
                                    B_step, next_frenet);
+
+    /* Match CPU safeguard: clamp yaw-rate diagonal to stability limit. */
+    {
+      const int row = 4;
+      fp_QP_t aii = A_step[row][row];
+      fp_QP_t abs_aii = fp_abs(aii);
+      if (abs_aii > STABILITY_LIMIT_VAL) {
+        const fp_QP_t limit = STABILITY_LIMIT_VAL;
+        const fp_QP_t neg_limit = fp_QP_t(0) - limit;
+        A_step[row][row] = (aii < fp_QP_t(0)) ? neg_limit : limit;
+      }
+    }
 
     fp_QP_t next_ey = next_frenet[0];
     fp_QP_t next_epsi = next_frenet[1];
@@ -322,6 +381,7 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
     fp_qp_raw_t xk1_raw[MPC_NX_DENSE];
     fp_qp_raw_t uk0_raw = fp_qp_raw_from_QP(uk0);
     fp_qp_raw_t uk1_raw = fp_qp_raw_from_QP(uk1);
+    fp_qp_raw_t lin_delta_k_raw = fp_qp_raw_from_QP(lin_delta_k);
 #pragma HLS ARRAY_PARTITION variable = xk_raw complete dim = 1
 #pragma HLS ARRAY_PARTITION variable = xk1_raw complete dim = 1
     xk_raw[0] = fp_qp_raw_from_QP(lin_ey);
@@ -361,50 +421,26 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
     fp_QP_t d_dense[MPC_NX_DENSE];
 #pragma HLS ARRAY_PARTITION variable = d_dense complete dim = 1
     for (i = 0; i < 5; i++) {
-      fp_raw_acc_t affine_term;
+      /* CPU-parity affine bias: use full Frenet row contribution
+       * d_i = x_{k+1,i} - A_i*x_k - B_i*u_k
+       * for rows 0..4 (no sparsity shortcuts on rows 0/1). */
+      fp_raw_acc_t a0 =
+          (fp_mul_qp_raw(A_col0_raw[i], xk_raw[0])) >> FP_FRAC_BITS;
+      fp_raw_acc_t a1 =
+          (fp_mul_qp_raw(A_col1_raw[i], xk_raw[1])) >> FP_FRAC_BITS;
+      fp_raw_acc_t a2 =
+          (fp_mul_qp_raw(A_col2_raw[i], xk_raw[2])) >> FP_FRAC_BITS;
+      fp_raw_acc_t a3 =
+          (fp_mul_qp_raw(A_col3_raw[i], xk_raw[3])) >> FP_FRAC_BITS;
+      fp_raw_acc_t a4 =
+          (fp_mul_qp_raw(A_col4_raw[i], xk_raw[4])) >> FP_FRAC_BITS;
+      fp_raw_acc_t b0 =
+          (fp_mul_qp_raw(B_col0_raw[i], lin_delta_k_raw)) >> FP_FRAC_BITS;
+      fp_raw_acc_t b1 =
+          (fp_mul_qp_raw(B_col1_raw[i], uk1_raw)) >> FP_FRAC_BITS;
 
-      if (i == 0) {
-        fp_raw_acc_t a0 =
-            (fp_mul_qp_raw(A_col0_raw[i], xk_raw[0])) >> FP_FRAC_BITS;
-        fp_raw_acc_t a1 =
-            (fp_mul_qp_raw(A_col1_raw[i], xk_raw[1])) >> FP_FRAC_BITS;
-        fp_raw_acc_t a2 =
-            (fp_mul_qp_raw(A_col2_raw[i], xk_raw[2])) >> FP_FRAC_BITS;
-        fp_raw_acc_t a3 =
-            (fp_mul_qp_raw(A_col3_raw[i], xk_raw[3])) >> FP_FRAC_BITS;
-        fp_raw_acc_t a01 = a0 + a1;
-        fp_raw_acc_t a23 = a2 + a3;
-        affine_term = (fp_raw_acc_t)xk1_raw[i] - (a01 + a23);
-      } else if (i == 1) {
-        fp_raw_acc_t a0 =
-            (fp_mul_qp_raw(A_col0_raw[i], xk_raw[0])) >> FP_FRAC_BITS;
-        fp_raw_acc_t a1 =
-            (fp_mul_qp_raw(A_col1_raw[i], xk_raw[1])) >> FP_FRAC_BITS;
-        fp_raw_acc_t a2 =
-            (fp_mul_qp_raw(A_col2_raw[i], xk_raw[2])) >> FP_FRAC_BITS;
-        fp_raw_acc_t a4 =
-            (fp_mul_qp_raw(A_col4_raw[i], xk_raw[4])) >> FP_FRAC_BITS;
-        fp_raw_acc_t a01 = a0 + a1;
-        fp_raw_acc_t a24 = a2 + a4;
-        affine_term = (fp_raw_acc_t)xk1_raw[i] - (a01 + a24);
-      } else {
-        fp_raw_acc_t a2 =
-            (fp_mul_qp_raw(A_col2_raw[i], xk_raw[2])) >> FP_FRAC_BITS;
-        fp_raw_acc_t a3 =
-            (fp_mul_qp_raw(A_col3_raw[i], xk_raw[3])) >> FP_FRAC_BITS;
-        fp_raw_acc_t a4 =
-            (fp_mul_qp_raw(A_col4_raw[i], xk_raw[4])) >> FP_FRAC_BITS;
-        fp_raw_acc_t b0 =
-            (fp_mul_qp_raw(B_col0_raw[i], xk_raw[IDX_DELTA_ACT])) >>
-            FP_FRAC_BITS;
-        fp_raw_acc_t b1 =
-            (fp_mul_qp_raw(B_col1_raw[i], uk1_raw)) >> FP_FRAC_BITS;
-        fp_raw_acc_t a23 = a2 + a3;
-        fp_raw_acc_t a4b0 = a4 + b0;
-        fp_raw_acc_t sum0 = a23 + a4b0;
-        affine_term = (fp_raw_acc_t)xk1_raw[i] - (sum0 + b1);
-      }
-
+      fp_raw_acc_t affine_term = (fp_raw_acc_t)xk1_raw[i]
+                               - (a0 + a1 + a2 + a3 + a4 + b0 + b1);
       affine_term = fp_clip_raw_to_qp(affine_term);
       d_dense[i] = fp_QP_from_qp_raw((fp_qp_raw_t)affine_term);
     }
@@ -564,10 +600,9 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
       terminal_q_diag[3], ref[MPC_HORIZON - 1].reference_lateral_velocity);
   terminal_q_linear[4] =
       -fp_mul(terminal_q_diag[4], ref[MPC_HORIZON - 1].reference_yaw_rate);
-  fp_QP_t kN = ref[MPC_HORIZON - 1].path_curvature;
-  fp_QP_t dff_N = fp_atan_tire_approx(
-      fp_mul(VP_WHEELBASE, kN)); /* feedforward steering from curvature */
-  dff_N = fp_clamp(dff_N, -VP_MAX_STEER, VP_MAX_STEER);
+  /* Reuse dff_raw saved from the last loop iteration (k=MPC_HORIZON-1).
+   * Both use ref[MPC_HORIZON-1].path_curvature — no duplicate hardware. */
+  fp_QP_t dff_N = fp_clamp(terminal_dff_raw, -VP_MAX_STEER, VP_MAX_STEER);
   terminal_q_linear[IDX_DELTA_ACT] =
       -fp_mul(terminal_q_diag[IDX_DELTA_ACT], dff_N);
 

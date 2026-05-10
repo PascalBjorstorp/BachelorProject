@@ -54,12 +54,6 @@
 #define FP_INVERT_2X2_DET_MIN_EXP 12
 #define FP_INVERT_2X2_DIAG_FALLBACK_MIN_EXP 8
 
-/* Function-based helpers (no define aliases for arithmetic/conversions). */
-static inline float FP_TO_FLOAT(fp_QP_t x) { return (float)x; }
-static inline fp_QP_t FLOAT_TO_FP(float x) { return (fp_QP_t)x; }
-static inline double FP_TO_DOUBLE(fp_QP_t x) { return (double)x; }
-static inline fp_QP_t DOUBLE_TO_FP(double x) { return (fp_QP_t)x; }
-
 /* Forward declaration used by fp_div to keep slash out of hot call-sites. */
 fp_QP_t fp_recip(fp_QP_t x);
 
@@ -81,18 +75,23 @@ fp_QP_t fp_mul(fp_QP_t a, fp_QP_t b);
  * INLINE off ensures 'product' survives HLS SSA renaming. */
 fp_QP_t fp_sq(fp_QP_t x);
 
-fp_raw_acc_t fp_mul_qp_raw(
+fp_raw_mul_t fp_mul_qp_raw(
     fp_qp_raw_t a,
     fp_qp_raw_t b); /* QP-width raw multiplication with guarded result */
-fp_raw_acc_t
+fp_raw_mul_t
 fp_mul_qp_acc(fp_qp_raw_t a,
               fp_raw_acc_t b); /* Mixed QP/raw-accumulator multiplication */
-fp_raw_acc_t
+fp_raw_mul_t
 fp_mul_acc_qp(fp_raw_acc_t a,
               fp_qp_raw_t b); /* Mixed raw-accumulator/QP multiplication */
-fp_raw_acc_t
+fp_raw_mul_t
 fp_mul_raw_acc(fp_raw_acc_t a,
                fp_raw_acc_t b); /* Guarded raw-accumulator multiplication */
+
+static inline fp_raw_acc_t fp_shift_right_clip_to_acc(fp_raw_mul_t value, int shift) {
+#pragma HLS INLINE
+  return fp_clip_mul_to_acc(value >> shift);
+}
 
 static inline fp_QP_t fp_div(fp_QP_t a, fp_QP_t b) {
   if (a == 0 || b == 0)
@@ -140,9 +139,8 @@ static inline fp_QP_t fp_qp_from_neg_pow2(int exp) {
 fp_QP_t fp_normalize_angle(fp_QP_t angle);
 fp_QP_t fp_sin(fp_QP_t angle);
 fp_QP_t fp_cos(fp_QP_t angle);
-fp_QP_t fp_atan_tire_approx(fp_QP_t x);
+fp_QP_t fp_atan_lut(fp_QP_t x);
 
-fp_raw_acc_t reciprocal_raw(fp_raw_acc_t det);
 int invert_2x2_hls(fp_raw_acc_t S[2][2], fp_raw_acc_t Si[2][2]);
 
 #endif

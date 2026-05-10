@@ -51,7 +51,7 @@
 #define WEIGHT_DELTA_ACTUAL 1.0f                      /* Penalizes steering-state bias away from curvature feedforward. */
 
 /* Other swept MPC defaults */
-#define MAX_ITERATIONS 200                              /* Default solver iteration budget per control update. */
+#define MAX_ITERATIONS 50                              /* Default solver iteration budget per control update. */
 #define WALL_MARGIN 0.20f                                 /* Safety offset subtracted from both wall boundaries. */
 #define ADMM_RHO 7.0f                                  /* Primary ADMM penalty balancing feasibility and optimality progress. */
 #define ADMM_RHO_U 7.0f                                /* ADMM penalty applied to control-variable projection terms. */
