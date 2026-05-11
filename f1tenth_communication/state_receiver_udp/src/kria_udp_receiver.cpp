@@ -631,7 +631,7 @@ private:
                     "[FPGA-Stats] (last %.1fs, %lu calls):\n"
                     "  Iterations: min=%u, avg=%.1f, max=%u\n"
                     "  Solve time: min=%.1f us, avg=%.1f us, max=%.1f us\n"
-                    "  Profile avg: total=%.1f us, kernel=%.1f us, in_mig=%.1f us, out_mig=%.1f us, host_prep=%.1f us, host_read=%.1f us, overhead=%.1f us\n"
+                    "  Profile avg: total=%.1f us, kernel=%.1f us, in_mig=%.1f us, out_mig=%.1f us, host_prep=%.1f us, overhead=%.1f us\n"
                     "  Optimal: %.1f%%, Max iter: %.1f%%",
                     TERMINAL_STATS_PRINT_INTERVAL_SECONDS,
                     stats_window_count_,
@@ -642,7 +642,6 @@ private:
                     avg_or_na(stats_input_migrate_sum_us_, stats_profile_count_),
                     avg_or_na(stats_output_migrate_sum_us_, stats_profile_count_),
                     avg_or_na(stats_host_prep_sum_us_, stats_profile_count_),
-                    avg_or_na(stats_host_readback_sum_us_, stats_profile_count_),
                     avg_or_na(stats_overhead_sum_us_, stats_profile_count_),
                     stats_window_count_ > 0 ? (stats_optimal_count_ * 100.0) / static_cast<double>(stats_window_count_) : 0.0,
                     stats_window_count_ > 0 ? (stats_max_iter_count_ * 100.0) / static_cast<double>(stats_window_count_) : 0.0);

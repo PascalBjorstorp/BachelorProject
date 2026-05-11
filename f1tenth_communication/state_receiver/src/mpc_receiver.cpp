@@ -15,6 +15,7 @@
 #include <cerrno>
 #include <chrono>
 #include <cmath>
+#include <cinttypes>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -74,15 +75,28 @@ class MpcFpgaInterface {
 public:
     struct TimingProfile {
         int64_t total_call_ns = 0;
-        int64_t input_map_ns = 0;
+        int64_t input_map_ns = -1;
         int64_t input_pack_ns = 0;
-        int64_t input_unmap_ns = 0;
+        int64_t input_unmap_ns = -1;
         int64_t input_migrate_ns = -1;
         int64_t kernel_ns = -1;
         int64_t output_migrate_ns = -1;
-        int64_t output_map_ns = 0;
-        int64_t output_unpack_ns = 0;
-        int64_t output_unmap_ns = 0;
+        int64_t output_map_ns = -1;
+        int64_t output_unpack_ns = -1;
+        int64_t output_unmap_ns = -1;
+    };
+
+    struct InterfaceDebugFrame {
+        bool checks_ran = false;
+        bool input_roundtrip_ok = true;
+        int32_t input_mismatch_idx = -1;
+        int32_t input_expected = 0;
+        int32_t input_actual = 0;
+        bool output_canary_overwritten = true;
+        bool status_valid = true;
+        bool iters_valid = true;
+        uint32_t status_raw = 0;
+        uint32_t iters_raw = 0;
     };
 
     MpcFpgaInterface() = default;
@@ -182,7 +196,13 @@ public:
     bool is_ready() const { return initialized_; }
 
     void set_prev_accel_fp(int32_t prev_accel_fp) { prev_accel_fp_ = prev_accel_fp; }
+    int32_t get_prev_accel_fp() const { return prev_accel_fp_; }
     const TimingProfile& get_last_profile() const { return last_profile_; }
+    const InterfaceDebugFrame& get_last_debug_frame() const { return last_debug_frame_; }
+    void configure_interface_debug(bool enabled, uint32_t stride) {
+        interface_debug_enabled_ = enabled;
+        interface_debug_stride_ = std::max<uint32_t>(1u, stride);
+    }
 
     bool compute(int32_t e_y_fp, int32_t e_psi_fp,
                  int32_t vx_fp, int32_t vy_fp, int32_t omega_fp,
@@ -193,6 +213,7 @@ public:
         if (!initialized_) return false;
 
         last_profile_ = TimingProfile{};
+        last_debug_frame_ = InterfaceDebugFrame{};
 
         cl_int err = CL_SUCCESS;
         const auto total_t0 = std::chrono::high_resolution_clock::now();
@@ -229,9 +250,38 @@ public:
         last_profile_.input_pack_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
             input_pack_t1 - input_pack_t0).count();
 
+        compute_calls_++;
+        const bool run_interface_checks =
+            interface_debug_enabled_ &&
+            ((compute_calls_ % interface_debug_stride_) == 0);
+        last_debug_frame_.checks_ran = run_interface_checks;
+
         cl::Event input_migrate_event;
         cl::Event kernel_event;
         cl::Event output_migrate_event;
+        cl::Event output_canary_event;
+        cl::Event input_verify_event;
+
+        if (run_interface_checks) {
+            output_canary_words_[0] = 0x13579BDF;
+            output_canary_words_[1] = 0x2468ACE0;
+            output_canary_words_[2] = 0x7F7F7F7F;
+            output_canary_words_[3] = 0x42424242;
+
+            err = queue_.enqueueWriteBuffer(
+                output_buffer_,
+                CL_FALSE,
+                0,
+                sizeof(int32_t) * 4,
+                output_canary_words_.data(),
+                nullptr,
+                &output_canary_event);
+            if (err != CL_SUCCESS) {
+                std::fprintf(stderr, "MPC-FPGA-OpenCL: write(output canary) failed (%d)\n", err);
+                last_compute_ns_ = -1;
+                return false;
+            }
+        }
 
         err = queue_.enqueueWriteBuffer(
             input_buffer_,
@@ -249,6 +299,9 @@ public:
 
         const auto t0 = std::chrono::high_resolution_clock::now();
         std::vector<cl::Event> wait_input{input_migrate_event};
+        if (run_interface_checks) {
+            wait_input.push_back(output_canary_event);
+        }
         err = queue_.enqueueTask(kernel_, &wait_input, &kernel_event);
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "MPC-FPGA-OpenCL: enqueueTask failed (%d)\n", err);
@@ -271,6 +324,23 @@ public:
             return false;
         }
 
+        if (run_interface_checks) {
+            std::vector<cl::Event> wait_input_verify{kernel_event};
+            err = queue_.enqueueReadBuffer(
+                input_buffer_,
+                CL_FALSE,
+                0,
+                INPUT_BUFFER_BYTES_512,
+                input_roundtrip_words_.data(),
+                &wait_input_verify,
+                &input_verify_event);
+            if (err != CL_SUCCESS) {
+                std::fprintf(stderr, "MPC-FPGA-OpenCL: readback(input verify) failed (%d)\n", err);
+                last_compute_ns_ = -1;
+                return false;
+            }
+        }
+
         err = cl::Event::waitForEvents({output_migrate_event});
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "MPC-FPGA-OpenCL: output wait failed (%d)\n", err);
@@ -288,6 +358,41 @@ public:
         out_accel_fp = output_words_[1];
         out_status = static_cast<uint32_t>(output_words_[2]);
         out_iterations = static_cast<uint32_t>(output_words_[3]);
+        last_debug_frame_.status_raw = out_status;
+        last_debug_frame_.iters_raw = out_iterations;
+
+        if (run_interface_checks) {
+            if (cl::Event::waitForEvents({input_verify_event}) != CL_SUCCESS) {
+                std::fprintf(stderr, "MPC-FPGA-OpenCL: input verify wait failed\n");
+                last_compute_ns_ = -1;
+                return false;
+            }
+
+            for (size_t i = 0; i < DMA_BUFFER_WORDS; ++i) {
+                if (input_roundtrip_words_[i] != input_words_[i]) {
+                    last_debug_frame_.input_roundtrip_ok = false;
+                    last_debug_frame_.input_mismatch_idx = static_cast<int32_t>(i);
+                    last_debug_frame_.input_expected = input_words_[i];
+                    last_debug_frame_.input_actual = input_roundtrip_words_[i];
+                    break;
+                }
+            }
+
+            const bool all_canary =
+                (output_words_[0] == output_canary_words_[0]) &&
+                (output_words_[1] == output_canary_words_[1]) &&
+                (output_words_[2] == output_canary_words_[2]) &&
+                (output_words_[3] == output_canary_words_[3]);
+            last_debug_frame_.output_canary_overwritten = !all_canary;
+        }
+
+        last_debug_frame_.status_valid =
+            (out_status == MPC_FPGA_STATUS_OK) ||
+            (out_status == MPC_FPGA_STATUS_MAX_ITER) ||
+            (out_status == MPC_FPGA_STATUS_ERROR) ||
+            (out_status == MPC_FPGA_STATUS_NO_TRAJECTORY);
+        last_debug_frame_.iters_valid = (out_iterations <= MPC_FPGA_MAX_ADMM_ITER);
+
         last_profile_.total_call_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
             t1 - total_t0).count();
         return true;
@@ -325,10 +430,16 @@ private:
     static_assert(DMA_BUFFER_WORDS * sizeof(int32_t) == INPUT_BUFFER_BYTES_512,
                   "Host DMA buffer words must match OpenCL input buffer bytes");
     std::array<int32_t, DMA_BUFFER_WORDS> input_words_{};
+    std::array<int32_t, DMA_BUFFER_WORDS> input_roundtrip_words_{};
     std::array<int32_t, 4> output_words_{{0, 0, 0, 0}};
+    std::array<int32_t, 4> output_canary_words_{{0, 0, 0, 0}};
     int32_t prev_accel_fp_{0};
+    uint64_t compute_calls_{0};
+    bool interface_debug_enabled_{false};
+    uint32_t interface_debug_stride_{1};
 
     TimingProfile last_profile_{};
+    InterfaceDebugFrame last_debug_frame_{};
     int64_t last_compute_ns_ = 0;
 };
 
@@ -345,16 +456,27 @@ public:
         declare_parameter("xclbin_path", std::string("/lib/firmware/mpc_fpga_top_opencl.xclbin"));
         declare_parameter("kernel_name", std::string("mpc_fpga_top_opencl"));
         declare_parameter("device_index", 0);
+        declare_parameter("debug_raw_log_enabled", true);
+        declare_parameter("debug_raw_log_stride", 1);
+        declare_parameter("debug_interface_checks_enabled", false);
+        declare_parameter("debug_interface_checks_stride", 1);
 
         const auto input_topic = get_parameter("input_topic").as_string();
         const auto drive_topic = get_parameter("drive_topic").as_string();
         const auto xclbin_path = get_parameter("xclbin_path").as_string();
         const auto kernel_name = get_parameter("kernel_name").as_string();
         const int device_index = get_parameter("device_index").as_int();
+        raw_debug_enabled_ = get_parameter("debug_raw_log_enabled").as_bool();
+        raw_debug_stride_ = static_cast<uint32_t>(
+            std::max<int64_t>(1, get_parameter("debug_raw_log_stride").as_int()));
+        interface_debug_enabled_ = get_parameter("debug_interface_checks_enabled").as_bool();
+        interface_debug_stride_ = static_cast<uint32_t>(
+            std::max<int64_t>(1, get_parameter("debug_interface_checks_stride").as_int()));
 
         if (!fpga_.initialize(xclbin_path, kernel_name, device_index)) {
             throw std::runtime_error("MPC FPGA OpenCL init failed");
         }
+        fpga_.configure_interface_debug(interface_debug_enabled_, interface_debug_stride_);
 
         drive_pub_ = create_publisher<ackermann_msgs::msg::AckermannDriveStamped>(
             drive_topic, rclcpp::SystemDefaultsQoS());
@@ -366,9 +488,21 @@ public:
 
         /* Initialize stats CSV file */
         open_stats_csv_file();
+        open_raw_debug_csv_file();
 
         /* Initialize terminal output timer */
         last_terminal_print_time_ = std::chrono::steady_clock::now();
+    }
+
+    ~MpcReceiverFpgaNode() override {
+        if (stats_csv_file_ != nullptr) {
+            fclose(stats_csv_file_);
+            stats_csv_file_ = nullptr;
+        }
+        if (raw_debug_csv_file_ != nullptr) {
+            fclose(raw_debug_csv_file_);
+            raw_debug_csv_file_ = nullptr;
+        }
     }
 
 private:
@@ -410,8 +544,20 @@ private:
     uint64_t stats_cycle_count_ = 0;
     uint64_t stats_optimal_count_ = 0;
     uint64_t stats_max_iter_count_ = 0;
+    uint64_t stats_error_count_ = 0;
+    uint64_t stats_no_trajectory_count_ = 0;
+    uint64_t stats_other_status_count_ = 0;
+    uint64_t stats_max_iter_streak_ = 0;
+    uint64_t stats_max_iter_streak_max_ = 0;
     std::chrono::steady_clock::time_point last_terminal_print_time_;
     FILE* stats_csv_file_ = nullptr;
+    FILE* raw_debug_csv_file_ = nullptr;
+    bool raw_debug_enabled_ = true;
+    uint32_t raw_debug_stride_ = 1;
+    uint64_t raw_debug_idx_ = 0;
+    bool interface_debug_enabled_ = false;
+    uint32_t interface_debug_stride_ = 1;
+    uint64_t interface_debug_fail_count_ = 0;
 
     struct FrenetErrorsFp {
         int32_t e_y_fp;
@@ -443,22 +589,122 @@ private:
         }
     }
 
+    void open_raw_debug_csv_file() {
+        if (!raw_debug_enabled_) {
+            return;
+        }
+
+        const char* log_dir = "log";
+        mkdir(log_dir, 0755);
+
+        time_t now = time(nullptr);
+        char timestamp[64];
+        struct tm* tm_now = localtime(&now);
+        strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", tm_now);
+
+        char csv_path[512];
+        snprintf(csv_path, sizeof(csv_path), "%s/mpc_fpga_receiver_raw_%s.csv", log_dir, timestamp);
+
+        raw_debug_csv_file_ = fopen(csv_path, "w");
+        if (raw_debug_csv_file_ != nullptr) {
+            fprintf(raw_debug_csv_file_,
+                    "idx,stamp_sec,stamp_nsec,status,iters,used_fallback,max_iter_streak,"
+                    "ey_fp,epsi_fp,vx_fp,vy_fp,omega_fp,steer_meas_fp,prev_accel_in_fp,"
+                    "out_steer_fp,out_accel_fp,pub_steer,pub_speed,pub_accel,"
+                    "ref_vx0_fp,ref_kappa0_fp,ref_left0_fp,ref_right0_fp,"
+                    "iface_checks_ran,iface_input_roundtrip_ok,iface_input_mismatch_idx,"
+                    "iface_input_expected,iface_input_actual,iface_output_canary_overwritten,"
+                    "iface_status_valid,iface_iters_valid,iface_status_raw,iface_iters_raw\n");
+            fflush(raw_debug_csv_file_);
+            RCLCPP_INFO(get_logger(),
+                        "Raw FPGA debug CSV enabled (stride=%u): %s",
+                        raw_debug_stride_,
+                        csv_path);
+        } else {
+            RCLCPP_WARN(get_logger(), "Failed to open raw debug CSV file: %s", csv_path);
+        }
+    }
+
+    void log_raw_debug_cycle(const f1tenth_msgs::msg::MpcState::SharedPtr& msg,
+                             const FrenetErrorsFp& errors,
+                             int32_t prev_accel_in_fp,
+                             int32_t out_steer_fp,
+                             int32_t out_accel_fp,
+                             uint32_t status,
+                             uint32_t iters,
+                             bool used_fallback,
+                             float published_steer,
+                             float published_speed,
+                             float published_accel,
+                             const MpcFpgaInterface::InterfaceDebugFrame& iface_dbg) {
+        if (!raw_debug_enabled_ || raw_debug_csv_file_ == nullptr) {
+            return;
+        }
+
+        raw_debug_idx_++;
+        if ((raw_debug_idx_ % raw_debug_stride_) != 0) {
+            return;
+        }
+
+        const int32_t ref_vx0_fp = msg->ref_vx_fp.empty() ? 0 : msg->ref_vx_fp[0];
+        const int32_t ref_kappa0_fp = msg->ref_kappa_fp.empty() ? 0 : msg->ref_kappa_fp[0];
+        const int32_t ref_left0_fp = msg->ref_left_bound_fp.empty() ? 0 : msg->ref_left_bound_fp[0];
+        const int32_t ref_right0_fp = msg->ref_right_bound_fp.empty() ? 0 : msg->ref_right_bound_fp[0];
+
+        fprintf(raw_debug_csv_file_,
+                "%llu,%d,%u,%u,%u,%u,%llu,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.7f,%.7f,%.7f,%d,%d,%d,%d,%u,%u,%d,%d,%d,%u,%u,%u,%u,%u\n",
+                static_cast<unsigned long long>(raw_debug_idx_),
+                msg->header.stamp.sec,
+                msg->header.stamp.nanosec,
+                status,
+                iters,
+                used_fallback ? 1u : 0u,
+                static_cast<unsigned long long>(stats_max_iter_streak_),
+                errors.e_y_fp,
+                errors.e_psi_fp,
+                msg->velocity_fp,
+                msg->vy_fp,
+                msg->omega_fp,
+                msg->steering_angle_fp,
+                prev_accel_in_fp,
+                out_steer_fp,
+                out_accel_fp,
+                static_cast<double>(published_steer),
+                static_cast<double>(published_speed),
+                static_cast<double>(published_accel),
+                ref_vx0_fp,
+                ref_kappa0_fp,
+                ref_left0_fp,
+                ref_right0_fp,
+                iface_dbg.checks_ran ? 1u : 0u,
+                iface_dbg.input_roundtrip_ok ? 1u : 0u,
+                iface_dbg.input_mismatch_idx,
+                iface_dbg.input_expected,
+                iface_dbg.input_actual,
+                iface_dbg.output_canary_overwritten ? 1u : 0u,
+                iface_dbg.status_valid ? 1u : 0u,
+                iface_dbg.iters_valid ? 1u : 0u,
+                iface_dbg.status_raw,
+                iface_dbg.iters_raw);
+        fflush(raw_debug_csv_file_);
+    }
+
     void update_stats(int64_t compute_ns,
                       const MpcFpgaInterface::TimingProfile& profile,
                       uint32_t iterations,
                       uint32_t status) {
-        const double compute_us = static_cast<double>(compute_ns) / 1000.0;
         const auto ns_to_us = [](int64_t ns) {
             return ns >= 0 ? static_cast<double>(ns) / 1000.0 : -1.0;
         };
+        const double compute_us =
+            (profile.kernel_ns >= 0) ? ns_to_us(profile.kernel_ns)
+                                     : static_cast<double>(compute_ns) / 1000.0;
         const double total_call_us = ns_to_us(profile.total_call_ns);
         const double kernel_us = ns_to_us(profile.kernel_ns);
         const double input_migrate_us = ns_to_us(profile.input_migrate_ns);
         const double output_migrate_us = ns_to_us(profile.output_migrate_ns);
-        const double host_prep_us = ns_to_us(
-            profile.input_map_ns + profile.input_pack_ns + profile.input_unmap_ns);
-        const double host_readback_us = ns_to_us(
-            profile.output_map_ns + profile.output_unpack_ns + profile.output_unmap_ns);
+        const double host_prep_us = ns_to_us(profile.input_pack_ns);
+        const double host_readback_us = ns_to_us(profile.output_unpack_ns);
         const double overhead_us = (profile.total_call_ns > 0 && profile.kernel_ns >= 0)
             ? static_cast<double>(profile.total_call_ns - profile.kernel_ns) / 1000.0
             : -1.0;
@@ -483,6 +729,22 @@ private:
         /* Count optimal solutions and max-iter cases */
         if (status == MPC_FPGA_STATUS_OK) stats_optimal_count_++;
         if (status == MPC_FPGA_STATUS_MAX_ITER) stats_max_iter_count_++;
+        if (status == MPC_FPGA_STATUS_ERROR) stats_error_count_++;
+        if (status == MPC_FPGA_STATUS_NO_TRAJECTORY) stats_no_trajectory_count_++;
+        if (status != MPC_FPGA_STATUS_OK &&
+            status != MPC_FPGA_STATUS_MAX_ITER &&
+            status != MPC_FPGA_STATUS_ERROR &&
+            status != MPC_FPGA_STATUS_NO_TRAJECTORY) {
+            stats_other_status_count_++;
+        }
+        if (status == MPC_FPGA_STATUS_MAX_ITER) {
+            stats_max_iter_streak_++;
+            if (stats_max_iter_streak_ > stats_max_iter_streak_max_) {
+                stats_max_iter_streak_max_ = stats_max_iter_streak_;
+            }
+        } else {
+            stats_max_iter_streak_ = 0;
+        }
         
         stats_cycle_count_++;
         
@@ -515,7 +777,6 @@ private:
             double avg_input_migrate = avg_or_na(stats_input_migrate_sum_us_);
             double avg_output_migrate = avg_or_na(stats_output_migrate_sum_us_);
             double avg_host_prep = avg_or_na(stats_host_prep_sum_us_);
-            double avg_host_readback = avg_or_na(stats_host_readback_sum_us_);
             double avg_overhead = avg_or_na(stats_overhead_sum_us_);
             double optimal_pct = (stats_optimal_count_ * 100.0) / static_cast<double>(stats_cycle_count_);
             double max_iter_pct = (stats_max_iter_count_ * 100.0) / static_cast<double>(stats_cycle_count_);
@@ -524,13 +785,20 @@ private:
                 "[FPGA-Stats] (last %.1fs, %lu calls):\n"
                 "  Iterations: min=%u, avg=%.1f, max=%u\n"
                 "  Solve time: min=%.1f us, avg=%.1f us, max=%.1f us\n"
-                "  Profile avg: total=%.1f us, kernel=%.1f us, in_mig=%.1f us, out_mig=%.1f us, host_prep=%.1f us, host_read=%.1f us, overhead=%.1f us\n"
+                "  Profile avg: total=%.1f us, kernel=%.1f us, in_mig=%.1f us, out_mig=%.1f us, host_prep=%.1f us, overhead=%.1f us\n"
+                "  Status: ok=%llu, max_iter=%llu, err=%llu, no_traj=%llu, other=%llu, max_iter_streak_max=%llu\n"
                 "  Optimal: %.1f%%, Max iter: %.1f%%",
                 elapsed_sec, stats_cycle_count_,
                 stats_iter_count_min_, avg_iter, stats_iter_count_max_,
                 stats_solve_time_min_us_, avg_time, stats_solve_time_max_us_,
                 avg_total_call, avg_kernel, avg_input_migrate, avg_output_migrate,
-                avg_host_prep, avg_host_readback, avg_overhead,
+                avg_host_prep, avg_overhead,
+                static_cast<unsigned long long>(stats_optimal_count_),
+                static_cast<unsigned long long>(stats_max_iter_count_),
+                static_cast<unsigned long long>(stats_error_count_),
+                static_cast<unsigned long long>(stats_no_trajectory_count_),
+                static_cast<unsigned long long>(stats_other_status_count_),
+                static_cast<unsigned long long>(stats_max_iter_streak_max_),
                 optimal_pct, max_iter_pct);
             
             /* Reset stats */
@@ -550,6 +818,10 @@ private:
             stats_cycle_count_ = 0;
             stats_optimal_count_ = 0;
             stats_max_iter_count_ = 0;
+            stats_error_count_ = 0;
+            stats_no_trajectory_count_ = 0;
+            stats_other_status_count_ = 0;
+            stats_max_iter_streak_max_ = stats_max_iter_streak_;
             last_terminal_print_time_ = now;
         }
     }
@@ -685,6 +957,7 @@ private:
 
         latest_vx_mps_ = fp_to_float(msg->velocity_fp);
         const FrenetErrorsFp errors = compute_frenet_errors(msg);
+        const int32_t prev_accel_in_fp = fpga_.get_prev_accel_fp();
 
         const bool ok = fpga_.compute(
             errors.e_y_fp, errors.e_psi_fp,
@@ -702,11 +975,35 @@ private:
 
         /* Update statistics */
         update_stats(fpga_.get_last_compute_ns(), fpga_.get_last_profile(), iters, status);
+        const auto& iface_dbg = fpga_.get_last_debug_frame();
+
+        if (iface_dbg.checks_ran &&
+            (!iface_dbg.input_roundtrip_ok ||
+             !iface_dbg.output_canary_overwritten ||
+             !iface_dbg.status_valid ||
+             !iface_dbg.iters_valid)) {
+            interface_debug_fail_count_++;
+            RCLCPP_WARN_THROTTLE(
+                get_logger(), *get_clock(), 1000,
+                "OpenCL interface anomaly #%llu: in_rt_ok=%u mismatch_idx=%d exp=%d act=%d out_canary_overwritten=%u status_valid=%u iters_valid=%u status_raw=%u iters_raw=%u",
+                static_cast<unsigned long long>(interface_debug_fail_count_),
+                iface_dbg.input_roundtrip_ok ? 1u : 0u,
+                iface_dbg.input_mismatch_idx,
+                iface_dbg.input_expected,
+                iface_dbg.input_actual,
+                iface_dbg.output_canary_overwritten ? 1u : 0u,
+                iface_dbg.status_valid ? 1u : 0u,
+                iface_dbg.iters_valid ? 1u : 0u,
+                iface_dbg.status_raw,
+                iface_dbg.iters_raw);
+        }
 
         steering = fp_to_float(out_steer_fp);
         accel = fp_to_float(out_accel_fp);
+        bool used_fallback = false;
 
         if (status == MPC_FPGA_STATUS_ERROR || status == MPC_FPGA_STATUS_NO_TRAJECTORY) {
+            used_fallback = true;
             steering = last_steering_cmd_rad_;
             speed = last_speed_cmd_mps_;
             accel = last_accel_cmd_mps2_;
@@ -720,6 +1017,30 @@ private:
             last_accel_cmd_mps2_ = accel;
             fpga_.set_prev_accel_fp(float_to_fp(accel));
         }
+
+        if (status == MPC_FPGA_STATUS_MAX_ITER && stats_max_iter_streak_ >= 20) {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+                                 "Sustained MAX_ITER streak=%llu (iters=%u, out_steer_fp=%d, out_accel_fp=%d, ey_fp=%d, epsi_fp=%d)",
+                                 static_cast<unsigned long long>(stats_max_iter_streak_),
+                                 iters,
+                                 out_steer_fp,
+                                 out_accel_fp,
+                                 errors.e_y_fp,
+                                 errors.e_psi_fp);
+        }
+
+        log_raw_debug_cycle(msg,
+                            errors,
+                            prev_accel_in_fp,
+                            out_steer_fp,
+                            out_accel_fp,
+                            status,
+                            iters,
+                            used_fallback,
+                            steering,
+                            speed,
+                            accel,
+                            iface_dbg);
 
         publish_drive_command(steering, speed, accel, msg->header.stamp);
         pub_count_++;
