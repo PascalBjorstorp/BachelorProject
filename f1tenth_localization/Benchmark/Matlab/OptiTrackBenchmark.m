@@ -37,6 +37,22 @@ config.optitrackDropoutZeroRadiusM = 1e-6;
 config.optitrackFreezeDistanceM = 1e-6;
 config.optitrackMaxSpeedMps = 12.0;
 
+% Pose-topic-only start calibration. Uses initial stationary overlap between
+% OptiTrack and EKF; no scan/map fitting.
+config.startCalibrationEnabled = true;
+config.startCalibrationDurationS = 3.0;
+config.startCalibrationMinSamples = 50;
+config.startCalibrationMaxStdM = 0.03;
+config.startCalibrationMaxTravelM = 0.05;
+
+% Exclude local OptiTrack freeze zones from metrics/quality. Uses EKF only as
+% motion reference; no scan/map fitting.
+config.optitrackFreezeZoneExcludeEnabled = true;
+config.optitrackFreezeZoneWindowS = 0.05;
+config.optitrackFreezeZoneMaxGtTravelM = 0.02;
+config.optitrackFreezeZoneMinEkfTravelM = 0.10;
+config.optitrackFreezeZonePaddingS = 0.05;
+
 % Drop known bad yaw-outlier laps from selected particle-count runs.
 config.excludeYawOutlierLaps = true;
 config.yawOutlierLapThresholdRad = pi / 2;
@@ -56,6 +72,7 @@ config.metricExcludeXLessThanM = 2.0;
 config.optitrackQualityEnabled = true;
 config.optitrackQualityUseMetricMask = true;
 config.optitrackQualityEnabledChecks = ["position_step", "roll_step", "forward_axis"];
+
 config.optitrackQualityMaxGapS = 0.05;
 config.optitrackQualityMaxStepM = 0.20;
 config.optitrackQualityMaxSpeedMps = 12.0;
@@ -97,6 +114,8 @@ end
 odomConfig = config;
 odomConfig.ekfTopic = '/odom_pose';
 odomConfig.skipStartupAndIncompleteLaps = false;
+odomConfig.startCalibrationEnabled = false;
+odomConfig.optitrackFreezeZoneExcludeEnabled = false;
 odomConfig.bagStartEpochSeconds = readOdomCsvStartEpochSeconds(odomCsvRootDir);
 odomConfig.bagStartEpochToleranceS = 2.0;
 fprintf('\nOdom CSV folder : %s\n', odomCsvRootDir);
