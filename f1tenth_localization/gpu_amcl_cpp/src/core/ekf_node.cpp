@@ -36,9 +36,9 @@ EkfNode::EkfNode(const rclcpp::NodeOptions& options)
     // Publish only from odom callbacks; AMCL callbacks correct the state.
 
     RCLCPP_INFO(get_logger(),
-                "EKF node started — fusing '%s' + '%s' → '%s' (publishing on odom callbacks, stamp source: %s)",
+                "EKF node started — fusing '%s' + '%s' → '%s' (publishing on odom callbacks)",
                 amcl_topic_.c_str(), odom_topic_.c_str(),
-                output_topic_.c_str(), output_stamp_source_.c_str());
+                output_topic_.c_str());
 }
 
 // ─── Parameters ─────────────────────────────────────────────────────
@@ -46,7 +46,6 @@ void EkfNode::declare_all_parameters() {
     declare_parameter<std::string>("amcl_topic", "/amcl_pose");
     declare_parameter<std::string>("odom_topic", "/odom_pose");
     declare_parameter<std::string>("output_topic", "/ekf_pose");
-    declare_parameter<std::string>("output_stamp_source", "odom");
     declare_parameter<std::string>("global_frame", "map");
     declare_parameter<std::string>("odom_frame", "ego_racecar/odom");
     declare_parameter<std::string>("base_frame", "ego_racecar/base_link");
@@ -61,7 +60,6 @@ void EkfNode::load_parameters() {
     amcl_topic_          = get_parameter("amcl_topic").as_string();
     odom_topic_          = get_parameter("odom_topic").as_string();
     output_topic_        = get_parameter("output_topic").as_string();
-    output_stamp_source_ = get_parameter("output_stamp_source").as_string();
     global_frame_        = get_parameter("global_frame").as_string();
     odom_frame_          = get_parameter("odom_frame").as_string();
     base_frame_          = get_parameter("base_frame").as_string();
@@ -77,13 +75,6 @@ void EkfNode::load_parameters() {
         RCLCPP_WARN(get_logger(),
                     "amcl_max_latency_sec <= 0.0, using 0.08 s");
         amcl_max_latency_sec_ = 0.08;
-    }
-
-    if (output_stamp_source_ != "odom" && output_stamp_source_ != "amcl") {
-        RCLCPP_WARN(get_logger(),
-                    "Unknown output_stamp_source '%s' (expected 'odom' or 'amcl'); using 'odom'.",
-                    output_stamp_source_.c_str());
-        output_stamp_source_ = "odom";
     }
 }
 
@@ -245,9 +236,6 @@ void EkfNode::amcl_callback(
         return;
     }
 
-    last_amcl_stamp_ = amcl_stamp;
-    have_amcl_stamp_ = true;
-
     std::unique_lock<std::mutex> lock(state_mutex_);
 
     if (!initialized_) {
@@ -295,11 +283,7 @@ void EkfNode::publish_and_broadcast(const rclcpp::Time& stamp) {
 
     // ── Publish PoseWithCovarianceStamped ─────────────────────────
     auto msg = geometry_msgs::msg::PoseWithCovarianceStamped();
-    rclcpp::Time publish_stamp = stamp;
-    if (output_stamp_source_ == "amcl" && have_amcl_stamp_) {
-        publish_stamp = last_amcl_stamp_;
-    }
-    msg.header.stamp    = publish_stamp;
+    msg.header.stamp    = stamp;
     msg.header.frame_id = global_frame_;
     msg.pose.pose       = math_utils::vec_to_pose(state);
 
