@@ -79,8 +79,6 @@ public:
     double min_window_m          = 3.0;
     double window_time_s         = 0.8;
     double max_lateral_shift_m   = 0.8;
-    double min_avoidance_shift_m = 0.30; ///< Minimum visible shift when avoidance is active [m]
-    double avoidance_extra_clearance_m = 0.15; ///< Extra opponent clearance beyond collision limit [m]
     int    lookahead_points      = 80;   ///< Waypoints to publish ahead
     int    path_start_offset_points = 0; ///< Start this many waypoints ahead of nearest
     double pass_complete_margin  = 2.0;  ///< Car must be this far past opponent to unlock [m]
@@ -96,7 +94,6 @@ public:
     double max_lateral_accel = 7.27;          ///< Physics cap for v^2*kappa [m/s^2]
     double min_regulated_speed = 0.30;        ///< Lower bound when nominal speed is nonzero [m/s]
     double obstacle_speed_cap_mps = 5.0;      ///< Max published speed while obstacle/avoidance active
-    int obstacle_missed_scan_hold = 20;       ///< Missing scans tolerated before clearing opponent
   };
 
   explicit LateralPlanner(rclcpp::Logger logger, const Parameters & params);
@@ -168,12 +165,6 @@ private:
     double * forward_dist = nullptr,
     double * lateral_offset = nullptr) const;
 
-  /// Check whether any forward baseline waypoint intersects the inflated opponent body.
-  bool pathIntersectsOpponentFootprint(
-    size_t car_idx,
-    double horizon_m,
-    double * lateral_offset = nullptr) const;
-
   /// Reset all avoidance state and return to original raceline.
   void resetAvoidance();
 
@@ -206,7 +197,6 @@ private:
   OpponentState         opponent_;
   RobotPose             robot_;
   double                current_speed_ = 0.0;
-  int                   missed_obstacle_scans_ = 0;
 
   // ── Committed avoidance state ─────────────────────────────────────
 

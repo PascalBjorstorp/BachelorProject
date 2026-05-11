@@ -24,11 +24,8 @@
 #define WINDOW_TIME_S 2.0
 #define WINDOW_LEAD_RATIO 0.5
 #define MAX_LATERAL_SHIFT_M 0.8
-#define MIN_AVOIDANCE_SHIFT_M 0.30
-#define AVOIDANCE_EXTRA_CLEARANCE_M 0.15
 #define MAX_AVOIDANCE_KAPPA 2.5
 #define PASS_COMPLETE_MARGIN_M 2.0
-#define OBSTACLE_MISSED_SCAN_HOLD 20
 
 // Curvature-aware speed regulation for modified raceline
 // Formula mirrors pure pursuit style:
@@ -39,7 +36,7 @@
 #define CURVATURE_SPEED_PREVIEW_POINTS 8
 #define MAX_LATERAL_ACCEL_MPS2 7.27
 #define MIN_REGULATED_SPEED_MPS 0.30
-#define OBSTACLE_DETECTED_MAX_SPEED_MPS 6.0
+#define OBSTACLE_DETECTED_MAX_SPEED_MPS 5.0
 
 // Published path extent
 #define LOOKAHEAD_POINTS 300
