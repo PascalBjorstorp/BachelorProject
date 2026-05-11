@@ -55,7 +55,7 @@
 #define WALL_MARGIN 0.20f                                 /* Safety offset subtracted from both wall boundaries. */
 #define ADMM_RHO 7.0f                                  /* Primary ADMM penalty balancing feasibility and optimality progress. */
 #define ADMM_RHO_U 7.0f                                /* ADMM penalty applied to control-variable projection terms. */
-#define CONVERGENCE_TOLERANCE 0.05f                     /* Residual threshold used to declare solver convergence. */
+#define CONVERGENCE_TOLERANCE 0.01f                     /* Residual threshold used to declare solver convergence. */
 #define PREDICTION_HORIZON 20                            /* Default maximum number of prediction stages used by the controller. */
 #define TIME_STEP_SECONDS 0.03f                         /* Default model integration period per horizon stage. */
 

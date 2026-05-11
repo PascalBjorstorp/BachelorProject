@@ -63,7 +63,7 @@ public:
         declare_parameter<std::string>("pose_topic", "/ekf_pose");
         declare_parameter<std::string>("raceline_topic", "/local_raceline");
         declare_parameter<std::string>("servo_topic", "/sensors/servo_position_command");
-        declare_parameter<std::string>("dest_ip", "10.23.0.120");
+        declare_parameter<std::string>("dest_ip", "10.23.0.2");
         declare_parameter<int>("dest_port", 49000);
 
         const std::string odom_topic = get_parameter("odom_topic").as_string();

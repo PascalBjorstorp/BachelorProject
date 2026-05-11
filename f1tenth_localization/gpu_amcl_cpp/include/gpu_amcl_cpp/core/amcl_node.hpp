@@ -44,6 +44,11 @@ private:
     void publish_pose(const PoseEstimate& est, const rclcpp::Time& stamp);
     std::string resolve_global_heading_trajectory_file() const;
     std::vector<ParticleFilter::TrackHeadingPoint> load_global_heading_points() const;
+    double raceline_heading_near_pose(
+        double x,
+        double y,
+        double fallback_yaw,
+        const std::vector<ParticleFilter::TrackHeadingPoint>& heading_points) const;
     void push_odom_sample(const rclcpp::Time& stamp,
                           double x,
                           double y,
@@ -81,6 +86,7 @@ private:
     double update_min_d_ = 0.001;
     double update_min_a_ = 0.001;
     double max_scan_age_ = 0.05;
+    bool initial_heading_from_raceline_ = true;
 
     // Slip-aware noise scaling
     double slip_angular_threshold_ = 1.0;  // rad/s
