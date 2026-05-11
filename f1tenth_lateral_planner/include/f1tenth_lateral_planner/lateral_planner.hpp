@@ -165,6 +165,12 @@ private:
     double * forward_dist = nullptr,
     double * lateral_offset = nullptr) const;
 
+  /// Check whether any forward baseline waypoint intersects the inflated opponent body.
+  bool pathIntersectsOpponentFootprint(
+    size_t car_idx,
+    double horizon_m,
+    double * lateral_offset = nullptr) const;
+
   /// Reset all avoidance state and return to original raceline.
   void resetAvoidance();
 
@@ -197,6 +203,7 @@ private:
   OpponentState         opponent_;
   RobotPose             robot_;
   double                current_speed_ = 0.0;
+  int                   missed_obstacle_scans_ = 0;
 
   // ── Committed avoidance state ─────────────────────────────────────
 

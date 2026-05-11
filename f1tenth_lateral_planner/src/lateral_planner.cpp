@@ -157,6 +157,11 @@ void LateralPlanner::processObstacleScan(
   flush_cluster();
 
   if (clusters.empty()) {
+    if (opponent_.detected && missed_obstacle_scans_ < 3) {
+      ++missed_obstacle_scans_;
+      return;
+    }
+    missed_obstacle_scans_ = 0;
     clearOpponent();
     return;
   }
@@ -209,6 +214,7 @@ void LateralPlanner::processObstacleScan(
   opponent_.width    = params_.car_width_m;
   opponent_.length   = params_.opponent_length_m;
   opponent_.detected = true;
+  missed_obstacle_scans_ = 0;
 }
 
 void LateralPlanner::clearOpponent()
@@ -802,6 +808,11 @@ bool LateralPlanner::isCollisionPredicted(
     params_.min_window_m,
     std::max(current_speed_, 0.0) * params_.window_time_s) +
     params_.pass_complete_margin + 0.5 * params_.opponent_length_m;
+
+  if (pathIntersectsOpponentFootprint(car_idx, horizon, lateral_offset)) {
+    return true;
+  }
+
   if (forward > horizon) {
     return false;
   }
@@ -819,6 +830,57 @@ bool LateralPlanner::isCollisionPredicted(
   return std::abs(lat) <= collision_corridor;
 }
 
+bool LateralPlanner::pathIntersectsOpponentFootprint(
+  size_t car_idx,
+  double horizon_m,
+  double * lateral_offset) const
+{
+  if (!opponent_.detected || waypoints_.empty() || car_idx >= waypoints_.size()) {
+    return false;
+  }
+
+  const double total_s = waypoints_.back().s;
+  if (total_s <= 0.0 || horizon_m <= 0.0) {
+    return false;
+  }
+
+  const double max_horizon = std::min(horizon_m, 0.5 * total_s);
+  const double inflated_tolerance =
+    params_.clearance_tolerance_m * std::max(1.0, params_.planning_tolerance_scale);
+
+  const double half_length =
+    std::max(0.5 * opponent_.length + 0.5 * params_.car_width_m, 0.05);
+  const double half_width =
+    std::max(0.5 * opponent_.width + 0.5 * params_.car_width_m + inflated_tolerance, 0.05);
+
+  const double c = std::cos(opponent_.yaw);
+  const double s = std::sin(opponent_.yaw);
+  const double car_s = waypoints_[car_idx].s;
+
+  for (size_t k = 0; k < waypoints_.size(); ++k) {
+    const size_t idx = (car_idx + k) % waypoints_.size();
+    const Waypoint & wp = waypoints_[idx];
+    const double forward = wrapForwardDistance(car_s, wp.s);
+    if (k > 0 && forward > max_horizon) {
+      break;
+    }
+
+    const double dx = wp.x - opponent_.x;
+    const double dy = wp.y - opponent_.y;
+    const double longitudinal = dx * c + dy * s;
+    const double lateral = -dx * s + dy * c;
+
+    if (std::abs(longitudinal) <= half_length && std::abs(lateral) <= half_width) {
+      if (lateral_offset != nullptr) {
+        *lateral_offset = lateralOffsetAtWaypoint(idx, opponent_.x, opponent_.y);
+      }
+      return true;
+    }
+  }
+
+  return false;
+}
+
 void LateralPlanner::resetAvoidance()
 {
   avoidance_active_  = false;
@@ -829,6 +891,7 @@ void LateralPlanner::resetAvoidance()
   committed_opp_y_   = 0.0;
   merge_start_s_     = 0.0;
   merge_distance_m_  = 0.0;
+  missed_obstacle_scans_ = 0;
   merge_from_raceline_.clear();
   modified_raceline_ = waypoints_;
 }
