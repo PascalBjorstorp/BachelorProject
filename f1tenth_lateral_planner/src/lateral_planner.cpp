@@ -290,13 +290,16 @@ std::vector<Waypoint> LateralPlanner::computePath()
   }
 
   // If collision remains and the opponent is still near its committed state,
-  // keep the locked path to avoid frame-to-frame jitter.
-  if (merge_back_active_) {
+  // keep the locked path to avoid frame-to-frame jitter. A collision during
+  // merge-back must force a fresh avoidance path; the merge path is already
+  // intentionally returning toward baseline.
+  const bool was_merging_back = merge_back_active_;
+  if (was_merging_back) {
     merge_back_active_ = false;
     merge_from_raceline_.clear();
   }
 
-  if (avoidance_active_ && !hasOpponentMoved()) {
+  if (avoidance_active_ && !was_merging_back && !hasOpponentMoved()) {
     return extractSegmentFromModified();
   }
 
@@ -1062,13 +1065,35 @@ bool LateralPlanner::hasOpponentMoved() const
     return true;
   }
 
-  if (modified_raceline_.empty()) {
+  if (waypoints_.empty() || modified_raceline_.empty() ||
+      committed_opp_idx_ >= waypoints_.size())
+  {
+    return true;
+  }
+
+  const size_t idx = closestWaypoint(opponent_.x, opponent_.y);
+  const double total_s = waypoints_.back().s;
+  if (total_s <= 0.0 || idx >= waypoints_.size()) {
+    return true;
+  }
+
+  const double moved_xy = std::hypot(
+    opponent_.x - committed_opp_x_,
+    opponent_.y - committed_opp_y_);
+  const double moved_forward =
+    wrapForwardDistance(waypoints_[committed_opp_idx_].s, waypoints_[idx].s);
+  const double moved_backward =
+    wrapForwardDistance(waypoints_[idx].s, waypoints_[committed_opp_idx_].s);
+  const double moved_along_track = std::min(moved_forward, moved_backward);
+  const double replan_motion =
+    std::max(0.5 * params_.opponent_length_m, 0.35);
+
+  if (moved_xy > replan_motion || moved_along_track > replan_motion) {
     return true;
   }
 
   // Hysteresis: only trigger replan when opponent intrudes close to current
   // committed line (or moves a lot globally), which avoids jitter.
-  const size_t idx = closestWaypoint(opponent_.x, opponent_.y);
   if (idx >= modified_raceline_.size()) {
     return true;
   }
