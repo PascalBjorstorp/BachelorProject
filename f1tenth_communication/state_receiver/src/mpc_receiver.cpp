@@ -75,15 +75,28 @@ class MpcFpgaInterface {
 public:
     struct TimingProfile {
         int64_t total_call_ns = 0;
-        int64_t input_map_ns = 0;
+        int64_t input_map_ns = -1;
         int64_t input_pack_ns = 0;
-        int64_t input_unmap_ns = 0;
+        int64_t input_unmap_ns = -1;
         int64_t input_migrate_ns = -1;
         int64_t kernel_ns = -1;
         int64_t output_migrate_ns = -1;
-        int64_t output_map_ns = 0;
-        int64_t output_unpack_ns = 0;
-        int64_t output_unmap_ns = 0;
+        int64_t output_map_ns = -1;
+        int64_t output_unpack_ns = -1;
+        int64_t output_unmap_ns = -1;
+    };
+
+    struct InterfaceDebugFrame {
+        bool checks_ran = false;
+        bool input_roundtrip_ok = true;
+        int32_t input_mismatch_idx = -1;
+        int32_t input_expected = 0;
+        int32_t input_actual = 0;
+        bool output_canary_overwritten = true;
+        bool status_valid = true;
+        bool iters_valid = true;
+        uint32_t status_raw = 0;
+        uint32_t iters_raw = 0;
     };
 
     MpcFpgaInterface() = default;
@@ -185,6 +198,11 @@ public:
     void set_prev_accel_fp(int32_t prev_accel_fp) { prev_accel_fp_ = prev_accel_fp; }
     int32_t get_prev_accel_fp() const { return prev_accel_fp_; }
     const TimingProfile& get_last_profile() const { return last_profile_; }
+    const InterfaceDebugFrame& get_last_debug_frame() const { return last_debug_frame_; }
+    void configure_interface_debug(bool enabled, uint32_t stride) {
+        interface_debug_enabled_ = enabled;
+        interface_debug_stride_ = std::max<uint32_t>(1u, stride);
+    }
 
     bool compute(int32_t e_y_fp, int32_t e_psi_fp,
                  int32_t vx_fp, int32_t vy_fp, int32_t omega_fp,
@@ -195,6 +213,7 @@ public:
         if (!initialized_) return false;
 
         last_profile_ = TimingProfile{};
+        last_debug_frame_ = InterfaceDebugFrame{};
 
         cl_int err = CL_SUCCESS;
         const auto total_t0 = std::chrono::high_resolution_clock::now();
@@ -231,9 +250,38 @@ public:
         last_profile_.input_pack_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
             input_pack_t1 - input_pack_t0).count();
 
+        compute_calls_++;
+        const bool run_interface_checks =
+            interface_debug_enabled_ &&
+            ((compute_calls_ % interface_debug_stride_) == 0);
+        last_debug_frame_.checks_ran = run_interface_checks;
+
         cl::Event input_migrate_event;
         cl::Event kernel_event;
         cl::Event output_migrate_event;
+        cl::Event output_canary_event;
+        cl::Event input_verify_event;
+
+        if (run_interface_checks) {
+            output_canary_words_[0] = 0x13579BDF;
+            output_canary_words_[1] = 0x2468ACE0;
+            output_canary_words_[2] = 0x7F7F7F7F;
+            output_canary_words_[3] = 0x42424242;
+
+            err = queue_.enqueueWriteBuffer(
+                output_buffer_,
+                CL_FALSE,
+                0,
+                sizeof(int32_t) * 4,
+                output_canary_words_.data(),
+                nullptr,
+                &output_canary_event);
+            if (err != CL_SUCCESS) {
+                std::fprintf(stderr, "MPC-FPGA-OpenCL: write(output canary) failed (%d)\n", err);
+                last_compute_ns_ = -1;
+                return false;
+            }
+        }
 
         err = queue_.enqueueWriteBuffer(
             input_buffer_,
@@ -251,6 +299,9 @@ public:
 
         const auto t0 = std::chrono::high_resolution_clock::now();
         std::vector<cl::Event> wait_input{input_migrate_event};
+        if (run_interface_checks) {
+            wait_input.push_back(output_canary_event);
+        }
         err = queue_.enqueueTask(kernel_, &wait_input, &kernel_event);
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "MPC-FPGA-OpenCL: enqueueTask failed (%d)\n", err);
@@ -273,6 +324,23 @@ public:
             return false;
         }
 
+        if (run_interface_checks) {
+            std::vector<cl::Event> wait_input_verify{kernel_event};
+            err = queue_.enqueueReadBuffer(
+                input_buffer_,
+                CL_FALSE,
+                0,
+                INPUT_BUFFER_BYTES_512,
+                input_roundtrip_words_.data(),
+                &wait_input_verify,
+                &input_verify_event);
+            if (err != CL_SUCCESS) {
+                std::fprintf(stderr, "MPC-FPGA-OpenCL: readback(input verify) failed (%d)\n", err);
+                last_compute_ns_ = -1;
+                return false;
+            }
+        }
+
         err = cl::Event::waitForEvents({output_migrate_event});
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "MPC-FPGA-OpenCL: output wait failed (%d)\n", err);
@@ -290,6 +358,41 @@ public:
         out_accel_fp = output_words_[1];
         out_status = static_cast<uint32_t>(output_words_[2]);
         out_iterations = static_cast<uint32_t>(output_words_[3]);
+        last_debug_frame_.status_raw = out_status;
+        last_debug_frame_.iters_raw = out_iterations;
+
+        if (run_interface_checks) {
+            if (cl::Event::waitForEvents({input_verify_event}) != CL_SUCCESS) {
+                std::fprintf(stderr, "MPC-FPGA-OpenCL: input verify wait failed\n");
+                last_compute_ns_ = -1;
+                return false;
+            }
+
+            for (size_t i = 0; i < DMA_BUFFER_WORDS; ++i) {
+                if (input_roundtrip_words_[i] != input_words_[i]) {
+                    last_debug_frame_.input_roundtrip_ok = false;
+                    last_debug_frame_.input_mismatch_idx = static_cast<int32_t>(i);
+                    last_debug_frame_.input_expected = input_words_[i];
+                    last_debug_frame_.input_actual = input_roundtrip_words_[i];
+                    break;
+                }
+            }
+
+            const bool all_canary =
+                (output_words_[0] == output_canary_words_[0]) &&
+                (output_words_[1] == output_canary_words_[1]) &&
+                (output_words_[2] == output_canary_words_[2]) &&
+                (output_words_[3] == output_canary_words_[3]);
+            last_debug_frame_.output_canary_overwritten = !all_canary;
+        }
+
+        last_debug_frame_.status_valid =
+            (out_status == MPC_FPGA_STATUS_OK) ||
+            (out_status == MPC_FPGA_STATUS_MAX_ITER) ||
+            (out_status == MPC_FPGA_STATUS_ERROR) ||
+            (out_status == MPC_FPGA_STATUS_NO_TRAJECTORY);
+        last_debug_frame_.iters_valid = (out_iterations <= MPC_FPGA_MAX_ADMM_ITER);
+
         last_profile_.total_call_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
             t1 - total_t0).count();
         return true;
@@ -327,10 +430,16 @@ private:
     static_assert(DMA_BUFFER_WORDS * sizeof(int32_t) == INPUT_BUFFER_BYTES_512,
                   "Host DMA buffer words must match OpenCL input buffer bytes");
     std::array<int32_t, DMA_BUFFER_WORDS> input_words_{};
+    std::array<int32_t, DMA_BUFFER_WORDS> input_roundtrip_words_{};
     std::array<int32_t, 4> output_words_{{0, 0, 0, 0}};
+    std::array<int32_t, 4> output_canary_words_{{0, 0, 0, 0}};
     int32_t prev_accel_fp_{0};
+    uint64_t compute_calls_{0};
+    bool interface_debug_enabled_{false};
+    uint32_t interface_debug_stride_{1};
 
     TimingProfile last_profile_{};
+    InterfaceDebugFrame last_debug_frame_{};
     int64_t last_compute_ns_ = 0;
 };
 
@@ -349,6 +458,8 @@ public:
         declare_parameter("device_index", 0);
         declare_parameter("debug_raw_log_enabled", true);
         declare_parameter("debug_raw_log_stride", 1);
+        declare_parameter("debug_interface_checks_enabled", false);
+        declare_parameter("debug_interface_checks_stride", 1);
 
         const auto input_topic = get_parameter("input_topic").as_string();
         const auto drive_topic = get_parameter("drive_topic").as_string();
@@ -358,10 +469,14 @@ public:
         raw_debug_enabled_ = get_parameter("debug_raw_log_enabled").as_bool();
         raw_debug_stride_ = static_cast<uint32_t>(
             std::max<int64_t>(1, get_parameter("debug_raw_log_stride").as_int()));
+        interface_debug_enabled_ = get_parameter("debug_interface_checks_enabled").as_bool();
+        interface_debug_stride_ = static_cast<uint32_t>(
+            std::max<int64_t>(1, get_parameter("debug_interface_checks_stride").as_int()));
 
         if (!fpga_.initialize(xclbin_path, kernel_name, device_index)) {
             throw std::runtime_error("MPC FPGA OpenCL init failed");
         }
+        fpga_.configure_interface_debug(interface_debug_enabled_, interface_debug_stride_);
 
         drive_pub_ = create_publisher<ackermann_msgs::msg::AckermannDriveStamped>(
             drive_topic, rclcpp::SystemDefaultsQoS());
@@ -440,6 +555,9 @@ private:
     bool raw_debug_enabled_ = true;
     uint32_t raw_debug_stride_ = 1;
     uint64_t raw_debug_idx_ = 0;
+    bool interface_debug_enabled_ = false;
+    uint32_t interface_debug_stride_ = 1;
+    uint64_t interface_debug_fail_count_ = 0;
 
     struct FrenetErrorsFp {
         int32_t e_y_fp;
@@ -493,7 +611,10 @@ private:
                     "idx,stamp_sec,stamp_nsec,status,iters,used_fallback,max_iter_streak,"
                     "ey_fp,epsi_fp,vx_fp,vy_fp,omega_fp,steer_meas_fp,prev_accel_in_fp,"
                     "out_steer_fp,out_accel_fp,pub_steer,pub_speed,pub_accel,"
-                    "ref_vx0_fp,ref_kappa0_fp,ref_left0_fp,ref_right0_fp\n");
+                    "ref_vx0_fp,ref_kappa0_fp,ref_left0_fp,ref_right0_fp,"
+                    "iface_checks_ran,iface_input_roundtrip_ok,iface_input_mismatch_idx,"
+                    "iface_input_expected,iface_input_actual,iface_output_canary_overwritten,"
+                    "iface_status_valid,iface_iters_valid,iface_status_raw,iface_iters_raw\n");
             fflush(raw_debug_csv_file_);
             RCLCPP_INFO(get_logger(),
                         "Raw FPGA debug CSV enabled (stride=%u): %s",
@@ -514,7 +635,8 @@ private:
                              bool used_fallback,
                              float published_steer,
                              float published_speed,
-                             float published_accel) {
+                             float published_accel,
+                             const MpcFpgaInterface::InterfaceDebugFrame& iface_dbg) {
         if (!raw_debug_enabled_ || raw_debug_csv_file_ == nullptr) {
             return;
         }
@@ -530,7 +652,7 @@ private:
         const int32_t ref_right0_fp = msg->ref_right_bound_fp.empty() ? 0 : msg->ref_right_bound_fp[0];
 
         fprintf(raw_debug_csv_file_,
-                "%llu,%d,%u,%u,%u,%u,%llu,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.7f,%.7f,%.7f,%d,%d,%d,%d\n",
+                "%llu,%d,%u,%u,%u,%u,%llu,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.7f,%.7f,%.7f,%d,%d,%d,%d,%u,%u,%d,%d,%d,%u,%u,%u,%u,%u\n",
                 static_cast<unsigned long long>(raw_debug_idx_),
                 msg->header.stamp.sec,
                 msg->header.stamp.nanosec,
@@ -553,7 +675,17 @@ private:
                 ref_vx0_fp,
                 ref_kappa0_fp,
                 ref_left0_fp,
-                ref_right0_fp);
+                ref_right0_fp,
+                iface_dbg.checks_ran ? 1u : 0u,
+                iface_dbg.input_roundtrip_ok ? 1u : 0u,
+                iface_dbg.input_mismatch_idx,
+                iface_dbg.input_expected,
+                iface_dbg.input_actual,
+                iface_dbg.output_canary_overwritten ? 1u : 0u,
+                iface_dbg.status_valid ? 1u : 0u,
+                iface_dbg.iters_valid ? 1u : 0u,
+                iface_dbg.status_raw,
+                iface_dbg.iters_raw);
         fflush(raw_debug_csv_file_);
     }
 
@@ -561,18 +693,18 @@ private:
                       const MpcFpgaInterface::TimingProfile& profile,
                       uint32_t iterations,
                       uint32_t status) {
-        const double compute_us = static_cast<double>(compute_ns) / 1000.0;
         const auto ns_to_us = [](int64_t ns) {
             return ns >= 0 ? static_cast<double>(ns) / 1000.0 : -1.0;
         };
+        const double compute_us =
+            (profile.kernel_ns >= 0) ? ns_to_us(profile.kernel_ns)
+                                     : static_cast<double>(compute_ns) / 1000.0;
         const double total_call_us = ns_to_us(profile.total_call_ns);
         const double kernel_us = ns_to_us(profile.kernel_ns);
         const double input_migrate_us = ns_to_us(profile.input_migrate_ns);
         const double output_migrate_us = ns_to_us(profile.output_migrate_ns);
-        const double host_prep_us = ns_to_us(
-            profile.input_map_ns + profile.input_pack_ns + profile.input_unmap_ns);
-        const double host_readback_us = ns_to_us(
-            profile.output_map_ns + profile.output_unpack_ns + profile.output_unmap_ns);
+        const double host_prep_us = ns_to_us(profile.input_pack_ns);
+        const double host_readback_us = ns_to_us(profile.output_unpack_ns);
         const double overhead_us = (profile.total_call_ns > 0 && profile.kernel_ns >= 0)
             ? static_cast<double>(profile.total_call_ns - profile.kernel_ns) / 1000.0
             : -1.0;
@@ -843,6 +975,28 @@ private:
 
         /* Update statistics */
         update_stats(fpga_.get_last_compute_ns(), fpga_.get_last_profile(), iters, status);
+        const auto& iface_dbg = fpga_.get_last_debug_frame();
+
+        if (iface_dbg.checks_ran &&
+            (!iface_dbg.input_roundtrip_ok ||
+             !iface_dbg.output_canary_overwritten ||
+             !iface_dbg.status_valid ||
+             !iface_dbg.iters_valid)) {
+            interface_debug_fail_count_++;
+            RCLCPP_WARN_THROTTLE(
+                get_logger(), *get_clock(), 1000,
+                "OpenCL interface anomaly #%llu: in_rt_ok=%u mismatch_idx=%d exp=%d act=%d out_canary_overwritten=%u status_valid=%u iters_valid=%u status_raw=%u iters_raw=%u",
+                static_cast<unsigned long long>(interface_debug_fail_count_),
+                iface_dbg.input_roundtrip_ok ? 1u : 0u,
+                iface_dbg.input_mismatch_idx,
+                iface_dbg.input_expected,
+                iface_dbg.input_actual,
+                iface_dbg.output_canary_overwritten ? 1u : 0u,
+                iface_dbg.status_valid ? 1u : 0u,
+                iface_dbg.iters_valid ? 1u : 0u,
+                iface_dbg.status_raw,
+                iface_dbg.iters_raw);
+        }
 
         steering = fp_to_float(out_steer_fp);
         accel = fp_to_float(out_accel_fp);
@@ -885,7 +1039,8 @@ private:
                             used_fallback,
                             steering,
                             speed,
-                            accel);
+                            accel,
+                            iface_dbg);
 
         publish_drive_command(steering, speed, accel, msg->header.stamp);
         pub_count_++;
