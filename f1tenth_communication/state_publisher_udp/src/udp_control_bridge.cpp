@@ -250,7 +250,12 @@ private:
         }
         
         auto drive = ackermann_msgs::msg::AckermannDriveStamped();
-        drive.header.stamp = now();
+        if (packet.source_stamp_sec != 0 || packet.source_stamp_nanosec != 0) {
+            drive.header.stamp.sec = packet.source_stamp_sec;
+            drive.header.stamp.nanosec = packet.source_stamp_nanosec;
+        } else {
+            drive.header.stamp = now();
+        }
         drive.header.frame_id = "base_link";
         drive.drive.steering_angle = steering;
         drive.drive.speed = speed;

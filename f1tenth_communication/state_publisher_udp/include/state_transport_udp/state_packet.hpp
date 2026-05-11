@@ -16,7 +16,7 @@
 namespace state_transport_udp {
 
 constexpr uint32_t PACKET_MAGIC = 0x53545550;  // 'STUP'
-constexpr uint16_t PACKET_VERSION = 2;
+constexpr uint16_t PACKET_VERSION = 3;
 constexpr size_t MPC_HORIZON = MPC_FPGA_HORIZON_STEPS;
 
 #pragma pack(push, 1)
@@ -27,6 +27,8 @@ struct StatePacket {
     uint32_t sequence;         // Monotonic packet sequence from sender.
     uint32_t sender_time_ms;   // Sender wall-clock timestamp (ms, wrap-safe).
     uint64_t sender_mono_ns;   // Sender monotonic timestamp for RTT measurement.
+    int32_t source_stamp_sec;   // Original ROS stamp sec used as pipeline token.
+    uint32_t source_stamp_nanosec; // Original ROS stamp nanosec used as pipeline token.
 
     int32_t x_fp;              // Vehicle x [m], Q16.16.
     int32_t y_fp;              // Vehicle y [m], Q16.16.
@@ -64,6 +66,8 @@ struct ControlPacket {
     uint32_t sequence;         // Echoed sequence from matching StatePacket.
     uint32_t receiver_time_ms; // Receiver wall-clock timestamp (ms, wrap-safe).
     uint64_t sender_mono_ns;   // Echoed sender monotonic timestamp for RTT computation.
+    int32_t source_stamp_sec;   // Echoed ROS pipeline token stamp sec.
+    uint32_t source_stamp_nanosec; // Echoed ROS pipeline token stamp nanosec.
 
     int32_t steering_fp;       // Steering command [rad], Q16.16.
     int32_t speed_fp;          // Speed command [m/s], Q16.16.
