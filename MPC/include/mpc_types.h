@@ -51,11 +51,11 @@
 #define WEIGHT_DELTA_ACTUAL 1.0f                      /* Penalizes steering-state bias away from curvature feedforward. */
 
 /* Other swept MPC defaults */
-#define MAX_ITERATIONS 200                              /* Default solver iteration budget per control update. */
+#define MAX_ITERATIONS 50                              /* Default solver iteration budget per control update. */
 #define WALL_MARGIN 0.20f                                 /* Safety offset subtracted from both wall boundaries. */
 #define ADMM_RHO 7.0f                                  /* Primary ADMM penalty balancing feasibility and optimality progress. */
 #define ADMM_RHO_U 7.0f                                /* ADMM penalty applied to control-variable projection terms. */
-#define CONVERGENCE_TOLERANCE 0.05f                     /* Residual threshold used to declare solver convergence. */
+#define CONVERGENCE_TOLERANCE 0.01f                     /* Residual threshold used to declare solver convergence. */
 #define PREDICTION_HORIZON 20                            /* Default maximum number of prediction stages used by the controller. */
 #define TIME_STEP_SECONDS 0.03f                         /* Default model integration period per horizon stage. */
 

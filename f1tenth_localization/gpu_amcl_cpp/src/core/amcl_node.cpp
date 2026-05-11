@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <exception>
 #include <fstream>
+#include <limits>
 #include <sstream>
 #include <std_msgs/msg/float64.hpp>
 #include <std_msgs/msg/int32.hpp>
@@ -135,6 +136,7 @@ void AmclNode::declare_all_parameters() {
 
     // Initial pose
     declare_parameter<bool>("global_initialization", false);
+    declare_parameter<bool>("initial_heading_from_raceline", true);
     declare_parameter<double>("global_heading_cone_rad", 0.5235987756);
     declare_parameter<double>("global_track_margin_m", 0.15);
     declare_parameter<double>("global_max_lateral_offset_m", 0.55);
@@ -164,6 +166,8 @@ void AmclNode::load_parameters() {
     update_min_d_ = get_parameter("update_min_d").as_double();
     update_min_a_ = get_parameter("update_min_a").as_double();
     max_scan_age_ = get_parameter("max_scan_age").as_double();
+    initial_heading_from_raceline_ =
+        get_parameter("initial_heading_from_raceline").as_bool();
     slip_angular_threshold_ = get_parameter("slip_angular_threshold").as_double();
     slip_noise_multiplier_  = get_parameter("slip_noise_multiplier").as_double();
     const int64_t odom_history_size_param =
@@ -173,8 +177,9 @@ void AmclNode::load_parameters() {
 
     RCLCPP_INFO(get_logger(),
         "[AMCL] Parameters: update_min_d=%.5f, update_min_a=%.5f, "
-        "max_scan_age=%.4f, slip_threshold=%.2f rad/s",
-        update_min_d_, update_min_a_, max_scan_age_, slip_angular_threshold_);
+        "max_scan_age=%.4f, slip_threshold=%.2f rad/s, initial_raceline_heading=%s",
+        update_min_d_, update_min_a_, max_scan_age_, slip_angular_threshold_,
+        initial_heading_from_raceline_ ? "true" : "false");
 }
 
 void AmclNode::push_odom_sample(const rclcpp::Time& stamp,
@@ -314,6 +319,30 @@ std::vector<ParticleFilter::TrackHeadingPoint> AmclNode::load_global_heading_poi
     return points;
 }
 
+double AmclNode::raceline_heading_near_pose(
+    double x,
+    double y,
+    double fallback_yaw,
+    const std::vector<ParticleFilter::TrackHeadingPoint>& heading_points) const {
+    if (heading_points.empty()) {
+        return math_utils::normalize_angle(fallback_yaw);
+    }
+
+    const auto* best = &heading_points.front();
+    double best_d2 = std::numeric_limits<double>::infinity();
+    for (const auto& point : heading_points) {
+        const double dx = static_cast<double>(point.x) - x;
+        const double dy = static_cast<double>(point.y) - y;
+        const double d2 = dx * dx + dy * dy;
+        if (d2 < best_d2) {
+            best_d2 = d2;
+            best = &point;
+        }
+    }
+
+    return math_utils::normalize_angle(static_cast<double>(best->yaw));
+}
+
 // ─── Map callback ───────────────────────────────────────────────────
 void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     static size_t map_msg_count = 0;  // Static local — persists across calls
@@ -362,15 +391,36 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     pf_cfg.global_heading_cone_rad = get_parameter("global_heading_cone_rad").as_double();
     pf_cfg.global_track_margin_m = get_parameter("global_track_margin_m").as_double();
     pf_cfg.global_max_lateral_offset_m = get_parameter("global_max_lateral_offset_m").as_double();
-    if (pf_cfg.global_initialization || pf_cfg.enable_recovery_injection) {
-        pf_cfg.global_heading_points = load_global_heading_points();
-    }
     pf_cfg.init_x            = get_parameter("initial_pose_x").as_double();
     pf_cfg.init_y            = get_parameter("initial_pose_y").as_double();
     pf_cfg.init_a            = get_parameter("initial_pose_a").as_double();
     pf_cfg.init_cov_xx       = get_parameter("initial_cov_xx").as_double();
     pf_cfg.init_cov_yy       = get_parameter("initial_cov_yy").as_double();
     pf_cfg.init_cov_aa       = get_parameter("initial_cov_aa").as_double();
+
+    std::vector<ParticleFilter::TrackHeadingPoint> heading_points;
+    if (pf_cfg.global_initialization ||
+        pf_cfg.enable_recovery_injection ||
+        initial_heading_from_raceline_) {
+        heading_points = load_global_heading_points();
+    }
+    if (pf_cfg.global_initialization || pf_cfg.enable_recovery_injection) {
+        pf_cfg.global_heading_points = heading_points;
+    }
+    if (!pf_cfg.global_initialization && initial_heading_from_raceline_) {
+        const double fallback_yaw = pf_cfg.init_a;
+        pf_cfg.init_a = raceline_heading_near_pose(
+            pf_cfg.init_x, pf_cfg.init_y, fallback_yaw, heading_points);
+        if (heading_points.empty()) {
+            RCLCPP_WARN(get_logger(),
+                        "Initial raceline heading requested but no heading points loaded; using fallback yaw %.3f rad",
+                        pf_cfg.init_a);
+        } else {
+            RCLCPP_INFO(get_logger(),
+                        "Initial local pose uses raceline heading: x=%.2f y=%.2f yaw=%.3f rad",
+                        pf_cfg.init_x, pf_cfg.init_y, pf_cfg.init_a);
+        }
+    }
 
     // 3. Build motion model config
     MotionModel::Config mm_cfg;

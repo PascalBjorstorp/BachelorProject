@@ -8,51 +8,47 @@ close all;
 % - Reference raceline from CSV
 % - EKF trajectory colored by speed from /ego_racecar/odom
 %
-% Configure runs in the "USER INPUT" section below.
+% Configure roots in the "USER INPUT" section below.
 
 %% USER INPUT
 scriptDir = fileparts(mfilename('fullpath'));
-repoRoot = char(java.io.File(fullfile(scriptDir, '..', '..', '..')).getCanonicalPath());
 
-% Path where bag directories are stored.
-bagsRoot = fullfile(repoRoot, 'bags');
+benchmarkRoot = fileparts(scriptDir);
 
-% Default raceline CSV (used if a run does not set racelineCsv).
-defaultRacelineCsv = fullfile(bagsRoot, 'Raceline', 'my_track_raceline_31_03.csv');
+% Path where SpeedLaps bag directories are stored.
+bagsRoot = fullfile(benchmarkRoot, 'bags', 'SpeedLaps');
 
-% Keep data from [drive detected + startDelayAfterDriveSeconds] and
-% until [last active drive command - endTrimBeforeStopSeconds].
-startDelayAfterDriveSeconds = 3.0;
-endTrimBeforeStopSeconds = 1.0;
+% Raceline CSV folder for SpeedLaps.
+racelineRoot = fullfile(bagsRoot, 'Raceline');
 
-% Drive command threshold used to detect active driving.
-driveCommandThreshold = 1e-3;
+% Default raceline CSV (used for all discovered runs unless overridden).
+defaultRacelineCsv = findDefaultRacelineCsv(racelineRoot);
 
-% Lap detection settings (for full-lap-only metrics).
-lapGateHalfLengthM = 2.0;
+% Lap filtering: skip the first completed lap and ignore data after the
+% final completed lap crossing.
+ignoreFirstCompleteLap = true;
+
+% Lap detection setting (for full-lap-only metrics).
 minLapTimeSeconds = 5.0;
 
 % Display trajectory start/end markers on plots.
 showStartEndMarkers = false;
 
-% Add one entry per run/algorithm.
-
-runs = [ ...
-    struct('algorithm', 'MPC', 'bagName', 'MPC_SPEEDTEST_8_laps', 'racelineCsv', ''), ...
-    struct('algorithm', 'Pure Pursuit', 'bagName', 'PP_SPEEDTEST3_8_laps', 'racelineCsv', ''), ...
-    struct('algorithm', 'Pure Pursuit', 'bagName', 'PP_SPEEDTEST4_8_laps', 'racelineCsv', ''), ...
-    ];
-
-runs = [ ...
-    struct('algorithm', 'MPC', 'bagName', 'MPCTestNoSweepNewMap', 'racelineCsv', ''), ...
-    struct('algorithm', 'MPC', 'bagName', 'MPCTestSweepNewMap', 'racelineCsv', ''), ...
-    struct('algorithm', 'MPC', 'bagName', 'FPGAISDRIVING', 'racelineCsv', ''), ...
-    struct('algorithm', 'MPC', 'bagName', 'MPCSweeped', 'racelineCsv', '')];
+runs = discoverSpeedLapRuns(bagsRoot, racelineRoot, defaultRacelineCsv);
 
 %% Validate configuration
-if isempty(runs)
-    error('No runs configured in USER INPUT section.');
+if ~isfolder(bagsRoot)
+    error('SpeedLaps bag root does not exist: %s', bagsRoot);
 end
+if isempty(defaultRacelineCsv) || ~isfile(defaultRacelineCsv)
+    error('No raceline CSV found in: %s', racelineRoot);
+end
+if isempty(runs)
+    error('No ROS 2 bag folders with metadata.yaml found under: %s', bagsRoot);
+end
+fprintf('SpeedLaps bag root : %s\n', bagsRoot);
+fprintf('Raceline CSV       : %s\n', defaultRacelineCsv);
+fprintf('Discovered runs    : %d\n', numel(runs));
 
 %% Load and process all runs
 results = struct( ...
@@ -96,7 +92,6 @@ for i = 1:numel(runs)
     ekfTopic = pickTopic(allTopics, '/ekf_pose', 'ekf_pose');
     odomTopic = pickTopic(allTopics, '/ego_racecar/odom', 'odom');
     mapTopic = pickTopic(allTopics, '/map', 'map');
-    cmdTopic = pickDriveCommandTopic(allTopics);
 
     if isempty(ekfTopic)
         warning('No ekf pose topic found in %s', cfg.bagName);
@@ -110,19 +105,12 @@ for i = 1:numel(runs)
     ekfMsgs = readMessages(select(bag, 'Topic', ekfTopic));
     odomMsgs = readMessages(select(bag, 'Topic', odomTopic));
     mapMsgs = {};
-    cmdSel = [];
-    cmdMsgs = {};
     if ~isempty(mapTopic)
         mapMsgs = readMessages(select(bag, 'Topic', mapTopic));
-    end
-    if ~isempty(cmdTopic)
-        cmdSel = select(bag, 'Topic', cmdTopic);
-        cmdMsgs = readMessages(cmdSel);
     end
 
     [tEkf, xyEkf] = extractXYSeries(ekfMsgs);
     [tOdom, speedOdom] = extractOdomSpeedSeries(odomMsgs);
-    [tCmd, speedCmd] = extractDriveCommandSpeedSeries(cmdMsgs, cmdSel);
 
     if numel(tEkf) < 2 || numel(tOdom) < 2
         warning('Not enough ekf/odom data in %s', cfg.bagName);
@@ -140,44 +128,6 @@ for i = 1:numel(runs)
         continue;
     end
 
-    tCmdForWindow = tCmd;
-    tEkfForWindow = tEkf;
-    if ~isempty(tCmdForWindow) && ~isempty(tEkfForWindow)
-        if abs(tEkfForWindow(1) - tCmdForWindow(1)) > 1e3
-            tCmdForWindow = tCmdForWindow - tCmdForWindow(1);
-            tEkfForWindow = tEkfForWindow - tEkfForWindow(1);
-        end
-    end
-
-    [tWindowStart, tWindowEnd, hasDriveWindow] = computeDriveWindow( ...
-        tCmdForWindow, speedCmd, startDelayAfterDriveSeconds, endTrimBeforeStopSeconds, driveCommandThreshold);
-
-    if hasDriveWindow
-        keep = tEkfForWindow >= tWindowStart & tEkfForWindow <= tWindowEnd;
-        if nnz(keep) < 2
-            % Fallback: use full command stream bounds if active-window bounds are too tight.
-            if numel(tCmdForWindow) >= 2
-                tFallbackStart = tCmdForWindow(1) + max(0, startDelayAfterDriveSeconds);
-                tFallbackEnd = tCmdForWindow(end) - max(0, endTrimBeforeStopSeconds);
-                keepFallback = tEkfForWindow >= tFallbackStart & tEkfForWindow <= tFallbackEnd;
-                if nnz(keepFallback) >= 2
-                    keep = keepFallback;
-                else
-                    warning('Drive window leaves too few samples in %s; using untrimmed aligned data.', cfg.bagName);
-                    keep = true(size(tEkf));
-                end
-            else
-                warning('Drive window leaves too few samples in %s; using untrimmed aligned data.', cfg.bagName);
-                keep = true(size(tEkf));
-            end
-        end
-        tEkf = tEkf(keep);
-        xyEkf = xyEkf(keep, :);
-        speedAtEkf = speedAtEkf(keep);
-    else
-        warning('No active drive window found in %s; using untrimmed aligned data.', cfg.bagName);
-    end
-
     raceCsv = cfg.racelineCsv;
     if isempty(raceCsv)
         raceCsv = defaultRacelineCsv;
@@ -185,11 +135,20 @@ for i = 1:numel(runs)
     racelineXY = loadRacelineXY(raceCsv);
 
     [lapDurS, lapCrossingsS] = detectFullLapDurations( ...
-        tEkf, xyEkf(:, 1), xyEkf(:, 2), racelineXY, lapGateHalfLengthM, minLapTimeSeconds);
+        tEkf, xyEkf(:, 1), xyEkf(:, 2), racelineXY, minLapTimeSeconds);
 
     if isempty(lapDurS)
-        warning('No full laps detected in %s after trimming.', cfg.bagName);
+        warning('No full laps detected in %s.', cfg.bagName);
         continue;
+    end
+
+    if ignoreFirstCompleteLap
+        if numel(lapDurS) < 2 || numel(lapCrossingsS) < 3
+            warning('Not enough full laps in %s to ignore first lap.', cfg.bagName);
+            continue;
+        end
+        lapDurS = lapDurS(2:end);
+        lapCrossingsS = lapCrossingsS(2:end);
     end
 
     keepFullLaps = tEkf >= lapCrossingsS(1) & tEkf <= lapCrossingsS(end);
@@ -312,11 +271,129 @@ uitable(figTable, 'Data', table2cell(summaryT), ...
     'ColumnName', summaryT.Properties.VariableNames, ...
     'Units', 'normalized', 'Position', [0 0 1 1]);
 
-end
+	end
 
-function names = getTopicNames(topicsTbl)
-vars = topicsTbl.Properties.VariableNames;
-if ismember("TopicName", vars)
+	function csvPath = findDefaultRacelineCsv(racelineRoot)
+	csvPath = '';
+	if ~isfolder(racelineRoot)
+	    return;
+	end
+
+	preferred = fullfile(racelineRoot, 'my_track_raceline.csv');
+	if isfile(preferred)
+	    csvPath = preferred;
+	    return;
+	end
+
+	candidates = dir(fullfile(racelineRoot, '*.csv'));
+	if isempty(candidates)
+	    return;
+	end
+
+	[~, idx] = max([candidates.datenum]);
+	csvPath = fullfile(candidates(idx).folder, candidates(idx).name);
+	end
+
+	function runs = discoverSpeedLapRuns(bagsRoot, racelineRoot, defaultRacelineCsv)
+	runs = struct('algorithm', {}, 'bagName', {}, 'racelineCsv', {});
+	if ~isfolder(bagsRoot)
+	    return;
+	end
+
+	metadataFiles = findFilesRecursive(bagsRoot, 'metadata.yaml');
+	for k = 1:numel(metadataFiles)
+	    bagPath = fileparts(metadataFiles{k});
+	    if isSameOrChildPath(bagPath, racelineRoot)
+	        continue;
+	    end
+
+	    bagName = relativePathFromRoot(bagPath, bagsRoot);
+	    if isempty(bagName)
+	        [~, bagName] = fileparts(bagPath);
+	    end
+
+	    runs(end + 1) = struct( ... %#ok<AGROW>
+	        'algorithm', inferAlgorithmFromBagName(bagName), ...
+	        'bagName', bagName, ...
+	        'racelineCsv', defaultRacelineCsv);
+	end
+	end
+
+	function files = findFilesRecursive(rootDir, fileName)
+	files = {};
+	if ~isfolder(rootDir)
+	    return;
+	end
+
+	entries = dir(rootDir);
+	for i = 1:numel(entries)
+	    entry = entries(i);
+	    if entry.isdir
+	        if strcmp(entry.name, '.') || strcmp(entry.name, '..')
+	            continue;
+	        end
+	        childFiles = findFilesRecursive(fullfile(rootDir, entry.name), fileName);
+	        files = [files, childFiles]; %#ok<AGROW>
+	    elseif strcmp(entry.name, fileName)
+	        files{end + 1} = fullfile(rootDir, entry.name); %#ok<AGROW>
+	    end
+	end
+	end
+
+	function tf = isSameOrChildPath(pathToCheck, rootPath)
+	tf = false;
+	if isempty(rootPath)
+	    return;
+	end
+	pathToCheck = normalizeFolderPath(pathToCheck);
+	rootPath = normalizeFolderPath(rootPath);
+	tf = strcmp(pathToCheck, rootPath) || startsWith(pathToCheck, [rootPath filesep]);
+	end
+
+	function rel = relativePathFromRoot(pathToConvert, rootPath)
+	pathToConvert = normalizeFolderPath(pathToConvert);
+	rootPath = normalizeFolderPath(rootPath);
+	prefix = [rootPath filesep];
+	if startsWith(pathToConvert, prefix)
+	    rel = pathToConvert((numel(prefix) + 1):end);
+	elseif strcmp(pathToConvert, rootPath)
+	    rel = '';
+	else
+	    [~, rel] = fileparts(pathToConvert);
+	end
+	end
+
+	function out = normalizeFolderPath(in)
+	if isempty(in)
+	    out = '';
+	    return;
+	end
+	out = char(in);
+	while numel(out) > 1 && (out(end) == filesep || out(end) == '/' || out(end) == '\')
+	    out(end) = [];
+	end
+	end
+
+	function algorithm = inferAlgorithmFromBagName(bagName)
+	nameLower = lower(strrep(char(bagName), filesep, '_'));
+	if contains(nameLower, 'fpga')
+	    algorithm = 'MPC FPGA';
+	elseif contains(nameLower, 'mpc')
+	    algorithm = 'MPC';
+	elseif contains(nameLower, 'pure') || contains(nameLower, 'pp')
+	    algorithm = 'Pure Pursuit';
+	elseif contains(nameLower, 'stanley')
+	    algorithm = 'Stanley';
+	elseif contains(nameLower, 'ftg')
+	    algorithm = 'FTG';
+	else
+	    algorithm = char(bagName);
+	end
+	end
+
+	function names = getTopicNames(topicsTbl)
+	vars = topicsTbl.Properties.VariableNames;
+	if ismember("TopicName", vars)
     names = string(topicsTbl.TopicName);
 elseif ismember("Name", vars)
     names = string(topicsTbl.Name);
@@ -341,26 +418,6 @@ idx = contains(lower(allTopics), lower(fallbackContains));
 if any(idx)
     topic = char(allTopics(find(idx, 1, 'first')));
 end
-end
-
-function topic = pickDriveCommandTopic(allTopics)
-% Prefer built-in message types to avoid custom-message dependencies.
-topic = pickTopic(allTopics, '/commands/motor/speed', 'commands/motor/speed');
-if ~isempty(topic)
-    return;
-end
-
-topic = pickTopic(allTopics, '/ackermann_cmd', 'ackermann_cmd');
-if ~isempty(topic)
-    return;
-end
-
-topic = pickTopic(allTopics, '/drive', 'drive');
-if ~isempty(topic)
-    return;
-end
-
-topic = pickTopic(allTopics, '/teleop', 'teleop');
 end
 
 function [t, xy] = extractXYSeries(msgs)
@@ -419,80 +476,7 @@ speed = speed(idx);
 speed = speed(iUnique);
 end
 
-function [t, speedCmd] = extractDriveCommandSpeedSeries(msgs, sel)
-n = numel(msgs);
-t = zeros(n, 1);
-speedCmd = nan(n, 1);
-
-msgList = [];
-if nargin >= 2 && ~isempty(sel)
-    msgList = sel.MessageList;
-end
-
-for k = 1:n
-    m = msgs{k};
-    if ~isstruct(m)
-        m = struct(m);
-    end
-
-    tHeader = extractHeaderTime(m, NaN);
-    if isfinite(tHeader)
-        t(k) = tHeader;
-    else
-        t(k) = extractSelectionTime(msgList, k);
-    end
-
-    if ~isfinite(t(k))
-        t(k) = k;
-    end
-
-    [vCmd, ok] = extractDriveCommandSpeed(m);
-    if ok
-        speedCmd(k) = vCmd;
-    end
-end
-
-valid = isfinite(t) & isfinite(speedCmd);
-t = t(valid);
-speedCmd = speedCmd(valid);
-
-[t, idx] = sort(t);
-speedCmd = speedCmd(idx);
-[t, iUnique] = unique(t);
-speedCmd = speedCmd(iUnique);
-end
-
-function [tStart, tEnd, ok] = computeDriveWindow(tCmd, speedCmd, startDelayS, endTrimS, speedThresh)
-tStart = NaN;
-tEnd = NaN;
-ok = false;
-
-if isempty(tCmd) || isempty(speedCmd)
-    return;
-end
-
-active = isfinite(speedCmd) & abs(speedCmd) > speedThresh;
-if any(active)
-    tFirstActive = tCmd(find(active, 1, 'first'));
-    tLastActive = tCmd(find(active, 1, 'last'));
-else
-    % Fallback when all commands are near zero: use command-stream bounds.
-    tFirstActive = tCmd(1);
-    tLastActive = tCmd(end);
-end
-
-tStart = tFirstActive + max(0, startDelayS);
-tEnd = tLastActive - max(0, endTrimS);
-
-if ~isfinite(tStart) || ~isfinite(tEnd) || tEnd <= tStart
-    ok = false;
-    return;
-end
-
-ok = true;
-end
-
-function [lapDurS, crossingTimes] = detectFullLapDurations(t, x, y, racelineXY, gateHalfLengthM, minLapTimeS)
+function [lapDurS, crossingTimes] = detectFullLapDurations(t, x, y, racelineXY, minLapTimeS)
 lapDurS = [];
 crossingTimes = [];
 
@@ -500,81 +484,33 @@ if numel(t) < 3 || isempty(racelineXY) || size(racelineXY, 1) < 2
     return;
 end
 
-p0 = racelineXY(1, :);
-p1 = racelineXY(2, :);
-dirVec = p1 - p0;
-dirNorm = hypot(dirVec(1), dirVec(2));
-if dirNorm <= 1e-9
+[trackS, trackLength, closedRacelineXY] = buildRacelineArclength(racelineXY);
+if trackLength <= 1e-9
     return;
 end
 
-tangent = dirVec / dirNorm;
-normal = [-tangent(2), tangent(1)];
+progress = projectTrajectoryToRacelineProgress([x(:), y(:)], closedRacelineXY, trackS, trackLength);
+t = t(:);
+valid = isfinite(t) & isfinite(progress);
+t = t(valid);
+progress = progress(valid);
 
-dx = x - p0(1);
-dy = y - p0(2);
-along = dx * tangent(1) + dy * tangent(2);
-lat = dx * normal(1) + dy * normal(2);
-
-crossT = [];
-crossDir = [];
-for i = 1:(numel(t) - 1)
-    if ~isfinite(lat(i)) || ~isfinite(lat(i + 1)) || ~isfinite(t(i)) || ~isfinite(t(i + 1))
-        continue;
-    end
-
-    alongMid = 0.5 * (along(i) + along(i + 1));
-    if abs(alongMid) > gateHalfLengthM
-        continue;
-    end
-
-    crossing = false;
-    alpha = 0.0;
-    if lat(i) == 0
-        crossing = true;
-        alpha = 0.0;
-    elseif lat(i + 1) == 0
-        crossing = true;
-        alpha = 1.0;
-    elseif (lat(i) < 0 && lat(i + 1) > 0) || (lat(i) > 0 && lat(i + 1) < 0)
-        crossing = true;
-        alpha = lat(i) / (lat(i) - lat(i + 1));
-    end
-
-    if ~crossing
-        continue;
-    end
-
-    tCross = t(i) + alpha * (t(i + 1) - t(i));
-    if ~isfinite(tCross)
-        continue;
-    end
-
-    crossT(end + 1, 1) = tCross; %#ok<AGROW>
-    crossDir(end + 1, 1) = sign(lat(i + 1) - lat(i)); %#ok<AGROW>
-end
-
-if numel(crossT) < 2
+if numel(t) < 3
     return;
 end
 
-nonZeroDir = crossDir(crossDir ~= 0);
-if isempty(nonZeroDir)
-    return;
+[t, sortIdx] = sort(t);
+progress = progress(sortIdx);
+[t, uniqueIdx] = unique(t, 'stable');
+progress = progress(uniqueIdx);
+
+unwrappedProgress = unwrapCircularProgress(progress, trackLength);
+if unwrappedProgress(end) < unwrappedProgress(1)
+    unwrappedProgress = -unwrappedProgress;
 end
 
-dominantDir = mode(nonZeroDir);
-crossT = crossT(crossDir == dominantDir);
-if numel(crossT) < 2
-    return;
-end
-
-crossingTimes = crossT(1);
-for i = 2:numel(crossT)
-    if crossT(i) - crossingTimes(end) >= minLapTimeS
-        crossingTimes(end + 1, 1) = crossT(i); %#ok<AGROW>
-    end
-end
+crossT = detectProgressCrossings(t, unwrappedProgress, trackLength);
+crossingTimes = debounceCrossingTimes(crossT, minLapTimeS);
 
 if numel(crossingTimes) < 2
     crossingTimes = [];
@@ -582,54 +518,110 @@ if numel(crossingTimes) < 2
 end
 
 lapDurS = diff(crossingTimes);
-valid = isfinite(lapDurS) & lapDurS > 0;
+valid = isfinite(lapDurS) & lapDurS >= minLapTimeS;
 lapDurS = lapDurS(valid);
 if isempty(lapDurS)
     crossingTimes = [];
 end
 end
 
-function t = extractSelectionTime(msgList, idx)
-t = NaN;
-if isempty(msgList) || idx < 1 || idx > height(msgList)
+function [trackS, trackLength, closedXY] = buildRacelineArclength(racelineXY)
+closedXY = racelineXY(all(isfinite(racelineXY), 2), :);
+trackS = [];
+trackLength = 0;
+
+if size(closedXY, 1) < 2
     return;
 end
 
-vars = string(msgList.Properties.VariableNames);
-idxTs = find(strcmpi(vars, 'Timestamp'), 1, 'first');
-idxTime = find(strcmpi(vars, 'Time'), 1, 'first');
+if hypot(closedXY(end, 1) - closedXY(1, 1), closedXY(end, 2) - closedXY(1, 2)) > 1e-6
+    closedXY(end + 1, :) = closedXY(1, :);
+end
 
-if ~isempty(idxTs)
-    v = msgList{idx, idxTs};
-elseif ~isempty(idxTime)
-    v = msgList{idx, idxTime};
-else
+segLen = hypot(diff(closedXY(:, 1)), diff(closedXY(:, 2)));
+keepPoint = [true; segLen > 1e-9];
+closedXY = closedXY(keepPoint, :);
+
+if size(closedXY, 1) < 2
     return;
 end
 
-if isa(v, 'duration')
-    t = seconds(v);
+segLen = hypot(diff(closedXY(:, 1)), diff(closedXY(:, 2)));
+trackS = [0; cumsum(segLen)];
+trackLength = trackS(end);
+end
+
+function progress = projectTrajectoryToRacelineProgress(trajXY, racelineXY, trackS, trackLength)
+progress = nan(size(trajXY, 1), 1);
+if isempty(trackS) || trackLength <= 0 || size(racelineXY, 1) < 2
     return;
 end
 
-if isa(v, 'datetime')
-    t = posixtime(v);
-    return;
+segStart = racelineXY(1:end-1, :);
+segVec = diff(racelineXY, 1, 1);
+segLen2 = sum(segVec .* segVec, 2);
+validSeg = segLen2 > 1e-12;
+
+segStart = segStart(validSeg, :);
+segVec = segVec(validSeg, :);
+segLen2 = segLen2(validSeg);
+segS = trackS(1:end-1);
+segS = segS(validSeg);
+
+for i = 1:size(trajXY, 1)
+    pt = trajXY(i, :);
+    if any(~isfinite(pt))
+        continue;
+    end
+
+    rel = pt - segStart;
+    u = (rel(:, 1) .* segVec(:, 1) + rel(:, 2) .* segVec(:, 2)) ./ segLen2;
+    u = min(max(u, 0), 1);
+
+    proj = segStart + u .* segVec;
+    dist2 = sum((proj - pt) .* (proj - pt), 2);
+    [~, idx] = min(dist2);
+
+    progress(i) = mod(segS(idx) + u(idx) * sqrt(segLen2(idx)), trackLength);
+end
 end
 
-if iscell(v)
-    v = v{1};
+function unwrappedProgress = unwrapCircularProgress(progress, trackLength)
+phase = 2 * pi * progress(:) / trackLength;
+unwrappedProgress = unwrap(phase) * trackLength / (2 * pi);
 end
 
-v = double(v);
-if ~isfinite(v)
-    return;
+function crossingTimes = detectProgressCrossings(t, unwrappedProgress, trackLength)
+crossingTimes = [];
+epsProgress = max(1e-6, trackLength * 1e-9);
+
+for i = 1:(numel(t) - 1)
+    p0 = unwrappedProgress(i);
+    p1 = unwrappedProgress(i + 1);
+    if ~isfinite(p0) || ~isfinite(p1) || p1 <= p0 + epsProgress
+        continue;
+    end
+
+    target = ceil((p0 + epsProgress) / trackLength) * trackLength;
+    while target <= p1 + epsProgress
+        alpha = (target - p0) / (p1 - p0);
+        if alpha >= 0 && alpha <= 1
+            crossingTimes(end + 1, 1) = t(i) + alpha * (t(i + 1) - t(i)); %#ok<AGROW>
+        end
+        target = target + trackLength;
+    end
+end
 end
 
-if v > 1e12
-    t = v * 1e-9;
-else
-    t = v;
+function crossingTimes = debounceCrossingTimes(rawCrossings, minLapTimeS)
+crossingTimes = [];
+rawCrossings = sort(rawCrossings(:));
+rawCrossings = rawCrossings(isfinite(rawCrossings));
+
+for i = 1:numel(rawCrossings)
+    if isempty(crossingTimes) || rawCrossings(i) - crossingTimes(end) >= minLapTimeS
+        crossingTimes(end + 1, 1) = rawCrossings(i); %#ok<AGROW>
+    end
 end
 end
 
@@ -874,37 +866,6 @@ end
 vx = double(vxv);
 vy = double(vyv);
 ok = true;
-end
-
-function [vCmd, ok] = extractDriveCommandSpeed(m)
-ok = false;
-vCmd = NaN;
-
-% std_msgs/msg/Float64 style command topic.
-[dataVal, hasData] = getNumericFieldIgnoreCase(m, 'data');
-if hasData && isfinite(dataVal)
-    vCmd = double(dataVal);
-    ok = true;
-    return;
-end
-
-% ackermann_msgs/msg/AckermannDriveStamped style command topic.
-[drive, hasDrive] = getFieldIgnoreCase(m, 'drive');
-if hasDrive && isstruct(drive)
-    [speedVal, hasSpeed] = getNumericFieldIgnoreCase(drive, 'speed');
-    if hasSpeed && isfinite(speedVal)
-        vCmd = double(speedVal);
-        ok = true;
-        return;
-    end
-end
-
-% Fallback for flat speed field naming.
-[speedVal, hasSpeed] = getNumericFieldIgnoreCase(m, 'speed');
-if hasSpeed && isfinite(speedVal)
-    vCmd = double(speedVal);
-    ok = true;
-end
 end
 
 function [value, found] = getFieldIgnoreCase(s, name)

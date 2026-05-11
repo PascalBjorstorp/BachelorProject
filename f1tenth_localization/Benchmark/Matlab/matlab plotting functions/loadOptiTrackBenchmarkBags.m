@@ -35,6 +35,9 @@ results = struct( ...
     'metricMask', {}, ...
     'excludedMask', {}, ...
     'gtPos', {}, ...
+    'gtQuat', {}, ...
+    'gtRoll', {}, ...
+    'gtPitch', {}, ...
     'gtYaw', {}, ...
     'ekfPos', {}, ...
     'ekfYaw', {}, ...
@@ -129,10 +132,10 @@ for i = 1:numel(bagDirs)
     end
 
     [gtPos, gtQuat] = transformPoseSeries(tf, gtPosRaw, gtQuatRaw);
-    gtYaw = quatArrayToYaw(gtQuat);
+    [gtRoll, gtPitch, gtYaw] = quatArrayToRpy(gtQuat);
 
-    [tCommon, gtPosI, gtYawI, ekfPosI, ekfYawI] = alignOnGroundTruthTime( ...
-        tGtRaw, gtPos, gtYaw, tEkf, ekfPos, ekfYaw);
+    [tCommon, gtPosI, gtQuatI, gtRollI, gtPitchI, gtYawI, ekfPosI, ekfYawI] = alignOnGroundTruthTime( ...
+        tGtRaw, gtPos, gtQuat, gtRoll, gtPitch, gtYaw, tEkf, ekfPos, ekfYaw);
     if isempty(tCommon)
         warning('Skipping %s: no overlapping EKF/OptiTrack time window', bagName);
         continue;
@@ -172,6 +175,9 @@ for i = 1:numel(bagDirs)
 
     tTrim = tCommon(keepMask);
     gtPosTrim = gtPosI(keepMask, :);
+    gtQuatTrim = gtQuatI(keepMask, :);
+    gtRollTrim = gtRollI(keepMask);
+    gtPitchTrim = gtPitchI(keepMask);
     gtYawTrim = gtYawI(keepMask);
     ekfPosTrim = ekfPosI(keepMask, :);
     ekfYawTrim = ekfYawI(keepMask);
@@ -208,6 +214,9 @@ for i = 1:numel(bagDirs)
     r.metricMask = metricMask;
     r.excludedMask = ~metricMask;
     r.gtPos = gtPosTrim;
+    r.gtQuat = gtQuatTrim;
+    r.gtRoll = gtRollTrim;
+    r.gtPitch = gtPitchTrim;
     r.gtYaw = gtYawTrim;
     r.ekfPos = ekfPosTrim;
     r.ekfYaw = ekfYawTrim;
@@ -709,13 +718,16 @@ for i = 1:size(quatIn, 1)
 end
 end
 
-function [tCommon, gtPosI, gtYawI, ekfPosI, ekfYawI] = alignOnGroundTruthTime( ...
-    tGt, gtPos, gtYaw, tEkf, ekfPos, ekfYaw)
+function [tCommon, gtPosI, gtQuatI, gtRollI, gtPitchI, gtYawI, ekfPosI, ekfYawI] = alignOnGroundTruthTime( ...
+    tGt, gtPos, gtQuat, gtRoll, gtPitch, gtYaw, tEkf, ekfPos, ekfYaw)
 tStart = max(min(tGt), min(tEkf));
 tEnd = min(max(tGt), max(tEkf));
 if tEnd <= tStart
     tCommon = [];
     gtPosI = [];
+    gtQuatI = [];
+    gtRollI = [];
+    gtPitchI = [];
     gtYawI = [];
     ekfPosI = [];
     ekfYawI = [];
@@ -725,6 +737,9 @@ end
 mask = tGt >= tStart & tGt <= tEnd;
 tCommon = tGt(mask);
 gtPosI = gtPos(mask, :);
+gtQuatI = gtQuat(mask, :);
+gtRollI = gtRoll(mask);
+gtPitchI = gtPitch(mask);
 gtYawI = gtYaw(mask);
 
 [tEkfU, idx] = unique(tEkf(:), 'stable');
@@ -737,9 +752,13 @@ for dim = 1:3
 end
 ekfYawI = interpYaw(tEkfU, ekfYawU, tCommon);
 
-valid = all(isfinite(ekfPosI), 2) & isfinite(ekfYawI);
+valid = all(isfinite(ekfPosI), 2) & isfinite(ekfYawI) & ...
+    all(isfinite(gtQuatI), 2) & isfinite(gtRollI) & isfinite(gtPitchI) & isfinite(gtYawI);
 tCommon = tCommon(valid);
 gtPosI = gtPosI(valid, :);
+gtQuatI = gtQuatI(valid, :);
+gtRollI = gtRollI(valid);
+gtPitchI = gtPitchI(valid);
 gtYawI = gtYawI(valid);
 ekfPosI = ekfPosI(valid, :);
 ekfYawI = ekfYawI(valid);
@@ -1025,9 +1044,25 @@ else
 end
 end
 
+function [roll, pitch, yaw] = quatArrayToRpy(q)
+x = q(:, 1);
+y = q(:, 2);
+z = q(:, 3);
+w = q(:, 4);
+
+roll = atan2(2 .* (w .* x + y .* z), ...
+    1 - 2 .* (x .^ 2 + y .^ 2));
+
+pitchArg = 2 .* (w .* y - z .* x);
+pitchArg = max(-1, min(1, pitchArg));
+pitch = asin(pitchArg);
+
+yaw = atan2(2 .* (w .* z + x .* y), ...
+    1 - 2 .* (y .^ 2 + z .^ 2));
+end
+
 function yaw = quatArrayToYaw(q)
-yaw = atan2(2 .* (q(:, 4) .* q(:, 3) + q(:, 1) .* q(:, 2)), ...
-    1 - 2 .* (q(:, 2) .^ 2 + q(:, 3) .^ 2));
+[~, ~, yaw] = quatArrayToRpy(q);
 end
 
 function R = quatToRotmLocal(q)

@@ -162,14 +162,7 @@ static void mpc_fpga_compute_core(
         g_persist.prev_delta_cmd = 0;
         g_persist.actual_steering = 0;
         g_persist.prev_curvature = 0;
-        g_persist.prev_converged = 0;
-        g_persist.prev_ey = 0;
-        g_persist.prev_epsi = 0;
-        g_persist.prev_vx = 0;
-        g_persist.prev_left_bound0 = 0;
-        g_persist.prev_right_bound0 = 0;
         g_persist.prev_model_signature = MPC_MODEL_SIGNATURE;
-        g_persist.cold_start_countdown = 0;
         g_admm_state.initialized = 0;
         g_initialized = 1;
     }
@@ -235,11 +228,6 @@ extern "C" void mpc_fpga_top_opencl(
     uint32_t lane_words[kLaneWords];
 #pragma HLS ARRAY_PARTITION variable=lane_words cyclic factor=16 dim=1
 
-    for (int i = 0; i < kLaneWords; ++i) {
-#pragma HLS UNROLL
-        lane_words[i] = 0u;
-    }
-
     for (int packet_idx = 0; packet_idx < kPacketWords; ++packet_idx) {
 #pragma HLS PIPELINE II=1
         const ap_uint<512> packet = input_words512[packet_idx];
@@ -271,6 +259,7 @@ extern "C" void mpc_fpga_top_opencl(
     const int32_t w5 = (int32_t)lane_words[5];
     const int32_t w6 = (int32_t)lane_words[6];
     const int32_t w7 = (int32_t)lane_words[7];
+    (void)w6;
 
     fp_QP_t ey         = fp_QP_from_raw((fp_stream_raw_t)w0);
     fp_QP_t epsi       = fp_normalize_angle(fp_QP_from_raw((fp_stream_raw_t)w1));
@@ -280,23 +269,11 @@ extern "C" void mpc_fpga_top_opencl(
     fp_QP_t steering   = fp_QP_from_raw((fp_stream_raw_t)w5);
     fp_QP_t prev_accel = fp_QP_from_raw((fp_stream_raw_t)w7);
 
-    int horizon_len = w6;
-    if (horizon_len < 1 || horizon_len > MPC_HORIZON) {
-        ap_uint<128> packed_out = 0;
-        packed_out.range(31, 0) = (ap_uint<32>)0;
-        packed_out.range(63, 32) = (ap_uint<32>)0;
-        packed_out.range(95, 64) = (ap_uint<32>)MPC_FPGA_STATUS_NO_TRAJECTORY;
-        packed_out.range(127, 96) = (ap_uint<32>)0;
-        output_words128[0] = packed_out;
-        return;
-    }
-
     MpcRefPoint_t ref[MPC_HORIZON];
 #if 1
     for (int k = 0; k < MPC_HORIZON; ++k) {
 #pragma HLS PIPELINE II=1
-        const int src_k = (k < horizon_len) ? k : (horizon_len - 1);
-        const int base = 8 + (src_k * 8);
+        const int base = 8 + (k * 8);
         const int32_t ref_ey_word        = (int32_t)lane_words[base + 0];
         const int32_t ref_epsi_word      = (int32_t)lane_words[base + 1];
         const int32_t ref_vx_word        = (int32_t)lane_words[base + 2];

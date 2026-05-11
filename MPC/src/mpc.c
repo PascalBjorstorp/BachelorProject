@@ -125,6 +125,7 @@ static float compute_wall_biased_ey_ref(
 
 static MpcConfiguration_t config;
 static int initialized = 0;
+static int solver_call_count = 0;
 static ControlInput_t prev_control;
 static float actual_steering_angle = 0;  /* Servo physical position */
 static RiccatiAdmmState_t admm_state;
@@ -359,6 +360,8 @@ MpcSolverStatus_t mpc_compute_optimal_control(
     // Auto-initialize on first use if not already initialized.
     if (!initialized) mpc_initialize();
 
+    solver_call_count++;
+
     const FrenetState_t *frenet = current_frenet_state;
 
     // Horizon is fixed at compile-time.
@@ -498,6 +501,25 @@ MpcSolverStatus_t mpc_compute_optimal_control(
             lin_pred += B_step[i][0] * lin_control.steer_ang;
             lin_pred += B_step[i][1] * lin_control.long_acc;
             sd->d[i] = xbar_next[i] - lin_pred;
+        }
+
+        if (solver_call_count <= 1) {
+            fprintf(stderr, "CPU_D k=%d: d0=%f d1=%f d2=%f d3=%f d4=%f lin_vx=%f lin_vy=%f lin_omega=%f lin_delta_k=%f next_vy=%f\n",
+                k, sd->d[0], sd->d[1], sd->d[2], sd->d[3], sd->d[4],
+                lin_state.flong_vel, lin_state.flat_vel, lin_state.fyaw_rate,
+                lin_control.steer_ang, xbar_next[3]);
+            if (k <= 1) {
+                fprintf(stderr,
+                    "CPU_A3 k=%d: [%f %f %f %f %f %f]\n",
+                    k,
+                    A_step[3][0], A_step[3][1], A_step[3][2],
+                    A_step[3][3], A_step[3][4], B_step[3][0]);
+                fprintf(stderr,
+                    "CPU_A4 k=%d: [%f %f %f %f %f %f]\n",
+                    k,
+                    A_step[4][0], A_step[4][1], A_step[4][2],
+                    A_step[4][3], A_step[4][4], B_step[4][0]);
+            }
         }
 
         /* A[5][5] = 1: δ_actual integrator (δ_{k+1} = δ_k + dt*δ̇) */

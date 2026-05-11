@@ -160,20 +160,24 @@ if(BUILD_TESTING)
 
   find_package(ament_cmake_gtest REQUIRED)
 
+  function(add_control_gtest test_name test_source)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${test_source}")
+      ament_add_gtest(${test_name} ${test_source})
+      target_link_libraries(${test_name} ${ARGN})
+      ament_target_dependencies(${test_name} ${DEPENDENCIES})
+    else()
+      message(STATUS "Skipping ${test_name}: missing ${test_source}")
+    endif()
+  endfunction()
+
   # Math utilities tests
-  ament_add_gtest(test_math_utils test/test_math_utils.cpp)
-  target_link_libraries(test_math_utils f1tenth_common)
-  ament_target_dependencies(test_math_utils ${DEPENDENCIES})
+  add_control_gtest(test_math_utils test/test_math_utils.cpp f1tenth_common)
 
   # LiDAR processor tests
-  ament_add_gtest(test_lidar_processor test/test_lidar_processor.cpp)
-  target_link_libraries(test_lidar_processor f1tenth_common)
-  ament_target_dependencies(test_lidar_processor ${DEPENDENCIES})
+  add_control_gtest(test_lidar_processor test/test_lidar_processor.cpp f1tenth_common)
 
   # Follow The Gap algorithm tests
-  ament_add_gtest(test_follow_the_gap test/test_follow_the_gap.cpp)
-  target_link_libraries(test_follow_the_gap ftg_algorithm f1tenth_common)
-  ament_target_dependencies(test_follow_the_gap ${DEPENDENCIES})
+  add_control_gtest(test_follow_the_gap test/test_follow_the_gap.cpp ftg_algorithm f1tenth_common)
 
   # Pure Pursuit closed-loop simulation sweep (standalone executable)
   add_executable(test_sim_drive_pure_pursuit test/test_sim_drive_pure_pursuit.cpp)

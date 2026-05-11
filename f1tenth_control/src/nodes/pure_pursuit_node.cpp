@@ -453,8 +453,6 @@ void PurePursuitNode::localRacelineCallback(const nav_msgs::msg::Path::SharedPtr
         if (!std::isfinite(pose.pose.position.x) ||
             !std::isfinite(pose.pose.position.y) ||
             !std::isfinite(pose.pose.position.z) ||
-            !std::isfinite(pose.pose.orientation.x) ||
-            !std::isfinite(pose.pose.orientation.y) ||
             !std::isfinite(pose.pose.orientation.z) ||
             !std::isfinite(pose.pose.orientation.w)) {
             continue;
@@ -465,11 +463,20 @@ void PurePursuitNode::localRacelineCallback(const nav_msgs::msg::Path::SharedPtr
         tp.y = pose.pose.position.y;
         // Velocity encoded in z by the lateral planner
         tp.velocity = std::max(0.0, pose.pose.position.z);
-        // Heading from quaternion (yaw only)
-        double siny = 2.0 * (pose.pose.orientation.w * pose.pose.orientation.z +
-                              pose.pose.orientation.x * pose.pose.orientation.y);
-        double cosy = 1.0 - 2.0 * (pose.pose.orientation.y * pose.pose.orientation.y +
-                                     pose.pose.orientation.z * pose.pose.orientation.z);
+        // /local_raceline uses orientation.x/y for non-quaternion metadata.
+        // Decode yaw as if roll=pitch=0, using only z/w.
+        double qz = pose.pose.orientation.z;
+        double qw = pose.pose.orientation.w;
+        const double q_norm = std::hypot(qz, qw);
+        if (q_norm > 1e-9) {
+            qz /= q_norm;
+            qw /= q_norm;
+        } else {
+            qz = 0.0;
+            qw = 1.0;
+        }
+        double siny = 2.0 * qw * qz;
+        double cosy = 1.0 - 2.0 * qz * qz;
         tp.heading = std::atan2(siny, cosy);
 
         // Compute arc length from consecutive points

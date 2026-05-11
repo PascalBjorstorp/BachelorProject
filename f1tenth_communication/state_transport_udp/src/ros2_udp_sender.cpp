@@ -212,7 +212,7 @@ public:
         declare_parameter<bool>("interpolate_horizon", true);
         declare_parameter<double>("horizon_step_m", 0.0);
 
-        declare_parameter<std::string>("dest_ip", "10.23.0.120");
+        declare_parameter<std::string>("dest_ip", "10.23.0.2");
         declare_parameter<int>("dest_port", 49000);
 
         const std::string trajectory_file = get_parameter("trajectory_file").as_string();

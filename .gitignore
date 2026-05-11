@@ -320,3 +320,7 @@ f1tenth_planning/trajectories/my_track_raceline_body_safe.csv
 
 .codex
 output
+
+
+f1tenth_localization/Benchmark/Matlab/csv/*
+f1tenth_localization/Benchmark/bags/*

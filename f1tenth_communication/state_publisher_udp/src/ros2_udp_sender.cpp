@@ -63,7 +63,7 @@ public:
         declare_parameter<std::string>("pose_topic", "/ekf_pose");
         declare_parameter<std::string>("raceline_topic", "/local_raceline");
         declare_parameter<std::string>("servo_topic", "/sensors/servo_position_command");
-        declare_parameter<std::string>("dest_ip", "10.23.0.120");
+        declare_parameter<std::string>("dest_ip", "10.23.0.2");
         declare_parameter<int>("dest_port", 49000);
 
         const std::string odom_topic = get_parameter("odom_topic").as_string();
@@ -386,7 +386,9 @@ private:
                           msg->pose.pose.orientation.x,
                           msg->pose.pose.orientation.y,
                           msg->pose.pose.orientation.z,
-                          msg->pose.pose.orientation.w);
+                          msg->pose.pose.orientation.w,
+                          msg->header.stamp.sec,
+                          msg->header.stamp.nanosec);
     }
 
     void startup_diagnostics() {
@@ -405,7 +407,9 @@ private:
                            double qx,
                            double qy,
                            double qz,
-                           double qw) {
+                           double qw,
+                           int32_t source_stamp_sec,
+                           uint32_t source_stamp_nanosec) {
         const auto t_start = std::chrono::steady_clock::now();
 
         if (local_raceline_.empty()) return;
@@ -445,6 +449,8 @@ private:
         packet.sender_mono_ns = static_cast<uint64_t>(
             std::chrono::duration_cast<std::chrono::nanoseconds>(
                 std::chrono::steady_clock::now().time_since_epoch()).count());
+        packet.source_stamp_sec = source_stamp_sec;
+        packet.source_stamp_nanosec = source_stamp_nanosec;
 
         packet.x_fp = to_fp(x);
         packet.y_fp = to_fp(y);
@@ -518,4 +524,3 @@ int main(int argc, char** argv) {
     rclcpp::shutdown();
     return 0;
 }
-

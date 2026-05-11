@@ -33,10 +33,10 @@ EkfNode::EkfNode(const rclcpp::NodeOptions& options)
         odom_topic_, rclcpp::QoS(10),
         std::bind(&EkfNode::odom_callback, this, std::placeholders::_1));
 
-    // No publish timer — event-driven publishing from callbacks (§10.2).
+    // Publish only from odom callbacks; AMCL callbacks correct the state.
 
     RCLCPP_INFO(get_logger(),
-                "EKF node started — fusing '%s' + '%s' → '%s' (event-driven)",
+                "EKF node started — fusing '%s' + '%s' → '%s' (publishing on odom callbacks)",
                 amcl_topic_.c_str(), odom_topic_.c_str(),
                 output_topic_.c_str());
 }
@@ -260,8 +260,6 @@ void EkfNode::amcl_callback(
     R(2, 2) = std::max(R(2, 2), 1e-6);
 
     correct(z, R);
-    lock.unlock();
-    publish_and_broadcast(amcl_stamp);   // Publish immediately after correction (§10.2)
 }
 
 // ─── Event-driven publish ───────────────────────────────────────────
