@@ -706,11 +706,14 @@ double LateralPlanner::computeShiftMagnitude(size_t opp_idx) const
   const double clearance =
     params_.car_width_m / 2.0 +
     params_.car_width_m / 2.0 +
-    inflated_tolerance;
+    inflated_tolerance +
+    std::max(0.0, params_.avoidance_extra_clearance_m);
 
   // Desired shifted lane center in raceline-normal coordinates.
   const double target_lateral = opp_lateral + pass_dir * clearance;
-  const double required_shift = std::abs(target_lateral);
+  const double required_shift = std::max(
+    std::abs(target_lateral),
+    std::max(0.0, params_.min_avoidance_shift_m));
 
   const double left_limit = std::max(
     opp_wp.d_left - params_.car_width_m / 2.0 - wall_margin,
