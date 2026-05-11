@@ -92,6 +92,9 @@ PerformanceMonitor::PerformanceMonitor(const rclcpp::NodeOptions & options)
   rolling_window_long_sec_ = system_monitor_config::kRollingWindowLongSec;
   rolling_window_short_sec_ = system_monitor_config::kRollingWindowShortSec;
 
+  declare_parameter<std::string>("output_dir", output_dir_);
+  output_dir_ = get_parameter("output_dir").as_string();
+
   if (gpu_sample_hz_ <= 0.0) {
     gpu_sample_hz_ = cpu_sample_hz_;
   }

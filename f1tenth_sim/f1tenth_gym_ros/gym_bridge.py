@@ -51,6 +51,27 @@ import os
 def _source_maps_dir() -> pathlib.Path:
     return pathlib.Path(__file__).resolve().parents[1] / 'maps'
 
+
+def _resolve_map_yaml_path(map_path: str) -> pathlib.Path:
+    """Resolve map_path as absolute YAML/path stem, installed map, or source map."""
+    expanded = pathlib.Path(map_path).expanduser()
+
+    candidates = []
+    if expanded.suffix in ('.yaml', '.yml'):
+        candidates.append(expanded)
+    elif expanded.is_absolute() or expanded.parent != pathlib.Path('.'):
+        candidates.append(expanded.with_suffix('.yaml'))
+    else:
+        share_maps = pathlib.Path(get_package_share_directory('f1tenth_gym_ros')) / 'maps'
+        candidates.append(share_maps / f'{map_path}.yaml')
+        candidates.append(_source_maps_dir() / f'{map_path}.yaml')
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate.resolve()
+
+    return candidates[0]
+
 # Constants for timer periods (in seconds)
 PUBLISH_TIMER_PERIOD: float = 0.005  # 200 Hz for sensor data publishing (matches sim_timestep)
 SYNC_MODE_TIMER_PERIOD: float = 1.0  # 1 Hz heartbeat in sync mode
@@ -297,18 +318,8 @@ class GymBridge(Node):
 
     def _create_environment(self, num_agents: int, scale: float) -> gym.Env:
         """Create and configure the F1Tenth gym environment."""
-        # Parse map path
         map_name = self.get_parameter('map_path').value
-        map_yaml_path = pathlib.Path(
-            get_package_share_directory('f1tenth_gym_ros')
-        ) / 'maps' / f'{map_name}.yaml'
-        if not map_yaml_path.exists():
-            fallback_path = _source_maps_dir() / f'{map_name}.yaml'
-            if fallback_path.exists():
-                self.get_logger().warning(
-                    f'Installed map not found, using source map: {fallback_path}'
-                )
-                map_yaml_path = fallback_path
+        map_yaml_path = _resolve_map_yaml_path(map_name)
         self.get_logger().info(f'Loading map: {map_name} from path: {map_yaml_path}')
 
         # Load the track
