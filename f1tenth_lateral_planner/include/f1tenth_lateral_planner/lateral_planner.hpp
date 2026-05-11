@@ -79,6 +79,8 @@ public:
     double min_window_m          = 3.0;
     double window_time_s         = 0.8;
     double max_lateral_shift_m   = 0.8;
+    double min_avoidance_shift_m = 0.30; ///< Minimum visible shift when avoidance is active [m]
+    double avoidance_extra_clearance_m = 0.15; ///< Extra opponent clearance beyond collision limit [m]
     int    lookahead_points      = 80;   ///< Waypoints to publish ahead
     int    path_start_offset_points = 0; ///< Start this many waypoints ahead of nearest
     double pass_complete_margin  = 2.0;  ///< Car must be this far past opponent to unlock [m]

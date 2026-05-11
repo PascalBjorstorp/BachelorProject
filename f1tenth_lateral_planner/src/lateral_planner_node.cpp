@@ -87,6 +87,8 @@ private:
     params.min_window_m          = MIN_WINDOW_M;
     params.window_time_s         = WINDOW_TIME_S;
     params.max_lateral_shift_m   = MAX_LATERAL_SHIFT_M;
+    params.min_avoidance_shift_m = MIN_AVOIDANCE_SHIFT_M;
+    params.avoidance_extra_clearance_m = AVOIDANCE_EXTRA_CLEARANCE_M;
     params.lookahead_points      = LOOKAHEAD_POINTS;
     params.path_start_offset_points = PATH_START_OFFSET_POINTS;
     params.pass_complete_margin  = PASS_COMPLETE_MARGIN_M;
