@@ -556,6 +556,8 @@ private:
             std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now().time_since_epoch()).count() & 0xFFFFFFFFu);
         ctrl.sender_mono_ns = packet.sender_mono_ns;
+        ctrl.source_stamp_sec = packet.source_stamp_sec;
+        ctrl.source_stamp_nanosec = packet.source_stamp_nanosec;
         ctrl.solver_status = out_status;
         ctrl.solver_iterations = out_iterations;
         ctrl.reserved = 0;

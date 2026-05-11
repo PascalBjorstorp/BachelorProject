@@ -508,8 +508,7 @@ private:
 
         uint32_t horizon_len = mpc_state->horizon_length;
 
-        /* Set publish timestamp just before publishing (for network latency tracking on Kria) */
-        mpc_state->header.stamp = this->now();
+        /* Keep the EKF pose stamp as the pipeline monitor token. */
         
         // Publish
         pub_->publish(std::move(mpc_state));
