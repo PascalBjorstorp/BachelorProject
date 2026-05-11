@@ -3,9 +3,7 @@ close all;
 % Main plotting driver for localization/MPC benchmark CSV exports.
 %
 % Optional workspace inputs before pressing Run:
-%   csvDir       - exact CSV run folder to plot
-%   topicCsvDir  - folder containing topic CSVs such as amcl_timing*.csv
-%   csvRootDir   - folder where CSV run folders are searched
+%   csvRootDir   - root folder recursively searched for CSV run folders
 %   plotsRootDir - output root for PNG plots
 %   showPlots    - true: save and show figures, false: save only
 
@@ -44,65 +42,136 @@ if isfolder(fullfile(scriptDir, 'plots'))
     addpath(fullfile(scriptDir, 'plots'));
 end
 
-% ===== HARDCODED PATHS =====
-% Input CSV folder (relative to script directory)
-csvDir = fullfile(scriptDir, 'csv', 'TestRun');
+% ===== BATCH INPUT PATHS =====
+% Root folder recursively searched for CSV-containing run folders.
+if ~exist('csvRootDir', 'var') || isempty(csvRootDir)
+    csvRootDir = fullfile(scriptDir, 'csv', '10LapsRun');
+end
 
 % Output plots root directory (relative to script directory)
-plotsRootDir = fullfile(scriptDir, 'plots');
+if ~exist('plotsRootDir', 'var') || isempty(plotsRootDir)
+    plotsRootDir = fullfile(scriptDir, 'plots');
+end
 
 % Show plots flag
-showPlots = true;
-
-% ===== END HARDCODED PATHS =====
-
-if ~isdir(csvDir)
-    error('Input CSV directory does not exist: %s\nMake sure you are running this script from the Matlab folder or set your working directory to: %s', csvDir, fullfile(scriptDir, '..', '..'));
+if ~exist('showPlots', 'var') || isempty(showPlots)
+    showPlots = false;
 end
 
-if ~isdir(plotsRootDir)
-    error('Output plots directory does not exist: %s', plotsRootDir);
+% ===== END BATCH INPUT PATHS =====
+
+if ~isfolder(csvRootDir)
+    error('Input CSV root directory does not exist: %s', csvRootDir);
 end
 
-topicCsvDir = csvDir;
+if ~isfolder(plotsRootDir)
+    mkdir(plotsRootDir);
+end
 
-fprintf('Input CSV folder  : %s\n', csvDir);
-fprintf('Topic CSV folder  : %s\n', topicCsvDir);
+csvRunDirs = findCsvRunFolders(csvRootDir);
+if isempty(csvRunDirs)
+    error('No CSV files found under input root: %s', csvRootDir);
+end
+
+fprintf('Input CSV root    : %s\n', csvRootDir);
+fprintf('CSV run folders   : %d\n', numel(csvRunDirs));
 fprintf('Show plots        : %s\n', mat2str(logical(showPlots)));
 
-%% Load selected run data
-data = loadPipelineMonitorData(csvDir, topicCsvDir);
+failedRuns = {};
 
-[~, runName] = fileparts(csvDir);
-[runName, outputDir] = prepareOutputDirectory(runName, plotsRootDir);
+for runIdx = 1:numel(csvRunDirs)
+    csvDir = csvRunDirs{runIdx};
+    topicCsvDir = csvDir;
+    runName = relativeRunName(csvDir, csvRootDir);
 
-fprintf('Output plot folder: %s\n', outputDir);
+    fprintf('\n[%d/%d] Input CSV folder  : %s\n', runIdx, numel(csvRunDirs), csvDir);
+    fprintf('[%d/%d] Topic CSV folder  : %s\n', runIdx, numel(csvRunDirs), topicCsvDir);
 
-%% Figure of pipeline timings
-plotPipelineLatencyOverTime(data, outputDir, showPlots);
+    try
+        %% Load selected run data
+        data = loadPipelineMonitorData(csvDir, topicCsvDir);
 
-%% Figure of latency histograms
-plotLatencyHistograms(data, outputDir, showPlots);
+        [runName, outputDir] = prepareOutputDirectory(runName, plotsRootDir);
+        fprintf('[%d/%d] Output plot folder: %s\n', runIdx, numel(csvRunDirs), outputDir);
 
-%% Figure of latency boxplot
-plotLatencyBoxplot(data, outputDir, showPlots);
+        %% Figure of pipeline timings
+        plotPipelineLatencyOverTime(data, outputDir, showPlots);
 
-%% Figure of CPU windows
-plotCpuWindows(data, outputDir, showPlots);
+        %% Figure of latency histograms
+        plotLatencyHistograms(data, outputDir, showPlots);
 
-%% Figure of per-core CPU
-plotPerCoreCpu(data, outputDir, showPlots);
+        %% Figure of latency boxplot
+        plotLatencyBoxplot(data, outputDir, showPlots);
 
-%% Figure of GPU usage
-plotGpuUsage(data, outputDir, showPlots);
+        %% Figure of CPU windows
+        plotCpuWindows(data, outputDir, showPlots);
 
-%% Figure of per-node CPU
-plotPerNodeCpu(data, outputDir, showPlots);
+        %% Figure of per-core CPU
+        plotPerCoreCpu(data, outputDir, showPlots);
 
-%% Figure of AMCL timings with particle heatmap
-plotAmclTimingParticleHeatmap(data, outputDir, showPlots);
+        %% Figure of GPU usage
+        plotGpuUsage(data, outputDir, showPlots);
 
-%% Summary statistics
-printBenchmarkSummary(data);
+        %% Figure of per-node CPU
+        plotPerNodeCpu(data, outputDir, showPlots);
 
-fprintf('\nPlots saved to %s\n', outputDir);
+        %% Figure of AMCL timings with particle heatmap
+        plotAmclTimingParticleHeatmap(data, outputDir, showPlots);
+
+        %% Summary statistics
+        printBenchmarkSummary(data);
+
+        fprintf('[%d/%d] Plots saved to %s\n', runIdx, numel(csvRunDirs), outputDir);
+    catch ME
+        warning('Skipping run folder %s: %s', csvDir, ME.message);
+        failedRuns(end + 1, :) = {runName, ME.message}; %#ok<SAGROW>
+    end
+end
+
+fprintf('\nBatch complete. Processed %d CSV folder(s).\n', numel(csvRunDirs) - size(failedRuns, 1));
+if ~isempty(failedRuns)
+    fprintf('Failed folder(s):\n');
+    for i = 1:size(failedRuns, 1)
+        fprintf('  %s: %s\n', failedRuns{i, 1}, failedRuns{i, 2});
+    end
+end
+
+function csvRunDirs = findCsvRunFolders(rootDir)
+%FINDCSVRUNFOLDERS Return every folder under rootDir that contains CSV files.
+
+csvRunDirs = {};
+visit(rootDir);
+
+    function visit(folder)
+        csvFiles = dir(fullfile(folder, '*.csv'));
+        if ~isempty(csvFiles)
+            csvRunDirs{end + 1} = folder; %#ok<AGROW>
+        end
+
+        entries = dir(folder);
+        for j = 1:numel(entries)
+            entry = entries(j);
+            if entry.isdir && ~strcmp(entry.name, '.') && ~strcmp(entry.name, '..')
+                visit(fullfile(folder, entry.name));
+            end
+        end
+    end
+end
+
+function runName = relativeRunName(runDir, rootDir)
+%RELATIVERUNNAME Build a stable plot folder name from runDir relative to rootDir.
+
+runDir = stripTrailingSeparator(char(runDir));
+rootDir = stripTrailingSeparator(char(rootDir));
+
+rootPrefix = [rootDir filesep];
+if startsWith(runDir, rootPrefix)
+    runName = runDir((numel(rootPrefix) + 1):end);
+elseif strcmp(runDir, rootDir)
+    [~, runName] = fileparts(rootDir);
+else
+    [~, runName] = fileparts(runDir);
+end
+
+runName = strrep(char(runName), filesep, '_');
+end
