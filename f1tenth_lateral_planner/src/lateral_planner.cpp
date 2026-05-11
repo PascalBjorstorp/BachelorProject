@@ -157,7 +157,8 @@ void LateralPlanner::processObstacleScan(
   flush_cluster();
 
   if (clusters.empty()) {
-    if (opponent_.detected && missed_obstacle_scans_ < 3) {
+    const int missed_scan_hold = std::max(0, params_.obstacle_missed_scan_hold);
+    if (opponent_.detected && missed_obstacle_scans_ < missed_scan_hold) {
       ++missed_obstacle_scans_;
       return;
     }

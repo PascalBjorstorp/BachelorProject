@@ -26,6 +26,7 @@
 #define MAX_LATERAL_SHIFT_M 0.8
 #define MAX_AVOIDANCE_KAPPA 2.5
 #define PASS_COMPLETE_MARGIN_M 2.0
+#define OBSTACLE_MISSED_SCAN_HOLD 20
 
 // Curvature-aware speed regulation for modified raceline
 // Formula mirrors pure pursuit style:

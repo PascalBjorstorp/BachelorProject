@@ -102,6 +102,7 @@ private:
     params.max_lateral_accel = MAX_LATERAL_ACCEL_MPS2;
     params.min_regulated_speed = MIN_REGULATED_SPEED_MPS;
     params.obstacle_speed_cap_mps = OBSTACLE_DETECTED_MAX_SPEED_MPS;
+    params.obstacle_missed_scan_hold = OBSTACLE_MISSED_SCAN_HOLD;
 
     planner_ = std::make_unique<LateralPlanner>(get_logger(), params);
 
