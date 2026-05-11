@@ -15,6 +15,7 @@
 #include <cerrno>
 #include <chrono>
 #include <cmath>
+#include <cinttypes>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -182,6 +183,7 @@ public:
     bool is_ready() const { return initialized_; }
 
     void set_prev_accel_fp(int32_t prev_accel_fp) { prev_accel_fp_ = prev_accel_fp; }
+    int32_t get_prev_accel_fp() const { return prev_accel_fp_; }
     const TimingProfile& get_last_profile() const { return last_profile_; }
 
     bool compute(int32_t e_y_fp, int32_t e_psi_fp,
@@ -345,12 +347,17 @@ public:
         declare_parameter("xclbin_path", std::string("/lib/firmware/mpc_fpga_top_opencl.xclbin"));
         declare_parameter("kernel_name", std::string("mpc_fpga_top_opencl"));
         declare_parameter("device_index", 0);
+        declare_parameter("debug_raw_log_enabled", true);
+        declare_parameter("debug_raw_log_stride", 1);
 
         const auto input_topic = get_parameter("input_topic").as_string();
         const auto drive_topic = get_parameter("drive_topic").as_string();
         const auto xclbin_path = get_parameter("xclbin_path").as_string();
         const auto kernel_name = get_parameter("kernel_name").as_string();
         const int device_index = get_parameter("device_index").as_int();
+        raw_debug_enabled_ = get_parameter("debug_raw_log_enabled").as_bool();
+        raw_debug_stride_ = static_cast<uint32_t>(
+            std::max<int64_t>(1, get_parameter("debug_raw_log_stride").as_int()));
 
         if (!fpga_.initialize(xclbin_path, kernel_name, device_index)) {
             throw std::runtime_error("MPC FPGA OpenCL init failed");
@@ -366,9 +373,21 @@ public:
 
         /* Initialize stats CSV file */
         open_stats_csv_file();
+        open_raw_debug_csv_file();
 
         /* Initialize terminal output timer */
         last_terminal_print_time_ = std::chrono::steady_clock::now();
+    }
+
+    ~MpcReceiverFpgaNode() override {
+        if (stats_csv_file_ != nullptr) {
+            fclose(stats_csv_file_);
+            stats_csv_file_ = nullptr;
+        }
+        if (raw_debug_csv_file_ != nullptr) {
+            fclose(raw_debug_csv_file_);
+            raw_debug_csv_file_ = nullptr;
+        }
     }
 
 private:
@@ -410,8 +429,17 @@ private:
     uint64_t stats_cycle_count_ = 0;
     uint64_t stats_optimal_count_ = 0;
     uint64_t stats_max_iter_count_ = 0;
+    uint64_t stats_error_count_ = 0;
+    uint64_t stats_no_trajectory_count_ = 0;
+    uint64_t stats_other_status_count_ = 0;
+    uint64_t stats_max_iter_streak_ = 0;
+    uint64_t stats_max_iter_streak_max_ = 0;
     std::chrono::steady_clock::time_point last_terminal_print_time_;
     FILE* stats_csv_file_ = nullptr;
+    FILE* raw_debug_csv_file_ = nullptr;
+    bool raw_debug_enabled_ = true;
+    uint32_t raw_debug_stride_ = 1;
+    uint64_t raw_debug_idx_ = 0;
 
     struct FrenetErrorsFp {
         int32_t e_y_fp;
@@ -441,6 +469,92 @@ private:
         } else {
             RCLCPP_WARN(get_logger(), "Failed to open stats CSV file: %s", csv_path);
         }
+    }
+
+    void open_raw_debug_csv_file() {
+        if (!raw_debug_enabled_) {
+            return;
+        }
+
+        const char* log_dir = "log";
+        mkdir(log_dir, 0755);
+
+        time_t now = time(nullptr);
+        char timestamp[64];
+        struct tm* tm_now = localtime(&now);
+        strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", tm_now);
+
+        char csv_path[512];
+        snprintf(csv_path, sizeof(csv_path), "%s/mpc_fpga_receiver_raw_%s.csv", log_dir, timestamp);
+
+        raw_debug_csv_file_ = fopen(csv_path, "w");
+        if (raw_debug_csv_file_ != nullptr) {
+            fprintf(raw_debug_csv_file_,
+                    "idx,stamp_sec,stamp_nsec,status,iters,used_fallback,max_iter_streak,"
+                    "ey_fp,epsi_fp,vx_fp,vy_fp,omega_fp,steer_meas_fp,prev_accel_in_fp,"
+                    "out_steer_fp,out_accel_fp,pub_steer,pub_speed,pub_accel,"
+                    "ref_vx0_fp,ref_kappa0_fp,ref_left0_fp,ref_right0_fp\n");
+            fflush(raw_debug_csv_file_);
+            RCLCPP_INFO(get_logger(),
+                        "Raw FPGA debug CSV enabled (stride=%u): %s",
+                        raw_debug_stride_,
+                        csv_path);
+        } else {
+            RCLCPP_WARN(get_logger(), "Failed to open raw debug CSV file: %s", csv_path);
+        }
+    }
+
+    void log_raw_debug_cycle(const f1tenth_msgs::msg::MpcState::SharedPtr& msg,
+                             const FrenetErrorsFp& errors,
+                             int32_t prev_accel_in_fp,
+                             int32_t out_steer_fp,
+                             int32_t out_accel_fp,
+                             uint32_t status,
+                             uint32_t iters,
+                             bool used_fallback,
+                             float published_steer,
+                             float published_speed,
+                             float published_accel) {
+        if (!raw_debug_enabled_ || raw_debug_csv_file_ == nullptr) {
+            return;
+        }
+
+        raw_debug_idx_++;
+        if ((raw_debug_idx_ % raw_debug_stride_) != 0) {
+            return;
+        }
+
+        const int32_t ref_vx0_fp = msg->ref_vx_fp.empty() ? 0 : msg->ref_vx_fp[0];
+        const int32_t ref_kappa0_fp = msg->ref_kappa_fp.empty() ? 0 : msg->ref_kappa_fp[0];
+        const int32_t ref_left0_fp = msg->ref_left_bound_fp.empty() ? 0 : msg->ref_left_bound_fp[0];
+        const int32_t ref_right0_fp = msg->ref_right_bound_fp.empty() ? 0 : msg->ref_right_bound_fp[0];
+
+        fprintf(raw_debug_csv_file_,
+                "%llu,%d,%u,%u,%u,%u,%llu,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.7f,%.7f,%.7f,%d,%d,%d,%d\n",
+                static_cast<unsigned long long>(raw_debug_idx_),
+                msg->header.stamp.sec,
+                msg->header.stamp.nanosec,
+                status,
+                iters,
+                used_fallback ? 1u : 0u,
+                static_cast<unsigned long long>(stats_max_iter_streak_),
+                errors.e_y_fp,
+                errors.e_psi_fp,
+                msg->velocity_fp,
+                msg->vy_fp,
+                msg->omega_fp,
+                msg->steering_angle_fp,
+                prev_accel_in_fp,
+                out_steer_fp,
+                out_accel_fp,
+                static_cast<double>(published_steer),
+                static_cast<double>(published_speed),
+                static_cast<double>(published_accel),
+                ref_vx0_fp,
+                ref_kappa0_fp,
+                ref_left0_fp,
+                ref_right0_fp);
+        fflush(raw_debug_csv_file_);
     }
 
     void update_stats(int64_t compute_ns,
@@ -483,6 +597,22 @@ private:
         /* Count optimal solutions and max-iter cases */
         if (status == MPC_FPGA_STATUS_OK) stats_optimal_count_++;
         if (status == MPC_FPGA_STATUS_MAX_ITER) stats_max_iter_count_++;
+        if (status == MPC_FPGA_STATUS_ERROR) stats_error_count_++;
+        if (status == MPC_FPGA_STATUS_NO_TRAJECTORY) stats_no_trajectory_count_++;
+        if (status != MPC_FPGA_STATUS_OK &&
+            status != MPC_FPGA_STATUS_MAX_ITER &&
+            status != MPC_FPGA_STATUS_ERROR &&
+            status != MPC_FPGA_STATUS_NO_TRAJECTORY) {
+            stats_other_status_count_++;
+        }
+        if (status == MPC_FPGA_STATUS_MAX_ITER) {
+            stats_max_iter_streak_++;
+            if (stats_max_iter_streak_ > stats_max_iter_streak_max_) {
+                stats_max_iter_streak_max_ = stats_max_iter_streak_;
+            }
+        } else {
+            stats_max_iter_streak_ = 0;
+        }
         
         stats_cycle_count_++;
         
@@ -515,7 +645,6 @@ private:
             double avg_input_migrate = avg_or_na(stats_input_migrate_sum_us_);
             double avg_output_migrate = avg_or_na(stats_output_migrate_sum_us_);
             double avg_host_prep = avg_or_na(stats_host_prep_sum_us_);
-            double avg_host_readback = avg_or_na(stats_host_readback_sum_us_);
             double avg_overhead = avg_or_na(stats_overhead_sum_us_);
             double optimal_pct = (stats_optimal_count_ * 100.0) / static_cast<double>(stats_cycle_count_);
             double max_iter_pct = (stats_max_iter_count_ * 100.0) / static_cast<double>(stats_cycle_count_);
@@ -524,13 +653,20 @@ private:
                 "[FPGA-Stats] (last %.1fs, %lu calls):\n"
                 "  Iterations: min=%u, avg=%.1f, max=%u\n"
                 "  Solve time: min=%.1f us, avg=%.1f us, max=%.1f us\n"
-                "  Profile avg: total=%.1f us, kernel=%.1f us, in_mig=%.1f us, out_mig=%.1f us, host_prep=%.1f us, host_read=%.1f us, overhead=%.1f us\n"
+                "  Profile avg: total=%.1f us, kernel=%.1f us, in_mig=%.1f us, out_mig=%.1f us, host_prep=%.1f us, overhead=%.1f us\n"
+                "  Status: ok=%llu, max_iter=%llu, err=%llu, no_traj=%llu, other=%llu, max_iter_streak_max=%llu\n"
                 "  Optimal: %.1f%%, Max iter: %.1f%%",
                 elapsed_sec, stats_cycle_count_,
                 stats_iter_count_min_, avg_iter, stats_iter_count_max_,
                 stats_solve_time_min_us_, avg_time, stats_solve_time_max_us_,
                 avg_total_call, avg_kernel, avg_input_migrate, avg_output_migrate,
-                avg_host_prep, avg_host_readback, avg_overhead,
+                avg_host_prep, avg_overhead,
+                static_cast<unsigned long long>(stats_optimal_count_),
+                static_cast<unsigned long long>(stats_max_iter_count_),
+                static_cast<unsigned long long>(stats_error_count_),
+                static_cast<unsigned long long>(stats_no_trajectory_count_),
+                static_cast<unsigned long long>(stats_other_status_count_),
+                static_cast<unsigned long long>(stats_max_iter_streak_max_),
                 optimal_pct, max_iter_pct);
             
             /* Reset stats */
@@ -550,6 +686,10 @@ private:
             stats_cycle_count_ = 0;
             stats_optimal_count_ = 0;
             stats_max_iter_count_ = 0;
+            stats_error_count_ = 0;
+            stats_no_trajectory_count_ = 0;
+            stats_other_status_count_ = 0;
+            stats_max_iter_streak_max_ = stats_max_iter_streak_;
             last_terminal_print_time_ = now;
         }
     }
@@ -685,6 +825,7 @@ private:
 
         latest_vx_mps_ = fp_to_float(msg->velocity_fp);
         const FrenetErrorsFp errors = compute_frenet_errors(msg);
+        const int32_t prev_accel_in_fp = fpga_.get_prev_accel_fp();
 
         const bool ok = fpga_.compute(
             errors.e_y_fp, errors.e_psi_fp,
@@ -705,8 +846,10 @@ private:
 
         steering = fp_to_float(out_steer_fp);
         accel = fp_to_float(out_accel_fp);
+        bool used_fallback = false;
 
         if (status == MPC_FPGA_STATUS_ERROR || status == MPC_FPGA_STATUS_NO_TRAJECTORY) {
+            used_fallback = true;
             steering = last_steering_cmd_rad_;
             speed = last_speed_cmd_mps_;
             accel = last_accel_cmd_mps2_;
@@ -720,6 +863,29 @@ private:
             last_accel_cmd_mps2_ = accel;
             fpga_.set_prev_accel_fp(float_to_fp(accel));
         }
+
+        if (status == MPC_FPGA_STATUS_MAX_ITER && stats_max_iter_streak_ >= 20) {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+                                 "Sustained MAX_ITER streak=%llu (iters=%u, out_steer_fp=%d, out_accel_fp=%d, ey_fp=%d, epsi_fp=%d)",
+                                 static_cast<unsigned long long>(stats_max_iter_streak_),
+                                 iters,
+                                 out_steer_fp,
+                                 out_accel_fp,
+                                 errors.e_y_fp,
+                                 errors.e_psi_fp);
+        }
+
+        log_raw_debug_cycle(msg,
+                            errors,
+                            prev_accel_in_fp,
+                            out_steer_fp,
+                            out_accel_fp,
+                            status,
+                            iters,
+                            used_fallback,
+                            steering,
+                            speed,
+                            accel);
 
         publish_drive_command(steering, speed, accel, msg->header.stamp);
         pub_count_++;
