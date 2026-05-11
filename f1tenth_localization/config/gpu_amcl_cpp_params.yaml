@@ -150,6 +150,7 @@ ekf_localization:
     amcl_topic: "/amcl_pose"
     odom_topic: "/odom_pose"
     output_topic: "/ekf_pose"
+    output_stamp_source: "amcl"  # Use AMCL/scan stamp for pipeline latency matching
 
     # ---- Frames ----
     global_frame: "map"

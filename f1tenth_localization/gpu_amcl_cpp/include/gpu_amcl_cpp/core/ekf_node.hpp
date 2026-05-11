@@ -188,9 +188,13 @@ private:
     std::string amcl_topic_;
     std::string odom_topic_;
     std::string output_topic_;
+    std::string output_stamp_source_ = "odom";
     std::string global_frame_;
     std::string odom_frame_;
     std::string base_frame_;
+
+    rclcpp::Time last_amcl_stamp_;
+    bool have_amcl_stamp_ = false;
 
     std::mutex state_mutex_;
 };
