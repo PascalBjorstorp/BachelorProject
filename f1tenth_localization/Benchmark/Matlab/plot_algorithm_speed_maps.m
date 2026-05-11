@@ -8,17 +8,21 @@ close all;
 % - Reference raceline from CSV
 % - EKF trajectory colored by speed from /ego_racecar/odom
 %
-% Configure runs in the "USER INPUT" section below.
+% Configure roots in the "USER INPUT" section below.
 
 %% USER INPUT
 scriptDir = fileparts(mfilename('fullpath'));
-repoRoot = char(java.io.File(fullfile(scriptDir, '..', '..', '..')).getCanonicalPath());
 
-% Path where bag directories are stored.
-bagsRoot = fullfile(repoRoot, 'bags');
+benchmarkRoot = fileparts(scriptDir);
 
-% Default raceline CSV (used if a run does not set racelineCsv).
-defaultRacelineCsv = fullfile(bagsRoot, 'Raceline', 'my_track_raceline_31_03.csv');
+% Path where SpeedLaps bag directories are stored.
+bagsRoot = fullfile(benchmarkRoot, 'bags', 'SpeedLaps');
+
+% Raceline CSV folder for SpeedLaps.
+racelineRoot = fullfile(bagsRoot, 'Raceline');
+
+% Default raceline CSV (used for all discovered runs unless overridden).
+defaultRacelineCsv = findDefaultRacelineCsv(racelineRoot);
 
 % Keep data from [drive detected + startDelayAfterDriveSeconds] and
 % until [last active drive command - endTrimBeforeStopSeconds].
@@ -35,24 +39,21 @@ minLapTimeSeconds = 5.0;
 % Display trajectory start/end markers on plots.
 showStartEndMarkers = false;
 
-% Add one entry per run/algorithm.
-
-runs = [ ...
-    struct('algorithm', 'MPC', 'bagName', 'MPC_SPEEDTEST_8_laps', 'racelineCsv', ''), ...
-    struct('algorithm', 'Pure Pursuit', 'bagName', 'PP_SPEEDTEST3_8_laps', 'racelineCsv', ''), ...
-    struct('algorithm', 'Pure Pursuit', 'bagName', 'PP_SPEEDTEST4_8_laps', 'racelineCsv', ''), ...
-    ];
-
-runs = [ ...
-    struct('algorithm', 'MPC', 'bagName', 'MPCTestNoSweepNewMap', 'racelineCsv', ''), ...
-    struct('algorithm', 'MPC', 'bagName', 'MPCTestSweepNewMap', 'racelineCsv', ''), ...
-    struct('algorithm', 'MPC', 'bagName', 'FPGAISDRIVING', 'racelineCsv', ''), ...
-    struct('algorithm', 'MPC', 'bagName', 'MPCSweeped', 'racelineCsv', '')];
+runs = discoverSpeedLapRuns(bagsRoot, racelineRoot, defaultRacelineCsv);
 
 %% Validate configuration
-if isempty(runs)
-    error('No runs configured in USER INPUT section.');
+if ~isfolder(bagsRoot)
+    error('SpeedLaps bag root does not exist: %s', bagsRoot);
 end
+if isempty(defaultRacelineCsv) || ~isfile(defaultRacelineCsv)
+    error('No raceline CSV found in: %s', racelineRoot);
+end
+if isempty(runs)
+    error('No ROS 2 bag folders with metadata.yaml found under: %s', bagsRoot);
+end
+fprintf('SpeedLaps bag root : %s\n', bagsRoot);
+fprintf('Raceline CSV       : %s\n', defaultRacelineCsv);
+fprintf('Discovered runs    : %d\n', numel(runs));
 
 %% Load and process all runs
 results = struct( ...
@@ -312,11 +313,129 @@ uitable(figTable, 'Data', table2cell(summaryT), ...
     'ColumnName', summaryT.Properties.VariableNames, ...
     'Units', 'normalized', 'Position', [0 0 1 1]);
 
-end
+	end
 
-function names = getTopicNames(topicsTbl)
-vars = topicsTbl.Properties.VariableNames;
-if ismember("TopicName", vars)
+	function csvPath = findDefaultRacelineCsv(racelineRoot)
+	csvPath = '';
+	if ~isfolder(racelineRoot)
+	    return;
+	end
+
+	preferred = fullfile(racelineRoot, 'my_track_raceline.csv');
+	if isfile(preferred)
+	    csvPath = preferred;
+	    return;
+	end
+
+	candidates = dir(fullfile(racelineRoot, '*.csv'));
+	if isempty(candidates)
+	    return;
+	end
+
+	[~, idx] = max([candidates.datenum]);
+	csvPath = fullfile(candidates(idx).folder, candidates(idx).name);
+	end
+
+	function runs = discoverSpeedLapRuns(bagsRoot, racelineRoot, defaultRacelineCsv)
+	runs = struct('algorithm', {}, 'bagName', {}, 'racelineCsv', {});
+	if ~isfolder(bagsRoot)
+	    return;
+	end
+
+	metadataFiles = findFilesRecursive(bagsRoot, 'metadata.yaml');
+	for k = 1:numel(metadataFiles)
+	    bagPath = fileparts(metadataFiles{k});
+	    if isSameOrChildPath(bagPath, racelineRoot)
+	        continue;
+	    end
+
+	    bagName = relativePathFromRoot(bagPath, bagsRoot);
+	    if isempty(bagName)
+	        [~, bagName] = fileparts(bagPath);
+	    end
+
+	    runs(end + 1) = struct( ... %#ok<AGROW>
+	        'algorithm', inferAlgorithmFromBagName(bagName), ...
+	        'bagName', bagName, ...
+	        'racelineCsv', defaultRacelineCsv);
+	end
+	end
+
+	function files = findFilesRecursive(rootDir, fileName)
+	files = {};
+	if ~isfolder(rootDir)
+	    return;
+	end
+
+	entries = dir(rootDir);
+	for i = 1:numel(entries)
+	    entry = entries(i);
+	    if entry.isdir
+	        if strcmp(entry.name, '.') || strcmp(entry.name, '..')
+	            continue;
+	        end
+	        childFiles = findFilesRecursive(fullfile(rootDir, entry.name), fileName);
+	        files = [files, childFiles]; %#ok<AGROW>
+	    elseif strcmp(entry.name, fileName)
+	        files{end + 1} = fullfile(rootDir, entry.name); %#ok<AGROW>
+	    end
+	end
+	end
+
+	function tf = isSameOrChildPath(pathToCheck, rootPath)
+	tf = false;
+	if isempty(rootPath)
+	    return;
+	end
+	pathToCheck = normalizeFolderPath(pathToCheck);
+	rootPath = normalizeFolderPath(rootPath);
+	tf = strcmp(pathToCheck, rootPath) || startsWith(pathToCheck, [rootPath filesep]);
+	end
+
+	function rel = relativePathFromRoot(pathToConvert, rootPath)
+	pathToConvert = normalizeFolderPath(pathToConvert);
+	rootPath = normalizeFolderPath(rootPath);
+	prefix = [rootPath filesep];
+	if startsWith(pathToConvert, prefix)
+	    rel = pathToConvert((numel(prefix) + 1):end);
+	elseif strcmp(pathToConvert, rootPath)
+	    rel = '';
+	else
+	    [~, rel] = fileparts(pathToConvert);
+	end
+	end
+
+	function out = normalizeFolderPath(in)
+	if isempty(in)
+	    out = '';
+	    return;
+	end
+	out = char(in);
+	while numel(out) > 1 && (out(end) == filesep || out(end) == '/' || out(end) == '\')
+	    out(end) = [];
+	end
+	end
+
+	function algorithm = inferAlgorithmFromBagName(bagName)
+	nameLower = lower(strrep(char(bagName), filesep, '_'));
+	if contains(nameLower, 'fpga')
+	    algorithm = 'MPC FPGA';
+	elseif contains(nameLower, 'mpc')
+	    algorithm = 'MPC';
+	elseif contains(nameLower, 'pure') || contains(nameLower, 'pp')
+	    algorithm = 'Pure Pursuit';
+	elseif contains(nameLower, 'stanley')
+	    algorithm = 'Stanley';
+	elseif contains(nameLower, 'ftg')
+	    algorithm = 'FTG';
+	else
+	    algorithm = char(bagName);
+	end
+	end
+
+	function names = getTopicNames(topicsTbl)
+	vars = topicsTbl.Properties.VariableNames;
+	if ismember("TopicName", vars)
     names = string(topicsTbl.TopicName);
 elseif ismember("Name", vars)
     names = string(topicsTbl.Name);
