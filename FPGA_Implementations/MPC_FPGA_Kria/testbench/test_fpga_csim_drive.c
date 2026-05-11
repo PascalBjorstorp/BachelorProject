@@ -1127,12 +1127,12 @@ int main(void)
     const double drag_c2 = get_env_double("DRAG_C2", 0.04);
     const double accel_tau_pos = get_env_double("ACCEL_TAU_POS", 0.05);
     const double accel_tau_neg = get_env_double("ACCEL_TAU_NEG", 0.12);
-    const double accel_gain_pos = get_env_double("ACCEL_GAIN_POS", 0.5);
+    const double accel_gain_pos = get_env_double("ACCEL_GAIN_POS", 0.575);
     const double accel_gain_neg = get_env_double("ACCEL_GAIN_NEG", 1.0);
     const double sim_mu = get_env_double("SIM_MU", 0.6652002785524997);
-    const double sim_mu_front = get_env_double("SIM_MU_FRONT", 0.6745101974282083);
+    const double sim_mu_front = get_env_double("SIM_MU_FRONT", 0.775687);
     const double sim_mu_rear = get_env_double("SIM_MU_REAR", 0.6565520426481404);
-    const double sim_mass = get_env_double("SIM_MASS", 3.314);
+    const double sim_mass = get_env_double("SIM_MASS", 3.57912);
     const double sim_Iz = get_env_double("SIM_IZ", 0.035);
     const double sim_C_Sf = get_env_double("SIM_C_SF", 4.78281642069513);
     const double sim_C_Sr = get_env_double("SIM_C_SR", 2.73123678240426);
@@ -1147,7 +1147,7 @@ int main(void)
     const double sim_steer_gain_high_slip = get_env_double("SIM_STEER_GAIN_HIGH_SLIP", 0.6541720766809247);
     const double sim_v_switch = get_env_double("SIM_V_SWITCH", 7.319);
     const double sim_v_min = get_env_double("SIM_V_MIN", 0.5);
-    const double sim_v_max = get_env_double("SIM_V_MAX", 20.0);
+    const double sim_v_max = get_env_double("SIM_V_MAX", 21.6);
     const double sim_roll_res_n = get_env_double("SIM_ROLL_RES_N", ROLLING_RESISTANCE_N);
     const double sim_pacejka_c = get_env_double("SIM_PACEJKA_C", 1.6041121492252324);
     const double sim_pacejka_c_front = get_env_double("SIM_PACEJKA_C_FRONT", 1.8031639754063644);
@@ -1162,7 +1162,7 @@ int main(void)
     const double sim_front_peak_drop = get_env_double("SIM_FRONT_PEAK_DROP", 0.11804981810838257);
     const double sim_front_peak_drop_start = get_env_double("SIM_FRONT_PEAK_DROP_START", 0.13813810031946996);
     const double sim_front_peak_drop_end = get_env_double("SIM_FRONT_PEAK_DROP_END", 0.48938120479012814);
-    const double sim_front_peak_drop_pow = get_env_double("SIM_FRONT_PEAK_DROP_POW", 1.0);
+    const double sim_front_peak_drop_pow = get_env_double("SIM_FRONT_PEAK_DROP_POW", 1.03);
     const double sim_front_combined_gain = get_env_double("SIM_FRONT_COMBINED_GAIN", 0.13366870620631957);
     const double sim_front_peak_floor = get_env_double("SIM_FRONT_PEAK_FLOOR", 0.2708096984131235);
     const double sim_noise_pos_m = get_env_double("SIM_NOISE_POS_M", NOISE_POS_M);
@@ -1327,6 +1327,52 @@ int main(void)
                 "pos_x,pos_y,heading,e_y,e_psi,vx,vy,omega,"
                 "v_ref0,kappa0,cmd_steer,cmd_accel,actual_steer,solver_iter,solver_status,wall_hit\n");
         fflush(sim_trace_file);
+    }
+
+    FILE *mpc_trace_file = NULL;
+    const char *mpc_trace_path = getenv("MPC_INTERNAL_TRACE_LOG");
+    if (mpc_trace_path && mpc_trace_path[0]) {
+        mpc_trace_file = fopen(mpc_trace_path, "w");
+        if (!mpc_trace_file) {
+            perror("[SIM] fopen(MPC_INTERNAL_TRACE_LOG)");
+            return 1;
+        }
+        fprintf(mpc_trace_file,
+                "sim_time_s,step,solver_call,status,iterations,primal_residual,dual_residual,"
+                "rho,rho_u,invert_fallback_count,last_invert_det,last_fallback_s00,last_fallback_s11,"
+                "e_y,e_psi,vx,vy,omega,v_ref0,kappa0,cmd_steer,cmd_accel,actual_steer\n");
+        fflush(mpc_trace_file);
+    }
+
+    FILE *mpc_iter_trace_file = NULL;
+    const char *mpc_iter_trace_path = getenv("MPC_ITER_TRACE_LOG");
+    if (mpc_iter_trace_path && mpc_iter_trace_path[0]) {
+        mpc_iter_trace_file = fopen(mpc_iter_trace_path, "w");
+        if (!mpc_iter_trace_file) {
+            perror("[SIM] fopen(MPC_ITER_TRACE_LOG)");
+            return 1;
+        }
+        fprintf(mpc_iter_trace_file,
+                "sim_time_s,step,solver_call,iter,primal_residual,dual_residual,"
+                "state_primal_residual,state_dual_residual,ctrl_primal_residual,ctrl_dual_residual,"
+                "rho,rho_u,u0_steer,u0_accel,z0_steer,z0_accel,y0_steer,y0_accel,scale_rho,scale_rho_u,"
+                "pass_r_lin_steer,pass_r_lin_accel,pass_bp_steer,pass_bp_accel,pass_kk_steer,pass_kk_accel,pass_s00,pass_s11,"
+                "pass_p_shift_vx,pass_p_shift_vy,pass_p_shift_omega,pass_p_shift_accel_prev,"
+                "pass_p_shift_ey,pass_p_shift_epsi,"
+                "pass_p_vx,pass_p_vy,pass_p_omega,pass_p_accel_prev,"
+                "pass_p_ey,pass_p_epsi,"
+                "pass_pd_vx,pass_pd_vy,pass_pd_omega,pass_pd_accel_prev,"
+                "pass_pd_ey,pass_pd_epsi,"
+                "pass_p_atp_vx,pass_p_atp_vy,pass_p_atp_omega,pass_p_atp_accel_prev,"
+                "pass_p_gtk_vx,pass_p_gtk_vy,pass_p_gtk_omega,pass_p_gtk_accel_prev,"
+                "pass_bp_accel_vx,pass_bp_accel_vy,pass_bp_accel_omega,pass_bp_accel_prev,"
+                "pass_si10,pass_si11,pass_rhs_accel,"
+                "pass_k0_r_lin_accel,pass_k0_bp_accel,pass_k0_kk_accel,pass_k0_s11,pass_k0_si11,pass_k0_rhs_accel,"
+                "pass_k0_p_shift_vx,pass_k0_p_shift_vy,pass_k0_p_shift_omega,pass_k0_p_shift_accel_prev,"
+                "pass_k0_p_vx,pass_k0_p_vy,pass_k0_p_omega,pass_k0_p_accel_prev,"
+                "pass_k0_pd_vx,pass_k0_pd_vy,pass_k0_pd_omega,pass_k0_pd_accel_prev,"
+                "pass_k0_bp_accel_vx,pass_k0_bp_accel_vy,pass_k0_bp_accel_omega,pass_k0_bp_accel_prev\n");
+        fflush(mpc_iter_trace_file);
     }
 
     /* Tracking metrics */
@@ -1558,8 +1604,7 @@ int main(void)
                 solver_max_iter++;
             }
             last_solver_status = (int)status;
-            solver_calls++;
-
+            solver_calls++;  
             cmd_steer = steer;
             cmd_accel = accel_cmd;
         }
@@ -2047,6 +2092,8 @@ int main(void)
             solver_optimal_rate, solver_max_iter_rate);
     }
     if (sim_trace_file) fclose(sim_trace_file);
+    if (mpc_trace_file) fclose(mpc_trace_file);
+    if (mpc_iter_trace_file) fclose(mpc_iter_trace_file);
     free_local_raceline_replay();
     return tests_failed > 0 ? 1 : 0;
 }
