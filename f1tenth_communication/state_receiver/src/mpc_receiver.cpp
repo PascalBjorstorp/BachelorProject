@@ -393,6 +393,9 @@ public:
 
 private:
     static constexpr float kRacelineSpeedMarginMps = 0.5f;
+    static constexpr float kStandstillVxThreshMps = 0.15f;
+    static constexpr float kStandstillAccelOverrideMps2 = 0.5f;
+    static constexpr float kStandstillBrakeEpsMps2 = 0.05f;
     static constexpr double TERMINAL_STATS_PRINT_INTERVAL_SECONDS = 5.0;
 
     float max_steering_ = MPC_FPGA_MAX_STEER_RAD;
@@ -711,58 +714,64 @@ private:
     }
 
     static FrenetErrorsFp compute_frenet_errors(const f1tenth_msgs::msg::MpcState::SharedPtr& msg) {
-        const float x = fp_to_float(msg->x_fp);
-        const float y = fp_to_float(msg->y_fp);
-        const float theta = fp_to_float(msg->theta_fp);
+        // Match CPU hardware node exactly: project against local-raceline segment 0->1.
+        const double car_x = static_cast<double>(fp_to_float(msg->x_fp));
+        const double car_y = static_cast<double>(fp_to_float(msg->y_fp));
+        const double car_heading = static_cast<double>(fp_to_float(msg->theta_fp));
 
-        const size_t max_search = std::min(static_cast<size_t>(MPC_HORIZON - 1), static_cast<size_t>(16));
+        const double ax = static_cast<double>(fp_to_float(msg->ref_x_fp[0]));
+        const double ay = static_cast<double>(fp_to_float(msg->ref_y_fp[0]));
+        const double bx = static_cast<double>(fp_to_float(msg->ref_x_fp[1]));
+        const double by = static_cast<double>(fp_to_float(msg->ref_y_fp[1]));
 
-        float best_e_y = 0.0f;
-        float best_e_psi = 0.0f;
-        float best_dist2 = 1e18f;
-
-        for (size_t i = 0; i < max_search; ++i) {
-            const float ax = fp_to_float(msg->ref_x_fp[i]);
-            const float ay = fp_to_float(msg->ref_y_fp[i]);
-            const float bx = fp_to_float(msg->ref_x_fp[i + 1]);
-            const float by = fp_to_float(msg->ref_y_fp[i + 1]);
-            const float h0 = fp_to_float(msg->ref_psi_fp[i]);
-            const float h1 = fp_to_float(msg->ref_psi_fp[i + 1]);
-
-            const float abx = bx - ax;
-            const float aby = by - ay;
-            const float apx = x - ax;
-            const float apy = y - ay;
-            const float ab_len2 = abx * abx + aby * aby;
-            float t = 0.0f;
-            if (ab_len2 > 1e-12f) {
-                t = (apx * abx + apy * aby) / ab_len2;
-            }
-            t = std::clamp(t, 0.0f, 1.0f);
-
-            const float wx = ax + t * abx;
-            const float wy = ay + t * aby;
-            float dpsi_path = h1 - h0;
-            while (dpsi_path > static_cast<float>(M_PI)) dpsi_path -= 2.0f * static_cast<float>(M_PI);
-            while (dpsi_path < -static_cast<float>(M_PI)) dpsi_path += 2.0f * static_cast<float>(M_PI);
-            const float wpsi = h0 + t * dpsi_path;
-
-            const float dx = x - wx;
-            const float dy = y - wy;
-            const float dist2 = dx * dx + dy * dy;
-
-            if (dist2 < best_dist2) {
-                best_dist2 = dist2;
-                const float e_y = -std::sin(wpsi) * dx + std::cos(wpsi) * dy;
-                float e_psi = theta - wpsi;
-                while (e_psi > static_cast<float>(M_PI)) e_psi -= 2.0f * static_cast<float>(M_PI);
-                while (e_psi < -static_cast<float>(M_PI)) e_psi += 2.0f * static_cast<float>(M_PI);
-                best_e_y = e_y;
-                best_e_psi = e_psi;
-            }
+        const double abx = bx - ax;
+        const double aby = by - ay;
+        const double apx = car_x - ax;
+        const double apy = car_y - ay;
+        const double ab_len2 = abx * abx + aby * aby;
+        double t = 0.0;
+        if (ab_len2 > 1e-12) {
+            t = (apx * abx + apy * aby) / ab_len2;
         }
+        if (t < 0.0) t = 0.0;
+        if (t > 1.0) t = 1.0;
 
-        return FrenetErrorsFp{float_to_fp(best_e_y), float_to_fp(best_e_psi)};
+        const double path_x = ax + t * abx;
+        const double path_y = ay + t * aby;
+
+        double h0 = static_cast<double>(fp_to_float(msg->ref_psi_fp[0]));
+        double h1 = static_cast<double>(fp_to_float(msg->ref_psi_fp[1]));
+        double dh = h1 - h0;
+        while (dh > M_PI) dh -= (2.0 * M_PI);
+        while (dh < -M_PI) dh += (2.0 * M_PI);
+        const double path_heading = h0 + t * dh;
+
+        const double sin_h = std::sin(path_heading);
+        const double cos_h = std::cos(path_heading);
+        const double dx = car_x - path_x;
+        const double dy = car_y - path_y;
+
+        const double lateral_error = -dx * sin_h + dy * cos_h;
+        double heading_error = car_heading - path_heading;
+        while (heading_error > M_PI) heading_error -= (2.0 * M_PI);
+        while (heading_error < -M_PI) heading_error += (2.0 * M_PI);
+
+        return FrenetErrorsFp{
+            float_to_fp(static_cast<float>(lateral_error)),
+            float_to_fp(static_cast<float>(heading_error))
+        };
+    }
+
+    float apply_standstill_brake_override(float vx_mps, float accel_cmd_mps2) {
+        constexpr float kMinAccelMps2 = -(MPC_FPGA_MU * MPC_FPGA_GRAVITY_MS2);
+        const bool standstill = std::isfinite(vx_mps) && std::fabs(vx_mps) < kStandstillVxThreshMps;
+        const bool max_brake_cmd = std::isfinite(accel_cmd_mps2) &&
+            (accel_cmd_mps2 <= (kMinAccelMps2 + kStandstillBrakeEpsMps2));
+
+        if (standstill && max_brake_cmd) {
+            return kStandstillAccelOverrideMps2;
+        }
+        return accel_cmd_mps2;
     }
 
     float compute_target_speed(float accel, const f1tenth_msgs::msg::MpcState::SharedPtr& msg) const {
@@ -854,8 +863,8 @@ private:
             steering = last_steering_cmd_rad_;
             speed = last_speed_cmd_mps_;
             accel = last_accel_cmd_mps2_;
-            fpga_.set_prev_accel_fp(float_to_fp(accel));
         } else {
+            accel = apply_standstill_brake_override(latest_vx_mps_, accel);
             speed = compute_target_speed(accel, msg);
             steering = std::clamp(steering, -max_steering_, max_steering_);
             speed = std::clamp(speed, MPC_FPGA_MIN_VEL_MPS, max_velocity_);

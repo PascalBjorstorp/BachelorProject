@@ -16,6 +16,26 @@
 extern "C" {
 #endif
 
+typedef struct {
+    int iter;
+    float primal_residual;
+    float dual_residual;
+    float state_primal_residual;
+    float state_dual_residual;
+    float ctrl_primal_residual;
+    float ctrl_dual_residual;
+    float rho;
+    float rho_u;
+    float u0_steer;
+    float u0_accel;
+    float z0_steer;
+    float z0_accel;
+    float y0_steer;
+    float y0_accel;
+    int scale_rho;
+    int scale_rho_u;
+} MpcHlsDebugIterSample_t;
+
 /**
  * @brief Solve constrained LQR using Riccati-ADMM.
  * @param step_data Per-step dynamics, costs, and bounds array of length MPC_HORIZON.
@@ -37,6 +57,9 @@ MpcStatus_t riccati_admm_solve_hls(
     const AdmmConfig_t *config,
     AdmmState_t *admm_state,
     MpcSolution_t *solution);
+
+int riccati_hls_debug_get_trace_count(void);
+int riccati_hls_debug_get_trace_sample(int index, MpcHlsDebugIterSample_t *out);
 
 #ifdef __cplusplus
 }
