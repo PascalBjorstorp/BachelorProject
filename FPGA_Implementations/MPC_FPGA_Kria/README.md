@@ -62,7 +62,7 @@ MPC_FPGA_Kria/
 
 ### Prerequisites
 
-- Vitis 2025.1+ (uses `vitis-run --mode hls`)
+- Vitis 2025.2 (uses `vitis-run --mode hls`)
 - Target part: `xck26-sfvc784-2LV-c` (Kria K26)
 
 ### Environment Setup

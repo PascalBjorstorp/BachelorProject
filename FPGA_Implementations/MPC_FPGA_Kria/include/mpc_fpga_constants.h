@@ -37,10 +37,13 @@
  * IO numeric format constants
  *===========================================================================*/
 
-/* Protocol boundary is fixed Q16.16 */
-#define MPC_FPGA_Q16_SCALE_I32  65536
-#define MPC_FPGA_Q16_SCALE_F32  65536.0f
-#define MPC_FPGA_Q16_SCALE_F64  65536.0
+/* Protocol numeric lanes are raw QP words: Q14.18 by default. */
+#define MPC_FPGA_QP_WIDTH       32
+#define MPC_FPGA_QP_INT_BITS    14
+#define MPC_FPGA_QP_FRAC_BITS   (MPC_FPGA_QP_WIDTH - MPC_FPGA_QP_INT_BITS)
+#define MPC_FPGA_QP_SCALE_I32   (1 << MPC_FPGA_QP_FRAC_BITS)
+#define MPC_FPGA_QP_SCALE_F32   ((float)MPC_FPGA_QP_SCALE_I32)
+#define MPC_FPGA_QP_SCALE_F64   ((double)MPC_FPGA_QP_SCALE_I32)
 
 /*===========================================================================
  * Vehicle and tire constants (SI)
@@ -70,9 +73,9 @@
 #define MPC_FPGA_CONTROL_RATE_HZ      200.0f
 #define MPC_FPGA_PREDICTION_DT_S      0.03f
 
-#define MPC_FPGA_Q16_HALF_LSB         (0.5 / MPC_FPGA_Q16_SCALE_F64)
+#define MPC_FPGA_QP_HALF_LSB          (0.5 / MPC_FPGA_QP_SCALE_F64)
 #define MPC_FPGA_CONTROL_DT_S         (1.0 / MPC_FPGA_CONTROL_RATE_HZ)
-#define MPC_FPGA_CROSS_CALL_SCALE     ((MPC_FPGA_CONTROL_DT_S / MPC_FPGA_PREDICTION_DT_S) + MPC_FPGA_Q16_HALF_LSB)
+#define MPC_FPGA_CROSS_CALL_SCALE     ((MPC_FPGA_CONTROL_DT_S / MPC_FPGA_PREDICTION_DT_S) + MPC_FPGA_QP_HALF_LSB)
 
 /*===========================================================================
  * Derived fixed vehicle constants
@@ -102,9 +105,9 @@
  * Cross-call scaled default rate weights
  *===========================================================================*/
 
-#define MPC_FPGA_W_STEER_JERK_CS ((MPC_FPGA_W_STEER_JERK * MPC_FPGA_CROSS_CALL_SCALE) + MPC_FPGA_Q16_HALF_LSB)
+#define MPC_FPGA_W_STEER_JERK_CS ((MPC_FPGA_W_STEER_JERK * MPC_FPGA_CROSS_CALL_SCALE) + MPC_FPGA_QP_HALF_LSB)
 
-#define MPC_FPGA_W_ACCEL_RATE_CS ((MPC_FPGA_W_ACCEL_RATE * MPC_FPGA_CROSS_CALL_SCALE) + MPC_FPGA_Q16_HALF_LSB)
+#define MPC_FPGA_W_ACCEL_RATE_CS ((MPC_FPGA_W_ACCEL_RATE * MPC_FPGA_CROSS_CALL_SCALE) + MPC_FPGA_QP_HALF_LSB)
 
 /*===========================================================================
  * Communication/runtime defaults

@@ -932,9 +932,8 @@ static Waypoint_t sample_raceline_by_s(double s_query)
  * transformation chain with local-raceline geometry.
  */
 typedef struct {
-    int32_t x_fp;
-    int32_t y_fp;
-    int32_t theta_fp;
+    int32_t e_y_fp;
+    int32_t e_psi_fp;
     int32_t velocity_fp;
     int32_t vy_fp;
     int32_t omega_fp;
@@ -942,9 +941,6 @@ typedef struct {
     uint32_t horizon_length;
     int32_t ref_ey_fp[PREDICTION_HORIZON];
     int32_t ref_epsi_fp[PREDICTION_HORIZON];
-    int32_t ref_x_fp[PREDICTION_HORIZON];
-    int32_t ref_y_fp[PREDICTION_HORIZON];
-    int32_t ref_psi_fp[PREDICTION_HORIZON];
     int32_t ref_vx_fp[PREDICTION_HORIZON];
     int32_t ref_vy_fp[PREDICTION_HORIZON];
     int32_t ref_omega_ref_fp[PREDICTION_HORIZON];
@@ -953,9 +949,12 @@ typedef struct {
     int32_t ref_right_bound_fp[PREDICTION_HORIZON];
 } MpcStateSimV2;
 
-/* Simple Q16.16 conversion helpers */
-static int32_t to_q16(double v) { return (int32_t)((v >= 0.0) ? (v * 65536.0 + 0.5) : (v * 65536.0 - 0.5)); }
-static double from_q16(int32_t q) { return ((double)q) / 65536.0; }
+/* Raw QP conversion helpers */
+static int32_t to_qp(double v) {
+    return (int32_t)((v >= 0.0) ? (v * MPC_FPGA_QP_SCALE_F64 + 0.5)
+                                : (v * MPC_FPGA_QP_SCALE_F64 - 0.5));
+}
+static double from_qp(int32_t q) { return ((double)q) / MPC_FPGA_QP_SCALE_F64; }
 
 /* Build MpcStateSimV2 from local_line: samples interpolated horizon geometry. */
 static void build_mpc_state_v2_from_local(double ego_x, double ego_y, double ego_theta,
@@ -963,13 +962,16 @@ static void build_mpc_state_v2_from_local(double ego_x, double ego_y, double ego
                                           MpcStateSimV2 *out)
 {
     if (!out) return;
-    out->x_fp = to_q16(ego_x);
-    out->y_fp = to_q16(ego_y);
-    out->theta_fp = to_q16(ego_theta);
-    out->velocity_fp = to_q16(vx);
-    out->vy_fp = to_q16(vy);
-    out->omega_fp = to_q16(omega);
-    out->steering_angle_fp = to_q16(0.0);
+    const int closest_local = find_closest_waypoint_local(ego_x, ego_y, ego_theta);
+    const PathProjection_t proj =
+        project_pose_to_local_segment(ego_x, ego_y, ego_theta, closest_local);
+
+    out->e_y_fp = to_qp(proj.lateral_error);
+    out->e_psi_fp = to_qp(proj.heading_error);
+    out->velocity_fp = to_qp(vx);
+    out->vy_fp = to_qp(vy);
+    out->omega_fp = to_qp(omega);
+    out->steering_angle_fp = to_qp(0.0);
     const double dt = g_mpc_prediction_dt;
     double v_base = (local_count > 0) ? local_line[0].vx : 1.0;
     if (v_base <= 0.0) v_base = 1.0;
@@ -978,22 +980,19 @@ static void build_mpc_state_v2_from_local(double ego_x, double ego_y, double ego
     for (int i = 0; i < horizon_steps; i++) {
         double target_s = v_base * dt * (double)i;
         Waypoint_t wp = sample_local_by_s(target_s);
-        out->ref_ey_fp[i] = to_q16(0.0);
-        out->ref_epsi_fp[i] = to_q16(0.0);
-        out->ref_x_fp[i] = to_q16(wp.x);
-        out->ref_y_fp[i] = to_q16(wp.y);
-        out->ref_psi_fp[i] = to_q16(wp.psi);
-        out->ref_vx_fp[i] = to_q16(wp.vx);
-        out->ref_vy_fp[i] = to_q16(0.0);
-        out->ref_omega_ref_fp[i] = to_q16(wp.vx * wp.kappa);
-        out->ref_kappa_fp[i] = to_q16(wp.kappa);
-        out->ref_left_bound_fp[i] = to_q16(wp.left_bound);
-        out->ref_right_bound_fp[i] = to_q16(wp.right_bound);
+        out->ref_ey_fp[i] = to_qp(0.0);
+        out->ref_epsi_fp[i] = to_qp(0.0);
+        out->ref_vx_fp[i] = to_qp(wp.vx);
+        out->ref_vy_fp[i] = to_qp(0.0);
+        out->ref_omega_ref_fp[i] = to_qp(wp.vx * wp.kappa);
+        out->ref_kappa_fp[i] = to_qp(wp.kappa);
+        out->ref_left_bound_fp[i] = to_qp(wp.left_bound);
+        out->ref_right_bound_fp[i] = to_qp(wp.right_bound);
     }
 }
 
-/* Receiver-side conversion: convert MpcStateSimV2 -> TrajectoryReferencePoint_t
- * This emulates the receiver's projection + kernel ref conversion.
+/* Receiver-side conversion: convert raw-QP MpcStateSimV2 references into the
+ * floating test harness type. Current Frenet errors are already in the message.
  */
 static void receiver_convert_v2_to_kernel_refs(const MpcStateSimV2 *msg, TrajectoryReferencePoint_t *out)
 {
@@ -1002,14 +1001,14 @@ static void receiver_convert_v2_to_kernel_refs(const MpcStateSimV2 *msg, Traject
     for (int i = 0; i < horizon && i < PREDICTION_HORIZON; i++) {
         /* Compute frenet projection at sample i if needed (here we keep 0)
          * For centerline tracking, ref_ey/ref_epsi/ref_vy are zero. */
-        out[i].reference_lateral_error = (float)from_q16(msg->ref_ey_fp[i]);
-        out[i].reference_heading_error = (float)from_q16(msg->ref_epsi_fp[i]);
-        out[i].reference_velocity = (float)from_q16(msg->ref_vx_fp[i]);
-        out[i].reference_lateral_velocity = (float)from_q16(msg->ref_vy_fp[i]);
-        out[i].reference_yaw_rate = (float)from_q16(msg->ref_omega_ref_fp[i]);
-        out[i].path_curvature = (float)from_q16(msg->ref_kappa_fp[i]);
-        out[i].left_wall_bound = (float)from_q16(msg->ref_left_bound_fp[i]);
-        out[i].right_wall_bound = (float)from_q16(msg->ref_right_bound_fp[i]);
+        out[i].reference_lateral_error = (float)from_qp(msg->ref_ey_fp[i]);
+        out[i].reference_heading_error = (float)from_qp(msg->ref_epsi_fp[i]);
+        out[i].reference_velocity = (float)from_qp(msg->ref_vx_fp[i]);
+        out[i].reference_lateral_velocity = (float)from_qp(msg->ref_vy_fp[i]);
+        out[i].reference_yaw_rate = (float)from_qp(msg->ref_omega_ref_fp[i]);
+        out[i].path_curvature = (float)from_qp(msg->ref_kappa_fp[i]);
+        out[i].left_wall_bound = (float)from_qp(msg->ref_left_bound_fp[i]);
+        out[i].right_wall_bound = (float)from_qp(msg->ref_right_bound_fp[i]);
     }
 }
 
@@ -1550,28 +1549,26 @@ int main(void)
                                               (double)state.long_vel, (double)state.lat_vel, (double)state.yaw_rate,
                                               PREDICTION_HORIZON, &sim_msg);
             } else {
-                /* Global raceline sampling path: emulate publisher using global raceline samples */
-                /* Fill sim_msg fields */
-                sim_msg.x_fp = to_q16((double)state.pos_x);
-                sim_msg.y_fp = to_q16((double)state.pos_y);
-                sim_msg.theta_fp = to_q16((double)state.heading);
-                sim_msg.velocity_fp = to_q16((double)state.long_vel);
-                sim_msg.vy_fp = to_q16((double)state.lat_vel);
-                sim_msg.omega_fp = to_q16((double)state.yaw_rate);
-                sim_msg.steering_angle_fp = to_q16(0.0);
+                /* Global raceline sampling path: emulate publisher using current Frenet state. */
+                sim_msg.e_y_fp = to_qp((double)frenet_for_mpc.flat_error);
+                sim_msg.e_psi_fp = to_qp((double)frenet_for_mpc.fhead_error);
+                sim_msg.velocity_fp = to_qp((double)state.long_vel);
+                sim_msg.vy_fp = to_qp((double)state.lat_vel);
+                sim_msg.omega_fp = to_qp((double)state.yaw_rate);
+                sim_msg.steering_angle_fp = to_qp(0.0);
                 int horizon_steps = PREDICTION_HORIZON;
                 sim_msg.horizon_length = (uint32_t)horizon_steps;
                 for (int i = 0; i < horizon_steps; i++) {
                     double target_s = raceline[closest_global].s + fabs(raceline[closest_global].vx) * g_mpc_prediction_dt * (double)i;
                     Waypoint_t wp = sample_raceline_by_s(target_s);
-                    sim_msg.ref_ey_fp[i] = to_q16(0.0);
-                    sim_msg.ref_x_fp[i] = to_q16(wp.x);
-                    sim_msg.ref_y_fp[i] = to_q16(wp.y);
-                    sim_msg.ref_psi_fp[i] = to_q16(wp.psi);
-                    sim_msg.ref_vx_fp[i] = to_q16(wp.vx);
-                    sim_msg.ref_kappa_fp[i] = to_q16(wp.kappa);
-                    sim_msg.ref_left_bound_fp[i] = to_q16(wp.left_bound);
-                    sim_msg.ref_right_bound_fp[i] = to_q16(wp.right_bound);
+                    sim_msg.ref_ey_fp[i] = to_qp(0.0);
+                    sim_msg.ref_epsi_fp[i] = to_qp(0.0);
+                    sim_msg.ref_vx_fp[i] = to_qp(wp.vx);
+                    sim_msg.ref_vy_fp[i] = to_qp(0.0);
+                    sim_msg.ref_omega_ref_fp[i] = to_qp(wp.vx * wp.kappa);
+                    sim_msg.ref_kappa_fp[i] = to_qp(wp.kappa);
+                    sim_msg.ref_left_bound_fp[i] = to_qp(wp.left_bound);
+                    sim_msg.ref_right_bound_fp[i] = to_qp(wp.right_bound);
                 }
             }
 

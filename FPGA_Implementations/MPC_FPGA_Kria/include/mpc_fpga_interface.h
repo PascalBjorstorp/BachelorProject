@@ -13,7 +13,7 @@
  *       ref_omega_ref[i] | ref_kappa[i] | ref_left[i] | ref_right[i]]
  *
  * Data format:
- *   - state/reference numeric lanes: Q16.16 fixed-point (int32_t)
+ *   - state/reference numeric lanes: raw QP fixed-point (int32_t)
  *   - control_flags/status/iterations: plain uint32_t/int32_t
  */
 
@@ -56,6 +56,7 @@
 #define MPC_FPGA_CTRL_FLAG_RESET_STATE       (1u << 0)
 #define MPC_FPGA_CTRL_FLAG_FORCE_COLD_START  (1u << 1)
 #define MPC_FPGA_CTRL_FLAG_ZERO_DUALS        (1u << 2)
+#define MPC_FPGA_CTRL_FLAGS_NONE             0u
 
 /*===========================================================================
  * Status Codes

@@ -112,6 +112,14 @@ static void reset_admm_state_hls(AdmmState_t *admm_state) {
   admm_state->initialized = 0;
 }
 
+static inline fp_QP_raw_t clip_sum8_qp_raw_to_qp_local(fp_sum8_QP_raw_t value) {
+#pragma HLS INLINE
+  if (!fp_signed_fits_width<MPC_HLS_QP_WIDTH + 3, MPC_HLS_QP_WIDTH>(value))
+    return value[MPC_HLS_QP_WIDTH + 2] ? (fp_QP_raw_t)fp_qp_raw_min_acc()
+                                       : (fp_QP_raw_t)fp_qp_raw_max_acc();
+  return (fp_QP_raw_t)value;
+}
+
 static void init_solver_cfg_hls(AdmmConfig_t *cfg) {
 #pragma HLS INLINE
   cfg->rho = ADMM_RHO_DEFAULT;
@@ -376,8 +384,10 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
     xk1_raw[4] = fp_qp_raw_from_QP(next_omega);
     xk1_raw[IDX_DELTA_ACT] = fp_qp_raw_from_QP(next_delta);
 
-    fp_QP_t d_dense[MPC_NX_DENSE];
-#pragma HLS ARRAY_PARTITION variable = d_dense complete dim = 1
+    fp_QP_raw_t d_dense_raw[MPC_NX_DENSE];
+    fp_sum8_QP_raw_t d_dense_acc[MPC_NX_DENSE];
+#pragma HLS ARRAY_PARTITION variable = d_dense_raw complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = d_dense_acc complete dim = 1
 
     for (i = 0; i < 5; i++) {
 #pragma HLS PIPELINE II = 1
@@ -389,49 +399,60 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
       const fp_QP_raw_t B0_raw = fp_qp_raw_from_QP(B_step[i][0]);
       const fp_QP_raw_t B1_raw = fp_qp_raw_from_QP(B_step[i][1]);
 
-      const fp_raw_acc_t a0 =
-          (fp_mul_QP_raw(A0_raw, xk_raw[0])) >> FP_FRAC_BITS;
-      const fp_raw_acc_t a1 =
-          (fp_mul_QP_raw(A1_raw, xk_raw[1])) >> FP_FRAC_BITS;
-      const fp_raw_acc_t a2 =
-          (fp_mul_QP_raw(A2_raw, xk_raw[2])) >> FP_FRAC_BITS;
-      const fp_raw_acc_t a3 =
-          (fp_mul_QP_raw(A3_raw, xk_raw[3])) >> FP_FRAC_BITS;
-      const fp_raw_acc_t a4 =
-          (fp_mul_QP_raw(A4_raw, xk_raw[4])) >> FP_FRAC_BITS;
-      const fp_raw_acc_t b0 =
-          (fp_mul_QP_raw(B0_raw, lin_delta_k_raw)) >> FP_FRAC_BITS;
-      const fp_raw_acc_t b1 =
-          (fp_mul_QP_raw(B1_raw, uk1_raw)) >> FP_FRAC_BITS;
+      const fp_QP_raw_t a0 =
+          fp_shift_right_clip_to_qp(fp_mul_QP_raw(A0_raw, xk_raw[0]),
+                                    FP_FRAC_BITS);
+      const fp_QP_raw_t a1 =
+          fp_shift_right_clip_to_qp(fp_mul_QP_raw(A1_raw, xk_raw[1]),
+                                    FP_FRAC_BITS);
+      const fp_QP_raw_t a2 =
+          fp_shift_right_clip_to_qp(fp_mul_QP_raw(A2_raw, xk_raw[2]),
+                                    FP_FRAC_BITS);
+      const fp_QP_raw_t a3 =
+          fp_shift_right_clip_to_qp(fp_mul_QP_raw(A3_raw, xk_raw[3]),
+                                    FP_FRAC_BITS);
+      const fp_QP_raw_t a4 =
+          fp_shift_right_clip_to_qp(fp_mul_QP_raw(A4_raw, xk_raw[4]),
+                                    FP_FRAC_BITS);
+      const fp_QP_raw_t b0 =
+          fp_shift_right_clip_to_qp(fp_mul_QP_raw(B0_raw, lin_delta_k_raw),
+                                    FP_FRAC_BITS);
+      const fp_QP_raw_t b1 =
+          fp_shift_right_clip_to_qp(fp_mul_QP_raw(B1_raw, uk1_raw),
+                                    FP_FRAC_BITS);
 
-      const fp_raw_acc_t s01 = a0 + a1;
-      const fp_raw_acc_t s23 = a2 + a3;
-      const fp_raw_acc_t s45 = a4 + b0;
-      const fp_raw_acc_t s67 = b1;
-      const fp_raw_acc_t s0123 = s01 + s23;
-      const fp_raw_acc_t s4567 = s45 + s67;
+      const fp_sum8_QP_raw_t s01 = (fp_sum8_QP_raw_t)a0 + (fp_sum8_QP_raw_t)a1;
+      const fp_sum8_QP_raw_t s23 = (fp_sum8_QP_raw_t)a2 + (fp_sum8_QP_raw_t)a3;
+      const fp_sum8_QP_raw_t s45 = (fp_sum8_QP_raw_t)a4 + (fp_sum8_QP_raw_t)b0;
+      const fp_sum8_QP_raw_t s67 = (fp_sum8_QP_raw_t)b1;
+      const fp_sum8_QP_raw_t s0123 = s01 + s23;
+      const fp_sum8_QP_raw_t s4567 = s45 + s67;
 
-      fp_raw_acc_t affine_term =
-          (fp_raw_acc_t)xk1_raw[i] - (s0123 + s4567);
-      affine_term = fp_clip_raw_to_qp(affine_term);
-      d_dense[i] = fp_QP_from_qp_raw((fp_QP_raw_t)affine_term);
+      d_dense_acc[i] =
+          (fp_sum8_QP_raw_t)xk1_raw[i] - (s0123 + s4567);
+    }
+
+    for (i = 0; i < 5; i++) {
+#pragma HLS PIPELINE II = 1
+      d_dense_raw[i] = clip_sum8_qp_raw_to_qp_local(d_dense_acc[i]);
     }
 
     {
-      fp_raw_acc_t d5 =
-          (fp_raw_acc_t)xk1_raw[IDX_DELTA_ACT] -
-          (fp_raw_acc_t)xk_raw[IDX_DELTA_ACT] -
-          ((fp_mul_QP_raw(fp_qp_raw_from_QP(MPC_DT), uk0_raw)) >> FP_FRAC_BITS);
-      d5 = fp_clip_raw_to_qp(d5);
-      d_dense[IDX_DELTA_ACT] = fp_QP_from_qp_raw((fp_QP_raw_t)d5);
+      d_dense_acc[IDX_DELTA_ACT] =
+          (fp_sum8_QP_raw_t)xk1_raw[IDX_DELTA_ACT] -
+          (fp_sum8_QP_raw_t)xk_raw[IDX_DELTA_ACT] -
+          (fp_sum8_QP_raw_t)fp_shift_right_clip_to_qp(
+              fp_mul_QP_raw(fp_qp_raw_from_QP(MPC_DT), uk0_raw), FP_FRAC_BITS);
+      d_dense_raw[IDX_DELTA_ACT] =
+          clip_sum8_qp_raw_to_qp_local(d_dense_acc[IDX_DELTA_ACT]);
     }
 
-    sd->d0 = d_dense[0];
-    sd->d1 = d_dense[1];
-    sd->d2 = d_dense[2];
-    sd->d3 = d_dense[3];
-    sd->d4 = d_dense[4];
-    sd->d5 = d_dense[5];
+    sd->d0 = fp_QP_from_qp_raw(d_dense_raw[0]);
+    sd->d1 = fp_QP_from_qp_raw(d_dense_raw[1]);
+    sd->d2 = fp_QP_from_qp_raw(d_dense_raw[2]);
+    sd->d3 = fp_QP_from_qp_raw(d_dense_raw[3]);
+    sd->d4 = fp_QP_from_qp_raw(d_dense_raw[4]);
+    sd->d5 = fp_QP_from_qp_raw(d_dense_raw[5]);
 
     /* === Costs === */
     sd->Q_diag[0] = MPC_Q2_LAT_ERROR;

@@ -54,17 +54,17 @@ static std::vector<unsigned char> read_file_bytes(const std::string& path) {
 }
 
 /*===========================================================================
- * Fixed-Point Helpers (Q16.16)
+ * Fixed-Point Helpers (raw QP transport)
  *===========================================================================*/
 
 inline float fp_to_float(int32_t fp) {
-    return static_cast<float>(fp) / static_cast<float>(MPC_FPGA_Q16_SCALE_I32);
+    return static_cast<float>(fp) / static_cast<float>(MPC_FPGA_QP_SCALE_I32);
 }
 
 inline int32_t float_to_fp(float f) {
     return static_cast<int32_t>(f >= 0.0f ? 
-        f * static_cast<float>(MPC_FPGA_Q16_SCALE_I32) + 0.5f : 
-        f * static_cast<float>(MPC_FPGA_Q16_SCALE_I32) - 0.5f);
+        f * static_cast<float>(MPC_FPGA_QP_SCALE_I32) + 0.5f :
+        f * static_cast<float>(MPC_FPGA_QP_SCALE_I32) - 0.5f);
 }
 
 /*===========================================================================
@@ -202,22 +202,19 @@ public:
         auto* input_words = input_words_.data();
         std::fill(input_words_.begin(), input_words_.end(), 0);
 
-        // Group 0: [e_y | e_psi | vx | vy]
-        input_words[0] = e_y_fp;
-        input_words[1] = e_psi_fp;
-        input_words[2] = vx_fp;
-        input_words[3] = vy_fp;
-
-        // Group 1: [omega | steering | horizon_length | prev_accel]
-        input_words[4] = omega_fp;
-        input_words[5] = steering_fp;
-        input_words[6] = MPC_HORIZON;
-        input_words[7] = prev_accel_fp_;
+        input_words[MPC_FPGA_WORD_EY] = e_y_fp;
+        input_words[MPC_FPGA_WORD_EPSI] = e_psi_fp;
+        input_words[MPC_FPGA_WORD_VX] = vx_fp;
+        input_words[MPC_FPGA_WORD_VY] = vy_fp;
+        input_words[MPC_FPGA_WORD_OMEGA] = omega_fp;
+        input_words[MPC_FPGA_WORD_STEERING] = steering_fp;
+        input_words[MPC_FPGA_WORD_CONTROL_FLAGS] = MPC_FPGA_CTRL_FLAGS_NONE;
+        input_words[MPC_FPGA_WORD_PREV_ACCEL] = prev_accel_fp_;
 
         // Groups 2..N+1(+): 8 words per step V2
         // [ref_ey | ref_epsi | ref_vx | ref_vy | ref_omega_ref | ref_kappa | ref_left | ref_right]
         for (size_t i = 0; i < MPC_HORIZON; ++i) {
-            const size_t base = 8 + (i * 8);
+            const size_t base = MPC_FPGA_HEADER_WORDS + (i * MPC_FPGA_REF_WORDS);
             input_words[base + 0] = msg.ref_ey_fp[i];
             input_words[base + 1] = msg.ref_epsi_fp[i];
             input_words[base + 2] = msg.ref_vx_fp[i];
@@ -702,64 +699,12 @@ private:
         return msg->horizon_length >= MPC_HORIZON &&
                msg->ref_ey_fp.size() >= MPC_HORIZON &&
                msg->ref_epsi_fp.size() >= MPC_HORIZON &&
-               msg->ref_x_fp.size() >= MPC_HORIZON &&
-               msg->ref_y_fp.size() >= MPC_HORIZON &&
-               msg->ref_psi_fp.size() >= MPC_HORIZON &&
                msg->ref_vx_fp.size() >= MPC_HORIZON &&
                msg->ref_vy_fp.size() >= MPC_HORIZON &&
                msg->ref_omega_ref_fp.size() >= MPC_HORIZON &&
                msg->ref_kappa_fp.size() >= MPC_HORIZON &&
                msg->ref_left_bound_fp.size() >= MPC_HORIZON &&
                msg->ref_right_bound_fp.size() >= MPC_HORIZON;
-    }
-
-    static FrenetErrorsFp compute_frenet_errors(const f1tenth_msgs::msg::MpcState::SharedPtr& msg) {
-        // Match CPU hardware node exactly: project against local-raceline segment 0->1.
-        const double car_x = static_cast<double>(fp_to_float(msg->x_fp));
-        const double car_y = static_cast<double>(fp_to_float(msg->y_fp));
-        const double car_heading = static_cast<double>(fp_to_float(msg->theta_fp));
-
-        const double ax = static_cast<double>(fp_to_float(msg->ref_x_fp[0]));
-        const double ay = static_cast<double>(fp_to_float(msg->ref_y_fp[0]));
-        const double bx = static_cast<double>(fp_to_float(msg->ref_x_fp[1]));
-        const double by = static_cast<double>(fp_to_float(msg->ref_y_fp[1]));
-
-        const double abx = bx - ax;
-        const double aby = by - ay;
-        const double apx = car_x - ax;
-        const double apy = car_y - ay;
-        const double ab_len2 = abx * abx + aby * aby;
-        double t = 0.0;
-        if (ab_len2 > 1e-12) {
-            t = (apx * abx + apy * aby) / ab_len2;
-        }
-        if (t < 0.0) t = 0.0;
-        if (t > 1.0) t = 1.0;
-
-        const double path_x = ax + t * abx;
-        const double path_y = ay + t * aby;
-
-        double h0 = static_cast<double>(fp_to_float(msg->ref_psi_fp[0]));
-        double h1 = static_cast<double>(fp_to_float(msg->ref_psi_fp[1]));
-        double dh = h1 - h0;
-        while (dh > M_PI) dh -= (2.0 * M_PI);
-        while (dh < -M_PI) dh += (2.0 * M_PI);
-        const double path_heading = h0 + t * dh;
-
-        const double sin_h = std::sin(path_heading);
-        const double cos_h = std::cos(path_heading);
-        const double dx = car_x - path_x;
-        const double dy = car_y - path_y;
-
-        const double lateral_error = -dx * sin_h + dy * cos_h;
-        double heading_error = car_heading - path_heading;
-        while (heading_error > M_PI) heading_error -= (2.0 * M_PI);
-        while (heading_error < -M_PI) heading_error += (2.0 * M_PI);
-
-        return FrenetErrorsFp{
-            float_to_fp(static_cast<float>(lateral_error)),
-            float_to_fp(static_cast<float>(heading_error))
-        };
     }
 
     float apply_standstill_brake_override(float vx_mps, float accel_cmd_mps2) {
@@ -816,14 +761,11 @@ private:
         if (!has_required_horizon_data(msg)) {
             drop_no_horizon_++;
             RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                "Fixed-horizon MPC requires %d populated steps, got horizon=%u arrays: ey=%zu epsi=%zu x=%zu y=%zu psi=%zu vx=%zu vy=%zu omega_ref=%zu kappa=%zu left=%zu right=%zu",
+                "Fixed-horizon MPC requires %d populated steps, got horizon=%u arrays: ey=%zu epsi=%zu vx=%zu vy=%zu omega_ref=%zu kappa=%zu left=%zu right=%zu",
                 MPC_HORIZON,
                 msg->horizon_length,
                 msg->ref_ey_fp.size(),
                 msg->ref_epsi_fp.size(),
-                msg->ref_x_fp.size(),
-                msg->ref_y_fp.size(),
-                msg->ref_psi_fp.size(),
                 msg->ref_vx_fp.size(),
                 msg->ref_vy_fp.size(),
                 msg->ref_omega_ref_fp.size(),
@@ -834,7 +776,7 @@ private:
         }
 
         latest_vx_mps_ = fp_to_float(msg->velocity_fp);
-        const FrenetErrorsFp errors = compute_frenet_errors(msg);
+        const FrenetErrorsFp errors{msg->e_y_fp, msg->e_psi_fp};
         const int32_t prev_accel_in_fp = fpga_.get_prev_accel_fp();
 
         const bool ok = fpga_.compute(

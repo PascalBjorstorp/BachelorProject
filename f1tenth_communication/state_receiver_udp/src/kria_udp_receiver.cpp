@@ -1,8 +1,8 @@
 /**
  * @file kria_udp_receiver.cpp
  * @brief Kria UDP state receiver and FPGA MPC executor via OpenCL.
- * @details Receives UDP state packets from Jetson, computes Frenet errors,
- *          executes OpenCL kernel-backed MPC, and sends control packets back.
+ * @details Receives UDP state packets from Jetson, executes OpenCL
+ *          kernel-backed MPC, and sends control packets back.
  *
  * Transport: UDP (StatePacket -> ControlPacket). Launchable via ROS2 for
  * convenience, but data path Jetson<->Kria remains UDP.
@@ -40,7 +40,7 @@
 
 namespace state_transport_udp {
 
-static constexpr int32_t FP_SCALE = 65536;
+static constexpr int32_t FP_SCALE = MPC_FPGA_QP_SCALE_I32;
 
 static std::vector<unsigned char> read_file_bytes(const std::string& path) {
     std::ifstream ifs(path, std::ios::binary | std::ios::ate);
@@ -203,18 +203,17 @@ public:
         auto* input_words = input_words_.data();
         std::fill(input_words_.begin(), input_words_.end(), 0);
 
-        input_words[0] = static_cast<uint32_t>(e_y_fp);
-        input_words[1] = static_cast<uint32_t>(e_psi_fp);
-        input_words[2] = static_cast<uint32_t>(vx_fp);
-        input_words[3] = static_cast<uint32_t>(vy_fp);
-
-        input_words[4] = static_cast<uint32_t>(omega_fp);
-        input_words[5] = static_cast<uint32_t>(steering_fp);
-        input_words[6] = static_cast<uint32_t>(MPC_HORIZON);
-        input_words[7] = static_cast<uint32_t>(prev_accel_fp_);
+        input_words[MPC_FPGA_WORD_EY] = static_cast<uint32_t>(e_y_fp);
+        input_words[MPC_FPGA_WORD_EPSI] = static_cast<uint32_t>(e_psi_fp);
+        input_words[MPC_FPGA_WORD_VX] = static_cast<uint32_t>(vx_fp);
+        input_words[MPC_FPGA_WORD_VY] = static_cast<uint32_t>(vy_fp);
+        input_words[MPC_FPGA_WORD_OMEGA] = static_cast<uint32_t>(omega_fp);
+        input_words[MPC_FPGA_WORD_STEERING] = static_cast<uint32_t>(steering_fp);
+        input_words[MPC_FPGA_WORD_CONTROL_FLAGS] = MPC_FPGA_CTRL_FLAGS_NONE;
+        input_words[MPC_FPGA_WORD_PREV_ACCEL] = static_cast<uint32_t>(prev_accel_fp_);
 
         for (size_t i = 0; i < MPC_HORIZON; ++i) {
-            const size_t base = 8 + (i * 8);
+            const size_t base = MPC_FPGA_HEADER_WORDS + (i * MPC_FPGA_REF_WORDS);
             input_words[base + 0] = static_cast<uint32_t>(packet.ref_ey_fp[i]);
             input_words[base + 1] = static_cast<uint32_t>(packet.ref_epsi_fp[i]);
             input_words[base + 2] = static_cast<uint32_t>(packet.ref_vx_fp[i]);
@@ -247,20 +246,22 @@ public:
         }
 
         const auto t0 = std::chrono::high_resolution_clock::now();
-        err = queue_.enqueueTask(kernel_, nullptr, &kernel_event);
+        std::vector<cl::Event> wait_input{input_migrate_event};
+        err = queue_.enqueueTask(kernel_, &wait_input, &kernel_event);
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "UDP-FPGA-OpenCL: enqueueTask failed (%d)\n", err);
             last_compute_ns_ = -1;
             return false;
         }
 
+        std::vector<cl::Event> wait_kernel{kernel_event};
         err = queue_.enqueueReadBuffer(
             output_buffer_,
             CL_FALSE,
             0,
             sizeof(uint32_t) * 4,
             output_words_.data(),
-            nullptr,
+            &wait_kernel,
             &output_migrate_event);
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "UDP-FPGA-OpenCL: read(output) failed (%d)\n", err);
@@ -324,64 +325,6 @@ private:
     TimingProfile last_profile_{};
     int64_t last_compute_ns_{0};
 };
-
-static void compute_frenet_errors(const StatePacket& packet,
-                                  int32_t& out_e_y_fp,
-                                  int32_t& out_e_psi_fp) {
-    const float x = fp_to_float(packet.x_fp);
-    const float y = fp_to_float(packet.y_fp);
-    const float theta = fp_to_float(packet.theta_fp);
-
-    const size_t max_search = std::min(static_cast<size_t>(MPC_HORIZON - 1), static_cast<size_t>(16));
-
-    float best_e_y = 0.0f;
-    float best_e_psi = 0.0f;
-    float best_dist2 = 1e18f;
-
-    for (size_t i = 0; i < max_search; ++i) {
-        const float ax = fp_to_float(packet.ref_x_fp[i]);
-        const float ay = fp_to_float(packet.ref_y_fp[i]);
-        const float bx = fp_to_float(packet.ref_x_fp[i + 1]);
-        const float by = fp_to_float(packet.ref_y_fp[i + 1]);
-        const float h0 = fp_to_float(packet.ref_psi_fp[i]);
-        const float h1 = fp_to_float(packet.ref_psi_fp[i + 1]);
-
-        const float abx = bx - ax;
-        const float aby = by - ay;
-        const float apx = x - ax;
-        const float apy = y - ay;
-        const float ab_len2 = abx * abx + aby * aby;
-        float t = 0.0f;
-        if (ab_len2 > 1e-12f) {
-            t = (apx * abx + apy * aby) / ab_len2;
-        }
-        t = std::clamp(t, 0.0f, 1.0f);
-
-        const float wx = ax + t * abx;
-        const float wy = ay + t * aby;
-        float dpsi_path = h1 - h0;
-        while (dpsi_path > static_cast<float>(M_PI)) dpsi_path -= 2.0f * static_cast<float>(M_PI);
-        while (dpsi_path < -static_cast<float>(M_PI)) dpsi_path += 2.0f * static_cast<float>(M_PI);
-        const float wpsi = h0 + t * dpsi_path;
-
-        const float dx = x - wx;
-        const float dy = y - wy;
-        const float dist2 = dx * dx + dy * dy;
-
-        if (dist2 < best_dist2) {
-            best_dist2 = dist2;
-            const float e_y = -std::sin(wpsi) * dx + std::cos(wpsi) * dy;
-            float e_psi = theta - wpsi;
-            while (e_psi > static_cast<float>(M_PI)) e_psi -= 2.0f * static_cast<float>(M_PI);
-            while (e_psi < -static_cast<float>(M_PI)) e_psi += 2.0f * static_cast<float>(M_PI);
-            best_e_y = e_y;
-            best_e_psi = e_psi;
-        }
-    }
-
-    out_e_y_fp = float_to_fp(best_e_y);
-    out_e_psi_fp = float_to_fp(best_e_psi);
-}
 
 class KriaUdpReceiverNode final : public rclcpp::Node {
 public:
@@ -525,10 +468,8 @@ private:
     }
 
     void handle_packet(const StatePacket& packet) {
-        int32_t e_y_fp = 0;
-        int32_t e_psi_fp = 0;
-        compute_frenet_errors(packet, e_y_fp, e_psi_fp);
-
+        const int32_t e_y_fp = packet.e_y_fp;
+        const int32_t e_psi_fp = packet.e_psi_fp;
         const int32_t vx_fp = packet.velocity_fp;
         const int32_t vy_fp = packet.vy_fp;
         const int32_t omega_fp = packet.omega_fp;

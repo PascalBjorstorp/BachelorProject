@@ -60,18 +60,18 @@
 
 namespace {
 
-constexpr int kInputHeaderWords = 8;
-constexpr int kRefWordsPerStep = 8;
+constexpr int kInputHeaderWords = MPC_FPGA_HEADER_WORDS;
+constexpr int kRefWordsPerStep = MPC_FPGA_REF_WORDS;
 constexpr int kPackedWordsPer512 = 16;
 
-constexpr int kHeaderWordEy = 0;
-constexpr int kHeaderWordEpsi = 1;
-constexpr int kHeaderWordVx = 2;
-constexpr int kHeaderWordVy = 3;
-constexpr int kHeaderWordOmega = 4;
-constexpr int kHeaderWordSteering = 5;
-constexpr int kHeaderWordControlFlags = 6;
-constexpr int kHeaderWordPrevAccel = 7;
+constexpr int kHeaderWordEy = MPC_FPGA_WORD_EY;
+constexpr int kHeaderWordEpsi = MPC_FPGA_WORD_EPSI;
+constexpr int kHeaderWordVx = MPC_FPGA_WORD_VX;
+constexpr int kHeaderWordVy = MPC_FPGA_WORD_VY;
+constexpr int kHeaderWordOmega = MPC_FPGA_WORD_OMEGA;
+constexpr int kHeaderWordSteering = MPC_FPGA_WORD_STEERING;
+constexpr int kHeaderWordControlFlags = MPC_FPGA_WORD_CONTROL_FLAGS;
+constexpr int kHeaderWordPrevAccel = MPC_FPGA_WORD_PREV_ACCEL;
 
 constexpr int kOutputLaneSteering = 0;
 constexpr int kOutputLaneAccel = 1;
@@ -165,7 +165,7 @@ static fp_QP_t fp_qp_from_word(int32_t word) {
 
 static int32_t fp_word_from_qp(fp_QP_t value) {
 #pragma HLS INLINE
-  return (int32_t)fp_raw_from_io((fp_io_t)value);
+  return (int32_t)fp_raw_from_QP(value);
 }
 
 static void fill_mpc_reference_trajectory_from_arrays(

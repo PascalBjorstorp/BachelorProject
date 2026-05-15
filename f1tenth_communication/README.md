@@ -10,9 +10,9 @@ Jetson (state_publisher)                              Kria (state_receiver)
 │ Sub: /ego_racecar/odom, /ekf_pose    │             │ Sub: /mpc_state (Best Effort QoS)    │
 │ Optional sub: /sensors/servo...      │             │ Init: OpenCL context + kernel buffers │
 │                                      │             │                                      │
-│ KD-tree nearest + forward bias       │  MpcState   │ Pack state/horizon into OpenCL input │
+│ Frenet error + horizon extraction    │  MpcState   │ Pack state/horizon into OpenCL input │
 │ Horizon extraction from trajectory   │────────────>│ Launch OpenCL MPC kernel             │
-│ Q16.16 fixed-point conversion        │             │ Read steering/accel outputs          │
+│ Raw-QP fixed-point conversion        │             │ Read steering/accel outputs          │
 │ Pub: /mpc_state                      │             │ Pub: /drive                          │
 └──────────────────────────────────────┘             └──────────────────────────────────────┘
 ```
@@ -25,11 +25,10 @@ Defines `MpcState.msg` for fixed-point transport.
 
 Main payload groups:
 
-- Vehicle state (`x_fp`, `y_fp`, `theta_fp`, `velocity_fp`, `vy_fp`, `omega_fp`, `steering_angle_fp`)
-- First reference point for Frenet error (`ref_x_0_fp`, `ref_y_0_fp`, `ref_psi_0_fp`)
+- Current Frenet state (`e_y_fp`, `e_psi_fp`, `velocity_fp`, `vy_fp`, `omega_fp`, `steering_angle_fp`)
 - Horizon arrays (`horizon_length`, `ref_ey_fp`, `ref_vx_fp`, `ref_kappa_fp`, `ref_left_bound_fp`, `ref_right_bound_fp`)
 
-All numeric payload fields are Q16.16 fixed-point (`int32`) except `horizon_length` (`uint32`).
+All numeric payload fields are raw QP fixed-point (`int32`) except `horizon_length` (`uint32`).
 
 ### state_publisher (Jetson)
 
@@ -38,8 +37,8 @@ All numeric payload fields are Q16.16 fixed-point (`int32`) except `horizon_leng
 1. Loads a trajectory CSV.
 2. Caches odometry dynamics from `/ego_racecar/odom`.
 3. Triggers publish on each `/ekf_pose` message.
-4. Uses KD-tree nearest search plus fixed forward lookahead (compile-time define).
-5. Streams only the active MPC horizon in each `MpcState` message.
+4. Computes current Frenet errors on Jetson.
+5. Streams only the FPGA-consumed state and horizon values in each `MpcState` message.
 
 ### state_receiver (Kria)
 
@@ -97,17 +96,17 @@ ros2 launch state_receiver mpc_launch.py
 
 OpenCL payload sizing and command-limit constants are taken directly from compile-time defines in `mpc_fpga_interface.h`.
 
-## Q16.16 Fixed-Point Reference
+## Raw-QP Fixed-Point Reference
 
 ```cpp
-// Float -> Q16.16
-int32_t fp = static_cast<int32_t>(value * 65536.0);
+// Float -> raw QP, Q14.18 by default
+int32_t fp = static_cast<int32_t>(value * MPC_FPGA_QP_SCALE_F64);
 
-// Q16.16 -> Float
-float value = static_cast<float>(fp) / 65536.0f;
+// raw QP -> Float
+float value = static_cast<float>(fp) / MPC_FPGA_QP_SCALE_F32;
 ```
 
-Approximate range: +/-32768 with step size 1/65536.
+Default range is approximately +/-8192 with step size 1/262144.
 
 ## Latency Notes
 

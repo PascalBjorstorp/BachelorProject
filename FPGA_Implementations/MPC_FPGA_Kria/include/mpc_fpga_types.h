@@ -72,7 +72,7 @@
 /* ADMM state z/y update loop target II.
  * Override at compile time: -DMPC_HLS_STATE_ZY_II=N */
 #ifndef MPC_HLS_STATE_ZY_II
-#define MPC_HLS_STATE_ZY_II 7
+#define MPC_HLS_STATE_ZY_II 4
 #endif
 
 /* Structural model signature used to invalidate persistent warm-start state
@@ -90,7 +90,7 @@
 /** ADMM control z/y update loop target II.
  *  Override at compile time: -DMPC_HLS_CTRL_ZY_II=N */
 #ifndef MPC_HLS_CTRL_ZY_II
-#define MPC_HLS_CTRL_ZY_II 7
+#define MPC_HLS_CTRL_ZY_II 4
 #endif
 
 /** Unroll factor for K*x forward-control accumulation loops.

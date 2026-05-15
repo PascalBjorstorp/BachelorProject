@@ -304,12 +304,12 @@ public:
 
 private:
     /**
-     * @brief Convert floating-point value to Q16.16 fixed-point.
+     * @brief Convert floating-point value to raw QP fixed-point.
      * @param v Floating-point input value.
-     * @return Q16.16 integer representation of `v`.
+     * @return Raw QP integer representation of `v`.
      */
     static int32_t toFp(double v) {
-        constexpr double kScale = 65536.0;
+        constexpr double kScale = MPC_FPGA_QP_SCALE_F64;
         if (!std::isfinite(v)) {
             return 0;
         }
@@ -664,9 +664,28 @@ private:
             std::chrono::duration_cast<std::chrono::nanoseconds>(
                 std::chrono::steady_clock::now().time_since_epoch()).count());
 
-        packet.x_fp = toFp(x);
-        packet.y_fp = toFp(y);
-        packet.theta_fp = toFp(theta);
+        {
+            const size_t n = kdtree_.size();
+            const auto& a = kdtree_.getWaypoint(waypoint_idx);
+            const auto& b = kdtree_.getWaypoint((waypoint_idx + 1) % n);
+            const double abx = b.x - a.x;
+            const double aby = b.y - a.y;
+            const double apx = x - a.x;
+            const double apy = y - a.y;
+            const double ab_len2 = abx * abx + aby * aby;
+            double t = 0.0;
+            if (ab_len2 > 1e-12) {
+                t = (apx * abx + apy * aby) / ab_len2;
+            }
+            t = std::clamp(t, 0.0, 1.0);
+            const double path_x = a.x + t * abx;
+            const double path_y = a.y + t * aby;
+            const double path_psi = lerpAngle(a.psi, b.psi, t);
+            const double dx = x - path_x;
+            const double dy = y - path_y;
+            packet.e_y_fp = toFp(-std::sin(path_psi) * dx + std::cos(path_psi) * dy);
+            packet.e_psi_fp = toFp(normalizeAngle(theta - path_psi));
+        }
         packet.velocity_fp = toFp(vx);
         packet.vy_fp = toFp(vy);
         packet.omega_fp = toFp(omega);
@@ -678,9 +697,6 @@ private:
             const double base_s = kdtree_.getWaypoint(waypoint_idx).s;
             for (size_t i = 0; i < MPC_HORIZON; ++i) {
                 const Waypoint wp = sampleByArcLength(base_s + horizon_step_m_ * static_cast<double>(i));
-                packet.ref_x_fp[i] = toFp(wp.x);
-                packet.ref_y_fp[i] = toFp(wp.y);
-                packet.ref_psi_fp[i] = toFp(wp.psi);
                 packet.ref_ey_fp[i] = toFp(0.0);
                 packet.ref_vx_fp[i] = toFp(wp.vx);
                 packet.ref_kappa_fp[i] = toFp(wp.kappa);
@@ -692,9 +708,6 @@ private:
             for (size_t i = 0; i < MPC_HORIZON; ++i) {
                 const size_t idx = (waypoint_idx + i) % n;
                 const auto& wp = kdtree_.getWaypoint(idx);
-                packet.ref_x_fp[i] = toFp(wp.x);
-                packet.ref_y_fp[i] = toFp(wp.y);
-                packet.ref_psi_fp[i] = toFp(wp.psi);
                 packet.ref_ey_fp[i] = toFp(0.0);
                 packet.ref_vx_fp[i] = toFp(wp.vx);
                 packet.ref_kappa_fp[i] = toFp(wp.kappa);
