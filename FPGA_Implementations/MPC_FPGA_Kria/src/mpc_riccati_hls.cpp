@@ -10,7 +10,7 @@
  *   - cold start -> full ADMM reset
  *   - warm start reset on model-signature jump, first-point curvature jump,
  *     or bound-incompatible persisted e_y state
- *   - hard solver error -> reset ADMM state immediately
+ *   - solver status is OPTIMAL or MAX_ITER
  *
  * Notes:
  *   - This file intentionally uses the public fp_QP_t-facing interface.
@@ -43,7 +43,8 @@ static void compute_wall_ey_bounds_hls(fp_QP_t left_wall_bound,
   fp_QP_t x_ub = left_wall_bound - wall_margin;
 
   if (x_lb > x_ub) {
-    const fp_QP_t mid = fp_mul(FP_QP_CONST(0.5), x_lb + x_ub);
+    const fp_QP_t mid = fp_mul_site(FP_QP_CONST(0.5), x_lb + x_ub,
+                                    FP_CAST_SITE_MUL_MR_HALF_BOUNDS);
     x_lb = mid;
     x_ub = mid;
   }
@@ -87,37 +88,146 @@ static fp_QP_t compute_wall_biased_ey_ref_hls(fp_QP_t base_ref, fp_QP_t x_lb,
  * Mirrors the CPU riccati_admm_state_init() behavior without memset. */
 static void reset_admm_state_hls(AdmmState_t *admm_state) {
 #pragma HLS INLINE off
-  if (!admm_state) {
-    return;
-  }
-
-  for (int k = 0; k <= MPC_HORIZON; k++) {
-#pragma HLS PIPELINE II = 1
-    for (int s = 0; s < MPC_NX_AUG; s++) {
-      admm_state->z_x[k][s] = FP_QP_CONST(0.0);
-      admm_state->y_x[k][s] = FP_QP_CONST(0.0);
-    }
-  }
-
-  for (int k = 0; k < MPC_HORIZON; k++) {
-#pragma HLS PIPELINE II = 1
-    for (int a = 0; a < MPC_NU; a++) {
-      admm_state->z_u[k][a] = FP_QP_CONST(0.0);
-      admm_state->y_u[k][a] = FP_QP_CONST(0.0);
-    }
-  }
-
-  admm_state->rho = FP_QP_CONST(0.0);
-  admm_state->rho_u = FP_QP_CONST(0.0);
-  admm_state->initialized = 0;
+  mpc_admm_reset_all_hls(admm_state);
 }
 
-static inline fp_QP_raw_t clip_sum8_qp_raw_to_qp_local(fp_sum8_QP_raw_t value) {
+static inline fp_QP_raw_t cast_sum8_qp_raw_to_qp_local(fp_sum8_QP_raw_t value) {
 #pragma HLS INLINE
-  if (!fp_signed_fits_width<MPC_HLS_QP_WIDTH + 3, MPC_HLS_QP_WIDTH>(value))
-    return value[MPC_HLS_QP_WIDTH + 2] ? (fp_QP_raw_t)fp_qp_raw_min_acc()
-                                       : (fp_QP_raw_t)fp_qp_raw_max_acc();
   return (fp_QP_raw_t)value;
+}
+
+static void compute_affine_bias_dense_hls(
+    const fp_QP_t A_step[MPC_NX_FRENET][MPC_NX_FRENET],
+    const fp_QP_t B_step[MPC_NX_FRENET][MPC_NU], fp_QP_t lin_ey,
+    fp_QP_t lin_epsi, fp_QP_t lin_vx, fp_QP_t lin_vy, fp_QP_t lin_omega,
+    fp_QP_t lin_delta, fp_QP_t uk0, fp_QP_t uk1, fp_QP_t lin_delta_k,
+    fp_QP_t next_ey, fp_QP_t next_epsi, fp_QP_t next_vx, fp_QP_t next_vy,
+    fp_QP_t next_omega, fp_QP_t next_delta, StepData_t *sd) {
+#pragma HLS INLINE off
+#pragma HLS ALLOCATION operation instances = mul limit = 8
+  int i;
+  fp_QP_raw_t xk_raw[MPC_NX_DENSE];
+  fp_QP_raw_t xk1_raw[MPC_NX_DENSE];
+  fp_QP_raw_t uk0_raw = fp_qp_raw_from_QP(uk0);
+  fp_QP_raw_t uk1_raw = fp_qp_raw_from_QP(uk1);
+  fp_QP_raw_t lin_delta_k_raw = fp_qp_raw_from_QP(lin_delta_k);
+#pragma HLS ARRAY_PARTITION variable = xk_raw complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = xk1_raw complete dim = 1
+
+  xk_raw[0] = fp_qp_raw_from_QP(lin_ey);
+  xk_raw[1] = fp_qp_raw_from_QP(lin_epsi);
+  xk_raw[2] = fp_qp_raw_from_QP(lin_vx);
+  xk_raw[3] = fp_qp_raw_from_QP(lin_vy);
+  xk_raw[4] = fp_qp_raw_from_QP(lin_omega);
+  xk_raw[IDX_DELTA_ACT] = fp_qp_raw_from_QP(lin_delta);
+
+  xk1_raw[0] = fp_qp_raw_from_QP(next_ey);
+  xk1_raw[1] = fp_qp_raw_from_QP(next_epsi);
+  xk1_raw[2] = fp_qp_raw_from_QP(next_vx);
+  xk1_raw[3] = fp_qp_raw_from_QP(next_vy);
+  xk1_raw[4] = fp_qp_raw_from_QP(next_omega);
+  xk1_raw[IDX_DELTA_ACT] = fp_qp_raw_from_QP(next_delta);
+
+  fp_QP_raw_t d_dense_raw[MPC_NX_DENSE];
+#pragma HLS ARRAY_PARTITION variable = d_dense_raw complete dim = 1
+
+  /* Fused multiply-accumulate + cast: the previous version stored the
+   * fp_sum8_QP_raw_t accumulator into d_dense_acc[] and ran a second
+   * 5-iter pipelined loop just to narrow it to fp_QP_raw_t. The cast is
+   * a slice op (0-latency), so it folds cleanly into the main pipeline
+   * and the second loop is eliminated.
+   *
+   * With the compact BRAM-backed StepData_t, this small 5-row loop can be
+   * fully unrolled again without exploding per-stage state storage. Keeping
+   * it combinational lets the parent horizon-assembly loop retain its
+   * II=150 pipeline. */
+  for (i = 0; i < 5; i++) {
+#pragma HLS UNROLL
+    const fp_QP_raw_t A0_raw = fp_qp_raw_from_QP(A_step[i][0]);
+    const fp_QP_raw_t A1_raw = fp_qp_raw_from_QP(A_step[i][1]);
+    const fp_QP_raw_t A2_raw = fp_qp_raw_from_QP(A_step[i][2]);
+    const fp_QP_raw_t A3_raw = fp_qp_raw_from_QP(A_step[i][3]);
+    const fp_QP_raw_t A4_raw = fp_qp_raw_from_QP(A_step[i][4]);
+    const fp_QP_raw_t B0_raw = fp_qp_raw_from_QP(B_step[i][0]);
+    const fp_QP_raw_t B1_raw = fp_qp_raw_from_QP(B_step[i][1]);
+
+    const fp_QP_raw_t a0 =
+        fp_shift_right_cast_to_qp_site(fp_mul_QP_raw(A0_raw, xk_raw[0]),
+                                       FP_FRAC_BITS,
+                                       FP_CAST_SITE_MUL_MPC_RICCATI_A0);
+    const fp_QP_raw_t a1 =
+        fp_shift_right_cast_to_qp_site(fp_mul_QP_raw(A1_raw, xk_raw[1]),
+                                       FP_FRAC_BITS,
+                                       FP_CAST_SITE_MUL_MPC_RICCATI_A1);
+    const fp_QP_raw_t a2 =
+        fp_shift_right_cast_to_qp_site(fp_mul_QP_raw(A2_raw, xk_raw[2]),
+                                       FP_FRAC_BITS,
+                                       FP_CAST_SITE_MUL_MPC_RICCATI_A2);
+    const fp_QP_raw_t a3 =
+        fp_shift_right_cast_to_qp_site(fp_mul_QP_raw(A3_raw, xk_raw[3]),
+                                       FP_FRAC_BITS,
+                                       FP_CAST_SITE_MUL_MPC_RICCATI_A3);
+    const fp_QP_raw_t a4 =
+        fp_shift_right_cast_to_qp_site(fp_mul_QP_raw(A4_raw, xk_raw[4]),
+                                       FP_FRAC_BITS,
+                                       FP_CAST_SITE_MUL_MPC_RICCATI_A4);
+    const fp_QP_raw_t b0 =
+        fp_shift_right_cast_to_qp_site(fp_mul_QP_raw(B0_raw, lin_delta_k_raw),
+                                       FP_FRAC_BITS,
+                                       FP_CAST_SITE_MUL_MPC_RICCATI_B0);
+    const fp_QP_raw_t b1 =
+        fp_shift_right_cast_to_qp_site(fp_mul_QP_raw(B1_raw, uk1_raw),
+                                       FP_FRAC_BITS,
+                                       FP_CAST_SITE_MUL_MPC_RICCATI_B1);
+
+    const fp_sum8_QP_raw_t s01 = (fp_sum8_QP_raw_t)a0 + (fp_sum8_QP_raw_t)a1;
+    const fp_sum8_QP_raw_t s23 = (fp_sum8_QP_raw_t)a2 + (fp_sum8_QP_raw_t)a3;
+    const fp_sum8_QP_raw_t s45 = (fp_sum8_QP_raw_t)a4 + (fp_sum8_QP_raw_t)b0;
+    const fp_sum8_QP_raw_t s67 = (fp_sum8_QP_raw_t)b1;
+    const fp_sum8_QP_raw_t s0123 = s01 + s23;
+    const fp_sum8_QP_raw_t s4567 = s45 + s67;
+
+    const fp_sum8_QP_raw_t acc =
+        (fp_sum8_QP_raw_t)xk1_raw[i] - (s0123 + s4567);
+    d_dense_raw[i] = cast_sum8_qp_raw_to_qp_local(acc);
+  }
+
+  /* IDX_DELTA_ACT row uses a different formula and is computed once
+   * outside the main loop so it can overlap with it. */
+  const fp_sum8_QP_raw_t acc_delta_act =
+      (fp_sum8_QP_raw_t)xk1_raw[IDX_DELTA_ACT] -
+      (fp_sum8_QP_raw_t)xk_raw[IDX_DELTA_ACT] -
+      (fp_sum8_QP_raw_t)fp_shift_right_cast_to_qp_site(
+          fp_mul_QP_raw(fp_qp_raw_from_QP(MPC_DT), uk0_raw), FP_FRAC_BITS,
+          FP_CAST_SITE_MUL_MPC_RICCATI_DT_UK0);
+  d_dense_raw[IDX_DELTA_ACT] = cast_sum8_qp_raw_to_qp_local(acc_delta_act);
+
+  for (i = 0; i < MPC_NX_DENSE; ++i) {
+#pragma HLS UNROLL
+    sd->d[i] = fp_QP_from_qp_raw(d_dense_raw[i]);
+  }
+}
+
+/* Writeback helper for persistent state.
+ *
+ * Marked INLINE off to create an explicit HLS module boundary between the
+ * mpc_compute_hls FSM and the persist register file. Without this, the
+ * loop-done state bit at the end of mpc_compute_hls (e.g. ap_CS_fsm[73])
+ * drives the persist register CE/D pins through a long combinational
+ * fanout (~60 endpoints), producing the bucket B WNS path. The dedicated
+ * helper forces HLS to register the persist writes behind a handshake. */
+static void mpc_persist_writeback_hls(MpcPersistState_t *persist,
+                                       fp_QP_t prev_delta_cmd,
+                                       fp_QP_t prev_steer_rate,
+                                       fp_QP_t prev_accel,
+                                       fp_QP_t prev_curvature,
+                                       int prev_model_signature) {
+#pragma HLS INLINE off
+  persist->prev_delta_cmd = prev_delta_cmd;
+  persist->prev_steer_rate = prev_steer_rate;
+  persist->prev_accel = prev_accel;
+  persist->prev_curvature = prev_curvature;
+  persist->prev_model_signature = prev_model_signature;
 }
 
 static void init_solver_cfg_hls(AdmmConfig_t *cfg) {
@@ -126,7 +236,7 @@ static void init_solver_cfg_hls(AdmmConfig_t *cfg) {
   cfg->rho_u = ADMM_RHO_U_DEFAULT;
   cfg->tolerance = ADMM_TOL_DEFAULT;
   cfg->max_iterations = ADMM_MAX_ITER_DEFAULT;
-  cfg->adaptive_rho = ADMM_ADAPTIVE_RHO_DEFAULT;
+  cfg->adaptive_rho = 1;
 }
 
 static void init_solution_hls(MpcSolution_t *sol) {
@@ -159,11 +269,15 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
                      MpcPersistState_t *persist, AdmmState_t *admm_state,
                      fp_QP_t *out_steering, fp_QP_t *out_accel, int *out_status,
                      int *out_iters) {
-#pragma HLS INLINE
+#pragma HLS INLINE off
 #pragma HLS ARRAY_PARTITION variable = admm_state->z_x complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = admm_state->z_u complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = admm_state->y_x complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = admm_state->y_u complete dim = 2
+  /* Share the affine-bias helper across horizon iterations. At II=150 there
+   * is enough slack to reuse one instance instead of materializing ~20 clones
+   * inside Pipeline_VITIS_LOOP_389_4. */
+#pragma HLS ALLOCATION function instances = compute_affine_bias_dense_hls limit = 1
 
   const fp_QP_t kZero = FP_QP_CONST(0.0);
   const fp_QP_t kHalf = FP_QP_CONST(0.5);
@@ -180,7 +294,9 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
    * Step 2: build per-step augmented QP data
    * --------------------------------------------------------------- */
   StepData_t step_data[MPC_HORIZON];
-#pragma HLS BIND_STORAGE variable = step_data type = RAM_2P impl = LUTRAM latency = 1
+#pragma HLS BIND_STORAGE variable = step_data type = RAM_2P impl = BRAM latency = 1
+  fp_QP_t B_sparse[MPC_HORIZON][MPC_BSP_N];
+#pragma HLS ARRAY_PARTITION variable = B_sparse complete dim = 0
 
   fp_QP_t terminal_wall_x_lb_con = -BIG_BOUND;
   fp_QP_t terminal_wall_x_ub_con = BIG_BOUND;
@@ -210,9 +326,11 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
 
   fp_QP_t wall_left_min[MPC_HORIZON];
   fp_QP_t wall_right_min[MPC_HORIZON];
+#pragma HLS ARRAY_PARTITION variable = wall_left_min complete dim = 1
+#pragma HLS ARRAY_PARTITION variable = wall_right_min complete dim = 1
 
   for (k = 0; k < MPC_HORIZON; k++) {
-#pragma HLS UNROLL factor = 1
+#pragma HLS UNROLL factor = 4
     fp_QP_t left_cand[2 * WALL_BOUND_WINDOW + 1];
     fp_QP_t right_cand[2 * WALL_BOUND_WINDOW + 1];
 #pragma HLS ARRAY_PARTITION variable = left_cand complete dim = 1
@@ -257,9 +375,26 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
     wall_right_min[k] = (right_l3_0 < right_l3_1) ? right_l3_0 : right_l3_1;
   }
 
+  /* Horizon QP-assembly loop: PIPELINED.
+   *
+   * Loop-carried dep is the rollout state lin_* <- next_*, produced by
+   * compute_frenet_AB_and_next_hls. Proven recurrence delay ~= 135 cyc
+   * (Pacejka tire forces -> fp_rollout_from_forces_fn). Forcing
+   * II=150 (just above the recurrence bound) lets HLS overlap the
+   * non-recurrent A/B-Jacobian + cost/bound assembly of iter k with
+   * iter k+1's recurrence, WITHOUT packing per-cycle logic tighter
+   * (II=150 >> body critical path, unlike the backward pass which
+   * exploded at II=80 vs a hard 156-cyc recurrence).
+   *
+   * Verified safe: the -4.66 ns/28k-endpoint catastrophe was entirely
+   * in riccati_pass's backward loop (Pipeline_VITIS_LOOP_426_4) - a
+   * different module. This loop never appeared in those failures.
+   *
+   * Mock-up: seq 20*244=4880 cyc -> 19*150+244 ~= 3094 cyc.
+   * Saves ~1786 cyc per MPC call (one-time setup, ~8% of avg call). */
   for (k = 0; k < MPC_HORIZON; k++) {
 #pragma HLS LOOP_TRIPCOUNT min = MPC_HORIZON max = MPC_HORIZON
-#pragma HLS PIPELINE off
+#pragma HLS PIPELINE II = 150
     StepData_t *sd = &step_data[k];
 
     const fp_QP_t uk0 = rollout_steer_rate;
@@ -273,7 +408,9 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
 #pragma HLS ARRAY_PARTITION variable = next_frenet complete dim = 1
 
     const fp_QP_t kappa_k = ref[k].path_curvature;
-    const fp_QP_t dff_raw_k = fp_atan_lut(fp_mul(VP_WHEELBASE, kappa_k));
+    const fp_QP_t dff_raw_k =
+        fp_atan_lut(fp_mul_site(VP_WHEELBASE, kappa_k,
+                                FP_CAST_SITE_MUL_MR_DFF_RAW));
     const fp_QP_t dff_k = fp_clamp(dff_raw_k, -VP_MAX_STEER, VP_MAX_STEER);
 
     const fp_QP_t lin_delta_k = dff_k;
@@ -332,7 +469,9 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
     const fp_QP_t next_vy = next_frenet[3];
     const fp_QP_t next_omega = next_frenet[4];
     const fp_QP_t next_delta =
-        fp_clamp(lin_delta + fp_mul(MPC_DT, uk0), -VP_MAX_STEER, VP_MAX_STEER);
+        fp_clamp(lin_delta +
+                     fp_mul_site(MPC_DT, uk0, FP_CAST_SITE_MUL_MR_DELTA_PRED),
+                 -VP_MAX_STEER, VP_MAX_STEER);
 
     /* Only the 6x6 dense A block is consumed by the Riccati pass. */
     for (j = 0; j < 5; j++) {
@@ -355,181 +494,54 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
     }
     sd->A[IDX_DELTA_ACT][IDX_DELTA_ACT] = FP_ONE;
 
-    /* === Augmented B === */
-    sd->B_vx_accel = B_step[2][1];
-    sd->B_vy_accel = B_step[3][1];
-    sd->B_omega_accel = B_step[4][1];
-    sd->B_delta_rate = MPC_DT;
+    /* === Augmented B (register-resident, see B_sparse above) === */
+    B_sparse[k][MPC_BSP_VX_ACCEL] = B_step[2][1];
+    B_sparse[k][MPC_BSP_VY_ACCEL] = B_step[3][1];
+    B_sparse[k][MPC_BSP_OMEGA_ACCEL] = B_step[4][1];
+    B_sparse[k][MPC_BSP_DELTA_RATE] = (fp_QP_t)MPC_DT;
 
     /* === Affine dynamics bias d === */
-    fp_QP_raw_t xk_raw[MPC_NX_DENSE];
-    fp_QP_raw_t xk1_raw[MPC_NX_DENSE];
-    fp_QP_raw_t uk0_raw = fp_qp_raw_from_QP(uk0);
-    fp_QP_raw_t uk1_raw = fp_qp_raw_from_QP(uk1);
-    fp_QP_raw_t lin_delta_k_raw = fp_qp_raw_from_QP(lin_delta_k);
-#pragma HLS ARRAY_PARTITION variable = xk_raw complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = xk1_raw complete dim = 1
-
-    xk_raw[0] = fp_qp_raw_from_QP(lin_ey);
-    xk_raw[1] = fp_qp_raw_from_QP(lin_epsi);
-    xk_raw[2] = fp_qp_raw_from_QP(lin_vx);
-    xk_raw[3] = fp_qp_raw_from_QP(lin_vy);
-    xk_raw[4] = fp_qp_raw_from_QP(lin_omega);
-    xk_raw[IDX_DELTA_ACT] = fp_qp_raw_from_QP(lin_delta);
-
-    xk1_raw[0] = fp_qp_raw_from_QP(next_ey);
-    xk1_raw[1] = fp_qp_raw_from_QP(next_epsi);
-    xk1_raw[2] = fp_qp_raw_from_QP(next_vx);
-    xk1_raw[3] = fp_qp_raw_from_QP(next_vy);
-    xk1_raw[4] = fp_qp_raw_from_QP(next_omega);
-    xk1_raw[IDX_DELTA_ACT] = fp_qp_raw_from_QP(next_delta);
-
-    fp_QP_raw_t d_dense_raw[MPC_NX_DENSE];
-    fp_sum8_QP_raw_t d_dense_acc[MPC_NX_DENSE];
-#pragma HLS ARRAY_PARTITION variable = d_dense_raw complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = d_dense_acc complete dim = 1
-
-    for (i = 0; i < 5; i++) {
-#pragma HLS PIPELINE II = 1
-      const fp_QP_raw_t A0_raw = fp_qp_raw_from_QP(A_step[i][0]);
-      const fp_QP_raw_t A1_raw = fp_qp_raw_from_QP(A_step[i][1]);
-      const fp_QP_raw_t A2_raw = fp_qp_raw_from_QP(A_step[i][2]);
-      const fp_QP_raw_t A3_raw = fp_qp_raw_from_QP(A_step[i][3]);
-      const fp_QP_raw_t A4_raw = fp_qp_raw_from_QP(A_step[i][4]);
-      const fp_QP_raw_t B0_raw = fp_qp_raw_from_QP(B_step[i][0]);
-      const fp_QP_raw_t B1_raw = fp_qp_raw_from_QP(B_step[i][1]);
-
-      const fp_QP_raw_t a0 =
-          fp_shift_right_clip_to_qp(fp_mul_QP_raw(A0_raw, xk_raw[0]),
-                                    FP_FRAC_BITS);
-      const fp_QP_raw_t a1 =
-          fp_shift_right_clip_to_qp(fp_mul_QP_raw(A1_raw, xk_raw[1]),
-                                    FP_FRAC_BITS);
-      const fp_QP_raw_t a2 =
-          fp_shift_right_clip_to_qp(fp_mul_QP_raw(A2_raw, xk_raw[2]),
-                                    FP_FRAC_BITS);
-      const fp_QP_raw_t a3 =
-          fp_shift_right_clip_to_qp(fp_mul_QP_raw(A3_raw, xk_raw[3]),
-                                    FP_FRAC_BITS);
-      const fp_QP_raw_t a4 =
-          fp_shift_right_clip_to_qp(fp_mul_QP_raw(A4_raw, xk_raw[4]),
-                                    FP_FRAC_BITS);
-      const fp_QP_raw_t b0 =
-          fp_shift_right_clip_to_qp(fp_mul_QP_raw(B0_raw, lin_delta_k_raw),
-                                    FP_FRAC_BITS);
-      const fp_QP_raw_t b1 =
-          fp_shift_right_clip_to_qp(fp_mul_QP_raw(B1_raw, uk1_raw),
-                                    FP_FRAC_BITS);
-
-      const fp_sum8_QP_raw_t s01 = (fp_sum8_QP_raw_t)a0 + (fp_sum8_QP_raw_t)a1;
-      const fp_sum8_QP_raw_t s23 = (fp_sum8_QP_raw_t)a2 + (fp_sum8_QP_raw_t)a3;
-      const fp_sum8_QP_raw_t s45 = (fp_sum8_QP_raw_t)a4 + (fp_sum8_QP_raw_t)b0;
-      const fp_sum8_QP_raw_t s67 = (fp_sum8_QP_raw_t)b1;
-      const fp_sum8_QP_raw_t s0123 = s01 + s23;
-      const fp_sum8_QP_raw_t s4567 = s45 + s67;
-
-      d_dense_acc[i] =
-          (fp_sum8_QP_raw_t)xk1_raw[i] - (s0123 + s4567);
-    }
-
-    for (i = 0; i < 5; i++) {
-#pragma HLS PIPELINE II = 1
-      d_dense_raw[i] = clip_sum8_qp_raw_to_qp_local(d_dense_acc[i]);
-    }
-
-    {
-      d_dense_acc[IDX_DELTA_ACT] =
-          (fp_sum8_QP_raw_t)xk1_raw[IDX_DELTA_ACT] -
-          (fp_sum8_QP_raw_t)xk_raw[IDX_DELTA_ACT] -
-          (fp_sum8_QP_raw_t)fp_shift_right_clip_to_qp(
-              fp_mul_QP_raw(fp_qp_raw_from_QP(MPC_DT), uk0_raw), FP_FRAC_BITS);
-      d_dense_raw[IDX_DELTA_ACT] =
-          clip_sum8_qp_raw_to_qp_local(d_dense_acc[IDX_DELTA_ACT]);
-    }
-
-    sd->d0 = fp_QP_from_qp_raw(d_dense_raw[0]);
-    sd->d1 = fp_QP_from_qp_raw(d_dense_raw[1]);
-    sd->d2 = fp_QP_from_qp_raw(d_dense_raw[2]);
-    sd->d3 = fp_QP_from_qp_raw(d_dense_raw[3]);
-    sd->d4 = fp_QP_from_qp_raw(d_dense_raw[4]);
-    sd->d5 = fp_QP_from_qp_raw(d_dense_raw[5]);
+    compute_affine_bias_dense_hls(
+      A_step, B_step, lin_ey, lin_epsi, lin_vx, lin_vy, lin_omega,
+      lin_delta, uk0, uk1, lin_delta_k, next_ey, next_epsi, next_vx,
+      next_vy, next_omega, next_delta, sd);
 
     /* === Costs === */
-    sd->Q_diag[0] = MPC_Q2_LAT_ERROR;
-    sd->Q_diag[1] = MPC_Q2_HEADING;
-    sd->Q_diag[2] = MPC_Q2_VELOCITY;
-    sd->Q_diag[3] = MPC_Q2_LAT_VEL;
-    sd->Q_diag[4] = MPC_Q2_YAW_RATE;
-    sd->Q_diag[IDX_DELTA_ACT] = MPC_Q2_DELTA_ACT;
-    sd->Q_diag[IDX_DELTA_RATE_PREV] = MPC_Q2_STEER_JERK;
-    sd->Q_diag[IDX_ACCEL_PREV] = MPC_Q2_ACCEL_RATE;
-    if (k == 0) {
-      sd->Q_diag[IDX_DELTA_RATE_PREV] = MPC_Q2_JERK_CS;
-      sd->Q_diag[IDX_ACCEL_PREV] = MPC_Q2_ARATE_CS;
-    }
-
-    sd->q[0] = -fp_mul(MPC_Q2_LAT_ERROR, ey_ref_k);
-    sd->q[1] = -fp_mul(MPC_Q2_HEADING, ref[k].reference_heading_error);
-    sd->q[2] = -fp_mul(MPC_Q2_VELOCITY, ref[k].reference_velocity);
-    sd->q[3] = -fp_mul(MPC_Q2_LAT_VEL, ref[k].reference_lateral_velocity);
-    sd->q[4] = -fp_mul(MPC_Q2_YAW_RATE, ref[k].reference_yaw_rate);
-    sd->q[IDX_DELTA_ACT] = -fp_mul(MPC_Q2_DELTA_ACT, dff_k);
-    sd->q[IDX_DELTA_RATE_PREV] = kZero;
-    sd->q[IDX_ACCEL_PREV] = kZero;
-
-    sd->R_diag[0] = MPC_R2_STEER;
-    sd->R_diag[1] = MPC_R2_ACCEL;
-    if (k == 0) {
-      sd->R_diag[0] = MPC_R2_STEER_CS;
-      sd->R_diag[1] = MPC_R2_ACCEL_CS;
-    }
-    sd->r[0] = kZero;
-    sd->r[1] = kZero;
-
-    sd->N_delta_rate = MPC_N2_STEER_JERK;
-    sd->N_accel = MPC_N2_ACCEL_RATE;
-    if (k == 0) {
-      sd->N_delta_rate = -MPC_Q2_JERK_CS;
-      sd->N_accel = -MPC_Q2_ARATE_CS;
-    }
-
-    /* === State bounds === */
-    sd->x_lb[0] = wall_x_lb_con;
-    sd->x_ub[0] = wall_x_ub_con;
-
-    for (i = 1; i < 5; i++) {
-      sd->x_lb[i] = -BIG_BOUND;
-      sd->x_ub[i] = BIG_BOUND;
-    }
-
-    sd->x_lb[IDX_DELTA_ACT] = -VP_MAX_STEER;
-    sd->x_ub[IDX_DELTA_ACT] = VP_MAX_STEER;
-    sd->x_lb[IDX_DELTA_RATE_PREV] = -BIG_BOUND;
-    sd->x_ub[IDX_DELTA_RATE_PREV] = BIG_BOUND;
-    sd->x_lb[IDX_ACCEL_PREV] = -BIG_BOUND;
-    sd->x_ub[IDX_ACCEL_PREV] = BIG_BOUND;
-
-    /* === Control bounds === */
-    sd->u_lb[0] = -VP_MAX_STEER_RATE;
-    sd->u_ub[0] = VP_MAX_STEER_RATE;
+    sd->q[0] = -fp_mul_site(MPC_Q2_LAT_ERROR, ey_ref_k,
+                            FP_CAST_SITE_MUL_MR_Q_LAT);
+    sd->q[1] = -fp_mul_site(MPC_Q2_HEADING, ref[k].reference_heading_error,
+                            FP_CAST_SITE_MUL_MR_Q_HDG);
+    sd->q[2] = -fp_mul_site(MPC_Q2_VELOCITY, ref[k].reference_velocity,
+                            FP_CAST_SITE_MUL_MR_Q_VEL);
+    sd->q[3] = -fp_mul_site(MPC_Q2_LAT_VEL, ref[k].reference_lateral_velocity,
+                            FP_CAST_SITE_MUL_MR_Q_LAT_VEL);
+    sd->q[4] = -fp_mul_site(MPC_Q2_YAW_RATE, ref[k].reference_yaw_rate,
+                            FP_CAST_SITE_MUL_MR_Q_YAW);
+    sd->q[IDX_DELTA_ACT] =
+        -fp_mul_site(MPC_Q2_DELTA_ACT, dff_k, FP_CAST_SITE_MUL_MR_Q_DELTA);
+    sd->ey_lb = wall_x_lb_con;
+    sd->ey_ub = wall_x_ub_con;
 
     fp_QP_t v_ref_k = ref[k].reference_velocity;
     fp_QP_t v_model_k = (lin_vx_k < MIN_LIN_VEL) ? MIN_LIN_VEL : lin_vx_k;
     fp_QP_t v_for_limit =
-        fp_mul(FP_QP_CONST(0.7), v_model_k) +
-        fp_mul(FP_QP_CONST(0.3), v_ref_k);
+        fp_mul_site(FP_QP_CONST(0.7), v_model_k,
+                    FP_CAST_SITE_MUL_MR_V_BLEND_07) +
+        fp_mul_site(FP_QP_CONST(0.3), v_ref_k,
+                    FP_CAST_SITE_MUL_MR_V_BLEND_03);
     if (v_for_limit < MIN_LIN_VEL) {
       v_for_limit = MIN_LIN_VEL;
     }
 
     if (v_for_limit > V_SWITCH) {
-      const fp_QP_t scale = fp_mul(V_SWITCH, fp_recip(v_for_limit));
-      sd->u_ub[1] = fp_mul(VP_MAX_ACCEL, scale);
-      sd->u_lb[1] = VP_MIN_ACCEL;
+      const fp_QP_t scale = fp_mul_site(V_SWITCH, fp_recip(v_for_limit),
+                                        FP_CAST_SITE_MUL_MR_SCALE_VSWITCH);
+      sd->accel_ub =
+          fp_mul_site(VP_MAX_ACCEL, scale, FP_CAST_SITE_MUL_MR_UUB_SCALE);
     } else {
-      sd->u_ub[1] = VP_MAX_ACCEL;
-      sd->u_lb[1] = VP_MIN_ACCEL;
+      sd->accel_ub = VP_MAX_ACCEL;
     }
+    sd->pad0 = kZero;
 
     lin_ey = next_ey;
     lin_epsi = next_epsi;
@@ -568,21 +580,28 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
   terminal_x_lb[IDX_DELTA_ACT] = -VP_MAX_STEER;
   terminal_x_ub[IDX_DELTA_ACT] = VP_MAX_STEER;
 
-  terminal_q_linear[0] = -fp_mul(terminal_q_diag[0], terminal_ey_ref);
+  terminal_q_linear[0] =
+      -fp_mul_site(terminal_q_diag[0], terminal_ey_ref,
+                   FP_CAST_SITE_MUL_MR_TERM_Q_EY);
   terminal_q_linear[1] =
-      -fp_mul(terminal_q_diag[1], ref[MPC_HORIZON - 1].reference_heading_error);
+      -fp_mul_site(terminal_q_diag[1], ref[MPC_HORIZON - 1].reference_heading_error,
+                   FP_CAST_SITE_MUL_MR_TERM_Q_HDG);
   terminal_q_linear[2] =
-      -fp_mul(terminal_q_diag[2], ref[MPC_HORIZON - 1].reference_velocity);
+      -fp_mul_site(terminal_q_diag[2], ref[MPC_HORIZON - 1].reference_velocity,
+                   FP_CAST_SITE_MUL_MR_TERM_Q_VEL);
   terminal_q_linear[3] =
-      -fp_mul(terminal_q_diag[3],
-              ref[MPC_HORIZON - 1].reference_lateral_velocity);
+      -fp_mul_site(terminal_q_diag[3],
+                   ref[MPC_HORIZON - 1].reference_lateral_velocity,
+                   FP_CAST_SITE_MUL_MR_TERM_Q_LAT_VEL);
   terminal_q_linear[4] =
-      -fp_mul(terminal_q_diag[4], ref[MPC_HORIZON - 1].reference_yaw_rate);
+      -fp_mul_site(terminal_q_diag[4], ref[MPC_HORIZON - 1].reference_yaw_rate,
+                   FP_CAST_SITE_MUL_MR_TERM_Q_YAW);
 
   {
     const fp_QP_t dff_N = fp_clamp(terminal_dff_raw, -VP_MAX_STEER, VP_MAX_STEER);
     terminal_q_linear[IDX_DELTA_ACT] =
-        -fp_mul(terminal_q_diag[IDX_DELTA_ACT], dff_N);
+        -fp_mul_site(terminal_q_diag[IDX_DELTA_ACT], dff_N,
+                     FP_CAST_SITE_MUL_MR_TERM_Q_DELTA);
   }
 
   /* ---------------------------------------------------------------
@@ -602,7 +621,12 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
    * Step 5: active warm-start policy
    * --------------------------------------------------------------- */
   {
-    const fp_QP_t kappa_diff = fp_abs(kappa0 - persist->prev_curvature);
+    /* Cache prev_curvature locally so HLS reads it once and the
+     * comparator below sees a clean stack variable rather than a port
+     * back to the persist register file. Helps shorten the path from
+     * the wall_*_min loop FSM into the warm-start decision. */
+    const fp_QP_t prev_curvature_cached = persist->prev_curvature;
+    const fp_QP_t kappa_diff = fp_abs(kappa0 - prev_curvature_cached);
     const int curvature_jump = (kappa_diff > MPC_WS_CURVATURE_THRESH);
     const int signature_jump = (persist->prev_model_signature != MPC_MODEL_SIGNATURE);
 
@@ -612,8 +636,8 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
       const fp_QP_t eyN = admm_state->z_x[MPC_HORIZON][IDX_EY];
       const fp_QP_t tol = MPC_WS_BOUND_THRESH;
 
-      if (ey0 < (step_data[0].x_lb[IDX_EY] - tol) ||
-          ey0 > (step_data[0].x_ub[IDX_EY] + tol) ||
+      if (ey0 < (step_data[0].ey_lb - tol) ||
+          ey0 > (step_data[0].ey_ub + tol) ||
           eyN < (terminal_x_lb[IDX_EY] - tol) ||
           eyN > (terminal_x_ub[IDX_EY] + tol)) {
         bound_incompatible = 1;
@@ -636,20 +660,8 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
   init_solution_hls(&sol);
 
   const MpcStatus_t rstatus = riccati_admm_solve_hls(
-      step_data, terminal_q_diag, terminal_q_linear, terminal_x_lb,
+      step_data, B_sparse, terminal_q_diag, terminal_q_linear, terminal_x_lb,
       terminal_x_ub, x0, &solver_cfg, admm_state, &sol);
-
-  /* CPU-parity hard-error path: hold previous applied values. */
-  if (rstatus != MPC_STATUS_OPTIMAL && rstatus != MPC_STATUS_MAX_ITER) {
-    reset_admm_state_hls(admm_state);
-    persist->prev_curvature = kappa0;
-    persist->prev_model_signature = MPC_MODEL_SIGNATURE;
-    *out_steering = persist->actual_steering;
-    *out_accel = persist->prev_accel;
-    *out_status = (int)MPC_STATUS_ERROR;
-    *out_iters = sol.iterations;
-    return;
-  }
 
   /* ---------------------------------------------------------------
    * Step 7: extract projected control and map to commands
@@ -658,7 +670,9 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
   const fp_QP_t accel = admm_state->z_u[0][1];
 
   fp_QP_t delta_cmd =
-      fp_clamp(persist->actual_steering + fp_mul(MPC_DT, delta_rate),
+      fp_clamp(persist->actual_steering +
+                   fp_mul_site(MPC_DT, delta_rate,
+                               FP_CAST_SITE_MUL_MR_PERSIST_STEER),
                -VP_MAX_STEER, VP_MAX_STEER);
 
   fp_QP_t steer_sat, accel_sat;
@@ -667,11 +681,8 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
   /* ---------------------------------------------------------------
    * Step 8: persist and return outputs
    * --------------------------------------------------------------- */
-  persist->prev_delta_cmd = delta_cmd;
-  persist->prev_steer_rate = delta_rate;
-  persist->prev_accel = accel_sat;
-  persist->prev_curvature = kappa0;
-  persist->prev_model_signature = MPC_MODEL_SIGNATURE;
+  mpc_persist_writeback_hls(persist, delta_cmd, delta_rate, accel_sat, kappa0,
+                            MPC_MODEL_SIGNATURE);
 
   *out_steering = steer_sat;
   *out_accel = accel_sat;

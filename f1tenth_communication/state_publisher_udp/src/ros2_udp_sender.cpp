@@ -157,7 +157,7 @@ private:
             return {};
         }
 
-        const size_t max_search = std::min(local_raceline_.size() - 1, static_cast<size_t>(16));
+        const size_t max_search = local_raceline_.size() - 1;
         double best_e_y = 0.0;
         double best_e_psi = 0.0;
         double best_dist2 = std::numeric_limits<double>::max();

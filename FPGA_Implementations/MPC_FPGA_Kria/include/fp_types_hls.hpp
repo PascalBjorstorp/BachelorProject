@@ -22,6 +22,97 @@
 #include <ap_fixed.h>
 #include <ap_int.h>
 
+enum FpCastAuditId {
+  FP_CAST_AUDIT_SUM2_QP_RAW_TO_QP = 0,
+  FP_CAST_AUDIT_SR_QP_MUL_TO_QP,
+  FP_CAST_AUDIT_COUNT
+};
+
+enum FpCastSiteId {
+  FP_CAST_SITE_UNKNOWN = 0,
+  FP_CAST_SITE_SUM2_ADD_QP_RAW,
+  FP_CAST_SITE_SUM2_SUB_CAST,
+  FP_CAST_SITE_SUM2_ADD3_CAST,
+  FP_CAST_SITE_MUL_FP_MUL_QP_RAW_Q,
+  FP_CAST_SITE_MUL_FP_MUL,
+  FP_CAST_SITE_MUL_FP_SQ,
+  FP_CAST_SITE_MUL_MPC_RICCATI_A0,
+  FP_CAST_SITE_MUL_MPC_RICCATI_A1,
+  FP_CAST_SITE_MUL_MPC_RICCATI_A2,
+  FP_CAST_SITE_MUL_MPC_RICCATI_A3,
+  FP_CAST_SITE_MUL_MPC_RICCATI_A4,
+  FP_CAST_SITE_MUL_MPC_RICCATI_B0,
+  FP_CAST_SITE_MUL_MPC_RICCATI_B1,
+  FP_CAST_SITE_MUL_MPC_RICCATI_DT_UK0,
+  FP_CAST_SITE_MUL_RICCATI_RHO_STATE_PN_EY,
+  FP_CAST_SITE_MUL_RICCATI_RHO_STATE_PN_DELTA,
+  FP_CAST_SITE_MUL_RICCATI_RHO_STATE_QK_EY,
+  FP_CAST_SITE_MUL_RICCATI_RHO_STATE_QK_DELTA,
+  FP_CAST_SITE_MUL_RICCATI_RHO_CTRL,
+  FP_CAST_SITE_MUL_TOP_REF_VX_KAPPA,
+  FP_CAST_SITE_MUL_TOP_STEER_RATE,
+  FP_CAST_SITE_MUL_MR_HALF_BOUNDS,
+  FP_CAST_SITE_MUL_MR_DFF_RAW,
+  FP_CAST_SITE_MUL_MR_DELTA_PRED,
+  FP_CAST_SITE_MUL_MR_Q_LAT,
+  FP_CAST_SITE_MUL_MR_Q_HDG,
+  FP_CAST_SITE_MUL_MR_Q_VEL,
+  FP_CAST_SITE_MUL_MR_Q_LAT_VEL,
+  FP_CAST_SITE_MUL_MR_Q_YAW,
+  FP_CAST_SITE_MUL_MR_Q_DELTA,
+  FP_CAST_SITE_MUL_MR_V_BLEND_07,
+  FP_CAST_SITE_MUL_MR_V_BLEND_03,
+  FP_CAST_SITE_MUL_MR_SCALE_VSWITCH,
+  FP_CAST_SITE_MUL_MR_UUB_SCALE,
+  FP_CAST_SITE_MUL_MR_TERM_Q_EY,
+  FP_CAST_SITE_MUL_MR_TERM_Q_HDG,
+  FP_CAST_SITE_MUL_MR_TERM_Q_VEL,
+  FP_CAST_SITE_MUL_MR_TERM_Q_LAT_VEL,
+  FP_CAST_SITE_MUL_MR_TERM_Q_YAW,
+  FP_CAST_SITE_MUL_MR_TERM_Q_DELTA,
+  FP_CAST_SITE_MUL_MR_PERSIST_STEER,
+  FP_CAST_SITE_MUL_RS_DUAL_STATE_DD,
+  FP_CAST_SITE_MUL_RS_DUAL_STATE_ABSL,
+  FP_CAST_SITE_MUL_RS_DUAL_CTRL_DD,
+  FP_CAST_SITE_MUL_RS_DUAL_CTRL_ABSL,
+  FP_CAST_SITE_MUL_RS_INV_DET00,
+  FP_CAST_SITE_MUL_RS_INV_DET01,
+  FP_CAST_SITE_MUL_RS_INV_SI00,
+  FP_CAST_SITE_MUL_RS_INV_SI01,
+  FP_CAST_SITE_MUL_RS_INV_SI10,
+  FP_CAST_SITE_MUL_RS_INV_SI11,
+  FP_CAST_SITE_MUL_RS_EPS_PRIMAL_REL,
+  FP_CAST_SITE_MUL_RS_EPS_DUAL_REL,
+  FP_CAST_SITE_MUL_RS_ADAPT_STATE_DUAL,
+  FP_CAST_SITE_MUL_RS_ADAPT_STATE_PRIMAL,
+  FP_CAST_SITE_MUL_RS_ADAPT_CTRL_DUAL,
+  FP_CAST_SITE_MUL_RS_ADAPT_CTRL_PRIMAL,
+  FP_CAST_SITE_COUNT
+};
+
+#ifdef CAST_AUDIT
+extern "C" void fp_cast_audit_reset(void);
+extern "C" unsigned long long fp_cast_audit_get_count(int id);
+extern "C" const char *fp_cast_audit_get_name(int id);
+extern "C" void fp_cast_audit_print_summary(void);
+extern "C" void fp_cast_audit_bump(int id);
+extern "C" void fp_cast_audit_bump_sum2_site(int site_id);
+extern "C" void fp_cast_audit_bump_mulqp_site(int site_id);
+#else
+static inline void fp_cast_audit_bump(int id) {
+#pragma HLS INLINE
+  (void)id;
+}
+static inline void fp_cast_audit_bump_sum2_site(int site_id) {
+#pragma HLS INLINE
+  (void)site_id;
+}
+static inline void fp_cast_audit_bump_mulqp_site(int site_id) {
+#pragma HLS INLINE
+  (void)site_id;
+}
+#endif
+
 /*==============================================================================
  * Compile-time configuration
  *============================================================================*/
@@ -229,6 +320,24 @@ typedef ap_int<(MPC_HLS_MG_WIDTH + 1)> fp_sum2_MG_raw_t;
 typedef ap_int<(MPC_HLS_QP_WIDTH + 2)> fp_sum4_QP_raw_t;
 typedef ap_int<(MPC_HLS_QP_WIDTH + 3)> fp_sum8_QP_raw_t;
 
+/* Riccati-local sum families used by solver adder trees */
+typedef ap_int<(MPC_HLS_P_WIDTH + MPC_HLS_P_QP_GUARD + 3)> fp_sum6_P_QP_t;
+typedef ap_int<(MPC_HLS_MG_WIDTH + MPC_HLS_MG_QP_GUARD + 3)> fp_sum6_MG_QP_t;
+typedef ap_int<(MPC_HLS_P_WIDTH + MPC_HLS_P_QP_GUARD + 1)> fp_sum2_P_QP_t;
+typedef ap_int<(MPC_HLS_P_WIDTH + MPC_HLS_P_QP_GUARD + 2)> fp_sum4_P_QP_t;
+typedef ap_int<(MPC_HLS_MG_WIDTH + MPC_HLS_MG_QP_GUARD + 1)> fp_sum2_MG_QP_t;
+typedef ap_int<(MPC_HLS_MG_WIDTH + MPC_HLS_MG_QP_GUARD + 2)> fp_sum4_MG_QP_t;
+enum {
+  MPC_HLS_P_MIX_MUL_WIDTH =
+      ((MPC_HLS_P_WIDTH + MPC_HLS_P_QP_GUARD) >
+       (MPC_HLS_MG_WIDTH + MPC_HLS_MG_K_GUARD))
+          ? (MPC_HLS_P_WIDTH + MPC_HLS_P_QP_GUARD)
+          : (MPC_HLS_MG_WIDTH + MPC_HLS_MG_K_GUARD)
+};
+typedef ap_int<(MPC_HLS_P_MIX_MUL_WIDTH + 3)> fp_sum8_P_MIX_t;
+typedef ap_int<(MPC_HLS_K_WIDTH + MPC_HLS_K_QP_GUARD + 3)> fp_sum8_K_QP_t;
+typedef ap_int<(MPC_HLS_QP_WIDTH + MPC_HLS_MG_QP_GUARD + 1)> fp_sum2_QP_MG_t;
+
 /*==============================================================================
  * Raw QP transport conversion helpers
  *============================================================================*/
@@ -391,7 +500,7 @@ static inline fp_K_t fp_K_from_QP(fp_QP_t value) {
 }
 
 /*==============================================================================
- * Range / clipping helpers
+ * Range / casting helpers
  *============================================================================*/
 
 static inline fp_raw_acc_t fp_qp_raw_min_acc() {
@@ -473,41 +582,17 @@ static inline bool fp_signed_fits_width(ap_int<IN_WIDTH> value) {
   return (top == 0) || (top == -1);
 }
 
-static inline fp_raw_acc_t fp_clip_raw_to_qp(fp_raw_acc_t value) {
-#pragma HLS INLINE
-  if (!fp_signed_fits_width<MPC_HLS_SOLVER_ACC_WIDTH, MPC_HLS_QP_WIDTH>(value))
-    return value[MPC_HLS_SOLVER_ACC_WIDTH - 1] ? fp_qp_raw_min_acc()
-                                               : fp_qp_raw_max_acc();
-  return value;
-}
-
 static inline fp_QP_t fp_qp_from_raw_acc(fp_raw_acc_t raw) {
 #pragma HLS INLINE
-  return fp_QP_from_qp_raw((fp_QP_raw_t)fp_clip_raw_to_qp(raw));
+  return fp_QP_from_qp_raw((fp_QP_raw_t)raw);
 }
 
-static inline fp_QP_raw_t fp_clip_P_raw_to_qp(fp_P_raw_t value) {
-#pragma HLS INLINE
-  if (!fp_signed_fits_width<MPC_HLS_P_WIDTH, MPC_HLS_QP_WIDTH>(value))
-    return value[MPC_HLS_P_WIDTH - 1] ? (fp_QP_raw_t)fp_qp_raw_min_acc()
-                                      : (fp_QP_raw_t)fp_qp_raw_max_acc();
-  return (fp_QP_raw_t)value;
-}
-
-static inline fp_QP_raw_t fp_clip_MG_raw_to_qp(fp_MG_raw_t value) {
-#pragma HLS INLINE
-  if (!fp_signed_fits_width<MPC_HLS_MG_WIDTH, MPC_HLS_QP_WIDTH>(value))
-    return value[MPC_HLS_MG_WIDTH - 1] ? (fp_QP_raw_t)fp_qp_raw_min_acc()
-                                       : (fp_QP_raw_t)fp_qp_raw_max_acc();
-  return (fp_QP_raw_t)value;
-}
-
-static inline fp_QP_raw_t fp_clip_S_raw_to_qp(fp_S_raw_t value) {
+static inline fp_QP_raw_t fp_cast_S_raw_to_qp(fp_S_raw_t value) {
 #pragma HLS INLINE
   return (fp_QP_raw_t)value;
 }
 
-static inline fp_QP_raw_t fp_clip_Si_raw_to_qp(fp_Si_raw_t value) {
+static inline fp_QP_raw_t fp_cast_Si_raw_to_qp(fp_Si_raw_t value) {
 #pragma HLS INLINE
   /* Si is narrower than QP and uses the same fractional scaling.
    * Therefore widening to QP is always safe and should be a sign-extending cast,
@@ -516,7 +601,7 @@ static inline fp_QP_raw_t fp_clip_Si_raw_to_qp(fp_Si_raw_t value) {
   return (fp_QP_raw_t)value;
 }
 
-static inline fp_QP_raw_t fp_clip_K_raw_to_qp(fp_K_raw_t value) {
+static inline fp_QP_raw_t fp_cast_K_raw_to_qp(fp_K_raw_t value) {
 #pragma HLS INLINE
   /* K is narrower than QP and uses the same fractional scaling.
    * Therefore widening to QP is always safe and should be a sign-extending cast,
@@ -527,117 +612,63 @@ static inline fp_QP_raw_t fp_clip_K_raw_to_qp(fp_K_raw_t value) {
 
 static inline fp_QP_t fp_qp_from_P_raw(fp_P_raw_t raw) {
 #pragma HLS INLINE
-  return fp_QP_from_qp_raw(fp_clip_P_raw_to_qp(raw));
+  return fp_QP_from_qp_raw((fp_QP_raw_t)raw);
 }
 
 static inline fp_QP_t fp_qp_from_MG_raw(fp_MG_raw_t raw) {
 #pragma HLS INLINE
-  return fp_QP_from_qp_raw(fp_clip_MG_raw_to_qp(raw));
+  return fp_QP_from_qp_raw((fp_QP_raw_t)raw);
 }
 
 static inline fp_QP_t fp_qp_from_S_raw(fp_S_raw_t raw) {
 #pragma HLS INLINE
-  return fp_QP_from_qp_raw(fp_clip_S_raw_to_qp(raw));
+  return fp_QP_from_qp_raw(fp_cast_S_raw_to_qp(raw));
 }
 
 static inline fp_QP_t fp_qp_from_Si_raw(fp_Si_raw_t raw) {
 #pragma HLS INLINE
-  return fp_QP_from_qp_raw(fp_clip_Si_raw_to_qp(raw));
+  return fp_QP_from_qp_raw(fp_cast_Si_raw_to_qp(raw));
 }
 
 static inline fp_QP_t fp_qp_from_K_raw(fp_K_raw_t raw) {
 #pragma HLS INLINE
-  return fp_QP_from_qp_raw(fp_clip_K_raw_to_qp(raw));
+  return fp_QP_from_qp_raw(fp_cast_K_raw_to_qp(raw));
 }
 
-static inline fp_QP_raw_t clip_sum2_qp_raw_to_qp(fp_sum2_QP_raw_t value) {
+static inline fp_QP_raw_t cast_sum2_qp_raw_to_qp_site(fp_sum2_QP_raw_t value,
+                                                       int site_id) {
 #pragma HLS INLINE
-  if (!fp_signed_fits_width<MPC_HLS_QP_WIDTH + 1, MPC_HLS_QP_WIDTH>(value))
-    return value[MPC_HLS_QP_WIDTH] ? (fp_QP_raw_t)fp_qp_raw_min_acc()
-                                   : (fp_QP_raw_t)fp_qp_raw_max_acc();
+  (void)site_id;
   return (fp_QP_raw_t)value;
 }
 
-static inline fp_QP_raw_t add_clip_QP_raw(fp_QP_raw_t a, fp_QP_raw_t b) {
+static inline fp_QP_raw_t cast_sum2_qp_raw_to_qp(fp_sum2_QP_raw_t value) {
+#pragma HLS INLINE
+  return cast_sum2_qp_raw_to_qp_site(value, FP_CAST_SITE_UNKNOWN);
+}
+
+static inline fp_QP_raw_t add_cast_QP_raw(fp_QP_raw_t a, fp_QP_raw_t b) {
 #pragma HLS INLINE
   fp_sum2_QP_raw_t sum = (fp_sum2_QP_raw_t)a + (fp_sum2_QP_raw_t)b;
-  return clip_sum2_qp_raw_to_qp(sum);
-}
-
-static inline fp_P_raw_t add_clip_P_raw(fp_P_raw_t a, fp_P_raw_t b) {
-#pragma HLS INLINE
-  fp_sum2_P_raw_t sum = (fp_sum2_P_raw_t)a + (fp_sum2_P_raw_t)b;
-  if (!fp_signed_fits_width<MPC_HLS_P_WIDTH + 1, MPC_HLS_P_WIDTH>(sum))
-    return sum[MPC_HLS_P_WIDTH] ? fp_P_raw_min() : fp_P_raw_max();
-  return (fp_P_raw_t)sum;
-}
-
-static inline fp_MG_raw_t add_clip_MG_raw(fp_MG_raw_t a, fp_MG_raw_t b) {
-#pragma HLS INLINE
-  fp_sum2_MG_raw_t sum = (fp_sum2_MG_raw_t)a + (fp_sum2_MG_raw_t)b;
-  if (!fp_signed_fits_width<MPC_HLS_MG_WIDTH + 1, MPC_HLS_MG_WIDTH>(sum))
-    return sum[MPC_HLS_MG_WIDTH] ? fp_MG_raw_min() : fp_MG_raw_max();
-  return (fp_MG_raw_t)sum;
+  return cast_sum2_qp_raw_to_qp_site(sum, FP_CAST_SITE_SUM2_ADD_QP_RAW);
 }
 
 /*==============================================================================
- * Shift-right + clip helpers
+ * Shift-right + cast helpers
  *============================================================================*/
 
-static inline fp_raw_acc_t fp_shift_right_clip_to_acc(fp_QP_mul_t value,
-                                                      int shift) {
+static inline fp_QP_raw_t fp_shift_right_cast_to_qp_site(fp_QP_mul_t value,
+                                                          int shift,
+                                                          int site_id) {
 #pragma HLS INLINE
-  fp_QP_mul_t shifted = value >> shift;
-  if (!fp_signed_fits_width<2 * MPC_HLS_QP_WIDTH, MPC_HLS_SOLVER_ACC_WIDTH>(shifted))
-    return shifted[(2 * MPC_HLS_QP_WIDTH) - 1] ? fp_raw_acc_min()
-                                               : fp_raw_acc_max();
-  return (fp_raw_acc_t)shifted;
+  (void)site_id;
+  return (fp_QP_raw_t)(value >> shift);
 }
 
-static inline fp_raw_acc_t fp_shift_right_clip_to_acc(fp_acc_QP_mul_t value,
-                                                      int shift) {
-#pragma HLS INLINE
-  fp_acc_QP_mul_t shifted = value >> shift;
-  if (!fp_signed_fits_width<MPC_HLS_SOLVER_ACC_WIDTH + MPC_HLS_QP_WIDTH,
-                            MPC_HLS_SOLVER_ACC_WIDTH>(shifted))
-    return shifted[MPC_HLS_SOLVER_ACC_WIDTH + MPC_HLS_QP_WIDTH - 1]
-               ? fp_raw_acc_min()
-               : fp_raw_acc_max();
-  return (fp_raw_acc_t)shifted;
-}
-
-static inline fp_raw_acc_t fp_shift_right_clip_to_acc(fp_acc_mul_t value,
-                                                      int shift) {
-#pragma HLS INLINE
-  fp_acc_mul_t shifted = value >> shift;
-  if (!fp_signed_fits_width<2 * MPC_HLS_SOLVER_ACC_WIDTH,
-                            MPC_HLS_SOLVER_ACC_WIDTH>(shifted))
-    return shifted[(2 * MPC_HLS_SOLVER_ACC_WIDTH) - 1] ? fp_raw_acc_min()
-                                                       : fp_raw_acc_max();
-  return (fp_raw_acc_t)shifted;
-}
-
-static inline fp_QP_raw_t fp_shift_right_clip_to_qp(fp_QP_mul_t value,
+static inline fp_QP_raw_t fp_shift_right_cast_to_qp(fp_QP_mul_t value,
                                                     int shift) {
 #pragma HLS INLINE
-  fp_QP_mul_t shifted = value >> shift;
-  if (!fp_signed_fits_width<2 * MPC_HLS_QP_WIDTH, MPC_HLS_QP_WIDTH>(shifted))
-    return shifted[(2 * MPC_HLS_QP_WIDTH) - 1]
-               ? (fp_QP_raw_t)fp_qp_raw_min_acc()
-               : (fp_QP_raw_t)fp_qp_raw_max_acc();
-  return (fp_QP_raw_t)shifted;
-}
-
-static inline fp_QP_raw_t fp_shift_right_clip_to_qp(fp_acc_QP_mul_t value,
-                                                    int shift) {
-#pragma HLS INLINE
-  fp_acc_QP_mul_t shifted = value >> shift;
-  if (!fp_signed_fits_width<MPC_HLS_SOLVER_ACC_WIDTH + MPC_HLS_QP_WIDTH,
-                            MPC_HLS_QP_WIDTH>(shifted))
-    return shifted[MPC_HLS_SOLVER_ACC_WIDTH + MPC_HLS_QP_WIDTH - 1]
-               ? (fp_QP_raw_t)fp_qp_raw_min_acc()
-               : (fp_QP_raw_t)fp_qp_raw_max_acc();
-  return (fp_QP_raw_t)shifted;
+  return fp_shift_right_cast_to_qp_site(value, shift, FP_CAST_SITE_UNKNOWN);
 }
 
 /*==============================================================================
@@ -666,18 +697,6 @@ static inline fp_FN_t fp_FN_from_QP(fp_QP_t qp_value) {
 static inline fp_QP_t fp_QP_from_FN(fp_FN_t fn_value) {
 #pragma HLS INLINE
   return (fp_QP_t)fn_value;
-}
-
-static inline fp_fn_raw_t fp_shift_right_clip_to_fn(fp_fn_accum_t value,
-                                                    int shift) {
-#pragma HLS INLINE
-  fp_fn_accum_t shifted = value >> shift;
-  if (!fp_signed_fits_width<MPC_HLS_FN_WIDTH + MPC_HLS_FN_GUARD,
-                            MPC_HLS_FN_WIDTH>(shifted))
-    return shifted[MPC_HLS_FN_WIDTH + MPC_HLS_FN_GUARD - 1]
-               ? (fp_fn_raw_t)(-(((fp_fn_accum_t)1) << (MPC_HLS_FN_WIDTH - 1)))
-               : (fp_fn_raw_t)((((fp_fn_accum_t)1) << (MPC_HLS_FN_WIDTH - 1)) - 1);
-  return (fp_fn_raw_t)shifted;
 }
 
 #endif  // __cplusplus

@@ -72,7 +72,7 @@
 /* ADMM state z/y update loop target II.
  * Override at compile time: -DMPC_HLS_STATE_ZY_II=N */
 #ifndef MPC_HLS_STATE_ZY_II
-#define MPC_HLS_STATE_ZY_II 4
+#define MPC_HLS_STATE_ZY_II 2
 #endif
 
 /* Structural model signature used to invalidate persistent warm-start state
@@ -81,40 +81,10 @@
 #define MPC_MODEL_SIGNATURE 1
 #endif
 
-/** Number of calls to enforce cold-start after model signature invalidation.
- *  Override at compile time: -DMPC_WS_COLD_START_CALLS=N */
-#ifndef MPC_WS_COLD_START_CALLS
-#define MPC_WS_COLD_START_CALLS 3
-#endif
-
 /** ADMM control z/y update loop target II.
  *  Override at compile time: -DMPC_HLS_CTRL_ZY_II=N */
 #ifndef MPC_HLS_CTRL_ZY_II
-#define MPC_HLS_CTRL_ZY_II 4
-#endif
-
-/** Unroll factor for K*x forward-control accumulation loops.
- *  Override at compile time: -DMPC_HLS_UNROLL_KX_FACTOR=N */
-#ifndef MPC_HLS_UNROLL_KX_FACTOR
-#define MPC_HLS_UNROLL_KX_FACTOR 8
-#endif
-
-/** Unroll factor for affine p_new copy/update loops.
- *  Override at compile time: -DMPC_HLS_AFFINE_PNEW_UNROLL=N */
-#ifndef MPC_HLS_AFFINE_PNEW_UNROLL
-#define MPC_HLS_AFFINE_PNEW_UNROLL 8
-#endif
-
-/** Unroll factor for affine control accumulation loops.
- *  Override at compile time: -DMPC_HLS_AFFINE_CTRL_UNROLL=N */
-#ifndef MPC_HLS_AFFINE_CTRL_UNROLL
-#define MPC_HLS_AFFINE_CTRL_UNROLL 2
-#endif
-
-/** Enable/disable adaptive rho updates inside ADMM.
- *  Override at compile time: -DMPC_HLS_ADAPTIVE_RHO={0|1} */
-#ifndef MPC_HLS_ADAPTIVE_RHO
-#define MPC_HLS_ADAPTIVE_RHO 1
+#define MPC_HLS_CTRL_ZY_II 2
 #endif
 
 /*===========================================================================
@@ -292,22 +262,10 @@
 #define WALL_BOUND_WINDOW   MPC_FPGA_WALL_BOUND_WINDOW
 
 #define ADMM_RHO_MIN FP_QP_CONST(1.0)
-#define ADMM_RHO_MAX FP_QP_CONST(40.0)
+#define ADMM_RHO_MAX FP_QP_CONST(80.0)
 
 #ifndef MPC_WS_CURVATURE_THRESH
 #define MPC_WS_CURVATURE_THRESH FP_QP_CONST(0.25)
-#endif
-
-#ifndef MPC_WS_VREF_THRESH
-#define MPC_WS_VREF_THRESH FP_QP_CONST(1.0)
-#endif
-
-#ifndef MPC_WS_WALL_THRESH
-#define MPC_WS_WALL_THRESH FP_QP_CONST(0.25)
-#endif
-
-#ifndef MPC_WS_RESET_MAXITER_STREAK
-#define MPC_WS_RESET_MAXITER_STREAK 2
 #endif
 
 #ifdef MPC_RUNTIME_TUNE
@@ -355,42 +313,47 @@ typedef struct alignas(32) {
   fp_QP_t right_wall_bound;
 } MpcRefPoint_t;
 
-/** Per-step QP data for Riccati-ADMM */
-typedef struct {
+/** Per-step dynamic QP data for Riccati-ADMM.
+ *
+ * Only stage-varying quantities live here:
+ * - dense 6x6 dynamics block A
+ * - sparse B terms used by the augmented model
+ * - affine dynamics bias d for states 0..5
+ * - linear cost terms q for states 0..5
+ * - dynamic e_y box bounds
+ * - dynamic accel upper bound
+ *
+ * All constant weights and constant bounds are reconstructed directly from
+ * compile-time defines in the solver. This keeps the horizon memory compact,
+ * avoids rewriting invariant policy fields every MPC call, and makes the
+ * struct a regular 32-byte-multiple record for friendlier HLS packing.
+ *
+ * Size: 224 bytes = 7 x 32-byte lanes.
+ */
+typedef struct alignas(32) {
   fp_QP_t A[MPC_NX_DENSE][MPC_NX_DENSE];
+
+  fp_QP_t d[MPC_NX_DENSE];
+  fp_QP_t q[MPC_NX_DENSE];
 
   fp_QP_t B_delta_rate;
   fp_QP_t B_vx_accel;
   fp_QP_t B_vy_accel;
   fp_QP_t B_omega_accel;
 
-  fp_QP_t d0;
-  fp_QP_t d1;
-  fp_QP_t d2;
-  fp_QP_t d3;
-  fp_QP_t d4;
-  fp_QP_t d5;
-
-  fp_QP_t Q_diag[MPC_NX_AUG];
-  fp_QP_t q[MPC_NX_AUG];
-
-  fp_QP_t R_diag[MPC_NU];
-  fp_QP_t r[MPC_NU];
-
-  fp_QP_t N_delta_rate;
-  fp_QP_t N_accel;
-
-  fp_QP_t x_lb[MPC_NX_AUG];
-  fp_QP_t x_ub[MPC_NX_AUG];
-  fp_QP_t u_lb[MPC_NU];
-  fp_QP_t u_ub[MPC_NU];
+  fp_QP_t ey_lb;
+  fp_QP_t ey_ub;
+  fp_QP_t accel_ub;
+  fp_QP_t pad0;
 } StepData_t;
+
+static_assert((sizeof(StepData_t) % 32) == 0,
+              "StepData_t must stay padded to a 32-byte multiple");
 
 /** MPC solver status */
 typedef enum {
   MPC_STATUS_OPTIMAL = 0,
-  MPC_STATUS_MAX_ITER = 1,
-  MPC_STATUS_ERROR = 2
+  MPC_STATUS_MAX_ITER = 1
 } MpcStatus_t;
 
 /** ADMM warm-start state (persists between calls) */
@@ -403,6 +366,57 @@ typedef struct {
   fp_QP_t rho_u;
   int initialized;
 } AdmmState_t;
+
+/** Shared ADMM reset helpers used by top-level wrappers and solver wrapper. */
+static inline void mpc_admm_reset_all_hls(AdmmState_t *admm_state) {
+#pragma HLS INLINE
+  if (!admm_state)
+    return;
+
+  for (int k = 0; k <= MPC_HORIZON; ++k) {
+#pragma HLS PIPELINE II = 1
+    for (int s = 0; s < MPC_NX_AUG; ++s) {
+      admm_state->z_x[k][s] = FP_QP_CONST(0.0);
+      admm_state->y_x[k][s] = FP_QP_CONST(0.0);
+    }
+  }
+
+  for (int k = 0; k < MPC_HORIZON; ++k) {
+#pragma HLS PIPELINE II = 1
+    for (int a = 0; a < MPC_NU; ++a) {
+      admm_state->z_u[k][a] = FP_QP_CONST(0.0);
+      admm_state->y_u[k][a] = FP_QP_CONST(0.0);
+    }
+  }
+
+  admm_state->rho = FP_QP_CONST(0.0);
+  admm_state->rho_u = FP_QP_CONST(0.0);
+  admm_state->initialized = 0;
+}
+
+static inline void mpc_admm_zero_duals_hls(AdmmState_t *admm_state) {
+#pragma HLS INLINE
+  if (!admm_state)
+    return;
+
+  for (int k = 0; k <= MPC_HORIZON; ++k) {
+#pragma HLS PIPELINE II = 1
+    for (int s = 0; s < MPC_NX_AUG; ++s) {
+      admm_state->y_x[k][s] = FP_QP_CONST(0.0);
+    }
+  }
+
+  for (int k = 0; k < MPC_HORIZON; ++k) {
+#pragma HLS PIPELINE II = 1
+    for (int a = 0; a < MPC_NU; ++a) {
+      admm_state->y_u[k][a] = FP_QP_CONST(0.0);
+    }
+  }
+
+  admm_state->rho = FP_QP_CONST(0.0);
+  admm_state->rho_u = FP_QP_CONST(0.0);
+  admm_state->initialized = 1;
+}
 
 /** Solver solution output */
 typedef struct {
@@ -433,9 +447,6 @@ typedef struct {
   fp_QP_t prev_ref_velocity;
   fp_QP_t prev_left_wall_bound;
   fp_QP_t prev_right_wall_bound;
-
-  fp_QP_t last_primal_residual;
-  fp_QP_t last_dual_residual;
 
   int prev_model_signature;
   int last_status;

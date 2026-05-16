@@ -81,53 +81,22 @@ constexpr int kOutputLaneIters = 3;
 static MpcCorePersistentState_t g_core_state;
 
 static void reset_admm_state_top_hls(AdmmState_t *admm_state) {
-#pragma HLS INLINE off
-  if (!admm_state)
-    return;
-
-  for (int k = 0; k <= MPC_HORIZON; ++k) {
-#pragma HLS PIPELINE II = 1
-    for (int s = 0; s < MPC_NX_AUG; ++s) {
-      admm_state->z_x[k][s] = FP_QP_CONST(0.0);
-      admm_state->y_x[k][s] = FP_QP_CONST(0.0);
-    }
-  }
-
-  for (int k = 0; k < MPC_HORIZON; ++k) {
-#pragma HLS PIPELINE II = 1
-    for (int a = 0; a < MPC_NU; ++a) {
-      admm_state->z_u[k][a] = FP_QP_CONST(0.0);
-      admm_state->y_u[k][a] = FP_QP_CONST(0.0);
-    }
-  }
-
-  admm_state->rho = FP_QP_CONST(0.0);
-  admm_state->rho_u = FP_QP_CONST(0.0);
-  admm_state->initialized = 0;
+#pragma HLS INLINE
+  mpc_admm_reset_all_hls(admm_state);
 }
 
 static void zero_admm_duals_top_hls(AdmmState_t *admm_state) {
-#pragma HLS INLINE off
-  if (!admm_state)
-    return;
+#pragma HLS INLINE
+  mpc_admm_zero_duals_hls(admm_state);
+}
 
-  for (int k = 0; k <= MPC_HORIZON; ++k) {
-#pragma HLS PIPELINE II = 1
-    for (int s = 0; s < MPC_NX_AUG; ++s) {
-      admm_state->y_x[k][s] = FP_QP_CONST(0.0);
-    }
+static int32_t solver_status_to_transport_status(int status) {
+#pragma HLS INLINE
+  const MpcStatus_t solver_status = (MpcStatus_t)status;
+  if (solver_status == MPC_STATUS_OPTIMAL) {
+    return MPC_FPGA_STATUS_OK;
   }
-
-  for (int k = 0; k < MPC_HORIZON; ++k) {
-#pragma HLS PIPELINE II = 1
-    for (int a = 0; a < MPC_NU; ++a) {
-      admm_state->y_u[k][a] = FP_QP_CONST(0.0);
-    }
-  }
-
-  admm_state->rho = FP_QP_CONST(0.0);
-  admm_state->rho_u = FP_QP_CONST(0.0);
-  admm_state->initialized = 1;
+  return MPC_FPGA_STATUS_MAX_ITER;
 }
 
 static void reset_core_state_hls(MpcCorePersistentState_t *state) {
@@ -147,11 +116,8 @@ static void reset_core_state_hls(MpcCorePersistentState_t *state) {
   state->persist.prev_left_wall_bound = FP_QP_CONST(0.0);
   state->persist.prev_right_wall_bound = FP_QP_CONST(0.0);
 
-  state->persist.last_primal_residual = FP_QP_CONST(0.0);
-  state->persist.last_dual_residual = FP_QP_CONST(0.0);
-
   state->persist.prev_model_signature = 0;
-  state->persist.last_status = (int)MPC_STATUS_ERROR;
+  state->persist.last_status = (int)MPC_STATUS_MAX_ITER;
   state->persist.last_iterations = 0;
   state->persist.max_iter_streak = 0;
 
@@ -179,7 +145,7 @@ static void fill_mpc_reference_trajectory_from_arrays(
     const int32_t *ref_right,
     int ref_count,
     MpcRefPoint_t out_ref[MPC_HORIZON]) {
-#pragma HLS INLINE
+#pragma HLS INLINE off
 
   for (int k = 0; k < MPC_HORIZON; ++k) {
 #pragma HLS PIPELINE II = 1
@@ -201,7 +167,9 @@ static void fill_mpc_reference_trajectory_from_arrays(
     out_ref[k].reference_yaw_rate =
         ref_omega_ref
             ? fp_qp_from_word(ref_omega_ref[src_k])
-            : fp_mul(out_ref[k].reference_velocity, out_ref[k].path_curvature);
+            : fp_mul_site(out_ref[k].reference_velocity,
+                          out_ref[k].path_curvature,
+                          FP_CAST_SITE_MUL_TOP_REF_VX_KAPPA);
 
     out_ref[k].left_wall_bound = fp_qp_from_word(ref_left[src_k]);
     out_ref[k].right_wall_bound = fp_qp_from_word(ref_right[src_k]);
@@ -211,7 +179,7 @@ static void fill_mpc_reference_trajectory_from_arrays(
 static void fill_mpc_reference_trajectory_from_lane_words(
     const uint32_t lane_words[INPUT_BUFFER_WORDS_32_PAD],
     MpcRefPoint_t out_ref[MPC_HORIZON]) {
-#pragma HLS INLINE
+#pragma HLS INLINE off
 
   for (int k = 0; k < MPC_HORIZON; ++k) {
 #pragma HLS PIPELINE II = 1
@@ -334,7 +302,8 @@ static void mpc_fpga_compute_core(fp_QP_t ey,
 
   const fp_QP_t inv_control_dt = FP_QP_CONST(1.0 / MPC_FPGA_CONTROL_DT_S);
   fp_QP_t measured_steer_rate =
-      fp_mul((steering - g_core_state.persist.actual_steering), inv_control_dt);
+      fp_mul_site((steering - g_core_state.persist.actual_steering),
+                  inv_control_dt, FP_CAST_SITE_MUL_TOP_STEER_RATE);
   measured_steer_rate =
       fp_clamp(measured_steer_rate, -VP_MAX_STEER_RATE, VP_MAX_STEER_RATE);
 
@@ -344,15 +313,26 @@ static void mpc_fpga_compute_core(fp_QP_t ey,
 
   fp_QP_t steer_out = FP_QP_CONST(0.0);
   fp_QP_t accel_out = FP_QP_CONST(0.0);
-  int status = (int)MPC_STATUS_ERROR;
+  int solver_status = (int)MPC_STATUS_MAX_ITER;
   int iters = 0;
 
   mpc_compute_hls(ey, epsi, vx, vy, omega, ref, &g_core_state.persist,
-                  &g_core_state.admm, &steer_out, &accel_out, &status, &iters);
+                  &g_core_state.admm, &steer_out, &accel_out, &solver_status,
+                  &iters);
+
+  g_core_state.persist.last_status = solver_status;
+  g_core_state.persist.last_iterations = iters;
+  if (solver_status == (int)MPC_STATUS_MAX_ITER) {
+    if (g_core_state.persist.max_iter_streak < INT_MAX) {
+      ++g_core_state.persist.max_iter_streak;
+    }
+  } else {
+    g_core_state.persist.max_iter_streak = 0;
+  }
 
   *out_steering = fp_word_from_qp(steer_out);
   *out_accel = fp_word_from_qp(accel_out);
-  *out_status = (int32_t)status;
+  *out_status = solver_status_to_transport_status(solver_status);
   *out_iters = (int32_t)iters;
 }
 
@@ -377,11 +357,15 @@ extern "C" void mpc_fpga_top_opencl(const ap_uint<512> *input_words512,
     return;
 
   if (!input_words512) {
-    output_words128[0] = pack_output_words(0, 0, MPC_FPGA_STATUS_ERROR, 0);
+    output_words128[0] =
+        pack_output_words(0, 0, MPC_FPGA_STATUS_NO_TRAJECTORY, 0);
     return;
   }
 
   uint32_t lane_words[INPUT_BUFFER_WORDS_32_PAD];
+  /* cyclic factor=16 matches the 16 32-bit lanes per 512-bit input beat:
+   * each unpack iteration writes lane_words[base+0..base+15] in parallel,
+   * one per bank, so 16 is the minimum conflict-free choice. */
 #pragma HLS ARRAY_PARTITION variable = lane_words cyclic factor = 16 dim = 1
 
   unpack_input_lane_words(input_words512, lane_words);
@@ -401,7 +385,7 @@ extern "C" void mpc_fpga_top_opencl(const ap_uint<512> *input_words512,
 
   int32_t out_steering = 0;
   int32_t out_accel = 0;
-  int32_t out_status = MPC_FPGA_STATUS_ERROR;
+  int32_t out_status = MPC_FPGA_STATUS_MAX_ITER;
   int32_t out_iters = 0;
 
   mpc_fpga_compute_core(fp_qp_from_word(ey_word),
@@ -445,7 +429,7 @@ extern "C" void mpc_fpga_top_scalar_with_prev_accel_and_ref_ey(
     if (out_accel)
       *out_accel = 0;
     if (out_status)
-      *out_status = MPC_FPGA_STATUS_ERROR;
+      *out_status = MPC_FPGA_STATUS_NO_TRAJECTORY;
     if (out_iters)
       *out_iters = 0;
     return;

@@ -64,7 +64,6 @@
 
 #define MPC_FPGA_STATUS_OK              0
 #define MPC_FPGA_STATUS_MAX_ITER        1
-#define MPC_FPGA_STATUS_ERROR           2
-#define MPC_FPGA_STATUS_NO_TRAJECTORY   3
+#define MPC_FPGA_STATUS_NO_TRAJECTORY   2
 
 #endif /* MPC_FPGA_INTERFACE_H */

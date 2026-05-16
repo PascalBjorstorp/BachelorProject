@@ -47,8 +47,21 @@ typedef struct {
  * @param solution Output solution trajectories and solver diagnostics pointer.
  * @return Solver status code.
  */
+/* Sparse-B horizon terms held OUTSIDE the BRAM-backed StepData_t. They sit on
+ * the backward-pass M = B^T P recurrence; sourcing them from a far BRAM column
+ * cost a 1.19 ns BRAM Tco + long route (the worst routed path). Kept as a
+ * fully-partitioned register array threaded whole-array (safe HLS pattern). */
+#define MPC_BSP_N 4
+enum {
+  MPC_BSP_DELTA_RATE  = 0,
+  MPC_BSP_VX_ACCEL    = 1,
+  MPC_BSP_VY_ACCEL    = 2,
+  MPC_BSP_OMEGA_ACCEL = 3
+};
+
 MpcStatus_t riccati_admm_solve_hls(
     const StepData_t step_data[MPC_HORIZON],
+    const fp_QP_t B_sparse[MPC_HORIZON][MPC_BSP_N],
     const fp_QP_t terminal_q_diag[MPC_NX_AUG],
     const fp_QP_t terminal_q_linear[MPC_NX_AUG],
     const fp_QP_t terminal_x_lb[MPC_NX_AUG],

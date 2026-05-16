@@ -108,7 +108,7 @@ typedef struct {
 typedef enum {
     MPC_SOLVER_STATUS_SUCCESS = 0,
     MPC_SOLVER_STATUS_MAXIMUM_ITERATIONS_REACHED = 1,
-    MPC_SOLVER_STATUS_ERROR = 2
+    MPC_SOLVER_STATUS_INVALID_INPUT = 2
 } MpcSolverStatus_t;
 
 static MpcConfiguration_t g_mpc_cpu_compat_cfg = {
@@ -237,7 +237,7 @@ static inline MpcSolverStatus_t mpc_compute_optimal_control(
     MpcSolverResult_t *result)
 {
     if (!state || !ref || !result) {
-        return MPC_SOLVER_STATUS_ERROR;
+        return MPC_SOLVER_STATUS_INVALID_INPUT;
     }
 
     int32_t ref_ey_fp[MPC_HORIZON];
@@ -262,7 +262,7 @@ static inline MpcSolverStatus_t mpc_compute_optimal_control(
 
     int32_t out_steering = 0;
     int32_t out_accel = 0;
-    int32_t out_status = 0;
+    int32_t out_status = MPC_FPGA_STATUS_NO_TRAJECTORY;
     int32_t out_iters = 0;
 
     /* Forward previous applied acceleration to FPGA scalar wrapper for parity */
@@ -284,15 +284,15 @@ static inline MpcSolverStatus_t mpc_compute_optimal_control(
     result->iterations_used = (int)out_iters;
     result->final_cost = 0.0f;    /* Debug info removed */
     result->dual_residual = 0.0f; /* Debug info removed */
-    result->solver_status = (int)out_status;
-
+    MpcSolverStatus_t solver_status = MPC_SOLVER_STATUS_MAXIMUM_ITERATIONS_REACHED;
     if (out_status == MPC_FPGA_STATUS_OK) {
-        return MPC_SOLVER_STATUS_SUCCESS;
+        solver_status = MPC_SOLVER_STATUS_SUCCESS;
+    } else if (out_status == MPC_FPGA_STATUS_NO_TRAJECTORY) {
+        solver_status = MPC_SOLVER_STATUS_INVALID_INPUT;
     }
-    if (out_status == MPC_FPGA_STATUS_MAX_ITER) {
-        return MPC_SOLVER_STATUS_MAXIMUM_ITERATIONS_REACHED;
-    }
-    return MPC_SOLVER_STATUS_ERROR;
+
+    result->solver_status = (int)solver_status;
+    return solver_status;
 }
 
 #endif

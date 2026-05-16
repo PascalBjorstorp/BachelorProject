@@ -11,6 +11,143 @@
 #include "../include/fp_trig_lut_1024.h"
 #include <climits>
 #include <cstdint>
+#include <cstdio>
+
+#ifdef CAST_AUDIT
+static unsigned long long g_fp_cast_audit_counts[FP_CAST_AUDIT_COUNT] = {0};
+static unsigned long long g_fp_cast_sum2_site_counts[FP_CAST_SITE_COUNT] = {0};
+static unsigned long long g_fp_cast_mulqp_site_counts[FP_CAST_SITE_COUNT] = {0};
+
+static const char *k_fp_cast_audit_names[FP_CAST_AUDIT_COUNT] = {
+    "cast_sum2_qp_raw_to_qp",
+    "fp_shift_right_cast_to_qp(QP_mul)"};
+
+static const char *k_fp_cast_site_names[FP_CAST_SITE_COUNT] = {
+    "UNKNOWN",
+    "SUM2:add_cast_QP_raw",
+    "SUM2:riccati.sub_cast_qp_raw",
+    "SUM2:riccati.add3_cast_qp_raw",
+    "MULQP:fp_math.fp_mul_QP_raw_q",
+    "MULQP:fp_math.fp_mul",
+    "MULQP:fp_math.fp_sq",
+    "MULQP:mpc_riccati.A0*x0",
+    "MULQP:mpc_riccati.A1*x1",
+    "MULQP:mpc_riccati.A2*x2",
+    "MULQP:mpc_riccati.A3*x3",
+    "MULQP:mpc_riccati.A4*x4",
+    "MULQP:mpc_riccati.B0*delta_k",
+    "MULQP:mpc_riccati.B1*uk1",
+    "MULQP:mpc_riccati.DT*uk0",
+    "MULQP:riccati.rho*(z-y) term Pn e_y",
+    "MULQP:riccati.rho*(z-y) term Pn delta",
+    "MULQP:riccati.rho*(z-y) term Qk e_y",
+    "MULQP:riccati.rho*(z-y) term Qk delta",
+    "MULQP:riccati.rho_u*(z-y) ctrl",
+    "MULQP:top.ref_vx*kappa",
+    "MULQP:top.steer_rate",
+    "MULQP:mr.0.5*(lb+ub)",
+    "MULQP:mr.atan(wb*kappa)",
+    "MULQP:mr.delta+dt*uk0",
+    "MULQP:mr.q_lat*ey_ref",
+    "MULQP:mr.q_hdg*epsi_ref",
+    "MULQP:mr.q_vel*vx_ref",
+    "MULQP:mr.q_lat_vel*vy_ref",
+    "MULQP:mr.q_yaw*omega_ref",
+    "MULQP:mr.q_delta*dff",
+    "MULQP:mr.v_blend_0.7",
+    "MULQP:mr.v_blend_0.3",
+    "MULQP:mr.v_switch/v",
+    "MULQP:mr.uub=amax*scale",
+    "MULQP:mr.term_q_ey",
+    "MULQP:mr.term_q_hdg",
+    "MULQP:mr.term_q_vel",
+    "MULQP:mr.term_q_lat_vel",
+    "MULQP:mr.term_q_yaw",
+    "MULQP:mr.term_q_delta",
+    "MULQP:mr.persist_steer",
+    "MULQP:rs.dual_state_dd",
+    "MULQP:rs.dual_state_absl",
+    "MULQP:rs.dual_ctrl_dd",
+    "MULQP:rs.dual_ctrl_absl",
+    "MULQP:rs.inv.det00",
+    "MULQP:rs.inv.det01",
+    "MULQP:rs.inv.si00",
+    "MULQP:rs.inv.si01",
+    "MULQP:rs.inv.si10",
+    "MULQP:rs.inv.si11",
+    "MULQP:rs.eps_primal_rel",
+    "MULQP:rs.eps_dual_rel",
+    "MULQP:rs.adapt_state_dual",
+    "MULQP:rs.adapt_state_primal",
+    "MULQP:rs.adapt_ctrl_dual",
+    "MULQP:rs.adapt_ctrl_primal"};
+
+extern "C" void fp_cast_audit_bump(int id) {
+  if (id >= 0 && id < FP_CAST_AUDIT_COUNT)
+    g_fp_cast_audit_counts[id]++;
+}
+
+extern "C" void fp_cast_audit_bump_sum2_site(int site_id) {
+  if (site_id >= 0 && site_id < FP_CAST_SITE_COUNT)
+    g_fp_cast_sum2_site_counts[site_id]++;
+}
+
+extern "C" void fp_cast_audit_bump_mulqp_site(int site_id) {
+  if (site_id >= 0 && site_id < FP_CAST_SITE_COUNT)
+    g_fp_cast_mulqp_site_counts[site_id]++;
+}
+
+extern "C" void fp_cast_audit_reset(void) {
+  for (int i = 0; i < FP_CAST_AUDIT_COUNT; ++i)
+    g_fp_cast_audit_counts[i] = 0;
+  for (int i = 0; i < FP_CAST_SITE_COUNT; ++i) {
+    g_fp_cast_sum2_site_counts[i] = 0;
+    g_fp_cast_mulqp_site_counts[i] = 0;
+  }
+}
+
+extern "C" unsigned long long fp_cast_audit_get_count(int id) {
+  if (id < 0 || id >= FP_CAST_AUDIT_COUNT)
+    return 0;
+  return g_fp_cast_audit_counts[id];
+}
+
+extern "C" const char *fp_cast_audit_get_name(int id) {
+  if (id < 0 || id >= FP_CAST_AUDIT_COUNT)
+    return "invalid";
+  return k_fp_cast_audit_names[id];
+}
+
+extern "C" void fp_cast_audit_print_summary(void) {
+  std::printf("\n=== CAST_AUDIT Summary ===\n");
+  for (int i = 0; i < FP_CAST_AUDIT_COUNT; ++i) {
+    std::printf("  %-38s : %llu\n", k_fp_cast_audit_names[i],
+                g_fp_cast_audit_counts[i]);
+  }
+
+  std::printf("\n=== CAST_AUDIT Site Hotspots ===\n");
+  for (int i = 0; i < FP_CAST_SITE_COUNT; ++i) {
+    const unsigned long long sum2 = g_fp_cast_sum2_site_counts[i];
+    const unsigned long long mul = g_fp_cast_mulqp_site_counts[i];
+    const unsigned long long total = sum2 + mul;
+    if (total == 0)
+      continue;
+    std::printf("  %-36s total=%llu sum2=%llu mulqp=%llu\n",
+                k_fp_cast_site_names[i], total, sum2, mul);
+  }
+}
+#else
+extern "C" void fp_cast_audit_reset(void) {}
+extern "C" unsigned long long fp_cast_audit_get_count(int id) {
+  (void)id;
+  return 0;
+}
+extern "C" const char *fp_cast_audit_get_name(int id) {
+  (void)id;
+  return "disabled";
+}
+extern "C" void fp_cast_audit_print_summary(void) {}
+#endif
 
 /*----------------------------------------------------------------------------
  * Canonical exact-width raw multipliers
@@ -52,7 +189,8 @@ static inline fp_QP_raw_t fp_mul_QP_raw_q(fp_QP_raw_t a, fp_QP_raw_t b) {
 #pragma HLS INLINE
   fp_QP_mul_t product = (fp_QP_mul_t)a * (fp_QP_mul_t)b;
 #pragma HLS BIND_OP variable=product op=mul impl=dsp latency=MPC_HLS_MUL_LATENCY
-  return fp_shift_right_clip_to_qp(product, FP_FRAC_BITS);
+  return fp_shift_right_cast_to_qp_site(product, FP_FRAC_BITS,
+                                        FP_CAST_SITE_MUL_FP_MUL_QP_RAW_Q);
 }
 
 static inline fp_QP_raw_t fp_shift_qp_raw_sel(fp_QP_raw_t value, int shift) {
@@ -68,7 +206,7 @@ static inline fp_QP_raw_t fp_shift_qp_raw_sel(fp_QP_raw_t value, int shift) {
   return shifted;
 }
 
-static inline fp_QP_raw_t fp_shift_qp_raw_clip_sel(fp_QP_raw_t value, int shift) {
+static inline fp_QP_raw_t fp_shift_qp_raw_cast_sel(fp_QP_raw_t value, int shift) {
 #pragma HLS INLINE
   fp_qp_recip_shift_t shifted = (fp_qp_recip_shift_t)value;
   for (int s = 1; s < MPC_HLS_QP_WIDTH - 1; ++s) {
@@ -78,10 +216,6 @@ static inline fp_QP_raw_t fp_shift_qp_raw_clip_sel(fp_QP_raw_t value, int shift)
     if (shift == -s)
       shifted = ((fp_qp_recip_shift_t)value) << s;
   }
-  const int in_width = MPC_HLS_QP_WIDTH + MPC_HLS_QP_FRAC_BITS;
-  if (!fp_signed_fits_width<in_width, MPC_HLS_QP_WIDTH>(shifted))
-    return shifted[in_width - 1] ? (fp_QP_raw_t)fp_qp_raw_min_acc()
-                                 : (fp_QP_raw_t)fp_qp_raw_max_acc();
   return (fp_QP_raw_t)shifted;
 }
 
@@ -98,7 +232,7 @@ static inline fp_fn_raw_t fp_mul_fn_raw_q(fp_fn_raw_t a, fp_fn_raw_t b) {
 #pragma HLS INLINE
   fp_fn_accum_t product = (fp_fn_accum_t)a * (fp_fn_accum_t)b;
 #pragma HLS BIND_OP variable = product op = mul impl = dsp latency = MPC_HLS_MUL_LATENCY
-  return fp_shift_right_clip_to_fn(product, FP_FN_FRAC_BITS);
+  return (fp_fn_raw_t)(product >> FP_FN_FRAC_BITS);
 }
 
 static inline fp_fn_raw_t fp_shift_fn_raw_sel(fp_fn_raw_t value, int shift) {
@@ -114,7 +248,7 @@ static inline fp_fn_raw_t fp_shift_fn_raw_sel(fp_fn_raw_t value, int shift) {
   return shifted;
 }
 
-static inline fp_fn_raw_t fp_shift_fn_raw_clip_sel(fp_fn_raw_t value, int shift) {
+static inline fp_fn_raw_t fp_shift_fn_raw_cast_sel(fp_fn_raw_t value, int shift) {
 #pragma HLS INLINE
   fp_fn_recip_shift_t shifted = (fp_fn_recip_shift_t)value;
   for (int s = 1; s < MPC_HLS_FN_WIDTH - 1; ++s) {
@@ -124,11 +258,6 @@ static inline fp_fn_raw_t fp_shift_fn_raw_clip_sel(fp_fn_raw_t value, int shift)
     if (shift == -s)
       shifted = ((fp_fn_recip_shift_t)value) << s;
   }
-  const int in_width = MPC_HLS_FN_WIDTH + MPC_HLS_FN_FRAC_BITS;
-  if (!fp_signed_fits_width<in_width, MPC_HLS_FN_WIDTH>(shifted))
-    return shifted[in_width - 1]
-               ? (fp_fn_raw_t)(-(((fp_fn_recip_shift_t)1) << (MPC_HLS_FN_WIDTH - 1)))
-               : (fp_fn_raw_t)((((fp_fn_recip_shift_t)1) << (MPC_HLS_FN_WIDTH - 1)) - 1);
   return (fp_fn_raw_t)shifted;
 }
 
@@ -219,12 +348,18 @@ fp_K_QP_mul_t fp_mul_QP_K(fp_QP_raw_t a, fp_K_raw_t b) {
  * Base-family multiply helpers
  *----------------------------------------------------------------------------*/
 
-fp_QP_t fp_mul(fp_QP_t a, fp_QP_t b) {
+fp_QP_t fp_mul_site(fp_QP_t a, fp_QP_t b, int site_id) {
 #pragma HLS INLINE
   fp_QP_mul_t product = fp_mul_QP_raw(fp_qp_raw_from_QP(a),
                                       fp_qp_raw_from_QP(b));
-  fp_QP_raw_t product_q = fp_shift_right_clip_to_qp(product, FP_FRAC_BITS);
+  fp_QP_raw_t product_q = fp_shift_right_cast_to_qp_site(
+      product, FP_FRAC_BITS, site_id);
   return fp_QP_from_qp_raw(product_q);
+}
+
+fp_QP_t fp_mul(fp_QP_t a, fp_QP_t b) {
+#pragma HLS INLINE
+  return fp_mul_site(a, b, FP_CAST_SITE_MUL_FP_MUL);
 }
 
 /* fp_sq: dedicated squaring helper — INLINE off required.
@@ -234,50 +369,88 @@ fp_QP_t fp_sq(fp_QP_t x) {
 #pragma HLS INLINE off
   fp_QP_mul_t product = fp_mul_QP_raw(fp_qp_raw_from_QP(x),
                                       fp_qp_raw_from_QP(x));
-  fp_QP_raw_t product_q = fp_shift_right_clip_to_qp(product, FP_FRAC_BITS);
+  fp_QP_raw_t product_q =
+      fp_shift_right_cast_to_qp_site(product, FP_FRAC_BITS, FP_CAST_SITE_MUL_FP_SQ);
   return fp_QP_from_qp_raw(product_q);
 }
 
 /*--------------------------------------------------------------------------
- * Invert 2x2 Matrix
+ * Invert 2x2 QP Matrix
  *--------------------------------------------------------------------------*/
 
-int invert_2x2_hls(fp_raw_acc_t S[2][2], fp_raw_acc_t Si[2][2]) {
+static inline ap_uint<MPC_HLS_QP_WIDTH - 1> abs_qp_raw_u(fp_QP_raw_t v) {
+#pragma HLS INLINE
+  return (v < 0) ? (ap_uint<MPC_HLS_QP_WIDTH - 1>)(-v)
+                 : (ap_uint<MPC_HLS_QP_WIDTH - 1>)v;
+}
+
+int invert_2x2_qp_hls(fp_QP_raw_t S[2][2], fp_QP_raw_t Si[2][2]) {
 #pragma HLS INLINE off
 #pragma HLS ALLOCATION function instances = fp_recip limit = 1
-
-  const fp_QP_raw_t s00_raw = (fp_QP_raw_t)fp_clip_raw_to_qp(S[0][0]);
-  const fp_QP_raw_t s01_raw = (fp_QP_raw_t)fp_clip_raw_to_qp(S[0][1]);
-  const fp_QP_raw_t s10_raw = (fp_QP_raw_t)fp_clip_raw_to_qp(S[1][0]);
-  const fp_QP_raw_t s11_raw = (fp_QP_raw_t)fp_clip_raw_to_qp(S[1][1]);
-
-  const fp_QP_raw_t p00 = fp_mul_QP_raw_q(s00_raw, s11_raw);
-  const fp_QP_raw_t p01 = fp_mul_QP_raw_q(s01_raw, s10_raw);
-  ap_int<(MPC_HLS_QP_WIDTH + 1)> det_wide =
-      (ap_int<(MPC_HLS_QP_WIDTH + 1)>)p00 - (ap_int<(MPC_HLS_QP_WIDTH + 1)>)p01;
-
-  const fp_QP_raw_t det_eps_raw = fp_qp_raw_from_neg_pow2(FP_INVERT_2X2_DET_MIN_EXP);
-  if (det_wide > -(ap_int<(MPC_HLS_QP_WIDTH + 1)>)det_eps_raw &&
-      det_wide <  (ap_int<(MPC_HLS_QP_WIDTH + 1)>)det_eps_raw) {
-    return -1;
+  ap_uint<MPC_HLS_QP_WIDTH - 1> max_abs = abs_qp_raw_u(S[0][0]);
+  {
+    ap_uint<MPC_HLS_QP_WIDTH - 1> t = abs_qp_raw_u(S[0][1]);
+    if (t > max_abs)
+      max_abs = t;
+  }
+  {
+    ap_uint<MPC_HLS_QP_WIDTH - 1> t = abs_qp_raw_u(S[1][0]);
+    if (t > max_abs)
+      max_abs = t;
+  }
+  {
+    ap_uint<MPC_HLS_QP_WIDTH - 1> t = abs_qp_raw_u(S[1][1]);
+    if (t > max_abs)
+      max_abs = t;
   }
 
-  fp_QP_raw_t det_raw;
-  if (det_wide > (ap_int<(MPC_HLS_QP_WIDTH + 1)>)fp_qp_raw_max_acc())
-    det_raw = (fp_QP_raw_t)fp_qp_raw_max_acc();
-  else if (det_wide < (ap_int<(MPC_HLS_QP_WIDTH + 1)>)fp_qp_raw_min_acc())
-    det_raw = (fp_QP_raw_t)fp_qp_raw_min_acc();
-  else
-    det_raw = (fp_QP_raw_t)det_wide;
+  const int target_magnitude_bit = FP_FRAC_BITS + 6;
+  int scale_shift = 0;
+  for (int b = MPC_HLS_QP_WIDTH - 2; b > target_magnitude_bit; --b) {
+#pragma HLS UNROLL
+    if (max_abs[b]) {
+      scale_shift = b - target_magnitude_bit;
+      break;
+    }
+  }
 
-  const fp_QP_raw_t inv_det_raw =
-      fp_qp_raw_from_QP(fp_recip(fp_QP_from_qp_raw(det_raw)));
+  const fp_QP_raw_t s00_sc = (fp_QP_raw_t)(S[0][0] >> scale_shift);
+  const fp_QP_raw_t s01_sc = (fp_QP_raw_t)(S[0][1] >> scale_shift);
+  const fp_QP_raw_t s10_sc = (fp_QP_raw_t)(S[1][0] >> scale_shift);
+  const fp_QP_raw_t s11_sc = (fp_QP_raw_t)(S[1][1] >> scale_shift);
 
-  Si[0][0] = fp_raw_acc_from_qp(fp_QP_from_qp_raw(fp_mul_QP_raw_q(s11_raw, inv_det_raw)));
-  Si[0][1] = fp_raw_acc_from_qp(fp_QP_from_qp_raw(fp_mul_QP_raw_q((fp_QP_raw_t)(-s01_raw), inv_det_raw)));
-  Si[1][0] = fp_raw_acc_from_qp(fp_QP_from_qp_raw(fp_mul_QP_raw_q((fp_QP_raw_t)(-s10_raw), inv_det_raw)));
-  Si[1][1] = fp_raw_acc_from_qp(fp_QP_from_qp_raw(fp_mul_QP_raw_q(s00_raw, inv_det_raw)));
+  const fp_QP_mul_t p00_raw = fp_mul_QP_raw(s00_sc, s11_sc);
+  const fp_QP_mul_t p01_raw = fp_mul_QP_raw(s01_sc, s10_sc);
+  const ap_int<(2 * MPC_HLS_QP_WIDTH + 1)> det_mul_raw =
+      (ap_int<(2 * MPC_HLS_QP_WIDTH + 1)>)p00_raw -
+      (ap_int<(2 * MPC_HLS_QP_WIDTH + 1)>)p01_raw;
+  const ap_int<(2 * MPC_HLS_QP_WIDTH + 1)> det_shifted_raw =
+      det_mul_raw >> FP_FRAC_BITS;
+  const fp_QP_raw_t det_raw = (fp_QP_raw_t)det_shifted_raw;
 
+  const fp_QP_raw_t det_eps_raw =
+      fp_qp_raw_from_neg_pow2(FP_INVERT_2X2_DET_MIN_EXP);
+  if (det_raw > -det_eps_raw && det_raw < det_eps_raw)
+    return -1;
+
+  const fp_QP_t inv_det = fp_recip(fp_QP_from_qp_raw(det_raw));
+  const fp_QP_raw_t inv_det_raw = fp_qp_raw_from_QP(inv_det);
+
+  const fp_QP_raw_t si00_sc =
+      (fp_QP_raw_t)(fp_mul_QP_raw(s11_sc, inv_det_raw) >> FP_FRAC_BITS);
+  const fp_QP_raw_t si01_sc = (fp_QP_raw_t)(fp_mul_QP_raw((fp_QP_raw_t)(-s01_sc),
+                                                           inv_det_raw) >>
+                                            FP_FRAC_BITS);
+  const fp_QP_raw_t si10_sc = (fp_QP_raw_t)(fp_mul_QP_raw((fp_QP_raw_t)(-s10_sc),
+                                                           inv_det_raw) >>
+                                            FP_FRAC_BITS);
+  const fp_QP_raw_t si11_sc =
+      (fp_QP_raw_t)(fp_mul_QP_raw(s00_sc, inv_det_raw) >> FP_FRAC_BITS);
+
+  Si[0][0] = (fp_QP_raw_t)(si00_sc >> scale_shift);
+  Si[0][1] = (fp_QP_raw_t)(si01_sc >> scale_shift);
+  Si[1][0] = (fp_QP_raw_t)(si10_sc >> scale_shift);
+  Si[1][1] = (fp_QP_raw_t)(si11_sc >> scale_shift);
   return 0;
 }
 
@@ -303,6 +476,9 @@ fp_QP_t fp_normalize_angle(fp_QP_t angle) {
  *===========================================================================*/
 fp_QP_t fp_recip(fp_QP_t x) {
 #pragma HLS INLINE off
+  /* II=21 left intentionally. Tried II=16, but combined with the FN-side
+   * changes it contributed to LUT pressure that broke WNS. Revisit only
+   * after measuring this function's resource cost in isolation. */
 #pragma HLS PIPELINE II = 21
 
   if (x == 0)
@@ -361,7 +537,7 @@ fp_QP_t fp_recip(fp_QP_t x) {
   const fp_QP_raw_t corr_raw = (fp_QP_raw_t)(fp_qp_raw_from_QP(FP_TWO) - xe_raw);
   est_raw = fp_mul_QP_raw_q(est_raw, corr_raw);
 
-  const fp_QP_raw_t est_denorm_raw = fp_shift_qp_raw_clip_sel(est_raw, shift);
+  const fp_QP_raw_t est_denorm_raw = fp_shift_qp_raw_cast_sel(est_raw, shift);
   return neg ? fp_QP_from_qp_raw((fp_QP_raw_t)(-est_denorm_raw))
              : fp_QP_from_qp_raw(est_denorm_raw);
 }
@@ -480,7 +656,7 @@ fp_FN_t fp_mul_fn(fp_FN_t a, fp_FN_t b) {
   fp_fn_accum_t product = (fp_fn_accum_t)fp_fn_raw_from_FN(a) *
                           (fp_fn_accum_t)fp_fn_raw_from_FN(b);
 #pragma HLS BIND_OP variable = product op = mul impl = dsp latency = MPC_HLS_MUL_LATENCY
-  fp_fn_raw_t product_q = fp_shift_right_clip_to_fn(product, FP_FN_FRAC_BITS);
+  fp_fn_raw_t product_q = (fp_fn_raw_t)(product >> FP_FN_FRAC_BITS);
   return fp_FN_from_fn_raw(product_q);
 }
 
@@ -611,6 +787,9 @@ fp_FN_t fp_atan_lut_fn(fp_FN_t x) {
 
 fp_FN_t fp_recip_fn(fp_FN_t x) {
 #pragma HLS INLINE off
+  /* II=21 left intentionally. Same reason as fp_recip (QP) above:
+   * tried II=16 alongside FN_MUL_LATENCY=2 and the LUT cost grew tire
+   * by ~6500 LUT, breaking WNS in riccati_pass via placement spread. */
 #pragma HLS PIPELINE II = 21
 #pragma HLS BIND_STORAGE variable = recip_lut_fn type = rom_1p impl = bram
   if (x == 0)
@@ -666,7 +845,7 @@ fp_FN_t fp_recip_fn(fp_FN_t x) {
   const fp_fn_raw_t corr_raw = (fp_fn_raw_t)(fp_fn_raw_from_FN(FP_FN_TWO) - xe_raw);
   est_raw = fp_mul_fn_raw_q(est_raw, corr_raw);
 
-  const fp_fn_raw_t est_denorm_raw = fp_shift_fn_raw_clip_sel(est_raw, shift);
+  const fp_fn_raw_t est_denorm_raw = fp_shift_fn_raw_cast_sel(est_raw, shift);
   return neg ? fp_FN_from_fn_raw((fp_fn_raw_t)(-est_denorm_raw))
              : fp_FN_from_fn_raw(est_denorm_raw);
 }
