@@ -279,10 +279,7 @@ typedef ap_int<MPC_HLS_P_WIDTH> fp_P_raw_t;
 typedef ap_fixed<MPC_HLS_MG_WIDTH, MPC_HLS_MG_INT_BITS, AP_TRN, AP_WRAP> fp_MG_t;
 typedef ap_int<MPC_HLS_MG_WIDTH> fp_MG_raw_t;
 
-/* S / Si path intentionally collapsed to base-QP width.
- * Keep dedicated names as compatibility aliases so existing code outside the
- * Riccati hot path does not need a simultaneous rewrite.
- */
+/* S / Si family */
 typedef ap_fixed<MPC_HLS_S_WIDTH, MPC_HLS_S_INT_BITS, AP_TRN, AP_WRAP> fp_S_t;
 typedef ap_int<MPC_HLS_S_WIDTH> fp_S_raw_t;
 typedef ap_fixed<MPC_HLS_SI_WIDTH, MPC_HLS_SI_INT_BITS, AP_TRN, AP_WRAP> fp_Si_t;
@@ -618,16 +615,6 @@ static inline fp_QP_t fp_qp_from_P_raw(fp_P_raw_t raw) {
 static inline fp_QP_t fp_qp_from_MG_raw(fp_MG_raw_t raw) {
 #pragma HLS INLINE
   return fp_QP_from_qp_raw((fp_QP_raw_t)raw);
-}
-
-static inline fp_QP_t fp_qp_from_S_raw(fp_S_raw_t raw) {
-#pragma HLS INLINE
-  return fp_QP_from_qp_raw(fp_cast_S_raw_to_qp(raw));
-}
-
-static inline fp_QP_t fp_qp_from_Si_raw(fp_Si_raw_t raw) {
-#pragma HLS INLINE
-  return fp_QP_from_qp_raw(fp_cast_Si_raw_to_qp(raw));
 }
 
 static inline fp_QP_t fp_qp_from_K_raw(fp_K_raw_t raw) {

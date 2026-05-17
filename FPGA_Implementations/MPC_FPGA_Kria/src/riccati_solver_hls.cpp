@@ -275,11 +275,7 @@ admm_update_control_channel_raw(fp_QP_t u_val, fp_QP_t *z_slot, fp_QP_t *y_slot,
  *
  * Exploits A/B sparsity:
  *   A: dense 6x6 block (rows/cols 0-5), rows 6-7 and cols 6-7 zero
- *   B: represented as sparse scalars:
- *      B_delta_rate (= B[5][0]),
- *      B_vx_accel  (= B[2][1]),
- *      B_vy_accel  (= B[3][1]),
- *      B_omega_accel (= B[4][1]),
+ *   B: represented by the external sparse `B_sparse` horizon array,
  *      with implicit latch rows x6_next=u0 and x7_next=u1
  *===========================================================================*/
 
@@ -298,7 +294,7 @@ admm_update_control_channel_raw(fp_QP_t u_val, fp_QP_t *z_slot, fp_QP_t *y_slot,
  * backward-pass split + rho-memoization. */
 static void
 riccati_forward_pass(const StepData_t step_data[MPC_HORIZON],
-                     const fp_QP_t B_sparse[MPC_HORIZON][MPC_BSP_N],
+                     const fp_QP_raw_t B_sparse[MPC_HORIZON][MPC_BSP_N],
                      const fp_QP_t x0[MPC_NX_AUG],
                      const fp_K_raw_t K[MPC_HORIZON][MPC_NU][MPC_NX_AUG],
                      const fp_K_raw_t kk[MPC_HORIZON][MPC_NU],
@@ -327,13 +323,12 @@ riccati_forward_pass(const StepData_t step_data[MPC_HORIZON],
 #pragma HLS LOOP_TRIPCOUNT min = MPC_HORIZON max = MPC_HORIZON
 #pragma HLS LOOP_FLATTEN off
     const StepData_t *sd = &step_data[k];
-
-    const fp_QP_raw_t d0_fwd = fp_qp_raw_from_QP(sd->d[0]);
-    const fp_QP_raw_t d1_fwd = fp_qp_raw_from_QP(sd->d[1]);
-    const fp_QP_raw_t d2_fwd = fp_qp_raw_from_QP(sd->d[2]);
-    const fp_QP_raw_t d3_fwd = fp_qp_raw_from_QP(sd->d[3]);
-    const fp_QP_raw_t d4_fwd = fp_qp_raw_from_QP(sd->d[4]);
-    const fp_QP_raw_t d5_fwd = fp_qp_raw_from_QP(sd->d[5]);
+    const fp_QP_raw_t d0_fwd = sd->d[0];
+    const fp_QP_raw_t d1_fwd = sd->d[1];
+    const fp_QP_raw_t d2_fwd = sd->d[2];
+    const fp_QP_raw_t d3_fwd = sd->d[3];
+    const fp_QP_raw_t d4_fwd = sd->d[4];
+    const fp_QP_raw_t d5_fwd = sd->d[5];
 
     fp_QP_raw_t xk_raw[MPC_NX_AUG];
 #pragma HLS ARRAY_PARTITION variable = xk_raw complete dim = 1
@@ -386,18 +381,12 @@ riccati_forward_pass(const StepData_t step_data[MPC_HORIZON],
       else if (i == 5) d_i = d5_fwd;
 
       fp_sum6_QP_mul_t ax_sum = sum6_QP_raw(
-          (fp_sum6_QP_mul_t)fp_mul_QP_raw(fp_qp_raw_from_QP(sd->A[i][0]),
-                                          xk_raw[0]),
-          (fp_sum6_QP_mul_t)fp_mul_QP_raw(fp_qp_raw_from_QP(sd->A[i][1]),
-                                          xk_raw[1]),
-          (fp_sum6_QP_mul_t)fp_mul_QP_raw(fp_qp_raw_from_QP(sd->A[i][2]),
-                                          xk_raw[2]),
-          (fp_sum6_QP_mul_t)fp_mul_QP_raw(fp_qp_raw_from_QP(sd->A[i][3]),
-                                          xk_raw[3]),
-          (fp_sum6_QP_mul_t)fp_mul_QP_raw(fp_qp_raw_from_QP(sd->A[i][4]),
-                                          xk_raw[4]),
-          (fp_sum6_QP_mul_t)fp_mul_QP_raw(fp_qp_raw_from_QP(sd->A[i][5]),
-                                          xk_raw[5]));
+          (fp_sum6_QP_mul_t)fp_mul_QP_raw(sd->A[i][0], xk_raw[0]),
+          (fp_sum6_QP_mul_t)fp_mul_QP_raw(sd->A[i][1], xk_raw[1]),
+          (fp_sum6_QP_mul_t)fp_mul_QP_raw(sd->A[i][2], xk_raw[2]),
+          (fp_sum6_QP_mul_t)fp_mul_QP_raw(sd->A[i][3], xk_raw[3]),
+          (fp_sum6_QP_mul_t)fp_mul_QP_raw(sd->A[i][4], xk_raw[4]),
+          (fp_sum6_QP_mul_t)fp_mul_QP_raw(sd->A[i][5], xk_raw[5]));
 
       fp_sum6_QP_mul_t sum =
           ((fp_sum6_QP_mul_t)d_i << FP_FRAC_BITS) +
@@ -405,16 +394,16 @@ riccati_forward_pass(const StepData_t step_data[MPC_HORIZON],
 
       if (i == 2) {
         sum += (fp_sum6_QP_mul_t)fp_mul_QP_raw(
-            fp_qp_raw_from_QP(B_sparse[k][MPC_BSP_VX_ACCEL]), u1_raw);
+            B_sparse[k][MPC_BSP_VX_ACCEL], u1_raw);
       } else if (i == 3) {
         sum += (fp_sum6_QP_mul_t)fp_mul_QP_raw(
-            fp_qp_raw_from_QP(B_sparse[k][MPC_BSP_VY_ACCEL]), u1_raw);
+            B_sparse[k][MPC_BSP_VY_ACCEL], u1_raw);
       } else if (i == 4) {
         sum += (fp_sum6_QP_mul_t)fp_mul_QP_raw(
-            fp_qp_raw_from_QP(B_sparse[k][MPC_BSP_OMEGA_ACCEL]), u1_raw);
+            B_sparse[k][MPC_BSP_OMEGA_ACCEL], u1_raw);
       } else if (i == 5) {
         sum += (fp_sum6_QP_mul_t)fp_mul_QP_raw(
-            fp_qp_raw_from_QP(B_sparse[k][MPC_BSP_DELTA_RATE]), u0_raw);
+            B_sparse[k][MPC_BSP_DELTA_RATE], u0_raw);
       }
 
       fp_QP_raw_t result = fp_shift_right_cast<fp_QP_raw_t>(sum, FP_FRAC_BITS);
@@ -442,7 +431,7 @@ riccati_forward_pass(const StepData_t step_data[MPC_HORIZON],
  * identical arithmetic: pure code move. */
 static void
 riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
-                      const fp_QP_t B_sparse[MPC_HORIZON][MPC_BSP_N],
+                      const fp_QP_raw_t B_sparse[MPC_HORIZON][MPC_BSP_N],
                       const fp_QP_t terminal_q_diag[MPC_NX_AUG],
                       const fp_QP_t terminal_q_linear[MPC_NX_AUG],
                       fp_QP_t rho, fp_QP_t rho_u,
@@ -537,12 +526,12 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
 #pragma HLS LOOP_TRIPCOUNT min = MPC_HORIZON max = MPC_HORIZON
 #pragma HLS LOOP_FLATTEN off
     const StepData_t *sd = &step_data[k];
-    const fp_QP_raw_t d0_raw = fp_qp_raw_from_QP(sd->d[0]);
-    const fp_QP_raw_t d1_raw = fp_qp_raw_from_QP(sd->d[1]);
-    const fp_QP_raw_t d2_raw = fp_qp_raw_from_QP(sd->d[2]);
-    const fp_QP_raw_t d3_raw = fp_qp_raw_from_QP(sd->d[3]);
-    const fp_QP_raw_t d4_raw = fp_qp_raw_from_QP(sd->d[4]);
-    const fp_QP_raw_t d5_raw = fp_qp_raw_from_QP(sd->d[5]);
+    const fp_QP_raw_t d0_raw = sd->d[0];
+    const fp_QP_raw_t d1_raw = sd->d[1];
+    const fp_QP_raw_t d2_raw = sd->d[2];
+    const fp_QP_raw_t d3_raw = sd->d[3];
+    const fp_QP_raw_t d4_raw = sd->d[4];
+    const fp_QP_raw_t d5_raw = sd->d[5];
 
     fp_P_raw_t q_aug_diag[MPC_NX_AUG];
     fp_P_raw_t q_aug_linear[MPC_NX_AUG];
@@ -569,12 +558,12 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
     q_aug_diag[IDX_DELTA_RATE_PREV] = fp_P_raw_from_QP(q_diag_delta_prev);
     q_aug_diag[IDX_ACCEL_PREV] = fp_P_raw_from_QP(q_diag_accel_prev);
 
-    q_aug_linear[0] = fp_P_raw_from_QP(sd->q[0]);
-    q_aug_linear[1] = fp_P_raw_from_QP(sd->q[1]);
-    q_aug_linear[2] = fp_P_raw_from_QP(sd->q[2]);
-    q_aug_linear[3] = fp_P_raw_from_QP(sd->q[3]);
-    q_aug_linear[4] = fp_P_raw_from_QP(sd->q[4]);
-    q_aug_linear[IDX_DELTA_ACT] = fp_P_raw_from_QP(sd->q[IDX_DELTA_ACT]);
+    q_aug_linear[0] = (fp_P_raw_t)sd->q[0];
+    q_aug_linear[1] = (fp_P_raw_t)sd->q[1];
+    q_aug_linear[2] = (fp_P_raw_t)sd->q[2];
+    q_aug_linear[3] = (fp_P_raw_t)sd->q[3];
+    q_aug_linear[4] = (fp_P_raw_t)sd->q[4];
+    q_aug_linear[IDX_DELTA_ACT] = (fp_P_raw_t)sd->q[IDX_DELTA_ACT];
     q_aug_linear[IDX_DELTA_RATE_PREV] = 0;
     q_aug_linear[IDX_ACCEL_PREV] = 0;
 
@@ -640,10 +629,10 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
 #pragma HLS ARRAY_PARTITION variable = M complete dim = 1
 #pragma HLS ARRAY_PARTITION variable = M complete dim = 2
 
-    const fp_QP_raw_t b00 = fp_qp_raw_from_QP(B_sparse[k][MPC_BSP_DELTA_RATE]);
-    const fp_QP_raw_t b10 = fp_qp_raw_from_QP(B_sparse[k][MPC_BSP_VX_ACCEL]);
-    const fp_QP_raw_t b11 = fp_qp_raw_from_QP(B_sparse[k][MPC_BSP_VY_ACCEL]);
-    const fp_QP_raw_t b12 = fp_qp_raw_from_QP(B_sparse[k][MPC_BSP_OMEGA_ACCEL]);
+    const fp_QP_raw_t b00 = B_sparse[k][MPC_BSP_DELTA_RATE];
+    const fp_QP_raw_t b10 = B_sparse[k][MPC_BSP_VX_ACCEL];
+    const fp_QP_raw_t b11 = B_sparse[k][MPC_BSP_VY_ACCEL];
+    const fp_QP_raw_t b12 = B_sparse[k][MPC_BSP_OMEGA_ACCEL];
 
     for (j = 0; j < nx; j++) {
 #pragma HLS UNROLL
@@ -717,12 +706,12 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
       for (j = 0; j < 6; j++) {
 #pragma HLS PIPELINE II = 1
         fp_sum6_MG_QP_t sum = sum6_MG_QP_raw(
-            (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][0], fp_qp_raw_from_QP(sd->A[0][j])),
-            (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][1], fp_qp_raw_from_QP(sd->A[1][j])),
-            (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][2], fp_qp_raw_from_QP(sd->A[2][j])),
-            (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][3], fp_qp_raw_from_QP(sd->A[3][j])),
-            (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][4], fp_qp_raw_from_QP(sd->A[4][j])),
-            (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][5], fp_qp_raw_from_QP(sd->A[5][j])));
+            (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][0], sd->A[0][j]),
+            (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][1], sd->A[1][j]),
+            (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][2], sd->A[2][j]),
+            (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][3], sd->A[3][j]),
+            (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][4], sd->A[4][j]),
+            (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][5], sd->A[5][j]));
         G[a][j] = fp_shift_right_cast<fp_MG_raw_t>(sum, FP_FRAC_BITS);
       }
     }
@@ -737,14 +726,16 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
     G[0][7] = 0;
     G[1][7] = fp_MG_raw_from_QP(g17);
 
-    for (a = 0; a < nu; a++) {
-      for (j = 0; j < nx; j++) {
+    for (j = 0; j < nx; j++) {
 #pragma HLS PIPELINE II = 1
-        fp_sum2_QP_MG_t val =
-            (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[a][0], G[0][j]) +
-            (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[a][1], G[1][j]);
-        K[k][a][j] = fp_shift_right_cast<fp_K_raw_t>(-val, FP_FRAC_BITS);
-      }
+      fp_sum2_QP_MG_t val0 =
+          (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[0][0], G[0][j]) +
+          (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[0][1], G[1][j]);
+      fp_sum2_QP_MG_t val1 =
+          (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[1][0], G[0][j]) +
+          (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[1][1], G[1][j]);
+      K[k][0][j] = fp_shift_right_cast<fp_K_raw_t>(-val0, FP_FRAC_BITS);
+      K[k][1][j] = fp_shift_right_cast<fp_K_raw_t>(-val1, FP_FRAC_BITS);
     }
 
     fp_P_raw_t p_shift[MPC_NX_AUG];
@@ -786,16 +777,19 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
       Bp[1] = fp_shift_right_cast<fp_MG_raw_t>(bp1, FP_FRAC_BITS);
     }
 
-    for (a = 0; a < nu; a++) {
-#pragma HLS UNROLL
+    {
       fp_MG_raw_t rhs0 =
           (fp_MG_raw_t)((fp_sum2_MG_raw_t)r_aug_linear[0] + (fp_sum2_MG_raw_t)Bp[0]);
       fp_MG_raw_t rhs1 =
           (fp_MG_raw_t)((fp_sum2_MG_raw_t)r_aug_linear[1] + (fp_sum2_MG_raw_t)Bp[1]);
-      fp_sum2_QP_MG_t val =
-          (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[a][0], rhs0) +
-          (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[a][1], rhs1);
-      kk[k][a] = fp_shift_right_cast<fp_K_raw_t>(-val, FP_FRAC_BITS);
+      fp_sum2_QP_MG_t val0 =
+          (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[0][0], rhs0) +
+          (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[0][1], rhs1);
+      fp_sum2_QP_MG_t val1 =
+          (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[1][0], rhs0) +
+          (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[1][1], rhs1);
+      kk[k][0] = fp_shift_right_cast<fp_K_raw_t>(-val0, FP_FRAC_BITS);
+      kk[k][1] = fp_shift_right_cast<fp_K_raw_t>(-val1, FP_FRAC_BITS);
     }
 
     fp_P_raw_t PA[MPC_NX_DENSE][MPC_NX_DENSE];
@@ -811,12 +805,12 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
       for (j = 1; j < 6; j++) {
 #pragma HLS PIPELINE II = 1
         fp_sum6_P_QP_t sum = sum6_P_QP_raw(
-            (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][0], fp_qp_raw_from_QP(sd->A[0][j])),
-            (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][1], fp_qp_raw_from_QP(sd->A[1][j])),
-            (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][2], fp_qp_raw_from_QP(sd->A[2][j])),
-            (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][3], fp_qp_raw_from_QP(sd->A[3][j])),
-            (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][4], fp_qp_raw_from_QP(sd->A[4][j])),
-            (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][5], fp_qp_raw_from_QP(sd->A[5][j])));
+            (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][0], sd->A[0][j]),
+            (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][1], sd->A[1][j]),
+            (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][2], sd->A[2][j]),
+            (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][3], sd->A[3][j]),
+            (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][4], sd->A[4][j]),
+            (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][5], sd->A[5][j]));
         PA[i][j] = fp_shift_right_cast<fp_P_raw_t>(sum, FP_FRAC_BITS);
       }
     }
@@ -826,12 +820,12 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
 #define COMPUTE_P_SUM_RAW_TO(II, JJ, DST)                                            \
   do {                                                                               \
     (DST) = sum8_P_MIX_raw_pupdate(                                                  \
-        (fp_sum6_P_QP_t)fp_mul_QP_P(fp_qp_raw_from_QP(sd->A[0][(II)]), PA[0][(JJ)]), \
-        (fp_sum6_P_QP_t)fp_mul_QP_P(fp_qp_raw_from_QP(sd->A[1][(II)]), PA[1][(JJ)]), \
-        (fp_sum6_P_QP_t)fp_mul_QP_P(fp_qp_raw_from_QP(sd->A[2][(II)]), PA[2][(JJ)]), \
-        (fp_sum6_P_QP_t)fp_mul_QP_P(fp_qp_raw_from_QP(sd->A[3][(II)]), PA[3][(JJ)]), \
-        (fp_sum6_P_QP_t)fp_mul_QP_P(fp_qp_raw_from_QP(sd->A[4][(II)]), PA[4][(JJ)]), \
-        (fp_sum6_P_QP_t)fp_mul_QP_P(fp_qp_raw_from_QP(sd->A[5][(II)]), PA[5][(JJ)]), \
+        (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[0][(II)], PA[0][(JJ)]),                    \
+        (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[1][(II)], PA[1][(JJ)]),                    \
+        (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[2][(II)], PA[2][(JJ)]),                    \
+        (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[3][(II)], PA[3][(JJ)]),                    \
+        (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[4][(II)], PA[4][(JJ)]),                    \
+        (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[5][(II)], PA[5][(JJ)]),                    \
         (fp_sum8_P_MIX_t)fp_mul_MG_K(G[0][(II)], K[k][0][(JJ)]),                   \
         (fp_sum8_P_MIX_t)fp_mul_MG_K(G[1][(II)], K[k][1][(JJ)]));                  \
   } while (0)
@@ -980,12 +974,12 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
     for (i = 0; i < 6; i++) {
 #pragma HLS PIPELINE II = 1
       fp_sum8_P_MIX_t total = sum8_P_MIX_raw(
-          (fp_sum6_P_QP_t)fp_mul_QP_P(fp_qp_raw_from_QP(sd->A[0][i]), p_shift[0]),
-          (fp_sum6_P_QP_t)fp_mul_QP_P(fp_qp_raw_from_QP(sd->A[1][i]), p_shift[1]),
-          (fp_sum6_P_QP_t)fp_mul_QP_P(fp_qp_raw_from_QP(sd->A[2][i]), p_shift[2]),
-          (fp_sum6_P_QP_t)fp_mul_QP_P(fp_qp_raw_from_QP(sd->A[3][i]), p_shift[3]),
-          (fp_sum6_P_QP_t)fp_mul_QP_P(fp_qp_raw_from_QP(sd->A[4][i]), p_shift[4]),
-          (fp_sum6_P_QP_t)fp_mul_QP_P(fp_qp_raw_from_QP(sd->A[5][i]), p_shift[5]),
+          (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[0][i], p_shift[0]),
+          (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[1][i], p_shift[1]),
+          (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[2][i], p_shift[2]),
+          (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[3][i], p_shift[3]),
+          (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[4][i], p_shift[4]),
+          (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[5][i], p_shift[5]),
           (fp_sum8_P_MIX_t)fp_mul_MG_K(G[0][i], kk[k][0]),
           (fp_sum8_P_MIX_t)fp_mul_MG_K(G[1][i], kk[k][1]));
       p_new[i] =
@@ -1016,7 +1010,7 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
  * to the sub-function params (proven-safe interface). */
 static void
 riccati_pass_hls(const StepData_t step_data[MPC_HORIZON],
-                 const fp_QP_t B_sparse[MPC_HORIZON][MPC_BSP_N],
+                 const fp_QP_raw_t B_sparse[MPC_HORIZON][MPC_BSP_N],
                  const fp_QP_t terminal_q_diag[MPC_NX_AUG],
                  const fp_QP_t terminal_q_linear[MPC_NX_AUG],
                  const fp_QP_t x0[MPC_NX_AUG], fp_QP_t rho, fp_QP_t rho_u,
@@ -1045,8 +1039,8 @@ riccati_pass_hls(const StepData_t step_data[MPC_HORIZON],
  *===========================================================================*/
 
 MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
-                                   const fp_QP_t B_sparse[MPC_HORIZON]
-                                                         [MPC_BSP_N],
+                                   const fp_QP_raw_t B_sparse[MPC_HORIZON]
+                                                 [MPC_BSP_N],
                                    const fp_QP_t terminal_q_diag[MPC_NX_AUG],
                                    const fp_QP_t terminal_q_linear[MPC_NX_AUG],
                                    const fp_QP_t terminal_x_lb[MPC_NX_AUG],

@@ -204,7 +204,7 @@ static void compute_affine_bias_dense_hls(
 
   for (i = 0; i < MPC_NX_DENSE; ++i) {
 #pragma HLS UNROLL
-    sd->d[i] = fp_QP_from_qp_raw(d_dense_raw[i]);
+    sd->d[i] = d_dense_raw[i];
   }
 }
 
@@ -295,7 +295,7 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
    * --------------------------------------------------------------- */
   StepData_t step_data[MPC_HORIZON];
 #pragma HLS BIND_STORAGE variable = step_data type = RAM_2P impl = BRAM latency = 1
-  fp_QP_t B_sparse[MPC_HORIZON][MPC_BSP_N];
+  fp_QP_raw_t B_sparse[MPC_HORIZON][MPC_BSP_N];
 #pragma HLS ARRAY_PARTITION variable = B_sparse complete dim = 0
 
   fp_QP_t terminal_wall_x_lb_con = -BIG_BOUND;
@@ -375,26 +375,10 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
     wall_right_min[k] = (right_l3_0 < right_l3_1) ? right_l3_0 : right_l3_1;
   }
 
-  /* Horizon QP-assembly loop: PIPELINED.
-   *
-   * Loop-carried dep is the rollout state lin_* <- next_*, produced by
-   * compute_frenet_AB_and_next_hls. Proven recurrence delay ~= 135 cyc
-   * (Pacejka tire forces -> fp_rollout_from_forces_fn). Forcing
-   * II=150 (just above the recurrence bound) lets HLS overlap the
-   * non-recurrent A/B-Jacobian + cost/bound assembly of iter k with
-   * iter k+1's recurrence, WITHOUT packing per-cycle logic tighter
-   * (II=150 >> body critical path, unlike the backward pass which
-   * exploded at II=80 vs a hard 156-cyc recurrence).
-   *
-   * Verified safe: the -4.66 ns/28k-endpoint catastrophe was entirely
-   * in riccati_pass's backward loop (Pipeline_VITIS_LOOP_426_4) - a
-   * different module. This loop never appeared in those failures.
-   *
-   * Mock-up: seq 20*244=4880 cyc -> 19*150+244 ~= 3094 cyc.
-   * Saves ~1786 cyc per MPC call (one-time setup, ~8% of avg call). */
   for (k = 0; k < MPC_HORIZON; k++) {
 #pragma HLS LOOP_TRIPCOUNT min = MPC_HORIZON max = MPC_HORIZON
-#pragma HLS PIPELINE II = 150
+  /* II floor is the single-instance compute_frenet_AB_and_next_hls latency*/
+#pragma HLS PIPELINE II = 110
     StepData_t *sd = &step_data[k];
 
     const fp_QP_t uk0 = rollout_steer_rate;
@@ -476,7 +460,7 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
     /* Only the 6x6 dense A block is consumed by the Riccati pass. */
     for (j = 0; j < 5; j++) {
 #pragma HLS UNROLL
-      sd->A[IDX_DELTA_ACT][j] = kZero;
+      sd->A[IDX_DELTA_ACT][j] = 0;
     }
 
     /* === Augmented A === */
@@ -484,21 +468,21 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
 #pragma HLS UNROLL
       for (j = 0; j < 5; j++) {
 #pragma HLS UNROLL
-        sd->A[i][j] = A_step[i][j];
+        sd->A[i][j] = fp_qp_raw_from_QP(A_step[i][j]);
       }
     }
 
     for (i = 0; i < 5; i++) {
 #pragma HLS UNROLL
-      sd->A[i][IDX_DELTA_ACT] = B_step[i][0];
+      sd->A[i][IDX_DELTA_ACT] = fp_qp_raw_from_QP(B_step[i][0]);
     }
-    sd->A[IDX_DELTA_ACT][IDX_DELTA_ACT] = FP_ONE;
+    sd->A[IDX_DELTA_ACT][IDX_DELTA_ACT] = fp_qp_raw_from_QP(FP_ONE);
 
     /* === Augmented B (register-resident, see B_sparse above) === */
-    B_sparse[k][MPC_BSP_VX_ACCEL] = B_step[2][1];
-    B_sparse[k][MPC_BSP_VY_ACCEL] = B_step[3][1];
-    B_sparse[k][MPC_BSP_OMEGA_ACCEL] = B_step[4][1];
-    B_sparse[k][MPC_BSP_DELTA_RATE] = (fp_QP_t)MPC_DT;
+    B_sparse[k][MPC_BSP_VX_ACCEL] = fp_qp_raw_from_QP(B_step[2][1]);
+    B_sparse[k][MPC_BSP_VY_ACCEL] = fp_qp_raw_from_QP(B_step[3][1]);
+    B_sparse[k][MPC_BSP_OMEGA_ACCEL] = fp_qp_raw_from_QP(B_step[4][1]);
+    B_sparse[k][MPC_BSP_DELTA_RATE] = fp_qp_raw_from_QP((fp_QP_t)MPC_DT);
 
     /* === Affine dynamics bias d === */
     compute_affine_bias_dense_hls(
@@ -506,19 +490,30 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
       lin_delta, uk0, uk1, lin_delta_k, next_ey, next_epsi, next_vx,
       next_vy, next_omega, next_delta, sd);
 
-    /* === Costs === */
-    sd->q[0] = -fp_mul_site(MPC_Q2_LAT_ERROR, ey_ref_k,
-                            FP_CAST_SITE_MUL_MR_Q_LAT);
-    sd->q[1] = -fp_mul_site(MPC_Q2_HEADING, ref[k].reference_heading_error,
-                            FP_CAST_SITE_MUL_MR_Q_HDG);
-    sd->q[2] = -fp_mul_site(MPC_Q2_VELOCITY, ref[k].reference_velocity,
-                            FP_CAST_SITE_MUL_MR_Q_VEL);
-    sd->q[3] = -fp_mul_site(MPC_Q2_LAT_VEL, ref[k].reference_lateral_velocity,
-                            FP_CAST_SITE_MUL_MR_Q_LAT_VEL);
-    sd->q[4] = -fp_mul_site(MPC_Q2_YAW_RATE, ref[k].reference_yaw_rate,
-                            FP_CAST_SITE_MUL_MR_Q_YAW);
-    sd->q[IDX_DELTA_ACT] =
-        -fp_mul_site(MPC_Q2_DELTA_ACT, dff_k, FP_CAST_SITE_MUL_MR_Q_DELTA);
+    /* === Costs ===
+     * HLS 200-448 (step_data_2 II>=6): same non-binding class as the sd->d[]
+     * writes (see compute_affine_bias_dense_hls). step_data is RAM_2P (1 write
+     * port) so these 6 q[] stores serialize -> structural II floor 6. The
+     * enclosing QP-assembly loop is pinned at PIPELINE II=108 (6 << 108) so
+     * this costs 0 cycles and is not a regression. Do NOT partition q[] to
+     * silence it: struct-member sub-array partition on this INLINE-off path
+     * is the LayoutTransform clang-segfault pattern, for zero cycle gain. */
+    sd->q[0] = fp_qp_raw_from_QP(-fp_mul_site(MPC_Q2_LAT_ERROR, ey_ref_k,
+                                              FP_CAST_SITE_MUL_MR_Q_LAT));
+    sd->q[1] = fp_qp_raw_from_QP(-fp_mul_site(MPC_Q2_HEADING,
+                                              ref[k].reference_heading_error,
+                                              FP_CAST_SITE_MUL_MR_Q_HDG));
+    sd->q[2] = fp_qp_raw_from_QP(-fp_mul_site(MPC_Q2_VELOCITY,
+                                              ref[k].reference_velocity,
+                                              FP_CAST_SITE_MUL_MR_Q_VEL));
+    sd->q[3] = fp_qp_raw_from_QP(-fp_mul_site(MPC_Q2_LAT_VEL,
+                                              ref[k].reference_lateral_velocity,
+                                              FP_CAST_SITE_MUL_MR_Q_LAT_VEL));
+    sd->q[4] = fp_qp_raw_from_QP(-fp_mul_site(MPC_Q2_YAW_RATE,
+                                              ref[k].reference_yaw_rate,
+                                              FP_CAST_SITE_MUL_MR_Q_YAW));
+    sd->q[IDX_DELTA_ACT] = fp_qp_raw_from_QP(
+        -fp_mul_site(MPC_Q2_DELTA_ACT, dff_k, FP_CAST_SITE_MUL_MR_Q_DELTA));
     sd->ey_lb = wall_x_lb_con;
     sd->ey_ub = wall_x_ub_con;
 
@@ -541,7 +536,6 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
     } else {
       sd->accel_ub = VP_MAX_ACCEL;
     }
-    sd->pad0 = kZero;
 
     lin_ey = next_ey;
     lin_epsi = next_epsi;

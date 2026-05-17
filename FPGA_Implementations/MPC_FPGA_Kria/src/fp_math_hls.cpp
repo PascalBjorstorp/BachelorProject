@@ -302,20 +302,6 @@ fp_MG_QP_mul_t fp_mul_QP_MG(fp_QP_raw_t a, fp_MG_raw_t b) {
   return product;
 }
 
-fp_Si_MG_mul_t fp_mul_Si_MG(fp_Si_raw_t a, fp_MG_raw_t b) {
-#pragma HLS INLINE
-  fp_Si_MG_mul_t product = (fp_Si_MG_mul_t)a * (fp_Si_MG_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency=MPC_HLS_MUL_LATENCY
-  return product;
-}
-
-fp_Si_MG_mul_t fp_mul_MG_Si(fp_MG_raw_t a, fp_Si_raw_t b) {
-#pragma HLS INLINE
-  fp_Si_MG_mul_t product = (fp_Si_MG_mul_t)a * (fp_Si_MG_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp latency=MPC_HLS_MUL_LATENCY
-  return product;
-}
-
 fp_MG_K_mul_t fp_mul_MG_K(fp_MG_raw_t a, fp_K_raw_t b) {
 #pragma HLS INLINE
   fp_MG_K_mul_t product = (fp_MG_K_mul_t)a * (fp_MG_K_mul_t)b;
@@ -476,10 +462,13 @@ fp_QP_t fp_normalize_angle(fp_QP_t angle) {
  *===========================================================================*/
 fp_QP_t fp_recip(fp_QP_t x) {
 #pragma HLS INLINE off
-  /* II=21 left intentionally. Tried II=16, but combined with the FN-side
-   * changes it contributed to LUT pressure that broke WNS. Revisit only
-   * after measuring this function's resource cost in isolation. */
-#pragma HLS PIPELINE II = 21
+  /* Feed-forward LUT+lerp; the win was LATENCY (NR removed: 13->8 cyc).
+   * II is intentionally HIGH: measured II=1 changed zero caller cycles
+   * (+4.3k LUT) -- callers never issue independent back-to-back reciprocals
+   * (setup recip is hidden in the 97-cyc single-instance frenet engine;
+   * backward recips are data-dependent links in the P-recurrence). High II
+   * minimizes pipeline-register area since throughput is never exploited. */
+#pragma HLS PIPELINE II = 1
 
   if (x == 0)
     return 0;
@@ -524,18 +513,30 @@ fp_QP_t fp_recip(fp_QP_t x) {
 
   const fp_QP_raw_t x_norm_raw = fp_shift_qp_raw_sel(abs_raw_signed, shift);
 
-#pragma HLS BIND_STORAGE variable = recip_lut type = rom_1p impl = bram
+/* rom_2p: the lerp reads recip_lut[idx] AND recip_lut[idx+1] in the same
+ * cycle -- a single-port ROM cannot serve two reads (HLS 200-882). Dual-port
+ * BRAM is the same silicon (BRAM is natively 2-port), so this is free and is
+ * the correct binding for an interpolated table -- atan_lut already does it. */
+#pragma HLS BIND_STORAGE variable = recip_lut type = rom_2p impl = bram
   const ap_uint<MPC_HLS_QP_WIDTH> norm_raw_u = (ap_uint<MPC_HLS_QP_WIDTH>)x_norm_raw;
-  const int lut_hi = FP_FRAC_BITS - 2;
+  const int lut_hi = FP_FRAC_BITS - 2;   /* bits [16:7] -> 10-bit idx (1024) */
   const int lut_lo = FP_FRAC_BITS - 11;
   int lut_idx = (int)(norm_raw_u.range(lut_hi, lut_lo));
+  if (lut_idx < 0)
+    lut_idx = 0;
   if (lut_idx > 1023)
     lut_idx = 1023;
 
-  fp_QP_raw_t est_raw = (fp_QP_raw_t)recip_lut[lut_idx];
-  const fp_QP_raw_t xe_raw = fp_mul_QP_raw_q(x_norm_raw, est_raw);
-  const fp_QP_raw_t corr_raw = (fp_QP_raw_t)(fp_qp_raw_from_QP(FP_TWO) - xe_raw);
-  est_raw = fp_mul_QP_raw_q(est_raw, corr_raw);
+  /* 1/x_norm by accurate LUT + linear interpolation, NO Newton-Raphson.
+   * recip_lut[i] = 2^F / x_norm at x_norm=(1024+i)/2048 (1025 entries, +1
+   * guard for the lerp neighbour). Sub-grid weight = the lut_lo low mantissa
+   * bits. Interp error <= 16*(2^-11)^2/8 ~= 4.8e-7, ~8x below fp_QP LSB
+   * (2^-18) -- NR was refining below the fixed-point floor. */
+  const int frac = (int)(norm_raw_u.range(lut_lo - 1, 0));
+  const fp_QP_raw_t v0 = (fp_QP_raw_t)recip_lut[lut_idx];
+  const fp_QP_raw_t v1 = (fp_QP_raw_t)recip_lut[lut_idx + 1];
+  const fp_QP_raw_t est_raw =
+      (fp_QP_raw_t)(v0 + ((((long long)(v1 - v0)) * (long long)frac) >> lut_lo));
 
   const fp_QP_raw_t est_denorm_raw = fp_shift_qp_raw_cast_sel(est_raw, shift);
   return neg ? fp_QP_from_qp_raw((fp_QP_raw_t)(-est_denorm_raw))
@@ -620,13 +621,18 @@ void fp_trig_pair_fused(fp_QP_t angle, fp_QP_t *sin_out, fp_QP_t *cos_out) {
 
 fp_QP_t fp_atan_lut(fp_QP_t x) {
 #pragma HLS INLINE off
-#pragma HLS ALLOCATION function instances = fp_recip limit = 1
 #pragma HLS BIND_STORAGE variable = atan_lut type = rom_2p impl = bram
+  /* Direct [0, FP_ATAN_LUT_DOMAIN] LUT+lerp. No reciprocal range-reduction:
+   * every argument here is provably < FP_ATAN_LUT_DOMAIN (see fp_math_hls.h).
+   * |x| beyond the domain saturates at idx=1023 -> atan(domain) ~= pi/2 dir
+   * (graceful, never hit under the proven bounds). atan is odd -> sign folded.
+   * The constant /FP_ATAN_LUT_DOMAIN lowers to a multiply+shift, NOT a divider
+   * or fp_recip, so this function no longer instantiates a reciprocal. */
   const bool neg = (x < 0);
   const fp_QP_t abs_x = fp_abs(x);
-  const bool over_one = (abs_x > FP_ONE);
-  const fp_QP_raw_t y_raw = fp_qp_raw_from_QP(over_one ? fp_recip(abs_x) : abs_x);
-  const fp_QP_mul_t lut_pos_wide = ((fp_QP_mul_t)y_raw) << 10;
+  const fp_QP_raw_t y_raw = fp_qp_raw_from_QP(abs_x);
+  const fp_QP_mul_t lut_pos_wide =
+      (((fp_QP_mul_t)y_raw) << 10) >> FP_ATAN_LUT_DOMAIN_LOG2;
   int idx = (int)(lut_pos_wide >> FP_FRAC_BITS);
   if (idx < 0)
     idx = 0;
@@ -637,12 +643,8 @@ fp_QP_t fp_atan_lut(fp_QP_t x) {
   const fp_QP_raw_t v0_raw = fp_qp_raw_from_QP(atan_lut[idx]);
   const fp_QP_raw_t v1_raw = fp_qp_raw_from_QP(atan_lut[idx + 1]);
   const fp_QP_raw_t atan_y_raw = fp_lerp_qp_raw(v0_raw, v1_raw, frac_raw);
-  fp_QP_raw_t result_raw = atan_y_raw;
-  if (over_one) {
-    result_raw = (fp_QP_raw_t)(fp_qp_raw_from_QP(FP_PI_HALF) - atan_y_raw);
-  }
-  return neg ? fp_QP_from_qp_raw((fp_QP_raw_t)(-result_raw))
-             : fp_QP_from_qp_raw(result_raw);
+  return neg ? fp_QP_from_qp_raw((fp_QP_raw_t)(-atan_y_raw))
+             : fp_QP_from_qp_raw(atan_y_raw);
 }
 
 /*===========================================================================
@@ -759,39 +761,44 @@ void fp_trig_pair_fused_fn(fp_FN_t angle, fp_FN_t *sin_out, fp_FN_t *cos_out) {
 
 fp_FN_t fp_atan_lut_fn(fp_FN_t x) {
 #pragma HLS INLINE off
-#pragma HLS ALLOCATION function instances = fp_recip_fn limit = 1
 #pragma HLS BIND_STORAGE variable = atan_lut_fn type = rom_2p impl = bram
+  /* Direct [0, FP_ATAN_LUT_DOMAIN] LUT+lerp; no reciprocal range-reduction.
+   * Arguments here (slip ratios, Pacejka B*alpha) are provably inside the
+   * domain (see fp_math_hls.h). |x| beyond it saturates at idx=1023. The
+   * constant /FP_ATAN_LUT_DOMAIN is a multiply+shift, so this function no
+   * longer instantiates fp_recip_fn -- freeing that contended unit from the
+   * tire path. 64-bit scaled intermediate: y_raw<<10 can exceed int32. */
   const bool neg = (x < FP_FN_ZERO);
   const fp_FN_t abs_x = neg ? fp_FN_t(-x) : x;
-  const bool over_one = (abs_x > FP_FN_ONE);
-  const fp_fn_raw_t y_raw = fp_fn_raw_from_FN(over_one ? fp_recip_fn(abs_x) : abs_x);
+  const fp_fn_raw_t y_raw = fp_fn_raw_from_FN(abs_x);
 
-  int idx = y_raw >> 7;
+  const long long scaled =
+      (((long long)y_raw) << 10) >> FP_ATAN_LUT_DOMAIN_LOG2;
+  int idx = (int)(scaled >> FP_FN_FRAC_BITS);
   if (idx < 0)
     idx = 0;
   if (idx > 1023)
     idx = 1023;
 
   const fp_fn_raw_t frac_raw =
-      (fp_fn_raw_t)(((int32_t)y_raw << 10) - (((int32_t)idx) << FP_FN_FRAC_BITS));
+      (fp_fn_raw_t)(scaled - (((long long)idx) << FP_FN_FRAC_BITS));
   const fp_fn_raw_t v0_raw = fp_fn_raw_from_FN(atan_lut_fn[idx]);
   const fp_fn_raw_t v1_raw = fp_fn_raw_from_FN(atan_lut_fn[idx + 1]);
   const fp_fn_raw_t atan_y_raw = fp_lerp_fn_raw(v0_raw, v1_raw, frac_raw);
-  fp_fn_raw_t result_raw = atan_y_raw;
-  if (over_one) {
-    result_raw = (fp_fn_raw_t)(fp_fn_raw_from_FN(FP_FN_PI_HALF) - atan_y_raw);
-  }
-  return neg ? fp_FN_from_fn_raw((fp_fn_raw_t)(-result_raw))
-             : fp_FN_from_fn_raw(result_raw);
+  return neg ? fp_FN_from_fn_raw((fp_fn_raw_t)(-atan_y_raw))
+             : fp_FN_from_fn_raw(atan_y_raw);
 }
 
 fp_FN_t fp_recip_fn(fp_FN_t x) {
 #pragma HLS INLINE off
-  /* II=21 left intentionally. Same reason as fp_recip (QP) above:
-   * tried II=16 alongside FN_MUL_LATENCY=2 and the LUT cost grew tire
-   * by ~6500 LUT, breaking WNS in riccati_pass via placement spread. */
-#pragma HLS PIPELINE II = 21
-#pragma HLS BIND_STORAGE variable = recip_lut_fn type = rom_1p impl = bram
+  /* Same as fp_recip (QP): II kept high on purpose. The ~7 tire reciprocals
+   * look independent but the tire block's critical path is slip->atan->
+   * Pacejka force, not recip throughput -- compute_frenet_tire_hls stayed
+   * 70 cyc at both II=21 and II=2. Low II only added LUT. */
+#pragma HLS PIPELINE II = 1
+/* rom_2p: lerp reads recip_lut_fn[idx] and [idx+1] same cycle (see fp_recip
+ * QP note). Single-port ROM triggers HLS 200-882; dual-port BRAM is free. */
+#pragma HLS BIND_STORAGE variable = recip_lut_fn type = rom_2p impl = bram
   if (x == 0)
     return 0;
 
@@ -834,16 +841,23 @@ fp_FN_t fp_recip_fn(fp_FN_t x) {
 
   const fp_fn_raw_t x_norm_raw = fp_shift_fn_raw_sel(abs_raw_signed, shift);
   const ap_uint<MPC_HLS_FN_WIDTH> norm_raw_u = (ap_uint<MPC_HLS_FN_WIDTH>)x_norm_raw;
-  const int lut_hi = FP_FN_FRAC_BITS - 2;
-  const int lut_lo = FP_FN_FRAC_BITS - 10;
+  const int lut_hi = FP_FN_FRAC_BITS - 2;   /* bits [15:6] -> 10-bit idx */
+  const int lut_lo = FP_FN_FRAC_BITS - 11;
   int lut_idx = (int)(norm_raw_u.range(lut_hi, lut_lo));
-  if (lut_idx > 511)
-    lut_idx = 511;
+  if (lut_idx < 0)
+    lut_idx = 0;
+  if (lut_idx > 1023)
+    lut_idx = 1023;
 
-  fp_fn_raw_t est_raw = (fp_fn_raw_t)recip_lut_fn[lut_idx];
-  const fp_fn_raw_t xe_raw = fp_mul_fn_raw_q(x_norm_raw, est_raw);
-  const fp_fn_raw_t corr_raw = (fp_fn_raw_t)(fp_fn_raw_from_FN(FP_FN_TWO) - xe_raw);
-  est_raw = fp_mul_fn_raw_q(est_raw, corr_raw);
+  /* 1/x_norm by accurate LUT + linear interpolation, NO Newton-Raphson.
+   * recip_lut_fn[i] = 2^F / x_norm at x_norm=(1024+i)/2048 (1025 entries).
+   * Interp error <= 16*(2^-11)^2/8 ~= 4.8e-7, ~16x below fp_FN LSB
+   * (2^-17) -- NR was refining below the fixed-point floor. */
+  const int frac = (int)(norm_raw_u.range(lut_lo - 1, 0));
+  const fp_fn_raw_t v0 = (fp_fn_raw_t)recip_lut_fn[lut_idx];
+  const fp_fn_raw_t v1 = (fp_fn_raw_t)recip_lut_fn[lut_idx + 1];
+  const fp_fn_raw_t est_raw =
+      (fp_fn_raw_t)(v0 + ((((long long)(v1 - v0)) * (long long)frac) >> lut_lo));
 
   const fp_fn_raw_t est_denorm_raw = fp_shift_fn_raw_cast_sel(est_raw, shift);
   return neg ? fp_FN_from_fn_raw((fp_fn_raw_t)(-est_denorm_raw))

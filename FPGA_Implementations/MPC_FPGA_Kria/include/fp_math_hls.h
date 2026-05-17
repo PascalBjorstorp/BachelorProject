@@ -27,6 +27,26 @@
 
 #define FP_FRAC_BITS (MPC_HLS_QP_FRAC_BITS)
 
+/* atan LUT domain. The 1024-entry atan tables span [0, FP_ATAN_LUT_DOMAIN]
+ * directly, so atan() is a pure LUT+lerp with NO reciprocal range-reduction.
+ * Domain 8 (a power of two) is chosen so the index scale /FP_ATAN_LUT_DOMAIN
+ * lowers to a single >>3 shift (zero multiply). Every atan argument here is
+ * provably inside it: kinematic L*kappa <= 0.65; slip ratios < tan(15deg);
+ * Pacejka B*alpha with B_FRONT=2.35/B_REAR=1.90 -> peaks at ~1.09, <=0.62
+ * in-grip, and <=4.62 even in the premise-violating fully-sideways case
+ * (1.7x margin under 8). Linear-interp error at 1024 entries over [0,8] is
+ * ~5.0e-6 rad ~= 0.65 LSB of fp_FN_t (2^-17) -- below the table-entry
+ * quantization floor, so accuracy is unchanged. If this constant changes,
+ * regenerate the atan blocks of fp_trig_lut*_1024.h (generate_fn_luts.py)
+ * with the same value. */
+#define FP_ATAN_LUT_DOMAIN 8
+/* Power-of-two domain => the index rescale is a bare shift, not a divide.
+ * Shift by this instead of "/ FP_ATAN_LUT_DOMAIN" so the source states the
+ * hardware fact directly. static_assert keeps the two in lockstep. */
+#define FP_ATAN_LUT_DOMAIN_LOG2 3
+static_assert((1 << FP_ATAN_LUT_DOMAIN_LOG2) == FP_ATAN_LUT_DOMAIN,
+              "FP_ATAN_LUT_DOMAIN_LOG2 must be log2(FP_ATAN_LUT_DOMAIN)");
+
 #define FP_QP_CONST(x) ((fp_QP_t)(x))
 
 #define FP_ONE     FP_QP_CONST(1.0)
@@ -303,18 +323,6 @@ static inline fp_MG_raw_t fp_shift_right_cast_to_MG(fp_MG_QP_mul_t value,
                                                     int shift) {
 #pragma HLS INLINE
   return (fp_MG_raw_t)(value >> shift);
-}
-
-static inline fp_S_raw_t fp_shift_right_cast_MGQ_to_S(fp_MG_QP_mul_t value,
-                                                      int shift) {
-#pragma HLS INLINE
-  return (fp_S_raw_t)(value >> shift);
-}
-
-static inline fp_K_raw_t fp_shift_right_cast_to_K(fp_Si_MG_mul_t value,
-                                                  int shift) {
-#pragma HLS INLINE
-  return (fp_K_raw_t)(value >> shift);
 }
 
 static inline fp_P_raw_t fp_shift_right_cast_MGK_to_P(fp_MG_K_mul_t value,

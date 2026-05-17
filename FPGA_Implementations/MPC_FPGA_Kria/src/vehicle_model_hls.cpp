@@ -69,7 +69,6 @@ static inline void fp_trig_pair(fp_FN_t angle, fp_FN_t *sin_val, fp_FN_t *cos_va
 
 static fp_FN_t fp_frenet_recip(fp_FN_t kappa, fp_FN_t ey) {
 #pragma HLS INLINE off
-#pragma HLS ALLOCATION function instances=fp_recip_fn limit=1
   fp_FN_t denom = FP_FN_ONE - fp_mul_fn(kappa, ey);
   if (fp_abs_fn(denom) < VP_FN_RECIP_EPS) {
     if (denom >= 0)
@@ -164,7 +163,7 @@ static void fp_rollout_from_forces_fn(
     fp_FN_t cos_delta, fp_FN_t *next_ey, fp_FN_t *next_epsi,
     fp_FN_t *next_vx, fp_FN_t *next_vy, fp_FN_t *next_omega) {
 #pragma HLS INLINE off
-#pragma HLS ALLOCATION function instances=fp_recip_fn limit=2
+
   fp_FN_t ey_denom = FP_FN_ONE - fp_mul_fn(kappa, ey);
   if (fp_abs_fn(ey_denom) < VP_FN_RECIP_EPS) {
     if (ey_denom >= 0)
@@ -331,7 +330,6 @@ static void compute_frenet_tire_hls(fp_QP_t vx, fp_QP_t vy, fp_QP_t omega,
    * +3 BRAM in tire for only 5 saved cycles per Frenet call. The LUT
    * pressure spread riccati_pass placement and broke WNS via the bucket
    * A fanout (LOOP_522 product reg -> LOOP_580 sum6). Not worth it. */
-#pragma HLS ALLOCATION function instances=fp_recip_fn limit=2
 #pragma HLS ALLOCATION function instances=fp_trig_pair_fused_fn limit=2
 #pragma HLS INLINE off
   const fp_FN_t min_lin_vel_fn = fp_FN_from_QP(MIN_LIN_VEL);
@@ -521,7 +519,6 @@ static void compute_B_accel_load_transfer(const FpTireResults &tr,
                                           fp_FN_t neg_lr_dt_over_iz,
                                           fp_FN_t *B31, fp_FN_t *B41) {
 #pragma HLS INLINE off
-#pragma HLS ALLOCATION function instances=fp_recip_fn limit=2
   fp_FN_t F_zf = VP_FN_FZ_FRONT - tr.Fz_transfer;
   fp_FN_t F_zr = VP_FN_FZ_REAR + tr.Fz_transfer;
   fp_FN_t inv_Fzf = fp_recip_fn(F_zf);

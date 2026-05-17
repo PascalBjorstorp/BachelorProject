@@ -316,35 +316,34 @@ typedef struct alignas(32) {
 /** Per-step dynamic QP data for Riccati-ADMM.
  *
  * Only stage-varying quantities live here:
- * - dense 6x6 dynamics block A
- * - sparse B terms used by the augmented model
- * - affine dynamics bias d for states 0..5
- * - linear cost terms q for states 0..5
+ * - dense 6x6 dynamics block A, stored as raw QP words
+ * - affine dynamics bias d for states 0..5, stored as raw QP words
+ * - linear cost terms q for states 0..5, stored as raw QP words
  * - dynamic e_y box bounds
  * - dynamic accel upper bound
+ *
+ * The sparse B terms stay in a separate fully-partitioned register array because
+ * they sit directly on the backward-pass M = B^T P recurrence. Keeping A/d/q in
+ * raw form lets setup pay the QP->raw cast cost once instead of every Riccati
+ * pass.
  *
  * All constant weights and constant bounds are reconstructed directly from
  * compile-time defines in the solver. This keeps the horizon memory compact,
  * avoids rewriting invariant policy fields every MPC call, and makes the
  * struct a regular 32-byte-multiple record for friendlier HLS packing.
  *
- * Size: 224 bytes = 7 x 32-byte lanes.
+ * Payload: 204 bytes. `alignas(32)` rounds the record size up to a 32-byte
+ * multiple for regular packed access.
  */
 typedef struct alignas(32) {
-  fp_QP_t A[MPC_NX_DENSE][MPC_NX_DENSE];
+  fp_QP_raw_t A[MPC_NX_DENSE][MPC_NX_DENSE];
 
-  fp_QP_t d[MPC_NX_DENSE];
-  fp_QP_t q[MPC_NX_DENSE];
-
-  fp_QP_t B_delta_rate;
-  fp_QP_t B_vx_accel;
-  fp_QP_t B_vy_accel;
-  fp_QP_t B_omega_accel;
+  fp_QP_raw_t d[MPC_NX_DENSE];
+  fp_QP_raw_t q[MPC_NX_DENSE];
 
   fp_QP_t ey_lb;
   fp_QP_t ey_ub;
   fp_QP_t accel_ub;
-  fp_QP_t pad0;
 } StepData_t;
 
 static_assert((sizeof(StepData_t) % 32) == 0,
