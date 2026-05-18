@@ -33,6 +33,8 @@ public:
      */
     int resample(float* d_particles, float* d_weights,
                  int n, int target_n = -1,
+                 double weight_power = 1.0,
+                 double uniform_floor = 0.0,
                  cudaStream_t stream = nullptr);
 
     /**
@@ -53,6 +55,8 @@ public:
     int resample_to(const float* d_particles, float* d_weights,
                     float* d_out_particles,
                     int n, int target_n = -1,
+                    double weight_power = 1.0,
+                    double uniform_floor = 0.0,
                     cudaStream_t stream = nullptr);
 
     /**
@@ -65,6 +69,7 @@ public:
 
 private:
     DeviceBuffer<float> d_cumsum_;
+    DeviceBuffer<float> d_resample_weights_;
     DeviceBuffer<float> d_new_particles_;
     DeviceBuffer<float> d_scratch_;  ///< for reduction results (1 float)
     int                 capacity_ = 0;
@@ -76,12 +81,27 @@ private:
     // CUB temp storage for DeviceReduce::Sum (sum-of-squares)
     DeviceBuffer<uint8_t> d_sumsq_temp_;
     size_t                sumsq_temp_bytes_ = 0;
+
+    // CUB temp storage for DeviceReduce::Sum (tempered resampling weights)
+    DeviceBuffer<uint8_t> d_sum_temp_;
+    size_t                sum_temp_bytes_ = 0;
 };
 
 // ─── CUDA kernel declarations (defined in .cu) ─────────────────────
 // CUB temp-storage size queries
 size_t query_scan_temp_bytes(int n);
+size_t query_sum_temp_bytes(int n);
 size_t query_sumsq_temp_bytes(int n);
+
+double launch_prepare_resample_weights(const float* weights,
+                                        float* out_weights,
+                                        int n,
+                                        float weight_power,
+                                        float uniform_floor,
+                                        float* d_result,
+                                        void* d_temp,
+                                        size_t temp_bytes,
+                                        cudaStream_t stream);
 
 void launch_inclusive_scan(const float* weights, float* cumsum,
                            int n,
@@ -93,6 +113,7 @@ void launch_systematic_resample(const float* cumsum,
                                 float* new_particles,
                                 float* new_weights,
                                 int old_n, int new_n,
+                                float total_weight,
                                 float random_offset,
                                 cudaStream_t stream);
 

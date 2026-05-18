@@ -509,7 +509,10 @@ void ParticleFilter::do_resample(int target_n) {
     // - Writes resampled particles to inactive buffer
     // - Returns actual number of particles written
     n_ = resampler_.resample_to(d_active_particles_, d_weights_.ptr(),
-                                inactive, n_, target_n, stream_.get());
+                                inactive, n_, target_n,
+                                cfg_.resample_weight_power,
+                                cfg_.resample_uniform_floor,
+                                stream_.get());
 
     // Pointer swap — O(1), no GPU memory copy
     // The previously inactive buffer is now active
@@ -606,9 +609,13 @@ PoseEstimate ParticleFilter::get_estimate() {
     return est;
 }
 
-PoseEstimate ParticleFilter::get_cluster_estimate(double* cluster_weight_out) {
+PoseEstimate ParticleFilter::get_cluster_estimate(double* cluster_weight_out,
+                                                  double* second_cluster_weight_out) {
     if (cluster_weight_out != nullptr) {
         *cluster_weight_out = 1.0;
+    }
+    if (second_cluster_weight_out != nullptr) {
+        *second_cluster_weight_out = 0.0;
     }
     if (!cfg_.use_cluster_estimate ||
         cfg_.cluster_xy_bin_m <= 0.0 ||
@@ -666,6 +673,7 @@ PoseEstimate ParticleFilter::get_cluster_estimate(double* cluster_weight_out) {
     int best_bx = 0;
     int best_by = 0;
     double best_score = -1.0;
+    double second_score = 0.0;
     for (const auto& item : bins) {
         const Bin& bin = item.second;
         double score = 0.0;
@@ -682,6 +690,36 @@ PoseEstimate ParticleFilter::get_cluster_estimate(double* cluster_weight_out) {
             best_bx = bin.bx;
             best_by = bin.by;
         }
+    }
+
+    const double best_cx = (static_cast<double>(best_bx) + 0.5) * bin_m;
+    const double best_cy = (static_cast<double>(best_by) + 0.5) * bin_m;
+    const double separate_radius2 = cfg_.cluster_radius_m * cfg_.cluster_radius_m;
+    for (const auto& item : bins) {
+        const Bin& bin = item.second;
+        const double bin_cx = (static_cast<double>(bin.bx) + 0.5) * bin_m;
+        const double bin_cy = (static_cast<double>(bin.by) + 0.5) * bin_m;
+        const double dx_best = bin_cx - best_cx;
+        const double dy_best = bin_cy - best_cy;
+        if (dx_best * dx_best + dy_best * dy_best <= separate_radius2) {
+            continue;
+        }
+
+        double score = 0.0;
+        for (int dx = -1; dx <= 1; ++dx) {
+            for (int dy = -1; dy <= 1; ++dy) {
+                const auto found = bins.find(bin_key(bin.bx + dx, bin.by + dy));
+                if (found != bins.end()) {
+                    score += found->second.weight;
+                }
+            }
+        }
+        if (score > second_score) {
+            second_score = score;
+        }
+    }
+    if (second_cluster_weight_out != nullptr) {
+        *second_cluster_weight_out = second_score;
     }
 
     double cx = (static_cast<double>(best_bx) + 0.5) * bin_m;

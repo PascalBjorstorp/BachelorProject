@@ -26,6 +26,15 @@ size_t query_scan_temp_bytes(int n) {
     return temp_bytes;
 }
 
+size_t query_sum_temp_bytes(int n) {
+    size_t temp_bytes = 0;
+    cub::DeviceReduce::Sum(
+        nullptr, temp_bytes,
+        static_cast<const float*>(nullptr),
+        static_cast<float*>(nullptr), n);
+    return temp_bytes;
+}
+
 void launch_inclusive_scan(const float* weights, float* cumsum,
                            int n,
                            void* d_temp, size_t temp_bytes,
@@ -35,6 +44,49 @@ void launch_inclusive_scan(const float* weights, float* cumsum,
     CUDA_CHECK(cudaGetLastError());
 }
 
+__global__
+void kernel_prepare_resample_weights(const float* __restrict__ weights,
+                                     float* __restrict__ out_weights,
+                                     int n,
+                                     float weight_power,
+                                     float uniform_floor) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+
+    float w = fmaxf(weights[i], 0.0f);
+    if (weight_power > 0.0f && fabsf(weight_power - 1.0f) > 1e-6f) {
+        w = powf(w, weight_power);
+    }
+    w += fmaxf(uniform_floor, 0.0f) / static_cast<float>(n);
+    out_weights[i] = w;
+}
+
+double launch_prepare_resample_weights(const float* weights,
+                                       float* out_weights,
+                                       int n,
+                                       float weight_power,
+                                       float uniform_floor,
+                                       float* d_result,
+                                       void* d_temp,
+                                       size_t temp_bytes,
+                                       cudaStream_t stream) {
+    int block = 256;
+    int grid = (n + block - 1) / block;
+    kernel_prepare_resample_weights<<<grid, block, 0, stream>>>(
+        weights, out_weights, n, weight_power, uniform_floor);
+    CUDA_CHECK(cudaGetLastError());
+
+    cub::DeviceReduce::Sum(d_temp, temp_bytes,
+                           out_weights, d_result, n, stream);
+    CUDA_CHECK(cudaGetLastError());
+
+    float h_result = 0.0f;
+    CUDA_CHECK(cudaMemcpyAsync(&h_result, d_result, sizeof(float),
+                               cudaMemcpyDeviceToHost, stream));
+    CUDA_CHECK(cudaStreamSynchronize(stream));
+    return static_cast<double>(h_result);
+}
+
 // ─── Systematic resampling ──────────────────────────────────────────
 __global__
 void kernel_systematic_resample(const float* __restrict__ cumsum,
@@ -42,11 +94,12 @@ void kernel_systematic_resample(const float* __restrict__ cumsum,
                                 float* __restrict__ new_particles,
                                 float* __restrict__ new_weights,
                                 int old_n, int new_n,
+                                float total_weight,
                                 float random_offset) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= new_n) return;
 
-    float step = 1.0f / static_cast<float>(new_n);
+    float step = total_weight / static_cast<float>(new_n);
     float target = random_offset + i * step;
 
     // Binary search in cumsum.
@@ -71,13 +124,14 @@ void launch_systematic_resample(const float* cumsum,
                                 float* new_particles,
                                 float* new_weights,
                                 int old_n, int new_n,
+                                float total_weight,
                                 float random_offset,
                                 cudaStream_t stream) {
     int block = 256;
     int grid  = (new_n + block - 1) / block;
     kernel_systematic_resample<<<grid, block, 0, stream>>>(
         cumsum, old_particles, new_particles, new_weights,
-        old_n, new_n, random_offset);
+        old_n, new_n, total_weight, random_offset);
     CUDA_CHECK(cudaGetLastError());
 }
 

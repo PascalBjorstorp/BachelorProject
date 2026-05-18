@@ -269,8 +269,8 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
             'f1tenth_planning',
             'trajectories',
             'my_track_raceline.csv'))
-    parser.add_argument('--initial-pose-x', default='0.0')
-    parser.add_argument('--initial-pose-y', default='0.0')
+    parser.add_argument('--initial-pose-x', default='0.5')
+    parser.add_argument('--initial-pose-y', default='0.2')
     parser.add_argument(
         '--initial-pose-yaw',
         default=None,

@@ -134,6 +134,8 @@ void AmclNode::declare_all_parameters() {
 
     // Resampling
     declare_parameter<double>("resample_threshold", 0.5);
+    declare_parameter<double>("resample_weight_power", 1.0);
+    declare_parameter<double>("resample_uniform_floor", 0.0);
     declare_parameter<bool>("enable_recovery_injection", false);
     declare_parameter<double>("recovery_injection_ratio", 0.05);
     declare_parameter<bool>("enable_local_roughening", true);
@@ -393,6 +395,10 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     pf_cfg.min_particles     = get_parameter("min_particles").as_int();
     pf_cfg.max_particles     = get_parameter("max_particles").as_int();
     pf_cfg.resample_threshold = get_parameter("resample_threshold").as_double();
+    pf_cfg.resample_weight_power =
+        std::clamp(get_parameter("resample_weight_power").as_double(), 0.05, 1.0);
+    pf_cfg.resample_uniform_floor =
+        std::clamp(get_parameter("resample_uniform_floor").as_double(), 0.0, 1.0);
     pf_cfg.use_kld           = get_parameter("use_kld_sampling").as_bool();
     pf_cfg.kld_epsilon       = get_parameter("kld_epsilon").as_double();
     pf_cfg.kld_z             = get_parameter("kld_z").as_double();
@@ -634,6 +640,12 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     // weighted mean is invalid while particles are split across plausible poses.
     double cluster_weight = 1.0;
     auto est = pf_.get_cluster_estimate(&cluster_weight);
+
+    const double min_cluster_weight =
+        std::clamp(pf_.config().cluster_publish_min_weight, 0.0, 1.0);
+    bool publish_cluster =
+        !pf_.config().use_cluster_estimate || cluster_weight >= min_cluster_weight;
+
     pf_.resample_if_needed();
 
     // ── Timing end — publish if subscribed ──
@@ -649,11 +661,6 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     std_msgs::msg::Int32 particle_count_msg;
     particle_count_msg.data = pf_.num_particles();
     particle_count_pub_->publish(particle_count_msg);
-
-    const double min_cluster_weight =
-        std::clamp(pf_.config().cluster_publish_min_weight, 0.0, 1.0);
-    const bool publish_cluster =
-        !pf_.config().use_cluster_estimate || cluster_weight >= min_cluster_weight;
 
     if (publish_cluster) {
         // Publish only when the best local mode is dominant enough. During

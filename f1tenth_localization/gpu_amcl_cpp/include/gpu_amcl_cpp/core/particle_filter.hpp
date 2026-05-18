@@ -97,6 +97,8 @@ public:
 
         // Resampling
         double resample_threshold   = 0.5;
+        double resample_weight_power = 1.0;
+        double resample_uniform_floor = 0.0;
         bool   enable_recovery_injection = false;
         double recovery_injection_ratio = 0.05;
         bool   enable_local_roughening = true;
@@ -163,7 +165,8 @@ public:
     PoseEstimate get_estimate();
 
     /// Get highest-density local cluster estimate from current weighted particles.
-    PoseEstimate get_cluster_estimate(double* cluster_weight_out = nullptr);
+    PoseEstimate get_cluster_estimate(double* cluster_weight_out = nullptr,
+                                      double* second_cluster_weight_out = nullptr);
 
     /// Download particles to host for visualisation.
     void get_particles(std::vector<float>& particles);
@@ -179,6 +182,9 @@ public:
     MotionModel& motion_model() { return motion_; }
     SensorModel& sensor_model() { return sensor_; }
     const Config& config() const { return cfg_; }
+    void set_recovery_injection_enabled(bool enabled) {
+        cfg_.enable_recovery_injection = enabled;
+    }
 
 private:
     void check_resample();
