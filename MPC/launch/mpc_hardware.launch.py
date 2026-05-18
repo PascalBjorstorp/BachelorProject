@@ -114,7 +114,7 @@ def generate_launch_description():
 
     drive_republish_period_arg = DeclareLaunchArgument(
         'drive_republish_period_ms',
-        default_value='10',
+        default_value='5',
         description='Republish latest MPC /drive command at this fixed period in ms.'
     )
 
