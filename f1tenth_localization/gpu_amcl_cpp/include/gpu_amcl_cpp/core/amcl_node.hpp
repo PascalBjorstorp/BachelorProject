@@ -90,11 +90,6 @@ private:
     rclcpp::Time last_cloud_publish_time_;
     bool debug_pre_resample_particles_ = false;
     bool initial_heading_from_raceline_ = true;
-    int global_startup_resample_min_scans_ = 6;
-    double global_startup_resample_min_motion_m_ = 0.15;
-    bool global_startup_resample_holdoff_active_ = false;
-    int global_startup_scan_count_ = 0;
-    double global_startup_motion_m_ = 0.0;
 
     // Slip-aware noise scaling
     double slip_angular_threshold_ = 1.0;  // rad/s

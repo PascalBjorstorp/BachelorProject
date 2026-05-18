@@ -509,7 +509,10 @@ void ParticleFilter::do_resample(int target_n) {
     // - Writes resampled particles to inactive buffer
     // - Returns actual number of particles written
     n_ = resampler_.resample_to(d_active_particles_, d_weights_.ptr(),
-                                inactive, n_, target_n, stream_.get());
+                                inactive, n_, target_n,
+                                cfg_.resample_weight_power,
+                                cfg_.resample_uniform_floor,
+                                stream_.get());
 
     // Pointer swap — O(1), no GPU memory copy
     // The previously inactive buffer is now active

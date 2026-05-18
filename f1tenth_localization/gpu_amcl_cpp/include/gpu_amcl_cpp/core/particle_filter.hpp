@@ -97,6 +97,8 @@ public:
 
         // Resampling
         double resample_threshold   = 0.5;
+        double resample_weight_power = 1.0;
+        double resample_uniform_floor = 0.0;
         bool   enable_recovery_injection = false;
         double recovery_injection_ratio = 0.05;
         bool   enable_local_roughening = true;
