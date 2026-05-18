@@ -9,8 +9,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, LogI
 from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch_ros.actions import Node, LifecycleNode, ComposableNodeContainer
-from launch_ros.descriptions import ComposableNode
+from launch_ros.actions import Node, LifecycleNode
 from launch_ros.parameter_descriptions import ParameterValue
 
 
@@ -38,6 +37,7 @@ def generate_launch_description():
     localization_params_file_arg = LaunchConfiguration('localization_params_file')
     use_sim_time_arg = LaunchConfiguration('use_sim_time')
     vesc_config_arg = LaunchConfiguration('vesc_config')
+    vesc_priority_prefix_arg = LaunchConfiguration('vesc_priority_prefix')
     mux_config_arg = LaunchConfiguration('mux_config')
     use_teleop_arg = LaunchConfiguration('use_teleop')
     use_lidar_arg = LaunchConfiguration('use_lidar')
@@ -72,6 +72,15 @@ def generate_launch_description():
         DeclareLaunchArgument(  'vesc_config', 
                                 default_value=vesc_config,
                                 description='Path to VESC configuration file'),
+
+        DeclareLaunchArgument(
+            'vesc_priority_prefix',
+            default_value='taskset -c 2',
+            description=(
+                'Command prefix for each VESC process. Default pins all VESC '
+                'nodes to CPU 2. Use empty string to disable, or e.g. '
+                '"sudo chrt -f 60 taskset -c 2" for RT scheduling.'
+            )),
         
         DeclareLaunchArgument(  'mux_config', 
                                 default_value=mux_config,
@@ -247,72 +256,68 @@ def generate_launch_description():
                     }],
                 ),
                 # ══════════════════════
-                #  VESC nodes (single process, zero-copy intra-process comms)
+                #  VESC nodes (separate prioritized processes)
                 # ══════════════════════
-                ComposableNodeContainer(
-                    name='vesc_container',
-                    namespace='',
-                    package='rclcpp_components',
-                    executable='component_container',
-                    composable_node_descriptions=[
-                        ComposableNode(
-                            package='vesc_driver',
-                            plugin='vesc_driver::VescDriver',
-                            name='vesc_driver_node',
-                            parameters=[vesc_config_arg],
-                            extra_arguments=[{'use_intra_process_comms': True}],
-                        ),
-                        ComposableNode(
-                            package='vesc_ackermann',
-                            plugin='vesc_ackermann::VescToOdom',
-                            name='vesc_to_odom_node',
-                            parameters=[
-                                vesc_config_arg,
-                                {'use_dynamic_bicycle_model': use_dynamic_bicycle_model_arg},
-                            ],
-                            extra_arguments=[{'use_intra_process_comms': True}],
-                        ),
-                        ComposableNode(
-                            package='vesc_ackermann',
-                            plugin='vesc_ackermann::AckermannToVesc',
-                            name='ackermann_to_vesc_node',
-                            parameters=[vesc_config_arg],
-                            extra_arguments=[{'use_intra_process_comms': True}],
-                        ),
-                    ],
+                Node(
+                    package='vesc_driver',
+                    executable='vesc_driver_node',
+                    name='vesc_driver_node',
                     output='screen',
+                    parameters=[vesc_config_arg],
+                    prefix=vesc_priority_prefix_arg,
                     condition=UnlessCondition(old_odom_arg),
                 ),
 
-                ComposableNodeContainer(
-                    name='vesc_container_old',
-                    namespace='',
-                    package='rclcpp_components',
-                    executable='component_container',
-                    composable_node_descriptions=[
-                        ComposableNode(
-                            package='vesc_driver',
-                            plugin='vesc_driver::VescDriver',
-                            name='vesc_driver_node',
-                            parameters=[vesc_config_arg],
-                            extra_arguments=[{'use_intra_process_comms': True}],
-                        ),
-                        ComposableNode(
-                            package='vesc_ackermann',
-                            plugin='vesc_ackermann::VescToOdomOld',
-                            name='vesc_to_odom_old_node',
-                            parameters=[vesc_config_arg],
-                            extra_arguments=[{'use_intra_process_comms': True}],
-                        ),
-                        ComposableNode(
-                            package='vesc_ackermann',
-                            plugin='vesc_ackermann::AckermannToVesc',
-                            name='ackermann_to_vesc_node',
-                            parameters=[vesc_config_arg],
-                            extra_arguments=[{'use_intra_process_comms': True}],
-                        ),
-                    ],
+                Node(
+                    package='vesc_ackermann',
+                    executable='vesc_to_odom_node',
+                    name='vesc_to_odom_node',
                     output='screen',
+                    parameters=[
+                        vesc_config_arg,
+                        {'use_dynamic_bicycle_model': use_dynamic_bicycle_model_arg},
+                    ],
+                    prefix=vesc_priority_prefix_arg,
+                    condition=UnlessCondition(old_odom_arg),
+                ),
+
+                Node(
+                    package='vesc_ackermann',
+                    executable='ackermann_to_vesc_node',
+                    name='ackermann_to_vesc_node',
+                    output='screen',
+                    parameters=[vesc_config_arg],
+                    prefix=vesc_priority_prefix_arg,
+                    condition=UnlessCondition(old_odom_arg),
+                ),
+
+                Node(
+                    package='vesc_driver',
+                    executable='vesc_driver_node',
+                    name='vesc_driver_node',
+                    output='screen',
+                    parameters=[vesc_config_arg],
+                    prefix=vesc_priority_prefix_arg,
+                    condition=IfCondition(old_odom_arg),
+                ),
+
+                Node(
+                    package='vesc_ackermann',
+                    executable='vesc_to_odom_old_node',
+                    name='vesc_to_odom_old_node',
+                    output='screen',
+                    parameters=[vesc_config_arg],
+                    prefix=vesc_priority_prefix_arg,
+                    condition=IfCondition(old_odom_arg),
+                ),
+
+                Node(
+                    package='vesc_ackermann',
+                    executable='ackermann_to_vesc_node',
+                    name='ackermann_to_vesc_node',
+                    output='screen',
+                    parameters=[vesc_config_arg],
+                    prefix=vesc_priority_prefix_arg,
                     condition=IfCondition(old_odom_arg),
                 ),
 
