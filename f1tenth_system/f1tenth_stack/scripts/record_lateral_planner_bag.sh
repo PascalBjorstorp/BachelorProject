@@ -42,7 +42,6 @@ TOPICS=(
   "/mpc/timing/solver_enter_seq"
   "/mpcc/predicted_path"
   "/mpc_state"
-  "local_raceline_wall_distance_markers"
 
 )
 

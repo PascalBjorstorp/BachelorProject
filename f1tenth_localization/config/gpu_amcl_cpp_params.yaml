@@ -91,7 +91,7 @@ gpu_amcl_cpp:
     likelihood_scale: 0.75               # >1 sharper, <1 softer
 
     # ---- Resampling ----
-    resample_threshold: 0.3  # resample when N_eff < threshold * N
+    resample_threshold: 0.6  # resample when N_eff < threshold * N
     enable_recovery_injection: false  # runtime global recovery particles
     recovery_injection_ratio: 0.05    # 5% runtime recovery particles; use 0.10 if it must recover more aggressively
     enable_local_roughening: true      # bad scan match -> jitter local particles after resample
@@ -123,9 +123,9 @@ gpu_amcl_cpp:
     initial_pose_x: 0.0
     initial_pose_y: 0.0
     initial_pose_a: 0.0
-    initial_cov_xx: 0.1
-    initial_cov_yy: 0.1
-    initial_cov_aa: 0.1
+    initial_cov_xx: 0.2
+    initial_cov_yy: 0.2
+    initial_cov_aa: 0.2
 
     # ---- Publishing ----
     cloud_publish_rate: 0.0      # Hz; <= 0 disables particle cloud publishing and downloads
