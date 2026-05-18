@@ -265,8 +265,7 @@ private:
         RCLCPP_INFO(this->get_logger(), "Round-trip CSV log: %s", csv_path);
     }
 
-    // Build arc-length based horizon from local_raceline using first waypoint velocity
-    // Matches mpc_hardware_node's build_reference_from_local_raceline() exactly
+    // Build arc-length based horizon from local_raceline using first waypoint velocity.
     void build_horizon_from_raceline(f1tenth_msgs::msg::MpcState& mpc_state) {
         if (local_raceline_.empty()) {
             mpc_state.horizon_length = 0;
@@ -298,42 +297,53 @@ private:
         mpc_state.ref_left_bound_fp.resize(horizon);
         mpc_state.ref_right_bound_fp.resize(horizon);
 
-        // Helper: sample raceline by arc-length with linear interpolation
+        // Helper: sample raceline by arc-length with linear interpolation.
         auto sample_raceline_by_s = [this, N](double target_s) {
             SampledRefPoint out;
             if (local_raceline_.empty()) return out;
-            // Clamp target_s to raceline span
+
             double s0 = local_raceline_.front().s;
             double sN = local_raceline_.back().s;
             if (sN - s0 < 1e-6) {
                 const auto& wp = local_raceline_.front();
-                out.s = wp.s; out.x = wp.x; out.y = wp.y; out.psi = wp.psi;
-                out.vx = wp.vx; out.kappa = wp.kappa; out.left_bound = wp.left_bound; out.right_bound = wp.right_bound;
+                out.s = wp.s;
+                out.x = wp.x;
+                out.y = wp.y;
+                out.psi = wp.psi;
+                out.vx = wp.vx;
+                out.kappa = wp.kappa;
+                out.left_bound = wp.left_bound;
+                out.right_bound = wp.right_bound;
                 return out;
             }
+
             if (target_s <= s0) target_s = s0;
             if (target_s >= sN) target_s = sN;
 
-            // Find lower index
             size_t idx = 0;
-            for (size_t i = 0; i + 1 < local_raceline_.size(); ++i) {
-                if (local_raceline_[i].s <= target_s && local_raceline_[i+1].s >= target_s) {
-                    idx = i; break;
+            for (size_t i = 0; i + 1 < N; ++i) {
+                if (local_raceline_[i].s <= target_s &&
+                    local_raceline_[i + 1].s >= target_s) {
+                    idx = i;
+                    break;
                 }
             }
+
             const auto& a = local_raceline_[idx];
-            const auto& b = (idx + 1 < local_raceline_.size()) ? local_raceline_[idx + 1] : local_raceline_[idx];
-            double ds = b.s - a.s;
-            double t = (ds > 1e-9) ? ((target_s - a.s) / ds) : 0.0;
-            // Linear interp for x,y,vx,kappa,bounds
+            const auto& b =
+                (idx + 1 < N) ? local_raceline_[idx + 1] : local_raceline_[idx];
+            const double ds = b.s - a.s;
+            const double t = (ds > 1e-9) ? ((target_s - a.s) / ds) : 0.0;
+
             out.s = a.s + t * (b.s - a.s);
             out.x = a.x + t * (b.x - a.x);
             out.y = a.y + t * (b.y - a.y);
-            // Interpolate heading safely across +-pi
+
             double dpsi = b.psi - a.psi;
             while (dpsi > M_PI) dpsi -= 2.0 * M_PI;
             while (dpsi < -M_PI) dpsi += 2.0 * M_PI;
             out.psi = a.psi + t * dpsi;
+
             out.vx = a.vx + t * (b.vx - a.vx);
             out.kappa = a.kappa + t * (b.kappa - a.kappa);
             out.left_bound = a.left_bound + t * (b.left_bound - a.left_bound);
@@ -341,17 +351,15 @@ private:
             return out;
         };
 
-        // Fill horizon using arc-length lookahead: target_s = v_ref * dt * step
+        // Fill horizon using arc-length lookahead: target_s = v_ref * dt * step.
         for (size_t step = 0; step < horizon; ++step) {
             double target_s = v_ref_base * dt * static_cast<double>(step);
             SampledRefPoint wp = sample_raceline_by_s(target_s);
             mpc_state.ref_ey_fp[step] = to_fixed_qp(0.0);
             mpc_state.ref_epsi_fp[step] = to_fixed_qp(0.0);
-
             mpc_state.ref_vx_fp[step] = to_fixed_qp(wp.vx);
             mpc_state.ref_vy_fp[step] = to_fixed_qp(0.0);
             mpc_state.ref_omega_ref_fp[step] = to_fixed_qp(wp.vx * wp.kappa);
-
             mpc_state.ref_kappa_fp[step] = to_fixed_qp(wp.kappa);
             mpc_state.ref_left_bound_fp[step] = to_fixed_qp(wp.left_bound);
             mpc_state.ref_right_bound_fp[step] = to_fixed_qp(wp.right_bound);
