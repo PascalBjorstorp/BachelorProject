@@ -436,14 +436,13 @@ static void build_reference_from_local_raceline(void)
     double v_ref_base = (double)global_trajectory[0].velocity_meters_per_second;
     if (v_ref_base <= 0.0) v_ref_base = MIN_TRAJECTORY_SPEED_MPS;
     
-    /* For each horizon step, compute the arc-length position and fill reference trajectory */
+    /* For each horizon step, compute the arc-length position and fill reference trajectory.
+     * Interpolate reference fields along arc length so the CPU node can be
+     * tested against the smoother horizon construction used elsewhere. */
     for (int step = 0; step < PREDICTION_HORIZON; step++)
     {
-        /* Compute cumulative arc-length at this step: s = v_ref * dt * step */
         double target_s = v_ref_base * dt * (double)step;
-        
-        /* Find the waypoint at (or closest to) this arc-length */
-        int idx = 0;
+        int idx = global_trajectory_count - 1;
         for (int i = 0; i < global_trajectory_count - 1; i++)
         {
             if (global_trajectory[i].s_meters <= target_s &&
@@ -453,24 +452,44 @@ static void build_reference_from_local_raceline(void)
                 break;
             }
         }
-        /* Clamp to last waypoint if beyond track end */
-        if (idx >= global_trajectory_count - 1)
+
+        const TrajectoryWaypoint_t *a = &global_trajectory[idx];
+        const TrajectoryWaypoint_t *b = a;
+        double t = 0.0;
+        if (idx + 1 < global_trajectory_count)
         {
-            idx = global_trajectory_count - 1;
+            b = &global_trajectory[idx + 1];
+            const double ds = b->s_meters - a->s_meters;
+            if (ds > 1e-9)
+            {
+                t = (target_s - a->s_meters) / ds;
+                if (t < 0.0) t = 0.0;
+                if (t > 1.0) t = 1.0;
+            }
         }
-        
-        const TrajectoryWaypoint_t *wp = &global_trajectory[idx];
-        const double traj_vel = wp->velocity_meters_per_second;
+
+        const double traj_vel =
+            a->velocity_meters_per_second +
+            t * (b->velocity_meters_per_second - a->velocity_meters_per_second);
+        const double traj_kappa =
+            a->curvature_radians_per_meter +
+            t * (b->curvature_radians_per_meter - a->curvature_radians_per_meter);
+        const double traj_left_bound =
+            a->left_bound_meters +
+            t * (b->left_bound_meters - a->left_bound_meters);
+        const double traj_right_bound =
+            a->right_bound_meters +
+            t * (b->right_bound_meters - a->right_bound_meters);
 
         global_reference_trajectory[step].reference_lateral_error = 0;
         global_reference_trajectory[step].reference_heading_error = 0;
-        global_reference_trajectory[step].path_curvature = wp->curvature_radians_per_meter;
-        global_reference_trajectory[step].left_wall_bound = wp->left_bound_meters;
-        global_reference_trajectory[step].right_wall_bound = wp->right_bound_meters;
+        global_reference_trajectory[step].path_curvature = traj_kappa;
+        global_reference_trajectory[step].left_wall_bound = traj_left_bound;
+        global_reference_trajectory[step].right_wall_bound = traj_right_bound;
         global_reference_trajectory[step].reference_velocity = traj_vel;
         global_reference_trajectory[step].reference_lateral_velocity = 0;
         global_reference_trajectory[step].reference_yaw_rate =
-            wp->curvature_radians_per_meter * traj_vel;
+            traj_kappa * traj_vel;
     }
 }
 
