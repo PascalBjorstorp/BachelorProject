@@ -33,6 +33,8 @@ TOPICS=(
   "/map_server/transition_event"
   "/drive"
   "/mpcc/predicted_path"
+  "/mpc_state"
+  "local_raceline_wall_distance_markers"
 
 )
 
