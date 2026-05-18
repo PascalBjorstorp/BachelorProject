@@ -124,6 +124,12 @@ def generate_launch_description():
         description='Write full /local_raceline CSV snapshots from MPC node (0/1). Off for real-time driving.'
     )
 
+    solver_csv_log_arg = DeclareLaunchArgument(
+        'solver_csv_log',
+        default_value='0',
+        description='Write per-cycle solver CSV from MPC node (0/1). Keep off for real-time driving.'
+    )
+
     # Set environment variables for the MPC node
     set_use_local_raceline = SetEnvironmentVariable(
         'MPC_USE_LOCAL_RACELINE',
@@ -185,6 +191,10 @@ def generate_launch_description():
         'MPC_LOG_LOCAL_RACELINE_SNAPSHOTS',
         LaunchConfiguration('log_local_raceline_snapshots')
     )
+    set_solver_csv_log = SetEnvironmentVariable(
+        'MPC_SOLVER_CSV_LOG',
+        LaunchConfiguration('solver_csv_log')
+    )
     # MPC hardware node
     mpc_node = Node(
         package='mpc_riccati',
@@ -212,6 +222,7 @@ def generate_launch_description():
         recovery_vref_cap_arg,
         drive_republish_period_arg,
         log_local_raceline_snapshots_arg,
+        solver_csv_log_arg,
         set_use_local_raceline,
         set_local_raceline_topic,
         set_odom,
@@ -227,5 +238,6 @@ def generate_launch_description():
         set_recovery_vref,
         set_drive_republish_period,
         set_log_local_raceline_snapshots,
+        set_solver_csv_log,
         mpc_node,
     ])

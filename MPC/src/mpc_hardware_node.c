@@ -13,8 +13,9 @@
  * Architecture (EKF-driven):
  *   - Odometry callback: stores latest velocity state (fast, non-blocking)
  *   - Servo feedback callback: stores actual steering angle from VESC
- *   - EKF pose callback: receives pose, runs MPC, updates latest command
- *   - Drive timer: republishes latest MPC command at fixed rate
+ *   - EKF pose callback: caches latest pose and signals MPC thread
+ *   - MPC control thread: runs once per newest EKF pose, updates latest command
+ *   - Drive publisher thread: republishes latest MPC command at fixed rate
  *   - Safety: no command published until both odom and EKF pose are received
  *
  * Topics:
@@ -175,6 +176,16 @@ static volatile sig_atomic_t global_shutdown_requested = 0;
 static rcl_context_t *global_ros2_context = NULL;
 
 static rcl_publisher_t global_control_publisher;
+static rcl_publisher_t g_timing_solve_us_publisher;
+static rcl_publisher_t g_timing_control_gap_ms_publisher;
+static rcl_publisher_t g_timing_ekf_to_control_ms_publisher;
+static rcl_publisher_t g_timing_output_gap_ms_publisher;
+static rcl_publisher_t g_timing_drive_age_ms_publisher;
+static rcl_publisher_t g_timing_pose_seq_publisher;
+static rcl_publisher_t g_timing_skipped_poses_publisher;
+static rcl_publisher_t g_timing_solver_enter_seq_publisher;
+static int g_timing_publishers_ready = 0;
+static pthread_mutex_t g_timing_publish_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static nav_msgs__msg__Odometry global_odometry_message_buffer;
 static std_msgs__msg__Float64 global_servo_message_buffer;
@@ -213,16 +224,23 @@ static FILE *g_local_raceline_log_file = NULL;
 static FILE *g_stats_csv_file = NULL;
 static unsigned long g_solver_log_counter = 0;
 static int g_solver_log_stride = 1;
+static int g_solver_csv_logging_enabled = 0;
 static int g_log_local_raceline_snapshots = 0;
 static double g_last_servo_raw = 0.0;
 static long long g_last_odom_ros_time_ns = 0;
 static unsigned long g_local_raceline_update_seq = 0;
 static long long g_local_raceline_ros_time_ns = 0;
+static struct timespec g_last_mpc_output_time = {0, 0};
+static int g_last_mpc_output_valid = 0;
+static unsigned long g_mpc_output_seq = 0;
+static struct timespec g_last_control_start_time = {0, 0};
+static int g_last_control_start_valid = 0;
 
 typedef struct
 {
     int32_t stamp_sec;
     uint32_t stamp_nanosec;
+    struct timespec received_mono_time;
     double pos_x;
     double pos_y;
     double qx;
@@ -300,6 +318,8 @@ static void ensure_parent_directories(const char *filepath)
 /** Number of executor handles: 4 subscriptions (odom, servo, ekf_pose, local_raceline). */
 #define EXECUTOR_NUM_HANDLES 4
 
+static double timespec_diff_sec(const struct timespec *a, const struct timespec *b);
+
 /*===========================================================================
  * Signal Handler for Graceful Shutdown
  *===========================================================================*/
@@ -375,6 +395,70 @@ static void publish_drive_command_or_warn(const char *context)
     }
 }
 
+static void publish_float64_metric(rcl_publisher_t *publisher, double value, const char *context)
+{
+    static unsigned long metric_publish_error_count = 0;
+    if (!g_timing_publishers_ready || publisher == NULL)
+    {
+        return;
+    }
+
+    std_msgs__msg__Float64 msg;
+    msg.data = value;
+
+    pthread_mutex_lock(&g_timing_publish_mutex);
+    rcl_ret_t pub_rc = rcl_publish(publisher, &msg, NULL);
+    pthread_mutex_unlock(&g_timing_publish_mutex);
+
+    if (pub_rc != RCL_RET_OK)
+    {
+        metric_publish_error_count++;
+        if (metric_publish_error_count <= 5UL ||
+            (metric_publish_error_count % 100UL) == 0UL)
+        {
+            fprintf(stderr,
+                    "[ROS2] WARNING: timing metric publish failed in %s: rc=%d, error=%s\n",
+                    context,
+                    (int)pub_rc,
+                    rcl_get_error_string().str);
+        }
+        rcl_reset_error();
+    }
+}
+
+static int init_float64_publisher(
+    rcl_publisher_t *publisher,
+    rcl_node_t *node,
+    const char *topic,
+    const rcl_publisher_options_t *options)
+{
+    if (publisher == NULL || node == NULL || topic == NULL || options == NULL)
+    {
+        return 0;
+    }
+
+    *publisher = rcl_get_zero_initialized_publisher();
+    rcl_ret_t rc = rcl_publisher_init(
+        publisher,
+        node,
+        ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float64),
+        topic,
+        options);
+
+    if (rc != RCL_RET_OK)
+    {
+        fprintf(stderr,
+                "[ROS2] ERROR: timing publisher %s: %s\n",
+                topic,
+                rcl_get_error_string().str);
+        rcl_reset_error();
+        return 0;
+    }
+
+    printf("[ROS2] Publishing timing metric %s (BestEffort, KeepLast(1))\n", topic);
+    return 1;
+}
+
 static void *drive_publisher_thread_main(void *arg)
 {
     (void)arg;
@@ -388,6 +472,9 @@ static void *drive_publisher_thread_main(void *arg)
     {
         nanosleep(&sleep_time, NULL);
 
+        double drive_age_ms = 0.0;
+        int publish_drive_age = 0;
+
         pthread_mutex_lock(&g_drive_mutex);
         if (g_drive_command_ready)
         {
@@ -395,9 +482,24 @@ static void *drive_publisher_thread_main(void *arg)
             clock_gettime(CLOCK_REALTIME, &now_rt);
             global_drive_message_buffer.header.stamp.sec = (int32_t)now_rt.tv_sec;
             global_drive_message_buffer.header.stamp.nanosec = (uint32_t)now_rt.tv_nsec;
+
+            if (g_last_mpc_output_valid)
+            {
+                struct timespec now_mono;
+                clock_gettime(CLOCK_MONOTONIC, &now_mono);
+                drive_age_ms = timespec_diff_sec(&g_last_mpc_output_time, &now_mono) * 1000.0;
+                publish_drive_age = 1;
+            }
             publish_drive_command_or_warn("drive_publisher_thread");
         }
         pthread_mutex_unlock(&g_drive_mutex);
+
+        if (publish_drive_age)
+        {
+            publish_float64_metric(&g_timing_drive_age_ms_publisher,
+                                   drive_age_ms,
+                                   "drive_age_ms");
+        }
     }
 
     return NULL;
@@ -609,7 +711,7 @@ static void set_rosidl_string(rosidl_runtime_c__String *str, const char *value){
  * @param b End timestamp.
  * @return Elapsed time in seconds.
  */
-static double timespec_diff_sec(struct timespec *a, struct timespec *b){
+static double timespec_diff_sec(const struct timespec *a, const struct timespec *b){
     return (double)(b->tv_sec - a->tv_sec) +
            (double)(b->tv_nsec - a->tv_nsec) / 1e9;
 }
@@ -1017,9 +1119,39 @@ void servo_feedback_callback(const void *message_in)
  * Runs once for one copied EKF pose. EKF callback never calls this directly;
  * the control thread does, after being signaled that a new pose arrived.
  *===========================================================================*/
-static void run_mpc_for_pose(const PoseSnapshot_t *pose)
+static void run_mpc_for_pose(
+    const PoseSnapshot_t *pose,
+    unsigned long pose_seq,
+    unsigned long skipped_poses)
 {
     if (pose == NULL) return;
+
+    struct timespec control_start_time;
+    clock_gettime(CLOCK_MONOTONIC, &control_start_time);
+
+    double ekf_to_control_ms =
+        timespec_diff_sec(&pose->received_mono_time, &control_start_time) * 1000.0;
+    double control_gap_ms = 0.0;
+    if (g_last_control_start_valid)
+    {
+        control_gap_ms =
+            timespec_diff_sec(&g_last_control_start_time, &control_start_time) * 1000.0;
+    }
+    g_last_control_start_time = control_start_time;
+    g_last_control_start_valid = 1;
+
+    publish_float64_metric(&g_timing_pose_seq_publisher,
+                           (double)pose_seq,
+                           "pose_seq");
+    publish_float64_metric(&g_timing_skipped_poses_publisher,
+                           (double)skipped_poses,
+                           "skipped_poses");
+    publish_float64_metric(&g_timing_ekf_to_control_ms_publisher,
+                           ekf_to_control_ms,
+                           "ekf_to_control_ms");
+    publish_float64_metric(&g_timing_control_gap_ms_publisher,
+                           control_gap_ms,
+                           "control_gap_ms");
 
     const int32_t drive_stamp_sec = pose->stamp_sec;
     const uint32_t drive_stamp_nanosec = pose->stamp_nanosec;
@@ -1184,6 +1316,9 @@ static void run_mpc_for_pose(const PoseSnapshot_t *pose)
     MpcSolverStatus_t mpc_status;
     struct timespec t0, t1;
     clock_gettime(CLOCK_MONOTONIC, &t0);
+    publish_float64_metric(&g_timing_solver_enter_seq_publisher,
+                           (double)pose_seq,
+                           "solver_enter_seq");
     mpc_status = mpc_compute_optimal_control(
         &global_frenet_state,
         global_reference_trajectory,
@@ -1191,6 +1326,9 @@ static void run_mpc_for_pose(const PoseSnapshot_t *pose)
     clock_gettime(CLOCK_MONOTONIC, &t1);
     double solve_us = (t1.tv_sec - t0.tv_sec) * 1e6 +
                       (t1.tv_nsec - t0.tv_nsec) / 1e3;
+    publish_float64_metric(&g_timing_solve_us_publisher,
+                           solve_us,
+                           "solve_us");
     double primal_res = mpc_result.final_cost;
     double dual_res = mpc_result.dual_residual;
 
@@ -1331,6 +1469,7 @@ static void run_mpc_for_pose(const PoseSnapshot_t *pose)
     }
 
     /* Publish drive command */
+    double output_gap_ms = 0.0;
     {
         pthread_mutex_lock(&g_drive_mutex);
         global_drive_message_buffer.header.stamp.sec = drive_stamp_sec;
@@ -1375,8 +1514,38 @@ static void run_mpc_for_pose(const PoseSnapshot_t *pose)
         g_last_cmd_accel = global_drive_message_buffer.drive.acceleration;
         g_drive_command_ready = 1;
 
+        {
+            struct timespec now_mono;
+            clock_gettime(CLOCK_MONOTONIC, &now_mono);
+            if (g_last_mpc_output_valid)
+            {
+                output_gap_ms =
+                    timespec_diff_sec(&g_last_mpc_output_time, &now_mono) * 1000.0;
+            }
+            g_last_mpc_output_time = now_mono;
+            g_last_mpc_output_valid = 1;
+            g_mpc_output_seq++;
+        }
+
         publish_drive_command_or_warn("mpc_control_thread");
         pthread_mutex_unlock(&g_drive_mutex);
+    }
+
+    publish_float64_metric(&g_timing_output_gap_ms_publisher,
+                           output_gap_ms,
+                           "output_gap_ms");
+
+    if (output_gap_ms > 50.0)
+    {
+        fprintf(stderr,
+                "[MPC] WARNING: MPC output gap %.1f ms (pose_seq=%lu skipped=%lu solve=%.1f us status=%d iter=%u output_seq=%lu)\n",
+                output_gap_ms,
+                pose_seq,
+                skipped_poses,
+                solve_us,
+                (int)mpc_status,
+                (unsigned int)mpc_result.iterations_used,
+                g_mpc_output_seq);
     }
 
     /* Optional per-cycle solver telemetry (CSV) for post-drive analysis. */
@@ -1394,7 +1563,7 @@ static void run_mpc_for_pose(const PoseSnapshot_t *pose)
             double cmd_accel = mpc_result.optimal_control.long_acc;
 
             fprintf(g_solver_log_file,
-                    "%lld,%lld,%.3f,%d,%u,%.9f,%.9f,%d,%lu,%lld,%d,%.6f,%.3f,"
+                    "%lld,%lld,%lu,%lu,%.3f,%.3f,%.3f,%.3f,%d,%u,%.9f,%.9f,%d,%lu,%lld,%d,%.6f,%.3f,"
                     "%.6f,%.6f,%.6f,%.9f,%.9f,%.9f,"
                     "%.6f,%.6f,%.6f,%.6f,%.6f,"
                     "%.6f,%.6f,%.6f,%.6f,%.6f,%d,"
@@ -1402,7 +1571,9 @@ static void run_mpc_for_pose(const PoseSnapshot_t *pose)
                     "%.6f,%.6f,%.6f,%.6f,%.6f,"
                     "%.6f,%.6f,%.6f,%.6f,"
                     "%.6f,%.3f,%d,%lld\n",
-                    pose_ros_time_ns, unix_time_ns, solve_us, (int)mpc_status, mpc_result.iterations_used,
+                    pose_ros_time_ns, unix_time_ns, pose_seq, skipped_poses,
+                    ekf_to_control_ms, control_gap_ms, output_gap_ms,
+                    solve_us, (int)mpc_status, mpc_result.iterations_used,
                     primal_res, dual_res, closest, local_raceline_seq_snapshot, local_raceline_ros_time_snapshot,
                     trajectory_count_snapshot, local_raceline_length_snapshot, odom_age_ms,
                     pos_x, pos_y, heading, pose_cov_x, pose_cov_y, pose_cov_yaw,
@@ -1435,6 +1606,7 @@ void ekf_pose_callback(const void *message_in)
         (const geometry_msgs__msg__PoseWithCovarianceStamped *)message_in;
 
     PoseSnapshot_t snapshot;
+    clock_gettime(CLOCK_MONOTONIC, &snapshot.received_mono_time);
     snapshot.stamp_sec = msg->header.stamp.sec;
     snapshot.stamp_nanosec = msg->header.stamp.nanosec;
     snapshot.pos_x = msg->pose.pose.position.x;
@@ -1483,8 +1655,10 @@ static void *mpc_control_thread_main(void *arg)
         seq = g_latest_pose_seq;
         pthread_mutex_unlock(&g_pose_mutex);
 
+        unsigned long skipped_poses =
+            (seq > processed_seq + 1UL) ? (seq - processed_seq - 1UL) : 0UL;
         processed_seq = seq;
-        run_mpc_for_pose(&pose);
+        run_mpc_for_pose(&pose, seq, skipped_poses);
     }
 
     return NULL;
@@ -1561,14 +1735,16 @@ int main(int argc, char *argv[])
             double period_ms = atof(env_val);
             if (period_ms >= 1.0 && period_ms <= 100.0) g_drive_republish_period_ms = period_ms;
         }
+        if ((env_val = getenv("MPC_SOLVER_CSV_LOG")) != NULL)
+            g_solver_csv_logging_enabled = atoi(env_val) != 0;
         if ((env_val = getenv("MPC_LOG_LOCAL_RACELINE_SNAPSHOTS")) != NULL)
             g_log_local_raceline_snapshots = atoi(env_val) != 0;
     }
 
+    if (g_solver_csv_logging_enabled)
     {
-        /* Solver CSV logging: enable by default and write timestamped logs under `log/`.
-         * This removes environment-variable-based opt-in and ensures timing data is
-         * always captured for post-drive analysis. */
+        /* Solver CSV logging is opt-in only. Per-cycle file I/O can stall
+         * the real-time control thread on Jetson storage. */
         time_t now = time(NULL);
         char timestamp[64];
         struct tm *tm_now = localtime(&now);
@@ -1589,7 +1765,8 @@ int main(int argc, char *argv[])
         else
         {
             fprintf(g_solver_log_file,
-                    "pose_ros_time_ns,unix_time_ns,solve_us,status,iterations,primal_residual,dual_residual,"
+                    "pose_ros_time_ns,unix_time_ns,pose_seq,skipped_poses,ekf_to_control_ms,control_gap_ms,output_gap_ms,"
+                    "solve_us,status,iterations,primal_residual,dual_residual,"
                     "closest_wp,local_raceline_seq,local_raceline_ros_time_ns,local_raceline_count,local_raceline_length_m,odom_age_ms,"
                     "pos_x,pos_y,heading,pose_cov_x,pose_cov_y,pose_cov_yaw,"
                     "e_y,e_psi,vx,vy,omega,"
@@ -1687,6 +1864,10 @@ int main(int argc, char *argv[])
                 }
             }
         }
+    }
+    else
+    {
+        printf("[MPC] Solver CSV logging disabled (set MPC_SOLVER_CSV_LOG=1 to enable)\n");
     }
 
     {
@@ -1872,6 +2053,36 @@ int main(int argc, char *argv[])
     }
     printf("[ROS2] Publishing to %s (Reliable, KeepLast(10))\n", g_drive_topic);
 
+    /* Bag-visible timing telemetry. BestEffort/KeepLast(1) avoids blocking control. */
+    rmw_qos_profile_t qos_timing = rmw_qos_profile_default;
+    qos_timing.reliability = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+    qos_timing.history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
+    qos_timing.depth = 1;
+
+    rcl_publisher_options_t timing_pub_opts = rcl_publisher_get_default_options();
+    timing_pub_opts.qos = qos_timing;
+
+    if (!init_float64_publisher(&g_timing_solve_us_publisher, &node,
+                                "/mpc/timing/solve_us", &timing_pub_opts) ||
+        !init_float64_publisher(&g_timing_control_gap_ms_publisher, &node,
+                                "/mpc/timing/control_gap_ms", &timing_pub_opts) ||
+        !init_float64_publisher(&g_timing_ekf_to_control_ms_publisher, &node,
+                                "/mpc/timing/ekf_to_control_ms", &timing_pub_opts) ||
+        !init_float64_publisher(&g_timing_output_gap_ms_publisher, &node,
+                                "/mpc/timing/output_gap_ms", &timing_pub_opts) ||
+        !init_float64_publisher(&g_timing_drive_age_ms_publisher, &node,
+                                "/mpc/timing/drive_age_ms", &timing_pub_opts) ||
+        !init_float64_publisher(&g_timing_pose_seq_publisher, &node,
+                                "/mpc/timing/pose_seq", &timing_pub_opts) ||
+        !init_float64_publisher(&g_timing_skipped_poses_publisher, &node,
+                                "/mpc/timing/skipped_poses", &timing_pub_opts) ||
+        !init_float64_publisher(&g_timing_solver_enter_seq_publisher, &node,
+                                "/mpc/timing/solver_enter_seq", &timing_pub_opts))
+    {
+        return 1;
+    }
+    g_timing_publishers_ready = 1;
+
     /* Initialize message buffers (pre-allocate all strings) */
     nav_msgs__msg__Odometry__init(&global_odometry_message_buffer);
     if (!preallocate_rosidl_string(&global_odometry_message_buffer.header.frame_id, 64) ||
@@ -1978,6 +2189,7 @@ int main(int argc, char *argv[])
     {
         pthread_join(g_drive_thread, NULL);
     }
+    g_timing_publishers_ready = 0;
     if (g_solver_log_file != NULL)
     {
         fflush(g_solver_log_file);
@@ -2007,6 +2219,14 @@ int main(int argc, char *argv[])
     cleanup_rc = rcl_subscription_fini(&ekf_pose_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&local_raceline_sub, &node); (void)cleanup_rc;
     geometry_msgs__msg__PoseWithCovarianceStamped__fini(&global_ekf_pose_buffer);
+    cleanup_rc = rcl_publisher_fini(&g_timing_solve_us_publisher, &node); (void)cleanup_rc;
+    cleanup_rc = rcl_publisher_fini(&g_timing_control_gap_ms_publisher, &node); (void)cleanup_rc;
+    cleanup_rc = rcl_publisher_fini(&g_timing_ekf_to_control_ms_publisher, &node); (void)cleanup_rc;
+    cleanup_rc = rcl_publisher_fini(&g_timing_output_gap_ms_publisher, &node); (void)cleanup_rc;
+    cleanup_rc = rcl_publisher_fini(&g_timing_drive_age_ms_publisher, &node); (void)cleanup_rc;
+    cleanup_rc = rcl_publisher_fini(&g_timing_pose_seq_publisher, &node); (void)cleanup_rc;
+    cleanup_rc = rcl_publisher_fini(&g_timing_skipped_poses_publisher, &node); (void)cleanup_rc;
+    cleanup_rc = rcl_publisher_fini(&g_timing_solver_enter_seq_publisher, &node); (void)cleanup_rc;
     cleanup_rc = rcl_publisher_fini(&global_control_publisher, &node); (void)cleanup_rc;
     cleanup_rc = rcl_node_fini(&node); (void)cleanup_rc;
     cleanup_rc = rcl_context_fini(&ctx); (void)cleanup_rc;
