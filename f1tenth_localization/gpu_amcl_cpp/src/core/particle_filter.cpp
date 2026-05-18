@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstring>
 #include <limits>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace gpu_amcl_cpp {
@@ -150,43 +151,6 @@ bool ParticleFilter::sample_global_particle(const MapProcessor& map,
     const float heading_cone = static_cast<float>(
         std::max(0.0, cfg_.global_heading_cone_rad));
     std::uniform_real_distribution<float> yaw_noise(-heading_cone, heading_cone);
-
-    if (!cfg_.global_heading_points.empty()) {
-        std::uniform_int_distribution<int> track_dist(
-            0, static_cast<int>(cfg_.global_heading_points.size()) - 1);
-        const float margin = static_cast<float>(std::max(0.0, cfg_.global_track_margin_m));
-        const float max_lateral = static_cast<float>(
-            std::max(0.0, cfg_.global_max_lateral_offset_m));
-        for (int attempt = 0; attempt < 50; ++attempt) {
-            const auto& point = cfg_.global_heading_points[
-                static_cast<size_t>(track_dist(rng_))];
-            float left_limit = std::max(0.0f, point.d_left - margin);
-            float right_limit = std::max(0.0f, point.d_right - margin);
-
-            if (left_limit <= 1e-3f && right_limit <= 1e-3f) {
-                left_limit = max_lateral;
-                right_limit = max_lateral;
-            } else if (max_lateral > 0.0f) {
-                left_limit = std::min(left_limit, max_lateral);
-                right_limit = std::min(right_limit, max_lateral);
-            }
-
-            std::uniform_real_distribution<float> lateral_dist(-right_limit, left_limit);
-            const float lateral = lateral_dist(rng_);
-            const float normal = point.yaw + 0.5f * static_cast<float>(M_PI);
-            wx = point.x + lateral * std::cos(normal);
-            wy = point.y + lateral * std::sin(normal);
-            yaw = point.yaw + yaw_noise(rng_);
-
-            int mx = 0;
-            int my = 0;
-            map.world_to_map(wx, wy, mx, my);
-            if (map.is_free(mx, my)) {
-                yaw = normalize_yaw(yaw);
-                return true;
-            }
-        }
-    }
 
     const auto& free_cells = map.free_cells();
     if (free_cells.empty()) {
@@ -391,13 +355,20 @@ void ParticleFilter::predict(float dx, float dy, float dtheta) {
 // ─── Update ─────────────────────────────────────────────────────────
 void ParticleFilter::update(const float* ranges, int num_ranges,
                             float angle_min, float angle_inc) {
+    if (update_weights(ranges, num_ranges, angle_min, angle_inc)) {
+        resample_if_needed();
+    }
+}
+
+bool ParticleFilter::update_weights(const float* ranges, int num_ranges,
+                                    float angle_min, float angle_inc) {
     // Guard: ensure scan fits in pre-allocated buffer (set by max_beams param)
     if (num_ranges > max_ranges_) {
         std::fprintf(stderr,
                      "[gpu_amcl_cpp][ParticleFilter] ERROR: num_ranges (%d) exceeds max_ranges_ (%d). "
                      "Increase max_beams in config.\n",
                      num_ranges, max_ranges_);
-        return;
+        return false;
     }
 
     // Copy to pinned staging, then async DMA to device.
@@ -424,8 +395,10 @@ void ParticleFilter::update(const float* ranges, int num_ranges,
     std::swap(d_weights_, d_scratch_w_); // Pointer swap, no copy, no sync needed. d_weights_ now has normalised weights for resampling.
 
     update_scan_confidence(num_ranges);
+    return true;
+}
 
-    // Conditionally resample.
+void ParticleFilter::resample_if_needed() {
     check_resample();
 }
 
@@ -583,11 +556,206 @@ PoseEstimate ParticleFilter::get_estimate() {
     return est;
 }
 
+PoseEstimate ParticleFilter::get_cluster_estimate(double* cluster_weight_out) {
+    if (cluster_weight_out != nullptr) {
+        *cluster_weight_out = 1.0;
+    }
+    if (!cfg_.use_cluster_estimate ||
+        cfg_.cluster_xy_bin_m <= 0.0 ||
+        cfg_.cluster_radius_m <= 0.0 ||
+        n_ <= 0) {
+        return get_estimate();
+    }
+
+    std::vector<float> particles;
+    std::vector<float> weights;
+    get_particles(particles, weights);
+    if (particles.empty() || weights.empty()) {
+        if (cluster_weight_out != nullptr) {
+            *cluster_weight_out = 0.0;
+        }
+        return get_estimate();
+    }
+
+    struct Bin {
+        int bx = 0;
+        int by = 0;
+        double weight = 0.0;
+    };
+
+    const double bin_m = cfg_.cluster_xy_bin_m;
+    const auto bin_key = [](int bx, int by) -> long long {
+        return static_cast<long long>(bx) * 1000000LL + static_cast<long long>(by);
+    };
+
+    std::unordered_map<long long, Bin> bins;
+    bins.reserve(static_cast<size_t>(n_) * 2);
+    for (int i = 0; i < n_; ++i) {
+        const double w = static_cast<double>(weights[static_cast<size_t>(i)]);
+        if (w <= 0.0 || !std::isfinite(w)) {
+            continue;
+        }
+        const int bx = static_cast<int>(
+            std::floor(static_cast<double>(particles[i * 3 + 0]) / bin_m));
+        const int by = static_cast<int>(
+            std::floor(static_cast<double>(particles[i * 3 + 1]) / bin_m));
+        const long long key = bin_key(bx, by);
+        auto& bin = bins[key];
+        bin.bx = bx;
+        bin.by = by;
+        bin.weight += w;
+    }
+
+    if (bins.empty()) {
+        if (cluster_weight_out != nullptr) {
+            *cluster_weight_out = 0.0;
+        }
+        return get_estimate();
+    }
+
+    int best_bx = 0;
+    int best_by = 0;
+    double best_score = -1.0;
+    for (const auto& item : bins) {
+        const Bin& bin = item.second;
+        double score = 0.0;
+        for (int dx = -1; dx <= 1; ++dx) {
+            for (int dy = -1; dy <= 1; ++dy) {
+                const auto found = bins.find(bin_key(bin.bx + dx, bin.by + dy));
+                if (found != bins.end()) {
+                    score += found->second.weight;
+                }
+            }
+        }
+        if (score > best_score) {
+            best_score = score;
+            best_bx = bin.bx;
+            best_by = bin.by;
+        }
+    }
+
+    double cx = (static_cast<double>(best_bx) + 0.5) * bin_m;
+    double cy = (static_cast<double>(best_by) + 0.5) * bin_m;
+    double ctheta = 0.0;
+    const double radius2 = cfg_.cluster_radius_m * cfg_.cluster_radius_m;
+    const int iterations = std::clamp(cfg_.cluster_iterations, 1, 10);
+
+    double cluster_weight = 0.0;
+    for (int iter = 0; iter < iterations; ++iter) {
+        double sum_w = 0.0;
+        double sum_x = 0.0;
+        double sum_y = 0.0;
+        double sum_sin = 0.0;
+        double sum_cos = 0.0;
+        for (int i = 0; i < n_; ++i) {
+            const double w = static_cast<double>(weights[static_cast<size_t>(i)]);
+            if (w <= 0.0 || !std::isfinite(w)) {
+                continue;
+            }
+            const double x = static_cast<double>(particles[i * 3 + 0]);
+            const double y = static_cast<double>(particles[i * 3 + 1]);
+            const double dx = x - cx;
+            const double dy = y - cy;
+            if (dx * dx + dy * dy > radius2) {
+                continue;
+            }
+            const double yaw = static_cast<double>(particles[i * 3 + 2]);
+            sum_w += w;
+            sum_x += w * x;
+            sum_y += w * y;
+            sum_sin += w * std::sin(yaw);
+            sum_cos += w * std::cos(yaw);
+        }
+        if (sum_w <= 0.0) {
+            break;
+        }
+        cx = sum_x / sum_w;
+        cy = sum_y / sum_w;
+        ctheta = std::atan2(sum_sin, sum_cos);
+        cluster_weight = sum_w;
+    }
+
+    if (cluster_weight <= 0.0) {
+        if (cluster_weight_out != nullptr) {
+            *cluster_weight_out = 0.0;
+        }
+        return get_estimate();
+    }
+    if (cluster_weight_out != nullptr) {
+        *cluster_weight_out = cluster_weight;
+    }
+
+    PoseEstimate est;
+    est.x = cx;
+    est.y = cy;
+    est.theta = ctheta;
+
+    double c00 = 0.0;
+    double c01 = 0.0;
+    double c02 = 0.0;
+    double c11 = 0.0;
+    double c12 = 0.0;
+    double c22 = 0.0;
+    double sum_w = 0.0;
+    for (int i = 0; i < n_; ++i) {
+        const double w = static_cast<double>(weights[static_cast<size_t>(i)]);
+        if (w <= 0.0 || !std::isfinite(w)) {
+            continue;
+        }
+        const double x = static_cast<double>(particles[i * 3 + 0]);
+        const double y = static_cast<double>(particles[i * 3 + 1]);
+        const double dx_center = x - cx;
+        const double dy_center = y - cy;
+        if (dx_center * dx_center + dy_center * dy_center > radius2) {
+            continue;
+        }
+
+        const double dtheta = math_utils::angle_diff(
+            static_cast<double>(particles[i * 3 + 2]), ctheta);
+        sum_w += w;
+        c00 += w * dx_center * dx_center;
+        c01 += w * dx_center * dy_center;
+        c02 += w * dx_center * dtheta;
+        c11 += w * dy_center * dy_center;
+        c12 += w * dy_center * dtheta;
+        c22 += w * dtheta * dtheta;
+    }
+
+    if (sum_w <= 0.0) {
+        return get_estimate();
+    }
+
+    const double inv_w = 1.0 / sum_w;
+    const double confidence = std::clamp(sum_w, 1e-3, 1.0);
+    const double confidence_scale = std::clamp(1.0 / confidence, 1.0, 25.0);
+    const double min_cov = std::max(0.0, cfg_.cluster_min_covariance);
+    est.covariance(0, 0) = std::max(min_cov, c00 * inv_w * confidence_scale);
+    est.covariance(0, 1) = c01 * inv_w * confidence_scale;
+    est.covariance(0, 2) = c02 * inv_w * confidence_scale;
+    est.covariance(1, 0) = est.covariance(0, 1);
+    est.covariance(1, 1) = std::max(min_cov, c11 * inv_w * confidence_scale);
+    est.covariance(1, 2) = c12 * inv_w * confidence_scale;
+    est.covariance(2, 0) = est.covariance(0, 2);
+    est.covariance(2, 1) = est.covariance(1, 2);
+    est.covariance(2, 2) = std::max(min_cov, c22 * inv_w * confidence_scale);
+
+    return est;
+}
+
+void ParticleFilter::get_particles(std::vector<float>& particles) {
+    particles.resize(n_ * 3);
+    // Use pinned staging for D->H, then copy to caller's vector.
+    CUDA_CHECK(cudaMemcpyAsync(h_particles_pinned_, d_active_particles_,
+                               n_ * 3 * sizeof(float),
+                               cudaMemcpyDeviceToHost, stream_.get()));
+    CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
+    memcpy(particles.data(), h_particles_pinned_, n_ * 3 * sizeof(float));
+}
+
 void ParticleFilter::get_particles(std::vector<float>& particles,
                                    std::vector<float>& weights) {
     particles.resize(n_ * 3);
     weights.resize(n_);
-    // §4: Use pinned staging for D→H, then copy to caller's vectors.
     CUDA_CHECK(cudaMemcpyAsync(h_particles_pinned_, d_active_particles_,
                                n_ * 3 * sizeof(float),
                                cudaMemcpyDeviceToHost, stream_.get()));

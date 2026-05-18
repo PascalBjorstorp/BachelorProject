@@ -177,7 +177,7 @@ void PipelineLatencyMonitor::ekf_callback(
 
   std::lock_guard<std::mutex> lk(mutex_);
 
-  auto mark_ekf = [this, recv](int64_t key) {
+  auto mark_ekf = [this, recv](int64_t key, int64_t stamp_key) {
       auto it = entries_.find(key);
       if (it == entries_.end()) {
         return false;
@@ -187,9 +187,10 @@ void PipelineLatencyMonitor::ekf_callback(
       }
 
       it->second.ekf_recv_ns = recv;
+      it->second.ekf_stamp_key = stamp_key;
       it->second.has_ekf = true;
 
-      pending_drive_entries_.push_back(PendingStageEntry{key, recv});
+      pending_drive_entries_.push_back(PendingStageEntry{key, stamp_key, recv});
       if (pending_drive_entries_.size() > 2000) {
         if (strict_mode_) {
           strict_queue_overrun_count_ += 1000;
@@ -204,8 +205,36 @@ void PipelineLatencyMonitor::ekf_callback(
       return true;
     };
 
-  if (ekf_key > 0 && mark_ekf(ekf_key)) {
+  if (ekf_key > 0 && mark_ekf(ekf_key, ekf_key)) {
     return;
+  }
+
+  if (ekf_key <= 0 || stage_match_max_ms_ <= 0.0) {
+    return;
+  }
+
+  const double max_window_ns = stage_match_max_ms_ * 1e6;
+  int64_t fallback_key = 0;
+  double oldest_amcl_recv_ns = 0.0;
+
+  for (const auto & [key, entry] : entries_) {
+    if (!entry.has_scan || !entry.has_amcl || entry.has_ekf) {
+      continue;
+    }
+    if (recv < entry.amcl_recv_ns) {
+      continue;
+    }
+    if ((recv - entry.amcl_recv_ns) > max_window_ns) {
+      continue;
+    }
+    if (fallback_key == 0 || entry.amcl_recv_ns < oldest_amcl_recv_ns) {
+      fallback_key = key;
+      oldest_amcl_recv_ns = entry.amcl_recv_ns;
+    }
+  }
+
+  if (fallback_key != 0) {
+    (void)mark_ekf(fallback_key, ekf_key);
   }
 }
 
@@ -217,13 +246,7 @@ void PipelineLatencyMonitor::drive_callback(
 
   std::lock_guard<std::mutex> lk(mutex_);
   if (pending_drive_entries_.empty()) {
-    if (strict_mode_) {
-      ++strict_drive_without_pending_count_;
-      RCLCPP_WARN_THROTTLE(
-        get_logger(), *get_clock(), 2000,
-        "Strict mode: /drive arrived with no pending EKF entry (total=%llu)",
-        static_cast<unsigned long long>(strict_drive_without_pending_count_));
-    }
+    // EKF can publish faster than AMCL; only scan-linked EKF outputs are tracked here.
     return;
   }
 
@@ -235,25 +258,32 @@ void PipelineLatencyMonitor::drive_callback(
 
   PendingStageEntry matched;
   if (drive_key > 0) {
-    pending_drive_entries_.erase(
-      std::remove_if(
-        pending_drive_entries_.begin(), pending_drive_entries_.end(),
-        [this, drive_key](const PendingStageEntry & entry) {
-          if (entry.key < drive_key) {
-            entries_.erase(entry.key);
-            return true;
-          }
-          return false;
-        }),
-      pending_drive_entries_.end());
-
     const auto match_it = std::find_if(
       pending_drive_entries_.begin(), pending_drive_entries_.end(),
       [drive_key](const PendingStageEntry & entry) {
-        return entry.key == drive_key;
+        return entry.stamp_key == drive_key;
       });
 
     if (match_it == pending_drive_entries_.end()) {
+      pending_drive_entries_.erase(
+        std::remove_if(
+          pending_drive_entries_.begin(), pending_drive_entries_.end(),
+          [this, recv, max_window_ns](const PendingStageEntry & entry) {
+            if ((recv - entry.stage_recv_ns) > max_window_ns) {
+              if (strict_mode_) {
+                ++strict_stale_unmatched_count_;
+                RCLCPP_WARN_THROTTLE(
+                  get_logger(), *get_clock(), 2000,
+                  "Strict mode: stale unmatched EKF entry dropped before /drive match (total=%llu)",
+                  static_cast<unsigned long long>(strict_stale_unmatched_count_));
+              }
+              try_report(entry.key, -1.0);
+              return true;
+            }
+            return false;
+          }),
+        pending_drive_entries_.end());
+
       if (strict_mode_) {
         ++strict_drive_without_pending_count_;
         RCLCPP_WARN_THROTTLE(
@@ -302,11 +332,12 @@ void PipelineLatencyMonitor::drive_callback(
   }
 
   it->second.drive_recv_ns = recv;
+  it->second.drive_stamp_key = drive_key;
   it->second.has_drive = true;
 
   acc_ekf_to_drive_.push_back(measured_ms);
 
-  pending_ackermann_entries_.push_back(PendingStageEntry{matched.key, recv});
+  pending_ackermann_entries_.push_back(PendingStageEntry{matched.key, drive_key, recv});
   if (pending_ackermann_entries_.size() > 2000) {
     if (strict_mode_) {
       strict_queue_overrun_count_ += 1000;
@@ -328,13 +359,7 @@ void PipelineLatencyMonitor::ackermann_callback(
 
   std::lock_guard<std::mutex> lk(mutex_);
   if (pending_ackermann_entries_.empty()) {
-    if (strict_mode_) {
-      ++strict_ackermann_without_pending_count_;
-      RCLCPP_WARN_THROTTLE(
-        get_logger(), *get_clock(), 2000,
-        "Strict mode: /ackermann_cmd arrived with no pending /drive entry (total=%llu)",
-        static_cast<unsigned long long>(strict_ackermann_without_pending_count_));
-    }
+    // Mux can forward high-rate controls that are not tied to a fresh AMCL sample.
     return;
   }
 
@@ -346,25 +371,32 @@ void PipelineLatencyMonitor::ackermann_callback(
 
   PendingStageEntry matched;
   if (ackermann_key > 0) {
-    pending_ackermann_entries_.erase(
-      std::remove_if(
-        pending_ackermann_entries_.begin(), pending_ackermann_entries_.end(),
-        [this, ackermann_key](const PendingStageEntry & entry) {
-          if (entry.key < ackermann_key) {
-            entries_.erase(entry.key);
-            return true;
-          }
-          return false;
-        }),
-      pending_ackermann_entries_.end());
-
     const auto match_it = std::find_if(
       pending_ackermann_entries_.begin(), pending_ackermann_entries_.end(),
       [ackermann_key](const PendingStageEntry & entry) {
-        return entry.key == ackermann_key;
+        return entry.stamp_key == ackermann_key;
       });
 
     if (match_it == pending_ackermann_entries_.end()) {
+      pending_ackermann_entries_.erase(
+        std::remove_if(
+          pending_ackermann_entries_.begin(), pending_ackermann_entries_.end(),
+          [this, recv, max_window_ns](const PendingStageEntry & entry) {
+            if ((recv - entry.stage_recv_ns) > max_window_ns) {
+              if (strict_mode_) {
+                ++strict_stale_unmatched_count_;
+                RCLCPP_WARN_THROTTLE(
+                  get_logger(), *get_clock(), 2000,
+                  "Strict mode: stale unmatched /drive entry dropped before /ackermann_cmd match (total=%llu)",
+                  static_cast<unsigned long long>(strict_stale_unmatched_count_));
+              }
+              try_report(entry.key, -1.0);
+              return true;
+            }
+            return false;
+          }),
+        pending_ackermann_entries_.end());
+
       if (strict_mode_) {
         ++strict_ackermann_without_pending_count_;
         RCLCPP_WARN_THROTTLE(
@@ -413,6 +445,7 @@ void PipelineLatencyMonitor::ackermann_callback(
   }
 
   it->second.ackermann_recv_ns = recv;
+  it->second.ackermann_stamp_key = ackermann_key;
   it->second.has_ackermann = true;
   acc_drive_to_ackermann_.push_back(drive_to_ackermann_ms);
 

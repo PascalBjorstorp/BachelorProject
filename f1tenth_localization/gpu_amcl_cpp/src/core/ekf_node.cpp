@@ -3,6 +3,7 @@
 
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <Eigen/Cholesky>
@@ -53,7 +54,7 @@ void EkfNode::declare_all_parameters() {
     declare_parameter<double>("transform_tolerance", 0.1);
     declare_parameter<double>("process_noise_scale", 1.0);
     declare_parameter<double>("amcl_max_latency_sec", 0.08);
-    declare_parameter<int>("odom_history_max_size", 500);
+    declare_parameter<double>("odom_history_duration_s", 0.2);
 }
 
 void EkfNode::load_parameters() {
@@ -66,10 +67,8 @@ void EkfNode::load_parameters() {
     transform_tolerance_ = get_parameter("transform_tolerance").as_double();
     process_noise_scale_ = get_parameter("process_noise_scale").as_double();
     amcl_max_latency_sec_ = get_parameter("amcl_max_latency_sec").as_double();
-    const int64_t odom_history_size_param =
-        get_parameter("odom_history_max_size").as_int();
-    odom_history_max_size_ = static_cast<size_t>(
-        std::max<int64_t>(2, odom_history_size_param));
+    odom_history_duration_s_ = std::max(
+        0.0, get_parameter("odom_history_duration_s").as_double());
 
     if (amcl_max_latency_sec_ <= 0.0) {
         RCLCPP_WARN(get_logger(),
@@ -82,7 +81,8 @@ void EkfNode::push_odom_sample(const rclcpp::Time& stamp,
                                const Eigen::Vector3d& pose) {
     odom_history_.push_back({stamp, pose[0], pose[1], pose[2]});
 
-    while (odom_history_.size() > odom_history_max_size_) {
+    while (odom_history_.size() > 2 &&
+           (stamp - odom_history_.front().stamp).seconds() > odom_history_duration_s_) {
         odom_history_.pop_front();
     }
 }

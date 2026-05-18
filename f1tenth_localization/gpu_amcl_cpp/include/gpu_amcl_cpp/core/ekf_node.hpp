@@ -131,7 +131,7 @@ private:
         *   - stamp: Timestamp of the odom sample.
         *   - pose: Odom pose [x, y, yaw].
         * Output:
-        *   - Odom history buffer updated (oldest entries dropped if needed).
+        *   - Odom history buffer updated (samples outside time window dropped).
         */
         void push_odom_sample(const rclcpp::Time& stamp,
                          const Eigen::Vector3d& pose);
@@ -176,7 +176,7 @@ private:
     };
 
     std::deque<OdomSample> odom_history_;
-    size_t odom_history_max_size_ = 500;
+    double odom_history_duration_s_ = 0.2;
 
     // ── Parameters ─────────────────────────────────────────────────
     double transform_tolerance_ = 0.1;
