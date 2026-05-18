@@ -630,6 +630,59 @@ static void project_to_path_segment(
     }
 }
 
+/**
+ * @brief Find the local-raceline segment whose projection is closest to the car.
+ * @param car_x Vehicle x-position in map frame (m).
+ * @param car_y Vehicle y-position in map frame (m).
+ * @return Segment start index i for segment [i, i+1].
+ */
+static int find_closest_path_segment_index(double car_x, double car_y)
+{
+    if (global_trajectory_count < 2)
+    {
+        return 0;
+    }
+
+    int best_index = 0;
+    double best_dist2 = INFINITY;
+
+    for (int i = 0; i < global_trajectory_count - 1; i++)
+    {
+        const double ax = global_trajectory[i].x_meters;
+        const double ay = global_trajectory[i].y_meters;
+        const double bx = global_trajectory[i + 1].x_meters;
+        const double by = global_trajectory[i + 1].y_meters;
+
+        const double abx = bx - ax;
+        const double aby = by - ay;
+        const double apx = car_x - ax;
+        const double apy = car_y - ay;
+        const double ab_len2 = abx * abx + aby * aby;
+
+        double t = 0.0;
+        if (ab_len2 > 1e-12)
+        {
+            t = (apx * abx + apy * aby) / ab_len2;
+        }
+        if (t < 0.0) t = 0.0;
+        if (t > 1.0) t = 1.0;
+
+        const double px = ax + t * abx;
+        const double py = ay + t * aby;
+        const double dx = car_x - px;
+        const double dy = car_y - py;
+        const double dist2 = dx * dx + dy * dy;
+
+        if (dist2 < best_dist2)
+        {
+            best_dist2 = dist2;
+            best_index = i;
+        }
+    }
+
+    return best_index;
+}
+
 /* 8-state augmented model verification note:
  * The FrenetState_t provides x0[0..4] = {e_y, e_psi, vx, vy, omega}.
  * The remaining augmented states are managed by the solver internally:
@@ -1020,7 +1073,7 @@ void ekf_pose_callback(const void *message_in)
     }
     if (global_trajectory_count > 1)
     {
-        closest = 0;
+        closest = find_closest_path_segment_index(pos_x, pos_y);
         build_reference_from_local_raceline();
 
         project_to_path_segment(pos_x, pos_y, heading, closest, &projection, &global_frenet_state);

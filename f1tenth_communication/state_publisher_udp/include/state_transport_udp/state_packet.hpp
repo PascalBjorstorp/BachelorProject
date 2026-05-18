@@ -16,7 +16,7 @@
 namespace state_transport_udp {
 
 constexpr uint32_t PACKET_MAGIC = 0x53545550;  // 'STUP'
-constexpr uint16_t PACKET_VERSION = 3;
+constexpr uint16_t PACKET_VERSION = 5;
 constexpr size_t MPC_HORIZON = MPC_FPGA_HORIZON_STEPS;
 
 #pragma pack(push, 1)
@@ -30,31 +30,23 @@ struct StatePacket {
     int32_t source_stamp_sec;   // Original ROS stamp sec used as pipeline token.
     uint32_t source_stamp_nanosec; // Original ROS stamp nanosec used as pipeline token.
 
-    int32_t x_fp;              // Vehicle x [m], Q16.16.
-    int32_t y_fp;              // Vehicle y [m], Q16.16.
-    int32_t theta_fp;          // Vehicle yaw [rad], Q16.16.
-    int32_t velocity_fp;       // Longitudinal speed vx [m/s], Q16.16.
-    int32_t vy_fp;             // Lateral speed vy [m/s], Q16.16.
-    int32_t omega_fp;          // Yaw rate [rad/s], Q16.16.
-    int32_t steering_angle_fp; // Current steering angle [rad], Q16.16.
+    int32_t e_y_fp;            // Current lateral error [m], raw QP.
+    int32_t e_psi_fp;          // Current heading error [rad], raw QP.
+    int32_t velocity_fp;       // Longitudinal speed vx [m/s], raw QP.
+    int32_t vy_fp;             // Lateral speed vy [m/s], raw QP.
+    int32_t omega_fp;          // Yaw rate [rad/s], raw QP.
+    int32_t steering_angle_fp; // Current steering angle [rad], raw QP.
 
     uint32_t horizon_length;   // Number of valid horizon entries in arrays below.
 
-    /* Full per-step geometry arrays (V2): publisher fills these samples for
-     * robust receiver-side projection. All arrays have at least horizon_length
-     * valid entries (pad/truncate as appropriate). */
-    std::array<int32_t, MPC_HORIZON> ref_x_fp;           // Waypoint X positions [m], Q16.16
-    std::array<int32_t, MPC_HORIZON> ref_y_fp;           // Waypoint Y positions [m], Q16.16
-    std::array<int32_t, MPC_HORIZON> ref_psi_fp;         // Waypoint heading [rad], Q16.16
-
-    std::array<int32_t, MPC_HORIZON> ref_ey_fp;          // Horizon lateral error reference [m], Q16.16.
-    std::array<int32_t, MPC_HORIZON> ref_epsi_fp;        // Horizon heading error reference [rad], Q16.16.
-    std::array<int32_t, MPC_HORIZON> ref_vx_fp;          // Horizon target speed [m/s], Q16.16.
-    std::array<int32_t, MPC_HORIZON> ref_vy_fp;          // Horizon target lateral speed [m/s], Q16.16.
-    std::array<int32_t, MPC_HORIZON> ref_omega_ref_fp;   // Horizon target yaw rate [rad/s], Q16.16.
-    std::array<int32_t, MPC_HORIZON> ref_kappa_fp;       // Horizon curvature [rad/m], Q16.16.
-    std::array<int32_t, MPC_HORIZON> ref_left_bound_fp;  // Left wall bound [m], Q16.16.
-    std::array<int32_t, MPC_HORIZON> ref_right_bound_fp; // Right wall bound [m], Q16.16.
+    std::array<int32_t, MPC_HORIZON> ref_ey_fp;          // Horizon lateral error reference [m], raw QP.
+    std::array<int32_t, MPC_HORIZON> ref_epsi_fp;        // Horizon heading error reference [rad], raw QP.
+    std::array<int32_t, MPC_HORIZON> ref_vx_fp;          // Horizon target speed [m/s], raw QP.
+    std::array<int32_t, MPC_HORIZON> ref_vy_fp;          // Horizon target lateral speed [m/s], raw QP.
+    std::array<int32_t, MPC_HORIZON> ref_omega_ref_fp;   // Horizon target yaw rate [rad/s], raw QP.
+    std::array<int32_t, MPC_HORIZON> ref_kappa_fp;       // Horizon curvature [rad/m], raw QP.
+    std::array<int32_t, MPC_HORIZON> ref_left_bound_fp;  // Left wall bound [m], raw QP.
+    std::array<int32_t, MPC_HORIZON> ref_right_bound_fp; // Right wall bound [m], raw QP.
 
     uint32_t crc32;            // IEEE CRC32 over packet bytes with this field zeroed.
 };
@@ -69,9 +61,9 @@ struct ControlPacket {
     int32_t source_stamp_sec;   // Echoed ROS pipeline token stamp sec.
     uint32_t source_stamp_nanosec; // Echoed ROS pipeline token stamp nanosec.
 
-    int32_t steering_fp;       // Steering command [rad], Q16.16.
-    int32_t speed_fp;          // Speed command [m/s], Q16.16.
-    int32_t accel_fp;          // Acceleration command [m/s^2], Q16.16.
+    int32_t steering_fp;       // Steering command [rad], raw QP.
+    int32_t speed_fp;          // Speed command [m/s], raw QP.
+    int32_t accel_fp;          // Acceleration command [m/s^2], raw QP.
     uint32_t solver_status;    // Solver status code.
     uint32_t solver_iterations;// Solver iterations for this cycle.
     uint32_t ultra_process_us; // Kria-side processing duration [us].
