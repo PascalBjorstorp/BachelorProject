@@ -65,6 +65,7 @@ class RaceCar(object):
         time_step=0.01,
         num_beams=1080,
         fov=4.7,
+        lidar_dist=0.0,
     ):
         """
         TODO rewrite it
@@ -96,6 +97,7 @@ class RaceCar(object):
         self.time_step = time_step
         self.num_beams = num_beams
         self.fov = fov
+        self.lidar_dist = float(lidar_dist)
         self.integrator = integrator
         self.action_type = action_type
         self.model = model
@@ -110,6 +112,7 @@ class RaceCar(object):
         # control inputs
         self.accel = 0.0
         self.steer_angle_vel = 0.0
+        self.accel_applied = 0.0
 
         # steering delay buffer
         self.steer_buffer = np.empty((0,))
@@ -200,6 +203,7 @@ class RaceCar(object):
         # clear control inputs
         self.accel = 0.0
         self.steer_angle_vel = 0.0
+        self.accel_applied = 0.0
         # clear collision indicator
         self.in_collision = False
         # init state from pose
@@ -302,19 +306,53 @@ class RaceCar(object):
             action=(vel, steer), state=self.state, params=self.params
         )
 
+        if self.params.get("realistic_plant_enabled", False) and self.params.get(
+            "realistic_actuation_enabled", False
+        ):
+            gain = (
+                self.params.get("accel_gain_pos", 1.0)
+                if accl >= 0.0
+                else self.params.get("accel_gain_neg", 1.0)
+            )
+            target = accl * gain
+            tau = (
+                self.params.get("accel_tau_pos", 0.0)
+                if target >= 0.0
+                else self.params.get("accel_tau_neg", 0.0)
+            )
+            if tau > 1.0e-6:
+                alpha = min(self.time_step / tau, 1.0)
+                self.accel_applied += alpha * (target - self.accel_applied)
+            else:
+                self.accel_applied = target
+            accl = self.accel_applied
+
         u_np = np.array([sv, accl])
 
         f_dynamics = self.model.f_dynamics
         self.state = self.integrator.integrate(
             f=f_dynamics, x=self.state, u=u_np, dt=self.time_step, params=self.params
         )
+        if self.params.get("realistic_plant_enabled", False):
+            self.state[2] = np.clip(
+                self.state[2], self.params["s_min"], self.params["s_max"]
+            )
+            if self.params.get("clamp_velocity_state", False):
+                self.state[3] = np.clip(
+                    self.state[3], self.params["v_min"], self.params["v_max"]
+                )
 
         # bound yaw angle
         self.state[4] %= 2 * np.pi  # TODO: This is a problem waiting to happen
 
-        # update scan
+        # update scan from the laser frame, matching the published scan frame
         current_scan = self.scan_simulator.scan(
-            np.append(self.state[0:2], self.state[4]), self.scan_rng
+            np.array([
+                self.state[0] + self.lidar_dist * np.cos(self.state[4]),
+                self.state[1] + self.lidar_dist * np.sin(self.state[4]),
+                self.state[4],
+            ]),
+            self.scan_rng,
         )
 
         return current_scan
@@ -393,6 +431,7 @@ class Simulator(object):
         model=DynamicModel.ST,
         time_step=0.01,
         ego_idx=0,
+        lidar_dist=0.0,
     ):
         """
         Init function
@@ -420,6 +459,7 @@ class Simulator(object):
         self.collisions = np.zeros((self.num_agents,))
         self.collision_idx = -1 * np.ones((self.num_agents,))
         self.model = model
+        self.lidar_dist = float(lidar_dist)
 
         # initializing agents
         for i in range(self.num_agents):
@@ -431,6 +471,7 @@ class Simulator(object):
                 integrator=integrator,
                 model=model,
                 action_type=action_type,
+                lidar_dist=self.lidar_dist,
             )
             self.agents.append(car)
 

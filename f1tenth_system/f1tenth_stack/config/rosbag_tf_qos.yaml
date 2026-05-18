@@ -117,3 +117,9 @@
   depth: 100
   reliability: reliable
   durability: volatile
+
+/mpc_state:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
+  durability: volatile

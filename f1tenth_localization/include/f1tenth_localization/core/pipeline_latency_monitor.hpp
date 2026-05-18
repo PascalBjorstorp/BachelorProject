@@ -23,9 +23,9 @@ namespace f1tenth_localization
  * Subscribes to:
  *   /scan         — raw LiDAR (pipeline start)
  *   /amcl_pose    — AMCL output (same header.stamp as /scan)
- *   /ekf_pose     — EKF correction output matched by scan/amcl stamp
- *   /drive        — controller output matched by header stamp
- *   /ackermann_cmd — mux output matched by header stamp
+ *   /ekf_pose     — EKF output matched by scan/amcl stamp or first post-AMCL output
+ *   /drive        — controller output matched by EKF header stamp
+ *   /ackermann_cmd — mux output matched by drive header stamp
  *   /amcl_particle_count — AMCL active particle count
  *
  * Prints per-cycle:
@@ -51,6 +51,9 @@ private:
     double ekf_recv_ns{0.0};
     double drive_recv_ns{0.0};
     double ackermann_recv_ns{0.0};
+    int64_t ekf_stamp_key{0};
+    int64_t drive_stamp_key{0};
+    int64_t ackermann_stamp_key{0};
     int32_t amcl_particle_count{-1};
     bool   has_scan{false};
     bool   has_amcl{false};
@@ -127,7 +130,8 @@ private:
   std::vector<double> acc_scan_to_ackermann_;
 
   struct PendingStageEntry {
-    int64_t key{0};
+    int64_t key{0};          // scan/amcl pipeline key used for final reporting
+    int64_t stamp_key{0};    // header stamp expected on the next stage
     double stage_recv_ns{0.0};
   };
 

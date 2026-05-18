@@ -6,6 +6,7 @@ Project context assumed here:
 
 - Vehicle: F1TENTH-scale Ackermann car.
 - Track: approximately 10 m by 30 m.
+- Track geometry: bounded indoor racetrack with many continuous/curved wall sections and some repeated wall-like structure.
 - Speed range: approximately 2 m/s to 10 m/s.
 - Sensors for localization: 2D LiDAR and VESC-based odometry.
 - Chosen localization approach: Adaptive Monte Carlo Localization (AMCL), using odometry as the motion proposal and LiDAR against a known occupancy map.
@@ -14,13 +15,18 @@ Project context assumed here:
 
 The related-work section should not read like a history of every localization paper. It should explain the main algorithm families that were realistic choices for this project, compare their assumptions, and lead naturally to AMCL.
 
+Writing structure:
+
+- The algorithm subsections should mainly explain how each method works.
+- Project-specific strengths, weaknesses, racetrack geometry effects, initialization requirements, and kidnapped-robot/global-recovery issues should be discussed in the method-selection subsection.
+
 Suggested final narrative:
 
 1. Localization must estimate planar pose `(x, y, yaw)` fast enough for closed-loop racing.
 2. VESC ERPM/steering odometry gives high-rate short-term motion but drifts because small systematic and non-systematic errors accumulate over distance [Borenstein1996OdometryErrors, Borenstein1997Positioning].
 3. LiDAR can correct this drift by comparing range measurements with either previous scans, extracted map features, an NDT representation, or an occupancy grid likelihood model [Lu1997ScanMatching, Zhang2000LineSegments, Biber2003NDT, Dellaert1999MCL].
 4. For this project, a known map and repeated laps make a map-based probabilistic method attractive.
-5. Odometry and LiDAR alone do not uniquely imply AMCL: scan matching and NDT can also use odometry as the initial guess and LiDAR as the correction measurement. The reason to choose AMCL is instead its occupancy-map likelihood model, particle-based uncertainty representation, and tunable computation through particle count [Dellaert1999MCL, Thrun2001RobustMCL, Fox2003KLD].
+5. Odometry and LiDAR alone do not uniquely imply AMCL: scan-to-map matching, ICP variants, and NDT can also use odometry as the initial guess and LiDAR as the correction measurement. The reason to choose AMCL is instead its occupancy-map likelihood model, particle-based uncertainty representation, multiple pose hypotheses, and tunable computation through particle count [Dellaert1999MCL, Thrun2001RobustMCL, Fox2003KLD].
 6. The final pose estimate in this project is produced by an Extended Kalman Filter (EKF): odometry is used for high-rate prediction and AMCL pose is used as the map-based correction measurement [Kalman1960Filter, Ahmad2013EKFLocalization].
 
 ## 2. LiDAR Localization Algorithms
@@ -38,35 +44,24 @@ Use the lectures as the structure of the explanation. Use the papers below as th
 
 Core idea:
 
-- Estimate the vehicle pose by aligning a 2D LiDAR scan with a previous scan or a map.
-- Iterative Closest Point (ICP) alternates between finding point correspondences and solving for the rigid transform that minimizes alignment error [Besl1992ICP].
-- In 2D LiDAR localization, scan matching is often used as a local pose update, usually initialized by odometry [Lu1997ScanMatching].
+- Estimate the vehicle pose by aligning the current 2D LiDAR scan with either another scan or a stored map.
+- Because this project already has a prior occupancy map, the relevant baseline for comparison with AMCL is scan-to-map matching rather than pure scan-to-scan matching.
+- ICP is one possible scan-matching algorithm, not a synonym for scan-to-scan matching. It can align scan-to-scan or scan-to-map by alternating between correspondence search and solving for the rigid transform that minimizes alignment error [Besl1992ICP].
+- In 2D LiDAR localization, scan-to-map matching is often used as a local pose correction, usually initialized by odometry [Lu1997ScanMatching].
 - The F1TENTH lectures introduce scan matching first because it is the direct geometric way to use LiDAR range measurements for localization [F1TENTHLecture09].
 
 Points to explain:
 
 - Scan matching is a local optimization problem.
 - It normally needs a good initial pose estimate from odometry.
-- Correspondence search is central: wrong correspondences cause bad pose updates.
+- Correspondence search is central: wrong scan-to-map correspondences cause bad pose updates.
 - Point-to-line ICP improves the error metric for 2D laser scan matching by comparing scan points to local line structure rather than only point-to-point distances [Censi2008PLICP].
-
-Pros for this project:
-
-- Uses raw LiDAR geometry directly.
-- High update rate is possible in 2D.
-- Good for short-term local correction when odometry already gives a close initial pose.
-- Easy to explain from the F1TENTH scan-matching lectures.
-
-Cons for this project:
-
-- Pure scan-to-scan matching can still drift because it estimates relative motion.
-- Scan-to-map matching can fail if initialized too far from the true pose.
-- Repeated straights and similar wall shapes on a small racetrack can create local minima.
-- Dynamic obstacles and partial occlusions can corrupt correspondences.
+- A local scan matcher normally produces one optimized pose estimate per update, not a distribution over several possible poses.
+- If the initial pose is too far from the true pose, or if the robot is "kidnapped" and placed somewhere unexpected, a local scan matcher needs a separate global initialization/recovery mechanism.
 
 Likely conclusion:
 
-- Scan matching is a strong local LiDAR localization baseline, but it produces a single registration result and does not naturally represent uncertainty over multiple possible poses.
+- With a known map, scan-to-map matching is the strongest and fairest scan-matching baseline against AMCL. The key algorithmic difference is that local scan matching returns one registration optimum, while AMCL keeps many weighted pose hypotheses.
 
 ### 2.2 Fast Correspondence Search and Runtime
 
@@ -84,18 +79,6 @@ Points to explain:
 - The same runtime issue appears in particle-filter LiDAR sensor models, where many particles require many ray casts or likelihood evaluations.
 - Course-referenced CDDT work shows why accelerating occupancy-grid ray casting is important for particle-filter localization on embedded hardware [Walsh2017CDDT].
 - In this project, runtime is improved differently: the implemented sensor model uses a precomputed Euclidean distance transform (EDT), subsampled beams, and GPU-parallel likelihood evaluation.
-
-Pros for this project:
-
-- Makes local scan matching and particle-filter sensor updates feasible at higher rates.
-- Reduces CPU/GPU budget pressure.
-- Helps keep localization latency bounded.
-
-Cons for this project:
-
-- Approximate or discretized correspondence/ray-casting methods can introduce small measurement errors.
-- More complex acceleration structures increase implementation complexity.
-- This is usually an enabling technique, not a complete localization method by itself.
 
 Likely conclusion:
 
@@ -120,33 +103,6 @@ Points to explain:
 - In this project, AMCL is configured as a local localization method initialized near the expected pose. Therefore the report should not claim demonstrated global localization or global recovery unless that mode is actually tested.
 - Robust variants improve behavior under localization failure and dynamic environments by modifying how samples are generated [Thrun2001RobustMCL].
 
-Pros for this project:
-
-- Internally combines VESC odometry prediction with 2D LiDAR map weighting.
-- Works naturally with a known 2D occupancy map.
-- Can correct odometry drift every LiDAR update.
-- Can represent local pose uncertainty after ambiguous sections better than a single-pose scan matcher.
-- Particle count gives a clear computation/accuracy tradeoff for the Jetson/CPU/GPU budget.
-- Likelihood-field weighting avoids ray casting expected ranges for every particle and beam.
-- GPU implementation parallelizes particle/beam likelihood evaluation.
-
-Cons for this project:
-
-- Requires a good map and reasonable LiDAR-map calibration.
-- Bad motion-model covariance can cause lag, particle depletion, or poor recovery.
-- More particles increase compute cost and latency.
-- Symmetric tracks can still produce ambiguous hypotheses until distinctive geometry is seen.
-- In the tested local configuration, AMCL does not provide a separate global relocalization mechanism.
-- Likelihood-field models can be less physically exact than ray-casting beam models because they score measured endpoints by nearest-obstacle distance rather than comparing measured and expected range along each beam.
-
-Why this leads to our choice:
-
-- The sensor pair is not unique to AMCL. Scan matching and NDT can also use odometry plus LiDAR.
-- AMCL was selected because it uses the existing 2D occupancy map directly and gives a particle-based probabilistic correction instead of only a single local scan-registration optimum.
-- The environment is bounded and known, so a map-based method is reasonable.
-- The car speed makes pure odometry too drift-prone, while pure local scan matching is fragile under ambiguity.
-- AMCL gives the desired compromise: practical implementation, probabilistic local uncertainty, map-based drift correction, and tunable runtime.
-
 Implementation note for report:
 
 - Say: "The implemented AMCL uses a likelihood-field LiDAR model with a precomputed Euclidean distance transform and GPU-parallel particle weighting."
@@ -169,22 +125,9 @@ Points to explain:
 - Like ICP, it is usually local optimization and still needs a reasonable initial pose estimate.
 - Cell size affects performance: too coarse loses detail, too fine becomes sparse/noisy [Biber2003NDT].
 
-Pros for this project:
-
-- No explicit point-to-point correspondence search.
-- Can be fast and stable when the map has enough geometric structure.
-- Good candidate for scan-to-map localization if an NDT map is available.
-
-Cons for this project:
-
-- Needs tuning of grid/cell resolution.
-- Still has local-minimum risk.
-- Does not by itself maintain multiple pose hypotheses unless wrapped in a probabilistic filter.
-- Less directly aligned with standard 2D occupancy-grid AMCL tooling.
-
 Likely conclusion:
 
-- NDT is a strong scan-registration alternative to ICP-style matching. It is useful to mention as extra research, but AMCL better matches the implemented occupancy-map particle-filter pipeline.
+- NDT is a strong scan-registration alternative to ICP-style matching. Like local ICP, standalone NDT normally returns one local optimum unless it is wrapped in a broader probabilistic or multi-hypothesis framework.
 
 ### 2.5 Feature-Based LiDAR Localization
 
@@ -198,10 +141,11 @@ Core idea:
 - Extract geometric features such as line segments, corners, or breakpoints from 2D LiDAR scans.
 - Match extracted features to a feature map or to features from earlier scans.
 - Estimate pose from the matched feature correspondences [Gonzalez1992Iconic, Zhang2000LineSegments, Borges2004LineExtraction, Nguyen2005LineExtraction].
+- In environments with curved boundaries, a feature method can either approximate curves with multiple short line segments or use higher-level curve/arc features if the method supports them.
 
 Likely conclusion:
 
-- Feature methods are compact and interpretable, but feature extraction and association add tuning risk on a small racetrack with repeated wall-like geometry. Keep this shorter than scan matching, AMCL, and NDT unless the examiner expects a full taxonomy.
+- Feature-based localization should be presented as a sparse geometric alternative to dense scan/map matching. The racetrack-specific strengths and weaknesses should be discussed in method selection rather than in the algorithm explanation.
 
 ## 3. Odometry / Motion Models
 
@@ -347,11 +291,11 @@ Likely conclusion:
 | Simple odometry | VESC ERPM-derived speed, steering/yaw | Relative pose | Fast, high-rate | Unbounded drift | Good as EKF prediction only |
 | Kinematic bicycle | Speed, steering, wheelbase | Relative pose | Simple Ackermann model | No lateral slip | Good EKF prediction model |
 | Dynamic bicycle | Speed, steering, tire/vehicle params, maybe IMU | Relative pose/state | Better high-speed physics | Hard calibration | Possible future upgrade |
-| Scan matching | Consecutive scans or scan + map | Relative/local pose | Uses raw geometry | Local minima, drift | Good baseline/local tracker |
+| Scan-to-map matching / ICP | LiDAR scan + known map, initialized by odometry | One optimized local pose | Uses raw geometry and same prior map as AMCL | Local minima, needs initialization/global recovery | Fair scan-matching baseline |
 | Fast correspondence / ray-casting acceleration | Scan/map queries | Faster LiDAR matching or weighting | Lower latency | Not localization by itself | Related support method; CDDT not implemented |
-| NDT | Scan + NDT grid/map | Local pose | Smooth, no explicit correspondences | Needs cell tuning, local optimum | Strong alternative |
-| AMCL | Odometry + LiDAR + occupancy map | Probabilistic local/map pose in this project | Likelihood-field EDT, particle uncertainty, map correction | Particle compute, map needed | Chosen LiDAR-map method |
-| Feature-based | Extracted lines/corners | Pose from matched features | Compact/interpretable | Data association fragile | Optional short background |
+| NDT | Scan + NDT grid/map | One optimized local pose | Smooth, no explicit correspondences | Needs cell tuning, local optimum | Strong scan-to-map alternative |
+| AMCL | Odometry + LiDAR + occupancy map | Weighted pose hypotheses, final pose estimate | Likelihood-field EDT, particle uncertainty, map correction | Particle compute, map needed, recovery must be configured/tested | Chosen LiDAR-map method |
+| Feature-based | Extracted lines/corners/curves + feature map | Pose from matched features | Compact/interpretable | Curved walls can fragment line features; data association fragile | Optional short background |
 | EKF | Odom pose + AMCL pose | Fused pose | High-rate prediction plus map correction | Gaussian/unimodal, covariance tuning | Final output layer |
 
 ## 6. Proposed Thesis Subsection Structure
@@ -418,6 +362,18 @@ Sources:
 - State why AMCL is selected as the LiDAR-map localization method.
 - State why EKF is used as the final fusion/output layer.
 - Mention expected limitations: map quality, particle count, covariance tuning, latency.
+
+Project-specific comparison points:
+
+- Because a prior map is available, the fair scan-matching baseline is scan-to-map matching, not pure scan-to-scan ICP. This gives scan matching the same map information that AMCL uses.
+- Scan-to-map ICP/NDT and AMCL can all use odometry as the prediction or initial guess and LiDAR as the map correction. The distinction is therefore not the sensor pair, but the belief representation and recovery behavior.
+- A local scan matcher normally optimizes one pose estimate. This can be accurate and fast when odometry initializes it close to the true pose, but it can converge to a wrong local optimum in repeated or weakly distinctive geometry.
+- AMCL maintains many weighted pose hypotheses. This lets it represent ambiguous pose beliefs better than a single-pose scan matcher and gives a natural mechanism for global localization if particles are initialized over the full map.
+- The kidnapped-robot issue should be stated explicitly. Any local method needs either a good initial pose, manual reinitialization, or a separate global recovery mechanism. AMCL can support global recovery by injecting or spreading particles globally, but the report should only claim this if the implemented configuration actually enables and tests it.
+- For this racetrack, curved walls are not automatically bad for LiDAR localization: dense scan-to-map or likelihood-field methods can use many beam endpoints along the curves. They may even benefit from smooth continuous geometry.
+- Curved walls are more problematic for simple line-feature localization. A line-based feature extractor may split curves into many short unstable segments, and smooth curves may provide fewer sharp corners. A feature method could use arc/curve features, but that adds extraction and data-association complexity.
+- Repeated track sections, similar wall spacing, and symmetric turns can still create ambiguity for all LiDAR-map methods until the car observes sufficiently distinctive geometry.
+- If the car always starts from a known pose before each run, local initialization may be acceptable. If crashes, manual resets, or kidnapped-robot recovery are part of the requirements, the chosen method must include a tested relocalization path.
 
 Sources:
 

@@ -5,6 +5,23 @@ from numba.typed import Dict
 from .utils import steering_constraint, accl_constraints
 
 
+def _param(params: dict, key: str, fallback: float) -> float:
+    value = params.get(key, fallback)
+    return fallback if value is None else value
+
+
+def _smoothstep_abs(value: float, start: float, end: float) -> float:
+    mag = np.fabs(value)
+    if end <= start:
+        return 1.0 if mag >= end else 0.0
+    if mag <= start:
+        return 0.0
+    if mag >= end:
+        return 1.0
+    t = (mag - start) / (end - start)
+    return t * t * (3.0 - 2.0 * t)
+
+
 def vehicle_dynamics_st(x: np.ndarray, u_init: np.ndarray, params: dict):
     """
     Single Track Vehicle Dynamics.
@@ -56,6 +73,7 @@ def vehicle_dynamics_st(x: np.ndarray, u_init: np.ndarray, params: dict):
 
     # gravity constant m/s^2
     g = 9.81
+    realistic_plant = bool(params.get("realistic_plant_enabled", False))
 
     # constraints
     u = np.array(
@@ -86,11 +104,14 @@ def vehicle_dynamics_st(x: np.ndarray, u_init: np.ndarray, params: dict):
     if V < 0.5:
         # wheelbase
         lwb = params["lf"] + params["lr"]
-        BETA_HAT = np.arctan(np.tan(DELTA) * params["lr"] / lwb)
+        steer_gain = _param(params, "steer_gain", 1.0) if realistic_plant else 1.0
+        delta_eff = steer_gain * DELTA
+        steer_vel_eff = steer_gain * STEER_VEL
+        BETA_HAT = np.arctan(np.tan(delta_eff) * params["lr"] / lwb)
         BETA_DOT = (
-            (1 / (1 + (np.tan(DELTA) * (params["lr"] / lwb)) ** 2))
-            * (params["lr"] / (lwb * np.cos(DELTA) ** 2))
-            * STEER_VEL
+            (1 / (1 + (np.tan(delta_eff) * (params["lr"] / lwb)) ** 2))
+            * (params["lr"] / (lwb * np.cos(delta_eff) ** 2))
+            * steer_vel_eff
         )
         f = np.array(
             [
@@ -98,12 +119,12 @@ def vehicle_dynamics_st(x: np.ndarray, u_init: np.ndarray, params: dict):
                 V * np.sin(PSI + BETA_HAT),  # Y_DOT
                 STEER_VEL,  # DELTA_DOT
                 ACCL,  # V_DOT
-                V * np.cos(BETA_HAT) * np.tan(DELTA) / lwb,  # PSI_DOT
+                V * np.cos(BETA_HAT) * np.tan(delta_eff) / lwb,  # PSI_DOT
                 (1 / lwb)
                 * (
-                    ACCL * np.cos(BETA) * np.tan(DELTA)
-                    - V * np.sin(BETA) * np.tan(DELTA) * BETA_DOT
-                    + ((V * np.cos(BETA) * STEER_VEL) / (np.cos(DELTA) ** 2))
+                    ACCL * np.cos(BETA) * np.tan(delta_eff)
+                    - V * np.sin(BETA) * np.tan(delta_eff) * BETA_DOT
+                    + ((V * np.cos(BETA) * steer_vel_eff) / (np.cos(delta_eff) ** 2))
                 ),  # PSI_DOT_DOT
                 BETA_DOT,  # BETA_DOT
             ]
@@ -128,20 +149,108 @@ def vehicle_dynamics_st(x: np.ndarray, u_init: np.ndarray, params: dict):
         Fzf = params["m"] * (g * params["lr"] - ACCL * params["h"]) / lwb
         Fzr = params["m"] * (g * params["lf"] + ACCL * params["h"]) / lwb
 
+        steer_gain = _param(params, "steer_gain", 1.0) if realistic_plant else 1.0
+        steer_gain_high_slip = _param(params, "steer_gain_high_slip", steer_gain)
+        slip_blend_start_front = _param(params, "slip_blend_start_front", 1.0e9)
+        slip_blend_end_front = _param(params, "slip_blend_end_front", 1.0e9)
+        alpha_f_raw = steer_gain * DELTA - np.arctan2(
+            vy + params["lf"] * PSI_DOT, vx_safe
+        )
+        steer_blend = _smoothstep_abs(
+            alpha_f_raw, slip_blend_start_front, slip_blend_end_front
+        ) if realistic_plant else 0.0
+        steer_gain_eff = steer_gain + (steer_gain_high_slip - steer_gain) * steer_blend
+        delta_eff = steer_gain_eff * DELTA
+
         # Full atan-based slip angles
-        alpha_f = DELTA - np.arctan2(vy + params["lf"] * PSI_DOT, vx_safe)
+        alpha_f = delta_eff - np.arctan2(vy + params["lf"] * PSI_DOT, vx_safe)
         alpha_r = -np.arctan2(vy - params["lr"] * PSI_DOT, vx_safe)
 
-        # Lateral tire forces (linear cornering stiffness × atan slip angles)
-        Fyf = params["mu"] * params["C_Sf"] * alpha_f * Fzf
-        Fyr = params["mu"] * params["C_Sr"] * alpha_r * Fzr
+        mu_front = _param(params, "mu_front", params["mu"])
+        mu_rear = _param(params, "mu_rear", params["mu"])
+        C_Sf_eff = params["C_Sf"]
+        C_Sr_eff = params["C_Sr"]
+        combined_scale = 1.0
+        front_peak_scale = 1.0
+        accel_usage = min(np.fabs(ACCL) / max(params["a_max"], 1.0e-6), 1.0)
+
+        if realistic_plant:
+            C_Sf_high = _param(params, "C_Sf_high_slip", C_Sf_eff)
+            C_Sr_high = _param(params, "C_Sr_high_slip", C_Sr_eff)
+            slip_blend_start_rear = _param(
+                params, "slip_blend_start_rear", slip_blend_start_front
+            )
+            slip_blend_end_rear = _param(
+                params, "slip_blend_end_rear", slip_blend_end_front
+            )
+            C_Sf_eff = C_Sf_eff + (C_Sf_high - C_Sf_eff) * _smoothstep_abs(
+                alpha_f, slip_blend_start_front, slip_blend_end_front
+            )
+            C_Sr_eff = C_Sr_eff + (C_Sr_high - C_Sr_eff) * _smoothstep_abs(
+                alpha_r, slip_blend_start_rear, slip_blend_end_rear
+            )
+
+            combined_gain = _param(params, "combined_slip_gain", 0.0)
+            combined_scale = max(1.0 - combined_gain * accel_usage, 0.30)
+
+            front_drop = _param(params, "front_peak_drop", 0.0)
+            front_drop_start = _param(params, "front_peak_drop_start", 1.0e9)
+            front_drop_end = _param(params, "front_peak_drop_end", 1.0e9)
+            front_drop_pow = _param(params, "front_peak_drop_pow", 1.0)
+            front_peak_floor = _param(params, "front_peak_floor", 0.30)
+            front_drop_blend = _smoothstep_abs(alpha_f, front_drop_start, front_drop_end)
+            if front_drop_pow > 1.0:
+                front_drop_blend = front_drop_blend ** front_drop_pow
+            front_peak_scale = max(1.0 - front_drop * front_drop_blend, front_peak_floor)
+
+            front_combined_gain = _param(params, "front_combined_gain", 0.0)
+            front_combined_scale = max(
+                1.0 - front_combined_gain * accel_usage * front_drop_blend,
+                front_peak_floor,
+            )
+            front_peak_scale *= front_combined_scale
+
+        # Lateral tire forces
+        if realistic_plant and bool(params.get("pacejka_tires_enabled", True)):
+            pacejka_c_front = _param(
+                params, "pacejka_c_front", _param(params, "pacejka_c", 1.9)
+            )
+            pacejka_c_rear = _param(
+                params, "pacejka_c_rear", _param(params, "pacejka_c", 1.9)
+            )
+            B_f = C_Sf_eff / max(pacejka_c_front, 1.0e-6)
+            B_r = C_Sr_eff / max(pacejka_c_rear, 1.0e-6)
+            D_f = mu_front * Fzf * front_peak_scale
+            D_r = mu_rear * Fzr
+            Fyf = combined_scale * D_f * np.sin(
+                pacejka_c_front * np.arctan(B_f * alpha_f)
+            )
+            Fyr = combined_scale * D_r * np.sin(
+                pacejka_c_rear * np.arctan(B_r * alpha_r)
+            )
+        else:
+            Fyf = (
+                combined_scale * mu_front * front_peak_scale
+                * C_Sf_eff * alpha_f * Fzf
+            )
+            Fyr = combined_scale * mu_rear * C_Sr_eff * alpha_r * Fzr
 
         # Longitudinal force from acceleration command
         Fx = params["m"] * ACCL
+        if realistic_plant and bool(params.get("realistic_drive_enabled", True)):
+            Fx -= _param(params, "roll_resistance_n", 0.0)
+            v_abs = np.fabs(vx)
+            a_drag = (
+                _param(params, "drag_c0", 0.0)
+                + _param(params, "drag_c1", 0.0) * v_abs
+                + _param(params, "drag_c2", 0.0) * v_abs * v_abs
+            )
+            if a_drag > 0.0:
+                Fx -= params["m"] * a_drag
 
         # cos/sin of steering angle for force resolution
-        cos_delta = np.cos(DELTA)
-        sin_delta = np.sin(DELTA)
+        cos_delta = np.cos(delta_eff)
+        sin_delta = np.sin(delta_eff)
 
         # Body dynamics with cos(δ)/sin(δ) force resolution
         # dvx/dt = (Fx - Fyf*sin(δ) + m*vy*ω) / m

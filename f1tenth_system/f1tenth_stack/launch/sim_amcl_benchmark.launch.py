@@ -42,6 +42,11 @@ def _launch_setup(context, *args, **kwargs):
     if localizer not in ('gpu', 'nav2'):
         raise RuntimeError("localizer must be 'gpu' or 'nav2'")
 
+    headless_value = LaunchConfiguration('headless').perform(context)
+    headless = str(headless_value).strip().lower() in ('true', '1', 'yes')
+    realistic_value = LaunchConfiguration('realistic_plant').perform(context)
+    realistic_plant = str(realistic_value).strip().lower() in ('true', '1', 'yes')
+
     output_dir = LaunchConfiguration('output_dir').perform(context)
     pipeline_dir = os.path.join(output_dir, 'pipeline')
     system_dir = os.path.join(output_dir, 'system')
@@ -51,11 +56,62 @@ def _launch_setup(context, *args, **kwargs):
     stack_pkg = get_package_share_directory('f1tenth_stack')
     sim_pkg = get_package_share_directory('f1tenth_gym_ros')
     lidar_pkg = get_package_share_directory('f1tenth_lidar')
+    mpc_pkg = get_package_share_directory('mpc_riccati')
 
     gpu_params = os.path.join(loc_pkg, 'config', 'gpu_amcl_cpp_params.yaml')
     nav2_params = os.path.join(loc_pkg, 'config', 'nav2_amcl_params.yaml')
+    rviz_config = os.path.join(loc_pkg, 'config', 'amcl_bag_visualization.rviz')
     sim_config = os.path.join(sim_pkg, 'config', 'sim.yaml')
     mux_config = os.path.join(stack_pkg, 'config', 'mux.yaml')
+    realistic_vehicle_params = {'realistic_plant_enabled': realistic_plant}
+    if realistic_plant:
+        realistic_vehicle_params.update({
+            # Defaults copied from MPC/test/test_sim_drive.c via tune_realistic_v2.py.
+            'vehicle_mu': 0.6652002785524997,
+            'vehicle_mu_front': 0.775687,
+            'vehicle_mu_rear': 0.6565520426481404,
+            'vehicle_m': 3.57912,
+            'vehicle_I': 0.035,
+            'vehicle_C_Sf': 4.78281642069513,
+            'vehicle_C_Sr': 2.73123678240426,
+            'vehicle_C_Sf_high_slip': 2.4199490875105907,
+            'vehicle_C_Sr_high_slip': 2.73123678240426,
+            'vehicle_lf': 0.166,
+            'vehicle_lr': 0.16,
+            'vehicle_h': 0.0703,
+            'vehicle_s_max': 0.39,
+            'vehicle_sv_max': 2.8492,
+            'vehicle_steer_gain': 1.0085301459687404,
+            'vehicle_steer_gain_high_slip': 0.6541720766809247,
+            'vehicle_a_max': 7.31,
+            'vehicle_v_switch': 7.319,
+            'vehicle_v_min': 0.5,
+            'vehicle_v_max': 21.6,
+            'vehicle_roll_resistance_n': 2.79,
+            'vehicle_drag_c0': 0.0,
+            'vehicle_drag_c1': 0.05,
+            'vehicle_drag_c2': 0.04,
+            'vehicle_accel_tau_pos': 0.05,
+            'vehicle_accel_tau_neg': 0.12,
+            'vehicle_accel_gain_pos': 0.575,
+            'vehicle_accel_gain_neg': 1.0,
+            'vehicle_pacejka_c': 1.6041121492252324,
+            'vehicle_pacejka_c_front': 1.8031639754063644,
+            'vehicle_pacejka_c_rear': 1.7681655069132207,
+            'vehicle_slip_blend_start_front': 0.1643527788471148,
+            'vehicle_slip_blend_end_front': 0.5319307735091576,
+            'vehicle_slip_blend_start_rear': 0.2502122916247753,
+            'vehicle_slip_blend_end_rear': 0.47793678552502167,
+            'vehicle_combined_slip_gain': 0.10359393575265835,
+            'vehicle_front_peak_drop': 0.11804981810838257,
+            'vehicle_front_peak_drop_start': 0.13813810031946996,
+            'vehicle_front_peak_drop_end': 0.48938120479012814,
+            'vehicle_front_peak_drop_pow': 1.03,
+            'vehicle_front_combined_gain': 0.13366870620631957,
+            'vehicle_front_peak_floor': 0.2708096984131235,
+            'vehicle_clamp_velocity_state': True,
+            'realistic_actuation_enabled': True,
+        })
 
     actions = [
         SetEnvironmentVariable('MPC_ODOM_TOPIC', '/ego_racecar/odom'),
@@ -108,10 +164,13 @@ def _launch_setup(context, *args, **kwargs):
                     'odom_frame_id': 'ego_racecar/odom',
                     'map_path': LaunchConfiguration('map_file'),
                     'ego_drive_topic': LaunchConfiguration('sim_drive_topic'),
+                    'drive_uses_acceleration_field': _bool_config(
+                        'sim_drive_uses_acceleration_field'),
                     'sx': _float_config('initial_pose_x'),
                     'sy': _float_config('initial_pose_y'),
                     'stheta': _float_config('initial_pose_yaw'),
                 },
+                realistic_vehicle_params,
             ],
         ),
 
@@ -154,15 +213,27 @@ def _launch_setup(context, *args, **kwargs):
             executable='ekf_localization_node',
             name='ekf_localization',
             output='screen',
-            parameters=[gpu_params, {'use_sim_time': _bool_config('use_sim_time')}],
+            parameters=[
+                gpu_params,
+                {
+                    'use_sim_time': _bool_config('use_sim_time'),
+                    'transform_tolerance': _float_config('ekf_transform_tolerance'),
+                    'process_noise_scale': _float_config('ekf_process_noise_scale'),
+                },
+            ],
         ),
 
-        Node(
-            package='mpc_riccati',
-            executable='mpc_hardware_node',
-            name='mpc_hardware_node',
-            output='screen',
-            emulate_tty=True,
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(mpc_pkg, 'launch', 'mpc_hardware.launch.py')),
+            launch_arguments={
+                'use_local_raceline': 'true',
+                'local_raceline_topic': '/local_raceline',
+                'odom_topic': '/ego_racecar/odom',
+                'drive_topic': '/drive',
+                'pose_topic': '/ekf_pose',
+                'verbose': LaunchConfiguration('mpc_verbose'),
+            }.items(),
         ),
 
         Node(
@@ -195,6 +266,47 @@ def _launch_setup(context, *args, **kwargs):
     ]
 
     if localizer == 'gpu':
+        global_init_value = LaunchConfiguration('amcl_global_initialization').perform(context)
+        gpu_global_initialization = str(global_init_value).strip().lower() in ('true', '1', 'yes')
+        gpu_amcl_overrides = {
+            'use_sim_time': _bool_config('use_sim_time'),
+            'num_particles': _int_config('amcl_num_particles'),
+            'min_particles': _int_config('amcl_min_particles'),
+            'max_particles': _int_config('amcl_max_particles'),
+            'max_beams': _int_config('amcl_max_beams'),
+            'use_kld_sampling': _bool_config('amcl_use_kld'),
+            'update_min_d': _float_config('amcl_update_min_d'),
+            'update_min_a': _float_config('amcl_update_min_a'),
+            'cloud_publish_rate': _float_config('amcl_cloud_publish_rate'),
+            'alpha1': _float_config('amcl_alpha1'),
+            'alpha2': _float_config('amcl_alpha2'),
+            'alpha3': _float_config('amcl_alpha3'),
+            'alpha4': _float_config('amcl_alpha4'),
+            'z_hit': _float_config('amcl_z_hit'),
+            'z_rand': _float_config('amcl_z_rand'),
+            'sigma_hit': _float_config('amcl_sigma_hit'),
+            'resample_threshold': _float_config('amcl_resample_threshold'),
+            'normalize_likelihood_by_beams': _bool_config(
+                'amcl_normalize_likelihood_by_beams'),
+            'likelihood_scale': _float_config('amcl_likelihood_scale'),
+            'use_cluster_estimate': _bool_config('amcl_use_cluster_estimate'),
+            'cluster_xy_bin_m': _float_config('amcl_cluster_xy_bin_m'),
+            'cluster_radius_m': _float_config('amcl_cluster_radius_m'),
+            'cluster_iterations': _int_config('amcl_cluster_iterations'),
+            'cluster_min_covariance': _float_config('amcl_cluster_min_covariance'),
+            'cluster_publish_min_weight': _float_config('amcl_cluster_publish_min_weight'),
+            'debug_pre_resample_particles': _bool_config(
+                'amcl_debug_pre_resample_particles'),
+            'global_initialization': _bool_config('amcl_global_initialization'),
+            'global_heading_trajectory_file': LaunchConfiguration('trajectory_file'),
+        }
+        if not gpu_global_initialization:
+            gpu_amcl_overrides.update({
+                'initial_pose_x': _float_config('initial_pose_x'),
+                'initial_pose_y': _float_config('initial_pose_y'),
+                'initial_pose_a': _float_config('initial_pose_yaw'),
+            })
+
         actions.append(
             Node(
                 package='f1tenth_localization',
@@ -203,19 +315,7 @@ def _launch_setup(context, *args, **kwargs):
                 output='screen',
                 parameters=[
                     gpu_params,
-                    {
-                        'use_sim_time': _bool_config('use_sim_time'),
-                        'num_particles': _int_config('amcl_num_particles'),
-                        'min_particles': _int_config('amcl_min_particles'),
-                        'max_particles': _int_config('amcl_max_particles'),
-                        'max_beams': _int_config('amcl_max_beams'),
-                        'use_kld_sampling': _bool_config('amcl_use_kld'),
-                        'global_initialization': _bool_config(
-                            'amcl_global_initialization'),
-                        'initial_pose_x': _float_config('initial_pose_x'),
-                        'initial_pose_y': _float_config('initial_pose_y'),
-                        'initial_pose_a': _float_config('initial_pose_yaw'),
-                    },
+                    gpu_amcl_overrides,
                 ],
             )
         )
@@ -271,6 +371,8 @@ def _launch_setup(context, *args, **kwargs):
             '--trajectory-file', LaunchConfiguration('trajectory_file'),
             '--max-laps', LaunchConfiguration('max_laps'),
             '--max-duration-sec', LaunchConfiguration('max_duration_sec'),
+            '--csv-name', LaunchConfiguration('csv_name'),
+            '--status-name', LaunchConfiguration('status_name'),
         ],
     )
     actions.append(logger_node)
@@ -282,6 +384,18 @@ def _launch_setup(context, *args, **kwargs):
             )
         )
     )
+
+    if not headless:
+        actions.append(
+            Node(
+                package='rviz2',
+                executable='rviz2',
+                name='rviz2',
+                output='screen',
+                arguments=['-d', rviz_config],
+                parameters=[{'use_sim_time': _bool_config('use_sim_time')}],
+            )
+        )
 
     return actions
 
@@ -297,6 +411,8 @@ def generate_launch_description():
                               description='gpu or nav2'),
         DeclareLaunchArgument('use_sim_time', default_value='false'),
         DeclareLaunchArgument('headless', default_value='true'),
+        DeclareLaunchArgument('realistic_plant', default_value='true',
+                              description='Use hardware-calibrated plant from MPC tune_realistic_v2.py'),
         DeclareLaunchArgument('map_file', default_value=default_map),
         DeclareLaunchArgument('trajectory_file', default_value=default_trajectory),
         DeclareLaunchArgument(
@@ -304,11 +420,17 @@ def generate_launch_description():
             default_value='f1tenth_localization/Benchmark/Matlab/sim_benchmark'),
         DeclareLaunchArgument('max_laps', default_value='10'),
         DeclareLaunchArgument('max_duration_sec', default_value='0.0'),
-        DeclareLaunchArgument('initial_pose_x', default_value='-0.79'),
-        DeclareLaunchArgument('initial_pose_y', default_value='-4.88'),
-        DeclareLaunchArgument('initial_pose_yaw', default_value='0.641322'),
+        DeclareLaunchArgument('csv_name', default_value='groundtruth_at_ekf.csv'),
+        DeclareLaunchArgument('status_name', default_value='run_status.json'),
+        DeclareLaunchArgument('initial_pose_x', default_value='0.0'),
+        DeclareLaunchArgument('initial_pose_y', default_value='0.0'),
+        DeclareLaunchArgument('initial_pose_yaw', default_value='0.0'),
         DeclareLaunchArgument('sim_drive_topic', default_value='ackermann_cmd',
                               description='Topic consumed by simulator bridge'),
+        DeclareLaunchArgument(
+            'sim_drive_uses_acceleration_field',
+            default_value='true',
+            description='Use AckermannDrive.acceleration as gym acceleration command'),
         DeclareLaunchArgument('lateral_planner_avoidance_enabled',
                               default_value='false'),
         DeclareLaunchArgument('mpc_verbose', default_value='0'),
@@ -317,9 +439,29 @@ def generate_launch_description():
         DeclareLaunchArgument('amcl_max_particles', default_value='1000'),
         DeclareLaunchArgument('amcl_max_beams', default_value='270'),
         DeclareLaunchArgument('amcl_use_kld', default_value='false'),
-        DeclareLaunchArgument('amcl_global_initialization', default_value='false'),
+        DeclareLaunchArgument('amcl_cloud_publish_rate', default_value='0.1'),
+        DeclareLaunchArgument('amcl_normalize_likelihood_by_beams', default_value='true'),
+        DeclareLaunchArgument('amcl_likelihood_scale', default_value='0.75'),
+        DeclareLaunchArgument('amcl_use_cluster_estimate', default_value='true'),
+        DeclareLaunchArgument('amcl_cluster_xy_bin_m', default_value='0.25'),
+        DeclareLaunchArgument('amcl_cluster_radius_m', default_value='0.75'),
+        DeclareLaunchArgument('amcl_cluster_iterations', default_value='3'),
+        DeclareLaunchArgument('amcl_cluster_min_covariance', default_value='0.0001'),
+        DeclareLaunchArgument('amcl_cluster_publish_min_weight', default_value='0.60'),
+        DeclareLaunchArgument('amcl_debug_pre_resample_particles', default_value='false'),
+        DeclareLaunchArgument('amcl_global_initialization', default_value='true'),
         DeclareLaunchArgument('amcl_update_min_d', default_value='0.0'),
         DeclareLaunchArgument('amcl_update_min_a', default_value='0.0'),
+        DeclareLaunchArgument('amcl_alpha1', default_value='0.4'),
+        DeclareLaunchArgument('amcl_alpha2', default_value='0.4'),
+        DeclareLaunchArgument('amcl_alpha3', default_value='0.2'),
+        DeclareLaunchArgument('amcl_alpha4', default_value='0.2'),
+        DeclareLaunchArgument('amcl_z_hit', default_value='0.95'),
+        DeclareLaunchArgument('amcl_z_rand', default_value='0.05'),
+        DeclareLaunchArgument('amcl_sigma_hit', default_value='0.06'),
+        DeclareLaunchArgument('amcl_resample_threshold', default_value='0.3'),
+        DeclareLaunchArgument('ekf_transform_tolerance', default_value='0.02'),
+        DeclareLaunchArgument('ekf_process_noise_scale', default_value='5.0'),
         DeclareLaunchArgument('monitor_print_every', default_value='40'),
         DeclareLaunchArgument('monitor_stage_match_max_ms', default_value='20.0'),
         DeclareLaunchArgument('monitor_strict_mode', default_value='true'),

@@ -96,6 +96,7 @@ class F110Env(gym.Env):
         self.num_agents = self.config["num_agents"]
         self.timestep = self.config["timestep"]
         self.ego_idx = self.config["ego_idx"]
+        self.lidar_dist = self.config.get("lidar_dist", 0.0)
         self.integrator = IntegratorType.from_string(self.config["integrator"])
         self.model = DynamicModel.from_string(self.config["model"])
         self.observation_config = self.config["observation_config"]
@@ -138,6 +139,7 @@ class F110Env(gym.Env):
             integrator=self.integrator,
             model=self.model,
             action_type=self.action_type,
+            lidar_dist=self.lidar_dist,
         )
         self.sim.set_map(self.map, self.config["scale"])
 
@@ -398,7 +400,7 @@ class F110Env(gym.Env):
             "control_input": ["speed", "steering_angle"],
             "observation_config": {"type": None},
             "reset_config": {"type": None},
-            "scale": 1.0,
+            "lidar_dist": 0.0,
         }
 
     def configure(self, config: dict) -> None:

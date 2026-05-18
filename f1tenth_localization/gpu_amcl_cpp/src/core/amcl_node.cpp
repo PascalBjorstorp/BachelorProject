@@ -3,10 +3,13 @@
 
 #include <chrono>
 #include <algorithm>
+#include <cmath>
+#include <cstring>
 #include <exception>
 #include <fstream>
 #include <limits>
 #include <sstream>
+#include <sensor_msgs/msg/point_field.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <std_msgs/msg/int32.hpp>
 #include <ament_index_cpp/get_package_share_directory.hpp>
@@ -24,6 +27,8 @@ AmclNode::AmclNode(const rclcpp::NodeOptions& options)
     // ── Publishers ─────────────────────────────────────────────────
     pose_pub_  = create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("amcl_pose", rclcpp::QoS(10));
     cloud_pub_ = create_publisher<geometry_msgs::msg::PoseArray>("particlecloud", rclcpp::QoS(2));
+    pre_resample_cloud_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
+        "particlecloud_weighted_pre_resample", rclcpp::QoS(2));
     timing_pub_ = create_publisher<std_msgs::msg::Float64>("amcl_timing", rclcpp::QoS(10));
     particle_count_pub_ = create_publisher<std_msgs::msg::Int32>("amcl_particle_count", rclcpp::QoS(10));
 
@@ -59,22 +64,24 @@ AmclNode::AmclNode(const rclcpp::NodeOptions& options)
         std::bind(&AmclNode::initialpose_callback, this,
                   std::placeholders::_1));
 
-    // ── Timer for particle cloud visualization ──
-    // Uses separate rate to save GPU→CPU bandwidth (default 2 Hz)
-    double cloud_rate = get_parameter("cloud_publish_rate").as_double();
-    auto cloud_period = std::chrono::duration<double>(1.0 / cloud_rate);
-    publish_timer_ = create_wall_timer(
-        std::chrono::duration_cast<std::chrono::nanoseconds>(cloud_period),
-        std::bind(&AmclNode::publish_timer_callback, this));
+    if (!std::isfinite(cloud_publish_rate_) || cloud_publish_rate_ <= 0.0) {
+        RCLCPP_INFO(get_logger(),
+            "Particle cloud publishing disabled (cloud_publish_rate <= 0)");
+    } else if (cloud_publish_rate_ >= 39.5) {
+        RCLCPP_INFO(get_logger(),
+            "Particle cloud publishing every accepted scan (configured %.1f Hz)",
+            cloud_publish_rate_);
+    } else {
+        RCLCPP_INFO(get_logger(),
+            "Particle cloud publishing scan-synchronized, max %.1f Hz",
+            cloud_publish_rate_);
+    }
 
     RCLCPP_INFO(get_logger(), "GPU AMCL C++ node created — waiting for map...");
 }
 
 // ─── Parameter declaration ──────────────────────────────────────────
 void AmclNode::declare_all_parameters() {
-    // General
-    declare_parameter<bool>("use_gpu", true);
-
     // Particles
     declare_parameter<int>("num_particles", 2000);
     declare_parameter<int>("min_particles", 100);
@@ -122,6 +129,8 @@ void AmclNode::declare_all_parameters() {
     declare_parameter<double>("laser_max_range", 10.0);
     declare_parameter<double>("laser_offset_x", 0.265);
     declare_parameter<double>("laser_offset_y", 0.0);
+    declare_parameter<bool>("normalize_likelihood_by_beams", true);
+    declare_parameter<double>("likelihood_scale", 1.0);
 
     // Resampling
     declare_parameter<double>("resample_threshold", 0.5);
@@ -133,6 +142,12 @@ void AmclNode::declare_all_parameters() {
     declare_parameter<double>("local_roughening_yaw_std_rad", 0.0872664626);
     declare_parameter<double>("local_roughening_bad_log_weight_per_beam", -1.0);
     declare_parameter<double>("local_roughening_max_cloud_std_m", 0.75);
+    declare_parameter<bool>("use_cluster_estimate", true);
+    declare_parameter<double>("cluster_xy_bin_m", 0.25);
+    declare_parameter<double>("cluster_radius_m", 0.75);
+    declare_parameter<int>("cluster_iterations", 3);
+    declare_parameter<double>("cluster_min_covariance", 1e-4);
+    declare_parameter<double>("cluster_publish_min_weight", 0.60);
 
     // Initial pose
     declare_parameter<bool>("global_initialization", false);
@@ -151,10 +166,11 @@ void AmclNode::declare_all_parameters() {
     declare_parameter<double>("initial_cov_aa", 0.2);
 
     // Publishing
-    declare_parameter<double>("cloud_publish_rate", 2.0);  // Particle cloud rate (Hz) — lower to save bandwidth
+    declare_parameter<double>("cloud_publish_rate", 2.0);  // Hz; <= 0 disables particle-cloud publishing
+    declare_parameter<bool>("debug_pre_resample_particles", false);
 
     // Odom alignment
-    declare_parameter<int>("odom_history_max_size", 500);
+    declare_parameter<double>("odom_history_duration_s", 0.2);
 }
 
 void AmclNode::load_parameters() {
@@ -166,19 +182,23 @@ void AmclNode::load_parameters() {
     update_min_d_ = get_parameter("update_min_d").as_double();
     update_min_a_ = get_parameter("update_min_a").as_double();
     max_scan_age_ = get_parameter("max_scan_age").as_double();
+    cloud_publish_rate_ = get_parameter("cloud_publish_rate").as_double();
+    debug_pre_resample_particles_ =
+        get_parameter("debug_pre_resample_particles").as_bool();
     initial_heading_from_raceline_ =
         get_parameter("initial_heading_from_raceline").as_bool();
     slip_angular_threshold_ = get_parameter("slip_angular_threshold").as_double();
     slip_noise_multiplier_  = get_parameter("slip_noise_multiplier").as_double();
-    const int64_t odom_history_size_param =
-        get_parameter("odom_history_max_size").as_int();
-    odom_history_max_size_ = static_cast<size_t>(
-        std::max<int64_t>(2, odom_history_size_param));
+    odom_history_duration_s_ = std::max(
+        0.0, get_parameter("odom_history_duration_s").as_double());
 
     RCLCPP_INFO(get_logger(),
         "[AMCL] Parameters: update_min_d=%.5f, update_min_a=%.5f, "
-        "max_scan_age=%.4f, slip_threshold=%.2f rad/s, initial_raceline_heading=%s",
-        update_min_d_, update_min_a_, max_scan_age_, slip_angular_threshold_,
+        "max_scan_age=%.4f, odom_history=%.3fs, cloud_publish_rate=%.1f Hz, "
+        "debug_pre_resample=%s, slip_threshold=%.2f rad/s, initial_raceline_heading=%s",
+        update_min_d_, update_min_a_, max_scan_age_, odom_history_duration_s_,
+        cloud_publish_rate_, debug_pre_resample_particles_ ? "true" : "false",
+        slip_angular_threshold_,
         initial_heading_from_raceline_ ? "true" : "false");
 }
 
@@ -188,7 +208,9 @@ void AmclNode::push_odom_sample(const rclcpp::Time& stamp,
                                 double theta) {
     odom_history_.push_back({stamp, x, y, theta});
 
-    while (odom_history_.size() > odom_history_max_size_) {
+    // Keep one interpolation interval even when the configured time window is very small.
+    while (odom_history_.size() > 2 &&
+           (stamp - odom_history_.front().stamp).seconds() > odom_history_duration_s_) {
         odom_history_.pop_front();
     }
 }
@@ -387,6 +409,13 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
         get_parameter("local_roughening_bad_log_weight_per_beam").as_double();
     pf_cfg.local_roughening_max_cloud_std_m =
         get_parameter("local_roughening_max_cloud_std_m").as_double();
+    pf_cfg.use_cluster_estimate = get_parameter("use_cluster_estimate").as_bool();
+    pf_cfg.cluster_xy_bin_m = get_parameter("cluster_xy_bin_m").as_double();
+    pf_cfg.cluster_radius_m = get_parameter("cluster_radius_m").as_double();
+    pf_cfg.cluster_iterations = get_parameter("cluster_iterations").as_int();
+    pf_cfg.cluster_min_covariance = get_parameter("cluster_min_covariance").as_double();
+    pf_cfg.cluster_publish_min_weight =
+        get_parameter("cluster_publish_min_weight").as_double();
     pf_cfg.global_initialization = get_parameter("global_initialization").as_bool();
     pf_cfg.global_heading_cone_rad = get_parameter("global_heading_cone_rad").as_double();
     pf_cfg.global_track_margin_m = get_parameter("global_track_margin_m").as_double();
@@ -438,6 +467,9 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     sm_cfg.laser_max_range = get_parameter("laser_max_range").as_double();
     sm_cfg.laser_offset_x  = get_parameter("laser_offset_x").as_double();
     sm_cfg.laser_offset_y  = get_parameter("laser_offset_y").as_double();
+    sm_cfg.normalize_likelihood_by_beams =
+        get_parameter("normalize_likelihood_by_beams").as_bool();
+    sm_cfg.likelihood_scale = get_parameter("likelihood_scale").as_double();
 
     // 5. Initialize particle filter with all configs
     pf_.init(pf_cfg, mm_cfg, sm_cfg, map_);
@@ -450,6 +482,8 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     std_msgs::msg::Int32 particle_count_msg;
     particle_count_msg.data = pf_.num_particles();
     particle_count_pub_->publish(particle_count_msg);
+    last_cloud_publish_time_ = rclcpp::Time(0, 0, get_clock()->get_clock_type());
+    publish_particle_cloud(now());
 
     // 6. Publish initial pose so EKF can bootstrap. For global particles, the
     // weighted mean is not meaningful until scan updates have concentrated them.
@@ -583,16 +617,24 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     pf_.predict(dx_robot, dy_robot, static_cast<float>(dtheta)); 
 
     // ═══════════════════════════════════════════════════════════
-    // STEP 2: UPDATE — Weight particles by scan + resample
+    // STEP 2: UPDATE — Weight particles by scan, debug, then resample
     // ═══════════════════════════════════════════════════════════
-    pf_.update(msg->ranges.data(),
-               static_cast<int>(msg->ranges.size()),
-               msg->angle_min, msg->angle_increment);
+    const bool weights_updated = pf_.update_weights(
+        msg->ranges.data(),
+        static_cast<int>(msg->ranges.size()),
+        msg->angle_min,
+        msg->angle_increment);
+    if (!weights_updated) {
+        processing_scan_ = false;
+        return;
+    }
+    publish_pre_resample_weighted_cloud(scan_time);
 
-    // ═══════════════════════════════════════════════════════════
-    // STEP 3: GET ESTIMATE — Weighted mean of particles
-    // ═══════════════════════════════════════════════════════════
-    auto est = pf_.get_estimate();
+    // Estimate from the strongest local mode before resampling. A global
+    // weighted mean is invalid while particles are split across plausible poses.
+    double cluster_weight = 1.0;
+    auto est = pf_.get_cluster_estimate(&cluster_weight);
+    pf_.resample_if_needed();
 
     // ── Timing end — publish if subscribed ──
     auto t_pf_end = std::chrono::high_resolution_clock::now();
@@ -608,16 +650,24 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     particle_count_msg.data = pf_.num_particles();
     particle_count_pub_->publish(particle_count_msg);
 
-    // ═══════════════════════════════════════════════════════════
-    // STEP 4: PUBLISH POSE — Immediately, with scan's timestamp
-    // ═══════════════════════════════════════════════════════════
-    publish_pose(est, msg->header.stamp);
+    const double min_cluster_weight =
+        std::clamp(pf_.config().cluster_publish_min_weight, 0.0, 1.0);
+    const bool publish_cluster =
+        !pf_.config().use_cluster_estimate || cluster_weight >= min_cluster_weight;
+
+    if (publish_cluster) {
+        // Publish only when the best local mode is dominant enough. During
+        // global localization, ambiguous clusters should stay visible in RViz
+        // but not pull the EKF/controller to a wrong symmetric pose.
+        publish_pose(est, msg->header.stamp);
+    }
 
     // Cache estimate for particle cloud visualization
-    {
+    if (publish_cluster) {
         std::lock_guard<std::mutex> lk(estimate_mutex_);
         cached_estimate_ = est;
     }
+    publish_particle_cloud(scan_time);
 
     processing_scan_ = false; // Allow next scan
 }
@@ -643,6 +693,8 @@ void AmclNode::initialpose_callback(const geometry_msgs::msg::PoseWithCovariance
     std_msgs::msg::Int32 particle_count_msg;
     particle_count_msg.data = pf_.num_particles();
     particle_count_pub_->publish(particle_count_msg);
+    last_cloud_publish_time_ = rclcpp::Time(0, 0, get_clock()->get_clock_type());
+    publish_particle_cloud(now());
 
     // Reset odom baseline
     prediction_baseline_ready_ = false;
@@ -685,33 +737,105 @@ void AmclNode::publish_pose(const PoseEstimate& est, const rclcpp::Time& stamp) 
     pose_pub_->publish(pose_msg);
 }
 
-// ─── Publish timer (particle cloud visualisation only) ──────────────
-void AmclNode::publish_timer_callback() {
-    // Only publish if someone is subscribed (RViz)
-    if (cloud_pub_->get_subscription_count() > 0) {
-        std::vector<float> particles, weights;
-        {
-            std::lock_guard<std::mutex> lock(pf_mutex_);
-            pf_.get_particles(particles, weights);
-        }
-
-        auto cloud = geometry_msgs::msg::PoseArray();
-        cloud.header.stamp    = now();
-        cloud.header.frame_id = global_frame_;
-
-        int np = static_cast<int>(weights.size());
-        int step = std::max(1, np / 100); // Downsample to ~100 particles
-
-        for (int i = 0; i < np; i += step) {
-            geometry_msgs::msg::Pose p;
-            p.position.x = particles[i * 3 + 0];
-            p.position.y = particles[i * 3 + 1];
-            p.position.z = 0.0;
-            p.orientation = math_utils::yaw_to_quaternion(particles[i * 3 + 2]);
-            cloud.poses.push_back(p);
-        }
-        cloud_pub_->publish(cloud);
+// ─── Particle cloud publish (called after PF updates) ───────────────
+void AmclNode::publish_particle_cloud(const rclcpp::Time& stamp) {
+    if (!std::isfinite(cloud_publish_rate_) || cloud_publish_rate_ <= 0.0) {
+        return;
     }
+    if (cloud_pub_->get_subscription_count() == 0) {
+        return;
+    }
+
+    // The benchmark uses 40 Hz scans. At 40 Hz or higher, publish every
+    // accepted scan so visualization/recording does not drop clouds due to
+    // timestamp jitter around exactly 25 ms.
+    if (cloud_publish_rate_ < 39.5) {
+        const double period_s = 1.0 / cloud_publish_rate_;
+        if (last_cloud_publish_time_.nanoseconds() != 0) {
+            const double elapsed_s = (stamp - last_cloud_publish_time_).seconds();
+            if (elapsed_s >= 0.0 && elapsed_s + 1e-6 < period_s) {
+                return;
+            }
+        }
+    }
+
+    std::vector<float> particles;
+    pf_.get_particles(particles);
+
+    auto cloud = geometry_msgs::msg::PoseArray();
+    cloud.header.stamp = stamp;
+    cloud.header.frame_id = global_frame_;
+
+    const int np = static_cast<int>(particles.size() / 3);
+    cloud.poses.reserve(np);
+
+    for (int i = 0; i < np; ++i) {
+        geometry_msgs::msg::Pose p;
+        p.position.x = particles[i * 3 + 0];
+        p.position.y = particles[i * 3 + 1];
+        p.position.z = 0.0;
+        p.orientation = math_utils::yaw_to_quaternion(particles[i * 3 + 2]);
+        cloud.poses.push_back(p);
+    }
+
+    cloud_pub_->publish(cloud);
+    last_cloud_publish_time_ = stamp;
+}
+
+void AmclNode::publish_pre_resample_weighted_cloud(const rclcpp::Time& stamp) {
+    if (!debug_pre_resample_particles_) {
+        return;
+    }
+    if (pre_resample_cloud_pub_->get_subscription_count() == 0) {
+        return;
+    }
+
+    std::vector<float> particles;
+    std::vector<float> weights;
+    pf_.get_particles(particles, weights);
+
+    const int np = static_cast<int>(weights.size());
+    auto cloud = sensor_msgs::msg::PointCloud2();
+    cloud.header.stamp = stamp;
+    cloud.header.frame_id = global_frame_;
+    cloud.height = 1;
+    cloud.width = static_cast<uint32_t>(np);
+    cloud.is_bigendian = false;
+    cloud.is_dense = true;
+
+    const auto make_field = [](const char* name, uint32_t offset) {
+        sensor_msgs::msg::PointField field;
+        field.name = name;
+        field.offset = offset;
+        field.datatype = sensor_msgs::msg::PointField::FLOAT32;
+        field.count = 1;
+        return field;
+    };
+    cloud.fields = {
+        make_field("x", 0),
+        make_field("y", 4),
+        make_field("z", 8),
+        make_field("yaw", 12),
+        make_field("weight", 16),
+    };
+    cloud.point_step = 20;
+    cloud.row_step = cloud.point_step * cloud.width;
+    cloud.data.resize(cloud.row_step);
+
+    for (int i = 0; i < np; ++i) {
+        const float values[5] = {
+            particles[i * 3 + 0],
+            particles[i * 3 + 1],
+            0.0f,
+            particles[i * 3 + 2],
+            weights[i],
+        };
+        std::memcpy(&cloud.data[static_cast<size_t>(i) * cloud.point_step],
+                    values,
+                    sizeof(values));
+    }
+
+    pre_resample_cloud_pub_->publish(cloud);
 }
 
 }  // namespace gpu_amcl_cpp

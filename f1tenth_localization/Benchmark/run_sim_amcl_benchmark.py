@@ -29,6 +29,8 @@ def run_one(args: argparse.Namespace, localizer: str, root: str) -> int:
         f'initial_pose_x:={args.initial_pose_x}',
         f'initial_pose_y:={args.initial_pose_y}',
         f'initial_pose_yaw:={args.initial_pose_yaw}',
+        f'realistic_plant:={str(args.realistic_plant).lower()}',
+        f'sim_drive_uses_acceleration_field:={str(args.sim_drive_uses_acceleration_field).lower()}',
         f'lateral_planner_avoidance_enabled:={str(args.avoidance_enabled).lower()}',
         f'monitor_strict_mode:={str(args.monitor_strict_mode).lower()}',
     ]
@@ -69,29 +71,45 @@ def run_one(args: argparse.Namespace, localizer: str, root: str) -> int:
 
 def parse_args(argv: List[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    default_root = os.path.abspath(
-        os.path.join(
-            'f1tenth_localization',
-            'Benchmark',
-            'Matlab',
-            'sim_benchmark',
-            datetime.now().strftime('%Y%m%d_%H%M%S')))
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.abspath(os.path.join(script_dir, '..', '..'))
+    default_root = os.path.join(
+        repo_root,
+        'f1tenth_localization',
+        'Benchmark',
+        'Matlab',
+        'sim_benchmark',
+        datetime.now().strftime('%Y%m%d_%H%M%S'))
     parser.add_argument('--output-root', default=default_root)
     parser.add_argument('--localizers', nargs='+', default=['gpu', 'nav2'],
                         choices=['gpu', 'nav2'])
-    parser.add_argument('--laps', type=int, default=10)
+    parser.add_argument('--laps', type=int, default=5)
     parser.add_argument('--max-duration-sec', type=float, default=0.0)
     parser.add_argument('--process-timeout-sec', type=float, default=0.0)
     parser.add_argument(
         '--map-file',
-        default=os.path.abspath('f1tenth_planning/maps/my_track_map.yaml'))
+        default=os.path.join(
+            repo_root,
+            'f1tenth_planning',
+            'maps',
+            'my_track_map.yaml'))
     parser.add_argument(
         '--trajectory-file',
-        default=os.path.abspath(
-            'f1tenth_planning/trajectories/my_track_raceline.csv'))
+        default=os.path.join(
+            repo_root,
+            'f1tenth_planning',
+            'trajectories',
+            'my_track_raceline.csv'))
     parser.add_argument('--initial-pose-x', default='-0.79')
     parser.add_argument('--initial-pose-y', default='-4.88')
     parser.add_argument('--initial-pose-yaw', default='0.641322')
+    parser.add_argument('--realistic-plant', action=argparse.BooleanOptionalAction,
+                        default=True,
+                        help='Use hardware-calibrated ROS gym plant from MPC tune_realistic_v2.py')
+    parser.add_argument('--sim-drive-uses-acceleration-field',
+                        action=argparse.BooleanOptionalAction,
+                        default=True,
+                        help='Use AckermannDrive.acceleration as gym acceleration command')
     parser.add_argument('--avoidance-enabled', action='store_true')
     parser.add_argument('--monitor-strict-mode', action=argparse.BooleanOptionalAction,
                         default=True)

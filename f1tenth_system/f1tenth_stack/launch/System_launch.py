@@ -135,7 +135,7 @@ def generate_launch_description():
 
         DeclareLaunchArgument(
             'amcl_num_particles',
-            default_value='1000',
+            default_value='600',
             description='GPU AMCL initial/fixed particle count'),
 
         DeclareLaunchArgument(
@@ -145,7 +145,7 @@ def generate_launch_description():
 
         DeclareLaunchArgument(
             'amcl_max_particles',
-            default_value='1000',
+            default_value='1500',
             description='GPU AMCL maximum particle count'),
 
         DeclareLaunchArgument(
@@ -155,12 +155,12 @@ def generate_launch_description():
 
         DeclareLaunchArgument(
             'amcl_use_kld',
-            default_value='false',
+            default_value='true',
             description='Enable GPU AMCL KLD adaptive particle sampling'),
 
         DeclareLaunchArgument(
             'amcl_global_initialization',
-            default_value='false',
+            default_value='true',
             description='Seed GPU AMCL particles globally along raceline with heading cone'),
 
         DeclareLaunchArgument(
@@ -170,7 +170,7 @@ def generate_launch_description():
 
         DeclareLaunchArgument(
             'monitor_vesc_timeout_sec',
-            default_value='0.50',
+            default_value='0.30',
             description='Seconds without /sensors/core before VESC error'),
 
         DeclareLaunchArgument(
