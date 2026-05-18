@@ -26,15 +26,15 @@
 gpu_amcl_cpp:
   ros__parameters:
     # ---- Particles ----
-    num_particles: 1500
-    min_particles: 500
-    max_particles: 2000
+    num_particles: 2000
+    min_particles: 600
+    max_particles: 2500
 
     # ---- KLD adaptive sampling ----
     # Dynamically adjusts particle count based on distribution spread.
     # When converged (tight cluster), uses fewer particles → saves GPU time.
     # When uncertain (spread out), uses more particles → better coverage.
-    use_kld_sampling: true
+    use_kld_sampling: false
     kld_epsilon: 0.02          # KL-divergence error bound (smaller → more particles)
     kld_z: 1.96                # Quantile: 2.33 = 99%, 1.96 = 95%
     kld_bin_x: 0.5             # metres per occupied KLD bin in x
@@ -105,7 +105,7 @@ gpu_amcl_cpp:
     cluster_radius_m: 0.75              # particles inside radius define output pose/covariance
     cluster_iterations: 3               # local mean-shift passes around best cluster
     cluster_min_covariance: 0.0001      # floor for EKF numerical stability
-    cluster_publish_min_weight: 0.60    # withhold AMCL pose until mode is dominant
+    cluster_publish_min_weight: 0.70    # withhold AMCL pose until mode is dominant
 
     # ---- Initial pose ----
     # false: seed particles around initial_pose_*
@@ -128,7 +128,7 @@ gpu_amcl_cpp:
     initial_cov_aa: 0.1
 
     # ---- Publishing ----
-    cloud_publish_rate: 40.0      # Hz; <= 0 disables particle cloud publishing and downloads
+    cloud_publish_rate: 0.0      # Hz; <= 0 disables particle cloud publishing and downloads
     debug_pre_resample_particles: false  # publish weighted pre-resample PointCloud2 debug topic
 
 

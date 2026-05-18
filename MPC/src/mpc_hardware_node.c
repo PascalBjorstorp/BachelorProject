@@ -13,7 +13,8 @@
  * Architecture (EKF-driven):
  *   - Odometry callback: stores latest velocity state (fast, non-blocking)
  *   - Servo feedback callback: stores actual steering angle from VESC
- *   - EKF pose callback: receives pose, runs MPC, publishes result
+ *   - EKF pose callback: receives pose, runs MPC, updates latest command
+ *   - Drive timer: republishes latest MPC command at fixed rate
  *   - Safety: no command published until both odom and EKF pose are received
  *
  * Topics:
@@ -43,6 +44,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <limits.h>
+#include <stdint.h>
 /* ROS2 C Client Library Headers */
 #include "rcl/rcl.h"
 #include "rcl/error_handling.h"
@@ -93,6 +95,8 @@ static int g_ekf_pose_received = 0;
 
 /** Safety watchdog timeout [seconds] */
 static double g_watchdog_timeout_sec = 0.2;
+static double g_drive_republish_period_ms = 10.0;
+static int g_drive_command_ready = 0;
 /* Last published drive command (fallback uses these instead of forcing stop). */
 static float g_last_cmd_steer = 0.0f;
 static float g_last_cmd_speed = 0.0f;
@@ -209,6 +213,7 @@ static FILE *g_local_raceline_log_file = NULL;
 static FILE *g_stats_csv_file = NULL;
 static unsigned long g_solver_log_counter = 0;
 static int g_solver_log_stride = 1;
+static int g_log_local_raceline_snapshots = 0;
 static double g_last_servo_raw = 0.0;
 static long long g_last_odom_ros_time_ns = 0;
 static unsigned long g_local_raceline_update_seq = 0;
@@ -266,8 +271,8 @@ static void ensure_parent_directories(const char *filepath)
     }
 }
 
-/** Number of executor handles: 4 subscriptions (odom, servo, ekf_pose, local_raceline). */
-#define EXECUTOR_NUM_HANDLES 4
+/** Number of executor handles: 4 subscriptions + drive republish timer. */
+#define EXECUTOR_NUM_HANDLES 5
 
 /*===========================================================================
  * Signal Handler for Graceful Shutdown
@@ -342,6 +347,24 @@ static void publish_drive_command_or_warn(const char *context)
         }
         rcl_reset_error();
     }
+}
+
+static void drive_republish_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
+{
+    (void)timer;
+    (void)last_call_time;
+
+    if (!g_drive_command_ready)
+    {
+        return;
+    }
+
+    struct timespec now_rt;
+    clock_gettime(CLOCK_REALTIME, &now_rt);
+    global_drive_message_buffer.header.stamp.sec = (int32_t)now_rt.tv_sec;
+    global_drive_message_buffer.header.stamp.nanosec = (uint32_t)now_rt.tv_nsec;
+
+    publish_drive_command_or_warn("drive_republish_timer");
 }
 
 /*===========================================================================
@@ -1125,7 +1148,6 @@ void ekf_pose_callback(const void *message_in)
     if (g_stats_csv_file != NULL)
     {
         fprintf(g_stats_csv_file, "%lu,%u,%.1f\n", g_stats_cycle_count, iterations_used, solve_us);
-        fflush(g_stats_csv_file);
     }
 
     /* Print terminal stats every 5 seconds */
@@ -1151,6 +1173,10 @@ void ekf_pose_callback(const void *message_in)
                        g_solve_time_min_us, avg_time, g_solve_time_max_us);
                 printf("  Optimal: %.1f%%, Max iter: %.1f%%\n",
                        optimal_pct, max_iter_pct);
+                if (g_stats_csv_file != NULL)
+                {
+                    fflush(g_stats_csv_file);
+                }
 
                 /* Reset stats */
                 g_solve_time_sum_us = 0.0;
@@ -1267,6 +1293,7 @@ void ekf_pose_callback(const void *message_in)
         g_last_cmd_steer = global_drive_message_buffer.drive.steering_angle;
         g_last_cmd_speed = global_drive_message_buffer.drive.speed;
         g_last_cmd_accel = global_drive_message_buffer.drive.acceleration;
+        g_drive_command_ready = 1;
 
         publish_drive_command_or_warn("ekf_pose_callback");
     }
@@ -1305,7 +1332,7 @@ void ekf_pose_callback(const void *message_in)
                     cmd_steer, cmd_accel, publish_speed_cmd, global_drive_message_buffer.drive.acceleration,
                     global_actual_steering_angle, g_last_servo_raw, g_use_steering_feedback, g_last_odom_ros_time_ns);
 
-            if ((g_solver_log_counter % 20UL) == 0UL)
+            if ((g_solver_log_counter % 200UL) == 0UL)
             {
                 fflush(g_solver_log_file);
             }
@@ -1379,6 +1406,13 @@ int main(int argc, char *argv[])
             double margin = atof(env_val);
             if (margin >= 0.0 && margin <= 5.0) g_raceline_speed_margin_mps = margin;
         }
+        if ((env_val = getenv("MPC_DRIVE_REPUBLISH_PERIOD_MS")) != NULL)
+        {
+            double period_ms = atof(env_val);
+            if (period_ms >= 1.0 && period_ms <= 100.0) g_drive_republish_period_ms = period_ms;
+        }
+        if ((env_val = getenv("MPC_LOG_LOCAL_RACELINE_SNAPSHOTS")) != NULL)
+            g_log_local_raceline_snapshots = atoi(env_val) != 0;
     }
 
     {
@@ -1417,7 +1451,9 @@ int main(int argc, char *argv[])
             fflush(g_solver_log_file);
             printf("[MPC] Solver telemetry log: %s (stride=%d)\n", log_path, g_solver_log_stride);
 
-            /* Also open a local raceline snapshot log next to the solver log */
+            /* Heavy local raceline snapshots are opt-in only; writing all
+             * waypoints from the callback can stall real-time publishing. */
+            if (g_log_local_raceline_snapshots)
             {
                 char local_raceline_path[PATH_MAX];
                 snprintf(local_raceline_path, sizeof(local_raceline_path), "log/local_raceline_%s.csv", timestamp);
@@ -1449,7 +1485,8 @@ int main(int argc, char *argv[])
                     if (g_solver_meta_file != NULL)
                     {
                         fprintf(g_solver_meta_file, "log_path=%s\n", log_path);
-                        fprintf(g_solver_meta_file, "local_raceline_log_path=%s\n", "log/local_raceline_<timestamp>.csv");
+                        fprintf(g_solver_meta_file, "local_raceline_log_path=%s\n",
+                                g_log_local_raceline_snapshots ? "log/local_raceline_<timestamp>.csv" : "disabled");
                         fprintf(g_solver_meta_file, "control_rate_hz=%.3f\n", (double)CONTROL_RATE_HZ);
                         fprintf(g_solver_meta_file, "control_dt_s=%.6f\n", (double)CONTROL_DT_SECONDS);
                         fprintf(g_solver_meta_file, "prediction_horizon=%d\n", PREDICTION_HORIZON);
@@ -1508,7 +1545,7 @@ int main(int argc, char *argv[])
                PREDICTION_HORIZON, (double)cfg.time_step * 1000.0);
     }
 
-    printf("[MPC] Control mode: EKF-driven (MPC runs on each /ekf_pose message)\n");
+    printf("[MPC] Control mode: EKF-driven solver, fixed-rate /drive republish\n");
     printf("[MPC] Topics: odom=%s, drive=%s\n", g_odom_topic, g_drive_topic);
     printf("[MPC] Servo feedback: %s (gain=%.4f, offset=%.4f)\n",
             g_servo_topic, STEERING_TO_SERVO_GAIN, STEERING_TO_SERVO_OFFSET);
@@ -1518,6 +1555,7 @@ int main(int argc, char *argv[])
     printf("[MPC] EKF pose topic: %s\n", g_ekf_pose_topic);
     printf("[MPC] Local raceline topic: %s\n", g_local_raceline_topic);
     printf("[MPC] Raceline speed margin: %.2f m/s\n", g_raceline_speed_margin_mps);
+    printf("[MPC] Drive republish period: %.1f ms\n", g_drive_republish_period_ms);
     printf("[MPC] Verbose=%d\n", g_verbose);
 
     {
@@ -1705,14 +1743,47 @@ int main(int argc, char *argv[])
     }
     set_rosidl_string(&global_drive_message_buffer.header.frame_id, "base_link");
 
-    /* Executor: 4 subscriptions (odom, servo, ekf_pose, local_raceline) */
+    /* Executor: 4 subscriptions + fixed-rate /drive republish timer */
     rcl_allocator_t alloc = rcl_get_default_allocator();
     rclc_executor_t executor = rclc_executor_get_zero_initialized_executor();
+    rcl_clock_t drive_timer_clock;
+    memset(&drive_timer_clock, 0, sizeof(drive_timer_clock));
+    rcl_timer_t drive_republish_timer = rcl_get_zero_initialized_timer();
+
+    rc = rcl_clock_init(RCL_STEADY_TIME, &drive_timer_clock, &alloc);
+    if (rc != RCL_RET_OK)
+    {
+        fprintf(stderr, "[ROS2] ERROR: drive timer clock init: %s\n", rcl_get_error_string().str);
+        return 1;
+    }
+
+    const int64_t drive_republish_period_ns =
+        (int64_t)(g_drive_republish_period_ms * 1000000.0);
+    rc = rcl_timer_init(
+        &drive_republish_timer,
+        &drive_timer_clock,
+        &ctx,
+        drive_republish_period_ns,
+        drive_republish_timer_callback,
+        alloc);
+    if (rc != RCL_RET_OK)
+    {
+        fprintf(stderr, "[ROS2] ERROR: drive republish timer init: %s\n", rcl_get_error_string().str);
+        return 1;
+    }
 
     rc = rclc_executor_init(&executor, &ctx, EXECUTOR_NUM_HANDLES, &alloc);
     if (rc != RCL_RET_OK)
     {
         fprintf(stderr, "[ROS2] ERROR: executor init: %s\n", rcl_get_error_string().str);
+        return 1;
+    }
+
+    /* Add fixed-rate /drive republish timer */
+    rc = rclc_executor_add_timer(&executor, &drive_republish_timer);
+    if (rc != RCL_RET_OK)
+    {
+        fprintf(stderr, "[ROS2] ERROR: add drive republish timer failed\n");
         return 1;
     }
 
@@ -1752,7 +1823,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    printf("[ROS2] Executor ready (4 subs, MPC driven by %s)\n", g_ekf_pose_topic);
+    printf("[ROS2] Executor ready (4 subs + drive timer, MPC driven by %s)\n", g_ekf_pose_topic);
     printf("\n[MPC] Spinning... (waiting for EKF pose on %s, odometry on %s, and local raceline on %s)\n\n",
            g_ekf_pose_topic, g_odom_topic, g_local_raceline_topic);
 
@@ -1789,6 +1860,8 @@ int main(int argc, char *argv[])
     cleanup_rc = rcl_subscription_fini(&ekf_pose_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&local_raceline_sub, &node); (void)cleanup_rc;
     geometry_msgs__msg__PoseWithCovarianceStamped__fini(&global_ekf_pose_buffer);
+    cleanup_rc = rcl_timer_fini(&drive_republish_timer); (void)cleanup_rc;
+    cleanup_rc = rcl_clock_fini(&drive_timer_clock); (void)cleanup_rc;
     cleanup_rc = rcl_publisher_fini(&global_control_publisher, &node); (void)cleanup_rc;
     cleanup_rc = rcl_node_fini(&node); (void)cleanup_rc;
     cleanup_rc = rcl_context_fini(&ctx); (void)cleanup_rc;
