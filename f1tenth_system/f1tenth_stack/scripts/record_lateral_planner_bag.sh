@@ -33,6 +33,7 @@ TOPICS=(
   "/map_server/transition_event"
   "/drive"
   "/mpc/timing/solve_us"
+  "/mpc/timing/iteration_count"
   "/mpc/timing/control_gap_ms"
   "/mpc/timing/ekf_to_control_ms"
   "/mpc/timing/output_gap_ms"
@@ -42,7 +43,6 @@ TOPICS=(
   "/mpc/timing/solver_enter_seq"
   "/mpcc/predicted_path"
   "/mpc_state"
-  "local_raceline_wall_distance_markers"
 
 )
 

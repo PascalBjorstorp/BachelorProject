@@ -91,9 +91,9 @@ gpu_amcl_cpp:
     likelihood_scale: 0.75               # >1 sharper, <1 softer
 
     # ---- Resampling ----
-    resample_threshold: 0.3  # resample when N_eff < threshold * N
-    enable_recovery_injection: false  # runtime global recovery particles
-    recovery_injection_ratio: 0.05    # 5% runtime recovery particles; use 0.10 if it must recover more aggressively
+    resample_threshold: 0.2  # lower = preserve global hypotheses longer before resampling
+    enable_recovery_injection: true   # keep adding global particles so wrong early mode cannot permanently steal all particles
+    recovery_injection_ratio: 0.10    # 10% runtime recovery particles; useful on symmetric straights
     enable_local_roughening: true      # bad scan match -> jitter local particles after resample
     local_roughening_ratio: 0.25       # replace 20% around current local mean
     local_roughening_xy_std_m: 0.20    # 12 cm XY noise
@@ -105,7 +105,7 @@ gpu_amcl_cpp:
     cluster_radius_m: 0.75              # particles inside radius define output pose/covariance
     cluster_iterations: 3               # local mean-shift passes around best cluster
     cluster_min_covariance: 0.0001      # floor for EKF numerical stability
-    cluster_publish_min_weight: 0.70    # withhold AMCL pose until mode is dominant
+    cluster_publish_min_weight: 0.90    # withhold AMCL pose until mode is strongly dominant
 
     # ---- Initial pose ----
     # false: seed particles around initial_pose_*
@@ -123,12 +123,12 @@ gpu_amcl_cpp:
     initial_pose_x: 0.0
     initial_pose_y: 0.0
     initial_pose_a: 0.0
-    initial_cov_xx: 0.1
-    initial_cov_yy: 0.1
-    initial_cov_aa: 0.1
+    initial_cov_xx: 0.2
+    initial_cov_yy: 0.2
+    initial_cov_aa: 0.2
 
     # ---- Publishing ----
-    cloud_publish_rate: 0.0      # Hz; <= 0 disables particle cloud publishing and downloads
+    cloud_publish_rate: 40.0      # Hz; <= 0 disables particle cloud publishing and downloads
     debug_pre_resample_particles: false  # publish weighted pre-resample PointCloud2 debug topic
 
 
