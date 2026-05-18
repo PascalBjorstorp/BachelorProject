@@ -8,6 +8,7 @@
  * Pipeline (all on GPU, zero host↔device transfers):
  *   1. CUB::DeviceReduce::Max(d_log_w) → d_max
  *   2. kernel: w[i] = exp(log_w[i] - max) * old_w[i]
+ *      or exp(log_w[i] - max) when caller wants scan-only likelihoods
  *   3. CUB::DeviceReduce::Sum(d_weights) → d_sum
  *   4. kernel: w[i] /= sum
  */
@@ -27,10 +28,12 @@ void kernel_exp_shift_mul(const float* __restrict__ log_w,
                           const float* __restrict__ old_w,
                           float* __restrict__ out_w,
                           const float* __restrict__ d_max,
+                          bool multiply_old_weights,
                           int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= n) return;
-    out_w[i] = expf(log_w[i] - *d_max) * old_w[i];
+    const float prior = multiply_old_weights ? old_w[i] : 1.0f;
+    out_w[i] = expf(log_w[i] - *d_max) * prior;
 }
 
 /// Normalize in-place: w[i] /= sum.  Falls back to uniform if sum ≤ 0.
@@ -72,6 +75,7 @@ void launch_gpu_normalize_weights(
         void* d_cub_temp,        // CUB temp storage
         size_t cub_temp_bytes,
         int n,
+        bool multiply_old_weights,
         cudaStream_t stream) {
     if (n <= 0) return;
 
@@ -84,7 +88,8 @@ void launch_gpu_normalize_weights(
 
     // Step 2: exp(log_w[i] - max) * old_w[i]
     kernel_exp_shift_mul<<<grid, block, 0, stream>>>(
-        d_log_w, d_old_w, d_scratch_w, d_max_val, n);
+        d_log_w, d_old_w, d_scratch_w, d_max_val,
+        multiply_old_weights, n);
     CUDA_CHECK(cudaGetLastError());
 
     // Step 3: Sum of unnormalised weights.

@@ -653,11 +653,14 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     // ═══════════════════════════════════════════════════════════
     // STEP 2: UPDATE — Weight particles by scan, debug, then resample
     // ═══════════════════════════════════════════════════════════
+    const bool global_init_scoring =
+        global_localization_active_ && pf_.config().global_initialization;
     const bool weights_updated = pf_.update_weights(
         msg->ranges.data(),
         static_cast<int>(msg->ranges.size()),
         msg->angle_min,
-        msg->angle_increment);
+        msg->angle_increment,
+        !global_init_scoring);
     if (!weights_updated) {
         processing_scan_ = false;
         return;
