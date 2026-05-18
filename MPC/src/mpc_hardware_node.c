@@ -177,6 +177,7 @@ static rcl_context_t *global_ros2_context = NULL;
 
 static rcl_publisher_t global_control_publisher;
 static rcl_publisher_t g_timing_solve_us_publisher;
+static rcl_publisher_t g_timing_iteration_count_publisher;
 static rcl_publisher_t g_timing_control_gap_ms_publisher;
 static rcl_publisher_t g_timing_ekf_to_control_ms_publisher;
 static rcl_publisher_t g_timing_output_gap_ms_publisher;
@@ -1334,6 +1335,9 @@ static void run_mpc_for_pose(
 
     /* Collect rolling statistics (always active, lightweight) */
     uint16_t iterations_used = mpc_result.iterations_used;
+    publish_float64_metric(&g_timing_iteration_count_publisher,
+                           (double)iterations_used,
+                           "iteration_count");
     MpcConfiguration_t cfg = mpc_get_configuration();
     uint16_t max_iter = cfg.max_solver_iterations;
 
@@ -2064,6 +2068,8 @@ int main(int argc, char *argv[])
 
     if (!init_float64_publisher(&g_timing_solve_us_publisher, &node,
                                 "/mpc/timing/solve_us", &timing_pub_opts) ||
+        !init_float64_publisher(&g_timing_iteration_count_publisher, &node,
+                                "/mpc/timing/iteration_count", &timing_pub_opts) ||
         !init_float64_publisher(&g_timing_control_gap_ms_publisher, &node,
                                 "/mpc/timing/control_gap_ms", &timing_pub_opts) ||
         !init_float64_publisher(&g_timing_ekf_to_control_ms_publisher, &node,
@@ -2220,6 +2226,7 @@ int main(int argc, char *argv[])
     cleanup_rc = rcl_subscription_fini(&local_raceline_sub, &node); (void)cleanup_rc;
     geometry_msgs__msg__PoseWithCovarianceStamped__fini(&global_ekf_pose_buffer);
     cleanup_rc = rcl_publisher_fini(&g_timing_solve_us_publisher, &node); (void)cleanup_rc;
+    cleanup_rc = rcl_publisher_fini(&g_timing_iteration_count_publisher, &node); (void)cleanup_rc;
     cleanup_rc = rcl_publisher_fini(&g_timing_control_gap_ms_publisher, &node); (void)cleanup_rc;
     cleanup_rc = rcl_publisher_fini(&g_timing_ekf_to_control_ms_publisher, &node); (void)cleanup_rc;
     cleanup_rc = rcl_publisher_fini(&g_timing_output_gap_ms_publisher, &node); (void)cleanup_rc;
