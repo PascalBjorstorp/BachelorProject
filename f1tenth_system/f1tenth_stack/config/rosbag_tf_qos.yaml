@@ -130,6 +130,12 @@
   reliability: best_effort
   durability: volatile
 
+/mpc/timing/iteration_count:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
+  durability: volatile
+
 /mpc/timing/control_gap_ms:
   history: keep_last
   depth: 100
