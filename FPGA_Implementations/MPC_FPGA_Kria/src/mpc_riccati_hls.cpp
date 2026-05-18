@@ -296,7 +296,7 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
   StepData_t step_data[MPC_HORIZON];
 #pragma HLS BIND_STORAGE variable = step_data type = RAM_2P impl = BRAM latency = 1
   fp_QP_raw_t B_sparse[MPC_HORIZON][MPC_BSP_N];
-#pragma HLS ARRAY_PARTITION variable = B_sparse complete dim = 0
+#pragma HLS ARRAY_PARTITION variable = B_sparse complete dim = 2
 
   fp_QP_t terminal_wall_x_lb_con = -BIG_BOUND;
   fp_QP_t terminal_wall_x_ub_con = BIG_BOUND;
