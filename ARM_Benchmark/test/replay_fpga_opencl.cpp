@@ -200,19 +200,26 @@ static int parse_row(char* line, ReplayRow& row) {
 static std::vector<cl::Device> get_xilinx_devices() {
     std::vector<cl::Platform> platforms;
     cl::Platform::get(&platforms);
+    std::vector<cl::Device> fallback_devices;
     for (const auto& platform : platforms) {
         std::string vendor = platform.getInfo<CL_PLATFORM_VENDOR>();
         std::string name = platform.getInfo<CL_PLATFORM_NAME>();
+        std::vector<cl::Device> devices;
+        cl_int err = platform.getDevices(CL_DEVICE_TYPE_ACCELERATOR, &devices);
+        if ((err != CL_SUCCESS || devices.empty())) {
+            devices.clear();
+            err = platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
+        }
         if (vendor.find("Xilinx") != std::string::npos ||
             name.find("Xilinx") != std::string::npos) {
-            std::vector<cl::Device> devices;
-            platform.getDevices(CL_DEVICE_TYPE_ACCELERATOR | CL_DEVICE_TYPE_DEFAULT, &devices);
             if (!devices.empty()) {
                 return devices;
             }
+        } else if (!devices.empty() && fallback_devices.empty()) {
+            fallback_devices = devices;
         }
     }
-    return {};
+    return fallback_devices;
 }
 
 class OpenclReplay {
