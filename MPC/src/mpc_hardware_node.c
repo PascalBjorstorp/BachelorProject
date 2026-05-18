@@ -224,6 +224,7 @@ static FILE *g_local_raceline_log_file = NULL;
 static FILE *g_stats_csv_file = NULL;
 static unsigned long g_solver_log_counter = 0;
 static int g_solver_log_stride = 1;
+static int g_solver_csv_logging_enabled = 0;
 static int g_log_local_raceline_snapshots = 0;
 static double g_last_servo_raw = 0.0;
 static long long g_last_odom_ros_time_ns = 0;
@@ -1734,14 +1735,16 @@ int main(int argc, char *argv[])
             double period_ms = atof(env_val);
             if (period_ms >= 1.0 && period_ms <= 100.0) g_drive_republish_period_ms = period_ms;
         }
+        if ((env_val = getenv("MPC_SOLVER_CSV_LOG")) != NULL)
+            g_solver_csv_logging_enabled = atoi(env_val) != 0;
         if ((env_val = getenv("MPC_LOG_LOCAL_RACELINE_SNAPSHOTS")) != NULL)
             g_log_local_raceline_snapshots = atoi(env_val) != 0;
     }
 
+    if (g_solver_csv_logging_enabled)
     {
-        /* Solver CSV logging: enable by default and write timestamped logs under `log/`.
-         * This removes environment-variable-based opt-in and ensures timing data is
-         * always captured for post-drive analysis. */
+        /* Solver CSV logging is opt-in only. Per-cycle file I/O can stall
+         * the real-time control thread on Jetson storage. */
         time_t now = time(NULL);
         char timestamp[64];
         struct tm *tm_now = localtime(&now);
@@ -1861,6 +1864,10 @@ int main(int argc, char *argv[])
                 }
             }
         }
+    }
+    else
+    {
+        printf("[MPC] Solver CSV logging disabled (set MPC_SOLVER_CSV_LOG=1 to enable)\n");
     }
 
     {
