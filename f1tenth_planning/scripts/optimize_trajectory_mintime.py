@@ -2632,15 +2632,9 @@ def main():
         # Vehicle width and separate center-to-wall clearance constraint.
         # width_opt remains car_width; wall_clearance reduces the allowed
         # centerline corridor by this extra margin on each side.
-<<<<<<< HEAD
-        car_width=0.32,
+        car_width=0.30,
         wall_clearance=0.15,
         wall_clearance_guard=0.1,
-=======
-        car_width=0.35,
-        wall_clearance=0.20,
-        wall_clearance_guard=0.15,
->>>>>>> af665080cf17c8f90fe09dbd745a60a707fe700d
         reopt_free_dev=0.005,
         reopt_kappa_factor=0.95,
         max_ray_distance=8.0,
