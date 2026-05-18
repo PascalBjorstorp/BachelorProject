@@ -29,6 +29,60 @@ Arguments:
 - First argument: timed iterations
 - Second argument: warmup iterations
 
+## OpenCL Replay On Kria
+
+This folder also contains a standalone OpenCL replay tool for the live FPGA
+bitstream path:
+
+- source: `test/replay_fpga_opencl.cpp`
+- target: `replay_fpga_opencl`
+- standard input folder: `input/`
+
+It is intentionally self-contained so the `ARM_Benchmark` folder can be copied
+to the Kria and built there without the rest of this repository.
+
+### Build On Kria
+
+If OpenCL development headers and libraries are available, CMake will add the
+`replay_fpga_opencl` target automatically:
+
+```bash
+cmake -S . -B build
+cmake --build build -j
+```
+
+If OpenCL is not found, CMake will skip that target and still build the CPU
+benchmark.
+
+### Run On Kria
+
+```bash
+./build/replay_fpga_opencl \
+  input/state_replay.csv \
+  input/replay_fpga_opencl.csv
+```
+
+Optional arguments:
+
+- `--xclbin <path>`: xclbin path, default `/lib/firmware/xilinx/MPC_FPGA/mpc_fpga_top_opencl.xclbin`
+- `--kernel <name>`: kernel symbol name, default `mpc_fpga_top_opencl`
+- `--device-index <n>`: select Xilinx device index, default `0`
+- `--no-reset-first`: do not send reset on the first replayed solve
+
+The output CSV logs the raw OpenCL kernel outputs and the exact input values
+used for each replayed solve, including:
+
+- `status`
+- `iters`
+- `out_steer_fp`
+- `out_accel_fp`
+- `prev_accel_in_fp`
+- `ref_vx0_fp`
+- `ref_kappa0_fp`
+- `total_call_ns`
+- `kernel_ns`
+- `wait_ns`
+
 ## FPGA Offload Analysis
 
 If the Frenet construction were moved to FPGA, the minimum per-step interface would be based on the current HLS scalar type, `ap_fixed<32, 17>` (`fp_QP_t`), so each value is 32 bits = 4 bytes.

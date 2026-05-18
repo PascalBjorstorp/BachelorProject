@@ -505,6 +505,8 @@ private:
     static constexpr float kStandstillVxThreshMps = 0.15f;
     static constexpr float kStandstillAccelOverrideMps2 = 0.5f;
     static constexpr float kStandstillBrakeEpsMps2 = 0.05f;
+    static constexpr float kLaunchRecoveryVxThreshMps = 0.35f;
+    static constexpr uint64_t kLaunchMaxIterColdStartStreak = 3;
     static constexpr double TERMINAL_STATS_PRINT_INTERVAL_SECONDS = 5.0;
 
     float max_steering_ = MPC_FPGA_MAX_STEER_RAD;
@@ -913,9 +915,20 @@ private:
         latest_vx_mps_ = fp_to_float(msg->velocity_fp);
         const FrenetErrorsFp errors{msg->e_y_fp, msg->e_psi_fp};
         const bool send_reset = fpga_reset_pending_;
-        const uint32_t control_flags =
+        const bool launch_region =
+            std::isfinite(latest_vx_mps_) &&
+            std::fabs(latest_vx_mps_) < kLaunchRecoveryVxThreshMps;
+        uint32_t control_flags =
             send_reset ? MPC_FPGA_CTRL_FLAG_RESET_STATE
                        : MPC_FPGA_CTRL_FLAGS_NONE;
+        if (!send_reset &&
+            launch_region &&
+            stats_max_iter_streak_ >= kLaunchMaxIterColdStartStreak) {
+            /* The live OpenCL kernel can get stuck reusing a bad ADMM warm start
+             * during low-speed launch. Clear ADMM state while preserving the
+             * measured actuator state packed in this cycle. */
+            control_flags |= MPC_FPGA_CTRL_FLAG_FORCE_COLD_START;
+        }
         const int32_t prev_accel_in_fp = send_reset ? 0 : fpga_.get_prev_accel_fp();
 
         if (send_reset) {
@@ -959,7 +972,15 @@ private:
             speed = last_speed_cmd_mps_;
             accel = last_accel_cmd_mps2_;
         } else {
-            accel = apply_standstill_brake_override(latest_vx_mps_, accel);
+            if (status == MPC_FPGA_STATUS_MAX_ITER && launch_region) {
+                /* Do not feed full-brake/full-throttle oscillation to the car
+                 * while launching from standstill. Keep steering bounded but
+                 * force a gentle positive launch acceleration. */
+                used_fallback = true;
+                accel = kStandstillAccelOverrideMps2;
+            } else {
+                accel = apply_standstill_brake_override(latest_vx_mps_, accel);
+            }
             speed = compute_target_speed(accel, msg);
             steering = std::clamp(steering, -max_steering_, max_steering_);
             speed = std::clamp(speed, MPC_FPGA_MIN_VEL_MPS, max_velocity_);
