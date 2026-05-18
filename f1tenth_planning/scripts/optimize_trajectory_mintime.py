@@ -1784,7 +1784,8 @@ def build_prepared_optimizer_track(centerline, map_img, resolution, origin,
                                    optimizer_smoothing_s=0.0,
                                    optimizer_smoothing_k=2,
                                    optimizer_smoothing_prep_spacing=0.02,
-                                   curvlim=None):
+                                   curvlim=None,
+                                   enable_mincurv_prepass=True):
     """
     Build the exact reference-track arrays consumed by TUM's mintime optimizer.
 
@@ -1905,15 +1906,17 @@ def build_prepared_optimizer_track(centerline, map_img, resolution, origin,
 
     reftrack_interp = np.column_stack([opt_centerline, w_right, w_left])
 
-    conditioned_centerline = mincurv_condition_centerline(
-        reftrack_interp=reftrack_interp,
-        normvec_right=normvec_right,
-        a_interp=a_interp,
-        curvlim=curvlim,
-        optimizer_width=optimizer_width,
-        optimizer_spacing=optimizer_spacing,
-        wall_clearance=wall_clearance,
-    )
+    conditioned_centerline = None
+    if enable_mincurv_prepass:
+        conditioned_centerline = mincurv_condition_centerline(
+            reftrack_interp=reftrack_interp,
+            normvec_right=normvec_right,
+            a_interp=a_interp,
+            curvlim=curvlim,
+            optimizer_width=optimizer_width,
+            optimizer_spacing=optimizer_spacing,
+            wall_clearance=wall_clearance,
+        )
     if conditioned_centerline is not None:
         opt_centerline = conditioned_centerline
         refpath_closed = np.vstack([opt_centerline, opt_centerline[0]])
@@ -2091,10 +2094,7 @@ def set_strict_curvlim_kappa_candidates(main_py_path, enabled,
         '# set by optimize_trajectory_mintime.py'
     )
     content, count = re.subn(
-        r'kappa_candidates\s*=\s*\[\s*'
-        r'pars\["veh_params"\]\["curvlim"\]\s*\*\s*factor\s*'
-        r'for\s+factor\s+in\s*\([^)]*\)\s*'
-        r'\]',
+        r'kappa_candidates\s*=\s*\[[^\]]+\](?:\s*#.*)?',
         replacement,
         content,
         count=1,
@@ -2624,9 +2624,10 @@ def main():
         # Centerline extraction settings
         centerline_spacing=0.05,     # target spacing for centerline points (in metres)
         optimizer_spacing=0.08,      # prepared reference-track spacing for TUM mintime
-        optimizer_smoothing_s=2.0,  # TUM spline smoothing factor before width measurement
+        optimizer_smoothing_s=0.0,  # Disabled: gaussian-conditioned centerline already satisfies curvlim
         optimizer_smoothing_k=2,    # TUM spline order (mirrors racecar.ini)
         optimizer_smoothing_prep_spacing=0.02,
+        enable_mincurv_prepass=False,
         direction='cw',             # 'auto', 'cw', or 'ccw'
 
         # Vehicle width and separate center-to-wall clearance constraint.
@@ -2783,6 +2784,7 @@ def main():
         optimizer_smoothing_k=args.optimizer_smoothing_k,
         optimizer_smoothing_prep_spacing=args.optimizer_smoothing_prep_spacing,
         curvlim=curvlim,
+        enable_mincurv_prepass=args.enable_mincurv_prepass,
     )
     reftrack_interp = prepared_track['reftrack_interp']
     plot_prepared_optimizer_track(
