@@ -92,7 +92,7 @@ gpu_amcl_cpp:
 
     # ---- Resampling ----
     resample_threshold: 0.3  # match sim benchmark default
-    enable_recovery_injection: false   # keep adding global particles so wrong early mode cannot permanently steal all particles
+    enable_recovery_injection: true   # keep adding global particles so wrong early mode cannot permanently steal all particles
     recovery_injection_ratio: 0.05    # 5% runtime recovery particles; less likely to pull pose after convergence
     enable_local_roughening: true      # bad scan match -> jitter local particles after resample
     local_roughening_ratio: 0.25       # replace 20% around current local mean
@@ -118,13 +118,6 @@ gpu_amcl_cpp:
     global_heading_trajectory_file: ""     # absolute path override; empty resolves package/rel path below
     global_heading_trajectory_package: "f1tenth_planning"
     global_heading_trajectory_rel_path: "trajectories/my_track_raceline.csv"
-    global_init_min_scans: 8               # require multiple scan updates before first /amcl_pose
-    global_init_required_stable_scans: 3   # best cluster must stop jumping
-    global_init_min_motion_m: 0.25         # use odom motion to break symmetric scan matches
-    global_init_publish_min_weight: 0.85   # stronger gate than normal tracking
-    global_init_min_weight_margin: 0.25    # best cluster must clearly beat second cluster
-    global_init_stability_xy_m: 0.35
-    global_init_stability_yaw_rad: 0.45
 
     # Used only when global_initialization=false, and as covariance for RViz 2D Pose Estimate.
     initial_pose_x: 0.0
@@ -135,7 +128,7 @@ gpu_amcl_cpp:
     initial_cov_aa: 0.2
 
     # ---- Publishing ----
-    cloud_publish_rate: 0.1       # Hz; <= 0 disables particle cloud publishing and downloads
+    cloud_publish_rate: 40.0       # Hz; <= 0 disables particle cloud publishing and downloads
     debug_pre_resample_particles: false  # publish weighted pre-resample PointCloud2 debug topic
 
 

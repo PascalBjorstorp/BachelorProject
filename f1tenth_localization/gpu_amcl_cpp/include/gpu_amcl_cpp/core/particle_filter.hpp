@@ -24,7 +24,6 @@ void launch_gpu_normalize_weights(
         void* d_cub_temp,
         size_t cub_temp_bytes,
         int n,
-        bool multiply_old_weights,
         cudaStream_t stream);
 
 // ─── GPU-side pose estimation (compute mean + covariance on GPU) ─────
@@ -155,8 +154,7 @@ public:
 
     /// Compute normalized particle weights from a new scan, without resampling.
     bool update_weights(const float* ranges, int num_ranges,
-                        float angle_min, float angle_inc,
-                        bool multiply_old_weights = true);
+                        float angle_min, float angle_inc);
 
     /// Run resampling using the current normalized weights.
     void resample_if_needed();

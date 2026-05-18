@@ -158,13 +158,6 @@ void AmclNode::declare_all_parameters() {
     declare_parameter<std::string>("global_heading_trajectory_file", "");
     declare_parameter<std::string>("global_heading_trajectory_package", "f1tenth_planning");
     declare_parameter<std::string>("global_heading_trajectory_rel_path", "trajectories/my_track_raceline.csv");
-    declare_parameter<int>("global_init_min_scans", 8);
-    declare_parameter<int>("global_init_required_stable_scans", 3);
-    declare_parameter<double>("global_init_min_motion_m", 0.25);
-    declare_parameter<double>("global_init_publish_min_weight", 0.85);
-    declare_parameter<double>("global_init_min_weight_margin", 0.25);
-    declare_parameter<double>("global_init_stability_xy_m", 0.35);
-    declare_parameter<double>("global_init_stability_yaw_rad", 0.45);
     declare_parameter<double>("initial_pose_x", 0.0);
     declare_parameter<double>("initial_pose_y", 0.0);
     declare_parameter<double>("initial_pose_a", 0.0);
@@ -194,21 +187,6 @@ void AmclNode::load_parameters() {
         get_parameter("debug_pre_resample_particles").as_bool();
     initial_heading_from_raceline_ =
         get_parameter("initial_heading_from_raceline").as_bool();
-    global_init_min_scans_ =
-        std::max(1, static_cast<int>(get_parameter("global_init_min_scans").as_int()));
-    global_init_required_stable_scans_ =
-        std::max(1, static_cast<int>(
-                    get_parameter("global_init_required_stable_scans").as_int()));
-    global_init_min_motion_m_ =
-        std::max(0.0, get_parameter("global_init_min_motion_m").as_double());
-    global_init_publish_min_weight_ =
-        std::clamp(get_parameter("global_init_publish_min_weight").as_double(), 0.0, 1.0);
-    global_init_min_weight_margin_ =
-        std::clamp(get_parameter("global_init_min_weight_margin").as_double(), 0.0, 1.0);
-    global_init_stability_xy_m_ =
-        std::max(0.0, get_parameter("global_init_stability_xy_m").as_double());
-    global_init_stability_yaw_rad_ =
-        std::max(0.0, get_parameter("global_init_stability_yaw_rad").as_double());
     slip_angular_threshold_ = get_parameter("slip_angular_threshold").as_double();
     slip_noise_multiplier_  = get_parameter("slip_noise_multiplier").as_double();
     odom_history_duration_s_ = std::max(
@@ -222,13 +200,6 @@ void AmclNode::load_parameters() {
         cloud_publish_rate_, debug_pre_resample_particles_ ? "true" : "false",
         slip_angular_threshold_,
         initial_heading_from_raceline_ ? "true" : "false");
-    RCLCPP_INFO(get_logger(),
-        "[AMCL] Global init gate: min_scans=%d, stable_scans=%d, min_motion=%.2f m, "
-        "min_weight=%.2f, min_margin=%.2f, stable_xy=%.2f m, stable_yaw=%.2f rad",
-        global_init_min_scans_, global_init_required_stable_scans_,
-        global_init_min_motion_m_, global_init_publish_min_weight_,
-        global_init_min_weight_margin_, global_init_stability_xy_m_,
-        global_init_stability_yaw_rad_);
 }
 
 void AmclNode::push_odom_sample(const rclcpp::Time& stamp,
@@ -504,11 +475,6 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     pf_.init(pf_cfg, mm_cfg, sm_cfg, map_);
 
     prediction_baseline_ready_ = false;
-    global_localization_active_ = pf_cfg.global_initialization;
-    global_init_scan_count_ = 0;
-    global_init_stable_count_ = 0;
-    global_init_motion_m_ = 0.0;
-    global_init_last_est_valid_ = false;
     RCLCPP_INFO(get_logger(), "Particle filter initialised with %d particles (%s)",
                 pf_cfg.num_particles,
                 pf_cfg.global_initialization ? "global" : "local");
@@ -653,14 +619,11 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     // ═══════════════════════════════════════════════════════════
     // STEP 2: UPDATE — Weight particles by scan, debug, then resample
     // ═══════════════════════════════════════════════════════════
-    const bool global_init_scoring =
-        global_localization_active_ && pf_.config().global_initialization;
     const bool weights_updated = pf_.update_weights(
         msg->ranges.data(),
         static_cast<int>(msg->ranges.size()),
         msg->angle_min,
-        msg->angle_increment,
-        !global_init_scoring);
+        msg->angle_increment);
     if (!weights_updated) {
         processing_scan_ = false;
         return;
@@ -670,78 +633,14 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     // Estimate from the strongest local mode before resampling. A global
     // weighted mean is invalid while particles are split across plausible poses.
     double cluster_weight = 1.0;
-    double second_cluster_weight = 0.0;
-    auto est = pf_.get_cluster_estimate(&cluster_weight, &second_cluster_weight);
+    auto est = pf_.get_cluster_estimate(&cluster_weight);
 
     const double min_cluster_weight =
         std::clamp(pf_.config().cluster_publish_min_weight, 0.0, 1.0);
     bool publish_cluster =
         !pf_.config().use_cluster_estimate || cluster_weight >= min_cluster_weight;
-    bool resample_now = true;
 
-    if (global_localization_active_ && pf_.config().global_initialization) {
-        ++global_init_scan_count_;
-        global_init_motion_m_ += dist_moved;
-
-        if (global_init_last_est_valid_) {
-            const double dx_est = est.x - global_init_last_est_.x;
-            const double dy_est = est.y - global_init_last_est_.y;
-            const double dxy_est = std::hypot(dx_est, dy_est);
-            const double dyaw_est = std::abs(
-                math_utils::angle_diff(est.theta, global_init_last_est_.theta));
-            if (dxy_est <= global_init_stability_xy_m_ &&
-                dyaw_est <= global_init_stability_yaw_rad_) {
-                ++global_init_stable_count_;
-            } else {
-                global_init_stable_count_ = 1;
-            }
-        } else {
-            global_init_stable_count_ = 1;
-        }
-        global_init_last_est_ = est;
-        global_init_last_est_valid_ = true;
-
-        const bool enough_scans =
-            global_init_scan_count_ >= global_init_min_scans_;
-        const bool enough_motion =
-            global_init_motion_m_ >= global_init_min_motion_m_;
-        const bool stable =
-            global_init_stable_count_ >= global_init_required_stable_scans_;
-        const bool strong_weight =
-            cluster_weight >= global_init_publish_min_weight_;
-        const bool clear_winner =
-            (cluster_weight - second_cluster_weight) >= global_init_min_weight_margin_;
-
-        publish_cluster =
-            enough_scans && enough_motion && stable && strong_weight && clear_winner;
-        resample_now = publish_cluster;
-
-        if (publish_cluster) {
-            global_localization_active_ = false;
-            pf_.set_recovery_injection_enabled(false);
-            RCLCPP_INFO(get_logger(),
-                        "Global AMCL accepted: scans=%d motion=%.2fm stable=%d "
-                        "weight=%.3f second=%.3f margin=%.3f pose=(%.2f, %.2f, %.2f)",
-                        global_init_scan_count_, global_init_motion_m_,
-                        global_init_stable_count_, cluster_weight,
-                        second_cluster_weight, cluster_weight - second_cluster_weight,
-                        est.x, est.y, est.theta);
-        } else if ((global_init_scan_count_ % 20) == 0) {
-            RCLCPP_INFO(get_logger(),
-                        "Global AMCL waiting: scans=%d/%d motion=%.2f/%.2fm stable=%d/%d "
-                        "weight=%.3f/%.3f second=%.3f margin=%.3f/%.3f",
-                        global_init_scan_count_, global_init_min_scans_,
-                        global_init_motion_m_, global_init_min_motion_m_,
-                        global_init_stable_count_, global_init_required_stable_scans_,
-                        cluster_weight, global_init_publish_min_weight_,
-                        second_cluster_weight, cluster_weight - second_cluster_weight,
-                        global_init_min_weight_margin_);
-        }
-    }
-
-    if (resample_now) {
-        pf_.resample_if_needed();
-    }
+    pf_.resample_if_needed();
 
     // ── Timing end — publish if subscribed ──
     auto t_pf_end = std::chrono::high_resolution_clock::now();
@@ -800,11 +699,6 @@ void AmclNode::initialpose_callback(const geometry_msgs::msg::PoseWithCovariance
 
     // Reset odom baseline
     prediction_baseline_ready_ = false;
-    global_localization_active_ = false;
-    global_init_scan_count_ = 0;
-    global_init_stable_count_ = 0;
-    global_init_motion_m_ = 0.0;
-    global_init_last_est_valid_ = false;
 }
 
 // ─── Direct pose publish (called from scan_callback) ────────────────

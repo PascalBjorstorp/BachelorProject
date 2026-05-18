@@ -411,8 +411,7 @@ void ParticleFilter::update(const float* ranges, int num_ranges,
 }
 
 bool ParticleFilter::update_weights(const float* ranges, int num_ranges,
-                                    float angle_min, float angle_inc,
-                                    bool multiply_old_weights) {
+                                    float angle_min, float angle_inc) {
     // Guard: ensure scan fits in pre-allocated buffer (set by max_beams param)
     if (num_ranges > max_ranges_) {
         std::fprintf(stderr,
@@ -440,7 +439,7 @@ bool ParticleFilter::update_weights(const float* ranges, int num_ranges,
         d_log_w_.ptr(), d_weights_.ptr(), d_scratch_w_.ptr(),
         d_max_val_, d_sum_val_,
         d_cub_temp_, cub_temp_bytes_,
-        n_, multiply_old_weights, stream_.get());
+        n_, stream_.get());
 
     // After normalize, d_scratch_w_ holds the normalised weights — swap.
     std::swap(d_weights_, d_scratch_w_); // Pointer swap, no copy, no sync needed. d_weights_ now has normalised weights for resampling.
