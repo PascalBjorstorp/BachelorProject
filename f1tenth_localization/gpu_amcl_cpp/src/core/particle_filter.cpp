@@ -152,6 +152,56 @@ bool ParticleFilter::sample_global_particle(const MapProcessor& map,
         std::max(0.0, cfg_.global_heading_cone_rad));
     std::uniform_real_distribution<float> yaw_noise(-heading_cone, heading_cone);
 
+    if (!cfg_.global_heading_points.empty()) {
+        std::uniform_int_distribution<int> point_dist(
+            0, static_cast<int>(cfg_.global_heading_points.size()) - 1);
+
+        const float max_lateral = static_cast<float>(
+            cfg_.global_max_lateral_offset_m > 0.0 ? cfg_.global_max_lateral_offset_m : 0.55);
+        const float wall_margin = static_cast<float>(std::max(0.0, cfg_.global_track_margin_m));
+        const auto& distance_field = map.distance_field();
+
+        for (int attempt = 0; attempt < 200; ++attempt) {
+            const auto& point =
+                cfg_.global_heading_points[static_cast<size_t>(point_dist(rng_))];
+
+            float left = point.d_left > 0.0f ? std::min(point.d_left, max_lateral) : max_lateral;
+            float right = point.d_right > 0.0f ? std::min(point.d_right, max_lateral) : max_lateral;
+            left = std::max(0.0f, left - wall_margin);
+            right = std::max(0.0f, right - wall_margin);
+            if (left <= 0.0f && right <= 0.0f) {
+                continue;
+            }
+
+            std::uniform_real_distribution<float> lateral_dist(-right, left);
+            const float lateral = lateral_dist(rng_);
+            const float nx_left = -std::sin(point.yaw);
+            const float ny_left = std::cos(point.yaw);
+            const float cand_x = point.x + lateral * nx_left;
+            const float cand_y = point.y + lateral * ny_left;
+
+            int mx = 0;
+            int my = 0;
+            map.world_to_map(cand_x, cand_y, mx, my);
+            if (!map.is_free(mx, my)) {
+                continue;
+            }
+
+            const int flat_idx = my * map.width() + mx;
+            if (wall_margin > 0.0f &&
+                flat_idx >= 0 &&
+                static_cast<size_t>(flat_idx) < distance_field.size() &&
+                distance_field[static_cast<size_t>(flat_idx)] < wall_margin) {
+                continue;
+            }
+
+            wx = cand_x;
+            wy = cand_y;
+            yaw = normalize_yaw(point.yaw + yaw_noise(rng_));
+            return true;
+        }
+    }
+
     const auto& free_cells = map.free_cells();
     if (free_cells.empty()) {
         return false;
