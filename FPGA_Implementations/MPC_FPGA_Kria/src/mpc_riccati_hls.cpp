@@ -418,8 +418,8 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
     }
 
     const fp_QP_t ey_ref_k = compute_wall_biased_ey_ref_hls(
-        ref[k].reference_lateral_error, wall_x_lb_con, wall_x_ub_con, kZero,
-        WALL_BIAS_MAX_M);
+        ref[k].reference_lateral_error, wall_x_lb_con, wall_x_ub_con,
+        WALL_REF_CLEAR_M, WALL_BIAS_MAX_M);
 
     if (k == (MPC_HORIZON - 1)) {
       terminal_wall_x_lb_con = wall_x_lb_con;
