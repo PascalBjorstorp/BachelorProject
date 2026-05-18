@@ -37,8 +37,9 @@ All numeric payload fields are raw QP fixed-point (`int32`) except `horizon_leng
 1. Loads a trajectory CSV.
 2. Caches odometry dynamics from `/ego_racecar/odom`.
 3. Triggers publish on each `/ekf_pose` message.
-4. Computes current Frenet errors on Jetson.
-5. Streams only the FPGA-consumed state and horizon values in each `MpcState` message.
+4. Reads `/ekf_pose` as `geometry_msgs/PoseWithCovarianceStamped`, using pose only from `msg.pose.pose` and keeping velocity/yaw-rate from `/ego_racecar/odom`, matching `MPC/src/mpc_hardware_node.c`.
+5. Computes current Frenet errors on Jetson.
+6. Streams only the FPGA-consumed state and horizon values in each `MpcState` message.
 
 ### state_receiver (Kria)
 

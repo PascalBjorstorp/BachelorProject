@@ -69,22 +69,10 @@
  * HLS Resource Constraints
  *===========================================================================*/
 
-/* ADMM state z/y update loop target II.
- * Override at compile time: -DMPC_HLS_STATE_ZY_II=N */
-#ifndef MPC_HLS_STATE_ZY_II
-#define MPC_HLS_STATE_ZY_II 2
-#endif
-
 /* Structural model signature used to invalidate persistent warm-start state
  * when the linearization/model basis changes. */
 #ifndef MPC_MODEL_SIGNATURE
 #define MPC_MODEL_SIGNATURE 1
-#endif
-
-/** ADMM control z/y update loop target II.
- *  Override at compile time: -DMPC_HLS_CTRL_ZY_II=N */
-#ifndef MPC_HLS_CTRL_ZY_II
-#define MPC_HLS_CTRL_ZY_II 2
 #endif
 
 /*===========================================================================

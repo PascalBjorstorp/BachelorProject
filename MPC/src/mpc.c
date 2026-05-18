@@ -184,13 +184,23 @@ static FrenetState_t mpc_predict_frenet_next_state(
     if (fabsf(ey_denom) < 1e-3f)
         ey_denom = (ey_denom >= 0.0f) ? 1e-3f : -1e-3f;
 
-    /* Use reference velocity (v_ref) for lateral/heading error dynamics rather than
-     * actual velocity (vx). This ensures the solver's predictions of error evolution
-     * don't become "blind" when vx momentarily reaches zero. v_ref represents the
-     * planned speed along the path, while vx is actual plant velocity. */
-    const float e_y_dot = v_ref * sinf(state->fhead_error) + vy * cosf(state->fhead_error);
+    /* Frenet error kinematics use the ACTUAL longitudinal speed, not the
+     * reference speed: e_y_dot / e_psi_dot are geometric identities in the
+     * true vehicle speed, so substituting v_ref injects a model-plant
+     * mismatch on every accel/decel transient.
+     *
+     * Loss-of-rank safeguard: as vx -> 0 the (e_y, e_psi) subsystem becomes
+     * uncontrollable (steering produces no lateral motion) and the Riccati
+     * recursion degenerates. Flooring the speed at VP_MIN_VELOCITY_MPS keeps
+     * the subsystem controllable at standstill — this is the regularization
+     * the old v_ref substitution was really standing in for. The floor value
+     * matches the FPGA kernel (MIN_LIN_VEL = 0.5 m/s) for CPU/FPGA parity. */
+    (void)v_ref;
+    const float v_eff =
+        (vx > VP_MIN_VELOCITY_MPS) ? vx : VP_MIN_VELOCITY_MPS;
+    const float e_y_dot = v_eff * sinf(state->fhead_error) + vy * cosf(state->fhead_error);
     const float e_psi_dot = omega -
-        path_curvature * v_ref * cosf(state->fhead_error) / ey_denom;
+        path_curvature * v_eff * cosf(state->fhead_error) / ey_denom;
 
     next.flat_error = state->flat_error + dt * e_y_dot;
     next.fhead_error = util_normalize_angle(state->fhead_error + dt * e_psi_dot);

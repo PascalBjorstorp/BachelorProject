@@ -11,6 +11,10 @@ DEFAULT_INPUT_DIR="${REPO_ROOT}/tools/input"
 DEFAULT_OUTPUT_PARENT="${REPO_ROOT}/tools/output"
 HORIZON=20
 SKIP_COMPILE=0
+# Optional pre-computed CSVs (skip replay step if provided)
+STATE_CSV=""
+CPU_REPLAY_CSV=""
+FPGA_REPLAY_CSV=""
 
 usage() {
   cat <<USAGE
@@ -22,6 +26,9 @@ Options:
   --horizon N               Horizon (default: 20)
   --out-dir PATH            Output directory
   --skip-compile            Skip compiling replay and dump tools
+  --state-csv PATH          Pre-computed state_replay.csv (skip replay step)
+  --cpu-replay-csv PATH     Pre-computed replay_cpu_out.csv
+  --fpga-replay-csv PATH    Pre-computed replay_fpga_out.csv
 USAGE
 }
 
@@ -32,6 +39,9 @@ while [[ $# -gt 0 ]]; do
     --horizon) HORIZON="$2"; shift 2 ;;
     --out-dir) OUT_DIR="$2"; shift 2 ;;
     --skip-compile) SKIP_COMPILE=1; shift ;;
+    --state-csv) STATE_CSV="$2"; shift 2 ;;
+    --cpu-replay-csv) CPU_REPLAY_CSV="$2"; shift 2 ;;
+    --fpga-replay-csv) FPGA_REPLAY_CSV="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown arg: $1" >&2; usage; exit 2 ;;
   esac
@@ -103,13 +113,21 @@ else
   echo "[1/6] Skipping compile"
 fi
 
-echo "[3/6] Running replay eval to generate state replay + CPU control history"
-bash "${REPO_ROOT}/tools/mpc_replay/run_replay_eval.sh" \
-  --bag "${BAG_PATH}" \
-  --horizon "${HORIZON}" \
-  --steering-source "${STEERING_SOURCE}" \
-  --out-dir "${OUT_DIR}" \
-  --skip-compile
+# Check if pre-computed CSVs were provided
+if [[ -n "${STATE_CSV}" && -n "${CPU_REPLAY_CSV}" && -n "${FPGA_REPLAY_CSV}" ]]; then
+  echo "[3/6] Using pre-computed replay CSVs (skipping redundant replay step)"
+  cp "${STATE_CSV}" "${OUT_DIR}/state_replay.csv"
+  cp "${CPU_REPLAY_CSV}" "${OUT_DIR}/replay_cpu_out.csv"
+  cp "${FPGA_REPLAY_CSV}" "${OUT_DIR}/replay_fpga_out.csv"
+else
+  echo "[3/6] Running replay eval to generate state replay + CPU control history"
+  bash "${REPO_ROOT}/tools/mpc_replay/run_replay_eval.sh" \
+    --bag "${BAG_PATH}" \
+    --horizon "${HORIZON}" \
+    --steering-source "${STEERING_SOURCE}" \
+    --out-dir "${OUT_DIR}" \
+    --skip-compile
+fi
 
 STATE_CSV="${OUT_DIR}/state_replay.csv"
 CPU_REPLAY="${OUT_DIR}/replay_cpu_out.csv"

@@ -114,63 +114,6 @@ static inline fp_QP_t step_accel_ub(const StepData_t *sd) {
   return sd->accel_ub;
 }
 
-static void sanitize_warm_start_from_primal(
-    const StepData_t step_data[MPC_HORIZON],
-    const fp_QP_t terminal_x_lb[MPC_NX_AUG],
-    const fp_QP_t terminal_x_ub[MPC_NX_AUG],
-    const fp_QP_t sol_x[MPC_HORIZON + 1][MPC_NX_AUG],
-    const fp_QP_t sol_u[MPC_HORIZON][MPC_NU],
-    fp_QP_t z_x[MPC_HORIZON + 1][MPC_NX_AUG],
-    fp_QP_t z_u[MPC_HORIZON][MPC_NU],
-    fp_QP_t y_x[MPC_HORIZON + 1][MPC_NX_AUG],
-    fp_QP_t y_u[MPC_HORIZON][MPC_NU]) {
-#pragma HLS INLINE off
-  int k, s, a;
-  for (k = 0; k <= MPC_HORIZON; ++k) {
-#pragma HLS PIPELINE II = 1
-    for (s = 0; s < MPC_NX_AUG; ++s) {
-      fp_QP_t v = sol_x[k][s];
-      if (s == IDX_EY || s == IDX_DELTA_ACT) {
-        fp_QP_t lb = terminal_x_lb[s];
-        fp_QP_t ub = terminal_x_ub[s];
-        if (k < MPC_HORIZON) {
-          if (s == IDX_EY) {
-            lb = step_ey_lb(&step_data[k]);
-            ub = step_ey_ub(&step_data[k]);
-          } else {
-            lb = (fp_QP_t)(-VP_MAX_STEER);
-            ub = (fp_QP_t)(VP_MAX_STEER);
-          }
-        }
-        if (v < lb)
-          v = lb;
-        if (v > ub)
-          v = ub;
-      }
-      z_x[k][s] = v;
-      y_x[k][s] = FP_QP_CONST(0.0);
-    }
-  }
-  for (k = 0; k < MPC_HORIZON; ++k) {
-#pragma HLS PIPELINE II = 1
-    for (a = 0; a < MPC_NU; ++a) {
-      fp_QP_t v = sol_u[k][a];
-      fp_QP_t lb = VP_MIN_ACCEL;
-      fp_QP_t ub = step_accel_ub(&step_data[k]);
-      if (a == 0) {
-        lb = (fp_QP_t)(-VP_MAX_STEER_RATE);
-        ub = (fp_QP_t)(VP_MAX_STEER_RATE);
-      }
-      if (v < lb)
-        v = lb;
-      if (v > ub)
-        v = ub;
-      z_u[k][a] = v;
-      y_u[k][a] = FP_QP_CONST(0.0);
-    }
-  }
-}
-
 static void
 admm_update_state_channel_raw(fp_QP_t x_val, fp_QP_t *z_slot, fp_QP_t *y_slot,
                               fp_QP_t rho, fp_QP_t lb, fp_QP_t ub,
@@ -301,18 +244,18 @@ riccati_forward_pass(const StepData_t step_data[MPC_HORIZON],
                      fp_QP_t x_out[MPC_HORIZON_PLUS_ONE][MPC_NX_AUG],
                      fp_QP_t u_out[MPC_HORIZON][MPC_NU]) {
 #pragma HLS INLINE off
-#pragma HLS ARRAY_PARTITION variable = B_sparse complete dim = 0
+#pragma HLS ARRAY_PARTITION variable = B_sparse complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = x_out complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = u_out complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = K complete dim = 2
-#pragma HLS ARRAY_PARTITION variable = K cyclic factor = 4 dim = 3
+#pragma HLS ARRAY_PARTITION variable = K complete dim = 3
 #pragma HLS ARRAY_PARTITION variable = kk complete dim = 2
 #pragma HLS ALLOCATION function instances = sum8_K_QP_raw limit = 2
 #pragma HLS ALLOCATION function instances = sum6_QP_raw   limit = 4
 #pragma HLS ALLOCATION operation instances = mul limit = 16
-  int i, k;
+  int i, k, s;
 
-  for (int s = 0; s < MPC_NX_AUG; s++) {
+  for (s = 0; s < MPC_NX_AUG; s++) {
 #pragma HLS UNROLL
     x_out[0][s] = x0[s];
   }
@@ -320,7 +263,6 @@ riccati_forward_pass(const StepData_t step_data[MPC_HORIZON],
   /* Forward Riccati pass: recurrence-bound (x_out[k+1] depends on
    * x_out[k]). Sequential by necessity. */
   for (k = 0; k < MPC_HORIZON; k++) {
-#pragma HLS LOOP_TRIPCOUNT min = MPC_HORIZON max = MPC_HORIZON
 #pragma HLS LOOP_FLATTEN off
     const StepData_t *sd = &step_data[k];
     const fp_QP_raw_t d0_fwd = sd->d[0];
@@ -332,7 +274,7 @@ riccati_forward_pass(const StepData_t step_data[MPC_HORIZON],
 
     fp_QP_raw_t xk_raw[MPC_NX_AUG];
 #pragma HLS ARRAY_PARTITION variable = xk_raw complete dim = 1
-    for (int s = 0; s < MPC_NX_AUG; ++s) {
+    for (s = 0; s < MPC_NX_AUG; ++s) {
 #pragma HLS UNROLL
       xk_raw[s] = fp_qp_raw_from_QP(x_out[k][s]);
     }
@@ -442,13 +384,13 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
                       fp_K_raw_t K[MPC_HORIZON][MPC_NU][MPC_NX_AUG],
                       fp_K_raw_t kk[MPC_HORIZON][MPC_NU]) {
 #pragma HLS INLINE off
-#pragma HLS ARRAY_PARTITION variable = B_sparse complete dim = 0
+#pragma HLS ARRAY_PARTITION variable = B_sparse complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = z_x complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = y_x complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = z_u complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = y_u complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = K complete dim = 2
-#pragma HLS ARRAY_PARTITION variable = K cyclic factor = 4 dim = 3
+#pragma HLS ARRAY_PARTITION variable = K complete dim = 3
 #pragma HLS ARRAY_PARTITION variable = kk complete dim = 2
 #pragma HLS ALLOCATION function instances = fp_recip         limit = 2
 #pragma HLS ALLOCATION function instances = sum6_P_QP_raw    limit = 2
@@ -523,7 +465,6 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
    * All catastrophic (last: WNS -4.66 ns, 28k failing endpoints).
    * The serial dependency is structural - leave this sequential. */
   for (k = N - 1; k >= 0; k--) {
-#pragma HLS LOOP_TRIPCOUNT min = MPC_HORIZON max = MPC_HORIZON
 #pragma HLS LOOP_FLATTEN off
     const StepData_t *sd = &step_data[k];
     const fp_QP_raw_t d0_raw = sd->d[0];
@@ -1021,11 +962,11 @@ riccati_pass_hls(const StepData_t step_data[MPC_HORIZON],
                  fp_QP_t x_out[MPC_HORIZON_PLUS_ONE][MPC_NX_AUG],
                  fp_QP_t u_out[MPC_HORIZON][MPC_NU]) {
 #pragma HLS INLINE off
-#pragma HLS ARRAY_PARTITION variable = B_sparse complete dim = 0
+#pragma HLS ARRAY_PARTITION variable = B_sparse complete dim = 2
   fp_K_raw_t K[MPC_HORIZON][MPC_NU][MPC_NX_AUG];
   fp_K_raw_t kk[MPC_HORIZON][MPC_NU];
 #pragma HLS ARRAY_PARTITION variable = K complete dim = 2
-#pragma HLS ARRAY_PARTITION variable = K cyclic factor = 4 dim = 3
+#pragma HLS ARRAY_PARTITION variable = K complete dim = 3
 #pragma HLS ARRAY_PARTITION variable = kk complete dim = 2
 
   riccati_backward_pass(step_data, B_sparse, terminal_q_diag,
@@ -1050,7 +991,7 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
                                    AdmmState_t *admm_state,
                                    MpcSolution_t *solution) {
 #pragma HLS INLINE
-#pragma HLS ARRAY_PARTITION variable = B_sparse complete dim = 0
+#pragma HLS ARRAY_PARTITION variable = B_sparse complete dim = 2
 #pragma HLS DISAGGREGATE variable = admm_state
 #ifndef __SYNTHESIS__
   g_hls_debug_trace_count = 0;
@@ -1194,7 +1135,6 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
     if (bootstrap_pass) {
       /* Initialize z from projection of unconstrained solution. */
       for (k = 0; k < MPC_HORIZON_PLUS_ONE; k++) {
-#pragma HLS LOOP_TRIPCOUNT min = MPC_HORIZON_PLUS_ONE max = MPC_HORIZON_PLUS_ONE
         for (s = 0; s < MPC_NX_AUG; s++) {
 #pragma HLS UNROLL
           z_x[k][s] = sol_x[k][s];
@@ -1231,7 +1171,6 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
         }
       }
       for (k = 0; k < MPC_HORIZON; k++) {
-#pragma HLS LOOP_TRIPCOUNT min = MPC_HORIZON max = MPC_HORIZON
         for (a = 0; a < MPC_NU; a++) {
 #pragma HLS UNROLL
           fp_QP_t val = sol_u[k][a];
@@ -1251,12 +1190,10 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
 
       /* Initialize y (dual) from constraint violation. */
       for (k = 0; k < MPC_HORIZON_PLUS_ONE; k++) {
-#pragma HLS LOOP_TRIPCOUNT min = MPC_HORIZON_PLUS_ONE max = MPC_HORIZON_PLUS_ONE
         y_x[k][IDX_EY] = sol_x[k][IDX_EY] - z_x[k][IDX_EY];
         y_x[k][IDX_DELTA_ACT] = sol_x[k][IDX_DELTA_ACT] - z_x[k][IDX_DELTA_ACT];
       }
       for (k = 0; k < MPC_HORIZON; k++) {
-#pragma HLS LOOP_TRIPCOUNT min = MPC_HORIZON max = MPC_HORIZON
         for (a = 0; a < MPC_NU; a++) {
 #pragma HLS UNROLL
           y_u[k][a] = sol_u[k][a] - z_u[k][a];
@@ -1289,8 +1226,6 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
 
     /* State z/y update */
     for (k = 0; k < MPC_HORIZON_PLUS_ONE; k++) {
-#pragma HLS LOOP_TRIPCOUNT min = MPC_HORIZON_PLUS_ONE max = MPC_HORIZON_PLUS_ONE
-#pragma HLS PIPELINE II = MPC_HLS_STATE_ZY_II
       /* QP assembly only gives finite bounds to e_y and delta_actual.
        * Keep unconstrained states out of the expensive ADMM projection path. */
       for (s = 0; s < MPC_NX_AUG; s++) {
@@ -1350,8 +1285,6 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
 
     /* Control z/y update — dual residual computed inline */
     for (k = 0; k < MPC_HORIZON; k++) {
-#pragma HLS LOOP_TRIPCOUNT min = MPC_HORIZON max = MPC_HORIZON
-#pragma HLS PIPELINE II = MPC_HLS_CTRL_ZY_II
       const StepData_t *sd = &step_data[k];
 
       fp_QP_t u_norm_k = fp_max_abs_ctrl2(sol_u[k][0], sol_u[k][1]);
@@ -1484,7 +1417,6 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
         /* State duals: single merged loop, direction resolved statically. */
         if (scale_rho != 0) {
           for (k = 0; k < MPC_HORIZON_PLUS_ONE; k++) {
-#pragma HLS LOOP_TRIPCOUNT min = MPC_HORIZON_PLUS_ONE max = MPC_HORIZON_PLUS_ONE
 #pragma HLS PIPELINE II = 1
             if (scale_rho > 0) {
               y_x[k][IDX_EY] >>= 1;
@@ -1499,10 +1431,8 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
         /* Control duals: single merged loop, direction resolved statically. */
         if (scale_rho_u != 0) {
           for (k = 0; k < MPC_HORIZON; k++) {
-#pragma HLS LOOP_TRIPCOUNT min = MPC_HORIZON max = MPC_HORIZON
 #pragma HLS PIPELINE II = 1
             for (a = 0; a < MPC_NU; a++) {
-#pragma HLS UNROLL
               if (scale_rho_u > 0) {
                 y_u[k][a] >>= 1;
               } else {
@@ -1524,8 +1454,10 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
 
   /* Save ADMM state for warm-starting.
    * Policy:
-   *  - OPTIMAL  : keep full primal/dual warm start
-   *  - MAX_ITER : keep projected primal iterate only, zero duals, reset rho
+   *  - OPTIMAL or MAX_ITER : keep the full warm start (primal z_*, dual y_*,
+   *                          and the live rho/rho_u)
+   *  - any other status    : clear the warm start (zero everything, rho = 0,
+   *                          initialized = 0)
    */
   if (status == MPC_STATUS_OPTIMAL || status == MPC_STATUS_MAX_ITER) {
     for (k = 0; k < MPC_HORIZON_PLUS_ONE; k++) {

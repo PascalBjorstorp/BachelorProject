@@ -10,17 +10,6 @@
 #include <climits>
 #include <cstdint>
 
-/* DSP multiply latency.
- *
- * FN_MUL_LATENCY was tried at 2 to shave one cycle per vehicle_model
- * multiply, but the resulting LUT bloat (~6500 LUT in tire alone, from
- * extra sign-extension/mux glue around each shallower-pipelined DSP)
- * pushed device LUT utilization from ~84% to 88% and spread the
- * placement of riccati_pass enough that the bucket A fanout (shared
- * sum6_P_QP_raw multiplier output from LOOP_522 → LOOP_580 sum6)
- * stopped meeting timing. Confirmed via 2026-05-15 routed report
- * (WNS -0.444 ns, 738 endpoints, all in LOOP_522/LOOP_580/PA matrix).
- * Keep FN at 3 unless device LUT pressure has headroom. */
 #ifndef MPC_HLS_MUL_LATENCY
 #define MPC_HLS_MUL_LATENCY 3
 #endif

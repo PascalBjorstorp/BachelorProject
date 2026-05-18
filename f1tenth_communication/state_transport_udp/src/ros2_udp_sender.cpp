@@ -253,21 +253,21 @@ public:
             throw std::runtime_error("Invalid dest_ip");
         }
 
-        auto qos = rclcpp::QoS(1).best_effort().durability_volatile();
+        auto sub_qos = rclcpp::QoS(10).reliable().durability_volatile();
         odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
             odom_topic,
-            qos,
+            sub_qos,
             std::bind(&Ros2UdpSender::odomCallback, this, std::placeholders::_1));
 
         pose_sub_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
             pose_topic,
-            qos,
+            sub_qos,
             std::bind(&Ros2UdpSender::poseCallback, this, std::placeholders::_1));
 
         if (!servo_topic.empty()) {
             servo_sub_ = create_subscription<std_msgs::msg::Float64>(
                 servo_topic,
-                qos,
+                sub_qos,
                 std::bind(&Ros2UdpSender::servoCallback, this, std::placeholders::_1));
         }
 

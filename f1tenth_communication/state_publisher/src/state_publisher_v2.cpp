@@ -81,35 +81,36 @@ public:
         std::string servo_topic = this->get_parameter("servo_topic").as_string();
         std::string drive_topic = this->get_parameter("drive_topic").as_string();
 
-        // Best Effort + volatile minimizes control latency under packet loss
-        auto qos = rclcpp::QoS(1).best_effort().durability_volatile();
-        
-        pub_ = this->create_publisher<f1tenth_msgs::msg::MpcState>(output_topic, qos);
+        // Keep transport output lightweight, but match MPC input subscriptions.
+        auto pub_qos = rclcpp::QoS(1).best_effort().durability_volatile();
+        auto sub_qos = rclcpp::QoS(10).reliable().durability_volatile();
+
+        pub_ = this->create_publisher<f1tenth_msgs::msg::MpcState>(output_topic, pub_qos);
 
         // Subscribe to local_raceline (primary reference source)
         raceline_sub_ = this->create_subscription<nav_msgs::msg::Path>(
-            raceline_topic, qos,
+            raceline_topic, sub_qos,
             std::bind(&StatePublisherNode::raceline_callback, this, std::placeholders::_1));
 
         // Subscribe to odometry (velocity/yaw-rate cache)
         odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-            odom_topic, qos,
+            odom_topic, sub_qos,
             std::bind(&StatePublisherNode::odom_callback, this, std::placeholders::_1));
 
         // Subscribe to EKF pose (triggers publishing)
         pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
-            pose_topic, qos,
+            pose_topic, sub_qos,
             std::bind(&StatePublisherNode::pose_callback, this, std::placeholders::_1));
 
         // Subscribe to /drive feedback for round-trip latency measurement
         drive_sub_ = this->create_subscription<ackermann_msgs::msg::AckermannDriveStamped>(
-            drive_topic, qos,
+            drive_topic, sub_qos,
             std::bind(&StatePublisherNode::drive_callback, this, std::placeholders::_1));
 
         // Subscribe to servo feedback
         if (!servo_topic.empty()) {
             servo_sub_ = this->create_subscription<std_msgs::msg::Float64>(
-                servo_topic, qos,
+                servo_topic, sub_qos,
                 [this](const std_msgs::msg::Float64::SharedPtr msg) {
                     const double corrected =
                         (msg->data - static_cast<double>(MPC_FPGA_SERVO_OFFSET)) /

@@ -86,22 +86,28 @@ static void fp_frenet_rows01_fn(fp_FN_t sin_epsi, fp_FN_t cos_epsi, fp_FN_t vx,
                                 fp_FN_t *A03, fp_FN_t *A10, fp_FN_t *A11,
                                 fp_FN_t *A12) {
 #pragma HLS INLINE off
-  (void)vx;
+  /* Frenet error-kinematics Jacobian: geometric identities in the ACTUAL
+   * speed, so use vx (not reference_velocity). Loss-of-rank safeguard: floor
+   * vx at MIN_LIN_VEL so (e_y,e_psi) stays controllable as vx->0. Mirrors the
+   * CPU vehicle_model_compute_frenet_linearization() v_eff exactly. */
+  (void)reference_velocity;
   (void)ey;
+  const fp_FN_t min_lin_vel_fn = fp_FN_from_QP(MIN_LIN_VEL);
+  fp_FN_t v_eff = (vx > min_lin_vel_fn) ? vx : min_lin_vel_fn;
   fp_FN_t dt_cp = fp_mul_fn(FN_MPC_DT, cos_epsi);
   fp_FN_t kappa_dt = fp_mul_fn(kappa, FN_MPC_DT);
   fp_FN_t kappa2 = fp_mul_fn(kappa, kappa);
-  fp_FN_t vx_cp = fp_mul_fn(reference_velocity, cos_epsi);
+  fp_FN_t vx_cp = fp_mul_fn(v_eff, cos_epsi);
   fp_FN_t vy_sp = fp_mul_fn(vy, sin_epsi);
   *A00 = FP_FN_ONE;
   *A01 = fp_mul_fn(FN_MPC_DT, vx_cp - vy_sp);
   *A02 = fp_mul_fn(FN_MPC_DT, sin_epsi);
   *A03 = dt_cp;
   fp_FN_t inv_denom2 = fp_mul_fn(inv_denom, inv_denom);
-  fp_FN_t k2_vx = fp_mul_fn(kappa2, reference_velocity);
+  fp_FN_t k2_vx = fp_mul_fn(kappa2, v_eff);
   fp_FN_t a10_pre = fp_mul_fn(dt_cp, k2_vx);
   *A10 = fp_mul_fn(-a10_pre, inv_denom2);
-  fp_FN_t kdt_vx = fp_mul_fn(kappa_dt, reference_velocity);
+  fp_FN_t kdt_vx = fp_mul_fn(kappa_dt, v_eff);
   fp_FN_t a11_pre = fp_mul_fn(kdt_vx, sin_epsi);
   *A11 = FP_FN_ONE + fp_mul_fn(a11_pre, inv_denom);
   fp_FN_t a12_pre = fp_mul_fn(kappa_dt, cos_epsi);
@@ -173,9 +179,14 @@ static void fp_rollout_from_forces_fn(
   }
   fp_FN_t inv_ey_denom = fp_recip_fn(ey_denom);
 
-  fp_FN_t vx_sin_epsi = fp_mul_fn(v_frenet, sin_epsi);
+  /* Frenet error kinematics use the ACTUAL speed (vx_safe), not the reference
+   * speed (v_frenet). vx_safe is already floored at MIN_LIN_VEL upstream, which
+   * is the loss-of-rank safeguard as vx->0. Mirrors the CPU
+   * mpc_predict_frenet_next_state() v_eff exactly. */
+  (void)v_frenet;
+  fp_FN_t vx_sin_epsi = fp_mul_fn(vx_safe, sin_epsi);
   fp_FN_t vy_cos_epsi = fp_mul_fn(vy, cos_epsi);
-  fp_FN_t vx_cos_epsi = fp_mul_fn(v_frenet, cos_epsi);
+  fp_FN_t vx_cos_epsi = fp_mul_fn(vx_safe, cos_epsi);
   fp_FN_t kappa_vx_cos = fp_mul_fn(kappa, vx_cos_epsi);
   fp_FN_t kappa_vx_cos_inv = fp_mul_fn(kappa_vx_cos, inv_ey_denom);
   fp_FN_t fx_sin_delta = fp_mul_fn(F_yf, sin_delta);

@@ -36,6 +36,9 @@ typedef struct {
     int32_t ref_kappa_fp[HORIZON];
     int32_t ref_left_bound_fp[HORIZON];
     int32_t ref_right_bound_fp[HORIZON];
+    int32_t input_e_y_fp;
+    int32_t input_epsi_fp;
+    int has_input_frenet;
 } ReplayRow;
 
 enum AccelSource {
@@ -139,6 +142,14 @@ static int parse_row(char *line, ReplayRow *r) {
     for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r->ref_kappa_fp[i] = (int32_t)v; }
     for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r->ref_left_bound_fp[i] = (int32_t)v; }
     for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r->ref_right_bound_fp[i] = (int32_t)v; }
+
+    r->has_input_frenet = 0;
+    if (next_long(&ctx, &v)) {
+        r->input_e_y_fp = (int32_t)v;
+        if (!next_long(&ctx, &v)) return 0;
+        r->input_epsi_fp = (int32_t)v;
+        r->has_input_frenet = 1;
+    }
     return 1;
 }
 
@@ -260,7 +271,12 @@ int main(int argc, char **argv) {
             continue;
         }
 
-        compute_frenet_errors_fp(&r, &ey_fp, &epsi_fp);
+        if (r.has_input_frenet) {
+            ey_fp = r.input_e_y_fp;
+            epsi_fp = r.input_epsi_fp;
+        } else {
+            compute_frenet_errors_fp(&r, &ey_fp, &epsi_fp);
+        }
 
         float a_cmd = 0.0f;
         if (accel_source == ACCEL_CPU_PREV) {

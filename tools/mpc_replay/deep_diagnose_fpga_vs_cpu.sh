@@ -101,13 +101,16 @@ python3 "${REPO_ROOT}/tools/mpc_replay/helper/compare_admm_traces.py" \
 
 # Optionally include frenet parity checks in deep diagnostics
 if [[ "${PARITY_MODE}" != "none" ]]; then
-  echo "Including parity checks (mode=${PARITY_MODE}) -> running frenet parity eval"
+  echo "Including parity checks (mode=${PARITY_MODE}) -> running frenet parity eval (reusing baseline CSVs)"
   PARITY_OUT="${OUT_DIR}/frenet_parity"
   mkdir -p "${PARITY_OUT}"
   bash "${REPO_ROOT}/tools/mpc_replay/run_frenet_parity_eval.sh" \
     --bag "${BAG_PATH}" \
     --horizon 20 \
-    --out-dir "${PARITY_OUT}"
+    --out-dir "${PARITY_OUT}" \
+    --state-csv "${OUT_DIR}/state_replay.csv" \
+    --cpu-replay-csv "${OUT_DIR}/replay_cpu_out.csv" \
+    --fpga-replay-csv "${OUT_DIR}/replay_fpga_out.csv"
   echo "Frenet parity artifacts: ${PARITY_OUT}"
 fi
 

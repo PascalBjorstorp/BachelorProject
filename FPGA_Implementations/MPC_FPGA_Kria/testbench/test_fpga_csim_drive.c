@@ -1039,6 +1039,10 @@ static double randn(void)
 
 int main(void)
 {
+#ifdef CLIP_AUDIT
+    fp_clip_audit_reset();
+#endif
+
     /* Runtime-configurable timesteps:
      *   SIM_DT  = physics simulation timestep (env SIM_DT, default 5ms = 200Hz)
      *   MPC_DT  = MPC control interval (env MPC_DT, default 5ms = 200Hz)
@@ -2091,6 +2095,9 @@ int main(void)
     if (sim_trace_file) fclose(sim_trace_file);
     if (mpc_trace_file) fclose(mpc_trace_file);
     if (mpc_iter_trace_file) fclose(mpc_iter_trace_file);
+#ifdef CLIP_AUDIT
+    fp_clip_audit_print_summary();
+#endif
     free_local_raceline_replay();
     return tests_failed > 0 ? 1 : 0;
 }

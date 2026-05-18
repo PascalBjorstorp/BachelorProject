@@ -35,6 +35,9 @@ struct ReplayRow {
     int32_t ref_kappa_fp[HORIZON];
     int32_t ref_left_bound_fp[HORIZON];
     int32_t ref_right_bound_fp[HORIZON];
+    int32_t input_e_y_fp;
+    int32_t input_epsi_fp;
+    bool has_input_frenet;
 };
 
 static inline float fp_to_float(int32_t v) {
@@ -138,6 +141,14 @@ static int parse_row(char *line, ReplayRow &r) {
     for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r.ref_kappa_fp[i] = static_cast<int32_t>(v); }
     for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r.ref_left_bound_fp[i] = static_cast<int32_t>(v); }
     for (int i = 0; i < HORIZON; i++) { if (!next_long(&ctx, &v)) return 0; r.ref_right_bound_fp[i] = static_cast<int32_t>(v); }
+
+    r.has_input_frenet = false;
+    if (next_long(&ctx, &v)) {
+        r.input_e_y_fp = static_cast<int32_t>(v);
+        if (!next_long(&ctx, &v)) return 0;
+        r.input_epsi_fp = static_cast<int32_t>(v);
+        r.has_input_frenet = true;
+    }
     return 1;
 }
 
@@ -182,6 +193,10 @@ int main(int argc, char **argv) {
 
     std::fprintf(out, "idx,stamp_ns,status,status_api,iters,out_steer_fp,out_accel_fp,ey_fp,epsi_fp,vx_fp,vy_fp,omega_fp,steer_meas_fp,prev_accel_in_fp\n");
 
+#ifdef CAST_AUDIT
+    fp_cast_audit_reset();
+#endif
+
     mpc_initialize();
     mpc_reset();
 
@@ -207,7 +222,12 @@ int main(int argc, char **argv) {
             continue;
         }
 
-        compute_frenet_errors_fp(r, ey_fp, epsi_fp);
+        if (r.has_input_frenet) {
+            ey_fp = r.input_e_y_fp;
+            epsi_fp = r.input_epsi_fp;
+        } else {
+            compute_frenet_errors_fp(r, ey_fp, epsi_fp);
+        }
         st.flat_error = fp_to_float(ey_fp);
         st.fhead_error = fp_to_float(epsi_fp);
         st.flong_vel = fp_to_float(r.velocity_fp);
@@ -234,8 +254,7 @@ int main(int argc, char **argv) {
         out_steer_fp = float_to_fp(result.optimal_control.steer_ang);
         out_accel_fp = float_to_fp(result.optimal_control.long_acc);
 
-        if (result.solver_status == MPC_FPGA_STATUS_ERROR ||
-            result.solver_status == MPC_FPGA_STATUS_NO_TRAJECTORY) {
+        if (result.solver_status == MPC_FPGA_STATUS_NO_TRAJECTORY) {
             applied_accel_fp = last_accel_cmd_fp;
         } else {
             applied_accel_fp = out_accel_fp;
@@ -300,5 +319,8 @@ int main(int argc, char **argv) {
 
     std::fclose(in);
     std::fclose(out);
+#ifdef CAST_AUDIT
+    fp_cast_audit_print_summary();
+#endif
     return 0;
 }
