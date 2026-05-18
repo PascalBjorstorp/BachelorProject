@@ -1,19 +1,26 @@
 from glob import glob
 import os
 
-from setuptools import setup
+from setuptools import find_packages, setup
 
 package_name = 'f1tenth_gym_ros'
 
 setup(
     name=package_name,
     version='1.0.0',
-    packages=[package_name],
+    packages=find_packages(include=[
+        package_name,
+        'f1tenth_gym',
+        'f1tenth_gym.*',
+    ]),
     package_data={
         package_name: [
             '../maps/*.yaml',
             '../maps/*.png',
             '../maps/*.pgm',
+        ],
+        'f1tenth_gym': [
+            'envs/rendering/rendering.yaml',
         ],
     },
     data_files=[
