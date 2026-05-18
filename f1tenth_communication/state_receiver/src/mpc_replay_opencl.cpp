@@ -1,4 +1,12 @@
+/**
+ * @file mpc_replay_opencl.cpp
+ * @brief Replay exported MpcState CSV rows through the live Kria OpenCL path.
+ * @details Built inside the ROS2 state_receiver package so it uses the same
+ *          OpenCL wrapper stack and kernel launch sequence as mpc_receiver.
+ */
+
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -10,32 +18,12 @@
 #include <string>
 #include <vector>
 
-#include <CL/cl2.hpp>
+#include <vitis_common/common/ros_opencl_120.hpp>
+#include <vitis_common/common/utilities.hpp>
+
+#include "mpc_fpga_interface.h"
 
 namespace {
-
-constexpr int kHorizon = 20;
-constexpr int kQpFracBits = 18;
-constexpr int kQpScale = (1 << kQpFracBits);
-
-constexpr int kHeaderWords = 8;
-constexpr int kRefWordsPerStep = 8;
-constexpr int kInputWords32 = kHeaderWords + kHorizon * kRefWordsPerStep;
-constexpr int kPackedWordsPer512 = 16;
-constexpr int kInputWords32Pad =
-    ((kInputWords32 + kPackedWordsPer512 - 1) / kPackedWordsPer512) * kPackedWordsPer512;
-constexpr int kInputBufferBytes = kInputWords32Pad * static_cast<int>(sizeof(int32_t));
-
-constexpr int kWordEy = 0;
-constexpr int kWordEpsi = 1;
-constexpr int kWordVx = 2;
-constexpr int kWordVy = 3;
-constexpr int kWordOmega = 4;
-constexpr int kWordSteering = 5;
-constexpr int kWordControlFlags = 6;
-constexpr int kWordPrevAccel = 7;
-
-constexpr uint32_t kCtrlFlagResetState = (1u << 0);
 
 struct ReplayRow {
     uint64_t idx = 0;
@@ -48,17 +36,17 @@ struct ReplayRow {
     int32_t omega_fp = 0;
     int32_t steering_angle_fp = 0;
     uint32_t horizon_length_msg = 0;
-    int32_t ref_ey_fp[kHorizon]{};
-    int32_t ref_epsi_fp[kHorizon]{};
-    int32_t ref_x_fp[kHorizon]{};
-    int32_t ref_y_fp[kHorizon]{};
-    int32_t ref_psi_fp[kHorizon]{};
-    int32_t ref_vx_fp[kHorizon]{};
-    int32_t ref_vy_fp[kHorizon]{};
-    int32_t ref_omega_ref_fp[kHorizon]{};
-    int32_t ref_kappa_fp[kHorizon]{};
-    int32_t ref_left_bound_fp[kHorizon]{};
-    int32_t ref_right_bound_fp[kHorizon]{};
+    std::array<int32_t, MPC_HORIZON> ref_ey_fp{};
+    std::array<int32_t, MPC_HORIZON> ref_epsi_fp{};
+    std::array<int32_t, MPC_HORIZON> ref_x_fp{};
+    std::array<int32_t, MPC_HORIZON> ref_y_fp{};
+    std::array<int32_t, MPC_HORIZON> ref_psi_fp{};
+    std::array<int32_t, MPC_HORIZON> ref_vx_fp{};
+    std::array<int32_t, MPC_HORIZON> ref_vy_fp{};
+    std::array<int32_t, MPC_HORIZON> ref_omega_ref_fp{};
+    std::array<int32_t, MPC_HORIZON> ref_kappa_fp{};
+    std::array<int32_t, MPC_HORIZON> ref_left_bound_fp{};
+    std::array<int32_t, MPC_HORIZON> ref_right_bound_fp{};
     int32_t input_e_y_fp = 0;
     int32_t input_epsi_fp = 0;
     bool has_input_frenet = false;
@@ -72,15 +60,6 @@ struct Options {
     int device_index = 0;
     bool reset_first = true;
 };
-
-inline float fp_to_float(int32_t fp) {
-    return static_cast<float>(fp) / static_cast<float>(kQpScale);
-}
-
-inline int32_t float_to_fp(float f) {
-    return static_cast<int32_t>(f >= 0.0f ? f * static_cast<float>(kQpScale) + 0.5f
-                                          : f * static_cast<float>(kQpScale) - 0.5f);
-}
 
 static std::vector<unsigned char> read_file_bytes(const std::string& path) {
     std::ifstream ifs(path, std::ios::binary | std::ios::ate);
@@ -97,6 +76,16 @@ static std::vector<unsigned char> read_file_bytes(const std::string& path) {
         throw std::runtime_error("Failed to read file: " + path);
     }
     return buf;
+}
+
+inline float fp_to_float(int32_t fp) {
+    return static_cast<float>(fp) / static_cast<float>(MPC_FPGA_QP_SCALE_I32);
+}
+
+inline int32_t float_to_fp(float f) {
+    return static_cast<int32_t>(f >= 0.0f
+                                    ? f * static_cast<float>(MPC_FPGA_QP_SCALE_I32) + 0.5f
+                                    : f * static_cast<float>(MPC_FPGA_QP_SCALE_I32) - 0.5f);
 }
 
 static inline float wrap_pi(float a) {
@@ -161,31 +150,72 @@ static int parse_row(char* line, ReplayRow& row) {
 
     if (!tok) return 0;
     row.idx = static_cast<uint64_t>(std::strtoull(tok, nullptr, 10));
-    if (!next_long(&ctx, &v)) return 0;
-    if (!next_long(&ctx, &v)) return 0;
+    if (!next_long(&ctx, &v)) return 0;  // reserved source row counter
+    if (!next_long(&ctx, &v)) return 0;  // reserved source stamp sec
     if (!next_ll(&ctx, &vll)) return 0;
     row.stamp_ns = static_cast<int64_t>(vll);
 
-    if (!next_long(&ctx, &v)) return 0; row.x_fp = static_cast<int32_t>(v);
-    if (!next_long(&ctx, &v)) return 0; row.y_fp = static_cast<int32_t>(v);
-    if (!next_long(&ctx, &v)) return 0; row.theta_fp = static_cast<int32_t>(v);
-    if (!next_long(&ctx, &v)) return 0; row.velocity_fp = static_cast<int32_t>(v);
-    if (!next_long(&ctx, &v)) return 0; row.vy_fp = static_cast<int32_t>(v);
-    if (!next_long(&ctx, &v)) return 0; row.omega_fp = static_cast<int32_t>(v);
-    if (!next_long(&ctx, &v)) return 0; row.steering_angle_fp = static_cast<int32_t>(v);
-    if (!next_long(&ctx, &v)) return 0; row.horizon_length_msg = static_cast<uint32_t>(v);
+    if (!next_long(&ctx, &v)) return 0;
+    row.x_fp = static_cast<int32_t>(v);
+    if (!next_long(&ctx, &v)) return 0;
+    row.y_fp = static_cast<int32_t>(v);
+    if (!next_long(&ctx, &v)) return 0;
+    row.theta_fp = static_cast<int32_t>(v);
+    if (!next_long(&ctx, &v)) return 0;
+    row.velocity_fp = static_cast<int32_t>(v);
+    if (!next_long(&ctx, &v)) return 0;
+    row.vy_fp = static_cast<int32_t>(v);
+    if (!next_long(&ctx, &v)) return 0;
+    row.omega_fp = static_cast<int32_t>(v);
+    if (!next_long(&ctx, &v)) return 0;
+    row.steering_angle_fp = static_cast<int32_t>(v);
+    if (!next_long(&ctx, &v)) return 0;
+    row.horizon_length_msg = static_cast<uint32_t>(v);
 
-    for (int i = 0; i < kHorizon; ++i) { if (!next_long(&ctx, &v)) return 0; row.ref_ey_fp[i] = static_cast<int32_t>(v); }
-    for (int i = 0; i < kHorizon; ++i) { if (!next_long(&ctx, &v)) return 0; row.ref_epsi_fp[i] = static_cast<int32_t>(v); }
-    for (int i = 0; i < kHorizon; ++i) { if (!next_long(&ctx, &v)) return 0; row.ref_x_fp[i] = static_cast<int32_t>(v); }
-    for (int i = 0; i < kHorizon; ++i) { if (!next_long(&ctx, &v)) return 0; row.ref_y_fp[i] = static_cast<int32_t>(v); }
-    for (int i = 0; i < kHorizon; ++i) { if (!next_long(&ctx, &v)) return 0; row.ref_psi_fp[i] = static_cast<int32_t>(v); }
-    for (int i = 0; i < kHorizon; ++i) { if (!next_long(&ctx, &v)) return 0; row.ref_vx_fp[i] = static_cast<int32_t>(v); }
-    for (int i = 0; i < kHorizon; ++i) { if (!next_long(&ctx, &v)) return 0; row.ref_vy_fp[i] = static_cast<int32_t>(v); }
-    for (int i = 0; i < kHorizon; ++i) { if (!next_long(&ctx, &v)) return 0; row.ref_omega_ref_fp[i] = static_cast<int32_t>(v); }
-    for (int i = 0; i < kHorizon; ++i) { if (!next_long(&ctx, &v)) return 0; row.ref_kappa_fp[i] = static_cast<int32_t>(v); }
-    for (int i = 0; i < kHorizon; ++i) { if (!next_long(&ctx, &v)) return 0; row.ref_left_bound_fp[i] = static_cast<int32_t>(v); }
-    for (int i = 0; i < kHorizon; ++i) { if (!next_long(&ctx, &v)) return 0; row.ref_right_bound_fp[i] = static_cast<int32_t>(v); }
+    for (size_t i = 0; i < MPC_HORIZON; ++i) {
+        if (!next_long(&ctx, &v)) return 0;
+        row.ref_ey_fp[i] = static_cast<int32_t>(v);
+    }
+    for (size_t i = 0; i < MPC_HORIZON; ++i) {
+        if (!next_long(&ctx, &v)) return 0;
+        row.ref_epsi_fp[i] = static_cast<int32_t>(v);
+    }
+    for (size_t i = 0; i < MPC_HORIZON; ++i) {
+        if (!next_long(&ctx, &v)) return 0;
+        row.ref_x_fp[i] = static_cast<int32_t>(v);
+    }
+    for (size_t i = 0; i < MPC_HORIZON; ++i) {
+        if (!next_long(&ctx, &v)) return 0;
+        row.ref_y_fp[i] = static_cast<int32_t>(v);
+    }
+    for (size_t i = 0; i < MPC_HORIZON; ++i) {
+        if (!next_long(&ctx, &v)) return 0;
+        row.ref_psi_fp[i] = static_cast<int32_t>(v);
+    }
+    for (size_t i = 0; i < MPC_HORIZON; ++i) {
+        if (!next_long(&ctx, &v)) return 0;
+        row.ref_vx_fp[i] = static_cast<int32_t>(v);
+    }
+    for (size_t i = 0; i < MPC_HORIZON; ++i) {
+        if (!next_long(&ctx, &v)) return 0;
+        row.ref_vy_fp[i] = static_cast<int32_t>(v);
+    }
+    for (size_t i = 0; i < MPC_HORIZON; ++i) {
+        if (!next_long(&ctx, &v)) return 0;
+        row.ref_omega_ref_fp[i] = static_cast<int32_t>(v);
+    }
+    for (size_t i = 0; i < MPC_HORIZON; ++i) {
+        if (!next_long(&ctx, &v)) return 0;
+        row.ref_kappa_fp[i] = static_cast<int32_t>(v);
+    }
+    for (size_t i = 0; i < MPC_HORIZON; ++i) {
+        if (!next_long(&ctx, &v)) return 0;
+        row.ref_left_bound_fp[i] = static_cast<int32_t>(v);
+    }
+    for (size_t i = 0; i < MPC_HORIZON; ++i) {
+        if (!next_long(&ctx, &v)) return 0;
+        row.ref_right_bound_fp[i] = static_cast<int32_t>(v);
+    }
 
     row.has_input_frenet = false;
     if (next_long(&ctx, &v)) {
@@ -197,32 +227,7 @@ static int parse_row(char* line, ReplayRow& row) {
     return 1;
 }
 
-static std::vector<cl::Device> get_xilinx_devices() {
-    std::vector<cl::Platform> platforms;
-    cl::Platform::get(&platforms);
-    std::vector<cl::Device> fallback_devices;
-    for (const auto& platform : platforms) {
-        std::string vendor = platform.getInfo<CL_PLATFORM_VENDOR>();
-        std::string name = platform.getInfo<CL_PLATFORM_NAME>();
-        std::vector<cl::Device> devices;
-        cl_int err = platform.getDevices(CL_DEVICE_TYPE_ACCELERATOR, &devices);
-        if ((err != CL_SUCCESS || devices.empty())) {
-            devices.clear();
-            err = platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
-        }
-        if (vendor.find("Xilinx") != std::string::npos ||
-            name.find("Xilinx") != std::string::npos) {
-            if (!devices.empty()) {
-                return devices;
-            }
-        } else if (!devices.empty() && fallback_devices.empty()) {
-            fallback_devices = devices;
-        }
-    }
-    return fallback_devices;
-}
-
-class OpenclReplay {
+class MpcFpgaReplayInterface {
 public:
     struct TimingProfile {
         int64_t total_call_ns = 0;
@@ -232,7 +237,10 @@ public:
         int64_t output_migrate_enqueue_ns = 0;
         int64_t wait_ns = 0;
         int64_t output_unpack_ns = 0;
+        int64_t input_migrate_ns = -1;
         int64_t kernel_ns = -1;
+        int64_t output_migrate_ns = -1;
+        int64_t opencl_overhead_ns = -1;
     };
 
     bool initialize(const std::string& xclbin_path,
@@ -241,11 +249,11 @@ public:
         cl_int err = CL_SUCCESS;
         std::vector<cl::Device> devices = get_xilinx_devices();
         if (devices.empty()) {
-            std::fprintf(stderr, "No Xilinx OpenCL devices found\n");
+            std::fprintf(stderr, "MPC replay: no Xilinx OpenCL devices found\n");
             return false;
         }
         if (device_index < 0 || static_cast<size_t>(device_index) >= devices.size()) {
-            std::fprintf(stderr, "device_index=%d out of range (devices=%zu)\n",
+            std::fprintf(stderr, "MPC replay: device_index=%d out of range (devices=%zu)\n",
                          device_index, devices.size());
             return false;
         }
@@ -253,13 +261,13 @@ public:
         device_ = devices[static_cast<size_t>(device_index)];
         context_ = cl::Context(device_, nullptr, nullptr, nullptr, &err);
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "context creation failed (%d)\n", err);
+            std::fprintf(stderr, "MPC replay: context creation failed (%d)\n", err);
             return false;
         }
 
         queue_ = cl::CommandQueue(context_, device_, CL_QUEUE_PROFILING_ENABLE, &err);
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "command queue creation failed (%d)\n", err);
+            std::fprintf(stderr, "MPC replay: command queue creation failed (%d)\n", err);
             return false;
         }
 
@@ -267,22 +275,22 @@ public:
         try {
             file_buf = read_file_bytes(xclbin_path);
         } catch (const std::exception& e) {
-            std::fprintf(stderr, "xclbin read failed: %s (%s)\n", xclbin_path.c_str(), e.what());
+            std::fprintf(stderr, "MPC replay: xclbin read failed: %s (%s)\n",
+                         xclbin_path.c_str(), e.what());
             return false;
         }
 
-        cl::Program::Binaries bins;
-        bins.push_back(file_buf);
+        cl::Program::Binaries bins{{file_buf.data(), file_buf.size()}};
         std::vector<cl::Device> program_devices{device_};
         program_ = cl::Program(context_, program_devices, bins, nullptr, &err);
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "program load failed (%d)\n", err);
+            std::fprintf(stderr, "MPC replay: program load failed (%d)\n", err);
             return false;
         }
 
         kernel_ = cl::Kernel(program_, kernel_name.c_str(), &err);
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "kernel '%s' creation failed (%d)\n",
+            std::fprintf(stderr, "MPC replay: kernel '%s' creation failed (%d)\n",
                          kernel_name.c_str(), err);
             return false;
         }
@@ -290,11 +298,11 @@ public:
         input_buffer_ = cl::Buffer(
             context_,
             static_cast<cl_mem_flags>(CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR),
-            kInputBufferBytes,
+            INPUT_BUFFER_BYTES_512,
             nullptr,
             &err);
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "input buffer allocation failed (%d)\n", err);
+            std::fprintf(stderr, "MPC replay: input buffer allocation failed (%d)\n", err);
             return false;
         }
 
@@ -305,26 +313,26 @@ public:
             nullptr,
             &err);
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "output buffer allocation failed (%d)\n", err);
+            std::fprintf(stderr, "MPC replay: output buffer allocation failed (%d)\n", err);
             return false;
         }
 
         err = kernel_.setArg(0, input_buffer_);
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "setArg(0) failed (%d)\n", err);
+            std::fprintf(stderr, "MPC replay: setArg(0) failed (%d)\n", err);
             return false;
         }
         err = kernel_.setArg(1, output_buffer_);
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "setArg(1) failed (%d)\n", err);
+            std::fprintf(stderr, "MPC replay: setArg(1) failed (%d)\n", err);
             return false;
         }
 
         input_ptr_ = static_cast<int32_t*>(queue_.enqueueMapBuffer(
             input_buffer_, CL_TRUE, static_cast<cl_map_flags>(CL_MAP_WRITE), 0,
-            kInputBufferBytes, nullptr, nullptr, &err));
+            INPUT_BUFFER_BYTES_512, nullptr, nullptr, &err));
         if (err != CL_SUCCESS || input_ptr_ == nullptr) {
-            std::fprintf(stderr, "input map failed (%d)\n", err);
+            std::fprintf(stderr, "MPC replay: input map failed (%d)\n", err);
             return false;
         }
 
@@ -332,13 +340,14 @@ public:
             output_buffer_, CL_TRUE, static_cast<cl_map_flags>(CL_MAP_READ), 0,
             sizeof(int32_t) * 4, nullptr, nullptr, &err));
         if (err != CL_SUCCESS || output_ptr_ == nullptr) {
-            std::fprintf(stderr, "output map failed (%d)\n", err);
+            std::fprintf(stderr, "MPC replay: output map failed (%d)\n", err);
             return false;
         }
 
-        for (int i = kInputWords32; i < kInputWords32Pad; ++i) {
+        for (size_t i = INPUT_BUFFER_WORDS_32; i < INPUT_BUFFER_WORDS_32_PAD; ++i) {
             input_ptr_[i] = 0;
         }
+
         initialized_ = true;
         return true;
     }
@@ -358,20 +367,21 @@ public:
         if (!initialized_) return false;
 
         last_profile_ = TimingProfile{};
+        cl_int err = CL_SUCCESS;
         const auto total_t0 = std::chrono::high_resolution_clock::now();
         const auto pack_t0 = total_t0;
 
-        input_ptr_[kWordEy] = ey_fp;
-        input_ptr_[kWordEpsi] = epsi_fp;
-        input_ptr_[kWordVx] = row.velocity_fp;
-        input_ptr_[kWordVy] = row.vy_fp;
-        input_ptr_[kWordOmega] = row.omega_fp;
-        input_ptr_[kWordSteering] = row.steering_angle_fp;
-        input_ptr_[kWordControlFlags] = static_cast<int32_t>(control_flags);
-        input_ptr_[kWordPrevAccel] = prev_accel_fp_;
+        input_ptr_[MPC_FPGA_WORD_EY] = ey_fp;
+        input_ptr_[MPC_FPGA_WORD_EPSI] = epsi_fp;
+        input_ptr_[MPC_FPGA_WORD_VX] = row.velocity_fp;
+        input_ptr_[MPC_FPGA_WORD_VY] = row.vy_fp;
+        input_ptr_[MPC_FPGA_WORD_OMEGA] = row.omega_fp;
+        input_ptr_[MPC_FPGA_WORD_STEERING] = row.steering_angle_fp;
+        input_ptr_[MPC_FPGA_WORD_CONTROL_FLAGS] = static_cast<int32_t>(control_flags);
+        input_ptr_[MPC_FPGA_WORD_PREV_ACCEL] = prev_accel_fp_;
 
-        for (int i = 0; i < kHorizon; ++i) {
-            const int base = kHeaderWords + i * kRefWordsPerStep;
+        for (size_t i = 0; i < MPC_HORIZON; ++i) {
+            const size_t base = MPC_FPGA_HEADER_WORDS + (i * MPC_FPGA_REF_WORDS);
             input_ptr_[base + 0] = row.ref_ey_fp[i];
             input_ptr_[base + 1] = row.ref_epsi_fp[i];
             input_ptr_[base + 2] = row.ref_vx_fp[i];
@@ -391,27 +401,21 @@ public:
         const std::vector<cl::Memory> output_mem{output_buffer_};
 
         const auto in_t0 = std::chrono::high_resolution_clock::now();
-        cl_int err = queue_.enqueueMigrateMemObjects(input_mem, 0, nullptr, &in_event);
+        err = queue_.enqueueMigrateMemObjects(input_mem, 0, nullptr, &in_event);
         const auto in_t1 = std::chrono::high_resolution_clock::now();
         last_profile_.input_migrate_enqueue_ns = ns_between(in_t0, in_t1);
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "migrate(input) failed (%d)\n", err);
+            std::fprintf(stderr, "MPC replay: migrate(input) failed (%d)\n", err);
             return false;
         }
 
         std::vector<cl::Event> wait_input{in_event};
         const auto k_t0 = std::chrono::high_resolution_clock::now();
-        err = queue_.enqueueNDRangeKernel(
-            kernel_,
-            cl::NullRange,
-            cl::NDRange(1),
-            cl::NDRange(1),
-            &wait_input,
-            &kernel_event);
+        err = queue_.enqueueTask(kernel_, &wait_input, &kernel_event);
         const auto k_t1 = std::chrono::high_resolution_clock::now();
         last_profile_.kernel_enqueue_ns = ns_between(k_t0, k_t1);
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "enqueueNDRangeKernel failed (%d)\n", err);
+            std::fprintf(stderr, "MPC replay: enqueueTask failed (%d)\n", err);
             return false;
         }
 
@@ -422,7 +426,7 @@ public:
         const auto out_t1 = std::chrono::high_resolution_clock::now();
         last_profile_.output_migrate_enqueue_ns = ns_between(out_t0, out_t1);
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "migrate(output) failed (%d)\n", err);
+            std::fprintf(stderr, "MPC replay: migrate(output) failed (%d)\n", err);
             return false;
         }
 
@@ -431,9 +435,13 @@ public:
         const auto wait_t1 = std::chrono::high_resolution_clock::now();
         last_profile_.wait_ns = ns_between(wait_t0, wait_t1);
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "wait failed (%d)\n", err);
+            std::fprintf(stderr, "MPC replay: wait failed (%d)\n", err);
             return false;
         }
+
+        last_profile_.input_migrate_ns = get_profile_duration_ns(in_event);
+        last_profile_.kernel_ns = get_profile_duration_ns(kernel_event);
+        last_profile_.output_migrate_ns = get_profile_duration_ns(out_event);
 
         const auto unpack_t0 = std::chrono::high_resolution_clock::now();
         out_steer_fp = output_ptr_[0];
@@ -442,8 +450,12 @@ public:
         out_iters = static_cast<uint32_t>(output_ptr_[3]);
         const auto unpack_t1 = std::chrono::high_resolution_clock::now();
         last_profile_.output_unpack_ns = ns_between(unpack_t0, unpack_t1);
-        last_profile_.kernel_ns = get_profile_duration_ns(kernel_event);
+
         last_profile_.total_call_ns = ns_between(total_t0, unpack_t1);
+        if (last_profile_.kernel_ns >= 0) {
+            last_profile_.opencl_overhead_ns =
+                last_profile_.total_call_ns - last_profile_.kernel_ns;
+        }
         return true;
     }
 
@@ -528,7 +540,7 @@ int main(int argc, char** argv) {
         return 4;
     }
 
-    OpenclReplay fpga;
+    MpcFpgaReplayInterface fpga;
     if (!fpga.initialize(opts.xclbin_path, opts.kernel_name, opts.device_index)) {
         std::fclose(in);
         std::fclose(out);
@@ -557,10 +569,11 @@ int main(int argc, char** argv) {
             std::fprintf(stderr, "Skipping malformed row\n");
             continue;
         }
-        if (row.horizon_length_msg < static_cast<uint32_t>(kHorizon)) {
+        if (row.horizon_length_msg < static_cast<uint32_t>(MPC_HORIZON)) {
             std::fprintf(stderr, "Skipping row %llu: horizon_length=%u < %d\n",
                          static_cast<unsigned long long>(row.idx),
-                         row.horizon_length_msg, kHorizon);
+                         row.horizon_length_msg,
+                         MPC_HORIZON);
             continue;
         }
 
@@ -574,7 +587,7 @@ int main(int argc, char** argv) {
         }
 
         const uint32_t control_flags =
-            (first_row && opts.reset_first) ? kCtrlFlagResetState : 0u;
+            (first_row && opts.reset_first) ? MPC_FPGA_CTRL_FLAG_RESET_STATE : 0u;
         const int32_t prev_accel_in_fp =
             (first_row && opts.reset_first) ? 0 : fpga.get_prev_accel_fp();
 
