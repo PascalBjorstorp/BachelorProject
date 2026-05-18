@@ -34,6 +34,7 @@ find_package(ament_cmake QUIET)
 # Build ROS2 node executables only when inside a ROS2 workspace.
 # The core library (mpc_core) builds standalone without ROS.
 if(ament_cmake_FOUND)
+    find_package(Threads REQUIRED)
     find_package(rclc REQUIRED)
     find_package(rcl REQUIRED)
     find_package(rcutils REQUIRED)
@@ -59,7 +60,7 @@ if(ament_cmake_FOUND)
     # ===================================================================
     if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/mpc_hardware_node.c)
         add_executable(mpc_hardware_node src/mpc_hardware_node.c)
-        target_link_libraries(mpc_hardware_node mpc_core m)
+        target_link_libraries(mpc_hardware_node mpc_core m Threads::Threads)
         target_include_directories(mpc_hardware_node PRIVATE
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         )
