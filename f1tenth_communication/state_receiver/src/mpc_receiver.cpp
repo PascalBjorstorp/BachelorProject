@@ -244,6 +244,7 @@ public:
                  int32_t vx_fp, int32_t vy_fp, int32_t omega_fp,
                  int32_t steering_fp,
                  const f1tenth_msgs::msg::MpcState& msg,
+                 uint32_t control_flags,
                  int32_t& out_steering_fp, int32_t& out_accel_fp,
                  uint32_t& out_status, uint32_t& out_iterations) {
         if (!initialized_) return false;
@@ -263,7 +264,7 @@ public:
         input_words[MPC_FPGA_WORD_VY] = vy_fp;
         input_words[MPC_FPGA_WORD_OMEGA] = omega_fp;
         input_words[MPC_FPGA_WORD_STEERING] = steering_fp;
-        input_words[MPC_FPGA_WORD_CONTROL_FLAGS] = MPC_FPGA_CTRL_FLAGS_NONE;
+        input_words[MPC_FPGA_WORD_CONTROL_FLAGS] = static_cast<int32_t>(control_flags);
         input_words[MPC_FPGA_WORD_PREV_ACCEL] = prev_accel_fp_;
 
         // Groups 2..N+1(+): 8 words per step V2
@@ -523,6 +524,7 @@ private:
     float last_speed_cmd_mps_ = MPC_FPGA_MIN_VEL_MPS;
     float last_steering_cmd_rad_ = 0.0f;
     float last_accel_cmd_mps2_ = 0.0f;
+    bool fpga_reset_pending_ = true;
 
     /* Stats tracking for terminal output and CSV logging */
     double stats_solve_time_sum_us_ = 0.0;
@@ -910,13 +912,27 @@ private:
 
         latest_vx_mps_ = fp_to_float(msg->velocity_fp);
         const FrenetErrorsFp errors{msg->e_y_fp, msg->e_psi_fp};
-        const int32_t prev_accel_in_fp = fpga_.get_prev_accel_fp();
+        const bool send_reset = fpga_reset_pending_;
+        const uint32_t control_flags =
+            send_reset ? MPC_FPGA_CTRL_FLAG_RESET_STATE
+                       : MPC_FPGA_CTRL_FLAGS_NONE;
+        const int32_t prev_accel_in_fp = send_reset ? 0 : fpga_.get_prev_accel_fp();
+
+        if (send_reset) {
+            last_steering_cmd_rad_ = 0.0f;
+            last_speed_cmd_mps_ = MPC_FPGA_MIN_VEL_MPS;
+            last_accel_cmd_mps2_ = 0.0f;
+            fpga_.set_prev_accel_fp(0);
+            RCLCPP_INFO(get_logger(),
+                        "Resetting FPGA MPC state on first valid Jetson message");
+        }
 
         const bool ok = fpga_.compute(
             errors.e_y_fp, errors.e_psi_fp,
             msg->velocity_fp, msg->vy_fp, msg->omega_fp,
             msg->steering_angle_fp,
             *msg,
+            control_flags,
             out_steer_fp, out_accel_fp, status, iters);
 
         if (!ok) {
@@ -924,6 +940,10 @@ private:
             RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
                 "FPGA OpenCL compute failed");
             return;
+        }
+
+        if (send_reset) {
+            fpga_reset_pending_ = false;
         }
 
         /* Update statistics */
