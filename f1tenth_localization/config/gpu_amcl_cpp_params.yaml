@@ -26,9 +26,9 @@
 gpu_amcl_cpp:
   ros__parameters:
     # ---- Particles ----
-    num_particles: 1000
-    min_particles: 1000
-    max_particles: 1000
+    num_particles: 2000
+    min_particles: 2000
+    max_particles: 2000
 
     # ---- KLD adaptive sampling ----
     # Dynamically adjusts particle count based on distribution spread.
