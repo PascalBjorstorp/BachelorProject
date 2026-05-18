@@ -403,19 +403,27 @@ void vehicle_model_compute_frenet_linearization(
     memset(input_matrix_B, 0, sizeof(float) * NX_FRENET * 2);
 
     /*
-     * Row 0: e_y dynamics (Frenet kinematics)
-     *   Continuous: e_y_dot = v_x * sin(e_psi) + v_y * cos(e_psi)
-     *   Linearized (e_psi ≈ 0): e_y_dot ≈ v_ref * e_psi + v_y
-     *     (using v_ref instead of vx to maintain lookahead visibility when vx=0)
-     *   Discrete: e_y[k+1] = e_y[k] + dt * (v_ref * e_psi[k] + v_y[k])
+     * Frenet error-kinematics Jacobian (rows 0,1).
      *
-     *   A[0][0] = 1                (identity)
-     *   A[0][1] = dt * v_ref       (heading error drives lateral drift, using v_ref)
-     *   A[0][2] = 0                (∂/∂v_x = sin(e_psi) ≈ 0 at e_psi=0)
-     *   A[0][3] = dt               (lateral velocity directly changes e_y)
-     *   A[0][4] = 0                (no direct omega coupling)
+     * These rows are geometric identities in the ACTUAL longitudinal speed,
+     * so the linearization must use vx, not the reference speed — substituting
+     * reference_velocity here biases the Riccati lateral gain on every
+     * accel/decel transient. Must stay consistent with the nonlinear rollout
+     * in mpc_predict_frenet_next_state(), which uses the same v_eff.
+     *
+     * Loss-of-rank safeguard: as vx -> 0 the (e_y, e_psi) subsystem becomes
+     * uncontrollable and A/B degenerate. Flooring at MIN_LINEARIZATION_VELOCITY
+     * keeps it controllable at standstill (the regularization the old
+     * reference_velocity substitution was really providing). Floor value
+     * matches the FPGA kernel (MIN_LIN_VEL = 0.5 m/s) for CPU/FPGA parity.
+     *
+     * Row 0: e_y_dot   = v_eff*sin(e_psi) + v_y*cos(e_psi)
+     * Row 1: e_psi_dot = omega - kappa*v_eff*cos(e_psi)/(1 - kappa*e_y)
      */
+    (void)reference_velocity;
     {
+        const float v_eff = (vx > MIN_LINEARIZATION_VELOCITY)
+                                ? vx : MIN_LINEARIZATION_VELOCITY;
         float epsi = frenet_state->fhead_error;
         float ey = frenet_state->flat_error;
         float cp = cosf(epsi);
@@ -427,24 +435,12 @@ void vehicle_model_compute_frenet_linearization(
         float inv_denom2 = inv_denom * inv_denom;
 
         state_matrix_A[0][0] = 1.0f;
-        state_matrix_A[0][1] = time_step * (reference_velocity * cp - vy * sp);
+        state_matrix_A[0][1] = time_step * (v_eff * cp - vy * sp);
         state_matrix_A[0][2] = time_step * sp;
         state_matrix_A[0][3] = time_step * cp;
 
-        /*
-         * Row 1: e_psi dynamics (Frenet kinematics)
-         *   Continuous: e_psi_dot = omega - kappa * v_ref * cos(e_psi) / (1 - kappa * e_y)
-         *   Linearized (e_y ≈ 0, e_psi ≈ 0): e_psi_dot ≈ omega - kappa * v_ref
-         *     (using v_ref instead of vx to maintain lookahead visibility when vx=0)
-         *   Discrete: e_psi[k+1] = e_psi[k] + dt * (omega[k] - kappa * v_ref)
-         *
-         *   A[1][1] = 1                (identity)
-         *   A[1][2] = -dt * kappa * v_ref / v_ref_clamp  (speed effect, using v_ref)
-         *   A[1][4] = dt               (yaw rate directly changes heading error)
-         */
-
-        state_matrix_A[1][0] = -time_step * (path_curvature * path_curvature) * reference_velocity * cp * inv_denom2;
-        state_matrix_A[1][1] = 1.0f + time_step * path_curvature * reference_velocity * sp * inv_denom;
+        state_matrix_A[1][0] = -time_step * (path_curvature * path_curvature) * v_eff * cp * inv_denom2;
+        state_matrix_A[1][1] = 1.0f + time_step * path_curvature * v_eff * sp * inv_denom;
         state_matrix_A[1][2] = -time_step * path_curvature * cp * inv_denom;
         state_matrix_A[1][4] = time_step;
     }

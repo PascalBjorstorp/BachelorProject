@@ -138,6 +138,10 @@ class GymBridge(Node):
         if num_agents == 2:
             self._init_opponent_state()
 
+        self._scan_downsample_idx = None
+        self._scan_downsample_source = None
+        self._scan_downsample_warned = False
+
         # Reset environment with initial poses
         self._reset_environment(num_agents)
 
@@ -209,6 +213,7 @@ class GymBridge(Node):
         self.declare_parameter('scan_noise_std', 0.0)
         self.declare_parameter('headless', False)  # Disable rendering for headless systems
         self.declare_parameter('real_time_factor', 0.0)  # 0 = unlimited, 1.0 = real-time, 0.5 = half speed
+        self.declare_parameter('drive_uses_acceleration_field', False)
 
         
         # Sensor noise parameters for realistic simulation
@@ -241,6 +246,37 @@ class GymBridge(Node):
         self.declare_parameter('vehicle_v_switch', 0.0)
         self.declare_parameter('vehicle_width', 0.0)
         self.declare_parameter('vehicle_length', 0.0)
+        self.declare_parameter('realistic_plant_enabled', False)
+        self.declare_parameter('realistic_actuation_enabled', True)
+        self.declare_parameter('vehicle_mu_front', 0.775687)
+        self.declare_parameter('vehicle_mu_rear', 0.6565520426481404)
+        self.declare_parameter('vehicle_C_Sf_high_slip', 2.4199490875105907)
+        self.declare_parameter('vehicle_C_Sr_high_slip', 2.73123678240426)
+        self.declare_parameter('vehicle_steer_gain', 1.0085301459687404)
+        self.declare_parameter('vehicle_steer_gain_high_slip', 0.6541720766809247)
+        self.declare_parameter('vehicle_roll_resistance_n', 2.79)
+        self.declare_parameter('vehicle_drag_c0', 0.0)
+        self.declare_parameter('vehicle_drag_c1', 0.05)
+        self.declare_parameter('vehicle_drag_c2', 0.04)
+        self.declare_parameter('vehicle_accel_tau_pos', 0.05)
+        self.declare_parameter('vehicle_accel_tau_neg', 0.12)
+        self.declare_parameter('vehicle_accel_gain_pos', 0.575)
+        self.declare_parameter('vehicle_accel_gain_neg', 1.0)
+        self.declare_parameter('vehicle_pacejka_c', 1.6041121492252324)
+        self.declare_parameter('vehicle_pacejka_c_front', 1.8031639754063644)
+        self.declare_parameter('vehicle_pacejka_c_rear', 1.7681655069132207)
+        self.declare_parameter('vehicle_slip_blend_start_front', 0.1643527788471148)
+        self.declare_parameter('vehicle_slip_blend_end_front', 0.5319307735091576)
+        self.declare_parameter('vehicle_slip_blend_start_rear', 0.2502122916247753)
+        self.declare_parameter('vehicle_slip_blend_end_rear', 0.47793678552502167)
+        self.declare_parameter('vehicle_combined_slip_gain', 0.10359393575265835)
+        self.declare_parameter('vehicle_front_peak_drop', 0.11804981810838257)
+        self.declare_parameter('vehicle_front_peak_drop_start', 0.13813810031946996)
+        self.declare_parameter('vehicle_front_peak_drop_end', 0.48938120479012814)
+        self.declare_parameter('vehicle_front_peak_drop_pow', 1.03)
+        self.declare_parameter('vehicle_front_combined_gain', 0.13366870620631957)
+        self.declare_parameter('vehicle_front_peak_floor', 0.2708096984131235)
+        self.declare_parameter('vehicle_clamp_velocity_state', True)
 
     def _validate_num_agents(self) -> int:
         """Validate and return number of agents."""
@@ -314,6 +350,47 @@ class GymBridge(Node):
                 f'Vehicle param override: sv_min = {-sv_max_val} (mirrored from sv_max)'
             )
 
+        realistic_enabled = self.get_parameter('realistic_plant_enabled').value
+        params['realistic_plant_enabled'] = bool(realistic_enabled)
+        if realistic_enabled:
+            params.update({
+                'realistic_actuation_enabled': self.get_parameter('realistic_actuation_enabled').value,
+                'realistic_drive_enabled': True,
+                'pacejka_tires_enabled': True,
+                'mu_front': self.get_parameter('vehicle_mu_front').value,
+                'mu_rear': self.get_parameter('vehicle_mu_rear').value,
+                'C_Sf_high_slip': self.get_parameter('vehicle_C_Sf_high_slip').value,
+                'C_Sr_high_slip': self.get_parameter('vehicle_C_Sr_high_slip').value,
+                'steer_gain': self.get_parameter('vehicle_steer_gain').value,
+                'steer_gain_high_slip': self.get_parameter('vehicle_steer_gain_high_slip').value,
+                'roll_resistance_n': self.get_parameter('vehicle_roll_resistance_n').value,
+                'drag_c0': self.get_parameter('vehicle_drag_c0').value,
+                'drag_c1': self.get_parameter('vehicle_drag_c1').value,
+                'drag_c2': self.get_parameter('vehicle_drag_c2').value,
+                'accel_tau_pos': self.get_parameter('vehicle_accel_tau_pos').value,
+                'accel_tau_neg': self.get_parameter('vehicle_accel_tau_neg').value,
+                'accel_gain_pos': self.get_parameter('vehicle_accel_gain_pos').value,
+                'accel_gain_neg': self.get_parameter('vehicle_accel_gain_neg').value,
+                'pacejka_c': self.get_parameter('vehicle_pacejka_c').value,
+                'pacejka_c_front': self.get_parameter('vehicle_pacejka_c_front').value,
+                'pacejka_c_rear': self.get_parameter('vehicle_pacejka_c_rear').value,
+                'slip_blend_start_front': self.get_parameter('vehicle_slip_blend_start_front').value,
+                'slip_blend_end_front': self.get_parameter('vehicle_slip_blend_end_front').value,
+                'slip_blend_start_rear': self.get_parameter('vehicle_slip_blend_start_rear').value,
+                'slip_blend_end_rear': self.get_parameter('vehicle_slip_blend_end_rear').value,
+                'combined_slip_gain': self.get_parameter('vehicle_combined_slip_gain').value,
+                'front_peak_drop': self.get_parameter('vehicle_front_peak_drop').value,
+                'front_peak_drop_start': self.get_parameter('vehicle_front_peak_drop_start').value,
+                'front_peak_drop_end': self.get_parameter('vehicle_front_peak_drop_end').value,
+                'front_peak_drop_pow': self.get_parameter('vehicle_front_peak_drop_pow').value,
+                'front_combined_gain': self.get_parameter('vehicle_front_combined_gain').value,
+                'front_peak_floor': self.get_parameter('vehicle_front_peak_floor').value,
+                'clamp_velocity_state': self.get_parameter('vehicle_clamp_velocity_state').value,
+            })
+            self.get_logger().info(
+                'Realistic plant enabled: Pacejka tires, steering compliance, drag, accel lag'
+            )
+
         return params
 
     def _create_environment(self, num_agents: int, scale: float) -> gym.Env:
@@ -372,10 +449,12 @@ class GymBridge(Node):
         self.ego_steer: float = 0.0
         self.ego_collision: bool = False
         self.ego_scan: List[float] = []
+        self.ego_drive_published = False
 
         # Scan parameters
         scan_fov = self.get_parameter('scan_fov').value
         scan_beams = self.get_parameter('scan_beams').value
+        self._scan_beams = int(scan_beams)
         self.angle_min = -scan_fov / 2.0
         self.angle_max = scan_fov / 2.0
         self.angle_inc = scan_fov / scan_beams
@@ -400,6 +479,7 @@ class GymBridge(Node):
         self.opp_steer: float = 0.0
         self.opp_collision: bool = False
         self.opp_scan: List[float] = []
+        self.opp_drive_published = False
 
     def _reset_environment(self, num_agents: int) -> None:
         """Reset environment with initial poses."""
@@ -649,7 +729,11 @@ class GymBridge(Node):
         if self.sim_paused:
             return
 
-        self.ego_requested_speed = drive_msg.drive.speed
+        if self.get_parameter('drive_uses_acceleration_field').value:
+            self.ego_requested_speed = drive_msg.drive.acceleration
+        else:
+            self.ego_requested_speed = drive_msg.drive.speed
+        self.ego_drive_published = True
         self.ego_steer = np.clip(
             drive_msg.drive.steering_angle,
             self.vehicle_params['s_min'],
@@ -665,7 +749,11 @@ class GymBridge(Node):
         if self.sim_paused:
             return
 
-        self.opp_requested_speed = drive_msg.drive.speed
+        if self.get_parameter('drive_uses_acceleration_field').value:
+            self.opp_requested_speed = drive_msg.drive.acceleration
+        else:
+            self.opp_requested_speed = drive_msg.drive.speed
+        self.opp_drive_published = True
         self.opp_steer = np.clip(
             drive_msg.drive.steering_angle,
             self.vehicle_params['s_min'],
@@ -723,6 +811,7 @@ class GymBridge(Node):
             return
 
         self.ego_requested_speed = twist_msg.linear.x
+        self.ego_drive_published = True
         teleop_steer = self.get_parameter('teleop_steering_angle').value
 
         if twist_msg.angular.z > 0.0:
@@ -735,6 +824,9 @@ class GymBridge(Node):
     def drive_timer_callback(self) -> None:
         """Step the simulation forward."""
         if self.sim_paused:
+            return
+        if (self.vehicle_params.get('realistic_plant_enabled', False) and
+                not self.ego_drive_published):
             return
 
         start_time = time.perf_counter() if self._enable_perf_metrics else None
@@ -891,6 +983,7 @@ class GymBridge(Node):
 
         # Ego scan
         ego_scan = np.array(self.ego_scan)
+        ego_scan = self._downsample_scan(ego_scan)
         if scan_noise_std > 0.0:
             noise = np.random.normal(0, scan_noise_std, ego_scan.shape)
             ego_scan = ego_scan + noise
@@ -903,6 +996,7 @@ class GymBridge(Node):
         # Opponent scan
         if self.has_opp:
             opp_scan = np.array(self.opp_scan)
+            opp_scan = self._downsample_scan(opp_scan)
             if scan_noise_std > 0.0:
                 noise = np.random.normal(0, scan_noise_std, opp_scan.shape)
                 opp_scan = opp_scan + noise
@@ -910,6 +1004,27 @@ class GymBridge(Node):
             self._opp_scan_msg.header.stamp = ts
             self._opp_scan_msg.ranges = opp_scan.tolist()
             self.opp_scan_pub.publish(self._opp_scan_msg)
+
+    def _downsample_scan(self, scan: np.ndarray) -> np.ndarray:
+        target_beams = self._scan_beams
+        if target_beams <= 0 or scan.size == target_beams:
+            return scan
+
+        if not self._scan_downsample_warned:
+            self.get_logger().info(
+                f'Downsampling scan from {scan.size} to {target_beams} beams for ROS output.')
+            self._scan_downsample_warned = True
+
+        if self._scan_downsample_idx is None or self._scan_downsample_source != scan.size:
+            if scan.size % target_beams == 0:
+                stride = scan.size // target_beams
+                self._scan_downsample_idx = np.arange(0, scan.size, stride)
+            else:
+                self._scan_downsample_idx = np.linspace(
+                    0, scan.size - 1, num=target_beams).astype(int)
+            self._scan_downsample_source = scan.size
+
+        return scan[self._scan_downsample_idx]
 
     def _publish_odom(self, ts) -> None:
         """Publish odometry messages using pre-allocated messages."""

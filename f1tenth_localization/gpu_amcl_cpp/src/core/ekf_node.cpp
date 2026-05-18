@@ -3,6 +3,7 @@
 
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <Eigen/Cholesky>
@@ -36,9 +37,9 @@ EkfNode::EkfNode(const rclcpp::NodeOptions& options)
     // Publish only from odom callbacks; AMCL callbacks correct the state.
 
     RCLCPP_INFO(get_logger(),
-                "EKF node started — fusing '%s' + '%s' → '%s' (publishing on odom callbacks, stamp source: %s)",
+                "EKF node started — fusing '%s' + '%s' → '%s' (publishing on odom callbacks)",
                 amcl_topic_.c_str(), odom_topic_.c_str(),
-                output_topic_.c_str(), output_stamp_source_.c_str());
+                output_topic_.c_str());
 }
 
 // ─── Parameters ─────────────────────────────────────────────────────
@@ -46,7 +47,6 @@ void EkfNode::declare_all_parameters() {
     declare_parameter<std::string>("amcl_topic", "/amcl_pose");
     declare_parameter<std::string>("odom_topic", "/odom_pose");
     declare_parameter<std::string>("output_topic", "/ekf_pose");
-    declare_parameter<std::string>("output_stamp_source", "odom");
     declare_parameter<std::string>("global_frame", "map");
     declare_parameter<std::string>("odom_frame", "ego_racecar/odom");
     declare_parameter<std::string>("base_frame", "ego_racecar/base_link");
@@ -54,36 +54,26 @@ void EkfNode::declare_all_parameters() {
     declare_parameter<double>("transform_tolerance", 0.1);
     declare_parameter<double>("process_noise_scale", 1.0);
     declare_parameter<double>("amcl_max_latency_sec", 0.08);
-    declare_parameter<int>("odom_history_max_size", 500);
+    declare_parameter<double>("odom_history_duration_s", 0.2);
 }
 
 void EkfNode::load_parameters() {
     amcl_topic_          = get_parameter("amcl_topic").as_string();
     odom_topic_          = get_parameter("odom_topic").as_string();
     output_topic_        = get_parameter("output_topic").as_string();
-    output_stamp_source_ = get_parameter("output_stamp_source").as_string();
     global_frame_        = get_parameter("global_frame").as_string();
     odom_frame_          = get_parameter("odom_frame").as_string();
     base_frame_          = get_parameter("base_frame").as_string();
     transform_tolerance_ = get_parameter("transform_tolerance").as_double();
     process_noise_scale_ = get_parameter("process_noise_scale").as_double();
     amcl_max_latency_sec_ = get_parameter("amcl_max_latency_sec").as_double();
-    const int64_t odom_history_size_param =
-        get_parameter("odom_history_max_size").as_int();
-    odom_history_max_size_ = static_cast<size_t>(
-        std::max<int64_t>(2, odom_history_size_param));
+    odom_history_duration_s_ = std::max(
+        0.0, get_parameter("odom_history_duration_s").as_double());
 
     if (amcl_max_latency_sec_ <= 0.0) {
         RCLCPP_WARN(get_logger(),
                     "amcl_max_latency_sec <= 0.0, using 0.08 s");
         amcl_max_latency_sec_ = 0.08;
-    }
-
-    if (output_stamp_source_ != "odom" && output_stamp_source_ != "amcl") {
-        RCLCPP_WARN(get_logger(),
-                    "Unknown output_stamp_source '%s' (expected 'odom' or 'amcl'); using 'odom'.",
-                    output_stamp_source_.c_str());
-        output_stamp_source_ = "odom";
     }
 }
 
@@ -91,7 +81,8 @@ void EkfNode::push_odom_sample(const rclcpp::Time& stamp,
                                const Eigen::Vector3d& pose) {
     odom_history_.push_back({stamp, pose[0], pose[1], pose[2]});
 
-    while (odom_history_.size() > odom_history_max_size_) {
+    while (odom_history_.size() > 2 &&
+           (stamp - odom_history_.front().stamp).seconds() > odom_history_duration_s_) {
         odom_history_.pop_front();
     }
 }
@@ -245,9 +236,6 @@ void EkfNode::amcl_callback(
         return;
     }
 
-    last_amcl_stamp_ = amcl_stamp;
-    have_amcl_stamp_ = true;
-
     std::unique_lock<std::mutex> lock(state_mutex_);
 
     if (!initialized_) {
@@ -295,11 +283,7 @@ void EkfNode::publish_and_broadcast(const rclcpp::Time& stamp) {
 
     // ── Publish PoseWithCovarianceStamped ─────────────────────────
     auto msg = geometry_msgs::msg::PoseWithCovarianceStamped();
-    rclcpp::Time publish_stamp = stamp;
-    if (output_stamp_source_ == "amcl" && have_amcl_stamp_) {
-        publish_stamp = last_amcl_stamp_;
-    }
-    msg.header.stamp    = publish_stamp;
+    msg.header.stamp    = stamp;
     msg.header.frame_id = global_frame_;
     msg.pose.pose       = math_utils::vec_to_pose(state);
 

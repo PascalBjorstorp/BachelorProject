@@ -184,13 +184,23 @@ static FrenetState_t mpc_predict_frenet_next_state(
     if (fabsf(ey_denom) < 1e-3f)
         ey_denom = (ey_denom >= 0.0f) ? 1e-3f : -1e-3f;
 
-    /* Use reference velocity (v_ref) for lateral/heading error dynamics rather than
-     * actual velocity (vx). This ensures the solver's predictions of error evolution
-     * don't become "blind" when vx momentarily reaches zero. v_ref represents the
-     * planned speed along the path, while vx is actual plant velocity. */
-    const float e_y_dot = v_ref * sinf(state->fhead_error) + vy * cosf(state->fhead_error);
+    /* Frenet error kinematics use the ACTUAL longitudinal speed, not the
+     * reference speed: e_y_dot / e_psi_dot are geometric identities in the
+     * true vehicle speed, so substituting v_ref injects a model-plant
+     * mismatch on every accel/decel transient.
+     *
+     * Loss-of-rank safeguard: as vx -> 0 the (e_y, e_psi) subsystem becomes
+     * uncontrollable (steering produces no lateral motion) and the Riccati
+     * recursion degenerates. Flooring the speed at VP_MIN_VELOCITY_MPS keeps
+     * the subsystem controllable at standstill — this is the regularization
+     * the old v_ref substitution was really standing in for. The floor value
+     * matches the FPGA kernel (MIN_LIN_VEL = 0.5 m/s) for CPU/FPGA parity. */
+    (void)v_ref;
+    const float v_eff =
+        (vx > VP_MIN_VELOCITY_MPS) ? vx : VP_MIN_VELOCITY_MPS;
+    const float e_y_dot = v_eff * sinf(state->fhead_error) + vy * cosf(state->fhead_error);
     const float e_psi_dot = omega -
-        path_curvature * v_ref * cosf(state->fhead_error) / ey_denom;
+        path_curvature * v_eff * cosf(state->fhead_error) / ey_denom;
 
     next.flat_error = state->flat_error + dt * e_y_dot;
     next.fhead_error = util_normalize_angle(state->fhead_error + dt * e_psi_dot);
@@ -377,17 +387,25 @@ MpcSolverStatus_t mpc_compute_optimal_control(
 
     float delta_clamp = VP_MAX_STEERING_RAD * STEERING_FEEDFORWARD_CLAMP_FACTOR;
 
-    FrenetState_t lin_state = *frenet;
-    if (lin_state.flong_vel < MIN_LINEARIZATION_VELOCITY)
-        lin_state.flong_vel = MIN_LINEARIZATION_VELOCITY;
-
-    /* Near-wall large-heading recoveries can chatter if velocity tracking remains
-     * dominant. In that regime, cap reference velocity to bias heading alignment first. */
     const float wall_bias_clear_m = get_wall_bias_clearance_m();
     const float wall_bias_max_m = get_wall_bias_max_shift_m();
     int wall_bound_window = get_env_int("MPC_WALL_BOUND_WINDOW", 3);
     if (wall_bound_window < 0) wall_bound_window = 0;
     if (wall_bound_window > 25) wall_bound_window = 25;
+
+    /* Warm-start management: reset state when curvature changes abruptly or on
+     * the first call. */
+    {
+        float cur_curvature = reference_trajectory[0].path_curvature;
+        float kappa_diff = fabsf(cur_curvature - warm_start_prev_curvature);
+        if (!admm_state.initialized || kappa_diff > WARMSTART_CURVATURE_RESET_THRESHOLD)
+            riccati_admm_state_init(&admm_state);
+        warm_start_prev_curvature = cur_curvature;
+    }
+
+    FrenetState_t lin_state = *frenet;
+    if (lin_state.flong_vel < MIN_LINEARIZATION_VELOCITY)
+        lin_state.flong_vel = MIN_LINEARIZATION_VELOCITY;
 
     /* Step 2: Build augmented dynamics, costs, and bounds over the horizon. */
 
@@ -421,10 +439,7 @@ MpcSolverStatus_t mpc_compute_optimal_control(
 
         /* --- End sparse zeroing --- */
 
-        /* Per-step Frenet linearization */
         float kappa_k = reference_trajectory[k].path_curvature;
-        if (lin_state.flong_vel < MIN_LINEARIZATION_VELOCITY)
-            lin_state.flong_vel = MIN_LINEARIZATION_VELOCITY;
         float v_state_for_limits = lin_state.flong_vel;
 
         ControlInput_t lin_control;
@@ -433,8 +448,6 @@ MpcSolverStatus_t mpc_compute_optimal_control(
             lin_control.steer_ang = delta_clamp;
         if (lin_control.steer_ang < -delta_clamp)
             lin_control.steer_ang = -delta_clamp;
-        /* Linearize around propagated previous acceleration for consistency
-         * with augmented state dynamics throughout the horizon. */
         lin_control.long_acc = prev_control.long_acc;
 
         float A_step[5][5];
@@ -458,10 +471,7 @@ MpcSolverStatus_t mpc_compute_optimal_control(
         }
 
         FrenetState_t lin_state_next = mpc_predict_frenet_next_state(
-            &lin_state,
-            &lin_control,
-            config.time_step,
-            kappa_k,
+            &lin_state, &lin_control, config.time_step, kappa_k,
             reference_trajectory[k].reference_velocity);
 
         /* === Augmented A matrix (8×8) === */
@@ -820,21 +830,9 @@ MpcSolverStatus_t mpc_compute_optimal_control(
     x0[IDX_ACCEL_PREV] = prev_control.long_acc;
 
     /* ---------------------------------------------------------------
-     * Step 4: Warm-start management
+     * Step 4: Solve via Riccati-ADMM
      * --------------------------------------------------------------- */
-    float cur_curvature = reference_trajectory[0].path_curvature;
-    /* Warm-start: reuse ADMM state unless curvature changed drastically. */
-    {
-        float kappa_diff = fabsf(cur_curvature - warm_start_prev_curvature);
-        if (!admm_state.initialized || kappa_diff > WARMSTART_CURVATURE_RESET_THRESHOLD) {
-            riccati_admm_state_init(&admm_state);
-        }
-    }
-    warm_start_prev_curvature = cur_curvature;
 
-    /* ---------------------------------------------------------------
-     * Step 5: Solve via Riccati-ADMM
-     * --------------------------------------------------------------- */
     RiccatiAdmmConfig_t solver_config = {
         .rho = get_env_float("RHO", ADMM_RHO),
         .rho_u = get_env_float("RHO_U", ADMM_RHO_U),

@@ -105,6 +105,12 @@ public:
         double local_roughening_yaw_std_rad = 0.0872664626;
         double local_roughening_bad_log_weight_per_beam = -1.0;
         double local_roughening_max_cloud_std_m = 0.75;
+        bool   use_cluster_estimate = true;
+        double cluster_xy_bin_m = 0.25;
+        double cluster_radius_m = 0.75;
+        int    cluster_iterations = 3;
+        double cluster_min_covariance = 1e-4;
+        double cluster_publish_min_weight = 0.60;
 
         // KLD adaptive sampling
         bool   use_kld              = false;
@@ -136,20 +142,33 @@ public:
     void reinitialize(double x, double y, double theta,
                       double cov_xx, double cov_yy, double cov_aa);
 
-    /// Re-initialise globally along the raceline corridor with heading cone.
+    /// Re-initialise globally across free map cells with raceline-heading cone.
     void reinitialize_global(const MapProcessor& map);
 
     /// Prediction step: propagate particles by odom delta.
     void predict(float dx, float dy, float dtheta);
 
-    /// Update step: compute particle weights from a new scan.
+    /// Update step: compute particle weights from a new scan and resample.
     void update(const float* ranges, int num_ranges,
                 float angle_min, float angle_inc);
+
+    /// Compute normalized particle weights from a new scan, without resampling.
+    bool update_weights(const float* ranges, int num_ranges,
+                        float angle_min, float angle_inc);
+
+    /// Run resampling using the current normalized weights.
+    void resample_if_needed();
 
     /// Get the weighted-mean pose estimate (computed on CPU).
     PoseEstimate get_estimate();
 
-    /// Download particles + weights to host for visualisation.
+    /// Get highest-density local cluster estimate from current weighted particles.
+    PoseEstimate get_cluster_estimate(double* cluster_weight_out = nullptr);
+
+    /// Download particles to host for visualisation.
+    void get_particles(std::vector<float>& particles);
+
+    /// Download particles + weights to host.
     void get_particles(std::vector<float>& particles,
                        std::vector<float>& weights);
 
@@ -159,6 +178,7 @@ public:
     /// Expose sub-models for runtime tuning.
     MotionModel& motion_model() { return motion_; }
     SensorModel& sensor_model() { return sensor_; }
+    const Config& config() const { return cfg_; }
 
 private:
     void check_resample();

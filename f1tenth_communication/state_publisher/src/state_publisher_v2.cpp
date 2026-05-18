@@ -1,7 +1,7 @@
 /**
  * @file state_publisher_v2.cpp
  * @brief Publish vehicle state and streamed MPC references from Jetson using local_raceline.
- * @details Subscribes to local_raceline path, receives pose/odometry, and publishes Q16.16
+ * @details Subscribes to local_raceline path, receives pose/odometry, and publishes raw-QP
  *          `MpcState` packets for the Kria receiver. Follows mpc_hardware_node architecture.
  * @dependencies rclcpp, nav_msgs, geometry_msgs, std_msgs, f1tenth_msgs, mpc_fpga_constants.h
  */
@@ -54,6 +54,11 @@ struct SampledRefPoint {
     double right_bound = 0.5;
 };
 
+struct FrenetErrorsFp {
+    int32_t e_y_fp = 0;
+    int32_t e_psi_fp = 0;
+};
+
 /*===========================================================================
  * State Publisher Node using Local Raceline
  *===========================================================================*/
@@ -76,35 +81,36 @@ public:
         std::string servo_topic = this->get_parameter("servo_topic").as_string();
         std::string drive_topic = this->get_parameter("drive_topic").as_string();
 
-        // Best Effort + volatile minimizes control latency under packet loss
-        auto qos = rclcpp::QoS(1).best_effort().durability_volatile();
-        
-        pub_ = this->create_publisher<f1tenth_msgs::msg::MpcState>(output_topic, qos);
+        // Keep transport output lightweight, but match MPC input subscriptions.
+        auto pub_qos = rclcpp::QoS(1).best_effort().durability_volatile();
+        auto sub_qos = rclcpp::QoS(10).reliable().durability_volatile();
+
+        pub_ = this->create_publisher<f1tenth_msgs::msg::MpcState>(output_topic, pub_qos);
 
         // Subscribe to local_raceline (primary reference source)
         raceline_sub_ = this->create_subscription<nav_msgs::msg::Path>(
-            raceline_topic, qos,
+            raceline_topic, sub_qos,
             std::bind(&StatePublisherNode::raceline_callback, this, std::placeholders::_1));
 
         // Subscribe to odometry (velocity/yaw-rate cache)
         odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-            odom_topic, qos,
+            odom_topic, sub_qos,
             std::bind(&StatePublisherNode::odom_callback, this, std::placeholders::_1));
 
         // Subscribe to EKF pose (triggers publishing)
         pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
-            pose_topic, qos,
+            pose_topic, sub_qos,
             std::bind(&StatePublisherNode::pose_callback, this, std::placeholders::_1));
 
         // Subscribe to /drive feedback for round-trip latency measurement
         drive_sub_ = this->create_subscription<ackermann_msgs::msg::AckermannDriveStamped>(
-            drive_topic, qos,
+            drive_topic, sub_qos,
             std::bind(&StatePublisherNode::drive_callback, this, std::placeholders::_1));
 
         // Subscribe to servo feedback
         if (!servo_topic.empty()) {
             servo_sub_ = this->create_subscription<std_msgs::msg::Float64>(
-                servo_topic, qos,
+                servo_topic, sub_qos,
                 [this](const std_msgs::msg::Float64::SharedPtr msg) {
                     const double corrected =
                         (msg->data - static_cast<double>(MPC_FPGA_SERVO_OFFSET)) /
@@ -179,8 +185,8 @@ private:
 
     // --- Helpers ---
 
-    static int32_t to_fixed_q16(double v) {
-        constexpr double SCALE = MPC_FPGA_Q16_SCALE_F64;
+    static int32_t to_fixed_qp(double v) {
+        constexpr double SCALE = MPC_FPGA_QP_SCALE_F64;
         if (!std::isfinite(v)) return 0;
         return static_cast<int32_t>(v >= 0.0 ? v * SCALE + 0.5 : v * SCALE - 0.5);
     }
@@ -194,6 +200,49 @@ private:
     static double quaternion_to_yaw(double qx, double qy, double qz, double qw) {
         return std::atan2(2.0 * (qw * qz + qx * qy),
                           1.0 - 2.0 * (qy * qy + qz * qz));
+    }
+
+    FrenetErrorsFp compute_frenet_errors(double x, double y, double theta) const {
+        if (local_raceline_.size() < 2) {
+            return {};
+        }
+
+        const size_t max_search = local_raceline_.size() - 1;
+        double best_e_y = 0.0;
+        double best_e_psi = 0.0;
+        double best_dist2 = std::numeric_limits<double>::max();
+
+        for (size_t i = 0; i < max_search; ++i) {
+            const auto& a = local_raceline_[i];
+            const auto& b = local_raceline_[i + 1];
+
+            const double abx = b.x - a.x;
+            const double aby = b.y - a.y;
+            const double apx = x - a.x;
+            const double apy = y - a.y;
+            const double ab_len2 = abx * abx + aby * aby;
+            double t = 0.0;
+            if (ab_len2 > 1e-12) {
+                t = (apx * abx + apy * aby) / ab_len2;
+            }
+            t = std::clamp(t, 0.0, 1.0);
+
+            double dpsi_path = normalize_angle(b.psi - a.psi);
+            const double path_psi = a.psi + t * dpsi_path;
+            const double path_x = a.x + t * abx;
+            const double path_y = a.y + t * aby;
+            const double dx = x - path_x;
+            const double dy = y - path_y;
+            const double dist2 = dx * dx + dy * dy;
+
+            if (dist2 < best_dist2) {
+                best_dist2 = dist2;
+                best_e_y = -std::sin(path_psi) * dx + std::cos(path_psi) * dy;
+                best_e_psi = normalize_angle(theta - path_psi);
+            }
+        }
+
+        return {to_fixed_qp(best_e_y), to_fixed_qp(best_e_psi)};
     }
 
     void open_roundtrip_csv_file() {
@@ -244,13 +293,10 @@ private:
                 static_cast<double>(MPC_FPGA_MAX_VEL_MPS));
         }
 
-        // Resize all horizon arrays (V2 message includes geometry arrays)
+        // Resize horizon arrays consumed by the FPGA.
         mpc_state.horizon_length = static_cast<uint32_t>(horizon);
         mpc_state.ref_ey_fp.resize(horizon);
         mpc_state.ref_epsi_fp.resize(horizon);
-        mpc_state.ref_x_fp.resize(horizon);
-        mpc_state.ref_y_fp.resize(horizon);
-        mpc_state.ref_psi_fp.resize(horizon);
         mpc_state.ref_vx_fp.resize(horizon);
         mpc_state.ref_vy_fp.resize(horizon);
         mpc_state.ref_omega_ref_fp.resize(horizon);
@@ -305,20 +351,16 @@ private:
         for (size_t step = 0; step < horizon; ++step) {
             double target_s = v_ref_base * dt * static_cast<double>(step);
             SampledRefPoint wp = sample_raceline_by_s(target_s);
-            mpc_state.ref_ey_fp[step] = to_fixed_q16(0.0);
-            mpc_state.ref_epsi_fp[step] = to_fixed_q16(0.0);
+            mpc_state.ref_ey_fp[step] = to_fixed_qp(0.0);
+            mpc_state.ref_epsi_fp[step] = to_fixed_qp(0.0);
 
-            mpc_state.ref_x_fp[step] = to_fixed_q16(wp.x);
-            mpc_state.ref_y_fp[step] = to_fixed_q16(wp.y);
-            mpc_state.ref_psi_fp[step] = to_fixed_q16(wp.psi);
+            mpc_state.ref_vx_fp[step] = to_fixed_qp(wp.vx);
+            mpc_state.ref_vy_fp[step] = to_fixed_qp(0.0);
+            mpc_state.ref_omega_ref_fp[step] = to_fixed_qp(wp.vx * wp.kappa);
 
-            mpc_state.ref_vx_fp[step] = to_fixed_q16(wp.vx);
-            mpc_state.ref_vy_fp[step] = to_fixed_q16(0.0);
-            mpc_state.ref_omega_ref_fp[step] = to_fixed_q16(wp.vx * wp.kappa);
-
-            mpc_state.ref_kappa_fp[step] = to_fixed_q16(wp.kappa);
-            mpc_state.ref_left_bound_fp[step] = to_fixed_q16(wp.left_bound);
-            mpc_state.ref_right_bound_fp[step] = to_fixed_q16(wp.right_bound);
+            mpc_state.ref_kappa_fp[step] = to_fixed_qp(wp.kappa);
+            mpc_state.ref_left_bound_fp[step] = to_fixed_qp(wp.left_bound);
+            mpc_state.ref_right_bound_fp[step] = to_fixed_qp(wp.right_bound);
         }
     }
 
@@ -495,13 +537,13 @@ private:
             msg->pose.pose.orientation.x, msg->pose.pose.orientation.y,
             msg->pose.pose.orientation.z, msg->pose.pose.orientation.w);
 
-        mpc_state->x_fp = to_fixed_q16(x);
-        mpc_state->y_fp = to_fixed_q16(y);
-        mpc_state->theta_fp = to_fixed_q16(theta);
-        mpc_state->velocity_fp = to_fixed_q16(latest_vx_);
-        mpc_state->vy_fp = to_fixed_q16(latest_vy_);
-        mpc_state->omega_fp = to_fixed_q16(latest_omega_);
-        mpc_state->steering_angle_fp = to_fixed_q16(current_steering_angle_);
+        const FrenetErrorsFp errors = compute_frenet_errors(x, y, theta);
+        mpc_state->e_y_fp = errors.e_y_fp;
+        mpc_state->e_psi_fp = errors.e_psi_fp;
+        mpc_state->velocity_fp = to_fixed_qp(latest_vx_);
+        mpc_state->vy_fp = to_fixed_qp(latest_vy_);
+        mpc_state->omega_fp = to_fixed_qp(latest_omega_);
+        mpc_state->steering_angle_fp = to_fixed_qp(current_steering_angle_);
 
         // Build horizon from first waypoint (index 0) using arc-length lookahead
         build_horizon_from_raceline(*mpc_state);

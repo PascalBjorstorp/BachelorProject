@@ -41,10 +41,10 @@ extern void mpc_fpga_reset_persistent_state(void);
 #define PREDICTION_HORIZON MPC_HORIZON
 #endif
 
-#define CPU_COMPAT_FLOAT_TO_FP16(x)((int32_t)((double)(x) * MPC_FPGA_Q16_SCALE_F64))
-#define CPU_COMPAT_FP16_TO_FLOAT(x)((float)((double)(x) / MPC_FPGA_Q16_SCALE_F64))
-#define CPU_COMPAT_DOUBLE_TO_FP16(x)((int32_t)((double)(x) * MPC_FPGA_Q16_SCALE_F64))
-#define CPU_COMPAT_FP16_TO_DOUBLE(x)((double)(x) / MPC_FPGA_Q16_SCALE_F64)
+#define CPU_COMPAT_FLOAT_TO_QP(x)((int32_t)((double)(x) * MPC_FPGA_QP_SCALE_F64))
+#define CPU_COMPAT_QP_TO_FLOAT(x)((float)((double)(x) / MPC_FPGA_QP_SCALE_F64))
+#define CPU_COMPAT_DOUBLE_TO_QP(x)((int32_t)((double)(x) * MPC_FPGA_QP_SCALE_F64))
+#define CPU_COMPAT_QP_TO_DOUBLE(x)((double)(x) / MPC_FPGA_QP_SCALE_F64)
 
 typedef struct {
     float flat_error;
@@ -108,7 +108,7 @@ typedef struct {
 typedef enum {
     MPC_SOLVER_STATUS_SUCCESS = 0,
     MPC_SOLVER_STATUS_MAXIMUM_ITERATIONS_REACHED = 1,
-    MPC_SOLVER_STATUS_ERROR = 2
+    MPC_SOLVER_STATUS_INVALID_INPUT = 2
 } MpcSolverStatus_t;
 
 static MpcConfiguration_t g_mpc_cpu_compat_cfg = {
@@ -237,7 +237,7 @@ static inline MpcSolverStatus_t mpc_compute_optimal_control(
     MpcSolverResult_t *result)
 {
     if (!state || !ref || !result) {
-        return MPC_SOLVER_STATUS_ERROR;
+        return MPC_SOLVER_STATUS_INVALID_INPUT;
     }
 
     int32_t ref_ey_fp[MPC_HORIZON];
@@ -250,49 +250,49 @@ static inline MpcSolverStatus_t mpc_compute_optimal_control(
     int32_t ref_right_fp[MPC_HORIZON];
 
     for (int i = 0; i < MPC_HORIZON; i++) {
-        ref_ey_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].reference_lateral_error);
-        ref_epsi_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].reference_heading_error);
-        ref_vx_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].reference_velocity);
-        ref_vy_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].reference_lateral_velocity);
-        ref_omega_ref_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].reference_yaw_rate);
-        ref_kappa_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].path_curvature);
-        ref_left_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].left_wall_bound);
-        ref_right_fp[i] = CPU_COMPAT_DOUBLE_TO_FP16(ref[i].right_wall_bound);
+        ref_ey_fp[i] = CPU_COMPAT_DOUBLE_TO_QP(ref[i].reference_lateral_error);
+        ref_epsi_fp[i] = CPU_COMPAT_DOUBLE_TO_QP(ref[i].reference_heading_error);
+        ref_vx_fp[i] = CPU_COMPAT_DOUBLE_TO_QP(ref[i].reference_velocity);
+        ref_vy_fp[i] = CPU_COMPAT_DOUBLE_TO_QP(ref[i].reference_lateral_velocity);
+        ref_omega_ref_fp[i] = CPU_COMPAT_DOUBLE_TO_QP(ref[i].reference_yaw_rate);
+        ref_kappa_fp[i] = CPU_COMPAT_DOUBLE_TO_QP(ref[i].path_curvature);
+        ref_left_fp[i] = CPU_COMPAT_DOUBLE_TO_QP(ref[i].left_wall_bound);
+        ref_right_fp[i] = CPU_COMPAT_DOUBLE_TO_QP(ref[i].right_wall_bound);
     }
 
     int32_t out_steering = 0;
     int32_t out_accel = 0;
-    int32_t out_status = 0;
+    int32_t out_status = MPC_FPGA_STATUS_NO_TRAJECTORY;
     int32_t out_iters = 0;
 
     /* Forward previous applied acceleration to FPGA scalar wrapper for parity */
     mpc_fpga_top_scalar_with_prev_accel_and_ref_ey(
-    CPU_COMPAT_DOUBLE_TO_FP16(state->flat_error),
-    CPU_COMPAT_DOUBLE_TO_FP16(state->fhead_error),
-    CPU_COMPAT_DOUBLE_TO_FP16(state->flong_vel),
-    CPU_COMPAT_DOUBLE_TO_FP16(state->flat_vel),
-    CPU_COMPAT_DOUBLE_TO_FP16(state->fyaw_rate),
-    CPU_COMPAT_DOUBLE_TO_FP16(g_mpc_cpu_compat_actual_steering),
-    CPU_COMPAT_DOUBLE_TO_FP16(g_mpc_cpu_compat_prev_accel),
+    CPU_COMPAT_DOUBLE_TO_QP(state->flat_error),
+    CPU_COMPAT_DOUBLE_TO_QP(state->fhead_error),
+    CPU_COMPAT_DOUBLE_TO_QP(state->flong_vel),
+    CPU_COMPAT_DOUBLE_TO_QP(state->flat_vel),
+    CPU_COMPAT_DOUBLE_TO_QP(state->fyaw_rate),
+    CPU_COMPAT_DOUBLE_TO_QP(g_mpc_cpu_compat_actual_steering),
+    CPU_COMPAT_DOUBLE_TO_QP(g_mpc_cpu_compat_prev_accel),
     ref_ey_fp, ref_epsi_fp, ref_vx_fp, ref_vy_fp, ref_omega_ref_fp,
     /* ref_kappa */ ref_kappa_fp, /* ref_left */ ref_left_fp, /* ref_right */ ref_right_fp,
     MPC_HORIZON,
     &out_steering, &out_accel, &out_status, &out_iters);
 
-    result->optimal_control.steer_ang = CPU_COMPAT_FP16_TO_FLOAT(out_steering);
-    result->optimal_control.long_acc = CPU_COMPAT_FP16_TO_FLOAT(out_accel);
+    result->optimal_control.steer_ang = CPU_COMPAT_QP_TO_FLOAT(out_steering);
+    result->optimal_control.long_acc = CPU_COMPAT_QP_TO_FLOAT(out_accel);
     result->iterations_used = (int)out_iters;
     result->final_cost = 0.0f;    /* Debug info removed */
     result->dual_residual = 0.0f; /* Debug info removed */
-    result->solver_status = (int)out_status;
-
+    MpcSolverStatus_t solver_status = MPC_SOLVER_STATUS_MAXIMUM_ITERATIONS_REACHED;
     if (out_status == MPC_FPGA_STATUS_OK) {
-        return MPC_SOLVER_STATUS_SUCCESS;
+        solver_status = MPC_SOLVER_STATUS_SUCCESS;
+    } else if (out_status == MPC_FPGA_STATUS_NO_TRAJECTORY) {
+        solver_status = MPC_SOLVER_STATUS_INVALID_INPUT;
     }
-    if (out_status == MPC_FPGA_STATUS_MAX_ITER) {
-        return MPC_SOLVER_STATUS_MAXIMUM_ITERATIONS_REACHED;
-    }
-    return MPC_SOLVER_STATUS_ERROR;
+
+    result->solver_status = (int)solver_status;
+    return solver_status;
 }
 
 #endif

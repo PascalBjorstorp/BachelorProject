@@ -5,6 +5,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
@@ -36,7 +37,8 @@ private:
     void map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg);
     void initialpose_callback(
         const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
-    void publish_timer_callback();
+    void publish_particle_cloud(const rclcpp::Time& stamp);
+    void publish_pre_resample_weighted_cloud(const rclcpp::Time& stamp);
 
     // ── Helpers ────────────────────────────────────────────────────
     void declare_all_parameters();
@@ -68,12 +70,10 @@ private:
     // Publishers    
     rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_pub_;  // /amcl_pose
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr cloud_pub_;                 // /particlecloud
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pre_resample_cloud_pub_;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr timing_pub_;                       // /amcl_timing
     rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr particle_count_pub_;                  // /amcl_particle_count
     
-    // Timer for decoupled particle cloud publishing
-    rclcpp::TimerBase::SharedPtr publish_timer_; // For particle cloud viz
-
     // ── Core ───────────────────────────────────────────────────────
     ParticleFilter pf_;     // The particle filter
     MapProcessor   map_;    // Map + distance field
@@ -86,6 +86,9 @@ private:
     double update_min_d_ = 0.001;
     double update_min_a_ = 0.001;
     double max_scan_age_ = 0.05;
+    double cloud_publish_rate_ = 2.0;
+    rclcpp::Time last_cloud_publish_time_;
+    bool debug_pre_resample_particles_ = false;
     bool initial_heading_from_raceline_ = true;
 
     // Slip-aware noise scaling
@@ -107,7 +110,7 @@ private:
     };
 
     std::deque<OdomSample> odom_history_;
-    size_t odom_history_max_size_ = 500;
+    double odom_history_duration_s_ = 0.2;
 
     // Thread safety
     std::mutex pf_mutex_;                       // Protects pf_ during GPU ops

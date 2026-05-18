@@ -1,8 +1,8 @@
 /**
  * @file kria_udp_receiver.cpp
  * @brief Kria UDP state receiver and FPGA MPC executor via OpenCL.
- * @details Receives UDP state packets from Jetson, computes Frenet errors,
- *          executes OpenCL kernel-backed MPC, and sends control packets back.
+ * @details Receives UDP state packets from Jetson, executes OpenCL
+ *          kernel-backed MPC, and sends control packets back.
  *
  * Transport: UDP (StatePacket -> ControlPacket). Launchable via ROS2 for
  * convenience, but data path Jetson<->Kria remains UDP.
@@ -40,7 +40,7 @@
 
 namespace state_transport_udp {
 
-static constexpr int32_t FP_SCALE = 65536;
+static constexpr int32_t FP_SCALE = MPC_FPGA_QP_SCALE_I32;
 
 static std::vector<unsigned char> read_file_bytes(const std::string& path) {
     std::ifstream ifs(path, std::ios::binary | std::ios::ate);
@@ -73,16 +73,32 @@ inline float fp_to_float(int32_t fp) {
 class MpcFpgaInterface {
 public:
     struct TimingProfile {
+        /* Host wall-clock (chrono) segments of one compute() call. */
         int64_t total_call_ns = 0;
-        int64_t input_map_ns = 0;
-        int64_t input_pack_ns = 0;
-        int64_t input_unmap_ns = 0;
+        int64_t input_pack_ns = 0;             // pack directly into mapped DMA buffer
+        int64_t input_migrate_enqueue_ns = 0;  // host time inside enqueueMigrate(in)
+        int64_t kernel_enqueue_ns = 0;         // host time inside enqueueTask
+        int64_t output_migrate_enqueue_ns = 0; // host time inside enqueueMigrate(out)
+        int64_t wait_ns = 0;                   // host time inside waitForEvents
+        int64_t output_unpack_ns = 0;          // host time reading mapped output
+        /* Device-side OpenCL profiling (COMMAND_END - COMMAND_START). */
         int64_t input_migrate_ns = -1;
         int64_t kernel_ns = -1;
         int64_t output_migrate_ns = -1;
-        int64_t output_map_ns = 0;
-        int64_t output_unpack_ns = 0;
-        int64_t output_unmap_ns = 0;
+        /* Device-side scheduling latency (from absolute event timestamps). */
+        int64_t input_migrate_submit_ns = -1;  // SUBMIT - QUEUED
+        int64_t input_migrate_sched_ns = -1;   // START  - SUBMIT
+        int64_t gap_in_to_kernel_ns = -1;      // kernel START - in-migrate END
+        int64_t kernel_submit_ns = -1;         // SUBMIT - QUEUED
+        int64_t kernel_sched_ns = -1;          // START  - SUBMIT
+        int64_t gap_kernel_to_out_ns = -1;     // out-migrate START - kernel END
+        int64_t output_migrate_submit_ns = -1; // SUBMIT - QUEUED
+        int64_t output_migrate_sched_ns = -1;  // START  - SUBMIT
+        /* Aggregate. */
+        int64_t opencl_overhead_ns = -1;       // total_call - kernel
+        /* Upstream UDP/CRC cost for this packet (filled by the node). */
+        int64_t udp_recv_ns = -1;
+        int64_t crc_ns = -1;
     };
 
     MpcFpgaInterface() = default;
@@ -179,6 +195,47 @@ public:
             return false;
         }
 
+        /* Persistently map the host-allocated buffers. On the Kria the PS and
+         * PL share DDR, so CL_MEM_ALLOC_HOST_PTR + a one-time map gives a real
+         * zero-copy pointer; per-cycle sync is done with enqueueMigrate, not
+         * Write/ReadBuffer. The map is never released for the node's lifetime. */
+        input_ptr_ = static_cast<uint32_t*>(queue_.enqueueMapBuffer(
+            input_buffer_,
+            CL_TRUE,
+            static_cast<cl_map_flags>(CL_MAP_WRITE),
+            0,
+            INPUT_BUFFER_BYTES_512,
+            nullptr,
+            nullptr,
+            &err));
+        if (err != CL_SUCCESS || input_ptr_ == nullptr) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: input map failed (%d)\n", err);
+            return false;
+        }
+
+        output_ptr_ = static_cast<uint32_t*>(queue_.enqueueMapBuffer(
+            output_buffer_,
+            CL_TRUE,
+            static_cast<cl_map_flags>(CL_MAP_READ),
+            0,
+            sizeof(uint32_t) * 4,
+            nullptr,
+            nullptr,
+            &err));
+        if (err != CL_SUCCESS || output_ptr_ == nullptr) {
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: output map failed (%d)\n", err);
+            return false;
+        }
+
+        /* Pad lane words [INPUT_BUFFER_WORDS_32 .. INPUT_BUFFER_WORDS_32_PAD)
+         * exist only to round the payload up to a 512-bit beat. They are never
+         * written per cycle, so zero them exactly once here instead of clearing
+         * the whole buffer on every compute() call. */
+        for (size_t i = INPUT_BUFFER_WORDS_32;
+             i < INPUT_BUFFER_WORDS_32_PAD; ++i) {
+            input_ptr_[i] = 0u;
+        }
+
         initialized_ = true;
         return true;
     }
@@ -200,21 +257,21 @@ public:
         cl_int err = CL_SUCCESS;
         const auto total_t0 = std::chrono::high_resolution_clock::now();
         const auto input_pack_t0 = total_t0;
-        auto* input_words = input_words_.data();
-        std::fill(input_words_.begin(), input_words_.end(), 0);
+        /* Pack straight into the mapped DMA buffer; no staging array, no
+         * full-buffer zeroing (pad words were cleared once at init). */
+        uint32_t* input_words = input_ptr_;
 
-        input_words[0] = static_cast<uint32_t>(e_y_fp);
-        input_words[1] = static_cast<uint32_t>(e_psi_fp);
-        input_words[2] = static_cast<uint32_t>(vx_fp);
-        input_words[3] = static_cast<uint32_t>(vy_fp);
-
-        input_words[4] = static_cast<uint32_t>(omega_fp);
-        input_words[5] = static_cast<uint32_t>(steering_fp);
-        input_words[6] = static_cast<uint32_t>(MPC_HORIZON);
-        input_words[7] = static_cast<uint32_t>(prev_accel_fp_);
+        input_words[MPC_FPGA_WORD_EY] = static_cast<uint32_t>(e_y_fp);
+        input_words[MPC_FPGA_WORD_EPSI] = static_cast<uint32_t>(e_psi_fp);
+        input_words[MPC_FPGA_WORD_VX] = static_cast<uint32_t>(vx_fp);
+        input_words[MPC_FPGA_WORD_VY] = static_cast<uint32_t>(vy_fp);
+        input_words[MPC_FPGA_WORD_OMEGA] = static_cast<uint32_t>(omega_fp);
+        input_words[MPC_FPGA_WORD_STEERING] = static_cast<uint32_t>(steering_fp);
+        input_words[MPC_FPGA_WORD_CONTROL_FLAGS] = MPC_FPGA_CTRL_FLAGS_NONE;
+        input_words[MPC_FPGA_WORD_PREV_ACCEL] = static_cast<uint32_t>(prev_accel_fp_);
 
         for (size_t i = 0; i < MPC_HORIZON; ++i) {
-            const size_t base = 8 + (i * 8);
+            const size_t base = MPC_FPGA_HEADER_WORDS + (i * MPC_FPGA_REF_WORDS);
             input_words[base + 0] = static_cast<uint32_t>(packet.ref_ey_fp[i]);
             input_words[base + 1] = static_cast<uint32_t>(packet.ref_epsi_fp[i]);
             input_words[base + 2] = static_cast<uint32_t>(packet.ref_vx_fp[i]);
@@ -225,83 +282,142 @@ public:
             input_words[base + 7] = static_cast<uint32_t>(packet.ref_right_bound_fp[i]);
         }
         const auto input_pack_t1 = std::chrono::high_resolution_clock::now();
-        last_profile_.input_pack_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-            input_pack_t1 - input_pack_t0).count();
+        last_profile_.input_pack_ns = ns_between(input_pack_t0, input_pack_t1);
 
         cl::Event input_migrate_event;
         cl::Event kernel_event;
         cl::Event output_migrate_event;
+        const std::vector<cl::Memory> input_mem{input_buffer_};
+        const std::vector<cl::Memory> output_mem{output_buffer_};
 
-        err = queue_.enqueueWriteBuffer(
-            input_buffer_,
-            CL_FALSE,
-            0,
-            INPUT_BUFFER_BYTES_512,
-            input_words_.data(),
-            nullptr,
-            &input_migrate_event);
+        /* Sync the freshly packed input down to PL-visible DDR. */
+        const auto enq_in_t0 = std::chrono::high_resolution_clock::now();
+        err = queue_.enqueueMigrateMemObjects(
+            input_mem, 0 /* to device */, nullptr, &input_migrate_event);
+        const auto enq_in_t1 = std::chrono::high_resolution_clock::now();
+        last_profile_.input_migrate_enqueue_ns = ns_between(enq_in_t0, enq_in_t1);
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "UDP-FPGA-OpenCL: write(input) failed (%d)\n", err);
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: migrate(input) failed (%d)\n", err);
             last_compute_ns_ = -1;
             return false;
         }
 
-        const auto t0 = std::chrono::high_resolution_clock::now();
-        err = queue_.enqueueTask(kernel_, nullptr, &kernel_event);
+        /* Device round-trip starts once the input migrate is enqueued. */
+        const auto t0 = enq_in_t1;
+
+        std::vector<cl::Event> wait_input{input_migrate_event};
+        const auto enq_k_t0 = std::chrono::high_resolution_clock::now();
+        err = queue_.enqueueTask(kernel_, &wait_input, &kernel_event);
+        const auto enq_k_t1 = std::chrono::high_resolution_clock::now();
+        last_profile_.kernel_enqueue_ns = ns_between(enq_k_t0, enq_k_t1);
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "UDP-FPGA-OpenCL: enqueueTask failed (%d)\n", err);
             last_compute_ns_ = -1;
             return false;
         }
 
-        err = queue_.enqueueReadBuffer(
-            output_buffer_,
-            CL_FALSE,
-            0,
-            sizeof(uint32_t) * 4,
-            output_words_.data(),
-            nullptr,
+        std::vector<cl::Event> wait_kernel{kernel_event};
+        const auto enq_out_t0 = std::chrono::high_resolution_clock::now();
+        err = queue_.enqueueMigrateMemObjects(
+            output_mem, CL_MIGRATE_MEM_OBJECT_HOST, &wait_kernel,
             &output_migrate_event);
+        const auto enq_out_t1 = std::chrono::high_resolution_clock::now();
+        last_profile_.output_migrate_enqueue_ns = ns_between(enq_out_t0, enq_out_t1);
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "UDP-FPGA-OpenCL: read(output) failed (%d)\n", err);
+            std::fprintf(stderr, "UDP-FPGA-OpenCL: migrate(output) failed (%d)\n", err);
             last_compute_ns_ = -1;
             return false;
         }
 
+        const auto wait_t0 = std::chrono::high_resolution_clock::now();
         err = cl::Event::waitForEvents({output_migrate_event});
+        const auto wait_t1 = std::chrono::high_resolution_clock::now();
+        last_profile_.wait_ns = ns_between(wait_t0, wait_t1);
         if (err != CL_SUCCESS) {
             std::fprintf(stderr, "UDP-FPGA-OpenCL: output wait failed (%d)\n", err);
             last_compute_ns_ = -1;
             return false;
         }
-        const auto t1 = std::chrono::high_resolution_clock::now();
-        last_compute_ns_ =
-            std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
-        last_profile_.input_migrate_ns = get_event_duration_ns(input_migrate_event);
-        last_profile_.kernel_ns = get_event_duration_ns(kernel_event);
-        last_profile_.output_migrate_ns = get_event_duration_ns(output_migrate_event);
+        const auto t1 = wait_t1;
+        last_compute_ns_ = ns_between(t0, t1);
 
-        out_steering_fp = static_cast<int32_t>(output_words_[0]);
-        out_accel_fp = static_cast<int32_t>(output_words_[1]);
-        out_status = output_words_[2];
-        out_iterations = output_words_[3];
-        last_profile_.total_call_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-            t1 - total_t0).count();
+        const EventProfile ip = get_event_profile(input_migrate_event);
+        const EventProfile kp = get_event_profile(kernel_event);
+        const EventProfile op = get_event_profile(output_migrate_event);
+        if (ip.valid) {
+            last_profile_.input_migrate_ns = static_cast<int64_t>(ip.end - ip.start);
+            last_profile_.input_migrate_submit_ns =
+                static_cast<int64_t>(ip.submit - ip.queued);
+            last_profile_.input_migrate_sched_ns =
+                static_cast<int64_t>(ip.start - ip.submit);
+        }
+        if (kp.valid) {
+            last_profile_.kernel_ns = static_cast<int64_t>(kp.end - kp.start);
+            last_profile_.kernel_submit_ns =
+                static_cast<int64_t>(kp.submit - kp.queued);
+            last_profile_.kernel_sched_ns =
+                static_cast<int64_t>(kp.start - kp.submit);
+        }
+        if (op.valid) {
+            last_profile_.output_migrate_ns = static_cast<int64_t>(op.end - op.start);
+            last_profile_.output_migrate_submit_ns =
+                static_cast<int64_t>(op.submit - op.queued);
+            last_profile_.output_migrate_sched_ns =
+                static_cast<int64_t>(op.start - op.submit);
+        }
+        if (ip.valid && kp.valid && kp.start >= ip.end) {
+            last_profile_.gap_in_to_kernel_ns =
+                static_cast<int64_t>(kp.start - ip.end);
+        }
+        if (kp.valid && op.valid && op.start >= kp.end) {
+            last_profile_.gap_kernel_to_out_ns =
+                static_cast<int64_t>(op.start - kp.end);
+        }
+
+        const auto unpack_t0 = std::chrono::high_resolution_clock::now();
+        out_steering_fp = static_cast<int32_t>(output_ptr_[0]);
+        out_accel_fp = static_cast<int32_t>(output_ptr_[1]);
+        out_status = output_ptr_[2];
+        out_iterations = output_ptr_[3];
+        const auto unpack_t1 = std::chrono::high_resolution_clock::now();
+        last_profile_.output_unpack_ns = ns_between(unpack_t0, unpack_t1);
+
+        last_profile_.total_call_ns = ns_between(total_t0, unpack_t1);
+        if (last_profile_.kernel_ns >= 0) {
+            last_profile_.opencl_overhead_ns =
+                last_profile_.total_call_ns - last_profile_.kernel_ns;
+        }
         return true;
     }
 
 private:
-    static int64_t get_event_duration_ns(const cl::Event& event) {
+    struct EventProfile {
+        cl_ulong queued = 0;
+        cl_ulong submit = 0;
+        cl_ulong start = 0;
+        cl_ulong end = 0;
+        bool valid = false;
+    };
+
+    template <typename TP>
+    static int64_t ns_between(const TP& a, const TP& b) {
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(b - a).count();
+    }
+
+    static EventProfile get_event_profile(const cl::Event& event) {
+        EventProfile p;
         cl_int err = CL_SUCCESS;
-        const cl_ulong start = event.getProfilingInfo<CL_PROFILING_COMMAND_START>(&err);
-        if (err != CL_SUCCESS) {
-            return -1;
-        }
-        const cl_ulong end = event.getProfilingInfo<CL_PROFILING_COMMAND_END>(&err);
-        if (err != CL_SUCCESS) {
-            return -1;
-        }
-        return end >= start ? static_cast<int64_t>(end - start) : -1;
+        p.queued = event.getProfilingInfo<CL_PROFILING_COMMAND_QUEUED>(&err);
+        if (err != CL_SUCCESS) return p;
+        p.submit = event.getProfilingInfo<CL_PROFILING_COMMAND_SUBMIT>(&err);
+        if (err != CL_SUCCESS) return p;
+        p.start = event.getProfilingInfo<CL_PROFILING_COMMAND_START>(&err);
+        if (err != CL_SUCCESS) return p;
+        p.end = event.getProfilingInfo<CL_PROFILING_COMMAND_END>(&err);
+        if (err != CL_SUCCESS) return p;
+        p.valid = (p.end >= p.start) && (p.submit >= p.queued) &&
+                  (p.start >= p.submit);
+        return p;
     }
 
     bool initialized_{false};
@@ -318,70 +434,13 @@ private:
     static_assert(INPUT_WORDS * sizeof(uint32_t) == INPUT_BUFFER_BYTES_512,
                   "Host DMA buffer words must match OpenCL input buffer bytes");
 
-    std::array<uint32_t, INPUT_WORDS> input_words_{};
-    std::array<uint32_t, 4> output_words_{};
+    /* Persistent zero-copy mappings of the host-allocated OpenCL buffers. */
+    uint32_t* input_ptr_{nullptr};
+    uint32_t* output_ptr_{nullptr};
     int32_t prev_accel_fp_{0};
     TimingProfile last_profile_{};
     int64_t last_compute_ns_{0};
 };
-
-static void compute_frenet_errors(const StatePacket& packet,
-                                  int32_t& out_e_y_fp,
-                                  int32_t& out_e_psi_fp) {
-    const float x = fp_to_float(packet.x_fp);
-    const float y = fp_to_float(packet.y_fp);
-    const float theta = fp_to_float(packet.theta_fp);
-
-    const size_t max_search = std::min(static_cast<size_t>(MPC_HORIZON - 1), static_cast<size_t>(16));
-
-    float best_e_y = 0.0f;
-    float best_e_psi = 0.0f;
-    float best_dist2 = 1e18f;
-
-    for (size_t i = 0; i < max_search; ++i) {
-        const float ax = fp_to_float(packet.ref_x_fp[i]);
-        const float ay = fp_to_float(packet.ref_y_fp[i]);
-        const float bx = fp_to_float(packet.ref_x_fp[i + 1]);
-        const float by = fp_to_float(packet.ref_y_fp[i + 1]);
-        const float h0 = fp_to_float(packet.ref_psi_fp[i]);
-        const float h1 = fp_to_float(packet.ref_psi_fp[i + 1]);
-
-        const float abx = bx - ax;
-        const float aby = by - ay;
-        const float apx = x - ax;
-        const float apy = y - ay;
-        const float ab_len2 = abx * abx + aby * aby;
-        float t = 0.0f;
-        if (ab_len2 > 1e-12f) {
-            t = (apx * abx + apy * aby) / ab_len2;
-        }
-        t = std::clamp(t, 0.0f, 1.0f);
-
-        const float wx = ax + t * abx;
-        const float wy = ay + t * aby;
-        float dpsi_path = h1 - h0;
-        while (dpsi_path > static_cast<float>(M_PI)) dpsi_path -= 2.0f * static_cast<float>(M_PI);
-        while (dpsi_path < -static_cast<float>(M_PI)) dpsi_path += 2.0f * static_cast<float>(M_PI);
-        const float wpsi = h0 + t * dpsi_path;
-
-        const float dx = x - wx;
-        const float dy = y - wy;
-        const float dist2 = dx * dx + dy * dy;
-
-        if (dist2 < best_dist2) {
-            best_dist2 = dist2;
-            const float e_y = -std::sin(wpsi) * dx + std::cos(wpsi) * dy;
-            float e_psi = theta - wpsi;
-            while (e_psi > static_cast<float>(M_PI)) e_psi -= 2.0f * static_cast<float>(M_PI);
-            while (e_psi < -static_cast<float>(M_PI)) e_psi += 2.0f * static_cast<float>(M_PI);
-            best_e_y = e_y;
-            best_e_psi = e_psi;
-        }
-    }
-
-    out_e_y_fp = float_to_fp(best_e_y);
-    out_e_psi_fp = float_to_fp(best_e_psi);
-}
 
 class KriaUdpReceiverNode final : public rclcpp::Node {
 public:
@@ -466,10 +525,15 @@ private:
         FILE* f = std::fopen(csv_path, "w");
         if (f != nullptr) {
             std::fprintf(f,
-                         "idx,iterations,solve_time_us,total_call_us,kernel_time_us,"
-                         "input_migrate_us,output_migrate_us,host_prep_us,host_readback_us,"
-                         "opencl_overhead_us,input_map_us,input_pack_us,input_unmap_us,"
-                         "output_map_us,output_unpack_us,output_unmap_us\n");
+                         "idx,iterations,status,"
+                         "solve_time_us,total_call_us,opencl_overhead_us,"
+                         "input_pack_us,input_migrate_enq_us,kernel_enq_us,"
+                         "output_migrate_enq_us,wait_us,output_unpack_us,"
+                         "input_migrate_us,kernel_us,output_migrate_us,"
+                         "in_mig_submit_us,in_mig_sched_us,gap_in_to_kernel_us,"
+                         "kernel_submit_us,kernel_sched_us,gap_kernel_to_out_us,"
+                         "out_mig_submit_us,out_mig_sched_us,"
+                         "udp_recv_us,crc_us\n");
             std::fflush(f);
         }
         return f;
@@ -481,6 +545,7 @@ private:
         socklen_t peer_len = sizeof(peer_addr);
 
         while (true) {
+            const auto recv_t0 = std::chrono::high_resolution_clock::now();
             const ssize_t n = ::recvfrom(
                 rx_fd_,
                 &packet,
@@ -488,6 +553,7 @@ private:
                 0,
                 reinterpret_cast<sockaddr*>(&peer_addr),
                 &peer_len);
+            const auto recv_t1 = std::chrono::high_resolution_clock::now();
 
             if (n < 0) {
                 if (errno == EAGAIN || errno == EWOULDBLOCK) break;
@@ -509,14 +575,23 @@ private:
 
             const uint32_t rx_crc = packet.crc32;
             packet.crc32 = 0;
+            const auto crc_t0 = std::chrono::high_resolution_clock::now();
             const uint32_t calc_crc = crc32_ieee(
                 reinterpret_cast<const uint8_t*>(&packet),
                 sizeof(packet) - sizeof(packet.crc32));
+            const auto crc_t1 = std::chrono::high_resolution_clock::now();
             if (rx_crc != calc_crc) {
                 RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
                                      "Dropped state packet: CRC mismatch");
                 continue;
             }
+
+            last_udp_recv_ns_ =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    recv_t1 - recv_t0).count();
+            last_crc_ns_ =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    crc_t1 - crc_t0).count();
 
             last_peer_addr_ = peer_addr;
             have_peer_ = true;
@@ -525,10 +600,8 @@ private:
     }
 
     void handle_packet(const StatePacket& packet) {
-        int32_t e_y_fp = 0;
-        int32_t e_psi_fp = 0;
-        compute_frenet_errors(packet, e_y_fp, e_psi_fp);
-
+        const int32_t e_y_fp = packet.e_y_fp;
+        const int32_t e_psi_fp = packet.e_psi_fp;
         const int32_t vx_fp = packet.velocity_fp;
         const int32_t vy_fp = packet.vy_fp;
         const int32_t omega_fp = packet.omega_fp;
@@ -631,7 +704,8 @@ private:
                     "[FPGA-Stats] (last %.1fs, %lu calls):\n"
                     "  Iterations: min=%u, avg=%.1f, max=%u\n"
                     "  Solve time: min=%.1f us, avg=%.1f us, max=%.1f us\n"
-                    "  Profile avg: total=%.1f us, kernel=%.1f us, in_mig=%.1f us, out_mig=%.1f us, host_prep=%.1f us, overhead=%.1f us\n"
+                    "  Profile avg: total=%.1f us, kernel=%.1f us, in_mig=%.1f us, out_mig=%.1f us, pack=%.1f us, enqueue=%.1f us, overhead=%.1f us\n"
+                    "  Upstream avg: udp_recv=%.1f us, crc=%.1f us\n"
                     "  Optimal: %.1f%%, Max iter: %.1f%%",
                     TERMINAL_STATS_PRINT_INTERVAL_SECONDS,
                     stats_window_count_,
@@ -641,8 +715,11 @@ private:
                     avg_or_na(stats_kernel_sum_us_, stats_profile_count_),
                     avg_or_na(stats_input_migrate_sum_us_, stats_profile_count_),
                     avg_or_na(stats_output_migrate_sum_us_, stats_profile_count_),
-                    avg_or_na(stats_host_prep_sum_us_, stats_profile_count_),
+                    avg_or_na(stats_input_pack_sum_us_, stats_profile_count_),
+                    avg_or_na(stats_enqueue_sum_us_, stats_profile_count_),
                     avg_or_na(stats_overhead_sum_us_, stats_profile_count_),
+                    avg_or_na(stats_udp_recv_sum_us_, stats_profile_count_),
+                    avg_or_na(stats_crc_sum_us_, stats_profile_count_),
                     stats_window_count_ > 0 ? (stats_optimal_count_ * 100.0) / static_cast<double>(stats_window_count_) : 0.0,
                     stats_window_count_ > 0 ? (stats_max_iter_count_ * 100.0) / static_cast<double>(stats_window_count_) : 0.0);
 
@@ -658,9 +735,11 @@ private:
         stats_kernel_sum_us_ = 0.0;
         stats_input_migrate_sum_us_ = 0.0;
         stats_output_migrate_sum_us_ = 0.0;
-        stats_host_prep_sum_us_ = 0.0;
-        stats_host_readback_sum_us_ = 0.0;
+        stats_input_pack_sum_us_ = 0.0;
+        stats_enqueue_sum_us_ = 0.0;
         stats_overhead_sum_us_ = 0.0;
+        stats_udp_recv_sum_us_ = 0.0;
+        stats_crc_sum_us_ = 0.0;
         stats_profile_count_ = 0;
         stats_optimal_count_ = 0;
         stats_max_iter_count_ = 0;
@@ -679,24 +758,38 @@ private:
                       uint32_t status,
                       double solve_us) {
         const double total_call_us = ns_to_us(profile.total_call_ns);
-        const double kernel_us = ns_to_us(profile.kernel_ns);
+        const double overhead_us = ns_to_us(profile.opencl_overhead_ns);
+        const double input_pack_us = ns_to_us(profile.input_pack_ns);
+        const double input_migrate_enq_us = ns_to_us(profile.input_migrate_enqueue_ns);
+        const double kernel_enq_us = ns_to_us(profile.kernel_enqueue_ns);
+        const double output_migrate_enq_us = ns_to_us(profile.output_migrate_enqueue_ns);
+        const double wait_us = ns_to_us(profile.wait_ns);
+        const double output_unpack_us = ns_to_us(profile.output_unpack_ns);
         const double input_migrate_us = ns_to_us(profile.input_migrate_ns);
+        const double kernel_us = ns_to_us(profile.kernel_ns);
         const double output_migrate_us = ns_to_us(profile.output_migrate_ns);
-        const double host_prep_us = ns_to_us(
-            profile.input_map_ns + profile.input_pack_ns + profile.input_unmap_ns);
-        const double host_readback_us = ns_to_us(
-            profile.output_map_ns + profile.output_unpack_ns + profile.output_unmap_ns);
-        const double overhead_us = (profile.total_call_ns > 0 && profile.kernel_ns >= 0)
-            ? static_cast<double>(profile.total_call_ns - profile.kernel_ns) / 1000.0
-            : -1.0;
+        const double in_mig_submit_us = ns_to_us(profile.input_migrate_submit_ns);
+        const double in_mig_sched_us = ns_to_us(profile.input_migrate_sched_ns);
+        const double gap_in_to_kernel_us = ns_to_us(profile.gap_in_to_kernel_ns);
+        const double kernel_submit_us = ns_to_us(profile.kernel_submit_ns);
+        const double kernel_sched_us = ns_to_us(profile.kernel_sched_ns);
+        const double gap_kernel_to_out_us = ns_to_us(profile.gap_kernel_to_out_ns);
+        const double out_mig_submit_us = ns_to_us(profile.output_migrate_submit_ns);
+        const double out_mig_sched_us = ns_to_us(profile.output_migrate_sched_ns);
+        const double udp_recv_us = ns_to_us(last_udp_recv_ns_);
+        const double crc_us = ns_to_us(last_crc_ns_);
+        const double enqueue_us =
+            input_migrate_enq_us + kernel_enq_us + output_migrate_enq_us;
 
         if (total_call_us >= 0.0) stats_total_call_sum_us_ += total_call_us;
         if (kernel_us >= 0.0) stats_kernel_sum_us_ += kernel_us;
         if (input_migrate_us >= 0.0) stats_input_migrate_sum_us_ += input_migrate_us;
         if (output_migrate_us >= 0.0) stats_output_migrate_sum_us_ += output_migrate_us;
-        if (host_prep_us >= 0.0) stats_host_prep_sum_us_ += host_prep_us;
-        if (host_readback_us >= 0.0) stats_host_readback_sum_us_ += host_readback_us;
+        if (input_pack_us >= 0.0) stats_input_pack_sum_us_ += input_pack_us;
+        if (enqueue_us >= 0.0) stats_enqueue_sum_us_ += enqueue_us;
         if (overhead_us >= 0.0) stats_overhead_sum_us_ += overhead_us;
+        if (udp_recv_us >= 0.0) stats_udp_recv_sum_us_ += udp_recv_us;
+        if (crc_us >= 0.0) stats_crc_sum_us_ += crc_us;
         if (solve_us >= 0.0) stats_valid_solve_count_++;
         stats_profile_count_++;
         if (status == MPC_FPGA_STATUS_OK) stats_optimal_count_++;
@@ -704,23 +797,37 @@ private:
 
         if (stats_csv_file_ != nullptr) {
             std::fprintf(stats_csv_file_,
-                         "%lu,%u,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f\n",
+                         "%lu,%u,%u,"
+                         "%.3f,%.3f,%.3f,"
+                         "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,"
+                         "%.3f,%.3f,%.3f,"
+                         "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,"
+                         "%.3f,%.3f\n",
                          stats_idx_,
                          iterations,
+                         status,
                          solve_us,
                          total_call_us,
-                         kernel_us,
-                         input_migrate_us,
-                         output_migrate_us,
-                         host_prep_us,
-                         host_readback_us,
                          overhead_us,
-                         ns_to_us(profile.input_map_ns),
-                         ns_to_us(profile.input_pack_ns),
-                         ns_to_us(profile.input_unmap_ns),
-                         ns_to_us(profile.output_map_ns),
-                         ns_to_us(profile.output_unpack_ns),
-                         ns_to_us(profile.output_unmap_ns));
+                         input_pack_us,
+                         input_migrate_enq_us,
+                         kernel_enq_us,
+                         output_migrate_enq_us,
+                         wait_us,
+                         output_unpack_us,
+                         input_migrate_us,
+                         kernel_us,
+                         output_migrate_us,
+                         in_mig_submit_us,
+                         in_mig_sched_us,
+                         gap_in_to_kernel_us,
+                         kernel_submit_us,
+                         kernel_sched_us,
+                         gap_kernel_to_out_us,
+                         out_mig_submit_us,
+                         out_mig_sched_us,
+                         udp_recv_us,
+                         crc_us);
             std::fflush(stats_csv_file_);
         }
     }
@@ -753,13 +860,17 @@ private:
     double stats_kernel_sum_us_{0.0};
     double stats_input_migrate_sum_us_{0.0};
     double stats_output_migrate_sum_us_{0.0};
-    double stats_host_prep_sum_us_{0.0};
-    double stats_host_readback_sum_us_{0.0};
+    double stats_input_pack_sum_us_{0.0};
+    double stats_enqueue_sum_us_{0.0};
     double stats_overhead_sum_us_{0.0};
+    double stats_udp_recv_sum_us_{0.0};
+    double stats_crc_sum_us_{0.0};
     uint64_t stats_profile_count_{0};
     uint64_t stats_optimal_count_{0};
     uint64_t stats_max_iter_count_{0};
     FILE* stats_csv_file_{nullptr};
+    int64_t last_udp_recv_ns_{-1};
+    int64_t last_crc_ns_{-1};
 };
 
 }  // namespace state_transport_udp

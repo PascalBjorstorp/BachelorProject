@@ -39,7 +39,7 @@ bridge:
     
     # laserscan parameters
     scan_fov: 4.71239         # 270 degrees in radians
-    scan_beams: 1080          # 0.25 degree resolution
+    scan_beams: 270           # 1.0 degree resolution
     scan_range_max: 10.0      # 10 meters
     scan_noise_std: 0.04      # 4cm stddev
 

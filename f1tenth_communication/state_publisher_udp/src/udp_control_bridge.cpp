@@ -29,10 +29,10 @@
 
 namespace state_transport_udp {
 
-static constexpr int32_t FP_SCALE = 65536;
+static constexpr int32_t FP_SCALE = MPC_FPGA_QP_SCALE_I32;
 
 /**
- * @brief Convert Q16.16 fixed-point value to float.
+ * @brief Convert raw QP fixed-point value to float.
  * @param fp Fixed-point input value.
  * @return Floating-point representation of `fp`.
  */

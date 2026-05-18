@@ -56,6 +56,11 @@ struct SampledRefPoint {
     double right_bound = 0.5;
 };
 
+struct FrenetErrorsFp {
+    int32_t e_y_fp = 0;
+    int32_t e_psi_fp = 0;
+};
+
 class Ros2UdpSender final : public rclcpp::Node {
 public:
     Ros2UdpSender() : Node("ros2_udp_sender") {
@@ -89,22 +94,22 @@ public:
             throw std::runtime_error("Invalid dest_ip");
         }
 
-        auto qos = rclcpp::QoS(1).best_effort().durability_volatile();
+        auto sub_qos = rclcpp::QoS(10).reliable().durability_volatile();
         raceline_sub_ = create_subscription<nav_msgs::msg::Path>(
-            raceline_topic, qos,
+            raceline_topic, sub_qos,
             std::bind(&Ros2UdpSender::raceline_callback, this, std::placeholders::_1));
 
         odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
-            odom_topic, qos,
+            odom_topic, sub_qos,
             std::bind(&Ros2UdpSender::odom_callback, this, std::placeholders::_1));
 
         pose_sub_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
-            pose_topic, qos,
+            pose_topic, sub_qos,
             std::bind(&Ros2UdpSender::pose_callback, this, std::placeholders::_1));
 
         if (!servo_topic.empty()) {
             servo_sub_ = create_subscription<std_msgs::msg::Float64>(
-                servo_topic, qos,
+                servo_topic, sub_qos,
                 std::bind(&Ros2UdpSender::servo_callback, this, std::placeholders::_1));
         }
 
@@ -136,7 +141,7 @@ public:
 
 private:
     static int32_t to_fp(double v) {
-        constexpr double kScale = 65536.0;
+        constexpr double kScale = MPC_FPGA_QP_SCALE_F64;
         if (!std::isfinite(v)) return 0;
         return static_cast<int32_t>(v >= 0.0 ? v * kScale + 0.5 : v * kScale - 0.5);
     }
@@ -145,6 +150,48 @@ private:
         while (angle > M_PI) angle -= 2.0 * M_PI;
         while (angle < -M_PI) angle += 2.0 * M_PI;
         return angle;
+    }
+
+    FrenetErrorsFp compute_frenet_errors(double x, double y, double theta) const {
+        if (local_raceline_.size() < 2) {
+            return {};
+        }
+
+        const size_t max_search = local_raceline_.size() - 1;
+        double best_e_y = 0.0;
+        double best_e_psi = 0.0;
+        double best_dist2 = std::numeric_limits<double>::max();
+
+        for (size_t i = 0; i < max_search; ++i) {
+            const auto& a = local_raceline_[i];
+            const auto& b = local_raceline_[i + 1];
+
+            const double abx = b.x - a.x;
+            const double aby = b.y - a.y;
+            const double apx = x - a.x;
+            const double apy = y - a.y;
+            const double ab_len2 = abx * abx + aby * aby;
+            double t = 0.0;
+            if (ab_len2 > 1e-12) {
+                t = (apx * abx + apy * aby) / ab_len2;
+            }
+            t = std::clamp(t, 0.0, 1.0);
+
+            const double path_psi = a.psi + t * normalize_angle(b.psi - a.psi);
+            const double path_x = a.x + t * abx;
+            const double path_y = a.y + t * aby;
+            const double dx = x - path_x;
+            const double dy = y - path_y;
+            const double dist2 = dx * dx + dy * dy;
+
+            if (dist2 < best_dist2) {
+                best_dist2 = dist2;
+                best_e_y = -std::sin(path_psi) * dx + std::cos(path_psi) * dy;
+                best_e_psi = normalize_angle(theta - path_psi);
+            }
+        }
+
+        return {to_fp(best_e_y), to_fp(best_e_psi)};
     }
 
     void open_send_stats_csv() {
@@ -254,10 +301,6 @@ private:
         for (size_t step = 0; step < horizon; ++step) {
             const double target_s = local_raceline_[0].s + ds * static_cast<double>(step);
             const SampledRefPoint wp = sample_raceline_by_s(target_s);
-
-            packet.ref_x_fp[step] = to_fp(wp.x);
-            packet.ref_y_fp[step] = to_fp(wp.y);
-            packet.ref_psi_fp[step] = to_fp(wp.psi);
 
             packet.ref_ey_fp[step] = to_fp(0.0);
             packet.ref_epsi_fp[step] = to_fp(0.0);
@@ -452,9 +495,9 @@ private:
         packet.source_stamp_sec = source_stamp_sec;
         packet.source_stamp_nanosec = source_stamp_nanosec;
 
-        packet.x_fp = to_fp(x);
-        packet.y_fp = to_fp(y);
-        packet.theta_fp = to_fp(theta);
+        const FrenetErrorsFp errors = compute_frenet_errors(x, y, theta);
+        packet.e_y_fp = errors.e_y_fp;
+        packet.e_psi_fp = errors.e_psi_fp;
         packet.velocity_fp = to_fp(vx);
         packet.vy_fp = to_fp(vy);
         packet.omega_fp = to_fp(omega);

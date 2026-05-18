@@ -28,10 +28,13 @@
  * Numeric Format Constants
  *===========================================================================*/
 
-/* IO boundary: Fixed Q16.16 for protocol. */
-#define MPC_FPGA_Q16_SCALE_I32        65536
-#define MPC_FPGA_Q16_SCALE_F32        65536.0f
-#define MPC_FPGA_Q16_SCALE_F64        65536.0
+/* Protocol numeric lanes are raw QP words: Q14.18 by default. */
+#define MPC_FPGA_QP_WIDTH             32
+#define MPC_FPGA_QP_INT_BITS          14
+#define MPC_FPGA_QP_FRAC_BITS         (MPC_FPGA_QP_WIDTH - MPC_FPGA_QP_INT_BITS)
+#define MPC_FPGA_QP_SCALE_I32         (1 << MPC_FPGA_QP_FRAC_BITS)
+#define MPC_FPGA_QP_SCALE_F32         ((float)MPC_FPGA_QP_SCALE_I32)
+#define MPC_FPGA_QP_SCALE_F64         ((double)MPC_FPGA_QP_SCALE_I32)
 
 /* Internal Riccati domain: Parameterized by MPC_HLS_RICCATI_INT_BITS.
    Enables width/precision optimization sweeps independent of I/O format. */
@@ -68,14 +71,14 @@
 
 /* Derived fixed timing constants used in synthesized builds.
  * Keep these as dependency-linked compile-time expressions.
- * The +Q16 half-LSB term counteracts truncation when converted to ap_fixed. */
-#define MPC_FPGA_Q16_HALF_LSB         (0.5 / MPC_FPGA_Q16_SCALE_F64)
+ * The half-LSB term counteracts truncation when converted to fixed point. */
+#define MPC_FPGA_QP_HALF_LSB          (0.5 / MPC_FPGA_QP_SCALE_F64)
 #define MPC_FPGA_CONTROL_DT_S         (1.0 / MPC_FPGA_CONTROL_RATE_HZ)
-#define MPC_FPGA_CROSS_CALL_SCALE     ((MPC_FPGA_CONTROL_DT_S / MPC_FPGA_PREDICTION_DT_S) + MPC_FPGA_Q16_HALF_LSB)
+#define MPC_FPGA_CROSS_CALL_SCALE     ((MPC_FPGA_CONTROL_DT_S / MPC_FPGA_PREDICTION_DT_S) + MPC_FPGA_QP_HALF_LSB)
 
 /* Cross-call scaled default rate weights (control_dt / prediction_dt). */
-#define MPC_FPGA_W_STEER_JERK_CS      ((MPC_FPGA_W_STEER_JERK * MPC_FPGA_CROSS_CALL_SCALE) + MPC_FPGA_Q16_HALF_LSB)
-#define MPC_FPGA_W_ACCEL_RATE_CS      ((MPC_FPGA_W_ACCEL_RATE * MPC_FPGA_CROSS_CALL_SCALE) + MPC_FPGA_Q16_HALF_LSB)
+#define MPC_FPGA_W_STEER_JERK_CS      ((MPC_FPGA_W_STEER_JERK * MPC_FPGA_CROSS_CALL_SCALE) + MPC_FPGA_QP_HALF_LSB)
+#define MPC_FPGA_W_ACCEL_RATE_CS      ((MPC_FPGA_W_ACCEL_RATE * MPC_FPGA_CROSS_CALL_SCALE) + MPC_FPGA_QP_HALF_LSB)
 
 /* Precomputed derived vehicle constants for fixed-point compile paths. */
 #define MPC_FPGA_INV_WHEELBASE        (1.0 / MPC_FPGA_WHEELBASE_M)
