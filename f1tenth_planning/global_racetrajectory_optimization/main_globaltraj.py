@@ -183,8 +183,8 @@ opt_type = 'mintime'
 mintime_opts = {"tpadata": None,
                 "warm_start": False,
                 "var_friction": None,
-                "reopt_mintime_solution": False,
-                "recalc_vel_profile_by_tph": False}
+                "reopt_mintime_solution": True,
+                "recalc_vel_profile_by_tph": True}
 
 # lap time calculation table -------------------------------------------------------------------------------------------
 lap_time_mat_opts = {"use_lap_time_mat": False,             # calculate a lap time matrix (diff. top speeds and scales)
@@ -522,10 +522,7 @@ if opt_type == 'mintime' and mintime_opts["reopt_mintime_solution"]:
             for free_dev in free_dev_candidates
             if free_dev >= base_free_dev - 1e-9
         })
-        kappa_candidates = [
-            pars["veh_params"]["curvlim"] * factor
-            for factor in (1.0, 1.25, 1.5, 2.0, 3.0)
-        ]
+        kappa_candidates = [pars["veh_params"]["curvlim"] * 0.95] # set by optimize_trajectory_mintime.py
 
         reopt_errors = []
         alpha_reopt = None

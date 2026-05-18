@@ -50,12 +50,7 @@ def generate_launch_description():
     use_dynamic_bicycle_model_arg = LaunchConfiguration('use_dynamic_bicycle_model')
     old_odom_arg = LaunchConfiguration('oldOdom')
     use_localization_arg = LaunchConfiguration('use_localization')
-    amcl_num_particles_arg = LaunchConfiguration('amcl_num_particles')
-    amcl_min_particles_arg = LaunchConfiguration('amcl_min_particles')
-    amcl_max_particles_arg = LaunchConfiguration('amcl_max_particles')
     amcl_max_beams_arg = LaunchConfiguration('amcl_max_beams')
-    amcl_use_kld_arg = LaunchConfiguration('amcl_use_kld')
-    amcl_global_initialization_arg = LaunchConfiguration('amcl_global_initialization')
     use_system_monitor_arg = LaunchConfiguration('use_system_monitor')
     monitor_vesc_timeout_sec_arg = LaunchConfiguration('monitor_vesc_timeout_sec')
     monitor_drive_timeout_sec_arg = LaunchConfiguration('monitor_drive_timeout_sec')
@@ -134,34 +129,9 @@ def generate_launch_description():
             description='Launch the GPU AMCL localization stack'),
 
         DeclareLaunchArgument(
-            'amcl_num_particles',
-            default_value='600',
-            description='GPU AMCL initial/fixed particle count'),
-
-        DeclareLaunchArgument(
-            'amcl_min_particles',
-            default_value='1000',
-            description='GPU AMCL minimum particle count'),
-
-        DeclareLaunchArgument(
-            'amcl_max_particles',
-            default_value='1500',
-            description='GPU AMCL maximum particle count'),
-
-        DeclareLaunchArgument(
             'amcl_max_beams',
             default_value='270',
             description='GPU AMCL max beams sampled from each scan'),
-
-        DeclareLaunchArgument(
-            'amcl_use_kld',
-            default_value='true',
-            description='Enable GPU AMCL KLD adaptive particle sampling'),
-
-        DeclareLaunchArgument(
-            'amcl_global_initialization',
-            default_value='true',
-            description='Seed GPU AMCL particles globally along raceline with heading cone'),
 
         DeclareLaunchArgument(
             'use_system_monitor',
@@ -201,11 +171,7 @@ def generate_launch_description():
                 localization_params_file_arg,
                 {'use_sim_time': use_sim_time_arg},
                 {
-                    'num_particles': ParameterValue(amcl_num_particles_arg, value_type=int),
-                    'min_particles': ParameterValue(amcl_min_particles_arg, value_type=int),
-                    'max_particles': ParameterValue(amcl_max_particles_arg, value_type=int),
                     'max_beams': ParameterValue(amcl_max_beams_arg, value_type=int),
-                    'use_kld_sampling': ParameterValue(amcl_use_kld_arg, value_type=bool),
                 },
             ],
             condition=IfCondition(use_localization_arg),
@@ -221,13 +187,8 @@ def generate_launch_description():
                 localization_params_file_arg,
                 {'use_sim_time': use_sim_time_arg},
                 {
-                    'num_particles': ParameterValue(amcl_num_particles_arg, value_type=int),
-                    'min_particles': ParameterValue(amcl_min_particles_arg, value_type=int),
-                    'max_particles': ParameterValue(amcl_max_particles_arg, value_type=int),
                     'max_beams': ParameterValue(amcl_max_beams_arg, value_type=int),
-                    'use_kld_sampling': ParameterValue(amcl_use_kld_arg, value_type=bool),
-                    'global_initialization': ParameterValue(
-                        amcl_global_initialization_arg, value_type=bool),
+
                 },
             ],
             condition=IfCondition(use_localization_arg),

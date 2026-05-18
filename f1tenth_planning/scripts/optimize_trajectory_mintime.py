@@ -2634,7 +2634,7 @@ def main():
         # centerline corridor by this extra margin on each side.
         car_width=0.30,
         wall_clearance=0.15,
-        wall_clearance_guard=0.1,
+        wall_clearance_guard=0.10,
         reopt_free_dev=0.005,
         reopt_kappa_factor=0.95,
         max_ray_distance=8.0,
