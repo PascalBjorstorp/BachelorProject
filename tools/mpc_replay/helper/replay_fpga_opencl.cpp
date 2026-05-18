@@ -229,7 +229,8 @@ public:
             return false;
         }
 
-        cl::Program::Binaries bins{{file_buf.data(), file_buf.size()}};
+        cl::Program::Binaries bins;
+        bins.push_back(file_buf);
         std::vector<cl::Device> program_devices{device_};
         program_ = cl::Program(context_, program_devices, bins, nullptr, &err);
         if (err != CL_SUCCESS) {
@@ -362,11 +363,17 @@ public:
 
         std::vector<cl::Event> wait_input{input_migrate_event};
         const auto enq_k_t0 = std::chrono::high_resolution_clock::now();
-        err = queue_.enqueueTask(kernel_, &wait_input, &kernel_event);
+        err = queue_.enqueueNDRangeKernel(
+            kernel_,
+            cl::NullRange,
+            cl::NDRange(1),
+            cl::NDRange(1),
+            &wait_input,
+            &kernel_event);
         const auto enq_k_t1 = std::chrono::high_resolution_clock::now();
         last_profile_.kernel_enqueue_ns = ns_between(enq_k_t0, enq_k_t1);
         if (err != CL_SUCCESS) {
-            std::fprintf(stderr, "MPC-FPGA-OpenCL: enqueueTask failed (%d)\n", err);
+            std::fprintf(stderr, "MPC-FPGA-OpenCL: enqueueNDRangeKernel failed (%d)\n", err);
             return false;
         }
 

@@ -57,6 +57,9 @@
 #ifndef MPC_FPGA_CTRL_FLAG_ZERO_DUALS
 #define MPC_FPGA_CTRL_FLAG_ZERO_DUALS       (1u << 2)
 #endif
+#ifndef MPC_FPGA_CTRL_FLAG_DEBUG_ECHO_INPUTS
+#define MPC_FPGA_CTRL_FLAG_DEBUG_ECHO_INPUTS (1u << 3)
+#endif
 
 namespace {
 
@@ -379,6 +382,21 @@ extern "C" void mpc_fpga_top_opencl(const ap_uint<512> *input_words512,
   const uint32_t control_flags =
       (uint32_t)lane_words[kHeaderWordControlFlags];
   const int32_t prev_accel_word = (int32_t)lane_words[kHeaderWordPrevAccel];
+
+  /* Transport debug mode: bypass the solver entirely and echo raw header
+   * words back through the 4 output lanes. This validates host packing,
+   * OpenCL migration, and kernel-side lane unpacking without involving the
+   * optimizer or persistent solver state. Output mapping in this mode is:
+   *   lane0 -> e_y
+   *   lane1 -> e_psi
+   *   lane2 -> v_x
+   *   lane3 -> prev_accel
+   */
+  if (control_flags & MPC_FPGA_CTRL_FLAG_DEBUG_ECHO_INPUTS) {
+    output_words128[0] =
+        pack_output_words(ey_word, epsi_word, vx_word, prev_accel_word);
+    return;
+  }
 
   MpcRefPoint_t ref[MPC_HORIZON];
   fill_mpc_reference_trajectory_from_lane_words(lane_words, ref);
