@@ -163,7 +163,8 @@ public:
     PoseEstimate get_estimate();
 
     /// Get highest-density local cluster estimate from current weighted particles.
-    PoseEstimate get_cluster_estimate(double* cluster_weight_out = nullptr);
+    PoseEstimate get_cluster_estimate(double* cluster_weight_out = nullptr,
+                                      double* second_cluster_weight_out = nullptr);
 
     /// Download particles to host for visualisation.
     void get_particles(std::vector<float>& particles);
@@ -179,6 +180,9 @@ public:
     MotionModel& motion_model() { return motion_; }
     SensorModel& sensor_model() { return sensor_; }
     const Config& config() const { return cfg_; }
+    void set_recovery_injection_enabled(bool enabled) {
+        cfg_.enable_recovery_injection = enabled;
+    }
 
 private:
     void check_resample();

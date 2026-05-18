@@ -91,6 +91,22 @@ private:
     bool debug_pre_resample_particles_ = false;
     bool initial_heading_from_raceline_ = true;
 
+    // Global-localization acceptance gate. While active, scan evidence is
+    // accumulated without resampling so early wrong modes cannot kill others.
+    bool global_localization_active_ = false;
+    int global_init_scan_count_ = 0;
+    int global_init_stable_count_ = 0;
+    double global_init_motion_m_ = 0.0;
+    bool global_init_last_est_valid_ = false;
+    PoseEstimate global_init_last_est_;
+    int global_init_min_scans_ = 8;
+    int global_init_required_stable_scans_ = 3;
+    double global_init_min_motion_m_ = 0.25;
+    double global_init_publish_min_weight_ = 0.85;
+    double global_init_min_weight_margin_ = 0.25;
+    double global_init_stability_xy_m_ = 0.35;
+    double global_init_stability_yaw_rad_ = 0.45;
+
     // Slip-aware noise scaling
     double slip_angular_threshold_ = 1.0;  // rad/s
     double slip_noise_multiplier_ = 2.0;

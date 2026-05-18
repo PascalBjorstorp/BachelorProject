@@ -118,6 +118,13 @@ gpu_amcl_cpp:
     global_heading_trajectory_file: ""     # absolute path override; empty resolves package/rel path below
     global_heading_trajectory_package: "f1tenth_planning"
     global_heading_trajectory_rel_path: "trajectories/my_track_raceline.csv"
+    global_init_min_scans: 8               # require multiple scan updates before first /amcl_pose
+    global_init_required_stable_scans: 3   # best cluster must stop jumping
+    global_init_min_motion_m: 0.25         # use odom motion to break symmetric scan matches
+    global_init_publish_min_weight: 0.85   # stronger gate than normal tracking
+    global_init_min_weight_margin: 0.25    # best cluster must clearly beat second cluster
+    global_init_stability_xy_m: 0.35
+    global_init_stability_yaw_rad: 0.45
 
     # Used only when global_initialization=false, and as covariance for RViz 2D Pose Estimate.
     initial_pose_x: 0.0
