@@ -81,20 +81,18 @@ gpu_amcl_cpp:
 
     # ---- Sensor model (likelihood field, Prob. Robotics §6.4) ----
     max_beams: 270
-    z_hit: 0.95
-    z_rand: 0.05
-    sigma_hit: 0.06         # meters; focused sweep best run
+    z_hit: 0.90
+    z_rand: 0.10
+    sigma_hit: 0.12         # meters; standard AMCL-style softer likelihood field
     laser_max_range: 10.0
     laser_offset_x: 0.265   # LiDAR X offset from base_link
     laser_offset_y: 0.0     # LiDAR Y offset from base_link
     normalize_likelihood_by_beams: true  # use geometric mean, avoids first-scan global collapse
-    likelihood_scale: 0.75               # >1 sharper, <1 softer
+    likelihood_scale: 0.45               # standard resampling needs softer weights at global init
 
     # ---- Resampling ----
     resample_threshold: 0.3  # match sim benchmark default
-    resample_weight_power: 0.5     # soften resampling so medium-weight hypotheses survive
-    resample_uniform_floor: 0.10   # reserve small survivor mass for non-winning particles
-    enable_recovery_injection: true   # keep adding global particles so wrong early mode cannot permanently steal all particles
+    enable_recovery_injection: true   # standard random-particle recovery; no custom resampling
     recovery_injection_ratio: 0.05    # 5% runtime recovery particles; less likely to pull pose after convergence
     enable_local_roughening: true      # bad scan match -> jitter local particles after resample
     local_roughening_ratio: 0.25       # replace 20% around current local mean
