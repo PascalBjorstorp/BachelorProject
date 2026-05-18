@@ -56,6 +56,16 @@ static float get_wall_bias_max_shift_m(void)
     return get_env_float("MPC_WALL_BIAS_MAX_M", 0.2f);
 }
 
+static float get_wall_ref_clearance_m(void)
+{
+    /* Desired minimum standoff of the *tracked reference* from each corridor
+     * edge. Distinct from MPC_WALL_BIAS_CLEAR_M (which tightens the hard
+     * constraint): this pulls the e_y reference inward so the car does not
+     * aim to ride a raceline that hugs a wall. Critical where the planned
+     * line sits ~0.3-0.5 m off the right wall. Set 0 to disable. */
+    return get_env_float("MPC_WALL_REF_CLEAR_M", 0.10f);
+}
+
 static void compute_wall_ey_bounds(
     float left_wall_bound,
     float right_wall_bound,
@@ -389,6 +399,7 @@ MpcSolverStatus_t mpc_compute_optimal_control(
 
     const float wall_bias_clear_m = get_wall_bias_clearance_m();
     const float wall_bias_max_m = get_wall_bias_max_shift_m();
+    const float wall_ref_clear_m = get_wall_ref_clearance_m();
     int wall_bound_window = get_env_int("MPC_WALL_BOUND_WINDOW", 3);
     if (wall_bound_window < 0) wall_bound_window = 0;
     if (wall_bound_window > 25) wall_bound_window = 25;
@@ -611,7 +622,8 @@ MpcSolverStatus_t mpc_compute_optimal_control(
         /* === q (8 elements): linear state cost (tracking references) === */
         {
             float ey_ref_k = reference_trajectory[k].reference_lateral_error;
-            ey_ref_k = compute_wall_biased_ey_ref(ey_ref_k, wall_x_lb_con, wall_x_ub_con, 0.0f, wall_bias_max_m);
+            ey_ref_k = compute_wall_biased_ey_ref(ey_ref_k, wall_x_lb_con, wall_x_ub_con,
+                                                  wall_ref_clear_m, wall_bias_max_m);
             sd->q[0] = -(sd->Q_diag[0] * ey_ref_k);
         }
         sd->q[1] = -(sd->Q_diag[1] * reference_trajectory[k].reference_heading_error);

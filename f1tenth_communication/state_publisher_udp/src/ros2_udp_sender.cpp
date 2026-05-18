@@ -157,39 +157,33 @@ private:
             return {};
         }
 
-        const size_t max_search = local_raceline_.size() - 1;
-        double best_e_y = 0.0;
-        double best_e_psi = 0.0;
-        double best_dist2 = std::numeric_limits<double>::max();
+        /* Local raceline is republished each cycle anchored at the car, so
+         * segment [0,1] is the current reference origin. Project onto it
+         * directly instead of an unconstrained global nearest-segment scan
+         * (which costs per cycle and can snap to an offset segment, biasing
+         * e_y). Matches the MPC hardware node's closest=0 anchoring. */
+        const auto& a = local_raceline_[0];
+        const auto& b = local_raceline_[1];
 
-        for (size_t i = 0; i < max_search; ++i) {
-            const auto& a = local_raceline_[i];
-            const auto& b = local_raceline_[i + 1];
-
-            const double abx = b.x - a.x;
-            const double aby = b.y - a.y;
-            const double apx = x - a.x;
-            const double apy = y - a.y;
-            const double ab_len2 = abx * abx + aby * aby;
-            double t = 0.0;
-            if (ab_len2 > 1e-12) {
-                t = (apx * abx + apy * aby) / ab_len2;
-            }
-            t = std::clamp(t, 0.0, 1.0);
-
-            const double path_psi = a.psi + t * normalize_angle(b.psi - a.psi);
-            const double path_x = a.x + t * abx;
-            const double path_y = a.y + t * aby;
-            const double dx = x - path_x;
-            const double dy = y - path_y;
-            const double dist2 = dx * dx + dy * dy;
-
-            if (dist2 < best_dist2) {
-                best_dist2 = dist2;
-                best_e_y = -std::sin(path_psi) * dx + std::cos(path_psi) * dy;
-                best_e_psi = normalize_angle(theta - path_psi);
-            }
+        const double abx = b.x - a.x;
+        const double aby = b.y - a.y;
+        const double apx = x - a.x;
+        const double apy = y - a.y;
+        const double ab_len2 = abx * abx + aby * aby;
+        double t = 0.0;
+        if (ab_len2 > 1e-12) {
+            t = (apx * abx + apy * aby) / ab_len2;
         }
+        t = std::clamp(t, 0.0, 1.0);
+
+        const double path_psi = a.psi + t * normalize_angle(b.psi - a.psi);
+        const double path_x = a.x + t * abx;
+        const double path_y = a.y + t * aby;
+        const double dx = x - path_x;
+        const double dy = y - path_y;
+
+        const double best_e_y = -std::sin(path_psi) * dx + std::cos(path_psi) * dy;
+        const double best_e_psi = normalize_angle(theta - path_psi);
 
         return {to_fp(best_e_y), to_fp(best_e_psi)};
     }

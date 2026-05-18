@@ -178,6 +178,9 @@
 #define MPC_FPGA_WALL_MARGIN_M        0.2f
 #define MPC_FPGA_WALL_BIAS_CLEAR_M    0.05f
 #define MPC_FPGA_WALL_BIAS_MAX_M      0.2f
+/* Min standoff of the tracked e_y reference from each corridor edge.
+ * Mirrors CPU MPC_WALL_REF_CLEAR_M default; keep both in sync for parity. */
+#define MPC_FPGA_WALL_REF_CLEAR_M     0.10f
 #define MPC_FPGA_WALL_BOUND_WINDOW    3
 #define MPC_FPGA_V_SWITCH_MPS         7.319f
 #define MPC_FPGA_BOUND_THRESHOLD      50.0f
