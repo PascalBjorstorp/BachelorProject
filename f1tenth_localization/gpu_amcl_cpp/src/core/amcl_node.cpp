@@ -158,6 +158,8 @@ void AmclNode::declare_all_parameters() {
     declare_parameter<std::string>("global_heading_trajectory_file", "");
     declare_parameter<std::string>("global_heading_trajectory_package", "f1tenth_planning");
     declare_parameter<std::string>("global_heading_trajectory_rel_path", "trajectories/my_track_raceline.csv");
+    declare_parameter<int>("global_startup_resample_min_scans", 6);
+    declare_parameter<double>("global_startup_resample_min_motion_m", 0.15);
     declare_parameter<double>("initial_pose_x", 0.0);
     declare_parameter<double>("initial_pose_y", 0.0);
     declare_parameter<double>("initial_pose_a", 0.0);
@@ -187,6 +189,10 @@ void AmclNode::load_parameters() {
         get_parameter("debug_pre_resample_particles").as_bool();
     initial_heading_from_raceline_ =
         get_parameter("initial_heading_from_raceline").as_bool();
+    global_startup_resample_min_scans_ = std::max(
+        0, static_cast<int>(get_parameter("global_startup_resample_min_scans").as_int()));
+    global_startup_resample_min_motion_m_ =
+        std::max(0.0, get_parameter("global_startup_resample_min_motion_m").as_double());
     slip_angular_threshold_ = get_parameter("slip_angular_threshold").as_double();
     slip_noise_multiplier_  = get_parameter("slip_noise_multiplier").as_double();
     odom_history_duration_s_ = std::max(
@@ -195,11 +201,14 @@ void AmclNode::load_parameters() {
     RCLCPP_INFO(get_logger(),
         "[AMCL] Parameters: update_min_d=%.5f, update_min_a=%.5f, "
         "max_scan_age=%.4f, odom_history=%.3fs, cloud_publish_rate=%.1f Hz, "
-        "debug_pre_resample=%s, slip_threshold=%.2f rad/s, initial_raceline_heading=%s",
+        "debug_pre_resample=%s, slip_threshold=%.2f rad/s, initial_raceline_heading=%s, "
+        "global_startup_resample_min_scans=%d, global_startup_resample_min_motion=%.2fm",
         update_min_d_, update_min_a_, max_scan_age_, odom_history_duration_s_,
         cloud_publish_rate_, debug_pre_resample_particles_ ? "true" : "false",
         slip_angular_threshold_,
-        initial_heading_from_raceline_ ? "true" : "false");
+        initial_heading_from_raceline_ ? "true" : "false",
+        global_startup_resample_min_scans_,
+        global_startup_resample_min_motion_m_);
 }
 
 void AmclNode::push_odom_sample(const rclcpp::Time& stamp,
@@ -475,6 +484,9 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     pf_.init(pf_cfg, mm_cfg, sm_cfg, map_);
 
     prediction_baseline_ready_ = false;
+    global_startup_resample_holdoff_active_ = pf_cfg.global_initialization;
+    global_startup_scan_count_ = 0;
+    global_startup_motion_m_ = 0.0;
     RCLCPP_INFO(get_logger(), "Particle filter initialised with %d particles (%s)",
                 pf_cfg.num_particles,
                 pf_cfg.global_initialization ? "global" : "local");
@@ -640,7 +652,32 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     bool publish_cluster =
         !pf_.config().use_cluster_estimate || cluster_weight >= min_cluster_weight;
 
-    pf_.resample_if_needed();
+    bool allow_resample = true;
+    if (global_startup_resample_holdoff_active_) {
+        ++global_startup_scan_count_;
+        global_startup_motion_m_ += dist_moved;
+        allow_resample =
+            global_startup_scan_count_ >= global_startup_resample_min_scans_ &&
+            global_startup_motion_m_ >= global_startup_resample_min_motion_m_;
+        publish_cluster = publish_cluster && allow_resample;
+        if (allow_resample) {
+            global_startup_resample_holdoff_active_ = false;
+            RCLCPP_INFO(get_logger(),
+                        "Global startup resampling enabled after %d scans and %.2fm motion",
+                        global_startup_scan_count_, global_startup_motion_m_);
+        } else if ((global_startup_scan_count_ % 10) == 0) {
+            RCLCPP_INFO(get_logger(),
+                        "Global startup preserving particles: scans=%d/%d motion=%.2f/%.2fm",
+                        global_startup_scan_count_,
+                        global_startup_resample_min_scans_,
+                        global_startup_motion_m_,
+                        global_startup_resample_min_motion_m_);
+        }
+    }
+
+    if (allow_resample) {
+        pf_.resample_if_needed();
+    }
 
     // ── Timing end — publish if subscribed ──
     auto t_pf_end = std::chrono::high_resolution_clock::now();
@@ -699,6 +736,9 @@ void AmclNode::initialpose_callback(const geometry_msgs::msg::PoseWithCovariance
 
     // Reset odom baseline
     prediction_baseline_ready_ = false;
+    global_startup_resample_holdoff_active_ = false;
+    global_startup_scan_count_ = 0;
+    global_startup_motion_m_ = 0.0;
 }
 
 // ─── Direct pose publish (called from scan_callback) ────────────────

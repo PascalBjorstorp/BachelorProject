@@ -118,6 +118,8 @@ gpu_amcl_cpp:
     global_heading_trajectory_file: ""     # absolute path override; empty resolves package/rel path below
     global_heading_trajectory_package: "f1tenth_planning"
     global_heading_trajectory_rel_path: "trajectories/my_track_raceline.csv"
+    global_startup_resample_min_scans: 6   # init-only: keep global modes alive before first resample
+    global_startup_resample_min_motion_m: 0.15
 
     # Used only when global_initialization=false, and as covariance for RViz 2D Pose Estimate.
     initial_pose_x: 0.0
