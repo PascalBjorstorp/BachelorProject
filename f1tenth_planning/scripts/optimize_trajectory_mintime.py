@@ -2624,8 +2624,8 @@ def main():
         # Centerline extraction settings
         centerline_spacing=0.05,     # target spacing for centerline points (in metres)
         optimizer_spacing=0.08,      # prepared reference-track spacing for TUM mintime
-        optimizer_smoothing_s=0.0,  # Disabled: gaussian-conditioned centerline already satisfies curvlim
-        optimizer_smoothing_k=2,    # TUM spline order (mirrors racecar.ini)
+        optimizer_smoothing_s=3.0,  # Disabled: gaussian-conditioned centerline already satisfies curvlim
+        optimizer_smoothing_k=3,    # TUM spline order (mirrors racecar.ini)
         optimizer_smoothing_prep_spacing=0.02,
         enable_mincurv_prepass=False,
         direction='cw',             # 'auto', 'cw', or 'ccw'
@@ -2633,9 +2633,9 @@ def main():
         # Vehicle width and separate center-to-wall clearance constraint.
         # width_opt remains car_width; wall_clearance reduces the allowed
         # centerline corridor by this extra margin on each side.
-        car_width=0.30,
+        car_width=0.32,
         wall_clearance=0.15,
-        wall_clearance_guard=0.10,
+        wall_clearance_guard=0.12,
         reopt_free_dev=0.005,
         reopt_kappa_factor=0.95,
         max_ray_distance=8.0,
