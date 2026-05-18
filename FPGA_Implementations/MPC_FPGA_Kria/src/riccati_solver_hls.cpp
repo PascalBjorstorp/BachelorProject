@@ -247,6 +247,7 @@ riccati_forward_pass(const StepData_t step_data[MPC_HORIZON],
 #pragma HLS ARRAY_PARTITION variable = B_sparse complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = x_out complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = u_out complete dim = 2
+#pragma HLS ARRAY_PARTITION variable = K cyclic factor = 4 dim = 1
 #pragma HLS ARRAY_PARTITION variable = K complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = K complete dim = 3
 #pragma HLS ARRAY_PARTITION variable = kk complete dim = 2
@@ -389,6 +390,7 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
 #pragma HLS ARRAY_PARTITION variable = y_x complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = z_u complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = y_u complete dim = 2
+#pragma HLS ARRAY_PARTITION variable = K cyclic factor = 4 dim = 1
 #pragma HLS ARRAY_PARTITION variable = K complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = K complete dim = 3
 #pragma HLS ARRAY_PARTITION variable = kk complete dim = 2
@@ -965,6 +967,7 @@ riccati_pass_hls(const StepData_t step_data[MPC_HORIZON],
 #pragma HLS ARRAY_PARTITION variable = B_sparse complete dim = 2
   fp_K_raw_t K[MPC_HORIZON][MPC_NU][MPC_NX_AUG];
   fp_K_raw_t kk[MPC_HORIZON][MPC_NU];
+#pragma HLS ARRAY_PARTITION variable = K cyclic factor = 4 dim = 1
 #pragma HLS ARRAY_PARTITION variable = K complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = K complete dim = 3
 #pragma HLS ARRAY_PARTITION variable = kk complete dim = 2

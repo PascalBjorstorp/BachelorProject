@@ -59,6 +59,8 @@ struct Options {
     std::string kernel_name = "mpc_fpga_top_opencl";
     int device_index = 0;
     bool reset_first = true;
+    bool debug_echo_first = false;
+    bool debug_echo_all = false;
 };
 
 static std::vector<unsigned char> read_file_bytes(const std::string& path) {
@@ -491,7 +493,8 @@ private:
 static void usage(const char* argv0) {
     std::fprintf(stderr,
                  "Usage: %s <state_replay.csv> <out.csv> [--xclbin PATH] "
-                 "[--kernel NAME] [--device-index N] [--no-reset-first]\n",
+                 "[--kernel NAME] [--device-index N] [--no-reset-first] "
+                 "[--debug-echo-first] [--debug-echo-all]\n",
                  argv0);
 }
 
@@ -511,6 +514,10 @@ static bool parse_args(int argc, char** argv, Options& opts) {
             opts.device_index = std::atoi(argv[++i]);
         } else if (std::strcmp(argv[i], "--no-reset-first") == 0) {
             opts.reset_first = false;
+        } else if (std::strcmp(argv[i], "--debug-echo-first") == 0) {
+            opts.debug_echo_first = true;
+        } else if (std::strcmp(argv[i], "--debug-echo-all") == 0) {
+            opts.debug_echo_all = true;
         } else {
             std::fprintf(stderr, "Unknown arg: %s\n", argv[i]);
             usage(argv[0]);
@@ -586,8 +593,11 @@ int main(int argc, char** argv) {
             compute_frenet_errors_fp(row, ey_fp, epsi_fp);
         }
 
-        const uint32_t control_flags =
+        uint32_t control_flags =
             (first_row && opts.reset_first) ? MPC_FPGA_CTRL_FLAG_RESET_STATE : 0u;
+        if (opts.debug_echo_all || (opts.debug_echo_first && first_row)) {
+            control_flags |= MPC_FPGA_CTRL_FLAG_DEBUG_ECHO_INPUTS;
+        }
         const int32_t prev_accel_in_fp =
             (first_row && opts.reset_first) ? 0 : fpga.get_prev_accel_fp();
 

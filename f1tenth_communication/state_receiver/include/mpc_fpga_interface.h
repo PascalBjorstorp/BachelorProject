@@ -63,6 +63,7 @@
 #define MPC_FPGA_CTRL_FLAG_RESET_STATE      (1u << 0)
 #define MPC_FPGA_CTRL_FLAG_FORCE_COLD_START (1u << 1)
 #define MPC_FPGA_CTRL_FLAG_ZERO_DUALS       (1u << 2)
+#define MPC_FPGA_CTRL_FLAG_DEBUG_ECHO_INPUTS (1u << 3)
 
 /*===========================================================================
  * Status Codes
