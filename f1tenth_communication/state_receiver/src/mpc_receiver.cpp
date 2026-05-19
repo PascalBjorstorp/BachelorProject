@@ -230,6 +230,9 @@ public:
             input_ptr_[i] = 0;
         }
 
+        input_mem_ = {input_buffer_};
+        output_mem_ = {output_buffer_};
+
         initialized_ = true;
         return true;
     }
@@ -286,13 +289,11 @@ public:
         cl::Event input_migrate_event;
         cl::Event kernel_event;
         cl::Event output_migrate_event;
-        const std::vector<cl::Memory> input_mem{input_buffer_};
-        const std::vector<cl::Memory> output_mem{output_buffer_};
 
         /* Sync the freshly packed input down to PL-visible DDR. */
         const auto enq_in_t0 = std::chrono::high_resolution_clock::now();
         err = queue_.enqueueMigrateMemObjects(
-            input_mem, 0 /* to device */, nullptr, &input_migrate_event);
+            input_mem_, 0 /* to device */, nullptr, &input_migrate_event);
         const auto enq_in_t1 = std::chrono::high_resolution_clock::now();
         last_profile_.input_migrate_enqueue_ns = ns_between(enq_in_t0, enq_in_t1);
         if (err != CL_SUCCESS) {
@@ -304,9 +305,10 @@ public:
         /* Device round-trip starts once the input migrate is enqueued. */
         const auto t0 = enq_in_t1;
 
-        std::vector<cl::Event> wait_input{input_migrate_event};
+        /* In-order queue: the input migrate is guaranteed to complete before
+         * the kernel starts, so no explicit event wait-list is needed. */
         const auto enq_k_t0 = std::chrono::high_resolution_clock::now();
-        err = queue_.enqueueTask(kernel_, &wait_input, &kernel_event);
+        err = queue_.enqueueTask(kernel_, nullptr, &kernel_event);
         const auto enq_k_t1 = std::chrono::high_resolution_clock::now();
         last_profile_.kernel_enqueue_ns = ns_between(enq_k_t0, enq_k_t1);
         if (err != CL_SUCCESS) {
@@ -315,10 +317,9 @@ public:
             return false;
         }
 
-        std::vector<cl::Event> wait_kernel{kernel_event};
         const auto enq_out_t0 = std::chrono::high_resolution_clock::now();
         err = queue_.enqueueMigrateMemObjects(
-            output_mem, CL_MIGRATE_MEM_OBJECT_HOST, &wait_kernel,
+            output_mem_, CL_MIGRATE_MEM_OBJECT_HOST, nullptr,
             &output_migrate_event);
         const auto enq_out_t1 = std::chrono::high_resolution_clock::now();
         last_profile_.output_migrate_enqueue_ns = ns_between(enq_out_t0, enq_out_t1);
@@ -431,6 +432,11 @@ private:
     cl::CommandQueue queue_;
     cl::Buffer input_buffer_;
     cl::Buffer output_buffer_;
+
+    /* Built once in initialize() and reused every cycle so compute() does no
+     * per-call heap allocation for the migrate memory lists. */
+    std::vector<cl::Memory> input_mem_;
+    std::vector<cl::Memory> output_mem_;
 
     static constexpr size_t DMA_BUFFER_WORDS = INPUT_BUFFER_WORDS_32_PAD;
     static_assert(DMA_BUFFER_WORDS * sizeof(int32_t) == INPUT_BUFFER_BYTES_512,
