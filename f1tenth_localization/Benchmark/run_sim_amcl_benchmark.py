@@ -12,6 +12,115 @@ import time
 from typing import List
 
 
+RECORD_TOPICS = [
+    '/scan',
+    '/scan_walls',
+    '/scan_obstacles',
+    '/ego_racecar/odom',
+    '/ego_racecar/ground_truth',
+    '/odom_pose',
+    '/amcl_pose',
+    '/amcl_timing',
+    '/amcl_particle_count',
+    '/ekf_pose',
+    '/tf',
+    '/tf_static',
+    '/map',
+    '/map_metadata',
+    '/initialpose',
+    '/particlecloud',
+    '/particlecloud_weighted_pre_resample',
+    '/particle_cloud',
+    '/local_raceline',
+    '/local_raceline_viz',
+    '/drive',
+    '/ackermann_cmd',
+    '/clock',
+    '/mpc/timing/solve_us',
+    '/mpc/timing/iteration_count',
+    '/mpc/timing/control_gap_ms',
+    '/mpc/timing/ekf_to_control_ms',
+    '/mpc/timing/output_gap_ms',
+    '/mpc/timing/drive_age_ms',
+    '/mpc/timing/pose_seq',
+    '/mpc/timing/skipped_poses',
+    '/mpc/timing/solver_enter_seq',
+]
+
+
+def storage_id() -> str:
+    requested = os.environ.get('ROSBAG_STORAGE_ID', 'mcap')
+    if requested != 'mcap':
+        return requested
+
+    try:
+        help_result = subprocess.run(
+            ['ros2', 'bag', 'record', '-h'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            check=False)
+    except OSError:
+        return requested
+
+    if 'mcap' in help_result.stdout:
+        return requested
+
+    print('[warn] mcap storage plugin not detected; falling back to sqlite3')
+    return 'sqlite3'
+
+
+def stop_process(proc: subprocess.Popen, name: str) -> int:
+    code = proc.poll()
+    if code is not None:
+        return code
+
+    print(f'{name}: sending SIGINT')
+    os.killpg(proc.pid, signal.SIGINT)
+    try:
+        return proc.wait(timeout=30.0)
+    except subprocess.TimeoutExpired:
+        print(f'{name}: SIGINT failed, sending SIGTERM')
+        os.killpg(proc.pid, signal.SIGTERM)
+        try:
+            return proc.wait(timeout=10.0)
+        except subprocess.TimeoutExpired:
+            print(f'{name}: SIGTERM failed, sending SIGKILL')
+            os.killpg(proc.pid, signal.SIGKILL)
+            return proc.wait(timeout=10.0)
+
+
+def start_bag_recording(args: argparse.Namespace,
+                        run_dir: str,
+                        env: dict) -> subprocess.Popen | None:
+    if not args.record_bag:
+        return None
+
+    bag_dir = os.path.join(run_dir, 'rosbag')
+    cmd = [
+        'ros2',
+        'bag',
+        'record',
+        '-o', bag_dir,
+        '-s', storage_id(),
+        '--include-unpublished-topics',
+        '--disable-keyboard-controls',
+        '--qos-profile-overrides-path', args.rosbag_qos_file,
+        '--topics',
+        *RECORD_TOPICS,
+    ]
+
+    print('\n=== rosbag recording ===')
+    print(' '.join(cmd))
+    proc = subprocess.Popen(cmd, env=env, start_new_session=True)
+    time.sleep(args.recording_warmup_sec)
+    code = proc.poll()
+    if code is not None:
+        raise RuntimeError(f'ros2 bag record exited early with code {code}')
+    print(f'Recording to: {bag_dir}')
+    return proc
+
+
 def run_one(args: argparse.Namespace, localizer: str, root: str, run_index: int) -> int:
     if args.runs == 1:
         run_dir = os.path.join(root, localizer)
@@ -53,6 +162,12 @@ def run_one(args: argparse.Namespace, localizer: str, root: str, run_index: int)
     env.setdefault('PYTHONUNBUFFERED', '1')
     env.setdefault('RCUTILS_LOGGING_BUFFERED_STREAM', '1')
     env.setdefault('NUMBA_DISABLE_COVERAGE', '1')
+
+    try:
+        recorder_proc = start_bag_recording(args, run_dir, env)
+    except RuntimeError as exc:
+        print(f'{localizer}: {exc}')
+        return 1
 
     proc = subprocess.Popen(cmd, env=env, start_new_session=True)
     timeout = args.process_timeout_sec
@@ -101,20 +216,27 @@ def run_one(args: argparse.Namespace, localizer: str, root: str, run_index: int)
             return code if code != 0 else 1
         return code
 
+    def finish(code: int) -> int:
+        if recorder_proc is not None:
+            stop_process(recorder_proc, 'rosbag')
+        return checked_return(code)
+
     try:
         while True:
             code = proc.poll()
             if code is not None:
-                return checked_return(code)
+                return finish(code)
             status = read_status()
             if status is not None and str(status.get('reason', '')):
-                return checked_return(stop_after_status(str(status.get('reason'))))
+                return finish(stop_after_status(str(status.get('reason'))))
             if deadline is not None and time.monotonic() >= deadline:
-                return checked_return(signal_process('process timeout'))
+                return finish(signal_process('process timeout'))
             time.sleep(1.0)
     except KeyboardInterrupt:
         os.killpg(proc.pid, signal.SIGINT)
         proc.wait(timeout=20.0)
+        if recorder_proc is not None:
+            stop_process(recorder_proc, 'rosbag')
         raise
 
 
@@ -139,6 +261,19 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     parser.add_argument('--process-timeout-sec', type=float, default=0.0)
     parser.add_argument('--status-shutdown-wait-sec', type=float, default=15.0,
                         help='Seconds to wait for launch to stop itself after run_status.json is written')
+    parser.add_argument('--record-bag', action=argparse.BooleanOptionalAction,
+                        default=True,
+                        help='Record one rosbag per run under <run_dir>/rosbag')
+    parser.add_argument('--recording-warmup-sec', type=float, default=1.0,
+                        help='Seconds to let ros2 bag subscribe before launching sim')
+    parser.add_argument(
+        '--rosbag-qos-file',
+        default=os.path.join(
+            repo_root,
+            'f1tenth_system',
+            'f1tenth_stack',
+            'config',
+            'localization_rosbag_qos.yaml'))
     parser.add_argument(
         '--launch-file',
         default=os.path.join(
