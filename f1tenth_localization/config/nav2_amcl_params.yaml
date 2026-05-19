@@ -53,13 +53,13 @@ amcl:
     beam_skip_error_threshold: 0.9
 
     # Match the custom AMCL test mode: process every scan by default.
-    update_min_d: 0.0
-    update_min_a: 0.0
+    update_min_d: 0.05
+    update_min_a: 0.05
 
     # Publishing / lifecycle
     tf_broadcast: true
     transform_tolerance: 0.02
-    save_pose_rate: 0.5
+    save_pose_rate: 1.0
     always_reset_initial_pose: false
     set_initial_pose: false
     initial_pose.x: 0.0
