@@ -96,6 +96,22 @@ static inline fp_QP_raw_t cast_sum8_qp_raw_to_qp_local(fp_sum8_QP_raw_t value) {
   return (fp_QP_raw_t)value;
 }
 
+/* Vitis HLS codegen workaround. Computing this exact product+shift inline in
+ * compute_affine_bias_dense_hls is miscompiled in RTL only at the
+ * FP_CAST_SITE_MUL_MPC_RICCATI_B0 site: csim correct on every row; RTL wrong
+ * bit-identically and schedule-invariant (verified across UNROLL+mul-cap,
+ * UNROLL, and PIPELINE II=1 builds; lin_delta_k/B_step inputs verified
+ * identical RTL vs csim). The identical math synthesizes correctly when it
+ * lives in its own INLINE-off module, so isolate just b0 here. Keeps a0..a4,
+ * b1, the adder tree and all cycle-tuned pragmas of the caller unchanged. */
+static fp_QP_raw_t affine_b0_term_hls(fp_QP_raw_t b0_coeff_raw,
+                                      fp_QP_raw_t lin_delta_k_raw) {
+#pragma HLS INLINE off
+  return fp_shift_right_cast_to_qp_site(
+      fp_mul_QP_raw(b0_coeff_raw, lin_delta_k_raw), FP_FRAC_BITS,
+      FP_CAST_SITE_MUL_MPC_RICCATI_B0);
+}
+
 static void compute_affine_bias_dense_hls(
     const fp_QP_t A_step[MPC_NX_FRENET][MPC_NX_FRENET],
     const fp_QP_t B_step[MPC_NX_FRENET][MPC_NU], fp_QP_t lin_ey,
@@ -171,10 +187,7 @@ static void compute_affine_bias_dense_hls(
         fp_shift_right_cast_to_qp_site(fp_mul_QP_raw(A4_raw, xk_raw[4]),
                                        FP_FRAC_BITS,
                                        FP_CAST_SITE_MUL_MPC_RICCATI_A4);
-    const fp_QP_raw_t b0 =
-        fp_shift_right_cast_to_qp_site(fp_mul_QP_raw(B0_raw, lin_delta_k_raw),
-                                       FP_FRAC_BITS,
-                                       FP_CAST_SITE_MUL_MPC_RICCATI_B0);
+    const fp_QP_raw_t b0 = affine_b0_term_hls(B0_raw, lin_delta_k_raw);
     const fp_QP_raw_t b1 =
         fp_shift_right_cast_to_qp_site(fp_mul_QP_raw(B1_raw, uk1_raw),
                                        FP_FRAC_BITS,

@@ -5,13 +5,14 @@
 #include <cstring>
 
 #include "mpc_cpu_compat.h"
+#include "mpc_fpga_constants.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
 static constexpr int HORIZON = 20;
-static constexpr float SCALE_Q16 = 65536.0f;
+static constexpr float SCALE_QP = MPC_FPGA_QP_SCALE_F32;  // Q18, single-sourced from mpc_fpga_constants.h
 
 struct ReplayRow {
     uint64_t idx;
@@ -41,11 +42,11 @@ struct ReplayRow {
 };
 
 static inline float fp_to_float(int32_t v) {
-    return static_cast<float>(v) / SCALE_Q16;
+    return static_cast<float>(v) / SCALE_QP;
 }
 
 static inline int32_t float_to_fp(float v) {
-    return static_cast<int32_t>(v >= 0.0f ? (v * SCALE_Q16 + 0.5f) : (v * SCALE_Q16 - 0.5f));
+    return static_cast<int32_t>(v >= 0.0f ? (v * SCALE_QP + 0.5f) : (v * SCALE_QP - 0.5f));
 }
 
 static inline float wrap_pi(float a) {

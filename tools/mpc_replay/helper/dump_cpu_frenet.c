@@ -12,7 +12,8 @@
 #endif
 
 #define HORIZON 20
-#define SCALE_Q16 65536.0f
+#include "mpc_fpga_constants.h"
+#define SCALE_QP MPC_FPGA_QP_SCALE_F32  /* Q18, single-sourced from mpc_fpga_constants.h */
 
 typedef struct {
     uint64_t idx;
@@ -46,10 +47,10 @@ enum AccelSource {
     ACCEL_CPU_PREV = 1,
 };
 
-static float fp_to_float(int32_t v) { return ((float)v) / SCALE_Q16; }
+static float fp_to_float(int32_t v) { return ((float)v) / SCALE_QP; }
 
 static int32_t float_to_fp(float v) {
-    return (int32_t)(v >= 0.0f ? (v * SCALE_Q16 + 0.5f) : (v * SCALE_Q16 - 0.5f));
+    return (int32_t)(v >= 0.0f ? (v * SCALE_QP + 0.5f) : (v * SCALE_QP - 0.5f));
 }
 
 static float wrap_pi(float a) {

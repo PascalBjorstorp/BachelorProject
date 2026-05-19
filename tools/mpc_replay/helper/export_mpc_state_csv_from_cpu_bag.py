@@ -22,10 +22,13 @@ from rosbag2_py import SequentialReader, StorageOptions, ConverterOptions
 from rosidl_runtime_py.utilities import get_message
 from rclpy.serialization import deserialize_message
 
-SCALE_Q16 = 65536.0
 HORIZON_DEFAULT = 20
 
 # Keep aligned with mpc_fpga_constants.h
+MPC_FPGA_QP_WIDTH = 32
+MPC_FPGA_QP_INT_BITS = 14
+MPC_FPGA_QP_FRAC_BITS = MPC_FPGA_QP_WIDTH - MPC_FPGA_QP_INT_BITS  # 18 -> Q18
+MPC_FPGA_QP_SCALE = float(1 << MPC_FPGA_QP_FRAC_BITS)             # 262144.0 (kernel/state_publisher)
 MPC_FPGA_MIN_VEL_MPS = 0.5
 MPC_FPGA_MAX_VEL_MPS = 20.0
 MPC_FPGA_PREDICTION_DT_S = 0.03
@@ -62,10 +65,10 @@ class RefWaypoint:
     right_bound: float = 0.5
 
 
-def to_q16(v: float) -> int:
+def to_qp(v: float) -> int:
     if not math.isfinite(v):
         return 0
-    return int(v * SCALE_Q16 + 0.5) if v >= 0 else int(v * SCALE_Q16 - 0.5)
+    return int(v * MPC_FPGA_QP_SCALE + 0.5) if v >= 0 else int(v * MPC_FPGA_QP_SCALE - 0.5)
 
 
 def fixed_len(arr, n):
@@ -226,15 +229,15 @@ def build_horizon_arrays(raceline: List[RefWaypoint], horizon: int):
         target_s = v_ref_base * MPC_FPGA_PREDICTION_DT_S * float(step)
         wp = sample_raceline_by_s(raceline, target_s)
 
-        ref_x_fp[step] = to_q16(wp.x)
-        ref_y_fp[step] = to_q16(wp.y)
-        ref_psi_fp[step] = to_q16(wp.psi)
-        ref_vx_fp[step] = to_q16(wp.vx)
-        ref_vy_fp[step] = to_q16(0.0)
-        ref_omega_ref_fp[step] = to_q16(wp.vx * wp.kappa)
-        ref_kappa_fp[step] = to_q16(wp.kappa)
-        ref_left_bound_fp[step] = to_q16(wp.left_bound)
-        ref_right_bound_fp[step] = to_q16(wp.right_bound)
+        ref_x_fp[step] = to_qp(wp.x)
+        ref_y_fp[step] = to_qp(wp.y)
+        ref_psi_fp[step] = to_qp(wp.psi)
+        ref_vx_fp[step] = to_qp(wp.vx)
+        ref_vy_fp[step] = to_qp(0.0)
+        ref_omega_ref_fp[step] = to_qp(wp.vx * wp.kappa)
+        ref_kappa_fp[step] = to_qp(wp.kappa)
+        ref_left_bound_fp[step] = to_qp(wp.left_bound)
+        ref_right_bound_fp[step] = to_qp(wp.right_bound)
 
     return {
         "ref_ey_fp": ref_ey_fp,
@@ -289,7 +292,7 @@ def compute_frenet_errors_fp(raceline: List[RefWaypoint], x: float, y: float, th
             best_ey = -math.sin(path_psi) * dx + math.cos(path_psi) * dy
             best_epsi = normalize_angle(theta - path_psi)
 
-    return to_q16(best_ey), to_q16(best_epsi)
+    return to_qp(best_ey), to_qp(best_epsi)
 
 
 def main() -> int:
@@ -453,9 +456,9 @@ def main() -> int:
             count += 1
             row = [
                 count, sec, nsec, stamp_ns,
-                to_q16(x), to_q16(y), to_q16(theta),
-                to_q16(latest_vx), to_q16(latest_vy), to_q16(latest_omega),
-                to_q16(steer), args.horizon,
+                to_qp(x), to_qp(y), to_qp(theta),
+                to_qp(latest_vx), to_qp(latest_vy), to_qp(latest_omega),
+                to_qp(steer), args.horizon,
             ]
 
             for prefix in ARRAY_PREFIXES:

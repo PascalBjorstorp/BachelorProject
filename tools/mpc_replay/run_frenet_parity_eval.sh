@@ -72,7 +72,7 @@ mkdir -p "${DEFAULT_OUTPUT_PARENT}"
 
 if [[ ${SKIP_COMPILE} -eq 0 ]]; then
   echo "[1/6] Building replay binaries"
-  gcc -O3 -I"${REPO_ROOT}/MPC/include" \
+  gcc -O3 -I"${REPO_ROOT}/MPC/include" -I"${REPO_ROOT}/FPGA_Implementations/MPC_FPGA_Kria/include" \
     "${REPO_ROOT}/tools/mpc_replay/helper/replay_cpu_mpc.c" \
     "${REPO_ROOT}/MPC/src/util_math.c" \
     "${REPO_ROOT}/MPC/src/vehicle_model.c" \
@@ -95,7 +95,7 @@ if [[ ${SKIP_COMPILE} -eq 0 ]]; then
     -lm -o "${REPO_ROOT}/tools/mpc_replay/helper/replay_fpga_scalar"
 
   echo "[2/6] Building Frenet dump tools"
-  gcc -O3 -I"${REPO_ROOT}/MPC/include" \
+  gcc -O3 -I"${REPO_ROOT}/MPC/include" -I"${REPO_ROOT}/FPGA_Implementations/MPC_FPGA_Kria/include" \
     "${REPO_ROOT}/tools/mpc_replay/helper/dump_cpu_frenet.c" \
     "${REPO_ROOT}/MPC/src/util_math.c" \
     "${REPO_ROOT}/MPC/src/vehicle_model.c" \
