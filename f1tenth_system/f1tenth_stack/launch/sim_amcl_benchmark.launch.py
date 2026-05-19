@@ -12,15 +12,17 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
+    ExecuteProcess,
     IncludeLaunchDescription,
     OpaqueFunction,
     RegisterEventHandler,
     SetEnvironmentVariable,
     Shutdown,
+    TimerAction,
 )
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import LifecycleNode, Node
 from launch_ros.parameter_descriptions import ParameterValue
 
@@ -327,6 +329,13 @@ def _launch_setup(context, *args, **kwargs):
                 name='amcl',
                 namespace='/',
                 output='screen',
+                prefix=PythonExpression([
+                    "'taskset -c ",
+                    LaunchConfiguration('nav2_amcl_cpu_core'),
+                    "' if '",
+                    LaunchConfiguration('nav2_amcl_cpu_core'),
+                    "' else ''",
+                ]),
                 parameters=[
                     nav2_params,
                     {
@@ -337,12 +346,8 @@ def _launch_setup(context, *args, **kwargs):
                         'update_min_d': _float_config('amcl_update_min_d'),
                         'update_min_a': _float_config('amcl_update_min_a'),
                         'tf_broadcast': False,
-                        'always_reset_initial_pose': True,
-                        'set_initial_pose': True,
-                        'initial_pose.x': _float_config('initial_pose_x'),
-                        'initial_pose.y': _float_config('initial_pose_y'),
-                        'initial_pose.z': 0.0,
-                        'initial_pose.yaw': _float_config('initial_pose_yaw'),
+                        'always_reset_initial_pose': False,
+                        'set_initial_pose': False,
                     },
                 ],
             ),
@@ -357,6 +362,22 @@ def _launch_setup(context, *args, **kwargs):
                     'node_names': ['amcl'],
                     'bond_timeout': 0.0,
                 }],
+            ),
+            TimerAction(
+                period=LaunchConfiguration('nav2_global_init_delay_sec'),
+                actions=[
+                    ExecuteProcess(
+                        cmd=[
+                            'ros2',
+                            'service',
+                            'call',
+                            '/reinitialize_global_localization',
+                            'std_srvs/srv/Empty',
+                            '{}',
+                        ],
+                        output='screen',
+                    ),
+                ],
             ),
         ])
 
@@ -460,6 +481,8 @@ def generate_launch_description():
         DeclareLaunchArgument('amcl_z_rand', default_value='0.05'),
         DeclareLaunchArgument('amcl_sigma_hit', default_value='0.06'),
         DeclareLaunchArgument('amcl_resample_threshold', default_value='0.3'),
+        DeclareLaunchArgument('nav2_amcl_cpu_core', default_value='3'),
+        DeclareLaunchArgument('nav2_global_init_delay_sec', default_value='2.0'),
         DeclareLaunchArgument('ekf_transform_tolerance', default_value='0.02'),
         DeclareLaunchArgument('ekf_process_noise_scale', default_value='5.0'),
         DeclareLaunchArgument('monitor_print_every', default_value='40'),
