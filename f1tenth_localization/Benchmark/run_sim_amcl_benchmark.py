@@ -27,8 +27,7 @@ def run_one(args: argparse.Namespace, localizer: str, root: str, run_index: int)
     cmd = [
         'ros2',
         'launch',
-        'f1tenth_stack',
-        'sim_amcl_benchmark.launch.py',
+        args.launch_file,
         f'localizer:={localizer}',
         f'output_dir:={run_dir}',
         f'max_laps:={args.laps}',
@@ -68,8 +67,8 @@ def run_one(args: argparse.Namespace, localizer: str, root: str, run_index: int)
         except (OSError, json.JSONDecodeError):
             return None
 
-    def stop_process(reason: str) -> int:
-        print(f'{localizer}: run status is {reason}, stopping launch')
+    def signal_process(reason: str) -> int:
+        print(f'{localizer}: {reason}, sending SIGINT')
         os.killpg(proc.pid, signal.SIGINT)
         try:
             return proc.wait(timeout=20.0)
@@ -82,6 +81,13 @@ def run_one(args: argparse.Namespace, localizer: str, root: str, run_index: int)
                 print(f'{localizer}: SIGTERM failed, sending SIGKILL')
                 os.killpg(proc.pid, signal.SIGKILL)
                 return proc.wait(timeout=10.0)
+
+    def stop_after_status(reason: str) -> int:
+        print(f'{localizer}: run status is {reason}, waiting for launch shutdown')
+        try:
+            return proc.wait(timeout=args.status_shutdown_wait_sec)
+        except subprocess.TimeoutExpired:
+            return signal_process(f'launch did not stop after status={reason}')
 
     def checked_return(code: int) -> int:
         status = read_status()
@@ -102,10 +108,9 @@ def run_one(args: argparse.Namespace, localizer: str, root: str, run_index: int)
                 return checked_return(code)
             status = read_status()
             if status is not None and str(status.get('reason', '')):
-                return checked_return(stop_process(str(status.get('reason'))))
+                return checked_return(stop_after_status(str(status.get('reason'))))
             if deadline is not None and time.monotonic() >= deadline:
-                print(f'{localizer}: timeout, sending SIGINT')
-                return checked_return(stop_process('process_timeout'))
+                return checked_return(signal_process('process timeout'))
             time.sleep(1.0)
     except KeyboardInterrupt:
         os.killpg(proc.pid, signal.SIGINT)
@@ -132,6 +137,17 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     parser.add_argument('--laps', type=int, default=10)
     parser.add_argument('--max-duration-sec', type=float, default=0.0)
     parser.add_argument('--process-timeout-sec', type=float, default=0.0)
+    parser.add_argument('--status-shutdown-wait-sec', type=float, default=15.0,
+                        help='Seconds to wait for launch to stop itself after run_status.json is written')
+    parser.add_argument(
+        '--launch-file',
+        default=os.path.join(
+            repo_root,
+            'f1tenth_system',
+            'f1tenth_stack',
+            'launch',
+            'sim_amcl_benchmark.launch.py'),
+        help='Benchmark launch file to run; defaults to the source tree copy')
     parser.add_argument(
         '--map-file',
         default=os.path.join(
@@ -182,13 +198,19 @@ def main(argv: List[str]) -> int:
     print(f'Runs/localizer: {args.runs}')
     print(f'Laps/run: {args.laps}')
 
+    failures = []
     for localizer in args.localizers:
         for run_index in range(args.runs):
             code = run_one(args, localizer, args.output_root, run_index)
             print(f'{localizer} run {run_index + 1}/{args.runs}: exit code {code}')
             if code != 0:
-                print(f'Stopping benchmark after failed run: {localizer} run {run_index + 1}')
-                return 1
+                failures.append((localizer, run_index + 1, code))
+
+    if failures:
+        print('Failures:')
+        for localizer, run_number, code in failures:
+            print(f'  {localizer} run {run_number}: {code}')
+        return 1
 
     print('Done.')
     return 0
