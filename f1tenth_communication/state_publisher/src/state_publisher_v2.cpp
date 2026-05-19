@@ -10,22 +10,15 @@
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
-#include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <f1tenth_msgs/msg/mpc_state.hpp>
 
 #include "mpc_fpga_constants.h"
 
-#include <array>
 #include <algorithm>
-#include <limits>
 #include <cmath>
-#include <chrono>
 #include <cstdint>
-#include <cstdio>
-#include <ctime>
 #include <string>
-#include <sys/stat.h>
 
 namespace f1tenth_communication {
 
@@ -74,8 +67,6 @@ public:
         this->declare_parameter("raceline_topic", "/local_raceline");
         this->declare_parameter("output_topic", "/mpc_state");
         this->declare_parameter("servo_topic", "/sensors/servo_position_command");
-        this->declare_parameter("drive_topic", "/drive");
-        this->declare_parameter("enable_mpc_state_debug_csv", true);
         this->declare_parameter("drop_stale_raceline", false);
         this->declare_parameter("max_pose_raceline_age_ms", 150.0);
 
@@ -84,9 +75,6 @@ public:
         std::string raceline_topic = this->get_parameter("raceline_topic").as_string();
         std::string output_topic = this->get_parameter("output_topic").as_string();
         std::string servo_topic = this->get_parameter("servo_topic").as_string();
-        std::string drive_topic = this->get_parameter("drive_topic").as_string();
-        mpc_state_debug_csv_enabled_ =
-            this->get_parameter("enable_mpc_state_debug_csv").as_bool();
         drop_stale_raceline_ =
             this->get_parameter("drop_stale_raceline").as_bool();
         max_pose_raceline_age_ms_ =
@@ -112,11 +100,6 @@ public:
         pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
             pose_topic, sub_qos,
             std::bind(&StatePublisherNode::pose_callback, this, std::placeholders::_1));
-
-        // Subscribe to /drive feedback for round-trip latency measurement
-        drive_sub_ = this->create_subscription<ackermann_msgs::msg::AckermannDriveStamped>(
-            drive_topic, sub_qos,
-            std::bind(&StatePublisherNode::drive_callback, this, std::placeholders::_1));
 
         // Subscribe to servo feedback
         if (!servo_topic.empty()) {
@@ -150,25 +133,6 @@ public:
         RCLCPP_INFO(this->get_logger(),
             "State publisher ready (local_raceline). Raceline: %s, Pose: %s, Odom: %s -> %s",
             raceline_topic.c_str(), pose_topic.c_str(), odom_topic.c_str(), output_topic.c_str());
-        RCLCPP_INFO(this->get_logger(),
-            "Round-trip latency tracking active: /drive topic = %s",
-            drive_topic.c_str());
-
-        open_roundtrip_csv_file();
-        if (mpc_state_debug_csv_enabled_) {
-            open_mpc_state_debug_csv_file();
-        }
-    }
-
-    ~StatePublisherNode() override {
-        if (rt_csv_file_ != nullptr) {
-            fclose(rt_csv_file_);
-            rt_csv_file_ = nullptr;
-        }
-        if (mpc_state_csv_file_ != nullptr) {
-            fclose(mpc_state_csv_file_);
-            mpc_state_csv_file_ = nullptr;
-        }
     }
 
 private:
@@ -177,7 +141,6 @@ private:
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr raceline_sub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
-    rclcpp::Subscription<ackermann_msgs::msg::AckermannDriveStamped>::SharedPtr drive_sub_;
     rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr servo_sub_;
 
     // --- Runtime State ---
@@ -189,26 +152,11 @@ private:
     double latest_vy_ = 0.0;
     double latest_omega_ = 0.0;
     bool has_odom_ = false;
-    int64_t latest_odom_stamp_ns_ = 0;
     int64_t latest_raceline_stamp_ns_ = 0;
     std::string latest_raceline_frame_;
-    uint64_t latest_raceline_seq_ = 0;
 
-    uint64_t published_count_ = 0;
-    uint64_t rt_window_count_ = 0;
-    double rt_window_sum_us_ = 0.0;
-    double rt_window_min_us_ = 1e12;
-    double rt_window_max_us_ = 0.0;
-    uint64_t rt_csv_idx_ = 0;
-    std::chrono::steady_clock::time_point rt_last_print_time_ = std::chrono::steady_clock::now();
-    FILE* rt_csv_file_ = nullptr;
-    FILE* mpc_state_csv_file_ = nullptr;
-    uint64_t mpc_state_csv_idx_ = 0;
-    bool mpc_state_debug_csv_enabled_ = true;
     bool drop_stale_raceline_ = false;
     double max_pose_raceline_age_ms_ = 150.0;
-
-    static constexpr double kRoundtripPrintIntervalSec = 5.0;
 
     // --- Helpers ---
 
@@ -232,10 +180,6 @@ private:
     static int64_t stamp_to_ns(const builtin_interfaces::msg::Time& stamp) {
         return static_cast<int64_t>(stamp.sec) * 1000000000LL +
                static_cast<int64_t>(stamp.nanosec);
-    }
-
-    static double fp_to_double(int32_t raw) {
-        return static_cast<double>(raw) / MPC_FPGA_QP_SCALE_F64;
     }
 
     FrenetErrorsFp compute_frenet_errors(double x, double y, double theta) const {
@@ -273,65 +217,6 @@ private:
         const double best_e_psi = normalize_angle(theta - path_psi);
 
         return {to_fixed_qp(best_e_y), to_fixed_qp(best_e_psi)};
-    }
-
-    void open_roundtrip_csv_file() {
-        const char* log_dir = "log";
-        mkdir(log_dir, 0755);
-
-        time_t now = time(nullptr);
-        struct tm tm_now;
-        localtime_r(&now, &tm_now);
-
-        char timestamp[64];
-        strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", &tm_now);
-
-        char csv_path[512];
-        snprintf(csv_path, sizeof(csv_path), "%s/jetson_roundtrip_%s.csv", log_dir, timestamp);
-
-        rt_csv_file_ = fopen(csv_path, "w");
-        if (rt_csv_file_ == nullptr) {
-            RCLCPP_WARN(this->get_logger(),
-                "Failed to open round-trip CSV file: %s", csv_path);
-            return;
-        }
-
-        fprintf(rt_csv_file_, "idx,roundtrip_us\n");
-        fflush(rt_csv_file_);
-        RCLCPP_INFO(this->get_logger(), "Round-trip CSV log: %s", csv_path);
-    }
-
-    void open_mpc_state_debug_csv_file() {
-        const char* log_dir = "log";
-        mkdir(log_dir, 0755);
-
-        time_t now = time(nullptr);
-        struct tm tm_now;
-        localtime_r(&now, &tm_now);
-
-        char timestamp[64];
-        strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", &tm_now);
-
-        char csv_path[512];
-        snprintf(csv_path, sizeof(csv_path), "%s/jetson_mpc_state_debug_%s.csv", log_dir, timestamp);
-
-        mpc_state_csv_file_ = fopen(csv_path, "w");
-        if (mpc_state_csv_file_ == nullptr) {
-            RCLCPP_WARN(this->get_logger(),
-                "Failed to open MpcState debug CSV file: %s", csv_path);
-            return;
-        }
-
-        fprintf(mpc_state_csv_file_,
-            "idx,pose_stamp_ns,pose_frame,raceline_stamp_ns,raceline_frame,"
-            "pose_raceline_age_ms,odom_age_ms,raceline_seq,waypoint_count,"
-            "pose_x,pose_y,pose_theta,"
-            "wp0_x,wp0_y,wp0_psi,wp0_vx,wp0_kappa,wp0_left,wp0_right,"
-            "wp1_x,wp1_y,wp1_psi,"
-            "e_y,e_psi,vx,vy,omega,delta,"
-            "ref_vx_0,ref_kappa_0,ref_omega_0\n");
-        fflush(mpc_state_csv_file_);
-        RCLCPP_INFO(this->get_logger(), "MpcState debug CSV log: %s", csv_path);
     }
 
     // Build arc-length based horizon from local_raceline using first waypoint velocity.
@@ -533,58 +418,13 @@ private:
         local_raceline_ = new_raceline;
         latest_raceline_stamp_ns_ = stamp_to_ns(msg->header.stamp);
         latest_raceline_frame_ = msg->header.frame_id;
-        latest_raceline_seq_++;
-        RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
-            "Updated local_raceline with %zu waypoints, length=%.2f m",
-            local_raceline_.size(),
-            waypoint_count > 1 ? (local_raceline_.back().s - local_raceline_.front().s) : 0.0);
     }
 
     void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
         latest_vx_ = msg->twist.twist.linear.x;
         latest_vy_ = msg->twist.twist.linear.y;
         latest_omega_ = msg->twist.twist.angular.z;
-        latest_odom_stamp_ns_ = stamp_to_ns(msg->header.stamp);
         has_odom_ = true;
-    }
-
-    void drive_callback(const ackermann_msgs::msg::AckermannDriveStamped::SharedPtr msg) {
-        const rclcpp::Time src_time(msg->header.stamp);
-        if (src_time.nanoseconds() <= 0) {
-            return;
-        }
-
-        const double rt_us = (this->now() - src_time).seconds() * 1e6;
-        if (rt_us < 0.0) {
-            return;
-        }
-
-        if (rt_csv_file_ != nullptr) {
-            rt_csv_idx_++;
-            fprintf(rt_csv_file_, "%lu,%.1f\n", rt_csv_idx_, rt_us);
-            fflush(rt_csv_file_);
-        }
-
-        rt_window_count_++;
-        rt_window_sum_us_ += rt_us;
-        if (rt_us < rt_window_min_us_) rt_window_min_us_ = rt_us;
-        if (rt_us > rt_window_max_us_) rt_window_max_us_ = rt_us;
-
-        const auto now = std::chrono::steady_clock::now();
-        const double elapsed_sec =
-            std::chrono::duration<double>(now - rt_last_print_time_).count();
-        if (elapsed_sec >= kRoundtripPrintIntervalSec && rt_window_count_ > 0) {
-            const double avg_us = rt_window_sum_us_ / static_cast<double>(rt_window_count_);
-            RCLCPP_INFO(this->get_logger(),
-                "[RoundTrip] Stats (last %.1fs, %lu samples): min=%.1f us, avg=%.1f us, max=%.1f us",
-                elapsed_sec, rt_window_count_, rt_window_min_us_, avg_us, rt_window_max_us_);
-
-            rt_window_count_ = 0;
-            rt_window_sum_us_ = 0.0;
-            rt_window_min_us_ = 1e12;
-            rt_window_max_us_ = 0.0;
-            rt_last_print_time_ = now;
-        }
     }
 
     void pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
@@ -614,10 +454,6 @@ private:
             msg->pose.pose.orientation.z, msg->pose.pose.orientation.w);
         const double pose_raceline_age_ms =
             static_cast<double>(pose_stamp_ns - latest_raceline_stamp_ns_) / 1e6;
-        const double odom_age_ms =
-            (latest_odom_stamp_ns_ > 0)
-                ? static_cast<double>(pose_stamp_ns - latest_odom_stamp_ns_) / 1e6
-                : std::numeric_limits<double>::quiet_NaN();
 
         if (!latest_raceline_frame_.empty() &&
             !msg->header.frame_id.empty() &&
@@ -648,62 +484,10 @@ private:
         // Build horizon from first waypoint (index 0) using arc-length lookahead
         build_horizon_from_raceline(*mpc_state);
 
-        uint32_t horizon_len = mpc_state->horizon_length;
-        const double ey = fp_to_double(mpc_state->e_y_fp);
-        const double epsi = fp_to_double(mpc_state->e_psi_fp);
-        const double ref_vx0 =
-            (horizon_len > 0) ? fp_to_double(mpc_state->ref_vx_fp[0]) : 0.0;
-        const double ref_kappa0 =
-            (horizon_len > 0) ? fp_to_double(mpc_state->ref_kappa_fp[0]) : 0.0;
-        const double ref_omega0 =
-            (horizon_len > 0) ? fp_to_double(mpc_state->ref_omega_ref_fp[0]) : 0.0;
-        const RefWaypoint& wp0 = local_raceline_.front();
-        const RefWaypoint& wp1 =
-            (local_raceline_.size() > 1) ? local_raceline_[1] : local_raceline_.front();
-
         /* Keep the EKF pose stamp as the pipeline monitor token. */
-
-        if (mpc_state_csv_file_ != nullptr) {
-            mpc_state_csv_idx_++;
-            fprintf(mpc_state_csv_file_,
-                "%lu,%lld,\"%s\",%lld,\"%s\",%.3f,%.3f,%lu,%zu,"
-                "%.6f,%.6f,%.6f,"
-                "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
-                "%.6f,%.6f,%.6f,"
-                "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
-                "%.6f,%.6f,%.6f\n",
-                mpc_state_csv_idx_,
-                static_cast<long long>(pose_stamp_ns),
-                msg->header.frame_id.c_str(),
-                static_cast<long long>(latest_raceline_stamp_ns_),
-                latest_raceline_frame_.c_str(),
-                pose_raceline_age_ms,
-                odom_age_ms,
-                latest_raceline_seq_,
-                local_raceline_.size(),
-                x, y, theta,
-                wp0.x, wp0.y, wp0.psi, wp0.vx, wp0.kappa, wp0.left_bound, wp0.right_bound,
-                wp1.x, wp1.y, wp1.psi,
-                ey, epsi, latest_vx_, latest_vy_, latest_omega_, current_steering_angle_,
-                ref_vx0, ref_kappa0, ref_omega0);
-            fflush(mpc_state_csv_file_);
-        }
-
-        RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
-            "[MpcState] ey=%.3f epsi=%.3f vx=%.3f ref_v0=%.3f kappa0=%.3f "
-            "pose_frame=%s path_frame=%s path_age=%.1fms odom_age=%.1fms wp0=(%.3f,%.3f,psi=%.3f)",
-            ey, epsi, latest_vx_, ref_vx0, ref_kappa0,
-            msg->header.frame_id.c_str(), latest_raceline_frame_.c_str(),
-            pose_raceline_age_ms, odom_age_ms, wp0.x, wp0.y, wp0.psi);
 
         // Publish
         pub_->publish(std::move(mpc_state));
-        published_count_++;
-
-        if (published_count_ == 1) {
-            RCLCPP_INFO(this->get_logger(), "First MpcState published (%u waypoints in horizon)",
-                horizon_len);
-        }
     }
 };
 
