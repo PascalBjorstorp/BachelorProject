@@ -3,6 +3,7 @@
 
 import argparse
 from datetime import datetime
+import json
 import os
 import signal
 import subprocess
@@ -32,6 +33,7 @@ def run_one(args: argparse.Namespace, localizer: str, root: str, run_index: int)
         f'initial_pose_x:={args.initial_pose_x}',
         f'initial_pose_y:={args.initial_pose_y}',
         f'initial_pose_yaw:={args.initial_pose_yaw}',
+        f'amcl_global_initialization:={str(args.global_localization).lower()}',
         f'realistic_plant:={str(args.realistic_plant).lower()}',
         f'sim_drive_uses_acceleration_field:={str(args.sim_drive_uses_acceleration_field).lower()}',
         f'lateral_planner_avoidance_enabled:={str(args.avoidance_enabled).lower()}',
@@ -52,20 +54,34 @@ def run_one(args: argparse.Namespace, localizer: str, root: str, run_index: int)
     timeout = args.process_timeout_sec
     deadline = None if timeout <= 0.0 else time.monotonic() + timeout
 
+    def checked_return(code: int) -> int:
+        status_path = os.path.join(run_dir, 'run_status.json')
+        if not os.path.exists(status_path):
+            print(f'{localizer}: missing run status: {status_path}')
+            return code if code != 0 else 1
+        with open(status_path) as handle:
+            status = json.load(handle)
+        reason = str(status.get('reason', ''))
+        laps = int(status.get('laps', 0) or 0)
+        print(f'{localizer}: status reason={reason} laps={laps}/{args.laps}')
+        if args.laps > 0 and (reason != 'laps_complete' or laps < args.laps):
+            return code if code != 0 else 1
+        return code
+
     try:
         while True:
             code = proc.poll()
             if code is not None:
-                return code
+                return checked_return(code)
             if deadline is not None and time.monotonic() >= deadline:
                 print(f'{localizer}: timeout, sending SIGINT')
                 os.killpg(proc.pid, signal.SIGINT)
                 try:
-                    return proc.wait(timeout=20.0)
+                    return checked_return(proc.wait(timeout=20.0))
                 except subprocess.TimeoutExpired:
                     print(f'{localizer}: SIGINT failed, sending SIGTERM')
                     os.killpg(proc.pid, signal.SIGTERM)
-                    return proc.wait(timeout=10.0)
+                    return checked_return(proc.wait(timeout=10.0))
             time.sleep(1.0)
     except KeyboardInterrupt:
         os.killpg(proc.pid, signal.SIGINT)
@@ -109,6 +125,8 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     parser.add_argument('--initial-pose-x', default='0.0')
     parser.add_argument('--initial-pose-y', default='0.0')
     parser.add_argument('--initial-pose-yaw', default='0.0')
+    parser.add_argument('--global-localization', action='store_true',
+                        help='Use global AMCL initialization instead of the provided initial pose')
     parser.add_argument('--realistic-plant', action=argparse.BooleanOptionalAction,
                         default=True,
                         help='Use hardware-calibrated ROS gym plant from MPC tune_realistic_v2.py')
