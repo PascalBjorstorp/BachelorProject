@@ -18,6 +18,11 @@ def run_one(args: argparse.Namespace, localizer: str, root: str, run_index: int)
     else:
         run_dir = os.path.join(root, localizer, f'run_{run_index + 1:02d}')
     os.makedirs(run_dir, exist_ok=True)
+    status_path = os.path.join(run_dir, 'run_status.json')
+    try:
+        os.remove(status_path)
+    except FileNotFoundError:
+        pass
 
     cmd = [
         'ros2',
@@ -54,13 +59,35 @@ def run_one(args: argparse.Namespace, localizer: str, root: str, run_index: int)
     timeout = args.process_timeout_sec
     deadline = None if timeout <= 0.0 else time.monotonic() + timeout
 
-    def checked_return(code: int) -> int:
-        status_path = os.path.join(run_dir, 'run_status.json')
+    def read_status():
         if not os.path.exists(status_path):
+            return None
+        try:
+            with open(status_path) as handle:
+                return json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            return None
+
+    def stop_process(reason: str) -> int:
+        print(f'{localizer}: run status is {reason}, stopping launch')
+        os.killpg(proc.pid, signal.SIGINT)
+        try:
+            return proc.wait(timeout=20.0)
+        except subprocess.TimeoutExpired:
+            print(f'{localizer}: SIGINT failed, sending SIGTERM')
+            os.killpg(proc.pid, signal.SIGTERM)
+            try:
+                return proc.wait(timeout=10.0)
+            except subprocess.TimeoutExpired:
+                print(f'{localizer}: SIGTERM failed, sending SIGKILL')
+                os.killpg(proc.pid, signal.SIGKILL)
+                return proc.wait(timeout=10.0)
+
+    def checked_return(code: int) -> int:
+        status = read_status()
+        if status is None:
             print(f'{localizer}: missing run status: {status_path}')
             return code if code != 0 else 1
-        with open(status_path) as handle:
-            status = json.load(handle)
         reason = str(status.get('reason', ''))
         laps = int(status.get('laps', 0) or 0)
         print(f'{localizer}: status reason={reason} laps={laps}/{args.laps}')
@@ -73,15 +100,12 @@ def run_one(args: argparse.Namespace, localizer: str, root: str, run_index: int)
             code = proc.poll()
             if code is not None:
                 return checked_return(code)
+            status = read_status()
+            if status is not None and str(status.get('reason', '')):
+                return checked_return(stop_process(str(status.get('reason'))))
             if deadline is not None and time.monotonic() >= deadline:
                 print(f'{localizer}: timeout, sending SIGINT')
-                os.killpg(proc.pid, signal.SIGINT)
-                try:
-                    return checked_return(proc.wait(timeout=20.0))
-                except subprocess.TimeoutExpired:
-                    print(f'{localizer}: SIGINT failed, sending SIGTERM')
-                    os.killpg(proc.pid, signal.SIGTERM)
-                    return checked_return(proc.wait(timeout=10.0))
+                return checked_return(stop_process('process_timeout'))
             time.sleep(1.0)
     except KeyboardInterrupt:
         os.killpg(proc.pid, signal.SIGINT)
@@ -158,19 +182,13 @@ def main(argv: List[str]) -> int:
     print(f'Runs/localizer: {args.runs}')
     print(f'Laps/run: {args.laps}')
 
-    failures = []
     for localizer in args.localizers:
         for run_index in range(args.runs):
             code = run_one(args, localizer, args.output_root, run_index)
             print(f'{localizer} run {run_index + 1}/{args.runs}: exit code {code}')
             if code != 0:
-                failures.append((localizer, run_index + 1, code))
-
-    if failures:
-        print('Failures:')
-        for localizer, run_number, code in failures:
-            print(f'  {localizer} run {run_number}: {code}')
-        return 1
+                print(f'Stopping benchmark after failed run: {localizer} run {run_index + 1}')
+                return 1
 
     print('Done.')
     return 0
