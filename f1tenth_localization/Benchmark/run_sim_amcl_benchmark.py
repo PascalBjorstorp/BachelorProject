@@ -46,6 +46,7 @@ def run_one(args: argparse.Namespace, localizer: str, root: str, run_index: int)
     env = os.environ.copy()
     env.setdefault('PYTHONUNBUFFERED', '1')
     env.setdefault('RCUTILS_LOGGING_BUFFERED_STREAM', '1')
+    env.setdefault('NUMBA_DISABLE_COVERAGE', '1')
 
     proc = subprocess.Popen(cmd, env=env, start_new_session=True)
     timeout = args.process_timeout_sec
