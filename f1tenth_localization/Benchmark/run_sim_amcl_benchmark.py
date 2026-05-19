@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run headless sim benchmark once for GPU AMCL and once for Nav2 AMCL."""
+"""Run headless sim benchmarks for GPU AMCL and Nav2 AMCL."""
 
 import argparse
 from datetime import datetime
@@ -11,8 +11,11 @@ import time
 from typing import List
 
 
-def run_one(args: argparse.Namespace, localizer: str, root: str) -> int:
-    run_dir = os.path.join(root, localizer)
+def run_one(args: argparse.Namespace, localizer: str, root: str, run_index: int) -> int:
+    if args.runs == 1:
+        run_dir = os.path.join(root, localizer)
+    else:
+        run_dir = os.path.join(root, localizer, f'run_{run_index + 1:02d}')
     os.makedirs(run_dir, exist_ok=True)
 
     cmd = [
@@ -38,7 +41,7 @@ def run_one(args: argparse.Namespace, localizer: str, root: str) -> int:
     if args.extra_launch_arg:
         cmd.extend(args.extra_launch_arg)
 
-    print(f'\n=== {localizer} benchmark ===')
+    print(f'\n=== {localizer} benchmark run {run_index + 1}/{args.runs} ===')
     print(' '.join(cmd))
     env = os.environ.copy()
     env.setdefault('PYTHONUNBUFFERED', '1')
@@ -83,7 +86,9 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     parser.add_argument('--output-root', default=default_root)
     parser.add_argument('--localizers', nargs='+', default=['gpu', 'nav2'],
                         choices=['gpu', 'nav2'])
-    parser.add_argument('--laps', type=int, default=5)
+    parser.add_argument('--runs', type=int, default=1,
+                        help='Number of repeated runs per localizer')
+    parser.add_argument('--laps', type=int, default=10)
     parser.add_argument('--max-duration-sec', type=float, default=0.0)
     parser.add_argument('--process-timeout-sec', type=float, default=0.0)
     parser.add_argument(
@@ -100,9 +105,9 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
             'f1tenth_planning',
             'trajectories',
             'my_track_raceline.csv'))
-    parser.add_argument('--initial-pose-x', default='-0.79')
-    parser.add_argument('--initial-pose-y', default='-4.88')
-    parser.add_argument('--initial-pose-yaw', default='0.641322')
+    parser.add_argument('--initial-pose-x', default='0.0')
+    parser.add_argument('--initial-pose-y', default='0.0')
+    parser.add_argument('--initial-pose-yaw', default='0.0')
     parser.add_argument('--realistic-plant', action=argparse.BooleanOptionalAction,
                         default=True,
                         help='Use hardware-calibrated ROS gym plant from MPC tune_realistic_v2.py')
@@ -122,20 +127,30 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
 
 def main(argv: List[str]) -> int:
     args = parse_args(argv)
+    if args.runs <= 0:
+        print('--runs must be > 0')
+        return 2
+    if args.laps <= 0 and args.max_duration_sec <= 0.0:
+        print('Either --laps must be > 0 or --max-duration-sec must be > 0')
+        return 2
+
     os.makedirs(args.output_root, exist_ok=True)
     print(f'Output root: {args.output_root}')
+    print(f'Runs/localizer: {args.runs}')
+    print(f'Laps/run: {args.laps}')
 
     failures = []
     for localizer in args.localizers:
-        code = run_one(args, localizer, args.output_root)
-        print(f'{localizer}: exit code {code}')
-        if code != 0:
-            failures.append((localizer, code))
+        for run_index in range(args.runs):
+            code = run_one(args, localizer, args.output_root, run_index)
+            print(f'{localizer} run {run_index + 1}/{args.runs}: exit code {code}')
+            if code != 0:
+                failures.append((localizer, run_index + 1, code))
 
     if failures:
         print('Failures:')
-        for localizer, code in failures:
-            print(f'  {localizer}: {code}')
+        for localizer, run_number, code in failures:
+            print(f'  {localizer} run {run_number}: {code}')
         return 1
 
     print('Done.')

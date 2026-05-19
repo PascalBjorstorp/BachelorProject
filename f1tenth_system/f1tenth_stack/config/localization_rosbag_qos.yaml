@@ -109,7 +109,7 @@
 /particle_cloud:
   history: keep_last
   depth: 20
-  reliability: reliable
+  reliability: best_effort
   durability: volatile
 
 /drive:
