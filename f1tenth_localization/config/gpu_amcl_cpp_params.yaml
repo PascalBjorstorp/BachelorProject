@@ -83,19 +83,17 @@ gpu_amcl_cpp:
     max_beams: 270
     z_hit: 0.95
     z_rand: 0.05
-    sigma_hit: 0.06         # meters; focused sweep best run
+    sigma_hit: 0.10         # meters; standard AMCL-style softer likelihood field
     laser_max_range: 10.0
     laser_offset_x: 0.265   # LiDAR X offset from base_link
     laser_offset_y: 0.0     # LiDAR Y offset from base_link
     normalize_likelihood_by_beams: true  # use geometric mean, avoids first-scan global collapse
-    likelihood_scale: 0.75               # >1 sharper, <1 softer
+    likelihood_scale: 0.75               # standard resampling needs softer weights at global init
 
     # ---- Resampling ----
     resample_threshold: 0.3  # match sim benchmark default
-    resample_weight_power: 0.5     # soften resampling so medium-weight hypotheses survive
-    resample_uniform_floor: 0.10   # reserve small survivor mass for non-winning particles
-    enable_recovery_injection: true   # keep adding global particles so wrong early mode cannot permanently steal all particles
-    recovery_injection_ratio: 0.05    # 5% runtime recovery particles; less likely to pull pose after convergence
+    enable_recovery_injection: true   # standard random-particle recovery; no custom resampling
+    recovery_injection_ratio: 0.00    # 5% runtime recovery particles; less likely to pull pose after convergence
     enable_local_roughening: true      # bad scan match -> jitter local particles after resample
     local_roughening_ratio: 0.25       # replace 20% around current local mean
     local_roughening_xy_std_m: 0.20    # 12 cm XY noise
@@ -130,7 +128,7 @@ gpu_amcl_cpp:
     initial_cov_aa: 0.2
 
     # ---- Publishing ----
-    cloud_publish_rate: 40.0       # Hz; <= 0 disables particle cloud publishing and downloads
+    cloud_publish_rate: 0.0       # Hz; <= 0 disables particle cloud publishing and downloads
     debug_pre_resample_particles: false  # publish weighted pre-resample PointCloud2 debug topic
 
 
