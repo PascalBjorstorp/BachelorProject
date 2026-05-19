@@ -103,10 +103,7 @@ def start_bag_recording(args: argparse.Namespace,
         'record',
         '-o', bag_dir,
         '-s', storage_id(),
-        '--include-unpublished-topics',
-        '--disable-keyboard-controls',
         '--qos-profile-overrides-path', args.rosbag_qos_file,
-        '--topics',
         *RECORD_TOPICS,
     ]
 
