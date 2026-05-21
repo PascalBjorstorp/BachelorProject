@@ -1,0 +1,28 @@
+
+Files:             LateralPlanner_20260511_180450_0.mcap
+Bag size:          1.2 GiB
+Storage id:        mcap
+ROS Distro:        unknown
+Duration:          141.169178519s
+Start:             May 11 2026 18:04:51.784778450 (1778515491.784778450)
+End:               May 11 2026 18:07:12.953956969 (1778515632.953956969)
+Messages:          300388
+Topic information: Topic: /ackermann_cmd | Type: ackermann_msgs/msg/AckermannDriveStamped | Count: 27031 | Serialization Format: cdr
+                   Topic: /amcl_pose | Type: geometry_msgs/msg/PoseWithCovarianceStamped | Count: 5609 | Serialization Format: cdr
+                   Topic: /amcl_timing | Type: std_msgs/msg/Float64 | Count: 5609 | Serialization Format: cdr
+                   Topic: /drive | Type: ackermann_msgs/msg/AckermannDriveStamped | Count: 26974 | Serialization Format: cdr
+                   Topic: /ego_racecar/odom | Type: nav_msgs/msg/Odometry | Count: 28171 | Serialization Format: cdr
+                   Topic: /ekf_pose | Type: geometry_msgs/msg/PoseWithCovarianceStamped | Count: 28051 | Serialization Format: cdr
+                   Topic: /local_raceline | Type: nav_msgs/msg/Path | Count: 27784 | Serialization Format: cdr
+                   Topic: /local_raceline_viz | Type: nav_msgs/msg/Path | Count: 27783 | Serialization Format: cdr
+                   Topic: /map | Type: nav_msgs/msg/OccupancyGrid | Count: 1 | Serialization Format: cdr
+                   Topic: /map_server/transition_event | Type: lifecycle_msgs/msg/TransitionEvent | Count: 0 | Serialization Format: cdr
+                   Topic: /odom_pose | Type: geometry_msgs/msg/PoseWithCovarianceStamped | Count: 28050 | Serialization Format: cdr
+                   Topic: /opponent_marker | Type: visualization_msgs/msg/MarkerArray | Count: 27812 | Serialization Format: cdr
+                   Topic: /particlecloud | Type: geometry_msgs/msg/PoseArray | Count: 15 | Serialization Format: cdr
+                   Topic: /scan | Type: sensor_msgs/msg/LaserScan | Count: 5639 | Serialization Format: cdr
+                   Topic: /scan_obstacles | Type: sensor_msgs/msg/LaserScan | Count: 5622 | Serialization Format: cdr
+                   Topic: /tf | Type: tf2_msgs/msg/TFMessage | Count: 56236 | Serialization Format: cdr
+                   Topic: /tf_static | Type: tf2_msgs/msg/TFMessage | Count: 1 | Serialization Format: cdr
+Service:           0
+Service information: 

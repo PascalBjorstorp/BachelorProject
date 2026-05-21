@@ -140,6 +140,7 @@ static ControlInput_t prev_control;
 static float actual_steering_angle = 0;  /* Servo physical position */
 static RiccatiAdmmState_t admm_state;
 static float warm_start_prev_curvature = 0;
+static int warm_start_prev_model_signature = MPC_MODEL_SIGNATURE;
 
 static FrenetState_t mpc_predict_frenet_next_state(
     const FrenetState_t *state,
@@ -306,6 +307,7 @@ void mpc_initialize(void)
     actual_steering_angle = 0.0f;
     riccati_admm_state_init(&admm_state);
     warm_start_prev_curvature = 0.0f;
+    warm_start_prev_model_signature = MPC_MODEL_SIGNATURE;
     initialized = 1;
 }
 
@@ -319,6 +321,7 @@ void mpc_initialize_with_configuration(const MpcConfiguration_t *cfg)
     actual_steering_angle = 0.0f;
     riccati_admm_state_init(&admm_state);
     warm_start_prev_curvature = 0.0f;
+    warm_start_prev_model_signature = MPC_MODEL_SIGNATURE;
     initialized = 1;
 }
 
@@ -331,6 +334,7 @@ void mpc_reset(void)
     actual_steering_angle = 0.0f;
     riccati_admm_state_init(&admm_state);
     warm_start_prev_curvature = 0.0f;
+    warm_start_prev_model_signature = MPC_MODEL_SIGNATURE;
 }
 
 MpcConfiguration_t mpc_get_configuration(void)
@@ -404,15 +408,9 @@ MpcSolverStatus_t mpc_compute_optimal_control(
     if (wall_bound_window < 0) wall_bound_window = 0;
     if (wall_bound_window > 25) wall_bound_window = 25;
 
-    /* Warm-start management: reset state when curvature changes abruptly or on
-     * the first call. */
-    {
-        float cur_curvature = reference_trajectory[0].path_curvature;
-        float kappa_diff = fabsf(cur_curvature - warm_start_prev_curvature);
-        if (!admm_state.initialized || kappa_diff > WARMSTART_CURVATURE_RESET_THRESHOLD)
-            riccati_admm_state_init(&admm_state);
-        warm_start_prev_curvature = cur_curvature;
-    }
+    /* Warm-start / cold-start policy is evaluated just before the solve, after
+     * the horizon bounds are built, so it can match the FPGA exactly (it needs
+     * step_data[0] and the terminal ey bounds). See Step 4. */
 
     FrenetState_t lin_state = *frenet;
     if (lin_state.flong_vel < MIN_LINEARIZATION_VELOCITY)
@@ -855,6 +853,40 @@ MpcSolverStatus_t mpc_compute_optimal_control(
 
     RiccatiSolution_t riccati_sol;
     memset(&riccati_sol, 0, sizeof(riccati_sol));
+
+    /* Active warm-start policy. Bit-for-bit equivalent to the FPGA
+     * (mpc_riccati_hls.cpp Step 5): cold start on first call, model-signature
+     * change, abrupt curvature change, or when the previous primal trajectory
+     * is incompatible with the current ey box (start and terminal). */
+    {
+        const float cur_curvature = reference_trajectory[0].path_curvature;
+        const float kappa_diff = fabsf(cur_curvature - warm_start_prev_curvature);
+        const int curvature_jump = (kappa_diff > MPC_WS_CURVATURE_THRESH);
+        const int signature_jump =
+            (warm_start_prev_model_signature != MPC_MODEL_SIGNATURE);
+
+        int bound_incompatible = 0;
+        if (admm_state.initialized) {
+            const float ey0 = admm_state.z_x[0][IDX_EY];
+            const float eyN = admm_state.z_x[PREDICTION_HORIZON][IDX_EY];
+            const float tol = MPC_WS_BOUND_THRESH;
+
+            if (ey0 < (step_data[0].x_lb[IDX_EY] - tol) ||
+                ey0 > (step_data[0].x_ub[IDX_EY] + tol) ||
+                eyN < (terminal_x_lb[IDX_EY] - tol) ||
+                eyN > (terminal_x_ub[IDX_EY] + tol)) {
+                bound_incompatible = 1;
+            }
+        }
+
+        if (!admm_state.initialized || signature_jump || curvature_jump ||
+            bound_incompatible) {
+            riccati_admm_state_init(&admm_state);
+        }
+
+        warm_start_prev_curvature = cur_curvature;
+        warm_start_prev_model_signature = MPC_MODEL_SIGNATURE;
+    }
 
     RiccatiStatus_t rstatus = riccati_admm_solve(
         step_data, terminal_Q, terminal_q, terminal_x_lb, terminal_x_ub, x0,

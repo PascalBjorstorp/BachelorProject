@@ -114,6 +114,72 @@ static inline fp_QP_t step_accel_ub(const StepData_t *sd) {
   return sd->accel_ub;
 }
 
+static inline fp_P_raw_t fp_probe_store_P(fp_P_raw_t raw) {
+#pragma HLS INLINE
+  FP_WPROBE_STORE(FP_WP_P_STORE, raw.to_int64(), MPC_HLS_P_FRAC_BITS);
+  return raw;
+}
+
+static inline fp_MG_raw_t fp_probe_store_MG(fp_MG_raw_t raw) {
+#pragma HLS INLINE
+  FP_WPROBE_STORE(FP_WP_MG_STORE, raw.to_int64(), MPC_HLS_MG_FRAC_BITS);
+  return raw;
+}
+
+static inline fp_K_raw_t fp_probe_store_K(fp_K_raw_t raw) {
+#pragma HLS INLINE
+  FP_WPROBE_STORE(FP_WP_K_STORE, raw.to_int64(), MPC_HLS_K_FRAC_BITS);
+  return raw;
+}
+
+static inline fp_sum2_P_raw_t fp_probe_sum2_P_raw(fp_sum2_P_raw_t raw) {
+#pragma HLS INLINE
+  FP_WPROBE(FP_WP_SUM2_P_RAW, raw.to_int64());
+  return raw;
+}
+
+static inline fp_sum2_MG_raw_t fp_probe_sum2_MG_raw(fp_sum2_MG_raw_t raw) {
+#pragma HLS INLINE
+  FP_WPROBE(FP_WP_SUM2_MG_RAW, raw.to_int64());
+  return raw;
+}
+
+static inline fp_sum2_P_QP_t fp_probe_sum2_P_QP(fp_sum2_P_QP_t raw) {
+#pragma HLS INLINE
+  FP_WPROBE(FP_WP_SUM2_P_QP, raw.to_int64());
+  return raw;
+}
+
+static inline fp_sum4_P_QP_t fp_probe_sum4_P_QP(fp_sum4_P_QP_t raw) {
+#pragma HLS INLINE
+  FP_WPROBE(FP_WP_SUM4_P_QP, raw.to_int64());
+  return raw;
+}
+
+static inline fp_sum2_MG_QP_t fp_probe_sum2_MG_QP(fp_sum2_MG_QP_t raw) {
+#pragma HLS INLINE
+  FP_WPROBE(FP_WP_SUM2_MG_QP, raw.to_int64());
+  return raw;
+}
+
+static inline fp_sum4_MG_QP_t fp_probe_sum4_MG_QP(fp_sum4_MG_QP_t raw) {
+#pragma HLS INLINE
+  FP_WPROBE(FP_WP_SUM4_MG_QP, raw.to_int64());
+  return raw;
+}
+
+static inline fp_sum2_QP_MG_t fp_probe_sum2_QP_MG(fp_sum2_QP_MG_t raw) {
+#pragma HLS INLINE
+  FP_WPROBE(FP_WP_SUM2_QP_MG, raw.to_int64());
+  return raw;
+}
+
+static inline fp_sum2_MG_K_t fp_probe_sum2_MG_K(fp_sum2_MG_K_t raw) {
+#pragma HLS INLINE
+  FP_WPROBE(FP_WP_SUM2_MG_K, raw.to_int64());
+  return raw;
+}
+
 static void
 admm_update_state_channel_raw(fp_QP_t x_val, fp_QP_t *z_slot, fp_QP_t *y_slot,
                               fp_QP_t rho, fp_QP_t lb, fp_QP_t ub,
@@ -126,6 +192,7 @@ admm_update_state_channel_raw(fp_QP_t x_val, fp_QP_t *z_slot, fp_QP_t *y_slot,
   const fp_QP_raw_t ub_raw = fp_qp_raw_from_QP(ub);
 
   fp_sum2_QP_raw_t val = (fp_sum2_QP_raw_t)x_raw + (fp_sum2_QP_raw_t)y_raw;
+  FP_WPROBE(FP_WP_SUM2_QP_RAW, val.to_int64());
   if (val < (fp_sum2_QP_raw_t)lb_raw)
     val = (fp_sum2_QP_raw_t)lb_raw;
   if (val > (fp_sum2_QP_raw_t)ub_raw)
@@ -174,6 +241,7 @@ admm_update_control_channel_raw(fp_QP_t u_val, fp_QP_t *z_slot, fp_QP_t *y_slot,
   const fp_QP_raw_t ub_raw = fp_qp_raw_from_QP(ub);
 
   fp_sum2_QP_raw_t val = (fp_sum2_QP_raw_t)u_raw + (fp_sum2_QP_raw_t)y_raw;
+  FP_WPROBE(FP_WP_SUM2_QP_RAW, val.to_int64());
   if (val < (fp_sum2_QP_raw_t)lb_raw)
     val = (fp_sum2_QP_raw_t)lb_raw;
   if (val > (fp_sum2_QP_raw_t)ub_raw)
@@ -251,13 +319,11 @@ riccati_forward_pass(const StepData_t step_data[MPC_HORIZON],
 #pragma HLS ARRAY_PARTITION variable = K complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = K complete dim = 3
 #pragma HLS ARRAY_PARTITION variable = kk complete dim = 2
-#pragma HLS ALLOCATION function instances = sum8_K_QP_raw limit = 2
-#pragma HLS ALLOCATION function instances = sum6_QP_raw   limit = 4
-#pragma HLS ALLOCATION operation instances = mul limit = 16
+
   int i, k, s;
 
   for (s = 0; s < MPC_NX_AUG; s++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
     x_out[0][s] = x0[s];
   }
 
@@ -276,29 +342,29 @@ riccati_forward_pass(const StepData_t step_data[MPC_HORIZON],
     fp_QP_raw_t xk_raw[MPC_NX_AUG];
 #pragma HLS ARRAY_PARTITION variable = xk_raw complete dim = 1
     for (s = 0; s < MPC_NX_AUG; ++s) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
       xk_raw[s] = fp_qp_raw_from_QP(x_out[k][s]);
     }
 
     fp_sum8_K_QP_t prod_sum0 = sum8_K_QP_raw(
-        (fp_sum8_K_QP_t)fp_mul_K_QP(K[k][0][0], xk_raw[0]),
-        (fp_sum8_K_QP_t)fp_mul_K_QP(K[k][0][1], xk_raw[1]),
-        (fp_sum8_K_QP_t)fp_mul_K_QP(K[k][0][2], xk_raw[2]),
-        (fp_sum8_K_QP_t)fp_mul_K_QP(K[k][0][3], xk_raw[3]),
-        (fp_sum8_K_QP_t)fp_mul_K_QP(K[k][0][4], xk_raw[4]),
-        (fp_sum8_K_QP_t)fp_mul_K_QP(K[k][0][5], xk_raw[5]),
-        (fp_sum8_K_QP_t)fp_mul_K_QP(K[k][0][6], xk_raw[6]),
-        (fp_sum8_K_QP_t)fp_mul_K_QP(K[k][0][7], xk_raw[7]));
+        (fp_K_qp_item_t)fp_mul_K_QP(K[k][0][0], xk_raw[0]),
+        (fp_K_qp_item_t)fp_mul_K_QP(K[k][0][1], xk_raw[1]),
+        (fp_K_qp_item_t)fp_mul_K_QP(K[k][0][2], xk_raw[2]),
+        (fp_K_qp_item_t)fp_mul_K_QP(K[k][0][3], xk_raw[3]),
+        (fp_K_qp_item_t)fp_mul_K_QP(K[k][0][4], xk_raw[4]),
+        (fp_K_qp_item_t)fp_mul_K_QP(K[k][0][5], xk_raw[5]),
+        (fp_K_qp_item_t)fp_mul_K_QP(K[k][0][6], xk_raw[6]),
+        (fp_K_qp_item_t)fp_mul_K_QP(K[k][0][7], xk_raw[7]));
 
     fp_sum8_K_QP_t prod_sum1 = sum8_K_QP_raw(
-        (fp_sum8_K_QP_t)fp_mul_K_QP(K[k][1][0], xk_raw[0]),
-        (fp_sum8_K_QP_t)fp_mul_K_QP(K[k][1][1], xk_raw[1]),
-        (fp_sum8_K_QP_t)fp_mul_K_QP(K[k][1][2], xk_raw[2]),
-        (fp_sum8_K_QP_t)fp_mul_K_QP(K[k][1][3], xk_raw[3]),
-        (fp_sum8_K_QP_t)fp_mul_K_QP(K[k][1][4], xk_raw[4]),
-        (fp_sum8_K_QP_t)fp_mul_K_QP(K[k][1][5], xk_raw[5]),
-        (fp_sum8_K_QP_t)fp_mul_K_QP(K[k][1][6], xk_raw[6]),
-        (fp_sum8_K_QP_t)fp_mul_K_QP(K[k][1][7], xk_raw[7]));
+        (fp_K_qp_item_t)fp_mul_K_QP(K[k][1][0], xk_raw[0]),
+        (fp_K_qp_item_t)fp_mul_K_QP(K[k][1][1], xk_raw[1]),
+        (fp_K_qp_item_t)fp_mul_K_QP(K[k][1][2], xk_raw[2]),
+        (fp_K_qp_item_t)fp_mul_K_QP(K[k][1][3], xk_raw[3]),
+        (fp_K_qp_item_t)fp_mul_K_QP(K[k][1][4], xk_raw[4]),
+        (fp_K_qp_item_t)fp_mul_K_QP(K[k][1][5], xk_raw[5]),
+        (fp_K_qp_item_t)fp_mul_K_QP(K[k][1][6], xk_raw[6]),
+        (fp_K_qp_item_t)fp_mul_K_QP(K[k][1][7], xk_raw[7]));
 
     const fp_QP_raw_t u0_raw =
         add_cast_QP_raw((fp_QP_raw_t)kk[k][0],
@@ -315,7 +381,7 @@ riccati_forward_pass(const StepData_t step_data[MPC_HORIZON],
     u_out[k][1] = u1_k;
 
     for (i = 0; i < 6; i++) {
-#pragma HLS PIPELINE II = 1
+MPC_HLS_PIPELINE(1)
       fp_QP_raw_t d_i = d0_fwd;
       if (i == 1) d_i = d1_fwd;
       else if (i == 2) d_i = d2_fwd;
@@ -349,6 +415,7 @@ riccati_forward_pass(const StepData_t step_data[MPC_HORIZON],
             B_sparse[k][MPC_BSP_DELTA_RATE], u0_raw);
       }
 
+      FP_WPROBE(FP_WP_SUM6_QP_ACC, sum.to_int64());
       fp_QP_raw_t result = fp_shift_right_cast<fp_QP_raw_t>(sum, FP_FRAC_BITS);
       x_out[k + 1][i] = fp_QP_from_qp_raw(result);
     }
@@ -394,11 +461,6 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
 #pragma HLS ARRAY_PARTITION variable = K complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = K complete dim = 3
 #pragma HLS ARRAY_PARTITION variable = kk complete dim = 2
-#pragma HLS ALLOCATION function instances = fp_recip         limit = 2
-#pragma HLS ALLOCATION function instances = sum6_P_QP_raw    limit = 2
-#pragma HLS ALLOCATION function instances = sum6_MG_QP_raw   limit = 1
-#pragma HLS ALLOCATION function instances = sum8_P_MIX_raw   limit = 21
-#pragma HLS ALLOCATION function instances = sum8_P_MIX_raw_pupdate limit = 21
 
   const int nx = MPC_NX_AUG;
   const int nu = MPC_NU;
@@ -413,22 +475,24 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
   int s, i, j, a, b, k;
 
   for (i = 0; i < nx; i++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
     for (j = 0; j < nx; j++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
       P[i][j] = 0;
     }
     p[i] = 0;
   }
 
   for (s = 0; s < nx; s++) {
-#pragma HLS UNROLL
-    P[s][s] = fp_P_raw_from_QP(terminal_q_diag[s]);
-    p[s] = fp_P_raw_from_QP(terminal_q_linear[s]);
+MPC_HLS_UNROLL()
+    P[s][s] = fp_probe_store_P(fp_P_raw_from_QP(terminal_q_diag[s]));
+    p[s] = fp_probe_store_P(fp_P_raw_from_QP(terminal_q_linear[s]));
   }
   {
     const int idx = IDX_EY;
-    P[idx][idx] += fp_P_raw_from_QP(rho);
+    P[idx][idx] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
+        (fp_sum2_P_raw_t)P[idx][idx] +
+        (fp_sum2_P_raw_t)fp_P_raw_from_QP(rho)));
     fp_QP_raw_t zx_minus_yx =
         fp_sub_cast_qp_raw(fp_qp_raw_from_QP(z_x[N][idx]),
                            fp_qp_raw_from_QP(y_x[N][idx]),
@@ -437,12 +501,14 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
         fp_mul_QP_raw(fp_qp_raw_from_QP(rho), zx_minus_yx);
     const fp_P_raw_t rho_state_term =
         (fp_P_raw_t)(rho_state_mul >> FP_FRAC_BITS);
-    p[idx] = (fp_P_raw_t)((fp_sum2_P_raw_t)p[idx] +
-                          (fp_sum2_P_raw_t)(-rho_state_term));
+    p[idx] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
+        (fp_sum2_P_raw_t)p[idx] + (fp_sum2_P_raw_t)(-rho_state_term)));
   }
   {
     const int idx = IDX_DELTA_ACT;
-    P[idx][idx] += fp_P_raw_from_QP(rho);
+    P[idx][idx] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
+        (fp_sum2_P_raw_t)P[idx][idx] +
+        (fp_sum2_P_raw_t)fp_P_raw_from_QP(rho)));
     fp_QP_raw_t zx_minus_yx =
         fp_sub_cast_qp_raw(fp_qp_raw_from_QP(z_x[N][idx]),
                            fp_qp_raw_from_QP(y_x[N][idx]),
@@ -451,8 +517,8 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
         fp_mul_QP_raw(fp_qp_raw_from_QP(rho), zx_minus_yx);
     const fp_P_raw_t rho_state_term =
         (fp_P_raw_t)(rho_state_mul >> FP_FRAC_BITS);
-    p[idx] = (fp_P_raw_t)((fp_sum2_P_raw_t)p[idx] +
-                          (fp_sum2_P_raw_t)(-rho_state_term));
+    p[idx] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
+        (fp_sum2_P_raw_t)p[idx] + (fp_sum2_P_raw_t)(-rho_state_term)));
   }
 
   /* Backward Riccati pass: NOT pipelineable.
@@ -486,33 +552,35 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
 #pragma HLS ARRAY_PARTITION variable = r_aug_linear complete dim = 1
 
     const bool first_stage = (k == 0);
-    q_aug_diag[0] = fp_P_raw_from_QP(MPC_Q2_LAT_ERROR);
-    q_aug_diag[1] = fp_P_raw_from_QP(MPC_Q2_HEADING);
-    q_aug_diag[2] = fp_P_raw_from_QP(MPC_Q2_VELOCITY);
-    q_aug_diag[3] = fp_P_raw_from_QP(MPC_Q2_LAT_VEL);
-    q_aug_diag[4] = fp_P_raw_from_QP(MPC_Q2_YAW_RATE);
-    q_aug_diag[IDX_DELTA_ACT] = fp_P_raw_from_QP(MPC_Q2_DELTA_ACT);
+    q_aug_diag[0] = fp_probe_store_P(fp_P_raw_from_QP(MPC_Q2_LAT_ERROR));
+    q_aug_diag[1] = fp_probe_store_P(fp_P_raw_from_QP(MPC_Q2_HEADING));
+    q_aug_diag[2] = fp_probe_store_P(fp_P_raw_from_QP(MPC_Q2_VELOCITY));
+    q_aug_diag[3] = fp_probe_store_P(fp_P_raw_from_QP(MPC_Q2_LAT_VEL));
+    q_aug_diag[4] = fp_probe_store_P(fp_P_raw_from_QP(MPC_Q2_YAW_RATE));
+    q_aug_diag[IDX_DELTA_ACT] = fp_probe_store_P(fp_P_raw_from_QP(MPC_Q2_DELTA_ACT));
     fp_QP_t q_diag_delta_prev = (fp_QP_t)MPC_Q2_STEER_JERK;
     fp_QP_t q_diag_accel_prev = (fp_QP_t)MPC_Q2_ACCEL_RATE;
     if (first_stage) {
       q_diag_delta_prev = (fp_QP_t)MPC_Q2_JERK_CS;
       q_diag_accel_prev = (fp_QP_t)MPC_Q2_ARATE_CS;
     }
-    q_aug_diag[IDX_DELTA_RATE_PREV] = fp_P_raw_from_QP(q_diag_delta_prev);
-    q_aug_diag[IDX_ACCEL_PREV] = fp_P_raw_from_QP(q_diag_accel_prev);
+    q_aug_diag[IDX_DELTA_RATE_PREV] = fp_probe_store_P(fp_P_raw_from_QP(q_diag_delta_prev));
+    q_aug_diag[IDX_ACCEL_PREV] = fp_probe_store_P(fp_P_raw_from_QP(q_diag_accel_prev));
 
-    q_aug_linear[0] = (fp_P_raw_t)sd->q[0];
-    q_aug_linear[1] = (fp_P_raw_t)sd->q[1];
-    q_aug_linear[2] = (fp_P_raw_t)sd->q[2];
-    q_aug_linear[3] = (fp_P_raw_t)sd->q[3];
-    q_aug_linear[4] = (fp_P_raw_t)sd->q[4];
-    q_aug_linear[IDX_DELTA_ACT] = (fp_P_raw_t)sd->q[IDX_DELTA_ACT];
-    q_aug_linear[IDX_DELTA_RATE_PREV] = 0;
-    q_aug_linear[IDX_ACCEL_PREV] = 0;
+    q_aug_linear[0] = fp_probe_store_P((fp_P_raw_t)sd->q[0]);
+    q_aug_linear[1] = fp_probe_store_P((fp_P_raw_t)sd->q[1]);
+    q_aug_linear[2] = fp_probe_store_P((fp_P_raw_t)sd->q[2]);
+    q_aug_linear[3] = fp_probe_store_P((fp_P_raw_t)sd->q[3]);
+    q_aug_linear[4] = fp_probe_store_P((fp_P_raw_t)sd->q[4]);
+    q_aug_linear[IDX_DELTA_ACT] = fp_probe_store_P((fp_P_raw_t)sd->q[IDX_DELTA_ACT]);
+    q_aug_linear[IDX_DELTA_RATE_PREV] = fp_probe_store_P(0);
+    q_aug_linear[IDX_ACCEL_PREV] = fp_probe_store_P(0);
 
     {
       const int idx = IDX_EY;
-      q_aug_diag[idx] += fp_P_raw_from_QP(rho);
+      q_aug_diag[idx] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
+          (fp_sum2_P_raw_t)q_aug_diag[idx] +
+          (fp_sum2_P_raw_t)fp_P_raw_from_QP(rho)));
       fp_QP_raw_t zx_minus_yx =
           fp_sub_cast_qp_raw(fp_qp_raw_from_QP(z_x[k][idx]),
                              fp_qp_raw_from_QP(y_x[k][idx]),
@@ -521,14 +589,16 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
           fp_mul_QP_raw(fp_qp_raw_from_QP(rho), zx_minus_yx);
       const fp_P_raw_t rho_state_term =
           (fp_P_raw_t)(rho_state_mul >> FP_FRAC_BITS);
-      q_aug_linear[idx] =
-          (fp_P_raw_t)((fp_sum2_P_raw_t)q_aug_linear[idx] +
-                       (fp_sum2_P_raw_t)(-rho_state_term));
+      q_aug_linear[idx] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
+          (fp_sum2_P_raw_t)q_aug_linear[idx] +
+          (fp_sum2_P_raw_t)(-rho_state_term)));
     }
 
     {
       const int idx = IDX_DELTA_ACT;
-      q_aug_diag[idx] += fp_P_raw_from_QP(rho);
+      q_aug_diag[idx] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
+          (fp_sum2_P_raw_t)q_aug_diag[idx] +
+          (fp_sum2_P_raw_t)fp_P_raw_from_QP(rho)));
       fp_QP_raw_t zx_minus_yx =
           fp_sub_cast_qp_raw(fp_qp_raw_from_QP(z_x[k][idx]),
                              fp_qp_raw_from_QP(y_x[k][idx]),
@@ -537,13 +607,13 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
           fp_mul_QP_raw(fp_qp_raw_from_QP(rho), zx_minus_yx);
       const fp_P_raw_t rho_state_term =
           (fp_P_raw_t)(rho_state_mul >> FP_FRAC_BITS);
-      q_aug_linear[idx] =
-          (fp_P_raw_t)((fp_sum2_P_raw_t)q_aug_linear[idx] +
-                       (fp_sum2_P_raw_t)(-rho_state_term));
+      q_aug_linear[idx] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
+          (fp_sum2_P_raw_t)q_aug_linear[idx] +
+          (fp_sum2_P_raw_t)(-rho_state_term)));
     }
 
     for (a = 0; a < nu; a++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
       fp_QP_t r_diag = (fp_QP_t)MPC_R2_ACCEL;
       if (a == 0) {
         r_diag = (fp_QP_t)MPC_R2_STEER;
@@ -565,7 +635,8 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
       const fp_MG_raw_t rho_ctrl_term =
           (fp_MG_raw_t)(rho_ctrl_mul >> FP_FRAC_BITS);
       fp_sum2_QP_raw_t rlin = -(fp_sum2_QP_raw_t)rho_ctrl_term;
-      r_aug_linear[a] = (fp_MG_raw_t)rlin;
+      FP_WPROBE(FP_WP_SUM2_QP_RAW, rlin.to_int64());
+      r_aug_linear[a] = fp_probe_store_MG((fp_MG_raw_t)rlin);
     }
 
     fp_MG_raw_t M[MPC_NU][MPC_NX_AUG];
@@ -578,19 +649,21 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
     const fp_QP_raw_t b12 = B_sparse[k][MPC_BSP_OMEGA_ACCEL];
 
     for (j = 0; j < nx; j++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
       fp_sum2_P_QP_t s0 =
           (fp_sum2_P_QP_t)fp_mul_QP_P(b00, P[IDX_DELTA_ACT][j]) +
           ((fp_sum2_P_QP_t)P[IDX_DELTA_RATE_PREV][j] << FP_FRAC_BITS);
+      fp_probe_sum2_P_QP(s0);
 
       fp_sum4_P_QP_t s1 =
           (fp_sum4_P_QP_t)fp_mul_QP_P(b10, P[2][j]) +
           (fp_sum4_P_QP_t)fp_mul_QP_P(b11, P[3][j]) +
           (fp_sum4_P_QP_t)fp_mul_QP_P(b12, P[4][j]) +
           ((fp_sum4_P_QP_t)P[IDX_ACCEL_PREV][j] << FP_FRAC_BITS);
+      fp_probe_sum4_P_QP(s1);
 
-      M[0][j] = fp_shift_right_cast<fp_MG_raw_t>(s0, FP_FRAC_BITS);
-      M[1][j] = fp_shift_right_cast<fp_MG_raw_t>(s1, FP_FRAC_BITS);
+      M[0][j] = fp_probe_store_MG(fp_shift_right_cast<fp_MG_raw_t>(s0, FP_FRAC_BITS));
+      M[1][j] = fp_probe_store_MG(fp_shift_right_cast<fp_MG_raw_t>(s1, FP_FRAC_BITS));
     }
 
     fp_QP_raw_t S[2][2];
@@ -598,22 +671,26 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
       fp_sum2_MG_QP_t mb00 =
           (fp_sum2_MG_QP_t)fp_mul_MG_QP(M[0][IDX_DELTA_ACT], b00) +
           ((fp_sum2_MG_QP_t)M[0][IDX_DELTA_RATE_PREV] << FP_FRAC_BITS);
+      fp_probe_sum2_MG_QP(mb00);
 
       fp_sum4_MG_QP_t mb01 =
           (fp_sum4_MG_QP_t)fp_mul_MG_QP(M[0][2], b10) +
           (fp_sum4_MG_QP_t)fp_mul_MG_QP(M[0][3], b11) +
           (fp_sum4_MG_QP_t)fp_mul_MG_QP(M[0][4], b12) +
           ((fp_sum4_MG_QP_t)M[0][IDX_ACCEL_PREV] << FP_FRAC_BITS);
+      fp_probe_sum4_MG_QP(mb01);
 
       fp_sum2_MG_QP_t mb10 =
           (fp_sum2_MG_QP_t)fp_mul_MG_QP(M[1][IDX_DELTA_ACT], b00) +
           ((fp_sum2_MG_QP_t)M[1][IDX_DELTA_RATE_PREV] << FP_FRAC_BITS);
+      fp_probe_sum2_MG_QP(mb10);
 
       fp_sum4_MG_QP_t mb11 =
           (fp_sum4_MG_QP_t)fp_mul_MG_QP(M[1][2], b10) +
           (fp_sum4_MG_QP_t)fp_mul_MG_QP(M[1][3], b11) +
           (fp_sum4_MG_QP_t)fp_mul_MG_QP(M[1][4], b12) +
           ((fp_sum4_MG_QP_t)M[1][IDX_ACCEL_PREV] << FP_FRAC_BITS);
+      fp_probe_sum4_MG_QP(mb11);
 
       S[0][0] =
           (fp_QP_raw_t)((fp_sum2_QP_raw_t)r_aug_diag[0] +
@@ -626,6 +703,7 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
 
       fp_sum2_QP_raw_t s01 = (((fp_sum2_QP_raw_t)S[0][1]) +
                               ((fp_sum2_QP_raw_t)S[1][0])) >> 1;
+      FP_WPROBE(FP_WP_SUM2_QP_RAW, s01.to_int64());
       S[0][1] = (fp_QP_raw_t)s01;
       S[1][0] = (fp_QP_raw_t)s01;
     }
@@ -647,7 +725,7 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
 #pragma HLS ARRAY_PARTITION variable = G complete dim = 2
     for (a = 0; a < nu; a++) {
       for (j = 0; j < 6; j++) {
-#pragma HLS PIPELINE II = 1
+MPC_HLS_PIPELINE(1)
         fp_sum6_MG_QP_t sum = sum6_MG_QP_raw(
             (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][0], sd->A[0][j]),
             (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][1], sd->A[1][j]),
@@ -655,7 +733,7 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
             (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][3], sd->A[3][j]),
             (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][4], sd->A[4][j]),
             (fp_sum6_MG_QP_t)fp_mul_MG_QP(M[a][5], sd->A[5][j]));
-        G[a][j] = fp_shift_right_cast<fp_MG_raw_t>(sum, FP_FRAC_BITS);
+        G[a][j] = fp_probe_store_MG(fp_shift_right_cast<fp_MG_raw_t>(sum, FP_FRAC_BITS));
       }
     }
     fp_QP_t g06 = (fp_QP_t)MPC_N2_STEER_JERK;
@@ -664,27 +742,29 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
       g06 = (fp_QP_t)(-MPC_Q2_JERK_CS);
       g17 = (fp_QP_t)(-MPC_Q2_ARATE_CS);
     }
-    G[0][6] = fp_MG_raw_from_QP(g06);
+    G[0][6] = fp_probe_store_MG(fp_MG_raw_from_QP(g06));
     G[1][6] = 0;
     G[0][7] = 0;
-    G[1][7] = fp_MG_raw_from_QP(g17);
+    G[1][7] = fp_probe_store_MG(fp_MG_raw_from_QP(g17));
 
     for (j = 0; j < nx; j++) {
-#pragma HLS PIPELINE II = 1
+MPC_HLS_PIPELINE(1)
       fp_sum2_QP_MG_t val0 =
           (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[0][0], G[0][j]) +
           (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[0][1], G[1][j]);
       fp_sum2_QP_MG_t val1 =
           (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[1][0], G[0][j]) +
           (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[1][1], G[1][j]);
-      K[k][0][j] = fp_shift_right_cast<fp_K_raw_t>(-val0, FP_FRAC_BITS);
-      K[k][1][j] = fp_shift_right_cast<fp_K_raw_t>(-val1, FP_FRAC_BITS);
+      fp_probe_sum2_QP_MG(val0);
+      fp_probe_sum2_QP_MG(val1);
+      K[k][0][j] = fp_probe_store_K(fp_shift_right_cast<fp_K_raw_t>(-val0, FP_FRAC_BITS));
+      K[k][1][j] = fp_probe_store_K(fp_shift_right_cast<fp_K_raw_t>(-val1, FP_FRAC_BITS));
     }
 
     fp_P_raw_t p_shift[MPC_NX_AUG];
 #pragma HLS ARRAY_PARTITION variable = p_shift complete dim = 1
     for (i = 0; i < nx; i++) {
-#pragma HLS PIPELINE II = 1
+MPC_HLS_PIPELINE(1)
       fp_sum6_P_QP_t pd_sum = sum6_P_QP_raw(
           (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][0], d0_raw),
           (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][1], d1_raw),
@@ -692,9 +772,9 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
           (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][3], d3_raw),
           (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][4], d4_raw),
           (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][5], d5_raw));
-      p_shift[i] =
-          (fp_P_raw_t)((fp_sum2_P_raw_t)p[i] +
-                       (fp_sum2_P_raw_t)fp_shift_right_cast<fp_P_raw_t>(pd_sum, FP_FRAC_BITS));
+      p_shift[i] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
+          (fp_sum2_P_raw_t)p[i] +
+          (fp_sum2_P_raw_t)fp_shift_right_cast<fp_P_raw_t>(pd_sum, FP_FRAC_BITS)));
     }
 
     fp_MG_raw_t Bp[MPC_NU];
@@ -710,29 +790,33 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
       fp_sum2_P_QP_t bp0 =
           (fp_sum2_P_QP_t)fp_mul_QP_P(b00, ps5) +
           ((fp_sum2_P_QP_t)ps6 << FP_FRAC_BITS);
-      Bp[0] = fp_shift_right_cast<fp_MG_raw_t>(bp0, FP_FRAC_BITS);
+      fp_probe_sum2_P_QP(bp0);
+      Bp[0] = fp_probe_store_MG(fp_shift_right_cast<fp_MG_raw_t>(bp0, FP_FRAC_BITS));
 
       fp_sum4_P_QP_t bp1 =
           (fp_sum4_P_QP_t)fp_mul_QP_P(b10, ps2) +
           (fp_sum4_P_QP_t)fp_mul_QP_P(b11, ps3) +
           (fp_sum4_P_QP_t)fp_mul_QP_P(b12, ps4) +
           ((fp_sum4_P_QP_t)ps7 << FP_FRAC_BITS);
-      Bp[1] = fp_shift_right_cast<fp_MG_raw_t>(bp1, FP_FRAC_BITS);
+      fp_probe_sum4_P_QP(bp1);
+      Bp[1] = fp_probe_store_MG(fp_shift_right_cast<fp_MG_raw_t>(bp1, FP_FRAC_BITS));
     }
 
     {
-      fp_MG_raw_t rhs0 =
-          (fp_MG_raw_t)((fp_sum2_MG_raw_t)r_aug_linear[0] + (fp_sum2_MG_raw_t)Bp[0]);
-      fp_MG_raw_t rhs1 =
-          (fp_MG_raw_t)((fp_sum2_MG_raw_t)r_aug_linear[1] + (fp_sum2_MG_raw_t)Bp[1]);
+      fp_MG_raw_t rhs0 = (fp_MG_raw_t)fp_probe_sum2_MG_raw(
+          (fp_sum2_MG_raw_t)r_aug_linear[0] + (fp_sum2_MG_raw_t)Bp[0]);
+      fp_MG_raw_t rhs1 = (fp_MG_raw_t)fp_probe_sum2_MG_raw(
+          (fp_sum2_MG_raw_t)r_aug_linear[1] + (fp_sum2_MG_raw_t)Bp[1]);
       fp_sum2_QP_MG_t val0 =
           (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[0][0], rhs0) +
           (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[0][1], rhs1);
       fp_sum2_QP_MG_t val1 =
           (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[1][0], rhs0) +
           (fp_sum2_QP_MG_t)fp_mul_QP_MG(Si[1][1], rhs1);
-      kk[k][0] = fp_shift_right_cast<fp_K_raw_t>(-val0, FP_FRAC_BITS);
-      kk[k][1] = fp_shift_right_cast<fp_K_raw_t>(-val1, FP_FRAC_BITS);
+      fp_probe_sum2_QP_MG(val0);
+      fp_probe_sum2_QP_MG(val1);
+      kk[k][0] = fp_probe_store_K(fp_shift_right_cast<fp_K_raw_t>(-val0, FP_FRAC_BITS));
+      kk[k][1] = fp_probe_store_K(fp_shift_right_cast<fp_K_raw_t>(-val1, FP_FRAC_BITS));
     }
 
     fp_P_raw_t PA[MPC_NX_DENSE][MPC_NX_DENSE];
@@ -740,13 +824,13 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
 #pragma HLS BIND_STORAGE variable = PA type = RAM_2P impl = LUTRAM latency = 1
 
     for (i = 0; i < 6; i++) {
-#pragma HLS UNROLL
-      PA[i][0] = P[i][0];
+MPC_HLS_UNROLL()
+      PA[i][0] = fp_probe_store_P(P[i][0]);
     }
 
     for (i = 0; i < 6; i++) {
       for (j = 1; j < 6; j++) {
-#pragma HLS PIPELINE II = 1
+MPC_HLS_PIPELINE(1)
         fp_sum6_P_QP_t sum = sum6_P_QP_raw(
             (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][0], sd->A[0][j]),
             (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][1], sd->A[1][j]),
@@ -754,30 +838,29 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
             (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][3], sd->A[3][j]),
             (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][4], sd->A[4][j]),
             (fp_sum6_P_QP_t)fp_mul_P_QP(P[i][5], sd->A[5][j]));
-        PA[i][j] = fp_shift_right_cast<fp_P_raw_t>(sum, FP_FRAC_BITS);
+        PA[i][j] = fp_probe_store_P(fp_shift_right_cast<fp_P_raw_t>(sum, FP_FRAC_BITS));
       }
     }
 
-#pragma HLS ALLOCATION operation instances = mul limit = 32
     {
 #define COMPUTE_P_SUM_RAW_TO(II, JJ, DST)                                            \
   do {                                                                               \
     (DST) = sum8_P_MIX_raw_pupdate(                                                  \
-        (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[0][(II)], PA[0][(JJ)]),                    \
-        (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[1][(II)], PA[1][(JJ)]),                    \
-        (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[2][(II)], PA[2][(JJ)]),                    \
-        (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[3][(II)], PA[3][(JJ)]),                    \
-        (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[4][(II)], PA[4][(JJ)]),                    \
-        (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[5][(II)], PA[5][(JJ)]),                    \
-        (fp_sum8_P_MIX_t)fp_mul_MG_K(G[0][(II)], K[k][0][(JJ)]),                   \
-        (fp_sum8_P_MIX_t)fp_mul_MG_K(G[1][(II)], K[k][1][(JJ)]));                  \
+        (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][(II)], PA[0][(JJ)]),                   \
+        (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][(II)], PA[1][(JJ)]),                   \
+        (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][(II)], PA[2][(JJ)]),                   \
+        (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][(II)], PA[3][(JJ)]),                   \
+        (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][(II)], PA[4][(JJ)]),                   \
+        (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][(II)], PA[5][(JJ)]),                   \
+        (fp_P_mix_item_t)fp_mul_MG_K(G[0][(II)], K[k][0][(JJ)]),                     \
+        (fp_P_mix_item_t)fp_mul_MG_K(G[1][(II)], K[k][1][(JJ)]));                    \
   } while (0)
 
 #define CAST_P_MIX(VALUE)                                                            \
   fp_shift_right_cast<fp_P_raw_t>((VALUE), FP_FRAC_BITS)
 
       {
-        fp_sum8_P_MIX_t p00_raw, p01_raw, p02_raw, p03_raw, p04_raw, p05_raw;
+        fp_sum8_P_MIX_pup_t p00_raw, p01_raw, p02_raw, p03_raw, p04_raw, p05_raw;
         COMPUTE_P_SUM_RAW_TO(0, 0, p00_raw);
         COMPUTE_P_SUM_RAW_TO(0, 1, p01_raw);
         COMPUTE_P_SUM_RAW_TO(0, 2, p02_raw);
@@ -790,16 +873,17 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
         fp_P_raw_t r0_3 = CAST_P_MIX(p03_raw);
         fp_P_raw_t r0_4 = CAST_P_MIX(p04_raw);
         fp_P_raw_t r0_5 = CAST_P_MIX(p05_raw);
-        P[0][0] = q_aug_diag[0] + r0_0;
-        P[0][1] = P[1][0] = r0_1;
-        P[0][2] = P[2][0] = r0_2;
-        P[0][3] = P[3][0] = r0_3;
-        P[0][4] = P[4][0] = r0_4;
-        P[0][5] = P[5][0] = r0_5;
+        P[0][0] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
+            (fp_sum2_P_raw_t)q_aug_diag[0] + (fp_sum2_P_raw_t)r0_0));
+        P[0][1] = P[1][0] = fp_probe_store_P(r0_1);
+        P[0][2] = P[2][0] = fp_probe_store_P(r0_2);
+        P[0][3] = P[3][0] = fp_probe_store_P(r0_3);
+        P[0][4] = P[4][0] = fp_probe_store_P(r0_4);
+        P[0][5] = P[5][0] = fp_probe_store_P(r0_5);
       }
 
       {
-        fp_sum8_P_MIX_t p11_raw, p12_raw, p13_raw, p14_raw, p15_raw;
+        fp_sum8_P_MIX_pup_t p11_raw, p12_raw, p13_raw, p14_raw, p15_raw;
         COMPUTE_P_SUM_RAW_TO(1, 1, p11_raw);
         COMPUTE_P_SUM_RAW_TO(1, 2, p12_raw);
         COMPUTE_P_SUM_RAW_TO(1, 3, p13_raw);
@@ -810,15 +894,16 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
         fp_P_raw_t r1_3 = CAST_P_MIX(p13_raw);
         fp_P_raw_t r1_4 = CAST_P_MIX(p14_raw);
         fp_P_raw_t r1_5 = CAST_P_MIX(p15_raw);
-        P[1][1] = q_aug_diag[1] + r1_1;
-        P[1][2] = P[2][1] = r1_2;
-        P[1][3] = P[3][1] = r1_3;
-        P[1][4] = P[4][1] = r1_4;
-        P[1][5] = P[5][1] = r1_5;
+        P[1][1] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
+            (fp_sum2_P_raw_t)q_aug_diag[1] + (fp_sum2_P_raw_t)r1_1));
+        P[1][2] = P[2][1] = fp_probe_store_P(r1_2);
+        P[1][3] = P[3][1] = fp_probe_store_P(r1_3);
+        P[1][4] = P[4][1] = fp_probe_store_P(r1_4);
+        P[1][5] = P[5][1] = fp_probe_store_P(r1_5);
       }
 
       {
-        fp_sum8_P_MIX_t p22_raw, p23_raw, p24_raw, p25_raw;
+        fp_sum8_P_MIX_pup_t p22_raw, p23_raw, p24_raw, p25_raw;
         COMPUTE_P_SUM_RAW_TO(2, 2, p22_raw);
         COMPUTE_P_SUM_RAW_TO(2, 3, p23_raw);
         COMPUTE_P_SUM_RAW_TO(2, 4, p24_raw);
@@ -827,40 +912,44 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
         fp_P_raw_t r2_3 = CAST_P_MIX(p23_raw);
         fp_P_raw_t r2_4 = CAST_P_MIX(p24_raw);
         fp_P_raw_t r2_5 = CAST_P_MIX(p25_raw);
-        P[2][2] = q_aug_diag[2] + r2_2;
-        P[2][3] = P[3][2] = r2_3;
-        P[2][4] = P[4][2] = r2_4;
-        P[2][5] = P[5][2] = r2_5;
+        P[2][2] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
+            (fp_sum2_P_raw_t)q_aug_diag[2] + (fp_sum2_P_raw_t)r2_2));
+        P[2][3] = P[3][2] = fp_probe_store_P(r2_3);
+        P[2][4] = P[4][2] = fp_probe_store_P(r2_4);
+        P[2][5] = P[5][2] = fp_probe_store_P(r2_5);
       }
 
       {
-        fp_sum8_P_MIX_t p33_raw, p34_raw, p35_raw;
+        fp_sum8_P_MIX_pup_t p33_raw, p34_raw, p35_raw;
         COMPUTE_P_SUM_RAW_TO(3, 3, p33_raw);
         COMPUTE_P_SUM_RAW_TO(3, 4, p34_raw);
         COMPUTE_P_SUM_RAW_TO(3, 5, p35_raw);
         fp_P_raw_t r3_3 = CAST_P_MIX(p33_raw);
         fp_P_raw_t r3_4 = CAST_P_MIX(p34_raw);
         fp_P_raw_t r3_5 = CAST_P_MIX(p35_raw);
-        P[3][3] = q_aug_diag[3] + r3_3;
-        P[3][4] = P[4][3] = r3_4;
-        P[3][5] = P[5][3] = r3_5;
+        P[3][3] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
+            (fp_sum2_P_raw_t)q_aug_diag[3] + (fp_sum2_P_raw_t)r3_3));
+        P[3][4] = P[4][3] = fp_probe_store_P(r3_4);
+        P[3][5] = P[5][3] = fp_probe_store_P(r3_5);
       }
 
       {
-        fp_sum8_P_MIX_t p44_raw, p45_raw;
+        fp_sum8_P_MIX_pup_t p44_raw, p45_raw;
         COMPUTE_P_SUM_RAW_TO(4, 4, p44_raw);
         COMPUTE_P_SUM_RAW_TO(4, 5, p45_raw);
         fp_P_raw_t r4_4 = CAST_P_MIX(p44_raw);
         fp_P_raw_t r4_5 = CAST_P_MIX(p45_raw);
-        P[4][4] = q_aug_diag[4] + r4_4;
-        P[4][5] = P[5][4] = r4_5;
+        P[4][4] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
+            (fp_sum2_P_raw_t)q_aug_diag[4] + (fp_sum2_P_raw_t)r4_4));
+        P[4][5] = P[5][4] = fp_probe_store_P(r4_5);
       }
 
       {
-        fp_sum8_P_MIX_t p55_raw;
+        fp_sum8_P_MIX_pup_t p55_raw;
         COMPUTE_P_SUM_RAW_TO(5, 5, p55_raw);
         fp_P_raw_t r5_5 = CAST_P_MIX(p55_raw);
-        P[5][5] = q_aug_diag[5] + r5_5;
+        P[5][5] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
+            (fp_sum2_P_raw_t)q_aug_diag[5] + (fp_sum2_P_raw_t)r5_5));
       }
 
 #undef CAST_P_MIX
@@ -874,16 +963,18 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
 #pragma HLS ARRAY_PARTITION variable = gtk_i7 complete dim = 1
 
       for (i = 0; i < 6; i++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
         fp_sum2_MG_K_t s6 =
             (fp_sum2_MG_K_t)fp_mul_MG_K(G[0][i], K[k][0][6]) +
             (fp_sum2_MG_K_t)fp_mul_MG_K(G[1][i], K[k][1][6]);
         fp_sum2_MG_K_t s7 =
             (fp_sum2_MG_K_t)fp_mul_MG_K(G[0][i], K[k][0][7]) +
             (fp_sum2_MG_K_t)fp_mul_MG_K(G[1][i], K[k][1][7]);
+        fp_probe_sum2_MG_K(s6);
+        fp_probe_sum2_MG_K(s7);
 
-        gtk_i6[i] = fp_shift_right_cast<fp_P_raw_t>(s6, FP_FRAC_BITS);
-        gtk_i7[i] = fp_shift_right_cast<fp_P_raw_t>(s7, FP_FRAC_BITS);
+        gtk_i6[i] = fp_probe_store_P(fp_shift_right_cast<fp_P_raw_t>(s6, FP_FRAC_BITS));
+        gtk_i7[i] = fp_probe_store_P(fp_shift_right_cast<fp_P_raw_t>(s7, FP_FRAC_BITS));
       }
 
       {
@@ -893,56 +984,62 @@ riccati_backward_pass(const StepData_t step_data[MPC_HORIZON],
             (fp_sum2_MG_K_t)fp_mul_MG_K(G[0][6], K[k][0][7]);
         fp_sum2_MG_K_t s77 =
             (fp_sum2_MG_K_t)fp_mul_MG_K(G[1][7], K[k][1][7]);
+        fp_probe_sum2_MG_K(s66);
+        fp_probe_sum2_MG_K(s67);
+        fp_probe_sum2_MG_K(s77);
 
-        gtk_66 = fp_shift_right_cast<fp_P_raw_t>(s66, FP_FRAC_BITS);
-        gtk_67 = fp_shift_right_cast<fp_P_raw_t>(s67, FP_FRAC_BITS);
-        gtk_77 = fp_shift_right_cast<fp_P_raw_t>(s77, FP_FRAC_BITS);
+        gtk_66 = fp_probe_store_P(fp_shift_right_cast<fp_P_raw_t>(s66, FP_FRAC_BITS));
+        gtk_67 = fp_probe_store_P(fp_shift_right_cast<fp_P_raw_t>(s67, FP_FRAC_BITS));
+        gtk_77 = fp_probe_store_P(fp_shift_right_cast<fp_P_raw_t>(s77, FP_FRAC_BITS));
       }
 
       for (i = 0; i < 6; i++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
         P[i][6] = gtk_i6[i];
         P[6][i] = gtk_i6[i];
         P[i][7] = gtk_i7[i];
         P[7][i] = gtk_i7[i];
       }
-      P[6][6] = q_aug_diag[6] + gtk_66;
-      P[7][7] = q_aug_diag[7] + gtk_77;
-      P[6][7] = gtk_67;
-      P[7][6] = gtk_67;
+      P[6][6] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
+          (fp_sum2_P_raw_t)q_aug_diag[6] + (fp_sum2_P_raw_t)gtk_66));
+      P[7][7] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
+          (fp_sum2_P_raw_t)q_aug_diag[7] + (fp_sum2_P_raw_t)gtk_77));
+      P[6][7] = fp_probe_store_P(gtk_67);
+      P[7][6] = fp_probe_store_P(gtk_67);
     }
 
     fp_P_raw_t p_new[MPC_NX_AUG];
 #pragma HLS ARRAY_PARTITION variable = p_new complete dim = 1
     for (i = 0; i < 6; i++) {
-#pragma HLS PIPELINE II = 1
+MPC_HLS_PIPELINE(1)
       fp_sum8_P_MIX_t total = sum8_P_MIX_raw(
-          (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[0][i], p_shift[0]),
-          (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[1][i], p_shift[1]),
-          (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[2][i], p_shift[2]),
-          (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[3][i], p_shift[3]),
-          (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[4][i], p_shift[4]),
-          (fp_sum6_P_QP_t)fp_mul_QP_P(sd->A[5][i], p_shift[5]),
-          (fp_sum8_P_MIX_t)fp_mul_MG_K(G[0][i], kk[k][0]),
-          (fp_sum8_P_MIX_t)fp_mul_MG_K(G[1][i], kk[k][1]));
-      p_new[i] =
-          (fp_P_raw_t)((fp_sum2_P_raw_t)q_aug_linear[i] +
-                       (fp_sum2_P_raw_t)fp_shift_right_cast<fp_P_raw_t>(total, FP_FRAC_BITS));
+          (fp_P_mix_item_t)fp_mul_QP_P(sd->A[0][i], p_shift[0]),
+          (fp_P_mix_item_t)fp_mul_QP_P(sd->A[1][i], p_shift[1]),
+          (fp_P_mix_item_t)fp_mul_QP_P(sd->A[2][i], p_shift[2]),
+          (fp_P_mix_item_t)fp_mul_QP_P(sd->A[3][i], p_shift[3]),
+          (fp_P_mix_item_t)fp_mul_QP_P(sd->A[4][i], p_shift[4]),
+          (fp_P_mix_item_t)fp_mul_QP_P(sd->A[5][i], p_shift[5]),
+          (fp_P_mix_item_t)fp_mul_MG_K(G[0][i], kk[k][0]),
+          (fp_P_mix_item_t)fp_mul_MG_K(G[1][i], kk[k][1]));
+      p_new[i] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
+          (fp_sum2_P_raw_t)q_aug_linear[i] +
+          (fp_sum2_P_raw_t)fp_shift_right_cast<fp_P_raw_t>(total, FP_FRAC_BITS)));
     }
 
     for (i = 6; i < nx; i++) {
-#pragma HLS PIPELINE II = 1
+MPC_HLS_PIPELINE(1)
       fp_sum2_MG_K_t total =
           (fp_sum2_MG_K_t)fp_mul_MG_K(G[0][i], kk[k][0]) +
           (fp_sum2_MG_K_t)fp_mul_MG_K(G[1][i], kk[k][1]);
-      p_new[i] =
-          (fp_P_raw_t)((fp_sum2_P_raw_t)q_aug_linear[i] +
-                       (fp_sum2_P_raw_t)fp_shift_right_cast<fp_P_raw_t>(total, FP_FRAC_BITS));
+      fp_probe_sum2_MG_K(total);
+      p_new[i] = fp_probe_store_P((fp_P_raw_t)fp_probe_sum2_P_raw(
+          (fp_sum2_P_raw_t)q_aug_linear[i] +
+          (fp_sum2_P_raw_t)fp_shift_right_cast<fp_P_raw_t>(total, FP_FRAC_BITS)));
     }
 
     for (i = 0; i < nx; i++) {
-#pragma HLS UNROLL
-      p[i] = p_new[i];
+MPC_HLS_UNROLL()
+      p[i] = fp_probe_store_P(p_new[i]);
     }
   }
 }
@@ -1076,19 +1173,19 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
   if (cold_start) {
     for (k = 0; k < MPC_HORIZON; k++) {
       for (s = 0; s < MPC_NX_AUG; s++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
         z_x[k][s] = 0;
         y_x[k][s] = 0;
       }
     }
     for (s = 0; s < MPC_NX_AUG; s++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
       z_x[MPC_HORIZON][s] = 0;
       y_x[MPC_HORIZON][s] = 0;
     }
     for (k = 0; k < MPC_HORIZON; k++) {
       for (a = 0; a < MPC_NU; a++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
         z_u[k][a] = 0;
         y_u[k][a] = 0;
       }
@@ -1096,19 +1193,19 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
   } else {
     for (k = 0; k < MPC_HORIZON; k++) {
       for (s = 0; s < MPC_NX_AUG; s++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
         z_x[k][s] = admm_state->z_x[k][s];
         y_x[k][s] = admm_state->y_x[k][s];
       }
     }
     for (s = 0; s < MPC_NX_AUG; s++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
       z_x[MPC_HORIZON][s] = admm_state->z_x[MPC_HORIZON][s];
       y_x[MPC_HORIZON][s] = admm_state->y_x[MPC_HORIZON][s];
     }
     for (k = 0; k < MPC_HORIZON; k++) {
       for (a = 0; a < MPC_NU; a++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
         z_u[k][a] = admm_state->z_u[k][a];
         y_u[k][a] = admm_state->y_u[k][a];
       }
@@ -1139,7 +1236,7 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
       /* Initialize z from projection of unconstrained solution. */
       for (k = 0; k < MPC_HORIZON_PLUS_ONE; k++) {
         for (s = 0; s < MPC_NX_AUG; s++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
           z_x[k][s] = sol_x[k][s];
         }
         {
@@ -1175,7 +1272,7 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
       }
       for (k = 0; k < MPC_HORIZON; k++) {
         for (a = 0; a < MPC_NU; a++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
           fp_QP_t val = sol_u[k][a];
           fp_QP_t lb = VP_MIN_ACCEL;
           fp_QP_t ub = step_accel_ub(&step_data[k]);
@@ -1198,7 +1295,7 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
       }
       for (k = 0; k < MPC_HORIZON; k++) {
         for (a = 0; a < MPC_NU; a++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
           y_u[k][a] = sol_u[k][a] - z_u[k][a];
         }
       }
@@ -1229,14 +1326,15 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
 
     /* State z/y update */
     for (k = 0; k < MPC_HORIZON_PLUS_ONE; k++) {
-      /* QP assembly only gives finite bounds to e_y and delta_actual.
-       * Keep unconstrained states out of the expensive ADMM projection path. */
-      for (s = 0; s < MPC_NX_AUG; s++) {
-#pragma HLS UNROLL
-        if (s != IDX_EY && s != IDX_DELTA_ACT) {
-          z_x[k][s] = sol_x[k][s];
-        }
-      }
+      /* Only e_y and delta_actual are projected. Copy the remaining fixed
+       * channels directly instead of routing them through an unrolled
+       * conditional loop. */
+      z_x[k][IDX_EPSI] = sol_x[k][IDX_EPSI];
+      z_x[k][IDX_VX] = sol_x[k][IDX_VX];
+      z_x[k][IDX_VY] = sol_x[k][IDX_VY];
+      z_x[k][IDX_OMEGA] = sol_x[k][IDX_OMEGA];
+      z_x[k][IDX_DELTA_RATE_PREV] = sol_x[k][IDX_DELTA_RATE_PREV];
+      z_x[k][IDX_ACCEL_PREV] = sol_x[k][IDX_ACCEL_PREV];
 
       fp_QP_t x_norm_k =
           fp_max_abs_state8(sol_x[k][0], sol_x[k][1], sol_x[k][2], sol_x[k][3],
@@ -1275,15 +1373,13 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
       }
     }
 
-    state_primal = (primal_ey > primal_da) ? primal_ey : primal_da;
-    state_dual = (dual_ey > dual_da) ? dual_ey : dual_da;
+    state_primal = fp_max2(primal_ey, primal_da);
+    state_dual = fp_max2(dual_ey, dual_da);
     {
-      fp_QP_t z_norm_state = (znorm_ey > znorm_da) ? znorm_ey : znorm_da;
-      fp_QP_t lnorm_state = (lnorm_ey > lnorm_da) ? lnorm_ey : lnorm_da;
-      if (z_norm_state > z_norm)
-        z_norm = z_norm_state;
-      if (lnorm_state > lambda_norm)
-        lambda_norm = lnorm_state;
+      const fp_QP_t z_norm_state = fp_max2(znorm_ey, znorm_da);
+      const fp_QP_t lnorm_state = fp_max2(lnorm_ey, lnorm_da);
+      z_norm = fp_max2(z_norm, z_norm_state);
+      lambda_norm = fp_max2(lambda_norm, lnorm_state);
     }
 
     /* Control z/y update — dual residual computed inline */
@@ -1305,29 +1401,20 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
           &primal_u1, &dual_u1, &znorm_u1, &lnorm_u1);
     }
 
-    ctrl_primal = (primal_u0 > primal_u1) ? primal_u0 : primal_u1;
-    ctrl_dual = (dual_u0 > dual_u1) ? dual_u0 : dual_u1;
+    ctrl_primal = fp_max2(primal_u0, primal_u1);
+    ctrl_dual = fp_max2(dual_u0, dual_u1);
     {
-      fp_QP_t z_norm_ctrl = (znorm_u0 > znorm_u1) ? znorm_u0 : znorm_u1;
-      fp_QP_t lnorm_ctrl = (lnorm_u0 > lnorm_u1) ? lnorm_u0 : lnorm_u1;
-      if (z_norm_ctrl > z_norm)
-        z_norm = z_norm_ctrl;
-      if (lnorm_ctrl > lambda_norm)
-        lambda_norm = lnorm_ctrl;
+      const fp_QP_t z_norm_ctrl = fp_max2(znorm_u0, znorm_u1);
+      const fp_QP_t lnorm_ctrl = fp_max2(lnorm_u0, lnorm_u1);
+      z_norm = fp_max2(z_norm, z_norm_ctrl);
+      lambda_norm = fp_max2(lambda_norm, lnorm_ctrl);
     }
-    fp_QP_t primal_res =
-        state_primal > ctrl_primal ? state_primal : ctrl_primal;
-    fp_QP_t dual_res = state_dual > ctrl_dual ? state_dual : ctrl_dual;
-    fp_QP_t max_norm = x_norm;
-    if (u_norm > max_norm)
-      max_norm = u_norm;
-    if (z_norm > max_norm)
-      max_norm = z_norm;
-    fp_QP_t eps_primal =
-        abs_tolerance + fp_mul_site(rel_tolerance, max_norm,
+    const fp_QP_t primal_res = fp_max2(state_primal, ctrl_primal);
+    const fp_QP_t dual_res = fp_max2(state_dual, ctrl_dual);
+    const fp_QP_t max_norm = fp_max3_qp(x_norm, u_norm, z_norm);
+    const fp_QP_t eps_primal = abs_tolerance + fp_mul_site(rel_tolerance, max_norm,
                                     FP_CAST_SITE_MUL_RS_EPS_PRIMAL_REL);
-    fp_QP_t eps_dual =
-        abs_tolerance + fp_mul_site(rel_tolerance, lambda_norm,
+    const fp_QP_t eps_dual = abs_tolerance + fp_mul_site(rel_tolerance, lambda_norm,
                                     FP_CAST_SITE_MUL_RS_EPS_DUAL_REL);
 
     final_primal_residual = primal_res;
@@ -1348,38 +1435,31 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
 
     /* Adaptive rho: rebalance state and control channels independently. */
     if (config->adaptive_rho && admm_iter > 0) {
-      const fp_QP_t adapt_ratio_state = FP_QP_CONST(2.0);
-      const fp_QP_t adapt_ratio_ctrl = FP_QP_CONST(2.0);
+      const fp_QP_t state_dual_x2 = state_dual + state_dual;
+      const fp_QP_t state_primal_x2 = state_primal + state_primal;
+      const fp_QP_t ctrl_dual_x2 = ctrl_dual + ctrl_dual;
+      const fp_QP_t ctrl_primal_x2 = ctrl_primal + ctrl_primal;
 
-      /* Hoist multiplications so the scheduler can overlap them. */
-      const fp_QP_t state_dual_scaled =
-          fp_mul_site(adapt_ratio_state, state_dual,
-                      FP_CAST_SITE_MUL_RS_ADAPT_STATE_DUAL);
-      const fp_QP_t state_primal_scaled =
-          fp_mul_site(adapt_ratio_state, state_primal,
-                      FP_CAST_SITE_MUL_RS_ADAPT_STATE_PRIMAL);
-      const fp_QP_t ctrl_dual_scaled = fp_mul_site(
-          adapt_ratio_ctrl, ctrl_dual, FP_CAST_SITE_MUL_RS_ADAPT_CTRL_DUAL);
-      const fp_QP_t ctrl_primal_scaled = fp_mul_site(
-          adapt_ratio_ctrl, ctrl_primal, FP_CAST_SITE_MUL_RS_ADAPT_CTRL_PRIMAL);
+      const bool can_scale_rho_up = (rho <= FP_QP_CONST(ADMM_RHO_MAX));
+      const bool can_scale_rho_down = (rho >= FP_QP_CONST(ADMM_RHO_MIN));
+      const bool can_scale_rho_u_up = (rho_u <= FP_QP_CONST(ADMM_RHO_MAX));
+      const bool can_scale_rho_u_down = (rho_u >= FP_QP_CONST(ADMM_RHO_MIN));
 
-      int scale_rho = 0;
-      int scale_rho_u = 0;
+      const bool scale_rho_up =
+          can_scale_rho_up && (state_primal > state_dual_x2);
+      const bool scale_rho_down =
+          (!scale_rho_up) && can_scale_rho_down && (state_dual > state_primal_x2);
+      const bool scale_rho_u_up =
+          can_scale_rho_u_up && (ctrl_primal > ctrl_dual_x2);
+      const bool scale_rho_u_down =
+          (!scale_rho_u_up) && can_scale_rho_u_down &&
+          (ctrl_dual > ctrl_primal_x2);
 
-      if (state_primal > state_dual_scaled && rho <= FP_QP_CONST(ADMM_RHO_MAX))
-        scale_rho = 1;
-      else if (state_dual > state_primal_scaled &&
-               rho >= FP_QP_CONST(ADMM_RHO_MIN))
-        scale_rho = -1;
-
-      if (ctrl_primal > ctrl_dual_scaled && rho_u <= FP_QP_CONST(ADMM_RHO_MAX))
-        scale_rho_u = 1;
-      else if (ctrl_dual > ctrl_primal_scaled &&
-               rho_u >= FP_QP_CONST(ADMM_RHO_MIN))
-        scale_rho_u = -1;
+      const int scale_rho = scale_rho_up ? 1 : (scale_rho_down ? -1 : 0);
+      const int scale_rho_u = scale_rho_u_up ? 1 : (scale_rho_u_down ? -1 : 0);
 
       /* Only enter loops if at least one penalty needs updating. */
-      if (scale_rho != 0 || scale_rho_u != 0) {
+      if (scale_rho_up || scale_rho_down || scale_rho_u_up || scale_rho_u_down) {
         #ifndef __SYNTHESIS__
         if (trace_idx >= 0 && trace_idx < g_hls_debug_trace_count) {
           g_hls_debug_trace[trace_idx].scale_rho = scale_rho;
@@ -1388,8 +1468,8 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
         #endif
 
         /* --- State penalty update ---------------------------------------- */
-        if (scale_rho != 0) {
-          if (scale_rho > 0) {
+        if (scale_rho_up || scale_rho_down) {
+          if (scale_rho_up) {
             rho <<= 1;
             rho = (rho > FP_QP_CONST(ADMM_RHO_MAX)) ? FP_QP_CONST(ADMM_RHO_MAX)
                                                     : rho;
@@ -1401,8 +1481,8 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
         }
 
         /* --- Control penalty update --------------------------------------- */
-        if (scale_rho_u != 0) {
-          if (scale_rho_u > 0) {
+        if (scale_rho_u_up || scale_rho_u_down) {
+          if (scale_rho_u_up) {
             rho_u <<= 1;
             rho_u = (rho_u > FP_QP_CONST(ADMM_RHO_MAX))
                         ? FP_QP_CONST(ADMM_RHO_MAX)
@@ -1418,10 +1498,10 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
         /* --- Dual variable rescaling -------------- */
 
         /* State duals: single merged loop, direction resolved statically. */
-        if (scale_rho != 0) {
+        if (scale_rho_up || scale_rho_down) {
           for (k = 0; k < MPC_HORIZON_PLUS_ONE; k++) {
-#pragma HLS PIPELINE II = 1
-            if (scale_rho > 0) {
+MPC_HLS_PIPELINE(1)
+            if (scale_rho_up) {
               y_x[k][IDX_EY] >>= 1;
               y_x[k][IDX_DELTA_ACT] >>= 1;
             } else {
@@ -1432,11 +1512,11 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
         }
 
         /* Control duals: single merged loop, direction resolved statically. */
-        if (scale_rho_u != 0) {
+        if (scale_rho_u_up || scale_rho_u_down) {
           for (k = 0; k < MPC_HORIZON; k++) {
-#pragma HLS PIPELINE II = 1
+MPC_HLS_PIPELINE(1)
             for (a = 0; a < MPC_NU; a++) {
-              if (scale_rho_u > 0) {
+              if (scale_rho_u_up) {
                 y_u[k][a] >>= 1;
               } else {
                 y_u[k][a] <<= 1;
@@ -1464,14 +1544,14 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
    */
   if (status == MPC_STATUS_OPTIMAL || status == MPC_STATUS_MAX_ITER) {
     for (k = 0; k < MPC_HORIZON_PLUS_ONE; k++) {
-  #pragma HLS PIPELINE II = 1
+  MPC_HLS_PIPELINE(1)
       for (i = 0; i < MPC_NX_AUG; i++) {
         admm_state->z_x[k][i] = z_x[k][i];
         admm_state->y_x[k][i] = y_x[k][i];
       }
     }
     for (k = 0; k < MPC_HORIZON; k++) {
-  #pragma HLS PIPELINE II = 1
+  MPC_HLS_PIPELINE(1)
       for (a = 0; a < MPC_NU; a++) {
         admm_state->z_u[k][a] = z_u[k][a];
         admm_state->y_u[k][a] = y_u[k][a];
@@ -1482,14 +1562,14 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
     admm_state->initialized = 1;
   } else {
     for (k = 0; k < MPC_HORIZON_PLUS_ONE; k++) {
-  #pragma HLS PIPELINE II = 1
+  MPC_HLS_PIPELINE(1)
       for (i = 0; i < MPC_NX_AUG; i++) {
         admm_state->z_x[k][i] = FP_QP_CONST(0.0);
         admm_state->y_x[k][i] = FP_QP_CONST(0.0);
       }
     }
     for (k = 0; k < MPC_HORIZON; k++) {
-  #pragma HLS PIPELINE II = 1
+  MPC_HLS_PIPELINE(1)
       for (a = 0; a < MPC_NU; a++) {
         admm_state->z_u[k][a] = FP_QP_CONST(0.0);
         admm_state->y_u[k][a] = FP_QP_CONST(0.0);

@@ -84,16 +84,34 @@ static fp_QP_t compute_wall_biased_ey_ref_hls(fp_QP_t base_ref, fp_QP_t x_lb,
   return fp_clamp(base_ref + corr, x_lb, x_ub);
 }
 
+static fp_QP_t compute_window_min_hls(const fp_QP_t ref_wall[MPC_HORIZON],
+                                      int center_idx) {
+#pragma HLS INLINE off
+  fp_QP_t cand[2 * WALL_BOUND_WINDOW + 1];
+#pragma HLS ARRAY_PARTITION variable = cand complete dim = 1
+
+  for (int dj = -WALL_BOUND_WINDOW; dj <= WALL_BOUND_WINDOW; dj++) {
+MPC_HLS_UNROLL()
+    const int jj = center_idx + dj;
+    const int idx = dj + WALL_BOUND_WINDOW;
+    cand[idx] = (jj >= 0 && jj < MPC_HORIZON) ? ref_wall[jj] : BIG_BOUND;
+  }
+
+  fp_QP_t l2_0 = (cand[0] < cand[1]) ? cand[0] : cand[1];
+  fp_QP_t l2_1 = (cand[2] < cand[3]) ? cand[2] : cand[3];
+  fp_QP_t l2_2 = (cand[4] < cand[5]) ? cand[4] : cand[5];
+  fp_QP_t l2_3 = cand[6];
+
+  fp_QP_t l3_0 = (l2_0 < l2_1) ? l2_0 : l2_1;
+  fp_QP_t l3_1 = (l2_2 < l2_3) ? l2_2 : l2_3;
+  return (l3_0 < l3_1) ? l3_0 : l3_1;
+}
+
 /* Full ADMM reset for HLS-friendly cold starts.
  * Mirrors the CPU riccati_admm_state_init() behavior without memset. */
 static void reset_admm_state_hls(AdmmState_t *admm_state) {
 #pragma HLS INLINE off
   mpc_admm_reset_all_hls(admm_state);
-}
-
-static inline fp_QP_raw_t cast_sum8_qp_raw_to_qp_local(fp_sum8_QP_raw_t value) {
-#pragma HLS INLINE
-  return (fp_QP_raw_t)value;
 }
 
 /* Vitis HLS codegen workaround. Computing this exact product+shift inline in
@@ -120,7 +138,6 @@ static void compute_affine_bias_dense_hls(
     fp_QP_t next_ey, fp_QP_t next_epsi, fp_QP_t next_vx, fp_QP_t next_vy,
     fp_QP_t next_omega, fp_QP_t next_delta, StepData_t *sd) {
 #pragma HLS INLINE off
-#pragma HLS ALLOCATION operation instances = mul limit = 8
   int i;
   fp_QP_raw_t xk_raw[MPC_NX_DENSE];
   fp_QP_raw_t xk1_raw[MPC_NX_DENSE];
@@ -147,18 +164,13 @@ static void compute_affine_bias_dense_hls(
   fp_QP_raw_t d_dense_raw[MPC_NX_DENSE];
 #pragma HLS ARRAY_PARTITION variable = d_dense_raw complete dim = 1
 
-  /* Fused multiply-accumulate + cast: the previous version stored the
-   * fp_sum8_QP_raw_t accumulator into d_dense_acc[] and ran a second
-   * 5-iter pipelined loop just to narrow it to fp_QP_raw_t. The cast is
-   * a slice op (0-latency), so it folds cleanly into the main pipeline
-   * and the second loop is eliminated.
-   *
-   * With the compact BRAM-backed StepData_t, this small 5-row loop can be
-   * fully unrolled again without exploding per-stage state storage. Keeping
-   * it combinational lets the parent horizon-assembly loop retain its
-   * II=150 pipeline. */
+  /* Fused multiply-accumulate + cast: keep the arithmetic local to this
+   * helper, but do not fully unroll the 5-row body. The caller only needs
+   * this module to stay well below its outer II=110 budget, so a simple
+   * pipelined row loop is cheaper physically than materializing all 5 rows
+   * in parallel. */
   for (i = 0; i < 5; i++) {
-#pragma HLS UNROLL
+MPC_HLS_PIPELINE(1)
     const fp_QP_raw_t A0_raw = fp_qp_raw_from_QP(A_step[i][0]);
     const fp_QP_raw_t A1_raw = fp_qp_raw_from_QP(A_step[i][1]);
     const fp_QP_raw_t A2_raw = fp_qp_raw_from_QP(A_step[i][2]);
@@ -193,16 +205,24 @@ static void compute_affine_bias_dense_hls(
                                        FP_FRAC_BITS,
                                        FP_CAST_SITE_MUL_MPC_RICCATI_B1);
 
-    const fp_sum8_QP_raw_t s01 = (fp_sum8_QP_raw_t)a0 + (fp_sum8_QP_raw_t)a1;
-    const fp_sum8_QP_raw_t s23 = (fp_sum8_QP_raw_t)a2 + (fp_sum8_QP_raw_t)a3;
-    const fp_sum8_QP_raw_t s45 = (fp_sum8_QP_raw_t)a4 + (fp_sum8_QP_raw_t)b0;
-    const fp_sum8_QP_raw_t s67 = (fp_sum8_QP_raw_t)b1;
-    const fp_sum8_QP_raw_t s0123 = s01 + s23;
-    const fp_sum8_QP_raw_t s4567 = s45 + s67;
+    const fp_sum2_QP_raw_t s01 = (fp_sum2_QP_raw_t)a0 + (fp_sum2_QP_raw_t)a1;
+    const fp_sum2_QP_raw_t s23 = (fp_sum2_QP_raw_t)a2 + (fp_sum2_QP_raw_t)a3;
+    const fp_sum2_QP_raw_t s45 = (fp_sum2_QP_raw_t)a4 + (fp_sum2_QP_raw_t)b0;
+    const fp_sum2_QP_raw_t s67 = (fp_sum2_QP_raw_t)b1;
+    FP_WPROBE(FP_WP_SUM2_QP_RAW, s01.to_int64());
+    FP_WPROBE(FP_WP_SUM2_QP_RAW, s23.to_int64());
+    FP_WPROBE(FP_WP_SUM2_QP_RAW, s45.to_int64());
+    FP_WPROBE(FP_WP_SUM2_QP_RAW, s67.to_int64());
+
+    const fp_sum4_QP_raw_t s0123 = (fp_sum4_QP_raw_t)s01 + (fp_sum4_QP_raw_t)s23;
+    const fp_sum4_QP_raw_t s4567 = (fp_sum4_QP_raw_t)s45 + (fp_sum4_QP_raw_t)s67;
+    FP_WPROBE(FP_WP_SUM4_QP_RAW, s0123.to_int64());
+    FP_WPROBE(FP_WP_SUM4_QP_RAW, s4567.to_int64());
 
     const fp_sum8_QP_raw_t acc =
-        (fp_sum8_QP_raw_t)xk1_raw[i] - (s0123 + s4567);
-    d_dense_raw[i] = cast_sum8_qp_raw_to_qp_local(acc);
+        (fp_sum8_QP_raw_t)xk1_raw[i] - ((fp_sum8_QP_raw_t)s0123 + (fp_sum8_QP_raw_t)s4567);
+    FP_WPROBE(FP_WP_SUM8_QP_RAW, acc.to_int64());
+    d_dense_raw[i] = (fp_QP_raw_t)acc;
   }
 
   /* IDX_DELTA_ACT row uses a different formula and is computed once
@@ -213,10 +233,11 @@ static void compute_affine_bias_dense_hls(
       (fp_sum8_QP_raw_t)fp_shift_right_cast_to_qp_site(
           fp_mul_QP_raw(fp_qp_raw_from_QP(MPC_DT), uk0_raw), FP_FRAC_BITS,
           FP_CAST_SITE_MUL_MPC_RICCATI_DT_UK0);
-  d_dense_raw[IDX_DELTA_ACT] = cast_sum8_qp_raw_to_qp_local(acc_delta_act);
+  FP_WPROBE(FP_WP_SUM8_QP_RAW, acc_delta_act.to_int64());
+  d_dense_raw[IDX_DELTA_ACT] = (fp_QP_raw_t)acc_delta_act;
 
   for (i = 0; i < MPC_NX_DENSE; ++i) {
-#pragma HLS UNROLL
+MPC_HLS_PIPELINE(1)
     sd->d[i] = d_dense_raw[i];
   }
 }
@@ -343,55 +364,14 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
 #pragma HLS ARRAY_PARTITION variable = wall_right_min complete dim = 1
 
   for (k = 0; k < MPC_HORIZON; k++) {
-#pragma HLS UNROLL factor = 4
-    fp_QP_t left_cand[2 * WALL_BOUND_WINDOW + 1];
-    fp_QP_t right_cand[2 * WALL_BOUND_WINDOW + 1];
-#pragma HLS ARRAY_PARTITION variable = left_cand complete dim = 1
-#pragma HLS ARRAY_PARTITION variable = right_cand complete dim = 1
-
-    for (int dj = -WALL_BOUND_WINDOW; dj <= WALL_BOUND_WINDOW; dj++) {
-#pragma HLS UNROLL
-      const int jj = k + dj;
-      const int idx = dj + WALL_BOUND_WINDOW;
-      if (jj >= 0 && jj < MPC_HORIZON) {
-        left_cand[idx] = ref_left_wall[jj];
-        right_cand[idx] = ref_right_wall[jj];
-      } else {
-        left_cand[idx] = BIG_BOUND;
-        right_cand[idx] = BIG_BOUND;
-      }
-    }
-
-    fp_QP_t left_l2_0 =
-        (left_cand[0] < left_cand[1]) ? left_cand[0] : left_cand[1];
-    fp_QP_t left_l2_1 =
-        (left_cand[2] < left_cand[3]) ? left_cand[2] : left_cand[3];
-    fp_QP_t left_l2_2 =
-        (left_cand[4] < left_cand[5]) ? left_cand[4] : left_cand[5];
-    fp_QP_t left_l2_3 = left_cand[6];
-
-    fp_QP_t right_l2_0 =
-        (right_cand[0] < right_cand[1]) ? right_cand[0] : right_cand[1];
-    fp_QP_t right_l2_1 =
-        (right_cand[2] < right_cand[3]) ? right_cand[2] : right_cand[3];
-    fp_QP_t right_l2_2 =
-        (right_cand[4] < right_cand[5]) ? right_cand[4] : right_cand[5];
-    fp_QP_t right_l2_3 = right_cand[6];
-
-    fp_QP_t left_l3_0 = (left_l2_0 < left_l2_1) ? left_l2_0 : left_l2_1;
-    fp_QP_t left_l3_1 = (left_l2_2 < left_l2_3) ? left_l2_2 : left_l2_3;
-
-    fp_QP_t right_l3_0 = (right_l2_0 < right_l2_1) ? right_l2_0 : right_l2_1;
-    fp_QP_t right_l3_1 = (right_l2_2 < right_l2_3) ? right_l2_2 : right_l2_3;
-
-    wall_left_min[k] = (left_l3_0 < left_l3_1) ? left_l3_0 : left_l3_1;
-    wall_right_min[k] = (right_l3_0 < right_l3_1) ? right_l3_0 : right_l3_1;
+    wall_left_min[k] = compute_window_min_hls(ref_left_wall, k);
+    wall_right_min[k] = compute_window_min_hls(ref_right_wall, k);
   }
 
   for (k = 0; k < MPC_HORIZON; k++) {
 #pragma HLS LOOP_TRIPCOUNT min = MPC_HORIZON max = MPC_HORIZON
   /* II floor is the single-instance compute_frenet_AB_and_next_hls latency*/
-#pragma HLS PIPELINE II = 110
+MPC_HLS_PIPELINE(64)
     StepData_t *sd = &step_data[k];
 
     const fp_QP_t uk0 = rollout_steer_rate;
@@ -472,21 +452,21 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
 
     /* Only the 6x6 dense A block is consumed by the Riccati pass. */
     for (j = 0; j < 5; j++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
       sd->A[IDX_DELTA_ACT][j] = 0;
     }
 
     /* === Augmented A === */
     for (i = 0; i < 5; i++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
       for (j = 0; j < 5; j++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
         sd->A[i][j] = fp_qp_raw_from_QP(A_step[i][j]);
       }
     }
 
     for (i = 0; i < 5; i++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
       sd->A[i][IDX_DELTA_ACT] = fp_qp_raw_from_QP(B_step[i][0]);
     }
     sd->A[IDX_DELTA_ACT][IDX_DELTA_ACT] = fp_qp_raw_from_QP(FP_ONE);
@@ -568,7 +548,7 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
   fp_QP_t terminal_x_ub[MPC_NX_AUG];
 
   for (i = 0; i < MPC_NX_AUG; i++) {
-#pragma HLS UNROLL
+MPC_HLS_UNROLL()
     terminal_q_diag[i] = kZero;
     terminal_q_linear[i] = kZero;
     terminal_x_lb[i] = -BIG_BOUND;

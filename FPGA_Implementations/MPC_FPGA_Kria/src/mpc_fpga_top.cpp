@@ -151,7 +151,7 @@ static void fill_mpc_reference_trajectory_from_arrays(
 #pragma HLS INLINE off
 
   for (int k = 0; k < MPC_HORIZON; ++k) {
-#pragma HLS PIPELINE II = 1
+MPC_HLS_PIPELINE(1)
     const int src_k = (k < ref_count) ? k : (ref_count - 1);
 
     out_ref[k].reference_lateral_error =
@@ -185,7 +185,7 @@ static void fill_mpc_reference_trajectory_from_lane_words(
 #pragma HLS INLINE off
 
   for (int k = 0; k < MPC_HORIZON; ++k) {
-#pragma HLS PIPELINE II = 1
+MPC_HLS_PIPELINE(1)
     const int base = kInputHeaderWords + (k * kRefWordsPerStep);
 
     out_ref[k].reference_lateral_error =
@@ -214,7 +214,7 @@ static void unpack_input_lane_words(
 #pragma HLS INLINE off
 
   for (int packet_idx = 0; packet_idx < INPUT_BUFFER_WORDS_512; ++packet_idx) {
-#pragma HLS PIPELINE II = 1
+MPC_HLS_PIPELINE(1)
     const ap_uint<512> packet = input_words512[packet_idx];
     const int base_word = packet_idx * kPackedWordsPer512;
 

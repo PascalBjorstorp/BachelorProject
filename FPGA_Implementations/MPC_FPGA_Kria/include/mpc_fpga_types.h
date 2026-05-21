@@ -362,7 +362,7 @@ static inline void mpc_admm_reset_all_hls(AdmmState_t *admm_state) {
     return;
 
   for (int k = 0; k <= MPC_HORIZON; ++k) {
-#pragma HLS PIPELINE II = 1
+MPC_HLS_PIPELINE(1)
     for (int s = 0; s < MPC_NX_AUG; ++s) {
       admm_state->z_x[k][s] = FP_QP_CONST(0.0);
       admm_state->y_x[k][s] = FP_QP_CONST(0.0);
@@ -370,7 +370,7 @@ static inline void mpc_admm_reset_all_hls(AdmmState_t *admm_state) {
   }
 
   for (int k = 0; k < MPC_HORIZON; ++k) {
-#pragma HLS PIPELINE II = 1
+MPC_HLS_PIPELINE(1)
     for (int a = 0; a < MPC_NU; ++a) {
       admm_state->z_u[k][a] = FP_QP_CONST(0.0);
       admm_state->y_u[k][a] = FP_QP_CONST(0.0);
@@ -388,14 +388,14 @@ static inline void mpc_admm_zero_duals_hls(AdmmState_t *admm_state) {
     return;
 
   for (int k = 0; k <= MPC_HORIZON; ++k) {
-#pragma HLS PIPELINE II = 1
+MPC_HLS_PIPELINE(1)
     for (int s = 0; s < MPC_NX_AUG; ++s) {
       admm_state->y_x[k][s] = FP_QP_CONST(0.0);
     }
   }
 
   for (int k = 0; k < MPC_HORIZON; ++k) {
-#pragma HLS PIPELINE II = 1
+MPC_HLS_PIPELINE(1)
     for (int a = 0; a < MPC_NU; ++a) {
       admm_state->y_u[k][a] = FP_QP_CONST(0.0);
     }
