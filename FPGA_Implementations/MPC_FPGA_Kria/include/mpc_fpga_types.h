@@ -10,18 +10,8 @@
 #ifndef MPC_FPGA_TYPES_H
 #define MPC_FPGA_TYPES_H
 
-/* Host/debug builds should honor runtime tuning env overrides for parity with
- * CPU simulation and faster diagnosis. Keep synthesis builds compile-time
- * fixed. */
-#if !defined(MPC_RUNTIME_TUNE) && !defined(MPC_HLS_BUILD) && !defined(__SYNTHESIS__)
-#define MPC_RUNTIME_TUNE
-#endif
-
 #include "fp_math_hls.h"
 #include "mpc_fpga_constants.h"
-#ifdef MPC_RUNTIME_TUNE
-#include "mpc_runtime_tune.h"
-#endif
 
 /*===========================================================================
  * MPC Dimension Constants
@@ -168,19 +158,6 @@
  * MPC Default Cost Weights
  *===========================================================================*/
 
-#ifdef MPC_RUNTIME_TUNE
-#define MPC_DT             (mpc_rt_dt)
-#define MPC_W_LAT_ERROR    (mpc_rt_w_lat_error)
-#define MPC_W_HEADING      (mpc_rt_w_heading)
-#define MPC_W_VELOCITY     (mpc_rt_w_velocity)
-#define MPC_W_LAT_VEL      (mpc_rt_w_lat_vel)
-#define MPC_W_YAW_RATE     (mpc_rt_w_yaw_rate)
-#define MPC_W_STEER_EFF    (mpc_rt_w_steer_eff)
-#define MPC_W_ACCEL_EFF    (mpc_rt_w_accel_eff)
-#define MPC_W_STEER_JERK   (mpc_rt_w_steer_jerk)
-#define MPC_W_ACCEL_RATE   (mpc_rt_w_accel_rate)
-#define MPC_W_DELTA_ACT    (mpc_rt_w_delta_act)
-#else
 #define MPC_DT             FP_QP_CONST(MPC_FPGA_PREDICTION_DT_S)
 #define MPC_W_LAT_ERROR    FP_QP_CONST(MPC_FPGA_W_LAT_ERROR)
 #define MPC_W_HEADING      FP_QP_CONST(MPC_FPGA_W_HEADING)
@@ -192,7 +169,6 @@
 #define MPC_W_STEER_JERK   FP_QP_CONST(MPC_FPGA_W_STEER_JERK)
 #define MPC_W_ACCEL_RATE   FP_QP_CONST(MPC_FPGA_W_ACCEL_RATE)
 #define MPC_W_DELTA_ACT    FP_QP_CONST(MPC_FPGA_W_DELTA_ACT)
-#endif
 
 #define VP_DT_INV_MASS     (MPC_DT * VP_INV_MASS)
 #define NEG_VP_DT_INV_MASS (-(VP_DT_INV_MASS))
@@ -201,13 +177,8 @@
 /* Control period for cross-call rate scaling */
 #define MPC_CONTROL_RATE_HZ FP_QP_CONST(MPC_FPGA_CONTROL_RATE_HZ)
 
-#ifdef MPC_RUNTIME_TUNE
-#define MPC_CONTROL_DT       fp_div(FP_ONE, MPC_CONTROL_RATE_HZ)
-#define MPC_CROSS_CALL_SCALE fp_div(MPC_CONTROL_DT, MPC_DT)
-#else
 #define MPC_CONTROL_DT       FP_QP_CONST(MPC_FPGA_CONTROL_DT_S)
 #define MPC_CROSS_CALL_SCALE FP_QP_CONST(MPC_FPGA_CROSS_CALL_SCALE)
-#endif
 
 #define MPC_Q2_LAT_ERROR   ((MPC_W_LAT_ERROR) << 1)
 #define MPC_Q2_HEADING     ((MPC_W_HEADING) << 1)
@@ -222,13 +193,8 @@
 #define MPC_N2_STEER_JERK  (-((MPC_W_STEER_JERK) << 1))
 #define MPC_N2_ACCEL_RATE  (-((MPC_W_ACCEL_RATE) << 1))
 
-#ifdef MPC_RUNTIME_TUNE
-#define MPC_W_STEER_JERK_CS (MPC_W_STEER_JERK * MPC_CROSS_CALL_SCALE)
-#define MPC_W_ACCEL_RATE_CS (MPC_W_ACCEL_RATE * MPC_CROSS_CALL_SCALE)
-#else
 #define MPC_W_STEER_JERK_CS FP_QP_CONST(MPC_FPGA_W_STEER_JERK_CS)
 #define MPC_W_ACCEL_RATE_CS FP_QP_CONST(MPC_FPGA_W_ACCEL_RATE_CS)
-#endif
 
 #define MPC_Q2_JERK_CS    ((MPC_W_STEER_JERK_CS) << 1)
 #define MPC_Q2_ARATE_CS   ((MPC_W_ACCEL_RATE_CS) << 1)
@@ -257,19 +223,11 @@
 #define MPC_WS_CURVATURE_THRESH FP_QP_CONST(0.25)
 #endif
 
-#ifdef MPC_RUNTIME_TUNE
-#define ADMM_RHO_DEFAULT          (mpc_rt_admm_rho)
-#define ADMM_RHO_U_DEFAULT        (mpc_rt_admm_rho_u)
-#define ADMM_TOL_DEFAULT          (mpc_rt_admm_tol)
-#define ADMM_MAX_ITER_DEFAULT     (mpc_rt_admm_max_iter)
-#define ADMM_ADAPTIVE_RHO_DEFAULT (mpc_rt_adaptive_rho)
-#else
 #define ADMM_RHO_DEFAULT          FP_QP_CONST(MPC_FPGA_ADMM_RHO)
 #define ADMM_RHO_U_DEFAULT        FP_QP_CONST(MPC_FPGA_ADMM_RHO_U)
 #define ADMM_TOL_DEFAULT          FP_QP_CONST(MPC_FPGA_ADMM_TOL)
 #define ADMM_MAX_ITER_DEFAULT     MPC_MAX_ADMM_ITER
 #define ADMM_ADAPTIVE_RHO_DEFAULT MPC_HLS_ADAPTIVE_RHO
-#endif
 
 /*===========================================================================
  * Data Structures

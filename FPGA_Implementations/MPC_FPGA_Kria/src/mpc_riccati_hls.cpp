@@ -21,10 +21,6 @@
 #include "../include/mpc_riccati_hls.h"
 #include "../include/riccati_solver_hls.h"
 
-#ifdef MPC_RUNTIME_TUNE
-#include "../include/mpc_runtime_tune.h"
-#endif
-
 extern void compute_frenet_AB_and_next_hls(
     fp_QP_t ey, fp_QP_t epsi, fp_QP_t vx, fp_QP_t vy, fp_QP_t omega,
     fp_QP_t delta, fp_QP_t a_cmd, fp_QP_t kappa, fp_QP_t reference_velocity,
@@ -43,8 +39,10 @@ static void compute_wall_ey_bounds_hls(fp_QP_t left_wall_bound,
   fp_QP_t x_ub = left_wall_bound - wall_margin;
 
   if (x_lb > x_ub) {
-    const fp_QP_t mid = fp_mul_site(FP_QP_CONST(0.5), x_lb + x_ub,
-                                    FP_CAST_SITE_MUL_MR_HALF_BOUNDS);
+    const fp_sum2_QP_raw_t mid_sum =
+        (fp_sum2_QP_raw_t)fp_qp_raw_from_QP(x_lb) +
+        (fp_sum2_QP_raw_t)fp_qp_raw_from_QP(x_ub);
+    const fp_QP_t mid = fp_QP_from_qp_raw((fp_QP_raw_t)(mid_sum >> 1));
     x_lb = mid;
     x_ub = mid;
   }
@@ -371,7 +369,7 @@ void mpc_compute_hls(fp_QP_t state_ey, fp_QP_t state_epsi, fp_QP_t state_vx,
   for (k = 0; k < MPC_HORIZON; k++) {
 #pragma HLS LOOP_TRIPCOUNT min = MPC_HORIZON max = MPC_HORIZON
   /* II floor is the single-instance compute_frenet_AB_and_next_hls latency*/
-MPC_HLS_PIPELINE(64)
+MPC_HLS_PIPELINE(100)
     StepData_t *sd = &step_data[k];
 
     const fp_QP_t uk0 = rollout_steer_rate;

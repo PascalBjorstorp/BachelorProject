@@ -19,8 +19,7 @@ static unsigned long long g_fp_cast_sum2_site_counts[FP_CAST_SITE_COUNT] = {0};
 static unsigned long long g_fp_cast_mulqp_site_counts[FP_CAST_SITE_COUNT] = {0};
 
 static const char *k_fp_cast_audit_names[FP_CAST_AUDIT_COUNT] = {
-    "cast_sum2_qp_raw_to_qp",
-    "fp_shift_right_cast_to_qp(QP_mul)"};
+    "cast_sum2_qp_raw_to_qp"};
 
 static const char *k_fp_cast_site_names[FP_CAST_SITE_COUNT] = {
     "UNKNOWN",
@@ -28,8 +27,6 @@ static const char *k_fp_cast_site_names[FP_CAST_SITE_COUNT] = {
     "SUM2:riccati.sub_cast_qp_raw",
     "SUM2:riccati.add3_cast_qp_raw",
     "MULQP:fp_math.fp_mul_QP_raw_q",
-    "MULQP:fp_math.fp_mul",
-    "MULQP:fp_math.fp_sq",
     "MULQP:mpc_riccati.A0*x0",
     "MULQP:mpc_riccati.A1*x1",
     "MULQP:mpc_riccati.A2*x2",
@@ -157,14 +154,14 @@ fp_QP_mul_t fp_mul_QP_raw(fp_QP_raw_t a, fp_QP_raw_t b) {
 #pragma HLS INLINE
   FP_WPROBE(FP_WP_QP_MUL, (__int128)a.to_int64() * (__int128)b.to_int64());
   fp_QP_mul_t product = (fp_QP_mul_t)a * (fp_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp // latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
   return product;
 }
 
 static inline fp_QP_raw_t fp_mul_QP_raw_q(fp_QP_raw_t a, fp_QP_raw_t b) {
 #pragma HLS INLINE
   fp_QP_mul_t product = (fp_QP_mul_t)a * (fp_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp // latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
   return fp_shift_right_cast_to_qp_site(product, FP_FRAC_BITS,
                                         FP_CAST_SITE_MUL_FP_MUL_QP_RAW_Q);
 }
@@ -209,7 +206,7 @@ static inline fp_fn_raw_t fp_mul_fn_raw_q(fp_fn_raw_t a, fp_fn_raw_t b) {
 #pragma HLS INLINE
   FP_WPROBE(FP_WP_FN_MUL, (__int128)a.to_int64() * (__int128)b.to_int64());
   fp_fn_accum_t product = (fp_fn_accum_t)a * (fp_fn_accum_t)b;
-#pragma HLS BIND_OP variable = product op = mul impl = dsp // latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable = product op = mul impl = dsp latency = MPC_HLS_MUL_LATENCY
   return (fp_fn_raw_t)(product >> FP_FN_FRAC_BITS);
 }
 
@@ -257,7 +254,7 @@ fp_P_QP_mul_t fp_mul_P_QP(fp_P_raw_t a, fp_QP_raw_t b) {
 #pragma HLS INLINE
   FP_WPROBE(FP_WP_P_QP_MUL, (__int128)a.to_int64() * (__int128)b.to_int64());
   fp_P_QP_mul_t product = (fp_P_QP_mul_t)a * (fp_P_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp // latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
   return product;
 }
 
@@ -265,7 +262,7 @@ fp_P_QP_mul_t fp_mul_QP_P(fp_QP_raw_t a, fp_P_raw_t b) {
 #pragma HLS INLINE
   FP_WPROBE(FP_WP_P_QP_MUL, (__int128)a.to_int64() * (__int128)b.to_int64());
   fp_P_QP_mul_t product = (fp_P_QP_mul_t)a * (fp_P_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp // latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
   return product;
 }
 
@@ -273,7 +270,7 @@ fp_MG_QP_mul_t fp_mul_MG_QP(fp_MG_raw_t a, fp_QP_raw_t b) {
 #pragma HLS INLINE
   FP_WPROBE(FP_WP_MG_QP_MUL, (__int128)a.to_int64() * (__int128)b.to_int64());
   fp_MG_QP_mul_t product = (fp_MG_QP_mul_t)a * (fp_MG_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp // latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
   return product;
 }
 
@@ -281,7 +278,7 @@ fp_MG_QP_mul_t fp_mul_QP_MG(fp_QP_raw_t a, fp_MG_raw_t b) {
 #pragma HLS INLINE
   FP_WPROBE(FP_WP_MG_QP_MUL, (__int128)a.to_int64() * (__int128)b.to_int64());
   fp_MG_QP_mul_t product = (fp_MG_QP_mul_t)a * (fp_MG_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp // latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
   return product;
 }
 
@@ -289,14 +286,14 @@ fp_MG_K_mul_t fp_mul_MG_K(fp_MG_raw_t a, fp_K_raw_t b) {
 #pragma HLS INLINE
   FP_WPROBE(FP_WP_MG_K_MUL, (__int128)a.to_int64() * (__int128)b.to_int64());
   fp_MG_K_mul_t product = (fp_MG_K_mul_t)a * (fp_MG_K_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp // latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
   return product;
 }
 
 fp_MG_K_mul_t fp_mul_K_MG(fp_K_raw_t a, fp_MG_raw_t b) {
 #pragma HLS INLINE
   fp_MG_K_mul_t product = (fp_MG_K_mul_t)a * (fp_MG_K_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp // latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
   return product;
 }
 
@@ -304,14 +301,14 @@ fp_K_QP_mul_t fp_mul_K_QP(fp_K_raw_t a, fp_QP_raw_t b) {
 #pragma HLS INLINE
   FP_WPROBE(FP_WP_K_QP_MUL, (__int128)a.to_int64() * (__int128)b.to_int64());
   fp_K_QP_mul_t product = (fp_K_QP_mul_t)a * (fp_K_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp // latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
   return product;
 }
 
 fp_K_QP_mul_t fp_mul_QP_K(fp_QP_raw_t a, fp_K_raw_t b) {
 #pragma HLS INLINE
   fp_K_QP_mul_t product = (fp_K_QP_mul_t)a * (fp_K_QP_mul_t)b;
-#pragma HLS BIND_OP variable=product op=mul impl=dsp // latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable=product op=mul impl=dsp latency = MPC_HLS_MUL_LATENCY
   return product;
 }
 
@@ -325,23 +322,6 @@ fp_QP_t fp_mul_site(fp_QP_t a, fp_QP_t b, int site_id) {
                                       fp_qp_raw_from_QP(b));
   fp_QP_raw_t product_q = fp_shift_right_cast_to_qp_site(
       product, FP_FRAC_BITS, site_id);
-  return fp_QP_from_qp_raw(product_q);
-}
-
-fp_QP_t fp_mul(fp_QP_t a, fp_QP_t b) {
-#pragma HLS INLINE
-  return fp_mul_site(a, b, FP_CAST_SITE_MUL_FP_MUL);
-}
-
-/* fp_sq: dedicated squaring helper — INLINE off required.
- * Keeping fp_sq out-of-line preserves its own multiply context and DSP binding.
- */
-fp_QP_t fp_sq(fp_QP_t x) {
-#pragma HLS INLINE off
-  fp_QP_mul_t product = fp_mul_QP_raw(fp_qp_raw_from_QP(x),
-                                      fp_qp_raw_from_QP(x));
-  fp_QP_raw_t product_q =
-      fp_shift_right_cast_to_qp_site(product, FP_FRAC_BITS, FP_CAST_SITE_MUL_FP_SQ);
   return fp_QP_from_qp_raw(product_q);
 }
 
@@ -460,7 +440,7 @@ static inline int32_t fp_fn_trig_lut_pos_raw(fp_FN_t angle) {
   const fp_fn_lut_mul_t lut_scaled_raw =
       (fp_fn_lut_mul_t)fp_fn_raw_from_FN(angle) *
       (fp_fn_lut_mul_t)FP_FN_TRIG_LUT_SCALE_RAW;
-#pragma HLS BIND_OP variable = lut_scaled_raw op = mul impl = dsp // latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable = lut_scaled_raw op = mul impl = dsp latency = MPC_HLS_MUL_LATENCY
   return (int32_t)(lut_scaled_raw >> FP_FN_FRAC_BITS);
 }
 
@@ -520,10 +500,6 @@ MPC_HLS_UNROLL()
 
   const fp_QP_raw_t x_norm_raw = fp_shift_qp_raw_sel(abs_raw_signed, shift);
 
-/* rom_2p: the lerp reads recip_lut[idx] AND recip_lut[idx+1] in the same
- * cycle -- a single-port ROM cannot serve two reads (HLS 200-882). Dual-port
- * BRAM is the same silicon (BRAM is natively 2-port), so this is free and is
- * the correct binding for an interpolated table -- atan_lut already does it. */
 #pragma HLS BIND_STORAGE variable = recip_lut type = rom_2p impl = bram
   const ap_uint<MPC_HLS_QP_WIDTH> norm_raw_u = (ap_uint<MPC_HLS_QP_WIDTH>)x_norm_raw;
   const int lut_hi = FP_FRAC_BITS - 2;
@@ -551,93 +527,12 @@ MPC_HLS_UNROLL()
 }
 
 /*===========================================================================
- * Sine/Cosine: 1024-segment LUT with linear interpolation
+ * Atan: 1024-segment LUT with linear interpolation
  *===========================================================================*/
-
-fp_QP_t fp_sin(fp_QP_t angle) {
-#pragma HLS INLINE off
-#pragma HLS BIND_STORAGE variable = sin_lut type = rom_2p impl = bram
-  const fp_QP_t angle_n = fp_normalize_angle(angle);
-  const bool neg = (angle_n < 0);
-  const fp_QP_t angle_u = neg ? fp_QP_t(-angle_n) : angle_n;
-
-  const fp_QP_raw_t lut_pos_raw =
-      fp_mul_QP_raw_q(fp_qp_raw_from_QP(angle_u), fp_qp_raw_from_QP(FP_TRIG_LUT_SCALE));
-  int idx = (int)(lut_pos_raw >> FP_FRAC_BITS);
-  if (idx >= FP_TRIG_LUT_SIZE)
-    idx = FP_TRIG_LUT_SIZE - 1;
-  if (idx < 0)
-    idx = 0;
-
-  const int idx_next = idx + 1;
-  const fp_QP_raw_t frac_raw = lut_pos_raw - (((fp_QP_raw_t)idx) << FP_FRAC_BITS);
-  const fp_QP_raw_t v0_raw = fp_qp_raw_from_QP(sin_lut[idx]);
-  const fp_QP_raw_t v1_raw = fp_qp_raw_from_QP(sin_lut[idx_next]);
-  const fp_QP_raw_t sin_raw = fp_lerp_qp_raw(v0_raw, v1_raw, frac_raw);
-  return neg ? fp_QP_from_qp_raw((fp_QP_raw_t)(-sin_raw))
-             : fp_QP_from_qp_raw(sin_raw);
-}
-
-fp_QP_t fp_cos(fp_QP_t angle) {
-#pragma HLS INLINE off
-#pragma HLS BIND_STORAGE variable = cos_lut type = rom_2p impl = bram
-  const fp_QP_t angle_n = fp_normalize_angle(angle);
-  const fp_QP_t angle_u = (angle_n < 0) ? fp_QP_t(-angle_n) : angle_n;
-
-  const fp_QP_raw_t lut_pos_raw =
-      fp_mul_QP_raw_q(fp_qp_raw_from_QP(angle_u), fp_qp_raw_from_QP(FP_TRIG_LUT_SCALE));
-  int idx = (int)(lut_pos_raw >> FP_FRAC_BITS);
-  if (idx >= FP_TRIG_LUT_SIZE)
-    idx = FP_TRIG_LUT_SIZE - 1;
-  if (idx < 0)
-    idx = 0;
-
-  const int idx_next = idx + 1;
-  const fp_QP_raw_t frac_raw = lut_pos_raw - (((fp_QP_raw_t)idx) << FP_FRAC_BITS);
-  const fp_QP_raw_t v0_raw = fp_qp_raw_from_QP(cos_lut[idx]);
-  const fp_QP_raw_t v1_raw = fp_qp_raw_from_QP(cos_lut[idx_next]);
-  return fp_QP_from_qp_raw(fp_lerp_qp_raw(v0_raw, v1_raw, frac_raw));
-}
-
-void fp_trig_pair_fused(fp_QP_t angle, fp_QP_t *sin_out, fp_QP_t *cos_out) {
-#pragma HLS INLINE off
-#pragma HLS BIND_STORAGE variable = sin_lut type = rom_2p impl = bram
-#pragma HLS BIND_STORAGE variable = cos_lut type = rom_2p impl = bram
-  const fp_QP_t angle_n = fp_normalize_angle(angle);
-  const bool neg = (angle_n < 0);
-  const fp_QP_t angle_u = neg ? fp_QP_t(-angle_n) : angle_n;
-
-  const fp_QP_raw_t lut_pos_raw =
-      fp_mul_QP_raw_q(fp_qp_raw_from_QP(angle_u), fp_qp_raw_from_QP(FP_TRIG_LUT_SCALE));
-  int idx = (int)(lut_pos_raw >> FP_FRAC_BITS);
-  if (idx >= FP_TRIG_LUT_SIZE)
-    idx = FP_TRIG_LUT_SIZE - 1;
-  if (idx < 0)
-    idx = 0;
-
-  const int idx_next = idx + 1;
-  const fp_QP_raw_t frac_raw = lut_pos_raw - (((fp_QP_raw_t)idx) << FP_FRAC_BITS);
-
-  const fp_QP_raw_t sin_v0_raw = fp_qp_raw_from_QP(sin_lut[idx]);
-  const fp_QP_raw_t sin_v1_raw = fp_qp_raw_from_QP(sin_lut[idx_next]);
-  const fp_QP_raw_t sin_raw = fp_lerp_qp_raw(sin_v0_raw, sin_v1_raw, frac_raw);
-  *sin_out = neg ? fp_QP_from_qp_raw((fp_QP_raw_t)(-sin_raw))
-                 : fp_QP_from_qp_raw(sin_raw);
-
-  const fp_QP_raw_t cos_v0_raw = fp_qp_raw_from_QP(cos_lut[idx]);
-  const fp_QP_raw_t cos_v1_raw = fp_qp_raw_from_QP(cos_lut[idx_next]);
-  *cos_out = fp_QP_from_qp_raw(fp_lerp_qp_raw(cos_v0_raw, cos_v1_raw, frac_raw));
-}
 
 fp_QP_t fp_atan_lut(fp_QP_t x) {
 #pragma HLS INLINE off
 #pragma HLS BIND_STORAGE variable = atan_lut type = rom_2p impl = bram
-  /* Direct [0, FP_ATAN_LUT_DOMAIN] LUT+lerp. No reciprocal range-reduction:
-   * every argument here is provably < FP_ATAN_LUT_DOMAIN (see fp_math_hls.h).
-   * |x| beyond the domain saturates at idx=1023 -> atan(domain) ~= pi/2 dir
-   * (graceful, never hit under the proven bounds). atan is odd -> sign folded.
-   * The constant /FP_ATAN_LUT_DOMAIN lowers to a multiply+shift, NOT a divider
-   * or fp_recip, so this function no longer instantiates a reciprocal. */
   const bool neg = (x < 0);
   const fp_QP_t abs_x = fp_abs(x);
   const fp_QP_raw_t y_raw = fp_qp_raw_from_QP(abs_x);
@@ -670,65 +565,9 @@ fp_FN_t fp_mul_fn(fp_FN_t a, fp_FN_t b) {
                 (__int128)fp_fn_raw_from_FN(b).to_int64());
   fp_fn_accum_t product = (fp_fn_accum_t)fp_fn_raw_from_FN(a) *
                           (fp_fn_accum_t)fp_fn_raw_from_FN(b);
-#pragma HLS BIND_OP variable = product op = mul impl = dsp // latency = MPC_HLS_MUL_LATENCY
+#pragma HLS BIND_OP variable = product op = mul impl = dsp latency = MPC_HLS_MUL_LATENCY
   fp_fn_raw_t product_q = (fp_fn_raw_t)(product >> FP_FN_FRAC_BITS);
   return fp_FN_from_fn_raw(product_q);
-}
-
-fp_fn_accum_t fp_mul_fn_raw(fp_FN_t a, fp_FN_t b) {
-#pragma HLS INLINE
-  FP_WPROBE(FP_WP_FN_MUL,
-            (__int128)fp_fn_raw_from_FN(a).to_int64() *
-                (__int128)fp_fn_raw_from_FN(b).to_int64());
-  fp_fn_accum_t product = (fp_fn_accum_t)fp_fn_raw_from_FN(a) *
-                          (fp_fn_accum_t)fp_fn_raw_from_FN(b);
-#pragma HLS BIND_OP variable = product op = mul impl = dsp // latency = MPC_HLS_MUL_LATENCY
-  return product;
-}
-
-fp_FN_t fp_sin_fn(fp_FN_t angle) {
-#pragma HLS INLINE off
-#pragma HLS BIND_STORAGE variable = sin_lut_fn type = rom_2p impl = bram
-  const fp_FN_t angle_n = fp_normalize_angle_fn(angle);
-  const bool neg = (angle_n < FP_FN_ZERO);
-  const fp_FN_t angle_u = neg ? fp_FN_t(-angle_n) : angle_n;
-
-  const int32_t lut_pos_raw = fp_fn_trig_lut_pos_raw(angle_u);
-  int idx = (int)(lut_pos_raw >> FP_FN_FRAC_BITS);
-  if (idx >= FP_TRIG_LUT_SIZE)
-    idx = FP_TRIG_LUT_SIZE - 1;
-  if (idx < 0)
-    idx = 0;
-
-  const int idx_next = idx + 1;
-  const fp_fn_raw_t frac_raw =
-      (fp_fn_raw_t)(lut_pos_raw - (((int32_t)idx) << FP_FN_FRAC_BITS));
-  const fp_fn_raw_t v0_raw = fp_fn_raw_from_FN(sin_lut_fn[idx]);
-  const fp_fn_raw_t v1_raw = fp_fn_raw_from_FN(sin_lut_fn[idx_next]);
-  const fp_fn_raw_t sin_raw = fp_lerp_fn_raw(v0_raw, v1_raw, frac_raw);
-  return neg ? fp_FN_from_fn_raw((fp_fn_raw_t)(-sin_raw))
-             : fp_FN_from_fn_raw(sin_raw);
-}
-
-fp_FN_t fp_cos_fn(fp_FN_t angle) {
-#pragma HLS INLINE off
-#pragma HLS BIND_STORAGE variable = cos_lut_fn type = rom_2p impl = bram
-  const fp_FN_t angle_n = fp_normalize_angle_fn(angle);
-  const fp_FN_t angle_u = (angle_n < FP_FN_ZERO) ? fp_FN_t(-angle_n) : angle_n;
-
-  const int32_t lut_pos_raw = fp_fn_trig_lut_pos_raw(angle_u);
-  int idx = (int)(lut_pos_raw >> FP_FN_FRAC_BITS);
-  if (idx >= FP_TRIG_LUT_SIZE)
-    idx = FP_TRIG_LUT_SIZE - 1;
-  if (idx < 0)
-    idx = 0;
-
-  const int idx_next = idx + 1;
-  const fp_fn_raw_t frac_raw =
-      (fp_fn_raw_t)(lut_pos_raw - (((int32_t)idx) << FP_FN_FRAC_BITS));
-  const fp_fn_raw_t v0_raw = fp_fn_raw_from_FN(cos_lut_fn[idx]);
-  const fp_fn_raw_t v1_raw = fp_fn_raw_from_FN(cos_lut_fn[idx_next]);
-  return fp_FN_from_fn_raw(fp_lerp_fn_raw(v0_raw, v1_raw, frac_raw));
 }
 
 void fp_trig_pair_fused_fn(fp_FN_t angle, fp_FN_t *sin_out, fp_FN_t *cos_out) {

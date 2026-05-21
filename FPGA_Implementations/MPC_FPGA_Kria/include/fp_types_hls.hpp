@@ -19,7 +19,7 @@
 #ifdef __cplusplus
 
 #include "mpc_fpga_constants.h"
-#include "fp_width_profile_config.hpp"
+#include "fp_hls_config.hpp"
 #include <ap_fixed.h>
 #include <ap_int.h>
 
@@ -500,7 +500,9 @@ typedef ap_int<MPC_HLS_QP_RECIP_SHIFT_WIDTH> fp_QP_recip_shift_t;
 typedef ap_int<MPC_HLS_FN_RECIP_SHIFT_WIDTH> fp_FN_recip_shift_t;
 typedef ap_int<MPC_HLS_QP_DET_MUL_WIDTH> fp_QP_det_mul_t;
 
-#include "fp_width_probe.hpp"
+#define FP_HLS_CONFIG_INCLUDE_PROBE
+#include "fp_hls_config.hpp"
+#undef FP_HLS_CONFIG_INCLUDE_PROBE
 
 /*==============================================================================
  * Raw QP transport conversion helpers
@@ -539,42 +541,9 @@ static inline fp_QP_t fp_QP_from_qp_raw(fp_QP_raw_t raw) {
  * Specialized family raw/fixed conversion helpers
  *============================================================================*/
 
-static inline fp_P_raw_t fp_P_raw_from_P(fp_P_t value) {
-#pragma HLS INLINE
-  fp_P_raw_t out = 0;
-  out.range(MPC_HLS_P_WIDTH - 1, 0) = value.range(MPC_HLS_P_WIDTH - 1, 0);
-  return out;
-}
-
-static inline fp_P_t fp_P_from_raw(fp_P_raw_t raw) {
-#pragma HLS INLINE
-  fp_P_t out = 0;
-  out.range(MPC_HLS_P_WIDTH - 1, 0) = raw.range(MPC_HLS_P_WIDTH - 1, 0);
-  return out;
-}
-
 static inline fp_P_raw_t fp_P_raw_from_QP(fp_QP_t value) {
 #pragma HLS INLINE
   return (fp_P_raw_t)fp_qp_raw_from_QP(value);
-}
-
-static inline fp_P_t fp_P_from_QP(fp_QP_t value) {
-#pragma HLS INLINE
-  return fp_P_from_raw(fp_P_raw_from_QP(value));
-}
-
-static inline fp_MG_raw_t fp_MG_raw_from_MG(fp_MG_t value) {
-#pragma HLS INLINE
-  fp_MG_raw_t out = 0;
-  out.range(MPC_HLS_MG_WIDTH - 1, 0) = value.range(MPC_HLS_MG_WIDTH - 1, 0);
-  return out;
-}
-
-static inline fp_MG_t fp_MG_from_raw(fp_MG_raw_t raw) {
-#pragma HLS INLINE
-  fp_MG_t out = 0;
-  out.range(MPC_HLS_MG_WIDTH - 1, 0) = raw.range(MPC_HLS_MG_WIDTH - 1, 0);
-  return out;
 }
 
 static inline fp_MG_raw_t fp_MG_raw_from_QP(fp_QP_t value) {
@@ -582,47 +551,10 @@ static inline fp_MG_raw_t fp_MG_raw_from_QP(fp_QP_t value) {
   return (fp_MG_raw_t)fp_qp_raw_from_QP(value);
 }
 
-static inline fp_MG_t fp_MG_from_QP(fp_QP_t value) {
-#pragma HLS INLINE
-  return fp_MG_from_raw(fp_MG_raw_from_QP(value));
-}
-
-static inline fp_K_raw_t fp_K_raw_from_K(fp_K_t value) {
-#pragma HLS INLINE
-  fp_K_raw_t out = 0;
-  out.range(MPC_HLS_K_WIDTH - 1, 0) = value.range(MPC_HLS_K_WIDTH - 1, 0);
-  return out;
-}
-
-static inline fp_K_t fp_K_from_raw(fp_K_raw_t raw) {
-#pragma HLS INLINE
-  fp_K_t out = 0;
-  out.range(MPC_HLS_K_WIDTH - 1, 0) = raw.range(MPC_HLS_K_WIDTH - 1, 0);
-  return out;
-}
-
-static inline fp_K_raw_t fp_K_raw_from_QP(fp_QP_t value) {
-#pragma HLS INLINE
-  return (fp_K_raw_t)fp_qp_raw_from_QP(value);
-}
-
-static inline fp_K_t fp_K_from_QP(fp_QP_t value) {
-#pragma HLS INLINE
-  return fp_K_from_raw(fp_K_raw_from_QP(value));
-}
 
 /*==============================================================================
  * Range / casting helpers
  *============================================================================*/
-
-static inline fp_QP_raw_t fp_cast_K_raw_to_qp(fp_K_raw_t value) {
-#pragma HLS INLINE
-  /* K is narrower than QP and uses the same fractional scaling.
-   * Therefore widening to QP is always safe and should be a sign-extending cast,
-   * not a comparison against QP limits cast down into K width.
-   */
-  return (fp_QP_raw_t)value;
-}
 
 static inline fp_QP_raw_t cast_sum2_qp_raw_to_qp_site(fp_sum2_QP_raw_t value,
                                                        int site_id) {
@@ -648,12 +580,6 @@ static inline fp_QP_raw_t fp_shift_right_cast_to_qp_site(fp_QP_mul_t value,
 #pragma HLS INLINE
   (void)site_id;
   return (fp_QP_raw_t)(value >> shift);
-}
-
-static inline fp_QP_raw_t fp_shift_right_cast_to_qp(fp_QP_mul_t value,
-                                                    int shift) {
-#pragma HLS INLINE
-  return fp_shift_right_cast_to_qp_site(value, shift, FP_CAST_SITE_UNKNOWN);
 }
 
 /*==============================================================================

@@ -6,9 +6,8 @@
 #ifndef FP_MATH_HLS_H
 #define FP_MATH_HLS_H
 
-#include "fp_pragma_ablation.hpp"
+#include "fp_hls_config.hpp"
 #include "fp_types_hls.hpp"
-#include "fp_width_probe.hpp"
 #include <climits>
 #include <cstdint>
 
@@ -84,8 +83,6 @@ fp_QP_t fp_recip(fp_QP_t x);
 
 /* Canonical multiply helpers */
 fp_QP_t fp_mul_site(fp_QP_t a, fp_QP_t b, int site_id);
-fp_QP_t fp_mul(fp_QP_t a, fp_QP_t b);
-fp_QP_t fp_sq(fp_QP_t x);
 
 fp_QP_mul_t fp_mul_QP_raw(fp_QP_raw_t a, fp_QP_raw_t b);
 
@@ -105,13 +102,6 @@ fp_MG_QP_mul_t fp_mul_QP_MG(fp_QP_raw_t a, fp_MG_raw_t b);
 fp_MG_K_mul_t fp_mul_MG_K(fp_MG_raw_t a, fp_K_raw_t b);
 
 fp_K_QP_mul_t fp_mul_K_QP(fp_K_raw_t a, fp_QP_raw_t b);
-
-static inline fp_QP_t fp_div(fp_QP_t a, fp_QP_t b) {
-#pragma HLS INLINE
-  if (a == 0 || b == 0)
-    return 0;
-  return fp_mul(a, fp_recip(b));
-}
 
 static inline fp_QP_t fp_abs(fp_QP_t a) {
 #pragma HLS INLINE
@@ -351,65 +341,17 @@ static inline fp_QP_t fp_max3_qp(fp_QP_t x0, fp_QP_t x1, fp_QP_t x2) {
   return fp_max2(fp_max2(x0, x1), x2);
 }
 
-static inline fp_QP_t fp_max4_qp(fp_QP_t x0, fp_QP_t x1, fp_QP_t x2,
-                                 fp_QP_t x3) {
-#pragma HLS INLINE
-  const fp_QP_t m01 = fp_max2(x0, x1);
-  const fp_QP_t m23 = fp_max2(x2, x3);
-  return fp_max2(m01, m23);
-}
-
-/*-------------------------------------------------------------------------
- * Specialized shift-right + cast helpers
- *------------------------------------------------------------------------*/
-
-static inline fp_P_raw_t fp_shift_right_cast_to_P(fp_P_QP_mul_t value,
-                                                  int shift) {
-#pragma HLS INLINE
-  return (fp_P_raw_t)(value >> shift);
-}
-
-static inline fp_MG_raw_t fp_shift_right_cast_PQ_to_MG(fp_P_QP_mul_t value,
-                                                       int shift) {
-#pragma HLS INLINE
-  return (fp_MG_raw_t)(value >> shift);
-}
-
-static inline fp_MG_raw_t fp_shift_right_cast_to_MG(fp_MG_QP_mul_t value,
-                                                    int shift) {
-#pragma HLS INLINE
-  return (fp_MG_raw_t)(value >> shift);
-}
-
-static inline fp_P_raw_t fp_shift_right_cast_MGK_to_P(fp_MG_K_mul_t value,
-                                                      int shift) {
-#pragma HLS INLINE
-  return (fp_P_raw_t)(value >> shift);
-}
-
-static inline fp_QP_raw_t fp_shift_right_cast_KQ_to_qp(fp_K_QP_mul_t value,
-                                                       int shift) {
-#pragma HLS INLINE
-  return (fp_QP_raw_t)(value >> shift);
-}
-
 fp_QP_t fp_normalize_angle(fp_QP_t angle);
-fp_QP_t fp_sin(fp_QP_t angle);
-fp_QP_t fp_cos(fp_QP_t angle);
-void fp_trig_pair_fused(fp_QP_t angle, fp_QP_t *sin_out, fp_QP_t *cos_out);
 fp_QP_t fp_atan_lut(fp_QP_t x);
 
 /* FN family */
 fp_FN_t fp_mul_fn(fp_FN_t a, fp_FN_t b);
-fp_fn_accum_t fp_mul_fn_raw(fp_FN_t a, fp_FN_t b);
 
 static inline fp_FN_t fp_abs_fn(fp_FN_t a) {
 #pragma HLS INLINE
   return (a < 0) ? fp_FN_t(-a) : a;
 }
 
-fp_FN_t fp_sin_fn(fp_FN_t angle);
-fp_FN_t fp_cos_fn(fp_FN_t angle);
 void fp_trig_pair_fused_fn(fp_FN_t angle, fp_FN_t *sin_out, fp_FN_t *cos_out);
 fp_FN_t fp_atan_lut_fn(fp_FN_t x);
 fp_FN_t fp_recip_fn(fp_FN_t x);

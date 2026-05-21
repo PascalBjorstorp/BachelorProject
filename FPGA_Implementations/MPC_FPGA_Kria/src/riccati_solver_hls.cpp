@@ -1044,10 +1044,13 @@ MPC_HLS_UNROLL()
   }
 }
 
-/* Thin wrapper: declares the K/kk handoff arrays and chains the two
- * extracted modules. Signature unchanged so the riccati_admm_solve_hls
- * call site is untouched. K/kk are whole arrays partitioned identically
- * to the sub-function params (proven-safe interface). */
+/* Thin wrapper: chains the extracted backward/forward modules.
+ *
+ * K/kk storage now lives in riccati_admm_solve_hls instead of this wrapper.
+ * That removes the wrapper-local alloca directly in front of the
+ * riccati_backward_pass call, which is the call-boundary timing issue
+ * reported by HLS. The whole-array interface and partition scheme stay
+ * unchanged. */
 static void
 riccati_pass_hls(const StepData_t step_data[MPC_HORIZON],
                  const fp_QP_raw_t B_sparse[MPC_HORIZON][MPC_BSP_N],
@@ -1058,12 +1061,12 @@ riccati_pass_hls(const StepData_t step_data[MPC_HORIZON],
                  const fp_QP_t y_x[MPC_HORIZON_PLUS_ONE][MPC_NX_AUG],
                  const fp_QP_t z_u[MPC_HORIZON][MPC_NU],
                  const fp_QP_t y_u[MPC_HORIZON][MPC_NU],
+                 fp_K_raw_t K[MPC_HORIZON][MPC_NU][MPC_NX_AUG],
+                 fp_K_raw_t kk[MPC_HORIZON][MPC_NU],
                  fp_QP_t x_out[MPC_HORIZON_PLUS_ONE][MPC_NX_AUG],
                  fp_QP_t u_out[MPC_HORIZON][MPC_NU]) {
 #pragma HLS INLINE off
 #pragma HLS ARRAY_PARTITION variable = B_sparse complete dim = 2
-  fp_K_raw_t K[MPC_HORIZON][MPC_NU][MPC_NX_AUG];
-  fp_K_raw_t kk[MPC_HORIZON][MPC_NU];
 #pragma HLS ARRAY_PARTITION variable = K cyclic factor = 4 dim = 1
 #pragma HLS ARRAY_PARTITION variable = K complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = K complete dim = 3
@@ -1140,12 +1143,18 @@ MpcStatus_t riccati_admm_solve_hls(const StepData_t step_data[MPC_HORIZON],
   fp_QP_t y_u[MPC_HORIZON][MPC_NU];
   fp_QP_t sol_x[MPC_HORIZON_PLUS_ONE][MPC_NX_AUG];
   fp_QP_t sol_u[MPC_HORIZON][MPC_NU];
+  fp_K_raw_t K[MPC_HORIZON][MPC_NU][MPC_NX_AUG];
+  fp_K_raw_t kk[MPC_HORIZON][MPC_NU];
 #pragma HLS ARRAY_PARTITION variable = z_x complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = z_u complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = y_x complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = y_u complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = sol_x complete dim = 2
 #pragma HLS ARRAY_PARTITION variable = sol_u complete dim = 2
+#pragma HLS ARRAY_PARTITION variable = K cyclic factor = 4 dim = 1
+#pragma HLS ARRAY_PARTITION variable = K complete dim = 2
+#pragma HLS ARRAY_PARTITION variable = K complete dim = 3
+#pragma HLS ARRAY_PARTITION variable = kk complete dim = 2
   /* LUTRAM binding on the three big state buffers. Measured from
    * 2026-05-15 22:09 routed report: 6 of the top 15 failing paths were
    * y_x BRAM CLKARDCLK -> icmp_ln160 comparators in the ADMM state
@@ -1229,8 +1238,8 @@ MPC_HLS_UNROLL()
     /* Shared call site prevents HLS from cloning the Riccati datapath for
      * cold-start and ADMM passes. */
     riccati_pass_hls(step_data, B_sparse, terminal_q_diag, terminal_q_linear,
-                     x0, pass_rho, pass_rho_u, z_x, y_x, z_u, y_u, sol_x,
-                     sol_u);
+                     x0, pass_rho, pass_rho_u, z_x, y_x, z_u, y_u, K, kk,
+                     sol_x, sol_u);
 
     if (bootstrap_pass) {
       /* Initialize z from projection of unconstrained solution. */

@@ -38,9 +38,6 @@
 #include "../include/mpc_fpga_interface.h"
 #include "../include/mpc_fpga_types.h"
 #include "../include/mpc_riccati_hls.h"
-#ifdef MPC_RUNTIME_TUNE
-#include "../include/mpc_runtime_tune.h"
-#endif
 
 #ifdef MPC_HLS_BUILD
 #include <ap_int.h>
@@ -272,10 +269,6 @@ static void mpc_fpga_compute_core(fp_QP_t ey,
                                   int32_t *out_accel,
                                   int32_t *out_status,
                                   int32_t *out_iters) {
-#ifdef MPC_RUNTIME_TUNE
-  mpc_runtime_init_once();
-#endif
-
   if (!out_steering || !out_accel || !out_status || !out_iters)
     return;
 

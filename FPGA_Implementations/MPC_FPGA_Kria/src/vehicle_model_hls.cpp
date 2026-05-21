@@ -86,7 +86,6 @@ static void fp_frenet_rows01_fn(fp_FN_t sin_epsi, fp_FN_t cos_epsi, fp_FN_t vx,
                                 fp_FN_t *A03, fp_FN_t *A10, fp_FN_t *A11,
                                 fp_FN_t *A12) {
 #pragma HLS INLINE off
-MPC_HLS_PIPELINE(1)
   /* Frenet error-kinematics Jacobian: geometric identities in the ACTUAL
    * speed, so use vx (not reference_velocity). Loss-of-rank safeguard: floor
    * vx at MIN_LIN_VEL so (e_y,e_psi) stays controllable as vx->0. Mirrors the
@@ -120,7 +119,6 @@ static void fp_slip_terms(fp_FN_t vy, fp_FN_t omega, fp_FN_t inv_vx,
                           fp_FN_t *front_num, fp_FN_t *rear_num,
                           fp_FN_t *front_ratio, fp_FN_t *rear_ratio) {
 #pragma HLS INLINE off
-MPC_HLS_PIPELINE(1)
   fp_FN_t lf_omega_local = fp_mul_fn(VP_FN_LF, omega);
   fp_FN_t lr_omega_local = fp_mul_fn(VP_FN_LR, omega);
   fp_FN_t front_num_local = vy + lf_omega_local;
@@ -139,7 +137,6 @@ static void fp_front_force_jacobians_fn(fp_FN_t C_eff_f, fp_FN_t front_num,
                                         fp_FN_t *dFyf_dvx, fp_FN_t *dFyf_dvy,
                                         fp_FN_t *dFyf_dom) {
 #pragma HLS INLINE off
-MPC_HLS_PIPELINE(1)
   fp_FN_t vx_inv = fp_mul_fn(vx_safe, inv_D_f);
   fp_FN_t daf_dvx = fp_mul_fn(front_num, inv_D_f);
   fp_FN_t daf_dvy = -vx_inv;
@@ -155,7 +152,6 @@ static void fp_rear_force_jacobians_fn(fp_FN_t C_eff_r, fp_FN_t rear_num,
                                        fp_FN_t *dFyr_dvx, fp_FN_t *dFyr_dvy,
                                        fp_FN_t *dFyr_dom) {
 #pragma HLS INLINE off
-MPC_HLS_PIPELINE(1)
   fp_FN_t vx_inv = fp_mul_fn(vx_safe, inv_D_r);
   fp_FN_t dar_dvx = fp_mul_fn(rear_num, inv_D_r);
   fp_FN_t dar_dvy = -vx_inv;
@@ -172,7 +168,6 @@ static void fp_rollout_from_forces_fn(
     fp_FN_t cos_delta, fp_FN_t *next_ey, fp_FN_t *next_epsi,
     fp_FN_t *next_vx, fp_FN_t *next_vy, fp_FN_t *next_omega) {
 #pragma HLS INLINE off
-MPC_HLS_PIPELINE(1)
 
   fp_FN_t ey_denom = FP_FN_ONE - fp_mul_fn(kappa, ey);
   if (fp_abs_fn(ey_denom) < VP_FN_RECIP_EPS) {
@@ -271,7 +266,6 @@ static void compute_front_tire_path_fn(fp_FN_t delta_fn, fp_FN_t front_ratio,
                                        bool low_speed,
                                        FrontTirePathResults *out) {
 #pragma HLS INLINE off
-MPC_HLS_PIPELINE(1)
   fp_FN_t alpha = delta_fn - fp_atan_lut_fn(front_ratio);
 
   fp_FN_t Ba_f_fn = fp_mul_fn(FP_FN_CONST(MPC_FPGA_B_FRONT), alpha);
@@ -305,7 +299,6 @@ static void compute_rear_tire_path_fn(fp_FN_t rear_ratio, fp_FN_t D_transfer,
                                       fp_FN_t D_r_fn, bool low_speed,
                                       RearTirePathResults *out) {
 #pragma HLS INLINE off
-MPC_HLS_PIPELINE(1)
   fp_FN_t alpha = -fp_atan_lut_fn(rear_ratio);
 
   fp_FN_t Ba_r_fn = fp_mul_fn(FP_FN_CONST(MPC_FPGA_B_REAR), alpha);

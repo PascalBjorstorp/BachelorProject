@@ -11,10 +11,6 @@
 #include "fp_math_hls.h"
 #include "riccati_solver_hls.h"
 
-#ifdef MPC_RUNTIME_TUNE
-#include "mpc_runtime_tune.h"
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -131,20 +127,6 @@ static MpcConfiguration_t g_mpc_cpu_compat_cfg = {
 static float g_mpc_cpu_compat_actual_steering = 0.0f;
 static float g_mpc_cpu_compat_prev_accel = 0.0f;
 
-static inline void mpc_cpu_compat_set_env_double(const char *name, double value)
-{
-    char buffer[64];
-    snprintf(buffer, sizeof(buffer), "%.17g", value);
-    setenv(name, buffer, 1);
-}
-
-static inline void mpc_cpu_compat_set_env_int(const char *name, int value)
-{
-    char buffer[32];
-    snprintf(buffer, sizeof(buffer), "%d", value);
-    setenv(name, buffer, 1);
-}
-
 static inline MpcConfiguration_t mpc_cpu_compat_default_config(void)
 {
     MpcConfiguration_t cfg;
@@ -197,30 +179,6 @@ static inline void mpc_set_configuration(const MpcConfiguration_t *cfg)
     }
 
     g_mpc_cpu_compat_cfg = *cfg;
-
-    mpc_cpu_compat_set_env_double("PRED_DT", (double)cfg->time_step);
-    mpc_cpu_compat_set_env_double("Q_LAT", (double)cfg->weight_lateral_error);
-    mpc_cpu_compat_set_env_double("Q_HDG", (double)cfg->weight_heading_error);
-    mpc_cpu_compat_set_env_double("Q_VEL", (double)cfg->weight_velocity);
-    mpc_cpu_compat_set_env_double("Q_LAT_VEL", (double)cfg->weight_lateral_velocity);
-    mpc_cpu_compat_set_env_double("Q_YAW", (double)cfg->weight_yaw_rate);
-    mpc_cpu_compat_set_env_double("R_STEER", (double)cfg->weight_steering_effort);
-    mpc_cpu_compat_set_env_double("R_ACCEL", (double)cfg->weight_acceleration_effort);
-    mpc_cpu_compat_set_env_double("W_JERK", (double)cfg->weight_steering_rate);
-    mpc_cpu_compat_set_env_double("W_ACCEL_RATE", (double)cfg->weight_acceleration_rate);
-    mpc_cpu_compat_set_env_double("W_DELTA_ACT", (double)cfg->weight_delta_actual);
-    mpc_cpu_compat_set_env_double("WALL_MARGIN", (double)cfg->wall_margin);
-    mpc_cpu_compat_set_env_int("MAX_ITER", (int)cfg->max_solver_iterations);
-    mpc_cpu_compat_set_env_double("TOL", (double)cfg->solver_convergence_tolerance);
-    /* Do not override RHO/RHO_U here.
-     * Keep parity with CPU path where ADMM penalties are read directly from
-     * environment (or solver defaults) at solve time. */
-#ifdef MPC_RUNTIME_TUNE
-    mpc_runtime_reload_from_env();
-#endif
-    
-    /* Note: Runtime horizon control disabled. Horizon is compile-time only.
-     * All internal arrays are fixed-size for HLS synthesis. */  
 }
 
 static inline void mpc_set_actual_previous_control(const ControlInput_t *ctrl)

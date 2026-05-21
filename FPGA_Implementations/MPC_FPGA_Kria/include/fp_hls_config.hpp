@@ -1,35 +1,73 @@
 /**
- * @file fp_width_probe.hpp
- * @brief Empirical bit-width / range probe for evidence-based fixed-point sizing.
+ * @file fp_hls_config.hpp
+ * @brief Merged HLS build controls: pragma ablation, width profiles, and probes.
  *
- * Purpose
- * -------
- * Every configurable width and guard constant in fp_types_hls.hpp is sized
- * BELOW the algebraic worst case on purpose. To justify each chosen width in
- * the report, this probe instruments the canonical chokepoints:
- *
- *   - product sites (one per fp_mul_*): the untruncated product magnitude,
- *     reconstructed from the raw operands -> justifies each *_GUARD.
- *   - sum/accumulator sites (the adder-tree helpers + true widest use)
- *     -> justifies each fp_sum*_* width.
- *   - store sites (one per family raw_from helper): the stored value
- *     magnitude -> justifies each family WIDTH / INT_BITS.
- *
- * For every site it tracks, across an entire replay run, the maximum signed
- * two's-complement bit-width and the maximum |value| observed, plus the
- * algebraic worst-case width and the currently chosen width. At exit it
- * prints a human table AND (if FP_WPROBE_CSV is set) appends one machine
- * row per site tagged with FP_WPROBE_LABEL, so a driver can aggregate the
- * same sites across multiple bags into one report.
- *
- * Inert unless FP_WIDTH_PROBE is defined; never active under HLS synthesis.
- *
- * Driver: tools/mpc_replay/run_width_report.sh (multi-bag) /
- *         tools/mpc_replay/run_width_probe.sh   (single quick run).
+ * This file is intentionally multi-include. The profile/ablation section is
+ * always available; the width-probe section is only emitted when the includer
+ * defines `FP_HLS_CONFIG_INCLUDE_PROBE` before including this file.
  */
 
-#ifndef FP_WIDTH_PROBE_HPP
-#define FP_WIDTH_PROBE_HPP
+#ifndef FP_HLS_CONFIG_PROFILE_SECTION
+#define FP_HLS_CONFIG_PROFILE_SECTION
+
+/* Pragma ablation switches for the MPC FPGA build.
+ *
+ * The PIPELINE and UNROLL pragmas in src/ and include/fp_math_hls.h are
+ * routed through these macros so a single dial flips a whole class of
+ * directives without removing any pragma from the source tree.
+ */
+#define MPC_HLS_ABLATION_BASELINE    0
+#define MPC_HLS_ABLATION_UNROLL_ONLY 1
+#define MPC_HLS_ABLATION_SEQUENTIAL  2
+
+#ifndef MPC_HLS_ABLATION_MODE
+#define MPC_HLS_ABLATION_MODE MPC_HLS_ABLATION_BASELINE
+#endif
+
+#define MPC_HLS_STR_(x) #x
+#define MPC_HLS_XSTR_(x) MPC_HLS_STR_(x)
+
+#if MPC_HLS_ABLATION_MODE >= MPC_HLS_ABLATION_UNROLL_ONLY
+#define MPC_HLS_PIPELINE(N) _Pragma("HLS PIPELINE off")
+#else
+#define MPC_HLS_PIPELINE(N) _Pragma(MPC_HLS_XSTR_(HLS PIPELINE II = N))
+#endif
+
+#if MPC_HLS_ABLATION_MODE >= MPC_HLS_ABLATION_SEQUENTIAL
+#define MPC_HLS_UNROLL() _Pragma("HLS UNROLL factor=1")
+#define MPC_HLS_UNROLL_FACTOR(N) _Pragma("HLS UNROLL factor=1")
+#else
+#define MPC_HLS_UNROLL() _Pragma("HLS UNROLL")
+#define MPC_HLS_UNROLL_FACTOR(N) _Pragma(MPC_HLS_XSTR_(HLS UNROLL factor = N))
+#endif
+
+/* Width profile selector for non-store intermediate/product/sum families.
+ *
+ * QP transport/store remains fixed to the external 32-bit payload format.
+ * Other stored families may optionally be widened with MPC_HLS_STORE_WIDTH_PAD.
+ */
+#define MPC_HLS_PROFILE_PLUS1 1
+#define MPC_HLS_PROFILE_PLUS4 4
+#define MPC_HLS_PROFILE_PLUS8 8
+#define MPC_HLS_PROFILE_WORST (-1)
+
+#define MPC_HLS_STORE_PAD_EXACT 0
+#define MPC_HLS_STORE_PAD_PLUS1 1
+#define MPC_HLS_STORE_PAD_PLUS4 4
+
+#ifndef MPC_HLS_WIDTH_PROFILE
+#define MPC_HLS_WIDTH_PROFILE MPC_HLS_PROFILE_PLUS1
+#endif
+
+#ifndef MPC_HLS_STORE_WIDTH_PAD
+#define MPC_HLS_STORE_WIDTH_PAD MPC_HLS_STORE_PAD_EXACT
+#endif
+
+#endif /* FP_HLS_CONFIG_PROFILE_SECTION */
+
+#ifdef FP_HLS_CONFIG_INCLUDE_PROBE
+#ifndef FP_HLS_CONFIG_PROBE_SECTION
+#define FP_HLS_CONFIG_PROBE_SECTION
 
 #if defined(FP_WIDTH_PROBE) && !defined(__SYNTHESIS__)
 
@@ -47,19 +85,17 @@
 #define FP_WP_AW_FN   (2 * MPC_HLS_FN_WIDTH)
 
 enum FpWidthProbeId {
-  /* ---- product (guard) sites ---- */
-  FP_WP_QP_MUL = 0,     /* QP_raw*QP_raw   -> fp_QP_mul_t            */
-  FP_WP_P_QP_MUL,       /* P_raw*QP_raw    -> fp_P_QP_mul_t         */
-  FP_WP_MG_QP_MUL,      /* MG_raw*QP_raw   -> fp_MG_QP_mul_t        */
-  FP_WP_MG_K_MUL,       /* MG_raw*K_raw    -> fp_MG_K_mul_t         */
-  FP_WP_K_QP_MUL,       /* K_raw*QP_raw    -> fp_K_QP_mul_t         */
-  FP_WP_FN_MUL,         /* FN*FN           -> fp_fn_accum_t         */
-  /* ---- sum / accumulator sites ---- */
+  FP_WP_QP_MUL = 0,
+  FP_WP_P_QP_MUL,
+  FP_WP_MG_QP_MUL,
+  FP_WP_MG_K_MUL,
+  FP_WP_K_QP_MUL,
+  FP_WP_FN_MUL,
   FP_WP_SUM2_QP_RAW,
   FP_WP_SUM4_QP_RAW,
   FP_WP_SUM8_QP_RAW,
-  FP_WP_SUM6_QP,        /* sum6_QP_raw tree only                   */
-  FP_WP_SUM6_QP_ACC,    /* TRUE fp_sum6_QP_mul_t widest use         */
+  FP_WP_SUM6_QP,
+  FP_WP_SUM6_QP_ACC,
   FP_WP_SUM2_P_RAW,
   FP_WP_SUM6_P_QP,
   FP_WP_SUM2_P_QP,
@@ -80,41 +116,37 @@ enum FpWidthProbeId {
   FP_WP_QP_RECIP_SHIFT,
   FP_WP_FN_RECIP_SHIFT,
   FP_WP_QP_DET_MUL,
-  /* ---- single cast-product (must also fit the sum type) ---- */
   FP_WP_QP_ITEM,
   FP_WP_P_QP_ITEM,
   FP_WP_P_MIX_ITEM,
   FP_WP_MG_QP_ITEM,
   FP_WP_K_QP_ITEM,
-  /* ---- store (family WIDTH / INT_BITS) sites ---- */
-  FP_WP_QP_STORE,       /* fp_QP_t  raw value  -> MPC_HLS_QP_WIDTH  */
-  FP_WP_FN_STORE,       /* fp_FN_t                MPC_HLS_FN_WIDTH  */
-  FP_WP_P_STORE,        /* fp_P_t                 MPC_HLS_P_WIDTH   */
-  FP_WP_MG_STORE,       /* fp_MG_t                MPC_HLS_MG_WIDTH  */
-  FP_WP_K_STORE,        /* fp_K_t                 MPC_HLS_K_WIDTH   */
+  FP_WP_QP_STORE,
+  FP_WP_FN_STORE,
+  FP_WP_P_STORE,
+  FP_WP_MG_STORE,
+  FP_WP_K_STORE,
   FP_WP_COUNT
 };
 
 struct FpWidthProbeSlot {
-  const char *name;     /* report row label                       */
-  const char *kind;     /* "MUL" | "SUM" | "ITEM" | "STORE"        */
-  int max_width;        /* max signed two's-complement bits seen   */
-  long long max_abs;    /* max |value| seen (raw LSBs)             */
-  int algebraic_worst;  /* worst-case width (0 = data-bounded)     */
-  int chosen_width;     /* width actually used by the typedef      */
+  const char *name;
+  const char *kind;
+  int max_width;
+  long long max_abs;
+  int algebraic_worst;
+  int chosen_width;
   unsigned long long samples;
-  /* ---- STORE-only family-width decomposition (0 for non-store) ---- */
-  int frac_bits;            /* family fractional bits (resolution)  */
-  int int_bits_used;        /* signed bits of the integer part used */
-  int min_trailing_zeros;   /* min trailing-zero bits over nonzero  */
-  unsigned long long min_nz_abs;  /* smallest nonzero |raw| seen    */
-  unsigned long long nz_samples;  /* count of nonzero samples       */
+  int frac_bits;
+  int int_bits_used;
+  int min_trailing_zeros;
+  unsigned long long min_nz_abs;
+  unsigned long long nz_samples;
 };
 
 inline void fp_width_probe_print();
 
 inline FpWidthProbeSlot *fp_width_probe_table() {
-  /* {name, kind, max_w, max_abs, algebraic_worst, chosen_width, samples} */
   static FpWidthProbeSlot t[FP_WP_COUNT] = {
     {"QP_MUL    fp_QP_mul_t",        "MUL", 0,0, FP_WP_AW_QP,   MPC_HLS_QP_WIDTH+MPC_HLS_QP_GUARD, 0},
     {"P_QP_MUL  fp_P_QP_mul_t",      "MUL", 0,0, FP_WP_AW_P_QP, MPC_HLS_P_WIDTH+MPC_HLS_P_QP_GUARD, 0},
@@ -169,46 +201,51 @@ inline void fp_width_probe_register_once() {
   }
 }
 
-/* Minimal signed two's-complement bit-width that holds v. */
 inline int fp_width_probe_signed_bits(__int128 v) {
   unsigned __int128 mag = (v < 0) ? (unsigned __int128)(~v) : (unsigned __int128)v;
   int bits = 0;
-  while (mag) { ++bits; mag >>= 1; }
-  return bits + 1; /* + sign bit */
+  while (mag) {
+    ++bits;
+    mag >>= 1;
+  }
+  return bits + 1;
 }
 
 inline void fp_width_probe_print() {
   FpWidthProbeSlot *t = fp_width_probe_table();
   const char *label = std::getenv("FP_WPROBE_LABEL");
-  if (!label) label = "run";
+  if (!label)
+    label = "run";
 
   std::fprintf(stderr,
-    "\n=============== FP WIDTH PROBE SUMMARY [%s] ===============\n", label);
+               "\n=============== FP WIDTH PROBE SUMMARY [%s] ===============\n",
+               label);
   std::fprintf(stderr, "%-26s %-6s %8s %8s %8s %8s %14s\n",
-    "site", "kind", "obs_bits", "worst", "chosen", "margin", "samples");
+               "site", "kind", "obs_bits", "worst", "chosen", "margin",
+               "samples");
   for (int i = 0; i < FP_WP_COUNT; ++i) {
-    int margin = t[i].chosen_width - t[i].max_width;       /* spare bits */
+    int margin = t[i].chosen_width - t[i].max_width;
     std::fprintf(stderr, "%-26s %-6s %8d %8d %8d %8d %14llu\n",
-      t[i].name, t[i].kind, t[i].max_width,
-      t[i].algebraic_worst, t[i].chosen_width, margin, t[i].samples);
+                 t[i].name, t[i].kind, t[i].max_width,
+                 t[i].algebraic_worst, t[i].chosen_width, margin,
+                 t[i].samples);
   }
   std::fprintf(stderr,
-    "obs_bits = max signed bits observed; worst = algebraic worst case "
-    "(0 = data-bounded store);\nchosen = typedef width; margin = chosen - "
-    "observed (>=1 required for safety).\n"
-    "==================================================================\n\n");
+               "obs_bits = max signed bits observed; worst = algebraic worst case "
+               "(0 = data-bounded store);\nchosen = typedef width; margin = chosen - "
+               "observed (>=1 required for safety).\n"
+               "==================================================================\n\n");
 
-  /* Machine-readable append for multi-bag aggregation. */
   const char *csv = std::getenv("FP_WPROBE_CSV");
   if (csv) {
     std::FILE *f = std::fopen(csv, "a");
     if (f) {
       for (int i = 0; i < FP_WP_COUNT; ++i) {
         std::fprintf(f, "%s,%s,%s,%d,%lld,%d,%d,%llu,%d,%d,%d,%llu,%llu\n",
-          label, t[i].name, t[i].kind, t[i].max_width, t[i].max_abs,
-          t[i].algebraic_worst, t[i].chosen_width, t[i].samples,
-          t[i].frac_bits, t[i].int_bits_used, t[i].min_trailing_zeros,
-          t[i].min_nz_abs, t[i].nz_samples);
+                     label, t[i].name, t[i].kind, t[i].max_width,
+                     t[i].max_abs, t[i].algebraic_worst, t[i].chosen_width,
+                     t[i].samples, t[i].frac_bits, t[i].int_bits_used,
+                     t[i].min_trailing_zeros, t[i].min_nz_abs, t[i].nz_samples);
       }
       std::fclose(f);
     }
@@ -219,35 +256,38 @@ inline void fp_width_probe_record(int id, __int128 wide_value) {
   fp_width_probe_register_once();
   FpWidthProbeSlot *t = fp_width_probe_table();
   int w = fp_width_probe_signed_bits(wide_value);
-  if (w > t[id].max_width) t[id].max_width = w;
+  if (w > t[id].max_width)
+    t[id].max_width = w;
   long long a = (long long)(wide_value < 0 ? -wide_value : wide_value);
-  if (a > t[id].max_abs) t[id].max_abs = a;
+  if (a > t[id].max_abs)
+    t[id].max_abs = a;
   ++t[id].samples;
 }
 
-/* STORE recorder: decomposes a stored fixed-point raw code into the
- * INTEGER bits actually needed (dynamic range, vs INT_BITS) and the
- * FRACTIONAL bits actually exercised (resolution, vs FRAC_BITS). The
- * deepest fractional bit ever set = frac - min_trailing_zeros: any
- * trailing-zero bits common to every nonzero sample are fractional
- * resolution the format provides but the data never uses. */
 inline void fp_width_probe_record_store(int id, long long raw, int frac) {
   fp_width_probe_register_once();
   FpWidthProbeSlot *t = fp_width_probe_table();
   t[id].frac_bits = frac;
   ++t[id].samples;
   int w = fp_width_probe_signed_bits((__int128)raw);
-  if (w > t[id].max_width) t[id].max_width = w;
-  unsigned long long a =
-      (unsigned long long)(raw < 0 ? -raw : raw);
-  if ((long long)a > t[id].max_abs) t[id].max_abs = (long long)a;
-  if (a == 0ULL) return; /* zero says nothing about range or resolution */
-  unsigned long long ip = a >> frac;          /* integer-part magnitude */
-  int ib = 1;                                 /* sign bit               */
-  while (ip) { ++ib; ip >>= 1; }
-  if (ib > t[id].int_bits_used) t[id].int_bits_used = ib;
+  if (w > t[id].max_width)
+    t[id].max_width = w;
+  unsigned long long a = (unsigned long long)(raw < 0 ? -raw : raw);
+  if ((long long)a > t[id].max_abs)
+    t[id].max_abs = (long long)a;
+  if (a == 0ULL)
+    return;
+  unsigned long long ip = a >> frac;
+  int ib = 1;
+  while (ip) {
+    ++ib;
+    ip >>= 1;
+  }
+  if (ib > t[id].int_bits_used)
+    t[id].int_bits_used = ib;
   int tz = 0;
-  while (((a >> tz) & 1ULL) == 0ULL) ++tz;     /* a != 0 here            */
+  while (((a >> tz) & 1ULL) == 0ULL)
+    ++tz;
   if (t[id].nz_samples == 0 || tz < t[id].min_trailing_zeros)
     t[id].min_trailing_zeros = tz;
   if (t[id].nz_samples == 0 || a < t[id].min_nz_abs)
@@ -256,28 +296,15 @@ inline void fp_width_probe_record_store(int id, long long raw, int frac) {
 }
 
 #define FP_WPROBE(id, wide_value) fp_width_probe_record((id), (__int128)(wide_value))
-#define FP_WPROBE_STORE(id, raw, frac)                                         \
+#define FP_WPROBE_STORE(id, raw, frac) \
   fp_width_probe_record_store((id), (long long)(raw), (int)(frac))
-/* Per-input magnitude: records max bit-width across all 6/8 cast products. */
-#define FP_WPROBE6(id, a0, a1, a2, a3, a4, a5)                                  \
-  do {                                                                         \
-    FP_WPROBE(id, (a0).to_int64());  FP_WPROBE(id, (a1).to_int64());            \
-    FP_WPROBE(id, (a2).to_int64());  FP_WPROBE(id, (a3).to_int64());            \
-    FP_WPROBE(id, (a4).to_int64());  FP_WPROBE(id, (a5).to_int64());            \
-  } while (0)
-#define FP_WPROBE8(id, a0, a1, a2, a3, a4, a5, a6, a7)                          \
-  do {                                                                         \
-    FP_WPROBE6(id, a0, a1, a2, a3, a4, a5);                                     \
-    FP_WPROBE(id, (a6).to_int64());  FP_WPROBE(id, (a7).to_int64());            \
-  } while (0)
 
-#else /* probe disabled: zero cost, synthesis-safe */
+#else
 
-#define FP_WPROBE(id, wide_value) ((void)0)
-#define FP_WPROBE_STORE(id, raw, frac) ((void)0)
-#define FP_WPROBE6(id, a0, a1, a2, a3, a4, a5) ((void)0)
-#define FP_WPROBE8(id, a0, a1, a2, a3, a4, a5, a6, a7) ((void)0)
+#define FP_WPROBE(id, wide_value) do { (void)(id); (void)(wide_value); } while (0)
+#define FP_WPROBE_STORE(id, raw, frac) do { (void)(id); (void)(raw); (void)(frac); } while (0)
 
-#endif
+#endif /* defined(FP_WIDTH_PROBE) && !defined(__SYNTHESIS__) */
 
-#endif /* FP_WIDTH_PROBE_HPP */
+#endif /* FP_HLS_CONFIG_PROBE_SECTION */
+#endif /* FP_HLS_CONFIG_INCLUDE_PROBE */

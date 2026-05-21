@@ -23,7 +23,7 @@
  *
  * @dependencies mpc_cpu_compat.h, <stdio.h>, <stdlib.h>, <string.h>, <math.h>, <time.h>
     set -e
-    g++ -O2 -I../include -I/home/akselmo/Vivado_program/2025.2/Vitis/include -Wno-unknown-pragmas test_fpga_csim_drive.cpp ../src/fp_math_hls.cpp ../src/vehicle_model_hls.cpp ../src/riccati_solver_hls.cpp ../src/mpc_riccati_hls.cpp ../src/mpc_fpga_top.cpp ../src/mpc_runtime_tune.cpp -lm -o test_fpga_csim_drive 
+    g++ -O2 -I../include -I/home/akselmo/Vivado_program/2025.2/Vitis/include -Wno-unknown-pragmas test_fpga_csim_drive.cpp ../src/fp_math_hls.cpp ../src/vehicle_model_hls.cpp ../src/riccati_solver_hls.cpp ../src/mpc_riccati_hls.cpp ../src/mpc_fpga_top.cpp -lm -o test_fpga_csim_drive 
     ./test_fpga_csim_drive
 */
 
