@@ -12,15 +12,17 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
+    ExecuteProcess,
     IncludeLaunchDescription,
     OpaqueFunction,
     RegisterEventHandler,
     SetEnvironmentVariable,
     Shutdown,
+    TimerAction,
 )
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import LifecycleNode, Node
 from launch_ros.parameter_descriptions import ParameterValue
 
@@ -275,6 +277,8 @@ def _launch_setup(context, *args, **kwargs):
             'max_particles': _int_config('amcl_max_particles'),
             'max_beams': _int_config('amcl_max_beams'),
             'use_kld_sampling': _bool_config('amcl_use_kld'),
+            'kld_epsilon': _float_config('amcl_kld_epsilon'),
+            'kld_z': _float_config('amcl_kld_z'),
             'update_min_d': _float_config('amcl_update_min_d'),
             'update_min_a': _float_config('amcl_update_min_a'),
             'cloud_publish_rate': _float_config('amcl_cloud_publish_rate'),
@@ -320,6 +324,36 @@ def _launch_setup(context, *args, **kwargs):
             )
         )
     else:
+        global_init_value = LaunchConfiguration('amcl_global_initialization').perform(context)
+        nav2_global_initialization = str(global_init_value).strip().lower() in ('true', '1', 'yes')
+        nav2_amcl_overrides = {
+            'use_sim_time': _bool_config('use_sim_time'),
+            'min_particles': _int_config('amcl_min_particles'),
+            'max_particles': _int_config('amcl_max_particles'),
+            'max_beams': _int_config('amcl_max_beams'),
+            'pf_err': _float_config('amcl_kld_epsilon'),
+            'pf_z': _float_config('amcl_kld_z'),
+            'update_min_d': _float_config('amcl_update_min_d'),
+            'update_min_a': _float_config('amcl_update_min_a'),
+            'alpha1': _float_config('amcl_alpha1'),
+            'alpha2': _float_config('amcl_alpha2'),
+            'alpha3': _float_config('amcl_alpha3'),
+            'alpha4': _float_config('amcl_alpha4'),
+            'z_hit': _float_config('amcl_z_hit'),
+            'z_rand': _float_config('amcl_z_rand'),
+            'sigma_hit': _float_config('amcl_sigma_hit'),
+            'tf_broadcast': False,
+            'always_reset_initial_pose': not nav2_global_initialization,
+            'set_initial_pose': not nav2_global_initialization,
+        }
+        if not nav2_global_initialization:
+            nav2_amcl_overrides.update({
+                'initial_pose.x': _float_config('initial_pose_x'),
+                'initial_pose.y': _float_config('initial_pose_y'),
+                'initial_pose.z': 0.0,
+                'initial_pose.yaw': _float_config('initial_pose_yaw'),
+            })
+
         actions.extend([
             LifecycleNode(
                 package='nav2_amcl',
@@ -327,23 +361,16 @@ def _launch_setup(context, *args, **kwargs):
                 name='amcl',
                 namespace='/',
                 output='screen',
+                prefix=PythonExpression([
+                    "'taskset -c ",
+                    LaunchConfiguration('nav2_amcl_cpu_core'),
+                    "' if '",
+                    LaunchConfiguration('nav2_amcl_cpu_core'),
+                    "' else ''",
+                ]),
                 parameters=[
                     nav2_params,
-                    {
-                        'use_sim_time': _bool_config('use_sim_time'),
-                        'min_particles': _int_config('amcl_min_particles'),
-                        'max_particles': _int_config('amcl_max_particles'),
-                        'max_beams': _int_config('amcl_max_beams'),
-                        'update_min_d': _float_config('amcl_update_min_d'),
-                        'update_min_a': _float_config('amcl_update_min_a'),
-                        'tf_broadcast': False,
-                        'always_reset_initial_pose': True,
-                        'set_initial_pose': True,
-                        'initial_pose.x': _float_config('initial_pose_x'),
-                        'initial_pose.y': _float_config('initial_pose_y'),
-                        'initial_pose.z': 0.0,
-                        'initial_pose.yaw': _float_config('initial_pose_yaw'),
-                    },
+                    nav2_amcl_overrides,
                 ],
             ),
             Node(
@@ -359,6 +386,23 @@ def _launch_setup(context, *args, **kwargs):
                 }],
             ),
         ])
+        if nav2_global_initialization:
+            actions.append(TimerAction(
+                period=LaunchConfiguration('nav2_global_init_delay_sec'),
+                actions=[
+                    ExecuteProcess(
+                        cmd=[
+                            'ros2',
+                            'service',
+                            'call',
+                            '/reinitialize_global_localization',
+                            'std_srvs/srv/Empty',
+                            '{}',
+                        ],
+                        output='screen',
+                    ),
+                ],
+            ))
 
     logger_node = Node(
         package='f1tenth_localization',
@@ -434,11 +478,13 @@ def generate_launch_description():
         DeclareLaunchArgument('lateral_planner_avoidance_enabled',
                               default_value='false'),
         DeclareLaunchArgument('mpc_verbose', default_value='0'),
-        DeclareLaunchArgument('amcl_num_particles', default_value='1000'),
-        DeclareLaunchArgument('amcl_min_particles', default_value='1000'),
-        DeclareLaunchArgument('amcl_max_particles', default_value='1000'),
+        DeclareLaunchArgument('amcl_num_particles', default_value='2000'),
+        DeclareLaunchArgument('amcl_min_particles', default_value='600'),
+        DeclareLaunchArgument('amcl_max_particles', default_value='2000'),
         DeclareLaunchArgument('amcl_max_beams', default_value='270'),
         DeclareLaunchArgument('amcl_use_kld', default_value='false'),
+        DeclareLaunchArgument('amcl_kld_epsilon', default_value='0.02'),
+        DeclareLaunchArgument('amcl_kld_z', default_value='1.96'),
         DeclareLaunchArgument('amcl_cloud_publish_rate', default_value='0.1'),
         DeclareLaunchArgument('amcl_normalize_likelihood_by_beams', default_value='true'),
         DeclareLaunchArgument('amcl_likelihood_scale', default_value='0.75'),
@@ -449,17 +495,19 @@ def generate_launch_description():
         DeclareLaunchArgument('amcl_cluster_min_covariance', default_value='0.0001'),
         DeclareLaunchArgument('amcl_cluster_publish_min_weight', default_value='0.60'),
         DeclareLaunchArgument('amcl_debug_pre_resample_particles', default_value='false'),
-        DeclareLaunchArgument('amcl_global_initialization', default_value='true'),
-        DeclareLaunchArgument('amcl_update_min_d', default_value='0.0'),
-        DeclareLaunchArgument('amcl_update_min_a', default_value='0.0'),
+        DeclareLaunchArgument('amcl_global_initialization', default_value='false'),
+        DeclareLaunchArgument('amcl_update_min_d', default_value='0.05'),
+        DeclareLaunchArgument('amcl_update_min_a', default_value='0.05'),
         DeclareLaunchArgument('amcl_alpha1', default_value='0.4'),
         DeclareLaunchArgument('amcl_alpha2', default_value='0.4'),
         DeclareLaunchArgument('amcl_alpha3', default_value='0.2'),
         DeclareLaunchArgument('amcl_alpha4', default_value='0.2'),
         DeclareLaunchArgument('amcl_z_hit', default_value='0.95'),
         DeclareLaunchArgument('amcl_z_rand', default_value='0.05'),
-        DeclareLaunchArgument('amcl_sigma_hit', default_value='0.06'),
+        DeclareLaunchArgument('amcl_sigma_hit', default_value='0.10'),
         DeclareLaunchArgument('amcl_resample_threshold', default_value='0.3'),
+        DeclareLaunchArgument('nav2_amcl_cpu_core', default_value='3'),
+        DeclareLaunchArgument('nav2_global_init_delay_sec', default_value='2.0'),
         DeclareLaunchArgument('ekf_transform_tolerance', default_value='0.02'),
         DeclareLaunchArgument('ekf_process_noise_scale', default_value='5.0'),
         DeclareLaunchArgument('monitor_print_every', default_value='40'),

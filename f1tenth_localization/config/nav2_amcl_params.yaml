@@ -5,7 +5,8 @@
 #
 # Aligned with config/gpu_amcl_cpp_params.yaml where Nav2 AMCL exposes
 # equivalent parameters. GPU-only features such as roughening, scan-age
-# rejection, and slip-aware noise scaling have no direct Nav2 parameter.
+# rejection, fixed num_particles, and slip-aware noise scaling have no direct
+# Nav2 parameter.
 
 amcl:
   ros__parameters:
@@ -27,10 +28,10 @@ amcl:
     map_topic: "/map"
 
     # Particle filter
-    min_particles: 1000
-    max_particles: 1000
+    min_particles: 600
+    max_particles: 2000
     pf_err: 0.02
-    pf_z: 0.99
+    pf_z: 1.96
     recovery_alpha_fast: 0.0
     recovery_alpha_slow: 0.0
     resample_interval: 1
@@ -42,7 +43,7 @@ amcl:
     z_rand: 0.05
     z_max: 0.0
     z_short: 0.0
-    sigma_hit: 0.06
+    sigma_hit: 0.10
     lambda_short: 0.1
     laser_likelihood_max_dist: 2.0
     laser_min_range: -1.0
@@ -53,13 +54,13 @@ amcl:
     beam_skip_error_threshold: 0.9
 
     # Match the custom AMCL test mode: process every scan by default.
-    update_min_d: 0.0
-    update_min_a: 0.0
+    update_min_d: 0.05
+    update_min_a: 0.05
 
     # Publishing / lifecycle
     tf_broadcast: true
     transform_tolerance: 0.02
-    save_pose_rate: 0.5
+    save_pose_rate: 1.0
     always_reset_initial_pose: false
     set_initial_pose: false
     initial_pose.x: 0.0

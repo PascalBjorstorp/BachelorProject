@@ -6,8 +6,8 @@ int main(int argc, char** argv) {
 
     auto node = std::make_shared<gpu_amcl_cpp::AmclNode>();
     
-    // MultiThreadedExecutor with 3 threads
-    // Allows scan_callback and odom_callback to run in parallel
+    // MultiThreadedExecutor with 2 threads.
+    // Allows scan_callback and odom_callback callback groups to both be serviced.
     rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
     executor.add_node(node);
     executor.spin();

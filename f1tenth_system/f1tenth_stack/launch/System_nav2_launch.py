@@ -8,17 +8,17 @@ adds:
   - nav2_amcl for /scan -> /amcl_pose
   - pipeline_latency_monitor + performance_monitor_cpp
 
-Nav2 AMCL receives a fixed initial pose at map (0, 0, 0) by default.
+Nav2 AMCL is pinned to one CPU core and starts with global localization.
 """
 
 import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, TimerAction
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import LifecycleNode, Node
 from launch_ros.parameter_descriptions import ParameterValue
 
@@ -121,13 +121,18 @@ def generate_launch_description():
             description='Path to Nav2 AMCL parameter file'),
 
         DeclareLaunchArgument(
+            'nav2_amcl_cpu_core',
+            default_value='3',
+            description='CPU core for Nav2 AMCL taskset pinning'),
+
+        DeclareLaunchArgument(
             'nav2_min_particles',
-            default_value='1000',
+            default_value='600',
             description='Nav2 AMCL minimum particle count'),
 
         DeclareLaunchArgument(
             'nav2_max_particles',
-            default_value='1000',
+            default_value='2000',
             description='Nav2 AMCL maximum particle count'),
 
         DeclareLaunchArgument(
@@ -137,33 +142,23 @@ def generate_launch_description():
 
         DeclareLaunchArgument(
             'nav2_update_min_d',
-            default_value='0.0',
+            default_value='0.05',
             description='Minimum translation before Nav2 AMCL filter update'),
 
         DeclareLaunchArgument(
             'nav2_update_min_a',
-            default_value='0.0',
+            default_value='0.05',
             description='Minimum rotation before Nav2 AMCL filter update'),
-
-        DeclareLaunchArgument(
-            'initial_pose_x',
-            default_value='0.0',
-            description='Initial AMCL pose x in map frame'),
-
-        DeclareLaunchArgument(
-            'initial_pose_y',
-            default_value='0.0',
-            description='Initial AMCL pose y in map frame'),
-
-        DeclareLaunchArgument(
-            'initial_pose_yaw',
-            default_value='0.0',
-            description='Initial AMCL yaw in map frame'),
 
         DeclareLaunchArgument(
             'start_nav2_delay_sec',
             default_value='3.0',
             description='Delay before starting Nav2 AMCL and EKF nodes'),
+
+        DeclareLaunchArgument(
+            'nav2_global_init_delay_sec',
+            default_value='2.0',
+            description='Delay after Nav2 AMCL start before global localization service call'),
 
         DeclareLaunchArgument(
             'use_pipeline_monitor',
@@ -222,6 +217,13 @@ def generate_launch_description():
                     name='amcl',
                     namespace='/',
                     output='screen',
+                    prefix=PythonExpression([
+                        "'taskset -c ",
+                        LaunchConfiguration('nav2_amcl_cpu_core'),
+                        "' if '",
+                        LaunchConfiguration('nav2_amcl_cpu_core'),
+                        "' else ''",
+                    ]),
                     parameters=[
                         LaunchConfiguration('nav2_amcl_params_file'),
                         {
@@ -238,15 +240,8 @@ def generate_launch_description():
                             'update_min_a': ParameterValue(
                                 LaunchConfiguration('nav2_update_min_a'), value_type=float),
                             'tf_broadcast': False,
-                            'always_reset_initial_pose': True,
-                            'set_initial_pose': True,
-                            'initial_pose.x': ParameterValue(
-                                LaunchConfiguration('initial_pose_x'), value_type=float),
-                            'initial_pose.y': ParameterValue(
-                                LaunchConfiguration('initial_pose_y'), value_type=float),
-                            'initial_pose.z': 0.0,
-                            'initial_pose.yaw': ParameterValue(
-                                LaunchConfiguration('initial_pose_yaw'), value_type=float),
+                            'always_reset_initial_pose': False,
+                            'set_initial_pose': False,
                         },
                     ],
                 ),
@@ -274,6 +269,23 @@ def generate_launch_description():
                         LaunchConfiguration('localization_params_file'),
                         {'use_sim_time': ParameterValue(
                             LaunchConfiguration('use_sim_time'), value_type=bool)},
+                    ],
+                ),
+
+                TimerAction(
+                    period=LaunchConfiguration('nav2_global_init_delay_sec'),
+                    actions=[
+                        ExecuteProcess(
+                            cmd=[
+                                'ros2',
+                                'service',
+                                'call',
+                                '/reinitialize_global_localization',
+                                'std_srvs/srv/Empty',
+                                '{}',
+                            ],
+                            output='screen',
+                        ),
                     ],
                 ),
             ],

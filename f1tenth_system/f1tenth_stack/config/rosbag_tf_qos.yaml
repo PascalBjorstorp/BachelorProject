@@ -76,6 +76,12 @@
   reliability: reliable
   durability: volatile
 
+/amcl_particle_count:
+  history: keep_last
+  depth: 50
+  reliability: reliable
+  durability: volatile
+
 /ackermann_cmd:
   history: keep_last
   depth: 100
@@ -92,6 +98,12 @@
   history: keep_last
   depth: 20
   reliability: reliable
+  durability: volatile
+
+/particle_cloud:
+  history: keep_last
+  depth: 20
+  reliability: best_effort
   durability: volatile
 
 /ego_racecar/odom:
