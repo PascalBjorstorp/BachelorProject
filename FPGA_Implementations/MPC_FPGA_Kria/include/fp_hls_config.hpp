@@ -69,13 +69,6 @@
 #ifndef FP_HLS_CONFIG_PROBE_SECTION
 #define FP_HLS_CONFIG_PROBE_SECTION
 
-#if defined(FP_WIDTH_PROBE) && !defined(__SYNTHESIS__)
-
-#include "mpc_fpga_constants.h"
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-
 /* Algebraic worst-case product widths (sum of raw operand widths). */
 #define FP_WP_AW_QP   (2 * MPC_HLS_QP_WIDTH)
 #define FP_WP_AW_P_QP (MPC_HLS_P_WIDTH + MPC_HLS_QP_WIDTH)
@@ -128,6 +121,13 @@ enum FpWidthProbeId {
   FP_WP_K_STORE,
   FP_WP_COUNT
 };
+
+#if defined(FP_WIDTH_PROBE) && !defined(__SYNTHESIS__)
+
+#include "mpc_fpga_constants.h"
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 
 struct FpWidthProbeSlot {
   const char *name;
@@ -298,11 +298,53 @@ inline void fp_width_probe_record_store(int id, long long raw, int frac) {
 #define FP_WPROBE(id, wide_value) fp_width_probe_record((id), (__int128)(wide_value))
 #define FP_WPROBE_STORE(id, raw, frac) \
   fp_width_probe_record_store((id), (long long)(raw), (int)(frac))
+#define FP_WPROBE6(id, a0, a1, a2, a3, a4, a5)                                \
+  do {                                                                         \
+    FP_WPROBE((id), (a0));                                                     \
+    FP_WPROBE((id), (a1));                                                     \
+    FP_WPROBE((id), (a2));                                                     \
+    FP_WPROBE((id), (a3));                                                     \
+    FP_WPROBE((id), (a4));                                                     \
+    FP_WPROBE((id), (a5));                                                     \
+  } while (0)
+#define FP_WPROBE8(id, a0, a1, a2, a3, a4, a5, a6, a7)                        \
+  do {                                                                         \
+    FP_WPROBE((id), (a0));                                                     \
+    FP_WPROBE((id), (a1));                                                     \
+    FP_WPROBE((id), (a2));                                                     \
+    FP_WPROBE((id), (a3));                                                     \
+    FP_WPROBE((id), (a4));                                                     \
+    FP_WPROBE((id), (a5));                                                     \
+    FP_WPROBE((id), (a6));                                                     \
+    FP_WPROBE((id), (a7));                                                     \
+  } while (0)
 
 #else
 
 #define FP_WPROBE(id, wide_value) do { (void)(id); (void)(wide_value); } while (0)
 #define FP_WPROBE_STORE(id, raw, frac) do { (void)(id); (void)(raw); (void)(frac); } while (0)
+#define FP_WPROBE6(id, a0, a1, a2, a3, a4, a5)                                \
+  do {                                                                         \
+    (void)(id);                                                                \
+    (void)(a0);                                                                \
+    (void)(a1);                                                                \
+    (void)(a2);                                                                \
+    (void)(a3);                                                                \
+    (void)(a4);                                                                \
+    (void)(a5);                                                                \
+  } while (0)
+#define FP_WPROBE8(id, a0, a1, a2, a3, a4, a5, a6, a7)                        \
+  do {                                                                         \
+    (void)(id);                                                                \
+    (void)(a0);                                                                \
+    (void)(a1);                                                                \
+    (void)(a2);                                                                \
+    (void)(a3);                                                                \
+    (void)(a4);                                                                \
+    (void)(a5);                                                                \
+    (void)(a6);                                                                \
+    (void)(a7);                                                                \
+  } while (0)
 
 #endif /* defined(FP_WIDTH_PROBE) && !defined(__SYNTHESIS__) */
 

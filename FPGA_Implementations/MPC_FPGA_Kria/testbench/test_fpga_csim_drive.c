@@ -59,7 +59,7 @@
 #define MAX_WAYPOINTS     2500
 #define MAX_STEERING      0.39 /* rad — calibrated limit (with polynomial servo correction) */
 #define MAX_VELOCITY      20.0   /* m/s */
-#define PHYSICAL_MAX_ACCEL 7.31  /* m/s² — bounded by mu*g */
+#define PHYSICAL_MAX_ACCEL 15.0  /* m/s² — matches measured peak in rosbags */
 
 /* Trajectory pre-processing (matching gym_bridge ROS2 node exactly) */
 #define TRAJECTORY_MAX_VELOCITY   20.0
