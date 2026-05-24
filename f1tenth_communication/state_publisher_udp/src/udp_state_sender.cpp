@@ -1,6 +1,6 @@
 /**
- * @file ros2_udp_sender.cpp
- * @brief Jetson-side ROS2 to UDP state packet sender.
+ * @file udp_state_sender.cpp
+ * @brief Jetson-side UDP state packet sender.
  * @details Subscribes to pose/odometry topics and /local_raceline, builds the
  *          MPC horizon reference (V2 layout) and transmits fixed-size UDP state
  *          packets to Kria.
@@ -57,9 +57,9 @@ struct FrenetErrorsFp {
     int32_t e_psi_fp = 0;
 };
 
-class Ros2UdpSender final : public rclcpp::Node {
+class UdpStateSender final : public rclcpp::Node {
 public:
-    Ros2UdpSender() : Node("ros2_udp_sender") {
+    UdpStateSender() : Node("udp_state_sender") {
         declare_parameter<std::string>("odom_topic", "/ego_racecar/odom");
         declare_parameter<std::string>("pose_topic", "/ekf_pose");
         declare_parameter<std::string>("raceline_topic", "/local_raceline");
@@ -93,25 +93,25 @@ public:
         auto sub_qos = rclcpp::QoS(10).reliable().durability_volatile();
         raceline_sub_ = create_subscription<nav_msgs::msg::Path>(
             raceline_topic, sub_qos,
-            std::bind(&Ros2UdpSender::raceline_callback, this, std::placeholders::_1));
+            std::bind(&UdpStateSender::raceline_callback, this, std::placeholders::_1));
 
         odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
             odom_topic, sub_qos,
-            std::bind(&Ros2UdpSender::odom_callback, this, std::placeholders::_1));
+            std::bind(&UdpStateSender::odom_callback, this, std::placeholders::_1));
 
         pose_sub_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
             pose_topic, sub_qos,
-            std::bind(&Ros2UdpSender::pose_callback, this, std::placeholders::_1));
+            std::bind(&UdpStateSender::pose_callback, this, std::placeholders::_1));
 
         if (!servo_topic.empty()) {
             servo_sub_ = create_subscription<std_msgs::msg::Float64>(
                 servo_topic, sub_qos,
-                std::bind(&Ros2UdpSender::servo_callback, this, std::placeholders::_1));
+                std::bind(&UdpStateSender::servo_callback, this, std::placeholders::_1));
         }
 
     }
 
-    ~Ros2UdpSender() override {
+    ~UdpStateSender() override {
         if (sock_fd_ >= 0) {
             ::close(sock_fd_);
             sock_fd_ = -1;
@@ -471,7 +471,7 @@ private:
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
-    auto node = std::make_shared<state_transport_udp::Ros2UdpSender>();
+    auto node = std::make_shared<state_transport_udp::UdpStateSender>();
     rclcpp::spin(node);
     rclcpp::shutdown();
     return 0;

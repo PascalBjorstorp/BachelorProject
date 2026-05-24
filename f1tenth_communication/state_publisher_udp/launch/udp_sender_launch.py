@@ -1,5 +1,5 @@
 """
-@file ros2_udp_sender_launch.py
+@file udp_sender_launch.py
 @brief Launch description for the Jetson-side UDP sender.
 @dependencies launch, launch_ros, ament_index_python, state_publisher_udp package
 """
@@ -44,8 +44,8 @@ def generate_launch_description():
         ),
         Node(
             package='state_publisher_udp',
-            executable='ros2_udp_sender_node',
-            name='ros2_udp_sender',
+            executable='udp_state_sender_node',
+            name='udp_state_sender',
             output='screen',
             parameters=[{
                 'odom_topic': LaunchConfiguration('odom_topic'),

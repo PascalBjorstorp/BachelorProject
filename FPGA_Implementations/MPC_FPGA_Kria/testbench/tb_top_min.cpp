@@ -19,6 +19,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <glob.h>
+#include <limits.h>
+#include <string>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "mpc_fpga_constants.h"
 #include "mpc_fpga_interface.h"
@@ -50,6 +55,115 @@ constexpr int kRefRightCol = kRefLeftCol + kHorizon;
 constexpr int kEyCol = 232;
 constexpr int kEpsiCol = 233;
 
+bool file_exists(const char *path) {
+  struct stat st;
+  return path && *path && stat(path, &st) == 0 && S_ISREG(st.st_mode);
+}
+
+bool dir_exists(const std::string &path) {
+  struct stat st;
+  return stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode);
+}
+
+std::string parent_dir(std::string path) {
+  while (!path.empty() && path.back() == '/') path.pop_back();
+  const std::string::size_type slash = path.find_last_of('/');
+  if (slash == std::string::npos) return ".";
+  if (slash == 0) return "/";
+  return path.substr(0, slash);
+}
+
+std::string canonical_path_or_self(const char *path) {
+  char *resolved = realpath(path, nullptr);
+  if (!resolved) return std::string(path);
+  std::string out(resolved);
+  std::free(resolved);
+  return out;
+}
+
+bool looks_like_repo_root(const std::string &path) {
+  return dir_exists(path + "/FPGA_Implementations") && dir_exists(path + "/tools");
+}
+
+std::string find_repo_root(std::string start) {
+  for (int i = 0; i < 10 && !start.empty(); ++i) {
+    if (looks_like_repo_root(start)) return start;
+    const std::string next = parent_dir(start);
+    if (next == start) break;
+    start = next;
+  }
+  return "";
+}
+
+std::string repo_root_from_source_path() {
+  const std::string source_path = canonical_path_or_self(__FILE__);
+  std::string repo_root = find_repo_root(parent_dir(source_path));
+  if (!repo_root.empty()) return repo_root;
+
+  char cwd_buf[PATH_MAX];
+  if (getcwd(cwd_buf, sizeof(cwd_buf))) {
+    repo_root = find_repo_root(cwd_buf);
+    if (!repo_root.empty()) return repo_root;
+  }
+
+  return ".";
+}
+
+std::string newest_glob_match(const std::string &pattern) {
+  glob_t matches;
+  std::memset(&matches, 0, sizeof(matches));
+  if (glob(pattern.c_str(), 0, nullptr, &matches) != 0) {
+    globfree(&matches);
+    return "";
+  }
+
+  std::string best;
+  time_t best_mtime = 0;
+  for (size_t i = 0; i < matches.gl_pathc; ++i) {
+    const char *candidate = matches.gl_pathv[i];
+    struct stat st;
+    if (stat(candidate, &st) != 0 || !S_ISREG(st.st_mode)) continue;
+    if (best.empty() || st.st_mtime > best_mtime) {
+      best = candidate;
+      best_mtime = st.st_mtime;
+    }
+  }
+  globfree(&matches);
+  return best;
+}
+
+std::string resolve_csv_path(int argc, char **argv) {
+  const char *explicit_csv =
+      (argc > 1)             ? argv[1]
+      : getenv("REPLAY_CSV") ? getenv("REPLAY_CSV")
+                             : "state_replay.csv";
+  if (file_exists(explicit_csv)) return explicit_csv;
+
+  std::fprintf(stderr,
+               "tb_top_min: requested replay csv missing: %s\n",
+               explicit_csv);
+
+  const std::string repo_root = repo_root_from_source_path();
+  const std::string candidates[] = {
+      repo_root + "/FPGA_Implementations/MPC_FPGA_Kria/testbench/state_replay.csv",
+      repo_root + "/tools/output/deep_diag_run1/frenet_parity/state_replay.csv",
+  };
+  for (const std::string &candidate : candidates) {
+    if (file_exists(candidate.c_str())) return candidate;
+  }
+
+  const std::string glob_patterns[] = {
+      repo_root + "/tools/output/*/frenet_parity/state_replay.csv",
+      repo_root + "/tools/output/*/state_replay.csv",
+  };
+  for (const std::string &pattern : glob_patterns) {
+    const std::string match = newest_glob_match(pattern);
+    if (!match.empty()) return match;
+  }
+
+  return "";
+}
+
 int split_row(char *line, long long *f) {
   int n = 0;
   char *save = nullptr;
@@ -61,9 +175,12 @@ int split_row(char *line, long long *f) {
 }  // namespace
 
 int main(int argc, char **argv) {
-  const char *csv = (argc > 1)             ? argv[1]
-                    : getenv("REPLAY_CSV") ? getenv("REPLAY_CSV")
-                                           : "state_replay.csv";
+  const std::string csv_path = resolve_csv_path(argc, argv);
+  if (csv_path.empty()) {
+    std::fprintf(stderr,
+                 "tb_top_min: no usable state_replay.csv found in repo fallbacks\n");
+    return 3;
+  }
   const long max_rows = (argc > 2)               ? atol(argv[2])
                         : getenv("REPLAY_ROWS")  ? atol(getenv("REPLAY_ROWS"))
                                                  : 1;
@@ -74,7 +191,8 @@ int main(int argc, char **argv) {
   const long start_row = (argc > 3)              ? atol(argv[3])
                          : getenv("REPLAY_START") ? atol(getenv("REPLAY_START"))
                                                   : 1;
-  std::FILE *in = std::fopen(csv, "r");
+  std::fprintf(stderr, "tb_top_min: using replay csv %s\n", csv_path.c_str());
+  std::FILE *in = std::fopen(csv_path.c_str(), "r");
   if (!in) { std::perror("open csv"); return 3; }
 
   static char line[1 << 17];
