@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -13,6 +14,27 @@
 
 static constexpr int HORIZON = 20;
 static constexpr float SCALE_QP = MPC_FPGA_QP_SCALE_F32;  // Q18, single-sourced from mpc_fpga_constants.h
+
+/* Mirror of mpc_receiver.cpp constants. Anything that decides what gets fed
+ * back as prev_accel_fp must match the hardware host exactly, or the kernel's
+ * warm-start state will drift from the real FPGA's. */
+static constexpr float kRecv_StandstillVxThreshMps   = 0.15f;
+static constexpr float kRecv_StandstillAccelOverride = 0.5f;
+static constexpr float kRecv_StandstillBrakeEpsMps2  = 0.05f;
+static constexpr float kRecv_LaunchRecoveryVxThresh  = 0.35f;
+static constexpr float kRecv_MaxSteerRad             = MPC_FPGA_MAX_STEER_RAD;
+static constexpr float kRecv_MinAccelMps2 = -(MPC_FPGA_MU * MPC_FPGA_GRAVITY_MS2);
+
+static inline float apply_standstill_brake_override(float vx_mps, float accel_cmd) {
+    const bool standstill = std::isfinite(vx_mps) &&
+        std::fabs(vx_mps) < kRecv_StandstillVxThreshMps;
+    const bool max_brake_cmd = std::isfinite(accel_cmd) &&
+        (accel_cmd <= (kRecv_MinAccelMps2 + kRecv_StandstillBrakeEpsMps2));
+    if (standstill && max_brake_cmd) {
+        return kRecv_StandstillAccelOverride;
+    }
+    return accel_cmd;
+}
 
 struct ReplayRow {
     uint64_t idx;
@@ -156,9 +178,13 @@ static int parse_row(char *line, ReplayRow &r) {
 int main(int argc, char **argv) {
     uint64_t trace_idx = 0;
     const char *trace_out_path = nullptr;
+    uint64_t reset_at_row = 0;
 
     if (argc < 3) {
-        std::fprintf(stderr, "Usage: %s <mpc_state_csv> <out_csv> [--trace-idx N --trace-out path]\n", argv[0]);
+        std::fprintf(stderr,
+                     "Usage: %s <mpc_state_csv> <out_csv> "
+                     "[--trace-idx N --trace-out path] [--reset-at-row N]\n",
+                     argv[0]);
         return 2;
     }
     for (int ai = 3; ai < argc; ai++) {
@@ -166,6 +192,8 @@ int main(int argc, char **argv) {
             trace_idx = static_cast<uint64_t>(std::strtoull(argv[++ai], nullptr, 10));
         } else if (std::strcmp(argv[ai], "--trace-out") == 0 && (ai + 1) < argc) {
             trace_out_path = argv[++ai];
+        } else if (std::strcmp(argv[ai], "--reset-at-row") == 0 && (ai + 1) < argc) {
+            reset_at_row = static_cast<uint64_t>(std::strtoull(argv[++ai], nullptr, 10));
         } else {
             std::fprintf(stderr, "Unknown arg: %s\n", argv[ai]);
             return 2;
@@ -192,7 +220,10 @@ int main(int argc, char **argv) {
         return 5;
     }
 
-    std::fprintf(out, "idx,stamp_ns,status,status_api,iters,out_steer_fp,out_accel_fp,ey_fp,epsi_fp,vx_fp,vy_fp,omega_fp,steer_meas_fp,prev_accel_in_fp\n");
+    std::fprintf(out,
+                 "idx,stamp_ns,status,status_api,iters,out_steer_fp,out_accel_fp,"
+                 "ey_fp,epsi_fp,vx_fp,vy_fp,omega_fp,steer_meas_fp,prev_accel_in_fp,"
+                 "pub_steer_rad,pub_accel_mps2,used_fallback\n");
 
 #ifdef CAST_AUDIT
     fp_cast_audit_reset();
@@ -201,10 +232,26 @@ int main(int argc, char **argv) {
     mpc_initialize();
     mpc_reset();
 
+    /* Receiver-side mirror state. These are the per-call host values that
+     * mpc_receiver.cpp keeps between cycles; without them the kernel's
+     * warm-start drifts from real hardware after a few iterations. */
     int32_t prev_accel_fp = 0;
-    int32_t last_accel_cmd_fp = 0;
+    float last_steer_pub_rad = 0.0f;
+    float last_accel_pub_mps2 = 0.0f;
+    uint64_t row_count = 0;
 
     while (std::fgets(line, sizeof(line), in)) {
+        row_count++;
+        if (reset_at_row > 0 && row_count == reset_at_row) {
+            /* Mirror the hardware receiver's first-message reset: clear all
+             * persistent kernel state (ADMM warm start + actuator history) so
+             * the comparison region starts from the same fresh state on both
+             * sides. */
+            mpc_reset();
+            prev_accel_fp = 0;
+            last_steer_pub_rad = 0.0f;
+            last_accel_pub_mps2 = 0.0f;
+        }
         ReplayRow r{};
         int32_t ey_fp = 0;
         int32_t epsi_fp = 0;
@@ -216,7 +263,6 @@ int main(int argc, char **argv) {
         int32_t out_steer_fp = 0;
         int32_t out_accel_fp = 0;
         int32_t prev_accel_in_fp = prev_accel_fp;
-        int32_t applied_accel_fp = 0;
 
         if (!parse_row(line, r)) {
             std::fprintf(stderr, "Skipping malformed row\n");
@@ -255,13 +301,44 @@ int main(int argc, char **argv) {
         out_steer_fp = float_to_fp(result.optimal_control.steer_ang);
         out_accel_fp = float_to_fp(result.optimal_control.long_acc);
 
-        if (result.solver_status == MPC_FPGA_STATUS_NO_TRAJECTORY) {
-            applied_accel_fp = last_accel_cmd_fp;
+        /* Replicate mpc_receiver.cpp::state_callback: compute the actually
+         * published steering/accel and feed *that* (not the raw kernel out)
+         * back as next cycle's prev_accel. This is what the FPGA sees on the
+         * car. The compat layer maps MPC_FPGA_STATUS_OK -> SUCCESS (0),
+         * NO_TRAJECTORY -> INVALID_INPUT (2), everything else -> MAX_ITER (1).
+         * Status==2 here therefore covers MPC_FPGA_STATUS_NO_TRAJECTORY. */
+        const float vx_mps = fp_to_float(r.velocity_fp);
+        const float raw_steer_rad = result.optimal_control.steer_ang;
+        const float raw_accel_mps2 = result.optimal_control.long_acc;
+        const bool launch_region = std::isfinite(vx_mps) &&
+            std::fabs(vx_mps) < kRecv_LaunchRecoveryVxThresh;
+        float pub_steer_rad = 0.0f;
+        float pub_accel_mps2 = 0.0f;
+        int32_t used_fallback = 0;
+        const bool fallback_status =
+            (result.solver_status == MPC_SOLVER_STATUS_INVALID_INPUT);
+        if (fallback_status) {
+            used_fallback = 1;
+            pub_steer_rad = last_steer_pub_rad;
+            pub_accel_mps2 = last_accel_pub_mps2;
+            /* prev_accel_fp left unchanged (matches receiver: set_prev_accel
+             * is only called on the success branch). */
         } else {
-            applied_accel_fp = out_accel_fp;
-            last_accel_cmd_fp = out_accel_fp;
+            if (result.solver_status ==
+                    MPC_SOLVER_STATUS_MAXIMUM_ITERATIONS_REACHED &&
+                launch_region) {
+                pub_accel_mps2 = kRecv_StandstillAccelOverride;
+                used_fallback = 1;
+            } else {
+                pub_accel_mps2 =
+                    apply_standstill_brake_override(vx_mps, raw_accel_mps2);
+            }
+            pub_steer_rad =
+                std::clamp(raw_steer_rad, -kRecv_MaxSteerRad, kRecv_MaxSteerRad);
+            last_steer_pub_rad = pub_steer_rad;
+            last_accel_pub_mps2 = pub_accel_mps2;
+            prev_accel_fp = float_to_fp(pub_accel_mps2);
         }
-        prev_accel_fp = applied_accel_fp;
 
         if (trace_idx > 0 && trace_out_path != nullptr && r.idx == trace_idx) {
             std::FILE *t = std::fopen(trace_out_path, "w");
@@ -301,7 +378,7 @@ int main(int argc, char **argv) {
         }
 
         std::fprintf(out,
-                     "%llu,%lld,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+                     "%llu,%lld,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.7f,%.7f,%d\n",
                      static_cast<unsigned long long>(r.idx),
                      static_cast<long long>(r.stamp_ns),
                      result.solver_status,
@@ -315,7 +392,10 @@ int main(int argc, char **argv) {
                      r.vy_fp,
                      r.omega_fp,
                      r.steering_angle_fp,
-                     prev_accel_in_fp);
+                     prev_accel_in_fp,
+                     static_cast<double>(pub_steer_rad),
+                     static_cast<double>(pub_accel_mps2),
+                     used_fallback);
     }
 
     std::fclose(in);

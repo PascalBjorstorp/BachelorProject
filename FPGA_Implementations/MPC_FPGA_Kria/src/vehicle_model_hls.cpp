@@ -119,7 +119,6 @@ static void fp_slip_terms(fp_FN_t vy, fp_FN_t omega, fp_FN_t inv_vx,
                           fp_FN_t *front_num, fp_FN_t *rear_num,
                           fp_FN_t *front_ratio, fp_FN_t *rear_ratio) {
 #pragma HLS INLINE off
-#pragma HLS PIPELINE II = 1
   fp_FN_t lf_omega_local = fp_mul_fn(VP_FN_LF, omega);
   fp_FN_t lr_omega_local = fp_mul_fn(VP_FN_LR, omega);
   fp_FN_t front_num_local = vy + lf_omega_local;
