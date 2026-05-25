@@ -13,7 +13,9 @@
  * Architecture (EKF-driven):
  *   - Odometry callback: stores latest velocity state (fast, non-blocking)
  *   - Servo feedback callback: stores actual steering angle from VESC
- *   - EKF pose callback: receives pose, runs MPC, publishes result
+ *   - EKF pose callback: caches latest pose and signals MPC thread
+ *   - MPC control thread: runs once per newest EKF pose, updates latest command
+ *   - Drive publisher thread: republishes latest MPC command at fixed rate
  *   - Safety: no command published until both odom and EKF pose are received
  *
  * Topics:
@@ -43,10 +45,11 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <limits.h>
+#include <stdint.h>
+#include <pthread.h>
 /* ROS2 C Client Library Headers */
 #include "rcl/rcl.h"
 #include "rcl/error_handling.h"
-#include "rcl/timer.h"
 #include "rcl/time.h"
 #include "rclc/rclc.h"
 #include "rclc/executor.h"
@@ -86,13 +89,15 @@ static const double FALLBACK_WALL_BOUND_M = 1.5;
 static double g_raceline_speed_margin_mps = 0.5;
 
 /** Enable verbose logging (disabled by default for real-time performance) */
-static int g_verbose = 1;
+static int g_verbose = 0;
 
 /** Set to 1 once the first EKF pose message has been received. */
 static int g_ekf_pose_received = 0;
 
 /** Safety watchdog timeout [seconds] */
 static double g_watchdog_timeout_sec = 0.2;
+static double g_drive_republish_period_ms = 5.0;
+static int g_drive_command_ready = 0;
 /* Last published drive command (fallback uses these instead of forcing stop). */
 static float g_last_cmd_steer = 0.0f;
 static float g_last_cmd_speed = 0.0f;
@@ -171,6 +176,17 @@ static volatile sig_atomic_t global_shutdown_requested = 0;
 static rcl_context_t *global_ros2_context = NULL;
 
 static rcl_publisher_t global_control_publisher;
+static rcl_publisher_t g_timing_solve_us_publisher;
+static rcl_publisher_t g_timing_iteration_count_publisher;
+static rcl_publisher_t g_timing_control_gap_ms_publisher;
+static rcl_publisher_t g_timing_ekf_to_control_ms_publisher;
+static rcl_publisher_t g_timing_output_gap_ms_publisher;
+static rcl_publisher_t g_timing_drive_age_ms_publisher;
+static rcl_publisher_t g_timing_pose_seq_publisher;
+static rcl_publisher_t g_timing_skipped_poses_publisher;
+static rcl_publisher_t g_timing_solver_enter_seq_publisher;
+static int g_timing_publishers_ready = 0;
+static pthread_mutex_t g_timing_publish_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static nav_msgs__msg__Odometry global_odometry_message_buffer;
 static std_msgs__msg__Float64 global_servo_message_buffer;
@@ -209,10 +225,44 @@ static FILE *g_local_raceline_log_file = NULL;
 static FILE *g_stats_csv_file = NULL;
 static unsigned long g_solver_log_counter = 0;
 static int g_solver_log_stride = 1;
+static int g_solver_csv_logging_enabled = 0;
+static int g_log_local_raceline_snapshots = 0;
 static double g_last_servo_raw = 0.0;
 static long long g_last_odom_ros_time_ns = 0;
 static unsigned long g_local_raceline_update_seq = 0;
 static long long g_local_raceline_ros_time_ns = 0;
+static struct timespec g_last_mpc_output_time = {0, 0};
+static int g_last_mpc_output_valid = 0;
+static unsigned long g_mpc_output_seq = 0;
+static struct timespec g_last_control_start_time = {0, 0};
+static int g_last_control_start_valid = 0;
+
+typedef struct
+{
+    int32_t stamp_sec;
+    uint32_t stamp_nanosec;
+    struct timespec received_mono_time;
+    double pos_x;
+    double pos_y;
+    double qx;
+    double qy;
+    double qz;
+    double qw;
+    double covariance[36];
+} PoseSnapshot_t;
+
+static PoseSnapshot_t g_latest_pose_snapshot;
+static unsigned long g_latest_pose_seq = 0;
+static int g_latest_pose_valid = 0;
+static pthread_mutex_t g_pose_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t g_pose_cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t g_drive_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t g_state_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t g_trajectory_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_t g_control_thread;
+static pthread_t g_drive_thread;
+static int g_control_thread_started = 0;
+static int g_drive_thread_started = 0;
 
 typedef struct
 {
@@ -268,6 +318,8 @@ static void ensure_parent_directories(const char *filepath)
 
 /** Number of executor handles: 4 subscriptions (odom, servo, ekf_pose, local_raceline). */
 #define EXECUTOR_NUM_HANDLES 4
+
+static double timespec_diff_sec(const struct timespec *a, const struct timespec *b);
 
 /*===========================================================================
  * Signal Handler for Graceful Shutdown
@@ -342,6 +394,116 @@ static void publish_drive_command_or_warn(const char *context)
         }
         rcl_reset_error();
     }
+}
+
+static void publish_float64_metric(rcl_publisher_t *publisher, double value, const char *context)
+{
+    static unsigned long metric_publish_error_count = 0;
+    if (!g_timing_publishers_ready || publisher == NULL)
+    {
+        return;
+    }
+
+    std_msgs__msg__Float64 msg;
+    msg.data = value;
+
+    pthread_mutex_lock(&g_timing_publish_mutex);
+    rcl_ret_t pub_rc = rcl_publish(publisher, &msg, NULL);
+    pthread_mutex_unlock(&g_timing_publish_mutex);
+
+    if (pub_rc != RCL_RET_OK)
+    {
+        metric_publish_error_count++;
+        if (metric_publish_error_count <= 5UL ||
+            (metric_publish_error_count % 100UL) == 0UL)
+        {
+            fprintf(stderr,
+                    "[ROS2] WARNING: timing metric publish failed in %s: rc=%d, error=%s\n",
+                    context,
+                    (int)pub_rc,
+                    rcl_get_error_string().str);
+        }
+        rcl_reset_error();
+    }
+}
+
+static int init_float64_publisher(
+    rcl_publisher_t *publisher,
+    rcl_node_t *node,
+    const char *topic,
+    const rcl_publisher_options_t *options)
+{
+    if (publisher == NULL || node == NULL || topic == NULL || options == NULL)
+    {
+        return 0;
+    }
+
+    *publisher = rcl_get_zero_initialized_publisher();
+    rcl_ret_t rc = rcl_publisher_init(
+        publisher,
+        node,
+        ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float64),
+        topic,
+        options);
+
+    if (rc != RCL_RET_OK)
+    {
+        fprintf(stderr,
+                "[ROS2] ERROR: timing publisher %s: %s\n",
+                topic,
+                rcl_get_error_string().str);
+        rcl_reset_error();
+        return 0;
+    }
+
+    printf("[ROS2] Publishing timing metric %s (BestEffort, KeepLast(1))\n", topic);
+    return 1;
+}
+
+static void *drive_publisher_thread_main(void *arg)
+{
+    (void)arg;
+
+    const long period_ns = (long)(g_drive_republish_period_ms * 1000000.0);
+    struct timespec sleep_time;
+    sleep_time.tv_sec = period_ns / 1000000000L;
+    sleep_time.tv_nsec = period_ns % 1000000000L;
+
+    while (!global_shutdown_requested)
+    {
+        nanosleep(&sleep_time, NULL);
+
+        double drive_age_ms = 0.0;
+        int publish_drive_age = 0;
+
+        pthread_mutex_lock(&g_drive_mutex);
+        if (g_drive_command_ready)
+        {
+            struct timespec now_rt;
+            clock_gettime(CLOCK_REALTIME, &now_rt);
+            global_drive_message_buffer.header.stamp.sec = (int32_t)now_rt.tv_sec;
+            global_drive_message_buffer.header.stamp.nanosec = (uint32_t)now_rt.tv_nsec;
+
+            if (g_last_mpc_output_valid)
+            {
+                struct timespec now_mono;
+                clock_gettime(CLOCK_MONOTONIC, &now_mono);
+                drive_age_ms = timespec_diff_sec(&g_last_mpc_output_time, &now_mono) * 1000.0;
+                publish_drive_age = 1;
+            }
+            publish_drive_command_or_warn("drive_publisher_thread");
+        }
+        pthread_mutex_unlock(&g_drive_mutex);
+
+        if (publish_drive_age)
+        {
+            publish_float64_metric(&g_timing_drive_age_ms_publisher,
+                                   drive_age_ms,
+                                   "drive_age_ms");
+        }
+    }
+
+    return NULL;
 }
 
 /*===========================================================================
@@ -436,14 +598,13 @@ static void build_reference_from_local_raceline(void)
     double v_ref_base = (double)global_trajectory[0].velocity_meters_per_second;
     if (v_ref_base <= 0.0) v_ref_base = MIN_TRAJECTORY_SPEED_MPS;
     
-    /* For each horizon step, compute the arc-length position and fill reference trajectory */
+    /* For each horizon step, compute the arc-length position and fill reference trajectory.
+     * Interpolate reference fields along arc length so the CPU node can be
+     * tested against the smoother horizon construction used elsewhere. */
     for (int step = 0; step < PREDICTION_HORIZON; step++)
     {
-        /* Compute cumulative arc-length at this step: s = v_ref * dt * step */
         double target_s = v_ref_base * dt * (double)step;
-        
-        /* Find the waypoint at (or closest to) this arc-length */
-        int idx = 0;
+        int idx = global_trajectory_count - 1;
         for (int i = 0; i < global_trajectory_count - 1; i++)
         {
             if (global_trajectory[i].s_meters <= target_s &&
@@ -453,24 +614,44 @@ static void build_reference_from_local_raceline(void)
                 break;
             }
         }
-        /* Clamp to last waypoint if beyond track end */
-        if (idx >= global_trajectory_count - 1)
+
+        const TrajectoryWaypoint_t *a = &global_trajectory[idx];
+        const TrajectoryWaypoint_t *b = a;
+        double t = 0.0;
+        if (idx + 1 < global_trajectory_count)
         {
-            idx = global_trajectory_count - 1;
+            b = &global_trajectory[idx + 1];
+            const double ds = b->s_meters - a->s_meters;
+            if (ds > 1e-9)
+            {
+                t = (target_s - a->s_meters) / ds;
+                if (t < 0.0) t = 0.0;
+                if (t > 1.0) t = 1.0;
+            }
         }
-        
-        const TrajectoryWaypoint_t *wp = &global_trajectory[idx];
-        const double traj_vel = wp->velocity_meters_per_second;
+
+        const double traj_vel =
+            a->velocity_meters_per_second +
+            t * (b->velocity_meters_per_second - a->velocity_meters_per_second);
+        const double traj_kappa =
+            a->curvature_radians_per_meter +
+            t * (b->curvature_radians_per_meter - a->curvature_radians_per_meter);
+        const double traj_left_bound =
+            a->left_bound_meters +
+            t * (b->left_bound_meters - a->left_bound_meters);
+        const double traj_right_bound =
+            a->right_bound_meters +
+            t * (b->right_bound_meters - a->right_bound_meters);
 
         global_reference_trajectory[step].reference_lateral_error = 0;
         global_reference_trajectory[step].reference_heading_error = 0;
-        global_reference_trajectory[step].path_curvature = wp->curvature_radians_per_meter;
-        global_reference_trajectory[step].left_wall_bound = wp->left_bound_meters;
-        global_reference_trajectory[step].right_wall_bound = wp->right_bound_meters;
+        global_reference_trajectory[step].path_curvature = traj_kappa;
+        global_reference_trajectory[step].left_wall_bound = traj_left_bound;
+        global_reference_trajectory[step].right_wall_bound = traj_right_bound;
         global_reference_trajectory[step].reference_velocity = traj_vel;
         global_reference_trajectory[step].reference_lateral_velocity = 0;
         global_reference_trajectory[step].reference_yaw_rate =
-            wp->curvature_radians_per_meter * traj_vel;
+            traj_kappa * traj_vel;
     }
 }
 
@@ -531,7 +712,7 @@ static void set_rosidl_string(rosidl_runtime_c__String *str, const char *value){
  * @param b End timestamp.
  * @return Elapsed time in seconds.
  */
-static double timespec_diff_sec(struct timespec *a, struct timespec *b){
+static double timespec_diff_sec(const struct timespec *a, const struct timespec *b){
     return (double)(b->tv_sec - a->tv_sec) +
            (double)(b->tv_nsec - a->tv_nsec) / 1e9;
 }
@@ -669,6 +850,8 @@ void local_raceline_callback(const void *message_in)
     {
         waypoint_count = TRAJECTORY_MAXIMUM_WAYPOINTS;
     }
+
+    pthread_mutex_lock(&g_trajectory_mutex);
 
     double cumulative_s = 0.0;
     double prev_x = 0.0;
@@ -812,6 +995,8 @@ void local_raceline_callback(const void *message_in)
         printf("[MPC] Local raceline updated: %zu waypoints, length=%.2f m\n",
                waypoint_count, g_local_raceline_length_meters);
     }
+
+    pthread_mutex_unlock(&g_trajectory_mutex);
 }
 
 /*===========================================================================
@@ -835,6 +1020,7 @@ void odometry_subscription_callback(const void *message_in)
     double vy = odom->twist.twist.linear.y;
     double omega = odom->twist.twist.angular.z;
 
+    pthread_mutex_lock(&g_state_mutex);
     /* Store only the velocity state from odometry. EKF pose drives position,
      * heading, and the control callback. */
     global_vehicle_state.long_vel = vx;
@@ -852,6 +1038,7 @@ void odometry_subscription_callback(const void *message_in)
     clock_gettime(CLOCK_MONOTONIC, &g_last_odom_time);
 
     global_odometry_received_flag = 1;
+    pthread_mutex_unlock(&g_state_mutex);
 }
 
 /*===========================================================================
@@ -883,6 +1070,7 @@ void servo_feedback_callback(const void *message_in)
      *   δ = sign(corrected) * t
      */
     double servo_val = msg->data;
+    pthread_mutex_lock(&g_state_mutex);
     g_last_servo_raw = servo_val;
     if (STEERING_TO_SERVO_GAIN != 0.0f)
     {
@@ -916,50 +1104,71 @@ void servo_feedback_callback(const void *message_in)
     }
 
     g_use_steering_feedback = 1;
+    const double actual_steer = global_actual_steering_angle;
+    pthread_mutex_unlock(&g_state_mutex);
 
     if (g_verbose)
     {
         printf("[MPC] Servo feedback: servo_val=%.3f -> delta=%.4f rad\n",
-               servo_val, global_actual_steering_angle);
+               servo_val, actual_steer);
     }
 }
 
 /*===========================================================================
- * ROS2 Callback: EKF Pose + MPC Computation
+ * MPC Control Step
  *===========================================================================
- * Receives the EKF pose and runs the MPC solver.
- * MPC only executes when a new EKF pose message arrives (event-driven).
- * Default source: /ekf_pose.
+ * Runs once for one copied EKF pose. EKF callback never calls this directly;
+ * the control thread does, after being signaled that a new pose arrived.
  *===========================================================================*/
-
-/**
- * @brief Process EKF pose updates, run MPC, and publish drive commands.
- * @param message_in Pointer to geometry_msgs/PoseWithCovarianceStamped message.
- * @return None.
- */
-void ekf_pose_callback(const void *message_in)
+static void run_mpc_for_pose(
+    const PoseSnapshot_t *pose,
+    unsigned long pose_seq,
+    unsigned long skipped_poses)
 {
-    if (message_in == NULL) return;
+    if (pose == NULL) return;
 
-    const geometry_msgs__msg__PoseWithCovarianceStamped *msg =
-        (const geometry_msgs__msg__PoseWithCovarianceStamped *)message_in;
+    struct timespec control_start_time;
+    clock_gettime(CLOCK_MONOTONIC, &control_start_time);
 
-    global_drive_message_buffer.header.stamp.sec = msg->header.stamp.sec;
-    global_drive_message_buffer.header.stamp.nanosec = msg->header.stamp.nanosec;
+    double ekf_to_control_ms =
+        timespec_diff_sec(&pose->received_mono_time, &control_start_time) * 1000.0;
+    double control_gap_ms = 0.0;
+    if (g_last_control_start_valid)
+    {
+        control_gap_ms =
+            timespec_diff_sec(&g_last_control_start_time, &control_start_time) * 1000.0;
+    }
+    g_last_control_start_time = control_start_time;
+    g_last_control_start_valid = 1;
 
-    double pos_x   = msg->pose.pose.position.x;
-    double pos_y   = msg->pose.pose.position.y;
+    publish_float64_metric(&g_timing_pose_seq_publisher,
+                           (double)pose_seq,
+                           "pose_seq");
+    publish_float64_metric(&g_timing_skipped_poses_publisher,
+                           (double)skipped_poses,
+                           "skipped_poses");
+    publish_float64_metric(&g_timing_ekf_to_control_ms_publisher,
+                           ekf_to_control_ms,
+                           "ekf_to_control_ms");
+    publish_float64_metric(&g_timing_control_gap_ms_publisher,
+                           control_gap_ms,
+                           "control_gap_ms");
+
+    const int32_t drive_stamp_sec = pose->stamp_sec;
+    const uint32_t drive_stamp_nanosec = pose->stamp_nanosec;
+    double pos_x   = pose->pos_x;
+    double pos_y   = pose->pos_y;
     double heading = quaternion_to_yaw_angle(
-        msg->pose.pose.orientation.x,
-        msg->pose.pose.orientation.y,
-        msg->pose.pose.orientation.z,
-        msg->pose.pose.orientation.w);
+        pose->qx,
+        pose->qy,
+        pose->qz,
+        pose->qw);
     const long long pose_ros_time_ns =
-        (long long)msg->header.stamp.sec * 1000000000LL +
-        (long long)msg->header.stamp.nanosec;
-    const double pose_cov_x = msg->pose.covariance[0];
-    const double pose_cov_y = msg->pose.covariance[7];
-    const double pose_cov_yaw = msg->pose.covariance[35];
+        (long long)pose->stamp_sec * 1000000000LL +
+        (long long)pose->stamp_nanosec;
+    const double pose_cov_x = pose->covariance[0];
+    const double pose_cov_y = pose->covariance[7];
+    const double pose_cov_yaw = pose->covariance[35];
 
     /* Local variables for MPC computation and logging */
     int closest = 0;
@@ -972,19 +1181,41 @@ void ekf_pose_callback(const void *message_in)
     double local_wp0_x = 0.0, local_wp0_y = 0.0, local_wp0_heading = 0.0, local_wp0_s = 0.0;
     double odom_age_ms = 0.0;
     double publish_speed_cmd = g_last_cmd_speed;
+    double publish_accel_cmd = g_last_cmd_accel;
     PathProjection_t projection = {0};
+    int trajectory_count_snapshot = 0;
+    double local_raceline_length_snapshot = 0.0;
+    unsigned long local_raceline_seq_snapshot = 0;
+    long long local_raceline_ros_time_snapshot = 0;
+    int odom_received_snapshot = 0;
+    double latest_vx_snapshot = 0.0;
+    double latest_vy_snapshot = 0.0;
+    double latest_omega_snapshot = 0.0;
+    struct timespec last_odom_time_snapshot = {0, 0};
+    long long last_odom_ros_time_snapshot = 0;
+    double actual_steer_snapshot = 0.0;
+    double last_servo_raw_snapshot = 0.0;
+    int use_steering_feedback_snapshot = 0;
 
-    if (!g_ekf_pose_received) {
-        printf("[MPC] EKF pose received — starting MPC control\n");
-        g_ekf_pose_received = 1;
-    }
+    pthread_mutex_lock(&g_state_mutex);
+    odom_received_snapshot = global_odometry_received_flag;
+    latest_vx_snapshot = g_latest_vx;
+    latest_vy_snapshot = g_latest_vy;
+    latest_omega_snapshot = g_latest_omega;
+    last_odom_time_snapshot = g_last_odom_time;
+    last_odom_ros_time_snapshot = g_last_odom_ros_time_ns;
+    actual_steer_snapshot = global_actual_steering_angle;
+    last_servo_raw_snapshot = g_last_servo_raw;
+    use_steering_feedback_snapshot = g_use_steering_feedback;
+    pthread_mutex_unlock(&g_state_mutex);
 
     /* Don't run MPC until odometry (velocity) has been received */
-    if (!global_odometry_received_flag)
+    if (!odom_received_snapshot)
     {
         return;
     }
 
+    pthread_mutex_lock(&g_trajectory_mutex);
     if (!g_local_raceline_received || global_trajectory_count < 2)
     {
         if (!g_local_raceline_wait_logged)
@@ -993,6 +1224,7 @@ void ekf_pose_callback(const void *message_in)
                    g_local_raceline_topic);
             g_local_raceline_wait_logged = 1;
         }
+        pthread_mutex_unlock(&g_trajectory_mutex);
         return;
     }
 
@@ -1000,7 +1232,7 @@ void ekf_pose_callback(const void *message_in)
     {
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
-        double elapsed = timespec_diff_sec(&g_last_odom_time, &now);
+        double elapsed = timespec_diff_sec(&last_odom_time_snapshot, &now);
         odom_age_ms = elapsed * 1000.0;
 
         if (elapsed > g_watchdog_timeout_sec)
@@ -1016,14 +1248,21 @@ void ekf_pose_callback(const void *message_in)
     if (g_verbose)
     {
         printf("[MPC] State: x=%.2f y=%.2f th=%.2f vx=%.2f vy=%.2f w=%.2f\n",
-               pos_x, pos_y, heading, g_latest_vx, g_latest_vy, g_latest_omega);
+               pos_x, pos_y, heading, latest_vx_snapshot, latest_vy_snapshot, latest_omega_snapshot);
     }
     if (global_trajectory_count > 1)
     {
+        /* The lateral planner republishes /local_raceline every cycle anchored
+         * at the car, so segment 0 IS the current reference origin. A global
+         * nearest-segment search adds per-cycle cost and can snap to an
+         * offset/curved-back segment; project from index 0 instead. */
         closest = 0;
         build_reference_from_local_raceline();
 
         project_to_path_segment(pos_x, pos_y, heading, closest, &projection, &global_frenet_state);
+        global_frenet_state.flong_vel = latest_vx_snapshot;
+        global_frenet_state.flat_vel = latest_vy_snapshot;
+        global_frenet_state.fyaw_rate = latest_omega_snapshot;
 
         ey = global_frenet_state.flat_error;
         epsi = global_frenet_state.fhead_error;
@@ -1042,6 +1281,10 @@ void ekf_pose_callback(const void *message_in)
         local_wp0_y = global_trajectory[0].y_meters;
         local_wp0_heading = global_trajectory[0].heading_radians;
         local_wp0_s = global_trajectory[0].s_meters;
+        trajectory_count_snapshot = global_trajectory_count;
+        local_raceline_length_snapshot = g_local_raceline_length_meters;
+        local_raceline_seq_snapshot = g_local_raceline_update_seq;
+        local_raceline_ros_time_snapshot = g_local_raceline_ros_time_ns;
 
         if (g_verbose)
         {
@@ -1055,18 +1298,28 @@ void ekf_pose_callback(const void *message_in)
         {
             printf("[MPC] ERROR: No trajectory loaded, publishing last command\n");
         }
+        pthread_mutex_lock(&g_drive_mutex);
+        global_drive_message_buffer.header.stamp.sec = drive_stamp_sec;
+        global_drive_message_buffer.header.stamp.nanosec = drive_stamp_nanosec;
         global_drive_message_buffer.drive.steering_angle = g_last_cmd_steer;
         global_drive_message_buffer.drive.speed = g_last_cmd_speed;
         global_drive_message_buffer.drive.acceleration = g_last_cmd_accel;
+        g_drive_command_ready = 1;
         publish_drive_command_or_warn("no_trajectory_fallback");
+        pthread_mutex_unlock(&g_drive_mutex);
+        pthread_mutex_unlock(&g_trajectory_mutex);
         return;
     }
+    pthread_mutex_unlock(&g_trajectory_mutex);
 
     /* ===== Run MPC — output used DIRECTLY, no post-processing ===== */
     MpcSolverResult_t mpc_result;
     MpcSolverStatus_t mpc_status;
     struct timespec t0, t1;
     clock_gettime(CLOCK_MONOTONIC, &t0);
+    publish_float64_metric(&g_timing_solver_enter_seq_publisher,
+                           (double)pose_seq,
+                           "solver_enter_seq");
     mpc_status = mpc_compute_optimal_control(
         &global_frenet_state,
         global_reference_trajectory,
@@ -1074,11 +1327,17 @@ void ekf_pose_callback(const void *message_in)
     clock_gettime(CLOCK_MONOTONIC, &t1);
     double solve_us = (t1.tv_sec - t0.tv_sec) * 1e6 +
                       (t1.tv_nsec - t0.tv_nsec) / 1e3;
+    publish_float64_metric(&g_timing_solve_us_publisher,
+                           solve_us,
+                           "solve_us");
     double primal_res = mpc_result.final_cost;
     double dual_res = mpc_result.dual_residual;
 
     /* Collect rolling statistics (always active, lightweight) */
     uint16_t iterations_used = mpc_result.iterations_used;
+    publish_float64_metric(&g_timing_iteration_count_publisher,
+                           (double)iterations_used,
+                           "iteration_count");
     MpcConfiguration_t cfg = mpc_get_configuration();
     uint16_t max_iter = cfg.max_solver_iterations;
 
@@ -1102,7 +1361,6 @@ void ekf_pose_callback(const void *message_in)
     if (g_stats_csv_file != NULL)
     {
         fprintf(g_stats_csv_file, "%lu,%u,%.1f\n", g_stats_cycle_count, iterations_used, solve_us);
-        fflush(g_stats_csv_file);
     }
 
     /* Print terminal stats every 5 seconds */
@@ -1128,6 +1386,10 @@ void ekf_pose_callback(const void *message_in)
                        g_solve_time_min_us, avg_time, g_solve_time_max_us);
                 printf("  Optimal: %.1f%%, Max iter: %.1f%%\n",
                        optimal_pct, max_iter_pct);
+                if (g_stats_csv_file != NULL)
+                {
+                    fflush(g_stats_csv_file);
+                }
 
                 /* Reset stats */
                 g_solve_time_sum_us = 0.0;
@@ -1159,7 +1421,7 @@ void ekf_pose_callback(const void *message_in)
         /* Fallback: if at standstill and MPC commands max braking, override
          * acceleration to +0.5 m/s^2 while keeping MPC steering. */
         {
-            const double vx = g_latest_vx;
+            const double vx = latest_vx_snapshot;
             const double a_cmd = (double)global_control_command.long_acc;
             global_control_command.long_acc =
                 (float)apply_standstill_brake_override(vx, a_cmd, 1);
@@ -1168,20 +1430,26 @@ void ekf_pose_callback(const void *message_in)
         /* Update servo tracking.
          * If steering feedback is available from VESC, it's already set by
          * the servo callback. Otherwise, simulate servo dynamics with rate limit. */
-        if (!g_use_steering_feedback)
+        pthread_mutex_lock(&g_state_mutex);
+        actual_steer_snapshot = global_actual_steering_angle;
+        use_steering_feedback_snapshot = g_use_steering_feedback;
+        if (!use_steering_feedback_snapshot)
         {
             double max_delta = STEERING_RATE_LIMIT * CONTROL_DT_SECONDS;
-            double steer_diff = steer - global_actual_steering_angle;
+            double steer_diff = steer - actual_steer_snapshot;
             if (steer_diff > max_delta) steer_diff = max_delta;
             if (steer_diff < -max_delta) steer_diff = -max_delta;
-            global_actual_steering_angle += steer_diff;
+            actual_steer_snapshot += steer_diff;
+            global_actual_steering_angle = actual_steer_snapshot;
         }
+        last_servo_raw_snapshot = g_last_servo_raw;
+        pthread_mutex_unlock(&g_state_mutex);
 
         /* Feed actual servo position back to MPC */
         {
             ControlInput_t actual_ctrl;
             actual_ctrl.steer_ang =
-                global_actual_steering_angle;
+                actual_steer_snapshot;
             actual_ctrl.long_acc =
                 global_control_command.long_acc;
             mpc_set_actual_previous_control(&actual_ctrl);
@@ -1205,7 +1473,11 @@ void ekf_pose_callback(const void *message_in)
     }
 
     /* Publish drive command */
+    double output_gap_ms = 0.0;
     {
+        pthread_mutex_lock(&g_drive_mutex);
+        global_drive_message_buffer.header.stamp.sec = drive_stamp_sec;
+        global_drive_message_buffer.header.stamp.nanosec = drive_stamp_nanosec;
         global_drive_message_buffer.drive.steering_angle =
             global_control_command.steer_ang;
 
@@ -1219,18 +1491,17 @@ void ekf_pose_callback(const void *message_in)
 
             /* Apply the same standstill brake-override in all publish paths
              * (including solver hold-last-command fallback). */
-            a_cmd = apply_standstill_brake_override(g_latest_vx, a_cmd, 0);
+            a_cmd = apply_standstill_brake_override(latest_vx_snapshot, a_cmd, 0);
 
             /* Integrate over the prediction time step used by MPC. */
-            double v_cmd = g_latest_vx + a_cmd * pred_dt;
+            double v_cmd = latest_vx_snapshot + a_cmd * pred_dt;
             if (v_cmd < (double)VP_MIN_VELOCITY_MPS) v_cmd = (double)VP_MIN_VELOCITY_MPS;
             if (v_cmd > TRAJECTORY_MAXIMUM_VELOCITY) v_cmd = TRAJECTORY_MAXIMUM_VELOCITY;
-            if (global_trajectory_count > 1)
+            if (vref0 > 0.0)
             {
-                const double v_ref0 = (double)global_reference_trajectory[0].reference_velocity;
-                if (isfinite(v_ref0) && v_ref0 > 0.0)
+                if (isfinite(vref0))
                 {
-                    const double v_cap = v_ref0 + g_raceline_speed_margin_mps;
+                    const double v_cap = vref0 + g_raceline_speed_margin_mps;
                     if (v_cmd > v_cap) v_cmd = v_cap;
                 }
             }
@@ -1238,14 +1509,47 @@ void ekf_pose_callback(const void *message_in)
             global_drive_message_buffer.drive.speed = (float)v_cmd;
             global_drive_message_buffer.drive.acceleration = (float)a_cmd;
             publish_speed_cmd = v_cmd;
+            publish_accel_cmd = a_cmd;
         }
 
         /* Cache last published values for fallback paths. */
         g_last_cmd_steer = global_drive_message_buffer.drive.steering_angle;
         g_last_cmd_speed = global_drive_message_buffer.drive.speed;
         g_last_cmd_accel = global_drive_message_buffer.drive.acceleration;
+        g_drive_command_ready = 1;
 
-        publish_drive_command_or_warn("ekf_pose_callback");
+        {
+            struct timespec now_mono;
+            clock_gettime(CLOCK_MONOTONIC, &now_mono);
+            if (g_last_mpc_output_valid)
+            {
+                output_gap_ms =
+                    timespec_diff_sec(&g_last_mpc_output_time, &now_mono) * 1000.0;
+            }
+            g_last_mpc_output_time = now_mono;
+            g_last_mpc_output_valid = 1;
+            g_mpc_output_seq++;
+        }
+
+        publish_drive_command_or_warn("mpc_control_thread");
+        pthread_mutex_unlock(&g_drive_mutex);
+    }
+
+    publish_float64_metric(&g_timing_output_gap_ms_publisher,
+                           output_gap_ms,
+                           "output_gap_ms");
+
+    if (output_gap_ms > 50.0)
+    {
+        fprintf(stderr,
+                "[MPC] WARNING: MPC output gap %.1f ms (pose_seq=%lu skipped=%lu solve=%.1f us status=%d iter=%u output_seq=%lu)\n",
+                output_gap_ms,
+                pose_seq,
+                skipped_poses,
+                solve_us,
+                (int)mpc_status,
+                (unsigned int)mpc_result.iterations_used,
+                g_mpc_output_seq);
     }
 
     /* Optional per-cycle solver telemetry (CSV) for post-drive analysis. */
@@ -1263,7 +1567,7 @@ void ekf_pose_callback(const void *message_in)
             double cmd_accel = mpc_result.optimal_control.long_acc;
 
             fprintf(g_solver_log_file,
-                    "%lld,%lld,%.3f,%d,%u,%.9f,%.9f,%d,%lu,%lld,%d,%.6f,%.3f,"
+                    "%lld,%lld,%lu,%lu,%.3f,%.3f,%.3f,%.3f,%d,%u,%.9f,%.9f,%d,%lu,%lld,%d,%.6f,%.3f,"
                     "%.6f,%.6f,%.6f,%.9f,%.9f,%.9f,"
                     "%.6f,%.6f,%.6f,%.6f,%.6f,"
                     "%.6f,%.6f,%.6f,%.6f,%.6f,%d,"
@@ -1271,23 +1575,97 @@ void ekf_pose_callback(const void *message_in)
                     "%.6f,%.6f,%.6f,%.6f,%.6f,"
                     "%.6f,%.6f,%.6f,%.6f,"
                     "%.6f,%.3f,%d,%lld\n",
-                    pose_ros_time_ns, unix_time_ns, solve_us, (int)mpc_status, mpc_result.iterations_used,
-                    primal_res, dual_res, closest, g_local_raceline_update_seq, g_local_raceline_ros_time_ns,
-                    global_trajectory_count, g_local_raceline_length_meters, odom_age_ms,
+                    pose_ros_time_ns, unix_time_ns, pose_seq, skipped_poses,
+                    ekf_to_control_ms, control_gap_ms, output_gap_ms,
+                    solve_us, (int)mpc_status, mpc_result.iterations_used,
+                    primal_res, dual_res, closest, local_raceline_seq_snapshot, local_raceline_ros_time_snapshot,
+                    trajectory_count_snapshot, local_raceline_length_snapshot, odom_age_ms,
                     pos_x, pos_y, heading, pose_cov_x, pose_cov_y, pose_cov_yaw,
-                    ey, epsi, g_latest_vx, g_latest_vy, g_latest_omega,
+                    ey, epsi, latest_vx_snapshot, latest_vy_snapshot, latest_omega_snapshot,
                     path_x, path_y, path_heading, path_s, path_t, path_segment_idx,
                     vref0, kappa0, ref_yaw_rate0, left_wall0, right_wall0,
                     local_wp0_x, local_wp0_y, local_wp0_heading, local_wp0_s,
-                    cmd_steer, cmd_accel, publish_speed_cmd, global_drive_message_buffer.drive.acceleration,
-                    global_actual_steering_angle, g_last_servo_raw, g_use_steering_feedback, g_last_odom_ros_time_ns);
+                    cmd_steer, cmd_accel, publish_speed_cmd, publish_accel_cmd,
+                    actual_steer_snapshot, last_servo_raw_snapshot,
+                    use_steering_feedback_snapshot, last_odom_ros_time_snapshot);
 
-            if ((g_solver_log_counter % 20UL) == 0UL)
+            if ((g_solver_log_counter % 200UL) == 0UL)
             {
                 fflush(g_solver_log_file);
             }
         }
     }
+}
+
+/*===========================================================================
+ * ROS2 Callback: EKF Pose Subscription
+ *===========================================================================
+ * Fast path only: copy latest pose, bump sequence, signal control thread.
+ *===========================================================================*/
+void ekf_pose_callback(const void *message_in)
+{
+    if (message_in == NULL) return;
+
+    const geometry_msgs__msg__PoseWithCovarianceStamped *msg =
+        (const geometry_msgs__msg__PoseWithCovarianceStamped *)message_in;
+
+    PoseSnapshot_t snapshot;
+    clock_gettime(CLOCK_MONOTONIC, &snapshot.received_mono_time);
+    snapshot.stamp_sec = msg->header.stamp.sec;
+    snapshot.stamp_nanosec = msg->header.stamp.nanosec;
+    snapshot.pos_x = msg->pose.pose.position.x;
+    snapshot.pos_y = msg->pose.pose.position.y;
+    snapshot.qx = msg->pose.pose.orientation.x;
+    snapshot.qy = msg->pose.pose.orientation.y;
+    snapshot.qz = msg->pose.pose.orientation.z;
+    snapshot.qw = msg->pose.pose.orientation.w;
+    memcpy(snapshot.covariance, msg->pose.covariance, sizeof(snapshot.covariance));
+
+    pthread_mutex_lock(&g_pose_mutex);
+    g_latest_pose_snapshot = snapshot;
+    g_latest_pose_valid = 1;
+    g_latest_pose_seq++;
+    pthread_cond_signal(&g_pose_cond);
+    pthread_mutex_unlock(&g_pose_mutex);
+
+    if (!g_ekf_pose_received) {
+        printf("[MPC] EKF pose received — starting MPC control\n");
+        g_ekf_pose_received = 1;
+    }
+}
+
+static void *mpc_control_thread_main(void *arg)
+{
+    (void)arg;
+    unsigned long processed_seq = 0;
+
+    while (!global_shutdown_requested)
+    {
+        PoseSnapshot_t pose;
+        unsigned long seq = 0;
+
+        pthread_mutex_lock(&g_pose_mutex);
+        while (!global_shutdown_requested &&
+               (!g_latest_pose_valid || g_latest_pose_seq == processed_seq))
+        {
+            pthread_cond_wait(&g_pose_cond, &g_pose_mutex);
+        }
+        if (global_shutdown_requested)
+        {
+            pthread_mutex_unlock(&g_pose_mutex);
+            break;
+        }
+        pose = g_latest_pose_snapshot;
+        seq = g_latest_pose_seq;
+        pthread_mutex_unlock(&g_pose_mutex);
+
+        unsigned long skipped_poses =
+            (seq > processed_seq + 1UL) ? (seq - processed_seq - 1UL) : 0UL;
+        processed_seq = seq;
+        run_mpc_for_pose(&pose, seq, skipped_poses);
+    }
+
+    return NULL;
 }
 
 /*===========================================================================
@@ -1356,128 +1734,120 @@ int main(int argc, char *argv[])
             double margin = atof(env_val);
             if (margin >= 0.0 && margin <= 5.0) g_raceline_speed_margin_mps = margin;
         }
+        if ((env_val = getenv("MPC_DRIVE_REPUBLISH_PERIOD_MS")) != NULL)
+        {
+            double period_ms = atof(env_val);
+            if (period_ms >= 1.0 && period_ms <= 100.0) g_drive_republish_period_ms = period_ms;
+        }
+        if ((env_val = getenv("MPC_SOLVER_CSV_LOG")) != NULL)
+            g_solver_csv_logging_enabled = atoi(env_val) != 0;
+        if ((env_val = getenv("MPC_LOG_LOCAL_RACELINE_SNAPSHOTS")) != NULL)
+            g_log_local_raceline_snapshots = atoi(env_val) != 0;
     }
 
+    if (g_solver_csv_logging_enabled)
     {
-        /* Solver CSV logging is opt-in. Writing and flushing high-rate logs from
-         * the control callback can stall /drive publication on embedded hardware. */
-        const char *log_path = getenv("MPC_SOLVER_LOG");
-        const char *log_stride = getenv("MPC_SOLVER_LOG_STRIDE");
+        /* Solver CSV logging is opt-in only. Per-cycle file I/O can stall
+         * the real-time control thread on Jetson storage. */
+        time_t now = time(NULL);
+        char timestamp[64];
+        struct tm *tm_now = localtime(&now);
+        strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", tm_now);
 
-        if (log_stride != NULL && log_stride[0] != '\0')
+        char log_path[PATH_MAX];
+        snprintf(log_path, sizeof(log_path), "log/solver_%s.csv", timestamp);
+
+        /* Use configured stride (default 1) already present in g_solver_log_stride */
+
+        ensure_parent_directories(log_path);
+
+        g_solver_log_file = fopen(log_path, "w");
+        if (g_solver_log_file == NULL)
         {
-            const int stride = atoi(log_stride);
-            if (stride > 0)
-            {
-                g_solver_log_stride = stride;
-            }
+            fprintf(stderr, "[MPC] WARNING: Failed to open solver log file %s\n", log_path);
         }
-
-        if (log_path == NULL || log_path[0] == '\0' ||
-            strcmp(log_path, "0") == 0 ||
-            strcmp(log_path, "false") == 0 ||
-            strcmp(log_path, "off") == 0)
+        else
         {
-            printf("[MPC] Solver telemetry log: disabled (set MPC_SOLVER_LOG=/path/file.csv to enable)\n");
-            log_path = NULL;
-        }
+            fprintf(g_solver_log_file,
+                    "pose_ros_time_ns,unix_time_ns,pose_seq,skipped_poses,ekf_to_control_ms,control_gap_ms,output_gap_ms,"
+                    "solve_us,status,iterations,primal_residual,dual_residual,"
+                    "closest_wp,local_raceline_seq,local_raceline_ros_time_ns,local_raceline_count,local_raceline_length_m,odom_age_ms,"
+                    "pos_x,pos_y,heading,pose_cov_x,pose_cov_y,pose_cov_yaw,"
+                    "e_y,e_psi,vx,vy,omega,"
+                    "path_x,path_y,path_heading,path_s,path_t,path_segment_idx,"
+                    "v_ref0,kappa0,ref_yaw_rate0,left_wall0,right_wall0,"
+                    "local_wp0_x,local_wp0_y,local_wp0_heading,local_wp0_s,"
+                    "cmd_steer,cmd_accel,publish_speed_cmd,publish_accel_cmd,"
+                    "actual_steer,servo_raw,use_steering_feedback,odom_ros_time_ns\n");
+            fflush(g_solver_log_file);
+            printf("[MPC] Solver telemetry log: %s (stride=%d)\n", log_path, g_solver_log_stride);
 
-        if (log_path != NULL)
-        {
-            /* SECURITY: Environment variable is trusted deployment input.
-             * Log path must come from controlled local configuration sources. */
-
-            ensure_parent_directories(log_path);
-
-            g_solver_log_file = fopen(log_path, "w");
-            if (g_solver_log_file == NULL)
+            /* Heavy local raceline snapshots are opt-in only; writing all
+             * waypoints from the callback can stall real-time publishing. */
+            if (g_log_local_raceline_snapshots)
             {
-                fprintf(stderr, "[MPC] WARNING: Failed to open solver log file %s\n", log_path);
-            }
-            else
-            {
-                fprintf(g_solver_log_file,
-                        "pose_ros_time_ns,unix_time_ns,solve_us,status,iterations,primal_residual,dual_residual,"
-                        "closest_wp,local_raceline_seq,local_raceline_ros_time_ns,local_raceline_count,local_raceline_length_m,odom_age_ms,"
-                        "pos_x,pos_y,heading,pose_cov_x,pose_cov_y,pose_cov_yaw,"
-                        "e_y,e_psi,vx,vy,omega,"
-                        "path_x,path_y,path_heading,path_s,path_t,path_segment_idx,"
-                        "v_ref0,kappa0,ref_yaw_rate0,left_wall0,right_wall0,"
-                        "local_wp0_x,local_wp0_y,local_wp0_heading,local_wp0_s,"
-                        "cmd_steer,cmd_accel,publish_speed_cmd,publish_accel_cmd,"
-                        "actual_steer,servo_raw,use_steering_feedback,odom_ros_time_ns\n");
-                fflush(g_solver_log_file);
-                printf("[MPC] Solver telemetry log: %s (stride=%d)\n", log_path, g_solver_log_stride);
-
+                char local_raceline_path[PATH_MAX];
+                snprintf(local_raceline_path, sizeof(local_raceline_path), "log/local_raceline_%s.csv", timestamp);
+                ensure_parent_directories(local_raceline_path);
+                g_local_raceline_log_file = fopen(local_raceline_path, "w");
+                if (g_local_raceline_log_file != NULL)
                 {
-                    const char *local_raceline_log_path = getenv("MPC_LOCAL_RACELINE_LOG");
-                    if (local_raceline_log_path != NULL && local_raceline_log_path[0] != '\0' &&
-                        strcmp(local_raceline_log_path, "0") != 0 &&
-                        strcmp(local_raceline_log_path, "false") != 0 &&
-                        strcmp(local_raceline_log_path, "off") != 0)
-                    {
-                        ensure_parent_directories(local_raceline_log_path);
-                        g_local_raceline_log_file = fopen(local_raceline_log_path, "w");
-                        if (g_local_raceline_log_file != NULL)
-                        {
-                            fprintf(g_local_raceline_log_file,
-                                    "local_raceline_seq,local_raceline_ros_time_ns,waypoint_index,waypoint_count,"
-                                    "s_m,x_m,y_m,heading_rad,kappa_radpm,v_ref_mps,left_bound_m,right_bound_m\n");
-                            fflush(g_local_raceline_log_file);
-                            printf("[MPC] Local raceline snapshot log: %s\n", local_raceline_log_path);
-                        }
-                        else
-                        {
-                            fprintf(stderr, "[MPC] WARNING: Failed to open local raceline log file %s\n",
-                                    local_raceline_log_path);
-                        }
-                    }
+                    fprintf(g_local_raceline_log_file,
+                            "local_raceline_seq,local_raceline_ros_time_ns,waypoint_index,waypoint_count,"
+                            "s_m,x_m,y_m,heading_rad,kappa_radpm,v_ref_mps,left_bound_m,right_bound_m\n");
+                    fflush(g_local_raceline_log_file);
+                    printf("[MPC] Local raceline snapshot log: %s\n", local_raceline_path);
                 }
-
+                else
                 {
-                    char meta_path[PATH_MAX];
-                    int meta_len = snprintf(meta_path, sizeof(meta_path), "%s.meta.txt", log_path);
-                    if (meta_len > 0 && (size_t)meta_len < sizeof(meta_path))
+                    fprintf(stderr, "[MPC] WARNING: Failed to open local raceline log file %s\n",
+                            local_raceline_path);
+                }
+            }
+
+            /* Write metadata file next to the solver log */
+            {
+                char meta_path[PATH_MAX];
+                int meta_len = snprintf(meta_path, sizeof(meta_path), "%s.meta.txt", log_path);
+                if (meta_len > 0 && (size_t)meta_len < sizeof(meta_path))
+                {
+                    MpcConfiguration_t cfg = mpc_get_configuration();
+                    g_solver_meta_file = fopen(meta_path, "w");
+                    if (g_solver_meta_file != NULL)
                     {
-                        const char *local_raceline_log_path = getenv("MPC_LOCAL_RACELINE_LOG");
-                        MpcConfiguration_t cfg = mpc_get_configuration();
-                        g_solver_meta_file = fopen(meta_path, "w");
-                        if (g_solver_meta_file != NULL)
-                        {
-                            fprintf(g_solver_meta_file, "log_path=%s\n", log_path);
-                            fprintf(g_solver_meta_file, "local_raceline_log_path=%s\n",
-                                    local_raceline_log_path != NULL ? local_raceline_log_path : "");
-                            fprintf(g_solver_meta_file, "control_rate_hz=%.3f\n", (double)CONTROL_RATE_HZ);
-                            fprintf(g_solver_meta_file, "control_dt_s=%.6f\n", (double)CONTROL_DT_SECONDS);
-                            fprintf(g_solver_meta_file, "prediction_horizon=%d\n", PREDICTION_HORIZON);
-                            fprintf(g_solver_meta_file, "prediction_dt_s=%.6f\n", (double)cfg.time_step);
-                            fprintf(g_solver_meta_file, "weight_lat=%.9g\n", (double)cfg.weight_lateral_error);
-                            fprintf(g_solver_meta_file, "weight_heading=%.9g\n", (double)cfg.weight_heading_error);
-                            fprintf(g_solver_meta_file, "weight_velocity=%.9g\n", (double)cfg.weight_velocity);
-                            fprintf(g_solver_meta_file, "weight_lat_vel=%.9g\n", (double)cfg.weight_lateral_velocity);
-                            fprintf(g_solver_meta_file, "weight_yaw_rate=%.9g\n", (double)cfg.weight_yaw_rate);
-                            fprintf(g_solver_meta_file, "weight_steer_effort=%.9g\n", (double)cfg.weight_steering_effort);
-                            fprintf(g_solver_meta_file, "weight_accel_effort=%.9g\n", (double)cfg.weight_acceleration_effort);
-                            fprintf(g_solver_meta_file, "weight_steer_rate=%.9g\n", (double)cfg.weight_steering_rate);
-                            fprintf(g_solver_meta_file, "weight_accel_rate=%.9g\n", (double)cfg.weight_acceleration_rate);
-                            fprintf(g_solver_meta_file, "weight_delta_actual=%.9g\n", (double)cfg.weight_delta_actual);
-                            fprintf(g_solver_meta_file, "solver_max_iter=%u\n", (unsigned int)cfg.max_solver_iterations);
-                            fprintf(g_solver_meta_file, "solver_tol=%.9g\n", (double)cfg.solver_convergence_tolerance);
-                            fprintf(g_solver_meta_file, "vehicle_mass_kg=%.9g\n", (double)VP_MASS_KG);
-                            fprintf(g_solver_meta_file, "vehicle_iz_kgm2=%.9g\n", (double)VP_YAW_INERTIA_KGM2);
-                            fprintf(g_solver_meta_file, "vehicle_lf_m=%.9g\n", (double)VP_CG_TO_FRONT_AXLE_M);
-                            fprintf(g_solver_meta_file, "vehicle_lr_m=%.9g\n", (double)VP_CG_TO_REAR_AXLE_M);
-                            fprintf(g_solver_meta_file, "vehicle_hcg_m=%.9g\n", (double)VP_CG_HEIGHT_M);
-                            fprintf(g_solver_meta_file, "vehicle_steer_max_rad=%.9g\n", (double)VP_MAX_STEERING_RAD);
-                            fprintf(g_solver_meta_file, "vehicle_min_speed_mps=%.9g\n", (double)VP_MIN_VELOCITY_MPS);
-                            fprintf(g_solver_meta_file, "vehicle_max_speed_mps=%.9g\n", (double)VP_MAX_VELOCITY_MPS);
-                            fprintf(g_solver_meta_file, "servo_gain=%.9g\n", (double)STEERING_TO_SERVO_GAIN);
-                            fprintf(g_solver_meta_file, "servo_offset=%.9g\n", (double)STEERING_TO_SERVO_OFFSET);
-                            fprintf(g_solver_meta_file, "steering_rate_limit=%.9g\n", (double)STEERING_RATE_LIMIT);
-                            fprintf(g_solver_meta_file, "raceline_speed_margin_mps=%.9g\n", g_raceline_speed_margin_mps);
-                            fprintf(g_solver_meta_file, "use_solver_log_stride=%d\n", g_solver_log_stride);
-                            fflush(g_solver_meta_file);
-                        }
+                        fprintf(g_solver_meta_file, "log_path=%s\n", log_path);
+                        fprintf(g_solver_meta_file, "local_raceline_log_path=%s\n",
+                                g_log_local_raceline_snapshots ? "log/local_raceline_<timestamp>.csv" : "disabled");
+                        fprintf(g_solver_meta_file, "control_rate_hz=%.3f\n", (double)CONTROL_RATE_HZ);
+                        fprintf(g_solver_meta_file, "control_dt_s=%.6f\n", (double)CONTROL_DT_SECONDS);
+                        fprintf(g_solver_meta_file, "prediction_horizon=%d\n", PREDICTION_HORIZON);
+                        fprintf(g_solver_meta_file, "prediction_dt_s=%.6f\n", (double)cfg.time_step);
+                        fprintf(g_solver_meta_file, "weight_lat=%.9g\n", (double)cfg.weight_lateral_error);
+                        fprintf(g_solver_meta_file, "weight_heading=%.9g\n", (double)cfg.weight_heading_error);
+                        fprintf(g_solver_meta_file, "weight_velocity=%.9g\n", (double)cfg.weight_velocity);
+                        fprintf(g_solver_meta_file, "weight_lat_vel=%.9g\n", (double)cfg.weight_lateral_velocity);
+                        fprintf(g_solver_meta_file, "weight_yaw_rate=%.9g\n", (double)cfg.weight_yaw_rate);
+                        fprintf(g_solver_meta_file, "weight_steer_effort=%.9g\n", (double)cfg.weight_steering_effort);
+                        fprintf(g_solver_meta_file, "weight_accel_effort=%.9g\n", (double)cfg.weight_acceleration_effort);
+                        fprintf(g_solver_meta_file, "weight_steer_rate=%.9g\n", (double)cfg.weight_steering_rate);
+                        fprintf(g_solver_meta_file, "weight_accel_rate=%.9g\n", (double)cfg.weight_acceleration_rate);
+                        fprintf(g_solver_meta_file, "weight_delta_actual=%.9g\n", (double)cfg.weight_delta_actual);
+                        fprintf(g_solver_meta_file, "solver_max_iter=%u\n", (unsigned int)cfg.max_solver_iterations);
+                        fprintf(g_solver_meta_file, "solver_tol=%.9g\n", (double)cfg.solver_convergence_tolerance);
+                        fprintf(g_solver_meta_file, "vehicle_mass_kg=%.9g\n", (double)VP_MASS_KG);
+                        fprintf(g_solver_meta_file, "vehicle_iz_kgm2=%.9g\n", (double)VP_YAW_INERTIA_KGM2);
+                        fprintf(g_solver_meta_file, "vehicle_lf_m=%.9g\n", (double)VP_CG_TO_FRONT_AXLE_M);
+                        fprintf(g_solver_meta_file, "vehicle_lr_m=%.9g\n", (double)VP_CG_TO_REAR_AXLE_M);
+                        fprintf(g_solver_meta_file, "vehicle_hcg_m=%.9g\n", (double)VP_CG_HEIGHT_M);
+                        fprintf(g_solver_meta_file, "vehicle_steer_max_rad=%.9g\n", (double)VP_MAX_STEERING_RAD);
+                        fprintf(g_solver_meta_file, "vehicle_min_speed_mps=%.9g\n", (double)VP_MIN_VELOCITY_MPS);
+                        fprintf(g_solver_meta_file, "vehicle_max_speed_mps=%.9g\n", (double)VP_MAX_VELOCITY_MPS);
+                        fprintf(g_solver_meta_file, "servo_gain=%.9g\n", (double)STEERING_TO_SERVO_GAIN);
+                        fprintf(g_solver_meta_file, "servo_offset=%.9g\n", (double)STEERING_TO_SERVO_OFFSET);
+                        fprintf(g_solver_meta_file, "steering_rate_limit=%.9g\n", (double)STEERING_RATE_LIMIT);
+                        fprintf(g_solver_meta_file, "raceline_speed_margin_mps=%.9g\n", g_raceline_speed_margin_mps);
+                        fprintf(g_solver_meta_file, "use_solver_log_stride=%d\n", g_solver_log_stride);
+                        fflush(g_solver_meta_file);
                     }
                 }
             }
@@ -1485,8 +1855,7 @@ int main(int argc, char *argv[])
             /* Also open stats CSV file for simple idx/iter/solve_time logging */
             {
                 char stats_csv_path[PATH_MAX];
-                int stats_len = snprintf(stats_csv_path, sizeof(stats_csv_path),
-                                         "%s.stats.csv", log_path);
+                int stats_len = snprintf(stats_csv_path, sizeof(stats_csv_path), "%s.stats.csv", log_path);
                 if (stats_len > 0 && (size_t)stats_len < sizeof(stats_csv_path))
                 {
                     g_stats_csv_file = fopen(stats_csv_path, "w");
@@ -1500,6 +1869,10 @@ int main(int argc, char *argv[])
             }
         }
     }
+    else
+    {
+        printf("[MPC] Solver CSV logging disabled (set MPC_SOLVER_CSV_LOG=1 to enable)\n");
+    }
 
     {
         MpcConfiguration_t cfg = mpc_get_configuration();
@@ -1507,7 +1880,7 @@ int main(int argc, char *argv[])
                PREDICTION_HORIZON, (double)cfg.time_step * 1000.0);
     }
 
-    printf("[MPC] Control mode: EKF-driven (MPC runs on each /ekf_pose message)\n");
+    printf("[MPC] Control mode: EKF-driven solver, fixed-rate /drive republish\n");
     printf("[MPC] Topics: odom=%s, drive=%s\n", g_odom_topic, g_drive_topic);
     printf("[MPC] Servo feedback: %s (gain=%.4f, offset=%.4f)\n",
             g_servo_topic, STEERING_TO_SERVO_GAIN, STEERING_TO_SERVO_OFFSET);
@@ -1517,6 +1890,7 @@ int main(int argc, char *argv[])
     printf("[MPC] EKF pose topic: %s\n", g_ekf_pose_topic);
     printf("[MPC] Local raceline topic: %s\n", g_local_raceline_topic);
     printf("[MPC] Raceline speed margin: %.2f m/s\n", g_raceline_speed_margin_mps);
+    printf("[MPC] Drive republish period: %.1f ms\n", g_drive_republish_period_ms);
     printf("[MPC] Verbose=%d\n", g_verbose);
 
     {
@@ -1683,6 +2057,38 @@ int main(int argc, char *argv[])
     }
     printf("[ROS2] Publishing to %s (Reliable, KeepLast(10))\n", g_drive_topic);
 
+    /* Bag-visible timing telemetry. BestEffort/KeepLast(1) avoids blocking control. */
+    rmw_qos_profile_t qos_timing = rmw_qos_profile_default;
+    qos_timing.reliability = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+    qos_timing.history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
+    qos_timing.depth = 1;
+
+    rcl_publisher_options_t timing_pub_opts = rcl_publisher_get_default_options();
+    timing_pub_opts.qos = qos_timing;
+
+    if (!init_float64_publisher(&g_timing_solve_us_publisher, &node,
+                                "/mpc/timing/solve_us", &timing_pub_opts) ||
+        !init_float64_publisher(&g_timing_iteration_count_publisher, &node,
+                                "/mpc/timing/iteration_count", &timing_pub_opts) ||
+        !init_float64_publisher(&g_timing_control_gap_ms_publisher, &node,
+                                "/mpc/timing/control_gap_ms", &timing_pub_opts) ||
+        !init_float64_publisher(&g_timing_ekf_to_control_ms_publisher, &node,
+                                "/mpc/timing/ekf_to_control_ms", &timing_pub_opts) ||
+        !init_float64_publisher(&g_timing_output_gap_ms_publisher, &node,
+                                "/mpc/timing/output_gap_ms", &timing_pub_opts) ||
+        !init_float64_publisher(&g_timing_drive_age_ms_publisher, &node,
+                                "/mpc/timing/drive_age_ms", &timing_pub_opts) ||
+        !init_float64_publisher(&g_timing_pose_seq_publisher, &node,
+                                "/mpc/timing/pose_seq", &timing_pub_opts) ||
+        !init_float64_publisher(&g_timing_skipped_poses_publisher, &node,
+                                "/mpc/timing/skipped_poses", &timing_pub_opts) ||
+        !init_float64_publisher(&g_timing_solver_enter_seq_publisher, &node,
+                                "/mpc/timing/solver_enter_seq", &timing_pub_opts))
+    {
+        return 1;
+    }
+    g_timing_publishers_ready = 1;
+
     /* Initialize message buffers (pre-allocate all strings) */
     nav_msgs__msg__Odometry__init(&global_odometry_message_buffer);
     if (!preallocate_rosidl_string(&global_odometry_message_buffer.header.frame_id, 64) ||
@@ -1704,7 +2110,7 @@ int main(int argc, char *argv[])
     }
     set_rosidl_string(&global_drive_message_buffer.header.frame_id, "base_link");
 
-    /* Executor: 4 subscriptions (odom, servo, ekf_pose, local_raceline) */
+    /* Executor: subscriptions only. Control and /drive publish run in pthreads. */
     rcl_allocator_t alloc = rcl_get_default_allocator();
     rclc_executor_t executor = rclc_executor_get_zero_initialized_executor();
 
@@ -1751,7 +2157,27 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    printf("[ROS2] Executor ready (4 subs, MPC driven by %s)\n", g_ekf_pose_topic);
+    if (pthread_create(&g_drive_thread, NULL, drive_publisher_thread_main, NULL) == 0)
+    {
+        g_drive_thread_started = 1;
+    }
+    else
+    {
+        fprintf(stderr, "[MPC] ERROR: failed to start drive publisher thread\n");
+        return 1;
+    }
+
+    if (pthread_create(&g_control_thread, NULL, mpc_control_thread_main, NULL) == 0)
+    {
+        g_control_thread_started = 1;
+    }
+    else
+    {
+        fprintf(stderr, "[MPC] ERROR: failed to start MPC control thread\n");
+        return 1;
+    }
+
+    printf("[ROS2] Executor ready (4 subs, MPC thread signaled by %s)\n", g_ekf_pose_topic);
     printf("\n[MPC] Spinning... (waiting for EKF pose on %s, odometry on %s, and local raceline on %s)\n\n",
            g_ekf_pose_topic, g_odom_topic, g_local_raceline_topic);
 
@@ -1759,6 +2185,17 @@ int main(int argc, char *argv[])
 
     /* Cleanup */
     printf("\n[ROS2] Shutting down...\n");
+    global_shutdown_requested = 1;
+    pthread_cond_broadcast(&g_pose_cond);
+    if (g_control_thread_started)
+    {
+        pthread_join(g_control_thread, NULL);
+    }
+    if (g_drive_thread_started)
+    {
+        pthread_join(g_drive_thread, NULL);
+    }
+    g_timing_publishers_ready = 0;
     if (g_solver_log_file != NULL)
     {
         fflush(g_solver_log_file);
@@ -1788,6 +2225,15 @@ int main(int argc, char *argv[])
     cleanup_rc = rcl_subscription_fini(&ekf_pose_sub, &node); (void)cleanup_rc;
     cleanup_rc = rcl_subscription_fini(&local_raceline_sub, &node); (void)cleanup_rc;
     geometry_msgs__msg__PoseWithCovarianceStamped__fini(&global_ekf_pose_buffer);
+    cleanup_rc = rcl_publisher_fini(&g_timing_solve_us_publisher, &node); (void)cleanup_rc;
+    cleanup_rc = rcl_publisher_fini(&g_timing_iteration_count_publisher, &node); (void)cleanup_rc;
+    cleanup_rc = rcl_publisher_fini(&g_timing_control_gap_ms_publisher, &node); (void)cleanup_rc;
+    cleanup_rc = rcl_publisher_fini(&g_timing_ekf_to_control_ms_publisher, &node); (void)cleanup_rc;
+    cleanup_rc = rcl_publisher_fini(&g_timing_output_gap_ms_publisher, &node); (void)cleanup_rc;
+    cleanup_rc = rcl_publisher_fini(&g_timing_drive_age_ms_publisher, &node); (void)cleanup_rc;
+    cleanup_rc = rcl_publisher_fini(&g_timing_pose_seq_publisher, &node); (void)cleanup_rc;
+    cleanup_rc = rcl_publisher_fini(&g_timing_skipped_poses_publisher, &node); (void)cleanup_rc;
+    cleanup_rc = rcl_publisher_fini(&g_timing_solver_enter_seq_publisher, &node); (void)cleanup_rc;
     cleanup_rc = rcl_publisher_fini(&global_control_publisher, &node); (void)cleanup_rc;
     cleanup_rc = rcl_node_fini(&node); (void)cleanup_rc;
     cleanup_rc = rcl_context_fini(&ctx); (void)cleanup_rc;

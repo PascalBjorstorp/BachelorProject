@@ -76,6 +76,12 @@
   reliability: reliable
   durability: volatile
 
+/amcl_particle_count:
+  history: keep_last
+  depth: 50
+  reliability: reliable
+  durability: volatile
+
 /ackermann_cmd:
   history: keep_last
   depth: 100
@@ -92,6 +98,12 @@
   history: keep_last
   depth: 20
   reliability: reliable
+  durability: volatile
+
+/particle_cloud:
+  history: keep_last
+  depth: 20
+  reliability: best_effort
   durability: volatile
 
 /ego_racecar/odom:
@@ -116,4 +128,64 @@
   history: keep_last
   depth: 100
   reliability: reliable
+  durability: volatile
+
+/mpc_state:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
+  durability: volatile
+
+/mpc/timing/solve_us:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
+  durability: volatile
+
+/mpc/timing/iteration_count:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
+  durability: volatile
+
+/mpc/timing/control_gap_ms:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
+  durability: volatile
+
+/mpc/timing/ekf_to_control_ms:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
+  durability: volatile
+
+/mpc/timing/output_gap_ms:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
+  durability: volatile
+
+/mpc/timing/drive_age_ms:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
+  durability: volatile
+
+/mpc/timing/pose_seq:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
+  durability: volatile
+
+/mpc/timing/skipped_poses:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
+  durability: volatile
+
+/mpc/timing/solver_enter_seq:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
   durability: volatile

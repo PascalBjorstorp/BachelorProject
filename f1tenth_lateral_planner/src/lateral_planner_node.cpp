@@ -68,6 +68,7 @@ public:
   {
     avoidance_enabled_ = declare_parameter<bool>(
       "avoidance_enabled", LATERAL_PLANNER_ENABLE_AVOIDANCE);
+    trajectory_file_ = declare_parameter<std::string>("trajectory_file", "");
 
     initPlanner();
     setupSubscribers();
@@ -106,7 +107,9 @@ private:
     planner_ = std::make_unique<LateralPlanner>(get_logger(), params);
 
     // Load the trajectory CSV
-    const std::string traj_file = resolveTrajectoryFile(get_logger());
+    const std::string traj_file = trajectory_file_.empty()
+      ? resolveTrajectoryFile(get_logger())
+      : trajectory_file_;
     if (!traj_file.empty()) {
       planner_->loadTrajectory(traj_file);
       RCLCPP_INFO(get_logger(), "  Trajectory: %s", traj_file.c_str());
@@ -560,6 +563,7 @@ private:
   std::unique_ptr<LateralPlanner> planner_;
   std::mutex planner_mutex_;
   bool avoidance_enabled_{true};
+  std::string trajectory_file_;
 
   // Frame IDs
   std::string map_frame_;

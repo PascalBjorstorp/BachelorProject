@@ -17,8 +17,12 @@ find_package(vitis_common REQUIRED)
 find_package(OpenCL REQUIRED)
 
 add_executable(mpc_receiver_node src/mpc_receiver.cpp)
+add_executable(mpc_replay_opencl src/mpc_replay_opencl.cpp)
 
 target_include_directories(mpc_receiver_node PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_include_directories(mpc_replay_opencl PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
@@ -28,13 +32,20 @@ ament_target_dependencies(mpc_receiver_node
   ackermann_msgs
   vitis_common
 )
+ament_target_dependencies(mpc_replay_opencl
+  vitis_common
+)
 
 target_link_libraries(mpc_receiver_node
+  OpenCL::OpenCL
+)
+target_link_libraries(mpc_replay_opencl
   OpenCL::OpenCL
 )
 
 install(TARGETS
   mpc_receiver_node
+  mpc_replay_opencl
   DESTINATION lib/${PROJECT_NAME}
 )
 

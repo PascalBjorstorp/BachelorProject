@@ -57,6 +57,10 @@ switch metricName
     otherwise
         error('Unknown heatmap metric: %s', metricName);
 end
+if isfield(result, 'metricMask') && numel(result.metricMask) == numel(err)
+    metricMask = result.metricMask(:);
+    err(~metricMask) = NaN;
+end
 end
 
 function [cMin, cMax] = globalColorLimits(results, metricName)

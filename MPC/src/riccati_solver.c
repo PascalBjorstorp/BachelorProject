@@ -901,10 +901,10 @@ RiccatiStatus_t riccati_admm_solve(
 
         /*--- Adaptive rho (aligned with FPGA HLS solver) ---*/
         if (adaptive_rho && iter > 0) {
-            const float adapt_ratio_state = 5.0f;
-            const float adapt_ratio_ctrl = 5.0f;
+            const float adapt_ratio_state = 2.0f;
+            const float adapt_ratio_ctrl = 2.0f;
             const float rho_min = 1.0f;
-            const float rho_max = 40.0f;
+            const float rho_max = 80.0f;
 
             int scale_rho = 0;
             int scale_rho_u = 0;

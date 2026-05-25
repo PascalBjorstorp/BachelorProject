@@ -9,8 +9,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, LogI
 from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch_ros.actions import Node, LifecycleNode, ComposableNodeContainer
-from launch_ros.descriptions import ComposableNode
+from launch_ros.actions import Node, LifecycleNode
 from launch_ros.parameter_descriptions import ParameterValue
 
 
@@ -38,11 +37,14 @@ def generate_launch_description():
     localization_params_file_arg = LaunchConfiguration('localization_params_file')
     use_sim_time_arg = LaunchConfiguration('use_sim_time')
     vesc_config_arg = LaunchConfiguration('vesc_config')
+    vesc_priority_prefix_arg = LaunchConfiguration('vesc_priority_prefix')
     mux_config_arg = LaunchConfiguration('mux_config')
     use_teleop_arg = LaunchConfiguration('use_teleop')
+    use_ackermann_mux_arg = LaunchConfiguration('use_ackermann_mux')
     use_lidar_arg = LaunchConfiguration('use_lidar')
     mapping_mode_arg = LaunchConfiguration('mapping_mode')
     lidar_cluster_arg = LaunchConfiguration('lidar_cluster')
+    use_lateral_planner_arg = LaunchConfiguration('use_lateral_planner')
     lateral_planner_avoidance_enabled_arg = LaunchConfiguration('lateral_planner_avoidance_enabled')
     lateral_planner_delay_sec_arg = LaunchConfiguration('lateral_planner_delay_sec')
     map_file_arg = LaunchConfiguration('map_file')
@@ -50,12 +52,7 @@ def generate_launch_description():
     use_dynamic_bicycle_model_arg = LaunchConfiguration('use_dynamic_bicycle_model')
     old_odom_arg = LaunchConfiguration('oldOdom')
     use_localization_arg = LaunchConfiguration('use_localization')
-    amcl_num_particles_arg = LaunchConfiguration('amcl_num_particles')
-    amcl_min_particles_arg = LaunchConfiguration('amcl_min_particles')
-    amcl_max_particles_arg = LaunchConfiguration('amcl_max_particles')
     amcl_max_beams_arg = LaunchConfiguration('amcl_max_beams')
-    amcl_use_kld_arg = LaunchConfiguration('amcl_use_kld')
-    amcl_global_initialization_arg = LaunchConfiguration('amcl_global_initialization')
     use_system_monitor_arg = LaunchConfiguration('use_system_monitor')
     monitor_vesc_timeout_sec_arg = LaunchConfiguration('monitor_vesc_timeout_sec')
     monitor_drive_timeout_sec_arg = LaunchConfiguration('monitor_drive_timeout_sec')
@@ -77,6 +74,15 @@ def generate_launch_description():
         DeclareLaunchArgument(  'vesc_config', 
                                 default_value=vesc_config,
                                 description='Path to VESC configuration file'),
+
+        DeclareLaunchArgument(
+            'vesc_priority_prefix',
+            default_value='taskset -c 2',
+            description=(
+                'Command prefix for each VESC process. Default pins all VESC '
+                'nodes to CPU 2. Use empty string to disable, or e.g. '
+                '"sudo chrt -f 60 taskset -c 2" for RT scheduling.'
+            )),
         
         DeclareLaunchArgument(  'mux_config', 
                                 default_value=mux_config,
@@ -87,8 +93,12 @@ def generate_launch_description():
                                 description='Path to joystick configuration file'),
 
         DeclareLaunchArgument(  'use_teleop', 
+                                default_value='false',
+                                description='Launch joystick teleop'),
+
+        DeclareLaunchArgument(  'use_ackermann_mux',
                                 default_value='true',
-                                description='Launch joystick teleop and mux'),
+                                description='Launch ackermann_mux for /drive -> /ackermann_cmd'),
         
         DeclareLaunchArgument(  'use_lidar', 
                                 default_value='true',
@@ -103,8 +113,12 @@ def generate_launch_description():
                                 description='LiDAR clustering in racing mode: 1=1080 beams, 2=540, 4=270'),
 
         DeclareLaunchArgument(  'lateral_planner_avoidance_enabled',
-                    default_value='true',
+                    default_value='false',
                     description='Enable lateral planner obstacle avoidance (false publishes baseline raceline)'),
+
+        DeclareLaunchArgument(  'use_lateral_planner',
+                    default_value='true',
+                    description='Launch lateral planner after bringup delay'),
 
         DeclareLaunchArgument(  'lateral_planner_delay_sec',
                     default_value='2.0',
@@ -134,34 +148,9 @@ def generate_launch_description():
             description='Launch the GPU AMCL localization stack'),
 
         DeclareLaunchArgument(
-            'amcl_num_particles',
-            default_value='1000',
-            description='GPU AMCL initial/fixed particle count'),
-
-        DeclareLaunchArgument(
-            'amcl_min_particles',
-            default_value='1000',
-            description='GPU AMCL minimum particle count'),
-
-        DeclareLaunchArgument(
-            'amcl_max_particles',
-            default_value='1000',
-            description='GPU AMCL maximum particle count'),
-
-        DeclareLaunchArgument(
             'amcl_max_beams',
             default_value='270',
             description='GPU AMCL max beams sampled from each scan'),
-
-        DeclareLaunchArgument(
-            'amcl_use_kld',
-            default_value='false',
-            description='Enable GPU AMCL KLD adaptive particle sampling'),
-
-        DeclareLaunchArgument(
-            'amcl_global_initialization',
-            default_value='false',
-            description='Seed GPU AMCL particles globally along raceline with heading cone'),
 
         DeclareLaunchArgument(
             'use_system_monitor',
@@ -170,7 +159,7 @@ def generate_launch_description():
 
         DeclareLaunchArgument(
             'monitor_vesc_timeout_sec',
-            default_value='0.50',
+            default_value='0.30',
             description='Seconds without /sensors/core before VESC error'),
 
         DeclareLaunchArgument(
@@ -201,11 +190,7 @@ def generate_launch_description():
                 localization_params_file_arg,
                 {'use_sim_time': use_sim_time_arg},
                 {
-                    'num_particles': ParameterValue(amcl_num_particles_arg, value_type=int),
-                    'min_particles': ParameterValue(amcl_min_particles_arg, value_type=int),
-                    'max_particles': ParameterValue(amcl_max_particles_arg, value_type=int),
                     'max_beams': ParameterValue(amcl_max_beams_arg, value_type=int),
-                    'use_kld_sampling': ParameterValue(amcl_use_kld_arg, value_type=bool),
                 },
             ],
             condition=IfCondition(use_localization_arg),
@@ -221,13 +206,8 @@ def generate_launch_description():
                 localization_params_file_arg,
                 {'use_sim_time': use_sim_time_arg},
                 {
-                    'num_particles': ParameterValue(amcl_num_particles_arg, value_type=int),
-                    'min_particles': ParameterValue(amcl_min_particles_arg, value_type=int),
-                    'max_particles': ParameterValue(amcl_max_particles_arg, value_type=int),
                     'max_beams': ParameterValue(amcl_max_beams_arg, value_type=int),
-                    'use_kld_sampling': ParameterValue(amcl_use_kld_arg, value_type=bool),
-                    'global_initialization': ParameterValue(
-                        amcl_global_initialization_arg, value_type=bool),
+
                 },
             ],
             condition=IfCondition(use_localization_arg),
@@ -286,72 +266,68 @@ def generate_launch_description():
                     }],
                 ),
                 # ══════════════════════
-                #  VESC nodes (single process, zero-copy intra-process comms)
+                #  VESC nodes (separate prioritized processes)
                 # ══════════════════════
-                ComposableNodeContainer(
-                    name='vesc_container',
-                    namespace='',
-                    package='rclcpp_components',
-                    executable='component_container',
-                    composable_node_descriptions=[
-                        ComposableNode(
-                            package='vesc_driver',
-                            plugin='vesc_driver::VescDriver',
-                            name='vesc_driver_node',
-                            parameters=[vesc_config_arg],
-                            extra_arguments=[{'use_intra_process_comms': True}],
-                        ),
-                        ComposableNode(
-                            package='vesc_ackermann',
-                            plugin='vesc_ackermann::VescToOdom',
-                            name='vesc_to_odom_node',
-                            parameters=[
-                                vesc_config_arg,
-                                {'use_dynamic_bicycle_model': use_dynamic_bicycle_model_arg},
-                            ],
-                            extra_arguments=[{'use_intra_process_comms': True}],
-                        ),
-                        ComposableNode(
-                            package='vesc_ackermann',
-                            plugin='vesc_ackermann::AckermannToVesc',
-                            name='ackermann_to_vesc_node',
-                            parameters=[vesc_config_arg],
-                            extra_arguments=[{'use_intra_process_comms': True}],
-                        ),
-                    ],
+                Node(
+                    package='vesc_driver',
+                    executable='vesc_driver_node',
+                    name='vesc_driver_node',
                     output='screen',
+                    parameters=[vesc_config_arg],
+                    prefix=vesc_priority_prefix_arg,
                     condition=UnlessCondition(old_odom_arg),
                 ),
 
-                ComposableNodeContainer(
-                    name='vesc_container_old',
-                    namespace='',
-                    package='rclcpp_components',
-                    executable='component_container',
-                    composable_node_descriptions=[
-                        ComposableNode(
-                            package='vesc_driver',
-                            plugin='vesc_driver::VescDriver',
-                            name='vesc_driver_node',
-                            parameters=[vesc_config_arg],
-                            extra_arguments=[{'use_intra_process_comms': True}],
-                        ),
-                        ComposableNode(
-                            package='vesc_ackermann',
-                            plugin='vesc_ackermann::VescToOdomOld',
-                            name='vesc_to_odom_old_node',
-                            parameters=[vesc_config_arg],
-                            extra_arguments=[{'use_intra_process_comms': True}],
-                        ),
-                        ComposableNode(
-                            package='vesc_ackermann',
-                            plugin='vesc_ackermann::AckermannToVesc',
-                            name='ackermann_to_vesc_node',
-                            parameters=[vesc_config_arg],
-                            extra_arguments=[{'use_intra_process_comms': True}],
-                        ),
-                    ],
+                Node(
+                    package='vesc_ackermann',
+                    executable='vesc_to_odom_node',
+                    name='vesc_to_odom_node',
                     output='screen',
+                    parameters=[
+                        vesc_config_arg,
+                        {'use_dynamic_bicycle_model': use_dynamic_bicycle_model_arg},
+                    ],
+                    prefix=vesc_priority_prefix_arg,
+                    condition=UnlessCondition(old_odom_arg),
+                ),
+
+                Node(
+                    package='vesc_ackermann',
+                    executable='ackermann_to_vesc_node',
+                    name='ackermann_to_vesc_node',
+                    output='screen',
+                    parameters=[vesc_config_arg],
+                    prefix=vesc_priority_prefix_arg,
+                    condition=UnlessCondition(old_odom_arg),
+                ),
+
+                Node(
+                    package='vesc_driver',
+                    executable='vesc_driver_node',
+                    name='vesc_driver_node',
+                    output='screen',
+                    parameters=[vesc_config_arg],
+                    prefix=vesc_priority_prefix_arg,
+                    condition=IfCondition(old_odom_arg),
+                ),
+
+                Node(
+                    package='vesc_ackermann',
+                    executable='vesc_to_odom_old_node',
+                    name='vesc_to_odom_old_node',
+                    output='screen',
+                    parameters=[vesc_config_arg],
+                    prefix=vesc_priority_prefix_arg,
+                    condition=IfCondition(old_odom_arg),
+                ),
+
+                Node(
+                    package='vesc_ackermann',
+                    executable='ackermann_to_vesc_node',
+                    name='ackermann_to_vesc_node',
+                    output='screen',
+                    parameters=[vesc_config_arg],
+                    prefix=vesc_priority_prefix_arg,
                     condition=IfCondition(old_odom_arg),
                 ),
 
@@ -399,7 +375,7 @@ def generate_launch_description():
                     executable='ackermann_mux',
                     name='ackermann_mux',
                     parameters=[mux_config_arg],
-                    condition=IfCondition(use_teleop_arg),
+                    condition=IfCondition(use_ackermann_mux_arg),
                 ),
 
 
@@ -458,7 +434,10 @@ def generate_launch_description():
                             }.items(),
                         ),
                     ],
-                    condition=UnlessCondition(mapping_mode_arg),
+                    condition=IfCondition(PythonExpression([
+                        "'", mapping_mode_arg, "' != 'true' and '",
+                        use_lateral_planner_arg, "' == 'true'"
+                    ])),
                 ),
 
                 # ══════════════════════

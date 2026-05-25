@@ -60,6 +60,7 @@ if(HAS_CUDA)
     gpu_amcl_cpp/src/cuda/resampling_kernels.cu
     gpu_amcl_cpp/src/cuda/weight_kernels.cu
     gpu_amcl_cpp/src/cuda/estimate_kernels.cu
+    gpu_amcl_cpp/src/cuda/cluster_kernels.cu
   )
   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(gpu_amcl_cuda PRIVATE
@@ -213,6 +214,7 @@ endif()
 # Install Python scripts as executables (skip optional legacy node if absent)
 set(LOCALIZATION_PYTHON_SCRIPTS
   optitrackBenchmark/optitrack_map_calibrator.py
+  scripts/sim_benchmark_logger.py
 )
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/gpu_amcl/scripts/gpu_amcl_node.py")
@@ -252,6 +254,11 @@ install(DIRECTORY
 install(PROGRAMS
   optitrackBenchmark/record_optitrack_benchmark_bag.sh
   DESTINATION share/${PROJECT_NAME}/optitrackBenchmark
+)
+
+install(PROGRAMS
+  Benchmark/run_sim_amcl_benchmark.py
+  DESTINATION share/${PROJECT_NAME}/Benchmark
 )
 
 ament_package()

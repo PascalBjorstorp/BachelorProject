@@ -34,6 +34,12 @@
   reliability: best_effort
   durability: volatile
 
+/ego_racecar/ground_truth:
+  history: keep_last
+  depth: 200
+  reliability: reliable
+  durability: volatile
+
 /odom_pose:
   history: keep_last
   depth: 200
@@ -94,10 +100,16 @@
   reliability: reliable
   durability: volatile
 
-/particle_cloud:
+/particlecloud_weighted_pre_resample:
   history: keep_last
   depth: 20
   reliability: reliable
+  durability: volatile
+
+/particle_cloud:
+  history: keep_last
+  depth: 20
+  reliability: best_effort
   durability: volatile
 
 /drive:

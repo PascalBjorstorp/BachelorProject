@@ -19,6 +19,8 @@ PipelineLatencyMonitor::PipelineLatencyMonitor(
   declare_parameter("scan_topic", std::string("/scan"));
   declare_parameter("amcl_topic", std::string("/amcl_pose"));
   declare_parameter("amcl_particle_count_topic", std::string("/amcl_particle_count"));
+  declare_parameter("amcl_timing_topic", std::string("/amcl_timing"));
+  declare_parameter("amcl_gpu_timing_topic", std::string("/amcl_gpu_timing"));
   declare_parameter("ekf_topic", std::string("/ekf_pose"));
   declare_parameter("drive_topic", std::string("/drive"));
   declare_parameter("ackermann_topic", std::string("/ackermann_cmd"));
@@ -32,6 +34,8 @@ PipelineLatencyMonitor::PipelineLatencyMonitor(
   scan_topic_ = get_parameter("scan_topic").as_string();
   amcl_topic_ = get_parameter("amcl_topic").as_string();
   amcl_particle_count_topic_ = get_parameter("amcl_particle_count_topic").as_string();
+  amcl_timing_topic_ = get_parameter("amcl_timing_topic").as_string();
+  amcl_gpu_timing_topic_ = get_parameter("amcl_gpu_timing_topic").as_string();
   ekf_topic_ = get_parameter("ekf_topic").as_string();
   drive_topic_ = get_parameter("drive_topic").as_string();
   ackermann_topic_ = get_parameter("ackermann_topic").as_string();
@@ -62,6 +66,16 @@ PipelineLatencyMonitor::PipelineLatencyMonitor(
     std::bind(&PipelineLatencyMonitor::amcl_particle_count_callback, this,
               std::placeholders::_1));
 
+  amcl_timing_sub_ = create_subscription<std_msgs::msg::Float64>(
+    amcl_timing_topic_, rclcpp::QoS(50),
+    std::bind(&PipelineLatencyMonitor::amcl_timing_callback, this,
+              std::placeholders::_1));
+
+  amcl_gpu_timing_sub_ = create_subscription<std_msgs::msg::Float64MultiArray>(
+    amcl_gpu_timing_topic_, rclcpp::QoS(50),
+    std::bind(&PipelineLatencyMonitor::amcl_gpu_timing_callback, this,
+              std::placeholders::_1));
+
   ekf_sub_ = create_subscription<
     geometry_msgs::msg::PoseWithCovarianceStamped>(
     ekf_topic_, rclcpp::QoS(10),
@@ -85,8 +99,9 @@ PipelineLatencyMonitor::PipelineLatencyMonitor(
     scan_topic_.c_str(), amcl_topic_.c_str(),
     ekf_topic_.c_str(), drive_topic_.c_str(), ackermann_topic_.c_str());
   RCLCPP_INFO(get_logger(),
-    "  AMCL aux topic: particle_count=%s",
-    amcl_particle_count_topic_.c_str());
+    "  AMCL aux topics: particle_count=%s timing=%s gpu_timing=%s",
+    amcl_particle_count_topic_.c_str(), amcl_timing_topic_.c_str(),
+    amcl_gpu_timing_topic_.c_str());
   RCLCPP_INFO(get_logger(), "  Strict mode: %s", strict_mode_ ? "ON" : "OFF");
 
   if (log_to_csv_) {
@@ -156,6 +171,37 @@ void PipelineLatencyMonitor::amcl_callback(
   {
     it->second.amcl_particle_count = latest_amcl_particle_count_;
   }
+  if (latest_amcl_processing_ms_ >= 0.0 &&
+      (amcl_aux_max_age_ms_ <= 0.0 ||
+       std::fabs(recv - latest_amcl_processing_recv_ns_) <= max_aux_age_ns))
+  {
+    it->second.amcl_processing_ms = latest_amcl_processing_ms_;
+  }
+  if (latest_amcl_gpu_timing_recv_ns_ > 0.0 &&
+      (amcl_aux_max_age_ms_ <= 0.0 ||
+       std::fabs(recv - latest_amcl_gpu_timing_recv_ns_) <= max_aux_age_ns))
+  {
+    it->second.cpu_to_gpu_scan_ms = latest_cpu_to_gpu_scan_ms_;
+    it->second.gpu_to_cpu_particles_ms = latest_gpu_to_cpu_particles_ms_;
+    it->second.gpu_to_cpu_weights_ms = latest_gpu_to_cpu_weights_ms_;
+    it->second.cpu_gpu_transfer_total_ms = latest_cpu_gpu_transfer_total_ms_;
+    it->second.cpu_to_gpu_scan_bytes = latest_cpu_to_gpu_scan_bytes_;
+    it->second.gpu_to_cpu_particles_bytes = latest_gpu_to_cpu_particles_bytes_;
+    it->second.gpu_to_cpu_weights_bytes = latest_gpu_to_cpu_weights_bytes_;
+    it->second.amcl_pose_compute_ms = latest_amcl_pose_compute_ms_;
+    it->second.amcl_predict_ms = latest_amcl_predict_ms_;
+    it->second.amcl_sensor_model_ms = latest_amcl_sensor_model_ms_;
+    it->second.amcl_normalize_ms = latest_amcl_normalize_ms_;
+    it->second.amcl_scan_confidence_ms = latest_amcl_scan_confidence_ms_;
+    it->second.amcl_update_weights_total_ms = latest_amcl_update_weights_total_ms_;
+    it->second.amcl_cluster_estimate_ms = latest_amcl_cluster_estimate_ms_;
+    it->second.amcl_resample_ms = latest_amcl_resample_ms_;
+    it->second.amcl_kld_target_ms = latest_amcl_kld_target_ms_;
+    it->second.amcl_full_compute_ms = latest_amcl_full_compute_ms_;
+    it->second.amcl_callback_to_pose_publish_ms = latest_amcl_callback_to_pose_publish_ms_;
+    it->second.amcl_pose_published = latest_amcl_pose_published_;
+    it->second.amcl_cluster_weight = latest_amcl_cluster_weight_;
+  }
 }
 
 void PipelineLatencyMonitor::amcl_particle_count_callback(
@@ -169,6 +215,48 @@ void PipelineLatencyMonitor::amcl_particle_count_callback(
   }
 }
 
+void PipelineLatencyMonitor::amcl_timing_callback(
+  const std_msgs::msg::Float64::ConstSharedPtr & msg)
+{
+  const double recv = wall_clock_ns();
+  std::lock_guard<std::mutex> lk(mutex_);
+  if (std::isfinite(msg->data) && msg->data >= 0.0) {
+    latest_amcl_processing_ms_ = msg->data;
+    latest_amcl_processing_recv_ns_ = recv;
+  }
+}
+
+void PipelineLatencyMonitor::amcl_gpu_timing_callback(
+  const std_msgs::msg::Float64MultiArray::ConstSharedPtr & msg)
+{
+  if (msg->data.size() < 9) {
+    return;
+  }
+  const double recv = wall_clock_ns();
+  std::lock_guard<std::mutex> lk(mutex_);
+  latest_cpu_to_gpu_scan_ms_ = msg->data[0];
+  latest_gpu_to_cpu_particles_ms_ = msg->data[1];
+  latest_gpu_to_cpu_weights_ms_ = msg->data[2];
+  latest_cpu_gpu_transfer_total_ms_ = msg->data[3];
+  latest_cpu_to_gpu_scan_bytes_ = msg->data[4];
+  latest_gpu_to_cpu_particles_bytes_ = msg->data[5];
+  latest_gpu_to_cpu_weights_bytes_ = msg->data[6];
+  latest_amcl_pose_compute_ms_ = msg->data.size() > 9 ? msg->data[9] : -1.0;
+  latest_amcl_predict_ms_ = msg->data.size() > 10 ? msg->data[10] : -1.0;
+  latest_amcl_sensor_model_ms_ = msg->data.size() > 11 ? msg->data[11] : -1.0;
+  latest_amcl_normalize_ms_ = msg->data.size() > 12 ? msg->data[12] : -1.0;
+  latest_amcl_scan_confidence_ms_ = msg->data.size() > 13 ? msg->data[13] : -1.0;
+  latest_amcl_update_weights_total_ms_ = msg->data.size() > 14 ? msg->data[14] : -1.0;
+  latest_amcl_cluster_estimate_ms_ = msg->data.size() > 15 ? msg->data[15] : -1.0;
+  latest_amcl_resample_ms_ = msg->data.size() > 16 ? msg->data[16] : -1.0;
+  latest_amcl_kld_target_ms_ = msg->data.size() > 17 ? msg->data[17] : -1.0;
+  latest_amcl_full_compute_ms_ = msg->data.size() > 18 ? msg->data[18] : -1.0;
+  latest_amcl_callback_to_pose_publish_ms_ = msg->data.size() > 19 ? msg->data[19] : -1.0;
+  latest_amcl_pose_published_ = msg->data.size() > 20 ? msg->data[20] : -1.0;
+  latest_amcl_cluster_weight_ = msg->data.size() > 21 ? msg->data[21] : -1.0;
+  latest_amcl_gpu_timing_recv_ns_ = recv;
+}
+
 void PipelineLatencyMonitor::ekf_callback(
   const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr & msg)
 {
@@ -177,7 +265,7 @@ void PipelineLatencyMonitor::ekf_callback(
 
   std::lock_guard<std::mutex> lk(mutex_);
 
-  auto mark_ekf = [this, recv](int64_t key) {
+  auto mark_ekf = [this, recv](int64_t key, int64_t stamp_key) {
       auto it = entries_.find(key);
       if (it == entries_.end()) {
         return false;
@@ -187,9 +275,10 @@ void PipelineLatencyMonitor::ekf_callback(
       }
 
       it->second.ekf_recv_ns = recv;
+      it->second.ekf_stamp_key = stamp_key;
       it->second.has_ekf = true;
 
-      pending_drive_entries_.push_back(PendingStageEntry{key, recv});
+      pending_drive_entries_.push_back(PendingStageEntry{key, stamp_key, recv});
       if (pending_drive_entries_.size() > 2000) {
         if (strict_mode_) {
           strict_queue_overrun_count_ += 1000;
@@ -204,8 +293,36 @@ void PipelineLatencyMonitor::ekf_callback(
       return true;
     };
 
-  if (ekf_key > 0 && mark_ekf(ekf_key)) {
+  if (ekf_key > 0 && mark_ekf(ekf_key, ekf_key)) {
     return;
+  }
+
+  if (ekf_key <= 0 || stage_match_max_ms_ <= 0.0) {
+    return;
+  }
+
+  const double max_window_ns = stage_match_max_ms_ * 1e6;
+  int64_t fallback_key = 0;
+  double oldest_amcl_recv_ns = 0.0;
+
+  for (const auto & [key, entry] : entries_) {
+    if (!entry.has_scan || !entry.has_amcl || entry.has_ekf) {
+      continue;
+    }
+    if (recv < entry.amcl_recv_ns) {
+      continue;
+    }
+    if ((recv - entry.amcl_recv_ns) > max_window_ns) {
+      continue;
+    }
+    if (fallback_key == 0 || entry.amcl_recv_ns < oldest_amcl_recv_ns) {
+      fallback_key = key;
+      oldest_amcl_recv_ns = entry.amcl_recv_ns;
+    }
+  }
+
+  if (fallback_key != 0) {
+    (void)mark_ekf(fallback_key, ekf_key);
   }
 }
 
@@ -217,13 +334,7 @@ void PipelineLatencyMonitor::drive_callback(
 
   std::lock_guard<std::mutex> lk(mutex_);
   if (pending_drive_entries_.empty()) {
-    if (strict_mode_) {
-      ++strict_drive_without_pending_count_;
-      RCLCPP_WARN_THROTTLE(
-        get_logger(), *get_clock(), 2000,
-        "Strict mode: /drive arrived with no pending EKF entry (total=%llu)",
-        static_cast<unsigned long long>(strict_drive_without_pending_count_));
-    }
+    // EKF can publish faster than AMCL; only scan-linked EKF outputs are tracked here.
     return;
   }
 
@@ -235,25 +346,32 @@ void PipelineLatencyMonitor::drive_callback(
 
   PendingStageEntry matched;
   if (drive_key > 0) {
-    pending_drive_entries_.erase(
-      std::remove_if(
-        pending_drive_entries_.begin(), pending_drive_entries_.end(),
-        [this, drive_key](const PendingStageEntry & entry) {
-          if (entry.key < drive_key) {
-            entries_.erase(entry.key);
-            return true;
-          }
-          return false;
-        }),
-      pending_drive_entries_.end());
-
     const auto match_it = std::find_if(
       pending_drive_entries_.begin(), pending_drive_entries_.end(),
       [drive_key](const PendingStageEntry & entry) {
-        return entry.key == drive_key;
+        return entry.stamp_key == drive_key;
       });
 
     if (match_it == pending_drive_entries_.end()) {
+      pending_drive_entries_.erase(
+        std::remove_if(
+          pending_drive_entries_.begin(), pending_drive_entries_.end(),
+          [this, recv, max_window_ns](const PendingStageEntry & entry) {
+            if ((recv - entry.stage_recv_ns) > max_window_ns) {
+              if (strict_mode_) {
+                ++strict_stale_unmatched_count_;
+                RCLCPP_WARN_THROTTLE(
+                  get_logger(), *get_clock(), 2000,
+                  "Strict mode: stale unmatched EKF entry dropped before /drive match (total=%llu)",
+                  static_cast<unsigned long long>(strict_stale_unmatched_count_));
+              }
+              try_report(entry.key, -1.0);
+              return true;
+            }
+            return false;
+          }),
+        pending_drive_entries_.end());
+
       if (strict_mode_) {
         ++strict_drive_without_pending_count_;
         RCLCPP_WARN_THROTTLE(
@@ -302,11 +420,12 @@ void PipelineLatencyMonitor::drive_callback(
   }
 
   it->second.drive_recv_ns = recv;
+  it->second.drive_stamp_key = drive_key;
   it->second.has_drive = true;
 
   acc_ekf_to_drive_.push_back(measured_ms);
 
-  pending_ackermann_entries_.push_back(PendingStageEntry{matched.key, recv});
+  pending_ackermann_entries_.push_back(PendingStageEntry{matched.key, drive_key, recv});
   if (pending_ackermann_entries_.size() > 2000) {
     if (strict_mode_) {
       strict_queue_overrun_count_ += 1000;
@@ -328,13 +447,7 @@ void PipelineLatencyMonitor::ackermann_callback(
 
   std::lock_guard<std::mutex> lk(mutex_);
   if (pending_ackermann_entries_.empty()) {
-    if (strict_mode_) {
-      ++strict_ackermann_without_pending_count_;
-      RCLCPP_WARN_THROTTLE(
-        get_logger(), *get_clock(), 2000,
-        "Strict mode: /ackermann_cmd arrived with no pending /drive entry (total=%llu)",
-        static_cast<unsigned long long>(strict_ackermann_without_pending_count_));
-    }
+    // Mux can forward high-rate controls that are not tied to a fresh AMCL sample.
     return;
   }
 
@@ -346,25 +459,32 @@ void PipelineLatencyMonitor::ackermann_callback(
 
   PendingStageEntry matched;
   if (ackermann_key > 0) {
-    pending_ackermann_entries_.erase(
-      std::remove_if(
-        pending_ackermann_entries_.begin(), pending_ackermann_entries_.end(),
-        [this, ackermann_key](const PendingStageEntry & entry) {
-          if (entry.key < ackermann_key) {
-            entries_.erase(entry.key);
-            return true;
-          }
-          return false;
-        }),
-      pending_ackermann_entries_.end());
-
     const auto match_it = std::find_if(
       pending_ackermann_entries_.begin(), pending_ackermann_entries_.end(),
       [ackermann_key](const PendingStageEntry & entry) {
-        return entry.key == ackermann_key;
+        return entry.stamp_key == ackermann_key;
       });
 
     if (match_it == pending_ackermann_entries_.end()) {
+      pending_ackermann_entries_.erase(
+        std::remove_if(
+          pending_ackermann_entries_.begin(), pending_ackermann_entries_.end(),
+          [this, recv, max_window_ns](const PendingStageEntry & entry) {
+            if ((recv - entry.stage_recv_ns) > max_window_ns) {
+              if (strict_mode_) {
+                ++strict_stale_unmatched_count_;
+                RCLCPP_WARN_THROTTLE(
+                  get_logger(), *get_clock(), 2000,
+                  "Strict mode: stale unmatched /drive entry dropped before /ackermann_cmd match (total=%llu)",
+                  static_cast<unsigned long long>(strict_stale_unmatched_count_));
+              }
+              try_report(entry.key, -1.0);
+              return true;
+            }
+            return false;
+          }),
+        pending_ackermann_entries_.end());
+
       if (strict_mode_) {
         ++strict_ackermann_without_pending_count_;
         RCLCPP_WARN_THROTTLE(
@@ -413,6 +533,7 @@ void PipelineLatencyMonitor::ackermann_callback(
   }
 
   it->second.ackermann_recv_ns = recv;
+  it->second.ackermann_stamp_key = ackermann_key;
   it->second.has_ackermann = true;
   acc_drive_to_ackermann_.push_back(drive_to_ackermann_ms);
 
@@ -463,6 +584,27 @@ void PipelineLatencyMonitor::try_report(int64_t key, double drive_to_ackermann_m
   const double amcl_to_ekf_ms = (e.ekf_recv_ns - e.amcl_recv_ns) * ns_to_ms;
   const double scan_to_ekf_ms = (e.ekf_recv_ns - e.scan_recv_ns) * ns_to_ms;
   const int32_t amcl_particle_count = e.amcl_particle_count;
+  const double amcl_processing_ms = e.amcl_processing_ms;
+  const double amcl_pose_compute_ms = e.amcl_pose_compute_ms;
+  const double cpu_to_gpu_scan_ms = e.cpu_to_gpu_scan_ms;
+  const double gpu_to_cpu_particles_ms = e.gpu_to_cpu_particles_ms;
+  const double gpu_to_cpu_weights_ms = e.gpu_to_cpu_weights_ms;
+  const double cpu_gpu_transfer_total_ms = e.cpu_gpu_transfer_total_ms;
+  const double cpu_to_gpu_scan_bytes = e.cpu_to_gpu_scan_bytes;
+  const double gpu_to_cpu_particles_bytes = e.gpu_to_cpu_particles_bytes;
+  const double gpu_to_cpu_weights_bytes = e.gpu_to_cpu_weights_bytes;
+  const double amcl_predict_ms = e.amcl_predict_ms;
+  const double amcl_sensor_model_ms = e.amcl_sensor_model_ms;
+  const double amcl_normalize_ms = e.amcl_normalize_ms;
+  const double amcl_scan_confidence_ms = e.amcl_scan_confidence_ms;
+  const double amcl_update_weights_total_ms = e.amcl_update_weights_total_ms;
+  const double amcl_cluster_estimate_ms = e.amcl_cluster_estimate_ms;
+  const double amcl_resample_ms = e.amcl_resample_ms;
+  const double amcl_kld_target_ms = e.amcl_kld_target_ms;
+  const double amcl_full_compute_ms = e.amcl_full_compute_ms;
+  const double amcl_callback_to_pose_publish_ms = e.amcl_callback_to_pose_publish_ms;
+  const double amcl_pose_published = e.amcl_pose_published;
+  const double amcl_cluster_weight = e.amcl_cluster_weight;
 
   double ekf_to_drive_ms = -1.0;
   if (e.has_drive) {
@@ -489,6 +631,27 @@ void PipelineLatencyMonitor::try_report(int64_t key, double drive_to_ackermann_m
     key,
     scan_stamp_to_scan_ms,
     amcl_particle_count,
+    amcl_processing_ms,
+    amcl_pose_compute_ms,
+    cpu_to_gpu_scan_ms,
+    gpu_to_cpu_particles_ms,
+    gpu_to_cpu_weights_ms,
+    cpu_gpu_transfer_total_ms,
+    cpu_to_gpu_scan_bytes,
+    gpu_to_cpu_particles_bytes,
+    gpu_to_cpu_weights_bytes,
+    amcl_predict_ms,
+    amcl_sensor_model_ms,
+    amcl_normalize_ms,
+    amcl_scan_confidence_ms,
+    amcl_update_weights_total_ms,
+    amcl_cluster_estimate_ms,
+    amcl_resample_ms,
+    amcl_kld_target_ms,
+    amcl_full_compute_ms,
+    amcl_callback_to_pose_publish_ms,
+    amcl_pose_published,
+    amcl_cluster_weight,
     scan_to_amcl_ms,
     amcl_to_ekf_ms,
     scan_to_ekf_ms,
@@ -611,7 +774,7 @@ void PipelineLatencyMonitor::initialize_csv_logging()
       return;
     }
 
-    csv_file_ << "wall_time_ns,scan_stamp_ns,scan_stamp_to_scan_ms,amcl_particle_count,scan_to_amcl_ms,amcl_to_ekf_ms,scan_to_ekf_ms,ekf_to_drive_ms,drive_to_ackermann_ms,scan_to_ackermann_ms\n";
+    csv_file_ << "wall_time_ns,scan_stamp_ns,scan_stamp_to_scan_ms,amcl_particle_count,amcl_processing_ms,amcl_pose_compute_ms,cpu_to_gpu_scan_ms,gpu_to_cpu_particles_ms,gpu_to_cpu_weights_ms,cpu_gpu_transfer_total_ms,cpu_to_gpu_scan_bytes,gpu_to_cpu_particles_bytes,gpu_to_cpu_weights_bytes,amcl_predict_ms,amcl_sensor_model_ms,amcl_normalize_ms,amcl_scan_confidence_ms,amcl_update_weights_total_ms,amcl_cluster_estimate_ms,amcl_resample_ms,amcl_kld_target_ms,amcl_full_compute_ms,amcl_callback_to_pose_publish_ms,amcl_pose_published,amcl_cluster_weight,scan_to_amcl_ms,amcl_to_ekf_ms,scan_to_ekf_ms,ekf_to_drive_ms,drive_to_ackermann_ms,scan_to_ackermann_ms\n";
     csv_file_.flush();
   } catch (const std::exception & e) {
     csv_path_.clear();
@@ -623,6 +786,27 @@ void PipelineLatencyMonitor::write_csv_row(
   int64_t stamp_ns,
   double scan_stamp_to_scan_ms,
   int32_t amcl_particle_count,
+  double amcl_processing_ms,
+  double amcl_pose_compute_ms,
+  double cpu_to_gpu_scan_ms,
+  double gpu_to_cpu_particles_ms,
+  double gpu_to_cpu_weights_ms,
+  double cpu_gpu_transfer_total_ms,
+  double cpu_to_gpu_scan_bytes,
+  double gpu_to_cpu_particles_bytes,
+  double gpu_to_cpu_weights_bytes,
+  double amcl_predict_ms,
+  double amcl_sensor_model_ms,
+  double amcl_normalize_ms,
+  double amcl_scan_confidence_ms,
+  double amcl_update_weights_total_ms,
+  double amcl_cluster_estimate_ms,
+  double amcl_resample_ms,
+  double amcl_kld_target_ms,
+  double amcl_full_compute_ms,
+  double amcl_callback_to_pose_publish_ms,
+  double amcl_pose_published,
+  double amcl_cluster_weight,
   double scan_to_amcl_ms,
   double amcl_to_ekf_ms,
   double scan_to_ekf_ms,
@@ -642,6 +826,27 @@ void PipelineLatencyMonitor::write_csv_row(
             << std::fixed << std::setprecision(3)
             << scan_stamp_to_scan_ms << ','
             << amcl_particle_count << ','
+            << amcl_processing_ms << ','
+            << amcl_pose_compute_ms << ','
+            << cpu_to_gpu_scan_ms << ','
+            << gpu_to_cpu_particles_ms << ','
+            << gpu_to_cpu_weights_ms << ','
+            << cpu_gpu_transfer_total_ms << ','
+            << cpu_to_gpu_scan_bytes << ','
+            << gpu_to_cpu_particles_bytes << ','
+            << gpu_to_cpu_weights_bytes << ','
+            << amcl_predict_ms << ','
+            << amcl_sensor_model_ms << ','
+            << amcl_normalize_ms << ','
+            << amcl_scan_confidence_ms << ','
+            << amcl_update_weights_total_ms << ','
+            << amcl_cluster_estimate_ms << ','
+            << amcl_resample_ms << ','
+            << amcl_kld_target_ms << ','
+            << amcl_full_compute_ms << ','
+            << amcl_callback_to_pose_publish_ms << ','
+            << amcl_pose_published << ','
+            << amcl_cluster_weight << ','
             << scan_to_amcl_ms << ','
             << amcl_to_ekf_ms << ','
             << scan_to_ekf_ms << ','

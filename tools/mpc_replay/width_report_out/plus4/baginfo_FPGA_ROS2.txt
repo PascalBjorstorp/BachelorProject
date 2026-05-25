@@ -1,0 +1,30 @@
+
+Files:             LateralPlanner_20260519_095540_0.mcap
+Bag size:          1.1 GiB
+Storage id:        mcap
+ROS Distro:        unknown
+Duration:          124.321659042s
+Start:             May 19 2026 09:55:47.941426494 (1779177347.941426494)
+End:               May 19 2026 09:57:52.263085536 (1779177472.263085536)
+Messages:          292958
+Topic information: Topic: /ackermann_cmd | Type: ackermann_msgs/msg/AckermannDriveStamped | Count: 23977 | Serialization Format: cdr
+                   Topic: /amcl_particle_count | Type: std_msgs/msg/Int32 | Count: 4403 | Serialization Format: cdr
+                   Topic: /amcl_pose | Type: geometry_msgs/msg/PoseWithCovarianceStamped | Count: 4395 | Serialization Format: cdr
+                   Topic: /amcl_timing | Type: std_msgs/msg/Float64 | Count: 4402 | Serialization Format: cdr
+                   Topic: /drive | Type: ackermann_msgs/msg/AckermannDriveStamped | Count: 23955 | Serialization Format: cdr
+                   Topic: /ego_racecar/odom | Type: nav_msgs/msg/Odometry | Count: 24801 | Serialization Format: cdr
+                   Topic: /ekf_pose | Type: geometry_msgs/msg/PoseWithCovarianceStamped | Count: 24800 | Serialization Format: cdr
+                   Topic: /local_raceline | Type: nav_msgs/msg/Path | Count: 24480 | Serialization Format: cdr
+                   Topic: /local_raceline_viz | Type: nav_msgs/msg/Path | Count: 24480 | Serialization Format: cdr
+                   Topic: /map | Type: nav_msgs/msg/OccupancyGrid | Count: 1 | Serialization Format: cdr
+                   Topic: /map_server/transition_event | Type: lifecycle_msgs/msg/TransitionEvent | Count: 3 | Serialization Format: cdr
+                   Topic: /mpc_state | Type: f1tenth_msgs/msg/MpcState | Count: 24496 | Serialization Format: cdr
+                   Topic: /odom_pose | Type: geometry_msgs/msg/PoseWithCovarianceStamped | Count: 24801 | Serialization Format: cdr
+                   Topic: /opponent_marker | Type: visualization_msgs/msg/MarkerArray | Count: 24480 | Serialization Format: cdr
+                   Topic: /particlecloud | Type: geometry_msgs/msg/PoseArray | Count: 0 | Serialization Format: cdr
+                   Topic: /scan | Type: sensor_msgs/msg/LaserScan | Count: 4937 | Serialization Format: cdr
+                   Topic: /scan_obstacles | Type: sensor_msgs/msg/LaserScan | Count: 4944 | Serialization Format: cdr
+                   Topic: /tf | Type: tf2_msgs/msg/TFMessage | Count: 49601 | Serialization Format: cdr
+                   Topic: /tf_static | Type: tf2_msgs/msg/TFMessage | Count: 2 | Serialization Format: cdr
+Service:           0
+Service information: 

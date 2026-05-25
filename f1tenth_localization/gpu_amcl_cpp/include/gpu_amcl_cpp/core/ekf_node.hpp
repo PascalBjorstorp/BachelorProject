@@ -64,11 +64,13 @@ private:
      * Input:
      *   - odom_delta: Relative odometry motion [dx, dy, dyaw].
      *   - Q: Process noise covariance for prediction.
+     *   - dt: Elapsed time covered by this odom delta, in seconds.
      * Output:
      *   - Updates internal EKF state_ and covariance P_.
      */
     void predict(const Eigen::Vector3d& odom_delta,
-                 const Eigen::Matrix3d& Q);
+                 const Eigen::Matrix3d& Q,
+                 double dt);
 
     /**
      * @brief Perform EKF correction step using AMCL measurement.
@@ -131,7 +133,7 @@ private:
         *   - stamp: Timestamp of the odom sample.
         *   - pose: Odom pose [x, y, yaw].
         * Output:
-        *   - Odom history buffer updated (oldest entries dropped if needed).
+        *   - Odom history buffer updated (samples outside time window dropped).
         */
         void push_odom_sample(const rclcpp::Time& stamp,
                          const Eigen::Vector3d& pose);
@@ -166,6 +168,7 @@ private:
 
     // Previous odom for delta computation
     Eigen::Vector3d prev_odom_ = Eigen::Vector3d::Zero();
+    rclcpp::Time prev_odom_stamp_;
     bool odom_received_ = false;
 
     struct OdomSample {
@@ -176,7 +179,7 @@ private:
     };
 
     std::deque<OdomSample> odom_history_;
-    size_t odom_history_max_size_ = 500;
+    double odom_history_duration_s_ = 0.2;
 
     // ── Parameters ─────────────────────────────────────────────────
     double transform_tolerance_ = 0.1;

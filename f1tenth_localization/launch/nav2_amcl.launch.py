@@ -36,12 +36,12 @@ def generate_launch_description():
 
         DeclareLaunchArgument(
             'min_particles',
-            default_value='1000',
+            default_value='600',
             description='Nav2 AMCL minimum particle count'),
 
         DeclareLaunchArgument(
             'max_particles',
-            default_value='1000',
+            default_value='2000',
             description='Nav2 AMCL maximum particle count'),
 
         DeclareLaunchArgument(
@@ -51,12 +51,12 @@ def generate_launch_description():
 
         DeclareLaunchArgument(
             'update_min_d',
-            default_value='0.0',
+            default_value='0.05',
             description='Minimum translation before a filter update'),
 
         DeclareLaunchArgument(
             'update_min_a',
-            default_value='0.0',
+            default_value='0.05',
             description='Minimum rotation before a filter update'),
 
         LifecycleNode(

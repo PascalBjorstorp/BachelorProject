@@ -25,12 +25,8 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
-#include <cstdio>
 #include <cstring>
-#include <ctime>
-#include <limits>
 #include <string>
-#include <sys/stat.h>
 #include <vector>
 
 namespace state_transport_udp {
@@ -54,6 +50,11 @@ struct SampledRefPoint {
     double kappa = 0.0;
     double left_bound = 0.5;
     double right_bound = 0.5;
+};
+
+struct FrenetErrorsFp {
+    int32_t e_y_fp = 0;
+    int32_t e_psi_fp = 0;
 };
 
 class Ros2UdpSender final : public rclcpp::Node {
@@ -89,38 +90,25 @@ public:
             throw std::runtime_error("Invalid dest_ip");
         }
 
-        auto qos = rclcpp::QoS(1).best_effort().durability_volatile();
+        auto sub_qos = rclcpp::QoS(10).reliable().durability_volatile();
         raceline_sub_ = create_subscription<nav_msgs::msg::Path>(
-            raceline_topic, qos,
+            raceline_topic, sub_qos,
             std::bind(&Ros2UdpSender::raceline_callback, this, std::placeholders::_1));
 
         odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
-            odom_topic, qos,
+            odom_topic, sub_qos,
             std::bind(&Ros2UdpSender::odom_callback, this, std::placeholders::_1));
 
         pose_sub_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
-            pose_topic, qos,
+            pose_topic, sub_qos,
             std::bind(&Ros2UdpSender::pose_callback, this, std::placeholders::_1));
 
         if (!servo_topic.empty()) {
             servo_sub_ = create_subscription<std_msgs::msg::Float64>(
-                servo_topic, qos,
+                servo_topic, sub_qos,
                 std::bind(&Ros2UdpSender::servo_callback, this, std::placeholders::_1));
         }
 
-        startup_diag_timer_ = create_wall_timer(
-            std::chrono::seconds(1),
-            std::bind(&Ros2UdpSender::startup_diagnostics, this));
-
-        RCLCPP_INFO(get_logger(),
-                    "ROS2->UDP sender ready: raceline=%s pose=%s odom=%s -> %s:%d",
-                    raceline_topic.c_str(),
-                    pose_topic.c_str(),
-                    odom_topic.c_str(),
-                    dest_ip.c_str(),
-                    dest_port);
-
-        open_send_stats_csv();
     }
 
     ~Ros2UdpSender() override {
@@ -128,15 +116,11 @@ public:
             ::close(sock_fd_);
             sock_fd_ = -1;
         }
-        if (send_stats_csv_ != nullptr) {
-            std::fclose(send_stats_csv_);
-            send_stats_csv_ = nullptr;
-        }
     }
 
 private:
     static int32_t to_fp(double v) {
-        constexpr double kScale = 65536.0;
+        constexpr double kScale = MPC_FPGA_QP_SCALE_F64;
         if (!std::isfinite(v)) return 0;
         return static_cast<int32_t>(v >= 0.0 ? v * kScale + 0.5 : v * kScale - 0.5);
     }
@@ -147,29 +131,40 @@ private:
         return angle;
     }
 
-    void open_send_stats_csv() {
-        const char* log_dir = "log";
-        ::mkdir(log_dir, 0755);
-
-        const std::time_t now = std::time(nullptr);
-        struct tm tm_now;
-        localtime_r(&now, &tm_now);
-
-        char timestamp[64];
-        std::strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", &tm_now);
-
-        char csv_path[512];
-        std::snprintf(csv_path, sizeof(csv_path), "%s/ros2_udp_sender_%s.csv", log_dir, timestamp);
-
-        send_stats_csv_ = std::fopen(csv_path, "w");
-        if (send_stats_csv_ == nullptr) {
-            RCLCPP_WARN(get_logger(), "Failed to open sender stats CSV file: %s", csv_path);
-            return;
+    FrenetErrorsFp compute_frenet_errors(double x, double y, double theta) const {
+        if (local_raceline_.size() < 2) {
+            return {};
         }
 
-        std::fprintf(send_stats_csv_, "idx,send_time_us\n");
-        std::fflush(send_stats_csv_);
-        RCLCPP_INFO(get_logger(), "Sender stats CSV log: %s", csv_path);
+        /* Local raceline is republished each cycle anchored at the car, so
+         * segment [0,1] is the current reference origin. Project onto it
+         * directly instead of an unconstrained global nearest-segment scan
+         * (which costs per cycle and can snap to an offset segment, biasing
+         * e_y). Matches the MPC hardware node's closest=0 anchoring. */
+        const auto& a = local_raceline_[0];
+        const auto& b = local_raceline_[1];
+
+        const double abx = b.x - a.x;
+        const double aby = b.y - a.y;
+        const double apx = x - a.x;
+        const double apy = y - a.y;
+        const double ab_len2 = abx * abx + aby * aby;
+        double t = 0.0;
+        if (ab_len2 > 1e-12) {
+            t = (apx * abx + apy * aby) / ab_len2;
+        }
+        t = std::clamp(t, 0.0, 1.0);
+
+        const double path_psi = a.psi + t * normalize_angle(b.psi - a.psi);
+        const double path_x = a.x + t * abx;
+        const double path_y = a.y + t * aby;
+        const double dx = x - path_x;
+        const double dy = y - path_y;
+
+        const double best_e_y = -std::sin(path_psi) * dx + std::cos(path_psi) * dy;
+        const double best_e_psi = normalize_angle(theta - path_psi);
+
+        return {to_fp(best_e_y), to_fp(best_e_psi)};
     }
 
     SampledRefPoint sample_raceline_by_s(double target_s) const {
@@ -255,10 +250,6 @@ private:
             const double target_s = local_raceline_[0].s + ds * static_cast<double>(step);
             const SampledRefPoint wp = sample_raceline_by_s(target_s);
 
-            packet.ref_x_fp[step] = to_fp(wp.x);
-            packet.ref_y_fp[step] = to_fp(wp.y);
-            packet.ref_psi_fp[step] = to_fp(wp.psi);
-
             packet.ref_ey_fp[step] = to_fp(0.0);
             packet.ref_epsi_fp[step] = to_fp(0.0);
             packet.ref_vx_fp[step] = to_fp(wp.vx);
@@ -272,7 +263,6 @@ private:
 
     void raceline_callback(const nav_msgs::msg::Path::SharedPtr msg) {
         if (msg->poses.empty()) {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "Empty local_raceline received");
             return;
         }
 
@@ -342,9 +332,6 @@ private:
         }
 
         local_raceline_ = std::move(new_raceline);
-        RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 2000,
-                             "Updated local_raceline: %zu waypoints",
-                             local_raceline_.size());
     }
 
     void servo_callback(const std_msgs::msg::Float64::SharedPtr msg) {
@@ -380,7 +367,6 @@ private:
     }
 
     void pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
-        has_pose_topic_sample_ = true;
         send_state_packet(msg->pose.pose.position.x,
                           msg->pose.pose.position.y,
                           msg->pose.pose.orientation.x,
@@ -391,17 +377,6 @@ private:
                           msg->header.stamp.nanosec);
     }
 
-    void startup_diagnostics() {
-        const bool has_raceline = !local_raceline_.empty();
-        if (!has_pose_topic_sample_ || !has_odom_dynamics_ || !has_raceline) {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                                 "Waiting: pose=%s odom=%s raceline=%s",
-                                 has_pose_topic_sample_ ? "ok" : "no",
-                                 has_odom_dynamics_ ? "ok" : "no",
-                                 has_raceline ? "ok" : "no");
-        }
-    }
-
     void send_state_packet(double x,
                            double y,
                            double qx,
@@ -409,20 +384,14 @@ private:
                            double qz,
                            double qw,
                            int32_t source_stamp_sec,
-                           uint32_t source_stamp_nanosec) {
-        const auto t_start = std::chrono::steady_clock::now();
-
+        uint32_t source_stamp_nanosec) {
         if (local_raceline_.empty()) return;
         if (!has_odom_dynamics_) {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                                 "Skipping UDP send: waiting for valid odom dynamics sample");
             return;
         }
 
         if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(qx) ||
             !std::isfinite(qy) || !std::isfinite(qz) || !std::isfinite(qw)) {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                                 "Skipping UDP send: invalid pose values");
             return;
         }
 
@@ -452,9 +421,9 @@ private:
         packet.source_stamp_sec = source_stamp_sec;
         packet.source_stamp_nanosec = source_stamp_nanosec;
 
-        packet.x_fp = to_fp(x);
-        packet.y_fp = to_fp(y);
-        packet.theta_fp = to_fp(theta);
+        const FrenetErrorsFp errors = compute_frenet_errors(x, y, theta);
+        packet.e_y_fp = errors.e_y_fp;
+        packet.e_psi_fp = errors.e_psi_fp;
         packet.velocity_fp = to_fp(vx);
         packet.vy_fp = to_fp(vy);
         packet.omega_fp = to_fp(omega);
@@ -475,19 +444,7 @@ private:
             sizeof(dest_addr_));
 
         if (sent != static_cast<ssize_t>(sizeof(packet))) {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                                 "UDP send short/failed: %ld", static_cast<long>(sent));
             return;
-        }
-
-        const auto t_end = std::chrono::steady_clock::now();
-        const double send_us = static_cast<double>(
-            std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start).count());
-
-        if (send_stats_csv_ != nullptr) {
-            send_stats_idx_++;
-            std::fprintf(send_stats_csv_, "%lu,%.1f\n", send_stats_idx_, send_us);
-            std::fflush(send_stats_csv_);
         }
     }
 
@@ -500,7 +457,6 @@ private:
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_sub_;
     rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr servo_sub_;
-    rclcpp::TimerBase::SharedPtr startup_diag_timer_;
 
     double current_steering_angle_{0.0};
     bool has_servo_feedback_{false};
@@ -509,10 +465,6 @@ private:
     double latest_vy_{0.0};
     double latest_omega_{0.0};
     bool has_odom_dynamics_{false};
-    bool has_pose_topic_sample_{false};
-
-    uint64_t send_stats_idx_{0};
-    FILE* send_stats_csv_{nullptr};
 };
 
 }  // namespace state_transport_udp

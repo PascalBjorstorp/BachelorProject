@@ -25,12 +25,9 @@
 # ────────────────────────────────────────────────────────────────
 gpu_amcl_cpp:
   ros__parameters:
-    # ---- General ----
-    use_gpu: true
-
     # ---- Particles ----
-    num_particles: 1000
-    min_particles: 500
+    num_particles: 2000
+    min_particles: 600
     max_particles: 2000
 
     # ---- KLD adaptive sampling ----
@@ -39,7 +36,7 @@ gpu_amcl_cpp:
     # When uncertain (spread out), uses more particles → better coverage.
     use_kld_sampling: false
     kld_epsilon: 0.02          # KL-divergence error bound (smaller → more particles)
-    kld_z: 2.33                # Quantile: 2.33 = 99%, 1.96 = 95%
+    kld_z: 1.96                # Quantile: 2.33 = 99%, 1.96 = 95%
     kld_bin_x: 0.5             # metres per occupied KLD bin in x
     kld_bin_y: 0.5             # metres per occupied KLD bin in y
     kld_bin_theta: 0.1         # radians per occupied KLD bin in heading
@@ -56,22 +53,26 @@ gpu_amcl_cpp:
     # ---- Update thresholds (metres / radians) ----
     # How much the robot must move before we run a PF update.
     # Higher = fewer updates = less noise accumulation but less responsive.
-    update_min_d: 0.00
-    update_min_a: 0.00
+    update_min_d: 0.05
+    update_min_a: 0.05
 
     # ---- Scan freshness ----
     # Max age (seconds) of a scan before it's rejected as stale.
     # Tight gate to avoid stale corrections under backlog.
     max_scan_age: 0.04
 
+    # ---- Odometry timestamp alignment ----
+    # Time window kept for interpolating odometry at LiDAR scan timestamps.
+    odom_history_duration_s: 0.2
+
     # ---- Motion model (odometry noise, Prob. Robotics §5.4) ----
     # These control how much random noise is added to each particle.
     # For simulation (accurate odom), use LOW values.
     # For real hardware (noisy odom/slip), increase 5-10x.
-    alpha1: 0.2    # rotation  → rotation  noise 0.0001 for sim
-    alpha2: 0.2    # translation → rotation  noise
-    alpha3: 0.1    # translation → translation noise
-    alpha4: 0.1    # rotation  → translation noise
+    alpha1: 0.4    # rotation  → rotation  noise
+    alpha2: 0.4    # translation → rotation  noise
+    alpha3: 0.2    # translation → translation noise
+    alpha4: 0.2    # rotation  → translation noise
 
     # ---- Slip-aware noise scaling ----
     # During aggressive turns, increase noise to account for tire slip
@@ -80,28 +81,36 @@ gpu_amcl_cpp:
 
     # ---- Sensor model (likelihood field, Prob. Robotics §6.4) ----
     max_beams: 270
-    z_hit: 0.975
-    z_rand: 0.025
-    sigma_hit: 0.12         # meters; wider helps global convergence with map/scan mismatch
+    z_hit: 0.95
+    z_rand: 0.05
+    sigma_hit: 0.10         # meters; standard AMCL-style softer likelihood field
     laser_max_range: 10.0
     laser_offset_x: 0.265   # LiDAR X offset from base_link
     laser_offset_y: 0.0     # LiDAR Y offset from base_link
+    normalize_likelihood_by_beams: true  # use geometric mean, avoids first-scan global collapse
+    likelihood_scale: 0.75               # standard resampling needs softer weights at global init
 
     # ---- Resampling ----
-    resample_threshold: 0.5  # resample when N_eff < threshold * N
-    enable_recovery_injection: false  # runtime global recovery particles
-    recovery_injection_ratio: 0.05    # 5% runtime recovery particles; use 0.10 if it must recover more aggressively
+    resample_threshold: 0.3  # match sim benchmark default
+    enable_recovery_injection: true   # standard random-particle recovery; no custom resampling
+    recovery_injection_ratio: 0.00    # 5% runtime recovery particles; less likely to pull pose after convergence
     enable_local_roughening: true      # bad scan match -> jitter local particles after resample
     local_roughening_ratio: 0.25       # replace 20% around current local mean
     local_roughening_xy_std_m: 0.20    # 12 cm XY noise
     local_roughening_yaw_std_rad: 0.0872664626  # 5 deg yaw noise
     local_roughening_bad_log_weight_per_beam: -1.0
     local_roughening_max_cloud_std_m: 0.75      # only roughen when cloud is already local
+    use_cluster_estimate: true          # publish best local mode, not global multi-modal mean
+    cluster_xy_bin_m: 0.25              # density bin for finding strongest cluster seed
+    cluster_radius_m: 0.75              # particles inside radius define output pose/covariance
+    cluster_iterations: 3               # local mean-shift passes around best cluster
+    cluster_min_covariance: 0.0001      # floor for EKF numerical stability
+    cluster_publish_min_weight: 0.60    # match sim benchmark default
 
     # ---- Initial pose ----
     # false: seed particles around initial_pose_*
     # true: seed particles globally along raceline corridor with forward heading cone
-    global_initialization: false
+    global_initialization: true
     initial_heading_from_raceline: true
     global_heading_cone_rad: 0.5235987756  # +/- 30 deg around nearest raceline heading
     global_track_margin_m: 0.15            # keep global samples this far from walls
@@ -114,12 +123,13 @@ gpu_amcl_cpp:
     initial_pose_x: 0.0
     initial_pose_y: 0.0
     initial_pose_a: 0.0
-    initial_cov_xx: 0.1
-    initial_cov_yy: 0.1
-    initial_cov_aa: 0.1
+    initial_cov_xx: 0.2
+    initial_cov_yy: 0.2
+    initial_cov_aa: 0.2
 
     # ---- Publishing ----
-    cloud_publish_rate: 0.1      # Hz — particle cloud visualization rate (lower saves GPU bandwidth)
+    cloud_publish_rate: 0.0       # Hz; <= 0 disables particle cloud publishing and downloads
+    debug_pre_resample_particles: false  # publish weighted pre-resample PointCloud2 debug topic
 
 
 
@@ -158,5 +168,6 @@ ekf_localization:
 
     # ---- EKF tuning ----
     transform_tolerance: 0.02    # seconds into the future for TF
-    process_noise_scale: 0.1    # multiplier on odom covariance for Q
-    amcl_max_latency_sec: 0.10  # Drop AMCL updates older than 80 ms
+    process_noise_scale: 0.1     # multiplier on dt-scaled odom covariance for Q
+    amcl_max_latency_sec: 0.10  # Drop AMCL updates older than 100 ms
+    odom_history_duration_s: 0.2  # Time window kept for timestamped TF lookup

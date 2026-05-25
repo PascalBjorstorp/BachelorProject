@@ -1,1 +1,0 @@
-wall_time_ns,scan_stamp_ns,scan_stamp_to_scan_ms,amcl_particle_count,scan_to_amcl_ms,amcl_to_ekf_ms,scan_to_ekf_ms,ekf_to_drive_ms,drive_to_ackermann_ms,scan_to_ackermann_ms

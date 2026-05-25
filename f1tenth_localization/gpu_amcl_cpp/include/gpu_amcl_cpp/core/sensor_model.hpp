@@ -24,6 +24,8 @@ public:
         double laser_max_range = 10.0;
         double laser_offset_x  = 0.265;
         double laser_offset_y  = 0.0;
+        bool   normalize_likelihood_by_beams = true;
+        double likelihood_scale = 1.0;
     };
 
     SensorModel() = default;
@@ -69,6 +71,8 @@ void launch_sensor_weights(const float* particles, int n,
                            float z_hit, float z_rand,
                            float sigma_hit, float laser_max_range,
                            float laser_offset_x, float laser_offset_y,
+                           bool normalize_likelihood_by_beams,
+                           float likelihood_scale,
                            const float* distance_field,
                            int map_w, int map_h,
                            float map_res, float map_ox, float map_oy,

@@ -37,6 +37,22 @@ config.optitrackDropoutZeroRadiusM = 1e-6;
 config.optitrackFreezeDistanceM = 1e-6;
 config.optitrackMaxSpeedMps = 12.0;
 
+% Pose-topic-only start calibration. Uses initial stationary overlap between
+% OptiTrack and EKF; no scan/map fitting.
+config.startCalibrationEnabled = true;
+config.startCalibrationDurationS = 3.0;
+config.startCalibrationMinSamples = 50;
+config.startCalibrationMaxStdM = 0.03;
+config.startCalibrationMaxTravelM = 0.05;
+
+% Exclude local OptiTrack freeze zones from metrics/quality. Uses EKF only as
+% motion reference; no scan/map fitting.
+config.optitrackFreezeZoneExcludeEnabled = true;
+config.optitrackFreezeZoneWindowS = 0.05;
+config.optitrackFreezeZoneMaxGtTravelM = 0.02;
+config.optitrackFreezeZoneMinEkfTravelM = 0.10;
+config.optitrackFreezeZonePaddingS = 0.05;
+
 % Drop known bad yaw-outlier laps from selected particle-count runs.
 config.excludeYawOutlierLaps = true;
 config.yawOutlierLapThresholdRad = pi / 2;
@@ -56,6 +72,7 @@ config.metricExcludeXLessThanM = 2.0;
 config.optitrackQualityEnabled = true;
 config.optitrackQualityUseMetricMask = true;
 config.optitrackQualityEnabledChecks = ["position_step", "roll_step", "forward_axis"];
+
 config.optitrackQualityMaxGapS = 0.05;
 config.optitrackQualityMaxStepM = 0.20;
 config.optitrackQualityMaxSpeedMps = 12.0;
@@ -97,6 +114,8 @@ end
 odomConfig = config;
 odomConfig.ekfTopic = '/odom_pose';
 odomConfig.skipStartupAndIncompleteLaps = false;
+odomConfig.startCalibrationEnabled = false;
+odomConfig.optitrackFreezeZoneExcludeEnabled = false;
 odomConfig.bagStartEpochSeconds = readOdomCsvStartEpochSeconds(odomCsvRootDir);
 odomConfig.bagStartEpochToleranceS = 2.0;
 fprintf('\nOdom CSV folder : %s\n', odomCsvRootDir);
@@ -220,26 +239,35 @@ end
 function plotOdomTrajectoryComparison(results, outputDir, showPlot)
 fig = makePlotFigure('OptiTrack vs Odom Trajectory', showPlot);
 hold on;
-colors = lines(max(numel(results), 1));
 
 drawOccupancyMapBackground(getFirstMapData(results));
 
+gtColor = [0.05 0.24 0.55];
+odomColor = [0.72 0.23 0.12];
 for i = 1:numel(results)
-    c = colors(i, :);
+    if i == 1
+        gtVisibility = 'on';
+        odomVisibility = 'on';
+    else
+        gtVisibility = 'off';
+        odomVisibility = 'off';
+    end
+
     plot(results(i).gtPos(:, 1), results(i).gtPos(:, 2), '-', ...
-        'Color', c, 'LineWidth', 1.8, ...
-        'DisplayName', sprintf('%s OptiTrack', results(i).bagName));
+        'Color', gtColor, 'LineWidth', 2.6, ...
+        'DisplayName', 'OptiTrack', 'HandleVisibility', gtVisibility);
     plot(results(i).ekfPos(:, 1), results(i).ekfPos(:, 2), '--', ...
-        'Color', c, 'LineWidth', 1.2, ...
-        'DisplayName', sprintf('%s Odom', results(i).bagName));
+        'Color', odomColor, 'LineWidth', 2.6, ...
+        'DisplayName', 'Odometry', 'HandleVisibility', odomVisibility);
 end
 
 axis equal;
 grid on;
+set(gca, 'LineWidth', 1.6, 'FontSize', 15, 'GridAlpha', 0.22, 'MinorGridAlpha', 0.12);
 xlabel('map x [m]');
 ylabel('map y [m]');
 title('OptiTrack Ground Truth vs Initial-Aligned Odom Trajectory');
-legend('Location', 'bestoutside', 'Interpreter', 'none');
+legend('Location', 'northeast', 'LineWidth', 1.2);
 savePlotFigure(fig, outputDir, 'Odom_Trajectory_vs_OptiTrack', showPlot);
 end
 

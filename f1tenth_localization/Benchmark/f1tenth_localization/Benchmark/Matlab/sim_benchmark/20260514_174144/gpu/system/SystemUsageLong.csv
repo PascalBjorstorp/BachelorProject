@@ -1,0 +1,3 @@
+monotonic_time_ns,ros_time_sec,ros_time_nsec,cpu_long_window_percent,gpu_percent
+137352648057,1778773305,860586117,0.000,0.000
+138352688834,1778773306,860633478,13.234,0.000

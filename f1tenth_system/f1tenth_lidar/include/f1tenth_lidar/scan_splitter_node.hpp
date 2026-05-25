@@ -40,8 +40,8 @@ private:
 
   // ── Helpers ────────────────────────────────────────────────────────
   /**
-    * Compute map distance-to-wall (in metres) from a binary occupancy grid
-    * using 8-connected Dijkstra propagation from occupied cells.
+    * Compute exact Euclidean map distance-to-wall values in metres from the
+    * occupied cells of the occupancy grid.
     *
     * Distances are metric (already in metres), suitable for thresholding.
    */

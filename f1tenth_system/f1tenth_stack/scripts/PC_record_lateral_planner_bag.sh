@@ -33,6 +33,15 @@ TOPICS=(
   "/map"
   "/map_server/transition_event"
   "/drive"
+  "/mpc/timing/solve_us"
+  "/mpc/timing/iteration_count"
+  "/mpc/timing/control_gap_ms"
+  "/mpc/timing/ekf_to_control_ms"
+  "/mpc/timing/output_gap_ms"
+  "/mpc/timing/drive_age_ms"
+  "/mpc/timing/pose_seq"
+  "/mpc/timing/skipped_poses"
+  "/mpc/timing/solver_enter_seq"
   "/mpcc/predicted_path"
 
 )

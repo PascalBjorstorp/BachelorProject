@@ -5,11 +5,13 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <geometry_msgs/msg/pose_array.hpp>
 #include <std_msgs/msg/float64.hpp>
+#include <std_msgs/msg/float64_multi_array.hpp>
 #include <std_msgs/msg/int32.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <mutex>
@@ -36,7 +38,8 @@ private:
     void map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg);
     void initialpose_callback(
         const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
-    void publish_timer_callback();
+    void publish_particle_cloud(const rclcpp::Time& stamp);
+    void publish_pre_resample_weighted_cloud(const rclcpp::Time& stamp);
 
     // ── Helpers ────────────────────────────────────────────────────
     void declare_all_parameters();
@@ -68,12 +71,12 @@ private:
     // Publishers    
     rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_pub_;  // /amcl_pose
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr cloud_pub_;                 // /particlecloud
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pre_resample_cloud_pub_;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr timing_pub_;                       // /amcl_timing
     rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr particle_count_pub_;                  // /amcl_particle_count
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr kld_diag_pub_;            // /amcl_kld_diagnostics
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr gpu_timing_pub_;          // /amcl_gpu_timing
     
-    // Timer for decoupled particle cloud publishing
-    rclcpp::TimerBase::SharedPtr publish_timer_; // For particle cloud viz
-
     // ── Core ───────────────────────────────────────────────────────
     ParticleFilter pf_;     // The particle filter
     MapProcessor   map_;    // Map + distance field
@@ -86,6 +89,9 @@ private:
     double update_min_d_ = 0.001;
     double update_min_a_ = 0.001;
     double max_scan_age_ = 0.05;
+    double cloud_publish_rate_ = 2.0;
+    rclcpp::Time last_cloud_publish_time_;
+    bool debug_pre_resample_particles_ = false;
     bool initial_heading_from_raceline_ = true;
 
     // Slip-aware noise scaling
@@ -95,6 +101,7 @@ private:
 
     // Prediction baseline (reset on reinit)
     bool prediction_baseline_ready_ = false;
+    bool global_pose_published_ = false;
     double pred_last_x_ = 0;
     double pred_last_y_ = 0;
     double pred_last_theta_ = 0;
@@ -107,7 +114,7 @@ private:
     };
 
     std::deque<OdomSample> odom_history_;
-    size_t odom_history_max_size_ = 500;
+    double odom_history_duration_s_ = 0.2;
 
     // Thread safety
     std::mutex pf_mutex_;                       // Protects pf_ during GPU ops
@@ -116,6 +123,7 @@ private:
     // Cached estimate for decoupled publishing
     PoseEstimate cached_estimate_;
     std::mutex   estimate_mutex_;
+    uint64_t last_published_kld_diag_seq_ = 0;
 
     // Frame IDs and topic names
     std::string base_frame_;

@@ -4,13 +4,83 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <queue>
 #include <chrono>
 #include <functional>
 
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <tf2/exceptions.h>
+
+namespace
+{
+
+constexpr float kEdtInf = 1e20f;
+
+inline float edt_intersection(const std::vector<float> & f, int i, int u)
+{
+  const double fi = static_cast<double>(f[static_cast<size_t>(i)]);
+  const double fu = static_cast<double>(f[static_cast<size_t>(u)]);
+  const double ii = static_cast<double>(i) * static_cast<double>(i);
+  const double uu = static_cast<double>(u) * static_cast<double>(u);
+  return static_cast<float>(((fu + uu) - (fi + ii)) /
+                            (2.0 * static_cast<double>(u - i)));
+}
+
+void edt_1d_felzenszwalb(
+  const std::vector<float> & f,
+  std::vector<float> & d,
+  std::vector<int> & v,
+  std::vector<float> & z,
+  int n)
+{
+  int first_site = -1;
+  for (int i = 0; i < n; ++i) {
+    if (f[static_cast<size_t>(i)] < kEdtInf) {
+      first_site = i;
+      break;
+    }
+  }
+
+  if (first_site < 0) {
+    std::fill(d.begin(), d.begin() + n, kEdtInf);
+    return;
+  }
+
+  int k = 0;
+  v[0] = first_site;
+  z[0] = -std::numeric_limits<float>::infinity();
+  z[1] = std::numeric_limits<float>::infinity();
+
+  for (int q = first_site + 1; q < n; ++q) {
+    if (f[static_cast<size_t>(q)] >= kEdtInf) {
+      continue;
+    }
+
+    float s = edt_intersection(f, v[static_cast<size_t>(k)], q);
+    while (k > 0 && s <= z[static_cast<size_t>(k)]) {
+      --k;
+      s = edt_intersection(f, v[static_cast<size_t>(k)], q);
+    }
+
+    ++k;
+    v[static_cast<size_t>(k)] = q;
+    z[static_cast<size_t>(k)] = s;
+    z[static_cast<size_t>(k + 1)] = std::numeric_limits<float>::infinity();
+  }
+
+  k = 0;
+  for (int q = 0; q < n; ++q) {
+    while (z[static_cast<size_t>(k + 1)] < static_cast<float>(q)) {
+      ++k;
+    }
+
+    const float diff = static_cast<float>(q - v[static_cast<size_t>(k)]);
+    d[static_cast<size_t>(q)] =
+      diff * diff + f[static_cast<size_t>(v[static_cast<size_t>(k)])];
+  }
+}
+
+}  // namespace
 
 namespace f1tenth_lidar
 {
@@ -69,7 +139,7 @@ ScanSplitterNode::ScanSplitterNode(const rclcpp::NodeOptions & options)
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-//  Map handling — precompute metric distance field with Dijkstra
+//  Map handling — precompute exact Euclidean wall-distance field
 // ────────────────────────────────────────────────────────────────────────────
 
 void ScanSplitterNode::compute_distance_field(
@@ -79,52 +149,70 @@ void ScanSplitterNode::compute_distance_field(
   const int h = static_cast<int>(grid.info.height);
   const float res = static_cast<float>(grid.info.resolution);
   const auto & data = grid.data;
+  const int size = w * h;
 
-  // Distances are stored directly in metres.
-  std::vector<float> dist_m(w * h, std::numeric_limits<float>::infinity());
-  using QueueItem = std::pair<float, int>;  // (distance_m, flat_index)
-  std::priority_queue<QueueItem, std::vector<QueueItem>, std::greater<QueueItem>> pq;
+  if (w <= 0 || h <= 0 || res <= 0.0f || data.size() != static_cast<size_t>(size)) {
+    distance_field_.clear();
+    return;
+  }
 
   // Seed: occupied cells (value >= 50) have distance 0.
   // Unknown cells are treated as free to avoid overly conservative wall distances.
-  for (int i = 0; i < w * h; ++i) {
+  distance_field_.assign(static_cast<size_t>(size), kEdtInf);
+  bool has_occupied = false;
+  for (int i = 0; i < size; ++i) {
     int8_t v = static_cast<int8_t>(data[i]);
     if (v >= 50) {
-      dist_m[i] = 0.0f;
-      pq.emplace(0.0f, i);
+      distance_field_[static_cast<size_t>(i)] = 0.0f;
+      has_occupied = true;
     }
   }
 
-  // 8-connected propagation with metric edge costs.
-  static constexpr int dx8[8] = {1, -1, 0, 0, 1, 1, -1, -1};
-  static constexpr int dy8[8] = {0, 0, 1, -1, 1, -1, 1, -1};
-  const float diag_cost = std::sqrt(2.0f) * res;
-  const float step_cost[8] = {res, res, res, res, diag_cost, diag_cost, diag_cost, diag_cost};
+  if (!has_occupied) {
+    return;
+  }
 
-  while (!pq.empty()) {
-    const auto [cur_dist, idx] = pq.top();
-    pq.pop();
-    if (cur_dist > dist_m[idx]) {
-      continue;
+  const int max_dim = std::max(w, h);
+  std::vector<float> f(static_cast<size_t>(max_dim));
+  std::vector<float> d(static_cast<size_t>(max_dim));
+  std::vector<int> sites(static_cast<size_t>(max_dim));
+  std::vector<float> bounds(static_cast<size_t>(max_dim + 1));
+
+  // Row pass: squared distance in x.
+  for (int y = 0; y < h; ++y) {
+    const int row_offset = y * w;
+    for (int x = 0; x < w; ++x) {
+      f[static_cast<size_t>(x)] =
+        distance_field_[static_cast<size_t>(row_offset + x)];
     }
 
-    const int cx = idx % w;
-    const int cy = idx / w;
+    edt_1d_felzenszwalb(f, d, sites, bounds, w);
 
-    for (int d = 0; d < 8; ++d) {
-      const int nx = cx + dx8[d];
-      const int ny = cy + dy8[d];
-      if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
-      const int nidx = ny * w + nx;
-      const float new_dist = cur_dist + step_cost[d];
-      if (new_dist < dist_m[nidx]) {
-        dist_m[nidx] = new_dist;
-        pq.emplace(new_dist, nidx);
-      }
+    for (int x = 0; x < w; ++x) {
+      distance_field_[static_cast<size_t>(row_offset + x)] =
+        d[static_cast<size_t>(x)];
     }
   }
 
-  distance_field_ = std::move(dist_m);
+  // Column pass: squared distance in y plus row-pass result.
+  for (int x = 0; x < w; ++x) {
+    for (int y = 0; y < h; ++y) {
+      f[static_cast<size_t>(y)] =
+        distance_field_[static_cast<size_t>(y * w + x)];
+    }
+
+    edt_1d_felzenszwalb(f, d, sites, bounds, h);
+
+    for (int y = 0; y < h; ++y) {
+      distance_field_[static_cast<size_t>(y * w + x)] =
+        d[static_cast<size_t>(y)];
+    }
+  }
+
+  // Convert squared cell distances to metres.
+  for (float & dist_sq : distance_field_) {
+    dist_sq = std::sqrt(dist_sq) * res;
+  }
 }
 
 void ScanSplitterNode::map_callback(

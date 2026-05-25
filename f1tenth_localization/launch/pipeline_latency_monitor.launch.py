@@ -19,6 +19,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
@@ -64,6 +65,26 @@ def generate_launch_description():
             default_value='f1tenth_localization/Benchmark/Matlab/csv',
             description='Directory where latency CSV file is written'),
 
+        DeclareLaunchArgument(
+            'system_monitor_cpu_sample_hz',
+            default_value='100.0',
+            description='CPU utilization sample rate in Hz'),
+
+        DeclareLaunchArgument(
+            'system_monitor_gpu_sample_hz',
+            default_value='50.0',
+            description='GPU utilization sample rate in Hz'),
+
+        DeclareLaunchArgument(
+            'system_monitor_csv_log_hz',
+            default_value='50.0',
+            description='Short-window CPU/GPU CSV log rate in Hz'),
+
+        DeclareLaunchArgument(
+            'system_monitor_memory_log_hz',
+            default_value='1.0',
+            description='CPU memory/cache CSV log rate in Hz'),
+
         Node(
             package='f1tenth_localization',
             executable='pipeline_latency_monitor',
@@ -89,5 +110,16 @@ def generate_launch_description():
             executable='performance_monitor_cpp',
             name='performance_monitor',
             output='screen',
+            parameters=[{
+                'output_dir': LaunchConfiguration('csv_output_dir'),
+                'cpu_sample_hz': ParameterValue(
+                    LaunchConfiguration('system_monitor_cpu_sample_hz'), value_type=float),
+                'gpu_sample_hz': ParameterValue(
+                    LaunchConfiguration('system_monitor_gpu_sample_hz'), value_type=float),
+                'csv_log_hz': ParameterValue(
+                    LaunchConfiguration('system_monitor_csv_log_hz'), value_type=float),
+                'memory_log_hz': ParameterValue(
+                    LaunchConfiguration('system_monitor_memory_log_hz'), value_type=float),
+            }],
         ),
     ])

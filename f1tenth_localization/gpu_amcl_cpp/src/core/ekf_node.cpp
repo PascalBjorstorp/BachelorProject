@@ -3,6 +3,7 @@
 
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <Eigen/Cholesky>
@@ -53,7 +54,7 @@ void EkfNode::declare_all_parameters() {
     declare_parameter<double>("transform_tolerance", 0.1);
     declare_parameter<double>("process_noise_scale", 1.0);
     declare_parameter<double>("amcl_max_latency_sec", 0.08);
-    declare_parameter<int>("odom_history_max_size", 500);
+    declare_parameter<double>("odom_history_duration_s", 0.2);
 }
 
 void EkfNode::load_parameters() {
@@ -66,10 +67,8 @@ void EkfNode::load_parameters() {
     transform_tolerance_ = get_parameter("transform_tolerance").as_double();
     process_noise_scale_ = get_parameter("process_noise_scale").as_double();
     amcl_max_latency_sec_ = get_parameter("amcl_max_latency_sec").as_double();
-    const int64_t odom_history_size_param =
-        get_parameter("odom_history_max_size").as_int();
-    odom_history_max_size_ = static_cast<size_t>(
-        std::max<int64_t>(2, odom_history_size_param));
+    odom_history_duration_s_ = std::max(
+        0.0, get_parameter("odom_history_duration_s").as_double());
 
     if (amcl_max_latency_sec_ <= 0.0) {
         RCLCPP_WARN(get_logger(),
@@ -82,7 +81,8 @@ void EkfNode::push_odom_sample(const rclcpp::Time& stamp,
                                const Eigen::Vector3d& pose) {
     odom_history_.push_back({stamp, pose[0], pose[1], pose[2]});
 
-    while (odom_history_.size() > odom_history_max_size_) {
+    while (odom_history_.size() > 2 &&
+           (stamp - odom_history_.front().stamp).seconds() > odom_history_duration_s_) {
         odom_history_.pop_front();
     }
 }
@@ -131,7 +131,8 @@ bool EkfNode::interpolate_odom_pose(const rclcpp::Time& stamp,
 
 // ─── EKF Prediction ─────────────────────────────────────────────────
 void EkfNode::predict(const Eigen::Vector3d& delta,
-                      const Eigen::Matrix3d& Q) {
+                      const Eigen::Matrix3d& Q,
+                      double dt) {
     // Linearize around the pre-update heading.
     double theta = state_[2];
     double c = std::cos(theta);
@@ -144,8 +145,10 @@ void EkfNode::predict(const Eigen::Vector3d& delta,
     // State prediction: compose SE(2) delta.
     state_ = math_utils::se2_compose(state_, delta);
 
-    // Covariance prediction.
-    P_ = F * P_ * F.transpose() + process_noise_scale_ * Q;
+    // The odom message covariance describes pose uncertainty, not a single
+    // high-rate callback increment. Scale it by the elapsed odom interval.
+    const double noise_dt = std::clamp(dt, 0.0, 0.1);
+    P_ = F * P_ * F.transpose() + process_noise_scale_ * noise_dt * Q;
 }
 
 // ─── EKF Correction ─────────────────────────────────────────────────
@@ -189,19 +192,21 @@ void EkfNode::odom_callback(
     push_odom_sample(odom_stamp, odom_pose);
 
     if (!odom_received_) {
-        prev_odom_     = odom_pose;
-        odom_received_ = true;
-
-        if (!initialized_) {
-            state_       = odom_pose;
-            initialized_ = true;
-        }
+        prev_odom_       = odom_pose;
+        prev_odom_stamp_ = odom_stamp;
+        odom_received_   = true;
         return;
     }
 
     // Compute relative delta.
     Eigen::Vector3d delta = math_utils::se2_relative(prev_odom_, odom_pose);
+    const double dt = (odom_stamp - prev_odom_stamp_).seconds();
     prev_odom_ = odom_pose;
+    prev_odom_stamp_ = odom_stamp;
+
+    if (!initialized_) {
+        return;
+    }
 
     // Extract covariance from message (x, y, yaw → rows 0,1,5).
     Eigen::Matrix3d Q = Eigen::Matrix3d::Zero();
@@ -217,7 +222,7 @@ void EkfNode::odom_callback(
     Q(1, 1) = std::max(Q(1, 1), 1e-6);
     Q(2, 2) = std::max(Q(2, 2), 1e-6);
 
-    predict(delta, Q);
+    predict(delta, Q, dt);
     lock.unlock();
     publish_and_broadcast(odom_stamp);   // Publish immediately after prediction (§10.2)
 }
@@ -238,12 +243,6 @@ void EkfNode::amcl_callback(
 
     std::unique_lock<std::mutex> lock(state_mutex_);
 
-    if (!initialized_) {
-        state_       = math_utils::pose_to_vec(msg->pose.pose);
-        initialized_ = true;
-        RCLCPP_INFO(get_logger(), "EKF initialised from AMCL pose.");
-    }
-
     Eigen::Vector3d z = math_utils::pose_to_vec(msg->pose.pose);
 
     // Extract measurement covariance.
@@ -258,6 +257,14 @@ void EkfNode::amcl_callback(
     R(0, 0) = std::max(R(0, 0), 1e-6);
     R(1, 1) = std::max(R(1, 1), 1e-6);
     R(2, 2) = std::max(R(2, 2), 1e-6);
+
+    if (!initialized_) {
+        state_       = z;
+        P_           = R;
+        initialized_ = true;
+        RCLCPP_INFO(get_logger(), "EKF initialised from AMCL pose.");
+        return;
+    }
 
     correct(z, R);
 }

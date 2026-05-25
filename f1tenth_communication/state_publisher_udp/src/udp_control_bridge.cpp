@@ -20,19 +20,14 @@
 #include <algorithm>
 #include <chrono>
 #include <cerrno>
-#include <cstring>
-#include <cstdio>
-#include <ctime>
-#include <limits>
-#include <sys/stat.h>
 #include <string>
 
 namespace state_transport_udp {
 
-static constexpr int32_t FP_SCALE = 65536;
+static constexpr int32_t FP_SCALE = MPC_FPGA_QP_SCALE_I32;
 
 /**
- * @brief Convert Q16.16 fixed-point value to float.
+ * @brief Convert raw QP fixed-point value to float.
  * @param fp Fixed-point input value.
  * @return Floating-point representation of `fp`.
  */
@@ -90,13 +85,6 @@ public:
             std::chrono::milliseconds(static_cast<int>(watchdog_ms)),
             std::bind(&UdpControlBridge::watchdogTick, this));
 
-        RCLCPP_INFO(get_logger(),
-                    "UDP control bridge ready: listening on %d, publishing %s (poll=%d us)",
-                    listen_port,
-                    drive_topic.c_str(),
-                    poll_period_us);
-
-        openTimingCsvFile();
     }
 
     /**
@@ -108,52 +96,9 @@ public:
             ::close(sock_fd_);
             sock_fd_ = -1;
         }
-        if (timing_csv_file_ != nullptr) {
-            std::fclose(timing_csv_file_);
-            timing_csv_file_ = nullptr;
-        }
     }
 
 private:
-    /**
-     * @brief Get monotonic timestamp in nanoseconds.
-     * @return Monotonic time in nanoseconds.
-     */
-    uint64_t monotonicNowNs() const {
-        return static_cast<uint64_t>(
-            std::chrono::duration_cast<std::chrono::nanoseconds>(
-                std::chrono::steady_clock::now().time_since_epoch()).count());
-    }
-
-    /**
-     * @brief Open CSV file for per-packet RTT logging.
-     * @return None
-     */
-    void openTimingCsvFile() {
-        const char* log_dir = "log";
-        ::mkdir(log_dir, 0755);
-
-        const std::time_t now = std::time(nullptr);
-        struct tm tm_now;
-        localtime_r(&now, &tm_now);
-
-        char timestamp[64];
-        std::strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", &tm_now);
-
-        char csv_path[512];
-        std::snprintf(csv_path, sizeof(csv_path), "%s/udp_roundtrip_%s.csv", log_dir, timestamp);
-
-        timing_csv_file_ = std::fopen(csv_path, "w");
-        if (timing_csv_file_ == nullptr) {
-            RCLCPP_WARN(get_logger(), "Failed to open UDP timing CSV file: %s", csv_path);
-            return;
-        }
-
-        std::fprintf(timing_csv_file_, "idx,rtt_us\n");
-        std::fflush(timing_csv_file_);
-        RCLCPP_INFO(get_logger(), "UDP timing CSV log: %s", csv_path);
-    }
-
     /**
      * @brief Poll UDP socket and process all available control packets.
      * @return None
@@ -176,21 +121,14 @@ private:
                 if (errno == EAGAIN || errno == EWOULDBLOCK) {
                     break;
                 }
-                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                                     "UDP recvfrom error: %s", std::strerror(errno));
                 break;
             }
 
             if (n != static_cast<ssize_t>(sizeof(packet))) {
-                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                                     "Dropped control packet: expected %zu bytes, got %ld",
-                                     sizeof(packet), static_cast<long>(n));
                 continue;
             }
 
             if (packet.magic != PACKET_MAGIC || packet.version != PACKET_VERSION) {
-                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                                     "Dropped control packet: bad magic/version");
                 continue;
             }
 
@@ -200,8 +138,6 @@ private:
                 reinterpret_cast<const uint8_t*>(&packet),
                 sizeof(packet) - sizeof(packet.crc32));
             if (rx_crc != calc_crc) {
-                RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                                     "Dropped control packet: CRC mismatch");
                 continue;
             }
 
@@ -227,10 +163,6 @@ private:
             steering = last_safe_steering_;
             speed = last_safe_speed_;
             accel = last_safe_accel_;
-
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                                 "UDP control packet has bad solver status=%u, holding last safe command",
-                                 packet.solver_status);
         } else {
             steering = std::clamp(
                 fp_to_float(packet.steering_fp),
@@ -262,62 +194,8 @@ private:
         drive.drive.acceleration = accel;
         drive_pub_->publish(drive);
 
-        const uint64_t now_ns = monotonicNowNs();
-        if (packet.sender_mono_ns > 0 && now_ns >= packet.sender_mono_ns) {
-            const double rtt_us = static_cast<double>(now_ns - packet.sender_mono_ns) / 1e3;
-
-            if (timing_csv_file_ != nullptr) {
-                timing_csv_idx_++;
-                std::fprintf(timing_csv_file_, "%lu,%.1f\n", timing_csv_idx_, rtt_us);
-                std::fflush(timing_csv_file_);
-            }
-
-            rtt_window_count_++;
-            rtt_window_sum_us_ += rtt_us;
-            rtt_window_min_us_ = std::min(rtt_window_min_us_, rtt_us);
-            rtt_window_max_us_ = std::max(rtt_window_max_us_, rtt_us);
-
-            const auto now_tp = std::chrono::steady_clock::now();
-            const double elapsed_sec = std::chrono::duration<double>(now_tp - rtt_last_print_time_).count();
-            if (elapsed_sec >= kStatsPrintIntervalSec && rtt_window_count_ > 0) {
-                const double avg_us = rtt_window_sum_us_ / static_cast<double>(rtt_window_count_);
-                RCLCPP_INFO(get_logger(),
-                            "[UDP] RTT stats (last %.1fs, %lu samples): min=%.1f us, avg=%.1f us, max=%.1f us",
-                            elapsed_sec,
-                            rtt_window_count_,
-                            rtt_window_min_us_,
-                            avg_us,
-                            rtt_window_max_us_);
-
-                rtt_window_count_ = 0;
-                rtt_window_sum_us_ = 0.0;
-                rtt_window_min_us_ = std::numeric_limits<double>::infinity();
-                rtt_window_max_us_ = 0.0;
-                rtt_last_print_time_ = now_tp;
-            }
-        }
-
         packet_count_++;
         last_packet_time_ = std::chrono::steady_clock::now();
-
-        if (packet_count_ == 1) {
-            RCLCPP_INFO(get_logger(),
-                        "First UDP control packet received: seq=%u steer=%.2f deg v=%.2f",
-                        packet.sequence,
-                        steering * 57.2958f,
-                        speed);
-        }
-
-        if (packet_count_ % 100 == 0) {
-            RCLCPP_INFO(get_logger(),
-                        "[UDP] seq=%u steer=%.2f deg v=%.2f a=%.2f | status=%u iter=%u",
-                        packet.sequence,
-                        steering * 57.2958f,
-                        speed,
-                        accel,
-                        packet.solver_status,
-                        packet.solver_iterations);
-        }
     }
 
     /**
@@ -342,23 +220,11 @@ private:
             drive.drive.speed = 0.0f;
             drive.drive.acceleration = 0.0f;
             drive_pub_->publish(drive);
-
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                                 "UDP watchdog: no control packet for %.0f ms, publishing zero drive",
-                                 elapsed_ms);
         }
     }
 
     int sock_fd_{-1};                       // UDP socket file descriptor
     uint64_t packet_count_{0};              // Total number of valid control packets received
-    uint64_t timing_csv_idx_{0};
-    uint64_t rtt_window_count_{0};
-    double rtt_window_sum_us_{0.0};
-    double rtt_window_min_us_{std::numeric_limits<double>::infinity()};
-    double rtt_window_max_us_{0.0};
-    std::chrono::steady_clock::time_point rtt_last_print_time_{std::chrono::steady_clock::now()};
-    static constexpr double kStatsPrintIntervalSec = 5.0;
-    FILE* timing_csv_file_{nullptr};
     float last_safe_steering_{0.0f};
     float last_safe_speed_{0.0f};
     float last_safe_accel_{0.0f};

@@ -112,6 +112,24 @@ def generate_launch_description():
         description='Max v_ref during recovery (m/s). Set <=0 to disable.'
     )
 
+    drive_republish_period_arg = DeclareLaunchArgument(
+        'drive_republish_period_ms',
+        default_value='5',
+        description='Republish latest MPC /drive command at this fixed period in ms.'
+    )
+
+    log_local_raceline_snapshots_arg = DeclareLaunchArgument(
+        'log_local_raceline_snapshots',
+        default_value='0',
+        description='Write full /local_raceline CSV snapshots from MPC node (0/1). Off for real-time driving.'
+    )
+
+    solver_csv_log_arg = DeclareLaunchArgument(
+        'solver_csv_log',
+        default_value='0',
+        description='Write per-cycle solver CSV from MPC node (0/1). Keep off for real-time driving.'
+    )
+
     # Set environment variables for the MPC node
     set_use_local_raceline = SetEnvironmentVariable(
         'MPC_USE_LOCAL_RACELINE',
@@ -165,6 +183,18 @@ def generate_launch_description():
         'MPC_RECOVERY_VREF_MAX',
         LaunchConfiguration('recovery_vref_max')
     )
+    set_drive_republish_period = SetEnvironmentVariable(
+        'MPC_DRIVE_REPUBLISH_PERIOD_MS',
+        LaunchConfiguration('drive_republish_period_ms')
+    )
+    set_log_local_raceline_snapshots = SetEnvironmentVariable(
+        'MPC_LOG_LOCAL_RACELINE_SNAPSHOTS',
+        LaunchConfiguration('log_local_raceline_snapshots')
+    )
+    set_solver_csv_log = SetEnvironmentVariable(
+        'MPC_SOLVER_CSV_LOG',
+        LaunchConfiguration('solver_csv_log')
+    )
     # MPC hardware node
     mpc_node = Node(
         package='mpc_riccati',
@@ -190,6 +220,9 @@ def generate_launch_description():
         recovery_epsi_arg,
         recovery_ey_arg,
         recovery_vref_cap_arg,
+        drive_republish_period_arg,
+        log_local_raceline_snapshots_arg,
+        solver_csv_log_arg,
         set_use_local_raceline,
         set_local_raceline_topic,
         set_odom,
@@ -203,5 +236,8 @@ def generate_launch_description():
         set_recovery_epsi,
         set_recovery_ey,
         set_recovery_vref,
+        set_drive_republish_period,
+        set_log_local_raceline_snapshots,
+        set_solver_csv_log,
         mpc_node,
     ])

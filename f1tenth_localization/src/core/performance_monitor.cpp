@@ -7,15 +7,20 @@
 #include <cctype>
 #include <chrono>
 #include <cmath>
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
+#include <cstring>
 #include <unordered_map>
 #include <unordered_set>
 
+#include <linux/perf_event.h>
+#include <sys/ioctl.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 
 namespace f1tenth_localization
@@ -45,6 +50,16 @@ std::string sanitize_csv_field(const std::string & value)
   std::string out = value;
   std::replace(out.begin(), out.end(), ',', '_');
   return out;
+}
+
+int perf_event_open(
+  perf_event_attr * attr,
+  pid_t pid,
+  int cpu,
+  int group_fd,
+  unsigned long flags)
+{
+  return static_cast<int>(::syscall(__NR_perf_event_open, attr, pid, cpu, group_fd, flags));
 }
 
 }  // namespace
@@ -88,9 +103,42 @@ PerformanceMonitor::PerformanceMonitor(const rclcpp::NodeOptions & options)
   node_process_discovery_hz_ = system_monitor_config::kNodeProcessDiscoveryHz;
   csv_log_hz_ = system_monitor_config::kShortCsvLogHz;
   long_csv_log_hz_ = system_monitor_config::kLongCsvLogHz;
+  memory_log_hz_ = system_monitor_config::kMemoryLogHz;
+  memory_controller_log_hz_ = system_monitor_config::kMemoryControllerLogHz;
+  emc_peak_bandwidth_mib_s_ = system_monitor_config::kEmcPeakBandwidthMiBPerSec;
   print_hz_ = system_monitor_config::kPrintHz;
   rolling_window_long_sec_ = system_monitor_config::kRollingWindowLongSec;
   rolling_window_short_sec_ = system_monitor_config::kRollingWindowShortSec;
+
+  declare_parameter<std::string>("output_dir", output_dir_);
+  output_dir_ = get_parameter("output_dir").as_string();
+  declare_parameter<double>("cpu_sample_hz", cpu_sample_hz_);
+  declare_parameter<double>("gpu_sample_hz", gpu_sample_hz_);
+  declare_parameter<double>("node_process_sample_hz", node_process_sample_hz_);
+  declare_parameter<double>("node_process_discovery_hz", node_process_discovery_hz_);
+  declare_parameter<double>("csv_log_hz", csv_log_hz_);
+  declare_parameter<double>("long_csv_log_hz", long_csv_log_hz_);
+  declare_parameter<double>("memory_log_hz", memory_log_hz_);
+  declare_parameter<double>("memory_controller_log_hz", memory_controller_log_hz_);
+  declare_parameter<double>("emc_peak_bandwidth_mib_s", emc_peak_bandwidth_mib_s_);
+  declare_parameter<double>("print_hz", print_hz_);
+  declare_parameter<double>("rolling_window_long_sec", rolling_window_long_sec_);
+  declare_parameter<double>("rolling_window_short_sec", rolling_window_short_sec_);
+
+  cpu_sample_hz_ = std::max(1e-3, get_parameter("cpu_sample_hz").as_double());
+  gpu_sample_hz_ = get_parameter("gpu_sample_hz").as_double();
+  node_process_sample_hz_ = std::max(0.0, get_parameter("node_process_sample_hz").as_double());
+  node_process_discovery_hz_ = std::max(1e-3, get_parameter("node_process_discovery_hz").as_double());
+  csv_log_hz_ = std::max(1e-3, get_parameter("csv_log_hz").as_double());
+  long_csv_log_hz_ = std::max(1e-3, get_parameter("long_csv_log_hz").as_double());
+  memory_log_hz_ = std::max(0.0, get_parameter("memory_log_hz").as_double());
+  memory_controller_log_hz_ = std::max(
+    0.0, get_parameter("memory_controller_log_hz").as_double());
+  emc_peak_bandwidth_mib_s_ = std::max(
+    0.0, get_parameter("emc_peak_bandwidth_mib_s").as_double());
+  print_hz_ = std::max(1e-3, get_parameter("print_hz").as_double());
+  rolling_window_long_sec_ = std::max(1e-6, get_parameter("rolling_window_long_sec").as_double());
+  rolling_window_short_sec_ = std::max(1e-6, get_parameter("rolling_window_short_sec").as_double());
 
   if (gpu_sample_hz_ <= 0.0) {
     gpu_sample_hz_ = cpu_sample_hz_;
@@ -165,6 +213,19 @@ PerformanceMonitor::~PerformanceMonitor()
     node_process_csv_file_.flush();
     node_process_csv_file_.close();
   }
+  if (memory_csv_file_.is_open()) {
+    memory_csv_file_.flush();
+    memory_csv_file_.close();
+  }
+  if (cache_csv_file_.is_open()) {
+    cache_csv_file_.flush();
+    cache_csv_file_.close();
+  }
+  if (memory_controller_csv_file_.is_open()) {
+    memory_controller_csv_file_.flush();
+    memory_controller_csv_file_.close();
+  }
+  close_all_cache_counters();
 }
 
 void PerformanceMonitor::initialize_csv()
@@ -181,6 +242,13 @@ void PerformanceMonitor::initialize_csv()
     std::filesystem::path(output_dir_) / system_monitor_config::kGpuCsvFileName).string();
   node_process_csv_path_ = (
     std::filesystem::path(output_dir_) / system_monitor_config::kNodeProcessCsvFileName).string();
+  memory_csv_path_ = (
+    std::filesystem::path(output_dir_) / system_monitor_config::kMemoryCsvFileName).string();
+  cache_csv_path_ = (
+    std::filesystem::path(output_dir_) / system_monitor_config::kCacheCsvFileName).string();
+  memory_controller_csv_path_ = (
+    std::filesystem::path(output_dir_) /
+    system_monitor_config::kMemoryControllerCsvFileName).string();
 
   long_csv_file_.open(long_csv_path_, std::ios::out | std::ios::trunc);
   if (!long_csv_file_.is_open()) {
@@ -206,6 +274,20 @@ void PerformanceMonitor::initialize_csv()
     throw std::runtime_error("Failed to open node-process CSV output file");
   }
 
+  memory_csv_file_.open(memory_csv_path_, std::ios::out | std::ios::trunc);
+  if (!memory_csv_file_.is_open()) {
+    throw std::runtime_error("Failed to open memory CSV output file");
+  }
+  cache_csv_file_.open(cache_csv_path_, std::ios::out | std::ios::trunc);
+  if (!cache_csv_file_.is_open()) {
+    throw std::runtime_error("Failed to open cache CSV output file");
+  }
+  memory_controller_csv_file_.open(
+    memory_controller_csv_path_, std::ios::out | std::ios::trunc);
+  if (!memory_controller_csv_file_.is_open()) {
+    throw std::runtime_error("Failed to open memory-controller CSV output file");
+  }
+
   long_csv_file_ << "monotonic_time_ns,ros_time_sec,ros_time_nsec,cpu_long_window_percent,gpu_percent\n";
   long_csv_file_.flush();
 
@@ -225,6 +307,25 @@ void PerformanceMonitor::initialize_csv()
   node_process_csv_file_ <<
     "monotonic_time_ns,ros_time_sec,ros_time_nsec,node_name,pid,cpu_percent\n";
   node_process_csv_file_.flush();
+
+  memory_csv_file_ <<
+    "monotonic_time_ns,ros_time_sec,ros_time_nsec,"
+    "cpu_mem_total_mib,cpu_mem_available_mib,cpu_mem_used_mib,"
+    "cpu_buffers_mib,cpu_cached_mib,cpu_sreclaimable_mib,cpu_shmem_mib,"
+    "cpu_page_cache_mib\n";
+  memory_csv_file_.flush();
+
+  cache_csv_file_ <<
+    "monotonic_time_ns,ros_time_sec,ros_time_nsec,node_name,pid,"
+    "cache_references,cache_misses,cache_reference_delta,cache_miss_delta,"
+    "cache_miss_rate_percent,cache_hit_rate_percent,counters_valid\n";
+  cache_csv_file_.flush();
+
+  memory_controller_csv_file_ <<
+    "monotonic_time_ns,ros_time_sec,ros_time_nsec,"
+    "emc_util_percent,emc_freq_mhz,emc_peak_bandwidth_mib_s,"
+    "emc_estimated_bandwidth_mib_s,source,valid\n";
+  memory_controller_csv_file_.flush();
 }
 
 void PerformanceMonitor::initialize_gpu_source()
@@ -320,6 +421,126 @@ double PerformanceMonitor::read_gpu_percent_from_nvidia_smi() const
   }
 
   return std::clamp(sum / static_cast<double>(count), 0.0, 100.0);
+}
+
+PerformanceMonitor::MemorySnapshot PerformanceMonitor::read_memory_snapshot() const
+{
+  MemorySnapshot snapshot;
+
+  std::ifstream meminfo_file("/proc/meminfo");
+  std::unordered_map<std::string, double> meminfo_kib;
+  std::string key;
+  double value = 0.0;
+  std::string unit;
+  while (meminfo_file >> key >> value >> unit) {
+    if (!key.empty() && key.back() == ':') {
+      key.pop_back();
+    }
+    meminfo_kib[key] = value;
+  }
+
+  auto kib_to_mib = [&meminfo_kib](const std::string & name) {
+      const auto it = meminfo_kib.find(name);
+      if (it == meminfo_kib.end()) {
+        return -1.0;
+      }
+      return it->second / 1024.0;
+    };
+
+  snapshot.cpu_mem_total_mib = kib_to_mib("MemTotal");
+  snapshot.cpu_mem_available_mib = kib_to_mib("MemAvailable");
+  snapshot.cpu_buffers_mib = kib_to_mib("Buffers");
+  snapshot.cpu_cached_mib = kib_to_mib("Cached");
+  snapshot.cpu_sreclaimable_mib = kib_to_mib("SReclaimable");
+  snapshot.cpu_shmem_mib = kib_to_mib("Shmem");
+
+  if (snapshot.cpu_mem_total_mib >= 0.0 && snapshot.cpu_mem_available_mib >= 0.0) {
+    snapshot.cpu_mem_used_mib = snapshot.cpu_mem_total_mib - snapshot.cpu_mem_available_mib;
+  }
+
+  if (snapshot.cpu_cached_mib >= 0.0 &&
+    snapshot.cpu_sreclaimable_mib >= 0.0 &&
+    snapshot.cpu_shmem_mib >= 0.0)
+  {
+    snapshot.cpu_page_cache_mib = std::max(
+      0.0,
+      snapshot.cpu_cached_mib + snapshot.cpu_sreclaimable_mib - snapshot.cpu_shmem_mib);
+  }
+
+  return snapshot;
+}
+
+PerformanceMonitor::MemoryControllerSnapshot
+PerformanceMonitor::read_memory_controller_snapshot() const
+{
+  return read_memory_controller_from_tegrastats();
+}
+
+PerformanceMonitor::MemoryControllerSnapshot
+PerformanceMonitor::read_memory_controller_from_tegrastats() const
+{
+  MemoryControllerSnapshot snapshot;
+  snapshot.source = "tegrastats";
+  snapshot.emc_peak_bandwidth_mib_s =
+    emc_peak_bandwidth_mib_s_ > 0.0 ? emc_peak_bandwidth_mib_s_ : -1.0;
+
+  FILE * pipe = popen("timeout 2s tegrastats --interval 100 --count 1 2>/dev/null", "r");
+  if (pipe == nullptr) {
+    return snapshot;
+  }
+
+  char buffer[1024];
+  std::string line;
+  if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+    line = buffer;
+  }
+  pclose(pipe);
+
+  const std::string marker = "EMC_FREQ";
+  const auto marker_pos = line.find(marker);
+  if (marker_pos == std::string::npos) {
+    return snapshot;
+  }
+
+  const char * ptr = line.c_str() + marker_pos + marker.size();
+  while (*ptr != '\0' && std::isspace(static_cast<unsigned char>(*ptr)) != 0) {
+    ++ptr;
+  }
+
+  char * end = nullptr;
+  const double util = std::strtod(ptr, &end);
+  if (end == ptr || !std::isfinite(util)) {
+    return snapshot;
+  }
+  const char * percent = std::strchr(end, '%');
+  if (percent == nullptr) {
+    return snapshot;
+  }
+
+  snapshot.valid = true;
+  snapshot.emc_util_percent = std::clamp(util, 0.0, 100.0);
+
+  const char * at = std::strchr(percent, '@');
+  if (at != nullptr) {
+    ++at;
+    while (*at != '\0' &&
+      (*at == '[' || std::isspace(static_cast<unsigned char>(*at)) != 0))
+    {
+      ++at;
+    }
+    char * freq_end = nullptr;
+    const double freq_mhz = std::strtod(at, &freq_end);
+    if (freq_end != at && std::isfinite(freq_mhz)) {
+      snapshot.emc_freq_mhz = freq_mhz;
+    }
+  }
+
+  if (snapshot.emc_peak_bandwidth_mib_s > 0.0) {
+    snapshot.emc_estimated_bandwidth_mib_s =
+      (snapshot.emc_util_percent / 100.0) * snapshot.emc_peak_bandwidth_mib_s;
+  }
+
+  return snapshot;
 }
 
 std::vector<std::string> PerformanceMonitor::read_cmdline_tokens(int pid)
@@ -538,6 +759,85 @@ bool PerformanceMonitor::read_process_cpu_times(int pid, ProcessCpuTimes & times
   times.starttime_ticks = static_cast<uint64_t>(starttime);
 
   return true;
+}
+
+PerformanceMonitor::CacheCounterFds PerformanceMonitor::open_cache_counters(int pid)
+{
+  auto open_counter = [pid](uint64_t config) {
+      perf_event_attr attr;
+      std::memset(&attr, 0, sizeof(attr));
+      attr.type = PERF_TYPE_HARDWARE;
+      attr.size = sizeof(attr);
+      attr.config = config;
+      attr.disabled = 0;
+      attr.exclude_kernel = 1;
+      attr.exclude_hv = 1;
+      attr.inherit = 1;
+      return perf_event_open(&attr, static_cast<pid_t>(pid), -1, -1, 0);
+    };
+
+  CacheCounterFds counters;
+  counters.references_fd = open_counter(PERF_COUNT_HW_CACHE_REFERENCES);
+  counters.misses_fd = open_counter(PERF_COUNT_HW_CACHE_MISSES);
+
+  if (counters.references_fd < 0 || counters.misses_fd < 0) {
+    if (!cache_counter_warning_printed_) {
+      cache_counter_warning_printed_ = true;
+      RCLCPP_WARN(
+        get_logger(),
+        "CPU cache counters unavailable through perf_event_open (%s). "
+        "SystemUsageCache.csv will mark counters_valid=false. "
+        "Check kernel.perf_event_paranoid or run with enough CAP_PERFMON/CAP_SYS_ADMIN permissions.",
+        std::strerror(errno));
+    }
+    close_cache_counters(counters);
+  }
+
+  return counters;
+}
+
+PerformanceMonitor::CacheCounterSample PerformanceMonitor::read_cache_counters(
+  const CacheCounterFds & counters) const
+{
+  CacheCounterSample sample;
+  if (counters.references_fd < 0 || counters.misses_fd < 0) {
+    return sample;
+  }
+
+  uint64_t references = 0;
+  uint64_t misses = 0;
+  const auto reference_bytes = ::read(counters.references_fd, &references, sizeof(references));
+  const auto miss_bytes = ::read(counters.misses_fd, &misses, sizeof(misses));
+  if (reference_bytes != static_cast<ssize_t>(sizeof(references)) ||
+    miss_bytes != static_cast<ssize_t>(sizeof(misses)))
+  {
+    return sample;
+  }
+
+  sample.valid = true;
+  sample.references = references;
+  sample.misses = misses;
+  return sample;
+}
+
+void PerformanceMonitor::close_cache_counters(CacheCounterFds & counters)
+{
+  if (counters.references_fd >= 0) {
+    ::close(counters.references_fd);
+    counters.references_fd = -1;
+  }
+  if (counters.misses_fd >= 0) {
+    ::close(counters.misses_fd);
+    counters.misses_fd = -1;
+  }
+}
+
+void PerformanceMonitor::close_all_cache_counters()
+{
+  for (auto & item : cache_counter_fds_) {
+    close_cache_counters(item.second);
+  }
+  cache_counter_fds_.clear();
 }
 
 PerformanceMonitor::CpuSnapshot PerformanceMonitor::read_cpu_snapshot() const
@@ -808,6 +1108,8 @@ void PerformanceMonitor::process_loop()
   struct PrevSample
   {
     ProcessCpuTimes times;
+    CacheCounterSample cache_sample;
+    bool has_cache_sample{false};
     std::chrono::steady_clock::time_point stamp;
   };
 
@@ -866,7 +1168,17 @@ void PerformanceMonitor::process_loop()
           std::to_string(current_times.starttime_ticks);
         seen_keys.insert(key);
 
+        auto counters_it = cache_counter_fds_.find(key);
+        if (counters_it == cache_counter_fds_.end()) {
+          counters_it = cache_counter_fds_.emplace(key, open_cache_counters(process.pid)).first;
+        }
+        const auto current_cache = read_cache_counters(counters_it->second);
+
         double cpu_percent = 0.0;
+        uint64_t cache_reference_delta = 0;
+        uint64_t cache_miss_delta = 0;
+        double cache_miss_rate_percent = 0.0;
+        double cache_hit_rate_percent = -1.0;
         const auto prev_it = prev_samples.find(key);
         if (prev_it != prev_samples.end()) {
           const auto elapsed_sec =
@@ -882,9 +1194,23 @@ void PerformanceMonitor::process_loop()
                 cpu_percent = std::clamp(cpu_percent_all_cores / cpu_count, 0.0, max_cpu_percent);
             }
           }
+          if (current_cache.valid && prev_it->second.has_cache_sample &&
+            prev_it->second.cache_sample.valid &&
+            current_cache.references >= prev_it->second.cache_sample.references &&
+            current_cache.misses >= prev_it->second.cache_sample.misses)
+          {
+            cache_reference_delta = current_cache.references - prev_it->second.cache_sample.references;
+            cache_miss_delta = current_cache.misses - prev_it->second.cache_sample.misses;
+            if (cache_reference_delta > 0) {
+              cache_miss_rate_percent = 100.0 *
+                static_cast<double>(cache_miss_delta) /
+                static_cast<double>(cache_reference_delta);
+              cache_hit_rate_percent = 100.0 - cache_miss_rate_percent;
+            }
+          }
         }
 
-        prev_samples[key] = PrevSample{current_times, now};
+        prev_samples[key] = PrevSample{current_times, current_cache, current_cache.valid, now};
 
         node_process_csv_file_ << monotonic_ns << ','
                                << ros_sec << ','
@@ -893,10 +1219,29 @@ void PerformanceMonitor::process_loop()
                                << process.pid << ','
                                << std::fixed << std::setprecision(3)
                                << cpu_percent << '\n';
+
+        cache_csv_file_ << monotonic_ns << ','
+                        << ros_sec << ','
+                        << ros_nsec << ','
+                        << sanitize_csv_field(process.node_name) << ','
+                        << process.pid << ','
+                        << current_cache.references << ','
+                        << current_cache.misses << ','
+                        << cache_reference_delta << ','
+                        << cache_miss_delta << ','
+                        << std::fixed << std::setprecision(6)
+                        << cache_miss_rate_percent << ','
+                        << cache_hit_rate_percent << ','
+                        << (current_cache.valid ? "true" : "false") << '\n';
       }
 
       for (auto it = prev_samples.begin(); it != prev_samples.end();) {
         if (seen_keys.find(it->first) == seen_keys.end()) {
+          auto counters_it = cache_counter_fds_.find(it->first);
+          if (counters_it != cache_counter_fds_.end()) {
+            close_cache_counters(counters_it->second);
+            cache_counter_fds_.erase(counters_it);
+          }
           it = prev_samples.erase(it);
         } else {
           ++it;
@@ -907,6 +1252,7 @@ void PerformanceMonitor::process_loop()
       const uint64_t flush_interval = static_cast<uint64_t>(std::max(1.0, node_process_sample_hz_));
       if ((flush_counter % flush_interval) == 0) {
         node_process_csv_file_.flush();
+        cache_csv_file_.flush();
       }
 
       advance_tick(next_sample_tick, sample_step, now);
@@ -921,6 +1267,13 @@ void PerformanceMonitor::logging_loop()
 {
   const auto short_period = std::chrono::duration<double>(1.0 / csv_log_hz_);
   const auto long_period = std::chrono::duration<double>(1.0 / long_csv_log_hz_);
+  const bool memory_logging_enabled = memory_log_hz_ > 0.0 && memory_csv_file_.is_open();
+  const auto memory_period = std::chrono::duration<double>(
+    memory_logging_enabled ? (1.0 / memory_log_hz_) : 1.0);
+  const bool memory_controller_logging_enabled =
+    memory_controller_log_hz_ > 0.0 && memory_controller_csv_file_.is_open();
+  const auto memory_controller_period = std::chrono::duration<double>(
+    memory_controller_logging_enabled ? (1.0 / memory_controller_log_hz_) : 1.0);
   const auto min_step = std::chrono::steady_clock::duration(1);
   const auto short_log_step = std::max(
     min_step,
@@ -928,13 +1281,27 @@ void PerformanceMonitor::logging_loop()
   const auto long_log_step = std::max(
     min_step,
     std::chrono::duration_cast<std::chrono::steady_clock::duration>(long_period));
+  const auto memory_log_step = std::max(
+    min_step,
+    std::chrono::duration_cast<std::chrono::steady_clock::duration>(memory_period));
+  const auto memory_controller_log_step = std::max(
+    min_step,
+    std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+      memory_controller_period));
   const auto short_log_step_ns =
     std::chrono::duration_cast<std::chrono::nanoseconds>(short_log_step).count();
   const auto long_log_step_ns =
     std::chrono::duration_cast<std::chrono::nanoseconds>(long_log_step).count();
+  const auto memory_log_step_ns =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(memory_log_step).count();
+  const auto memory_controller_log_step_ns =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(
+    memory_controller_log_step).count();
 
   auto next_short_tick = std::chrono::steady_clock::now();
   auto next_long_tick = next_short_tick;
+  auto next_memory_tick = next_short_tick;
+  auto next_memory_controller_tick = next_short_tick;
 
   auto advance_tick = [](std::chrono::steady_clock::time_point & tick,
       const std::chrono::steady_clock::duration & step,
@@ -948,6 +1315,8 @@ void PerformanceMonitor::logging_loop()
     const auto now = std::chrono::steady_clock::now();
     bool write_short = false;
     bool write_long = false;
+    bool write_memory = false;
+    bool write_memory_controller = false;
 
     if (now >= next_short_tick) {
       const auto short_lag_ns =
@@ -981,14 +1350,59 @@ void PerformanceMonitor::logging_loop()
       write_long = true;
       advance_tick(next_long_tick, long_log_step, now);
     }
+    if (memory_logging_enabled && now >= next_memory_tick) {
+      const auto memory_lag_ns =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(now - next_memory_tick).count();
+      if (memory_lag_ns > memory_log_step_ns) {
+        const long long missed_ticks =
+          memory_log_step_ns > 0 ? (memory_lag_ns / memory_log_step_ns) : 0;
+        RCLCPP_ERROR_THROTTLE(
+          get_logger(),
+          *get_clock(),
+          2000,
+          "Memory CSV logging lag: %.3f ms behind schedule (missed %lld ticks).",
+          static_cast<double>(memory_lag_ns) / 1e6,
+          missed_ticks);
+      }
+      write_memory = true;
+      advance_tick(next_memory_tick, memory_log_step, now);
+    }
+    if (memory_controller_logging_enabled && now >= next_memory_controller_tick) {
+      const auto memory_controller_lag_ns =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+        now - next_memory_controller_tick).count();
+      if (memory_controller_lag_ns > memory_controller_log_step_ns) {
+        const long long missed_ticks =
+          memory_controller_log_step_ns > 0 ?
+          (memory_controller_lag_ns / memory_controller_log_step_ns) : 0;
+        RCLCPP_ERROR_THROTTLE(
+          get_logger(),
+          *get_clock(),
+          2000,
+          "Memory-controller CSV logging lag: %.3f ms behind schedule (missed %lld ticks).",
+          static_cast<double>(memory_controller_lag_ns) / 1e6,
+          missed_ticks);
+      }
+      write_memory_controller = true;
+      advance_tick(next_memory_controller_tick, memory_controller_log_step, now);
+    }
 
-    if (write_short || write_long) {
+    if (write_short || write_long || write_memory || write_memory_controller) {
       const auto monotonic_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
         now.time_since_epoch()).count();
       const auto ros_now = get_clock()->now();
       const int64_t ros_total_ns = ros_now.nanoseconds();
       const int64_t ros_sec = ros_total_ns / 1000000000LL;
       const int64_t ros_nsec = ros_total_ns % 1000000000LL;
+
+      MemorySnapshot memory_snapshot;
+      if (write_memory) {
+        memory_snapshot = read_memory_snapshot();
+      }
+      MemoryControllerSnapshot memory_controller_snapshot;
+      if (write_memory_controller) {
+        memory_controller_snapshot = read_memory_controller_snapshot();
+      }
 
       double long_cpu = 0.0;
       double short_cpu = 0.0;
@@ -1034,15 +1448,56 @@ void PerformanceMonitor::logging_loop()
         per_core_csv_file_ << '\n';
       }
 
+      if (write_memory) {
+        memory_csv_file_ << monotonic_ns << ','
+                         << ros_sec << ','
+                         << ros_nsec << ','
+                         << std::fixed << std::setprecision(3)
+                         << memory_snapshot.cpu_mem_total_mib << ','
+                         << memory_snapshot.cpu_mem_available_mib << ','
+                         << memory_snapshot.cpu_mem_used_mib << ','
+                         << memory_snapshot.cpu_buffers_mib << ','
+                         << memory_snapshot.cpu_cached_mib << ','
+                         << memory_snapshot.cpu_sreclaimable_mib << ','
+                         << memory_snapshot.cpu_shmem_mib << ','
+                         << memory_snapshot.cpu_page_cache_mib << '\n';
+      }
+
+      if (write_memory_controller) {
+        memory_controller_csv_file_ << monotonic_ns << ','
+                                    << ros_sec << ','
+                                    << ros_nsec << ','
+                                    << std::fixed << std::setprecision(3)
+                                    << memory_controller_snapshot.emc_util_percent << ','
+                                    << memory_controller_snapshot.emc_freq_mhz << ','
+                                    << memory_controller_snapshot.emc_peak_bandwidth_mib_s << ','
+                                    << memory_controller_snapshot.emc_estimated_bandwidth_mib_s << ','
+                                    << sanitize_csv_field(memory_controller_snapshot.source) << ','
+                                    << (memory_controller_snapshot.valid ? "true" : "false")
+                                    << '\n';
+      }
+
       if (write_long) {
         long_csv_file_.flush();
         short_csv_file_.flush();
         per_core_csv_file_.flush();
         gpu_csv_file_.flush();
       }
+      if (write_memory) {
+        memory_csv_file_.flush();
+      }
+      if (write_memory_controller) {
+        memory_controller_csv_file_.flush();
+      }
     }
 
-    const auto wake_up = std::min(next_short_tick, next_long_tick);
+    auto wake_up = std::min(next_short_tick, next_long_tick);
+    if (memory_logging_enabled) {
+      wake_up = std::min(wake_up, next_memory_tick);
+    }
+    if (memory_controller_logging_enabled) {
+      wake_up = std::min(wake_up, next_memory_controller_tick);
+    }
     std::this_thread::sleep_until(wake_up);
   }
 }

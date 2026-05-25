@@ -20,6 +20,8 @@ void kernel_sensor_weights(const float* __restrict__ particles, int n,
                            float z_hit, float z_rand,
                            float sigma_hit, float laser_max,
                            float laser_ox, float laser_oy,
+                           bool normalize_likelihood_by_beams,
+                           float likelihood_scale,
                            const float* __restrict__ dist_field,
                            int map_w, int map_h,
                            float map_res, float map_ox, float map_oy,
@@ -62,12 +64,14 @@ void kernel_sensor_weights(const float* __restrict__ particles, int n,
     int step = max(1, num_ranges / max_beams);
 
     float log_w = 0.0f;
+    int valid_beams = 0;
 
     for (int b = 0; b < num_ranges; b += step) {
         float r = s_ranges[b];  // §8: read from shared memory
 
         // Skip invalid beams.
         if (r < 0.1f || r > laser_max) continue;
+        ++valid_beams;
 
         float cb = s_cos[b];
         float sb = s_sin[b];
@@ -123,7 +127,10 @@ void kernel_sensor_weights(const float* __restrict__ particles, int n,
         log_w += logf(fmaxf(p, 1e-30f));
     }
 
-    out_weights[i] = log_w;
+    if (normalize_likelihood_by_beams && valid_beams > 0) {
+        log_w /= static_cast<float>(valid_beams);
+    }
+    out_weights[i] = log_w * fmaxf(likelihood_scale, 0.0f);
 }
 
 void launch_sensor_weights(const float* particles, int n,
@@ -133,23 +140,25 @@ void launch_sensor_weights(const float* particles, int n,
                            float z_hit, float z_rand,
                            float sigma_hit, float laser_max_range,
                            float laser_offset_x, float laser_offset_y,
+                           bool normalize_likelihood_by_beams,
+                           float likelihood_scale,
                            const float* distance_field,
                            int map_w, int map_h,
                            float map_res, float map_ox, float map_oy,
                            float* out_weights,
                            cudaStream_t stream) {
-    int block = 256;
-    int grid  = (n + block - 1) / block;
     if (n <= 0 || num_ranges <= 0) return;
+    const auto launch = make_adaptive_launch_config(n);
 
     // §8: Shared memory for ranges + precomputed beam cos/sin (3 arrays of num_ranges floats)
     size_t smem_bytes = 3 * num_ranges * sizeof(float);
-    kernel_sensor_weights<<<grid, block, smem_bytes, stream>>>(
+    kernel_sensor_weights<<<launch.grid, launch.block, smem_bytes, stream>>>(
         particles, n,
         ranges, num_ranges, max_beams,
         angle_min, angle_inc,
         z_hit, z_rand, sigma_hit,
         laser_max_range, laser_offset_x, laser_offset_y,
+        normalize_likelihood_by_beams, likelihood_scale,
         distance_field, map_w, map_h,
         map_res, map_ox, map_oy,
         out_weights);

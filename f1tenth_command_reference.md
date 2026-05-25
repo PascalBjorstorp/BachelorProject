@@ -26,7 +26,7 @@ ros2 launch slam_toolbox online_async_launch.py \
 
 ### Terminal 3 — FTG Autonomous Driving 
 ```bash
-ros2 launch f1tenth_control ftg_hardware_launch.py max_speed:=2.0 mapping_mode:=true
+ros2 launch f1tenth_control ftg_hardware_launch.py max_speed:=3.0 mapping_mode:=true
 ```
 > The car will explore the track.  
 > `mapping_mode:=true` enables track boundary extraction.
@@ -60,8 +60,8 @@ Run the car autonomously using the SLAM map for localization, the lateral planne
 ### Architecture Overview
 The new stack uses three key pipelines launched across two terminals:
 
-1. **Bringup** (Terminal 1): VESC drivers, Hokuyo LiDAR, **scan splitter** (`/scan` → `/scan_walls` + `/scan_obstacles`), and **lateral planner** (opponent avoidance, publishes `/local_raceline`).
-2. **C++ GPU AMCL** (Terminal 2): Map server, GPU-accelerated particle filter (`gpu_amcl_cpp`), odometry fusion (`odom_fused`), and EKF sensor fusion (`ekf_localization`). Subscribes to `/scan_walls` (wall-only beams) for robust localization.
+1. **Bringup** (Terminal 1): VESC drivers, Hokuyo LiDAR, **scan splitter** (`/scan` → `/scan_obstacles`), and **lateral planner** (opponent avoidance, publishes `/local_raceline`).
+2. **C++ GPU AMCL** (Terminal 2): Map server, GPU-accelerated particle filter (`gpu_amcl_cpp`), odometry pose adapter (`odom_fused`), and EKF sensor fusion (`ekf_localization`). Subscribes to `/scan` for localization.
 3. **Pure Pursuit** (Terminal 3): Follows the `/local_raceline` produced by the lateral planner (or a static trajectory CSV).
 
 ### Terminal 1 — Vesc, Lidar and localization
@@ -290,13 +290,12 @@ watch -n 1 'cat /sys/devices/gpu.0/load'
 
 | Topic | Type | Description |
 |-------|------|-------------|
-| `/scan` | LaserScan | Raw Hokuyo LiDAR data (all beams) |
-| `/scan_walls` | LaserScan | Wall-only beams (from scan splitter → used by AMCL) |
+| `/scan` | LaserScan | Raw Hokuyo LiDAR data (used by AMCL and scan splitter) |
 | `/scan_obstacles` | LaserScan | Obstacle-only beams (from scan splitter → used by lateral planner) |
 | `/odom` | Odometry | Wheel odometry (from VESC) |
 | `/ego_racecar/odom` | Odometry | Namespaced odom (used by some nodes) |
-| `/odom_pose` | Odometry | Fused IMU + wheel odom at 200 Hz (from odom_fused) |
-| `/ekf_pose` | PoseStamped | EKF-fused pose at 200 Hz (from ekf_localization) |
+| `/odom_pose` | PoseWithCovarianceStamped | Odometry pose adapter output from `odom_fused` |
+| `/ekf_pose` | PoseWithCovarianceStamped | EKF-fused pose from `ekf_localization` |
 | `/drive` | AckermannDriveStamped | Autonomous drive commands |
 | `/ackermann_cmd` | AckermannDriveStamped | Mux output → VESC |
 | `/amcl_pose` | PoseWithCovarianceStamped | Localized pose from C++ GPU AMCL |

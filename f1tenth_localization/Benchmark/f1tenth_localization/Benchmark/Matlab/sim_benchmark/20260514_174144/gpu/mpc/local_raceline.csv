@@ -1,0 +1,1 @@
+local_raceline_seq,local_raceline_ros_time_ns,waypoint_index,waypoint_count,s_m,x_m,y_m,heading_rad,kappa_radpm,v_ref_mps,left_bound_m,right_bound_m

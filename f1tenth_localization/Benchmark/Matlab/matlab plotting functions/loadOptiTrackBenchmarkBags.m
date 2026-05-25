@@ -134,6 +134,16 @@ for i = 1:numel(bagDirs)
     [gtPos, gtQuat] = transformPoseSeries(tf, gtPosRaw, gtQuatRaw);
     [gtRoll, gtPitch, gtYaw] = quatArrayToRpy(gtQuat);
 
+    [gtPos, gtQuat, startCalib] = applyStartCalibration( ...
+        tGtRaw, gtPos, gtQuat, gtYaw, tEkf, ekfPos, ekfYaw, config);
+    if startCalib.applied
+        [gtRoll, gtPitch, gtYaw] = quatArrayToRpy(gtQuat);
+        fprintf('Start calibration: dx=%.3fm dy=%.3fm dyaw=%.2fdeg using %d samples\n', ...
+            startCalib.dxM, startCalib.dyM, rad2deg(startCalib.dyawRad), startCalib.nSamples);
+    elseif startCalib.enabled
+        fprintf('Start calibration skipped: %s\n', startCalib.reason);
+    end
+
     [tCommon, gtPosI, gtQuatI, gtRollI, gtPitchI, gtYawI, ekfPosI, ekfYawI] = alignOnGroundTruthTime( ...
         tGtRaw, gtPos, gtQuat, gtRoll, gtPitch, gtYaw, tEkf, ekfPos, ekfYaw);
     if isempty(tCommon)
@@ -152,7 +162,8 @@ for i = 1:numel(bagDirs)
     xyErrAll = hypot(xErrAll, yErrAll);
     yawErrAll = wrapAnglePi(ekfYawI - gtYawI);
     [yawErrAll, yawSpikeFilter] = filterIsolatedYawOutliers(yawErrAll, config);
-    metricMaskAll = buildMetricMask(gtPosI, config);
+    freezeMaskAll = buildOptiTrackFreezeZoneMask(tCommon, gtPosI, ekfPosI, config);
+    metricMaskAll = buildMetricMask(gtPosI, config) & ~freezeMaskAll;
     xErrMetricAll = setInvalidToNan(xErrAll, metricMaskAll);
     yErrMetricAll = setInvalidToNan(yErrAll, metricMaskAll);
     xyErrMetricAll = setInvalidToNan(xyErrAll, metricMaskAll);
@@ -718,6 +729,121 @@ for i = 1:size(quatIn, 1)
 end
 end
 
+function [gtPosOut, gtQuatOut, info] = applyStartCalibration( ...
+    tGt, gtPos, gtQuat, gtYaw, tEkf, ekfPos, ekfYaw, config)
+gtPosOut = gtPos;
+gtQuatOut = gtQuat;
+info = defaultStartCalibrationInfo();
+info.enabled = getConfigLogical(config, 'startCalibrationEnabled', false);
+
+if ~info.enabled
+    info.reason = "disabled";
+    return;
+end
+
+durationS = getConfigScalar(config, 'startCalibrationDurationS', 3.0);
+minSamples = max(2, round(getConfigScalar(config, 'startCalibrationMinSamples', 50)));
+maxStdM = getConfigScalar(config, 'startCalibrationMaxStdM', 0.03);
+maxTravelM = getConfigScalar(config, 'startCalibrationMaxTravelM', 0.05);
+
+if numel(tGt) < minSamples || numel(tEkf) < 2
+    info.reason = "too few samples";
+    return;
+end
+
+[tEkfU, ekfIdx] = unique(tEkf(:), 'stable');
+ekfPosU = ekfPos(ekfIdx, :);
+ekfYawU = ekfYaw(ekfIdx);
+
+tStart = max(min(tGt), min(tEkfU));
+tEnd = min(max(tGt), max(tEkfU));
+if tEnd <= tStart
+    info.reason = "no time overlap";
+    return;
+end
+
+tCalEnd = min(tStart + durationS, tEnd);
+calMask = tGt >= tStart & tGt <= tCalEnd;
+if nnz(calMask) < minSamples
+    info.reason = "calibration window too short";
+    return;
+end
+
+tCal = tGt(calMask);
+gtCal = gtPos(calMask, 1:2);
+gtYawCal = gtYaw(calMask);
+
+ekfCal = zeros(numel(tCal), 2);
+ekfCal(:, 1) = interp1(tEkfU, ekfPosU(:, 1), tCal, 'linear');
+ekfCal(:, 2) = interp1(tEkfU, ekfPosU(:, 2), tCal, 'linear');
+ekfYawCal = interpYaw(tEkfU, ekfYawU, tCal);
+
+valid = all(isfinite(gtCal), 2) & all(isfinite(ekfCal), 2) & ...
+    isfinite(gtYawCal) & isfinite(ekfYawCal);
+gtCal = gtCal(valid, :);
+ekfCal = ekfCal(valid, :);
+gtYawCal = gtYawCal(valid);
+ekfYawCal = ekfYawCal(valid);
+
+if size(gtCal, 1) < minSamples
+    info.reason = "too few valid calibration samples";
+    return;
+end
+
+gtTravel = max(vecnorm(gtCal - gtCal(1, :), 2, 2));
+ekfTravel = max(vecnorm(ekfCal - ekfCal(1, :), 2, 2));
+gtStd = max(std(gtCal, 0, 1, 'omitnan'));
+ekfStd = max(std(ekfCal, 0, 1, 'omitnan'));
+if gtTravel > maxTravelM || ekfTravel > maxTravelM || gtStd > maxStdM || ekfStd > maxStdM
+    info.reason = sprintf("start not stationary: gtTravel=%.3f ekfTravel=%.3f gtStd=%.3f ekfStd=%.3f", ...
+        gtTravel, ekfTravel, gtStd, ekfStd);
+    return;
+end
+
+gtMean = mean(gtCal, 1, 'omitnan');
+ekfMean = mean(ekfCal, 1, 'omitnan');
+dyaw = circularMean(wrapAnglePi(ekfYawCal - gtYawCal));
+
+R = [cos(dyaw), -sin(dyaw); sin(dyaw), cos(dyaw)];
+gtPosOut(:, 1:2) = ((R * (gtPos(:, 1:2) - gtMean)')' + ekfMean);
+
+qDelta = yawToQuat(dyaw);
+for i = 1:size(gtQuat, 1)
+    gtQuatOut(i, :) = normalizeQuat(quatMultiply(qDelta, gtQuat(i, :)));
+end
+
+info.applied = true;
+info.reason = "applied";
+info.nSamples = size(gtCal, 1);
+info.dxM = ekfMean(1) - gtMean(1);
+info.dyM = ekfMean(2) - gtMean(2);
+info.dyawRad = dyaw;
+end
+
+function info = defaultStartCalibrationInfo()
+info = struct();
+info.enabled = false;
+info.applied = false;
+info.reason = "";
+info.nSamples = 0;
+info.dxM = NaN;
+info.dyM = NaN;
+info.dyawRad = NaN;
+end
+
+function q = yawToQuat(yawRad)
+q = [0.0, 0.0, sin(0.5 * yawRad), cos(0.5 * yawRad)];
+end
+
+function value = circularMean(angles)
+angles = angles(isfinite(angles));
+if isempty(angles)
+    value = 0.0;
+else
+    value = atan2(mean(sin(angles)), mean(cos(angles)));
+end
+end
+
 function [tCommon, gtPosI, gtQuatI, gtRollI, gtPitchI, gtYawI, ekfPosI, ekfYawI] = alignOnGroundTruthTime( ...
     tGt, gtPos, gtQuat, gtRoll, gtPitch, gtYaw, tEkf, ekfPos, ekfYaw)
 tStart = max(min(tGt), min(tEkf));
@@ -771,6 +897,51 @@ if isfield(config, 'metricExcludeXLessThanM')
     if isnumeric(xMin) && isscalar(xMin) && isfinite(xMin)
         metricMask = metricMask & gtPos(:, 1) >= double(xMin);
     end
+end
+end
+
+function freezeMask = buildOptiTrackFreezeZoneMask(t, gtPos, ekfPos, config)
+n = numel(t);
+freezeMask = false(n, 1);
+if n < 2 || ~getConfigLogical(config, 'optitrackFreezeZoneExcludeEnabled', false)
+    return;
+end
+
+windowS = getConfigScalar(config, 'optitrackFreezeZoneWindowS', 0.05);
+maxGtTravelM = getConfigScalar(config, 'optitrackFreezeZoneMaxGtTravelM', 0.02);
+minEkfTravelM = getConfigScalar(config, 'optitrackFreezeZoneMinEkfTravelM', 0.10);
+paddingS = getConfigScalar(config, 'optitrackFreezeZonePaddingS', 0.05);
+
+if windowS <= 0 || maxGtTravelM < 0 || minEkfTravelM <= 0
+    return;
+end
+
+t = t(:);
+gtXY = gtPos(:, 1:2);
+ekfXY = ekfPos(:, 1:2);
+j = 1;
+for i = 2:n
+    while j < i && t(i) - t(j) > windowS
+        j = j + 1;
+    end
+    if j >= i || ~all(isfinite(gtXY([j i], :)), 'all') || ~all(isfinite(ekfXY([j i], :)), 'all')
+        continue;
+    end
+
+    gtTravel = norm(gtXY(i, :) - gtXY(j, :));
+    ekfTravel = norm(ekfXY(i, :) - ekfXY(j, :));
+    if gtTravel <= maxGtTravelM && ekfTravel >= minEkfTravelM
+        freezeMask(j:i) = true;
+    end
+end
+
+if paddingS > 0 && any(freezeMask)
+    flaggedTimes = t(freezeMask);
+    padded = false(n, 1);
+    for k = 1:numel(flaggedTimes)
+        padded = padded | abs(t - flaggedTimes(k)) <= paddingS;
+    end
+    freezeMask = padded;
 end
 end
 

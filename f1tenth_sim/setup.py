@@ -1,19 +1,26 @@
 from glob import glob
 import os
 
-from setuptools import setup
+from setuptools import find_packages, setup
 
 package_name = 'f1tenth_gym_ros'
 
 setup(
     name=package_name,
     version='1.0.0',
-    packages=[package_name],
+    packages=find_packages(include=[
+        package_name,
+        'f1tenth_gym',
+        'f1tenth_gym.*',
+    ]),
     package_data={
         package_name: [
             '../maps/*.yaml',
             '../maps/*.png',
             '../maps/*.pgm',
+        ],
+        'f1tenth_gym': [
+            'envs/rendering/rendering.yaml',
         ],
     },
     data_files=[
@@ -34,7 +41,14 @@ setup(
         'setuptools',
         'transforms3d',
         'gymnasium',
-        'numpy',
+        'numpy<2.0',
+        'numba<0.60',
+        'pyyaml',
+        'bottleneck>=1.3.6',
+        'scipy>=1.7.3',
+        'pillow>=9.0.1',
+        'opencv-python>=4.9.0.80',
+        'yamldataclassconfig>=1.5.0',
     ],
     zip_safe=True,
     maintainer='Billy Zheng',
