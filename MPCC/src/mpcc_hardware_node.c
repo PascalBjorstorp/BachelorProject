@@ -73,6 +73,7 @@ static int g_adapt_cross_call_scale = 1;
 static int g_control_period_explicit = 0;
 static int g_adapt_nominal_dt_bootstrapped = 0;
 static int g_cross_call_upper_clamp_logged = 0;
+static int g_cross_call_motion_gate_logged = 0;
 
 /* -------------------------------------------------------------------------- */
 /* VESC Servo Conversion Parameters                                            */
@@ -965,49 +966,63 @@ static void pose_callback(const void *msg_in)
             double dt_actual = timespec_diff_sec(&g_prev_solve_time, &solve_now);
             if (dt_actual > 0.0005 && dt_actual < 0.5)  /* sanity: 2 Hz–2 kHz */
             {
-                if (!g_control_period_explicit && !g_adapt_nominal_dt_bootstrapped)
+                const double speed_for_adapt = fabs(g_latest_vx_mps);
+                if (speed_for_adapt < 0.5)
                 {
-                    g_nominal_control_dt_sec = dt_actual;
-                    g_control_dt_filtered = dt_actual;
-                    g_adapt_nominal_dt_bootstrapped = 1;
-
-                    fprintf(stderr,
-                            "[MPCC] INFO: adaptive cross-call nominal bootstrapped to %.1f ms from measured solve cadence\n",
-                            dt_actual * 1000.0);
-                }
-
-                const double alpha =
-                    (fabs(dt_actual - g_control_dt_filtered) > 0.02) ? 0.3 : 0.1;
-                const double min_dt = 0.5 * g_nominal_control_dt_sec;
-                const double max_dt = 2.0 * g_nominal_control_dt_sec;
-
-                g_control_dt_filtered =
-                    (1.0 - alpha) * g_control_dt_filtered + alpha * dt_actual;
-                if (g_control_dt_filtered < min_dt) g_control_dt_filtered = min_dt;
-                if (g_control_dt_filtered > max_dt) g_control_dt_filtered = max_dt;
-
-                double prediction_dt = (double)g_solver_dt_sec;
-                if (prediction_dt > 0.0)
-                {
-                    double scale = g_control_dt_filtered / prediction_dt;
-
-                    if (scale > 1.0)
+                    if (!g_cross_call_motion_gate_logged)
                     {
-                        if (!g_cross_call_upper_clamp_logged)
-                        {
-                            fprintf(stderr,
-                                    "[MPCC] WARNING: adaptive cross-call measured %.1f ms solve cadence vs %.1f ms prediction step; clamping scale %.3f -> 1.000 to avoid multi-stage warm-start jumps\n",
-                                    g_control_dt_filtered * 1000.0,
-                                    prediction_dt * 1000.0,
-                                    scale);
-                            g_cross_call_upper_clamp_logged = 1;
-                        }
-                        scale = 1.0;
+                        fprintf(stderr,
+                                "[MPCC] INFO: holding adaptive cross-call at baseline until |vx| >= 0.50 m/s (current %.2f m/s)\n",
+                                speed_for_adapt);
+                        g_cross_call_motion_gate_logged = 1;
+                    }
+                }
+                else
+                {
+                    if (!g_control_period_explicit && !g_adapt_nominal_dt_bootstrapped)
+                    {
+                        g_nominal_control_dt_sec = dt_actual;
+                        g_control_dt_filtered = dt_actual;
+                        g_adapt_nominal_dt_bootstrapped = 1;
+
+                        fprintf(stderr,
+                                "[MPCC] INFO: adaptive cross-call nominal bootstrapped to %.1f ms from measured solve cadence\n",
+                                dt_actual * 1000.0);
                     }
 
-                    MPCCConfiguration_t cfg = mpcc_get_configuration();
-                    cfg.cross_call_rate_scale = (float)scale;
-                    mpcc_set_configuration(&cfg);
+                    const double alpha =
+                        (fabs(dt_actual - g_control_dt_filtered) > 0.02) ? 0.3 : 0.1;
+                    const double min_dt = 0.5 * g_nominal_control_dt_sec;
+                    const double max_dt = 2.0 * g_nominal_control_dt_sec;
+
+                    g_control_dt_filtered =
+                        (1.0 - alpha) * g_control_dt_filtered + alpha * dt_actual;
+                    if (g_control_dt_filtered < min_dt) g_control_dt_filtered = min_dt;
+                    if (g_control_dt_filtered > max_dt) g_control_dt_filtered = max_dt;
+
+                    double prediction_dt = (double)g_solver_dt_sec;
+                    if (prediction_dt > 0.0)
+                    {
+                        double scale = g_control_dt_filtered / prediction_dt;
+
+                        if (scale > 1.0)
+                        {
+                            if (!g_cross_call_upper_clamp_logged)
+                            {
+                                fprintf(stderr,
+                                        "[MPCC] WARNING: adaptive cross-call measured %.1f ms solve cadence vs %.1f ms prediction step; clamping scale %.3f -> 1.000 to avoid multi-stage warm-start jumps\n",
+                                        g_control_dt_filtered * 1000.0,
+                                        prediction_dt * 1000.0,
+                                        scale);
+                                g_cross_call_upper_clamp_logged = 1;
+                            }
+                            scale = 1.0;
+                        }
+
+                        MPCCConfiguration_t cfg = mpcc_get_configuration();
+                        cfg.cross_call_rate_scale = (float)scale;
+                        mpcc_set_configuration(&cfg);
+                    }
                 }
             }
         }
