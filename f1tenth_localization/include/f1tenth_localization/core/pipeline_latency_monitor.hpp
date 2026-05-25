@@ -12,6 +12,8 @@
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <ackermann_msgs/msg/ackermann_drive_stamped.hpp>
+#include <std_msgs/msg/float64.hpp>
+#include <std_msgs/msg/float64_multi_array.hpp>
 #include <std_msgs/msg/int32.hpp>
 
 namespace f1tenth_localization
@@ -55,6 +57,27 @@ private:
     int64_t drive_stamp_key{0};
     int64_t ackermann_stamp_key{0};
     int32_t amcl_particle_count{-1};
+    double amcl_processing_ms{-1.0};
+    double amcl_pose_compute_ms{-1.0};
+    double cpu_to_gpu_scan_ms{-1.0};
+    double gpu_to_cpu_particles_ms{-1.0};
+    double gpu_to_cpu_weights_ms{-1.0};
+    double cpu_gpu_transfer_total_ms{-1.0};
+    double cpu_to_gpu_scan_bytes{-1.0};
+    double gpu_to_cpu_particles_bytes{-1.0};
+    double gpu_to_cpu_weights_bytes{-1.0};
+    double amcl_predict_ms{-1.0};
+    double amcl_sensor_model_ms{-1.0};
+    double amcl_normalize_ms{-1.0};
+    double amcl_scan_confidence_ms{-1.0};
+    double amcl_update_weights_total_ms{-1.0};
+    double amcl_cluster_estimate_ms{-1.0};
+    double amcl_resample_ms{-1.0};
+    double amcl_kld_target_ms{-1.0};
+    double amcl_full_compute_ms{-1.0};
+    double amcl_callback_to_pose_publish_ms{-1.0};
+    double amcl_pose_published{-1.0};
+    double amcl_cluster_weight{-1.0};
     bool   has_scan{false};
     bool   has_amcl{false};
     bool   has_ekf{false};
@@ -66,6 +89,8 @@ private:
   void amcl_callback(
     const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr & msg);
   void amcl_particle_count_callback(const std_msgs::msg::Int32::ConstSharedPtr & msg);
+  void amcl_timing_callback(const std_msgs::msg::Float64::ConstSharedPtr & msg);
+  void amcl_gpu_timing_callback(const std_msgs::msg::Float64MultiArray::ConstSharedPtr & msg);
   void ekf_callback(
     const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr & msg);
   void drive_callback(const ackermann_msgs::msg::AckermannDriveStamped::ConstSharedPtr & msg);
@@ -78,6 +103,27 @@ private:
     int64_t stamp_ns,
     double scan_stamp_to_scan_ms,
     int32_t amcl_particle_count,
+    double amcl_processing_ms,
+    double amcl_pose_compute_ms,
+    double cpu_to_gpu_scan_ms,
+    double gpu_to_cpu_particles_ms,
+    double gpu_to_cpu_weights_ms,
+    double cpu_gpu_transfer_total_ms,
+    double cpu_to_gpu_scan_bytes,
+    double gpu_to_cpu_particles_bytes,
+    double gpu_to_cpu_weights_bytes,
+    double amcl_predict_ms,
+    double amcl_sensor_model_ms,
+    double amcl_normalize_ms,
+    double amcl_scan_confidence_ms,
+    double amcl_update_weights_total_ms,
+    double amcl_cluster_estimate_ms,
+    double amcl_resample_ms,
+    double amcl_kld_target_ms,
+    double amcl_full_compute_ms,
+    double amcl_callback_to_pose_publish_ms,
+    double amcl_pose_published,
+    double amcl_cluster_weight,
     double scan_to_amcl_ms,
     double amcl_to_ekf_ms,
     double scan_to_ekf_ms,
@@ -95,6 +141,8 @@ private:
   std::string scan_topic_;
   std::string amcl_topic_;
   std::string amcl_particle_count_topic_;
+  std::string amcl_timing_topic_;
+  std::string amcl_gpu_timing_topic_;
   std::string ekf_topic_;
   std::string drive_topic_;
   std::string ackermann_topic_;
@@ -119,6 +167,29 @@ private:
 
   int32_t latest_amcl_particle_count_{-1};
   double latest_amcl_particle_count_recv_ns_{0.0};
+  double latest_amcl_processing_ms_{-1.0};
+  double latest_amcl_processing_recv_ns_{0.0};
+  double latest_amcl_pose_compute_ms_{-1.0};
+  double latest_cpu_to_gpu_scan_ms_{-1.0};
+  double latest_gpu_to_cpu_particles_ms_{-1.0};
+  double latest_gpu_to_cpu_weights_ms_{-1.0};
+  double latest_cpu_gpu_transfer_total_ms_{-1.0};
+  double latest_cpu_to_gpu_scan_bytes_{-1.0};
+  double latest_gpu_to_cpu_particles_bytes_{-1.0};
+  double latest_gpu_to_cpu_weights_bytes_{-1.0};
+  double latest_amcl_predict_ms_{-1.0};
+  double latest_amcl_sensor_model_ms_{-1.0};
+  double latest_amcl_normalize_ms_{-1.0};
+  double latest_amcl_scan_confidence_ms_{-1.0};
+  double latest_amcl_update_weights_total_ms_{-1.0};
+  double latest_amcl_cluster_estimate_ms_{-1.0};
+  double latest_amcl_resample_ms_{-1.0};
+  double latest_amcl_kld_target_ms_{-1.0};
+  double latest_amcl_full_compute_ms_{-1.0};
+  double latest_amcl_callback_to_pose_publish_ms_{-1.0};
+  double latest_amcl_pose_published_{-1.0};
+  double latest_amcl_cluster_weight_{-1.0};
+  double latest_amcl_gpu_timing_recv_ns_{0.0};
 
   // Accumulators for mean/variance over print_every_ cycles
   std::vector<double> acc_scan_stamp_to_scan_;
@@ -145,6 +216,8 @@ private:
   rclcpp::Subscription<
     geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr amcl_sub_;
   rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr amcl_particle_count_sub_;
+  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr amcl_timing_sub_;
+  rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr amcl_gpu_timing_sub_;
   rclcpp::Subscription<
     geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr ekf_sub_;
   rclcpp::Subscription<ackermann_msgs::msg::AckermannDriveStamped>::SharedPtr drive_sub_;

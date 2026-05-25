@@ -6,6 +6,7 @@
 #ifndef FP_MATH_HLS_H
 #define FP_MATH_HLS_H
 
+#include "fp_hls_config.hpp"
 #include "fp_types_hls.hpp"
 #include <climits>
 #include <cstdint>
@@ -65,19 +66,25 @@ static_assert((1 << FP_ATAN_LUT_DOMAIN_LOG2) == FP_ATAN_LUT_DOMAIN,
 
 #define FP_TRIG_LUT_SIZE 1024
 #define FP_TRIG_LUT_MASK (FP_TRIG_LUT_SIZE - 1)
-#define FP_TRIG_LUT_SCALE FP_QP_CONST(162.9746617261)
-#define FP_FN_TRIG_LUT_SCALE FP_FN_CONST(162.9746617261)
+/* Trig LUTs span [0, pi] with 1024 linear-interpolation segments. Angles are
+ * normalized to [-pi, pi], folded with symmetry into [0, pi], and sine sign is
+ * restored afterward. */
+#define FP_TRIG_LUT_SCALE FP_QP_CONST(325.94932345220166780564)
+/* FN cannot store 1024/pi in fp_FN_t: Q26.17 with 9 integer bits tops out at
+ * ~256, so 325.949... would wrap under AP_WRAP. Keep the LUT scale in raw
+ * Q17 integer form and use it directly in the FN trig index multiply. */
+#define FP_FN_TRIG_LUT_SCALE_RAW ((int32_t)42722830)
+/* Reciprocal LUTs cover x_norm in [0.5, 1.0) using linear interpolation.
+ * 256 segments were empirically best under this fixed-point lerp pipeline. */
+#define FP_RECIP_LUT_BITS 8
+#define FP_RECIP_LUT_SIZE (1 << FP_RECIP_LUT_BITS)
 
 fp_QP_t fp_recip(fp_QP_t x);
 
 /* Canonical multiply helpers */
 fp_QP_t fp_mul_site(fp_QP_t a, fp_QP_t b, int site_id);
-fp_QP_t fp_mul(fp_QP_t a, fp_QP_t b);
-fp_QP_t fp_sq(fp_QP_t x);
 
 fp_QP_mul_t fp_mul_QP_raw(fp_QP_raw_t a, fp_QP_raw_t b);
-fp_acc_QP_mul_t fp_mul_QP_acc(fp_QP_raw_t a, fp_raw_acc_t b);
-fp_acc_QP_mul_t fp_mul_acc_QP(fp_raw_acc_t a, fp_QP_raw_t b);
 
 /*-------------------------------------------------------------------------
  * Specialized Riccati-family raw multipliers
@@ -95,13 +102,6 @@ fp_MG_QP_mul_t fp_mul_QP_MG(fp_QP_raw_t a, fp_MG_raw_t b);
 fp_MG_K_mul_t fp_mul_MG_K(fp_MG_raw_t a, fp_K_raw_t b);
 
 fp_K_QP_mul_t fp_mul_K_QP(fp_K_raw_t a, fp_QP_raw_t b);
-
-static inline fp_QP_t fp_div(fp_QP_t a, fp_QP_t b) {
-#pragma HLS INLINE
-  if (a == 0 || b == 0)
-    return 0;
-  return fp_mul(a, fp_recip(b));
-}
 
 static inline fp_QP_t fp_abs(fp_QP_t a) {
 #pragma HLS INLINE
@@ -130,14 +130,6 @@ static inline fp_QP_raw_t fp_qp_raw_from_neg_pow2(int exp) {
   return ((fp_QP_raw_t)1) << shift;
 }
 
-static inline fp_raw_acc_t fp_raw_acc_from_neg_pow2(int exp) {
-#pragma HLS INLINE
-  const int shift = FP_FRAC_BITS - exp;
-  if (shift <= 0)
-    return (fp_raw_acc_t)1;
-  return ((fp_raw_acc_t)1) << shift;
-}
-
 static inline fp_QP_t fp_qp_from_neg_pow2(int exp) {
 #pragma HLS INLINE
   return fp_QP_from_qp_raw(fp_qp_raw_from_neg_pow2(exp));
@@ -154,6 +146,7 @@ static inline fp_QP_raw_t fp_add3_cast_qp_raw(fp_QP_raw_t a, fp_QP_raw_t b,
                                                fp_QP_raw_t c, int site_id) {
 #pragma HLS INLINE
   fp_sum2_QP_raw_t sum_ab = (fp_sum2_QP_raw_t)a + (fp_sum2_QP_raw_t)b;
+  FP_WPROBE(FP_WP_SUM2_QP_RAW, sum_ab.to_int64());
   fp_sum2_QP_raw_t sum_abc = sum_ab + (fp_sum2_QP_raw_t)c;
   return cast_sum2_qp_raw_to_qp_site(sum_abc, site_id);
 }
@@ -171,7 +164,12 @@ static fp_sum6_P_QP_t sum6_P_QP_raw(fp_sum6_P_QP_t a0,
                                     fp_sum6_P_QP_t a4,
                                     fp_sum6_P_QP_t a5) {
 #pragma HLS INLINE off
-#pragma HLS PIPELINE II = 1
+MPC_HLS_PIPELINE(1)
+  FP_WPROBE(FP_WP_SUM6_P_QP,
+            (__int128)a0.to_int64() + (__int128)a1.to_int64() +
+                (__int128)a2.to_int64() + (__int128)a3.to_int64() +
+                (__int128)a4.to_int64() + (__int128)a5.to_int64());
+  FP_WPROBE6(FP_WP_P_QP_ITEM, a0, a1, a2, a3, a4, a5);
   fp_sum6_P_QP_t s01 = a0 + a1;
   fp_sum6_P_QP_t s23 = a2 + a3;
   fp_sum6_P_QP_t s45 = a4 + a5;
@@ -179,50 +177,74 @@ static fp_sum6_P_QP_t sum6_P_QP_raw(fp_sum6_P_QP_t a0,
   return s0123 + s45;
 }
 
-static fp_sum8_P_MIX_t sum8_P_MIX_raw(fp_sum8_P_MIX_t a0,
-                                      fp_sum8_P_MIX_t a1,
-                                      fp_sum8_P_MIX_t a2,
-                                      fp_sum8_P_MIX_t a3,
-                                      fp_sum8_P_MIX_t a4,
-                                      fp_sum8_P_MIX_t a5,
-                                      fp_sum8_P_MIX_t a6,
-                                      fp_sum8_P_MIX_t a7) {
+static fp_sum8_P_MIX_t sum8_P_MIX_raw(fp_P_mix_item_t a0,
+                                      fp_P_mix_item_t a1,
+                                      fp_P_mix_item_t a2,
+                                      fp_P_mix_item_t a3,
+                                      fp_P_mix_item_t a4,
+                                      fp_P_mix_item_t a5,
+                                      fp_P_mix_item_t a6,
+                                      fp_P_mix_item_t a7) {
 #pragma HLS INLINE off
-#pragma HLS PIPELINE II = 1
-  fp_sum8_P_MIX_t s01 = a0 + a1;
-  fp_sum8_P_MIX_t s23 = a2 + a3;
-  fp_sum8_P_MIX_t s45 = a4 + a5;
-  fp_sum8_P_MIX_t s67 = a6 + a7;
-  fp_sum8_P_MIX_t s0123 = s01 + s23;
-  fp_sum8_P_MIX_t s4567 = s45 + s67;
-  return s0123 + s4567;
+MPC_HLS_PIPELINE(1)
+  FP_WPROBE(FP_WP_SUM8_P_MIX,
+            (__int128)a0.to_int64() + (__int128)a1.to_int64() +
+                (__int128)a2.to_int64() + (__int128)a3.to_int64() +
+                (__int128)a4.to_int64() + (__int128)a5.to_int64() +
+                (__int128)a6.to_int64() + (__int128)a7.to_int64());
+  FP_WPROBE8(FP_WP_P_MIX_ITEM, a0, a1, a2, a3, a4, a5, a6, a7);
+  fp_sum2_P_MIX_t s01 = a0 + a1;
+  fp_sum2_P_MIX_t s23 = a2 + a3;
+  fp_sum2_P_MIX_t s45 = a4 + a5;
+  fp_sum2_P_MIX_t s67 = a6 + a7;
+  FP_WPROBE(FP_WP_SUM2_P_MIX, s01.to_int64());
+  FP_WPROBE(FP_WP_SUM2_P_MIX, s23.to_int64());
+  FP_WPROBE(FP_WP_SUM2_P_MIX, s45.to_int64());
+  FP_WPROBE(FP_WP_SUM2_P_MIX, s67.to_int64());
+  fp_sum4_P_MIX_t s0123 = s01 + s23;
+  fp_sum4_P_MIX_t s4567 = s45 + s67;
+  FP_WPROBE(FP_WP_SUM4_P_MIX, s0123.to_int64());
+  FP_WPROBE(FP_WP_SUM4_P_MIX, s4567.to_int64());
+  return (fp_sum8_P_MIX_t)(s0123 + s4567);
 }
 
-static fp_sum8_P_MIX_t sum8_P_MIX_raw_pupdate(fp_sum8_P_MIX_t a0,
-                                              fp_sum8_P_MIX_t a1,
-                                              fp_sum8_P_MIX_t a2,
-                                              fp_sum8_P_MIX_t a3,
-                                              fp_sum8_P_MIX_t a4,
-                                              fp_sum8_P_MIX_t a5,
-                                              fp_sum8_P_MIX_t a6,
-                                              fp_sum8_P_MIX_t a7) {
+static fp_sum8_P_MIX_pup_t sum8_P_MIX_raw_pupdate(fp_P_mix_item_t a0,
+                                                  fp_P_mix_item_t a1,
+                                                  fp_P_mix_item_t a2,
+                                                  fp_P_mix_item_t a3,
+                                                  fp_P_mix_item_t a4,
+                                                  fp_P_mix_item_t a5,
+                                                  fp_P_mix_item_t a6,
+                                                  fp_P_mix_item_t a7) {
 #pragma HLS INLINE off
-#pragma HLS PIPELINE II = 1
+MPC_HLS_PIPELINE(1)
   /* LATENCY=1 is critical here, NOT optional. It forces HLS to register
    * the sum8 output before the downstream "+ q_aug" add and P-matrix
    * LUTRAM write. Removing it lets HLS fuse the last sum8 add stage
    * with the downstream LUTRAM data-input logic into one combinational
-   * chain ~14 levels deep (9 CARRY8 + 5 LUTs), and WNS collapses to
-   * -0.45ns across ~1000 endpoints. Confirmed via 2026-05-15 routed
-   * report. Do not drop this pragma. */
+ * chain ~14 levels deep (9 CARRY8 + 5 LUTs), and WNS collapses to
+ * -0.45ns across ~1000 endpoints. Confirmed via 2026-05-15 routed
+ * report. Do not drop this pragma. */
 #pragma HLS LATENCY min = 1 max = 1
-  fp_sum8_P_MIX_t s01 = a0 + a1;
-  fp_sum8_P_MIX_t s23 = a2 + a3;
-  fp_sum8_P_MIX_t s45 = a4 + a5;
-  fp_sum8_P_MIX_t s67 = a6 + a7;
-  fp_sum8_P_MIX_t s0123 = s01 + s23;
-  fp_sum8_P_MIX_t s4567 = s45 + s67;
-  return s0123 + s4567;
+  FP_WPROBE(FP_WP_SUM8_P_MIX_PUP,
+            (__int128)a0.to_int64() + (__int128)a1.to_int64() +
+                (__int128)a2.to_int64() + (__int128)a3.to_int64() +
+                (__int128)a4.to_int64() + (__int128)a5.to_int64() +
+                (__int128)a6.to_int64() + (__int128)a7.to_int64());
+  FP_WPROBE8(FP_WP_P_MIX_ITEM, a0, a1, a2, a3, a4, a5, a6, a7);
+  fp_sum2_P_MIX_t s01 = a0 + a1;
+  fp_sum2_P_MIX_t s23 = a2 + a3;
+  fp_sum2_P_MIX_t s45 = a4 + a5;
+  fp_sum2_P_MIX_t s67 = a6 + a7;
+  FP_WPROBE(FP_WP_SUM2_P_MIX, s01.to_int64());
+  FP_WPROBE(FP_WP_SUM2_P_MIX, s23.to_int64());
+  FP_WPROBE(FP_WP_SUM2_P_MIX, s45.to_int64());
+  FP_WPROBE(FP_WP_SUM2_P_MIX, s67.to_int64());
+  fp_sum4_P_MIX_t s0123 = s01 + s23;
+  fp_sum4_P_MIX_t s4567 = s45 + s67;
+  FP_WPROBE(FP_WP_SUM4_P_MIX, s0123.to_int64());
+  FP_WPROBE(FP_WP_SUM4_P_MIX, s4567.to_int64());
+  return (fp_sum8_P_MIX_pup_t)(s0123 + s4567);
 }
 
 static fp_sum6_QP_mul_t sum6_QP_raw(fp_sum6_QP_mul_t a0,
@@ -232,7 +254,12 @@ static fp_sum6_QP_mul_t sum6_QP_raw(fp_sum6_QP_mul_t a0,
                                     fp_sum6_QP_mul_t a4,
                                     fp_sum6_QP_mul_t a5) {
 #pragma HLS INLINE off
-#pragma HLS PIPELINE II = 1
+MPC_HLS_PIPELINE(1)
+  FP_WPROBE(FP_WP_SUM6_QP,
+            (__int128)a0.to_int64() + (__int128)a1.to_int64() +
+                (__int128)a2.to_int64() + (__int128)a3.to_int64() +
+                (__int128)a4.to_int64() + (__int128)a5.to_int64());
+  FP_WPROBE6(FP_WP_QP_ITEM, a0, a1, a2, a3, a4, a5);
   fp_sum6_QP_mul_t s01 = a0 + a1;
   fp_sum6_QP_mul_t s23 = a2 + a3;
   fp_sum6_QP_mul_t s45 = a4 + a5;
@@ -247,7 +274,12 @@ static fp_sum6_MG_QP_t sum6_MG_QP_raw(fp_sum6_MG_QP_t a0,
                                       fp_sum6_MG_QP_t a4,
                                       fp_sum6_MG_QP_t a5) {
 #pragma HLS INLINE off
-#pragma HLS PIPELINE II = 1
+MPC_HLS_PIPELINE(1)
+  FP_WPROBE(FP_WP_SUM6_MG_QP,
+            (__int128)a0.to_int64() + (__int128)a1.to_int64() +
+                (__int128)a2.to_int64() + (__int128)a3.to_int64() +
+                (__int128)a4.to_int64() + (__int128)a5.to_int64());
+  FP_WPROBE6(FP_WP_MG_QP_ITEM, a0, a1, a2, a3, a4, a5);
   fp_sum6_MG_QP_t s01 = a0 + a1;
   fp_sum6_MG_QP_t s23 = a2 + a3;
   fp_sum6_MG_QP_t s45 = a4 + a5;
@@ -255,23 +287,35 @@ static fp_sum6_MG_QP_t sum6_MG_QP_raw(fp_sum6_MG_QP_t a0,
   return s0123 + s45;
 }
 
-static fp_sum8_K_QP_t sum8_K_QP_raw(fp_sum8_K_QP_t a0,
-                                    fp_sum8_K_QP_t a1,
-                                    fp_sum8_K_QP_t a2,
-                                    fp_sum8_K_QP_t a3,
-                                    fp_sum8_K_QP_t a4,
-                                    fp_sum8_K_QP_t a5,
-                                    fp_sum8_K_QP_t a6,
-                                    fp_sum8_K_QP_t a7) {
+static fp_sum8_K_QP_t sum8_K_QP_raw(fp_K_qp_item_t a0,
+                                    fp_K_qp_item_t a1,
+                                    fp_K_qp_item_t a2,
+                                    fp_K_qp_item_t a3,
+                                    fp_K_qp_item_t a4,
+                                    fp_K_qp_item_t a5,
+                                    fp_K_qp_item_t a6,
+                                    fp_K_qp_item_t a7) {
 #pragma HLS INLINE off
-#pragma HLS PIPELINE II = 1
-  fp_sum8_K_QP_t s01 = a0 + a1;
-  fp_sum8_K_QP_t s23 = a2 + a3;
-  fp_sum8_K_QP_t s45 = a4 + a5;
-  fp_sum8_K_QP_t s67 = a6 + a7;
-  fp_sum8_K_QP_t s0123 = s01 + s23;
-  fp_sum8_K_QP_t s4567 = s45 + s67;
-  return s0123 + s4567;
+MPC_HLS_PIPELINE(1)
+  FP_WPROBE(FP_WP_SUM8_K_QP,
+            (__int128)a0.to_int64() + (__int128)a1.to_int64() +
+                (__int128)a2.to_int64() + (__int128)a3.to_int64() +
+                (__int128)a4.to_int64() + (__int128)a5.to_int64() +
+                (__int128)a6.to_int64() + (__int128)a7.to_int64());
+  FP_WPROBE8(FP_WP_K_QP_ITEM, a0, a1, a2, a3, a4, a5, a6, a7);
+  fp_sum2_K_QP_t s01 = a0 + a1;
+  fp_sum2_K_QP_t s23 = a2 + a3;
+  fp_sum2_K_QP_t s45 = a4 + a5;
+  fp_sum2_K_QP_t s67 = a6 + a7;
+  FP_WPROBE(FP_WP_SUM2_K_QP, s01.to_int64());
+  FP_WPROBE(FP_WP_SUM2_K_QP, s23.to_int64());
+  FP_WPROBE(FP_WP_SUM2_K_QP, s45.to_int64());
+  FP_WPROBE(FP_WP_SUM2_K_QP, s67.to_int64());
+  fp_sum4_K_QP_t s0123 = s01 + s23;
+  fp_sum4_K_QP_t s4567 = s45 + s67;
+  FP_WPROBE(FP_WP_SUM4_K_QP, s0123.to_int64());
+  FP_WPROBE(FP_WP_SUM4_K_QP, s4567.to_int64());
+  return (fp_sum8_K_QP_t)(s0123 + s4567);
 }
 
 static inline fp_QP_t fp_max_abs_state8(fp_QP_t x0, fp_QP_t x1, fp_QP_t x2,
@@ -292,57 +336,22 @@ static inline fp_QP_t fp_max_abs_ctrl2(fp_QP_t x0, fp_QP_t x1) {
   return fp_max2(fp_abs(x0), fp_abs(x1));
 }
 
-/*-------------------------------------------------------------------------
- * Specialized shift-right + cast helpers
- *------------------------------------------------------------------------*/
-
-static inline fp_P_raw_t fp_shift_right_cast_to_P(fp_P_QP_mul_t value,
-                                                  int shift) {
+static inline fp_QP_t fp_max3_qp(fp_QP_t x0, fp_QP_t x1, fp_QP_t x2) {
 #pragma HLS INLINE
-  return (fp_P_raw_t)(value >> shift);
-}
-
-static inline fp_MG_raw_t fp_shift_right_cast_PQ_to_MG(fp_P_QP_mul_t value,
-                                                       int shift) {
-#pragma HLS INLINE
-  return (fp_MG_raw_t)(value >> shift);
-}
-
-static inline fp_MG_raw_t fp_shift_right_cast_to_MG(fp_MG_QP_mul_t value,
-                                                    int shift) {
-#pragma HLS INLINE
-  return (fp_MG_raw_t)(value >> shift);
-}
-
-static inline fp_P_raw_t fp_shift_right_cast_MGK_to_P(fp_MG_K_mul_t value,
-                                                      int shift) {
-#pragma HLS INLINE
-  return (fp_P_raw_t)(value >> shift);
-}
-
-static inline fp_QP_raw_t fp_shift_right_cast_KQ_to_qp(fp_K_QP_mul_t value,
-                                                       int shift) {
-#pragma HLS INLINE
-  return (fp_QP_raw_t)(value >> shift);
+  return fp_max2(fp_max2(x0, x1), x2);
 }
 
 fp_QP_t fp_normalize_angle(fp_QP_t angle);
-fp_QP_t fp_sin(fp_QP_t angle);
-fp_QP_t fp_cos(fp_QP_t angle);
-void fp_trig_pair_fused(fp_QP_t angle, fp_QP_t *sin_out, fp_QP_t *cos_out);
 fp_QP_t fp_atan_lut(fp_QP_t x);
 
 /* FN family */
 fp_FN_t fp_mul_fn(fp_FN_t a, fp_FN_t b);
-fp_fn_accum_t fp_mul_fn_raw(fp_FN_t a, fp_FN_t b);
 
 static inline fp_FN_t fp_abs_fn(fp_FN_t a) {
 #pragma HLS INLINE
   return (a < 0) ? fp_FN_t(-a) : a;
 }
 
-fp_FN_t fp_sin_fn(fp_FN_t angle);
-fp_FN_t fp_cos_fn(fp_FN_t angle);
 void fp_trig_pair_fused_fn(fp_FN_t angle, fp_FN_t *sin_out, fp_FN_t *cos_out);
 fp_FN_t fp_atan_lut_fn(fp_FN_t x);
 fp_FN_t fp_recip_fn(fp_FN_t x);

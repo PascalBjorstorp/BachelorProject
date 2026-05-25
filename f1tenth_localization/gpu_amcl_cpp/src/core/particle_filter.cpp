@@ -2,6 +2,7 @@
 #include "gpu_amcl_cpp/helpers/math_utils.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -10,6 +11,40 @@
 #include <unordered_set>
 
 namespace gpu_amcl_cpp {
+
+namespace {
+
+double timed_memcpy_async(
+    void* dst,
+    const void* src,
+    size_t bytes,
+    cudaMemcpyKind kind,
+    cudaStream_t stream) {
+    if (bytes == 0) {
+        return 0.0;
+    }
+
+    const auto start = std::chrono::high_resolution_clock::now();
+    CUDA_CHECK(cudaMemcpyAsync(dst, src, bytes, kind, stream));
+    CUDA_CHECK(cudaStreamSynchronize(stream));
+    const auto stop = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration<double, std::milli>(stop - start).count();
+}
+
+template <typename Fn>
+double timed_stream_stage(cudaStream_t stream, Fn&& fn) {
+    const auto start = std::chrono::high_resolution_clock::now();
+    fn();
+    CUDA_CHECK(cudaStreamSynchronize(stream));
+    const auto stop = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration<double, std::milli>(stop - start).count();
+}
+
+}  // namespace
+
+void ParticleFilter::reset_stage_timing() {
+    last_stage_diag_ = StageTimingDiagnostics{};
+}
 
 // ─── Destructor (free raw CUDA allocations) ─────────────────────────
 ParticleFilter::~ParticleFilter() {
@@ -23,6 +58,19 @@ ParticleFilter::~ParticleFilter() {
     if (d_cov_contrib_)   cudaFree(d_cov_contrib_);
     if (d_cov_result_)    cudaFreeHost(d_cov_result_);
     if (d_est_temp_)      cudaFree(d_est_temp_);
+    // GPU cluster-estimate buffers
+    if (d_cluster_scores_)       cudaFree(d_cluster_scores_);
+    if (d_cluster_best_)         cudaFree(d_cluster_best_);
+    if (d_cluster_second_)       cudaFree(d_cluster_second_);
+    if (h_cluster_best_)         cudaFreeHost(h_cluster_best_);
+    if (h_cluster_second_)       cudaFreeHost(h_cluster_second_);
+    if (d_cluster_mean_contrib_) cudaFree(d_cluster_mean_contrib_);
+    if (d_cluster_mean_result_)  cudaFree(d_cluster_mean_result_);
+    if (h_cluster_mean_result_)  cudaFreeHost(h_cluster_mean_result_);
+    if (d_cluster_cov_contrib_)  cudaFree(d_cluster_cov_contrib_);
+    if (d_cluster_cov_result_)   cudaFree(d_cluster_cov_result_);
+    if (h_cluster_cov_result_)   cudaFreeHost(h_cluster_cov_result_);
+    if (d_cluster_temp_)         cudaFree(d_cluster_temp_);
     // Pinned host buffers
     if (h_ranges_pinned_)    cudaFreeHost(h_ranges_pinned_);
     if (h_particles_pinned_) cudaFreeHost(h_particles_pinned_);
@@ -71,6 +119,24 @@ void ParticleFilter::init(const Config& pf_cfg,
     size_t cov_temp = query_estimate_cov_temp_bytes(cfg_.max_particles);
     est_temp_bytes_ = std::max(mean_temp, cov_temp);
     CUDA_CHECK(cudaMalloc(&d_est_temp_, est_temp_bytes_));
+
+    // GPU buffers for local cluster estimate.
+    CUDA_CHECK(cudaMalloc(&d_cluster_scores_, cfg_.max_particles * sizeof(ClusterScoreResult)));
+    CUDA_CHECK(cudaMalloc(&d_cluster_best_, sizeof(ClusterScoreResult)));
+    CUDA_CHECK(cudaMalloc(&d_cluster_second_, sizeof(ClusterScoreResult)));
+    CUDA_CHECK(cudaMallocHost(&h_cluster_best_, sizeof(ClusterScoreResult)));
+    CUDA_CHECK(cudaMallocHost(&h_cluster_second_, sizeof(ClusterScoreResult)));
+    CUDA_CHECK(cudaMalloc(&d_cluster_mean_contrib_, cfg_.max_particles * sizeof(ClusterMeanAccum)));
+    CUDA_CHECK(cudaMalloc(&d_cluster_mean_result_, sizeof(ClusterMeanAccum)));
+    CUDA_CHECK(cudaMallocHost(&h_cluster_mean_result_, sizeof(ClusterMeanAccum)));
+    CUDA_CHECK(cudaMalloc(&d_cluster_cov_contrib_, cfg_.max_particles * sizeof(ClusterCovAccum)));
+    CUDA_CHECK(cudaMalloc(&d_cluster_cov_result_, sizeof(ClusterCovAccum)));
+    CUDA_CHECK(cudaMallocHost(&h_cluster_cov_result_, sizeof(ClusterCovAccum)));
+    const size_t cluster_score_temp = query_cluster_score_temp_bytes(cfg_.max_particles);
+    const size_t cluster_mean_temp = query_cluster_mean_temp_bytes(cfg_.max_particles);
+    const size_t cluster_cov_temp = query_cluster_cov_temp_bytes(cfg_.max_particles);
+    cluster_temp_bytes_ = std::max(cluster_score_temp, std::max(cluster_mean_temp, cluster_cov_temp));
+    CUDA_CHECK(cudaMalloc(&d_cluster_temp_, cluster_temp_bytes_));
 
     // Pinned memory for async transfers
     CUDA_CHECK(cudaMallocHost(&h_ranges_pinned_,    max_ranges_ * sizeof(float)));
@@ -319,35 +385,36 @@ void ParticleFilter::roughen_local_particles() {
         return;
     }
 
-    CUDA_CHECK(cudaMemcpyAsync(h_particles_pinned_, d_active_particles_,
-                               n_ * 3 * sizeof(float),
-                               cudaMemcpyDeviceToHost, stream_.get()));
+    struct MeanAccum { float wx, wy, w_sin, w_cos; };
+    struct CovAccum  { float c00, c01, c02, c11, c12, c22; };
+
+    launch_gpu_compute_mean(
+        d_active_particles_, d_weights_.ptr(),
+        d_mean_contrib_, d_mean_result_,
+        d_est_temp_, est_temp_bytes_,
+        n_, stream_.get());
     CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
 
-    double mean_x = 0.0;
-    double mean_y = 0.0;
-    double sin_sum = 0.0;
-    double cos_sum = 0.0;
-    for (int i = 0; i < n_; ++i) {
-        const float x = h_particles_pinned_[i * 3 + 0];
-        const float y = h_particles_pinned_[i * 3 + 1];
-        const float yaw = h_particles_pinned_[i * 3 + 2];
-        mean_x += x;
-        mean_y += y;
-        sin_sum += std::sin(yaw);
-        cos_sum += std::cos(yaw);
-    }
-    mean_x /= static_cast<double>(n_);
-    mean_y /= static_cast<double>(n_);
-    const double mean_yaw = std::atan2(sin_sum, cos_sum);
+    const MeanAccum* h_mean = static_cast<const MeanAccum*>(d_mean_result_);
+    const double mean_x = static_cast<double>(h_mean->wx);
+    const double mean_y = static_cast<double>(h_mean->wy);
+    const double mean_yaw = std::atan2(
+        static_cast<double>(h_mean->w_sin),
+        static_cast<double>(h_mean->w_cos));
 
-    double var_xy = 0.0;
-    for (int i = 0; i < n_; ++i) {
-        const double dx = static_cast<double>(h_particles_pinned_[i * 3 + 0]) - mean_x;
-        const double dy = static_cast<double>(h_particles_pinned_[i * 3 + 1]) - mean_y;
-        var_xy += dx * dx + dy * dy;
-    }
-    const double cloud_std = std::sqrt(var_xy / static_cast<double>(n_));
+    launch_gpu_compute_covariance(
+        d_active_particles_, d_weights_.ptr(),
+        static_cast<float>(mean_x),
+        static_cast<float>(mean_y),
+        static_cast<float>(mean_yaw),
+        d_cov_contrib_, d_cov_result_,
+        d_est_temp_, est_temp_bytes_,
+        n_, stream_.get());
+    CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
+
+    const CovAccum* h_cov = static_cast<const CovAccum*>(d_cov_result_);
+    const double cloud_std = std::sqrt(
+        std::max(0.0, static_cast<double>(h_cov->c00 + h_cov->c11)));
     if (cloud_std > cfg_.local_roughening_max_cloud_std_m) {
         return;
     }
@@ -397,9 +464,11 @@ void ParticleFilter::roughen_local_particles() {
 
 // ─── Predict ────────────────────────────────────────────────────────
 void ParticleFilter::predict(float dx, float dy, float dtheta) {
-    motion_.apply(d_active_particles_, n_,
-                  dx, dy, dtheta,
-                  stream_.get());
+    last_stage_diag_.predict_ms = timed_stream_stage(stream_.get(), [&]() {
+        motion_.apply(d_active_particles_, n_,
+                      dx, dy, dtheta,
+                      stream_.get());
+    });
 }
 
 // ─── Update ─────────────────────────────────────────────────────────
@@ -412,6 +481,8 @@ void ParticleFilter::update(const float* ranges, int num_ranges,
 
 bool ParticleFilter::update_weights(const float* ranges, int num_ranges,
                                     float angle_min, float angle_inc) {
+    const auto update_start = std::chrono::high_resolution_clock::now();
+
     // Guard: ensure scan fits in pre-allocated buffer (set by max_beams param)
     if (num_ranges > max_ranges_) {
         std::fprintf(stderr,
@@ -423,33 +494,58 @@ bool ParticleFilter::update_weights(const float* ranges, int num_ranges,
 
     // Copy to pinned staging, then async DMA to device.
     memcpy(h_ranges_pinned_, ranges, num_ranges * sizeof(float));
-    CUDA_CHECK(cudaMemcpyAsync(d_ranges_.ptr(), h_ranges_pinned_,
-                               num_ranges * sizeof(float),
-                               cudaMemcpyHostToDevice, stream_.get()));
+    const size_t scan_bytes = static_cast<size_t>(num_ranges) * sizeof(float);
+    last_transfer_diag_.scan_upload_ms = timed_memcpy_async(
+        d_ranges_.ptr(), h_ranges_pinned_, scan_bytes,
+        cudaMemcpyHostToDevice, stream_.get());
+    last_transfer_diag_.scan_upload_bytes = scan_bytes;
+    last_transfer_diag_.particle_download_ms = std::numeric_limits<double>::quiet_NaN();
+    last_transfer_diag_.weight_download_ms = std::numeric_limits<double>::quiet_NaN();
+    last_transfer_diag_.particle_download_bytes = 0;
+    last_transfer_diag_.weight_download_bytes = 0;
+    last_transfer_diag_.active_particles = n_;
+    ++last_transfer_diag_.sequence;
 
     // §5: Reuse persistent log-weight buffer (no per-frame alloc).
     sensor_.compute_weights(d_active_particles_, n_,
                             d_ranges_.ptr(), num_ranges,
                             angle_min, angle_inc,
                             d_log_w_.ptr(), stream_.get());
+    last_stage_diag_.sensor_model_ms = timed_stream_stage(stream_.get(), []() {});
 
     // §1: GPU-side weight normalization — all on GPU, no host transfers.
     // Steps: CUB::Max(log_w) → exp-shift-mul → CUB::Sum → normalize.
-    launch_gpu_normalize_weights(
-        d_log_w_.ptr(), d_weights_.ptr(), d_scratch_w_.ptr(),
-        d_max_val_, d_sum_val_,
-        d_cub_temp_, cub_temp_bytes_,
-        n_, stream_.get());
+    last_stage_diag_.normalize_ms = timed_stream_stage(stream_.get(), [&]() {
+        launch_gpu_normalize_weights(
+            d_log_w_.ptr(), d_weights_.ptr(), d_scratch_w_.ptr(),
+            d_max_val_, d_sum_val_,
+            d_cub_temp_, cub_temp_bytes_,
+            n_, stream_.get());
+    });
 
     // After normalize, d_scratch_w_ holds the normalised weights — swap.
     std::swap(d_weights_, d_scratch_w_); // Pointer swap, no copy, no sync needed. d_weights_ now has normalised weights for resampling.
 
+    const auto confidence_start = std::chrono::high_resolution_clock::now();
     update_scan_confidence(num_ranges);
+    const auto confidence_stop = std::chrono::high_resolution_clock::now();
+    last_stage_diag_.scan_confidence_ms =
+        std::chrono::duration<double, std::milli>(
+            confidence_stop - confidence_start).count();
+
+    const auto update_stop = std::chrono::high_resolution_clock::now();
+    last_stage_diag_.update_weights_total_ms =
+        std::chrono::duration<double, std::milli>(
+            update_stop - update_start).count();
     return true;
 }
 
 void ParticleFilter::resample_if_needed() {
+    const auto start = std::chrono::high_resolution_clock::now();
     check_resample();
+    const auto stop = std::chrono::high_resolution_clock::now();
+    last_stage_diag_.resample_ms =
+        std::chrono::duration<double, std::milli>(stop - start).count();
 }
 
 // ─── Resampling ─────────────────────────────────────────────────────
@@ -484,7 +580,14 @@ void ParticleFilter::check_resample() {
     // E.g., threshold=0.5 means resample when < 50% effective particles
     if (n_eff < cfg_.resample_threshold * n_ || last_scan_confidence_bad_) {
         // If KLD enabled: compute optimal particle count adaptively
-        int target = cfg_.use_kld ? compute_kld_target() : n_;
+        int target = n_;
+        if (cfg_.use_kld) {
+            const auto start = std::chrono::high_resolution_clock::now();
+            target = compute_kld_target();
+            const auto stop = std::chrono::high_resolution_clock::now();
+            last_stage_diag_.kld_target_ms =
+                std::chrono::duration<double, std::milli>(stop - start).count();
+        }
         do_resample(target);
     }
 }
@@ -520,6 +623,8 @@ void ParticleFilter::do_resample(int target_n) {
 }
 
 int ParticleFilter::compute_kld_target() {
+    const int pre_resample_particles = n_;
+
     // Download particles from GPU → CPU using pinned memory
     CUDA_CHECK(cudaMemcpyAsync(h_particles_pinned_, d_active_particles_,
                                n_ * 3 * sizeof(float),
@@ -543,18 +648,33 @@ int ParticleFilter::compute_kld_target() {
 
     // k = number of occupied bins (support of the distribution)
     int k = static_cast<int>(bins.size());
-    if (k <= 1) return cfg_.min_particles;
+    double target = static_cast<double>(cfg_.min_particles);
+    int clamped_target = cfg_.min_particles;
 
-    // Fox et al. KLD formula.
-    // n = (k-1) / (2ε) * [1 - 2/(9(k-1)) + sqrt(2/(9(k-1))) * z]³
-    double eps = cfg_.kld_epsilon;
-    double z   = cfg_.kld_z;
-    double km1 = k - 1.0;
-    double term = 1.0 - 2.0 / (9.0 * km1) + std::sqrt(2.0 / (9.0 * km1)) * z;
-    double target = (km1 / (2.0 * eps)) * term * term * term;
+    if (k > 1) {
+        // Fox et al. KLD formula.
+        // n = (k-1) / (2ε) * [1 - 2/(9(k-1)) + sqrt(2/(9(k-1))) * z]³
+        double eps = cfg_.kld_epsilon;
+        double z   = cfg_.kld_z;
+        double km1 = k - 1.0;
+        double term = 1.0 - 2.0 / (9.0 * km1) + std::sqrt(2.0 / (9.0 * km1)) * z;
+        target = (km1 / (2.0 * eps)) * term * term * term;
+        clamped_target = std::clamp(
+            static_cast<int>(std::ceil(target)), cfg_.min_particles, cfg_.max_particles);
+    }
 
-    // Clamp target to valid range [min_particles, max_particles]
-    return std::clamp(static_cast<int>(std::ceil(target)), cfg_.min_particles, cfg_.max_particles);
+    last_kld_diag_.pre_resample_particles = pre_resample_particles;
+    last_kld_diag_.occupied_bins = k;
+    last_kld_diag_.target_unclamped = target;
+    last_kld_diag_.target_clamped = clamped_target;
+    last_kld_diag_.epsilon = cfg_.kld_epsilon;
+    last_kld_diag_.z = cfg_.kld_z;
+    last_kld_diag_.bin_x = cfg_.kld_bin_x;
+    last_kld_diag_.bin_y = cfg_.kld_bin_y;
+    last_kld_diag_.bin_theta = cfg_.kld_bin_theta;
+    ++last_kld_diag_.sequence;
+
+    return clamped_target;
 }
 
 // ─── Estimate (GPU-accelerated) ─────────────────────────────────────
@@ -621,142 +741,61 @@ PoseEstimate ParticleFilter::get_cluster_estimate(double* cluster_weight_out,
         return get_estimate();
     }
 
-    std::vector<float> particles;
-    std::vector<float> weights;
-    get_particles(particles, weights);
-    if (particles.empty() || weights.empty()) {
+    const float radius = static_cast<float>(cfg_.cluster_radius_m);
+    const float radius2 = radius * radius;
+    launch_gpu_find_cluster_seed(
+        d_active_particles_, d_weights_.ptr(),
+        d_cluster_scores_,
+        d_cluster_best_, d_cluster_second_,
+        d_cluster_temp_, cluster_temp_bytes_,
+        n_, radius2, stream_.get());
+    CUDA_CHECK(cudaMemcpyAsync(h_cluster_best_, d_cluster_best_,
+                               sizeof(ClusterScoreResult),
+                               cudaMemcpyDeviceToHost, stream_.get()));
+    CUDA_CHECK(cudaMemcpyAsync(h_cluster_second_, d_cluster_second_,
+                               sizeof(ClusterScoreResult),
+                               cudaMemcpyDeviceToHost, stream_.get()));
+    CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
+
+    if (!(h_cluster_best_->score > 0.0f) || h_cluster_best_->index < 0) {
         if (cluster_weight_out != nullptr) {
             *cluster_weight_out = 0.0;
         }
         return get_estimate();
     }
 
-    struct Bin {
-        int bx = 0;
-        int by = 0;
-        double weight = 0.0;
-    };
-
-    const double bin_m = cfg_.cluster_xy_bin_m;
-    const auto bin_key = [](int bx, int by) -> long long {
-        return static_cast<long long>(bx) * 1000000LL + static_cast<long long>(by);
-    };
-
-    std::unordered_map<long long, Bin> bins;
-    bins.reserve(static_cast<size_t>(n_) * 2);
-    for (int i = 0; i < n_; ++i) {
-        const double w = static_cast<double>(weights[static_cast<size_t>(i)]);
-        if (w <= 0.0 || !std::isfinite(w)) {
-            continue;
-        }
-        const int bx = static_cast<int>(
-            std::floor(static_cast<double>(particles[i * 3 + 0]) / bin_m));
-        const int by = static_cast<int>(
-            std::floor(static_cast<double>(particles[i * 3 + 1]) / bin_m));
-        const long long key = bin_key(bx, by);
-        auto& bin = bins[key];
-        bin.bx = bx;
-        bin.by = by;
-        bin.weight += w;
-    }
-
-    if (bins.empty()) {
-        if (cluster_weight_out != nullptr) {
-            *cluster_weight_out = 0.0;
-        }
-        return get_estimate();
-    }
-
-    int best_bx = 0;
-    int best_by = 0;
-    double best_score = -1.0;
-    double second_score = 0.0;
-    for (const auto& item : bins) {
-        const Bin& bin = item.second;
-        double score = 0.0;
-        for (int dx = -1; dx <= 1; ++dx) {
-            for (int dy = -1; dy <= 1; ++dy) {
-                const auto found = bins.find(bin_key(bin.bx + dx, bin.by + dy));
-                if (found != bins.end()) {
-                    score += found->second.weight;
-                }
-            }
-        }
-        if (score > best_score) {
-            best_score = score;
-            best_bx = bin.bx;
-            best_by = bin.by;
-        }
-    }
-
-    const double best_cx = (static_cast<double>(best_bx) + 0.5) * bin_m;
-    const double best_cy = (static_cast<double>(best_by) + 0.5) * bin_m;
-    const double separate_radius2 = cfg_.cluster_radius_m * cfg_.cluster_radius_m;
-    for (const auto& item : bins) {
-        const Bin& bin = item.second;
-        const double bin_cx = (static_cast<double>(bin.bx) + 0.5) * bin_m;
-        const double bin_cy = (static_cast<double>(bin.by) + 0.5) * bin_m;
-        const double dx_best = bin_cx - best_cx;
-        const double dy_best = bin_cy - best_cy;
-        if (dx_best * dx_best + dy_best * dy_best <= separate_radius2) {
-            continue;
-        }
-
-        double score = 0.0;
-        for (int dx = -1; dx <= 1; ++dx) {
-            for (int dy = -1; dy <= 1; ++dy) {
-                const auto found = bins.find(bin_key(bin.bx + dx, bin.by + dy));
-                if (found != bins.end()) {
-                    score += found->second.weight;
-                }
-            }
-        }
-        if (score > second_score) {
-            second_score = score;
-        }
-    }
     if (second_cluster_weight_out != nullptr) {
-        *second_cluster_weight_out = second_score;
+        *second_cluster_weight_out = static_cast<double>(
+            std::max(0.0f, h_cluster_second_->score));
     }
 
-    double cx = (static_cast<double>(best_bx) + 0.5) * bin_m;
-    double cy = (static_cast<double>(best_by) + 0.5) * bin_m;
+    double cx = static_cast<double>(h_cluster_best_->x);
+    double cy = static_cast<double>(h_cluster_best_->y);
     double ctheta = 0.0;
-    const double radius2 = cfg_.cluster_radius_m * cfg_.cluster_radius_m;
     const int iterations = std::clamp(cfg_.cluster_iterations, 1, 10);
 
     double cluster_weight = 0.0;
     for (int iter = 0; iter < iterations; ++iter) {
-        double sum_w = 0.0;
-        double sum_x = 0.0;
-        double sum_y = 0.0;
-        double sum_sin = 0.0;
-        double sum_cos = 0.0;
-        for (int i = 0; i < n_; ++i) {
-            const double w = static_cast<double>(weights[static_cast<size_t>(i)]);
-            if (w <= 0.0 || !std::isfinite(w)) {
-                continue;
-            }
-            const double x = static_cast<double>(particles[i * 3 + 0]);
-            const double y = static_cast<double>(particles[i * 3 + 1]);
-            const double dx = x - cx;
-            const double dy = y - cy;
-            if (dx * dx + dy * dy > radius2) {
-                continue;
-            }
-            const double yaw = static_cast<double>(particles[i * 3 + 2]);
-            sum_w += w;
-            sum_x += w * x;
-            sum_y += w * y;
-            sum_sin += w * std::sin(yaw);
-            sum_cos += w * std::cos(yaw);
-        }
-        if (sum_w <= 0.0) {
+        launch_gpu_compute_cluster_mean(
+            d_active_particles_, d_weights_.ptr(),
+            static_cast<float>(cx), static_cast<float>(cy), radius2,
+            d_cluster_mean_contrib_, d_cluster_mean_result_,
+            d_cluster_temp_, cluster_temp_bytes_,
+            n_, stream_.get());
+        CUDA_CHECK(cudaMemcpyAsync(h_cluster_mean_result_, d_cluster_mean_result_,
+                                   sizeof(ClusterMeanAccum),
+                                   cudaMemcpyDeviceToHost, stream_.get()));
+        CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
+
+        const double sum_w = static_cast<double>(h_cluster_mean_result_->w);
+        if (!(sum_w > 0.0)) {
             break;
         }
-        cx = sum_x / sum_w;
-        cy = sum_y / sum_w;
-        ctheta = std::atan2(sum_sin, sum_cos);
+        cx = static_cast<double>(h_cluster_mean_result_->wx) / sum_w;
+        cy = static_cast<double>(h_cluster_mean_result_->wy) / sum_w;
+        ctheta = std::atan2(
+            static_cast<double>(h_cluster_mean_result_->w_sin),
+            static_cast<double>(h_cluster_mean_result_->w_cos));
         cluster_weight = sum_w;
     }
 
@@ -775,37 +814,21 @@ PoseEstimate ParticleFilter::get_cluster_estimate(double* cluster_weight_out,
     est.y = cy;
     est.theta = ctheta;
 
-    double c00 = 0.0;
-    double c01 = 0.0;
-    double c02 = 0.0;
-    double c11 = 0.0;
-    double c12 = 0.0;
-    double c22 = 0.0;
-    double sum_w = 0.0;
-    for (int i = 0; i < n_; ++i) {
-        const double w = static_cast<double>(weights[static_cast<size_t>(i)]);
-        if (w <= 0.0 || !std::isfinite(w)) {
-            continue;
-        }
-        const double x = static_cast<double>(particles[i * 3 + 0]);
-        const double y = static_cast<double>(particles[i * 3 + 1]);
-        const double dx_center = x - cx;
-        const double dy_center = y - cy;
-        if (dx_center * dx_center + dy_center * dy_center > radius2) {
-            continue;
-        }
+    launch_gpu_compute_cluster_covariance(
+        d_active_particles_, d_weights_.ptr(),
+        static_cast<float>(cx),
+        static_cast<float>(cy),
+        static_cast<float>(ctheta),
+        radius2,
+        d_cluster_cov_contrib_, d_cluster_cov_result_,
+        d_cluster_temp_, cluster_temp_bytes_,
+        n_, stream_.get());
+    CUDA_CHECK(cudaMemcpyAsync(h_cluster_cov_result_, d_cluster_cov_result_,
+                               sizeof(ClusterCovAccum),
+                               cudaMemcpyDeviceToHost, stream_.get()));
+    CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
 
-        const double dtheta = math_utils::angle_diff(
-            static_cast<double>(particles[i * 3 + 2]), ctheta);
-        sum_w += w;
-        c00 += w * dx_center * dx_center;
-        c01 += w * dx_center * dy_center;
-        c02 += w * dx_center * dtheta;
-        c11 += w * dy_center * dy_center;
-        c12 += w * dy_center * dtheta;
-        c22 += w * dtheta * dtheta;
-    }
-
+    const double sum_w = static_cast<double>(h_cluster_cov_result_->w);
     if (sum_w <= 0.0) {
         return get_estimate();
     }
@@ -814,15 +837,21 @@ PoseEstimate ParticleFilter::get_cluster_estimate(double* cluster_weight_out,
     const double confidence = std::clamp(sum_w, 1e-3, 1.0);
     const double confidence_scale = std::clamp(1.0 / confidence, 1.0, 25.0);
     const double min_cov = std::max(0.0, cfg_.cluster_min_covariance);
-    est.covariance(0, 0) = std::max(min_cov, c00 * inv_w * confidence_scale);
-    est.covariance(0, 1) = c01 * inv_w * confidence_scale;
-    est.covariance(0, 2) = c02 * inv_w * confidence_scale;
+    est.covariance(0, 0) = std::max(
+        min_cov, static_cast<double>(h_cluster_cov_result_->c00) * inv_w * confidence_scale);
+    est.covariance(0, 1) =
+        static_cast<double>(h_cluster_cov_result_->c01) * inv_w * confidence_scale;
+    est.covariance(0, 2) =
+        static_cast<double>(h_cluster_cov_result_->c02) * inv_w * confidence_scale;
     est.covariance(1, 0) = est.covariance(0, 1);
-    est.covariance(1, 1) = std::max(min_cov, c11 * inv_w * confidence_scale);
-    est.covariance(1, 2) = c12 * inv_w * confidence_scale;
+    est.covariance(1, 1) = std::max(
+        min_cov, static_cast<double>(h_cluster_cov_result_->c11) * inv_w * confidence_scale);
+    est.covariance(1, 2) =
+        static_cast<double>(h_cluster_cov_result_->c12) * inv_w * confidence_scale;
     est.covariance(2, 0) = est.covariance(0, 2);
     est.covariance(2, 1) = est.covariance(1, 2);
-    est.covariance(2, 2) = std::max(min_cov, c22 * inv_w * confidence_scale);
+    est.covariance(2, 2) = std::max(
+        min_cov, static_cast<double>(h_cluster_cov_result_->c22) * inv_w * confidence_scale);
 
     return est;
 }
@@ -830,10 +859,14 @@ PoseEstimate ParticleFilter::get_cluster_estimate(double* cluster_weight_out,
 void ParticleFilter::get_particles(std::vector<float>& particles) {
     particles.resize(n_ * 3);
     // Use pinned staging for D->H, then copy to caller's vector.
-    CUDA_CHECK(cudaMemcpyAsync(h_particles_pinned_, d_active_particles_,
-                               n_ * 3 * sizeof(float),
-                               cudaMemcpyDeviceToHost, stream_.get()));
-    CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
+    const size_t particle_bytes = static_cast<size_t>(n_) * 3 * sizeof(float);
+    last_transfer_diag_.particle_download_ms = timed_memcpy_async(
+        h_particles_pinned_, d_active_particles_, particle_bytes,
+        cudaMemcpyDeviceToHost, stream_.get());
+    last_transfer_diag_.particle_download_bytes = particle_bytes;
+    last_transfer_diag_.weight_download_ms = std::numeric_limits<double>::quiet_NaN();
+    last_transfer_diag_.weight_download_bytes = 0;
+    last_transfer_diag_.active_particles = n_;
     memcpy(particles.data(), h_particles_pinned_, n_ * 3 * sizeof(float));
 }
 
@@ -841,13 +874,17 @@ void ParticleFilter::get_particles(std::vector<float>& particles,
                                    std::vector<float>& weights) {
     particles.resize(n_ * 3);
     weights.resize(n_);
-    CUDA_CHECK(cudaMemcpyAsync(h_particles_pinned_, d_active_particles_,
-                               n_ * 3 * sizeof(float),
-                               cudaMemcpyDeviceToHost, stream_.get()));
-    CUDA_CHECK(cudaMemcpyAsync(h_weights_pinned_, d_weights_.ptr(),
-                               n_ * sizeof(float),
-                               cudaMemcpyDeviceToHost, stream_.get()));
-    CUDA_CHECK(cudaStreamSynchronize(stream_.get()));
+    const size_t particle_bytes = static_cast<size_t>(n_) * 3 * sizeof(float);
+    const size_t weight_bytes = static_cast<size_t>(n_) * sizeof(float);
+    last_transfer_diag_.particle_download_ms = timed_memcpy_async(
+        h_particles_pinned_, d_active_particles_, particle_bytes,
+        cudaMemcpyDeviceToHost, stream_.get());
+    last_transfer_diag_.weight_download_ms = timed_memcpy_async(
+        h_weights_pinned_, d_weights_.ptr(), weight_bytes,
+        cudaMemcpyDeviceToHost, stream_.get());
+    last_transfer_diag_.particle_download_bytes = particle_bytes;
+    last_transfer_diag_.weight_download_bytes = weight_bytes;
+    last_transfer_diag_.active_particles = n_;
     memcpy(particles.data(), h_particles_pinned_, n_ * 3 * sizeof(float));
     memcpy(weights.data(), h_weights_pinned_, n_ * sizeof(float));
 }

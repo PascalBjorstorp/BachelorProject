@@ -40,9 +40,11 @@ def generate_launch_description():
     vesc_priority_prefix_arg = LaunchConfiguration('vesc_priority_prefix')
     mux_config_arg = LaunchConfiguration('mux_config')
     use_teleop_arg = LaunchConfiguration('use_teleop')
+    use_ackermann_mux_arg = LaunchConfiguration('use_ackermann_mux')
     use_lidar_arg = LaunchConfiguration('use_lidar')
     mapping_mode_arg = LaunchConfiguration('mapping_mode')
     lidar_cluster_arg = LaunchConfiguration('lidar_cluster')
+    use_lateral_planner_arg = LaunchConfiguration('use_lateral_planner')
     lateral_planner_avoidance_enabled_arg = LaunchConfiguration('lateral_planner_avoidance_enabled')
     lateral_planner_delay_sec_arg = LaunchConfiguration('lateral_planner_delay_sec')
     map_file_arg = LaunchConfiguration('map_file')
@@ -91,8 +93,12 @@ def generate_launch_description():
                                 description='Path to joystick configuration file'),
 
         DeclareLaunchArgument(  'use_teleop', 
+                                default_value='false',
+                                description='Launch joystick teleop'),
+
+        DeclareLaunchArgument(  'use_ackermann_mux',
                                 default_value='true',
-                                description='Launch joystick teleop and mux'),
+                                description='Launch ackermann_mux for /drive -> /ackermann_cmd'),
         
         DeclareLaunchArgument(  'use_lidar', 
                                 default_value='true',
@@ -109,6 +115,10 @@ def generate_launch_description():
         DeclareLaunchArgument(  'lateral_planner_avoidance_enabled',
                     default_value='true',
                     description='Enable lateral planner obstacle avoidance (false publishes baseline raceline)'),
+
+        DeclareLaunchArgument(  'use_lateral_planner',
+                    default_value='false',
+                    description='Launch lateral planner after bringup delay'),
 
         DeclareLaunchArgument(  'lateral_planner_delay_sec',
                     default_value='2.0',
@@ -365,7 +375,7 @@ def generate_launch_description():
                     executable='ackermann_mux',
                     name='ackermann_mux',
                     parameters=[mux_config_arg],
-                    condition=IfCondition(use_teleop_arg),
+                    condition=IfCondition(use_ackermann_mux_arg),
                 ),
 
 
@@ -424,7 +434,10 @@ def generate_launch_description():
                             }.items(),
                         ),
                     ],
-                    condition=UnlessCondition(mapping_mode_arg),
+                    condition=IfCondition(PythonExpression([
+                        "'", mapping_mode_arg, "' != 'true' and '",
+                        use_lateral_planner_arg, "' == 'true'"
+                    ])),
                 ),
 
                 # ══════════════════════

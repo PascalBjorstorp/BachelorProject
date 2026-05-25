@@ -22,6 +22,7 @@
 #define NX_GLOBAL 6                                      /* Global/body model state size used by nonlinear prediction and linearization. */
 #define NX_FRENET 5                                      /* Frenet state size used by linearized MPC dynamics. */
 #define NX_AUG 8                                         /* Augmented state size including steering state and prior controls. */
+#define IDX_EY 0                                         /* Position of lateral error (ey) in the augmented vector (matches FPGA). */
 #define IDX_DELTA_ACTUAL 5                               /* Position of physical steering state in the augmented vector. */
 #define IDX_DRATE_PREV 6                                 /* Position of previous steering-rate state in the augmented vector. */
 #define IDX_ACCEL_PREV 7                                 /* Position of previous acceleration state in the augmented vector. */
@@ -68,7 +69,14 @@
 #define STABILITY_LIMIT 0.95f                            /* Clamp on selected discrete self-coupling to preserve numerical stability. */
 #define V_SWITCH 7.319f                                  /* Transition speed for constant-power acceleration limiting. */
 #define MIN_SLIP_VELOCITY 0.5f                           /* Lower velocity clamp used in slip-angle calculations. */
-#define WARMSTART_CURVATURE_RESET_THRESHOLD 0.5f         /* Curvature jump threshold that resets warm-start state history. */
+/* Warm-start / cold-start policy. Kept numerically identical to the FPGA
+ * implementation (FPGA_Implementations/MPC_FPGA_Kria) so CPU and FPGA make the
+ * same cold-start decisions on identical input. Do not diverge these without
+ * updating mpc_fpga_types.h to match. */
+#define MPC_WS_CURVATURE_THRESH 0.25f                    /* Curvature jump that forces a cold start (matches FPGA MPC_WS_CURVATURE_THRESH). */
+#define MPC_WS_BOUND_THRESH 0.05f                        /* Slack on ey box before a stale warm start is treated as bound-incompatible (matches FPGA). */
+#define MPC_MODEL_SIGNATURE 1                            /* Bumped when the augmented model changes; a mismatch forces a cold start (matches FPGA). */
+#define WARMSTART_CURVATURE_RESET_THRESHOLD MPC_WS_CURVATURE_THRESH /* Back-compat alias; prefer MPC_WS_CURVATURE_THRESH. */
 
 /* Default MPC configuration values */
 #define TRAJECTORY_MAXIMUM_WAYPOINTS 4000                /* Maximum trajectory samples accepted by MPC reference buffers. */

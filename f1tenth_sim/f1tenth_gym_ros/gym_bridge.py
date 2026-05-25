@@ -39,11 +39,14 @@ from rclpy.qos import HistoryPolicy
 from rclpy.qos import QoSProfile
 from rclpy.qos import ReliabilityPolicy
 from rosgraph_msgs.msg import Clock
+from sensor_msgs.msg import Imu
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Bool
+from std_msgs.msg import Float64
 from tf2_ros import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
 from transforms3d import euler
+from vesc_msgs.msg import VescStateStamped
 from ament_index_python.packages import get_package_share_directory
 import os
 
@@ -111,6 +114,83 @@ class GymBridge(Node):
         # Get TF frame configuration
         self._tf_frame_id = self.get_parameter('tf_frame_id').value
         self._odom_frame_id = self.get_parameter('odom_frame_id').value
+        self._publish_odom_topic = bool(self.get_parameter('publish_odom').value)
+        self._publish_base_tf = bool(self.get_parameter('publish_base_tf').value)
+        self._publish_sim_vesc_sensors = bool(
+            self.get_parameter('publish_sim_vesc_sensors').value)
+        self._drive_input_mode = str(
+            self.get_parameter('drive_input_mode').value).strip().lower()
+        if self._drive_input_mode not in ('ackermann', 'vesc'):
+            raise ValueError("drive_input_mode must be 'ackermann' or 'vesc'")
+        self._sim_vesc_current_topic = self.get_parameter(
+            'sim_vesc_current_topic').value
+        self._sim_vesc_brake_topic = self.get_parameter(
+            'sim_vesc_brake_topic').value
+        self._sim_vesc_motor_speed_topic = self.get_parameter(
+            'sim_vesc_motor_speed_topic').value
+        self._sim_vesc_servo_command_topic = self.get_parameter(
+            'sim_vesc_servo_command_topic').value
+        self._sim_vesc_accel_to_current_gain = self.get_parameter(
+            'sim_vesc_accel_to_current_gain').value
+        self._sim_vesc_accel_to_brake_gain = self.get_parameter(
+            'sim_vesc_accel_to_brake_gain').value
+        self._sim_vesc_current_accel_scale = self.get_parameter(
+            'sim_vesc_current_accel_scale').value
+        self._sim_vesc_brake_accel_scale = self.get_parameter(
+            'sim_vesc_brake_accel_scale').value
+        self._sim_vesc_erpm_speed_tau = self.get_parameter(
+            'sim_vesc_erpm_speed_tau').value
+        self._sim_vesc_motor_accel_limit = self.get_parameter(
+            'sim_vesc_motor_accel_limit').value
+        self._sim_vesc_command_timeout_sec = self.get_parameter(
+            'sim_vesc_command_timeout_sec').value
+        if self._sim_vesc_accel_to_current_gain == 0.0:
+            raise ValueError('sim_vesc_accel_to_current_gain must be non-zero')
+        if self._sim_vesc_accel_to_brake_gain == 0.0:
+            raise ValueError('sim_vesc_accel_to_brake_gain must be non-zero')
+        if self._sim_vesc_erpm_speed_tau <= 0.0:
+            self._sim_vesc_erpm_speed_tau = 0.15
+        if self._sim_vesc_motor_accel_limit <= 0.0:
+            self._sim_vesc_motor_accel_limit = self.vehicle_params.get(
+                'a_max', 7.31)
+        self._sim_vesc_last_command_wall_sec = None
+        self._sim_vesc_last_motor_current = 0.0
+        self._sim_vesc_last_brake_current = 0.0
+        self._sim_vesc_last_input_current = 0.0
+        self._sim_vesc_state_topic = self.get_parameter('sim_vesc_state_topic').value
+        self._sim_vesc_imu_topic = self.get_parameter('sim_vesc_imu_topic').value
+        self._sim_vesc_servo_topic = self.get_parameter('sim_vesc_servo_topic').value
+        self._sim_vesc_speed_to_erpm_gain = self.get_parameter(
+            'sim_vesc_speed_to_erpm_gain').value
+        self._sim_vesc_speed_to_erpm_offset = self.get_parameter(
+            'sim_vesc_speed_to_erpm_offset').value
+        if self._sim_vesc_speed_to_erpm_gain == 0.0:
+            raise ValueError('sim_vesc_speed_to_erpm_gain must be non-zero')
+        self._sim_vesc_speed_scale = self.get_parameter('sim_vesc_speed_scale').value
+        self._sim_vesc_speed_bias = self.get_parameter('sim_vesc_speed_bias').value
+        self._sim_vesc_speed_noise_std = self.get_parameter(
+            'sim_vesc_speed_noise_std').value
+        self._sim_vesc_yaw_rate_bias = self.get_parameter(
+            'sim_vesc_yaw_rate_bias').value
+        self._sim_vesc_yaw_rate_noise_std = self.get_parameter(
+            'sim_vesc_yaw_rate_noise_std').value
+        self._sim_vesc_accel_noise_std = self.get_parameter(
+            'sim_vesc_accel_noise_std').value
+        self._sim_vesc_servo_gain = self.get_parameter(
+            'sim_vesc_servo_gain').value
+        self._sim_vesc_servo_offset = self.get_parameter(
+            'sim_vesc_servo_offset').value
+        if self._sim_vesc_servo_gain == 0.0:
+            raise ValueError('sim_vesc_servo_gain must be non-zero')
+        self._sim_vesc_steering_correction_c2 = self.get_parameter(
+            'sim_vesc_steering_correction_c2').value
+        self._sim_vesc_steering_correction_c1 = self.get_parameter(
+            'sim_vesc_steering_correction_c1').value
+        self._sim_vesc_steering_correction_c0 = self.get_parameter(
+            'sim_vesc_steering_correction_c0').value
+        self._sim_vesc_last_time_sec = None
+        self._sim_vesc_last_vx = 0.0
+        self._sim_vesc_last_vy = 0.0
         
         # Get scan rate limiting configuration
         self._scan_publish_rate = self.get_parameter('scan_publish_rate').value
@@ -129,6 +209,12 @@ class GymBridge(Node):
         if self._tf_frame_id != 'map' or self._odom_frame_id != 'map':
             self.get_logger().info(
                 f'TF frames configured: tf_frame={self._tf_frame_id}, odom_frame={self._odom_frame_id}')
+        if self._publish_sim_vesc_sensors:
+            self.get_logger().info(
+                'Simulated VESC sensors enabled: publishing wheel speed, IMU yaw-rate, and servo command.')
+        if self._drive_input_mode == 'vesc':
+            self.get_logger().info(
+                'Simulated VESC command input enabled: consuming current, brake, ERPM, and servo commands.')
 
         # Load map and create environment
         self.env = self._create_environment(num_agents, scale)
@@ -214,6 +300,18 @@ class GymBridge(Node):
         self.declare_parameter('headless', False)  # Disable rendering for headless systems
         self.declare_parameter('real_time_factor', 0.0)  # 0 = unlimited, 1.0 = real-time, 0.5 = half speed
         self.declare_parameter('drive_uses_acceleration_field', False)
+        self.declare_parameter('drive_input_mode', 'ackermann')
+        self.declare_parameter('sim_vesc_current_topic', 'commands/motor/current')
+        self.declare_parameter('sim_vesc_brake_topic', 'commands/motor/brake')
+        self.declare_parameter('sim_vesc_motor_speed_topic', 'commands/motor/speed')
+        self.declare_parameter('sim_vesc_servo_command_topic', 'commands/servo/position')
+        self.declare_parameter('sim_vesc_accel_to_current_gain', 5.82)
+        self.declare_parameter('sim_vesc_accel_to_brake_gain', 7.38)
+        self.declare_parameter('sim_vesc_current_accel_scale', 1.0)
+        self.declare_parameter('sim_vesc_brake_accel_scale', 1.0)
+        self.declare_parameter('sim_vesc_erpm_speed_tau', 0.15)
+        self.declare_parameter('sim_vesc_motor_accel_limit', 7.31)
+        self.declare_parameter('sim_vesc_command_timeout_sec', 0.20)
 
         
         # Sensor noise parameters for realistic simulation
@@ -225,6 +323,27 @@ class GymBridge(Node):
         # TF frame configuration
         self.declare_parameter('tf_frame_id', 'map')         # Parent frame for TF (map or odom)
         self.declare_parameter('odom_frame_id', 'map')       # Parent frame for odom topic
+        self.declare_parameter('publish_odom', True)
+        self.declare_parameter('publish_base_tf', True)
+
+        # Optional simulated VESC sensor outputs for dead-reckoned odometry.
+        self.declare_parameter('publish_sim_vesc_sensors', False)
+        self.declare_parameter('sim_vesc_state_topic', 'sensors/core')
+        self.declare_parameter('sim_vesc_imu_topic', 'sensors/imu/raw')
+        self.declare_parameter('sim_vesc_servo_topic', 'sensors/servo_position_command')
+        self.declare_parameter('sim_vesc_speed_to_erpm_gain', 4550.0)
+        self.declare_parameter('sim_vesc_speed_to_erpm_offset', 0.0)
+        self.declare_parameter('sim_vesc_speed_scale', 1.0)
+        self.declare_parameter('sim_vesc_speed_bias', 0.0)
+        self.declare_parameter('sim_vesc_speed_noise_std', 0.04)
+        self.declare_parameter('sim_vesc_yaw_rate_bias', 0.0)
+        self.declare_parameter('sim_vesc_yaw_rate_noise_std', 0.05)
+        self.declare_parameter('sim_vesc_accel_noise_std', 0.20)
+        self.declare_parameter('sim_vesc_servo_gain', -0.7284)
+        self.declare_parameter('sim_vesc_servo_offset', 0.5500)
+        self.declare_parameter('sim_vesc_steering_correction_c2', 0.589566)
+        self.declare_parameter('sim_vesc_steering_correction_c1', 0.918061)
+        self.declare_parameter('sim_vesc_steering_correction_c0', 0.001490)
         
         # Scan publish rate limiting (for realistic 40Hz LiDAR simulation)
         self.declare_parameter('scan_publish_rate', 0.0)     # 0 = no limit, >0 = Hz limit
@@ -537,6 +656,13 @@ class GymBridge(Node):
         # Pre-allocate clock message
         self._clock_msg = Clock()
 
+        # Pre-allocate simulated VESC sensor messages.
+        self._sim_vesc_state_msg = VescStateStamped()
+        self._sim_vesc_state_msg.header.frame_id = f'{self.ego_namespace}/vesc'
+        self._sim_vesc_imu_msg = Imu()
+        self._sim_vesc_imu_msg.header.frame_id = f'{self.ego_namespace}/imu'
+        self._sim_vesc_servo_msg = Float64()
+
         if num_agents == 2:
             self._opp_scan_msg = LaserScan()
             self._opp_scan_msg.angle_min = self.angle_min
@@ -645,6 +771,14 @@ class GymBridge(Node):
             Bool, f'{self.ego_namespace}/collision', 10
         )
 
+        if self._publish_sim_vesc_sensors:
+            self.sim_vesc_state_pub = self.create_publisher(
+                VescStateStamped, self._sim_vesc_state_topic, 10)
+            self.sim_vesc_imu_pub = self.create_publisher(
+                Imu, self._sim_vesc_imu_topic, 10)
+            self.sim_vesc_servo_pub = self.create_publisher(
+                Float64, self._sim_vesc_servo_topic, 10)
+
         if num_agents == 2:
             opp_scan_topic = self.get_parameter('opp_scan_topic').value
             opp_odom_param = self.get_parameter('opp_odom_topic').value
@@ -677,13 +811,34 @@ class GymBridge(Node):
 
     def _setup_subscribers(self, num_agents: int) -> None:
         """Set up all subscribers."""
-        ego_drive_topic = self.get_parameter('ego_drive_topic').value
-
-        self.ego_drive_sub = self.create_subscription(
-            AckermannDriveStamped,
-            ego_drive_topic,
-            self.drive_callback,
-            10)
+        if self._drive_input_mode == 'vesc':
+            self.ego_current_sub = self.create_subscription(
+                Float64,
+                self._sim_vesc_current_topic,
+                self.sim_vesc_current_callback,
+                10)
+            self.ego_brake_sub = self.create_subscription(
+                Float64,
+                self._sim_vesc_brake_topic,
+                self.sim_vesc_brake_callback,
+                10)
+            self.ego_motor_speed_sub = self.create_subscription(
+                Float64,
+                self._sim_vesc_motor_speed_topic,
+                self.sim_vesc_motor_speed_callback,
+                10)
+            self.ego_servo_command_sub = self.create_subscription(
+                Float64,
+                self._sim_vesc_servo_command_topic,
+                self.sim_vesc_servo_callback,
+                10)
+        else:
+            ego_drive_topic = self.get_parameter('ego_drive_topic').value
+            self.ego_drive_sub = self.create_subscription(
+                AckermannDriveStamped,
+                ego_drive_topic,
+                self.drive_callback,
+                10)
         self.ego_reset_sub = self.create_subscription(
             PoseWithCovarianceStamped,
             '/initialpose',
@@ -723,6 +878,92 @@ class GymBridge(Node):
         self.sim_paused = msg.data
         status = 'paused' if self.sim_paused else 'resumed'
         self.get_logger().info(f'Simulation {status}')
+
+    def _mark_sim_vesc_command(self) -> None:
+        self._sim_vesc_last_command_wall_sec = time.perf_counter()
+        self.ego_drive_published = True
+
+    def _servo_to_steering_angle(self, servo_position: float) -> float:
+        corrected = (
+            servo_position - self._sim_vesc_servo_offset
+        ) / self._sim_vesc_servo_gain
+        corrected_abs = abs(corrected)
+        c2 = self._sim_vesc_steering_correction_c2
+        c1 = self._sim_vesc_steering_correction_c1
+        c0 = self._sim_vesc_steering_correction_c0
+
+        if corrected_abs <= c0:
+            steer_abs = 0.0
+        elif abs(c2) < 1e-9:
+            steer_abs = (corrected_abs - c0) / c1 if abs(c1) > 1e-9 else 0.0
+        else:
+            discriminant = max(c1 * c1 - 4.0 * c2 * (c0 - corrected_abs), 0.0)
+            steer_abs = (-c1 + np.sqrt(discriminant)) / (2.0 * c2)
+
+        return float(np.clip(
+            np.copysign(max(steer_abs, 0.0), corrected),
+            self.vehicle_params['s_min'],
+            self.vehicle_params['s_max']))
+
+    def sim_vesc_current_callback(self, msg: Float64) -> None:
+        """Convert simulated VESC motor current to gym acceleration command."""
+        if self.sim_paused:
+            return
+
+        self._sim_vesc_last_motor_current = float(msg.data)
+        self._sim_vesc_last_brake_current = 0.0
+        self._sim_vesc_last_input_current = max(float(msg.data), 0.0)
+        self.ego_requested_speed = (
+            float(msg.data) /
+            self._sim_vesc_accel_to_current_gain *
+            self._sim_vesc_current_accel_scale)
+        self._mark_sim_vesc_command()
+
+    def sim_vesc_brake_callback(self, msg: Float64) -> None:
+        """Convert simulated VESC brake current to gym deceleration command."""
+        if self.sim_paused:
+            return
+
+        self._sim_vesc_last_motor_current = 0.0
+        self._sim_vesc_last_brake_current = max(float(msg.data), 0.0)
+        self._sim_vesc_last_input_current = -self._sim_vesc_last_brake_current
+        self.ego_requested_speed = (
+            -self._sim_vesc_last_brake_current /
+            self._sim_vesc_accel_to_brake_gain *
+            self._sim_vesc_brake_accel_scale)
+        self._mark_sim_vesc_command()
+
+    def sim_vesc_motor_speed_callback(self, msg: Float64) -> None:
+        """Convert simulated ERPM command to a bounded acceleration request."""
+        if self.sim_paused:
+            return
+
+        target_speed = (
+            float(msg.data) - self._sim_vesc_speed_to_erpm_offset
+        ) / self._sim_vesc_speed_to_erpm_gain
+        accel = (
+            target_speed - float(self.ego_speed[0])
+        ) / self._sim_vesc_erpm_speed_tau
+        accel = float(np.clip(
+            accel,
+            -self._sim_vesc_motor_accel_limit,
+            self._sim_vesc_motor_accel_limit))
+        self._sim_vesc_last_motor_current = max(
+            accel * self._sim_vesc_accel_to_current_gain, 0.0)
+        self._sim_vesc_last_brake_current = max(
+            -accel * self._sim_vesc_accel_to_brake_gain, 0.0)
+        self._sim_vesc_last_input_current = (
+            self._sim_vesc_last_motor_current -
+            self._sim_vesc_last_brake_current)
+        self.ego_requested_speed = accel
+        self._mark_sim_vesc_command()
+
+    def sim_vesc_servo_callback(self, msg: Float64) -> None:
+        """Convert simulated servo position command back to steering angle."""
+        if self.sim_paused:
+            return
+
+        self.ego_steer = self._servo_to_steering_angle(float(msg.data))
 
     def drive_callback(self, drive_msg: AckermannDriveStamped) -> None:
         """Handle ego drive commands."""
@@ -828,6 +1069,15 @@ class GymBridge(Node):
         if (self.vehicle_params.get('realistic_plant_enabled', False) and
                 not self.ego_drive_published):
             return
+        if (self._drive_input_mode == 'vesc' and
+                self._sim_vesc_last_command_wall_sec is not None and
+                self._sim_vesc_command_timeout_sec > 0.0 and
+                time.perf_counter() - self._sim_vesc_last_command_wall_sec >
+                self._sim_vesc_command_timeout_sec):
+            self.ego_requested_speed = 0.0
+            self._sim_vesc_last_motor_current = 0.0
+            self._sim_vesc_last_brake_current = 0.0
+            self._sim_vesc_last_input_current = 0.0
 
         start_time = time.perf_counter() if self._enable_perf_metrics else None
 
@@ -880,6 +1130,7 @@ class GymBridge(Node):
         ts = self._get_timestamp()
         self._publish_scans(ts)
         self._publish_odom(ts)
+        self._publish_sim_vesc_sensors_msg(ts)
         self._publish_transforms(ts)
         self._publish_wheel_transforms(ts)
 
@@ -1028,20 +1279,21 @@ class GymBridge(Node):
 
     def _publish_odom(self, ts) -> None:
         """Publish odometry messages using pre-allocated messages."""
-        # Ego odom (with noise if enabled)
-        self._update_odom_msg(
-            self._ego_odom_msg,
-            ts,
-            self.ego_pose,
-            self.ego_speed)
-        self.ego_odom_pub.publish(self._ego_odom_msg)
+        if self._publish_odom_topic:
+            # Ego odom (with noise if enabled)
+            self._update_odom_msg(
+                self._ego_odom_msg,
+                ts,
+                self.ego_pose,
+                self.ego_speed)
+            self.ego_odom_pub.publish(self._ego_odom_msg)
 
         # Ego ground truth (always noise-free)
         self._update_gt_msg(self._ego_gt_msg, ts, self.ego_pose, self.ego_speed)
         self.ego_gt_pub.publish(self._ego_gt_msg)
 
         # Opponent odom
-        if self.has_opp:
+        if self.has_opp and self._publish_odom_topic:
             self._update_odom_msg(
                 self._opp_odom_msg,
                 ts,
@@ -1098,13 +1350,81 @@ class GymBridge(Node):
         gt.twist.twist.linear.y = speed[1]
         gt.twist.twist.angular.z = speed[2]
 
+    def _stamp_to_sec(self, ts) -> float:
+        return float(ts.sec) + float(ts.nanosec) * 1e-9
+
+    def _publish_sim_vesc_sensors_msg(self, ts) -> None:
+        """Publish VESC-like wheel speed, IMU, and servo signals from sim state."""
+        if not self._publish_sim_vesc_sensors:
+            return
+
+        stamp_sec = self._stamp_to_sec(ts)
+        vx = float(self.ego_speed[0])
+        vy = float(self.ego_speed[1])
+        yaw_rate = float(self.ego_speed[2])
+
+        accel_x = 0.0
+        accel_y = 0.0
+        if self._sim_vesc_last_time_sec is not None:
+            dt = stamp_sec - self._sim_vesc_last_time_sec
+            if 1e-6 < dt < 0.5:
+                accel_x = (vx - self._sim_vesc_last_vx) / dt
+                accel_y = (vy - self._sim_vesc_last_vy) / dt
+        self._sim_vesc_last_time_sec = stamp_sec
+        self._sim_vesc_last_vx = vx
+        self._sim_vesc_last_vy = vy
+
+        measured_vx = (
+            self._sim_vesc_speed_scale * vx +
+            self._sim_vesc_speed_bias +
+            np.random.normal(0.0, self._sim_vesc_speed_noise_std))
+        measured_yaw_rate = (
+            yaw_rate +
+            self._sim_vesc_yaw_rate_bias +
+            np.random.normal(0.0, self._sim_vesc_yaw_rate_noise_std))
+        measured_accel_x = accel_x + np.random.normal(
+            0.0, self._sim_vesc_accel_noise_std)
+        measured_accel_y = accel_y + np.random.normal(
+            0.0, self._sim_vesc_accel_noise_std)
+
+        abs_steer = abs(self.ego_steer)
+        corrected_abs = (
+            self._sim_vesc_steering_correction_c2 * abs_steer * abs_steer +
+            self._sim_vesc_steering_correction_c1 * abs_steer +
+            self._sim_vesc_steering_correction_c0)
+        corrected_steer = np.copysign(corrected_abs, self.ego_steer)
+        self._sim_vesc_servo_msg.data = (
+            self._sim_vesc_servo_gain * corrected_steer +
+            self._sim_vesc_servo_offset)
+
+        self._sim_vesc_imu_msg.header.stamp = ts
+        self._sim_vesc_imu_msg.angular_velocity.z = measured_yaw_rate
+        self._sim_vesc_imu_msg.linear_acceleration.x = measured_accel_x
+        self._sim_vesc_imu_msg.linear_acceleration.y = measured_accel_y
+
+        self._sim_vesc_state_msg.header.stamp = ts
+        self._sim_vesc_state_msg.state.speed = (
+            self._sim_vesc_speed_to_erpm_gain * measured_vx +
+            self._sim_vesc_speed_to_erpm_offset)
+        self._sim_vesc_state_msg.state.current_motor = (
+            self._sim_vesc_last_motor_current)
+        self._sim_vesc_state_msg.state.current_input = (
+            self._sim_vesc_last_input_current)
+        self._sim_vesc_state_msg.state.voltage_input = 16.0
+        self._sim_vesc_state_msg.state.fault_code = 0
+
+        self.sim_vesc_servo_pub.publish(self._sim_vesc_servo_msg)
+        self.sim_vesc_imu_pub.publish(self._sim_vesc_imu_msg)
+        self.sim_vesc_state_pub.publish(self._sim_vesc_state_msg)
+
     def _publish_transforms(self, ts) -> None:
         """Publish base_link and wheel transforms in a single batched call."""
         transforms = []
 
-        # Ego base_link transform
-        self._update_transform_msg(self._ego_tf_msg, ts, self.ego_pose)
-        transforms.append(self._ego_tf_msg)
+        if self._publish_base_tf:
+            # Ego base_link transform
+            self._update_transform_msg(self._ego_tf_msg, ts, self.ego_pose)
+            transforms.append(self._ego_tf_msg)
 
         # Ego wheel transforms
         ego_wheel_quat = euler.euler2quat(
@@ -1116,8 +1436,9 @@ class GymBridge(Node):
 
         # Opponent transforms
         if self.has_opp:
-            self._update_transform_msg(self._opp_tf_msg, ts, self.opp_pose)
-            transforms.append(self._opp_tf_msg)
+            if self._publish_base_tf:
+                self._update_transform_msg(self._opp_tf_msg, ts, self.opp_pose)
+                transforms.append(self._opp_tf_msg)
 
             opp_wheel_quat = euler.euler2quat(
                 0.0, 0.0, self.opp_steer, axes='sxyz')
@@ -1128,7 +1449,8 @@ class GymBridge(Node):
 
         # Batch publish all transforms
         try:
-            self.br.sendTransform(transforms)
+            if transforms:
+                self.br.sendTransform(transforms)
         except Exception as e:
             self.get_logger().error(f'Failed to publish transforms: {e}')
 

@@ -30,7 +30,7 @@ BASE_PARAMS: Dict[str, float] = {
     'alpha4': 0.1,
     'likelihood_scale': 1.0,
     'resample_threshold': 0.5,
-    'process_noise_scale': 10.0,
+    'process_noise_scale': 0.1,
     'transform_tolerance': 0.02,
     'max_beams': 270,
 }
@@ -116,7 +116,7 @@ def build_cases(mode: str) -> List[SweepCase]:
             sigma_hit=0.08,
             z_hit=0.95,
             z_rand=0.05,
-            process_noise_scale=5.0,
+            process_noise_scale=0.1,
             resample_threshold=0.3),
         2.0)
 
@@ -132,7 +132,7 @@ def build_cases(mode: str) -> List[SweepCase]:
             SweepCase('motion_alpha_scale_2', 'motion',
                       with_base(alpha1=0.4, alpha2=0.4, alpha3=0.2, alpha4=0.2)),
         ])
-        add_single_param_cases(cases, 'ekf', 'process_noise_scale', [5.0, 20.0])
+        add_single_param_cases(cases, 'ekf', 'process_noise_scale', [0.05, 0.2])
         add_single_param_cases(cases, 'resample', 'resample_threshold', [0.3, 0.7])
         return cases
 
@@ -159,7 +159,7 @@ def build_cases(mode: str) -> List[SweepCase]:
 
         # Refine odom/AMCL trust and resampling around quick winners.
         for alpha_scale in (1.5, 2.0, 2.5):
-            for process_noise_scale in (2.5, 5.0, 7.5):
+            for process_noise_scale in (0.05, 0.1, 0.2):
                 for resample_threshold in (0.25, 0.30, 0.40):
                     params = alpha_scaled(focused_base, alpha_scale)
                     params.update({
@@ -181,6 +181,24 @@ def build_cases(mode: str) -> List[SweepCase]:
                 'focused_beams',
                 with_params(focused_base, max_beams=max_beams))
 
+        return cases
+
+    if mode == 'combo':
+        for sigma in (0.06, 0.08):
+            for z_hit, z_rand in ((0.975, 0.025), (0.90, 0.10), (0.85, 0.15)):
+                for likelihood_scale in (1.0, 1.5, 2.0):
+                    add_case(
+                        cases,
+                        f'combo_sigma_{value_name(sigma)}'
+                        f'_zhit_{value_name(z_hit)}'
+                        f'_zrand_{value_name(z_rand)}'
+                        f'_scale_{value_name(likelihood_scale)}',
+                        'combo_sensor',
+                        with_base(
+                            sigma_hit=sigma,
+                            z_hit=z_hit,
+                            z_rand=z_rand,
+                            likelihood_scale=likelihood_scale))
         return cases
 
     add_single_param_cases(cases, 'sensor', 'sigma_hit',
@@ -208,7 +226,7 @@ def build_cases(mode: str) -> List[SweepCase]:
                   with_base(alpha1=0.4, alpha2=0.4, alpha3=0.2, alpha4=0.2)),
     ])
 
-    add_single_param_cases(cases, 'ekf', 'process_noise_scale', [2.5, 5.0, 20.0, 40.0])
+    add_single_param_cases(cases, 'ekf', 'process_noise_scale', [0.05, 0.2, 0.5, 1.0])
     add_single_param_cases(cases, 'resample', 'resample_threshold', [0.3, 0.7])
     add_single_param_cases(cases, 'timing', 'transform_tolerance', [0.01, 0.05, 0.10])
 
@@ -217,7 +235,7 @@ def build_cases(mode: str) -> List[SweepCase]:
         add_single_param_cases(cases, 'sensor', 'sigma_hit', [0.35])
         add_single_param_cases(cases, 'sensor', 'likelihood_scale', [0.25, 3.0])
         add_single_param_cases(cases, 'resample', 'resample_threshold', [0.2, 0.8])
-        add_single_param_cases(cases, 'ekf', 'process_noise_scale', [1.0, 80.0])
+        add_single_param_cases(cases, 'ekf', 'process_noise_scale', [0.01, 2.0])
 
     return cases
 
@@ -248,7 +266,10 @@ def finite_float(text: str) -> Optional[float]:
     return value if math.isfinite(value) else None
 
 
-def summarize_run(run_dir: str, expected_laps: int, exit_code: int) -> Dict[str, object]:
+def summarize_run(run_dir: str,
+                  expected_laps: int,
+                  exit_code: int,
+                  skip_first_sec: float) -> Dict[str, object]:
     status_path = os.path.join(run_dir, f'{BENCHMARK_NAME}_status.json')
     csv_path = os.path.join(run_dir, f'{BENCHMARK_NAME}.csv')
     status: Dict[str, object] = {}
@@ -264,11 +285,33 @@ def summarize_run(run_dir: str, expected_laps: int, exit_code: int) -> Dict[str,
     rows = 0
     first_amcl_row = 0
 
+    first_wall_time_ns: Optional[int] = None
+
     if os.path.exists(csv_path):
         with open(csv_path, newline='') as handle:
             reader = csv.DictReader(handle)
             for row in reader:
                 rows += 1
+                wall_time_ns: Optional[int] = None
+                try:
+                    wall_time_ns = int(row.get('wall_time_ns', ''))
+                except (TypeError, ValueError):
+                    wall_time_ns = None
+                if wall_time_ns is not None and first_wall_time_ns is None:
+                    first_wall_time_ns = wall_time_ns
+
+                in_eval_window = True
+                if (
+                    skip_first_sec > 0.0
+                    and wall_time_ns is not None
+                    and first_wall_time_ns is not None
+                ):
+                    elapsed_sec = (wall_time_ns - first_wall_time_ns) * 1e-9
+                    in_eval_window = elapsed_sec >= skip_first_sec
+
+                if not in_eval_window:
+                    continue
+
                 ekf_err = finite_float(row.get('err_xy', ''))
                 yaw_err = finite_float(row.get('err_yaw', ''))
                 if ekf_err is not None:
@@ -348,16 +391,19 @@ def command_for_case(args: argparse.Namespace,
         f'initial_pose_yaw:={initial_pose_yaw}',
         'headless:=true',
         f'realistic_plant:={str(args.realistic_plant).lower()}',
+        f'sim_odom_source:={args.sim_odom_source}',
+        f'sim_drive_input_mode:={args.sim_drive_input_mode}',
         f'sim_drive_uses_acceleration_field:={str(args.sim_drive_uses_acceleration_field).lower()}',
         f'lateral_planner_avoidance_enabled:={str(args.avoidance_enabled).lower()}',
         f'monitor_strict_mode:={str(args.monitor_strict_mode).lower()}',
-        'amcl_global_initialization:=true',
+        f'mpc_raceline_speed_margin:={args.mpc_raceline_speed_margin}',
+        f'amcl_global_initialization:={str(args.global_localization).lower()}',
         'amcl_num_particles:=1000',
         'amcl_min_particles:=1000',
         'amcl_max_particles:=1000',
         'amcl_use_kld:=false',
-        'amcl_update_min_d:=0.0',
-        'amcl_update_min_a:=0.0',
+        f'amcl_update_min_d:={args.update_min_d}',
+        f'amcl_update_min_a:={args.update_min_a}',
         f'amcl_cloud_publish_rate:={args.cloud_publish_rate}',
         f'amcl_debug_pre_resample_particles:={str(args.debug_pre_resample_particles).lower()}',
         f'amcl_max_beams:={int(params["max_beams"])}',
@@ -549,10 +595,12 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
         'gpu_amcl_sweep')
 
     parser.add_argument('--output-root', default=default_root)
-    parser.add_argument('--mode', choices=['quick', 'focused', 'core', 'wide'],
+    parser.add_argument('--mode', choices=['quick', 'focused', 'combo', 'core', 'wide'],
                         default='core')
     parser.add_argument('--laps', type=int, default=5)
     parser.add_argument('--repeats', type=int, default=3)
+    parser.add_argument('--skip-first-sec', type=float, default=5.0,
+                        help='Ignore startup rows when computing pose-error metrics.')
     parser.add_argument('--max-duration-sec', type=float, default=0.0)
     parser.add_argument('--process-timeout-sec', type=float, default=0.0)
     parser.add_argument('--start-index', type=int, default=0)
@@ -564,21 +612,35 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     parser.add_argument('--map-file', default=os.path.join(
         repo_root, 'f1tenth_planning', 'maps', 'my_track_map.yaml'))
     parser.add_argument('--trajectory-file', default=os.path.join(
-        repo_root, 'f1tenth_planning', 'trajectories', 'my_track_raceline.csv'))
+        repo_root,
+        'f1tenth_localization',
+        'Benchmark',
+        'Matlab',
+        'sim_benchmark',
+        'my_track_raceline_vcap_4p0.csv'))
     parser.add_argument('--launch-file', default=os.path.join(
         repo_root,
         'f1tenth_system',
         'f1tenth_stack',
         'launch',
         'sim_amcl_benchmark.launch.py'))
-    parser.add_argument('--initial-pose-x', type=float, default=0.0)
-    parser.add_argument('--initial-pose-y', type=float, default=0.0)
+    parser.add_argument('--initial-pose-x', type=float, default=0.5)
+    parser.add_argument('--initial-pose-y', type=float, default=0.2)
     parser.add_argument('--initial-pose-yaw', type=float, default=None)
     parser.add_argument('--realistic-plant', action=argparse.BooleanOptionalAction,
                         default=True)
+    parser.add_argument('--sim-odom-source', choices=('vesc', 'ground_truth'),
+                        default='vesc')
+    parser.add_argument('--sim-drive-input-mode', choices=('vesc', 'ackermann'),
+                        default='vesc')
     parser.add_argument('--sim-drive-uses-acceleration-field',
                         action=argparse.BooleanOptionalAction,
                         default=True)
+    parser.add_argument('--mpc-raceline-speed-margin', type=float, default=0.0)
+    parser.add_argument('--global-localization', '--global-initialization',
+                        action=argparse.BooleanOptionalAction,
+                        default=False,
+                        dest='global_localization')
     parser.add_argument('--avoidance-enabled', action='store_true')
     parser.add_argument('--monitor-strict-mode', action=argparse.BooleanOptionalAction,
                         default=True)
@@ -591,6 +653,8 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     parser.add_argument('--cluster-iterations', type=int, default=3)
     parser.add_argument('--cluster-min-covariance', type=float, default=0.0001)
     parser.add_argument('--cluster-publish-min-weight', type=float, default=0.60)
+    parser.add_argument('--update-min-d', type=float, default=0.05)
+    parser.add_argument('--update-min-a', type=float, default=0.05)
     parser.add_argument('--extra-launch-arg', action='append')
     return parser.parse_args(argv)
 
@@ -634,8 +698,17 @@ def main(argv: List[str]) -> int:
     print(f'Cases: {len(cases)}')
     print(f'Repeats: {args.repeats}')
     print(f'Laps/run: {args.laps}')
+    print(f'Skip first: {args.skip_first_sec:g} s')
     print(f'Output: {args.output_root}')
-    print('Fixed: particles=1000, KLD=false, update_min_d=0, update_min_a=0')
+    print(
+        'Fixed: '
+        f'particles=1000, KLD=false, global_init={args.global_localization}, '
+        f'update_min_d={args.update_min_d:g}, update_min_a={args.update_min_a:g}')
+    print(
+        'Sim setup: '
+        f'odom={args.sim_odom_source}, drive={args.sim_drive_input_mode}, '
+        f'accel_field={args.sim_drive_uses_acceleration_field}, '
+        f'speed_margin={args.mpc_raceline_speed_margin:g}')
 
     for case_index, case in enumerate(cases):
         case_dir = os.path.join(args.output_root, f'{case_index:03d}_{case.name}')
@@ -644,7 +717,7 @@ def main(argv: List[str]) -> int:
             status_path = os.path.join(run_dir, f'{BENCHMARK_NAME}_status.json')
             if args.resume and os.path.exists(status_path):
                 print(f'skip existing {case.name} repeat {repeat}')
-                metrics = summarize_run(run_dir, args.laps, 0)
+                metrics = summarize_run(run_dir, args.laps, 0, args.skip_first_sec)
                 run_rows.append({
                     'case_index': case_index,
                     'case_name': case.name,
@@ -677,7 +750,7 @@ def main(argv: List[str]) -> int:
                 ros_env,
                 launch_log_path)
             elapsed_sec = time.time() - started
-            metrics = summarize_run(run_dir, args.laps, exit_code)
+            metrics = summarize_run(run_dir, args.laps, exit_code, args.skip_first_sec)
             row = {
                 'case_index': case_index,
                 'case_name': case.name,

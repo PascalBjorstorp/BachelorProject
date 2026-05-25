@@ -1,6 +1,5 @@
-function plot_algorithm_speed_maps()
+function plot_algorithm_speed_maps(bagsRoot, racelineRoot, mapRoot, plotsRootDir, showPlots)
 clc;
-clear all;
 close all;
 % PLOT_ALGORITHM_SPEED_MAPS
 % Plot one map per algorithm/run with:
@@ -8,21 +7,48 @@ close all;
 % - Reference raceline from CSV
 % - EKF trajectory colored by speed from /ego_racecar/odom
 %
-% Configure roots in the "USER INPUT" section below.
+% Defaults target the repository NormalMap benchmark folders. Optional inputs:
+%   bagsRoot     - folder with bag run folders, default bags/NormalMap/SpeedBags
+%   racelineRoot - folder with raceline CSV, default bags/NormalMap/Raceline
+%   mapRoot      - folder with ROS map YAML/PGM, default bags/NormalMap/Map
+%   plotsRootDir - output root, default Matlab/plots/NormalMapReports/SpeedMaps
+%   showPlots    - true to keep figures open, false to save only
 
 %% USER INPUT
 scriptDir = fileparts(mfilename('fullpath'));
+repoRoot = fileparts(fileparts(fileparts(scriptDir)));
+normalMapRoot = fullfile(repoRoot, 'bags', 'NormalMap');
+if ~isfolder(normalMapRoot)
+    normalMapRoot = fullfile(pwd, 'bags', 'NormalMap');
+end
 
-benchmarkRoot = fileparts(scriptDir);
+% Path where SpeedBags bag directories are stored.
+if nargin < 1 || isempty(bagsRoot)
+    bagsRoot = fullfile(normalMapRoot, 'SpeedBags');
+end
 
-% Path where SpeedLaps bag directories are stored.
-bagsRoot = fullfile(benchmarkRoot, 'bags', 'SpeedLaps');
+% Raceline CSV folder for NormalMap.
+if nargin < 2 || isempty(racelineRoot)
+    racelineRoot = fullfile(normalMapRoot, 'Raceline');
+end
 
-% Raceline CSV folder for SpeedLaps.
-racelineRoot = fullfile(bagsRoot, 'Raceline');
+% Map YAML/PGM folder for NormalMap. Used when bag has no /map topic.
+if nargin < 3 || isempty(mapRoot)
+    mapRoot = fullfile(normalMapRoot, 'Map');
+end
+
+% Output plots and summary tables.
+if nargin < 4 || isempty(plotsRootDir)
+    plotsRootDir = fullfile(scriptDir, 'plots', 'NormalMapReports', 'SpeedMaps');
+end
+if nargin < 5 || isempty(showPlots)
+    showPlots = false;
+end
+ensureDirectoryLocal(plotsRootDir);
 
 % Default raceline CSV (used for all discovered runs unless overridden).
 defaultRacelineCsv = findDefaultRacelineCsv(racelineRoot);
+defaultMapData = loadMapDataFromFolder(mapRoot);
 
 % Lap filtering: skip the first completed lap and ignore data after the
 % final completed lap crossing.
@@ -38,7 +64,7 @@ runs = discoverSpeedLapRuns(bagsRoot, racelineRoot, defaultRacelineCsv);
 
 %% Validate configuration
 if ~isfolder(bagsRoot)
-    error('SpeedLaps bag root does not exist: %s', bagsRoot);
+    error('SpeedBags bag root does not exist: %s', bagsRoot);
 end
 if isempty(defaultRacelineCsv) || ~isfile(defaultRacelineCsv)
     error('No raceline CSV found in: %s', racelineRoot);
@@ -46,9 +72,11 @@ end
 if isempty(runs)
     error('No ROS 2 bag folders with metadata.yaml found under: %s', bagsRoot);
 end
-fprintf('SpeedLaps bag root : %s\n', bagsRoot);
+fprintf('SpeedBags bag root : %s\n', bagsRoot);
 fprintf('Raceline CSV       : %s\n', defaultRacelineCsv);
+fprintf('Map folder         : %s\n', mapRoot);
 fprintf('Discovered runs    : %d\n', numel(runs));
+fprintf('Output folder      : %s\n', plotsRootDir);
 
 %% Load and process all runs
 results = struct( ...
@@ -164,6 +192,9 @@ for i = 1:numel(runs)
     if ~isempty(mapMsgs)
         mapData = decodeOccupancyGridMsg(mapMsgs{end});
     end
+    if isempty(mapData)
+        mapData = defaultMapData;
+    end
 
     trajDev = computeDeviationToRaceline(xyEkf(:, 1), xyEkf(:, 2), racelineXY);
 
@@ -199,7 +230,8 @@ if ~isfinite(cMin) || ~isfinite(cMax) || cMin == cMax
     cMax = max(1, cMax + 1);
 end
 
-fig = figure('Name', 'Algorithm Trajectory Speed Maps', 'Color', 'w');
+fig = figure('Name', 'Algorithm Trajectory Speed Maps', 'Color', 'w', ...
+    'Visible', figureVisibility(showPlots));
 tiledlayout(numel(results), 1, 'Padding', 'compact', 'TileSpacing', 'compact');
 speedCmap = redToGreenMap(256);
 
@@ -266,10 +298,16 @@ disp(' ');
 disp('=== Combined Summary Across Algorithms ===');
 disp(summaryT);
 
-figTable = figure('Name', 'Algorithm Summary Table', 'Color', 'w');
-uitable(figTable, 'Data', table2cell(summaryT), ...
-    'ColumnName', summaryT.Properties.VariableNames, ...
-    'Units', 'normalized', 'Position', [0 0 1 1]);
+summaryPath = fullfile(plotsRootDir, 'Speed_Map_Summary.csv');
+writetable(summaryT, summaryPath);
+
+saveFigureLocal(fig, plotsRootDir, 'Algorithm_Trajectory_Speed_Maps', showPlots);
+
+figTable = renderSummaryTableFigure(summaryT, showPlots);
+saveFigureLocal(figTable, plotsRootDir, 'Algorithm_Summary_Table', showPlots);
+
+fprintf('Summary saved to %s\n', summaryPath);
+fprintf('Figures saved to %s\n', plotsRootDir);
 
 	end
 
@@ -735,6 +773,180 @@ annotation(fig, 'line', [x1 x2], [y y], 'Color', 'k', 'LineWidth', 3);
 annotation(fig, 'textbox', [x1, y + 0.004, barLenNorm, 0.02], ...
     'String', labelText, 'LineStyle', 'none', 'HorizontalAlignment', 'center', ...
     'VerticalAlignment', 'bottom', 'FontWeight', 'bold', 'Color', 'k');
+end
+
+function mapData = loadMapDataFromFolder(mapRoot)
+mapData = [];
+if isempty(mapRoot) || ~isfolder(mapRoot)
+    return;
+end
+
+yamlFiles = dir(fullfile(mapRoot, '*.yaml'));
+if isempty(yamlFiles)
+    yamlFiles = dir(fullfile(mapRoot, '*.yml'));
+end
+if isempty(yamlFiles)
+    return;
+end
+
+[~, idx] = max([yamlFiles.datenum]);
+yamlPath = fullfile(yamlFiles(idx).folder, yamlFiles(idx).name);
+txt = fileread(yamlPath);
+
+imageName = parseYamlStringLocal(txt, 'image');
+resolution = parseYamlScalarLocal(txt, 'resolution', NaN);
+origin = parseYamlVectorLocal(txt, 'origin', [0, 0, 0]);
+if isempty(imageName) || ~isfinite(resolution) || resolution <= 0
+    return;
+end
+
+imagePath = imageName;
+if ~isfile(imagePath)
+    imagePath = fullfile(fileparts(yamlPath), imageName);
+end
+if ~isfile(imagePath)
+    return;
+end
+
+try
+    img = imread(imagePath);
+catch ME
+    warning('Failed to read map image %s: %s', imagePath, ME.message);
+    return;
+end
+
+if ndims(img) == 3
+    img = mean(double(img), 3);
+else
+    img = double(img);
+end
+
+img = flipud(img);
+imgMin = min(img(:));
+imgMax = max(img(:));
+if isfinite(imgMin) && isfinite(imgMax) && imgMax > imgMin
+    img = (img - imgMin) ./ (imgMax - imgMin);
+else
+    img = ones(size(img));
+end
+
+rgb = repmat(img, 1, 1, 3);
+[height, width] = size(img);
+xWorld = origin(1) + (0:width-1) * resolution;
+yWorld = origin(2) + (0:height-1) * resolution;
+
+mapData = struct('rgb', rgb, 'xWorld', xWorld, 'yWorld', yWorld);
+end
+
+function value = parseYamlStringLocal(txt, key)
+value = '';
+expr = ['(?m)^\s*', regexptranslate('escape', key), '\s*:\s*([^\r\n#]+)'];
+tok = regexp(txt, expr, 'tokens', 'once');
+if isempty(tok)
+    return;
+end
+value = strtrim(tok{1});
+value = regexprep(value, '^[''"]|[''"]$', '');
+end
+
+function value = parseYamlScalarLocal(txt, key, defaultValue)
+value = defaultValue;
+raw = parseYamlStringLocal(txt, key);
+if isempty(raw)
+    return;
+end
+num = sscanf(raw, '%f', 1);
+if ~isempty(num)
+    value = double(num);
+end
+end
+
+function value = parseYamlVectorLocal(txt, key, defaultValue)
+value = defaultValue;
+raw = parseYamlStringLocal(txt, key);
+if isempty(raw)
+    return;
+end
+raw = regexprep(raw, '[\[\],]', ' ');
+nums = sscanf(raw, '%f').';
+if numel(nums) >= numel(defaultValue)
+    value = nums(1:numel(defaultValue));
+end
+end
+
+function ensureDirectoryLocal(dirPath)
+if isfolder(dirPath)
+    return;
+end
+[ok, msg] = mkdir(dirPath);
+if ~ok && ~isfolder(dirPath)
+    error('Could not create output directory %s: %s', dirPath, msg);
+end
+end
+
+function visibility = figureVisibility(showPlots)
+if showPlots
+    visibility = 'on';
+else
+    visibility = 'off';
+end
+end
+
+function saveFigureLocal(fig, outputDir, fileStem, showPlots)
+ensureDirectoryLocal(outputDir);
+set(fig, 'Color', 'w');
+set(fig, 'InvertHardcopy', 'off');
+set(fig, 'Units', 'pixels');
+pos = get(fig, 'Position');
+if pos(3) < 1600 || pos(4) < 900
+    set(fig, 'Position', [pos(1), pos(2), 1800, 1000]);
+end
+
+pngPath = fullfile(outputDir, [fileStem, '.png']);
+drawnow;
+try
+    exportgraphics(fig, pngPath, 'Resolution', 450);
+catch
+    print(fig, pngPath, '-dpng', '-r450');
+end
+
+if ~showPlots && isgraphics(fig, 'figure')
+    close(fig);
+end
+end
+
+function fig = renderSummaryTableFigure(summaryT, showPlots)
+fig = figure('Name', 'Algorithm Summary Table', 'Color', 'w', ...
+    'Visible', figureVisibility(showPlots));
+ax = axes(fig);
+axis(ax, 'off');
+
+headers = {'Algorithm', 'Bag', 'Laps', 'Mean lap [s]', 'Best lap [s]', ...
+    'Mean speed [m/s]', 'Max speed [m/s]', 'Mean dev [m]', 'Max dev [m]'};
+rows = cell(height(summaryT), numel(headers));
+for i = 1:height(summaryT)
+    rows{i, 1} = char(summaryT.Algorithm{i});
+    rows{i, 2} = char(summaryT.BagName{i});
+    rows{i, 3} = sprintf('%d', summaryT.LapCount(i));
+    rows{i, 4} = sprintf('%.3f', summaryT.LapMean_s(i));
+    rows{i, 5} = sprintf('%.3f', summaryT.LapBest_s(i));
+    rows{i, 6} = sprintf('%.3f', summaryT.SpeedMean_mps(i));
+    rows{i, 7} = sprintf('%.3f', summaryT.SpeedMax_mps(i));
+    rows{i, 8} = sprintf('%.3f', summaryT.DevMean_m(i));
+    rows{i, 9} = sprintf('%.3f', summaryT.DevMax_m(i));
+end
+
+tableText = [strjoin(headers, '    '), newline, repmat('-', 1, 150), newline];
+for i = 1:size(rows, 1)
+    tableText = [tableText, sprintf('%-16s %-12s %5s %13s %12s %16s %15s %13s %11s\n', rows{i, :})]; %#ok<AGROW>
+end
+
+text(ax, 0.02, 0.92, 'Algorithm Speed Summary', ...
+    'Units', 'normalized', 'FontWeight', 'bold', 'FontSize', 18, ...
+    'Interpreter', 'none', 'VerticalAlignment', 'top');
+text(ax, 0.02, 0.82, tableText, ...
+    'Units', 'normalized', 'FontName', 'monospaced', 'FontSize', 12, ...
+    'Interpreter', 'none', 'VerticalAlignment', 'top');
 end
 
 function xy = loadRacelineXY(csvPath)

@@ -11,6 +11,7 @@
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <geometry_msgs/msg/pose_array.hpp>
 #include <std_msgs/msg/float64.hpp>
+#include <std_msgs/msg/float64_multi_array.hpp>
 #include <std_msgs/msg/int32.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <mutex>
@@ -73,6 +74,8 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pre_resample_cloud_pub_;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr timing_pub_;                       // /amcl_timing
     rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr particle_count_pub_;                  // /amcl_particle_count
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr kld_diag_pub_;            // /amcl_kld_diagnostics
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr gpu_timing_pub_;          // /amcl_gpu_timing
     
     // ── Core ───────────────────────────────────────────────────────
     ParticleFilter pf_;     // The particle filter
@@ -98,6 +101,7 @@ private:
 
     // Prediction baseline (reset on reinit)
     bool prediction_baseline_ready_ = false;
+    bool global_pose_published_ = false;
     double pred_last_x_ = 0;
     double pred_last_y_ = 0;
     double pred_last_theta_ = 0;
@@ -119,6 +123,7 @@ private:
     // Cached estimate for decoupled publishing
     PoseEstimate cached_estimate_;
     std::mutex   estimate_mutex_;
+    uint64_t last_published_kld_diag_seq_ = 0;
 
     // Frame IDs and topic names
     std::string base_frame_;

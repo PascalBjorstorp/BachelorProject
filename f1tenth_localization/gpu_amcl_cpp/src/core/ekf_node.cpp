@@ -131,7 +131,8 @@ bool EkfNode::interpolate_odom_pose(const rclcpp::Time& stamp,
 
 // ─── EKF Prediction ─────────────────────────────────────────────────
 void EkfNode::predict(const Eigen::Vector3d& delta,
-                      const Eigen::Matrix3d& Q) {
+                      const Eigen::Matrix3d& Q,
+                      double dt) {
     // Linearize around the pre-update heading.
     double theta = state_[2];
     double c = std::cos(theta);
@@ -144,8 +145,10 @@ void EkfNode::predict(const Eigen::Vector3d& delta,
     // State prediction: compose SE(2) delta.
     state_ = math_utils::se2_compose(state_, delta);
 
-    // Covariance prediction.
-    P_ = F * P_ * F.transpose() + process_noise_scale_ * Q;
+    // The odom message covariance describes pose uncertainty, not a single
+    // high-rate callback increment. Scale it by the elapsed odom interval.
+    const double noise_dt = std::clamp(dt, 0.0, 0.1);
+    P_ = F * P_ * F.transpose() + process_noise_scale_ * noise_dt * Q;
 }
 
 // ─── EKF Correction ─────────────────────────────────────────────────
@@ -189,19 +192,21 @@ void EkfNode::odom_callback(
     push_odom_sample(odom_stamp, odom_pose);
 
     if (!odom_received_) {
-        prev_odom_     = odom_pose;
-        odom_received_ = true;
-
-        if (!initialized_) {
-            state_       = odom_pose;
-            initialized_ = true;
-        }
+        prev_odom_       = odom_pose;
+        prev_odom_stamp_ = odom_stamp;
+        odom_received_   = true;
         return;
     }
 
     // Compute relative delta.
     Eigen::Vector3d delta = math_utils::se2_relative(prev_odom_, odom_pose);
+    const double dt = (odom_stamp - prev_odom_stamp_).seconds();
     prev_odom_ = odom_pose;
+    prev_odom_stamp_ = odom_stamp;
+
+    if (!initialized_) {
+        return;
+    }
 
     // Extract covariance from message (x, y, yaw → rows 0,1,5).
     Eigen::Matrix3d Q = Eigen::Matrix3d::Zero();
@@ -217,7 +222,7 @@ void EkfNode::odom_callback(
     Q(1, 1) = std::max(Q(1, 1), 1e-6);
     Q(2, 2) = std::max(Q(2, 2), 1e-6);
 
-    predict(delta, Q);
+    predict(delta, Q, dt);
     lock.unlock();
     publish_and_broadcast(odom_stamp);   // Publish immediately after prediction (§10.2)
 }
@@ -238,12 +243,6 @@ void EkfNode::amcl_callback(
 
     std::unique_lock<std::mutex> lock(state_mutex_);
 
-    if (!initialized_) {
-        state_       = math_utils::pose_to_vec(msg->pose.pose);
-        initialized_ = true;
-        RCLCPP_INFO(get_logger(), "EKF initialised from AMCL pose.");
-    }
-
     Eigen::Vector3d z = math_utils::pose_to_vec(msg->pose.pose);
 
     // Extract measurement covariance.
@@ -258,6 +257,14 @@ void EkfNode::amcl_callback(
     R(0, 0) = std::max(R(0, 0), 1e-6);
     R(1, 1) = std::max(R(1, 1), 1e-6);
     R(2, 2) = std::max(R(2, 2), 1e-6);
+
+    if (!initialized_) {
+        state_       = z;
+        P_           = R;
+        initialized_ = true;
+        RCLCPP_INFO(get_logger(), "EKF initialised from AMCL pose.");
+        return;
+    }
 
     correct(z, R);
 }

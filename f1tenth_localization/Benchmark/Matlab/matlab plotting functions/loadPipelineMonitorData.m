@@ -31,6 +31,7 @@ if ~isempty(pipelineFile)
         data.pipeline.hasData = true;
         data.pipeline.file = pipelineFile;
         data.pipeline.table = Tp;
+        data.pipeline.timeNs = double(Tp.wall_time_ns(:));
         data.pipeline.t = (double(Tp.wall_time_ns) - double(Tp.wall_time_ns(1))) * 1e-9;
         data.pipeline.warmupSeconds = 3.0;
         data.pipeline.maxLatencyMs = 200.0;
@@ -101,6 +102,7 @@ if isfile(longCpuFile)
     if height(Tlong) > 0
         data.cpu.hasLong = true;
         data.cpu.long = double(Tlong.cpu_long_window_percent);
+        data.cpu.timeNsLong = tableTimeNs(Tlong);
         data.cpu.tLong = relTimeSeconds(Tlong.monotonic_time_ns);
         data.gpu.hasLong = ismember('gpu_percent', Tlong.Properties.VariableNames);
         if data.gpu.hasLong
@@ -118,6 +120,7 @@ if isfile(shortCpuFile)
     if height(Tshort) > 0
         data.cpu.hasShort = true;
         data.cpu.short = double(Tshort.cpu_short_window_percent);
+        data.cpu.timeNsShort = tableTimeNs(Tshort);
         data.cpu.tShort = relTimeSeconds(Tshort.monotonic_time_ns);
         data.gpu.hasShort = ismember('gpu_percent', Tshort.Properties.VariableNames);
         if data.gpu.hasShort
@@ -135,6 +138,7 @@ if isfile(gpuFile)
     if height(Tgpu) > 0
         data.gpu.hasFile = true;
         data.gpu.standalone = double(Tgpu.gpu_percent);
+        data.gpu.timeNs = tableTimeNs(Tgpu);
         data.gpu.t = relTimeSeconds(Tgpu.monotonic_time_ns);
     end
 else
@@ -151,6 +155,7 @@ if isfile(perCoreCpuFile)
     if height(Tcore) > 0 && ~isempty(coreNames)
         data.perCore.hasData = true;
         data.perCore.names = coreNames;
+        data.perCore.timeNs = tableTimeNs(Tcore);
         data.perCore.t = relTimeSeconds(Tcore.monotonic_time_ns);
         data.perCore.cpu = zeros(height(Tcore), numel(coreNames));
         for i = 1:numel(coreNames)
@@ -168,6 +173,7 @@ if isfile(nodeProcessCpuFile)
     if height(Tnode) > 0
         data.node.hasData = true;
         data.node.table = Tnode;
+        data.node.timeNs = tableTimeNs(Tnode);
     end
 else
     fprintf('Node-process CPU CSV not found. Expected: %s\n', nodeProcessCpuFile);
@@ -236,6 +242,19 @@ end
 
 function t = relTimeSeconds(timeNs)
 t = (double(timeNs) - double(timeNs(1))) * 1e-9;
+end
+
+function timeNs = tableTimeNs(T)
+if ismember('ros_time_sec', T.Properties.VariableNames) && ...
+        ismember('ros_time_nsec', T.Properties.VariableNames)
+    timeNs = double(T.ros_time_sec(:)) * 1e9 + double(T.ros_time_nsec(:));
+elseif ismember('wall_time_ns', T.Properties.VariableNames)
+    timeNs = double(T.wall_time_ns(:));
+elseif ismember('monotonic_time_ns', T.Properties.VariableNames)
+    timeNs = double(T.monotonic_time_ns(:));
+else
+    timeNs = (1:height(T))';
+end
 end
 
 function fp = latestFileAnyOptional(dirPath, patterns)
