@@ -861,7 +861,7 @@ MpcSolverStatus_t mpc_compute_optimal_control(
     {
         const float cur_curvature = reference_trajectory[0].path_curvature;
         const float kappa_diff = fabsf(cur_curvature - warm_start_prev_curvature);
-        const int curvature_jump = (kappa_diff > MPC_WS_CURVATURE_THRESH);
+        const int curvature_jump = (kappa_diff >= MPC_WS_CURVATURE_THRESH);
         const int signature_jump =
             (warm_start_prev_model_signature != MPC_MODEL_SIGNATURE);
 
