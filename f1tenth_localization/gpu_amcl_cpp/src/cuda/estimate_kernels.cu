@@ -127,11 +127,11 @@ void launch_gpu_compute_mean(
     MeanAccum* d_mean_contrib = static_cast<MeanAccum*>(d_mean_contrib_v);
     MeanAccum* d_mean_result = static_cast<MeanAccum*>(d_mean_result_v);
 
-    int block = 256;
-    int grid = (n + block - 1) / block;
+    if (n <= 0) return;
+    const auto launch = make_adaptive_launch_config(n);
 
     // Step 1: Compute per-particle contributions
-    kernel_compute_mean_contrib<<<grid, block, 0, stream>>>(
+    kernel_compute_mean_contrib<<<launch.grid, launch.block, 0, stream>>>(
         d_particles, d_weights, d_mean_contrib, n);
 
     // Step 2: CUB reduction
@@ -155,11 +155,11 @@ void launch_gpu_compute_covariance(
     CovAccum* d_cov_contrib = static_cast<CovAccum*>(d_cov_contrib_v);
     CovAccum* d_cov_result = static_cast<CovAccum*>(d_cov_result_v);
 
-    int block = 256;
-    int grid = (n + block - 1) / block;
+    if (n <= 0) return;
+    const auto launch = make_adaptive_launch_config(n);
 
     // Step 1: Compute per-particle contributions
-    kernel_compute_cov_contrib<<<grid, block, 0, stream>>>(
+    kernel_compute_cov_contrib<<<launch.grid, launch.block, 0, stream>>>(
         d_particles, d_weights, mean_x, mean_y, mean_theta, d_cov_contrib, n);
 
     // Step 2: CUB reduction

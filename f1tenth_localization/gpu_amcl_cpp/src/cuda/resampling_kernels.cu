@@ -73,9 +73,9 @@ void launch_systematic_resample(const float* cumsum,
                                 int old_n, int new_n,
                                 float random_offset,
                                 cudaStream_t stream) {
-    int block = 256;
-    int grid  = (new_n + block - 1) / block;
-    kernel_systematic_resample<<<grid, block, 0, stream>>>(
+    if (new_n <= 0) return;
+    const auto launch = make_adaptive_launch_config(new_n);
+    kernel_systematic_resample<<<launch.grid, launch.block, 0, stream>>>(
         cumsum, old_particles, new_particles, new_weights,
         old_n, new_n, random_offset);
     CUDA_CHECK(cudaGetLastError());

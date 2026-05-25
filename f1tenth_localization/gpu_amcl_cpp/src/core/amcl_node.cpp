@@ -31,6 +31,10 @@ AmclNode::AmclNode(const rclcpp::NodeOptions& options)
         "particlecloud_weighted_pre_resample", rclcpp::QoS(2));
     timing_pub_ = create_publisher<std_msgs::msg::Float64>("amcl_timing", rclcpp::QoS(10));
     particle_count_pub_ = create_publisher<std_msgs::msg::Int32>("amcl_particle_count", rclcpp::QoS(10));
+    kld_diag_pub_ = create_publisher<std_msgs::msg::Float64MultiArray>(
+        "amcl_kld_diagnostics", rclcpp::QoS(10));
+    gpu_timing_pub_ = create_publisher<std_msgs::msg::Float64MultiArray>(
+        "amcl_gpu_timing", rclcpp::QoS(10));
 
     // ── Callback groups ──
     // MutuallyExclusive: callbacks in SAME group don't run concurrently
@@ -367,6 +371,7 @@ double AmclNode::raceline_heading_near_pose(
 
 // ─── Map callback ───────────────────────────────────────────────────
 void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
+    try {
     static size_t map_msg_count = 0;  // Static local — persists across calls
     ++map_msg_count;
 
@@ -475,6 +480,7 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     pf_.init(pf_cfg, mm_cfg, sm_cfg, map_);
 
     prediction_baseline_ready_ = false;
+    global_pose_published_ = false;
     RCLCPP_INFO(get_logger(), "Particle filter initialised with %d particles (%s)",
                 pf_cfg.num_particles,
                 pf_cfg.global_initialization ? "global" : "local");
@@ -490,11 +496,17 @@ void AmclNode::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
     if (!pf_cfg.global_initialization) {
         auto init_est = pf_.get_estimate();
         publish_pose(init_est, now());
+        global_pose_published_ = true;
         RCLCPP_INFO(get_logger(), "Published initial pose: (%.2f, %.2f, %.2f)",
                     init_est.x, init_est.y, init_est.theta);
     } else {
         RCLCPP_INFO(get_logger(),
                     "Global particle initialization active; waiting for scans before publishing pose");
+    }
+    } catch (const std::exception& e) {
+        RCLCPP_ERROR(get_logger(), "AMCL map callback failed: %s", e.what());
+    } catch (...) {
+        RCLCPP_ERROR(get_logger(), "AMCL map callback failed with unknown exception");
     }
 }
 
@@ -522,6 +534,8 @@ void AmclNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
 
 // ─── Scan callback (main PF loop) ──────────────────────────────────
 void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
+    auto t_callback_start = std::chrono::high_resolution_clock::now();
+
     // ── Guard 1: Skip if already processing a scan ──
     // Uses atomic exchange: sets to true, returns previous value
     if (processing_scan_.exchange(true)) {
@@ -531,6 +545,7 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
         return;
     }
 
+    try {
     // ── Guard 2: Skip if not ready ──
     if (!map_.is_loaded() || !odom_received_) {
         processing_scan_ = false;
@@ -564,8 +579,10 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
         pred_last_y_ = odom_y_at_scan;
         pred_last_theta_ = odom_theta_at_scan;
         prediction_baseline_ready_ = true;
-        processing_scan_ = false;
-        return;
+        if (!pf_.config().global_initialization || global_pose_published_) {
+            processing_scan_ = false;
+            return;
+        }
     }
 
     // ── Compute odom delta (odom frame) ──
@@ -575,7 +592,10 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
 
     // ── Guard 4: Skip update if robot hasn't moved enough ──
     double dist_moved = std::sqrt(dx_odom * dx_odom + dy_odom * dy_odom);
-    if (dist_moved < update_min_d_ && std::abs(dtheta) < update_min_a_) {
+    const bool global_sensor_bootstrap =
+        pf_.config().global_initialization && !global_pose_published_;
+    if (!global_sensor_bootstrap &&
+        dist_moved < update_min_d_ && std::abs(dtheta) < update_min_a_) {
         processing_scan_ = false;
         return;
     }
@@ -598,6 +618,7 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     // ═══════════════════════════════════════════════════════════
     // STEP 1: PREDICT — Propagate particles by odom delta + noise
     // ═══════════════════════════════════════════════════════════
+    pf_.reset_stage_timing();
 
     // Slip-aware noise scaling: increase noise during aggressive turns
     double dt = 0.0;
@@ -633,7 +654,13 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     // Estimate from the strongest local mode before resampling. A global
     // weighted mean is invalid while particles are split across plausible poses.
     double cluster_weight = 1.0;
+    auto t_cluster_start = std::chrono::high_resolution_clock::now();
     auto est = pf_.get_cluster_estimate(&cluster_weight);
+    auto t_cluster_end = std::chrono::high_resolution_clock::now();
+    auto t_pose_estimate_ready = std::chrono::high_resolution_clock::now();
+    const double cluster_estimate_ms =
+        std::chrono::duration<double, std::milli>(
+            t_cluster_end - t_cluster_start).count();
 
     const double min_cluster_weight =
         std::clamp(pf_.config().cluster_publish_min_weight, 0.0, 1.0);
@@ -641,6 +668,27 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
         !pf_.config().use_cluster_estimate || cluster_weight >= min_cluster_weight;
 
     pf_.resample_if_needed();
+
+    if (pf_.config().use_kld) {
+        const auto& diag = pf_.kld_diagnostics();
+        if (diag.sequence != 0 && diag.sequence != last_published_kld_diag_seq_) {
+            std_msgs::msg::Float64MultiArray diag_msg;
+            diag_msg.data = {
+                static_cast<double>(diag.pre_resample_particles),
+                static_cast<double>(diag.occupied_bins),
+                diag.target_unclamped,
+                static_cast<double>(diag.target_clamped),
+                diag.epsilon,
+                diag.z,
+                diag.bin_x,
+                diag.bin_y,
+                diag.bin_theta,
+                static_cast<double>(diag.sequence),
+            };
+            kld_diag_pub_->publish(diag_msg);
+            last_published_kld_diag_seq_ = diag.sequence;
+        }
+    }
 
     // ── Timing end — publish if subscribed ──
     auto t_pf_end = std::chrono::high_resolution_clock::now();
@@ -652,16 +700,64 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
         timing_pub_->publish(timing_msg);
     }
 
-    std_msgs::msg::Int32 particle_count_msg;
-    particle_count_msg.data = pf_.num_particles();
-    particle_count_pub_->publish(particle_count_msg);
-
+    bool pose_published = false;
+    double callback_to_pose_publish_ms =
+        std::numeric_limits<double>::quiet_NaN();
     if (publish_cluster) {
         // Publish only when the best local mode is dominant enough. During
         // global localization, ambiguous clusters should stay visible in RViz
         // but not pull the EKF/controller to a wrong symmetric pose.
         publish_pose(est, msg->header.stamp);
+        pose_published = true;
+        const auto t_pose_published = std::chrono::high_resolution_clock::now();
+        callback_to_pose_publish_ms =
+            std::chrono::duration<double, std::milli>(
+                t_pose_published - t_callback_start).count();
+        if (pf_.config().global_initialization) {
+            global_pose_published_ = true;
+        }
     }
+
+    if (gpu_timing_pub_->get_subscription_count() > 0) {
+        const auto& transfer = pf_.transfer_diagnostics();
+        const auto& stages = pf_.stage_timing_diagnostics();
+        const double total_transfer_ms =
+            (std::isfinite(transfer.scan_upload_ms) ? transfer.scan_upload_ms : 0.0) +
+            (std::isfinite(transfer.particle_download_ms) ? transfer.particle_download_ms : 0.0) +
+            (std::isfinite(transfer.weight_download_ms) ? transfer.weight_download_ms : 0.0);
+        std_msgs::msg::Float64MultiArray timing_msg;
+        timing_msg.data = {
+            transfer.scan_upload_ms,
+            transfer.particle_download_ms,
+            transfer.weight_download_ms,
+            total_transfer_ms,
+            static_cast<double>(transfer.scan_upload_bytes),
+            static_cast<double>(transfer.particle_download_bytes),
+            static_cast<double>(transfer.weight_download_bytes),
+            static_cast<double>(transfer.active_particles),
+            static_cast<double>(transfer.sequence),
+            std::chrono::duration<double, std::milli>(
+                t_pose_estimate_ready - t_pf_start).count(),
+            stages.predict_ms,
+            stages.sensor_model_ms,
+            stages.normalize_ms,
+            stages.scan_confidence_ms,
+            stages.update_weights_total_ms,
+            cluster_estimate_ms,
+            stages.resample_ms,
+            stages.kld_target_ms,
+            std::chrono::duration<double, std::milli>(
+                t_pf_end - t_pf_start).count(),
+            callback_to_pose_publish_ms,
+            pose_published ? 1.0 : 0.0,
+            cluster_weight,
+        };
+        gpu_timing_pub_->publish(timing_msg);
+    }
+
+    std_msgs::msg::Int32 particle_count_msg;
+    particle_count_msg.data = pf_.num_particles();
+    particle_count_pub_->publish(particle_count_msg);
 
     // Cache estimate for particle cloud visualization
     if (publish_cluster) {
@@ -671,6 +767,13 @@ void AmclNode::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
     publish_particle_cloud(scan_time);
 
     processing_scan_ = false; // Allow next scan
+    } catch (const std::exception& e) {
+        processing_scan_ = false;
+        RCLCPP_ERROR(get_logger(), "AMCL scan callback failed: %s", e.what());
+    } catch (...) {
+        processing_scan_ = false;
+        RCLCPP_ERROR(get_logger(), "AMCL scan callback failed with unknown exception");
+    }
 }
 
 // ─── Initial-pose callback ──────────────────────────────────────────
@@ -699,6 +802,7 @@ void AmclNode::initialpose_callback(const geometry_msgs::msg::PoseWithCovariance
 
     // Reset odom baseline
     prediction_baseline_ready_ = false;
+    global_pose_published_ = true;
 }
 
 // ─── Direct pose publish (called from scan_callback) ────────────────

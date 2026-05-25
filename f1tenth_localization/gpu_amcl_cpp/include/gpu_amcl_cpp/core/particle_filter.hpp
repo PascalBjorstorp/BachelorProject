@@ -3,10 +3,13 @@
 #include "gpu_amcl_cpp/core/motion_model.hpp"
 #include "gpu_amcl_cpp/core/sensor_model.hpp"
 #include "gpu_amcl_cpp/core/resampling.hpp"
+#include "gpu_amcl_cpp/core/cluster_kernels.hpp"
 #include "gpu_amcl_cpp/helpers/cuda_utils.hpp"
 #include "gpu_amcl_cpp/helpers/map_utils.hpp"
 
 #include <Eigen/Core>
+#include <cstdint>
+#include <limits>
 #include <vector>
 #include <random>
 
@@ -121,6 +124,40 @@ public:
         double kld_bin_theta        = 0.1;  ///< radians
     };
 
+    struct KldDiagnostics {
+        int pre_resample_particles = 0;
+        int occupied_bins = 0;
+        double target_unclamped = 0.0;
+        int target_clamped = 0;
+        double epsilon = 0.0;
+        double z = 0.0;
+        double bin_x = 0.0;
+        double bin_y = 0.0;
+        double bin_theta = 0.0;
+        uint64_t sequence = 0;
+    };
+
+    struct TransferDiagnostics {
+        double scan_upload_ms = std::numeric_limits<double>::quiet_NaN();
+        double particle_download_ms = std::numeric_limits<double>::quiet_NaN();
+        double weight_download_ms = std::numeric_limits<double>::quiet_NaN();
+        size_t scan_upload_bytes = 0;
+        size_t particle_download_bytes = 0;
+        size_t weight_download_bytes = 0;
+        int active_particles = 0;
+        uint64_t sequence = 0;
+    };
+
+    struct StageTimingDiagnostics {
+        double predict_ms = std::numeric_limits<double>::quiet_NaN();
+        double sensor_model_ms = std::numeric_limits<double>::quiet_NaN();
+        double normalize_ms = std::numeric_limits<double>::quiet_NaN();
+        double scan_confidence_ms = std::numeric_limits<double>::quiet_NaN();
+        double update_weights_total_ms = std::numeric_limits<double>::quiet_NaN();
+        double kld_target_ms = std::numeric_limits<double>::quiet_NaN();
+        double resample_ms = std::numeric_limits<double>::quiet_NaN();
+    };
+
     ParticleFilter() = default;
     ~ParticleFilter();
 
@@ -180,6 +217,10 @@ public:
     MotionModel& motion_model() { return motion_; }
     SensorModel& sensor_model() { return sensor_; }
     const Config& config() const { return cfg_; }
+    const KldDiagnostics& kld_diagnostics() const { return last_kld_diag_; }
+    const TransferDiagnostics& transfer_diagnostics() const { return last_transfer_diag_; }
+    const StageTimingDiagnostics& stage_timing_diagnostics() const { return last_stage_diag_; }
+    void reset_stage_timing();
     void set_recovery_injection_enabled(bool enabled) {
         cfg_.enable_recovery_injection = enabled;
     }
@@ -229,6 +270,21 @@ private:
     void* d_est_temp_ = nullptr;             // CUB temp for estimate reductions
     size_t est_temp_bytes_ = 0;
 
+    // GPU-side cluster-estimate buffers
+    void* d_cluster_scores_ = nullptr;       // ClusterScoreResult[max_particles]
+    ClusterScoreResult* d_cluster_best_ = nullptr;
+    ClusterScoreResult* d_cluster_second_ = nullptr;
+    ClusterScoreResult* h_cluster_best_ = nullptr;
+    ClusterScoreResult* h_cluster_second_ = nullptr;
+    void* d_cluster_mean_contrib_ = nullptr; // ClusterMeanAccum[max_particles]
+    ClusterMeanAccum* d_cluster_mean_result_ = nullptr;
+    ClusterMeanAccum* h_cluster_mean_result_ = nullptr;
+    void* d_cluster_cov_contrib_ = nullptr;  // ClusterCovAccum[max_particles]
+    ClusterCovAccum* d_cluster_cov_result_ = nullptr;
+    ClusterCovAccum* h_cluster_cov_result_ = nullptr;
+    void* d_cluster_temp_ = nullptr;         // CUB temp for cluster reductions
+    size_t cluster_temp_bytes_ = 0;
+
     // Pinned memory for async GPU↔CPU transfers
     float* h_ranges_pinned_ = nullptr;       // Input: ranges CPU→GPU
     float* h_particles_pinned_ = nullptr;    // Output: particles GPU→CPU
@@ -245,6 +301,10 @@ private:
     // Pre-allocated buffers for get_estimate() (avoid per-call allocation)
     std::vector<double> est_angles_;         // Particle angles for circular mean
     std::vector<double> est_weights_;        // Particle weights as double
+
+    KldDiagnostics last_kld_diag_;
+    TransferDiagnostics last_transfer_diag_;
+    StageTimingDiagnostics last_stage_diag_;
 };
 
 }  // namespace gpu_amcl_cpp

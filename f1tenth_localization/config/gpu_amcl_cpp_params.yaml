@@ -168,6 +168,6 @@ ekf_localization:
 
     # ---- EKF tuning ----
     transform_tolerance: 0.02    # seconds into the future for TF
-    process_noise_scale: 5.0     # multiplier on odom covariance for Q
+    process_noise_scale: 0.1     # multiplier on dt-scaled odom covariance for Q
     amcl_max_latency_sec: 0.10  # Drop AMCL updates older than 100 ms
     odom_history_duration_s: 0.2  # Time window kept for timestamped TF lookup

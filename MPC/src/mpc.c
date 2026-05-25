@@ -420,6 +420,9 @@ MpcSolverStatus_t mpc_compute_optimal_control(
 
     const float wall_bias_clear_m = get_wall_bias_clearance_m();
     const float wall_bias_max_m = get_wall_bias_max_shift_m();
+    /* Affine-bias ablation: 1.0 = baseline, 0.0 = no affine term. */
+    float affine_scale = get_env_float("MPC_AFFINE_SCALE", 1.0f);
+    if (!isfinite(affine_scale)) affine_scale = 1.0f;
     const float wall_ref_clear_m = get_wall_ref_clearance_m();
     int wall_bound_window = get_env_int("MPC_WALL_BOUND_WINDOW", 3);
     if (wall_bound_window < 0) wall_bound_window = 0;
@@ -536,7 +539,7 @@ MpcSolverStatus_t mpc_compute_optimal_control(
             }
             lin_pred += B_step[i][0] * lin_control.steer_ang;
             lin_pred += B_step[i][1] * lin_control.long_acc;
-            sd->d[i] = xbar_next[i] - lin_pred;
+            sd->d[i] = affine_scale * (xbar_next[i] - lin_pred);
         }
 
         if (solver_call_count <= 1) {
@@ -860,12 +863,29 @@ MpcSolverStatus_t mpc_compute_optimal_control(
      * Step 4: Solve via Riccati-ADMM
      * --------------------------------------------------------------- */
 
+    /* ---------------------------------------------------------------
+     * Step 5: Solve via Riccati-ADMM
+     * --------------------------------------------------------------- */
+    const float solver_rho = get_env_float("RHO", ADMM_RHO);
+    float solver_rho_u = ADMM_RHO_U;
+    {
+        const char *rho_u_env = getenv("RHO_U");
+        if (rho_u_env != NULL && rho_u_env[0] != '\0') {
+            solver_rho_u = strtof(rho_u_env, NULL);
+            if (!(solver_rho_u > 0.0f)) {
+                solver_rho_u = (solver_rho > 0.0f) ? solver_rho : ADMM_RHO;
+            }
+        }
+    }
+    const int adaptive_rho =
+        get_env_int("MPC_ADAPTIVE_RHO", get_env_int("ADAPTIVE_RHO", 1)) != 0;
+
     RiccatiAdmmConfig_t solver_config = {
-        .rho = get_env_float("RHO", ADMM_RHO),
-        .rho_u = get_env_float("RHO_U", ADMM_RHO_U),
+        .rho = solver_rho,
+        .rho_u = solver_rho_u,
         .tolerance = get_env_float("TOL", config.solver_convergence_tolerance),
         .max_iterations = get_env_int("MAX_ITER", (int)config.max_solver_iterations),
-        .adaptive_rho = 1,
+        .adaptive_rho = adaptive_rho,
     };
 
     RiccatiSolution_t riccati_sol;

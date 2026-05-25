@@ -26,9 +26,9 @@ void kernel_init_rng(curandState* states, int n,
 void launch_init_rng(curandState* states, int n,
                      unsigned long long seed,
                      cudaStream_t stream) {
-    int block = 256;
-    int grid  = (n + block - 1) / block;
-    kernel_init_rng<<<grid, block, 0, stream>>>(states, n, seed);
+    if (n <= 0) return;
+    const auto launch = make_adaptive_launch_config(n);
+    kernel_init_rng<<<launch.grid, launch.block, 0, stream>>>(states, n, seed);
     CUDA_CHECK(cudaGetLastError());
 }
 
@@ -95,9 +95,9 @@ void launch_motion_update(float* particles, int n,
                           float alpha3, float alpha4,
                           curandState* rng,
                           cudaStream_t stream) {
-    int block = 256;
-    int grid  = (n + block - 1) / block;
-    kernel_motion_update<<<grid, block, 0, stream>>>(
+    if (n <= 0) return;
+    const auto launch = make_adaptive_launch_config(n);
+    kernel_motion_update<<<launch.grid, launch.block, 0, stream>>>(
         particles, n, dx, dy, dtheta,
         alpha1, alpha2, alpha3, alpha4, rng);
     CUDA_CHECK(cudaGetLastError());

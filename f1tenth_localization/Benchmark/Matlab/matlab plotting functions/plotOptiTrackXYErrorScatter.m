@@ -13,9 +13,6 @@ for i = 1:numel(results)
     nexttile;
     hold on;
     metricMask = getMetricMask(results(i));
-    scatter(results(i).xError(~metricMask), results(i).yError(~metricMask), ...
-        12, [0.70 0.70 0.70], 'filled', 'MarkerFaceAlpha', 0.35, ...
-        'HandleVisibility', 'off');
     scatter(results(i).xError(metricMask), results(i).yError(metricMask), 16, colors(i, :), ...
         'filled', 'MarkerFaceAlpha', 0.35);
     xline(0, 'k-');

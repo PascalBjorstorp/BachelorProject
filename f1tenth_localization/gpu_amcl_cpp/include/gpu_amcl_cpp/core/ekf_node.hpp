@@ -64,11 +64,13 @@ private:
      * Input:
      *   - odom_delta: Relative odometry motion [dx, dy, dyaw].
      *   - Q: Process noise covariance for prediction.
+     *   - dt: Elapsed time covered by this odom delta, in seconds.
      * Output:
      *   - Updates internal EKF state_ and covariance P_.
      */
     void predict(const Eigen::Vector3d& odom_delta,
-                 const Eigen::Matrix3d& Q);
+                 const Eigen::Matrix3d& Q,
+                 double dt);
 
     /**
      * @brief Perform EKF correction step using AMCL measurement.
@@ -166,6 +168,7 @@ private:
 
     // Previous odom for delta computation
     Eigen::Vector3d prev_odom_ = Eigen::Vector3d::Zero();
+    rclcpp::Time prev_odom_stamp_;
     bool odom_received_ = false;
 
     struct OdomSample {

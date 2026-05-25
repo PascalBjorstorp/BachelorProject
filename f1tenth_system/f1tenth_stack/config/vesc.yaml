@@ -133,7 +133,7 @@ vesc_to_odom_node:
     c_alpha_r: 43.10
     dynamic_model_min_speed: 1.0
 
-    # Inflate odometry x/y covariance while slipping so localization trusts map fixes more.
+    # Inflate odometry covariance when dynamic-model and IMU signals disagree.
     slip_xy_covariance_scale: 6.0
 
     # Online gyro-bias adaptation (active in low-slip, well-modeled motion).
