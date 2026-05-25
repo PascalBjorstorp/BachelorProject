@@ -78,7 +78,7 @@ g++ -O2 -Wno-unknown-pragmas -DFP_WIDTH_PROBE ${PROFILE_FLAG} ${WIDE} \
   "${HELPER}/replay_fpga_scalar.cpp" \
   "${KRIA}/src/fp_math_hls.cpp" "${KRIA}/src/vehicle_model_hls.cpp" \
   "${KRIA}/src/riccati_solver_hls.cpp" "${KRIA}/src/mpc_riccati_hls.cpp" \
-  "${KRIA}/src/mpc_fpga_top.cpp" "${KRIA}/src/mpc_runtime_tune.cpp" \
+  "${KRIA}/src/mpc_fpga_top.cpp" \
   -lm -o "${BIN}"
 
 # Discover every rosbag2 (a directory containing metadata.yaml).

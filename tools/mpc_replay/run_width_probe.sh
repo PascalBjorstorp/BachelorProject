@@ -71,7 +71,6 @@ g++ -O2 -Wno-unknown-pragmas -DFP_WIDTH_PROBE ${PROFILE_FLAG} ${WIDE} \
   "${KRIA}/src/riccati_solver_hls.cpp" \
   "${KRIA}/src/mpc_riccati_hls.cpp" \
   "${KRIA}/src/mpc_fpga_top.cpp" \
-  "${KRIA}/src/mpc_runtime_tune.cpp" \
   -lm -o "${BIN}"
 
 echo "[2/2] Running probe over ${#CSVS[@]} state CSV(s)"
