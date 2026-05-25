@@ -75,15 +75,14 @@ void launch_gpu_normalize_weights(
         cudaStream_t stream) {
     if (n <= 0) return;
 
-    int block = 256;
-    int grid  = (n + block - 1) / block;
+    const auto launch = make_adaptive_launch_config(n);
 
     // Step 1: Find max log-weight (for numerical stability).
     CUDA_CHECK(cub::DeviceReduce::Max(d_cub_temp, cub_temp_bytes,
                                       d_log_w, d_max_val, n, stream));
 
     // Step 2: exp(log_w[i] - max) * old_w[i]
-    kernel_exp_shift_mul<<<grid, block, 0, stream>>>(
+    kernel_exp_shift_mul<<<launch.grid, launch.block, 0, stream>>>(
         d_log_w, d_old_w, d_scratch_w, d_max_val, n);
     CUDA_CHECK(cudaGetLastError());
 
@@ -92,7 +91,7 @@ void launch_gpu_normalize_weights(
                                       d_scratch_w, d_sum_val, n, stream));
 
     // Step 4: Normalize in-place.
-    kernel_normalize<<<grid, block, 0, stream>>>(d_scratch_w, d_sum_val, n);
+    kernel_normalize<<<launch.grid, launch.block, 0, stream>>>(d_scratch_w, d_sum_val, n);
     CUDA_CHECK(cudaGetLastError());
 
     // d_scratch_w now holds the normalised weights.

@@ -28,6 +28,47 @@ namespace gpu_amcl_cpp {
         }                                                                   \
     } while (0)
 
+struct CudaLaunchConfig {
+    int grid = 0;
+    int block = 256;
+};
+
+inline int ceil_div_int(int value, int divisor) {
+    return (value + divisor - 1) / divisor;
+}
+
+inline int cuda_sm_count() {
+    static int cached_sm_count = 0;
+    if (cached_sm_count <= 0) {
+        int device = 0;
+        CUDA_CHECK(cudaGetDevice(&device));
+        CUDA_CHECK(cudaDeviceGetAttribute(
+            &cached_sm_count, cudaDevAttrMultiProcessorCount, device));
+        if (cached_sm_count <= 0) {
+            cached_sm_count = 1;
+        }
+    }
+    return cached_sm_count;
+}
+
+inline CudaLaunchConfig make_adaptive_launch_config(
+        int work_items,
+        int max_block_threads = 256,
+        int min_block_threads = 32,
+        int target_blocks = 0) {
+    if (work_items <= 0) {
+        return CudaLaunchConfig{0, max_block_threads};
+    }
+
+    const int target = target_blocks > 0 ? target_blocks : cuda_sm_count();
+    int block = max_block_threads;
+    while (block > min_block_threads && ceil_div_int(work_items, block) < target) {
+        block /= 2;
+    }
+
+    return CudaLaunchConfig{ceil_div_int(work_items, block), block};
+}
+
 // ─── RAII wrapper for device memory ─────────────────────────────────
 /**
  * @brief Typed RAII container for a CUDA device allocation.

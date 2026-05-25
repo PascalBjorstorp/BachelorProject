@@ -361,7 +361,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   }
 
   double model_yaw_rate = yaw_rate_state_;
-  double model_lateral_velocity = imu_lateral_velocity_;
+  double model_lateral_velocity = model_lateral_velocity_state_;
   if (has_servo) {
     const double safe_vx = std::copysign(std::max(std::fabs(current_speed), dynamic_model_min_speed_), current_speed);
     const double alpha_f = steering_angle - (model_lateral_velocity + l_f_ * yaw_rate_state_) / safe_vx;
@@ -384,6 +384,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
 
   // Time-align IMU and VESC updates by using the nearest IMU sample to the VESC stamp.
   double imu_yaw_rate_raw = filtered_angular_velocity_;
+  double imu_lateral_accel_y = filtered_linear_accel_y_;
 
   if (imu_fresh && !imu_history_.empty()) {
     const rclcpp::Time state_stamp(state->header.stamp);
@@ -400,6 +401,7 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
 
     if (nearest_sample != nullptr) {
       imu_yaw_rate_raw = nearest_sample->filtered_angular_velocity;
+      imu_lateral_accel_y = nearest_sample->filtered_linear_accel_y;
 
       if (nearest_abs_dt_sec > imu_sync_tolerance_sec_) {
         RCLCPP_WARN_THROTTLE(
@@ -434,21 +436,105 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   const double current_yaw_rate =
     (1.0 - imu_yaw_weight) * model_yaw_rate + imu_yaw_weight * imu_yaw_rate;
 
-  // Use dynamic-model lateral state directly.
+  const double expected_lateral_accel = current_speed * model_yaw_rate;
+  const double lateral_accel_residual = imu_fresh ?
+    (imu_lateral_accel_y - expected_lateral_accel) :
+    0.0;
+  if (imu_fresh) {
+    const double lateral_alpha = std::clamp(imu_lateral_accel_alpha_, 0.0, 1.0);
+    if (!lateral_accel_filter_initialized_) {
+      filtered_lateral_accel_ = lateral_accel_residual;
+      lateral_accel_filter_initialized_ = true;
+    } else {
+      filtered_lateral_accel_ =
+        lateral_alpha * lateral_accel_residual + (1.0 - lateral_alpha) * filtered_lateral_accel_;
+    }
+
+    imu_lateral_velocity_ += filtered_lateral_accel_ * dt_sec;
+    imu_lateral_velocity_ *= std::exp(-std::max(0.0, imu_lateral_velocity_decay_) * dt_sec);
+    imu_lateral_velocity_ = std::clamp(
+      imu_lateral_velocity_, -imu_lateral_velocity_max_, imu_lateral_velocity_max_);
+  } else {
+    imu_lateral_velocity_ *= std::exp(-std::max(0.0, imu_lateral_velocity_decay_) * dt_sec);
+  }
+
+  // Use dynamic-model lateral state for odometry, and the IMU-integrated
+  // lateral velocity only as an uncertainty/slip consistency check.
+  double odom_lateral_velocity = 0.0;
   if (has_servo) {
     const double low_speed_lateral_scale =
       std::clamp(std::fabs(current_speed) / speed_for_blend, 0.0, 1.0);
-    imu_lateral_velocity_ = model_lateral_velocity * low_speed_lateral_scale;
+    model_lateral_velocity_state_ = model_lateral_velocity * low_speed_lateral_scale;
+    odom_lateral_velocity = model_lateral_velocity_state_;
   } else {
-    imu_lateral_velocity_ = 0.0;
+    model_lateral_velocity_state_ = 0.0;
+  }
+
+  const double yaw_rate_residual = imu_fresh && has_servo ?
+    std::fabs(imu_yaw_rate - model_yaw_rate) :
+    0.0;
+  const double lateral_accel_indicator = imu_fresh ?
+    std::min(std::fabs(lateral_accel_residual), std::max(0.0, slip_accel_clip_)) :
+    0.0;
+  const double lateral_velocity_indicator =
+    std::fabs(imu_lateral_velocity_ - model_lateral_velocity_state_);
+
+  double raw_slip_indicator = yaw_rate_residual * std::max(0.0, slip_yaw_rate_weight_);
+  double slip_enter_threshold = slip_accel_enter_;
+  double slip_exit_threshold = slip_accel_exit_;
+  if (slip_indicator_source_ == "lateral_accel") {
+    raw_slip_indicator = lateral_accel_indicator;
+  } else if (slip_indicator_source_ == "lateral_velocity_error") {
+    raw_slip_indicator = lateral_velocity_indicator;
+    slip_enter_threshold = slip_lateral_velocity_enter_;
+    slip_exit_threshold = slip_lateral_velocity_exit_;
+  } else if (slip_use_lateral_accel_) {
+    raw_slip_indicator += lateral_accel_indicator;
+  }
+
+  if (std::fabs(current_speed) < slip_min_speed_) {
+    raw_slip_indicator = 0.0;
+  }
+
+  const double slip_alpha = std::clamp(slip_indicator_alpha_, 0.0, 1.0);
+  if (!slip_indicator_initialized_) {
+    filtered_slip_indicator_ = raw_slip_indicator;
+    slip_indicator_initialized_ = true;
+  } else {
+    filtered_slip_indicator_ =
+      slip_alpha * raw_slip_indicator + (1.0 - slip_alpha) * filtered_slip_indicator_;
+  }
+
+  slip_enter_threshold = std::max(kEpsilon, slip_enter_threshold);
+  slip_exit_threshold = std::max(0.0, std::min(slip_exit_threshold, slip_enter_threshold));
+  if (!slip_active_) {
+    if (filtered_slip_indicator_ >= slip_enter_threshold) {
+      slip_enter_timer_ += dt_sec;
+      if (slip_enter_timer_ >= slip_enter_hold_sec_) {
+        slip_active_ = true;
+        slip_exit_timer_ = 0.0;
+      }
+    } else {
+      slip_enter_timer_ = 0.0;
+    }
+  } else {
+    if (filtered_slip_indicator_ <= slip_exit_threshold) {
+      slip_exit_timer_ += dt_sec;
+      if (slip_exit_timer_ >= slip_exit_hold_sec_) {
+        slip_active_ = false;
+        slip_enter_timer_ = 0.0;
+      }
+    } else {
+      slip_exit_timer_ = 0.0;
+    }
   }
 
   // Integrate pose with midpoint heading to reduce turn-rate integration error.
   const double yaw_mid = normalizeAngle(yaw_ + 0.5 * current_yaw_rate * dt_sec);
   yaw_ = normalizeAngle(yaw_ + current_yaw_rate * dt_sec);
   yaw_rate_state_ = current_yaw_rate;
-  x_ += (fused_speed * std::cos(yaw_mid) - imu_lateral_velocity_ * std::sin(yaw_mid)) * dt_sec;
-  y_ += (fused_speed * std::sin(yaw_mid) + imu_lateral_velocity_ * std::cos(yaw_mid)) * dt_sec;
+  x_ += (fused_speed * std::cos(yaw_mid) - odom_lateral_velocity * std::sin(yaw_mid)) * dt_sec;
+  y_ += (fused_speed * std::sin(yaw_mid) + odom_lateral_velocity * std::cos(yaw_mid)) * dt_sec;
 
 
   last_state_ = state;
@@ -466,9 +552,22 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   odom->pose.pose.orientation.z = std::sin(yaw_ / 2.0);
   odom->pose.pose.orientation.w = std::cos(yaw_ / 2.0);
 
-  const double x_cov = odom_x_covariance_;
-  const double y_cov = odom_y_covariance_;
-  const double yaw_cov = odom_yaw_covariance_;
+  const double slip_scale_limit = std::max(1.0, slip_xy_covariance_scale_);
+  double covariance_scale =
+    1.0 + (slip_scale_limit - 1.0) *
+    std::clamp(filtered_slip_indicator_ / slip_enter_threshold, 0.0, 1.0);
+  if (slip_active_) {
+    covariance_scale = std::max(covariance_scale, slip_scale_limit);
+  }
+  if (!imu_fresh) {
+    covariance_scale = std::max(covariance_scale, slip_scale_limit);
+  } else if (!servo_fresh) {
+    covariance_scale = std::max(covariance_scale, 0.5 * (1.0 + slip_scale_limit));
+  }
+
+  const double x_cov = odom_x_covariance_ * (1.0 + 0.25 * (covariance_scale - 1.0));
+  const double y_cov = odom_y_covariance_ * covariance_scale;
+  const double yaw_cov = odom_yaw_covariance_ * (1.0 + 0.5 * (covariance_scale - 1.0));
 
   std::fill(odom->pose.covariance.begin(), odom->pose.covariance.end(), 0.0);
   odom->pose.covariance[0] = x_cov;
@@ -482,7 +581,9 @@ void VescToOdom::vescStateCallback(const VescStateStamped::SharedPtr state)
   odom->twist.covariance[7] = vy_cov;
 
   odom->twist.twist.linear.x = fused_speed;
-  odom->twist.twist.linear.y = imu_lateral_velocity_;
+  odom->twist.covariance[35] = std::max(0.02, yaw_cov);
+
+  odom->twist.twist.linear.y = odom_lateral_velocity;
   odom->twist.twist.angular.z = current_yaw_rate;
 
   TransformStamped tf;

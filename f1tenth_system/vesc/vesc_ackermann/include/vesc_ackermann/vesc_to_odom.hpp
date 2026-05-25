@@ -180,6 +180,7 @@ private:
   double y_{0.0};
   double yaw_{0.0};
   double yaw_rate_state_{0.0};
+  double model_lateral_velocity_state_{0.0};
   VescStateStamped::SharedPtr last_state_;
   sensor_msgs::msg::Imu::SharedPtr last_imu_;
   Float64::SharedPtr last_servo_cmd_;

@@ -225,6 +225,15 @@ def write_csv(path: Path, rows: List[Dict[str, object]]) -> None:
         writer.writerows(rows)
 
 
+def result_row_failed(row: Dict[str, object]) -> bool:
+    try:
+        returncode = int(float(str(row.get("returncode", "1"))))
+    except ValueError:
+        returncode = 1
+    success = str(row.get("success", "")).strip().lower() == "true"
+    return returncode != 0 or not success
+
+
 def run_spawn(args: argparse.Namespace,
               pose: Dict[str, float],
               map_file: str,
@@ -249,8 +258,34 @@ def run_spawn(args: argparse.Namespace,
         "--initial-pose-x", f"{pose['x']:.9f}",
         "--initial-pose-y", f"{pose['y']:.9f}",
         "--initial-pose-yaw", f"{pose['yaw']:.9f}",
+        "--sim-odom-source", args.sim_odom_source,
+        "--sim-drive-input-mode", args.sim_drive_input_mode,
+        "--mpc-raceline-speed-margin", str(args.mpc_raceline_speed_margin),
         "--global-localization",
+        "--amcl-num-particles", str(args.amcl_num_particles),
+        "--amcl-min-particles", str(args.amcl_min_particles),
+        "--amcl-max-particles", str(args.amcl_max_particles),
+        "--amcl-max-beams", str(args.amcl_max_beams),
+        "--amcl-update-min-d", str(args.amcl_update_min_d),
+        "--amcl-update-min-a", str(args.amcl_update_min_a),
+        "--amcl-likelihood-scale", str(args.amcl_likelihood_scale),
+        "--amcl-alpha1", str(args.amcl_alpha1),
+        "--amcl-alpha2", str(args.amcl_alpha2),
+        "--amcl-alpha3", str(args.amcl_alpha3),
+        "--amcl-alpha4", str(args.amcl_alpha4),
+        "--amcl-z-hit", str(args.amcl_z_hit),
+        "--amcl-z-rand", str(args.amcl_z_rand),
+        "--amcl-sigma-hit", str(args.amcl_sigma_hit),
+        "--amcl-resample-threshold", str(args.amcl_resample_threshold),
+        "--amcl-cluster-publish-min-weight", str(args.amcl_cluster_publish_min_weight),
+        "--ekf-process-noise-scale", str(args.ekf_process_noise_scale),
+        "--no-debug-pre-resample-particles",
     ]
+    cmd.append(
+        "--sim-drive-uses-acceleration-field"
+        if args.sim_drive_uses_acceleration_field
+        else "--no-sim-drive-uses-acceleration-field")
+    cmd.append("--realistic-plant" if args.realistic_plant else "--no-realistic-plant")
     if args.extra_benchmark_arg:
         cmd.extend(args.extra_benchmark_arg)
 
@@ -293,7 +328,8 @@ def parse_args() -> argparse.Namespace:
         help="Map YAML or PGM. PGM is resolved to sibling YAML for map_server.")
     parser.add_argument(
         "--trajectory-file",
-        default=str(repo_root / "f1tenth_planning" / "trajectories" / "my_track_raceline.csv"))
+        default=str(repo_root / "f1tenth_localization" / "Benchmark" /
+                    "Matlab" / "sim_benchmark" / "my_track_raceline_vcap_4p0.csv"))
     parser.add_argument("--spawn-count", type=int, default=50)
     parser.add_argument("--max-duration-sec", type=float, default=12.0)
     parser.add_argument("--process-timeout-sec", type=float, default=0.0)
@@ -304,11 +340,45 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tail-rows", type=int, default=200)
     parser.add_argument("--max-lateral-offset-m", type=float, default=1.0)
     parser.add_argument("--wall-margin-m", type=float, default=0.20)
+    parser.add_argument("--sim-odom-source",
+                        choices=("vesc", "ground_truth"),
+                        default="vesc",
+                        help="Forwarded to benchmark; vesc uses simulated VESC/IMU odometry.")
+    parser.add_argument("--sim-drive-input-mode",
+                        choices=("vesc", "ackermann"),
+                        default="vesc",
+                        help="Forwarded to benchmark; vesc routes MPC acceleration through current/brake.")
+    parser.add_argument("--sim-drive-uses-acceleration-field",
+                        action=argparse.BooleanOptionalAction,
+                        default=True)
+    parser.add_argument("--realistic-plant",
+                        action=argparse.BooleanOptionalAction,
+                        default=True)
+    parser.add_argument("--mpc-raceline-speed-margin", type=float, default=0.0)
+    parser.add_argument("--amcl-num-particles", type=int, default=1000)
+    parser.add_argument("--amcl-min-particles", type=int, default=1000)
+    parser.add_argument("--amcl-max-particles", type=int, default=1000)
+    parser.add_argument("--amcl-max-beams", type=int, default=270)
+    parser.add_argument("--amcl-update-min-d", type=float, default=0.05)
+    parser.add_argument("--amcl-update-min-a", type=float, default=0.05)
+    parser.add_argument("--amcl-likelihood-scale", type=float, default=0.75)
+    parser.add_argument("--amcl-alpha1", type=float, default=0.4)
+    parser.add_argument("--amcl-alpha2", type=float, default=0.4)
+    parser.add_argument("--amcl-alpha3", type=float, default=0.2)
+    parser.add_argument("--amcl-alpha4", type=float, default=0.2)
+    parser.add_argument("--amcl-z-hit", type=float, default=0.95)
+    parser.add_argument("--amcl-z-rand", type=float, default=0.05)
+    parser.add_argument("--amcl-sigma-hit", type=float, default=0.10)
+    parser.add_argument("--amcl-resample-threshold", type=float, default=0.3)
+    parser.add_argument("--amcl-cluster-publish-min-weight", type=float, default=0.60)
+    parser.add_argument("--ekf-process-noise-scale", type=float, default=0.1)
     parser.add_argument(
         "--lateral-pattern",
         default="-0.75,-0.35,0.0,0.35,0.75",
         help="Comma-separated side fractions; positive is left, negative is right.")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--resume", action="store_true",
+                        help="Keep existing spawn_results.csv rows and skip those spawn indices.")
     parser.add_argument("--stop-on-failure", action="store_true")
     parser.add_argument("--delete-bags", action="store_true",
                         help="Delete nested recorded bag directories after parsing CSV.")
@@ -340,6 +410,11 @@ def main() -> int:
             "trajectory_file": trajectory_file,
             "benchmark_script": benchmark_script,
             "spawn_count": len(poses),
+            "sim_odom_source": args.sim_odom_source,
+            "sim_drive_input_mode": args.sim_drive_input_mode,
+            "sim_drive_uses_acceleration_field": args.sim_drive_uses_acceleration_field,
+            "realistic_plant": args.realistic_plant,
+            "mpc_raceline_speed_margin": args.mpc_raceline_speed_margin,
             "poses": poses,
         }, handle, indent=2)
         handle.write("\n")
@@ -351,11 +426,24 @@ def main() -> int:
         print("Dry run only.")
         return 0
 
-    rows: List[Dict[str, object]] = []
     results_path = output_root / "spawn_results.csv"
-    failures = 0
+    rows: List[Dict[str, object]] = []
+    completed_indices = set()
+    if args.resume and results_path.exists():
+        with results_path.open(newline="") as handle:
+            for row in csv.DictReader(handle):
+                rows.append(dict(row))
+                spawn_index = finite_float(row.get("spawn_index", ""))
+                if spawn_index is not None:
+                    completed_indices.add(int(spawn_index))
+        print(f"Resume: loaded {len(rows)} existing result rows.")
+
+    failures = sum(1 for row in rows if result_row_failed(row))
     for pose in poses:
         index = int(pose["spawn_index"])
+        if index in completed_indices:
+            print(f"\n=== spawn {index + 1}/{len(poses)} already done; skipping ===")
+            continue
         print(
             f"\n=== spawn {index + 1}/{len(poses)} "
             f"x={pose['x']:.2f} y={pose['y']:.2f} yaw={pose['yaw']:.2f} ===")

@@ -47,8 +47,8 @@ def generate_launch_description():
 
         DeclareLaunchArgument(
             'use_teleop',
-            default_value='true',
-            description='Launch joystick teleop and mux'),
+            default_value='false',
+            description='Launch joystick teleop'),
 
         DeclareLaunchArgument(
             'use_lidar',

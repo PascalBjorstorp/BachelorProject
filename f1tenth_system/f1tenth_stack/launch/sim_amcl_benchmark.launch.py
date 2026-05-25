@@ -48,6 +48,15 @@ def _launch_setup(context, *args, **kwargs):
     headless = str(headless_value).strip().lower() in ('true', '1', 'yes')
     realistic_value = LaunchConfiguration('realistic_plant').perform(context)
     realistic_plant = str(realistic_value).strip().lower() in ('true', '1', 'yes')
+    sim_odom_source = LaunchConfiguration('sim_odom_source').perform(context).strip().lower()
+    if sim_odom_source not in ('ground_truth', 'vesc'):
+        raise RuntimeError("sim_odom_source must be 'ground_truth' or 'vesc'")
+    use_vesc_odom = sim_odom_source == 'vesc'
+    sim_drive_input_mode = LaunchConfiguration('sim_drive_input_mode').perform(
+        context).strip().lower()
+    if sim_drive_input_mode not in ('ackermann', 'vesc'):
+        raise RuntimeError("sim_drive_input_mode must be 'ackermann' or 'vesc'")
+    use_vesc_command_path = sim_drive_input_mode == 'vesc'
 
     output_dir = LaunchConfiguration('output_dir').perform(context)
     pipeline_dir = os.path.join(output_dir, 'pipeline')
@@ -65,6 +74,7 @@ def _launch_setup(context, *args, **kwargs):
     rviz_config = os.path.join(loc_pkg, 'config', 'amcl_bag_visualization.rviz')
     sim_config = os.path.join(sim_pkg, 'config', 'sim.yaml')
     mux_config = os.path.join(stack_pkg, 'config', 'mux.yaml')
+    vesc_config = os.path.join(stack_pkg, 'config', 'vesc.yaml')
     realistic_vehicle_params = {'realistic_plant_enabled': realistic_plant}
     if realistic_plant:
         realistic_vehicle_params.update({
@@ -115,12 +125,25 @@ def _launch_setup(context, *args, **kwargs):
             'realistic_actuation_enabled': True,
         })
 
+    scan_splitter_action = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(lidar_pkg, 'launch', 'scan_splitter.launch.py')))
+    scan_splitter_delay = float(
+        LaunchConfiguration('scan_splitter_start_delay_sec').perform(context))
+    if scan_splitter_delay > 0.0:
+        scan_splitter_action = TimerAction(
+            period=scan_splitter_delay,
+            actions=[scan_splitter_action])
+
     actions = [
         SetEnvironmentVariable('MPC_ODOM_TOPIC', '/ego_racecar/odom'),
         SetEnvironmentVariable('MPC_DRIVE_TOPIC', '/drive'),
         SetEnvironmentVariable('MPC_EKF_TOPIC', '/ekf_pose'),
         SetEnvironmentVariable('MPC_LOCAL_RACELINE_TOPIC', '/local_raceline'),
         SetEnvironmentVariable('MPC_VERBOSE', LaunchConfiguration('mpc_verbose')),
+        SetEnvironmentVariable(
+            'MPC_RACELINE_SPEED_MARGIN',
+            LaunchConfiguration('mpc_raceline_speed_margin')),
         SetEnvironmentVariable('MPC_SOLVER_LOG', os.path.join(mpc_dir, 'solver.csv')),
         SetEnvironmentVariable(
             'MPC_LOCAL_RACELINE_LOG',
@@ -164,10 +187,50 @@ def _launch_setup(context, *args, **kwargs):
                     'headless': _bool_config('headless'),
                     'tf_frame_id': 'ego_racecar/odom',
                     'odom_frame_id': 'ego_racecar/odom',
+                    'publish_odom': not use_vesc_odom,
+                    'publish_base_tf': not use_vesc_odom,
+                    'publish_sim_vesc_sensors': use_vesc_odom,
+                    'sim_vesc_speed_to_erpm_gain': _float_config(
+                        'sim_vesc_speed_to_erpm_gain'),
+                    'sim_vesc_speed_to_erpm_offset': _float_config(
+                        'sim_vesc_speed_to_erpm_offset'),
+                    'sim_vesc_speed_scale': _float_config('sim_vesc_speed_scale'),
+                    'sim_vesc_speed_bias': _float_config('sim_vesc_speed_bias'),
+                    'sim_vesc_speed_noise_std': _float_config(
+                        'sim_vesc_speed_noise_std'),
+                    'sim_vesc_yaw_rate_bias': _float_config(
+                        'sim_vesc_yaw_rate_bias'),
+                    'sim_vesc_yaw_rate_noise_std': _float_config(
+                        'sim_vesc_yaw_rate_noise_std'),
+                    'sim_vesc_accel_noise_std': _float_config(
+                        'sim_vesc_accel_noise_std'),
+                    'sim_vesc_servo_gain': _float_config('sim_vesc_servo_gain'),
+                    'sim_vesc_servo_offset': _float_config('sim_vesc_servo_offset'),
+                    'sim_vesc_steering_correction_c2': _float_config(
+                        'sim_vesc_steering_correction_c2'),
+                    'sim_vesc_steering_correction_c1': _float_config(
+                        'sim_vesc_steering_correction_c1'),
+                    'sim_vesc_steering_correction_c0': _float_config(
+                        'sim_vesc_steering_correction_c0'),
                     'map_path': LaunchConfiguration('map_file'),
                     'ego_drive_topic': LaunchConfiguration('sim_drive_topic'),
+                    'drive_input_mode': sim_drive_input_mode,
                     'drive_uses_acceleration_field': _bool_config(
                         'sim_drive_uses_acceleration_field'),
+                    'sim_vesc_accel_to_current_gain': _float_config(
+                        'sim_vesc_accel_to_current_gain'),
+                    'sim_vesc_accel_to_brake_gain': _float_config(
+                        'sim_vesc_accel_to_brake_gain'),
+                    'sim_vesc_current_accel_scale': _float_config(
+                        'sim_vesc_current_accel_scale'),
+                    'sim_vesc_brake_accel_scale': _float_config(
+                        'sim_vesc_brake_accel_scale'),
+                    'sim_vesc_erpm_speed_tau': _float_config(
+                        'sim_vesc_erpm_speed_tau'),
+                    'sim_vesc_motor_accel_limit': _float_config(
+                        'sim_vesc_motor_accel_limit'),
+                    'sim_vesc_command_timeout_sec': _float_config(
+                        'sim_vesc_command_timeout_sec'),
                     'sx': _float_config('initial_pose_x'),
                     'sy': _float_config('initial_pose_y'),
                     'stheta': _float_config('initial_pose_yaw'),
@@ -176,31 +239,7 @@ def _launch_setup(context, *args, **kwargs):
             ],
         ),
 
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(lidar_pkg, 'launch', 'scan_splitter.launch.py'))),
-
-        Node(
-            package='f1tenth_lateral_planner',
-            executable='lateral_planner_node',
-            name='lateral_planner_node',
-            output='screen',
-            parameters=[
-                {
-                    'trajectory_file': LaunchConfiguration('trajectory_file'),
-                    'avoidance_enabled': _bool_config(
-                        'lateral_planner_avoidance_enabled'),
-                },
-            ],
-        ),
-
-        Node(
-            package='ackermann_mux',
-            executable='ackermann_mux',
-            name='ackermann_mux',
-            output='screen',
-            parameters=[mux_config],
-        ),
+        scan_splitter_action,
 
         Node(
             package='f1tenth_localization',
@@ -223,19 +262,6 @@ def _launch_setup(context, *args, **kwargs):
                     'process_noise_scale': _float_config('ekf_process_noise_scale'),
                 },
             ],
-        ),
-
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(mpc_pkg, 'launch', 'mpc_hardware.launch.py')),
-            launch_arguments={
-                'use_local_raceline': 'true',
-                'local_raceline_topic': '/local_raceline',
-                'odom_topic': '/ego_racecar/odom',
-                'drive_topic': '/drive',
-                'pose_topic': '/ekf_pose',
-                'verbose': LaunchConfiguration('mpc_verbose'),
-            }.items(),
         ),
 
         Node(
@@ -263,9 +289,117 @@ def _launch_setup(context, *args, **kwargs):
             executable='performance_monitor_cpp',
             name='performance_monitor',
             output='screen',
-            parameters=[{'output_dir': system_dir}],
+            parameters=[{
+                'output_dir': system_dir,
+                'cpu_sample_hz': _float_config('system_monitor_cpu_sample_hz'),
+                'gpu_sample_hz': _float_config('system_monitor_gpu_sample_hz'),
+                'csv_log_hz': _float_config('system_monitor_csv_log_hz'),
+                'long_csv_log_hz': _float_config('system_monitor_long_csv_log_hz'),
+                'memory_log_hz': _float_config('system_monitor_memory_log_hz'),
+                'memory_controller_log_hz': _float_config(
+                    'system_monitor_memory_controller_log_hz'),
+                'emc_peak_bandwidth_mib_s': _float_config(
+                    'system_monitor_emc_peak_bandwidth_mib_s'),
+            }],
         ),
     ]
+
+    delayed_control_actions = [
+        Node(
+            package='f1tenth_lateral_planner',
+            executable='lateral_planner_node',
+            name='lateral_planner_node',
+            output='screen',
+            parameters=[
+                {
+                    'trajectory_file': LaunchConfiguration('trajectory_file'),
+                    'avoidance_enabled': _bool_config(
+                        'lateral_planner_avoidance_enabled'),
+                },
+            ],
+        ),
+
+        Node(
+            package='ackermann_mux',
+            executable='ackermann_mux',
+            name='ackermann_mux',
+            output='screen',
+            parameters=[mux_config],
+        ),
+
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(mpc_pkg, 'launch', 'mpc_hardware.launch.py')),
+            launch_arguments={
+                'use_local_raceline': 'true',
+                'local_raceline_topic': '/local_raceline',
+                'odom_topic': '/ego_racecar/odom',
+                'drive_topic': '/drive',
+                'pose_topic': '/ekf_pose',
+                'verbose': LaunchConfiguration('mpc_verbose'),
+            }.items(),
+        ),
+    ]
+
+    if use_vesc_command_path:
+        delayed_control_actions.append(
+            Node(
+                package='vesc_ackermann',
+                executable='ackermann_to_vesc_node',
+                name='ackermann_to_vesc_node',
+                output='screen',
+                parameters=[
+                    vesc_config,
+                    {'use_sim_time': _bool_config('use_sim_time')},
+                ],
+            )
+        )
+
+    if use_vesc_odom:
+        actions.append(
+            Node(
+                package='vesc_ackermann',
+                executable='vesc_to_odom_node',
+                name='sim_vesc_to_odom',
+                output='screen',
+                parameters=[
+                    {
+                        'use_sim_time': _bool_config('use_sim_time'),
+                        'odom_frame': 'ego_racecar/odom',
+                        'base_frame': 'ego_racecar/base_link',
+                        'imu_startup_calibration_enabled': False,
+                        'speed_to_erpm_gain': _float_config(
+                            'sim_vesc_speed_to_erpm_gain'),
+                        'speed_to_erpm_offset': _float_config(
+                            'sim_vesc_speed_to_erpm_offset'),
+                        'steering_angle_to_servo_gain': _float_config(
+                            'sim_vesc_servo_gain'),
+                        'steering_angle_to_servo_offset': _float_config(
+                            'sim_vesc_servo_offset'),
+                        'steering_correction_c2': _float_config(
+                            'sim_vesc_steering_correction_c2'),
+                        'steering_correction_c1': _float_config(
+                            'sim_vesc_steering_correction_c1'),
+                        'steering_correction_c0': _float_config(
+                            'sim_vesc_steering_correction_c0'),
+                        'odom_speed_scale': _float_config(
+                            'sim_vesc_odom_speed_scale'),
+                        'steering_model_scale': _float_config(
+                            'sim_vesc_steering_model_scale'),
+                        'speed_deadband': 0.15,
+                        'imu_yaw_base_weight': 0.40,
+                        'slip_indicator_source': 'lateral_velocity_error',
+                        'slip_lateral_velocity_enter': 0.45,
+                        'slip_lateral_velocity_exit': 0.25,
+                        'slip_accel_enter': 8.0,
+                        'slip_accel_exit': 2.0,
+                        'slip_enter_hold_sec': 0.05,
+                        'slip_exit_hold_sec': 0.12,
+                        'slip_use_lateral_accel': False,
+                    },
+                ],
+            )
+        )
 
     if localizer == 'gpu':
         global_init_value = LaunchConfiguration('amcl_global_initialization').perform(context)
@@ -279,8 +413,14 @@ def _launch_setup(context, *args, **kwargs):
             'use_kld_sampling': _bool_config('amcl_use_kld'),
             'kld_epsilon': _float_config('amcl_kld_epsilon'),
             'kld_z': _float_config('amcl_kld_z'),
+            'kld_bin_x': _float_config('amcl_kld_bin_x'),
+            'kld_bin_y': _float_config('amcl_kld_bin_y'),
+            'kld_bin_theta': _float_config('amcl_kld_bin_theta'),
+            'enable_recovery_injection': _bool_config('amcl_enable_recovery_injection'),
+            'recovery_injection_ratio': _float_config('amcl_recovery_injection_ratio'),
             'update_min_d': _float_config('amcl_update_min_d'),
             'update_min_a': _float_config('amcl_update_min_a'),
+            'max_scan_age': _float_config('amcl_max_scan_age'),
             'cloud_publish_rate': _float_config('amcl_cloud_publish_rate'),
             'alpha1': _float_config('amcl_alpha1'),
             'alpha2': _float_config('amcl_alpha2'),
@@ -317,6 +457,7 @@ def _launch_setup(context, *args, **kwargs):
                 executable='gpu_amcl_cpp_node',
                 name='gpu_amcl_cpp',
                 output='screen',
+                prefix=LaunchConfiguration('gpu_amcl_prefix'),
                 parameters=[
                     gpu_params,
                     gpu_amcl_overrides,
@@ -419,13 +560,19 @@ def _launch_setup(context, *args, **kwargs):
             '--status-name', LaunchConfiguration('status_name'),
         ],
     )
-    actions.append(logger_node)
+    delayed_control_actions.append(logger_node)
     actions.append(
         RegisterEventHandler(
             OnProcessExit(
                 target_action=logger_node,
                 on_exit=[Shutdown(reason='simulation benchmark complete')],
             )
+        )
+    )
+    actions.append(
+        TimerAction(
+            period=LaunchConfiguration('control_start_delay_sec'),
+            actions=delayed_control_actions,
         )
     )
 
@@ -457,6 +604,10 @@ def generate_launch_description():
         DeclareLaunchArgument('headless', default_value='true'),
         DeclareLaunchArgument('realistic_plant', default_value='true',
                               description='Use hardware-calibrated plant from MPC tune_realistic_v2.py'),
+        DeclareLaunchArgument(
+            'sim_odom_source',
+            default_value='vesc',
+            description="Use 'vesc' for dead-reckoned odom or 'ground_truth' for old pose odom"),
         DeclareLaunchArgument('map_file', default_value=default_map),
         DeclareLaunchArgument('trajectory_file', default_value=default_trajectory),
         DeclareLaunchArgument(
@@ -472,12 +623,50 @@ def generate_launch_description():
         DeclareLaunchArgument('sim_drive_topic', default_value='ackermann_cmd',
                               description='Topic consumed by simulator bridge'),
         DeclareLaunchArgument(
+            'sim_drive_input_mode',
+            default_value='vesc',
+            description="Use 'vesc' to route MPC commands through ackermann_to_vesc or 'ackermann' for direct gym input"),
+        DeclareLaunchArgument(
             'sim_drive_uses_acceleration_field',
             default_value='true',
             description='Use AckermannDrive.acceleration as gym acceleration command'),
+        DeclareLaunchArgument('sim_vesc_speed_to_erpm_gain', default_value='4550.0'),
+        DeclareLaunchArgument('sim_vesc_speed_to_erpm_offset', default_value='0.0'),
+        DeclareLaunchArgument('sim_vesc_speed_scale', default_value='1.0'),
+        DeclareLaunchArgument('sim_vesc_speed_bias', default_value='0.0'),
+        DeclareLaunchArgument('sim_vesc_speed_noise_std', default_value='0.04'),
+        DeclareLaunchArgument('sim_vesc_yaw_rate_bias', default_value='0.0'),
+        DeclareLaunchArgument('sim_vesc_yaw_rate_noise_std', default_value='0.05'),
+        DeclareLaunchArgument('sim_vesc_accel_noise_std', default_value='0.20'),
+        DeclareLaunchArgument('sim_vesc_servo_gain', default_value='-0.7284'),
+        DeclareLaunchArgument('sim_vesc_servo_offset', default_value='0.5500'),
+        DeclareLaunchArgument('sim_vesc_steering_correction_c2', default_value='0.589566'),
+        DeclareLaunchArgument('sim_vesc_steering_correction_c1', default_value='0.918061'),
+        DeclareLaunchArgument('sim_vesc_steering_correction_c0', default_value='0.001490'),
+        DeclareLaunchArgument('sim_vesc_accel_to_current_gain', default_value='5.82'),
+        DeclareLaunchArgument('sim_vesc_accel_to_brake_gain', default_value='7.38'),
+        DeclareLaunchArgument('sim_vesc_current_accel_scale', default_value='1.0'),
+        DeclareLaunchArgument('sim_vesc_brake_accel_scale', default_value='1.0'),
+        DeclareLaunchArgument('sim_vesc_erpm_speed_tau', default_value='0.15'),
+        DeclareLaunchArgument('sim_vesc_motor_accel_limit', default_value='7.31'),
+        DeclareLaunchArgument('sim_vesc_command_timeout_sec', default_value='0.20'),
+        DeclareLaunchArgument(
+            'control_start_delay_sec',
+            default_value='3.0',
+            description='Delay planner, MPC, drive conversion, and benchmark logging until localization initializes'),
+        DeclareLaunchArgument(
+            'scan_splitter_start_delay_sec',
+            default_value='0.0',
+            description='Optional delay before scan splitter starts; useful for global localization TF bootstrap'),
+        DeclareLaunchArgument('sim_vesc_odom_speed_scale', default_value='1.04'),
+        DeclareLaunchArgument('sim_vesc_steering_model_scale', default_value='0.86'),
         DeclareLaunchArgument('lateral_planner_avoidance_enabled',
                               default_value='false'),
         DeclareLaunchArgument('mpc_verbose', default_value='0'),
+        DeclareLaunchArgument(
+            'mpc_raceline_speed_margin',
+            default_value='0.0',
+            description='Extra speed allowed above raceline v_ref; 0.0 keeps localization benchmarks on the planned profile'),
         DeclareLaunchArgument('amcl_num_particles', default_value='2000'),
         DeclareLaunchArgument('amcl_min_particles', default_value='600'),
         DeclareLaunchArgument('amcl_max_particles', default_value='2000'),
@@ -485,6 +674,11 @@ def generate_launch_description():
         DeclareLaunchArgument('amcl_use_kld', default_value='false'),
         DeclareLaunchArgument('amcl_kld_epsilon', default_value='0.02'),
         DeclareLaunchArgument('amcl_kld_z', default_value='1.96'),
+        DeclareLaunchArgument('amcl_kld_bin_x', default_value='0.5'),
+        DeclareLaunchArgument('amcl_kld_bin_y', default_value='0.5'),
+        DeclareLaunchArgument('amcl_kld_bin_theta', default_value='0.1'),
+        DeclareLaunchArgument('amcl_enable_recovery_injection', default_value='true'),
+        DeclareLaunchArgument('amcl_recovery_injection_ratio', default_value='0.0'),
         DeclareLaunchArgument('amcl_cloud_publish_rate', default_value='0.1'),
         DeclareLaunchArgument('amcl_normalize_likelihood_by_beams', default_value='true'),
         DeclareLaunchArgument('amcl_likelihood_scale', default_value='0.75'),
@@ -498,6 +692,7 @@ def generate_launch_description():
         DeclareLaunchArgument('amcl_global_initialization', default_value='false'),
         DeclareLaunchArgument('amcl_update_min_d', default_value='0.05'),
         DeclareLaunchArgument('amcl_update_min_a', default_value='0.05'),
+        DeclareLaunchArgument('amcl_max_scan_age', default_value='0.12'),
         DeclareLaunchArgument('amcl_alpha1', default_value='0.4'),
         DeclareLaunchArgument('amcl_alpha2', default_value='0.4'),
         DeclareLaunchArgument('amcl_alpha3', default_value='0.2'),
@@ -506,12 +701,23 @@ def generate_launch_description():
         DeclareLaunchArgument('amcl_z_rand', default_value='0.05'),
         DeclareLaunchArgument('amcl_sigma_hit', default_value='0.10'),
         DeclareLaunchArgument('amcl_resample_threshold', default_value='0.3'),
+        DeclareLaunchArgument('gpu_amcl_prefix', default_value=''),
         DeclareLaunchArgument('nav2_amcl_cpu_core', default_value='3'),
         DeclareLaunchArgument('nav2_global_init_delay_sec', default_value='2.0'),
         DeclareLaunchArgument('ekf_transform_tolerance', default_value='0.02'),
-        DeclareLaunchArgument('ekf_process_noise_scale', default_value='5.0'),
+        DeclareLaunchArgument('ekf_process_noise_scale', default_value='0.1'),
         DeclareLaunchArgument('monitor_print_every', default_value='40'),
         DeclareLaunchArgument('monitor_stage_match_max_ms', default_value='20.0'),
         DeclareLaunchArgument('monitor_strict_mode', default_value='true'),
+        DeclareLaunchArgument('system_monitor_cpu_sample_hz', default_value='100.0'),
+        DeclareLaunchArgument('system_monitor_gpu_sample_hz', default_value='50.0'),
+        DeclareLaunchArgument('system_monitor_csv_log_hz', default_value='50.0'),
+        DeclareLaunchArgument('system_monitor_long_csv_log_hz', default_value='1.0'),
+        DeclareLaunchArgument('system_monitor_memory_log_hz', default_value='1.0'),
+        DeclareLaunchArgument('system_monitor_memory_controller_log_hz',
+                              default_value='1.0'),
+        DeclareLaunchArgument('system_monitor_emc_peak_bandwidth_mib_s',
+                              default_value='0.0',
+                              description='Optional Jetson peak EMC bandwidth for estimated MiB/s; 0 disables bandwidth estimate'),
         OpaqueFunction(function=_launch_setup),
     ])

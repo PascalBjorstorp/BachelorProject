@@ -9,6 +9,7 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -61,6 +62,41 @@ private:
     std::string node_name;
   };
 
+  struct CacheCounterFds
+  {
+    int references_fd{-1};
+    int misses_fd{-1};
+  };
+
+  struct CacheCounterSample
+  {
+    bool valid{false};
+    uint64_t references{0};
+    uint64_t misses{0};
+  };
+
+  struct MemorySnapshot
+  {
+    double cpu_mem_total_mib{-1.0};
+    double cpu_mem_available_mib{-1.0};
+    double cpu_mem_used_mib{-1.0};
+    double cpu_buffers_mib{-1.0};
+    double cpu_cached_mib{-1.0};
+    double cpu_sreclaimable_mib{-1.0};
+    double cpu_shmem_mib{-1.0};
+    double cpu_page_cache_mib{-1.0};
+  };
+
+  struct MemoryControllerSnapshot
+  {
+    bool valid{false};
+    double emc_util_percent{-1.0};
+    double emc_freq_mhz{-1.0};
+    double emc_peak_bandwidth_mib_s{-1.0};
+    double emc_estimated_bandwidth_mib_s{-1.0};
+    std::string source;
+  };
+
   enum class GpuSource
   {
     none,
@@ -74,8 +110,15 @@ private:
   double read_gpu_percent() const;
   double read_gpu_percent_from_sysfs() const;
   double read_gpu_percent_from_nvidia_smi() const;
+  MemorySnapshot read_memory_snapshot() const;
+  MemoryControllerSnapshot read_memory_controller_snapshot() const;
+  MemoryControllerSnapshot read_memory_controller_from_tegrastats() const;
   std::vector<RosProcess> discover_ros_processes() const;
   bool read_process_cpu_times(int pid, ProcessCpuTimes & times) const;
+  CacheCounterFds open_cache_counters(int pid);
+  CacheCounterSample read_cache_counters(const CacheCounterFds & counters) const;
+  static void close_cache_counters(CacheCounterFds & counters);
+  void close_all_cache_counters();
   static std::vector<std::string> read_cmdline_tokens(int pid);
   static std::string extract_ros_node_name(const std::vector<std::string> & tokens);
   static std::string basename_from_path(const std::string & path);
@@ -97,6 +140,9 @@ private:
   double node_process_discovery_hz_{1.0};
   double csv_log_hz_{200.0};
   double long_csv_log_hz_{1.0};
+  double memory_log_hz_{1.0};
+  double memory_controller_log_hz_{1.0};
+  double emc_peak_bandwidth_mib_s_{0.0};
   double print_hz_{1.0};
   double rolling_window_long_sec_{1.0};
   double rolling_window_short_sec_{0.005};
@@ -113,6 +159,14 @@ private:
   std::string gpu_csv_path_;
   std::ofstream node_process_csv_file_;
   std::string node_process_csv_path_;
+  std::ofstream memory_csv_file_;
+  std::string memory_csv_path_;
+  std::ofstream cache_csv_file_;
+  std::string cache_csv_path_;
+  std::ofstream memory_controller_csv_file_;
+  std::string memory_controller_csv_path_;
+  std::unordered_map<std::string, CacheCounterFds> cache_counter_fds_;
+  bool cache_counter_warning_printed_{false};
 
   std::mutex data_mutex_;
   RollingWindow long_window_;

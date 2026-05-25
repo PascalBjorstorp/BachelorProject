@@ -147,13 +147,12 @@ void launch_sensor_weights(const float* particles, int n,
                            float map_res, float map_ox, float map_oy,
                            float* out_weights,
                            cudaStream_t stream) {
-    int block = 256;
-    int grid  = (n + block - 1) / block;
     if (n <= 0 || num_ranges <= 0) return;
+    const auto launch = make_adaptive_launch_config(n);
 
     // §8: Shared memory for ranges + precomputed beam cos/sin (3 arrays of num_ranges floats)
     size_t smem_bytes = 3 * num_ranges * sizeof(float);
-    kernel_sensor_weights<<<grid, block, smem_bytes, stream>>>(
+    kernel_sensor_weights<<<launch.grid, launch.block, smem_bytes, stream>>>(
         particles, n,
         ranges, num_ranges, max_beams,
         angle_min, angle_inc,

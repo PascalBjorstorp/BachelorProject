@@ -29,6 +29,7 @@ TOPICS=(
   "/odom_pose"
   "/amcl_pose"
   "/amcl_timing"
+  "/amcl_gpu_timing"
   "/amcl_particle_count"
   "/ekf_pose"
   "/tf"
