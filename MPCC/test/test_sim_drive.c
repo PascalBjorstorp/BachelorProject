@@ -542,8 +542,12 @@ int main(void)
     int max_iter_single = 0;
     double total_solve_us = 0.0, max_solve_us = 0.0;
     long total_adaptive_updates = 0;
+    uint16_t max_adaptive_updates_single = 0;
+    int solves_with_adaptive_updates = 0;
     uint64_t total_clip_events = 0;
     double sum_rho = 0.0, sum_rho_u = 0.0;
+    double min_rho = 0.0, max_rho = 0.0;
+    double min_rho_u = 0.0, max_rho_u = 0.0;
     struct timespec ts0, ts1;
 
     /* Held MPCC commands (zero-order hold between MPCC calls) */
@@ -591,7 +595,8 @@ int main(void)
             "step,time_s,x_m,y_m,psi_rad,vx_mps,s_m,closest_wp,ref_s_m,e_y_m,e_c_m,e_psi_rad,"
                 "left_bound_m,right_bound_m,effective_left_bound_m,effective_right_bound_m,"
                 "body_safety_margin_m,cmd_steer_rad,act_steer_rad,accel_cmd_mps2,"
-                "status,iterations,pred_min_wall_slack_m,wall_hit,lap_count,"
+                "status,iterations,rho_final,rho_u_final,adaptive_rho_updates,numeric_clip_count,"
+                "pred_min_wall_slack_m,wall_hit,lap_count,"
                 "dx_exec_pred,dy_exec_pred,dpsi_exec_pred,ds_exec_pred\n");
     }
 
@@ -674,7 +679,7 @@ int main(void)
             wall_collisions++;
             if (trace_csv) {
                 fprintf(trace_csv,
-                    "%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%d,%.6f,%d,%d,%.6f,%.6f,%.6f,%.6f\n",
+                    "%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%d,%.6f,%.6f,%u,%u,%.6f,%d,%d,%.6f,%.6f,%.6f,%.6f\n",
                     step, t, px, py, psi, vx,
                     s_debug_now, closest, raceline[closest].s,
                     e_y, e_c, e_psi,
@@ -683,6 +688,8 @@ int main(void)
                     body_safety_margin,
                     cmd_steer, actual_steer, cmd_accel,
                     -1, 0,
+                    0.0, 0.0,
+                    0U, 0U,
                     pred_slack_valid ? pred_min_wall_slack : 0.0,
                     wall_hit, lap_count,
                     dx_exec_pred, dy_exec_pred, dpsi_exec_pred, ds_exec_pred);
@@ -705,6 +712,10 @@ int main(void)
         double accel_cmd = cmd_accel;
         int iter = 0;
         int status_val = -1;
+        double rho_final = 0.0;
+        double rho_u_final = 0.0;
+        unsigned adapt_updates = 0U;
+        unsigned clip_events = 0U;
 
         if (pose_tick && odom_update_count != last_solve_odom_update_count) {
             /* Convert vehicle state -> MPCC state */
@@ -827,9 +838,26 @@ int main(void)
             }
 
             total_adaptive_updates += result.adaptive_rho_updates;
+            if (result.adaptive_rho_updates > max_adaptive_updates_single)
+                max_adaptive_updates_single = result.adaptive_rho_updates;
+            if (result.adaptive_rho_updates > 0)
+                solves_with_adaptive_updates++;
             total_clip_events += result.numeric_clip_count;
             sum_rho += (double)(result.rho_final);
             sum_rho_u += (double)(result.rho_u_final);
+            rho_final = (double)result.rho_final;
+            rho_u_final = (double)result.rho_u_final;
+            adapt_updates = (unsigned)result.adaptive_rho_updates;
+            clip_events = (unsigned)result.numeric_clip_count;
+            if (solver_calls == 1) {
+                min_rho = max_rho = (double)result.rho_final;
+                min_rho_u = max_rho_u = (double)result.rho_u_final;
+            } else {
+                if ((double)result.rho_final < min_rho) min_rho = (double)result.rho_final;
+                if ((double)result.rho_final > max_rho) max_rho = (double)result.rho_final;
+                if ((double)result.rho_u_final < min_rho_u) min_rho_u = (double)result.rho_u_final;
+                if ((double)result.rho_u_final > max_rho_u) max_rho_u = (double)result.rho_u_final;
+            }
 
             cmd_steer = steer;
             cmd_accel = accel_cmd;
@@ -866,7 +894,7 @@ int main(void)
 
         if (trace_csv) {
             fprintf(trace_csv,
-                "%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%d,%.6f,%d,%d,%.6f,%.6f,%.6f,%.6f\n",
+                "%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%d,%.6f,%.6f,%u,%u,%.6f,%d,%d,%.6f,%.6f,%.6f,%.6f\n",
                 step, t, px, py, psi, vx,
                 s_debug_now, closest, raceline[closest].s,
                 e_y, e_c, e_psi,
@@ -875,6 +903,10 @@ int main(void)
                 body_safety_margin,
                 steer, actual_steer, accel_cmd,
                 status_val, iter,
+                rho_final,
+                rho_u_final,
+                adapt_updates,
+                clip_events,
                 pred_slack_valid ? pred_min_wall_slack : 0.0,
                 wall_hit, lap_count,
                 dx_exec_pred, dy_exec_pred, dpsi_exec_pred, ds_exec_pred);
@@ -1095,7 +1127,13 @@ int main(void)
     printf("  Max solve time:     %.1f us\n", max_solve_us);
     printf("  Total solve time:   %.1f ms\n", total_solve_us / 1000.0);
     printf("  Avg rho/rho_u:      %.3f / %.3f\n", avg_rho, avg_rho_u);
+        printf("  Rho range:          %.3f .. %.3f\n", min_rho, max_rho);
+        printf("  Rho_u range:        %.3f .. %.3f\n", min_rho_u, max_rho_u);
     printf("  Avg rho updates:    %.2f per solve\n", avg_adapt_updates);
+        printf("  Max rho updates:    %u\n", (unsigned)max_adaptive_updates_single);
+        printf("  Solves with rho update: %d / %d\n",
+            solves_with_adaptive_updates,
+            solver_calls);
     printf("  Avg clip events:    %.2f per solve\n", avg_clip_events);
     printf("\n");
 

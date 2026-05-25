@@ -851,14 +851,20 @@ MpcSolverStatus_t mpc_compute_optimal_control(
      * --------------------------------------------------------------- */
     const float solver_rho = get_env_float("RHO", ADMM_RHO);
     float solver_rho_u = ADMM_RHO_U;
+    int shared_rho = 0;
     {
         const char *rho_u_env = getenv("RHO_U");
         if (rho_u_env != NULL && rho_u_env[0] != '\0') {
             solver_rho_u = strtof(rho_u_env, NULL);
             if (!(solver_rho_u > 0.0f)) {
+                shared_rho = 1;
                 solver_rho_u = (solver_rho > 0.0f) ? solver_rho : ADMM_RHO;
             }
         }
+    }
+    if (get_env_int("MPC_SHARED_RHO", get_env_int("SHARED_RHO", shared_rho)) != 0) {
+        shared_rho = 1;
+        solver_rho_u = solver_rho;
     }
     const int adaptive_rho =
         get_env_int("MPC_ADAPTIVE_RHO", get_env_int("ADAPTIVE_RHO", 1)) != 0;
@@ -869,6 +875,7 @@ MpcSolverStatus_t mpc_compute_optimal_control(
         .tolerance = get_env_float("TOL", config.solver_convergence_tolerance),
         .max_iterations = get_env_int("MAX_ITER", (int)config.max_solver_iterations),
         .adaptive_rho = adaptive_rho,
+        .shared_rho = shared_rho,
     };
 
     RiccatiSolution_t riccati_sol;
@@ -881,7 +888,7 @@ MpcSolverStatus_t mpc_compute_optimal_control(
     {
         const float cur_curvature = reference_trajectory[0].path_curvature;
         const float kappa_diff = fabsf(cur_curvature - warm_start_prev_curvature);
-        const int curvature_jump = (kappa_diff > MPC_WS_CURVATURE_THRESH);
+        const int curvature_jump = (kappa_diff >= MPC_WS_CURVATURE_THRESH);
         const int signature_jump =
             (warm_start_prev_model_signature != MPC_MODEL_SIGNATURE);
 
