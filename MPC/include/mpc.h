@@ -112,4 +112,23 @@ void mpc_reset(void);
  */
 void mpc_set_actual_previous_control(const ControlInput_t *actual);
 
+/*===========================================================================
+ * Diagnostics
+ *===========================================================================*/
+
+/**
+ * @brief Copy the last solved projected ADMM plan for diagnostics/visualization.
+ * @details Exposes the feasible projected state/control horizon (`z_x`, `z_u`)
+ *          from the most recent solve so offline tools can visualize the MPC's
+ *          planned trajectory. Returns 0 when no plan is available yet.
+ * @param x_out Optional output buffer for the augmented state plan
+ *              [PREDICTION_HORIZON + 1][RICCATI_MAX_NX].
+ * @param u_out Optional output buffer for the control plan
+ *              [PREDICTION_HORIZON][RICCATI_MAX_NU].
+ * @return 1 when a plan was copied, 0 otherwise.
+ */
+int mpc_debug_copy_last_plan(
+    float x_out[PREDICTION_HORIZON + 1][RICCATI_MAX_NX],
+    float u_out[PREDICTION_HORIZON][RICCATI_MAX_NU]);
+
 #endif /* MPC_H */

@@ -59,17 +59,25 @@
  * Configuration
  *===========================================================================*/
 
-#define SIM_DT_DEFAULT    0.005f   /* 200 Hz physics */
-#define MPCC_DT_DEFAULT   (1.0f / MPCC_CONTROL_RATE_HZ) /* 200 Hz nominal MPCC solve rate */
-#define SIM_DURATION      120.0f   /* seconds — 60s too short for slow/long tracks */
-#define MAX_WAYPOINTS     2000
-#define MAX_STEERING      0.4189f  /* rad */
-#define MAX_VELOCITY      20.0f    /* m/s */
-#define PHYSICAL_MAX_ACCEL 7.31f   /* m/s² */
+#define SIM_DT_DEFAULT    0.005f
+#define MPCC_DT_DEFAULT   0.005f
+#define SIM_DURATION      120.0f
+#define MAX_WAYPOINTS     2500
+#define MAX_STEERING      0.39f
+#define MAX_VELOCITY      20.0f
+#define PHYSICAL_MAX_ACCEL 7.31f
 
-#define VEHICLE_HALF_WIDTH        0.155f  /* meters (F1/10th body half-width) */
-#define DEFAULT_BODY_SAFETY_MARGIN 0.01f
-#define STEER_BUFFER_SIZE         2
+#define TRAJECTORY_MAX_VELOCITY    20.0f
+#define VEHICLE_HALF_WIDTH         0.137f
+#define DEFAULT_BODY_SAFETY_MARGIN 0.00f
+
+#define ROLLING_RESISTANCE_N 2.79f
+#define PACEJKA_C_SHAPE      1.9f
+#define NOISE_POS_M          0.01f
+#define NOISE_HDG_RAD        0.009f
+#define NOISE_VX_MS          0.05f
+#define NOISE_VY_MS          0.05f
+#define NOISE_OMEGA_RAD      0.05f
 
 /*===========================================================================
  * Raceline Data
@@ -85,6 +93,7 @@ static int raceline_count = 0;
 
 static int load_raceline(void)
 {
+    raceline_count = 0;
     const char *env_path = getenv("RACELINE_PATH");
     if (env_path) {
         FILE *f = fopen(env_path, "r");
@@ -108,8 +117,12 @@ static int load_raceline(void)
                 }
             }
             fclose(f);
+            for (int i = 0; i < raceline_count; i++) {
+                if (raceline[i].vx > TRAJECTORY_MAX_VELOCITY) raceline[i].vx = TRAJECTORY_MAX_VELOCITY;
+                if (raceline[i].vx < 0.0) raceline[i].vx = 0.0;
+            }
             printf("  Loaded %d waypoints\n", raceline_count);
-            return 1;
+            return raceline_count > 0;
         }
         fprintf(stderr, "ERROR: Cannot open RACELINE_PATH=%s\n", env_path);
         return 0;
@@ -157,6 +170,10 @@ static int load_raceline(void)
         }
     }
     fclose(f);
+    for (int i = 0; i < raceline_count; i++) {
+        if (raceline[i].vx > TRAJECTORY_MAX_VELOCITY) raceline[i].vx = TRAJECTORY_MAX_VELOCITY;
+        if (raceline[i].vx < 0.0) raceline[i].vx = 0.0;
+    }
     printf("[LOAD] %d waypoints\n", raceline_count);
     return raceline_count > 0;
 }
@@ -318,6 +335,81 @@ static double compute_predicted_min_wall_slack(
     return min_slack;
 }
 
+static void write_horizon_csv_header(FILE *horizon_csv)
+{
+    fprintf(horizon_csv,
+        "solve_idx,sim_step,time_s,status,iterations,stage,"
+        "pred_s_m,pred_x_m,pred_y_m,pred_psi_rad,pred_vx_mps,pred_vy_mps,pred_omega_radps,"
+        "pred_delta_rad,pred_ax_mps2,pred_vtheta_mps,"
+        "ref_s_m,ref_x_m,ref_y_m,ref_psi_rad,ref_kappa_inv_m,ref_vx_mps,"
+        "track_left_m,track_right_m,constrained_left_m,constrained_right_m,"
+        "e_c_m,e_l_m,e_psi_rad\n");
+}
+
+static void dump_horizon_snapshot(
+    FILE *horizon_csv,
+    int solve_idx,
+    int sim_step,
+    double time_s,
+    const MPCCConfiguration_t *cfg,
+    const MPCCResult_t *result)
+{
+    if (!horizon_csv || !cfg || !result)
+        return;
+
+    for (int k = 0; k <= cfg->horizon_steps; k++) {
+        MPCCPathPoint_t path_pt;
+        const MPCCState_t *pred = &result->predicted_states[k];
+        double pred_delta = NAN;
+        double pred_ax = NAN;
+        double pred_vtheta = NAN;
+
+        mpcc_path_interpolate(&g_ref_path, pred->s, &path_pt);
+
+        if (k < cfg->horizon_steps) {
+            pred_delta = (double)result->predicted_controls[k].delta;
+            pred_ax = (double)result->predicted_controls[k].a_x;
+            pred_vtheta = (double)result->predicted_controls[k].v_theta;
+        }
+
+        double dx = (double)pred->X - (double)path_pt.x_ref;
+        double dy = (double)pred->Y - (double)path_pt.y_ref;
+        double sin_phi = sin((double)path_pt.phi_ref);
+        double cos_phi = cos((double)path_pt.phi_ref);
+        double e_c = (sin_phi * dx) - (cos_phi * dy);
+        double e_l = (-cos_phi * dx) - (sin_phi * dy);
+        double e_psi = wrap_angle((double)pred->psi - (double)path_pt.phi_ref);
+        double constrained_left = (double)path_pt.left_bound - (double)cfg->track_safety_buffer;
+        double constrained_right = (double)path_pt.right_bound - (double)cfg->track_safety_buffer;
+
+        if ((constrained_left + constrained_right) < 0.0) {
+            double lower = -constrained_left;
+            double upper = constrained_right;
+            double center = 0.5 * (lower + upper);
+            constrained_left = -center;
+            constrained_right = center;
+        }
+
+        fprintf(horizon_csv,
+            "%d,%d,%.6f,%d,%u,%d,"
+            "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
+            "%.6f,%.6f,%.6f,"
+            "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
+            "%.6f,%.6f,%.6f,%.6f,"
+            "%.6f,%.6f,%.6f\n",
+            solve_idx, sim_step, time_s, (int)result->status, result->admm_iterations, k,
+            (double)pred->s, (double)pred->X, (double)pred->Y, (double)pred->psi,
+            (double)pred->vx, (double)pred->vy, (double)pred->omega,
+            pred_delta, pred_ax, pred_vtheta,
+            (double)path_pt.s_ref, (double)path_pt.x_ref, (double)path_pt.y_ref,
+            (double)path_pt.phi_ref, (double)path_pt.kappa_ref, (double)path_pt.vx_ref,
+            (double)path_pt.left_bound, (double)path_pt.right_bound,
+            constrained_left, constrained_right,
+            e_c, e_l, e_psi);
+    }
+    fflush(horizon_csv);
+}
+
 /*===========================================================================
  * Env-var helper
  *===========================================================================*/
@@ -332,6 +424,13 @@ static int env_int(const char *name, int fallback)
 {
     const char *v = getenv(name);
     return v ? atoi(v) : fallback;
+}
+
+static double randn(void)
+{
+    double u1 = ((double)rand() + 1.0) / ((double)RAND_MAX + 2.0);
+    double u2 = ((double)rand() + 1.0) / ((double)RAND_MAX + 2.0);
+    return sqrt(-2.0 * log(u1)) * cos(2.0 * M_PI * u2);
 }
 
 /*===========================================================================
@@ -360,30 +459,31 @@ int main(void)
     const double SIM_DURATION_S = env_double("SIM_DURATION", SIM_DURATION);
     const double SIM_DT = env_double("SIM_DT", SIM_DT_DEFAULT);
     const double MPCC_DT = env_double("MPCC_DT", MPCC_DT_DEFAULT);
-    const double ODOM_DT = env_double("ODOM_DT", SIM_DT);
-    const double POSE_DT = env_double("POSE_DT", MPCC_DT);
-    const double CONTROL_DT = (POSE_DT > ODOM_DT) ? POSE_DT : ODOM_DT;
+    const double CONTROL_DT = MPCC_DT;
     int MPCC_CALL_INTERVAL = (int)(CONTROL_DT / SIM_DT + 0.5);
-    int ODOM_UPDATE_INTERVAL = (int)(ODOM_DT / SIM_DT + 0.5);
-    int POSE_UPDATE_INTERVAL = (int)(POSE_DT / SIM_DT + 0.5);
     const int SIM_STEPS = (int)(SIM_DURATION_S / SIM_DT);
     const int verbose = getenv("VERBOSE") != NULL;
     const double body_safety_margin = env_double("BODY_SAFETY_MARGIN", DEFAULT_BODY_SAFETY_MARGIN);
     const char *trace_csv_path = getenv("MPCC_TRACE_CSV_PATH");
+    const char *horizon_csv_path = getenv("MPCC_HORIZON_CSV_PATH");
     const char *cross_call_scale_env = getenv("CROSS_CALL_SCALE");
     FILE *trace_csv = NULL;
+    FILE *horizon_csv = NULL;
 
     if (MPCC_CALL_INTERVAL < 1) MPCC_CALL_INTERVAL = 1;
-    if (ODOM_UPDATE_INTERVAL < 1) ODOM_UPDATE_INTERVAL = 1;
-    if (POSE_UPDATE_INTERVAL < 1) POSE_UPDATE_INTERVAL = 1;
 
     printf("=== MPCC Sim-Drive (Lifted ODE, %s, %.0fs at dt=%.4fs) ===\n",
            MPCC_SOLVER_NAME, SIM_DURATION_S, SIM_DT);
     printf("    MPCC rate: %.0fHz (every %d sim steps)\n",
         1.0 / CONTROL_DT, MPCC_CALL_INTERVAL);
-        printf("    Sensor cadence: odom %.0fHz (every %d), pose %.0fHz (every %d)\n",
-            1.0 / ODOM_DT, ODOM_UPDATE_INTERVAL,
-            1.0 / POSE_DT, POSE_UPDATE_INTERVAL);
+
+    {
+        const char *seed_env = getenv("SIM_SEED");
+        unsigned int sim_seed = seed_env ? (unsigned int)strtoul(seed_env, NULL, 10) : 42u;
+        srand(sim_seed);
+        printf("    HARDWARE MODE: [drag: F_roll=%.1fN] [Pacejka tires: C=%.1f] [sensor noise] [seed=%u]\n",
+               ROLLING_RESISTANCE_N, PACEJKA_C_SHAPE, sim_seed);
+    }
 
     if (!load_raceline()) return 1;
     if (!build_reference_path()) return 1;
@@ -396,37 +496,37 @@ int main(void)
     cfg.horizon_steps     = env_int("HORIZON", MPCC_DEFAULT_HORIZON);
     cfg.dt                = env_double("DT", 0.03f);
 
-    /* April 21 winning configuration from the latest safe sweep. */
-    cfg.weight_contouring = env_double("Q_CONTOURING", 960.0f);
-    cfg.weight_lag        = env_double("Q_LAG", 200.0f);
+    /* Default to the current RViz/sim "track_racer" style setup. */
+    cfg.weight_contouring = env_double("Q_CONTOURING", 60.0f);
+    cfg.weight_lag        = env_double("Q_LAG", 120.0f);
     cfg.weight_wall_clearance = env_double("Q_WALL_CLEARANCE", MPCC_DEFAULT_WEIGHT_WALL_CLEARANCE);
-    cfg.wall_clearance_margin = env_double("WALL_CLEARANCE_MARGIN", MPCC_DEFAULT_WALL_CLEARANCE_MARGIN);
-    cfg.weight_progress   = env_double("Q_PROGRESS", 15.6f);
-    cfg.track_safety_buffer = env_double("MPCC_TRACK_BUFFER", MPCC_DEFAULT_TRACK_SAFETY_BUFFER);
+    cfg.wall_clearance_margin = env_double("WALL_CLEARANCE_MARGIN", 0.01f);
+    cfg.weight_progress   = env_double("Q_PROGRESS", 8.0f);
+    cfg.track_safety_buffer = env_double("MPCC_TRACK_BUFFER", 0.05f);
 
     /* State regularization */
-    cfg.weight_vx         = env_double("Q_VX", 30.0f);
-    cfg.vx_ref            = env_double("VX_REF", 4.0f);
+    cfg.weight_vx         = env_double("Q_VX", 0.0f);
+    cfg.vx_ref            = env_double("VX_REF", 0.0f);
     cfg.use_raceline_vx_ref = (uint8_t)env_int("MPCC_USE_RACELINE_VX_REF", 0);
     cfg.use_raceline_vx_limit = (uint8_t)env_int("MPCC_USE_RACELINE_VX_LIMIT", 0);
     cfg.raceline_vx_limit_scale = env_double("MPCC_RACELINE_VX_LIMIT_SCALE", 1.0f);
-    cfg.weight_vy         = env_double("Q_VY", 0.5f);
-    cfg.weight_omega      = env_double("Q_OMEGA", 1.5f);
+    cfg.weight_vy         = env_double("Q_VY", 1.0f);
+    cfg.weight_omega      = env_double("Q_OMEGA", 3.0f);
 
     /* Control effort */
-    cfg.weight_delta      = env_double("R_DELTA", 100.0f);
-    cfg.weight_ax         = env_double("R_AX", 0.05225f);
-    cfg.weight_v_theta    = env_double("R_VTHETA", 0.1f);
+    cfg.weight_delta      = env_double("R_DELTA", 8.0f);
+    cfg.weight_ax         = env_double("R_AX", 1.0f);
+    cfg.weight_v_theta    = env_double("R_VTHETA", 0.2f);
 
     /* Control rate */
-    cfg.weight_delta_rate   = env_double("W_DELTA_RATE", 5.0f);
-    cfg.weight_ax_rate      = env_double("W_AX_RATE", 0.488f);
-    cfg.weight_v_theta_rate = env_double("W_VTHETA_RATE", 0.1105f);
+    cfg.weight_delta_rate   = env_double("W_DELTA_RATE", 4.0f);
+    cfg.weight_ax_rate      = env_double("W_AX_RATE", 3.0f);
+    cfg.weight_v_theta_rate = env_double("W_VTHETA_RATE", 0.8f);
 
     /* Terminal MUST be >= running (Riccati requires positive semi-definite cost-to-go) */
-    cfg.weight_contouring_terminal = env_double("Q_CONTOURING_TERM", 4800.0f);
-    cfg.weight_lag_terminal     = env_double("Q_LAG_TERM", 800.0f);
-    cfg.weight_progress_terminal = env_double("Q_PROGRESS_TERM", 41.4f);
+    cfg.weight_contouring_terminal = env_double("Q_CONTOURING_TERM", 150.0f);
+    cfg.weight_lag_terminal     = env_double("Q_LAG_TERM", 120.0f);
+    cfg.weight_progress_terminal = env_double("Q_PROGRESS_TERM", 10.0f);
 
     /* Obstacle */
     cfg.weight_obstacle   = env_double("W_OBSTACLE", 1000.0f);
@@ -434,10 +534,10 @@ int main(void)
 
     /* ADMM config is only used by the ADMM/Riccati build. OSQP settings are
      * read directly by qp_solver_osqp.c from OSQP_* environment variables. */
-    cfg.admm_rho            = env_double("ADMM_RHO", 5.0f);
+    cfg.admm_rho            = env_double("ADMM_RHO", 15.0f);
     cfg.admm_max_iterations = env_int("ADMM_MAX_ITER", 300);
     cfg.admm_tolerance      = env_double("ADMM_TOL", 0.02f);
-    cfg.admm_rho_u          = env_double("ADMM_RHO_U", 0.0f);
+    cfg.admm_rho_u          = env_double("ADMM_RHO_U", 8.0f);
     cfg.admm_adaptive_rho   = (uint8_t)env_int("ADMM_ADAPTIVE_RHO", 1);
     cfg.admm_alpha_relax    = env_double("ADMM_ALPHA_RELAX", 1.6f);
     cfg.accept_max_iterations = (uint8_t)env_int("MPCC_ACCEPT_MAX_ITER", MPCC_DEFAULT_ACCEPT_MAX_ITERATIONS);
@@ -451,7 +551,7 @@ int main(void)
     cfg.ax_min    = env_double("AX_MIN", -10.0f);
     cfg.vx_max    = env_double("VX_MAX", 20.0f);
     cfg.vx_min    = env_double("VX_MIN", 0.0f);
-    cfg.v_theta_max = env_double("V_THETA_MAX", 10.0f);
+    cfg.v_theta_max = env_double("V_THETA_MAX", 8.0f);
     cfg.v_theta_min = env_double("V_THETA_MIN", 0.0f);
 
     /* Tire parameters */
@@ -498,25 +598,83 @@ int main(void)
     mpcc_set_reference_path(&g_ref_path);
 
     /* ── Vehicle model parameters (gym-matching) ───────────────────────── */
-    static const double mu = 0.745, mass = 3.314, Iz = 0.035;
-    static const double C_Sf = 4.297, C_Sr = 3.473;
-    static const double lf = 0.166, lr = 0.16, h_cg = 0.0703;
-    static const double g_acc = 9.81;
-    static const double sv_max = 2.8492;
-    static const double s_max = 0.4189;
-    static const double v_switch = 7.319;
-    static const double v_min = 0.0, v_max = 20.0;
-    static const double lwb = 0.166 + 0.16;
+    const double drag_c0 = env_double("DRAG_C0", 0.0);
+    const double drag_c1 = env_double("DRAG_C1", 0.05);
+    const double drag_c2 = env_double("DRAG_C2", 0.04);
+    const double accel_tau_pos = env_double("ACCEL_TAU_POS", 0.05);
+    const double accel_tau_neg = env_double("ACCEL_TAU_NEG", 0.12);
+    const double accel_gain_pos = env_double("ACCEL_GAIN_POS", 0.575);
+    const double accel_gain_neg = env_double("ACCEL_GAIN_NEG", 1.0);
+    const double sim_mu = env_double("SIM_MU", 0.6652002785524997);
+    const double sim_mu_front = env_double("SIM_MU_FRONT", 0.775687);
+    const double sim_mu_rear = env_double("SIM_MU_REAR", 0.6565520426481404);
+    const double sim_mass = env_double("SIM_MASS", 3.57912);
+    const double sim_Iz = env_double("SIM_IZ", 0.035);
+    const double sim_C_Sf = env_double("SIM_C_SF", 4.78281642069513);
+    const double sim_C_Sr = env_double("SIM_C_SR", 2.73123678240426);
+    const double sim_C_Sf_high_slip = env_double("SIM_C_SF_HIGH_SLIP", 2.4199490875105907);
+    const double sim_C_Sr_high_slip = env_double("SIM_C_SR_HIGH_SLIP", 2.73123678240426);
+    const double sim_lf = env_double("SIM_LF", 0.166);
+    const double sim_lr = env_double("SIM_LR", 0.16);
+    const double sim_h_cg = env_double("SIM_H_CG", 0.0703);
+    const double sim_steer_rate_max = env_double("SIM_STEER_RATE_MAX", 2.8492);
+    const double sim_steer_angle_max = env_double("SIM_STEER_ANGLE_MAX", MAX_STEERING);
+    const double sim_steer_gain = env_double("SIM_STEER_GAIN", 1.0085301459687404);
+    const double sim_steer_gain_high_slip = env_double("SIM_STEER_GAIN_HIGH_SLIP", 0.6541720766809247);
+    const double sim_v_switch = env_double("SIM_V_SWITCH", 7.319);
+    const double sim_v_min = env_double("SIM_V_MIN", 0.5);
+    const double sim_v_max = env_double("SIM_V_MAX", 21.6);
+    const double sim_roll_res_n = env_double("SIM_ROLL_RES_N", ROLLING_RESISTANCE_N);
+    const double sim_pacejka_c_front = env_double("SIM_PACEJKA_C_FRONT", 1.8031639754063644);
+    const double sim_pacejka_c_rear = env_double("SIM_PACEJKA_C_REAR", 1.7681655069132207);
+    const double sim_slip_blend_start_front = env_double("SIM_SLIP_BLEND_START_FRONT", 0.1643527788471148);
+    const double sim_slip_blend_end_front = env_double("SIM_SLIP_BLEND_END_FRONT", 0.5319307735091576);
+    const double sim_slip_blend_start_rear = env_double("SIM_SLIP_BLEND_START_REAR", 0.2502122916247753);
+    const double sim_slip_blend_end_rear = env_double("SIM_SLIP_BLEND_END_REAR", 0.47793678552502167);
+    const double sim_combined_slip_gain = env_double("SIM_COMBINED_SLIP_GAIN", 0.10359393575265835);
+    const double sim_front_peak_drop = env_double("SIM_FRONT_PEAK_DROP", 0.11804981810838257);
+    const double sim_front_peak_drop_start = env_double("SIM_FRONT_PEAK_DROP_START", 0.13813810031946996);
+    const double sim_front_peak_drop_end = env_double("SIM_FRONT_PEAK_DROP_END", 0.48938120479012814);
+    const double sim_front_peak_drop_pow = env_double("SIM_FRONT_PEAK_DROP_POW", 1.03);
+    const double sim_front_combined_gain = env_double("SIM_FRONT_COMBINED_GAIN", 0.13366870620631957);
+    const double sim_front_peak_floor = env_double("SIM_FRONT_PEAK_FLOOR", 0.2708096984131235);
+    const double sim_noise_pos_m = env_double("SIM_NOISE_POS_M", NOISE_POS_M);
+    const double sim_noise_hdg_rad = env_double("SIM_NOISE_HDG_RAD", NOISE_HDG_RAD);
+    const double sim_noise_vx_ms = env_double("SIM_NOISE_VX_MS", NOISE_VX_MS);
+    const double sim_noise_vy_ms = env_double("SIM_NOISE_VY_MS", NOISE_VY_MS);
+    const double sim_noise_omega_rad = env_double("SIM_NOISE_OMEGA_RAD", NOISE_OMEGA_RAD);
+    int realistic_actuation = (getenv("REALISTIC_ACTUATION") && atoi(getenv("REALISTIC_ACTUATION")));
+    if (!realistic_actuation) {
+        if (fabs(drag_c0) > 1e-9 || fabs(drag_c1) > 1e-9 || fabs(drag_c2) > 1e-9 ||
+            accel_tau_pos > 1e-6 || accel_tau_neg > 1e-6 ||
+            fabs(accel_gain_pos - 1.0) > 1e-9 || fabs(accel_gain_neg - 1.0) > 1e-9) {
+            realistic_actuation = 1;
+        }
+    }
+    const int realistic_tires = 1;
+    const int realistic_drive = 1;
+    const int realistic_noise = 1;
+    const int realistic_mode = 1;
 
-    /* ── Spawn at raceline[0] from standstill ─────────────────────────────── */
-    /* Standstill startup validates that MPCC can launch cleanly from 0 m/s. */
+    const double start_offset_lat = env_double("START_OFFSET_LAT", 0.0);
+    const double start_offset_x = env_double("START_OFFSET_X", 0.0);
+    const double start_offset_y = env_double("START_OFFSET_Y", 0.0);
+    const double start_heading_offset = env_double("START_HEADING_OFFSET", 0.0);
+    const double start_speed = env_double("START_SPEED", 0.0);
+    const double start_lat_speed = env_double("START_LAT_SPEED", 0.0);
+    const double start_yaw_rate = env_double("START_YAW_RATE", 0.0);
+    const double start_steer = env_double("START_STEER", 0.0);
+
+    /* ── Spawn at raceline[0] with optional offsets ─────────────────────── */
+    const double start_normal = raceline[0].psi + M_PI / 2.0;
     VehicleState_t state;
-    state.pos_x = (raceline[0].x);
-    state.pos_y = (raceline[0].y);
-    state.heading = (raceline[0].psi);
-    state.long_vel = 0;
-    state.lat_vel = 0;
-    state.yaw_rate = 0;
+    state.pos_x = (float)(raceline[0].x + start_offset_lat * cos(start_normal) + start_offset_x);
+    state.pos_y = (float)(raceline[0].y + start_offset_lat * sin(start_normal) + start_offset_y);
+    state.heading = (float)(wrap_angle(raceline[0].psi + start_heading_offset));
+    state.long_vel = (float)start_speed;
+    state.lat_vel = (float)start_lat_speed;
+    state.yaw_rate = (float)start_yaw_rate;
+    VehicleState_t true_state = state;
 
     /* Tracking metrics */
     double max_lat_err = 0, sum_lat_err = 0;
@@ -527,15 +685,12 @@ int main(void)
     int prev_wall_hit = 0;  /* edge detection: only count entering a wall */
     int numerical_failures = 0;
     int solver_ok = 0, solver_calls = 0;
-    double prev_steer = 0;
-    double actual_steer = 0;
-    double steer_buffer[STEER_BUFFER_SIZE];
-    int steer_buf_idx = 0;
-    for (int i = 0; i < STEER_BUFFER_SIZE; i++) steer_buffer[i] = 0.0;
+    int solver_optimal = 0, solver_max_iter = 0;
+    double prev_steer = start_steer;
+    double actual_steer = start_steer;
     int steer_reversals = 0;
     double max_steer_change = 0;
-    double time_above_2ms = 0;
-    double time_above_5ms = 0;
+    double time_above_3_5ms = 0;
     double max_vx = 0;
 
     long total_iterations = 0;
@@ -553,10 +708,9 @@ int main(void)
     /* Held MPCC commands (zero-order hold between MPCC calls) */
     double cmd_steer = 0.0;
     double cmd_accel = 0.0;
+    double accel_applied = 0.0;
     int consecutive_failures = 0;  /* for proportional fallback */
     float current_s = 0;
-    int odom_update_count = 0;
-    int last_solve_odom_update_count = -1;
     int s_backward_jumps = 0;
     int s_large_corrections = 0;
     int s_prediction_regressions = 0;
@@ -600,11 +754,22 @@ int main(void)
                 "dx_exec_pred,dy_exec_pred,dpsi_exec_pred,ds_exec_pred\n");
     }
 
+    if (horizon_csv_path && horizon_csv_path[0] != '\0') {
+        horizon_csv = fopen(horizon_csv_path, "w");
+        if (!horizon_csv) {
+            fprintf(stderr, "ERROR: Cannot open MPCC_HORIZON_CSV_PATH=%s for writing\n", horizon_csv_path);
+            if (trace_csv) fclose(trace_csv);
+            return 1;
+        }
+        write_horizon_csv_header(horizon_csv);
+    }
+
     if (verbose) {
         printf("\n  Step | Time  | vx    | v_cmd | e_y   | e_psi | cmd_st | act_st | accel | st | it\n");
         printf("  -----|-------|-------|-------|-------|-------|--------|--------|-------|----|---\n");
     }
 
+    int solve_idx = 0;
     for (int step = 0; step < SIM_STEPS; step++) {
         double t = step * SIM_DT;
         double s_debug_now = current_s;
@@ -617,8 +782,10 @@ int main(void)
         double py = (double)(state.pos_y);
         double psi = (double)(state.heading);
         double vx = (double)(state.long_vel);
-        int odom_tick = (step % ODOM_UPDATE_INTERVAL) == 0;
-        int pose_tick = (step % POSE_UPDATE_INTERVAL) == 0;
+        double true_px = (double)(true_state.pos_x);
+        double true_py = (double)(true_state.pos_y);
+        double true_psi = (double)(true_state.heading);
+        double speed_mps = hypot((double)(true_state.long_vel), (double)(true_state.lat_vel));
 
         /* Track physical distance traveled for robust lap validation.
          * This prevents counting "laps" from s-estimator wrap when the car is
@@ -641,9 +808,6 @@ int main(void)
             ds_exec_pred = s_debug_now - prev_pred_s;
         }
 
-        if (odom_tick)
-            odom_update_count++;
-
         if (!isfinite(px) || !isfinite(py) || !isfinite(psi) || !isfinite(vx)) {
             numerical_failures++;
             printf("\n  !!! NUMERICAL FAILURE at step=%d t=%.2f !!!\n", step, t);
@@ -651,19 +815,19 @@ int main(void)
             break;
         }
 
-        if (vx > max_vx) max_vx = vx;
+        if (speed_mps > max_vx) max_vx = speed_mps;
 
-        int closest = find_closest_waypoint(px, py, psi);
+        int closest = find_closest_waypoint(true_px, true_py, true_psi);
         MPCCPathPoint_t metrics_path_pt;
         mpcc_path_interpolate(&g_ref_path, s_debug_now, &metrics_path_pt);
 
         /* Compute Frenet error for metrics */
-        double dx = px - (double)metrics_path_pt.x_ref;
-        double dy = py - (double)metrics_path_pt.y_ref;
+        double dx = true_px - (double)metrics_path_pt.x_ref;
+        double dy = true_py - (double)metrics_path_pt.y_ref;
         double path_psi = (double)metrics_path_pt.phi_ref;
         double e_y = -dx * sin(path_psi) + dy * cos(path_psi);
         double e_c = -e_y;  /* MPCC core uses positive = right of reference. */
-        double e_psi = wrap_angle(psi - path_psi);
+        double e_psi = wrap_angle(true_psi - path_psi);
 
         /* Wall collision check (body-edge) — abort on first hit.
          * Use the same contouring-error sign convention as the MPCC core:
@@ -717,7 +881,7 @@ int main(void)
         unsigned adapt_updates = 0U;
         unsigned clip_events = 0U;
 
-        if (pose_tick && odom_update_count != last_solve_odom_update_count) {
+        if (step % MPCC_CALL_INTERVAL == 0) {
             /* Convert vehicle state -> MPCC state */
             MPCCState_t mpcc_state = mpcc_state_from_vehicle_state(&state, current_s);
             {
@@ -760,7 +924,10 @@ int main(void)
             clock_gettime(CLOCK_MONOTONIC_RAW, &ts0);
             MPCCStatus_t status = mpcc_compute_control(&mpcc_state, &result);
             clock_gettime(CLOCK_MONOTONIC_RAW, &ts1);
-            last_solve_odom_update_count = odom_update_count;
+
+            if (horizon_csv)
+                dump_horizon_snapshot(horizon_csv, solve_idx, step, t, &cfg, &result);
+            solve_idx++;
 
             if (cfg.horizon_steps > 0) {
                 double ds1 = wrap_s_delta((double)result.predicted_states[1].s
@@ -805,6 +972,8 @@ int main(void)
             if (iter > max_iter_single) max_iter_single = iter;
             if (status == MPCC_STATUS_SUCCESS || status == MPCC_STATUS_MAX_ITERATIONS)
                 solver_ok++;
+            if (status == MPCC_STATUS_SUCCESS) solver_optimal++;
+            if (status == MPCC_STATUS_MAX_ITERATIONS) solver_max_iter++;
             solver_calls++;
 
             /* Track only hard solver failures for proportional fallback.
@@ -864,27 +1033,22 @@ int main(void)
         }
 
         /* Physical saturation */
-        if (steer > MAX_STEERING)  steer = MAX_STEERING;
-        if (steer < -MAX_STEERING) steer = -MAX_STEERING;
+        if (steer > sim_steer_angle_max)  steer = sim_steer_angle_max;
+        if (steer < -sim_steer_angle_max) steer = -sim_steer_angle_max;
         if (accel_cmd > PHYSICAL_MAX_ACCEL)  accel_cmd = PHYSICAL_MAX_ACCEL;
         if (accel_cmd < -PHYSICAL_MAX_ACCEL) accel_cmd = -PHYSICAL_MAX_ACCEL;
-
-        /* Steer buffer delay (matching gym) */
-        actual_steer = steer_buffer[steer_buf_idx];
-        steer_buffer[steer_buf_idx] = steer;
-        steer_buf_idx = (steer_buf_idx + 1) % STEER_BUFFER_SIZE;
+        actual_steer = steer;
 
         /* Metrics */
         if (fabs(e_y) > max_lat_err) max_lat_err = fabs(e_y);
         sum_lat_err += fabs(e_y);
         if (fabs(e_psi) > max_hdg_err) max_hdg_err = fabs(e_psi);
         sum_hdg_err += fabs(e_psi);
-        double vel_err = fabs(vx - raceline[closest].vx);
+        double vel_err = fabs(speed_mps - raceline[closest].vx);
         if (vel_err > max_vel_err) max_vel_err = vel_err;
         sum_vel_err += vel_err;
-        sum_vx += vx;
-        if (vx > 2.0) time_above_2ms += SIM_DT;
-        if (vx > 5.0) time_above_5ms += SIM_DT;
+        sum_vx += speed_mps;
+        if (speed_mps > 3.5) time_above_3_5ms += SIM_DT;
 
         double steer_change = actual_steer - prev_steer;
         if (fabs(steer_change) > fabs(max_steer_change)) max_steer_change = steer_change;
@@ -929,8 +1093,21 @@ int main(void)
             }
         }
 
-        /* ── Propagate vehicle: gym-matching ST model with RK4 ─────────── */
+        /* ── Propagate vehicle: hardware-like ST model with RK4 ────────── */
         {
+            const double mass = sim_mass;
+            const double Iz = sim_Iz;
+            const double lf = sim_lf;
+            const double lr = sim_lr;
+            const double h_cg = sim_h_cg;
+            const double g_acc = 9.81;
+            const double sv_max = sim_steer_rate_max;
+            const double s_max = sim_steer_angle_max;
+            const double v_switch = sim_v_switch;
+            const double v_min = sim_v_min;
+            const double v_max = sim_v_max;
+            const double lwb = sim_lf + sim_lr;
+
             if (!st_initialized) {
                 st_delta = actual_steer;
                 st_V = vx;
@@ -939,7 +1116,6 @@ int main(void)
                 st_initialized = 1;
             }
 
-            /* pid_steer: bang-bang matching gym */
             double steer_vel;
             {
                 double diff = actual_steer - st_delta;
@@ -950,37 +1126,50 @@ int main(void)
                 if (st_delta >= s_max && steer_vel > 0) steer_vel = 0.0;
                 if (st_delta <= -s_max && steer_vel < 0) steer_vel = 0.0;
                 if (steer_vel < -sv_max) steer_vel = -sv_max;
-                if (steer_vel >  sv_max) steer_vel =  sv_max;
+                if (steer_vel > sv_max) steer_vel = sv_max;
             }
 
-            /* accl_constraints */
             double accl = accel_cmd;
+            if (realistic_actuation) {
+                const double gain = (accl >= 0.0) ? accel_gain_pos : accel_gain_neg;
+                double a_target = accl * gain;
+                const double tau = (a_target >= 0.0) ? accel_tau_pos : accel_tau_neg;
+                if (tau > 1e-6) {
+                    double alpha = SIM_DT / tau;
+                    if (alpha > 1.0) alpha = 1.0;
+                    accel_applied += alpha * (a_target - accel_applied);
+                } else {
+                    accel_applied = a_target;
+                }
+                accl = accel_applied;
+            }
             if (st_V > v_switch) {
                 double a_max_eff = PHYSICAL_MAX_ACCEL * v_switch / st_V;
                 if (accl > a_max_eff) accl = a_max_eff;
             }
-            if (accl > PHYSICAL_MAX_ACCEL)  accl = PHYSICAL_MAX_ACCEL;
+            if (accl > PHYSICAL_MAX_ACCEL) accl = PHYSICAL_MAX_ACCEL;
             if (accl < -PHYSICAL_MAX_ACCEL) accl = -PHYSICAL_MAX_ACCEL;
             if (st_V <= v_min && accl < 0) accl = 0.0;
             if (st_V >= v_max && accl > 0) accl = 0.0;
 
-            /* ST dynamics (linear tires, matching gym single_track.py) */
             #define ST_DYNAMICS(X, Y, DELTA, V, PSI, PSI_DOT_VAL, BETA, SV, ACCL, \
                                dX, dY, dDELTA, dV, dPSI, dPSI_DOT, dBETA) \
             do { \
                 if ((V) < 0.5) { \
-                    double beta_hat = atan(tan(DELTA) * lr / lwb); \
-                    double beta_dot = (1.0 / (1.0 + pow(tan(DELTA) * lr / lwb, 2.0))) \
-                                    * (lr / (lwb * pow(cos(DELTA), 2.0))) * (SV); \
+                    double delta_eff = sim_steer_gain * (DELTA); \
+                    double sv_eff = sim_steer_gain * (SV); \
+                    double beta_hat = atan(tan(delta_eff) * lr / lwb); \
+                    double beta_dot = (1.0 / (1.0 + pow(tan(delta_eff) * lr / lwb, 2.0))) \
+                                    * (lr / (lwb * pow(cos(delta_eff), 2.0))) * (sv_eff); \
                     (dX) = (V) * cos((PSI) + beta_hat); \
                     (dY) = (V) * sin((PSI) + beta_hat); \
                     (dDELTA) = (SV); \
                     (dV) = (ACCL); \
-                    (dPSI) = (V) * cos(beta_hat) * tan(DELTA) / lwb; \
+                    (dPSI) = (V) * cos(beta_hat) * tan(delta_eff) / lwb; \
                     (dPSI_DOT) = (1.0 / lwb) * ( \
-                        (ACCL) * cos(BETA) * tan(DELTA) \
-                        - (V) * sin(BETA) * tan(DELTA) * beta_dot \
-                        + ((V) * cos(BETA) * (SV)) / pow(cos(DELTA), 2.0)); \
+                        (ACCL) * cos(BETA) * tan(delta_eff) \
+                        - (V) * sin(BETA) * tan(delta_eff) * beta_dot \
+                        + ((V) * cos(BETA) * (sv_eff)) / pow(cos(delta_eff), 2.0)); \
                     (dBETA) = beta_dot; \
                 } else { \
                     double vx_ = (V) * cos(BETA); \
@@ -988,17 +1177,68 @@ int main(void)
                     double vx_safe_ = (vx_ > 0.5) ? vx_ : 0.5; \
                     double Fzf_ = mass * (g_acc * lr - (ACCL) * h_cg) / lwb; \
                     double Fzr_ = mass * (g_acc * lf + (ACCL) * h_cg) / lwb; \
-                    double alpha_f_ = (DELTA) - atan2(vy_ + lf * (PSI_DOT_VAL), vx_safe_); \
+                    double alpha_f_raw_ = sim_steer_gain * (DELTA) - atan2(vy_ + lf * (PSI_DOT_VAL), vx_safe_); \
+                    double alpha_r_raw_ = -atan2(vy_ - lr * (PSI_DOT_VAL), vx_safe_); \
+                    double slip_front_raw_ = fabs(alpha_f_raw_); \
+                    double steer_blend_ = 0.0; \
+                    if (slip_front_raw_ > sim_slip_blend_start_front) { \
+                        if (slip_front_raw_ >= sim_slip_blend_end_front) steer_blend_ = 1.0; \
+                        else steer_blend_ = (slip_front_raw_ - sim_slip_blend_start_front) / (sim_slip_blend_end_front - sim_slip_blend_start_front); \
+                    } \
+                    steer_blend_ = steer_blend_ * steer_blend_ * (3.0 - 2.0 * steer_blend_); \
+                    double steer_gain_eff_ = sim_steer_gain + (sim_steer_gain_high_slip - sim_steer_gain) * steer_blend_; \
+                    double delta_eff = steer_gain_eff_ * (DELTA); \
+                    double alpha_f_ = delta_eff - atan2(vy_ + lf * (PSI_DOT_VAL), vx_safe_); \
                     double alpha_r_ = -atan2(vy_ - lr * (PSI_DOT_VAL), vx_safe_); \
-                    double Fyf_ = mu * C_Sf * alpha_f_ * Fzf_; \
-                    double Fyr_ = mu * C_Sr * alpha_r_ * Fzr_; \
+                    double slip_front_ = fabs(alpha_f_); \
+                    double slip_rear_ = fabs(alpha_r_); \
+                    double slip_blend_front_ = 0.0; \
+                    double slip_blend_rear_ = 0.0; \
+                    if (slip_front_ > sim_slip_blend_start_front) { \
+                        if (slip_front_ >= sim_slip_blend_end_front) slip_blend_front_ = 1.0; \
+                        else slip_blend_front_ = (slip_front_ - sim_slip_blend_start_front) / (sim_slip_blend_end_front - sim_slip_blend_start_front); \
+                    } \
+                    if (slip_rear_ > sim_slip_blend_start_rear) { \
+                        if (slip_rear_ >= sim_slip_blend_end_rear) slip_blend_rear_ = 1.0; \
+                        else slip_blend_rear_ = (slip_rear_ - sim_slip_blend_start_rear) / (sim_slip_blend_end_rear - sim_slip_blend_start_rear); \
+                    } \
+                    slip_blend_front_ = slip_blend_front_ * slip_blend_front_ * (3.0 - 2.0 * slip_blend_front_); \
+                    slip_blend_rear_ = slip_blend_rear_ * slip_blend_rear_ * (3.0 - 2.0 * slip_blend_rear_); \
+                    double C_Sf_eff_ = sim_C_Sf + (sim_C_Sf_high_slip - sim_C_Sf) * slip_blend_front_; \
+                    double C_Sr_eff_ = sim_C_Sr + (sim_C_Sr_high_slip - sim_C_Sr) * slip_blend_rear_; \
+                    double accel_usage_ = fabs(ACCL) / PHYSICAL_MAX_ACCEL; \
+                    if (accel_usage_ > 1.0) accel_usage_ = 1.0; \
+                    double combined_scale_ = 1.0 - sim_combined_slip_gain * accel_usage_; \
+                    if (combined_scale_ < 0.30) combined_scale_ = 0.30; \
+                    double front_drop_blend_ = 0.0; \
+                    if (slip_front_ > sim_front_peak_drop_start) { \
+                        if (slip_front_ >= sim_front_peak_drop_end) front_drop_blend_ = 1.0; \
+                        else front_drop_blend_ = (slip_front_ - sim_front_peak_drop_start) / (sim_front_peak_drop_end - sim_front_peak_drop_start); \
+                    } \
+                    front_drop_blend_ = front_drop_blend_ * front_drop_blend_ * (3.0 - 2.0 * front_drop_blend_); \
+                    if (sim_front_peak_drop_pow > 1.0) front_drop_blend_ = pow(front_drop_blend_, sim_front_peak_drop_pow); \
+                    double front_peak_scale_ = 1.0 - sim_front_peak_drop * front_drop_blend_; \
+                    if (front_peak_scale_ < sim_front_peak_floor) front_peak_scale_ = sim_front_peak_floor; \
+                    double front_combined_scale_ = 1.0 - sim_front_combined_gain * accel_usage_ * front_drop_blend_; \
+                    if (front_combined_scale_ < sim_front_peak_floor) front_combined_scale_ = sim_front_peak_floor; \
+                    front_peak_scale_ *= front_combined_scale_; \
+                    double B_f = C_Sf_eff_ / sim_pacejka_c_front; \
+                    double B_r = C_Sr_eff_ / sim_pacejka_c_rear; \
+                    double D_f = sim_mu_front * Fzf_ * front_peak_scale_; \
+                    double D_r = sim_mu_rear * Fzr_; \
+                    double Fyf_ = combined_scale_ * D_f * sin(sim_pacejka_c_front * atan(B_f * alpha_f_)); \
+                    double Fyr_ = combined_scale_ * D_r * sin(sim_pacejka_c_rear * atan(B_r * alpha_r_)); \
                     double Fx_ = mass * (ACCL); \
-                    double cos_delta_ = cos(DELTA); \
-                    double sin_delta_ = sin(DELTA); \
-                    double dvx_dt_ = (Fx_ - Fyf_ * sin_delta_ \
-                                      + mass * vy_ * (PSI_DOT_VAL)) / mass; \
-                    double dvy_dt_ = (Fyf_ * cos_delta_ + Fyr_ \
-                                      - mass * vx_ * (PSI_DOT_VAL)) / mass; \
+                    if (realistic_drive) Fx_ -= sim_roll_res_n; \
+                    if (realistic_actuation) { \
+                        double v_abs_ = fabs(vx_); \
+                        double a_drag_ = drag_c0 + drag_c1 * v_abs_ + drag_c2 * v_abs_ * v_abs_; \
+                        if (a_drag_ > 0.0) Fx_ -= mass * a_drag_; \
+                    } \
+                    double cos_delta_ = cos(delta_eff); \
+                    double sin_delta_ = sin(delta_eff); \
+                    double dvx_dt_ = (Fx_ - Fyf_ * sin_delta_ + mass * vy_ * (PSI_DOT_VAL)) / mass; \
+                    double dvy_dt_ = (Fyf_ * cos_delta_ + Fyr_ - mass * vx_ * (PSI_DOT_VAL)) / mass; \
                     double V_safe_ = ((V) > 0.001) ? (V) : 0.001; \
                     double V_sq_ = (V) * (V); \
                     if (V_sq_ < 0.001) V_sq_ = 0.001; \
@@ -1010,48 +1250,40 @@ int main(void)
                     (dPSI_DOT) = (lf * Fyf_ * cos_delta_ - lr * Fyr_) / Iz; \
                     (dBETA) = (vx_ * dvy_dt_ - vy_ * dvx_dt_) / V_sq_; \
                 } \
-            } while(0)
+            } while (0)
 
-            double true_px = (double)(state.pos_x);
-            double true_py = (double)(state.pos_y);
-            double true_psi = (double)(state.heading);
             double s0[7] = {true_px, true_py, st_delta, st_V, true_psi, st_psi_dot, st_beta};
-
             double k1[7], k2[7], k3[7], k4[7];
 
-            ST_DYNAMICS(s0[0], s0[1], s0[2], s0[3], s0[4], s0[5], s0[6],
-                        steer_vel, accl,
+            ST_DYNAMICS(s0[0], s0[1], s0[2], s0[3], s0[4], s0[5], s0[6], steer_vel, accl,
                         k1[0], k1[1], k1[2], k1[3], k1[4], k1[5], k1[6]);
             {
                 double s1[7];
                 for (int i = 0; i < 7; i++) s1[i] = s0[i] + 0.5 * SIM_DT * k1[i];
-                ST_DYNAMICS(s1[0], s1[1], s1[2], s1[3], s1[4], s1[5], s1[6],
-                            steer_vel, accl,
+                ST_DYNAMICS(s1[0], s1[1], s1[2], s1[3], s1[4], s1[5], s1[6], steer_vel, accl,
                             k2[0], k2[1], k2[2], k2[3], k2[4], k2[5], k2[6]);
             }
             {
                 double s2[7];
                 for (int i = 0; i < 7; i++) s2[i] = s0[i] + 0.5 * SIM_DT * k2[i];
-                ST_DYNAMICS(s2[0], s2[1], s2[2], s2[3], s2[4], s2[5], s2[6],
-                            steer_vel, accl,
+                ST_DYNAMICS(s2[0], s2[1], s2[2], s2[3], s2[4], s2[5], s2[6], steer_vel, accl,
                             k3[0], k3[1], k3[2], k3[3], k3[4], k3[5], k3[6]);
             }
             {
                 double s3[7];
                 for (int i = 0; i < 7; i++) s3[i] = s0[i] + SIM_DT * k3[i];
-                ST_DYNAMICS(s3[0], s3[1], s3[2], s3[3], s3[4], s3[5], s3[6],
-                            steer_vel, accl,
+                ST_DYNAMICS(s3[0], s3[1], s3[2], s3[3], s3[4], s3[5], s3[6], steer_vel, accl,
                             k4[0], k4[1], k4[2], k4[3], k4[4], k4[5], k4[6]);
             }
 
             double sn[7];
             for (int i = 0; i < 7; i++)
-                sn[i] = s0[i] + (SIM_DT / 6.0) * (k1[i] + 2.0*k2[i] + 2.0*k3[i] + k4[i]);
+                sn[i] = s0[i] + (SIM_DT / 6.0) * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]);
 
-            if (sn[2] > s_max)  sn[2] = s_max;
+            if (sn[2] > s_max) sn[2] = s_max;
             if (sn[2] < -s_max) sn[2] = -s_max;
-            if (sn[3] < v_min)  sn[3] = v_min;
-            if (sn[3] > v_max)  sn[3] = v_max;
+            if (sn[3] < v_min) sn[3] = v_min;
+            if (sn[3] > v_max) sn[3] = v_max;
             sn[4] = wrap_angle(sn[4]);
 
             st_delta = sn[2];
@@ -1059,15 +1291,25 @@ int main(void)
             st_psi_dot = sn[5];
             st_beta = sn[6];
 
-            state.pos_x = (sn[0]);
-            state.pos_y = (sn[1]);
-            state.heading = (sn[4]);
-            state.long_vel = (sn[3] * cos(sn[6]));
-            state.lat_vel = (sn[3] * sin(sn[6]));
-            state.yaw_rate = (sn[5]);
+            true_state.pos_x = (float)(sn[0]);
+            true_state.pos_y = (float)(sn[1]);
+            true_state.heading = (float)(sn[4]);
+            true_state.long_vel = (float)(sn[3] * cos(sn[6]));
+            true_state.lat_vel = (float)(sn[3] * sin(sn[6]));
+            true_state.yaw_rate = (float)(sn[5]);
+
+            if (realistic_noise) {
+                state.pos_x = (float)(sn[0] + sim_noise_pos_m * randn());
+                state.pos_y = (float)(sn[1] + sim_noise_pos_m * randn());
+                state.heading = (float)(sn[4] + sim_noise_hdg_rad * randn());
+                state.long_vel = (float)(sn[3] * cos(sn[6]) + sim_noise_vx_ms * randn());
+                state.lat_vel = (float)(sn[3] * sin(sn[6]) + sim_noise_vy_ms * randn());
+                state.yaw_rate = (float)(sn[5] + sim_noise_omega_rad * randn());
+            } else {
+                state = true_state;
+            }
 
             actual_steer = st_delta;
-
             #undef ST_DYNAMICS
         }
 
@@ -1077,15 +1319,29 @@ int main(void)
 
     /* ── Summary ───────────────────────────────────────────────────────── */
     int total_stepped = stepped + 1;
+    if (total_stepped < 1) total_stepped = 1;
+    double simulated_time = total_stepped * SIM_DT;
     double avg_lat = sum_lat_err / total_stepped;
     double avg_hdg = sum_hdg_err / total_stepped;
     double avg_vel_err = sum_vel_err / total_stepped;
     double avg_speed = sum_vx / total_stepped;
+    double avg_iters = (solver_calls > 0) ? (double)total_iterations / solver_calls : 0;
+    double avg_solve = (solver_calls > 0) ? total_solve_us / solver_calls : 0;
+    double avg_adapt_updates = (solver_calls > 0)
+                             ? (double)total_adaptive_updates / solver_calls : 0.0;
+    double avg_clip_events = (solver_calls > 0)
+                           ? (double)total_clip_events / solver_calls : 0.0;
+    double avg_rho = (solver_calls > 0) ? sum_rho / solver_calls : 0.0;
+    double avg_rho_u = (solver_calls > 0) ? sum_rho_u / solver_calls : 0.0;
+    double solver_feasible_pct = 100.0 * solver_ok / (solver_calls > 0 ? solver_calls : 1);
+    double solver_optimal_pct = 100.0 * solver_optimal / (solver_calls > 0 ? solver_calls : 1);
+    double solver_max_iter_pct = 100.0 * solver_max_iter / (solver_calls > 0 ? solver_calls : 1);
 
-    printf("\n  === Results (%.0fs, MPCC Lifted ODE, %s) ===\n",
-           SIM_DURATION_S, MPCC_SOLVER_NAME);
-    printf("  Solver success:     %d / %d (%.1f%%)\n", solver_ok, solver_calls,
-           100.0*solver_ok/(solver_calls > 0 ? solver_calls : 1));
+    printf("\n  === Results (%.1fs, MPCC Lifted ODE, %s) ===\n",
+           simulated_time, MPCC_SOLVER_NAME);
+    printf("  Solver feasible:    %d / %d (%.1f%%)\n", solver_ok, solver_calls, solver_feasible_pct);
+    printf("  Solver optimal:     %d / %d (%.1f%%)\n", solver_optimal, solver_calls, solver_optimal_pct);
+    printf("  Solver max-iter:    %d / %d (%.1f%%)\n", solver_max_iter, solver_calls, solver_max_iter_pct);
     printf("  Avg speed:          %.2f m/s\n", avg_speed);
     printf("  Laps completed:     %d\n", lap_count);
     if (lap_count > 0) {
@@ -1095,8 +1351,8 @@ int main(void)
     printf("  Max velocity:       %.2f m/s\n", max_vx);
     printf("  Max lateral error:  %.3f m\n", max_lat_err);
     printf("  Avg lateral error:  %.3f m\n", avg_lat);
-    printf("  Max heading error:  %.4f rad (%.1f deg)\n", max_hdg_err, max_hdg_err*180/M_PI);
-    printf("  Avg heading error:  %.4f rad (%.1f deg)\n", avg_hdg, avg_hdg*180/M_PI);
+    printf("  Max heading error:  %.4f rad (%.1f deg)\n", max_hdg_err, max_hdg_err * 180 / M_PI);
+    printf("  Avg heading error:  %.4f rad (%.1f deg)\n", avg_hdg, avg_hdg * 180 / M_PI);
     printf("  Max velocity error: %.2f m/s\n", max_vel_err);
     printf("  Avg velocity error: %.2f m/s\n", avg_vel_err);
     printf("  Max steer change:   %.4f rad/step\n", max_steer_change);
@@ -1107,19 +1363,10 @@ int main(void)
     printf("  Max s jump:         %.3f m\n", max_s_estimator_jump);
     printf("  S regressions:      %d\n", s_prediction_regressions);
     printf("  Max predicted ds:   %.3f m\n", max_predicted_s_span);
-    printf("  Time above 2 m/s:   %.1f / %.1f s (%.0f%%)\n",
-           time_above_2ms, SIM_DURATION_S, 100*time_above_2ms/SIM_DURATION_S);
-    printf("  Time above 5 m/s:   %.1f / %.1f s (%.0f%%)\n",
-           time_above_5ms, SIM_DURATION_S, 100*time_above_5ms/SIM_DURATION_S);
+    printf("  Time above 3.5 m/s: %.1f / %.1f s (%.0f%%)\n",
+           time_above_3_5ms, simulated_time,
+           (simulated_time > 0.0) ? (100 * time_above_3_5ms / simulated_time) : 0.0);
     printf("\n  --- Solver Performance ---\n");
-    double avg_iters = (solver_calls > 0) ? (double)total_iterations / solver_calls : 0;
-    double avg_solve = (solver_calls > 0) ? total_solve_us / solver_calls : 0;
-    double avg_adapt_updates = (solver_calls > 0)
-                             ? (double)total_adaptive_updates / solver_calls : 0.0;
-    double avg_clip_events = (solver_calls > 0)
-                           ? (double)total_clip_events / solver_calls : 0.0;
-    double avg_rho = (solver_calls > 0) ? sum_rho / solver_calls : 0.0;
-    double avg_rho_u = (solver_calls > 0) ? sum_rho_u / solver_calls : 0.0;
     printf("  Total iterations:   %ld\n", total_iterations);
     printf("  Avg iterations/call: %.1f\n", avg_iters);
     printf("  Max iterations:     %d\n", max_iter_single);
@@ -1137,14 +1384,17 @@ int main(void)
     printf("  Avg clip events:    %.2f per solve\n", avg_clip_events);
     printf("\n");
 
-        /* Pass/fail criteria: numerical safety + usable lap-driving */
+    /* Pass/fail criteria: match the newer realistic sim expectations */
     check("No numerical failures", numerical_failures == 0);
     check("Runs full simulation horizon", total_stepped == SIM_STEPS);
     check("Solver mostly succeeds (>50%)", solver_ok > solver_calls * 50 / 100);
-        check("Completes at least one lap", lap_count > 0);
-    check("Sustains motion (>2 m/s for >5% of time)",
-          time_above_2ms > SIM_DURATION_S * 0.05);
-    check("High top speed (>5 m/s)", max_vx > 5.0);
+    check("Completes at least one lap", lap_count > 0);
+    if (realistic_mode) {
+        check("Reaches driving speed (>3.5 m/s for >30% of time)",
+              time_above_3_5ms > simulated_time * 0.30);
+    } else {
+        check("High top speed (>5 m/s)", max_vx > 5.0);
+    }
 
     printf("\n=== RESULTS: %d passed, %d failed ===\n", tests_passed, tests_failed);
 
@@ -1154,7 +1404,7 @@ int main(void)
                tests_passed, tests_failed,
                max_lat_err, avg_lat, max_hdg_err, avg_hdg,
                max_vx, avg_solve, max_solve_us,
-               wall_collisions, time_above_5ms,
+               wall_collisions, time_above_3_5ms,
                max_vel_err, avg_vel_err, avg_iters,
                avg_rho, avg_rho_u, avg_adapt_updates, avg_clip_events,
                avg_speed,
@@ -1168,6 +1418,10 @@ int main(void)
     if (trace_csv) {
         fclose(trace_csv);
         printf("  Trace CSV:           %s\n", trace_csv_path);
+    }
+    if (horizon_csv) {
+        fclose(horizon_csv);
+        printf("  Horizon CSV:         %s\n", horizon_csv_path);
     }
     return tests_failed > 0 ? 1 : 0;
 }

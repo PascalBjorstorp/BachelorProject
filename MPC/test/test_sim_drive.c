@@ -1123,6 +1123,7 @@ int main(void)
     const double sim_steer_angle_max = get_env_double("SIM_STEER_ANGLE_MAX", MAX_STEERING);
     const double sim_steer_gain = get_env_double("SIM_STEER_GAIN", 1.0085301459687404);
     const double sim_steer_gain_high_slip = get_env_double("SIM_STEER_GAIN_HIGH_SLIP", 0.6541720766809247);
+    const double sim_steer_tau = get_env_double("SIM_STEER_TAU", 0.0);
     const double sim_v_switch = get_env_double("SIM_V_SWITCH", 7.319);
     const double sim_v_min = get_env_double("SIM_V_MIN", 0.5);
     const double sim_v_max = get_env_double("SIM_V_MAX", 21.6);
@@ -1676,15 +1677,64 @@ int main(void)
             cmd_accel = accel_cmd;
         }
 
+        /* Actuator transport delay line (pure communication and hardware latency) */
+        #define DELAY_BUF_SIZE 128
+        static double steer_delay_buf[DELAY_BUF_SIZE] = {0.0};
+        static double accel_delay_buf[DELAY_BUF_SIZE] = {0.0};
+        static int delay_buf_idx = 0;
+        static int steer_delay_steps = -1;
+        static int accel_delay_steps = -1;
+
+        if (steer_delay_steps < 0) {
+            const char* s_env = getenv("SIM_STEER_DELAY_STEPS");
+            steer_delay_steps = s_env ? atoi(s_env) : 0;
+            if (steer_delay_steps < 0) steer_delay_steps = 0;
+            if (steer_delay_steps >= DELAY_BUF_SIZE) steer_delay_steps = DELAY_BUF_SIZE - 1;
+
+            const char* a_env = getenv("SIM_ACCEL_DELAY_STEPS");
+            accel_delay_steps = a_env ? atoi(a_env) : 0;
+            if (accel_delay_steps < 0) accel_delay_steps = 0;
+            if (accel_delay_steps >= DELAY_BUF_SIZE) accel_delay_steps = DELAY_BUF_SIZE - 1;
+
+            /* Warm initialize buffers to prevent startup transients */
+            for (int di = 0; di < DELAY_BUF_SIZE; di++) {
+                steer_delay_buf[di] = steer;
+                accel_delay_buf[di] = accel_cmd;
+            }
+        }
+
+        steer_delay_buf[delay_buf_idx] = steer;
+        accel_delay_buf[delay_buf_idx] = accel_cmd;
+
+        int steer_read_idx = (delay_buf_idx - steer_delay_steps + DELAY_BUF_SIZE) % DELAY_BUF_SIZE;
+        int accel_read_idx = (delay_buf_idx - accel_delay_steps + DELAY_BUF_SIZE) % DELAY_BUF_SIZE;
+
+        steer = steer_delay_buf[steer_read_idx];
+        accel_cmd = accel_delay_buf[accel_read_idx];
+
+        delay_buf_idx = (delay_buf_idx + 1) % DELAY_BUF_SIZE;
+
         /* Physical saturation: steering and acceleration */
         if (steer > sim_steer_angle_max) steer = sim_steer_angle_max;
         if (steer < -sim_steer_angle_max) steer = -sim_steer_angle_max;
         if (accel_cmd > PHYSICAL_MAX_ACCEL) accel_cmd = PHYSICAL_MAX_ACCEL;
         if (accel_cmd < -PHYSICAL_MAX_ACCEL) accel_cmd = -PHYSICAL_MAX_ACCEL;
 
-        /* Use command directly as actuator target; actuator lag is modeled by
-         * the ST steering-rate dynamics below (sv_max constrained). */
-        actual_steer = steer;
+        /* Actuator lag model: 1st-order steer tracking lag */
+        static double filtered_steer = 0.0;
+        static int steer_init = 0;
+        if (sim_steer_tau > 1e-6) {
+            if (!steer_init) {
+                filtered_steer = steer;
+                steer_init = 1;
+            }
+            double alpha = SIM_DT / sim_steer_tau;
+            if (alpha > 1.0) alpha = 1.0;
+            filtered_steer += alpha * (steer - filtered_steer);
+            actual_steer = filtered_steer;
+        } else {
+            actual_steer = steer;
+        }
 
         /* Metrics */
         if (fabs(e_y) > max_lat_err) max_lat_err = fabs(e_y);

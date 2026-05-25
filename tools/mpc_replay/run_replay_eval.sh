@@ -120,7 +120,6 @@ if [[ ${SKIP_COMPILE} -eq 0 ]]; then
     "${REPO_ROOT}/FPGA_Implementations/MPC_FPGA_Kria/src/riccati_solver_hls.cpp" \
     "${REPO_ROOT}/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_riccati_hls.cpp" \
     "${REPO_ROOT}/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_fpga_top.cpp" \
-    "${REPO_ROOT}/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_runtime_tune.cpp" \
     -lm -o "${REPO_ROOT}/tools/mpc_replay/helper/replay_fpga_scalar"
 else
   echo "[2/6] Skipping build (--skip-compile)"

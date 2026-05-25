@@ -328,3 +328,5 @@ f1tenth_localization/Benchmark/Matlab/plots/*
 f1tenth_localization/Benchmark/Matlab/csv/*
 ReportMaterial/
 f1tenth_localization/Benchmark/Matlab/sim_benchmark/*
+*.mcap
+tools/input/*

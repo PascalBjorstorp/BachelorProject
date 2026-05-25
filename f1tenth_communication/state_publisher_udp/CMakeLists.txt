@@ -16,11 +16,11 @@ find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(ackermann_msgs REQUIRED)
 
-add_executable(ros2_udp_sender_node src/ros2_udp_sender.cpp)
-target_include_directories(ros2_udp_sender_node PRIVATE
+add_executable(udp_state_sender_node src/udp_state_sender.cpp)
+target_include_directories(udp_state_sender_node PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
-ament_target_dependencies(ros2_udp_sender_node
+ament_target_dependencies(udp_state_sender_node
   rclcpp
   nav_msgs
   geometry_msgs
@@ -37,7 +37,7 @@ ament_target_dependencies(udp_control_bridge_node
 )
 
 install(TARGETS
-  ros2_udp_sender_node
+  udp_state_sender_node
   udp_control_bridge_node
   DESTINATION lib/${PROJECT_NAME}
 )

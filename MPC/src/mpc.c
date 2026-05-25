@@ -370,6 +370,23 @@ void mpc_set_actual_previous_control(const ControlInput_t *actual)
     }
 }
 
+int mpc_debug_copy_last_plan(
+    float x_out[PREDICTION_HORIZON + 1][RICCATI_MAX_NX],
+    float u_out[PREDICTION_HORIZON][RICCATI_MAX_NU])
+{
+    if (!admm_state.initialized) {
+        return 0;
+    }
+
+    if (x_out != NULL) {
+        memcpy(x_out, admm_state.z_x, sizeof(admm_state.z_x));
+    }
+    if (u_out != NULL) {
+        memcpy(u_out, admm_state.z_u, sizeof(admm_state.z_u));
+    }
+    return 1;
+}
+
 MpcSolverStatus_t mpc_compute_optimal_control(
     const FrenetState_t *current_frenet_state,
     const TrajectoryReferencePoint_t *reference_trajectory,
