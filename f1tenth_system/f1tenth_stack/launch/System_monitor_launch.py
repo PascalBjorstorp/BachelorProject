@@ -108,12 +108,12 @@ def generate_launch_description():
 
         DeclareLaunchArgument(
             'use_lateral_planner',
-            default_value='false',
-            description='Launch lateral planner. Default false when MPC is started manually'),
+            default_value='true',
+            description='Launch lateral planner so MPC receives /local_raceline'),
 
         DeclareLaunchArgument(
             'lateral_planner_avoidance_enabled',
-            default_value='true',
+            default_value='false',
             description='Enable lateral planner obstacle avoidance if use_lateral_planner=true'),
 
         DeclareLaunchArgument(

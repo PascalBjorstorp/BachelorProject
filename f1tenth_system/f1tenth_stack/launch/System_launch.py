@@ -113,11 +113,11 @@ def generate_launch_description():
                                 description='LiDAR clustering in racing mode: 1=1080 beams, 2=540, 4=270'),
 
         DeclareLaunchArgument(  'lateral_planner_avoidance_enabled',
-                    default_value='true',
+                    default_value='false',
                     description='Enable lateral planner obstacle avoidance (false publishes baseline raceline)'),
 
         DeclareLaunchArgument(  'use_lateral_planner',
-                    default_value='false',
+                    default_value='true',
                     description='Launch lateral planner after bringup delay'),
 
         DeclareLaunchArgument(  'lateral_planner_delay_sec',

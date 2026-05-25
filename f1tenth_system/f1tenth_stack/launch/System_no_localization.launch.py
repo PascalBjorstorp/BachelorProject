@@ -67,7 +67,7 @@ def generate_launch_description():
 
         DeclareLaunchArgument(
             'lateral_planner_avoidance_enabled',
-            default_value='true',
+            default_value='false',
             description='Enable lateral planner obstacle avoidance'),
 
         DeclareLaunchArgument(
