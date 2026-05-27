@@ -188,7 +188,7 @@ Key facts (read directly from the Vitis 2025.2 reports of the latest build):
 | Top function        | `mpc_fpga_top_opencl` (AXI-MM `gmem0/gmem1` + AXI-Lite control) |
 | Target clock        | 5.000 ns (200 MHz)                                     |
 | Post-route timing   | WNS = +0.038 ns → **met at 200 MHz**                   |
-| Cosim latency       | 5 007 / 6 838 / 12 898 cycles (min / avg / max)        |
+| Cosim latency       | 5 007 / 6 838 / - cycles (min / avg)        |
 | Wall-clock latency  | **25.0 / 34.2 / 64.5 µs** at 200 MHz                   |
 | Horizon             | 20 steps × 30 ms = 0.60 s                              |
 | Arithmetic          | `ap_fixed<32,14>` (Q14.18), per-domain narrower types  |
