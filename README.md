@@ -55,10 +55,7 @@ BachelorProject/
 ├── f1tenth_planning/               # Raceline optimizer (TUM global_racetrajectory_optimization)
 ├── f1tenth_sim/                    # F1TENTH gym ROS2 bridge (simulation)
 ├── f1tenth_system/                 # Vehicle driver stack (VESC, LiDAR, joystick mux)
-├── f1tenth_parameters/             # Vehicle parameter identification + scripts
-│
-├── tools/                          # Replay tools, analysis scripts, comparison plots
-└── Logs/                           # Architecture diagrams used in the thesis
+└──  f1tenth_parameters/             # Vehicle parameter identification + scripts
 ```
 
 Per-package READMEs exist in [MPC/README.md](MPC/README.md), [FPGA_Implementations/MPC_FPGA_Kria/README.md](FPGA_Implementations/MPC_FPGA_Kria/README.md), [f1tenth_communication/README.md](f1tenth_communication/README.md), [f1tenth_sim/README.md](f1tenth_sim/README.md), [f1tenth_system/README.md](f1tenth_system/README.md), and [f1tenth_planning/README.md](f1tenth_planning/README.md).
