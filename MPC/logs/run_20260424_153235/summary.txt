@@ -1,6 +1,0 @@
-variant: CPU MPC (Riccati-ADMM)
-first_collision_line: 69
-first_status2_line: None
-status2_count: 0
-status0_count: 0
-first_collision_text: [gym_bridge-1] [WARN] [1777037574.339771862] [bridge]: Ego vehicle collision detected!
