@@ -1,0 +1,762 @@
+sdt: hw_artifacts/psu_pmu_0_baremetal.dts
+family: ZynqMP
+path: /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp
+config: None
+os: standalone
+os_info:
+  standalone:
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/lib/bsp/standalone_v9_4
+os_config:
+  standalone:
+    standalone_enable_sw_intrusive_profiling:
+      name: standalone_enable_sw_intrusive_profiling
+      permission: read_write
+      type: string
+      value: None
+      default: None
+      options:
+      - None
+      description: This option is not supported in the Unified Vitis IDE in this version.
+        Change to the classic IDE if you want to use this option
+    standalone_microblaze_exceptions:
+      name: standalone_microblaze_exceptions
+      permission: read_write
+      type: string
+      value: None
+      default: None
+      options:
+      - None
+      description: Unused option and deprecated
+    standalone_pmu_sleep_timer:
+      name: standalone_pmu_sleep_timer
+      permission: read_write
+      type: string
+      value: None
+      default: None
+      options:
+      - None
+      description: Deprecated in favor of xiltimer
+    standalone_profile_timer:
+      name: standalone_profile_timer
+      permission: read_write
+      type: string
+      value: None
+      default: None
+      options:
+      - None
+      description: This option is not supported in the Unified Vitis IDE in this version.
+        Change to the classic IDE if you want to use this option
+    standalone_sleep_timer:
+      name: standalone_sleep_timer
+      permission: read_write
+      type: string
+      value: None
+      default: None
+      options:
+      - None
+      description: Deprecated in favor of xiltimer
+    standalone_stdin:
+      name: standalone_stdin
+      permission: read_write
+      type: string
+      value: None;
+      default: None;
+      options:
+      - None
+      - ''
+      description: stdin peripheral
+    standalone_stdout:
+      name: standalone_stdout
+      permission: read_write
+      type: string
+      value: None;
+      default: None;
+      options:
+      - None
+      - ''
+      description: stdout peripheral
+    standalone_ttc_select_cntr:
+      name: standalone_ttc_select_cntr
+      permission: read_write
+      type: string
+      value: None
+      default: None
+      options:
+      - None
+      description: Deprecated in favor of xiltimer
+    standalone_xpm_support:
+      name: standalone_xpm_support
+      permission: read_write
+      type: boolean
+      value: 'false'
+      default: 'false'
+      options:
+      - 'true'
+      - 'false'
+      description: Enable xpm support
+toolchain_file: microblaze-pmu_toolchain.cmake
+specs_file: Xilinx.spec
+proc: psu_pmu_0
+proc_config:
+  psu_pmu_0:
+    proc_archiver:
+      name: proc_archiver
+      permission: readonly
+      type: string
+      value: mb-gcc-ar
+      default: mb-gcc-ar
+      options: []
+      description: Archiver used to archive libraries for both BSP generation as well
+        as applications.
+    proc_assembler:
+      name: proc_assembler
+      permission: readonly
+      type: string
+      value: mb-gcc
+      default: mb-gcc
+      options: []
+      description: Assembler used to assemble both BSP/libraries and applications.
+    proc_compiler:
+      name: proc_compiler
+      permission: readonly
+      type: string
+      value: mb-gcc
+      default: mb-gcc
+      options: []
+      description: Compiler used to compile both BSP/libraries and applications.
+    proc_compiler_flags:
+      name: proc_compiler_flags
+      permission: readonly
+      type: string
+      value: ' -O2  -mlittle-endian -mxl-barrel-shift -mxl-pattern-compare -mxl-reorder
+        -mxl-soft-mul -mxl-soft-div -O2 -pipe -g -feliminate-unused-debug-types -Os
+        -flto -ffat-lto-objects -DPSU_PMU=1U -mcpu=v9.2 -DSDT;-c'
+      default: ' -O2  -mlittle-endian -mxl-barrel-shift -mxl-pattern-compare -mxl-reorder
+        -mxl-soft-mul -mxl-soft-div -O2 -pipe -g -feliminate-unused-debug-types -Os
+        -flto -ffat-lto-objects -DPSU_PMU=1U -mcpu=v9.2 -DSDT;-c'
+      options: []
+      description: Compiler Flags used in BSP and library generation.'-c'flag stands
+        for 'compile and assemble, but do not link'.Without this flag, gcc tries to
+        link the code, which will fail because there is no application involved during
+        libgen.'-O2' can be overwritten by extra compile flags.
+    proc_extra_compiler_flags:
+      name: proc_extra_compiler_flags
+      permission: read_write
+      type: string
+      value: ' -g -ffunction-sections -fdata-sections -Wall -Wextra -fno-tree-loop-distribute-patterns'
+      default: ' -g -ffunction-sections -fdata-sections -Wall -Wextra -fno-tree-loop-distribute-patterns'
+      options: []
+      description: Extra Compiler Flags used in BSP and library generation
+template: zynqmp_pmufw
+compiler: gcc
+compiler_flags: ''
+include_folder: include
+lib_folder: lib
+libsrc_folder: libsrc
+drv_info:
+  axi_intc_0:
+    driver: intc
+    ip_name: axi_intc
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/intc_v3_21
+  psu_adma_0:
+    driver: zdma
+    ip_name: psu_adma
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/zdma_v1_21
+  psu_adma_1:
+    driver: zdma
+    ip_name: psu_adma
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/zdma_v1_21
+  psu_adma_2:
+    driver: zdma
+    ip_name: psu_adma
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/zdma_v1_21
+  psu_adma_3:
+    driver: zdma
+    ip_name: psu_adma
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/zdma_v1_21
+  psu_adma_4:
+    driver: zdma
+    ip_name: psu_adma
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/zdma_v1_21
+  psu_adma_5:
+    driver: zdma
+    ip_name: psu_adma
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/zdma_v1_21
+  psu_adma_6:
+    driver: zdma
+    ip_name: psu_adma
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/zdma_v1_21
+  psu_adma_7:
+    driver: zdma
+    ip_name: psu_adma
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/zdma_v1_21
+  psu_afi_0: None
+  psu_afi_1: None
+  psu_afi_2: None
+  psu_afi_3: None
+  psu_afi_4: None
+  psu_afi_5: None
+  psu_afi_6: None
+  psu_ams:
+    driver: sysmonpsu
+    ip_name: psu_ams
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/sysmonpsu_v3_2
+  psu_apm_0:
+    driver: axipmon
+    ip_name: psu_apm
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/axipmon_v6_13
+  psu_apm_1:
+    driver: axipmon
+    ip_name: psu_apm
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/axipmon_v6_13
+  psu_apm_2:
+    driver: axipmon
+    ip_name: psu_apm
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/axipmon_v6_13
+  psu_apm_5:
+    driver: axipmon
+    ip_name: psu_apm
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/axipmon_v6_13
+  psu_apu: None
+  psu_bbram_0: None
+  psu_cci_gpv: None
+  psu_cci_reg: None
+  psu_crf_apb:
+    driver: resetps
+    ip_name: psu_crf_apb
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/resetps_v1_7
+  psu_crl_apb:
+    driver: clockps
+    ip_name: psu_crl_apb
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/clockps_v1_6
+  psu_csu_0: None
+  psu_csu_wdt:
+    driver: wdtps
+    ip_name: psu_wdt
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/wdtps_v3_8
+  psu_csudma:
+    driver: csudma
+    ip_name: psu_csudma
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/csudma_v1_18
+  psu_ddr_phy: None
+  psu_ddr_qos_ctrl: None
+  psu_ddr_xmpu0_cfg: None
+  psu_ddr_xmpu1_cfg: None
+  psu_ddr_xmpu2_cfg: None
+  psu_ddr_xmpu3_cfg: None
+  psu_ddr_xmpu4_cfg: None
+  psu_ddr_xmpu5_cfg: None
+  psu_ddrc_0:
+    driver: ddrcpsu
+    ip_name: psu_ddrc
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ddrcpsu_v1_8
+  psu_dp:
+    driver: dppsu
+    ip_name: psu_dp
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dppsu_v1_7
+  psu_dpdma:
+    driver: dpdma
+    ip_name: psu_dpdma
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/dpdma_v1_6
+  psu_efuse: None
+  psu_fpd_gpv: None
+  psu_fpd_slcr: None
+  psu_fpd_slcr_secure: None
+  psu_fpd_xmpu_cfg: None
+  psu_fpd_xmpu_sink: None
+  psu_gdma_0:
+    driver: zdma
+    ip_name: psu_gdma
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/zdma_v1_21
+  psu_gdma_1:
+    driver: zdma
+    ip_name: psu_gdma
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/zdma_v1_21
+  psu_gdma_2:
+    driver: zdma
+    ip_name: psu_gdma
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/zdma_v1_21
+  psu_gdma_3:
+    driver: zdma
+    ip_name: psu_gdma
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/zdma_v1_21
+  psu_gdma_4:
+    driver: zdma
+    ip_name: psu_gdma
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/zdma_v1_21
+  psu_gdma_5:
+    driver: zdma
+    ip_name: psu_gdma
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/zdma_v1_21
+  psu_gdma_6:
+    driver: zdma
+    ip_name: psu_gdma
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/zdma_v1_21
+  psu_gdma_7:
+    driver: zdma
+    ip_name: psu_gdma
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/zdma_v1_21
+  psu_gpio_0:
+    driver: gpiops
+    ip_name: psu_gpio
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/gpiops_v3_14
+  psu_gpu: None
+  psu_iou_scntr: None
+  psu_iou_scntrs: None
+  psu_iousecure_slcr: None
+  psu_iouslcr_0: None
+  psu_ipi_3:
+    driver: ipipsu
+    ip_name: psu_ipi
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ipipsu_v2_18
+  psu_ipi_4:
+    driver: ipipsu
+    ip_name: psu_ipi
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ipipsu_v2_18
+  psu_ipi_5:
+    driver: ipipsu
+    ip_name: psu_ipi
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ipipsu_v2_18
+  psu_ipi_6:
+    driver: ipipsu
+    ip_name: psu_ipi
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ipipsu_v2_18
+  psu_lpd_slcr: None
+  psu_lpd_slcr_secure: None
+  psu_lpd_xppu: None
+  psu_lpd_xppu_sink: None
+  psu_mbistjtag: None
+  psu_ocm: None
+  psu_ocm_xmpu_cfg: None
+  psu_pmu_global_0: None
+  psu_pmu_iomodule: None
+  psu_pmu_ram: None
+  psu_qspi_0:
+    driver: qspipsu
+    ip_name: psu_qspi
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/qspipsu_v1_22
+  psu_r5_0_atcm: None
+  psu_r5_0_atcm_global: None
+  psu_r5_0_atcm_lockstep: None
+  psu_r5_0_btcm: None
+  psu_r5_0_btcm_global: None
+  psu_r5_0_btcm_lockstep: None
+  psu_r5_1_atcm: None
+  psu_r5_1_atcm_global: None
+  psu_r5_1_btcm: None
+  psu_r5_1_btcm_global: None
+  psu_r5_tcm_ram_0: None
+  psu_r5_tcm_ram_global: None
+  psu_rpu: None
+  psu_rsa: None
+  psu_rtc:
+    driver: rtcpsu
+    ip_name: psu_rtc
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/rtcpsu_v1_16
+  psu_serdes: None
+  psu_siou: None
+  psu_smmu_gpv: None
+  psu_smmu_reg: None
+  psu_spi_1:
+    driver: spips
+    ip_name: psu_spi
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/spips_v3_13
+  psu_ttc_0:
+    driver: ttcps
+    ip_name: psu_ttc
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ttcps_v3_22
+  psu_ttc_1:
+    driver: ttcps
+    ip_name: psu_ttc
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ttcps_v3_22
+  psu_ttc_10:
+    driver: ttcps
+    ip_name: psu_ttc
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ttcps_v3_22
+  psu_ttc_11:
+    driver: ttcps
+    ip_name: psu_ttc
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ttcps_v3_22
+  psu_ttc_2:
+    driver: ttcps
+    ip_name: psu_ttc
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ttcps_v3_22
+  psu_ttc_3:
+    driver: ttcps
+    ip_name: psu_ttc
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ttcps_v3_22
+  psu_ttc_4:
+    driver: ttcps
+    ip_name: psu_ttc
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ttcps_v3_22
+  psu_ttc_5:
+    driver: ttcps
+    ip_name: psu_ttc
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ttcps_v3_22
+  psu_ttc_6:
+    driver: ttcps
+    ip_name: psu_ttc
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ttcps_v3_22
+  psu_ttc_7:
+    driver: ttcps
+    ip_name: psu_ttc
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ttcps_v3_22
+  psu_ttc_8:
+    driver: ttcps
+    ip_name: psu_ttc
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ttcps_v3_22
+  psu_ttc_9:
+    driver: ttcps
+    ip_name: psu_ttc
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/ttcps_v3_22
+  psu_wdt_0:
+    driver: wdtps
+    ip_name: psu_wdt
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/wdtps_v3_8
+  psu_wdt_1:
+    driver: wdtps
+    ip_name: psu_wdt
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/XilinxProcessorIPLib/drivers/wdtps_v3_8
+lib_info:
+  xiltimer:
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/lib/sw_services/xiltimer_v2_3
+    examples: {}
+  xilfpga:
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/lib/sw_services/xilfpga_v6_9
+    examples:
+      xfpga_partialbitstream_load_example.c: []
+      xfpga_readback_example.c: []
+      xfpga_reg_readback_example.c: []
+      xfpga_load_bitstream_example.c: []
+  xilsecure:
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/lib/sw_services/xilsecure_v5_6
+    examples: {}
+  xilskey:
+    path: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/lib/sw_services/xilskey_v7_8
+    examples:
+      xilskey_efuse_example.c:
+      - xilskey_input.h
+      xilskey_efuseps_zynqmp_example.c:
+      - xilskey_efuseps_zynqmp_input.h
+      xilskey_bbramps_zynqmp_example.c: []
+      xilskey_bbram_ultrascale_example.c:
+      - xilskey_bbram_ultrascale_input.h
+      xilskey_puf_registration_example.c:
+      - xilskey_puf_registration.h
+      xilskey_puf_regeneration_example.c: []
+lib_config:
+  xiltimer:
+    XILTIMER_en_interval_timer:
+      name: XILTIMER_en_interval_timer
+      permission: read_write
+      type: boolean
+      value: 'false'
+      default: 'false'
+      options:
+      - 'true'
+      - 'false'
+      description: Enable Interval Timer
+    XILTIMER_sleep_timer:
+      name: XILTIMER_sleep_timer
+      permission: read_write
+      type: string
+      value: Default
+      default: Default
+      options:
+      - Default
+      - psu_ttc_9
+      - psu_ttc_6
+      - psu_ttc_3
+      - psu_ttc_0
+      description: This parameter is used to select specific timer for sleep functionality
+    XILTIMER_tick_timer:
+      name: XILTIMER_tick_timer
+      permission: read_write
+      type: string
+      value: None
+      default: None
+      options:
+      - None
+      - psu_ttc_9
+      - psu_ttc_6
+      - psu_ttc_3
+      - psu_ttc_0
+      description: This parameter is used to select specific timer for tick functionality
+  xilfpga:
+    XILFPGA_base_address:
+      name: XILFPGA_base_address
+      permission: read_write
+      type: string
+      value: '0x80000'
+      default: '0x80000'
+      options: []
+      description: Bitstream Image Base Address
+    XILFPGA_data_readback_en:
+      name: XILFPGA_data_readback_en
+      permission: read_write
+      type: boolean
+      value: 'true'
+      default: 'true'
+      options:
+      - 'true'
+      - 'false'
+      description: Which is used to Enable the FPGA configuration Data Read-back support
+    XILFPGA_debug_mode:
+      name: XILFPGA_debug_mode
+      permission: read_write
+      type: boolean
+      value: 'false'
+      default: 'false'
+      options:
+      - 'true'
+      - 'false'
+      description: Which is used to Enable the Debug messages in the library
+    XILFPGA_get_feature_list_en:
+      name: XILFPGA_get_feature_list_en
+      permission: read_write
+      type: boolean
+      value: 'false'
+      default: 'false'
+      options:
+      - 'true'
+      - 'false'
+      description: Which is used to Get the Xilfpga library supported feature list
+        info
+    XILFPGA_get_version_info_en:
+      name: XILFPGA_get_version_info_en
+      permission: read_write
+      type: boolean
+      value: 'false'
+      default: 'false'
+      options:
+      - 'true'
+      - 'false'
+      description: Which is used to Get the Xilfpga library version info
+    XILFPGA_ocm_address:
+      name: XILFPGA_ocm_address
+      permission: read_write
+      type: string
+      value: '0xfffc0000'
+      default: '0xfffc0000'
+      options: []
+      description: OCM Address which is used for Bitstream Authentication
+    XILFPGA_reg_readback_en:
+      name: XILFPGA_reg_readback_en
+      permission: read_write
+      type: boolean
+      value: 'true'
+      default: 'true'
+      options:
+      - 'true'
+      - 'false'
+      description: Which is used to Enable the FPGA configuration Register Read-back
+        support
+    XILFPGA_secure_environment:
+      name: XILFPGA_secure_environment
+      permission: read_write
+      type: boolean
+      value: 'false'
+      default: 'false'
+      options:
+      - 'true'
+      - 'false'
+      description: Which is used to Enable the secure PL configuration
+    XILFPGA_secure_mode:
+      name: XILFPGA_secure_mode
+      permission: read_write
+      type: boolean
+      value: 'true'
+      default: 'true'
+      options:
+      - 'true'
+      - 'false'
+      description: Enable secure Bitstream loading support
+    XILFPGA_secure_readback:
+      name: XILFPGA_secure_readback
+      permission: read_write
+      type: boolean
+      value: 'false'
+      default: 'false'
+      options:
+      - 'true'
+      - 'false'
+      description: Which is used to Enable the secure PL configuration Read-back support
+  xilsecure:
+    XILSECURE_cache_disable:
+      name: XILSECURE_cache_disable
+      permission: read_write
+      type: boolean
+      value: 'true'
+      default: 'true'
+      options:
+      - 'true'
+      - 'false'
+      description: Enables/Disables Cache for XilSecure client library.
+    XILSECURE_elliptic_p192_support:
+      name: XILSECURE_elliptic_p192_support
+      permission: read_write
+      type: boolean
+      value: 'false'
+      default: 'false'
+      options:
+      - 'true'
+      - 'false'
+      description: Enables/Disables P-192 curve support
+    XILSECURE_elliptic_p224_support:
+      name: XILSECURE_elliptic_p224_support
+      permission: read_write
+      type: boolean
+      value: 'false'
+      default: 'false'
+      options:
+      - 'true'
+      - 'false'
+      description: Enables/Disables P-224 curve support
+    XILSECURE_elliptic_p256_support:
+      name: XILSECURE_elliptic_p256_support
+      permission: read_write
+      type: boolean
+      value: 'false'
+      default: 'false'
+      options:
+      - 'true'
+      - 'false'
+      description: Enables/Disables P-256 curve support
+    XILSECURE_elliptic_p521_support:
+      name: XILSECURE_elliptic_p521_support
+      permission: read_write
+      type: boolean
+      value: 'true'
+      default: 'true'
+      options:
+      - 'true'
+      - 'false'
+      description: Enables/Disables P-521 curve support
+    XILSECURE_mode:
+      name: XILSECURE_mode
+      permission: read_write
+      type: string
+      value: client
+      default: client
+      options:
+      - client
+      - server
+      description: Enables A72/R5/PL microblaze server and client mode support for
+        XilSecure library for Versal
+    XILSECURE_secure_environment:
+      name: XILSECURE_secure_environment
+      permission: read_write
+      type: boolean
+      value: 'false'
+      default: 'false'
+      options:
+      - 'true'
+      - 'false'
+      description: Enables trusted execution environment to allow device key usage(post
+        boot) in ZynqMP for IPI response/Linux/U-boot calls valid only for PMUFW BSP
+    XILSECURE_tpm_support:
+      name: XILSECURE_tpm_support
+      permission: read_write
+      type: boolean
+      value: 'false'
+      default: 'false'
+      options:
+      - 'true'
+      - 'false'
+      description: Enables decryption of bitstream to memory and then writes it to
+        PCAP, allows calculation of sha on decrypted bitstream in chunks valid only
+        for ZynqMP FSBL BSP
+  xilskey:
+    XILSKEY_access_key_manage_efuse:
+      name: XILSKEY_access_key_manage_efuse
+      permission: read_write
+      type: boolean
+      value: 'false'
+      default: 'false'
+      options:
+      - 'true'
+      - 'false'
+      description: Enables writing and reading of key management efuses for ZynqMp
+    XILSKEY_access_secure_crit_efuse:
+      name: XILSKEY_access_secure_crit_efuse
+      permission: read_write
+      type: boolean
+      value: 'false'
+      default: 'false'
+      options:
+      - 'true'
+      - 'false'
+      description: Enables writing and reading of security critical efuses for ZynqMp
+    XILSKEY_access_user_efuse:
+      name: XILSKEY_access_user_efuse
+      permission: read_write
+      type: boolean
+      value: 'false'
+      default: 'false'
+      options:
+      - 'true'
+      - 'false'
+      description: Enables writing and reading of user efuses for ZynqMp
+    XILSKEY_device_id:
+      name: XILSKEY_device_id
+      permission: read_write
+      type: integer
+      value: '0'
+      default: '0'
+      options: []
+      description: IDCODE
+    XILSKEY_device_irlen:
+      name: XILSKEY_device_irlen
+      permission: read_write
+      type: integer
+      value: '0'
+      default: '0'
+      options: []
+      description: IR length
+    XILSKEY_device_masterslr:
+      name: XILSKEY_device_masterslr
+      permission: read_write
+      type: integer
+      value: '0'
+      default: '0'
+      options: []
+      description: Master SLR number
+    XILSKEY_device_numslr:
+      name: XILSKEY_device_numslr
+      permission: read_write
+      type: integer
+      value: '1'
+      default: '1'
+      options: []
+      description: Number of SLRs
+    XILSKEY_device_series:
+      name: XILSKEY_device_series
+      permission: read_write
+      type: string
+      value: XSK_FPGA_SERIES_ZYNQ
+      default: XSK_FPGA_SERIES_ZYNQ
+      options:
+      - XSK_FPGA_SERIES_ZYNQ
+      - XSK_FPGA_SERIES_ULTRA
+      - XSK_FPGA_SERIES_ULTRA_PLUS
+      description: "\tFPGA SERIES ULTRA PLUS: XSK_FPGA_SERIES_ULTRA_PLUS"
+    XILSKEY_override_sysmon_cfg:
+      name: XILSKEY_override_sysmon_cfg
+      permission: read_write
+      type: boolean
+      value: 'true'
+      default: 'true'
+      options:
+      - 'true'
+      - 'false'
+      description: Override Sysmon configuration
+    XILSKEY_use_puf_hd_as_user_efuse:
+      name: XILSKEY_use_puf_hd_as_user_efuse
+      permission: read_write
+      type: boolean
+      value: 'false'
+      default: 'false'
+      options:
+      - 'true'
+      - 'false'
+      description: Enables API's to use PUF Helper Data efuses as user efuses

@@ -1,0 +1,4 @@
+domain_path: /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/Kria_platform/zynqmp_pmufw/zynqmp_pmufw_bsp
+app_src_dir: /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/lib/sw_apps/zynqmp_pmufw
+template: zynqmp_pmufw
+lang: c

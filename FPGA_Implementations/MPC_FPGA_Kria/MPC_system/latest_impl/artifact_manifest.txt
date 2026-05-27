@@ -1,0 +1,22 @@
+# Latest Implementation Artifact Manifest
+generated_utc=2026-05-11T13:51:27Z
+generated_local=2026-05-11T15:51:27+0200
+
+buildstatus=#Sun May 10 17:20:19 CEST 2026;hw$mpc_fpga_top_opencl=SUCCESS;
+
+files:
+- path=build/hw/hw_link/mpc_fpga_top_opencl.xclbin
+  size_bytes=7824253
+  sha256=1339de4a0ff20721d4fdcb077a65629a12e3b655c7a6220d49bd47a4f9edf4c9
+- path=build/hw/hw_link/mpc_fpga_top_opencl.xsa
+  size_bytes=3945185
+  sha256=4c517e57e6bfd5da36e4f116d51cc5d0ec99cb2ff0131d80beb05072f765ac97
+- path=build/hw/hw_link/mpc_fpga_top_opencl.xclbin.link_summary
+  size_bytes=66230
+  sha256=8b6634dbfd3d7eea9d2b02212e91a8cfd89c6ff729fb0e6e5052c99e6e0087c1
+- path=build/hw/hw_link/binary_container_1/binary_container_1/int/system.bit
+  size_bytes=7797826
+  sha256=45817dac398fa4a6b47e60333cfcbb2cc646a37ef0fbc7dadc371d6c771d745c
+- path=build/hw/hw_link/binary_container_1/reports/binary_container_1/imp/impl_1_system_wrapper_timing_summary_routed.rpt
+  size_bytes=205220
+  sha256=35b117801fe9e3aea9663dc4a5384ec4b956e6e944c2820c0eb8b77e400c8a12

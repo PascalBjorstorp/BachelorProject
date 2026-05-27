@@ -1,0 +1,152 @@
+<profile>
+
+<section name = "Vitis HLS Report for 'compute_B_steering'" level="0">
+<item name = "Date">Thu May 21 15:23:09 2026
+</item>
+<item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
+<item name = "Project">mpc_fpga_top_opencl</item>
+<item name = "Solution">hls (Vitis Kernel Flow Target)</item>
+<item name = "Product family">zynquplus</item>
+<item name = "Target device">xck26-sfvc784-2LV-c</item>
+</section>
+
+<section name = "Performance Estimates" level="0">
+<item name = "Timing">
+<section name = "" level="1">
+<item name = "Summary"><table name="" hasTotal="0">
+<keys size="4">Clock, Target, Estimated, Uncertainty</keys>
+<column name="ap_clk">5.00 ns, 3.563 ns, 0.50 ns</column>
+</table>
+</item>
+</section>
+</item>
+<item name = "Latency">
+<section name = "" level="1">
+<item name = "Summary"><table name="" hasTotal="0">
+<keys size="8">, min, max, min, max, min, max, Type</keys>
+<column name="">13, 13, 65.000 ns, 65.000 ns, 14, 14, yes</column>
+</table>
+</item>
+<item name = "Detail">
+<section name = "" level="1">
+<item name = "Instance"><table name="" hasTotal="0">
+<keys size="9">Instance, Module, min, max, min, max, min, max, Type</keys>
+</table>
+</item>
+<item name = "Loop"><table name="" hasTotal="0">
+<keys size="8">Loop Name, min, max, Latency, achieved, target, Count, Pipelined</keys>
+</table>
+</item>
+</section>
+</item>
+</section>
+</item>
+</section>
+
+<section name = "Utilization Estimates" level="0">
+<item name = "Summary"><table name="" hasTotal="1">
+<keys size="6">Name, BRAM_18K, DSP, FF, LUT, URAM</keys>
+<column name="DSP">-, 2, -, -, -</column>
+<column name="Expression">-, -, 0, 190, -</column>
+<column name="FIFO">-, -, -, -, -</column>
+<column name="Instance">-, 7, 366, 174, -</column>
+<column name="Memory">-, -, -, -, -</column>
+<column name="Multiplexer">-, -, 0, 127, -</column>
+<column name="Register">-, -, 580, -, -</column>
+<specialColumn name="Available">288, 1248, 234240, 117120, 64</specialColumn>
+<specialColumn name="Utilization (%)">0, ~0, ~0, ~0, 0</specialColumn>
+</table>
+</item>
+<item name = "Detail">
+<section name = "" level="1">
+<item name = "Instance"><table name="" hasTotal="1">
+<keys size="7">Instance, Module, BRAM_18K, DSP, FF, LUT, URAM</keys>
+<column name="mul_26s_12ns_38_4_1_U486">mul_26s_12ns_38_4_1, 0, 1, 61, 29, 0</column>
+<column name="mul_26s_12ns_38_4_1_U487">mul_26s_12ns_38_4_1, 0, 1, 61, 29, 0</column>
+<column name="mul_26s_12ns_38_4_1_U488">mul_26s_12ns_38_4_1, 0, 1, 61, 29, 0</column>
+<column name="mul_26s_12s_38_4_1_U489">mul_26s_12s_38_4_1, 0, 1, 61, 29, 0</column>
+<column name="mul_26s_12s_38_4_1_U490">mul_26s_12s_38_4_1, 0, 1, 61, 29, 0</column>
+<column name="mul_26s_26s_43_4_1_x_U485">mul_26s_26s_43_4_1_x, 0, 2, 61, 29, 0</column>
+</table>
+</item>
+<item name = "DSP"><table name="" hasTotal="0">
+<keys size="3">Instance, Module, Expression</keys>
+<column name="am_submul_26s_26s_15ns_42_4_1_U491">am_submul_26s_26s_15ns_42_4_1, (i0 - i1) * i2</column>
+<column name="am_submul_26s_26s_15ns_42_4_1_U492">am_submul_26s_26s_15ns_42_4_1, (i0 - i1) * i2</column>
+</table>
+</item>
+<item name = "Memory"><table name="" hasTotal="1">
+<keys size="10">Memory, Module, BRAM_18K, FF, LUT, URAM, Words, Bits, Banks, W*Bits*Banks</keys>
+</table>
+</item>
+<item name = "FIFO"><table name="" hasTotal="1">
+<keys size="8">Name, BRAM_18K, FF, LUT, URAM, Depth, Bits, Size:D*B</keys>
+</table>
+</item>
+<item name = "Expression"><table name="" hasTotal="1">
+<keys size="7">Variable Name, Operation, DSP, FF, LUT, Bitwidth P0, Bitwidth P1</keys>
+<column name="value_246_fu_164_p2">+, 0, 0, 33, 26, 26</column>
+<column name="value_fu_158_p2">+, 0, 0, 33, 26, 26</column>
+<column name="sub_ln518_fu_261_p2">-, 0, 0, 29, 22, 22</column>
+<column name="use_front_raw_fu_128_p2">icmp, 0, 0, 33, 26, 26</column>
+<column name="select_ln512_fu_296_p3">select, 0, 0, 19, 1, 20</column>
+<column name="select_ln518_fu_250_p3">select, 0, 0, 19, 1, 20</column>
+<column name="select_ln524_fu_318_p3">select, 0, 0, 24, 1, 24</column>
+</table>
+</item>
+<item name = "Multiplexer"><table name="" hasTotal="1">
+<keys size="5">Name, LUT, Input Size, Bits, Total Bits</keys>
+<column name="ap_NS_fsm">65, 15, 1, 15</column>
+<column name="grp_fu_106_p0">31, 6, 26, 156</column>
+<column name="grp_fu_106_p1">31, 6, 26, 156</column>
+</table>
+</item>
+<item name = "Register"><table name="" hasTotal="1">
+<keys size="5">Name, FF, LUT, Bits, Const Bits</keys>
+<column name="ap_CS_fsm">14, 0, 14, 0</column>
+<column name="ap_port_reg_tr_F_yf_val">26, 0, 26, 0</column>
+<column name="ap_port_reg_tr_cos_delta_val">26, 0, 26, 0</column>
+<column name="mul_ln671_71_reg_438">38, 0, 38, 0</column>
+<column name="mul_ln671_72_reg_448">38, 0, 38, 0</column>
+<column name="product_q_110_reg_422">26, 0, 26, 0</column>
+<column name="reg_120">26, 0, 26, 0</column>
+<column name="reg_124">26, 0, 26, 0</column>
+<column name="sext_ln671_106_reg_379">43, 0, 43, 0</column>
+<column name="sext_ln671_107_reg_385">43, 0, 43, 0</column>
+<column name="sext_ln671_108_reg_391">43, 0, 43, 0</column>
+<column name="sext_ln671_109_reg_397">43, 0, 43, 0</column>
+<column name="sext_ln671_reg_374">43, 0, 43, 0</column>
+<column name="sub_ln518_reg_453">22, 0, 22, 0</column>
+<column name="tmp_13_reg_463">24, 0, 24, 0</column>
+<column name="tmp_reg_458">20, 0, 20, 0</column>
+<column name="tr_C_min_f_val_read_reg_362">26, 0, 26, 0</column>
+<column name="use_front_raw_reg_367">1, 0, 1, 0</column>
+<column name="value_246_reg_407">26, 0, 26, 0</column>
+<column name="value_reg_402">26, 0, 26, 0</column>
+</table>
+</item>
+</section>
+</item>
+</section>
+
+<section name = "Interface" level="0">
+<item name = "Summary"><table name="" hasTotal="0">
+<keys size="6">RTL Ports, Dir, Bits, Protocol, Source Object, C Type</keys>
+<column name="ap_clk">in, 1, ap_ctrl_hs, compute_B_steering, return value</column>
+<column name="ap_rst">in, 1, ap_ctrl_hs, compute_B_steering, return value</column>
+<column name="ap_start">in, 1, ap_ctrl_hs, compute_B_steering, return value</column>
+<column name="ap_done">out, 1, ap_ctrl_hs, compute_B_steering, return value</column>
+<column name="ap_idle">out, 1, ap_ctrl_hs, compute_B_steering, return value</column>
+<column name="ap_ready">out, 1, ap_ctrl_hs, compute_B_steering, return value</column>
+<column name="ap_return_0">out, 26, ap_ctrl_hs, compute_B_steering, return value</column>
+<column name="ap_return_1">out, 26, ap_ctrl_hs, compute_B_steering, return value</column>
+<column name="ap_return_2">out, 26, ap_ctrl_hs, compute_B_steering, return value</column>
+<column name="tr_C_eff_f_raw_val">in, 26, ap_none, tr_C_eff_f_raw_val, scalar</column>
+<column name="tr_C_min_f_val">in, 26, ap_none, tr_C_min_f_val, scalar</column>
+<column name="tr_F_yf_val">in, 26, ap_none, tr_F_yf_val, scalar</column>
+<column name="tr_sin_delta_val">in, 26, ap_none, tr_sin_delta_val, scalar</column>
+<column name="tr_cos_delta_val">in, 26, ap_none, tr_cos_delta_val, scalar</column>
+</table>
+</item>
+</section>
+</profile>

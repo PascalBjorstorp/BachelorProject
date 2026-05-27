@@ -1,0 +1,1 @@
+xsim {mpc_fpga_top_opencl} -testplusarg UVM_VERBOSITY=UVM_NONE -testplusarg UVM_TESTNAME=mpc_fpga_top_opencl_test_lib -testplusarg UVM_TIMEOUT=20000000000000 -view {{mpc_fpga_top_opencl_dataflow_ana.wcfg}} -tclbatch {mpc_fpga_top_opencl.tcl} -protoinst {mpc_fpga_top_opencl.protoinst}

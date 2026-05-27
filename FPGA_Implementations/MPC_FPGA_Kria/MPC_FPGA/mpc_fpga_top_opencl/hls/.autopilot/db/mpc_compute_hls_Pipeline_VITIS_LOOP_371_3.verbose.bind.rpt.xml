@@ -1,0 +1,50 @@
+<profile>
+
+<section name = "Vitis HLS Report for 'mpc_compute_hls_Pipeline_VITIS_LOOP_371_3'" level="0">
+<item name = "Date">Thu May 21 15:23:05 2026
+</item>
+<item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
+<item name = "Project">mpc_fpga_top_opencl</item>
+<item name = "Solution">hls (Vitis Kernel Flow Target)</item>
+<item name = "Product family">zynquplus</item>
+<item name = "Target device">xck26-sfvc784-2LV-c</item>
+</section>
+
+<section name = "Performance Estimates" level="0">
+<item name = "Timing">
+<section name = "" level="1">
+<item name = "Summary"><table name="" hasTotal="0">
+<keys size="4">Clock, Target, Estimated, Uncertainty</keys>
+<column name="ap_clk">5.00 ns, 4.482 ns, 0.50 ns</column>
+</table>
+</item>
+</section>
+</item>
+<item name = "Latency">
+<section name = "" level="1">
+<item name = "Summary"><table name="" hasTotal="0">
+<keys size="8">, min, max, min, max, min, max, Type</keys>
+<column name="">2114, 2114, 10.570 us, 10.570 us, 0, 0, loop pipeline stp</column>
+</table>
+</item>
+<item name = "Detail">
+<section name = "" level="1">
+<item name = "Instance"><table name="" hasTotal="0">
+<keys size="9">Instance, Module, min, max, min, max, min, max, Type</keys>
+<column name="grp_fp_atan_lut_fu_1707">fp_atan_lut, 6, 6, 30.000 ns, 30.000 ns, 7, 7, yes</column>
+<column name="grp_compute_frenet_AB_and_next_hls_fu_1714">compute_frenet_AB_and_next_hls, 99, 99, 0.495 us, 0.495 us, 100, 100, yes</column>
+<column name="grp_fp_recip_fu_1734">fp_recip, 6, 6, 30.000 ns, 30.000 ns, 1, 1, yes</column>
+<column name="grp_compute_affine_bias_dense_hls_fu_1741">compute_affine_bias_dense_hls, 33, 33, 0.165 us, 0.165 us, 34, 34, yes</column>
+</table>
+</item>
+<item name = "Loop"><table name="" hasTotal="0">
+<keys size="8">Loop Name, min, max, Latency, achieved, target, Count, Pipelined</keys>
+<column name="- VITIS_LOOP_371_3">2112, 2112, 146, 100, 100, 20, yes</column>
+</table>
+</item>
+</section>
+</item>
+</section>
+</item>
+</section>
+</profile>

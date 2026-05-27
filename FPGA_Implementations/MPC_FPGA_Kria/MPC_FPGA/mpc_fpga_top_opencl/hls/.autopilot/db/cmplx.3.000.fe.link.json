@@ -1,0 +1,2284 @@
+{
+  "0": {
+    "basicblocks": 10,
+    "calls": "79 75 77 71 71 72 71 71 71 71 71 53 79 79",
+    "control_depth": 0,
+    "def_use_depth": 4,
+    "file": "mpc_fpga_top.cpp",
+    "fileloc": 351,
+    "instructions": 125,
+    "loads": {
+      "L": 15
+    },
+    "memory_accesses": 0,
+    "name": "mpc_fpga_top_opencl",
+    "stores": {
+      "L": 4,
+      "T": 3
+    },
+    "total_instructions": 487192
+  },
+  "1": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 221,
+    "instructions": 94,
+    "memory_accesses": 14,
+    "name": "sum8_P_MIX_raw_pupdate",
+    "total_instructions": 920
+  },
+  "10": {
+    "basicblocks": 13,
+    "calls": "121 121 121 121 106 121 105 106 50 108 102 106 108 108 50 108",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 233,
+    "instructions": 248,
+    "loads": {
+      "L": 29
+    },
+    "memory_accesses": 0,
+    "name": "admm_update_control_channel_raw",
+    "stores": {
+      "L": 29
+    },
+    "total_instructions": 4461
+  },
+  "100": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_types_hls.hpp",
+    "fileloc": 627,
+    "instructions": 3,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "cast_sum2_qp_raw_to_qp_site",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 3
+  },
+  "101": {
+    "basicblocks": 21,
+    "calls": "120 120 120 120 28 28 13 5 94 8 28 28 28 28",
+    "control_depth": 2,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 358,
+    "instructions": 389,
+    "loads": {
+      "L": 23
+    },
+    "memory_accesses": 2,
+    "name": "invert_2x2_qp_hls",
+    "stores": {
+      "L": 23
+    },
+    "total_instructions": 6203
+  },
+  "102": {
+    "basicblocks": 1,
+    "calls": "100",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.h",
+    "fileloc": 155,
+    "instructions": 54,
+    "loads": {
+      "L": 4
+    },
+    "memory_accesses": 0,
+    "name": "fp_add3_cast_qp_raw",
+    "stores": {
+      "L": 4
+    },
+    "total_instructions": 293
+  },
+  "103": {
+    "basicblocks": 1,
+    "calls": "110 106",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 143,
+    "instructions": 4,
+    "memory_accesses": 0,
+    "name": "fp_qp_from_neg_pow2",
+    "total_instructions": 228
+  },
+  "104": {
+    "basicblocks": 36,
+    "calls": "90 138 113 111 111",
+    "control_depth": 2,
+    "def_use_depth": 4,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 794,
+    "instructions": 232,
+    "loads": {
+      "G": 2,
+      "L": 7
+    },
+    "memory_accesses": 3,
+    "name": "fp_recip_fn",
+    "stores": {
+      "L": 7
+    },
+    "total_instructions": 2062
+  },
+  "105": {
+    "basicblocks": 1,
+    "calls": "100",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.h",
+    "fileloc": 148,
+    "instructions": 33,
+    "loads": {
+      "L": 3
+    },
+    "memory_accesses": 0,
+    "name": "fp_sub_cast_qp_raw",
+    "stores": {
+      "L": 3
+    },
+    "total_instructions": 154
+  },
+  "106": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_types_hls.hpp",
+    "fileloc": 531,
+    "instructions": 17,
+    "memory_accesses": 0,
+    "name": "fp_QP_from_qp_raw",
+    "total_instructions": 141
+  },
+  "107": {
+    "basicblocks": 11,
+    "calls": "",
+    "control_depth": 2,
+    "def_use_depth": 3,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 172,
+    "instructions": 37,
+    "loads": {
+      "L": 3
+    },
+    "memory_accesses": 6,
+    "name": "fp_shift_qp_raw_sel",
+    "stores": {
+      "L": 3
+    },
+    "total_instructions": 113
+  },
+  "108": {
+    "basicblocks": 4,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.h",
+    "fileloc": 116,
+    "instructions": 17,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_abs",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 210
+  },
+  "109": {
+    "basicblocks": 4,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.h",
+    "fileloc": 116,
+    "instructions": 17,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_abs",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 210
+  },
+  "11": {
+    "basicblocks": 1,
+    "calls": "3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "vehicle_model_hls.cpp",
+    "fileloc": 452,
+    "instructions": 410,
+    "loads": {
+      "L": 48
+    },
+    "memory_accesses": 0,
+    "name": "compute_stage_shared_products",
+    "stores": {
+      "L": 48
+    },
+    "total_instructions": 17736
+  },
+  "110": {
+    "basicblocks": 4,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.h",
+    "fileloc": 135,
+    "instructions": 15,
+    "memory_accesses": 0,
+    "name": "fp_qp_raw_from_neg_pow2",
+    "total_instructions": 83
+  },
+  "111": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_types_hls.hpp",
+    "fileloc": 671,
+    "instructions": 17,
+    "memory_accesses": 0,
+    "name": "fp_FN_from_fn_raw",
+    "total_instructions": 142
+  },
+  "112": {
+    "basicblocks": 1,
+    "calls": "121",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_types_hls.hpp",
+    "fileloc": 580,
+    "instructions": 11,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_MG_raw_from_QP",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 164
+  },
+  "113": {
+    "basicblocks": 11,
+    "calls": "",
+    "control_depth": 2,
+    "def_use_depth": 3,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 229,
+    "instructions": 54,
+    "loads": {
+      "L": 2
+    },
+    "memory_accesses": 8,
+    "name": "fp_shift_fn_raw_cast_sel",
+    "stores": {
+      "L": 2
+    },
+    "total_instructions": 296
+  },
+  "114": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 165,
+    "instructions": 9,
+    "memory_accesses": 0,
+    "name": "fp_shift_right_cast<ap_int<34>, ap_int<53> >",
+    "total_instructions": 90
+  },
+  "115": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 280,
+    "instructions": 66,
+    "memory_accesses": 10,
+    "name": "sum6_MG_QP_raw",
+    "total_instructions": 656
+  },
+  "116": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_types_hls.hpp",
+    "fileloc": 523,
+    "instructions": 17,
+    "memory_accesses": 0,
+    "name": "fp_qp_raw_from_QP",
+    "total_instructions": 114
+  },
+  "117": {
+    "basicblocks": 3,
+    "calls": "50",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "mpc_riccati_hls.cpp",
+    "fileloc": 37,
+    "instructions": 63,
+    "loads": {
+      "L": 4
+    },
+    "memory_accesses": 0,
+    "name": "compute_wall_ey_bounds_hls",
+    "stores": {
+      "L": 4
+    },
+    "total_instructions": 1798
+  },
+  "118": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 165,
+    "instructions": 9,
+    "memory_accesses": 0,
+    "name": "fp_shift_right_cast<ap_int<26>, ap_int<46> >",
+    "total_instructions": 90
+  },
+  "119": {
+    "basicblocks": 7,
+    "calls": "125 125 125",
+    "control_depth": 0,
+    "def_use_depth": 3,
+    "file": "mpc_riccati_hls.cpp",
+    "fileloc": 56,
+    "instructions": 136,
+    "loads": {
+      "L": 9
+    },
+    "memory_accesses": 0,
+    "name": "compute_wall_biased_ey_ref_hls",
+    "stores": {
+      "L": 7
+    },
+    "total_instructions": 2371
+  },
+  "12": {
+    "basicblocks": 1,
+    "calls": "19 18 16 133",
+    "control_depth": 0,
+    "def_use_depth": 0,
+    "file": "fp_math_hls.pp.0.cpp",
+    "fileloc": 0,
+    "instructions": 5,
+    "memory_accesses": 0,
+    "name": "",
+    "total_instructions": 1579534
+  },
+  "120": {
+    "basicblocks": 4,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 352,
+    "instructions": 15,
+    "memory_accesses": 0,
+    "name": "abs_qp_raw_u",
+    "total_instructions": 200
+  },
+  "121": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_types_hls.hpp",
+    "fileloc": 523,
+    "instructions": 17,
+    "memory_accesses": 0,
+    "name": "fp_qp_raw_from_QP",
+    "total_instructions": 114
+  },
+  "122": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 171,
+    "instructions": 3,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_probe_sum2_QP_MG",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 3
+  },
+  "123": {
+    "basicblocks": 1,
+    "calls": "30",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "vehicle_model_hls.cpp",
+    "fileloc": 734,
+    "instructions": 29,
+    "loads": {
+      "L": 9
+    },
+    "memory_accesses": 0,
+    "name": "compute_frenet_AB_and_next_hls",
+    "stores": {
+      "L": 9
+    },
+    "total_instructions": 205574
+  },
+  "124": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 280,
+    "instructions": 24,
+    "memory_accesses": 0,
+    "name": "fp_mul_QP_MG",
+    "total_instructions": 220
+  },
+  "125": {
+    "basicblocks": 6,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.h",
+    "fileloc": 126,
+    "instructions": 18,
+    "loads": {
+      "L": 3
+    },
+    "memory_accesses": 0,
+    "name": "fp_clamp",
+    "stores": {
+      "L": 3
+    },
+    "total_instructions": 34
+  },
+  "126": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 165,
+    "instructions": 9,
+    "memory_accesses": 0,
+    "name": "fp_shift_right_cast<ap_int<40>, ap_int<59> >",
+    "total_instructions": 90
+  },
+  "127": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 170,
+    "instructions": 66,
+    "memory_accesses": 10,
+    "name": "sum6_P_QP_raw",
+    "total_instructions": 656
+  },
+  "128": {
+    "basicblocks": 29,
+    "calls": "",
+    "control_depth": 3,
+    "def_use_depth": 3,
+    "file": "mpc_riccati_hls.cpp",
+    "fileloc": 87,
+    "instructions": 137,
+    "loads": {
+      "L": 9
+    },
+    "memory_accesses": 5,
+    "name": "compute_window_min_hls",
+    "stores": {
+      "L": 9
+    },
+    "total_instructions": 578
+  },
+  "129": {
+    "basicblocks": 8,
+    "calls": "143 8 8 8 132 5 5",
+    "control_depth": 0,
+    "def_use_depth": 3,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 632,
+    "instructions": 142,
+    "loads": {
+      "G": 2,
+      "L": 6
+    },
+    "memory_accesses": 0,
+    "name": "fp_atan_lut",
+    "stores": {
+      "L": 8
+    },
+    "total_instructions": 2140
+  },
+  "13": {
+    "basicblocks": 4,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.h",
+    "fileloc": 135,
+    "instructions": 15,
+    "memory_accesses": 0,
+    "name": "fp_qp_raw_from_neg_pow2",
+    "total_instructions": 83
+  },
+  "130": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 256,
+    "instructions": 24,
+    "memory_accesses": 0,
+    "name": "fp_mul_P_QP",
+    "total_instructions": 220
+  },
+  "131": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 129,
+    "instructions": 3,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_probe_store_K",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 3
+  },
+  "132": {
+    "basicblocks": 1,
+    "calls": "88",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 199,
+    "instructions": 36,
+    "loads": {
+      "L": 2
+    },
+    "memory_accesses": 0,
+    "name": "fp_lerp_qp_raw",
+    "stores": {
+      "L": 2
+    },
+    "total_instructions": 591
+  },
+  "133": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 0,
+    "file": "fp_math_hls.pp.0.cpp",
+    "fileloc": 0,
+    "instructions": 1026,
+    "memory_accesses": 0,
+    "name": "__cxx_global_var_init.5",
+    "total_instructions": 395651
+  },
+  "134": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 208,
+    "instructions": 37,
+    "memory_accesses": 0,
+    "name": "fp_mul_fn_raw_q",
+    "total_instructions": 314
+  },
+  "135": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 117,
+    "instructions": 3,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_probe_store_P",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 3
+  },
+  "136": {
+    "basicblocks": 11,
+    "calls": "116 116 116 116 116 116 116 116 116 116 116 116 116 116 116 116 116 116 116 116 116 116 28 81 28 81 28 81 28 81 28 81 80 28 81 116 28 81",
+    "control_depth": 1,
+    "def_use_depth": 2,
+    "file": "mpc_riccati_hls.cpp",
+    "fileloc": 133,
+    "instructions": 659,
+    "loads": {
+      "L": 59
+    },
+    "memory_accesses": 101,
+    "name": "compute_affine_bias_dense_hls",
+    "stores": {
+      "L": 59
+    },
+    "total_instructions": 7634
+  },
+  "137": {
+    "basicblocks": 1,
+    "calls": "121",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_types_hls.hpp",
+    "fileloc": 556,
+    "instructions": 11,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_P_raw_from_QP",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 164
+  },
+  "138": {
+    "basicblocks": 11,
+    "calls": "",
+    "control_depth": 2,
+    "def_use_depth": 3,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 216,
+    "instructions": 37,
+    "loads": {
+      "L": 3
+    },
+    "memory_accesses": 6,
+    "name": "fp_shift_fn_raw_sel",
+    "stores": {
+      "L": 3
+    },
+    "total_instructions": 123
+  },
+  "139": {
+    "basicblocks": 1,
+    "calls": "90",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 457,
+    "instructions": 48,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_fn_trig_lut_pos_raw",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 385
+  },
+  "14": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 141,
+    "instructions": 3,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_probe_sum2_MG_raw",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 3
+  },
+  "140": {
+    "basicblocks": 1,
+    "calls": "134",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 243,
+    "instructions": 36,
+    "loads": {
+      "L": 2
+    },
+    "memory_accesses": 0,
+    "name": "fp_lerp_fn_raw",
+    "stores": {
+      "L": 2
+    },
+    "total_instructions": 592
+  },
+  "141": {
+    "basicblocks": 11,
+    "calls": "142 139 90 90 140 111 111 90 90 140 111",
+    "control_depth": 0,
+    "def_use_depth": 3,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 734,
+    "instructions": 164,
+    "loads": {
+      "G": 4,
+      "L": 12
+    },
+    "memory_accesses": 0,
+    "name": "fp_trig_pair_fused_fn",
+    "stores": {
+      "L": 16
+    },
+    "total_instructions": 5410
+  },
+  "142": {
+    "basicblocks": 11,
+    "calls": "",
+    "control_depth": 2,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 444,
+    "instructions": 87,
+    "loads": {
+      "L": 3
+    },
+    "memory_accesses": 15,
+    "name": "fp_normalize_angle_fn",
+    "stores": {
+      "L": 3
+    },
+    "total_instructions": 2129
+  },
+  "143": {
+    "basicblocks": 4,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.h",
+    "fileloc": 116,
+    "instructions": 17,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_abs",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 210
+  },
+  "15": {
+    "basicblocks": 4,
+    "calls": "33 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "vehicle_model_hls.cpp",
+    "fileloc": 82,
+    "instructions": 265,
+    "loads": {
+      "L": 30
+    },
+    "memory_accesses": 0,
+    "name": "fp_frenet_rows01_fn",
+    "stores": {
+      "L": 32
+    },
+    "total_instructions": 15152
+  },
+  "16": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 0,
+    "file": "fp_math_hls.pp.0.cpp",
+    "fileloc": 0,
+    "instructions": 1026,
+    "memory_accesses": 0,
+    "name": "__cxx_global_var_init.4",
+    "total_instructions": 395651
+  },
+  "17": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 288,
+    "instructions": 24,
+    "memory_accesses": 0,
+    "name": "fp_mul_MG_K",
+    "total_instructions": 220
+  },
+  "18": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 0,
+    "file": "fp_math_hls.pp.0.cpp",
+    "fileloc": 0,
+    "instructions": 1026,
+    "memory_accesses": 0,
+    "name": "__cxx_global_var_init.3",
+    "total_instructions": 395651
+  },
+  "19": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 0,
+    "file": "fp_math_hls.pp.0.cpp",
+    "fileloc": 0,
+    "instructions": 1026,
+    "memory_accesses": 0,
+    "name": "__cxx_global_var_init.2",
+    "total_instructions": 392576
+  },
+  "2": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 135,
+    "instructions": 3,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_probe_sum2_P_raw",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 3
+  },
+  "20": {
+    "basicblocks": 4,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.h",
+    "fileloc": 121,
+    "instructions": 10,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_max2",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 18
+  },
+  "21": {
+    "basicblocks": 1,
+    "calls": "108 108 20",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 344,
+    "instructions": 12,
+    "loads": {
+      "L": 2
+    },
+    "memory_accesses": 0,
+    "name": "fp_max_abs_ctrl2",
+    "stores": {
+      "L": 2
+    },
+    "total_instructions": 450
+  },
+  "22": {
+    "basicblocks": 1,
+    "calls": "141",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "vehicle_model_hls.cpp",
+    "fileloc": 65,
+    "instructions": 5,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_trig_pair",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 5415
+  },
+  "23": {
+    "basicblocks": 6,
+    "calls": "3 27 104",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "vehicle_model_hls.cpp",
+    "fileloc": 70,
+    "instructions": 93,
+    "loads": {
+      "L": 6
+    },
+    "memory_accesses": 0,
+    "name": "fp_frenet_recip",
+    "stores": {
+      "L": 6
+    },
+    "total_instructions": 5037
+  },
+  "24": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 123,
+    "instructions": 3,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_probe_store_MG",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 3
+  },
+  "25": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 260,
+    "instructions": 66,
+    "memory_accesses": 10,
+    "name": "sum6_QP_raw",
+    "total_instructions": 656
+  },
+  "26": {
+    "basicblocks": 13,
+    "calls": "121 121 121 121 106 121 105 106 50 108 102 106 108 108 50 108",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 184,
+    "instructions": 248,
+    "loads": {
+      "L": 29
+    },
+    "memory_accesses": 0,
+    "name": "admm_update_state_channel_raw",
+    "stores": {
+      "L": 29
+    },
+    "total_instructions": 4461
+  },
+  "27": {
+    "basicblocks": 4,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.h",
+    "fileloc": 406,
+    "instructions": 17,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_abs_fn",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 212
+  },
+  "28": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 156,
+    "instructions": 24,
+    "memory_accesses": 0,
+    "name": "fp_mul_QP_raw",
+    "total_instructions": 220
+  },
+  "29": {
+    "basicblocks": 4,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "mpc_fpga_top.cpp",
+    "fileloc": 96,
+    "instructions": 6,
+    "memory_accesses": 0,
+    "name": "solver_status_to_transport_status",
+    "total_instructions": 6
+  },
+  "3": {
+    "basicblocks": 1,
+    "calls": "90 90 111",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 666,
+    "instructions": 64,
+    "loads": {
+      "L": 3
+    },
+    "memory_accesses": 0,
+    "name": "fp_mul_fn",
+    "stores": {
+      "L": 3
+    },
+    "total_instructions": 715
+  },
+  "30": {
+    "basicblocks": 1,
+    "calls": "33 33 33 33 33 33 33 33 38 22 23 15 3 4 11 3 3 3 3 3 3 3 3 3 3 60 63 56 56 56 56 56 56 56 56 56 56 56 56 56 56 56 56 56 56 56 56 56 56 56 56 56 56 56 56",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "vehicle_model_hls.cpp",
+    "fileloc": 569,
+    "instructions": 1141,
+    "loads": {
+      "L": 137
+    },
+    "memory_accesses": 0,
+    "name": "compute_frenet_AB_hls",
+    "stores": {
+      "L": 126
+    },
+    "total_instructions": 205545
+  },
+  "31": {
+    "basicblocks": 1,
+    "calls": "108 108 20 108 108 20 108 108 20 108 108 20 20 20 20",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.h",
+    "fileloc": 331,
+    "instructions": 96,
+    "loads": {
+      "L": 14
+    },
+    "memory_accesses": 0,
+    "name": "fp_max_abs_state8",
+    "stores": {
+      "L": 14
+    },
+    "total_instructions": 1902
+  },
+  "32": {
+    "basicblocks": 1,
+    "calls": "47",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "mpc_fpga_top.cpp",
+    "fileloc": 135,
+    "instructions": 13,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_word_from_qp",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 132
+  },
+  "33": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_types_hls.hpp",
+    "fileloc": 678,
+    "instructions": 3,
+    "memory_accesses": 0,
+    "name": "fp_FN_from_QP",
+    "total_instructions": 58
+  },
+  "34": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 112,
+    "instructions": 4,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "step_accel_ub",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 4
+  },
+  "35": {
+    "basicblocks": 1,
+    "calls": "100",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_types_hls.hpp",
+    "fileloc": 635,
+    "instructions": 33,
+    "loads": {
+      "L": 3
+    },
+    "memory_accesses": 0,
+    "name": "add_cast_QP_raw",
+    "stores": {
+      "L": 3
+    },
+    "total_instructions": 154
+  },
+  "36": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 165,
+    "instructions": 9,
+    "memory_accesses": 0,
+    "name": "fp_shift_right_cast<ap_int<32>, ap_int<44> >",
+    "total_instructions": 90
+  },
+  "37": {
+    "basicblocks": 76,
+    "calls": "125 128 128 50 129 125 117 119 123 109 50 125 116 116 116 116 116 116 116 136 50 116 50 116 50 116 50 116 50 116 50 116 50 50 94 50 50 50 50 50 50 50 125 50 109 91 83 82 85 50 125 84 86",
+    "control_depth": 1,
+    "def_use_depth": 3,
+    "file": "mpc_riccati_hls.cpp",
+    "fileloc": 300,
+    "instructions": 1932,
+    "loads": {
+      "L": 129
+    },
+    "memory_accesses": 29,
+    "name": "mpc_compute_hls",
+    "stores": {
+      "L": 136
+    },
+    "total_instructions": 461224
+  },
+  "38": {
+    "basicblocks": 4,
+    "calls": "33 33 33 33 33 33 104 22 3 3 3 3 98 3 3 3 3 3 3 59 61",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "vehicle_model_hls.cpp",
+    "fileloc": 335,
+    "instructions": 552,
+    "loads": {
+      "L": 60
+    },
+    "memory_accesses": 0,
+    "name": "compute_frenet_tire_hls",
+    "stores": {
+      "L": 60
+    },
+    "total_instructions": 81973
+  },
+  "39": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 177,
+    "instructions": 3,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_probe_sum2_MG_K",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 3
+  },
+  "4": {
+    "basicblocks": 8,
+    "calls": "3 27 104 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 33",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "vehicle_model_hls.cpp",
+    "fileloc": 164,
+    "instructions": 522,
+    "loads": {
+      "L": 47
+    },
+    "memory_accesses": 0,
+    "name": "fp_rollout_from_forces_fn",
+    "stores": {
+      "L": 47
+    },
+    "total_instructions": 25321
+  },
+  "40": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 264,
+    "instructions": 24,
+    "memory_accesses": 0,
+    "name": "fp_mul_QP_P",
+    "total_instructions": 220
+  },
+  "41": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 107,
+    "instructions": 4,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "step_ey_ub",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 4
+  },
+  "42": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 165,
+    "instructions": 9,
+    "memory_accesses": 0,
+    "name": "fp_shift_right_cast<ap_int<40>, ap_int<49> >",
+    "total_instructions": 90
+  },
+  "43": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 190,
+    "instructions": 94,
+    "memory_accesses": 14,
+    "name": "sum8_P_MIX_raw",
+    "total_instructions": 920
+  },
+  "44": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 102,
+    "instructions": 4,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "step_ey_lb",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 4
+  },
+  "45": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 300,
+    "instructions": 94,
+    "memory_accesses": 14,
+    "name": "sum8_K_QP_raw",
+    "total_instructions": 920
+  },
+  "46": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 165,
+    "instructions": 9,
+    "memory_accesses": 0,
+    "name": "fp_shift_right_cast<ap_int<40>, ap_int<57> >",
+    "total_instructions": 90
+  },
+  "47": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_types_hls.hpp",
+    "fileloc": 516,
+    "instructions": 17,
+    "memory_accesses": 0,
+    "name": "fp_raw_from_QP",
+    "total_instructions": 114
+  },
+  "48": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 303,
+    "instructions": 24,
+    "memory_accesses": 0,
+    "name": "fp_mul_K_QP",
+    "total_instructions": 220
+  },
+  "49": {
+    "basicblocks": 1,
+    "calls": "57 52",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 1055,
+    "instructions": 14,
+    "loads": {
+      "L": 2
+    },
+    "memory_accesses": 0,
+    "name": "riccati_pass_hls",
+    "stores": {
+      "L": 2
+    },
+    "total_instructions": 136811
+  },
+  "5": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_types_hls.hpp",
+    "fileloc": 531,
+    "instructions": 17,
+    "memory_accesses": 0,
+    "name": "fp_QP_from_qp_raw",
+    "total_instructions": 141
+  },
+  "50": {
+    "basicblocks": 1,
+    "calls": "8 8 28 87 5",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 322,
+    "instructions": 30,
+    "loads": {
+      "L": 4
+    },
+    "memory_accesses": 0,
+    "name": "fp_mul_site",
+    "stores": {
+      "L": 4
+    },
+    "total_instructions": 709
+  },
+  "51": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 147,
+    "instructions": 3,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_probe_sum2_P_QP",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 3
+  },
+  "52": {
+    "basicblocks": 46,
+    "calls": "121 48 48 48 48 48 48 48 48 45 48 48 48 48 48 48 48 48 45 36 35 36 35 106 106 28 28 28 28 28 28 25 28 9 106 28 28 28",
+    "control_depth": 6,
+    "def_use_depth": 2,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 307,
+    "instructions": 702,
+    "loads": {
+      "L": 73
+    },
+    "memory_accesses": 92,
+    "name": "riccati_forward_pass",
+    "stores": {
+      "L": 73
+    },
+    "total_instructions": 10736
+  },
+  "53": {
+    "basicblocks": 22,
+    "calls": "97 97 99 96 50 58 37 32 32 29",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "mpc_fpga_top.cpp",
+    "fileloc": 262,
+    "instructions": 189,
+    "loads": {
+      "G": 3,
+      "L": 23
+    },
+    "memory_accesses": 0,
+    "name": "mpc_fpga_compute_core",
+    "stores": {
+      "G": 14,
+      "L": 16
+    },
+    "total_instructions": 480590
+  },
+  "54": {
+    "basicblocks": 1,
+    "calls": "3 3",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "vehicle_model_hls.cpp",
+    "fileloc": 58,
+    "instructions": 20,
+    "loads": {
+      "L": 4
+    },
+    "memory_accesses": 0,
+    "name": "fp_pacejka_ceff",
+    "stores": {
+      "L": 4
+    },
+    "total_instructions": 1450
+  },
+  "55": {
+    "basicblocks": 1,
+    "calls": "3 3 3 3 3 3",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "vehicle_model_hls.cpp",
+    "fileloc": 150,
+    "instructions": 92,
+    "loads": {
+      "L": 14
+    },
+    "memory_accesses": 0,
+    "name": "fp_rear_force_jacobians_fn",
+    "stores": {
+      "L": 14
+    },
+    "total_instructions": 4884
+  },
+  "56": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_types_hls.hpp",
+    "fileloc": 683,
+    "instructions": 3,
+    "memory_accesses": 0,
+    "name": "fp_QP_from_FN",
+    "total_instructions": 59
+  },
+  "57": {
+    "basicblocks": 193,
+    "calls": "137 135 137 135 137 2 135 121 121 105 121 28 2 135 137 2 135 121 121 105 121 28 2 135 137 135 137 135 137 135 137 135 137 135 137 135 137 135 137 135 135 135 135 135 135 135 135 135 137 2 135 121 121 105 121 28 2 135 137 2 135 121 121 105 121 28 2 135 121 121 35 121 121 105 121 28 24 40 51 40 40 40 68 76 24 73 24 70 89 70 70 70 95 70 89 70 70 70 95 93 9 93 9 101 103 121 106 106 94 121 94 121 70 70 70 70 70 70 115 114 24 112 24 112 24 124 124 124 124 122 122 118 131 118 131 130 130 130 130 130 130 127 126 2 135 40 51 76 24 40 40 40 68 73 24 14 14 124 124 124 124 122 122 118 131 118 131 135 130 130 130 130 130 130 127 126 135 40 40 40 40 40 40 17 17 1 40 40 40 40 40 40 17 17 1 40 40 40 40 40 40 17 17 1 40 40 40 40 40 40 17 17 1 40 40 40 40 40 40 17 17 1 40 40 40 40 40 40 17 17 1 6 6 6 6 6 6 2 135 135 135 135 135 135 40 40 40 40 40 40 17 17 1 40 40 40 40 40 40 17 17 1 40 40 40 40 40 40 17 17 1 40 40 40 40 40 40 17 17 1 40 40 40 40 40 40 17 17 1 6 6 6 6 6 2 135 135 135 135 135 40 40 40 40 40 40 17 17 1 40 40 40 40 40 40 17 17 1 40 40 40 40 40 40 17 17 1 40 40 40 40 40 40 17 17 1 6 6 6 6 2 135 135 135 135 40 40 40 40 40 40 17 17 1 40 40 40 40 40 40 17 17 1 40 40 40 40 40 40 17 17 1 6 6 6 2 135 135 135 40 40 40 40 40 40 17 17 1 40 40 40 40 40 40 17 17 1 6 6 2 135 135 40 40 40 40 40 40 17 17 1 6 2 135 17 17 17 17 39 39 42 135 42 135 17 17 17 39 39 39 42 135 42 135 42 135 2 135 2 135 135 135 40 40 40 40 40 40 17 17 43 46 2 135 17 17 39 42 2 135 135",
+    "control_depth": 3,
+    "def_use_depth": 3,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 443,
+    "instructions": 7551,
+    "loads": {
+      "L": 706
+    },
+    "memory_accesses": 432,
+    "name": "riccati_backward_pass",
+    "stores": {
+      "L": 718
+    },
+    "total_instructions": 126061
+  },
+  "58": {
+    "basicblocks": 6,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.h",
+    "fileloc": 126,
+    "instructions": 18,
+    "loads": {
+      "L": 3
+    },
+    "memory_accesses": 0,
+    "name": "fp_clamp",
+    "stores": {
+      "L": 3
+    },
+    "total_instructions": 34
+  },
+  "59": {
+    "basicblocks": 7,
+    "calls": "62 3 64 22 3 104 3 3 54 3 104 66",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "vehicle_model_hls.cpp",
+    "fileloc": 262,
+    "instructions": 239,
+    "loads": {
+      "L": 24
+    },
+    "memory_accesses": 0,
+    "name": "compute_front_tire_path_fn",
+    "stores": {
+      "L": 25
+    },
+    "total_instructions": 28714
+  },
+  "6": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 165,
+    "instructions": 9,
+    "memory_accesses": 0,
+    "name": "fp_shift_right_cast<ap_int<40>, ap_int<58> >",
+    "total_instructions": 90
+  },
+  "60": {
+    "basicblocks": 10,
+    "calls": "3 3 3 3 3 3 3 3 3 3 3 3 3 3",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "vehicle_model_hls.cpp",
+    "fileloc": 491,
+    "instructions": 274,
+    "loads": {
+      "L": 21
+    },
+    "memory_accesses": 0,
+    "name": "compute_B_steering",
+    "stores": {
+      "L": 21
+    },
+    "total_instructions": 13988
+  },
+  "61": {
+    "basicblocks": 7,
+    "calls": "62 3 64 22 3 104 3 3 54 3 104 55",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "vehicle_model_hls.cpp",
+    "fileloc": 296,
+    "instructions": 228,
+    "loads": {
+      "L": 23
+    },
+    "memory_accesses": 0,
+    "name": "compute_rear_tire_path_fn",
+    "stores": {
+      "L": 24
+    },
+    "total_instructions": 27690
+  },
+  "62": {
+    "basicblocks": 11,
+    "calls": "90 90 90 140 111 111",
+    "control_depth": 0,
+    "def_use_depth": 6,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 764,
+    "instructions": 117,
+    "loads": {
+      "G": 2,
+      "L": 6
+    },
+    "memory_accesses": 0,
+    "name": "fp_atan_lut_fn",
+    "stores": {
+      "L": 8
+    },
+    "total_instructions": 2004
+  },
+  "63": {
+    "basicblocks": 7,
+    "calls": "104 104 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "vehicle_model_hls.cpp",
+    "fileloc": 527,
+    "instructions": 329,
+    "loads": {
+      "L": 29
+    },
+    "memory_accesses": 0,
+    "name": "compute_B_accel_load_transfer",
+    "stores": {
+      "L": 29
+    },
+    "total_instructions": 19601
+  },
+  "64": {
+    "basicblocks": 1,
+    "calls": "62 3",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "vehicle_model_hls.cpp",
+    "fileloc": 52,
+    "instructions": 16,
+    "loads": {
+      "L": 2
+    },
+    "memory_accesses": 0,
+    "name": "fp_pacejka_inner_arg",
+    "stores": {
+      "L": 2
+    },
+    "total_instructions": 3131
+  },
+  "65": {
+    "basicblocks": 28,
+    "calls": "",
+    "control_depth": 1,
+    "def_use_depth": 2,
+    "file": "mpc_fpga_types.h",
+    "fileloc": 385,
+    "instructions": 87,
+    "loads": {
+      "L": 4
+    },
+    "memory_accesses": 6,
+    "name": "mpc_admm_zero_duals_hls",
+    "stores": {
+      "L": 5
+    },
+    "total_instructions": 1615
+  },
+  "66": {
+    "basicblocks": 1,
+    "calls": "3 3 3 3 3 3 3",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "vehicle_model_hls.cpp",
+    "fileloc": 135,
+    "instructions": 118,
+    "loads": {
+      "L": 16
+    },
+    "memory_accesses": 0,
+    "name": "fp_front_force_jacobians_fn",
+    "stores": {
+      "L": 16
+    },
+    "total_instructions": 5731
+  },
+  "67": {
+    "basicblocks": 28,
+    "calls": "",
+    "control_depth": 1,
+    "def_use_depth": 2,
+    "file": "mpc_fpga_types.h",
+    "fileloc": 359,
+    "instructions": 113,
+    "loads": {
+      "L": 6
+    },
+    "memory_accesses": 12,
+    "name": "mpc_admm_reset_all_hls",
+    "stores": {
+      "L": 7
+    },
+    "total_instructions": 2405
+  },
+  "68": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 153,
+    "instructions": 3,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_probe_sum4_P_QP",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 3
+  },
+  "69": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_types_hls.hpp",
+    "fileloc": 509,
+    "instructions": 17,
+    "memory_accesses": 0,
+    "name": "fp_QP_from_raw",
+    "total_instructions": 141
+  },
+  "7": {
+    "basicblocks": 1,
+    "calls": "20 20",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 349,
+    "instructions": 13,
+    "loads": {
+      "L": 3
+    },
+    "memory_accesses": 0,
+    "name": "fp_max3_qp",
+    "stores": {
+      "L": 3
+    },
+    "total_instructions": 49
+  },
+  "70": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 272,
+    "instructions": 24,
+    "memory_accesses": 0,
+    "name": "fp_mul_MG_QP",
+    "total_instructions": 220
+  },
+  "71": {
+    "basicblocks": 1,
+    "calls": "69",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "mpc_fpga_top.cpp",
+    "fileloc": 130,
+    "instructions": 4,
+    "memory_accesses": 0,
+    "name": "fp_qp_from_word",
+    "total_instructions": 160
+  },
+  "72": {
+    "basicblocks": 11,
+    "calls": "",
+    "control_depth": 2,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 431,
+    "instructions": 87,
+    "loads": {
+      "L": 3
+    },
+    "memory_accesses": 15,
+    "name": "fp_normalize_angle",
+    "stores": {
+      "L": 3
+    },
+    "total_instructions": 2116
+  },
+  "73": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 165,
+    "instructions": 9,
+    "memory_accesses": 0,
+    "name": "fp_shift_right_cast<ap_int<34>, ap_int<51> >",
+    "total_instructions": 90
+  },
+  "74": {
+    "basicblocks": 28,
+    "calls": "",
+    "control_depth": 1,
+    "def_use_depth": 2,
+    "file": "mpc_fpga_types.h",
+    "fileloc": 359,
+    "instructions": 113,
+    "loads": {
+      "L": 6
+    },
+    "memory_accesses": 12,
+    "name": "mpc_admm_reset_all_hls",
+    "stores": {
+      "L": 7
+    },
+    "total_instructions": 2405
+  },
+  "75": {
+    "basicblocks": 7,
+    "calls": "",
+    "control_depth": 1,
+    "def_use_depth": 3,
+    "file": "mpc_fpga_top.cpp",
+    "fileloc": 211,
+    "instructions": 228,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 50,
+    "name": "unpack_input_lane_words",
+    "stores": {
+      "L": 17
+    },
+    "total_instructions": 788
+  },
+  "76": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 165,
+    "instructions": 9,
+    "memory_accesses": 0,
+    "name": "fp_shift_right_cast<ap_int<34>, ap_int<52> >",
+    "total_instructions": 90
+  },
+  "77": {
+    "basicblocks": 7,
+    "calls": "71 71 71 71 71 71 71 71",
+    "control_depth": 1,
+    "def_use_depth": 5,
+    "file": "mpc_fpga_top.cpp",
+    "fileloc": 182,
+    "instructions": 132,
+    "loads": {
+      "L": 16
+    },
+    "memory_accesses": 32,
+    "name": "fill_mpc_reference_trajectory_from_lane_words",
+    "stores": {
+      "L": 8
+    },
+    "total_instructions": 1412
+  },
+  "78": {
+    "basicblocks": 6,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.h",
+    "fileloc": 126,
+    "instructions": 18,
+    "loads": {
+      "L": 3
+    },
+    "memory_accesses": 0,
+    "name": "fp_clamp",
+    "stores": {
+      "L": 3
+    },
+    "total_instructions": 34
+  },
+  "79": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "mpc_fpga_top.cpp",
+    "fileloc": 240,
+    "instructions": 62,
+    "memory_accesses": 0,
+    "name": "pack_output_words",
+    "total_instructions": 347
+  },
+  "8": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_types_hls.hpp",
+    "fileloc": 523,
+    "instructions": 17,
+    "memory_accesses": 0,
+    "name": "fp_qp_raw_from_QP",
+    "total_instructions": 114
+  },
+  "80": {
+    "basicblocks": 1,
+    "calls": "28 81",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "mpc_riccati_hls.cpp",
+    "fileloc": 125,
+    "instructions": 10,
+    "loads": {
+      "L": 2
+    },
+    "memory_accesses": 0,
+    "name": "affine_b0_term_hls",
+    "stores": {
+      "L": 2
+    },
+    "total_instructions": 320
+  },
+  "81": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_types_hls.hpp",
+    "fileloc": 645,
+    "instructions": 9,
+    "memory_accesses": 0,
+    "name": "fp_shift_right_cast_to_qp_site",
+    "total_instructions": 90
+  },
+  "82": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "mpc_riccati_hls.cpp",
+    "fileloc": 276,
+    "instructions": 23,
+    "loads": {
+      "L": 2
+    },
+    "memory_accesses": 0,
+    "name": "init_solution_hls",
+    "stores": {
+      "L": 4
+    },
+    "total_instructions": 787
+  },
+  "83": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "mpc_riccati_hls.cpp",
+    "fileloc": 267,
+    "instructions": 32,
+    "loads": {
+      "L": 3
+    },
+    "memory_accesses": 0,
+    "name": "init_solver_cfg_hls",
+    "stores": {
+      "L": 5
+    },
+    "total_instructions": 1211
+  },
+  "84": {
+    "basicblocks": 1,
+    "calls": "78 78",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "vehicle_model_hls.cpp",
+    "fileloc": 772,
+    "instructions": 94,
+    "loads": {
+      "L": 4
+    },
+    "memory_accesses": 0,
+    "name": "saturate_control_hls",
+    "stores": {
+      "L": 4
+    },
+    "total_instructions": 3081
+  },
+  "85": {
+    "basicblocks": 302,
+    "calls": "49 44 41 34 31 44 41 26 26 20 20 20 20 20 20 21 10 34 10 20 20 20 20 20 20 20 20 7 50 50",
+    "control_depth": 2,
+    "def_use_depth": 4,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 1085,
+    "instructions": 2240,
+    "loads": {
+      "L": 157
+    },
+    "memory_accesses": 182,
+    "name": "riccati_admm_solve_hls",
+    "stores": {
+      "L": 153
+    },
+    "total_instructions": 184246
+  },
+  "86": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "mpc_riccati_hls.cpp",
+    "fileloc": 253,
+    "instructions": 15,
+    "loads": {
+      "L": 4
+    },
+    "memory_accesses": 0,
+    "name": "mpc_persist_writeback_hls",
+    "stores": {
+      "L": 5
+    },
+    "total_instructions": 15
+  },
+  "87": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_types_hls.hpp",
+    "fileloc": 645,
+    "instructions": 9,
+    "memory_accesses": 0,
+    "name": "fp_shift_right_cast_to_qp_site",
+    "total_instructions": 90
+  },
+  "88": {
+    "basicblocks": 1,
+    "calls": "87",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 164,
+    "instructions": 33,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_mul_QP_raw_q",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 319
+  },
+  "89": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 159,
+    "instructions": 3,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_probe_sum2_MG_QP",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 3
+  },
+  "9": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 165,
+    "instructions": 9,
+    "memory_accesses": 0,
+    "name": "fp_shift_right_cast<ap_int<32>, ap_int<45> >",
+    "total_instructions": 90
+  },
+  "90": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_types_hls.hpp",
+    "fileloc": 663,
+    "instructions": 17,
+    "memory_accesses": 0,
+    "name": "fp_fn_raw_from_FN",
+    "total_instructions": 116
+  },
+  "91": {
+    "basicblocks": 1,
+    "calls": "74",
+    "control_depth": 0,
+    "def_use_depth": 0,
+    "file": "mpc_riccati_hls.cpp",
+    "fileloc": 112,
+    "instructions": 2,
+    "memory_accesses": 0,
+    "name": "reset_admm_state_hls",
+    "total_instructions": 2407
+  },
+  "92": {
+    "basicblocks": 11,
+    "calls": "",
+    "control_depth": 2,
+    "def_use_depth": 3,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 185,
+    "instructions": 54,
+    "loads": {
+      "L": 2
+    },
+    "memory_accesses": 8,
+    "name": "fp_shift_qp_raw_cast_sel",
+    "stores": {
+      "L": 2
+    },
+    "total_instructions": 291
+  },
+  "93": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "fp_math_hls.h",
+    "fileloc": 165,
+    "instructions": 9,
+    "memory_accesses": 0,
+    "name": "fp_shift_right_cast<ap_int<32>, ap_int<46> >",
+    "total_instructions": 90
+  },
+  "94": {
+    "basicblocks": 36,
+    "calls": "8 107 92 5 5",
+    "control_depth": 2,
+    "def_use_depth": 4,
+    "file": "fp_math_hls.cpp",
+    "fileloc": 470,
+    "instructions": 232,
+    "loads": {
+      "G": 2,
+      "L": 7
+    },
+    "memory_accesses": 3,
+    "name": "fp_recip",
+    "stores": {
+      "L": 7
+    },
+    "total_instructions": 2014
+  },
+  "95": {
+    "basicblocks": 1,
+    "calls": "",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "riccati_solver_hls.cpp",
+    "fileloc": 165,
+    "instructions": 3,
+    "loads": {
+      "L": 1
+    },
+    "memory_accesses": 0,
+    "name": "fp_probe_sum4_MG_QP",
+    "stores": {
+      "L": 1
+    },
+    "total_instructions": 3
+  },
+  "96": {
+    "basicblocks": 1,
+    "calls": "67",
+    "control_depth": 0,
+    "def_use_depth": 0,
+    "file": "mpc_fpga_top.cpp",
+    "fileloc": 86,
+    "instructions": 2,
+    "memory_accesses": 0,
+    "name": "reset_admm_state_top_hls",
+    "total_instructions": 2407
+  },
+  "97": {
+    "basicblocks": 4,
+    "calls": "96",
+    "control_depth": 0,
+    "def_use_depth": 1,
+    "file": "mpc_fpga_top.cpp",
+    "fileloc": 105,
+    "instructions": 101,
+    "loads": {
+      "L": 8
+    },
+    "memory_accesses": 0,
+    "name": "reset_core_state_hls",
+    "stores": {
+      "L": 13
+    },
+    "total_instructions": 5564
+  },
+  "98": {
+    "basicblocks": 1,
+    "calls": "3 3 3 3",
+    "control_depth": 0,
+    "def_use_depth": 2,
+    "file": "vehicle_model_hls.cpp",
+    "fileloc": 117,
+    "instructions": 89,
+    "loads": {
+      "L": 12
+    },
+    "memory_accesses": 0,
+    "name": "fp_slip_terms",
+    "stores": {
+      "L": 12
+    },
+    "total_instructions": 4161
+  },
+  "99": {
+    "basicblocks": 1,
+    "calls": "65",
+    "control_depth": 0,
+    "def_use_depth": 0,
+    "file": "mpc_fpga_top.cpp",
+    "fileloc": 91,
+    "instructions": 2,
+    "memory_accesses": 0,
+    "name": "zero_admm_duals_top_hls",
+    "total_instructions": 1617
+  }
+}

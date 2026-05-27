@@ -93,10 +93,12 @@ python3 test/tune_realistic_v2.py --objective fastest --jobs 8
 ```
 
 Horizon sweep note:
-- Horizon is swept like any other parameter using:
-  `[10, 12, 14, 16, 18, 20, 24, 28, 30, 32, 36, 40, 50]`.
-- Package default `PREDICTION_HORIZON` in `include/mpc_types.h` is set to 50,
-  so the sweep values above are effective without extra flags.
+- Horizon is swept like any other parameter from the tuning scripts.
+- Package default `PREDICTION_HORIZON` in `include/mpc_types.h` is **20**
+  and `PREDICTION_DT_SECONDS` is **0.03 s** (matches the FPGA kernel
+  in `FPGA_Implementations/MPC_FPGA_Kria`).
+- Sweep values above the compile-time `PREDICTION_HORIZON` are clamped, so
+  raise the define if a longer horizon is needed.
 
 Recent review updates in this package include:
 - Null/invalid-input hardening in solver and utility layers.

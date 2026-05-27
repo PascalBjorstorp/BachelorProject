@@ -1,0 +1,169 @@
+<profile>
+
+<section name = "Vitis HLS Report for 'compute_front_tire_path_fn'" level="0">
+<item name = "Date">Thu May 21 15:23:09 2026
+</item>
+<item name = "Version">2025.2 (Build 6295257 on Nov 14 2025)</item>
+<item name = "Project">mpc_fpga_top_opencl</item>
+<item name = "Solution">hls (Vitis Kernel Flow Target)</item>
+<item name = "Product family">zynquplus</item>
+<item name = "Target device">xck26-sfvc784-2LV-c</item>
+</section>
+
+<section name = "Performance Estimates" level="0">
+<item name = "Timing">
+<section name = "" level="1">
+<item name = "Summary"><table name="" hasTotal="0">
+<keys size="4">Clock, Target, Estimated, Uncertainty</keys>
+<column name="ap_clk">5.00 ns, 4.433 ns, 0.50 ns</column>
+</table>
+</item>
+</section>
+</item>
+<item name = "Latency">
+<section name = "" level="1">
+<item name = "Summary"><table name="" hasTotal="0">
+<keys size="8">, min, max, min, max, min, max, Type</keys>
+<column name="">47, 47, 0.235 us, 0.235 us, 48, 48, yes</column>
+</table>
+</item>
+<item name = "Detail">
+<section name = "" level="1">
+<item name = "Instance"><table name="" hasTotal="0">
+<keys size="9">Instance, Module, min, max, min, max, min, max, Type</keys>
+<column name="grp_fp_atan_lut_fn_fu_150">fp_atan_lut_fn, 5, 5, 25.000 ns, 25.000 ns, 6, 6, yes</column>
+<column name="grp_fp_recip_fn_fu_158">fp_recip_fn, 6, 6, 30.000 ns, 30.000 ns, 1, 1, yes</column>
+<column name="grp_fp_trig_pair_fused_fn_fu_166">fp_trig_pair_fused_fn, 10, 10, 50.000 ns, 50.000 ns, 11, 11, yes</column>
+<column name="grp_fp_pacejka_ceff_fu_175">fp_pacejka_ceff, 6, 6, 30.000 ns, 30.000 ns, 7, 7, yes</column>
+<column name="grp_fp_front_force_jacobians_fn_fu_182">fp_front_force_jacobians_fn, 9, 9, 45.000 ns, 45.000 ns, 10, 10, yes</column>
+</table>
+</item>
+<item name = "Loop"><table name="" hasTotal="0">
+<keys size="8">Loop Name, min, max, Latency, achieved, target, Count, Pipelined</keys>
+</table>
+</item>
+</section>
+</item>
+</section>
+</item>
+</section>
+
+<section name = "Utilization Estimates" level="0">
+<item name = "Summary"><table name="" hasTotal="1">
+<keys size="6">Name, BRAM_18K, DSP, FF, LUT, URAM</keys>
+<column name="DSP">-, -, -, -, -</column>
+<column name="Expression">-, -, 0, 184, -</column>
+<column name="FIFO">-, -, -, -, -</column>
+<column name="Instance">8, 27, 3401, 4407, -</column>
+<column name="Memory">-, -, -, -, -</column>
+<column name="Multiplexer">-, -, 0, 287, -</column>
+<column name="Register">-, -, 453, -, -</column>
+<specialColumn name="Available">288, 1248, 234240, 117120, 64</specialColumn>
+<specialColumn name="Utilization (%)">2, 2, 1, 4, 0</specialColumn>
+</table>
+</item>
+<item name = "Detail">
+<section name = "" level="1">
+<item name = "Instance"><table name="" hasTotal="1">
+<keys size="7">Instance, Module, BRAM_18K, DSP, FF, LUT, URAM</keys>
+<column name="grp_fp_atan_lut_fn_fu_150">fp_atan_lut_fn, 2, 1, 122, 345, 0</column>
+<column name="grp_fp_front_force_jacobians_fn_fu_182">fp_front_force_jacobians_fn, 0, 9, 502, 289, 0</column>
+<column name="grp_fp_pacejka_ceff_fu_175">fp_pacejka_ceff, 0, 4, 155, 101, 0</column>
+<column name="grp_fp_recip_fn_fu_158">fp_recip_fn, 1, 1, 2033, 2710, 0</column>
+<column name="grp_fp_trig_pair_fused_fn_fu_166">fp_trig_pair_fused_fn, 5, 5, 345, 846, 0</column>
+<column name="mul_26s_19ns_45_4_1_U355">mul_26s_19ns_45_4_1, 0, 1, 61, 29, 0</column>
+<column name="mul_26s_20ns_46_4_1_U353">mul_26s_20ns_46_4_1, 0, 2, 61, 29, 0</column>
+<column name="mul_26s_21ns_47_4_1_U354">mul_26s_21ns_47_4_1, 0, 2, 61, 29, 0</column>
+<column name="mul_26s_26s_43_4_1_x_U352">mul_26s_26s_43_4_1_x, 0, 2, 61, 29, 0</column>
+</table>
+</item>
+<item name = "DSP"><table name="" hasTotal="0">
+<keys size="3">Instance, Module, Expression</keys>
+</table>
+</item>
+<item name = "Memory"><table name="" hasTotal="1">
+<keys size="10">Memory, Module, BRAM_18K, FF, LUT, URAM, Words, Bits, Banks, W*Bits*Banks</keys>
+</table>
+</item>
+<item name = "FIFO"><table name="" hasTotal="1">
+<keys size="8">Name, BRAM_18K, FF, LUT, URAM, Depth, Bits, Size:D*B</keys>
+</table>
+</item>
+<item name = "Expression"><table name="" hasTotal="1">
+<keys size="7">Variable Name, Operation, DSP, FF, LUT, Bitwidth P0, Bitwidth P1</keys>
+<column name="add_ln275_fu_270_p2">+, 0, 0, 33, 26, 18</column>
+<column name="alpha_fu_243_p2">-, 0, 0, 33, 26, 26</column>
+<column name="grp_fp_pacejka_ceff_fu_175_D_cb">-, 0, 0, 33, 23, 26</column>
+<column name="icmp_ln281_fu_320_p2">icmp, 0, 0, 33, 26, 26</column>
+<column name="grp_fp_front_force_jacobians_fn_fu_182_C_eff_f">select, 0, 0, 26, 1, 26</column>
+<column name="select_ln291_fu_345_p3">select, 0, 0, 26, 1, 1</column>
+</table>
+</item>
+<item name = "Multiplexer"><table name="" hasTotal="1">
+<keys size="5">Name, LUT, Input Size, Bits, Total Bits</keys>
+<column name="ap_NS_fsm">222, 49, 1, 49</column>
+<column name="grp_fp_atan_lut_fn_fu_150_ap_start">9, 2, 1, 2</column>
+<column name="grp_fp_atan_lut_fn_fu_150_x">14, 3, 26, 78</column>
+<column name="grp_fp_recip_fn_fu_158_x">14, 3, 26, 78</column>
+<column name="grp_fu_192_p0">14, 3, 26, 78</column>
+<column name="grp_fu_192_p1">14, 3, 26, 78</column>
+</table>
+</item>
+<item name = "Register"><table name="" hasTotal="1">
+<keys size="5">Name, FF, LUT, Bits, Const Bits</keys>
+<column name="alpha_reg_402">26, 0, 26, 0</column>
+<column name="ap_CS_fsm">48, 0, 48, 0</column>
+<column name="ap_port_reg_cmp_i_i">1, 0, 1, 0</column>
+<column name="ap_port_reg_conv_i_i_i1476_i">26, 0, 26, 0</column>
+<column name="ap_port_reg_conv_i_i_i1991_i">26, 0, 26, 0</column>
+<column name="ap_port_reg_conv_i_i_i_i1462_i">17, 0, 17, 0</column>
+<column name="ap_port_reg_p_0_0_02849_i">26, 0, 26, 0</column>
+<column name="ap_port_reg_spec_select_i">25, 0, 25, 0</column>
+<column name="cos_inner_f_reg_453">26, 0, 26, 0</column>
+<column name="grp_fp_atan_lut_fn_fu_150_ap_start_reg">1, 0, 1, 0</column>
+<column name="grp_fp_front_force_jacobians_fn_fu_182_ap_start_reg">1, 0, 1, 0</column>
+<column name="grp_fp_pacejka_ceff_fu_175_ap_start_reg">1, 0, 1, 0</column>
+<column name="grp_fp_trig_pair_fused_fn_fu_166_ap_start_reg">1, 0, 1, 0</column>
+<column name="inv_D_f_fn_reg_412">23, 0, 23, 0</column>
+<column name="inv_denom_f_fn_reg_443">23, 0, 23, 0</column>
+<column name="out_C_eff_raw_write_assign_reg_473">26, 0, 26, 0</column>
+<column name="product_q_91_reg_438">26, 0, 26, 0</column>
+<column name="product_q_93_reg_397">26, 0, 26, 0</column>
+<column name="product_q_reg_417">26, 0, 26, 0</column>
+<column name="reg_216">26, 0, 26, 0</column>
+<column name="reg_220">26, 0, 26, 0</column>
+<column name="sin_inner_f_reg_448">26, 0, 26, 0</column>
+</table>
+</item>
+</section>
+</item>
+</section>
+
+<section name = "Interface" level="0">
+<item name = "Summary"><table name="" hasTotal="0">
+<keys size="6">RTL Ports, Dir, Bits, Protocol, Source Object, C Type</keys>
+<column name="ap_clk">in, 1, ap_ctrl_hs, compute_front_tire_path_fn, return value</column>
+<column name="ap_rst">in, 1, ap_ctrl_hs, compute_front_tire_path_fn, return value</column>
+<column name="ap_start">in, 1, ap_ctrl_hs, compute_front_tire_path_fn, return value</column>
+<column name="ap_done">out, 1, ap_ctrl_hs, compute_front_tire_path_fn, return value</column>
+<column name="ap_idle">out, 1, ap_ctrl_hs, compute_front_tire_path_fn, return value</column>
+<column name="ap_ready">out, 1, ap_ctrl_hs, compute_front_tire_path_fn, return value</column>
+<column name="ap_return_0">out, 26, ap_ctrl_hs, compute_front_tire_path_fn, return value</column>
+<column name="ap_return_1">out, 26, ap_ctrl_hs, compute_front_tire_path_fn, return value</column>
+<column name="ap_return_2">out, 26, ap_ctrl_hs, compute_front_tire_path_fn, return value</column>
+<column name="ap_return_3">out, 26, ap_ctrl_hs, compute_front_tire_path_fn, return value</column>
+<column name="ap_return_4">out, 26, ap_ctrl_hs, compute_front_tire_path_fn, return value</column>
+<column name="ap_return_5">out, 26, ap_ctrl_hs, compute_front_tire_path_fn, return value</column>
+<column name="conv_i_i_i_i1462_i">in, 17, ap_none, conv_i_i_i_i1462_i, scalar</column>
+<column name="p_0_0_02853_i">in, 26, ap_none, p_0_0_02853_i, scalar</column>
+<column name="empty">in, 26, ap_none, empty, scalar</column>
+<column name="conv_i_i_i1476_i">in, 26, ap_none, conv_i_i_i1476_i, scalar</column>
+<column name="conv_i_i_i1991_i">in, 26, ap_none, conv_i_i_i1991_i, scalar</column>
+<column name="p_0_0_02849_i">in, 26, ap_none, p_0_0_02849_i, scalar</column>
+<column name="spec_select_i">in, 25, ap_none, spec_select_i, scalar</column>
+<column name="conv_i_i_i65_i">in, 26, ap_none, conv_i_i_i65_i, scalar</column>
+<column name="cmp_i_i">in, 1, ap_none, cmp_i_i, scalar</column>
+</table>
+</item>
+</section>
+</profile>

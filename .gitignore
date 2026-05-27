@@ -265,26 +265,6 @@ vivado*.str
 _ide/
 
 # =============================================
-# FPGA Bitstream / Hardware Export
-# =============================================
-# Bitstream files (.bit, .bin) are tracked via Git LFS.
-# Only ignore debug probes (.ltx) which are not needed.
-FPGA/Bitstream/*.ltx
-FPGA/docs/*
-MPC/build_test/*
-MPC/build_local/*
-MPC/logs/*
-FPGA_Implementations/MPC_FPGA_Kria/build_test/*
-FPGA_Implementations/MPC_FPGA_Kria/build_local/*
-FPGA_Implementations/MPC_FPGA_Kria/logs/*
-FPGA_Implementations/MPC_FPGA_Kria/docs/*
-FPGA_Implementations/MPC_FPGA_Ultra96/build_test/*
-FPGA_Implementations/MPC_FPGA_Ultra96/build_local/*
-FPGA_Implementations/MPC_FPGA_Ultra96/logs/*
-FPGA_Implementations/MPC_FPGA_Ultra96/docs/*
-MPC_legacy/*
-*.tcl
-# =============================================
 # Parameter csv files (excluded — large data)
 # =============================================
 # CMake generated files
@@ -300,12 +280,6 @@ MPC/test_sim_drive
 MPCC/test/*
 MPCC/tuning_results/*
 MPCC/logs/*
-
-
-FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/
-mpc_fpga_top_*/
-MPC_system/
-Kria_platform/
 
 f1tenth_planning/trajectories/my_track_mpcc_trace_20hz_auto.csv
 f1tenth_planning/trajectories/my_track_mpcc_trace_body_safe_20hz_auto.csv

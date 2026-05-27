@@ -1,0 +1,54 @@
+[
+  {
+    "csim": false,
+    "functionLabel": "",
+    "functionName": "mpc_admm_reset_all_hls",
+    "id": 0,
+    "ifcond": "",
+    "insert_position": "",
+    "label": "VITIS_LOOP_373_1",
+    "pragma": {
+      "name": "LOOP_TRIPCOUNT",
+      "option": [
+        {
+          "name": "avg",
+          "value": "2"
+        },
+        {
+          "name": "max",
+          "value": "2"
+        },
+        {
+          "name": "min",
+          "value": "2"
+        }
+      ]
+    },
+    "slx": false,
+    "sourceFile": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/hls_config.cfg",
+    "sourceLine": 45,
+    "success": false
+  },
+  {
+    "csim": false,
+    "functionLabel": "",
+    "functionName": "mpc_fpga_top_opencl",
+    "id": 1,
+    "ifcond": "",
+    "insert_position": "",
+    "label": "",
+    "pragma": {
+      "name": "TOP",
+      "option": [
+        {
+          "name": "name",
+          "value": "mpc_fpga_top_opencl"
+        }
+      ]
+    },
+    "slx": false,
+    "sourceFile": "",
+    "sourceLine": 0,
+    "success": true
+  }
+]

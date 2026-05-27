@@ -1,0 +1,1 @@
+set ::AESL_AUTOSIM::gTopFileName /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/./sim/autowrap/testbench/mpc_fpga_top.cpp_pre.cpp.tb.cpp

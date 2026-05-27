@@ -1,0 +1,125 @@
+psu_pmu_0:
+  standalone:
+    libmetal:
+      description: Provide runtime primitives APIs across heterogenous processors.
+      depends_libs:
+      - xiltimer
+      path:
+      - /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/ThirdParty/sw_services/libmetal_v2_9
+      examples: {}
+    xilffs:
+      description: Generic Fat File System Library.
+      depends_libs: []
+      path:
+      - /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/lib/sw_services/xilffs_v5_5
+      examples:
+        xilffs_polled_example.c: []
+    xilfpga:
+      description: XilFPGA library provides an interface to the Linux or bare-metal users for configuring the PL over PCAP from PS.
+      depends_libs:
+      - xilsecure
+      - xilmailbox
+      path:
+      - /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/lib/sw_services/xilfpga_v6_9
+      examples:
+        xfpga_partialbitstream_load_example.c: []
+        xfpga_readback_example.c: []
+        xfpga_reg_readback_example.c: []
+        xfpga_load_bitstream_example.c: []
+    xilmailbox:
+      description: Xilinx IPI Mailbox Library.
+      depends_libs: []
+      path:
+      - /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/lib/sw_services/xilmailbox_v1_12
+      examples:
+        xilmailbox_example.c: []
+    xilsecure:
+      description: Xilinx Secure Library provides interface to AES, RSA and SHA hardware engines on ZynqMP Soc and Versal.
+      depends_libs: []
+      path:
+      - /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/lib/sw_services/xilsecure_v5_6
+      examples: {}
+    xilskey:
+      description: Xilinx Secure Key Library supports programming efuse and bbram.
+      depends_libs: []
+      path:
+      - /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/lib/sw_services/xilskey_v7_8
+      examples:
+        xilskey_efuse_example.c:
+        - xilskey_input.h
+        xilskey_efuseps_zynqmp_example.c:
+        - xilskey_efuseps_zynqmp_input.h
+        xilskey_bbramps_zynqmp_example.c: []
+        xilskey_bbram_ultrascale_example.c:
+        - xilskey_bbram_ultrascale_input.h
+        xilskey_puf_registration_example.c:
+        - xilskey_puf_registration.h
+        xilskey_puf_regeneration_example.c: []
+    xiltimer:
+      description: Xiltimer library provides generic timer interface for the timer IP's.
+      depends_libs: []
+      path:
+      - /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/lib/sw_services/xiltimer_v2_3
+      examples: {}
+  freertos:
+    libmetal:
+      description: Provide runtime primitives APIs across heterogenous processors.
+      depends_libs:
+      - xiltimer
+      path:
+      - /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/ThirdParty/sw_services/libmetal_v2_9
+      examples: {}
+    xilffs:
+      description: Generic Fat File System Library.
+      depends_libs: []
+      path:
+      - /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/lib/sw_services/xilffs_v5_5
+      examples:
+        xilffs_polled_example.c: []
+    xilfpga:
+      description: XilFPGA library provides an interface to the Linux or bare-metal users for configuring the PL over PCAP from PS.
+      depends_libs:
+      - xilsecure
+      - xilmailbox
+      path:
+      - /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/lib/sw_services/xilfpga_v6_9
+      examples:
+        xfpga_partialbitstream_load_example.c: []
+        xfpga_readback_example.c: []
+        xfpga_reg_readback_example.c: []
+        xfpga_load_bitstream_example.c: []
+    xilmailbox:
+      description: Xilinx IPI Mailbox Library.
+      depends_libs: []
+      path:
+      - /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/lib/sw_services/xilmailbox_v1_12
+      examples:
+        xilmailbox_example.c: []
+    xilsecure:
+      description: Xilinx Secure Library provides interface to AES, RSA and SHA hardware engines on ZynqMP Soc and Versal.
+      depends_libs: []
+      path:
+      - /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/lib/sw_services/xilsecure_v5_6
+      examples: {}
+    xilskey:
+      description: Xilinx Secure Key Library supports programming efuse and bbram.
+      depends_libs: []
+      path:
+      - /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/lib/sw_services/xilskey_v7_8
+      examples:
+        xilskey_efuse_example.c:
+        - xilskey_input.h
+        xilskey_efuseps_zynqmp_example.c:
+        - xilskey_efuseps_zynqmp_input.h
+        xilskey_bbramps_zynqmp_example.c: []
+        xilskey_bbram_ultrascale_example.c:
+        - xilskey_bbram_ultrascale_input.h
+        xilskey_puf_registration_example.c:
+        - xilskey_puf_registration.h
+        xilskey_puf_regeneration_example.c: []
+    xiltimer:
+      description: Xiltimer library provides generic timer interface for the timer IP's.
+      depends_libs: []
+      path:
+      - /home/akselmo/Vivado_program/2025.2/Vitis/data/embeddedsw/lib/sw_services/xiltimer_v2_3
+      examples: {}

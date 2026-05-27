@@ -1,0 +1,19 @@
+{
+  "name": "MPC_FPGA",
+  "type": "HLS",
+  "configuration": {
+    "componentType": "HLS",
+    "configFiles": [
+      "hls_config.cfg"
+    ],
+    "work_dir": "mpc_fpga_top_opencl",
+    "csim_args": "",
+    "csynth_args": "",
+    "cosim_args": "",
+    "package_args": "",
+    "impl_args": ""
+  },
+  "useSysrootToolchain": false,
+  "template": "empty_hls_component",
+  "templateFlow": "VITIS"
+}

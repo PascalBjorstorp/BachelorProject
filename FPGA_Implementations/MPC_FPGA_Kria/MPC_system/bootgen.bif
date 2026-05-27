@@ -1,0 +1,4 @@
+all:
+{
+  ./build/hw/hw_link/binary_container_1/binary_container_1/int/system.bit
+}

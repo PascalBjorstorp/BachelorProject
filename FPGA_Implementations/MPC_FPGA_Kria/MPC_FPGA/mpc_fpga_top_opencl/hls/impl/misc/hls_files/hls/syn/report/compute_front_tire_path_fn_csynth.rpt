@@ -1,0 +1,191 @@
+
+
+================================================================
+== Vitis HLS Report for 'compute_front_tire_path_fn'
+================================================================
+* Date:           Thu May 21 15:23:09 2026
+
+* Version:        2025.2 (Build 6295257 on Nov 14 2025)
+* Project:        mpc_fpga_top_opencl
+* Solution:       hls (Vitis Kernel Flow Target)
+* Product family: zynquplus
+* Target device:  xck26-sfvc784-2LV-c
+
+
+================================================================
+== Performance Estimates
+================================================================
++ Timing: 
+    * Summary: 
+    +--------+---------+----------+------------+
+    |  Clock |  Target | Estimated| Uncertainty|
+    +--------+---------+----------+------------+
+    |ap_clk  |  5.00 ns|  4.433 ns|     0.50 ns|
+    +--------+---------+----------+------------+
+
++ Latency: 
+    * Summary: 
+    +---------+---------+----------+----------+-----+-----+---------+
+    |  Latency (cycles) |  Latency (absolute) |  Interval | Pipeline|
+    |   min   |   max   |    min   |    max   | min | max |   Type  |
+    +---------+---------+----------+----------+-----+-----+---------+
+    |       47|       47|  0.235 us|  0.235 us|   48|   48|      yes|
+    +---------+---------+----------+----------+-----+-----+---------+
+
+    + Detail: 
+        * Instance: 
+        +----------------------------------------+-----------------------------+---------+---------+-----------+-----------+-----+-----+---------+
+        |                                        |                             |  Latency (cycles) |   Latency (absolute)  |  Interval | Pipeline|
+        |                Instance                |            Module           |   min   |   max   |    min    |    max    | min | max |   Type  |
+        +----------------------------------------+-----------------------------+---------+---------+-----------+-----------+-----+-----+---------+
+        |grp_fp_atan_lut_fn_fu_150               |fp_atan_lut_fn               |        5|        5|  25.000 ns|  25.000 ns|    6|    6|      yes|
+        |grp_fp_recip_fn_fu_158                  |fp_recip_fn                  |        6|        6|  30.000 ns|  30.000 ns|    1|    1|      yes|
+        |grp_fp_trig_pair_fused_fn_fu_166        |fp_trig_pair_fused_fn        |       10|       10|  50.000 ns|  50.000 ns|   11|   11|      yes|
+        |grp_fp_pacejka_ceff_fu_175              |fp_pacejka_ceff              |        6|        6|  30.000 ns|  30.000 ns|    7|    7|      yes|
+        |grp_fp_front_force_jacobians_fn_fu_182  |fp_front_force_jacobians_fn  |        9|        9|  45.000 ns|  45.000 ns|   10|   10|      yes|
+        +----------------------------------------+-----------------------------+---------+---------+-----------+-----------+-----+-----+---------+
+
+        * Loop: 
+        N/A
+
+
+
+================================================================
+== Utilization Estimates
+================================================================
+* Summary: 
++-----------------+---------+------+--------+--------+-----+
+|       Name      | BRAM_18K|  DSP |   FF   |   LUT  | URAM|
++-----------------+---------+------+--------+--------+-----+
+|DSP              |        -|     -|       -|       -|    -|
+|Expression       |        -|     -|       0|     184|    -|
+|FIFO             |        -|     -|       -|       -|    -|
+|Instance         |        8|    27|    3401|    4407|    -|
+|Memory           |        -|     -|       -|       -|    -|
+|Multiplexer      |        -|     -|       0|     287|    -|
+|Register         |        -|     -|     453|       -|    -|
++-----------------+---------+------+--------+--------+-----+
+|Total            |        8|    27|    3854|    4878|    0|
++-----------------+---------+------+--------+--------+-----+
+|Available        |      288|  1248|  234240|  117120|   64|
++-----------------+---------+------+--------+--------+-----+
+|Utilization (%)  |        2|     2|       1|       4|    0|
++-----------------+---------+------+--------+--------+-----+
+
++ Detail: 
+    * Instance: 
+    +----------------------------------------+-----------------------------+---------+----+------+------+-----+
+    |                Instance                |            Module           | BRAM_18K| DSP|  FF  |  LUT | URAM|
+    +----------------------------------------+-----------------------------+---------+----+------+------+-----+
+    |grp_fp_atan_lut_fn_fu_150               |fp_atan_lut_fn               |        2|   1|   122|   345|    0|
+    |grp_fp_front_force_jacobians_fn_fu_182  |fp_front_force_jacobians_fn  |        0|   9|   502|   289|    0|
+    |grp_fp_pacejka_ceff_fu_175              |fp_pacejka_ceff              |        0|   4|   155|   101|    0|
+    |grp_fp_recip_fn_fu_158                  |fp_recip_fn                  |        1|   1|  2033|  2710|    0|
+    |grp_fp_trig_pair_fused_fn_fu_166        |fp_trig_pair_fused_fn        |        5|   5|   345|   846|    0|
+    |mul_26s_19ns_45_4_1_U355                |mul_26s_19ns_45_4_1          |        0|   1|    61|    29|    0|
+    |mul_26s_20ns_46_4_1_U353                |mul_26s_20ns_46_4_1          |        0|   2|    61|    29|    0|
+    |mul_26s_21ns_47_4_1_U354                |mul_26s_21ns_47_4_1          |        0|   2|    61|    29|    0|
+    |mul_26s_26s_43_4_1_x_U352               |mul_26s_26s_43_4_1_x         |        0|   2|    61|    29|    0|
+    +----------------------------------------+-----------------------------+---------+----+------+------+-----+
+    |Total                                   |                             |        8|  27|  3401|  4407|    0|
+    +----------------------------------------+-----------------------------+---------+----+------+------+-----+
+
+    * DSP: 
+    N/A
+
+    * Memory: 
+    N/A
+
+    * FIFO: 
+    N/A
+
+    * Expression: 
+    +------------------------------------------------+----------+----+---+----+------------+------------+
+    |                  Variable Name                 | Operation| DSP| FF| LUT| Bitwidth P0| Bitwidth P1|
+    +------------------------------------------------+----------+----+---+----+------------+------------+
+    |add_ln275_fu_270_p2                             |         +|   0|  0|  33|          26|          18|
+    |alpha_fu_243_p2                                 |         -|   0|  0|  33|          26|          26|
+    |grp_fp_pacejka_ceff_fu_175_D_cb                 |         -|   0|  0|  33|          23|          26|
+    |icmp_ln281_fu_320_p2                            |      icmp|   0|  0|  33|          26|          26|
+    |grp_fp_front_force_jacobians_fn_fu_182_C_eff_f  |    select|   0|  0|  26|           1|          26|
+    |select_ln291_fu_345_p3                          |    select|   0|  0|  26|           1|           1|
+    +------------------------------------------------+----------+----+---+----+------------+------------+
+    |Total                                           |          |   0|  0| 184|         103|         123|
+    +------------------------------------------------+----------+----+---+----+------------+------------+
+
+    * Multiplexer: 
+    +------------------------------------+-----+-----------+-----+-----------+
+    |                Name                | LUT | Input Size| Bits| Total Bits|
+    +------------------------------------+-----+-----------+-----+-----------+
+    |ap_NS_fsm                           |  222|         49|    1|         49|
+    |grp_fp_atan_lut_fn_fu_150_ap_start  |    9|          2|    1|          2|
+    |grp_fp_atan_lut_fn_fu_150_x         |   14|          3|   26|         78|
+    |grp_fp_recip_fn_fu_158_x            |   14|          3|   26|         78|
+    |grp_fu_192_p0                       |   14|          3|   26|         78|
+    |grp_fu_192_p1                       |   14|          3|   26|         78|
+    +------------------------------------+-----+-----------+-----+-----------+
+    |Total                               |  287|         63|  106|        363|
+    +------------------------------------+-----+-----------+-----+-----------+
+
+    * Register: 
+    +-----------------------------------------------------+----+----+-----+-----------+
+    |                         Name                        | FF | LUT| Bits| Const Bits|
+    +-----------------------------------------------------+----+----+-----+-----------+
+    |alpha_reg_402                                        |  26|   0|   26|          0|
+    |ap_CS_fsm                                            |  48|   0|   48|          0|
+    |ap_port_reg_cmp_i_i                                  |   1|   0|    1|          0|
+    |ap_port_reg_conv_i_i_i1476_i                         |  26|   0|   26|          0|
+    |ap_port_reg_conv_i_i_i1991_i                         |  26|   0|   26|          0|
+    |ap_port_reg_conv_i_i_i_i1462_i                       |  17|   0|   17|          0|
+    |ap_port_reg_p_0_0_02849_i                            |  26|   0|   26|          0|
+    |ap_port_reg_spec_select_i                            |  25|   0|   25|          0|
+    |cos_inner_f_reg_453                                  |  26|   0|   26|          0|
+    |grp_fp_atan_lut_fn_fu_150_ap_start_reg               |   1|   0|    1|          0|
+    |grp_fp_front_force_jacobians_fn_fu_182_ap_start_reg  |   1|   0|    1|          0|
+    |grp_fp_pacejka_ceff_fu_175_ap_start_reg              |   1|   0|    1|          0|
+    |grp_fp_trig_pair_fused_fn_fu_166_ap_start_reg        |   1|   0|    1|          0|
+    |inv_D_f_fn_reg_412                                   |  23|   0|   23|          0|
+    |inv_denom_f_fn_reg_443                               |  23|   0|   23|          0|
+    |out_C_eff_raw_write_assign_reg_473                   |  26|   0|   26|          0|
+    |product_q_91_reg_438                                 |  26|   0|   26|          0|
+    |product_q_93_reg_397                                 |  26|   0|   26|          0|
+    |product_q_reg_417                                    |  26|   0|   26|          0|
+    |reg_216                                              |  26|   0|   26|          0|
+    |reg_220                                              |  26|   0|   26|          0|
+    |sin_inner_f_reg_448                                  |  26|   0|   26|          0|
+    +-----------------------------------------------------+----+----+-----+-----------+
+    |Total                                                | 453|   0|  453|          0|
+    +-----------------------------------------------------+----+----+-----+-----------+
+
+
+
+================================================================
+== Interface
+================================================================
+* Summary: 
++--------------------+-----+-----+------------+----------------------------+--------------+
+|      RTL Ports     | Dir | Bits|  Protocol  |        Source Object       |    C Type    |
++--------------------+-----+-----+------------+----------------------------+--------------+
+|ap_clk              |   in|    1|  ap_ctrl_hs|  compute_front_tire_path_fn|  return value|
+|ap_rst              |   in|    1|  ap_ctrl_hs|  compute_front_tire_path_fn|  return value|
+|ap_start            |   in|    1|  ap_ctrl_hs|  compute_front_tire_path_fn|  return value|
+|ap_done             |  out|    1|  ap_ctrl_hs|  compute_front_tire_path_fn|  return value|
+|ap_idle             |  out|    1|  ap_ctrl_hs|  compute_front_tire_path_fn|  return value|
+|ap_ready            |  out|    1|  ap_ctrl_hs|  compute_front_tire_path_fn|  return value|
+|ap_return_0         |  out|   26|  ap_ctrl_hs|  compute_front_tire_path_fn|  return value|
+|ap_return_1         |  out|   26|  ap_ctrl_hs|  compute_front_tire_path_fn|  return value|
+|ap_return_2         |  out|   26|  ap_ctrl_hs|  compute_front_tire_path_fn|  return value|
+|ap_return_3         |  out|   26|  ap_ctrl_hs|  compute_front_tire_path_fn|  return value|
+|ap_return_4         |  out|   26|  ap_ctrl_hs|  compute_front_tire_path_fn|  return value|
+|ap_return_5         |  out|   26|  ap_ctrl_hs|  compute_front_tire_path_fn|  return value|
+|conv_i_i_i_i1462_i  |   in|   17|     ap_none|          conv_i_i_i_i1462_i|        scalar|
+|p_0_0_02853_i       |   in|   26|     ap_none|               p_0_0_02853_i|        scalar|
+|empty               |   in|   26|     ap_none|                       empty|        scalar|
+|conv_i_i_i1476_i    |   in|   26|     ap_none|            conv_i_i_i1476_i|        scalar|
+|conv_i_i_i1991_i    |   in|   26|     ap_none|            conv_i_i_i1991_i|        scalar|
+|p_0_0_02849_i       |   in|   26|     ap_none|               p_0_0_02849_i|        scalar|
+|spec_select_i       |   in|   25|     ap_none|               spec_select_i|        scalar|
+|conv_i_i_i65_i      |   in|   26|     ap_none|              conv_i_i_i65_i|        scalar|
+|cmp_i_i             |   in|    1|     ap_none|                     cmp_i_i|        scalar|
++--------------------+-----+-----+------------+----------------------------+--------------+
+
