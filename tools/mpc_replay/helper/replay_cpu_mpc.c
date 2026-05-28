@@ -193,7 +193,7 @@ int main(int argc, char **argv) {
         return 5;
     }
 
-    fprintf(out, "idx,stamp_ns,status,iters,out_steer_fp,out_accel_fp,ey_fp,epsi_fp,vx_fp,vy_fp,omega_fp,steer_meas_fp,prev_accel_in_fp\n");
+    fprintf(out, "idx,stamp_ns,status,iters,out_steer_fp,out_accel_fp,ey_fp,epsi_fp,vx_fp,vy_fp,omega_fp,steer_meas_fp,prev_accel_in_fp,max_rho_used,max_rho_u_used\n");
 
     mpc_initialize();
     mpc_reset();
@@ -214,6 +214,8 @@ int main(int argc, char **argv) {
         int32_t out_accel_fp = 0;
         int32_t prev_accel_in_fp = prev_accel_fp;
         int32_t applied_accel_fp = 0;
+        float max_rho_used = 0.0f;
+        float max_rho_u_used = 0.0f;
 
         if (!parse_row(line, &r)) {
             fprintf(stderr, "Skipping malformed row\n");
@@ -250,6 +252,15 @@ int main(int argc, char **argv) {
         status = mpc_compute_optimal_control(&st, ref, &result);
         (void)status;
 
+        const int trace_n = riccati_debug_get_trace_count();
+        for (int ti = 0; ti < trace_n; ti++) {
+            RiccatiDebugIterSample_t sample;
+            if (riccati_debug_get_trace_sample(ti, &sample) == 0) {
+                if (sample.rho > max_rho_used) max_rho_used = sample.rho;
+                if (sample.rho_u > max_rho_u_used) max_rho_u_used = sample.rho_u;
+            }
+        }
+
         out_steer_fp = float_to_fp(result.optimal_control.steer_ang);
         out_accel_fp = float_to_fp(result.optimal_control.long_acc);
 
@@ -266,7 +277,6 @@ int main(int argc, char **argv) {
             if (t != NULL) {
                 fprintf(t,
                         "idx,iter,primal_residual,dual_residual,state_primal_residual,state_dual_residual,ctrl_primal_residual,ctrl_dual_residual,rho,rho_u,u0_steer,u0_accel,z0_steer,z0_accel,y0_steer,y0_accel,scale_rho,scale_rho_u\n");
-                const int trace_n = riccati_debug_get_trace_count();
                 for (int ti = 0; ti < trace_n; ti++) {
                     RiccatiDebugIterSample_t s;
                     if (riccati_debug_get_trace_sample(ti, &s) == 0) {
@@ -299,7 +309,7 @@ int main(int argc, char **argv) {
         }
 
         fprintf(out,
-                "%llu,%lld,%d,%u,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+                "%llu,%lld,%d,%u,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.9g,%.9g\n",
                 (unsigned long long)r.idx,
                 (long long)r.stamp_ns,
                 (int)result.solver_status,
@@ -312,7 +322,9 @@ int main(int argc, char **argv) {
                 r.vy_fp,
                 r.omega_fp,
                 r.steering_angle_fp,
-                prev_accel_in_fp);
+                prev_accel_in_fp,
+                (double)max_rho_used,
+                (double)max_rho_u_used);
     }
 
     fclose(in);
