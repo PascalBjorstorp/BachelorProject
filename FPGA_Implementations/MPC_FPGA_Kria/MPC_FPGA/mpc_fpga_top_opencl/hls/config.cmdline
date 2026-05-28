@@ -1,0 +1,3 @@
+relativeroot=/home/akselmo/Documents/GitHub/BachelorProject
+original_argv=--mode hls --cosim --config /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/hls_config.cfg --work_dir /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl 
+

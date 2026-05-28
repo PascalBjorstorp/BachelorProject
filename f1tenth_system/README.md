@@ -59,15 +59,13 @@ f1tenth_system/
 
 **Option 1: Use the dependency installer script (recommended)**
 ```bash
-# Supports both ROS2 Jazzy and Humble
 cd f1tenth_system
 ./install_dependencies.sh
 ```
 
 **Option 2: Manual installation**
 ```bash
-# Install ROS2 dependencies (replace $ROS_DISTRO with jazzy or humble)
-sudo apt install ros-$ROS_DISTRO-joy ros-$ROS_DISTRO-joy-teleop ros-$ROS_DISTRO-urg-node
+sudo apt install ros-humble-joy ros-humble-joy-teleop ros-humble-urg-node
 ```
 
 ### Build

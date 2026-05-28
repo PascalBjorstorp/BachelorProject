@@ -1,0 +1,161 @@
+<ENTRY>
+{
+ "thisFile": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/mpc_fpga_top_opencl.hlsrun_package_summary",
+ "connectId": "",
+ "serverToken": "",
+ "timestamp": "0"
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_CmdStep",
+ "dateTimestamp": "Thu May 21 14:12:55 2026",
+ "timestampMillis": "1779365575879",
+ "buildStep": {
+  "cmdId": "60d0252c-8cbc-4440-8bec-7a5a7268c54c",
+  "name": "vitis-run",
+  "logFile": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/logs/mpc_fpga_top_opencl.steps.log",
+  "commandLine": "/home/akselmo/Vivado_program/2025.2/Vitis/bin/unwrapped/lnx64.o/vitis-run  --mode hls --package --config /home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/hls_config.cfg --work_dir mpc_fpga_top_opencl ",
+  "args": [
+   "--mode",
+   "hls",
+   "--package",
+   "--config",
+   "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/hls_config.cfg",
+   "--work_dir",
+   "mpc_fpga_top_opencl"
+  ],
+  "iniFiles": [],
+  "cwd": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Thu May 21 14:12:55 2026",
+ "timestampMillis": "1779365575879",
+ "status": {
+  "cmdId": "60d0252c-8cbc-4440-8bec-7a5a7268c54c",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_FlowMetaData",
+ "dateTimestamp": "Thu May 21 14:12:57 2026",
+ "timestampMillis": "1779365577823",
+ "buildSummary": {
+  "hardwarePlatform": "",
+  "hardwareDsa": "",
+  "platformDirectory": "",
+  "runtime": "",
+  "systemConfig": "",
+  "flow": "BF_RUN",
+  "target": "TT_HLS_XO",
+  "kernels": [
+   {
+    "base": {
+     "type": "KERNEL",
+     "name": "mpc_fpga_top_opencl",
+     "file": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/mpc_fpga_top_opencl.xo",
+     "reports": [],
+     "uuid": ""
+    },
+    "sources": [
+     "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/fp_math_hls.cpp",
+     "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/vehicle_model_hls.cpp",
+     "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/riccati_solver_hls.cpp",
+     "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_riccati_hls.cpp",
+     "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_fpga_top.cpp",
+     "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/src/mpc_runtime_tune.cpp"
+    ],
+    "psSources": [],
+    "cuNames": [],
+    "type": "HLS",
+    "frequency": 0,
+    "freqUnits": ""
+   }
+  ],
+  "toolVersion": "2025.2"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Thu May 21 14:12:57 2026",
+ "timestampMillis": "1779365577823",
+ "buildStep": {
+  "cmdId": "ed25ef9d-3cea-4ad5-b6a9-abbd4f439df3",
+  "name": "",
+  "logFile": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/mpc_fpga_top_opencl/hls/hls.log",
+  "commandLine": "",
+  "args": [],
+  "iniFiles": [],
+  "cwd": "/home/akselmo/Documents/GitHub/BachelorProject/FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Thu May 21 14:12:57 2026",
+ "timestampMillis": "1779365577823",
+ "status": {
+  "cmdId": "ed25ef9d-3cea-4ad5-b6a9-abbd4f439df3",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Thu May 21 14:13:04 2026",
+ "timestampMillis": "1779365584540",
+ "status": {
+  "cmdId": "ed25ef9d-3cea-4ad5-b6a9-abbd4f439df3",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Thu May 21 14:13:04 2026",
+ "timestampMillis": "1779365584595",
+ "status": {
+  "cmdId": "60d0252c-8cbc-4440-8bec-7a5a7268c54c",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Thu May 21 14:13:04 2026",
+ "timestampMillis": "1779365584595",
+ "report": {
+  "path": "",
+  "name": "",
+  "fileType": "HTML",
+  "reportType": "GLOBAL_RULECHECK_GUIDANCE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Thu May 21 14:13:04 2026",
+ "timestampMillis": "1779365584595",
+ "report": {
+  "path": "",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_RULECHECK_GUIDANCE",
+  "cmdId": ""
+ }
+}
+</ENTRY>

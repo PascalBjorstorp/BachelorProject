@@ -1,0 +1,19 @@
+# Inferred from syn.array_partition.complete_threshold=4
+set_directive_array_partition riccati_backward_pass/S -dim=1 -type=complete S
+set_directive_array_partition riccati_backward_pass/Si -dim=1 -type=complete Si
+# Inferred from syn.compile.pipeline_loops=64
+set_directive_pipeline mpc_compute_hls/VITIS_LOOP_356_1
+set_directive_pipeline mpc_compute_hls/VITIS_LOOP_366_2
+set_directive_pipeline mpc_compute_hls/VITIS_LOOP_1203_6
+set_directive_pipeline mpc_compute_hls/VITIS_LOOP_1215_9
+set_directive_pipeline mpc_compute_hls/VITIS_LOOP_1183_1
+set_directive_pipeline mpc_compute_hls/VITIS_LOOP_1195_4
+set_directive_pipeline mpc_compute_hls/VITIS_LOOP_1305_17
+set_directive_pipeline mpc_compute_hls/VITIS_LOOP_1301_16
+set_directive_pipeline mpc_compute_hls/VITIS_LOOP_1282_14
+set_directive_pipeline mpc_compute_hls/VITIS_LOOP_1246_12
+set_directive_pipeline mpc_compute_hls/VITIS_LOOP_1395_20
+set_directive_pipeline mpc_compute_hls/VITIS_LOOP_1337_19
+# Inferred from performance & pipeline pragmas/directives
+set_directive_loop_flatten riccati_backward_pass/VITIS_LOOP_726_7
+set_directive_loop_flatten riccati_backward_pass/VITIS_LOOP_831_12

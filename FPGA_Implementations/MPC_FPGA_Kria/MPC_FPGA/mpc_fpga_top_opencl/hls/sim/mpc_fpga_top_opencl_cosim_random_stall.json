@@ -1,0 +1,20 @@
+{   
+    "__comment__syntax_for_stall_constraint" : "C argument name for ap_hs/ap_fifo/axis; ap_start; ap_continue; bundle name plus wr/rd or bundle name plus channel type for maxi/axilite port: constraint code",
+    "__comment__block_ctrl_stall" : "ap_start/ap_continue stall means when ap_ready/ap_done is asserted, TB will wait a stall time to assert next ap_start/ap_continue.",
+    "__comment__axi_trans_stall" : "bundle name plus wr/rd is to define one axi transfer stall. wr is for write transfer. rd is for read transfer",
+    "__comment__channel_stall" : "bundle name plus channel type is to define stall on each channel. channel types are wctrl, wdata, wbrsp, rctrl, rdata.",
+    "__comment__constraint_code" : "constraint code must follow system verilog contraint syntax. Brace letter should be included. The constraint variable is delay.",
+    "__comment__stall_constraint_example" : "port_stall_constraint is the constraint code used in default random stall test.",
+    "port_stall_constraint" : { 
+        "gmem0 wr"    : "{ delay == 64;}" ,
+        "gmem0 rd"    : "{ delay == 64;}" ,
+        "gmem1 wr"    : "{ delay == 64;}" ,
+        "gmem1 rd"    : "{ delay == 64;}" ,
+        "control wctrl"    : "{ delay == 0;}" ,
+        "control wdata"    : "{ delay == 0;}" ,
+        "control wbrsp"    : "{ delay == 0;}" ,
+        "control rctrl"    : "{ delay == 0;}" ,
+        "control rdata"    : "{ delay == 0;}" ,
+        "" : {}
+    }
+}   

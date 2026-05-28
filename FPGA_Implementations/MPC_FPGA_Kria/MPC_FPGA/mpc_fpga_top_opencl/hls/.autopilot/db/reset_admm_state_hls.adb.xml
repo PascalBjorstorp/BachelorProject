@@ -1,0 +1,342 @@
+<stg><name>reset_admm_state_hls</name>
+
+
+<trans_list>
+
+<trans id="11" from="1" to="2">
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+</trans>
+</trans_list>
+
+
+
+<state_list>
+
+<state id="1" st_id="1">
+
+<operation id="3" st_id="1" stage="2" lat="2">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="24" bw="0" op_0_bw="0" op_1_bw="32" op_2_bw="32" op_3_bw="32" op_4_bw="32" op_5_bw="32" op_6_bw="32" op_7_bw="32" op_8_bw="32" op_9_bw="32" op_10_bw="32" op_11_bw="32" op_12_bw="32" op_13_bw="32" op_14_bw="32" op_15_bw="32" op_16_bw="32">
+<![CDATA[
+entry:0 %call_ln0 = call void @reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1, i32 %p_anonymous_namespace_g_core_state_admm_z_x_0, i32 %p_anonymous_namespace_g_core_state_admm_z_x_1, i32 %p_anonymous_namespace_g_core_state_admm_z_x_2, i32 %p_anonymous_namespace_g_core_state_admm_z_x_3, i32 %p_anonymous_namespace_g_core_state_admm_z_x_4, i32 %p_anonymous_namespace_g_core_state_admm_z_x_5, i32 %p_anonymous_namespace_g_core_state_admm_z_x_6, i32 %p_anonymous_namespace_g_core_state_admm_z_x_7, i32 %p_anonymous_namespace_g_core_state_admm_y_x_0, i32 %p_anonymous_namespace_g_core_state_admm_y_x_1, i32 %p_anonymous_namespace_g_core_state_admm_y_x_2, i32 %p_anonymous_namespace_g_core_state_admm_y_x_3, i32 %p_anonymous_namespace_g_core_state_admm_y_x_4, i32 %p_anonymous_namespace_g_core_state_admm_y_x_5, i32 %p_anonymous_namespace_g_core_state_admm_y_x_6, i32 %p_anonymous_namespace_g_core_state_admm_y_x_7
+
+]]></Node>
+<StgValue><ssdm name="call_ln0"/></StgValue>
+</operation>
+
+<operation id="4" st_id="1" stage="2" lat="2">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="25" bw="0" op_0_bw="0" op_1_bw="32" op_2_bw="32" op_3_bw="32" op_4_bw="32">
+<![CDATA[
+entry:1 %call_ln0 = call void @reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3, i32 %p_anonymous_namespace_g_core_state_admm_z_u_0, i32 %p_anonymous_namespace_g_core_state_admm_z_u_1, i32 %p_anonymous_namespace_g_core_state_admm_y_u_0, i32 %p_anonymous_namespace_g_core_state_admm_y_u_1
+
+]]></Node>
+<StgValue><ssdm name="call_ln0"/></StgValue>
+</operation>
+</state>
+
+<state id="2" st_id="2">
+
+<operation id="5" st_id="2" stage="1" lat="2">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="24" bw="0" op_0_bw="0" op_1_bw="32" op_2_bw="32" op_3_bw="32" op_4_bw="32" op_5_bw="32" op_6_bw="32" op_7_bw="32" op_8_bw="32" op_9_bw="32" op_10_bw="32" op_11_bw="32" op_12_bw="32" op_13_bw="32" op_14_bw="32" op_15_bw="32" op_16_bw="32">
+<![CDATA[
+entry:0 %call_ln0 = call void @reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1, i32 %p_anonymous_namespace_g_core_state_admm_z_x_0, i32 %p_anonymous_namespace_g_core_state_admm_z_x_1, i32 %p_anonymous_namespace_g_core_state_admm_z_x_2, i32 %p_anonymous_namespace_g_core_state_admm_z_x_3, i32 %p_anonymous_namespace_g_core_state_admm_z_x_4, i32 %p_anonymous_namespace_g_core_state_admm_z_x_5, i32 %p_anonymous_namespace_g_core_state_admm_z_x_6, i32 %p_anonymous_namespace_g_core_state_admm_z_x_7, i32 %p_anonymous_namespace_g_core_state_admm_y_x_0, i32 %p_anonymous_namespace_g_core_state_admm_y_x_1, i32 %p_anonymous_namespace_g_core_state_admm_y_x_2, i32 %p_anonymous_namespace_g_core_state_admm_y_x_3, i32 %p_anonymous_namespace_g_core_state_admm_y_x_4, i32 %p_anonymous_namespace_g_core_state_admm_y_x_5, i32 %p_anonymous_namespace_g_core_state_admm_y_x_6, i32 %p_anonymous_namespace_g_core_state_admm_y_x_7
+
+]]></Node>
+<StgValue><ssdm name="call_ln0"/></StgValue>
+</operation>
+
+<operation id="6" st_id="2" stage="1" lat="2">
+<core></core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="25" bw="0" op_0_bw="0" op_1_bw="32" op_2_bw="32" op_3_bw="32" op_4_bw="32">
+<![CDATA[
+entry:1 %call_ln0 = call void @reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3, i32 %p_anonymous_namespace_g_core_state_admm_z_u_0, i32 %p_anonymous_namespace_g_core_state_admm_z_u_1, i32 %p_anonymous_namespace_g_core_state_admm_y_u_0, i32 %p_anonymous_namespace_g_core_state_admm_y_u_1
+
+]]></Node>
+<StgValue><ssdm name="call_ln0"/></StgValue>
+</operation>
+
+<operation id="7" st_id="2" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="26" bw="0" op_0_bw="32" op_1_bw="32">
+<![CDATA[
+entry:2 %store_ln380 = store i32 0, i32 %p_anonymous_namespace_g_core_state_admm_rho
+
+]]></Node>
+<StgValue><ssdm name="store_ln380"/></StgValue>
+</operation>
+
+<operation id="8" st_id="2" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="27" bw="0" op_0_bw="32" op_1_bw="32">
+<![CDATA[
+entry:3 %store_ln381 = store i32 0, i32 %p_anonymous_namespace_g_core_state_admm_rho_u
+
+]]></Node>
+<StgValue><ssdm name="store_ln381"/></StgValue>
+</operation>
+
+<operation id="9" st_id="2" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="28" bw="0" op_0_bw="1" op_1_bw="1">
+<![CDATA[
+entry:4 %store_ln382 = store i1 0, i1 %p_anonymous_namespace_g_core_state_admm_initialized
+
+]]></Node>
+<StgValue><ssdm name="store_ln382"/></StgValue>
+</operation>
+
+<operation id="10" st_id="2" stage="1" lat="1">
+<core>NULL</core>
+<MemPortIdVec></MemPortIdVec>
+<condition id="-1">
+<or_exp><and_exp></and_exp></or_exp>
+</condition>
+
+<Node id="29" bw="0">
+<![CDATA[
+entry:5 %ret_ln115 = ret
+
+]]></Node>
+<StgValue><ssdm name="ret_ln115"/></StgValue>
+</operation>
+</state>
+</state_list>
+
+
+<ports>
+<port id="12" name="p_anonymous_namespace_g_core_state_admm_z_x_0" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_z_x_0"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="13" name="p_anonymous_namespace_g_core_state_admm_z_x_1" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_z_x_1"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="14" name="p_anonymous_namespace_g_core_state_admm_z_x_2" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_z_x_2"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="15" name="p_anonymous_namespace_g_core_state_admm_z_x_3" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_z_x_3"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="16" name="p_anonymous_namespace_g_core_state_admm_z_x_4" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_z_x_4"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="17" name="p_anonymous_namespace_g_core_state_admm_z_x_5" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_z_x_5"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="18" name="p_anonymous_namespace_g_core_state_admm_z_x_6" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_z_x_6"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="19" name="p_anonymous_namespace_g_core_state_admm_z_x_7" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_z_x_7"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="20" name="p_anonymous_namespace_g_core_state_admm_y_x_0" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_y_x_0"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="21" name="p_anonymous_namespace_g_core_state_admm_y_x_1" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_y_x_1"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="22" name="p_anonymous_namespace_g_core_state_admm_y_x_2" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_y_x_2"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="23" name="p_anonymous_namespace_g_core_state_admm_y_x_3" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_y_x_3"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="24" name="p_anonymous_namespace_g_core_state_admm_y_x_4" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_y_x_4"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="25" name="p_anonymous_namespace_g_core_state_admm_y_x_5" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_y_x_5"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="26" name="p_anonymous_namespace_g_core_state_admm_y_x_6" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_y_x_6"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="27" name="p_anonymous_namespace_g_core_state_admm_y_x_7" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_y_x_7"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="28" name="p_anonymous_namespace_g_core_state_admm_z_u_0" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_z_u_0"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="29" name="p_anonymous_namespace_g_core_state_admm_z_u_1" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_z_u_1"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="30" name="p_anonymous_namespace_g_core_state_admm_y_u_0" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_y_u_0"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="31" name="p_anonymous_namespace_g_core_state_admm_y_u_1" dir="1" iftype="1">
+<core>RAM</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_y_u_1"/><MemPortTyVec>0 3 </MemPortTyVec>
+</StgValue>
+</port>
+<port id="32" name="p_anonymous_namespace_g_core_state_admm_rho" dir="1" iftype="0">
+<core>NULL</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_rho"/></StgValue>
+</port>
+<port id="33" name="p_anonymous_namespace_g_core_state_admm_rho_u" dir="1" iftype="0">
+<core>NULL</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_rho_u"/></StgValue>
+</port>
+<port id="34" name="p_anonymous_namespace_g_core_state_admm_initialized" dir="1" iftype="0">
+<core>NULL</core><StgValue><ssdm name="p_anonymous_namespace_g_core_state_admm_initialized"/></StgValue>
+</port>
+</ports>
+
+
+<dataflows>
+<dataflow id="36" from="reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1" to="call_ln0" fromId="35" toId="3">
+</dataflow>
+<dataflow id="37" from="p_anonymous_namespace_g_core_state_admm_z_x_0" to="call_ln0" fromId="12" toId="3">
+</dataflow>
+<dataflow id="38" from="p_anonymous_namespace_g_core_state_admm_z_x_1" to="call_ln0" fromId="13" toId="3">
+</dataflow>
+<dataflow id="39" from="p_anonymous_namespace_g_core_state_admm_z_x_2" to="call_ln0" fromId="14" toId="3">
+</dataflow>
+<dataflow id="40" from="p_anonymous_namespace_g_core_state_admm_z_x_3" to="call_ln0" fromId="15" toId="3">
+</dataflow>
+<dataflow id="41" from="p_anonymous_namespace_g_core_state_admm_z_x_4" to="call_ln0" fromId="16" toId="3">
+</dataflow>
+<dataflow id="42" from="p_anonymous_namespace_g_core_state_admm_z_x_5" to="call_ln0" fromId="17" toId="3">
+</dataflow>
+<dataflow id="43" from="p_anonymous_namespace_g_core_state_admm_z_x_6" to="call_ln0" fromId="18" toId="3">
+</dataflow>
+<dataflow id="44" from="p_anonymous_namespace_g_core_state_admm_z_x_7" to="call_ln0" fromId="19" toId="3">
+</dataflow>
+<dataflow id="45" from="p_anonymous_namespace_g_core_state_admm_y_x_0" to="call_ln0" fromId="20" toId="3">
+</dataflow>
+<dataflow id="46" from="p_anonymous_namespace_g_core_state_admm_y_x_1" to="call_ln0" fromId="21" toId="3">
+</dataflow>
+<dataflow id="47" from="p_anonymous_namespace_g_core_state_admm_y_x_2" to="call_ln0" fromId="22" toId="3">
+</dataflow>
+<dataflow id="48" from="p_anonymous_namespace_g_core_state_admm_y_x_3" to="call_ln0" fromId="23" toId="3">
+</dataflow>
+<dataflow id="49" from="p_anonymous_namespace_g_core_state_admm_y_x_4" to="call_ln0" fromId="24" toId="3">
+</dataflow>
+<dataflow id="50" from="p_anonymous_namespace_g_core_state_admm_y_x_5" to="call_ln0" fromId="25" toId="3">
+</dataflow>
+<dataflow id="51" from="p_anonymous_namespace_g_core_state_admm_y_x_6" to="call_ln0" fromId="26" toId="3">
+</dataflow>
+<dataflow id="52" from="p_anonymous_namespace_g_core_state_admm_y_x_7" to="call_ln0" fromId="27" toId="3">
+</dataflow>
+<dataflow id="54" from="reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3" to="call_ln0" fromId="53" toId="4">
+</dataflow>
+<dataflow id="55" from="p_anonymous_namespace_g_core_state_admm_z_u_0" to="call_ln0" fromId="28" toId="4">
+</dataflow>
+<dataflow id="56" from="p_anonymous_namespace_g_core_state_admm_z_u_1" to="call_ln0" fromId="29" toId="4">
+</dataflow>
+<dataflow id="57" from="p_anonymous_namespace_g_core_state_admm_y_u_0" to="call_ln0" fromId="30" toId="4">
+</dataflow>
+<dataflow id="58" from="p_anonymous_namespace_g_core_state_admm_y_u_1" to="call_ln0" fromId="31" toId="4">
+</dataflow>
+<dataflow id="59" from="reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1" to="call_ln0" fromId="35" toId="5">
+</dataflow>
+<dataflow id="60" from="p_anonymous_namespace_g_core_state_admm_z_x_0" to="call_ln0" fromId="12" toId="5">
+</dataflow>
+<dataflow id="61" from="p_anonymous_namespace_g_core_state_admm_z_x_1" to="call_ln0" fromId="13" toId="5">
+</dataflow>
+<dataflow id="62" from="p_anonymous_namespace_g_core_state_admm_z_x_2" to="call_ln0" fromId="14" toId="5">
+</dataflow>
+<dataflow id="63" from="p_anonymous_namespace_g_core_state_admm_z_x_3" to="call_ln0" fromId="15" toId="5">
+</dataflow>
+<dataflow id="64" from="p_anonymous_namespace_g_core_state_admm_z_x_4" to="call_ln0" fromId="16" toId="5">
+</dataflow>
+<dataflow id="65" from="p_anonymous_namespace_g_core_state_admm_z_x_5" to="call_ln0" fromId="17" toId="5">
+</dataflow>
+<dataflow id="66" from="p_anonymous_namespace_g_core_state_admm_z_x_6" to="call_ln0" fromId="18" toId="5">
+</dataflow>
+<dataflow id="67" from="p_anonymous_namespace_g_core_state_admm_z_x_7" to="call_ln0" fromId="19" toId="5">
+</dataflow>
+<dataflow id="68" from="p_anonymous_namespace_g_core_state_admm_y_x_0" to="call_ln0" fromId="20" toId="5">
+</dataflow>
+<dataflow id="69" from="p_anonymous_namespace_g_core_state_admm_y_x_1" to="call_ln0" fromId="21" toId="5">
+</dataflow>
+<dataflow id="70" from="p_anonymous_namespace_g_core_state_admm_y_x_2" to="call_ln0" fromId="22" toId="5">
+</dataflow>
+<dataflow id="71" from="p_anonymous_namespace_g_core_state_admm_y_x_3" to="call_ln0" fromId="23" toId="5">
+</dataflow>
+<dataflow id="72" from="p_anonymous_namespace_g_core_state_admm_y_x_4" to="call_ln0" fromId="24" toId="5">
+</dataflow>
+<dataflow id="73" from="p_anonymous_namespace_g_core_state_admm_y_x_5" to="call_ln0" fromId="25" toId="5">
+</dataflow>
+<dataflow id="74" from="p_anonymous_namespace_g_core_state_admm_y_x_6" to="call_ln0" fromId="26" toId="5">
+</dataflow>
+<dataflow id="75" from="p_anonymous_namespace_g_core_state_admm_y_x_7" to="call_ln0" fromId="27" toId="5">
+</dataflow>
+<dataflow id="76" from="reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3" to="call_ln0" fromId="53" toId="6">
+</dataflow>
+<dataflow id="77" from="p_anonymous_namespace_g_core_state_admm_z_u_0" to="call_ln0" fromId="28" toId="6">
+</dataflow>
+<dataflow id="78" from="p_anonymous_namespace_g_core_state_admm_z_u_1" to="call_ln0" fromId="29" toId="6">
+</dataflow>
+<dataflow id="79" from="p_anonymous_namespace_g_core_state_admm_y_u_0" to="call_ln0" fromId="30" toId="6">
+</dataflow>
+<dataflow id="80" from="p_anonymous_namespace_g_core_state_admm_y_u_1" to="call_ln0" fromId="31" toId="6">
+</dataflow>
+<dataflow id="82" from="StgValue_81" to="store_ln380" fromId="81" toId="7">
+</dataflow>
+<dataflow id="83" from="p_anonymous_namespace_g_core_state_admm_rho" to="store_ln380" fromId="32" toId="7">
+</dataflow>
+<dataflow id="84" from="StgValue_81" to="store_ln381" fromId="81" toId="8">
+</dataflow>
+<dataflow id="85" from="p_anonymous_namespace_g_core_state_admm_rho_u" to="store_ln381" fromId="33" toId="8">
+</dataflow>
+<dataflow id="87" from="StgValue_86" to="store_ln382" fromId="86" toId="9">
+</dataflow>
+<dataflow id="88" from="p_anonymous_namespace_g_core_state_admm_initialized" to="store_ln382" fromId="34" toId="9">
+</dataflow>
+</dataflows>
+
+
+</stg>

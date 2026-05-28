@@ -1,0 +1,106 @@
+{
+  "name": "Kria_platform",
+  "type": "PLATFORM",
+  "configuration": {
+    "description": "",
+    "xsa": "/home/akselmo/HardwarePlatform/xck26_hardware_platform/xck26_custom_platform/zck26_custom_platform_hw.xsa",
+    "xsaPathInPlatform": "Kria_platform/hw/zck26_custom_platform_hw.xsa",
+    "emulationXsa": "",
+    "emulationXsaPathInPlatform": "",
+    "isCustomFSBL": false,
+    "fsblPath": "",
+    "pmufwElf": "",
+    "flow": "EMBEDDED_ACCEL",
+    "processorsMap": {
+      "psu_cortexa53_0": "psu_cortexa53",
+      "psu_cortexa53_1": "psu_cortexa53",
+      "psu_cortexa53_2": "psu_cortexa53",
+      "psu_cortexa53_3": "psu_cortexa53",
+      "psu_cortexr5_0": "psu_cortexr5",
+      "psu_cortexr5_1": "psu_cortexr5",
+      "psu_pmu_0": "psu_pmu"
+    },
+    "supportedOS": [
+      "standalone",
+      "freertos",
+      "linux"
+    ],
+    "supportedFamily": "zynquplus",
+    "stdGenHookList": [
+      {
+        "key": "VITIS_SDT_REPO",
+        "value": ""
+      },
+      {
+        "key": "VITIS_SDT_BOARD_DTS",
+        "value": "zynqmp-smk-k26-reva"
+      },
+      {
+        "key": "VITIS_SDT_INCLUDE_DTS",
+        "value": "/home/akselmo/HardwarePlatform/system-user.dtsi"
+      },
+      {
+        "key": "-dt_overlay",
+        "value": "1"
+      },
+      {
+        "key": "custom_dtsi",
+        "value": ""
+      },
+      {
+        "key": "-dt_zocl",
+        "value": "1"
+      }
+    ],
+    "componentType": "PLATFORM",
+    "domains": [
+      {
+        "name": "zynqmp_fsbl",
+        "displayName": "zynqmp_fsbl",
+        "processor": "psu_cortexa53_0",
+        "cpuType": "cortex-a53",
+        "cpuInstance": "psu_cortexa53_0",
+        "os": "standalone",
+        "appTemplate": "zynqmp_fsbl",
+        "isBootDomain": true,
+        "qemuData": "resources/zynqmp_fsbl/qemu",
+        "qemuArgsFile": "resources/zynqmp_fsbl/qemu/qemu_args.txt",
+        "pmcQemuArgsFile": "resources/zynqmp_fsbl/qemu/pmu_args.txt",
+        "isBSPGenReq": false
+      },
+      {
+        "name": "zynqmp_pmufw",
+        "displayName": "zynqmp_pmufw",
+        "processor": "psu_pmu_0",
+        "cpuType": "psu_pmu",
+        "cpuInstance": "psu_pmu_0",
+        "os": "standalone",
+        "appTemplate": "zynqmp_pmufw",
+        "isBootDomain": true,
+        "qemuData": "resources/zynqmp_pmufw/qemu",
+        "qemuArgsFile": "resources/zynqmp_pmufw/qemu/qemu_args.txt",
+        "pmcQemuArgsFile": "resources/zynqmp_pmufw/qemu/pmu_args.txt",
+        "isBSPGenReq": false
+      },
+      {
+        "name": "linux_psu_cortexa53",
+        "displayName": "xrt",
+        "processor": "psu_cortexa53",
+        "cpuType": "cortex-a53",
+        "cpuInstance": "psu_cortexa53",
+        "os": "linux",
+        "qemuData": "",
+        "qemuArgsFile": "resources/linux_psu_cortexa53/qemu/qemu_args.txt",
+        "pmcQemuArgsFile": "resources/linux_psu_cortexa53/qemu/pmu_args.txt",
+        "bifFile": "resources/linux_psu_cortexa53/linux.bif",
+        "bootDirectory": "../../../../../../HardwarePlatform/WorkSpace/kria-common",
+        "sdCardDirectory": "",
+        "customDtb": "hw/linux_dt/system.dtb",
+        "hw_boot_bin": ""
+      }
+    ],
+    "emptyToolchainConfiguration": []
+  },
+  "useSysrootToolchain": false,
+  "templateFlow": "VITIS"
+}

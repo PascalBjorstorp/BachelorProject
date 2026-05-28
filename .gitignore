@@ -265,26 +265,6 @@ vivado*.str
 _ide/
 
 # =============================================
-# FPGA Bitstream / Hardware Export
-# =============================================
-# Bitstream files (.bit, .bin) are tracked via Git LFS.
-# Only ignore debug probes (.ltx) which are not needed.
-FPGA/Bitstream/*.ltx
-FPGA/docs/*
-MPC/build_test/*
-MPC/build_local/*
-MPC/logs/*
-FPGA_Implementations/MPC_FPGA_Kria/build_test/*
-FPGA_Implementations/MPC_FPGA_Kria/build_local/*
-FPGA_Implementations/MPC_FPGA_Kria/logs/*
-FPGA_Implementations/MPC_FPGA_Kria/docs/*
-FPGA_Implementations/MPC_FPGA_Ultra96/build_test/*
-FPGA_Implementations/MPC_FPGA_Ultra96/build_local/*
-FPGA_Implementations/MPC_FPGA_Ultra96/logs/*
-FPGA_Implementations/MPC_FPGA_Ultra96/docs/*
-MPC_legacy/*
-*.tcl
-# =============================================
 # Parameter csv files (excluded — large data)
 # =============================================
 # CMake generated files
@@ -300,12 +280,6 @@ MPC/test_sim_drive
 MPCC/test/*
 MPCC/tuning_results/*
 MPCC/logs/*
-
-
-FPGA_Implementations/MPC_FPGA_Kria/MPC_FPGA/
-mpc_fpga_top_*/
-MPC_system/
-Kria_platform/
 
 f1tenth_planning/trajectories/my_track_mpcc_trace_20hz_auto.csv
 f1tenth_planning/trajectories/my_track_mpcc_trace_body_safe_20hz_auto.csv
@@ -329,4 +303,21 @@ f1tenth_localization/Benchmark/Matlab/csv/*
 ReportMaterial/
 f1tenth_localization/Benchmark/Matlab/sim_benchmark/*
 *.mcap
-tools/input/*
+
+# =============================================
+# tools/ — keep source scripts, ignore inputs/outputs and compiled artefacts
+# =============================================
+# Bag recordings (too large) and regenerable run outputs
+tools/input/
+tools/output/
+tools/mpc_replay/width_report_out/
+
+# Compiled helper binaries (rebuild from the matching .c / .cpp)
+tools/mpc_replay/helper/cost_landscape_at_pose
+tools/mpc_replay/helper/dump_widths
+tools/mpc_replay/helper/export_mpc_plan_snapshot
+tools/mpc_replay/helper/replay_cpu_mpc
+tools/mpc_replay/helper/replay_cpu_mpc_cost
+tools/mpc_replay/helper/replay_fpga_scalar
+tools/mpc_replay/helper/replay_fpga_scalar_wprobe
+tools/mpc_replay/helper/replay_fpga_scalar_wreport

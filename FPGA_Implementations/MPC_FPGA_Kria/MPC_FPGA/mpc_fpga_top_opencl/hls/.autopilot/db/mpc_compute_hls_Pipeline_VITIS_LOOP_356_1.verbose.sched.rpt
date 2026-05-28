@@ -1,0 +1,326 @@
+
+
+================================================================
+== Vitis HLS Report for 'mpc_compute_hls_Pipeline_VITIS_LOOP_356_1'
+================================================================
+* Date:           Thu May 21 15:23:03 2026
+
+* Version:        2025.2 (Build 6295257 on Nov 14 2025)
+* Project:        mpc_fpga_top_opencl
+* Solution:       hls (Vitis Kernel Flow Target)
+* Product family: zynquplus
+* Target device:  xck26-sfvc784-2LV-c
+
+
+================================================================
+== Performance Estimates
+================================================================
++ Timing: 
+    * Summary: 
+    +--------+---------+----------+------------+
+    |  Clock |  Target | Estimated| Uncertainty|
+    +--------+---------+----------+------------+
+    |ap_clk  |  5.00 ns|  1.643 ns|     0.50 ns|
+    +--------+---------+----------+------------+
+
++ Latency: 
+    * Summary: 
+    +---------+---------+----------+----------+-----+-----+-------------------+
+    |  Latency (cycles) |  Latency (absolute) |  Interval |      Pipeline     |
+    |   min   |   max   |    min   |    max   | min | max |        Type       |
+    +---------+---------+----------+----------+-----+-----+-------------------+
+    |       22|       22|  0.110 us|  0.110 us|    0|    0|  loop pipeline stp|
+    +---------+---------+----------+----------+-----+-----+-------------------+
+
+    + Detail: 
+        * Instance: 
+        N/A
+
+        * Loop: 
+        +--------------------+---------+---------+----------+-----------+-----------+------+----------+
+        |                    |  Latency (cycles) | Iteration|  Initiation Interval  | Trip |          |
+        |      Loop Name     |   min   |   max   |  Latency |  achieved |   target  | Count| Pipelined|
+        +--------------------+---------+---------+----------+-----------+-----------+------+----------+
+        |- VITIS_LOOP_356_1  |       20|       20|         2|          1|          1|    20|       yes|
+        +--------------------+---------+---------+----------+-----------+-----------+------+----------+
+
+============================================================
++ Verbose Summary: Synthesis Manager
+============================================================
+InlineROM: 1
+ExposeGlobal: 0
+============================================================
++ Verbose Summary: CDFG Model
+============================================================
+IsTopModel: 0
+ResetActiveHigh: 1
+IsCombinational: 0
+IsDatapathOnly: 0
+HasWiredReturn: 1
+HasMFsm: 2
+HasVarLatency: 1
+IsPipeline: 0
+IsRtlPipelined: 0
+IsInstanceOverlapped: 0
+IsDontTouch: 0
+HasImplIP: 0
+IsGatedGlobalClock: 0
+
++ Individual pipeline summary: 
+  * Pipeline-0: initiation interval (II) = 1, depth = 2
+
+
+============================================================
++ Verbose Summary: Schedule
+============================================================
+* Number of FSM states : 2
+* Pipeline : 1
+  Pipeline-0 : II = 1, D = 2, States = { 1 2 }
+* Dataflow Pipeline: 0
+
+* FSM state transitions: 
+1 --> 2 
+2 --> 
+
+* FSM state operations: 
+
+State 1 <SV = 0> <Delay = 1.64>
+ST_1 : Operation 5 [1/1] (0.00ns)   --->   "%k = alloca i32 1" [../src/mpc_riccati_hls.cpp:320]   --->   Operation 5 'alloca' 'k' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 6 [1/1] (0.00ns)   --->   "%p_0_0_01014593 = alloca i32 1"   --->   Operation 6 'alloca' 'p_0_0_01014593' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 7 [1/1] (0.00ns)   --->   "%p_0_0_01014495 = alloca i32 1"   --->   Operation 7 'alloca' 'p_0_0_01014495' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 8 [1/1] (0.00ns)   --->   "%p_0_0_01014597 = alloca i32 1"   --->   Operation 8 'alloca' 'p_0_0_01014597' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 9 [1/1] (0.00ns)   --->   "%p_0_0_01014499 = alloca i32 1"   --->   Operation 9 'alloca' 'p_0_0_01014499' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 10 [1/1] (0.00ns)   --->   "%p_0_0_010145101 = alloca i32 1"   --->   Operation 10 'alloca' 'p_0_0_010145101' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 11 [1/1] (0.00ns)   --->   "%p_0_0_010144103 = alloca i32 1"   --->   Operation 11 'alloca' 'p_0_0_010144103' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 12 [1/1] (0.00ns)   --->   "%p_0_0_010145105 = alloca i32 1"   --->   Operation 12 'alloca' 'p_0_0_010145105' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 13 [1/1] (0.00ns)   --->   "%p_0_0_010144107 = alloca i32 1"   --->   Operation 13 'alloca' 'p_0_0_010144107' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 14 [1/1] (0.00ns)   --->   "%p_0_0_010145109 = alloca i32 1"   --->   Operation 14 'alloca' 'p_0_0_010145109' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 15 [1/1] (0.00ns)   --->   "%p_0_0_010144111 = alloca i32 1"   --->   Operation 15 'alloca' 'p_0_0_010144111' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 16 [1/1] (0.00ns)   --->   "%p_0_0_010145113 = alloca i32 1"   --->   Operation 16 'alloca' 'p_0_0_010145113' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 17 [1/1] (0.00ns)   --->   "%p_0_0_010144115 = alloca i32 1"   --->   Operation 17 'alloca' 'p_0_0_010144115' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 18 [1/1] (0.00ns)   --->   "%p_0_0_010145117 = alloca i32 1"   --->   Operation 18 'alloca' 'p_0_0_010145117' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 19 [1/1] (0.00ns)   --->   "%p_0_0_010144119 = alloca i32 1"   --->   Operation 19 'alloca' 'p_0_0_010144119' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 20 [1/1] (0.00ns)   --->   "%p_0_0_010145121 = alloca i32 1"   --->   Operation 20 'alloca' 'p_0_0_010145121' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 21 [1/1] (0.00ns)   --->   "%p_0_0_010144123 = alloca i32 1"   --->   Operation 21 'alloca' 'p_0_0_010144123' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 22 [1/1] (0.00ns)   --->   "%p_0_0_010145125 = alloca i32 1"   --->   Operation 22 'alloca' 'p_0_0_010145125' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 23 [1/1] (0.00ns)   --->   "%p_0_0_010144127 = alloca i32 1"   --->   Operation 23 'alloca' 'p_0_0_010144127' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 24 [1/1] (0.00ns)   --->   "%p_0_0_010145129 = alloca i32 1"   --->   Operation 24 'alloca' 'p_0_0_010145129' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 25 [1/1] (0.00ns)   --->   "%p_0_0_010144131 = alloca i32 1"   --->   Operation 25 'alloca' 'p_0_0_010144131' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 26 [1/1] (0.00ns)   --->   "%p_0_0_010145133 = alloca i32 1"   --->   Operation 26 'alloca' 'p_0_0_010145133' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 27 [1/1] (0.00ns)   --->   "%p_0_0_010144135 = alloca i32 1"   --->   Operation 27 'alloca' 'p_0_0_010144135' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 28 [1/1] (0.00ns)   --->   "%p_0_0_010145137 = alloca i32 1"   --->   Operation 28 'alloca' 'p_0_0_010145137' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 29 [1/1] (0.00ns)   --->   "%p_0_0_010144139 = alloca i32 1"   --->   Operation 29 'alloca' 'p_0_0_010144139' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 30 [1/1] (0.00ns)   --->   "%p_0_0_010145141 = alloca i32 1"   --->   Operation 30 'alloca' 'p_0_0_010145141' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 31 [1/1] (0.00ns)   --->   "%p_0_0_010144143 = alloca i32 1"   --->   Operation 31 'alloca' 'p_0_0_010144143' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 32 [1/1] (0.00ns)   --->   "%p_0_0_010145145 = alloca i32 1"   --->   Operation 32 'alloca' 'p_0_0_010145145' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 33 [1/1] (0.00ns)   --->   "%p_0_0_010144147 = alloca i32 1"   --->   Operation 33 'alloca' 'p_0_0_010144147' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 34 [1/1] (0.00ns)   --->   "%p_0_0_010145149 = alloca i32 1"   --->   Operation 34 'alloca' 'p_0_0_010145149' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 35 [1/1] (0.00ns)   --->   "%p_0_0_010144151 = alloca i32 1"   --->   Operation 35 'alloca' 'p_0_0_010144151' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 36 [1/1] (0.00ns)   --->   "%p_0_0_010145153 = alloca i32 1"   --->   Operation 36 'alloca' 'p_0_0_010145153' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 37 [1/1] (0.00ns)   --->   "%p_0_0_010144155 = alloca i32 1"   --->   Operation 37 'alloca' 'p_0_0_010144155' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 38 [1/1] (0.00ns)   --->   "%p_0_0_010145157 = alloca i32 1"   --->   Operation 38 'alloca' 'p_0_0_010145157' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 39 [1/1] (0.00ns)   --->   "%p_0_0_010144159 = alloca i32 1"   --->   Operation 39 'alloca' 'p_0_0_010144159' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 40 [1/1] (0.00ns)   --->   "%p_0_0_010145161 = alloca i32 1"   --->   Operation 40 'alloca' 'p_0_0_010145161' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 41 [1/1] (0.00ns)   --->   "%p_0_0_010144163 = alloca i32 1"   --->   Operation 41 'alloca' 'p_0_0_010144163' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 42 [1/1] (0.00ns)   --->   "%p_0_0_010145165 = alloca i32 1"   --->   Operation 42 'alloca' 'p_0_0_010145165' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 43 [1/1] (0.00ns)   --->   "%p_0_0_010144167 = alloca i32 1"   --->   Operation 43 'alloca' 'p_0_0_010144167' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 44 [1/1] (0.00ns)   --->   "%p_0_0_010145169 = alloca i32 1"   --->   Operation 44 'alloca' 'p_0_0_010145169' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 45 [1/1] (0.00ns)   --->   "%p_0_0_010144171 = alloca i32 1"   --->   Operation 45 'alloca' 'p_0_0_010144171' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 46 [1/1] (0.42ns)   --->   "%store_ln320 = store i5 0, i5 %k" [../src/mpc_riccati_hls.cpp:320]   --->   Operation 46 'store' 'store_ln320' <Predicate = true> <Delay = 0.42>
+ST_1 : Operation 47 [1/1] (0.00ns)   --->   "%br_ln0 = br void %for.inc"   --->   Operation 47 'br' 'br_ln0' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 48 [1/1] (0.00ns)   --->   "%k_4 = load i5 %k" [../src/mpc_riccati_hls.cpp:356]   --->   Operation 48 'load' 'k_4' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 49 [1/1] (0.78ns)   --->   "%icmp_ln356 = icmp_eq  i5 %k_4, i5 20" [../src/mpc_riccati_hls.cpp:356]   --->   Operation 49 'icmp' 'icmp_ln356' <Predicate = true> <Delay = 0.78> <CoreInst = "Cmp">   --->   Core 9 'Cmp' <Latency = 0> <II = 1> <Delay = 0.78> <FuncUnit> <Opcode : 'seteq' 'setne' 'setle' 'setge' 'setlt' 'setgt'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 50 [1/1] (0.78ns)   --->   "%add_ln356 = add i5 %k_4, i5 1" [../src/mpc_riccati_hls.cpp:356]   --->   Operation 50 'add' 'add_ln356' <Predicate = true> <Delay = 0.78> <CoreInst = "Adder">   --->   Core 1 'Adder' <Latency = 0> <II = 1> <Delay = 0.78> <FuncUnit> <Opcode : 'add' 'sub'> <InPorts = 2> <OutPorts = 1>
+ST_1 : Operation 51 [1/1] (0.00ns)   --->   "%br_ln356 = br i1 %icmp_ln356, void %for.inc.split, void %for.inc23.preheader.exitStub" [../src/mpc_riccati_hls.cpp:356]   --->   Operation 51 'br' 'br_ln356' <Predicate = true> <Delay = 0.00>
+ST_1 : Operation 52 [1/1] (0.00ns)   --->   "%zext_ln356 = zext i5 %k_4" [../src/mpc_riccati_hls.cpp:356]   --->   Operation 52 'zext' 'zext_ln356' <Predicate = (!icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 53 [1/1] (0.00ns)   --->   "%ref_left_wall_bound_addr = getelementptr i32 %ref_left_wall_bound, i64 0, i64 %zext_ln356" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 53 'getelementptr' 'ref_left_wall_bound_addr' <Predicate = (!icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 54 [2/2] (0.67ns)   --->   "%ref_left_wall_bound_load = load i5 %ref_left_wall_bound_addr" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 54 'load' 'ref_left_wall_bound_load' <Predicate = (!icmp_ln356)> <Delay = 0.67> <CoreInst = "RAM">   --->   Core 82 'RAM' <Latency = 1> <II = 1> <Delay = 0.67> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 32> <Depth = 20> <RAM>
+ST_1 : Operation 55 [1/1] (0.00ns)   --->   "%ref_right_wall_bound_addr = getelementptr i32 %ref_right_wall_bound, i64 0, i64 %zext_ln356" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 55 'getelementptr' 'ref_right_wall_bound_addr' <Predicate = (!icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 56 [2/2] (0.67ns)   --->   "%ref_right_wall_bound_load = load i5 %ref_right_wall_bound_addr" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 56 'load' 'ref_right_wall_bound_load' <Predicate = (!icmp_ln356)> <Delay = 0.67> <CoreInst = "RAM">   --->   Core 82 'RAM' <Latency = 1> <II = 1> <Delay = 0.67> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 32> <Depth = 20> <RAM>
+ST_1 : Operation 57 [1/1] (0.78ns)   --->   "%switch_ln357 = switch i5 %k_4, void %arrayidx12.case.19, i5 0, void %arrayidx12.case.0, i5 1, void %arrayidx12.case.1, i5 2, void %arrayidx12.case.2, i5 3, void %arrayidx12.case.3, i5 4, void %arrayidx12.case.4, i5 5, void %arrayidx12.case.5, i5 6, void %arrayidx12.case.6, i5 7, void %arrayidx12.case.7, i5 8, void %arrayidx12.case.8, i5 9, void %arrayidx12.case.9, i5 10, void %arrayidx12.case.10, i5 11, void %arrayidx12.case.11, i5 12, void %arrayidx12.case.12, i5 13, void %arrayidx12.case.13, i5 14, void %arrayidx12.case.14, i5 15, void %arrayidx12.case.15, i5 16, void %arrayidx12.case.16, i5 17, void %arrayidx12.case.17, i5 18, void %for.inc.split.arrayidx12.exit_crit_edge" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 57 'switch' 'switch_ln357' <Predicate = (!icmp_ln356)> <Delay = 0.78>
+ST_1 : Operation 58 [1/1] (0.42ns)   --->   "%store_ln320 = store i5 %add_ln356, i5 %k" [../src/mpc_riccati_hls.cpp:320]   --->   Operation 58 'store' 'store_ln320' <Predicate = (!icmp_ln356)> <Delay = 0.42>
+ST_1 : Operation 59 [1/1] (0.00ns)   --->   "%br_ln356 = br void %for.inc" [../src/mpc_riccati_hls.cpp:356]   --->   Operation 59 'br' 'br_ln356' <Predicate = (!icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 125 [1/1] (0.00ns)   --->   "%p_0_0_01014593_load = load i32 %p_0_0_01014593"   --->   Operation 125 'load' 'p_0_0_01014593_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 126 [1/1] (0.00ns)   --->   "%p_0_0_01014495_load = load i32 %p_0_0_01014495"   --->   Operation 126 'load' 'p_0_0_01014495_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 127 [1/1] (0.00ns)   --->   "%p_0_0_01014597_load = load i32 %p_0_0_01014597"   --->   Operation 127 'load' 'p_0_0_01014597_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 128 [1/1] (0.00ns)   --->   "%p_0_0_01014499_load = load i32 %p_0_0_01014499"   --->   Operation 128 'load' 'p_0_0_01014499_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 129 [1/1] (0.00ns)   --->   "%p_0_0_010145101_load = load i32 %p_0_0_010145101"   --->   Operation 129 'load' 'p_0_0_010145101_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 130 [1/1] (0.00ns)   --->   "%p_0_0_010144103_load = load i32 %p_0_0_010144103"   --->   Operation 130 'load' 'p_0_0_010144103_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 131 [1/1] (0.00ns)   --->   "%p_0_0_010145105_load = load i32 %p_0_0_010145105"   --->   Operation 131 'load' 'p_0_0_010145105_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 132 [1/1] (0.00ns)   --->   "%p_0_0_010144107_load = load i32 %p_0_0_010144107"   --->   Operation 132 'load' 'p_0_0_010144107_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 133 [1/1] (0.00ns)   --->   "%p_0_0_010145109_load = load i32 %p_0_0_010145109"   --->   Operation 133 'load' 'p_0_0_010145109_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 134 [1/1] (0.00ns)   --->   "%p_0_0_010144111_load = load i32 %p_0_0_010144111"   --->   Operation 134 'load' 'p_0_0_010144111_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 135 [1/1] (0.00ns)   --->   "%p_0_0_010145113_load = load i32 %p_0_0_010145113"   --->   Operation 135 'load' 'p_0_0_010145113_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 136 [1/1] (0.00ns)   --->   "%p_0_0_010144115_load = load i32 %p_0_0_010144115"   --->   Operation 136 'load' 'p_0_0_010144115_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 137 [1/1] (0.00ns)   --->   "%p_0_0_010145117_load = load i32 %p_0_0_010145117"   --->   Operation 137 'load' 'p_0_0_010145117_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 138 [1/1] (0.00ns)   --->   "%p_0_0_010144119_load = load i32 %p_0_0_010144119"   --->   Operation 138 'load' 'p_0_0_010144119_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 139 [1/1] (0.00ns)   --->   "%p_0_0_010145121_load = load i32 %p_0_0_010145121"   --->   Operation 139 'load' 'p_0_0_010145121_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 140 [1/1] (0.00ns)   --->   "%p_0_0_010144123_load = load i32 %p_0_0_010144123"   --->   Operation 140 'load' 'p_0_0_010144123_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 141 [1/1] (0.00ns)   --->   "%p_0_0_010145125_load = load i32 %p_0_0_010145125"   --->   Operation 141 'load' 'p_0_0_010145125_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 142 [1/1] (0.00ns)   --->   "%p_0_0_010144127_load = load i32 %p_0_0_010144127"   --->   Operation 142 'load' 'p_0_0_010144127_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 143 [1/1] (0.00ns)   --->   "%p_0_0_010145129_load = load i32 %p_0_0_010145129"   --->   Operation 143 'load' 'p_0_0_010145129_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 144 [1/1] (0.00ns)   --->   "%p_0_0_010144131_load = load i32 %p_0_0_010144131"   --->   Operation 144 'load' 'p_0_0_010144131_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 145 [1/1] (0.00ns)   --->   "%p_0_0_010145133_load = load i32 %p_0_0_010145133"   --->   Operation 145 'load' 'p_0_0_010145133_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 146 [1/1] (0.00ns)   --->   "%p_0_0_010144135_load = load i32 %p_0_0_010144135"   --->   Operation 146 'load' 'p_0_0_010144135_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 147 [1/1] (0.00ns)   --->   "%p_0_0_010145137_load = load i32 %p_0_0_010145137"   --->   Operation 147 'load' 'p_0_0_010145137_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 148 [1/1] (0.00ns)   --->   "%p_0_0_010144139_load = load i32 %p_0_0_010144139"   --->   Operation 148 'load' 'p_0_0_010144139_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 149 [1/1] (0.00ns)   --->   "%p_0_0_010145141_load = load i32 %p_0_0_010145141"   --->   Operation 149 'load' 'p_0_0_010145141_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 150 [1/1] (0.00ns)   --->   "%p_0_0_010144143_load = load i32 %p_0_0_010144143"   --->   Operation 150 'load' 'p_0_0_010144143_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 151 [1/1] (0.00ns)   --->   "%p_0_0_010145145_load = load i32 %p_0_0_010145145"   --->   Operation 151 'load' 'p_0_0_010145145_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 152 [1/1] (0.00ns)   --->   "%p_0_0_010144147_load = load i32 %p_0_0_010144147"   --->   Operation 152 'load' 'p_0_0_010144147_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 153 [1/1] (0.00ns)   --->   "%p_0_0_010145149_load = load i32 %p_0_0_010145149"   --->   Operation 153 'load' 'p_0_0_010145149_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 154 [1/1] (0.00ns)   --->   "%p_0_0_010144151_load = load i32 %p_0_0_010144151"   --->   Operation 154 'load' 'p_0_0_010144151_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 155 [1/1] (0.00ns)   --->   "%p_0_0_010145153_load = load i32 %p_0_0_010145153"   --->   Operation 155 'load' 'p_0_0_010145153_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 156 [1/1] (0.00ns)   --->   "%p_0_0_010144155_load = load i32 %p_0_0_010144155"   --->   Operation 156 'load' 'p_0_0_010144155_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 157 [1/1] (0.00ns)   --->   "%p_0_0_010145157_load = load i32 %p_0_0_010145157"   --->   Operation 157 'load' 'p_0_0_010145157_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 158 [1/1] (0.00ns)   --->   "%p_0_0_010144159_load = load i32 %p_0_0_010144159"   --->   Operation 158 'load' 'p_0_0_010144159_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 159 [1/1] (0.00ns)   --->   "%p_0_0_010145161_load = load i32 %p_0_0_010145161"   --->   Operation 159 'load' 'p_0_0_010145161_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 160 [1/1] (0.00ns)   --->   "%p_0_0_010144163_load = load i32 %p_0_0_010144163"   --->   Operation 160 'load' 'p_0_0_010144163_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 161 [1/1] (0.00ns)   --->   "%p_0_0_010145165_load = load i32 %p_0_0_010145165"   --->   Operation 161 'load' 'p_0_0_010145165_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 162 [1/1] (0.00ns)   --->   "%p_0_0_010144167_load = load i32 %p_0_0_010144167"   --->   Operation 162 'load' 'p_0_0_010144167_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 163 [1/1] (0.00ns)   --->   "%p_0_0_010145169_load = load i32 %p_0_0_010145169"   --->   Operation 163 'load' 'p_0_0_010145169_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 164 [1/1] (0.00ns)   --->   "%p_0_0_010144171_load = load i32 %p_0_0_010144171"   --->   Operation 164 'load' 'p_0_0_010144171_load' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 165 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010144171_out, i32 %p_0_0_010144171_load"   --->   Operation 165 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 166 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010145169_out, i32 %p_0_0_010145169_load"   --->   Operation 166 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 167 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010144167_out, i32 %p_0_0_010144167_load"   --->   Operation 167 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 168 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010145165_out, i32 %p_0_0_010145165_load"   --->   Operation 168 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 169 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010144163_out, i32 %p_0_0_010144163_load"   --->   Operation 169 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 170 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010145161_out, i32 %p_0_0_010145161_load"   --->   Operation 170 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 171 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010144159_out, i32 %p_0_0_010144159_load"   --->   Operation 171 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 172 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010145157_out, i32 %p_0_0_010145157_load"   --->   Operation 172 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 173 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010144155_out, i32 %p_0_0_010144155_load"   --->   Operation 173 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 174 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010145153_out, i32 %p_0_0_010145153_load"   --->   Operation 174 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 175 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010144151_out, i32 %p_0_0_010144151_load"   --->   Operation 175 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 176 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010145149_out, i32 %p_0_0_010145149_load"   --->   Operation 176 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 177 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010144147_out, i32 %p_0_0_010144147_load"   --->   Operation 177 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 178 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010145145_out, i32 %p_0_0_010145145_load"   --->   Operation 178 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 179 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010144143_out, i32 %p_0_0_010144143_load"   --->   Operation 179 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 180 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010145141_out, i32 %p_0_0_010145141_load"   --->   Operation 180 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 181 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010144139_out, i32 %p_0_0_010144139_load"   --->   Operation 181 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 182 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010145137_out, i32 %p_0_0_010145137_load"   --->   Operation 182 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 183 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010144135_out, i32 %p_0_0_010144135_load"   --->   Operation 183 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 184 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010145133_out, i32 %p_0_0_010145133_load"   --->   Operation 184 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 185 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010144131_out, i32 %p_0_0_010144131_load"   --->   Operation 185 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 186 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010145129_out, i32 %p_0_0_010145129_load"   --->   Operation 186 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 187 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010144127_out, i32 %p_0_0_010144127_load"   --->   Operation 187 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 188 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010145125_out, i32 %p_0_0_010145125_load"   --->   Operation 188 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 189 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010144123_out, i32 %p_0_0_010144123_load"   --->   Operation 189 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 190 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010145121_out, i32 %p_0_0_010145121_load"   --->   Operation 190 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 191 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010144119_out, i32 %p_0_0_010144119_load"   --->   Operation 191 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 192 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010145117_out, i32 %p_0_0_010145117_load"   --->   Operation 192 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 193 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010144115_out, i32 %p_0_0_010144115_load"   --->   Operation 193 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 194 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010145113_out, i32 %p_0_0_010145113_load"   --->   Operation 194 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 195 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010144111_out, i32 %p_0_0_010144111_load"   --->   Operation 195 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 196 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010145109_out, i32 %p_0_0_010145109_load"   --->   Operation 196 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 197 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010144107_out, i32 %p_0_0_010144107_load"   --->   Operation 197 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 198 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010145105_out, i32 %p_0_0_010145105_load"   --->   Operation 198 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 199 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010144103_out, i32 %p_0_0_010144103_load"   --->   Operation 199 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 200 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_010145101_out, i32 %p_0_0_010145101_load"   --->   Operation 200 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 201 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_01014499_out, i32 %p_0_0_01014499_load"   --->   Operation 201 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 202 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_01014597_out, i32 %p_0_0_01014597_load"   --->   Operation 202 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 203 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_01014495_out, i32 %p_0_0_01014495_load"   --->   Operation 203 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 204 [1/1] (0.00ns)   --->   "%write_ln0 = write void @_ssdm_op_Write.ap_auto.i32P0A, i32 %p_0_0_01014593_out, i32 %p_0_0_01014593_load"   --->   Operation 204 'write' 'write_ln0' <Predicate = (icmp_ln356)> <Delay = 0.00>
+ST_1 : Operation 205 [1/1] (0.42ns)   --->   "%ret_ln0 = ret"   --->   Operation 205 'ret' 'ret_ln0' <Predicate = (icmp_ln356)> <Delay = 0.42>
+
+State 2 <SV = 1> <Delay = 0.67>
+ST_2 : Operation 60 [1/1] (0.00ns)   --->   "%specpipeline_ln320 = specpipeline void @_ssdm_op_SpecPipeline, i32 4294967295, i32 0, i32 0, i32 0, i32 4294967295, void @empty_485" [../src/mpc_riccati_hls.cpp:320]   --->   Operation 60 'specpipeline' 'specpipeline_ln320' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 61 [1/1] (0.00ns)   --->   "%speclooptripcount_ln320 = speclooptripcount void @_ssdm_op_SpecLoopTripCount, i64 20, i64 20, i64 20" [../src/mpc_riccati_hls.cpp:320]   --->   Operation 61 'speclooptripcount' 'speclooptripcount_ln320' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 62 [1/1] (0.00ns)   --->   "%specloopname_ln356 = specloopname void @_ssdm_op_SpecLoopName, void @empty_515" [../src/mpc_riccati_hls.cpp:356]   --->   Operation 62 'specloopname' 'specloopname_ln356' <Predicate = true> <Delay = 0.00>
+ST_2 : Operation 63 [1/2] ( I:0.67ns O:0.67ns )   --->   "%ref_left_wall_bound_load = load i5 %ref_left_wall_bound_addr" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 63 'load' 'ref_left_wall_bound_load' <Predicate = true> <Delay = 0.67> <CoreInst = "RAM">   --->   Core 82 'RAM' <Latency = 1> <II = 1> <Delay = 0.67> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 32> <Depth = 20> <RAM>
+ST_2 : Operation 64 [1/2] ( I:0.67ns O:0.67ns )   --->   "%ref_right_wall_bound_load = load i5 %ref_right_wall_bound_addr" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 64 'load' 'ref_right_wall_bound_load' <Predicate = true> <Delay = 0.67> <CoreInst = "RAM">   --->   Core 82 'RAM' <Latency = 1> <II = 1> <Delay = 0.67> <Storage> <Opcode : 'load' 'store'> <Ports = 2> <Width = 32> <Depth = 20> <RAM>
+ST_2 : Operation 65 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_01014495" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 65 'store' 'store_ln358' <Predicate = (k_4 == 18)> <Delay = 0.00>
+ST_2 : Operation 66 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_01014593" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 66 'store' 'store_ln357' <Predicate = (k_4 == 18)> <Delay = 0.00>
+ST_2 : Operation 67 [1/1] (0.00ns)   --->   "%br_ln357 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 67 'br' 'br_ln357' <Predicate = (k_4 == 18)> <Delay = 0.00>
+ST_2 : Operation 68 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_01014499" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 68 'store' 'store_ln358' <Predicate = (k_4 == 17)> <Delay = 0.00>
+ST_2 : Operation 69 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_01014597" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 69 'store' 'store_ln357' <Predicate = (k_4 == 17)> <Delay = 0.00>
+ST_2 : Operation 70 [1/1] (0.00ns)   --->   "%br_ln358 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 70 'br' 'br_ln358' <Predicate = (k_4 == 17)> <Delay = 0.00>
+ST_2 : Operation 71 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_010144103" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 71 'store' 'store_ln358' <Predicate = (k_4 == 16)> <Delay = 0.00>
+ST_2 : Operation 72 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_010145101" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 72 'store' 'store_ln357' <Predicate = (k_4 == 16)> <Delay = 0.00>
+ST_2 : Operation 73 [1/1] (0.00ns)   --->   "%br_ln358 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 73 'br' 'br_ln358' <Predicate = (k_4 == 16)> <Delay = 0.00>
+ST_2 : Operation 74 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_010144107" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 74 'store' 'store_ln358' <Predicate = (k_4 == 15)> <Delay = 0.00>
+ST_2 : Operation 75 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_010145105" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 75 'store' 'store_ln357' <Predicate = (k_4 == 15)> <Delay = 0.00>
+ST_2 : Operation 76 [1/1] (0.00ns)   --->   "%br_ln358 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 76 'br' 'br_ln358' <Predicate = (k_4 == 15)> <Delay = 0.00>
+ST_2 : Operation 77 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_010144111" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 77 'store' 'store_ln358' <Predicate = (k_4 == 14)> <Delay = 0.00>
+ST_2 : Operation 78 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_010145109" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 78 'store' 'store_ln357' <Predicate = (k_4 == 14)> <Delay = 0.00>
+ST_2 : Operation 79 [1/1] (0.00ns)   --->   "%br_ln358 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 79 'br' 'br_ln358' <Predicate = (k_4 == 14)> <Delay = 0.00>
+ST_2 : Operation 80 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_010144115" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 80 'store' 'store_ln358' <Predicate = (k_4 == 13)> <Delay = 0.00>
+ST_2 : Operation 81 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_010145113" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 81 'store' 'store_ln357' <Predicate = (k_4 == 13)> <Delay = 0.00>
+ST_2 : Operation 82 [1/1] (0.00ns)   --->   "%br_ln358 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 82 'br' 'br_ln358' <Predicate = (k_4 == 13)> <Delay = 0.00>
+ST_2 : Operation 83 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_010144119" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 83 'store' 'store_ln358' <Predicate = (k_4 == 12)> <Delay = 0.00>
+ST_2 : Operation 84 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_010145117" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 84 'store' 'store_ln357' <Predicate = (k_4 == 12)> <Delay = 0.00>
+ST_2 : Operation 85 [1/1] (0.00ns)   --->   "%br_ln358 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 85 'br' 'br_ln358' <Predicate = (k_4 == 12)> <Delay = 0.00>
+ST_2 : Operation 86 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_010144123" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 86 'store' 'store_ln358' <Predicate = (k_4 == 11)> <Delay = 0.00>
+ST_2 : Operation 87 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_010145121" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 87 'store' 'store_ln357' <Predicate = (k_4 == 11)> <Delay = 0.00>
+ST_2 : Operation 88 [1/1] (0.00ns)   --->   "%br_ln358 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 88 'br' 'br_ln358' <Predicate = (k_4 == 11)> <Delay = 0.00>
+ST_2 : Operation 89 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_010144127" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 89 'store' 'store_ln358' <Predicate = (k_4 == 10)> <Delay = 0.00>
+ST_2 : Operation 90 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_010145125" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 90 'store' 'store_ln357' <Predicate = (k_4 == 10)> <Delay = 0.00>
+ST_2 : Operation 91 [1/1] (0.00ns)   --->   "%br_ln358 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 91 'br' 'br_ln358' <Predicate = (k_4 == 10)> <Delay = 0.00>
+ST_2 : Operation 92 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_010144131" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 92 'store' 'store_ln358' <Predicate = (k_4 == 9)> <Delay = 0.00>
+ST_2 : Operation 93 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_010145129" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 93 'store' 'store_ln357' <Predicate = (k_4 == 9)> <Delay = 0.00>
+ST_2 : Operation 94 [1/1] (0.00ns)   --->   "%br_ln358 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 94 'br' 'br_ln358' <Predicate = (k_4 == 9)> <Delay = 0.00>
+ST_2 : Operation 95 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_010144135" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 95 'store' 'store_ln358' <Predicate = (k_4 == 8)> <Delay = 0.00>
+ST_2 : Operation 96 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_010145133" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 96 'store' 'store_ln357' <Predicate = (k_4 == 8)> <Delay = 0.00>
+ST_2 : Operation 97 [1/1] (0.00ns)   --->   "%br_ln358 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 97 'br' 'br_ln358' <Predicate = (k_4 == 8)> <Delay = 0.00>
+ST_2 : Operation 98 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_010144139" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 98 'store' 'store_ln358' <Predicate = (k_4 == 7)> <Delay = 0.00>
+ST_2 : Operation 99 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_010145137" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 99 'store' 'store_ln357' <Predicate = (k_4 == 7)> <Delay = 0.00>
+ST_2 : Operation 100 [1/1] (0.00ns)   --->   "%br_ln358 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 100 'br' 'br_ln358' <Predicate = (k_4 == 7)> <Delay = 0.00>
+ST_2 : Operation 101 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_010144143" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 101 'store' 'store_ln358' <Predicate = (k_4 == 6)> <Delay = 0.00>
+ST_2 : Operation 102 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_010145141" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 102 'store' 'store_ln357' <Predicate = (k_4 == 6)> <Delay = 0.00>
+ST_2 : Operation 103 [1/1] (0.00ns)   --->   "%br_ln358 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 103 'br' 'br_ln358' <Predicate = (k_4 == 6)> <Delay = 0.00>
+ST_2 : Operation 104 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_010144147" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 104 'store' 'store_ln358' <Predicate = (k_4 == 5)> <Delay = 0.00>
+ST_2 : Operation 105 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_010145145" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 105 'store' 'store_ln357' <Predicate = (k_4 == 5)> <Delay = 0.00>
+ST_2 : Operation 106 [1/1] (0.00ns)   --->   "%br_ln358 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 106 'br' 'br_ln358' <Predicate = (k_4 == 5)> <Delay = 0.00>
+ST_2 : Operation 107 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_010144151" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 107 'store' 'store_ln358' <Predicate = (k_4 == 4)> <Delay = 0.00>
+ST_2 : Operation 108 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_010145149" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 108 'store' 'store_ln357' <Predicate = (k_4 == 4)> <Delay = 0.00>
+ST_2 : Operation 109 [1/1] (0.00ns)   --->   "%br_ln358 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 109 'br' 'br_ln358' <Predicate = (k_4 == 4)> <Delay = 0.00>
+ST_2 : Operation 110 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_010144155" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 110 'store' 'store_ln358' <Predicate = (k_4 == 3)> <Delay = 0.00>
+ST_2 : Operation 111 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_010145153" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 111 'store' 'store_ln357' <Predicate = (k_4 == 3)> <Delay = 0.00>
+ST_2 : Operation 112 [1/1] (0.00ns)   --->   "%br_ln358 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 112 'br' 'br_ln358' <Predicate = (k_4 == 3)> <Delay = 0.00>
+ST_2 : Operation 113 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_010144159" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 113 'store' 'store_ln358' <Predicate = (k_4 == 2)> <Delay = 0.00>
+ST_2 : Operation 114 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_010145157" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 114 'store' 'store_ln357' <Predicate = (k_4 == 2)> <Delay = 0.00>
+ST_2 : Operation 115 [1/1] (0.00ns)   --->   "%br_ln358 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 115 'br' 'br_ln358' <Predicate = (k_4 == 2)> <Delay = 0.00>
+ST_2 : Operation 116 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_010144163" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 116 'store' 'store_ln358' <Predicate = (k_4 == 1)> <Delay = 0.00>
+ST_2 : Operation 117 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_010145161" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 117 'store' 'store_ln357' <Predicate = (k_4 == 1)> <Delay = 0.00>
+ST_2 : Operation 118 [1/1] (0.00ns)   --->   "%br_ln358 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 118 'br' 'br_ln358' <Predicate = (k_4 == 1)> <Delay = 0.00>
+ST_2 : Operation 119 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_010144167" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 119 'store' 'store_ln358' <Predicate = (k_4 == 0)> <Delay = 0.00>
+ST_2 : Operation 120 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_010145165" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 120 'store' 'store_ln357' <Predicate = (k_4 == 0)> <Delay = 0.00>
+ST_2 : Operation 121 [1/1] (0.00ns)   --->   "%br_ln358 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 121 'br' 'br_ln358' <Predicate = (k_4 == 0)> <Delay = 0.00>
+ST_2 : Operation 122 [1/1] (0.00ns)   --->   "%store_ln358 = store i32 %ref_right_wall_bound_load, i32 %p_0_0_010144171" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 122 'store' 'store_ln358' <Predicate = (k_4 != 0 & k_4 != 1 & k_4 != 2 & k_4 != 3 & k_4 != 4 & k_4 != 5 & k_4 != 6 & k_4 != 7 & k_4 != 8 & k_4 != 9 & k_4 != 10 & k_4 != 11 & k_4 != 12 & k_4 != 13 & k_4 != 14 & k_4 != 15 & k_4 != 16 & k_4 != 17 & k_4 != 18)> <Delay = 0.00>
+ST_2 : Operation 123 [1/1] (0.00ns)   --->   "%store_ln357 = store i32 %ref_left_wall_bound_load, i32 %p_0_0_010145169" [../src/mpc_riccati_hls.cpp:357]   --->   Operation 123 'store' 'store_ln357' <Predicate = (k_4 != 0 & k_4 != 1 & k_4 != 2 & k_4 != 3 & k_4 != 4 & k_4 != 5 & k_4 != 6 & k_4 != 7 & k_4 != 8 & k_4 != 9 & k_4 != 10 & k_4 != 11 & k_4 != 12 & k_4 != 13 & k_4 != 14 & k_4 != 15 & k_4 != 16 & k_4 != 17 & k_4 != 18)> <Delay = 0.00>
+ST_2 : Operation 124 [1/1] (0.00ns)   --->   "%br_ln358 = br void %arrayidx12.exit" [../src/mpc_riccati_hls.cpp:358]   --->   Operation 124 'br' 'br_ln358' <Predicate = (k_4 != 0 & k_4 != 1 & k_4 != 2 & k_4 != 3 & k_4 != 4 & k_4 != 5 & k_4 != 6 & k_4 != 7 & k_4 != 8 & k_4 != 9 & k_4 != 10 & k_4 != 11 & k_4 != 12 & k_4 != 13 & k_4 != 14 & k_4 != 15 & k_4 != 16 & k_4 != 17 & k_4 != 18)> <Delay = 0.00>
+
+
+============================================================
++ Verbose Summary: Timing violations
+============================================================
+Target clock period: 5.000ns, clock uncertainty: 0.500ns.
+
+ <State 1>: 1.643ns
+The critical path consists of the following:
+	'store' operation ('store_ln320', ../src/mpc_riccati_hls.cpp:320) of constant 0 5 bit on local variable 'k', ../src/mpc_riccati_hls.cpp:320 [84]  (0.427 ns)
+	'load' operation 5 bit ('k', ../src/mpc_riccati_hls.cpp:356) on local variable 'k', ../src/mpc_riccati_hls.cpp:320 [87]  (0.000 ns)
+	'icmp' operation 1 bit ('icmp_ln356', ../src/mpc_riccati_hls.cpp:356) [88]  (0.789 ns)
+	'store' operation ('store_ln320', ../src/mpc_riccati_hls.cpp:320) of variable 'add_ln356', ../src/mpc_riccati_hls.cpp:356 5 bit on local variable 'k', ../src/mpc_riccati_hls.cpp:320 [182]  (0.427 ns)
+
+ <State 2>: 0.677ns
+The critical path consists of the following:
+	'load' operation 32 bit ('ref_right_wall_bound_load', ../src/mpc_riccati_hls.cpp:358) on array 'ref_right_wall_bound' [99]  (0.677 ns)
+	'store' operation ('store_ln358', ../src/mpc_riccati_hls.cpp:358) of variable 'ref_right_wall_bound_load', ../src/mpc_riccati_hls.cpp:358 32 bit on local variable 'p_0_0_01014495' [102]  (0.000 ns)
+
+
+============================================================
++ Verbose Summary: Binding
+============================================================
+N/A
+* FSMD analyzer results:
+  - Output states:
+ - Input state : 
+  - Chain level:
+	State 1
+	State 2
+
+
+============================================================
++ Verbose Summary: Datapath Resource usage 
+============================================================
+N/A

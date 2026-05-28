@@ -1,0 +1,82 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/28.2.5 Chrome/138.0.7204.251 Electron/37.6.1 Safari/537.36" scale="2" border="0" version="28.2.5">
+  <diagram name="Controller decomposition overview" id="0">
+    <mxGraphModel dx="1188" dy="703" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="640" pageHeight="1160" math="1" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="core" value="mpc_fpga_compute_core" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="170" y="160" width="300" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="compute" value="mpc_compute_hls" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="170" y="260" width="300" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="horizon" value="Fixed-horizon problem assembly loop" style="swimlane;rounded=1;whiteSpace=wrap;html=1;fillColor=#f8f8f8;strokeColor=#666666;fontStyle=1;startSize=30;" parent="1" vertex="1">
+          <mxGeometry x="80" y="360" width="480" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="v_NX3YBIs96uXfwIJJ0t-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="horizon" source="bounds" target="affine">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="bounds" value="Bounds/reference setup" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" parent="horizon" vertex="1">
+          <mxGeometry x="170" y="40" width="140" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="linear" value="compute_frenet" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;" parent="horizon" vertex="1">
+          <mxGeometry x="10" y="40" width="140" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="affine" value="compute_affine_bias" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;" parent="horizon" vertex="1">
+          <mxGeometry x="330" y="40" width="140" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="he1" style="endArrow=block;html=1;rounded=0;" parent="horizon" source="bounds" target="linear" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="v_NX3YBIs96uXfwIJJ0t-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="solver" target="out">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="solver" value="riccati_admm_solve_hls" style="swimlane;rounded=1;whiteSpace=wrap;html=1;fillColor=#f8f8f8;strokeColor=#666666;fontStyle=1;startSize=30;" parent="1" vertex="1">
+          <mxGeometry x="80" y="520" width="480" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="pass" value="riccati_pass_hls" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" parent="solver" vertex="1">
+          <mxGeometry x="13" y="42.5" width="135" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="backfwd" value="Backward/forward Riccati passes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" parent="solver" vertex="1">
+          <mxGeometry x="173" y="42.5" width="135" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="proj" value="Projection, dual update, residuals" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" parent="solver" vertex="1">
+          <mxGeometry x="333" y="42.5" width="135" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="admm_note" value="Loop repeats until convergence or maximum ADMM iterations" style="text;html=1;strokeColor=none;fillColor=none;fontSize=11;align=center;" parent="solver" vertex="1">
+          <mxGeometry x="60.5" y="112.5" width="360" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="se1" style="endArrow=block;html=1;rounded=0;" parent="solver" source="pass" target="backfwd" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se2" style="endArrow=block;html=1;rounded=0;" parent="solver" source="backfwd" target="proj" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se3" style="endArrow=block;html=1;rounded=1;dashed=1;" parent="solver" source="proj" target="pass" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="78" y="167.5" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="403" y="137.5" />
+              <mxPoint x="243" y="137.5" />
+              <mxPoint x="83" y="137.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="out" value="Output handling" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="225" y="710" width="190" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" parent="1" source="core" target="compute" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" style="endArrow=block;html=1;rounded=0;strokeWidth=2;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="compute" target="horizon" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="320" y="260" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" parent="1" source="horizon" target="solver" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

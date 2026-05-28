@@ -1,0 +1,930 @@
+{
+	"version": "1.0",
+	"modules": {
+		"mpc_fpga_top_opencl": {
+			"proto_instances": {
+				"/AESL_inst_mpc_fpga_top_opencl_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_CONTINUE": { "actual": "ap_continue"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst_n"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463/grp_p_anonymous_namespace_fill_mpc_reference_trajectory_from_lane_words_fu_463_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1183_1_fu_2664/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1183_1_fu_2664_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1195_4_fu_2684/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1195_4_fu_2684_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1203_6_fu_2692/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1203_6_fu_2692_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1215_9_fu_2744/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1215_9_fu_2744_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1246_12_fu_2899/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1246_12_fu_2899_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1282_14_fu_2923/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1282_14_fu_2923_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1301_16_fu_2932/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1301_16_fu_2932_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1305_17_fu_2942/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1305_17_fu_2942_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1337_19_fu_2760/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1337_19_fu_2760_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1395_20_fu_2796/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1395_20_fu_2796_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1511_21_fu_2817/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1511_21_fu_2817_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1525_22_fu_2892/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1525_22_fu_2892_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1555_24_fu_2824/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1555_24_fu_2824_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1562_26_fu_2876/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_1562_26_fu_2876_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_356_1_fu_2352/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_356_1_fu_2352_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_366_2_fu_2400/grp_compute_window_min_hls_fu_908/grp_compute_window_min_hls_fu_908_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_366_2_fu_2400/grp_compute_window_min_hls_fu_933/grp_compute_window_min_hls_fu_933_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_366_2_fu_2400/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_366_2_fu_2400_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_affine_bias_dense_hls_fu_1741/grp_affine_b0_term_hls_fu_591/grp_affine_b0_term_hls_fu_591_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_affine_bias_dense_hls_fu_1741/grp_compute_affine_bias_dense_hls_fu_1741_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_and_next_hls_fu_1714_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_compute_B_accel_load_transfer_fu_231/grp_compute_B_accel_load_transfer_fu_231_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_compute_B_steering_fu_263/grp_compute_B_steering_fu_263_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_compute_frenet_AB_hls_fu_78_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_compute_frenet_tire_hls_fu_178/grp_compute_frenet_tire_hls_fu_178_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_compute_frenet_tire_hls_fu_178/grp_compute_front_tire_path_fn_fu_198/grp_compute_front_tire_path_fn_fu_198_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_compute_frenet_tire_hls_fu_178/grp_compute_front_tire_path_fn_fu_198/grp_fp_atan_lut_fn_fu_150/grp_fp_atan_lut_fn_fu_150_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_compute_frenet_tire_hls_fu_178/grp_compute_front_tire_path_fn_fu_198/grp_fp_front_force_jacobians_fn_fu_182/grp_fp_front_force_jacobians_fn_fu_182_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_compute_frenet_tire_hls_fu_178/grp_compute_front_tire_path_fn_fu_198/grp_fp_pacejka_ceff_fu_175/grp_fp_pacejka_ceff_fu_175_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_compute_frenet_tire_hls_fu_178/grp_compute_front_tire_path_fn_fu_198/grp_fp_trig_pair_fused_fn_fu_166/grp_fp_trig_pair_fused_fn_fu_166_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_compute_frenet_tire_hls_fu_178/grp_compute_rear_tire_path_fn_fu_219/grp_compute_rear_tire_path_fn_fu_219_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_compute_frenet_tire_hls_fu_178/grp_compute_rear_tire_path_fn_fu_219/grp_fp_atan_lut_fn_fu_138/grp_fp_atan_lut_fn_fu_138_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_compute_frenet_tire_hls_fu_178/grp_compute_rear_tire_path_fn_fu_219/grp_fp_pacejka_ceff_fu_163/grp_fp_pacejka_ceff_fu_163_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_compute_frenet_tire_hls_fu_178/grp_compute_rear_tire_path_fn_fu_219/grp_fp_rear_force_jacobians_fn_fu_170/grp_fp_rear_force_jacobians_fn_fu_170_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_compute_frenet_tire_hls_fu_178/grp_compute_rear_tire_path_fn_fu_219/grp_fp_trig_pair_fused_fn_fu_154/grp_fp_trig_pair_fused_fn_fu_154_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_compute_frenet_tire_hls_fu_178/grp_fp_slip_terms_fu_191/grp_fp_slip_terms_fu_191_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_compute_frenet_tire_hls_fu_178/grp_fp_trig_pair_fused_fn_fu_154/grp_fp_trig_pair_fused_fn_fu_154_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_compute_stage_shared_products_fu_217/grp_compute_stage_shared_products_fu_217_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_fp_frenet_recip_fu_209/grp_fp_frenet_recip_fu_209_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_fp_frenet_rows01_fn_fu_272/grp_fp_frenet_rows01_fn_fu_272_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_fp_rollout_from_forces_fn_fu_244/grp_fp_rollout_from_forces_fn_fu_244_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_compute_frenet_AB_and_next_hls_fu_1714/grp_compute_frenet_AB_hls_fu_78/grp_fp_trig_pair_fused_fn_fu_200/grp_fp_trig_pair_fused_fn_fu_200_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_fp_atan_lut_fu_1707/grp_fp_atan_lut_fu_1707_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484/grp_mpc_compute_hls_Pipeline_VITIS_LOOP_371_3_fu_2484_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_mpc_compute_hls_fu_404_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_reset_admm_state_hls_fu_2614/grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54/grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_364_1_fu_54_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_reset_admm_state_hls_fu_2614/grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90/grp_reset_admm_state_hls_Pipeline_VITIS_LOOP_372_3_fu_90_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_reset_admm_state_hls_fu_2614/grp_reset_admm_state_hls_fu_2614_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_invert_2x2_qp_hls_fu_3970/grp_invert_2x2_qp_hls_fu_3970_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_riccati_backward_pass_Pipeline_VITIS_LOOP_1013_37_fu_4356/grp_riccati_backward_pass_Pipeline_VITIS_LOOP_1013_37_fu_4356_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_riccati_backward_pass_Pipeline_VITIS_LOOP_1029_38_fu_4428/grp_riccati_backward_pass_Pipeline_VITIS_LOOP_1029_38_fu_4428_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_riccati_backward_pass_Pipeline_VITIS_LOOP_726_7_VITIS_LOOP_727_8_fu_3997/grp_riccati_backward_pass_Pipeline_VITIS_LOOP_726_7_VITIS_LOOP_727_8_fu_3997_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_riccati_backward_pass_Pipeline_VITIS_LOOP_750_9_fu_4129/grp_riccati_backward_pass_Pipeline_VITIS_LOOP_750_9_fu_4129_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_riccati_backward_pass_Pipeline_VITIS_LOOP_766_10_fu_4097/grp_riccati_backward_pass_Pipeline_VITIS_LOOP_766_10_fu_4097_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_riccati_backward_pass_Pipeline_VITIS_LOOP_831_12_VITIS_LOOP_832_13_fu_4280/grp_riccati_backward_pass_Pipeline_VITIS_LOOP_831_12_VITIS_LOOP_832_13_fu_4280_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_riccati_backward_pass_fu_400_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4437/grp_sum8_P_MIX_raw_pupdate_fu_4437_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4449/grp_sum8_P_MIX_raw_pupdate_fu_4449_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4461/grp_sum8_P_MIX_raw_pupdate_fu_4461_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4473/grp_sum8_P_MIX_raw_pupdate_fu_4473_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4485/grp_sum8_P_MIX_raw_pupdate_fu_4485_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4497/grp_sum8_P_MIX_raw_pupdate_fu_4497_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4509/grp_sum8_P_MIX_raw_pupdate_fu_4509_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4521/grp_sum8_P_MIX_raw_pupdate_fu_4521_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4533/grp_sum8_P_MIX_raw_pupdate_fu_4533_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4545/grp_sum8_P_MIX_raw_pupdate_fu_4545_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4557/grp_sum8_P_MIX_raw_pupdate_fu_4557_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4569/grp_sum8_P_MIX_raw_pupdate_fu_4569_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4581/grp_sum8_P_MIX_raw_pupdate_fu_4581_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4593/grp_sum8_P_MIX_raw_pupdate_fu_4593_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4605/grp_sum8_P_MIX_raw_pupdate_fu_4605_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4617/grp_sum8_P_MIX_raw_pupdate_fu_4617_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4629/grp_sum8_P_MIX_raw_pupdate_fu_4629_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4641/grp_sum8_P_MIX_raw_pupdate_fu_4641_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4653/grp_sum8_P_MIX_raw_pupdate_fu_4653_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4665/grp_sum8_P_MIX_raw_pupdate_fu_4665_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_backward_pass_fu_400/grp_sum8_P_MIX_raw_pupdate_fu_4677/grp_sum8_P_MIX_raw_pupdate_fu_4677_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_forward_pass_fu_653/grp_riccati_forward_pass_Pipeline_VITIS_LOOP_383_4_fu_2143/grp_riccati_forward_pass_Pipeline_VITIS_LOOP_383_4_fu_2143_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_forward_pass_fu_653/grp_riccati_forward_pass_fu_653_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_mpc_compute_hls_fu_404/grp_riccati_pass_hls_fu_2053/grp_riccati_pass_hls_fu_2053_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356/grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_364_1_fu_356_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392/grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_372_3_fu_392_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328/grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_390_1_fu_328_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348/grp_p_anonymous_namespace_mpc_fpga_compute_core_Pipeline_VITIS_LOOP_397_3_fu_348_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_p_anonymous_namespace_reset_core_state_hls_fu_264/grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_364_1_fu_68/grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_364_1_fu_68_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_p_anonymous_namespace_reset_core_state_hls_fu_264/grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_372_3_fu_104/grp_p_anonymous_namespace_reset_core_state_hls_Pipeline_VITIS_LOOP_372_3_fu_104_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_mpc_fpga_compute_core_fu_491/grp_p_anonymous_namespace_reset_core_state_hls_fu_264/grp_p_anonymous_namespace_reset_core_state_hls_fu_264_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_unpack_input_lane_words_fu_440/grp_p_anonymous_namespace_unpack_input_lane_words_Pipeline_VITIS_LOOP_216_1_fu_83/grp_p_anonymous_namespace_unpack_input_lane_words_Pipeline_VITIS_LOOP_216_1_fu_83_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				},
+				"grp_p_anonymous_namespace_unpack_input_lane_words_fu_440/grp_p_anonymous_namespace_unpack_input_lane_words_fu_440_activity": {
+					"interface": "xilinx.com:interface:internal_hls_dataflow:1.0",
+					"ports": {
+						"AP_CLK": { "actual": "ap_clk"},
+						"AP_DONE": { "actual": "ap_done"},
+						"AP_READY": { "actual": "ap_ready"},
+						"AP_RESET": { "actual": "ap_rst"},
+						"AP_START": { "actual": "ap_start"}
+					}
+				}
+			}
+		}
+	}
+}

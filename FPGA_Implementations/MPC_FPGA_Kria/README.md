@@ -1,251 +1,267 @@
 # MPC FPGA — Riccati-ADMM Solver for Kria K26
 
-## Overview
+HLS implementation of the Model Predictive Controller used in the SDU-APEX
+thesis. The solver combines a Riccati recursion with ADMM (Alternating
+Direction Method of Multipliers) and is built for the AMD/Xilinx Kria K26
+SoM (`xck26-sfvc784-2LV-c`).
 
-HLS-compatible implementation of the Model Predictive Controller (MPC) using
-Riccati recursion with ADMM (Alternating Direction Method of Multipliers)
-for the F1/10th autonomous racing platform. Targets the AMD/Xilinx Kria K26
-device family (`xck26-sfvc784-2LV-c`) used on Kria carrier boards.
+The kernel is packaged as an OpenCL kernel (`mpc_fpga_top_opencl`) and is
+invoked from the Jetson-side host application through XRT (see
+[../../f1tenth_communication/](../../f1tenth_communication/)).
 
 ## Architecture
 
 ```
-CPU (ARM Cortex-A53)               FPGA (Programmable Logic)
-┌──────────────────────┐          ┌────────────────────────────┐
-│ ROS2 MPC Node        │  AXI-   │  mpc_fpga_top              │
-│                      │  Lite   │  ┌────────────────────────┐ │
-│ 1. Localization      │◄───────►│  │ Waypoint BRAM (32 KB)  │ │
-│ 2. Frenet error      │         │  │ ADMM warm-start state  │ │
-│ 3. Write state regs  │         │  ├────────────────────────┤ │
-│ 4. Write ref buffers │         │  │ Vehicle linearization  │ │
-│ 5. Trigger compute   │         │  │ QP setup (8×8 augment) │ │
-│ 6. Read result regs  │         │  │ QP setup (8×8 augment) │ │
-│                      │         │  │ Riccati-ADMM solver    │ │
-│                      │         │  │ Control extraction     │ │
-└──────────────────────┘          └────────────────────────────┘
+Jetson (Host, XRT/OpenCL)              Kria K26 (PL — mpc_fpga_top_opencl)
+┌──────────────────────────────┐      ┌────────────────────────────────────┐
+│ state_publisher / receiver   │      │ Input buffer (gmem0, 512-bit AXI-MM)│
+│                              │      │   Header (8×32b) + 20 ref steps    │
+│ 1. Localization + Frenet     │      │                                    │
+│ 2. Pack 8 header words +     │ XRT  │ Unpack → Frenet linearization      │
+│    20 × 8 reference words    ├─────►│ → ADMM-Riccati solver (warm-start) │
+│ 3. enqueueMigrate(input)     │      │ → Control extraction               │
+│ 4. enqueueTask(kernel)       │      │                                    │
+│ 5. enqueueMigrate(output)    │◄─────┤ Output buffer (gmem1, 128-bit)     │
+│ 6. Read steering/accel       │      │   [steering | accel | status | it] │
+└──────────────────────────────┘      └────────────────────────────────────┘
 ```
 
-### Key Design Decisions
+The kernel is launched once per control tick. Persistent solver state
+(warm-start `z`/`y`, previous gains) lives in the kernel's BRAM and survives
+across calls.
 
-| Feature | Choice | Rationale |
-|---------|--------|-----------|
-| Arithmetic | ap_fixed<32,16> internal math | No FPU on PL, deterministic latency |
-| Vehicle params | Compile-time `#define` | Constant propagation, zero BRAM overhead |
-| Solver | Riccati-ADMM | O(N·nx³) per iter vs O(N³) for dense QP |
-| Warm-start | Static BRAM | Persists across calls, reduces iterations |
-| State dimension | 8 (5 Frenet + 3 augmented) | Rate penalties + steering dynamics |
-| Horizon | 19 steps × 40 ms = 0.76 s | Balances look-ahead, latency, and resources |
+## Key Design Decisions
 
-## File Structure
+| Feature           | Choice                                          | Rationale |
+|-------------------|-------------------------------------------------|-----------|
+| Arithmetic        | `ap_fixed<32,14>` (Q14.18) internal math        | No FPU on the PL, deterministic latency |
+| Vehicle params    | Compile-time `#define` in `mpc_fpga_constants.h`| Constant propagation, zero BRAM overhead |
+| Solver            | Riccati-ADMM                                    | O(N·nx³) per iteration vs O(N³) for dense QP |
+| Warm-start        | Persistent BRAM (`MpcAdmmWarmStart_t`)          | Cuts iteration count between solves |
+| State dimension   | 5 Frenet + 3 augmented = 8                      | Carries rate penalties + steering dynamics |
+| Horizon           | 20 steps × 30 ms = **0.60 s**                   | `MPC_FPGA_HORIZON_STEPS = 20`, `MPC_FPGA_PREDICTION_DT_S = 0.03 f` |
+| Control rate      | 200 Hz (5 ms)                                   | `MPC_FPGA_CONTROL_RATE_HZ`; cross-call scaling via `MPC_FPGA_CROSS_CALL_SCALE` |
+| Max ADMM iters    | 50                                              | `MPC_FPGA_MAX_ADMM_ITER` |
+
+The Riccati pass is unrolled per stage and the ADMM iteration is the only
+sequential loop bound; the augmented 8-state model is compiled with a
+constant horizon to let HLS materialize per-stage `K` gain ROMs.
+
+## File Layout
 
 ```
 MPC_FPGA_Kria/
 ├── include/
-│   ├── mpc_fpga_types.h        # Types, constants, vehicle params
-│   ├── fp_math_hls.h           # Fixed-point arithmetic (inline + decl)
-│   ├── riccati_solver_hls.h    # Solver API declaration
-│   └── mpc_fpga_interface.h    # AXI-Lite register map (documentation)
+│   ├── fp_hls_config.hpp        # Per-domain ap_fixed widths (selectable profile)
+│   ├── fp_math_hls.h            # Fixed-point arithmetic API
+│   ├── fp_trig_lut_1024.h       # sin/cos LUT (QP profile)
+│   ├── fp_trig_lut_fn_1024.h    # sin/cos LUT (narrow profile, vehicle model)
+│   ├── fp_types_hls.hpp         # fp_QP_t / fp_FN_t / fp_P_t / fp_K_t / fp_MG_t
+│   ├── mpc_cpu_compat.h         # CPU-side replay shim
+│   ├── mpc_fpga_constants.h     # Horizon, control rate, vehicle params, IO sizing
+│   ├── mpc_fpga_interface.h     # Transport contract (lane order, flags, status)
+│   ├── mpc_fpga_types.h         # Solver-internal structs and dimensions
+│   ├── mpc_riccati_hls.h        # MPC core API
+│   └── riccati_solver_hls.h     # Riccati-ADMM solver API
 ├── src/
-│   ├── fp_math_hls.cpp         # Trig functions (sin, cos, atan, recip)
-│   ├── vehicle_model_hls.cpp   # Frenet linearization (Pacejka + full physics)
-│   ├── riccati_solver_hls.cpp  # Riccati-ADMM solver core
-│   ├── mpc_riccati_hls.cpp     # MPC QP construction + control extraction
-│   └── mpc_fpga_top.cpp        # AXI-stream top + scalar simulation wrapper
+│   ├── fp_math_hls.cpp          # Trig, reciprocal, atan primitives
+│   ├── vehicle_model_hls.cpp    # Frenet linearization (Pacejka tire model)
+│   ├── riccati_solver_hls.cpp   # Riccati backward/forward + ADMM updates
+│   ├── mpc_riccati_hls.cpp      # QP construction + control extraction
+│   └── mpc_fpga_top.cpp         # OpenCL kernel top + scalar replay wrapper
 ├── testbench/
-│   └── test_fpga_sim_drive.c   # Closed-loop FPGA simulation test
-├── scripts/
-│   └── run_hls.tcl             # Vitis HLS automation script
-└── README.md                   # This file
+│   ├── test_fpga_csim_drive.c   # Closed-loop C-sim (FPGA boundary)
+│   ├── tb_top_min.cpp           # Minimal HLS cosim driver
+│   ├── tb_top_replay.cpp        # Replay-driven cosim from CSV logs
+│   ├── tb_scalar_min.cpp        # Scalar non-HLS driver
+│   ├── test_recip_accuracy.cpp  # Per-primitive precision check
+│   └── fpga_tune_weights_hls.py # Weight sweep (CPU compat path)
+├── MPC_FPGA/
+│   └── hls_config.cfg           # Vitis HLS config for mpc_fpga_top_opencl
+├── MPC_system/
+│   ├── CMakeLists.txt           # Vitis system project (HLS + hw_link)
+│   ├── hw_link/                 # v++ link config (synth/impl directives)
+│   └── latest_impl/             # Symlinks to the most recent build outputs
+└── Kria_platform/               # Vitis platform (PS init, BIF, device tree)
 ```
 
 ## Building
 
-### Prerequisites
+The flow has two stages: an **HLS kernel build** (produces an `.xo`) and a
+**Vitis system link** (produces `.xclbin` + `.bit` + `.dtbo`). Both are
+driven by Vitis 2025.2.
 
-- Vitis 2025.2 (uses `vitis-run --mode hls`)
-- Target part: `xck26-sfvc784-2LV-c` (Kria K26)
+### Environment
 
-### Environment Setup
+Source the Vitis 2025.2 environment. The repo expects a global Vitis
+install (`/tools/Xilinx/2025.2/Vitis/settings64.sh`)
 
-```bash
-source /tools/Xilinx/2025.1/Vitis/settings64.sh
-```
+### HLS kernel build (csim → synth → cosim)
 
-or 
+The HLS configuration lives in
+[`MPC_FPGA/hls_config.cfg`](MPC_FPGA/hls_config.cfg). Top function:
+`mpc_fpga_top_opencl`; target clock: 5 ns (200 MHz); part:
+`xck26-sfvc784-2LV-c`.
 
-```bash
-vivado_env
-```
+Open `MPC_FPGA/vitis-comp.json` in the Vitis 2025.2 IDE and run C-sim,
+synthesis, or cosim from the GUI. Reports are written to
+`MPC_FPGA/mpc_fpga_top_opencl/reports/`:
 
-### Synthesis (default run mode)
+| Report                  | Content                              |
+|-------------------------|--------------------------------------|
+| `hls_compile.rpt`       | C-synthesis estimates                |
+| `hls_cosim.rpt`         | RTL cosim cycle counts (min/avg/max) |
+| `hls_impl_syn.rpt`      | Vivado RTL-synth resources + timing  |
+| `hls_impl_pnr.rpt`      | Post-PnR resources + timing          |
 
-```bash
-cd FPGA_Implementations/MPC_FPGA_Kria
-vitis-run --mode hls --tcl scripts/run_hls.tcl
-```
+### Hardware link (xclbin + bitstream)
 
-Notes:
-- In `scripts/run_hls.tcl`, default mode is `all`.
-- This command was re-validated on this repo after latest changes.
+The system project lives in [`MPC_system/`](MPC_system/). It is a CMake
+front-end that calls `v++` with
+[`MPC_system/hw_link/binary_container_1-link.cfg`](MPC_system/hw_link/binary_container_1-link.cfg).
+Strategy: `Flow_PerfOptimized_high` synthesis,
+`AltSpreadLogic_high` placement, `AggressiveExplore` post-route phys-opt.
 
-### Full Flow (csim → synth → cosim → export)
+Open `MPC_system/vitis-sys.json` in the IDE and run *Build → hw* (or
+configure CMake with `-DVITIS_TARGET=hw`). Final artifacts are symlinked
+into [`MPC_system/latest_impl/`](MPC_system/latest_impl/):
 
-```bash
-cd FPGA_Implementations/MPC_FPGA_Kria
-HLS_RUN_MODE=all vitis-run --mode hls --tcl scripts/run_hls.tcl
-```
+- `mpc_fpga_top_opencl.xclbin` — XRT loadable binary
+- `mpc_fpga_top_opencl.xsa` — system archive
+- `system.bit` — raw bitstream
+- `timing_summary_routed.rpt` — Vivado post-route timing
 
-### Step-by-Step (Vitis 2025.1+)
+The pre-built copies used by the runtime are kept in
+[`../../FPGA_flash/`](../../FPGA_flash/) (`MPC_FPGA.bit.bin`,
+`MPC_FPGA.dtbo`, `mpc_fpga_top_opencl.xclbin`).
 
-```bash
-# C simulation only
-HLS_RUN_MODE=csim vitis-run --mode hls --tcl scripts/run_hls.tcl
+### CPU testbench (no Vitis required)
 
-# Synthesis only
-HLS_RUN_MODE=synth vitis-run --mode hls --tcl scripts/run_hls.tcl
-
-# Co-simulation only (requires prior synthesis)
-HLS_RUN_MODE=cosim vitis-run --mode hls --tcl scripts/run_hls.tcl
-
-# Export IP catalog (requires prior synthesis)
-HLS_RUN_MODE=export vitis-run --mode hls --tcl scripts/run_hls.tcl
-```
-
-The exported IP can then be imported into Vivado IP Catalog.
-
-### Best Low-Latency Kria Profile (Validated)
-
-Use this profile to reproduce the current best latency/frequency point found in this workspace:
+A closed-loop C++ test that exercises the same code paths as the HLS top is
+compiled with g++. From `FPGA_Implementations/MPC_FPGA_Kria/testbench/`:
 
 ```bash
-cd FPGA_Implementations/MPC_FPGA_Kria
-source /tools/Xilinx/2025.1/Vitis/settings64.sh
-
-HLS_RUN_MODE=synth \
-vitis-run --mode hls --tcl scripts/run_hls.tcl
+g++ -O2 -I ../include -I /home/akselmo/Vivado_program/2025.2/Vitis/include \
+    -Wno-unknown-pragmas \
+    test_fpga_csim_drive.cpp \
+    ../src/fp_math_hls.cpp ../src/vehicle_model_hls.cpp \
+    ../src/riccati_solver_hls.cpp ../src/mpc_riccati_hls.cpp \
+    ../src/mpc_fpga_top.cpp \
+    -lm -o test_fpga_csim_drive
+./test_fpga_csim_drive
 ```
 
-Validated synthesis result for this profile:
-- Estimated Fmax: 204.79 MHz
-- Top latency: 19,935 cycles
-- Estimated runtime from cycles/Fmax: 97.34 us
+The `-I .../Vitis/include` path supplies the `ap_fixed.h` headers; replace
+it with whichever Vitis 2025.2 include directory is available on the build
+host.
 
-Targeted exploration note:
-- Additional sweeps were run to balance max frequency and cycle count for minimum end-to-end latency.
-- Structural refinements include packed state-constraint masking (`x_con_mask`) and AP-fixed profile tuning.
-- This profile is now reflected in `scripts/run_hls.tcl` default synthesis settings.
-- Sweep logs:
-    - `logs/hls_targeted_sweep.csv`
-    - `logs/hls_targeted_sweep_phase2.csv`
-    - `logs/hls_targeted_sweep_phase3.csv`
+## Transport Contract
 
-Export the same profile for Vivado IP integration:
+The host packs the kernel input as a contiguous block of 32-bit words on
+`gmem0` (512-bit AXI-MM), and the kernel writes one 128-bit beat to
+`gmem1`. The layout is defined in
+[`include/mpc_fpga_interface.h`](include/mpc_fpga_interface.h):
 
-```bash
-cd FPGA_Implementations/MPC_FPGA_Kria
-source /tools/Xilinx/2025.1/Vitis/settings64.sh
+### Input — 8 header words + `MPC_HORIZON × 8` reference words
 
-HLS_RUN_MODE=export \
-vitis-run --mode hls --tcl scripts/run_hls.tcl
+| Offset (32-bit words) | Field           | Encoding                       |
+|-----------------------|-----------------|--------------------------------|
+| 0                     | `e_y`           | raw Q14.18 (signed `int32`)    |
+| 1                     | `e_psi`         | raw Q14.18                     |
+| 2                     | `vx`            | raw Q14.18                     |
+| 3                     | `vy`            | raw Q14.18                     |
+| 4                     | `omega`         | raw Q14.18                     |
+| 5                     | `steering`      | raw Q14.18                     |
+| 6                     | `control_flags` | bitmask (see below)            |
+| 7                     | `prev_accel`    | raw Q14.18                     |
+| 8 + 8·i + 0..7        | step `i` refs   | `ref_ey, ref_epsi, ref_vx, ref_vy, ref_omega_ref, ref_kappa, ref_left, ref_right` |
+
+Total payload: `8 + 20 × 8 = 168` 32-bit words = 672 B, transferred as
+eleven 512-bit beats (the buffer is rounded up to a multiple of 16 lanes
+per `INPUT_BUFFER_WORDS_512`).
+
+Control flags (`mpc_fpga_interface.h`):
+
+| Flag                                | Meaning                              |
+|-------------------------------------|--------------------------------------|
+| `MPC_FPGA_CTRL_FLAG_RESET_STATE`    | Clear persistent solver state        |
+| `MPC_FPGA_CTRL_FLAG_FORCE_COLD_START`| Discard warm-start trajectory       |
+| `MPC_FPGA_CTRL_FLAG_ZERO_DUALS`     | Zero ADMM duals before solve         |
+| `MPC_FPGA_CTRL_FLAG_DEBUG_ECHO_INPUTS`| Bypass solver, echo header to gmem1|
+
+### Output — single 128-bit beat on `gmem1`
+
+| Lane (32-bit) | Field            | Encoding                          |
+|---------------|------------------|-----------------------------------|
+| 0             | `steering_fp`    | raw Q14.18                        |
+| 1             | `accel_fp`       | raw Q14.18                        |
+| 2             | `status`         | `MPC_FPGA_STATUS_{OK,MAX_ITER,NO_TRAJECTORY}` |
+| 3             | `iterations`     | ADMM iterations used              |
+
+### Fixed-point conversion
+
+```c
+/* float → raw QP (Q14.18) */
+int32_t raw = (int32_t)(value * MPC_FPGA_QP_SCALE_F64);
+/* raw QP → float */
+float value = (float)raw / MPC_FPGA_QP_SCALE_F32;
 ```
 
-Exported IP package (latest run):
-- `mpc_fpga_hls/kria_kv260/impl/ip/f1tenth_mpc_mpc_fpga_top_1_0.zip`
+`MPC_FPGA_QP_SCALE_I32 = 1 << 18 = 262 144`. Representable range:
+±2¹³ ≈ ±8192; resolution: 1/262 144 ≈ 3.8·10⁻⁶.
 
-### GCC Testbench (quick validation)
+Frenet errors `e_y` and `e_psi` are computed host-side before packing — the
+kernel never sees a world-frame pose.
 
-```bash
-cd FPGA_Implementations/MPC_FPGA_Kria
-gcc -O2 -I include -Wno-unknown-pragmas -c testbench/test_fpga_sim_drive.c -o test_fpga_sim_drive.o
-g++ -O2 -I include -Wno-unknown-pragmas -x c++ -c src/riccati_solver_hls.cpp -o riccati_solver_hls.o
-g++ -O2 -I include -Wno-unknown-pragmas -x c++ -c src/mpc_riccati_hls.cpp -o mpc_riccati_hls.o
-g++ -O2 -I include -Wno-unknown-pragmas -x c++ -c src/vehicle_model_hls.cpp -o vehicle_model_hls.o
-g++ -O2 -I include -Wno-unknown-pragmas -x c++ -c src/fp_math_hls.cpp -o fp_math_hls.o
-g++ -O2 -I include -Wno-unknown-pragmas -x c++ -c src/mpc_fpga_top.cpp -o mpc_fpga_top.o
-g++ -o test_fpga_sim \
-    test_fpga_sim_drive.o \
-    mpc_fpga_top.o \
-    mpc_riccati_hls.o \
-    riccati_solver_hls.o \
-    vehicle_model_hls.o \
-    fp_math_hls.o \
-    -lm
-./test_fpga_sim
-```
+## Results
 
-All core sources are compiled as C++ for AP-native type support and HLS compatibility.
+The numbers below are read directly from the synthesis and Vivado
+implementation reports of the kernel in
+[`MPC_FPGA/mpc_fpga_top_opencl/reports/`](MPC_FPGA/mpc_fpga_top_opencl/reports/)
+and from
+[`MPC_system/latest_impl/IMPLEMENTATION_VERIFICATION.md`](MPC_system/latest_impl/IMPLEMENTATION_VERIFICATION.md).
 
-### Vivado Implementation and Bitstream
+### Latency (RTL cosim, Verilog, `hls_cosim.rpt`)
 
-1. Generate the HLS IP package:
+| Case | Cycles | Wall-clock @ 200 MHz |
+|------|--------|----------------------|
+| min  | 5 007  | **25.0 µs**          |
+| avg  | 6 838  | **34.2 µs**          |
+| max  | 12 898 | **64.5 µs**          |
 
-```bash
-cd FPGA_Implementations/MPC_FPGA_Kria
-HLS_RUN_MODE=export vitis-run --mode hls --tcl scripts/run_hls.tcl
-```
+Comfortably within the 5 ms control period (200 Hz) and the 30 ms
+prediction step.
 
-2. Open Vivado GUI and add this IP repository:
-    `FPGA_Implementations/MPC_FPGA_Kria/mpc_fpga_hls/kria_kv260/impl/ip`
-3. Add the packaged core (`mpc_fpga_top`) to your block design and connect AXI,
-    clocks, resets, and interrupt as needed.
-4. Run Vivado flow: Generate Output Products → Synthesis → Implementation →
-    Generate Bitstream.
+### Timing closure (Vivado, post-route)
 
-## Interface
+Target period: 5.000 ns (200 MHz). Post-route WNS = **+0.038 ns**, TNS =
+0.000 ns, WHS = +0.010 ns → **timing met**.
 
-### AXI-Stream Compute Interface
+### Resource utilization (Vivado, post-route, `hls_impl_pnr.rpt`)
 
-The HLS top consumes packed 128-bit stream words on `input_stream`. The
-scalar wrapper `mpc_fpga_top_scalar` is only used by the standalone simulation
-harness.
+| Resource | Used   | Available (K26) | Utilization |
+|----------|--------|-----------------|-------------|
+| LUT      | 53 901 | 117 120         | 46.0 %      |
+| FF       | 63 915 | 234 240         | 27.3 %      |
+| DSP      | 1 086  | 1 248           | 87.0 %      |
+| BRAM_18K | 99     | 288             | 34.4 %      |
+| URAM     | 0      | 64              | 0 %         |
 
-1. Pack beat 0 as `[e_y | e_psi | vx | vy]`
-2. Pack beat 1 as `[omega | steering | horizon_length | prev_accel]`
-3. Pack words 8.. as repeated per-step groups:
-   `[ref_ey | ref_vx | ref_kappa | ref_left | ref_right]`
-4. Trigger `ap_start` and read `out_steering_fp`, `out_accel_fp`,
-   `out_status`, and `out_iterations`
+The DSP utilization is the binding constraint and reflects the per-stage
+Pacejka linearization and the `ap_fixed<32,14>` multiplies in the Riccati
+pass.
 
-**Note:** Frenet errors (`e_y`, `e_psi`) must be computed on the ARM/CPU side
-using the vehicle's localized pose and the first reference waypoint. The FPGA
-expects pre-computed Frenet frame errors, not world-frame coordinates.
+## CPU/FPGA Parity
 
-### AXI-Lite Register Map
+The CPU MPC ([../../MPC/](../../MPC/)) and the FPGA kernel share:
 
-Registers are auto-generated by Vitis HLS from the `s_axilite` pragmas.
-See `include/mpc_fpga_interface.h` for offsets (matches generated driver
-`mpc_fpga_hls/kria_kv260/impl/misc/drivers/mpc_fpga_top_v1_0/src/xmpc_fpga_top_hw.h`).
+- the same horizon and prediction step (`PREDICTION_HORIZON = 20`,
+  `PREDICTION_DT_SECONDS = 0.03 f`),
+- the same vehicle parameters (`mpc_fpga_constants.h` mirrors the CPU
+  defines), and
+- the same Q14.18 transport format on the wire.
 
-## Resource Estimates
-
-| Resource | Estimated Usage | Available (legacy ZU3EG ref) | Utilization |
-|----------|----------------|--------------------|----|
-| LUT | ~25,000 | 70,560 | ~35% |
-| FF | ~15,000 | 141,120 | ~11% |
-| DSP48E2 | ~80–120 | 360 | ~22–33% |
-| BRAM (36Kb) | ~25 | 216 | ~12% |
-
-*Estimates based on solver complexity. Re-run synthesis on the K26 target and
-use generated reports as the source of truth.*
-
-### BRAM Breakdown
-
-| Array | Size | BRAMs (36Kb) |
-|-------|------|------|
-| trajectory[64] | 2 KB | 1 |
-| step_data[20] | 11 KB | 3 |
-| ADMM state | 2 KB | 1 |
-| K gains + misc | 2 KB | 1 |
-| **Total** | **~47 KB** | **~13** |
-
-## Latency Estimates (100 MHz)
-
-| Case | ADMM Iters | Latency |
-|------|-----------|---------|
-| Warm-start (typical) | 5–10 | 0.8–1.6 ms |
-| Cold-start | 20–30 | 3.2–4.8 ms |
-| Worst case | 50 (max) | ~8 ms |
-
-All cases well within the 5 ms control period (200 Hz).
-
-For runtime-tunable weights, add AXI-Lite registers (increases resource usage).
+`include/mpc_cpu_compat.h` exposes the kernel's solver through a CPU-side
+API so the test harnesses in
+[`../../tools/mpc_replay/`](../../tools/mpc_replay/) can replay logged
+trajectories through the FPGA solver without an actual FPGA in the loop.
