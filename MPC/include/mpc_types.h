@@ -73,7 +73,7 @@
  * implementation (FPGA_Implementations/MPC_FPGA_Kria) so CPU and FPGA make the
  * same cold-start decisions on identical input. Do not diverge these without
  * updating mpc_fpga_types.h to match. */
-#define MPC_WS_CURVATURE_THRESH 0.25f                    /* Curvature jump that forces a cold start (matches FPGA MPC_WS_CURVATURE_THRESH). */
+#define MPC_WS_CURVATURE_THRESH 0.0f                    /* Curvature jump that forces a cold start (matches FPGA MPC_WS_CURVATURE_THRESH). */
 #define MPC_WS_BOUND_THRESH 0.05f                        /* Slack on ey box before a stale warm start is treated as bound-incompatible (matches FPGA). */
 #define MPC_MODEL_SIGNATURE 1                            /* Bumped when the augmented model changes; a mismatch forces a cold start (matches FPGA). */
 #define WARMSTART_CURVATURE_RESET_THRESHOLD MPC_WS_CURVATURE_THRESH /* Back-compat alias; prefer MPC_WS_CURVATURE_THRESH. */
@@ -405,6 +405,7 @@ typedef struct
     float tolerance;
     int max_iterations;
     int adaptive_rho;
+    int shared_rho;
 } RiccatiAdmmConfig_t;
 
 /**

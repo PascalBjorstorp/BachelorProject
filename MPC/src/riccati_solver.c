@@ -534,6 +534,7 @@ RiccatiStatus_t riccati_admm_solve(
     const float abs_tolerance = (tolerance > 1e-6f) ? tolerance : 1e-6f;
     const float rel_tolerance = 0.02f;
     const int adaptive_rho = config ? config->adaptive_rho : 1;
+    const int shared_rho = config ? config->shared_rho : 0;
 
     memset(&g_riccati_debug_last, 0, sizeof(g_riccati_debug_last));
     memset(&g_riccati_pass_debug_last, 0, sizeof(g_riccati_pass_debug_last));
@@ -543,11 +544,13 @@ RiccatiStatus_t riccati_admm_solve(
                     ? admm_state->rho : cfg_rho;
     float rho_u = (admm_state->initialized && admm_state->rho_u > 0.0f)
                     ? admm_state->rho_u : (cfg_rho_u > 0.0f ? cfg_rho_u : rho);
-    /* Align with FPGA profile clamp range. */
+    if (shared_rho) rho_u = rho;
+    /* Clamp initial penalties to the configured CPU/replay adaptive range. */
     if (rho < 1.0f) rho = 1.0f;
     if (rho_u < 1.0f) rho_u = 1.0f;
-    if (rho > 40.0f) rho = 40.0f;
-    if (rho_u > 40.0f) rho_u = 40.0f;
+    if (rho > 127.0f) rho = 127.0f;
+    if (rho_u > 127.0f) rho_u = 127.0f;
+    if (shared_rho) rho_u = rho;
     int max_iter = cfg_max_iter;
 
     /* ADMM variables (persistent buffers for warm-start reuse). */
@@ -903,22 +906,32 @@ RiccatiStatus_t riccati_admm_solve(
         if (adaptive_rho && iter > 0) {
             const float adapt_ratio_state = 2.0f;
             const float adapt_ratio_ctrl = 2.0f;
+            const float adapt_ratio_shared = 5.0f;
             const float rho_min = 1.0f;
-            const float rho_max = 80.0f;
+            const float rho_max = 127.0f;
 
             int scale_rho = 0;
             int scale_rho_u = 0;
 
-            if (state_primal > adapt_ratio_state * state_dual && rho <= rho_max) {
-                scale_rho = 1;
-            } else if (state_dual > adapt_ratio_state * state_primal && rho >= rho_min) {
-                scale_rho = -1;
-            }
+            if (shared_rho) {
+                if (primal_res > adapt_ratio_shared * dual_res && rho < rho_max) {
+                    scale_rho = 1;
+                } else if (dual_res > adapt_ratio_shared * primal_res && rho > rho_min) {
+                    scale_rho = -1;
+                }
+                scale_rho_u = scale_rho;
+            } else {
+                if (state_primal > adapt_ratio_state * state_dual && rho < rho_max) {
+                    scale_rho = 1;
+                } else if (state_dual > adapt_ratio_state * state_primal && rho > rho_min) {
+                    scale_rho = -1;
+                }
 
-            if (ctrl_primal > adapt_ratio_ctrl * ctrl_dual && rho_u <= rho_max) {
-                scale_rho_u = 1;
-            } else if (ctrl_dual > adapt_ratio_ctrl * ctrl_primal && rho_u >= rho_min) {
-                scale_rho_u = -1;
+                if (ctrl_primal > adapt_ratio_ctrl * ctrl_dual && rho_u < rho_max) {
+                    scale_rho_u = 1;
+                } else if (ctrl_dual > adapt_ratio_ctrl * ctrl_primal && rho_u > rho_min) {
+                    scale_rho_u = -1;
+                }
             }
 
             if (g_riccati_debug_trace_count > 0) {
@@ -931,29 +944,39 @@ RiccatiStatus_t riccati_admm_solve(
             /* Update penalties and rescale dual variables to keep rho*y invariant. */
             if (scale_rho != 0) {
                 if (scale_rho > 0) {
-                    rho *= 2.0f;
+                    rho *= 1.25f;
                     if (rho > rho_max) rho = rho_max;
                     for (int k = 0; k <= N; k++) {
                         for (int s = 0; s < nx; s++) {
                             if (x_is_constrained[k][s]) {
-                                y_x[k][s] *= 0.5f;
+                                y_x[k][s] *= 0.75f;
                             }
                         }
                     }
                 } else {
-                    rho *= 0.5f;
+                    rho *= 0.75f;
                     if (rho < rho_min) rho = rho_min;
                     for (int k = 0; k <= N; k++) {
                         for (int s = 0; s < nx; s++) {
                             if (x_is_constrained[k][s]) {
-                                y_x[k][s] *= 2.0f;
+                                y_x[k][s] *= 1.25f;
                             }
                         }
                     }
                 }
             }
 
-            if (scale_rho_u != 0) {
+            if (shared_rho) {
+                rho_u = rho;
+                if (scale_rho != 0) {
+                    const float y_u_scale = (scale_rho > 0) ? 0.5f : 2.0f;
+                    for (int k = 0; k < N; k++) {
+                        for (int a = 0; a < nu; a++) {
+                            y_u[k][a] *= y_u_scale;
+                        }
+                    }
+                }
+            } else if (scale_rho_u != 0) {
                 if (scale_rho_u > 0) {
                     rho_u *= 2.0f;
                     if (rho_u > rho_max) rho_u = rho_max;
@@ -977,7 +1000,7 @@ RiccatiStatus_t riccati_admm_solve(
 
     /* Save scalar warm-start metadata. Buffers are already updated in-place. */
     admm_state->rho = rho;
-    admm_state->rho_u = rho_u;
+    admm_state->rho_u = shared_rho ? rho : rho_u;
     admm_state->initialized = 1;
 
     g_riccati_debug_last.rho = rho;
