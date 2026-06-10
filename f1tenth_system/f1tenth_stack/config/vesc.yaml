@@ -203,7 +203,7 @@ ackermann_to_vesc_node:
 
     # Output clamps (amps). Set to match VESC config + desired feel.
     max_drive_current: 100.0
-    max_brake_current: 20.0
+    max_brake_current: 40.0
     max_regen_input_current: 10.0   # A (battery/input current limit during regen)
 
     # Slow-start parameters (used only in VEL_TO_ERPM mode).
