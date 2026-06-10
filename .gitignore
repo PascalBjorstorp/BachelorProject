@@ -148,6 +148,12 @@ MPC/test/tuning_results_*.csv
 MPC/test/full_sweep_output.txt
 MPC/test/tune_weights_old.py
 f1tenth_localization/Benchmark/localization_benchmark_*.csv
+f1tenth_localization/Benchmark/**/__pycache__/
+f1tenth_localization/Benchmark/**/*.pyc
+f1tenth_localization/Benchmark/bags/
+f1tenth_localization/Benchmark/Matlab/csv/
+f1tenth_localization/Benchmark/Matlab/plots/
+f1tenth_localization/Benchmark/Matlab/sim_benchmark/
 
 # =============================================
 # Parameter Experiment Data (large CSVs)
@@ -296,12 +302,7 @@ f1tenth_planning/trajectories/my_track_raceline_body_safe.csv
 output
 
 
-f1tenth_localization/Benchmark/Matlab/csv/*
-f1tenth_localization/Benchmark/bags/*
-f1tenth_localization/Benchmark/Matlab/plots/*
-f1tenth_localization/Benchmark/Matlab/csv/*
 ReportMaterial/
-f1tenth_localization/Benchmark/Matlab/sim_benchmark/*
 *.mcap
 
 # =============================================
